@@ -895,6 +895,14 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 		// Save results if compilation and reflection succeeded
 		if (Output.bSucceeded)
 		{
+			int32 RayTracingPayloadType = 0;
+			if (bIsRayTracingShader)
+			{
+				if (const FString* RTPayloadTypePtr = Input.Environment.GetDefinitions().Find(TEXT("RT_PAYLOAD_TYPE")))
+				{
+					RayTracingPayloadType = FCString::Atoi(**RTPayloadTypePtr);
+				}
+			}
 			auto PostSRTWriterCallback = [&](FMemoryWriter& Ar)
 			{
 				if (bIsRayTracingShader)
@@ -902,6 +910,7 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 					Ar << RayEntryPoint;
 					Ar << RayAnyHitEntryPoint;
 					Ar << RayIntersectionEntryPoint;
+					Ar << RayTracingPayloadType;
 				}
 			};
 

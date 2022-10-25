@@ -7,15 +7,15 @@
 #if RHI_RAYTRACING
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-IMPLEMENT_GLOBAL_SHADER( FOcclusionMainRG,		"/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf",		"OcclusionMainRG",				SF_RayGen);
-IMPLEMENT_GLOBAL_SHADER( FIntersectionMainRG,	"/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf",		"IntersectionMainRG",			SF_RayGen);
-IMPLEMENT_SHADER_TYPE(, FIntersectionMainCHS,	TEXT("/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf"), TEXT("IntersectionMainCHS"),	SF_RayHitGroup);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FOcclusionMainRG,		"/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf",		"OcclusionMainRG",				SF_RayGen, ERayTracingPayloadType::Minimal);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FIntersectionMainRG,	"/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf",		"IntersectionMainRG",			SF_RayGen, ERayTracingPayloadType::Minimal);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FIntersectionMainCHS,	"/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "IntersectionMainCHS",	SF_RayHitGroup, ERayTracingPayloadType::Minimal);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-IMPLEMENT_SHADER_TYPE(, FDefaultMainCHS,		TEXT("/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf"), TEXT("DefaultMainCHS"),		SF_RayHitGroup);
-IMPLEMENT_SHADER_TYPE(, FDefaultMainCHSOpaqueAHS, TEXT("/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf"), TEXT("closesthit=DefaultMainCHS anyhit=DefaultOpaqueAHS"), SF_RayHitGroup);
-IMPLEMENT_SHADER_TYPE(, FDefaultPayloadMS,		TEXT("/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf"), TEXT("DefaultPayloadMS"),			SF_RayMiss);
-IMPLEMENT_SHADER_TYPE(, FPackedMaterialClosestHitPayloadMS, TEXT("/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf"), TEXT("PackedMaterialClosestHitPayloadMS"), SF_RayMiss);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FDefaultMainCHS,		"/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "DefaultMainCHS",		SF_RayHitGroup, ERayTracingPayloadType::Minimal);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FDefaultMainCHSOpaqueAHS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "closesthit=DefaultMainCHS anyhit=DefaultOpaqueAHS", SF_RayHitGroup, ERayTracingPayloadType::Minimal);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FDefaultPayloadMS,		"/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "DefaultPayloadMS",			SF_RayMiss, ERayTracingPayloadType::Minimal);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER( FPackedMaterialClosestHitPayloadMS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "PackedMaterialClosestHitPayloadMS", SF_RayMiss, ERayTracingPayloadType::RayTracingMaterial);
 
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDispatchDescCS, "/Engine/Private/RayTracing/RayTracingDispatchDesc.usf", "RayTracingDispatchDescCS", SF_Compute);
 

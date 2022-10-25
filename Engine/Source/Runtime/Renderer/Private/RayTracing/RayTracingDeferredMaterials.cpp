@@ -44,7 +44,7 @@ class FRayTracingDeferredMaterialCHS : public FGlobalShader
 	using FParameters = FEmptyShaderParameters;
 };
 
-IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredMaterialCHS, "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialCHS", SF_RayHitGroup);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingDeferredMaterialCHS, "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialCHS", SF_RayHitGroup, ERayTracingPayloadType::Deferred);
 
 class FRayTracingDeferredMaterialMS : public FGlobalShader
 {
@@ -64,7 +64,7 @@ class FRayTracingDeferredMaterialMS : public FGlobalShader
 	using FParameters = FEmptyShaderParameters;
 };
 
-IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredMaterialMS, "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialMS", SF_RayMiss);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingDeferredMaterialMS, "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialMS", SF_RayMiss, ERayTracingPayloadType::Deferred);
 
 FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingDeferredMaterialGatherPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable)
 {

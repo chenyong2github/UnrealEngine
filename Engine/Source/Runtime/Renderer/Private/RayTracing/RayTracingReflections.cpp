@@ -337,7 +337,7 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FRayTracingReflectionsRGS, "/Engine/Private/RayTracing/RayTracingReflections.usf", "RayTracingReflectionsRGS", SF_RayGen);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingReflectionsRGS, "/Engine/Private/RayTracing/RayTracingReflections.usf", "RayTracingReflectionsRGS", SF_RayGen, ERayTracingPayloadType::RayTracingMaterial);
 
 class FSplitImaginaryReflectionGBufferCS : public FGlobalShader
 {

@@ -164,7 +164,7 @@ class FLumenRadianceCacheHardwareRayTracing : public FLumenHardwareRayTracingSha
 IMPLEMENT_LUMEN_RAYGEN_AND_COMPUTE_RAYTRACING_SHADERS(FLumenRadianceCacheHardwareRayTracing)
 
 IMPLEMENT_GLOBAL_SHADER(FLumenRadianceCacheHardwareRayTracingCS, "/Engine/Private/Lumen/LumenRadianceCacheHardwareRayTracing.usf", "LumenRadianceCacheHardwareRayTracingCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FLumenRadianceCacheHardwareRayTracingRGS, "/Engine/Private/Lumen/LumenRadianceCacheHardwareRayTracing.usf", "LumenRadianceCacheHardwareRayTracingRGS", SF_RayGen);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FLumenRadianceCacheHardwareRayTracingRGS, "/Engine/Private/Lumen/LumenRadianceCacheHardwareRayTracing.usf", "LumenRadianceCacheHardwareRayTracingRGS", SF_RayGen, ERayTracingPayloadType::LumenMinimal);
 
 class FLumenRadianceCacheHardwareRayTracingIndirectArgsCS : public FGlobalShader
 {

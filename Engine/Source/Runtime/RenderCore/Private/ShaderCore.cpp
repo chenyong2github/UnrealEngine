@@ -1700,6 +1700,7 @@ void AppendKeyStringShaderDependencies(
 		OutKeyString.Append(ShaderType->GetName());
 		OutKeyString.AppendInt(ShaderTypeDependency.PermutationId);
 		OutKeyString.AppendChar('_');
+		OutKeyString.AppendInt(static_cast<int32>(ShaderType->GetRayTracingPayloadType()));
 
 		// Add the type's source hash so that we can invalidate cached shaders when .usf changes are made
 		ShaderTypeDependency.SourceHash.AppendString(OutKeyString);

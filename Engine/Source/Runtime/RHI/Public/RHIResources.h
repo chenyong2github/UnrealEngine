@@ -659,6 +659,8 @@ class FRHIRayTracingShader : public FRHIShader
 {
 public:
 	explicit FRHIRayTracingShader(EShaderFrequency InFrequency) : FRHIShader(RRT_RayTracingShader, InFrequency) {}
+
+	int32 RayTracingPayloadType = 0; // This corresponds to the ERayTracingPayloadType enum associated with the shader
 };
 
 class FRHIRayGenShader : public FRHIRayTracingShader

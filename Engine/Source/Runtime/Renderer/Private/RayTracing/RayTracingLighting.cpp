@@ -360,7 +360,7 @@ class FRayTracingLightingMS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FRayTracingLightingMS, "/Engine/Private/RayTracing/RayTracingLightingMS.usf", "RayTracingLightingMS", SF_RayMiss);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingLightingMS, "/Engine/Private/RayTracing/RayTracingLightingMS.usf", "RayTracingLightingMS", SF_RayMiss, ERayTracingPayloadType::RayTracingMaterial);
 
 /**
  * FLightFunctionParametersRayTracing
@@ -476,7 +476,7 @@ private:
 	LAYOUT_FIELD(FShaderUniformBufferParameter, LightDataPacked);
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FLightFunctionRayTracingShader, TEXT("/Engine/Private/RayTracing/RayTracingLightingMS.usf"), TEXT("RayTracingLightingMS"), SF_RayMiss);
+IMPLEMENT_MATERIAL_RAYTRACING_SHADER_TYPE(, FLightFunctionRayTracingShader, TEXT("/Engine/Private/RayTracing/RayTracingLightingMS.usf"), TEXT("RayTracingLightingMS"), SF_RayMiss, ERayTracingPayloadType::RayTracingMaterial);
 
 FRayTracingLightFunctionMap GatherLightFunctionLights(FScene* Scene, const FEngineShowFlags EngineShowFlags, ERHIFeatureLevel::Type InFeatureLevel)
 {

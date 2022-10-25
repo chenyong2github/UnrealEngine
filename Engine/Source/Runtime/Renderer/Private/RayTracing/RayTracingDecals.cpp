@@ -199,7 +199,7 @@ private:
 	LAYOUT_FIELD(FShaderUniformBufferParameter, DecalParameter);
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FRayTracingDecalMaterialShader, TEXT("/Engine/Private/RayTracing/RayTracingDecalMaterialShader.usf"), TEXT("RayTracingDecalMaterialShader"), SF_RayCallable);
+IMPLEMENT_RAYTRACING_SHADER_TYPE(, FRayTracingDecalMaterialShader, TEXT("/Engine/Private/RayTracing/RayTracingDecalMaterialShader.usf"), TEXT("RayTracingDecalMaterialShader"), SF_RayCallable, ERayTracingPayloadType::Decals);
 
 void BuildDecalGrid(FRDGBuilder& GraphBuilder, uint32 NumDecals, FRDGBufferSRVRef DecalsSRV, FRayTracingDecals& OutParameters)
 {

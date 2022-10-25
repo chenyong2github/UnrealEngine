@@ -763,7 +763,7 @@ class FPathTracingRG : public FGlobalShader
 		RDG_BUFFER_ACCESS(PathTracingIndirectArgs, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute)
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FPathTracingRG, "/Engine/Private/PathTracing/PathTracing.usf", "PathTracingMainRG", SF_RayGen);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FPathTracingRG, "/Engine/Private/PathTracing/PathTracing.usf", "PathTracingMainRG", SF_RayGen, ERayTracingPayloadType::PathTracingMaterial | ERayTracingPayloadType::Decals);
 
 class FPathTracingInitExtinctionCoefficientRG : public FGlobalShader
 {
@@ -781,7 +781,7 @@ class FPathTracingInitExtinctionCoefficientRG : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, RWStartingExtinctionCoefficient)
 	END_SHADER_PARAMETER_STRUCT()
 };
-IMPLEMENT_GLOBAL_SHADER(FPathTracingInitExtinctionCoefficientRG, "/Engine/Private/PathTracing/PathTracingInitExtinctionCoefficient.usf", "PathTracingInitExtinctionCoefficientRG", SF_RayGen);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FPathTracingInitExtinctionCoefficientRG, "/Engine/Private/PathTracing/PathTracingInitExtinctionCoefficient.usf", "PathTracingInitExtinctionCoefficientRG", SF_RayGen, ERayTracingPayloadType::PathTracingMaterial);
 
 class FPathTracingIESAtlasCS : public FGlobalShader
 {
@@ -884,7 +884,7 @@ public:
 	{
 	}
 };
-IMPLEMENT_SHADER_TYPE(, FPathTracingDefaultMS, TEXT("/Engine/Private/PathTracing/PathTracingMissShader.usf"), TEXT("PathTracingDefaultMS"), SF_RayMiss);
+IMPLEMENT_RAYTRACING_SHADER_TYPE(, FPathTracingDefaultMS, TEXT("/Engine/Private/PathTracing/PathTracingMissShader.usf"), TEXT("PathTracingDefaultMS"), SF_RayMiss, ERayTracingPayloadType::PathTracingMaterial);
 
 FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetPathTracingDefaultMissShader(const FViewInfo& View)
 {
@@ -986,7 +986,7 @@ public:
 	}
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FPathTracingLightingMS, TEXT("/Engine/Private/PathTracing/PathTracingLightingMissShader.usf"), TEXT("PathTracingLightingMS"), SF_RayMiss);
+IMPLEMENT_MATERIAL_RAYTRACING_SHADER_TYPE(, FPathTracingLightingMS, TEXT("/Engine/Private/PathTracing/PathTracingLightingMissShader.usf"), TEXT("PathTracingLightingMS"), SF_RayMiss, ERayTracingPayloadType::PathTracingMaterial);
 
 
 static void BindLightFunction(
@@ -1206,13 +1206,55 @@ using FPathTracingMaterialCHS_AHS_IS = TPathTracingMaterial<true , true , false>
 using FGPULightmassCHS               = TPathTracingMaterial<false, false, true>;
 using FGPULightmassCHS_AHS           = TPathTracingMaterial<true , false, true>;
 
+IMPLEMENT_MATERIAL_RAYTRACING_SHADER_TYPE(template <>, FPathTracingMaterialCHS       , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS"), SF_RayHitGroup, ERayTracingPayloadType::PathTracingMaterial);
+IMPLEMENT_MATERIAL_RAYTRACING_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS   , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS"), SF_RayHitGroup, ERayTracingPayloadType::PathTracingMaterial);
+IMPLEMENT_MATERIAL_RAYTRACING_SHADER_TYPE(template <>, FPathTracingMaterialCHS_IS    , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS intersection=MaterialIS"), SF_RayHitGroup, ERayTracingPayloadType::PathTracingMaterial);
+IMPLEMENT_MATERIAL_RAYTRACING_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS_IS, TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS intersection=MaterialIS"), SF_RayHitGroup, ERayTracingPayloadType::PathTracingMaterial);
+IMPLEMENT_MATERIAL_RAYTRACING_SHADER_TYPE(template <>, FGPULightmassCHS              , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS"), SF_RayHitGroup, ERayTracingPayloadType::PathTracingMaterial);
+IMPLEMENT_MATERIAL_RAYTRACING_SHADER_TYPE(template <>, FGPULightmassCHS_AHS          , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS"), SF_RayHitGroup, ERayTracingPayloadType::PathTracingMaterial);
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS       , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS"), SF_RayHitGroup);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS   , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS"), SF_RayHitGroup);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_IS    , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS intersection=MaterialIS"), SF_RayHitGroup);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FPathTracingMaterialCHS_AHS_IS, TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS intersection=MaterialIS"), SF_RayHitGroup);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FGPULightmassCHS              , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS"), SF_RayHitGroup);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template <>, FGPULightmassCHS_AHS          , TEXT("/Engine/Private/PathTracing/PathTracingMaterialHitShader.usf"), TEXT("closesthit=PathTracingMaterialCHS anyhit=PathTracingMaterialAHS"), SF_RayHitGroup);
+class FPathTracingDefaultOpaqueHitGroup : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FPathTracingDefaultOpaqueHitGroup)
+	SHADER_USE_ROOT_PARAMETER_STRUCT(FPathTracingDefaultOpaqueHitGroup, FGlobalShader)
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		// Technically should be if either PT or GPULM are enabled.
+		// Make a utility function for this?
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	using FParameters = FEmptyShaderParameters;
+};
+
+class FPathTracingDefaultHiddenHitGroup : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FPathTracingDefaultHiddenHitGroup)
+	SHADER_USE_ROOT_PARAMETER_STRUCT(FPathTracingDefaultHiddenHitGroup, FGlobalShader)
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		// Technically should be if either PT or GPULM are enabled.
+		// Make a utility function for this?
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	using FParameters = FEmptyShaderParameters;
+};
+
+IMPLEMENT_RAYTRACING_SHADER_TYPE(, FPathTracingDefaultOpaqueHitGroup, TEXT("/Engine/Private/PathTracing/PathTracingDefaultHitShader.usf"), TEXT("closesthit=PathTracingDefaultOpaqueCHS"), SF_RayHitGroup, ERayTracingPayloadType::PathTracingMaterial);
+IMPLEMENT_RAYTRACING_SHADER_TYPE(, FPathTracingDefaultHiddenHitGroup, TEXT("/Engine/Private/PathTracing/PathTracingDefaultHitShader.usf"), TEXT("closesthit=PathTracingDefaultHiddenCHS anyhit=PathTracingDefaultHiddenAHS"), SF_RayHitGroup, ERayTracingPayloadType::PathTracingMaterial);
+
+FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetPathTracingDefaultOpaqueHitShader(const FViewInfo& View)
+{
+	return View.ShaderMap->GetShader<FPathTracingDefaultOpaqueHitGroup>().GetRayTracingShader();
+}
+
+FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetPathTracingDefaultHiddenHitShader(const FViewInfo& View)
+{
+	return View.ShaderMap->GetShader<FPathTracingDefaultHiddenHitGroup>().GetRayTracingShader();
+}
 
 bool FRayTracingMeshProcessor::ProcessPathTracing(
 	const FMeshBatch& RESTRICT MeshBatch,
@@ -2291,8 +2333,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			for (int32 GPUIndex : GPUMask)
 			{
 				RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::FromIndex(GPUIndex));
+				RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, NumGPUs > 1, "Path Tracing GPU%d", GPUIndex);
 #if WITH_MGPU
-				RDG_EVENT_SCOPE(GraphBuilder, "Path Tracing GPU%d", GPUIndex);
 				RDG_GPU_STAT_SCOPE(GraphBuilder, Stat_GPU_PathTracing);
 #endif
 				for (int32 TileY = 0; TileY < DispatchResY; TileY += DispatchSize)

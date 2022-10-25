@@ -29,7 +29,7 @@ class FRayTracingBarycentricsRGS : public FGlobalShader
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FRayTracingBarycentricsRGS, "/Engine/Private/RayTracing/RayTracingBarycentrics.usf", "RayTracingBarycentricsMainRGS", SF_RayGen);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingBarycentricsRGS, "/Engine/Private/RayTracing/RayTracingBarycentrics.usf", "RayTracingBarycentricsMainRGS", SF_RayGen, ERayTracingPayloadType::Default);
 
 // Example closest hit shader
 class FRayTracingBarycentricsCHS : public FGlobalShader
@@ -51,7 +51,7 @@ class FRayTracingBarycentricsCHS : public FGlobalShader
 		: FGlobalShader(Initializer)
 	{}
 };
-IMPLEMENT_SHADER_TYPE(, FRayTracingBarycentricsCHS, TEXT("/Engine/Private/RayTracing/RayTracingBarycentrics.usf"), TEXT("RayTracingBarycentricsMainCHS"), SF_RayHitGroup);
+IMPLEMENT_RAYTRACING_SHADER_TYPE(, FRayTracingBarycentricsCHS, TEXT("/Engine/Private/RayTracing/RayTracingBarycentrics.usf"), TEXT("RayTracingBarycentricsMainCHS"), SF_RayHitGroup, ERayTracingPayloadType::Default);
 
 class FRayTracingBarycentricsCS : public FGlobalShader
 {

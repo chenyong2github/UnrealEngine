@@ -304,7 +304,9 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("ENABLE_TWO_SIDED_GEOMETRY"), 1); // Always using double-sided ray tracing for shadow rays
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredReflectionsRGS, "/Engine/Private/RayTracing/RayTracingDeferredReflections.usf", "RayTracingDeferredReflectionsRGS", SF_RayGen);
+// TODO: In theory only one payload is used at a time here. This would require making the PayloadType a function of the permutation ID.
+//    The simplest fix is to turn the FDeferredMaterialMode permutation parameter into an ordinary template so we can instantiate it the right number of times here.
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingDeferredReflectionsRGS, "/Engine/Private/RayTracing/RayTracingDeferredReflections.usf", "RayTracingDeferredReflectionsRGS", SF_RayGen, ERayTracingPayloadType::Deferred | ERayTracingPayloadType::RayTracingMaterial);
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingDeferredReflections(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {

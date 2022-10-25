@@ -178,7 +178,7 @@ class FOcclusionRGS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-IMPLEMENT_GLOBAL_SHADER(FOcclusionRGS, "/Engine/Private/RayTracing/RayTracingOcclusionRGS.usf", "OcclusionRGS", SF_RayGen);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FOcclusionRGS, "/Engine/Private/RayTracing/RayTracingOcclusionRGS.usf", "OcclusionRGS", SF_RayGen, ERayTracingPayloadType::RayTracingMaterial);
 
 float GetRaytracingMaxNormalBias()
 {

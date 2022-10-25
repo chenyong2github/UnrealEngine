@@ -460,7 +460,7 @@ class FGlobalIlluminationRGS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-IMPLEMENT_GLOBAL_SHADER(FGlobalIlluminationRGS, "/Engine/Private/RayTracing/RayTracingGlobalIlluminationRGS.usf", "GlobalIlluminationRGS", SF_RayGen);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FGlobalIlluminationRGS, "/Engine/Private/RayTracing/RayTracingGlobalIlluminationRGS.usf", "GlobalIlluminationRGS", SF_RayGen, ERayTracingPayloadType::RayTracingMaterial | ERayTracingPayloadType::Deferred);
 
 // Note: This constant must match the definition in RayTracingGatherPoints.ush
 constexpr int32 MAXIMUM_GATHER_POINTS_PER_PIXEL = 32;
@@ -535,7 +535,7 @@ class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-IMPLEMENT_GLOBAL_SHADER(FRayTracingGlobalIlluminationCreateGatherPointsRGS, "/Engine/Private/RayTracing/RayTracingCreateGatherPointsRGS.usf", "RayTracingCreateGatherPointsRGS", SF_RayGen);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingGlobalIlluminationCreateGatherPointsRGS, "/Engine/Private/RayTracing/RayTracingCreateGatherPointsRGS.usf", "RayTracingCreateGatherPointsRGS", SF_RayGen, ERayTracingPayloadType::Deferred | ERayTracingPayloadType::RayTracingMaterial);
 
 // Auxillary gather point data for reprojection
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FGatherPointData, )
@@ -600,7 +600,7 @@ class FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS : public FGlobalSh
 		END_SHADER_PARAMETER_STRUCT()
 };
 
-IMPLEMENT_GLOBAL_SHADER(FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS, "/Engine/Private/RayTracing/RayTracingCreateGatherPointsRGS.usf", "RayTracingCreateGatherPointsTraceRGS", SF_RayGen);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS, "/Engine/Private/RayTracing/RayTracingCreateGatherPointsRGS.usf", "RayTracingCreateGatherPointsTraceRGS", SF_RayGen, ERayTracingPayloadType::RayTracingMaterial | ERayTracingPayloadType::Deferred);
 
 class FRayTracingGlobalIlluminationFinalGatherRGS : public FGlobalShader
 {
@@ -652,7 +652,7 @@ class FRayTracingGlobalIlluminationFinalGatherRGS : public FGlobalShader
 		END_SHADER_PARAMETER_STRUCT()
 };
 
-IMPLEMENT_GLOBAL_SHADER(FRayTracingGlobalIlluminationFinalGatherRGS, "/Engine/Private/RayTracing/RayTracingFinalGatherRGS.usf", "RayTracingFinalGatherRGS", SF_RayGen);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingGlobalIlluminationFinalGatherRGS, "/Engine/Private/RayTracing/RayTracingFinalGatherRGS.usf", "RayTracingFinalGatherRGS", SF_RayGen, ERayTracingPayloadType::RayTracingMaterial);
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingGlobalIllumination(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {

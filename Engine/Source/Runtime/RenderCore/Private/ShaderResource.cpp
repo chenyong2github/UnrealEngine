@@ -165,46 +165,49 @@ class FRayTracingShaderLibrary
 public:
 	uint32 AddShader(FRHIRayTracingShader* Shader)
 	{
+		const int32 PayloadIndex = FMath::CountTrailingZeros(Shader->RayTracingPayloadType);
 		FScopeLock Lock(&CS);
 
-		if (UnusedIndicies.Num() != 0)
+		if (UnusedIndicies[PayloadIndex].Num() != 0)
 		{
-			uint32 Index = UnusedIndicies.Pop(false);
-			checkSlow(Shaders[Index] == nullptr);
-			Shaders[Index] = Shader;
+			uint32 Index = UnusedIndicies[PayloadIndex].Pop(false);
+			checkSlow(Shaders[PayloadIndex][Index] == nullptr);
+			Shaders[PayloadIndex][Index] = Shader;
 			return Index;
 		}
 		else
 		{
-			Shaders.Add(Shader);
-			return Shaders.Num() - 1;
+			return Shaders[PayloadIndex].Add(Shader);
 		}
 	}
 
-	void RemoveShader(uint32 Index)
+	void RemoveShader(uint32 Index, FRHIRayTracingShader* Shader)
 	{
 		if (Index != ~0u)
 		{
+			const int32 PayloadIndex = FMath::CountTrailingZeros(Shader->RayTracingPayloadType);
 			FScopeLock Lock(&CS);
-			UnusedIndicies.Push(Index);
-			Shaders[Index] = nullptr;
+			checkSlow(Shaders[PayloadIndex][Index] == Shader);
+			UnusedIndicies[PayloadIndex].Push(Index);
+			Shaders[PayloadIndex][Index] = nullptr;
 		}
 	}
 
 	void GetShaders(TArray<FRHIRayTracingShader*>& OutShaders, FRHIRayTracingShader* DefaultShader)
 	{
+		const int32 PayloadIndex = FMath::CountTrailingZeros(DefaultShader->RayTracingPayloadType);
 		FScopeLock Lock(&CS);
-		OutShaders = Shaders;
+		OutShaders = Shaders[PayloadIndex];
 
-		for (uint32 Index : UnusedIndicies)
+		for (uint32 Index : UnusedIndicies[PayloadIndex])
 		{
 			OutShaders[Index] = DefaultShader;
 		}
 	}
 
 private:
-	TArray<uint32> UnusedIndicies;
-	TArray<FRHIRayTracingShader*> Shaders;
+	TArray<uint32> UnusedIndicies[32];
+	TArray<FRHIRayTracingShader*> Shaders[32];
 	FCriticalSection CS;
 };
 
@@ -553,13 +556,13 @@ void FShaderMapResource::ReleaseRHI()
 				switch (Shader->GetFrequency())
 				{
 				case SF_RayHitGroup:
-					GlobalRayTracingHitGroupLibrary.RemoveShader(IndexInLibrary);
+					GlobalRayTracingHitGroupLibrary.RemoveShader(IndexInLibrary, static_cast<FRHIRayTracingShader*>(Shader));
 					break;
 				case SF_RayCallable:
-					GlobalRayTracingCallableShaderLibrary.RemoveShader(IndexInLibrary);
+					GlobalRayTracingCallableShaderLibrary.RemoveShader(IndexInLibrary, static_cast<FRHIRayTracingShader*>(Shader));
 					break;
 				case SF_RayMiss:
-					GlobalRayTracingMissShaderLibrary.RemoveShader(IndexInLibrary);
+					GlobalRayTracingMissShaderLibrary.RemoveShader(IndexInLibrary, static_cast<FRHIRayTracingShader*>(Shader));
 					break;
 				default:
 					break;
@@ -604,6 +607,9 @@ FRHIShader* FShaderMapResource::CreateShader(int32 ShaderIndex)
 			break;
 		case SF_RayMiss:
 			RayTracingLibraryIndices[ShaderIndex] = GlobalRayTracingMissShaderLibrary.AddShader(static_cast<FRHIRayTracingShader*>(RHIShader.GetReference()));
+			break;
+		case SF_RayGen:
+			// NOTE: we do not maintain a library for raygen shaders since the list of rayshaders we care about is usually small and consistent
 			break;
 		default:
 			break;

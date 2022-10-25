@@ -216,8 +216,9 @@ FShaderType::FShaderType(
 	ShouldCompilePermutationType InShouldCompilePermutationRef,
 	ValidateCompiledResultType InValidateCompiledResultRef,
 	uint32 InTypeSize,
-	const FShaderParametersMetadata* InRootParametersMetadata
-	):
+	const FShaderParametersMetadata* InRootParametersMetadata,
+	ERayTracingPayloadType InRayTracingPayloadType
+):
 	ShaderTypeForDynamicCast(InShaderTypeForDynamicCast),
 	TypeLayout(&InTypeLayout),
 	Name(InName),
@@ -227,6 +228,7 @@ FShaderType::FShaderType(
 	SourceFilename(InSourceFilename),
 	FunctionName(InFunctionName),
 	Frequency(InFrequency),
+	RayTracingPayloadType(InRayTracingPayloadType),
 	TypeSize(InTypeSize),
 	TotalPermutationCount(InTotalPermutationCount),
 	ConstructSerializedRef(InConstructSerializedRef),
@@ -258,6 +260,33 @@ FShaderType::FShaderType(
 	TArray<FShaderType*>& SortedTypes = GetSortedShaderTypes(InShaderTypeForDynamicCast);
 	const int32 SortedIndex = Algo::LowerBoundBy(SortedTypes, HashedName, [](const FShaderType* InType) { return InType->GetHashedName(); });
 	SortedTypes.Insert(this, SortedIndex);
+
+#if RHI_RAYTRACING
+	switch (Frequency)
+	{
+		case SF_RayGen:
+		{
+			// Raygen shader can use any number of payloads, but must use at least one
+			checkf(RayTracingPayloadType != ERayTracingPayloadType::None, TEXT("Raygen shader %s did not declare which payload type(s) it uses. Consider using the IMPLEMENT_RAYTRACING_SHADER_TYPE macro."), InName);
+			break;
+		}
+		case SF_RayHitGroup:
+		case SF_RayMiss:
+		case SF_RayCallable:
+		{
+			// these shader types must know which payload type they are using
+			checkf(RayTracingPayloadType != ERayTracingPayloadType::None, TEXT("Raytracing shader %s did not declare which payload type(s) it uses. Consider using the IMPLEMENT_RAYTRACING_SHADER_TYPE macro."), InName);
+			checkf(FMath::CountBits(static_cast<uint32>(RayTracingPayloadType)) == 1, TEXT("Raytracing shader %s did not declare a unique payload type. Only one payload type is supported for this shader frequency."), InName);
+			break;
+		}
+		default:
+		{
+			// not a raytracing shader, specifying a payload type would suggest some confusion has occured
+			checkf(RayTracingPayloadType == ERayTracingPayloadType::None, TEXT("Non-Raytracing shader %s declared a payload type!"), InName);
+			break;
+		}
+	}
+#endif
 }
 
 FShaderType::~FShaderType()
@@ -376,6 +405,10 @@ bool FShaderType::ShouldCompilePermutation(const FShaderPermutationParameters& P
 void FShaderType::ModifyCompilationEnvironment(const FShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment) const
 {
 	(*ModifyCompilationEnvironmentRef)(Parameters, OutEnvironment);
+	if (RayTracingPayloadType != ERayTracingPayloadType::None)
+	{
+		OutEnvironment.SetDefine(TEXT("RT_PAYLOAD_TYPE"), static_cast<int32>(RayTracingPayloadType));
+	}
 }
 
 bool FShaderType::ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError) const

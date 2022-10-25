@@ -124,7 +124,7 @@ class FRayTracingDebugRGS : public FGlobalShader
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugRGS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugMainRGS", SF_RayGen);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingDebugRGS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugMainRGS", SF_RayGen, ERayTracingPayloadType::RayTracingMaterial | ERayTracingPayloadType::RayTracingDebug);
 
 class FRayTracingDebugCHS : public FGlobalShader
 {
@@ -147,7 +147,7 @@ public:
 		: FGlobalShader(Initializer)
 	{}
 };
-IMPLEMENT_SHADER_TYPE(, FRayTracingDebugCHS, TEXT("/Engine/Private/RayTracing/RayTracingDebug.usf"), TEXT("RayTracingDebugMainCHS"), SF_RayHitGroup);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingDebugCHS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugMainCHS", SF_RayHitGroup, ERayTracingPayloadType::RayTracingDebug);
 
 class FRayTracingDebugTraversalCS : public FGlobalShader
 {
@@ -224,7 +224,7 @@ class FRayTracingPickingRGS : public FGlobalShader
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FRayTracingPickingRGS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugPickingRGS", SF_RayGen);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingPickingRGS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugPickingRGS", SF_RayGen, ERayTracingPayloadType::RayTracingDebug);
 
 class FRayTracingDebugInstanceOverlapVS : public FGlobalShader
 {

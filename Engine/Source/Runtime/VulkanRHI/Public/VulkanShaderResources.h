@@ -183,6 +183,9 @@ struct FVulkanShaderHeader
 	// Mostly relevant for Vertex Shaders
 	uint32									InOutMask;
 
+	// Relevant for Ray Tracing Shaders
+	uint32                                  RayTracingPayloadType = 0;
+
 	FSHAHash								SourceHash;
 	uint32									SpirvCRC = 0;
 
@@ -285,6 +288,7 @@ inline FArchive& operator<<(FArchive& Ar, FVulkanShaderHeader& Header)
 	Ar << Header.EmulatedUBCopyRanges;
 	Ar << Header.EmulatedUBsCopyInfo;
 	Ar << Header.InOutMask;
+	Ar << Header.RayTracingPayloadType;
 	Ar << Header.SourceHash;
 	Ar << Header.SpirvCRC;
 	Ar << Header.UniformBufferSpirvInfos;

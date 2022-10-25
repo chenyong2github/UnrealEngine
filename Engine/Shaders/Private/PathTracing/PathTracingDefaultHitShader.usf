@@ -1,0 +1,25 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/RayTracing/RayTracingCommon.ush"
+#include "/Engine/Private/PathTracing/PathTracingCommon.ush"
+
+
+RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingDefaultOpaqueCHS,
+	FPackedPathTracingPayload, PackedPayload,
+	FRayTracingIntersectionAttributes, Attributes)
+{
+	PackedPayload.HitT = RayTCurrent();
+}
+
+RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingDefaultHiddenCHS,
+	FPackedPathTracingPayload, PackedPayload,
+	FRayTracingIntersectionAttributes, Attributes)
+{
+}
+
+RAY_TRACING_ENTRY_ANY_HIT(PathTracingDefaultHiddenAHS,
+	FPackedPathTracingPayload, PackedPayload,
+	FRayTracingIntersectionAttributes, Attributes)
+{
+	IgnoreHit();
+}
+

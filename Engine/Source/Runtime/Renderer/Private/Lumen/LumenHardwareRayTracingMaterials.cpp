@@ -33,7 +33,7 @@ class FLumenHardwareRayTracingMaterialCHS : public FGlobalShader
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FLumenHardwareRayTracingMaterialCHS, "/Engine/Private/Lumen/LumenHardwareRayTracingMaterials.usf", "LumenHardwareRayTracingMaterialCHS", SF_RayHitGroup);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FLumenHardwareRayTracingMaterialCHS, "/Engine/Private/Lumen/LumenHardwareRayTracingMaterials.usf", "LumenHardwareRayTracingMaterialCHS", SF_RayHitGroup, ERayTracingPayloadType::LumenMinimal);
 
 class FLumenHardwareRayTracingMaterialMS : public FGlobalShader
 {
@@ -53,7 +53,7 @@ class FLumenHardwareRayTracingMaterialMS : public FGlobalShader
 	using FParameters = FEmptyShaderParameters;
 };
 
-IMPLEMENT_GLOBAL_SHADER(FLumenHardwareRayTracingMaterialMS, "/Engine/Private/Lumen/LumenHardwareRayTracingMaterials.usf", "LumenHardwareRayTracingMaterialMS", SF_RayMiss);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FLumenHardwareRayTracingMaterialMS, "/Engine/Private/Lumen/LumenHardwareRayTracingMaterials.usf", "LumenHardwareRayTracingMaterialMS", SF_RayMiss, ERayTracingPayloadType::LumenMinimal);
 
 // TODO: This should be moved into FRayTracingScene and used as a base for other effects. There is not need for it to be Lumen specific.
 void BuildHardwareRayTracingHitGroupData(FRHICommandList& RHICmdList, FRayTracingScene& RayTracingScene, TArrayView<FRayTracingLocalShaderBindings> Bindings, FRHIBuffer* DstBuffer)

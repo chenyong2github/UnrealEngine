@@ -870,6 +870,12 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 	OutHeader.DebugName = OLDHeader.ShaderName;
 #endif
 	OutHeader.InOutMask = OLDHeader.SerializedBindings.InOutMask.Bitmask;
+
+	OutHeader.RayTracingPayloadType = 0;
+	if (const FString* RTPayloadTypePtr = ShaderInput.Environment.GetDefinitions().Find(TEXT("RT_PAYLOAD_TYPE")))
+	{
+		OutHeader.RayTracingPayloadType = FCString::Atoi(**RTPayloadTypePtr);
+	}
 }
 
 

@@ -55,7 +55,8 @@ public:
 		ShouldCompilePermutationType InShouldCompilePermutationRef,
 		ValidateCompiledResultType InValidateCompiledResultRef,
 		uint32 InTypeSize,
-		const FShaderParametersMetadata* InRootParametersMetadata = nullptr
+		const FShaderParametersMetadata* InRootParametersMetadata = nullptr,
+		ERayTracingPayloadType InRayTracingPayloadType = ERayTracingPayloadType::None
 		):
 		FShaderType(EShaderTypeForDynamicCast::MeshMaterial, InTypeLayout, InName,InSourceFilename,InFunctionName,InFrequency,InTotalPermutationCount,
 			InConstructSerializedRef,
@@ -64,7 +65,9 @@ public:
 			InShouldCompilePermutationRef,
 			InValidateCompiledResultRef,
 			InTypeSize,
-			InRootParametersMetadata)
+			InRootParametersMetadata,
+			InRayTracingPayloadType
+		)
 	{
 		checkf(FPaths::GetExtension(InSourceFilename) == TEXT("usf"),
 			TEXT("Incorrect virtual shader path extension for mesh material shader '%s': Only .usf files should be compiled."),

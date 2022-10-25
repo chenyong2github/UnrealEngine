@@ -335,7 +335,7 @@ public:
 	LAYOUT_FIELD(FShaderResourceParameter, Output) // UAV RWStructuredBuffer<uint>
 };
 
-IMPLEMENT_SHADER_TYPE(, FTestRaygenShader, TEXT("/Engine/Private/RayTracing/RayTracingTest.usf"), TEXT("TestMainRGS"), SF_RayGen);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FTestRaygenShader, "/Engine/Private/RayTracing/RayTracingTest.usf", "TestMainRGS", SF_RayGen, ERayTracingPayloadType::Minimal);
 
 
 bool FRayTracingTestbed::RunTest(const FString& Parameters)

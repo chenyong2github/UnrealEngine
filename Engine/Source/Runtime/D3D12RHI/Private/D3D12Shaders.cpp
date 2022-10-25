@@ -178,6 +178,13 @@ FRayTracingShaderRHIRef FD3D12DynamicRHI::RHICreateRayTracingShader(TArrayView<c
 	Ar << Shader->EntryPoint;
 	Ar << Shader->AnyHitEntryPoint;
 	Ar << Shader->IntersectionEntryPoint;
+	Ar << Shader->RayTracingPayloadType;
+
+	checkf(Shader->RayTracingPayloadType != 0, TEXT("Ray Tracing Shader must not have an empty payload type!"));
+	checkf(	(FMath::CountBits(Shader->RayTracingPayloadType) == 1 && (ShaderFrequency == SF_RayHitGroup || ShaderFrequency == SF_RayMiss || ShaderFrequency == SF_RayCallable)) ||
+			(FMath::CountBits(Shader->RayTracingPayloadType) >= 1 && (ShaderFrequency == SF_RayGen)),
+			TEXT("Ray Tracing Shader has %d bits set, which is not the expected count for shader frequency %d"), FMath::CountBits(Shader->RayTracingPayloadType), int(ShaderFrequency)
+	);
 
 	int32 Offset = Ar.Tell();
 

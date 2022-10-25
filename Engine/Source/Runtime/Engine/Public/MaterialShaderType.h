@@ -21,6 +21,9 @@
 		Frequency \
 		);
 
+#define IMPLEMENT_MATERIAL_RAYTRACING_SHADER_TYPE(TemplatePrefix, ShaderClass, SourceFilename, FunctionName, Frequency, RayTracingPayloadType) \
+	IMPLEMENT_RAYTRACING_SHADER_TYPE(TemplatePrefix, ShaderClass, SourceFilename, FunctionName, Frequency, RayTracingPayloadType)
+
 class FMaterial;
 class FMaterialShaderMap;
 class FShaderCommonCompileJob;
@@ -102,7 +105,8 @@ public:
 		ShouldCompilePermutationType InShouldCompilePermutationRef,
 		ValidateCompiledResultType InValidateCompiledResultRef,
 		uint32 InTypeSize,
-		const FShaderParametersMetadata* InRootParametersMetadata = nullptr
+		const FShaderParametersMetadata* InRootParametersMetadata = nullptr,
+		ERayTracingPayloadType InRayTracingPayloadType = ERayTracingPayloadType::None
 		):
 		FShaderType(EShaderTypeForDynamicCast::Material, InTypeLayout, InName, InSourceFilename, InFunctionName, InFrequency, InTotalPermutationCount,
 			InConstructSerializedRef,
@@ -111,7 +115,9 @@ public:
 			InShouldCompilePermutationRef,
 			InValidateCompiledResultRef,
 			InTypeSize,
-			InRootParametersMetadata)
+			InRootParametersMetadata,
+			InRayTracingPayloadType
+		)
 	{
 		checkf(FPaths::GetExtension(InSourceFilename) == TEXT("usf"),
 			TEXT("Incorrect virtual shader path extension for material shader '%s': Only .usf files should be compiled."),

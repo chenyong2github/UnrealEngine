@@ -61,6 +61,14 @@ ShaderType* FVulkanShaderFactory::CreateShader(TArrayView<const uint8> Code, FVu
 	{
 		RetShader = new ShaderType(Device);
 		RetShader->Setup(Code, ShaderKey);
+		if constexpr (
+			ShaderType::StaticFrequency == SF_RayCallable ||
+			ShaderType::StaticFrequency == SF_RayGen ||
+			ShaderType::StaticFrequency == SF_RayHitGroup ||
+			ShaderType::StaticFrequency == SF_RayMiss)
+		{
+			RetShader->RayTracingPayloadType = RetShader->CodeHeader.RayTracingPayloadType;
+		}
 			
 		FRWScopeLock ScopedLock(Lock, SLT_Write);
 		ShaderMap[ShaderType::StaticFrequency].Add(ShaderKey, RetShader);
