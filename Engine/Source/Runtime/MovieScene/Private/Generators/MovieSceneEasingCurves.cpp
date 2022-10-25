@@ -74,6 +74,8 @@ float UMovieSceneBuiltInEasingFunction::Evaluate(float Interp) const
 	case EMovieSceneBuiltInEasing::CubicOut: 	return PowOut(Interp,3);
 	case EMovieSceneBuiltInEasing::CubicInOut: 	return InTime < 1.f ? .5f*PowIn(InTime,3) : .5f + .5f*PowOut(OutTime,3);
 
+	case EMovieSceneBuiltInEasing::HermiteCubicInOut: return FMath::Clamp<float>(FMath::SmoothStep(0.0f, 1.0f, Interp), 0.0f, 1.0f);
+
 	case EMovieSceneBuiltInEasing::QuartIn: 	return PowIn(Interp,4);
 	case EMovieSceneBuiltInEasing::QuartOut: 	return PowOut(Interp,4);
 	case EMovieSceneBuiltInEasing::QuartInOut: 	return InTime < 1.f ? .5f*PowIn(InTime,4) : .5f + .5f*PowOut(OutTime,4);

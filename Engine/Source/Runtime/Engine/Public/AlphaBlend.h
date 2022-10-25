@@ -11,36 +11,21 @@ class UCurveFloat;
 UENUM()
 enum class EAlphaBlendOption : uint8
 {
-	// Linear interpolation
-	Linear = 0,
-	// Cubic-in interpolation
-	Cubic,
-	// Hermite-Cubic
-	HermiteCubic,
-	// Sinusoidal interpolation
-	Sinusoidal,
-	// Quadratic in-out interpolation
-	QuadraticInOut,
-	// Cubic in-out interpolation
-	CubicInOut,
-	// Quartic in-out interpolation
-	QuarticInOut,
-	// Quintic in-out interpolation
-	QuinticInOut,
-	// Circular-in interpolation
-	CircularIn,
-	// Circular-out interpolation
-	CircularOut,
-	// Circular in-out interpolation
-	CircularInOut,
-	// Exponential-in interpolation
-	ExpIn,
-	// Exponential-Out interpolation
-	ExpOut,
-	// Exponential in-out interpolation
-	ExpInOut,
-	// Custom interpolation, will use custom curve inside an FAlphaBlend or linear if none has been set
-	Custom,
+	Linear = 0 UMETA(Grouping = Linear, DisplayName = "Linear", ToolTip = "Linear interpolation"),
+	Cubic UMETA(Grouping = Cubic, DisplayName = "Cubic In", ToolTip = "Cubic-in interpolation"),
+	HermiteCubic UMETA(Grouping = Cubic, DisplayName = "Hermite-Cubic InOut", ToolTip = "Hermite-Cubic"),
+	Sinusoidal UMETA(Grouping = Sinusoidal, DisplayName = "Sinusoidal", ToolTip = "Sinusoidal interpolation"),
+	QuadraticInOut UMETA(Grouping = Quadratic, DisplayName = "Quadratic InOut", ToolTip = "Quadratic in-out interpolation"),
+	CubicInOut UMETA(Grouping = Cubic, DisplayName = "Cubic InOut", ToolTip = "Cubic in-out interpolation"),
+	QuarticInOut UMETA(Grouping = Quartic, DisplayName = "Quartic InOut", ToolTip = "Quartic in-out interpolation"),
+	QuinticInOut UMETA(Grouping = Quintic, DisplayName = "Quintic InOut", ToolTip = "Quintic in-out interpolation"),
+	CircularIn UMETA(Grouping = Circular, DisplayName = "Circular In", ToolTip = "Circular-in interpolation"),
+	CircularOut UMETA(Grouping = Circular, DisplayName = "Circular Out", ToolTip = "Circular-out interpolation"),
+	CircularInOut UMETA(Grouping = Circular, DisplayName = "Circular InOut", ToolTip = "Circular in-out interpolation"),
+	ExpIn UMETA(Grouping = Exponential, DisplayName = "Exponential In", ToolTip = "Exponential-in interpolation"),
+	ExpOut UMETA(Grouping = Exponential, DisplayName = "Exponential Out", ToolTip = "Exponential-Out interpolation"),
+	ExpInOut UMETA(Grouping = Exponential, DisplayName = "Exponential InOut", ToolTip = "Exponential in-out interpolation"),
+	Custom UMETA(Grouping = Custom, DisplayName = "Custom", ToolTip = "Custom interpolation, will use custom curve inside an FAlphaBlend or linear if none has been set"),
 };
 
 /**
