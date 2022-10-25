@@ -12,7 +12,6 @@
 #include "IConcertSyncClientModule.h"
 
 #include "Misc/AssertionMacros.h"
-#include "Oculus/LibOVRPlatform/LibOVRPlatform/include/OVR_LaunchBlockFlowResult.h"
 #include "Styling/SlateTypes.h"
 #include "Templates/SharedPointer.h"
 #include "Types/SlateEnums.h"
