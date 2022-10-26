@@ -44,6 +44,7 @@ inline EOS_ProductUserId EOSProductUserIdFromString(const TCHAR* String)
 }
 
 EOSSHARED_API FString LexToString(const EOS_EpicAccountId AccountId);
+EOSSHARED_API void LexFromString(EOS_EpicAccountId& AccountId, const TCHAR* String);
 
 EOSSHARED_API const TCHAR* LexToString(const EOS_EApplicationStatus ApplicationStatus);
 EOSSHARED_API const TCHAR* LexToString(const EOS_EAuthTokenType AuthTokenType);

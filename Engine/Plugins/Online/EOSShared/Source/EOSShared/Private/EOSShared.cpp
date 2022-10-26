@@ -52,6 +52,11 @@ FString LexToString(const EOS_EpicAccountId AccountId)
 	return Result;
 }
 
+void LexFromString(EOS_EpicAccountId& AccountId, const TCHAR* String)
+{
+	AccountId = EOS_EpicAccountId_FromString(TCHAR_TO_UTF8(String));
+}
+
 const TCHAR* LexToString(const EOS_EApplicationStatus ApplicationStatus)
 {
 	switch (ApplicationStatus)
