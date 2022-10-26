@@ -84,7 +84,7 @@ struct FSerializedTransform
 	}
 
 	FFrameNumber Time;
-	float Values[9];   //location, rotation, scale.
+	double Values[9];   //location, rotation, scale.
 };
 
 using FTransformSerializedFrame = TMovieSceneSerializedFrame<FSerializedTransform>;
