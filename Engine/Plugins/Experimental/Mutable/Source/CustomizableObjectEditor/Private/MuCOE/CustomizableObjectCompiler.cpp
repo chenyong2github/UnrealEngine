@@ -1032,31 +1032,31 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 		// to avoid a possibly expensive copy.
 		Object->ContributingMorphTargetsInfo = MoveTemp(GenerationContext.ContributingMorphTargetsInfo);
 		Object->MorphTargetReconstructionData = MoveTemp(GenerationContext.MorphTargetReconstructionData);
-
-		// Clothing	
-		Object->ClothMeshToMeshVertData = MoveTemp( GenerationContext.ClothMeshToMeshVertData );
 		
-		Object->ContributingClothingAssetsData = MoveTemp( GenerationContext.ContributingClothingAssetsData );
-
 		Object->SkinWeightProfilesInfo = MoveTemp(GenerationContext.SkinWeightProfilesInfo);
 		
+		// Clothing	
+		Object->ClothMeshToMeshVertData = MoveTemp(GenerationContext.ClothMeshToMeshVertData);
+		Object->ContributingClothingAssetsData = MoveTemp(GenerationContext.ContributingClothingAssetsData);
+		Object->ClothSharedConfigsData.Empty();
+
 		// A clothing backend, e.g. Chaos cloth, can use 2 config files, one owned by the asset, and another that is shared 
 		// among all assets in a SkeletalMesh. When merging different assets in a skeletalmesh we need to make sure only one of 
 		// the shared is used. In that case we will keep the first visited of a type and will be stored separated from the asset.
 		// TODO: Shared configs, which typically controls the quality of the simulation (iterations, etc), probably should be specified 
 		// somewhere else to give more control with which config ends up used. 
-		auto IsSharedConfigData = []( const FCustomizableObjectClothConfigData& ConfigData ) -> bool
+		auto IsSharedConfigData = [](const FCustomizableObjectClothConfigData& ConfigData) -> bool
 		{
 			 const UClass* ConfigClass = FindObject<UClass>(nullptr, *ConfigData.ClassPath);
 			 return ConfigClass ? static_cast<bool>( Cast<UClothSharedConfigCommon>(ConfigClass->GetDefaultObject() ) ) : false;
 		};
 		
 		// Find shared configs to be used (One of each type) 
-		for ( FCustomizableObjectClothingAssetData& ClothingAssetData : Object->ContributingClothingAssetsData )
+		for (FCustomizableObjectClothingAssetData& ClothingAssetData : Object->ContributingClothingAssetsData)
 		{
-			 for ( FCustomizableObjectClothConfigData& ClothConfigData : ClothingAssetData.ConfigsData )
+			 for (FCustomizableObjectClothConfigData& ClothConfigData : ClothingAssetData.ConfigsData)
 			 {
-				  if ( IsSharedConfigData( ClothConfigData ) )
+				  if (IsSharedConfigData(ClothConfigData))
 				  {
 					  FCustomizableObjectClothConfigData* FoundConfig = Object->ClothSharedConfigsData.FindByPredicate(
 						   [Name = ClothConfigData.ConfigName](const FCustomizableObjectClothConfigData& Other)
@@ -1066,15 +1066,14 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 
 					  if (!FoundConfig)
 					  {
-						   FCustomizableObjectClothConfigData& ObjectConfig = Object->ClothSharedConfigsData.AddDefaulted_GetRef();
-						   ObjectConfig = ClothConfigData;
+						   Object->ClothSharedConfigsData.AddDefaulted_GetRef() = ClothConfigData;
 					  }
 				  }
 			 }
 		}
 		
 		// Remove shared configs
-		for ( FCustomizableObjectClothingAssetData& ClothingAssetData : Object->ContributingClothingAssetsData )
+		for (FCustomizableObjectClothingAssetData& ClothingAssetData : Object->ContributingClothingAssetsData)
 		{
 			 ClothingAssetData.ConfigsData.RemoveAllSwap(IsSharedConfigData);
 		}

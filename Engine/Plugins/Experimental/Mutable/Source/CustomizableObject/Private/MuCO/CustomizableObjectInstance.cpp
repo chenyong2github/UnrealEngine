@@ -3080,7 +3080,6 @@ namespace
 
 }
 
-
 void UCustomizableInstancePrivateData::BuildClothingData(const TSharedPtr<FMutableOperationData>&OperationData, USkeletalMesh * SkeletalMesh, UCustomizableObjectInstance * CustomizableObjectInstance, int32 ComponentIndex)
 {
 	MUTABLE_CPUPROFILER_SCOPE(UCustomizableInstancePrivateData::BuildClothingData);
@@ -3567,7 +3566,7 @@ void UCustomizableInstancePrivateData::BuildClothingData(const TSharedPtr<FMutab
 					{
 						const int32 Index0 = IndexMap[Tether.Get<0>()];
 						const int32 Index1 = IndexMap[Tether.Get<1>()];
-						if ((Index0 > 0) & (Index1 > 0))
+						if ((Index0 >= 0) & (Index1 >= 0))
 						{
 							DstTetherCluster.Emplace(Index0, Index1, Tether.Get<2>());
 						}
@@ -3883,28 +3882,40 @@ void UCustomizableInstancePrivateData::BuildClothingData(const TSharedPtr<FMutab
 			NewClothingAssets[I]->CalculateReferenceBoneIndex();	
 			NewClothingAssets[I]->PhysicsAsset = ClothingPhysicsAssets[I];
 
-			for ( const FCustomizableObjectClothConfigData& ConfigData : ContributingClothingAssetsData[I].ConfigsData )
+			auto CreateNewClothConfigFromData = [](UObject* Outer, const FCustomizableObjectClothConfigData& ConfigData) 
+			-> UClothConfigCommon* 
 			{
 				UClass* ClothConfigClass = FindObject<UClass>(nullptr, *ConfigData.ClassPath);
 				if (ClothConfigClass)
 				{
-					UClothConfigCommon* ClothConfig = NewObject<UClothConfigCommon>(NewClothingAssets[I], ClothConfigClass);
+					UClothConfigCommon* ClothConfig = NewObject<UClothConfigCommon>(Outer, ClothConfigClass);
 					if (ClothConfig)
 					{
-						FMemoryReaderView MemoryReader( ConfigData.ConfigBytes );
+						FMemoryReaderView MemoryReader(ConfigData.ConfigBytes);
 						ClothConfig->Serialize(MemoryReader);
-						NewClothingAssets[I]->ClothConfigs.Add(ConfigData.ConfigName, ClothConfig);
+
+						return ClothConfig;
 					}
+				}
+
+				return nullptr;
+			};
+
+			for (const FCustomizableObjectClothConfigData& ConfigData : ContributingClothingAssetsData[I].ConfigsData)
+			{
+				UClothConfigCommon* ClothConfig = CreateNewClothConfigFromData(NewClothingAssets[I], ConfigData);
+				if (ClothConfig)
+				{
+					NewClothingAssets[I]->ClothConfigs.Add(ConfigData.ConfigName, ClothConfig);
 				}
 			}
 
 			for (const FCustomizableObjectClothConfigData& ConfigData : ClothSharedConfigsData)
 			{	
-				UClass* ClothConfigClass = FindObject<UClass>(nullptr, *ConfigData.ClassPath);
-				
-				if (ClothConfigClass)
+				UClothConfigCommon* ClothConfig = CreateNewClothConfigFromData(NewClothingAssets[I], ConfigData);
+				if (ClothConfig)
 				{
-					UClothSharedConfigCommon* ClothConfig = NewObject<UClothSharedConfigCommon>(NewClothingAssets[I], ClothConfigClass);
+					NewClothingAssets[I]->ClothConfigs.Add(ConfigData.ConfigName, ClothConfig);
 				}
 			}
 
