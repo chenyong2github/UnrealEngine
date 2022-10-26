@@ -118,6 +118,12 @@ void AWaterBody::PostEditMove(bool bFinished)
 {
 	Super::PostEditMove(bFinished);
 
+	// It's possible that the WaterBodyComponent is invalid here if, for example, we are part of a ChildActorComponent and are being destroyed/recreated every move.
+	if (!IsValid(WaterBodyComponent))
+	{
+		return;
+	}
+
 	if (bFinished)
 	{
 		WaterBodyComponent->UpdateWaterHeight();
