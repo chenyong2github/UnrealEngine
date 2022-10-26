@@ -27,10 +27,12 @@
 
 //------------------------------------------------------- PARAMETERS
 
+float4x4 RotationalClipToPrevClip;
 float2 PrevOutputBufferUVMin;
 float2 PrevOutputBufferUVMax;
 float WorldDepthToDepthError;
 float VelocityExtrapolationMultiplier;
+float InvFlickeringMaxParralaxVelocity;
 uint bOutputIsMovingTexture;
 
 Texture2D<float> SceneDepthTexture;
@@ -215,7 +217,16 @@ void MainCS(
 		float Depth = ConvertFromDeviceZ(ClosestDeviceZ);
 		float PrevDepth = ConvertFromDeviceZ(ClosestDeviceZ - FinalScreenVelocity.z);
 		float2 PrevScreenPos = ScreenPos - FinalScreenVelocity.xy;
-
+		
+		float4 ThisClip = float4(ScreenPos, DeviceZ, 1);
+		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip); 
+		float2 PrevScreen = PrevClip.xy / PrevClip.w;
+			
+		float4 RotationalPrevClip = mul(ThisClip, RotationalClipToPrevClip);
+		float2 RotationalPrevScreen = RotationalPrevClip.xy / RotationalPrevClip.w;
+			
+		tsr_half PixelParallaxVelocity = tsr_half(0.5) * length(tsr_half2(RotationalPrevScreen - PrevScreen) * tsr_half2(InputInfo_ViewportSize));
+			
 		float4 ClipPosition = float4(ScreenPos * (View.ViewToClip[3][3] < 1.0f ? Depth : 1.0f), Depth, 1);
 		float4 PrevClipPosition = float4(PrevScreenPos * (View.ViewToClip[3][3] < 1.0f ? PrevDepth : 1.0f), PrevDepth, 1);
 		
@@ -226,7 +237,9 @@ void MainCS(
 		float WorldDepthToPixelWorldRadius = 2.0 * GetTanHalfFieldOfView().x * View.ViewSizeAndInvSize.z;
 		float StaticWorldRadius = Depth * WorldDepthToPixelWorldRadius;
 
-		IsMovingMask = tsr_half(saturate(length(TranslatedWorldPosition - PrevTranslatedWorldPosition) * rcp(StaticWorldRadius) - 1.0));
+		IsMovingMask = max(
+			tsr_half(saturate(length(TranslatedWorldPosition - PrevTranslatedWorldPosition) * rcp(StaticWorldRadius) - 1.0)),
+			saturate(PixelParallaxVelocity * tsr_half(InvFlickeringMaxParralaxVelocity) - tsr_half(0.5)));
 	}
 
 	// Do motion blur velocity flatten.
