@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "AnimBlueprintExtension.h"
-#include "Animation/AnimSubSystem_SharedLinkedAnimLayers.h"
+#include "Animation/AnimSubsystem_SharedLinkedAnimLayers.h"
 #include "AnimBlueprintExtension_SharedLinkedAnimLayers.generated.h"
 
 UCLASS(MinimalAPI)
