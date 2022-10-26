@@ -107,24 +107,24 @@ float FAnimNode_TwistCorrectiveNode::GetAngle(const FVector& Base, const FVector
 	FVector TwistPlaneNormal = TwistPlaneNormalAxis.GetTransformedAxis(ReferencetBoneTransform);
 
 	// find out if it's same direction. If not, we're clamped
-	float BaseAngle = 0.f, TwistAngle = 0.f;
+	float BaseAngle = 0.0, TwistAngle = 0.0;
 
 	// if facing same direction we care
-	float BaseDotProduct = FVector::DotProduct(TwistPlaneNormal, Base);
-	if (BaseDotProduct > 0.f)
+	float BaseDotProduct = static_cast<float>(FVector::DotProduct(TwistPlaneNormal, Base));
+	if (BaseDotProduct > 0.0)
 	{
 		// http://www.vitutor.com/geometry/distance/line_plane.html
 		BaseAngle = FMath::Asin(BaseDotProduct);
 	}
 
-	float TwistDotProduct = FVector::DotProduct(TwistPlaneNormal, Twist);
-	if (TwistDotProduct > 0.f)
+	float TwistDotProduct = static_cast<float>(FVector::DotProduct(TwistPlaneNormal, Twist));
+	if (TwistDotProduct > 0.0)
 	{
 		// http://www.vitutor.com/geometry/distance/line_plane.html
 		TwistAngle = FMath::Asin(TwistDotProduct);
 	}
 
-	return (TwistAngle - BaseAngle);
+	return TwistAngle - BaseAngle;
 }
 
 /////////////////////////////////////////////////////////

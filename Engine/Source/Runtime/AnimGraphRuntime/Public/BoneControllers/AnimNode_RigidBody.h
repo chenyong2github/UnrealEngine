@@ -375,8 +375,8 @@ public:
 
 private:
 
-	float WorldTimeSeconds;
-	float LastEvalTimeSeconds;
+	double WorldTimeSeconds;
+	double LastEvalTimeSeconds;
 
 	float AccumulatedDeltaTime;
 	float AnimPhysicsMinDeltaTime;
@@ -476,7 +476,7 @@ private:
 
 	FVector WorldSpaceGravity;
 
-	float TotalMass;
+	double TotalMass;
 
 	// Bounds used to gather world objects copied into the simulation
 	FSphere CachedBounds;

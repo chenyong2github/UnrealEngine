@@ -44,12 +44,12 @@ void FAnimGraphRuntimeTrace::OutputBlendSpacePlayer(const FAnimationBaseContext&
 		<< BlendSpacePlayer.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< BlendSpacePlayer.BlendSpaceId(FObjectTrace::GetObjectId(InNode.GetBlendSpace()))
 		<< BlendSpacePlayer.NodeId(InContext.GetCurrentNodeId())
-		<< BlendSpacePlayer.PositionX(SampleCoordinates.X)
-		<< BlendSpacePlayer.PositionY(SampleCoordinates.Y)
-		<< BlendSpacePlayer.PositionZ(SampleCoordinates.Z)
-		<< BlendSpacePlayer.FilteredPositionX(FilteredPosition.X)
-		<< BlendSpacePlayer.FilteredPositionY(FilteredPosition.Y)
-		<< BlendSpacePlayer.FilteredPositionZ(FilteredPosition.Z);
+		<< BlendSpacePlayer.PositionX(static_cast<float>(SampleCoordinates.X))
+		<< BlendSpacePlayer.PositionY(static_cast<float>(SampleCoordinates.Y))
+		<< BlendSpacePlayer.PositionZ(static_cast<float>(SampleCoordinates.Z))
+		<< BlendSpacePlayer.FilteredPositionX(static_cast<float>(FilteredPosition.X))
+		<< BlendSpacePlayer.FilteredPositionY(static_cast<float>(FilteredPosition.Y))
+		<< BlendSpacePlayer.FilteredPositionZ(static_cast<float>(FilteredPosition.Z));
 }
 
 void FAnimGraphRuntimeTrace::OutputBlendSpace(const FAnimationBaseContext& InContext, const FAnimNode_BlendSpaceGraphBase& InNode)
@@ -73,12 +73,12 @@ void FAnimGraphRuntimeTrace::OutputBlendSpace(const FAnimationBaseContext& InCon
 		<< BlendSpacePlayer.AnimInstanceId(FObjectTrace::GetObjectId(InContext.AnimInstanceProxy->GetAnimInstanceObject()))
 		<< BlendSpacePlayer.BlendSpaceId(FObjectTrace::GetObjectId(InNode.GetBlendSpace()))
 		<< BlendSpacePlayer.NodeId(InContext.GetCurrentNodeId())
-		<< BlendSpacePlayer.PositionX(Coordinates.X)
-		<< BlendSpacePlayer.PositionY(Coordinates.Y)
-		<< BlendSpacePlayer.PositionZ(Coordinates.Z)
-		<< BlendSpacePlayer.FilteredPositionX(FilteredCoordinates.X)
-		<< BlendSpacePlayer.FilteredPositionY(FilteredCoordinates.Y)
-		<< BlendSpacePlayer.FilteredPositionZ(FilteredCoordinates.Z);
+		<< BlendSpacePlayer.PositionX(static_cast<float>(Coordinates.X))
+		<< BlendSpacePlayer.PositionY(static_cast<float>(Coordinates.Y))
+		<< BlendSpacePlayer.PositionZ(static_cast<float>(Coordinates.Z))
+		<< BlendSpacePlayer.FilteredPositionX(static_cast<float>(FilteredCoordinates.X))
+		<< BlendSpacePlayer.FilteredPositionY(static_cast<float>(FilteredCoordinates.Y))
+		<< BlendSpacePlayer.FilteredPositionZ(static_cast<float>(FilteredCoordinates.Z));
 }
 
 #endif

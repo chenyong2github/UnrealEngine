@@ -217,22 +217,22 @@ void FAnimNode_SplineIK::TransformSpline()
 
 float FAnimNode_SplineIK::FindParamAtFirstSphereIntersection(const FVector& InOrigin, float InRadius, int32& StartingLinearIndex)
 {
-	const float RadiusSquared = InRadius * InRadius;
+	const double RadiusSquared = InRadius * InRadius;
 	const int32 LinearCount = LinearApproximation.Num() - 1;
 	for (int32 LinearIndex = StartingLinearIndex; LinearIndex < LinearCount; ++LinearIndex)
 	{
 		const FSplinePositionLinearApproximation& LinearPoint = LinearApproximation[LinearIndex];
 		const FSplinePositionLinearApproximation& NextLinearPoint = LinearApproximation[LinearIndex + 1];
 
-		const float InnerDistanceSquared = (InOrigin - LinearPoint.Position).SizeSquared();
-		const float OuterDistanceSquared = (InOrigin - NextLinearPoint.Position).SizeSquared();
+		const double InnerDistanceSquared = (InOrigin - LinearPoint.Position).SizeSquared();
+		const double OuterDistanceSquared = (InOrigin - NextLinearPoint.Position).SizeSquared();
 		if (InnerDistanceSquared <= RadiusSquared && OuterDistanceSquared >= RadiusSquared)
 		{
 			StartingLinearIndex = LinearIndex;
 
-			const float InnerDistance = FMath::Sqrt(InnerDistanceSquared);
-			const float OuterDistance = FMath::Sqrt(OuterDistanceSquared);
-			const float InterpParam = FMath::Clamp((InRadius - InnerDistance) / (OuterDistance - InnerDistance), 0.0f, 1.0f);
+			const double InnerDistance = FMath::Sqrt(InnerDistanceSquared);
+			const double OuterDistance = FMath::Sqrt(OuterDistanceSquared);
+			const double InterpParam = FMath::Clamp((InRadius - InnerDistance) / (OuterDistance - InnerDistance), 0.0f, 1.0f);
 			
 			return FMath::Lerp(LinearPoint.SplineParam, NextLinearPoint.SplineParam, InterpParam);
 		}
@@ -302,7 +302,7 @@ void FAnimNode_SplineIK::BuildBoneSpline(const FReferenceSkeleton& RefSkeleton)
 		CachedOffsetRotations.Reset();
 		for (int32 BoneIndex = 0; BoneIndex < CachedBoneReferences.Num(); BoneIndex++)
 		{
-			float BoneLength = 0.0f;
+			double BoneLength = 0.0f;
 			FQuat BoneOffsetRotation = FQuat::Identity;
 
 			if (BoneIndex > 0)
@@ -319,8 +319,8 @@ void FAnimNode_SplineIK::BuildBoneSpline(const FReferenceSkeleton& RefSkeleton)
 				FVector TransformedAxis = Transform.GetRotation().RotateVector(FMatrix::Identity.GetUnitAxis((EAxis::Type)BoneAxis)).GetSafeNormal();
 				BoneOffsetRotation = FQuat::FindBetweenNormals(BoneDir.GetSafeNormal(), TransformedAxis);
 			}
-
-			CachedBoneLengths.Add(BoneLength);
+			
+			CachedBoneLengths.Add(static_cast<float>(BoneLength));
 			CachedOffsetRotations.Add(BoneOffsetRotation);
 		}
 

@@ -104,7 +104,7 @@ struct ANIMGRAPHRUNTIME_API FPoseDriverTarget
 	FName DrivenName;
 
 	/** Cached curve UID, if DriveOutput is set to DriveCurves */
-	int32 DrivenUID;
+	USkeleton::AnimCurveUID DrivenUID = SmartName::MaxUID;
 
 	/** Pose buffer index */
 	int32 PoseCurveIndex;
@@ -120,7 +120,7 @@ struct ANIMGRAPHRUNTIME_API FPoseDriverTarget
 		, FunctionType(ERBFFunctionType::DefaultFunction)
 		, bApplyCustomCurve(false)
 		, DrivenName(NAME_None)
-		, DrivenUID(INDEX_NONE)
+		, DrivenUID(SmartName::MaxUID)
 		, PoseCurveIndex(INDEX_NONE)
 		, bIsHidden(false)
 	{}

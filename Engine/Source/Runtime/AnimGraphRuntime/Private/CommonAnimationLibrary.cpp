@@ -9,7 +9,7 @@
 
 float CommonAnimationLibrary::ScalarEasing(float Value, const FRuntimeFloatCurve& CustomCurve, EEasingFuncType EasingType, bool bFlip, float Weight)
 {
-	float Original = Value;
+	const float Original = Value;
 	float Result = Value;
 
 	if(bFlip)
@@ -26,7 +26,7 @@ float CommonAnimationLibrary::ScalarEasing(float Value, const FRuntimeFloatCurve
 		}
 		case EEasingFuncType::Sinusoidal:
 		{
-			Result = FMath::Clamp<float>((FMath::Sin(Value * PI - HALF_PI) + 1.f) / 2.f, 0.f, 1.f);
+			Result = FMath::Clamp<float>((FMath::Sin(Value * UE_PI - UE_HALF_PI) + 1.f) / 2.f, 0.f, 1.f);
 			break;
 		}
 		case EEasingFuncType::Cubic:
@@ -122,14 +122,14 @@ FVector CommonAnimationLibrary::RetargetSingleLocation(
 	float TargetMaximum
 )
 {
-	float SourceDelta = SourceMaximum - SourceMinimum;
-	float TargetDelta = TargetMaximum - TargetMinimum;
+	const float SourceDelta = SourceMaximum - SourceMinimum;
+	const float TargetDelta = TargetMaximum - TargetMinimum;
 	if (FMath::IsNearlyEqual(SourceDelta, 0.f) || FMath::IsNearlyEqual(TargetDelta, 0.f))
 	{
 		return Location;
 	}
 
-	float AxisLengthSquared = Axis.SizeSquared();
+	const float AxisLengthSquared =static_cast<float>(Axis.SizeSquared());
 	if (FMath::IsNearlyEqual(AxisLengthSquared, 0.f))
 	{
 		Axis = FVector(1.f, 0.f, 0.f);
@@ -142,13 +142,13 @@ FVector CommonAnimationLibrary::RetargetSingleLocation(
 
 	Location = Source.InverseTransformPosition(Location);
 
-	float Delta = FVector::DotProduct(Location, Axis);
+	const float Delta = static_cast<float>(FVector::DotProduct(Location, Axis));
 	float OutBias = (Delta - SourceMinimum) / SourceDelta;
 	if (EasingType != EEasingFuncType::Linear)
 	{
 		OutBias = ScalarEasing(OutBias, CustomCurve, EasingType, bFlipEasing, EasingWeight);
 	}
-	float TargetBias = FMath::Lerp<float>(TargetMinimum, TargetMaximum, OutBias);
+	const float TargetBias = FMath::Lerp<float>(TargetMinimum, TargetMaximum, OutBias);
 
 	Location = Location + Axis * (TargetBias - Delta);
 
@@ -174,8 +174,8 @@ FQuat CommonAnimationLibrary::RetargetSingleRotation(
 {
 	FQuat Rotation = RotationIn;
 
-	float SourceDelta = SourceMaximum - SourceMinimum;
-	float TargetDelta = TargetMaximum - TargetMinimum;
+	const float SourceDelta = SourceMaximum - SourceMinimum;
+	const float TargetDelta = TargetMaximum - TargetMinimum;
 	if (FMath::IsNearlyEqual(SourceDelta, 0.f) || FMath::IsNearlyEqual(TargetDelta, 0.f))
 	{
 		return Rotation;
@@ -192,30 +192,30 @@ FQuat CommonAnimationLibrary::RetargetSingleRotation(
 		case ERotationComponent::EulerX:
 		{
 			Euler = Rotation.Euler();
-			Angle = Euler.X;
+			Angle = static_cast<float>(Euler.X);
 			break;
 		}
 		case ERotationComponent::EulerY:
 		{
 			Euler = Rotation.Euler();
-			Angle = Euler.Y;
+			Angle = static_cast<float>(Euler.Y);
 			break;
 		}
 		case ERotationComponent::EulerZ:
 		{
 			Euler = Rotation.Euler();
-			Angle = Euler.Z;
+			Angle = static_cast<float>(Euler.Z);
 			break;
 		}
 		case ERotationComponent::QuaternionAngle:
 		{
-			Angle = FMath::RadiansToDegrees(Rotation.GetAngle());
+			Angle = static_cast<float>(FMath::RadiansToDegrees(Rotation.GetAngle()));
 			break;
 		}
 		case ERotationComponent::SwingAngle:
 		case ERotationComponent::TwistAngle:
 		{
-			float AxisLengthSquared = TwistAxis.SizeSquared();
+			const float AxisLengthSquared = static_cast<float>(TwistAxis.SizeSquared());
 			if (FMath::IsNearlyEqual(AxisLengthSquared, 0.f))
 			{
 				TwistAxis = FVector(1.f, 0.f, 0.f);
@@ -228,24 +228,24 @@ FQuat CommonAnimationLibrary::RetargetSingleRotation(
 			Rotation.ToSwingTwist(TwistAxis, Swing, Twist);
 			if (RotationComponent == ERotationComponent::SwingAngle)
 			{
-				Angle = FMath::RadiansToDegrees(Swing.GetAngle());
+				Angle = FMath::RadiansToDegrees(static_cast<float>(Swing.GetAngle()));
 			}
 			else
 			{
-				Angle = FMath::RadiansToDegrees(Twist.GetAngle());
+				Angle = FMath::RadiansToDegrees(static_cast<float>(Twist.GetAngle()));
 			}
 			break;
 		}
 	}
 
-	float AngleSign = Angle < 0.f ? -1.f : 1.f;
+	const float AngleSign = Angle < 0.f ? -1.f : 1.f;
 	if (bUseAbsoluteAngle)
 	{
 		Angle = FMath::Abs<float>(Angle);
 	}
 
 	float OutBias = (Angle - SourceMinimum) / SourceDelta;
-	float TempBias = OutBias;
+	const float TempBias = OutBias;
 	if (EasingType != EEasingFuncType::Linear)
 	{
 		OutBias = ScalarEasing(OutBias, CustomCurve, EasingType, bFlipEasing, EasingWeight);

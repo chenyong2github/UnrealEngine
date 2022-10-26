@@ -80,9 +80,9 @@ void FPoseDriverEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 
 	static const float DrawLineWidth = 0.1f;
 	static const float DrawPosSize = 2.f;
-	float DrawAxisLength = GraphNode->AxisLength;
-	int32 DrawConeSubdivision = GraphNode->ConeSubdivision;
-	bool bDrawDebugCones = GraphNode->bDrawDebugCones;
+	const float DrawAxisLength = GraphNode->AxisLength;
+	const int32 DrawConeSubdivision = GraphNode->ConeSubdivision;
+	const bool bDrawDebugCones = GraphNode->bDrawDebugCones;
 
 
 	if (SkelComp->AnimScriptInstance)
@@ -102,16 +102,16 @@ void FPoseDriverEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 			if (BoneIndex != INDEX_NONE)
 			{
 				// Get transform of driven bone, used as basis for drawing
-				FTransform BoneWorldTM = SkelComp->GetBoneTransform(BoneIndex);
-				FVector BonePos = BoneWorldTM.GetLocation();
+				const FTransform BoneWorldTM = SkelComp->GetBoneTransform(BoneIndex);
+				const FVector BonePos = BoneWorldTM.GetLocation();
 
 				// Transform that we are evaluating pose in
 				FTransform EvalSpaceTM = SkelComp->GetComponentToWorld();
 
 				// If specifying space to eval in, get that space
-				int32 EvalSpaceBoneIndex = SkelComp->GetBoneIndex(RuntimeNode->EvalSpaceBone.BoneName);
-				FName ParentBoneName = SkelComp->GetParentBone(SourceBoneRef.BoneName);
-				int32 ParentBoneIndex = SkelComp->GetBoneIndex(ParentBoneName);
+				const int32 EvalSpaceBoneIndex = SkelComp->GetBoneIndex(RuntimeNode->EvalSpaceBone.BoneName);
+				const FName ParentBoneName = SkelComp->GetParentBone(SourceBoneRef.BoneName);
+				const int32 ParentBoneIndex = SkelComp->GetBoneIndex(ParentBoneName);
 				if (EvalSpaceBoneIndex != INDEX_NONE)
 				{
 					EvalSpaceTM = SkelComp->GetBoneTransform(EvalSpaceBoneIndex);
@@ -125,7 +125,7 @@ void FPoseDriverEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 				// Get source bone TM from last frame
 				if (RuntimeNode->SourceBoneTMs.IsValidIndex(SourceIdx))
 				{
-					FTransform SourceBoneTM = RuntimeNode->SourceBoneTMs[SourceIdx];
+					const FTransform SourceBoneTM = RuntimeNode->SourceBoneTMs[SourceIdx];
 
 					// Rotation drawing
 					if (RuntimeNode->DriveSource == EPoseDriverSource::Rotation)
@@ -143,21 +143,21 @@ void FPoseDriverEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 								LocalTwistVec = FRotator(MedianRot.X, MedianRot.Y, MedianRot.Z).RotateVector(RuntimeNode->RBFParams.GetTwistAxisVector());
 								WorldTwistVec = EvalSpaceTM.TransformVectorNoScale(LocalTwistVec);
 
-								FVector LocalSwingVec = FVector::CrossProduct(LocalTwistVec, FVector(1, 1, 1));
+								const FVector LocalSwingVec = FVector::CrossProduct(LocalTwistVec, FVector(1, 1, 1));
 								FVector WorldSwingVec = EvalSpaceTM.TransformVectorNoScale(LocalSwingVec);
 								WorldSwingVec.Normalize();
 
-								FQuat WorldTwistQ(WorldTwistVec, PI * 2.0f / float(DrawConeSubdivision));
-								FQuat WorldSwingMinQ(WorldSwingVec, FMath::DegreesToRadians(RuntimeNode->RBFParams.MedianMin));
-								FQuat WorldSwingMaxQ(WorldSwingVec, FMath::DegreesToRadians(RuntimeNode->RBFParams.MedianMax));
+								const FQuat WorldTwistQ(WorldTwistVec, UE_PI * 2.0f / float(DrawConeSubdivision));
+								const FQuat WorldSwingMinQ(WorldSwingVec, FMath::DegreesToRadians(RuntimeNode->RBFParams.MedianMin));
+								const FQuat WorldSwingMaxQ(WorldSwingVec, FMath::DegreesToRadians(RuntimeNode->RBFParams.MedianMax));
 
-								FVector FirstMinPositionOnCircle = WorldSwingMinQ.RotateVector(WorldTwistVec * DrawAxisLength);
-								FVector FirstMaxPositionOnCircle = WorldSwingMaxQ.RotateVector(WorldTwistVec * DrawAxisLength);
+								const FVector FirstMinPositionOnCircle = WorldSwingMinQ.RotateVector(WorldTwistVec * DrawAxisLength);
+								const FVector FirstMaxPositionOnCircle = WorldSwingMaxQ.RotateVector(WorldTwistVec * DrawAxisLength);
 								FVector LastMinPositionOnCircle = FirstMinPositionOnCircle;
 								FVector LastMaxPositionOnCircle = FirstMaxPositionOnCircle;
 
-								FLinearColor MinColor = FLinearColor::Yellow;
-								FLinearColor MaxColor = MinColor.Desaturate(0.5);
+								const FLinearColor MinColor = FLinearColor::Yellow;
+								const FLinearColor MaxColor = MinColor.Desaturate(0.5);
 
 								for (int32 i = 0; i < DrawConeSubdivision; i++)
 								{
@@ -180,7 +180,7 @@ void FPoseDriverEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 					// Translation drawing
 					else if (RuntimeNode->DriveSource == EPoseDriverSource::Translation)
 					{
-						FVector LocalPos = SourceBoneTM.GetTranslation();
+						const FVector LocalPos = SourceBoneTM.GetTranslation();
 						FVector WorldPos = EvalSpaceTM.TransformPosition(LocalPos);
 						DrawWireDiamond(PDI, FTranslationMatrix(WorldPos), DrawPosSize, FLinearColor::Green, SDPG_Foreground);
 
@@ -224,34 +224,34 @@ void FPoseDriverEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 						{
 							const FPoseDriverTransform& TargetTM = PoseTarget.BoneTransforms[SourceIdx];
 
-							bool bSelected = (GraphNode->SelectedTargetIndex == TargetIdx);
-							float AxisLength = bSelected ? (DrawAxisLength * 1.5f) : DrawAxisLength;
-							float LineWidth = bSelected ? (DrawLineWidth * 3.f) : DrawLineWidth;
-							float Radius = RuntimeNode->GetRadiusForTarget(RBFTarget);
+							const bool bSelected = (GraphNode->SelectedTargetIndex == TargetIdx);
+							const float AxisLength = bSelected ? (DrawAxisLength * 1.5f) : DrawAxisLength;
+							const float LineWidth = bSelected ? (DrawLineWidth * 3.f) : DrawLineWidth;
+							const float Radius = RuntimeNode->GetRadiusForTarget(RBFTarget);
 							
-							FLinearColor Color = TotalWeight <= 0.f ? FLinearColor::Black : GraphNode->GetColorFromWeight(PerTargetWeights[TargetIdx]);
+							const FLinearColor Color = TotalWeight <= 0.f ? FLinearColor::Black : GraphNode->GetColorFromWeight(PerTargetWeights[TargetIdx]);
 
 							PDI->SetHitProxy(new HPDTargetHitProxy(TargetIdx));
 
 							// Rotation drawing
 							if (RuntimeNode->DriveSource == EPoseDriverSource::Rotation)
 							{
-								FVector LocalTwistVec = TargetTM.TargetRotation.RotateVector(RuntimeNode->RBFParams.GetTwistAxisVector());
-								FVector WorldTwistVec = EvalSpaceTM.TransformVectorNoScale(LocalTwistVec);
+								const FVector LocalTwistVec = TargetTM.TargetRotation.RotateVector(RuntimeNode->RBFParams.GetTwistAxisVector());
+								const FVector WorldTwistVec = EvalSpaceTM.TransformVectorNoScale(LocalTwistVec);
 
-								FVector LocalSwingVec = FVector::CrossProduct(LocalTwistVec, FVector(1, 1, 1));
+								const FVector LocalSwingVec = FVector::CrossProduct(LocalTwistVec, FVector(1, 1, 1));
 								FVector WorldSwingVec = EvalSpaceTM.TransformVectorNoScale(LocalSwingVec);
 								WorldSwingVec.Normalize();
 
-								FQuat WorldTwistQ(WorldTwistVec, PI * 2.0f / float(DrawConeSubdivision));
-								FQuat WorldSwingQ(WorldSwingVec, FMath::DegreesToRadians(Radius));
+								const FQuat WorldTwistQ(WorldTwistVec, UE_PI * 2.0f / float(DrawConeSubdivision));
+								const FQuat WorldSwingQ(WorldSwingVec, FMath::DegreesToRadians(Radius));
 
-								FVector FirstPositionOnCircle = WorldSwingQ.RotateVector(WorldTwistVec * DrawAxisLength);
+								const FVector FirstPositionOnCircle = WorldSwingQ.RotateVector(WorldTwistVec * DrawAxisLength);
 								FVector LastPositionOnCircle = FirstPositionOnCircle;
 
 								for (int32 i = 0; i < DrawConeSubdivision; i++)
 								{
-									FVector NextPositionOnCircle = WorldTwistQ.RotateVector(LastPositionOnCircle);
+									const FVector NextPositionOnCircle = WorldTwistQ.RotateVector(LastPositionOnCircle);
 									PDI->DrawLine(BonePos, BonePos + NextPositionOnCircle, Color, SDPG_Foreground, DrawLineWidth);
 									PDI->DrawLine(BonePos + LastPositionOnCircle, BonePos + NextPositionOnCircle, Color, SDPG_Foreground, DrawLineWidth);
 
@@ -262,8 +262,8 @@ void FPoseDriverEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 							// Translation drawing
 							else if (RuntimeNode->DriveSource == EPoseDriverSource::Translation)
 							{
-								FVector LocalPos = TargetTM.TargetTranslation;
-								FVector WorldPos = EvalSpaceTM.TransformPosition(LocalPos);
+								const FVector LocalPos = TargetTM.TargetTranslation;
+								const FVector WorldPos = EvalSpaceTM.TransformPosition(LocalPos);
 								DrawWireDiamond(PDI, FTranslationMatrix(WorldPos), Radius, Color, SDPG_Foreground, LineWidth);
 							}
 
@@ -282,7 +282,7 @@ bool FPoseDriverEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 
 	if (HitProxy != nullptr && HitProxy->IsA(HPDTargetHitProxy::StaticGetType()))
 	{
-		HPDTargetHitProxy* TargetHitProxy = static_cast<HPDTargetHitProxy*>(HitProxy);
+		const HPDTargetHitProxy* TargetHitProxy = static_cast<HPDTargetHitProxy*>(HitProxy);
 		GraphNode->SelectedTargetIndex = TargetHitProxy->TargetIndex;
 		GraphNode->SelectedTargetChangeDelegate.Broadcast();
 		bResult = true;

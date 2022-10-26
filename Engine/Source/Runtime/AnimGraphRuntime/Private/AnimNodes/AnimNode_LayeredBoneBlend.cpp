@@ -113,7 +113,7 @@ void FAnimNode_LayeredBoneBlend::UpdateCachedBoneData(const FBoneContainer& Requ
 						{
 							if (DesiredBoneBlendWeights[CompactPoseIndex.GetInt()].BlendWeight > 0.f)
 							{
-								CurvePoseSourceIndices[CurrentPoseIndex] = DesiredBoneBlendWeights[CompactPoseIndex.GetInt()].SourceIndex;
+								CurvePoseSourceIndices[CurrentPoseIndex] = IntCastChecked<uint8>(DesiredBoneBlendWeights[CompactPoseIndex.GetInt()].SourceIndex);
 							}
 						}
 					}
@@ -248,7 +248,7 @@ void FAnimNode_LayeredBoneBlend::Evaluate_AnyThread(FPoseContext& Output)
 		TArray<uint16> const* CurveUIDFinder = Output.Curve.UIDToArrayIndexLUT;
 		const int32 TotalCount = Output.Curve.NumValidCurveCount;
 		// now go through point to correct source indices. Curve only picks one source index
-		for (int32 UIDIndex = 0; UIDIndex < CurveUIDFinder->Num(); ++UIDIndex)
+		for (USkeleton::AnimCurveUID UIDIndex = 0; UIDIndex < CurveUIDFinder->Num(); ++UIDIndex)
 		{
 			int32 CurvePoseIndex = Output.Curve.GetArrayIndexByUID(UIDIndex);
 			if (CurvePoseSourceIndices.IsValidIndex(CurvePoseIndex))

@@ -167,8 +167,8 @@ FAnimNode_RigidBody::FAnimNode_RigidBody()
 	, bComponentSpaceSimulation_DEPRECATED(true)
 #endif
 	, SimulationTiming(ESimulationTiming::Default)
-	, WorldTimeSeconds(0.0f)
-	, LastEvalTimeSeconds(0.0f)
+	, WorldTimeSeconds(0.0)
+	, LastEvalTimeSeconds(0.0)
 	, AccumulatedDeltaTime(0.0f)
 	, AnimPhysicsMinDeltaTime(0.0f)
 	, bSimulateAnimPhysicsAfterReset(false)
@@ -187,7 +187,7 @@ FAnimNode_RigidBody::FAnimNode_RigidBody()
 	, ComponentsInSim()
 	, ComponentsInSimTick(0)
 	, WorldSpaceGravity(0.0f)
-	, TotalMass(0.0f)
+	, TotalMass(0.0)
 	, CachedBounds(FVector::ZeroVector, 0.0f)
 	, QueryParams(NAME_None, FCollisionQueryParams::GetUnknownStatId())
 	, PhysScene(nullptr)
@@ -376,7 +376,7 @@ void FAnimNode_RigidBody::InitializeNewBodyTransformsDuringSimulation(FComponent
 
 				const FTransform WSBodyTM = BodyRelativeTransform * Bodies[OutputData.ParentBodyIndex]->GetWorldTransform();
 				Bodies[BodyIndex]->InitWorldTransform(WSBodyTM);
-				BodyAnimData[BodyIndex].RefPoseLength = BodyRelativeTransform.GetLocation().Size();
+				BodyAnimData[BodyIndex].RefPoseLength = static_cast<float>(BodyRelativeTransform.GetLocation().Size());
 			}
 			// If we don't have a parent body, then we can just grab the incoming pose in component space.
 			else
@@ -474,7 +474,7 @@ void FAnimNode_RigidBody::CalculateSimulationSpace(
 
 		// If we limit the angular velocity, we also need to limit the component of linear velocity that comes from (angvel x offset)
 		float AngVelScale = 1.0f;
-		float NetAngVelLenSq = NetAngVel.SizeSquared();
+		float NetAngVelLenSq = static_cast<float>(NetAngVel.SizeSquared());
 		if (NetAngVelLenSq > FMath::Square(Settings.MaxAngularVelocity))
 		{
 			AngVelScale = Settings.MaxAngularVelocity * FMath::InvSqrt(NetAngVelLenSq);
@@ -637,7 +637,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 								
 								// Angular Velocity
 								const FQuat DeltaRotation = (NextSSTM.GetRotation().Inverse() * PrevSSTM.GetRotation());
-								const float RotationAngle = DeltaRotation.GetAngle() / DeltaSeconds;
+								const double RotationAngle = DeltaRotation.GetAngle() / DeltaSeconds;
 								BodyData.TransferedBoneAngularVelocity = (FQuat(DeltaRotation.GetRotationAxis(), RotationAngle)); 
 							}
 							else
@@ -679,7 +679,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 						Bodies[BodyIndex]->SetWorldTransform(BodyTM);
 						if (OutputData.ParentBodyIndex != INDEX_NONE)
 						{
-							BodyAnimData[BodyIndex].RefPoseLength = BodyTM.GetRelativeTransform(Bodies[OutputData.ParentBodyIndex]->GetWorldTransform()).GetLocation().Size();
+							BodyAnimData[BodyIndex].RefPoseLength = static_cast<float>(BodyTM.GetRelativeTransform(Bodies[OutputData.ParentBodyIndex]->GetWorldTransform()).GetLocation().Size());
 						}
 					}
 				}
@@ -702,7 +702,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 						Bodies[BodyIndex]->InitWorldTransform(BodyTM);
 						if (OutputData.ParentBodyIndex != INDEX_NONE)
 						{
-							BodyAnimData[BodyIndex].RefPoseLength = BodyTM.GetRelativeTransform(Bodies[OutputData.ParentBodyIndex]->GetWorldTransform()).GetLocation().Size();
+							BodyAnimData[BodyIndex].RefPoseLength = static_cast<float>(BodyTM.GetRelativeTransform(Bodies[OutputData.ParentBodyIndex]->GetWorldTransform()).GetLocation().Size());
 						}
 					}
 				}
@@ -773,8 +773,8 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 							ImmediatePhysics::FActorHandle* Body = Bodies[BodyIndex];
 
 							// Apply 
-							const float BodyInvMass = Body->GetInverseMass();
-							if (BodyInvMass > 0.f)
+							const double BodyInvMass = Body->GetInverseMass();
+							if (BodyInvMass > 0.0)
 							{
 								// Final desired acceleration to apply to body
 								FVector FinalBodyLinearAcc = ApplyLinearAcc;
@@ -897,7 +897,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 
 					// get local transform
 					FTransform LocalTransform = BodyTM.GetRelativeTransform(ParentTransform);
-					const float CurrentLength = LocalTransform.GetTranslation().Size();
+					const float CurrentLength = static_cast<float>(LocalTransform.GetTranslation().Size());
 
 					// this is inconsistent with constraint. The actual linear limit is set by constraint
 					if (!FMath::IsNearlyEqual(CurrentLength, BodyAnimData[BodyIndex].RefPoseLength, KINDA_SMALL_NUMBER))
@@ -1055,7 +1055,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 		Bodies.Empty(NumBodies);
 		BodyAnimData.Reset(NumBodies);
 		BodyAnimData.AddDefaulted(NumBodies);
-		TotalMass = 0.f;
+		TotalMass = 0.0;
 
 		// Instantiate a FBodyInstance/FConstraintInstance set that will be cloned into the Immediate Physics sim.
 		// NOTE: We do not have a skeleton at the moment, so we have to use the ref pose
@@ -1118,8 +1118,8 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 				{
 					if (bSimulated)
 					{
-						const float InvMass = NewBodyHandle->GetInverseMass();
-						TotalMass += InvMass > 0.f ? 1.f / InvMass : 0.f;
+						const double InvMass = NewBodyHandle->GetInverseMass();
+						TotalMass += InvMass > 0.0 ? 1.0 / InvMass : 0.0;
 					}
 					const int32 BodyIndex = Bodies.Add(NewBodyHandle);
 					const int32 SkeletonBoneIndex = MeshToSkeletonBoneIndex[InsertBone];
@@ -1207,7 +1207,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 							//set limit to ref pose 
 							FTransform Body1Transform = Body1Handle->GetWorldTransform();
 							FTransform Body2Transform = Body2Handle->GetWorldTransform();
-							BodyAnimData[BodyIndex].RefPoseLength = Body1Transform.GetRelativeTransform(Body2Transform).GetLocation().Size();
+							BodyAnimData[BodyIndex].RefPoseLength = static_cast<float>(Body1Transform.GetRelativeTransform(Body2Transform).GetLocation().Size());
 						}
 
 						if (CI->IsCollisionDisabled())
@@ -1331,17 +1331,17 @@ void FAnimNode_RigidBody::UpdateWorldForces(const FTransform& ComponentToWorld, 
 	LLM_SCOPE_BYNAME(TEXT("Animation/RigidBody")); 
 	SCOPE_CYCLE_COUNTER(STAT_ImmediateUpdateWorldForces);
 
-	if(TotalMass > 0.f)
+	if(TotalMass > 0.0)
 	{
 		for (const USkeletalMeshComponent::FPendingRadialForces& PendingRadialForce : PendingRadialForces)
 		{
 			const FVector RadialForceOrigin = WorldPositionToSpace(SimulationSpace, PendingRadialForce.Origin, ComponentToWorld, BaseBoneTM);
 			for(ImmediatePhysics::FActorHandle* Body : Bodies)
 			{
-				const float InvMass = Body->GetInverseMass();
-				if(InvMass > 0.f)
+				const double InvMass = Body->GetInverseMass();
+				if(InvMass > 0.0)
 				{
-					const float StrengthPerBody = PendingRadialForce.bIgnoreMass ? PendingRadialForce.Strength : PendingRadialForce.Strength / (TotalMass * InvMass);
+					const double StrengthPerBody = PendingRadialForce.bIgnoreMass ? PendingRadialForce.Strength : PendingRadialForce.Strength / (TotalMass * InvMass);
 					ImmediatePhysics::EForceType ForceType;
 					if (PendingRadialForce.Type == USkeletalMeshComponent::FPendingRadialForces::AddImpulse)
 					{
@@ -1362,8 +1362,8 @@ void FAnimNode_RigidBody::UpdateWorldForces(const FTransform& ComponentToWorld, 
 			const FVector ExternalForceInSimSpace = WorldVectorToSpaceNoScale(SimulationSpace, ExternalForce, ComponentToWorld, BaseBoneTM);
 			for (ImmediatePhysics::FActorHandle* Body : Bodies)
 			{
-				const float InvMass = Body->GetInverseMass();
-				if (InvMass > 0.f)
+				const double InvMass = Body->GetInverseMass();
+				if (InvMass > 0.0)
 				{
 					Body->AddForce(ExternalForceInSimSpace);
 				}
@@ -1502,8 +1502,10 @@ void FAnimNode_RigidBody::PreUpdate(const UAnimInstance* InAnimInstance)
 			{
 				const FBox BoundingBox = SKC->CalcBounds(SKC->GetComponentTransform()).GetBox();
 
+				PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 				World->PhysicsField->FillTransientCommands(false, BoundingBox, WorldTimeSeconds, PerSolverField.GetTransientCommands());
 				World->PhysicsField->FillPersistentCommands(false, BoundingBox, WorldTimeSeconds, PerSolverField.GetPersistentCommands());
+				PRAGMA_RESTORE_UNSAFE_TYPECAST_WARNINGS
 			}
 		}
 	}
@@ -1635,7 +1637,7 @@ void FAnimNode_RigidBody::CollectWorldObjects()
 	{
 		// @todo(ccaulfield): should this use CachedBounds?
 		TArray<FOverlapResult> Overlaps;
-		UnsafeWorld->OverlapMultiByChannel(Overlaps, CachedBounds.Center, FQuat::Identity, OverlapChannel, FCollisionShape::MakeSphere(CachedBounds.W), QueryParams, FCollisionResponseParams(ECR_Overlap));
+		UnsafeWorld->OverlapMultiByChannel(Overlaps, CachedBounds.Center, FQuat::Identity, OverlapChannel, FCollisionShape::MakeSphere(static_cast<float>(CachedBounds.W)), QueryParams, FCollisionResponseParams(ECR_Overlap));
 
 		for (const FOverlapResult& Overlap : Overlaps)
 		{
@@ -1779,8 +1781,8 @@ void FAnimNode_RigidBody::InitializeBoneReferences(const FBoneContainer& Require
 	for (int32 Index = 0; Index < NumRequiredBoneIndices; ++Index)
 	{
 		const FCompactPoseBoneIndex CompactPoseBoneIndex(Index);
-		const FBoneIndexType SkeletonBoneIndex = RequiredBones.GetSkeletonIndex(CompactPoseBoneIndex);
-		const FBoneIndexType IndexToBodyNum = SkeletonBoneIndexToBodyIndex.Num();
+		const int32 SkeletonBoneIndex = RequiredBones.GetSkeletonIndex(CompactPoseBoneIndex);
+		const int32 IndexToBodyNum = SkeletonBoneIndexToBodyIndex.Num();
 
 		// If we have a missing bone in our skeleton, we don't want to have an out of bounds access.
 		if (SkeletonBoneIndex >= IndexToBodyNum)
@@ -1811,7 +1813,7 @@ void FAnimNode_RigidBody::InitializeBoneReferences(const FBoneContainer& Require
 			FCompactPoseBoneIndex CompactParentIndex = RequiredBones.GetParentBoneIndex(CompactPoseBoneIndex);
 			while (CompactParentIndex != INDEX_NONE)
 			{
-				const FBoneIndexType SkeletonParentBoneIndex = RequiredBones.GetSkeletonIndex(CompactParentIndex);
+				const int32 SkeletonParentBoneIndex = RequiredBones.GetSkeletonIndex(CompactParentIndex);
 
 				// Must check our parent as well for a missing bone.
 				if (SkeletonParentBoneIndex >= IndexToBodyNum)

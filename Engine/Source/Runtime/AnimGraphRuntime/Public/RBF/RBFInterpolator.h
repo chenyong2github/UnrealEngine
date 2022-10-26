@@ -16,13 +16,13 @@
 namespace RBFDistanceMetric
 {
 	/* Returns the Euclidean (L2) distance between two coordinate vectors. */
-	static inline float Euclidean(const FVector& A, const FVector& B)
+	static inline double Euclidean(const FVector& A, const FVector& B)
 	{
 		return FVector::Distance(A, B);
 	}
 
 	/* Returns the Manhattan (L1), or Taxi-cab distance between two coordinate vectors. */
-	static inline float Manhattan(const FVector& A, const FVector& B)
+	static inline double Manhattan(const FVector& A, const FVector& B)
 	{
 		FVector AbsDiff = (A - B).GetAbs();
 		return AbsDiff.X + AbsDiff.Y + AbsDiff.Z;
@@ -30,7 +30,7 @@ namespace RBFDistanceMetric
 
 	/* Returns the arc length between two unit vectors (i.e. the distance between two
 	   points on a unit sphere, traveling along the surface of the sphere) */
-	static inline float ArcLength(const FVector& A, const FVector B)
+	static inline double ArcLength(const FVector& A, const FVector B)
 	{
 		return FMath::Acos(A.GetSafeNormal() | B.GetSafeNormal());
 	}
@@ -39,7 +39,7 @@ namespace RBFDistanceMetric
 	/* Returns a straight-up Euclidean distance between two rotation values expressed
 	   in radians.
 	*/
-	static inline float Euclidean(const FRotator& A, const FRotator& B)
+	static inline double Euclidean(const FRotator& A, const FRotator& B)
 	{
 		return Euclidean(FVector(FMath::DegreesToRadians(A.Roll),
 								 FMath::DegreesToRadians(A.Pitch),
@@ -51,21 +51,21 @@ namespace RBFDistanceMetric
 
 	/* Returns the arc-length distance, on a unit sphere, between two rotation vectors.
 	*/
-	static inline float ArcLength(const FRotator& A, const FRotator& B)
+	static inline double ArcLength(const FRotator& A, const FRotator& B)
 	{
 		return FMath::Acos(A.Vector() | B.Vector());
 	}
 
 	/* Returns the Euclidean (L2) distance between two quaternion values expressed.
 	*/
-	static inline float Euclidean(const FQuat& A, const FQuat& B)
+	static inline double Euclidean(const FQuat& A, const FQuat& B)
 	{
 		return (A - B).Size();
 	}
 
 	/* Returns the arc-length distance, on a unit sphere, between two quaternions.
 	*/
-	static inline float ArcLength(const FQuat& A, const FQuat& B)
+	static inline double ArcLength(const FQuat& A, const FQuat& B)
 	{
 		return A.GetNormalized().AngularDistance(B.GetNormalized());
 	}
@@ -73,7 +73,7 @@ namespace RBFDistanceMetric
 	/* Returns the swing arc length distance between two quaternions, using a specific 
 	   twist basis vector as reference.
 	*/
-	static inline float SwingAngle(const FQuat& A, const FQuat& B, const FVector& TwistAxis)
+	static inline double SwingAngle(const FQuat& A, const FQuat& B, const FVector& TwistAxis)
 	{
 		FQuat ASwing, BSwing, DummyTwist;
 		A.ToSwingTwist(TwistAxis, ASwing, DummyTwist);
@@ -84,7 +84,7 @@ namespace RBFDistanceMetric
 	/* Returns the twist arc length distance between two quaternions, using a specific 
 	   twist basis vector as reference.
 	*/
-	static inline float TwistAngle(const FQuat& A, const FQuat& B, const FVector& TwistAxis)
+	static inline double TwistAngle(const FQuat& A, const FQuat& B, const FVector& TwistAxis)
 	{
 		return FMath::Abs(A.GetTwistAngle(TwistAxis) - B.GetTwistAngle(TwistAxis));
 	}

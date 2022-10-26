@@ -67,7 +67,7 @@ float UKismetAnimationLibrary::K2_DistanceBetweenTwoSocketsAndMapRange(const USk
 		FTransform SocketTransformA = Component->GetSocketTransform(SocketOrBoneNameA, SocketSpaceA);
 		FTransform SocketTransformB = Component->GetSocketTransform(SocketOrBoneNameB, SocketSpaceB);
 
-		float Distance = (SocketTransformB.GetLocation() - SocketTransformA.GetLocation()).Size();
+		const float Distance = static_cast<float>((SocketTransformB.GetLocation() - SocketTransformA.GetLocation()).Size());
 
 		if (bRemapRange)
 		{
@@ -145,7 +145,7 @@ float UKismetAnimationLibrary::K2_CalculateVelocityFromPositionHistory(
 	}
 	else
 	{
-		float LengthOfV = ((Position - History.Positions[History.LastIndex]) / DeltaSeconds).Size();
+		const float LengthOfV = static_cast<float>(((Position - History.Positions[History.LastIndex]) / DeltaSeconds).Size());
 
 		if (History.Positions.Num() == NumberOfSamples)
 		{
@@ -271,21 +271,21 @@ float UKismetAnimationLibrary::CalculateDirection(const FVector& Velocity, const
 {
 	if (!Velocity.IsNearlyZero())
 	{
-		FMatrix RotMatrix = FRotationMatrix(BaseRotation);
-		FVector ForwardVector = RotMatrix.GetScaledAxis(EAxis::X);
-		FVector RightVector = RotMatrix.GetScaledAxis(EAxis::Y);
-		FVector NormalizedVel = Velocity.GetSafeNormal2D();
+		const FMatrix RotMatrix = FRotationMatrix(BaseRotation);
+		const FVector ForwardVector = RotMatrix.GetScaledAxis(EAxis::X);
+		const FVector RightVector = RotMatrix.GetScaledAxis(EAxis::Y);
+		const FVector NormalizedVel = Velocity.GetSafeNormal2D();
 
 		// get a cos(alpha) of forward vector vs velocity
-		float ForwardCosAngle = FVector::DotProduct(ForwardVector, NormalizedVel);
+		const float ForwardCosAngle = static_cast<float>(FVector::DotProduct(ForwardVector, NormalizedVel));
 		// now get the alpha and convert to degree
 		float ForwardDeltaDegree = FMath::RadiansToDegrees(FMath::Acos(ForwardCosAngle));
 
 		// depending on where right vector is, flip it
-		float RightCosAngle = FVector::DotProduct(RightVector, NormalizedVel);
-		if (RightCosAngle < 0)
+		const float RightCosAngle = static_cast<float>(FVector::DotProduct(RightVector, NormalizedVel));
+		if (RightCosAngle < 0.f)
 		{
-			ForwardDeltaDegree *= -1;
+			ForwardDeltaDegree *= -1.f;
 		}
 
 		return ForwardDeltaDegree;

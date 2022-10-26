@@ -51,7 +51,7 @@ void FAnimNode_PoseDriver::RebuildPoseList(const FBoneContainer& InBoneContainer
 			}
 			else
 			{
-				PoseTarget.DrivenUID = INDEX_NONE;
+				PoseTarget.DrivenUID = SmartName::MaxUID;
 			}
 
 			const int32 PoseIndex = InPoseAsset->GetPoseIndexByName(PoseTarget.DrivenName);

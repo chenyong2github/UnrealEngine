@@ -62,22 +62,22 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_BoneDrivenController : public FAnimNode_Sk
 	// Minimum limit of the input value (mapped to RemappedMin, only used when limiting the source range)
 	// If this is rotation, the unit is radian
 	UPROPERTY(EditAnywhere, Category=Mapping, meta=(EditCondition=bUseRange, DisplayName="Source Range Min"))
-	float RangeMin;
+	double RangeMin;
 
 	// Maximum limit of the input value (mapped to RemappedMax, only used when limiting the source range)
 	// If this is rotation, the unit is radian
 	UPROPERTY(EditAnywhere, Category=Mapping, meta=(EditCondition=bUseRange, DisplayName="Source Range Max"))
-	float RangeMax;
+	double RangeMax;
 
 	// Minimum value to apply to the destination (remapped from the input range)
 	// If this is rotation, the unit is radian
 	UPROPERTY(EditAnywhere, Category=Mapping, meta=(EditCondition=bUseRange, DisplayName="Mapped Range Min"))
-	float RemappedMin;
+	double RemappedMin;
 
 	// Maximum value to apply to the destination (remapped from the input range)
 	// If this is rotation, the unit is radian
 	UPROPERTY(EditAnywhere, Category = Mapping, meta = (EditCondition = bUseRange, DisplayName="Mapped Range Max"))
-	float RemappedMax;
+	double RemappedMax;
 
 	/** Name of Morph Target to drive using the source attribute */
 	UPROPERTY(EditAnywhere, Category = "Destination (driven)")
@@ -170,6 +170,6 @@ protected:
 	virtual void InitializeBoneReferences(const FBoneContainer& RequiredBones) override;
 
 	/** Extracts the value used to drive the target bone or parameter */
-	const float ExtractSourceValue(const FTransform& InCurrentBoneTransform, const FTransform& InRefPoseBoneTransform);
+	const double ExtractSourceValue(const FTransform& InCurrentBoneTransform, const FTransform& InRefPoseBoneTransform);
 	// End of FAnimNode_SkeletalControlBase protected interface
 };

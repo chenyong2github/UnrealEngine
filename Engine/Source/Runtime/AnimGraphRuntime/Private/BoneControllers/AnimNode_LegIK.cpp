@@ -216,14 +216,14 @@ void FIKChain::InitializeFromLegData(FAnimLegIKData& InLegData, FAnimInstancePro
 		Links.Init(FIKChainLink(), InLegData.NumBones);
 	}
 	
-	MaximumReach = 0.f;
+	MaximumReach = 0.0;
 
 	check(InLegData.NumBones > 1);
 	for (int32 Index = 0; Index < InLegData.NumBones - 1; Index++)
 	{
 		const FVector BoneLocation = InLegData.FKLegBoneTransforms[Index].GetLocation();
 		const FVector ParentLocation = InLegData.FKLegBoneTransforms[Index + 1].GetLocation();
-		const float BoneLength = FVector::Dist(BoneLocation, ParentLocation);
+		const double BoneLength = FVector::Dist(BoneLocation, ParentLocation);
 
 		FIKChainLink& Link = Links[Index];
 		Link.Location = BoneLocation;
@@ -259,7 +259,7 @@ void FIKChain::InitializeFromLegData(FAnimLegIKData& InLegData, FAnimInstancePro
 
 TAutoConsoleVariable<int32> CVarAnimLegIKTwoBone(TEXT("a.AnimNode.LegIK.EnableTwoBone"), 1, TEXT("Enable Two Bone Code Path."));
 
-void FIKChain::ReachTarget(const FVector& InTargetLocation, float InReachPrecision, int32 InMaxIterations)
+void FIKChain::ReachTarget(const FVector& InTargetLocation, double InReachPrecision, int32 InMaxIterations)
 {
 	if (!bInitialized)
 	{
@@ -309,13 +309,13 @@ void FIKChain::SolveTwoBoneIK(const FVector& InTargetLocation)
 
 	// Use Law of Cosines to work out solution.
 	// At this point we know the target location is reachable, and we are already aligned with that location. So the leg is in the right plane.
-	const float a = Links[1].Length;	// hip to knee
-	const float b = HipToFoot.Size();	// hip to foot
-	const float c = Links[0].Length;	// knee to foot
+	const double a = Links[1].Length;	// hip to knee
+	const double b = HipToFoot.Size();	// hip to foot
+	const double c = Links[0].Length;	// knee to foot
 
-	const float Two_ab = 2.f * a * b;
-	const float CosC = !FMath::IsNearlyZero(Two_ab) ? (a * a + b * b - c * c) / Two_ab : 0.f;
- 	const float C = FMath::Acos(CosC);
+	const double Two_ab = 2.f * a * b;
+	const double CosC = !FMath::IsNearlyZero(Two_ab) ? (a * a + b * b - c * c) / Two_ab : 0.0;
+ 	const double C = FMath::Acos(CosC);
 	
 	// Project Knee onto Hip to Foot line.
 	const FVector HipToFootDir = !FMath::IsNearlyZero(b) ? HipToFoot / b : FVector::ZeroVector;
@@ -332,13 +332,13 @@ void FIKChain::SolveTwoBoneIK(const FVector& InTargetLocation)
 	if ((HingeRotationAxis != FVector::ZeroVector) && (HipToFootDir != FVector::ZeroVector) && !FMath::IsNearlyZero(a))
 	{
 		const FVector HipToKneeDir = HipToKnee / a;
-		const float KneeBendDot = HipToKneeDir | HipToFootDir;
+		const double KneeBendDot = HipToKneeDir | HipToFootDir;
 
 		FVector& CachedRealBendDir = Links[1].RealBendDir;
 		FVector& CachedBaseBendDir = Links[1].BaseBendDir;
 
 		// Valid 'bend', cache 'BendDir'
-		if ((BendDir != FVector::ZeroVector) && (KneeBendDot < 0.99f))
+		if ((BendDir != FVector::ZeroVector) && (KneeBendDot < 0.99))
 		{
 			CachedRealBendDir = BendDir;
 			CachedBaseBendDir = HingeRotationAxis ^ HipToFootDir;
@@ -456,10 +456,10 @@ void FIKChain::FABRIK_ApplyLinkConstraints_Forward(FIKChain& IKChain, int32 Link
 	const FVector ChildAxisY = CurrentLink.LinkAxisZ ^ ChildAxisX;
 	const FVector ParentAxisX = (ParentLink.Location - CurrentLink.Location).GetSafeNormal();
 
-	const float ParentCos = (ParentAxisX | ChildAxisX);
-	const float ParentSin = (ParentAxisX | ChildAxisY);
+	const double ParentCos = (ParentAxisX | ChildAxisX);
+	const double ParentSin = (ParentAxisX | ChildAxisY);
 
-	const bool bNeedsReorient = (ParentSin < 0.f) || (ParentCos > FMath::Cos(IKChain.MinRotationAngleRadians));
+	const bool bNeedsReorient = (ParentSin < 0.0) || (ParentCos > FMath::Cos(IKChain.MinRotationAngleRadians));
 
 	// Parent Link needs to be reoriented.
 	if (bNeedsReorient)
@@ -493,8 +493,8 @@ void FIKChain::FABRIK_ApplyLinkConstraints_Backward(FIKChain& IKChain, int32 Lin
 	const FVector ParentAxisY = CurrentLink.LinkAxisZ ^ ParentAxisX;
 	const FVector ChildAxisX = (ChildLink.Location - CurrentLink.Location).GetSafeNormal();
 
-	const float ChildCos = (ChildAxisX | ParentAxisX);
-	const float ChildSin = (ChildAxisX | ParentAxisY);
+	const double ChildCos = (ChildAxisX | ParentAxisX);
+	const double ChildSin = (ChildAxisX | ParentAxisY);
 
 	const bool bNeedsReorient = (ChildSin > 0.f) || (ChildCos > FMath::Cos(IKChain.MinRotationAngleRadians));
 
@@ -524,18 +524,18 @@ void FIKChain::FABRIK_ForwardReach(const FVector& InTargetLocation, FIKChain& IK
 		FVector EndEffectorToTarget = InTargetLocation - IKChain.Links[0].Location;
 
 		FVector EndEffectorToTargetDir;
-		float EndEffectToTargetSize;
+		double EndEffectToTargetSize;
 		EndEffectorToTarget.ToDirectionAndLength(EndEffectorToTargetDir, EndEffectToTargetSize);
 
-		const float ReachStepAlpha = FMath::Clamp(CVarAnimLegIKTargetReachStepPercent.GetValueOnAnyThread(), 0.01f, 0.99f);
+		const double ReachStepAlpha = FMath::Clamp(CVarAnimLegIKTargetReachStepPercent.GetValueOnAnyThread(), 0.01, 0.99);
 
-		float Displacement = EndEffectToTargetSize;
+		double Displacement = EndEffectToTargetSize;
 		for (int32 LinkIndex = 1; LinkIndex < IKChain.NumLinks; LinkIndex++)
 		{
 			FVector EndEffectorToParent = IKChain.Links[LinkIndex].Location - IKChain.Links[0].Location;
-			float ParentDisplacement = (EndEffectorToParent | EndEffectorToTargetDir);
+			double ParentDisplacement = (EndEffectorToParent | EndEffectorToTargetDir);
 
-			Displacement = (ParentDisplacement > 0.f) ? FMath::Min(Displacement, ParentDisplacement * ReachStepAlpha) : Displacement;
+			Displacement = (ParentDisplacement > 0.0) ? FMath::Min(Displacement, ParentDisplacement * ReachStepAlpha) : Displacement;
 		}
 
 		IKChain.Links[0].Location += EndEffectorToTargetDir * Displacement;
@@ -568,15 +568,15 @@ void FIKChain::FABRIK_BackwardReach(const FVector& InRootTargetLocation, FIKChai
 		float RootToRootTargetSize;
 		RootToRootTarget.ToDirectionAndLength(RootToRootTargetDir, RootToRootTargetSize);
 
-		const float ReachStepAlpha = FMath::Clamp(CVarAnimLegIKTargetReachStepPercent.GetValueOnAnyThread(), 0.01f, 0.99f);
+		const double ReachStepAlpha = FMath::Clamp(CVarAnimLegIKTargetReachStepPercent.GetValueOnAnyThread(), 0.01, 0.99);
 
-		float Displacement = RootToRootTargetSize;
+		double Displacement = RootToRootTargetSize;
 		for (int32 LinkIndex = IKChain.NumLinks - 2; LinkIndex >= 0; LinkIndex--)
 		{
 			FVector RootToChild = IKChain.Links[IKChain.NumLinks - 2].Location - IKChain.Links.Last().Location;
-			float ChildDisplacement = (RootToChild | RootToRootTargetDir);
+			double ChildDisplacement = (RootToChild | RootToRootTargetDir);
 
-			Displacement = (ChildDisplacement > 0.f) ? FMath::Min(Displacement, ChildDisplacement * ReachStepAlpha) : Displacement;
+			Displacement = (ChildDisplacement > 0.0) ? FMath::Min(Displacement, ChildDisplacement * ReachStepAlpha) : Displacement;
 		}
 
 		IKChain.Links.Last().Location += RootToRootTargetDir * Displacement;
@@ -619,16 +619,16 @@ static FVector FindPlaneNormal(const TArray<FIKChainLink>& Links, const FVector&
 
 TAutoConsoleVariable<int32> CVarAnimLegIKAveragePull(TEXT("a.AnimNode.LegIK.AveragePull"), 1, TEXT("Leg IK AveragePull"));
 
-void FIKChain::SolveFABRIK(const FVector& InTargetLocation, float InReachPrecision, int32 InMaxIterations)
+void FIKChain::SolveFABRIK(const FVector& InTargetLocation, double InReachPrecision, int32 InMaxIterations)
 {
 	// Make sure precision is not too small.
-	const float ReachPrecision = FMath::Max(InReachPrecision, KINDA_SMALL_NUMBER);
+	const double ReachPrecision = FMath::Max(InReachPrecision, DOUBLE_KINDA_SMALL_NUMBER);
 
 	const FVector RootTargetLocation = Links.Last().Location;
-	const float PullDistributionAlpha = FMath::Clamp(CVarAnimLegIKPullDistribution.GetValueOnAnyThread(), 0.f, 1.f);
+	const double PullDistributionAlpha = FMath::Clamp(CVarAnimLegIKPullDistribution.GetValueOnAnyThread(), 0.0, 1.0);
 
 	// Check distance between foot and foot target location
-	float Slop = FVector::Dist(Links[0].Location, InTargetLocation);
+	double Slop = FVector::Dist(Links[0].Location, InTargetLocation);
 	if (Slop > ReachPrecision || bEnableRotationLimit)
 	{
 		if (bEnableRotationLimit)
@@ -671,7 +671,7 @@ void FIKChain::SolveFABRIK(const FVector& InTargetLocation, float InReachPrecisi
 		const int32 MaxIterations = FMath::Max(InMaxIterations, 1);
 		do
 		{
-			const float PreviousSlop = Slop;
+			const double PreviousSlop = Slop;
 
 #if ENABLE_ANIM_DEBUG
 			bool bDrawDebug = bShowDebug && (IterationCount == (MaxIterations - 1));

@@ -73,7 +73,7 @@ void FAnimNode_BoneDrivenController::EvaluateSkeletalControl_AnyThread(FComponen
 	const FTransform& SourceRefPoseBoneTransform = BoneContainer.GetRefPoseArray()[SourceBone.BoneIndex];
 	const FTransform SourceCurrentBoneTransform = Output.Pose.GetLocalSpaceTransform(SourceBone.GetCompactPoseIndex(BoneContainer));
 
-	const float FinalDriverValue = ExtractSourceValue(SourceCurrentBoneTransform, SourceRefPoseBoneTransform);
+	const double FinalDriverValue = ExtractSourceValue(SourceCurrentBoneTransform, SourceRefPoseBoneTransform);
 	
 	
 	// Calculate a new local-space bone position by adding or replacing target components in the current local space position
@@ -200,24 +200,24 @@ void FAnimNode_BoneDrivenController::EvaluateComponentSpaceInternal(FComponentSp
 	const FTransform& SourceRefPoseBoneTransform = BoneContainer.GetRefPoseArray()[SourceBone.BoneIndex];
 	const FTransform SourceCurrentBoneTransform = Context.Pose.GetLocalSpaceTransform(SourceBone.GetCompactPoseIndex(BoneContainer));
 
-	const float FinalDriverValue = ExtractSourceValue(SourceCurrentBoneTransform, SourceRefPoseBoneTransform);
+	const double FinalDriverValue = ExtractSourceValue(SourceCurrentBoneTransform, SourceRefPoseBoneTransform);
 
 	if (DestinationMode == EDrivenDestinationMode::MorphTarget || DestinationMode == EDrivenDestinationMode::MaterialParameter)
 	{
 		//	Morph target and Material parameter curves
 		USkeleton* Skeleton = Context.AnimInstanceProxy->GetSkeleton();
-		SmartName::UID_Type NameUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, ParameterName);
+		USkeleton::AnimCurveUID NameUID = Skeleton->GetUIDByName(USkeleton::AnimCurveMappingName, ParameterName);
 		if (NameUID != SmartName::MaxUID)
 		{
-			Context.Curve.Set(NameUID, FinalDriverValue);
+			Context.Curve.Set(NameUID, static_cast<float>(FinalDriverValue));
 		}
 	}
 }
 
-const float FAnimNode_BoneDrivenController::ExtractSourceValue(const FTransform &InCurrentBoneTransform, const FTransform &InRefPoseBoneTransform)
+const double FAnimNode_BoneDrivenController::ExtractSourceValue(const FTransform &InCurrentBoneTransform, const FTransform &InRefPoseBoneTransform)
 {
 	// Resolve source value
-	float SourceValue = 0.0f;
+	double SourceValue = 0.0;
 	if (SourceComponent < EComponentType::RotationX)
 	{
 		const FVector TranslationDiff = InCurrentBoneTransform.GetLocation() - InRefPoseBoneTransform.GetLocation();
@@ -232,7 +232,7 @@ const float FAnimNode_BoneDrivenController::ExtractSourceValue(const FTransform 
 	{
 		const FVector CurrentScale = InCurrentBoneTransform.GetScale3D();
 		const FVector RefScale = InRefPoseBoneTransform.GetScale3D();
-		const float ScaleDiff = FMath::Max3(CurrentScale[0], CurrentScale[1], CurrentScale[2]) - FMath::Max3(RefScale[0], RefScale[1], RefScale[2]);
+		const double ScaleDiff = FMath::Max3(CurrentScale[0], CurrentScale[1], CurrentScale[2]) - FMath::Max3(RefScale[0], RefScale[1], RefScale[2]);
 		SourceValue = ScaleDiff;
 	}
 	else
@@ -242,18 +242,18 @@ const float FAnimNode_BoneDrivenController::ExtractSourceValue(const FTransform 
 	}
 
 	// Determine the resulting value
-	float FinalDriverValue = SourceValue;
+	double FinalDriverValue = SourceValue;
 	if (DrivingCurve != nullptr)
 	{
 		// Remap thru the curve if set
-		FinalDriverValue = DrivingCurve->GetFloatValue(FinalDriverValue);
+		FinalDriverValue = DrivingCurve->GetFloatValue(static_cast<float>(FinalDriverValue));
 	}
 	else
 	{
 		// Apply the fixed function remapping/clamping
 		if (bUseRange)
 		{
-			const float ClampedAlpha = FMath::Clamp(FMath::GetRangePct(RangeMin, RangeMax, FinalDriverValue), 0.0f, 1.0f);
+			const double ClampedAlpha = FMath::Clamp(FMath::GetRangePct(RangeMin, RangeMax, FinalDriverValue), 0.0, 1.0);
 			FinalDriverValue = FMath::Lerp(RemappedMin, RemappedMax, ClampedAlpha);
 		}
 

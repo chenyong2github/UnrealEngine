@@ -162,7 +162,7 @@ void FAnimNode_BlendSpacePlayerBase::SnapToPosition(const FVector& NewPosition)
 	const int32 NumAxis = FMath::Min(BlendFilter.FilterPerAxis.Num(), 3);
 	for (int32 Idx = 0; Idx < NumAxis; Idx++)
 	{
-		BlendFilter.FilterPerAxis[Idx].SetToValue(NewPosition[Idx]);
+		BlendFilter.FilterPerAxis[Idx].SetToValue(static_cast<float>(NewPosition[Idx]));
 	}
 }
 
@@ -325,10 +325,10 @@ FVector FAnimNode_BlendSpacePlayer::GetPosition() const
 bool FAnimNode_BlendSpacePlayer::SetPosition(FVector InPosition)
 {
 #if WITH_EDITORONLY_DATA
-	X = InPosition[0];
-	Y = InPosition[1];
-	GET_MUTABLE_ANIM_NODE_DATA(float, X) = InPosition[0];
-	GET_MUTABLE_ANIM_NODE_DATA(float, Y) = InPosition[1];
+	X = static_cast<float>(InPosition[0]);
+	Y = static_cast<float>(InPosition[1]);
+	GET_MUTABLE_ANIM_NODE_DATA(float, X) = static_cast<float>(InPosition[0]);
+	GET_MUTABLE_ANIM_NODE_DATA(float, Y) = static_cast<float>(InPosition[1]);
 #endif
 
 	float* XPtr = GET_INSTANCE_ANIM_NODE_DATA_PTR(float, X);
@@ -336,8 +336,8 @@ bool FAnimNode_BlendSpacePlayer::SetPosition(FVector InPosition)
 
 	if (XPtr && YPtr)
 	{
-		*XPtr = InPosition[0];
-		*YPtr = InPosition[1];
+		*XPtr = static_cast<float>(InPosition[0]);
+		*YPtr = static_cast<float>(InPosition[1]);
 		return true;
 	}
 

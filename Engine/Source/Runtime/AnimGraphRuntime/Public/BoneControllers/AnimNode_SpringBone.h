@@ -27,19 +27,19 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_SpringBone : public FAnimNode_SkeletalCont
 
 	/** If bLimitDisplacement is true, this indicates how long a bone can stretch beyond its length in the ref-pose. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Spring, meta=(EditCondition="bLimitDisplacement"))
-	float MaxDisplacement;
+	double MaxDisplacement;
 
 	/** Stiffness of spring */
 	UPROPERTY(EditAnywhere, Category=Spring, meta = (PinHiddenByDefault))
-	float SpringStiffness;
+	double SpringStiffness;
 
 	/** Damping of spring */
 	UPROPERTY(EditAnywhere, Category=Spring, meta = (PinHiddenByDefault))
-	float SpringDamping;
+	double SpringDamping;
 
 	/** If spring stretches more than this, reset it. Useful for catching teleports etc */
 	UPROPERTY(EditAnywhere, Category=Spring)
-	float ErrorResetThresh;
+	double ErrorResetThresh;
 
 	/** World-space location of the bone. */
 	FVector BoneLocation;

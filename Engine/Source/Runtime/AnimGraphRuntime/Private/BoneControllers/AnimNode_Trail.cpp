@@ -115,7 +115,7 @@ void FAnimNode_Trail::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseConte
 	{
 		for(int32 i=0; i<ChainBoneIndices.Num(); i++)
 		{
-			if (BoneContainer.Contains(ChainBoneIndices[i]))
+			if (BoneContainer.Contains(IntCastChecked<FBoneIndexType>(ChainBoneIndices[i])))
 			{
 				FCompactPoseBoneIndex ChildIndex = BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(ChainBoneIndices[i]));
 				const FTransform& ChainTransform = Output.Pose.GetComponentSpaceTransform(ChildIndex);
@@ -202,12 +202,12 @@ void FAnimNode_Trail::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseConte
 		// If desired, prevent bones stretching too far.
 		if (bLimitStretch)
 		{
-			float RefPoseLength = TargetDelta.Size();
+			double RefPoseLength = TargetDelta.Size();
 			FVector CurrentDelta = TrailBoneLocations[i] - TrailBoneLocations[i - 1];
-			float CurrentLength = CurrentDelta.Size();
+			double CurrentLength = CurrentDelta.Size();
 
 			// If we are too far - cut it back (just project towards parent particle).
-			if ((CurrentLength - RefPoseLength > StretchLimit) && CurrentLength > SMALL_NUMBER)
+			if ((CurrentLength - RefPoseLength > StretchLimit) && CurrentLength > UE_DOUBLE_SMALL_NUMBER)
 			{
 				FVector CurrentDir = CurrentDelta / CurrentLength;
 				TrailBoneLocations[i] = TrailBoneLocations[i - 1] + (CurrentDir * (RefPoseLength + StretchLimit));
@@ -234,8 +234,8 @@ void FAnimNode_Trail::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseConte
 #if WITH_EDITORONLY_DATA				
 				DebugPlaneTransforms[Index] = LimitPlaneTransform;
 #endif // #if WITH_EDITORONLY_DATA
-				float DistanceFromPlane = LimitPlane.PlaneDot(TrailBoneLocations[i]);
-				if (DistanceFromPlane < 0)
+				const double DistanceFromPlane = LimitPlane.PlaneDot(TrailBoneLocations[i]);
+				if (DistanceFromPlane < 0.0)
 				{
 					TrailBoneLocations[i] -= DistanceFromPlane*FVector(LimitPlane.X, LimitPlane.Y, LimitPlane.Z);
 				}
@@ -250,11 +250,11 @@ void FAnimNode_Trail::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseConte
 		if (bReorientParentToChild)
 		{
 			FVector CurrentBoneDir = OutBoneTransforms[i - 1].Transform.TransformVector(GetAlignVector(ChainBoneAxis, bInvertChainBoneAxis));
-			CurrentBoneDir = CurrentBoneDir.GetSafeNormal(SMALL_NUMBER);
+			CurrentBoneDir = CurrentBoneDir.GetSafeNormal(UE_DOUBLE_SMALL_NUMBER);
 
 			// Calculate vector from parent to child.
 			FVector DeltaTranslation = OutBoneTransforms[i].Transform.GetTranslation() - OutBoneTransforms[i - 1].Transform.GetTranslation();
-			FVector NewBoneDir = FVector(DeltaTranslation).GetSafeNormal(SMALL_NUMBER);
+			FVector NewBoneDir = FVector(DeltaTranslation).GetSafeNormal(UE_DOUBLE_SMALL_NUMBER);
 
 			// Calculate a quaternion that gets us from our current rotation to the desired one.
 			FQuat DeltaLookQuat = FQuat::FindBetweenNormals(CurrentBoneDir, NewBoneDir);
@@ -389,7 +389,7 @@ bool FAnimNode_Trail::IsValidToEvaluate(const USkeleton* Skeleton, const FBoneCo
 				// originally tried in AnimGraphNode, but that doesn't know hierarchy so I can't verify it there. Maybe should try with USkeleton asset there. @todo
 				return false;
 			}
-			else if (RequiredBones.Contains(ChainIndex) == false)
+			else if (RequiredBones.Contains(IntCastChecked<FBoneIndexType>(ChainIndex)) == false)
 			{
 				return false;
 			}

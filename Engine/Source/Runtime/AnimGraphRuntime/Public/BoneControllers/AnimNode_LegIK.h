@@ -20,7 +20,7 @@ struct FIKChainLink
 
 public:
 	FVector Location;
-	float Length;
+	double Length;
 	FVector LinkAxisZ;
 	FVector RealBendDir;
 	FVector BaseBendDir;
@@ -28,14 +28,14 @@ public:
 
 	FIKChainLink()
 		: Location(FVector::ZeroVector)
-		, Length(0.f)
+		, Length(0.0)
 		, LinkAxisZ(FVector::ZeroVector)
 		, RealBendDir(FVector::ZeroVector)
 		, BaseBendDir(FVector::ZeroVector)
 		, BoneName(NAME_None)
 	{}
 
-	FIKChainLink(FVector InLocation, float InLength)
+	FIKChainLink(FVector InLocation, double InLength)
 		: Location(InLocation)
 		, Length(InLength)
 		, LinkAxisZ(FVector::ZeroVector)
@@ -56,7 +56,7 @@ public:
 
 private:
 	FAnimInstanceProxy* MyAnimInstanceProxy;
-	float MaximumReach;
+	double MaximumReach;
 	int32 NumLinks;
 	FVector HingeRotationAxis;
 	bool bEnableRotationLimit;
@@ -65,7 +65,7 @@ private:
 public:
 	FIKChain()
 		: MyAnimInstanceProxy(nullptr)
-		, MaximumReach(0.f)
+		, MaximumReach(0.0)
 		, NumLinks(INDEX_NONE)
 		, HingeRotationAxis(FVector::ZeroVector)
 		, bEnableRotationLimit(false)
@@ -73,9 +73,9 @@ public:
 	{}
 
 	void InitializeFromLegData(FAnimLegIKData& InLegData, FAnimInstanceProxy* InAnimInstanceProxy);
-	void ReachTarget(const FVector& InTargetLocation, float InReachPrecision, int32 InMaxIterations);
+	void ReachTarget(const FVector& InTargetLocation, double InReachPrecision, int32 InMaxIterations);
 
-	float GetMaximumReach() const
+	double GetMaximumReach() const
 	{
 		return MaximumReach;
 	}
@@ -83,7 +83,7 @@ public:
 private:
 	void OrientAllLinksToDirection(const FVector& InDirection);
 	void SolveTwoBoneIK(const FVector& InTargetLocation);
-	void SolveFABRIK(const FVector& InTargetLocation, float InReachPrecision, int32 InMaxIterations);
+	void SolveFABRIK(const FVector& InTargetLocation, double InReachPrecision, int32 InMaxIterations);
 
 	static void FABRIK_ForwardReach(const FVector& InTargetLocation, FIKChain& IKChain);
 	static void FABRIK_BackwardReach(const FVector& InRootTargetLocation, FIKChain& IKChain);

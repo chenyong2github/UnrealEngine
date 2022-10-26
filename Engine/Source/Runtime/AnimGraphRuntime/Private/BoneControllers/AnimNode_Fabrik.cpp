@@ -79,7 +79,7 @@ void FAnimNode_Fabrik::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseCont
 	}
 
 	// Maximum length of skeleton segment at full extension
-	float MaximumReach = 0;
+	double MaximumReach = 0;
 
 	// Gather transforms
 	int32 const NumTransforms = BoneIndices.Num();
@@ -109,7 +109,7 @@ void FAnimNode_Fabrik::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseCont
 		OutBoneTransforms[TransformIndex] = FBoneTransform(BoneIndex, BoneCSTransform);
 
 		// Calculate the combined length of this segment of skeleton
-		float const BoneLength = FVector::Dist(BoneCSPosition, OutBoneTransforms[TransformIndex-1].Transform.GetLocation());
+		double const BoneLength = FVector::Dist(BoneCSPosition, OutBoneTransforms[TransformIndex-1].Transform.GetLocation());
 
 		if (!FMath::IsNearlyZero(BoneLength))
 		{
@@ -158,7 +158,7 @@ void FAnimNode_Fabrik::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseCont
 
 			// Calculate axis of rotation from pre-translation vector to post-translation vector
 			FVector const RotationAxis = FVector::CrossProduct(OldDir, NewDir).GetSafeNormal();
-			float const RotationAngle = FMath::Acos(FVector::DotProduct(OldDir, NewDir));
+			double const RotationAngle = FMath::Acos(FVector::DotProduct(OldDir, NewDir));
 			FQuat const DeltaRotation = FQuat(RotationAxis, RotationAngle);
 			// We're going to multiply it, in order to not have to re-normalize the final quaternion, it has to be a unit quaternion.
 			checkSlow(DeltaRotation.IsNormalized());

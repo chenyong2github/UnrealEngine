@@ -49,18 +49,18 @@ void FRBFEntry::AddFromRotator(const FRotator& InRot)
 {
 	const int32 BaseIndex = Values.AddUninitialized(3);
 
-	Values[BaseIndex + 0] = InRot.Roll;
-	Values[BaseIndex + 1] = InRot.Pitch;
-	Values[BaseIndex + 2] = InRot.Yaw;
+	Values[BaseIndex + 0] = static_cast<float>(InRot.Roll);
+	Values[BaseIndex + 1] = static_cast<float>(InRot.Pitch);
+	Values[BaseIndex + 2] = static_cast<float>(InRot.Yaw);
 }
 
 void FRBFEntry::AddFromVector(const FVector& InVector)
 {
 	const int32 BaseIndex = Values.AddUninitialized(3);
 
-	Values[BaseIndex + 0] = InVector.X;
-	Values[BaseIndex + 1] = InVector.Y;
-	Values[BaseIndex + 2] = InVector.Z;
+	Values[BaseIndex + 0] = static_cast<float>(InVector.X);
+	Values[BaseIndex + 1] = static_cast<float>(InVector.Y);
+	Values[BaseIndex + 2] = static_cast<float>(InVector.Z);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -118,20 +118,20 @@ static float GetDistanceBetweenEntries(
 		switch (DistanceMetric)
 		{
 		case ERBFDistanceMethod::Euclidean:
-			Distance = RBFDistanceMetric::Euclidean(A.AsRotator(i), B.AsRotator(i));
+			Distance = static_cast<float>(RBFDistanceMetric::Euclidean(A.AsRotator(i), B.AsRotator(i)));
 			break;
 
 		case ERBFDistanceMethod::Quaternion:
-			Distance = RBFDistanceMetric::ArcLength(A.AsQuat(i), B.AsQuat(i));
+			Distance = static_cast<float>(RBFDistanceMetric::ArcLength(A.AsQuat(i), B.AsQuat(i)));
 			break;
 
 		case ERBFDistanceMethod::SwingAngle:
 		case ERBFDistanceMethod::DefaultMethod:
-			Distance += RBFDistanceMetric::SwingAngle(A.AsQuat(i), B.AsQuat(i), TwistAxis);
+			Distance += static_cast<float>(RBFDistanceMetric::SwingAngle(A.AsQuat(i), B.AsQuat(i), TwistAxis));
 			break;
 
 		case ERBFDistanceMethod::TwistAngle:
-			Distance += RBFDistanceMetric::TwistAngle(A.AsQuat(i), B.AsQuat(i), TwistAxis);
+			Distance += static_cast<float>(RBFDistanceMetric::TwistAngle(A.AsQuat(i), B.AsQuat(i), TwistAxis));
 			break;
 		}
 
