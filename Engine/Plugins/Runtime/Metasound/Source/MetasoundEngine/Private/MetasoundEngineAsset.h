@@ -167,6 +167,7 @@ namespace Metasound
 			using namespace Metasound::Frontend;
 
 			check(AssetTags::AssetClassID == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, AssetClassID));
+			check(AssetTags::IsPreset == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, bIsPreset));
 			check(AssetTags::RegistryInputTypes == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, RegistryInputTypes));
 			check(AssetTags::RegistryOutputTypes == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, RegistryOutputTypes));
 			check(AssetTags::RegistryVersionMajor == GET_MEMBER_NAME_CHECKED(TMetaSoundObject, RegistryVersionMajor));
@@ -175,10 +176,12 @@ namespace Metasound
 			bool bMarkDirty = InMetaSound.AssetClassID != InClassInfo.AssetClassID;
 			bMarkDirty |= InMetaSound.RegistryVersionMajor != InClassInfo.Version.Major;
 			bMarkDirty |= InMetaSound.RegistryVersionMinor != InClassInfo.Version.Minor;
+			bMarkDirty |= InMetaSound.bIsPreset != InClassInfo.bIsPreset;
 
 			InMetaSound.AssetClassID = InClassInfo.AssetClassID;
 			InMetaSound.RegistryVersionMajor = InClassInfo.Version.Major;
 			InMetaSound.RegistryVersionMinor = InClassInfo.Version.Minor;
+			InMetaSound.bIsPreset = InClassInfo.bIsPreset;
 
 			{
 				TArray<FString> InputTypes;

@@ -34,11 +34,14 @@ namespace Metasound
 
 			OutInfo.Type = EMetasoundFrontendClassType::External;
 			OutInfo.AssetPath = InAssetData.GetSoftObjectPath();
-
 			FString AssetClassID;
 			bSuccess &= InAssetData.GetTagValue(AssetTags::AssetClassID, AssetClassID);
 			OutInfo.AssetClassID = FGuid(AssetClassID);
 			OutInfo.ClassName = FMetasoundFrontendClassName(FName(), *AssetClassID, FName());
+
+#if WITH_EDITORONLY_DATA
+			InAssetData.GetTagValue(AssetTags::IsPreset, OutInfo.bIsPreset);
+#endif // WITH_EDITORONLY_DATA
 
 			int32 RegistryVersionMajor = 0;
 			bSuccess &= InAssetData.GetTagValue(AssetTags::RegistryVersionMajor, RegistryVersionMajor);

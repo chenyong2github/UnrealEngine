@@ -172,6 +172,10 @@ public:
 		return GetSupportedClass()->GetClassPathName();
 	}
 
+	virtual const FSlateBrush* GetThumbnailBrush(const FAssetData& InAssetData, const FName InClassName) const override { return nullptr; }
+
+	virtual const FSlateBrush* GetIconBrush(const FAssetData& InAssetData, const FName InClassName) const override { return nullptr; }
+
 protected:
 
 	// Here are some convenience functions for common asset type actions logic

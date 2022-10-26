@@ -126,7 +126,7 @@ public:
 
 		TSharedRef<SOverlay> OverlayWidget = SNew(SOverlay);
 
-		UpdateThumbnailClass();
+		UpdateThumbnailClass(AssetTypeActions.Get());
 
 		ClassThumbnailBrushOverride = InArgs._ClassThumbnailBrushOverride;
 
@@ -277,18 +277,38 @@ public:
 
 	}
 
-	void UpdateThumbnailClass()
+	void UpdateThumbnailClass(const IAssetTypeActions* AssetTypeActions)
 	{
 		const FAssetData& AssetData = AssetThumbnail->GetAssetData();
 		ThumbnailClass = MakeWeakObjectPtr(const_cast<UClass*>(FClassIconFinder::GetIconClassForAssetData(AssetData, &bIsClassType)));
+		const FName AssetClassName = AssetThumbnail->GetAssetData().AssetClassPath.GetAssetName();
 
-		// For non-class types, use the default based upon the actual asset class
-		// This has the side effect of not showing a class icon for assets that don't have a proper thumbnail image available
-		const FName DefaultThumbnail = (bIsClassType) ? NAME_None : FName(*FString::Printf(TEXT("ClassThumbnail.%s"), *AssetThumbnail->GetAssetData().AssetClassPath.GetAssetName().ToString()));
-		ThumbnailBrush = FClassIconFinder::FindThumbnailForClass(ThumbnailClass.Get(), DefaultThumbnail);
+		ClassIconBrush = nullptr;
+		ThumbnailBrush = nullptr;
+		if (AssetTypeActions)
+		{
+			if (const FSlateBrush* AssetTypeThumbnail = AssetTypeActions->GetThumbnailBrush(AssetData, AssetClassName))
+			{
+				ThumbnailBrush = AssetTypeThumbnail;
+			}
 
-		ClassIconBrush = FSlateIconFinder::FindIconBrushForClass(ThumbnailClass.Get());
+			if (const FSlateBrush* AssetTypeIcon = AssetTypeActions->GetIconBrush(AssetData, AssetClassName))
+			{
+				ClassIconBrush = AssetTypeIcon;
+			}
+		}
 
+		if (!ThumbnailBrush)
+		{
+			// For non-class types, use the default based upon the actual asset class
+			// This has the side effect of not showing a class icon for assets that don't have a proper thumbnail image available
+			const FName DefaultThumbnail = (bIsClassType) ? NAME_None : FName(*FString::Printf(TEXT("ClassThumbnail.%s"), *AssetClassName.ToString()));
+			ThumbnailBrush = FClassIconFinder::FindThumbnailForClass(ThumbnailClass.Get(), DefaultThumbnail);
+		}
+		if (!ClassIconBrush)
+		{
+			ClassIconBrush = FSlateIconFinder::FindIconBrushForClass(ThumbnailClass.Get());
+		}
 	}
 
 	FSlateColor GetHintBackgroundColor() const
@@ -371,13 +391,17 @@ private:
 
 		UClass* Class = FindObject<UClass>(AssetData.AssetClassPath);
 		FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-		TWeakPtr<IAssetTypeActions> AssetTypeActions;
+		TSharedPtr<IAssetTypeActions> AssetTypeActions;
 		if ( Class != NULL )
 		{
-			AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(Class);
+			TWeakPtr<IAssetTypeActions> TypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(Class);
+			if (TypeActions.IsValid())
+			{
+				AssetTypeActions = TypeActions.Pin();
+			}
 		}
 
-		UpdateThumbnailClass();
+		UpdateThumbnailClass(AssetTypeActions.Get());
 
 		AssetColor = FLinearColor::White;
 		if( AssetTypeColorOverride.IsSet() )
@@ -386,7 +410,7 @@ private:
 		}
 		else if ( AssetTypeActions.IsValid() )
 		{
-			AssetColor = AssetTypeActions.Pin()->GetTypeColor();
+			AssetColor = AssetTypeActions->GetTypeColor();
 		}
 
 		//AssetBackgroundWidget->SetBorderBackgroundColor(AssetColor.CopyWithNewOpacity(0.3f));

@@ -908,12 +908,33 @@ namespace Metasound
 
 		const FSlateBrush* FEditor::GetDefaultTabIcon() const
 		{
+			FString IconName = TEXT("MetasoundEditor");
 			if (IsPlaying())
 			{
-				return &Style::GetSlateBrushSafe("MetasoundEditor.Play");
+				IconName += TEXT(".Play");
+			}
+			else
+			{
+				if (UMetaSoundSource* MetaSoundSource = Cast<UMetaSoundSource>(Metasound))
+				{
+					IconName += TEXT(".MetasoundSource");
+				}
+				else if (UMetaSoundPatch* MetaSoundPatch = Cast<UMetaSoundPatch>(Metasound))
+				{
+					IconName += TEXT(".MetasoundPatch");
+				}
+
+				const FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+				check(MetaSoundAsset);
+				if (MetaSoundAsset->GetDocumentChecked().RootGraph.PresetOptions.bIsPreset)
+				{
+					IconName += TEXT(".Preset");
+				}
+
+				IconName += TEXT(".Icon");
 			}
 
-			return FAssetEditorToolkit::GetDefaultTabIcon();
+			return &Style::GetSlateBrushSafe(FName(*IconName));
 		}
 
 		FLinearColor FEditor::GetDefaultTabColor() const

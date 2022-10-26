@@ -174,10 +174,14 @@ public:
 	/** Is this asset type supported in the current session? */
 	virtual bool IsSupported() const = 0;
 
-	/**
-	 * Returns class path name as a package + class FName pair
-	 */
+	/** Returns class path name as a package + class FName pair */
 	virtual FTopLevelAssetPath GetClassPathName() const = 0;
+
+	/** Returns thumbnail brush unique for the given asset data.  Returning null falls back to class thumbnail brush. */
+	virtual const FSlateBrush* GetThumbnailBrush(const FAssetData& InAssetData, const FName InClassName) const = 0;
+
+	/** Returns icon brush unique for the given asset data.  Returning null falls back to class icon brush. */
+	virtual const FSlateBrush* GetIconBrush(const FAssetData& InAssetData, const FName InClassName) const = 0;
 };
 
 /**

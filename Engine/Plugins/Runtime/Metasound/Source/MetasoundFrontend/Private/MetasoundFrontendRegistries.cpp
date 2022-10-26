@@ -646,6 +646,8 @@ namespace Metasound
 			{
 				OutputTypes.Add(Output.TypeName);
 			}
+
+			bIsPreset = InClass.PresetOptions.bIsPreset;
 #endif // WITH_EDITORONLY_DATA
 		}
 	} // namespace Frontend

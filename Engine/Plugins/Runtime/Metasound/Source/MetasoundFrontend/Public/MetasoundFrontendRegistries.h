@@ -47,6 +47,9 @@ namespace Metasound
 
 			// Types of class outputs
 			TSet<FName> OutputTypes;
+
+			// Whether or not class is preset
+			bool bIsPreset = false;
 #endif // WITH_EDITORONLY_DATA
 
 			FNodeClassInfo() = default;

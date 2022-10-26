@@ -20,6 +20,10 @@ namespace Metasound
 		{
 			extern const FString METASOUNDFRONTEND_API ArrayDelim;
 
+#if WITH_EDITORONLY_DATA
+			extern const FName METASOUNDFRONTEND_API IsPreset;
+#endif // WITH_EDITORONLY_DATA
+
 			extern const FName METASOUNDFRONTEND_API AssetClassID;
 			extern const FName METASOUNDFRONTEND_API RegistryVersionMajor;
 			extern const FName METASOUNDFRONTEND_API RegistryVersionMinor;

@@ -46,7 +46,8 @@ public:
 	virtual void SetSupported(bool bInSupported) override { OriginalActions->SetSupported(bInSupported); }
 	virtual bool IsSupported() const override { return OriginalActions->IsSupported(); }
 	virtual FTopLevelAssetPath GetClassPathName() const override { return OriginalActions->GetClassPathName(); };
-
+	virtual const FSlateBrush* GetIconBrush(const FAssetData& InAssetData, const FName InClassName) const override { return OriginalActions->GetIconBrush(InAssetData, InClassName); }
+	virtual const FSlateBrush* GetThumbnailBrush(const FAssetData& InAssetData, const FName InClassName) const override { return OriginalActions->GetThumbnailBrush(InAssetData, InClassName); }
 private:
 
 	void GetProxyActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section);

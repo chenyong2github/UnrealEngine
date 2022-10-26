@@ -12,16 +12,25 @@
 #include "MetasoundSource.h"
 #include "MetasoundEditor.h"
 #include "MetasoundEditorGraphBuilder.h"
+#include "MetasoundEditorModule.h"
 #include "MetasoundEditorSettings.h"
 #include "MetasoundFactory.h"
 #include "MetasoundUObjectRegistry.h"
 #include "ObjectEditorUtils.h"
+#include "Styling/AppStyle.h"
+#include "Styling/CoreStyle.h"
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Styling/SlateTypes.h"
 #include "ToolMenus.h"
 #include "ToolMenuSection.h"
 #include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
+
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "MetasoundAssetManager.h"
+#include "Misc/AssetRegistryInterface.h"
+#include "Modules/ModuleManager.h"
+#include "Widgets/SOverlay.h"
 
 
 #define LOCTEXT_NAMESPACE "MetaSoundEditor"
@@ -70,19 +79,16 @@ namespace Metasound
 					return;
 				}
 
-				FString PresetClassName = TPresetClass::StaticClass()->GetName();
-				const FString EntryName = FString::Printf(TEXT("%sTo%s_Preset"), *PresetClassName, *ClassName);
+				FName PresetClassName = TPresetClass::StaticClass()->GetFName();
+				const FString EntryName = FString::Printf(TEXT("%sTo%s_Preset"), *PresetClassName.ToString(), *ClassName);
 				FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-				Section.AddDynamicEntry(*EntryName, FNewToolMenuSectionDelegate::CreateLambda([InPresetClassName = MoveTemp(PresetClassName), Label = InLabel, ToolTip = InToolTip](FToolMenuSection& InSection)
+				Section.AddDynamicEntry(*EntryName, FNewToolMenuSectionDelegate::CreateLambda([PresetClassName, Label = InLabel, ToolTip = InToolTip](FToolMenuSection& InSection)
 				{
-					// TODO: Make class icons for MetaSound types. For now just use SoundCue.
-					//const FString IconName = TEXT("ClassIcon.") + InPresetClassName;
-					const FString IconName = TEXT("ClassIcon.SoundCue");
-
-					const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), *IconName);
+					const FName IconName = *FString::Printf(TEXT("ClassIcon.%s"), *PresetClassName.ToString());
+					const FSlateIcon Icon = Style::CreateSlateIcon(IconName);
 					const FToolMenuExecuteAction UIExecuteAction = FToolMenuExecuteAction::CreateStatic(&ExecuteCreatePreset<TPresetClass, TFactory>);
 
-					const FString PresetEntryName = InPresetClassName + TEXT("_CreatePreset");
+					const FString PresetEntryName = FString::Printf(TEXT("%s_CreatePreset"), *PresetClassName.ToString());
 					InSection.AddMenuEntry(*PresetEntryName, Label, ToolTip, Icon, UIExecuteAction);
 				}));
 			}
@@ -139,6 +145,50 @@ namespace Metasound
 					PreviewComponent->Stop();
 				}
 			}
+
+			bool GetIsPreset(const FSoftObjectPath& InSourcePath)
+			{
+				using namespace Metasound::Editor;
+				using namespace Metasound::Frontend;
+
+				int32 bIsPreset = 0;
+				// If object in memory, try to resolve but not load
+				if (UObject* Object = InSourcePath.ResolveObject())
+				{
+					const FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Object);
+					if (MetaSoundAsset)
+					{
+						bIsPreset = MetaSoundAsset->GetDocumentChecked().RootGraph.PresetOptions.bIsPreset;
+					}
+				}
+				// Otherwise, try to pull from asset registry, but avoid load as this call
+				// would then be slow and is called from the ContentBrowser many times
+				else
+				{
+					FAssetData IconAssetData;
+					const FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry");
+					UE::AssetRegistry::EExists Exists = AssetRegistryModule.TryGetAssetByObjectPath(InSourcePath, IconAssetData);
+					if (Exists == UE::AssetRegistry::EExists::Exists)
+					{
+						IconAssetData.GetTagValue(AssetTags::IsPreset, bIsPreset);
+					}
+				}
+
+				return static_cast<bool>(bIsPreset);
+			}
+
+			const FSlateBrush* GetClassBrush(const FAssetData& InAssetData, FName InClassName, bool bIsThumbnail = false)
+			{
+				const bool bIsPreset = AssetTypeActionsPrivate::GetIsPreset(InAssetData.ToSoftObjectPath());
+				FString BrushName = FString::Printf(TEXT("MetasoundEditor.%s"), *InClassName.ToString());
+				if (bIsPreset)
+				{
+					BrushName += TEXT(".Preset");
+				}
+				BrushName += bIsThumbnail ? TEXT(".Thumbnail") : TEXT(".Icon");
+
+				return &Style::GetSlateBrushSafe(FName(*BrushName));
+			}
 		} // namespace AssetTypeActionsPrivate
 
 		UClass* FAssetTypeActions_MetaSoundPatch::GetSupportedClass() const
@@ -192,6 +242,17 @@ namespace Metasound
 			return SubMenus;
 		}
 
+		const FSlateBrush* FAssetTypeActions_MetaSoundPatch::GetThumbnailBrush(const FAssetData& InAssetData, const FName InClassName) const
+		{
+			constexpr bool bIsThumbnail = true;
+			return AssetTypeActionsPrivate::GetClassBrush(InAssetData, InClassName, bIsThumbnail);
+		}
+
+		const FSlateBrush* FAssetTypeActions_MetaSoundPatch::GetIconBrush(const FAssetData& InAssetData, const FName InClassName) const
+		{
+			return AssetTypeActionsPrivate::GetClassBrush(InAssetData, InClassName);
+		}
+
 		UClass* FAssetTypeActions_MetaSoundSource::GetSupportedClass() const
 		{
 			return UMetaSoundSource::StaticClass();
@@ -225,13 +286,6 @@ namespace Metasound
 		{
 			using namespace AssetTypeActionsPrivate;
 			RegisterPresetAction<UMetaSoundSource, UMetaSoundSourceFactory>(SourcePresetLabel, SourcePresetToolTip);
-
-			// This is currently disabled because of the requirement that interfaces of a preset and its referenced
-			// asset must match.  TODO: A feature of interfaces/preset transform is required for this action to work
-			// that introduces the concept of an interface "interface" (i.e. if the interface one graph subscribes to
-			// or contains all of the necessary inputs/outputs of another), so that the preset can "implement" the
-			// referenced graphs "interface."
-// 			RegisterPresetAction<UMetaSoundPatch, UMetaSoundFactory, UMetaSoundSource>(PresetLabel, PresetToolTip);
 		}
 
 		const TArray<FText>& FAssetTypeActions_MetaSoundSource::GetSubMenus() const
@@ -250,21 +304,41 @@ namespace Metasound
 			return SubMenus;
 		}
 
-		TSharedPtr<SWidget> FAssetTypeActions_MetaSoundSource::GetThumbnailOverlay(const FAssetData& AssetData) const
+		TSharedPtr<SWidget> FAssetTypeActions_MetaSoundSource::GetThumbnailOverlay(const FAssetData& InAssetData) const
 		{
-			auto OnGetDisplayBrushLambda = [Path = AssetData.ToSoftObjectPath()]()
+			TSharedPtr<SBox> Box = SNew(SBox)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				.Padding(2.0f);
+
+			auto OnGetDisplayPlaybackLambda = [Box, Path = InAssetData.ToSoftObjectPath()]()
 			{
 				using namespace AssetTypeActionsPrivate;
 
-				if (IsPlaying(Path))
+				const bool bIsValid = Box.IsValid();
+				if (!bIsValid)
 				{
-					return FAppStyle::GetBrush("MediaAsset.AssetActions.Stop.Large");
+					return FCoreStyle::Get().GetBrush(TEXT("NoBrush"));
 				}
 
-				return FAppStyle::GetBrush("MediaAsset.AssetActions.Play.Large");
+				const bool bIsPlaying = IsPlaying(Path);
+				const bool bIsHovered = Box->IsHovered();
+				if (!bIsPlaying && !bIsHovered)
+				{
+					return FCoreStyle::Get().GetBrush(TEXT("NoBrush"));
+				}
+
+				FString IconName = TEXT("MetasoundEditor");
+				IconName += bIsPlaying ? TEXT(".Stop.Thumbnail") : TEXT(".Play.Thumbnail");
+				if (bIsHovered)
+				{
+					IconName += TEXT(".Hovered");
+				}
+
+				return &Style::GetSlateBrushSafe(FName(*IconName));
 			};
 
-			auto OnClickedLambda = [Path = AssetData.ToSoftObjectPath()]()
+			auto OnClickedLambda = [Path = InAssetData.ToSoftObjectPath()]()
 			{
 				using namespace AssetTypeActionsPrivate;
 				// Load and play sound
@@ -283,7 +357,7 @@ namespace Metasound
 				return FReply::Handled();
 			};
 
-			auto OnToolTipTextLambda = [Path = AssetData.ToSoftObjectPath()]()
+			auto OnToolTipTextLambda = [ClassName = GetSupportedClass()->GetFName(), Path = InAssetData.ToSoftObjectPath()]()
 			{
 				using namespace AssetTypeActionsPrivate;
 
@@ -297,46 +371,36 @@ namespace Metasound
 					Format = LOCTEXT("PreviewMetaSoundFromIconToolTip_Editor", "Preview {0}");
 				}
 
-				FName TypeName = UMetaSoundSource::StaticClass()->GetFName();
-				return FText::Format(Format, FText::FromName(TypeName));
+				return FText::Format(Format, FText::FromName(ClassName));
 			};
 
-			TSharedPtr<SBox> Box;
-			SAssignNew(Box, SBox)
+			Box->SetContent(
+				SNew(SButton)
+				.ButtonStyle(&FCoreStyle::Get().GetWidgetStyle<FButtonStyle>("NoBorder"))
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
-				.Padding(FMargin(2));
-
-			auto OnGetVisibilityLambda = [Box, Path = AssetData.ToSoftObjectPath()]()
-			{
-				using namespace AssetTypeActionsPrivate;
-
-				if (Box.IsValid() && (Box->IsHovered() || IsPlaying(Path)))
-				{
-					return EVisibility::Visible;
-				}
-
-				return EVisibility::Hidden;
-			};
-
-			TSharedPtr<SButton> Widget;
-			SAssignNew(Widget, SButton)
-				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.ToolTipText_Lambda(OnToolTipTextLambda)
-				.Cursor(EMouseCursor::Default) // The outer widget can specify a DragHand cursor, so overriden here
+				.Cursor(EMouseCursor::Default) // The outer widget can specify a DragHand cursor, so overridden here
 				.ForegroundColor(FSlateColor::UseForeground())
 				.IsFocusable(false)
 				.OnClicked_Lambda(OnClickedLambda)
-				.Visibility_Lambda(OnGetVisibilityLambda)
 				[
 					SNew(SImage)
-					.Image_Lambda(OnGetDisplayBrushLambda)
-				];
-
-			Box->SetContent(Widget.ToSharedRef());
-			Box->SetVisibility(EVisibility::Visible);
-
+					.Image_Lambda(OnGetDisplayPlaybackLambda)
+				]
+			);
 			return Box;
+		}
+
+		const FSlateBrush* FAssetTypeActions_MetaSoundSource::GetThumbnailBrush(const FAssetData& InAssetData, const FName InClassName) const
+		{
+			constexpr bool bIsThumbnail = true;
+			return AssetTypeActionsPrivate::GetClassBrush(InAssetData, InClassName, bIsThumbnail);
+		}
+
+		const FSlateBrush* FAssetTypeActions_MetaSoundSource::GetIconBrush(const FAssetData& InAssetData, const FName InClassName) const
+		{
+			return AssetTypeActionsPrivate::GetClassBrush(InAssetData, InClassName);
 		}
 	} // namespace Editor
 } // namespace Metasound

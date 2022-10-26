@@ -94,6 +94,9 @@ public:
 	UPROPERTY(AssetRegistrySearchable)
 	int32 RegistryVersionMinor = 0;
 
+	UPROPERTY(AssetRegistrySearchable)
+	bool bIsPreset = false;
+
 	// Sets Asset Registry Metadata associated with this MetaSound
 	virtual void SetRegistryAssetClassInfo(const Metasound::Frontend::FNodeClassInfo& InClassInfo) override;
 
