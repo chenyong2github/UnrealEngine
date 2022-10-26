@@ -207,6 +207,9 @@ FTSRHistoryArrayIndices TranslateHistoryFormatBitsToArrayIndices(ETSRHistoryForm
 	ArrayIndices.Size = 1;
 	ArrayIndices.HighFrequency = 0;
 	ArrayIndices.Translucency = -1;
+	ArrayIndices.PrevHighFrequency = -1;
+	ArrayIndices.PrevHighFrequencyResultant = -1;
+	ArrayIndices.HighFrequencyOverblur = -1;
 
 	if (EnumHasAnyFlags(HistoryFormatBits, ETSRHistoryFormatBits::Translucency))
 	{
@@ -215,16 +218,9 @@ FTSRHistoryArrayIndices TranslateHistoryFormatBitsToArrayIndices(ETSRHistoryForm
 
 	if (EnumHasAnyFlags(HistoryFormatBits, ETSRHistoryFormatBits::GrandReprojection))
 	{
-		ArrayIndices.PrevHighFrequency = ArrayIndices.Size + 0;
-		ArrayIndices.PrevHighFrequencyResultant = ArrayIndices.Size + 1;
-		ArrayIndices.HighFrequencyOverblur = ArrayIndices.Size + 2;
-		ArrayIndices.Size += 3;
-	}
-	else
-	{
-		ArrayIndices.PrevHighFrequency = -1;
-		ArrayIndices.PrevHighFrequencyResultant = -1;
-		ArrayIndices.HighFrequencyOverblur = -1;
+		ArrayIndices.PrevHighFrequency = ArrayIndices.Size++;
+		//ArrayIndices.PrevHighFrequencyResultant = ArrayIndices.Size++;
+		//ArrayIndices.HighFrequencyOverblur = ArrayIndices.Size++;
 	}
 
 	return ArrayIndices;
@@ -241,11 +237,11 @@ FTSRHistorySRVs CreateSRVs(FRDGBuilder& GraphBuilder, const FTSRHistoryTextures&
 		SRVs.Translucency = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForSlice(Textures.ColorArray, Textures.ArrayIndices.Translucency));
 		SRVs.TranslucencyAlpha = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(Textures.TranslucencyAlpha));
 	}
-	if (Textures.ArrayIndices.HighFrequencyOverblur >= 0)
+	if (Textures.ArrayIndices.PrevHighFrequency >= 0)
 	{
 		SRVs.PrevHighFrequency = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForSlice(Textures.ColorArray, Textures.ArrayIndices.PrevHighFrequency));
-		SRVs.PrevHighFrequencyResultant = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForSlice(Textures.ColorArray, Textures.ArrayIndices.PrevHighFrequencyResultant));
-		SRVs.HighFrequencyOverblur = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForSlice(Textures.ColorArray, Textures.ArrayIndices.HighFrequencyOverblur));
+		//SRVs.PrevHighFrequencyResultant = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForSlice(Textures.ColorArray, Textures.ArrayIndices.PrevHighFrequencyResultant));
+		//SRVs.HighFrequencyOverblur = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForSlice(Textures.ColorArray, Textures.ArrayIndices.HighFrequencyOverblur));
 	}
 
 	SRVs.Guide = Textures.Guide;
@@ -664,7 +660,7 @@ class FTSRUpdateHistoryCS : public FTSRShader
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRPrevHistoryParameters, PrevHistoryParameters)
 		SHADER_PARAMETER_STRUCT(FTSRHistorySRVs, PrevHistory)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, GrandPrevColorArray)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, GrandPrevColorTexture)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SceneColorOutputMip0)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SceneColorOutputMip1)
@@ -1154,7 +1150,14 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			FClearValueBinding::None,
 			TexCreate_ShaderResource | TexCreate_UAV);
 
-		Desc.Format = PF_R8;
+		if (bGrandReprojection && History.ArrayIndices.PrevHighFrequencyResultant == -1)
+		{
+			Desc.Format = PF_R8G8;
+		}
+		else
+		{
+			Desc.Format = PF_R8;
+		}
 		History.Metadata = GraphBuilder.CreateTexture(Desc, TEXT("TSR.History.Metadata"));
 
 		Desc.Format = PF_R8;
@@ -1201,7 +1204,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 	// Setup the previous frame history
 	FRDGTextureRef PrevVelocity = BlackDummy;
-	FRDGTextureRef GrandPrevColorArray = BlackDummy;
+	FRDGTextureSRVRef GrandPrevColorTexture = GraphBuilder.CreateSRV(BlackDummy);
 	FTSRHistoryTextures PrevHistory;
 	FTSRHistorySRVs PrevHistorySRVs;
 	if (!bCameraCut)
@@ -1221,7 +1224,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PrevHistorySRVs = CreateSRVs(GraphBuilder, PrevHistory);
 
 		PrevVelocity = InputHistory.Velocity.IsValid() ? GraphBuilder.RegisterExternalTexture(InputHistory.Velocity) : PrevVelocity;
-		GrandPrevColorArray = InputHistory.PrevColorArray.IsValid() ? GraphBuilder.RegisterExternalTexture(InputHistory.PrevColorArray, TEXT("TSR.GrandPrevHistory.ColorArray")) : GrandPrevColorArray;
+		GrandPrevColorTexture = InputHistory.PrevColorArray.IsValid() ?  GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForSlice(GraphBuilder.RegisterExternalTexture(InputHistory.PrevColorArray, TEXT("TSR.GrandPrevHistory.ColorArray")), PrevHistory.ArrayIndices.HighFrequency)) : GrandPrevColorTexture;
 	}
 	else
 	{
@@ -1234,7 +1237,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		// Setup prev history parameters.
 		FScreenPassTextureViewport PrevHistoryViewport(PrevHistorySRVs.HighFrequency->Desc.Texture->Desc.Extent, InputHistory.OutputViewportRect);
 		FScreenPassTextureViewport PrevSubpixelDetailsViewport(PrevHistorySRVs.SubpixelDetails->Desc.Extent, InputHistory.InputViewportRect);
-		FScreenPassTextureViewport GrandPrevSubpixelDetailsViewport(GrandPrevColorArray->Desc.Extent, InputHistory.PrevOutputViewportRect);
+		FScreenPassTextureViewport GrandPrevSubpixelDetailsViewport(GrandPrevColorTexture->Desc.Texture->Desc.Extent, InputHistory.PrevOutputViewportRect);
 
 		if (bCameraCut)
 		{
@@ -1691,7 +1694,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 		PassParameters->PrevHistoryParameters = PrevHistoryParameters;
 		PassParameters->PrevHistory = PrevHistorySRVs;
-		PassParameters->GrandPrevColorArray = GrandPrevColorArray;
+		PassParameters->GrandPrevColorTexture = GrandPrevColorTexture;
 
 		PassParameters->HistoryOutput = CreateUAVs(GraphBuilder, History);
 		if (HistorySize != OutputRect.Size())
