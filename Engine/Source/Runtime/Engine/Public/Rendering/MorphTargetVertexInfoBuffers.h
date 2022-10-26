@@ -79,36 +79,6 @@ public:
 	FBufferRHIRef MorphDataBuffer;
 	FShaderResourceViewRHIRef MorphDataSRV;
 
-	/** Create an RHI vertex buffer with CPU data. CPU data may be discarded after creation (see TResourceArray::Discard) */
-	FBufferRHIRef CreateMorphRHIBuffer_RenderThread();
-	FBufferRHIRef CreateMorphRHIBuffer_Async();
-
-	/** Similar to Init/ReleaseRHI but only update existing SRV so references to the SRV stays valid */
-	template <uint32 MaxNumUpdates>
-	void InitRHIForStreaming(
-		FRHIBuffer* IntermediatMorphTargetBuffer,
-		TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		if (MorphDataBuffer && IntermediatMorphTargetBuffer)
-		{
-			Batcher.QueueUpdateRequest(MorphDataBuffer, IntermediatMorphTargetBuffer);
-			Batcher.QueueUpdateRequest(MorphDataSRV, MorphDataBuffer);
-		}
-	}
-
-	template<uint32 MaxNumUpdates>
-	void ReleaseRHIForStreaming(TRHIResourceUpdateBatcher<MaxNumUpdates>& Batcher)
-	{
-		if (MorphDataBuffer)
-		{
-			Batcher.QueueUpdateRequest(MorphDataBuffer, nullptr);
-		}
-		if (MorphDataSRV)
-		{
-			Batcher.QueueUpdateRequest(MorphDataSRV, nullptr, 0, 0);
-		}
-	}
-
 protected:
 	void ResetCPUData()
 	{
