@@ -1,17 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security.Claims;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Amazon.EC2.Model;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using Horde.Build.Acls;
@@ -49,17 +46,38 @@ namespace Horde.Build.Storage
 		/// <summary>
 		/// Configuration for this namespace
 		/// </summary>
-		public NamespaceConfig Config { get; }
+		NamespaceConfig Config { get; }
 
 		/// <summary>
 		/// The storage backend
 		/// </summary>
-		public IStorageBackend Backend { get; }
+		IStorageBackend Backend { get; }
 
 		/// <summary>
 		/// The ref collection
 		/// </summary>
-		public IRefCollection Refs { get; }
+		IRefCollection Refs { get; }
+
+		/// <summary>
+		/// Whether the backend supports redirects
+		/// </summary>
+		bool SupportsRedirects { get; }
+
+		/// <summary>
+		/// Gets a redirect for a read request
+		/// </summary>
+		/// <param name="locator">Locator for the blob</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Path to upload the data to</returns>
+		ValueTask<Uri?> GetReadRedirectAsync(BlobLocator locator, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Gets a redirect for a write request
+		/// </summary>
+		/// <param name="prefix">Prefix for the new blob locator</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Locator and path to upload the data to</returns>
+		ValueTask<(BlobLocator, Uri)?> GetWriteRedirectAsync(Utf8String prefix = default, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -77,12 +95,15 @@ namespace Horde.Build.Storage
 
 			public IRefCollection Refs { get; }
 
+			public bool SupportsRedirects { get; }
+
 			public StorageClient(NamespaceConfig config, IStorageBackend backend, IRefCollection refs, IMemoryCache cache, ILogger logger)
 				: base(cache, logger)
 			{
 				Config = config;
 				Backend = backend;
 				Refs = refs;
+				SupportsRedirects = backend is IStorageBackendWithRedirects;
 			}
 
 			public void Dispose()
@@ -112,6 +133,17 @@ namespace Horde.Build.Storage
 			}
 
 			/// <inheritdoc/>
+			public ValueTask<Uri?> GetReadRedirectAsync(BlobLocator locator, CancellationToken cancellationToken = default)
+			{
+				IStorageBackendWithRedirects? redirectBackend = Backend as IStorageBackendWithRedirects;
+				if (redirectBackend == null)
+				{
+					return new ValueTask<Uri?>((Uri?)null);
+				}
+				return redirectBackend.GetReadRedirectAsync(GetBlobPath(locator.BlobId), cancellationToken);
+			}
+
+			/// <inheritdoc/>
 			public override async Task<Stream> ReadBlobRangeAsync(BlobLocator locator, int offset, int length, CancellationToken cancellationToken = default)
 			{
 				string path = GetBlobPath(locator.BlobId);
@@ -134,6 +166,27 @@ namespace Horde.Build.Storage
 				await Backend.WriteAsync(path, stream, cancellationToken);
 
 				return new BlobLocator(HostId.Empty, id);
+			}
+
+			/// <inheritdoc/>
+			public async ValueTask<(BlobLocator, Uri)?> GetWriteRedirectAsync(Utf8String prefix = default, CancellationToken cancellationToken = default)
+			{
+				IStorageBackendWithRedirects? redirectBackend = Backend as IStorageBackendWithRedirects;
+				if (redirectBackend == null)
+				{
+					return null;
+				}
+
+				BlobId id = BlobId.CreateNew(prefix);
+				string path = GetBlobPath(id);
+
+				Uri? url = await redirectBackend.GetWriteRedirectAsync(path, cancellationToken);
+				if (url == null)
+				{
+					return null;
+				}
+
+				return (new BlobLocator(HostId.Empty, id), url);
 			}
 
 			#endregion

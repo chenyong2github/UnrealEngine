@@ -66,6 +66,28 @@ namespace Horde.Build.Storage
 	}
 
 	/// <summary>
+	/// Storage backend that supports redirecting HTTP traffic (eg. using S3 presigned urls)
+	/// </summary>
+	public interface IStorageBackendWithRedirects : IStorageBackend
+	{
+		/// <summary>
+		/// Gets a redirect for a read request
+		/// </summary>
+		/// <param name="path">Path to read from</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Path to upload the data to</returns>
+		ValueTask<Uri?> GetReadRedirectAsync(string path, CancellationToken cancellationToken = default);
+
+		/// <summary>
+		/// Gets a redirect for a write request
+		/// </summary>
+		/// <param name="path">Path to write to</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Path to upload the data to</returns>
+		ValueTask<Uri?> GetWriteRedirectAsync(string path, CancellationToken cancellationToken = default);
+	}
+
+	/// <summary>
 	/// Generic version of IStorageBackend, to allow for dependency injection of different singletons
 	/// </summary>
 	/// <typeparam name="T">Type distinguishing different singletons</typeparam>

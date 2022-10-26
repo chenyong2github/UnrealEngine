@@ -27,6 +27,16 @@ namespace Horde.Build.Storage
 		/// Locator for the uploaded bundle
 		/// </summary>
 		public BlobLocator Locator { get; set; }
+
+		/// <summary>
+		/// URL to upload the blob to.
+		/// </summary>
+		public Uri? UploadUrl { get; set; }
+
+		/// <summary>
+		/// Flag for whether the client could use a redirect instead (ie. not post content to the server, and get an upload url back).
+		/// </summary>
+		public bool? SupportsRedirects { get; set; }
 	}
 
 	/// <summary>
@@ -98,23 +108,38 @@ namespace Horde.Build.Storage
 		/// Uploads data to the storage service. 
 		/// </summary>
 		/// <param name="namespaceId">Namespace to fetch from</param>
-		/// <param name="file">Data to be uploaded</param>
+		/// <param name="file">Data to be uploaded. May be null, in which case the server may return a separate url.</param>
 		/// <param name="prefix">Prefix for the uploaded file</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		[HttpPost]
 		[Route("/api/v1/storage/{namespaceId}/blobs")]
-		public async Task<ActionResult<WriteBlobResponse>> WriteBlobAsync(NamespaceId namespaceId, IFormFile file, [FromForm] string? prefix = default, CancellationToken cancellationToken = default)
+		public async Task<ActionResult<WriteBlobResponse>> WriteBlobAsync(NamespaceId namespaceId, IFormFile? file, [FromForm] string? prefix = default, CancellationToken cancellationToken = default)
 		{
 			if (!await _storageService.AuthorizeAsync(namespaceId, User, AclAction.WriteBlobs, null, cancellationToken))
 			{
 				return Forbid(AclAction.WriteBlobs);
 			}
 
-			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
-			using (Stream stream = file.OpenReadStream())
+			IStorageClientImpl client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
+			if (file == null)
 			{
-				BlobLocator locator = await client.WriteBlobAsync(stream, prefix: (prefix == null)? Utf8String.Empty : new Utf8String(prefix), cancellationToken: cancellationToken);
-				return new WriteBlobResponse { Locator = locator };
+				(BlobLocator Locator, Uri UploadUrl)? result = await client.GetWriteRedirectAsync(prefix ?? String.Empty, cancellationToken);
+				if (result == null)
+				{
+					return new WriteBlobResponse { SupportsRedirects = false };
+				}
+				else
+				{
+					return new WriteBlobResponse { Locator = result.Value.Locator, UploadUrl = result.Value.UploadUrl };
+				}
+			}
+			else
+			{
+				using (Stream stream = file.OpenReadStream())
+				{
+					BlobLocator locator = await client.WriteBlobAsync(stream, prefix: (prefix == null) ? Utf8String.Empty : new Utf8String(prefix), cancellationToken: cancellationToken);
+					return new WriteBlobResponse { Locator = locator, SupportsRedirects = client.SupportsRedirects? (bool?)true : null };
+				}
 			}
 		}
 
@@ -135,7 +160,13 @@ namespace Horde.Build.Storage
 				return Forbid(AclAction.WriteBlobs);
 			}
 
-			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
+			IStorageClientImpl client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
+
+			Uri? redirectUrl = await client.GetReadRedirectAsync(locator, cancellationToken);
+			if (redirectUrl != null)
+			{
+				return Redirect(redirectUrl.ToString());
+			}
 
 #pragma warning disable CA2000 // Dispose objects before losing scope
 			// TODO: would be better to use the range header here, but seems to require a lot of plumbing to convert unseekable AWS streams into a format that works with range processing.
