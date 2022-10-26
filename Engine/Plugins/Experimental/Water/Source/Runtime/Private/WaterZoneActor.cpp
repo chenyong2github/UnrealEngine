@@ -357,15 +357,18 @@ bool AWaterZone::UpdateWaterInfoTexture()
 				return true;
 			}
 
-			if (UMaterialInterface* WaterInfoMaterial = WaterBodyComponent->GetWaterInfoMaterialInstance())
-			{
-				UsedMaterials.Add(WaterInfoMaterial);
-			}
-
 			WaterBodiesToRender.Add(WaterBodyComponent);
 			const FBox WaterBodyBounds = WaterBodyComponent->CalcBounds(WaterBodyComponent->GetComponentToWorld()).GetBox();
 			WaterZMax = FMath::Max(WaterZMax, WaterBodyBounds.Max.Z);
 			WaterZMin = FMath::Min(WaterZMin, WaterBodyBounds.Min.Z);
+
+#if WITH_EDITOR
+			if (UMaterialInterface* WaterInfoMaterial = WaterBodyComponent->GetWaterInfoMaterialInstance())
+			{
+				UsedMaterials.Add(WaterInfoMaterial);
+			}
+#endif // WITH_EDITOR
+
 			return true;
 		});
 
@@ -395,6 +398,7 @@ bool AWaterZone::UpdateWaterInfoTexture()
 			}
 		}
 
+#if WITH_EDITOR
 		// Check all the ground actors have complete shader maps before we try to render them into the water info texture
 		for (TWeakObjectPtr<AActor> GroundActorPtr : GroundActors)
 		{
@@ -433,6 +437,7 @@ bool AWaterZone::UpdateWaterInfoTexture()
 		{
 			return false;
 		}
+#endif // WITH_EDITOR
 
 		const ETextureRenderTargetFormat Format = bHalfPrecisionTexture ? ETextureRenderTargetFormat::RTF_RGBA16f : RTF_RGBA32f;
 		WaterInfoTexture = FWaterUtils::GetOrCreateTransientRenderTarget2D(WaterInfoTexture, TEXT("WaterInfoTexture"), RenderTargetResolution, Format);
