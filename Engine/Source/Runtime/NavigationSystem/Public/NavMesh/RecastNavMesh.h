@@ -443,6 +443,9 @@ struct NAVIGATIONSYSTEM_API FRecastNavMeshTileGenerationDebug
 	uint32 bHeightfieldSolidPostHeightFiltering : 1;
 
 	UPROPERTY(EditAnywhere, Category = Debug)
+	uint32 bHeightfieldSolidBounds : 1;
+
+	UPROPERTY(EditAnywhere, Category = Debug)
 	uint32 bCompactHeightfield : 1;
 
 	UPROPERTY(EditAnywhere, Category = Debug)

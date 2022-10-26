@@ -448,6 +448,7 @@ FRecastNavMeshTileGenerationDebug::FRecastNavMeshTileGenerationDebug()
 	bHeightfieldSolidFromRasterization = false;
 	bHeightfieldSolidPostInclusionBoundsFiltering = false;
 	bHeightfieldSolidPostHeightFiltering = false;
+	bHeightfieldSolidBounds = false;
 	bCompactHeightfield = false;
 	bCompactHeightfieldEroded = false;
 	bCompactHeightfieldRegions = false;

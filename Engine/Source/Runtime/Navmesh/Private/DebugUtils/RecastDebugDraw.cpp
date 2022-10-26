@@ -211,6 +211,34 @@ void duDebugDrawHeightfieldWalkable(duDebugDraw* dd, const rcHeightfield& hf)
 	dd->end();
 }
 
+void duDebugDrawHeightfieldBounds(duDebugDraw* dd, const rcHeightfield& hf)
+{
+	if (!dd) return;
+
+	const duReal hfMaxSpawnHeight = hf.bmin[1] + RC_SPAN_MAX_HEIGHT * hf.ch;
+
+	const unsigned int hfBoundCol = duRGBA(160,160,160,255);
+
+	dd->begin(DU_DRAW_LINES, 2.f);
+
+	duAppendBoxWire(dd, hf.bmin[0], hf.bmin[1], hf.bmin[2], hf.bmax[0], hf.bmax[1], hf.bmax[2], hfBoundCol);
+
+	if (hfMaxSpawnHeight < hf.bmax[1]) 
+	{
+		const unsigned int maxSpanBoundCol = duRGBA(255,20,20,255); 
+		dd->vertex(hf.bmin[0], hfMaxSpawnHeight, hf.bmin[2], maxSpanBoundCol);
+		dd->vertex(hf.bmax[0], hfMaxSpawnHeight, hf.bmin[2], maxSpanBoundCol);
+		dd->vertex(hf.bmax[0], hfMaxSpawnHeight, hf.bmin[2], maxSpanBoundCol);
+		dd->vertex(hf.bmax[0], hfMaxSpawnHeight, hf.bmax[2], maxSpanBoundCol);
+		dd->vertex(hf.bmax[0], hfMaxSpawnHeight, hf.bmax[2], maxSpanBoundCol);
+		dd->vertex(hf.bmin[0], hfMaxSpawnHeight, hf.bmax[2], maxSpanBoundCol);
+		dd->vertex(hf.bmin[0], hfMaxSpawnHeight, hf.bmax[2], maxSpanBoundCol);
+		dd->vertex(hf.bmin[0], hfMaxSpawnHeight, hf.bmin[2], maxSpanBoundCol);
+	}
+
+	dd->end();
+}
+
 void duDebugDrawCompactHeightfieldSolid(duDebugDraw* dd, const rcCompactHeightfield& chf)
 {
 	if (!dd) return;
