@@ -103,6 +103,11 @@ const T* FindTypedField(const TSharedPtr<FPropertyNode>& PropertyNode, const FSt
 static const FPropertyNode* GetEditConditionParentNode(const TSharedPtr<FPropertyNode>& PropertyNode)
 {
 	const FPropertyNode* ParentNode = PropertyNode->GetParentNode();
+	if (ParentNode == nullptr)
+	{
+		return nullptr;
+	}
+
 	FFieldVariant PropertyOuter = PropertyNode->GetProperty()->GetOwnerVariant();
 
 	if (PropertyOuter.Get<FArrayProperty>() != nullptr ||
