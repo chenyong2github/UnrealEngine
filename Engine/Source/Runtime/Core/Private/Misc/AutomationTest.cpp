@@ -584,8 +584,8 @@ void FAutomationTestFramework::GetValidTestNames( TArray<FAutomationTestInfo>& T
 
 	// Determine required application type (Editor, Game, or Commandlet)
 	const bool bRunningEditor = GIsEditor && !IsRunningCommandlet();
-	const bool bRunningGame = !GIsEditor || IsRunningGame();
-	const bool bRunningServer = !GIsEditor || IsRunningDedicatedServer();
+	const bool bRunningClient = IsRunningGame() || IsRunningClientOnly();
+	const bool bRunningServer = IsRunningGame() || IsRunningDedicatedServer();
 	const bool bRunningCommandlet = IsRunningCommandlet();
 
 	//application flags
@@ -594,7 +594,7 @@ void FAutomationTestFramework::GetValidTestNames( TArray<FAutomationTestInfo>& T
 	{
 		ApplicationSupportFlags |= EAutomationTestFlags::EditorContext;
 	}
-	if ( bRunningGame )
+	if ( bRunningClient )
 	{
 		ApplicationSupportFlags |= EAutomationTestFlags::ClientContext;
 	}
