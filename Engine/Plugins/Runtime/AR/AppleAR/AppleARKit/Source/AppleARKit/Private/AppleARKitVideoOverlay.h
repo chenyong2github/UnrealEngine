@@ -13,6 +13,7 @@
 
 #include "AppleARKitVideoOverlay.generated.h"
 
+class FRHICommandListImmediate;
 class UARTextureCameraImage;
 class UMaterialInstanceDynamic;
 class UAppleARKitOcclusionTexture;
