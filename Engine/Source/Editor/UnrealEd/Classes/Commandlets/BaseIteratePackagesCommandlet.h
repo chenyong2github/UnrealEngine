@@ -7,11 +7,20 @@
 #include "UObject/ObjectMacros.h"
 #include "Commandlets/Commandlet.h"
 #include "Engine/EngineTypes.h"
+// world partition builder includes
+#include "WorldPartition/WorldPartitionBuilder.h"
+
 #include "BaseIteratePackagesCommandlet.generated.h"
+
+
 
 
 // Log category should be accessible by derived classes
 UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogIteratePackagesCommandlet, Log, All);
+
+DECLARE_DELEGATE_TwoParams(FBaseIteratePackagesCommandletActorCallback, AActor* /*Actor*/, bool& /*bSavePackage*/);
+DECLARE_DELEGATE_TwoParams(FBaseIteratePackagesCommandletObjectCallback, UObject* /*Actor*/, bool& /*bSavePackage*/);
+
 
 UCLASS()
 // Added UNREALED_API to expose this to the save packages test
@@ -83,6 +92,8 @@ protected:
 	/** if we should auto checkin packages that were checked out**/
 	bool bAutoCheckIn;
 
+	bool bUseWorldPartitionBuilder;
+
 	/** Should we build lighting for the packages we are saving? **/
 	//bool bShouldBuildLighting;
 
@@ -115,6 +126,8 @@ protected:
 
 	/** Ignore package version changelist **/
 	bool bIgnoreChangelist;
+
+	bool bKeepPackageGUIDOnSave;
 
 	/** Filter packages based on a collection **/
 	TSet<FName> CollectionFilter;
@@ -224,7 +237,11 @@ protected:
 	*/
 	virtual void PerformAdditionalOperations(class UWorld* World, bool& bSavePackage) { }
 
+	virtual void PerformWorldBuilderAdditionalOperations(class AActor* Actor, bool& bSavePackage) { }
+	virtual void PerformWorldBuilderAdditionalOperations(class UObject* Object, bool& bSavePackage) { }
+
 	virtual void PostPerformAdditionalOperations(class UPackage* Package) { }
+
 
 	/**
 	 * Allows the commandlet to do something after all the packages have been processed
@@ -277,6 +294,7 @@ protected:
 
 private:
 
+	void SavePackages(const TArray<UPackage*>& PackagesToSave);
 
 public:		
 	//~ Begin UCommandlet Interface
