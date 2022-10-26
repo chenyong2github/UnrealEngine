@@ -42,17 +42,20 @@ namespace Horde.Agent.Commands.Bundles
 		{
 			readonly IMemoryCache _cache;
 			readonly HttpClient _httpClient;
+			readonly HttpClient _redirectHttpClient;
 			public IStorageClient Store { get; }
 
 			public HttpStorageClientOwner(NamespaceId namespaceId, Uri baseUri, ILogger logger)
 			{
 				_cache = new MemoryCache(new MemoryCacheOptions());
 				_httpClient = new HttpClient { BaseAddress = baseUri };
-				Store = new HttpStorageClient(namespaceId, _httpClient, _cache, logger);
+				_redirectHttpClient = new HttpClient();
+				Store = new HttpStorageClient(namespaceId, _httpClient, _redirectHttpClient, _cache, logger);
 			}
 
 			public void Dispose()
 			{
+				_redirectHttpClient.Dispose();
 				_httpClient.Dispose();
 				_cache.Dispose();
 			}

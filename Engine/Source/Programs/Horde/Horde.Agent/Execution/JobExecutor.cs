@@ -660,7 +660,9 @@ namespace Horde.Agent.Execution
 			httpClient.BaseAddress = _session.ServerUrl;
 			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _session.Token);
 
-			HttpStorageClient storage = new HttpStorageClient(new NamespaceId("default"), httpClient, cache, logger);
+			using HttpClient redirectHttpClient = _httpClientFactory.CreateClient();
+
+			HttpStorageClient storage = new HttpStorageClient(new NamespaceId("default"), httpClient, redirectHttpClient, cache, logger);
 //			FileStorageClient storage = new FileStorageClient(DirectoryReference.Combine(sharedStorageDir, "bundles"), cache, logger);
 			logger.LogInformation("Using Horde-managed shared storage via {SharedStorageDir}", sharedStorageDir);
 

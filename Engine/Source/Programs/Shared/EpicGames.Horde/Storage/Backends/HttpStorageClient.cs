@@ -36,17 +36,19 @@ namespace EpicGames.Horde.Storage.Backends
 
 		readonly NamespaceId _namespaceId;
 		readonly HttpClient _httpClient;
+		readonly HttpClient _redirectHttpClient;
 		readonly ILogger _logger;
 		bool _supportsUploadRedirects = true;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public HttpStorageClient(NamespaceId namespaceId, HttpClient httpClient, IMemoryCache cache, ILogger logger) 
+		public HttpStorageClient(NamespaceId namespaceId, HttpClient httpClient, HttpClient redirectHttpClient, IMemoryCache cache, ILogger logger) 
 			: base(cache, logger)
 		{
 			_namespaceId = namespaceId;
 			_httpClient = httpClient;
+			_redirectHttpClient = redirectHttpClient;
 			_logger = logger;
 		}
 
@@ -85,9 +87,13 @@ namespace EpicGames.Horde.Storage.Backends
 				if(redirectResponse.UploadUrl != null)
 				{
 					_logger.LogDebug("Using upload redirect for {Locator}", redirectResponse.Locator);
-					using (HttpResponseMessage uploadResponse = await _httpClient.PutAsync(redirectResponse.UploadUrl, streamContent, cancellationToken))
+					using (HttpResponseMessage uploadResponse = await _redirectHttpClient.PutAsync(redirectResponse.UploadUrl, streamContent, cancellationToken))
 					{
-						uploadResponse.EnsureSuccessStatusCode();
+						if (!uploadResponse.IsSuccessStatusCode)
+						{
+							string body = await uploadResponse.Content.ReadAsStringAsync(cancellationToken);
+							throw new StorageException($"Unable to upload data to redirected URL: {body}", null);
+						}
 					}
 					return redirectResponse.Locator;
 				}
