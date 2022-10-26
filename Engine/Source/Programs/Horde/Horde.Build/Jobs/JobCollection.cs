@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using EpicGames.Core;
 using Horde.Build.Acls;
 using Horde.Build.Agents;
@@ -1300,6 +1301,21 @@ namespace Horde.Build.Jobs
 			foreach (JobStepBatchDocument batch in job.Batches)
 			{
 				batch.Steps.RemoveAll(x => x.State == JobStepState.Waiting || x.State == JobStepState.Ready);
+			}
+
+			// Mark any steps in failed batches as skipped
+			foreach (JobStepBatchDocument batch in job.Batches)
+			{
+				if (batch.State == JobStepBatchState.Complete && batch.Error != JobStepBatchError.Incomplete)
+				{
+					foreach (JobStepDocument step in batch.Steps)
+					{
+						if (step.IsPending())
+						{
+							step.State = JobStepState.Skipped;
+						}
+					}
+				}
 			}
 
 			// Remove any skipped nodes whose skipped state is no longer valid
