@@ -213,6 +213,7 @@ public:
 	void RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedActors, ULevel* Level = nullptr);
 
 private:
+	void RestoreComponentState(UActorComponent* ActorComp, FRollbackNetStartupActorInfo& RollbackActor);
 
 	void InitDefaults();
 
