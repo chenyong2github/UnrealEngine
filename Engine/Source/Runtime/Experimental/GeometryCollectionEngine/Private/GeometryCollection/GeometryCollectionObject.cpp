@@ -376,6 +376,22 @@ void UGeometryCollection::Reset()
 	}
 }
 
+void UGeometryCollection::ResetFrom(const FManagedArrayCollection& InCollection, const TArray<UMaterial*>& InMaterials)
+{
+	if (GeometryCollection.IsValid())
+	{
+		Reset();
+
+		InCollection.CopyTo(GeometryCollection.Get());
+
+		// todo(Chaos) : we could certainly run a "dependent attribute update method here instead of having to known about convex specifically 
+		UpdateConvexGeometry();
+				
+		Materials.Append(InMaterials);
+		InitializeMaterials();
+	}
+}
+
 /** AppendGeometry */
 int32 UGeometryCollection::AppendGeometry(const UGeometryCollection & Element, bool ReindexAllMaterials, const FTransform& TransformRoot)
 {

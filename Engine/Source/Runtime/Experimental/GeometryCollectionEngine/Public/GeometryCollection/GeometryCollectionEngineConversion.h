@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "GeometryCollectionObject.h"
 #include "Engine/World.h"
 
 class UStaticMesh;
@@ -157,4 +158,11 @@ public:
 	*/
 	static void AppendGeometryCollection(const UGeometryCollection* SourceGeometryCollection, const UGeometryCollectionComponent* GeometryCollectionComponent, const FTransform& GeometryCollectionTransform, UGeometryCollection* TargetGeometryCollectionObject, bool ReindexMaterials = true);
 
+	/**
+	*  Appends a GeometryCollectionSource to a GeometryCollection
+	*  @param GeometryCollectionSource : geometry collectiun source object ( from UGeometryCollection collection asset ) 
+	*  @param GeometryCollectionInOut : GeometryCollection to append to 
+	*  @param MaterialsInOut  : array of materials to append to
+	*/
+	static void AppendGeometryCollectionSource(const FGeometryCollectionSource& GeometryCollectionSource, FGeometryCollection& GeometryCollectionInOut, TArray<UMaterial*>& MaterialsInOut);
 };

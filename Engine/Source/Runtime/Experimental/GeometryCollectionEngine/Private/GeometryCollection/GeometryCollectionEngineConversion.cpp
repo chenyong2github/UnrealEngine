@@ -1265,3 +1265,40 @@ int32 FGeometryCollectionEngineConversion::AppendSkeletalMeshMaterials(const USk
 	return MaterialStart;
 }
 
+void FGeometryCollectionEngineConversion::AppendGeometryCollectionSource(const FGeometryCollectionSource& GeometryCollectionSource, FGeometryCollection& GeometryCollectionInOut, TArray<UMaterial*>& MaterialsInOut)
+{
+	if (const UObject* SourceObject = GeometryCollectionSource.SourceGeometryObject.ResolveObject())
+	{
+		const int32 StartMaterialIndex = MaterialsInOut.Num();
+
+		MaterialsInOut.Append(GeometryCollectionSource.SourceMaterial);
+
+		if (const UStaticMesh* SourceStaticMesh = Cast<UStaticMesh>(SourceObject))
+		{
+			AppendStaticMesh(
+				SourceStaticMesh,
+				StartMaterialIndex,
+				GeometryCollectionSource.LocalTransform,
+				&GeometryCollectionInOut
+				);
+		}
+		else if (const USkeletalMesh* SourceSkeletalMesh = Cast<USkeletalMesh>(SourceObject))
+		{
+			AppendSkeletalMesh(
+				SourceSkeletalMesh,
+				StartMaterialIndex,
+				GeometryCollectionSource.LocalTransform,
+				&GeometryCollectionInOut
+				);
+		}
+		else if (const UGeometryCollection* SourceGeometryCollection = Cast<UGeometryCollection>(SourceObject))
+		{
+			AppendGeometryCollection(
+				SourceGeometryCollection->GetGeometryCollection().Get(),
+				StartMaterialIndex,
+				GeometryCollectionSource.LocalTransform,
+				&GeometryCollectionInOut
+				);
+		}
+	}
+}

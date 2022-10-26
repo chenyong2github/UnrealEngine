@@ -1241,7 +1241,7 @@ public:
 
 namespace Dataflow
 {
-	void GeometryCollectionEngineAssetNodes();
+	void GeometryCollectionEngineNodes();
 
 
 }

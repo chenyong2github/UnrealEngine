@@ -374,6 +374,9 @@ public:
 
 	/** Return collection to initial (ie. empty) state. */
 	void Reset();
+
+	/** Reset the collection from another set of attributes and materials. */
+	void ResetFrom(const FManagedArrayCollection& InCollection, const TArray<UMaterial*>& InMaterials);
 	
 	int32 AppendGeometry(const UGeometryCollection & Element, bool ReindexAllMaterials = false, const FTransform& TransformRoot = FTransform::Identity);
 	int32 NumElements(const FName& Group) const;

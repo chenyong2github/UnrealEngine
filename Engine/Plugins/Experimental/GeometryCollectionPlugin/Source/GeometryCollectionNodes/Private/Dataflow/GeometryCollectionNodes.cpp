@@ -28,7 +28,7 @@ namespace Dataflow
 {
 	static const FLinearColor CDefaultNodeBodyTintColor = FLinearColor(0.f, 0.f, 0.f, 0.5f);
 
-	void GeometryCollectionEngineAssetNodes()
+	void GeometryCollectionEngineNodes()
 	{
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetCollectionAssetDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FExampleCollectionEditDataflowNode);
