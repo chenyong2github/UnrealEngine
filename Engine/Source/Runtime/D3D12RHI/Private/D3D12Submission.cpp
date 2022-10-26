@@ -5,7 +5,7 @@
 #include "HAL/RunnableThread.h"
 
 #ifndef D3D12_PLATFORM_SUPPORTS_BLOCKING_FENCES
-#define D3D12_PLATFORM_SUPPORTS_BLOCKING_FENCES 1
+#define D3D12_PLATFORM_SUPPORTS_BLOCKING_FENCES 0
 #endif
 
 // These defines control which threads are enabled in the GPU submission pipeline.
