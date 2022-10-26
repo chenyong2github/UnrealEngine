@@ -2,6 +2,7 @@
 
 #include "Grid/PCGLandscapeCache.h"
 
+#include "Engine/World.h"
 #include "PCGSubsystem.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGBlueprintHelpers.h"

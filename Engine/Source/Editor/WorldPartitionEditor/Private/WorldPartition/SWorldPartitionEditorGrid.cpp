@@ -8,6 +8,7 @@
 #include "LevelEditor.h"
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
+#include "Widgets/Text/STextBlock.h"
 
 TMap<FName, SWorldPartitionEditorGrid::PartitionEditorGridCreateInstanceFunc> SWorldPartitionEditorGrid::PartitionEditorGridCreateInstanceFactory;
 

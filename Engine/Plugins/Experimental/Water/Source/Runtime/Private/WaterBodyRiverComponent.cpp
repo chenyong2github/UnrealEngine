@@ -10,6 +10,7 @@
 #include "PhysicsEngine/ConvexElem.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/World.h"
 #include "Algo/Transform.h"
 #include "DynamicMesh/DynamicMesh3.h"
 

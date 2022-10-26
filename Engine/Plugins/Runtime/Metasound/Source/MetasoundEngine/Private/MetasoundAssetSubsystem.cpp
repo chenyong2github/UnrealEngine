@@ -15,6 +15,7 @@
 #include "MetasoundSource.h"
 #include "MetasoundTrace.h"
 #include "MetasoundUObjectRegistry.h"
+#include "Misc/CoreDelegates.h"
 #include "UObject/NoExportTypes.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MetasoundAssetSubsystem)

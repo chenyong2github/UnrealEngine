@@ -10,6 +10,7 @@
 #include "Drawing/PreviewGeometryActor.h"
 #include "Drawing/TriangleSetComponent.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "Engine/World.h"
 #include "MeshOpPreviewHelpers.h" // for the preview meshes
 #include "Selection/UVToolSelection.h"
 #include "ToolSetupUtil.h"

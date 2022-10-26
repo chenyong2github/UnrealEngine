@@ -12,6 +12,7 @@
 #include "ShaderCompiler.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/FeedbackContext.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "Components/PrimitiveComponent.h"
 #include "ActorEditorUtils.h"

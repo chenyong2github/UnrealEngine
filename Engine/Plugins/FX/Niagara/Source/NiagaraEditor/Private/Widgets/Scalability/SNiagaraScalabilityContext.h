@@ -8,6 +8,8 @@
 #include "ViewModels/NiagaraSystemScalabilityViewModel.h"
 #include "Widgets/Layout/SGridPanel.h"
 
+struct FPropertyAndParent;
+
 class SNiagaraScalabilityContext : public SCompoundWidget
 {
 public:

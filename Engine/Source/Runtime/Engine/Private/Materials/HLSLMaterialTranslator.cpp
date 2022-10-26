@@ -7,6 +7,7 @@
 #include "Materials/MaterialExpressionCustom.h"
 #include "MaterialExpressionSettings.h"
 #include "Engine/RendererSettings.h"
+#include <functional>
 
 bool IsExpressionClassPermitted(const UClass* const Class)
 {

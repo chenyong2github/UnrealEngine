@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Layout/Visibility.h"
 #include "Input/Reply.h"
+#include "ViewportClient.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "ShowFlags.h"
 #include "Widgets/SCompoundWidget.h"

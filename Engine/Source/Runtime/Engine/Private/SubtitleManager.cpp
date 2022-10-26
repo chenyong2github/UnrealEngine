@@ -8,6 +8,7 @@
 #include "Audio.h"
 #include "Components/AudioComponent.h"
 #include "AudioThread.h"
+#include "UnrealClient.h"
 
 DEFINE_LOG_CATEGORY(LogSubtitle);
 

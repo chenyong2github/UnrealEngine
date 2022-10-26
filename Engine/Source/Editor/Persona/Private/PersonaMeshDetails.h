@@ -12,6 +12,7 @@
 #include "PropertyHandle.h"
 #include "IDetailCustomNodeBuilder.h"
 #include "IDetailCustomization.h"
+#include "SkeletalMeshReductionSettings.h"
 #include "Widgets/Input/SComboBox.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogSkeletalMeshPersonaMeshDetail, Log, All);

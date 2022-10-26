@@ -4,6 +4,7 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "GLTFExporterModule.h"
 #include "EngineAnalytics.h"
+#include "Engine/World.h"
 
 FGLTFExporterAnalytics::FGLTFExporterAnalytics(const UObject* Object, const FGLTFConvertBuilder& Builder, bool bInitiatedByTask, bool bExportAutomated, bool bExportSuccessful, uint64 StartTime)
 	: FGLTFExporterAnalytics(Object, Builder, bInitiatedByTask, bExportAutomated, bExportSuccessful, StartTime, FPlatformTime::Cycles64())

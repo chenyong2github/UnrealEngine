@@ -11,6 +11,7 @@
 #include "UObject/UObjectIterator.h"
 #include "Textures/SlateIcon.h"
 #include "Styling/AppStyle.h"
+#include "Framework/Application/SlateApplication.h"
 #include "GameFramework/Actor.h"
 #include "ActorFactories/ActorFactory.h"
 #include "ActorFactories/ActorFactoryBoxReflectionCapture.h"

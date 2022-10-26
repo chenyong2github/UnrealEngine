@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerTools.h"
+#include "Engine/SkeletalMesh.h"
 #include "SequencerScriptingEditor.h"
 #include "MovieSceneCapture.h"
 #include "MovieSceneCaptureDialogModule.h"

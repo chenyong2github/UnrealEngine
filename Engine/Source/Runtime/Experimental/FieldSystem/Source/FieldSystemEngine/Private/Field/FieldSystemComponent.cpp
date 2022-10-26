@@ -4,6 +4,7 @@
 
 #include "Async/ParallelFor.h"
 #include "ChaosSolversModule.h"
+#include "Engine/World.h"
 #include "Field/FieldSystemCoreAlgo.h"
 #include "Field/FieldSystemSceneProxy.h"
 #include "Field/FieldSystemNodes.h"

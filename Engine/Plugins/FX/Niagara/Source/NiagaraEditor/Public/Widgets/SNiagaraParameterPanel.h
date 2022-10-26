@@ -12,6 +12,7 @@
 
 class FUICommandList;
 class INiagaraParameterPanelViewModel;
+class SComboButton;
 class SExpanderArrow;
 class SGraphActionMenu;
 class SSearchBox;

@@ -2,6 +2,7 @@
 
 #include "OptimusEditor.h"
 
+#include "IDetailsView.h"
 #include "OptimusEditorTabSummoners.h"
 #include "OptimusEditorClipboard.h"
 #include "OptimusEditorCommands.h"

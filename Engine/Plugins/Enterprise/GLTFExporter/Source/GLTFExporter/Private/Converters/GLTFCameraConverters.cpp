@@ -2,6 +2,7 @@
 
 #include "Converters/GLTFCameraConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
+#include "GameFramework/Actor.h"
 #include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFNameUtility.h"
 #include "Camera/CameraComponent.h"

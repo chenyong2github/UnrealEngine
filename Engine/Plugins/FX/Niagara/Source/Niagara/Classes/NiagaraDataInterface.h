@@ -12,6 +12,7 @@ class RENDERCORE_API FRDGBuilder;
 class FRDGExternalAccessQueue;
 
 class INiagaraCompiler;
+class UCanvas;
 class UCurveVector;
 class UCurveLinearColor;
 class UCurveFloat;

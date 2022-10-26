@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Physics/CollisionPropertySets.h"
-#include "Physics/PhysicsDataCollection.h"
-
+#include "Components/ActorComponent.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "Engine/World.h"
+#include "GameFramework/Actor.h"
+#include "Physics/PhysicsDataCollection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CollisionPropertySets)
 

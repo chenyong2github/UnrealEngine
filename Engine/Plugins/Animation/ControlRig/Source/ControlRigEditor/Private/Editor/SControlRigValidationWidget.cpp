@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Editor/SControlRigValidationWidget.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SScrollBar.h"
@@ -16,6 +17,7 @@
 #include "UserInterface/SMessageLogListing.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ControlRigBlueprint.h"
+#include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "SControlRigValidationWidget"
 

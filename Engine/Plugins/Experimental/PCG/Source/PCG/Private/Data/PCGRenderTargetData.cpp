@@ -2,6 +2,7 @@
 
 #include "Data/PCGRenderTargetData.h"
 #include "Kismet/KismetRenderingLibrary.h"
+#include "TextureResource.h"
 
 void UPCGRenderTargetData::Initialize(UTextureRenderTarget2D* InRenderTarget, const FTransform& InTransform)
 {

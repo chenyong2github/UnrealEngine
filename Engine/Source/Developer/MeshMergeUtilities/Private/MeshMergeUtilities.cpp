@@ -48,6 +48,7 @@
 #include "ProxyGenerationProcessor.h"
 #include "IMaterialBakingAdapter.h"
 #include "StaticMeshComponentAdapter.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "SkeletalMeshAdapter.h"
 #include "StaticMeshAdapter.h"
 

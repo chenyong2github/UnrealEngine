@@ -21,6 +21,7 @@
 #include "DynamicResolutionState.h"
 #include "HAL/PlatformFramePacer.h"
 #include "HDRHelper.h"
+#include "UnrealClient.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameUserSettings)
 

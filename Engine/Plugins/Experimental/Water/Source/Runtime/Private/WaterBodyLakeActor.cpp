@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterBodyLakeActor.h"
+#include "Components/StaticMeshComponent.h"
 #include "WaterBodyLakeComponent.h"
 #include "LakeCollisionComponent.h"
 #include "Engine/StaticMesh.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyLakeActor)
 

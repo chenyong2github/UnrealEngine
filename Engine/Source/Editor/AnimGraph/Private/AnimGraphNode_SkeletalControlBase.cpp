@@ -5,6 +5,7 @@
 #include "AnimationGraphSchema.h"
 #include "Animation/AnimationSettings.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "DetailLayoutBuilder.h"
 #include "ScopedTransaction.h"

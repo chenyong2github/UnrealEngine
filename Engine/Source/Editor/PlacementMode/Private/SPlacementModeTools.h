@@ -14,6 +14,8 @@
 #include "Widgets/Views/STableRow.h"
 #include "Misc/TextFilter.h"
 
+class STextBlock;
+
 /**
  * A tile representation of the class or the asset.  These are embedded into the views inside
  * of each tab.

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNodes/AnimNode_RotationOffsetBlendSpaceGraph.h"
-#include "Animation/AnimInstanceProxy.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimTrace.h"
+#include "Animation/AnimNodeAlphaOptions.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_RotationOffsetBlendSpaceGraph)
 

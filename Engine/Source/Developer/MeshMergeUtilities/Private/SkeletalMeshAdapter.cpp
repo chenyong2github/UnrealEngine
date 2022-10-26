@@ -4,6 +4,7 @@
 
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "MeshMergeHelpers.h"
 #include "MeshUtilities.h"
 #include "Modules/ModuleManager.h"

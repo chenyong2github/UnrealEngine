@@ -4,6 +4,7 @@
 #include "NearestNeighborModel.h"
 #include "NearestNeighborModelInputInfo.h"
 #include "NeuralNetwork.h"
+#include "Components/ExternalMorphSet.h"
 #include "Components/SkeletalMeshComponent.h"
 
 using namespace UE::MLDeformer;

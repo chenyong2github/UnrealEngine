@@ -11,6 +11,7 @@
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraGPURayTracingTransformsShader.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
+#include "NiagaraSceneProxy.h"
 #include "NiagaraSortingGPU.h"
 #include "NiagaraStats.h"
 #include "ParticleResources.h"

@@ -22,6 +22,7 @@
 #include "AsyncCompilationHelpers.h"
 #include "AssetCompilingManager.h"
 #include "LevelEditor.h"
+#include "TextureResource.h"
 
 #define LOCTEXT_NAMESPACE "TextureCompiler"
 

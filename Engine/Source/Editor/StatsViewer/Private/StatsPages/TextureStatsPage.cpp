@@ -15,6 +15,7 @@
 #include "Editor.h"
 #include "ReferencedAssetsUtils.h"
 #include "AssetSelection.h"
+#include "TextureResource.h"
 
 #define LOCTEXT_NAMESPACE "Editor.StatsViewer.TextureStats"
 

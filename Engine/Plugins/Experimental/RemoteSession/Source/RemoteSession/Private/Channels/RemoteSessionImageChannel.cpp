@@ -13,6 +13,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 #include "ImageProviders/RemoteSessionFrameBufferImageProvider.h"
+#include "RHI.h"
 #include "RemoteSessionUtils.h"
 
 

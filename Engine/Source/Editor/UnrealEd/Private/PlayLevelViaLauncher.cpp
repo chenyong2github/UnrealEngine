@@ -22,6 +22,7 @@
 #include "TargetReceipt.h"
 #include "DesktopPlatformModule.h"
 #include "PlatformInfo.h"
+#include "Settings/LevelEditorPlaySettings.h"
 #include "Framework/Docking/TabManager.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "ZenServerInterface.h"

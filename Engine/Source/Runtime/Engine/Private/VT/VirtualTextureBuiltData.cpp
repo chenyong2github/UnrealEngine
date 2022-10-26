@@ -4,6 +4,7 @@
 
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
+#include "EngineLogs.h"
 #include "Misc/CoreMisc.h"
 #include "Serialization/CustomVersion.h"
 #include "Serialization/MemoryWriter.h"

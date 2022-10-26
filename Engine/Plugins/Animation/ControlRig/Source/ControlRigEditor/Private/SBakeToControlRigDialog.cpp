@@ -8,6 +8,7 @@
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
+#include "PropertyEditorModule.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/Input/SButton.h"
 

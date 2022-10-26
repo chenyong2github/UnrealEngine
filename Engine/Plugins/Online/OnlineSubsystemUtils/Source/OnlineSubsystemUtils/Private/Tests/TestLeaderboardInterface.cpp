@@ -3,6 +3,7 @@
 #include "Tests/TestLeaderboardInterface.h"
 #include "OnlineSubsystemUtils.h"
 #include "Interfaces/OnlineIdentityInterface.h"
+#include "Misc/ConfigCacheIni.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 

@@ -2,6 +2,7 @@
 
 #include "AnimGraphNode_CallFunction.h"
 
+#include "Animation/AnimInstance.h"
 #include "BlueprintCompilationManager.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "IAnimationBlueprintEditor.h"

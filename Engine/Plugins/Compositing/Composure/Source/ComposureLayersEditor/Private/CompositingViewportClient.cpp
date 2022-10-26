@@ -2,7 +2,7 @@
 
 #include "CompositingViewportClient.h"
 #include "AssetEditorModeManager.h"
-#include "UnrealClient.h" // for FDummyViewport
+#include "DummyViewport.h"
 #include "CompositingElement.h"
 #include "EditorCompElementContainer.h"
 #include "LevelEditorViewport.h" // for GetIsCameraCut()

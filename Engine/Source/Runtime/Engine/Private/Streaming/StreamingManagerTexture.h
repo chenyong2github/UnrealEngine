@@ -93,7 +93,7 @@ struct FRenderAssetStreamingManager final : public IRenderAssetStreamingManager
 	virtual int64 GetMemoryOverBudget() const override { return MemoryOverBudget; }
 
 	/** Pool size for streaming. */
-	virtual int64 GetPoolSize() const override { return GTexturePoolSize;  }
+	virtual int64 GetPoolSize() const override;
 
 	virtual int64 GetRequiredPoolSize() const override { return DisplayedStats.RequiredPool; }
 

@@ -4,6 +4,7 @@
 #include "Engine/EngineTypes.h"
 #include "SceneManagement.h"
 #include "CanvasItem.h"
+#include "Components/Viewport.h"
 #include "Paper2DModule.h"
 #include "PaperSpriteComponent.h"
 #include "PaperSprite.h"

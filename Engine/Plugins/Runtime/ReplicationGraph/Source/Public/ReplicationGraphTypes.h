@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Containers/StaticArray.h"
 #include "UObject/Package.h"
 #include "EngineGlobals.h"
 #include "Engine/ActorChannel.h"

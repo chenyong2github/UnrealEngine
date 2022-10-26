@@ -2,6 +2,7 @@
 
 #include "StatsPages/PrimitiveStatsPage.h"
 #include "Engine/Level.h"
+#include "Engine/SkeletalMesh.h"
 #include "GameFramework/Actor.h"
 #include "Serialization/ArchiveCountMem.h"
 #include "Components/PrimitiveComponent.h"
@@ -13,6 +14,7 @@
 #include "Engine/Selection.h"
 #include "Editor.h"
 #include "UObject/UObjectIterator.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshResources.h"
 #include "LandscapeProxy.h"
 #include "LightMap.h"

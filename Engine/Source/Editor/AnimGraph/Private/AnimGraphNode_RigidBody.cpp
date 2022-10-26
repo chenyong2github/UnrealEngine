@@ -14,6 +14,7 @@
 #include "DetailWidgetRow.h"
 #include "DetailCategoryBuilder.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Text/STextBlock.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_RigidBody

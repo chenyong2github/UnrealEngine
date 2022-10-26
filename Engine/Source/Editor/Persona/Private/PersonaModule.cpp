@@ -21,6 +21,7 @@
 #include "AnimNotifyDetails.h"
 #include "AnimGraphNodeDetails.h"
 #include "BlendProfileCustomization.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "AnimInstanceDetails.h"
 #include "IEditableSkeleton.h"
 #include "IPersonaToolkit.h"

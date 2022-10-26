@@ -6,9 +6,11 @@
 #include "NiagaraShader.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
-
 #include "Engine/TextureRenderTargetVolume.h"
 #include "Engine/VolumeTexture.h"
+#include "RHIStaticStates.h"
+#include "ShaderCompilerCore.h"
+#include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceVolumeTexture)
 

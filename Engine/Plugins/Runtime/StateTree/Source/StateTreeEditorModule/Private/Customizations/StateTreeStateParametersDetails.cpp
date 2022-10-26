@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StateTreeStateParametersDetails.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -6,6 +6,7 @@
 #include "DetailLayoutBuilder.h"
 #include "IDetailPropertyRow.h"
 #include "IDetailChildrenBuilder.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "PropertyBagDetails.h"
 #include "StateTree.h"

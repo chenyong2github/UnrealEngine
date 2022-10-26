@@ -7,6 +7,7 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/StaticMesh.h"
+#include "Misc/Paths.h"
 #include "StaticMeshAttributes.h"
 #include "PackageTools.h"
 

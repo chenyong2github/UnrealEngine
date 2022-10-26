@@ -18,6 +18,7 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "MaterialUtilities.h"
 
+#include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSourceData.h"
 

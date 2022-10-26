@@ -2,6 +2,7 @@
 
 #include "ProceduralFoliageVolume.h"
 #include "Components/BrushComponent.h"
+#include "Engine/World.h"
 #include "ProceduralFoliageComponent.h"
 #include "ProceduralFoliageSpawner.h"
 #include "WorldPartition/LoaderAdapter/LoaderAdapterActor.h"

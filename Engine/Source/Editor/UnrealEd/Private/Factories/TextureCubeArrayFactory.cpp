@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/TextureCubeArrayFactory.h"
+#include "EngineLogs.h"
 #include "Styling/SlateBrush.h"
 #include "Brushes/SlateDynamicImageBrush.h"
 #include "Engine/TextureCubeArray.h"

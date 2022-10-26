@@ -16,6 +16,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "Engine/Selection.h"
 #include "Kismet/GameplayStatics.h"
+#include "UnrealClient.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BrowserBinding)
 

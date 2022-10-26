@@ -24,6 +24,7 @@
 #include "SceneUtils.h"
 #include "ScreenPass.h"
 #include "Slate/SceneViewport.h"
+#include "TextureResource.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MediaCapture)

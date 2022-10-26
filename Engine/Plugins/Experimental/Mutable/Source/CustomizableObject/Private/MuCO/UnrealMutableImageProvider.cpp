@@ -13,6 +13,7 @@
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuCO/CustomizableObject.h"
 #include "MuR/Ptr.h"
+#include "TextureResource.h"
 #include "UObject/WeakObjectPtr.h"
 
 

@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkeletonTreeVirtualBoneItem.h"
+#include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "SSkeletonTreeRow.h"
 #include "IPersonaPreviewScene.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Widgets/Views/SListView.h"
 #include "Containers/UnrealString.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/BlendProfile.h"

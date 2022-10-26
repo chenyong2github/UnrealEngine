@@ -3,6 +3,7 @@
 #include "SplineMeshSceneProxy.h"
 #include "Materials/Material.h"
 #include "MeshMaterialShader.h"
+#include "StaticMeshComponentLODInfo.h"
 
 IMPLEMENT_TYPE_LAYOUT(FSplineMeshVertexFactoryShaderParameters);
 

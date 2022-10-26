@@ -9,6 +9,8 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeAssignment.generated.h"
 
+class SComboButton;
+class SWidget;
 class UNiagaraScript;
 
 UCLASS()

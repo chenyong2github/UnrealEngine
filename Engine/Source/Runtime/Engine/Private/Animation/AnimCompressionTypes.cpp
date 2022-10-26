@@ -15,6 +15,7 @@
 #include "Animation/AnimData/AnimDataModel.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/JsonWriter.h"
+#include "UObject/LinkerLoad.h"
 
 static FString GCompressionJsonOutput;
 static FAutoConsoleVariableRef CVarCompressionJsonOutput(

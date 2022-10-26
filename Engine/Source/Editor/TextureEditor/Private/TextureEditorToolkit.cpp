@@ -55,6 +55,7 @@
 #include "Settings/ProjectPackagingSettings.h"
 #include "Compression/OodleDataCompressionUtil.h"
 #include "Components/SceneCaptureComponent2D.h"
+#include "TextureResource.h"
 
 #define LOCTEXT_NAMESPACE "FTextureEditorToolkit"
 

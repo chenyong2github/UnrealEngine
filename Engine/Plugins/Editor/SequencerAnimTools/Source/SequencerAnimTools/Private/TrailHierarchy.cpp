@@ -11,6 +11,7 @@
 #include "EditorModeManager.h"
 #include "Tools/MotionTrailOptions.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Text/STextBlock.h"
 #include "CanvasTypes.h"
 
 #define LOCTEXT_NAMESPACE "MotionTrailEditorMode"

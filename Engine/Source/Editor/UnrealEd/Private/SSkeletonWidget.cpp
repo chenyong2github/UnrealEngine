@@ -24,6 +24,7 @@
 #include "Settings/SkeletalMeshEditorSettings.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/AppStyle.h"
+#include "Viewports.h"
 
 #define LOCTEXT_NAMESPACE "SkeletonWidget"
 

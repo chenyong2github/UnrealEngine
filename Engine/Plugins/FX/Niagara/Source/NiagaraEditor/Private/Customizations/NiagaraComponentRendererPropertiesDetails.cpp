@@ -15,6 +15,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
+#include "Widgets/Input/SComboButton.h"
 #include <ObjectEditorUtils.h>
 
 #define LOCTEXT_NAMESPACE "FNiagaraComponentRendererPropertiesDetails"

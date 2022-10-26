@@ -4,6 +4,7 @@
 #include "Animation/AnimInstance.h"
 #include "AnimNodeEditModes.h"
 #include "AnimationCustomVersion.h"
+#include "Components/SkeletalMeshComponent.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_Fabrik 

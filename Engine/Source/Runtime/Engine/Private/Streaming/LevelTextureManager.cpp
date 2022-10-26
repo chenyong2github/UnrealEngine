@@ -6,8 +6,10 @@
 
 #include "Streaming/LevelTextureManager.h"
 #include "Components/PrimitiveComponent.h"
+#include "Engine/Level.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
+#include "SceneInterface.h"
 
 FLevelRenderAssetManager::FLevelRenderAssetManager(ULevel* InLevel, RenderAssetInstanceTask::FDoWorkTask& AsyncTask)
 	: Level(InLevel)

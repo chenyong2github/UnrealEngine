@@ -4,6 +4,7 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "Tasks/GLTFDelayedAnimationTasks.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "LevelSequenceActor.h"
 
 FGLTFJsonAnimation* FGLTFAnimationConverter::Convert(FGLTFJsonNode* RootNode, const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSequence)

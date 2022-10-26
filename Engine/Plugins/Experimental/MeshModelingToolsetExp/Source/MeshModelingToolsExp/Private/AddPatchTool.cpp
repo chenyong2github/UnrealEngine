@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AddPatchTool.h"
+#include "Engine/Level.h"
+#include "Engine/World.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
 #include "InteractiveToolManager.h"

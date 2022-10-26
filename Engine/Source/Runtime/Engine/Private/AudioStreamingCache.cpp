@@ -8,6 +8,7 @@ AudioStreaming.cpp: Implementation of audio streaming classes.
 #include "Misc/CoreStats.h"
 #include "Sound/AudioSettings.h"
 #include "DerivedDataCacheInterface.h"
+#include "Engine/Canvas.h"
 #include "Serialization/MemoryReader.h"
 #include "HAL/PlatformFile.h"
 #include "HAL/PlatformFileManager.h"

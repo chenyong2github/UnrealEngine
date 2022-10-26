@@ -12,6 +12,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "Camera/CameraActor.h"
 #include "UObject/Package.h"
+#include "EngineStats.h"
 #include "Engine/Canvas.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/PlayerStart.h"
@@ -72,6 +73,7 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "Physics/AsyncPhysicsInputComponent.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
+#include "Physics/PhysicsInterfaceScene.h"
 #include "PBDRigidsSolver.h"
 
 #if UE_WITH_IRIS

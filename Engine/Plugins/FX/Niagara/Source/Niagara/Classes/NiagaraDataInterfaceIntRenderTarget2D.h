@@ -7,6 +7,8 @@
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterfaceIntRenderTarget2D.generated.h"
 
+class UTextureRenderTarget2D;
+
 UCLASS(EditInlineNew, Category = "Render Target", meta = (DisplayName = "Integer Render Target 2D", Experimental), Blueprintable, BlueprintType)
 class NIAGARA_API UNiagaraDataInterfaceIntRenderTarget2D : public UNiagaraDataInterfaceRWBase
 {

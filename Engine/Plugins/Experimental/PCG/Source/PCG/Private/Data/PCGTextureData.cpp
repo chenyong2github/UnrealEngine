@@ -5,6 +5,7 @@
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Helpers/PCGAsync.h"
+#include "TextureResource.h"
 
 namespace PCGTextureSampling
 {

@@ -10,6 +10,7 @@
 #include "Components/SceneCaptureComponent2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/SceneCapture2D.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "ShaderCompiler.h"
 #include "AssetCompilingManager.h"

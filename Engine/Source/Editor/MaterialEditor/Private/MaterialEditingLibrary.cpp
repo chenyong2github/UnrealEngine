@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MaterialEditingLibrary.h"
+#include "Engine/Texture.h"
 #include "Editor.h"
 #include "MaterialEditor.h"
 #include "MaterialInstanceEditor.h"

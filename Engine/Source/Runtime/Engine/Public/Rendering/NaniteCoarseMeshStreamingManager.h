@@ -7,6 +7,7 @@
 
 class UStreamableRenderAsset;
 class ULevel;
+namespace Nanite { using CoarseMeshStreamingHandle = int16; }
 
 namespace Nanite
 {

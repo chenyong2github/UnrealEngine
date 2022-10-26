@@ -9,8 +9,8 @@
 #include "Engine/EngineBaseTypes.h"
 #include "UObject/ScriptMacros.h"
 #include "Input/PopupMethodReply.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SOverlay.h"
+//#include "Widgets/SWidget.h"
+//#include "Widgets/SOverlay.h"
 #include "ShowFlags.h"
 #include "Engine/ScriptViewportClient.h"
 #include "Engine/ViewportSplitScreen.h"
@@ -19,20 +19,24 @@
 #include "Engine/DebugDisplayProperty.h"
 #include "UObject/SoftObjectPath.h"
 #include "StereoRendering.h"
-#include "AudioDeviceManager.h"
+#include "AudioDeviceHandle.h"
 
 #include "GameViewportClient.generated.h"
 
 class FCanvas;
 class FSceneView;
 class FSceneViewport;
+class FViewportFrame;
 class IGameLayerManager;
+class SOverlay;
 class SViewport;
+class SWidget;
 class SWindow;
 class UCanvas;
 class UGameInstance;
 class ULocalPlayer;
 class UNetDriver;
+struct FMargin;
 
 /** Delegate for overriding the behavior when a navigation action is taken, Not to be confused with FNavigationDelegate which allows a specific widget to override behavior for itself */
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FCustomNavigationHandler, const uint32, TSharedPtr<SWidget>);

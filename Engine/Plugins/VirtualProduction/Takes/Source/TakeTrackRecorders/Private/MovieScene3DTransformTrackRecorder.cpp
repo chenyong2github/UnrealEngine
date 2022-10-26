@@ -5,6 +5,7 @@
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Engine/SkeletalMesh.h"
 #include "GameFramework/Character.h"
 #include "KeyParams.h"
 #include "Algo/Transform.h"

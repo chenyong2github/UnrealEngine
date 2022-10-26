@@ -21,6 +21,7 @@
 #include "ISettingsModule.h"
 #include "ISettingsEditorModule.h"
 #include "Settings/EditorExperimentalSettings.h"
+#include "Settings/LevelEditorPlaySettings.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "ToolMenus.h"
 #include "FileHelpers.h"

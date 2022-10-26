@@ -4,6 +4,7 @@
 #include "MLDeformerMorphModelInstance.h"
 #include "MLDeformerModelInstance.h"
 #include "MLDeformerComponent.h"
+#include "Components/ExternalMorphSet.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Rendering/MorphTargetVertexInfoBuffers.h"
 

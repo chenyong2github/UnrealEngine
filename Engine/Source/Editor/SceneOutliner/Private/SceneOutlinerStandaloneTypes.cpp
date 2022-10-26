@@ -3,6 +3,7 @@
 #include "SceneOutlinerStandaloneTypes.h"
 
 #include "EditorActorFolders.h"
+#include "Framework/Application/SlateApplication.h"
 #include "ISceneOutlinerTreeItem.h"
 #include "ISceneOutliner.h"
 #include "ISceneOutlinerMode.h"

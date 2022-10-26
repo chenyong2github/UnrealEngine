@@ -19,6 +19,7 @@
 
 class FPaintArgs;
 class FSlateWindowElementList;
+class SBox;
 class UAnimSequence;
 class UBlendSpace;
 

@@ -31,6 +31,7 @@
 #include "Sound/SoundMix.h"
 #include "Sound/SoundSourceBus.h"
 #include "Sound/SoundWave.h"
+#include "UnrealClient.h"
 #include "UnrealEngine.h"
 
 #if WITH_EDITOR

@@ -6,6 +6,7 @@
 
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
+#include "IDetailsView.h"
 #include "Misc/App.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SSeparator.h"
@@ -30,6 +31,7 @@
 #include "Serialization/StaticMemoryReader.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Framework/Commands/UICommandDragDropOp.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "EditToolMenuDialog"
 

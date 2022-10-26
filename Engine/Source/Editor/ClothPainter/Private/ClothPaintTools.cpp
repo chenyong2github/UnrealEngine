@@ -31,6 +31,7 @@
 #include "Math/UnrealMathSSE.h"
 #include "Math/Vector.h"
 #include "Math/Vector4.h"
+#include "MeshPaintHelpers.h"
 #include "MeshPaintSettings.h"
 #include "MeshPaintTypes.h"
 #include "Misc/AssertionMacros.h"

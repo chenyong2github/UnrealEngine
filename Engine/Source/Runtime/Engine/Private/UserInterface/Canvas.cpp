@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/Canvas.h"
+#include "CanvasBatchedElementRenderItem.h"
 #include "UObject/Package.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EngineStats.h"
@@ -21,6 +22,7 @@
 #include "Misc/CoreDelegates.h"
 #include "OneColorShader.h"
 #include "PipelineStateCache.h"
+#include "RHIStaticStates.h"
 #include "ClearQuad.h"
 #include "MeshPassProcessor.h"
 #include "StereoRendering.h"
@@ -29,6 +31,8 @@
 #include "EngineModule.h"
 #include "CanvasRender.h"
 #include "RenderGraphUtils.h"
+#include "TextureResource.h"
+#include "UnrealClient.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Canvas)
 

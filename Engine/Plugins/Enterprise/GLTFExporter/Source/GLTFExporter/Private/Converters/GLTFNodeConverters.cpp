@@ -9,9 +9,12 @@
 #include "Camera/CameraComponent.h"
 #include "Components/LightComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshSocket.h"
 #include "Engine/SkeletalMeshSocket.h"
+#include "GameFramework/Pawn.h"
 
 FGLTFJsonNode* FGLTFActorConverter::Convert(const AActor* Actor)
 {

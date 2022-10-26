@@ -26,8 +26,9 @@
 
 #pragma once
 #include "Animation/AnimInstance.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "AnimSequencerInstance.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
 #include "SequencerAnimationSupport.h"
 
 class ANIMGRAPHRUNTIME_API FAnimCustomInstanceHelper

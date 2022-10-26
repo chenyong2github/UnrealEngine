@@ -6,6 +6,7 @@
 #include "SBlueprintEditorToolbar.h"
 #include "BlueprintEditorSharedTabFactories.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "WidgetBlueprintEditorToolbar.h"
 #include "UMGEditorModule.h"

@@ -3,6 +3,7 @@
 #include "Camera/CameraStackTypes.h"
 #include "Camera/CameraTypes.h"
 #include "SceneView.h"
+#include "UnrealClient.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CameraStackTypes)
 

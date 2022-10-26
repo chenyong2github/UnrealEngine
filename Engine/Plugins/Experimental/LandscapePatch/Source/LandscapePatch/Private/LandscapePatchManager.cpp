@@ -4,6 +4,8 @@
 
 #include "Modules/ModuleManager.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Engine/Level.h"
+#include "Engine/World.h"
 #include "Landscape.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapePatchComponent.h"

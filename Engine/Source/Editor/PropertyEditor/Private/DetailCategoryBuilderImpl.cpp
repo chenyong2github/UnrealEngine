@@ -2,6 +2,7 @@
 
 #include "DetailCategoryBuilderImpl.h"
 
+#include "Components/ActorComponent.h"
 #include "DetailAdvancedDropdownNode.h"
 #include "DetailBuilderTypes.h"
 #include "DetailCategoryGroupNode.h"

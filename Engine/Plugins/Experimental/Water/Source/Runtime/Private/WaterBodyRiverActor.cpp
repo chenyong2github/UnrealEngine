@@ -3,6 +3,7 @@
 #include "WaterBodyRiverActor.h"
 #include "WaterBodyRiverComponent.h"
 #include "Components/SplineMeshComponent.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyRiverActor)
 

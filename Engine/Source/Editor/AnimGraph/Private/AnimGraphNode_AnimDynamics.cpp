@@ -2,6 +2,7 @@
 
 #include "AnimGraphNode_AnimDynamics.h"
 #include "AnimNodeEditModes.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "EngineGlobals.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "SceneManagement.h"
@@ -19,6 +20,7 @@
 #include "Animation/AnimInstance.h"
 #include "IDetailChildrenBuilder.h"
 #include "PropertyCustomizationHelpers.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "AnimDynamicsNode"
 

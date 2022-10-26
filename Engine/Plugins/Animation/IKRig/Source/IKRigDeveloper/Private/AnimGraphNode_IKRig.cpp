@@ -2,6 +2,7 @@
 
 #include "AnimGraphNode_IKRig.h"
 #include "Animation/AnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "IKRigDefinition.h"
 #include "IKRigSolver.h"
 #include "Kismet2/CompilerResultsLog.h"

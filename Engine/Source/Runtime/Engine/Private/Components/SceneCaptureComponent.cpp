@@ -16,6 +16,7 @@
 #include "Components/BillboardComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/Texture2D.h"
+#include "Engine/World.h"
 #include "SceneManagement.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SceneCapture.h"

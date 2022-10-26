@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNodes/AnimNode_IKRig.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "IKRigProcessor.h"
 #include "IKRigDefinition.h"
 #include "IKRigSolver.h"
@@ -8,6 +9,7 @@
 #include "Drawing/ControlRigDrawInterface.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Algo/ForEach.h"
+#include "SceneManagement.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_IKRig)
 

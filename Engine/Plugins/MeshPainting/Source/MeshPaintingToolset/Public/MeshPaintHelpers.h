@@ -9,6 +9,7 @@
 #include "IMeshPaintComponentAdapter.h"
 #include "InteractiveToolManager.h"
 #include "EdModeInteractiveToolsContext.h"
+#include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "MeshPaintHelpers.generated.h"

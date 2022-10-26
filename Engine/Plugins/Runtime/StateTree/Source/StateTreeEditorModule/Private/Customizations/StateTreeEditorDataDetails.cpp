@@ -16,6 +16,9 @@
 #include "PropertyBagDetails.h"
 #include "StateTreeEditorStyle.h"
 #include "Styling/StyleColors.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 

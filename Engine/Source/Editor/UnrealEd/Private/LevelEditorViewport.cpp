@@ -15,6 +15,7 @@
 #include "Animation/AnimSequenceBase.h"
 #include "CanvasItem.h"
 #include "Engine/BrushBuilder.h"
+#include "Engine/SkeletalMesh.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Engine/Brush.h"
 #include "AI/NavigationSystemBase.h"
@@ -102,6 +103,7 @@
 #include "EdModeInteractiveToolsContext.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Rendering/StaticLightingSystemInterface.h"
+#include "TextureResource.h"
 
 DEFINE_LOG_CATEGORY(LogEditorViewport);
 

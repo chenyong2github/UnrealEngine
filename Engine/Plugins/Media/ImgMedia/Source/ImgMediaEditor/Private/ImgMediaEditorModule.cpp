@@ -7,6 +7,7 @@
 #include "AssetTools/ImgMediaSourceActions.h"
 #include "ContentBrowserMenuContexts.h"
 #include "Customizations/ImgMediaSourceCustomization.h"
+#include "Framework/Application/SlateApplication.h"
 #include "IAssetTools.h"
 #include "ImgMediaEditorModule.h"
 #include "IImgMediaModule.h"

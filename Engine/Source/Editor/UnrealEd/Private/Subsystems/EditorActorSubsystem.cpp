@@ -21,6 +21,7 @@
 #include "Misc/FileHelper.h"
 #include "Engine/Selection.h"
 #include "LevelEditorViewport.h"
+#include "Settings/LevelEditorViewportSettings.h"
 #include "Subsystems/EditorElementSubsystem.h"
 #include "UObject/Stack.h"
 

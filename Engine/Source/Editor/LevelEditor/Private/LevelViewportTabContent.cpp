@@ -2,6 +2,7 @@
 
 #include "LevelViewportTabContent.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Modules/ModuleManager.h"
 #include "LevelEditor.h"

@@ -21,6 +21,7 @@
 #include "Engine/StaticMesh.h"
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "UObject/UObjectIterator.h"
 
 using namespace UE::Geometry;
 

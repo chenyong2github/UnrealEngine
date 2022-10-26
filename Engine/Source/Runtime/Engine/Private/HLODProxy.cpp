@@ -19,9 +19,11 @@
 #include "Engine/Texture.h"
 #include "Engine/StaticMesh.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "LevelUtils.h"
 #include "Engine/LevelStreaming.h"
 #include "Math/UnrealMathUtility.h"
+#include "StaticMeshResources.h"
 #include "UObject/ObjectSaveContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HLODProxy)

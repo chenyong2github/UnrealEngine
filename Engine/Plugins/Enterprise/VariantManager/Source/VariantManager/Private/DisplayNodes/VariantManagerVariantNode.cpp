@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DisplayNodes/VariantManagerVariantNode.h"
-
+#include "Engine/Texture2D.h"
 #include "SVariantManager.h"
 #include "ThumbnailGenerator.h"
 #include "Variant.h"

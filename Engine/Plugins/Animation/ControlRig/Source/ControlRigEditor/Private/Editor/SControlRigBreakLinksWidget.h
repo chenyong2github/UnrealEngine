@@ -7,6 +7,9 @@
 #include "Dialogs/Dialogs.h"
 #include "IAssetTypeActions.h"
 
+class ITableRow;
+class STableViewBase;
+
 DECLARE_DELEGATE_OneParam(FControlRigOnFocusOnLinkRequestedDelegate, URigVMLink*);
 
 class SControlRigBreakLinksWidget : public SCompoundWidget

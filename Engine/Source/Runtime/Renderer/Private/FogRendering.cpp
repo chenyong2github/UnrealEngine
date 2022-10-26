@@ -7,6 +7,7 @@
 #include "PipelineStateCache.h"
 #include "SingleLayerWaterRendering.h"
 #include "ScreenPass.h"
+#include "TextureResource.h"
 
 DECLARE_GPU_DRAWCALL_STAT(Fog);
 

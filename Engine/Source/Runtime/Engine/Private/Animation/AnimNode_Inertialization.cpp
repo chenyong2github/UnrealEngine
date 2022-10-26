@@ -7,6 +7,7 @@
 #include "Animation/AnimNode_SaveCachedPose.h"
 #include "Animation/BlendProfile.h"
 #include "Algo/MaxElement.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 

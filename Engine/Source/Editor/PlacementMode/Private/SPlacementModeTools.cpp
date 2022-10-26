@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPlacementModeTools.h"
-#include "Application/SlateApplicationBase.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
@@ -11,6 +10,7 @@
 #include "Styling/AppStyle.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
+#include "Framework/Application/SlateApplication.h"
 #include "AssetThumbnail.h"
 #include "LevelEditor.h"
 #include "LevelEditorActions.h"

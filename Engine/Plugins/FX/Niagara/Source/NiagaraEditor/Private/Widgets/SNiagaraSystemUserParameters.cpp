@@ -9,6 +9,7 @@
 #include "Styling/StyleColors.h"
 #include "SystemToolkitModes/NiagaraSystemToolkitModeBase.h"
 #include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "Widgets/SNiagaraParameterMenu.h"
 #include "Widgets/Input/SComboBox.h"

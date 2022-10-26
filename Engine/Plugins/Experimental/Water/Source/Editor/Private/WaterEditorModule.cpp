@@ -11,6 +11,7 @@
 #include "WaterLandscapeBrush.h"
 #include "EngineUtils.h"
 #include "Landscape.h"
+#include "Logging/MessageLog.h"
 #include "WaterZoneActor.h"
 #include "WaterMeshComponent.h"
 #include "Editor.h"

@@ -5,6 +5,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "Framework/Application/SlateApplication.h"
 #include "NiagaraActions.h"
 #include "NiagaraConstants.h"
 #include "NiagaraEditorSettings.h"

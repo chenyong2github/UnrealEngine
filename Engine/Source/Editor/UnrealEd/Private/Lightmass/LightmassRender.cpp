@@ -25,6 +25,7 @@
 #include "LandscapeMaterialInstanceConstant.h"
 #include "EngineModule.h"
 #include "EngineUtils.h"
+#include "TextureResource.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLightmassRender, Error, All);
 

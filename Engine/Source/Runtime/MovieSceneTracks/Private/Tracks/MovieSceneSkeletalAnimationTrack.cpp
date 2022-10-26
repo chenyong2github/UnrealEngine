@@ -4,6 +4,7 @@
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
 #include "Sections/MovieSceneSkeletalAnimationSection.h"
 #include "Compilation/MovieSceneCompilerRules.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Evaluation/MovieSceneSkeletalAnimationTemplate.h"
 #include "Compilation/IMovieSceneTemplateGenerator.h"

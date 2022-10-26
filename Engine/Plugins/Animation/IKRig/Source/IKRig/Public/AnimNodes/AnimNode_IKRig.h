@@ -7,6 +7,7 @@
 #include "IKRigDataTypes.h"
 #include "Animation/AnimNode_CustomProperty.h"
 #include "Animation/InputScaleBias.h"
+#include <functional>
 
 #include "AnimNode_IKRig.generated.h"
 

@@ -9,6 +9,7 @@
 #include "Misc/FeedbackContext.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectHash.h"
+#include "Engine/Level.h"
 #include "EngineGlobals.h"
 #include "RenderingThread.h"
 #include "Containers/List.h"

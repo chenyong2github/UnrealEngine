@@ -16,6 +16,7 @@
 #include "Layout/ArrangedChildren.h"
 #include "Input/DragAndDrop.h"
 #include "Rendering/DrawElements.h"
+#include "Styling/SlateBrush.h"
 
 class FArrangedChildren;
 

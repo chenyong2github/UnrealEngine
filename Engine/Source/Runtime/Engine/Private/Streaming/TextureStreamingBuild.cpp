@@ -5,6 +5,7 @@ TextureStreamingBuild.cpp : Contains definitions to build texture streaming data
 =============================================================================*/
 
 #include "CoreMinimal.h"
+#include "DebugViewModeHelpers.h"
 #include "Misc/Guid.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Engine/Level.h"
@@ -13,6 +14,7 @@ TextureStreamingBuild.cpp : Contains definitions to build texture streaming data
 #include "Engine/TextureStreamingTypes.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/FeedbackContext.h"
 #include "Engine/Texture.h"
 #include "ShaderCompiler.h"

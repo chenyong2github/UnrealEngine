@@ -8,6 +8,7 @@
 class FText;
 struct FGeometry;
 struct FKeyEvent;
+class FReply;
 class FString;
 class UWorld;
 class UObject;

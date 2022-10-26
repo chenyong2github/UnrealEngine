@@ -10,6 +10,7 @@
 #include "HAL/IConsoleManager.h"
 #include "EngineDefines.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "CollisionQueryParams.h"
 #include "Materials/Material.h"

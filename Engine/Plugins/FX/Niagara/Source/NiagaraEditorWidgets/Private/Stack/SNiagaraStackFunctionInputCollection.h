@@ -9,6 +9,7 @@
 
 class UNiagaraStackFunctionInputCollectionBase;
 class SWrapBox;
+enum class ECheckBoxState : uint8;
 
 class SNiagaraStackFunctionInputCollection : public SCompoundWidget
 {

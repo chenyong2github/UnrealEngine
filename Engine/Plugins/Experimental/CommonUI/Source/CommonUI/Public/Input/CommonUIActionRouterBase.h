@@ -11,6 +11,8 @@
 #include "CommonUIActionRouterBase.generated.h"
 
 class AHUD;
+class FWeakWidgetPath;
+class FWidgetPath;
 class UCanvas;
 class UWidget;
 class UCommonUserWidget;
@@ -34,6 +36,7 @@ using FActivatableTreeNodeRef = TSharedRef<FActivatableTreeNode>;
 class FActivatableTreeRoot;
 using FActivatableTreeRootPtr = TSharedPtr<FActivatableTreeRoot>;
 using FActivatableTreeRootRef = TSharedRef<FActivatableTreeRoot>;
+struct FFocusEvent;
 
 enum class ERouteUIInputResult : uint8
 {

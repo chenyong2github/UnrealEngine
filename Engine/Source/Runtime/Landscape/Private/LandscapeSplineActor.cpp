@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LandscapeSplineActor.h"
+#include "Engine/World.h"
 #include "LandscapeInfo.h"
 #include "LandscapeInfoMap.h"
 #include "Landscape.h"

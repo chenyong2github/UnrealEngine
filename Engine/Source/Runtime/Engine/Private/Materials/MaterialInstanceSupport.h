@@ -11,6 +11,7 @@
 #include "MaterialShared.h"
 #include "Materials/MaterialInstance.h"
 #include "HAL/LowLevelMemTracker.h"
+#include <limits>
 
 class UTexture;
 struct FMaterialInstanceCachedData;

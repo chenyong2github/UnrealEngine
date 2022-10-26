@@ -24,6 +24,8 @@
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "ClassIconFinder.h"
 #include "LightingBuildOptions.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SComboButton.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LevelEditorSubsystem, Log, All);
 

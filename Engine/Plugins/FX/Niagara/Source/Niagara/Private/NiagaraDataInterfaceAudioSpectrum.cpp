@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfaceAudioSpectrum.h"
 #include "NiagaraTypes.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraRenderer.h"
 #include "NiagaraShader.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "ShaderParameterUtils.h"

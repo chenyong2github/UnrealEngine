@@ -2,6 +2,7 @@
 
 #include "BoneControllers/AnimNode_BoneDrivenController.h"
 
+#include "Components/SkeletalMeshComponent.h"
 #include "Curves/CurveFloat.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"

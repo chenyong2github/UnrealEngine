@@ -9,6 +9,7 @@
 #include "Misc/MessageDialog.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "DetailWidgetRow.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "SDataRegistryListViewRowName"
 

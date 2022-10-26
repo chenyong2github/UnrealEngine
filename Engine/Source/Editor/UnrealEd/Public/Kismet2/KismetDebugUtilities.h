@@ -11,6 +11,7 @@
 static_assert(DO_BLUEPRINT_GUARD, "KismetDebugUtilities assumes BP exception tracking is enabled");
 
 class UBlueprint;
+class UEdGraphPin;
 struct FBlueprintBreakpoint;
 struct FBlueprintWatchedPin;
 template<typename ElementType> class TSimpleRingBuffer;

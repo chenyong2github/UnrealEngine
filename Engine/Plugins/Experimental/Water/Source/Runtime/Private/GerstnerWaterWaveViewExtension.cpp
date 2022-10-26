@@ -5,6 +5,7 @@
 #include "WaterBodyActor.h"
 #include "GerstnerWaterWaves.h"
 #include "Engine/Engine.h"
+#include "SceneView.h"
 #include "WaterBodyManager.h"
 #include "WaterSubsystem.h"
 

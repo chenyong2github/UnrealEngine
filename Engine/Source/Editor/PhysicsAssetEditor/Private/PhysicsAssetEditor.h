@@ -190,10 +190,7 @@ private:
 	bool ShouldFilterAssetBasedOnSkeleton(const FAssetData& AssetData);
 
 	/** Constraint editing helper methods */
-	void SnapConstraintToBone(const FPhysicsAssetEditorSharedData::FSelection* Constraint)
-	{
-		SharedData->SnapConstraintToBone(Constraint->Index);
-	}
+	void SnapConstraintToBone(const FPhysicsAssetEditorSharedData::FSelection* Constraint);
 
 	void CreateOrConvertConstraint(EPhysicsAssetEditorConstraintType ConstraintType);
 	

@@ -6,6 +6,8 @@
 #include "NiagaraConstants.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraSystem.h"
+#include "NiagaraSystemInstance.h"
+#include "NiagaraSystemSimulation.h"
 
 namespace FNiagaraDataInterfaceUtilities
 {

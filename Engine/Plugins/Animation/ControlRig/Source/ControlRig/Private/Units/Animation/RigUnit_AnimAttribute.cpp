@@ -3,7 +3,7 @@
 #include "Units/Animation/RigUnit_AnimAttribute.h"
 
 #include "Animation/AttributeTypes.h"
-
+#include "Engine/SkeletalMesh.h"
 #include "Units/RigUnitContext.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/UserDefinedStruct.h"

@@ -4,6 +4,7 @@
 #include "ToolMenus.h"
 #include "AssetTypeActions_Base.h"
 #include "IContentBrowserSingleton.h"
+#include "Logging/MessageLog.h"
 #include "ContentBrowserModule.h"
 #include "ContentBrowserMenuContexts.h"
 #include "ObjectEditorUtils.h"

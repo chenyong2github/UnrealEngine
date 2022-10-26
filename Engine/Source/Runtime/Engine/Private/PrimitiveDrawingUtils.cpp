@@ -12,9 +12,11 @@
 #include "SceneUtils.h"
 #include "UnrealEngine.h"
 #include "DynamicMeshBuilder.h"
+#include "PrimitiveSceneProxy.h"
 #include "StaticMeshResources.h"
 #include "Engine/LightMapTexture2D.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "UnrealClient.h"
 
 /** Emits draw events for a given FMeshBatch and the FPrimitiveSceneProxy corresponding to that mesh element. */
 #if WANTS_DRAW_MESH_EVENTS

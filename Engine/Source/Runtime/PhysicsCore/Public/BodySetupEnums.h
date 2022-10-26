@@ -7,7 +7,7 @@
 #include "BodySetupEnums.generated.h"
 
 UENUM(BlueprintType)
-enum ECollisionTraceFlag
+enum ECollisionTraceFlag : int
 {
 	/** Use project physics settings (DefaultShapeComplexity) */
 	CTF_UseDefault UMETA(DisplayName="Project Default"),

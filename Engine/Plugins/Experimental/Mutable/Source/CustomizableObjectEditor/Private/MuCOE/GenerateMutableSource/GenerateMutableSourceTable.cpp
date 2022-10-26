@@ -34,6 +34,7 @@
 #include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
 #include "MuR/Mesh.h"
 #include "MuR/Ptr.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "StaticMeshResources.h"

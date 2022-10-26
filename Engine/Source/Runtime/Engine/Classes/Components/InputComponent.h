@@ -678,7 +678,7 @@ struct FInputGestureBinding : public FInputBinding
 UENUM()
 namespace EControllerAnalogStick
 {
-	enum Type
+	enum Type : int
 	{
 		CAS_LeftStick,
 		CAS_RightStick,

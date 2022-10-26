@@ -3,6 +3,7 @@
 #include "BoneControllers/AnimNode_RigidBody.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "ClothCollisionSource.h"
 #include "HAL/Event.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "PhysicsEngine/BodySetup.h"

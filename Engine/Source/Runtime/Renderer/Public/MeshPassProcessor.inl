@@ -6,6 +6,7 @@ MeshPassProcessor.inl:
 
 #pragma once
 
+#include "RHIStaticStates.h"
 #include "RenderGraphBuilder.h"
 
 static EVRSShadingRate GetShadingRateFromMaterial(EMaterialShadingRate MaterialShadingRate)

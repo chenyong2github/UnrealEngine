@@ -36,6 +36,8 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "Engine/StaticMeshSocket.h"
 #include "EngineGlobals.h"
+#include "TextureResource.h"
+#include "UObject/UObjectIterator.h"
 #if WITH_EDITOR
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"

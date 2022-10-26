@@ -2,7 +2,9 @@
 
 #include "Chaos/Adapters/StaticMeshComponentCacheAdapter.h"
 #include "Chaos/ParticleHandle.h"
+#include "Engine/World.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "Physics/PhysicsInterfaceScene.h"
 #include "PBDRigidsSolver.h"
 #include "Chaos/ChaosCache.h"
 #include "Components/StaticMeshComponent.h"

@@ -8,6 +8,7 @@
 
 #include "Misc/App.h"
 #include "RenderingThread.h"
+#include "Engine/Level.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Materials/Material.h"
 #include "UObject/ObjectSaveContext.h"

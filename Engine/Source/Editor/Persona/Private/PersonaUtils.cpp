@@ -14,6 +14,7 @@
 #include "Styling/CoreStyle.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Styling/AppStyle.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Animation/AnimNotifies/AnimNotify.h"

@@ -2,6 +2,9 @@
 
 #include "Customization/SkeletalMeshRegionCustomization.h"
 
+#include "Engine/SkeletalMesh.h"
+#include "Engine/SkeletalMeshSampling.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 #include "IDetailsView.h"

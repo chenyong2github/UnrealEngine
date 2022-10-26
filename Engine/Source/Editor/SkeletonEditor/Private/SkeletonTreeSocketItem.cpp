@@ -5,6 +5,7 @@
 #include "SSkeletonTreeRow.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/SOverlay.h"
+#include "Widgets/Views/SListView.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Widgets/Images/SImage.h"
 #include "Styling/CoreStyle.h"

@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfaceSpline.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraComponent.h"
+#include "NiagaraRenderer.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 #include "Internationalization/Internationalization.h"

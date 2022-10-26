@@ -2,6 +2,7 @@
 
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNotifyQueue)
 

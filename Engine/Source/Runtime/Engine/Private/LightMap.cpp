@@ -24,6 +24,7 @@
 #include "EngineModule.h"
 #include "Misc/PackageName.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "TextureResource.h"
 
 #define VISUALIZE_PACKING 0
 

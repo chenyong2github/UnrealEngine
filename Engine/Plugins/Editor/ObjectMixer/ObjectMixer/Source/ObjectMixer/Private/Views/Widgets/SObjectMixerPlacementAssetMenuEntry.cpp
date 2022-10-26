@@ -2,15 +2,18 @@
 
 #include "SObjectMixerPlacementAssetMenuEntry.h"
 
+#include "Application/SlateApplicationBase.h"
 #include "AssetSelection.h"
 #include "ClassIconFinder.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "EditorClassUtils.h"
+#include "Framework/Application/SlateApplication.h"
 #include "IPlacementModeModule.h"
 #include "LevelEditorActions.h"
 #include "LevelEditorViewport.h"
 #include "Styling/SlateIconFinder.h"
 #include "Styling/StyleColors.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSpacer.h"
 
 void SObjectMixerPlacementAssetMenuEntry::Construct(const FArguments& InArgs, const TSharedPtr<const FPlaceableItem>& InItem)

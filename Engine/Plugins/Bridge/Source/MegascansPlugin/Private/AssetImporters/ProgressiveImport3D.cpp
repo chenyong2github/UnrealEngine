@@ -18,6 +18,7 @@
 #include "EditorViewportClient.h"
 #include "UnrealClient.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture.h"
 
 #include "MaterialEditingLibrary.h"
 

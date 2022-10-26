@@ -14,14 +14,18 @@
 #include "Templates/SharedPointer.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
+#include "Widgets/SNullWidget.h"
 
 struct FCreateWidgetForActionData;
 class FDelegateHandle;
+class FMenuBuilder;
 struct FNiagaraGraphParameterReference;
 class FNiagaraObjectSelection;
 class FNiagaraScriptViewModel;
 class FNiagaraSystemGraphSelectionViewModel;
 class FNiagaraSystemViewModel;
+class FUICommandList;
+class SComboButton;
 class SEditableTextBox;
 class UNiagaraGraph;
 class UNiagaraNodeAssignment;

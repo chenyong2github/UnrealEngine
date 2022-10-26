@@ -2,6 +2,7 @@
 
 #include "SequencerTrailHierarchy.h"
 
+#include "Components/SkeletalMeshComponent.h"
 #include "MovieSceneSequence.h"
 #include "ISequencer.h"
 #include "Tracks/MovieScene3DTransformTrack.h"

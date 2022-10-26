@@ -7,6 +7,7 @@
 #include "CommonWidgetPaletteCategories.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/SOverlay.h"
 #include "CommonUITypes.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Input/UIActionBinding.h"

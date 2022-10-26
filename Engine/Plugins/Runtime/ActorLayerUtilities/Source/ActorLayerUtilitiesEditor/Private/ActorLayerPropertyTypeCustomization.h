@@ -7,9 +7,11 @@
 
 struct EVisibility;
 
+class FDragDropEvent;
 class FReply;
 class SWidget;
 class FDragDropOperation;
+struct FGeometry;
 
 struct FActorLayerPropertyTypeCustomization : public IPropertyTypeCustomization
 {

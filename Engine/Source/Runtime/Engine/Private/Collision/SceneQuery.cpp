@@ -9,6 +9,7 @@
 #include "CollisionDebugDrawingPublic.h"
 #include "Templates/EnableIf.h"
 #include "Physics/PhysicsInterfaceCore.h"
+#include "Physics/PhysicsInterfaceScene.h"
 #include "Physics/PhysicsInterfaceUtils.h"
 #include "Collision/CollisionConversions.h"
 #include "PhysicsEngine/ScopedSQHitchRepeater.h"

@@ -39,6 +39,7 @@
 #include "Materials/MaterialExpressionLandscapeGrassOutput.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "LandscapeDataAccess.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshResources.h"
 #include "LandscapeLight.h"
 #include "GrassInstancedStaticMeshComponent.h"
@@ -63,6 +64,7 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "MaterialCachedData.h"
 #include "SceneRenderTargetParameters.h"
+#include "TextureResource.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 

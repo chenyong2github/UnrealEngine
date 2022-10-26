@@ -5,6 +5,7 @@
 #include "Rendering/SkeletalMeshLODImporterData.h"
 
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "ImportUtils/SkeletalMeshImportUtils.h"
 #include "Logging/LogMacros.h"
@@ -14,6 +15,7 @@
 #include "Serialization/BulkDataReader.h"
 #include "Serialization/BulkDataWriter.h"
 #include "Serialization/LargeMemoryWriter.h"
+#include "Serialization/MemoryReader.h"
 #include "SkeletalMeshAttributes.h"
 #include "SkeletalMeshOperations.h"
 

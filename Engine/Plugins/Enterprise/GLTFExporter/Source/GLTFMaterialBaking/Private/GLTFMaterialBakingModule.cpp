@@ -18,6 +18,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "MeshDescription.h"
 #include "TextureCompiler.h"
+#include "PropertyEditorModule.h"
 #include "RenderCaptureInterface.h"
 #if WITH_EDITOR
 #include "Misc/FileHelper.h"

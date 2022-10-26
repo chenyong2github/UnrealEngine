@@ -4,6 +4,7 @@
 
 #include "Algo/ForEach.h"
 #include "Algo/Transform.h"
+#include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
 #include "Components/StaticMeshComponent.h"
@@ -17,6 +18,7 @@
 
 #include "Materials/Material.h"
 #include "Engine/HLODProxy.h"
+#include "SceneManagement.h"
 #include "Serialization/ArchiveCrc32.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HLODBuilderMeshSimplify)

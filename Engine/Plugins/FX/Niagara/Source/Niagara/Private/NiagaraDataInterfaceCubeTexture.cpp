@@ -9,6 +9,9 @@
 
 #include "Engine/TextureCube.h"
 #include "Engine/TextureRenderTargetCube.h"
+#include "RHIStaticStates.h"
+#include "ShaderCompilerCore.h"
+#include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceCubeTexture)
 

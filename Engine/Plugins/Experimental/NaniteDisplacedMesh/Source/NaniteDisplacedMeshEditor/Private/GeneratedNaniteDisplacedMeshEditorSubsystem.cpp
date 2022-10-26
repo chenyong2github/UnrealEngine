@@ -10,6 +10,7 @@
 #include "CoreGlobals.h"
 #include "Editor.h"
 #include "Engine/Engine.h"
+#include "Engine/Texture2D.h"
 #include "Misc/FeedbackContext.h"
 #include "Templates/SubclassOf.h"
 #include "UObject/Package.h"

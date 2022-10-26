@@ -7,6 +7,7 @@
 #include "Engine/Player.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/NetConnection.h"
 #include "EngineUtils.h"

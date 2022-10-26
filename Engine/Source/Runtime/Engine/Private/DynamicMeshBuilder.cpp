@@ -10,6 +10,7 @@
 #include "UniformBuffer.h"
 #include "VertexFactory.h"
 #include "MeshBatch.h"
+#include "MeshBuilderOneFrameResources.h"
 #include "SceneManagement.h"
 #include "ResourcePool.h"
 

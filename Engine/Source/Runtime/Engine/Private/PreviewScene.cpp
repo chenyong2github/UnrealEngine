@@ -8,7 +8,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/Package.h"
 #include "SceneInterface.h"
-#include "Components/MeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "AudioDevice.h"
 #include "Engine/TextureCube.h"
 #include "Components/DirectionalLightComponent.h"

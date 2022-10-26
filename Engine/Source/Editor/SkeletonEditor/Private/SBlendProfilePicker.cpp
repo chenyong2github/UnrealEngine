@@ -20,6 +20,7 @@
 #include "EngineGlobals.h"
 #include "Animation/BlendProfile.h"
 #include "Widgets/Input/STextEntryPopup.h"
+#include "PropertyHandle.h"
 #include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "BlendProfilePicker"

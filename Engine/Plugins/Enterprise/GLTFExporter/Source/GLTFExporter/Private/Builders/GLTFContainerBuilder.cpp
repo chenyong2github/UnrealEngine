@@ -2,6 +2,7 @@
 
 #include "Builders/GLTFContainerBuilder.h"
 #include "Builders/GLTFMemoryArchive.h"
+#include "Misc/Paths.h"
 
 FGLTFContainerBuilder::FGLTFContainerBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions, const TSet<AActor*>& SelectedActors)
 	: FGLTFConvertBuilder(FileName, ExportOptions, SelectedActors)

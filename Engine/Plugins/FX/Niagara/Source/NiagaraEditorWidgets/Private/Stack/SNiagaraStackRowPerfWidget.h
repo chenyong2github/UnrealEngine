@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraEmitter.h"
+#include "Types/SlateStructs.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 

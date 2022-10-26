@@ -35,7 +35,9 @@
 #include "MeshUtilities.h"
 #include "MeshRendering.h"
 #include "MeshMergeData.h"
+#include "PrimitiveSceneProxy.h"
 #include "Templates/UniquePtr.h"
+#include "TextureResource.h"
 
 
 #include "IMaterialBakingModule.h"

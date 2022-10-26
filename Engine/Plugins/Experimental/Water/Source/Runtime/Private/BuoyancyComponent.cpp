@@ -4,6 +4,7 @@
 #include "BuoyancyComponentSimulation.h"
 #include "WaterBodyActor.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/World.h"
 #include "WaterSplineComponent.h"
 #include "WaterVersion.h"
 #include "Physics/SimpleSuspension.h"

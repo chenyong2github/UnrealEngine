@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequenceModule.h"
+#include "Engine/Level.h"
 #include "Modules/ModuleManager.h"
 #include "LevelSequence.h"
 #include "LevelSequenceActor.h"

@@ -4,6 +4,7 @@
 #include "Engine/Engine.h"
 #include "Engine/DemoNetDriver.h"
 #include "Engine/NetworkObjectList.h"
+#include "Misc/CommandLine.h"
 #include "ReplayNetConnection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ReplaySubsystem)

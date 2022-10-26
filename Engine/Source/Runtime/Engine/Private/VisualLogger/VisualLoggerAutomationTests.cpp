@@ -5,6 +5,8 @@
 #include "EngineDefines.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
+#include "Engine/Level.h"
+#include "GameFramework/Actor.h"
 
 #include "VisualLogger/VisualLoggerTypes.h"
 #include "VisualLogger/VisualLogger.h"

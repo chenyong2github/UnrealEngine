@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDebuggerClient.h"
-
+#include "Engine/Engine.h"
+#include "Engine/Level.h"
 #include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
 #include "IMessageContext.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraComponent.h"
+#include "NiagaraSystemInstanceController.h"
 #include "NiagaraDebugHud.h"
 #include "Containers/Ticker.h"
 #include "NiagaraSimCache.h"

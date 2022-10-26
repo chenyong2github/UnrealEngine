@@ -5,6 +5,8 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimMontage.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"

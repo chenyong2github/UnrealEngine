@@ -4,6 +4,7 @@
 
 #include "AnimNode_SkeletalControlBase.h"
 #include "CCDIK.h"
+#include "EngineDefines.h"
 #include "AnimNode_CCDIK.generated.h"
 
 /**

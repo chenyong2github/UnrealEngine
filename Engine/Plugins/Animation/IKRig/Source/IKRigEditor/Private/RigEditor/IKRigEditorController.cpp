@@ -16,6 +16,7 @@
 #include "RigEditor/SIKRigAssetBrowser.h"
 #include "RigEditor/SIKRigOutputLog.h"
 #include "Solvers/IKRig_PBIKSolver.h"
+#include "Widgets/Input/SComboBox.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(IKRigEditorController)
 

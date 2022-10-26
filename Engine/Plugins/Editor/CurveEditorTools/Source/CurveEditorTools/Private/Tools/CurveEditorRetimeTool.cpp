@@ -7,6 +7,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Commands/UIAction.h"
 #include "ICurveEditorBounds.h"
+#include "Rendering/DrawElementPayloads.h"
 #include "Rendering/DrawElements.h"
 #include "CurveEditorScreenSpace.h"
 #include "Editor/Transactor.h"

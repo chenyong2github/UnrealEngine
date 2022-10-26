@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Exporters/GLTFExporter.h"
+#include "Engine/Engine.h"
 #include "Exporters/GLTFExporterUtility.h"
 #include "Exporters/GLTFExporterAnalytics.h"
+#include "Misc/Paths.h"
 #include "Options/GLTFExportOptions.h"
 #include "UI/GLTFExportOptionsWindow.h"
 #include "Builders/GLTFContainerBuilder.h"

@@ -91,6 +91,7 @@
 #include "Selection.h"
 #include "Serialization/Archive.h"
 #include "Settings/LevelEditorViewportSettings.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshResources.h"
 #include "Stats/Stats.h"
 #include "Stats/Stats2.h"

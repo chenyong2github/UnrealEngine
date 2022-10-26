@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/Scene.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "PrimitiveSceneProxy.h"
 #include "StaticMeshResources.h"
 #include "DynamicMeshBuilder.h"
 

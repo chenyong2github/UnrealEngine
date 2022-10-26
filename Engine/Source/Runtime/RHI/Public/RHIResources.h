@@ -14,7 +14,7 @@
 #include "Math/Color.h"
 #include "Containers/StaticArray.h"
 #include "HAL/ThreadSafeCounter.h"
-#include "RHIDefinitions.h"
+#include "RHI.h"
 #include "Templates/RefCounting.h"
 #include "PixelFormat.h"
 #include "TextureProfiler.h"
@@ -140,11 +140,7 @@ public:
 #if RHI_ENABLE_RESOURCE_INFO
 	// Get resource info if available.
 	// Should return true if the ResourceInfo was filled with data.
-	virtual bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const
-	{
-		OutResourceInfo = FRHIResourceInfo{};
-		return false;
-	}
+	virtual bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const;
 
 	static void BeginTrackingResource(FRHIResource* InResource);
 	static void EndTrackingResource(FRHIResource* InResource);

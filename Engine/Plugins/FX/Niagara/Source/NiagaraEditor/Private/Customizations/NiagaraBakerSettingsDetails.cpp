@@ -7,10 +7,12 @@
 
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
+#include "Framework/Application/SlateApplication.h"
 #include "IDetailGroup.h"
 #include "DetailWidgetRow.h"
 #include "ScopedTransaction.h"
 #include "SGraphActionMenu.h"
+#include "Widgets/Input/SComboButton.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraBakerSettingsDetails)
 

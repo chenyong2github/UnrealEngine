@@ -17,7 +17,7 @@
 namespace EMessageSeverity
 {
 	/** Ordered according to their severity */
-	enum Type
+	enum Type : int
 	{
 		CriticalError UE_DEPRECATED(5.1, "CriticalError was removed because it can't trigger an assert at the callsite. Use 'checkf' instead.") = 0,
 		Error = 1,

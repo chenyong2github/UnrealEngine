@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequenceBindingReference.h"
+#include "Engine/Level.h"
 #include "LevelSequenceLegacyObjectReference.h"
 #include "UObject/GarbageCollection.h"
 #include "UObject/Package.h"

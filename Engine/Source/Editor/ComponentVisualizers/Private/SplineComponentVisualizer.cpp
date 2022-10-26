@@ -19,6 +19,7 @@
 #include "ActorEditorUtils.h"
 #include "WorldCollision.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Settings/LevelEditorViewportSettings.h"
 #include "SplineGeneratorPanel.h"
 #include "EngineUtils.h"
 #include "CanvasItem.h"

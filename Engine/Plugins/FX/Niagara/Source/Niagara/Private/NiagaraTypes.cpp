@@ -2,6 +2,7 @@
 
 #include "NiagaraTypes.h"
 
+#include "Engine/Texture2D.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraStats.h"
 #include "NiagaraEmitter.h"

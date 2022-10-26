@@ -8,6 +8,7 @@
 #include "NiagaraSimStageData.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
+#include "NiagaraSystemInstanceController.h"
 #include "NiagaraConstants.h"
 
 #include "Components/SkeletalMeshComponent.h"

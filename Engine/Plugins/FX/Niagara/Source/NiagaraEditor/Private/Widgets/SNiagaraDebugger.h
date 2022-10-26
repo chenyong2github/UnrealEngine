@@ -9,6 +9,8 @@
 #include "IPropertyChangeListener.h"
 #include "NiagaraDebugger.h"
 
+class FMenuBuilder;
+
 class SNiagaraDebugger : public SCompoundWidget
 {
 public:

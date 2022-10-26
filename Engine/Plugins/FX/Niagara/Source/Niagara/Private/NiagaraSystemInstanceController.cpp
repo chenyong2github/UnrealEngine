@@ -3,6 +3,7 @@
 #include "NiagaraSystemInstanceController.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/TextureRenderTarget.h"
 
 FNiagaraSystemInstanceController::FNiagaraSystemInstanceController()
 	: bNeedsRendererRecache(false)

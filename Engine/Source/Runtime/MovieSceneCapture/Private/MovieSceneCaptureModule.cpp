@@ -16,6 +16,7 @@
 #include "JsonObjectConverter.h"
 #include "ActiveMovieSceneCaptures.h"
 #include "Slate/SceneViewport.h"
+#include "ViewportClient.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneCapture"
 

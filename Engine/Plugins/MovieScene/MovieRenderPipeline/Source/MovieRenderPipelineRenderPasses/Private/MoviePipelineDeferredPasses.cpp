@@ -36,6 +36,7 @@
 #include "Interfaces/Interface_PostProcessVolume.h"
 #include "MoviePipelineUtils.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
+#include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineDeferredPasses)
 

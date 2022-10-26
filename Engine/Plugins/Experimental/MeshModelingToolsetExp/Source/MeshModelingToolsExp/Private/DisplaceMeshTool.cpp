@@ -5,6 +5,7 @@
 #include "AssetUtils/Texture2DUtil.h"
 #include "Curves/CurveFloat.h"
 #include "Curves/RichCurve.h"
+#include "Engine/World.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"

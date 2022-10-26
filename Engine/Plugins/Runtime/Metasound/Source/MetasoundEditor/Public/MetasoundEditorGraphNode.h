@@ -22,6 +22,7 @@ class UMetasoundEditorGraphOutput;
 class UMetasoundEditorGraphMember;
 class UMetasoundEditorGraphVariable;
 class UMetasoundEditorGraphMemberDefaultFloat;
+namespace EMessageSeverity { enum Type : int; }
 
 namespace Metasound
 {

@@ -3,6 +3,7 @@
 #include "AssetUtils/StaticMeshMaterialUtil.h"
 
 #include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
 

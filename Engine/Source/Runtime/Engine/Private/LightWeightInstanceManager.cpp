@@ -2,6 +2,7 @@
 
 #include "GameFramework/LightWeightInstanceManager.h"
 #include "GameFramework/LightWeightInstanceSubsystem.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "Net/UnrealNetwork.h"
 

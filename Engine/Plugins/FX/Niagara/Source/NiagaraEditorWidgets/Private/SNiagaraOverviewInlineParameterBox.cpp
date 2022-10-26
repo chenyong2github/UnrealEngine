@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraOverviewInlineParameterBox.h"
-
+#include "Engine/Texture2D.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraNodeFunctionCall.h"

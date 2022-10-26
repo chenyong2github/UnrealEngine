@@ -7,7 +7,9 @@
 #include "Framework/Commands/Commands.h"
 #include "Styling/AppStyle.h"
 
+class FDragDropEvent;
 struct FDataflowOutput;
+struct FGeometry;
 class IStructureDetailsView;
 class UDataflow;
 class UDataflowEdNode;

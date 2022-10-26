@@ -5,9 +5,11 @@
 #include "ChaosClothConfigCustomVersion.h"
 #include "ChaosClothSharedConfigCustomVersion.h"
 #include "ClothingSimulationInteractor.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "UObject/PhysicsObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ChaosClothConfig)
 

@@ -9,6 +9,7 @@
 #include "SDataLayerTreeLabel.h"
 #include "SceneOutlinerStandaloneTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Views/SListView.h"
 
 class ISceneOutliner;
 class SWidget;

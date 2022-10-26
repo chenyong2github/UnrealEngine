@@ -11,6 +11,7 @@
 #include "UObject/Object.h"
 #include "IPersonaToolkit.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "LODInfoUILayout.generated.h"
 
 UCLASS(HideCategories=Object, MinimalAPI)

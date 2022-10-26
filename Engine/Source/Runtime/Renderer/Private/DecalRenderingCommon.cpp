@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DecalRenderingCommon.h"
+#include "RHIStaticStates.h"
 #include "RenderUtils.h"
 #include "Strata/Strata.h"
 

@@ -8,7 +8,10 @@
 
 #include "NiagaraDataInterfaceAudioPlayer.generated.h"
 
+class FNiagaraSystemInstance;
+class UAudioComponent;
 class USoundConcurrency;
+struct FAudioPlayerInterface_InstanceData;
 
 struct FAudioParticleData
 {

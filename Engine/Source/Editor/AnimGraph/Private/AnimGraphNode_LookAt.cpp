@@ -2,6 +2,7 @@
 
 #include "AnimGraphNode_LookAt.h"
 #include "Animation/AnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "UObject/AnimPhysObjectVersion.h"
 #include "AnimNodeEditModes.h"
 

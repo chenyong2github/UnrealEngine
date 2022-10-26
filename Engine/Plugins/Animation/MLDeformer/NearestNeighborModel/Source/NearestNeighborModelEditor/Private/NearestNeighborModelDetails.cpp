@@ -11,6 +11,8 @@
 #include "IDetailGroup.h"
 #include "IDetailsView.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "NearestNeighborModelDetails"
 

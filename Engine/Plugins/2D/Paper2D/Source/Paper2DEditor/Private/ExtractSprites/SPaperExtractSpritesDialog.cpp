@@ -27,6 +27,7 @@
 #include "PaperSprite.h"
 #include "PaperSpriteFactory.h"
 #include "TextureCompiler.h"
+#include "TextureResource.h"
 
 #define LOCTEXT_NAMESPACE "PaperEditor"
 

@@ -21,6 +21,7 @@
 #include "IPropertyTableRow.h"
 #include "BusyCursor.h"
 #include "ScopedTransaction.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "Widgets/Input/STextEntryPopup.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/MapBuildDataRegistry.h"

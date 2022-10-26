@@ -5,8 +5,10 @@ Texture2DStreamIn_DDC.cpp: Stream in helper for 2D textures loading DDC files.
 =============================================================================*/
 
 #include "Streaming/Texture2DStreamIn_DDC.h"
+#include "EngineLogs.h"
 #include "Rendering/Texture2DResource.h"
 #include "RenderUtils.h"
+#include "SceneTypes.h"
 #include "Serialization/MemoryReader.h"
 #include "Streaming/TextureStreamingHelpers.h"
 

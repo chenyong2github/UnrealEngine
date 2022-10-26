@@ -3,6 +3,7 @@
 #include "MovieSceneNiagaraSystemTrackTemplate.h"
 #include "MovieSceneExecutionToken.h"
 #include "NiagaraComponent.h"
+#include "NiagaraSystemInstanceController.h"
 #include "IMovieScenePlayer.h"
 
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"

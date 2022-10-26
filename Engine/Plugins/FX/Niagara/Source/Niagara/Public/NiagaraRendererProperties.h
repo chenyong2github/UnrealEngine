@@ -14,13 +14,16 @@
 struct FVersionedNiagaraEmitterData;
 class FNiagaraRenderer;
 class FNiagaraSystemInstanceController;
+class FVertexFactoryType;
 class UMaterial;
 class UMaterialInterface;
+class UTexture;
 class FNiagaraEmitterInstance;
 class SWidget;
 class FAssetThumbnailPool;
 struct FNiagaraDataSetCompiledData;
 struct FSlateBrush;
+struct FStreamingRenderAssetPrimitiveInfo;
 
 #if WITH_EDITOR
 // Helper class for GUI error handling

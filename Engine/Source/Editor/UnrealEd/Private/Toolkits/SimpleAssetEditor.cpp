@@ -8,7 +8,7 @@
 #include "IDetailsView.h"
 #include "EditorClassUtils.h"
 #include "Editor.h"
-
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "GenericEditor"
 

@@ -42,7 +42,9 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "Physics/PhysicsFiltering.h"
 #include "Physics/PhysicsInterfaceCore.h"
+#include "Physics/PhysicsInterfaceScene.h"
 #include "Physics/PhysicsInterfaceUtils.h"
+#include "PrimitiveSceneProxy.h"
 #include "DynamicMeshBuilder.h"
 
 #include "Chaos/ParticleHandle.h"

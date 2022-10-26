@@ -53,6 +53,7 @@
 #include "ToolMenus.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
+#include "Settings/LevelEditorViewportSettings.h"
 #include "Editor/SRigSpacePickerWidget.h"
 #include "ControlRigSpaceChannelEditors.h"
 #include "ControlRigSequencerEditorLibrary.h"

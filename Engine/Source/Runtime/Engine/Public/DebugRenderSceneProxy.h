@@ -14,6 +14,7 @@
 class APlayerController;
 class FMeshElementCollector;
 class FPrimitiveDrawInterface;
+class FRegisterComponentContext;
 class UCanvas;
 class UPrimitiveComponent;
 

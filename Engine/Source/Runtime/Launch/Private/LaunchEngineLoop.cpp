@@ -134,6 +134,7 @@
 	#include "EngineStats.h"
 	#include "EngineGlobals.h"
 	#include "AudioThread.h"
+	#include "AudioDeviceManager.h"
 #if !UE_BUILD_SHIPPING
 	#include "IAutomationControllerModule.h"
 #endif // !UE_BUILD_SHIPPING

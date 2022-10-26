@@ -6,6 +6,7 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysXPublic.h"
 #include "Physics/PhysicsInterfaceCore.h"
+#include "Physics/PhysicsInterfaceScene.h"
 #include "Chaos/ChaosConstraintSettings.h"
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Sphere.h"

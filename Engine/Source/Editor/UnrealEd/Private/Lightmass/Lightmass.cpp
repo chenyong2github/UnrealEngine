@@ -18,6 +18,7 @@
 #include "PrecomputedLightVolume.h"
 #include "PrecomputedVolumetricLightmap.h"
 #include "Engine/MapBuildDataRegistry.h"
+#include "Engine/TextureLightProfile.h"
 #include "ModelLight.h"
 #include "LandscapeLight.h"
 #include "Materials/Material.h"

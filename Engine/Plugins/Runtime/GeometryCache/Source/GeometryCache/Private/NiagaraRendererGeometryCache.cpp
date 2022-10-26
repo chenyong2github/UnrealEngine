@@ -2,6 +2,7 @@
 
 #include "NiagaraRendererGeometryCache.h"
 
+#include "Engine/World.h"
 #include "GeometryCacheStreamingManager.h"
 #include "NiagaraConstants.h"
 #include "NiagaraDataSet.h"

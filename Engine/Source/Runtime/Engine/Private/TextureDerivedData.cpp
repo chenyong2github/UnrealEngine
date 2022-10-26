@@ -9,6 +9,7 @@
 #include "Misc/CommandLine.h"
 #include "Stats/Stats.h"
 #include "Async/AsyncWork.h"
+#include "EngineLogs.h"
 #include "Serialization/MemoryWriter.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/App.h"

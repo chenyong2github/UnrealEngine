@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ViewModel/MVVMViewModelBlueprintEditor.h"
+#include "ToolMenuContext.h"
 #include "ViewModel/MVVMViewModelBlueprint.h"
 #include "ViewModel/MVVMViewModelBlueprintToolMenuContext.h"
 

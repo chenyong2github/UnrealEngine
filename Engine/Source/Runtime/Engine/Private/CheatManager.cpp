@@ -9,6 +9,7 @@
 #include "Misc/FileHelper.h"
 #include "UObject/UObjectIterator.h"
 #include "Misc/PackageName.h"
+#include "Engine/GameViewportClient.h"
 #include "EngineDefines.h"
 #include "GameFramework/DamageType.h"
 #include "InputCoreTypes.h"

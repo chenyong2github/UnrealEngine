@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieRenderPipelineDataTypes.h"
-#include "MovieRenderPipelineCoreModule.h"
-#include "Sections/MovieSceneCinematicShotSection.h"
 #include "MoviePipeline.h"
+#include "MovieRenderPipelineCoreModule.h"
+#include "RHI.h"
+#include "Sections/MovieSceneCinematicShotSection.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieRenderPipelineDataTypes)
 
@@ -71,6 +72,11 @@ void FMoviePipelineCameraCutInfo::SetNextStateAfter(const EMovieRenderShotState 
 		break;
 	}
 
+}
+
+MoviePipeline::FMoviePipelineRenderPassInitSettings::FMoviePipelineRenderPassInitSettings()
+{
+	FeatureLevel = GMaxRHIFeatureLevel;
 }
 
 bool MoviePipeline::FTileWeight1D::operator==(const FTileWeight1D& Rhs) const

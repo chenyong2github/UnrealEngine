@@ -4,6 +4,7 @@
 
 #include "ConstraintsManager.h"
 #include "Animation/AnimSequence.h"
+#include "Engine/SkeletalMesh.h"
 #include "Logging/MessageLog.h"
 #include "Compilation/MovieSceneTemplateInterrogation.h"
 #include "MovieScene.h"

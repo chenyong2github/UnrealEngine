@@ -5,6 +5,7 @@
 #include "TargetInterfaces/MaterialProvider.h" //FComponentMaterialSet
 
 #include "DynamicMeshToMeshDescription.h"
+#include "Engine/World.h"
 #include "MeshDescriptionToDynamicMesh.h"
 #include "SceneInterface.h"
 

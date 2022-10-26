@@ -2,6 +2,7 @@
 #include "NiagaraScalabilityManager.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraComponent.h"
+#include "NiagaraSystemInstanceController.h"
 #include "Particles/FXBudget.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraScalabilityManager)

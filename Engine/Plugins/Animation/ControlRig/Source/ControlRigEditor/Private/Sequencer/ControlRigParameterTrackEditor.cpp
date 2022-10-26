@@ -81,6 +81,7 @@
 #include "ConstraintChannelHelper.h"
 #include "MovieSceneConstraintChannelHelper.h"
 #include "Constraints/ControlRigTransformableHandle.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "FControlRigParameterTrackEditor"
 

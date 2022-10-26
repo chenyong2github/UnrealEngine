@@ -28,6 +28,7 @@
 #include "Components/ModelComponent.h"
 
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Application/SlateUser.h"
 
 #if WITH_EDITOR
 	#include "DirectoryWatcherModule.h"

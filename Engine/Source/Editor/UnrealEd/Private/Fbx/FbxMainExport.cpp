@@ -40,6 +40,7 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/Polys.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Editor.h"
 #include "Channels/MovieSceneChannelProxy.h"
@@ -58,6 +59,7 @@
 #include "LandscapeComponent.h"
 #include "LandscapeDataAccess.h"
 #include "Components/SplineMeshComponent.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshResources.h"
 
 #include "FbxExporter.h"
@@ -84,6 +86,11 @@
 #include "MovieSceneSequence.h"
 #include "MovieSceneTimeHelpers.h"
 #include "DynamicMeshBuilder.h"
+
+#include "PhysicsEngine/AggregateGeom.h"
+#include "PhysicsEngine/BodySetup.h"
+#include "PhysicsEngine/ConvexElem.h"
+#include "PhysicsEngine/SphereElem.h"
 
 #include "Chaos/Core.h"
 #include "Chaos/Particles.h"

@@ -7,6 +7,7 @@
 #include "LevelInstance/LevelInstancePrivate.h"
 #include "LevelInstance/LevelInstanceComponent.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "Logging/MessageLog.h"
 #include "Logging/TokenizedMessage.h"

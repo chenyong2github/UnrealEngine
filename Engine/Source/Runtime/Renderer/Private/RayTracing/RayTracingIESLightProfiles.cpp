@@ -2,6 +2,7 @@
 
 #include "RayTracingIESLightProfiles.h"
 #include "SceneRendering.h"
+#include "TextureResource.h"
 #include "CopyTextureShaders.h"
 
 #if RHI_RAYTRACING

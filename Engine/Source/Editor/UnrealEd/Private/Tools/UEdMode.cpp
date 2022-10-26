@@ -11,6 +11,7 @@
 #include "GameFramework/Actor.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
+#include "Settings/LevelEditorViewportSettings.h"
 
 
 //////////////////////////////////

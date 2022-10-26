@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralMorphEditorModel.h"
+#include "IDetailsView.h"
 #include "NeuralMorphModel.h"
 #include "MLDeformerMorphModelVizSettings.h"
 #include "NeuralMorphTrainingModel.h"

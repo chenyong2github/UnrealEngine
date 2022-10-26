@@ -9,6 +9,7 @@
 
 #if WITH_EDITOR
 #include "ActorFactories/ActorFactory.h"
+#include "Editor.h"
 #endif // WITH_EDITOR
 
 ANavMeshBoundsVolume::ANavMeshBoundsVolume(const FObjectInitializer& ObjectInitializer)

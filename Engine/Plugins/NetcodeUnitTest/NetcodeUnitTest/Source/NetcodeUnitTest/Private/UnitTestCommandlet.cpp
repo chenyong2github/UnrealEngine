@@ -6,7 +6,7 @@
 #include "Misc/FeedbackContext.h"
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
-#include "UnrealClient.h"
+#include "DummyViewport.h"
 #include "Engine/GameViewportClient.h"
 #include "Widgets/SWindow.h"
 #include "Engine/GameEngine.h"

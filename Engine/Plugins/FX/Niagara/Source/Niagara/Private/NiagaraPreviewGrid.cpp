@@ -3,7 +3,9 @@
 #include "NiagaraPreviewGrid.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/BlueprintGeneratedClass.h"
+#include "Engine/Texture2D.h"
 #include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
 
 #include "Components/TextRenderComponent.h"
 #include "Components/StaticMeshComponent.h"

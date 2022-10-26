@@ -2,6 +2,7 @@
 
 #include "OptimusDataInterfaceAnimAttribute.h"
 
+#include "Engine/SkeletalMesh.h"
 #include "OptimusDataDomain.h"
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusValueContainer.h"

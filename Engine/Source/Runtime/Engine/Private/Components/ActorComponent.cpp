@@ -33,6 +33,8 @@
 #include "Engine/Engine.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "Physics/PhysicsInterfaceScene.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
 #include "Async/ParallelFor.h"

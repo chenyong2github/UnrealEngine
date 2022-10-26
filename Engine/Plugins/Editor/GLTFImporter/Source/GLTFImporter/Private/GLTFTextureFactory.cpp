@@ -10,6 +10,7 @@
 #include "EditorFramework/AssetImportData.h"
 #include "Engine/Texture2D.h"
 #include "Factories/TextureFactory.h"
+#include "Misc/Paths.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
 

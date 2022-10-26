@@ -22,6 +22,7 @@
 #include "LiveLinkRole.h"
 #include "LiveLinkRoleTrait.h"
 #include "LiveLinkSettings.h"
+#include "Logging/MessageLog.h"
 #include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/PackageName.h"

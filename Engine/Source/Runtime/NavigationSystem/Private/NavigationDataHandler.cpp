@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NavigationDataHandler.h"
+#include "Engine/Level.h"
 #include "NavMesh/RecastNavMeshGenerator.h"
 
 

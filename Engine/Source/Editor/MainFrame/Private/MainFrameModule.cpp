@@ -29,6 +29,7 @@
 #include "Editor/EditorPerformanceSettings.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "HAL/PlatformFileManager.h"
+#include "ToolMenuContext.h"
 #include "Toolkits/FConsoleCommandExecutor.h"
 #include "Misc/MessageDialog.h"
 #include "ProfilingDebugging/StallDetector.h"

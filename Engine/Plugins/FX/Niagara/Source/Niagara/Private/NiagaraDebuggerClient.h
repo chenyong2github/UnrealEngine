@@ -6,6 +6,7 @@ Controller class running on game clients that handles the passing of messages to
 
 #pragma once
 
+#include "Containers/Ticker.h"
 #include "CoreMinimal.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDebuggerCommon.h"

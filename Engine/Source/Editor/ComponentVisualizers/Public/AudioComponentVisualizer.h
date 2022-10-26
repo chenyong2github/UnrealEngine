@@ -3,6 +3,7 @@
 #pragma once
 
 #include "AttenuatedComponentVisualizer.h"
+#include "Components/AudioComponent.h"
 
 class COMPONENTVISUALIZERS_API FAudioComponentVisualizer : public TAttenuatedComponentVisualizer<UAudioComponent>
 {

@@ -21,6 +21,7 @@
 #include "ComponentReregisterContext.h"
 #include "UnrealEngine.h"
 #include "Physics/PhysicsInterfaceCore.h"
+#include "Physics/PhysicsInterfaceScene.h"
 #include "Logging/MessageLog.h"
 #include "Net/UnrealNetwork.h"
 #include "ComponentUtils.h"

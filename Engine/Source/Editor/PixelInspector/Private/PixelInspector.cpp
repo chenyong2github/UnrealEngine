@@ -26,6 +26,7 @@
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
 #include "LevelEditor.h"
+#include "TextureResource.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 
 #define PIXEL_INSPECTOR_REQUEST_TIMEOUT 10

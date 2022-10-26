@@ -14,6 +14,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Slate/SceneViewport.h"
 #include "Slate/WidgetRenderer.h"
+#include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FunctionalUIScreenshotTest)
 

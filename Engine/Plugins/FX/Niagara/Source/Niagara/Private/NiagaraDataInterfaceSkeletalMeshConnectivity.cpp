@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfaceSkeletalMeshConnectivity.h"
 
 #include "Algo/StableSort.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "NiagaraResourceArrayWriter.h"
 #include "NiagaraSettings.h"
 #include "NiagaraStats.h"

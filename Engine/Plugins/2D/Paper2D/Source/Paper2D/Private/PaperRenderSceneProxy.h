@@ -14,6 +14,7 @@
 #include "Paper2DModule.h"
 #include "DynamicMeshBuilder.h"
 #include "PaperSpriteVertexBuffer.h"
+#include "TextureResource.h"
 
 class FMeshElementCollector;
 class UBodySetup;

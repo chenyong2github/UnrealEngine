@@ -19,6 +19,8 @@
 #include "LegacyScreenPercentageDriver.h"
 #include "PackageTools.h"
 #include "ScopedTransaction.h"
+#include "Styling/AppStyle.h"
+#include "Textures/SlateIcon.h"
 
 #include "Factories/Texture2dFactoryNew.h"
 

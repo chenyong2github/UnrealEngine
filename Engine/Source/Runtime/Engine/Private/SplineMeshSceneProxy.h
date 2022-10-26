@@ -10,6 +10,7 @@
 #include "PrimitiveViewRelevance.h"
 #include "Components/SplineMeshComponent.h"
 #include "StaticMeshResources.h"
+#include "StaticMeshSceneProxy.h"
 
 //////////////////////////////////////////////////////////////////////////
 // SplineMeshVertexFactory

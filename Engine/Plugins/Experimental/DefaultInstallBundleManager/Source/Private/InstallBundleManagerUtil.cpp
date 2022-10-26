@@ -4,6 +4,7 @@
 
 #include "DefaultInstallBundleManagerPrivate.h"
 #include "Misc/App.h"
+#include "Misc/ConfigCacheIni.h"
 
 #include "JsonObjectConverter.h"
 #include "BuildPatchSettings.h"

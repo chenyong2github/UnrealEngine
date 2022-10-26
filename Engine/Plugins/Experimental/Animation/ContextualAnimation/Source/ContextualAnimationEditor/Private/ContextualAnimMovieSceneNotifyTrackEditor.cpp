@@ -18,6 +18,7 @@
 #include "PropertyEditorModule.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PersonaUtils.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/SButton.h"

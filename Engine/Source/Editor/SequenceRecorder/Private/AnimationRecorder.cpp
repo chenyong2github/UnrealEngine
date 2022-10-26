@@ -3,6 +3,8 @@
 #include "AnimationRecorder.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Animation/AnimSequence.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Misc/MessageDialog.h"
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"

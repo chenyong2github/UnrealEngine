@@ -2,6 +2,7 @@
 
 #include "AnimGraphNode_Trail.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ReleaseObjectVersion.h"
 /////////////////////////////////////////////////////

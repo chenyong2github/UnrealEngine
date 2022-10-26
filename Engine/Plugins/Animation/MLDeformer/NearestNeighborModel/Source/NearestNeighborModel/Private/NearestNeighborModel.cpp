@@ -4,6 +4,7 @@
 #include "NearestNeighborModelInputInfo.h"
 #include "NearestNeighborModelInstance.h"
 #include "MLDeformerComponent.h"
+#include "Components/ExternalMorphSet.h"
 #include "Engine/SkeletalMesh.h"
 #include "GeometryCache.h"
 #include "Misc/FileHelper.h"

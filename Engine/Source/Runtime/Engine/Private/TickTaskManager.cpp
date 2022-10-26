@@ -15,6 +15,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "TickTaskManagerInterface.h"
 #include "Async/ParallelFor.h"

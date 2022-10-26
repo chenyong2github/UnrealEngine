@@ -7,6 +7,7 @@
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SUniformWrapPanel.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/SCompoundWidget.h"
 
 class SNiagaraSystemEffectTypeBar : public SCompoundWidget
 {

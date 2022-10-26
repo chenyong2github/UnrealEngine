@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigControlActor.h"
+#include "Components/StaticMeshComponent.h"
 #include "ControlRigGizmoLibrary.h"
 #include "IControlRigObjectBinding.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"

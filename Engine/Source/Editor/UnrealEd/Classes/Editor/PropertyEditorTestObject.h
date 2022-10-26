@@ -19,11 +19,15 @@
 
 class AActor;
 class IAnimClassInterface;
+class ITableRow;
+class STableViewBase;
+class SWidget;
 class UMaterialInterface;
 class UPrimitiveComponent;
 class UStaticMesh;
 class UStaticMeshComponent;
 class UTexture;
+template <typename ItemType> class SListView;
 
 UENUM()
 enum EPropertyEditorTestEnum

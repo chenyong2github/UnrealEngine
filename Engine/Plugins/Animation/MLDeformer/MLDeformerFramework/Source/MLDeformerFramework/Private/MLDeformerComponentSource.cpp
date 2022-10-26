@@ -6,6 +6,7 @@
 #include "MLDeformerModelInstance.h"
 
 #include "Components/SkeletalMeshComponent.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 #include "SkeletalRenderPublic.h"
 
 

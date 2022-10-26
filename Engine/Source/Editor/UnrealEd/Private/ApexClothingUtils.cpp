@@ -9,6 +9,7 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "EditorDirectories.h"
+#include "Engine/SkeletalMesh.h"
 #include "IDesktopPlatform.h"
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"

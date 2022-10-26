@@ -22,6 +22,7 @@
 #include "Engine/Engine.h"
 #include "Slate/SGameLayerManager.h"
 #include "Types/ReflectionMetadata.h"
+#include "UnrealClient.h"
 
 #define LOCTEXT_NAMESPACE "CommonAnalogCursor"
 

@@ -4,6 +4,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "MaterialShared.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/World.h"
 #include "Materials/Material.h"
 #include "Async/Async.h"
 #include "Engine/CollisionProfile.h"

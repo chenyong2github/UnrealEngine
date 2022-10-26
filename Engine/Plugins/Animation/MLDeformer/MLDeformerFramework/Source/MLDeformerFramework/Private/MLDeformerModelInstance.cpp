@@ -6,6 +6,7 @@
 #include "MLDeformerAsset.h"
 #include "MLDeformerInputInfo.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Animation/AnimInstance.h"
 #include "NeuralNetwork.h"
 

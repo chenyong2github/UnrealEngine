@@ -23,6 +23,7 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DynamicResolutionState.h"
 #include "HAL/PlatformMemoryHelpers.h"
+#include "UnrealClient.h"
 
 #ifndef FPS_CHART_SUPPORT_CSV_PROFILE
 #define FPS_CHART_SUPPORT_CSV_PROFILE (CSV_PROFILER && !UE_BUILD_SHIPPING)

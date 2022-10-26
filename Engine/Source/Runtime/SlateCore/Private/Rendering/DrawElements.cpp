@@ -7,6 +7,7 @@
 #include "Types/ReflectionMetadata.h"
 #include "Fonts/ShapedTextFwd.h"
 #include "Fonts/FontCache.h"
+#include "Rendering/DrawElementPayloads.h"
 #include "Rendering/SlateObjectReferenceCollector.h"
 #include "Debugging/SlateDebugging.h"
 #include "Application/SlateApplicationBase.h"

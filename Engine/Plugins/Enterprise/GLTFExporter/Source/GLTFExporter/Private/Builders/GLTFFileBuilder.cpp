@@ -2,6 +2,7 @@
 
 #include "Builders/GLTFFileBuilder.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 
 FGLTFFileBuilder::FGLTFFileBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions)
 	: FGLTFTaskBuilder(FileName, ExportOptions)

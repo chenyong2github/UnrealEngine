@@ -6,6 +6,7 @@
 
 #include "Streaming/StreamingManagerTexture.h"
 #include "GameFramework/Actor.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "Engine/TextureStreamingTypes.h"
 #include "Engine/StaticMesh.h"
@@ -22,6 +23,7 @@
 #include "UObject/UObjectIterator.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
+#include "RenderAssetUpdate.h"
 #include "Streaming/AsyncTextureStreaming.h"
 #include "Components/PrimitiveComponent.h"
 #include "Misc/CoreDelegates.h"
@@ -29,6 +31,7 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Async/ParallelFor.h"
+#include "TextureResource.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
 
@@ -376,6 +379,11 @@ bool FRenderAssetStreamingManager::StreamOutRenderAssetData( int64 RequiredMemor
 	bPauseRenderAssetStreaming = CachedPauseTextureStreaming;
 	UE_LOG(LogContentStreaming, Log, TEXT("Streaming out texture memory! Saved %.2f MB."), float(MemoryDropped)/1024.0f/1024.0f);
 	return true;
+}
+
+int64 FRenderAssetStreamingManager::GetPoolSize() const
+{
+	return GTexturePoolSize;
 }
 
 void FRenderAssetStreamingManager::IncrementalUpdate(float Percentage, bool bUpdateDynamicComponents)

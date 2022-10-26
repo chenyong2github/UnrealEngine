@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rendering/SlateVectorGraphicsCache.h"
+#include "Rendering/ShaderResourceManager.h"
 #include "Rendering/SlateSVGRasterizer.h"
 #include "Textures/TextureAtlas.h"
 #include "Types/SlateVector2.h"

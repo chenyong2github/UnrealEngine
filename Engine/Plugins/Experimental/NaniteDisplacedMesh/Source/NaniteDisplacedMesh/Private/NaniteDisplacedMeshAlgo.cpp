@@ -4,8 +4,10 @@
 
 #if WITH_EDITOR
 
+#include "Async/ParallelFor.h"
 #include "NaniteDisplacedMesh.h"
 #include "DisplacementMap.h"
+#include "Engine/Texture2D.h"
 #include "Affine.h"
 #include "LerpVert.h"
 #include "AdaptiveTessellator.h"

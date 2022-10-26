@@ -9,6 +9,7 @@
 #include "ChaosStats.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Components/BoxComponent.h"
+#include "Engine/Engine.h"
 #include "Engine/InstancedStaticMesh.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"

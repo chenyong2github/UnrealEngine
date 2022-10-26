@@ -6,6 +6,7 @@
 
 #include "Animation/AnimSequence.h"
 
+#include "Algo/Find.h"
 #include "Misc/MessageDialog.h"
 #include "Logging/LogScopedVerbosityOverride.h"
 #include "UObject/FrameworkObjectVersion.h"
@@ -16,6 +17,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UObjectBase.h"
 #include "CoreGlobals.h"
+#include "Engine/SkeletalMesh.h"
 #include "EngineUtils.h"
 #include "AnimEncoding.h"
 #include "AnimationUtils.h"
@@ -40,6 +42,7 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Animation/AnimCompressionDerivedData.h"
 #include "Animation/AnimCompressionDerivedDataPublic.h"
+#include "UObject/UObjectIterator.h"
 #include "UObject/UObjectThreadContext.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Widgets/Notifications/SNotificationList.h"

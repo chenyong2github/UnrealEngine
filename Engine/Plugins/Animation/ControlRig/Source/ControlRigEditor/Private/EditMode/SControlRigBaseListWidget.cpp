@@ -45,6 +45,7 @@
 #include "LevelSequenceEditorBlueprintLibrary.h"
 #include "Misc/PackageName.h"
 #include "AssetToolsModule.h"
+#include "PropertyEditorModule.h"
 
 
 #define LOCTEXT_NAMESPACE "ControlRigBaseListWidget"

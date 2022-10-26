@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "Factories/Factory.h"
+#include "Engine/EngineTypes.h"
 #include "Engine/Texture.h"
 #include "ImportSettings.h"
 #include "Kismet/BlueprintFunctionLibrary.h"

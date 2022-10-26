@@ -17,11 +17,13 @@
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "PropertyEditorModule.h"
+#include "PropertyHandle.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/Stack/NiagaraStackEmitterPropertiesGroup.h"
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
 #include "ViewModels/Stack/NiagaraStackSystemSettingsGroup.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScalabilitySystem"
 

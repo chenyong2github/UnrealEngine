@@ -26,6 +26,7 @@ LandscapeRender.h: New terrain rendering
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
 #include "StaticMeshResources.h"
+#include "StaticMeshSceneProxy.h"
 #include "SceneViewExtension.h"
 #include "Tasks/Task.h"
 

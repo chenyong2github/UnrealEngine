@@ -10,6 +10,7 @@
 #include "ProfilingDebugging/ResourceSize.h"
 #include "RenderResource.h"
 #include "ShaderParameters.h"
+#include "Components/ExternalMorphSet.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "GlobalShader.h"
 #include "GPUSkinVertexFactory.h"

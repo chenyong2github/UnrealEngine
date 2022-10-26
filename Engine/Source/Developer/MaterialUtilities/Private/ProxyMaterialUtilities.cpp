@@ -4,6 +4,7 @@
 #include "Engine/MaterialMerging.h"
 #include "StaticParameterSet.h"
 #include "Materials/Material.h"
+#include "Engine/Engine.h"
 #include "Engine/Texture2D.h"
 #include "MaterialUtilities.h"
 #include "Materials/MaterialInstanceConstant.h"

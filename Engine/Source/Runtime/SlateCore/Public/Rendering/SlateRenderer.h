@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Textures/SlateShaderResource.h"
+#include "Textures/SlateTextureData.h"
 #include "Brushes/SlateDynamicImageBrush.h"
 #include "Rendering/DrawElements.h"
 #include "Templates/RefCounting.h"

@@ -3,6 +3,7 @@
 #include "Graph/SControlRigGraphNodeComment.h"
 #include "EdGraphNode_Comment.h"
 #include "Engine/Engine.h"
+#include "Framework/Application/SlateApplication.h"
 #include "PropertyPathHelpers.h"
 #include "UObject/PropertyPortFlags.h"
 #include "ControlRigBlueprint.h"

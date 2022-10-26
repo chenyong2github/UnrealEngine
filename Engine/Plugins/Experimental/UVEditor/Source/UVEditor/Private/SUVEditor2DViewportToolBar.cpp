@@ -9,6 +9,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "UVEditorUXSettings.h"
 #include "UVEditor2DViewportClient.h"
+#include "Settings/LevelEditorViewportSettings.h"
 #include "SViewportToolBarComboMenu.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 

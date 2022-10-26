@@ -2,6 +2,7 @@
 
 
 #include "AnimCustomInstanceHelper.h"
+#include "Engine/SkeletalMesh.h"
 
 /////////////////////////////////////////////////////
 // FAnimCustomInstanceHelper

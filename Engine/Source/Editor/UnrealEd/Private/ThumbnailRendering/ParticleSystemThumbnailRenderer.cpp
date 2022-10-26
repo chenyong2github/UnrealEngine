@@ -6,8 +6,10 @@
 #include "ShowFlags.h"
 #include "SceneView.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Engine/Canvas.h"
 #include "Particles/ParticleSystem.h"
 #include "Engine/Texture2D.h"
+#include "TextureResource.h"
 #include "ThumbnailHelpers.h"
 #include "UnrealEdGlobals.h"
 

@@ -3,6 +3,7 @@
 #include "Sequencer/MediaThumbnailSection.h"
 
 #include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"
 #include "IMediaCache.h"
 #include "IMediaTracks.h"

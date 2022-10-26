@@ -11,6 +11,7 @@
 #include "UObject/SavePackage.h"
 
 #include "ActorFolder.h"
+#include "Engine/Engine.h"
 #include "EngineUtils.h"
 #include "SourceControlHelpers.h"
 #include "ISourceControlModule.h"
@@ -28,6 +29,7 @@
 
 #include "Engine/StaticMesh.h"
 #include "Engine/LevelStreamingGCHelper.h"
+#include "Engine/Texture.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
 

@@ -22,6 +22,8 @@ ImageUtils.cpp: Image utility functions.
 #include "Modules/ModuleManager.h"
 #include "ImageCoreUtils.h"
 #include "DDSFile.h"
+#include "TextureResource.h"
+#include "UnrealClient.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogImageUtils, Log, All);
 

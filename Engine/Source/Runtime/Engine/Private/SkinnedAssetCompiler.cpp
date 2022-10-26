@@ -11,6 +11,7 @@
 #include "Settings/EditorExperimentalSettings.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
 #include "EngineModule.h"
+#include "Engine/SkinnedAssetAsyncCompileUtils.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/StrongObjectPtr.h"
 #include "ShaderCompiler.h"

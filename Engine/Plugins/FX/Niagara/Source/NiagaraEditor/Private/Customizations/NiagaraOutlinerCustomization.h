@@ -9,15 +9,18 @@
 #include "EdGraph/EdGraphSchema.h"
 #include "Layout/Visibility.h"
 #include "NiagaraDebuggerCommon.h"
+#include "Widgets/SCompoundWidget.h"
 
 #include "NiagaraOutlinerCustomization.generated.h"
 
 class FDetailWidgetRow;
 enum class ECheckBoxState : uint8;
 class FNiagaraDebugger;
+class ITableRow;
 class SNiagaraOutlinerTree;
 class SNiagaraOutlinerTreeItem;
 class SSearchBox;
+class STableViewBase;
 class IStructureDetailsView;
 
 template<typename ItemType> class STreeView;

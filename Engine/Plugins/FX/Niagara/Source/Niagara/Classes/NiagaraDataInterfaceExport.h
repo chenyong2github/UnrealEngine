@@ -4,6 +4,7 @@
 #include "NiagaraCommon.h"
 #include "NiagaraShared.h"
 #include "NiagaraDataInterface.h"
+#include "UObject/Interface.h"
 #include "NiagaraDataInterfaceExport.generated.h"
 
 USTRUCT(BlueprintType, Blueprintable)

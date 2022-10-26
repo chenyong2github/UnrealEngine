@@ -4,6 +4,7 @@
 #include "Misc/PackageName.h"
 #include "InstancedFoliageActor.h"
 #include "InstancedFoliage.h"
+#include "Engine/Level.h"
 #include "Engine/WorldComposition.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 

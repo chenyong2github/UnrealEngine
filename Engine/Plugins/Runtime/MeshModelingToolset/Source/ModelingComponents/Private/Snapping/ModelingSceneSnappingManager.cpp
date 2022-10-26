@@ -9,6 +9,7 @@
 
 #include "Scene/SceneGeometrySpatialCache.h"
 
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "EngineUtils.h" // for TActorIterator<>
@@ -17,6 +18,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/BrushComponent.h"
 #include "Components/DynamicMeshComponent.h"
+#include "RawIndexBuffer.h"
+#include "StaticMeshResources.h"
 #include "UObject/UObjectGlobals.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ModelingSceneSnappingManager)

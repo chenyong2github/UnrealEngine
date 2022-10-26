@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "Engine/Level.h"
 #include "GameFramework/Actor.h"
 #include "Brush.generated.h"
 

@@ -5,6 +5,7 @@
 #include "ICurveAssetEditor.h"
 #include "CurveAssetEditorModule.h"
 #include "DesktopPlatformModule.h"
+#include "Framework/Application/SlateApplication.h"
 #include "ToolMenuSection.h"
 #include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"

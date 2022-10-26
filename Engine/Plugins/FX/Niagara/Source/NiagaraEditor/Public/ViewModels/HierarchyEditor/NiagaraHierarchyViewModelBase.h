@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "NiagaraEditorUtilities.h"
+#include "PropertyEditorDelegates.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 #include "NiagaraHierarchyViewModelBase.generated.h"
 

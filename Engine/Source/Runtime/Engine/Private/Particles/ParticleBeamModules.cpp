@@ -22,6 +22,7 @@
 #include "Particles/ParticleLODLevel.h"
 #include "Distributions/DistributionFloatConstantCurve.h"
 #include "Engine/InterpCurveEdSetup.h"
+#include "Engine/World.h"
 #include "ParticleBeamTrailVertexFactory.h"
 
 /*-----------------------------------------------------------------------------

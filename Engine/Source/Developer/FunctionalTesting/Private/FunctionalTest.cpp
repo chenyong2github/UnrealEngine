@@ -25,6 +25,7 @@
 #include "TraceQueryTestResults.h"
 #include "Misc/RuntimeErrors.h"
 #include "FunctionalTestBase.h"
+#include "UnrealClient.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FunctionalTest)
 

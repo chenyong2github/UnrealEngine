@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DerivedDataCacheKeyProxy.h"
 #include "UObject/GCObject.h"
 #include "Input/Reply.h"
 #include "Widgets/SWidget.h"
@@ -12,6 +13,7 @@
 #include "IDetailsView.h"
 #include "TextureEditorSettings.h"
 
+class SMenuAnchor;
 class STextBlock;
 class STextureEditorViewport;
 class UFactory;

@@ -14,6 +14,7 @@
 #include "Editor/EditorEngine.h"
 #include "Engine/Selection.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
 #include "FileHelpers.h"
 #include "IAssetTools.h"
 #include "Misc/StringBuilder.h"

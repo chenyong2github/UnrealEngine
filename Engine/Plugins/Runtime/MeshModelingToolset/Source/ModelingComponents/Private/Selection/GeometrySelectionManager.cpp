@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Selection/GeometrySelectionManager.h"
+#include "Engine/Engine.h"
 #include "Selection/DynamicMeshSelector.h"
 #include "Selection/SelectionEditInteractiveCommand.h"
 #include "ToolContextInterfaces.h"

@@ -2,6 +2,7 @@
 
 #include "BoneContainer.h"
 #include "Animation/Skeleton.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/SkeletalMesh.h"
 #include "EngineLogs.h"
 #include "Animation/AnimCurveTypes.h"

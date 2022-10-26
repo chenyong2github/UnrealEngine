@@ -4,6 +4,7 @@
 
 #include "Algo/Transform.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "SourceFilterStyle.h"
 #include "SSourceFilteringTreeview.h"
 #include "SFilterObjectWidget.h"
@@ -11,6 +12,7 @@
 #include "TreeViewBuilder.h"
 #include "ISessionSourceFilterService.h"
 #include "IFilterObject.h"
+#include "Widgets/Input/SComboButton.h"
 
 #if WITH_EDITOR
 #include "Modules/ModuleManager.h"

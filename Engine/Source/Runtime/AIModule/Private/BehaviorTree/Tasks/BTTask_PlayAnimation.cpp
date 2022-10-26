@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BehaviorTree/Tasks/BTTask_PlayAnimation.h"
+#include "Engine/World.h"
 #include "VisualLogger/VisualLogger.h"
 #include "AIController.h"
 #include "GameFramework/Character.h"

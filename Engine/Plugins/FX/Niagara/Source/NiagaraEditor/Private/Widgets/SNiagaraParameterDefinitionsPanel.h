@@ -14,6 +14,7 @@
 typedef SItemSelector<FNiagaraParameterDefinitionsPanelCategory, FNiagaraParameterDefinitionsPanelItem> SNiagaraParameterDefinitionsPanelSelector;
 
 class INiagaraParameterDefinitionsPanelViewModel;
+class SComboButton;
 class UNiagaraParameterDefinitions;
 
 class FNiagaraParameterDefinitionsPanelCommands : public TCommands<FNiagaraParameterDefinitionsPanelCommands>

@@ -11,6 +11,7 @@
 class IPropertyHandle;
 class IDetailPropertyRow;
 class FStructOnScope;
+class SWidget;
 struct FInstancedStruct;
 
 /**

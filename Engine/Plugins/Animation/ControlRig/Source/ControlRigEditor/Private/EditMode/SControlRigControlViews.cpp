@@ -22,6 +22,8 @@
 #include "ControlRigSequencerEditorLibrary.h"
 #include "LevelSequence.h"
 #include "LevelSequenceEditorBlueprintLibrary.h"
+#include "PropertyEditorModule.h"
+#include "UnrealClient.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigBaseListWidget"
 

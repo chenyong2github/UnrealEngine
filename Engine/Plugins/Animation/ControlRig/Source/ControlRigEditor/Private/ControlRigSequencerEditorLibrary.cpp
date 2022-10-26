@@ -7,6 +7,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Framework/Application/SlateApplication.h"
 #include "UnrealEdGlobals.h"
 #include "ISequencer.h"
 #include "ControlRigEditorModule.h"

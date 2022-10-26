@@ -26,6 +26,7 @@
 #include "ContentStreaming.h"
 #include "IAudioProxyInitializer.h"
 #include "IWaveformTransformation.h"
+#include "Templates/DontCopy.h"
 #include "SoundWave.generated.h"
 
 class FSoundWaveData;

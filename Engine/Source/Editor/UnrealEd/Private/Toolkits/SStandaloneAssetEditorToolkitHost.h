@@ -13,6 +13,7 @@
 #include "Toolkits/AssetEditorToolkit.h"
 
 class SBorder;
+class SBox;
 
 /**
  * Base class for standalone asset editing host tabs

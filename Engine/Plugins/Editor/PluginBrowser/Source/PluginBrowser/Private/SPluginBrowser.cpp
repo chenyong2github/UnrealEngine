@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPluginBrowser.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SToolTip.h"

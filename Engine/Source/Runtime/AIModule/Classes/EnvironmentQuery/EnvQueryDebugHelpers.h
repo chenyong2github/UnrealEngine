@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "EngineDefines.h"
+#include "Engine/World.h"
 #include "EnvironmentQuery/EnvQueryTypes.h"
 #include "VisualLogger/VisualLogger.h"
 #include "DebugRenderSceneProxy.h"

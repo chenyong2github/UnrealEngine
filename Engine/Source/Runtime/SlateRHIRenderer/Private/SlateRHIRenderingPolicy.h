@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameTime.h"
 #include "Rendering/RenderingCommon.h"
 #include "Rendering/ShaderResourceManager.h"
 #include "Rendering/DrawElements.h"
@@ -23,6 +24,8 @@ class UDeviceProfile;
 class FSlateElementPS;
 class FSlateMaterialShaderPS;
 class FSlateMaterialShaderVS;
+struct FMaterialShaderTypes;
+struct IPooledRenderTarget;
 
 struct FSlateRenderingParams
 {

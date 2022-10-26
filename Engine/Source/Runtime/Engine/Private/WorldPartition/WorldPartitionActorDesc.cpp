@@ -13,6 +13,8 @@
 #include "Engine/World.h"
 #include "Engine/Level.h"
 #include "Misc/PackageName.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"

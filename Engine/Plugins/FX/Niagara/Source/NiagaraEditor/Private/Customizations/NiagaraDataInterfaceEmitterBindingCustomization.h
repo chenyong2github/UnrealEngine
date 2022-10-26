@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
+#include "Layout/Visibility.h"
 #include "NiagaraDataInterfaceEmitterBinding.h"
 
 class FDetailWidgetRow;

@@ -47,6 +47,7 @@ Level.cpp: Level-related functions
 #include "StaticLighting.h"
 #include "TickTaskManagerInterface.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "Physics/PhysicsInterfaceScene.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "EngineGlobals.h"
 #include "Engine/LevelBounds.h"

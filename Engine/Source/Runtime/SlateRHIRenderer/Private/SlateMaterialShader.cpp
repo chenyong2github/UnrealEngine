@@ -2,6 +2,7 @@
 
 #include "SlateMaterialShader.h"
 #include "Materials/Material.h"
+#include "RHIStaticStates.h"
 #include "ShaderParameterUtils.h"
 
 IMPLEMENT_TYPE_LAYOUT(FSlateMaterialShaderVS);

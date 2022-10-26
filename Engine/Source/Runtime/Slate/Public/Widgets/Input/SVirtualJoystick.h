@@ -10,6 +10,7 @@
 
 class FPaintArgs;
 class FSlateWindowElementList;
+class ISlateBrushSource;
 
 /**
  * A virtual joystsick

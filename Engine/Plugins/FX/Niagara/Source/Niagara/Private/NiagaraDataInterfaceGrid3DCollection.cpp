@@ -8,6 +8,7 @@
 #include "NiagaraShader.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
+#include "NiagaraSystemInstanceController.h"
 #include "NiagaraGpuComputeDebugInterface.h"
 #include "NiagaraDataInterfaceGrid3DCollectionUtils.h"
 

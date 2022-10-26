@@ -5,6 +5,7 @@
 #include "NiagaraBakerOutputRegistry.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
+#include "NiagaraSystemInstanceController.h"
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraBatchedElements.h"
@@ -28,6 +29,7 @@
 #include "ImageWrapperHelper.h"
 #include "LegacyScreenPercentageDriver.h"
 #include "VolumeCache.h"
+#include "TextureResource.h"
 
 //////////////////////////////////////////////////////////////////////////
 

@@ -3,6 +3,7 @@
 
 #include "Constraints/ControlRigTransformableHandle.h"
 
+#include "Components/SkeletalMeshComponent.h"
 #include "ControlRig.h"
 #include "ControlRigObjectBinding.h"
 #include "IControlRigObjectBinding.h"

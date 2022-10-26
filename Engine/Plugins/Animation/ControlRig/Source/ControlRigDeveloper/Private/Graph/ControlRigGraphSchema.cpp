@@ -17,6 +17,7 @@
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "ControlRigDeveloper.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "EulerTransform.h"
 #include "Curves/CurveFloat.h"

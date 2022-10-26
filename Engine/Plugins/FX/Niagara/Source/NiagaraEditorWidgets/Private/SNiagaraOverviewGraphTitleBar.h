@@ -9,6 +9,7 @@
 //#include "SNiagaraOverviewGraph.h"
 
 class SNiagaraOverviewGraph;
+class SVerticalBox;
 
 class SNiagaraOverviewGraphTitleBar : public SCompoundWidget
 {

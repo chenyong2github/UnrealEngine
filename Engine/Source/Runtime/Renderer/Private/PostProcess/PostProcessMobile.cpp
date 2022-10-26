@@ -15,6 +15,7 @@
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
 #include "PostProcess/PostProcessing.h"
+#include "TextureResource.h"
 
 static TAutoConsoleVariable<int32> CVarMobileSupportBloomSetupRareCases(
 	TEXT("r.Mobile.MobileSupportBloomSetupRareCases"),

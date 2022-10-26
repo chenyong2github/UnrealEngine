@@ -2,6 +2,7 @@
 
 #include "GeometryEdMode.h"
 #include "EditorViewportClient.h"
+#include "Engine/Texture2D.h"
 #include "Misc/FeedbackContext.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/AppStyle.h"
@@ -10,6 +11,7 @@
 #include "Engine/Selection.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
+#include "TextureResource.h"
 #include "Toolkits/ToolkitManager.h"
 #include "BSPOps.h"
 #include "GeometryMode.h"

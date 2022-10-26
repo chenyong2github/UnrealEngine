@@ -4,6 +4,7 @@
 
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Styling/SlateBrush.h"
 #include "Types/SlateStructs.h"
 
 class NIAGARAEDITOR_API SVerticalResizeBox : public SCompoundWidget

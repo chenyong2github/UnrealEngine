@@ -10,6 +10,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Rendering/DrawElements.h"
 #include "Engine/Texture.h"
+#include "RenderingThread.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/SVirtualWindow.h"
 

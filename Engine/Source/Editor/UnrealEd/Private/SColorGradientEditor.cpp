@@ -3,6 +3,7 @@
 #include "SColorGradientEditor.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Misc/Paths.h"
+#include "Rendering/DrawElementPayloads.h"
 #include "Rendering/DrawElements.h"
 #include "Widgets/SBoxPanel.h"
 #include "Layout/WidgetPath.h"

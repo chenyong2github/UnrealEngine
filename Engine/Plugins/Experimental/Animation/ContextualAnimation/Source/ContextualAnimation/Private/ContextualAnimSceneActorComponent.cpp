@@ -12,6 +12,8 @@
 #include "AnimNotifyState_IKWindow.h"
 #include "EngineUtils.h"
 #include "Net/UnrealNetwork.h"
+#include "PrimitiveSceneProxy.h"
+#include "SceneManagement.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContextualAnimSceneActorComponent)
 

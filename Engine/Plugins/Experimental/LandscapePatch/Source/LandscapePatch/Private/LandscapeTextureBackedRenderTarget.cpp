@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LandscapeTextureBackedRenderTarget.h"
-
+#include "Engine/World.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapePatchUtil.h" // CopyTextureOnRenderThread
 #include "LandscapeTexturePatchPS.h"
 #include "RenderGraph.h"
 #include "TextureCompiler.h"
+#include "TextureResource.h"
 #include "UObject/ObjectSaveContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeTextureBackedRenderTarget)

@@ -7,6 +7,7 @@
 #include "LevelEditorViewport.h"
 #include "WaterBodyIslandActor.h"
 #include "Engine/Canvas.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Kismet/KismetSystemLibrary.h"

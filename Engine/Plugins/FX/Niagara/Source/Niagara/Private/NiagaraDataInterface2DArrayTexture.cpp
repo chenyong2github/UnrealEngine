@@ -9,6 +9,9 @@
 
 #include "Engine/Texture2DArray.h"
 #include "Engine/TextureRenderTarget2DArray.h"
+#include "RHIStaticStates.h"
+#include "ShaderCompilerCore.h"
+#include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterface2DArrayTexture)
 

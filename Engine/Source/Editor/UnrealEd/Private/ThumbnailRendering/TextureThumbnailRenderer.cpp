@@ -2,6 +2,7 @@
 
 #include "ThumbnailRendering/TextureThumbnailRenderer.h"
 #include "CanvasItem.h"
+#include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
@@ -16,7 +17,9 @@
 
 #include "CubemapUnwrapUtils.h"
 #include "NormalMapPreview.h"
+#include "CanvasItem.h"
 #include "CanvasTypes.h"
+#include "TextureResource.h"
 
 UTextureThumbnailRenderer::UTextureThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

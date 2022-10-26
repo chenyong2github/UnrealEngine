@@ -9,6 +9,8 @@
 #include "ContextualAnimViewModel.h"
 #include "Styling/AppStyle.h"
 #include "EditorFontGlyphs.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Viewports.h"
 #include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "ContextualAnimViewport"

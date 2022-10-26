@@ -10,6 +10,8 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Animation/AnimTypes.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Animation/AnimSequence.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Animation/SkeletalMeshActor.h"

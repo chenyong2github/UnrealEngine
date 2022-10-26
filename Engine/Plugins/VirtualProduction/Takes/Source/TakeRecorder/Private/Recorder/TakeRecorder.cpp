@@ -46,6 +46,7 @@
 #include "Widgets/Images/SThrobber.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
 
 // LevelEditor includes
 #include "IAssetViewport.h"

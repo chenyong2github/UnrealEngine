@@ -5,6 +5,7 @@
 #include "GPUSkinPublicDefs.h"
 #include "ReferenceSkeleton.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "UObject/UObjectHash.h"
 #include "ComponentReregisterContext.h"

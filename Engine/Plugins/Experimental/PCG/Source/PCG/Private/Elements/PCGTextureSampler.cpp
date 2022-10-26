@@ -2,6 +2,7 @@
 
 #include "Elements/PCGTextureSampler.h"
 
+#include "GameFramework/Actor.h"
 #include "PCGComponent.h"
 #include "PCGHelpers.h"
 #include "Data/PCGSpatialData.h"

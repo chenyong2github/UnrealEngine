@@ -7,6 +7,7 @@
 
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
+#include "TextureResource.h"
 
 #if WITH_EDITOR
 

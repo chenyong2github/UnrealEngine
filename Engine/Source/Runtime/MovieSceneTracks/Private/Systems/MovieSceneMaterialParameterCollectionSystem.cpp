@@ -2,6 +2,7 @@
 
 #include "Systems/MovieSceneMaterialParameterCollectionSystem.h"
 
+#include "Engine/Engine.h"
 #include "IMovieScenePlayer.h"
 #include "MovieSceneSequence.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"

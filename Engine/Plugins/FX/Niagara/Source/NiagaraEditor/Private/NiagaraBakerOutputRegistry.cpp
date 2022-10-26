@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraBakerOutputRegistry.h"
-
+#include "IDetailsView.h"
 #include "NiagaraBakerOutputSimCache.h"
 #include "NiagaraBakerOutputTexture2D.h"
 #include "NiagaraBakerOutputVolumeTexture.h"

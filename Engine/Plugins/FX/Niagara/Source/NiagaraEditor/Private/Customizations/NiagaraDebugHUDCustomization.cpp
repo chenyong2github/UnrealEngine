@@ -39,6 +39,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Framework/Application/SlateApplication.h"
 #include "IDetailChildrenBuilder.h"
 //Widgets
 #include "Widgets/Input/SCheckBox.h"
@@ -46,6 +47,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SNiagaraDebugger.h"
 #include "Widgets/Views/STreeView.h"
+#include "Widgets/Input/SMenuAnchor.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"

@@ -8,6 +8,7 @@
 
 #include "Curves/CurveLinearColor.h"
 #include "CanvasTypes.h"
+#include "UnrealClient.h"
 
 UCurveLinearColorThumbnailRenderer::UCurveLinearColorThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

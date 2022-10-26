@@ -6,6 +6,7 @@
 #include "ControlRig.h"
 #include "ControlRigAnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "PrimitiveSceneProxy.h"
 
 #if WITH_EDITOR
 #include "Widgets/Notifications/SNotificationList.h"

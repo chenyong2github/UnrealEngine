@@ -8,6 +8,7 @@
 #include "Components/MeshComponent.h"
 #include "CoreMinimal.h"
 #include "HAL/UnrealMemory.h"
+#include "Materials/MaterialInterface.h"
 
 #define LOCTEXT_NAMESPACE "PropertyValueMaterial"
 

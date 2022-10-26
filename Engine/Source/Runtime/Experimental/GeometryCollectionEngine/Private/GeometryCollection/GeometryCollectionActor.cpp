@@ -13,6 +13,7 @@ GeometryCollectionActor.cpp: AGeometryCollectionActor methods.
 #include "Chaos/PerParticleGravity.h"
 #include "Chaos/ImplicitObject.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/World.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"

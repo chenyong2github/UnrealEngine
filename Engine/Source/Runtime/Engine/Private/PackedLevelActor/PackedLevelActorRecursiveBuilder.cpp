@@ -11,6 +11,7 @@
 #include "LevelInstance/LevelInstanceSubsystem.h"
 
 #include "Engine/Blueprint.h"
+#include "Engine/Level.h"
 
 #include "Misc/Crc.h"
 

@@ -8,6 +8,7 @@
 #include "Misc/ITransaction.h"
 #include "Instances/InstancedPlacementPartitionActor.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
+#include "Engine/World.h"
 
 FArchive& operator<<(FArchive& Ar, FPlacementInstance& Instance)
 {

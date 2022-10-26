@@ -10,6 +10,7 @@
 #include "Fonts/CompositeFont.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Layout/Margin.h"
+#include "Misc/Attribute.h"
 #include "Sound/SlateSound.h"
 #include "Styling/SlateBrush.h"
 #include "Styling/SlateWidgetStyle.h"

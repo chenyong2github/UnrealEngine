@@ -9,6 +9,7 @@
 #include "EditorModeManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "EngineUtils.h"
+#include "Engine/SkeletalMesh.h"
 
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"

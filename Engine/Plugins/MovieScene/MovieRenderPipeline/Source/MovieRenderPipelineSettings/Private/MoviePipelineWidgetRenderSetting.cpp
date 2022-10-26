@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MoviePipelineWidgetRenderSetting.h"
+#include "Engine/GameViewportClient.h"
 #include "Slate/WidgetRenderer.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MoviePipelineBurnInWidget.h"
@@ -16,6 +17,7 @@
 #include "Slate/SGameLayerManager.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "MoviePipelineQueue.h"
+#include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineWidgetRenderSetting)
 

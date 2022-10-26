@@ -8,6 +8,7 @@
 #include "NiagaraGPUSystemTick.h"
 #include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraShader.h"
+#include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
 #include "ShaderCompilerCore.h"
 

@@ -6,6 +6,7 @@
 #include "InputCoreTypes.h"
 #include "UObject/GCObject.h"
 #include "UnrealClient.h"
+#include "ViewportClient.h"
 
 class FCanvas;
 class ITextureEditorToolkit;

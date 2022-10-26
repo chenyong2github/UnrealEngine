@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneSequenceTickInterval.h"
+#include "Engine/Level.h"
 #include "GameFramework/Actor.h"
 #include "Components/ActorComponent.h"
 

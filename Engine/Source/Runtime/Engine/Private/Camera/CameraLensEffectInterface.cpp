@@ -5,6 +5,7 @@
 #include "Math/Vector.h"
 #include "Math/Rotator.h"
 #include "GameFramework/Actor.h"
+#include "Logging/MessageLog.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "UObject/ScriptInterface.h"
 

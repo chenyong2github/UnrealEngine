@@ -9,6 +9,7 @@
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"
 
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "Misc/PathViews.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"

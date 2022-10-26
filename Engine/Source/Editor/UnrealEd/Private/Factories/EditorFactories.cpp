@@ -44,6 +44,7 @@
 #include "Model.h"
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Curves/KeyHandle.h"
 #include "MaterialExpressionIO.h"
 #include "Materials/MaterialExpression.h"
@@ -272,6 +273,7 @@
 
 #include "SkinWeightsUtilities.h"
 #include "TextureImportUtils.h"
+#include "TextureReferenceResolver.h"
 #include "UDIMUtilities.h"
 #include "FileHelpers.h"
 

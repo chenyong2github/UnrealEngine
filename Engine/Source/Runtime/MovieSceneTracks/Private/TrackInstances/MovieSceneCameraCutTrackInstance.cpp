@@ -2,6 +2,7 @@
 
 #include "TrackInstances/MovieSceneCameraCutTrackInstance.h"
 #include "ContentStreaming.h"
+#include "Engine/World.h"
 #include "Evaluation/MovieSceneEvaluation.h"
 #include "GameFramework/Actor.h"
 #include "Generators/MovieSceneEasingCurves.h"

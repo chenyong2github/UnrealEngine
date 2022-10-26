@@ -22,6 +22,7 @@
 #include "ContentStreaming.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Misc/App.h"
 #include "Sound/SoundClass.h"
 #include "SubtitleManager.h"
 #include "DerivedDataCacheInterface.h"

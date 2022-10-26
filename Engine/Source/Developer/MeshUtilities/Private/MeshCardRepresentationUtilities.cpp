@@ -2,6 +2,7 @@
 
 #include "MeshUtilities.h"
 #include "MeshUtilitiesPrivate.h"
+#include "Async/ParallelFor.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
@@ -11,6 +12,7 @@
 #include "DistanceFieldAtlas.h"
 #include "MeshRepresentationCommon.h"
 #include "Containers/BinaryHeap.h"
+#include <cmath>
 
 static TAutoConsoleVariable<int32> CVarCardRepresentationParallelBuild(
 	TEXT("r.MeshCardRepresentation.ParallelBuild"),

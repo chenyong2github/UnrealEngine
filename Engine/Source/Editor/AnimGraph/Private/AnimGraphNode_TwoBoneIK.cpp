@@ -3,6 +3,7 @@
 #include "AnimGraphNode_TwoBoneIK.h"
 #include "AnimNodeEditModes.h"
 #include "Animation/AnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
 
 // for customization details
 #include "PropertyHandle.h"

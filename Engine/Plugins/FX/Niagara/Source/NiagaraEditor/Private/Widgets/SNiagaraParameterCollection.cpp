@@ -10,6 +10,7 @@
 #include "NiagaraEditorStyle.h"
 
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Images/SImage.h"

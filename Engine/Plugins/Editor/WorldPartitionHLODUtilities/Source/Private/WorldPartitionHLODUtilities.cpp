@@ -23,6 +23,7 @@
 #include "Algo/Transform.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/InstancedStaticMesh.h"
+#include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
 #include "HAL/FileManager.h"
 #include "Materials/MaterialInstance.h"

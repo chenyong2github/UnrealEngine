@@ -5,6 +5,7 @@
 #endif
 
 #include "RigUnit_RigLogic.h"
+#include "Engine/SkeletalMesh.h"
 #include "SharedRigRuntimeContext.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Units/RigUnitContext.h"

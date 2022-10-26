@@ -10,6 +10,7 @@ LandscapeLight.cpp: Static lighting for LandscapeComponents
 #include "LandscapeProxy.h"
 #include "LandscapeInfo.h"
 #include "LightMap.h"
+#include "Engine/Level.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Components/LightComponent.h"
 #include "ShadowMap.h"

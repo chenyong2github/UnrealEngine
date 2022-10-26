@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "AssetUtils/Texture2DBuilder.h"
+#include "TextureResource.h"
 
 using namespace UE::Geometry;
 

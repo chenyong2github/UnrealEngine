@@ -30,6 +30,7 @@
 #include "SAutomationTestItem.h"
 
 #if WITH_EDITOR
+	#include "Engine/Level.h"
 	#include "Engine/World.h"
 	#include "FileHelpers.h"
 	#include "AssetRegistry/AssetRegistryModule.h"

@@ -11,6 +11,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/ConvexElem.h"
 #include "AI/NavigationSystemHelpers.h"
+#include "SceneManagement.h"
 #include "WaterUtils.h"
 #include "Algo/Transform.h"
 

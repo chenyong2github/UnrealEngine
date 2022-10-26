@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Templates/SubclassOf.h"
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "FoliageType_InstancedStaticMesh.h"
 #include "FoliageInstanceBase.h"

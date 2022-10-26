@@ -8,6 +8,7 @@
 #include "DeferredShadingRenderer.h"
 #include "LightMapRendering.h"
 #include "ScenePrivate.h"
+#include "TextureResource.h"
 #include "MeshPassProcessor.inl"
 
 #if !UE_BUILD_DOCS

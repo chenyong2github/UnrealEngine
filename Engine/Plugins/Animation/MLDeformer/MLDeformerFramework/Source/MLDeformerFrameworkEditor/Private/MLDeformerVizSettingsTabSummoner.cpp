@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MLDeformerVizSettingsTabSummoner.h"
+#include "DetailsViewArgs.h"
 #include "MLDeformerEditorToolkit.h"
 #include "MLDeformerEditorStyle.h"
 #include "MLDeformerEditorModel.h"
 #include "MLDeformerModel.h"
 #include "IDocumentation.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerVizSettingsTabSummoner"
 

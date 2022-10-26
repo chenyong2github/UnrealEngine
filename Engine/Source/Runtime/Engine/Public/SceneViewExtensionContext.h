@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "SceneInterface.h"
 #include "UnrealClient.h"
+#include "ViewportClient.h"
 #include "Engine/Engine.h"
 #include "SceneViewExtensionContext.generated.h"
 

@@ -6,6 +6,7 @@
 #include "Animation/AnimInstance.h"
 #include "AnimationUtils.h"
 #include "AnimationRuntime.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"

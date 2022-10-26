@@ -7,6 +7,7 @@
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/Selection.h"
+#include "Engine/World.h"
 #if WITH_EDITOR
 #include "Editor.h"
 #endif

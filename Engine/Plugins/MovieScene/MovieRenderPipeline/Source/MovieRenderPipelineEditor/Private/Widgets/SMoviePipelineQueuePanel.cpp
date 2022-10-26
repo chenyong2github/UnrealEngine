@@ -15,6 +15,7 @@
 
 // Slate Includes
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"

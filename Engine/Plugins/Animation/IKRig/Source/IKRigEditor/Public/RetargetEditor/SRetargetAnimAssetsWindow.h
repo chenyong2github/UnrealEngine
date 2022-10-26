@@ -8,6 +8,8 @@
 #include "Settings/SkeletalMeshEditorSettings.h"
 #include "PreviewScene.h"
 
+
+class FAssetThumbnailPool;
 class UIKRetargeter;
 
 //** Dialog to select path to export to */

@@ -2,9 +2,11 @@
 
 #include "Converters/GLTFBackdropConverters.h"
 #include "Utilities/GLTFCoreUtilities.h"
+#include "Components/SceneComponent.h"
 #include "Converters/GLTFMaterialUtility.h"
 #include "Converters/GLTFBlueprintUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
+#include "GameFramework/Actor.h"
 
 FGLTFJsonBackdrop* FGLTFBackdropConverter::Convert(const AActor* BackdropActor)
 {

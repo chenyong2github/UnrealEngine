@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MLDeformerEditorModel.h"
+#include "IDetailsView.h"
 #include "MLDeformerModule.h"
 #include "MLDeformerModel.h"
 #include "MLDeformerEditorStyle.h"
@@ -20,6 +21,7 @@
 #include "Animation/AnimSequence.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 #include "IPersonaPreviewScene.h"
 #include "IPersonaToolkit.h"
 #include "Modules/ModuleManager.h"

@@ -4,6 +4,7 @@
 
 #include "Curves/RichCurve.h"
 #include "DynamicMesh/MeshNormals.h"
+#include "Engine/World.h"
 #include "InteractiveToolManager.h"
 #include "ModelingTaskTypes.h"
 #include "ModelingToolTargetUtil.h"

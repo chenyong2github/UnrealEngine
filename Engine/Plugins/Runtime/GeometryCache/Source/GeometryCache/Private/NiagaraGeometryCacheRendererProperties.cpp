@@ -6,6 +6,7 @@
 #include "NiagaraRendererGeometryCache.h"
 #include "NiagaraComponent.h"
 #include "Modules/ModuleManager.h"
+#include "Widgets/Text/STextBlock.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraGeometryCacheRendererProperties)
 

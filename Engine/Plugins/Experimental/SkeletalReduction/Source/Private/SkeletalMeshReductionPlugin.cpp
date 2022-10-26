@@ -8,6 +8,7 @@
 #include "Components/SkinnedMeshComponent.h"
 #include "ComponentReregisterContext.h"
 #include "Engine/MeshMerging.h" 
+#include "Engine/SkinnedAssetCommon.h"
 #include "Engine/StaticMesh.h"
 #include "Features/IModularFeatures.h"
 #include "ISkeletalMeshReduction.h"

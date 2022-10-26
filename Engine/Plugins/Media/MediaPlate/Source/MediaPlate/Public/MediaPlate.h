@@ -7,6 +7,7 @@
 #include "Engine/AssetUserData.h"
 #include "MediaPlate.generated.h"
 
+class UMaterialInterface;
 class UMediaPlateComponent;
 
 /**

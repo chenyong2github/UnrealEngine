@@ -14,6 +14,7 @@
 #include "PhysicsReplication.h"
 #include "Physics/PhysicsInterfaceCore.h"
 #include "UObject/UObjectThreadContext.h"
+#include "Physics/PhysicsInterfaceScene.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
 //////////////// PRIMITIVECOMPONENT ///////////////

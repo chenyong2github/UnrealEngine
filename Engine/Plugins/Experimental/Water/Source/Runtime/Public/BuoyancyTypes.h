@@ -4,6 +4,7 @@
 
 #include "WaterBodyTypes.h"
 #include "Chaos/GeometryParticlesfwd.h"
+#include "Physics/PhysicsInterfaceScene.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
 #include "BuoyancyTypes.generated.h"
 

@@ -30,6 +30,7 @@
 #include "ScenePrivate.h"
 #include "SceneRendering.h"
 #include "ShaderParameterUtils.h"
+#include "TextureResource.h"
 
 DECLARE_CYCLE_STAT(TEXT("GPU Dispatch Setup [RT]"), STAT_NiagaraGPUDispatchSetup_RT, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("GPU Emitter Dispatch [RT]"), STAT_NiagaraGPUSimTick_RT, STATGROUP_Niagara);

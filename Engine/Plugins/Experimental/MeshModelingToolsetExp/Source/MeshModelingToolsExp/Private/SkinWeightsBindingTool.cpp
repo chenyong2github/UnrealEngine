@@ -13,6 +13,7 @@
 #include "ToolTargetManager.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "SceneManagement.h"
 #include "Spatial/FastWinding.h"
 #include "Spatial/MeshWindingNumberGrid.h"
 

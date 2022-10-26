@@ -6,6 +6,7 @@
 #include "SmartObjectTypes.h"
 #include "SmartObjectSubsystem.h"
 #include "SmartObjectComponent.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "VisualLogger/VisualLogger.h"
 #include "Engine/LevelStreaming.h"

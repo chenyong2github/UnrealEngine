@@ -9,6 +9,7 @@
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraComponent.h"
 #include "NiagaraShaderParametersBuilder.h"
+#include "RHIStaticStates.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceVectorField)
 

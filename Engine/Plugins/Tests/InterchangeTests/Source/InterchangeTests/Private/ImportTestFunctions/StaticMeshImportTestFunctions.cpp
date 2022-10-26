@@ -6,6 +6,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshResources.h"
 #include "ObjectTools.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshImportTestFunctions)

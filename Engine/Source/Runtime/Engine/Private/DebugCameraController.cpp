@@ -8,6 +8,7 @@
 #include "Engine/DebugCameraController.h"
 #include "Engine/DebugCameraControllerSettings.h"
 #include "EngineGlobals.h"
+#include "Components/InputComponent.h"
 #include "CollisionQueryParams.h"
 #include "Engine/World.h"
 #include "Components/StaticMeshComponent.h"

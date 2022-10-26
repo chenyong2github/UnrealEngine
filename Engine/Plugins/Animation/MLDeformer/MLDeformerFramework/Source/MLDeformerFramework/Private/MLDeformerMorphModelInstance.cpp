@@ -3,6 +3,7 @@
 #include "MLDeformerMorphModelInstance.h"
 #include "MLDeformerMorphModel.h" 
 #include "NeuralNetwork.h"
+#include "Components/ExternalMorphSet.h"
 #include "Components/SkeletalMeshComponent.h"
 
 TAtomic<int32> UMLDeformerMorphModelInstance::NextFreeMorphSetID(0);

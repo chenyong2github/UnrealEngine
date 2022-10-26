@@ -8,6 +8,7 @@
 #include "Engine/StaticMesh.h"
 #include "MeshMergeUtilities.h"
 #include "MeshMergeHelpers.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "UObject/Package.h"
 
 FStaticMeshComponentAdapter::FStaticMeshComponentAdapter(UStaticMeshComponent* InStaticMeshComponent)

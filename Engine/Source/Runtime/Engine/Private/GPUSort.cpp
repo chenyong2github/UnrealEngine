@@ -16,6 +16,7 @@
 #include "ShaderParameterUtils.h"
 #include "GlobalShader.h"
 #include "PipelineStateCache.h"
+#include "ProfilingDebugging/RealtimeGPUProfiler.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGPUSort, Log, All);
 

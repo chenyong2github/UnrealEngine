@@ -18,6 +18,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "LandscapeUtils.h"
 #include "LandscapeSubsystem.h"
 
+#include "Application/SlateApplicationBase.h"
 #include "Shader.h"
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"

@@ -5,6 +5,7 @@
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/Texture2D.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceComponent)

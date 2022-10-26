@@ -35,6 +35,7 @@
 #include "ClassViewerModule.h"
 #include "Algo/Sort.h"
 #include "Engine/LevelStreaming.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "ObjectBindingModel"

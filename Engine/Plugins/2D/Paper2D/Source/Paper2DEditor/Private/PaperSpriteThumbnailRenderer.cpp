@@ -7,6 +7,7 @@
 #include "Paper2DModule.h"
 #include "CanvasTypes.h"
 #include "PaperSprite.h"
+#include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSpriteThumbnailRenderer)
 

@@ -8,6 +8,7 @@
 #include "Animation/AnimData/BoneMaskFilter.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/AnimInstance.h"
+#include "Engine/SkeletalMesh.h"
 #include "SkeletalRender.h"
 #include "Animation/CustomAttributes.h"
 #include "Animation/AttributesRuntime.h"

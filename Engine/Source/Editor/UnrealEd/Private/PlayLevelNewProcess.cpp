@@ -6,6 +6,7 @@
 #include "Editor.h"
 #include "GameFramework/GameModeBase.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Settings/LevelEditorPlaySettings.h"
 
 void UEditorEngine::StartPlayInNewProcessSession(FRequestPlaySessionParams& InRequestParams)
 {

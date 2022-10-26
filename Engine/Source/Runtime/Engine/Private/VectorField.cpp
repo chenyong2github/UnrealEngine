@@ -16,6 +16,7 @@
 #include "SceneUtils.h"
 #include "SceneManagement.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/Texture2D.h"
 #include "ComponentReregisterContext.h"
 #include "VectorFieldVisualization.h"
 #include "ShaderParameterUtils.h"
@@ -28,6 +29,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "Materials/Material.h"
 #include "Engine/Engine.h"
+#include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(VectorField)
 

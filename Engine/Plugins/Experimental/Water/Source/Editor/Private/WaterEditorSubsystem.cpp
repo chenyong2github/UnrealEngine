@@ -4,6 +4,7 @@
 #include "WaterBodyActor.h"
 #include "EngineUtils.h"
 #include "WaterZoneActor.h"
+#include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Editor.h"
 #include "ISettingsModule.h"

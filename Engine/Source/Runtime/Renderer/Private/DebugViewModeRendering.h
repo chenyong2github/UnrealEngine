@@ -9,6 +9,7 @@ DebugViewModeRendering.h: Contains definitions for rendering debug viewmodes.
 #include "CoreMinimal.h"
 #include "ShaderParameters.h"
 #include "Shader.h"
+#include "Engine/TextureStreamingTypes.h"
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShaderType.h"

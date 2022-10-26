@@ -15,6 +15,7 @@
 #include "ImagePixelData.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "MoviePipelineQueue.h"
+#include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineBurnInSetting)
 

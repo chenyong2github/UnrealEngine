@@ -2,6 +2,7 @@
 
 #include "Animation/BoneSocketReference.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMeshSocket.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BoneSocketReference)

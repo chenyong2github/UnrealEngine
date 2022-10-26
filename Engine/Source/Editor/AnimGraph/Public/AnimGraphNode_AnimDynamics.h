@@ -14,6 +14,7 @@
 
 class FCompilerResultsLog;
 class FPrimitiveDrawInterface;
+class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;
 class USkeletalMeshComponent;
 

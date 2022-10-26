@@ -5,6 +5,7 @@
 #include "ToolBuilderUtil.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
+#include "Engine/World.h"
 #include "MeshSimplification.h"
 #include "Util/ColorConstants.h"
 #include "ToolSetupUtil.h"

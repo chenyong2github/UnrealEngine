@@ -3,6 +3,7 @@
 
 #include "GameFramework/DefaultPawn.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Components/InputComponent.h"
 #include "Engine/World.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/PlayerController.h"

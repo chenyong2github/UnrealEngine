@@ -6,6 +6,7 @@
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "ControlRigObjectBinding.h"
 #include "AnimCustomInstanceHelper.h"
+#include "SceneView.h"
 #include "Sequencer/ControlRigLayerInstance.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigPoseThumbnailRenderer)

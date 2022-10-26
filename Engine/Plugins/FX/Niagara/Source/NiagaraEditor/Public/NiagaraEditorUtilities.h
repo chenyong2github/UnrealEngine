@@ -27,6 +27,7 @@ class UNiagaraScript;
 class FStructOnScope;
 class UEdGraph;
 class UEdGraphNode;
+class SToolTip;
 class SWidget;
 class UNiagaraNode;
 class UEdGraphSchema_Niagara;

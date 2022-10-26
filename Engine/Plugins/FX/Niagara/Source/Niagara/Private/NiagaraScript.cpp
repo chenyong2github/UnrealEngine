@@ -12,6 +12,7 @@
 #include "NiagaraShaderCompilationManager.h"
 #include "NiagaraShaderModule.h"
 #include "NiagaraShaderParametersBuilder.h"
+#include "NiagaraSystem.h"
 #include "Serialization/MemoryReader.h"
 #include "Misc/SecureHash.h"
 #include "ShaderParameterMetadataBuilder.h"

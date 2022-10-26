@@ -9,6 +9,7 @@
 
 #if WITH_EDITOR
 
+#include "Engine/Level.h"
 #include "FileHelpers.h"
 #include "Model.h"
 #include "UnrealEngine.h"

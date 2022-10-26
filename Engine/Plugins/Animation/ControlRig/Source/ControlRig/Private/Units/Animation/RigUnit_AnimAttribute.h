@@ -2,6 +2,7 @@
 
 #pragma once
 #include "Units/RigUnit.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Units/RigDispatchFactory.h"
 #include "Animation/BuiltInAttributeTypes.h"
 #include "RigUnit_AnimAttribute.generated.h"

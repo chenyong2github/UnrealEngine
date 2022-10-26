@@ -7,6 +7,7 @@
  */
 
 #include "Async/AsyncWork.h"
+#include "SkeletalMeshTypes.h"
 
 class USkinnedAsset;
 

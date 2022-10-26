@@ -14,6 +14,7 @@
 #include "Modules/ModuleManager.h"
 #include "Editor.h"
 #include "SlateOptMacros.h"
+#include "PropertyEditorModule.h"
 
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"

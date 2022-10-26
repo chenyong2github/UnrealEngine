@@ -2,6 +2,7 @@
 
 #include "Components/BaseDynamicMeshComponent.h"
 #include "Components/BaseDynamicMeshSceneProxy.h"
+#include "Engine/Engine.h"
 #include "Materials/Material.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BaseDynamicMeshComponent)

@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "Misc/FrameNumber.h"
 #include "MovieSceneToolHelpers.h"
+#include "SceneTypes.h"
 #include "MovieSceneToolsUserSettings.generated.h"
 
 UENUM()

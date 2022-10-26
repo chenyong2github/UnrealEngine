@@ -25,6 +25,7 @@
 #include "Particles/ParticleModuleRequired.h"
 #include "Components/LineBatchComponent.h"
 #include "Physics/PhysicsInterfaceCore.h"
+#include "Physics/PhysicsInterfaceScene.h"
 
 #define LOCTEXT_NAMESPACE "CascadeViewportClient"
 

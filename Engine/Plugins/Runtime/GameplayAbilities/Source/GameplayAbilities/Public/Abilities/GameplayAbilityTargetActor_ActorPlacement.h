@@ -9,6 +9,7 @@
 
 class AGameplayAbilityWorldReticle_ActorVisualization;
 class UGameplayAbility;
+class UMaterialInterface;
 
 UCLASS(Blueprintable)
 class AGameplayAbilityTargetActor_ActorPlacement : public AGameplayAbilityTargetActor_GroundTrace

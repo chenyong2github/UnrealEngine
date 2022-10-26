@@ -52,6 +52,9 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SCustomizableObjectEditorPerformanceReport)
+
+
 class ITableRow;
 class STableViewBase;
 class SWidget;

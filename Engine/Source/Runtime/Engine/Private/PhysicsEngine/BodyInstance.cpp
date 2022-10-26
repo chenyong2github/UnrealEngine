@@ -15,6 +15,7 @@
 #include "SceneManagement.h"
 #include "Collision.h"
 #include "Physics/PhysicsInterfaceCore.h"
+#include "Physics/PhysicsInterfaceScene.h"
 #include "Physics/PhysicsFiltering.h"
 #include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsEngine/ShapeElem.h"

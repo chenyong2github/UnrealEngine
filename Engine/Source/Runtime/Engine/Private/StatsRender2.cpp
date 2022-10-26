@@ -13,6 +13,7 @@
 #include "CanvasItem.h"
 #include "Engine/Canvas.h"
 #include "Engine/Texture2D.h"
+#include "TextureResource.h"
 
 #if STATS
 

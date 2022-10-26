@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SkinWeightsPaintTool.h"
-
+#include "Engine/SkeletalMesh.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
+#include "SceneManagement.h"
 #include "SkeletalMeshAttributes.h"
 #include "SkeletalDebugRendering.h"
 #include "Math/UnrealMathUtility.h"

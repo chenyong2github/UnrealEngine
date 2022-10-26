@@ -13,6 +13,7 @@
 #include "MathUtil.h"
 #include "RenderGraph.h"
 #include "RHIStaticStates.h"
+#include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapeTexturePatch)
 

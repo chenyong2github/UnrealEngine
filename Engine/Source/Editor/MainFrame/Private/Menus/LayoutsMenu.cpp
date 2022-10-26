@@ -12,6 +12,7 @@
 #include "Templates/SharedPointer.h"
 // Runtime
 #include "CoreGlobals.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Framework/Notifications/NotificationManager.h"

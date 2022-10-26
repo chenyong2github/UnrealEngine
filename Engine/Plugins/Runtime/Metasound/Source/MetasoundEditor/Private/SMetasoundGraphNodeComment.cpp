@@ -2,6 +2,7 @@
 #include "SMetasoundGraphNodeComment.h"
 
 #include "EdGraphNode_Comment.h"
+#include "Framework/Application/SlateApplication.h"
 #include "MetasoundEditorGraphNode.h"
 
 namespace Metasound

@@ -10,6 +10,7 @@
 #include "Editor/EditorEngine.h"
 #include "EditorReimportHandler.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Engine/StaticMesh.h"
 #include "Factories/FbxAnimSequenceImportData.h"
 #include "Factories/FbxImportUI.h"

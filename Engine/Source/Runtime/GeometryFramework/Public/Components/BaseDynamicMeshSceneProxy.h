@@ -20,8 +20,9 @@ using UE::Geometry::FDynamicMeshNormalOverlay;
 using UE::Geometry::FDynamicMeshColorOverlay;
 using UE::Geometry::FDynamicMeshMaterialAttribute;
 
-class UMaterialInterface;
+class FDynamicPrimitiveUniformBuffer;
 class FMaterialRenderProxy;
+class UMaterialInterface;
 struct FRayTracingMaterialGatheringContext;
 
 /**

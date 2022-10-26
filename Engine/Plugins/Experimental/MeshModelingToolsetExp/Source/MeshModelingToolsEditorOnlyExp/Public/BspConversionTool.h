@@ -14,6 +14,7 @@
 
 #include "BspConversionTool.generated.h"
 
+class ABrush;
 
 /**
  * Builder for UBspConversionTool.

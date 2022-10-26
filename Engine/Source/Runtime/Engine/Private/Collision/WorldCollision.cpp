@@ -6,6 +6,7 @@
 
 #include "WorldCollision.h"
 #include "Misc/CoreMisc.h"
+#include "Engine/World.h"
 #include "EngineDefines.h"
 #include "PhysicsEngine/BodyInstance.h"
 #include "Components/SkeletalMeshComponent.h"

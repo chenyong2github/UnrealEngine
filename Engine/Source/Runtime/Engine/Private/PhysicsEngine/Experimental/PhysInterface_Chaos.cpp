@@ -5,6 +5,7 @@
 #include "Physics/Experimental/ChaosInterfaceUtils.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 #include "PhysicsEngine/AggregateGeom.h"
+#include "PhysicsEngine/ConstraintInstance.h"
 #include "Templates/UniquePtr.h"
 
 #include "PhysicsSolver.h"
@@ -36,8 +37,10 @@
 #include "Collision/CollisionConversions.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Materials/MaterialInterface.h"
 #include "Math/UnrealMathUtility.h"
 #include "PBDRigidsSolver.h"
+#include "PhysicsEngine/BodySetup.h"
 #include "Physics/PhysicsFiltering.h"
 #include "PhysicsInterfaceUtilsCore.h"
 #include "PhysicalMaterials/PhysicalMaterialMask.h"

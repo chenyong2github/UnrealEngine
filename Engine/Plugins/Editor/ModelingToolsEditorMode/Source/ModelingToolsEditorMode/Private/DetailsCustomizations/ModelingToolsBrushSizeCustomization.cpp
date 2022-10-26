@@ -7,6 +7,7 @@
 #include "IPropertyUtilities.h"
 #include "DetailWidgetRow.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Layout/SBox.h"
 #include "ModelingWidgets/SDynamicNumericEntry.h"
 #include "ModelingWidgets/ModelingCustomizationUtil.h"
 

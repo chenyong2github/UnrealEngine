@@ -10,6 +10,7 @@
 #include "SourceControlWindows.h"
 #include "UnsavedAssetsTrackerModule.h"
 #include "FileHelpers.h"
+#include "Logging/MessageLog.h"
 #include "ToolMenuContext.h"
 #include "ToolMenus.h"
 #include "Styling/AppStyle.h"

@@ -3,6 +3,7 @@
 #include "InterchangeSkeletalMeshFactoryNode.h"
 
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeSkeletalMeshFactoryNode)
 

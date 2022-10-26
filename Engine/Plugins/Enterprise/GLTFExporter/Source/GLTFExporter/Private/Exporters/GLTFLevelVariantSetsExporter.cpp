@@ -3,6 +3,7 @@
 #include "Exporters/GLTFLevelVariantSetsExporter.h"
 #include "Exporters/GLTFExporterUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
+#include "Engine/World.h"
 #include "LevelVariantSets.h"
 
 UGLTFLevelVariantSetsExporter::UGLTFLevelVariantSetsExporter(const FObjectInitializer& ObjectInitializer)

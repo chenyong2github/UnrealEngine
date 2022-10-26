@@ -6,6 +6,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/Text/STextBlock.h"
 #include "DetailLayoutBuilder.h"
 #include "Editor.h"
 #include "Styling/AppStyle.h"

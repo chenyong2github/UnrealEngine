@@ -4,6 +4,7 @@
 #include "Paper2DModule.h"
 #include "AssetEditorModeManager.h"
 #include "CanvasTypes.h"
+#include "Engine/Texture2D.h"
 #include "ImageUtils.h"
 
 //////////////////////////////////////////////////////////////////////////

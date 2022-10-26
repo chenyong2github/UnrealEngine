@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraSimCacheFunctionLibrary.h"
+#include "Engine/Engine.h"
 #include "NiagaraComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraSimCacheFunctionLibrary)

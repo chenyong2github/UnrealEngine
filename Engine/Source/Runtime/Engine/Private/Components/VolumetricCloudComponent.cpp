@@ -6,6 +6,7 @@
 #include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"
 #include "Engine/MapBuildDataRegistry.h"
+#include "Engine/World.h"
 #include "Internationalization/Text.h"
 #include "Logging/MessageLog.h"
 #include "Logging/TokenizedMessage.h"

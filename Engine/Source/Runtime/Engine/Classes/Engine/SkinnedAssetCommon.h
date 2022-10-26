@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "Components.h"
 #include "BoneContainer.h"
+#include "Engine/EngineTypes.h"
 #include "PerPlatformProperties.h"
 #include "PerQualityLevelProperties.h"
 #include "SkeletalMeshReductionSettings.h"

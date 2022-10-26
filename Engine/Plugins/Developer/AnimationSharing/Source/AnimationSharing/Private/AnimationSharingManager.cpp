@@ -12,6 +12,7 @@
 #include "AdditiveAnimationInstance.h"
 #include "AnimationSharingInstances.h"
 
+#include "Materials/MaterialInterface.h"
 #include "Misc/CoreMisc.h"
 #include "DrawDebugHelpers.h"
 #include "Math/NumericLimits.h"

@@ -3,6 +3,7 @@
 #include "PoseWatchManagerStandaloneTypes.h"
 
 #include "EditorActorFolders.h"
+#include "Framework/Application/SlateApplication.h"
 #include "IPoseWatchManagerTreeItem.h"
 #include "IPoseWatchManager.h"
 #include "PoseWatchManagerDragDrop.h"

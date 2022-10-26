@@ -5,7 +5,9 @@
 =============================================================================*/
 
 #include "Components/SkyLightComponent.h"
+#include "Engine/Level.h"
 #include "Engine/Texture2D.h"
+#include "Engine/World.h"
 #include "SceneManagement.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Misc/ScopeLock.h"

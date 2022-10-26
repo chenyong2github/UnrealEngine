@@ -11,6 +11,7 @@
 
 class FNiagaraEmitterInstance;
 class FAssetThumbnailPool;
+class FVertexFactoryType;
 class SWidget;
 
 UENUM()

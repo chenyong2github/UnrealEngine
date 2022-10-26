@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioParameterComponent.h"
+#include "Audio.h"
 #include "Components/AudioComponent.h"
+#include "GameFramework/Actor.h"
 #include "UObject/UObjectHash.h"
 
 

@@ -12,6 +12,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "Factories/Factory.h"
 #include "Factories/TextureFactory.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Engine/StaticMesh.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"

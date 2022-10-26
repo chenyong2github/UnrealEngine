@@ -5,6 +5,7 @@
 #include "ScenePrivate.h"
 #include "VolumeRendering.h"
 #include "HDRHelper.h"
+#include "TextureResource.h"
 
 namespace
 {

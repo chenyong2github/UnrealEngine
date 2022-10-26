@@ -9,6 +9,7 @@
 #include "Drawing/PreviewGeometryActor.h"
 #include "Drawing/LineSetComponent.h"
 #include "Drawing/PointSetComponent.h"
+#include "Engine/World.h"
 #include "SceneManagement.h"
 #include "InteractiveToolManager.h"
 #include "Polyline3.h"

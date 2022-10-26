@@ -22,6 +22,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
+#include "StaticMeshResources.h"
 #include "Templates/UniquePtr.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HLODSubsystem)

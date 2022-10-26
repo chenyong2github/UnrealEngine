@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Scene/Landscape.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Scene/Lights.h"
 #include "LightmapGBuffer.h"
 #include "LandscapeProxy.h"

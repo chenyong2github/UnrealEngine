@@ -4,6 +4,7 @@
 #include "EngineDefines.h"
 #include "Misc/App.h"
 #include "ShowFlags.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "SceneView.h"
 #include "SceneViewExtension.h"

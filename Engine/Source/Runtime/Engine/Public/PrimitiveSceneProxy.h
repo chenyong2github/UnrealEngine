@@ -23,6 +23,7 @@ class FLightSceneProxy;
 class FPrimitiveDrawInterface;
 class FPrimitiveSceneInfo;
 class FStaticPrimitiveDrawInterface;
+class HHitProxy;
 class UPrimitiveComponent;
 class URuntimeVirtualTexture;
 class UTexture2D;

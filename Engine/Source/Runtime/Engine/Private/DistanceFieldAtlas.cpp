@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "DistanceFieldAtlas.h"
+#include "Engine/Texture2D.h"
 #include "HAL/RunnableThread.h"
 #include "HAL/Runnable.h"
 #include "Misc/App.h"
@@ -13,6 +14,7 @@
 #include "Modules/ModuleManager.h"
 #include "StaticMeshResources.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "RHIStaticStates.h"
 #include "Templates/UniquePtr.h"
 #include "Engine/StaticMesh.h"
 #include "Misc/AutomationTest.h"
@@ -20,6 +22,7 @@
 #include "DistanceFieldDownsampling.h"
 #include "GlobalShader.h"
 #include "RenderGraph.h"
+#include "TextureResource.h"
 #include "MeshCardRepresentation.h"
 #include "Misc/QueuedThreadPoolWrapper.h"
 #include "Async/Async.h"

@@ -6,6 +6,8 @@
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "WorldPartitionMiniMap.generated.h"
 
+class UTexture2D;
+
 /**
  * A mini map to preview the world in world partition window. (editor-only)
  */

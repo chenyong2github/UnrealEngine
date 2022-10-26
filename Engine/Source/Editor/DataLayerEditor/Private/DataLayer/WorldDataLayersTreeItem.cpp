@@ -26,6 +26,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldTreeItem.h"
 

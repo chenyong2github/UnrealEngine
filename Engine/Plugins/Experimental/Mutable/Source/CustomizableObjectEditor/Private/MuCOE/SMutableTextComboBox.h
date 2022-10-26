@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Widgets/Input/SComboBox.h"
+
 /** Typed SComboBox with a translator to FText. */
 template<typename OptionType>
 class SMutableTextComboBox : public SComboBox<OptionType>

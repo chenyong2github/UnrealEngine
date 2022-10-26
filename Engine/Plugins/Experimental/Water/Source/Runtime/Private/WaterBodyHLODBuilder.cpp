@@ -15,6 +15,7 @@
 #include "Engine/StaticMesh.h"
 #include "StaticMeshAttributes.h"
 #include "Engine/StaticMeshSourceData.h"
+#include "Materials/MaterialInterface.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
 #include "MeshSimplification.h"
@@ -23,6 +24,7 @@
 
 #include "Serialization/ArchiveCrc32.h"
 #include "Engine/HLODProxy.h"
+#include "SceneView.h"
 
 #endif
 

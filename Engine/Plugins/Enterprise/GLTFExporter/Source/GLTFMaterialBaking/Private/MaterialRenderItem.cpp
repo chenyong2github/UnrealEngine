@@ -8,6 +8,8 @@
 #include "DynamicMeshBuilder.h"
 #include "MeshPassProcessor.h"
 #include "CanvasRender.h"
+#include "RHIStaticStates.h"
+#include "UnrealClient.h"
 
 #define SHOW_WIREFRAME_MESH 0
 

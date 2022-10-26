@@ -2,6 +2,7 @@
 
 #include "MeshPaintSkeletalMeshAdapter.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "MeshPaintHelpers.h"
 #include "MeshPaintingToolsetTypes.h"
 #include "ComponentReregisterContext.h"

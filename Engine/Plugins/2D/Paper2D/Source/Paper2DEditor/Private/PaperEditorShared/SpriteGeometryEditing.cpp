@@ -13,6 +13,7 @@
 #include "SpriteEditor/SpriteEditorSelections.h"
 #include "GeomTools.h"
 #include "DynamicMeshBuilder.h"
+#include "UnrealClient.h"
 
 #define LOCTEXT_NAMESPACE "PaperGeometryEditing"
 

@@ -15,6 +15,7 @@
 #include "UObject/Package.h"
 #include "RenderUtils.h"
 #include "TextureResource.h"
+#include "EngineLogs.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2DArray.h"
 #include "DeviceProfiles/DeviceProfile.h"

@@ -7,6 +7,7 @@
 
 #include "MaterialOptions.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshOperations.h"
 
 #include "Misc/PackageName.h"
@@ -34,6 +35,7 @@
 
 #include "Editor.h"
 
+#include "Engine/SkinnedAssetCommon.h"
 #include "Engine/StaticMesh.h"
 #include "PhysicsEngine/ConvexElem.h"
 #include "PhysicsEngine/BodySetup.h"

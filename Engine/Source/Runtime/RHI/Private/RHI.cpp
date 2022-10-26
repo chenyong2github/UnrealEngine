@@ -640,6 +640,12 @@ static FCriticalSection GRHIResourceTrackingCriticalSection;
 static TSet<FRHIResource*> GRHITrackedResources;
 static bool GRHITrackingResources = false;
 
+bool FRHIResource::GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const
+{
+	OutResourceInfo = FRHIResourceInfo{};
+	return false;
+}
+
 void FRHIResource::BeginTrackingResource(FRHIResource* InResource)
 {
 	if (GRHITrackingResources)

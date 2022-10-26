@@ -5,8 +5,11 @@ Texture2DMipDataProvider_DDC.cpp : Implementation of FTextureMipDataProvider usi
 =============================================================================*/
 
 #include "Texture2DMipDataProvider_DDC.h"
+#include "EngineLogs.h"
 #include "Engine/Texture.h"
 #include "Rendering/StreamableTextureResource.h"
+#include "SceneTypes.h"
+#include "Serialization/MemoryReader.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "TextureResource.h"
 

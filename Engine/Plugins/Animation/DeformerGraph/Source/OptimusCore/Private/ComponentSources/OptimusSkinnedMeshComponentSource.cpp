@@ -2,8 +2,11 @@
 
 #include "OptimusSkinnedMeshComponentSource.h"
 
-#include "SkeletalRenderPublic.h"
 #include "Components/SkinnedMeshComponent.h"
+#include "Engine/SkinnedAssetCommon.h"
+#include "Rendering/SkeletalMeshLODRenderData.h"
+#include "Rendering/SkeletalMeshRenderData.h"
+#include "SkeletalRenderPublic.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusSkinnedMeshComponentSource"

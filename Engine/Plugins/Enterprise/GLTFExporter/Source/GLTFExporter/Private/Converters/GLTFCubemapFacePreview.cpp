@@ -3,6 +3,7 @@
 #include "GLTFCubemapFacePreview.h"
 #include "Shader.h"
 #include "GlobalShader.h"
+#include "RHIStaticStates.h"
 #include "SimpleElementShaders.h"
 #include "ShaderParameterUtils.h"
 #include "PipelineStateCache.h"

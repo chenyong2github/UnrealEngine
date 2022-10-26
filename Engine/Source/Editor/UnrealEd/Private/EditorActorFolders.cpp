@@ -19,6 +19,7 @@
 #include "ActorFolder.h"
 #include "Subsystems/ActorEditorContextSubsystem.h"
 #include "Styling/AppStyle.h"
+#include "Widgets/Text/STextBlock.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/ActorDescContainer.h"

@@ -8,6 +8,8 @@
 #include "Chaos/ChaosCachingPlugin.h"
 #include "ChaosSolversModule.h"
 #include "Components/BillboardComponent.h"
+#include "Engine/Texture2D.h"
+#include "Engine/World.h"
 #include "PBDRigidsSolver.h"
 #include "Features/IModularFeatures.h"
 #include "Algo/Find.h"

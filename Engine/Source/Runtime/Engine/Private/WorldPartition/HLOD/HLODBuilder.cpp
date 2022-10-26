@@ -5,8 +5,10 @@
 #include "AssetCompilingManager.h"
 #include "Engine/HLODProxy.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "ISMPartition/ISMComponentDescriptor.h"
+#include "Materials/MaterialInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HLODBuilder)
 

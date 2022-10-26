@@ -9,6 +9,7 @@
 
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBorder.h"
 
 
 FOptimusDeformerAssetActions::FOptimusDeformerAssetActions(EAssetTypeCategories::Type InAssetCategoryBit) :

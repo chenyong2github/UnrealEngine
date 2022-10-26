@@ -6,6 +6,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Commands/UIAction.h"
+#include "Rendering/DrawElementPayloads.h"
 #include "Rendering/DrawElements.h"
 #include "Framework/DelayedDrag.h"
 #include "SCurveEditorView.h"

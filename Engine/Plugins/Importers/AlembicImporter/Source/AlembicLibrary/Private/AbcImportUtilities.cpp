@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AbcImportUtilities.h"
+#include "Math/TransformCalculus2D.h"
 #include "Stats/StatsMisc.h"
 
 #include "AbcFile.h"

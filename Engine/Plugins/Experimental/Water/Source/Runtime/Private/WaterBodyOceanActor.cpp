@@ -3,6 +3,7 @@
 #include "WaterBodyOceanActor.h"
 #include "WaterBodyOceanComponent.h"
 #include "OceanCollisionComponent.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyOceanActor)
 

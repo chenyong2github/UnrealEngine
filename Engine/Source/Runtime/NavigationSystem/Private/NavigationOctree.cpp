@@ -2,6 +2,7 @@
 
 #include "NavigationOctree.h"
 #include "AI/Navigation/NavRelevantInterface.h"
+#include "Interfaces/Interface_AsyncCompilation.h"
 #include "NavigationSystem.h"
 
 LLM_DEFINE_TAG(NavigationOctree);

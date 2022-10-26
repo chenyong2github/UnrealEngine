@@ -18,6 +18,7 @@ class FMenuBuilder;
 class FStructOnScope;
 class IPropertyHandle;
 class FDetailWidgetRow;
+class SWidget;
 class UMovieSceneSection;
 class UMovieSceneSequence;
 class UMovieSceneEventTrack;

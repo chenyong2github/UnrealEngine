@@ -5,6 +5,7 @@
 #include "Components/Widget.h"
 #include "Blueprint/UserWidgetPool.h"
 #include "RadialBoxSettings.h"
+#include "Widgets/SPanel.h"
 #include "DynamicEntryBoxBase.generated.h"
 
 class UUserWidget;

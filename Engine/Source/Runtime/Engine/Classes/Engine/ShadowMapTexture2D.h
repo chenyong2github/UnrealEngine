@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "Engine/EngineTypes.h"
 #include "Engine/Texture2D.h"
 #include "ShadowMapTexture2D.generated.h"
 

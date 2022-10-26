@@ -6,6 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Framework/SlateDelegates.h"
+#include "Types/SlateStructs.h"
 
 class UNiagaraStackViewModel;
 class UNiagaraStackEntry;

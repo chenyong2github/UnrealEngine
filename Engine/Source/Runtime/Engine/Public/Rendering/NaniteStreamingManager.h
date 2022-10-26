@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Memory/SharedBuffer.h"
 #include "NaniteResources.h"
 #include "UnifiedBuffer.h"
 #include "RenderGraphBuilder.h"

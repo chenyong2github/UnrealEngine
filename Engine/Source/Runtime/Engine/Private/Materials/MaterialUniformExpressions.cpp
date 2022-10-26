@@ -10,6 +10,7 @@
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceSupport.h"
 #include "Materials/MaterialParameterCollection.h"
+#include "RHIStaticStates.h"
 #include "Shader/PreshaderEvaluate.h"
 #include "ExternalTexture.h"
 #include "Misc/UObjectToken.h"

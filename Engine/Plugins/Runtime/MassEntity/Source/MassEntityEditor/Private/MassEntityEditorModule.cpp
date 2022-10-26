@@ -8,6 +8,7 @@
 #include "MassEditorStyle.h"
 #include "MassProcessor.h"
 #include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 
 
 #define LOCTEXT_NAMESPACE "MassEntityEditor"

@@ -5,6 +5,7 @@
 #if WITH_EDITOR
 #include "Misc/CoreStats.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Serialization/MemoryWriter.h"
 #include "EngineUtils.h"
 #include "UObject/UE5MainStreamObjectVersion.h"

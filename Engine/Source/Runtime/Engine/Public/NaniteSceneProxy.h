@@ -11,6 +11,7 @@
 
 struct FPerInstanceRenderData;
 class UStaticMeshComponent;
+enum ECollisionTraceFlag : int;
 struct FStaticMeshVertexFactories;
 using FStaticMeshVertexFactoriesArray = TArray<FStaticMeshVertexFactories>;
 

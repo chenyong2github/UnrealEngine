@@ -3,7 +3,7 @@
 #include "BakeMultiMeshAttributeMapsTool.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
-
+#include "Components/StaticMeshComponent.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/MeshTransforms.h"

@@ -5,6 +5,7 @@
 #include "Analysis/MetasoundFrontendVertexAnalyzerTriggerDensity.h"
 #include "Components/AudioComponent.h"
 #include "Editor.h"
+#include "Framework/Application/SlateApplication.h"
 #include "MetasoundEditor.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"

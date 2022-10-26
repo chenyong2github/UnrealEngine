@@ -47,6 +47,7 @@
 #include "SAnimCurvePicker.h"
 #include "ToolMenus.h"
 #include "AnimationSequenceBrowserMenuContexts.h"
+#include "Viewports.h"
 
 #define LOCTEXT_NAMESPACE "SequenceBrowser"
 

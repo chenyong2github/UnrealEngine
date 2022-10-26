@@ -10,7 +10,9 @@
 #include "SmartObjectAssetEditorViewportClient.h"
 #include "SmartObjectComponent.h"
 #include "Tools/UAssetEditor.h"
+#include "Viewports.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Text/STextBlock.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectAssetToolkit)
 

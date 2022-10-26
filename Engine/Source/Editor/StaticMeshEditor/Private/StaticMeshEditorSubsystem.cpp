@@ -24,6 +24,7 @@
 #include "LevelEditorViewport.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshOperations.h"
 #include "MeshMergeModule.h"
 #include "PhysicsEngine/BodySetup.h"

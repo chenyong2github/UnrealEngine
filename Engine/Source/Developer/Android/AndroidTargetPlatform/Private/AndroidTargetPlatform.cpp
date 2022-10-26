@@ -32,6 +32,7 @@
 #if WITH_ENGINE
 #include "AudioCompressionSettings.h"
 #include "Sound/SoundWave.h"
+#include "TextureResource.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "FAndroidTargetPlatform"

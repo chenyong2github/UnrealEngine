@@ -5,6 +5,7 @@
 #include "RendererUtils.h"
 #include "ScenePrivate.h"
 #include "Curves/CurveFloat.h"
+#include "TextureResource.h"
 
 bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
 

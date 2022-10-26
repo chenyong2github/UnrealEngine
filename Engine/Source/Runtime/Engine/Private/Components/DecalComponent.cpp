@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Components/DecalComponent.h"
+#include "Engine/World.h"
 #include "Materials/Material.h"
 #include "TimerManager.h"
 #include "SceneManagement.h"

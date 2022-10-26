@@ -11,6 +11,7 @@
 class FNiagaraEmitterInstance;
 class FAssetThumbnailPool;
 class SWidget;
+class UStaticMesh;
 
 /** This enum decides how a mesh particle will orient its "facing" axis relative to camera. Must keep these in sync with NiagaraMeshVertexFactory.ush*/
 UENUM()

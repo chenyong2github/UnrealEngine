@@ -14,6 +14,7 @@
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
 #include "Engine/Engine.h"
+#include "UnrealClient.h"
 
 const int32 kComputeGroupSize = FComputeShaderUtils::kGolden2DGroupSize;
 

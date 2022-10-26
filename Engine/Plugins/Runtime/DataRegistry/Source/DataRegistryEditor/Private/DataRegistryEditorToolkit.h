@@ -6,6 +6,10 @@
 #include "Toolkits/SimpleAssetEditor.h"
 #include "DataTableEditorUtils.h"
 #include "DataRegistry.h"
+#include "SAnimAttributeView.h"
+
+class ITableRow;
+class STableViewBase;
 
 // TODO This is heavily based off of FDataTableEditor, could possibly refactor some of this into a parent class
 

@@ -7,7 +7,9 @@
 #include "Engine/Font.h"
 #include "CanvasItem.h"
 #include "Engine/Texture2D.h"
+#include "CanvasItem.h"
 #include "CanvasTypes.h"
+#include "TextureResource.h"
 
 UFontThumbnailRenderer::UFontThumbnailRenderer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Widgets/Layout/SBackgroundBlur.h"
-#include "Rendering/DrawElements.h"
 #include "HAL/IConsoleManager.h"
+#include "Rendering/DrawElements.h"
+#include "Styling/SlateBrush.h"
 
 static int32 bAllowBackgroundBlur = 1;
 static FAutoConsoleVariableRef CVarSlateAllowBackgroundBlurWidgets(TEXT("Slate.AllowBackgroundBlurWidgets"), bAllowBackgroundBlur, TEXT("If 0, no background blur widgets will be rendered"));

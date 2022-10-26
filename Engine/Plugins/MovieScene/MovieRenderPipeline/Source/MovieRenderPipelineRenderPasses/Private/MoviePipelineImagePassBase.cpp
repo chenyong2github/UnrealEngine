@@ -19,6 +19,7 @@
 #include "Engine/RendererSettings.h"
 #include "MovieRenderOverlappedImage.h"
 #include "ImageUtils.h"
+#include "TextureResource.h"
 
 // For Cine Camera Variables in Metadata
 #include "CineCameraActor.h"

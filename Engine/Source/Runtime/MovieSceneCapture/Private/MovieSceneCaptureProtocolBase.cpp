@@ -7,6 +7,7 @@
 #include "Misc/Paths.h"
 #include "HAL/PlatformFileManager.h"
 #include "UnrealEngine.h"
+#include "ViewportClient.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneCaptureProtocolBase)
 

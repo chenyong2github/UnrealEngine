@@ -4,6 +4,7 @@
 
 #include "CollectionManagerModule.h"
 #include "CollectionManagerTypes.h"
+#include "Engine/World.h"
 #include "ICollectionManager.h"
 #include "NaniteDisplacedMesh.h"
 #include "NaniteDisplacedMeshLog.h"

@@ -3,6 +3,7 @@
 #include "SNiagaraDebuggerSpawn.h"
 #include "NiagaraEditorStyle.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/FileHelper.h"
 #include "Misc/StringBuilder.h"

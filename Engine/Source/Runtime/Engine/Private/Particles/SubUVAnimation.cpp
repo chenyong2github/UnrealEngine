@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Particles/SubUVAnimation.h"
+#include "Engine/Texture2D.h"
 #include "Misc/Guid.h"
 #include "Math/RandomStream.h"
 #include "UObject/UObjectHash.h"

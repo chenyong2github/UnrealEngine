@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterSplineComponent.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 #include "WaterSplineMetadata.h"
 #include "WaterBodyActor.h"
 

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "PreviewScene.h"
 #include "PhysicsAssetUtils.h"
+#include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsEngine/ShapeElem.h"
 #include "Preferences/PhysicsAssetEditorOptions.h"
 

@@ -10,6 +10,7 @@
 #include "CommonRenderResources.h"
 #include "GlobalShader.h"
 #include "PipelineStateCache.h"
+#include "RHIStaticStates.h"
 #include "HAL/IConsoleManager.h"
 #include "SceneUtils.h"
 

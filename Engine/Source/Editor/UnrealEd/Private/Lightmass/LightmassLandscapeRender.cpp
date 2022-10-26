@@ -15,6 +15,7 @@
 #include "LocalVertexFactory.h"
 #include "CanvasRender.h"
 #include "MeshBatch.h"
+#include "MeshBuilderOneFrameResources.h"
 
 #include "LandscapeProxy.h"
 #include "LandscapeInfo.h"
@@ -24,6 +25,7 @@
 #include "LandscapeEdit.h"
 #include "DynamicMeshBuilder.h"
 #include "MeshPassProcessor.h"
+#include "UnrealClient.h"
 
 void RenderLandscapeMaterialForLightmass(const FLandscapeStaticLightingMesh* LandscapeMesh, FMaterialRenderProxy* MaterialProxy, const FRenderTarget* RenderTarget)
 {

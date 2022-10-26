@@ -25,6 +25,7 @@
 #include "HAL/FileManager.h"
 #include "Editor.h"
 #include "Dom/JsonValue.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "GameFeatures"
 

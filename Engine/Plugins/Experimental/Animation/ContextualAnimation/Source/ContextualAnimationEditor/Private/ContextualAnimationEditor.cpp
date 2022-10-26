@@ -9,6 +9,7 @@
 #include "ContextualAnimAssetEditorCommands.h"
 #include "DetailCustomizations/ContextualAnimNotifySectionDetailCustom.h"
 #include "ISequencerModule.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "FContextualAnimationEditorModule"
 

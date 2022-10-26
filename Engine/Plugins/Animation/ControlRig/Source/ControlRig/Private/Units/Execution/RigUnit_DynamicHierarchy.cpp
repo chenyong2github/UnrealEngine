@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_DynamicHierarchy.h"
+#include "Engine/SkeletalMesh.h"
 #include "Rigs/RigHierarchyController.h"
 #include "Units/RigUnitContext.h"
 #include "ControlRig.h"

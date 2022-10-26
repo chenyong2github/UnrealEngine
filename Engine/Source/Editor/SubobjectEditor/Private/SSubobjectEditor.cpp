@@ -7,6 +7,8 @@
 #include "ComponentAssetBroker.h"		// FComponentAssetBrokerage
 #include "TutorialMetaData.h"
 #include "IDocumentation.h"
+#include "Layout/WidgetPath.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Kismet2/ComponentEditorUtils.h"
 #include "Kismet2/BlueprintEditorUtils.h"

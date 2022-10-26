@@ -44,6 +44,7 @@
 #include "Particles/TypeData/ParticleModuleTypeDataGpu.h"
 #include "Particles/ParticleLODLevel.h"
 #include "Particles/ParticleModuleRequired.h"
+#include "UnrealClient.h"
 #include "VectorField/VectorField.h"
 #include "Misc/CoreDelegates.h"
 #include "PipelineStateCache.h"

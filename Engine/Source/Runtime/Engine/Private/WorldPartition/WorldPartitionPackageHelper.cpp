@@ -4,6 +4,7 @@
 
 #if WITH_EDITOR
 
+#include "Engine/Level.h"
 #include "Engine/World.h"
 
 void FWorldPartitionPackageHelper::UnloadPackage(UPackage* InPackage)

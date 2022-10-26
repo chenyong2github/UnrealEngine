@@ -20,6 +20,7 @@
 #include "AudioCompressionSettings.h"
 #include "Sound/SoundWave.h"
 #include "StaticMeshResources.h"
+#include "TextureResource.h"
 #endif // WITH_ENGINE
 #include "InstalledPlatformInfo.h"
 #include "LinuxTargetDevice.h"

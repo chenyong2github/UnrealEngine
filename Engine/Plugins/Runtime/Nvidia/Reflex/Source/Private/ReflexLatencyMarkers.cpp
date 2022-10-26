@@ -2,6 +2,7 @@
 
 #include "ReflexLatencyMarkers.h" 
 
+#include "Engine/GameViewportClient.h"
 #include "HAL/IConsoleManager.h"
 
 #include "RHI.h"

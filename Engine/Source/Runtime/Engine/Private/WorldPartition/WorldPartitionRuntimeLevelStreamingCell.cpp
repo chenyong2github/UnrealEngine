@@ -3,6 +3,7 @@
 #include "WorldPartition/WorldPartitionRuntimeLevelStreamingCell.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartition.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 
 #include "WorldPartition/HLOD/HLODSubsystem.h"

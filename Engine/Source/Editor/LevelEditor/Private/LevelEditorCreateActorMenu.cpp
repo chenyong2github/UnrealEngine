@@ -46,6 +46,7 @@
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "Engine/Selection.h"
 #include "ActorEditorUtils.h"
+#include "Widgets/Layout/SBorder.h"
 
 class SMenuThumbnail : public SCompoundWidget
 {

@@ -13,6 +13,7 @@
 #include "EdGraphUtilities.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/SToolTip.h"
+#include "Widgets/Views/SListView.h"
 #include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "DataRegistryEditor"

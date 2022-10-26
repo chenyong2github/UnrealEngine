@@ -18,6 +18,8 @@
 #include "GameFramework/Actor.h"
 #include "Engine/Selection.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "Settings/LevelEditorViewportSettings.h"
+#include "UnrealClient.h"
 
 #include "Spatial/PriorityOrderPoints.h"
 

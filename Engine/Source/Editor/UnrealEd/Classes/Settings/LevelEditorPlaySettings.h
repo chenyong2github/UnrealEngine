@@ -20,7 +20,7 @@ class UToolMenu;
  * Enumerates label anchor modes.
  */
 UENUM()
-enum ELabelAnchorMode
+enum ELabelAnchorMode : int
 {
 	LabelAnchorMode_TopLeft UMETA(DisplayName="Top Left"),
 	LabelAnchorMode_TopCenter UMETA(DisplayName="Top Center"),
@@ -89,7 +89,7 @@ enum EPlayModeType
 
 
 UENUM()
-enum EPlayNetMode
+enum EPlayNetMode : int
 {
 	/** A standalone game will be started. This will not create a dedicated server, nor automatically connect to one. A server can be launched by enabling bLaunchSeparateServer if you need to test offline -> server connection flow for your game. */
 	PIE_Standalone UMETA(DisplayName="Play Standalone"),

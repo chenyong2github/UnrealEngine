@@ -20,6 +20,7 @@
 #include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "StaticMeshResources.h"
+#include "StaticMeshSceneProxy.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 

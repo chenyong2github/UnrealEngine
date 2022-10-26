@@ -16,6 +16,7 @@
 #include "Customizations/StateTreeTransitionDetails.h"
 #include "IAssetTools.h"
 #include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 #include "StateTree.h"
 #include "StateTreeCompiler.h"
 #include "StateTreeCompilerLog.h"

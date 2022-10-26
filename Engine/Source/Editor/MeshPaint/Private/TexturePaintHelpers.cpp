@@ -7,7 +7,9 @@
 #include "StaticMeshResources.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/Texture2D.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "TextureResource.h"
 
 #include "IMeshPaintGeometryAdapter.h"
 

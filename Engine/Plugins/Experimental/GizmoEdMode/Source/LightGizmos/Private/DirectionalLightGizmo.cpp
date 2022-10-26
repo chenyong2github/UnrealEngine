@@ -6,6 +6,7 @@
 #include "Components/SphereComponent.h"
 #include "ContextObjectStore.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/World.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "BaseGizmos/GizmoMath.h"
 #include "BaseGizmos/GizmoCircleComponent.h"

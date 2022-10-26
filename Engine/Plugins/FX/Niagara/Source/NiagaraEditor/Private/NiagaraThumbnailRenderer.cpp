@@ -2,6 +2,7 @@
 
 #include "NiagaraThumbnailRenderer.h"
 #include "CanvasTypes.h"
+#include "Engine/Texture2D.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraSystem.h"
 

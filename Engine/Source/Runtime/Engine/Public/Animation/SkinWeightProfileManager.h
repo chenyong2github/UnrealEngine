@@ -12,10 +12,12 @@
 #include "Engine/EngineBaseTypes.h"
 #include "UObject/GCObject.h"
 #include "UObject/ObjectMacros.h"
+#include "Engine/World.h"
 
 #include "SkinWeightProfileManager.generated.h"
 
 class FSkinWeightProfileManager;
+class UWorld;
 
 typedef TFunction<void(TWeakObjectPtr<USkeletalMesh> WeakMesh, FName ProfileName)> FRequestFinished;
 

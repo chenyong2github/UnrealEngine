@@ -14,11 +14,13 @@
 #include "SceneView.h"
 #include "CanvasRender.h"
 #include "MeshBatch.h"
+#include "RHIStaticStates.h"
 #include "RendererInterface.h"
 #include "SceneUtils.h"
 #include "EngineModule.h"
 #include "MeshPassProcessor.h"
 #include "RenderGraphUtils.h"
+#include "UnrealClient.h"
 
 DECLARE_GPU_STAT_NAMED(CanvasDrawTiles, TEXT("CanvasDrawTiles"));
 

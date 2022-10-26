@@ -3,6 +3,7 @@
 #include "BoneControllers/AnimNode_TwoBoneIK.h"
 #include "Engine/Engine.h"
 #include "AnimationRuntime.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "TwoBoneIK.h"
 #include "AnimationCoreLibrary.h"
 #include "Animation/AnimInstanceProxy.h"

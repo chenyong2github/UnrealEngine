@@ -2,6 +2,7 @@
 
 #include "Commandlets/WorldPartitionCommandletHelpers.h"
 
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "HAL/PlatformFileManager.h"
 #include "PackageSourceControlHelper.h"

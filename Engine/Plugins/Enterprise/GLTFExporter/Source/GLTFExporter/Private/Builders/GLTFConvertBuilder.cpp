@@ -3,6 +3,7 @@
 #include "Builders/GLTFConvertBuilder.h"
 #include "Converters/GLTFMeshUtility.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/Texture2D.h"
 #include "Engine/TextureCube.h"
 #include "Engine/TextureRenderTarget2D.h"

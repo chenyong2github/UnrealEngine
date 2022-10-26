@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/ContentBundle/SContentBundleBrowser.h"
-
+#include "Framework/Application/SlateApplication.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "WorldPartition/ContentBundle/Outliner/SContentBundleOutliner.h"
 #include "WorldPartition/ContentBundle/Outliner/ContentBundleMode.h"

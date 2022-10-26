@@ -14,6 +14,7 @@
 #include "Engine/TextureCube.h"
 #include "Engine/TextureRenderTargetCube.h"
 #include "PipelineStateCache.h"
+#include "RHIStaticStates.h"
 
 IMPLEMENT_SHADER_TYPE(,FCubemapTexturePropertiesVS,TEXT("/Engine/Private/SimpleElementVertexShader.usf"),TEXT("Main"),SF_Vertex);
 IMPLEMENT_SHADER_TYPE(,FCubemapTexturePropertiesPS,TEXT("/Engine/Private/SimpleElementPixelShader.usf"),TEXT("CubemapTextureProperties"),SF_Pixel);

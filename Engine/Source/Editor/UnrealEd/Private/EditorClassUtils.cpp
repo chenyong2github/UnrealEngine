@@ -5,6 +5,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Styling/AppStyle.h"
 #include "Engine/Blueprint.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Editor.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"

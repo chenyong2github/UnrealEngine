@@ -10,6 +10,7 @@
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowAssetActions.h"
 #include "Dataflow/DataflowSNodeFactories.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "DataflowEditor"
 

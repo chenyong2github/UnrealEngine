@@ -9,6 +9,8 @@
 #include "NiagaraSystemInstance.h"
 
 #include "Misc/LargeWorldRenderPosition.h"
+#include "RHIStaticStates.h"
+#include "ShaderCompilerCore.h"
 #include "VT/RuntimeVirtualTexture.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraDataInterfaceVirtualTexture"

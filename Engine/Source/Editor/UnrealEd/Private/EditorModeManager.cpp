@@ -12,6 +12,7 @@
 #include "EditorSupportDelegates.h"
 #include "EdMode.h"
 #include "Toolkits/IToolkitHost.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/Input/SButton.h"
@@ -36,13 +37,16 @@
 #include "CanvasTypes.h"
 #include "CanvasItem.h"
 #include "Engine/StaticMeshActor.h"
+#include "Engine/Texture2D.h"
 #include "EngineUtils.h"
 #include "Tools/AssetEditorContextObject.h"
 #include "ContextObjectStore.h"
 #include "UObject/GCObjectScopeGuard.h"
+#include "Settings/LevelEditorViewportSettings.h"
 #include "Subsystems/EditorElementSubsystem.h"
 
 #include "Elements/Interfaces/TypedElementWorldInterface.h"
+#include "TextureResource.h"
 
 /*------------------------------------------------------------------------------
 	FEditorModeTools.

@@ -8,9 +8,11 @@
 #include "IPropertyTypeCustomization.h"
 
 class IPropertyHandle;
+class SWidget;
 class UStateTree;
 class UStateTreeState;
 class UStateTreeEditorData;
+struct EVisibility;
 struct FStateTreeEditorPropertyPath;
 enum class EStateTreeConditionOperand : uint8;
 

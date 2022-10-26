@@ -4,6 +4,7 @@
 
 #include "ConversionUtils/DynamicMeshViaMeshDescriptionUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"

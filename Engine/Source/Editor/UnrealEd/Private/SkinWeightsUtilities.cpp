@@ -8,6 +8,7 @@
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "EditorFramework/AssetImportData.h"
 #include "MeshUtilities.h"
 

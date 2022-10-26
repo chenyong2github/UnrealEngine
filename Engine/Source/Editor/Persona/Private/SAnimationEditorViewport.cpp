@@ -41,6 +41,7 @@
 #include "IPersonaToolkit.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "SNameComboBox.h"
+#include "Viewports.h"
 
 #define LOCTEXT_NAMESPACE "PersonaViewportToolbar"
 

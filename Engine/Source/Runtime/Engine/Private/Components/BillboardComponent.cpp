@@ -16,6 +16,7 @@
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
 #include "TextureCompiler.h"
+#include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BillboardComponent)
 

@@ -6,6 +6,7 @@
 #include "DetailLayoutBuilder.h"
 #include "Styling/AppStyle.h"
 #include "Rendering/SkeletalMeshLODModel.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSeparator.h"

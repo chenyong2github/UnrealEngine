@@ -7,6 +7,7 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Engine/SkeletalMesh.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "IAssetTools.h"

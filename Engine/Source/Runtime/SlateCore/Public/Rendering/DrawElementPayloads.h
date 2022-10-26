@@ -3,7 +3,10 @@
 #pragma once
 
 #include "SlateRenderBatch.h"
+#include "Styling/SlateBrush.h"
 #include "Types/SlateVector2.h"
+
+class FSlateShaderResourceProxy;
 
 struct FSlateGradientStop
 {

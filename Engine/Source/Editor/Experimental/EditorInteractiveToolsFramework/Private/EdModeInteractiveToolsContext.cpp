@@ -8,6 +8,7 @@
 #include "Editor.h"
 #include "EditorViewportClient.h"
 #include "EditorModeManager.h"
+#include "Framework/Application/SlateApplication.h"
 #include "LevelEditor.h"
 #include "LevelEditorViewport.h"
 #include "IAssetViewport.h"

@@ -7,8 +7,10 @@
 #include "Engine/World.h"
 #include "Particles/ParticleSystemComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/Level.h"
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
+#include "UObject/UObjectGlobals.h"
 
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"

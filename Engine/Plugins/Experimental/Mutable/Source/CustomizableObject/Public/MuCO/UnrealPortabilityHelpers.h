@@ -5,6 +5,7 @@
 #include "Runtime/Launch/Resources/Version.h"
 
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Misc/Paths.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"

@@ -5,12 +5,14 @@
 #include "Components/SplineMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Engine/Texture2D.h"
 #include "WaterSplineComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "WaterBodyActor.h"
 #include "WaterRuntimeSettings.h"
 #include "WaterVersion.h"
 #include "EngineUtils.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WaterBodyIslandActor)
 

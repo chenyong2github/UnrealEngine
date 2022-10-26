@@ -4,6 +4,7 @@
 #include "MovieScene.h"
 #include "ActorFactories/ActorFactory.h"
 #include "AssetSelection.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "LevelEditorViewport.h"
 #include "SnappingUtils.h"
 #include "Sections/MovieScene3DTransformSection.h"

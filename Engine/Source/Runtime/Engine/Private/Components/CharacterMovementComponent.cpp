@@ -29,6 +29,7 @@
 #include "PBDRigidsSolver.h"
 #include "Engine/NetworkObjectList.h"
 #include "Net/PerfCountersHelpers.h"
+#include "Physics/PhysicsInterfaceScene.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #if UE_WITH_IRIS
 #include "Net/Iris/ReplicationSystem/ReplicationSystemUtil.h"

@@ -4,6 +4,7 @@
 
 #include "Widgets/Text/STextBlock.h"
 #include "EngineGlobals.h"
+#include "Engine/Texture.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Views/SListView.h"

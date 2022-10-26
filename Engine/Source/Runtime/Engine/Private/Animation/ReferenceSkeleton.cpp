@@ -2,6 +2,7 @@
 
 #include "ReferenceSkeleton.h"
 #include "Animation/Skeleton.h"
+#include "EngineLogs.h"
 #include "Engine/SkeletalMesh.h"
 
 FReferenceSkeletonModifier::FReferenceSkeletonModifier(USkeleton* InSkeleton) : RefSkeleton(InSkeleton->ReferenceSkeleton), Skeleton(InSkeleton) {}

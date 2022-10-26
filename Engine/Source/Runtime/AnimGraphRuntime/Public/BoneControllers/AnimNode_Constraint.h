@@ -4,6 +4,7 @@
 
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "Constraint.h"
+#include "EngineDefines.h"
 #include "AnimNode_Constraint.generated.h"
 
 /** 

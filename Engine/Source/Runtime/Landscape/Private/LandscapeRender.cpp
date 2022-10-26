@@ -19,6 +19,7 @@ LandscapeRender.cpp: New terrain rendering
 #include "Materials/MaterialInstanceConstant.h"
 #include "ShaderParameterUtils.h"
 #include "LandscapeEdit.h"
+#include "Engine/Level.h"
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
 #include "Materials/MaterialExpressionTextureSample.h"
@@ -33,6 +34,7 @@ LandscapeRender.cpp: New terrain rendering
 #include "LandscapeInfo.h"
 #include "LandscapeDataAccess.h"
 #include "DrawDebugHelpers.h"
+#include "RHIStaticStates.h"
 #include "PrimitiveSceneInfo.h"
 #include "SceneView.h"
 #include "SceneCore.h"
@@ -43,6 +45,7 @@ LandscapeRender.cpp: New terrain rendering
 #include "RayTracingInstance.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "StaticMeshResources.h"
+#include "TextureResource.h"
 #include "NaniteSceneProxy.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeUniformShaderParameters, "LandscapeParameters");

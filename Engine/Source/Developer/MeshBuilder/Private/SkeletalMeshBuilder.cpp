@@ -5,6 +5,7 @@
 #include "MeshBoneReduction.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "MeshDescription.h"
 #include "MeshAttributes.h"

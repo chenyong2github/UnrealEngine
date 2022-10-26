@@ -2,6 +2,7 @@
 
 
 #include "ToolSceneQueriesUtil.h"
+#include "Engine/World.h"
 #include "VectorUtil.h"
 #include "Quaternion.h"
 #include "GameFramework/Actor.h"

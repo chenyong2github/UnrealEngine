@@ -3,6 +3,8 @@
 
 #include "StereoRenderTargetManager.h"
 
+class FRHIViewport;
+
 /** 
  * Common IStereoRenderTargetManager implementation that can be used by HMD implementations in order to get default implementations for most methods.
  */

@@ -32,6 +32,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Misc/CommandLine.h"
 #include "Stats/StatsMisc.h"
 #include "Kismet/GameplayStatics.h"
 #include "ProfilingDebugging/CsvProfiler.h"

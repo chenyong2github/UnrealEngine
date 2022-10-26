@@ -11,6 +11,7 @@
 #include "EventsData.h"
 #include "Chaos/ChaosSolverActor.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
+#include "RenderGraphDefinitions.h"
 #include "NiagaraDataInterfaceChaosDestruction.generated.h"
 
 struct PhysicsProxyWrapper;

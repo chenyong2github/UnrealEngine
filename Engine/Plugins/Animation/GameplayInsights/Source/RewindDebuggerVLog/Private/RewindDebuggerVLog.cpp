@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RewindDebuggerVLog.h"
+#include "Engine/World.h"
 #include "IVisualLoggerProvider.h"
 #include "Insights/IUnrealInsightsModule.h"
 #include "IRewindDebugger.h"

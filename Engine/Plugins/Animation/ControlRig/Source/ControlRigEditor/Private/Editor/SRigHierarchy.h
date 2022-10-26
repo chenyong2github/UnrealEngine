@@ -19,6 +19,7 @@ class UControlRig;
 struct FAssetData;
 class FMenuBuilder;
 class UToolMenu;
+struct FToolMenuContext;
 
 class FRigElementHierarchyDragDropOp : public FGraphNodeDragDropOp
 {

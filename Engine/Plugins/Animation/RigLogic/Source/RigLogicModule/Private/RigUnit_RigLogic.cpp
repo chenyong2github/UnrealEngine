@@ -4,6 +4,7 @@
 
 #include "ControlRig.h"
 #include "DNAReader.h"
+#include "Engine/SkeletalMesh.h"
 #include "RigInstance.h"
 #include "RigLogic.h"
 #include "SharedRigRuntimeContext.h"

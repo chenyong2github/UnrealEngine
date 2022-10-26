@@ -64,6 +64,7 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "UnrealEngine.h"
 #include "Physics/PhysicsInterfaceCore.h"
+#include "Physics/PhysicsInterfaceScene.h"
 
 
 static const FName Cascade_PreviewViewportTab("Cascade_PreviewViewport");

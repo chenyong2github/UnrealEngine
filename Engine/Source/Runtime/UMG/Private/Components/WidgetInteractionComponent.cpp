@@ -3,6 +3,7 @@
 #include "Components/WidgetInteractionComponent.h"
 #include "CollisionQueryParams.h"
 #include "Components/PrimitiveComponent.h"
+#include "Engine/GameViewportClient.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Components/ArrowComponent.h"
 #include "Framework/Application/SlateApplication.h"

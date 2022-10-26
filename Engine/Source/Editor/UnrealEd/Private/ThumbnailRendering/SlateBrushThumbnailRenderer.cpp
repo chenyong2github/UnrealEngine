@@ -3,10 +3,13 @@
 #include "ThumbnailRendering/SlateBrushThumbnailRenderer.h"
 #include "Styling/SlateBrush.h"
 #include "CanvasItem.h"
+#include "Engine/Canvas.h"
 #include "Engine/Texture2D.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "Slate/SlateBrushAsset.h"
+#include "TextureResource.h"
 // FPreviewScene derived helpers for rendering
+#include "CanvasItem.h"
 #include "CanvasTypes.h"
 
 USlateBrushThumbnailRenderer::USlateBrushThumbnailRenderer(const FObjectInitializer& ObjectInitializer)

@@ -11,6 +11,7 @@
 #include "Editor.h"
 #include "LevelEditorViewport.h"
 #include "Kismet2/ComponentEditorUtils.h"
+#include "Settings/LevelEditorViewportSettings.h"
 
 void FComponentElementLevelEditorViewportInteractionCustomization::GizmoManipulationStarted(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode)
 {

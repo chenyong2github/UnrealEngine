@@ -9,6 +9,7 @@
 #include "Containers/List.h"
 #include "Templates/UniquePtr.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "VirtualTexturing.h"
 
 #include <atomic>
 

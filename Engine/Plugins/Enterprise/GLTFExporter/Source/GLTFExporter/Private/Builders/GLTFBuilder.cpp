@@ -2,6 +2,7 @@
 
 #include "Builders/GLTFBuilder.h"
 #include "Converters/GLTFMeshUtility.h"
+#include "Misc/Paths.h"
 #include "UserData/GLTFMaterialUserData.h"
 
 FGLTFBuilder::FGLTFBuilder(const FString& FileName, const UGLTFExportOptions* ExportOptions)

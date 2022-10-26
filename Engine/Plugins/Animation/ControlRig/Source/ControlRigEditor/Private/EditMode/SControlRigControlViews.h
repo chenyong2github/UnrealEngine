@@ -18,6 +18,7 @@
 #include "Misc/NotifyHook.h"
 
 class FAssetThumbnail;
+class IDetailsView;
 class UControlRig;
 
 //Class to Hold Statics that are shared and externally callable

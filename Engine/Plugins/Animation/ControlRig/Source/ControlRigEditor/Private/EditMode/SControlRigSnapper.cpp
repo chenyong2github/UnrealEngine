@@ -21,6 +21,7 @@
 #include "Editor.h"
 #include "Tools/ControlRigSnapSettings.h"
 #include "LevelEditor.h"
+#include "PropertyEditorModule.h"
 #include "SSocketChooser.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Text/STextBlock.h"

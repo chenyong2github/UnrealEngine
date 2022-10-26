@@ -11,6 +11,7 @@
 #include "Navigation/GridPathFollowingComponent.h"
 #include "DebugRenderSceneProxy.h"
 #include "Materials/Material.h"
+#include "SceneManagement.h"
 
 //////////////////////////////////////////////////////////////////////////
 // Scene proxy

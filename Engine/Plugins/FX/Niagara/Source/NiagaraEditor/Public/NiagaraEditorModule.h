@@ -17,8 +17,10 @@
 class IAssetTools;
 class IAssetTypeActions;
 class INiagaraEditorTypeUtilities;
+class UNiagaraDataInterface;
 class UNiagaraSettings;
 class USequencerSettings;
+class FNiagaraDataInterfaceError;
 class UNiagaraStackViewModel;
 class UNiagaraStackEntry;
 class UNiagaraStackIssue;
@@ -27,6 +29,7 @@ class FNiagaraScriptMergeManager;
 class FNiagaraCompileOptions;
 class FNiagaraCompileRequestDataBase;
 class FNiagaraCompileRequestDuplicateDataBase;
+class FNiagaraDataInterfaceFeedback;
 class UMovieSceneNiagaraParameterTrack;
 struct IConsoleCommand;
 class INiagaraEditorOnlyDataUtilities;

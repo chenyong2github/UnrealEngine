@@ -3,6 +3,7 @@
 #include "UVEditorModeToolkit.h"
 
 #include "Styling/AppStyle.h" //FAppStyle
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
@@ -22,6 +23,7 @@
 #include "UVEditorModeUILayer.h"
 #include "UVEditorStyle.h"
 #include "AssetEditorModeManager.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "FUVEditorModeToolkit"
 

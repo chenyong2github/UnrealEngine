@@ -3,6 +3,7 @@
 #include "AmbientCubemapParameters.h"
 #include "Engine/Texture.h"
 #include "RenderUtils.h"
+#include "TextureResource.h"
 
 void SetupAmbientCubemapParameters(const FFinalPostProcessSettings::FCubemapEntry& Entry, FAmbientCubemapParameters* OutParameters)
 {

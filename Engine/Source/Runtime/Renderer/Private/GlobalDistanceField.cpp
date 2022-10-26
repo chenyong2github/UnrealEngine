@@ -9,6 +9,7 @@
 #include "DynamicPrimitiveDrawing.h"
 #include "Lumen/Lumen.h"
 #include "GlobalDistanceFieldHeightfields.h"
+#include "TextureResource.h"
 
 DECLARE_GPU_STAT(GlobalDistanceFieldUpdate);
 

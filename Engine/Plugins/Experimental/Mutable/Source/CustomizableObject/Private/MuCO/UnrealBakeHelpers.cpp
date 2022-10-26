@@ -13,6 +13,7 @@
 #include "Containers/UnrealString.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkeletalMeshLODSettings.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "GPUSkinPublicDefs.h"
 #include "HAL/PlatformCrt.h"
 #include "Math/Color.h"

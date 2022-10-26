@@ -6,6 +6,7 @@
 #include "Engine/StaticMesh.h"
 #include "MeshDescription.h"
 #include "PhysicsEngine/AggregateGeom.h"
+#include "StaticMeshResources.h"
 
 #include "LightMap.h"
 #include "ShadowMap.h"

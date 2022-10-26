@@ -11,6 +11,7 @@
 #include "ShaderParameterUtils.h"
 #include "PipelineStateCache.h"
 #include "TextureResource.h"
+#include "RHIStaticStates.h"
 #include "RenderCore.h"
 #include "VirtualTexturing.h"
 #include "Engine/Texture2DArray.h"

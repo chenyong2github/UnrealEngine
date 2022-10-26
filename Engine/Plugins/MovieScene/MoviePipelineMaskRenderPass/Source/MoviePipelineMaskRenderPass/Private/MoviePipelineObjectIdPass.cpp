@@ -21,6 +21,7 @@
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "TextureResource.h"
 #include "UObject/UObjectAnnotation.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineObjectIdPass)

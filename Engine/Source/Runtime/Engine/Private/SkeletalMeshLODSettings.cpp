@@ -2,6 +2,7 @@
 
 #include "Engine/SkeletalMeshLODSettings.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "UObject/UObjectIterator.h"
 #include "Animation/Skeleton.h"
 #include "Animation/AnimSequence.h"

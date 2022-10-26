@@ -2,6 +2,7 @@
 
 #include "GeometryScript/CollisionFunctions.h"
 
+#include "Async/ParallelFor.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "Operations/MeshConvexHull.h"

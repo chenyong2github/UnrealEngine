@@ -2,6 +2,8 @@
 
 #include "Converters/GLTFSceneConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
+#include "Engine/Level.h"
+#include "Engine/World.h"
 #include "LevelVariantSetsActor.h"
 #include "LevelVariantSets.h"
 #include "VariantSet.h"

@@ -2,6 +2,7 @@
 
 #include "Slate/UMGDragDropOp.h"
 #include "Application/SlateApplicationBase.h"
+#include "Engine/GameViewportClient.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"

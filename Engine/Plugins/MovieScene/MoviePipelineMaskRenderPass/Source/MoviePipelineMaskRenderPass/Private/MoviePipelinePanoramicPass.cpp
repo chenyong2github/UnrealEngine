@@ -34,6 +34,7 @@
 #include "Math/Quat.h"
 #include "Engine/LocalPlayer.h"
 #include "MoviePipelinePanoramicBlender.h"
+#include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelinePanoramicPass)
 

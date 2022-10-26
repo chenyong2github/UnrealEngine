@@ -12,6 +12,7 @@
 #include "RetargetEditor/IKRetargetAnimInstance.h"
 #include "RetargetEditor/IKRetargetEditorController.h"
 #include "UObject/SavePackage.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Animation/AnimSequence.h"
 

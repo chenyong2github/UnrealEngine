@@ -5,6 +5,7 @@
 #include "ControlPointMeshComponent.h"
 #include "Components/SplineMeshComponent.h"
 #include "Engine/StaticMesh.h"
+#include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"
 #include "Misc/MapErrors.h"
 #include "GameFramework/WorldSettings.h"

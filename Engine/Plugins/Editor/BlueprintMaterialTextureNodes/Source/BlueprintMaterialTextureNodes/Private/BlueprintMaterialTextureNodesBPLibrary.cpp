@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintMaterialTextureNodesBPLibrary.h"
-#include "BlueprintMaterialTextureNodes.h"
 #include "CoreMinimal.h"
+#include "BlueprintMaterialTextureNodes.h"
+#include "Engine/Texture2D.h"
 
 //RHI gives access to MaxShaderPlatform and FeatureLevel (i.e. GMaxRHIShaderPlatform)
 #include "RHI.h"
@@ -26,6 +27,7 @@
 #include "MaterialShared.h"
 #include "ImageCore.h"
 #include "ImageCoreUtils.h"
+#include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BlueprintMaterialTextureNodesBPLibrary)
 

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGComponent.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "PCGGraph.h"
 #include "PCGHelpers.h"
 #include "PCGInputOutputSettings.h"

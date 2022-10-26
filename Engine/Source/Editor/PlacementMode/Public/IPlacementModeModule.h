@@ -13,6 +13,7 @@
 #include "ActorPlacementInfo.h"
 #include "GameFramework/Volume.h"
 #include "Editor.h"
+#include "Textures/SlateIcon.h"
 
 class FNamePermissionList;
 

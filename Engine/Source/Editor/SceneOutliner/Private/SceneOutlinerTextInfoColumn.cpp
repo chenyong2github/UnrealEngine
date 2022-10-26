@@ -4,6 +4,7 @@
 #include "ISceneOutliner.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "SortHelper.h"
+#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SHeaderRow.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerTextInfoColumn"

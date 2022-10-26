@@ -13,6 +13,8 @@
 #include "RenderUtils.h"
 #include "Engine/SkeletalMesh.h"
 #include "Components/SkinnedMeshComponent.h"
+#include "MeshUVChannelInfo.h"
+#include "SkeletalMeshTypes.h"
 
 class FPrimitiveDrawInterface;
 class FVertexFactory;

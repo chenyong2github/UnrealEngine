@@ -5,6 +5,7 @@
 #include "Engine/EngineTypes.h"
 #include "HAL/IConsoleManager.h"
 #include "Components/ActorComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Actor.h"
 #include "LevelSequenceDirector.h"
 #include "Engine/Engine.h"

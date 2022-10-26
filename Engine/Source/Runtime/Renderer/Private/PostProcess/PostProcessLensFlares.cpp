@@ -3,6 +3,7 @@
 #include "PostProcess/PostProcessLensFlares.h"
 #include "PostProcess/PostProcessDownsample.h"
 #include "PixelShaderUtils.h"
+#include "TextureResource.h"
 
 DECLARE_GPU_STAT(LensFlare);
 

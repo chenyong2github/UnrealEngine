@@ -6,7 +6,9 @@
 
 #include "Rendering/Texture3DResource.h"
 #include "Engine/VolumeTexture.h"
+#include "EngineLogs.h"
 #include "RenderUtils.h"
+#include "SceneTypes.h"
 
 //*****************************************************************************
 

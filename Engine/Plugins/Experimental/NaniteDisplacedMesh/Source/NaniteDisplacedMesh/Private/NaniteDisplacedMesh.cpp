@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteDisplacedMesh.h"
+#include "Engine/Texture2D.h"
 #include "NaniteDisplacedMeshLog.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/StaticMesh.h"

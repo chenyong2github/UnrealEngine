@@ -6,7 +6,9 @@
 #include "DetailsDiff.h"
 #include "DiffResults.h"
 #include "IAssetTypeActions.h"
+#include "IDetailsView.h"
 #include "Algo/Transform.h"
+#include "Widgets/SWidget.h"
 
 struct FDiffResultItem;
 class SBlueprintDiff;

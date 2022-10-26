@@ -9,6 +9,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Engine/Font.h"
+#include "Engine/GameViewportClient.h"
 #include "Brushes/SlateNoResource.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/SlateTypes.h"

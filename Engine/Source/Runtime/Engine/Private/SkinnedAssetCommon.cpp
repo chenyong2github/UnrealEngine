@@ -4,6 +4,7 @@
 #include "Animation/AnimSequence.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Engine/SkeletalMeshLODSettings.h"
+#include "Engine/TextureStreamingTypes.h"
 #include "UObject/CoreObjectVersion.h"
 #include "UObject/EditorObjectVersion.h"
 #include "Interfaces/ITargetPlatform.h"

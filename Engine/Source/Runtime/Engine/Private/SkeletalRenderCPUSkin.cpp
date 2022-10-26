@@ -7,6 +7,8 @@
 #include "SkeletalRenderCPUSkin.h"
 #include "EngineStats.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkinnedAssetCommon.h"
+#include "PrimitiveSceneProxy.h"
 #include "SceneManagement.h"
 #include "SkeletalRender.h"
 #include "Animation/MorphTarget.h"

@@ -7,6 +7,7 @@
 #include "ISourceControlProvider.h"
 
 class FUICommandList;
+class FReply;
 class SWidget;
 
 class FSourceControlCommands : public TCommands<FSourceControlCommands>

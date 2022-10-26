@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Stack/SNiagaraStackParameterStoreEntryValue.h"
+#include "Engine/Texture.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorWidgetsStyle.h"
 #include "INiagaraEditorTypeUtilities.h"

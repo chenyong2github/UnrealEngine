@@ -4,6 +4,7 @@
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "NiagaraComponent.h"
 #include "NiagaraGenerateMips.h"
 #include "NiagaraDataInterfaceRenderTarget2D.generated.h"

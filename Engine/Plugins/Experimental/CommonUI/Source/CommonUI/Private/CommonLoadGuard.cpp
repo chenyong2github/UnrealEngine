@@ -7,6 +7,7 @@
 #include "CommonWidgetPaletteCategories.h"
 #include "UObject/ConstructorHelpers.h"
 #include "CommonUIObjectVersion.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"

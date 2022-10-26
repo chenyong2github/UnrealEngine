@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraRenderer.h"
+#include "Engine/Texture.h"
 #include "ParticleResources.h"
 #include "NiagaraDataSet.h"
+#include "NiagaraSceneProxy.h"
 #include "NiagaraStats.h"
 #include "NiagaraComponent.h"
 #include "DynamicBufferAllocator.h"

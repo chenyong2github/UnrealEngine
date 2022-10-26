@@ -4,6 +4,7 @@
 #include "NaniteSceneProxy.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/InstancedStaticMesh.h"
+#include "Engine/World.h"
 //#include "Streaming/StreamingManagerTexture.h"
 
 FNaniteAuditRegistry::FNaniteAuditRegistry()

@@ -15,6 +15,7 @@
 #include "RenderingThread.h"
 #include "UnifiedBuffer.h"
 #include "CommonRenderResources.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshResources.h"
 #include "DistanceFieldAtlas.h"
 #include "RenderGraphUtils.h"

@@ -6,6 +6,7 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
 #include "Engine/DeveloperSettings.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "InputCoreTypes.h"
 #include "NiagaraPlatformSet.h"
 #include "NiagaraSettings.generated.h"

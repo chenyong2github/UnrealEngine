@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraRendererComponents.h"
+#include "Engine/World.h"
 #include "NiagaraConstants.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraStats.h"

@@ -2,6 +2,8 @@
 
 #include "SPCGEditorGraphFind.h"
 
+#include "Framework/Application/SlateApplication.h"
+#include "Layout/WidgetPath.h"
 #include "PCGEditor.h"
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphNodeBase.h"

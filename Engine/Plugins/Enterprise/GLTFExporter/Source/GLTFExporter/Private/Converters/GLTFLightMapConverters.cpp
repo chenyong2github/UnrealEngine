@@ -4,8 +4,11 @@
 #include "Converters/GLTFMeshUtility.h"
 #include "Builders/GLTFContainerBuilder.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/MapBuildDataRegistry.h"
+#include "StaticMeshComponentLODInfo.h"
+#include "StaticMeshResources.h"
 
 FGLTFJsonLightMap* FGLTFLightMapConverter::Convert(const UStaticMeshComponent* StaticMeshComponent)
 {

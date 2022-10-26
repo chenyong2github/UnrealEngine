@@ -16,6 +16,7 @@
 #include "GameFramework/PlayerState.h"
 #include "Engine/Player.h"
 #include "Physics/PhysicsInterfaceCore.h"
+#include "Physics/PhysicsInterfaceScene.h"
 #include "Physics/PhysScene_PhysX.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Chaos/ChaosMarshallingManager.h"

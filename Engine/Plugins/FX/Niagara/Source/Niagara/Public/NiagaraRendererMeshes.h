@@ -9,6 +9,7 @@ NiagaraRenderer.h: Base class for Niagara render modules
 #include "NiagaraMeshRendererProperties.h"
 #include "NiagaraMeshVertexFactory.h"
 #include "NiagaraGPUSortInfo.h"
+#include "NiagaraSystemInstance.h"
 #include "StaticMeshResources.h"
 #include "NiagaraGPUSceneUtils.h"
 

@@ -5,12 +5,16 @@
 ==============================================================================*/
 
 #include "VolumeTexturePreview.h"
+#include "Engine/Texture2D.h"
 #include "Shader.h"
 #include "GlobalShader.h"
+#include "RHIResources.h"
+#include "RHIStaticStates.h"
 #include "SimpleElementShaders.h"
 #include "ShaderParameterUtils.h"
 #include "PipelineStateCache.h"
 #include "Editor.h"
+#include "TextureResource.h"
 
 UNREALED_API void GetBestFitForNumberOfTiles(int32 InSize, int32& OutNumTilesX, int32& OutNumTilesY)
 {

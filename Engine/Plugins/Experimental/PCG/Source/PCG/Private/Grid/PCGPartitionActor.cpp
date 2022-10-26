@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGPartitionActor.h"
+#include "Engine/World.h"
 #include "PCGComponent.h"
 #include "PCGHelpers.h"
 #include "PCGSubsystem.h"

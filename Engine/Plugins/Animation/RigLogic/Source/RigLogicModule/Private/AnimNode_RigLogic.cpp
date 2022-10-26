@@ -1,10 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNode_RigLogic.h"
-
+#include "Components/SkeletalMeshComponent.h"
 #include "DNAAsset.h"
 #include "DNAIndexMapping.h"
 #include "DNAReader.h"
+#include "Engine/SkeletalMesh.h"
 #include "RigLogic.h"
 #include "RigInstance.h"
 #include "SharedRigRuntimeContext.h"

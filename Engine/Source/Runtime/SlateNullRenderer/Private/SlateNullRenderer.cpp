@@ -2,6 +2,7 @@
 
 #include "SlateNullRenderer.h"
 #include "Rendering/DrawElements.h"
+#include "Rendering/ShaderResourceManager.h"
 #include "Rendering/SlateDrawBuffer.h"
 #include "UnrealEngine.h"
 

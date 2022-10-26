@@ -5,9 +5,11 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "Engine/SkeletalMesh.h"
 #include "EngineDefines.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Delegates/DelegateCombinations.h"
+#include "SkeletalMeshSceneProxy.h"
 #include "DebugSkelMeshComponent.generated.h"
 
 class Error;

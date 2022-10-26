@@ -2,6 +2,7 @@
 
 #include "NiagaraBatchedElements.h"
 #include "GlobalShader.h"
+#include "RHIStaticStates.h"
 #include "SimpleElementShaders.h"
 #include "ShaderParameterStruct.h"
 #include "ShaderParameterMacros.h"

@@ -43,6 +43,8 @@
 #include "Nodes/OptimusNode_GetVariable.h"
 #include "Nodes/OptimusNode_ResourceAccessorBase.h"
 
+#include <limits>
+
 #define PRINT_COMPILED_OUTPUT 1
 
 #define LOCTEXT_NAMESPACE "OptimusDeformer"

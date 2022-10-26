@@ -3,6 +3,7 @@
 #pragma once
 
 #include "MuCO/UnrealPortabilityHelpers.h"
+#include "Engine/Texture2D.h"
 #include "UObject/ObjectMacros.h"
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "MuCO/CustomizableObjectCustomVersion.h"

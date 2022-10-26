@@ -8,6 +8,7 @@
 #include "StateTreeTypes.h"
 
 class IPropertyHandle;
+class SWidget;
 class UStateTree;
 class UStateTreeState;
 

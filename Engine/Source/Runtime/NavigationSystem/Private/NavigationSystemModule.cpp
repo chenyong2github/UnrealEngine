@@ -3,6 +3,7 @@
 #include "NavigationSystemModule.h"
 #include "EngineDefines.h"
 #include "AI/NavigationSystemBase.h"
+#include "Misc/CoreDelegates.h"
 #include "Templates/SubclassOf.h"
 #include "Engine/World.h"
 #include "NavLinkCustomInterface.h"

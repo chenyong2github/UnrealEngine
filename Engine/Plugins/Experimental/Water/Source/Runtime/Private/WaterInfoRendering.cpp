@@ -19,6 +19,7 @@
 #include "SceneViewExtension.h"
 #include "LandscapeRender.h"
 #include "LandscapeModule.h"
+#include "TextureResource.h"
 
 static int32 RenderCaptureNextWaterInfoDraws = 0;
 static FAutoConsoleVariableRef CVarRenderCaptureNextWaterInfoDraws(

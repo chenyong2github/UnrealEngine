@@ -12,6 +12,7 @@ MapBuildData.cpp
 #include "UObject/UObjectAnnotation.h"
 #include "PrecomputedLightVolume.h"
 #include "PrecomputedVolumetricLightmap.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "ShadowMap.h"
 #include "UObject/Package.h"

@@ -6,6 +6,7 @@
 #include "UnrealEdGlobals.h"
 #include "EditorViewportCommands.h"
 #include "EditorViewportTabContent.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "AssetEditorViewportLayout.h"
 

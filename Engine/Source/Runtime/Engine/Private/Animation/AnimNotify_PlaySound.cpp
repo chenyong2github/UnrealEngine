@@ -2,6 +2,7 @@
 
 #include "Animation/AnimNotifies/AnimNotify_PlaySound.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SoundWaveProcedural.h"

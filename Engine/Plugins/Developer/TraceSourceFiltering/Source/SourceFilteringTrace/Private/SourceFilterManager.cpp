@@ -12,6 +12,7 @@
 #include "Engine/World.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Async/ParallelFor.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/EnumRange.h"
 #include "Engine/EngineBaseTypes.h"
 #include "ObjectTrace.h"

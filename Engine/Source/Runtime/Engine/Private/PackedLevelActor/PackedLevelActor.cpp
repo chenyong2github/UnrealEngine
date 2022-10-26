@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PackedLevelActor/PackedLevelActor.h"
+#include "Engine/World.h"
 #include "PackedLevelActor/PackedLevelActorBuilder.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "Components/InstancedStaticMeshComponent.h"

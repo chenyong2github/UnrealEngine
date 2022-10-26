@@ -18,6 +18,7 @@
 #include "WorldPartition/HLOD/SWorldPartitionBuildHLODsDialog.h"
 
 #include "LevelEditor.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "Engine/Level.h"

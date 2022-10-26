@@ -10,12 +10,14 @@
 #include "CanvasTypes.h"
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshResources.h"
 #include "StaticLightingSystem/StaticLightingPrivate.h"
 #include "LightMap.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Components/ModelComponent.h"
 #include "Engine/StaticMesh.h"
+#include "TextureResource.h"
 
 /** Information about the texel that is selected */
 FSelectedLightmapSample GCurrentSelectedLightmapSample;

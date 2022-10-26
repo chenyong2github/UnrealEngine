@@ -4,6 +4,7 @@
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
 #include "SPrimaryButton.h"
 #include "SWarningOrErrorBox.h"
 

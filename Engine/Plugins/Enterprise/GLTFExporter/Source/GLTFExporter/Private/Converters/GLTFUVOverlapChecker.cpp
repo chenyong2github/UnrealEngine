@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFUVOverlapChecker.h"
+#include "Materials/MaterialInterface.h"
 #if WITH_EDITOR
 #include "StaticMeshAttributes.h"
 #include "MeshDescription.h"
@@ -8,7 +9,6 @@
 #include "IGLTFMaterialBakingModule.h"
 #include "GLTFMaterialBakingStructures.h"
 #else
-#include "Materials/MaterialInterface.h"
 #include "UObject/UObjectGlobals.h"
 #endif
 

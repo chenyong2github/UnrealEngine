@@ -7,6 +7,7 @@
 #include "EdModeInteractiveToolsContext.h"
 #include "InteractiveGizmo.h"
 #include "BaseGizmos/CombinedTransformGizmo.h"
+#include "Settings/LevelEditorViewportSettings.h"
 #include "UnrealWidgetFwd.h"
 #include "Utils.h"
 #include "Stats/Stats2.h"

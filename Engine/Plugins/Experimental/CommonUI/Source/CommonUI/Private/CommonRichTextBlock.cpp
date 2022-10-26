@@ -7,6 +7,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScaleBox.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Text/SlateTextLayout.h"
 #include "Framework/Text/ITextDecorator.h"
 #include "Framework/Text/SlateWidgetRun.h"

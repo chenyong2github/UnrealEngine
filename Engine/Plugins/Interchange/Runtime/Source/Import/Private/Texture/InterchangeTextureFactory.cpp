@@ -33,6 +33,7 @@
 #include "InterchangeTranslatorBase.h"
 #include "InterchangeVolumeTextureNode.h"
 #include "InterchangeVolumeTextureFactoryNode.h"
+#include "Misc/CoreStats.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Serialization/EditorBulkData.h"

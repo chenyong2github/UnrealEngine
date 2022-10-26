@@ -3,6 +3,7 @@
 #include "MaterialList.h"
 #include "DetailLayoutBuilder.h"
 #include "Editor.h"
+#include "Engine/Texture2D.h"
 #include "IDetailChildrenBuilder.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorModule.h"

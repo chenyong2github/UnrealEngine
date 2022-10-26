@@ -9,7 +9,9 @@
 #include "AudioModulationSystem.h"
 #include "DSP/BufferVectorOperations.h"
 #include "Engine/World.h"
+#include "SoundControlBusMix.h"
 #include "SoundControlBusProxy.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SoundControlBus)
 

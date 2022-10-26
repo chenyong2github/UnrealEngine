@@ -10,8 +10,10 @@
 #include "NiagaraSettings.h"
 #include "NiagaraScript.h"
 #include "NiagaraShaderParametersBuilder.h"
+#include "NiagaraWorldManager.h"
 #include "NiagaraDataInterfaceUtilities.h"
 #include "ShaderParameterUtils.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "NiagaraStats.h"
 
 #if WITH_EDITOR

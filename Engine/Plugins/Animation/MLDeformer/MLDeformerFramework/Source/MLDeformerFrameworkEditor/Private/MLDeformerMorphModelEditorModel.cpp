@@ -7,6 +7,7 @@
 #include "MLDeformerEditorToolkit.h"
 #include "MLDeformerInputInfo.h"
 #include "MLDeformerGeomCacheHelpers.h"
+#include "Components/ExternalMorphSet.h"
 #include "GeometryCache.h"
 #include "GeometryCacheComponent.h"
 #include "Animation/DebugSkelMeshComponent.h"

@@ -6,6 +6,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Widgets/Layout/SSplitter.h"
 
 
 namespace ViewportLayoutTwoPanesDefs

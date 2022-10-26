@@ -8,6 +8,7 @@
 #include "UObject/Class.h"
 #include "EngineDefines.h"
 #include "Engine/NetSerialization.h"
+#include "Engine/World.h"
 #include "Templates/SubclassOf.h"
 #include "Components/InputComponent.h"
 #include "GameplayTagContainer.h"

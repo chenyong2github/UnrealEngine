@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NearestNeighborEditorModel.h"
+#include "IDetailsView.h"
 #include "NearestNeighborModel.h"
 #include "NearestNeighborModelInstance.h"
 #include "NearestNeighborTrainingModel.h"
@@ -8,6 +9,7 @@
 #include "NearestNeighborEditorModelActor.h"
 #include "NearestNeighborModelStyle.h"
 #include "NearestNeighborGeomCacheSampler.h"
+#include "Components/ExternalMorphSet.h"
 #include "MLDeformerComponent.h"
 #include "MLDeformerEditorToolkit.h"
 #include "NeuralNetwork.h"

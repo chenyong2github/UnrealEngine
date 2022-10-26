@@ -5,17 +5,20 @@
 
 #include "NiagaraComponent.h"
 #include "NiagaraSystemInstance.h"
+#include "NiagaraSystemInstanceController.h"
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraDataInterfaceGrid3DCollection.h"
 #include "NiagaraDataInterfaceRenderTargetVolume.h"
 #include "NiagaraBatchedElements.h"
 
 #include "Engine/Canvas.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Engine/VolumeTexture.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/PathViews.h"
 #include "Modules/ModuleManager.h"
 #include "Factories/VolumeTextureFactory.h"
+#include "TextureResource.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "VolumeCache.h"

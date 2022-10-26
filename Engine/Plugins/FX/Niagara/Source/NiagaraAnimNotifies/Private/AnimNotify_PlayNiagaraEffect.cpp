@@ -3,6 +3,7 @@
 #include "AnimNotify_PlayNiagaraEffect.h"
 
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "Animation/AnimSequenceBase.h"
 

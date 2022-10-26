@@ -14,6 +14,7 @@
 #include "Engine/EngineTypes.h"
 #include "Engine/Level.h"
 #include "Engine/Brush.h"
+#include "Framework/Application/SlateApplication.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlModule.h"
 #include "SourceControlHelpers.h"

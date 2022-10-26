@@ -2,6 +2,7 @@
 
 #include "ClothingSimulation.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 
 //==============================================================================

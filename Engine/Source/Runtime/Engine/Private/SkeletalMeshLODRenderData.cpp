@@ -4,6 +4,7 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Engine/SkinnedAsset.h"
 #include "Engine/SkeletalMesh.h"	// for FSkeletalMeshLODInfo
+#include "Engine/SkinnedAssetCommon.h"
 #include "Animation/MorphTarget.h"
 #include "Misc/ConfigCacheIni.h"
 #include "EngineLogs.h"

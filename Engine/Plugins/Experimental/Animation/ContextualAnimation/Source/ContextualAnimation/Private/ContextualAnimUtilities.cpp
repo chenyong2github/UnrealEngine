@@ -9,6 +9,7 @@
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimInstance.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "ContextualAnimTypes.h"
 #include "ContextualAnimSceneAsset.h"

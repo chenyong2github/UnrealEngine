@@ -15,6 +15,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "RetargetEditor/IKRetargeterController.h"
 #include "Retargeter/IKRetargeter.h"
+#include "Viewports.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Notifications/SNotificationList.h"
 

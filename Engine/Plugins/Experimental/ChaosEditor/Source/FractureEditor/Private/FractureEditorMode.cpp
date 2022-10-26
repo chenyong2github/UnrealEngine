@@ -25,6 +25,7 @@
 #include "EditorViewportClient.h"
 #include "Misc/ITransaction.h"
 #include "ScopedTransaction.h"
+#include "Settings/LevelEditorViewportSettings.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "BaseGizmos/TransformGizmoUtil.h"

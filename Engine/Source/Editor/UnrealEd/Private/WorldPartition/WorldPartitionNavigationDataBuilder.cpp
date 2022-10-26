@@ -8,6 +8,7 @@
 #include "StaticMeshCompiler.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
 #include "Logging/LogMacros.h"
+#include "Misc/CommandLine.h"
 #include "UObject/SavePackage.h"
 #include "Commandlets/Commandlet.h"
 #include "AI/NavigationSystemBase.h"

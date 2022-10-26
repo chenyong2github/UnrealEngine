@@ -26,6 +26,7 @@
 #include "Widgets/Input/SButton.h"
 #include "DetailLayoutBuilder.h"
 #include "SWarningOrErrorBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "MLDeformerModelDetails"
 

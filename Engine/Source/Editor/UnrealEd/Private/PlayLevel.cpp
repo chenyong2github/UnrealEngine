@@ -86,6 +86,7 @@
 #include "GameProjectGenerationModule.h"
 #include "SourceCodeNavigation.h"
 #include "Physics/PhysicsInterfaceCore.h"
+#include "Physics/PhysicsInterfaceScene.h"
 #include "AnalyticsEventAttribute.h"
 #include "Interfaces/IAnalyticsProvider.h"
 #include "EngineAnalytics.h"

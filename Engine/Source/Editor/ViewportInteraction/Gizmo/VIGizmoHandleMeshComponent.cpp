@@ -2,6 +2,7 @@
 
 #include "VIGizmoHandleMeshComponent.h"
 #include "StaticMeshResources.h"
+#include "StaticMeshSceneProxy.h"
 
 #include "RHIResources.h"
 

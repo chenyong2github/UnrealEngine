@@ -14,6 +14,7 @@
 #include "Animation/MorphTarget.h"
 #include "ClearQuad.h"
 #include "ShaderParameterUtils.h"
+#include "SkeletalMeshSceneProxy.h"
 #include "SkeletalMeshTypes.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "RenderGraphUtils.h"

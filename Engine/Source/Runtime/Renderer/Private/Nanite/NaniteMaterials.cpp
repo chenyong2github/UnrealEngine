@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteMaterials.h"
+#include "Async/ParallelFor.h"
 #include "NaniteDrawList.h"
 #include "NaniteVertexFactory.h"
 #include "NaniteVisualizationData.h"

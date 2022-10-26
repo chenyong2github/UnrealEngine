@@ -8,6 +8,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "IAssetTools.h"
+#include "Layout/WidgetPath.h"
 #include "AssetToolsModule.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"

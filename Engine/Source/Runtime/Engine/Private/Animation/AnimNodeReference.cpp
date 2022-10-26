@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimNodeReference.h"
+#include "Animation/AnimInstance.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimClassInterface.h"
 

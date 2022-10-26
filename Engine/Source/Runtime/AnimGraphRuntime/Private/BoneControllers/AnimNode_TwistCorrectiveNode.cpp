@@ -2,8 +2,8 @@
 
 #include "BoneControllers/AnimNode_TwistCorrectiveNode.h"
 #include "AnimationRuntime.h"
-
 #include "Animation/AnimInstanceProxy.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_TwistCorrectiveNode)
 

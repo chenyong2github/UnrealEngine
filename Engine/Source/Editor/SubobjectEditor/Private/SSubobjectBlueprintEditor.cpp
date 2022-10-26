@@ -14,6 +14,7 @@
 #include "Styling/SlateIconFinder.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SComponentClassCombo.h"
 #include "SPositiveActionButton.h"

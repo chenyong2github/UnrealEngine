@@ -4,6 +4,7 @@
 
 #include "CanvasTypes.h"
 #include "MaterialRenderItemData.h"
+#include "MeshBuilderOneFrameResources.h"
 #include "DynamicMeshBuilder.h"
 
 class FSceneViewFamily;

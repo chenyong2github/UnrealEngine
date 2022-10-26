@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequenceRecorderUtils.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Actor.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "AnimationRecorder.h"

@@ -2,6 +2,7 @@
 
 #include "GeometryFrameworkModule.h"
 #include "Components/BaseDynamicMeshComponent.h"
+#include "Misc/CoreDelegates.h"
 
 #define LOCTEXT_NAMESPACE "FGeometryFrameworkModule"
 

@@ -4,6 +4,7 @@
 #include "Animation/AnimTypes.h"
 #include "AnimationRuntime.h"
 #include "DrawDebugHelpers.h"
+#include "EngineDefines.h"
 #include "Animation/AnimInstanceProxy.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimNode_CCDIK)

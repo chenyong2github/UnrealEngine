@@ -6,6 +6,7 @@
 #include "Shader.h"
 #include "SimpleElementShaders.h"
 #include "PipelineStateCache.h"
+#include "RHIStaticStates.h"
 #include "MeshPassProcessor.h"
 #include "SceneRelativeViewMatrices.h"
 

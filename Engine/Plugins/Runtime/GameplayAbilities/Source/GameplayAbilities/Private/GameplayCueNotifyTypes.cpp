@@ -3,6 +3,7 @@
 #include "GameplayCueNotifyTypes.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Camera/CameraLensEffectInterface.h"
+#include "Engine/World.h"
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"

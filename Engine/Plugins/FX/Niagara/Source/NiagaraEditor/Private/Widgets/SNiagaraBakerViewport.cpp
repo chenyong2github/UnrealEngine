@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraBakerViewport.h"
+#include "Application/ThrottleManager.h"
 #include "ViewModels/NiagaraBakerViewModel.h"
 #include "NiagaraBakerRenderer.h"
 #include "NiagaraBatchedElements.h"
@@ -8,6 +9,8 @@
 
 #include "Engine/Canvas.h"
 #include "Engine/Font.h"
+#include "Engine/Texture2D.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
 #include "CanvasItem.h"
@@ -17,6 +20,7 @@
 #include "LegacyScreenPercentageDriver.h"
 #include "ImageUtils.h"
 #include "SEditorViewportToolBarMenu.h"
+#include "TextureResource.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraBakerViewport"
 

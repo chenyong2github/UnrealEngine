@@ -5,6 +5,7 @@
 #include "Sound/SoundBase.h"
 #include "UObject/SequencerObjectVersion.h"
 #include "Channels/MovieSceneChannelProxy.h"
+#include "GameFramework/Actor.h"
 #include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
 #include "Misc/FrameRate.h"

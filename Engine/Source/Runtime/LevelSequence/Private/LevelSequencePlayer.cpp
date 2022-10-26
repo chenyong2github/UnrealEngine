@@ -5,6 +5,7 @@
 #include "MovieScene.h"
 #include "Misc/CoreDelegates.h"
 #include "EngineGlobals.h"
+#include "Engine/Level.h"
 #include "Camera/PlayerCameraManager.h"
 #include "UObject/Package.h"
 #include "GameFramework/PlayerController.h"

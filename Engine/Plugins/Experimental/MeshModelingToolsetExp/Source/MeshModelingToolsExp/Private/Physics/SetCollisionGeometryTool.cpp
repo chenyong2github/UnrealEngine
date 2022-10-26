@@ -26,6 +26,7 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
+#include "UObject/UObjectIterator.h"
 #include "ModelingToolTargetUtil.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SetCollisionGeometryTool)

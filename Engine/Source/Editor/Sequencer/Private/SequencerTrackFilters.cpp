@@ -2,6 +2,7 @@
 
 #include "SequencerTrackFilters.h"
 #include "Styling/AppStyle.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "Framework/Commands/Commands.h"
 #include "ISequencer.h"

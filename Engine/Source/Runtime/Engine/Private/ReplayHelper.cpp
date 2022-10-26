@@ -10,6 +10,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerStart.h"
 #include "GameFramework/PlayerState.h"
+#include "Misc/App.h"
 #include "Net/DataReplication.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Net/RepLayout.h"

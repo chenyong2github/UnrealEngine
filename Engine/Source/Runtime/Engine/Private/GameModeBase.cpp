@@ -2,6 +2,7 @@
 
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/GameNetworkManager.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/LevelScriptActor.h"
 #include "Engine/World.h"
 #include "Misc/CommandLine.h"

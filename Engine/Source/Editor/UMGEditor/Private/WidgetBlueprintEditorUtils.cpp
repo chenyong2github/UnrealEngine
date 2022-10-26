@@ -4,6 +4,7 @@
 #include "Components/PanelSlot.h"
 #include "Components/PanelWidget.h"
 #include "Components/ContentWidget.h"
+#include "Engine/Texture2D.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
@@ -23,6 +24,7 @@
 #include "Exporters/Exporter.h"
 #include "ObjectEditorUtils.h"
 #include "Components/CanvasPanelSlot.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #include "Animation/WidgetAnimation.h"

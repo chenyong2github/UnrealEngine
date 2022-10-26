@@ -23,6 +23,8 @@
 #include "LandscapeSplineActor.h"
 #include "LandscapeInfo.h"
 #include "Landscape.h"
+#include "StaticMeshComponentLODInfo.h"
+#include "StaticMeshResources.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionHelpers.h"

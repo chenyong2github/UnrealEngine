@@ -10,8 +10,9 @@
 #include "Animation/AnimSubsystem_Base.h"
 #include "AnimBlueprintExtension_Base.generated.h"
 
+class FCompilerResultsLog;
 class UAnimGraphNode_Base;
-struct FAnimGraphNodePropertyBinding;
+class UEdGraphNode;
 class UK2Node_CustomEvent;
 class IAnimBlueprintCompilationContext;
 class IAnimBlueprintGeneratedClassCompiledData;
@@ -19,6 +20,7 @@ class IAnimBlueprintCompilerCreationContext;
 class IAnimBlueprintCompilationBracketContext;
 class IAnimBlueprintPostExpansionStepContext;
 class IAnimBlueprintCopyTermDefaultsContext;
+struct FAnimGraphNodePropertyBinding;
 
 UCLASS(MinimalAPI)
 class UAnimBlueprintExtension_Base : public UAnimBlueprintExtension

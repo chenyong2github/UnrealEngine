@@ -2,6 +2,7 @@
 
 #include "Physics/PhysicsInterfaceDeclares.h"
 #include "Physics/PhysicsInterfaceCore.h"
+#include "Physics/PhysicsInterfaceScene.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 
 #include "PhysicsEngine/CollisionQueryFilterCallback.h"

@@ -6,6 +6,7 @@
 #include "ContextualAnimation.h"
 #include "ContextualAnimSceneActorComponent.h"
 #include "ContextualAnimUtilities.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 

@@ -13,6 +13,7 @@
 #include "ImagePixelData.h"
 #include "Engine/Engine.h"
 #include "Logging/MessageLog.h"
+#include "ViewportClient.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UserDefinedCaptureProtocol)
 

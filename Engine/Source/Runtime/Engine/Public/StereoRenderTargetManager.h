@@ -7,6 +7,11 @@ StereoRenderTargetManager.h: Abstract interface returned from IStereoRendering t
 #pragma once
 #include "CoreMinimal.h"
 #include "Engine/GameViewportClient.h"
+#include "PixelFormat.h"
+
+class FRHITexture;
+enum class ETextureCreateFlags : uint64;
+typedef TRefCountPtr<FRHITexture> FTexture2DRHIRef;
 
 /** 
  * The IStereoRenderTargetManager can be returned from IStereoRendering::GetRenderTargetManager() implementations.

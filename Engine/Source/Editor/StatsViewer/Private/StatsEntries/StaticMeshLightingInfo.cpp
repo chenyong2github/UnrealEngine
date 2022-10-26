@@ -2,6 +2,7 @@
 
 #include "StaticMeshLightingInfo.h"
 #include "UObject/Package.h"
+#include "Engine/Level.h"
 #include "GameFramework/Actor.h"
 #include "Model.h"
 #include "Lightmass/LightmappedSurfaceCollection.h"

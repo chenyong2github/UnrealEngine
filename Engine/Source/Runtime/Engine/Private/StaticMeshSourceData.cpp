@@ -3,6 +3,8 @@
 #include "Engine/StaticMeshSourceData.h"
 #include "Engine/StaticMesh.h"
 #include "MeshDescription.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 #include "StaticMeshDescription.h"
 #include "StaticMeshOperations.h"
 #include "ProfilingDebugging/CookStats.h"

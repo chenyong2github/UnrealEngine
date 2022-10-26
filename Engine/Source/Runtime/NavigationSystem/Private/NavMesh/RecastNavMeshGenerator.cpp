@@ -4,6 +4,7 @@
 #include "AI/Navigation/NavRelevantInterface.h"
 #include "Components/PrimitiveComponent.h"
 #include "Compression/OodleDataCompression.h"
+#include "Engine/Level.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Serialization/MemoryWriter.h"

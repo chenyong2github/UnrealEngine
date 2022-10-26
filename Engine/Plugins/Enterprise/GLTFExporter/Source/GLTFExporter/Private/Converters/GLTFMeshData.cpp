@@ -11,6 +11,7 @@
 #include "Editor.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "MeshMergeHelpers.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "StaticMeshAttributes.h"
 #endif

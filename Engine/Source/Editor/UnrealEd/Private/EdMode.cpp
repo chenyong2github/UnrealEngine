@@ -10,6 +10,7 @@
 #include "EngineUtils.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
+#include "Settings/LevelEditorViewportSettings.h"
 #include "StaticMeshResources.h"
 #include "Toolkits/BaseToolkit.h"
 

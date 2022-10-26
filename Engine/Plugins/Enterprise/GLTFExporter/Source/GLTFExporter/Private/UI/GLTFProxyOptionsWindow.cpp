@@ -3,10 +3,12 @@
 #if WITH_EDITOR
 
 #include "UI/GLTFProxyOptionsWindow.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
 #include "Interfaces/IMainFrameModule.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
 

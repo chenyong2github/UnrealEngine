@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/Texture2DDynamic.h"
+#include "EngineLogs.h"
 #include "UObject/Package.h"
 #include "TextureResource.h"
 #include "DeviceProfiles/DeviceProfile.h"

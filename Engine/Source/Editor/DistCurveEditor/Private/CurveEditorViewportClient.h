@@ -11,6 +11,7 @@
 #include "Templates/SharedPointer.h"
 #include "Types/SlateEnums.h"
 #include "UnrealClient.h"
+#include "ViewportClient.h"
 
 class FCanvas;
 class FCurveEdInterface;

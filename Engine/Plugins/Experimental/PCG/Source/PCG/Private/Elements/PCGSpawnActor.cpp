@@ -2,6 +2,7 @@
 
 #include "Elements/PCGSpawnActor.h"
 
+#include "Engine/Engine.h"
 #include "PCGComponent.h"
 #include "PCGHelpers.h"
 #include "PCGManagedResource.h"

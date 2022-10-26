@@ -7,6 +7,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/ConvexElem.h"
+#include "SceneManagement.h"
 #include "AI/NavigationSystemHelpers.h"
 #include "WaterUtils.h"
 

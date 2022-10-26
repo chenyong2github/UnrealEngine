@@ -21,6 +21,7 @@
 #include "ScopedTransaction.h"
 #include "SSoundClassActionMenu.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "AudioEditorModule.h"

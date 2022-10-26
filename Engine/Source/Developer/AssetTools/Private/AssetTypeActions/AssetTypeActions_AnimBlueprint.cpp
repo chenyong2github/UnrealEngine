@@ -12,6 +12,7 @@
 #include "AssetTools.h"
 #include "ContentBrowserModule.h"
 #include "PersonaModule.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "SBlueprintDiff.h"
 #include "Widgets/Notifications/SNotificationList.h"

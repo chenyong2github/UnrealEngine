@@ -14,11 +14,13 @@
 #include "PerQualityLevelProperties.h"
 
 struct FMeshDescription;
+class FPoly;
 class UStaticMeshSocket;
 class UAssetImportData;
 class UThumbnailInfo;
 class UModel;
 class UBodySetup;
+struct FKAggregateGeom;
 
 namespace UnFbx
 {

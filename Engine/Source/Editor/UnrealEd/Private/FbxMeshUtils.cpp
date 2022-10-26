@@ -5,6 +5,7 @@
 #include "Misc/Paths.h"
 #include "UObject/Package.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Factories/FbxAssetImportData.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "Factories/FbxStaticMeshImportData.h"

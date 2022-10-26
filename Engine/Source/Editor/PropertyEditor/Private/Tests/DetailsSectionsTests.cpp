@@ -6,6 +6,7 @@
 #include "Editor/PropertyEditorTestObject.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/AutomationTest.h"
+#include "PropertyEditorModule.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDetailsViewTests_SectionsBasic, "DetailsView.Sections.Basic", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 

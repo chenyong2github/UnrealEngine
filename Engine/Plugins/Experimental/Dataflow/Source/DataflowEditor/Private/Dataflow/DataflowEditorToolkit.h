@@ -9,6 +9,7 @@
 
 class IDetailsView;
 class FTabManager;
+class IStructureDetailsView;
 class IToolkitHost;
 class UDataflow;
 

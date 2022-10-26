@@ -79,6 +79,7 @@
 #include "DynamicResolutionState.h"
 #include "NaniteVisualizationData.h"
 #include "Shadows/ShadowSceneRenderer.h"
+#include "TextureResource.h"
 
 /*-----------------------------------------------------------------------------
 	Globals

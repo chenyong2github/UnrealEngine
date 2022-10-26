@@ -12,6 +12,7 @@
 
 class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;
+class FMenuBuilder;
 class SWidget;
 class UMediaPlateComponent;
 class UMediaPlayer;

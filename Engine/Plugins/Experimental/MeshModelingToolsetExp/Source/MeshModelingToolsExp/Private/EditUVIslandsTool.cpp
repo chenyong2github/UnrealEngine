@@ -7,6 +7,7 @@
 #include "SegmentTypes.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/MeshNormals.h"
+#include "Engine/World.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Transforms/MultiTransformer.h"
 #include "BaseBehaviors/SingleClickBehavior.h"

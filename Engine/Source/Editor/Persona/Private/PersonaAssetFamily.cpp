@@ -6,6 +6,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Animation/AnimBlueprint.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "Styling/AppStyle.h"
 #include "AssetToolsModule.h"
 
 #define LOCTEXT_NAMESPACE "PersonaAssetFamily"

@@ -16,6 +16,7 @@
 #include "Misc/App.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
+#include "PSOPrecache.h"
 #include "ShaderCompiler.h"
 #include "NiagaraShaderCompilationManager.h"
 #include "RendererInterface.h"

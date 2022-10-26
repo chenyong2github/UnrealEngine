@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/ContentBundle/Outliner/ContentBundleMode.h"
-
+#include "Engine/Level.h"
 #include "WorldPartition/ContentBundle/Outliner/ContentBundleHierarchy.h"
 #include "ToolMenus.h"
 #include "SceneOutlinerMenuContext.h"

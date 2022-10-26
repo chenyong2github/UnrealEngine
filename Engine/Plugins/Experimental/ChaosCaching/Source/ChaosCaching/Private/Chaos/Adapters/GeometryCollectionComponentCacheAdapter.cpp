@@ -3,6 +3,7 @@
 #include "Chaos/Adapters/GeometryCollectionComponentCacheAdapter.h"
 #include "Chaos/ChaosCache.h"
 #include "Chaos/ParticleHandle.h"
+#include "Engine/World.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "PBDRigidsSolver.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"

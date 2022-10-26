@@ -28,6 +28,8 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "MeshMaterialShader.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "StaticMeshComponentLODInfo.h"
+#include "StaticMeshSceneProxy.h"
 #include "NaniteSceneProxy.h"
 #include "MaterialCachedData.h"
 #include "Collision.h"

@@ -7,6 +7,7 @@
 #include "WaterZoneActor.h"
 #include "WaterInfoRendering.h"
 #include "EngineUtils.h"
+#include "SceneView.h"
 #include "WaterMeshComponent.h"
 
 static TAutoConsoleVariable<float> CVarFreezeWaterLODUpdates(

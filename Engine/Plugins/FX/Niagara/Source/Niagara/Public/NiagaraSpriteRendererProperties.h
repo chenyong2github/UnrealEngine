@@ -9,6 +9,8 @@
 #include "Particles/SubUVAnimation.h"
 #include "NiagaraSpriteRendererProperties.generated.h"
 
+class FVertexFactoryType;
+
 /** This enum decides how a sprite particle will orient its "up" axis. Must keep these in sync with NiagaraSpriteVertexFactory.ush*/
 UENUM()
 enum class ENiagaraSpriteAlignment : uint8

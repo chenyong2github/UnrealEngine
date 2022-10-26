@@ -14,6 +14,8 @@
 #include "Async/ParallelFor.h"
 #include "Algo/Accumulate.h"
 
+#include "Rendering/DrawElementPayloads.h"
+
 namespace UE::Sequencer
 {
 

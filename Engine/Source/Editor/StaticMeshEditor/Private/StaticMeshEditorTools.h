@@ -14,6 +14,7 @@
 #include "Engine/MeshMerging.h"
 #include "Engine/StaticMesh.h"
 #include "IDetailCustomization.h"
+#include "StaticMeshResources.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "IDetailCustomNodeBuilder.h"
 

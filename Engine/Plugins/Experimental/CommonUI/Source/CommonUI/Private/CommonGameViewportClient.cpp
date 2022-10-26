@@ -7,6 +7,7 @@
 #include "GameFramework/GameUserSettings.h"
 #include "GameFramework/PlayerController.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
+#include "UnrealClient.h"
 
 #if WITH_EDITOR
 #include "Editor.h"

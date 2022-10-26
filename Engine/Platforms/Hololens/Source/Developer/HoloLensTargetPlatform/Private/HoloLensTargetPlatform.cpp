@@ -14,6 +14,10 @@
 #include "Interfaces/IHttpResponse.h"
 #include "GeneralProjectSettings.h"
 
+#if WITH_ENGINE
+#include "TextureResource.h"
+#endif
+
 DEFINE_LOG_CATEGORY(LogHoloLensTargetPlatform);
 
 TArray<FHoloLensSDKVersion> FHoloLensSDKVersion::GetSDKVersions()

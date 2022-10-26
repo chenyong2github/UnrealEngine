@@ -2,6 +2,7 @@
 
 #include "StereoStaticMeshComponent.h"
 #include "StaticMeshResources.h"
+#include "StaticMeshSceneProxy.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Engine.h"
 

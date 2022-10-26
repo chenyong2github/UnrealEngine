@@ -4,6 +4,7 @@
 #include "EngineModule.h"
 #include "RendererInterface.h"
 #include "RenderUtils.h"
+#include "TextureResource.h"
 
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"

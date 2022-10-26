@@ -24,6 +24,7 @@
 #include "Input/Events.h"
 #include "Input/Reply.h"
 #include "Rendering/RenderingCommon.h"
+#include "Rendering/DrawElementPayloads.h"
 #include "Rendering/DrawElements.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"

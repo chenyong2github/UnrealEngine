@@ -11,6 +11,7 @@
 #include "Misc/Attribute.h"
 #include "Slate/SceneViewport.h"
 #include "SlotBase.h"
+#include "ViewportClient.h"
 #include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SViewport.h"

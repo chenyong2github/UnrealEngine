@@ -9,6 +9,7 @@
 #include "WorldPartitionBlueprintLibrary.generated.h"
 
 class FWorldPartitionActorDesc;
+class UWorldPartition;
 
 /**
  * Snapshot of an actor descriptor, which represents the state of an actor on disk.

@@ -3,11 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
+#include "Engine/HitResult.h"
 #include "GameFramework/MovementComponent.h"
+#include "UObject/ObjectMacros.h"
 #include "InterpToMovementComponent.generated.h"
-
-struct FHitResult;
 
 /**
  * Controls the movement behaviour

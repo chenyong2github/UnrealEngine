@@ -332,6 +332,7 @@ class StatelessConnectHandlerComponent;
 class UNetConnection;
 class UReplicationDriver;
 struct FNetworkObjectInfo;
+struct FReplicatedStaticActorDestructionInfo;
 class UChannel;
 class IAnalyticsProvider;
 class FNetAnalyticsAggregator;

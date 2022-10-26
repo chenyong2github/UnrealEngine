@@ -22,6 +22,7 @@
 #include "Landscape.h"
 #include "Misc/MessageDialog.h"
 #include "LandscapeEdModeTools.h"
+#include "TextureResource.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 

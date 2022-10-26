@@ -5,6 +5,7 @@
 #include "EngineGlobals.h"
 #include "Components/BoxComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/Level.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelBounds)
 

@@ -12,6 +12,7 @@
 
 #include "Containers/Ticker.h"
 #include "Misc/Base64.h"
+#include "Misc/CommandLine.h"
 
 #include "OnlineSubsystemUtils.h"
 #include "Interfaces/OnlineUserInterface.h"

@@ -994,10 +994,7 @@ namespace MoviePipeline
 	{
 	public:
 		UE_DEPRECATED(5.0, "FMoviePipelineRenderPassInitSettings must be constructed with arguments")
-		FMoviePipelineRenderPassInitSettings()
-		{
-			FeatureLevel = GMaxRHIFeatureLevel;
-		}
+		FMoviePipelineRenderPassInitSettings();
 
 		FMoviePipelineRenderPassInitSettings(ERHIFeatureLevel::Type InFeatureLevel, const FIntPoint& InBackbufferResolution, const FIntPoint& InTileCount)
 			:	BackbufferResolution(InBackbufferResolution)

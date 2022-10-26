@@ -3,6 +3,7 @@
 #include "ChaosBlueprint.h"
 #include "PhysicsSolver.h"
 #include "Async/Async.h"
+#include "Engine/World.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"

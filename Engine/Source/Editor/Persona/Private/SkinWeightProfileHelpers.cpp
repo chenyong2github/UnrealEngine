@@ -5,6 +5,7 @@
 #include "SSkinWeightProfileImportOptions.h"
 #include "HAL/UnrealMemory.h"
 #include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Widgets/SWindow.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"

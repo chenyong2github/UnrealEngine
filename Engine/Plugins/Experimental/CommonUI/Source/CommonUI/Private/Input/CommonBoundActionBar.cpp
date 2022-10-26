@@ -4,6 +4,7 @@
 #include "CommonInputSubsystem.h"
 #include "Editor/WidgetCompilerLog.h"
 #include "Engine/GameInstance.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/LocalPlayer.h"
 #include "Input/CommonBoundActionButtonInterface.h"
 #include "Input/CommonUIActionRouterBase.h"

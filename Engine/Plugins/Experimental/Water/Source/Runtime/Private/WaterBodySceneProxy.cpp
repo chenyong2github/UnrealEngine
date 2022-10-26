@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaterBodySceneProxy.h"
+#include "Engine/Engine.h"
 #include "WaterSplineMetadata.h"
 #include "WaterModule.h"
 #include "WaterUtils.h"

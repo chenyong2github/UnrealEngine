@@ -8,6 +8,7 @@
 #include "IStructureDetailsView.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Framework/Application/SlateApplication.h"
 #include "IDetailChildrenBuilder.h"
 #include "IDetailCustomization.h"
 #include "DetailCategoryBuilder.h"

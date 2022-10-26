@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 #include "Trail.h"
 #include "TrajectoryCache.h"
 #include "TrajectoryDrawInfo.h"

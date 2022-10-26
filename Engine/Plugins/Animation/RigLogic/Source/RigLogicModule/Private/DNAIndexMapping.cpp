@@ -8,6 +8,7 @@
 #include "Animation/Skeleton.h"
 #include "Animation/SmartName.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Engine/SkeletalMesh.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DNAIndexMapping)
 

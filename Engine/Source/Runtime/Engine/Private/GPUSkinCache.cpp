@@ -18,6 +18,7 @@ GPUSkinCache.cpp: Performs skinning on a compute shader into a buffer to avoid v
 #include "RenderCaptureInterface.h"
 #include "RenderGraphResources.h"
 #include "Algo/Unique.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "HAL/IConsoleManager.h"
 #include "RayTracingSkinnedGeometry.h"
 #include "GPUSkinCacheVisualizationData.h"

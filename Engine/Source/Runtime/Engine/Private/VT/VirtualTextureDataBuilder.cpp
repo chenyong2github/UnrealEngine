@@ -7,12 +7,14 @@
 #include "Modules/ModuleManager.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "Async/ParallelFor.h"
+#include "EngineLogs.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Misc/ScopedSlowTask.h"
 #include "TextureCompressorModule.h"
 #include "TextureBuildUtilities.h"
 #include "TextureDerivedDataTask.h"
 #include "ImageCoreUtils.h"
+#include "VirtualTexturing.h"
 
 // Debugging aid to dump tiles to disc as png files
 #define SAVE_TILES 0

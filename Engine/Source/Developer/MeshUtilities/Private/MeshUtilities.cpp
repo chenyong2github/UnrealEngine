@@ -23,6 +23,7 @@
 #include "RawIndexBuffer.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/ShapeComponent.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
 #include "RawMesh.h"

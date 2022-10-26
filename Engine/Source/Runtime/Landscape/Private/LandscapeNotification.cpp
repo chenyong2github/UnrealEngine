@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LandscapeNotification.h"
+#include "Application/SlateApplicationBase.h"
 #include "LandscapeSubsystem.h"
 
 #if WITH_EDITOR

@@ -46,6 +46,7 @@
 #include "Misc/RedirectCollector.h"
 #include "Settings/BlueprintEditorProjectSettings.h"
 #include "AssetToolsLog.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "GameMapsSettings.h"

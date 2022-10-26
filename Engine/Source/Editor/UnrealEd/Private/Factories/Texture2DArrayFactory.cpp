@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/Texture2DArrayFactory.h"
+#include "EngineLogs.h"
 #include "Styling/SlateBrush.h"
 #include "Brushes/SlateDynamicImageBrush.h"
 #include "Engine/Texture2DArray.h"

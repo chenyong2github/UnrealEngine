@@ -4,8 +4,10 @@
 #include "UMGPrivate.h"
 #include "Blueprint/WidgetTree.h"
 #include "Blueprint/UserWidget.h"
+#include "Blueprint/UserWidgetPool.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SOverlay.h"
 #include "Editor/WidgetCompilerLog.h"
 #include "Widgets/Layout/SRadialBox.h"
 

@@ -8,6 +8,7 @@
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraScript.h"
 #include "NiagaraSystem.h"
+#include "NiagaraSystemInstanceController.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraDataSetDebugAccessor.h"
 

@@ -93,6 +93,7 @@
 #include "SInViewportDetails.h"
 #include "Viewports/InViewportUIDragOperation.h"
 #include "SActorEditorContext.h"
+#include "Settings/LevelEditorPlaySettings.h"
 #include "SWorldPartitionViewportWidget.h"
 #include "LevelViewportLayout.h"
 #include "EditorViewportTabContent.h"

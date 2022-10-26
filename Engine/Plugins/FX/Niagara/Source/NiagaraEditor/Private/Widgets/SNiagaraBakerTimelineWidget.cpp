@@ -7,6 +7,7 @@
 //#include "NiagaraSystem.h"
 #include "ViewModels/NiagaraBakerViewModel.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "Fonts/FontMeasure.h"
 //#include "Modules/ModuleManager.h"
 //#include "Widgets/SBoxPanel.h"
