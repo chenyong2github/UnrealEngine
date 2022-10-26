@@ -444,8 +444,13 @@ void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::GetCurveColorObject
 {
 	if (UMovieSceneSection* Section = WeakSection.Get())
 	{
-
 		*OutObject = Section->GetImplicitObjectOwner();
+
+		if (const FMovieSceneChannelMetaData* MetaData = ChannelHandle.GetMetaData())
+		{
+			OutName = FString::Printf(TEXT( "%s.%s" ), *MetaData->Group.ToString(), *MetaData->DisplayText.ToString());
+			return;
+		}
 		OutName = GetIntentionName();
 		return;
 	}
