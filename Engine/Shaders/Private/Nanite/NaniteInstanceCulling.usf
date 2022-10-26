@@ -601,6 +601,12 @@ void ProcessPrimaryView(const bool bIsOrtho, FPrimitiveSceneData PrimitiveData, 
 				Node.InstanceId = InstanceId;
 				Node.NodeIndex = 0;
 				Node.EnabledBitmask = NANITE_BVH_NODE_ENABLE_MASK;
+
+				if (bEnableWPO)
+				{
+					Node.Flags |= NANITE_CULLING_FLAG_ENABLE_WPO;
+				}
+
 				StoreCandidateNode( OutMainAndPostNodesAndClusterBatches, NodeOffset, Node, false );
 			}
 		}
