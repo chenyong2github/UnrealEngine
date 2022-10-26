@@ -637,9 +637,9 @@ namespace PerfSummaries
 				return;
 			}
 
-			Colour green = new Colour(0.4f, 0.82f, 0.45f);
-			Colour yellow = new Colour(1.0f, 1.0f, 0.5f);
-			Colour red = new Colour(1.0f, 0.4f, 0.4f);
+			Colour green = Colour.Green;
+			Colour yellow = Colour.Yellow;
+			Colour red = Colour.Red;
 
 			double averageValue = totalValue / validCount; // TODO: Weighted average 
 			colourThresholdOverride = new ColourThresholdList();
