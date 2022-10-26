@@ -596,6 +596,7 @@ int32 ULandscapeComponent::GetNumMaterials() const
 	return 1;
 }
 
+#if WITH_EDITOR
 bool ULandscapeComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& OutOwner, FString& OutPropertyPath, FProperty*& OutProperty)
 {
 	if (ElementIndex == 0)
@@ -619,6 +620,7 @@ bool ULandscapeComponent::GetMaterialPropertyPath(int32 ElementIndex, UObject*& 
 
 	return false;
 }
+#endif // WITH_EDITOR
 
 class UMaterialInterface* ULandscapeComponent::GetMaterial(int32 ElementIndex) const
 {
@@ -649,99 +651,46 @@ void ULandscapeComponent::PreFeatureLevelChange(ERHIFeatureLevel::Type PendingFe
 	}
 }
 
-void ULandscapeComponent::PreEditUndo()
-{
-	// We bump the proxy's version numbers here in PRE-EDIT:
-	// This means all of the PostEditUndo() operations (across all Components on the Proxy) 
-	// see a consistent number and ensure we only do WeightmapFixup once.
-	ALandscapeProxy* Proxy = GetLandscapeProxy();
-	Proxy->CurrentVersion++;
-	
-	// Count the number of components involved in the undo/redo
-	UndoRedoModifiedComponentCount++;
-	check(UndoRedoModifiedComponents.Num() == 0);
-}
-
 void ULandscapeComponent::PostEditUndo()
 {
-	ALandscapeProxy* Proxy = GetLandscapeProxy();
-	
-	// On undo, request a recompute weightmap usages, as they are not transacted (they combine information between multiple components)
-	Proxy->RequestProxyLayersWeightmapUsageUpdate();
+	if (IsValid(this))
+	{
+		if (!GetLandscapeProxy()->HasLayersContent())
+		{
+			UpdateMaterialInstances();
+		}
+	}
 
 	Super::PostEditUndo();
+
+	// On undo, request a recompute weightmap usages which can get desynchronized since there can be duplicated between 2 components and also with the proxy : 
+	GetLandscapeProxy()->RequestProxyLayersWeightmapUsageUpdate();
 
 	if (IsValid(this))
 	{
 		EditToolRenderData.UpdateSelectionMaterial(EditToolRenderData.SelectedType, this);
-		if (!Proxy->HasLayersContent())
+		if (!GetLandscapeProxy()->HasLayersContent())
 		{
 			EditToolRenderData.UpdateDebugColorMaterial(this);
             UpdateEditToolRenderData();
 		}	
 	}
 		
-	if (Proxy->HasLayersContent())
+	if (GetLandscapeProxy()->HasLayersContent())
 	{
 		const bool bUpdateAll = true;
 		RequestHeightmapUpdate(bUpdateAll);
 		RequestWeightmapUpdate(bUpdateAll);
+
+		// Clear Cached Editing Data
+		CachedEditingLayer.Invalidate();
+		CachedEditingLayerData = nullptr;
 	}
 	else
 	{
 		TSet<ULandscapeComponent*> Components;
 		Components.Add(this);
-		Proxy->FlushGrassComponents(&Components);
-	}
-
-	check(!UndoRedoModifiedComponents.Contains(this));
-	UndoRedoModifiedComponents.Add(this);
-
-	// Only Fixup Weightmaps and Update Material Instances when the LAST modified component has been processed by PostEditUndo()
-	if (UndoRedoModifiedComponents.Num() == UndoRedoModifiedComponentCount)
-	{
-		// process all the proxies across all of the components (except proxies that are pending kill)
-		TSet<ALandscapeProxy*> Proxies;
-		for (ULandscapeComponent* Component : UndoRedoModifiedComponents)
-		{
-			ALandscapeProxy* ComponentProxy = Component->GetLandscapeProxy();
-			if (IsValid(ComponentProxy))
-			{
-				Proxies.Add(ComponentProxy);
-			}
-		}
-
-		for (ALandscapeProxy* ComponentProxy : Proxies)
-		{
-			check(ComponentProxy->GetLandscapeGuid().IsValid());
-
-			// Here we create and register with the LandscapeInfo early (before PostRegisterAllComponents)
-			ULandscapeInfo* LandscapeInfo = ComponentProxy->GetLandscapeInfo();
-			if (!LandscapeInfo->IsRegistered(ComponentProxy))
-			{
-				LandscapeInfo->RegisterActor(ComponentProxy, true);
-			}
-
-			// So that we can ensure that weightmaps are fixed up (which depend on the Landscape Info registration)
-			ComponentProxy->FixupWeightmaps();
-		}
-
-		// Update Material Instances on each modified component (uses the weightmap allocations fixed by FixupWeightmaps)
-		for (ULandscapeComponent* Component : UndoRedoModifiedComponents)
-		{
-			if (IsValid(Component)) // Components can be pending kill, if they were removed by the undo operation
-			{
-				ALandscapeProxy* ComponentProxy = Component->GetLandscapeProxy();
-				if (IsValid(ComponentProxy) && !ComponentProxy->HasLayersContent())
-				{
-					Component->UpdateMaterialInstances();
-				}
-			}
-		}
-
-		// Clear out the temporarily recorded undo info
-		UndoRedoModifiedComponentCount = 0;
-		UndoRedoModifiedComponents.Empty();
+		GetLandscapeProxy()->FlushGrassComponents(&Components);
 	}
 }
 
@@ -785,12 +734,7 @@ void ALandscapeProxy::FixupWeightmaps()
 	bTemporarilyDisableWeightmapUsagesValidation = true;
 	ON_SCOPE_EXIT
 	{
-		WeightmapFixupVersion = CurrentVersion;
 		bTemporarilyDisableWeightmapUsagesValidation = false;
-
-		// Rebuild weightmap usages, now that the allocations are fixed
-		InitializeProxyLayersWeightmapUsage();
-
 		// Now that the job is done, weightmap usages should be valid again
 		ValidateProxyLayersWeightmapUsage();
 	};
@@ -802,6 +746,7 @@ void ALandscapeProxy::FixupWeightmaps()
 			Component->FixupWeightmaps();
 		}
 	}
+
 }
 
 void ALandscapeProxy::RepairInvalidTextures()
@@ -854,10 +799,10 @@ TArray<UTexture*> ULandscapeComponent::RepairInvalidTextures()
 
 void ULandscapeComponent::FixupWeightmaps()
 {
-	// Fixup weightmaps in the base/render layer
+	// Fixup final weightmaps
 	FixupWeightmaps(FGuid());
 
-	// Also fixup all edit layers weightmaps
+	// Also fixup all edit layers weightmaps :
 	ForEachLayer([&](const FGuid& LayerGuid, FLandscapeLayerComponentData& LayerData)
 	{
 		FixupWeightmaps(LayerGuid);
@@ -870,19 +815,13 @@ void ULandscapeComponent::FixupWeightmaps(const FGuid& InEditLayerGuid)
 	{
 		ULandscapeInfo* Info = GetLandscapeInfo();
 		ALandscapeProxy* Proxy = GetLandscapeProxy();
-		ALandscape* Landscape = GetLandscapeActor();
 
 		TArray<UTexture2D*>& LocalWeightmapTextures = GetWeightmapTextures(InEditLayerGuid);
-		TArray<ULandscapeWeightmapUsage*>& LocalWeightmapTextureUsages = GetWeightmapTexturesUsage(InEditLayerGuid, /*bInCheckIsUpToDate*/false);
-		TArray<FWeightmapLayerAllocationInfo>& LocalWeightmapLayerAllocations = GetWeightmapLayerAllocations(InEditLayerGuid, /*bInCheckIsUpToDate*/false);
+		TArray<ULandscapeWeightmapUsage*>& LocalWeightmapTextureUsages = GetWeightmapTexturesUsage(InEditLayerGuid);
+		TArray<FWeightmapLayerAllocationInfo>& LocalWeightmapLayerAllocations = GetWeightmapLayerAllocations(InEditLayerGuid);
 
 		if (Info)
 		{
-			// It's very important that the Proxies be registered with LandscapeInfo before calling FixupWeightmaps
-			// Otherwise the code below may think ALL layers have been removed, and delete all of the corresponding weightmaps... which would be bad.
-			check(Info->IsRegistered(Proxy));
-
-			// We're going to re-build the texture usage array for this layer on this component
 			LocalWeightmapTextureUsages.Empty();
 			LocalWeightmapTextureUsages.AddDefaulted(LocalWeightmapTextures.Num());
 
@@ -917,26 +856,28 @@ void ULandscapeComponent::FixupWeightmaps(const FGuid& InEditLayerGuid)
 
 			if (bFixedLayerDeletion)
 			{
-				// Delete material layer in the base/render layer
 				{
-					FGuid BaseLayerGuid;
 					FLandscapeEditDataInterface LandscapeEdit(Info);
 					for (int32 Idx = 0; Idx < LayersToDelete.Num(); ++Idx)
 					{
-						DeleteLayerInternal(LayersToDelete[Idx], LandscapeEdit, BaseLayerGuid);
+						DeleteLayer(LayersToDelete[Idx], LandscapeEdit);
 					}
 				}
 
-				// For each edit layer that exists on the local component, delete material layer
 				ForEachLayer([&](const FGuid& LayerGuid, FLandscapeLayerComponentData& LayerData)
 				{
+					SetEditingLayer(LayerGuid);
 					FLandscapeEditDataInterface LandscapeEdit(Info);
 					for (int32 Idx = 0; Idx < LayersToDelete.Num(); ++Idx)
 					{
-						DeleteLayerInternal(LayersToDelete[Idx], LandscapeEdit, LayerGuid);
+						DeleteLayer(LayersToDelete[Idx], LandscapeEdit);
 					}
 				});
-							
+								
+				// Make sure to clear editing layer and cache
+				SetEditingLayer(FGuid());
+				CachedEditingLayer.Invalidate();
+				CachedEditingLayerData = nullptr;
 			}
 
 			bool bFixedWeightmapTextureIndex = false;
@@ -973,12 +914,10 @@ void ULandscapeComponent::FixupWeightmaps(const FGuid& InEditLayerGuid)
 				if (TempUsage == nullptr)
 				{
 					TempUsage = &Proxy->WeightmapUsageMap.Add(WeightmapTexture, GetLandscapeProxy()->CreateWeightmapUsage());
-					(*TempUsage)->LayerGuid = InEditLayerGuid;
+					(*TempUsage)->LayerGuid.Invalidate();
 				}
 
 				ULandscapeWeightmapUsage* Usage = *TempUsage;
-				check(Usage->LayerGuid == InEditLayerGuid); // A single weightmap must belong to exactly one layer
-
 				LocalWeightmapTextureUsages[Allocation.WeightmapTextureIndex] = Usage; // Keep a ref to it for faster access
 
 				// Detect a shared layer allocation, caused by a previous undo or layer deletion bugs
@@ -6411,12 +6350,9 @@ void ULandscapeComponent::RemoveInvalidWeightmaps()
 
 void ULandscapeComponent::RemoveInvalidWeightmaps(const FGuid& InEditLayerGuid)
 {
-	ALandscapeProxy* Proxy = GetLandscapeProxy();
-	
-	// If this function is called from FixupWeightmaps, then skip the update check
-	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(InEditLayerGuid, !Proxy->bTemporarilyDisableWeightmapUsagesValidation);
+	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(InEditLayerGuid);
 	TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures(InEditLayerGuid);
-	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = GetWeightmapTexturesUsage(InEditLayerGuid, !Proxy->bTemporarilyDisableWeightmapUsagesValidation);
+	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = GetWeightmapTexturesUsage(InEditLayerGuid);
 
 	// Adjust WeightmapTextureIndex index for other layers
 	TSet<int32> UnUsedTextureIndices;
