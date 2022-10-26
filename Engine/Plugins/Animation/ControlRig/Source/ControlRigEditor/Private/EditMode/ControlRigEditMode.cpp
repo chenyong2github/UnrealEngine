@@ -3817,7 +3817,7 @@ void FControlRigEditMode::SetControlShapeTransform(
 		return;
 	}
 
-	static constexpr bool bNotify = true, bFixEuler = true, bUndo = false;
+	static constexpr bool bNotify = true, bFixEuler = true, bUndo = true;
 	if (!IsInLevelEditor())
 	{
 		// assumes it's attached to actor
