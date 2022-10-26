@@ -2,7 +2,7 @@
 
 #include "Texture/InterchangeSlicedTexturePayloadData.h"
 
-#include "Math/CheckedInt.h"
+#include "GuardedInt.h"
 #include "CoreMinimal.h"
 
 void UE::Interchange::FImportSlicedImage::Init(int32 InSizeX, int32 InSizeY, int32 InNumSlice, int32 InNumMips, ETextureSourceFormat InFormat, bool InSRGB)
@@ -54,7 +54,7 @@ int64 UE::Interchange::FImportSlicedImage::GetMipSize(int32 InMipIndex) const
 	int32 MipSizeY = FMath::Max<int32>(SizeY >> InMipIndex, 1);
 	int32 MipSizeZ = bIsVolume ? FMath::Max(NumSlice >> InMipIndex, 1) : 1;
 
-	FCheckedInt64 MipSize = FCheckedInt64(MipSizeX) * MipSizeY * MipSizeZ * BytesPerPixel;
+	FGuardedInt64 MipSize = FGuardedInt64(MipSizeX) * MipSizeY * MipSizeZ * BytesPerPixel;
 	checkf(MipSize.IsValid(), TEXT("Invalid (overflowing) mip sizes made it in to FImportSlicedImage::GetMipSize! Check import locations for mip size validation"));
 
 	return MipSize.Get(0);
