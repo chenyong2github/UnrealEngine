@@ -86,7 +86,12 @@ void FGetGeometryCollectionSourcesDataflowNode::Evaluate(Dataflow::FContext& Con
 	
 	if (const TObjectPtr<UGeometryCollection> InAsset = GetValue(Context, &Asset))
 	{
+#if WITH_EDITORONLY_DATA
 		OutSources = InAsset->GeometrySource; 
+#else
+		ensureMsgf(false, TEXT("FGetGeometryCollectionSourcesDataflowNode - GeometrySource is only available in editor, returning an empty array"));
+#endif
+
 	}
 
 	SetValue(Context, OutSources, &Sources);
