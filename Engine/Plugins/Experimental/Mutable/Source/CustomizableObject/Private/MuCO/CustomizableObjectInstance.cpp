@@ -4041,7 +4041,14 @@ bool UCustomizableInstancePrivateData::BuildSkeletalMeshRenderData(const TShared
 				}
 
 				const FMutableSkinWeightProfileInfo& Profile = SkinWeightProfilesInfo[ProfileIndex];
-				SkeletalMesh->AddSkinWeightProfile({ Profile.Name, Profile.DefaultProfile, Profile.DefaultProfileFromLODIndex });
+
+				const FSkinWeightProfileInfo* ExistingProfile = SkeletalMesh->GetSkinWeightProfiles().FindByPredicate(
+					[&Profile](const FSkinWeightProfileInfo& P) { return P.Name == Profile.Name; });
+				
+				if (!ExistingProfile)
+				{
+					SkeletalMesh->AddSkinWeightProfile({ Profile.Name, Profile.DefaultProfile, Profile.DefaultProfileFromLODIndex });
+				}
 
 				UnrealConversionUtils::CopyMutableSkinWeightProfilesBuffers(
 					LODModel,
