@@ -73,6 +73,7 @@ void FNiagaraGPUProfiler::EndFrame(FRHICommandList& RHICmdList)
 	ActiveWriteFrame->EndQuery = QueryPool->AllocateQuery();
 	RHICmdList.EndRenderQuery(ActiveWriteFrame->EndQuery.GetQuery());
 
+	ActiveWriteFrame = nullptr;
 	CurrentWriteFrame = (CurrentWriteFrame + 1) % NumBufferFrames;
 }
 
