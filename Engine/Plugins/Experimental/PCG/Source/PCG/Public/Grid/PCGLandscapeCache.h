@@ -14,6 +14,18 @@ class UPCGPointData;
 class UPCGMetadata;
 struct FPCGPoint;
 
+USTRUCT(BlueprintType)
+struct FPCGLandscapeLayerWeight
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Landscape Attribute")
+	FName Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Landscape Attribute")
+	float Weight;
+};
+
 struct FPCGLandscapeCacheEntry
 {
 	friend class UPCGLandscapeCache;
@@ -23,6 +35,7 @@ public:
 	void GetPointHeightOnly(int32 PointIndex, FPCGPoint& OutPoint) const;
 	void GetInterpolatedPoint(const FVector2D& LocalPoint, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const;
 	void GetInterpolatedPointHeightOnly(const FVector2D& LocalPoint, FPCGPoint& OutPoint) const;
+	void GetInterpolatedLayerWeights(const FVector2D& LocalPoint, TArray<FPCGLandscapeLayerWeight>& OutLayerWeights) const;
 
 private:
 	// Private API for UPCGLandscapeCache usage

@@ -150,6 +150,42 @@ void FPCGLandscapeCacheEntry::GetPointHeightOnly(int32 PointIndex, FPCGPoint& Ou
 	OutPoint.BoundsMax = PointHalfSize;
 }
 
+void FPCGLandscapeCacheEntry::GetInterpolatedLayerWeights(const FVector2D& LocalPoint, TArray<FPCGLandscapeLayerWeight>& OutLayerWeights) const
+{
+	OutLayerWeights.SetNum(LayerData.Num());
+	
+	if (!bDataLoaded)
+	{
+		return;
+	}
+
+	const int32 X0Y0 = FMath::FloorToInt(LocalPoint.X) + FMath::FloorToInt(LocalPoint.Y) * Stride;
+	const int32 X1Y0 = X0Y0 + 1;
+	const int32 X0Y1 = X0Y0 + Stride;
+	const int32 X1Y1 = X0Y1 + 1;
+
+	const float XFactor = FMath::Fractional(LocalPoint.X);
+	const float YFactor = FMath::Fractional(LocalPoint.Y);
+
+	if (!LayerData.IsEmpty())
+	{
+		check(LayerData.Num() == LayerDataNames.Num());
+
+		for(int32 LayerIndex = 0; LayerIndex < LayerData.Num(); ++LayerIndex)
+		{
+			FPCGLandscapeLayerWeight& OutLayer = OutLayerWeights[LayerIndex];
+			OutLayer.Name = LayerDataNames[LayerIndex];
+
+			const TArray<uint8>& CurrentLayerData = LayerData[LayerIndex];
+
+			const float Y0Data = FMath::Lerp((float)CurrentLayerData[X0Y0] / 255.0f, (float)CurrentLayerData[X1Y0] / 255.0f, XFactor);
+			const float Y1Data = FMath::Lerp((float)CurrentLayerData[X0Y1] / 255.0f, (float)CurrentLayerData[X1Y1] / 255.0f, XFactor);
+
+			OutLayer.Weight = FMath::Lerp(Y0Data, Y1Data, YFactor);
+		}
+	}
+}
+
 void FPCGLandscapeCacheEntry::GetInterpolatedPoint(const FVector2D& LocalPoint, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
 	check(bDataLoaded);

@@ -4,7 +4,15 @@
 #include "PCGComponent.h"
 #include "PCGHelpers.h"
 #include "PCGSettings.h"
+#include "PCGSubsystem.h"
+#include "Metadata/PCGMetadata.h"
+#include "Metadata/PCGMetadataAttributeTpl.h"
 #include "Grid/PCGPartitionActor.h"
+#include "Grid/PCGLandscapeCache.h"
+#include "Engine/World.h"
+#include "UObject/UObjectIterator.h"
+#include "LandscapeProxy.h"
+#include "LandscapeInfo.h"
 
 int UPCGBlueprintHelpers::ComputeSeedFromPosition(const FVector& InPosition)
 {
@@ -104,4 +112,65 @@ FBox UPCGBlueprintHelpers::GetActorBoundsPCG(AActor* InActor, bool bIgnorePCGCre
 FBox UPCGBlueprintHelpers::GetActorLocalBoundsPCG(AActor* InActor, bool bIgnorePCGCreatedComponents)
 {
 	return PCGHelpers::GetActorLocalBounds(InActor, bIgnorePCGCreatedComponents);
+}
+
+TArray<FPCGLandscapeLayerWeight> UPCGBlueprintHelpers::GetInterpolatedPCGLandscapeLayerWeights(UObject* WorldContextObject, const FVector& Location)
+{
+	UWorld* World = WorldContextObject ? WorldContextObject->GetWorld() : nullptr;
+	if (!World)
+		return {};
+
+	UPCGSubsystem* PCGSubSystem = UWorld::GetSubsystem<UPCGSubsystem>(World);
+	if (!PCGSubSystem)
+		return {};
+
+	FIntPoint ComponentKey{};
+
+	auto FindLandscapeComponent = [World, Location, &ComponentKey]() -> ULandscapeComponent* {
+		for (TObjectIterator<ALandscapeProxy> It; It; ++It)
+		{
+			if (It->GetWorld() == World)
+			{
+				FBox Box = It->GetComponentsBoundingBox();
+				if (Box.IsInsideOrOnXY(Location))
+				{
+					if (ULandscapeInfo* Info = It->GetLandscapeInfo())
+					{
+						const FVector ActorSpaceLocation = It->LandscapeActorToWorld().InverseTransformPosition(Location);
+						ComponentKey = FIntPoint(FMath::FloorToInt(ActorSpaceLocation.X / It->ComponentSizeQuads), FMath::FloorToInt(ActorSpaceLocation.Y / It->ComponentSizeQuads));
+
+						return Info->XYtoComponentMap.FindRef(ComponentKey);
+					}
+
+					return nullptr;
+				}
+			}
+		}
+
+		return nullptr;
+	};
+
+	ULandscapeComponent* LandscapeComponent = FindLandscapeComponent();
+	if (!LandscapeComponent)
+		return {};
+
+	const FVector ComponentSpaceLocation = LandscapeComponent->GetComponentToWorld().InverseTransformPosition(Location);
+
+	UPCGLandscapeCache* LandscapeCache = PCGSubSystem->GetLandscapeCache();
+	if (!LandscapeCache)
+		return {};
+
+	const FPCGLandscapeCacheEntry* CacheEntry = LandscapeCache->GetCacheEntry(LandscapeComponent, ComponentKey);
+	if (!CacheEntry)
+		return {};
+
+	TArray<FPCGLandscapeLayerWeight> Result;
+
+	CacheEntry->GetInterpolatedLayerWeights(FVector2D(ComponentSpaceLocation), Result);
+
+	Result.Sort([](const FPCGLandscapeLayerWeight& Lhs, const FPCGLandscapeLayerWeight& Rhs){
+		return Lhs.Weight > Rhs.Weight;
+	});
+					
+	return Result;
 }
