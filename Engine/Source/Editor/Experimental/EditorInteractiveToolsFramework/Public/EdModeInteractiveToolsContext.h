@@ -124,6 +124,8 @@ public:
 	virtual bool CanCompleteActiveTool() const;
 	virtual void StartTool(const FString ToolTypeIdentifier);
 	virtual void EndTool(EToolShutdownType ShutdownType);
+	void Activate();
+	void Deactivate();
 
 
 	/** @return Ray into 3D scene at last mouse event */
@@ -210,6 +212,8 @@ private:
 
 	// currently defaulting to enabled as FEdModes generally assume this, and in most cases hitproxy pass is not expensive.
 	bool bEnableRenderingDuringHitProxyPass = true;
+
+	bool bIsActive = false;
 };
 
 

@@ -39,12 +39,7 @@ UTypedElementCommonActions* UAssetEditorContextObject::GetCommonActions()
 
 UWorld* UAssetEditorContextObject::GetEditingWorld() const
 {
-	if (GetToolkitHost())
-	{
-		return GetToolkitHost()->GetWorld();
-	}
-
-	return nullptr;
+	return GetWorld();
 }
 
 const IToolkitHost* UAssetEditorContextObject::GetToolkitHost() const
@@ -61,10 +56,3 @@ void UAssetEditorContextObject::SetToolkitHost(IToolkitHost* InToolkitHost)
 {
 	ToolkitHost = InToolkitHost;
 }
-
-UWorld* UAssetEditorContextObject::GetWorld() const
-{
-	return GetEditingWorld();
-}
-
-

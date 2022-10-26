@@ -172,17 +172,21 @@ bool UEdMode::UsesToolkits() const
 
 UWorld* UEdMode::GetWorld() const
 {
-	return Owner->GetWorld();
+	return EditorToolsContext.IsValid() ? EditorToolsContext->GetWorld() : nullptr;
 }
 
-class FEditorModeTools* UEdMode::GetModeManager() const
+FEditorModeTools* UEdMode::GetModeManager() const
 {
-	return Owner;
+	return EditorToolsContext.IsValid() ? EditorToolsContext->GetParentEditorModeManager() : nullptr;
 }
 
 AActor* UEdMode::GetFirstSelectedActorInstance() const
 {
-	return Owner->GetEditorSelectionSet()->GetTopSelectedObject<AActor>();
+	if (FEditorModeTools* ModeManager = GetModeManager())
+	{
+		return ModeManager->GetEditorSelectionSet()->GetTopSelectedObject<AActor>();
+	}
+	return nullptr;
 }
 
 UInteractiveToolManager* UEdMode::GetToolManager(EToolsContextScope ToolScope) const
@@ -240,8 +244,7 @@ void UEdMode::OnModeActivated(const FEditorModeID& InID, bool bIsActive)
 	{
 		if (bIsActive)
 		{
-			Owner->GetInteractiveToolsContext()->OnChildEdModeActivated(ModeToolsContext);
-
+			EditorToolsContext->OnChildEdModeActivated(ModeToolsContext);
 			EditorToolsContext->ToolManager->OnToolStarted.AddUObject(this, &UEdMode::OnToolStarted);
 			EditorToolsContext->ToolManager->OnToolEnded.AddUObject(this, &UEdMode::OnToolEnded);
 		}
@@ -249,8 +252,7 @@ void UEdMode::OnModeActivated(const FEditorModeID& InID, bool bIsActive)
 		{
 			EditorToolsContext->ToolManager->OnToolStarted.RemoveAll(this);
 			EditorToolsContext->ToolManager->OnToolEnded.RemoveAll(this);
-
-			Owner->GetInteractiveToolsContext()->OnChildEdModeDeactivated(ModeToolsContext);
+			EditorToolsContext->OnChildEdModeDeactivated(ModeToolsContext);
 		}
 	}
 }

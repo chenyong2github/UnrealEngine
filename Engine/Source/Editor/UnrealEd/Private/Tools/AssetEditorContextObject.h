@@ -27,10 +27,6 @@ public:
 	 */
 	void SetToolkitHost(IToolkitHost* InToolkitHost);
 
-	// Begin UObject interface
-	UWorld* GetWorld() const override;
-	// End UObject interface
-
 private:
 	/** The toolkit host associated with our asset editor. */
 	IToolkitHost* ToolkitHost = nullptr;
