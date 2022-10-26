@@ -27,6 +27,7 @@
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "Materials/MaterialInstanceUpdateParameterSet.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "Materials/MaterialInstanceSupport.h"
 #include "Materials/MaterialExpressionCollectionParameter.h"
@@ -823,6 +824,10 @@ void UMaterialInstance::InitResources()
 	PropagateDataToMaterialProxy();
 
 	CacheMaterialInstanceUniformExpressions(this);
+}
+
+UMaterialInstance::~UMaterialInstance()
+{
 }
 
 const UMaterial* UMaterialInstance::GetMaterial() const

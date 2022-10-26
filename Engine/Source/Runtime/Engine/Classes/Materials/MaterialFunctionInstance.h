@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialFunctionInterface.h"
 #include "Materials/MaterialInstance.h"
 #include "StaticParameterSet.h"
