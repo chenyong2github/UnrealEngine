@@ -53,7 +53,7 @@ namespace Private
 	template <typename T>
 	struct TSharedPtrHelper2
 	{
-		using PtrType = decltype(std::remove_pointer_t<T>().AsShared());
+		using PtrType = decltype(((std::remove_pointer_t<T>*)nullptr)->AsShared());
 		static inline constexpr bool bIsThreadSafe = TSharedPtrHelper<PtrType>::bIsThreadSafe;
 		static inline constexpr bool bIsSharedPtr = true;
 		using WeakPtrType = typename TSharedPtrHelper<PtrType>::WeakPtrType;
