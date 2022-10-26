@@ -25,19 +25,15 @@ struct FProgram;
 		ASTChild Mesh;
 		ASTChild Shape;
 
-		TArray<string> m_bonesToDeform;
-		TArray<string> m_physicsToDeform;
+		TArray<string> BonesToDeform;
+		TArray<string> PhysicsToDeform;
 
-		bool m_reshapeSkeleton = false;
-		bool m_discardInvalidBindings = true;
-		bool m_enableRigidParts = false;
-		bool m_deformAllBones = false;
-		bool m_deformAllPhysics = false;
-		bool m_reshapePhysicsVolumes = false;
-		bool m_reshapeVertices = true;
-
-		uint32 m_bindingMethod = 0;
-
+		uint32 BindingMethod = 0;
+		
+		uint32 bReshapeSkeleton	      : 1;
+		uint32 bEnableRigidParts      : 1;
+		uint32 bReshapePhysicsVolumes : 1;
+		uint32 bReshapeVertices       : 1;
 
 	public:
 

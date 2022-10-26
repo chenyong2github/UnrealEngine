@@ -29,16 +29,13 @@ namespace mu
 		bool m_reshapeSkeleton = false;
 		bool m_reshapePhysicsVolumes = false;
 		
-		bool m_deformAllBones_DEPRECATED = false;
-		bool m_deformAllPhysics = false;
-		
 		TArray<string> m_bonesToDeform;
 		TArray<string> m_physicsToDeform;
 
         //!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 4;
+            uint32_t ver = 5;
 			arch << ver;
 
 			arch << m_pFactor;
@@ -50,7 +47,6 @@ namespace mu
 			arch << m_reshapePhysicsVolumes;
 			arch << m_bonesToDeform;
 
-			arch << m_deformAllPhysics;
 			
 			arch << m_physicsToDeform;
 
@@ -61,7 +57,7 @@ namespace mu
 		{
             uint32_t ver;
 			arch >> ver;
-			check(ver <= 4);
+			check(ver <= 5);
 
 			arch >> m_pFactor;
 			arch >> m_pBase;
@@ -89,18 +85,22 @@ namespace mu
 
 			if (ver == 3)
 			{
-				arch >> m_deformAllBones_DEPRECATED;
+				bool bDeformAllBones_DEPRECATED;
+				arch >> bDeformAllBones_DEPRECATED;
+			}
+
+			if (ver >= 3 && ver < 5)
+			{
+				bool bDeformAllPhysics_DEPRECATED;
+				arch >> bDeformAllPhysics_DEPRECATED;
 			}
 
 			if (ver >= 3)
 			{
-				arch >> m_deformAllPhysics;
 				arch >> m_physicsToDeform;
 			}
 			else
 			{
-				m_deformAllBones_DEPRECATED = false;
-				m_deformAllPhysics = false;
 				m_physicsToDeform.Empty();
 			}
 

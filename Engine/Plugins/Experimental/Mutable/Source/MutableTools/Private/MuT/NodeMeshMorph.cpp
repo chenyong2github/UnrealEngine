@@ -162,12 +162,6 @@ namespace mu
 	}	
 
 	//---------------------------------------------------------------------------------------------
-	void NodeMeshMorph::SetDeformAllPhysics(bool bEnable)
-	{
-		m_pD->m_deformAllPhysics = bEnable;
-	}
-
-	//---------------------------------------------------------------------------------------------
 	void NodeMeshMorph::AddBoneToDeform(const char* BoneName)
 	{
 		m_pD->m_bonesToDeform.Emplace(BoneName);

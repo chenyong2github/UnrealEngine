@@ -998,7 +998,7 @@ namespace mu
 				auto typedOp = dynamic_cast<ASTOpMeshBindShape*>(node.get());
 				check(typedOp);
 
-				if (typedOp && typedOp->m_reshapeSkeleton)
+				if (typedOp && typedOp->bReshapeSkeleton)
 				{
 					RecurseWithState(typedOp->Mesh.child(), true);
 					return false;
@@ -1012,7 +1012,7 @@ namespace mu
 				auto typedOp = dynamic_cast<ASTOpMeshApplyShape*>(node.get());
 				check(typedOp);
 
-				if (typedOp && typedOp->m_reshapeSkeleton)
+				if (typedOp && typedOp->bReshapeSkeleton)
 				{
 					RecurseWithState(typedOp->Mesh.child(), true);
 					return false;

@@ -75,6 +75,21 @@ namespace mu
 
 	MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE(MESH_SURFACE);
 
+	enum class EBoneUsageFlags : uint32
+	{
+		None		   = 0,
+		Root		   = 1 << 1,
+		Skinning	   = 1 << 2,
+		SkinningParent = 1 << 3,
+		Physics	       = 1 << 4,
+		PhysicsParent  = 1 << 5,
+		Deform         = 1 << 6,
+		DeformParent   = 1 << 7,
+		Reshaped       = 1 << 8	
+	};
+
+	ENUM_CLASS_FLAGS(EBoneUsageFlags);
+	MUTABLE_DEFINE_ENUM_SERIALISABLE(EBoneUsageFlags)
 
 	//!
 	enum class EMeshBufferType
@@ -112,8 +127,8 @@ namespace mu
 		WithLayouts           = 1 << 11,
 		WithPoses			  = 1 << 12
 	};
-	ENUM_CLASS_FLAGS(EMeshCloneFlags);
 	
+	ENUM_CLASS_FLAGS(EMeshCloneFlags);
 
     //! \brief Mesh object containing any number of buffers with any number of channels.
     //! The buffers can be per-index or per-vertex.
@@ -269,10 +284,10 @@ namespace mu
 		int32 GetBonePoseCount() const;
 
 		//!
-		void SetBonePose(int32 boneIndex, const char* strName, FTransform3f transform, bool bSkinned );
+		void SetBonePose(int32 BoneIndex, const char* StrName, FTransform3f Transform, EBoneUsageFlags BoneUsageFlags);
 
 		//! Return a matrix stored per bone. It is a set of 16-float values.
-		void GetBoneTransform(int32 boneIndex, FTransform3f& transform) const;
+		void GetBoneTransform(int32 BoneIndex, FTransform3f& Transform) const;
 
         //! \}
 
@@ -361,48 +376,53 @@ namespace mu
 
 		struct FBonePose
 		{
-			string m_boneName;
-			uint8 m_boneSkinned : 1;
-			FTransform3f m_boneTransform;
-
-			FBonePose() : m_boneSkinned(0) {};
+			string BoneName;
+			EBoneUsageFlags BoneUsageFlags = EBoneUsageFlags::None;
+			FTransform3f BoneTransform;
 
 			inline void Serialise(OutputArchive& arch) const
 			{
-				const int32 ver = 0;
+				const int32 ver = 1;
 				arch << ver;
 
-				arch << m_boneName;
-				arch << m_boneSkinned;
-				arch << m_boneTransform;
+				arch << BoneName;
+				arch << BoneUsageFlags;
+				arch << BoneTransform;
 			}
 
 			inline void Unserialise(InputArchive& arch)
 			{
 				int32 ver = 0;
 				arch >> ver;
-				check(ver == 0);
+				check(ver <= 1);
 
-				arch >> m_boneName;
+				arch >> BoneName;
 
-				uint8 skinned = 0;
-				arch >> skinned;
-				m_boneSkinned = skinned;
+				if (ver == 0)
+				{
+					uint8 Skinned = 0;
+					arch >> Skinned;
+					BoneUsageFlags = Skinned ? EBoneUsageFlags::Skinning : EBoneUsageFlags::None;
+				}
+				else
+				{
+					arch >> BoneUsageFlags;
+				}
 
-				arch >> m_boneTransform;
+				arch >> BoneTransform;
 			}
+
 
 			//!
-			inline bool operator==(const FBonePose& o) const
+			inline bool operator==(const FBonePose& Other) const
 			{
-				return m_boneSkinned == o.m_boneSkinned
-					&& m_boneName == o.m_boneName;
+				return BoneUsageFlags == Other.BoneUsageFlags
+					&& BoneName == Other.BoneName;
 			}
-
 		};
 		// This is the pose used by this mesh fragment, used to update the transforms of the final skeleton
 		// taking into consideration the meshes being used.
-		TArray<FBonePose> m_bonePoses;
+		TArray<FBonePose> BonePoses;
 
 		//!
 		inline void Serialise(OutputArchive& arch) const
@@ -425,7 +445,7 @@ namespace mu
 
 			arch << m_tags;
 
-			arch << m_bonePoses;
+			arch << BonePoses;
 		}
 
 		//!
@@ -459,19 +479,19 @@ namespace mu
 
 			if (ver >= 13)
 			{
-				arch >> m_bonePoses;
+				arch >> BonePoses;
 			}
 			else if (m_pSkeleton)
 			{
 				const int32 NumBones = m_pSkeleton->GetBoneCount();
-				m_bonePoses.SetNum(NumBones);
+				BonePoses.SetNum(NumBones);
 				check(m_pSkeleton->m_boneTransforms_DEPRECATED.Num() == NumBones);
 
 				for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 				{
-					m_bonePoses[BoneIndex].m_boneName = m_pSkeleton->GetBoneName(BoneIndex);
-					m_bonePoses[BoneIndex].m_boneSkinned = true;
-					m_bonePoses[BoneIndex].m_boneTransform = m_pSkeleton->m_boneTransforms_DEPRECATED[BoneIndex];
+					BonePoses[BoneIndex].BoneName = m_pSkeleton->GetBoneName(BoneIndex);
+					BonePoses[BoneIndex].BoneUsageFlags = EBoneUsageFlags::Skinning;
+					BonePoses[BoneIndex].BoneTransform = m_pSkeleton->m_boneTransforms_DEPRECATED[BoneIndex];
 				}
 			}
 		}
@@ -484,7 +504,7 @@ namespace mu
 			if (equal) equal = (m_VertexBuffers == o.m_VertexBuffers);
 			if (equal) equal = (m_FaceBuffers == o.m_FaceBuffers);
 			if (equal) equal = (m_layouts.Num() == o.m_layouts.Num());
-			if (equal) equal = (m_bonePoses.Num() == o.m_bonePoses.Num());
+			if (equal) equal = (BonePoses.Num() == o.BonePoses.Num());
 			if (equal && m_pSkeleton != o.m_pSkeleton)
 			{
 				if (m_pSkeleton && o.m_pSkeleton)
@@ -510,9 +530,9 @@ namespace mu
 				equal &= m_AdditionalBuffers[i] == o.m_AdditionalBuffers[i];
 			}
 
-			for (int32 i = 0; equal && i < m_bonePoses.Num(); ++i)
+			for (int32 i = 0; equal && i < BonePoses.Num(); ++i)
 			{
-				equal &= m_bonePoses[i] == o.m_bonePoses[i];
+				equal &= BonePoses[i] == o.BonePoses[i];
 			}
 
 			return equal;

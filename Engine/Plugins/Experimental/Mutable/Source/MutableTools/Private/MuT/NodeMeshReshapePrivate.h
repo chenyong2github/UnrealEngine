@@ -26,16 +26,15 @@ namespace mu
 		Ptr<NodeMesh> m_pTargetShape;
 		bool m_reshapeSkeleton = false;
 		bool m_enableRigidParts = false;
-		bool m_deformAllBones_DEPRECATED = false;
-		bool m_deformAllPhysics = false;
 		bool m_reshapePhysicsVolumes = false;
-		
+	
+
 		TArray<string> m_bonesToDeform;
 		TArray<string> m_physicsToDeform;
         //!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 6;
+            uint32_t ver = 7;
 			arch << ver;
 
 			arch << m_pBaseMesh;
@@ -45,7 +44,6 @@ namespace mu
 			arch << m_enableRigidParts;
 			arch << m_bonesToDeform;
 			arch << m_reshapePhysicsVolumes;
-			arch << m_deformAllPhysics;
 			arch << m_physicsToDeform;
         }
 
@@ -54,7 +52,7 @@ namespace mu
 		{
             uint32_t ver;
 			arch >> ver;
-			check(ver<=6);
+			check(ver <= 7);
 
 			arch >> m_pBaseMesh;
 			arch >> m_pBaseShape;
@@ -64,7 +62,8 @@ namespace mu
 
 			if (ver <= 5)
 			{
-				arch >> m_deformAllBones_DEPRECATED;
+				bool bDeformAllBones_DEPRECATED;
+				arch >> bDeformAllBones_DEPRECATED;
 			}
 
 			arch >> m_bonesToDeform;
@@ -74,9 +73,14 @@ namespace mu
 				arch >> m_reshapePhysicsVolumes;
 		 	}
 
+			if (ver >= 5 && ver < 7)
+			{
+				bool bDeformAllPhysics_DEPRECATED;
+				arch >> bDeformAllPhysics_DEPRECATED;
+			}
+
 			if (ver >= 5)
 			{
-				arch >> m_deformAllPhysics;
 				arch >> m_physicsToDeform;
 			}
 		}

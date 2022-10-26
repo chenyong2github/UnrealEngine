@@ -59,9 +59,6 @@ namespace mu
 		/** Search for clusters of rigid parts and not deform them. */
 		void SetEnableRigidParts(bool);
 
-		/** Deform all the physiscs bodies */
-		void SetDeformAllPhysics(bool);
-
 		/** Deform Mesh Physics Volumes */
 		void SetReshapePhysicsVolumes(bool);
 

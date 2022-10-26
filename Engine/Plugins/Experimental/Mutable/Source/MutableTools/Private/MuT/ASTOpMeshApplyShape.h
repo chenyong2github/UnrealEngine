@@ -21,9 +21,10 @@ struct FProgram;
 
 		ASTChild Mesh;
 		ASTChild Shape;
-		bool m_reshapeSkeleton = false;
-		bool m_reshapePhysicsVolumes = false;
-		bool m_reshapeVertices = true;
+
+		uint32 bReshapeSkeleton : 1;
+		uint32 bReshapePhysicsVolumes : 1;
+		uint32 bReshapeVertices : 1;
 
 	public:
 

@@ -71,12 +71,12 @@ MeshPtr Mesh::Clone() const
 	// physics body doen't need to be deep cloned either as they are also assumed to be shared.
 	
 	// Clone bone poses
-	pResult->m_bonePoses = m_bonePoses;
+	pResult->BonePoses = BonePoses;
 
     return pResult;
 }
 
-MeshPtr Mesh::Clone( EMeshCloneFlags Flags ) const
+MeshPtr Mesh::Clone(EMeshCloneFlags Flags) const
 {
     //MUTABLE_CPUPROFILER_SCOPE(MeshClone);
 	LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
@@ -86,55 +86,55 @@ MeshPtr Mesh::Clone( EMeshCloneFlags Flags ) const
     pResult->m_internalId = m_internalId;
 	pResult->m_staticFormatFlags = m_staticFormatFlags;
 
-	if ( EnumHasAnyFlags( Flags, EMeshCloneFlags::WithSurfaces ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithSurfaces ))
 	{
 		pResult->m_surfaces = m_surfaces;
 	}
 
-	if ( EnumHasAnyFlags( Flags, EMeshCloneFlags::WithSkeleton ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithSkeleton ))
 	{
 		pResult->m_pSkeleton = m_pSkeleton;
 	}
 
-	if ( EnumHasAnyFlags( Flags, EMeshCloneFlags::WithPhysicsBody ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithPhysicsBody ))
 	{
 		pResult->m_pPhysicsBody = m_pPhysicsBody;
 	}
 
-	if ( EnumHasAnyFlags( Flags, EMeshCloneFlags::WithFaceGroups ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithFaceGroups ))
 	{
 		pResult->m_faceGroups = m_faceGroups;
 	}
 
-	if ( EnumHasAnyFlags( Flags, EMeshCloneFlags::WithTags ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithTags ))
 	{
 		pResult->m_tags = m_tags;
 	}
 
     // Clone the main buffers
-	if ( EnumHasAnyFlags( Flags, EMeshCloneFlags::WithVertexBuffers ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithVertexBuffers ))
     {
 		pResult->m_VertexBuffers = m_VertexBuffers;
 	}
 
-	if ( EnumHasAnyFlags( Flags, EMeshCloneFlags::WithIndexBuffers ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithIndexBuffers ))
     {
 		pResult->m_IndexBuffers = m_IndexBuffers;
 	}
 
-	if ( EnumHasAnyFlags( Flags, EMeshCloneFlags::WithFaceBuffers ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithFaceBuffers ))
     {
 		pResult->m_FaceBuffers = m_FaceBuffers;
 	}
 
 	// Clone additional buffers
-	if ( EnumHasAnyFlags( Flags, EMeshCloneFlags::WithAdditionalBuffers ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithAdditionalBuffers))
 	{
 		pResult->m_AdditionalBuffers = m_AdditionalBuffers;
 	}
 
     // Clone the layout	
-	if ( EnumHasAnyFlags( Flags, EMeshCloneFlags::WithLayouts ))
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithLayouts))
 	{
 		pResult->m_layouts = m_layouts;
 	}
@@ -146,7 +146,7 @@ MeshPtr Mesh::Clone( EMeshCloneFlags Flags ) const
 	// Clone bone poses
 	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithPoses))
 	{
-		pResult->m_bonePoses = m_bonePoses;
+		pResult->BonePoses = BonePoses;
 	}
 
     return pResult;
@@ -459,29 +459,21 @@ void Mesh::SetTag( int tagIndex, const char* strName )
 
 
 //---------------------------------------------------------------------------------------------
-const char* Mesh::GetBonePoseName(int32 boneIndex) const
+const char* Mesh::GetBonePoseName(int32 BoneIndex) const
 {
-	check(boneIndex >= 0 && boneIndex < GetBonePoseCount());
-	if (boneIndex >= 0 && boneIndex < GetBonePoseCount())
+	check(BoneIndex >= 0 && BoneIndex < GetBonePoseCount());
+	if (BoneIndex >= 0 && BoneIndex < GetBonePoseCount())
 	{
-		return m_bonePoses[boneIndex].m_boneName.c_str();
+		return BonePoses[BoneIndex].BoneName.c_str();
 	}
 	return "";
 }
 
 
 //---------------------------------------------------------------------------------------------
-int32 Mesh::FindBonePose(const char* strName) const
+int32 Mesh::FindBonePose(const char* StrName) const
 {
-	for (int32 i = 0; i < m_bonePoses.Num(); ++i)
-	{
-		if (m_bonePoses[i].m_boneName == strName)
-		{
-			return i;
-		}
-	}
-
-	return INDEX_NONE;
+	return BonePoses.IndexOfByPredicate([StrName](const FBonePose& Pose) { return Pose.BoneName == StrName; });
 }
 
 
@@ -489,26 +481,23 @@ int32 Mesh::FindBonePose(const char* strName) const
 void mu::Mesh::SetBonePoseCount(int32 count)
 {
 	LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
-	m_bonePoses.SetNum(count);
+	BonePoses.SetNum(count);
 }
 
 
 //---------------------------------------------------------------------------------------------
 int32 mu::Mesh::GetBonePoseCount() const
 {
-	return m_bonePoses.Num();
+	return BonePoses.Num();
 }
 
 
 //---------------------------------------------------------------------------------------------
-void mu::Mesh::SetBonePose(int32 boneIndex, const char* strName, FTransform3f transform, bool bSkinned)
+void mu::Mesh::SetBonePose(int32 BoneIndex, const char* StrName, FTransform3f Transform, EBoneUsageFlags BoneUsageFlags)
 {
-	if (boneIndex >= 0 && boneIndex < m_bonePoses.Num())
+	if (BoneIndex >= 0 && BoneIndex < BonePoses.Num())
 	{
-		FBonePose& pose = m_bonePoses[boneIndex];
-		pose.m_boneName = strName;
-		pose.m_boneTransform = transform;
-		pose.m_boneSkinned = bSkinned;
+		BonePoses[BoneIndex] = FBonePose{ StrName, BoneUsageFlags, Transform };
 	}
 	else 
 	{
@@ -518,10 +507,10 @@ void mu::Mesh::SetBonePose(int32 boneIndex, const char* strName, FTransform3f tr
 
 
 //---------------------------------------------------------------------------------------------
-void mu::Mesh::GetBoneTransform(int32 boneIndex, FTransform3f& transform) const
+void mu::Mesh::GetBoneTransform(int32 BoneIndex, FTransform3f& Transform) const
 {
-	check(boneIndex >= 0 && boneIndex < m_bonePoses.Num());
-	transform = boneIndex >= INDEX_NONE ? m_bonePoses[boneIndex].m_boneTransform : FTransform3f::Identity;
+	check(BoneIndex >= 0 && BoneIndex < BonePoses.Num());
+	Transform = BoneIndex > INDEX_NONE ? BonePoses[BoneIndex].BoneTransform : FTransform3f::Identity;
 }
 
 

@@ -20,6 +20,9 @@ namespace mu
 	ASTOpMeshApplyShape::ASTOpMeshApplyShape()
 		: Mesh(this)
 		, Shape(this)
+		, bReshapeSkeleton(false)
+		, bReshapePhysicsVolumes(false)
+		, bReshapeVertices(true)
 	{
 	}
 
@@ -31,16 +34,16 @@ namespace mu
 	}
 
 
-	bool ASTOpMeshApplyShape::IsEqual(const ASTOp& otherUntyped) const
+	bool ASTOpMeshApplyShape::IsEqual(const ASTOp& OtherUntyped) const
 	{
-		if (auto other = dynamic_cast<const ASTOpMeshApplyShape*>(&otherUntyped))
+		if (const ASTOpMeshApplyShape* Other = dynamic_cast<const ASTOpMeshApplyShape*>(&OtherUntyped))
 		{
 			const bool bSameFlags =
-				m_reshapePhysicsVolumes == other->m_reshapePhysicsVolumes &&
-				m_reshapeSkeleton == other->m_reshapeSkeleton &&
-				m_reshapeVertices == other->m_reshapeVertices;
+				bReshapePhysicsVolumes == Other->bReshapePhysicsVolumes &&
+				bReshapeSkeleton == Other->bReshapeSkeleton &&
+				bReshapeVertices == Other->bReshapeVertices;
 
-			return Mesh == other->Mesh && Shape == other->Shape && bSameFlags;
+			return Mesh == Other->Mesh && Shape == Other->Shape && bSameFlags;
 		}
 		return false;
 	}
@@ -50,22 +53,22 @@ namespace mu
 	{
 		uint64 res = std::hash<void*>()(Mesh.child().get());
 		hash_combine(res, Shape.child().get());
-		hash_combine(res, m_reshapeSkeleton);
-		hash_combine(res, m_reshapePhysicsVolumes);
-		hash_combine(res, m_reshapeVertices);
+		hash_combine(res, bool(bReshapeSkeleton));
+		hash_combine(res, bool(bReshapePhysicsVolumes));
+		hash_combine(res, bool(bReshapeVertices));
 		return res;
 	}
 
 
 	mu::Ptr<ASTOp> ASTOpMeshApplyShape::Clone(MapChildFuncRef mapChild) const
 	{
-		Ptr<ASTOpMeshApplyShape> n = new ASTOpMeshApplyShape();
-		n->Mesh = mapChild(Mesh.child());
-		n->Shape = mapChild(Shape.child());
-		n->m_reshapeSkeleton = m_reshapeSkeleton;
-		n->m_reshapePhysicsVolumes = m_reshapePhysicsVolumes;
-		n->m_reshapeVertices = m_reshapeVertices;
-		return n;
+		Ptr<ASTOpMeshApplyShape> NewOp = new ASTOpMeshApplyShape();
+		NewOp->Mesh = mapChild(Mesh.child());
+		NewOp->Shape = mapChild(Shape.child());
+		NewOp->bReshapeSkeleton = bReshapeSkeleton;
+		NewOp->bReshapePhysicsVolumes = bReshapePhysicsVolumes;
+		NewOp->bReshapeVertices = bReshapeVertices;
+		return NewOp;
 	}
 
 
@@ -81,32 +84,24 @@ namespace mu
 		// Already linked?
 		if (!linkedAddress)
 		{
-			OP::MeshApplyShapeArgs args;
-			memset(&args, 0, sizeof(args));
+			OP::MeshApplyShapeArgs Args;
+			FMemory::Memzero(&Args, sizeof(Args));
 
-			if (m_reshapeSkeleton)
-			{
-				args.flags |= uint32(OP::EMeshBindShapeFlags::ReshapeSkeleton);
-			}
+			constexpr EMeshBindShapeFlags NoFlags = EMeshBindShapeFlags::None;
+			EMeshBindShapeFlags BindFlags = NoFlags;
+			EnumAddFlags(BindFlags, bReshapeSkeleton ? EMeshBindShapeFlags::ReshapeSkeleton : NoFlags);
+			EnumAddFlags(BindFlags, bReshapePhysicsVolumes ? EMeshBindShapeFlags::ReshapePhysicsVolumes : NoFlags);
+			EnumAddFlags(BindFlags, bReshapeVertices ? EMeshBindShapeFlags::ReshapeVertices : NoFlags);
 
-			if (m_reshapePhysicsVolumes)
-			{
-				args.flags |= uint32(OP::EMeshBindShapeFlags::ReshapePhysicsVolumes);
-			}
+			Args.flags = static_cast<uint32>(BindFlags);
 
-			if (m_reshapeVertices)
-			{
-				args.flags |= uint32(OP::EMeshBindShapeFlags::ReshapeVertices);
-			}
-
-
-			if (Mesh) args.mesh = Mesh->linkedAddress;
-			if (Shape) args.shape = Shape->linkedAddress;
+			Args.mesh = Mesh ? Mesh->linkedAddress : 0;
+			Args.shape = Shape ? Shape->linkedAddress : 0;
 
 			linkedAddress = (OP::ADDRESS)program.m_opAddress.Num();
 			program.m_opAddress.Add((uint32_t)program.m_byteCode.Num());
 			AppendCode(program.m_byteCode, OP_TYPE::ME_APPLYSHAPE);
-			AppendCode(program.m_byteCode, args);
+			AppendCode(program.m_byteCode, Args);
 		}
 
 	}

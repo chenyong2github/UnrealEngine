@@ -458,31 +458,19 @@ namespace mu
 
 	inline TTuple<TArray<FReshapeVertexBindingData>, TArray<int32>> BindPhysicsBodies( 
 			const PhysicsBody* PBody, FShapeMeshTree& ShapeMeshTree, const Mesh* pMesh, 
-			bool bDeformAllPhysics, const TArray<string>& PhysicsToDeform )
+			const TArray<string>& PhysicsToDeform )
 	{
 		TTuple<TArray<FReshapeVertexBindingData>, TArray<int32>> ReturnValue;
 
 		TArray<int32>& BodiesToDeformIndices = ReturnValue.Get<1>();
 	
-		if (!bDeformAllPhysics)
-		{ 
-			BodiesToDeformIndices.Reserve(PhysicsToDeform.Num());
-			const int32 NumBodies = PBody->GetBodyCount();
-			for (int32 I = 0; I < NumBodies; ++I)
-			{
-				if ( PhysicsToDeform.Contains(string(PBody->GetBodyBoneName(I))) )
-				{
-					BodiesToDeformIndices.Add(I);
-				}
-			}
-		}
-		else
+		BodiesToDeformIndices.Reserve(PhysicsToDeform.Num());
+		const int32 NumBodies = PBody->GetBodyCount();
+		for (int32 I = 0; I < NumBodies; ++I)
 		{
-			const int32 NumBodies = PBody->GetBodyCount();
-			BodiesToDeformIndices.SetNumUninitialized(NumBodies);
-			for (int32 I = 0; I < NumBodies; ++I)
+			if ( PhysicsToDeform.Contains(PBody->GetBodyBoneName(I)))
 			{
-				BodiesToDeformIndices[I] = I;
+				BodiesToDeformIndices.Add(I);
 			}
 		}
 		
@@ -733,8 +721,7 @@ namespace mu
 	}
 
 	inline TTuple<TArray<FReshapeVertexBindingData>, TArray<int32>> BindPose(
-			const Mesh* Mesh, FShapeMeshTree& ShapeMeshTree, 
-			bool bDeformAllBones, const TArray<string>& BonesToDeform )
+			const Mesh* Mesh, FShapeMeshTree& ShapeMeshTree, const TArray<string>& BonesToDeform )
 	{
 		UE::Geometry::FAxisAlignedBox3d ShapeAABBox = ShapeMeshTree.GetBoundingBox();
 
@@ -746,36 +733,34 @@ namespace mu
 
 		TArray<FReshapeVertexBindingData>& SkeletonBindDataArray = ReturnValue.Get<0>();
 		TArray<int32>& BoneIndices = ReturnValue.Get<1>();
-		
-		for ( int32 b = 0; b < Mesh->GetBonePoseCount(); ++b)
-		{
-			if (!bDeformAllBones)
-			{
-				bool bFound = false;
-				for (int32 bd = 0; bd < BonesToDeform.Num(); ++bd)
-				{
-					if (Mesh->GetBonePoseName(b) == BonesToDeform[bd])
-					{
-						bFound = true;
-						break;
-					}
-				}
 
-				if (!bFound)
-				{
-					continue;
-				}
+		const int32 BoneCount = Mesh->GetBonePoseCount();
+		SkeletonBindDataArray.Reserve(BoneCount);
+		BoneIndices.Reserve(BoneCount);
+
+		for ( int32 BoneIndex = 0; BoneIndex < BoneCount; ++BoneIndex)
+		{
+			const EBoneUsageFlags BoneUsageFlags = Mesh->BonePoses[BoneIndex].BoneUsageFlags;
+
+			// Only deform skinned bones.
+			if (EnumHasAnyFlags(BoneUsageFlags, EBoneUsageFlags::SkinningParent | EBoneUsageFlags::Root) &&
+				!EnumHasAnyFlags(BoneUsageFlags, EBoneUsageFlags::Skinning))
+			{
+				continue;
 			}
 
-			const FTransform3f& t = Mesh->m_bonePoses[b].m_boneTransform;
+			if (!BonesToDeform.Contains(Mesh->GetBonePoseName(BoneIndex)))
+			{
+				continue;
+			}
 
-			FVector3f Origin = t.GetLocation();
-
-			FReshapeVertexBindingData SkeletonBindData;
-			BindReshapePoint(ShapeMeshTree, Origin, SkeletonBindData, BindValidityTolerance);
-
-			SkeletonBindDataArray.Add(SkeletonBindData);
-			BoneIndices.Add(b);
+			BoneIndices.Add(BoneIndex);
+			
+			BindReshapePoint(
+					ShapeMeshTree, 
+					Mesh->BonePoses[BoneIndex].BoneTransform.GetLocation(),
+					SkeletonBindDataArray.AddDefaulted_GetRef(),
+					BindValidityTolerance);
 		}
 
 		return ReturnValue;
@@ -787,9 +772,8 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     inline MeshPtr MeshBindShapeReshape(
 			const Mesh* BaseMesh, const Mesh* ShapeMesh, 
-			const TArray<string>& BonesToDeform, const TArray<string>& PhysicsToDeform,
-			bool bDeformAllBones, bool bDeformAllPhyiscs,
-			bool reshapeVertices, bool reshapeSkeleton, bool reshapePhysicsVolumes, bool bEnableRigidParts )
+			const TArray<string>& BonesToDeform, const TArray<string>& PhysicsToDeform, 
+			EMeshBindShapeFlags BindFlags)
     {
 		MUTABLE_CPUPROFILER_SCOPE(MeshBindShape);
 		
@@ -798,12 +782,17 @@ namespace mu
 			return nullptr;
 		}
 
+		const bool bReshapeVertices = EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapeVertices);
+		const bool bReshapeSkeleton = EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapeSkeleton);
+		const bool bReshapePhysics = EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapePhysicsVolumes);
+		const bool bEnableRigidParts = EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::EnableRigidParts);
+
 		// Early out if nothing will be modified and the vertices discarted. return null in this
 		// case indicating nothing has modified so the Base Mesh can be reused.
-		const bool bSkeletonModification = BaseMesh->GetSkeleton() && reshapeSkeleton;
-		const bool bPhysicsModification = BaseMesh->GetPhysicsBody() && reshapePhysicsVolumes;
+		const bool bSkeletonModification = BaseMesh->GetSkeleton() && bReshapeSkeleton;
+		const bool bPhysicsModification = BaseMesh->GetPhysicsBody() && bReshapePhysics;
 
-		if (!reshapeVertices && !bSkeletonModification && !bPhysicsModification)
+		if (!bReshapeVertices && !bSkeletonModification && !bPhysicsModification)
 		{
 			return nullptr;
 		}
@@ -876,7 +865,7 @@ namespace mu
 		
 		// If no vertices are needed, it is assumed we only want to reshape physics or skeleton
 		// In that case, remove everything except physics bodies, the skeleton and pose.
-		if (!reshapeVertices)
+		if (!bReshapeVertices)
 		{
 			constexpr EMeshCloneFlags CloneFlags = 
 					EMeshCloneFlags::WithSkeleton    | 
@@ -891,7 +880,7 @@ namespace mu
 		}
 
 		int32 BindingDataIndex = 0;
-		if (reshapeVertices)
+		if (bReshapeVertices)
 		{
 			TArray<FReshapeVertexBindingData> VerticesBindData = BindVerticesReshape( BaseMesh, ShapeMeshTree, bEnableRigidParts );
 			
@@ -909,12 +898,12 @@ namespace mu
 
 		// Bind the skeleton bones
 		// \TODO: Build bind data only for actually modified bones?
-		if (reshapeSkeleton && (bDeformAllBones || BonesToDeform.Num()))
+		if (bReshapeSkeleton && BonesToDeform.Num())
 		{
 			MUTABLE_CPUPROFILER_SCOPE(BindSkeleton);
 
 			TTuple<TArray<FReshapeVertexBindingData>, TArray<int32>> SkeletonBindingData = 
-					BindPose(Result.get(), ShapeMeshTree, bDeformAllBones, BonesToDeform);
+					BindPose(Result.get(), ShapeMeshTree, BonesToDeform);
 			const TArray<FReshapeVertexBindingData>& SkeletonBindDataArray = SkeletonBindingData.Get<0>();
 			const TArray<int32>& BoneIndices = SkeletonBindingData.Get<1>();
 
@@ -944,13 +933,13 @@ namespace mu
 			Result->m_AdditionalBuffers.Emplace(EMeshBufferType::SkeletonDeformBinding, MoveTemp(SkeletonBuffer));
 		}
 
-		const PhysicsBody* PhysicsBody = Result->m_pPhysicsBody.get();
-		if (reshapePhysicsVolumes && PhysicsBody && (bDeformAllPhyiscs || PhysicsToDeform.Num()))
+		const PhysicsBody* ResultPhysicsBody = Result->m_pPhysicsBody.get();
+		if (bReshapePhysics && ResultPhysicsBody && PhysicsToDeform.Num())
 		{
 			MUTABLE_CPUPROFILER_SCOPE(BindPhysicsBody);
 
 			TTuple<TArray<FReshapeVertexBindingData>, TArray<int32>> PhysicsBindingData = 
-					BindPhysicsBodies(PhysicsBody, ShapeMeshTree, Result.get(), bDeformAllPhyiscs, PhysicsToDeform);
+					BindPhysicsBodies(ResultPhysicsBody, ShapeMeshTree, Result.get(), PhysicsToDeform);
 			const TArray<FReshapeVertexBindingData>& PhysicsBindDataArray = PhysicsBindingData.Get<0>();
 			const TArray<int32>& DeformedBodyIndices = PhysicsBindingData.Get<1>();
 

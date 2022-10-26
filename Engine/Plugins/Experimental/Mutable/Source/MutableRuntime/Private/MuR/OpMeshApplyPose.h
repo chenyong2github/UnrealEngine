@@ -40,7 +40,7 @@ namespace mu
 
             if( poseBoneIndex != INDEX_NONE )
             {
-				skinTransforms[b] = pPose->m_bonePoses[poseBoneIndex].m_boneTransform;
+				skinTransforms[b] = pPose->BonePoses[poseBoneIndex].BoneTransform;
             }
             else
             {

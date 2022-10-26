@@ -715,7 +715,7 @@ namespace mu
 
 		pResult->m_AdditionalBuffers = pSource->m_AdditionalBuffers;
 
-		pResult->m_bonePoses = pSource->m_bonePoses;
+		pResult->BonePoses = pSource->BonePoses;
 
 		return pResult;
 

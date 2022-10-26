@@ -2027,14 +2027,8 @@ namespace mu
 					}
 
 					// -----------
-					Ptr<Mesh> pResult = MeshBindShapeReshape( BaseMesh.get(), Shape.get(), 	
-						BonesToDeform, PhysicsToDeform,
-						args.flags & uint32(OP::EMeshBindShapeFlags::DeformAllBones),
-						args.flags & uint32(OP::EMeshBindShapeFlags::DeformAllPhysics),	
-						args.flags & uint32(OP::EMeshBindShapeFlags::ReshapeVertices),
-						args.flags & uint32(OP::EMeshBindShapeFlags::ReshapeSkeleton),
-						args.flags & uint32(OP::EMeshBindShapeFlags::ReshapePhysicsVolumes),
-						args.flags & uint32(OP::EMeshBindShapeFlags::EnableRigidParts));
+					Ptr<Mesh> pResult = MeshBindShapeReshape( BaseMesh.get(), Shape.get(), BonesToDeform, PhysicsToDeform, 
+						    static_cast<EMeshBindShapeFlags>(args.flags));
 					
 					GetMemory().SetMesh(item, pResult);
 				}	
@@ -2078,10 +2072,8 @@ namespace mu
 				Ptr<const Mesh> BaseMesh = GetMemory().GetMesh(CACHE_ADDRESS(args.mesh, item));
 				Ptr<const Mesh> Shape = GetMemory().GetMesh(CACHE_ADDRESS(args.shape, item));
 
-				Ptr<Mesh> pResult = MeshApplyShape(BaseMesh.get(), Shape.get(),
-					args.flags & uint32(OP::EMeshBindShapeFlags::ReshapeVertices),
-					args.flags & uint32(OP::EMeshBindShapeFlags::ReshapeSkeleton),
-					args.flags & uint32(OP::EMeshBindShapeFlags::ReshapePhysicsVolumes));
+
+				Ptr<Mesh> pResult = MeshApplyShape(BaseMesh.get(), Shape.get(), static_cast<EMeshBindShapeFlags>(args.flags));
 
 				GetMemory().SetMesh(item, pResult);
 				break;
@@ -2129,7 +2121,7 @@ namespace mu
 					Ptr<Mesh> ResultPtr = MorphedMesh->Clone(CloneFlags);
 					ResultPtr->SetSkeleton(ReshapeMesh->GetSkeleton().get());
 					ResultPtr->SetPhysicsBody(ReshapeMesh->GetPhysicsBody().get());
-					ResultPtr->m_bonePoses = ReshapeMesh->m_bonePoses;
+					ResultPtr->BonePoses = ReshapeMesh->BonePoses;
 
 					GetMemory().SetMesh(item, ResultPtr);
 				}

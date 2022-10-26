@@ -133,13 +133,7 @@ namespace mu
 	void NodeMeshReshape::SetEnableRigidParts(bool bEnable)
 	{
 		m_pD->m_enableRigidParts = bEnable;
-	}
-
-	//---------------------------------------------------------------------------------------------
-	void NodeMeshReshape::SetDeformAllPhysics(bool bEnable)
-	{
-		m_pD->m_deformAllPhysics = bEnable;
-	}
+	}	
 
 	//---------------------------------------------------------------------------------------------
 	void NodeMeshReshape::AddBoneToDeform(const char* BoneName)

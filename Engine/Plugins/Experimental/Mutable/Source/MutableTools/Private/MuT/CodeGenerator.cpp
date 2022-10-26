@@ -2417,8 +2417,7 @@ namespace mu
 				
 				BindOp->Mesh = lastMeshOp;
 				BindOp->Shape = ClipShapeResult.meshOp; 
-				BindOp->m_discardInvalidBindings = false;
-				BindOp->m_bindingMethod = static_cast<uint32>(TypedClipNode->BindingMethod);
+				BindOp->BindingMethod = static_cast<uint32>(TypedClipNode->BindingMethod);
 	
 				ClipOp->Mesh = BindOp;
 

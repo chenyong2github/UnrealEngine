@@ -366,19 +366,24 @@ namespace mu
 
 			const FReshapeVertexBindingData& Binding = BindingData[b];
 
-			FTransform3f& t = Result->m_bonePoses[BoneIndex].m_boneTransform;
+			check(!EnumHasAnyFlags(Result->BonePoses[BoneIndex].BoneUsageFlags, EBoneUsageFlags::Root));
 
-			FVector3f NewPosition;
+			FTransform3f& T = Result->BonePoses[BoneIndex].BoneTransform;
+
+			FVector3f NewPosition(ForceInitToZero);
 			FQuat4f TangentSpaceCorrection;
-			bool bModified = GetDeform(Shape, Binding, NewPosition, TangentSpaceCorrection);
 
-			if (bModified)
-			{
-				// The pose has been modified and should not be replaced
-				Result->m_bonePoses[BoneIndex].m_boneSkinned = true;
+			const bool bModified = GetDeform(Shape, Binding, NewPosition, TangentSpaceCorrection);
+			const bool bHasChanged = bModified && FVector3f::DistSquared(NewPosition, T.GetLocation()) > UE_SMALL_NUMBER;
+
+			// Only set it if has actually moved.
+			if (bHasChanged)
+			{	
+				// Mark as reshaped. 
+				EnumAddFlags(Result->BonePoses[BoneIndex].BoneUsageFlags, EBoneUsageFlags::Reshaped);
 
 				// TODO: Review if the rotation also needs to be applied.
-				t.SetLocation(FMath::Lerp(t.GetLocation(), NewPosition, Binding.Weight));
+				T.SetLocation(FMath::Lerp(T.GetLocation(), NewPosition, Binding.Weight));
 			}
 		}
 	}
@@ -535,8 +540,7 @@ namespace mu
 	//! Rebuild the (previously bound) mesh data for a new shape.
 	//! Proof-of-concept implementation.
 	//---------------------------------------------------------------------------------------------
-	inline MeshPtr MeshApplyShape(const Mesh* BaseMesh, const Mesh* ShapeMesh, 
-			bool bReshapeVertices, bool bReshapeSkeleton, bool bReshapePhysicsVolumes)
+	inline MeshPtr MeshApplyShape(const Mesh* BaseMesh, const Mesh* ShapeMesh, EMeshBindShapeFlags BindFlags)
 	{
 		MUTABLE_CPUPROFILER_SCOPE(MeshApplyReshape);
 
@@ -545,6 +549,10 @@ namespace mu
 			return nullptr;
 		}
 		
+		const bool bReshapeVertices = EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapeVertices);
+		const bool bReshapeSkeleton = EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapeSkeleton);
+		const bool bReshapePhysicsVolumes = EnumHasAnyFlags(BindFlags, EMeshBindShapeFlags::ReshapePhysicsVolumes);
+
 		// Early out if nothing will be modified and the vertices discarted.
 		const bool bSkeletonModification = BaseMesh->GetSkeleton() && bReshapeSkeleton;
 		const bool bPhysicsModification = BaseMesh->GetPhysicsBody() && bReshapePhysicsVolumes;

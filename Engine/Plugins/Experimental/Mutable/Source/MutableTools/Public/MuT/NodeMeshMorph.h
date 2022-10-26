@@ -80,9 +80,6 @@ namespace mu
 		/** Also deform the mesh skeleton. Disabled by default. */
 		void SetReshapeSkeleton(bool);	
 
-		/** Deform all the physiscs bodies */
-		void SetDeformAllPhysics(bool);
-
 		/** Deform Mesh Physics Volumes */
 		void SetReshapePhysicsVolumes(bool);
 

@@ -129,7 +129,7 @@ void UCustomizableObjectNodeSwitchBase::EnumParameterPostEditChangeProperty(FPos
 {
 	if (const UEdGraphPin* SwitchPin = SwitchParameter())
 	{
-		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*SwitchPin); ConnectedPin->GetOwningNode() == Parameters.Node)
+		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*SwitchPin); ConnectedPin && ConnectedPin->GetOwningNode() == Parameters.Node)
 		{
 			// Using MarkForReconstruct instead of Super::ReconstructNode because when we Copy Paste this node, it crashes sometimes due to reconctructing the node while constructing it.
 			MarkForReconstruct();

@@ -515,35 +515,43 @@ namespace mu
 		{
 			MUTABLE_CPUPROFILER_SCOPE(Pose);
 
-			pResult->m_bonePoses.Reserve(pResult->GetSkeleton()->GetBoneCount());
+			pResult->BonePoses.Reserve(pResult->GetSkeleton()->GetBoneCount());
 			
 			// Copy poses from the first mesh
-			pResult->m_bonePoses = pFirst->m_bonePoses;
+			pResult->BonePoses = pFirst->BonePoses;
 
 			// Add or override bone poses
-			for (const Mesh::FBonePose& pSecondBonePose : pSecond->m_bonePoses)
+			for (const Mesh::FBonePose& SecondBonePose : pSecond->BonePoses)
 			{
-				const int32 resultBoneIndex = pResult->FindBonePose(pSecondBonePose.m_boneName.c_str());
+				const int32 ResultBoneIndex = pResult->FindBonePose(SecondBonePose.BoneName.c_str());
 
-				if (resultBoneIndex != INDEX_NONE)
+				if (ResultBoneIndex != INDEX_NONE)
 				{
-					Mesh::FBonePose& pResultBonePose = pResult->m_bonePoses[resultBoneIndex];
+					Mesh::FBonePose& ResultBonePose = pResult->BonePoses[ResultBoneIndex];
 
-					// override pose if the bone is not used by the skinning of the first mesh
-					if (!pResultBonePose.m_boneSkinned)
+					// TODO: Not sure how to tune this priority, review it.
+					// For now use a similar strategy as before. 
+					auto ComputeBoneMergePriority = [](const Mesh::FBonePose& BonePose)
 					{
-						pResultBonePose.m_boneName = pSecondBonePose.m_boneName;
-						pResultBonePose.m_boneSkinned = pSecondBonePose.m_boneSkinned;
-						pResultBonePose.m_boneTransform = pSecondBonePose.m_boneTransform;
-					}
+						return (EnumHasAnyFlags(BonePose.BoneUsageFlags, EBoneUsageFlags::Skinning) ? 1 : 0) +
+							   (EnumHasAnyFlags(BonePose.BoneUsageFlags, EBoneUsageFlags::Reshaped) ? 1 : 0);
+					};
+
+					if (ComputeBoneMergePriority(ResultBonePose) < ComputeBoneMergePriority(SecondBonePose))
+					{
+						//ResultBonePose.BoneName = SecondBonePose.BoneName;
+						ResultBonePose.BoneTransform = SecondBonePose.BoneTransform;
+						// Merge usage flags
+						EnumAddFlags(ResultBonePose.BoneUsageFlags, SecondBonePose.BoneUsageFlags);					
+					}	
 				}
 				else
 				{
-					pResult->m_bonePoses.Add(pSecondBonePose);
+					pResult->BonePoses.Add(SecondBonePose);
 				}
 			}
 
-			pResult->m_bonePoses.Shrink();
+			pResult->BonePoses.Shrink();
 		}
 
 		

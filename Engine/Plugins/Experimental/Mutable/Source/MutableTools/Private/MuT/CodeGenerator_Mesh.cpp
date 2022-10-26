@@ -409,23 +409,21 @@ class Node;
 		    Ptr<ASTOpMeshBindShape> OpBind = new ASTOpMeshBindShape();
 		    Ptr<ASTOpMeshApplyShape> OpApply = new ASTOpMeshApplyShape();
 
-			// Setting reshapeVertices to false the bind op will remove all mesh members except 
+			// Setting bReshapeVertices to false the bind op will remove all mesh members except 
 			// PhysicsBodies and the Skeleton.
-            OpBind->m_reshapeVertices = false;
-		    OpBind->m_reshapeSkeleton = node.m_reshapeSkeleton;
-		    OpBind->m_deformAllBones = false; //TODO: Remove deprecated var from node
-		    OpBind->m_bonesToDeform = node.m_bonesToDeform;
-    	    OpBind->m_reshapePhysicsVolumes = node.m_reshapePhysicsVolumes; 
-			OpBind->m_physicsToDeform = node.m_physicsToDeform;
-			OpBind->m_deformAllPhysics = node.m_deformAllPhysics;
-			OpBind->m_bindingMethod = static_cast<uint32>(EShapeBindingMethod::ReshapeClosestProject);
+            OpBind->bReshapeVertices = false;
+		    OpBind->bReshapeSkeleton = node.m_reshapeSkeleton;
+		    OpBind->BonesToDeform = node.m_bonesToDeform;
+    	    OpBind->bReshapePhysicsVolumes = node.m_reshapePhysicsVolumes; 
+			OpBind->PhysicsToDeform = node.m_physicsToDeform;
+			OpBind->BindingMethod = static_cast<uint32>(EShapeBindingMethod::ReshapeClosestProject);
             
 			OpBind->Mesh = BaseResult.meshOp;
             OpBind->Shape = BaseResult.meshOp;
            
-			OpApply->m_reshapeVertices = OpBind->m_reshapeVertices;
-		    OpApply->m_reshapeSkeleton = OpBind->m_reshapeSkeleton;
-		    OpApply->m_reshapePhysicsVolumes = OpBind->m_reshapePhysicsVolumes;
+			OpApply->bReshapeVertices = OpBind->bReshapeVertices;
+		    OpApply->bReshapeSkeleton = OpBind->bReshapeSkeleton;
+		    OpApply->bReshapePhysicsVolumes = OpBind->bReshapePhysicsVolumes;
 
 			OpApply->Mesh = OpBind;
             OpApply->Shape = OpMorph;
@@ -1301,7 +1299,6 @@ class Node;
 			OpClipDeform->ClipShape = baseResult.meshOp;
 		}
 
-    	OpBind->m_discardInvalidBindings = false;
 		OpClipDeform->Mesh = OpBind;
 
 		Result.meshOp = OpClipDeform;
@@ -1398,28 +1395,26 @@ class Node;
 	{
 		const NodeMeshReshape::Private& node = *reshape->GetPrivate();
 
-		Ptr<ASTOpMeshBindShape> opBind = new ASTOpMeshBindShape();
-		Ptr<ASTOpMeshApplyShape> opApply = new ASTOpMeshApplyShape();
+		Ptr<ASTOpMeshBindShape> OpBind = new ASTOpMeshBindShape();
+		Ptr<ASTOpMeshApplyShape> OpApply = new ASTOpMeshApplyShape();
 
-		opBind->m_reshapeSkeleton = node.m_reshapeSkeleton;
-    	opBind->m_enableRigidParts = node.m_enableRigidParts;
-		opBind->m_deformAllBones = false; //TODO: Remove deprecated var from node
-		opBind->m_bonesToDeform = node.m_bonesToDeform;
-    	opBind->m_reshapePhysicsVolumes = node.m_reshapePhysicsVolumes;
-		opBind->m_deformAllPhysics = node.m_deformAllPhysics;
-		opBind->m_physicsToDeform = node.m_physicsToDeform;
-		opBind->m_reshapeVertices = true;
-		opBind->m_bindingMethod = static_cast<uint32>(EShapeBindingMethod::ReshapeClosestProject);
+		OpBind->bReshapeSkeleton = node.m_reshapeSkeleton;
+    	OpBind->bEnableRigidParts = node.m_enableRigidParts;
+		OpBind->BonesToDeform = node.m_bonesToDeform;
+    	OpBind->bReshapePhysicsVolumes = node.m_reshapePhysicsVolumes;
+		OpBind->PhysicsToDeform = node.m_physicsToDeform;
+		OpBind->bReshapeVertices = true;
+		OpBind->BindingMethod = static_cast<uint32>(EShapeBindingMethod::ReshapeClosestProject);
 
-		opApply->m_reshapeVertices = true;	
-		opApply->m_reshapeSkeleton = node.m_reshapeSkeleton;
-		opApply->m_reshapePhysicsVolumes = node.m_reshapePhysicsVolumes;
+		OpApply->bReshapeVertices = OpBind->bReshapeVertices;
+		OpApply->bReshapeSkeleton = OpBind->bReshapeSkeleton;
+		OpApply->bReshapePhysicsVolumes = OpBind->bReshapePhysicsVolumes;
 
 		// Base Mesh
 		if (node.m_pBaseMesh)
 		{
 			GenerateMesh(InOptions, OutResult, node.m_pBaseMesh);
-			opBind->Mesh = OutResult.meshOp;
+			OpBind->Mesh = OutResult.meshOp;
 		}
 		else
 		{
@@ -1439,20 +1434,20 @@ class Node;
 		{
 			FMeshGenerationResult baseResult;
 			GenerateMesh(ShapeOptions, baseResult, node.m_pBaseShape);
-			opBind->Shape = baseResult.meshOp;
+			OpBind->Shape = baseResult.meshOp;
 		}
 
-		opApply->Mesh = opBind;
+		OpApply->Mesh = OpBind;
 
 		// Target Shape
 		if (node.m_pTargetShape)
 		{
 			FMeshGenerationResult targetResult;
 			GenerateMesh(ShapeOptions, targetResult, node.m_pTargetShape);
-			opApply->Shape = targetResult.meshOp;
+			OpApply->Shape = targetResult.meshOp;
 		}
 
-		OutResult.meshOp = opApply;
+		OutResult.meshOp = OpApply;
 	}
 
 }

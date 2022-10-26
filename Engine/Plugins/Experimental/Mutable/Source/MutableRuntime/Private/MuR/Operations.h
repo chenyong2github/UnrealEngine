@@ -8,8 +8,8 @@
 #include "HAL/PlatformMath.h"
 #include "HAL/UnrealMemory.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/EnumClassFlags.h"
 #include "Templates/Function.h"
-
 
 #define MUTABLE_OP_MAX_INTERPOLATE_COUNT	6
 #define MUTABLE_OP_MAX_ADD_COUNT			7
@@ -355,7 +355,15 @@ namespace mu
         COUNT
 
     };
-
+	enum class EMeshBindShapeFlags : uint32
+	{
+		None				   = 0,
+		ReshapeSkeleton		   = 1 << 0,
+		EnableRigidParts       = 1 << 2,
+		ReshapePhysicsVolumes  = 1 << 4,
+		ReshapeVertices		   = 1 << 5,
+	};
+	ENUM_CLASS_FLAGS(EMeshBindShapeFlags);
 
     //---------------------------------------------------------------------------------------------
     //!
@@ -902,18 +910,6 @@ namespace mu
 			ADDRESS meshB;
 			ADDRESS scalarA;
 			ADDRESS scalarB;
-		};
-
-		enum class EMeshBindShapeFlags : uint32
-		{
-			None				   = 0,
-			ReshapeSkeleton		   = 1 << 0,
-			DiscardInvalidBindings = 1 << 1,
-			EnableRigidParts       = 1 << 2,
-			DeformAllBones		   = 1 << 3,
-			ReshapePhysicsVolumes  = 1 << 4,
-			ReshapeVertices		   = 1 << 5,
-			DeformAllPhysics	   = 1 << 6,
 		};
 
 		struct MeshBindShapeArgs
