@@ -3590,14 +3590,14 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 									{
 										Technique = TEXT("Multi-viewport");
 									}
-									else if (bIsMobileMultiViewEnabled)
-									{
-										Technique = TEXT("Multi-view (mobile)");
-									}
 									else
 									{
 										Technique = TEXT("Instanced, clip planes");
 									}
+								}
+								else if (bIsMobileMultiViewEnabled)
+								{
+									Technique = TEXT("Multi-view (mobile)");
 								}
 
 								FString TechniqueString = FString::Printf(TEXT("Stereo rendering method: %s"), Technique);

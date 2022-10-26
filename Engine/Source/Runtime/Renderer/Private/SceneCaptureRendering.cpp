@@ -622,6 +622,10 @@ void SetupViewFamilyForSceneCapture(
 		ViewInitOptions.ProjectionMatrix = SceneCaptureViewInfo.ProjectionMatrix;
 		ViewInitOptions.LODDistanceFactor = FMath::Clamp(SceneCaptureComponent->LODDistanceFactor, .01f, 100.0f);
 		ViewInitOptions.bUseFauxOrthoViewPos = bUseFauxOrthoViewPos;
+		ViewInitOptions.bIsSceneCapture = true;
+		ViewInitOptions.bIsSceneCaptureCube = SceneCaptureComponent->IsCube();
+		ViewInitOptions.bSceneCaptureUsesRayTracing = SceneCaptureComponent->bUseRayTracingIfEnabled;
+		ViewInitOptions.bIsPlanarReflection = bIsPlanarReflection;
 
 		if (ViewFamily.Scene->GetWorld() != nullptr && ViewFamily.Scene->GetWorld()->GetWorldSettings() != nullptr)
 		{
@@ -635,14 +639,6 @@ void SetupViewFamilyForSceneCapture(
 		}
 
 		FSceneView* View = new FSceneView(ViewInitOptions);
-
-		View->bIsSceneCapture = true;
-		View->bIsSceneCaptureCube = SceneCaptureComponent->IsCube();
-		View->bSceneCaptureUsesRayTracing = SceneCaptureComponent->bUseRayTracingIfEnabled;
-		// Note: this has to be set before EndFinalPostprocessSettings
-		View->bIsPlanarReflection = bIsPlanarReflection;
-        // Needs to be reconfigured now that bIsPlanarReflection has changed.
-		View->SetupAntiAliasingMethod();
 
 		check(SceneCaptureComponent);
 		for (auto It = SceneCaptureComponent->HiddenComponents.CreateConstIterator(); It; ++It)

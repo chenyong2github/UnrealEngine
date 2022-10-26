@@ -176,6 +176,21 @@ struct FSceneViewInitOptions : public FSceneViewProjectionData
 	/** In case of ortho, generate a fake view position that has a non-zero W component. The view position will be derived based on the view matrix. */
 	bool bUseFauxOrthoViewPos;
 
+	/** Whether this view is being used to render a scene capture. */
+	bool bIsSceneCapture;
+
+	/** Whether the scene capture is a cube map (bIsSceneCapture will also be set). */
+	bool bIsSceneCaptureCube;
+
+	/** Whether this view uses ray tracing, for views that are used to render a scene capture. */
+	bool bSceneCaptureUsesRayTracing;
+
+	/** Whether this view is being used to render a reflection capture. */
+	bool bIsReflectionCapture;
+
+	/** Whether this view is being used to render a planar reflection. */
+	bool bIsPlanarReflection;
+
 #if WITH_EDITOR
 	/** default to 0'th view index, which is a bitfield of 1 */
 	uint64 EditorViewBitflag;
@@ -210,6 +225,11 @@ struct FSceneViewInitOptions : public FSceneViewProjectionData
 		, FOV(90.f)
 		, DesiredFOV(90.f)
 		, bUseFauxOrthoViewPos(false)
+		, bIsSceneCapture(false)
+		, bIsSceneCaptureCube(false)
+		, bSceneCaptureUsesRayTracing(false)
+		, bIsReflectionCapture(false)
+		, bIsPlanarReflection(false)
 #if WITH_EDITOR
 		, EditorViewBitflag(1)
 		, OverrideLODViewOrigin(ForceInitToZero)

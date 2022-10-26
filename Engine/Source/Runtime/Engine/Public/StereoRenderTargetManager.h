@@ -73,6 +73,11 @@ public:
 	virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) { return false; }
 
 	/**
+	 * Returns pixel format that the device created its swapchain with (which can be different than what was requested in AllocateRenderTargetTexture)
+	 */
+	virtual EPixelFormat GetActualColorSwapchainFormat() const { return PF_Unknown; }
+	
+	/**
 	 * Allocates a depth texture.
 	 *
 	 * @param Index			(in) index of the buffer, changing from 0 to GetNumberOfBufferedFrames()

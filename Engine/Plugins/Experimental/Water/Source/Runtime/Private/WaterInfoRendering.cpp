@@ -652,6 +652,7 @@ static FSceneRenderer* CreateWaterInfoSceneRenderer(const FCreateWaterInfoSceneR
 	ViewInitOptions.ProjectionMatrix = Params.ProjectionMatrix;
 	ViewInitOptions.LODDistanceFactor = 0.001f;
 	ViewInitOptions.OverlayColor = FLinearColor::Black;
+	ViewInitOptions.bIsSceneCapture = true;
 
 	if (ViewFamily.Scene->GetWorld() != nullptr && ViewFamily.Scene->GetWorld()->GetWorldSettings() != nullptr)
 	{
@@ -659,7 +660,6 @@ static FSceneRenderer* CreateWaterInfoSceneRenderer(const FCreateWaterInfoSceneR
 	}
 
 	FSceneView* View = new FSceneView(ViewInitOptions);
-	View->bIsSceneCapture = true;
 	View->GPUMask = FRHIGPUMask::All();
 	View->bOverrideGPUMask = true;
 	View->AntiAliasingMethod = EAntiAliasingMethod::AAM_None;

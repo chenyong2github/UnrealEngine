@@ -1187,7 +1187,8 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, SelectedEnvironmentBlendMode(XR_ENVIRONMENT_BLEND_MODE_MAX_ENUM)
 	, RenderBridge(InRenderBridge)
 	, RendererModule(nullptr)
-	, LastRequestedSwapchainFormat(0)
+	, LastRequestedColorSwapchainFormat(0)
+	, LastActualColorSwapchainFormat(0)
 	, LastRequestedDepthSwapchainFormat(PF_DepthStencil)
 	, bTrackingSpaceInvalid(true)
 	, bUseCustomReferenceSpace(false)
@@ -2074,13 +2075,14 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 
 	FClearValueBinding ClearColor = FClearValueBinding::Transparent;
 
+	uint8 ActualFormat = Format;
 	FXRSwapChainPtr& Swapchain = PipelinedLayerStateRendering.ColorSwapchain;
 	const FRHITexture2D* const SwapchainTexture = Swapchain == nullptr ? nullptr : Swapchain->GetTexture2DArray() ? Swapchain->GetTexture2DArray() : Swapchain->GetTexture2D();
-	if (Swapchain == nullptr || SwapchainTexture == nullptr || Format != LastRequestedSwapchainFormat || SwapchainTexture->GetSizeX() != SizeX || SwapchainTexture->GetSizeY() != SizeY)
+	if (Swapchain == nullptr || SwapchainTexture == nullptr || Format != LastRequestedColorSwapchainFormat || SwapchainTexture->GetSizeX() != SizeX || SwapchainTexture->GetSizeY() != SizeY)
 	{
 		ensureMsgf(NumSamples == 1, TEXT("OpenXR supports MSAA swapchains, but engine logic expects the swapchain target to be 1x."));
 
-		Swapchain = RenderBridge->CreateSwapchain(Session, Format, SizeX, SizeY, bIsMobileMultiViewEnabled ? 2 : 1, NumMips, NumSamples, UnifiedCreateFlags, ClearColor);
+		Swapchain = RenderBridge->CreateSwapchain(Session, Format, ActualFormat, SizeX, SizeY, bIsMobileMultiViewEnabled ? 2 : 1, NumMips, NumSamples, UnifiedCreateFlags, ClearColor);
 		if (!Swapchain)
 		{
 			return false;
@@ -2089,7 +2091,8 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 
 	// Grab the presentation texture out of the swapchain.
 	OutTargetableTexture = OutShaderResourceTexture = (FTexture2DRHIRef&)Swapchain->GetTextureRef();
-	LastRequestedSwapchainFormat = Format;
+	LastRequestedColorSwapchainFormat = Format;
+	LastActualColorSwapchainFormat = ActualFormat;
 
 	// TODO: Pass in known depth parameters (format + flags)? Do we know that at viewport setup time?
 	AllocateDepthTextureInternal(Index, SizeX, SizeY, NumSamples);
@@ -2130,7 +2133,8 @@ void FOpenXRHMD::AllocateDepthTextureInternal(uint32 Index, uint32 SizeX, uint32
 		constexpr uint32 NumSamplesExpected = 1;
 		constexpr uint32 NumMipsExpected = 1;
 
-		DepthSwapchain = RenderBridge->CreateSwapchain(Session, PF_DepthStencil, SizeX, SizeY, bIsMobileMultiViewEnabled ? 2 : 1, NumMipsExpected, NumSamplesExpected, UnifiedCreateFlags, FClearValueBinding::DepthFar);
+		uint8 UnusedActualFormat = 0;
+		DepthSwapchain = RenderBridge->CreateSwapchain(Session, PF_DepthStencil, UnusedActualFormat, SizeX, SizeY, bIsMobileMultiViewEnabled ? 2 : 1, NumMipsExpected, NumSamplesExpected, UnifiedCreateFlags, FClearValueBinding::DepthFar);
 		if (!DepthSwapchain)
 		{
 			return;
@@ -2186,8 +2190,10 @@ void CreateNativeLayerSwapchain(FOpenXRLayer& Layer, TRefCountPtr<FOpenXRRenderB
 {
 	auto CreateSwapchain = [&](FRHITexture2D* Texture, ETextureCreateFlags Flags)
 	{
+		uint8 UnusedActualFormat = 0;
 		return RenderBridge->CreateSwapchain(Session,
 			IStereoRenderTargetManager::GetStereoLayerPixelFormat(),
+			UnusedActualFormat,
 			Texture->GetSizeX(),
 			Texture->GetSizeY(),
 			1,

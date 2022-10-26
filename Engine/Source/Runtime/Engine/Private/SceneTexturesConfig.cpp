@@ -6,6 +6,7 @@
 #include "SceneInterface.h"
 #include "Engine/Engine.h"
 #include "StereoRendering.h"
+#include "StereoRenderTargetManager.h"
 
 FSceneTexturesConfig FSceneTexturesConfig::GlobalInstance;
 
@@ -29,7 +30,24 @@ FSceneTextureShaderParameters GetSceneTextureShaderParameters(TRDGUniformBufferR
 
 static EPixelFormat GetDefaultMobileSceneColorLowPrecisionFormat()
 {
-	return (GEngine && GEngine->XRSystem.IsValid() && GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStandaloneStereoOnlyDevice()) ? PF_R8G8B8A8 : PF_B8G8R8A8;
+	if (UNLIKELY(GEngine && GEngine->XRSystem.IsValid() && GEngine->StereoRenderingDevice.IsValid()))
+	{
+		IStereoRenderTargetManager* RTManager = GEngine->StereoRenderingDevice->GetRenderTargetManager();
+		if (LIKELY(RTManager))
+		{
+			EPixelFormat ActualFormat = RTManager->GetActualColorSwapchainFormat();
+			if (LIKELY(ActualFormat != PF_Unknown))
+			{
+				return ActualFormat;
+			}
+		}
+		
+		if (GEngine->StereoRenderingDevice->IsStandaloneStereoOnlyDevice())
+		{
+			return PF_R8G8B8A8;
+		}
+	}
+	return PF_B8G8R8A8;
 }
 
 static EPixelFormat GetMobileSceneColorFormat(bool bRequiresAlphaChannel)

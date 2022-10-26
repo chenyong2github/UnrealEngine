@@ -118,15 +118,11 @@ FSceneView* FDisplayClusterViewport::ImplCalcScenePreview(FSceneViewFamilyContex
 			ViewInitOptions.OverlayColor = FLinearColor::Black;
 		}
 
+		ViewInitOptions.bIsSceneCapture = true;
+		ViewInitOptions.bSceneCaptureUsesRayTracing = false;
+		ViewInitOptions.bIsPlanarReflection = false;
+
 		FSceneView* View = new FSceneView(ViewInitOptions);
-
-		View->bIsSceneCapture = true;
-		View->bSceneCaptureUsesRayTracing = false;
-		View->bIsPlanarReflection = false;
-
-		// Note: this has to be set before EndFinalPostprocessSettings
-		// Needs to be reconfigured now that bIsPlanarReflection has changed.
-		View->SetupAntiAliasingMethod();
 
 		InOutViewFamily.Views.Add(View);
 

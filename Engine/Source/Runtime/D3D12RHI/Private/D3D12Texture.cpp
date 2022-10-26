@@ -2708,9 +2708,8 @@ FD3D12Texture* FD3D12DynamicRHI::CreateTextureFromResource(bool bTextureArray, b
 	TextureResource->AddRef();
 
 	FRHITextureCreateDesc CreateDesc =
-		FRHITextureCreateDesc::Create2D(TEXT("TextureFromResource"))
-		.SetExtent(FIntPoint(SizeX, SizeY))
-		.SetFormat(Format)
+		((SizeZ > 1) ? FRHITextureCreateDesc::Create2DArray(TEXT("TextureFromResource"), FIntPoint(SizeX, SizeY), SizeZ, Format) :
+			FRHITextureCreateDesc::Create2D(TEXT("TextureFromResource"), FIntPoint(SizeX, SizeY), Format))
 		.SetClearValue(ClearValueBinding)
 		.SetFlags(TexCreateFlags)
 		.SetNumMips(NumMips)

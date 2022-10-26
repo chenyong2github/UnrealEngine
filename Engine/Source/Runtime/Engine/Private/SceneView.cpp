@@ -763,11 +763,11 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, CursorPos(InitOptions.CursorPos)
 	, bIsGameView(false)
 	, bIsViewInfo(false)
-	, bIsSceneCapture(false)
-	, bIsSceneCaptureCube(false)
-	, bSceneCaptureUsesRayTracing(false)
-	, bIsReflectionCapture(false)
-	, bIsPlanarReflection(false)
+	, bIsSceneCapture(InitOptions.bIsSceneCapture)
+	, bIsSceneCaptureCube(InitOptions.bIsSceneCaptureCube)
+	, bSceneCaptureUsesRayTracing(InitOptions.bSceneCaptureUsesRayTracing)
+	, bIsReflectionCapture(InitOptions.bIsReflectionCapture)
+	, bIsPlanarReflection(InitOptions.bIsPlanarReflection)
 	, bIsVirtualTexture(false)
 	, bIsOfflineRender(false)
 	, bRenderSceneTwoSided(false)
@@ -865,40 +865,29 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
 	// Query instanced stereo and multi-view state
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.InstancedStereo"));
-	bIsInstancedStereoEnabled = !bUsingMobileRenderer && RHISupportsInstancedStereo(ShaderPlatform) && (CVar && CVar->GetValueOnAnyThread() != 0);
-	bIsMultiViewportEnabled = GRHISupportsArrayIndexFromAnyShader && RHISupportsMultiViewport(ShaderPlatform) && bIsInstancedStereoEnabled;
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	bIsMultiViewEnabled = bIsMultiViewportEnabled;	// temporary, as a graceful way to support plugins/licensee mods
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	bIsMobileMultiViewEnabled = Family && Family->bRequireMultiView;
-	if (bIsMobileMultiViewEnabled && !RHISupportsMobileMultiView(ShaderPlatform))
-	{
-		// Native mobile multi-view is not supported, attempt to fall back to instancing on compatible RHIs
-		if (RHISupportsInstancedStereo(ShaderPlatform) && !GRHISupportsArrayIndexFromAnyShader)
-		{
-			UE_LOG(LogMultiView, Fatal, TEXT("Mobile Multi-View not supported by the RHI and no fallback is available."));
-		}
-		bIsMobileMultiViewEnabled = bIsInstancedStereoEnabled = RHISupportsInstancedStereo(ShaderPlatform);
-	}
-
-	// If instanced stereo is enabled, we should also have either multiviewport enabled, or mmv fallback enabled.
-	// Assert this since a more graceful handling is done earlier (see PostInitRHI)
-	checkf(!bIsInstancedStereoEnabled || (bIsMultiViewportEnabled || bIsMobileMultiViewEnabled), 
-		TEXT("If instanced stereo is enabled, either multi-viewport or mobile multi-view needs to be enabled as well."));
-
 	{
 		// The shader variants that are compiled have ISR or MMV _enabled_ in the shader, even if the current ViewFamily doesn't
 		// require multiple views functionality.
 		const UE::StereoRenderUtils::FStereoShaderAspects Aspects(ShaderPlatform);
 		bShouldBindInstancedViewUB = Aspects.IsInstancedStereoEnabled() || Aspects.IsMobileMultiViewEnabled();
 
-		// make sure that FStereoShaderAspects logic matches the above logic (TODO: above should be replaced by setting them through aspects after more testing)
-		ensure(bIsInstancedStereoEnabled == Aspects.IsInstancedStereoEnabled());
-		ensure(bIsMultiViewportEnabled == Aspects.IsInstancedMultiViewportEnabled());
-		ensure(bIsMobileMultiViewEnabled == (Family && Family->bRequireMultiView && Aspects.IsMobileMultiViewEnabled()));
+		if (Family && Family->bRequireMultiView && !Aspects.IsMobileMultiViewEnabled())
+		{
+			UE_LOG(LogMultiView, Fatal, TEXT("Family requires Mobile Multi-View, but it is not supported by the RHI and no fallback is available."));
+		}
+
+		bIsInstancedStereoEnabled = Aspects.IsInstancedStereoEnabled();
+		bIsMultiViewportEnabled = Aspects.IsInstancedMultiViewportEnabled();
+		bIsMobileMultiViewEnabled = (!bIsSceneCapture && !bIsReflectionCapture && !bIsPlanarReflection && Family && Family->bRequireMultiView && Aspects.IsMobileMultiViewEnabled());
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		bIsMultiViewEnabled = bIsMultiViewportEnabled;	// temporary, as a graceful way to support plugins/licensee mods
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		// If instanced stereo is enabled, we should also have either multiviewport enabled, or mmv fallback enabled.
+		// Assert this since a more graceful handling is done earlier (see PostInitRHI)
+		checkf(!bIsInstancedStereoEnabled || (bIsMultiViewportEnabled || Aspects.IsMobileMultiViewEnabled()),
+			TEXT("If instanced stereo is enabled, either multi-viewport or mobile multi-view needs to be enabled as well."));
 	}
 
 	SetupAntiAliasingMethod();
@@ -2926,8 +2915,6 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 		EngineShowFlags.ScreenPercentage = false;
 	}
 
-	// TODO: Re-enable Mobile Multi-View on all platforms when all desktop XR plugins support it
-#if (PLATFORM_HOLOLENS || PLATFORM_ANDROID)
 	if (GEngine && GEngine->IsStereoscopic3D())
 	{
 		static const auto MobileMultiViewCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
@@ -2935,7 +2922,6 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 		const bool bUsingMobileRenderer = FSceneInterface::GetShadingPath(GetFeatureLevel()) == EShadingPath::Mobile;
 		bRequireMultiView = (GSupportsMobileMultiView || GRHISupportsArrayIndexFromAnyShader) && bUsingMobileRenderer && bSkipPostprocessing && (MobileMultiViewCVar && MobileMultiViewCVar->GetValueOnAnyThread() != 0);
 	}
-#endif
 
 	// Check if the translucency are allowed to be rendered after DOF, if not, translucency after DOF will be rendered in standard translucency.
 	{

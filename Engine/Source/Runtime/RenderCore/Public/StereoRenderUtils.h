@@ -21,22 +21,22 @@ namespace UE::StereoRenderUtils
 
 		/**
 		 * Whether instanced stereo rendering is enabled - i.e. using a single instanced drawcall to render to both stereo views.
-		 * Can redirect output either via viewport index or X coordinate shift + clip planes.
+		 * The output is redirected via the viewport index.
 		 */
-		RENDERCORE_API bool IsInstancedStereoEnabled() const;
+		inline bool IsInstancedStereoEnabled() const { return bInstancedStereoEnabled; }
 
 		/**
 		 * Whether mobile multiview is enabled - i.e. using VK_KHR_multiview. Another drawcall reduction technique, independent of instanced stereo.
 		 * Mobile multiview generates view indices to index into texture arrays.
 		 * Can be internally emulated using instanced stereo if native support is unavailable, by using ISR-generated view indices to index into texture arrays.
 		 */
-		RENDERCORE_API bool IsMobileMultiViewEnabled() const;
+		inline bool IsMobileMultiViewEnabled() const { return bMobileMultiViewEnabled; };
 
 		/**
 		 * Whether multiviewport rendering is enabled - i.e. using ViewportIndex to index into viewport.
 		 * Relies on instanced stereo rendering being enabled.
 		 */
-		RENDERCORE_API bool IsInstancedMultiViewportEnabled() const;
+		inline bool IsInstancedMultiViewportEnabled() const { return bInstancedMultiViewportEnabled; };
 
 	private:
 		bool bInstancedStereoEnabled : 1;

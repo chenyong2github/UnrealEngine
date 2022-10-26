@@ -439,12 +439,13 @@ void FD3D12ContextCommon::TransitionResource(FD3D12RenderTargetView* View, D3D12
 		break;
 
 	case D3D12_RTV_DIMENSION_TEXTURE2DARRAY:
+	case D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY:
 		// Multiple subresources to transition
 		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, View->GetViewSubresourceSubset());
 		break;
 
 	default:
-		checkNoEntry();
+		UE_LOG(LogRHI, Fatal, TEXT("Unsupported resource dimension %d"), Desc.ViewDimension);
 		break;
 	}
 }
