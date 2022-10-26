@@ -1,0 +1,112 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "UObject/Object.h"
+#include "Curves/CurveFloat.h"
+#include "GenericPlatform/IInputInterface.h"
+
+#include "InputDeviceProperties.generated.h"
+
+/**
+* Base class that represents a single Input Device Property. An Input Device Property
+* represents a feature that can be set on an input device. Things like what color a
+* light is, advanced rumble patterns, or trigger haptics.
+* 
+* This top level object can then be evaluated at a specific time to create a lower level
+* FInputDeviceProperty, which the IInputInterface implementation can interpret however it desires.
+* 
+* The behavior of device properties can vary depending on the current platform. Some platforms may not
+* support certain device properties. An older gamepad may not have any advanced trigger haptics for 
+* example. 
+*/
+UCLASS(Abstract, Blueprintable, EditInlineNew)
+class ENGINE_API UInputDeviceProperty : public UObject
+{
+	GENERATED_BODY()
+public:
+
+	/**
+	* Evaluate this device property for a given duration. 
+	* 
+	* @param DeltaTime		Delta time
+	* @param Duration		The number of seconds that this property has been active. Use this to get things like curve data over time.
+	* @return				A pointer to the evaluated input device property.
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "InputDevice")
+	void EvaluateDeviceProperty(const float DeltaTime, const float Duration);
+
+	/** 
+	* Native C++ implementation of EvaluateDeviceProperty.
+	* 
+	* Override this to alter your device property in native code.
+	* @see UInputDeviceProperty::EvaluateDeviceProperty
+	*/
+	virtual void EvaluateDeviceProperty_Implementation(const float DeltaTime, const float Duration) { }
+
+	/**
+	* Apply the given device property to the Input Interface 
+	* 
+	* @param UserId		The owning Platform User whose input device this property should be applied to.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "InputDevice")
+	virtual void ApplyDeviceProperty(const FPlatformUserId UserId);
+	
+	/** Gets a pointer to the current input device property that the IInputInterface can use. */
+	virtual FInputDeviceProperty* GetInternalDeviceProperty() { return nullptr; };
+
+	/**
+	* The duration that this device property should last. Override this if your property has any dynamic curves 
+	* to be the max time range.
+	*/
+	float GetDuration() const { return PropertyDuration; }
+
+protected:
+
+	/** 
+	* The name of this unique device property. 
+	* This is used internally by the platform to determine which device property this represents. 
+	* This needs to correspond to a FInputDeviceProperty name!
+	*/
+	UPROPERTY(VisibleAnywhere, Category = "Info")
+	FName PropertyName;
+
+	/**
+	* The duration that this device property should last. Override this if your property has any dynamic curves 
+	* to be the max time range.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Info")
+	float PropertyDuration = 0.1f;
+};
+
+class UCurveLinearColor;
+
+/** A property that can be used to change the color of an input device's light */
+UCLASS(Blueprintable, EditInlineNew)
+class UColorInputDeviceProperty : public UInputDeviceProperty
+{
+	GENERATED_BODY()
+
+public:
+
+	UColorInputDeviceProperty();
+
+	virtual void EvaluateDeviceProperty_Implementation(const float DeltaTime, const float Duration) override;
+	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
+
+protected:
+
+	/** True if the light should be enabled at all */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	bool bEnable = true;
+
+	/** The color the device light should be */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	TObjectPtr<UCurveLinearColor> DeviceColorCurve;
+
+private:
+
+	/** The internal light color property that this represents; */
+	FInputDeviceLightColorProperty InternalProperty;
+};

@@ -3,6 +3,7 @@
 #include "GameFramework/ForceFeedbackEffect.h"
 #include "GenericPlatform/IInputInterface.h"
 #include "Misc/App.h"
+#include "GameFramework/InputDeviceProperties.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ForceFeedbackEffect)
 
@@ -15,7 +16,7 @@ UForceFeedbackEffect::UForceFeedbackEffect(const FObjectInitializer& ObjectIniti
 }
 
 #if WITH_EDITOR
-void UForceFeedbackEffect::PostEditChangeChainProperty( struct FPropertyChangedChainEvent& PropertyChangedEvent)
+void UForceFeedbackEffect::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	// After any edit (really we only care about the curve, but easier this way) update the cached duration value
 	GetDuration();
@@ -38,6 +39,19 @@ float UForceFeedbackEffect::GetDuration()
 			if (MaxTime > Duration)
 			{
 				Duration = MaxTime;
+			}
+		}
+
+		// Check the device properties for any longer durations
+		for (TObjectPtr<UInputDeviceProperty> DeviceProperty : DeviceProperties)
+		{
+			if (DeviceProperty)
+			{
+				const float PropertyDuration = DeviceProperty->GetDuration();
+				if (PropertyDuration > Duration)
+				{
+					Duration = PropertyDuration;
+				}	
 			}
 		}
 	}
@@ -67,6 +81,18 @@ void UForceFeedbackEffect::GetValues(const float EvalTime, FForceFeedbackValues&
 		if (Details.bAffectsRightSmall)
 		{
 			Values.RightSmall = FMath::Clamp(Value, Values.RightSmall, 1.f);
+		}
+	}
+}
+
+void UForceFeedbackEffect::SetDeviceProperties(const FPlatformUserId PlatformUser, const float DeltaTime, const float EvalTime)
+{
+	for (TObjectPtr<UInputDeviceProperty> DeviceProp : DeviceProperties)
+	{
+		if (DeviceProp)
+		{
+			DeviceProp->EvaluateDeviceProperty(DeltaTime, EvalTime);
+			DeviceProp->ApplyDeviceProperty(PlatformUser);
 		}
 	}
 }
@@ -102,6 +128,10 @@ bool FActiveForceFeedbackEffect::Update(const float DeltaTime, FForceFeedbackVal
 	}
 	
 	GetValues(Values);
+
+	// Set any input device properties associated with this effect
+	const float EvalTime = PlayTime - Duration * FMath::FloorToFloat(PlayTime / Duration);
+	ForceFeedbackEffect->SetDeviceProperties(PlatformUser, DeltaTime, EvalTime);
+
 	return true;
 }
-

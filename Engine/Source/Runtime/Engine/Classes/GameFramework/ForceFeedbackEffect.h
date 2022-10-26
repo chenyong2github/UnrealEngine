@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
 #include "CoreMinimal.h"
@@ -9,6 +9,7 @@
 
 class UForceFeedbackEffect;
 struct FForceFeedbackValues;
+class UInputDeviceProperty;
 
 USTRUCT()
 struct FForceFeedbackChannelDetails
@@ -75,16 +76,21 @@ struct ENGINE_API FActiveForceFeedbackEffect
 	FForceFeedbackParameters Parameters;
 	float PlayTime;
 
+	/** The platform user that should receive this effect */
+	FPlatformUserId PlatformUser = PLATFORMUSERID_NONE;
+
 	FActiveForceFeedbackEffect()
 		: ForceFeedbackEffect(nullptr)
 		, PlayTime(0.f)
+		, PlatformUser(PLATFORMUSERID_NONE)
 	{
 	}
 
-	FActiveForceFeedbackEffect(UForceFeedbackEffect* InEffect, FForceFeedbackParameters InParameters)
+	FActiveForceFeedbackEffect(UForceFeedbackEffect* InEffect, FForceFeedbackParameters InParameters, FPlatformUserId InPlatformUser)
 		: ForceFeedbackEffect(InEffect)
 		, Parameters(InParameters)
 		, PlayTime(0.f)
+		, PlatformUser(InPlatformUser)
 	{
 	}
 
@@ -106,6 +112,10 @@ class UForceFeedbackEffect : public UObject
 	UPROPERTY(EditAnywhere, Category="ForceFeedbackEffect")
 	TArray<FForceFeedbackChannelDetails> ChannelDetails;
 
+	/** A map of input device properties that we want to set while this effect is playing */
+	UPROPERTY(EditAnywhere, Instanced, Category = "ForceFeedbackEffect")
+	TArray<TObjectPtr<UInputDeviceProperty>> DeviceProperties;
+
 	/** Duration of force feedback pattern in seconds. */
 	UPROPERTY(Category=Info, AssetRegistrySearchable, VisibleAnywhere, BlueprintReadOnly)
 	float Duration;
@@ -117,4 +127,6 @@ class UForceFeedbackEffect : public UObject
 	float GetDuration();
 
 	void GetValues(const float EvalTime, FForceFeedbackValues& Values, float ValueMultiplier = 1.f) const;
+
+	void SetDeviceProperties(const FPlatformUserId PlatformUser, const float DeltaTime, const float EvalTime);
 };

@@ -4104,8 +4104,8 @@ void APlayerController::ClientPlayForceFeedback_Internal_Implementation( UForceF
 				}
 			}
 		}
-
-		ActiveForceFeedbackEffects.Emplace(ForceFeedbackEffect, Params);
+		
+		ActiveForceFeedbackEffects.Emplace(ForceFeedbackEffect, Params, GetPlatformUserId());
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		ForceFeedbackEffectHistoryEntries.Emplace(ActiveForceFeedbackEffects.Last(), GetWorld()->GetTimeSeconds());
