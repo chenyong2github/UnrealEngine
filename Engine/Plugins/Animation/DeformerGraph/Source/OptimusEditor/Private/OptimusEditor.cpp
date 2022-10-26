@@ -2,6 +2,7 @@
 
 #include "OptimusEditor.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "IDetailsView.h"
 #include "OptimusEditorTabSummoners.h"
 #include "OptimusEditorClipboard.h"

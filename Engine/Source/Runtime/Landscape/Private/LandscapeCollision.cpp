@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformStackWalk.h"
+#include "Materials/Material.h"
 #include "Misc/Guid.h"
 #include "Stats/Stats.h"
 #include "Serialization/BufferArchive.h"

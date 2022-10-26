@@ -4,6 +4,7 @@
 #include "AnimGraphNode_CCDIK.h"
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
+#include "SceneManagement.h"
 
 void FCCDIKEditMode::EnterMode(class UAnimGraphNode_Base* InEditorNode, struct FAnimNode_Base* InRuntimeNode)
 {

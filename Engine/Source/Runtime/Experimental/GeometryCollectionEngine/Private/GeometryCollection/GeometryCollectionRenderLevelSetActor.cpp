@@ -6,6 +6,7 @@
 
 #include "Chaos/ArrayND.h"
 #include "Chaos/Vector.h"
+#include "Materials/Material.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GeometryCollectionRenderLevelSetActor)
 

@@ -4,6 +4,7 @@
 
 #include "DynamicMesh/DynamicMesh3.h"
 
+#include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshMaterialProperties)

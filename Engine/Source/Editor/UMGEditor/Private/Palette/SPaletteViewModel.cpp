@@ -2,6 +2,7 @@
 
 #include "Palette/SPaletteViewModel.h"
 #include "Palette/SPaletteView.h"
+#include "UObject/UObjectIterator.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "WidgetBlueprint.h"

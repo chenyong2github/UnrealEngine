@@ -5,6 +5,7 @@
 
 #include "Components/PrimitiveComponent.h"
 #include "CanvasItem.h"
+#include "Model.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "GameFramework/Volume.h"
 #include "Editor/UnrealEdEngine.h"

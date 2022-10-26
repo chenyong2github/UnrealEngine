@@ -45,6 +45,7 @@
 #include "DirectoryWatcherModule.h"
 #include "MaterialStatsCommon.h"
 #include "Materials/MaterialInstance.h"
+#include "UObject/UObjectIterator.h"
 #include "VirtualTexturingEditorModule.h"
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "LandscapeSubsystem.h"

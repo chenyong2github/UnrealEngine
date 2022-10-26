@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerMeshTrail.h"
+#include "Materials/Material.h"
 #include "SequencerKeyActor.h"
 #include "EditorWorldExtension.h"
 #include "ViewportWorldInteraction.h"

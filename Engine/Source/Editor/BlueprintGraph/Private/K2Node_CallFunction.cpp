@@ -3,6 +3,7 @@
 #include "K2Node_CallFunction.h"
 #include "BlueprintCompilationManager.h"
 #include "BlueprintEditorSettings.h"
+#include "UObject/ReleaseObjectVersion.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/Interface.h"

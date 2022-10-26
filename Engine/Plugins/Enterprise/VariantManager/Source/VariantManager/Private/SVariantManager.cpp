@@ -3,6 +3,7 @@
 #include "SVariantManager.h"
 
 #include "CapturableProperty.h"
+#include "Components/StaticMeshComponent.h"
 #include "DisplayNodes/VariantManagerActorNode.h"
 #include "DisplayNodes/VariantManagerColorPropertyNode.h"
 #include "DisplayNodes/VariantManagerDisplayNode.h"

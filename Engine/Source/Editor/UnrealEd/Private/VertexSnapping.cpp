@@ -3,6 +3,7 @@
 #include "VertexSnapping.h"
 #include "GameFramework/Actor.h"
 #include "Misc/App.h"
+#include "Model.h"
 #include "SceneView.h"
 #include "Components/PrimitiveComponent.h"
 #include "Components/StaticMeshComponent.h"

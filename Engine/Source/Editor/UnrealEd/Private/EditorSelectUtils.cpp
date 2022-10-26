@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/FeedbackContext.h"
+#include "Model.h"
 #include "Modules/ModuleManager.h"
 #include "Components/ActorComponent.h"
 #include "Components/SceneComponent.h"

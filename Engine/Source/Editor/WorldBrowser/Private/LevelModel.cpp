@@ -3,6 +3,7 @@
 #include "GameFramework/Actor.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
+#include "Model.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"
 #include "Engine/Brush.h"

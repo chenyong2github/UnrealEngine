@@ -11,6 +11,7 @@
 #include "Chaos/CacheManagerCustomization.h"
 #include "Chaos/CacheCollectionFactory.h"
 #include "Chaos/CacheCollection.h"
+#include "Components/PrimitiveComponent.h"
 #include "Sequencer/TakeRecorderChaosCacheSource.h"
 #include "CoreMinimal.h"
 #include "Engine/Selection.h"

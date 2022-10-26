@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/StaticArray.h"
+#include "GameFramework/WorldSettings.h"
 #include "UObject/Package.h"
 #include "EngineGlobals.h"
 #include "Engine/ActorChannel.h"

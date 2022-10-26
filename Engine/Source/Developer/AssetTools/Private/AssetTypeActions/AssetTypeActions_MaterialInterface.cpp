@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetTypeActions/AssetTypeActions_MaterialInterface.h"
+#include "Materials/Material.h"
 #include "Misc/PackageName.h"
 #include "ToolMenus.h"
 #include "Styling/AppStyle.h"

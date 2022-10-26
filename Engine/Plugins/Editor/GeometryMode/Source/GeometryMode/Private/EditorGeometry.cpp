@@ -7,6 +7,7 @@
 #include "EditorModes.h"
 #include "GeometryEdMode.h"
 #include "GeometryModeModule.h"
+#include "Model.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorGeometry, Log, All);
 

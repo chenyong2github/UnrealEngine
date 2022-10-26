@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Component/ComponentElementLevelEditorSelectionCustomization.h"
+#include "Components/PrimitiveComponent.h"
 #include "Elements/Component/ComponentElementData.h"
 #include "Components/ActorComponent.h"
 

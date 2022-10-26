@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Misc/CoreDelegates.h"
+#include "RenderingThread.h"
+#include "SceneInterface.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UnrealType.h"
 #include "Engine/Blueprint.h"

@@ -11,6 +11,8 @@
 
 #include "GLTFMaterialAnalyzer.generated.h"
 
+class UMaterialExpressionCustomOutput;
+
 UCLASS(NotBlueprintType, Transient)
 class GLTFMATERIALANALYZER_API UGLTFMaterialAnalyzer : public UMaterialInstance
 {

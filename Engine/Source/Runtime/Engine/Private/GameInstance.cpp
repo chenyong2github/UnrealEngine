@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/GameInstance.h"
+#include "GameFramework/WorldSettings.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/CommandLine.h"
 #include "GameMapsSettings.h"

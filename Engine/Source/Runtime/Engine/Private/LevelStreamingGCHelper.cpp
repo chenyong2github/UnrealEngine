@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/LevelStreamingGCHelper.h"
+#include "Engine/Level.h"
 #include "Engine/LevelStreaming.h"
 #include "Engine/CoreSettings.h"
 #include "Engine/NetDriver.h"

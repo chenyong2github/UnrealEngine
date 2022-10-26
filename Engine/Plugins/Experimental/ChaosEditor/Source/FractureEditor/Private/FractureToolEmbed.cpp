@@ -2,6 +2,7 @@
 
 #include "FractureToolEmbed.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "Editor.h"
 #include "ScopedTransaction.h"
 #include "Engine/Selection.h"

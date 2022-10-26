@@ -6,6 +6,7 @@
 #include "Misc/Paths.h"
 #include "Misc/FeedbackContext.h"
 #include "Modules/ModuleManager.h"
+#include "StaticMeshResources.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"

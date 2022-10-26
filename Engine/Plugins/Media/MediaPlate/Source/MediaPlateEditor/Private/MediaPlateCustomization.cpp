@@ -3,6 +3,7 @@
 #include "MediaPlateCustomization.h"
 
 #include "CineCameraSettings.h"
+#include "Components/StaticMeshComponent.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"

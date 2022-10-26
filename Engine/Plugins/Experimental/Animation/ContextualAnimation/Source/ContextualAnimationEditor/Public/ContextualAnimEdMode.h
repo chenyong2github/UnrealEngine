@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EdMode.h"
+#include "HitProxies.h"
 
 class AActor;
 class FContextualAnimViewModel;

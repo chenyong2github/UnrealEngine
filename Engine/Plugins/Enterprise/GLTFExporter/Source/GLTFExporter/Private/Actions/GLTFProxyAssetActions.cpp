@@ -4,6 +4,7 @@
 
 #include "Actions/GLTFProxyAssetActions.h"
 #include "Actions/GLTFEditorStyle.h"
+#include "Materials/MaterialInterface.h"
 #include "Options/GLTFProxyOptions.h"
 #include "UI/GLTFProxyOptionsWindow.h"
 #include "Converters/GLTFMaterialProxyFactory.h"

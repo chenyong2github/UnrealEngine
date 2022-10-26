@@ -4,6 +4,7 @@
 
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetUtils/CreateStaticMeshUtil.h"
+#include "Components/StaticMeshComponent.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "LevelEditorViewport.h"
 #include "MediaPlate.h"

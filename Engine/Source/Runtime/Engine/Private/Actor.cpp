@@ -8,6 +8,7 @@
 #include "EngineGlobals.h"
 #include "Elements/Framework/EngineElementsLibrary.h"
 #include "GameFramework/DamageType.h"
+#include "GameFramework/WorldSettings.h"
 #include "TimerManager.h"
 #include "GameFramework/Pawn.h"
 #include "Components/PrimitiveComponent.h"

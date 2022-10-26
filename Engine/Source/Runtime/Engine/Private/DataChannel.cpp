@@ -5,6 +5,8 @@
 =============================================================================*/
 
 #include "Net/DataChannel.h"
+#include "Engine/Level.h"
+#include "GameFramework/WorldSettings.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/ObjectKey.h"
 #include "EngineStats.h"

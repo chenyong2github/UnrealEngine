@@ -2,6 +2,7 @@
 
 #include "UnrealEdMisc.h"
 
+#include "Model.h"
 #include "TickableEditorObject.h"
 #include "Components/PrimitiveComponent.h"
 #include "Misc/MessageDialog.h"

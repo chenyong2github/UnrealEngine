@@ -7,6 +7,7 @@
 #include "GameFramework/GameMode.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
+#include "GameFramework/WorldSettings.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/NetDriver.h"
 #include "GameFramework/LocalMessage.h"

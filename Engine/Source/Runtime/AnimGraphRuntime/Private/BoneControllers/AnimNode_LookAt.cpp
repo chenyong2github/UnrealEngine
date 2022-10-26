@@ -2,6 +2,7 @@
 
 #include "BoneControllers/AnimNode_LookAt.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Materials/Material.h"
 #include "SceneManagement.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "Animation/AnimInstanceProxy.h"

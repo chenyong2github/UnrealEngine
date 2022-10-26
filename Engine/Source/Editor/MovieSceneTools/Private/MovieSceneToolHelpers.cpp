@@ -8,6 +8,7 @@
 #include "Layout/Margin.h"
 #include "Misc/App.h"
 #include "Misc/Paths.h"
+#include "UObject/UObjectIterator.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Text/STextBlock.h"
 #include "AssetRegistry/AssetData.h"

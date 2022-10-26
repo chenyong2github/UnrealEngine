@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Utilities/GLTFProxyMaterialUtilities.h"
+#include "Materials/Material.h"
 #include "Utilities/GLTFJsonUtilities.h"
 #include "UserData/GLTFMaterialUserData.h"
 #include "Materials/MaterialInstanceConstant.h"

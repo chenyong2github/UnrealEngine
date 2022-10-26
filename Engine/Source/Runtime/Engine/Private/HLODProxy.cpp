@@ -4,6 +4,7 @@
 
 #include "Engine/LODActor.h"
 #include "GameFramework/WorldSettings.h"
+#include "Materials/Material.h"
 
 #if WITH_EDITOR
 #include "Algo/ForEach.h"

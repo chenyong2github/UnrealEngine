@@ -2,6 +2,8 @@
 
 #include "BaseTools/BaseVoxelTool.h"
 #include "InteractiveToolManager.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialInterface.h"
 #include "ToolSetupUtil.h"
 #include "ModelingToolTargetUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"

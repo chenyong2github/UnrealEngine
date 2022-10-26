@@ -26,6 +26,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Sound/AudioSettings.h"
+#include "Sound/SoundClass.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundEffectPreset.h"
 #include "Sound/SoundNodeDialoguePlayer.h"

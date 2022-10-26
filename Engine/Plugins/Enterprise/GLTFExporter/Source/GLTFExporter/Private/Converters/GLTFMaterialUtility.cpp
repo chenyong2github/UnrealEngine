@@ -3,6 +3,7 @@
 #include "Converters/GLTFMaterialUtility.h"
 #include "Converters/GLTFTextureUtility.h"
 #include "Converters/GLTFNameUtility.h"
+#include "Materials/Material.h"
 #include "Utilities/GLTFProxyMaterialUtilities.h"
 #include "Misc/DefaultValueHelper.h"
 #if WITH_EDITOR

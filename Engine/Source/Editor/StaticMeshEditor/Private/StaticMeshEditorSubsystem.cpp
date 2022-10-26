@@ -36,6 +36,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/FeedbackContext.h"
 
+#include "StaticMeshResources.h"
 #include "UnrealEdGlobals.h"
 #include "GeomFitUtils.h"
 #include "ConvexDecompTool.h"
@@ -43,6 +44,8 @@
 #include "Subsystems/UnrealEditorSubsystem.h"
 #include "Layers/LayersSubsystem.h"
 #include "EditorScriptingHelpers.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMeshEditorSubsystem)
 
 #define LOCTEXT_NAMESPACE "StaticMeshEditorSubsystem"
 

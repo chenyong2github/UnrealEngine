@@ -25,6 +25,7 @@
 #include "AI/Navigation/NavCollisionBase.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "ImportUtils/StaticMeshImportUtils.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AlembicImportFactory)
 

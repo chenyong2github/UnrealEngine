@@ -47,6 +47,7 @@
 #include "Styling/SlateTypes.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/UObjectGlobals.h"
+#include "UObject/UObjectIterator.h"
 
 
 DEFINE_LOG_CATEGORY(LogMetasoundEditor);

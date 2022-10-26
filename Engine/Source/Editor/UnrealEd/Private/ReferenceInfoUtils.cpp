@@ -5,6 +5,7 @@
 #include "Misc/Paths.h"
 #include "Misc/OutputDeviceFile.h"
 #include "HAL/IConsoleManager.h"
+#include "Model.h"
 #include "Modules/ModuleManager.h"
 #include "Serialization/ArchiveUObject.h"
 #include "UObject/Class.h"

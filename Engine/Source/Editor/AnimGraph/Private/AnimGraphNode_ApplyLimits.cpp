@@ -3,6 +3,7 @@
 #include "AnimGraphNode_ApplyLimits.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "SceneManagement.h"
 
 /////////////////////////////////////////////////////
 // UAnimGraphNode_ApplyLimits

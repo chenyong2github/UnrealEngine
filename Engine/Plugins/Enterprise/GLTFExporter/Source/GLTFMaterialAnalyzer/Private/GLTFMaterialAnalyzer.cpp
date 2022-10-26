@@ -3,6 +3,7 @@
 #include "GLTFMaterialAnalyzer.h"
 #include "GLTFProxyMaterialCompiler.h"
 #include "Materials/HLSLMaterialTranslator.h"
+#include "Materials/Material.h"
 
 void UGLTFMaterialAnalyzer::ResetToDefaults()
 {

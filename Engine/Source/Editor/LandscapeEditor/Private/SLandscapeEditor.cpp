@@ -3,6 +3,7 @@
 #include "SLandscapeEditor.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Materials/Material.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Modules/ModuleManager.h"

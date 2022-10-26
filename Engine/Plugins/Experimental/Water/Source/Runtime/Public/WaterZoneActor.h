@@ -6,6 +6,7 @@
 #include "Components/BoxComponent.h"
 #include "GameFramework/Actor.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "MaterialShared.h"
 #include "WaterZoneActor.generated.h"
 
 class UWaterMeshComponent;

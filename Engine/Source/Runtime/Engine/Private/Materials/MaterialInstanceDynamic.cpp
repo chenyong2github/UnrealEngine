@@ -5,6 +5,7 @@
 ==============================================================================*/
 
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/Material.h"
 #include "UObject/Package.h"
 #include "Materials/MaterialInstanceSupport.h"
 #include "Engine/Texture.h"

@@ -12,6 +12,7 @@
 #include "Editor.h"
 
 #include "ActorEditorUtils.h"
+#include "Model.h"
 
 class FLayersBroadcast
 {

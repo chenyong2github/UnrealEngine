@@ -6,6 +6,7 @@
 
 #include "SceneView.h"
 #include "Engine/Scene.h"
+#include "Materials/Material.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "EngineGlobals.h"

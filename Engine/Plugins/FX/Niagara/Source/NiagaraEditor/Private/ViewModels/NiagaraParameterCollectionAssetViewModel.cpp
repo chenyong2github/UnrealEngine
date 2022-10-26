@@ -10,6 +10,7 @@
 #include "ScopedTransaction.h"
 #include "EditorSupportDelegates.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/UObjectIterator.h"
 #include "ViewModels/TNiagaraViewModelManager.h"
 #include "Math/NumericLimits.h"
 

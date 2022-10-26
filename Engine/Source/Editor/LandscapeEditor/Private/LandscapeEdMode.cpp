@@ -3,6 +3,7 @@
 #include "LandscapeEdMode.h"
 
 #include "Algo/Accumulate.h"
+#include "Materials/Material.h"
 #include "SceneView.h"
 #include "Engine/Texture2D.h"
 #include "EditorViewportClient.h"

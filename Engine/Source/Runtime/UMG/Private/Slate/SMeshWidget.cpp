@@ -6,6 +6,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Framework/Application/SlateApplication.h"
+#include "RHI.h"
 #include "UMGPrivate.h"
 
 #include "SlateMaterialBrush.h"

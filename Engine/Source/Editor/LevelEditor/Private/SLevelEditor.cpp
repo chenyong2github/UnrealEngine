@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SLevelEditor.h"
+#include "Components/StaticMeshComponent.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
+#include "Materials/MaterialInterface.h"
 #include "ToolMenus.h"
 #include "Framework/Docking/LayoutService.h"
 #include "EditorModeRegistry.h"

@@ -19,6 +19,7 @@
 #include "EditorSupportDelegates.h"
 #include "MaterialGraph/MaterialGraph.h"
 #include "MaterialEditingLibrary.h"
+#include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "AssetVTConversion"
 

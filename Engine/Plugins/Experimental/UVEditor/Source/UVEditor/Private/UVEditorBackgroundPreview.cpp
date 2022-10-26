@@ -5,6 +5,7 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "Drawing/MeshWireframeComponent.h"
 #include "Engine/Texture2D.h"
+#include "Materials/Material.h"
 #include "ToolSetupUtil.h"
 #include "Async/Async.h"
 #include "UVEditorUXSettings.h"

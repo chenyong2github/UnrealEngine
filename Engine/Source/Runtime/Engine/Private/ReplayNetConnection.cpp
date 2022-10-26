@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ReplayNetConnection.h"
+#include "Engine/Level.h"
 #include "Net/NetworkProfiler.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Engine/LevelStreaming.h"

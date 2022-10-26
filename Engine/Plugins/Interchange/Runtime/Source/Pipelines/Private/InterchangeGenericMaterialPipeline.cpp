@@ -15,6 +15,7 @@
 #include "InterchangeTextureNode.h"
 #include "InterchangePipelineLog.h"
 #include "InterchangeSourceData.h"
+#include "Materials/Material.h"
 #include "Nodes/InterchangeBaseNode.h"
 
 #include "Materials/MaterialExpressionAdd.h"

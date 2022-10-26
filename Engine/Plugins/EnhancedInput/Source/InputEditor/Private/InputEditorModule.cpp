@@ -23,6 +23,7 @@
 #include "PropertyEditorDelegates.h"
 #include "PropertyEditorModule.h"
 #include "SSettingsEditorCheckoutNotice.h"
+#include "UObject/UObjectIterator.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "AssetTypeActions/AssetTypeActions_DataAsset.h"

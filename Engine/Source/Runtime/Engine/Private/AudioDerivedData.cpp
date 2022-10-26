@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioDerivedData.h"
+#include "AudioThread.h"
 #include "Interfaces/IAudioFormat.h"
 #include "Misc/CommandLine.h"
 #include "Stats/Stats.h"

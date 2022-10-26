@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PersonaMeshDetails.h"
+#include "StaticMeshResources.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"

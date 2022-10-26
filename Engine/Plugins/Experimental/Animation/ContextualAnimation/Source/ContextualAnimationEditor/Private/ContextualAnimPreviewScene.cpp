@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContextualAnimPreviewScene.h"
+#include "Components/StaticMeshComponent.h"
 #include "ContextualAnimAssetEditorToolkit.h"
 #include "GameFramework/WorldSettings.h"
 #include "EngineUtils.h"

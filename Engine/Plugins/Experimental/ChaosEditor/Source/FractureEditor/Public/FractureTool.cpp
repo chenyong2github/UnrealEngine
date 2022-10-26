@@ -2,6 +2,7 @@
 
 #include "FractureTool.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "Editor.h"
 #include "Engine/Selection.h"
 #include "LevelEditor.h"

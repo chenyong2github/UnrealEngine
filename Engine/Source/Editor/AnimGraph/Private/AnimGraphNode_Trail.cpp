@@ -4,6 +4,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/SkeletalMesh.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "SceneManagement.h"
 #include "UObject/ReleaseObjectVersion.h"
 /////////////////////////////////////////////////////
 // UAnimGraphNode_TrailBone

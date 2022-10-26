@@ -3,6 +3,7 @@
 
 #include "K2Node.h"
 #include "BlueprintCompilationManager.h"
+#include "UObject/ReleaseObjectVersion.h"
 #include "UObject/UnrealType.h"
 #include "UObject/CoreRedirects.h"
 #include "EdGraph/EdGraphPin.h"

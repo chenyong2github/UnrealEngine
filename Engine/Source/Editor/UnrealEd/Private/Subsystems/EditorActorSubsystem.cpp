@@ -13,6 +13,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "AssetSelection.h"
 #include "Subsystems/UnrealEditorSubsystem.h"
+#include "UObject/UObjectIterator.h"
 #include "Utils.h"
 #include "ActorEditorUtils.h"
 #include "Layers/LayersSubsystem.h"

@@ -2,6 +2,7 @@
 
 #include "ImgMediaMipMapInfo.h"
 
+#include "ConvexVolume.h"
 #include "IImgMediaModule.h"
 #include "ImgMediaPrivate.h"
 #include "ImgMediaSceneViewExtension.h"

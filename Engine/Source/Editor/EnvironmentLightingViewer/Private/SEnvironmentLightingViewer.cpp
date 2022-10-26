@@ -16,6 +16,7 @@
 #include "SlateOptMacros.h"
 #include "PropertyEditorModule.h"
 
+#include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"

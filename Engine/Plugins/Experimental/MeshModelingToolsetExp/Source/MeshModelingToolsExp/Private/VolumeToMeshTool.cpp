@@ -2,6 +2,7 @@
 
 #include "VolumeToMeshTool.h"
 #include "InteractiveToolManager.h"
+#include "Materials/Material.h"
 #include "ToolBuilderUtil.h"
 
 #include "ConversionUtils/VolumeToDynamicMesh.h"

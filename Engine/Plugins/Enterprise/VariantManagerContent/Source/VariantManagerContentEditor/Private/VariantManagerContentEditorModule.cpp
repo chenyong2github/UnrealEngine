@@ -7,6 +7,7 @@
 #include "LevelVariantSetsActorCustomization.h"
 #include "LevelVariantSetsAssetActions.h"
 #include "SwitchActorCustomization.h"
+#include "UObject/UObjectIterator.h"
 #include "VariantManagerContentEditorLog.h"
 
 #include "ActorFactories/ActorFactory.h"

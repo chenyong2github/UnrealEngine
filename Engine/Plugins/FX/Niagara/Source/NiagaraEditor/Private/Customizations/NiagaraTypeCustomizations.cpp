@@ -7,6 +7,7 @@
 #include "DetailWidgetRow.h"
 #include "IDetailChildrenBuilder.h"
 #include "IPropertyUtilities.h"
+#include "Materials/MaterialInterface.h"
 #include "NiagaraConstants.h"
 #include "NiagaraDataInterfaceRW.h"
 #include "NiagaraEditorModule.h"

@@ -7,6 +7,7 @@
 #include "Converters/GLTFImageUtility.h"
 #include "Utilities/GLTFProxyMaterialUtilities.h"
 #include "Materials/GLTFProxyMaterialInfo.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "HAL/FileManager.h"

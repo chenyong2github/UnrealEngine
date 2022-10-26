@@ -7,6 +7,7 @@
 #include "UObject/BlueprintsObjectVersion.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/ObjectSaveContext.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UObjectHash.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
 #include "UObject/UnrealType.h"

@@ -9,6 +9,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Misc/CoreMisc.h"
 #include "Components/ActorComponent.h"
+#include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/MetaData.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"

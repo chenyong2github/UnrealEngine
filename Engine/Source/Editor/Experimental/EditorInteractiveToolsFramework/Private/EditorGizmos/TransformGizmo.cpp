@@ -16,6 +16,7 @@
 #include "Engine/Selection.h"
 #include "Engine/World.h"
 #include "EditorModeTools.h"
+#include "Materials/Material.h"
 #include "UnrealEdGlobals.h"
 #include "UnrealEngine.h"
 

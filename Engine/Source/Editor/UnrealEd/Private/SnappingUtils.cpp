@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SnappingUtils.h"
+#include "Model.h"
 #include "Modules/ModuleManager.h"
 #include "GameFramework/Actor.h"
 #include "Settings/LevelEditorViewportSettings.h"

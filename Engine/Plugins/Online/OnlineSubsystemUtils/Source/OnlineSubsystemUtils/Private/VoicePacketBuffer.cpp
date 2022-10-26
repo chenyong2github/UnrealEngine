@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VoicePacketBuffer.h"
+#include "Audio.h"
 
 #define DEBUG_SORTING 0
 #define DEBUG_POPPING 0

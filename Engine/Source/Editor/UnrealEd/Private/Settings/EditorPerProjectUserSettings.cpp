@@ -3,6 +3,7 @@
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Misc/Paths.h"
 #include "HAL/IConsoleManager.h"
+#include "RHI.h"
 #include "UnrealEdMisc.h"
 #include "BlueprintPaletteFavorites.h"
 

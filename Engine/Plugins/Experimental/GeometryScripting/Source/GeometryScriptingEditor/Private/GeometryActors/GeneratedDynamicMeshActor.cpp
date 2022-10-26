@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryActors/GeneratedDynamicMeshActor.h"
+#include "Components/StaticMeshComponent.h"
 #include "GeometryActors/EditorGeometryGenerationSubsystem.h"
 
 #include "Editor/EditorEngine.h" // for CopyPropertiesForUnrelatedObjects

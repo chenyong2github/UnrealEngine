@@ -6,6 +6,8 @@
 #include "Modules/ModuleManager.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
+#include "RenderingThread.h"
+#include "RHI.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Text/STextBlock.h"

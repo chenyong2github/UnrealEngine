@@ -2,6 +2,7 @@
 
 #include "AssetSelection.h"
 #include "Engine/Level.h"
+#include "Model.h"
 #include "UObject/UnrealType.h"
 #include "GameFramework/Actor.h"
 #include "ActorFactories/ActorFactory.h"

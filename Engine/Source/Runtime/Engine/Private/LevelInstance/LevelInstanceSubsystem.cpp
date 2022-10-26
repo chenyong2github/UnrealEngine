@@ -3,6 +3,7 @@
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceActor.h"
 #include "LevelInstance/LevelInstanceLevelStreaming.h"
+#include "UObject/UObjectIterator.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "UObject/UObjectHash.h"

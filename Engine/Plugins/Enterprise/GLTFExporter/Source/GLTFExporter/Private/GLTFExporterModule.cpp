@@ -3,6 +3,7 @@
 #include "GLTFExporterModule.h"
 #include "Json/GLTFJsonEnums.h"
 #include "Converters/GLTFObjectArrayScopeGuard.h"
+#include "Materials/Material.h"
 #include "Utilities/GLTFProxyMaterialUtilities.h"
 #include "Actions/GLTFProxyAssetActions.h"
 #include "Interfaces/IPluginManager.h"

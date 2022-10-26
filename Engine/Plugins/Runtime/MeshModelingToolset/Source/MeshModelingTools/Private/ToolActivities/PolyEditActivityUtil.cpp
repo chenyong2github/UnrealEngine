@@ -4,6 +4,7 @@
 
 #include "Drawing/PolyEditPreviewMesh.h"
 #include "InteractiveTool.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
 #include "MeshOpPreviewHelpers.h"

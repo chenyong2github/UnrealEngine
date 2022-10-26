@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/Component/ComponentElementEditorWorldInterface.h"
+#include "Components/PrimitiveComponent.h"
 #include "Elements/Component/ComponentElementData.h"
 #include "Components/ActorComponent.h"
 

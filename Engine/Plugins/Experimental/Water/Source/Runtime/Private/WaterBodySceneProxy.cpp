@@ -2,6 +2,7 @@
 
 #include "WaterBodySceneProxy.h"
 #include "Engine/Engine.h"
+#include "Materials/Material.h"
 #include "WaterSplineMetadata.h"
 #include "WaterModule.h"
 #include "WaterUtils.h"

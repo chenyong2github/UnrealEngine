@@ -2,6 +2,7 @@
 
 #include "HierarchicalLOD.h"
 #include "Engine/World.h"
+#include "Model.h"
 #include "Stats/StatsMisc.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/PackageName.h"

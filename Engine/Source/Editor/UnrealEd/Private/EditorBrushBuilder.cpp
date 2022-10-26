@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Builders/EditorBrushBuilder.h"
+#include "Model.h"
 #include "Styling/AppStyle.h"
 #include "GameFramework/Actor.h"
 #include "Builders/ConeBuilder.h"

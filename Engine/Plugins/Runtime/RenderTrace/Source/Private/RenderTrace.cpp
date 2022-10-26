@@ -4,6 +4,7 @@
 
 #include "EngineModule.h"
 #include "Components/PrimitiveComponent.h"
+#include "Materials/Material.h"
 #include "PrimitiveSceneProxy.h"
 #include "Materials/MaterialExpressionPhysicalMaterialOutput.h"
 #include "Materials/MaterialInstanceConstant.h"

@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Delegates/Delegate.h"
 #include "DetailLayoutBuilder.h"
+#include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "PropertyHandle.h"

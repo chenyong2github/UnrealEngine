@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ProxyGenerationProcessor.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
 #include "MaterialUtilities.h"
 #include "MeshMergeUtilities.h"
 #include "IMeshMergeExtension.h"
@@ -8,6 +10,7 @@
 #include "IMeshReductionManagerModule.h"
 #include "Modules/ModuleManager.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshResources.h"
 #include "Stats/Stats.h"
 #include "Algo/ForEach.h"
 

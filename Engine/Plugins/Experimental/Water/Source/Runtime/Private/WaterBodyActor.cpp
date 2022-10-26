@@ -3,6 +3,7 @@
 
 #include "WaterBodyActor.h"
 #include "EngineUtils.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "NavCollision.h"
 #include "Algo/AllOf.h"

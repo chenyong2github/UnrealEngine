@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SoundWaveCompiler.h"
+#include "Audio.h"
 
 #if WITH_EDITOR
 

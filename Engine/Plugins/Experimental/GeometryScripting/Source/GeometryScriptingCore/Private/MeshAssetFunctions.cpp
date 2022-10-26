@@ -3,6 +3,7 @@
 #include "GeometryScript/MeshAssetFunctions.h"
 
 #include "DynamicMesh/DynamicMesh3.h"
+#include "StaticMeshResources.h"
 #include "UDynamicMesh.h"
 
 #include "Engine/EngineTypes.h"

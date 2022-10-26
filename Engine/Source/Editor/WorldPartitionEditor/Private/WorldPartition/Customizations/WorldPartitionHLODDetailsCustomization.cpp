@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartitionHLODDetailsCustomization.h"
+#include "Components/StaticMeshComponent.h"
+#include "MaterialShared.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
 #include "Editor.h"

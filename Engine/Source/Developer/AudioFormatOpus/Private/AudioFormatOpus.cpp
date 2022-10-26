@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioFormatOpus.h"
+#include "Audio.h"
 #include "Serialization/MemoryWriter.h"
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IAudioFormat.h"

@@ -7,6 +7,7 @@
 =============================================================================*/
 
 #include "GameFramework/Pawn.h"
+#include "Engine/Level.h"
 #include "GameFramework/DamageType.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"

@@ -5,6 +5,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Engine/Texture.h"
 #include "Misc/App.h"
+#include "Model.h"
 #include "UObject/UObjectIterator.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/Texture2D.h"

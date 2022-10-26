@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Materials/MaterialInstanceConstant.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialInstanceSupport.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "MaterialCachedData.h"

@@ -10,6 +10,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Interfaces/Interface_PostProcessVolume.h"
 #include "LandscapeSubsystem.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "Materials/MaterialParameterCollectionInstance.h"

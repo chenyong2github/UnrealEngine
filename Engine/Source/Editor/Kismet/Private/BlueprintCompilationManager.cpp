@@ -32,6 +32,7 @@
 #include "Serialization/ArchiveHasReferences.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"
 #include "TickableEditorObject.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/MetaData.h"
 #include "UObject/ReferenceChainSearch.h"
 #include "UObject/UObjectHash.h"

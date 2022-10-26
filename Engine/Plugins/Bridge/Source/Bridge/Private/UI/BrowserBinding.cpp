@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "UI/BrowserBinding.h"
+#include "Components/StaticMeshComponent.h"
 #include "UI/BridgeUIManager.h"
 #include "Widgets/SToolTip.h"
 #include "Framework/Application/SlateApplication.h"

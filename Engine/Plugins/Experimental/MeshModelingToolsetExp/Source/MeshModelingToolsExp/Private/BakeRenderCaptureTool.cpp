@@ -2,6 +2,7 @@
 
 #include "BakeRenderCaptureTool.h"
 #include "Components/StaticMeshComponent.h"
+#include "Materials/Material.h"
 #include "TargetInterfaces/MaterialProvider.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"

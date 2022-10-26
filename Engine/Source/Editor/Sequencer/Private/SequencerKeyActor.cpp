@@ -2,6 +2,7 @@
 
 #include "SequencerKeyActor.h"
 #include "Components/StaticMeshComponent.h"
+#include "Materials/Material.h"
 #include "Sections/MovieScene3DTransformSection.h"
 #include "SequencerEdMode.h"
 #include "Materials/MaterialInstance.h" 
