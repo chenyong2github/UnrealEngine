@@ -55,7 +55,7 @@ namespace Horde.Build.Tasks
 				return await DrainAsync(cancellationToken);
 			}
 
-			ILogFile logFile = await _logService.CreateLogFileAsync(JobId.Empty, agent.SessionId, LogType.Json);
+			ILogFile logFile = await _logService.CreateLogFileAsync(JobId.Empty, agent.SessionId, LogType.Json, cancellationToken: cancellationToken);
 
 			UpgradeTask task = new UpgradeTask();
 			task.SoftwareId = requiredVersion.ToString();

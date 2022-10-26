@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Compute.Tests.Properties;
 using Horde.Build.Logs;
@@ -161,7 +162,7 @@ namespace Horde.Build.Tests
 						string str = lines[lineIdx].Substring(strOfs, strLen);
 
 						LogSearchStats stats = new LogSearchStats();
-						List<int> results = await _logFileService.SearchLogDataAsync(logFile, str, 0, 5, stats);
+						List<int> results = await _logFileService.SearchLogDataAsync(logFile, str, 0, 5, stats, CancellationToken.None);
 						Assert.AreEqual(1, results.Count);
 						Assert.AreEqual(lineIdx, results[0]);
 
@@ -187,7 +188,7 @@ namespace Horde.Build.Tests
 
 			{
 				LogSearchStats stats = new LogSearchStats();
-				List<int> results = await _logFileService.SearchLogDataAsync(logFile, "abc", 0, 5, stats);
+				List<int> results = await _logFileService.SearchLogDataAsync(logFile, "abc", 0, 5, stats, CancellationToken.None);
 				Assert.AreEqual(1, results.Count);
 				Assert.AreEqual(0, results[0]);
 
@@ -197,7 +198,7 @@ namespace Horde.Build.Tests
 			}
 			{
 				LogSearchStats stats = new LogSearchStats();
-				List<int> results = await _logFileService.SearchLogDataAsync(logFile, "def", 0, 5, stats);
+				List<int> results = await _logFileService.SearchLogDataAsync(logFile, "def", 0, 5, stats, CancellationToken.None);
 				Assert.AreEqual(1, results.Count);
 				Assert.AreEqual(1, results[0]);
 
@@ -207,7 +208,7 @@ namespace Horde.Build.Tests
 			}
 			{
 				LogSearchStats stats = new LogSearchStats();
-				List<int> results = await _logFileService.SearchLogDataAsync(logFile, "ghi", 0, 5, stats);
+				List<int> results = await _logFileService.SearchLogDataAsync(logFile, "ghi", 0, 5, stats, CancellationToken.None);
 				Assert.AreEqual(1, results.Count);
 				Assert.AreEqual(2, results[0]);
 
@@ -239,7 +240,7 @@ namespace Horde.Build.Tests
 		async Task SearchLogDataTestAsync(ILogFile logFile, string text, int firstLine, int count, int[] expectedLines)
 		{
 			LogSearchStats stats = new LogSearchStats();
-			List<int> lines = await _logFileService.SearchLogDataAsync(logFile, text, firstLine, count, stats);
+			List<int> lines = await _logFileService.SearchLogDataAsync(logFile, text, firstLine, count, stats, CancellationToken.None);
 			Assert.IsTrue(lines.SequenceEqual(expectedLines));
 		}
 	}

@@ -917,7 +917,7 @@ namespace Horde.Build.Server
 				newEvent.LineCount = createEvent.LineCount;
 				newEvents.Add(newEvent);
 			}
-			await _logFileService.CreateEventsAsync(newEvents);
+			await _logFileService.CreateEventsAsync(newEvents, context.CancellationToken);
 			return new Empty();
 		}
 
@@ -929,7 +929,7 @@ namespace Horde.Build.Server
 		/// <returns>Information about the new agent</returns>
 		public override async Task<Empty> WriteOutput(WriteOutputRequest request, ServerCallContext context)
 		{
-			ILogFile? logFile = await _logFileService.GetCachedLogFileAsync(new LogId(request.LogId));
+			ILogFile? logFile = await _logFileService.GetCachedLogFileAsync(new LogId(request.LogId), context.CancellationToken);
 			if (logFile == null)
 			{
 				throw new StructuredRpcException(StatusCode.NotFound, "Resource not found");
@@ -939,7 +939,7 @@ namespace Horde.Build.Server
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "Access denied");
 			}
 
-			await _logFileService.WriteLogDataAsync(logFile, request.Offset, request.LineIndex, request.Data.ToArray(), request.Flush);
+			await _logFileService.WriteLogDataAsync(logFile, request.Offset, request.LineIndex, request.Data.ToArray(), request.Flush, cancellationToken: context.CancellationToken);
 			return new Empty();
 		}
 

@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Users;
 using Horde.Build.Logs;
@@ -247,30 +248,31 @@ namespace Horde.Build.Ugs
 		/// Retrieve information about builds for a specific issue
 		/// </summary>
 		/// <param name="issueId">Id of the issue to get information about</param>
+		/// <param name="cancellationToken">Cancellation token for the request</param>
 		/// <returns>List of matching agents</returns>
 		[HttpGet]
 		[Route("/ugs/api/issues/{issueId}/diagnostics")]
 		[ProducesResponseType(typeof(List<GetUgsIssueDiagnosticResponse>), 200)]
-		public async Task<ActionResult<List<GetUgsIssueDiagnosticResponse>>> GetIssueDiagnosticsAsync(int issueId)
+		public async Task<ActionResult<List<GetUgsIssueDiagnosticResponse>>> GetIssueDiagnosticsAsync(int issueId, CancellationToken cancellationToken)
 		{
 			List<GetUgsIssueDiagnosticResponse> diagnostics = new List<GetUgsIssueDiagnosticResponse>();
 
 			Dictionary<LogId, ILogFile?> logFiles = new Dictionary<LogId, ILogFile?>();
 
 			List<IIssueSpan> spans = await _issueService.Collection.FindSpansAsync(issueId);
-			List<ILogEvent> events = await _logFileService.FindEventsForSpansAsync(spans.Select(x => x.Id), null, 0, count: 10);
+			List<ILogEvent> events = await _logFileService.FindEventsForSpansAsync(spans.Select(x => x.Id), null, 0, count: 10, cancellationToken);
 
 			foreach (ILogEvent logEvent in events)
 			{
 				ILogFile? logFile;
 				if(!logFiles.TryGetValue(logEvent.LogId, out logFile))
 				{
-					logFile = await _logFileService.GetLogFileAsync(logEvent.LogId);
+					logFile = await _logFileService.GetLogFileAsync(logEvent.LogId, cancellationToken);
 					logFiles.Add(logEvent.LogId, logFile);
 				}
 				if (logFile != null)
 				{
-					ILogEventData eventData = await _logFileService.GetEventDataAsync(logFile, logEvent.LineIndex, logEvent.LineCount);
+					ILogEventData eventData = await _logFileService.GetEventDataAsync(logFile, logEvent.LineIndex, logEvent.LineCount, cancellationToken);
 					long buildId = logEvent.LogId.GetHashCode();
 					Uri url = new Uri(_settings.DashboardUrl, $"log/{logEvent.LogId}?lineindex={logEvent.LineIndex}");
 

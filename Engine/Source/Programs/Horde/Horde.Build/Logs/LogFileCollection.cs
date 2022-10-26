@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Agents.Sessions;
 using Horde.Build.Jobs;
@@ -117,15 +118,15 @@ namespace Horde.Build.Logs
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type, LogId? logId)
+		public async Task<ILogFile> CreateLogFileAsync(JobId jobId, SessionId? sessionId, LogType type, LogId? logId, CancellationToken cancellationToken)
 		{
 			LogFileDocument newLogFile = new (jobId, sessionId, type, logId);
-			await _logFiles.InsertOneAsync(newLogFile);
+			await _logFiles.InsertOneAsync(newLogFile, null, cancellationToken);
 			return newLogFile;
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile?> TryAddChunkAsync(ILogFile logFileInterface, long offset, int lineIndex)
+		public async Task<ILogFile?> TryAddChunkAsync(ILogFile logFileInterface, long offset, int lineIndex, CancellationToken cancellationToken)
 		{
 			LogFileDocument logFile = ((LogFileDocument)logFileInterface).Clone();
 
@@ -144,7 +145,7 @@ namespace Horde.Build.Logs
 				update = update.Unset(x => x.MaxLineIndex);
 			}
 
-			if (!await TryUpdateLogFileAsync(logFile, update))
+			if (!await TryUpdateLogFileAsync(logFile, update, cancellationToken))
 			{
 				return null;
 			}
@@ -153,7 +154,7 @@ namespace Horde.Build.Logs
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile?> TryCompleteChunksAsync(ILogFile logFileInterface, IEnumerable<CompleteLogChunkUpdate> chunkUpdates)
+		public async Task<ILogFile?> TryCompleteChunksAsync(ILogFile logFileInterface, IEnumerable<CompleteLogChunkUpdate> chunkUpdates, CancellationToken cancellationToken)
 		{
 			LogFileDocument logFile = ((LogFileDocument)logFileInterface).Clone();
 
@@ -174,7 +175,7 @@ namespace Horde.Build.Logs
 			}
 
 			// Try to apply the updates
-			if (updates.Count > 0 && !await TryUpdateLogFileAsync(logFile, updateBuilder.Combine(updates)))
+			if (updates.Count > 0 && !await TryUpdateLogFileAsync(logFile, updateBuilder.Combine(updates), cancellationToken))
 			{
 				return null;
 			}
@@ -183,12 +184,12 @@ namespace Horde.Build.Logs
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile?> TryUpdateIndexAsync(ILogFile logFileInterface, long newIndexLength)
+		public async Task<ILogFile?> TryUpdateIndexAsync(ILogFile logFileInterface, long newIndexLength, CancellationToken cancellationToken)
 		{
 			LogFileDocument logFile = ((LogFileDocument)logFileInterface).Clone();
 
 			UpdateDefinition<LogFileDocument> update = Builders<LogFileDocument>.Update.Set(x => x.IndexLength, newIndexLength);
-			if (!await TryUpdateLogFileAsync(logFile, update))
+			if (!await TryUpdateLogFileAsync(logFile, update, cancellationToken))
 			{
 				return null;
 			}
@@ -198,23 +199,23 @@ namespace Horde.Build.Logs
 		}
 
 		/// <inheritdoc/>
-		private async Task<bool> TryUpdateLogFileAsync(LogFileDocument current, UpdateDefinition<LogFileDocument> update)
+		private async Task<bool> TryUpdateLogFileAsync(LogFileDocument current, UpdateDefinition<LogFileDocument> update, CancellationToken cancellationToken)
 		{
 			int prevUpdateIndex = current.UpdateIndex;
 			current.UpdateIndex++;
-			UpdateResult result = await _logFiles.UpdateOneAsync<LogFileDocument>(x => x.Id == current.Id && x.UpdateIndex == prevUpdateIndex, update.Set(x => x.UpdateIndex, current.UpdateIndex));
+			UpdateResult result = await _logFiles.UpdateOneAsync<LogFileDocument>(x => x.Id == current.Id && x.UpdateIndex == prevUpdateIndex, update.Set(x => x.UpdateIndex, current.UpdateIndex), cancellationToken: cancellationToken);
 			return result.ModifiedCount == 1;
 		}
 
 		/// <inheritdoc/>
-		public async Task<ILogFile?> GetLogFileAsync(LogId logFileId)
+		public async Task<ILogFile?> GetLogFileAsync(LogId logFileId, CancellationToken cancellationToken)
 		{
-			LogFileDocument logFile = await _logFiles.Find<LogFileDocument>(x => x.Id == logFileId).FirstOrDefaultAsync();
+			LogFileDocument logFile = await _logFiles.Find<LogFileDocument>(x => x.Id == logFileId).FirstOrDefaultAsync(cancellationToken);
 			return logFile;
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<ILogFile>> GetLogFilesAsync(int? index = null, int? count = null)
+		public async Task<List<ILogFile>> GetLogFilesAsync(int? index = null, int? count = null, CancellationToken cancellationToken = default)
 		{
 			IFindFluent<LogFileDocument, LogFileDocument> query = _logFiles.Find(FilterDefinition<LogFileDocument>.Empty);
 			if(index != null)
@@ -226,7 +227,7 @@ namespace Horde.Build.Logs
 				query = query.Limit(count.Value);
 			}
 
-			List<LogFileDocument> results = await query.ToListAsync();
+			List<LogFileDocument> results = await query.ToListAsync(cancellationToken);
 			return results.ConvertAll<ILogFile>(x => x);
 		}
 	}

@@ -615,7 +615,7 @@ namespace Horde.Build.Issues
 			}
 
 			// Find the log file for this step
-			ILogFile? logFile = await _logFileService.GetLogFileAsync(step.LogId.Value);
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(step.LogId.Value, CancellationToken.None);
 			if (logFile == null)
 			{
 				throw new ArgumentException($"Unable to retrieve log {step.LogId}");

@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Auditing;
@@ -433,11 +434,22 @@ namespace Horde.Build.Issues
 		/// <param name="index">Index of the first event</param>
 		/// <param name="count">Number of events to return</param>
 		/// <param name="filter">Filter for the properties to return</param>
+		/// <param name="cancellationToken">Cancellation token for the request</param>
 		/// <returns>List of matching agents</returns>
 		[HttpGet]
 		[Route("/api/v1/issues/{issueId}/events")]
 		[ProducesResponseType(typeof(List<GetLogEventResponse>), 200)]
-		public async Task<ActionResult<List<object>>> GetIssueEventsAsync(int issueId, [FromQuery] JobId? jobId = null, [FromQuery] string? batchId = null, [FromQuery] string? stepId = null, [FromQuery(Name = "label")] int? labelIdx = null, [FromQuery] string[]? logIds = null, [FromQuery] int index = 0, [FromQuery] int count = 10, [FromQuery] PropertyFilter? filter = null)
+		public async Task<ActionResult<List<object>>> GetIssueEventsAsync(
+			int issueId,
+			[FromQuery] JobId? jobId = null,
+			[FromQuery] string? batchId = null,
+			[FromQuery] string? stepId = null,
+			[FromQuery(Name = "label")] int? labelIdx = null,
+			[FromQuery] string[]? logIds = null,
+			[FromQuery] int index = 0, 
+			[FromQuery] int count = 10,
+			[FromQuery] PropertyFilter? filter = null,
+			CancellationToken cancellationToken = default)
 		{
 			HashSet<LogId> logIdValues = new HashSet<LogId>();
 			if(jobId != null)
@@ -493,7 +505,7 @@ namespace Horde.Build.Issues
 			}
 
 			List<IIssueSpan> spans = await _issueCollection.FindSpansAsync(issueId);
-			List<ILogEvent> events = await _logFileService.FindEventsForSpansAsync(spans.Select(x => x.Id), logIdValues.ToArray(), index, count);
+			List<ILogEvent> events = await _logFileService.FindEventsForSpansAsync(spans.Select(x => x.Id), logIdValues.ToArray(), index, count, cancellationToken);
 
 			JobPermissionsCache permissionsCache = new JobPermissionsCache();
 			Dictionary<LogId, ILogFile?> logFiles = new Dictionary<LogId, ILogFile?>();
@@ -504,12 +516,12 @@ namespace Horde.Build.Issues
 				ILogFile? logFile;
 				if (!logFiles.TryGetValue(logEvent.LogId, out logFile))
 				{
-					logFile = await _logFileService.GetLogFileAsync(logEvent.LogId);
+					logFile = await _logFileService.GetLogFileAsync(logEvent.LogId, cancellationToken);
 					logFiles[logEvent.LogId] = logFile;
 				}
 				if (logFile != null && await _jobService.AuthorizeAsync(logFile.JobId, AclAction.ViewLog, User, permissionsCache))
 				{
-					ILogEventData data = await _logFileService.GetEventDataAsync(logFile, logEvent.LineIndex, logEvent.LineCount);
+					ILogEventData data = await _logFileService.GetEventDataAsync(logFile, logEvent.LineIndex, logEvent.LineCount, cancellationToken);
 					GetLogEventResponse response = new GetLogEventResponse(logEvent, data, issueId);
 					responses.Add(PropertyFilter.Apply(response, filter));
 				}

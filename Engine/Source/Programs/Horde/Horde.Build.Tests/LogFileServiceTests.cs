@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Agents.Sessions;
 using Horde.Build.Jobs;
@@ -77,7 +78,7 @@ namespace Horde.Build.Tests
         public async Task WriteLogLifecycleOldTest()
         {
 			JobId jobId = JobId.GenerateNewId();
-            ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text);
+            ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text, null, cancellationToken: CancellationToken.None);
 
             logFile = (await ((ILogFileService)_logFileService).WriteLogDataAsync(logFile, 0, 0, Encoding.ASCII.GetBytes("hello\n"), true))!;
 			logFile = (await ((ILogFileService)_logFileService).WriteLogDataAsync(logFile, 6, 1, Encoding.ASCII.GetBytes("foo\nbar\n"), true))!;
@@ -86,14 +87,14 @@ namespace Horde.Build.Tests
             Assert.AreEqual("hello", await ReadLogFile(_logFileService, logFile, 0, 5));
             Assert.AreEqual("foo\nbar\nbaz\n", await ReadLogFile(_logFileService, logFile, 6, 12));
 
-            LogMetadata metadata = await _logFileService.GetMetadataAsync(logFile);
+            LogMetadata metadata = await _logFileService.GetMetadataAsync(logFile, CancellationToken.None);
             Assert.AreEqual(6 + 8 + 4, metadata.Length);
             Assert.AreEqual(4, metadata.MaxLineIndex);
 
-            Assert.AreEqual((0, 0), await _logFileService.GetLineOffsetAsync(logFile, 0));
-            Assert.AreEqual((1, 6), await _logFileService.GetLineOffsetAsync(logFile, 1));
-            Assert.AreEqual((2, 10), await _logFileService.GetLineOffsetAsync(logFile, 2));
-            Assert.AreEqual((3, 14), await _logFileService.GetLineOffsetAsync(logFile, 3));
+            Assert.AreEqual((0, 0), await _logFileService.GetLineOffsetAsync(logFile, 0, CancellationToken.None));
+            Assert.AreEqual((1, 6), await _logFileService.GetLineOffsetAsync(logFile, 1, CancellationToken.None));
+            Assert.AreEqual((2, 10), await _logFileService.GetLineOffsetAsync(logFile, 2, CancellationToken.None));
+            Assert.AreEqual((3, 14), await _logFileService.GetLineOffsetAsync(logFile, 3, CancellationToken.None));
         }
         
         [TestMethod]
@@ -105,7 +106,7 @@ namespace Horde.Build.Tests
         
         private static async Task AssertMetadata(ILogFileService logFileService, ILogFile logFile, long expectedLength, long expectedMaxLineIndex)
         {
-	        LogMetadata metadata = await logFileService.GetMetadataAsync(logFile);
+	        LogMetadata metadata = await logFileService.GetMetadataAsync(logFile, CancellationToken.None);
 	        Assert.AreEqual(expectedLength, metadata.Length);
 	        Assert.AreEqual(expectedMaxLineIndex, metadata.MaxLineIndex);
         }
@@ -113,7 +114,7 @@ namespace Horde.Build.Tests
         private static async Task AssertChunk(ILogFileService logFileService, LogId logFileId, long numChunks, int chunkId, long offset, long length,
 	        long lineIndex)
         {
-	        ILogFile? logFile = await logFileService.GetLogFileAsync(logFileId);
+	        ILogFile? logFile = await logFileService.GetLogFileAsync(logFileId, CancellationToken.None);
 	        Assert.AreEqual(numChunks, logFile!.Chunks.Count);
 
 	        ILogChunk chunk = logFile.Chunks[chunkId];
@@ -124,8 +125,8 @@ namespace Horde.Build.Tests
 
         private static async Task AssertLineOffset(ILogFileService logFileService, LogId logFileId, int lineIndex, int clampedLineIndex, long offset)
         {
-	        ILogFile? logFile = await logFileService.GetLogFileAsync(logFileId);
-	        Assert.AreEqual((clampedLineIndex, offset), await logFileService.GetLineOffsetAsync(logFile!, lineIndex));
+	        ILogFile? logFile = await logFileService.GetLogFileAsync(logFileId, CancellationToken.None);
+	        Assert.AreEqual((clampedLineIndex, offset), await logFileService.GetLineOffsetAsync(logFile!, lineIndex, CancellationToken.None));
         }
         
         protected static async Task<string> ReadLogFile(ILogFileService logFileService, ILogFile logFile, long offset, long length)
@@ -245,16 +246,16 @@ namespace Horde.Build.Tests
 			// Will implicitly test GetLogFileAsync(), AddCachedLogFile()
 			JobId jobId = JobId.GenerateNewId();
             ObjectId sessionId = ObjectId.GenerateNewId();
-            ILogFile a = await _logFileService.CreateLogFileAsync(jobId, new ObjectId<ISession>(sessionId), LogType.Text);
-            ILogFile b = (await _logFileService.GetCachedLogFileAsync(a.Id))!;
+            ILogFile a = await _logFileService.CreateLogFileAsync(jobId, new ObjectId<ISession>(sessionId), LogType.Text, null, CancellationToken.None);
+            ILogFile b = (await _logFileService.GetCachedLogFileAsync(a.Id, CancellationToken.None))!;
             Assert.AreEqual(a.JobId, b.JobId);
             Assert.AreEqual(a.SessionId, b.SessionId);
             Assert.AreEqual(a.Type, b.Type);
 
-            ILogFile? notFound = await _logFileService.GetCachedLogFileAsync(LogId.GenerateNewId());
+            ILogFile? notFound = await _logFileService.GetCachedLogFileAsync(LogId.GenerateNewId(), CancellationToken.None);
             Assert.IsNull(notFound);
 
-            await _logFileService.CreateLogFileAsync(JobId.GenerateNewId(), new ObjectId<ISession>(ObjectId.GenerateNewId()), LogType.Text);
+            await _logFileService.CreateLogFileAsync(JobId.GenerateNewId(), new ObjectId<ISession>(ObjectId.GenerateNewId()), LogType.Text, null, CancellationToken.None);
             Assert.AreEqual(2, (await _logFileService.GetLogFilesAsync()).Count);
         }
 
@@ -263,8 +264,8 @@ namespace Horde.Build.Tests
         {
 			JobId jobId = JobId.GenerateNewId();
             ObjectId sessionId = ObjectId.GenerateNewId();
-            ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, new ObjectId<ISession>(sessionId), LogType.Text);
-            ILogFile logFileNoSession = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text);
+            ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, new ObjectId<ISession>(sessionId), LogType.Text, null, CancellationToken.None);
+            ILogFile logFileNoSession = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text, null, CancellationToken.None);
 
 			ClaimsPrincipal hasClaim = new ClaimsPrincipal(new ClaimsIdentity(new List<Claim>
             {
@@ -284,7 +285,7 @@ namespace Horde.Build.Tests
 		public async Task ChunkSplitting()
 		{
 			JobId jobId = JobId.GenerateNewId();
-			ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text);
+			ILogFile logFile = await _logFileService.CreateLogFileAsync(jobId, null, LogType.Text, null, CancellationToken.None);
 
 			long offset = 0;
 
@@ -292,27 +293,27 @@ namespace Horde.Build.Tests
 			const int MaxSubChunkLineCount = 128;
 
 			byte[] line1 = Encoding.UTF8.GetBytes("hello world\n");
-			await _logFileService.WriteLogDataAsync(logFile, offset, 0, line1, false, MaxChunkSize, MaxSubChunkLineCount);
+			await _logFileService.WriteLogDataAsync(logFile, offset, 0, line1, false, MaxChunkSize, MaxSubChunkLineCount, CancellationToken.None);
 			offset += line1.Length;
 
 			byte[] line2 = Encoding.UTF8.GetBytes("ab\n");
-			await _logFileService.WriteLogDataAsync(logFile, offset, 1, line2, false, MaxChunkSize, MaxSubChunkLineCount);
+			await _logFileService.WriteLogDataAsync(logFile, offset, 1, line2, false, MaxChunkSize, MaxSubChunkLineCount, CancellationToken.None);
 			offset += line2.Length;
 
 			byte[] line3 = Encoding.UTF8.GetBytes("a\n");
-			await _logFileService.WriteLogDataAsync(logFile, offset, 2, line3, false, MaxChunkSize, MaxSubChunkLineCount);
+			await _logFileService.WriteLogDataAsync(logFile, offset, 2, line3, false, MaxChunkSize, MaxSubChunkLineCount, CancellationToken.None);
 			offset += line3.Length;
 
 			byte[] line4 = Encoding.UTF8.GetBytes("b\n");
-			await _logFileService.WriteLogDataAsync(logFile, offset, 3, line4, false, MaxChunkSize, MaxSubChunkLineCount);
+			await _logFileService.WriteLogDataAsync(logFile, offset, 3, line4, false, MaxChunkSize, MaxSubChunkLineCount, CancellationToken.None);
 			offset += line4.Length;
 
 			byte[] line5 = Encoding.UTF8.GetBytes("a\nb\n");
-			await _logFileService.WriteLogDataAsync(logFile, offset, 4, line5, false, MaxChunkSize, MaxSubChunkLineCount);
+			await _logFileService.WriteLogDataAsync(logFile, offset, 4, line5, false, MaxChunkSize, MaxSubChunkLineCount, CancellationToken.None);
 			// offset += line5.Length;
 
 			await _logFileService.FlushAsync();
-			logFile = (await _logFileService.GetLogFileAsync(logFile.Id))!;
+			logFile = (await _logFileService.GetLogFileAsync(logFile.Id, CancellationToken.None))!;
 			Assert.AreEqual(4, logFile.Chunks.Count);
 			Assert.AreEqual(6, logFile.MaxLineIndex);
 

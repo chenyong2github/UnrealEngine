@@ -650,7 +650,7 @@ namespace Horde.Build.Notifications
 				return;
 			}
 
-			ILogFile? logFile = await _logFileService.GetLogFileAsync(step.LogId.Value);
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(step.LogId.Value, CancellationToken.None);
 			if(logFile == null)
 			{
 				_logger.LogError("Step does not have a log file");

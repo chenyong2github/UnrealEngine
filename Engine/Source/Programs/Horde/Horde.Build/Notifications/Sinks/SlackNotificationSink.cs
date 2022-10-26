@@ -919,7 +919,7 @@ namespace Horde.Build.Notifications.Sinks
 				if (span.FirstFailure.LogId != null)
 				{
 					LogId logId = span.FirstFailure.LogId.Value;
-					ILogFile? logFile = await _logFileService.GetLogFileAsync(logId);
+					ILogFile? logFile = await _logFileService.GetLogFileAsync(logId, CancellationToken.None);
 					if (logFile != null)
 					{
 						events = await _logFileService.FindEventsAsync(logFile, span.Id, 0, 50);
@@ -1249,7 +1249,7 @@ namespace Horde.Build.Notifications.Sinks
 			if (lastSpan != null && lastSpan.LastFailure.LogId != null)
 			{
 				LogId logId = lastSpan.LastFailure.LogId.Value;
-				ILogFile? logFile = await _logFileService.GetLogFileAsync(logId);
+				ILogFile? logFile = await _logFileService.GetLogFileAsync(logId, CancellationToken.None);
 				if(logFile != null)
 				{
 					List<ILogEvent> events = await _logFileService.FindEventsAsync(logFile, lastSpan.Id, 0, 20);

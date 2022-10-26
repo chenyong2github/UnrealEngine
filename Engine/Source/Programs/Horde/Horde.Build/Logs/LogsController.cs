@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Claims;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Issues;
@@ -65,13 +66,14 @@ namespace Horde.Build.Logs
 		/// </summary>
 		/// <param name="logFileId">Id of the log file to get information about</param>
 		/// <param name="filter">Filter for the properties to return</param>
+		/// <param name="cancellationToken">Cancellation token for the request</param>
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
 		[Route("/api/v1/logs/{logFileId}")]
 		[ProducesResponseType(typeof(GetLogFileResponse), 200)]
-		public async Task<ActionResult<object>> GetLog(LogId logFileId, [FromQuery] PropertyFilter? filter = null)
+		public async Task<ActionResult<object>> GetLog(LogId logFileId, [FromQuery] PropertyFilter? filter = null, CancellationToken cancellationToken = default)
 		{
-			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId);
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId, cancellationToken);
 			if (logFile == null)
 			{
 				return NotFound();
@@ -81,7 +83,7 @@ namespace Horde.Build.Logs
 				return Forbid();
 			}
 
-			LogMetadata metadata = await _logFileService.GetMetadataAsync(logFile);
+			LogMetadata metadata = await _logFileService.GetMetadataAsync(logFile, cancellationToken);
 			return new GetLogFileResponse(logFile, metadata).ApplyFilter(filter);       
 		}
 
@@ -94,12 +96,20 @@ namespace Horde.Build.Logs
 		/// <param name="length">Number of bytes to return</param>
 		/// <param name="fileName">Name of the default filename to download</param>
 		/// <param name="download">Whether to download the file rather than display in the browser</param>
+		/// <param name="cancellationToken">Cancellation token for the request</param>
 		/// <returns>Raw log data for the requested range</returns>
 		[HttpGet]
 		[Route("/api/v1/logs/{logFileId}/data")]
-		public async Task<ActionResult> GetLogData(LogId logFileId, [FromQuery] LogOutputFormat format = LogOutputFormat.Raw, [FromQuery] long offset = 0, [FromQuery] long length = Int64.MaxValue, [FromQuery] string? fileName = null, [FromQuery] bool download = false)
+		public async Task<ActionResult> GetLogData(
+			LogId logFileId,
+			[FromQuery] LogOutputFormat format = LogOutputFormat.Raw,
+			[FromQuery] long offset = 0,
+			[FromQuery] long length = Int64.MaxValue,
+			[FromQuery] string? fileName = null,
+			[FromQuery] bool download = false,
+			CancellationToken cancellationToken = default)
 		{
-			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId);
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId, cancellationToken);
 			if (logFile == null)
 			{
 				return NotFound();
@@ -112,11 +122,11 @@ namespace Horde.Build.Logs
 			Func<Stream, ActionContext, Task> copyTask;
 			if (format == LogOutputFormat.Text && logFile.Type == LogType.Json)
 			{
-				copyTask = (outputStream, context) => _logFileService.CopyPlainTextStreamAsync(logFile, offset, length, outputStream);
+				copyTask = (outputStream, context) => _logFileService.CopyPlainTextStreamAsync(logFile, offset, length, outputStream, cancellationToken);
 			}
 			else
 			{
-				copyTask = (outputStream, context) => _logFileService.CopyRawStreamAsync(logFile, offset, length, outputStream);
+				copyTask = (outputStream, context) => _logFileService.CopyRawStreamAsync(logFile, offset, length, outputStream, cancellationToken);
 			}
 
 			return new CustomFileCallbackResult(fileName ?? $"log-{logFileId}.txt", "text/plain", !download, copyTask);
@@ -128,12 +138,13 @@ namespace Horde.Build.Logs
 		/// <param name="logFileId">Id of the log file to get information about</param>
 		/// <param name="index">Index of the first line to retrieve</param>
 		/// <param name="count">Number of lines to retrieve</param>
+		/// <param name="cancellationToken">Cancellation token for the request</param>
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
 		[Route("/api/v1/logs/{logFileId}/lines")]
-		public async Task<ActionResult> GetLogLines(LogId logFileId, [FromQuery] int index = 0, [FromQuery] int count = Int32.MaxValue)
+		public async Task<ActionResult> GetLogLines(LogId logFileId, [FromQuery] int index = 0, [FromQuery] int count = Int32.MaxValue, CancellationToken cancellationToken = default)
 		{
-			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId);
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId, cancellationToken);
 			if (logFile == null)
 			{
 				return NotFound();
@@ -143,15 +154,15 @@ namespace Horde.Build.Logs
 				return Forbid();
 			}
 
-			LogMetadata metadata = await _logFileService.GetMetadataAsync(logFile);
+			LogMetadata metadata = await _logFileService.GetMetadataAsync(logFile, cancellationToken);
 
-			(int minIndex, long minOffset) = await _logFileService.GetLineOffsetAsync(logFile, index);
-			(int maxIndex, long maxOffset) = await _logFileService.GetLineOffsetAsync(logFile, index + Math.Min(count, Int32.MaxValue - index));
+			(int minIndex, long minOffset) = await _logFileService.GetLineOffsetAsync(logFile, index, cancellationToken);
+			(int maxIndex, long maxOffset) = await _logFileService.GetLineOffsetAsync(logFile, index + Math.Min(count, Int32.MaxValue - index), cancellationToken);
 			index = minIndex;
 			count = maxIndex - minIndex;
 
 			byte[] result;
-			using (System.IO.Stream stream = await _logFileService.OpenRawStreamAsync(logFile, minOffset, maxOffset - minOffset))
+			using (System.IO.Stream stream = await _logFileService.OpenRawStreamAsync(logFile, minOffset, maxOffset - minOffset, cancellationToken))
 			{
 				result = new byte[stream.Length];
 				await stream.ReadFixedSizeDataAsync(result, 0, result.Length);
@@ -195,7 +206,7 @@ namespace Horde.Build.Logs
 							}
 							else if (result[offset] == (byte)'\n')
 							{
-								await stream.WriteAsync(result.AsMemory(startOffset, offset - startOffset));
+								await stream.WriteAsync(result.AsMemory(startOffset, offset - startOffset), cancellationToken);
 								offset++;
 								break;
 							}
@@ -246,7 +257,7 @@ namespace Horde.Build.Logs
 				Response.ContentType = "application/json";
 				Response.Headers.ContentLength = stream.Length;
 				stream.Position = 0;
-				await stream.CopyToAsync(Response.Body);
+				await stream.CopyToAsync(Response.Body, cancellationToken);
 			}
 			return new EmptyResult();
 		}
@@ -258,12 +269,18 @@ namespace Horde.Build.Logs
 		/// <param name="text">Text to search for</param>
 		/// <param name="firstLine">First line to search from</param>
 		/// <param name="count">Number of results to return</param>
+		/// <param name="cancellationToken">Cancellation token for the request</param>
 		/// <returns>Raw log data for the requested range</returns>
 		[HttpGet]
 		[Route("/api/v1/logs/{logFileId}/search")]
-		public async Task<ActionResult<SearchLogFileResponse>> SearchLogFileAsync(LogId logFileId, [FromQuery] string text, [FromQuery] int firstLine = 0, [FromQuery] int count = 5)
+		public async Task<ActionResult<SearchLogFileResponse>> SearchLogFileAsync(
+			LogId logFileId,
+			[FromQuery] string text,
+			[FromQuery] int firstLine = 0,
+			[FromQuery] int count = 5,
+			CancellationToken cancellationToken = default)
 		{
-			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId);
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId, cancellationToken);
 			if (logFile == null)
 			{
 				return NotFound();
@@ -275,7 +292,7 @@ namespace Horde.Build.Logs
 
 			SearchLogFileResponse response = new SearchLogFileResponse();
 			response.Stats = new LogSearchStats();
-			response.Lines = await _logFileService.SearchLogDataAsync(logFile, text, firstLine, count, response.Stats);
+			response.Lines = await _logFileService.SearchLogDataAsync(logFile, text, firstLine, count, response.Stats, cancellationToken);
 			return response;
 		}
 
@@ -285,13 +302,14 @@ namespace Horde.Build.Logs
 		/// <param name="logFileId">Id of the log file to get information about</param>
 		/// <param name="index">Index of the first line to retrieve</param>
 		/// <param name="count">Number of lines to retrieve</param>
+		/// <param name="cancellationToken">Cancellation token for the request</param>
 		/// <returns>Information about the requested project</returns>
 		[HttpGet]
 		[Route("/api/v1/logs/{logFileId}/events")]
 		[ProducesResponseType(typeof(List<GetLogEventResponse>), 200)]
-		public async Task<ActionResult<List<GetLogEventResponse>>> GetEventsAsync(LogId logFileId, [FromQuery] int? index = null, [FromQuery] int? count = null)
+		public async Task<ActionResult<List<GetLogEventResponse>>> GetEventsAsync(LogId logFileId, [FromQuery] int? index = null, [FromQuery] int? count = null, CancellationToken cancellationToken = default)
 		{
-			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId);
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId, cancellationToken);
 			if (logFile == null)
 			{
 				return NotFound();
@@ -301,14 +319,14 @@ namespace Horde.Build.Logs
 				return Forbid();
 			}
 
-			List<ILogEvent> logEvents = await _logFileService.FindEventsAsync(logFile, null, index, count);
+			List<ILogEvent> logEvents = await _logFileService.FindEventsAsync(logFile, null, index, count, cancellationToken);
 
 			Dictionary<ObjectId, int?> spanIdToIssueId = new Dictionary<ObjectId, int?>();
 
 			List<GetLogEventResponse> responses = new List<GetLogEventResponse>();
 			foreach (ILogEvent logEvent in logEvents)
 			{
-				ILogEventData logEventData = await _logFileService.GetEventDataAsync(logFile, logEvent.LineIndex, logEvent.LineCount);
+				ILogEventData logEventData = await _logFileService.GetEventDataAsync(logFile, logEvent.LineIndex, logEvent.LineCount, cancellationToken);
 
 				int? issueId = null;
 				if (logEvent.SpanId != null && !spanIdToIssueId.TryGetValue(logEvent.SpanId.Value, out issueId))
@@ -329,12 +347,13 @@ namespace Horde.Build.Logs
 		/// <param name="logFileId">The logfile id</param>
 		/// <param name="offset">Offset within the log file</param>
 		/// <param name="lineIndex">The line index</param>
+		/// <param name="cancellationToken">Cancellation token for the request</param>
 		/// <returns>Http result code</returns>
 		[HttpPost]
 		[Route("/api/v1/logs/{logFileId}")]
-		public async Task<ActionResult> WriteData(LogId logFileId, [FromQuery] long offset, [FromQuery] int lineIndex)
+		public async Task<ActionResult> WriteData(LogId logFileId, [FromQuery] long offset, [FromQuery] int lineIndex, CancellationToken cancellationToken)
 		{
-			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId);
+			ILogFile? logFile = await _logFileService.GetLogFileAsync(logFileId, cancellationToken);
 			if (logFile == null)
 			{
 				return NotFound();
@@ -346,8 +365,8 @@ namespace Horde.Build.Logs
 
 			using (MemoryStream bodyStream = new MemoryStream())
 			{
-				await Request.Body.CopyToAsync(bodyStream);
-				await _logFileService.WriteLogDataAsync(logFile, offset, lineIndex, bodyStream.ToArray(), false);
+				await Request.Body.CopyToAsync(bodyStream, cancellationToken);
+				await _logFileService.WriteLogDataAsync(logFile, offset, lineIndex, bodyStream.ToArray(), false, cancellationToken: cancellationToken);
 			}
 			return Ok();
 		}
