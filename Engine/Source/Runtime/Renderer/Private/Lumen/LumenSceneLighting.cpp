@@ -551,7 +551,7 @@ void Lumen::BuildCardUpdateContext(
 
 	IndirectLightingCardUpdateContext.CardPageIndexAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Lumen.IndirectLightingCardPageIndexAllocator"));
 	IndirectLightingCardUpdateContext.CardPageIndexData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), FMath::RoundUpToPowerOfTwo(NumCardPages)), TEXT("Lumen.IndirectLightingCardPageIndexData"));
-	IndirectLightingCardUpdateContext.DrawCardPageIndicesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.IndirectLighting.DrawCardPageIndicesIndirectArgs"));
+	IndirectLightingCardUpdateContext.DrawCardPageIndicesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("Lumen.IndirectLighting.DrawCardPageIndicesIndirectArgs"));
 	IndirectLightingCardUpdateContext.DispatchCardPageIndicesIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(FLumenCardUpdateContext::MAX), TEXT("Lumen.IndirectLighting.DispatchCardPageIndicesIndirectArgs"));
 
 	FRDGBufferRef PriorityHistogram = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), LumenCardUpdateContext::CARD_UPDATE_CONTEXT_MAX * LumenCardUpdateContext::PRIORITY_HISTOGRAM_SIZE), TEXT("Lumen.PriorityHistogram"));
