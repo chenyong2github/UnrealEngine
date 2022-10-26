@@ -114,6 +114,8 @@
 #include "Tracks/MovieSceneEventTrack.h"
 #include "ToolMenus.h"
 #include "MovieSceneToolHelpers.h"
+#include "Editor/UnrealEdEngine.h"
+#include "UnrealEdGlobals.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -255,6 +257,15 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	RootCustomization.AddMenuExtender = InArgs._AddMenuExtender;
 	RootCustomization.ToolbarExtender = InArgs._ToolbarExtender;
+
+	ColumnFillCoefficients[0] = 0.3f;
+	ColumnFillCoefficients[1] = 0.7f;
+
+	if (GetSequencerSettings())
+	{
+		ColumnFillCoefficients[0] = GetSequencerSettings()->GetTreeViewWidth();
+		ColumnFillCoefficients[1] = 1.f - GetSequencerSettings()->GetTreeViewWidth();
+	}
 
 	TAttribute<float> FillCoefficient_0, FillCoefficient_1;
 	{
@@ -2917,18 +2928,6 @@ void SSequencer::OnOutlinerSearchChanged( const FText& Filter )
 	}
 }
 
-float SSequencer::GetColumnFillCoefficient(int32 ColumnIndex) const
-{
-	if (ColumnIndex == 0)
-	{
-		return GetSequencerSettings()->GetTreeViewWidth();
-	}
-	else
-	{
-		return 1.f - GetSequencerSettings()->GetTreeViewWidth();
-	}
-}
-
 void SSequencer::OnDragEnter( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
 {
 	// @todo sequencer: Add drop validity cue
@@ -3628,13 +3627,22 @@ EFrameNumberDisplayFormats SSequencer::GetTimeDisplayFormat() const
 
 void SSequencer::OnColumnFillCoefficientChanged(float FillCoefficient, int32 ColumnIndex)
 {
-	if (ColumnIndex == 0)
+	ColumnFillCoefficients[ColumnIndex] = FillCoefficient;
+
+	// Update on next tick so that we're not constantly saving config on dragging the divider
+	if (GEditor)
 	{
-		GetSequencerSettings()->SetTreeViewWidth(FillCoefficient);
-	}
-	else
-	{
-		GetSequencerSettings()->SetTreeViewWidth(1.f - FillCoefficient);
+		GEditor->GetTimerManager()->SetTimerForNextTick([=]()
+		{
+			if (ColumnIndex == 0)
+			{
+				GetSequencerSettings()->SetTreeViewWidth(FillCoefficient);
+			}
+			else
+			{
+				GetSequencerSettings()->SetTreeViewWidth(1.f - FillCoefficient);
+			}
+		});
 	}
 }
 
