@@ -1140,7 +1140,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 		FRDGTextureDesc ArrayDesc = FRDGTextureDesc::Create2DArray(
 			HistoryExtent,
-			(CVarTSRR11G11B10History.GetValueOnRenderThread() != 0 && !bSupportsAlpha && !bGrandReprojection) ? PF_FloatR11G11B10 : PF_FloatRGBA,
+			(CVarTSRR11G11B10History.GetValueOnRenderThread() != 0 && !bSupportsAlpha) ? PF_FloatR11G11B10 : PF_FloatRGBA,
 			FClearValueBinding::None,
 			TexCreate_ShaderResource | TexCreate_UAV,
 			History.ArrayIndices.Size);
