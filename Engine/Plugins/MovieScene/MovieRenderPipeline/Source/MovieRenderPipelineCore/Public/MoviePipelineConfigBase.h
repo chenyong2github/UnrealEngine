@@ -83,7 +83,7 @@ public:
 		TArray<UMoviePipelineSetting*> MatchingSettings;
 		for (UMoviePipelineSetting* Setting : AllSettings)
 		{
-			if ((Setting && Setting->GetClass() == InClass) && (Setting->IsEnabled() || bIncludeDisabledSettings))
+			if ((Setting && Setting->IsA(InClass.Get())) && (Setting->IsEnabled() || bIncludeDisabledSettings))
 			{
 				MatchingSettings.Add(Setting);
 			}
