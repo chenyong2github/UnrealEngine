@@ -9,6 +9,8 @@
 
 #define KERNEL_SIZE 4
 
+#define CONFIG_PREMULTIPLY_HISTORY 0
+
 
 //------------------------------------------------------- CONSTANTS
 
@@ -142,8 +144,13 @@ void MainCS(
 				tsr_half3 SampleTranslucencyColor = History_Translucency.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 				tsr_half  SampleTranslucencyAlpha = History_TranslucencyAlpha.SampleLevel(GlobalBilinearClampedSampler, SampleUV, 0);
 				
-				tsr_half SampleHistoryValidity = SampleMetadata.x;
-				tsr_half InvSampleHistoryValidity = SafeRcp(SampleHistoryValidity);
+				#if CONFIG_PREMULTIPLY_HISTORY
+					tsr_half SampleHistoryValidity = SampleMetadata.y;
+					tsr_half InvSampleHistoryValidity = SafeRcp(SampleHistoryValidity);
+				#else
+					const tsr_half SampleHistoryValidity = tsr_half(1.0);
+					const tsr_half InvSampleHistoryValidity = tsr_half(1.0);
+				#endif
 
 				#if DIM_SEPARATE_TRANSLUCENCY
 				{
