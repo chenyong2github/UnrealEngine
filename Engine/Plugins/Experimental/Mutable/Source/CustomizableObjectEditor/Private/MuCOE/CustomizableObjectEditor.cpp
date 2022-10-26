@@ -447,32 +447,6 @@ void FCustomizableObjectEditor::SelectNode(const UCustomizableObjectNode* Node)
 	GraphEditor->JumpToNode(Node);
 }
 
-void FCustomizableObjectEditor::SetPoseAsset(class UPoseAsset* PoseAssetParameter)
-{
-	PoseAsset = PoseAssetParameter;
-
-	if (PoseAsset != nullptr)
-	{
-		Viewport->SetAnimation(nullptr, EAnimationMode::AnimationBlueprint);
-
-		for (UDebugSkelMeshComponent* PreviewSkeletalMeshComponent : PreviewSkeletalMeshComponents)
-		{
-			PreviewSkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-			PreviewSkeletalMeshComponent->InitAnim(false);
-			PreviewSkeletalMeshComponent->SetAnimation(PoseAsset);
-
-			UAnimSingleNodeInstance* SingleNodeInstance = Cast<UAnimSingleNodeInstance>(PreviewSkeletalMeshComponent->GetAnimInstance());
-			if (SingleNodeInstance)
-			{
-				TArray<FSmartName> ArrayPoseSmartNames = PoseAsset->GetPoseNames();
-				for (int32 i = 0; i < ArrayPoseSmartNames.Num(); ++i)
-				{
-					SingleNodeInstance->SetPreviewCurveOverride(ArrayPoseSmartNames[i].DisplayName, 1.0f, false);
-				}
-			}
-		}
-	}
-}
 
 bool FCustomizableObjectEditor::CreatePreviewComponent(int32 ComponentIndex)
 {

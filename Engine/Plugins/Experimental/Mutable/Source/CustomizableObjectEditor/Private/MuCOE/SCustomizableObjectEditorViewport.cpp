@@ -1072,13 +1072,7 @@ FReply SCustomizableObjectEditorViewportTabBody::OnDrop(const FGeometry& MyGeome
 	{
 		if (Helper_GetAssets(DragDropOp).Num())
 		{
-			UPoseAsset* PoseAsset = Cast<UPoseAsset>(Helper_GetAssets(DragDropOp)[0].GetAsset());
-			if (PoseAsset != nullptr)
-			{
-				CustomizableObjectEditorPtr.Pin()->SetPoseAsset(PoseAsset);
-				return FReply::Handled();
-			}
-
+			// This cast also includes UPoseAsset assets.
 			UAnimationAsset* AnimationAsset = Cast<UAnimationAsset>(Helper_GetAssets(DragDropOp)[0].GetAsset());
 			if (AnimationAsset)
 			{

@@ -6,6 +6,7 @@
 #include "Animation/AnimationAsset.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/PoseAsset.h"
+#include "Animation/AnimSingleNodeInstance.h"
 #include "AssetViewerSettings.h"
 #include "BatchedElements.h"
 #include "CanvasTypes.h"
@@ -2092,19 +2093,40 @@ bool FCustomizableObjectEditorViewportClient::CanSetWidgetMode(UE::Widget::EWidg
 void FCustomizableObjectEditorViewportClient::SetAnimation(UAnimationAsset* Animation, EAnimationMode::Type AnimationType)
 {
 	bool bFoundComponent = false;
+
 	for (TWeakObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent : SkeletalMeshComponents)
 	{
 		if (SkeletalMeshComponent.IsValid() && Animation != nullptr
 			&& SkeletalMeshComponent->GetSkinnedAsset() != nullptr
-			&& SkeletalMeshComponent->GetSkinnedAsset()->GetSkeleton() == Animation->GetSkeleton()
+			&& SkeletalMeshComponent->GetSkinnedAsset()->GetSkeleton()->IsCompatible(Animation->GetSkeleton())
 			)
 		{
-			SkeletalMeshComponent->SetAnimationMode(AnimationType);
-			SkeletalMeshComponent->PlayAnimation(Animation, true);
-			SkeletalMeshComponent->SetPlayRate(1.f);
 			SetRealtime(true);
 			IsPlayingAnimation = true;
 			AnimationBeingPlayed = Animation;
+
+			if (UPoseAsset* PoseAsset = Cast<UPoseAsset>(Animation))
+			{
+				SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+				SkeletalMeshComponent->InitAnim(false);
+				SkeletalMeshComponent->SetAnimation(PoseAsset);
+
+				UAnimSingleNodeInstance* SingleNodeInstance = Cast<UAnimSingleNodeInstance>(SkeletalMeshComponent->GetAnimInstance());
+				if (SingleNodeInstance)
+				{
+					TArray<FSmartName> ArrayPoseSmartNames = PoseAsset->GetPoseNames();
+					for (int32 i = 0; i < ArrayPoseSmartNames.Num(); ++i)
+					{
+						SingleNodeInstance->SetPreviewCurveOverride(ArrayPoseSmartNames[i].DisplayName, 1.0f, false);
+					}
+				}
+			}
+			else
+			{
+				SkeletalMeshComponent->SetAnimationMode(AnimationType);
+				SkeletalMeshComponent->PlayAnimation(Animation, true);
+				SkeletalMeshComponent->SetPlayRate(1.f);
+			}
 
 			bFoundComponent = true;
 		}
@@ -3030,6 +3052,7 @@ void FCustomizableObjectEditorViewportClient::AddReferencedObjects(FReferenceCol
 {
 	Collector.AddReferencedObject(ClipMorphMaterial);
 	Collector.AddReferencedObject(TransparentPlaneMaterialXY);
+	Collector.AddReferencedObject(AnimationBeingPlayed);
 }
 
 

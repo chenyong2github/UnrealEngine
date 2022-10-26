@@ -1057,6 +1057,7 @@ void SCustomizableInstanceProperties::AddParameter(int32 ParamIndexInObject)
 						.MustMatchPossibleSuggestions(TAttribute<bool>(true))
 						.SuggestionListPlacement(EMenuPlacement::MenuPlacement_ComboBox)
 						.OnTextCommitted(this, &SCustomizableInstanceProperties::OnProjectorTextureParameterComboBoxChanged, PoseSwitchEnumParamNameWithRange)
+						.ToolTipText(LOCTEXT("Pose selector tooltip", "Select the skeletal mesh pose used for projection. This does not control the actual visual mesh pose in the viewport (or during gameplay for that matter). It has to be manually set. You can drag&drop a pose onto the preview viewport."))
 					]
 					
 					+ SHorizontalBox::Slot()

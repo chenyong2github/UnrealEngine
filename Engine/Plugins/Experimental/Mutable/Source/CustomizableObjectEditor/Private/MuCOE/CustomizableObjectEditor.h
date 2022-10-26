@@ -209,7 +209,6 @@ public:
 	virtual bool CanPasteNodes() const override;
 	virtual void PasteNodesHere(const FVector2D& Location) override;
 	virtual void SelectNode(const UCustomizableObjectNode* Node) override;
-	virtual void SetPoseAsset(class UPoseAsset* PoseAssetParameter) override;
 	
 	/** Called to undo the last action */
 	void UndoGraphAction();
@@ -499,9 +498,6 @@ private:
 	/** Used together with LaunchRefreshMaterialInAllChildren as a timer to launch the RefreshMaterialNodesInAllChildren method
 	* which will perform the task */
 	float PendingTimeRefreshMaterialInAllChildren = 2.0;
-
-	/** Pose asset when doing drag and drop of an UPoseAsset to the viewport */
-	UPoseAsset* PoseAsset;
 
 	/** Texture Analyzer table widget which shows the information of the transient textures used in the customizable object instance */
 	TSharedPtr<class SCustomizableObjecEditorTextureAnalyzer> TextureAnalyzer;
