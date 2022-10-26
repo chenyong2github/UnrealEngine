@@ -2109,6 +2109,58 @@ struct FAITest_BTSubtreeAbortOutToLowerPrio : public FAITest_SimpleBT
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTSubtreeAbortOutToLowerPrio, "System.AI.Behavior Trees.Subtree: abort out lower prio")
 
+
+/* This unittest come from UDN case 00484061 */
+struct FAITest_BTSubtreeAbortOutToLowerPrio2 : public FAITest_SimpleBT
+{
+	FAITest_BTSubtreeAbortOutToLowerPrio2()
+	{
+		enum
+		{
+			SubtreeTaskExecute = 1,
+			SubtreeTaskTick,
+			BBDecoratorBecomeRelevant,
+			BBDecoratorCeaseRelevant,
+			MainTaskExecute,
+			MainTaskTick
+		};
+
+		// SubTree
+		UBehaviorTree* ChildAsset = &FBTBuilder::CreateBehaviorTree(*BTAsset);
+		if (ChildAsset)
+		{
+			AddAutoDestroyObject(*ChildAsset);
+			UBTCompositeNode& CompNode = FBTBuilder::AddSequence(*ChildAsset);
+			{
+				// SubtreeTask
+				FBTBuilder::AddTask(CompNode, SubtreeTaskExecute, EBTNodeResult::Failed, 1, SubtreeTaskTick);
+			}
+		}
+
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset);
+		{
+			// SubTreeTask
+			FBTBuilder::AddTaskSubtree(CompNode, ChildAsset);
+
+			// BBDecorator
+			FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::LowerPriority, TEXT("Bool1"), BBDecoratorBecomeRelevant, BBDecoratorCeaseRelevant);
+
+			// MainTask
+			FBTBuilder::AddTask(CompNode, MainTaskExecute, EBTNodeResult::Succeeded, 1, MainTaskTick);
+		}
+
+		ExpectedResult.Add(SubtreeTaskExecute);
+		ExpectedResult.Add(SubtreeTaskTick);
+		ExpectedResult.Add(SubtreeTaskTick);
+		ExpectedResult.Add(BBDecoratorBecomeRelevant);
+		ExpectedResult.Add(MainTaskExecute);
+		ExpectedResult.Add(MainTaskTick);
+		ExpectedResult.Add(MainTaskTick);
+		ExpectedResult.Add(BBDecoratorCeaseRelevant);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTSubtreeAbortOutToLowerPrio2, "System.AI.Behavior Trees.Subtree: abort out lower prio 2")
+
 struct FAITest_BTServiceInstantTask : public FAITest_SimpleBT
 {
 	FAITest_BTServiceInstantTask()

@@ -117,9 +117,22 @@ class AIMODULE_API UBTCompositeNode : public UBTNode
 	void OnChildActivation(FBehaviorTreeSearchData& SearchData, const UBTNode& ChildNode) const;
 	void OnChildActivation(FBehaviorTreeSearchData& SearchData, int32 ChildIndex) const;
 
-	/** called after child has finished search */
-	void OnChildDeactivation(FBehaviorTreeSearchData& SearchData, const UBTNode& ChildNode, EBTNodeResult::Type& NodeResult, const bool bIsRequestFromActiveInstance) const;
-	void OnChildDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIndex, EBTNodeResult::Type& NodeResult, const bool bIsRequestFromActiveInstance) const;
+	/**
+	 * Notification called after child has finished search
+	 * @param SearchData for any new addition or removal of extra aux nodes/ descriptor
+	 * @param ChildNode is the children being deactivated
+	 * @param NodeResult the raison of the deactivation
+	 * @param bRequestedFromValidInstance the new requested search start is within the current active instances
+	 */
+	void OnChildDeactivation(FBehaviorTreeSearchData& SearchData, const UBTNode& ChildNode, EBTNodeResult::Type& NodeResult, const bool bRequestedFromValidInstance) const;
+	/**
+	 * Notification called after child has finished search
+	 * @param SearchData for any new addition or removal of extra aux nodes/ descriptor
+	 * @param ChildIndex of the child node being deactivated
+	 * @param NodeResult the raison of the deactivation
+	 * @param bRequestedFromValidInstance the new request search start is within the current active instances
+	 */
+	void OnChildDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIndex, EBTNodeResult::Type& NodeResult, const bool bRequestedFromValidInstance) const;
 
 	/** called when start enters this node */
 	void OnNodeActivation(FBehaviorTreeSearchData& SearchData) const;
@@ -176,9 +189,9 @@ class AIMODULE_API UBTCompositeNode : public UBTNode
 
 	// Deprecated methods
 	UE_DEPRECATED(5.0, "This function is deprecated. Please use RequestBranchDeactivation instead.")
-	void OnChildDeactivation(FBehaviorTreeSearchData& SearchData, const UBTNode& ChildNode, EBTNodeResult::Type& NodeResult) const { OnChildDeactivation(SearchData, ChildNode, NodeResult, true/*bIsRequestFromActiveInstance*/); }
+	void OnChildDeactivation(FBehaviorTreeSearchData& SearchData, const UBTNode& ChildNode, EBTNodeResult::Type& NodeResult) const { OnChildDeactivation(SearchData, ChildNode, NodeResult, /*bRequestedFromValidInstance*/true); }
 	UE_DEPRECATED(5.0, "This function is deprecated. Please use RequestBranchDeactivation instead.")
-	void OnChildDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIndex, EBTNodeResult::Type& NodeResult) const { OnChildDeactivation(SearchData, ChildIndex, NodeResult, true /*bIsRequestFromActiveInstance*/); }
+	void OnChildDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIndex, EBTNodeResult::Type& NodeResult) const { OnChildDeactivation(SearchData, ChildIndex, NodeResult, /*bRequestedFromValidInstance*/true ); }
 
 protected:
 

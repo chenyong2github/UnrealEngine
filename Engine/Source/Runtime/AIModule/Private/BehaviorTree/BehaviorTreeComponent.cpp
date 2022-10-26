@@ -1955,14 +1955,15 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 			}
 			else if (ChildBranchIdx == BTSpecialChild::ReturnToParent)
 			{
-				const UBTCompositeNode* ChildNode = TestNode;
+				const UBTNode* ChildNode = TestNode;
+				const UBTCompositeNode* PrevTestNode = TestNode;
 				TestNode = TestNode->GetParentNode();
 
 				// does it want to move up the tree?
 				if (TestNode == NULL)
 				{
 					// special case for leaving instance: deactivate root manually
-					ChildNode->OnNodeDeactivation(SearchData, NodeResult);
+					PrevTestNode->OnNodeDeactivation(SearchData, NodeResult);
 
 					// don't remove top instance from stack, so it could be looped
 					if (ActiveInstanceIdx > 0)
@@ -1978,13 +1979,15 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 						ActiveInstanceIdx--;
 
 						StoreDebuggerSearchStep(InstanceStack[ActiveInstanceIdx].ActiveNode, ActiveInstanceIdx, NodeResult);
-						TestNode = InstanceStack[ActiveInstanceIdx].ActiveNode->GetParentNode();
+						ChildNode = InstanceStack[ActiveInstanceIdx].ActiveNode;
+						TestNode = ChildNode->GetParentNode();
 					}
 				}
 
 				if (TestNode)
 				{
-					TestNode->OnChildDeactivation(SearchData, *ChildNode, NodeResult, ActiveInstanceIdx == ExecutionRequest.ExecuteInstanceIdx  /*bIsRequestInSameInstance*/);
+					const bool bRequestedFromValidInstance = ActiveInstanceIdx <= ExecutionRequest.ExecuteInstanceIdx;
+					TestNode->OnChildDeactivation(SearchData, *ChildNode, NodeResult, bRequestedFromValidInstance);
 				}
 			}
 			else if (TestNode->Children.IsValidIndex(ChildBranchIdx))
@@ -2183,7 +2186,8 @@ bool UBehaviorTreeComponent::DeactivateUpTo(const UBTCompositeNode* Node, uint16
 		if (NotifyParent)
 		{
 			OutLastDeactivatedChildIndex = NotifyParent->GetChildIndex(SearchData, *DeactivatedChild);
-			NotifyParent->OnChildDeactivation(SearchData, OutLastDeactivatedChildIndex, NodeResult, ActiveInstanceIdx == NodeInstanceIdx /*bIsRequestInSameInstance*/);
+			const bool bRequestedFromValidInstance = ActiveInstanceIdx <= NodeInstanceIdx;
+			NotifyParent->OnChildDeactivation(SearchData, OutLastDeactivatedChildIndex, NodeResult, bRequestedFromValidInstance);
 
 			BT_SEARCHLOG(SearchData, Verbose, TEXT("Deactivate node: %s"), *UBehaviorTreeTypes::DescribeNodeHelper(DeactivatedChild));
 			StoreDebuggerSearchStep(DeactivatedChild, ActiveInstanceIdx, NodeResult);

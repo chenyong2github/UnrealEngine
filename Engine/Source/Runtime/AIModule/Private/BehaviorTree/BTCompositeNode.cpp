@@ -123,12 +123,12 @@ void UBTCompositeNode::OnChildActivation(FBehaviorTreeSearchData& SearchData, in
 	NodeMemory->CurrentChild = ChildIndex;
 }
 
-void UBTCompositeNode::OnChildDeactivation(FBehaviorTreeSearchData& SearchData, const UBTNode& ChildNode, EBTNodeResult::Type& NodeResult, const bool bIsRequestFromActiveInstance) const
+void UBTCompositeNode::OnChildDeactivation(FBehaviorTreeSearchData& SearchData, const UBTNode& ChildNode, EBTNodeResult::Type& NodeResult, const bool bRequestedFromValidInstance) const
 {
-	OnChildDeactivation(SearchData, GetChildIndex(SearchData, ChildNode), NodeResult, bIsRequestFromActiveInstance);
+	OnChildDeactivation(SearchData, GetChildIndex(SearchData, ChildNode), NodeResult, bRequestedFromValidInstance);
 }
 
-void UBTCompositeNode::OnChildDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIndex, EBTNodeResult::Type& NodeResult, const bool bIsRequestFromActiveInstance) const
+void UBTCompositeNode::OnChildDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIndex, EBTNodeResult::Type& NodeResult, const bool bRequestedFromValidInstance) const
 {
 	const FBTCompositeChild& ChildInfo = Children[ChildIndex];
 
@@ -151,7 +151,7 @@ void UBTCompositeNode::OnChildDeactivation(FBehaviorTreeSearchData& SearchData, 
 	const bool bCanNotify = !bUseDecoratorsDeactivationCheck || CanNotifyDecoratorsOnDeactivation(SearchData, ChildIndex, NodeResult);
 	if (bCanNotify)
 	{
-		NotifyDecoratorsOnDeactivation(SearchData, ChildIndex, NodeResult, bIsRequestFromActiveInstance);
+		NotifyDecoratorsOnDeactivation(SearchData, ChildIndex, NodeResult, bRequestedFromValidInstance);
 	}
 }
 
@@ -249,7 +249,7 @@ void UBTCompositeNode::NotifyDecoratorsOnActivation(FBehaviorTreeSearchData& Sea
 	}
 }
 
-void UBTCompositeNode::NotifyDecoratorsOnDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIdx, EBTNodeResult::Type& NodeResult, const bool bIsRequestFromActiveInstance) const
+void UBTCompositeNode::NotifyDecoratorsOnDeactivation(FBehaviorTreeSearchData& SearchData, int32 ChildIdx, EBTNodeResult::Type& NodeResult, const bool bRequestedFromValidInstance) const
 {
 	const FBTCompositeChild& ChildInfo = Children[ChildIdx];
 	if (NodeResult == EBTNodeResult::Aborted)
@@ -272,7 +272,7 @@ void UBTCompositeNode::NotifyDecoratorsOnDeactivation(FBehaviorTreeSearchData& S
 			DecoratorOb->WrappedOnNodeProcessed(SearchData, NodeResult);
 			DecoratorOb->WrappedOnNodeDeactivation(SearchData, NodeResult);
 
-			if (!bIsRequestFromActiveInstance)
+			if (!bRequestedFromValidInstance)
 			{
 				UE_VLOG(SearchData.OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("Removing decorator(%s) as request is not in active instance"), *UBehaviorTreeTypes::DescribeNodeHelper(this));
 				SearchData.AddUniqueUpdate(FBehaviorTreeSearchUpdate(DecoratorOb, SearchData.OwnerComp.GetActiveInstanceIdx(), EBTNodeUpdateMode::Remove));
