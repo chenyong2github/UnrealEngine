@@ -13,7 +13,7 @@ struct FSingleLayerWaterTileClassification
 {
 	FTiledReflection TiledReflection = FTiledReflection{ nullptr, nullptr, nullptr, SLW_TILE_SIZE_XY };
 	FRDGBufferRef TileMaskBuffer = nullptr;
-	FIntPoint TiledViewRes;
+	FIntPoint TiledViewRes = FIntPoint{0, 0};
 };
 
 struct FSingleLayerWaterPrePassResult

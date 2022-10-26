@@ -1468,7 +1468,9 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 					if (SingleLayerWaterPrePassResult)
 					{
 						PassParameters->SingleLayerWaterDepthTexture = SingleLayerWaterPrePassResult->DepthPrepassTexture.Resolve;
-						PassParameters->SingleLayerWaterTileMask = GraphBuilder.CreateSRV(SingleLayerWaterPrePassResult->ViewTileClassification[ViewIndex].TileMaskBuffer);
+						PassParameters->SingleLayerWaterTileMask = GraphBuilder.CreateSRV(SingleLayerWaterPrePassResult->ViewTileClassification[ViewIndex].TileMaskBuffer != nullptr ?
+							SingleLayerWaterPrePassResult->ViewTileClassification[ViewIndex].TileMaskBuffer :
+							GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(uint32), 0xFFFFFFFF));
 						PassParameters->SingleLayerWaterTileViewRes = SingleLayerWaterPrePassResult->ViewTileClassification[ViewIndex].TiledViewRes;
 					}
 					PassParameters->NumDirectionalLightSmInds = uint32(DirectionalLightIds.Num());
