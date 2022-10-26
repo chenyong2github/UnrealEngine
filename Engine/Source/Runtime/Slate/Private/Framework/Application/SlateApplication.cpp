@@ -6195,10 +6195,6 @@ bool FSlateApplication::OnTouchEnded( const FVector2D& Location, int32 TouchInde
 			true);
 		ProcessTouchEndedEvent(PointerEvent);
 
-#if WITH_SLATE_DEBUGGING
-		ensure(!User->IsTouchPointerActive(TouchIndex));
-#endif
-
 		return true;
 	}
 
