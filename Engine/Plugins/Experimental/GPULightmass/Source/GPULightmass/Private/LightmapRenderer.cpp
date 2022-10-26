@@ -459,7 +459,6 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 					0, /* Custom Data Count */
 					0.0f, /* Random ID */
 					Instance.LocalToPrimitive,
-					InstanceGroup.LocalToWorld,
 					InstanceGroup.LocalToWorld
 				);
 
