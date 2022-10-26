@@ -256,6 +256,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Serialize HLOD stats in HLODActorDesc
 		WorldPartitionHLODActorDescSerializeStats,
 
+		// WorldPartitionStreamingSourceComponent property deprecation
+		WorldPartitionStreamingSourceComponentTargetDeprecation,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -270,12 +270,12 @@ bool UWorldPartitionSubsystem::IsStreamingCompleted(const IWorldPartitionStreami
 {
 	// Convert specified/optional streaming source provider to a world partition 
 	// streaming source and pass it along to each registered world partition
-	FWorldPartitionStreamingSource StreamingSource;
-	FWorldPartitionStreamingSource* StreamingSourcePtr = nullptr;
+	TArray<FWorldPartitionStreamingSource> StreamingSources;
+	TArray<FWorldPartitionStreamingSource>* StreamingSourcesPtr = nullptr;
 	if (InStreamingSourceProvider)
 	{
-		StreamingSourcePtr = &StreamingSource;
-		if (!InStreamingSourceProvider->GetStreamingSource(StreamingSource))
+		StreamingSourcesPtr = &StreamingSources;
+		if (!InStreamingSourceProvider->GetStreamingSources(StreamingSources))
 		{
 			return true;
 		}
@@ -283,7 +283,7 @@ bool UWorldPartitionSubsystem::IsStreamingCompleted(const IWorldPartitionStreami
 
 	for (UWorldPartition* RegisteredWorldPartition : RegisteredWorldPartitions)
 	{
-		if (!RegisteredWorldPartition->IsStreamingCompleted(StreamingSourcePtr))
+		if (!RegisteredWorldPartition->IsStreamingCompleted(StreamingSourcesPtr))
 		{
 			return false;
 		}

@@ -3636,20 +3636,32 @@ void APlayerController::GetStreamingSourceShapes(TArray<FStreamingSourceShape>& 
 
 bool APlayerController::GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) const
 {
+	checkNoEntry();
+	return false;
+}
+
+bool APlayerController::GetStreamingSources(TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const
+{
 	const ENetMode NetMode = GetNetMode();
 	const bool bIsServer = (NetMode == NM_DedicatedServer || NetMode == NM_ListenServer);
 	if (IsStreamingSourceEnabled() && (IsLocalController() || bIsServer))
 	{
-		GetStreamingSourceLocationAndRotation(OutStreamingSource.Location, OutStreamingSource.Rotation);
-		OutStreamingSource.Name = GetFName();
-		OutStreamingSource.TargetState = StreamingSourceShouldActivate() ? EStreamingSourceTargetState::Activated : EStreamingSourceTargetState::Loaded;
-		OutStreamingSource.bBlockOnSlowLoading = StreamingSourceShouldBlockOnSlowStreaming();
-		OutStreamingSource.DebugColor = StreamingSourceDebugColor;
-		OutStreamingSource.Priority = GetStreamingSourcePriority();
-		GetStreamingSourceShapes(OutStreamingSource.Shapes);
-		return true;
+		return GetStreamingSourcesInternal(OutStreamingSources);
 	}
 	return false;
+}
+
+bool APlayerController::GetStreamingSourcesInternal(TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const
+{
+	FWorldPartitionStreamingSource& StreamingSource = OutStreamingSources.AddDefaulted_GetRef();
+	GetStreamingSourceLocationAndRotation(StreamingSource.Location, StreamingSource.Rotation);
+	StreamingSource.Name = GetFName();
+	StreamingSource.TargetState = StreamingSourceShouldActivate() ? EStreamingSourceTargetState::Activated : EStreamingSourceTargetState::Loaded;
+	StreamingSource.bBlockOnSlowLoading = StreamingSourceShouldBlockOnSlowStreaming();
+	StreamingSource.DebugColor = StreamingSourceDebugColor;
+	StreamingSource.Priority = GetStreamingSourcePriority();
+	GetStreamingSourceShapes(StreamingSource.Shapes);
+	return true;
 }
 
 /// @cond DOXYGEN_WARNINGS

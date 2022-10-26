@@ -20,6 +20,9 @@ class ENGINE_API UWorldPartitionStreamingSourceComponent : public UActorComponen
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
 
+	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
+
 	/** Enable the component */
 	UFUNCTION(BlueprintCallable, Category = "Streaming")
 	void EnableStreamingSource() { bStreamingSourceEnabled = true; }
@@ -48,17 +51,27 @@ class ENGINE_API UWorldPartitionStreamingSourceComponent : public UActorComponen
 	float DefaultVisualizerLoadingRange;
 #endif
 
-	/** Optional target grid affected by streaming source. */
+	/** When TargetGrids or TargetHLODLayers are specified, this indicates the behavior. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Streaming")
-	FName TargetGrid;
+	EStreamingSourceTargetBehavior TargetBehavior;
+			
+	/** Optional target grids affected by streaming source. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Streaming")
+	TArray<FName> TargetGrids;
+
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use TargetGrids instead."))
+	FName TargetGrid_DEPRECATED;
 
 	/** Color used for debugging. */
 	UPROPERTY(EditAnywhere, Category = "Streaming")
 	FColor DebugColor;
 
-	/** Optional target HLODLayer affected by the streaming source. */
+	/** Optional target HLODLayers affected by the streaming source. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Streaming")
-	TObjectPtr<const UHLODLayer> TargetHLODLayer;
+	TArray<TObjectPtr<const UHLODLayer>> TargetHLODLayers;
+
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use TargetHLODLayers instead."))
+	TObjectPtr<const UHLODLayer> TargetHLODLayer_DEPRECATED;
 
 	/** Optional aggregated shape list used to build a custom shape for the streaming source. When empty, fallbacks sphere shape with a radius equal to grid's loading range. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Streaming")
@@ -66,10 +79,6 @@ class ENGINE_API UWorldPartitionStreamingSourceComponent : public UActorComponen
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Streaming")
 	EStreamingSourcePriority Priority;
-
-#if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-#endif
 
 private:
 	/** Whether this component is enabled or not */

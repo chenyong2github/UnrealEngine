@@ -1351,11 +1351,11 @@ bool UWorldPartition::CanAddLoadedLevelToWorld(class ULevel* InLevel) const
 	return true;
 }
 
-bool UWorldPartition::IsStreamingCompleted(const FWorldPartitionStreamingSource* InStreamingSource) const
+bool UWorldPartition::IsStreamingCompleted(const TArray<FWorldPartitionStreamingSource>* InStreamingSources) const
 {
 	if (GetWorld()->IsGameWorld())
 	{
-		return StreamingPolicy->IsStreamingCompleted(InStreamingSource);
+		return StreamingPolicy->IsStreamingCompleted(InStreamingSources);
 	}
 	return true;
 }

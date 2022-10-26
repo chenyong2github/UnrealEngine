@@ -822,12 +822,15 @@ public:
 	virtual void GetStreamingSourceShapes(TArray<FStreamingSourceShape>& OutShapes) const;
 
 	/**
-	 * Gets the PlayerController's streaming source
-	 * @return the streaming source.
+	 * Gets the PlayerController's streaming sources
+	 * @return the streaming sources.
 	 */
-	virtual bool GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) const final;
+	virtual bool GetStreamingSources(TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const final;
 
 protected:
+	virtual bool GetStreamingSourcesInternal(TArray<FWorldPartitionStreamingSource>& OutStreamingSources) const;
+	virtual bool GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) const final;
+	
 	/** Pawn has been possessed, so changing state to NAME_Playing. Start it walking and begin playing with it. */
 	virtual void BeginPlayingState();
 

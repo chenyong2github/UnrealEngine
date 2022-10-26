@@ -52,18 +52,18 @@ void UWorldPartitionLevelStreamingPolicy::ForEachActiveRuntimeCell(TFunctionRef<
 	}
 }
 
-bool UWorldPartitionLevelStreamingPolicy::IsStreamingCompleted(const FWorldPartitionStreamingSource* InStreamingSource) const
+bool UWorldPartitionLevelStreamingPolicy::IsStreamingCompleted(const TArray<FWorldPartitionStreamingSource>* InStreamingSources) const
 {
 	const UWorld* World = GetWorld();
 	check(World);
 	check(World->IsGameWorld());
 
-	if (!Super::IsStreamingCompleted(InStreamingSource))
+	if (!Super::IsStreamingCompleted(InStreamingSources))
 	{
 		return false;
 	}
 
-	if (!InStreamingSource)
+	if (!InStreamingSources)
 	{
 		// Also verify that there's no remaining activity (mainly for unloading) 
 		// waiting to be processed on level streaming of world partition runtime cells

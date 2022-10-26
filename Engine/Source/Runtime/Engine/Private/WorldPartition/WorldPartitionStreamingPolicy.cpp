@@ -120,17 +120,19 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 			UWorldPartitionSubsystem* WorldPartitionSubsystem = GetWorld()->GetSubsystem<UWorldPartitionSubsystem>();
 			check(WorldPartitionSubsystem);
 
+			TArray<FWorldPartitionStreamingSource> ProviderStreamingSources;
 			for (IWorldPartitionStreamingSourceProvider* StreamingSourceProvider : WorldPartitionSubsystem->GetStreamingSourceProviders())
 			{
-				FWorldPartitionStreamingSource StreamingSource;
-				// Default Streaming Source provider's priority to be less than those based on player controllers
-				StreamingSource.Priority = EStreamingSourcePriority::Low;
-				if (StreamingSourceProvider->GetStreamingSource(StreamingSource))
+				ProviderStreamingSources.Reset();
+				if (StreamingSourceProvider->GetStreamingSources(ProviderStreamingSources))
 				{
-					// Transform to Local
-					StreamingSource.Location = WorldToLocal.TransformPosition(StreamingSource.Location);
-					StreamingSource.Rotation = WorldToLocal.TransformRotation(StreamingSource.Rotation.Quaternion()).Rotator();
-					StreamingSources.Add(StreamingSource);
+					for (FWorldPartitionStreamingSource& ProviderStreamingSource : ProviderStreamingSources)
+					{
+						// Transform to Local
+						ProviderStreamingSource.Location = WorldToLocal.TransformPosition(ProviderStreamingSource.Location);
+						ProviderStreamingSource.Rotation = WorldToLocal.TransformRotation(ProviderStreamingSource.Rotation.Quaternion()).Rotator();
+						StreamingSources.Add(MoveTemp(ProviderStreamingSource));
+					}
 				}
 			}
 		}
@@ -725,13 +727,13 @@ bool UWorldPartitionStreamingPolicy::CanAddLoadedLevelToWorld(ULevel* InLevel) c
 	return true;
 }
 
-bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(const FWorldPartitionStreamingSource* InStreamingSource) const
+bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(const TArray<FWorldPartitionStreamingSource>* InStreamingSources) const
 {
 	const UWorld* World = GetWorld();
 	check(World);
 	check(World->IsGameWorld());
 	const UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>();
-	const bool bTestProvidedStreamingSource = !!InStreamingSource;
+	const bool bTestProvidedStreamingSource = !!InStreamingSources;
 
 	// Always test non-spatial cells
 	{
@@ -759,7 +761,7 @@ bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(const FWorldPartitionS
 	}
 
 	// Test spatially loaded cells using streaming sources (or provided streaming source)
-	TArrayView<const FWorldPartitionStreamingSource> QueriedStreamingSources = bTestProvidedStreamingSource ? MakeArrayView({ *InStreamingSource }) : StreamingSources;
+	TArrayView<const FWorldPartitionStreamingSource> QueriedStreamingSources = bTestProvidedStreamingSource ? *InStreamingSources : StreamingSources;
 	for (const FWorldPartitionStreamingSource& StreamingSource : QueriedStreamingSources)
 	{
 		// Build a query source from a Streaming Source
@@ -768,7 +770,9 @@ bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(const FWorldPartitionS
 		QuerySource.bSpatialQuery = true;
 		QuerySource.Location = StreamingSource.Location;
 		QuerySource.Rotation = StreamingSource.Rotation;
-		QuerySource.TargetGrid = StreamingSource.TargetGrid;
+		QuerySource.TargetBehavior = StreamingSource.TargetBehavior;
+		QuerySource.TargetGrids = StreamingSource.TargetGrids;
+		QuerySource.TargetHLODLayers = StreamingSource.TargetHLODLayers;
 		QuerySource.Shapes = StreamingSource.Shapes;
 		QuerySource.bUseGridLoadingRange = true;
 		QuerySource.Radius = 0.f;

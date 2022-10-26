@@ -8,6 +8,7 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 #include "SceneManagement.h"
 #include "SceneView.h"
 #include "Engine/World.h"
@@ -19,7 +20,7 @@ UWorldPartitionStreamingSourceComponent::UWorldPartitionStreamingSourceComponent
 #if WITH_EDITORONLY_DATA
 	, DefaultVisualizerLoadingRange(10000.f)
 #endif
-	, TargetGrid(NAME_None)
+	, TargetBehavior(EStreamingSourceTargetBehavior::Include)
 	, DebugColor(FColor::MakeRedToGreenColorFromScalar(FRandomStream(GetFName()).GetFraction()))
 	, Priority(EStreamingSourcePriority::Normal)
 	, bStreamingSourceEnabled(true)
@@ -64,6 +65,31 @@ void UWorldPartitionStreamingSourceComponent::OnUnregister()
 	verify(WorldPartitionSubsystem->UnregisterStreamingSourceProvider(this));
 }
 
+void UWorldPartitionStreamingSourceComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+}
+
+void UWorldPartitionStreamingSourceComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WorldPartitionStreamingSourceComponentTargetDeprecation)
+	{
+		if (!TargetGrid_DEPRECATED.IsNone())
+		{
+			TargetGrids.Add(TargetGrid_DEPRECATED);
+		}
+
+		if (TargetHLODLayer_DEPRECATED)
+		{
+			TargetHLODLayers.Add(TargetHLODLayer_DEPRECATED);
+		}
+	}
+}
+
 bool UWorldPartitionStreamingSourceComponent::GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) const
 {
 	if (bStreamingSourceEnabled)
@@ -75,10 +101,27 @@ bool UWorldPartitionStreamingSourceComponent::GetStreamingSource(FWorldPartition
 		OutStreamingSource.Rotation = Actor->GetActorRotation();
 		OutStreamingSource.TargetState = TargetState;
 		OutStreamingSource.DebugColor = DebugColor;
-		OutStreamingSource.TargetGrid = TargetGrid;
-		OutStreamingSource.TargetHLODLayer = TargetHLODLayer;
-		OutStreamingSource.Shapes = Shapes;
+		OutStreamingSource.TargetBehavior = TargetBehavior;
 		OutStreamingSource.Priority = Priority;
+						
+		if (!Shapes.IsEmpty())
+		{
+			OutStreamingSource.Shapes.Append(Shapes);
+		}
+
+		if (!TargetGrids.IsEmpty())
+		{
+			OutStreamingSource.TargetGrids.Append(TargetGrids);
+		}
+
+		if (!TargetHLODLayers.IsEmpty())
+		{
+			OutStreamingSource.TargetHLODLayers.Reserve(TargetHLODLayers.Num());
+			for (const TObjectPtr<const UHLODLayer>& HLODLayer : TargetHLODLayers)
+			{
+				OutStreamingSource.TargetHLODLayers.Add(HLODLayer);
+			}
+		}
 		return true;
 	}
 	return false;
@@ -115,14 +158,4 @@ void UWorldPartitionStreamingSourceComponent::DrawVisualization(const FSceneView
 #endif
 }
 
-#if WITH_EDITOR
-bool UWorldPartitionStreamingSourceComponent::CanEditChange(const FProperty* InProperty) const
-{
-	if (InProperty && InProperty->GetName() == GET_MEMBER_NAME_STRING_CHECKED(UWorldPartitionStreamingSourceComponent, TargetGrid))
-	{
-		return TargetHLODLayer == nullptr;
-	}
-	return Super::CanEditChange(InProperty);
-}
-#endif
 
