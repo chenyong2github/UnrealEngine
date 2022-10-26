@@ -2,6 +2,8 @@
 
 #include "USDStageImporter.h"
 
+#include "Engine/SkinnedAssetCommon.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "USDAssetCache.h"
 #include "USDAssetImportData.h"
 #include "USDClassesModule.h"

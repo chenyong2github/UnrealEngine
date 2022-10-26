@@ -3,6 +3,7 @@
 #include "PoseSearch/AnimNode_BlendStack.h"
 
 #include "Algo/MaxElement.h"
+#include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 

@@ -2,6 +2,7 @@
 
 #include "USDSkeletalDataConversion.h"
 
+#include "Engine/SkinnedAssetCommon.h"
 #include "UnrealUSDWrapper.h"
 #include "USDAssetImportData.h"
 #include "USDAttributeUtils.h"

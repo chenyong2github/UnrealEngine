@@ -2,6 +2,7 @@
 
 #include "VirtualCameraPlayerControllerBase.h"
 
+#include "Components/InputComponent.h"
 #include "ConcertVirtualCamera.h"
 #include "CineCameraActor.h"
 #include "Engine/Engine.h"

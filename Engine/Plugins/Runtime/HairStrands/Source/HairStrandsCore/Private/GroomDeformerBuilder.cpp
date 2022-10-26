@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroomDeformerBuilder.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "GroomBuilder.h"
 #include "HairStrandsCore.h"
 #include "Animation/Skeleton.h"

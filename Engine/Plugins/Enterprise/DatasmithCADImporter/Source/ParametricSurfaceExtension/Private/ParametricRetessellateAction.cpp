@@ -8,6 +8,8 @@
 #include "DatasmithStaticMeshImporter.h" // Call to BuildStaticMesh
 #include "DatasmithUtils.h"
 #include "DatasmithTranslator.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
+#include "Physics/PhysScene.h"
 #include "UI/DatasmithDisplayHelper.h"
 #include "MeshDescriptionHelper.h"
 

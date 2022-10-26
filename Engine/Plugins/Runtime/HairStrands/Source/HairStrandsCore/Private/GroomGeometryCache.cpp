@@ -11,6 +11,7 @@
 #include "Rendering/SkinWeightVertexBuffer.h"
 #include "CommonRenderResources.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "SkeletalMeshSceneProxy.h"
 #include "SkeletalRenderPublic.h"
 #include "Rendering/SkeletalMeshLODRenderData.h"
 #include "RenderGraphUtils.h"

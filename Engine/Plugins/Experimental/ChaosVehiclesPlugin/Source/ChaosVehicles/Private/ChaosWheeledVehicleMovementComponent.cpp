@@ -9,6 +9,7 @@
 #include "DisplayDebugHelpers.h"
 #include "DisplayDebugHelpers.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "VehicleAnimationInstance.h"
 #include "ChaosVehicleManager.h"
 #include "ChaosVehicleWheel.h"

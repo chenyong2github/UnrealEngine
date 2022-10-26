@@ -11,6 +11,7 @@
 #include "Chaos/ChaosScene.h"
 #include "Engine/StaticMesh.h"
 #include "IStaticMeshEditor.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Physics/PhysScene.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"

@@ -2,6 +2,7 @@
 
 #include "USDConversionUtils.h"
 
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "USDAssetImportData.h"
 #include "USDDuplicateType.h"
 #include "USDErrorUtils.h"

@@ -8,6 +8,7 @@
 #include "Math/Matrix.h"
 #include "Math/Vector.h"
 #include "Chaos/Utilities.h"
+#include <iostream>
 
 namespace Chaos {
 

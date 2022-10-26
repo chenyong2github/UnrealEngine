@@ -8,6 +8,7 @@
 #include "Rendering/SkinWeightVertexBuffer.h"
 #include "CommonRenderResources.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "SkeletalMeshSceneProxy.h"
 #include "SkeletalRenderPublic.h"
 #include "GroomTextureBuilder.h"
 #include "GroomResources.h"

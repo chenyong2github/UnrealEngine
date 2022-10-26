@@ -3,6 +3,7 @@
 #include "DisplayClusterLightCardOutlinerMode.h"
 
 #include "DisplayClusterLightCardEditorLog.h"
+#include "Logging/MessageLog.h"
 #include "SDisplayClusterLightCardOutliner.h"
 
 #include "ActorEditorUtils.h"

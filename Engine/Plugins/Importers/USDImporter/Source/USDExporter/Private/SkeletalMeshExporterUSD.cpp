@@ -2,8 +2,10 @@
 
 #include "SkeletalMeshExporterUSD.h"
 
+#include "Engine/SkinnedAssetCommon.h"
 #include "EngineAnalytics.h"
 #include "MaterialExporterUSD.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 #include "SkeletalMeshExporterUSDOptions.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
