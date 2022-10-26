@@ -5485,16 +5485,19 @@ bool FSequencer::OnRequestNodeDeleted( TSharedRef<FViewModel> NodeToBeDeleted, c
 		{
 			for (TWeakObjectPtr<> WeakObject : FindBoundObjects(ObjectBinding->GetObjectGuid(), SequenceID))
 			{
-				TArray<UObject*> SubObjects;
-				GetObjectsWithOuter(WeakObject.Get(), SubObjects);
-
-				PreAnimatedState.DiscardAndRemoveEntityTokensForObject(*WeakObject.Get());
-
-				for (UObject* SubObject : SubObjects)
+				if (WeakObject.IsValid())
 				{
-					if (SubObject)
+					TArray<UObject*> SubObjects;
+					GetObjectsWithOuter(WeakObject.Get(), SubObjects);
+
+					PreAnimatedState.DiscardAndRemoveEntityTokensForObject(*WeakObject.Get());
+
+					for (UObject* SubObject : SubObjects)
 					{
-						PreAnimatedState.DiscardAndRemoveEntityTokensForObject(*SubObject);
+						if (SubObject)
+						{
+							PreAnimatedState.DiscardAndRemoveEntityTokensForObject(*SubObject);
+						}
 					}
 				}
 			}
