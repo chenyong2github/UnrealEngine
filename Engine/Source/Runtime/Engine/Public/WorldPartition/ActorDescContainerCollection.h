@@ -12,12 +12,14 @@ class ENGINE_API FActorDescContainerCollection
 {
 #if WITH_EDITOR
 public:
+	~FActorDescContainerCollection();
+
 	void AddContainer(UActorDescContainer* Container);
 	bool RemoveContainer(UActorDescContainer* Container);
 	bool Contains(const FName& ContainerPackageName) const;
 	UActorDescContainer* FindContainer(const FName& ContainerPackageName) const;
 
-	void Empty() { ActorDescContainerCollection.Empty(); }
+	void Empty();
 	bool IsEmpty() const { return ActorDescContainerCollection.IsEmpty(); }
 	uint32 GetActorDescContainerCount() const { return ActorDescContainerCollection.Num(); }
 
@@ -54,6 +56,9 @@ public:
 	void ForEachActorDescContainer(TFunctionRef<void(UActorDescContainer*)> Func) const;
 
 protected:
+	void RegisterDelegates(UActorDescContainer* Container);
+	void UnregisterDelegates(UActorDescContainer* Container);
+
 	TArray<UActorDescContainer*> ActorDescContainerCollection;
 
 public:
@@ -169,7 +174,5 @@ public:
 			: BaseType(Collection, InActorClass ? InActorClass : ActorType::StaticClass())
 		{}
 	};
-
-
 #endif
 };

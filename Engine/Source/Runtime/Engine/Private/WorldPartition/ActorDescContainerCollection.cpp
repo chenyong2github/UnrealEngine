@@ -6,18 +6,25 @@
 #include "WorldPartition/WorldPartition.h"
 
 #if WITH_EDITOR
+FActorDescContainerCollection::~FActorDescContainerCollection()
+{
+	Empty();
+}
 
 void FActorDescContainerCollection::AddContainer(UActorDescContainer* Container)
 {
 	ActorDescContainerCollection.Add(Container);
-	Container->OnActorDescAddedEvent.AddRaw(this, &FActorDescContainerCollection::OnActorDescAdded);
-	Container->OnActorDescRemovedEvent.AddRaw(this, &FActorDescContainerCollection::OnActorDescRemoved);
+	RegisterDelegates(Container);
 }
 
 bool FActorDescContainerCollection::RemoveContainer(UActorDescContainer* Container)
 {
-	Container->OnActorDescRemovedEvent.RemoveAll(this);
-	return ActorDescContainerCollection.RemoveSwap(Container) > 0;
+	if (ActorDescContainerCollection.RemoveSwap(Container) > 0)
+	{
+		UnregisterDelegates(Container);
+		return true;
+	}
+	return false;
 }
 
 bool FActorDescContainerCollection::Contains(const FName& ContainerPackageName) const
@@ -29,6 +36,28 @@ UActorDescContainer* FActorDescContainerCollection::FindContainer(const FName& C
 {
 	auto* ContainerPtr = ActorDescContainerCollection.FindByPredicate([&ContainerPackageName](const UActorDescContainer* ActorDescContainer) { return ActorDescContainer->GetContainerPackage() == ContainerPackageName; });
 	return ContainerPtr != nullptr ? *ContainerPtr : nullptr;
+}
+
+void FActorDescContainerCollection::Empty()
+{
+	ForEachActorDescContainer([this](UActorDescContainer* ActorDescContainer)
+	{
+		UnregisterDelegates(ActorDescContainer);
+	});
+
+	ActorDescContainerCollection.Empty();
+}
+
+void FActorDescContainerCollection::RegisterDelegates(UActorDescContainer* Container)
+{
+	Container->OnActorDescAddedEvent.AddRaw(this, &FActorDescContainerCollection::OnActorDescAdded);
+	Container->OnActorDescRemovedEvent.AddRaw(this, &FActorDescContainerCollection::OnActorDescRemoved);
+}
+
+void FActorDescContainerCollection::UnregisterDelegates(UActorDescContainer* Container)
+{
+	Container->OnActorDescAddedEvent.RemoveAll(this);
+	Container->OnActorDescRemovedEvent.RemoveAll(this);
 }
 
 const FWorldPartitionActorDesc* FActorDescContainerCollection::GetActorDesc(const FGuid& Guid) const
