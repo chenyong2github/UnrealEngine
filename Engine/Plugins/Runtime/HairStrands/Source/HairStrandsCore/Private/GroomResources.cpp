@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroomResources.h"
+#include "Engine/Texture2D.h"
 #include "EngineUtils.h"
 #include "GroomAssetImportData.h"
 #include "GroomBuilder.h"
@@ -10,11 +11,13 @@
 #include "Engine/AssetUserData.h"
 #include "HairStrandsVertexFactory.h"
 #include "Misc/Paths.h"
+#include "RHIStaticStates.h"
 #include "Serialization/LargeMemoryReader.h"
 #include "Serialization/LargeMemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/BulkData.h"
+#include "TextureResource.h"
 #include "UObject/PhysicsObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "NiagaraSystem.h"

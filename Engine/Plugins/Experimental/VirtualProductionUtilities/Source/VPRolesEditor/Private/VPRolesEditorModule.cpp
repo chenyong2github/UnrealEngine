@@ -2,6 +2,7 @@
 
 #include "VPRolesEditorModule.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "GameplayTagContainer.h"
 #include "GameplayTagsEditorModule.h"
 #include "GameplayTagsSettings.h"

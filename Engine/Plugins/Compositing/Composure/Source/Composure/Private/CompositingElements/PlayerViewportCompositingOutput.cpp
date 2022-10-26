@@ -9,6 +9,7 @@
 #include "Engine/GameViewportClient.h" // for EngineShowFlags
 #include "ComposureUtils.h" // for SetEngineShowFlagsForPostprocessingOnly()
 #include "ComposureInternals.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "SceneView.h"
 #include "ComposureTonemapperPass.h" // for FComposureTonemapperUtils::ApplyTonemapperSettings()

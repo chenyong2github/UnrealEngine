@@ -33,6 +33,7 @@
 #include "OpenColorIODisplayExtension.h"
 
 #include "Misc/DisplayClusterLog.h"
+#include "TextureResource.h"
 
 void FDisplayClusterViewportConfigurationHelpers::UpdateViewportStereoMode(FDisplayClusterViewport& DstViewport, const EDisplayClusterConfigurationViewport_StereoMode StereoMode)
 {

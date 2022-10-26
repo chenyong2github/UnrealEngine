@@ -8,6 +8,7 @@
 #include "Data/SnapshotCustomVersion.h"
 #include "CustomSerialization/CustomObjectSerializationWrapper.h"
 #include "Data/Util/WorldData/SnapshotObjectUtil.h"
+#include "Engine/Level.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
 #include "LoadSnapshotObjectArchive.h"

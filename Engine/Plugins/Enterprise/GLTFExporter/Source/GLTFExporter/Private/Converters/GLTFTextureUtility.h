@@ -10,6 +10,7 @@
 class UTextureCube;
 class UTextureRenderTarget2D;
 class UTextureRenderTargetCube;
+class UTexture2D;
 
 struct FGLTFTextureUtility
 {

@@ -8,6 +8,7 @@
 #include "AdvancedPreviewScene.h"
 #include "SEditorViewport.h"
 #include "Editor/UnrealEd/Public/SCommonEditorViewportToolbarBase.h"
+#include "Widgets/Layout/SBorder.h"
 
 class FLidarPointCloudEditor;
 class FLidarPointCloudEditorViewportClient;

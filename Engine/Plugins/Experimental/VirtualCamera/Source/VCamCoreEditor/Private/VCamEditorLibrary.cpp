@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VCamEditorLibrary.h"
+#include "UObject/UObjectIterator.h"
 #include "VCamComponent.h"
 
 void UVCamEditorLibrary::GetAllVCamComponentsInLevel(TArray<UVCamComponent*>& VCamComponents)

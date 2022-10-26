@@ -5,6 +5,7 @@
 
 #include "Engine/Texture2D.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "TextureResource.h"
 
 #if WITH_OPENCV
 

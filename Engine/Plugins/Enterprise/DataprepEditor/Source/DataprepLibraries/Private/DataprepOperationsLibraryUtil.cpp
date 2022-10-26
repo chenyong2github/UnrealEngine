@@ -2,6 +2,7 @@
 
 #include "DataprepOperationsLibraryUtil.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Materials/Material.h"
@@ -9,6 +10,7 @@
 #include "Materials/MaterialInterface.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
+#include "StaticMeshResources.h"
 
 namespace DataprepOperationsLibraryUtil
 {

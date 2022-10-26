@@ -6,7 +6,7 @@
 
 template<class T>
 class SComboBox;
-
+class SWidget;
 
 class FDisplayClusterConfiguratorMediaCustomization final
 	: public FDisplayClusterConfiguratorBaseTypeCustomization

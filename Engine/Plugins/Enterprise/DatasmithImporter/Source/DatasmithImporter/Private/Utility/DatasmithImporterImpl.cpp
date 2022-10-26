@@ -21,6 +21,7 @@
 #include "DatasmithStaticMeshImporter.h"
 #include "DatasmithTextureImporter.h"
 #include "DatasmithTranslator.h"
+#include "Engine/Texture2D.h"
 #include "IDatasmithSceneElements.h"
 #include "ObjectTemplates/DatasmithObjectTemplate.h"
 #include "Utility/DatasmithImporterUtils.h"

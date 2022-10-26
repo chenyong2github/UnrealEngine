@@ -4,7 +4,9 @@
 
 #include "Algo/MaxElement.h"
 #include "CameraCalibrationSettings.h"
+#include "Engine/World.h"
 #include "Kismet/KismetRenderingLibrary.h"
+#include "MaterialShared.h"
 
 bool FLensDistortionState::operator==(const FLensDistortionState& Other) const
 {

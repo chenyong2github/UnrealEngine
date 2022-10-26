@@ -16,6 +16,7 @@
 #include "Models/SphericalLensModel.h"
 #include "UI/SFilterableActorPicker.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
+#include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Views/SListView.h"

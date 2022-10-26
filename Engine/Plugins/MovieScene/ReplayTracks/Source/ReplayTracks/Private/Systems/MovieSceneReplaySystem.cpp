@@ -13,6 +13,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "GameFramework/SpectatorPawnMovement.h"
+#include "GameFramework/WorldSettings.h"
 #include "IMovieScenePlayer.h"
 #include "Misc/CoreMiscDefines.h"
 #include "MovieSceneFwd.h"

@@ -12,6 +12,10 @@
 #include "Templates/UnrealTemplate.h"
 #include "UObject/Object.h"
 
+#if PLATFORM_LINUX
+#include "Components/SkeletalMeshComponent.h" // Needed because AnimInstance::GetOwningComponent. (this only fails on linux)
+#endif
+
 
 #if UE_TRACE_ENABLED && !IS_PROGRAM && !UE_BUILD_SHIPPING
 #define TRACE_FILTERING_ENABLED 1

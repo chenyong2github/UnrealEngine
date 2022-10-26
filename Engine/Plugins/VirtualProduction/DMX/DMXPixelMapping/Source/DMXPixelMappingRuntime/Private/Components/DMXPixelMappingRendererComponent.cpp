@@ -19,6 +19,7 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "Modules/ModuleManager.h"
+#include "TextureResource.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Widgets/Layout/SConstraintCanvas.h"
 

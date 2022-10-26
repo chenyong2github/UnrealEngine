@@ -3,6 +3,7 @@
 #include "MaterialExporterUSD.h"
 
 #include "MaterialExporterUSDOptions.h"
+#include "Materials/Material.h"
 #include "UnrealUSDWrapper.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"

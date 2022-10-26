@@ -9,6 +9,7 @@
 #include "CameraLensDistortionAlgo.h"
 #include "DesktopPlatformModule.h"
 #include "Dom/JsonObject.h"
+#include "Framework/Application/SlateApplication.h"
 #include "HAL/FileManager.h"
 #include "IDesktopPlatform.h"
 #include "ImageUtils.h"

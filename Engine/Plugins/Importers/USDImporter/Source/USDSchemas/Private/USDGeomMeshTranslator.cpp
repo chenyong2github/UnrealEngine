@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "USDGeomMeshTranslator.h"
+#include "Engine/Level.h"
+#include "Engine/World.h"
 
 #if USE_USD_SDK
 

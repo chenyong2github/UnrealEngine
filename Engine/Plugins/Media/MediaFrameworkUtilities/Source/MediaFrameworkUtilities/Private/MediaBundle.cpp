@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MediaBundle.h"
+#include "Materials/Material.h"
 
 #if WITH_EDITOR
 #include "AssetToolsModule.h"

@@ -15,9 +15,11 @@
 #include "PropertyEditorModule.h"
 #include "TimerManager.h"
 #include "Modules/ModuleManager.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
+#include "Widgets/Text/STextBlock.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXPixelMappingOutputComponent"

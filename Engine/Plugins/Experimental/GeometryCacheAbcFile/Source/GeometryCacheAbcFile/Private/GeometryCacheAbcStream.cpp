@@ -8,6 +8,8 @@
 #include "GeometryCacheTrackAbcFile.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CoreMisc.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 
 static bool GAbcStreamCacheInDDC = true;
 static FAutoConsoleVariableRef CVarAbcStreamCacheInDDC(

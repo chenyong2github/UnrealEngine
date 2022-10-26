@@ -2,6 +2,7 @@
 
 #include "DataprepTessellationOperation.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "ParametricSurfaceBlueprintLibrary.h"
 #include "DatasmithAdditionalData.h"
 #include "DatasmithAssetImportData.h"

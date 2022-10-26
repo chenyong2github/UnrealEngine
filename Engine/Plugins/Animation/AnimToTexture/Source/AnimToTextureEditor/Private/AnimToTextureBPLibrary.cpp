@@ -4,6 +4,7 @@
 #include "AnimToTexture.h"
 #include "AnimToTextureUtils.h"
 #include "AnimToTextureSkeletalMesh.h"
+#include "Engine/SkeletalMesh.h"
 #include "EvaluateSequenceAnimInstance.h"
 
 #include "Editor.h"

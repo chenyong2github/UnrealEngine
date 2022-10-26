@@ -7,6 +7,7 @@
 #include "GlobalShader.h"
 #include "ShaderParameterStruct.h"
 #include "ScreenPass.h"
+#include "TextureResource.h"
 
 class FUndistortImagePointsCS : public FGlobalShader
 {

@@ -5,8 +5,11 @@
 #include "IPropertyTypeCustomization.h"
 #include "ZoneGraphTypes.h"
 
+class FReply;
 class IPropertyHandle;
 class SColorBlock;
+struct FGeometry;
+struct FPointerEvent;
 
 /**
  * Type customization for FZoneGraphTagInfo.

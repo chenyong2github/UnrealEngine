@@ -16,6 +16,7 @@ class USceneComponent;
 class USpringArmComponent;
 class UStaticMeshComponent;
 class UStaticMesh;
+class UTexture;
 
 UENUM(BlueprintType)
 enum class EDisplayClusterLightCardMask : uint8

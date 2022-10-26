@@ -2,9 +2,13 @@
 
 #include "DataprepEditorUtils.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "DataprepAsset.h"
 #include "DataprepParameterizableObject.h"
 #include "DataprepOperation.h"
+#include "Engine/Texture.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialInterface.h"
 #include "Parameterization/DataprepParameterizationUtils.h"
 #include "SchemaActions/DataprepFilterMenuActionCollector.h"
 #include "Widgets/Parameterization/SDataprepLinkToParameter.h"

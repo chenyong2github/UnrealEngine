@@ -15,6 +15,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SWrapBox.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Views/SHeaderRow.h"
 
 #define LOCTEXT_NAMESPACE "LidarEditMode"
 

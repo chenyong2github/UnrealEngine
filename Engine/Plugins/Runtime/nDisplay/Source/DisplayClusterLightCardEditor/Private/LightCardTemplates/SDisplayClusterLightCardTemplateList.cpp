@@ -5,6 +5,8 @@
 #include "DisplayClusterLightCardTemplateDragDropOp.h"
 #include "DisplayClusterLightCardTemplateHelpers.h"
 #include "DisplayClusterLightCardEditor.h"
+#include "Engine/Texture2D.h"
+#include "Framework/Application/SlateApplication.h"
 #include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"

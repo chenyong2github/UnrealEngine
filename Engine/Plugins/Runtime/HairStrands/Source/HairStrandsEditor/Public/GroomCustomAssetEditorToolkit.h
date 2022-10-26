@@ -10,6 +10,7 @@
 #include "Widgets/SGroomEditorViewport.h"
 #include "HairStrandsInterface.h"
 
+class FAssetThumbnailPool;
 class UGroomAsset; 
 class UGroomComponent;
 class IDetailsView;

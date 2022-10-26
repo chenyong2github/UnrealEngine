@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsControlComponent.h"
+#include "Engine/World.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PhysicsControlComponentLog.h"
 #include "PhysicsControlRecord.h"
@@ -14,6 +15,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "SceneManagement.h"
 
 //======================================================================================================================
 UPhysicsControlComponent::UPhysicsControlComponent(const FObjectInitializer& ObjectInitializer)

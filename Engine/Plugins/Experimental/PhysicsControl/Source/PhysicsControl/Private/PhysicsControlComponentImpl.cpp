@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsControlComponentImpl.h"
+#include "Engine/SkeletalMesh.h"
 #include "PhysicsControlComponentLog.h"
 #include "PhysicsControlComponent.h"
 #include "PhysicsControlComponentHelpers.h"
 
 #include "Components/SkeletalMeshComponent.h"
+#include "PhysicsEngine/ConstraintInstance.h"
 
 //======================================================================================================================
 bool FPhysicsControlComponentImpl::GetBoneData(

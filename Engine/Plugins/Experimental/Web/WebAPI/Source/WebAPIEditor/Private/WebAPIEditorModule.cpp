@@ -3,6 +3,7 @@
 #include "WebAPIEditorModule.h"
 
 #include "IPluginBrowser.h"
+#include "PropertyEditorModule.h"
 #include "ToolMenus.h"
 #include "WebAPIEditorCommands.h"
 #include "WebAPIEditorLog.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Engine/SkeletalMesh.h"
 #include "Units/RigUnit.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Units/RigDispatchFactory.h"

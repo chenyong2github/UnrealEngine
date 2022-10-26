@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Math/TransformCalculus2D.h"
 #include "Views/OutputMapping/EdNodes/DisplayClusterConfiguratorBaseNode.h"
 
 #include "Engine/Texture.h"

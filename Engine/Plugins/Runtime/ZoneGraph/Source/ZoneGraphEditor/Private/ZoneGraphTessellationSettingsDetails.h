@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "CoreMinimal.h"
+#include "Layout/Visibility.h"
 #include "UnrealClient.h"
 #include "IPropertyTypeCustomization.h"
 #include "ZoneGraphTypes.h"

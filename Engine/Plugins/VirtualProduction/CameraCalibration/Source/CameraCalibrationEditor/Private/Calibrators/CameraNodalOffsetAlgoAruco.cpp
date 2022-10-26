@@ -11,6 +11,7 @@
 #include "Misc/MessageDialog.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Views/SListView.h"
 
 #if WITH_OPENCV
 

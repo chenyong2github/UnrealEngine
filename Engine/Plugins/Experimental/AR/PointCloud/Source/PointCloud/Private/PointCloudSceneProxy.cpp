@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PointCloudSceneProxy.h"
+#include "Engine/Texture.h"
 #include "PointCloud.h"
 #include "PointCloudComponent.h"
 
@@ -10,6 +11,7 @@
 #include "RenderingThread.h"
 #include "Containers/ResourceArray.h"
 #include "EngineGlobals.h"
+#include "TextureResource.h"
 #include "VertexFactory.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"

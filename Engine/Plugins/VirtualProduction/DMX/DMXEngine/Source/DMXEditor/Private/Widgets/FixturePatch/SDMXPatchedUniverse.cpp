@@ -7,6 +7,7 @@
 #include "DMXFixturePatchEditorDefinitions.h"
 #include "DMXFixturePatchNode.h"
 #include "DMXFixturePatchSharedData.h"
+#include "Framework/Application/SlateApplication.h"
 #include "SDMXChannelConnector.h"
 #include "SDMXFixturePatchFragment.h"
 #include "DragDrop/DMXEntityFixturePatchDragDropOp.h"
@@ -21,6 +22,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"
+#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SGridPanel.h"
 
 

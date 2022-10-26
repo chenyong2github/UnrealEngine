@@ -5,6 +5,7 @@
 #include "GameFramework/PlayerInput.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
+#include "InputKeyEventArgs.h"
 #include "MLAdapterInputHelper.h"
 #include "MLAdapterSpace.h"
 #include "Debug/DebugHelpers.h"

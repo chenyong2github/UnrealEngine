@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "USDShadeConversion.h"
+#include "TextureResource.h"
 
 #if USE_USD_SDK
 

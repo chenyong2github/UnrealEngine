@@ -3,6 +3,7 @@
 #include "DisplayClusterConfigurationModule.h"
 #include "DisplayClusterConfigurationMgr.h"
 
+#include "Misc/CommandLine.h"
 #include "Modules/ModuleManager.h"
 
 #include "Engine/Engine.h"

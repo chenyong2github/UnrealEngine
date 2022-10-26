@@ -48,6 +48,7 @@
 #include "Styling/SlateIconFinder.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Widgets/Workflow/SWizard.h"
 

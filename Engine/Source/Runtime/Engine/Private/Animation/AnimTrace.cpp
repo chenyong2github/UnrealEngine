@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimTrace.h"
+#include "TraceFilter.h"
 
 #if ANIM_TRACE_ENABLED
 

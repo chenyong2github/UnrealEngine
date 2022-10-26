@@ -2,6 +2,7 @@
 
 #include "IDisasterRecoveryClientModule.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "IConcertSyncClientModule.h"
 #include "IConcertModule.h"
 #include "IConcertClient.h"

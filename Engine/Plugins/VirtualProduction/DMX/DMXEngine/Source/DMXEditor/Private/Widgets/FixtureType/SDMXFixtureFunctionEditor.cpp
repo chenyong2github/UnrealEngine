@@ -10,6 +10,8 @@
 #include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
 #include "Modules/ModuleManager.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXFixtureFunctionEditor"

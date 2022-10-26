@@ -2,6 +2,7 @@
 
 #include "USDLightConversion.h"
 
+#include "Misc/Paths.h"
 #include "USDAssetCache.h"
 #include "USDAttributeUtils.h"
 #include "USDConversionUtils.h"

@@ -4,6 +4,7 @@
 
 #include "Debug/DebugDrawComponent.h"
 #include "DebugRenderSceneProxy.h"
+#include "Engine/World.h"
 #include "ZoneGraphTypes.h"
 #include "ZoneGraphAnnotationComponent.generated.h"
 

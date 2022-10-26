@@ -15,6 +15,10 @@
 #include "PropertyEditorModule.h"
 #include "Layout/Visibility.h"
 #include "Modules/ModuleManager.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
 
 #define LOCTEXT_NAMESPACE "FixtureGroupItem"
 

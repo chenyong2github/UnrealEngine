@@ -9,6 +9,7 @@
 
 #include "Components/HorizontalBox.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "LevelSnapshotsEditor"
 

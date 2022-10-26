@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Views/Viewport/DisplayClusterConfiguratorSCSEditorViewportClient.h"
+#include "Materials/Material.h"
+#include "Settings/LevelEditorViewportSettings.h"
 #include "Views/Viewport/DisplayClusterConfiguratorSCSEditorViewport.h"
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterWorldOriginComponent.h"

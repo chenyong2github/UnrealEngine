@@ -27,8 +27,10 @@ class FRegisteredSchemaTranslator;
 class FUsdSchemaTranslator;
 class FUsdSchemaTranslatorTaskChain;
 class ULevel;
+class UMaterialInterface;
 class USceneComponent;
 class UStaticMesh;
+class UTexture;
 struct FUsdBlendShape;
 struct FUsdSchemaTranslationContext;
 

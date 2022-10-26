@@ -12,6 +12,7 @@
 
 class IToolkitHost;
 class SRemoteControlPanel;
+class UMeshComponent;
 class URemoteControlPreset;
 
 /**

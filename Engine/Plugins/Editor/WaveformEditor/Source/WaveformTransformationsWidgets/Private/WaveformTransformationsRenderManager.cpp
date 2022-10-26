@@ -2,6 +2,7 @@
 
 #include "WaveformTransformationsRenderManager.h"
 
+#include "Audio.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/FloatArrayMath.h"
 #include "IWaveformTransformationRenderer.h"

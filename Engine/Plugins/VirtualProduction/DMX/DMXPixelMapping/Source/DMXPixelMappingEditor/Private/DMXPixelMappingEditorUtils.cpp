@@ -8,6 +8,7 @@
 #include "Components/DMXPixelMappingRendererComponent.h"
 #include "Components/DMXPixelMappingRootComponent.h"
 #include "DragDrop/DMXPixelMappingDragDropOp.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
 
 #include "ScopedTransaction.h"

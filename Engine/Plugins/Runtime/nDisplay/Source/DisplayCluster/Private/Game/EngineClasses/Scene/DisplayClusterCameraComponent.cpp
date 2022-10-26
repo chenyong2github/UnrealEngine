@@ -3,6 +3,7 @@
 #include "Components/DisplayClusterCameraComponent.h"
 #include "Components/BillboardComponent.h"
 
+#include "Engine/CollisionProfile.h"
 #include "Engine/Texture2D.h"
 #include "UObject/ConstructorHelpers.h"
 

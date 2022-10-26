@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MixedRealityCaptureComponent.h"
+#include "Engine/Texture2D.h"
 #include "MotionControllerComponent.h"
 #include "MrcProjectionBillboard.h"
 #include "Engine/TextureRenderTarget2D.h"

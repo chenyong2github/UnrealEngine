@@ -4,6 +4,7 @@
 
 #include "EditorFontGlyphs.h"
 #include "Engine/Engine.h"
+#include "Framework/Application/SlateUser.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ITimedDataInput.h"
 #include "Misc/App.h"

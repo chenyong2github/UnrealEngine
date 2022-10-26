@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "HairCardsBuilder.h"
+#include "Engine/Texture2D.h"
 #include "HairStrandsCore.h"
 #include "HairStrandsDatas.h"
 #include "HairCardsDatas.h"
@@ -9,6 +10,7 @@
 #include "Math/Box.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
+#include "RHIStaticStates.h"
 #include "ShaderParameterStruct.h"
 #include "GlobalShader.h"
 #include "GroomAsset.h"
@@ -26,6 +28,7 @@
 #include "StaticMeshAttributes.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshOperations.h"
+#include "TextureResource.h"
 
 #if WITH_EDITOR
 

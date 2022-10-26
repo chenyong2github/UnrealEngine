@@ -9,6 +9,7 @@
 #include "Misc/MessageDialog.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
 #include "UI/SFilterableActorPicker.h"
+#include "Widgets/Views/SListView.h"
 
 
 #if WITH_OPENCV

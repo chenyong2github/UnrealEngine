@@ -2,6 +2,7 @@
 
 #include "ChooserTableEditor.h"
 
+#include "Framework/Docking/TabManager.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Docking/SDockTab.h"

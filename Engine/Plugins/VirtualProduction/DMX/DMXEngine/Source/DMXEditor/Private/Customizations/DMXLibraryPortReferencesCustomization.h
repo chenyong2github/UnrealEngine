@@ -11,7 +11,7 @@ class FDetailWidgetRow;
 class IPropertyHandle;
 class IPropertyUtilities;
 class SBorder;
-
+class SWidget;
 
 /** Property type customization for the Library Port References struct*/
 class FDMXLibraryPortReferencesCustomization

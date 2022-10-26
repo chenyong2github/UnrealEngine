@@ -2,8 +2,10 @@
 
 #include "DisplayClusterRootActorReferenceDetailCustomization.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "GameFramework/Actor.h"
 #include "IPropertyUtilities.h"
 #include "IPropertyTypeCustomization.h"
 #include "PropertyCustomizationHelpers.h"

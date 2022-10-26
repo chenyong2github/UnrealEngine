@@ -13,6 +13,7 @@
 #include "Library/DMXLibrary.h"
 #include "IO/DMXOutputPort.h"
 #include "Modulators/DMXModulator.h"
+#include "TextureResource.h"
 
 #if WITH_EDITOR
 #include "DMXPixelMappingComponentWidget.h"

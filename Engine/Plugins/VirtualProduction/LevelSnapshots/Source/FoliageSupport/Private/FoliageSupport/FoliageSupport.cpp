@@ -2,6 +2,7 @@
 
 #include "FoliageSupport/FoliageSupport.h"
 
+#include "Engine/Level.h"
 #include "FoliageSupport/InstancedFoliageActorData.h"
 #include "Selection/PropertySelection.h"
 #include "Selection/PropertySelectionMap.h"

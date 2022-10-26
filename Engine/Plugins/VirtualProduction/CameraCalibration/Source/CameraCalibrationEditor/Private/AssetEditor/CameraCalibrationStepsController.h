@@ -7,6 +7,7 @@
 #include "Containers/Ticker.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
+#include "Input/Reply.h"
 #include "LensFile.h"
 #include "UObject/StrongObjectPtr.h"
 

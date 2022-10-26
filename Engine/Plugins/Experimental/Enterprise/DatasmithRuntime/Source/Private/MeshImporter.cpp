@@ -12,6 +12,7 @@
 #include "DatasmithPayload.h"
 #include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
+#include "StaticMeshResources.h"
 #include "Utility/DatasmithMeshHelper.h"
 
 #include "Algo/Find.h"

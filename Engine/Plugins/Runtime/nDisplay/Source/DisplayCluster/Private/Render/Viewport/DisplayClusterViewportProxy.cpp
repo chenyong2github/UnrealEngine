@@ -19,6 +19,7 @@
 #include "IDisplayCluster.h"
 #include "IDisplayClusterCallbacks.h"
 #include "IDisplayClusterShaders.h"
+#include "TextureResource.h"
 
 #if WITH_EDITOR
 #include "DisplayClusterRootActor.h"

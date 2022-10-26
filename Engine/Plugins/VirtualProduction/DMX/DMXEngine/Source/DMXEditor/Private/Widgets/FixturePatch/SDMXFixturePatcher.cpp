@@ -12,6 +12,7 @@
 #include "IO/DMXPortManager.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/SNullWidget.h"
 
 #include "Styling/AppStyle.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorPaletteViewportClient.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"

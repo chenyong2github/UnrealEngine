@@ -3,6 +3,7 @@
 #include "MassMovementEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
+#include "PropertyEditorModule.h"
 #include "ToolMenus.h"
 #include "MassMovementStyleRefDetails.h"
 

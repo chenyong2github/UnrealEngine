@@ -6,6 +6,7 @@
 #include "ZoneGraphTypes.h"
 
 class IPropertyHandle;
+class SWidget;
 
 /**
  * Type customization for FZoneGraphTagMask.

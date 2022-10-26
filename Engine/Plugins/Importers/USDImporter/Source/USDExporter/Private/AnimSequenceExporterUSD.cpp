@@ -6,6 +6,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "EngineAnalytics.h"
 #include "MaterialExporterUSD.h"
+#include "Misc/EngineVersion.h"
 #include "SkeletalMeshExporterUSDOptions.h"
 #include "UnrealUSDWrapper.h"
 #include "USDClassesModule.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MDLUSDShadeMaterialTranslator.h"
+#include "Engine/Level.h"
 
 #if USE_USD_SDK && WITH_EDITOR
 

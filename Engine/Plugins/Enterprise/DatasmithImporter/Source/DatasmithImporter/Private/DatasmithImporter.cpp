@@ -25,6 +25,7 @@
 #include "DatasmithTextureImporter.h"
 #include "DatasmithTranslator.h"
 #include "DatasmithUtils.h"
+#include "Engine/Texture2D.h"
 #include "IDatasmithSceneElements.h"
 #include "LevelVariantSets.h"
 #include "ObjectTemplates/DatasmithObjectTemplate.h"

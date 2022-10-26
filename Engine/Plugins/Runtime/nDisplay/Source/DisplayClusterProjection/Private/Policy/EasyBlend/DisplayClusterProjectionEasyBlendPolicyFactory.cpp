@@ -6,6 +6,7 @@
 #include "DisplayClusterProjectionStrings.h"
 
 #include "DisplayClusterConfigurationTypes.h"
+#include "RHI.h"
 
 #if PLATFORM_WINDOWS
 #include "Policy/EasyBlend/Windows/DX11/DisplayClusterProjectionEasyBlendPolicyDX11.h"

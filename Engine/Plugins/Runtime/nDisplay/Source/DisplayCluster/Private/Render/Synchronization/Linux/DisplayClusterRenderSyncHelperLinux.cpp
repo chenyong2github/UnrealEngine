@@ -6,6 +6,7 @@
 
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
+#include "RHI.h"
 #include "DynamicRHI.h"
 
 

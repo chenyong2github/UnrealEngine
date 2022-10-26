@@ -19,6 +19,7 @@
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRemoteControlPanel.h"
 #include "UI/Controller/RCControllerModel.h"
+#include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SComboButton.h"
 
 #if WITH_EDITOR

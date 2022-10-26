@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ChaosVehicleManager.h"
+#include "Engine/World.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "UObject/UObjectIterator.h"
 

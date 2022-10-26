@@ -12,6 +12,7 @@
 #include "Engine/GameViewportClient.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/AutomationTest.h"
+#include "UnrealClient.h"
 
 #define SUPER_DETAILED_AUTOMATION_STATS 1
 PERFORMANCEMONITOR_API int ExportedInt;

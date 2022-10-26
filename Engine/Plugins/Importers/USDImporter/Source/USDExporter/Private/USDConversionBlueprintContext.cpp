@@ -2,6 +2,7 @@
 
 #include "USDConversionBlueprintContext.h"
 
+#include "PrimitiveSceneProxy.h"
 #include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"
 #include "USDLightConversion.h"

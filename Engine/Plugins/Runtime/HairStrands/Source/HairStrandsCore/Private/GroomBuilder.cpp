@@ -10,6 +10,7 @@
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "GlobalShader.h"
+#include "RHIGPUReadback.h"
 #include "ShaderParameterStruct.h"
 
 #include "Async/ParallelFor.h"

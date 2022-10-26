@@ -2,6 +2,7 @@
 
 #include "SUSDLayersTreeView.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "SUSDStageEditorStyle.h"
 #include "USDClassesModule.h"
 #include "USDDragDropOp.h"

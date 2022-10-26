@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "XRVisualizationFunctionLibrary.h"
+#include "Engine/Level.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "Features/IModularFeatures.h"
+#include "Materials/MaterialInterface.h"
 #include "XRVisualizationModule.h"
 #include "Components/StaticMeshComponent.h"
 #include "DrawDebugHelpers.h"

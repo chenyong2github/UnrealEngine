@@ -5,6 +5,7 @@
 #include "SDMXPixelMappingEditorWidgets.h"
 
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/SWidget.h"
 
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS // The whole class and several child widgets are deprecated 5.1

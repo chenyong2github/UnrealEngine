@@ -13,6 +13,7 @@
 #include "SceneUtils.h"
 #include "SceneInterface.h"
 #include "ShaderParameterUtils.h"
+#include "TextureResource.h"
 
 
 //Parameters for the grid we'll use to get the reciprocal of our undistortion map

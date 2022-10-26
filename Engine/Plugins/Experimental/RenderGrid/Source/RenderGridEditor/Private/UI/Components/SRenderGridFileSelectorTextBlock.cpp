@@ -4,10 +4,12 @@
 
 #include "DesktopPlatformModule.h"
 #include "EditorFontGlyphs.h"
+#include "Framework/Application/SlateApplication.h"
 #include "PropertyCustomizationHelpers.h"
 #include "SlateOptMacros.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SRenderGridFileSelectorTextBlock"
 

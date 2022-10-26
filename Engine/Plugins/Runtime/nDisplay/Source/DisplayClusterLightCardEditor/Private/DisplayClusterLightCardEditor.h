@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 #include "DisplayClusterLightCardEditorProxyType.h"

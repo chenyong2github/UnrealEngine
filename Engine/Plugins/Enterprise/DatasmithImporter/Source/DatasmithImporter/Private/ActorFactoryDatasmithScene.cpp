@@ -2,6 +2,7 @@
 
 #include "ActorFactoryDatasmithScene.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "DatasmithAssetImportData.h"
 #include "DatasmithBlueprintLibrary.h"
 #include "DatasmithImportContext.h"
@@ -9,6 +10,7 @@
 #include "DatasmithScene.h"
 #include "DatasmithSceneActor.h"
 #include "DatasmithSceneFactory.h"
+#include "Engine/Level.h"
 #include "Utility/DatasmithImporterUtils.h"
 
 #include "AssetRegistry/AssetData.h"

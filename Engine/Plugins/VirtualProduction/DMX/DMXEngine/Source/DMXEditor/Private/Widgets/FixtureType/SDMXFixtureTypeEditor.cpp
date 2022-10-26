@@ -5,6 +5,8 @@
 #include "DMXEditor.h"
 #include "DMXEditorUtils.h"
 #include "DMXFixtureTypeSharedData.h"
+#include "IDetailsView.h"
+#include "PropertyEditorModule.h"
 #include "SDMXFixtureFunctionEditor.h"
 #include "SDMXFixtureModeEditor.h"
 #include "SDMXFixtureTypeFunctionsEditor.h"

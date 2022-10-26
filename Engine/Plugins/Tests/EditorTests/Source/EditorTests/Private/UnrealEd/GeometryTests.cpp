@@ -17,6 +17,7 @@
 #include "EditorModeManager.h"
 
 //Automation
+#include "Model.h"
 #include "Tests/AutomationCommon.h"
 #include "Tests/AutomationEditorCommon.h"
 

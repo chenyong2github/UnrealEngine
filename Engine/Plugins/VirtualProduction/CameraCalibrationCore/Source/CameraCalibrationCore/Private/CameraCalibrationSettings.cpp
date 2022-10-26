@@ -3,6 +3,8 @@
 #include "CameraCalibrationSettings.h"
 #include "CameraCalibrationSubsystem.h"
 
+#include "Engine/Engine.h"
+#include "Misc/CoreDelegates.h"
 #include "SphericalLensDistortionModelHandler.h"
 
 UCameraCalibrationSettings::UCameraCalibrationSettings()

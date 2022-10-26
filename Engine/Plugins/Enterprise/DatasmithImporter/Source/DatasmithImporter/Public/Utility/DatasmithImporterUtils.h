@@ -6,6 +6,7 @@
 #include "DatasmithScene.h"
 #include "IDatasmithSceneElements.h"
 #include "InterchangeManager.h"
+#include "Materials/MaterialInterface.h"
 #include "UObject/UObjectHash.h"
 #include "Engine/Texture.h"
 

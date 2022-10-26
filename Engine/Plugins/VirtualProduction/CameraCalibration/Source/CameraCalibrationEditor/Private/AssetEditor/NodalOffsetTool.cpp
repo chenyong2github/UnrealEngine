@@ -11,6 +11,8 @@
 #include "CameraCalibrationTypes.h"
 #include "DesktopPlatformModule.h"
 #include "Dom/JsonObject.h"
+#include "Engine/Engine.h"
+#include "Framework/Application/SlateApplication.h"
 #include "HAL/FileManager.h"
 #include "IDesktopPlatform.h"
 #include "ImageCenterTool.h"

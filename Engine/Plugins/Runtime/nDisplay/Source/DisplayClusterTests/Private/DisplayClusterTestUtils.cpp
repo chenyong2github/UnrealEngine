@@ -3,6 +3,8 @@
 #include "DisplayClusterTestUtils.h"
 
 #include "DisplayClusterTestsModule.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "ObjectTools.h"
 #include "PackageTools.h"
 #include "AssetRegistry/AssetRegistryModule.h"

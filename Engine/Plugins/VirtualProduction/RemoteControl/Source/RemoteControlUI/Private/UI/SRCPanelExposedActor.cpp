@@ -11,6 +11,7 @@
 #include "ScopedTransaction.h"
 #include "SRCPanelDragHandle.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanelActor"
 

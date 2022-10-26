@@ -2,6 +2,7 @@
 
 #include "CameraCalibrationToolkit.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ISettingsModule.h"
 #include "CameraCalibrationStepsController.h"

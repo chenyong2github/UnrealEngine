@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Engine/HitResult.h"
 #include "Misc/StringBuilder.h"
 #include "BaseMovementSimulation.h"
 #include "NetworkPredictionReplicationProxy.h"

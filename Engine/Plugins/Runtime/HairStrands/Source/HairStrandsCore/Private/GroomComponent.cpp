@@ -6,6 +6,7 @@
 #include "MaterialShared.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/Engine.h"
+#include "NiagaraSystem.h"
 #include "PrimitiveSceneProxy.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "HairStrandsRendering.h"

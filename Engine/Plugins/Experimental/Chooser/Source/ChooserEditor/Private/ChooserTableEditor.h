@@ -6,14 +6,15 @@
 #include "Toolkits/IToolkitHost.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Editor/PropertyEditor/Public/PropertyEditorDelegates.h"
+#include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Chooser.h"
 #include "EditorUndoClient.h"
 #include "ChooserTableEditor.generated.h"
 
+class SComboButton;
 class SEditableText;
 class IDetailsView;
-
 
 // Class used for chooser editor details customization
 UCLASS()

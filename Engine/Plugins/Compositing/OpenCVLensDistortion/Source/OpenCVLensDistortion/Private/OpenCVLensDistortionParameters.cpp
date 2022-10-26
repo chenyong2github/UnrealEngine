@@ -5,6 +5,7 @@
 #include "Engine/Texture2D.h"
 #include "IOpenCVLensDistortionModule.h"
 #include "Logging/LogMacros.h"
+#include "TextureResource.h"
 
 
 #if WITH_OPENCV

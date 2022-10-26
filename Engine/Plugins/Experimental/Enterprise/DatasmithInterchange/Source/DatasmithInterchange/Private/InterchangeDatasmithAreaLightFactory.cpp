@@ -2,6 +2,7 @@
 
 #include "InterchangeDatasmithAreaLightFactory.h"
 
+#include "Engine/Blueprint.h"
 #include "InterchangeDatasmithLog.h"
 #include "InterchangeDatasmithAreaLightFactoryNode.h"
 

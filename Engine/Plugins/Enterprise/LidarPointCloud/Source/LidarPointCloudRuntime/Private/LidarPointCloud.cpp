@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LidarPointCloud.h"
+#include "Framework/Application/SlateApplication.h"
 #include "LidarPointCloudShared.h"
 #include "LidarPointCloudActor.h"
 #include "LidarPointCloudComponent.h"

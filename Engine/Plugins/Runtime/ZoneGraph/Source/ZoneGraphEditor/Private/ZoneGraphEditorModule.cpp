@@ -4,6 +4,7 @@
 #include "Modules/ModuleManager.h"
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
+#include "ShowFlags.h"
 #include "ZoneShapeComponent.h"
 #include "ZoneShapeComponentDetails.h"
 #include "ZoneShapeComponentVisualizer.h"

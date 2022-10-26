@@ -30,6 +30,7 @@
 #include "IDisplayClusterProjection.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
 
+#include "TextureResource.h"
 #include "UObject/ConstructorHelpers.h"
 
 

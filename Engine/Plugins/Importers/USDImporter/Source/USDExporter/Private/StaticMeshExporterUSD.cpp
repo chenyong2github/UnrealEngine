@@ -4,7 +4,9 @@
 
 #include "EngineAnalytics.h"
 #include "MaterialExporterUSD.h"
+#include "Misc/EngineVersion.h"
 #include "StaticMeshExporterUSDOptions.h"
+#include "StaticMeshResources.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"

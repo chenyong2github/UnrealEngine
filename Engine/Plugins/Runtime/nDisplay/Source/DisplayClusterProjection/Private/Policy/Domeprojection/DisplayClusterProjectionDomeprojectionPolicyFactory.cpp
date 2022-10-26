@@ -6,6 +6,7 @@
 #include "Misc/DisplayClusterStrings.h"
 
 #include "DisplayClusterConfigurationTypes.h"
+#include "RHI.h"
 
 #if PLATFORM_WINDOWS
 #include "Policy/Domeprojection/Windows/DX11/DisplayClusterProjectionDomeprojectionPolicyDX11.h"

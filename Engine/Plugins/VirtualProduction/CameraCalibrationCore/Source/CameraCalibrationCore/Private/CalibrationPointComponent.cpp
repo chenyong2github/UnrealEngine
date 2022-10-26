@@ -2,6 +2,7 @@
 
 #include "CalibrationPointComponent.h"
 
+#include "Materials/MaterialInterface.h"
 #include "Misc/App.h"
 
 UCalibrationPointComponent::UCalibrationPointComponent(const FObjectInitializer& ObjectInitializer)

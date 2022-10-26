@@ -8,8 +8,10 @@
 #include "Components/DisplayClusterPreviewComponent.h"
 #include "DisplayClusterLightCardActor.h"
 #include "DisplayClusterRootActor.h"
+#include "Engine/Canvas.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Misc/TransactionObjectEvent.h"
+#include "TextureResource.h"
 
 #if WITH_EDITOR
 #include "LevelEditorViewport.h"

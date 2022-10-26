@@ -6,6 +6,7 @@
 #include "ExampleAssetEditorViewport.h"
 #include "EditorModeManager.h"
 #include "GizmoEdMode.h"
+#include "Viewports.h"
 
 FExampleAssetToolkit::FExampleAssetToolkit(UAssetEditor* InOwningAssetEditor)
     : FBaseAssetToolkit(InOwningAssetEditor)

@@ -13,6 +13,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleManager.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
+#include "PropertyEditorModule.h"
 
 #define REGISTER_PROPERTY_LAYOUT(PropertyType, CustomizationType) { \
 	const FName LayoutName = PropertyType::StaticStruct()->GetFName(); \

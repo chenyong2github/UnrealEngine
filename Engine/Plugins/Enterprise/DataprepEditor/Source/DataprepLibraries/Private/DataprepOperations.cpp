@@ -4,6 +4,7 @@
 
 #include "DataprepOperationsLibrary.h"
 
+#include "Engine/Texture2D.h"
 #include "GenericPlatform/GenericPlatformTime.h"
 #include "StaticMeshResources.h"
 
@@ -14,6 +15,7 @@
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "UObject/UObjectIterator.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SEditableTextBox.h"

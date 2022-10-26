@@ -3,6 +3,7 @@
 #include "MassNavigationEditorModule.h"
 #include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
+#include "PropertyEditorModule.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "MassNavigationEditor"

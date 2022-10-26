@@ -29,7 +29,9 @@
 #include "UI/SFilterableActorPicker.h"
 #include "ScopedTransaction.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
+#include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/SWidget.h"
 

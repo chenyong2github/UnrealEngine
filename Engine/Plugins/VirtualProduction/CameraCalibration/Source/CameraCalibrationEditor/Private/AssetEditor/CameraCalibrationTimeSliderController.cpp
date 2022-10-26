@@ -4,6 +4,7 @@
 
 #include "CameraCalibrationSettings.h"
 #include "CameraCalibrationStepsController.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"
 #include "Fonts/FontMeasure.h"
 #include "LensFile.h"

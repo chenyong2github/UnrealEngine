@@ -3,6 +3,7 @@
 #include "AnimDistanceMatchingLibrary.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "Animation/AnimSequence.h"
+#include "AnimationRuntime.h"
 #include "AnimNodes/AnimNode_SequenceEvaluator.h"
 #include "Curves/CurveFloat.h"
 #include "Animation/AnimCurveCompressionCodec_UniformIndexable.h"

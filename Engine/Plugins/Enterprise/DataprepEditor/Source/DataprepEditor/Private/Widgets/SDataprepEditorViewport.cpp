@@ -16,6 +16,7 @@
 #include "Editor.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
+#include "StaticMeshResources.h"
 #include "StaticMeshSceneProxy.h"
 #include "Engine/TextureCube.h"
 #include "Engine/World.h"

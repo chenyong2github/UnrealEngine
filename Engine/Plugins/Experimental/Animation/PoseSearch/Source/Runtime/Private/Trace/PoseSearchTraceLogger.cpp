@@ -2,8 +2,10 @@
 
 #include "PoseSearchTraceLogger.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Trace/Trace.inl"
 #include "Animation/AnimNodeBase.h"
+#include "TraceFilter.h"
 
 
 UE_TRACE_CHANNEL_DEFINE(PoseSearchChannel);

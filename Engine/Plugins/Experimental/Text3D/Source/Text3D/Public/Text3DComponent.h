@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Components/SceneComponent.h"
 #include "CoreMinimal.h"
 #include "BevelType.h"
 #include "Mesh.h"

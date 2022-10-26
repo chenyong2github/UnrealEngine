@@ -3,6 +3,7 @@
 #pragma once
 
 #include "EditorUndoClient.h"
+#include "IWaveformTransformation.h"
 #include "Misc/NotifyHook.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "WaveformEditorTransportController.h"

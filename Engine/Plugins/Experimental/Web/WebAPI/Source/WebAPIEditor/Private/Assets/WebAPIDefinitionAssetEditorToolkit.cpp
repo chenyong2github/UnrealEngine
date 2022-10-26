@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIDefinitionAssetEditorToolkit.h"
 
@@ -6,6 +6,7 @@
 #include "EditorViewportTabContent.h"
 #include "LevelEditor.h"
 #include "LevelEditorActions.h"
+#include "PropertyEditorModule.h"
 #include "WebAPIEditorCommands.h"
 #include "WebAPIEditorModule.h"
 #include "Async/Async.h"

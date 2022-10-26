@@ -20,6 +20,7 @@
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRemoteControlPanel.h"
 #include "Widgets/Views/SHeaderRow.h"
+#include "Widgets/Views/SListView.h"
 
 #if WITH_EDITOR
 #include "ScopedTransaction.h"

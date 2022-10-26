@@ -2,6 +2,7 @@
 
 #include "USDShadeMaterialTranslator.h"
 
+#include "Engine/Level.h"
 #include "MeshTranslationImpl.h"
 #include "USDAssetCache.h"
 #include "USDAssetImportData.h"

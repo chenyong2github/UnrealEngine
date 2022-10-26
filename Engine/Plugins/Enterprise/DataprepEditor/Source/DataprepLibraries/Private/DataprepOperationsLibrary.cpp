@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataprepOperationsLibrary.h"
+#include "Components/StaticMeshComponent.h"
 #include "DataprepOperationsLibraryUtil.h"
 
 #include "DataprepCoreUtils.h"
@@ -18,6 +19,7 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/Texture.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
@@ -35,6 +37,7 @@
 #include "StaticMeshOperations.h"
 #include "UObject/SoftObjectPath.h"
 #include "StaticMeshEditorSubsystem.h"
+#include "UObject/UObjectIterator.h"
 
 DEFINE_LOG_CATEGORY(LogDataprep);
 

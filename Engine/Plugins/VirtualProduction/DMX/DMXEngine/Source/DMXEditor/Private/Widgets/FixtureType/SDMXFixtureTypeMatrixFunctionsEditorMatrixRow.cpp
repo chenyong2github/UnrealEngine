@@ -13,6 +13,8 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Notifications/SPopUpErrorText.h"
 #include "Styling/AppStyle.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXFixtureTypeMatrixFunctionsEditorMatrixRow"

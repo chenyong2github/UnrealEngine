@@ -5,6 +5,7 @@
 #include "AudioDevice.h"
 #include "Components/AudioComponent.h"
 #include "Misc/TransactionObjectEvent.h"
+#include "PropertyEditorModule.h"
 #include "Sound/SoundWave.h"
 #include "Styling/AppStyle.h"
 #include "SWaveformPanel.h"

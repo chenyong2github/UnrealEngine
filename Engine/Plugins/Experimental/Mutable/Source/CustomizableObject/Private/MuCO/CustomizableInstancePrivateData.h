@@ -21,7 +21,7 @@
 /** CustomizableObject Instance flags for internal use  */
 enum ECOInstanceFlags
 {
-	None							= 0,
+	ECONone							= 0,  // Should not use the name None here.. it collides with other enum in global namespace
 
 	// Update process
 	Updating						= 1 << 0,	//
@@ -310,7 +310,7 @@ public:
 
 private:
 	
-	ECOInstanceFlags InstanceFlagsPrivate = ECOInstanceFlags::None;
+	ECOInstanceFlags InstanceFlagsPrivate = ECOInstanceFlags::ECONone;
 
 	// Struct used by BuildMaterials() to identify common materials between LODs
 	struct FMutableMaterialPlaceholder

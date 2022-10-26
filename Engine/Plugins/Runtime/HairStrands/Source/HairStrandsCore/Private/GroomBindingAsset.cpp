@@ -8,6 +8,7 @@
 #include "GroomAsset.h"
 #include "GroomBindingBuilder.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "UObject/AnimObjectVersion.h"
 #include "UObject/ObjectSaveContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GroomBindingAsset)

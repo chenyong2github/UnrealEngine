@@ -3,6 +3,7 @@
 #include "GroomCacheTrackEditor.h"
 #include "CommonMovieSceneTools.h"
 #include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameFramework/Actor.h"
 #include "GroomCache.h"

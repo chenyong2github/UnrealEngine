@@ -7,6 +7,7 @@
 #include "CameraCalibrationEditorLog.h"
 #include "CameraCalibrationStepsController.h"
 #include "CameraCalibrationSubsystem.h"
+#include "Engine/Engine.h"
 #include "Styling/AppStyle.h"
 #include "Engine/Selection.h"
 #include "Engine/StaticMeshActor.h"

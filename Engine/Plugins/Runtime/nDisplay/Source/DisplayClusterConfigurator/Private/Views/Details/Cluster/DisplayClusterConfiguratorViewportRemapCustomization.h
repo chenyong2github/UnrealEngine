@@ -7,6 +7,7 @@
 
 template<class T>
 class SComboBox;
+class SWidget;
 
 /** Type customization for the FDisplayClusterConfigurationViewport_RemapData struct */
 class FDisplayClusterConfiguratorViewportRemapCustomization final : public FDisplayClusterConfiguratorBaseTypeCustomization

@@ -2,7 +2,9 @@
 
 #include "SteamVRAssetManager.h"
 #include "ISteamVRPlugin.h" // STEAMVR_SUPPORTED_PLATFORMS
+#include "Materials/Material.h"
 #include "ProceduralMeshComponent.h"
+#include "TextureResource.h"
 #include "Tickable.h" // for FTickableGameObject
 #include "Engine/Engine.h" // for GEngine
 #include "Engine/World.h"

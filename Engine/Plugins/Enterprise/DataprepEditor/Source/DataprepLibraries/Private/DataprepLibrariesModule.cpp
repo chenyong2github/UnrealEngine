@@ -11,6 +11,7 @@
 #include "ContentBrowserModule.h"
 #include "Dialogs/DlgPickAssetPath.h"
 #include "IContentBrowserSingleton.h"
+#include "Materials/MaterialInterface.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "ToolMenus.h"

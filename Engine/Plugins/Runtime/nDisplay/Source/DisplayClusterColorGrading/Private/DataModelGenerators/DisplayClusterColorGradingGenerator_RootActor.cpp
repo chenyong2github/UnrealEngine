@@ -23,6 +23,7 @@
 #include "PropertyPathHelpers.h"
 #include "ScopedTransaction.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Views/SListView.h"
 

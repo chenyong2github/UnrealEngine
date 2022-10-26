@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorSequence.h"
+#include "Engine/Level.h"
 #include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
 #include "Modules/ModuleManager.h"

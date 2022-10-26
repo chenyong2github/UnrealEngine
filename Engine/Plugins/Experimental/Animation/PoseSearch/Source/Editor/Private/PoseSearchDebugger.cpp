@@ -1,6 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchDebugger.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/SkinnedAsset.h"
 #include "IAnimationProvider.h"
 #include "IGameplayProvider.h"
 #include "PoseSearch/PoseSearch.h"
@@ -10,6 +12,7 @@
 #include "Animation/MirrorDataTable.h"
 #include "Animation/AnimRootMotionProvider.h"
 #include "Preferences/PersonaOptions.h"
+#include "PropertyEditorModule.h"
 #include "RewindDebuggerInterface/Public/IRewindDebugger.h"
 #include "ObjectTrace.h"
 #include "TraceServices/Model/AnalysisSession.h"
@@ -28,6 +31,7 @@
 #include "Editor.h"
 #include "Algo/AllOf.h"
 #include "Styling/AppStyle.h"
+#include "Widgets/Views/SListView.h"
 
 #define LOCTEXT_NAMESPACE "PoseSearchDebugger"
 

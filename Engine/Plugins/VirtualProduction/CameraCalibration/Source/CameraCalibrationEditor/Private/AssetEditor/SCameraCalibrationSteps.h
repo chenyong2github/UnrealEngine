@@ -14,7 +14,8 @@ class SCheckBox;
 
 template<typename OptionType>
 class SComboBox;
-
+class SHorizontalBox;
+class SVerticalBox;
 class SWidgetSwitcher;
 
 struct FArguments;

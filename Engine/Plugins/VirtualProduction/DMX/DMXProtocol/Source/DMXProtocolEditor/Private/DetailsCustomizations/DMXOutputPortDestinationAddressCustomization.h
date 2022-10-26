@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
 
-class SDMXIPAddressEditWidget;
-
+class FReply;
 class IPropertyHandle;
+class SDMXIPAddressEditWidget;
 
 
 /** Customization for the DMXOutputPortConfigCustomization struct */

@@ -7,6 +7,7 @@
 #include "DataprepEditorLogCategory.h"
 #include "DataprepEditorStyle.h"
 #include "DataprepGraph/DataprepGraphActionNode.h"
+#include "Framework/Application/SlateApplication.h"
 #include "SchemaActions/DataprepDragDropOp.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionStepNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"

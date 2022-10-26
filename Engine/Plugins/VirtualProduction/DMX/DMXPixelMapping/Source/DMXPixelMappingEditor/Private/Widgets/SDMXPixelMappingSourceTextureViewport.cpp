@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SDMXPixelMappingSourceTextureViewport.h"
+#include "TextureResource.h"
 #include "Viewports/DMXPixelMappingSourceTextureViewportClient.h"
 #include "DMXPixelMapping.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"

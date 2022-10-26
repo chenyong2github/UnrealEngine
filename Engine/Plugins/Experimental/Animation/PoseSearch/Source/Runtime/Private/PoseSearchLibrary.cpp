@@ -2,6 +2,7 @@
 
 #include "PoseSearch/PoseSearchLibrary.h"
 
+#include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/AnimNode_Inertialization.h"
 #include "Animation/AnimNode_SequencePlayer.h"

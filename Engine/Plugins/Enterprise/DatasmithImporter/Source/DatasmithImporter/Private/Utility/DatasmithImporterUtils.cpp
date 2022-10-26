@@ -14,6 +14,7 @@
 #include "DatasmithSceneXmlReader.h"
 #include "DatasmithSceneXmlWriter.h"
 #include "DatasmithTranslatorManager.h"
+#include "Engine/TextureLightProfile.h"
 #include "LevelVariantSets.h"
 
 #include "ObjectTemplates/DatasmithActorTemplate.h"

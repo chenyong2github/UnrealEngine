@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderGridUtils.h"
+#include "Engine/Engine.h"
 #include "Engine/Texture2D.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
@@ -10,6 +11,7 @@
 #include "Editor/EditorPerformanceSettings.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
+#include "TextureResource.h"
 
 
 bool UE::RenderGrid::Private::FRenderGridUtils::IsImage(const FString& ImagePath)

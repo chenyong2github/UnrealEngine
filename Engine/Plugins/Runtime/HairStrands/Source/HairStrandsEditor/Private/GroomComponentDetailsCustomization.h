@@ -10,6 +10,8 @@
 
 class IDetailLayoutBuilder;
 class IDetailCategoryBuilder;
+class IDetailChildrenBuilder;
+class IPropertyHandle;
 
 //////////////////////////////////////////////////////////////////////////
 // FGroomComponentDetailsCustomization

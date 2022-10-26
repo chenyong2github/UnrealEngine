@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SPoseSearchDatabaseViewport.h"
+#include "Framework/Application/SlateApplication.h"
 #include "PoseSearchDatabaseViewportClient.h"
 #include "PoseSearchDatabaseViewModel.h"
 #include "PoseSearchDatabaseEditor.h"
@@ -8,6 +9,7 @@
 #include "PoseSearchDatabaseEditorCommands.h"
 
 #include "SSimpleTimeSlider.h"
+#include "Viewports.h"
 #include "Widgets/Input/SButton.h"
 
 namespace UE::PoseSearch

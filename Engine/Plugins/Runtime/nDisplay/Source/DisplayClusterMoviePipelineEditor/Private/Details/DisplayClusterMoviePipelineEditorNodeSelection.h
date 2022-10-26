@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "DisplayClusterMoviePipelineEditorBaseTypeCustomization.h"
+#include "Misc/Attribute.h"
 
 class UDisplayClusterConfigurationData;
 class SDisplayClusterMoviePipelineEditorSearchableComboBox;
+class SWidget;
 
 /**
  * Helper class used to construct and manage a custom array property widget that displays for each element a dropdown containing

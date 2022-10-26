@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaveformTransformationTrimFadeRenderer.h"
+#include "Layout/Geometry.h"
+#include "Rendering/DrawElements.h"
+#include "Widgets/SWidget.h"
 
 FWaveformTransformationTrimFadeRenderer::FWaveformTransformationTrimFadeRenderer(const TObjectPtr<UWaveformTransformationTrimFade> TransformationToRender)
 {

@@ -21,6 +21,7 @@
 #include "RemoteControlInterceptionProcessor.h"
 #include "RemoteControlInstanceMaterial.h"
 #include "RemoteControlPreset.h"
+#include "SceneInterface.h"
 #include "Serialization/PropertyMapStructDeserializerBackendWrapper.h"
 #include "StructDeserializer.h"
 #include "StructSerializer.h"

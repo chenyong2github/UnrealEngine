@@ -2,6 +2,7 @@
 
 #include "SnapshotTestActor.h"
 
+#include "Engine/World.h"
 #include "UObject/ConstructorHelpers.h"
 
 USubobject::USubobject()

@@ -8,6 +8,7 @@
 #include "Misc/MessageDialog.h"
 #include "ScopedTransaction.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
+#include "Widgets/Input/SComboBox.h"
 
 
 #define LOCTEXT_NAMESPACE "CameraImageCenterAlgoManual"

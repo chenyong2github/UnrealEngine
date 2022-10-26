@@ -13,6 +13,8 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/GameViewportClient.h"
 #include "GameFramework/GameUserSettings.h"
+#include "TextureResource.h"
+#include "UnrealClient.h"
 #include "UnrealEngine.h"
 
 #include "Misc/ScopeLock.h"

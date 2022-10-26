@@ -20,6 +20,7 @@
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Components/DMXPixelMappingScreenComponent.h"
 #include "Templates/DMXPixelMappingComponentTemplate.h"
+#include "UObject/UObjectIterator.h"
 #include "ViewModels/DMXPixelMappingPaletteViewModel.h"
 #include "Views/SDMXPixelMappingDesignerView.h"
 #include "Views/SDMXPixelMappingDetailsView.h"

@@ -8,6 +8,7 @@
 #include "LevelSnapshotsEditorStyle.h"
 #include "LevelSnapshotsEditorSettings.h"
 #include "LevelSnapshotsLog.h"
+#include "PropertyEditorModule.h"
 #include "Views/SLevelSnapshotsEditor.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"

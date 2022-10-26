@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataprepSelectionTransforms.h"
+#include "Components/StaticMeshComponent.h"
 #include "DataprepCorePrivateUtils.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/Texture.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
+#include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "DataprepSelectionTransforms"
 

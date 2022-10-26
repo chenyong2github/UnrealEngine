@@ -2,6 +2,7 @@
 
 #include "PixelStreamingEditorModule.h"
 #include "Editor/EditorPerformanceSettings.h"
+#include "Framework/Application/SlateApplication.h"
 #include "PixelStreamingToolbar.h"
 #include "IPixelStreamingModule.h"
 #include "PixelStreamingStyle.h"

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/SRenderGridViewerPreview.h"
+#include "Engine/Texture2D.h"
+#include "TextureResource.h"
 #include "UI/Components/SRenderGridViewerFrameSlider.h"
 #include "RenderGrid/RenderGrid.h"
 #include "IRenderGridEditor.h"

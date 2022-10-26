@@ -6,6 +6,7 @@
 #include "PixelStreamingDelegates.h"
 #include "PixelStreamingSignallingConnection.h"
 #include "PixelStreamingAudioDeviceModule.h"
+#include "TextureResource.h"
 #include "WebRTCIncludes.h"
 #include "WebSocketsModule.h"
 #include "PixelStreamingPrivate.h"

@@ -15,6 +15,7 @@
 #include "Renderer/Private/ScenePrivate.h"
 #include "SceneRenderTargetParameters.h"
 #include "MeshPassProcessor.inl"
+#include "UnrealClient.h"
 
 class FUVLightCardVS : public FMeshMaterialShader
 {

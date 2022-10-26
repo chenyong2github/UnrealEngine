@@ -6,10 +6,12 @@
 #include "BinkMediaPlayer.h"
 #include "BinkMediaPlayerEditorPrivate.h"
 #include "DesktopPlatformModule.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
 #include "EditorDirectories.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "FBinkMediaPlayerCustomization"
 

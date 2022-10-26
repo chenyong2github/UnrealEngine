@@ -8,7 +8,7 @@
 
 #include "STMapTable.generated.h"
 
-
+class UTextureRenderTarget2D;
 
 /**
  * Derived data computed from parameters or stmap

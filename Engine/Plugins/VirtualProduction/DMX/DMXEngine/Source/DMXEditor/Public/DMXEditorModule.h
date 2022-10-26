@@ -7,6 +7,7 @@
 #include "DMXPIEManager.h"
 #include "ISequencerModule.h"
 #include "Modules/ModuleInterface.h"
+#include "PropertyEditorDelegates.h"
 #include "Toolkits/AssetEditorToolkit.h"
 
 class FDMXEditor;

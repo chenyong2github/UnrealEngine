@@ -9,6 +9,8 @@
 
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Notifications/SPopUpErrorText.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXFixtureTypeModesEditorModeRow"

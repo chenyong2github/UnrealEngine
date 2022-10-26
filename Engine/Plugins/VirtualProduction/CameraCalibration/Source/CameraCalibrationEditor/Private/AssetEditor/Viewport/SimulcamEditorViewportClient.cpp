@@ -9,9 +9,11 @@
 #include "Editor/UnrealEdEngine.h"
 #include "EngineModule.h"
 #include "EngineUtils.h"
+#include "Framework/Application/SlateApplication.h"
 #include "ImageUtils.h"
 #include "Slate/SceneViewport.h"
 #include "Texture2DPreview.h"
+#include "TextureResource.h"
 #include "UnrealEdGlobals.h"
 
 

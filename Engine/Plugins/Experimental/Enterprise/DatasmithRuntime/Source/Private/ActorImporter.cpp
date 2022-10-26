@@ -2,6 +2,7 @@
 
 #include "SceneImporter.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "DatasmithRuntimeUtils.h"
 #include "LogCategory.h"
 
@@ -15,6 +16,7 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "ProfilingDebugging/MiscTrace.h"
+#include "RenderingThread.h"
 
 namespace DatasmithRuntime
 {

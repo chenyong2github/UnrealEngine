@@ -18,6 +18,7 @@
 #include "Render/Viewport/Containers/DisplayClusterViewport_PostRenderSettings.h"
 
 #include "EngineUtils.h"
+#include "SceneManagement.h"
 #include "SceneView.h"
 
 #include "DisplayClusterSceneViewExtensions.h"

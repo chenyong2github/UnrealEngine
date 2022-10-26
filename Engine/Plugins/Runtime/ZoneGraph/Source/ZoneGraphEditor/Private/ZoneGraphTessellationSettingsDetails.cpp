@@ -5,6 +5,7 @@
 #include "DetailLayoutBuilder.h"
 #include "IDetailChildrenBuilder.h"
 #include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/Text/STextBlock.h"
 #include "ZoneGraphTypes.h"
 #include "ZoneGraphPropertyUtils.h"
 #include "ZoneGraphEditorStyle.h"

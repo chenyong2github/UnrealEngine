@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VPMaterialsEditorModule.h"
+#include "Components/ActorComponent.h"
 #include "SMaterialDynamicWidgets.h"
 
 #include "MaterialList.h"

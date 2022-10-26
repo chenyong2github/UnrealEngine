@@ -2,12 +2,15 @@
 
 #pragma once
 
+#include "Styling/SlateTypes.h"
 #include "Widgets/SCompoundWidget.h"
 
 #include "CameraCalibrationEditorCommon.h"
 #include "LensFile.h"
 #include "SLensEvaluation.h"
 #include "UObject/StrongObjectPtr.h"
+
+class SBorder;
 
 class SLensDataAddPointDialog : public SCompoundWidget
 {

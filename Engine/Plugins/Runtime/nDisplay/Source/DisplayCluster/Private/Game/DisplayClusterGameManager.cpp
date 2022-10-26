@@ -2,6 +2,7 @@
 
 #include "Game/DisplayClusterGameManager.h"
 
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/CommandLine.h"
 

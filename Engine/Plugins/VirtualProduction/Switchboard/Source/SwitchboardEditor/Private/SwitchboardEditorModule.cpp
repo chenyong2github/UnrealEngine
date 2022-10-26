@@ -17,6 +17,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/ScopeExit.h"
+#include "PropertyEditorModule.h"
 #include "SwitchboardEditorSettings.h"
 #include "SwitchboardMenuEntry.h"
 #include "SwitchboardProjectSettings.h"

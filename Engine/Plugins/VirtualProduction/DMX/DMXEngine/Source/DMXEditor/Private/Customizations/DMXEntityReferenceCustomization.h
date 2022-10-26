@@ -7,6 +7,7 @@
 
 #include "DMXProtocolTypes.h"
 
+class SWidget;
 class UDMXEntity;
 class UDMXLibrary;
 

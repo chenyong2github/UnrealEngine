@@ -7,6 +7,7 @@
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Actor.h"
 #include "Misc/Optional.h"
+#include "StaticMeshResources.h"
 #include "UObject/Object.h"
 
 #define LOCTEXT_NAMESPACE "DataprepIntegerFetcherLibrary"

@@ -18,6 +18,7 @@
 #include "Models/SphericalLensModel.h"
 #include "Tables/BaseLensTable.h"
 #include "Tables/LensTableUtils.h"
+#include "TextureResource.h"
 
 namespace LensFileUtils
 {

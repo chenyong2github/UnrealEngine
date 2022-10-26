@@ -2,6 +2,7 @@
 
 #include "ParametricRetessellateAction.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "ParametricRetessellateAction_Impl.h"
 
 #include "DatasmithAdditionalData.h"

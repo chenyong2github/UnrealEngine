@@ -4,6 +4,7 @@
 
 #include "Behaviour/RCBehaviourNode.h"
 #include "Engine/Blueprint.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Styling/RemoteControlStyles.h"
 #include "UI/Action/RCActionModel.h"
 #include "UI/Action/SRCActionPanel.h"

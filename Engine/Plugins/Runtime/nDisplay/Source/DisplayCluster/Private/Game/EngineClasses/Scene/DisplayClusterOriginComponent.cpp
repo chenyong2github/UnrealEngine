@@ -3,6 +3,7 @@
 #include "Components/DisplayClusterOriginComponent.h"
 #include "Components/StaticMeshComponent.h"
 
+#include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
 #include "UObject/ConstructorHelpers.h"
 

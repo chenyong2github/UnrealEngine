@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
+#include "Editor.h"
+#include "Engine/Texture.h"
 #include "Misc/AutomationTest.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/Engine.h"

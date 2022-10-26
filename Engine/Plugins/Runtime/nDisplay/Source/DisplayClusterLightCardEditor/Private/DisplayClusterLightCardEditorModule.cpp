@@ -13,6 +13,7 @@
 
 #include "DetailCustomizations/DisplayClusterLightCardActorDetails.h"
 #include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
+#include "PropertyEditorModule.h"
 #include "Settings/DisplayClusterLightCardEditorSettings.h"
 
 #include "IDisplayClusterOperator.h"

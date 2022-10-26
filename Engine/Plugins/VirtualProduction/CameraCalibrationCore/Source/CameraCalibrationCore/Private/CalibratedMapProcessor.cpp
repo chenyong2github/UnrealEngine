@@ -10,6 +10,7 @@
 #include "RenderGraphUtils.h"
 #include "ScreenPass.h"
 #include "ShaderParameterStruct.h"
+#include "TextureResource.h"
 
 
 class FCalibratedMapDerivedDataCS : public FGlobalShader

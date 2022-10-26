@@ -2,10 +2,12 @@
 
 #pragma once
 
+#include "ComponentVisualizer.h"
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
 #include "HitProxies.h"
 #include "ComponentVisualizer.h"
+#include "UObject/GCObject.h"
 #include "ZoneShapeComponent.h"
 #include "ZoneShapeComponentVisualizer.generated.h"
 

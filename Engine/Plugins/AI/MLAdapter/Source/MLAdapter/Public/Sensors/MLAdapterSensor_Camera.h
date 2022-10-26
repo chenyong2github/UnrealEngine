@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Engine/EngineTypes.h"
 #include "Sensors/MLAdapterSensor.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "MLAdapterSensor_Camera.generated.h"

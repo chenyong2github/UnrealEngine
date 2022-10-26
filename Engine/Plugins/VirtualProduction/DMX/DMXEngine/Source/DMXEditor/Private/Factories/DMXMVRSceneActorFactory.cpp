@@ -2,6 +2,7 @@
 
 #include "Factories/DMXMVRSceneActorFactory.h"
 
+#include "Engine/Level.h"
 #include "Engine/StaticMeshActor.h"
 #include "Library/DMXLibrary.h"
 #include "MVR/DMXMVRSceneActor.h"

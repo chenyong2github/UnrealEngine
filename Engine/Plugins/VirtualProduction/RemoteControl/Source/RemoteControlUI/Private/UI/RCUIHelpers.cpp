@@ -15,6 +15,8 @@
 #include "PropertyHandle.h"
 #include "RCVirtualProperty.h"
 #include "TimerManager.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
 
 FLinearColor UE::RCUIHelpers::GetFieldClassTypeColor(const FProperty* InProperty)
 {

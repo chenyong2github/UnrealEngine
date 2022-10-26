@@ -13,6 +13,7 @@
 #include "ShaderParameterUtils.h"
 #include "Logging/MessageLog.h"
 #include "Internationalization/Internationalization.h"
+#include "TextureResource.h"
 
 
 static const uint32 kGridSubdivisionX = 32;

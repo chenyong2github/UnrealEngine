@@ -2,6 +2,7 @@
 
 #include "USDGeomXformableTranslator.h"
 
+#include "Engine/Level.h"
 #include "UnrealUSDWrapper.h"
 #include "USDAssetCache.h"
 #include "USDConversionUtils.h"

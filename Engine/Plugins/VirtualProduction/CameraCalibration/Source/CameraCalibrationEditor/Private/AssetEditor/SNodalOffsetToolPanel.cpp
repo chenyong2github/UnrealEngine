@@ -8,6 +8,7 @@
 #include "CameraNodalOffsetAlgo.h"
 #include "Dialog/SCustomDialog.h"
 #include "EditorFontGlyphs.h"
+#include "Engine/Engine.h"
 #include "Styling/AppStyle.h"
 #include "Engine/Selection.h"
 #include "LensFile.h"

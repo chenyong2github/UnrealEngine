@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ZoneGraphData.h"
+#include "Engine/Level.h"
+#include "Engine/World.h"
 #include "ZoneGraphTypes.h"
 #include "ZoneGraphRenderingComponent.h"
 #include "ZoneGraphSubsystem.h"

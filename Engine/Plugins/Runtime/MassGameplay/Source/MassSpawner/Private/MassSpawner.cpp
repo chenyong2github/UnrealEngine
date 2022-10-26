@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassSpawner.h"
+#include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Components/SceneComponent.h"

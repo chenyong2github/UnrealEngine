@@ -7,6 +7,7 @@
 #include "GroomBindingActions.h"
 #include "GroomCacheActions.h"
 
+#include "PropertyEditorModule.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Interfaces/IPluginManager.h"
 #include "ToolMenus.h"

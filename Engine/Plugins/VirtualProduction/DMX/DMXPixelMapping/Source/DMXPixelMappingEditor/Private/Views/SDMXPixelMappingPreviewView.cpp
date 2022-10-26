@@ -3,7 +3,9 @@
 #include "Views/SDMXPixelMappingPreviewView.h"
 
 #include "DMXPixelMappingEditorStyle.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Toolkits/DMXPixelMappingToolkit.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/SDMXPixelMappingPreviewViewport.h"
 #include "Widgets/SDMXPixelMappingZoomPan.h"
 #include "Components/DMXPixelMappingRendererComponent.h"

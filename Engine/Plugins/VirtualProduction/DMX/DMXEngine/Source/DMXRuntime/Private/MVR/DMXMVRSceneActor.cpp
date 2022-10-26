@@ -15,6 +15,7 @@
 #include "DatasmithAssetUserData.h"
 #include "Components/SceneComponent.h"
 #include "Engine/World.h"
+#include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 #include "Editor.h"

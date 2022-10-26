@@ -5,6 +5,7 @@
 #include "DatasmithContentModule.h"
 
 #include "Engine/Engine.h"
+#include "UObject/UObjectIterator.h"
 
 #if WITH_EDITOR
 #include "Editor.h"

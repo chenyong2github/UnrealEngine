@@ -40,6 +40,7 @@
 
 
 #include "Misc/DisplayClusterLog.h"
+#include "TextureResource.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Experimental feature: to be approved after testing

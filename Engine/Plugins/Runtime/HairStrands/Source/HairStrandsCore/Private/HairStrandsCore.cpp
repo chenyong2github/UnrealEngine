@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HairStrandsCore.h"
+#include "Engine/Texture2D.h"
 #include "HairStrandsInterface.h"
 #include "Interfaces/IPluginManager.h"
 #include "GeometryCache.h"

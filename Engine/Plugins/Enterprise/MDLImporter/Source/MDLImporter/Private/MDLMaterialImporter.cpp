@@ -9,6 +9,7 @@
 #include "mdl/MaterialCollection.h"
 
 #include "Materials/MaterialInterface.h"
+#include "Misc/Paths.h"
 
 void FMdlMaterialImporter::AddSearchPath(const FString& SearchPath)
 {

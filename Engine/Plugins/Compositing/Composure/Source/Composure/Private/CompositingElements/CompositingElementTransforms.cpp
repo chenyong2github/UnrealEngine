@@ -2,6 +2,7 @@
 
 #include "CompositingElements/CompositingElementTransforms.h"
 #include "CompositingElements/CompElementRenderTargetPool.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 
 /* TCompositingTargetSwapChain

@@ -2,6 +2,7 @@
 
 #include "EditorTestsUtilityLibrary.h"
 #include "CoreMinimal.h"
+#include "Engine/Texture2D.h"
 #include "MaterialOptions.h"
 #include "IMeshMergeUtilities.h"
 #include "MeshMergeModule.h"

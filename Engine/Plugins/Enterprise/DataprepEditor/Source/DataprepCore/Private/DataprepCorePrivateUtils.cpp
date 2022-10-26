@@ -21,6 +21,7 @@
 #include "MessageLogModule.h"
 #include "Modules/ModuleManager.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshResources.h"
 
 #define LOCTEXT_NAMESPACE "DataprepAsset"
 

@@ -9,6 +9,7 @@
 #include "ITimeManagementModule.h"
 #include "LatentActions.h"
 #include "Misc/App.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "Stats/Stats2.h"
 #include "TimedDataInputCollection.h"

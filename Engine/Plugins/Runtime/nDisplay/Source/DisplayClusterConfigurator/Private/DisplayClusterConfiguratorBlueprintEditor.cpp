@@ -2,6 +2,7 @@
 
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 
+#include "Framework/Application/SlateApplication.h"
 #include "IDisplayClusterConfigurator.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfiguratorCommands.h"

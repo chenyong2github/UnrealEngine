@@ -7,6 +7,8 @@
 #include "Rendering/SlateRenderer.h"
 
 class FSlateDrawBuffer;
+class FSlateFontServices;
+class FSlateShaderResourceManager;
 class FSlateUpdatableTexture;
 class SWindow;
 struct Rect;

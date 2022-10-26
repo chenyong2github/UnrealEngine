@@ -8,6 +8,7 @@
 #include "BinkMediaTexture.h"
 #include "BinkFunctionLibrary.h"
 
+#include "Engine/GameViewportClient.h"
 #include "Misc/Paths.h"
 #include "RenderingThread.h"
 
@@ -17,6 +18,7 @@
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Culture.h"
 #include "SubtitleManager.h"
+#include "UObject/UObjectIterator.h"
 
 //#include "Media/Public/IMediaEventSink.h" //For EMediaEvent
 

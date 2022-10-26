@@ -20,6 +20,7 @@
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "LevelEditor.h"
+#include "RHI.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 

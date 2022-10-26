@@ -7,6 +7,7 @@
 #include "Algo/Transform.h"
 #include "Components/ActorComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
 #include "IRemoteControlModule.h"

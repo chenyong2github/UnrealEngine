@@ -23,6 +23,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSeparator.h"
+#include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h" 
 #include "Widgets/Layout/SWrapBox.h"
 

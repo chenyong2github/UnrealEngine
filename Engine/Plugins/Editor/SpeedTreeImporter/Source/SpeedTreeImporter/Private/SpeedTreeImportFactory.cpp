@@ -7,6 +7,7 @@
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
 #include "EditorReimportHandler.h"
+#include "RenderUtils.h"
 #include "Styling/AppStyle.h"
 #include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"

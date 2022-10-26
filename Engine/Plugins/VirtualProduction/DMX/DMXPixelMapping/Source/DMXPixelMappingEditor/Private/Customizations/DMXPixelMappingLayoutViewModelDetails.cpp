@@ -11,6 +11,7 @@
 #include "IPropertyUtilities.h"
 #include "PropertyHandle.h"
 #include "Styling/AppStyle.h"
+#include "Widgets/Text/STextBlock.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingLayoutViewModelDetails"

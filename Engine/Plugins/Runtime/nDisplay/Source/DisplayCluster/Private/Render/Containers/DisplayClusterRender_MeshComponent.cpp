@@ -7,6 +7,7 @@
 
 #include "Engine/StaticMesh.h"
 #include "ProceduralMeshComponent.h"
+#include "RenderingThread.h"
 
 //-------------------------------------------------------------------------------
 //

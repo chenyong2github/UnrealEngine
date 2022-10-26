@@ -3,12 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Attribute.h"
 #include "Views/Details/DisplayClusterConfiguratorBaseTypeCustomization.h"
 
 class FDisplayClusterConfiguratorBlueprintEditor;
 class ADisplayClusterRootActor;
 class UDisplayClusterConfigurationData;
 class SDisplayClusterConfigurationSearchableComboBox;
+class SWidget;
 
 /**
  * Helper class used to construct and manage a custom array property widget that displays for each element a dropdown containing

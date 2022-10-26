@@ -4,6 +4,7 @@
 #include "BinkFunctionLibrary.h"
 
 #include "BinkMediaPlayerPrivate.h"
+#include "Engine/GameViewportClient.h"
 #include "Misc/Paths.h"
 #include "Rendering/RenderingCommon.h"
 #include "RenderingThread.h"

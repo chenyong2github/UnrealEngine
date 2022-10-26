@@ -2,6 +2,7 @@
 
 #include "USDStageModule.h"
 
+#include "PropertyEditorModule.h"
 #include "USDMemory.h"
 #include "USDStageActor.h"
 #include "USDStageActorCustomization.h"

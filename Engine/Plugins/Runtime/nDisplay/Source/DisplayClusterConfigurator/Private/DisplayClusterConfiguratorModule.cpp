@@ -5,6 +5,8 @@
 #include "DisplayClusterConfiguratorCommands.h"
 #include "DisplayClusterConfiguratorAssetTypeActions.h"
 #include "DisplayClusterConfiguratorVersionUtils.h"
+#include "Framework/Application/SlateApplication.h"
+#include "PropertyEditorModule.h"
 #include "Settings/DisplayClusterConfiguratorSettings.h"
 #include "Views/Details/DisplayClusterRootActorDetailsCustomization.h"
 #include "Views/OutputMapping/DisplayClusterConfiguratorOutputMappingCommands.h"

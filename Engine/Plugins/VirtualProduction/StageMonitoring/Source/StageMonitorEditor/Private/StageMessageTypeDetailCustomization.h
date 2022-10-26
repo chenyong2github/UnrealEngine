@@ -4,6 +4,7 @@
 
 #include "IPropertyTypeCustomization.h"
 
+class SWidget;
 
 class FStageMessageTypeDetailCustomization : public IPropertyTypeCustomization
 {

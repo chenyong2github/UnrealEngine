@@ -2,6 +2,7 @@
 
 #include "DatasmithBlueprintLibrary.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "DatasmithImporterHelper.h"
 #include "DatasmithImportFactory.h"
 #include "DatasmithImportOptions.h"
@@ -12,6 +13,7 @@
 #include "DatasmithTranslatableSource.h"
 #include "DatasmithTranslatorManager.h"
 #include "ObjectElements/DatasmithUSceneElement.h"
+#include "StaticMeshResources.h"
 #include "Utility/DatasmithImporterUtils.h"
 #include "Utility/DatasmithImportFactoryHelper.h"
 #include "Utility/DatasmithMeshHelper.h"

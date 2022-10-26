@@ -5,6 +5,7 @@
 #include "IPropertyTypeCustomization.h"
 
 class IPropertyHandle;
+class SWidget;
 
 /**
  * Type customization for FZoneLaneProfileRef.

@@ -10,6 +10,7 @@
 #include "IDetailChildrenBuilder.h"
 #include "IPropertyTypeCustomization.h"
 #include "PropertyHandle.h"
+#include "Widgets/Input/SComboBox.h"
 
 
 void FDisplayClusterConfiguratorMediaCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)

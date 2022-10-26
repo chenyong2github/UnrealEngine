@@ -7,6 +7,7 @@
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfiguratorUtils.h"
 #include "DisplayClusterConfiguratorVersionUtils.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Views/NewAsset/SDisplayClusterConfiguratorNewBlueprintDialog.h"
 
 #include "DisplayClusterRootActor.h"

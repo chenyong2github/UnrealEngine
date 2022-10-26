@@ -2,6 +2,7 @@
 
 #include "Util/TakeSnapshotUtil.h"
 
+#include "Components/Viewport.h"
 #include "Data/LevelSnapshotsEditorData.h"
 #include "LevelSnapshot.h"
 #include "LevelSnapshotsEditorSettings.h"

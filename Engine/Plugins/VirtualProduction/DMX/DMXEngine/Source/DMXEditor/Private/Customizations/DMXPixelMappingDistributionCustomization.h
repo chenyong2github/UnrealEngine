@@ -6,6 +6,7 @@
 
 #include "IPropertyTypeCustomization.h"
 
+class FReply;
 
 /**
  * Customization for the DMXPixelMappingDistribution enum

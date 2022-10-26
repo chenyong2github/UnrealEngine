@@ -6,6 +6,7 @@
 #include "CameraCalibrationSubsystem.h"
 #include "CineCameraComponent.h"
 #include "Controllers/LiveLinkTransformController.h"
+#include "GameFramework/Actor.h"
 #include "LensComponent.h"
 #include "LensFile.h"
 #include "LiveLinkLog.h"

@@ -4,6 +4,7 @@
 
 #include "DisplayClusterConfiguratorStyle.h"
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Views/TreeViews/IDisplayClusterConfiguratorViewTree.h"
 #include "Views/TreeViews/IDisplayClusterConfiguratorTreeItem.h"
 #include "Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"

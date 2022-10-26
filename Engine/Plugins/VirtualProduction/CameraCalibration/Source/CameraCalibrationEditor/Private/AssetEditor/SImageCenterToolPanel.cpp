@@ -5,6 +5,7 @@
 #include "CameraCalibrationSubsystem.h"
 #include "Dialog/SCustomDialog.h"
 #include "EditorFontGlyphs.h"
+#include "Engine/Engine.h"
 #include "ImageCenterTool.h"
 #include "UI/CameraCalibrationWidgetHelpers.h"
 #include "Widgets/Input/SButton.h"

@@ -4,6 +4,7 @@
 
 #include "SDMXPixelMappingComponentBox.h"
 #include "SDMXPixelMappingComponentLabel.h"
+#include "Widgets/SCompoundWidget.h"
 
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS // The whole class and several child widgets are deprecated 5.1

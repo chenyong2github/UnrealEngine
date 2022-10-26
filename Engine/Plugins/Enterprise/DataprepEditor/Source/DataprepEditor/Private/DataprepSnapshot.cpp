@@ -35,6 +35,7 @@
 #include "Settings/LevelEditorMiscSettings.h"
 #include "UnrealExporter.h"
 #include "UObject/PropertyPortFlags.h"
+#include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "DataprepEditor"
 

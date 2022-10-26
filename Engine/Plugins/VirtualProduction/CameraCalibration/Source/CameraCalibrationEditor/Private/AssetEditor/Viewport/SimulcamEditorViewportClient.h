@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
 #include "UObject/GCObject.h"
+#include "ViewportClient.h"
 
 class FCanvas;
 class ITextureEditorToolkit;

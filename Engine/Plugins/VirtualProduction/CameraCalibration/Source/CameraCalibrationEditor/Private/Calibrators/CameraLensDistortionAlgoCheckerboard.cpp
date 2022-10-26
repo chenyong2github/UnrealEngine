@@ -19,6 +19,8 @@
 #include "UI/CameraCalibrationWidgetHelpers.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STableRow.h"
 
 
 #define LOCTEXT_NAMESPACE "CameraLensDistortionAlgoCheckerboard"

@@ -7,6 +7,7 @@
 #include "DMXEditorUtils.h"
 #include "DMXFixturePatchSharedData.h"
 #include "Commands/DMXEditorCommands.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXLibrary.h"

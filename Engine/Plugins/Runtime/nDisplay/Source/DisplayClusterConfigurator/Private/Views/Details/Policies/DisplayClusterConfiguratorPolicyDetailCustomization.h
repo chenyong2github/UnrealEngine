@@ -17,6 +17,7 @@ class UDisplayClusterConfigurationViewport;
 class UDisplayClusterConfigurationCluster;
 class SDisplayClusterConfigurationSearchableComboBox;
 class SEditableTextBox;
+class SWidget;
 
 template<typename NumericType>
 class SSpinBox;

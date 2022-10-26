@@ -6,6 +6,7 @@
 
 #include "Engine/Texture2D.h"
 #include "SceneManagement.h"
+#include "TextureResource.h"
 #include "UnrealWidget.h"
 
 FDisplayClusterLightCardEditorWidget::FDisplayClusterLightCardEditorWidget()

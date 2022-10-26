@@ -9,6 +9,7 @@
 #include "CachedGeometry.h"
 #include "GroomGeometryCache.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "RHIStaticStates.h"
 #include "SkeletalRenderPublic.h"
 #include "UnrealEngine.h"
 #include "SystemTextures.h"

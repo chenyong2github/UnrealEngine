@@ -6,8 +6,10 @@
 #include "DatasmithScene.h"
 
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture.h"
 #include "EngineUtils.h"
 #include "HAL/FileManager.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "UObject/EnterpriseObjectVersion.h"

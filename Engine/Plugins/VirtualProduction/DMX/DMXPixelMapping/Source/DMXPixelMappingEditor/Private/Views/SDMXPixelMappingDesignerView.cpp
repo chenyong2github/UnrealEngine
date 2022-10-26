@@ -7,6 +7,7 @@
 #include "DMXPixelMappingEditorUtils.h"
 #include "DMXPixelMappingEditorStyle.h"
 #include "DMXPixelMappingLayoutSettings.h"
+#include "Framework/Application/SlateApplication.h"
 #include "SDMXPixelMappingComponentBox.h"
 #include "Components/DMXPixelMappingOutputComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"

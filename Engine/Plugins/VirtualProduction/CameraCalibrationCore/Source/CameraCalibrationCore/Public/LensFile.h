@@ -25,6 +25,7 @@
 
 class UCineCameraComponent;
 class ULensDistortionModelHandlerBase;
+class UTextureRenderTarget2D;
 struct FBaseLensTable;
 
 

@@ -2,8 +2,10 @@
 
 #include "USDStageImporter.h"
 
+#include "Components/StaticMeshComponent.h"
 #include "Engine/SkinnedAssetCommon.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "UObject/UObjectIterator.h"
 #include "USDAssetCache.h"
 #include "USDAssetImportData.h"
 #include "USDClassesModule.h"

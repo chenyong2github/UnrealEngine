@@ -8,6 +8,8 @@
 #include "Animation/BlendSpace.h"
 #include "Animation/MotionTrajectoryTypes.h"
 #include "Animation/AnimRootMotionProvider.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "DrawDebugHelpers.h"
 #include "PoseSearch/AnimNode_PoseSearchHistoryCollector.h"
 #include "Trace/PoseSearchTraceLogger.h"
 

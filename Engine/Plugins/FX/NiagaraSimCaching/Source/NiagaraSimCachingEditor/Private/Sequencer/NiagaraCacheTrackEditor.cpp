@@ -3,6 +3,7 @@
 #include "Sequencer/NiagaraCacheTrackEditor.h"
 #include "CommonMovieSceneTools.h"
 #include "Fonts/FontMeasure.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "LevelSequence.h"
 #include "NiagaraComponent.h"

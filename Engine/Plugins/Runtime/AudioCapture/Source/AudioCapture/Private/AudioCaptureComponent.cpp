@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioCaptureComponent.h"
+#include "Audio.h"
 #include "AudioAnalytics.h"
 
 static const unsigned int MaxBufferSize = 2 * 5 * 48000;

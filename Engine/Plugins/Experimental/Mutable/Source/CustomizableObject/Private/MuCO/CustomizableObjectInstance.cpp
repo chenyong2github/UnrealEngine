@@ -230,7 +230,7 @@ void UCustomizableInstancePrivateData::SetMinMaxLODToLoad(UCustomizableObjectIns
 	NewMinLOD = FMath::Min(FMath::Max(NewMinLOD, static_cast<int32>(FirstLODAvailable)), FirstLODAvailable + NumMaxLODsToStream);
 
 	const bool bIsDowngradeLODUpdate = LastUpdateMinLOD >= 0 && NewMinLOD > LastUpdateMinLOD;
-	SetCOInstanceFlags(bIsDowngradeLODUpdate ? PendingLODsDowngrade : None);
+	SetCOInstanceFlags(bIsDowngradeLODUpdate ? PendingLODsDowngrade : ECONone);
 
 	if (!bIsDowngradeLODUpdate && bLimitLODUpgrades)
 	{
@@ -254,7 +254,7 @@ void UCustomizableInstancePrivateData::SetMinMaxLODToLoad(UCustomizableObjectIns
 	NewMaxLOD = FMath::Max(NewMaxLOD, NewMinLOD);
 
 	// Save the new LODs
-	SetCOInstanceFlags(Public->Descriptor.MinLODToLoad != NewMinLOD || Public->Descriptor.MaxLODToLoad != NewMaxLOD ? PendingLODsUpdate : None);
+	SetCOInstanceFlags(Public->Descriptor.MinLODToLoad != NewMinLOD || Public->Descriptor.MaxLODToLoad != NewMaxLOD ? PendingLODsUpdate : ECONone);
 
 	Public->Descriptor.MinLODToLoad = NewMinLOD;
 	Public->Descriptor.MaxLODToLoad = NewMaxLOD;
@@ -265,7 +265,7 @@ void UCustomizableInstancePrivateData::PrepareForUpdate(const TSharedPtr<FMutabl
 {
 	const bool bNumLODsUpdated = NumLODsAvailable != OperationData->NumLODsAvailable;
 	
-	SetCOInstanceFlags(bNumLODsUpdated ? PendingMeshUpdate : None);
+	SetCOInstanceFlags(bNumLODsUpdated ? PendingMeshUpdate : ECONone);
 
 	NumLODsAvailable = OperationData->NumLODsAvailable;
 

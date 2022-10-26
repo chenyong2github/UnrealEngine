@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UnrealClient.h"
+#include "ViewportClient.h"
 
 class SDMXPixelMappingSourceTextureViewport;
 class FDMXPixelMappingToolkit;

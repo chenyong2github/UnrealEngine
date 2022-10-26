@@ -3,13 +3,14 @@
 
 #include "BinkFunctionLibrary.h"
 #include "BinkMediaPlayerPrivate.h"
+#include "Engine/GameViewportClient.h"
+#include "Internationalization/Internationalization.h"
 #include "Runtime/Core/Public/Misc/Paths.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/CoreDelegates.h"
+#include "UObject/UObjectIterator.h"
 
 DEFINE_LOG_CATEGORY(LogBink);
-
-#define LOCTEXT_NAMESPACE "BinkMediaPlayerModule"
 
 TSharedPtr<FBinkMovieStreamer, ESPMode::ThreadSafe> MovieStreamer;
 
@@ -35,6 +36,8 @@ class UFactory;
 #include "IDetailChildrenBuilder.h"
 
 #include "BinkMediaPlayer.h"
+
+#define LOCTEXT_NAMESPACE "BinkMediaPlayerModule"
 
 struct FBinkMoviePlayerSettingsDetails : public IDetailCustomization {
 	static TSharedRef<IDetailCustomization> MakeInstance() { return MakeShareable(new FBinkMoviePlayerSettingsDetails); }

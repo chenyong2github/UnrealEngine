@@ -17,6 +17,7 @@
 #include "RenderUtils.h"
 
 #include "png.h"
+#include "TextureResource.h"
 
 int UGoogleARCoreAugmentedImageDatabase::AddRuntimeAugmentedImageFromTexture(UTexture2D* ImageTexture, FName ImageName, float ImageWidthInMeter /*= 0*/)
 {

@@ -6,6 +6,7 @@
 #include "IOpenCVLensCalibrationModule.h"
 #include "Logging/LogMacros.h"
 #include "PixelFormat.h"
+#include "TextureResource.h"
 //#include "UnrealClient.h"
 
 #if WITH_OPENCV

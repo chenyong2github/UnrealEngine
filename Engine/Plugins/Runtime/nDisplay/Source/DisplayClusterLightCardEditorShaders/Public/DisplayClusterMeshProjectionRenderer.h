@@ -8,6 +8,7 @@
 
 class AActor;
 class UPrimitiveComponent;
+class FHitProxyConsumer;
 class FSceneView;
 class FViewInfo;
 class FPrimitiveDrawInterface;

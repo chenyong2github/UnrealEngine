@@ -2,6 +2,7 @@
 
 #include "DisplayClusterWidgetComponent.h"
 
+#include "Engine/Engine.h"
 #include "Slate/WidgetRenderer.h"
 
 UDisplayClusterWidgetComponent::UDisplayClusterWidgetComponent()

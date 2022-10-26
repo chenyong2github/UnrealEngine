@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataprepCoreUtils.h"
+#include "Engine/Texture.h"
 
 #ifdef NEW_DATASMITHSCENE_WORKFLOW
 #include "DataprepAssetUserData.h"

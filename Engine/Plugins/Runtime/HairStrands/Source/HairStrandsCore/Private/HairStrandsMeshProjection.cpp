@@ -5,6 +5,7 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkinWeightVertexBuffer.h"
 #include "CommonRenderResources.h"
+#include "RHIStaticStates.h"
 #include "SkeletalRenderPublic.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RenderGraphUtils.h"

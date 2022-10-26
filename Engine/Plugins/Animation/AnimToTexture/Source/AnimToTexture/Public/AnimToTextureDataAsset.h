@@ -4,7 +4,9 @@
 
 #include "Engine/DataAsset.h"
 #include "Animation/AnimInstance.h"
+#include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
+#include "Engine/Texture2D.h"
 #include "AnimToTextureDataAsset.generated.h"
 
 class USkeletalMesh;

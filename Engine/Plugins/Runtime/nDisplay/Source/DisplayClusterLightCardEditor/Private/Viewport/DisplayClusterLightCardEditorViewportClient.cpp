@@ -2,6 +2,7 @@
 
 #include "DisplayClusterLightCardEditorViewportClient.h"
 
+#include "Application/ThrottleManager.h"
 #include "DisplayClusterLightcardEditorViewport.h"
 #include "DisplayClusterLightCardEditorWidget.h"
 #include "LightCardTemplates/DisplayClusterLightCardTemplate.h"
@@ -18,6 +19,7 @@
 #include "DisplayClusterLightCardEditorUtils.h"
 #include "IDisplayClusterScenePreview.h"
 #include "DisplayClusterLightCardEditor.h"
+#include "SceneManagement.h"
 #include "Settings/DisplayClusterLightCardEditorSettings.h"
 
 #include "AudioDevice.h"
@@ -47,7 +49,9 @@
 #include "RayTracingDebugVisualizationMenuCommands.h"
 #include "Renderer/Private/SceneRendering.h"
 #include "ScopedTransaction.h"
+#include "Settings/LevelEditorViewportSettings.h"
 #include "Slate/SceneViewport.h"
+#include "TextureResource.h"
 #include "UnrealEdGlobals.h"
 #include "UnrealWidget.h"
 #include "Components/BillboardComponent.h"

@@ -6,6 +6,8 @@
 #include "GeometryCacheTrackUSD.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CoreMisc.h"
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
 #include "USDGeomMeshConversion.h"
 
 static bool GUsdStreamCacheInDDC = true;

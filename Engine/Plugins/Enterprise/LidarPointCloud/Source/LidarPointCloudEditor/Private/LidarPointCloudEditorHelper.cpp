@@ -14,6 +14,8 @@
 #include "Engine/StaticMeshActor.h"
 #include "Misc/ScopedSlowTask.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "StaticMeshResources.h"
+#include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "LidarPointCloudEditorHelper"
 

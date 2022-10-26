@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
+#include "TextureResource.h"
 
 namespace AnimToTexture_Private
 {

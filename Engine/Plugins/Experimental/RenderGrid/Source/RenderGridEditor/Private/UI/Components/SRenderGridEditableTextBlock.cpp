@@ -7,6 +7,7 @@
 #include "SlateOptMacros.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "SRenderGridEditableTextBlock"
 

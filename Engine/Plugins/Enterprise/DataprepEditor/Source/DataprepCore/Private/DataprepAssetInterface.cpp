@@ -15,6 +15,7 @@
 
 #include "Kismet2/KismetEditorUtilities.h"
 #include "UObject/EnterpriseObjectVersion.h"
+#include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "DataprepAssetInterface"
 

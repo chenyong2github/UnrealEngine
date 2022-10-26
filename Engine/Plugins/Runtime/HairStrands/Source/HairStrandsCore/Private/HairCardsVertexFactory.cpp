@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "HairCardsVertexFactory.h"
+#include "RHIStaticStates.h"
 #include "SceneView.h"
 #include "MeshBatch.h"
 #include "ShaderParameterUtils.h"
