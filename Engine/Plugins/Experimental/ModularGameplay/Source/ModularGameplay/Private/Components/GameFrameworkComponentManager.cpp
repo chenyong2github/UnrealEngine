@@ -1145,7 +1145,7 @@ void UGameFrameworkComponentManager::CallDelegateForMatchingActors(UClass* Actor
 	{
 		UClass* CheckActorClass = Pair.Value.ActorClass.Get();
 
-		if (CheckActorClass->IsChildOf(ActorClass))
+		if (CheckActorClass && CheckActorClass->IsChildOf(ActorClass))
 		{
 			AActor* FoundActor = Cast<AActor>(Pair.Key.ResolveObjectPtr());
 			if (FoundActor)
