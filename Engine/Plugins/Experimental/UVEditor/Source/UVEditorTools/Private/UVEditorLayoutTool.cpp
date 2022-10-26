@@ -244,7 +244,7 @@ void UUVEditorLayoutTool::RecordAnalytics()
 	{
 		for (const FAnalyticsEventAttribute& Attr : Attributes)
 		{
-			UE_LOG(LogGeometry, Log, TEXT("Debug %s.LayoutTool.%s = %s"), *UVEditorAnalyticsPrefix, *Attr.GetName(), *Attr.GetValue());
+			UE_LOG(LogGeometry, Log, TEXT("Debug %s.%s = %s"), *UVEditorAnalyticsEventName(TEXT("LayoutTool")), *Attr.GetName(), *Attr.GetValue());
 		}
 	}
 }

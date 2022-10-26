@@ -338,7 +338,7 @@ void UUVEditorRecomputeUVsTool::RecordAnalytics()
 	{
 		for (const FAnalyticsEventAttribute& Attr : Attributes)
 		{
-			UE_LOG(LogGeometry, Log, TEXT("Debug %s.UnwrapTool.%s = %s"), *UVEditorAnalyticsPrefix, *Attr.GetName(), *Attr.GetValue());
+			UE_LOG(LogGeometry, Log, TEXT("Debug %s.%s = %s"), *UVEditorAnalyticsEventName(TEXT("UnwrapTool")), *Attr.GetName(), *Attr.GetValue());
 		}
 	}
 }

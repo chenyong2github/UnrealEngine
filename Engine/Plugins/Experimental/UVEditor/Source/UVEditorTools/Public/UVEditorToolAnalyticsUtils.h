@@ -22,12 +22,7 @@ FAnalyticsEventAttribute AnalyticsEventAttributeEnum(const FString& AttributeNam
 	return FAnalyticsEventAttribute(AttributeName, EnumValueName);
 }
 
-static const FString UVEditorAnalyticsPrefix(TEXT("Editor.Usage.UVEditor"));
-
-FORCEINLINE FString UVEditorAnalyticsEventName(const FString& ToolEventName)
-{
-	return FString::Printf(TEXT("%s.%s"), *UVEditorAnalyticsPrefix, *ToolEventName);
-}
+UVEDITORTOOLS_API FString UVEditorAnalyticsEventName(const FString& ToolEventName);
 
 struct UVEDITORTOOLS_API FTargetAnalytics
 {

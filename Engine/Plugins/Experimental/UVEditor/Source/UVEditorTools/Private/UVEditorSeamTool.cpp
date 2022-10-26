@@ -1215,7 +1215,7 @@ void UUVEditorSeamTool::RecordAnalytics()
 	{
 		for (const FAnalyticsEventAttribute& Attr : Attributes)
 		{
-			UE_LOG(LogGeometry, Log, TEXT("Debug %s.SeamTool.%s = %s"), *UVEditorAnalyticsPrefix, *Attr.GetName(), *Attr.GetValue());
+			UE_LOG(LogGeometry, Log, TEXT("Debug %s.%s = %s"), *UVEditorAnalyticsEventName(TEXT("SeamTool")), *Attr.GetName(), *Attr.GetValue());
 		}
 	}
 }

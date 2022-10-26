@@ -13,6 +13,11 @@ namespace Geometry
 namespace UVEditorAnalytics
 {
 
+FString UVEditorAnalyticsEventName(const FString& ToolEventName)
+{
+	return FString::Printf(TEXT("Editor.Usage.UVEditor.%s"), *ToolEventName);
+}
+
 void FTargetAnalytics::AppendToAttributes(TArray<FAnalyticsEventAttribute>& Attributes, FString Prefix) const
 {
 	if (!Prefix.IsEmpty())
