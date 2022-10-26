@@ -52,7 +52,7 @@ protected:
 	bool IsFollowPlayerInPIE() const;
 	bool IsInteractive() const;
 
-	virtual int32 GetSelectionSnap() const;
+	virtual int64 GetSelectionSnap() const;
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;

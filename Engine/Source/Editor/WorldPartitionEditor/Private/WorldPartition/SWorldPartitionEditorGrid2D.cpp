@@ -615,7 +615,7 @@ void SWorldPartitionEditorGrid2D::PlayFromHere()
 
 void SWorldPartitionEditorGrid2D::LoadFromHere()
 {
-	const float SelectionSnap = GetSelectionSnap();
+	const double SelectionSnap = GetSelectionSnap();
 	const FVector LoadLocation = FVector(MouseCursorPosWorld, 0);
 	const FVector LoadExtent(SelectionSnap, SelectionSnap, HALF_WORLD_MAX);
 	FBox LoadCellsBox(LoadLocation - LoadExtent, LoadLocation + LoadExtent);
@@ -650,7 +650,7 @@ bool SWorldPartitionEditorGrid2D::IsInteractive() const
 	return !IsFollowPlayerInPIE();
 }
 
-int32 SWorldPartitionEditorGrid2D::GetSelectionSnap() const
+int64 SWorldPartitionEditorGrid2D::GetSelectionSnap() const
 {
 	return 1;
 }
@@ -908,7 +908,7 @@ FReply SWorldPartitionEditorGrid2D::OnMouseWheel(const FGeometry& MyGeometry, co
 	{
 		FVector2D MousePosLocalSpace = MouseCursorPos - MyGeometry.GetLocalSize() * 0.5f;
 		FVector2D P0 = MousePosLocalSpace / Scale;
-		float Delta = 1.0f + FMath::Abs(MouseEvent.GetWheelDelta() / 4.0f);
+		float Delta = 1.0f + FMath::Abs(MouseEvent.GetWheelDelta() / 8.0f);
 		Scale = FMath::Clamp(Scale * (MouseEvent.GetWheelDelta() > 0 ? Delta : (1.0f / Delta)), 0.00000001f, 10.0f);
 		FVector2D P1 = MousePosLocalSpace / Scale;
 		Trans += (P1 - P0);
@@ -2021,7 +2021,7 @@ void SWorldPartitionEditorGrid2D::UpdateSelectionBox(bool bSnap)
 			const float MaxY = SelectBox2D.Max.Y;
 			SelectBox = FBox(FVector(MinX, MinY, -HALF_WORLD_MAX), FVector(MaxX, MaxY, HALF_WORLD_MAX));
 
-			const int32 SelectionSnap = bSnap ? GetSelectionSnap() : 1;
+			const int64 SelectionSnap = bSnap ? GetSelectionSnap() : 1;
 			const float SnapMinX = FMath::GridSnap(MinX - SelectionSnap / 2, SelectionSnap);
 			const float SnapMinY = FMath::GridSnap(MinY - SelectionSnap / 2, SelectionSnap);
 			const float SnapMaxX = FMath::GridSnap(MaxX + SelectionSnap / 2, SelectionSnap);
