@@ -315,8 +315,7 @@ namespace UnrealBuildTool
 			ExportJsonStringArray(Writer, "InternalIncludePaths", Module.InternalIncludePaths.Select(x => x.FullName));
 
 			ExportJsonStringArray(Writer, "LegacyPublicIncludePaths", Module.LegacyPublicIncludePaths.Select(x => x.FullName ));
-			ExportJsonStringArray(Writer, "LegacyParentIncludePaths", Module.LegacyParentIncludePaths.Select(x => x.FullName));
-
+			
 			ExportJsonStringArray(Writer, "PrivateIncludePaths", Module.PrivateIncludePaths.Select(x => x.FullName));
 			ExportJsonStringArray(Writer, "PublicLibraryPaths", Module.PublicSystemLibraryPaths.Select(x => x.FullName));
 			ExportJsonStringArray(Writer, "PublicAdditionalLibraries", Module.PublicSystemLibraries.Concat(Module.PublicLibraries.Select(x => x.FullName)));
@@ -328,9 +327,8 @@ namespace UnrealBuildTool
 			ExportJsonStringArray(Writer, "ProjectDefinitions", /* TODO: Add method ShouldAddProjectDefinitions */ !Module.Rules.bTreatAsEngineModule ? Module.Rules.Target.ProjectDefinitions : new string[0]);
 			ExportJsonStringArray(Writer, "ApiDefinitions", Module.GetEmptyApiMacros());
 			Writer.WriteValue("ShouldAddLegacyPublicIncludePaths", Module.Rules.bLegacyPublicIncludePaths);
-			Writer.WriteValue("ShouldAddLegacyParentIncludePaths", Module.Rules.bLegacyParentIncludePaths);
 
-			if (Module.Rules.CircularlyReferencedDependentModules.Any())
+			if(Module.Rules.CircularlyReferencedDependentModules.Any())
 			{
 				Writer.WriteArrayStart("CircularlyReferencedModules");
 				foreach (string ModuleName in Module.Rules.CircularlyReferencedDependentModules)

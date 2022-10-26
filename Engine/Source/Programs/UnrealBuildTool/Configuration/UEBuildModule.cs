@@ -89,11 +89,6 @@ namespace UnrealBuildTool
 		public readonly HashSet<DirectoryReference> LegacyPublicIncludePaths = new HashSet<DirectoryReference>();
 
 		/// <summary>
-		/// Parent include paths which used to be added automatically, but are now only added for modules with bLegacyParentIncludePaths set.
-		/// </summary>
-		public readonly HashSet<DirectoryReference> LegacyParentIncludePaths = new HashSet<DirectoryReference>();
-
-		/// <summary>
 		/// Set of all private include paths
 		/// </summary>
 		public readonly HashSet<DirectoryReference> PrivateIncludePaths;
@@ -566,36 +561,26 @@ namespace UnrealBuildTool
 			List<string> Definitions,
 			List<UEBuildFramework> AdditionalFrameworks,
 			List<FileItem> AdditionalPrerequisites,
-			bool bLegacyPublicIncludePaths,
-			bool bLegacyParentIncludePaths
+			bool bLegacyPublicIncludePaths
 			)
 		{
-			// Add this module's public include paths and definitions
+			// Add the module's parent directory to the include path, so we can root #includes from generated source files to it
+			IncludePaths.Add(ModuleDirectory.ParentDirectory!);
+
+			// Add this module's public include paths and definitions.
 			AddIncludePaths(IncludePaths, PublicIncludePaths);
-
-			// Add the module's parent directory to the include path, so we can root #includes from generated source files to it. Not recommended (Use BuildSetting.V3 or later)
-			if (bLegacyParentIncludePaths)
-			{
-				AddIncludePaths(IncludePaths, LegacyParentIncludePaths);
-			}
-
-			// Add this module's legacy public include paths. Not recommended (Use BuildSetting.V2 or later)
 			if (bLegacyPublicIncludePaths)
 			{
 				AddIncludePaths(IncludePaths, LegacyPublicIncludePaths);
 			}
+			SystemIncludePaths.UnionWith(PublicSystemIncludePaths);
+			Definitions.AddRange(PublicDefinitions);
 
 			// Add this module's internal include paths, only if the scope contains the same as the SourceModule's scope
 			if (SourceModule != null && Rules.Context.Scope.Contains(SourceModule.Rules.Context.Scope))
 			{
 				AddIncludePaths(IncludePaths, InternalIncludePaths);
 			}
-
-			// Add this module's public system include paths
-			SystemIncludePaths.UnionWith(PublicSystemIncludePaths);
-
-			// Add this module's public definitions
-			Definitions.AddRange(PublicDefinitions);
 
 			// Add the import or export declaration for the module
 			if (Rules.Type == ModuleRules.ModuleType.CPlusPlus)
@@ -649,8 +634,7 @@ namespace UnrealBuildTool
 			List<string> Definitions,
 			List<UEBuildFramework> AdditionalFrameworks,
 			List<FileItem> AdditionalPrerequisites,
-			bool bWithLegacyPublicIncludePaths,
-			bool bWithLegacyParentIncludePaths
+			bool bWithLegacyPublicIncludePaths
 			)
 		{
 			if (!Rules.bTreatAsEngineModule)
@@ -669,7 +653,7 @@ namespace UnrealBuildTool
 			// Now set up the compile environment for the modules in the original order that we encountered them
 			foreach (UEBuildModule Module in ModuleToIncludePathsOnlyFlag.Keys)
 			{
-				Module.AddModuleToCompileEnvironment(this, Binary, IncludePaths, SystemIncludePaths, ModuleInterfacePaths, Definitions, AdditionalFrameworks, AdditionalPrerequisites, bWithLegacyPublicIncludePaths, bWithLegacyParentIncludePaths);
+				Module.AddModuleToCompileEnvironment(this, Binary, IncludePaths, SystemIncludePaths, ModuleInterfacePaths, Definitions, AdditionalFrameworks, AdditionalPrerequisites, bWithLegacyPublicIncludePaths);
 			}
 		}
 
