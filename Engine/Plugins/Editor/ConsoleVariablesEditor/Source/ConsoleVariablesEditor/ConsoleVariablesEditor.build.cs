@@ -46,5 +46,12 @@ public class ConsoleVariablesEditor : ModuleRules
 				"WorkspaceMenuStructure"
 			}
 		);
+
+		PrivateIncludePathModuleNames.AddRange(
+			new string[]
+			{
+				"LibOVRPlatform"
+			}
+		);
 	}
 }
