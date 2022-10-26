@@ -49,8 +49,8 @@ void FComputeKernelResource::SetupShaderCompilationEnvironment(EShaderPlatform I
 
 bool FComputeKernelResource::ShouldCache(EShaderPlatform InPlatform, const FShaderType* InShaderType) const
 {
-	check(InShaderType->GetComputeKernelShaderType() )
-	return true;
+	check(InShaderType->GetComputeKernelShaderType())
+	return ComputeFramework::IsSupported(InPlatform);
 }
 
 void FComputeKernelResource::NotifyCompilationFinished(FString const& ResultMessage)
