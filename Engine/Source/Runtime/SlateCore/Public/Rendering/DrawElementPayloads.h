@@ -4,6 +4,7 @@
 
 #include "DrawElementTextOverflowArgs.h"
 #include "Fonts/FontCache.h"
+#include "Fonts/ShapedTextFwd.h"
 #include "SlateRenderBatch.h"
 #include "Styling/SlateBrush.h"
 #include "Types/SlateVector2.h"
