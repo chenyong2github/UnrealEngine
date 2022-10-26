@@ -1,25 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/SkinWeightProfile.h"
-#include "Engine/SkeletalMesh.h"
-#include "UObject/UObjectIterator.h"
-#include "ContentStreaming.h"
-#include "UObject/AnimObjectVersion.h"
+
+#include "Animation/SkinWeightProfileManager.h"
+#include "ComponentRecreateRenderStateContext.h"
 #include "Components/SkinnedMeshComponent.h"
+#include "ContentStreaming.h"
+#include "Engine/GameEngine.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/World.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkinWeightVertexBuffer.h"
-#include "Animation/SkinWeightProfileManager.h"
+#include "SkeletalMeshTypes.h"
+#include "UObject/AnimObjectVersion.h"
+#include "UObject/ObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
+#include "UObject/UObjectIterator.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 
 #if WITH_EDITOR
-#include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Animation/DebugSkelMeshComponent.h"
+#include "Rendering/SkeletalMeshLODImporterData.h"
 #endif
-#include "ComponentRecreateRenderStateContext.h"
-#include "SkeletalMeshTypes.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "Engine/GameEngine.h"
-#include "UObject/ObjectVersion.h"
-#include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SkinWeightProfile)
 
