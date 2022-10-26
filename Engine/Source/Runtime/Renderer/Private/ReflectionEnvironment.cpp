@@ -631,7 +631,7 @@ void SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance(FVector4f* OutSk
 	OutSkyIrradianceEnvironmentMap[6].W = 1;
 }
 
-void UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHICmdList, const FEngineShowFlags& EngineShowFlags, const FSkyLightSceneProxy* SkyLight, TRefCountPtr<FRDGPooledBuffer>& Buffer)
+void UpdateSkyIrradianceGpuBuffer(FRDGBuilder& GraphBuilder, const FEngineShowFlags& EngineShowFlags, const FSkyLightSceneProxy* SkyLight, TRefCountPtr<FRDGPooledBuffer>& Buffer)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateSkyIrradianceGpuBuffer);
 
@@ -642,30 +642,35 @@ void UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHICmdList, const FE
 		&& EngineShowFlags.SkyLighting
 		&& !SkyLight->bRealTimeCaptureEnabled; // When bRealTimeCaptureEnabled is true, the buffer will be setup on GPU directly in this case
 
-	if (AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), SKY_IRRADIANCE_ENVIRONMENT_MAP_VEC4_COUNT), Buffer, TEXT("SkyIrradianceEnvironmentMap"), ERDGPooledBufferAlignment::None))
-	{
-		if (!bUploadIrradiance)
-		{
-			// Ensure that sky irradiance SH buffer contains sensible initial values (zero init).
-			// If there is no sky in the level, then nothing else may fill this buffer.
-			void* DataPtr = RHICmdList.LockBuffer(Buffer->GetRHI(), 0, Buffer->GetSize(), RLM_WriteOnly);
-			FPlatformMemory::Memset(DataPtr, 0, Buffer->GetSize());
-			RHICmdList.UnlockBuffer(Buffer->GetRHI());
-		}
+	const bool bNewAlloc = AllocatePooledBuffer(
+		FRDGBufferDesc::CreateStructuredDesc(sizeof(FVector4f), SKY_IRRADIANCE_ENVIRONMENT_MAP_VEC4_COUNT),
+		Buffer,
+		TEXT("SkyIrradianceEnvironmentMap"),
+		ERDGPooledBufferAlignment::None);
 
-		RHICmdList.Transition(FRHITransitionInfo(Buffer->GetRHI(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
+	FRDGBufferRef BufferRDG = GraphBuilder.RegisterExternalBuffer(Buffer, TEXT("SkyIrradianceEnvironmentMap"));
+	const uint32 BufferSizeInBytes = BufferRDG->GetSize();
+	check(BufferRDG);
+
+	if (bNewAlloc && !bUploadIrradiance)
+	{
+		// Ensure that sky irradiance SH buffer contains sensible initial values (zero init).
+		// If there is no sky in the level, then nothing else may fill this buffer.
+		void* InitialValue = GraphBuilder.Alloc(BufferSizeInBytes);
+		FMemory::Memset(InitialValue, 0, BufferSizeInBytes);
+		GraphBuilder.QueueBufferUpload(BufferRDG, InitialValue, BufferSizeInBytes, ERDGInitialDataFlags::NoCopy);
 	}
 
 	if (bUploadIrradiance)
 	{
-		FVector4f UploadData[SKY_IRRADIANCE_ENVIRONMENT_MAP_VEC4_COUNT];
+		FVector4f* UploadData = (FVector4f*)GraphBuilder.Alloc(BufferSizeInBytes);
 		SetupSkyIrradianceEnvironmentMapConstantsFromSkyIrradiance(UploadData, SkyLight->IrradianceEnvironmentMap);
 
 		const float SkyLightAverageBrightness = SkyLight->AverageBrightness;
 		UploadData[7] = FVector4f(SkyLightAverageBrightness, SkyLightAverageBrightness, SkyLightAverageBrightness, SkyLightAverageBrightness);
 
-		void* DataPtr = RHICmdList.LockBuffer(Buffer->GetRHI(), 0, Buffer->GetSize(), RLM_WriteOnly);
-		FPlatformMemory::Memcpy(DataPtr, &UploadData, sizeof(UploadData));
-		RHICmdList.UnlockBuffer(Buffer->GetRHI());
+		GraphBuilder.QueueBufferUpload(BufferRDG, UploadData, BufferSizeInBytes, ERDGInitialDataFlags::NoCopy);
 	}
+
+	Buffer = ConvertToExternalAccessBuffer(GraphBuilder, BufferRDG, ERHIAccess::SRVMask, ERHIPipeline::All);
 }
