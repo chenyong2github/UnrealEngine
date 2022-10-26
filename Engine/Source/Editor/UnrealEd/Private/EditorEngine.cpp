@@ -510,26 +510,29 @@ void UEditorEngine::GetContentBrowserSelections(TArray<FAssetData>& Selection) c
 
 USelection* UEditorEngine::GetSelectedSet( const UClass* Class ) const
 {
-	USelection* SelectedSet = GetSelectedActors();
-	if ( Class->IsChildOf( AActor::StaticClass() ) )
+	if (Class != nullptr)
 	{
-		return SelectedSet;
-	}
-	else
-	{
-		//make sure this actor isn't derived off of an interface class
-		for ( FSelectionIterator It( GetSelectedActorIterator() ) ; It ; ++It )
+		USelection* SelectedSet = GetSelectedActors();
+		if (Class->IsChildOf(AActor::StaticClass()))
 		{
-			AActor* TestActor = static_cast<AActor*>( *It );
-			if (TestActor->GetClass()->ImplementsInterface(Class))
+			return SelectedSet;
+		}
+		else
+		{
+			//make sure this actor isn't derived off of an interface class
+			for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
 			{
-				return SelectedSet;
+				AActor* TestActor = static_cast<AActor*>(*It);
+				if (TestActor->GetClass()->ImplementsInterface(Class))
+				{
+					return SelectedSet;
+				}
 			}
 		}
-
-		//no actor matched the interface class
-		return GetSelectedObjects();
 	}
+
+	//no actor matched the interface class
+	return GetSelectedObjects();
 }
 
 const UClass* UEditorEngine::GetFirstSelectedClass( const UClass* const RequiredParentClass ) const
@@ -741,6 +744,11 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 		for (TObjectIterator<UClass> ObjectIt; ObjectIt; ++ObjectIt)
 		{
 			UClass* TestClass = *ObjectIt;
+			if (TestClass == nullptr)
+			{
+				continue;
+			}
+
 			if (TestClass->IsChildOf(UActorFactory::StaticClass()))
 			{
 				if (!TestClass->HasAnyClassFlags(CLASS_Abstract))
@@ -772,7 +780,7 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 			const UClass* DefaultActorClass = VolumeFactoryClass->GetDefaultObject<UActorFactory>()->NewActorClass;
 			for (UClass* VolumeClass : VolumeClasses)
 			{
-				if (DefaultActorClass && !VolumeClass->IsChildOf(DefaultActorClass))
+				if (DefaultActorClass && (VolumeClass && !VolumeClass->IsChildOf(DefaultActorClass)))
 				{
 					continue;
 				}
@@ -1174,7 +1182,12 @@ void UEditorEngine::CreateVolumeFactoriesForNewClasses(const TArray<UClass*>& Ne
 		for (TObjectIterator<UClass> ObjectIt; ObjectIt; ++ObjectIt)
 		{
 			UClass* TestClass = *ObjectIt;
-			if (!TestClass->HasAnyClassFlags(CLASS_Abstract) && TestClass->IsChildOf(UActorFactoryVolume::StaticClass()))
+			if (TestClass == nullptr)
+			{
+				continue;
+			}
+		
+		if (!TestClass->HasAnyClassFlags(CLASS_Abstract) && TestClass->IsChildOf(UActorFactoryVolume::StaticClass()))
 			{
 				ActorFactories.Reserve(ActorFactories.Num() + NewVolumeClasses.Num());
 				for (UClass* NewVolumeClass : NewVolumeClasses)

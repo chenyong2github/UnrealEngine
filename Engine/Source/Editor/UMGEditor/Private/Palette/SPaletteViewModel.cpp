@@ -667,9 +667,9 @@ void FWidgetCatalogViewModel::OnReloadComplete(EReloadCompleteReason Reason)
 
 void FWidgetCatalogViewModel::HandleOnAssetsDeleted(const TArray<UClass*>& DeletedAssetClasses)
 {
-	for (auto DeletedAssetClass : DeletedAssetClasses)
+	for (const UClass* DeletedAssetClass : DeletedAssetClasses)
 	{
-		if (DeletedAssetClass->IsChildOf(UWidgetBlueprint::StaticClass()))
+		if ((DeletedAssetClass == nullptr) || DeletedAssetClass->IsChildOf(UWidgetBlueprint::StaticClass()))
 		{
 			bRebuildRequested = true;
 		}

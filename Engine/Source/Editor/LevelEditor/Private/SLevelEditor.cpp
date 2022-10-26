@@ -1917,7 +1917,7 @@ void SLevelEditor::HandleAssetsDeleted(const TArray<UClass*>& DeletedClasses)
 	bool bDeletedMaterials = false;
 	for (UClass* AssetClass : DeletedClasses)
 	{
-		if (AssetClass->IsChildOf<UMaterialInterface>())
+		if (AssetClass == nullptr || AssetClass->IsChildOf<UMaterialInterface>())
 		{
 			bDeletedMaterials = true;
 			break;
