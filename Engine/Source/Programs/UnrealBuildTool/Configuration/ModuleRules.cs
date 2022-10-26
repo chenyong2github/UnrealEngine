@@ -1157,11 +1157,22 @@ namespace UnrealBuildTool
 			get { return bLegacyPublicIncludePathsPrivate ?? ((DefaultBuildSettings < BuildSettingsVersion.V2) ? Target.bLegacyPublicIncludePaths : false); }
 		}
 		private bool? bLegacyPublicIncludePathsPrivate;
-		
+
+		/// <summary>
+		/// Whether this module qualifies included headers from other modules relative to the parent directory. This reduces the number
+		/// of search paths that have to be passed to the compiler, improving performance and reducing the length of the compiler command line.
+		/// </summary>
+		public bool bLegacyParentIncludePaths
+		{
+			set { bLegacyParentIncludePathsPrivate = value; }
+			get { return bLegacyParentIncludePathsPrivate ?? ((DefaultBuildSettings < BuildSettingsVersion.V3) ? Target.bLegacyParentIncludePaths : false); }
+		}
+		private bool? bLegacyParentIncludePathsPrivate;
+
 		/// <summary>
 		/// Whether circular dependencies will be validated against the allow list
 		/// Circular module dependencies result in slower builds. Disabling this option is strongly discouraged.
-        /// This option is ignored for Engine modules which will always be validated against the allow list.
+		/// This option is ignored for Engine modules which will always be validated against the allow list.
 		/// </summary>
 		public bool bValidateCircularDependencies = true;
 
