@@ -21,7 +21,7 @@
 
 #include "Misc/ConfigCacheIni.h"
 
-static float CookOverrideCachingIntervalCvar = 1.0f;
+static float CookOverrideCachingIntervalCvar = 60.0f;
 FAutoConsoleVariableRef CVarCookOverrideCachingIntervalCVar(
 	TEXT("au.editor.CookOverrideCachingInterval"),
 	CookOverrideCachingIntervalCvar,
