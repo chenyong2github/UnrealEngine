@@ -2718,7 +2718,7 @@ namespace Metasound
 			}
 		}
 
-		void FEditor::RefreshGraphMemberMenu()
+		UMetasoundEditorGraphMember* FEditor::RefreshGraphMemberMenu()
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(Metasound::Editor::FEditor::RefreshGraphMemberMenu);
 
@@ -2738,10 +2738,12 @@ namespace Metasound
 						{
 							const FName ActionName = Member->GetMemberName();
 							GraphMembersMenu->SelectItemByName(ActionName, ESelectInfo::Direct, Action->GetSectionID());
+							return Member;
 						}
 					}
 				}
 			}
+			return nullptr;
 		}
 
 		void FEditor::UpdateSelectedNodeClasses()
@@ -3198,7 +3200,22 @@ namespace Metasound
 
 				if (!MembersModified.IsEmpty() || bForceRefreshViews)
 				{
-					RefreshGraphMemberMenu();
+					UMetasoundEditorGraphMember* SelectedMember = RefreshGraphMemberMenu();
+
+					// If no member was selected by an action (ex. undo/redo), select a modified member 
+					if (!SelectedMember)
+					{
+						UMetasoundEditorGraph& Graph = GetMetaSoundGraphChecked();
+						for (const FGuid& MemberGuid : MembersModified)
+						{
+							if (UObject* Member = Graph.FindMember(MemberGuid))
+							{
+								// Currently only one member can be selected at a time, so only first found is added
+								Selection.Add(Member);
+								break;
+							}
+						}
+					}
 				}
 
 				// Only refresh details panel if

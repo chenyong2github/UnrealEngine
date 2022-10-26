@@ -169,8 +169,8 @@ namespace Metasound
 			FGraphConnectionManager& GetConnectionManager();
 			const FGraphConnectionManager& GetConnectionManager() const;
 
-			/** Forces all UX pertaining to the root graph's interface to be refreshed. */
-			void RefreshGraphMemberMenu();
+			/** Forces all UX pertaining to the root graph's interface to be refreshed, returning the first selected member. */
+			UMetasoundEditorGraphMember* RefreshGraphMemberMenu();
 
 			/** Forces refresh of interfaces list. */
 			void RefreshInterfaces();
