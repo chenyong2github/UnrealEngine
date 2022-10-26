@@ -265,6 +265,9 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	/** Returns true if this component's actor has authority */
 	virtual bool IsOwnerActorAuthoritative() const;
 
+	/** Returns true if this component should record montage replication info. */
+	virtual bool ShouldRecordMontageReplication() const;
+
 	/** Replicate that an ability has ended/canceled, to the client or server as appropriate */
 	virtual void ReplicateEndOrCancelAbility(FGameplayAbilitySpecHandle Handle, FGameplayAbilityActivationInfo ActivationInfo, UGameplayAbility* Ability, bool bWasCanceled);
 

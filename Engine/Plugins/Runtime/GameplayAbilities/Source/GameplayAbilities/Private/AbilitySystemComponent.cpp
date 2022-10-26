@@ -1760,6 +1760,18 @@ bool UAbilitySystemComponent::IsOwnerActorAuthoritative() const
 	return !bCachedIsNetSimulated;
 }
 
+bool UAbilitySystemComponent::ShouldRecordMontageReplication() const
+{
+	// Returns true IF the owner is authoritative OR the world is recording a replay.
+	if (IsOwnerActorAuthoritative())
+	{
+		return true;
+	}
+
+	const UWorld* World = GetWorld();
+	return World && World->IsRecordingReplay();
+}
+
 void UAbilitySystemComponent::OnAttributeAggregatorDirty(FAggregator* Aggregator, FGameplayAttribute Attribute, bool bFromRecursiveCall)
 {
 	ActiveGameplayEffects.OnAttributeAggregatorDirty(Aggregator, Attribute, bFromRecursiveCall);
