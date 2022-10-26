@@ -69,6 +69,28 @@ public:
 	virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const override;
 };
 
+/** This validation rule can ban the use of certain datainterfaces on all or a subset of platforms. */
+UCLASS(Category = "Validation", DisplayName = "Banned DataInterfaces")
+class UNiagaraValidationRule_BannedDataInterfaces : public UNiagaraValidationRule
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, Category = Validation)
+	bool bBanOnGpu = true;
+
+	UPROPERTY(EditAnywhere, Category = Validation)
+	bool bBanOnCpu = true;
+
+	UPROPERTY(EditAnywhere, Category = Validation)
+	FNiagaraPlatformSet Platforms;
+
+	UPROPERTY(EditAnywhere, Category = Validation)
+	TArray<TSubclassOf<UNiagaraDataInterface>> BannedDataInterfaces;
+
+	virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const override;
+};
+
 /** This validation rule can marks this effect type as invalid and so must be changed. Forces a choice of correct Effect Type for an System rather than. Leaving as the default. */
 UCLASS(Category = "Validation", DisplayName = "Invalid Effect Type")
 class UNiagaraValidationRule_InvalidEffectType : public UNiagaraValidationRule

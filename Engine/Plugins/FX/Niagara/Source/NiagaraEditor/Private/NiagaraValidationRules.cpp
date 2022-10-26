@@ -4,6 +4,7 @@
 
 #include "NiagaraClipboard.h"
 #include "NiagaraComponentRendererProperties.h"
+#include "NiagaraDataInterfaceUtilities.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraSettings.h"
@@ -108,6 +109,47 @@ namespace NiagaraValidation
 					}
 				}
 			});
+	}
+
+	FString GetPlatformConflictsString(const FNiagaraPlatformSet& PlatformSetA, const FNiagaraPlatformSet& PlatformSetB, int MaxPlatformsToShow = 4)
+	{
+		TArray<const FNiagaraPlatformSet*> CheckSets;
+		CheckSets.Add(&PlatformSetA);
+		CheckSets.Add(&PlatformSetB);
+
+		TArray<FNiagaraPlatformSetConflictInfo> ConflictInfos;
+		FNiagaraPlatformSet::GatherConflicts(CheckSets, ConflictInfos);
+
+		if (ConflictInfos.Num() > 0)
+		{
+			TSet<FName> BannedPlatformNames;
+			for (const FNiagaraPlatformSetConflictInfo& ConflictInfo : ConflictInfos)
+			{
+				for (const FNiagaraPlatformSetConflictEntry& ConflictEntry : ConflictInfo.Conflicts)
+				{
+					BannedPlatformNames.Add(ConflictEntry.ProfileName);
+				}
+			}
+
+			TStringBuilder<256> BannedPlatformsString;
+			int NumFounds = 0;
+			for (FName PlatformName : BannedPlatformNames)
+			{
+				if (NumFounds >= MaxPlatformsToShow)
+				{
+					BannedPlatformsString.Append(TEXT(", ..."));
+					break;
+				}
+				if (NumFounds != 0)
+				{
+					BannedPlatformsString.Append(TEXT(", "));
+				}
+				++NumFounds;
+				PlatformName.AppendString(BannedPlatformsString);
+			}
+			return BannedPlatformsString.ToString();
+		}
+		return FString();
 	}
 }
 
@@ -326,6 +368,83 @@ void UNiagaraValidationRule_BannedModules::CheckValidity(const FNiagaraValidatio
 			}
 		}
 	}
+}
+
+void UNiagaraValidationRule_BannedDataInterfaces::CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& Results)  const
+{
+	UNiagaraSystem* NiagaraSystem = &Context.ViewModel->GetSystem();
+
+	FNiagaraDataInterfaceUtilities::ForEachDataInterface(
+		NiagaraSystem,
+		[&](const FNiagaraDataInterfaceUtilities::FDataInterfaceUsageContext& UsageContext) -> bool
+		{
+			UClass* DIClass = UsageContext.DataInterface->GetClass();
+			if (BannedDataInterfaces.Contains(DIClass) == false)
+			{
+				return true;
+			}
+
+			static const FText WarningFormat(LOCTEXT("BannedDataInteraceFormatWarn", "DataInterface '{0}' is banned on currently enabled platforms"));
+			static const FText SystemDescFormat(LOCTEXT("BannedDataInteraceFormatDesc", "DataInterface '{0} - {1}' is banned on currently enabled platforms"));
+			static const FText EmitterDescFormat(LOCTEXT("BannedDataInteraceFormatDesc", "DataInterface '{0} - {1}' is banned on currently enabled platforms '{2}'"));
+
+			UObject* WarningObject = nullptr;
+			if (UNiagaraEmitter* NiagaraEmitter = Cast<UNiagaraEmitter>(UsageContext.OwnerObject))
+			{
+				const TSharedRef<FNiagaraEmitterHandleViewModel>* EmitterViewModel =
+					Context.ViewModel->GetEmitterHandleViewModels().FindByPredicate(
+						[NiagaraEmitter](const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterViewModelRef)
+						{
+							FNiagaraEmitterHandle* EmitterHandle = EmitterViewModelRef->GetEmitterHandle();
+							return EmitterHandle && EmitterHandle->GetInstance().Emitter == NiagaraEmitter;
+						}
+					);
+
+				if (EmitterViewModel == nullptr)
+				{
+					return true;
+				}
+
+				const FVersionedNiagaraEmitterData* EmitterData = (*EmitterViewModel)->GetEmitterHandle()->GetEmitterData();
+				if (EmitterData == nullptr)
+				{
+					return true;
+				}
+
+				const bool bIsBanEnabled =
+					((EmitterData->SimTarget == ENiagaraSimTarget::CPUSim) && bBanOnCpu) ||
+					((EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim) && bBanOnGpu);
+
+				if (bIsBanEnabled)
+				{
+					FString PlatformConflictsString = NiagaraValidation::GetPlatformConflictsString(Platforms, EmitterData->Platforms);
+					if (PlatformConflictsString.IsEmpty() == false)
+					{
+						Results.Emplace(
+							ENiagaraValidationSeverity::Warning,
+							FText::Format(WarningFormat, FText::FromName(UsageContext.Variable.GetName())),
+							FText::Format(EmitterDescFormat, FText::FromName(UsageContext.Variable.GetName()), FText::FromName(DIClass->GetFName()), FText::FromString(PlatformConflictsString)),
+							NiagaraValidation::GetStackEntry<UNiagaraStackEmitterPropertiesItem>((*EmitterViewModel)->GetEmitterStackViewModel())
+						);
+					}
+				}
+			}
+			else if (UNiagaraSystem* NiagaraSystem = Cast<UNiagaraSystem>(UsageContext.OwnerObject))
+			{
+				if (bBanOnCpu == true)
+				{
+					Results.Emplace(
+						ENiagaraValidationSeverity::Warning,
+						FText::Format(WarningFormat, FText::FromName(UsageContext.Variable.GetName())),
+						FText::Format(SystemDescFormat, FText::FromName(UsageContext.Variable.GetName()), FText::FromName(DIClass->GetFName())),
+						NiagaraValidation::GetStackEntry<UNiagaraStackSystemPropertiesItem>(Context.ViewModel->GetSystemStackViewModel())
+					);
+				}
+			}
+
+			return true;
+		}
+	);
 }
 
 void UNiagaraValidationRule_InvalidEffectType::CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& Results)  const

@@ -437,3 +437,51 @@ void FNiagaraDataInterfaceUtilities::ForEachDataInterface(FNiagaraSystemInstance
 		}
 	}
 }
+
+void FNiagaraDataInterfaceUtilities::ForEachDataInterface(UNiagaraSystem* NiagaraSystem, TFunction<bool(const FDataInterfaceUsageContext&)> Action)
+{
+	if (NiagaraSystem == nullptr)
+	{
+		return;
+	}
+
+	FDataInterfaceUsageContext UsageContext;
+	UsageContext.OwnerObject = NiagaraSystem;
+
+	for (UNiagaraScript* SystemScript : { NiagaraSystem->GetSystemSpawnScript(), NiagaraSystem->GetSystemUpdateScript() } )
+	{
+		if (SystemScript == nullptr)
+		{
+			continue;
+		}
+
+		if (const FNiagaraScriptExecutionParameterStore* ParameterStore = SystemScript->GetExecutionReadyParameterStore(ENiagaraSimTarget::CPUSim))
+		{
+			ForEachDataInterface(UsageContext, *ParameterStore, Action);
+		}
+	}
+
+	for (const FNiagaraEmitterHandle& EmitterHandle : NiagaraSystem->GetEmitterHandles())
+	{
+		FVersionedNiagaraEmitterData* EmitterData = EmitterHandle.GetEmitterData();
+		if (EmitterHandle.GetIsEnabled() == false || EmitterData == nullptr)
+		{
+			continue;
+		}
+		const ENiagaraSimTarget SimTarget = EmitterData->SimTarget;
+		UsageContext.OwnerObject = EmitterHandle.GetInstance().Emitter;
+
+		EmitterData->ForEachScript(
+			[&](UNiagaraScript* NiagaraScript)
+			{
+				const FNiagaraParameterStore* ParameterStore = NiagaraScript->GetExecutionReadyParameterStore(SimTarget);
+				if (ParameterStore == nullptr)
+				{
+					return;
+				}
+
+				ForEachDataInterface(UsageContext, *ParameterStore, Action);
+			}
+		);
+	}
+}
