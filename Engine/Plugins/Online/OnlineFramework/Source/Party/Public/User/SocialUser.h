@@ -94,8 +94,8 @@ public:
 	bool SetUserLocalAttribute(ESocialSubsystem SubsystemType, const FString& AttrName, const FString& AttrValue);
 	bool GetUserAttribute(ESocialSubsystem SubsystemType, const FString& AttrName, FString& OutAttrValue) const;
 
-	bool HasAnyInteractionsAvailable() const;
-	TArray<FSocialInteractionHandle> GetAllAvailableInteractions() const;
+	virtual bool HasAnyInteractionsAvailable() const;
+	virtual TArray<FSocialInteractionHandle> GetAllAvailableInteractions() const;
 
 	virtual bool CanSendFriendInvite(ESocialSubsystem SubsystemType) const;
 	virtual bool SendFriendInvite(ESocialSubsystem SubsystemType);
