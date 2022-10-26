@@ -15,10 +15,18 @@ public class WinPixEventRuntime : ModuleRules
 
 			PublicSystemIncludePaths.Add(Path.Combine( WinPixDir, "include") );
 
+			string WinPixBaseName = "WinPixEventRuntime";
+			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+            {
+				WinPixBaseName += "_UAP";
+			}
+			string WinPixDll = WinPixBaseName + ".dll";
+			string WinPixLib = WinPixBaseName + ".lib";
+
 			PublicDefinitions.Add("WITH_PIX_EVENT_RUNTIME=1");
-            PublicDelayLoadDLLs.Add("WinPixEventRuntime.dll");
-            PublicAdditionalLibraries.Add( Path.Combine( WinPixDir, "Lib/" + Target.WindowsPlatform.Architecture.ToString() + "/WinPixEventRuntime.lib") );
-            RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Windows/WinPixEventRuntime/" + Target.WindowsPlatform.Architecture.ToString() + "/WinPixEventRuntime.dll");
+            PublicDelayLoadDLLs.Add(WinPixDll);
+            PublicAdditionalLibraries.Add( Path.Combine( WinPixDir, "Lib/" + Target.WindowsPlatform.Architecture.ToString() + "/" + WinPixLib) );
+            RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Windows/WinPixEventRuntime/" + Target.WindowsPlatform.Architecture.ToString() + "/" + WinPixDll);
 
 			// see pixeventscommon.h - MSVC has no support for __has_feature(address_sanitizer) so need to define this manually
 			if (Target.WindowsPlatform.Compiler != WindowsCompiler.Clang && Target.WindowsPlatform.bEnableAddressSanitizer)

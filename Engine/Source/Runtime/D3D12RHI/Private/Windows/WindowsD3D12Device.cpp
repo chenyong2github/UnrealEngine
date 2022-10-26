@@ -1017,10 +1017,11 @@ void FD3D12DynamicRHIModule::StartupModule()
 #if D3D12RHI_SUPPORTS_WIN_PIX
 #if PLATFORM_CPU_ARM_FAMILY
 	static FString WindowsPixDllRelativePath = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/ThirdParty/Windows/WinPixEventRuntime/arm64"));
+	static const TCHAR* WindowsPixDll = TEXT("WinPixEventRuntime_UAP.dll");
 #else
 	static FString WindowsPixDllRelativePath = FPaths::Combine(FPaths::EngineDir(), TEXT("Binaries/ThirdParty/Windows/WinPixEventRuntime/x64"));
-#endif
 	static const TCHAR* WindowsPixDll = TEXT("WinPixEventRuntime.dll");
+#endif
 
 	UE_LOG(LogD3D12RHI, Log, TEXT("Loading %s for PIX profiling (from %s)."), WindowsPixDll, *WindowsPixDllRelativePath);
 	WindowsPixDllHandle = FPlatformProcess::GetDllHandle(*FPaths::Combine(WindowsPixDllRelativePath, WindowsPixDll));

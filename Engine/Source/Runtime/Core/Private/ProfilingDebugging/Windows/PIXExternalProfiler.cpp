@@ -112,10 +112,11 @@ public:
 #if USE_PIX
 #if PLATFORM_CPU_ARM_FAMILY
 		FString WindowsPixDllRelativePath = FPaths::Combine(*FPaths::EngineDir(), TEXT("Binaries/ThirdParty/Windows/WinPixEventRuntime/arm64"));
+		FString WindowsPixDll("WinPixEventRuntime_UAP.dll");
 #else
 		FString WindowsPixDllRelativePath = FPaths::Combine(*FPaths::EngineDir(), TEXT("Binaries/ThirdParty/Windows/WinPixEventRuntime/x64"));
-#endif
 		FString WindowsPixDll("WinPixEventRuntime.dll");
+#endif
 		UE_LOG(LogProfilingDebugging, Log, TEXT("Loading %s for PIX profiling (from %s)."), *WindowsPixDll, *WindowsPixDllRelativePath);
 
 		WinPixEventRuntimeHandle = FPlatformProcess::GetDllHandle(*FPaths::Combine(*WindowsPixDllRelativePath, *WindowsPixDll));
