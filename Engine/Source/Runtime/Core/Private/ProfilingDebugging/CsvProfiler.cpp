@@ -3449,6 +3449,13 @@ void FCsvProfiler::SetMetadata(const TCHAR* Key, const TCHAR* Value)
 	FCsvProfiler::Get()->SetMetadataInternal(Key, Value, true);
 }
 
+TMap<FString, FString> FCsvProfiler::GetMetadataMapCopy()
+{
+	LLM_SCOPE(ELLMTag::CsvProfiler);
+	FScopeLock Lock(&MetadataCS);
+	return MetadataMap;
+}
+
 void FCsvProfiler::SetMetadataInternal(const TCHAR* Key, const TCHAR* Value, bool bSanitize)
 {
 	// Always gather CSV metadata, even if we're not currently capturing.

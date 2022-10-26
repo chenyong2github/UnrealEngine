@@ -413,6 +413,7 @@ public:
 	CORE_API void SetDeviceProfileName(FString InDeviceProfileName);
 
 	CORE_API FString GetOutputFilename() const { return OutputFilename; }
+	CORE_API TMap<FString, FString> GetMetadataMapCopy();
 
 	CORE_API static bool IsWaitTrackingEnabledOnCurrentThread();
 
