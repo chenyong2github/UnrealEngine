@@ -22,9 +22,50 @@ namespace UnrealBuildTool
 		{
 		}
 
-		protected override string? GetInstalledSDKVersion()
+		private string? GetNDKRoot()
 		{
 			string? NDKPath = Environment.GetEnvironmentVariable("NDKROOT");
+
+			// don't register if we don't have an NDKROOT specified
+			if (!String.IsNullOrEmpty(NDKPath))
+			{
+				return NDKPath.Replace("\"", "");
+			}
+
+			if (OperatingSystem.IsMacOS())
+			{
+				string BashProfilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), ".bash_profile");
+				if (!File.Exists(BashProfilePath))
+				{
+					// Try .bashrc if didn't fine .bash_profile
+					BashProfilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), ".bashrc");
+				}
+				if (File.Exists(BashProfilePath))
+				{
+					string[] BashProfileContents = File.ReadAllLines(BashProfilePath);
+
+					// Walk backwards so we keep the last export setting instead of the first
+					string SdkKey = "NDKROOT";
+					for (int LineIndex = BashProfileContents.Length - 1; LineIndex >= 0; --LineIndex)
+					{
+						if (BashProfileContents[LineIndex].StartsWith("export " + SdkKey + "="))
+						{
+							string PathVar = BashProfileContents[LineIndex].Split
+('=')[1].Replace("\"", "");
+Log.TraceInformation("ANDROID_HOME = {0}", PathVar);
+							return PathVar;
+						}
+
+					}
+				}
+			}
+	
+			return null;
+		}
+
+		protected override string? GetInstalledSDKVersion()
+		{
+			string? NDKPath = GetNDKRoot();
 
 			// don't register if we don't have an NDKROOT specified
 			if (String.IsNullOrEmpty(NDKPath))

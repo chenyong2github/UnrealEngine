@@ -70,11 +70,11 @@ if [[ -z "${NDK_VERSION}" ]]; then
 fi
 
 
-STUDIO_PATH="~/Applications/Android Studio.app"
+STUDIO_PATH="$HOME/Applications/Android Studio.app"
 if [ ! -x "$STUDIO_PATH" ]; then
 	STUDIO_PATH="/Applications/Android Studio.app"
 	if [ ! -x "$STUDIO_PATH" ]; then
-		echo Android Studio not installed, please download Android Studio 3.5.3 from https://developer.android.com/studio
+		echo Android Studio not installed, please download Android Studio 4.0.2 from https://developer.android.com/studio
 		${PAUSE}
 		exit 1
 	fi
@@ -90,7 +90,7 @@ fi
 if [ ! -d "$STUDIO_SDK_PATH" ]; then
 	echo Android SDK not found at: $STUDIO_SDK_PATH
 	echo Unable to locate local Android SDK location. Did you run Android Studio after installing?
-	echo If Android Studio is installed, please run again with SDK path as parameter, otherwise download Android Studio 3.5.3 from https://developer.android.com/studio
+	echo If Android Studio is installed, please run again with SDK path as parameter, otherwise download Android Studio 4.0.2 from https://developer.android.com/studio
 	${PAUSE}
 	exit 1
 fi

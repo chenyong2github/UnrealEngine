@@ -20,7 +20,7 @@
 		<Name>AndroidStudio</Name>
 		<Source HostPlatform="Win64">googledrive:/SdkInstallers/Android/android-studio-ide-193.6821437-windows.exe</Source>
 		<Source HostPlatform="Linux">googledrive:/SdkInstallers/Android/android-studio-ide-193.6821437-linux.tar.gz</Source>
-		<Source HostPlatform="Mac">googledrive:/SdkInstallers/Android/android-studio-ide-193.6821437-mac.zip</Source>
+		<Source HostPlatform="Mac">googledrive:/SdkInstallers/Android/android-studio-ide-193.6821437-mac.dmg</Source>
 	</FileSource>
 
 	
