@@ -917,6 +917,18 @@ struct CORE_API IConsoleManager
 	 * @param Name must not be 0
 	 * @return 0 if the object wasn't found
 	 */
+	TConsoleVariableData<bool>* FindTConsoleVariableDataBool(const TCHAR* Name) const
+	{
+		IConsoleVariable* P = FindConsoleVariable(Name);
+
+		return P ? P->AsVariableBool() : 0;
+	}
+
+	/**
+	 * Find a typed console variable (faster access to the value, no virtual function call)
+	 * @param Name must not be 0
+	 * @return 0 if the object wasn't found
+	 */
 	TConsoleVariableData<int32>* FindTConsoleVariableDataInt(const TCHAR* Name) const 
 	{ 
 		IConsoleVariable* P = FindConsoleVariable(Name); 
