@@ -58,9 +58,9 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	FMeshNaniteSettings NaniteSettings;
 
-	/** NaniteProxyTrianglePercent property has been replaced by the more general NaniteSettings property */
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Replaced NaniteProxyTrianglePercent with usage of Engine FMeshNaniteSettings, use NaniteSettings property instead"))
-	float NaniteProxyTrianglePercent_DEPRECATED = 0.0f;
+	/** Replaced NaniteProxyTrianglePercent with usage of Engine FMeshNaniteSettings, use NaniteSettings property instead */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Deprecated, AdvancedDisplay, meta = (DisplayName = "DEPRECATED NANITE SETTING"))
+	float NaniteProxyTrianglePercent = 0.0f;
 
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bEnableCollision = true;

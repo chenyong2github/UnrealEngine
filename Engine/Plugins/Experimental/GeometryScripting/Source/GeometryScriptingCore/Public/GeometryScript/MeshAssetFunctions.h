@@ -79,9 +79,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options)
 	bool bApplyNaniteSettings = false;
 
-	/** FGeometryScriptNaniteOptions is no longer in use */
-	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Replaced FGeometryScriptNaniteOptions with usage of Engine FMeshNaniteSettings"))
-	FGeometryScriptNaniteOptions NaniteSettings_DEPRECATED = FGeometryScriptNaniteOptions();
+	/** Replaced FGeometryScriptNaniteOptions with usage of Engine FMeshNaniteSettings */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Deprecated, AdvancedDisplay, meta=(DisplayName = "DEPRECATED NANITE SETTING") )
+	FGeometryScriptNaniteOptions NaniteSettings = FGeometryScriptNaniteOptions();
 
 	/** Nanite Settings applied to the target Asset, if bApplyNaniteSettings = true */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Options, meta = (DisplayName = "Nanite Settings"))
