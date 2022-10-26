@@ -2779,11 +2779,16 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 					}
 					else
 					{
-						const TArray<FTypedElementHandle> DuplicatedElements = CommonActions->DuplicateSelectedElements(SelectionSet, InWorld, GEditor->GetGridLocationOffset(/*bUniformOffset*/false));
+						const FVector DuplicateOffset = GEditor->GetGridLocationOffset(/*bUniformOffset*/false);
+						const TArray<FTypedElementHandle> DuplicatedElements = CommonActions->DuplicateSelectedElements(SelectionSet, InWorld, DuplicateOffset);
 						if (DuplicatedElements.Num() > 0)
 						{
 							SelectionSet->SetSelection(DuplicatedElements, FTypedElementSelectionOptions());
 							SelectionSet->NotifyPendingChanges();
+
+							// notify the global mode tools, the selection set should be identical to the new actors at this point
+							TArray<AActor*> SelectedActors = SelectionSet->GetSelectedObjects<AActor>();
+							GLevelEditorModeTools().ActorsDuplicatedNotify(SelectedActors, SelectedActors, DuplicateOffset != FVector::ZeroVector);
 						}
 					}
 				}

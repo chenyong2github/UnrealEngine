@@ -2797,6 +2797,13 @@ bool FLevelEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisLi
 
 									SelectionSet->SetSelection(DuplicatedElements, SelectionOptions);
 
+									// Selected actors are the same as the selection set at this point, send the legacy mode tools update
+									{
+										TArray<AActor*> SelectedActors = SelectionSet->GetSelectedObjects<AActor>();
+										constexpr bool bDidOffsetDuplicate = false;
+										ModeTools->ActorsDuplicatedNotify(SelectedActors, SelectedActors, bDidOffsetDuplicate);
+									}
+
 									// Force the cached manipulation list to update, as we don't notify about the change above
 									ResetElementsToManipulate();
 
