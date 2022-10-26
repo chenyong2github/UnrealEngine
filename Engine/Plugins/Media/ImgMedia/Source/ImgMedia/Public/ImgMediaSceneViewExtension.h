@@ -14,6 +14,8 @@ struct IMGMEDIA_API FImgMediaViewInfo
 {
 	/** Position of camera. */
 	FVector Location;
+	/** View direction of the camera. */
+	FVector ViewDirection;
 	/** View-projection matrix of the camera. */
 	FMatrix ViewProjectionMatrix;
 	/** View-projection matrix of the camera, optionally scaled for overscan frustum calculations. */

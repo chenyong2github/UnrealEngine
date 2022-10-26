@@ -52,6 +52,7 @@ void FImgMediaSceneViewExtension::BeginRenderViewFamily(FSceneViewFamily& InView
 	{
 		FImgMediaViewInfo Info;
 		Info.Location = View->ViewMatrices.GetViewOrigin();
+		Info.ViewDirection = View->GetViewDirection();
 		Info.ViewProjectionMatrix = View->ViewMatrices.GetViewProjectionMatrix();
 
 		if (FMath::IsNearlyEqual(FieldOfViewMultiplier, 1.0f))
