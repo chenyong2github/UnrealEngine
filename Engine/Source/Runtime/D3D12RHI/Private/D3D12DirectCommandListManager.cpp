@@ -28,7 +28,7 @@ bool FD3D12GPUFence::Poll(FRHIGPUMask GPUMask) const
 {
 	for (uint32 Index : GPUMask)
 	{
-		if (ensureMsgf(SyncPoints[Index], TEXT("Attempt to poll an FRHIGPUFence that was never issued.")) && !SyncPoints[Index]->IsComplete())
+		if (SyncPoints[Index] == nullptr || !SyncPoints[Index]->IsComplete())
 			return false;
 	}
 
