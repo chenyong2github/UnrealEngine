@@ -2,6 +2,7 @@
 
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "LevelInstance/LevelInstanceLevelStreaming.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
@@ -71,6 +72,11 @@ ULevelStreamingLevelInstance* ILevelInstanceInterface::GetLevelStreaming() const
 	}
 
 	return nullptr;
+}
+
+TSubclassOf<ULevelStreamingLevelInstance> ILevelInstanceInterface::GetLevelStreamingClass() const
+{
+	return ULevelStreamingLevelInstance::StaticClass();
 }
 
 #if WITH_EDITOR

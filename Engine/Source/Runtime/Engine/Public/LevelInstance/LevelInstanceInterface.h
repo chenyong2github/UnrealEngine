@@ -70,6 +70,8 @@ class ENGINE_API ILevelInstanceInterface
 
 	virtual ULevelStreamingLevelInstance* GetLevelStreaming() const;
 
+	virtual TSubclassOf<ULevelStreamingLevelInstance> GetLevelStreamingClass() const;
+
 #if WITH_EDITOR
 	virtual ULevel* GetLoadedLevel() const;
 

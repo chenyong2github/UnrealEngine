@@ -205,7 +205,7 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ILevelI
 
 	FLoadLevelInstanceParams Params(World, LevelInstance->GetWorldAssetPackage(), LevelInstanceActor->GetActorTransform());
 	Params.OptionalLevelNameOverride = &Suffix;
-	Params.OptionalLevelStreamingClass = ULevelStreamingLevelInstance::StaticClass();
+	Params.OptionalLevelStreamingClass = LevelInstance->GetLevelStreamingClass();
 	Params.bLoadAsTempPackage = true;
 	
 	if (World->IsGameWorld())
