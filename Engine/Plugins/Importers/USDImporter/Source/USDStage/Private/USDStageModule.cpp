@@ -2,7 +2,6 @@
 
 #include "USDStageModule.h"
 
-#include "PropertyEditorModule.h"
 #include "USDMemory.h"
 #include "USDStageActor.h"
 #include "USDStageActorCustomization.h"
@@ -13,6 +12,7 @@
 #include "Interfaces/IPluginManager.h"
 
 #if WITH_EDITOR
+#include "PropertyEditorModule.h"
 #include "Settings/ProjectPackagingSettings.h"
 #endif // WITH_EDITOR
 
