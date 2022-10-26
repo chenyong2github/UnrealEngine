@@ -106,6 +106,10 @@ private:
 	UPROPERTY(Transient, NonPIEDuplicateTransient, TextExportTransient)
 	TSet<TObjectPtr<UMaterialInterface>> UsedMaterials;
 
+	/** Forces the water mesh to always render the far mesh, regardless if there is an ocean or not.*/
+	UPROPERTY(Category = "Rendering|FarDistance", EditAnywhere)
+	bool bUseFarMeshWithoutOcean = false;
+
 	/** Dirty flag which will make sure the water mesh is updated properly */
 	bool bNeedsRebuild = true;
 
