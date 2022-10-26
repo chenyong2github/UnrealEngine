@@ -271,6 +271,18 @@ void FActorFolderSet::Add(UActorFolder* InActorFolder)
 }
 
 /*-----------------------------------------------------------------------------
+FPendingAutoReceiveInputActor implementation.
+-----------------------------------------------------------------------------*/
+
+FPendingAutoReceiveInputActor::FPendingAutoReceiveInputActor(AActor* InActor, const int32 InPlayerIndex)
+	: Actor(InActor)
+	, PlayerIndex(InPlayerIndex)
+{
+}
+
+FPendingAutoReceiveInputActor::~FPendingAutoReceiveInputActor() = default;
+
+/*-----------------------------------------------------------------------------
 ULevel implementation.
 -----------------------------------------------------------------------------*/
 
