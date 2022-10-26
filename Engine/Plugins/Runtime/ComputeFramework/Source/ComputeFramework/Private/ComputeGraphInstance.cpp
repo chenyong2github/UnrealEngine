@@ -4,6 +4,7 @@
 
 #include "ComputeFramework/ComputeDataInterface.h"
 #include "ComputeFramework/ComputeDataProvider.h"
+#include "ComputeFramework/ComputeFramework.h"
 #include "ComputeFramework/ComputeFrameworkModule.h"
 #include "ComputeFramework/ComputeGraph.h"
 #include "ComputeFramework/ComputeGraphRenderProxy.h"
@@ -36,7 +37,7 @@ bool FComputeGraphInstance::EnqueueWork(UComputeGraph* InComputeGraph, FSceneInt
 		return false;
 	}
 
-	if (FComputeFrameworkModule::GetComputeSystem() == nullptr)
+	if (!ComputeFramework::IsEnabled() || FComputeFrameworkModule::GetComputeSystem() == nullptr)
 	{
 		return false;
 	}

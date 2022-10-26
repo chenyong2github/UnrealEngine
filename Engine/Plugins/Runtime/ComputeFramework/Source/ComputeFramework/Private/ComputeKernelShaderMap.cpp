@@ -10,6 +10,7 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "ProfilingDebugging/DiagnosticTable.h"
+#include "RHIShaderFormatDefinitions.inl"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "ShaderCompiler.h"
@@ -347,12 +348,6 @@ void FComputeKernelShaderMap::Compile(
 			check(NextCompilingId < UINT_MAX);
 			NextCompilingId++;
   
-			TArray<FComputeKernelResource*> NewCorrespondingKernels;
-			NewCorrespondingKernels.Add(InKernel);
-			ComputeKernelShaderMapsBeingCompiled.Add(this, NewCorrespondingKernels);
-#if DEBUG_INFINITESHADERCOMPILE
-			UE_LOG(LogTemp, Display, TEXT("Added ComputeKernel ShaderMap 0x%08X%08X with kernel 0x%08X%08X to ComputeKernelShaderMapsBeingCompiled"), (int)((int64)(this) >> 32), (int)((int64)(this)), (int)((int64)(InKernel) >> 32), (int)((int64)(InKernel)));
-#endif  
 			// Setup the compilation environment.
 			InKernel->SetupShaderCompilationEnvironment(InPlatform, *InCompilationEnvironment);
   
@@ -400,7 +395,9 @@ void FComputeKernelShaderMap::Compile(
 				{
 					InKernel->RemoveOutstandingCompileId(CompilingId);
 
-					FString Message = FString::Printf(TEXT("%s: Skipping compilation because it isn't supported on this target type."), *InKernel->GetFriendlyName());
+					FString Message = FString::Printf(TEXT("%s: Compilation not supported on %s."), 
+						*InKernel->GetFriendlyName(), 
+						*ShaderPlatformToShaderFormatName(InPlatform).ToString());
 					InKernel->NotifyCompilationFinished(Message);
 				}
 			}
@@ -419,7 +416,17 @@ void FComputeKernelShaderMap::Compile(
 			// Mark as not having been compiled
 			bCompiledSuccessfully = false;
   
-			GComputeKernelShaderCompilationManager.AddJobs(NewJobs);
+			if (NumShaders > 0)
+			{
+				GComputeKernelShaderCompilationManager.AddJobs(NewJobs);
+
+				TArray<FComputeKernelResource*> NewCorrespondingKernels;
+				NewCorrespondingKernels.Add(InKernel);
+				ComputeKernelShaderMapsBeingCompiled.Add(this, NewCorrespondingKernels);
+#if DEBUG_INFINITESHADERCOMPILE
+				UE_LOG(LogTemp, Display, TEXT("Added ComputeKernel ShaderMap 0x%08X%08X with kernel 0x%08X%08X to ComputeKernelShaderMapsBeingCompiled"), (int)((int64)(this) >> 32), (int)((int64)(this)), (int)((int64)(InKernel) >> 32), (int)((int64)(InKernel)));
+#endif  
+			}
   
 			// Compile the shaders for this shader map now if not deferring and deferred compiles are not enabled globally
 			if (bSynchronousCompile)

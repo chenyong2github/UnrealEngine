@@ -26,9 +26,14 @@ FAutoConsoleCommand CmdRebuildComputeGraphs(
 
 namespace ComputeFramework
 {
-	bool IsEnabled(EShaderPlatform ShaderPlatform)
+	bool IsSupported(EShaderPlatform ShaderPlatform)
 	{
-		return (GComputeFrameworkEnable > 0)	&& FDataDrivenShaderPlatformInfo::GetSupportsComputeFramework(ShaderPlatform);
+		return FDataDrivenShaderPlatformInfo::GetSupportsComputeFramework(ShaderPlatform);
+	}
+
+	bool IsEnabled()
+	{
+		return GComputeFrameworkEnable > 0;
 	}
 
 	void RebuildComputeGraphs()
