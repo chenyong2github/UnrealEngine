@@ -115,7 +115,6 @@ namespace Chaos
 
 			const FReal Radius = Thickness + UE_SMALL_NUMBER;
 			const FReal Radius2 = Radius * Radius;
-			bool bIntersection = false;
 
 			// return if the triangle was hit or not 
 			auto TestTriangle = [&](int32 FaceIndex, const FVec3& A, const FVec3& B, const FVec3& C) -> bool
@@ -134,6 +133,7 @@ namespace Chaos
 
 				const TPlane<FReal, 3> TrianglePlane(A, Normal);
 
+				bool bIntersection = false;
 				FVec3 ResultPosition(0);
 				FVec3 ResultNormal(0);
 				FReal Time = TNumericLimits<FReal>::Max();
