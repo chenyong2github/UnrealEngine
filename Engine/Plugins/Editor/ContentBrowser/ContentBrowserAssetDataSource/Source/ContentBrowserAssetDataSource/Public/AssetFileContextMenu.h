@@ -319,6 +319,7 @@ private:
 	bool bCanExecuteSCCHistory = false;
 	bool bCanExecuteSCCRevert = false;
 	bool bCanExecuteSCCSync = false;
+	bool bUsesFileRevisions = false;
 	/** */
 	int32 ChunkIDSelected = 0;
 };

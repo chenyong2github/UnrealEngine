@@ -450,14 +450,6 @@ bool FAssetFolderContextMenu::CanExecuteSCCOpenForAdd() const
 
 bool FAssetFolderContextMenu::CanExecuteSCCCheckIn() const
 {
-	bool bUsesFileRevisions = true;
-
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	if (ISourceControlModule::Get().IsEnabled())
-	{
-		bUsesFileRevisions = SourceControlProvider.UsesFileRevisions();
-	}
-
 	return bCanExecuteSCCCheckIn && (!SelectedPaths.IsEmpty() || !SelectedPackages.IsEmpty()) && bUsesFileRevisions;
 }
 
@@ -503,6 +495,7 @@ void FAssetFolderContextMenu::StartProcessCanExecuteVars()
 	bCanExecuteSCCCheckOut = false;
 	bCanExecuteSCCOpenForAdd = false;
 	bCanExecuteSCCCheckIn = false;
+	bUsesFileRevisions = false;
 
 	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
 	if ( SourceControlProvider.IsEnabled() && SourceControlProvider.IsAvailable() )
@@ -602,6 +595,8 @@ void FAssetFolderContextMenu::ProcessCanExecuteVars()
 		// Everything was processed stop ticking
 		StopProcessCanExecuteVars();
 	}
+
+	bUsesFileRevisions = SourceControlProvider.UsesFileRevisions();
 }
 
 void FAssetFolderContextMenu::StopProcessCanExecuteVars()

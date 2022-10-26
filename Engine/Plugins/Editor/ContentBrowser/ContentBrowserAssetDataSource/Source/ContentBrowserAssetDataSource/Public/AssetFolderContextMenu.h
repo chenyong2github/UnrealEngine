@@ -113,6 +113,8 @@ private:
 	bool bCanExecuteSCCCheckOut = false;
 	bool bCanExecuteSCCOpenForAdd = false;
 	bool bCanExecuteSCCCheckIn = false;
+	bool bUsesFileRevisions = false;
+
 
 	TArray<FString> PackageNamesToProcess;
 	int32 CurrentPackageIndex = 0;

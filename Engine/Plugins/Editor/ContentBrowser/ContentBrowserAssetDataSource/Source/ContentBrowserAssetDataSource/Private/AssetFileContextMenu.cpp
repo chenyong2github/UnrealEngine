@@ -2344,15 +2344,7 @@ bool FAssetFileContextMenu::CanExecuteSCCOpenForAdd() const
 }
 
 bool FAssetFileContextMenu::CanExecuteSCCCheckIn() const
-{
-	bool bUsesFileRevisions = true;
-
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	if (ISourceControlModule::Get().IsEnabled())
-	{
-		bUsesFileRevisions = SourceControlProvider.UsesFileRevisions();
-	}
-	
+{	
 	return bCanExecuteSCCCheckIn && bUsesFileRevisions;
 }
 
@@ -2418,6 +2410,7 @@ void FAssetFileContextMenu::CacheCanExecuteVars()
 	bCanExecuteSCCHistory = false;
 	bCanExecuteSCCRevert = false;
 	bCanExecuteSCCSync = false;
+	bUsesFileRevisions = false;
 
 	for (auto AssetIt = SelectedAssets.CreateConstIterator(); AssetIt; ++AssetIt)
 	{
@@ -2488,6 +2481,11 @@ void FAssetFileContextMenu::CacheCanExecuteVars()
 			// All options are available, no need to keep iterating
 			break;
 		}
+	}
+
+	if (ISourceControlModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().IsAvailable())
+	{
+		bUsesFileRevisions = ISourceControlModule::Get().GetProvider().UsesChangelists();
 	}
 }
 
