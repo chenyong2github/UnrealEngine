@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LightmapEncoding.h"
+#include "Async/ParallelFor.h"
 #include "GPULightmassCommon.h"
 #include "GPULightmassModule.h"
 

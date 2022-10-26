@@ -6,6 +6,8 @@
 #include "Object/TextureShareObject.h"
 #include "Object/TextureShareObjectProxy.h"
 
+class SWindow;
+
 /**
  * TextureShare API impl
  */

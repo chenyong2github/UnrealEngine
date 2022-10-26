@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Scene.h"
+#include "Async/ParallelFor.h"
 #include "GPULightmass.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Async/Async.h"
@@ -9,6 +10,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/WorldSettings.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Misc/ScopedSlowTask.h"
 #include "LightmapPreviewVirtualTexture.h"

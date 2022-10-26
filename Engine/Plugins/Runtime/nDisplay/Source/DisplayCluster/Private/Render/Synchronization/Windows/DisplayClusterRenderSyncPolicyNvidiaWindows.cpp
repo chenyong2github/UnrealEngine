@@ -12,6 +12,7 @@
 
 #include "ID3D11DynamicRHI.h"
 
+#include "UnrealClient.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 THIRD_PARTY_INCLUDES_START
 	#include <nvapi.h>
