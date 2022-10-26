@@ -125,8 +125,9 @@ namespace EpicGames.SmartlingLocalization
 				string SmartlingFileUri = GetSmartlingFileUri(SmartlingFilename);
 				var DownloadUriBuilder = new UriBuilder(DownloadEndpoint);
 				// Changing the retrieval type to pseudo is a good way to test downloads
-				// @TODOLocalization: Not sure if the retrieval type should be pending or published to get all of the relevant strings 
-				string DownloadQueryString = $"fileUri={SmartlingFileUri}&retrievalType=published&includeOriginalStrings=false";
+				// We use pending as the retrieval type to also download files that are in progress. We need both published and in progress files on Smartling.
+				string DownloadRetrievalType = "pending";
+				string DownloadQueryString = $"fileUri={SmartlingFileUri}&retrievalType={DownloadRetrievalType}&includeOriginalStrings=false";
 				DownloadUriBuilder.Query = DownloadQueryString;
 				var DownloadResponse = await Client.GetAsync(DownloadUriBuilder.Uri);
 				if (DownloadResponse.IsSuccessStatusCode)
