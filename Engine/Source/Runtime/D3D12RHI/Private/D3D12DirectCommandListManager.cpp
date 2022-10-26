@@ -26,13 +26,21 @@ bool FD3D12GPUFence::Poll() const
 
 bool FD3D12GPUFence::Poll(FRHIGPUMask GPUMask) const
 {
+	bool bHasAnySyncPoint = false;
 	for (uint32 Index : GPUMask)
 	{
-		if (SyncPoints[Index] == nullptr || !SyncPoints[Index]->IsComplete())
-			return false;
+		if (SyncPoints[Index])
+		{
+			if (!SyncPoints[Index]->IsComplete())
+			{
+				return false;
+			}
+			bHasAnySyncPoint = true;
+		}
 	}
 
-	return true;
+	// Return "true" if we had sync points that all successfully completed, or "false" if we have no sync points (fence was never signaled)
+	return bHasAnySyncPoint;
 }
 
 void FD3D12GPUFence::WaitCPU()
