@@ -861,7 +861,7 @@ namespace Horde.Agent.Execution
 				}
 
 				// Write the final node
-				await treeWriter.WriteRefAsync(refName, outputNode, cancellationToken);
+				await treeWriter.WriteRefAsync(refName, outputNode, new RefOptions { Lifetime = TimeSpan.FromDays(3.0) }, cancellationToken);
 			}
 
 			return true;

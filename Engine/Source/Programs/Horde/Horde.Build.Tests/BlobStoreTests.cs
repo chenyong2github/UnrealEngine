@@ -9,33 +9,27 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Driver;
 using EpicGames.Horde.Storage;
 using System.Buffers;
-using EpicGames.Horde.Storage.Backends;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging.Abstractions;
+using System.Threading;
+using Horde.Build.Server;
+using Horde.Build.Storage;
+using Horde.Build.Utilities;
 
 namespace Horde.Build.Tests
 {
+	using BackendId = StringId<IStorageBackend>;
+
 	[TestClass]
 	public class BlobStoreTests : TestSetup
 	{
-		IMemoryCache? _cache;
-		MemoryStorageClient? _store;
-
-		IStorageClient CreateBlobStore()
+		async Task<IStorageClient> CreateStorageClientAsync()
 		{
-			_cache ??= new MemoryCache(new MemoryCacheOptions());
-			_store ??= new MemoryStorageClient(_cache, NullLogger.Instance);
-			return _store;
-		}
+			GlobalConfig globalConfig = new GlobalConfig();
+			globalConfig.Storage.Backends.Add(new BackendConfig { Id = new BackendId("default-backend"), Type = StorageBackendType.Memory });
+			globalConfig.Storage.Namespaces.Add(new NamespaceConfig { Id = new NamespaceId("default"), Backend = new BackendId("default-backend"), GcDelayHrs = 0.0 });
+			await ConfigCollection.AddConfigAsync("globals", globalConfig);
+			Assert.IsNotNull(await GlobalsService.TryUpdateAsync(await GlobalsService.GetAsync(), "globals"));
 
-		protected override void Dispose(bool disposing)
-		{
-			base.Dispose(disposing);
-
-			if (disposing)
-			{
-				_cache?.Dispose();
-			}
+			return await StorageService.GetClientAsync(new NamespaceId("default"), CancellationToken.None);
 		}
 
 		static byte[] CreateTestData(int length, int seed)
@@ -94,7 +88,7 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task LeafTest()
 		{
-			IStorageClient store = CreateBlobStore();
+			IStorageClient store = await CreateStorageClientAsync();
 
 			byte[] input = CreateTestData(256, 0);
 			BlobLocator locator = await store.WriteBundleAsync(CreateTestBundle(input, Array.Empty<BlobLocator>()));
@@ -106,7 +100,7 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task ReferenceTest()
 		{
-			IStorageClient store = CreateBlobStore();
+			IStorageClient store = await CreateStorageClientAsync();
 
 			byte[] input1 = CreateTestData(256, 1);
 			BlobLocator locator1 = await store.WriteBundleAsync(CreateTestBundle(input1, Array.Empty<BlobLocator>()));
@@ -140,6 +134,39 @@ namespace Horde.Build.Tests
 			Blob refTarget2 = await ReadBlobAsync(store, refTargetId2.Blob);
 			Assert.IsTrue(refTarget2.Data.Span.SequenceEqual(input3));
 			Assert.IsTrue(refTarget2.References.SequenceEqual(new BlobLocator[] { locator1, locator2 }));
+		}
+
+		[TestMethod]
+		public async Task RefExpiryTest()
+		{
+			IStorageClient store = await CreateStorageClientAsync();
+			NodeLocator target = new NodeLocator(new BlobLocator(HostId.Empty, new BlobId("test")), 123);
+
+			await store.WriteRefTargetAsync("test-ref-1", target);
+			await store.WriteRefTargetAsync("test-ref-2", target, new RefOptions { Lifetime = TimeSpan.FromMinutes(30.0), Extend = true });
+			await store.WriteRefTargetAsync("test-ref-3", target, new RefOptions { Lifetime = TimeSpan.FromMinutes(30.0), Extend = false });
+
+			Assert.AreEqual(target, await store.TryReadRefTargetAsync("test-ref-1"));
+			Assert.AreEqual(target, await store.TryReadRefTargetAsync("test-ref-2"));
+			Assert.AreEqual(target, await store.TryReadRefTargetAsync("test-ref-3"));
+
+			await Clock.AdvanceAsync(TimeSpan.FromMinutes(25.0));
+
+			Assert.AreEqual(target, await store.TryReadRefTargetAsync("test-ref-1"));
+			Assert.AreEqual(target, await store.TryReadRefTargetAsync("test-ref-2"));
+			Assert.AreEqual(target, await store.TryReadRefTargetAsync("test-ref-3"));
+
+			await Clock.AdvanceAsync(TimeSpan.FromMinutes(25.0));
+
+			Assert.AreEqual(target, await store.TryReadRefTargetAsync("test-ref-1"));
+			Assert.AreEqual(target, await store.TryReadRefTargetAsync("test-ref-2"));
+			Assert.AreEqual(default, await store.TryReadRefTargetAsync("test-ref-3"));
+
+			await Clock.AdvanceAsync(TimeSpan.FromMinutes(35.0));
+
+			Assert.AreEqual(target, await store.TryReadRefTargetAsync("test-ref-1"));
+			Assert.AreEqual(default, await store.TryReadRefTargetAsync("test-ref-2"));
+			Assert.AreEqual(default, await store.TryReadRefTargetAsync("test-ref-3"));
 		}
 	}
 }

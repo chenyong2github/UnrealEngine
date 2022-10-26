@@ -60,6 +60,22 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
+	/// Options for a new ref
+	/// </summary>
+	public class RefOptions
+	{
+		/// <summary>
+		/// Time until a ref is expired
+		/// </summary>
+		public TimeSpan? Lifetime { get; set; }
+
+		/// <summary>
+		/// Whether to extend the remaining lifetime of a ref whenever it is fetched. Defaults to true.
+		/// </summary>
+		public bool? Extend { get; set; }
+	}
+
+	/// <summary>
 	/// Locates a node in storage
 	/// </summary>
 	public struct NodeLocator
@@ -195,18 +211,20 @@ namespace EpicGames.Horde.Storage
 		/// <param name="bundle">The bundle to write</param>
 		/// <param name="exportIdx">Index of the export in the bundle to be the root of the tree</param>
 		/// <param name="prefix">Prefix for blob names.</param>
+		/// <param name="options">Options for the new ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Unique identifier for the blob</returns>
-		Task<NodeLocator> WriteRefAsync(RefName name, Bundle bundle, int exportIdx, Utf8String prefix = default, CancellationToken cancellationToken = default);
+		Task<NodeLocator> WriteRefAsync(RefName name, Bundle bundle, int exportIdx, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes a new ref to the store
 		/// </summary>
 		/// <param name="name">Ref to write</param>
 		/// <param name="target">The target for the ref</param>
+		/// <param name="options">Options for the new ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Unique identifier for the blob</returns>
-		Task WriteRefTargetAsync(RefName name, NodeLocator target, CancellationToken cancellationToken = default);
+		Task WriteRefTargetAsync(RefName name, NodeLocator target, RefOptions? options = null, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Reads data for a ref from the store
@@ -281,10 +299,10 @@ namespace EpicGames.Horde.Storage
 			public Task<NodeLocator> TryReadRefTargetAsync(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) => _inner.TryReadRefTargetAsync(name, cacheTime, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task<NodeLocator> WriteRefAsync(RefName name, Bundle bundle, int exportIdx = 0, Utf8String prefix = default, CancellationToken cancellationToken = default) => _inner.WriteRefAsync(name, bundle, exportIdx, prefix, cancellationToken);
+			public Task<NodeLocator> WriteRefAsync(RefName name, Bundle bundle, int exportIdx = 0, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default) => _inner.WriteRefAsync(name, bundle, exportIdx, prefix, options, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task WriteRefTargetAsync(RefName name, NodeLocator target, CancellationToken cancellationToken = default) => _inner.WriteRefTargetAsync(name, target, cancellationToken);
+			public Task WriteRefTargetAsync(RefName name, NodeLocator target, RefOptions? options = null, CancellationToken cancellationToken = default) => _inner.WriteRefTargetAsync(name, target, options, cancellationToken);
 
 			#endregion
 		}
@@ -350,12 +368,13 @@ namespace EpicGames.Horde.Storage
 		/// <param name="node">Node to be written</param>
 		/// <param name="options">Options for the node writer</param>
 		/// <param name="prefix">Prefix for uploaded blobs</param>
+		/// <param name="refOptions">Options for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Location of node targetted by the ref</returns>
-		public static async Task<NodeLocator> WriteNodeAsync(this IStorageClient store, RefName name, TreeNode node, TreeOptions? options = null, Utf8String prefix = default, CancellationToken cancellationToken = default)
+		public static async Task<NodeLocator> WriteNodeAsync(this IStorageClient store, RefName name, TreeNode node, TreeOptions? options = null, Utf8String prefix = default, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
 		{
 			TreeWriter writer = new TreeWriter(store, options, prefix.IsEmpty ? name.Text : prefix);
-			return await writer.WriteRefAsync(name, node, cancellationToken);
+			return await writer.WriteRefAsync(name, node, refOptions, cancellationToken);
 		}
 
 		#endregion

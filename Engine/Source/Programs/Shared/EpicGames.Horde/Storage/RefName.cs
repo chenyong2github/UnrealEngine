@@ -78,6 +78,11 @@ namespace EpicGames.Horde.Storage
 		/// <inheritdoc/>
 		public static bool operator >=(RefName lhs, RefName rhs) => lhs.CompareTo(rhs) >= 0;
 
+		/// <summary>
+		/// Construct a ref from a string
+		/// </summary>
+		/// <param name="name">Name of the ref</param>
+		public static implicit operator RefName(string name) => new RefName(name);
 	}
 
 	/// <summary>

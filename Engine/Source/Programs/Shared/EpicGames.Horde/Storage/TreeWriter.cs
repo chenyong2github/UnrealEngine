@@ -246,16 +246,17 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="name">Name of the ref to write</param>
 		/// <param name="node"></param>
+		/// <param name="options"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public async Task<NodeLocator> WriteRefAsync(RefName name, TreeNode node, CancellationToken cancellationToken = default)
+		public async Task<NodeLocator> WriteRefAsync(RefName name, TreeNode node, RefOptions? options = null, CancellationToken cancellationToken = default)
 		{
 			TreeNodeRef nodeRef = new TreeNodeRef(node);
 			await WriteAsync(nodeRef, cancellationToken);
 			await FlushAsync(cancellationToken);
 
 			Debug.Assert(nodeRef.Locator.IsValid());
-			await _store.WriteRefTargetAsync(name, nodeRef.Locator, cancellationToken);
+			await _store.WriteRefTargetAsync(name, nodeRef.Locator, options, cancellationToken);
 			return nodeRef.Locator;
 		}
 
@@ -264,12 +265,13 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="name">Name of the ref to write</param>
 		/// <param name="root">Hash of the root node</param>
+		/// <param name="options"></param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public async Task<NodeLocator> WriteAsync(RefName name, IoHash root, CancellationToken cancellationToken)
+		public async Task<NodeLocator> WriteAsync(RefName name, IoHash root, RefOptions? options = null, CancellationToken cancellationToken = default)
 		{
 			await FlushAsync(cancellationToken);
 			NodeLocator locator = GetLocator(root);
-			await _store.WriteRefTargetAsync(name, locator, cancellationToken);
+			await _store.WriteRefTargetAsync(name, locator, options, cancellationToken);
 			return locator;
 		}
 

@@ -43,6 +43,11 @@ namespace Horde.Build.Storage
 		/// Export index for the ref
 		/// </summary>
 		public int ExportIdx { get; set; }
+
+		/// <summary>
+		/// Options for the ref
+		/// </summary>
+		public RefOptions? Options { get; set; }
 	}
 
 	/// <summary>
@@ -169,7 +174,7 @@ namespace Horde.Build.Storage
 
 			IStorageClient client = await _storageService.GetClientAsync(namespaceId, cancellationToken);
 			NodeLocator target = new NodeLocator(request.Locator, request.ExportIdx);
-			await client.WriteRefTargetAsync(refName, target, cancellationToken);
+			await client.WriteRefTargetAsync(refName, target, request.Options, cancellationToken);
 
 			return Ok();
 		}

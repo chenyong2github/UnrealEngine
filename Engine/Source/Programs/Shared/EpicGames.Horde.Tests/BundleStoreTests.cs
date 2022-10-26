@@ -85,7 +85,7 @@ namespace EpicGames.Horde.Tests
 
 				SimpleNode root = new SimpleNode(new ReadOnlySequence<byte>(new byte[] { 5 }), new[] { new TreeNodeRef<SimpleNode>(node4), new TreeNodeRef<SimpleNode>(node3) });
 
-				await writer.WriteRefAsync(new RefName("test"), root, CancellationToken.None);
+				await writer.WriteRefAsync(new RefName("test"), root);
 
 				await CheckTree(root);
 			}

@@ -29,8 +29,9 @@ namespace Horde.Build.Storage
 		/// <param name="namespaceId">Namespace for the ref</param>
 		/// <param name="name">The ref name</param>
 		/// <param name="target">Target for the ref</param>
+		/// <param name="options">Options for the ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		Task WriteRefTargetAsync(NamespaceId namespaceId, RefName name, NodeLocator target, CancellationToken cancellationToken = default);
+		Task WriteRefTargetAsync(NamespaceId namespaceId, RefName name, NodeLocator target, RefOptions? options = null, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Delete a ref from storage

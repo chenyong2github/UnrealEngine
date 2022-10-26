@@ -672,7 +672,7 @@ namespace Horde.Build.Perforce
 					if (syncedSize > 0)
 					{
 						Stopwatch flushTimer = Stopwatch.StartNew();
-						await writer.WriteRefAsync(incRefName, syncNode, cancellationToken);
+						await writer.WriteRefAsync(incRefName, syncNode, cancellationToken: cancellationToken);
 						flushTimer.Stop();
 						deleteIncRef = true;
 					}
@@ -842,7 +842,7 @@ namespace Horde.Build.Perforce
 
 			// Return the new root object
 			_logger.LogInformation("Writing ref {RefId} for {StreamId} change {Change}", refName, stream.Id, change);
-			await writer.WriteRefAsync(refName, syncNode, cancellationToken);
+			await writer.WriteRefAsync(refName, syncNode, cancellationToken: cancellationToken);
 
 			// Delete the incremental state
 			if (deleteIncRef)
