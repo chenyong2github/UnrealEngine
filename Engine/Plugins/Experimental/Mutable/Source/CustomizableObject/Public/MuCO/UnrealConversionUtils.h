@@ -85,4 +85,18 @@ namespace UnrealConversionUtils
 	CUSTOMIZABLEOBJECT_API bool CopyMutableIndexBuffers(mu::MeshPtrConst InMutableMesh,
 	                                                    FSkeletalMeshLODRenderData& OutLODModel);
 	
+
+	/**
+	 *Performs a copy of the data found on the index buffers on the mutable mesh to the buffers of the skeletal mesh
+	 * @param OutLODModel - The LOD model to be updated.
+	 * @param InProfileName - Name of the profile to generate.
+	 * @param InMutableMeshVertexBuffers - The mutable buffers to be reading data from
+	 * @param InBoneIndexBuffer - The buffer containing the indices for the bones.
+	 * @return True if the operation could be performed successfully,	 false if not.
+	 */
+	CUSTOMIZABLEOBJECT_API void CopyMutableSkinWeightProfilesBuffers(
+		FSkeletalMeshLODRenderData& OutLODModel,
+		const FName InProfileName,
+		const mu::FMeshBufferSet& InMutableMeshVertexBuffers,
+		const int32 InBoneIndexBuffer);
 }

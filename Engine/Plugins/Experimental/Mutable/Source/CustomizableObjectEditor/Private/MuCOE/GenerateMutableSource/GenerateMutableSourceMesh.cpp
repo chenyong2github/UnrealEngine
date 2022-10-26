@@ -289,6 +289,121 @@ TObjectPtr<const USkeletalMesh> GetMeshWithBoneRemovalApplied(TObjectPtr<USkelet
 	return CacheEntry.Mesh;
 }
 
+
+void TransferRemovedBonesInfluences(FBoneIndexType* InfluenceBones, uint8* InfluenceWeights, const int32 InfluenceCount, const TMap<int32, int32>& ReplacementMap)
+{
+	for (int32 i = 0; i < InfluenceCount; ++i)
+	{
+		if (const int32* IndexPtr = ReplacementMap.Find(InfluenceBones[i]))
+		{
+			bool bParentFound = false;
+			int32 ParentIndex = *IndexPtr;
+			for (int32 j = 0; j < InfluenceCount; ++j)
+			{
+				if (InfluenceBones[j] == ParentIndex)
+				{
+					InfluenceWeights[j] += InfluenceWeights[i];
+					InfluenceWeights[i] = 0.f;
+					bParentFound = true;
+					break;
+				}
+			}
+
+			if (!bParentFound)
+			{
+				InfluenceBones[i] = ParentIndex;
+			}
+		}
+	}
+}
+
+
+void NormalizeWeights(FBoneIndexType* InfluenceBones, uint8* InfluenceWeights, const int32 InfluenceCount, const int32 MutableInfluenceCount,
+	int32* MutableMaxOrderedWeighsIndices, const int32 MaxSectionBoneMapIndex, const int32 MaxBoneWeight)
+{
+	// First get the indices of the 4 heaviest influences
+	for (int32 i = 0; i < MutableInfluenceCount; ++i)
+	{
+		int32 CurrentMaxWeight = -1;
+
+		for (int32 j = 0; j < InfluenceCount; ++j)
+		{
+			bool bIndexAlreadyUsed = false;
+
+			for (int32 k = 0; k < i; ++k)
+			{
+				if (MutableMaxOrderedWeighsIndices[k] == j)
+				{
+					bIndexAlreadyUsed = true;
+					break;
+				}
+				else if (MutableMaxOrderedWeighsIndices[k] < 0)
+				{
+					break;
+				}
+			}
+
+			if (!bIndexAlreadyUsed && InfluenceWeights[j] > CurrentMaxWeight
+				&& InfluenceBones[j] < MaxSectionBoneMapIndex)
+			{
+				MutableMaxOrderedWeighsIndices[i] = j;
+				CurrentMaxWeight = InfluenceWeights[j];
+			}
+		}
+	}
+
+	// Copy 4 heaviest influences to 4 first indices
+	for (int32 i = 0; i < MutableInfluenceCount; ++i)
+	{
+		if (i < InfluenceCount)
+		{
+			InfluenceWeights[i] = InfluenceWeights[MutableMaxOrderedWeighsIndices[i]];
+			InfluenceBones[i] = InfluenceBones[MutableMaxOrderedWeighsIndices[i]];
+		}
+		else
+		{
+			InfluenceWeights[i] = 0;
+			InfluenceBones[i] = 0;
+		}
+	}
+
+	// Actually renormalize the first 4 influences
+	int32 TotalWeight = 0;
+
+	for (int32 j = 0; j < MutableInfluenceCount; ++j)
+	{
+		TotalWeight += InfluenceWeights[j];
+	}
+
+	if (TotalWeight > 0)
+	{
+		int32 AssignedWeight = 0;
+
+		for (int32 j = 1; j < MAX_TOTAL_INFLUENCES; ++j)
+		{
+			if (j < MutableInfluenceCount)
+			{
+				float Aux = InfluenceWeights[j];
+				int32 Res = FMath::RoundToInt(Aux / TotalWeight * MaxBoneWeight);
+				AssignedWeight += Res;
+				InfluenceWeights[j] = Res;
+			}
+			else
+			{
+				InfluenceWeights[j] = 0;
+			}
+		}
+
+		InfluenceWeights[0] = MaxBoneWeight - AssignedWeight;
+	}
+	else
+	{
+		FMemory::Memzero(InfluenceWeights, MutableInfluenceCount);
+		InfluenceWeights[0] = MaxBoneWeight;
+	}
+}
+
+
 mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD, int MaterialIndex, FMutableGraphGenerationContext& GenerationContext, const UCustomizableObjectNode* CurrentNode)
 {
 	// Get the mesh generation flags to use
@@ -585,175 +700,31 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 			}
 		}
 
-		if (GenerationContext.Options.bExtraBoneInfluencesEnabled && MaxSectionInfluences < EXTRA_BONE_INFLUENCES)
-		{
-			for (int32 VertexIndex = VertexStart; VertexIndex < VertexStart + VertexCount && VertexIndex < Vertices.Num(); ++VertexIndex)
-			{
-				FSoftSkinVertex& Vertex = Vertices[VertexIndex];
+		const int32 MaxSectionBoneMapIndex = ImportedModel->LODModels[LOD].Sections[MaterialIndex].BoneMap.Num();
 
-				for (int32 i = MaxSectionInfluences; i < EXTRA_BONE_INFLUENCES; ++i)
-				{
-					check(Vertex.InfluenceWeights[i] == 0);
-				}
+		for (int32 VertexIndex = VertexStart; VertexIndex < VertexStart + VertexCount && VertexIndex < Vertices.Num(); ++VertexIndex)
+		{
+			FSoftSkinVertex& Vertex = Vertices[VertexIndex];
+
+			// Transfer removed bones influences to parent bones
+			if (!InfluencesToReplaceMap.IsEmpty())
+			{
+				TransferRemovedBonesInfluences(&Vertex.InfluenceBones[0], &Vertex.InfluenceWeights[0], MaxSectionInfluences, InfluencesToReplaceMap);
 			}
-		}
-		else if (!GenerationContext.Options.bExtraBoneInfluencesEnabled)
-		{
-			const int32 MaxBoneWeightValue = BoneWeightFormat == MBF_NUINT16 ? 65535 : 255;
-			const int32 MaxSectionBoneMapIndex = ImportedModel->LODModels[LOD].Sections[MaterialIndex].BoneMap.Num();
 
-			// Renormalize to 4 weights per vertex
-			for (int32 VertexIndex = VertexStart; VertexIndex < VertexStart + VertexCount && VertexIndex < Vertices.Num(); ++VertexIndex)
+			if (!GenerationContext.Options.bExtraBoneInfluencesEnabled)
 			{
-				FSoftSkinVertex& Vertex = Vertices[VertexIndex];
-
+				// Normalize weights
 				const int32 MaxMutableWeights = 4;
 				int32 MaxOrderedWeighsIndices[MaxMutableWeights] = { -1, -1, -1, -1 };
 
-				// Transfer removed bones influences to parent bones
-				if (InfluencesToReplaceMap.Num() > 0)
-				{
-					for (int32 i = 0; i < MaxSectionInfluences; ++i)
-					{
-						if (const int32* IndexPtr = InfluencesToReplaceMap.Find(Vertex.InfluenceBones[i]))
-						{
-							bool bParentFound = false;
-							int32 ParentIndex = *IndexPtr;
-							for (int32 j = 0; j < MaxSectionInfluences; ++j)
-							{
-								if (Vertex.InfluenceBones[j] == ParentIndex)
-								{
-									Vertex.InfluenceWeights[j] += Vertex.InfluenceWeights[i];
-									Vertex.InfluenceWeights[i] = 0.f;
-									bParentFound = true;
-									break;
-								}
-							}
-
-							if (!bParentFound)
-							{
-								Vertex.InfluenceBones[i] = ParentIndex;
-							}
-						}
-					}
-				}
-
-				// First get the indices of the 4 heaviest influences
-				for (int32 i = 0; i < MaxMutableWeights; ++i)
-				{
-					int32 CurrentMaxWeight = -1;
-
-					for (int32 j = 0; j < MaxSectionInfluences; ++j)
-					{
-						bool bIndexAlreadyUsed = false;
-
-						for (int32 k = 0; k < i; ++k)
-						{
-							if (MaxOrderedWeighsIndices[k] == j)
-							{
-								bIndexAlreadyUsed = true;
-								break;
-							}
-							else if (MaxOrderedWeighsIndices[k] < 0)
-							{
-								break;
-							}
-						}
-
-						if (!bIndexAlreadyUsed && Vertex.InfluenceWeights[j] > CurrentMaxWeight
-							&& Vertex.InfluenceBones[j] < MaxSectionBoneMapIndex)
-						{
-							MaxOrderedWeighsIndices[i] = j;
-							CurrentMaxWeight = Vertex.InfluenceWeights[j];
-						}
-					}
-				}
-
-				// Copy 4 heaviest influences to 4 first indices
-				for (int32 i = 0; i < MaxMutableWeights; ++i)
-				{
-					if (i < MaxSectionInfluences)
-					{
-						Vertex.InfluenceWeights[i] = Vertex.InfluenceWeights[MaxOrderedWeighsIndices[i]];
-						Vertex.InfluenceBones[i] = Vertex.InfluenceBones[MaxOrderedWeighsIndices[i]];
-					}
-					else
-					{
-						Vertex.InfluenceWeights[i] = 0;
-						Vertex.InfluenceBones[i] = 0;
-					}
-				}
-
-				// Actually renormalize the first 4 influences
-				int32 TotalWeight = 0;
-
-				for (int32 j = 0; j < MaxMutableWeights; ++j)
-				{
-					TotalWeight += Vertex.InfluenceWeights[j];
-				}
-
-				if (TotalWeight > 0)
-				{
-					int32 AssignedWeight = 0;
-
-					for (int32 j = 1; j < MAX_TOTAL_INFLUENCES; ++j)
-					{
-						if (j < MaxMutableWeights)
-						{
-							float Aux = Vertex.InfluenceWeights[j];
-							int32 Res = FMath::RoundToInt(Aux / TotalWeight * MaxBoneWeightValue);
-							AssignedWeight += Res;
-							Vertex.InfluenceWeights[j] = Res;
-						}
-						else
-						{
-							Vertex.InfluenceWeights[j] = 0;
-						}
-					}
-
-					Vertex.InfluenceWeights[0] = MaxBoneWeightValue - AssignedWeight;
-				}
-				else
-				{
-					Vertex.InfluenceWeights[0] = MaxBoneWeightValue;
-
-					for (int32 j = 1; j < MaxMutableWeights; ++j)
-					{
-						Vertex.InfluenceWeights[j] = 0;
-					}
-				}
+				const int32 MaxBoneWeightValue = BoneWeightFormat == MBF_NUINT16 ? 65535 : 255;
+				NormalizeWeights(&Vertex.InfluenceBones[0], &Vertex.InfluenceWeights[0], MaxSectionInfluences, MaxMutableWeights,
+					&MaxOrderedWeighsIndices[0], MaxSectionBoneMapIndex, MaxBoneWeightValue);
 			}
-		}
-		else if (InfluencesToReplaceMap.Num() > 0)
-		{
-			// Transfer removed bones influences to parent bones
-			for (int32 VertexIndex = VertexStart; VertexIndex < VertexStart + VertexCount && VertexIndex < Vertices.Num(); ++VertexIndex)
+			else if (MaxSectionInfluences < EXTRA_BONE_INFLUENCES)
 			{
-				FSoftSkinVertex& Vertex = Vertices[VertexIndex];
-
-				for (int32 i = 0; i < MAX_TOTAL_INFLUENCES; ++i)
-				{
-					if (const int32* ParentBoneIndexPtr = InfluencesToReplaceMap.Find(Vertex.InfluenceBones[i]))
-					{
-						bool bParentFound = false;
-						int32 ParentIndex = *ParentBoneIndexPtr;
-						for (int32 j = 0; j < MAX_TOTAL_INFLUENCES; ++j)
-						{
-							if (Vertex.InfluenceBones[j] == ParentIndex)
-							{
-								Vertex.InfluenceWeights[j] += Vertex.InfluenceWeights[i];
-								Vertex.InfluenceWeights[i] = 0.f;
-								bParentFound = true;
-								break;
-							}
-						}
-
-						if (!bParentFound)
-						{
-							Vertex.InfluenceBones[i] = ParentIndex;
-						}
-					}
-				}
+				FMemory::Memzero(&Vertex.InfluenceWeights[MaxSectionInfluences], EXTRA_BONE_INFLUENCES - MaxSectionInfluences);
 			}
 		}
 
@@ -992,6 +963,7 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 			const int Offsets[ChannelCount] = { 0 };
 
 			MutableMesh->GetVertexBuffers().SetBuffer(nextBufferIndex, ElementSize, ChannelCount, Semantics, SemanticIndices, Formats, Components, Offsets);
+			++nextBufferIndex;
 		}
 
 		TArrayView<int32> ClothSectionBufferView(reinterpret_cast<int32*>(MutableMesh->GetVertexBuffers().GetBufferData(nextBufferIndex)), VertexCount);
@@ -1115,6 +1087,112 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 				// this value will be ignored anyway.
 				ClothingDataElem.Weight = 1.0f;
 			}
+		}
+	}
+
+
+	// SkinWeightProfiles vertex info.
+	if (GenerationContext.Options.bSkinWeightProfilesEnabled)
+	{
+		using namespace mu;
+
+		// TODO: Remove BoneWeightFormat after merge
+		const int32 BoneWeightTypeSizeBytes = sizeof(TDecay<decltype(DeclVal<FRawSkinWeight>().InfluenceWeights[0])>::Type);
+		MESH_BUFFER_FORMAT BoneWeightFormat = BoneWeightTypeSizeBytes == 1 ? MBF_NUINT8 : MBF_NUINT16;
+
+		// Limit skinning weights if necessary
+		// \todo: make it more flexible to support 3 or 5 or 1 weight, since there is support for this in 4.25
+		const int32 MutableBonesPerVertex = GenerationContext.Options.bExtraBoneInfluencesEnabled ? EXTRA_BONE_INFLUENCES : 4;
+		const int32 BoneIndicesSize = MutableBonesPerVertex * sizeof(FBoneIndexType);
+		const int32 BoneWeightsSize = MutableBonesPerVertex * BoneWeightTypeSizeBytes;
+		const int32 SkinWeightProfileVertexSize = sizeof(int32) + BoneIndicesSize + BoneWeightsSize;
+
+		const int32 MaxSectionInfluences = ImportedModel->LODModels[LOD].Sections[MaterialIndex].GetMaxBoneInfluences();
+		const int32 MaxSectionBoneMapIndex = ImportedModel->LODModels[LOD].Sections[MaterialIndex].BoneMap.Num();
+
+		const TArray<FSkinWeightProfileInfo>& SkinWeightProfilesInfo = SkeletalMesh->GetSkinWeightProfiles();
+		for (const FSkinWeightProfileInfo& Profile : SkinWeightProfilesInfo)
+		{
+			const FImportedSkinWeightProfileData* ImportedProfileData = ImportedModel->LODModels[LOD].SkinWeightProfiles.Find(Profile.Name);
+			if (!ImportedProfileData)
+			{
+				continue;
+			}
+
+			check(Vertices.Num() == ImportedProfileData->SkinWeights.Num());
+
+			TArray<uint8> MutSkinWeights;
+			MutSkinWeights.SetNumZeroed(VertexCount * SkinWeightProfileVertexSize);
+			uint8* MutSkinWeightData = MutSkinWeights.GetData();
+
+			for (int32 VertexIndex = VertexStart; VertexIndex < VertexStart + VertexCount; ++VertexIndex)
+			{
+				FRawSkinWeight SkinWeight = ImportedProfileData->SkinWeights[VertexIndex];
+
+				if (!InfluencesToReplaceMap.IsEmpty())
+				{
+					TransferRemovedBonesInfluences(&SkinWeight.InfluenceBones[0], &SkinWeight.InfluenceWeights[0], MaxSectionInfluences, InfluencesToReplaceMap);
+				}
+
+				if (!GenerationContext.Options.bExtraBoneInfluencesEnabled)
+				{
+					// Normalize weights
+					const int32 MaxMutableWeights = 4;
+					int32 MaxOrderedWeighsIndices[MaxMutableWeights] = { -1, -1, -1, -1 };
+
+					const int32 MaxBoneWeightValue = BoneWeightFormat == MBF_NUINT16 ? 65535 : 255;
+					NormalizeWeights(&SkinWeight.InfluenceBones[0], &SkinWeight.InfluenceWeights[0], MaxSectionInfluences, MaxMutableWeights,
+						&MaxOrderedWeighsIndices[0], MaxSectionBoneMapIndex, MaxBoneWeightValue);
+				}
+				else if (MaxSectionInfluences < MutableBonesPerVertex)
+				{
+					FMemory::Memzero(&SkinWeight.InfluenceWeights[MaxSectionInfluences], MutableBonesPerVertex - MaxSectionInfluences);
+				}
+
+				if (FMemory::Memcmp(&Vertices[VertexIndex].InfluenceBones[0], &SkinWeight.InfluenceBones[0], BoneIndicesSize) == 0
+					&&
+					FMemory::Memcmp(&Vertices[VertexIndex].InfluenceWeights[0], &SkinWeight.InfluenceWeights[0], BoneWeightsSize) == 0)
+				{
+					MutSkinWeightData += SkinWeightProfileVertexSize;
+					continue;
+				}
+
+				int32 SkinWeightVertexHash = 0;
+				for (int32 InfluenceIndex = 0; InfluenceIndex < MutableBonesPerVertex; ++InfluenceIndex)
+				{
+					SkinWeightVertexHash = HashCombine(SkinWeightVertexHash, SkinWeight.InfluenceBones[InfluenceIndex]);
+					SkinWeightVertexHash = HashCombine(SkinWeightVertexHash, SkinWeight.InfluenceWeights[InfluenceIndex]);
+				}
+
+				FMemory::Memcpy(MutSkinWeightData, &SkinWeightVertexHash, sizeof(int32));
+				MutSkinWeightData += sizeof(int32);
+				FMemory::Memcpy(MutSkinWeightData, &SkinWeight.InfluenceBones[0], BoneIndicesSize);
+				MutSkinWeightData += BoneIndicesSize;
+				FMemory::Memcpy(MutSkinWeightData, &SkinWeight.InfluenceWeights[0], BoneWeightsSize);
+				MutSkinWeightData += BoneWeightsSize;
+			}
+
+			const int32 ProfileIndex = GenerationContext.SkinWeightProfilesInfo.AddUnique({Profile.Name, false, 0});
+			const int32 ProfileSemanticIndex = ProfileIndex + 10;
+
+			const FName PlatformName = *GenerationContext.Options.TargetPlatform->PlatformName();
+			FMutableSkinWeightProfileInfo& MutSkinWeightProfileInfo = GenerationContext.SkinWeightProfilesInfo[ProfileIndex];
+			MutSkinWeightProfileInfo.DefaultProfile = MutSkinWeightProfileInfo.DefaultProfile || Profile.DefaultProfile.GetValueForPlatform(PlatformName);
+			MutSkinWeightProfileInfo.DefaultProfileFromLODIndex = FMath::Min(MutSkinWeightProfileInfo.DefaultProfileFromLODIndex, Profile.DefaultProfileFromLODIndex.GetValueForPlatform(PlatformName));
+
+			// Set up SkinWeightPRofile BufferData
+			const int32 ElementSize = sizeof(int32) + sizeof(FBoneIndexType) + BoneWeightTypeSizeBytes;
+			const int32 ChannelCount = 3;
+			const MESH_BUFFER_SEMANTIC Semantics[ChannelCount] = { MBS_OTHER, MBS_BONEINDICES, MBS_BONEWEIGHTS };
+			const int32 SemanticIndices[ChannelCount] = { ProfileSemanticIndex, ProfileSemanticIndex, ProfileSemanticIndex };
+			const MESH_BUFFER_FORMAT Formats[ChannelCount] = { MBF_INT32, MBF_UINT16, BoneWeightFormat };
+			const int32 Components[ChannelCount] = { 1, MutableBonesPerVertex, MutableBonesPerVertex };
+			const int32 Offsets[ChannelCount] = { 0, sizeof(int32), sizeof(int32) + BoneIndicesSize };
+
+			MutableMesh->GetVertexBuffers().SetBufferCount(nextBufferIndex + 1);
+			MutableMesh->GetVertexBuffers().SetBuffer(nextBufferIndex, ElementSize, ChannelCount, Semantics, SemanticIndices, Formats, Components, Offsets);
+			FMemory::Memcpy(MutableMesh->GetVertexBuffers().GetBufferData(nextBufferIndex), MutSkinWeights.GetData(), VertexCount * SkinWeightProfileVertexSize);
+			++nextBufferIndex;
 		}
 	}
 
@@ -2380,6 +2458,21 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 						int32 CurrentTagCount = MutableMesh->GetTagCount();
 						MutableMesh->SetTagCount(CurrentTagCount + 1);
 						MutableMesh->SetTag(CurrentTagCount, TCHAR_TO_ANSI(*ClothPhysicsAssetTag));
+					}
+				}
+
+				if (GenerationContext.Options.bSkinWeightProfilesEnabled)
+				{
+					FSkeletalMeshModel* ImportModel = Helper_GetImportedModel(TypedNodeSkel->SkeletalMesh);
+
+					const int32 SkinWeightProfilesCount = GenerationContext.SkinWeightProfilesInfo.Num();
+					for (int32 ProfileIndex = 0; ProfileIndex < SkinWeightProfilesCount; ++ProfileIndex)
+					{
+						if (ImportModel->LODModels[LOD].SkinWeightProfiles.Find(GenerationContext.SkinWeightProfilesInfo[ProfileIndex].Name))
+						{
+							const int32 ProfileScemanticIndex = ProfileIndex + 10;
+							MeshData.SkinWeightProfilesSemanticIndices.AddUnique(ProfileScemanticIndex);
+						}
 					}
 				}
 

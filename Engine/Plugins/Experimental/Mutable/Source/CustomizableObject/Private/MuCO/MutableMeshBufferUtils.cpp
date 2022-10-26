@@ -187,3 +187,63 @@ void MutableMeshBufferUtils::SetupIndexBuffer(mu::FMeshBufferSet& OutTargetIndex
 	OutTargetIndexBuffers.SetBuffer(0, ElementSize, ChannelCount, Semantics, SemanticIndices, Formats, Components,
 	                                 Offsets);
 }
+
+
+void MutableMeshBufferUtils::SetupSkinWeightProfileBuffer(const int32& InCurrentVertexBuffer,
+	const int32& MaxBoneIndexTypeSizeBytes,
+	const int32& MaxBoneWeightTypeSizeBytes,
+	const int32& MaxNumBonesPerVertex,
+	const int32 SemanticsIndex,
+	mu::FMeshBufferSet& OutTargetVertexBuffers)
+{
+	using namespace mu;
+	const int32 ElementSize = sizeof(int32) + (MaxBoneIndexTypeSizeBytes + 1) * MaxNumBonesPerVertex;
+	constexpr int32 ChannelCount = 3;
+	const MESH_BUFFER_SEMANTIC Semantics[ChannelCount] = { MBS_OTHER, MBS_BONEINDICES, MBS_BONEWEIGHTS };
+	const int32 SemanticIndices[ChannelCount] = { SemanticsIndex, SemanticsIndex, SemanticsIndex };
+
+	MESH_BUFFER_FORMAT Formats[ChannelCount] = { MBF_INT32, MBF_UINT8, MBF_NUINT8 };
+	switch (MaxBoneIndexTypeSizeBytes)
+	{
+	case 1: Formats[1] = mu::MBF_UINT8;
+		break;
+	case 2: Formats[1] = mu::MBF_UINT16;
+		break;
+	case 4: Formats[1] = mu::MBF_UINT32;
+		break;
+	default:
+		// unsupported bone index type
+		check(false);
+		Formats[1] = mu::MBF_NONE;
+		break;
+	}
+
+	switch (MaxBoneWeightTypeSizeBytes)
+	{
+	case 1: Formats[2] = mu::MBF_NUINT8;
+		break;
+	case 2:
+	{
+		unimplemented()
+		Formats[2] = mu::MBF_NUINT16;
+		break;
+	}
+	case 4: Formats[2] = mu::MBF_NUINT32;
+		break;
+	default:
+		// unsupported bone weight type
+		check(false);
+		Formats[2] = mu::MBF_NONE;
+		break;
+	}
+
+	int32 Components[ChannelCount] = { 1, MaxNumBonesPerVertex, MaxNumBonesPerVertex };
+
+	int32 Offsets[ChannelCount];
+	Offsets[0] = 0;
+	Offsets[1] = sizeof(int32);
+	Offsets[2] = sizeof(int32) + MaxBoneIndexTypeSizeBytes * MaxNumBonesPerVertex;
+
+	OutTargetVertexBuffers.SetBuffer(InCurrentVertexBuffer, ElementSize, ChannelCount, Semantics, SemanticIndices,
+		Formats, Components, Offsets);
+}

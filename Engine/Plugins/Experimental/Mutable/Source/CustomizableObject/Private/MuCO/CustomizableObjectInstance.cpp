@@ -4013,6 +4013,44 @@ bool UCustomizableInstancePrivateData::BuildSkeletalMeshRenderData(const TShared
 		LODModel.ActiveBoneIndices.Append(Component.ActiveBones);
 		LODModel.RequiredBones.Append(Component.ActiveBones);
 
+		const TArray<FMutableSkinWeightProfileInfo>& SkinWeightProfilesInfo = Public->GetCustomizableObject()->SkinWeightProfilesInfo;
+		if (SkinWeightProfilesInfo.Num())
+		{
+			bool bHasSkinWeightProfiles = false;
+
+			const mu::FMeshBufferSet& MutableMeshVertexBuffers = Component.Mesh->GetVertexBuffers();
+
+			for (int32 ProfileIndex = 0; ProfileIndex < SkinWeightProfilesInfo.Num(); ++ProfileIndex)
+			{
+				const int32 ProfileSemanticsIndex = ProfileIndex + 10;
+				int32 BoneIndicesBufferIndex, BoneIndicesBufferChannelIndex;
+				MutableMeshVertexBuffers.FindChannel(mu::MBS_BONEINDICES, ProfileSemanticsIndex, &BoneIndicesBufferIndex, &BoneIndicesBufferChannelIndex);
+
+				int32 BoneWeightsBufferIndex, BoneWeightsBufferChannelIndex;
+				MutableMeshVertexBuffers.FindChannel(mu::MBS_BONEWEIGHTS, ProfileSemanticsIndex, &BoneWeightsBufferIndex, &BoneWeightsBufferChannelIndex);
+
+				if (BoneIndicesBufferIndex < 0 || BoneIndicesBufferIndex != BoneWeightsBufferIndex)
+				{
+					continue;
+				}
+
+				if (!bHasSkinWeightProfiles)
+				{
+					LODModel.SkinWeightProfilesData.Init(&LODModel.SkinWeightVertexBuffer);
+					bHasSkinWeightProfiles = true;
+				}
+
+				const FMutableSkinWeightProfileInfo& Profile = SkinWeightProfilesInfo[ProfileIndex];
+				SkeletalMesh->AddSkinWeightProfile({ Profile.Name, Profile.DefaultProfile, Profile.DefaultProfileFromLODIndex });
+
+				UnrealConversionUtils::CopyMutableSkinWeightProfilesBuffers(
+					LODModel,
+					Profile.Name,
+					MutableMeshVertexBuffers,
+					BoneIndicesBufferIndex);
+			}
+		}
+
 		// Copy indices.
 		if (!UnrealConversionUtils::CopyMutableIndexBuffers(Component.Mesh, LODModel))
 		{

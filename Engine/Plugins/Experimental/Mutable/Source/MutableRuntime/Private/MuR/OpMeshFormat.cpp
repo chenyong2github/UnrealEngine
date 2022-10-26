@@ -603,59 +603,60 @@ namespace mu
 		// Make sure that the bone indices will fit in this format, or extend it.
 		if (formatVertices)
 		{
-			auto& buffs = pSource->GetVertexBuffers();
+			const FMeshBufferSet& VertexBuffers = pSource->GetVertexBuffers();
 
-			int semanticIndex = 0;
-			while (true)
+			const int32 BufferCount = VertexBuffers.GetBufferCount();
+			for (int32 BufferIndex = 0; BufferIndex < BufferCount; ++BufferIndex)
 			{
-				int buf = 0;
-				int chan = 0;
-				buffs.FindChannel(MBS_BONEINDICES, semanticIndex, &buf, &chan);
-				if (buf < 0)
-					break;
-
-				int resultBuf = 0;
-				int resultChan = 0;
-				auto& formBuffs = pResult->GetVertexBuffers();
-				formBuffs.FindChannel(MBS_BONEINDICES, semanticIndex, &resultBuf, &resultChan);
-				if (resultBuf >= 0)
+				const int32 ChannelCount = VertexBuffers.GetBufferChannelCount(BufferIndex);
+				for (int32 ChannelIndex = 0; ChannelIndex < ChannelCount; ++ChannelIndex)
 				{
-					UntypedMeshBufferIteratorConst it(buffs, MBS_BONEINDICES, semanticIndex);
-					int32_t maxBoneIndex = 0;
-					for (int v = 0; v < buffs.GetElementCount(); ++v)
-					{
-						auto va = it.GetAsVec8i();
-						for (int c = 0; c < it.GetComponents(); ++c)
-						{
-							maxBoneIndex = FMath::Max(maxBoneIndex, va[c]);
-						}
-						++it;
-					}
+					const MESH_BUFFER_CHANNEL& Channel = VertexBuffers.m_buffers[BufferIndex].m_channels[ChannelIndex];
 
-					auto& format = formBuffs.m_buffers[resultBuf].m_channels[resultChan].m_format;
-					if (maxBoneIndex > 0xffff && (format == MBF_UINT8 || format == MBF_UINT16))
+					if (Channel.m_semantic == MBS_BONEINDICES)
 					{
-						format = MBF_UINT32;
-						formBuffs.UpdateOffsets(resultBuf);
-					}
-					else if (maxBoneIndex > 0x7fff && (format == MBF_INT8 || format == MBF_INT16))
-					{
-						format = MBF_UINT32;
-						formBuffs.UpdateOffsets(resultBuf);
-					}
-					else if (maxBoneIndex > 0xff && format == MBF_UINT8)
-					{
-						format = MBF_UINT16;
-						formBuffs.UpdateOffsets(resultBuf);
-					}
-					else if (maxBoneIndex > 0x7f && format == MBF_INT8)
-					{
-						format = MBF_INT16;
-						formBuffs.UpdateOffsets(resultBuf);
+						int resultBuf = 0;
+						int resultChan = 0;
+						auto& formBuffs = pResult->GetVertexBuffers();
+						formBuffs.FindChannel(MBS_BONEINDICES, Channel.m_semanticIndex, &resultBuf, &resultChan);
+						if (resultBuf >= 0)
+						{
+							UntypedMeshBufferIteratorConst it(VertexBuffers, MBS_BONEINDICES, Channel.m_semanticIndex);
+							int32_t maxBoneIndex = 0;
+							for (int v = 0; v < VertexBuffers.GetElementCount(); ++v)
+							{
+								auto va = it.GetAsVec8i();
+								for (int c = 0; c < it.GetComponents(); ++c)
+								{
+									maxBoneIndex = FMath::Max(maxBoneIndex, va[c]);
+								}
+								++it;
+							}
+
+							auto& format = formBuffs.m_buffers[resultBuf].m_channels[resultChan].m_format;
+							if (maxBoneIndex > 0xffff && (format == MBF_UINT8 || format == MBF_UINT16))
+							{
+								format = MBF_UINT32;
+								formBuffs.UpdateOffsets(resultBuf);
+							}
+							else if (maxBoneIndex > 0x7fff && (format == MBF_INT8 || format == MBF_INT16))
+							{
+								format = MBF_UINT32;
+								formBuffs.UpdateOffsets(resultBuf);
+							}
+							else if (maxBoneIndex > 0xff && format == MBF_UINT8)
+							{
+								format = MBF_UINT16;
+								formBuffs.UpdateOffsets(resultBuf);
+							}
+							else if (maxBoneIndex > 0x7f && format == MBF_INT8)
+							{
+								format = MBF_INT16;
+								formBuffs.UpdateOffsets(resultBuf);
+							}
+						}
 					}
 				}
-
-				semanticIndex++;
 			}
 		}
 

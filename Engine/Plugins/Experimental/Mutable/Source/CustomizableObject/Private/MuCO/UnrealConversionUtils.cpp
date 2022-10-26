@@ -31,6 +31,7 @@
 #include "StaticMeshResources.h"
 #include "Trace/Detail/Channel.h"
 #include "UObject/NameTypes.h"
+#include "Animation/SkinWeightProfile.h"
 
 class USkeleton;
 
@@ -372,6 +373,109 @@ namespace UnrealConversionUtils
 		return true;
 	}
 
+
+	struct FAuxMutableSkinWeightVertexKey
+	{
+		FAuxMutableSkinWeightVertexKey(const uint8* InKey, uint8 InKeySize, uint32 InHash)
+			: Key(InKey), KeySize(InKeySize), Hash(InHash)
+		{
+		};
+
+		const uint8* Key;
+		uint8 KeySize;
+		uint32 Hash;
+
+		friend uint32 GetTypeHash(const FAuxMutableSkinWeightVertexKey& InKey)
+		{
+			return InKey.Hash;
+		}
+
+		bool operator==(const FAuxMutableSkinWeightVertexKey& o) const
+		{
+			return FMemory::Memcmp(o.Key, Key, KeySize) == 0;
+		}
+	};
+
+	
+	void CopyMutableSkinWeightProfilesBuffers(
+		FSkeletalMeshLODRenderData& LODModel,
+		const FName ProfileName,
+		const mu::FMeshBufferSet& MutableMeshVertexBuffers,
+		const int32 BoneIndexBuffer)
+	{
+		MUTABLE_CPUPROFILER_SCOPE(CopyMutableSkinWeightProfilesBuffers);
+
+		// Basic Buffer override settings
+		FRuntimeSkinWeightProfileData& Override = LODModel.SkinWeightProfilesData.AddOverrideData(ProfileName);
+
+		const uint8 NumInfluences = LODModel.GetVertexBufferMaxBoneInfluences();
+		Override.NumWeightsPerVertex = NumInfluences;
+
+		const bool b16BitBoneIndices = LODModel.DoesVertexBufferUse16BitBoneIndex();
+		Override.b16BitBoneIndices = b16BitBoneIndices;
+		const int32 BoneIndexSize = b16BitBoneIndices ? 2 : 1;
+
+		// BoneWeights channel info
+		mu::MESH_BUFFER_FORMAT Format;
+		int32 MutableNumInfluences;
+		int32 Offset;
+		MutableMeshVertexBuffers.GetChannel(BoneIndexBuffer, 2, nullptr, nullptr, &Format, &MutableNumInfluences, &Offset);
+
+		const uint8 MutBoneIndexSize = Format == mu::MBF_UINT16 ? 2 : 1;
+		const uint8 MutBoneIndicesSize = Offset - sizeof(int32);
+		const uint8 MutBoneWeightsSize = MutableNumInfluences;
+		const uint8 MutBoneWeightVertexSize = MutBoneIndicesSize + MutBoneWeightsSize;
+
+		check(BoneIndexSize == MutBoneIndexSize);
+
+		const int32 ElementCount = MutableMeshVertexBuffers.GetElementCount();
+		Override.BoneIDs.Reserve(ElementCount * MutBoneIndicesSize);
+		Override.BoneWeights.Reserve(ElementCount * NumInfluences);
+		Override.VertexIndexToInfluenceOffset.Reserve(ElementCount);
+
+		TMap<FAuxMutableSkinWeightVertexKey, int32> HashToUniqueWeightIndexMap;
+		HashToUniqueWeightIndexMap.Reserve(ElementCount);
+		int32 UniqueWeightsCount = 0;
+
+		const uint8* SkinWeightsBuffer = reinterpret_cast<const uint8*>(MutableMeshVertexBuffers.GetBufferData(BoneIndexBuffer));
+		for (int32 ElementIndex = 0; ElementIndex < ElementCount; ++ElementIndex)
+		{
+			uint32 ElementHash;
+			FMemory::Memcpy(&ElementHash, SkinWeightsBuffer, sizeof(int32));
+			SkinWeightsBuffer += sizeof(int32);
+
+			if (ElementHash > 0)
+			{
+				if (int32* OverrideIndex = HashToUniqueWeightIndexMap.Find({ SkinWeightsBuffer, MutBoneWeightVertexSize, ElementHash }))
+				{
+					Override.VertexIndexToInfluenceOffset.Add(ElementIndex, *OverrideIndex);
+					SkinWeightsBuffer += MutBoneWeightVertexSize;
+				}
+				else
+				{
+					Override.VertexIndexToInfluenceOffset.Add(ElementIndex, UniqueWeightsCount);
+					HashToUniqueWeightIndexMap.Add({ SkinWeightsBuffer, MutBoneWeightVertexSize, ElementHash }, UniqueWeightsCount);
+
+					Override.BoneIDs.SetNumUninitialized((UniqueWeightsCount + 1) * MutBoneIndicesSize, false);
+					FMemory::Memcpy(&Override.BoneIDs[UniqueWeightsCount * MutBoneIndicesSize], SkinWeightsBuffer, MutBoneIndicesSize);
+					SkinWeightsBuffer += MutBoneIndicesSize;
+
+					Override.BoneWeights.SetNumUninitialized((UniqueWeightsCount + 1) * MutBoneWeightsSize, false);
+					FMemory::Memcpy(&Override.BoneWeights[UniqueWeightsCount * MutBoneWeightsSize], SkinWeightsBuffer, MutBoneWeightsSize);
+					SkinWeightsBuffer += MutBoneWeightsSize;
+					++UniqueWeightsCount;
+				}
+			}
+			else
+			{
+				SkinWeightsBuffer += MutBoneWeightVertexSize;
+			}
+		}
+
+		Override.BoneIDs.Shrink();
+		Override.BoneWeights.Shrink();
+		Override.VertexIndexToInfluenceOffset.Shrink();
+	} 
 }
 
 	

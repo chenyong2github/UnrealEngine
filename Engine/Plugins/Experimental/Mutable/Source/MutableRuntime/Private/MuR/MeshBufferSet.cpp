@@ -257,24 +257,16 @@ namespace mu
 		*pBuffer = -1;
 		*pChannel = -1;
 
-		int index = 0;
-
 		for (size_t b = 0; b < m_buffers.Num(); ++b)
 		{
 			for (size_t c = 0; c < m_buffers[b].m_channels.Num(); ++c)
 			{
-				if (m_buffers[b].m_channels[c].m_semantic == semantic)
+				if (m_buffers[b].m_channels[c].m_semantic == semantic &&
+					m_buffers[b].m_channels[c].m_semanticIndex == semanticIndex)
 				{
-					if (index == semanticIndex)
-					{
-						*pBuffer = int(b);
-						*pChannel = int(c);
-						return;
-					}
-					else
-					{
-						++index;
-					}
+					*pBuffer = int(b);
+					*pChannel = int(c);
+					return;
 				}
 			}
 		}

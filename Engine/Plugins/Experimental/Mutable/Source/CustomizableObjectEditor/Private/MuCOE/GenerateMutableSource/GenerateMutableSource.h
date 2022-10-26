@@ -170,6 +170,8 @@ struct FMutableGraphMeshGenerationData
 	int32 MaxNumTriangles = 0;
 	int32 MinNumTriangles = TNumericLimits<int32>::Max();
 
+	TArray<int32> SkinWeightProfilesSemanticIndices;
+
 	// Combine another generated data looking for the most general case.
 	void Combine(const FMutableGraphMeshGenerationData& other)
 	{
@@ -179,6 +181,11 @@ struct FMutableGraphMeshGenerationData
 		MaxBoneIndexTypeSizeBytes = FMath::Max(other.MaxBoneIndexTypeSizeBytes, MaxBoneIndexTypeSizeBytes);
 		MaxNumTriangles = FMath::Max(other.MaxNumTriangles, MaxNumTriangles);
 		MinNumTriangles = FMath::Min(other.MinNumTriangles, MinNumTriangles);
+
+		for (int32 SemanticIndex : other.SkinWeightProfilesSemanticIndices)
+		{
+			SkinWeightProfilesSemanticIndices.AddUnique(SemanticIndex);
+		}
 	}
 };
 
@@ -623,6 +630,9 @@ struct FMutableGraphGenerationContext
 	// Data used for Clothing reconstruction.
 	TArray<FCustomizableObjectMeshToMeshVertData> ClothMeshToMeshVertData;
 	TArray<FCustomizableObjectClothingAssetData> ContributingClothingAssetsData;
+
+	// Data used for SkinWeightProfiles reconstruction
+	TArray<FMutableSkinWeightProfileInfo> SkinWeightProfilesInfo;
 
 	// Hierarchy of current ComponentNew nodes, each stored for every LOD
 	struct ObjectParent

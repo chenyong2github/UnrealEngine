@@ -161,6 +161,8 @@ void SetSurfaceFormat( mu::FMeshBufferSet& OutVertexBufferFormat, mu::FMeshBuffe
 		++MutableBufferCount;
 	}
 
+	MutableBufferCount += MeshData.SkinWeightProfilesSemanticIndices.Num();
+
 	OutVertexBufferFormat.SetBufferCount(MutableBufferCount);
 
 	int32 CurrentVertexBuffer = 0;
@@ -240,6 +242,11 @@ void SetSurfaceFormat( mu::FMeshBufferSet& OutVertexBufferFormat, mu::FMeshBuffe
 		++CurrentVertexBuffer;
 	}
 
+	for (int32 ProfileSemanticIndex : MeshData.SkinWeightProfilesSemanticIndices)
+	{
+		MutableMeshBufferUtils::SetupSkinWeightProfileBuffer(CurrentVertexBuffer, MeshData.MaxBoneIndexTypeSizeBytes, 1, MutableBonesPerVertex, ProfileSemanticIndex, OutVertexBufferFormat);
+		++CurrentVertexBuffer;
+	}
 
 	// Index buffer
 	MutableMeshBufferUtils::SetupIndexBuffer(OutIndexBufferFormat);

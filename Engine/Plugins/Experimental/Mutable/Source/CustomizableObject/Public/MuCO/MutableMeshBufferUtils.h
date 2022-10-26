@@ -63,5 +63,17 @@ namespace  MutableMeshBufferUtils
 	 * @param OutTargetIndexBuffers Index buffer to be set up. 
 	 */
 	CUSTOMIZABLEOBJECT_API void SetupIndexBuffer(mu::FMeshBufferSet& OutTargetIndexBuffers);
+
+	/**
+	 * Sets up all the channels that ought to be part of the Vertex SkinWeightProfile Buffer of the Mutable mesh owning the provided MeshBufferSet
+	 * @param InCurrentVertexBuffer Index of the Vertex Buffer being set up inside the OutTargetVertexBuffers.
+	 * @param MaxBoneIndexTypeSizeBytes Maximum size of the vertex bone index type.
+	 * @param MaxBoneWeightTypeSizeBytes Maximum size of the vertex bone weight type.
+	 * @param MaxNumBonesPerVertex Amount of bone influences a vertex can have.
+	 * @param SemanticsIndex External Id that identifies a SkinWeightProfile.
+	 * @param OutTargetVertexBuffers Mesh buffer to be set up.
+	 */
+	CUSTOMIZABLEOBJECT_API void SetupSkinWeightProfileBuffer(const int32& InCurrentVertexBuffer, const int32& MaxBoneIndexTypeSizeBytes,const int32& MaxBoneWeightTypeSizeBytes, const int32& MaxNumBonesPerVertex,
+		const int32 SemanticsIndex, mu::FMeshBufferSet& OutTargetVertexBuffers);
 	
 }

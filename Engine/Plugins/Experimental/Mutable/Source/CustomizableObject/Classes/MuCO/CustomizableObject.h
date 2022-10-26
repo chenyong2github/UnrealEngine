@@ -200,6 +200,9 @@ struct FCompilationOptions
 	// Used to enable 16 bit bone weights
 	bool b16BitBoneWeightsEnabled = false;
 
+	// Used to enable skin weight profiles.
+	bool bSkinWeightProfilesEnabled = true;
+
 	// Used to reduce the number of notifications when compiling objects
 	bool bSilentCompilation = true;
 
@@ -600,6 +603,42 @@ struct FCustomizableObjectMeshToMeshVertData
 };
 template<> struct TCanBulkSerialize<FCustomizableObjectMeshToMeshVertData> { enum { Value = true }; };
 
+
+USTRUCT()
+struct FMutableSkinWeightProfileInfo
+{
+	GENERATED_USTRUCT_BODY()
+
+	FMutableSkinWeightProfileInfo() {};
+
+	FMutableSkinWeightProfileInfo(FName InName, bool InDefaultProfile, int8 InDefaultProfileFromLODIndex) : Name(InName),
+		DefaultProfile(InDefaultProfile), DefaultProfileFromLODIndex(InDefaultProfileFromLODIndex) {};
+
+	UPROPERTY()
+	FName Name;
+
+	UPROPERTY()
+	bool DefaultProfile = false;
+
+	UPROPERTY(meta = (ClampMin = 0))
+	int8 DefaultProfileFromLODIndex = 0;
+
+	friend FArchive& operator<<(FArchive& Ar, FMutableSkinWeightProfileInfo& Info)
+	{
+		Ar << Info.Name;
+		Ar << Info.DefaultProfile;
+		Ar << Info.DefaultProfileFromLODIndex;
+
+		return Ar;
+	}
+
+	bool operator==(const FMutableSkinWeightProfileInfo& Other) const
+	{
+		return Name == Other.Name;
+	}
+};
+
+
 UCLASS()
 class CUSTOMIZABLEOBJECT_API UMutableMaskOutCache : public UObject
 {
@@ -996,6 +1035,9 @@ public:
 	UPROPERTY(Transient)
 	TArray<FCustomizableObjectMeshToMeshVertData> ClothMeshToMeshVertData;
 
+	UPROPERTY()
+	TArray<FMutableSkinWeightProfileInfo> SkinWeightProfilesInfo;
+
 #if WITH_EDITORONLY_DATA
 
 	// Hide this property because it is not used yet.
@@ -1022,6 +1064,10 @@ public:
 	// TODO: Enable 16 bit weights 
 	UPROPERTY(VisibleAnywhere, Category = CompileOptions)
 	bool bEnable16BitBoneWeights = false;
+
+	//
+	UPROPERTY(EditAnywhere, Category = CompileOptions)
+	bool bEnableAltSkinWeightProfiles = false;
 
 	// Options when compiling this customizable object (see EMutableCompileMeshType declaration for info)
 	UPROPERTY(EditAnywhere, Category = CompileOptions)
@@ -1132,7 +1178,7 @@ private:
 	// This is a manual version number for the binary blobs in this asset.
 	// Increasing it invalidates all the previously compiled models.
 	// Warning: If while merging code both versions have changed, take the highest+1.
-	static const int32 CurrentSupportedVersion = 350;
+	static const int32 CurrentSupportedVersion = 351;
 
 public:
 

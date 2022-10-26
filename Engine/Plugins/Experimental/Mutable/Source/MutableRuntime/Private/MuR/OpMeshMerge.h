@@ -754,27 +754,37 @@ namespace mu
                     pResult->GetSkeleton()  ? pResult->GetSkeleton()->GetBoneCount() : 0;
                 if (pResultBoneCount > 256)
 				{
-					int foundBuffer = -1;
-					int foundChannel = -1;
-					pResult->GetVertexBuffers().FindChannel(MBS_BONEINDICES, 0, &foundBuffer, &foundChannel);
+					// Desired format
+					MESH_BUFFER_FORMAT format = pResultBoneCount > 65535 ? MBF_UINT32 : MBF_UINT16;
 
-					if (foundChannel >= 0)
+					// Iterate all vertex buffers and update the format
+					FMeshBufferSet& VertexBuffers = pResult->GetVertexBuffers();
+					for (int32 VertexBufferIndex = 0; VertexBufferIndex < VertexBuffers.m_buffers.Num(); ++VertexBufferIndex)
 					{
-						MESH_BUFFER& boneBuffer = pResult->GetVertexBuffers().m_buffers[foundBuffer];
+						MESH_BUFFER& result = VertexBuffers.m_buffers[VertexBufferIndex];
 
-						MESH_BUFFER_FORMAT format = pResultBoneCount > 65535 ? MBF_UINT32 : MBF_UINT16;
-						boneBuffer.m_channels[foundChannel].m_format = format;
+						const int32 elemSize = VertexBuffers.GetElementSize(VertexBufferIndex);
+						const int32 firstSize = firstCount * elemSize;
 
-						// Reset offsets
-						int offset = 0;
-						for (int32 c = 0; c < boneBuffer.m_channels.Num(); ++c)
+						const int32 ChannelsCount = VertexBuffers.GetBufferChannelCount(VertexBufferIndex);
+						for (int32 ChannelIndex = 0; ChannelIndex < ChannelsCount; ++ChannelIndex)
 						{
-							boneBuffer.m_channels[c].m_offset = (uint8_t)offset;
-							offset += boneBuffer.m_channels[c].m_componentCount
-								*
-								GetMeshFormatData(boneBuffer.m_channels[c].m_format).m_size;
+							if (result.m_channels[ChannelIndex].m_semantic == MBS_BONEINDICES)
+							{
+								result.m_channels[ChannelIndex].m_format = format;
+
+								// Reset offsets
+								int32 offset = 0;
+								for (int32 AuxChannelIndex = 0; AuxChannelIndex < ChannelsCount; ++AuxChannelIndex)
+								{
+									result.m_channels[AuxChannelIndex].m_offset = (uint8_t)offset;
+									offset += result.m_channels[AuxChannelIndex].m_componentCount
+										*
+										GetMeshFormatData(result.m_channels[AuxChannelIndex].m_format).m_size;
+								}
+								result.m_elementSize = offset;
+							}
 						}
-						boneBuffer.m_elementSize = offset;
 					}
 				}
 
