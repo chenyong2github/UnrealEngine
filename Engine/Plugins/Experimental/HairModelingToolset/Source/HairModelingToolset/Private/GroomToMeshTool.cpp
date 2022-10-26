@@ -2,6 +2,7 @@
 
 #include "GroomToMeshTool.h"
 #include "InteractiveToolManager.h"
+#include "Materials/Material.h"
 #include "ToolBuilderUtil.h"
 
 #include "DynamicMesh/DynamicMesh3.h"

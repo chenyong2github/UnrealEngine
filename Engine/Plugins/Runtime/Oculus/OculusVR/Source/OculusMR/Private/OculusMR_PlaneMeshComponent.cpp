@@ -5,6 +5,7 @@
 #include "RenderResource.h"
 #include "PrimitiveViewRelevance.h"
 #include "PrimitiveSceneProxy.h"
+#include "TextureResource.h"
 #include "VertexFactory.h"
 #include "MaterialShared.h"
 #include "Engine/CollisionProfile.h"

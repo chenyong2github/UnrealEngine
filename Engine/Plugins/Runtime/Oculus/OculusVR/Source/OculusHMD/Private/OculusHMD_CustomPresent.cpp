@@ -4,6 +4,7 @@
 
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 #include "OculusHMD.h"
+#include "RHIStaticStates.h"
 #include "ScreenRendering.h"
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"

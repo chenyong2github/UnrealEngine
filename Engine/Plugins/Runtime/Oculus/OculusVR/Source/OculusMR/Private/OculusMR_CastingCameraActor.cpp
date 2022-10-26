@@ -2,6 +2,7 @@
 
 #include "OculusMR_CastingCameraActor.h"
 
+#include "Materials/Material.h"
 #include "OculusMRPrivate.h"
 #include "OculusHMD_Settings.h"
 #include "OculusHMD.h"

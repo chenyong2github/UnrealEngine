@@ -5,6 +5,7 @@
 #include "Containers/TextureShareCoreEnums.h"
 
 class ITextureShareObjectProxy;
+class SWindow;
 struct FTextureShareCoreViewDesc;
 struct FTextureShareSceneView;
 

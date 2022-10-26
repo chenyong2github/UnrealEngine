@@ -8,6 +8,7 @@
 #include "CoreGlobals.h"
 #include "Misc/CoreDelegates.h"
 #include "Interfaces/IPluginManager.h"
+#include "ShaderCore.h"
 
 #if WITH_EDITOR
 	#include "ISettingsModule.h"

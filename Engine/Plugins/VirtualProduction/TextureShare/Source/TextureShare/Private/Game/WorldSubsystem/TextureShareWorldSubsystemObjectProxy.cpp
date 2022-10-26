@@ -11,6 +11,7 @@
 #include "ITextureShareCoreObject.h"
 
 #include "Blueprints/TextureShareBlueprintContainers.h"
+#include "TextureResource.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 struct FReceiveTexture

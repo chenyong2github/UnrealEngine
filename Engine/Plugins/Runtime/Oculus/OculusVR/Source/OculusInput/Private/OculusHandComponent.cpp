@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "OculusHandComponent.h"
+#include "GameFramework/Pawn.h"
 #include "OculusInput.h"
 
 #include "Engine/SkeletalMesh.h"

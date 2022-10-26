@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataprepGeometrySelectionTransforms.h"
+#include "Engine/Level.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "Engine/Texture.h"
+#include "Engine/World.h"
 #include "IMeshMergeUtilities.h"
 #include "DataprepOperationsLibraryUtil.h"
 #include "DataprepGeometryOperations.h"

@@ -12,6 +12,7 @@
 #include "EngineUtils.h"
 #include "Editor.h"
 #include "Styling/AppStyle.h"
+#include "UObject/UObjectIterator.h"
 #include "Widgets/Text/SRichTextBlock.h"
 #include "UObject/EnumProperty.h"
 #include "EdGraph/EdGraph.h"

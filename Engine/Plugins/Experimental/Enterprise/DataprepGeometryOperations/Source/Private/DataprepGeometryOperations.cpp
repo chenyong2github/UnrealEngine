@@ -20,6 +20,7 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "DynamicMesh/Operations/MergeCoincidentMeshEdges.h"
 #include "PhysicsEngine/BodySetup.h"
+#include "UObject/UObjectIterator.h"
 
 DEFINE_LOG_CATEGORY(LogDataprepGeometryOperations);
 

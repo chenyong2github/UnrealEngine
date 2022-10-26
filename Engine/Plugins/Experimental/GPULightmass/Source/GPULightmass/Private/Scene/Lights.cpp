@@ -8,6 +8,7 @@
 #include "ReflectionEnvironment.h"
 #include "RectLightTextureManager.h"
 #include "Components/SkyAtmosphereComponent.h"
+#include "TextureResource.h"
 #include "UObject/UObjectIterator.h"
 #include "RenderGraphUtils.h"
 

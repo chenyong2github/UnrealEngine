@@ -18,6 +18,7 @@
 #include "IDetailChildrenBuilder.h"
 #include "LevelEditorViewport.h"
 #include "EngineUtils.h"
+#include "UObject/UObjectIterator.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Editor.h"

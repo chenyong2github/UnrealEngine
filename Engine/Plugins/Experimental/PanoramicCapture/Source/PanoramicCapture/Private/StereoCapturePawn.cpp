@@ -5,6 +5,7 @@
 #include "StereoPanoramaManager.h"
 #include "Engine/Texture2D.h"
 #include "Engine/Engine.h"
+#include "TextureResource.h"
 
 void AStereoCapturePawn::UpdateStereoAtlas(UObject* WorldContextObject, struct FLatentActionInfo LatentInfo)
 {

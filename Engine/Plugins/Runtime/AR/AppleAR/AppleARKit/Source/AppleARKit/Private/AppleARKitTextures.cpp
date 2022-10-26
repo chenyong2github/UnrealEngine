@@ -12,6 +12,7 @@
 #include "AppleARKitFrame.h"
 #include "HAL/RunnableThread.h"
 #include "GlobalShader.h"
+#include "TextureResource.h"
 
 #if PLATFORM_APPLE
 	#import <Metal/Metal.h>

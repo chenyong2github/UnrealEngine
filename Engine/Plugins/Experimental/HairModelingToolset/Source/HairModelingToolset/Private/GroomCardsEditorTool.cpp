@@ -2,6 +2,7 @@
 
 #include "GroomCardsEditorTool.h"
 #include "InteractiveToolManager.h"
+#include "SceneManagement.h"
 #include "ToolBuilderUtil.h"
 
 #include "BaseBehaviors/SingleClickBehavior.h"

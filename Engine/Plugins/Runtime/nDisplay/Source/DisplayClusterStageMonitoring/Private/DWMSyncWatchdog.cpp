@@ -12,6 +12,7 @@
 #include "Render/IDisplayClusterRenderManager.h"
 #include "Render/Presentation/IDisplayClusterPresentation.h"
 #include "RendererInterface.h"
+#include "UnrealClient.h"
 
 
 #pragma warning(push)

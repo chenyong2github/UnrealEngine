@@ -5,6 +5,7 @@
 #include "Internationalization/Internationalization.h"
 #include "Modules/ModuleManager.h"
 #include "HAL/IConsoleManager.h"
+#include "PropertyEditorModule.h"
 #include "RenderingThread.h"
 #include "Interfaces/IPluginManager.h"
 #include "ShaderCore.h"

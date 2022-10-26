@@ -4,6 +4,7 @@
 
 #include "PhononScene.h"
 
+#include "Model.h"
 #include "PhononCommon.h"
 #include "PhononGeometryComponent.h"
 #include "PhononMaterialComponent.h"

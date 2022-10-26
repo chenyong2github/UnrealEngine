@@ -19,6 +19,7 @@
 #endif //WITH_EDITOR
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Components.h"
 #include "Curves/RichCurve.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"

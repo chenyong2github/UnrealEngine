@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -12,6 +12,7 @@ class ITableRow;
 class SComboButton;
 class SMIDIDeviceComboBox;
 class STableViewBase;
+class SWidget;
 template <typename ItemType> class SListView;
 
 /** Menu item for a MIDI Device */
