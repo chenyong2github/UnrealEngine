@@ -252,7 +252,7 @@ FAutoConsoleVariableRef CVarLumenSceneGlobalSDFDitheredTransparencyTraceThreshol
 TAutoConsoleVariable<int32> CVarGlobalDistanceFieldDebug(
 	TEXT("r.GlobalDistanceField.Debug"),
 	0,
-	TEXT("Debug drawing for the Global Distance Field. Requires r.ShaderPrint=1."),
+	TEXT("Debug drawing for the Global Distance Field."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -2841,6 +2841,8 @@ void UpdateGlobalDistanceFieldVolume(
 			&& GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer 
 			&& GlobalDistanceFieldInfo.PageAtlasTexture)
 		{
+			ShaderPrint::SetEnabled(true);
+
 			FRDGBufferRef PageStatsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 64), TEXT("GlobalDistanceField.PageStatsBuffer"));
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(PageStatsBuffer), 0);
 

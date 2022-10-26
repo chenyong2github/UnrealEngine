@@ -487,7 +487,7 @@ int32 GRadianceCacheStats = 0;
 FAutoConsoleVariableRef CVarRadianceCacheStats(
 	TEXT("r.Lumen.ScreenProbeGather.RadianceCache.Stats"),
 	GRadianceCacheStats,
-	TEXT("GPU print out Radiance Cache update stats. Requires r.ShaderPrintEnable 1."),
+	TEXT("GPU print out Radiance Cache update stats."),
 	ECVF_RenderThreadSafe
 );
 

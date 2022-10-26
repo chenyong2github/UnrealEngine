@@ -52,7 +52,7 @@ int32 GLumenLightingStats = 0;
 FAutoConsoleVariableRef CVarLumenSceneLightingStats(
 	TEXT("r.LumenScene.Lighting.Stats"),
 	GLumenLightingStats,
-	TEXT("GPU print out Lumen lighting update stats. Requires r.ShaderPrintEnable 1."),
+	TEXT("GPU print out Lumen lighting update stats."),
 	ECVF_RenderThreadSafe
 );
 
@@ -722,6 +722,8 @@ void Lumen::BuildCardUpdateContext(
 
 	if (GLumenLightingStats != 0)
 	{
+		ShaderPrint::SetEnabled(true);
+
 		FLumenSceneLightingStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenSceneLightingStatsCS::FParameters>();
 		ShaderPrint::SetParameters(GraphBuilder, Views[0].ShaderPrintData, PassParameters->ShaderPrintUniformBuffer);
 		PassParameters->LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;

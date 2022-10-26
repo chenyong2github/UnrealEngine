@@ -2185,6 +2185,8 @@ void UpdateRadianceCaches(
 
 			if (RadianceCacheInputs.RadianceCacheStats != 0)
 			{
+				ShaderPrint::SetEnabled(true);
+
 				const int32 MaxNumProbes = RadianceCacheInputs.ProbeAtlasResolutionInProbes.X * RadianceCacheInputs.ProbeAtlasResolutionInProbes.Y;
 
 				FRadianceCacheUpdateStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRadianceCacheUpdateStatsCS::FParameters>();
