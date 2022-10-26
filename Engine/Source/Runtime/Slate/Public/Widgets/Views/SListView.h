@@ -661,7 +661,7 @@ public:
 		return MakeShareable<FSlateAccessibleWidget>(new SListView<ItemType>::FSlateAccessibleListView(SharedThis(this), WidgetType));
 	}
 
-	virtual TOptional<FText> GetDefaultAccessibleText(EAccessibleType AccessibleType) const
+	virtual TOptional<FText> GetDefaultAccessibleText(EAccessibleType AccessibleType) const override
 	{
 		// current behaviour will red out the  templated type of the listwhich is verbose and unhelpful 
 		// This will read out list twice, but it's the best we can do for now if no label is found 
@@ -1047,7 +1047,7 @@ public:
 		return SelectedItems.Num();
 	}
 
-	virtual void Private_SetItemHighlighted(ItemType TheItem, bool bShouldBeHighlighted)
+	virtual void Private_SetItemHighlighted(ItemType TheItem, bool bShouldBeHighlighted) override
 	{
 		if (bShouldBeHighlighted)
 		{
@@ -1059,7 +1059,7 @@ public:
 		}
 	}
 
-	virtual void Private_ClearHighlightedItems()
+	virtual void Private_ClearHighlightedItems() override
 	{
 		HighlightedItems.Empty();
 	}
