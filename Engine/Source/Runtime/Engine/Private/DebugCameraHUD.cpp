@@ -94,7 +94,7 @@ void ADebugCameraHUD::PostRender()
 			FString MyText = TEXT("Debug Camera");
 			float xl, yl;
 			Canvas->StrLen(RenderFont, MyText, xl, yl);
-			float X = Canvas->SizeX * 0.05f;
+			float X = FMath::FloorToFloat(Canvas->SizeX * 0.05f);
 			float Y = yl;//*1.67;
 			yl += 2*Y;
 			Canvas->DrawText(RenderFont, MyText, X, yl, 1.f, 1.f, FontRenderInfo);
