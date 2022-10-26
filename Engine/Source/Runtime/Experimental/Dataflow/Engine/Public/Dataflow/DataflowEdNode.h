@@ -24,11 +24,13 @@ namespace Dataflow { class FGraph; }
 UCLASS()
 class DATAFLOWENGINE_API UDataflowEdNode : public UEdGraphNode
 {
-	GENERATED_BODY()
+	GENERATED_UCLASS_BODY()
 
 	FGuid DataflowNodeGuid;
 	TSharedPtr<Dataflow::FGraph> DataflowGraph;
+
 public:
+
 	// UEdGraphNode interface
 	virtual void AllocateDefaultPins();
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const;

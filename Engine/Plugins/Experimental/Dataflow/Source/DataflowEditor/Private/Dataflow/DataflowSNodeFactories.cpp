@@ -4,7 +4,7 @@
 #include "Dataflow/DataflowSNode.h"
 #include "Dataflow/DataflowEdNode.h"
 #include "EdGraphNode_Comment.h"
-#include "Dataflow/DataflowCommentNode.h"
+#include "Dataflow/DataflowSCommentNode.h"
 #include "Dataflow/DataflowSchema.h"
 
 TSharedPtr<class SGraphNode> FDataflowSNodeFactory::CreateNode(UEdGraphNode* InNode) const

@@ -6,7 +6,7 @@
 #include "SGraphNode.h"
 #include "SGraphNodeComment.h"
 
-#include "DataflowCommentNode.generated.h"
+#include "DataflowSCommentNode.generated.h"
 
 //
 // SDataflowEdNodeComment

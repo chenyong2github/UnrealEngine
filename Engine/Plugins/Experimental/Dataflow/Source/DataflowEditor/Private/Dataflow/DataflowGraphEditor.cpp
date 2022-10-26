@@ -7,7 +7,7 @@
 #include "Dataflow/DataflowSNodeFactories.h"
 #include "BoneDragDropOp.h"
 #include "IStructureDetailsView.h"
-#include "Dataflow/DataflowCommentNode.h"
+#include "Dataflow/DataflowSCommentNode.h"
 #include "Dataflow/DataflowNodeParameters.h"
 
 #include "Dataflow/DataflowSchema.h"

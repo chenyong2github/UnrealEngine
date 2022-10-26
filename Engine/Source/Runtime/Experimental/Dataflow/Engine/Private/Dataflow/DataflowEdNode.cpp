@@ -12,10 +12,18 @@
 #include "EdGraph/EdGraphPin.h"
 #endif
 
-
 #define LOCTEXT_NAMESPACE "DataflowEdNode"
 
 DEFINE_LOG_CATEGORY_STATIC(DATAFLOWNODE_LOG, Error, All);
+
+
+UDataflowEdNode::UDataflowEdNode(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	bCanRenameNode = true;
+#endif // WITH_EDITOR && !UE_BUILD_SHIPPING
+}
 
 void UDataflowEdNode::AllocateDefaultPins()
 {

@@ -12,6 +12,7 @@ class IStructureDetailsView;
 class UDataflow;
 class UDataflowEdNode;
 struct FDataflowNode;
+class UEdGraphNode;
 
 typedef TSet<class UObject*> FGraphPanelSelectionSet;
 
@@ -68,7 +69,17 @@ public:
 	*  DeleteNodes
 	*/
 	static void DeleteNodes(UDataflow* Graph, const FGraphPanelSelectionSet& SelectedNodes);
-	
+
+	/*
+	* OnNodeVerifyTitleCommit
+	*/
+	static bool OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* GraphNode, FText& OutErrorMessage);
+
+	/*
+	* OnNodeTitleCommitted
+	*/
+	static void OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode);
+
 	/*
 	*  OnPropertyValueChanged
 	*/

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Dataflow/DataflowCommentNode.h"
+#include "Dataflow/DataflowSCommentNode.h"
 
 #include "EdGraphNode_Comment.h"
 #include "Dataflow/DataflowEdNode.h"
@@ -27,7 +27,7 @@ TSharedPtr<FAssetSchemaAction_Dataflow_CreateCommentNode_DataflowEdNode> FAssetS
 //
 UEdGraphNode* FAssetSchemaAction_Dataflow_CreateCommentNode_DataflowEdNode::PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
 {
-	UEdGraphNode_Comment* CommentTemplate = NewObject<UEdGraphNode_Comment>();
+	UEdGraphNode_Comment* CommentTemplate = NewObject<UEdGraphNode_Comment>(ParentGraph, FName("Comment"));
 
 	FVector2D SpawnLocation = Location;
 	FSlateRect Bounds;
