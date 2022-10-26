@@ -1037,7 +1037,7 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRDGBuilder& GraphBuilder, TConstA
 	FNiagaraSceneTextureParameters SceneTextures;
 	GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, Views.Num() > 0 ? GetViewFamilyInfo(Views).GetSceneTexturesChecked() : nullptr, SceneTextures);
 	NiagaraSceneTextures = &SceneTextures;
-	CurrentPassViews = Views;
+	SimulationViewInfos = Views;
 
 	// Loop over dispatches
 	for ( const FNiagaraGpuDispatchGroup& DispatchGroup : DispatchList.DispatchGroups )
@@ -1351,8 +1351,8 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRDGBuilder& GraphBuilder, TConstA
 	);
 
 	// Tear down for tick pass
-	NiagaraSceneTextures = &SceneTextures;
-	CurrentPassViews = Views;
+	NiagaraSceneTextures = nullptr;
+	SimulationViewInfos = TConstArrayView<FViewInfo>();
 
 	CurrentPassExternalAccessQueue.Submit(GraphBuilder);
 }
@@ -1543,7 +1543,7 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 	// Set ViewUniformBuffer if it's required
 	if (ComputeShader->bNeedsViewUniformBuffer)
 	{
-		DispatchParameters->View = CurrentPassViews[0].ViewUniformBuffer;
+		DispatchParameters->View = SimulationViewInfos[0].ViewUniformBuffer;
 	}
 	DispatchParameters->SceneTextures.SceneTextures			= NiagaraSceneTextures->SceneTextures;
 	DispatchParameters->SceneTextures.MobileSceneTextures	= NiagaraSceneTextures->MobileSceneTextures;
@@ -1758,7 +1758,6 @@ void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TCo
 			[this, Views](FRHICommandListImmediate& RHICmdList)
 			{
 				AsyncGpuTraceHelper->PostRenderOpaque(RHICmdList, this, Views);
-				CurrentPassViews = Views;
 			}
 		);
 
@@ -1776,7 +1775,6 @@ void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TCo
 
 				AsyncGpuTraceHelper->EndFrame(RHICmdList, this);
 			}
-			CurrentPassViews = TConstArrayView<FViewInfo>();
 
 			ProcessDebugReadbacks(RHICmdList, false);
 
@@ -1907,22 +1905,6 @@ bool FNiagaraGpuComputeDispatch::AddSortedGPUSimulation(FNiagaraGPUSortInfo& Sor
 	{
 		return false;
 	}
-}
-
-const FGlobalDistanceFieldParameterData* FNiagaraGpuComputeDispatch::GetGlobalDistanceFieldParameters() const
-{ 
-	check(CurrentPassViews.Num() > 0); 
-	return &CurrentPassViews[0].GlobalDistanceFieldInfo.ParameterData; 
-}
-
-const FDistanceFieldSceneData* FNiagaraGpuComputeDispatch::GetMeshDistanceFieldParameters() const
-{
-	if (CurrentPassViews.Num() == 0 || CurrentPassViews[0].Family == nullptr || CurrentPassViews[0].Family->Scene == nullptr || CurrentPassViews[0].Family->Scene->GetRenderScene() == nullptr)
-	{
-		return nullptr;
-	}
-
-	return &CurrentPassViews[0].Family->Scene->GetRenderScene()->DistanceFieldSceneData;
 }
 
 void FNiagaraGpuComputeDispatch::GenerateSortKeys(FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV)

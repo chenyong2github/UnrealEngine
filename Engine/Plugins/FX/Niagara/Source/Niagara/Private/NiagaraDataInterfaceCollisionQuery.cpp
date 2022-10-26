@@ -548,8 +548,11 @@ void UNiagaraDataInterfaceCollisionQuery::SetShaderParameters(const FNiagaraData
 	FGlobalDistanceFieldParameters2* ShaderGDFParameters = Context.GetParameterIncludedStruct<FGlobalDistanceFieldParameters2>();
 	if (Context.IsStructBound(ShaderGDFParameters))
 	{
-		const FGlobalDistanceFieldParameterData* GDFParameterData = static_cast<const FNiagaraGpuComputeDispatch&>(Context.GetComputeDispatchInterface()).GetGlobalDistanceFieldParameters();//-BATCHERTODO:
-		FNiagaraDistanceFieldHelper::SetGlobalDistanceFieldParameters(GDFParameterData, *ShaderGDFParameters);
+		TConstArrayView<FViewInfo> SimulationViewInfos = Context.GetComputeDispatchInterface().GetSimulationViewInfos();
+		FNiagaraDistanceFieldHelper::SetGlobalDistanceFieldParameters(
+			SimulationViewInfos.Num() > 0 ? &SimulationViewInfos[0].GlobalDistanceFieldInfo.ParameterData : nullptr,
+			*ShaderGDFParameters
+		);
 	}
 }
 

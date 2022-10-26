@@ -2992,7 +2992,13 @@ void UNiagaraDataInterfaceStaticMesh::SetShaderParameters(const FNiagaraDataInte
 	ShaderParameters->InstancePreviousRotation						= InstanceData.PrevRotation;
 	ShaderParameters->InstanceWorldVelocity							= DeltaPosition;
 
-	const FDistanceFieldSceneData* DistanceFieldSceneData = static_cast<const FNiagaraGpuComputeDispatch&>(Context.GetComputeDispatchInterface()).GetMeshDistanceFieldParameters();	//-BATCHERTODO:
+	const FDistanceFieldSceneData* DistanceFieldSceneData = nullptr;
+	TConstArrayView<FViewInfo> SimulationViewInfos = Context.GetComputeDispatchInterface().GetSimulationViewInfos();
+	if (SimulationViewInfos.Num() > 0 && SimulationViewInfos[0].Family && SimulationViewInfos[0].Family->Scene && SimulationViewInfos[0].Family->Scene->GetRenderScene())
+	{
+		DistanceFieldSceneData = &SimulationViewInfos[0].Family->Scene->GetRenderScene()->DistanceFieldSceneData;
+	}
+
 	if (Context.IsParameterBound(&ShaderParameters->InstanceDistanceFieldIndex))
 	{
 		int32 DistanceFieldIndex = -1;

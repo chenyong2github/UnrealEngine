@@ -10,6 +10,7 @@
 
 class RENDERCORE_API FRDGBuilder;
 class FRDGExternalAccessQueue;
+class FViewInfo;
 
 class FNiagaraAsyncGpuTraceHelper;
 struct FNiagaraComputeExecutionContext;
@@ -71,6 +72,12 @@ public:
 		GpuDataManagers.Emplace(ManagerName, Manager);
 		return *Manager;
 	}
+
+	/**
+	Get access to the Views the simulation is being rendered with.
+	List is only valid during graph building (i.e. during ExecuteTicks) and for simulations in PostInitViews / PostRenderOpaque.
+	*/
+	TConstArrayView<FViewInfo> GetSimulationViewInfos() const { return SimulationViewInfos; }
 
 	/** Get access to the instance count manager. */
 	FORCEINLINE FNiagaraGPUInstanceCountManager& GetGPUInstanceCounterManager() { check(IsInRenderingThread()); return GPUInstanceCounterManager; }
@@ -171,4 +178,6 @@ protected:
 	FNiagaraGPUInstanceCountManager			GPUInstanceCounterManager;
 
 	TArray<TPair<FName, TUniquePtr<FNiagaraGpuComputeDataManager>>> GpuDataManagers;
+
+	TConstArrayView<FViewInfo>				SimulationViewInfos;
 };

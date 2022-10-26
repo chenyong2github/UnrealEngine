@@ -1509,7 +1509,11 @@ void UNiagaraDataInterfaceRigidMeshCollisionQuery::SetShaderParameters(const FNi
 
 		if (bDistanceFieldDataBound)
 		{
-			DistanceFieldSceneData = static_cast<const FNiagaraGpuComputeDispatch&>(Context.GetComputeDispatchInterface()).GetMeshDistanceFieldParameters();	//-BATCHERTODO:
+			TConstArrayView<FViewInfo> SimulationViewInfos = Context.GetComputeDispatchInterface().GetSimulationViewInfos();
+			if (SimulationViewInfos.Num() > 0 && SimulationViewInfos[0].Family && SimulationViewInfos[0].Family->Scene && SimulationViewInfos[0].Family->Scene->GetRenderScene())
+			{
+				DistanceFieldSceneData = &SimulationViewInfos[0].Family->Scene->GetRenderScene()->DistanceFieldSceneData;
+			}
 		}
 	}
 	else
