@@ -336,7 +336,7 @@ bool FGameplayAbilityRepAnimMontageNetSerializer::IsEqual(FNetSerializationConte
 			return false;
 		}
 
-		if (Value0.ReplicationFlags != Value1.ReplicationFlags || Value0.Position != Value1.ReplicationFlags || Value0.SectionIdToPlay != Value1.SectionIdToPlay)
+		if (Value0.ReplicationFlags != Value1.ReplicationFlags || Value0.Position != Value1.Position || Value0.SectionIdToPlay != Value1.SectionIdToPlay)
 		{
 			return false;
 		}
@@ -447,6 +447,9 @@ void FGameplayAbilityRepAnimMontageNetSerializer::FNetSerializerRegistryDelegate
 	const FReplicationStateDescriptor* Descriptor = StructNetSerializerConfigForBase.StateDescriptor.GetReference();
 	check(Descriptor != nullptr);
 
+	// Verify traits
+	ValidateForwardingNetSerializerTraits(&UE_NET_GET_SERIALIZER(FGameplayAbilityRepAnimMontageNetSerializer), Descriptor->Traits);
+	
 	// Validate our assumptions regarding quantized state size and alignment.
 	constexpr SIZE_T OffsetOfGameplayAbilityRepAnimMontage = offsetof(FQuantizedType, GameplayAbilityRepAnimMontage);
 	if ((sizeof(FQuantizedType::GameplayAbilityRepAnimMontage) < Descriptor->InternalSize) || (((OffsetOfGameplayAbilityRepAnimMontage/Descriptor->InternalAlignment)*Descriptor->InternalAlignment) != OffsetOfGameplayAbilityRepAnimMontage))

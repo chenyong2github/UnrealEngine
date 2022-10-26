@@ -2,6 +2,7 @@
 
 #include "Iris/ReplicationState/PropertyNetSerializerInfoRegistry.h"
 #include "Iris/ReplicationState/EnumPropertyNetSerializerInfo.h"
+#include "Iris/ReplicationState/ReplicationStateDescriptor.h"
 #include "Templates/Sorting.h"
 #include "UObject/UnrealType.h"
 #include "Iris/Serialization/NetSerializers.h"
@@ -198,6 +199,23 @@ const FPropertyNetSerializerInfo* FPropertyNetSerializerInfoRegistry::FindStruct
 const FPropertyNetSerializerInfo* FPropertyNetSerializerInfoRegistry::GetNopNetSerializerInfo()
 {
 	return &Private::NopNetSerializerInfo;
+}
+
+void ValidateForwardingNetSerializerTraits(const FNetSerializer* Serializer, EReplicationStateTraits UsedReplicationStateTraits)
+{
+	const ENetSerializerTraits SerializerTraits = Serializer->Traits;
+	if (EnumHasAnyFlags(UsedReplicationStateTraits, EReplicationStateTraits::HasDynamicState) && !EnumHasAnyFlags(SerializerTraits, ENetSerializerTraits::HasDynamicState))
+	{
+		LowLevelFatalError(TEXT("FNetSerializer: %s is using serializer(s) that HasDynamicState without setting trait: static constexpr bool bHasDynamicState = true; in the serializer declaration."), Serializer->Name);
+	}
+	if (EnumHasAnyFlags(UsedReplicationStateTraits, EReplicationStateTraits::HasObjectReference) && !EnumHasAnyFlags(SerializerTraits, ENetSerializerTraits::HasCustomNetReference))
+	{
+		LowLevelFatalError(TEXT("FNetSerializer: %s is using serializer(s) that has trait HasCustomNetReference without setting trait: static constexpr bool bHasCustomNetReference = true; in the serializer declaration."), Serializer->Name);
+	}
+	if (EnumHasAnyFlags(UsedReplicationStateTraits, EReplicationStateTraits::HasConnectionSpecificSerialization) && !EnumHasAnyFlags(SerializerTraits, ENetSerializerTraits::HasConnectionSpecificSerialization))
+	{
+		LowLevelFatalError(TEXT("FNetSerializer: %s is using serializer(s) that has HasConnectionSpecificSerialization without setting trait: static constexpr bool bHasConnectionSpecificSerialization = true; in the serializer declaration."), Serializer->Name);
+	}
 }
 
 }
