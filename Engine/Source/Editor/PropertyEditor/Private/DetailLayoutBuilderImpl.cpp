@@ -947,7 +947,7 @@ bool FDetailLayoutBuilderImpl::IsPropertyPathAllowed(const FString& InPath) cons
 
 	for (const FString& PropertyName : PropertyGenerationAllowListPaths)
 	{
-		if (PropertyName.StartsWith(InPath))
+		if (InPath.StartsWith(PropertyName) || PropertyName.StartsWith(InPath))
 		{
 			return true;
 		}
