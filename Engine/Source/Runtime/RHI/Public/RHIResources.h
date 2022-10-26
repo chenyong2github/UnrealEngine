@@ -1932,6 +1932,12 @@ public:
 		return this;
 	}
 
+	virtual FRHIDescriptorHandle GetDefaultBindlessHandle() const override 
+	{ 
+		check(ReferencedTexture);
+		return ReferencedTexture->GetDefaultBindlessHandle();
+	}
+
 	virtual void* GetNativeResource() const override 
 	{
 		check(ReferencedTexture);
