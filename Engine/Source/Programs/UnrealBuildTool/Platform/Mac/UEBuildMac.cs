@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 using System;
@@ -39,7 +39,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Enables the generation of .dsym files. This can be disabled to enable faster iteration times during development.
 		/// </summary>
-		[CommandLine("-NoDSYM", Value = "false")]
+		[CommandLine("-EnableDSYM", Value = "true")]
 		[XmlConfigFile(Category = "BuildConfiguration", Name = "bUseDSYMFiles")]
 		public bool bUseDSYMFiles = false;
 
