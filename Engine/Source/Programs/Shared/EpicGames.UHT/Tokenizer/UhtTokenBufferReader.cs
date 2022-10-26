@@ -122,8 +122,11 @@ namespace EpicGames.UHT.Tokenizer
 		/// <inheritdoc/>
 		public void SkipWhitespaceAndComments()
 		{
-			bool gotInlineComment = false;
-			SkipWhitespaceAndCommentsInternal(ref gotInlineComment, true);
+			if (!_hasToken)
+			{
+				bool gotInlineComment = false;
+				SkipWhitespaceAndCommentsInternal(ref gotInlineComment, true);
+			}
 		}
 
 		/// <inheritdoc/>
