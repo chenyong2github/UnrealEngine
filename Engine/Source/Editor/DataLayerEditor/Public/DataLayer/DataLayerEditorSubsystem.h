@@ -113,8 +113,10 @@ public:
 	void OnWorldDataLayersPostRegister(AWorldDataLayers* WorldDataLayers);
 	void OnWorldDataLayersPreUnregister(AWorldDataLayers* WorldDataLayers);
 
+	TArray<const UDataLayerInstance*> GetDataLayerInstances(const TArray<const UDataLayerAsset*> DataLayerAssets) const;
+
 	template<class DataLayerType, typename ...Args>
-	UDataLayerInstance* CreateDataLayerInstance(AWorldDataLayers* WorldDataLayers, Args&&... InArgs);
+	DataLayerType* CreateDataLayerInstance(AWorldDataLayers* WorldDataLayers, Args&&... InArgs);
 
 	/* Broadcasts whenever one or more DataLayers are modified
 	 *
@@ -526,13 +528,22 @@ public:
 	void MakeAllDataLayersVisible();
 
 	/**
-	 * Gets the UDataLayerInstance Object from associate with the DataLayerAsset
+	 * Gets the UDataLayerInstance associated to the DataLayerAsset
 	 *
 	 * @param	DataLayerAsset	The DataLayerAsset associated to the UDataLayerInstance
-	 * @return					The UDataLayerInstance Object of the provided DataLayerAsset
+	 * @return					The UDataLayerInstance of the provided DataLayerAsset
 	 */
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
 	UDataLayerInstance* GetDataLayerInstance(const UDataLayerAsset* DataLayerAsset) const;
+
+	/**
+	 * Gets the UDataLayerInstances associated to the each DataLayerAssets
+	 *
+	 * @param	DataLayerAssets	The array of DataLayerAssets associated to UDataLayerInstances
+	 * @return					The array of UDataLayerInstances corresponding to a DataLayerAsset in the DataLayerAssets array
+	 */
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	TArray<UDataLayerInstance*> GetDataLayerInstances(const TArray<UDataLayerAsset*> DataLayerAssets) const;
 
 	/**
 	 * Gets the UDataLayerInstance Object of the DataLayer name
@@ -745,7 +756,7 @@ private:
 };
 
 template<class DataLayerType, typename ...Args>
-UDataLayerInstance* UDataLayerEditorSubsystem::CreateDataLayerInstance(AWorldDataLayers* WorldDataLayers, Args&&... InArgs)
+DataLayerType* UDataLayerEditorSubsystem::CreateDataLayerInstance(AWorldDataLayers* WorldDataLayers, Args&&... InArgs)
 {
 	UDataLayerInstance* NewDataLayer = nullptr;
 
@@ -759,5 +770,5 @@ UDataLayerInstance* UDataLayerEditorSubsystem::CreateDataLayerInstance(AWorldDat
 		BroadcastDataLayerChanged(EDataLayerAction::Add, NewDataLayer, NAME_None);
 	}
 
-	return NewDataLayer;
+	return CastChecked<DataLayerType>(NewDataLayer);
 }

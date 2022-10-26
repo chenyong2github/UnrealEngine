@@ -678,7 +678,7 @@ namespace AssetUtil
 		return ExtractAssetDataFromDrag(DragDropEvent.GetOperation());
 	}
 
-	TArray<FAssetData> ExtractAssetDataFromDrag(const TSharedPtr<FDragDropOperation>& Operation)
+	TArray<FAssetData> ExtractAssetDataFromDrag(const TSharedPtr<const FDragDropOperation>& Operation)
 	{
 		TArray<FAssetData> DroppedAssetData;
 
@@ -689,8 +689,8 @@ namespace AssetUtil
 
 		if (Operation->IsOfType<FExternalDragOperation>())
 		{
-			TSharedPtr<FExternalDragOperation> DragDropOp = StaticCastSharedPtr<FExternalDragOperation>(Operation);
-			if ( DragDropOp->HasText() )
+			TSharedPtr<const FExternalDragOperation> DragDropOp = StaticCastSharedPtr<const FExternalDragOperation>(Operation);
+			if (DragDropOp->HasText())
 			{
 				TArray<FString> DroppedAssetStrings;
 				const TCHAR AssetDelimiter[] = { AssetMarshalDefs::AssetDelimiter, TEXT('\0') };
@@ -714,13 +714,13 @@ namespace AssetUtil
 		}
 		else if (Operation->IsOfType<FCollectionDragDropOp>())
 		{
-			TSharedPtr<FCollectionDragDropOp> DragDropOp = StaticCastSharedPtr<FCollectionDragDropOp>( Operation );
-			DroppedAssetData.Append( DragDropOp->GetAssets() );
+			TSharedPtr<const FCollectionDragDropOp> DragDropOp = StaticCastSharedPtr<const FCollectionDragDropOp>(Operation);
+			DroppedAssetData.Append(DragDropOp->GetAssets());
 		}
 		else if (Operation->IsOfType<FAssetDragDropOp>())
 		{
-			TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>( Operation );
-			DroppedAssetData.Append( DragDropOp->GetAssets() );
+			TSharedPtr<const FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<const FAssetDragDropOp>(Operation);
+			DroppedAssetData.Append(DragDropOp->GetAssets());
 		}
 
 		return DroppedAssetData;

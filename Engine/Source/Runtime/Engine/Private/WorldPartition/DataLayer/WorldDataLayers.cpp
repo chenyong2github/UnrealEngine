@@ -464,7 +464,7 @@ AWorldDataLayers* AWorldDataLayers::Create(const FActorSpawnParameters& SpawnPar
 	return WorldDataLayers;
 }
 
-TArray<FName> AWorldDataLayers::GetDataLayerInstanceNames(const TArray<TObjectPtr<const UDataLayerAsset>>& InDataLayersAssets) const
+TArray<FName> AWorldDataLayers::GetDataLayerInstanceNames(const TArray<const UDataLayerAsset*>& InDataLayersAssets) const
 {
 	TArray<FName> OutDataLayerNames;
 	OutDataLayerNames.Reserve(InDataLayersAssets.Num());
@@ -477,14 +477,14 @@ TArray<FName> AWorldDataLayers::GetDataLayerInstanceNames(const TArray<TObjectPt
 	return OutDataLayerNames;
 }
 
-TArray<const UDataLayerInstance*> AWorldDataLayers::GetDataLayerInstances(const TArray<TObjectPtr<const UDataLayerAsset>>& InDataLayersAssets) const
+TArray<const UDataLayerInstance*> AWorldDataLayers::GetDataLayerInstances(const TArray<const UDataLayerAsset*>& InDataLayersAssets) const
 {
 	TArray<const UDataLayerInstance*> OutDataLayers;
 	OutDataLayers.Reserve(InDataLayersAssets.Num());
 
-	for (const TObjectPtr<const UDataLayerAsset>& DataLayerAsset : InDataLayersAssets)
+	for (const UDataLayerAsset* DataLayerAsset : InDataLayersAssets)
 	{
-		if (const UDataLayerInstance* DataLayerObject = GetDataLayerInstance(DataLayerAsset.Get()))
+		if (const UDataLayerInstance* DataLayerObject = GetDataLayerInstance(DataLayerAsset))
 		{
 			OutDataLayers.AddUnique(DataLayerObject);
 		}

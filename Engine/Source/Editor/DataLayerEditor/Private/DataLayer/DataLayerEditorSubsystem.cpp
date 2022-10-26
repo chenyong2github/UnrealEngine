@@ -364,6 +364,16 @@ void UDataLayerEditorSubsystem::OnWorldDataLayersPreUnregister(AWorldDataLayers*
 	EditorRefreshDataLayerBrowser();
 }
 
+TArray<const UDataLayerInstance*> UDataLayerEditorSubsystem::GetDataLayerInstances(const TArray<const UDataLayerAsset*> DataLayerAssets) const
+{
+	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+	{
+		return DataLayerSubsystem->GetDataLayerInstances(DataLayerAssets);
+	}
+
+	return TArray<const UDataLayerInstance*>();
+}
+
 void UDataLayerEditorSubsystem::EditorMapChange()
 {
 	if (UWorld * World = GetWorld())
@@ -1149,6 +1159,18 @@ UDataLayerInstance* UDataLayerEditorSubsystem::GetDataLayerInstance(const UDataL
 		return DataLayerSubsystem->GetDataLayerInstance(DataLayerAsset);
 	}
 	return nullptr;
+}
+
+TArray<UDataLayerInstance*> UDataLayerEditorSubsystem::GetDataLayerInstances(const TArray<UDataLayerAsset*> DataLayerAssets) const
+{
+	TArray<const UDataLayerAsset*> ConstAssets;
+	Algo::Transform(DataLayerAssets, ConstAssets, [](UDataLayerAsset* DataLayerAsset) { return DataLayerAsset; });
+
+	TArray<const UDataLayerInstance*> DataLayerInstances = GetDataLayerInstances(ConstAssets);
+
+	TArray<UDataLayerInstance*> Result;
+	Algo::Transform(DataLayerInstances, Result, [](const UDataLayerInstance* DataLayerInstance) { return const_cast<UDataLayerInstance*>(DataLayerInstance); });
+	return Result;
 }
 
 void UDataLayerEditorSubsystem::AddAllDataLayersTo(TArray<TWeakObjectPtr<UDataLayerInstance>>& OutDataLayers) const
