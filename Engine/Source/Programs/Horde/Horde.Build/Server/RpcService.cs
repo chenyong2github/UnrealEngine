@@ -921,8 +921,6 @@ namespace Horde.Build.Server
 			return new Empty();
 		}
 
-		static int s_counter = 0;
-
 		/// <summary>
 		/// Writes output to a log file
 		/// </summary>
@@ -939,13 +937,6 @@ namespace Horde.Build.Server
 			if (!LogFileService.AuthorizeForSession(logFile, context.GetHttpContext().User))
 			{
 				throw new StructuredRpcException(StatusCode.PermissionDenied, "Access denied");
-			}
-
-			int counter = Interlocked.Increment(ref s_counter);
-			if ((counter & 63) == 0)
-			{
-				_logger.LogError("Triggering error inside WriteOutput()");
-				throw new Exception("WriteOutput() test");
 			}
 
 			await _logFileService.WriteLogDataAsync(logFile, request.Offset, request.LineIndex, request.Data.ToArray(), request.Flush, cancellationToken: context.CancellationToken);
