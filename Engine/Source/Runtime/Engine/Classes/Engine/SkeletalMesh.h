@@ -2882,7 +2882,6 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-#if WITH_EDITOR
 	TArray<FSkinWeightProfileInfo>& GetSkinWeightProfiles() 
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkinWeightProfiles); 
@@ -2899,7 +2898,6 @@ public:
 		return SkinWeightProfiles.Num(); 
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
-#endif
 
 	/** Releases all allocated Skin Weight Profile resources, assumes none are currently in use */
 	void ReleaseSkinWeightProfileResources();

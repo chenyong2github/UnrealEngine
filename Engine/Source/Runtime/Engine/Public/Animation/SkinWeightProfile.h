@@ -148,10 +148,8 @@ struct ENGINE_API FSkinWeightProfilesData
 	FSkinWeightVertexBuffer* GetOverrideBuffer(const FName& ProfileName) const;
 	bool ContainsOverrideBuffer(const FName& ProfileName) const;
 	
-#if WITH_EDITOR
 	const FRuntimeSkinWeightProfileData* GetOverrideData(const FName& ProfileName) const;
 	FRuntimeSkinWeightProfileData& AddOverrideData(const FName& ProfileName);
-#endif // WITH_EDITOR
 	
 	void ReleaseBuffer(const FName& ProfileName, bool bForceRelease = false);
 	void ReleaseResources();

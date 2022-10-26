@@ -491,7 +491,7 @@ bool FSkinWeightProfilesData::ContainsOverrideBuffer(const FName& ProfileName) c
 	return ProfileNameToBuffer.Contains(ProfileName);
 }
 
-#if WITH_EDITOR
+
 const FRuntimeSkinWeightProfileData* FSkinWeightProfilesData::GetOverrideData(const FName& ProfileName) const
 {
 	return OverrideData.Find(ProfileName);
@@ -501,7 +501,7 @@ FRuntimeSkinWeightProfileData& FSkinWeightProfilesData::AddOverrideData(const FN
 {
 	return OverrideData.FindOrAdd(ProfileName);
 }
-#endif // WITH_EDITOR
+
 
 void FSkinWeightProfilesData::ReleaseBuffer(const FName& ProfileName, bool bForceRelease /*= false*/)
 {
