@@ -13,10 +13,12 @@
 
 #include "AppleARKitVideoOverlay.generated.h"
 
+class FRHIBuffer;
 class FRHICommandListImmediate;
 class UARTextureCameraImage;
 class UMaterialInstanceDynamic;
 class UAppleARKitOcclusionTexture;
+typedef TRefCountPtr<FRHIBuffer> FBufferRHIRef;
 
 enum class EARKitOcclusionType : uint8
 {
