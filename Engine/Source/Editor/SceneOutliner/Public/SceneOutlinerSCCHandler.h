@@ -24,6 +24,7 @@ private:
 	bool CanExecuteSCCCheckIn() const;
 	bool CanExecuteSCCHistory() const;
 	bool CanExecuteSCCRefresh() const;
+	bool CanExecuteSCCShowInChangelist() const;
 	void FillSourceControlSubMenu(UToolMenu* Menu);
 	void GetSelectedPackageNames(TArray<FString>& OutPackageNames) const;
 	void GetSelectedPackages(TArray<UPackage*>& OutPackages) const;
@@ -43,6 +44,8 @@ private:
 	bool bCanExecuteSCCCheckOut = false;
 	bool bCanExecuteSCCCheckIn = false;
 	bool bCanExecuteSCCHistory = false;
+	bool bUsesFileRevisions = false;
+	bool bUsesChangelists = false;
 
 	mutable TMap<FSceneOutlinerTreeItemPtr, TSharedPtr<FSceneOutlinerTreeItemSCC>> ItemSourceControls;
 };

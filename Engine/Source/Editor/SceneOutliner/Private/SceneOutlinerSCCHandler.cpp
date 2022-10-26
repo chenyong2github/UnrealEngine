@@ -84,6 +84,8 @@ void FSceneOutlinerSCCHandler::CacheCanExecuteVars()
 	bCanExecuteSCCCheckOut = false;
 	bCanExecuteSCCCheckIn = false;
 	bCanExecuteSCCHistory = false;
+	bUsesFileRevisions = false;
+	bUsesChangelists = false;
 
 	if ( ISourceControlModule::Get().IsEnabled() || FUncontrolledChangelistsModule::Get().IsEnabled())
 	{
@@ -127,6 +129,13 @@ void FSceneOutlinerSCCHandler::CacheCanExecuteVars()
 				}
 			}
 		}
+
+		if (ISourceControlModule::Get().GetProvider().IsAvailable())
+		{
+			ISourceControlProvider& Provider = ISourceControlModule::Get().GetProvider();
+			bUsesFileRevisions = Provider.UsesFileRevisions();
+			bUsesChangelists = Provider.UsesChangelists();
+		}
 	}
 }
 
@@ -142,14 +151,6 @@ bool FSceneOutlinerSCCHandler::CanExecuteSCCCheckOut() const
 
 bool FSceneOutlinerSCCHandler::CanExecuteSCCCheckIn() const
 {
-	bool bUsesFileRevisions = true;
-
-	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-	if (ISourceControlModule::Get().IsEnabled())
-	{
-		bUsesFileRevisions = SourceControlProvider.UsesFileRevisions();
-	}
-
 	return bCanExecuteSCCCheckIn && bUsesFileRevisions;
 }
 
@@ -161,6 +162,11 @@ bool FSceneOutlinerSCCHandler::CanExecuteSCCHistory() const
 bool FSceneOutlinerSCCHandler::CanExecuteSCCRefresh() const
 {
 	return ISourceControlModule::Get().IsEnabled();
+}
+
+bool FSceneOutlinerSCCHandler::CanExecuteSCCShowInChangelist() const
+{
+	return bUsesChangelists;
 }
 
 void FSceneOutlinerSCCHandler::FillSourceControlSubMenu(UToolMenu* Menu)
@@ -220,16 +226,20 @@ void FSceneOutlinerSCCHandler::FillSourceControlSubMenu(UToolMenu* Menu)
 		);
 	}
 
-	Section.AddSeparator(NAME_None);
-	Section.AddMenuEntry(
-		"SCCFindInChangelist",
-		LOCTEXT("SCCShowInChangelist", "Show in Changelist"),
-		LOCTEXT("SCCShowInChangelistTooltip", "Show the selected assets in the Changelist window."),
-		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.ChangelistsTab"),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &FSceneOutlinerSCCHandler::ExecuteSCCShowInChangelist)
-		)
-	);
+	if (CanExecuteSCCShowInChangelist())
+	{
+		Section.AddSeparator(NAME_None);
+		Section.AddMenuEntry(
+			"SCCFindInChangelist",
+			LOCTEXT("SCCShowInChangelist", "Show in Changelist"),
+			LOCTEXT("SCCShowInChangelistTooltip", "Show the selected assets in the Changelist window."),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.ChangelistsTab"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FSceneOutlinerSCCHandler::ExecuteSCCShowInChangelist),
+				FCanExecuteAction::CreateSP(this, &FSceneOutlinerSCCHandler::CanExecuteSCCShowInChangelist)
+			)
+		);
+	}
 }
 
 void FSceneOutlinerSCCHandler::GetSelectedPackageNames(TArray<FString>& OutPackageNames) const
