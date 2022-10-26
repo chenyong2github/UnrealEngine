@@ -31,7 +31,7 @@ class UMorphTarget;
 class UPhysicsAsset;
 class USkeleton;
 struct FSkinnedAssetAsyncBuildTask;
-
+enum class ESkeletalMeshVertexFlags : uint8;
 enum class ESkinnedAssetAsyncPropertyLockType
 {
 	None = 0,

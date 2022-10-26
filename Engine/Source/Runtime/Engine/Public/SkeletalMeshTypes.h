@@ -24,7 +24,7 @@ class FSkeletalMeshRenderData;
 class FSkeletalMeshLODRenderData;
 
 /** Flags used when building vertex buffers. */
-enum class ESkeletalMeshVertexFlags
+enum class ESkeletalMeshVertexFlags : uint8
 {
 	None								= 0x0,
 	UseFullPrecisionUVs					= 0x1,
