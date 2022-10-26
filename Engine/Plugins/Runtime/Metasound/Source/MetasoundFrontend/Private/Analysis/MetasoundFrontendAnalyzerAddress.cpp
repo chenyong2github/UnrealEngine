@@ -11,12 +11,10 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		const FString FAnalyzerAddress::PathSeparator = TEXT("/");
-
 		FAnalyzerAddress::FAnalyzerAddress(const FString& InAddressString)
 		{
 			TArray<FString> Tokens;
-			if (ensureAlwaysMsgf(InAddressString.ParseIntoArray(Tokens, *PathSeparator) == 7, TEXT("Invalid Analyzer Address String Format")))
+			if (ensureAlwaysMsgf(InAddressString.ParseIntoArray(Tokens, METASOUND_ANALYZER_PATH_SEPARATOR) == 7, TEXT("Invalid Analyzer Address String Format")))
 			{
 				InstanceID = static_cast<uint64>(FCString::Atoi64(*Tokens[0]));
 				NodeID = FGuid(Tokens[1]);
@@ -83,7 +81,7 @@ namespace Metasound
 				*AnalyzerName.ToString(),
 				*AnalyzerInstanceID.ToString(),
 				*AnalyzerMemberName.ToString()
-			}, *PathSeparator);
+			}, METASOUND_ANALYZER_PATH_SEPARATOR);
 		}
 	} // namespace Frontend
 

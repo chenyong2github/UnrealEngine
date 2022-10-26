@@ -44,7 +44,7 @@ namespace Metasound
 
 			virtual FString ToString() const override
 			{
-				return FString::Printf(TEXT("%s%s%lld"), *GetAddressType().ToString(), * FAnalyzerAddress::PathSeparator, InstanceID);
+				return FString::Printf(TEXT("%s%s%lld"), *GetAddressType().ToString(), METASOUND_ANALYZER_PATH_SEPARATOR, InstanceID);
 			}
 
 			virtual uint32 GetHash() const override

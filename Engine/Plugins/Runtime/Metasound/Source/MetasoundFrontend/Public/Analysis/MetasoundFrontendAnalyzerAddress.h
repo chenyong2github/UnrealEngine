@@ -10,6 +10,8 @@
 #include "UObject/NameTypes.h"
 
 
+#define METASOUND_ANALYZER_PATH_SEPARATOR TEXT("/")
+
 namespace Metasound
 {
 	namespace Frontend
@@ -19,8 +21,6 @@ namespace Metasound
 		class METASOUNDFRONTEND_API FAnalyzerAddress : public FTransmissionAddress
 		{
 		public:
-			static const FString PathSeparator;
-
 			FAnalyzerAddress(const FString& InAddressString);
 			FAnalyzerAddress() = default;
 
