@@ -2541,12 +2541,13 @@ static bool psd_ReadData( uint8* pOut, const uint8*& pBuffer, FPSDFileHeader& In
 				}
 				else
 				{
+					// Each channel live in a separate plane
 					Dest[Pixel].R = pCur[Pixel];
-					Dest[Pixel].G = pCur[Pixel + 1];
-					Dest[Pixel].B = pCur[Pixel + 2];
+					Dest[Pixel].G = pCur[NPixels + Pixel];
+					Dest[Pixel].B = pCur[NPixels * 2 + Pixel];
 					if (Info.nChannels == 4)
 					{
-						Dest[Pixel].A = pCur[Pixel + 3];
+						Dest[Pixel].A = pCur[NPixels * 3 + Pixel];
 					}
 				}
 			}
