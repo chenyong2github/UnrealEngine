@@ -73,9 +73,9 @@ public:
 		TArray<FPCGMeshInstanceList>& OutMeshInstances,
 		UPCGPointData* OutPointData) const PURE_VIRTUAL(UPCGMeshSelectorBase::SelectInstances_Implementation);
 
-	/** Searches OutInstanceLists for an InstanceList matching the given parameters. If nothing is found, creates a new InstanceList and adds to OutInstanceLists. Returns true if added. */
+	/** Searches OutInstanceLists for an InstanceList matching the given parameters. If nothing is found, creates a new InstanceList and adds to OutInstanceLists. Returns index of the matching instance list. */
 	UFUNCTION(BlueprintCallable, Category = MeshSelection)
-	bool FindOrAddInstanceList(
+	int32 FindOrAddInstanceList(
 		TArray<FPCGMeshInstanceList>& OutInstanceLists,
 		const TSoftObjectPtr<UStaticMesh>& Mesh,
 		bool bOverrideCollisionProfile,
@@ -83,6 +83,5 @@ public:
 		bool bOverrideMaterials,
 		const TArray<UMaterialInterface*>& MaterialOverrides,
 		const float InCullStartDistance,
-		const float InCullEndDistance,
-		int32& OutIndex) const;
+		const float InCullEndDistance) const;
 };

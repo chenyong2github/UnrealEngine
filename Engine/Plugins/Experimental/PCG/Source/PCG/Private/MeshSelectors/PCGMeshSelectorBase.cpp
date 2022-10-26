@@ -4,7 +4,7 @@
 
 #include "Elements/PCGStaticMeshSpawner.h"
 
-bool UPCGMeshSelectorBase::FindOrAddInstanceList(
+int32 UPCGMeshSelectorBase::FindOrAddInstanceList(
 	TArray<FPCGMeshInstanceList>& OutInstanceLists,
 	const TSoftObjectPtr<UStaticMesh>& Mesh,
 	bool bOverrideCollisionProfile,
@@ -12,8 +12,7 @@ bool UPCGMeshSelectorBase::FindOrAddInstanceList(
 	bool bOverrideMaterials,
 	const TArray<UMaterialInterface*>& MaterialOverrides,
 	const float InCullStartDistance,
-	const float InCullEndDistance,
-	int32& OutIndex) const
+	const float InCullEndDistance) const
 {
 	for (int Index = 0; Index < OutInstanceLists.Num(); ++Index)
 	{
@@ -37,12 +36,8 @@ bool UPCGMeshSelectorBase::FindOrAddInstanceList(
 			continue;
 		}
 
-		OutIndex = Index;
-
-		return false;
+		return Index;
 	}
 
-	OutIndex = OutInstanceLists.Emplace(Mesh, bOverrideCollisionProfile, CollisionProfile, bOverrideMaterials, MaterialOverrides, InCullStartDistance, InCullEndDistance);
-
-	return true;
+	return OutInstanceLists.Emplace(Mesh, bOverrideCollisionProfile, CollisionProfile, bOverrideMaterials, MaterialOverrides, InCullStartDistance, InCullEndDistance);
 }

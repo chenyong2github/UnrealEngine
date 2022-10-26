@@ -111,8 +111,8 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 				continue;
 			}
 			
-			int32 Index = INDEX_NONE;
-			FindOrAddInstanceList(OutMeshInstances, WeightedEntry.Mesh, WeightedEntry.bOverrideCollisionProfile, WeightedEntry.CollisionProfile, WeightedEntry.bOverrideMaterials, WeightedEntry.MaterialOverrides, WeightedEntry.CullStartDistance, WeightedEntry.CullEndDistance, Index);
+			const int32 Index = FindOrAddInstanceList(OutMeshInstances, WeightedEntry.Mesh, WeightedEntry.bOverrideCollisionProfile, WeightedEntry.CollisionProfile, WeightedEntry.bOverrideMaterials, WeightedEntry.MaterialOverrides, WeightedEntry.CullStartDistance, WeightedEntry.CullEndDistance);
+			check(Index != INDEX_NONE);
 
 			// precompute the weights
 			TotalWeight += WeightedEntry.Weight;
