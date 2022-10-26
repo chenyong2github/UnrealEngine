@@ -94,7 +94,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void ASTOpImageTransform::Link(PROGRAM& program, const FLinkerOptions*)
+	void ASTOpImageTransform::Link(FProgram& program, const FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

@@ -55,16 +55,16 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateScalar(SCALAR_GENERATION_RESULT& result, const NodeScalarPtrConst& untyped)
+	void CodeGenerator::GenerateScalar(FScalarGenerationResult& result, const NodeScalarPtrConst& untyped)
 	{
 		if (!untyped)
 		{
-			result = SCALAR_GENERATION_RESULT();
+			result = FScalarGenerationResult();
 			return;
 		}
 
 		// See if it was already generated
-		VISITED_MAP_KEY key = GetCurrentCacheKey(untyped);
+		FVisitedKeyMap key = GetCurrentCacheKey(untyped);
 		GeneratedScalarsMap::ValueType* it = m_generatedScalars.Find(key);
 		if (it)
 		{
@@ -118,7 +118,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateScalar_Constant(SCALAR_GENERATION_RESULT& result, const Ptr<const NodeScalarConstant>& Typed)
+	void CodeGenerator::GenerateScalar_Constant(FScalarGenerationResult& result, const Ptr<const NodeScalarConstant>& Typed)
 	{
 		const NodeScalarConstant::Private& node = *Typed->GetPrivate();
 
@@ -131,7 +131,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateScalar_Parameter(SCALAR_GENERATION_RESULT& result, const Ptr<const NodeScalarParameter>& Typed)
+	void CodeGenerator::GenerateScalar_Parameter(FScalarGenerationResult& result, const Ptr<const NodeScalarParameter>& Typed)
 	{
 		const NodeScalarParameter::Private& node = *Typed->GetPrivate();
 
@@ -140,7 +140,7 @@ namespace mu
 		auto it = m_nodeVariables.find(node.m_pNode);
 		if (it == m_nodeVariables.end())
 		{
-			PARAMETER_DESC param;
+			FParameterDesc param;
 			param.m_name = node.m_name;
 			param.m_uid = node.m_uid;
 			param.m_type = PARAMETER_TYPE::T_FLOAT;
@@ -154,7 +154,7 @@ namespace mu
 			// Generate the code for the ranges
 			for (int32 a = 0; a < node.m_ranges.Num(); ++a)
 			{
-				RANGE_GENERATION_RESULT rangeResult;
+				FRangeGenerationResult rangeResult;
 				GenerateRange(rangeResult, node.m_ranges[a]);
 				op->ranges.Emplace(op.get(), rangeResult.sizeOp, rangeResult.rangeName, rangeResult.rangeUID);
 			}
@@ -197,7 +197,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateScalar_EnumParameter(SCALAR_GENERATION_RESULT& result, const Ptr<const NodeScalarEnumParameter>& Typed)
+	void CodeGenerator::GenerateScalar_EnumParameter(FScalarGenerationResult& result, const Ptr<const NodeScalarEnumParameter>& Typed)
 	{
 		const NodeScalarEnumParameter::Private& node = *Typed->GetPrivate();
 
@@ -206,7 +206,7 @@ namespace mu
 		auto it = m_nodeVariables.find(node.m_pNode);
 		if (it == m_nodeVariables.end())
 		{
-			PARAMETER_DESC param;
+			FParameterDesc param;
 			param.m_name = node.m_name;
 			param.m_uid = node.m_uid;
 			param.m_type = PARAMETER_TYPE::T_INT;
@@ -227,7 +227,7 @@ namespace mu
 			// Generate the code for the ranges
 			for (int32 a = 0; a < node.m_ranges.Num(); ++a)
 			{
-				RANGE_GENERATION_RESULT rangeResult;
+				FRangeGenerationResult rangeResult;
 				GenerateRange(rangeResult, node.m_ranges[a]);
 				op->ranges.Emplace(op.get(), rangeResult.sizeOp, rangeResult.rangeName, rangeResult.rangeUID);
 			}
@@ -245,7 +245,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateScalar_Switch(SCALAR_GENERATION_RESULT& result, const Ptr<const NodeScalarSwitch>& Typed)
+	void CodeGenerator::GenerateScalar_Switch(FScalarGenerationResult& result, const Ptr<const NodeScalarSwitch>& Typed)
 	{
 		const NodeScalarSwitch::Private& node = *Typed->GetPrivate();
 
@@ -265,7 +265,7 @@ namespace mu
 		// Variable value
 		if (node.m_pParameter)
 		{
-			SCALAR_GENERATION_RESULT ChildResult;
+			FScalarGenerationResult ChildResult;
 			GenerateScalar(ChildResult, node.m_pParameter.get());
 			op->variable = ChildResult.op;
 		}
@@ -281,7 +281,7 @@ namespace mu
 			Ptr<ASTOp> branch;
 			if (node.m_options[t])
 			{
-				SCALAR_GENERATION_RESULT ChildResult;
+				FScalarGenerationResult ChildResult;
 				GenerateScalar(ChildResult, node.m_options[t].get());
 				branch = ChildResult.op;
 			}
@@ -298,7 +298,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateScalar_Variation(SCALAR_GENERATION_RESULT& result, const Ptr<const NodeScalarVariation>& Typed)
+	void CodeGenerator::GenerateScalar_Variation(FScalarGenerationResult& result, const Ptr<const NodeScalarVariation>& Typed)
 	{
 		const NodeScalarVariation::Private& node = *Typed->GetPrivate();
 
@@ -309,7 +309,7 @@ namespace mu
 		{
 			FMeshGenerationResult branchResults;
 
-			SCALAR_GENERATION_RESULT ChildResult;
+			FScalarGenerationResult ChildResult;
 			GenerateScalar(ChildResult, node.m_defaultScalar);
 			op = ChildResult.op;
 		}
@@ -345,7 +345,7 @@ namespace mu
 			Ptr<ASTOp> variationOp;
 			if (node.m_variations[t].m_scalar)
 			{
-				SCALAR_GENERATION_RESULT ChildResult;
+				FScalarGenerationResult ChildResult;
 				GenerateScalar(ChildResult, node.m_variations[t].m_scalar);
 				variationOp = ChildResult.op;
 			}
@@ -371,7 +371,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateScalar_Curve(SCALAR_GENERATION_RESULT& result, const Ptr<const NodeScalarCurve>& Typed)
+	void CodeGenerator::GenerateScalar_Curve(FScalarGenerationResult& result, const Ptr<const NodeScalarCurve>& Typed)
 	{
 		const NodeScalarCurve::Private& node = *Typed->GetPrivate();
 
@@ -394,7 +394,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateScalar_Arithmetic(SCALAR_GENERATION_RESULT& result, const Ptr<const NodeScalarArithmeticOperation>& Typed)
+	void CodeGenerator::GenerateScalar_Arithmetic(FScalarGenerationResult& result, const Ptr<const NodeScalarArithmeticOperation>& Typed)
 	{
 		const NodeScalarArithmeticOperation::Private& node = *Typed->GetPrivate();
 
@@ -452,7 +452,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateScalar_Table(SCALAR_GENERATION_RESULT& result, const Ptr<const NodeScalarTable>& Typed)
+	void CodeGenerator::GenerateScalar_Table(FScalarGenerationResult& result, const Ptr<const NodeScalarTable>& Typed)
 	{
 		const NodeScalarTable::Private& node = *Typed->GetPrivate();
 

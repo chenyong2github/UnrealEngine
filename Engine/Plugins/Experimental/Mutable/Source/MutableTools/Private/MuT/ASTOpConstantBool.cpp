@@ -54,7 +54,7 @@ namespace mu
 	}
 
 
-	void ASTOpConstantBool::Link(PROGRAM& program, const FLinkerOptions*)
+	void ASTOpConstantBool::Link(FProgram& program, const FLinkerOptions*)
 	{
 		if (!linkedAddress)
 		{
@@ -71,7 +71,7 @@ namespace mu
 	}
 
 
-	ASTOp::BOOL_EVAL_RESULT ASTOpConstantBool::EvaluateBool(ASTOpList&, EVALUATE_BOOL_CACHE*) const
+	ASTOp::FBoolEvalResult ASTOpConstantBool::EvaluateBool(ASTOpList&, FEvaluateBoolCache*) const
 	{
 		return value ? BET_TRUE : BET_FALSE;
 	}

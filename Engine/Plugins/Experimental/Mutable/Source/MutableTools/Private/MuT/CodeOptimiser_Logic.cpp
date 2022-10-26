@@ -24,7 +24,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
-//    IntExpressionPtr GetIntExpression( OP::ADDRESS at, const PROGRAM& program )
+//    IntExpressionPtr GetIntExpression( OP::ADDRESS at, const FProgram& program )
 //    {
 //        IntExpressionPtr pRes = new IntExpression;
 
@@ -56,7 +56,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
 //    BoolExpressionPtr GetBoolExpression( OP::ADDRESS at,
-//                                         const PROGRAM& program,
+//                                         const FProgram& program,
 //                                         BOOL_EXPRESSION_CACHE* cache )
 //    {
 //        if (cache && (size_t)at<=cache->m_values.size() && cache->m_values[at])
@@ -126,7 +126,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
-//    void LogicCallstackGather::Apply( PROGRAM& program, int state )
+//    void LogicCallstackGather::Apply( FProgram& program, int state )
 //    {
 //        MUTABLE_CPUPROFILER_SCOPE(LogicCallstackGather);
 //        Traverse( program.m_states[state].m_root, program );
@@ -134,7 +134,7 @@ namespace mu
 
 
 //    //---------------------------------------------------------------------------------------------
-//    void LogicCallstackGather::Visit( OP::ADDRESS at, PROGRAM& program )
+//    void LogicCallstackGather::Visit( OP::ADDRESS at, FProgram& program )
 //    {
 //        // We traverse top down
 //        OP_TYPE type = (OP_TYPE)program.m_code[at].type;
@@ -244,7 +244,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
-//    bool ClonelessLogicOptimiser::Apply( PROGRAM& program, int state )
+//    bool ClonelessLogicOptimiser::Apply( FProgram& program, int state )
 //    {
 //        MUTABLE_CPUPROFILER_SCOPE(ClonelessLogicOptimiser);
 
@@ -259,7 +259,7 @@ namespace mu
 
 
 //    //---------------------------------------------------------------------------------------------
-//    OP::ADDRESS ClonelessLogicOptimiser::Visit( OP::ADDRESS at, PROGRAM& program )
+//    OP::ADDRESS ClonelessLogicOptimiser::Visit( OP::ADDRESS at, FProgram& program )
 //    {
 //        // We traverse top down
 
@@ -400,7 +400,7 @@ namespace mu
 //    //---------------------------------------------------------------------------------------------
 //    //---------------------------------------------------------------------------------------------
 //    //---------------------------------------------------------------------------------------------
-//    bool LogicOptimiser::Apply( PROGRAM& program, int state )
+//    bool LogicOptimiser::Apply( FProgram& program, int state )
 //    {
 //        m_initialCodeSize = program.m_opAddress.Num();
 //        m_modified = false;
@@ -411,7 +411,7 @@ namespace mu
 
 
 //    //---------------------------------------------------------------------------------------------
-//    OP::ADDRESS LogicOptimiser::Visit( OP::ADDRESS at, PROGRAM& program )
+//    OP::ADDRESS LogicOptimiser::Visit( OP::ADDRESS at, FProgram& program )
 //    {
 //        // Sanity stop
 //        const int sanityFactor = 4;
@@ -579,7 +579,7 @@ namespace mu
 
 
 //    //---------------------------------------------------------------------------------------------
-//    OP::ADDRESS IntExpression::GenerateCode( PROGRAM& program, PROGRAM::OP_CACHE* cache )
+//    OP::ADDRESS IntExpression::GenerateCode( FProgram& program, FProgram::OP_CACHE* cache )
 //    {
 //        OP::ADDRESS at = 0;
 
@@ -750,7 +750,7 @@ namespace mu
 
 
 //    //---------------------------------------------------------------------------------------------
-//    OP::ADDRESS BoolExpression::GenerateCode( PROGRAM& program, PROGRAM::OP_CACHE* cache )
+//    OP::ADDRESS BoolExpression::GenerateCode( FProgram& program, FProgram::OP_CACHE* cache )
 //    {
 //        if (m_generated)
 //        {
@@ -1045,7 +1045,7 @@ namespace mu
 
                                 // Check if the child condition has a value with the current facts
                                 Ptr<ASTOp> pChildCond = bottomConditional->condition.child();
-                                ASTOp::BOOL_EVAL_RESULT result;
+                                ASTOp::FBoolEvalResult result;
                                 {
                                     //MUTABLE_CPUPROFILER_SCOPE(EvaluateBool);
                                     result = pChildCond->EvaluateBool( facts );
@@ -1104,7 +1104,7 @@ namespace mu
 
                                 // Check if the child condition has a value with the current facts
 								Ptr<ASTOp> pChildCond = bottomConditional->condition.child();
-                                ASTOp::BOOL_EVAL_RESULT result = pChildCond->EvaluateBool( facts );
+                                ASTOp::FBoolEvalResult result = pChildCond->EvaluateBool( facts );
                                 if ( result==ASTOp::BET_FALSE )
                                 {
                                     conditionaAreExclusive = true;
@@ -1156,7 +1156,7 @@ namespace mu
 
 //                                // Check if the child condition has a value with the current facts
 //                                auto pChildCond = bottomConditional->condition.child();
-//                                ASTOp::BOOL_EVAL_RESULT result = pChildCond->EvaluateBool( facts );
+//                                ASTOp::FBoolEvalResult result = pChildCond->EvaluateBool( facts );
 //                                if ( result==ASTOp::BET_FALSE )
 //                                {
 //                                    conditionaAreExclusive = true;

@@ -30,9 +30,6 @@
 #include <utility>
 #include <set>
 
-namespace mu { class ASTOp; }
-namespace mu { class ASTOpFixed; }
-
 namespace std
 {
 
@@ -50,6 +47,9 @@ namespace std
 
 namespace mu
 {
+	class ASTOp;
+	class ASTOpFixed;
+
 	template<typename T>
 	inline uint32 GetTypeHash(const Ptr<const T>& p)
 	{
@@ -223,7 +223,7 @@ namespace mu
 		const ASTOp* m_root = nullptr;
 		Ptr<ASTOp> m_initialSource;
 		//! For each operation we sink, the map from old instructions to new instructions.
-		TMap<Ptr<const class ASTOpFixed>, std::unordered_map<Ptr<ASTOp>, Ptr<ASTOp>>> m_oldToNew;
+		TMap<Ptr<const ASTOpFixed>, std::unordered_map<Ptr<ASTOp>, Ptr<ASTOp>>> m_oldToNew;
 		TArray<Ptr<ASTOp>> m_newOps;
 
 		Ptr<ASTOp> Visit(Ptr<ASTOp> at, const ASTOpFixed* currentCropOp);
@@ -448,7 +448,7 @@ namespace mu
         //---------------------------------------------------------------------------------------------
 
         //!
-        static void FullLink( Ptr<ASTOp>& root, PROGRAM&, const FLinkerOptions*);
+        static void FullLink( Ptr<ASTOp>& root, FProgram&, const FLinkerOptions*);
 
         //!
         static void ClearLinkData( Ptr<ASTOp>& root );
@@ -459,14 +459,14 @@ namespace mu
     private:
 
         //!
-        virtual void Link( PROGRAM& program, const FLinkerOptions* Options ) = 0;
+        virtual void Link( FProgram& program, const FLinkerOptions* Options ) = 0;
 
     protected:
 
         //---------------------------------------------------------------------------------------------
         //!
         //---------------------------------------------------------------------------------------------
-        struct RANGE_DATA
+        struct FRangeData
         {
             //!
             ASTChild rangeSize;
@@ -478,30 +478,30 @@ namespace mu
             string rangeUID;
 
             //!
-            RANGE_DATA( ASTOp* parentOp, Ptr<ASTOp> childOp, const string& name, const string& uid )
+            FRangeData( ASTOp* parentOp, Ptr<ASTOp> childOp, const string& name, const string& uid )
                 : rangeSize( parentOp, childOp )
                 , rangeName(name)
                 , rangeUID(uid)
             {
             }
 
-            RANGE_DATA(const RANGE_DATA&) = delete;
-            RANGE_DATA& operator=(const RANGE_DATA&) = delete;
-            RANGE_DATA& operator=(RANGE_DATA&&) = delete;
+            FRangeData(const FRangeData&) = delete;
+            FRangeData& operator=(const FRangeData&) = delete;
+            FRangeData& operator=(FRangeData&&) = delete;
 
 
             // move constructor
-            RANGE_DATA(RANGE_DATA&& rhs)
-                 : rangeSize(std::move(rhs.rangeSize))
-                 , rangeName(std::move(rhs.rangeName))
-                 , rangeUID(std::move(rhs.rangeUID))
+            FRangeData(FRangeData&& rhs)
+                 : rangeSize(MoveTemp(rhs.rangeSize))
+                 , rangeName(MoveTemp(rhs.rangeName))
+                 , rangeUID(MoveTemp(rhs.rangeUID))
             {
             }
 
             //!
 
             //!
-            bool operator==(const RANGE_DATA& o) const
+            bool operator==(const FRangeData& o) const
             {
                 return rangeSize==o.rangeSize
                         &&
@@ -512,26 +512,10 @@ namespace mu
         };
 
         //!
-        static void LinkRange( PROGRAM& program,
-                               const RANGE_DATA& range,
-                               OP::ADDRESS& rangeSize,
-                               uint16& rangeId )
-        {
-            if (range.rangeSize)
-            {
-                if (range.rangeSize->linkedRange<0)
-                {
-                    check( program.m_ranges.Num()<255 );
-                    range.rangeSize->linkedRange = int8( program.m_ranges.Num() );
-                    RANGE_DESC rangeData;
-                    rangeData.m_name = range.rangeName;
-                    rangeData.m_uid = range.rangeUID;
-                    program.m_ranges.Add( rangeData );
-                }
-                rangeSize = range.rangeSize->linkedAddress;
-                rangeId = uint16(range.rangeSize->linkedRange);
-            }
-        }
+		static void LinkRange(FProgram& program,
+			const FRangeData& range,
+			OP::ADDRESS& rangeSize,
+			uint16& rangeId);
 
     public:
 
@@ -712,12 +696,12 @@ namespace mu
             BET_UNKNOWN,
             BET_TRUE,
             BET_FALSE,
-        } BOOL_EVAL_RESULT;
+        } FBoolEvalResult;
 
 
-        using EVALUATE_BOOL_CACHE=std::unordered_map<const ASTOp*,BOOL_EVAL_RESULT>;
+        using FEvaluateBoolCache = std::unordered_map<const ASTOp*,FBoolEvalResult>;
 
-        virtual BOOL_EVAL_RESULT EvaluateBool( ASTOpList& /*facts*/, EVALUATE_BOOL_CACHE* = nullptr ) const
+        virtual FBoolEvalResult EvaluateBool( ASTOpList& /*facts*/, FEvaluateBoolCache* = nullptr ) const
         {
             check(false);
             return BET_UNKNOWN;
@@ -982,7 +966,7 @@ namespace mu
 
         Ptr<ASTOp> Clone( MapChildFuncRef mapChild ) const override;
         void ForEachChild( const TFunctionRef<void(ASTChild&)> f ) override;
-        void Link( PROGRAM& program, const FLinkerOptions* Options) override;
+        void Link( FProgram& program, const FLinkerOptions* Options) override;
         bool IsEqual(const ASTOp& otherUntyped) const override;
 		uint64 Hash() const override;
 		FImageDesc GetImageDesc( bool returnBestOption, GetImageDescContext* context ) override;
@@ -992,7 +976,7 @@ namespace mu
         Ptr<ASTOp> OptimiseSize() const override;
         Ptr<ASTOp> OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS&) const override;
         Ptr<ASTOp> OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&, OPTIMIZE_SINK_CONTEXT&) const override;
-        BOOL_EVAL_RESULT EvaluateBool( ASTOpList& facts, EVALUATE_BOOL_CACHE* cache ) const override;
+        FBoolEvalResult EvaluateBool( ASTOpList& facts, FEvaluateBoolCache* cache ) const override;
         int EvaluateInt( ASTOpList& facts, bool &unknown ) const override;
         bool IsImagePlainConstant( vec4<float>& colour ) const override;
         bool IsColourConstant( vec4<float>& colour ) const override;

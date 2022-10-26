@@ -447,7 +447,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void ForEachReference( const PROGRAM& program, OP::ADDRESS at, const TFunctionRef<void(OP::ADDRESS)> f )
+    void ForEachReference( const FProgram& program, OP::ADDRESS at, const TFunctionRef<void(OP::ADDRESS)> f )
     {
         OP_TYPE type = program.GetOpType(at);
         switch ( type )

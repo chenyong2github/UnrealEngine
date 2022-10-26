@@ -29,9 +29,9 @@ namespace mu
 {
 
 	//-------------------------------------------------------------------------------------------------
-	PROJECTOR ProjectorFromNode(const NodeProjectorConstant::Private& node)
+	FProjector ProjectorFromNode(const NodeProjectorConstant::Private& node)
 	{
-		PROJECTOR p;
+		FProjector p;
 		p.type = node.m_type;
 		p.position[0] = node.m_position[0];
 		p.position[1] = node.m_position[1];
@@ -52,16 +52,16 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateProjector(PROJECTOR_GENERATION_RESULT& result, const NodeProjectorPtrConst& untyped)
+	void CodeGenerator::GenerateProjector(FProjectorGenerationResult& result, const NodeProjectorPtrConst& untyped)
 	{
 		if (!untyped)
 		{
-			result = PROJECTOR_GENERATION_RESULT();
+			result = FProjectorGenerationResult();
 			return;
 		}
 
 		// See if it was already generated
-		VISITED_MAP_KEY key = GetCurrentCacheKey(untyped);
+		FVisitedKeyMap key = GetCurrentCacheKey(untyped);
 		GeneratedProjectorsMap::ValueType* it = m_generatedProjectors.Find(key);
 		if (it)
 		{
@@ -90,7 +90,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateProjector_Constant(PROJECTOR_GENERATION_RESULT& result,
+	void CodeGenerator::GenerateProjector_Constant(FProjectorGenerationResult& result,
 		const Ptr<const NodeProjectorConstant>& constant)
 	{
 		const NodeProjectorConstant::Private& node = *constant->GetPrivate();
@@ -104,7 +104,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateProjector_Parameter(PROJECTOR_GENERATION_RESULT& result,
+	void CodeGenerator::GenerateProjector_Parameter(FProjectorGenerationResult& result,
 		const Ptr<const NodeProjectorParameter>& paramn)
 	{
 		const NodeProjectorParameter::Private& node = *paramn->GetPrivate();
@@ -114,12 +114,12 @@ namespace mu
 		auto it = m_nodeVariables.find(node.m_pNode);
 		if (it == m_nodeVariables.end())
 		{
-			PARAMETER_DESC param;
+			FParameterDesc param;
 			param.m_name = node.m_name;
 			param.m_uid = node.m_uid;
 			param.m_type = PARAMETER_TYPE::T_PROJECTOR;
 
-			PROJECTOR p = ProjectorFromNode(node);
+			FProjector p = ProjectorFromNode(node);
 			param.m_defaultValue.m_projector = p;
 
 			op = new ASTOpParameter();
@@ -129,7 +129,7 @@ namespace mu
 			// Generate the code for the ranges
 			for (int32 a = 0; a < node.m_ranges.Num(); ++a)
 			{
-				RANGE_GENERATION_RESULT rangeResult;
+				FRangeGenerationResult rangeResult;
 				GenerateRange(rangeResult, node.m_ranges[a]);
 				op->ranges.Emplace(op.get(), rangeResult.sizeOp, rangeResult.rangeName, rangeResult.rangeUID);
 			}
@@ -147,14 +147,14 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateMissingProjectorCode(PROJECTOR_GENERATION_RESULT& result,
+	void CodeGenerator::GenerateMissingProjectorCode(FProjectorGenerationResult& result,
 		const void* errorContext)
 	{
 		// Log an error message
 		m_pErrorLog->GetPrivate()->Add("Required projector connection not found.",
 			ELMT_ERROR, errorContext);
 
-		PROJECTOR p;
+		FProjector p;
 		p.type = PROJECTOR_TYPE::PLANAR;
 
 		p.direction[0] = 1;

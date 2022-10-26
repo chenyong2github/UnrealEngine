@@ -10,7 +10,7 @@
 
 namespace mu
 {
-struct PROGRAM;
+struct FProgram;
 
 	//---------------------------------------------------------------------------------------------
 	//!
@@ -33,7 +33,7 @@ struct PROGRAM;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
 		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		void ForEachChild(const TFunctionRef<void(ASTChild&)>) override;
-		void Link(PROGRAM& program, const FLinkerOptions* Options) override;
+		void Link(FProgram& program, const FLinkerOptions* Options) override;
 	};
 
 

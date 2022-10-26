@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 
-namespace mu { struct PROGRAM; }
+namespace mu { struct FProgram; }
 
 
 #define MUTABLE_HASH_SEED					((uint32_t)0xcadababa)
@@ -30,14 +30,14 @@ namespace mu
     {
     public:
 
-        SubtreeSearchConstantVisitor( PROGRAM& program, OP::ADDRESS constant, OP_TYPE optype );
+        SubtreeSearchConstantVisitor( FProgram& program, OP::ADDRESS constant, OP_TYPE optype );
 
         bool Run( OP::ADDRESS root );
 
 
     private:
 
-        PROGRAM& m_program;
+        FProgram& m_program;
         OP::ADDRESS m_constant;
         OP_TYPE m_opType;
 

@@ -956,7 +956,7 @@ namespace mu
             uint32 externalId;
             ADDRESS name;
 
-            // Index in the PROGRAM::m_parameterLists with the parameters that are relevant
+            // Index in the FProgram::m_parameterLists with the parameters that are relevant
             // for whatever is added by this operation. This is used only for resources like
             // images or meshes.
             ADDRESS relevantParametersListIndex;
@@ -1176,7 +1176,7 @@ namespace mu
 	MUTABLERUNTIME_API extern void ForEachReference( OP& op, const TFunctionRef<void(OP::ADDRESS*)> );
 
     //! Utility function to apply a function to all operation references to other operations.
-	MUTABLERUNTIME_API extern void ForEachReference( const struct PROGRAM& program, OP::ADDRESS at, const TFunctionRef<void(OP::ADDRESS)> );
+	MUTABLERUNTIME_API extern void ForEachReference( const struct FProgram& program, OP::ADDRESS at, const TFunctionRef<void(OP::ADDRESS)> );
 
 	//!
 	MUTABLERUNTIME_API inline OP_TYPE GetSwitchForType( DATATYPE d )

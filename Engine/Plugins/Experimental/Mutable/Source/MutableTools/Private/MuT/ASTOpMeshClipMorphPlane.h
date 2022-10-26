@@ -12,7 +12,7 @@
 
 namespace mu
 {
-struct PROGRAM;
+struct FProgram;
 
 	//---------------------------------------------------------------------------------------------
 	//!
@@ -23,8 +23,8 @@ struct PROGRAM;
 
 		ASTChild source;
 
-		SHAPE morphShape;
-		SHAPE selectionShape;
+		FShape morphShape;
+		FShape selectionShape;
 		string vertexSelectionBone;
 
 		OP::MeshClipMorphPlaneArgs::VERTEX_SELECTION_TYPE vertexSelectionType = OP::MeshClipMorphPlaneArgs::VS_NONE;
@@ -42,7 +42,7 @@ struct PROGRAM;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
 		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		void ForEachChild(const TFunctionRef<void(ASTChild&)>) override;
-		void Link(PROGRAM& program, const FLinkerOptions* Options) override;
+		void Link(FProgram& program, const FLinkerOptions* Options) override;
 	};
 
 

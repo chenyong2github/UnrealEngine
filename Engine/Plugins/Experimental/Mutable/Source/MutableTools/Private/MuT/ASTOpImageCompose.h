@@ -11,7 +11,7 @@
 
 namespace mu
 {
-struct PROGRAM;
+struct FProgram;
 template <class SCALAR> class vec4;
 
 	class ASTOpImageCompose : public ASTOp
@@ -35,7 +35,7 @@ template <class SCALAR> class vec4;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
 		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		void ForEachChild(const TFunctionRef<void(ASTChild&)>) override;
-		void Link(PROGRAM& program, const FLinkerOptions* Options) override;
+		void Link(FProgram& program, const FLinkerOptions* Options) override;
 		//TODO: Ptr<ASTOp> OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS& options, OPTIMIZE_SINK_CONTEXT& context) const override;
 		Ptr<ASTOp> OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS& options) const;
 		FImageDesc GetImageDesc(bool returnBestOption, GetImageDescContext* context) override;

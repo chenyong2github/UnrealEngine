@@ -60,7 +60,7 @@ namespace mu
 	class Projector : public RefCounted
 	{
 	public:
-		PROJECTOR m_value;
+		FProjector m_value;
 	};
 	typedef Ptr<Projector> ProjectorPtr;
 

@@ -12,7 +12,7 @@
 
 namespace mu
 {
-struct PROGRAM;
+struct FProgram;
 template <class SCALAR> class vec4;
 
 
@@ -66,7 +66,7 @@ template <class SCALAR> class vec4;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
 		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		void Assert() override;
-		void Link(PROGRAM& program, const FLinkerOptions* Options) override;
+		void Link(FProgram& program, const FLinkerOptions* Options) override;
 		FImageDesc GetImageDesc(bool returnBestOption,
 			class GetImageDescContext* context) override;
 		void GetBlockLayoutSize(int blockIndex, int* pBlockX, int* pBlockY,

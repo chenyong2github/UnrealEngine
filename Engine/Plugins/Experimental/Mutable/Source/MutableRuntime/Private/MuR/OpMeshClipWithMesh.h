@@ -254,9 +254,9 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //! Reference version
     //---------------------------------------------------------------------------------------------
-    inline int get_num_intersections( const vec3f& vertex,
-                                      const vec3f& ray,
-                                      const TArray<vec3f>& vertices,
+    inline int get_num_intersections( const FVector3f& vertex,
+                                      const FVector3f& ray,
+                                      const TArray<FVector3f>& vertices,
                                       const TArray<uint32>& faces,
                                       TArray<int>& collapsedVertexMap,
 									  TArray<uint8>& vertex_already_intersected,
@@ -268,7 +268,7 @@ namespace mu
         MUTABLE_CPUPROFILER_SCOPE(get_num_intersections);
     	
         int num_intersections = 0;
-        vec3f intersection;
+		FVector3f intersection;
 
 		FMemory::Memzero( vertex_already_intersected.GetData(), vertex_already_intersected.Num());
 
@@ -283,9 +283,9 @@ namespace mu
         {
             uint32 vertex_indexs[3] = { faces[3 * face], faces[3 * face + 1], faces[3 * face + 2] };
 
-            vec3f v0 = get_collapsed_vertex(vertex_indexs[0]);
-            vec3f v1 = get_collapsed_vertex(vertex_indexs[1]);
-            vec3f v2 = get_collapsed_vertex(vertex_indexs[2]);
+			FVector3f v0 = get_collapsed_vertex(vertex_indexs[0]);
+			FVector3f v1 = get_collapsed_vertex(vertex_indexs[1]);
+			FVector3f v2 = get_collapsed_vertex(vertex_indexs[2]);
 
             int out_intersected_vert, out_intersected_edge_v0, out_intersected_edge_v1;
 

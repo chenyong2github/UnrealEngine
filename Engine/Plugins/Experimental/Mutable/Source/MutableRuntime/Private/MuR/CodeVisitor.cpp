@@ -13,7 +13,7 @@ namespace mu
 	//-------------------------------------------------------------------------------------------------
 	//-------------------------------------------------------------------------------------------------
 	//-------------------------------------------------------------------------------------------------
-	void SubtreeParametersVisitor::Run(OP::ADDRESS root, PROGRAM& program)
+	void SubtreeParametersVisitor::Run(OP::ADDRESS root, FProgram& program)
 	{
 		// Cached?
 		auto it = m_resultCache.Find(root);

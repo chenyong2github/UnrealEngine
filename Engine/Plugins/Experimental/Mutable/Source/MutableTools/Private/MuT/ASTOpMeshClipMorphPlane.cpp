@@ -77,7 +77,7 @@ namespace mu
 	}
 
 
-	void ASTOpMeshClipMorphPlane::Link(PROGRAM& program, const FLinkerOptions*)
+	void ASTOpMeshClipMorphPlane::Link(FProgram& program, const FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

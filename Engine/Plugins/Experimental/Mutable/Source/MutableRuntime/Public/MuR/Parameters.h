@@ -320,41 +320,39 @@ namespace mu
 		//! Return the value of a projector parameter, as a 4x4 matrix. The matrix is supposed to be
 		//! a linear transform in column-major.
 		//! \pre The parameter specified by index is a T_PROJECTOR.
-        //! \param index Index of the parameter from 0 to GetCount()-1
-        //! \param pPosX,pPosY,pPosZ Pointers to where the object-space position coordinates of the
-        //!         projector will be stored.
-        //! \param pDirX,pDirY,pDirZ Pointers to where the object-space direction vector of the
-        //!         projector will be stored.
-        //! \param pUpX,pUpY,pUpZ Pointers to where the object-space vertically up direction vector
+        //! \param ParameterIndex Index of the parameter from 0 to GetCount()-1
+        //! \param OutPosX Pointer to where the object-space position coordinates of the projector will be stored.
+        //! \param OutDir Pointer to where the object-space direction vector of the projector will be stored.
+        //! \param OutUp Pointer to where the object-space vertically up direction vector
         //!         of the projector will be stored. This controls the "roll" angle of the
         //!         projector.
-        //! \param pScaleX, pScaleY Pointers to the projector-space scaling of the projector.
-        //! \param pos Only for multidimensional parametres: relevant position to get in the ranges
-        void GetProjectorValue( int index,
-                                PROJECTOR_TYPE* pProjectionType,
-								float* pPosX, float* pPosY, float* pPosZ,
-								float* pDirX, float* pDirY, float* pDirZ,
-								float* pUpX, float* pUpY, float* pUpZ,
-                                float* pScaleX, float* pScaleY, float* pScaleZ,
-                                float* pProjectionAngle,
-                                const Ptr<const RangeIndex>& pos=nullptr ) const;
+        //! \param OutScale Pointer to the projector-space scaling of the projector.
+        //! \param RangePosition Only for multidimensional parametres: relevant position to get in the ranges
+        void GetProjectorValue( int ParameterIndex,
+                                PROJECTOR_TYPE* OutProjectionType,
+								FVector3f* OutPos,
+								FVector3f* OutDir,
+								FVector3f* OutUp,
+								FVector3f* OutScale,
+                                float* OutProjectionAngle,
+                                const Ptr<const RangeIndex>& RangePosition=nullptr ) const;
 
 		//! If the parameter is of the projector type, set its value.
-		//! \param index Index of the parameter from 0 to GetCount()-1
+		//! \param ParameterIndex Index of the parameter from 0 to GetCount()-1
         //! \param posX,posY,posZ Object-space position coordinates of the projector.
         //! \param dirX,dirY,dirZ Object-space direction vector of the projector.
         //! \param upX,upY,upZ Object-space vertically up direction vector of the projector.
         //! \param scaleX, scaleY Projector-space scaling of the projector.
         //! \param projectionAngle [only for Cylindrical projectors], the angle in radians of the
         //! projection area on the cylinder surface.
-        //! \param pos Only for multidimensional parametres: relevant position to set in the ranges
-        void SetProjectorValue( int index,
-                                float posX, float posY, float posZ,
-								float dirX, float dirY, float dirZ,
-								float upX, float upY, float upZ,
-                                float scaleX, float scaleY, float scaleZ,
+        //! \param RangePosition Only for multidimensional parametres: relevant position to set in the ranges
+        void SetProjectorValue( int ParameterIndex,
+								const FVector3f& pos,
+								const FVector3f& dir,
+								const FVector3f& up,
+								const FVector3f& scale,
                                 float projectionAngle,
-                                const Ptr<const RangeIndex>& pos=nullptr );
+                                const Ptr<const RangeIndex>& RangePosition=nullptr );
 
         //! Return the value of an image parameter.
         //! \pre The parameter specified by index is a T_IMAGE.

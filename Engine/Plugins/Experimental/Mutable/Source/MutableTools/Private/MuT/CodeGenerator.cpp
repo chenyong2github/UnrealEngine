@@ -221,7 +221,7 @@ namespace mu
         m_pErrorLog = new ErrorLog;
 
         // Add the parent at the top of the hierarchy
-        m_currentParents.Add( PARENT_KEY() );
+        m_currentParents.Add( FParentKey() );
     }
 
     //---------------------------------------------------------------------------------------------
@@ -316,21 +316,21 @@ namespace mu
         // Temp by-passes while we remove the visitor pattern
 		if (auto ScalarNode = dynamic_cast<const NodeScalar*>(pNode.get()))
 		{
-			SCALAR_GENERATION_RESULT ScalarResult;
+			FScalarGenerationResult ScalarResult;
 			GenerateScalar(ScalarResult, ScalarNode);
 			return ScalarResult.op;
 		}
 
 		if (auto ColorNode = dynamic_cast<const NodeColour*>(pNode.get()))
 		{
-			COLOR_GENERATION_RESULT Result;
+			FColorGenerationResult Result;
 			GenerateColor(Result, ColorNode);
 			return Result.op;
 		}
 
 		if (auto ImageNode = dynamic_cast<const NodeImage*>(pNode.get()))
 		{
-			IMAGE_GENERATION_RESULT Result;
+			FImageGenerationResult Result;
 			GenerateImage(Result, ImageNode);
 			return Result.op;
 		}
@@ -350,7 +350,7 @@ namespace mu
 
 		if ( auto projNode = dynamic_cast<const NodeProjector*>(pNode.get()) )
         {
-            PROJECTOR_GENERATION_RESULT ProjResult;
+            FProjectorGenerationResult ProjResult;
             GenerateProjector( ProjResult, projNode );
             return ProjResult.op;
         }
@@ -358,7 +358,7 @@ namespace mu
         if ( auto surfNode = dynamic_cast<const NodeSurfaceNew*>(pNode.get()) )
         {
             // This happens only if we generate a node graph that has a NodeSurfaceNew at the root.
-            SURFACE_GENERATION_RESULT surfResult;
+            FSurfaceGenerationResult surfResult;
             const TArray<FirstPassGenerator::SURFACE::EDIT> edits;
             GenerateSurface( surfResult, surfNode, edits );
             return surfResult.surfaceOp;
@@ -386,7 +386,7 @@ namespace mu
         Ptr<ASTOp> result;
 
         // See if it was already generated
-		VISITED_MAP_KEY key = GetCurrentCacheKey(pNode);
+		FVisitedKeyMap key = GetCurrentCacheKey(pNode);
         VisitedMap::ValueType* it = m_compiled.Find( key );
         if ( it )
         {
@@ -413,41 +413,40 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeGenerator::GenerateRange( RANGE_GENERATION_RESULT& result,
-                                      NodeRangePtrConst untyped )
+    void CodeGenerator::GenerateRange( FRangeGenerationResult& Result,
+                                      NodeRangePtrConst Untyped)
     {
-        if (!untyped)
+        if (!Untyped)
         {
-            result = RANGE_GENERATION_RESULT();
+			Result = FRangeGenerationResult();
             return;
         }
 
         // See if it was already generated
-		VISITED_MAP_KEY key = GetCurrentCacheKey(untyped);
-		GeneratedRangeMap::ValueType* it = m_generatedRanges.Find( key );
+		FVisitedKeyMap Key = GetCurrentCacheKey(Untyped);
+		GeneratedRangeMap::ValueType* it = m_generatedRanges.Find(Key);
         if ( it  )
         {
-            result = *it;
+			Result = *it;
             return;
         }
 
 
         // Generate for each different type of node
-        if ( auto fromScalar = dynamic_cast<const NodeRangeFromScalar*>(untyped.get()) )
+        if (const NodeRangeFromScalar* FromScalar = dynamic_cast<const NodeRangeFromScalar*>(Untyped.get()) )
         {
-            result = RANGE_GENERATION_RESULT();
-            result.rangeName = fromScalar->GetName();
-            result.sizeOp = Generate( fromScalar->GetSize() );
+			Result = FRangeGenerationResult();
+			Result.rangeName = FromScalar->GetName();
+			Result.sizeOp = Generate(FromScalar->GetSize());
         }
         else
         {
             check(false);
-            mu::Halt();
         }
 
 
         // Cache the result
-        m_generatedRanges.Add( key, result);
+        m_generatedRanges.Add( Key, Result);
     }
 
 	
@@ -456,7 +455,7 @@ namespace mu
     {
         Ptr<ASTOp> result;
 
-        PARAMETER_DESC param;
+        FParameterDesc param;
         param.m_name = strName;
         if ( param.m_name.size()==0 )
         {
@@ -481,7 +480,7 @@ namespace mu
 
 			if (pTable->GetPrivate()->m_NoneOption)
 			{
-				PARAMETER_DESC::INT_VALUE_DESC nullValue;
+				FParameterDesc::INT_VALUE_DESC nullValue;
 				nullValue.m_value = -1;
 				nullValue.m_name = "None";
 				param.m_possibleValues.Add(nullValue);
@@ -492,7 +491,7 @@ namespace mu
             int32 rows = pTable->GetPrivate()->m_rows.Num();
 			for (size_t i = 0; i<rows; ++i)
             {
-                PARAMETER_DESC::INT_VALUE_DESC value;
+                FParameterDesc::INT_VALUE_DESC value;
                 value.m_value = (int16_t)pTable->GetPrivate()->m_rows[i].m_id;
 
                 if (nameCol>-1)
@@ -836,7 +835,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeGenerator::GenerateSurface( SURFACE_GENERATION_RESULT& result,
+    void CodeGenerator::GenerateSurface( FSurfaceGenerationResult& result,
                                          NodeSurfaceNewPtrConst surfaceNode,
                                          const TArray<FirstPassGenerator::SURFACE::EDIT>& edits )
     {
@@ -965,7 +964,7 @@ namespace mu
 						lastMeshOp = ApplyMeshModifiers(lastMeshOp, e.node->m_tags,
 							bModifiersForBeforeOperations, node.m_errorContext);
 
-                        FMeshGenerationResult::EXTRA_LAYOUTS data;
+                        FMeshGenerationResult::FExtraLayouts data;
 						data.GeneratedLayouts = addResults.GeneratedLayouts;
 						data.condition = e.condition;
                         data.meshFragment = addResults.meshOp;
@@ -1915,7 +1914,7 @@ namespace mu
                 sop->name = its.node->GetPrivate()->m_name;
                 sop->instance = lastCompOp;
 
-				SURFACE_GENERATION_RESULT surfaceGenerationResult;
+				FSurfaceGenerationResult surfaceGenerationResult;
                 GenerateSurface( surfaceGenerationResult, its.node, its.edits );
                 sop->value = surfaceGenerationResult.surfaceOp;
 
@@ -2055,7 +2054,7 @@ namespace mu
     {
         MUTABLE_CPUPROFILER_SCOPE(NodeObjectNew);
 
-        m_currentParents.Add( PARENT_KEY() );
+        m_currentParents.Add( FParentKey() );
         m_currentParents.Last().m_pObject = &node;
 
         // Parse the child objects first, which will accumulate operations in the patching lists
@@ -2328,8 +2327,8 @@ namespace mu
 
 				// Morph to an ellipse
 				{
-					SHAPE morphShape;
-					morphShape.type = (uint8_t)SHAPE::Type::Ellipse;
+					FShape morphShape;
+					morphShape.type = (uint8_t)FShape::Type::Ellipse;
 					morphShape.position = TypedNode->m_origin;
 					morphShape.up = TypedNode->m_normal;
 					// TODO: Move rotation to ellipse rotation reference base instead of passing it directly
@@ -2355,8 +2354,8 @@ namespace mu
 				if (TypedNode->m_vertexSelectionType == NodeModifierMeshClipMorphPlane::Private::VS_SHAPE)
 				{
 					op->vertexSelectionType = OP::MeshClipMorphPlaneArgs::VS_SHAPE;
-					SHAPE selectionShape;
-					selectionShape.type = (uint8_t)SHAPE::Type::AABox;
+					FShape selectionShape;
+					selectionShape.type = (uint8_t)FShape::Type::AABox;
 					selectionShape.position = TypedNode->m_selectionBoxOrigin;
 					selectionShape.size = TypedNode->m_selectionBoxRadius;
 					op->selectionShape = selectionShape;

@@ -237,7 +237,7 @@ namespace mu
 
 		m_pD->m_memory = pLiveInstance->m_memory;
 
-		PROGRAM& program = pLiveInstance->m_pModel->GetPrivate()->m_program;
+		FProgram& program = pLiveInstance->m_pModel->GetPrivate()->m_program;
 
 		bool validState = stateIndex >= 0 && stateIndex < (int)program.m_states.Num();
 		if (!validState)
@@ -357,7 +357,7 @@ namespace mu
 			if (res.m_id == imageId)
 			{
 				const mu::Model* Model = pLiveInstance->m_pModel.get();
-				const mu::PROGRAM& program = Model->GetPrivate()->m_program;
+				const mu::FProgram& program = Model->GetPrivate()->m_program;
 
 				int32 VarValue = CVarClearImageDescCache.GetValueOnAnyThread();
 				if (VarValue != 0)
@@ -473,7 +473,7 @@ namespace mu
 			&&
 			parameter < (int)pModel->GetPrivate()->m_program.m_parameters.Num());
 
-		const PARAMETER_DESC& param =
+		const FParameterDesc& param =
 			pModel->GetPrivate()->m_program.m_parameters[parameter];
 		check(image >= 0 && image < (int)param.m_descImages.Num());
 
@@ -520,7 +520,7 @@ namespace mu
         }
 
 
-        bool Visit( OP::ADDRESS at, PROGRAM& program ) override
+        bool Visit( OP::ADDRESS at, FProgram& program ) override
         {
             switch ( program.GetOpType(at) )
             {
@@ -580,7 +580,7 @@ namespace mu
 
         // check what parameters have changed
         updatedParameters = 0;
-        const PROGRAM& program = pLiveInstance->m_pModel->GetPrivate()->m_program;
+        const FProgram& program = pLiveInstance->m_pModel->GetPrivate()->m_program;
         const TArray<int>& runtimeParams = program.m_states[ pLiveInstance->m_state ].m_runtimeParameters;
 
         check( pParams->GetCount() == (int)program.m_parameters.Num() );
@@ -833,7 +833,7 @@ namespace mu
 	{
 		MUTABLE_CPUPROFILER_SCOPE(PrepareCache);
 
-		PROGRAM& program = pModel->GetPrivate()->m_program;
+		FProgram& program = pModel->GetPrivate()->m_program;
 		size_t opCount = program.m_opAddress.Num();
 		m_memory->m_opHitCount.clear();
 		m_memory->Init(opCount);
@@ -841,7 +841,7 @@ namespace mu
 		// Mark the resources that have to be cached to update the instance in this state
 		if (state >= 0)
 		{
-			const PROGRAM::STATE& s = program.m_states[state];
+			const FProgram::FState& s = program.m_states[state];
 			for (uint32 a : s.m_updateCache)
 			{
 				m_memory->SetForceCached(a);
@@ -893,7 +893,7 @@ namespace mu
 			mu::Ptr<mu::Model> pCacheModel = m.m_pModel.Pin();
             if (pCacheModel)
             {
-				mu::PROGRAM& program = pCacheModel->GetPrivate()->m_program;
+				mu::FProgram& program = pCacheModel->GetPrivate()->m_program;
 				for (int32 RomIndex = 0; RomIndex < program.m_roms.Num(); ++RomIndex)
 				{
 					if (program.IsRomLoaded(RomIndex))
@@ -919,7 +919,7 @@ namespace mu
 					mu::Ptr<mu::Model> pCacheModel = modelCache.m_pModel.Pin();
                     if (pCacheModel)
                     {
-						mu::PROGRAM& program = pCacheModel->GetPrivate()->m_program;
+						mu::FProgram& program = pCacheModel->GetPrivate()->m_program;
                         check( modelCache.m_romWeight.Num() == program.m_roms.Num());
 
                         for (int32 RomIndex=0; RomIndex <program.m_roms.Num(); ++RomIndex)
@@ -975,7 +975,7 @@ namespace mu
     {
         check(pModel);
 
-        PROGRAM& program = pModel->GetPrivate()->m_program;
+        FProgram& program = pModel->GetPrivate()->m_program;
 
         // If budget is zero, we don't unload anything here, and we assume it is managed
         // somewhere else.
@@ -1007,7 +1007,7 @@ namespace mu
     {
 		MarkRomUsed( romIndex, pModel);
 
-		PROGRAM& program = pModel->GetPrivate()->m_program;
+		FProgram& program = pModel->GetPrivate()->m_program;
         EnsureCacheBelowBudget(program.m_roms[romIndex].Size, isRomLockedFunc);
     }
 

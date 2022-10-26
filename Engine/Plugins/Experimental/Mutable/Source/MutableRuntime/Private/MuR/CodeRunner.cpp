@@ -99,7 +99,7 @@ namespace mu
 		// We will read this in the end, so make sure we keep it.
 		m_pSystem->m_memory->IncreaseHitCount(CACHE_ADDRESS(at, 0, executionOptions));
 
-		PROGRAM& program = m_pModel->GetPrivate()->m_program;
+		FProgram& program = m_pModel->GetPrivate()->m_program;
 		m_romPendingOps.SetNum(program.m_roms.Num());
 
 		// Push the root operation
@@ -802,7 +802,7 @@ namespace mu
 
             OP::ADDRESS cat = args.value;
 
-            PROGRAM& program = pModel->GetPrivate()->m_program;
+            FProgram& program = pModel->GetPrivate()->m_program;
 
             // Assume the ROM has been loaded previously
             check(program.m_constantMeshes[cat].Value )
@@ -836,7 +836,7 @@ namespace mu
             auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>(item.at);
                 OP::ADDRESS cat = args.value;
 
-            const PROGRAM& program = pModel->GetPrivate()->m_program;
+            const FProgram& program = pModel->GetPrivate()->m_program;
 
 			int32 MipsToSkip = item.executionOptions;
             ImagePtrConst pSource;
@@ -1704,7 +1704,7 @@ namespace mu
                 check( args.morphShape < (uint32)pModel->GetPrivate()->m_program.m_constantShapes.Num() );
 
                 // Should be an ellipse
-                const SHAPE& morphShape = pModel->GetPrivate()->m_program.
+                const FShape& morphShape = pModel->GetPrivate()->m_program.
                     m_constantShapes[args.morphShape];
 
                 const mu::vec3f& origin = morphShape.position;
@@ -1715,7 +1715,7 @@ namespace mu
                     check( args.vertexSelectionShapeOrBone < (uint32)pModel->GetPrivate()->m_program.m_constantShapes.Num() );
 
                     // Should be None or an axis aligned box
-                    const SHAPE& selectionShape = pModel->GetPrivate()->m_program.m_constantShapes[args.vertexSelectionShapeOrBone];
+                    const FShape& selectionShape = pModel->GetPrivate()->m_program.m_constantShapes[args.vertexSelectionShapeOrBone];
                     pResult = MeshClipMorphPlane(pSource.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape);
                 }
 
@@ -1723,16 +1723,16 @@ namespace mu
                 {
                     check( args.vertexSelectionShapeOrBone < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
 
-                    SHAPE selectionShape;
-                    selectionShape.type = (uint8)SHAPE::Type::None;
+                    FShape selectionShape;
+                    selectionShape.type = (uint8)FShape::Type::None;
                     const string& selectionBone = pModel->GetPrivate()->m_program.m_constantStrings[args.vertexSelectionShapeOrBone];
 					pResult = MeshClipMorphPlane(pSource.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape, selectionBone, args.maxBoneRadius);
                 }
                 else
                 {
                     // No vertex selection
-                    SHAPE selectionShape;
-                    selectionShape.type = (uint8)SHAPE::Type::None;
+                    FShape selectionShape;
+                    selectionShape.type = (uint8)FShape::Type::None;
                     pResult = MeshClipMorphPlane(pSource.get(), origin, normal, args.dist, args.factor, morphShape.size[0], morphShape.size[1], morphShape.size[2], selectionShape);
                 }
 
@@ -4058,7 +4058,7 @@ namespace mu
         }
 
         const auto& program = pModel->GetPrivate()->m_program;
-        const PARAMETER_DESC& paramDesc = program.m_parameters[ parameterIndex ];
+        const FParameterDesc& paramDesc = program.m_parameters[ parameterIndex ];
         for( size_t rangeIndexInParam=0;
              rangeIndexInParam<paramDesc.m_ranges.Num();
              ++rangeIndexInParam )
@@ -5157,7 +5157,7 @@ namespace mu
 		}
 
 
-		const mu::PROGRAM& program = pModel->GetPrivate()->m_program;
+		const mu::FProgram& program = pModel->GetPrivate()->m_program;
 
 		OP_TYPE type = program.GetOpType(item.at);
 		switch (type)

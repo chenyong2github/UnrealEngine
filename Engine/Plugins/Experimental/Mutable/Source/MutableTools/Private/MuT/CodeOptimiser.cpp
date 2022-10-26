@@ -330,7 +330,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
-	bool FindOpTypeVisitor::Apply( PROGRAM& program, OP::ADDRESS rootAt )
+	bool FindOpTypeVisitor::Apply( FProgram& program, OP::ADDRESS rootAt )
 	{
 		bool found = false;
 
@@ -418,7 +418,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	bool IsConstantVisitor::Apply( PROGRAM& program, OP::ADDRESS at )
+	bool IsConstantVisitor::Apply( FProgram& program, OP::ADDRESS at )
 	{
 		return !m_findOpTypeVisitor->Apply(program,at);
 	}
@@ -470,7 +470,7 @@ namespace mu
 			ASTOp::FullLink( cloned, model->GetPrivate()->m_program, &LinkerOptions);
 			OP::ADDRESS at = cloned->linkedAddress;
 
-			PROGRAM::STATE state;
+			FProgram::FState state;
 			state.m_root = at;
 			model->GetPrivate()->m_program.m_states.Add(state);
 

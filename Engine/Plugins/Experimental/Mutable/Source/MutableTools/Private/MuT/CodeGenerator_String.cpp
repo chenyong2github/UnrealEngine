@@ -31,16 +31,16 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateString(STRING_GENERATION_RESULT& result, const NodeStringPtrConst& untyped)
+	void CodeGenerator::GenerateString(FStringGenerationResult& result, const NodeStringPtrConst& untyped)
 	{
 		if (!untyped)
 		{
-			result = STRING_GENERATION_RESULT();
+			result = FStringGenerationResult();
 			return;
 		}
 
 		// See if it was already generated
-		VISITED_MAP_KEY key = GetCurrentCacheKey(untyped);
+		FVisitedKeyMap key = GetCurrentCacheKey(untyped);
 		GeneratedStringsMap::ValueType* it = m_generatedStrings.Find(key);
 		if (it)
 		{
@@ -68,7 +68,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateString_Constant(STRING_GENERATION_RESULT& result, const Ptr<const NodeStringConstant>& Typed)
+	void CodeGenerator::GenerateString_Constant(FStringGenerationResult& result, const Ptr<const NodeStringConstant>& Typed)
 	{
 		const NodeStringConstant::Private& node = *Typed->GetPrivate();
 
@@ -80,7 +80,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateString_Parameter(STRING_GENERATION_RESULT& result, const Ptr<const NodeStringParameter>& Typed)
+	void CodeGenerator::GenerateString_Parameter(FStringGenerationResult& result, const Ptr<const NodeStringParameter>& Typed)
 	{
 		const NodeStringParameter::Private& node = *Typed->GetPrivate();
 
@@ -89,7 +89,7 @@ namespace mu
 		auto it = m_nodeVariables.find(node.m_pNode);
 		if (it == m_nodeVariables.end())
 		{
-			PARAMETER_DESC param;
+			FParameterDesc param;
 			param.m_name = node.m_name;
 			param.m_uid = node.m_uid;
 			param.m_type = PARAMETER_TYPE::T_FLOAT;
@@ -107,7 +107,7 @@ namespace mu
 			// Generate the code for the ranges
 			for (int32 a = 0; a < node.m_ranges.Num(); ++a)
 			{
-				RANGE_GENERATION_RESULT rangeResult;
+				FRangeGenerationResult rangeResult;
 				GenerateRange(rangeResult, node.m_ranges[a]);
 				op->ranges.Emplace(op.get(), rangeResult.sizeOp, rangeResult.rangeName, rangeResult.rangeUID);
 			}

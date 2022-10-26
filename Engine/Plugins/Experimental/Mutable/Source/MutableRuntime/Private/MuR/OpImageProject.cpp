@@ -35,7 +35,7 @@ namespace
 	{
 	public:
 
-		RaycastPixelProcessor( const PROJECTOR& projector,
+		RaycastPixelProcessor( const FProjector& projector,
 							   const Image* pSource,
                                const uint8* pTargetData,
                                const uint8* pMaskData,
@@ -148,19 +148,19 @@ namespace
 		}
 
 
-		const Image* m_pSource;
-		vec3<float> m_direction;
-		vec3<float> m_up;
-		vec3<float> m_side;
-		vec3<float> m_position;
-        vec3<float> m_scale;
+		const Image* m_pSource = nullptr;
+		FVector3f m_direction;
+		FVector3f m_up;
+		FVector3f m_side;
+		FVector3f m_position;
+		FVector3f m_scale;
 
         //! Cosine of the fading angle range
-        float m_fadeStartCos, m_fadeEndCos;
+		float m_fadeStartCos = 0.0f, m_fadeEndCos = 0.0f;
 
-        const uint8* m_pTargetData;
-        const uint8* m_pMaskData;
-		int m_pixelSize;
+        const uint8* m_pTargetData = nullptr;
+        const uint8* m_pMaskData = nullptr;
+		int m_pixelSize = 0;
 
 	};
 
@@ -171,7 +171,7 @@ namespace
 	{
 	public:
 
-		RaycastPixelProcessor_UBYTE( const PROJECTOR& projector,
+		RaycastPixelProcessor_UBYTE( const FProjector& projector,
 									 const Image* pSource,
                                      const uint8* pTargetData,
                                      const uint8* pMaskData,
@@ -284,11 +284,11 @@ namespace
         const uint8* m_pSourceData;
 		int m_sourceSizeX, m_sourceSizeY;
 
-		vec3<float> m_direction;
-		vec3<float> m_up;
-		vec3<float> m_side;
-		vec3<float> m_position;
-        vec3<float> m_scale;
+		FVector3f m_direction;
+		FVector3f m_up;
+		FVector3f m_side;
+		FVector3f m_position;
+		FVector3f m_scale;
 
         //! Cosine of the fading angle range
         float m_fadeStartCos, m_fadeEndCos;
@@ -692,7 +692,7 @@ void ImageRasterProjected_Generic( const Mesh* pMesh,
         vertices[v].x = uv[0] * sizeX;
         vertices[v].y = uv[1] * sizeY;
 
-        vec3f pos={0.0f,0.0f,0.0f};
+        FVector3f pos={0.0f,0.0f,0.0f};
         ConvertData( 0, &pos[0], MBF_FLOAT32, posIt.ptr(), posIt.GetFormat() );
         ConvertData( 1, &pos[0], MBF_FLOAT32, posIt.ptr(), posIt.GetFormat() );
         ConvertData( 2, &pos[0], MBF_FLOAT32, posIt.ptr(), posIt.GetFormat() );
@@ -815,9 +815,9 @@ void ImageRasterProjected_Generic( const Mesh* pMesh,
 //! See CreateMeshOptimisedForProjection
 struct OPTIMISED_VERTEX
 {
-    vec2<float> uv;
-    vec3<float> pos;
-    vec3<float> nor;
+	FVector2f uv;
+	FVector3f pos;
+	FVector3f nor;
 };
 
 static_assert( sizeof(OPTIMISED_VERTEX)==32, "UNEXPECTED_STRUCT_SIZE" );
@@ -828,9 +828,9 @@ static_assert( sizeof(OPTIMISED_VERTEX)==32, "UNEXPECTED_STRUCT_SIZE" );
 //! See CreateMeshOptimisedForWrappingProjection
 struct OPTIMISED_VERTEX_WRAPPING
 {
-    vec2<float> uv;
-    vec3<float> pos;
-    vec3<float> nor;
+	FVector2f uv;
+	FVector3f pos;
+	FVector3f nor;
     uint32 layoutBlock;
 };
 
@@ -1284,7 +1284,7 @@ constexpr float vert_collapse_eps = 0.0001f;
 //---------------------------------------------------------------------------------------------
 inline void MeshCreateCollapsedVertexMap( const Mesh* pMesh,
 	TArray<int>& collapsedVertexMap,
-	TArray<vec3f>& vertices,
+	TArray<FVector3f>& vertices,
 	TMultiMap<int, int>& collapsedVertsMap
 )
 {
@@ -1304,7 +1304,7 @@ inline void MeshCreateCollapsedVertexMap( const Mesh* pMesh,
 
             auto it = UntypedMeshBufferIteratorConst(pMesh->GetVertexBuffers(), sem, semIndex);
 
-			box<vec3f> meshBoundingBox;
+			box<FVector3f> meshBoundingBox;
 			Octree* pOctree = nullptr;
 
             switch (sem)
@@ -1314,7 +1314,7 @@ inline void MeshCreateCollapsedVertexMap( const Mesh* pMesh,
                 // First create a cache of the vertices in the vertices array
                 for (int v = 0; v < vcount; ++v)
                 {
-                    vec3f vertex(0.0f, 0.0f, 0.0f);
+                    FVector3f vertex(0.0f, 0.0f, 0.0f);
                     for (int i = 0; i < 3; ++i)
                     {
                         ConvertData(i, &vertex[0], MBF_FLOAT32, it.ptr(), it.GetFormat());
@@ -1327,10 +1327,10 @@ inline void MeshCreateCollapsedVertexMap( const Mesh* pMesh,
 				
 				//Initializing Octree boundingbox
 				meshBoundingBox.min = vertices[0];
-				meshBoundingBox.size = vec3f(0.0f, 0.0f, 0.0f);
+				meshBoundingBox.size = FVector3f(0.0f, 0.0f, 0.0f);
 				for (int32 i = 1; i < vertices.Num(); ++i)
 				{
-					meshBoundingBox.Bound(vertices[i]);
+					meshBoundingBox.Bound3(vertices[i]);
 				}
 
 				//Initializing and filling Octree
@@ -1416,13 +1416,13 @@ struct AdjacentFaces
 };
 
 
-void PlanarlyProjectVertex(const vec3f& unfoldedPosition, vec4f& projectedPosition,
-	const PROJECTOR& projector, const vec3f& projectorPosition, const vec3f& projectorDirection, const vec3f& s, const vec3f& u)
+void PlanarlyProjectVertex(const FVector3f& unfoldedPosition, vec4f& projectedPosition,
+	const FProjector& projector, const FVector3f& projectorPosition, const FVector3f& projectorDirection, const FVector3f& s, const FVector3f& u)
 {
-	float x = dot( unfoldedPosition - projectorPosition, s ) / projector.scale[0] + 0.5f;
-	float y = dot( unfoldedPosition - projectorPosition, u ) / projector.scale[1] + 0.5f;
+	float x = FVector3f::DotProduct( unfoldedPosition - projectorPosition, s ) / projector.scale[0] + 0.5f;
+	float y = FVector3f::DotProduct( unfoldedPosition - projectorPosition, u ) / projector.scale[1] + 0.5f;
 	y = 1.0f - y;
-	float z = dot( unfoldedPosition - projectorPosition, projectorDirection ) / projector.scale[2];
+	float z = FVector3f::DotProduct( unfoldedPosition - projectorPosition, projectorDirection ) / projector.scale[2];
 
 	bool inside = x>=0.0f && x<=1.0f && y>=0.0f && y<=1.0 && z>=0.0f && z<=1.0f;
 	projectedPosition[0] = x;
@@ -1432,57 +1432,57 @@ void PlanarlyProjectVertex(const vec3f& unfoldedPosition, vec4f& projectedPositi
 }
 
 
-vec2f ChangeBase2D(const vec2f& origPosition, const vec2f& newOrigin, const vec2f& newBaseX, const vec2f& newBaseY)
+FVector2f ChangeBase2D(const FVector2f& origPosition, const FVector2f& newOrigin, const FVector2f& newBaseX, const FVector2f& newBaseY)
 {
-	float x = dot(origPosition - newOrigin, newBaseX) / powf(length(newBaseX), 2.f) + 0.5f;
-	float y = dot(origPosition - newOrigin, newBaseY) / powf(length(newBaseY), 2.f) + 0.5f;
+	float x = FVector2f::DotProduct(origPosition - newOrigin, newBaseX) / powf(newBaseX.Length(), 2.f) + 0.5f;
+	float y = FVector2f::DotProduct(origPosition - newOrigin, newBaseY) / powf(newBaseY.Length(), 2.f) + 0.5f;
 	//y = 1.0f - y;
 
-	return vec2f(x, y);
+	return FVector2f(x, y);
 }
 
 
 // Compute barycentric coordinates (u, v, w) for
 // point p with respect to triangle (a, b, c)
-void GetBarycentricCoords(vec3f p, vec3f a, vec3f b, vec3f c, float &u, float &v, float &w)
+void GetBarycentricCoords(FVector3f p, FVector3f a, FVector3f b, FVector3f c, float &u, float &v, float &w)
 {
-    vec3f v0 = b - a, v1 = c - a, v2 = p - a;
-    float d00 = dot(v0, v0);
-    float d01 = dot(v0, v1);
-    float d11 = dot(v1, v1);
-    float d20 = dot(v2, v0);
-    float d21 = dot(v2, v1);
+    FVector3f v0 = b - a, v1 = c - a, v2 = p - a;
+    float d00 = FVector3f::DotProduct(v0, v0);
+    float d01 = FVector3f::DotProduct(v0, v1);
+    float d11 = FVector3f::DotProduct(v1, v1);
+    float d20 = FVector3f::DotProduct(v2, v0);
+    float d21 = FVector3f::DotProduct(v2, v1);
     float denom = d00 * d11 - d01 * d01;
     v = (d11 * d20 - d01 * d21) / denom;
     w = (d00 * d21 - d01 * d20) / denom;
     u = 1.0f - v - w;
 }
 
-void GetBarycentricCoords(vec2f p, vec2f a, vec2f b, vec2f c, float &u, float &v, float &w)
+void GetBarycentricCoords(FVector2f p, FVector2f a, FVector2f b, FVector2f c, float &u, float &v, float &w)
 {
-	vec2f v0 = b - a, v1 = c - a, v2 = p - a;
-    float den = v0.x() * v1.y() - v1.x() * v0.y();
+	FVector2f v0 = b - a, v1 = c - a, v2 = p - a;
+    float den = v0.X * v1.Y - v1.X * v0.Y;
 #ifdef DEBUG_PROJECTION
 	assert(den != 0.f);
 #endif
-    v = (v2.x() * v1.y() - v1.x() * v2.y()) / den;
-    w = (v0.x() * v2.y() - v2.x() * v0.y()) / den;
+    v = (v2.X * v1.Y - v1.X * v2.Y) / den;
+    w = (v0.X * v2.Y - v2.X * v0.Y) / den;
     u = 1.0f - v - w;
 }
 
 
-float getTriangleArea(vec2f& a, vec2f& b, vec2f& c)
+float getTriangleArea(FVector2f& a, FVector2f& b, FVector2f& c)
 {
-	float area = a.x() * (b.y() - c.y()) + b.x() * (c.y() - a.y()) + c.x() * (a.y() - b.y());
+	float area = a.X * (b.Y - c.Y) + b.X * (c.Y - a.Y) + c.X * (a.Y - b.Y);
 	return area / 2.f;
 }
 
 
-float getTriangleRatio(const vec2f& a, const vec2f& b, const vec2f& c)
+float getTriangleRatio(const FVector2f& a, const FVector2f& b, const FVector2f& c)
 {
-	float lenSide1 = length(b - a);
-	float lenSide2 = length(c - a);
-	float lenSide3 = length(b - c);
+	float lenSide1 = (b - a).Length();
+	float lenSide2 = (c - a).Length();
+	float lenSide3 = (b - c).Length();
 
 	float maxLen = FMath::Max3(lenSide1, lenSide2, lenSide3);
 	float minLen = FMath::Min3(lenSide1, lenSide2, lenSide3);
@@ -1518,59 +1518,59 @@ void getEdgeHorizontalLength( int edgeVert0, int edgeVert1, int opposedVert,
 {
 	const int oldVertices[2] = { edgeVert0, edgeVert1 };
 
-	const vec2f& edge0_oldUVSpace = pVertices[oldVertices[0]].uv;
-	const vec2f& edge1_oldUVSpace = pVertices[oldVertices[1]].uv;
-	const vec2f& opposedVert_oldUVSpace = pVertices[opposedVert].uv;
+	const FVector2f& edge0_oldUVSpace = pVertices[oldVertices[0]].uv;
+	const FVector2f& edge1_oldUVSpace = pVertices[oldVertices[1]].uv;
+	const FVector2f& opposedVert_oldUVSpace = pVertices[opposedVert].uv;
 
-	vec2f edgeVector_oldUVSpace = edge1_oldUVSpace - edge0_oldUVSpace;
-	vec2f sideVector_oldUVSpace = opposedVert_oldUVSpace - edge0_oldUVSpace;
+	FVector2f edgeVector_oldUVSpace = edge1_oldUVSpace - edge0_oldUVSpace;
+	FVector2f sideVector_oldUVSpace = opposedVert_oldUVSpace - edge0_oldUVSpace;
 
-	float edgeVector_oldUVSpaceLen = length(edgeVector_oldUVSpace);
-	float dotEdgeSideVectors_oldUVSpace = dot(edgeVector_oldUVSpace, sideVector_oldUVSpace);
+	float edgeVector_oldUVSpaceLen = edgeVector_oldUVSpace.Length();
+	float dotEdgeSideVectors_oldUVSpace = FVector2f::DotProduct(edgeVector_oldUVSpace, sideVector_oldUVSpace);
 	float midEdgePointFraction_oldUVSpace = (dotEdgeSideVectors_oldUVSpace / powf(edgeVector_oldUVSpaceLen, 2));
-	vec2f edgeVectorProj_oldUVSpace = edgeVector_oldUVSpace * midEdgePointFraction_oldUVSpace;
-	vec2f midEdgePoint_oldUVSpace = edge0_oldUVSpace + edgeVectorProj_oldUVSpace;
+	FVector2f edgeVectorProj_oldUVSpace = edgeVector_oldUVSpace * midEdgePointFraction_oldUVSpace;
+	FVector2f midEdgePoint_oldUVSpace = edge0_oldUVSpace + edgeVectorProj_oldUVSpace;
 
-	vec2f perpEdgeVector_oldUVSpace = opposedVert_oldUVSpace - midEdgePoint_oldUVSpace;
+	FVector2f perpEdgeVector_oldUVSpace = opposedVert_oldUVSpace - midEdgePoint_oldUVSpace;
 #ifdef DEBUG_PROJECTION
 	assert(fabs(dot(perpEdgeVector_oldUVSpace, edgeVector_oldUVSpace)) < 0.1f);
 #endif
-	float perpEdgeVector_oldUVSpace_Len = length(perpEdgeVector_oldUVSpace);
+	float perpEdgeVector_oldUVSpace_Len = perpEdgeVector_oldUVSpace.Length();
 	out_uvSpaceLen = perpEdgeVector_oldUVSpace_Len;
 	out_midEdgePointFraction = midEdgePointFraction_oldUVSpace;
 
 	// Do the same in object space to be able to extract the scale of the original uv space
-	const vec3f& edge0_objSpace = pVertices[oldVertices[0]].pos;
-	const vec3f& edge1_objSpace = pVertices[oldVertices[1]].pos;
-	const vec3f& opposedVert_objSpace = pVertices[opposedVert].pos;
+	const FVector3f& edge0_objSpace = pVertices[oldVertices[0]].pos;
+	const FVector3f& edge1_objSpace = pVertices[oldVertices[1]].pos;
+	const FVector3f& opposedVert_objSpace = pVertices[opposedVert].pos;
 
-	vec3f edgeVector_objSpace = edge1_objSpace - edge0_objSpace;
-	vec3f sideVector_objSpace = opposedVert_objSpace - edge0_objSpace;
+	FVector3f edgeVector_objSpace = edge1_objSpace - edge0_objSpace;
+	FVector3f sideVector_objSpace = opposedVert_objSpace - edge0_objSpace;
 
-	float edgeVector_objSpaceLen = length(edgeVector_objSpace);
-	float dotEdgeSideVectors_objSpace = dot(edgeVector_objSpace, sideVector_objSpace);
+	float edgeVector_objSpaceLen = edgeVector_objSpace.Length();
+	float dotEdgeSideVectors_objSpace = FVector3f::DotProduct(edgeVector_objSpace, sideVector_objSpace);
 	float midEdgePointFraction_objSpace = (dotEdgeSideVectors_objSpace / powf(edgeVector_objSpaceLen, 2));
-	vec3f edgeVectorProj_objSpace = edgeVector_objSpace * midEdgePointFraction_objSpace;
-	vec3f midEdgePoint_objSpace = edge0_objSpace + edgeVectorProj_objSpace;
+	FVector3f edgeVectorProj_objSpace = edgeVector_objSpace * midEdgePointFraction_objSpace;
+	FVector3f midEdgePoint_objSpace = edge0_objSpace + edgeVectorProj_objSpace;
 
-	vec3f perpEdgeVector_objSpace = opposedVert_objSpace - midEdgePoint_objSpace;
+	FVector3f perpEdgeVector_objSpace = opposedVert_objSpace - midEdgePoint_objSpace;
 #ifdef DEBUG_PROJECTION
 	assert(fabs(dot(perpEdgeVector_objSpace, edgeVector_objSpace)) < 0.1f);
 #endif
-	float perpEdgeVector_objSpace_Len = length(perpEdgeVector_objSpace);
+	float perpEdgeVector_objSpace_Len = perpEdgeVector_objSpace.Length();
 	out_objSpaceLen = perpEdgeVector_objSpace_Len;
 }
 
 
-bool testPointsAreInOppositeSidesOfEdge( const vec2f& pointA, const vec2f& pointB,
-                                         const vec2f& edge0, const vec2f& edge1 )
+bool testPointsAreInOppositeSidesOfEdge( const FVector2f& pointA, const FVector2f& pointB,
+                                         const FVector2f& edge0, const FVector2f& edge1 )
 {
-	vec2f edge = edge1 - edge0;
-	vec2f perp_edge = vec2f(-edge.y(), edge.x());
-	vec2f AVertexVector = pointA - edge0;
-	vec2f BVertexVector = pointB - edge0;
-	float dotAVertexVector = dot(AVertexVector, perp_edge);
-	float dotBVertexVector = dot(BVertexVector, perp_edge);
+	FVector2f edge = edge1 - edge0;
+	FVector2f perp_edge = FVector2f(-edge.Y, edge.X);
+	FVector2f AVertexVector = pointA - edge0;
+	FVector2f BVertexVector = pointB - edge0;
+	float dotAVertexVector = FVector2f::DotProduct(AVertexVector, perp_edge);
+	float dotBVertexVector = FVector2f::DotProduct(BVertexVector, perp_edge);
 	
 	return dotAVertexVector * dotBVertexVector < 0.f;
 }
@@ -1583,7 +1583,7 @@ struct PROJECTED_VERTEX
     float pos0 = 0, pos1 = 0, pos2 = 0;
     uint32 mask3 = 0;
 
-	inline vec2<float> xy() const { return vec2<float>(pos0,pos1); }
+	inline FVector2f xy() const { return FVector2f(pos0,pos1); }
 };
 #pragma pack(pop)
 static_assert( sizeof(PROJECTED_VERTEX)==16, "Unexpected struct size" );
@@ -1592,9 +1592,9 @@ static_assert( sizeof(PROJECTED_VERTEX)==16, "Unexpected struct size" );
 //-------------------------------------------------------------------------------------------------
 void MeshProject_Optimised_Planar( const OPTIMISED_VERTEX* pVertices, int vertexCount,
                                    const uint32* pIndices, int faceCount,
-                                   const vec3f& projectorPosition, const vec3f& projectorDirection,
-                                   const vec3f& projectorSide, const vec3f& projectorUp,
-                                   const vec3f& projectorScale,
+                                   const FVector3f& projectorPosition, const FVector3f& projectorDirection,
+                                   const FVector3f& projectorSide, const FVector3f& projectorUp,
+                                   const FVector3f& projectorScale,
                                    OPTIMISED_VERTEX* pResultVertices, int& currentVertex,
                                    uint32* pResultIndices, int& currentIndex  )
 {
@@ -1608,10 +1608,10 @@ void MeshProject_Optimised_Planar( const OPTIMISED_VERTEX* pVertices, int vertex
 
     for ( int v=0; v<vertexCount; ++v )
     {
-        float x = dot( pVertices[v].pos-projectorPosition, projectorSide ) / projectorScale[0] + 0.5f;
-        float y = dot( pVertices[v].pos-projectorPosition, projectorUp ) / projectorScale[1] + 0.5f;
+        float x = FVector3f::DotProduct( pVertices[v].pos-projectorPosition, projectorSide ) / projectorScale[0] + 0.5f;
+        float y = FVector3f::DotProduct( pVertices[v].pos-projectorPosition, projectorUp ) / projectorScale[1] + 0.5f;
         y = 1.0f-y;
-        float z = dot( pVertices[v].pos-projectorPosition, projectorDirection ) / projectorScale[2];
+        float z = FVector3f::DotProduct( pVertices[v].pos-projectorPosition, projectorDirection ) / projectorScale[2];
 
         // Plane mask with bits for each plane discarding the vertex
         uint32 planeMask =
@@ -1658,7 +1658,7 @@ void MeshProject_Optimised_Planar( const OPTIMISED_VERTEX* pVertices, int vertex
                     pResultVertices[currentVertex].pos[2] = projectedPositions[i].pos2;
 
                     // Normal is actually the fade factor
-                    float angleCos = dot( pVertices[i].nor, projectorDirection * -1.0f );
+                    float angleCos = FVector3f::DotProduct( pVertices[i].nor, projectorDirection * -1.0f );
                     pResultVertices[currentVertex].nor[0] = angleCos;
                     pResultVertices[currentVertex].nor[1] = angleCos;
                     pResultVertices[currentVertex].nor[2] = angleCos;
@@ -1676,9 +1676,9 @@ void MeshProject_Optimised_Planar( const OPTIMISED_VERTEX* pVertices, int vertex
 //-------------------------------------------------------------------------------------------------
 void MeshProject_Optimised_Cylindrical( const OPTIMISED_VERTEX* pVertices, int vertexCount,
                                         const uint32* pIndices, int faceCount,
-                                        const vec3f& projectorPosition, const vec3f& projectorDirection,
-                                        const vec3f& projectorSide, const vec3f& projectorUp,
-                                        const vec3f& projectorScale,
+                                        const FVector3f& projectorPosition, const FVector3f& projectorDirection,
+                                        const FVector3f& projectorSide, const FVector3f& projectorUp,
+                                        const FVector3f& projectorScale,
                                         OPTIMISED_VERTEX* pResultVertices, int& currentVertex,
                                         uint32* pResultIndices, int& currentIndex  )
 {
@@ -1693,7 +1693,7 @@ void MeshProject_Optimised_Cylindrical( const OPTIMISED_VERTEX* pVertices, int v
     // TODO: support for non uniform scale?
     float radius = projectorScale[1];
     float height = projectorScale[0];
-    mat3f worldToCylinder( projectorDirection, projectorSide, projectorUp );
+    mat3f worldToCylinder = mat3f(vec3f(projectorDirection), vec3f(projectorSide), vec3f(projectorUp) );
     //worldToCylinder = worldToCylinder.GetTransposed();
 
     for ( int v=0; v<vertexCount; ++v )
@@ -1701,8 +1701,8 @@ void MeshProject_Optimised_Cylindrical( const OPTIMISED_VERTEX* pVertices, int v
         // Cylinder is along the X axis
 
         // Project
-        vec3f relPos = pVertices[v].pos - projectorPosition;
-        vec3f vertexPos_cylinder = worldToCylinder * relPos;
+		vec3f relPos = vec3f(pVertices[v].pos - projectorPosition);
+        vec3f vertexPos_cylinder = worldToCylinder.Transform(relPos);
 
         // This final projection needs to be done per pixel
         float x = vertexPos_cylinder.x() / height;
@@ -1770,9 +1770,9 @@ void MeshProject_Optimised_Cylindrical( const OPTIMISED_VERTEX* pVertices, int v
 
 //-------------------------------------------------------------------------------------------------
 void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
-                                     const vec3f& projectorPosition, const vec3f& projectorDirection,
-                                     const vec3f& projectorSide, const vec3f& projectorUp,
-                                     const vec3f& projectorScale,
+                                     const FVector3f& projectorPosition, const FVector3f& projectorDirection,
+                                     const FVector3f& projectorSide, const FVector3f& projectorUp,
+                                     const FVector3f& projectorScale,
                                      OPTIMISED_VERTEX_WRAPPING* pResultVertices, int& currentVertex,
                                      uint32* pResultIndices, int& currentIndex )
 {
@@ -1797,8 +1797,8 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
     float rayLength = maxDist;
     int intersectedFace = -1;
 	TSet<int> processedVertices;
-    vec3f projectionPlaneNormal;
-    vec3f out_intersection;
+    FVector3f projectionPlaneNormal;
+    FVector3f out_intersection;
 
 	TArray<AdjacentFaces> faceConnectivity;
 	faceConnectivity.SetNum(faceCount);
@@ -1809,7 +1809,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
 
     // Map vertices to the one they are collapsed to because they are very similar, if they aren't collapsed then they are mapped to themselves
     TArray<int> collapsedVertexMap;
-	TArray<vec3f> vertices;
+	TArray<FVector3f> vertices;
     TMultiMap<int, int> collapsedVertsMap; // Maps a collapsed vertex to all the vertices that collapse to it
     MeshCreateCollapsedVertexMap(pMesh, collapsedVertexMap, vertices, collapsedVertsMap);
 
@@ -1838,13 +1838,13 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
         int i1 = pIndices[f * 3 + 1];
         int i2 = pIndices[f * 3 + 2];
 
-        vec3f rayStart = projectorPosition;
-        vec3f rayEnd = projectorPosition + projectorDirection * maxDist;
-        vec3f aux_out_intersection;
+		FVector3f rayStart = projectorPosition;
+		FVector3f rayEnd = projectorPosition + projectorDirection * maxDist;
+		FVector3f aux_out_intersection;
         int out_intersected_vert, out_intersected_edge_v0, out_intersected_edge_v1;
         float t;
 
-        rayLength = length(rayEnd - rayStart);
+        rayLength = (rayEnd - rayStart).Length();
 
         bool intersects = rayIntersectsFace2(rayStart, rayEnd, pVertices[i0].pos, pVertices[i1].pos, pVertices[i2].pos,
             aux_out_intersection, out_intersected_vert, out_intersected_edge_v0, out_intersected_edge_v1, t);
@@ -1855,10 +1855,10 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
             min_t = t;
             out_intersection = aux_out_intersection;
 
-            vec3<float> v0 = pVertices[i0].pos;
-            vec3<float> v1 = pVertices[i1].pos;
-            vec3<float> v2 = pVertices[i2].pos;
-            projectionPlaneNormal = normalise(cross<float>(v1 - v0, v2 - v0));
+            FVector3f v0 = pVertices[i0].pos;
+			FVector3f v1 = pVertices[i1].pos;
+			FVector3f v2 = pVertices[i2].pos;
+            projectionPlaneNormal = FVector3f::CrossProduct(v1 - v0, v2 - v0).GetSafeNormal();
         }
 
         // Face connectivity info
@@ -1928,27 +1928,27 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
     }
 
     // New projector located perpendicularly up from the hit face
-    PROJECTOR projector2;
+    FProjector projector2;
     projector2.direction[0] = projectionPlaneNormal[0];
     projector2.direction[1] = projectionPlaneNormal[1];
     projector2.direction[2] = projectionPlaneNormal[2];
-    vec3f auxPosition = out_intersection - projectionPlaneNormal * rayLength * min_t;
-    //vec3f auxPosition = vec3f( projector.position[0], projector.position[1], projector.position[2] );
+    FVector3f auxPosition = out_intersection - projectionPlaneNormal * rayLength * min_t;
+    //FVector3f auxPosition = FVector3f( projector.position[0], projector.position[1], projector.position[2] );
     projector2.position[0] = auxPosition[0];
     projector2.position[1] = auxPosition[1];
     projector2.position[2] = auxPosition[2];
 
-    vec3f auxUp = projectorUp;
-    float test = fabs(dot(auxUp, projectionPlaneNormal));
+    FVector3f auxUp = projectorUp;
+    float test = fabs(FVector3f::DotProduct(auxUp, projectionPlaneNormal));
 
     if (test < 0.9f)
     {
-        vec3f auxSide = normalise(cross(projectionPlaneNormal, auxUp));
-        auxUp = cross(auxSide, projectionPlaneNormal);
+        FVector3f auxSide = FVector3f::CrossProduct(projectionPlaneNormal, auxUp).GetSafeNormal();
+        auxUp = FVector3f::CrossProduct(auxSide, projectionPlaneNormal);
     }
     else
     {
-        auxUp = cross(projectionPlaneNormal, projectorSide);
+        auxUp = FVector3f::CrossProduct(projectionPlaneNormal, projectorSide);
     }
 
     projector2.up[0] = auxUp[0];
@@ -1958,8 +1958,8 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
     projector2.scale[0] = projectorScale[0];
     projector2.scale[1] = projectorScale[1];
     projector2.scale[2] = projectorScale[2];
-    vec3f projectorPosition2, projectorDirection2, s2, u2;
-    projectorPosition2 = vec3f( projector2.position[0], projector2.position[1], projector2.position[2] );
+    FVector3f projectorDirection2, s2, u2;
+    FVector3f projectorPosition2 = projector2.position;
     projector2.GetDirectionSideUp( projectorDirection2, s2, u2 );
     float maxDistSquared = powf(projector2.scale[0], 2.f) + powf(projector2.scale[1], 2.f);
 
@@ -1971,7 +1971,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
 		// \TODO: Bool array to speed up?
 		TSet<int> pendingFacesUnique; // Used to quickly check uniqueness in the pendingFaces queue
 
-        //vec3f hitFaceProjectedNormal;
+        //FVector3f hitFaceProjectedNormal;
         bool hitFaceHasPositiveArea = false;
 
         NeighborFace neighborFace;
@@ -2010,47 +2010,47 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                 assert(newVertexFromQueue == -1);
 #endif
 
-                vec3f outIntersectionBaricentric;
+                FVector3f outIntersectionBaricentric;
                 int i0 = pIndices[currentFace * 3 + 0];
                 int i1 = pIndices[currentFace * 3 + 1];
                 int i2 = pIndices[currentFace * 3 + 2];
-                vec3<float> v3_0 = pVertices[i0].pos;
-                vec3<float> v3_1 = pVertices[i1].pos;
-                vec3<float> v3_2 = pVertices[i2].pos;
+				FVector3f v3_0 = pVertices[i0].pos;
+				FVector3f v3_1 = pVertices[i1].pos;
+				FVector3f v3_2 = pVertices[i2].pos;
                 GetBarycentricCoords(out_intersection, v3_0, v3_1, v3_2, outIntersectionBaricentric[0], outIntersectionBaricentric[1], outIntersectionBaricentric[2]);
-                vec2f outIntersectionUV = pVertices[i0].uv * outIntersectionBaricentric[0] + pVertices[i1].uv * outIntersectionBaricentric[1] + pVertices[i2].uv * outIntersectionBaricentric[2];
+				FVector2f outIntersectionUV = pVertices[i0].uv * outIntersectionBaricentric[0] + pVertices[i1].uv * outIntersectionBaricentric[1] + pVertices[i2].uv * outIntersectionBaricentric[2];
 
                 vec4f proj4D_v0, proj4D_v1, proj4D_v2;
                 PlanarlyProjectVertex(pVertices[i0].pos, proj4D_v0, projector2, projectorPosition2, projectorDirection2, s2, u2);
                 PlanarlyProjectVertex(pVertices[i1].pos, proj4D_v1, projector2, projectorPosition2, projectorDirection2, s2, u2);
                 PlanarlyProjectVertex(pVertices[i2].pos, proj4D_v2, projector2, projectorPosition2, projectorDirection2, s2, u2);
 
-                vec2f proj_v0 = vec2f(proj4D_v0[0], proj4D_v0[1]);
-                vec2f proj_v1 = vec2f(proj4D_v1[0], proj4D_v1[1]);
-                vec2f proj_v2 = vec2f(proj4D_v2[0], proj4D_v2[1]);
+				FVector2f proj_v0 = FVector2f(proj4D_v0[0], proj4D_v0[1]);
+				FVector2f proj_v1 = FVector2f(proj4D_v1[0], proj4D_v1[1]);
+				FVector2f proj_v2 = FVector2f(proj4D_v2[0], proj4D_v2[1]);
 
                 float proj_TriangleArea = getTriangleArea(proj_v0, proj_v1, proj_v2);
 
-                vec3f BaricentricBaseU;
-                vec3f BaricentricBaseV;
-                vec3f BaricentricOrigin;
+                FVector3f BaricentricBaseU;
+                FVector3f BaricentricBaseV;
+                FVector3f BaricentricOrigin;
 
-                GetBarycentricCoords(vec2f(1.f, 0.f), proj_v0, proj_v1, proj_v2, BaricentricBaseU[0], BaricentricBaseU[1], BaricentricBaseU[2]);
-                GetBarycentricCoords(vec2f(0.f, 1.f), proj_v0, proj_v1, proj_v2, BaricentricBaseV[0], BaricentricBaseV[1], BaricentricBaseV[2]);
-                GetBarycentricCoords(vec2f(0.f, 0.f), proj_v0, proj_v1, proj_v2, BaricentricOrigin[0], BaricentricOrigin[1], BaricentricOrigin[2]);
+                GetBarycentricCoords(FVector2f(1.f, 0.f), proj_v0, proj_v1, proj_v2, BaricentricBaseU[0], BaricentricBaseU[1], BaricentricBaseU[2]);
+                GetBarycentricCoords(FVector2f(0.f, 1.f), proj_v0, proj_v1, proj_v2, BaricentricBaseV[0], BaricentricBaseV[1], BaricentricBaseV[2]);
+                GetBarycentricCoords(FVector2f(0.f, 0.f), proj_v0, proj_v1, proj_v2, BaricentricOrigin[0], BaricentricOrigin[1], BaricentricOrigin[2]);
 
-                vec2f OrigUVs_BaseU_EndPoint = pVertices[i0].uv * BaricentricBaseU[0] + pVertices[i1].uv * BaricentricBaseU[1] + pVertices[i2].uv * BaricentricBaseU[2];
-                vec2f OrigUVs_BaseV_EndPoint = pVertices[i0].uv * BaricentricBaseV[0] + pVertices[i1].uv * BaricentricBaseV[1] + pVertices[i2].uv * BaricentricBaseV[2];
-                vec2f OrigUVs_Origin = pVertices[i0].uv * BaricentricOrigin[0] + pVertices[i1].uv * BaricentricOrigin[1] + pVertices[i2].uv * BaricentricOrigin[2];
+                FVector2f OrigUVs_BaseU_EndPoint = pVertices[i0].uv * BaricentricBaseU[0] + pVertices[i1].uv * BaricentricBaseU[1] + pVertices[i2].uv * BaricentricBaseU[2];
+                FVector2f OrigUVs_BaseV_EndPoint = pVertices[i0].uv * BaricentricBaseV[0] + pVertices[i1].uv * BaricentricBaseV[1] + pVertices[i2].uv * BaricentricBaseV[2];
+                FVector2f OrigUVs_Origin = pVertices[i0].uv * BaricentricOrigin[0] + pVertices[i1].uv * BaricentricOrigin[1] + pVertices[i2].uv * BaricentricOrigin[2];
 
-                vec2f OrigUVs_BaseU = OrigUVs_BaseU_EndPoint - OrigUVs_Origin;
-                vec2f OrigUVs_BaseV_Aux = OrigUVs_BaseV_EndPoint - OrigUVs_Origin;
+                FVector2f OrigUVs_BaseU = OrigUVs_BaseU_EndPoint - OrigUVs_Origin;
+                FVector2f OrigUVs_BaseV_Aux = OrigUVs_BaseV_EndPoint - OrigUVs_Origin;
 
-                OrigUVs_BaseU = normalise(OrigUVs_BaseU);
-                OrigUVs_BaseV_Aux = normalise(OrigUVs_BaseV_Aux);
+                OrigUVs_BaseU = OrigUVs_BaseU.GetSafeNormal();
+                OrigUVs_BaseV_Aux = OrigUVs_BaseV_Aux.GetSafeNormal();
 
                 // Generate perp vector from OrigUVs_BaseU by flipping coords and one sign. Using OrigUVs_BaseV directly sometimes doesn't give an orthogonal basis
-                vec2f OrigUVs_BaseV = vec2f(copysign(OrigUVs_BaseU.y(), OrigUVs_BaseV_Aux.x()), copysign(OrigUVs_BaseU.x(), OrigUVs_BaseV_Aux.y()));
+                FVector2f OrigUVs_BaseV = FVector2f(copysign(OrigUVs_BaseU.Y, OrigUVs_BaseV_Aux.X), copysign(OrigUVs_BaseU.X, OrigUVs_BaseV_Aux.Y));
 
 #ifdef DEBUG_PROJECTION
                 assert(fabs(dot(OrigUVs_BaseU, OrigUVs_BaseV)) < 0.3f);
@@ -2071,7 +2071,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                     processedVertices.Add(collapsedVert);
 
                     //PlanarlyProjectVertex(pVertices[collapsedVert].pos, projectedPositions[collapsedVert], projector2, projectorPosition2, projectorDirection2, s2, u2);
-                    vec2f projectedVertex = ChangeBase2D(pVertices[v].uv, OrigUVs_Origin, OrigUVs_BaseU, OrigUVs_BaseV);
+                    FVector2f projectedVertex = ChangeBase2D(pVertices[v].uv, OrigUVs_Origin, OrigUVs_BaseU, OrigUVs_BaseV);
 
                     projectedPositions[collapsedVert].pos0 = projectedVertex[0];
                     projectedPositions[collapsedVert].pos1 = projectedVertex[1];
@@ -2079,15 +2079,15 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                     projectedPositions[collapsedVert].mask3 = 1;
                 }
 
-                vec2<float> v0 = projectedPositions[collapsedVertexMap[pIndices[currentFace * 3 + 0]]].xy();
-                vec2<float> v1 = projectedPositions[collapsedVertexMap[pIndices[currentFace * 3 + 1]]].xy();
-                vec2<float> v2 = projectedPositions[collapsedVertexMap[pIndices[currentFace * 3 + 2]]].xy();
+                FVector2f v0 = projectedPositions[collapsedVertexMap[pIndices[currentFace * 3 + 0]]].xy();
+				FVector2f v1 = projectedPositions[collapsedVertexMap[pIndices[currentFace * 3 + 1]]].xy();
+				FVector2f v2 = projectedPositions[collapsedVertexMap[pIndices[currentFace * 3 + 2]]].xy();
                 currentTriangleArea = getTriangleArea(v0, v1, v2);
                 float triangleAreaFactor = sqrt(fabs(proj_TriangleArea) / fabs(currentTriangleArea));
 
-                vec2f origin = v0 * outIntersectionBaricentric[0] + v1 * outIntersectionBaricentric[1] + v2 * outIntersectionBaricentric[2];
+                FVector2f origin = v0 * outIntersectionBaricentric[0] + v1 * outIntersectionBaricentric[1] + v2 * outIntersectionBaricentric[2];
 #ifdef DEBUG_PROJECTION
-                assert(length(origin - vec2f(0.5f, 0.5f)) < 0.001f);
+                assert(length(origin - FVector2f(0.5f, 0.5f)) < 0.001f);
 #endif
 
                 //hitFaceProjectedNormal = (cross<float>(v1 - v0, v2 - v0));
@@ -2124,7 +2124,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
 #endif
                 origin = v0 * outIntersectionBaricentric[0] + v1 * outIntersectionBaricentric[1] + v2 * outIntersectionBaricentric[2];
 #ifdef DEBUG_PROJECTION
-                assert(length(origin - vec2f(0.5f, 0.5f)) < 0.001f);
+                assert(length(origin - FVector2f(0.5f, 0.5f)) < 0.001f);
 #endif
             }
             else
@@ -2188,14 +2188,14 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                     int pi2 = pIndices[previousFace * 3 + 2];
 
                     // Previous face uv coords
-                    vec2<float> pv0;
-                    vec2<float> pv1;
-                    vec2<float> pv2;
+					FVector2f pv0;
+					FVector2f pv1;
+					FVector2f pv2;
 
                     // Proj vertices from previous triangle
-                    vec2<float> pv0_proj;
-                    vec2<float> pv1_proj;
-                    vec2<float> pv2_proj;
+					FVector2f pv0_proj;
+					FVector2f pv1_proj;
+					FVector2f pv2_proj;
 
                     int oldVertices_previousFace[2] = { -1, -1 };
                     int oldVertex = -1;
@@ -2238,18 +2238,18 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                         float objSpaceToCurrentUVSpaceConversion = currentFace_uvSpaceLen / currentFace_objSpaceLen;
                         float previousFaceWidthInCurrentUVspace = previousFace_objSpaceLen * objSpaceToCurrentUVSpaceConversion;
 
-                        const vec2f& edge0_currentFace_oldUVSpace = pVertices[oldVertices[0]].uv;
-                        const vec2f& edge1_currentFace_oldUVSpace = pVertices[oldVertices[1]].uv;
-                        const vec2f& newVertex_currentFace_oldUVSpace = pVertices[newVertex].uv;
+                        const FVector2f& edge0_currentFace_oldUVSpace = pVertices[oldVertices[0]].uv;
+                        const FVector2f& edge1_currentFace_oldUVSpace = pVertices[oldVertices[1]].uv;
+                        const FVector2f& newVertex_currentFace_oldUVSpace = pVertices[newVertex].uv;
 
-                        vec2f edge_currentFace_oldUVSpace = edge1_currentFace_oldUVSpace - edge0_currentFace_oldUVSpace;
-                        vec2f midpoint_currentFace_oldUVSpace = edge0_currentFace_oldUVSpace + edge_currentFace_oldUVSpace * midEdgePointFraction_currentFace;
-                        vec2f edgePerpVectorNorm = normalise(midpoint_currentFace_oldUVSpace - newVertex_currentFace_oldUVSpace);
-                        vec2f test_edge_currentFace_oldUVSpaceNorm = normalise(edge_currentFace_oldUVSpace);
+                        FVector2f edge_currentFace_oldUVSpace = edge1_currentFace_oldUVSpace - edge0_currentFace_oldUVSpace;
+                        FVector2f midpoint_currentFace_oldUVSpace = edge0_currentFace_oldUVSpace + edge_currentFace_oldUVSpace * midEdgePointFraction_currentFace;
+                        FVector2f edgePerpVectorNorm = (midpoint_currentFace_oldUVSpace - newVertex_currentFace_oldUVSpace).GetSafeNormal();
+                        FVector2f test_edge_currentFace_oldUVSpaceNorm = edge_currentFace_oldUVSpace.GetSafeNormal();
                         (void)test_edge_currentFace_oldUVSpaceNorm;
 
 #ifdef DEBUG_PROJECTION
-                        vec2f sideVector_oldUVSpace = newVertex_currentFace_oldUVSpace - edge0_currentFace_oldUVSpace;
+                        FVector2f sideVector_oldUVSpace = newVertex_currentFace_oldUVSpace - edge0_currentFace_oldUVSpace;
                         float edgeVector_oldUVSpaceLen = length(edge_currentFace_oldUVSpace);
                         float dotEdgeSideVectors_oldUVSpace = dot(edge_currentFace_oldUVSpace, sideVector_oldUVSpace);
                         float midEdgePointFraction_oldUVSpace = (dotEdgeSideVectors_oldUVSpace / powf(edgeVector_oldUVSpaceLen, 2));
@@ -2257,8 +2257,8 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                         assert(fabs(dot(edgePerpVectorNorm, test_edge_currentFace_oldUVSpaceNorm)) < 0.1f);
 #endif
 
-                        vec2f midpoint_previousFace_oldUVSpace = edge0_currentFace_oldUVSpace + edge_currentFace_oldUVSpace * midEdgePointFraction_previousFace;
-                        vec2f oldVertex_currentFace_oldUVSpace = midpoint_previousFace_oldUVSpace + edgePerpVectorNorm * previousFaceWidthInCurrentUVspace;
+                        FVector2f midpoint_previousFace_oldUVSpace = edge0_currentFace_oldUVSpace + edge_currentFace_oldUVSpace * midEdgePointFraction_previousFace;
+                        FVector2f oldVertex_currentFace_oldUVSpace = midpoint_previousFace_oldUVSpace + edgePerpVectorNorm * previousFaceWidthInCurrentUVspace;
 
                         pv0 = edge0_currentFace_oldUVSpace;
                         pv1 = edge1_currentFace_oldUVSpace;
@@ -2284,14 +2284,14 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                         pv2_proj = projectedPositions[pi2].xy();
                     }
 
-                    vec2<float> v2 = pVertices[newVertex].uv;
+					FVector2f v2 = pVertices[newVertex].uv;
 
                     // New vertex baricentric coords in respect to old triangle
                     float a, b, c;
                     GetBarycentricCoords(v2, pv0, pv1, pv2, a, b, c);
-                    vec2f newVertex_proj = pv0_proj * a + pv1_proj * b + pv2_proj * c;
+                    FVector2f newVertex_proj = pv0_proj * a + pv1_proj * b + pv2_proj * c;
 #ifdef DEBUG_PROJECTION
-                    vec2f v2Test = pv0 * a + pv1 * b + pv2 * c;
+                    FVector2f v2Test = pv0 * a + pv1 * b + pv2 * c;
                     float v2TestDist = length(v2 - v2Test);
                     assert(v2TestDist < 0.001f);
 
@@ -2343,12 +2343,12 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                 int i1 = collapsedVertexMap[pIndices[currentFace * 3 + 1]];
                 int i2 = collapsedVertexMap[pIndices[currentFace * 3 + 2]];
 
-                vec2<float> v0 = projectedPositions[i0].xy();
-                vec2<float> v1 = projectedPositions[i1].xy();
-                vec2<float> v2 = projectedPositions[i2].xy();
+                FVector2f v0 = projectedPositions[i0].xy();
+                FVector2f v1 = projectedPositions[i1].xy();
+                FVector2f v2 = projectedPositions[i2].xy();
                 currentTriangleArea = getTriangleArea(v0, v1, v2);
                 bool currentTriangleHasPositiveArea = currentTriangleArea >= 0.f;
-                //vec3f currentFaceNormal = (cross<float>(v1 - v0, v2 - v0));
+                //FVector3f currentFaceNormal = (cross<float>(v1 - v0, v2 - v0));
 
                 //if (hitFaceProjectedNormal.z() * currentFaceNormal.z() < 0)
                 if(hitFaceHasPositiveArea != currentTriangleHasPositiveArea) // Is the current face wound in the opposite direction?
@@ -2375,8 +2375,8 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
             for (int i = 0; i < 3; ++i)
             {
                 int v = pIndices[currentFace * 3 + i];
-                vec3f r = pVertices[v].pos - out_intersection;
-                float squaredDist = dot(r, r);
+                FVector3f r = pVertices[v].pos - out_intersection;
+                float squaredDist = FVector3f::DotProduct(r, r);
 
                 if (squaredDist <= maxDistSquared / 4.f) // Is it inside?
                 {
@@ -2529,9 +2529,9 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
 
             outfile << "f " << i0 << "/" << i0 << " " << i1 << "/" << i1 << " " << i2 << "/" << i2 << "\n";
 
-            vec2f v0 = pResultVertices[i0].pos.xy();
-            vec2f v1 = pResultVertices[i1].pos.xy();
-            vec2f v2 = pResultVertices[i2].pos.xy();
+            FVector2f v0 = pResultVertices[i0].pos.xy();
+            FVector2f v1 = pResultVertices[i1].pos.xy();
+            FVector2f v2 = pResultVertices[i2].pos.xy();
 
             outfile << "# Triangle " << i << ", area = " << getTriangleArea(v0, v1, v2) << "\n";
         }
@@ -2547,14 +2547,14 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
 
 //-------------------------------------------------------------------------------------------------
 MeshPtr MeshProject_Optimised( const Mesh* pMesh,
-                               const PROJECTOR& projector )
+                               const FProjector& projector )
 {
 	MUTABLE_CPUPROFILER_SCOPE(MeshProject_Optimised);
 
-    vec3f projectorPosition,projectorDirection,projectorSide,projectorUp;
-    projectorPosition = vec3f( projector.position[0], projector.position[1], projector.position[2] );
+    FVector3f projectorPosition,projectorDirection,projectorSide,projectorUp;
+    projectorPosition = FVector3f( projector.position[0], projector.position[1], projector.position[2] );
     projector.GetDirectionSideUp( projectorDirection, projectorSide, projectorUp );
-    vec3f projectorScale( projector.scale[0], projector.scale[1], projector.scale[2] );
+    FVector3f projectorScale( projector.scale[0], projector.scale[1], projector.scale[2] );
 
     // Create with worse case, shrink later.
     int vertexCount = pMesh->GetVertexCount();
@@ -2652,7 +2652,7 @@ PRAGMA_ENABLE_OPTIMIZATION
 
 //-------------------------------------------------------------------------------------------------
 MeshPtr MeshProject( const Mesh* pMesh,
-                         const PROJECTOR& projector )
+                         const FProjector& projector )
 {
 	MUTABLE_CPUPROFILER_SCOPE(MeshProject);
 

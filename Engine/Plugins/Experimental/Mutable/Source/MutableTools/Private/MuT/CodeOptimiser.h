@@ -63,7 +63,7 @@ namespace mu
         {
         }
 
-        bool Apply( PROGRAM& program, OP::ADDRESS at );
+        bool Apply( FProgram& program, OP::ADDRESS at );
 
 
     private:
@@ -90,7 +90,7 @@ namespace mu
 
         IsConstantVisitor();
 
-        bool Apply( PROGRAM& program, OP::ADDRESS at );
+        bool Apply( FProgram& program, OP::ADDRESS at );
 
     private:
 
@@ -272,7 +272,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //! Return true if two non-zero pixels of the masks overlap.
     //---------------------------------------------------------------------------------------------
-    extern bool AreMasksOverlapping( const PROGRAM& program, OP::ADDRESS a, OP::ADDRESS b );
+    extern bool AreMasksOverlapping( const FProgram& program, OP::ADDRESS a, OP::ADDRESS b );
 
 
     //---------------------------------------------------------------------------------------------

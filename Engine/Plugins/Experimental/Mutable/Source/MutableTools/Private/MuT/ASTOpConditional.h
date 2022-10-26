@@ -11,7 +11,7 @@
 
 namespace mu
 {
-struct PROGRAM;
+struct FProgram;
 
 	//---------------------------------------------------------------------------------------------
 	//! Conditional operation.
@@ -43,7 +43,7 @@ struct PROGRAM;
 		uint64 Hash() const override;
 		void Assert() override;
 		void ForEachChild(const TFunctionRef<void(ASTChild&)> f) override;
-		void Link(PROGRAM& program, const FLinkerOptions* Options) override;
+		void Link(FProgram& program, const FLinkerOptions* Options) override;
 		FImageDesc GetImageDesc(bool returnBestOption, class GetImageDescContext* context) override;
 		void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;
 		void GetBlockLayoutSize(int blockIndex, int* pBlockX, int* pBlockY,

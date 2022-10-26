@@ -183,7 +183,7 @@ void SMutableProjectorViewer::Construct(const FArguments& InArgs)
 }
 
 
-void SMutableProjectorViewer::SetProjector(const mu::PROJECTOR& InMutableProjector)
+void SMutableProjectorViewer::SetProjector(const mu::FProjector& InMutableProjector)
 {
 	MutableProjector = InMutableProjector;
 }

@@ -83,15 +83,16 @@ namespace mu
 	}
 
 
-	void ASTOpParameter::Link(PROGRAM& program, const FLinkerOptions*)
+	void ASTOpParameter::Link(FProgram& program, const FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)
 		{
 			OP::ParameterArgs args;
-			memset(&args, 0, sizeof(args));
+			FMemory::Memzero(&args, sizeof(args));
 
-			args.variable = (OP::ADDRESS)program.m_parameters.Num();
+			LinkedParameterIndex = program.m_parameters.Num();
+			args.variable = (OP::ADDRESS)LinkedParameterIndex;
 			program.m_parameters.Add(parameter);
 
 			for (const auto& d : ranges)
@@ -146,8 +147,8 @@ namespace mu
 	}
 
 
-	ASTOp::BOOL_EVAL_RESULT ASTOpParameter::EvaluateBool(ASTOpList& /*facts*/,
-		EVALUATE_BOOL_CACHE*) const
+	ASTOp::FBoolEvalResult ASTOpParameter::EvaluateBool(ASTOpList& /*facts*/,
+		FEvaluateBoolCache*) const
 	{
 		check(type == OP_TYPE::BO_PARAMETER);
 		return BET_UNKNOWN;

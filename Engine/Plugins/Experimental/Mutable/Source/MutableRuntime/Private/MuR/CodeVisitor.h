@@ -105,7 +105,7 @@ class Parameters;
         }
 
 
-        void Traverse( OP::ADDRESS root, PROGRAM& program, bool visitDecorators = true )
+        void Traverse( OP::ADDRESS root, FProgram& program, bool visitDecorators = true )
         {
             m_pending.Reserve( program.m_opAddress.Num() );
 
@@ -127,7 +127,7 @@ class Parameters;
             }
         }
 
-        void FullTraverse( PROGRAM& program, bool visitDecorators = true )
+        void FullTraverse( FProgram& program, bool visitDecorators = true )
         {
             // Visit all the state roots
             for ( std::size_t p=0; p<program.m_states.Num(); ++p )
@@ -155,7 +155,7 @@ class Parameters;
 
         //! Do the actual work by overriding this in the derived classes.
         //! Return true if the traverse has to continue with the children of "at"
-        virtual bool Visit( OP::ADDRESS at, PROGRAM& program ) = 0;
+        virtual bool Visit( OP::ADDRESS at, FProgram& program ) = 0;
 
         //! Operations to be processed
         struct PENDING
@@ -191,7 +191,7 @@ class Parameters;
 		TArray<TArray<int>> m_visited;
 
         //! Process all the pending operations and visit all children if necessary
-        void Recurse( PROGRAM& program )
+        void Recurse( FProgram& program )
         {
 			m_visited.Empty();
 			m_visited.SetNum(program.m_opAddress.Num());
@@ -308,7 +308,7 @@ class Parameters;
         }
 
 
-        void Traverse( OP::ADDRESS root, PROGRAM& program, bool visitDecorators = true )
+        void Traverse( OP::ADDRESS root, FProgram& program, bool visitDecorators = true )
         {
             m_pending.reserve( program.m_opAddress.Num() );
 
@@ -330,7 +330,7 @@ class Parameters;
             }
         }
 
-        void FullTraverse( PROGRAM& program, bool visitDecorators = true )
+        void FullTraverse( FProgram& program, bool visitDecorators = true )
         {
             // Visit all the state roots
             for ( std::size_t p=0; p<program.m_states.Num(); ++p )
@@ -358,7 +358,7 @@ class Parameters;
 
         //! Do the actual work by overriding this in the derived classes.
         //! Return true if the traverse has to continue with the children of "at"
-        virtual bool Visit( OP::ADDRESS at, PROGRAM& program ) = 0;
+        virtual bool Visit( OP::ADDRESS at, FProgram& program ) = 0;
 
         //! Operations to be processed
         struct PENDING
@@ -391,7 +391,7 @@ class Parameters;
 
 
         //! Process all the pending operations and visit all children if necessary
-        void Recurse( PROGRAM& program )
+        void Recurse( FProgram& program )
         {
             while ( m_pending.Num() )
             {
@@ -487,7 +487,7 @@ class Parameters;
 
     protected:
 
-        virtual bool Visit( OP::ADDRESS at, PROGRAM& program )
+        virtual bool Visit( OP::ADDRESS at, FProgram& program )
         {
             bool recurse = true;
 
@@ -708,7 +708,7 @@ class Parameters;
     {
     public:
 
-        void Run( OP::ADDRESS root, PROGRAM& program );
+        void Run( OP::ADDRESS root, FProgram& program );
 
         //! After Run, list of relevant parameters.
 		TArray<int> m_params;

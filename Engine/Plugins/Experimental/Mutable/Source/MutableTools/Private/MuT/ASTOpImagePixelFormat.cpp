@@ -76,7 +76,7 @@ void ASTOpImagePixelFormat::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 }
 
 
-void ASTOpImagePixelFormat::Link( PROGRAM& program, const FLinkerOptions* )
+void ASTOpImagePixelFormat::Link( FProgram& program, const FLinkerOptions* )
 {
     // Already linked?
     if (!linkedAddress)

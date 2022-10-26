@@ -125,7 +125,7 @@ namespace mu
     {
         OBJECT_STATE nodeState;
         Ptr<ASTOp> root;
-        PROGRAM::STATE state;
+        FProgram::FState state;
         STATE_OPTIMIZATION_OPTIONS optimisationFlags;
 
         //! List of instructions that need to be cached to efficiently update this state

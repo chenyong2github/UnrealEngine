@@ -111,7 +111,7 @@ namespace mu
 	class NodeStringParameter;
 	class TaskManager;
 	struct OBJECT_STATE;
-	struct PROGRAM;
+	struct FProgram;
 
 
 
@@ -159,13 +159,13 @@ namespace mu
 		FirstPassGenerator m_firstPass;
 
 
-        struct VISITED_MAP_KEY
+        struct FVisitedKeyMap
         {
-            VISITED_MAP_KEY()
+            FVisitedKeyMap()
             {
             }
 
-			friend FORCEINLINE uint32 GetTypeHash(const VISITED_MAP_KEY& InKey)
+			friend FORCEINLINE uint32 GetTypeHash(const FVisitedKeyMap& InKey)
 			{
 				uint32 KeyHash = 0;
 				KeyHash = HashCombine(KeyHash, ::GetTypeHash(InKey.pNode.get()));
@@ -180,7 +180,7 @@ namespace mu
 				return KeyHash;
 			}
 
-			bool operator==(const VISITED_MAP_KEY& InKey) const
+			bool operator==(const FVisitedKeyMap& InKey) const
 			{
 				if (pNode != InKey.pNode) return false;
 				if (state != InKey.state) return false;
@@ -211,7 +211,7 @@ namespace mu
         };
         BOTTOM_UP_STATE m_currentBottomUpState;
 
-        typedef TMap<VISITED_MAP_KEY,BOTTOM_UP_STATE> VisitedMap;
+        typedef TMap<FVisitedKeyMap,BOTTOM_UP_STATE> VisitedMap;
         VisitedMap m_compiled;
 
         //!
@@ -254,9 +254,9 @@ namespace mu
 		// (top-down) Tags that are active when generating nodes.
 		TArray< TArray<mu::string> > m_activeTags;
 
-        struct PARENT_KEY
+        struct FParentKey
         {
-            PARENT_KEY()
+            FParentKey()
             {
                 m_pObject = nullptr;
                 m_state = -1;
@@ -276,7 +276,7 @@ namespace mu
             int m_block;
         };
 
-		TArray< PARENT_KEY > m_currentParents;
+		TArray< FParentKey > m_currentParents;
 
         // List of additional components to add to an object that come from child objects.
         // The index is the object and lod that should receive the components.
@@ -355,9 +355,9 @@ namespace mu
         std::shared_timed_mutex m_codeAccessMutex;
 
 		//! Generate the key with all the relevant state that is used in generation of operations for a node.
-		VISITED_MAP_KEY GetCurrentCacheKey(const NodePtrConst& InNode) const
+		FVisitedKeyMap GetCurrentCacheKey(const NodePtrConst& InNode) const
 		{
-			VISITED_MAP_KEY key;
+			FVisitedKeyMap key;
 			key.pNode = InNode;
 			key.state = m_currentStateIndex;
 			if (!m_imageState.IsEmpty())
@@ -375,42 +375,42 @@ namespace mu
 
 		//-----------------------------------------------------------------------------------------
 		// Images
-		struct IMAGE_GENERATION_RESULT
+		struct FImageGenerationResult
 		{
 			Ptr<ASTOp> op;
 		};
 
-		typedef TMap<VISITED_MAP_KEY, IMAGE_GENERATION_RESULT> GeneratedImagesMap;
+		typedef TMap<FVisitedKeyMap, FImageGenerationResult> GeneratedImagesMap;
 		GeneratedImagesMap m_generatedImages;
 
-		void GenerateImage(IMAGE_GENERATION_RESULT& result, const NodeImagePtrConst& node);
-		void GenerateImage_Constant(IMAGE_GENERATION_RESULT&, const NodeImageConstant*);
-		void GenerateImage_Difference(IMAGE_GENERATION_RESULT&, const NodeImageDifference*);
-		void GenerateImage_Interpolate(IMAGE_GENERATION_RESULT&, const NodeImageInterpolate*);
-		void GenerateImage_Saturate(IMAGE_GENERATION_RESULT&, const NodeImageSaturate*);
-		void GenerateImage_Table(IMAGE_GENERATION_RESULT&, const NodeImageTable*);
-		void GenerateImage_Swizzle(IMAGE_GENERATION_RESULT&, const NodeImageSwizzle*);
-		void GenerateImage_SelectColour(IMAGE_GENERATION_RESULT&, const NodeImageSelectColour*);
-		void GenerateImage_ColourMap(IMAGE_GENERATION_RESULT&, const NodeImageColourMap*);
-		void GenerateImage_Gradient(IMAGE_GENERATION_RESULT&, const NodeImageGradient*);
-		void GenerateImage_Binarise(IMAGE_GENERATION_RESULT&, const NodeImageBinarise*);
-		void GenerateImage_Luminance(IMAGE_GENERATION_RESULT&, const NodeImageLuminance*);
-		void GenerateImage_Layer(IMAGE_GENERATION_RESULT&, const NodeImageLayer*);
-		void GenerateImage_LayerColour(IMAGE_GENERATION_RESULT&, const NodeImageLayerColour*);
-		void GenerateImage_Resize(IMAGE_GENERATION_RESULT&, const NodeImageResize*);
-		void GenerateImage_PlainColour(IMAGE_GENERATION_RESULT&, const NodeImagePlainColour*);
-		void GenerateImage_Interpolate3(IMAGE_GENERATION_RESULT&, const NodeImageInterpolate3*);
-		void GenerateImage_Project(IMAGE_GENERATION_RESULT&, const NodeImageProject*);
-		void GenerateImage_Mipmap(IMAGE_GENERATION_RESULT&, const NodeImageMipmap*);
-		void GenerateImage_Switch(IMAGE_GENERATION_RESULT&, const NodeImageSwitch*);
-		void GenerateImage_Conditional(IMAGE_GENERATION_RESULT&, const NodeImageConditional*);
-		void GenerateImage_Format(IMAGE_GENERATION_RESULT&, const NodeImageFormat*);
-		void GenerateImage_Parameter(IMAGE_GENERATION_RESULT&, const NodeImageParameter*);
-		void GenerateImage_MultiLayer(IMAGE_GENERATION_RESULT&, const NodeImageMultiLayer*);
-		void GenerateImage_Invert(IMAGE_GENERATION_RESULT&, const NodeImageInvert*);
-		void GenerateImage_Variation(IMAGE_GENERATION_RESULT&, const NodeImageVariation*);
-		void GenerateImage_NormalComposite(IMAGE_GENERATION_RESULT&, const NodeImageNormalComposite*);
-		void GenerateImage_Transform(IMAGE_GENERATION_RESULT&, const NodeImageTransform*);
+		void GenerateImage(FImageGenerationResult& result, const NodeImagePtrConst& node);
+		void GenerateImage_Constant(FImageGenerationResult&, const NodeImageConstant*);
+		void GenerateImage_Difference(FImageGenerationResult&, const NodeImageDifference*);
+		void GenerateImage_Interpolate(FImageGenerationResult&, const NodeImageInterpolate*);
+		void GenerateImage_Saturate(FImageGenerationResult&, const NodeImageSaturate*);
+		void GenerateImage_Table(FImageGenerationResult&, const NodeImageTable*);
+		void GenerateImage_Swizzle(FImageGenerationResult&, const NodeImageSwizzle*);
+		void GenerateImage_SelectColour(FImageGenerationResult&, const NodeImageSelectColour*);
+		void GenerateImage_ColourMap(FImageGenerationResult&, const NodeImageColourMap*);
+		void GenerateImage_Gradient(FImageGenerationResult&, const NodeImageGradient*);
+		void GenerateImage_Binarise(FImageGenerationResult&, const NodeImageBinarise*);
+		void GenerateImage_Luminance(FImageGenerationResult&, const NodeImageLuminance*);
+		void GenerateImage_Layer(FImageGenerationResult&, const NodeImageLayer*);
+		void GenerateImage_LayerColour(FImageGenerationResult&, const NodeImageLayerColour*);
+		void GenerateImage_Resize(FImageGenerationResult&, const NodeImageResize*);
+		void GenerateImage_PlainColour(FImageGenerationResult&, const NodeImagePlainColour*);
+		void GenerateImage_Interpolate3(FImageGenerationResult&, const NodeImageInterpolate3*);
+		void GenerateImage_Project(FImageGenerationResult&, const NodeImageProject*);
+		void GenerateImage_Mipmap(FImageGenerationResult&, const NodeImageMipmap*);
+		void GenerateImage_Switch(FImageGenerationResult&, const NodeImageSwitch*);
+		void GenerateImage_Conditional(FImageGenerationResult&, const NodeImageConditional*);
+		void GenerateImage_Format(FImageGenerationResult&, const NodeImageFormat*);
+		void GenerateImage_Parameter(FImageGenerationResult&, const NodeImageParameter*);
+		void GenerateImage_MultiLayer(FImageGenerationResult&, const NodeImageMultiLayer*);
+		void GenerateImage_Invert(FImageGenerationResult&, const NodeImageInvert*);
+		void GenerateImage_Variation(FImageGenerationResult&, const NodeImageVariation*);
+		void GenerateImage_NormalComposite(FImageGenerationResult&, const NodeImageNormalComposite*);
+		void GenerateImage_Transform(FImageGenerationResult&, const NodeImageTransform*);
 
 		//!
 		ImagePtr GenerateMissingImage(EImageFormat);
@@ -495,14 +495,14 @@ namespace mu
 
 			TArray<Ptr<ASTOp>> layoutOps;
 
-			struct EXTRA_LAYOUTS
+			struct FExtraLayouts
 			{
 				/** Source node layouts to use with these extra mesh. They don't have block ids. */
 				TArray<Ptr<const Layout>> GeneratedLayouts;
 				Ptr<ASTOp> condition;
 				Ptr<ASTOp> meshFragment;
 			};
-			TArray< EXTRA_LAYOUTS > extraMeshLayouts;
+			TArray< FExtraLayouts > extraMeshLayouts;
 		};
 		
 		struct FGeneratedMeshCacheKey
@@ -556,96 +556,96 @@ namespace mu
 
         //-----------------------------------------------------------------------------------------
         // Projectors
-        struct PROJECTOR_GENERATION_RESULT
+        struct FProjectorGenerationResult
         {
             Ptr<ASTOp> op;
             PROJECTOR_TYPE type;
         };
 
-        typedef TMap<VISITED_MAP_KEY,PROJECTOR_GENERATION_RESULT> GeneratedProjectorsMap;
+        typedef TMap<FVisitedKeyMap,FProjectorGenerationResult> GeneratedProjectorsMap;
         GeneratedProjectorsMap m_generatedProjectors;
 
-        void GenerateProjector( PROJECTOR_GENERATION_RESULT&, const NodeProjectorPtrConst& );
-        void GenerateProjector_Constant( PROJECTOR_GENERATION_RESULT&, const Ptr<const NodeProjectorConstant>& );
-        void GenerateProjector_Parameter( PROJECTOR_GENERATION_RESULT&, const Ptr<const NodeProjectorParameter>& );
-        void GenerateMissingProjectorCode( PROJECTOR_GENERATION_RESULT&, const void* errorContext );
+        void GenerateProjector( FProjectorGenerationResult&, const NodeProjectorPtrConst& );
+        void GenerateProjector_Constant( FProjectorGenerationResult&, const Ptr<const NodeProjectorConstant>& );
+        void GenerateProjector_Parameter( FProjectorGenerationResult&, const Ptr<const NodeProjectorParameter>& );
+        void GenerateMissingProjectorCode( FProjectorGenerationResult&, const void* errorContext );
 
 		//-----------------------------------------------------------------------------------------
 		// Bools
-		struct BOOL_GENERATION_RESULT
+		struct FBoolGenerationResult
 		{
 			Ptr<ASTOp> op;
 		};
 
-		typedef TMap<VISITED_MAP_KEY, BOOL_GENERATION_RESULT> GeneratedBoolsMap;
+		typedef TMap<FVisitedKeyMap, FBoolGenerationResult> GeneratedBoolsMap;
 		GeneratedBoolsMap m_generatedBools;
 
-		void GenerateBool(BOOL_GENERATION_RESULT&, const NodeBoolPtrConst&);
-		void GenerateBool_Constant(BOOL_GENERATION_RESULT&, const Ptr<const NodeBoolConstant>&);
-		void GenerateBool_Parameter(BOOL_GENERATION_RESULT&, const Ptr<const NodeBoolParameter>&);
-		void GenerateBool_IsNull(BOOL_GENERATION_RESULT&, const Ptr<const NodeBoolIsNull>&);
-		void GenerateBool_Not(BOOL_GENERATION_RESULT&, const Ptr<const NodeBoolNot>&);
-		void GenerateBool_And(BOOL_GENERATION_RESULT&, const Ptr<const NodeBoolAnd>&);
+		void GenerateBool(FBoolGenerationResult&, const NodeBoolPtrConst&);
+		void GenerateBool_Constant(FBoolGenerationResult&, const Ptr<const NodeBoolConstant>&);
+		void GenerateBool_Parameter(FBoolGenerationResult&, const Ptr<const NodeBoolParameter>&);
+		void GenerateBool_IsNull(FBoolGenerationResult&, const Ptr<const NodeBoolIsNull>&);
+		void GenerateBool_Not(FBoolGenerationResult&, const Ptr<const NodeBoolNot>&);
+		void GenerateBool_And(FBoolGenerationResult&, const Ptr<const NodeBoolAnd>&);
 
 		//-----------------------------------------------------------------------------------------
 		// Scalars
-		struct SCALAR_GENERATION_RESULT
+		struct FScalarGenerationResult
 		{
 			Ptr<ASTOp> op;
 		};
 
-		typedef TMap<VISITED_MAP_KEY, SCALAR_GENERATION_RESULT> GeneratedScalarsMap;
+		typedef TMap<FVisitedKeyMap, FScalarGenerationResult> GeneratedScalarsMap;
 		GeneratedScalarsMap m_generatedScalars;
 
-		void GenerateScalar(SCALAR_GENERATION_RESULT&, const NodeScalarPtrConst&);
-		void GenerateScalar_Constant(SCALAR_GENERATION_RESULT&, const Ptr<const NodeScalarConstant>&);
-		void GenerateScalar_Parameter(SCALAR_GENERATION_RESULT&, const Ptr<const NodeScalarParameter>&);
-		void GenerateScalar_Switch(SCALAR_GENERATION_RESULT&, const Ptr<const NodeScalarSwitch>&);
-		void GenerateScalar_EnumParameter(SCALAR_GENERATION_RESULT&, const Ptr<const NodeScalarEnumParameter>&);
-		void GenerateScalar_Curve(SCALAR_GENERATION_RESULT&, const Ptr<const NodeScalarCurve>&);
-		void GenerateScalar_Arithmetic(SCALAR_GENERATION_RESULT&, const Ptr<const NodeScalarArithmeticOperation>&);
-		void GenerateScalar_Variation(SCALAR_GENERATION_RESULT&, const Ptr<const NodeScalarVariation>&);
-		void GenerateScalar_Table(SCALAR_GENERATION_RESULT&, const Ptr<const NodeScalarTable>&);
+		void GenerateScalar(FScalarGenerationResult&, const NodeScalarPtrConst&);
+		void GenerateScalar_Constant(FScalarGenerationResult&, const Ptr<const NodeScalarConstant>&);
+		void GenerateScalar_Parameter(FScalarGenerationResult&, const Ptr<const NodeScalarParameter>&);
+		void GenerateScalar_Switch(FScalarGenerationResult&, const Ptr<const NodeScalarSwitch>&);
+		void GenerateScalar_EnumParameter(FScalarGenerationResult&, const Ptr<const NodeScalarEnumParameter>&);
+		void GenerateScalar_Curve(FScalarGenerationResult&, const Ptr<const NodeScalarCurve>&);
+		void GenerateScalar_Arithmetic(FScalarGenerationResult&, const Ptr<const NodeScalarArithmeticOperation>&);
+		void GenerateScalar_Variation(FScalarGenerationResult&, const Ptr<const NodeScalarVariation>&);
+		void GenerateScalar_Table(FScalarGenerationResult&, const Ptr<const NodeScalarTable>&);
 		Ptr<ASTOp> GenerateMissingScalarCode(const char* strWhere, float value, const void* errorContext);
 
 		//-----------------------------------------------------------------------------------------
 		// Colors
-		struct COLOR_GENERATION_RESULT
+		struct FColorGenerationResult
 		{
 			Ptr<ASTOp> op;
 		};
 
-		typedef TMap<VISITED_MAP_KEY, COLOR_GENERATION_RESULT> GeneratedColorsMap;
+		typedef TMap<FVisitedKeyMap, FColorGenerationResult> GeneratedColorsMap;
 		GeneratedColorsMap m_generatedColors;
 
-		void GenerateColor(COLOR_GENERATION_RESULT&, const NodeColourPtrConst&);
-		void GenerateColor_Constant(COLOR_GENERATION_RESULT&, const Ptr<const NodeColourConstant>&);
-		void GenerateColor_Parameter(COLOR_GENERATION_RESULT&, const Ptr<const NodeColourParameter>&);
-		void GenerateColor_Switch(COLOR_GENERATION_RESULT&, const Ptr<const NodeColourSwitch>&);
-		void GenerateColor_SampleImage(COLOR_GENERATION_RESULT&, const Ptr<const NodeColourSampleImage>&);
-		void GenerateColor_FromScalars(COLOR_GENERATION_RESULT&, const Ptr<const NodeColourFromScalars>&);
-		void GenerateColor_Arithmetic(COLOR_GENERATION_RESULT&, const Ptr<const NodeColourArithmeticOperation>&);
-		void GenerateColor_Variation(COLOR_GENERATION_RESULT&, const Ptr<const NodeColourVariation>&);
-		void GenerateColor_Table(COLOR_GENERATION_RESULT&, const Ptr<const NodeColourTable>&);
+		void GenerateColor(FColorGenerationResult&, const NodeColourPtrConst&);
+		void GenerateColor_Constant(FColorGenerationResult&, const Ptr<const NodeColourConstant>&);
+		void GenerateColor_Parameter(FColorGenerationResult&, const Ptr<const NodeColourParameter>&);
+		void GenerateColor_Switch(FColorGenerationResult&, const Ptr<const NodeColourSwitch>&);
+		void GenerateColor_SampleImage(FColorGenerationResult&, const Ptr<const NodeColourSampleImage>&);
+		void GenerateColor_FromScalars(FColorGenerationResult&, const Ptr<const NodeColourFromScalars>&);
+		void GenerateColor_Arithmetic(FColorGenerationResult&, const Ptr<const NodeColourArithmeticOperation>&);
+		void GenerateColor_Variation(FColorGenerationResult&, const Ptr<const NodeColourVariation>&);
+		void GenerateColor_Table(FColorGenerationResult&, const Ptr<const NodeColourTable>&);
 		Ptr<ASTOp> GenerateMissingColourCode(const char* strWhere, const void* errorContext);
 
 		//-----------------------------------------------------------------------------------------
 		// Strings
-		struct STRING_GENERATION_RESULT
+		struct FStringGenerationResult
 		{
 			Ptr<ASTOp> op;
 		};
 
-		typedef TMap<VISITED_MAP_KEY, STRING_GENERATION_RESULT> GeneratedStringsMap;
+		typedef TMap<FVisitedKeyMap, FStringGenerationResult> GeneratedStringsMap;
 		GeneratedStringsMap m_generatedStrings;
 
-		void GenerateString(STRING_GENERATION_RESULT&, const NodeStringPtrConst&);
-		void GenerateString_Constant(STRING_GENERATION_RESULT&, const Ptr<const NodeStringConstant>&);
-		void GenerateString_Parameter(STRING_GENERATION_RESULT&, const Ptr<const NodeStringParameter>&);
+		void GenerateString(FStringGenerationResult&, const NodeStringPtrConst&);
+		void GenerateString_Constant(FStringGenerationResult&, const Ptr<const NodeStringConstant>&);
+		void GenerateString_Parameter(FStringGenerationResult&, const Ptr<const NodeStringParameter>&);
 
         //-----------------------------------------------------------------------------------------
         // Ranges
-        struct RANGE_GENERATION_RESULT
+        struct FRangeGenerationResult
         {
             //
             Ptr<ASTOp> sizeOp;
@@ -657,19 +657,19 @@ namespace mu
             string rangeUID;
         };
 
-        typedef TMap<VISITED_MAP_KEY,RANGE_GENERATION_RESULT> GeneratedRangeMap;
+        typedef TMap<FVisitedKeyMap,FRangeGenerationResult> GeneratedRangeMap;
         GeneratedRangeMap m_generatedRanges;
 
-        void GenerateRange( RANGE_GENERATION_RESULT& result, Ptr<const NodeRange> node);
+        void GenerateRange( FRangeGenerationResult& result, Ptr<const NodeRange> node);
 
 
         //-----------------------------------------------------------------------------------------
-        struct SURFACE_GENERATION_RESULT
+        struct FSurfaceGenerationResult
         {
             Ptr<ASTOp> surfaceOp;
         };
 
-        void GenerateSurface( SURFACE_GENERATION_RESULT& result,
+        void GenerateSurface( FSurfaceGenerationResult& result,
                               NodeSurfaceNewPtrConst node,
                               const TArray<FirstPassGenerator::SURFACE::EDIT>& edits );
 
@@ -682,7 +682,7 @@ namespace mu
     //! address.
     //! \param returnBestOption If true, try to resolve ambiguities returning some value.
     //---------------------------------------------------------------------------------------------
-    extern FImageDesc GetImageDesc( const PROGRAM& program, OP::ADDRESS at,
+    extern FImageDesc GetImageDesc( const FProgram& program, OP::ADDRESS at,
                                     bool returnBestOption = false,
                                     class GetImageDescContext* context=nullptr );
 

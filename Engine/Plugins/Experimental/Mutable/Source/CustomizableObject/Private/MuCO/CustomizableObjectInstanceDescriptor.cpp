@@ -788,10 +788,10 @@ mu::ParametersPtr FCustomizableObjectInstanceDescriptor::ReloadParametersFromObj
 						case ECustomizableObjectProjectorType::Wrapping:
 						{
 							MutableParameters->SetProjectorValue(paramIndex,
-								Value.Position[0], Value.Position[1], Value.Position[2],
-								Value.Direction[0], Value.Direction[1], Value.Direction[2],
-								Value.Up[0], Value.Up[1], Value.Up[2],
-								Value.Scale[0], Value.Scale[1], Value.Scale[2],
+								Value.Position,
+								Value.Direction,
+								Value.Up,
+								Value.Scale,
 								Value.Angle,
 								RangeIdxPtr);
 							break;
@@ -801,14 +801,14 @@ mu::ParametersPtr FCustomizableObjectInstanceDescriptor::ReloadParametersFromObj
 						{
 							// Apply strange swizzle for scales
 							// TODO: try to avoid this
-								float Radius = FMath::Abs(Value.Scale[0] / 2.0f);
-								float Height = Value.Scale[2];
+							float Radius = FMath::Abs(Value.Scale[0] / 2.0f);
+							float Height = Value.Scale[2];
 							// TODO: try to avoid this
 							MutableParameters->SetProjectorValue(paramIndex,
-									Value.Position[0], Value.Position[1], Value.Position[2],
-									-Value.Direction[0], -Value.Direction[1], -Value.Direction[2],
-									-Value.Up[0], -Value.Up[1], -Value.Up[2],
-									-Height, Radius, Radius,
+									Value.Position,
+									-Value.Direction,
+									-Value.Up,
+									FVector3f(-Height, Radius, Radius),
 									Value.Angle,
 									RangeIdxPtr);
 							break;
@@ -833,10 +833,10 @@ mu::ParametersPtr FCustomizableObjectInstanceDescriptor::ReloadParametersFromObj
 				mu::PROJECTOR_TYPE type;
 				MutableParameters->GetProjectorValue(paramIndex,
 					&type,
-					&param.Value.Position[0], &param.Value.Position[1], &param.Value.Position[2],
-					&param.Value.Direction[0], &param.Value.Direction[1], &param.Value.Direction[2],
-					&param.Value.Up[0], &param.Value.Up[1], &param.Value.Up[2],
-					&param.Value.Scale[0], &param.Value.Scale[1], &param.Value.Scale[2],
+					&param.Value.Position,
+					&param.Value.Direction,
+					&param.Value.Up,
+					&param.Value.Scale,
 					&param.Value.Angle );
 				switch (type)
 				{
@@ -878,13 +878,13 @@ mu::ParametersPtr FCustomizableObjectInstanceDescriptor::ReloadParametersFromObj
 
 						mu::PROJECTOR_TYPE type;
 						MutableParameters->GetProjectorValue(paramIndex,
-						&type,
-						&param.RangeValues[ValueIndex].Position[0], &param.RangeValues[ValueIndex].Position[1], &param.RangeValues[ValueIndex].Position[2],
-						&param.RangeValues[ValueIndex].Direction[0], &param.RangeValues[ValueIndex].Direction[1], &param.RangeValues[ValueIndex].Direction[2],
-						&param.RangeValues[ValueIndex].Up[0], &param.RangeValues[ValueIndex].Up[1], &param.RangeValues[ValueIndex].Up[2],
-						&param.RangeValues[ValueIndex].Scale[0], &param.RangeValues[ValueIndex].Scale[1], &param.RangeValues[ValueIndex].Scale[2],
-						&param.RangeValues[ValueIndex].Angle,
-						RangeValueIdxPtr);
+							&type,
+							&param.RangeValues[ValueIndex].Position,
+							&param.RangeValues[ValueIndex].Direction,
+							&param.RangeValues[ValueIndex].Up,
+							&param.RangeValues[ValueIndex].Scale,
+							&param.RangeValues[ValueIndex].Angle,
+							RangeValueIdxPtr);
 
 						switch (type)
 						{
@@ -1853,10 +1853,10 @@ FCustomizableObjectProjector FCustomizableObjectInstanceDescriptor::GetProjector
 	
 	MutableParameters->GetProjectorValue(ParamIndex,
 		&type,
-		&Projector.Position[0], &Projector.Position[1], &Projector.Position[2],
-		&Projector.Direction[0], &Projector.Direction[1], &Projector.Direction[2],
-		&Projector.Up[0], &Projector.Up[1], &Projector.Up[2],
-		&Projector.Scale[0], &Projector.Scale[1], &Projector.Scale[2],
+		&Projector.Position,
+		&Projector.Direction,
+		&Projector.Up,
+		&Projector.Scale,
 		&Projector.Angle,
 		nullptr);
 

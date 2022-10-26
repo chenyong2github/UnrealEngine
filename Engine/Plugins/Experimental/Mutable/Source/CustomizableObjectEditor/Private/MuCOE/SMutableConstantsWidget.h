@@ -30,9 +30,9 @@ class SMutableCodeViewer;
 class STableViewBase;
 class SWidget;
 namespace mu { struct Curve; }
-namespace mu { struct PROGRAM; }
-namespace mu { struct PROJECTOR; }
-namespace mu { struct SHAPE; }
+namespace mu { struct FProgram; }
+namespace mu { struct FProjector; }
+namespace mu { struct FShape; }
 
 /**
  * Base Structure to define the different elements used by the lists on this object
@@ -88,7 +88,7 @@ struct FMutableConstantSkeletonElement : public FMutableConstantElement
 */
 struct FMutableConstantProjectorElement : public FMutableConstantElement
 {
-	const mu::PROJECTOR* Projector = nullptr;
+	const mu::FProjector* Projector = nullptr;
 };
 
 /**
@@ -104,7 +104,7 @@ struct FMutableConstantMatrixElement : public FMutableConstantElement
 */
 struct FMutableConstantShapeElement : public FMutableConstantElement
 {
-	const mu::SHAPE* Shape = nullptr;
+	const mu::FShape* Shape = nullptr;
 };
 
 /**
@@ -128,15 +128,15 @@ public:
 
 	/** Builds the widget
 	 * @param InArgs - Arguments provided when generating this slate object
-	 * @param InMutableProgramPtr - Pointer to the mu::PROGRAM object that holds the constants data.
+	 * @param InMutableProgramPtr - Pointer to the mu::FProgram object that holds the constants data.
 	 * @param  InMutableCodeViewerPtr - Pointer to the MutableCodeViewer tasked with the previewing of the constant values
 	 */
-	void Construct(const FArguments& InArgs, const mu::PROGRAM*  InMutableProgramPtr ,  TSharedPtr<SMutableCodeViewer> InMutableCodeViewerPtr);
+	void Construct(const FArguments& InArgs, const mu::FProgram*  InMutableProgramPtr ,  TSharedPtr<SMutableCodeViewer> InMutableCodeViewerPtr);
 	
 private:
 
 	/** Mutable object containing the constants data */
-	const mu::PROGRAM* MutableProgramPtr = nullptr;
+	const mu::FProgram* MutableProgramPtr = nullptr;
 
 	/** Slate capable of accessing the previewer object */
 	 TSharedPtr<SMutableCodeViewer> MutableCodeViewerPtr = nullptr;
@@ -145,7 +145,7 @@ private:
 	 *Sets the back end for the operation of this widget. Each time this is done the ui backend gets updated
 	 * @param InProgram - Mutable program object holding all the constants data
 	 */
-	void SetProgram(const mu::PROGRAM* InProgram);
+	void SetProgram(const mu::FProgram* InProgram);
 	
 	/*
 	* Data backend for the lists of constants
@@ -162,7 +162,7 @@ private:
 	TArray<TSharedPtr<FMutableConstantSkeletonElement>> ConstantSkeletonElements;
 
 	/**
-	 * Load up all the elements with the data found on the mu::PROGRAM object onto TArrays after parsing the data found.
+	 * Load up all the elements with the data found on the mu::FProgram object onto TArrays after parsing the data found.
 	 */
 	void LoadConstantElements();
 	

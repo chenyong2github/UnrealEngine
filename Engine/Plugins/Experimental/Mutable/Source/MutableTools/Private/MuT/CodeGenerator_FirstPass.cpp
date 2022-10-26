@@ -536,7 +536,7 @@ namespace mu
 
             if ( node.m_type==NodeObjectGroup::CS_ONE_OR_NONE )
             {
-                PARAMETER_DESC::INT_VALUE_DESC nullValue;
+                FParameterDesc::INT_VALUE_DESC nullValue;
                 nullValue.m_value = -1;
                 nullValue.m_name = "None";
                 op->parameter.m_possibleValues.Add( nullValue );
@@ -585,7 +585,7 @@ namespace mu
                     case NodeObjectGroup::CS_ALWAYS_ONE:
                     {
                         // Add the option to the enumeration parameter
-                        PARAMETER_DESC::INT_VALUE_DESC value;
+                        FParameterDesc::INT_VALUE_DESC value;
                         value.m_value = (int16_t)t;
                         value.m_name = pChildNode->GetName();
                         enumOp->parameter.m_possibleValues.Add( value );

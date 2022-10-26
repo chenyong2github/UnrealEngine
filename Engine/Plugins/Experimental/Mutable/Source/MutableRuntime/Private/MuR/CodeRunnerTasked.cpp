@@ -63,7 +63,7 @@ namespace mu
 
 		m_pSystem->m_pStreamInterface->EndRead(o.m_streamID);
 
-		PROGRAM& program = m_pModel->GetPrivate()->m_program;
+		FProgram& program = m_pModel->GetPrivate()->m_program;
 		{
 			MUTABLE_CPUPROFILER_SCOPE(Unserialise);
 
@@ -1076,7 +1076,7 @@ namespace mu
 		// This runs in th CodeRunner thread
 		bOutFailed = false;
 
-		PROGRAM& program = InModel->GetPrivate()->m_program;
+		FProgram& program = InModel->GetPrivate()->m_program;
 
 		check(RomIndex < program.m_roms.Num());
 		bool bRomIsLoaded = program.IsRomLoaded(RomIndex);
@@ -1160,7 +1160,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	bool CodeRunner::FLoadMeshRomTask::IsComplete(CodeRunner* runner)
 	{ 
-		PROGRAM& program = runner->m_pModel->GetPrivate()->m_program;
+		FProgram& program = runner->m_pModel->GetPrivate()->m_program;
 		return program.IsRomLoaded(RomIndex);
 	}
 
@@ -1175,7 +1175,7 @@ namespace mu
 		// This runs in th CodeRunner thread
 		bOutFailed = false;
 
-		PROGRAM& program = InModel->GetPrivate()->m_program;
+		FProgram& program = InModel->GetPrivate()->m_program;
 
 		for (int32 i = 0; i<LODIndexCount; ++i )
 		{
@@ -1271,7 +1271,7 @@ namespace mu
 		// Process the constant op normally, now that the rom is loaded.
 		runner->RunCode(Op, runner->m_pParams, runner->m_pModel, runner->m_lodMask);
 
-		PROGRAM& program = runner->m_pModel->GetPrivate()->m_program;
+		FProgram& program = runner->m_pModel->GetPrivate()->m_program;
 		for (int32 i = 0; i < LODIndexCount; ++i)
 		{
 			int32 CurrentIndexIndex = LODIndexIndex + i;
@@ -1298,7 +1298,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	bool CodeRunner::FLoadImageRomsTask::IsComplete(CodeRunner* runner)
 	{
-		PROGRAM& program = runner->m_pModel->GetPrivate()->m_program;
+		FProgram& program = runner->m_pModel->GetPrivate()->m_program;
 		for (int32 i = 0; i < LODIndexCount; ++i)
 		{
 			int32 CurrentIndexIndex = LODIndexIndex + i;
@@ -1329,7 +1329,7 @@ namespace mu
 	{
 		TSharedPtr<FIssuedTask> Issued;
 
-		PROGRAM& program = m_pModel->GetPrivate()->m_program;
+		FProgram& program = m_pModel->GetPrivate()->m_program;
 
 		auto type = program.GetOpType(item.at);
 

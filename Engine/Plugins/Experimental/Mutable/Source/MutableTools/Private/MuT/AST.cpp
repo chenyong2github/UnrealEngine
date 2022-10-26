@@ -11,6 +11,7 @@
 #include "MuR/Platform.h"
 #include "MuT/ASTOpConstantResource.h"
 #include "MuT/ASTOpMeshRemoveMask.h"
+#include "MuT/ASTOpParameter.h"
 #include "MuT/StreamsPrivate.h"
 #include "MuT/Platform.h"
 #include "Trace/Detail/Channel.h"
@@ -240,7 +241,7 @@ mu::Ptr<ASTOp> ASTOp::DeepClone( const Ptr<ASTOp>& root )
 
 
 //-------------------------------------------------------------------------------------------------
-void ASTOp::FullLink( Ptr<ASTOp>& root, PROGRAM& program, const FLinkerOptions* Options )
+void ASTOp::FullLink( Ptr<ASTOp>& root, FProgram& program, const FLinkerOptions* Options )
 {
     MUTABLE_CPUPROFILER_SCOPE(AST_FullLink);
     Traverse_BottomUp_Unique( root,
@@ -919,11 +920,51 @@ bool ASTOp::GetNonBlackRect( FImageRect& ) const
 }
 
 
+void ASTOp::LinkRange(FProgram& program,
+	const FRangeData& range,
+	OP::ADDRESS& rangeSize,
+	uint16& rangeId)
+{
+	if (range.rangeSize)
+	{
+		if (range.rangeSize->linkedRange < 0)
+		{
+			check(program.m_ranges.Num() < 255);
+			range.rangeSize->linkedRange = int8(program.m_ranges.Num());
+			FRangeDesc rangeData;
+			rangeData.m_name = range.rangeName;
+			rangeData.m_uid = range.rangeUID;
+
+			// Try to see if a parameter directly controls de size of the range. This is used
+			// to store hint data for instance generation in tools or randomizers that want to
+			// support multilayer, but it is not critical otherwise.
+			int32 EstimatedSizeParameter = -1;
+			if ( range.rangeSize->GetOpType() == OP_TYPE::SC_PARAMETER
+				||
+				range.rangeSize->GetOpType() == OP_TYPE::NU_PARAMETER )
+			{
+				const ASTOpParameter* ParamOp = dynamic_cast<const ASTOpParameter*>(range.rangeSize.child().get());
+
+				EstimatedSizeParameter = ParamOp->LinkedParameterIndex;
+			}
+			rangeData.m_dimensionParameter = EstimatedSizeParameter;
+
+			program.m_ranges.Add(rangeData);
+		}
+		rangeSize = range.rangeSize->linkedAddress;
+		rangeId = uint16(range.rangeSize->linkedRange);
+	}
+}
+
+
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 ASTOpFixed::ASTOpFixed()
-    : children({{ASTChild(this,nullptr),ASTChild(this,nullptr),ASTChild(this,nullptr),ASTChild(this,nullptr),ASTChild(this,nullptr),ASTChild(this,nullptr),ASTChild(this,nullptr),ASTChild(this,nullptr)}})
+    : children({{
+			ASTChild(this,nullptr),ASTChild(this,nullptr),ASTChild(this,nullptr),ASTChild(this,nullptr),
+			ASTChild(this,nullptr),ASTChild(this,nullptr),ASTChild(this,nullptr),ASTChild(this,nullptr)
+		}})
 {
 }
 
@@ -949,7 +990,7 @@ void ASTOpFixed::ForEachChild( const TFunctionRef<void(ASTChild&)> f )
 }
 
 
-void ASTOpFixed::Link( PROGRAM& program, const FLinkerOptions* )
+void ASTOpFixed::Link( FProgram& program, const FLinkerOptions* )
 {
     if (!linkedAddress)
     {
@@ -1335,9 +1376,9 @@ void ASTOpFixed::GetLayoutBlockSize( int* pBlockX, int* pBlockY )
 }
 
 
-ASTOp::BOOL_EVAL_RESULT ASTOpFixed::EvaluateBool( ASTOpList& facts, EVALUATE_BOOL_CACHE* cache ) const
+ASTOp::FBoolEvalResult ASTOpFixed::EvaluateBool( ASTOpList& facts, FEvaluateBoolCache* cache ) const
 {
-    EVALUATE_BOOL_CACHE localCache;
+    FEvaluateBoolCache localCache;
     if (!cache)
     {
         cache = &localCache;
@@ -1352,14 +1393,14 @@ ASTOp::BOOL_EVAL_RESULT ASTOpFixed::EvaluateBool( ASTOpList& facts, EVALUATE_BOO
         }
     }
 
-    BOOL_EVAL_RESULT result = BET_UNKNOWN;
+    FBoolEvalResult result = BET_UNKNOWN;
     switch(op.type)
     {
     case OP_TYPE::BO_NOT:
     {
         if (children[op.args.BoolNot.source])
         {
-            BOOL_EVAL_RESULT child = children[op.args.BoolNot.source]->EvaluateBool(facts,cache);
+            FBoolEvalResult child = children[op.args.BoolNot.source]->EvaluateBool(facts,cache);
             if (child==BET_TRUE)
             {
                 result = BET_FALSE;
@@ -1397,8 +1438,8 @@ ASTOp::BOOL_EVAL_RESULT ASTOpFixed::EvaluateBool( ASTOpList& facts, EVALUATE_BOO
     {
         const auto& a = children[op.args.BoolBinary.a].child();
         const auto& b = children[op.args.BoolBinary.b].child();
-        BOOL_EVAL_RESULT resultA = BET_UNKNOWN;
-        BOOL_EVAL_RESULT resultB = BET_UNKNOWN;
+        FBoolEvalResult resultA = BET_UNKNOWN;
+        FBoolEvalResult resultB = BET_UNKNOWN;
         for ( size_t f=0; f<facts.Num(); ++f )
         {
             if ( a && resultA == BET_UNKNOWN )
@@ -1439,8 +1480,8 @@ ASTOp::BOOL_EVAL_RESULT ASTOpFixed::EvaluateBool( ASTOpList& facts, EVALUATE_BOO
     {
         const auto& a = children[op.args.BoolBinary.a].child();
         const auto& b = children[op.args.BoolBinary.b].child();
-        BOOL_EVAL_RESULT resultA = BET_UNKNOWN;
-        BOOL_EVAL_RESULT resultB = BET_UNKNOWN;
+        FBoolEvalResult resultA = BET_UNKNOWN;
+        FBoolEvalResult resultB = BET_UNKNOWN;
         for ( size_t f=0; f<facts.Num(); ++f )
         {
             if ( a && resultA == BET_UNKNOWN )

@@ -63,7 +63,7 @@ namespace mu
 	}
 
 
-	void ASTOpScalarCurve::Link(PROGRAM& program, const FLinkerOptions*)
+	void ASTOpScalarCurve::Link(FProgram& program, const FLinkerOptions*)
 	{
 		if (!linkedAddress)
 		{

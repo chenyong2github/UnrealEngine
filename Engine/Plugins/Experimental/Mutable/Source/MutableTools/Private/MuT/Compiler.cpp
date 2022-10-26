@@ -374,7 +374,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	namespace
 	{
-		inline void EnsureUniqueRomId(uint32& RomId, const mu::PROGRAM& program)
+		inline void EnsureUniqueRomId(uint32& RomId, const mu::FProgram& program)
 		{
 			while (true)
 			{
@@ -407,7 +407,7 @@ namespace mu
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 		MUTABLE_CPUPROFILER_SCOPE(Mutable_GenerateRoms);
 
-		mu::PROGRAM& program = p->GetPrivate()->m_program;
+		mu::FProgram& program = p->GetPrivate()->m_program;
 
 		int32 NumRoms = 0;
 		int32 NumEmbedded = 0;

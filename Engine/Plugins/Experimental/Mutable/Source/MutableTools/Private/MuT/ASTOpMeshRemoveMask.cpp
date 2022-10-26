@@ -88,7 +88,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void ASTOpMeshRemoveMask::Link(PROGRAM& program, const FLinkerOptions*)
+	void ASTOpMeshRemoveMask::Link(FProgram& program, const FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

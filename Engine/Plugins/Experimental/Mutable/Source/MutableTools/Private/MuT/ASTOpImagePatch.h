@@ -12,7 +12,7 @@
 
 namespace mu
 {
-struct PROGRAM;
+struct FProgram;
 
 	class ASTOpImagePatch : public ASTOp
 	{
@@ -33,7 +33,7 @@ struct PROGRAM;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
 		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		void ForEachChild(const TFunctionRef<void(ASTChild&)>) override;
-		void Link(PROGRAM& program, const FLinkerOptions* Options) override;
+		void Link(FProgram& program, const FLinkerOptions* Options) override;
 		FImageDesc GetImageDesc(bool returnBestOption, GetImageDescContext* context) override;
 		Ptr<ImageSizeExpression> GetImageSizeExpression() const override;
 		//TODO: void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;

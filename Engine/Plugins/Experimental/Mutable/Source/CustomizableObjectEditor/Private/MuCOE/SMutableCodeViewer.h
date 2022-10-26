@@ -52,8 +52,8 @@ class SMutableStringViewer;
 class STextComboBox;
 class SWidget;
 namespace mu { struct Curve; }
-namespace mu { struct PROJECTOR; }
-namespace mu { struct SHAPE; }
+namespace mu { struct FProjector; }
+namespace mu { struct FShape; }
 struct FGeometry;
 
 /** This widget shows the internal Mutable Code for debugging purposes. 
@@ -281,7 +281,7 @@ private:
 	 * @param  AlreadyProcessedAddresses Used during recursive calls. Cache the already processed operations to avoid
 	 * processing them more than once.
 	 */
-	void GetOperationsOfType ( const mu::OP_TYPE& TargetOperationType, const mu::OP::ADDRESS& InParentAddress, const mu::PROGRAM& InProgram,
+	void GetOperationsOfType ( const mu::OP_TYPE& TargetOperationType, const mu::OP::ADDRESS& InParentAddress, const mu::FProgram& InProgram,
 		TSet<mu::OP::ADDRESS>& OutAddressesOfType,
 		TSet<mu::OP::ADDRESS>& AlreadyProcessedAddresses);
 
@@ -306,7 +306,7 @@ private:
 	 * @param OutLocatedOperations Output of the method : Set with all the operation types present on the model.
 	 * @param AlreadyProcessedAddresses Addresses already processed. Used to avoid processing the same operation twice.
 	 */
-	void GetOperationTypesPresentOnModel( const mu::OP::ADDRESS& InParentAddress, const mu::PROGRAM& InProgram,
+	void GetOperationTypesPresentOnModel( const mu::OP::ADDRESS& InParentAddress, const mu::FProgram& InProgram,
 		TSet<mu::OP_TYPE>& OutLocatedOperations,
 		TSet<mu::OP::ADDRESS>& AlreadyProcessedAddresses);
 
@@ -348,7 +348,7 @@ private:
 	 */
 	void GetOperationsReferencingConstantResource(const mu::DATATYPE ConstantDataType,
 	                                              const int32 IndexOnConstantsArray,
-	                                              const mu::PROGRAM& InProgram,
+	                                              const mu::FProgram& InProgram,
 	                                              const mu::OP::ADDRESS& InParentAddress,
 	                                              TSet<mu::OP::ADDRESS>& OutAddressesWithPresence,
 	                                              TSet<mu::OP::ADDRESS>& AlreadyProcessedAddresses);
@@ -367,7 +367,7 @@ private:
 	 */
 	bool IsConstantResourceUsedByOperation(const int32 IndexOnConstantsArray,
 	                                       const mu::DATATYPE ConstantDataType, const mu::OP::ADDRESS OperationAddress,
-	                                       const mu::PROGRAM& InProgram) const;
+	                                       const mu::FProgram& InProgram) const;
 	
 	
 	/*
@@ -563,9 +563,9 @@ public:
 	void PreviewMutableLayout(mu::LayoutPtrConst Layout);
 	void PreviewMutableSkeleton(mu::SkeletonPtrConst Skeleton);
 	void PreviewMutableString(const mu::string* InStringPtr);
-	void PreviewMutableProjector(const mu::PROJECTOR* Projector);
+	void PreviewMutableProjector(const mu::FProjector* Projector);
 	void PreviewMutableMatrix(const mu::mat4f* Mat);
-	void PreviewMutableShape(const mu::SHAPE* Shape);
+	void PreviewMutableShape(const mu::FShape* Shape);
 	void PreviewMutableCurve(const mu::Curve* Curve);
 	
 private:
@@ -605,8 +605,8 @@ public:
 			}
 			
 			// Iterate over all states and try to locate the operation
-			const mu::PROGRAM& MutableProgram = InModel->GetPrivate()->m_program;
-			for (const mu::PROGRAM::STATE& CurrentState : MutableProgram.m_states)
+			const mu::FProgram& MutableProgram = InModel->GetPrivate()->m_program;
+			for (const mu::FProgram::FState& CurrentState : MutableProgram.m_states)
 			{
 				// Check if it is a dynamic resource
 				for (auto& DynamicResource : CurrentState.m_dynamicResources)

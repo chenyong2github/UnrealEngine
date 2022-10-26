@@ -87,8 +87,8 @@ class FReferenceCollector;
 class FUICommandList;
 class SWidget;
 namespace mu { struct Curve; }
-namespace mu { struct PROJECTOR; }
-namespace mu { struct SHAPE; }
+namespace mu { struct FProjector; }
+namespace mu { struct FShape; }
 struct FGeometry;
 struct FSlateBrush;
 
@@ -126,7 +126,7 @@ public:
 		// Primary column showing the name of the operation and tye type
 		if (ColumnName == MutableCodeTreeViewColumns::OperationsColumnID)
 		{
-			const mu::PROGRAM& Program = RowItem->MutableModel->GetPrivate()->m_program;
+			const mu::FProgram& Program = RowItem->MutableModel->GetPrivate()->m_program;
 			const mu::OP_TYPE Type = Program.GetOpType(RowItem->MutableOperation);
 			const TCHAR* OpName = mu::s_opNames[int32(Type)];
 
@@ -352,7 +352,7 @@ void SMutableCodeViewer::Construct(const FArguments& InArgs, const mu::ModelPtr&
 	const int32 StateCount = ModelPrivate->m_program.m_states.Num();
 	for ( int32 StateIndex=0; StateIndex<StateCount; ++StateIndex )
 	{
-		const mu::PROGRAM::STATE& State = ModelPrivate->m_program.m_states[StateIndex];
+		const mu::FProgram::FState& State = ModelPrivate->m_program.m_states[StateIndex];
 		FString Caption = FString::Printf( TEXT("state [%s]"), ANSI_TO_TCHAR(State.m_name.c_str()) );
 		RootNodes.Add(MakeShareable(new FMutableCodeTreeElement(MutableModel, State.m_root, Caption)));
 	}
@@ -738,7 +738,7 @@ void SMutableCodeViewer::CacheAddressesOfOperationsOfType(mu::OP_TYPE TargetedOp
 	TSet<mu::OP::ADDRESS> OperationsWithTargetedType;
 
 	// Main update procedure run for the targeted state and the targeted parameter values
-	const mu::PROGRAM& Program = MutableModel->GetPrivate()->m_program;
+	const mu::FProgram& Program = MutableModel->GetPrivate()->m_program;
 	for	(const mu::OP::ADDRESS& RootNodeAddress : RootNodeAddresses)
 	{
 		GetOperationsOfType(TargetedOperationType,RootNodeAddress,Program,OperationsWithTargetedType,ProcessedAddresses);
@@ -755,7 +755,7 @@ void SMutableCodeViewer::CacheAddressesOfOperationsOfType(mu::OP_TYPE TargetedOp
 
 }
 
-void SMutableCodeViewer::GetOperationsOfType ( const mu::OP_TYPE& TargetOperationType, const mu::OP::ADDRESS& InParentAddress,const mu::PROGRAM& InProgram,
+void SMutableCodeViewer::GetOperationsOfType ( const mu::OP_TYPE& TargetOperationType, const mu::OP::ADDRESS& InParentAddress,const mu::FProgram& InProgram,
 	TSet<mu::OP::ADDRESS>& OutAddressesOfType,
 	TSet<mu::OP::ADDRESS>& AlreadyProcessedAddresses)
 {
@@ -790,7 +790,7 @@ void SMutableCodeViewer::CacheOperationTypesPresentOnModel()
 	// Set of operation types to be filed 
 	TSet<mu::OP_TYPE> OperationTypes;
 	
-	const mu::PROGRAM& Program = MutableModel->GetPrivate()->m_program;
+	const mu::FProgram& Program = MutableModel->GetPrivate()->m_program;
 	TSet<mu::OP::ADDRESS> AlreadyVisitedAddresses;
 	for	(const mu::OP::ADDRESS& RootOperationAddress : RootNodeAddresses)
 	{
@@ -833,7 +833,7 @@ void SMutableCodeViewer::CacheOperationTypesPresentOnModel()
 
 
 void SMutableCodeViewer::GetOperationTypesPresentOnModel(
-	const mu::OP::ADDRESS& InParentAddress, const mu::PROGRAM& InProgram, TSet<mu::OP_TYPE>& OutLocatedOperations,
+	const mu::OP::ADDRESS& InParentAddress, const mu::FProgram& InProgram, TSet<mu::OP_TYPE>& OutLocatedOperations,
 	TSet<mu::OP::ADDRESS>& AlreadyProcessedAddresses)
 {
 	// Generic case for unnamed children traversal.
@@ -1316,7 +1316,7 @@ void SMutableCodeViewer::GetChildrenForInfo(TSharedPtr<FMutableCodeTreeElement> 
 	//	return;
 	//}
 
-	const mu::PROGRAM& Program = MutableModel->GetPrivate()->m_program;
+	const mu::FProgram& Program = MutableModel->GetPrivate()->m_program;
 
 	mu::OP::ADDRESS ParentAddress = InInfo->MutableOperation;
 
@@ -1812,7 +1812,7 @@ void SMutableCodeViewer::CacheRootNodeAddresses()
 	const int32 StateCount = ModelPrivate->m_program.m_states.Num();
 	for ( int32 StateIndex=0; StateIndex < StateCount; ++StateIndex )
 	{
-		const mu::PROGRAM::STATE& State = ModelPrivate->m_program.m_states[StateIndex];
+		const mu::FProgram::FState& State = ModelPrivate->m_program.m_states[StateIndex];
 		FoundRootNodeAddresses.Add(State.m_root);
 	}
 
@@ -1837,7 +1837,7 @@ void SMutableCodeViewer::CacheRootNodeAddresses()
 	TSet<mu::OP::ADDRESS> ConstantResourcesAddresses; 
 
 	// Main update procedure run for the targeted state and the targeted parameter values
-	const mu::PROGRAM& Program = MutableModel->GetPrivate()->m_program;
+	const mu::FProgram& Program = MutableModel->GetPrivate()->m_program;
 	for (const mu::OP::ADDRESS& RootOperationAddress : RootNodeAddresses)
 	{
 		GetOperationsReferencingConstantResource(ConstantDataType, IndexOnConstantsArray,Program, RootOperationAddress,
@@ -1877,7 +1877,7 @@ void SMutableCodeViewer::CacheRootNodeAddresses()
 
 }
 
-void SMutableCodeViewer::GetOperationsReferencingConstantResource(const mu::DATATYPE ConstantDataType, const int32 IndexOnConstantsArray, const mu::PROGRAM& InProgram,
+void SMutableCodeViewer::GetOperationsReferencingConstantResource(const mu::DATATYPE ConstantDataType, const int32 IndexOnConstantsArray, const mu::FProgram& InProgram,
 	const mu::OP::ADDRESS& InParentAddress,
 	TSet<mu::OP::ADDRESS>& OutAddressesWithPresence,
 	TSet<mu::OP::ADDRESS>& AlreadyProcessedAddresses)
@@ -1904,7 +1904,7 @@ void SMutableCodeViewer::GetOperationsReferencingConstantResource(const mu::DATA
 }
 
 bool SMutableCodeViewer::IsConstantResourceUsedByOperation(const int32 IndexOnConstantsArray,
-	const mu::DATATYPE ConstantDataType, const mu::OP::ADDRESS OperationAddress, const mu::PROGRAM& InProgram) const
+	const mu::DATATYPE ConstantDataType, const mu::OP::ADDRESS OperationAddress, const mu::FProgram& InProgram) const
 {
 	// Cache the current operation type to know where to look and what to check
 	const mu::OP_TYPE OperationType = InProgram.GetOpType(OperationAddress);
@@ -2349,7 +2349,7 @@ void SMutableCodeViewer::PreviewMutableLayout(mu::LayoutPtrConst Layout)
 }
 
 
-void SMutableCodeViewer::PreviewMutableProjector(const mu::PROJECTOR* Projector)
+void SMutableCodeViewer::PreviewMutableProjector(const mu::FProjector* Projector)
 {
 	if (!Projector)
 	{
@@ -2400,7 +2400,7 @@ void SMutableCodeViewer::PreviewMutableMatrix(const mu::mat4f* Mat)
 }
 
 // TODO: Implement shape viewer
-void SMutableCodeViewer::PreviewMutableShape(const mu::SHAPE* Shape)
+void SMutableCodeViewer::PreviewMutableShape(const mu::FShape* Shape)
 {
 	UE_LOG(LogMutable,Warning,TEXT("Previewer for Mutable Shapes not yet implemented"))
 }

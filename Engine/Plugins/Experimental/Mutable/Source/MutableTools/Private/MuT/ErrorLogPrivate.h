@@ -65,7 +65,7 @@ namespace mu
 	typedef Ptr<const Model> ModelPtrConst;
 
     extern const TCHAR* GetOpName( OP_TYPE type );
-    extern FString GetOpDesc( const PROGRAM& program, OP::ADDRESS at );
+    extern FString GetOpDesc( const FProgram& program, OP::ADDRESS at );
 
 }
 

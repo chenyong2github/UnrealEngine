@@ -23,24 +23,22 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //! Information to project an image on a mesh.
     //---------------------------------------------------------------------------------------------
-    struct PROJECTOR
+    struct FProjector
     {
         PROJECTOR_TYPE type = PROJECTOR_TYPE::PLANAR;
-        float position[3] = {0,0,0};
-        float direction[3] = {0,0,0};
-        float up[3] = {0,0,0};
-        float scale[3] = {0,0,0};
+        FVector3f position = {0,0,0};
+		FVector3f direction = {0,0,0};
+		FVector3f up = {0,0,0};
+		FVector3f scale = {0,0,0};
         float projectionAngle = 0.0f;
 
         //!
-        inline void GetDirectionSideUp( vec3f& d,
-                                        vec3f& s,
-                                        vec3f& u ) const
+        inline void GetDirectionSideUp(FVector3f& d, FVector3f& s, FVector3f& u ) const
         {
-            d = vec3f( direction[0], direction[1], direction[2] );
-            u = vec3f( up[0], up[1], up[2] );
-            s = cross( u, d );
-            normalise(s);
+            d = direction;
+            u = up;
+            s = FVector3f::CrossProduct( up, direction );
+            s.Normalize();
         }
 
 
@@ -82,21 +80,13 @@ namespace mu
             arch >> projectionAngle;
         }
 
-        bool operator==( const PROJECTOR& o ) const
+        bool operator==( const FProjector& o ) const
         {
             return     type==o.type
-                    && position[0]==o.position[0]
-                    && position[1]==o.position[1]
-                    && position[2]==o.position[2]
-                    && up[0]==o.up[0]
-                    && up[1]==o.up[1]
-                    && up[2]==o.up[2]
-                    && direction[0]==o.direction[0]
-                    && direction[1]==o.direction[1]
-                    && direction[2]==o.direction[2]
-                    && scale[0]==o.scale[0]
-                    && scale[1]==o.scale[1]
-                    && scale[2]==o.scale[2]
+                    && position==o.position
+                    && up==o.up
+                    && direction==o.direction
+                    && scale==o.scale
                     && projectionAngle==o.projectionAngle;
         }
 
@@ -105,7 +95,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//! Information about a generic shape in space.
 	//---------------------------------------------------------------------------------------------
-	struct SHAPE
+	struct FShape
 	{
 		// Transform
 		vec3f position;
@@ -115,13 +105,13 @@ namespace mu
 		vec3f size;
 
 		// 
-		enum class Type : uint8_t
+		enum class Type : uint8
 		{
 			None = 0,
 			Ellipse,
 			AABox
 		};
-        uint8_t type = 0;
+        uint8 type = 0;
 		
 
 		//!
@@ -144,7 +134,7 @@ namespace mu
 			arch >> type;
 		}
 
-        bool operator==( const SHAPE& o ) const
+        bool operator==( const FShape& o ) const
         {
             return type==o.type
                     && position==o.position
@@ -167,7 +157,7 @@ namespace mu
 		float out_tangent;
 		float out_tangent_weight;
 
-		enum class InterpMode : uint8_t
+		enum class InterpMode : uint8
 		{
 			Linear = 0,
 			Constant,
@@ -177,10 +167,10 @@ namespace mu
 			//! Utility enumeration value, not really a Interp mode.
 			Count
 		};
-        uint8_t interp_mode;
+        uint8 interp_mode;
 
 
-		enum class TangentMode : uint8_t
+		enum class TangentMode : uint8
 		{
 			Auto = 0,
 			Manual,
@@ -190,10 +180,10 @@ namespace mu
 			//! Utility enumeration value, not really a Tangent mode.
 			Count
 		};
-        uint8_t tangent_mode;
+        uint8 tangent_mode;
 
 
-		enum class TangentWeightMode : uint8_t
+		enum class TangentWeightMode : uint8
 		{
 			Auto = 0,
 			Manual,
@@ -203,7 +193,7 @@ namespace mu
 			//! Utility enumeration value, not really a Tangent weight mode.
 			Count
 		};
-        uint8_t tangent_weight_mode;
+        uint8 tangent_weight_mode;
 
         //!
         bool operator==( const CurveKeyFrame& other ) const
@@ -294,7 +284,7 @@ namespace mu
 
         float m_colour[3];
 
-        PROJECTOR m_projector;
+        FProjector m_projector;
 
         EXTERNAL_IMAGE_ID m_image;
 
@@ -311,7 +301,7 @@ namespace mu
     MUTABLE_DEFINE_POD_SERIALISABLE( PARAMETER_VALUE )
 
 
-    struct PARAMETER_DESC
+    struct FParameterDesc
     {
         string m_name;
 
@@ -326,7 +316,7 @@ namespace mu
 
         //! Ranges, if the parameter is multi-dimensional. The indices refer to the Model's program
         //! vector of range descriptors.
-		TArray<uint32_t> m_ranges;
+		TArray<uint32> m_ranges;
 
         //! Additional parameter description information
 		TArray<OP::ADDRESS> m_descImages;
@@ -334,7 +324,7 @@ namespace mu
         //! Possible values of the parameter in case of being an integer, and its names
         struct INT_VALUE_DESC
         {
-            int16_t m_value;
+            int16 m_value;
             string m_name;
 
             //!
@@ -364,7 +354,7 @@ namespace mu
 		TArray<INT_VALUE_DESC> m_possibleValues;
 
         //!
-        bool operator==( const PARAMETER_DESC& other ) const
+        bool operator==( const FParameterDesc& other ) const
         {
             return m_name == other.m_name && m_uid == other.m_uid && m_type == other.m_type &&
                    m_defaultValue == other.m_defaultValue &&
@@ -375,7 +365,7 @@ namespace mu
         //!
         void Serialise( OutputArchive& arch ) const
         {
-            const int32_t ver = 5;
+            const int32 ver = 5;
             arch << ver;
 
 			arch << m_name;
@@ -390,7 +380,7 @@ namespace mu
         //!
         void Unserialise( InputArchive& arch )
         {
-            int32_t ver;
+            int32 ver;
             arch >> ver;
             check( ver == 5 );
 
@@ -405,38 +395,49 @@ namespace mu
     };
 
 
-    struct RANGE_DESC
+    struct FRangeDesc
     {
         string m_name;
         string m_uid;
 
+		/** Parameter that controls the size of this range, if any. */
+		int32 m_dimensionParameter = -1;
+
         //!
-        bool operator==( const RANGE_DESC& other ) const
+        bool operator==( const FRangeDesc& other ) const
         {
             return m_name==other.m_name
-                    &&
-                    m_uid==other.m_uid;
+				&&
+				m_uid == other.m_uid 
+				&&
+				m_dimensionParameter == other.m_dimensionParameter;
         }
 
         //!
         void Serialise( OutputArchive& arch ) const
         {
-            const int32_t ver = 1;
+            const uint32 ver = 2;
             arch << ver;
 
             arch << m_name;
             arch << m_uid;
+			arch << m_dimensionParameter;
         }
 
         //!
         void Unserialise( InputArchive& arch )
         {
-            int32_t ver;
+            uint32 ver;
             arch >> ver;
-            check( ver == 1 );
+            check( ver <= 2 );
 
             arch >> m_name;
             arch >> m_uid;
+
+			if (ver >= 2)
+			{
+				arch >> m_dimensionParameter;
+			}
         }
     };
 
@@ -470,13 +471,13 @@ namespace mu
 
         //! If the parameter is multidemensional, the values are stored here.
         //! The key of the map is the vector of values stored in a RangeIndex
-		TArray< TMap< TArray<int32_t>, PARAMETER_VALUE > > m_multiValues;
+		TArray< TMap< TArray<int32>, PARAMETER_VALUE > > m_multiValues;
 
 
         //!
         void Serialise( OutputArchive& arch ) const
         {
-            const uint32_t ver = 1;
+            const uint32 ver = 1;
             arch << ver;
 
             arch << m_values;
@@ -486,7 +487,7 @@ namespace mu
         //!
         void Unserialise( InputArchive& arch )
         {
-            uint32_t ver;
+            uint32 ver;
             arch >> ver;
             check( ver == 1 );
 
@@ -498,7 +499,7 @@ namespace mu
         int Find( const char* strName ) const;
 
         //!
-        PROJECTOR GetProjectorValue( int index, const Ptr<const RangeIndex>& pos ) const;
+        FProjector GetProjectorValue( int index, const Ptr<const RangeIndex>& pos ) const;
     };
 
 }

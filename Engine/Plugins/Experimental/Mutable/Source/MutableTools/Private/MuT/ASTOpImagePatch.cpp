@@ -71,7 +71,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void ASTOpImagePatch::Link(PROGRAM& program, const FLinkerOptions*)
+	void ASTOpImagePatch::Link(FProgram& program, const FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

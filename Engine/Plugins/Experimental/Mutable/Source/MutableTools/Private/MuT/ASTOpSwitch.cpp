@@ -167,7 +167,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void ASTOpSwitch::Link(PROGRAM& program, const FLinkerOptions*)
+	void ASTOpSwitch::Link(FProgram& program, const FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

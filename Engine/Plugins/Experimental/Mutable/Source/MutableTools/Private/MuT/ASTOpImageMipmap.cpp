@@ -86,7 +86,7 @@ void ASTOpImageMipmap::ForEachChild(const TFunctionRef<void(ASTChild&)> f )
 }
 
 
-void ASTOpImageMipmap::Link( PROGRAM& program, const FLinkerOptions* )
+void ASTOpImageMipmap::Link( FProgram& program, const FLinkerOptions* )
 {
     // Already linked?
     if (!linkedAddress)

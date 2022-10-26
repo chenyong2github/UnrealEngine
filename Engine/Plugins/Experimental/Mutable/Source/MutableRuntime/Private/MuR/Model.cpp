@@ -25,7 +25,7 @@ namespace mu
 {
 
     //---------------------------------------------------------------------------------------------
-    void PROGRAM::Check()
+    void FProgram::Check()
     {
 //    #ifdef MUTABLE_DEBUG
 //        // Process all from root
@@ -83,7 +83,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void PROGRAM::LogHistogram() const
+    void FProgram::LogHistogram() const
     {
 #if 0
         uint64 countPerType[(int)OP_TYPE::COUNT];
@@ -178,7 +178,7 @@ namespace mu
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
-		mu::PROGRAM& program = p->m_pD->m_program;
+		mu::FProgram& program = p->m_pD->m_program;
 
 		TArray<TPair<int32, mu::ImagePtrConst>> InitialImages = program.m_constantImageLODs;
 		TArray<TPair<int32, mu::MeshPtrConst>> InitialMeshes = program.m_constantMeshes;
@@ -470,7 +470,7 @@ namespace mu
 
         if ( stateIndex>=0 && stateIndex<(int)m_pD->m_program.m_states.Num() )
         {
-            const PROGRAM::STATE& state = m_pD->m_program.m_states[stateIndex];
+            const FProgram::FState& state = m_pD->m_program.m_states[stateIndex];
             if ( paramIndex>=0 && paramIndex<(int)state.m_runtimeParameters.Num() )
             {
                 res = (int)state.m_runtimeParameters[paramIndex];
@@ -623,7 +623,7 @@ namespace mu
             //! 3D Projector type, defining a position, scale and orientation. Basically used for
             //! projected decals.
             case PARAMETER_TYPE::T_PROJECTOR:
-                dataSize = sizeof(PROJECTOR);
+                dataSize = sizeof(FProjector);
 
                 // \todo: padding will be random?
                 parameterValuesBlob.SetNum( pos+dataSize );
@@ -753,7 +753,7 @@ namespace mu
             m_pD->m_instanceCount = 1;
             for (size_t i=0;i<paramCount; ++i)
             {
-                const PARAMETER_DESC& param =
+                const FParameterDesc& param =
                         m_pD->m_pModel->GetPrivate()->m_program.m_parameters[ i ];
                 switch ( param.m_type )
                 {
@@ -805,12 +805,11 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    ParametersPtr ModelParametersGenerator::GetInstance( int64 index,
-                                                         float (*randomGenerator )() )
+    Ptr<Parameters> ModelParametersGenerator::GetInstance( int64 index, float (*randomGenerator )() )
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
 
-        ParametersPtr res = m_pD->m_pModel->NewParameters();
+		Ptr<Parameters> res = m_pD->m_pModel->NewParameters();
 
         if (m_pD->m_considerRelevancy)
         {
@@ -837,10 +836,23 @@ namespace mu
                 case PARAMETER_TYPE::T_COLOUR:
                     if ( randomGenerator )
                     {
-                        res->SetColourValue( p,
-                                             randomGenerator(), randomGenerator(), randomGenerator() );
+                        res->SetColourValue( p, randomGenerator(), randomGenerator(), randomGenerator() );
                     }
                     break;
+
+				case PARAMETER_TYPE::T_PROJECTOR:
+					if (randomGenerator)
+					{
+						// For projectors we just warp the position a little bit just to get something different
+						FVector3f Position,Direction,Up,Scale;
+						float Angle=1.0f;
+						res->GetProjectorValue(p, nullptr, &Position, &Direction, &Up, &Scale, &Angle );
+						Position.X *= 0.9 + randomGenerator() * 0.2f;
+						Position.Y *= 0.9 + randomGenerator() * 0.2f;
+						Position.Z *= 0.9 + randomGenerator() * 0.2f;
+						res->SetProjectorValue(p,Position,Direction,Up,Scale,Angle);
+					}
+					break;
 
                 default:
                     break;
@@ -849,11 +861,11 @@ namespace mu
         }
         else
         {
-            int paramCount = (int)m_pD->m_pModel->GetPrivate()->m_program.m_parameters.Num();
+            int paramCount = m_pD->m_pModel->GetPrivate()->m_program.m_parameters.Num();
             int64 currentInstance = index;
             for (int i=0;i<paramCount;++i)
             {
-                const PARAMETER_DESC& param = m_pD->m_pModel->GetPrivate()->m_program.m_parameters[ i ];
+                const FParameterDesc& param = m_pD->m_pModel->GetPrivate()->m_program.m_parameters[ i ];
                 switch ( param.m_type )
                 {
 
@@ -887,6 +899,20 @@ namespace mu
                     }
                     break;
 
+				case PARAMETER_TYPE::T_PROJECTOR:
+					if (randomGenerator)
+					{
+						// For projectors we just warp the position a little bit just to get something different
+						FVector3f Position, Direction, Up, Scale;
+						float Angle = 1.0f;
+						res->GetProjectorValue(i, nullptr, &Position, &Direction, &Up, &Scale, &Angle);
+						Position.X *= 0.9 + randomGenerator() * 0.2f;
+						Position.Y *= 0.9 + randomGenerator() * 0.2f;
+						Position.Z *= 0.9 + randomGenerator() * 0.2f;
+						res->SetProjectorValue(i, Position, Direction, Up, Scale, Angle);
+					}
+					break;
+
                 default:
                     break;
                 }
@@ -908,7 +934,7 @@ namespace mu
 
         for (int i=0;i<paramCount;++i)
         {
-            const PARAMETER_DESC& param = m_pD->m_pModel->GetPrivate()->m_program.m_parameters[ i ];
+            const FParameterDesc& param = m_pD->m_pModel->GetPrivate()->m_program.m_parameters[ i ];
             switch ( param.m_type )
             {
 
@@ -934,6 +960,19 @@ namespace mu
             case PARAMETER_TYPE::T_COLOUR:
                 res->SetColourValue( i, randomGenerator(), randomGenerator(), randomGenerator() );
                 break;
+
+			case PARAMETER_TYPE::T_PROJECTOR:
+				{
+					// For projectors we just warp the position a little bit just to get something different
+					FVector3f Position, Direction, Up, Scale;
+					float Angle = 1.0f;
+					res->GetProjectorValue(i, nullptr, &Position, &Direction, &Up, &Scale, &Angle);
+					Position.X *= 0.9 + randomGenerator() * 0.2f;
+					Position.Y *= 0.9 + randomGenerator() * 0.2f;
+					Position.Z *= 0.9 + randomGenerator() * 0.2f;
+					res->SetProjectorValue(i, Position, Direction, Up, Scale, Angle);
+				}
+				break;
 
             default:
                 break;
@@ -972,7 +1011,7 @@ namespace mu
 //        }
 
 
-//        void Visit( OP::ADDRESS at, PROGRAM& program ) override
+//        void Visit( OP::ADDRESS at, FProgram& program ) override
 //        {
 //            if ( !m_relevant && !m_visited[at])
 //            {
@@ -1063,7 +1102,7 @@ namespace mu
 
             if (relevant)
             {
-                const PARAMETER_DESC& param =
+                const FParameterDesc& param =
                         m_pModel->GetPrivate()->m_program.m_parameters[ currentParameter ];
                 switch ( param.m_type )
                 {

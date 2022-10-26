@@ -490,17 +490,12 @@ TOptional<FVector::FReal> SMutableParametersWidget::GetProjectorLocation(EAxis::
 	}
 
 	mu::PROJECTOR_TYPE Type;
-	float Pos[3];
-	float Dir[3];
-	float Up[3];
-	float Scale[3];
+	FVector3f Pos;
+	FVector3f Dir;
+	FVector3f Up;
+	FVector3f Scale;
 	float Angle;
-	MutableParameters->GetProjectorValue(ParamIndex, &Type, 
-		&Pos[0], &Pos[1], &Pos[2],
-		&Dir[0], &Dir[1], &Dir[2],
-		&Up[0], &Up[1], &Up[2],
-		&Scale[0], &Scale[1], &Scale[2],
-		&Angle );
+	MutableParameters->GetProjectorValue(ParamIndex, &Type, &Pos, &Dir, &Up, &Scale, &Angle );
 
 	return Pos[ Axis-EAxis::X ];
 }
@@ -516,26 +511,16 @@ void SMutableParametersWidget::SetProjectorLocation(FVector::FReal NewValue, ETe
 	}
 
 	mu::PROJECTOR_TYPE Type;
-	float Pos[3];
-	float Dir[3];
-	float Up[3];
-	float Scale[3];
+	FVector3f Pos;
+	FVector3f Dir;
+	FVector3f Up;
+	FVector3f Scale;
 	float Angle;
-	MutableParameters->GetProjectorValue(ParamIndex, &Type,
-		&Pos[0], &Pos[1], &Pos[2],
-		&Dir[0], &Dir[1], &Dir[2],
-		&Up[0], &Up[1], &Up[2],
-		&Scale[0], &Scale[1], &Scale[2],
-		&Angle);
+	MutableParameters->GetProjectorValue(ParamIndex, &Type, &Pos, &Dir, &Up, &Scale, &Angle);
 
 	Pos[Axis - EAxis::X] = NewValue;
 
-	MutableParameters->SetProjectorValue(ParamIndex,
-		Pos[0], Pos[1], Pos[2],
-		Dir[0], Dir[1], Dir[2],
-		Up[0], Up[1], Up[2],
-		Scale[0], Scale[1], Scale[2],
-		Angle);
+	MutableParameters->SetProjectorValue(ParamIndex, Pos, Dir, Up, Scale, Angle);
 
 	OnParametersValueChanged.ExecuteIfBound(ParamIndex);
 }
@@ -551,17 +536,12 @@ TOptional<FVector::FReal> SMutableParametersWidget::GetProjectorScale(EAxis::Typ
 	}
 
 	mu::PROJECTOR_TYPE Type;
-	float Pos[3];
-	float Dir[3];
-	float Up[3];
-	float Scale[3];
+	FVector3f Pos;
+	FVector3f Dir;
+	FVector3f Up;
+	FVector3f Scale;
 	float Angle;
-	MutableParameters->GetProjectorValue(ParamIndex, &Type,
-		&Pos[0], &Pos[1], &Pos[2],
-		&Dir[0], &Dir[1], &Dir[2],
-		&Up[0], &Up[1], &Up[2],
-		&Scale[0], &Scale[1], &Scale[2],
-		&Angle);
+	MutableParameters->GetProjectorValue(ParamIndex, &Type, &Pos, &Dir, &Up, &Scale, &Angle);
 
 	return Scale[Axis - EAxis::X];
 }
@@ -577,26 +557,16 @@ void SMutableParametersWidget::SetProjectorScale(FVector::FReal NewValue, ETextC
 	}
 
 	mu::PROJECTOR_TYPE Type;
-	float Pos[3];
-	float Dir[3];
-	float Up[3];
-	float Scale[3];
+	FVector3f Pos;
+	FVector3f Dir;
+	FVector3f Up;
+	FVector3f Scale;
 	float Angle;
-	MutableParameters->GetProjectorValue(ParamIndex, &Type,
-		&Pos[0], &Pos[1], &Pos[2],
-		&Dir[0], &Dir[1], &Dir[2],
-		&Up[0], &Up[1], &Up[2],
-		&Scale[0], &Scale[1], &Scale[2],
-		&Angle);
+	MutableParameters->GetProjectorValue(ParamIndex, &Type, &Pos, &Dir, &Up, &Scale, &Angle);
 
 	Scale[Axis - EAxis::X] = NewValue;
 
-	MutableParameters->SetProjectorValue(ParamIndex,
-		Pos[0], Pos[1], Pos[2],
-		Dir[0], Dir[1], Dir[2],
-		Up[0], Up[1], Up[2],
-		Scale[0], Scale[1], Scale[2],
-		Angle);
+	MutableParameters->SetProjectorValue(ParamIndex, Pos, Dir, Up, Scale, Angle);
 
 	OnParametersValueChanged.ExecuteIfBound(ParamIndex);
 }

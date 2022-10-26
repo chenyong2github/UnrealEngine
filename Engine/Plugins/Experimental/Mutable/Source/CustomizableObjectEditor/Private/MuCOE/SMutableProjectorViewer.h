@@ -14,7 +14,7 @@
 class SMutableProjectorViewer final : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SMutableProjectorViewer) {}
-		SLATE_ARGUMENT(mu::PROJECTOR,MutableProjector);
+		SLATE_ARGUMENT(mu::FProjector,MutableProjector);
 	SLATE_END_ARGS()
 
 public:
@@ -29,12 +29,12 @@ public:
 	 * Sets the projector object whose data we want to inspect
 	 * @param InMutableProjector - Projector we desire to inspect. It is the origin of the data shown on the UI
 	 */
-	void SetProjector(const mu::PROJECTOR& InMutableProjector);
+	void SetProjector(const mu::FProjector& InMutableProjector);
 
 private:
 
 	/** The mutable projector witch data is being exposed on the UI */
-	mu::PROJECTOR MutableProjector;
+	mu::FProjector MutableProjector;
 	
 	/** Get the float corresponding to the position of the projector on the targeted component index
 	 * @param VectorComponentIndex - Determines if you get the X, Y or Z value from the vector (0,1 and 2)

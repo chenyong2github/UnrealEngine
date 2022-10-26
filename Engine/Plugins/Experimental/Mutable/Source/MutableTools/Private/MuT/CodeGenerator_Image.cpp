@@ -115,11 +115,11 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage(IMAGE_GENERATION_RESULT& result, const NodeImagePtrConst& Untyped)
+	void CodeGenerator::GenerateImage(FImageGenerationResult& result, const NodeImagePtrConst& Untyped)
 	{
 		if (!Untyped)
 		{
-			result = IMAGE_GENERATION_RESULT();
+			result = FImageGenerationResult();
 			return;
 		}
 
@@ -141,7 +141,7 @@ namespace mu
 		}
 
 		// See if it was already generated
-		VISITED_MAP_KEY key = GetCurrentCacheKey(Untyped);
+		FVisitedKeyMap key = GetCurrentCacheKey(Untyped);
 		GeneratedImagesMap::ValueType* it = m_generatedImages.Find(key);
 		if (it)
 		{
@@ -198,7 +198,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    void CodeGenerator::GenerateImage_Constant(IMAGE_GENERATION_RESULT& result, const NodeImageConstant* InNode)
+    void CodeGenerator::GenerateImage_Constant(FImageGenerationResult& result, const NodeImageConstant* InNode)
     {
 		const NodeImageConstant::Private& node = *InNode->GetPrivate();
 		
@@ -255,7 +255,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Parameter(IMAGE_GENERATION_RESULT& result, const NodeImageParameter* InNode )
+	void CodeGenerator::GenerateImage_Parameter(FImageGenerationResult& result, const NodeImageParameter* InNode )
     {
 		const NodeImageParameter::Private& node = *InNode->GetPrivate();
 
@@ -274,7 +274,7 @@ namespace mu
 			// Generate the code for the ranges
 			for (int32 a = 0; a < node.m_ranges.Num(); ++a)
 			{
-				RANGE_GENERATION_RESULT rangeResult;
+				FRangeGenerationResult rangeResult;
 				GenerateRange(rangeResult, node.m_ranges[a]);
 				op->ranges.Emplace(op.get(), rangeResult.sizeOp, rangeResult.rangeName, rangeResult.rangeUID);
 			}
@@ -291,7 +291,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Layer(IMAGE_GENERATION_RESULT& result, const NodeImageLayer* InNode)
+	void CodeGenerator::GenerateImage_Layer(FImageGenerationResult& result, const NodeImageLayer* InNode)
 	{
 		const NodeImageLayer::Private& node = *InNode->GetPrivate();
 		
@@ -357,7 +357,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_LayerColour(IMAGE_GENERATION_RESULT& result, const NodeImageLayerColour* InNode)
+	void CodeGenerator::GenerateImage_LayerColour(FImageGenerationResult& result, const NodeImageLayerColour* InNode)
 	{
 		const NodeImageLayerColour::Private& node = *InNode->GetPrivate();
 		
@@ -412,7 +412,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_MultiLayer(IMAGE_GENERATION_RESULT& result, const NodeImageMultiLayer* InNode)
+	void CodeGenerator::GenerateImage_MultiLayer(FImageGenerationResult& result, const NodeImageMultiLayer* InNode)
 	{
 		const NodeImageMultiLayer::Private& node = *InNode->GetPrivate();
 
@@ -475,7 +475,7 @@ namespace mu
         if ( node.m_pRange )
         {
             //op->range = Generate( pRange );
-            RANGE_GENERATION_RESULT rangeResult;
+            FRangeGenerationResult rangeResult;
             GenerateRange( rangeResult, node.m_pRange );
 
             op->range.rangeSize = rangeResult.sizeOp;
@@ -488,7 +488,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_NormalComposite(IMAGE_GENERATION_RESULT& result, const NodeImageNormalComposite* InNode)
+	void CodeGenerator::GenerateImage_NormalComposite(FImageGenerationResult& result, const NodeImageNormalComposite* InNode)
 	{
 		const NodeImageNormalComposite::Private& node = *InNode->GetPrivate();
 
@@ -539,7 +539,7 @@ namespace mu
 		result.op = op;
     }
 
-	void CodeGenerator::GenerateImage_Transform(IMAGE_GENERATION_RESULT& result, const NodeImageTransform* InNode)
+	void CodeGenerator::GenerateImage_Transform(FImageGenerationResult& result, const NodeImageTransform* InNode)
     {
 		const NodeImageTransform::Private& node = *InNode->GetPrivate();
 
@@ -607,7 +607,7 @@ namespace mu
     }
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Interpolate(IMAGE_GENERATION_RESULT& result, const NodeImageInterpolate* InNode)
+	void CodeGenerator::GenerateImage_Interpolate(FImageGenerationResult& result, const NodeImageInterpolate* InNode)
 	{
 		const NodeImageInterpolate::Private& node = *InNode->GetPrivate();
 
@@ -664,7 +664,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Interpolate3(IMAGE_GENERATION_RESULT& result, const NodeImageInterpolate3* InNode)
+	void CodeGenerator::GenerateImage_Interpolate3(FImageGenerationResult& result, const NodeImageInterpolate3* InNode)
 	{
 		const NodeImageInterpolate3::Private& node = *InNode->GetPrivate();
 
@@ -753,7 +753,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Swizzle(IMAGE_GENERATION_RESULT& result, const NodeImageSwizzle* InNode)
+	void CodeGenerator::GenerateImage_Swizzle(FImageGenerationResult& result, const NodeImageSwizzle* InNode)
 	{
 		const NodeImageSwizzle::Private& node = *InNode->GetPrivate();
 
@@ -866,7 +866,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Format(IMAGE_GENERATION_RESULT& result, const NodeImageFormat* InNode)
+	void CodeGenerator::GenerateImage_Format(FImageGenerationResult& result, const NodeImageFormat* InNode)
 	{
 		const NodeImageFormat::Private& node = *InNode->GetPrivate();
 
@@ -893,7 +893,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Saturate(IMAGE_GENERATION_RESULT& result, const NodeImageSaturate* InNode)
+	void CodeGenerator::GenerateImage_Saturate(FImageGenerationResult& result, const NodeImageSaturate* InNode)
 	{
 		const NodeImageSaturate::Private& node = *InNode->GetPrivate();
 
@@ -935,7 +935,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Luminance(IMAGE_GENERATION_RESULT& result, const NodeImageLuminance* InNode)
+	void CodeGenerator::GenerateImage_Luminance(FImageGenerationResult& result, const NodeImageLuminance* InNode)
 	{
 		const NodeImageLuminance::Private& node = *InNode->GetPrivate();
 
@@ -962,7 +962,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_SelectColour(IMAGE_GENERATION_RESULT& result, const NodeImageSelectColour* InNode)
+	void CodeGenerator::GenerateImage_SelectColour(FImageGenerationResult& result, const NodeImageSelectColour* InNode)
 	{
 		const NodeImageSelectColour::Private& node = *InNode->GetPrivate();
 
@@ -1004,7 +1004,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Difference(IMAGE_GENERATION_RESULT& result, const NodeImageDifference* InNode)
+	void CodeGenerator::GenerateImage_Difference(FImageGenerationResult& result, const NodeImageDifference* InNode)
 	{
 		const NodeImageDifference::Private& node = *InNode->GetPrivate();
 
@@ -1049,7 +1049,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_ColourMap(IMAGE_GENERATION_RESULT& result, const NodeImageColourMap* InNode)
+	void CodeGenerator::GenerateImage_ColourMap(FImageGenerationResult& result, const NodeImageColourMap* InNode)
 	{
 		const NodeImageColourMap::Private& node = *InNode->GetPrivate();
 
@@ -1113,7 +1113,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Gradient(IMAGE_GENERATION_RESULT& result, const NodeImageGradient* InNode)
+	void CodeGenerator::GenerateImage_Gradient(FImageGenerationResult& result, const NodeImageGradient* InNode)
 	{
 		const NodeImageGradient::Private& node = *InNode->GetPrivate();
 
@@ -1154,7 +1154,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Binarise(IMAGE_GENERATION_RESULT& result, const NodeImageBinarise* InNode)
+	void CodeGenerator::GenerateImage_Binarise(FImageGenerationResult& result, const NodeImageBinarise* InNode)
 	{
 		const NodeImageBinarise::Private& node = *InNode->GetPrivate();
 
@@ -1197,7 +1197,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Resize(IMAGE_GENERATION_RESULT& result, const NodeImageResize* InNode)
+	void CodeGenerator::GenerateImage_Resize(FImageGenerationResult& result, const NodeImageResize* InNode)
 	{
 		const NodeImageResize::Private& node = *InNode->GetPrivate();
 
@@ -1257,7 +1257,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_PlainColour(IMAGE_GENERATION_RESULT& result, const NodeImagePlainColour* InNode)
+	void CodeGenerator::GenerateImage_PlainColour(FImageGenerationResult& result, const NodeImagePlainColour* InNode)
 	{
 		const NodeImagePlainColour::Private& node = *InNode->GetPrivate();
 
@@ -1299,7 +1299,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Switch(IMAGE_GENERATION_RESULT& result, const NodeImageSwitch* InNode)
+	void CodeGenerator::GenerateImage_Switch(FImageGenerationResult& result, const NodeImageSwitch* InNode)
 	{
 		const NodeImageSwitch::Private& node = *InNode->GetPrivate();
 
@@ -1385,7 +1385,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Conditional(IMAGE_GENERATION_RESULT& result, const NodeImageConditional* InNode)
+	void CodeGenerator::GenerateImage_Conditional(FImageGenerationResult& result, const NodeImageConditional* InNode)
 	{
 		const NodeImageConditional::Private& node = *InNode->GetPrivate();
 
@@ -1412,7 +1412,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Project(IMAGE_GENERATION_RESULT& result, const NodeImageProject* InNode)
+	void CodeGenerator::GenerateImage_Project(FImageGenerationResult& result, const NodeImageProject* InNode)
 	{
 		const NodeImageProject::Private& node = *InNode->GetPrivate();
 
@@ -1426,7 +1426,7 @@ namespace mu
         Ptr<ASTOp> lastMeshOp = pop;
 
         // Projector
-        PROJECTOR_GENERATION_RESULT projectorResult;
+        FProjectorGenerationResult projectorResult;
         if ( node.m_pProjector )
         {
             GenerateProjector( projectorResult, node.m_pProjector );
@@ -1613,7 +1613,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Mipmap(IMAGE_GENERATION_RESULT& result, const NodeImageMipmap* InNode)
+	void CodeGenerator::GenerateImage_Mipmap(FImageGenerationResult& result, const NodeImageMipmap* InNode)
 	{
 		const NodeImageMipmap::Private& node = *InNode->GetPrivate();
 
@@ -1678,7 +1678,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Invert(IMAGE_GENERATION_RESULT& result, const NodeImageInvert* InNode)
+	void CodeGenerator::GenerateImage_Invert(FImageGenerationResult& result, const NodeImageInvert* InNode)
 	{
 		const NodeImageInvert::Private& node = *InNode->GetPrivate();
 
@@ -1708,7 +1708,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Variation(IMAGE_GENERATION_RESULT& result, const NodeImageVariation* InNode)
+	void CodeGenerator::GenerateImage_Variation(FImageGenerationResult& result, const NodeImageVariation* InNode)
 	{
 		const NodeImageVariation::Private& node = *InNode->GetPrivate();
 
@@ -1717,7 +1717,7 @@ namespace mu
         // Default case
         if ( node.m_defaultImage )
         {
-            IMAGE_GENERATION_RESULT branchResults;
+            FImageGenerationResult branchResults;
 			GenerateImage(branchResults, node.m_defaultImage);
 			currentOp = branchResults.op;
         }
@@ -1802,7 +1802,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void CodeGenerator::GenerateImage_Table(IMAGE_GENERATION_RESULT& result, const NodeImageTable* InNode)
+	void CodeGenerator::GenerateImage_Table(FImageGenerationResult& result, const NodeImageTable* InNode)
 	{
 		const NodeImageTable::Private& node = *InNode->GetPrivate();
 

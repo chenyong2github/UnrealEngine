@@ -430,7 +430,7 @@ public:
 
 
 
-void SMutableConstantsWidget::Construct(const FArguments& InArgs,const mu::PROGRAM* InMutableProgramPtr,  TSharedPtr<SMutableCodeViewer> InMutableCodeViewerPtr)
+void SMutableConstantsWidget::Construct(const FArguments& InArgs,const mu::FProgram* InMutableProgramPtr,  TSharedPtr<SMutableCodeViewer> InMutableCodeViewerPtr)
 {
 	// A pointer to MutableCodeViewerPtr is required in order to be able to invoke the preview of our constants
 	check (InMutableCodeViewerPtr);
@@ -717,7 +717,7 @@ void SMutableConstantsWidget::Construct(const FArguments& InArgs,const mu::PROGR
 
 
 
-void SMutableConstantsWidget::SetProgram(const mu::PROGRAM* InProgram)
+void SMutableConstantsWidget::SetProgram(const mu::FProgram* InProgram)
 {
 	// Make sure we do not process the setting of the same program object as the one already set
 	if (this->MutableProgramPtr == InProgram)

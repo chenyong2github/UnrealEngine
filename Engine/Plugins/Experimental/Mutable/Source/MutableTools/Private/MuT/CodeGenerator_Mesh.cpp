@@ -1172,7 +1172,7 @@ class Node;
 
         // Morph to an ellipse
         {
-            op->morphShape.type = (uint8_t)SHAPE::Type::Ellipse;
+            op->morphShape.type = (uint8_t)FShape::Type::Ellipse;
             op->morphShape.position = node.m_origin;
             op->morphShape.up = node.m_normal;
             op->morphShape.size = vec3f(node.m_radius1, node.m_radius2, node.m_rotation); // TODO: Move rotation to ellipse rotation reference base instead of passing it directly
@@ -1196,7 +1196,7 @@ class Node;
         if (node.m_vertexSelectionType== NodeMeshClipMorphPlane::Private::VS_SHAPE)
         {
             op->vertexSelectionType = OP::MeshClipMorphPlaneArgs::VS_SHAPE;
-            op->selectionShape.type = (uint8_t)SHAPE::Type::AABox;
+            op->selectionShape.type = (uint8_t)FShape::Type::AABox;
             op->selectionShape.position = node.m_selectionBoxOrigin;
             op->selectionShape.size = node.m_selectionBoxRadius;
         }

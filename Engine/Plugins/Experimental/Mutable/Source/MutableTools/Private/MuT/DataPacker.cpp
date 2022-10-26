@@ -36,7 +36,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
     //---------------------------------------------------------------------------------------------
-    SubtreeSearchConstantVisitor::SubtreeSearchConstantVisitor( PROGRAM& program,
+    SubtreeSearchConstantVisitor::SubtreeSearchConstantVisitor( FProgram& program,
                                                                 OP::ADDRESS constant,
                                                                 OP_TYPE optype )
         : m_program( program ),
@@ -134,7 +134,7 @@ namespace mu
     {
     public:
 
-        GatherParametersVisitor( PROGRAM& program, OP::ADDRESS constant, OP_TYPE opType )
+        GatherParametersVisitor( FProgram& program, OP::ADDRESS constant, OP_TYPE opType )
             : m_constSearch( program, constant, opType )
         {
             MUTABLE_CPUPROFILER_SCOPE(GatherParametersVisitor);
@@ -160,7 +160,7 @@ namespace mu
         }
 
 
-        virtual bool Visit( OP::ADDRESS at, PROGRAM& program )
+        virtual bool Visit( OP::ADDRESS at, FProgram& program )
         {
             bool recurse = true;
 

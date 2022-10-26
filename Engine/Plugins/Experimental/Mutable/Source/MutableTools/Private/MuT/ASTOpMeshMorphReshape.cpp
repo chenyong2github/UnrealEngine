@@ -67,7 +67,7 @@ namespace mu
 	}
 
 
-	void ASTOpMeshMorphReshape::Link(PROGRAM& program, const FLinkerOptions*)
+	void ASTOpMeshMorphReshape::Link(FProgram& program, const FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

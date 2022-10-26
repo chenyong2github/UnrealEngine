@@ -74,7 +74,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void ASTOpMeshMaskClipMesh::Link(PROGRAM& program, const FLinkerOptions*)
+	void ASTOpMeshMaskClipMesh::Link(FProgram& program, const FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

@@ -63,7 +63,7 @@ namespace mu
 	}
 
 
-	void ASTOpMeshTransform::Link(PROGRAM& program, const FLinkerOptions*)
+	void ASTOpMeshTransform::Link(FProgram& program, const FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

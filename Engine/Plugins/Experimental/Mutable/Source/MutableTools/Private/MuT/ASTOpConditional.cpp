@@ -104,7 +104,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void ASTOpConditional::Link(PROGRAM& program, const FLinkerOptions*)
+	void ASTOpConditional::Link(FProgram& program, const FLinkerOptions*)
 	{
 		// Already linked?
 		if (!linkedAddress)

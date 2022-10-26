@@ -47,7 +47,7 @@ namespace mu
 	}
 
 
-	void ASTOpConstantProjector::Link(PROGRAM& program, const FLinkerOptions*)
+	void ASTOpConstantProjector::Link(FProgram& program, const FLinkerOptions*)
 	{
 		if (!linkedAddress)
 		{

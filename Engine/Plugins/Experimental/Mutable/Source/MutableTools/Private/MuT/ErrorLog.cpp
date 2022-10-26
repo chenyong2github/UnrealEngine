@@ -328,7 +328,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-    extern FString GetOpDesc( const PROGRAM& program, OP::ADDRESS at )
+    extern FString GetOpDesc( const FProgram& program, OP::ADDRESS at )
 	{
 		char temp[1024];
 		FMemory::Memzero( temp, 1024 );

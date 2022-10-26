@@ -64,9 +64,9 @@ namespace mu
 	MUTABLE_DEFINE_POD_SERIALISABLE(FImageLODRange);
 
     //!
-    struct PROGRAM
+    struct FProgram
     {
-        PROGRAM()
+        FProgram()
         {
             // Add the null instruction at address 0.
             // TODO: Will do it in the linker
@@ -74,7 +74,7 @@ namespace mu
             m_opAddress.Add(0);
         }
 
-        struct STATE
+        struct FState
         {
             //! Name of the state
             string m_name;
@@ -82,7 +82,7 @@ namespace mu
             //! First instruction of the full build of an instance in this state
             OP::ADDRESS m_root = 0;
 
-            //! List of parameters index (to PROGRAM::m_parameters) of the runtime parameters of
+            //! List of parameters index (to FProgram::m_parameters) of the runtime parameters of
             //! this state.
 			TArray<int> m_runtimeParameters;
 
@@ -136,7 +136,7 @@ namespace mu
             {
                 bool res = false;
 
-                for ( size_t i=0; !res && i<m_updateCache.Num(); ++i )
+                for ( SIZE_T i=0; !res && i<m_updateCache.Num(); ++i )
                 {
                     if ( m_updateCache[i]==at )
                     {
@@ -164,7 +164,7 @@ namespace mu
 		TArray<uint8> m_byteCode;
 
         //!
-		TArray<STATE> m_states;
+		TArray<FState> m_states;
 
 		//! Data for every rom.
 		TArray<FRomData> m_roms;
@@ -188,13 +188,13 @@ namespace mu
 		TArray<Ptr<const Layout>> m_constantLayouts;
 
         //! Constant projectors
-		TArray<PROJECTOR> m_constantProjectors;
+		TArray<FProjector> m_constantProjectors;
 
         //! Constant matrices, usually used for transforms
 		TArray<mat4f> m_constantMatrices;
 
 		//! Constant projectors
-		TArray<SHAPE> m_constantShapes;
+		TArray<FShape> m_constantShapes;
 
         //! Constant curves
 		TArray<Curve> m_constantCurves;
@@ -207,10 +207,10 @@ namespace mu
 
         //! Parameters of the model.
         //! The value stored here is the default value.
-		TArray<PARAMETER_DESC> m_parameters;
+		TArray<FParameterDesc> m_parameters;
 
         //! Ranges for interation of the model operations.
-		TArray<RANGE_DESC> m_ranges;
+		TArray<FRangeDesc> m_ranges;
 
         //! List of parameter lists. These are used in several places, like storing the
         //! pregenerated list of parameters influencing a resource.
@@ -403,7 +403,7 @@ namespace mu
 		OP::ADDRESS AddConstant( Ptr<const Layout> pLayout )
         {
             // Ensure unique
-            for ( size_t i=0; i<m_constantLayouts.Num(); ++i)
+            for ( SIZE_T i=0; i<m_constantLayouts.Num(); ++i)
             {
                 if (m_constantLayouts[i]==pLayout)
                 {
@@ -419,7 +419,7 @@ namespace mu
         OP::ADDRESS AddConstant( Ptr<const Skeleton> pSkeleton )
         {
             // Ensure unique
-            for ( size_t i=0; i<m_constantSkeletons.Num(); ++i)
+            for ( SIZE_T i=0; i<m_constantSkeletons.Num(); ++i)
             {
                 if ( m_constantSkeletons[i]==pSkeleton
                      ||
@@ -438,7 +438,7 @@ namespace mu
         OP::ADDRESS AddConstant( Ptr<const PhysicsBody> pPhysicsBody )
         {
             // Ensure unique
-            for ( size_t i=0; i<m_constantPhysicsBodies.Num(); ++i)
+            for ( SIZE_T i=0; i<m_constantPhysicsBodies.Num(); ++i)
             {
                 if ( m_constantPhysicsBodies[i]==pPhysicsBody
                      ||
@@ -457,7 +457,7 @@ namespace mu
         OP::ADDRESS AddConstant( const string& str )
         {            
             // Ensure unique
-            for ( size_t i=0; i<m_constantStrings.Num(); ++i)
+            for ( SIZE_T i=0; i<m_constantStrings.Num(); ++i)
             {
                 if (m_constantStrings[i]==str)
                 {
@@ -473,7 +473,7 @@ namespace mu
         OP::ADDRESS AddConstant( const mat4f& m )
         {
             // Ensure unique
-            for ( size_t i=0; i<m_constantMatrices.Num(); ++i)
+            for ( SIZE_T i=0; i<m_constantMatrices.Num(); ++i)
             {
                 if (m_constantMatrices[i]==m)
                 {
@@ -486,10 +486,10 @@ namespace mu
             return index;
         }
 
-        OP::ADDRESS AddConstant( const SHAPE& m )
+        OP::ADDRESS AddConstant( const FShape& m )
         {
             // Ensure unique
-            for ( size_t i=0; i<m_constantShapes.Num(); ++i)
+            for ( SIZE_T i=0; i<m_constantShapes.Num(); ++i)
             {
                 if (m_constantShapes[i]==m)
                 {
@@ -502,10 +502,10 @@ namespace mu
             return index;
         }
 
-        OP::ADDRESS AddConstant( const PROJECTOR& m )
+        OP::ADDRESS AddConstant( const FProjector& m )
         {
             // Ensure unique
-            for ( size_t i=0; i<m_constantProjectors.Num(); ++i)
+            for ( SIZE_T i=0; i<m_constantProjectors.Num(); ++i)
             {
                 if (m_constantProjectors[i]==m)
                 {
@@ -521,7 +521,7 @@ namespace mu
         OP::ADDRESS AddConstant( const Curve& m )
         {
             // Ensure unique
-//            for ( size_t i=0; i<m_constantCurves.Num(); ++i)
+//            for ( SIZE_T i=0; i<m_constantCurves.Num(); ++i)
 //            {
 //                if (m_constantCurves[i]==m)
 //                {
@@ -653,7 +653,7 @@ namespace mu
     public:
 
         //!
-        PROGRAM m_program;
+        FProgram m_program;
 
         //! Non-persistent, streamer-specific location information
         string m_location;

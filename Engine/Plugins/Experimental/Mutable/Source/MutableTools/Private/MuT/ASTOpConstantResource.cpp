@@ -66,7 +66,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	void ASTOpConstantResource::Link(PROGRAM& program, const FLinkerOptions* Options)
+	void ASTOpConstantResource::Link(FProgram& program, const FLinkerOptions* Options)
 	{
 		if (!linkedAddress && !bLinkedAndNull)
 		{

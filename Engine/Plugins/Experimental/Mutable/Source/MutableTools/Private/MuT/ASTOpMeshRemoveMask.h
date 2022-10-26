@@ -11,7 +11,7 @@
 
 namespace mu
 {
-	struct PROGRAM;
+	struct FProgram;
 
 	//---------------------------------------------------------------------------------------------
 	//! From a source mesh, remove a list of fragments with a condition.
@@ -38,7 +38,7 @@ namespace mu
 		void ForEachChild(const TFunctionRef<void(ASTChild&)>) override;
 		bool IsEqual(const ASTOp& otherUntyped) const override;
 		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
-		void Link(PROGRAM& program, const FLinkerOptions*) override;
+		void Link(FProgram& program, const FLinkerOptions*) override;
 		Ptr<ASTOp> OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&, OPTIMIZE_SINK_CONTEXT&) const override;
 
 		// Own interface
