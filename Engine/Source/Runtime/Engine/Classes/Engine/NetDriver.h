@@ -5,13 +5,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineBaseTypes.h"
+#include "Engine/EngineTypes.h"
 #include "Math/RandomStream.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 #include "Misc/NetworkGuid.h"
 #include "UObject/CoreNet.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "GameFramework/WorldSettings.h"
+#endif
 #include "PacketHandler.h"
 #include "Channel.h"
 #include "Net/Core/Misc/DDoSDetection.h"
