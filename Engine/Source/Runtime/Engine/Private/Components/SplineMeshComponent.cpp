@@ -1067,7 +1067,7 @@ void USplineMeshComponent::DestroyBodySetup()
 
 void USplineMeshComponent::RecreateCollision()
 {
-	if (GetStaticMesh() && IsCollisionEnabled())
+	if (GetStaticMesh())
 	{
 		if (BodySetup == NULL)
 		{

@@ -471,7 +471,7 @@ namespace Chaos
 		: FImplicitObject(EImplicitObject::HasBoundingBox | EImplicitObject::DisableCollisions, ImplicitObjectType::TriangleMesh)
 		, MParticles(MoveTemp(Particles))
 		, MElements(MoveTemp(Elements))
-		, MLocalBoundingBox(MParticles.X(0), MParticles.X(0))
+		, MLocalBoundingBox(FVec3(0), FVec3(0))
 		, MaterialIndices(MoveTemp(InMaterialIndices))
 		, ExternalFaceIndexMap(MoveTemp(InExternalFaceIndexMap))
 		, ExternalVertexIndexMap(MoveTemp(InExternalVertexIndexMap))
