@@ -366,15 +366,15 @@ namespace mu
             auto maskAt = children[op.args.ImageLayer.mask].child();
             if ( maskAt )
             {
-                vec4<float> colour;
+                FVector4f colour;
                 if ( maskAt->IsImagePlainConstant( colour ))
                 {
-                    if ( colour.xyz().AlmostNull() )
+                    if ( colour.IsNearlyZero3(UE_SMALL_NUMBER) )
                     {
                         // If the mask is black, we can skip the entire operation
                         at = children[op.args.ImageLayer.base].child();
                     }
-                    else if ( colour.xyz().AlmostEqual( vec3<float>(1,1,1) ) )
+                    else if ( colour.Equals( FVector4f(1,1,1,1), UE_SMALL_NUMBER ) )
                     {
                         // If the mask is white, we can remove it
                         auto nop = mu::Clone<ASTOpFixed>(this);

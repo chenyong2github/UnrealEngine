@@ -136,7 +136,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //!
     //---------------------------------------------------------------------------------------------
-    inline void FillPlainColourImage( Image* pImage, vec4<float> c )
+    inline void FillPlainColourImage( Image* pImage, FVector4f c )
     {
         int pixelCount = pImage->GetSizeX() * pImage->GetSizeY();
 

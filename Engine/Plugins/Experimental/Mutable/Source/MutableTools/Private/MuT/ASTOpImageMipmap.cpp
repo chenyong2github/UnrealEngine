@@ -221,7 +221,7 @@ void ASTOpImageMipmap::GetLayoutBlockSize(int* pBlockX, int* pBlockY)
 }
 
 
-bool ASTOpImageMipmap::IsImagePlainConstant(vec4<float>& colour) const
+bool ASTOpImageMipmap::IsImagePlainConstant(FVector4f& colour) const
 {
 	bool res = false;
 	if (Source.child())

@@ -871,14 +871,14 @@ FImageDesc ASTOp::GetImageDesc( bool, GetImageDescContext* )
 }
 
 
-bool ASTOp::IsImagePlainConstant( vec4<float>& ) const
+bool ASTOp::IsImagePlainConstant(FVector4f&) const
 {
     check(false);
     return false;
 }
 
 
-bool ASTOp::IsColourConstant( vec4<float>& ) const
+bool ASTOp::IsColourConstant(FVector4f&) const
 {
     check(false);
     return false;
@@ -1562,7 +1562,7 @@ int ASTOpFixed::EvaluateInt( ASTOpList& /*facts*/, bool &unknown ) const
 }
 
 
-bool ASTOpFixed::IsImagePlainConstant( vec4<float>& colour ) const
+bool ASTOpFixed::IsImagePlainConstant(FVector4f& colour) const
 {
     bool res = false;
     switch( op.type )
@@ -1596,13 +1596,13 @@ bool ASTOpFixed::IsImagePlainConstant( vec4<float>& colour ) const
         res = children[op.args.ImageInterpolate3.target0]->IsColourConstant( colour );
         if (res)
         {
-            vec4<float> baseColour;
+			FVector4f baseColour;
             res = children[op.args.ImageInterpolate3.target1]->IsColourConstant( colour );
             res &= (colour==baseColour);
         }
         if (res)
         {
-            vec4<float> baseColour;
+			FVector4f baseColour;
             res = children[op.args.ImageInterpolate3.target2]->IsColourConstant( colour );
             res &= (colour==baseColour);
         }
@@ -1620,7 +1620,7 @@ bool ASTOpFixed::IsImagePlainConstant( vec4<float>& colour ) const
 
 
 //-------------------------------------------------------------------------------------------------
-bool ASTOpFixed::IsColourConstant( vec4<float>& colour ) const
+bool ASTOpFixed::IsColourConstant(FVector4f& colour) const
 {
     bool res = false;
     switch( op.type )

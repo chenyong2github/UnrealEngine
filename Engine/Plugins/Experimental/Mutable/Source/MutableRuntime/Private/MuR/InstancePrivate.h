@@ -37,7 +37,7 @@ namespace mu
 
 		struct VECTOR
 		{
-			VECTOR( const vec4<float>& v, const char* strName )
+			VECTOR( const FVector4f& v, const char* strName )
 			{
 				m_vec = v;
 				if (strName)
@@ -46,7 +46,7 @@ namespace mu
 				}
 			}
 
-			vec4<float> m_vec;
+			FVector4f m_vec;
 			string m_name;
 		};
 
@@ -151,7 +151,7 @@ namespace mu
 		int AddSurface( int lod, int comp );
         void SetSurfaceName( int lod, int comp, int surf, const char* strName );
         int AddImage( int lod, int comp, int surf, RESOURCE_ID, const char* strName );
-        int AddVector( int lod, int comp, int surf, const vec4<float>&, const char* strName );
+        int AddVector( int lod, int comp, int surf, const FVector4f&, const char* strName );
         int AddScalar( int lod, int comp, int surf, float, const char* strName );
         int AddString( int lod, int comp, int surf, const char* strValue, const char* strName );
     };

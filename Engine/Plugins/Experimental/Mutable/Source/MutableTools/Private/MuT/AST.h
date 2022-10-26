@@ -683,8 +683,8 @@ namespace mu
         //! Return the size in pixels of the layout grid block for the image operation
         virtual void GetLayoutBlockSize( int* pBlockX, int* pBlockY );
 
-        virtual bool IsImagePlainConstant( vec4<float>& colour ) const;
-        virtual bool IsColourConstant( vec4<float>& colour ) const;
+        virtual bool IsImagePlainConstant(FVector4f& colour ) const;
+        virtual bool IsColourConstant(FVector4f& colour ) const;
 
         //!
         virtual bool GetNonBlackRect( FImageRect& maskUsage ) const;
@@ -978,8 +978,8 @@ namespace mu
         Ptr<ASTOp> OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&, OPTIMIZE_SINK_CONTEXT&) const override;
         FBoolEvalResult EvaluateBool( ASTOpList& facts, FEvaluateBoolCache* cache ) const override;
         int EvaluateInt( ASTOpList& facts, bool &unknown ) const override;
-        bool IsImagePlainConstant( vec4<float>& colour ) const override;
-        bool IsColourConstant( vec4<float>& colour ) const override;
+        bool IsImagePlainConstant(FVector4f& colour ) const override;
+        bool IsColourConstant(FVector4f& colour ) const override;
         Ptr<ImageSizeExpression> GetImageSizeExpression() const override;
 
         //---------------------------------------------------------------------------------------------

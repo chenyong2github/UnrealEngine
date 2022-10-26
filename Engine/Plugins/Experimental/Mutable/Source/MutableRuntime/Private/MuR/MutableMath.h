@@ -455,17 +455,6 @@ namespace mu
 		}
 
 		//-----------------------------------------------------------------------------------------
-		inline bool AlmostNull( SCALAR tol = std::numeric_limits<SCALAR>::min() ) const
-		{
-			bool res = true;
-			for( int i=0; i<DIM; ++i )
-			{
-				res &= fabs(m[i])<tol;
-			}
-			return res;
-		}
-
-		//-----------------------------------------------------------------------------------------
 		inline void Serialise( OutputArchive& arch ) const
 		{
 			for( int i=0; i<DIM; ++i )
@@ -595,6 +584,14 @@ namespace mu
 
 		//-----------------------------------------------------------------------------------------
 		inline vec3(const FVector3f& other)
+		{
+			this->m[0] = other[0];
+			this->m[1] = other[1];
+			this->m[2] = other[2];
+		}
+
+		//-----------------------------------------------------------------------------------------
+		inline vec3(const FVector4f& other)
 		{
 			this->m[0] = other[0];
 			this->m[1] = other[1];
@@ -939,84 +936,6 @@ namespace mu
 	{
 		return a * rsqrt_approx( dot(a,a) );
 	}
-
-
-	//---------------------------------------------------------------------------------------------
-	//! Angle between two vectors, in radians
-	//---------------------------------------------------------------------------------------------
-	inline float angle( const vec3f& a, const vec3f& b )
-	{
-		float s = sqrt( dot(a,a) * dot(b,b) );
-
-		if ( s > std::numeric_limits<float>::min() )
-		{
-			return acos( dot(a,b) / s );
-		}
-		else
-		{
-			return 0.0f;
-		}
-	}
-
-
-	//---------------------------------------------------------------------------------------------
-	//!
-	//---------------------------------------------------------------------------------------------
-	template <class SCALAR>
-	class vec4 : public vec<SCALAR,4>
-	{
-	public:
-
-		//-----------------------------------------------------------------------------------------
-		inline vec4()
-		{
-			// Elements are cleared in the parent constructor
-		}
-
-		//-----------------------------------------------------------------------------------------
-		inline vec4( SCALAR x, SCALAR y, SCALAR z, SCALAR w )
-		{
-			this->m[0] = x;
-			this->m[1] = y;
-			this->m[2] = z;
-			this->m[3] = w;
-		}
-
-        //-----------------------------------------------------------------------------------------
-        inline vec4( const vec<SCALAR,4>& other )
-        {
-            this->m[0] = other[0];
-            this->m[1] = other[1];
-            this->m[2] = other[2];
-            this->m[3] = other[3];
-        }
-
-        //-----------------------------------------------------------------------------------------
-        inline vec4( const vec<SCALAR,3>& other, float w )
-        {
-            this->m[0] = other[0];
-            this->m[1] = other[1];
-            this->m[2] = other[2];
-            this->m[3] = w;
-        }
-
-        //-----------------------------------------------------------------------------------------
-        inline vec3<SCALAR> xyz() const
-        {
-            return vec3<SCALAR>( this->m[0], this->m[1], this->m[2] );
-        }
-
-        //-----------------------------------------------------------------------------------------
-        inline vec2<SCALAR> xy() const
-        {
-            return vec2<SCALAR>( this->m[0], this->m[1] );
-        }
-
-	};
-
-	//!
-	typedef vec4<float> vec4f;
-    MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE( vec4f );
 
 
 	//!
@@ -1523,17 +1442,6 @@ namespace mu
 			for( int i=0; i<DIM; ++i )
 			{
 				res &= m[i].AlmostEqual(other.m[i],tol);
-			}
-			return res;
-		}
-
-		//-----------------------------------------------------------------------------------------
-		inline bool AlmostNull( SCALAR tol = std::numeric_limits<SCALAR>::min() ) const
-		{
-			bool res = true;
-			for( int i=0; i<DIM; ++i )
-			{
-				res &= m[i].AlmostNull( tol );
 			}
 			return res;
 		}

@@ -77,16 +77,16 @@ namespace mu
                 		continue;
                 	}
                 
-                    auto channelBaseIter = baseChannelsIters[c] + v;
-                    auto channelMorphIter = morphChannelsIters[c] + m;
+                    UntypedMeshBufferIterator channelBaseIter = baseChannelsIters[c] + v;
+					UntypedMeshBufferIteratorConst channelMorphIter = morphChannelsIters[c] + m;
                    
-                    const auto dstChannelFormat = baseChannelsIters[c].GetFormat();
-                    const auto dstChannelComps = baseChannelsIters[c].GetComponents();
+                    const MESH_BUFFER_FORMAT dstChannelFormat = baseChannelsIters[c].GetFormat();
+                    const int dstChannelComps = baseChannelsIters[c].GetComponents();
 
                     // Apply Morph to range found above.
                     for ( int32 r = 0; r < runSize; ++r, ++channelBaseIter, ++channelMorphIter )
                     {
-                        const vec4<float> value = channelBaseIter.GetAsVec4f() + channelMorphIter.GetAsVec4f()*factor;
+                        const FVector4f value = channelBaseIter.GetAsVec4f() + channelMorphIter.GetAsVec4f()*factor;
 
                         // TODO: Optimize this for the specific components.
                         // Max 4 components

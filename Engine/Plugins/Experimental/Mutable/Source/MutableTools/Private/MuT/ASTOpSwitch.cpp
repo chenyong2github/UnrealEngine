@@ -401,7 +401,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	bool ASTOpSwitch::IsImagePlainConstant(vec4<float>&) const
+	bool ASTOpSwitch::IsImagePlainConstant(FVector4f&) const
 	{
 		// We could check if every option is plain and exactly the same colour, but probably it is
 		// not worth.

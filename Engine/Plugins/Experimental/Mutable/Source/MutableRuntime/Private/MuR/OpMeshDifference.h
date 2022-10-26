@@ -92,7 +92,7 @@ struct MORPH_VERTEX
 		int differentVertexCount = 0;
 		TArray<bool> isVertexDifferent;
 		isVertexDifferent.SetNumZeroed(vcount);
-		TArray< vec4<float> > deltas;
+		TArray< FVector4f > deltas;
 		deltas.SetNum(vcount * numChannels);
 
 		for ( int c=0; c<numChannels; ++c )
@@ -105,12 +105,12 @@ struct MORPH_VERTEX
 
 			for ( size_t v=0; v<vcount; ++v )
 			{
-				vec4<float> base = baseIt.GetAsVec4f();			
-				vec4<float> target = targetIt.GetAsVec4f();		
-				vec4<float> delta = target-base;
+				FVector4f base = baseIt.GetAsVec4f();
+				FVector4f target = targetIt.GetAsVec4f();
+				FVector4f delta = target-base;
 				deltas[ v*numChannels+c ] = delta;		
 
-				if (!delta.AlmostNull())
+				if (!delta.Equals(FVector4f(0,0,0,0),UE_SMALL_NUMBER))
 				{
 					if ( !isVertexDifferent[v] )
 					{
@@ -185,7 +185,7 @@ struct MORPH_VERTEX
 					// all channels
 					for ( int c=0; c<numChannels; ++c )
 					{
-						*((vec4<float>*)pDestData) = deltas[ v*numChannels+c ];		
+						*((FVector4f*)pDestData) = deltas[ v*numChannels+c ];
 						pDestData += 4*4;											
 					}
 				}

@@ -1416,7 +1416,7 @@ struct AdjacentFaces
 };
 
 
-void PlanarlyProjectVertex(const FVector3f& unfoldedPosition, vec4f& projectedPosition,
+void PlanarlyProjectVertex(const FVector3f& unfoldedPosition, FVector4f& projectedPosition,
 	const FProjector& projector, const FVector3f& projectorPosition, const FVector3f& projectorDirection, const FVector3f& s, const FVector3f& u)
 {
 	float x = FVector3f::DotProduct( unfoldedPosition - projectorPosition, s ) / projector.scale[0] + 0.5f;
@@ -2020,7 +2020,7 @@ void MeshProject_Optimised_Wrapping( const Mesh* pMesh,
                 GetBarycentricCoords(out_intersection, v3_0, v3_1, v3_2, outIntersectionBaricentric[0], outIntersectionBaricentric[1], outIntersectionBaricentric[2]);
 				FVector2f outIntersectionUV = pVertices[i0].uv * outIntersectionBaricentric[0] + pVertices[i1].uv * outIntersectionBaricentric[1] + pVertices[i2].uv * outIntersectionBaricentric[2];
 
-                vec4f proj4D_v0, proj4D_v1, proj4D_v2;
+				FVector4f proj4D_v0, proj4D_v1, proj4D_v2;
                 PlanarlyProjectVertex(pVertices[i0].pos, proj4D_v0, projector2, projectorPosition2, projectorDirection2, s2, u2);
                 PlanarlyProjectVertex(pVertices[i1].pos, proj4D_v1, projector2, projectorPosition2, projectorDirection2, s2, u2);
                 PlanarlyProjectVertex(pVertices[i2].pos, proj4D_v2, projector2, projectorPosition2, projectorDirection2, s2, u2);

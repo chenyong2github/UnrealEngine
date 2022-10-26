@@ -319,7 +319,7 @@ namespace mu
 		//-----------------------------------------------------------------------------------------
 
 		//! Sample the image and return an RGB colour.
-		vec4<float> Sample(vec2<float> coords) const;
+		FVector4f Sample(FVector2f coords) const;
 
 		//! Calculate the size of the image data in bytes, regardless of what is allocated in
 		//! m_data, only using the image descriptions. For non-block-compressed images, it returns
@@ -354,7 +354,7 @@ namespace mu
 		int32 GetMipsDataSize() const;
 
 		//! See if all the pixels in the image are equal and return the colour.
-		bool IsPlainColour(vec4<float>& colour) const;
+		bool IsPlainColour(FVector4f& colour) const;
 
 		//! See if all the pixels in the alpha channel are the max value of the pixel format
 		//! (white).

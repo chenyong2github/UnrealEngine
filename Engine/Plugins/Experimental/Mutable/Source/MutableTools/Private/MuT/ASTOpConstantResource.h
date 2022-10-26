@@ -70,7 +70,7 @@ template <class SCALAR> class vec4;
 			BLOCK_LAYOUT_SIZE_CACHE* cache) override;
 		void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;
 		bool GetNonBlackRect(FImageRect& maskUsage) const override;
-		bool IsImagePlainConstant(vec4<float>& colour) const override;
+		bool IsImagePlainConstant(FVector4f& colour) const override;
 		Ptr<ImageSizeExpression> GetImageSizeExpression() const override;
 	};
 

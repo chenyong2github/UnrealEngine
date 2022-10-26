@@ -721,41 +721,16 @@ namespace mu
     public:
 
         //!
-        ModelPtrConst m_pModel;
-        SystemPtr m_pSystem;
+        Ptr<const Model> m_pModel;
+        Ptr<System> m_pSystem;
 
         //! Number of possible instances
         int64 m_instanceCount;
 
-        //!
-        struct PARAMETER_INTERVAL_VALUE
-        {
-            //! Minimum instance index to use these increments
-            int m_minIndex;
-
-            //! Parameter value in this interval
-            int m_value;
-        };
-
-        //!
-        struct PARAMETER_INTERVALS
-        {
-            //! As many entries as necessary
-            //! Sorted by PARAMETER_INCREMENTS_PER_VALUE::m_minIndex
-			TArray<PARAMETER_INTERVAL_VALUE> m_intervalValue;
-        };
-
-        //! An entry for every parameter in the model
-		TArray< PARAMETER_INTERVALS > m_intervals;
-
-        //! Whether to use brute force, or consider the parameter relevancy
-        bool m_considerRelevancy;
-
-        //! Build the interval information
-		uint32 BuildIntervals( uint32 currentInstanceIndex, uint32 currentParameter, TArray<int>& currentValues );
-
-        //! Get the parameter values for a particular instance index
-		TArray<int> GetParameters( int instanceIndex );
+		/** Value used for scalar paramters that control multidemnsional sizes. 
+		* TODO: Make it an option.
+		*/
+		int32 DefaultRangeDimension = 8;
     };
 
 }

@@ -36,7 +36,6 @@
 
 namespace mu
 {
-    static_assert( sizeof(vec4f) == 16, "UNEXPECTED_STRUCT_PACKING" );
     static_assert( sizeof(mat4f) == 64, "UNEXPECTED_STRUCT_PACKING" );
 
     //!
@@ -700,7 +699,7 @@ namespace mu
 		float* pG,
 		float* pB)
 	{
-		vec4f col;
+		FVector4f col;
 
 		mu::OP_TYPE opType = pModel->GetPrivate()->m_program.GetOpType(at);
 		if (GetOpDataType(opType) == DT_COLOUR)

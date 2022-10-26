@@ -498,9 +498,9 @@ namespace mu
 	}
 
     //---------------------------------------------------------------------------------------------
-    vec4<float> Image::Sample( vec2<float> coords ) const
+    FVector4f Image::Sample( FVector2f coords ) const
     {
-        vec4<float> result;
+		FVector4f result;
 
         if (m_size[0]==0 || m_size[1]==0) { return result; }
 
@@ -567,7 +567,7 @@ namespace mu
     }
 
     //---------------------------------------------------------------------------------------------
-    bool Image::IsPlainColour( vec4<float>& colour ) const
+    bool Image::IsPlainColour(FVector4f& colour) const
     {
         bool res = true;
 

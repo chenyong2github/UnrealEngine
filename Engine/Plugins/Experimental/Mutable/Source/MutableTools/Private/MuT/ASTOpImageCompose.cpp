@@ -167,7 +167,7 @@ mu::Ptr<ImageSizeExpression> ASTOpImageCompose::GetImageSizeExpression() const
 }
 
 
-bool ASTOpImageCompose::IsImagePlainConstant(vec4<float>& colour) const
+bool ASTOpImageCompose::IsImagePlainConstant(FVector4f& colour) const
 {
 	bool res = false;
 
@@ -178,7 +178,7 @@ bool ASTOpImageCompose::IsImagePlainConstant(vec4<float>& colour) const
 
 	if (res && Base.child())
 	{
-		vec4<float> baseColour;
+		FVector4f baseColour;
 		res = Base->IsImagePlainConstant(baseColour);
 		res &= (colour == baseColour);
 	}

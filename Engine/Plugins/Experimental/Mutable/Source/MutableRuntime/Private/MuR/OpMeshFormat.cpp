@@ -201,49 +201,10 @@ namespace mu
 
 					// Special case for derived channel data
 					bool generated = false;
-					if (resultSemantic == MBS_TANGENTSIGN)
-					{
-						// Look for the full tangent space
-						int tanXBuf, tanXChan, tanYBuf, tanYChan, tanZBuf, tanZChan;
-						Source.FindChannel(MBS_TANGENT, resultSemanticIndex, &tanXBuf, &tanXChan);
-						Source.FindChannel(MBS_BINORMAL, resultSemanticIndex, &tanYBuf, &tanYChan);
-						Source.FindChannel(MBS_NORMAL, resultSemanticIndex, &tanZBuf, &tanZChan);
-
-						if (tanXBuf >= 0 && tanYBuf >= 0 && tanZBuf >= 0)
-						{
-							generated = true;
-							UntypedMeshBufferIteratorConst xIt(Source, MBS_TANGENT, resultSemanticIndex);
-							UntypedMeshBufferIteratorConst yIt(Source, MBS_BINORMAL, resultSemanticIndex);
-							UntypedMeshBufferIteratorConst zIt(Source, MBS_NORMAL, resultSemanticIndex);
-							for (int v = 0; v < vCount; ++v)
-							{
-								mat3f mat;
-								mat[0] = xIt.GetAsVec4f().xyz();
-								mat[1] = yIt.GetAsVec4f().xyz();
-								mat[2] = zIt.GetAsVec4f().xyz();
-								float sign = mat.GetDeterminant() < 0 ? -1.0f : 1.0f;
-								ConvertData(0, pResultBuf, resultFormat, &sign, MBF_FLOAT32);
-
-								for (int i = 1; i < resultComponents; ++i)
-								{
-									// Add zeros
-									FMemory::Memzero
-									(
-										pResultBuf + GetMeshFormatData(resultFormat).m_size * i,
-										GetMeshFormatData(resultFormat).m_size
-									);
-								}
-								pResultBuf += resultElemSize;
-								xIt++;
-								yIt++;
-								zIt++;
-							}
-						}
-					}
 
 					// If we have to add colour channels, we will add them as white, to be neutral.
 					// \todo: normal channels also should have special values.
-					else if (resultSemantic == MBS_COLOUR)
+					if (resultSemantic == MBS_COLOUR)
 					{
 						generated = true;
 
@@ -380,9 +341,9 @@ namespace mu
 								xIt += v;
 								yIt += v;
 								zIt += v;
-								mat[0] = xIt.GetAsVec4f().xyz();
-								mat[1] = yIt.GetAsVec4f().xyz();
-								mat[2] = zIt.GetAsVec4f().xyz();
+								mat[0] = vec3f(xIt.GetAsVec3f());
+								mat[1] = vec3f(yIt.GetAsVec3f());
+								mat[2] = vec3f(zIt.GetAsVec3f());
 
 								uint8_t sign = 0;
 								if (resultFormat == MBF_PACKEDDIR8_W_TANGENTSIGN)

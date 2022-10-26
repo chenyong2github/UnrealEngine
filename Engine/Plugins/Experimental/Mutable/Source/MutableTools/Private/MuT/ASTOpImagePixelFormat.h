@@ -37,7 +37,7 @@ template <class SCALAR> class vec4;
 		Ptr<ASTOp> OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS& options, OPTIMIZE_SINK_CONTEXT& context) const override;
 		FImageDesc GetImageDesc(bool returnBestOption, GetImageDescContext* context) override;
 		void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;
-		bool IsImagePlainConstant(vec4<float>& colour) const override;
+		bool IsImagePlainConstant(FVector4f& colour) const override;
 		Ptr<ImageSizeExpression> GetImageSizeExpression() const override;
 
 	};

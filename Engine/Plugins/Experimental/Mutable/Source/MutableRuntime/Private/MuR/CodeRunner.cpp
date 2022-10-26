@@ -253,7 +253,7 @@ namespace mu
 				case DT_INT:        GetMemory().SetInt(item, 0); break;
 				case DT_SCALAR:		GetMemory().SetScalar(item, 0.0f); break;
 				case DT_STRING:		GetMemory().SetString(item, nullptr); break;
-				case DT_COLOUR:		GetMemory().SetColour(item, vec4f()); break;
+				case DT_COLOUR:		GetMemory().SetColour(item, FVector4f()); break;
 				case DT_PROJECTOR:  GetMemory().SetProjector(item, nullptr); break;
 				case DT_MESH:       GetMemory().SetMesh(item, nullptr); break;
 				case DT_IMAGE:      GetMemory().SetImage(item, nullptr); break;
@@ -369,7 +369,7 @@ namespace mu
 
                 if ( args.value )
                 {
-                    vec4f value = GetMemory().GetColour( CACHE_ADDRESS(args.value,item) );
+					FVector4f value = GetMemory().GetColour( CACHE_ADDRESS(args.value,item) );
 
                     OP::ADDRESS nameAd = args.name;
                     check(  nameAd < (uint32)pModel->GetPrivate()->m_program.m_constantStrings.Num() );
@@ -3345,7 +3345,7 @@ namespace mu
 
         case OP_TYPE::IM_SWIZZLE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageSwizzleArgs>(item.at);
+			OP::ImageSwizzleArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageSwizzleArgs>(item.at);
             switch (item.stage)
             {
             case 0:
@@ -3370,7 +3370,7 @@ namespace mu
 
         case OP_TYPE::IM_SELECTCOLOUR:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageSelectColourArgs>(item.at);
+			OP::ImageSelectColourArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageSelectColourArgs>(item.at);
             switch (item.stage)
             {
             case 0:
@@ -3382,9 +3382,9 @@ namespace mu
             case 1:
             {
                 Ptr<const Image> pBase = GetMemory().GetImage( CACHE_ADDRESS(args.base,item) );
-                vec4<float> colour = GetMemory().GetColour(SCHEDULED_OP::FromOpAndOptions(args.colour, item, 0));
+				FVector4f colour = GetMemory().GetColour(SCHEDULED_OP::FromOpAndOptions(args.colour, item, 0));
 
-               ImagePtr pResult = ImageSelectColour( pBase.get(), colour.xyz() );
+				Ptr<Image> pResult = ImageSelectColour( pBase.get(), vec3f(colour) );
 
                 GetMemory().SetImage( item, pResult );
                 break;
@@ -3399,7 +3399,7 @@ namespace mu
 
         case OP_TYPE::IM_COLOURMAP:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageColourMapArgs>(item.at);
+			OP::ImageColourMapArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageColourMapArgs>(item.at);
             switch (item.stage)
             {
             case 0:
@@ -3438,7 +3438,7 @@ namespace mu
 
         case OP_TYPE::IM_GRADIENT:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageGradientArgs>(item.at);
+			OP::ImageGradientArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageGradientArgs>(item.at);
             switch (item.stage)
             {
             case 0:
@@ -3449,10 +3449,10 @@ namespace mu
 
             case 1:
             {
-                vec4<float> colour0 = GetMemory().GetColour(SCHEDULED_OP::FromOpAndOptions(args.colour0, item, 0));
-                vec4<float> colour1 = GetMemory().GetColour(SCHEDULED_OP::FromOpAndOptions(args.colour1, item, 0));
+				FVector4f colour0 = GetMemory().GetColour(SCHEDULED_OP::FromOpAndOptions(args.colour0, item, 0));
+				FVector4f colour1 = GetMemory().GetColour(SCHEDULED_OP::FromOpAndOptions(args.colour1, item, 0));
 
-                ImagePtr pResult = ImageGradient( colour0.xyz(), colour1.xyz(),
+                ImagePtr pResult = ImageGradient( colour0, colour1,
                                                   args.size[0],
                                                   args.size[1] );
 
@@ -3469,7 +3469,7 @@ namespace mu
 
         case OP_TYPE::IM_BINARISE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageBinariseArgs>(item.at);
+			OP::ImageBinariseArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ImageBinariseArgs>(item.at);
             switch (item.stage)
             {
             case 0:
@@ -3536,7 +3536,7 @@ namespace mu
 
             case 1:
             {
-                mu::vec4f c = GetMemory().GetColour(SCHEDULED_OP::FromOpAndOptions(args.colour, item, 0));
+				FVector4f c = GetMemory().GetColour(SCHEDULED_OP::FromOpAndOptions(args.colour, item, 0));
 
 				uint16 SizeX = args.size[0];
 				uint16 SizeY = args.size[1];
@@ -4539,7 +4539,7 @@ namespace mu
         case OP_TYPE::CO_CONSTANT:
         {
 			OP::ColourConstantArgs args = program.GetOpArgs<OP::ColourConstantArgs>(item.at);
-            vec4f result;
+			FVector4f result;
             result[0] = args.value[0];
             result[1] = args.value[1];
             result[2] = args.value[2];
@@ -4556,7 +4556,7 @@ namespace mu
             float g=0.0f;
             float b=0.0f;            
             pParams->GetColourValue( args.variable, &r, &g, &b, index );
-            GetMemory().SetColour( item, vec4f(r,g,b,1.0f) );
+            GetMemory().SetColour( item, FVector4f(r,g,b,1.0f) );
             break;
         }
 
@@ -4580,22 +4580,22 @@ namespace mu
 
                 Ptr<const Image> pImage = GetMemory().GetImage(SCHEDULED_OP::FromOpAndOptions(args.image, item, 0));
 
-                vec4f result;
+				FVector4f result;
                 if (pImage)
                 {
                     if (args.filter)
                     {
                         // TODO
-                        result = pImage->Sample(vec2<float>(x, y));
+                        result = pImage->Sample(FVector2f(x, y));
                     }
                     else
                     {
-                        result = pImage->Sample(vec2<float>(x, y));
+                        result = pImage->Sample(FVector2f(x, y));
                     }
                 }
                 else
                 {
-                    result = vec4f();
+                    result = FVector4f();
                 }
 
                 GetMemory().SetColour( item, result );
@@ -4624,7 +4624,7 @@ namespace mu
 
             case 1:
             {
-                vec4f result;
+				FVector4f result;
 
                 for (int t=0;t<MUTABLE_OP_MAX_SWIZZLE_CHANNELS;++t)
                 {
@@ -4660,7 +4660,7 @@ namespace mu
             {
                 Ptr<const Image> pImage = GetMemory().GetImage( CACHE_ADDRESS(args.image,item) );
 
-                vec4f result = vec4f( (float)pImage->GetSizeX(), (float)pImage->GetSizeY(), 0.0f, 0.0f );
+				FVector4f result = FVector4f( (float)pImage->GetSizeX(), (float)pImage->GetSizeY(), 0.0f, 0.0f );
 
                 GetMemory().SetColour( item, result );
                 break;
@@ -4687,7 +4687,7 @@ namespace mu
             {
                 Ptr<const Layout> pLayout = GetMemory().GetLayout( CACHE_ADDRESS(args.layout,item) );
 
-                vec4f result = vec4f(0,0,0,0);
+				FVector4f result = FVector4f(0,0,0,0);
                 if ( pLayout )
                 {
                     int relBlockIndex = pLayout->FindBlock( args.block );
@@ -4705,7 +4705,7 @@ namespace mu
                         // Convert the rect from blocks to pixels
                         FIntPoint grid = pLayout->GetGridSize();
 
-                        result = vec4<float>( float(rectInblocks.min[0]) / float(grid[0]),
+                        result = FVector4f( float(rectInblocks.min[0]) / float(grid[0]),
                                               float(rectInblocks.min[1]) / float(grid[1]),
                                               float(rectInblocks.size[0]) / float(grid[0]),
                                               float(rectInblocks.size[1]) / float(grid[1]) );
@@ -4738,7 +4738,7 @@ namespace mu
 
             case 1:
             {
-                vec4f result = vec4f(1, 1, 1, 1);
+				FVector4f result = FVector4f(1, 1, 1, 1);
 
                 if (args.x)
                 {
@@ -4790,12 +4790,12 @@ namespace mu
                 otype = program.GetOpType( args.b );
                 dtype = GetOpDataType( otype );
                 check( dtype == DT_COLOUR );
-                vec4f a = args.a ? GetMemory().GetColour( CACHE_ADDRESS( args.a, item ) )
-                                 : vec4f( 0, 0, 0, 0 );
-                vec4f b = args.b ? GetMemory().GetColour( CACHE_ADDRESS( args.b, item ) )
-                                 : vec4f( 0, 0, 0, 0 );
+				FVector4f a = args.a ? GetMemory().GetColour( CACHE_ADDRESS( args.a, item ) )
+                                 : FVector4f( 0, 0, 0, 0 );
+				FVector4f b = args.b ? GetMemory().GetColour( CACHE_ADDRESS( args.b, item ) )
+                                 : FVector4f( 0, 0, 0, 0 );
 
-                vec4f result = vec4f(0,0,0,0);
+				FVector4f result = FVector4f(0,0,0,0);
                 switch (args.operation)
                 {
                 case OP::ArithmeticArgs::ADD:
@@ -4845,14 +4845,14 @@ namespace mu
     {
         MUTABLE_CPUPROFILER_SCOPE(RunCode_Projector);
 
-        const auto& program = pModel->GetPrivate()->m_program;
+        const FProgram& program = pModel->GetPrivate()->m_program;
 		OP_TYPE type = program.GetOpType(item.at);
         switch (type)
         {
 
         case OP_TYPE::PR_CONSTANT:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>(item.at);
+			OP::ResourceConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>(item.at);
             ProjectorPtr pResult = new Projector();
             pResult->m_value = program.m_constantProjectors[args.value];
             GetMemory().SetProjector( item, pResult );
@@ -4861,13 +4861,13 @@ namespace mu
 
         case OP_TYPE::PR_PARAMETER:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.at);
+			OP::ParameterArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ParameterArgs>(item.at);
 			Ptr<RangeIndex> index = BuildCurrentOpRangeIndex( item, pParams, pModel, args.variable );
             ProjectorPtr pResult = new Projector();
             pResult->m_value = pParams->GetPrivate()->GetProjectorValue(args.variable,index);
 
             // The type cannot be changed, take it from the default value
-            const auto& def = program.m_parameters[args.variable].m_defaultValue.m_projector;
+            const FProjector& def = program.m_parameters[args.variable].m_defaultValue.m_projector;
             pResult->m_value.type = def.type;
 
             GetMemory().SetProjector( item, pResult );

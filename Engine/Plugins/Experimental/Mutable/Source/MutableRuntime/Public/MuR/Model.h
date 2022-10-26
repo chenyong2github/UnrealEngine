@@ -131,12 +131,7 @@ namespace mu
     //!
     //! This class can be used to generate all the possible instances of a model, or to generate
     //! random instances. It only takes into account discrete parameters (bools and ints) but not
-    //! continuous parameters like colours and floats.
-    //!
-    //! The use of this class can be very expensive for complex models, since the number of
-    //! combinations grows geometrically. If considerRelevancy is set to false, a brute force
-    //! approach will be used, but this will generate duplicated instances when changing parameters
-    //! that are not relevant.
+    //! continuous parameters like colours and floats, which may be set to random values.
     //!
     //! \ingroup runtime
     class MUTABLERUNTIME_API ModelParametersGenerator : public RefCounted
@@ -144,7 +139,7 @@ namespace mu
     public:
 
         //!
-        ModelParametersGenerator( const Model* pModel, System* pSystem, bool considerRelevancy=true );
+        ModelParametersGenerator( const Model* pModel, System* pSystem );
 
         //! Return the number of different possible instances that can be built from the model.
         int64 GetInstanceCount();
@@ -153,12 +148,12 @@ namespace mu
         //! \param index is an index in the range of 0 to GetInstanceCount-1
         //! \param randomGenerator if not null, this function will be used to generate random values
         //! for the continuous parameters of the instance.
-        ParametersPtr GetInstance( int64 index, float (*randomGenerator )() );
+        ParametersPtr GetInstance( int64 index, TFunction<float()> RandomGenerator);
 
         //! Return the parameters of one of a random instance of the model.
         //! \param randomGenerator This function will be used to generate random values
         //! for the continuous parameters of the instance.
-        ParametersPtr GetRandomInstance(TFunctionRef<float()> randomGenerator );
+        ParametersPtr GetRandomInstance(TFunctionRef<float()> RandomGenerator );
 
         //-----------------------------------------------------------------------------------------
         // Interface pattern

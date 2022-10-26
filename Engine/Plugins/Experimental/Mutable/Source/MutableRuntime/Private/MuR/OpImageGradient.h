@@ -10,8 +10,8 @@
 namespace mu
 {
 
-	inline ImagePtr ImageGradient( const vec3<float>& c0,
-								   const vec3<float>& c1,
+	inline ImagePtr ImageGradient( const FVector4f& c0,
+								   const FVector4f& c1,
 								   int sizeX, int sizeY )
 	{
 		ImagePtr pDest = new Image((uint16)sizeX, (uint16)sizeY, 1, EImageFormat::IF_RGB_UBYTE );

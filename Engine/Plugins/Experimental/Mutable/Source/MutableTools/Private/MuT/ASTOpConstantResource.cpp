@@ -268,7 +268,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	bool ASTOpConstantResource::IsImagePlainConstant(vec4<float>& colour) const
+	bool ASTOpConstantResource::IsImagePlainConstant(FVector4f& colour) const
 	{
 		bool res = false;
 		switch (type)
@@ -285,7 +285,7 @@ namespace mu
 				if (pImage->m_flags & Image::IF_IS_PLAIN_COLOUR)
 				{
 					res = true;
-					colour = pImage->Sample(vec2<float>(0, 0));
+					colour = pImage->Sample(FVector2f(0, 0));
 				}
 				else
 				{

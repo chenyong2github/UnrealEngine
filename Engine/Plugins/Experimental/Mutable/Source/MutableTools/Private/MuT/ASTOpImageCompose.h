@@ -40,7 +40,7 @@ template <class SCALAR> class vec4;
 		Ptr<ASTOp> OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS& options) const;
 		FImageDesc GetImageDesc(bool returnBestOption, GetImageDescContext* context) override;
 		void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;
-		bool IsImagePlainConstant(vec4<float>& colour) const override;
+		bool IsImagePlainConstant(FVector4f& colour) const override;
 		Ptr<ImageSizeExpression> GetImageSizeExpression() const override;
 
 	};

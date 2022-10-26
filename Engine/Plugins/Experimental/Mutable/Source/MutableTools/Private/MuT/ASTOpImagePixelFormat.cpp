@@ -244,7 +244,7 @@ void ASTOpImagePixelFormat::GetLayoutBlockSize(int* pBlockX, int* pBlockY)
 }
 
 
-bool ASTOpImagePixelFormat::IsImagePlainConstant(vec4<float>& colour) const
+bool ASTOpImagePixelFormat::IsImagePlainConstant(FVector4f& colour) const
 {
 	bool res = false;
 	if (Source.child())

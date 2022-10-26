@@ -20,8 +20,8 @@ namespace mu
 	class Colour : public RefCounted
 	{
 	public:
-		Colour(vec4f v = vec4f()) : m_colour(v) {}
-		vec4f m_colour;
+		Colour(FVector4f v = FVector4f()) : m_colour(v) {}
+		FVector4f m_colour;
 	};
 	typedef Ptr<Colour> ColourPtr;
 
@@ -595,18 +595,18 @@ namespace mu
 			return pResult ? pResult->m_value : 0;
 		}
 
-		vec4f GetColour(CACHE_ADDRESS at)
+		FVector4f GetColour(CACHE_ADDRESS at)
 		{
-			if (!at.at) return vec4f();
+			if (!at.at) return FVector4f();
 			auto d = m_resources.get_ptr(at);
-			if (!d) return vec4f();
+			if (!d) return FVector4f();
 
 			Ptr<const Colour> pResult;
 			if (at.at)
 			{
 				pResult = (const Colour*)d->Value.get();
 			}
-			return pResult ? pResult->m_colour : vec4f();
+			return pResult ? pResult->m_colour : FVector4f();
 		}
 
 		Ptr<const Projector> GetProjector(CACHE_ADDRESS at)
@@ -703,7 +703,7 @@ namespace mu
 			m_resources[at] = TPair<int, Ptr<const RefCounted>>(1, pResult);
 		}
 
-		void SetColour(CACHE_ADDRESS at, const vec4f& v)
+		void SetColour(CACHE_ADDRESS at, const FVector4f& v)
 		{
 			check(at.at < m_resources.size_code());
 

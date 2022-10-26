@@ -74,7 +74,7 @@ template <class SCALAR> class vec4;
 		void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;
 		Ptr<ASTOp> OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS&) const override;
 		bool GetNonBlackRect(FImageRect& maskUsage) const override;
-		bool IsImagePlainConstant(vec4<float>& colour) const override;
+		bool IsImagePlainConstant(FVector4f& colour) const override;
 		Ptr<ImageSizeExpression> GetImageSizeExpression() const override;
 
 		// Own interface

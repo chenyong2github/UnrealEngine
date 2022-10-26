@@ -110,7 +110,7 @@ namespace mu
 		MBS_OTHER,
 
         //! Sign to define the orientation of the tangent space.
-        MBS_TANGENTSIGN,
+        MBS_TANGENTSIGN_DEPRECATED,
 
 		//! Semantics usefule for mesh binding.
 		MBS_TRIANGLEINDEX,

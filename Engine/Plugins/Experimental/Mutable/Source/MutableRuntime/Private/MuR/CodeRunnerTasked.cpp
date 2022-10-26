@@ -571,8 +571,8 @@ namespace mu
 	private:
 		int m_imageCompressionQuality = 0;
 		OP::ImageLayerColourArgs Args;
+		FVector4f m_col;
 		Ptr<const Image> m_base;
-		vec4<float> m_col;
 		Ptr<const Image> m_mask;
 		Ptr<const Image> Result;
 	};
@@ -633,16 +633,16 @@ namespace mu
 			// \todo: precalculated tables for softlight
 			switch (EBlendType(Args.blendType))
 			{
-			case EBlendType::BT_NORMAL_COMBINE: ImageNormalCombine(pNew.get(), m_base.get(), m_mask.get(), m_col.xyz()); break;
-			case EBlendType::BT_SOFTLIGHT: ImageSoftLight(pNew.get(), m_base.get(), m_mask.get(), m_col.xyz(), nullptr); break;
-			case EBlendType::BT_HARDLIGHT: ImageHardLight(pNew.get(), m_base.get(), m_mask.get(), m_col.xyz()); break;
-			case EBlendType::BT_BURN: ImageBurn(pNew.get(), m_base.get(), m_mask.get(), m_col.xyz()); break;
-			case EBlendType::BT_DODGE: ImageDodge(pNew.get(), m_base.get(), m_mask.get(), m_col.xyz()); break;
-			case EBlendType::BT_SCREEN: ImageScreen(pNew.get(), m_base.get(), m_mask.get(), m_col.xyz()); break;
-			case EBlendType::BT_OVERLAY: ImageOverlay(pNew.get(), m_base.get(), m_mask.get(), m_col.xyz()); break;
-			case EBlendType::BT_ALPHA_OVERLAY: ImageAlphaOverlay(pNew.get(), m_base.get(), m_mask.get(), m_col.xyz()); break;
-			case EBlendType::BT_MULTIPLY: ImageMultiply(pNew.get(), m_base.get(), m_mask.get(), m_col.xyz()); break;
-			case EBlendType::BT_BLEND: ImageBlend(pNew.get(), m_base.get(), m_mask.get(), m_col.xyz()); break;
+			case EBlendType::BT_NORMAL_COMBINE: ImageNormalCombine(pNew.get(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
+			case EBlendType::BT_SOFTLIGHT: ImageSoftLight(pNew.get(), m_base.get(), m_mask.get(), vec3f(m_col), nullptr); break;
+			case EBlendType::BT_HARDLIGHT: ImageHardLight(pNew.get(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
+			case EBlendType::BT_BURN: ImageBurn(pNew.get(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
+			case EBlendType::BT_DODGE: ImageDodge(pNew.get(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
+			case EBlendType::BT_SCREEN: ImageScreen(pNew.get(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
+			case EBlendType::BT_OVERLAY: ImageOverlay(pNew.get(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
+			case EBlendType::BT_ALPHA_OVERLAY: ImageAlphaOverlay(pNew.get(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
+			case EBlendType::BT_MULTIPLY: ImageMultiply(pNew.get(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
+			case EBlendType::BT_BLEND: ImageBlend(pNew.get(), m_base.get(), m_mask.get(), vec3f(m_col)); break;
 			default: check(false);
 			}
 
@@ -651,15 +651,15 @@ namespace mu
 		{
 			switch (EBlendType(Args.blendType))
 			{
-			case EBlendType::BT_NORMAL_COMBINE: ImageNormalCombine(pNew.get(), m_base.get(), m_col.xyz()); break;
-			case EBlendType::BT_SOFTLIGHT: ImageSoftLight(pNew.get(), m_base.get(), m_col.xyz()); break;
-			case EBlendType::BT_HARDLIGHT: ImageHardLight(pNew.get(), m_base.get(), m_col.xyz()); break;
-			case EBlendType::BT_BURN: ImageBurn(pNew.get(), m_base.get(), m_col.xyz()); break;
-			case EBlendType::BT_DODGE: ImageDodge(pNew.get(), m_base.get(), m_col.xyz()); break;
-			case EBlendType::BT_SCREEN: ImageScreen(pNew.get(), m_base.get(), m_col.xyz()); break;
-			case EBlendType::BT_OVERLAY: ImageOverlay(pNew.get(), m_base.get(), m_col.xyz()); break;
-			case EBlendType::BT_ALPHA_OVERLAY: ImageAlphaOverlay(pNew.get(), m_base.get(), m_col.xyz()); break;
-			case EBlendType::BT_MULTIPLY: ImageMultiply(pNew.get(), m_base.get(), m_col.xyz()); break;
+			case EBlendType::BT_NORMAL_COMBINE: ImageNormalCombine(pNew.get(), m_base.get(), vec3f(m_col)); break;
+			case EBlendType::BT_SOFTLIGHT: ImageSoftLight(pNew.get(), m_base.get(), vec3f(m_col)); break;
+			case EBlendType::BT_HARDLIGHT: ImageHardLight(pNew.get(), m_base.get(), vec3f(m_col)); break;
+			case EBlendType::BT_BURN: ImageBurn(pNew.get(), m_base.get(), vec3f(m_col)); break;
+			case EBlendType::BT_DODGE: ImageDodge(pNew.get(), m_base.get(), vec3f(m_col)); break;
+			case EBlendType::BT_SCREEN: ImageScreen(pNew.get(), m_base.get(), vec3f(m_col)); break;
+			case EBlendType::BT_OVERLAY: ImageOverlay(pNew.get(), m_base.get(), vec3f(m_col)); break;
+			case EBlendType::BT_ALPHA_OVERLAY: ImageAlphaOverlay(pNew.get(), m_base.get(), vec3f(m_col)); break;
+			case EBlendType::BT_MULTIPLY: ImageMultiply(pNew.get(), m_base.get(), vec3f(m_col)); break;
 			case EBlendType::BT_BLEND: FillPlainColourImage(pNew.get(), m_col); break;
 			default: check(false);
 			}

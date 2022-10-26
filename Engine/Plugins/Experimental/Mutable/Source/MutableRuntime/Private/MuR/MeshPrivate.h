@@ -201,9 +201,9 @@ namespace mu
 			return m_components;
 		}
 
-        vec4<float> GetAsVec4f() const
+        FVector4f GetAsVec4f() const
         {
-            vec4<float> res;
+			FVector4f res;
 
             for (int c=0; c< FMath::Min(m_components,4); ++c)
             {
@@ -485,9 +485,9 @@ namespace mu
             return m_components;
         }
 
-		vec4<float> GetAsVec4f() const
+		FVector4f GetAsVec4f() const
 		{
-			vec4<float> res = { 0.0f,0.0f,0.0f,0.0f };
+			FVector4f res(0.0f,0.0f,0.0f,0.0f);
 			for (int c = 0; c < FMath::Min(m_components, 4); ++c)
 			{
 				ConvertData(c, &res[0], MBF_FLOAT32, ptr(), m_format);
