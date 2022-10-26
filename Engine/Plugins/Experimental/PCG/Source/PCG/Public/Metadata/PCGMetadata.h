@@ -28,6 +28,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void Initialize(const UPCGMetadata* InParent);
 
+	/** Initializes the metadata from a parent metadata, if any (can be null) with the option to not add attributes from the parent. */
+	void Initialize(const UPCGMetadata* InParent, bool bAddAttributesFromParent);
+
+	/** Initializes the metadata from a parent metadata by copying all attributes to it. */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void InitializeAsCopy(const UPCGMetadata* InMetadataToCopy);
 

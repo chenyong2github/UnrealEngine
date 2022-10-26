@@ -3,12 +3,19 @@
 #pragma once
 
 #include "PCGElement.h"
-#include "Elements/PCGCreateAttributeBase.h"
+#include "PCGSettings.h"
 
-#include "PCGCreateAttribute.generated.h"
+#include "PCGAttributeFilterElement.generated.h"
 
+/**
+* Filter the attributes from a given input metadata.
+* Will remove all attributes that are not listed in AttributesToKeep.
+* If an attribute to keep is not in the original metadata, it won't be added.
+* 
+* The output will be the original data with the updated metadata.
+*/
 UCLASS(BlueprintType, ClassGroup = (Procedural))
-class PCG_API UPCGCreateAttributeSettings : public UPCGAttributeCreationBaseSettings
+class PCG_API UPCGAttributeFilterSettings : public UPCGSettings
 {
 	GENERATED_BODY()
 
@@ -19,19 +26,18 @@ public:
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
 #endif
 
-	virtual TArray<FPCGPinProperties> InputPinProperties() const override;
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 	//~End UPCGSettings interface
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	bool bKeepExistingAttributes = false;
+	TArray<FName> AttributesToKeep;
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
 };
 
 
-class FPCGCreateAttributeElement : public FSimplePCGElement
+class FPCGAttributeFilterElement : public FSimplePCGElement
 {
 public:
 	virtual bool CanExecuteOnlyOnMainThread(FPCGContext* Context) const { return true; }

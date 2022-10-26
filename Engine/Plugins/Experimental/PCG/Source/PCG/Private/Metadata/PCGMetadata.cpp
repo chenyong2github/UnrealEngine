@@ -70,6 +70,11 @@ void UPCGMetadata::BeginDestroy()
 
 void UPCGMetadata::Initialize(const UPCGMetadata* InParent)
 {
+	Initialize(InParent, /*bAddAttributesFromParent=*/true);
+}
+
+void UPCGMetadata::Initialize(const UPCGMetadata* InParent, bool bAddAttributesFromParent)
+{
 	if (Parent.IsValid() || Attributes.Num() != 0)
 	{
 		// Already initialized; note that while that might be construed as a warning, there are legit cases where this is correct
@@ -78,7 +83,11 @@ void UPCGMetadata::Initialize(const UPCGMetadata* InParent)
 
 	Parent = ((InParent != this) ? InParent : nullptr);
 	ItemKeyOffset = Parent.IsValid() ? Parent->GetItemCountForChild() : 0;
-	AddAttributes(InParent);
+
+	if (bAddAttributesFromParent)
+	{
+		AddAttributes(InParent);
+	}
 }
 
 void UPCGMetadata::InitializeAsCopy(const UPCGMetadata* InMetadataToCopy)
@@ -139,7 +148,7 @@ void UPCGMetadata::AddAttribute(const UPCGMetadata* InOther, FName AttributeName
 		return;
 	}
 
-	CopyAttribute(InOther->GetConstAttribute(AttributeName), AttributeName, /*bKeepParent=*/false, /*bCopyEntries=*/false, /*bCopyValues=*/false);
+	CopyAttribute(InOther->GetConstAttribute(AttributeName), AttributeName, /*bKeepParent=*/InOther == Parent, /*bCopyEntries=*/false, /*bCopyValues=*/false);
 	OtherParents.Add(InOther);
 }
 

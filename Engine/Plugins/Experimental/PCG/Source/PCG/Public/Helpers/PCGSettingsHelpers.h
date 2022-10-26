@@ -13,54 +13,48 @@ class UPCGSettings;
 
 namespace PCGSettingsHelpers
 {
-	// Utility function to return a value from an attribute that doesn't match the type
-	// Use if constexpr to remove un-necessary checks.
-	// Returns true if the conversion worked
-	template <typename T>
-	inline bool GetValueWithImplicitConversion(const FPCGMetadataAttributeBase* InAttribute, PCGMetadataEntryKey InKey, T& OutValue)
-	{
-#define ImplicitConversion(InType, OutType) if constexpr (std::is_same_v<T, OutType>) { if (InAttribute->GetTypeId() == PCG::Private::MetadataTypes<InType>::Id) { OutValue = static_cast<T>(static_cast<const FPCGMetadataAttribute<InType>*>(InAttribute)->GetValueFromItemKey(InKey)); return true; } }
-
-		ImplicitConversion(float, double);
-		ImplicitConversion(double, float);
-		ImplicitConversion(int32, int64);
-		ImplicitConversion(int64, int32);
-
-#undef ImplicitConversion
-
-		return false;
-	}
-
+	/** Utility function to get the value of type T from a param data or a default value
+	* @param InName - Attribute to get from the param
+	* @param InValue - Default value to return if the param doesn't have the given attribute
+	* @param InParams - ParamData to get the value from.
+	* @param InKey - Metadata Entry Key to get the value from.
+	*/
 	template<typename T, typename TEnableIf<!TIsEnumClass<T>::Value>::Type* = nullptr>
-	T GetValue(const FName& InName, const T& InValue, UPCGParamData* InParams, PCGMetadataEntryKey InKey, bool bAllowImplicitConversion = true)
+	T GetValue(const FName& InName, const T& InValue, const UPCGParamData* InParams, PCGMetadataEntryKey InKey)
 	{
-		if (InParams)
+
+		if (InParams && InParams->Metadata)
 		{
-			const FPCGMetadataAttributeBase* MatchingAttribute = InParams->Metadata ? InParams->Metadata->GetConstAttribute(InName) : nullptr;
-			if (MatchingAttribute)
-			{
-				if (MatchingAttribute->GetTypeId() == PCG::Private::MetadataTypes<T>::Id)
-				{
-					return static_cast<const FPCGMetadataAttribute<T>*>(MatchingAttribute)->GetValueFromItemKey(InKey);
-				}
+			const FPCGMetadataAttributeBase* MatchingAttribute = InParams->Metadata->GetConstAttribute(InName);
 
-				if (bAllowImplicitConversion)
-				{
-					T OutValue{};
-					if (GetValueWithImplicitConversion<T>(MatchingAttribute, InKey, OutValue))
-					{
-						UE_LOG(LogPCG, Warning, TEXT("[GetAttributeValue] Matching attribute was found, but not the right type. Implicit conversion done (%d vs %d)"), MatchingAttribute->GetTypeId(), PCG::Private::MetadataTypes<T>::Id);
-						return OutValue;
-					}
-				}
-
-				UE_LOG(LogPCG, Error, TEXT("[GetAttributeValue] Matching attribute was found, but not the right type. %d vs %d"), MatchingAttribute->GetTypeId(), PCG::Private::MetadataTypes<T>::Id);
-				return InValue;
-			}
-			else
+			if (!MatchingAttribute)
 			{
 				return InValue;
 			}
+
+			auto GetTypedValue = [MatchingAttribute, &InValue, InKey](auto DummyValue) -> T
+			{
+				using AttributeType = decltype(DummyValue);
+
+				const FPCGMetadataAttribute<AttributeType>* ParamAttribute = static_cast<const FPCGMetadataAttribute<AttributeType>*>(MatchingAttribute);
+
+				if constexpr (std::is_same_v<T, AttributeType>)
+				{
+					return ParamAttribute->GetValueFromItemKey(InKey);
+				}
+				else if constexpr (std::is_constructible_v<T, AttributeType>)
+				{
+					UE_LOG(LogPCG, Verbose, TEXT("[GetAttributeValue] Matching attribute was found, but not the right type. Implicit conversion done (%d vs %d)"), MatchingAttribute->GetTypeId(), PCG::Private::MetadataTypes<T>::Id);
+					return T(ParamAttribute->GetValueFromItemKey(InKey));
+				}
+				else
+				{
+					UE_LOG(LogPCG, Error, TEXT("[GetAttributeValue] Matching attribute was found, but not the right type. %d vs %d"), MatchingAttribute->GetTypeId(), PCG::Private::MetadataTypes<T>::Id);
+					return InValue;
+				}
+			};
+
+			return PCGMetadataAttribute::CallbackWithRightType(MatchingAttribute->GetTypeId(), GetTypedValue);
 		}
 		else
 		{
@@ -69,17 +63,17 @@ namespace PCGSettingsHelpers
 	}
 
 	template<typename T, typename TEnableIf<!TIsEnumClass<T>::Value>::Type* = nullptr>
-	T GetValue(const FName& InName, const T& InValue, UPCGParamData* InParams, bool bAllowImplicitConversion = true)
+	T GetValue(const FName& InName, const T& InValue, const UPCGParamData* InParams)
 	{
-		return GetValue(InName, InValue, InParams, 0, bAllowImplicitConversion);
+		return GetValue(InName, InValue, InParams, 0);
 	}
 
 	template<typename T, typename TEnableIf<!TIsEnumClass<T>::Value>::Type* = nullptr>
-	T GetValue(const FName& InName, const T& InValue, UPCGParamData* InParams, const FName& InParamName, bool bAllowImplicitConversion = true)
+	T GetValue(const FName& InName, const T& InValue, const UPCGParamData* InParams, const FName& InParamName)
 	{
 		if (InParams && InParamName != NAME_None)
 		{
-			return GetValue(InName, InValue, InParams, InParams->FindMetadataKey(InParamName), bAllowImplicitConversion);
+			return GetValue(InName, InValue, InParams, InParams->FindMetadataKey(InParamName));
 		}
 		else
 		{
@@ -89,40 +83,40 @@ namespace PCGSettingsHelpers
 
 	/** Specialized versions for enums */
 	template<typename T, typename TEnableIf<TIsEnumClass<T>::Value>::Type* = nullptr>
-	T GetValue(const FName& InName, const T& InValue, UPCGParamData* InParams, PCGMetadataEntryKey InKey, bool bAllowImplicitConversion = true)
+	T GetValue(const FName& InName, const T& InValue, const UPCGParamData* InParams, PCGMetadataEntryKey InKey)
 	{
-		return static_cast<T>(GetValue(InName, static_cast<__underlying_type(T)>(InValue), InParams, InKey, bAllowImplicitConversion));
+		return static_cast<T>(GetValue(InName, static_cast<__underlying_type(T)>(InValue), InParams, InKey));
 	}
 
 	template<typename T, typename TEnableIf<TIsEnumClass<T>::Value>::Type* = nullptr>
-	T GetValue(const FName& InName, const T& InValue, UPCGParamData* InParams, bool bAllowImplicitConversion = true)
+	T GetValue(const FName& InName, const T& InValue, const UPCGParamData* InParams)
 	{
-		return static_cast<T>(GetValue(InName, static_cast<__underlying_type(T)>(InValue), InParams, bAllowImplicitConversion));
+		return static_cast<T>(GetValue(InName, static_cast<__underlying_type(T)>(InValue), InParams));
 	}
 
 	template<typename T, typename TEnableIf<TIsEnumClass<T>::Value>::Type* = nullptr>
-	T GetValue(const FName& InName, const T& InValue, UPCGParamData* InParams, const FName& InParamName, bool bAllowImplicitConversion = true)
+	T GetValue(const FName& InName, const T& InValue, const UPCGParamData* InParams, const FName& InParamName)
 	{
-		return static_cast<T>(GetValue(InName, static_cast<__underlying_type(T)>(InValue), InParams, InParamName, bAllowImplicitConversion));
+		return static_cast<T>(GetValue(InName, static_cast<__underlying_type(T)>(InValue), InParams, InParamName));
 	}
 
 	/** Specialized version for names */
 	template<>
-	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, UPCGParamData* InParams, PCGMetadataEntryKey InKey, bool bAllowImplicitConversion)
+	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, const UPCGParamData* InParams, PCGMetadataEntryKey InKey)
 	{
-		return FName(GetValue(InName, InValue.ToString(), InParams, InKey, bAllowImplicitConversion));
+		return FName(GetValue(InName, InValue.ToString(), InParams, InKey));
 	}
 
 	template<>
-	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, UPCGParamData* InParams, bool bAllowImplicitConversion)
+	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, const UPCGParamData* InParams)
 	{
-		return FName(GetValue(InName, InValue.ToString(), InParams, bAllowImplicitConversion));
+		return FName(GetValue(InName, InValue.ToString(), InParams));
 	}
 
 	template<>
-	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, UPCGParamData* InParams, const FName& InParamName, bool bAllowImplicitConversion)
+	FORCEINLINE FName GetValue(const FName& InName, const FName& InValue, const UPCGParamData* InParams, const FName& InParamName)
 	{
-		return FName(GetValue(InName, InValue.ToString(), InParams, InParamName, bAllowImplicitConversion));
+		return FName(GetValue(InName, InValue.ToString(), InParams, InParamName));
 	}
 
 	/** Sets data from the params to a given property, matched on a name basis */

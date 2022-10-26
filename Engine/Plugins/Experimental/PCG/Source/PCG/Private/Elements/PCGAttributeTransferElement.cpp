@@ -1,0 +1,181 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Elements/PCGAttributeTransferElement.h"
+
+#include "PCGData.h"
+#include "PCGParamData.h"
+#include "Data/PCGPointData.h"
+#include "Metadata/PCGMetadata.h"
+#include "Metadata/PCGMetadataAttribute.h"
+
+#if WITH_EDITOR
+FName UPCGAttributeTransferSettings::GetDefaultNodeName() const
+{
+	return PCGAttributeTransferConstants::NodeName;
+}
+#endif
+
+FName UPCGAttributeTransferSettings::AdditionalTaskName() const
+{
+	if (SourceAttributeName != TargetAttributeName && TargetAttributeName != NAME_None)
+	{
+		return FName(FString::Printf(TEXT("%s %s to %s"), *PCGAttributeTransferConstants::NodeName.ToString(), *SourceAttributeName.ToString(), *TargetAttributeName.ToString()));
+	}
+	else
+	{
+		return FName(FString::Printf(TEXT("%s %s"), *PCGAttributeTransferConstants::NodeName.ToString(), *SourceAttributeName.ToString()));
+	}
+}
+
+TArray<FPCGPinProperties> UPCGAttributeTransferSettings::InputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGAttributeTransferConstants::TargetLabel, EPCGDataType::Spatial, /*bInAllowMultipleConnections=*/ false);
+	PinProperties.Emplace(PCGAttributeTransferConstants::SourceLabel, EPCGDataType::Spatial, /*bInAllowMultipleConnections=*/ false);
+
+	return PinProperties;
+}
+
+FPCGElementPtr UPCGAttributeTransferSettings::CreateElement() const
+{
+	return MakeShared<FPCGAttributeTransferElement>();
+}
+
+bool FPCGAttributeTransferElement::ExecuteInternal(FPCGContext* Context) const
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGAttributeTransferElement::Execute);
+
+	check(Context);
+
+	const UPCGAttributeTransferSettings* Settings = Context->GetInputSettings<UPCGAttributeTransferSettings>();
+	check(Settings);
+
+	TArray<FPCGTaggedData> SourceInputs = Context->InputData.GetInputsByPin(PCGAttributeTransferConstants::SourceLabel);
+	TArray<FPCGTaggedData> TargetInputs = Context->InputData.GetInputsByPin(PCGAttributeTransferConstants::TargetLabel);
+
+	if (SourceInputs.Num() != 1 || TargetInputs.Num() != 1)
+	{
+		PCGE_LOG(Error, "Wrong number of inputs");
+		return true;
+	}
+
+	const UPCGSpatialData* SourceData = Cast<UPCGSpatialData>(SourceInputs[0].Data);
+	const UPCGSpatialData* TargetData = Cast<UPCGSpatialData>(TargetInputs[0].Data);
+
+	if (!SourceData || !TargetData || SourceData->IsA<UPCGPointData>() != TargetData->IsA<UPCGPointData>())
+	{
+		PCGE_LOG(Error, "Only support spatial to spatial data or point to point data");
+		return true;
+	}
+
+	if (!SourceData->Metadata)
+	{
+		PCGE_LOG(Error, "Source doesn't have metadata");
+		return true;
+	}
+
+	if (!SourceData->Metadata->HasAttribute(Settings->SourceAttributeName))
+	{
+		PCGE_LOG(Error, "Source doesn't have the attribute \"%s\"", *Settings->SourceAttributeName.ToString());
+		return true;
+	}
+
+	UPCGData* OutputData = nullptr;
+
+	// We only supports spatial to spatial or point to points, with the same number of points
+	if (SourceData->IsA<UPCGPointData>() && TargetData->IsA<UPCGPointData>())
+	{
+		OutputData = TransferPointToPoint(Context, CastChecked<UPCGPointData>(SourceData), CastChecked<UPCGPointData>(TargetData));
+	}
+	else
+	{
+		OutputData = TransferSpatialToSpatial(Context, SourceData, TargetData);
+	}
+
+	if (OutputData)
+	{
+		TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
+		FPCGTaggedData& Output = Outputs.Emplace_GetRef();
+		Output.Data = OutputData;
+	}
+
+	return true;
+}
+
+UPCGSpatialData* FPCGAttributeTransferElement::TransferSpatialToSpatial(FPCGContext* Context, const UPCGSpatialData* SourceData, const UPCGSpatialData* TargetData) const
+{
+	check(Context && SourceData && TargetData);
+
+	const UPCGAttributeTransferSettings* Settings = Context->GetInputSettings<UPCGAttributeTransferSettings>();
+	check(Settings);
+
+	// When transferring attribute from spatial to spatial, copy the attribute entries and values.
+	// They need to match their number of entries
+	if (SourceData->Metadata->GetItemCountForChild() != TargetData->Metadata->GetItemCountForChild())
+	{
+		PCGE_LOG(Error, "Source and target doesn't have the same number of metadata entries");
+		return nullptr;
+	}
+
+	UPCGSpatialData* NewSpatialData = DuplicateObject<UPCGSpatialData>(const_cast<UPCGSpatialData*>(TargetData), nullptr);
+	NewSpatialData->InitializeFromData(TargetData);
+
+	const FName TargetAttributeName = Settings->TargetAttributeName == NAME_None ? Settings->SourceAttributeName : Settings->TargetAttributeName;
+
+	// Making sure the target attribute doesn't exists in the target
+	if (NewSpatialData->Metadata->HasAttribute(TargetAttributeName))
+	{
+		NewSpatialData->Metadata->DeleteAttribute(TargetAttributeName);
+	}
+
+	NewSpatialData->Metadata->CopyAttribute(SourceData->Metadata, Settings->SourceAttributeName, TargetAttributeName);
+
+	return NewSpatialData;
+}
+
+UPCGPointData* FPCGAttributeTransferElement::TransferPointToPoint(FPCGContext* Context, const UPCGPointData* SourceData, const UPCGPointData* TargetData) const
+{
+	check(Context && SourceData && TargetData);
+
+	const UPCGAttributeTransferSettings* Settings = Context->GetInputSettings<UPCGAttributeTransferSettings>();
+	check(Settings);
+
+	// When transferring attribute point to point, iterate over the source point and set the attribute to the target point.
+	// They need to match their number of points
+	if (SourceData->GetPoints().Num() != TargetData->GetPoints().Num())
+	{
+		PCGE_LOG(Error, "Source and target doesn't have the same number of points");
+		return nullptr;
+	}
+
+	UPCGPointData* NewPointData = NewObject<UPCGPointData>();
+	NewPointData->InitializeFromData(TargetData);
+
+	const TArray<FPCGPoint>& SourcePoints = SourceData->GetPoints();
+	TArray<FPCGPoint>& TargetPoints = NewPointData->GetMutablePoints();
+
+	TargetPoints = TargetData->GetPoints();
+
+	const FName TargetAttributeName = Settings->TargetAttributeName == NAME_None ? Settings->SourceAttributeName : Settings->TargetAttributeName;
+
+	// Making sure the target attribute doesn't exist in the target
+	if (NewPointData->Metadata->HasAttribute(TargetAttributeName))
+	{
+		NewPointData->Metadata->DeleteAttribute(TargetAttributeName);
+	}
+
+	const FPCGMetadataAttributeBase* SourceAttribute = SourceData->Metadata->GetConstAttribute(Settings->SourceAttributeName);
+	FPCGMetadataAttributeBase* TargetAttribute = NewPointData->Metadata->CopyAttribute(SourceAttribute, TargetAttributeName, /*bKeepParent=*/ false, /*bCopyEntries=*/ false, /*bCopyValues=*/ true);
+
+	for (int32 i = 0; i < SourcePoints.Num(); ++i)
+	{
+		PCGMetadataEntryKey& TargetKey = TargetPoints[i].MetadataEntry;
+		NewPointData->Metadata->InitializeOnSet(TargetKey);
+
+		check(TargetKey != PCGInvalidEntryKey);
+
+		TargetAttribute->SetValueFromValueKey(TargetKey, SourceAttribute->GetValueKey(SourcePoints[i].MetadataEntry));
+	}
+
+	return NewPointData;
+}
