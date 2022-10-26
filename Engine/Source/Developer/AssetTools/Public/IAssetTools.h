@@ -18,6 +18,7 @@
 #include "IAssetTools.generated.h"
 
 struct FAssetData;
+class IAssetTools;
 class IAssetTypeActions;
 class IClassTypeActions;
 class UFactory;
@@ -25,6 +26,14 @@ class UAssetImportTask;
 class UAdvancedCopyCustomization;
 class FNamePermissionList;
 class FPathPermissionList;
+
+namespace UE::AssetTools
+{
+	// Declared in PackageMigrationContext.h
+	struct FPackageMigrationContext;
+
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPackageMigration, FPackageMigrationContext&);
+}
 
 UENUM()
 enum class EAssetClassAction : uint8
@@ -202,7 +211,7 @@ struct FMigrationOptions
 	UPROPERTY(BlueprintReadWrite, Category = MigrationOptions)
 	EAssetMigrationConflict AssetConflict;
 
-	/** Destination for assets that don't have a corresponding content folder. If left empty those assets are not migrated. */
+	/** Destination for assets that don't have a corresponding content folder. If left empty those assets are not migrated. (Not used by the new migration)*/
 	UPROPERTY(BlueprintReadWrite, Category = MigrationOptions)
 	FString OrphanFolder;
 
@@ -457,6 +466,12 @@ public:
 	/* Migrate packages and dependencies to another folder */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Asset Tools")
 	virtual void MigratePackages(const TArray<FName>& PackageNamesToMigrate, const FString& DestinationPath, const struct FMigrationOptions& Options = FMigrationOptions()) const = 0;
+
+	/**
+	 * Event called when some packages are migrated
+	 * Note this is only true when AssetTools.UseNewPackageMigration is true
+	 */
+	virtual UE::AssetTools::FOnPackageMigration& GetOnPackageMigration() = 0;
 
 	/* Copy packages and dependencies to another folder */
 	virtual void BeginAdvancedCopyPackages(const TArray<FName>& InputNamesToCopy, const FString& TargetPath) const = 0;

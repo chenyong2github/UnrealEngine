@@ -2132,6 +2132,20 @@ bool ULevelStreaming::IsValidStreamingLevel() const
 	if (!PIESession && !WorldAsset.IsNull())
 	{
 		FName WorldPackageName = GetWorldAssetPackageFName();
+
+		if (UPackage* WorldPackage = FindObjectFast<UPackage>(nullptr, WorldPackageName))
+		{
+			if (FLinkerLoad* Linker = WorldPackage->GetLinker())
+			{
+				/**
+				 * This support packages that were or will be instanced on load.
+				 * This might be redundant but it avoid changing the behavior of this function where a loaded package can still fail 
+				 * if it doesn't have on disk file associated to it.
+				 */
+				return FPackageName::DoesPackageExist(Linker->GetPackagePath());
+			}
+		}
+
 		FPackagePath WorldPackagePath;
 		return FPackagePath::TryFromPackageName(WorldPackageName, /* Out*/ WorldPackagePath) && FPackageName::DoesPackageExist(WorldPackagePath);
 	}

@@ -7,6 +7,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/GCObjectScopeGuard.h"
 #include "UObject/UObjectHash.h"
@@ -161,15 +162,713 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Interfaces/IPluginManager.h"
 #include "Settings/ContentBrowserSettings.h"
+#include "Algo/Count.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
+#include "WorldPartition/WorldPartitionActorDescUtils.h"
+#include "UObject/NameTypes.h"
+#include "ExternalPackageHelper.h"
+#include "UObject/LinkerInstancingContext.h"
+#include "PackageMigrationContext.h"
 
 #if WITH_EDITOR
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Settings/EditorExperimentalSettings.h"
+#include "ObjectTools.h"
 #endif
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AssetTools)
 
 #define LOCTEXT_NAMESPACE "AssetTools"
+
+namespace UE::AssetTools::Private
+{
+	bool bUseNewPackageMigration = true;
+	static FAutoConsoleVariableRef CVarUseNewPackageMigration(
+		TEXT("AssetTools.UseNewPackageMigration"),
+		bUseNewPackageMigration,
+		TEXT("When set, The package migration will use the new implementation made for 5.1.")
+	);
+
+	// use a struct as a namespace to allow easier friend declarations
+	struct FPackageMigrationImpl
+	{
+	public:
+		struct FPackageMigrationImplContext
+		{
+			FPackageMigrationImplContext()
+				: SlowTask(100, LOCTEXT("MigratePackages", "Migrating Packages"))
+			{
+				InstancingContext.SetSoftObjectPathRemappingEnabled(true);
+				InstancingContext.AddTag(ULevel::DontLoadExternalObjectsTag);
+
+				const bool bCanCancel = true;
+				SlowTask.MakeDialog(bCanCancel);
+			}
+
+			bool bWasCanceled = false;
+			FLinkerInstancingContext InstancingContext;
+			FScopedSlowTask SlowTask;
+			FMigrationOptions Options;
+		};
+
+
+		static FString GetMountPointRootPath(bool bIsDestinationAProject, const FString& DestinationFolder)
+		{
+			FString MountPointRootPath;
+			if (bIsDestinationAProject)
+			{
+				MountPointRootPath = TEXT("/Game/");
+			}
+			else
+			{
+				TArray<FString> PluginFiles;
+				IFileManager::Get().FindFiles(PluginFiles, *(DestinationFolder + TEXT("../")), TEXT("uplugin"));
+
+				if (PluginFiles.Num() == 1)
+				{
+					FStringView PluginNameView = FPathViews::GetBaseFilename(PluginFiles[0]);
+					MountPointRootPath.Reserve(PluginNameView.Len() + 2);
+					MountPointRootPath.AppendChar(TEXT('/'));
+					MountPointRootPath.Append(PluginNameView);
+					MountPointRootPath.AppendChar(TEXT('/'));
+				}
+				else
+				{
+					UE_LOG(LogAssetTools
+						, Error
+						, TEXT("{%s} does not appear to be a game Content folder. Migrated content only work if placed in a Content folder. Aborting the Migration.")
+						, *DestinationFolder
+					);
+				}
+			}
+
+			return MountPointRootPath;
+		}
+
+		static UObject* FindAssetInPackage(UPackage* Package)
+		{
+			// Inspired from the save code (UEditorEngine::Save)
+			UObject* Asset = nullptr;
+			if (Package->HasAnyPackageFlags(PKG_ContainsMap))
+			{
+				Asset = UWorld::FindWorldInPackage(Package);
+			}
+			
+			if (!Asset)
+			{
+				// Otherwise find the main asset of the package
+				Asset = Package->FindAssetInPackage();
+			}
+
+			return Asset;
+		};
+
+		// Prepare the MigrationPackagesData in the migration context and log any info about the package that will be renamed
+		static void SetupPublicAssetPackagesMigrationData(const TSharedPtr<TArray<ReportPackageData>>& PackageDataToMigrate
+			, TArray<TPair<const ReportPackageData*, const FAssetData>>& ExternalPackageDatas
+			, TMap<const FStringView, int32>& ExistingPackageNameToMigrationDataIndex
+			, FPackageMigrationContext& PackageMigrationContext
+			, FPackageMigrationImplContext& PackageMigrationImplContext
+			, FMessageLog& MigrateLog)
+		{
+			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+			IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+			TArray<FAssetData> AssetsData;
+
+			// Used to avoid a name collision between the instanced packages
+			TSet<FString> UsedPackagesName;
+			UsedPackagesName.Reserve(PackageDataToMigrate->Num());
+			IFileManager& FileManager = IFileManager::Get();
+
+
+			ExternalPackageDatas.Reserve(PackageDataToMigrate->Num());
+			ExistingPackageNameToMigrationDataIndex.Reserve(PackageDataToMigrate->Num());
+
+			TArray<FText> RenamedPackagesInfo;
+
+
+			// Handle prompt response and automation
+			EAppReturnType::Type LastResponse = EAppReturnType::Yes;
+			if (!PackageMigrationImplContext.Options.bPrompt)
+			{
+				switch (PackageMigrationImplContext.Options.AssetConflict)
+				{
+				case EAssetMigrationConflict::Overwrite:
+					LastResponse = EAppReturnType::YesAll;
+					break;
+				case EAssetMigrationConflict::Skip:
+					LastResponse = EAppReturnType::NoAll;
+					break;
+				case EAssetMigrationConflict::Cancel:
+					PackageMigrationImplContext.bWasCanceled = true;
+					break;
+				}
+			}
+
+			// Process the normal package here (no external object or actors).
+			for (const ReportPackageData& PackageData : *(PackageDataToMigrate.Get()))
+			{
+				if (PackageMigrationImplContext.SlowTask.ShouldCancel() || PackageMigrationImplContext.bWasCanceled)
+				{
+					PackageMigrationImplContext.bWasCanceled = true;
+					break;
+				}
+
+				if (!PackageData.bShouldMigratePackage)
+				{
+					continue;
+				}
+
+				AssetsData.Reset();
+				const bool bIncludeOndiskAssetOnly = true;
+				// We want all the asset including those not supported for the current platform.
+				const bool bSkipARFilteredAssets = false;
+				AssetRegistry.GetAssetsByPackageName(*PackageData.Name, AssetsData, bIncludeOndiskAssetOnly, bSkipARFilteredAssets);
+
+				// Detect if the package contains some external object or actors
+				{
+					bool bIsExternalPackage = false;
+					for (FAssetData& AssetData : AssetsData)
+					{
+						if (!AssetData.GetOptionalOuterPathName().IsNone())
+						{
+							bIsExternalPackage = true;
+							ExternalPackageDatas.Emplace(&PackageData, MoveTemp(AssetData));
+							break;
+						}
+					}
+
+					if (bIsExternalPackage)
+					{
+						// Skip this asset since it is a external package. They are done in another pass
+						continue;
+					}
+				}
+
+
+				const FPackageMigrationContext::FScopedMountPoint& MountPoint = PackageMigrationContext.GetDestinationMountPoint();
+
+				FString NewPackageName = MountPoint.GetNewPackageNameForMigration(PackageData.Name);
+
+				// Is there a simpler way to get the package extension?
+				FString ExistingFilename;
+				FPackageName::DoesPackageExist(PackageData.Name, &ExistingFilename);
+
+				const bool bIncludeDot = true;
+				FString NewPackageFilename = MountPoint.GetMigratedPackageFilename(NewPackageName, FPathViews::GetExtension(ExistingFilename, bIncludeDot));
+				uint32 NewPackageNameHash = GetTypeHash(NewPackageName);
+
+				// Check we can use the new name for the asset
+				const bool bIsNameChangeCausedByOtherMigrationPackage = UsedPackagesName.ContainsByHash(NewPackageNameHash, NewPackageName);
+				const bool bIsNameChangeCausedByExistingAssetInDestination = FileManager.FileExists(*NewPackageFilename);
+
+				bool bShouldMigrate = true;
+
+				// Ask the user what to do if an asset already exist in the destination
+				if (bIsNameChangeCausedByExistingAssetInDestination)
+				{
+					// Handle name collision in the destination project. Post 5.1 should expose the possibility to rename the migrated package.
+
+					EAppReturnType::Type Response;
+					if (FApp::IsUnattended() || !PackageMigrationImplContext.Options.bPrompt || LastResponse == EAppReturnType::YesAll || LastResponse == EAppReturnType::NoAll)
+					{
+						Response = LastResponse;
+					}
+					else
+					{
+						const FText Message = FText::Format(LOCTEXT("MigratePackages_AlreadyExists", "An asset already exists at location {0} would you like to overwrite it?"), FText::FromString(NewPackageFilename));
+						Response = FMessageDialog::Open(EAppMsgType::YesNoYesAllNoAllCancel, Message);
+						LastResponse = Response;
+					}
+
+					if (Response == EAppReturnType::Cancel)
+					{
+						// The user chose to cancel mid-operation. Break out.
+						PackageMigrationImplContext.bWasCanceled = true;
+						break;
+					}
+
+					if (Response == EAppReturnType::No || Response == EAppReturnType::NoAll)
+					{
+						bShouldMigrate = false;
+					}
+				}
+
+				// Avoid a name collision
+				if (bIsNameChangeCausedByOtherMigrationPackage)
+				{
+					// Name collision with another package to migrate (simply add _number to package name)
+					int32 Index = 1;
+					FString ModifiedNewPackageName;
+					// 4 for "_num"
+					ModifiedNewPackageName.Reserve(NewPackageName.Len() + 3);
+					uint32 ModifiedNewPackageNameHash;
+
+					FString ModifiedNewPackageFilename;
+					ModifiedNewPackageFilename.Reserve(NewPackageFilename.Len() + 3);
+					FStringView FileExtension = FPathViews::GetExtension(NewPackageFilename, bIncludeDot);
+					FStringView NewPackageFilenameWithoutExtension(*NewPackageFilename, NewPackageFilename.Len() - FileExtension.Len());
+
+					do
+					{
+						++Index;
+						ModifiedNewPackageName.Reset();
+						ModifiedNewPackageName.Append(NewPackageName);
+						ModifiedNewPackageName.AppendChar('_');
+						ModifiedNewPackageName.AppendInt(Index);
+						ModifiedNewPackageNameHash = GetTypeHash(ModifiedNewPackageName);
+
+						ModifiedNewPackageFilename.Reset();
+						ModifiedNewPackageFilename.Append(NewPackageFilenameWithoutExtension);
+						ModifiedNewPackageFilename.AppendChar('_');
+						ModifiedNewPackageFilename.AppendInt(Index);
+						ModifiedNewPackageFilename.Append(FileExtension);
+					} while (UsedPackagesName.ContainsByHash(ModifiedNewPackageNameHash, ModifiedNewPackageName)
+						|| FileManager.FileExists(*ModifiedNewPackageFilename)
+						);
+
+					if (bIsNameChangeCausedByOtherMigrationPackage)
+					{
+						RenamedPackagesInfo.Add(
+							FText::Format(LOCTEXT("MigratePackages_PackageNameChangeByOtherPackage", "({0}) will be named ({1}) because another migrated package is already using that name.")
+								, FText::FromString(PackageData.Name)
+								, FText::FromString(ModifiedNewPackageName)
+							)
+						);
+					}
+					else if (bIsNameChangeCausedByExistingAssetInDestination)
+					{
+						RenamedPackagesInfo.Add(
+							FText::Format(LOCTEXT("MigratePackages_PackageNameChangeByExistingPackageInDestination", "({0}) will be named ({1}) because an file in the destination project is already using that name.")
+								, FText::FromString(PackageData.Name)
+								, FText::FromString(ModifiedNewPackageName)
+							)
+						);
+					}
+
+					NewPackageNameHash = ModifiedNewPackageNameHash;
+					NewPackageName = MoveTemp(ModifiedNewPackageName);
+					NewPackageFilename = MoveTemp(ModifiedNewPackageFilename);
+				}
+
+				UsedPackagesName.AddByHash(NewPackageNameHash, NewPackageName);
+
+				int32 MigrationPackageDataIndex = PackageMigrationContext.MigrationPackagesData.Emplace(NewPackageName, PackageData.Name, NewPackageFilename);
+				FPackageMigrationContext::FMigrationPackageData& MigrationData = PackageMigrationContext.MigrationPackagesData[MigrationPackageDataIndex];
+
+				// Post 5.1 look into detecting which file can be migrated without being loaded
+				MigrationData.bNeedInstancedLoad = bShouldMigrate;
+				MigrationData.bNeedToBeSaveMigrated = bShouldMigrate;
+
+				ExistingPackageNameToMigrationDataIndex.Add(PackageData.Name, MigrationPackageDataIndex);
+
+				// Check if there is a existing package that need to be moved out the way
+				if (UPackage* InTheWayPacakge = FindObjectFast<UPackage>(nullptr, *NewPackageName))
+				{
+					PackageMigrationContext.MoveInTheWayPackage(InTheWayPacakge);
+				}
+
+				PackageMigrationImplContext.InstancingContext.AddPackageMapping(*PackageData.Name, *NewPackageName);
+			}
+
+			if (!RenamedPackagesInfo.IsEmpty())
+			{
+				MigrateLog.NewPage(LOCTEXT("MigratePackages_PackageNameChange", "Modified Packages Name For Migration"));
+				for (const FText& Message : RenamedPackagesInfo)
+				{
+					MigrateLog.Info(Message);
+				}
+			}
+		}
+
+		static void SetupExternalAssetPackagesMigrationData(const TArray<TPair<const ReportPackageData*, const FAssetData>>& ExternalPackageDatas, TMap<const FStringView, int32>& ExistingPackageNameToMigrationDataIndex, FPackageMigrationContext& PackageMigrationContext, FPackageMigrationImplContext& MigrationImplContext)
+		{
+			auto GenerateObjectPath = [](const FStringView PackageName, const FStringView AssetName, const FStringView SubPath) -> FString
+			{
+				FString InstancedPath;
+
+				int32 DelimitersCount = 2;
+				if (SubPath.IsEmpty())
+				{
+					--DelimitersCount;
+				}
+
+				InstancedPath.Reserve(PackageName.Len() + AssetName.Len() + SubPath.Len() + DelimitersCount);
+				InstancedPath.Append(PackageName);
+				InstancedPath.AppendChar(TEXT('.'));
+				InstancedPath.Append(AssetName);
+
+				if (!SubPath.IsEmpty())
+				{
+					InstancedPath.AppendChar(SUBOBJECT_DELIMITER_CHAR);
+					InstancedPath.Append(SubPath);
+				}
+
+				return InstancedPath;
+			};
+
+			// Handle the external packages
+			for (const TPair<const ReportPackageData*, const FAssetData>& PackageData : ExternalPackageDatas)
+			{
+				const FString OuterPath = PackageData.Value.GetOptionalOuterPathName().ToString();
+
+				const FStringView OuterPackageName = FPathViews::GetBaseFilenameWithPath(OuterPath);
+
+				const int32* PtrToMigrationDataIndex = ExistingPackageNameToMigrationDataIndex.Find(OuterPackageName);
+
+				if (!PtrToMigrationDataIndex)
+				{
+					PackageMigrationContext.AddErrorMigrationMessage(FText::Format(
+						LOCTEXT("MigratePackages_ExternalPackageNotExported", "({0}) won't be migrated because the outer of its content ({1}) will not be migrated")
+						, FText::FromString(PackageData.Key->Name)
+						, FText::FromStringView(OuterPackageName)
+					)
+					);
+					continue;
+				}
+
+				FPackageMigrationContext::FMigrationPackageData& OuterMigrationData = PackageMigrationContext.MigrationPackagesData[*PtrToMigrationDataIndex];
+
+				const FSoftObjectPath ExistingObjectPath = PackageData.Value.GetSoftObjectPath();
+				FString NewObjectPath = GenerateObjectPath(OuterMigrationData.GetInstancedPackageName(), FPathViews::GetBaseFilename(OuterMigrationData.GetInstancedPackageName()), ExistingObjectPath.GetSubPathString());
+
+				FString NewPackageName;
+
+				if (FWorldPartitionActorDescUtils::IsValidActorDescriptorFromAssetData(PackageData.Value))
+				{
+					// If the external package is an actor.
+					EActorPackagingScheme Scheme = ULevel::GetActorPackagingSchemeFromActorPackageName(PackageData.Key->Name);
+					NewPackageName = ULevel::GetActorPackageName(ULevel::GetExternalActorsPath(OuterMigrationData.GetInstancedPackageName()), Scheme, NewObjectPath);
+				}
+				else
+				{
+					NewPackageName = FExternalPackageHelper::GetExternalPackageName(OuterMigrationData.GetInstancedPackageName(), NewObjectPath);
+				}
+
+
+				FString NewPackageFilename = PackageMigrationContext.GetDestinationMountPoint().GetMigratedPackageFilename(NewPackageName, FPackageName::GetAssetPackageExtension());
+
+				// Add the external package to the list of migrated asset, even if the asset is not really migrated we still need it for the instance path
+				uint32 MigrationPackageDataIndex = PackageMigrationContext.MigrationPackagesData.Emplace(NewPackageName, PackageData.Key->Name, NewPackageFilename);
+
+				FPackageMigrationContext::FMigrationPackageData& MigrationData = PackageMigrationContext.MigrationPackagesData[MigrationPackageDataIndex];
+
+				// Post 5.1 look into detecting which file can be migrated without being loaded
+				MigrationData.bNeedInstancedLoad = OuterMigrationData.bNeedInstancedLoad && PackageData.Key->bShouldMigratePackage;
+				MigrationData.bNeedToBeSaveMigrated = OuterMigrationData.bNeedToBeSaveMigrated && PackageData.Key->bShouldMigratePackage;
+
+				// Check if there is a existing package that need to be moved out the way
+				if (UPackage* InTheWayPacakge = FindObjectFast<UPackage>(nullptr, *NewPackageName))
+				{
+					PackageMigrationContext.MoveInTheWayPackage(InTheWayPacakge);
+				}
+
+				MigrationImplContext.InstancingContext.AddPackageMapping(*(PackageData.Key->Name), *NewPackageName);
+			}
+		}
+
+		static void CreatePackagesAndSetupLinkers(FPackageMigrationContext& PackageMigrationContext, FPackageMigrationImplContext& MigrationImplContext, TArray<TWeakObjectPtr<UPackage>>& PackagesToClean)
+		{
+			FArchive* ReaderOverride = nullptr;
+
+			// Create the package and their load linker. If an asset try to load a weak dependency the package will load from the right file because of the existing linker.
+			for (FPackageMigrationContext::FMigrationPackageData& MigrationPackageData : PackageMigrationContext.MigrationPackagesData)
+			{
+				if (MigrationImplContext.SlowTask.ShouldCancel() || MigrationImplContext.bWasCanceled)
+				{
+					MigrationImplContext.bWasCanceled = true;
+					break;
+				}
+
+				UPackage* MigrationPackage = CreatePackage(*MigrationPackageData.GetInstancedPackageName());
+
+				/**
+				 * Load_Verify tell the linker to not load the package but it will create the linker if the file exist and is valid.
+				 * LOAD_NoVerify tell the linker to not check the import of the package (in the editor this will avoid loading the hard dependencies of the package)
+				 * 
+				 * This will the package with a pre-created linker that has the right instancing context. Ready to loaded by another call to load package that may not have all that info.
+				 */
+				MigrationPackageData.InstancedPackage = LoadPackage(MigrationPackage, *MigrationPackageData.GetOriginalPackageName(), LOAD_Verify | LOAD_NoVerify, ReaderOverride, &MigrationImplContext.InstancingContext);
+
+				PackagesToClean.Add(MigrationPackage);
+			}
+		}
+
+		static void LoadInstancedPackages(FPackageMigrationContext& PackageMigrationContext, FPackageMigrationImplContext& MigrationImplContext)
+		{
+			const int32 NumOfPackageToLoad = Algo::CountIf(PackageMigrationContext.MigrationPackagesData, [](const FPackageMigrationContext::FMigrationPackageData& MigrationPackageData)
+				{
+					return MigrationPackageData.bNeedInstancedLoad || MigrationPackageData.bNeedToBeSaveMigrated;
+				});
+
+			// We give 40% of the progress weight to the loading
+			const float ProgressPerItemToload = 40.f / NumOfPackageToLoad;
+
+			uint32 ProgressCount = 0;
+
+			FArchive* ReaderOverride = nullptr;
+
+			for (FPackageMigrationContext::FMigrationPackageData& MigrationPackageData : PackageMigrationContext.MigrationPackagesData)
+			{
+				if (MigrationImplContext.SlowTask.ShouldCancel() || MigrationImplContext.bWasCanceled)
+				{
+					MigrationImplContext.bWasCanceled = true;
+					break;
+				}
+
+				if (MigrationPackageData.bNeedInstancedLoad || MigrationPackageData.bNeedToBeSaveMigrated)
+				{
+					MigrationImplContext.SlowTask.EnterProgressFrame(ProgressPerItemToload
+						, FText::Format(LOCTEXT("MigratePackages_Load", "Migration: Loading packages {0}/{1}")
+							, ProgressCount
+							, NumOfPackageToLoad
+						)
+					);
+
+					++ProgressCount;
+
+					UPackage* LoadedPackage = LoadPackage(MigrationPackageData.GetInstancedPackage(), *MigrationPackageData.GetOriginalPackageName(), LOAD_None, ReaderOverride, &MigrationImplContext.InstancingContext);
+
+					if (IsValid(LoadedPackage))
+					{
+						UObject* Asset = FPackageMigrationImpl::FindAssetInPackage(LoadedPackage);
+
+						if (Asset && !Asset->HasAnyFlags(RF_Standalone))
+						{
+							// The external actor or object are sometimes not protected from the garbage collector. This is removed by the purge at the end of the migration
+							Asset->AddToRoot();
+						}
+					}
+					else
+					{
+						MigrationPackageData.bNeedToBeSaveMigrated = false;
+						PackageMigrationContext.AddErrorMigrationMessage(FText::Format(LOCTEXT("MigratePackages_LoadFailed", "Couldn't migrate package ({0}) because the load of the asset failed"), FText::FromString(MigrationPackageData.GetOriginalPackageName())));
+					}
+				}
+			}
+		}
+
+		static void SaveInstancedPackagesIntoDestination(FPackageMigrationContext& PackageMigrationContext, FPackageMigrationImplContext& MigrationImplContext)
+		{
+			FSavePackageArgs SaveArgs;
+			SaveArgs.SaveFlags |= SAVE_RehydratePayloads | SAVE_Async;
+
+			uint32 ProgressCount = 0;
+
+			const int32 NumOfPackageToSave = Algo::CountIf(PackageMigrationContext.MigrationPackagesData, [](const FPackageMigrationContext::FMigrationPackageData& MigrationPackageData)
+				{
+					return MigrationPackageData.bNeedToBeSaveMigrated;
+				});
+
+			// We give 60% of the progress weight to the saving of the assets
+			const float ProgressPerItemToSave = 60.f / NumOfPackageToSave;
+
+			for (const FPackageMigrationContext::FMigrationPackageData& MigrationPackageData : PackageMigrationContext.MigrationPackagesData)
+			{
+				if (MigrationImplContext.SlowTask.ShouldCancel() || MigrationImplContext.bWasCanceled)
+				{
+					MigrationImplContext.bWasCanceled = true;
+					break;
+				}
+				if (MigrationPackageData.bNeedToBeSaveMigrated)
+				{
+
+					MigrationImplContext.SlowTask.EnterProgressFrame(ProgressPerItemToSave
+						, FText::Format(LOCTEXT("MigratePackages_Save", "Saving the packages into the destination {0}/{1}")
+							, ProgressCount
+							, NumOfPackageToSave
+						)
+					);
+
+					++ProgressCount;
+					
+					UObject* Asset = FPackageMigrationImpl::FindAssetInPackage(MigrationPackageData.GetInstancedPackage());
+					if (IsValid(MigrationPackageData.GetInstancedPackage()) && Asset)
+					{
+						FSavePackageResultStruct SaveResult = GEditor->Save(MigrationPackageData.GetInstancedPackage(), Asset, *MigrationPackageData.GetDestinationFilename(), SaveArgs);
+
+						if (SaveResult.IsSuccessful())
+						{
+							PackageMigrationContext.AddSucessfullMigrationMessage(FText::Format(LOCTEXT("MigratePackages_SaveSuccess", "Package ({0}) was migrated successfully migrated as ({1}) with the fellowing filename ({2})")\
+								, FText::FromString(MigrationPackageData.GetOriginalPackageName())
+								, FText::FromString(MigrationPackageData.GetInstancedPackageName())
+								, FText::FromString(MigrationPackageData.GetDestinationFilename())
+							));
+						}
+						else
+						{
+							PackageMigrationContext.AddErrorMigrationMessage(FText::Format(LOCTEXT("MigratePackages_SaveFailed", "Couldn't migrate package ({0}) because the asset save failed. Destination File ({1})")
+								, FText::FromString(MigrationPackageData.GetOriginalPackageName())
+								, FText::FromString(MigrationPackageData.GetDestinationFilename())
+							));
+						}
+					}
+					else if (!IsValid(MigrationPackageData.GetInstancedPackage()))
+					{
+						PackageMigrationContext.AddErrorMigrationMessage(FText::Format(LOCTEXT("MigratePackages_SaveFailedPackageInvalid", "Couldn't migrate package ({0}) because the asset package is invalid. Destination File ({1})")
+							, FText::FromString(MigrationPackageData.GetOriginalPackageName())
+							, FText::FromString(MigrationPackageData.GetDestinationFilename())
+						));
+					}
+					else
+					{
+						PackageMigrationContext.AddErrorMigrationMessage(FText::Format(LOCTEXT("MigratePackages_SaveFailedNoAsset", "Couldn't migrate package ({0}) because the package didn't contains a an asset. Destination File ({1})")
+							, FText::FromString(MigrationPackageData.GetOriginalPackageName())
+							, FText::FromString(MigrationPackageData.GetDestinationFilename())
+						));
+					}
+				}
+			}
+		}
+
+		static void CleanInstancedPackages(const TArray<TWeakObjectPtr<UPackage>>& PackagesToClean)
+		{
+			TSharedRef<TFunction<void(UObject*)>> PurgeObject = MakeShared<TFunction<void(UObject*)>>();
+			PurgeObject.Get() = [PurgeObject](UObject* Object)
+			{
+				if (IsValid(Object))
+				{
+					if (UPackage* ExternalPackage = Object->GetExternalPackage())
+					{
+						if (Object != ExternalPackage && IsValid(ExternalPackage))
+						{
+							(*PurgeObject)(ExternalPackage);
+							ForEachObjectWithOuter(ExternalPackage, *PurgeObject);
+						}
+					}
+
+					if (Object->IsRooted())
+					{
+						Object->RemoveFromRoot();
+					}
+
+					Object->ClearFlags(RF_Public | RF_Standalone);
+					Object->MarkAsGarbage();
+				}
+			};
+
+			// Turn off the components while unloading stuff
+			FGlobalComponentReregisterContext ComponentContext;
+
+			TArray<UObject*> ReferenceToNull;
+			for (const TWeakObjectPtr<UPackage>& WeakPackage : PackagesToClean)
+			{
+				if (UPackage* Package = WeakPackage.Get())
+				{
+					const ERenameFlags PkgRenameFlags = REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional | REN_SkipGeneratedClasses;
+					check(Package->Rename(*MakeUniqueObjectName(nullptr, UPackage::StaticClass(), *FString::Printf(TEXT("%s_DEADFROMMIGRATION"), *Package->GetName())).ToString(), nullptr, PkgRenameFlags));
+
+					if (UObject* Asset = FPackageMigrationImpl::FindAssetInPackage(Package))
+					{
+						ReferenceToNull.Add(Asset);
+					}
+
+					(*PurgeObject)(Package);
+					ForEachObjectWithOuter(Package, *PurgeObject);
+				}
+			}
+
+			// Removing assets from memory is complicated
+			TArray<UObject*> UDStructToReplace;
+			for (int32 Index = 0; Index < ReferenceToNull.Num(); )
+			{
+				if (UUserDefinedStruct* UDStruct = Cast<UUserDefinedStruct>(ReferenceToNull[Index]))
+				{
+					ReferenceToNull.RemoveAtSwap(Index);
+					UDStructToReplace.Add(UDStruct);
+				}
+				else
+				{
+					Index++;
+				}
+			}
+
+			if (UDStructToReplace.Num())
+			{
+				ObjectTools::ForceReplaceReferences(GetFallbackStruct(), UDStructToReplace);
+			}
+
+			ObjectTools::ForceReplaceReferences(nullptr, ReferenceToNull);
+
+			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+		}
+
+		static void RestoreInTheWayPackages(FPackageMigrationContext& PackageMigrationContext)
+		{
+			PackageMigrationContext.TemporalyMovedPackages.Empty();
+
+			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+		}
+
+		static void BuildAndNotifyLogWindow(FPackageMigrationContext& PackageMigrationContext, FMessageLog& MigrateLog, FPackageMigrationImplContext& MigrationImplContext)
+		{
+			FText NotificationMessage;
+
+			if (!PackageMigrationContext.MigratedPackageMessages.IsEmpty())
+			{
+				MigrateLog.NewPage(LOCTEXT("MigratePackages_SuccessPageLabel", "Migrated Pacakges"));
+				for (const FText& InfoMessage : PackageMigrationContext.MigratedPackageMessages)
+				{
+					MigrateLog.Info(InfoMessage);
+				}
+			}
+
+			if (!PackageMigrationContext.WarningMessage.IsEmpty())
+			{
+				MigrateLog.NewPage(LOCTEXT("MigratePackages_WarningPageLabel", "Migration warnings"));
+				for (const FText& WarningMessage : PackageMigrationContext.WarningMessage)
+				{
+					MigrateLog.Warning(WarningMessage);
+				}
+			}
+
+			if (PackageMigrationContext.ErrorMessages.IsEmpty())
+			{
+				if (PackageMigrationContext.WarningMessage.IsEmpty())
+				{
+					NotificationMessage = LOCTEXT("MigratePackages_SuccessNotifcation", "Content migration completed.");
+				}
+				else
+				{
+					NotificationMessage = LOCTEXT("MigratePackages_SuccessNotifcation", "Content migration completed with some warnings.");
+				}
+			}
+			else
+			{
+				if (PackageMigrationContext.MigratedPackageMessages.IsEmpty())
+				{
+					NotificationMessage = LOCTEXT("MigratePackages_FailureNotifcation", "Content migration failed.");
+				}
+				else
+				{
+					NotificationMessage = LOCTEXT("MigratePackages_PartialFailureNotifcation", "Content migration failed but some asset have been migrated sucessfuly.");
+				}
+
+				MigrateLog.NewPage(LOCTEXT("MigratePackages_ErrorsPageLabel", "Migration Errors"));
+				for (const FText& ErrorMessage : PackageMigrationContext.ErrorMessages)
+				{
+					MigrateLog.Error(ErrorMessage);
+				}
+			}
+
+			if (MigrationImplContext.bWasCanceled)
+			{
+				if (PackageMigrationContext.MigratedPackageMessages.IsEmpty())
+				{
+					NotificationMessage = LOCTEXT("MigratePackages_Canceled", "Content migration was canceled.");
+				}
+				else
+				{
+					NotificationMessage = LOCTEXT("MigratePackages_Canceled", "Content migration was canceled but some package where already migrated.");
+				}
+			}
+
+			MigrateLog.Notify(NotificationMessage, EMessageSeverity::Info);
+		}
+	};
+}
+
 
 IAssetTools& IAssetTools::Get()
 {
@@ -1733,6 +2432,11 @@ void UAssetToolsImpl::MigratePackages(const TArray<FName>& PackageNamesToMigrate
 	}
 }
 
+UE::AssetTools::FOnPackageMigration& UAssetToolsImpl::GetOnPackageMigration()
+{
+	return OnPackageMigration;
+}
+
 void UAssetToolsImpl::OnNewImportRecord(UClass* AssetType, const FString& FileExtension, bool bSucceeded, bool bWasCancelled, const FDateTime& StartTime)
 {
 	// Don't attempt to report usage stats if analytics isn't available
@@ -3074,7 +3778,7 @@ void UAssetToolsImpl::PerformMigratePackages(TArray<FName> PackageNamesToMigrate
 	}
 }
 
-void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPackageData>> PackageDataToMigrate, const FString DestinationPath, const struct FMigrationOptions Options) const
+void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPackageData>> PackageDataToMigrate, const FString DestinationPath, const FMigrationOptions Options) const
 {
 	FString DestinationFolder;
 	if (FApp::IsUnattended() || !DestinationPath.IsEmpty())
@@ -3128,10 +3832,13 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 				}
 				else
 				{
-					// The user chose a non-content folder. Confirm that this was their intention.
-					const FText Message = FText::Format(LOCTEXT("MigratePackages_NonContentFolder", "{0} does not appear to be a game Content folder. Migrated content will only work properly if placed in a Content folder. Would you like to place your content here anyway?"), FText::FromString(DestinationFolder));
-					EAppReturnType::Type Response = FMessageDialog::Open(EAppMsgType::YesNo, Message);
-					bFolderAccepted = (Response == EAppReturnType::Yes);
+					// The user chose a non-content folder. Let them know they cannot do that.
+					const FText Message = FText::Format(LOCTEXT("MigratePackages_NonContentFolder", "{0} does not appear to be a game Content folder. Migrated content only work if placed in a Content folder. Select a Content folder."), FText::FromString(DestinationFolder));
+					EAppReturnType::Type Response = FMessageDialog::Open(EAppMsgType::OkCancel, Message);
+					if (Response == EAppReturnType::Cancel)
+					{
+						return;
+					}
 				}
 			}
 		}
@@ -3153,7 +3860,6 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 		}
 	}
 
-	bool bAbort = false;
 	FMessageLog MigrateLog("AssetTools");
 
 	// Determine if the destination is a project content folder or a plugin content folder
@@ -3161,256 +3867,131 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 	IFileManager::Get().FindFiles(ProjectFiles, *(DestinationFolder + TEXT("../")), TEXT("uproject"));
 	bool bIsDestinationAProject = !ProjectFiles.IsEmpty();
 
-	// Associate each Content folder in the target Plugin hierarchy to a content root string in UFS
-	TMap<FName, FString> DestContentRootsToFolders;
-
-	// Assets in /Game always map directly to the destination
-	DestContentRootsToFolders.Add(FName(TEXT("/Game")), DestinationFolder);
-
-	// If our destination is a project, it could have plugins...
-	if (bIsDestinationAProject)
+	if (UE::AssetTools::Private::bUseNewPackageMigration)
 	{
-		// Find all "Content" folders under the destination ../Plugins directory
-		TArray<FString> ContentFolders;
-		IFileManager::Get().FindFilesRecursive(ContentFolders, *(DestinationFolder + TEXT("../Plugins/")), TEXT("Content"), false, true);
+		using namespace UE::AssetTools::Private;
 
-		for (const FString& Folder : ContentFolders)
+		FString MountPointRootPath = FPackageMigrationImpl::GetMountPointRootPath(bIsDestinationAProject, DestinationFolder);
+
+		if (!MountPointRootPath.IsEmpty())
 		{
-			// Parse the parent folder of .../Content from "Folder"
-			FString Path, Content, Root;
-			bool bSplitContent = Folder.Split(TEXT("/"), &Path, &Content, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-			bool bSplitParentPath = Path.Split(TEXT("/"), nullptr, &Root, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-			if (!bSplitContent || !bSplitParentPath)
+
+			FPackageMigrationImpl::FPackageMigrationImplContext MigrationImplContext;
+			MigrationImplContext.Options = Options;
+
+			// 1) Create the package migration state. It will create the mount point also if needed
+			UE::AssetTools::FPackageMigrationContext PackageMigrationContext(UE::AssetTools::FPackageMigrationContext::FScopedMountPoint(MoveTemp(MountPointRootPath), MoveTemp(DestinationFolder)));
+
+			PackageMigrationContext.CurrentStep =  UE::AssetTools::FPackageMigrationContext::EPackageMigrationStep::BeginMigration;
+			OnPackageMigration.Broadcast(PackageMigrationContext);
+
+			// 2) Set up the instancing context so that the packages are load in the destination mount point and setup the packages migration data
 			{
-				MigrateLog.Error(FText::Format(LOCTEXT("MigratePackages_NoMountPointFolder", "Unable to determine mount point for folder {0}"), FText::FromString(Folder)));
-				bAbort = true;
-				continue;
+				PackageMigrationContext.MigrationPackagesData.Reserve(PackageDataToMigrate->Num());
+
+				TArray<TPair<const ReportPackageData*, const FAssetData>> ExternalPackageDatas;
+				TMap<const FStringView, int32> ExistingPackageNameToMigrationDataIndex;
+
+				FPackageMigrationImpl::SetupPublicAssetPackagesMigrationData(PackageDataToMigrate
+					, ExternalPackageDatas
+					, ExistingPackageNameToMigrationDataIndex
+					, PackageMigrationContext
+					, MigrationImplContext
+					, MigrateLog);
+
+				PackageMigrationContext.CurrentStep =  UE::AssetTools::FPackageMigrationContext::EPackageMigrationStep::PostAssetMigrationPackageDataCreated;
+				OnPackageMigration.Broadcast(PackageMigrationContext);
+
+
+				FPackageMigrationImpl::SetupExternalAssetPackagesMigrationData(ExternalPackageDatas
+					, ExistingPackageNameToMigrationDataIndex
+					, PackageMigrationContext
+					, MigrationImplContext);
+
+				PackageMigrationContext.CurrentStep = UE::AssetTools::FPackageMigrationContext::EPackageMigrationStep::PostExternalMigrationPackageDataCreated;
+				OnPackageMigration.Broadcast(PackageMigrationContext);
+
 			}
 
-			// Determine this folder name to be a content root in the destination
-			FString DestContentRoot = FString(TEXT("/")) + Root;
-			FString DestContentFolder = FPaths::ConvertRelativePathToFull(Folder + TEXT("/"));
-			DestContentRootsToFolders.Add(FName(DestContentRoot), DestContentFolder);
+			PackageMigrationContext.CurrentStep = UE::AssetTools::FPackageMigrationContext::EPackageMigrationStep::InTheWayPackagesMoved;
+			OnPackageMigration.Broadcast(PackageMigrationContext);
+
+
+			// 3) Instanced load
+			TArray<TWeakObjectPtr<UPackage>> PackagesToClean;
+			PackagesToClean.Reserve(PackageMigrationContext.MigrationPackagesData.Num());
+			FPackageMigrationImpl::CreatePackagesAndSetupLinkers(PackageMigrationContext, MigrationImplContext, PackagesToClean);
+
+			PackageMigrationContext.CurrentStep = UE::AssetTools::FPackageMigrationContext::EPackageMigrationStep::InstancedPackagesCreated;
+			OnPackageMigration.Broadcast(PackageMigrationContext);
+
+			FPackageMigrationImpl::LoadInstancedPackages(PackageMigrationContext, MigrationImplContext);
+
+			// Collect the garbage created by the load here and it also help detecting potential issues in migration (which can cause crashes).
+			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
+
+			PackageMigrationContext.CurrentStep = UE::AssetTools::FPackageMigrationContext::EPackageMigrationStep::InstancedPackagesLoaded;
+			OnPackageMigration.Broadcast(PackageMigrationContext);
+
+
+			// 4) Saves
+			FPackageMigrationImpl::SaveInstancedPackagesIntoDestination(PackageMigrationContext, MigrationImplContext);
+
+			PackageMigrationContext.CurrentStep = UE::AssetTools::FPackageMigrationContext::EPackageMigrationStep::InstancedPackagesSaved;
+			OnPackageMigration.Broadcast(PackageMigrationContext);
+
+
+			// 5) Remove the packages created for the migration
+			FPackageMigrationImpl::CleanInstancedPackages(PackagesToClean);
+
+			PackageMigrationContext.CurrentStep = UE::AssetTools::FPackageMigrationContext::EPackageMigrationStep::PostCleaningInstancedPackages;
+			OnPackageMigration.Broadcast(PackageMigrationContext);
+
+			FPackageMigrationImpl::RestoreInTheWayPackages(PackageMigrationContext);
+
+			PackageMigrationContext.CurrentStep = UE::AssetTools::FPackageMigrationContext::EPackageMigrationStep::InstancedPackagesSaved;
+			OnPackageMigration.Broadcast(PackageMigrationContext);
+
+			FPackageMigrationImpl::BuildAndNotifyLogWindow(PackageMigrationContext, MigrateLog, MigrationImplContext);
+
+			PackageMigrationContext.CurrentStep = UE::AssetTools::FPackageMigrationContext::EPackageMigrationStep::EndMigration;
+			OnPackageMigration.Broadcast(PackageMigrationContext);
 		}
 	}
-
-	if (bAbort)
+	else
 	{
-		MigrateLog.Notify();
-		return;
-	}
+		bool bAbort = false;
 
-	// Check if the root of any of the packages to migrate have no destination
-	TArray<FName> LostPackages;
-	TSet<FName> LostPackageRoots;
-	for (const FName& PackageName : AllPackageNamesToMove)
-	{
-		// Acquire the mount point for this package
-		FString Folder = TEXT("/") + FPackageName::GetPackageMountPoint(PackageName.ToString()).ToString();
+		// Associate each Content folder in the target Plugin hierarchy to a content root string in UFS
+		TMap<FName, FString> DestContentRootsToFolders;
 
-		// If this is /Game package, it doesn't need special handling and is simply bound for the destination, continue
-		if (Folder == TEXT("/Game"))
+		// Assets in /Game always map directly to the destination
+		DestContentRootsToFolders.Add(FName(TEXT("/Game")), DestinationFolder);
+
+		// If our destination is a project, it could have plugins...
+		if (bIsDestinationAProject)
 		{
-			continue;
-		}
+			// Find all "Content" folders under the destination ../Plugins directory
+			TArray<FString> ContentFolders;
+			IFileManager::Get().FindFilesRecursive(ContentFolders, *(DestinationFolder + TEXT("../Plugins/")), TEXT("Content"), false, true);
 
-		// Resolve the disk folder of this package's mount point so we compare directory names directly
-		//  We do this FileSystem to FileSystem compare instead of mount point (UFS) to content root (FileSystem)
-		//  The mount point name likely comes from the FriendlyName in the uplugin, or the uplugin basename
-		//  What's important here is that we succeed in finding _the same plugin_ between a copy/pasted project
-		if (!FPackageName::TryConvertLongPackageNameToFilename(Folder, Folder))
-		{
-			MigrateLog.Error(FText::Format(LOCTEXT("MigratePackages_NoContentFolder", "Unable to determine content folder for asset {0}"), FText::FromString(PackageName.ToString())));
-			bAbort = true;
-			continue;
-		}
-		Folder.RemoveFromEnd(TEXT("/"));
-
-		// Parse the parent folder of .../Content from "Folder"
-		FString Path, Content, Root;
-		bool bSplitContent = Folder.Split(TEXT("/"), &Path, &Content, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-		bool bSplitParentPath = Path.Split(TEXT("/"), nullptr, &Root, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
-		if (!bSplitContent || !bSplitParentPath)
-		{
-			MigrateLog.Error(FText::Format(LOCTEXT("MigratePackages_NoMountPointPackage", "Unable to determine mount point for package {0}"), FText::FromString(PackageName.ToString())));
-			bAbort = true;
-			continue;
-		}
-
-		// Check to see if the content root exists in the destination, otherwise it's "Lost"
-		FString SrcContentRoot = FString(TEXT("/")) + Root;
-		FName SrcContentRootName(SrcContentRoot);
-		if (!DestContentRootsToFolders.Find(SrcContentRootName))
-		{
-			LostPackages.Add(PackageName);
-			LostPackageRoots.Add(SrcContentRootName);
-		}
-	}
-
-	if (bAbort)
-	{
-		MigrateLog.Notify();
-		return;
-	}
-
-	// If some packages don't have a matching content root in the destination, prompt for desired behavior
-	if (!LostPackages.IsEmpty())
-	{
-		if (!FApp::IsUnattended() && Options.bPrompt && Options.OrphanFolder.IsEmpty())
-		{
-			FString LostPackageRootsString;
-			for (const FName& PackageRoot : LostPackageRoots)
+			for (const FString& Folder : ContentFolders)
 			{
-				LostPackageRootsString += FString(TEXT("\n\t")) + PackageRoot.ToString();
-			}
-
-			// Prompt to consolidate to a migration folder
-			FText Prompt = FText::Format(LOCTEXT("MigratePackages_ConsolidateToTemp", "Some selected assets don't have a corresponding content root in the destination.{0}\n\nWould you like to save a copy of all selected assets into a folder with consolidated references? If you select No then assets in the above roots will not be migrated."), FText::FromString(LostPackageRootsString));
-			switch (FMessageDialog::Open(EAppMsgType::YesNoCancel, Prompt))
-			{
-			case EAppReturnType::Yes:
-				// No op
-				break;
-			case EAppReturnType::No:
-				LostPackages.Reset();
-				break;
-			case EAppReturnType::Cancel:
-				return;
-			}
-		}
-		else if (Options.OrphanFolder.IsEmpty())
-		{
-			LostPackages.Reset();
-		}
-	}
-
-	// This will be used to tidy up the temp folder after we copy the migrated assets
-	FString SrcDiskFolderFilename;
-
-	// Fixing up references requires resaving packages to a temporary location
-	if (!LostPackages.IsEmpty())
-	{
-		// Query the user for a folder to migrate assets into. This folder will exist temporary in this project, and is the destination for migration in the target project
-		FString FolderName = Options.OrphanFolder.IsEmpty()? TEXT("Migrated") : Options.OrphanFolder;
-		if (!FApp::IsUnattended() && Options.bPrompt)
-		{
-			bool bIsOkButtonEnabled = true;
-			TSharedRef<SEditableTextBox> EditableTextBox = SNew(SEditableTextBox)
-				.Text(FText::FromString(FolderName))
-				.OnVerifyTextChanged_Lambda([&bIsOkButtonEnabled](const FText& InNewText, FText& OutErrorMessage) -> bool
-					{
-						if (InNewText.ToString().Contains(TEXT("/")))
-						{
-							OutErrorMessage = LOCTEXT("Migrated_CannotContainSlashes", "Cannot use a slash in a folder name.");
-
-							// Disable Ok if the string is invalid
-							bIsOkButtonEnabled = false;
-							return false;
-						}
-
-						// Enable Ok if the string is valid
-						bIsOkButtonEnabled = true;
-						return true;
-					})
-				.OnTextCommitted_Lambda([&FolderName](const FText& NewValue, ETextCommit::Type)
-					{
-						// Set the result if they modified the text
-						FolderName = NewValue.ToString();
-					});
-
-			// Set the result if they just click Ok
-			SGenericDialogWidget::FArguments FolderDialogArguments;
-			FolderDialogArguments.OnOkPressed_Lambda([&EditableTextBox, &FolderName]()
+				// Parse the parent folder of .../Content from "Folder"
+				FString Path, Content, Root;
+				bool bSplitContent = Folder.Split(TEXT("/"), &Path, &Content, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+				bool bSplitParentPath = Path.Split(TEXT("/"), nullptr, &Root, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+				if (!bSplitContent || !bSplitParentPath)
 				{
-					FolderName = EditableTextBox->GetText().ToString();
-				});
-
-			// Present the Dialog
-			SGenericDialogWidget::OpenDialog(LOCTEXT("MigratePackages_FolderName", "Folder for Migrated Assets"),
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(5.0f)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("MigratePackages_SpecifyConsolidateFolder", "Please specify a new folder name to consolidate the assets into."))
-				]
-			+ SVerticalBox::Slot()
-				.Padding(5.0f)
-				[
-					SNew(SSpacer)
-				]
-			+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(5.0f)
-				[
-					EditableTextBox
-				],
-				FolderDialogArguments, true);
-
-			// Sanity the user input
-			if (FolderName.IsEmpty())
-			{
-				return;
-			}
-		}
-		// Remove forbidden characters
-		FolderName = FolderName.Replace(TEXT("/"), TEXT(""));
-
-		// Verify that we don't have any assets that exist where we want to perform our consolidation
-		//  We could do the same check at the destination, but the package copy code will happily overwrite,
-		//  and it seems reasonable someone would want to Migrate several times if snapshotting changes from another project.
-		//  So for now we don't necessitate that the destination content folder be missing as well.
-		FString SrcUfsFolderName = FolderName;
-		SrcUfsFolderName.InsertAt(0, TEXT("/Game/"));
-		SrcDiskFolderFilename = FPackageName::LongPackageNameToFilename(SrcUfsFolderName, TEXT(""));
-		if (IFileManager::Get().DirectoryExists(*SrcDiskFolderFilename))
-		{
-			const FText Message = FText::Format(LOCTEXT("MigratePackages_InvalidMigrateFolder", "{0} exists on disk in the source project, and cannot be used to consolidate assets."), FText::FromString(SrcDiskFolderFilename));
-			if (!FApp::IsUnattended() && Options.bPrompt)
-			{
-				EAppReturnType::Type Response = FMessageDialog::Open(EAppMsgType::Ok, Message);
-			}
-			else
-			{
-				UE_LOG(LogAssetTools, Error, TEXT("%s"), *Message.ToString());
-			}
-			return;
-		}
-
-		// Resolve the packages to migrate to assets
-		TArray<UObject*> SrcObjects;
-		{
-			FScopedSlowTask SlowTask(AllPackageNamesToMove.Num(), LOCTEXT("MigratePackages_Loading", "Loading Packages..."));
-			SlowTask.MakeDialog();
-			for (const FName& SrcPackage : AllPackageNamesToMove)
-			{
-				SlowTask.EnterProgressFrame();
-				UPackage* LoadedPackage = UPackageTools::LoadPackage(SrcPackage.ToString());
-				if (!LoadedPackage)
-				{
-					MigrateLog.Error(FText::Format(LOCTEXT("MigratePackages_FailedToLoadPackage", "Failed to load package {0}"), FText::FromString(SrcPackage.ToString())));
+					MigrateLog.Error(FText::Format(LOCTEXT("MigratePackages_NoMountPointFolder", "Unable to determine mount point for folder {0}"), FText::FromString(Folder)));
 					bAbort = true;
 					continue;
 				}
 
-				UObject* Object = LoadedPackage->FindAssetInPackage();
-				if (Object)
-				{
-					SrcObjects.Add(Object);
-				}
-				else
-				{
-					MigrateLog.Warning(FText::Format(LOCTEXT("MigratePackages_PackageHasNoAsset", "Package {0} has no asset in it"), FText::FromString(SrcPackage.ToString())));
-				}
-
-				UBlueprint* Blueprint = Cast<UBlueprint>(Object);
-				if (Blueprint && (!Blueprint->SkeletonGeneratedClass || !Blueprint->GeneratedClass))
-				{
-					MigrateLog.Error(FText::Format(LOCTEXT("MigratePackages_InvalidBluepriint", "Blueprint is invalid in package {0}"), FText::FromString(SrcPackage.ToString())));
-					bAbort = true;
-					continue;
-				}
+				// Determine this folder name to be a content root in the destination
+				FString DestContentRoot = FString(TEXT("/")) + Root;
+				FString DestContentFolder = FPaths::ConvertRelativePathToFull(Folder + TEXT("/"));
+				DestContentRootsToFolders.Add(FName(DestContentRoot), DestContentFolder);
 			}
 		}
 
@@ -3420,291 +4001,529 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 			return;
 		}
 
-		// To handle complex references and assets in different Plugins, we must first duplicate to temp packages
-		TArray<UObject*> TempObjects;
-		TMap<UObject*, UObject*> ReplacementMap;
+		// Check if the root of any of the packages to migrate have no destination
+		TArray<FName> LostPackages;
+		TSet<FName> LostPackageRoots;
+		for (const FName& PackageName : AllPackageNamesToMove)
 		{
-			FScopedSlowTask SlowTask(SrcObjects.Num(), LOCTEXT("MigratePackages_Duplicate", "Duplicating Assets..."));
-			SlowTask.MakeDialog();
+			// Acquire the mount point for this package
+			FString Folder = TEXT("/") + FPackageName::GetPackageMountPoint(PackageName.ToString()).ToString();
 
-			TSet<UPackage*> PackagesUserRefusedToFullyLoad;
-			for (int i=0; i<SrcObjects.Num(); ++i)
+			// If this is /Game package, it doesn't need special handling and is simply bound for the destination, continue
+			if (Folder == TEXT("/Game"))
 			{
-				SlowTask.EnterProgressFrame();
+				continue;
+			}
 
-				UObject* Object = SrcObjects[i];
-				FString PackageName = Object->GetPackage()->GetName();
+			// Resolve the disk folder of this package's mount point so we compare directory names directly
+			//  We do this FileSystem to FileSystem compare instead of mount point (UFS) to content root (FileSystem)
+			//  The mount point name likely comes from the FriendlyName in the uplugin, or the uplugin basename
+			//  What's important here is that we succeed in finding _the same plugin_ between a copy/pasted project
+			if (!FPackageName::TryConvertLongPackageNameToFilename(Folder, Folder))
+			{
+				MigrateLog.Error(FText::Format(LOCTEXT("MigratePackages_NoContentFolder", "Unable to determine content folder for asset {0}"), FText::FromString(PackageName.ToString())));
+				bAbort = true;
+				continue;
+			}
+			Folder.RemoveFromEnd(TEXT("/"));
 
-				FString Path, Root;
-				PackageName.RemoveFromStart(TEXT("/"));
-				bool bSplitRoot = PackageName.Split(TEXT("/"), &Root, &Path);
-				if (!bSplitRoot)
+			// Parse the parent folder of .../Content from "Folder"
+			FString Path, Content, Root;
+			bool bSplitContent = Folder.Split(TEXT("/"), &Path, &Content, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+			bool bSplitParentPath = Path.Split(TEXT("/"), nullptr, &Root, ESearchCase::CaseSensitive, ESearchDir::FromEnd);
+			if (!bSplitContent || !bSplitParentPath)
+			{
+				MigrateLog.Error(FText::Format(LOCTEXT("MigratePackages_NoMountPointPackage", "Unable to determine mount point for package {0}"), FText::FromString(PackageName.ToString())));
+				bAbort = true;
+				continue;
+			}
+
+			// Check to see if the content root exists in the destination, otherwise it's "Lost"
+			FString SrcContentRoot = FString(TEXT("/")) + Root;
+			FName SrcContentRootName(SrcContentRoot);
+			if (!DestContentRootsToFolders.Find(SrcContentRootName))
+			{
+				LostPackages.Add(PackageName);
+				LostPackageRoots.Add(SrcContentRootName);
+			}
+		}
+
+		if (bAbort)
+		{
+			MigrateLog.Notify();
+			return;
+		}
+
+		// If some packages don't have a matching content root in the destination, prompt for desired behavior
+		if (!LostPackages.IsEmpty())
+		{
+			if (!FApp::IsUnattended() && Options.bPrompt && Options.OrphanFolder.IsEmpty())
+			{
+				FString LostPackageRootsString;
+				for (const FName& PackageRoot : LostPackageRoots)
 				{
-					MigrateLog.Error(FText::Format(LOCTEXT("MigratePackages_NoMountPointPackage", "Unable to determine mount point for package {0}"), FText::FromString(PackageName)));
-					continue;
+					LostPackageRootsString += FString(TEXT("\n\t")) + PackageRoot.ToString();
 				}
 
-				ObjectTools::FPackageGroupName PackageGroupName;
-				PackageGroupName.ObjectName = Object->GetName();
-				PackageGroupName.PackageName = SrcUfsFolderName + TEXT("/") + Path;
-				FString GroupName = Object->GetFullGroupName(/*bStartWithOuter =*/true);
-				if (GroupName != TEXT("None"))
+				// Prompt to consolidate to a migration folder
+				FText Prompt = FText::Format(LOCTEXT("MigratePackages_ConsolidateToTemp", "Some selected assets don't have a corresponding content root in the destination.{0}\n\nWould you like to save a copy of all selected assets into a folder with consolidated references? If you select No then assets in the above roots will not be migrated."), FText::FromString(LostPackageRootsString));
+				switch (FMessageDialog::Open(EAppMsgType::YesNoCancel, Prompt))
 				{
-					PackageGroupName.GroupName = GroupName;
-				}
-
-				UObject* NewObject = ObjectTools::DuplicateSingleObject(Object, PackageGroupName, PackagesUserRefusedToFullyLoad);
-				if (NewObject)
-				{
-					TempObjects.Add(NewObject);
-					ReplacementMap.Add(SrcObjects[i], TempObjects[i]);
+				case EAppReturnType::Yes:
+					// No op
+					break;
+				case EAppReturnType::No:
+					LostPackages.Reset();
+					break;
+				case EAppReturnType::Cancel:
+					return;
 				}
 			}
+			else if (Options.OrphanFolder.IsEmpty())
+			{
+				LostPackages.Reset();
+			}
 		}
 
-		// Update references between TempObjects (to reference each other)
+		// This will be used to tidy up the temp folder after we copy the migrated assets
+		FString SrcDiskFolderFilename;
+
+		// Fixing up references requires resaving packages to a temporary location
+		if (!LostPackages.IsEmpty())
 		{
-			FScopedSlowTask SlowTask(TempObjects.Num(), LOCTEXT("MigratePackages_ReplaceReferences", "Replacing References..."));
-			SlowTask.MakeDialog();
-
-			for (int i=0; i<TempObjects.Num(); ++i)
+			// Query the user for a folder to migrate assets into. This folder will exist temporary in this project, and is the destination for migration in the target project
+			FString FolderName = Options.OrphanFolder.IsEmpty() ? TEXT("Migrated") : Options.OrphanFolder;
+			if (!FApp::IsUnattended() && Options.bPrompt)
 			{
-				SlowTask.EnterProgressFrame();
-				UObject* TempObject = TempObjects[i];
+				bool bIsOkButtonEnabled = true;
+				TSharedRef<SEditableTextBox> EditableTextBox = SNew(SEditableTextBox)
+					.Text(FText::FromString(FolderName))
+					.OnVerifyTextChanged_Lambda([&bIsOkButtonEnabled](const FText& InNewText, FText& OutErrorMessage) -> bool
+						{
+							if (InNewText.ToString().Contains(TEXT("/")))
+							{
+								OutErrorMessage = LOCTEXT("Migrated_CannotContainSlashes", "Cannot use a slash in a folder name.");
 
-				FArchiveReplaceObjectRef<UObject> ReplaceAr(TempObject, ReplacementMap, EArchiveReplaceObjectFlags::IgnoreOuterRef | EArchiveReplaceObjectFlags::IgnoreArchetypeRef);
-			}
-		}
+								// Disable Ok if the string is invalid
+								bIsOkButtonEnabled = false;
+								return false;
+							}
 
-		// Save fixed up packages to the migrated folder, and update the set of files to copy to be those migrated packages
-		{
-			FScopedSlowTask SlowTask(TempObjects.Num(), LOCTEXT("MigratePackages_ReplaceReferences", "Replacing References..."));
-			SlowTask.MakeDialog();
+							// Enable Ok if the string is valid
+							bIsOkButtonEnabled = true;
+							return true;
+						})
+					.OnTextCommitted_Lambda([&FolderName](const FText& NewValue, ETextCommit::Type)
+						{
+							// Set the result if they modified the text
+							FolderName = NewValue.ToString();
+						});
 
-			TSet<FName> NewPackageNamesToMove;
-			for (int i=0; i<TempObjects.Num(); ++i)
-			{
-				SlowTask.EnterProgressFrame();
-				UObject* TempObject = TempObjects[i];
+				// Set the result if they just click Ok
+				SGenericDialogWidget::FArguments FolderDialogArguments;
+				FolderDialogArguments.OnOkPressed_Lambda([&EditableTextBox, &FolderName]()
+					{
+						FolderName = EditableTextBox->GetText().ToString();
+					});
 
-				// Calculate the file path to the new, migrated package
-				FString const TempPackageName = TempObject->GetPackage()->GetName();
-				FString const TempPackageFilename = FPackageName::LongPackageNameToFilename(TempPackageName, FPackageName::GetAssetPackageExtension());
+				// Present the Dialog
+				SGenericDialogWidget::OpenDialog(LOCTEXT("MigratePackages_FolderName", "Folder for Migrated Assets"),
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(5.0f)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("MigratePackages_SpecifyConsolidateFolder", "Please specify a new folder name to consolidate the assets into."))
+					]
+					+ SVerticalBox::Slot()
+					.Padding(5.0f)
+					[
+						SNew(SSpacer)
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(5.0f)
+					[
+						EditableTextBox
+					],
+					FolderDialogArguments, true);
 
-				// Save it
-				FSavePackageArgs SaveArgs;
-				GEditor->Save(TempObject->GetPackage(), /*InAsset=*/nullptr, *TempPackageFilename, SaveArgs);
-
-				NewPackageNamesToMove.Add(FName(TempPackageName));
-			}
-
-			AllPackageNamesToMove = NewPackageNamesToMove;
-		}
-	}
-
-	bool bUserCanceled = false;
-
-	EAppReturnType::Type LastResponse = EAppReturnType::Yes;
-	if (!Options.bPrompt)
-	{
-		switch (Options.AssetConflict) {
-		case EAssetMigrationConflict::Overwrite:
-			LastResponse = EAppReturnType::YesAll;
-			break;
-		case EAssetMigrationConflict::Skip:
-			LastResponse = EAppReturnType::NoAll;
-			break;
-		case EAssetMigrationConflict::Cancel:
-			LastResponse = EAppReturnType::Cancel;
-			break;
-		}
-	}
-	TArray<FString> SuccessfullyCopiedFiles;
-	TArray<FString> SuccessfullyCopiedPackages;
-	FString CopyErrors;
-
-	{
-		FScopedSlowTask SlowTask(AllPackageNamesToMove.Num(), LOCTEXT("MigratePackages_CopyingFiles", "Copying Files..."));
-		SlowTask.MakeDialog();
-
-		for ( const FName& PackageNameToMove : AllPackageNamesToMove )
-		{
-			SlowTask.EnterProgressFrame();
-
-			const FString& PackageName = PackageNameToMove.ToString();
-			FString SrcFilename;
-			
-			if (!FPackageName::DoesPackageExist(PackageName, &SrcFilename))
-			{
-				const FText ErrorMessage = FText::Format(LOCTEXT("MigratePackages_PackageMissing", "{0} does not exist on disk."), FText::FromString(PackageName));
-				UE_LOG(LogAssetTools, Warning, TEXT("%s"), *ErrorMessage.ToString());
-				CopyErrors += ErrorMessage.ToString() + LINE_TERMINATOR;
-			}
-			else if (SrcFilename.Contains(FPaths::EngineContentDir()))
-			{
-				const FString LeafName = SrcFilename.Replace(*FPaths::EngineContentDir(), TEXT("Engine/"));
-				CopyErrors += FText::Format(LOCTEXT("MigratePackages_EngineContent", "Unable to migrate Engine asset {0}. Engine assets cannot be migrated."), FText::FromString(LeafName)).ToString() + LINE_TERMINATOR;
-			}
-			else
-			{
-				bool bFileOKToCopy = true;
-
-				FString Path = PackageNameToMove.ToString();
-				FString PackageRoot;
-				Path.RemoveFromStart(TEXT("/"));
-				Path.Split("/", &PackageRoot, &Path, ESearchCase::IgnoreCase, ESearchDir::FromStart);
-				PackageRoot = TEXT("/") + PackageRoot;
-
-				FString DestFilename;
-				TMap<FName, FString>::ValueType* DestRootFolder = DestContentRootsToFolders.Find(FName(PackageRoot));
-				if (ensure(DestRootFolder))
+				// Sanity the user input
+				if (FolderName.IsEmpty())
 				{
-					DestFilename = *DestRootFolder;
+					return;
+				}
+			}
+			// Remove forbidden characters
+			FolderName = FolderName.Replace(TEXT("/"), TEXT(""));
+
+			// Verify that we don't have any assets that exist where we want to perform our consolidation
+			//  We could do the same check at the destination, but the package copy code will happily overwrite,
+			//  and it seems reasonable someone would want to Migrate several times if snapshotting changes from another project.
+			//  So for now we don't necessitate that the destination content folder be missing as well.
+			FString SrcUfsFolderName = FolderName;
+			SrcUfsFolderName.InsertAt(0, TEXT("/Game/"));
+			SrcDiskFolderFilename = FPackageName::LongPackageNameToFilename(SrcUfsFolderName, TEXT(""));
+			if (IFileManager::Get().DirectoryExists(*SrcDiskFolderFilename))
+			{
+				const FText Message = FText::Format(LOCTEXT("MigratePackages_InvalidMigrateFolder", "{0} exists on disk in the source project, and cannot be used to consolidate assets."), FText::FromString(SrcDiskFolderFilename));
+				if (!FApp::IsUnattended() && Options.bPrompt)
+				{
+					EAppReturnType::Type Response = FMessageDialog::Open(EAppMsgType::Ok, Message);
 				}
 				else
 				{
-					continue;
+					UE_LOG(LogAssetTools, Error, TEXT("%s"), *Message.ToString());
 				}
+				return;
+			}
 
-				FString SubFolder;
-				if ( SrcFilename.Split( TEXT("/Content/"), nullptr, &SubFolder ) )
+			// Resolve the packages to migrate to assets
+			TArray<UObject*> SrcObjects;
+			{
+				FScopedSlowTask SlowTask(AllPackageNamesToMove.Num(), LOCTEXT("MigratePackages_Loading", "Loading Packages..."));
+				SlowTask.MakeDialog();
+				for (const FName& SrcPackage : AllPackageNamesToMove)
 				{
-					DestFilename += *SubFolder;
-
-					if ( IFileManager::Get().FileSize(*DestFilename) > 0 )
+					SlowTask.EnterProgressFrame();
+					UPackage* LoadedPackage = UPackageTools::LoadPackage(SrcPackage.ToString());
+					if (!LoadedPackage)
 					{
-						// The destination file already exists! Ask the user what to do.
-						EAppReturnType::Type Response;
-						if (FApp::IsUnattended() || !Options.bPrompt || LastResponse == EAppReturnType::YesAll || LastResponse == EAppReturnType::NoAll)
-						{
-							Response = LastResponse;
-						}
-						else
-						{
-							const FText Message = FText::Format( LOCTEXT("MigratePackages_AlreadyExists", "An asset already exists at location {0} would you like to overwrite it?"), FText::FromString(DestFilename) );
-							Response = FMessageDialog::Open( EAppMsgType::YesNoYesAllNoAllCancel, Message );
-							LastResponse = Response;
-						}
-
-						if (Response == EAppReturnType::Cancel)
-						{
-							// The user chose to cancel mid-operation. Break out.
-							bUserCanceled = true;
-							break;
-						}
-
-						const bool bWantOverwrite = Response == EAppReturnType::Yes || Response == EAppReturnType::YesAll;
-						if( !bWantOverwrite )
-						{
-							// User chose not to replace the package
-							bFileOKToCopy = false;
-						}
+						MigrateLog.Error(FText::Format(LOCTEXT("MigratePackages_FailedToLoadPackage", "Failed to load package {0}"), FText::FromString(SrcPackage.ToString())));
+						bAbort = true;
+						continue;
 					}
-				}
-				else
-				{
-					// Couldn't find Content folder in source path
-					bFileOKToCopy = false;
-				}
 
-				if ( bFileOKToCopy )
-				{
-					if ( IFileManager::Get().Copy(*DestFilename, *SrcFilename) == COPY_OK )
+					UObject* Object = LoadedPackage->FindAssetInPackage();
+					if (Object)
 					{
-						SuccessfullyCopiedPackages.Add(PackageName);
-						SuccessfullyCopiedFiles.Add(DestFilename);
+						SrcObjects.Add(Object);
 					}
 					else
 					{
-						UE_LOG(LogAssetTools, Warning, TEXT("Failed to copy %s to %s while migrating assets"), *SrcFilename, *DestFilename);
-						CopyErrors += SrcFilename + LINE_TERMINATOR;
+						MigrateLog.Warning(FText::Format(LOCTEXT("MigratePackages_PackageHasNoAsset", "Package {0} has no asset in it"), FText::FromString(SrcPackage.ToString())));
+					}
+
+					UBlueprint* Blueprint = Cast<UBlueprint>(Object);
+					if (Blueprint && (!Blueprint->SkeletonGeneratedClass || !Blueprint->GeneratedClass))
+					{
+						MigrateLog.Error(FText::Format(LOCTEXT("MigratePackages_InvalidBluepriint", "Blueprint is invalid in package {0}"), FText::FromString(SrcPackage.ToString())));
+						bAbort = true;
+						continue;
 					}
 				}
 			}
-		}
-	}
 
-	// If we are consolidating lost packages, we are copying temporary packages, so clean them up.
-	if (!LostPackages.IsEmpty())
-	{
-		FScopedSlowTask SlowTask(AllPackageNamesToMove.Num(), LOCTEXT("MigratePackages_CleaningUp", "Cleaning Up..."));
-		SlowTask.MakeDialog();
-
-		TArray<UObject*> ObjectsToDelete;
-		for (const FName& PackageNameToMove : AllPackageNamesToMove)
-		{
-			SlowTask.EnterProgressFrame();
-
-			UPackage* Package = UPackageTools::LoadPackage(PackageNameToMove.ToString());
-			if (Package)
+			if (bAbort)
 			{
-				ObjectsToDelete.Add(Package);
+				MigrateLog.Notify();
+				return;
+			}
+
+			// To handle complex references and assets in different Plugins, we must first duplicate to temp packages
+			TArray<UObject*> TempObjects;
+			TMap<UObject*, UObject*> ReplacementMap;
+			{
+				FScopedSlowTask SlowTask(SrcObjects.Num(), LOCTEXT("MigratePackages_Duplicate", "Duplicating Assets..."));
+				SlowTask.MakeDialog();
+
+				TSet<UPackage*> PackagesUserRefusedToFullyLoad;
+				for (int i=0; i<SrcObjects.Num(); ++i)
+				{
+					SlowTask.EnterProgressFrame();
+
+					UObject* Object = SrcObjects[i];
+					FString PackageName = Object->GetPackage()->GetName();
+
+					FString Path, Root;
+					PackageName.RemoveFromStart(TEXT("/"));
+					bool bSplitRoot = PackageName.Split(TEXT("/"), &Root, &Path);
+					if (!bSplitRoot)
+					{
+						MigrateLog.Error(FText::Format(LOCTEXT("MigratePackages_NoMountPointPackage", "Unable to determine mount point for package {0}"), FText::FromString(PackageName)));
+						continue;
+					}
+
+					ObjectTools::FPackageGroupName PackageGroupName;
+					PackageGroupName.ObjectName = Object->GetName();
+					PackageGroupName.PackageName = SrcUfsFolderName + TEXT("/") + Path;
+					FString GroupName = Object->GetFullGroupName(/*bStartWithOuter =*/true);
+					if (GroupName != TEXT("None"))
+					{
+						PackageGroupName.GroupName = GroupName;
+					}
+
+					UObject* NewObject = ObjectTools::DuplicateSingleObject(Object, PackageGroupName, PackagesUserRefusedToFullyLoad);
+					if (NewObject)
+					{
+						TempObjects.Add(NewObject);
+						ReplacementMap.Add(SrcObjects[i], TempObjects[i]);
+					}
+				}
+			}
+
+			// Update references between TempObjects (to reference each other)
+			{
+				FScopedSlowTask SlowTask(TempObjects.Num(), LOCTEXT("MigratePackages_ReplaceReferences", "Replacing References..."));
+				SlowTask.MakeDialog();
+
+				for (int i=0; i<TempObjects.Num(); ++i)
+				{
+					SlowTask.EnterProgressFrame();
+					UObject* TempObject = TempObjects[i];
+
+					FArchiveReplaceObjectRef<UObject> ReplaceAr(TempObject, ReplacementMap, EArchiveReplaceObjectFlags::IgnoreOuterRef | EArchiveReplaceObjectFlags::IgnoreArchetypeRef);
+				}
+			}
+
+			// Save fixed up packages to the migrated folder, and update the set of files to copy to be those migrated packages
+			{
+				FScopedSlowTask SlowTask(TempObjects.Num(), LOCTEXT("MigratePackages_ReplaceReferences", "Replacing References..."));
+				SlowTask.MakeDialog();
+
+				TSet<FName> NewPackageNamesToMove;
+				for (int i=0; i<TempObjects.Num(); ++i)
+				{
+					SlowTask.EnterProgressFrame();
+					UObject* TempObject = TempObjects[i];
+
+					// Calculate the file path to the new, migrated package
+					FString const TempPackageName = TempObject->GetPackage()->GetName();
+					FString const TempPackageFilename = FPackageName::LongPackageNameToFilename(TempPackageName, FPackageName::GetAssetPackageExtension());
+
+					// Save it
+					FSavePackageArgs SaveArgs;
+					GEditor->Save(TempObject->GetPackage(), /*InAsset=*/nullptr, *TempPackageFilename, SaveArgs);
+
+					NewPackageNamesToMove.Add(FName(TempPackageName));
+				}
+
+				AllPackageNamesToMove = NewPackageNamesToMove;
 			}
 		}
 
-		ObjectTools::ForceDeleteObjects(ObjectsToDelete, /*bShowConfirmation=*/false);
+		bool bUserCanceled = false;
 
-		if (!IFileManager::Get().DeleteDirectory(*SrcDiskFolderFilename, /*RequireExists =*/ false, /*Tree =*/ true))
+		EAppReturnType::Type LastResponse = EAppReturnType::Yes;
+		if (!Options.bPrompt)
 		{
-			UE_LOG(LogAssetTools, Warning, TEXT("Failed to delete temporary directory %s while migrating assets"), *SrcDiskFolderFilename);
-			CopyErrors += SrcDiskFolderFilename + LINE_TERMINATOR;
-		}
-	}
-
-	FString SourceControlErrors;
-
-	if ( !bUserCanceled && SuccessfullyCopiedFiles.Num() > 0 )
-	{
-		// attempt to add files to source control (this can quite easily fail, but if it works it is very useful)
-		if(GetDefault<UEditorLoadingSavingSettings>()->bSCCAutoAddNewFiles)
-		{
-			if(ISourceControlModule::Get().IsEnabled())
+			switch (Options.AssetConflict)
 			{
-				ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
-				if(SourceControlProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), SuccessfullyCopiedFiles) == ECommandResult::Failed)
-				{
-					FScopedSlowTask SlowTask(SuccessfullyCopiedFiles.Num(), LOCTEXT("MigratePackages_AddToSourceControl", "Adding To Source Control..."));
-					SlowTask.MakeDialog();
+				case EAssetMigrationConflict::Overwrite:
+					LastResponse = EAppReturnType::YesAll;
+					break;
+				case EAssetMigrationConflict::Skip:
+					LastResponse = EAppReturnType::NoAll;
+					break;
+				case EAssetMigrationConflict::Cancel:
+					LastResponse = EAppReturnType::Cancel;
+					break;
+			}
+		}
+		TArray<FString> SuccessfullyCopiedFiles;
+		TArray<FString> SuccessfullyCopiedPackages;
+		FString CopyErrors;
 
-					for(auto FileIt(SuccessfullyCopiedFiles.CreateConstIterator()); FileIt; FileIt++)
+		{
+			FScopedSlowTask SlowTask(AllPackageNamesToMove.Num(), LOCTEXT("MigratePackages_CopyingFiles", "Copying Files..."));
+			SlowTask.MakeDialog();
+
+			for ( const FName& PackageNameToMove : AllPackageNamesToMove )
+			{
+				SlowTask.EnterProgressFrame();
+
+				const FString& PackageName = PackageNameToMove.ToString();
+				FString SrcFilename;
+			
+				if (!FPackageName::DoesPackageExist(PackageName, &SrcFilename))
+				{
+					const FText ErrorMessage = FText::Format(LOCTEXT("MigratePackages_PackageMissing", "{0} does not exist on disk."), FText::FromString(PackageName));
+					UE_LOG(LogAssetTools, Warning, TEXT("%s"), *ErrorMessage.ToString());
+					CopyErrors += ErrorMessage.ToString() + LINE_TERMINATOR;
+				}
+				else if (SrcFilename.Contains(FPaths::EngineContentDir()))
+				{
+					const FString LeafName = SrcFilename.Replace(*FPaths::EngineContentDir(), TEXT("Engine/"));
+					CopyErrors += FText::Format(LOCTEXT("MigratePackages_EngineContent", "Unable to migrate Engine asset {0}. Engine assets cannot be migrated."), FText::FromString(LeafName)).ToString() + LINE_TERMINATOR;
+				}
+				else
+				{
+					bool bFileOKToCopy = true;
+
+					FString Path = PackageNameToMove.ToString();
+					FString PackageRoot;
+					Path.RemoveFromStart(TEXT("/"));
+					Path.Split("/", &PackageRoot, &Path, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+					PackageRoot = TEXT("/") + PackageRoot;
+
+					FString DestFilename;
+					TMap<FName, FString>::ValueType* DestRootFolder = DestContentRootsToFolders.Find(FName(PackageRoot));
+					if (ensure(DestRootFolder))
 					{
-						SlowTask.EnterProgressFrame();
-						if(!SourceControlProvider.GetState(*FileIt, EStateCacheUsage::Use)->IsAdded())
+						DestFilename = *DestRootFolder;
+					}
+					else
+					{
+						continue;
+					}
+
+					FString SubFolder;
+					if ( SrcFilename.Split( TEXT("/Content/"), nullptr, &SubFolder ) )
+					{
+						DestFilename += *SubFolder;
+
+						if ( IFileManager::Get().FileSize(*DestFilename) > 0 )
 						{
-							SourceControlErrors += FText::Format(LOCTEXT("MigratePackages_SourceControlError", "{0} could not be added to source control"), FText::FromString(*FileIt)).ToString();
-							SourceControlErrors += LINE_TERMINATOR;
+							// The destination file already exists! Ask the user what to do.
+							EAppReturnType::Type Response;
+							if (FApp::IsUnattended() || !Options.bPrompt || LastResponse == EAppReturnType::YesAll || LastResponse == EAppReturnType::NoAll)
+							{
+								Response = LastResponse;
+							}
+							else
+							{
+								const FText Message = FText::Format( LOCTEXT("MigratePackages_AlreadyExists", "An asset already exists at location {0} would you like to overwrite it?"), FText::FromString(DestFilename) );
+								Response = FMessageDialog::Open( EAppMsgType::YesNoYesAllNoAllCancel, Message );
+								LastResponse = Response;
+							}
+
+							if (Response == EAppReturnType::Cancel)
+							{
+								// The user chose to cancel mid-operation. Break out.
+								bUserCanceled = true;
+								break;
+							}
+
+							const bool bWantOverwrite = Response == EAppReturnType::Yes || Response == EAppReturnType::YesAll;
+							if( !bWantOverwrite )
+							{
+								// User chose not to replace the package
+								bFileOKToCopy = false;
+							}
+						}
+					}
+					else
+					{
+						// Couldn't find Content folder in source path
+						bFileOKToCopy = false;
+					}
+
+					if ( bFileOKToCopy )
+					{
+						if ( IFileManager::Get().Copy(*DestFilename, *SrcFilename) == COPY_OK )
+						{
+							SuccessfullyCopiedPackages.Add(PackageName);
+							SuccessfullyCopiedFiles.Add(DestFilename);
+						}
+						else
+						{
+							UE_LOG(LogAssetTools, Warning, TEXT("Failed to copy %s to %s while migrating assets"), *SrcFilename, *DestFilename);
+							CopyErrors += SrcFilename + LINE_TERMINATOR;
 						}
 					}
 				}
 			}
 		}
-	}
 
-	FText LogMessage = FText::FromString(TEXT("Content migration completed successfully!"));
-	EMessageSeverity::Type Severity = EMessageSeverity::Info;
-	if ( CopyErrors.Len() > 0 || SourceControlErrors.Len() > 0 )
-	{
-		FString ErrorMessage;
-		Severity = EMessageSeverity::Error;
-		if( CopyErrors.Len() > 0 )
+		// If we are consolidating lost packages, we are copying temporary packages, so clean them up.
+		if (!LostPackages.IsEmpty())
 		{
-			MigrateLog.NewPage( LOCTEXT("MigratePackages_CopyErrorsPage", "Copy Errors") );
-			MigrateLog.Error(FText::FromString(*CopyErrors));
-			ErrorMessage += FText::Format(LOCTEXT( "MigratePackages_CopyErrors", "Copied {0} files. Some content could not be copied."), FText::AsNumber(SuccessfullyCopiedPackages.Num())).ToString();
+			FScopedSlowTask SlowTask(AllPackageNamesToMove.Num(), LOCTEXT("MigratePackages_CleaningUp", "Cleaning Up..."));
+			SlowTask.MakeDialog();
+
+			TArray<UObject*> ObjectsToDelete;
+			for (const FName& PackageNameToMove : AllPackageNamesToMove)
+			{
+				SlowTask.EnterProgressFrame();
+
+				UPackage* Package = UPackageTools::LoadPackage(PackageNameToMove.ToString());
+				if (Package)
+				{
+					ObjectsToDelete.Add(Package);
+				}
+			}
+
+			ObjectTools::ForceDeleteObjects(ObjectsToDelete, /*bShowConfirmation=*/false);
+
+			if (!IFileManager::Get().DeleteDirectory(*SrcDiskFolderFilename, /*RequireExists =*/ false, /*Tree =*/ true))
+			{
+				UE_LOG(LogAssetTools, Warning, TEXT("Failed to delete temporary directory %s while migrating assets"), *SrcDiskFolderFilename);
+				CopyErrors += SrcDiskFolderFilename + LINE_TERMINATOR;
+			}
 		}
-		if( SourceControlErrors.Len() > 0 )
+
+		FString SourceControlErrors;
+
+		if ( !bUserCanceled && SuccessfullyCopiedFiles.Num() > 0 )
 		{
-			MigrateLog.NewPage( LOCTEXT("MigratePackages_SourceControlErrorsListPage", "Source Control Errors") );
-			MigrateLog.Error(FText::FromString(*SourceControlErrors));
-			ErrorMessage += LINE_TERMINATOR;
-			ErrorMessage += LOCTEXT( "MigratePackages_SourceControlErrorsList", "Some files reported source control errors.").ToString();
+			// attempt to add files to source control (this can quite easily fail, but if it works it is very useful)
+			if(GetDefault<UEditorLoadingSavingSettings>()->bSCCAutoAddNewFiles)
+			{
+				if(ISourceControlModule::Get().IsEnabled())
+				{
+					ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+					if(SourceControlProvider.Execute(ISourceControlOperation::Create<FMarkForAdd>(), SuccessfullyCopiedFiles) == ECommandResult::Failed)
+					{
+						FScopedSlowTask SlowTask(SuccessfullyCopiedFiles.Num(), LOCTEXT("MigratePackages_AddToSourceControl", "Adding To Source Control..."));
+						SlowTask.MakeDialog();
+
+						for(auto FileIt(SuccessfullyCopiedFiles.CreateConstIterator()); FileIt; FileIt++)
+						{
+							SlowTask.EnterProgressFrame();
+							if(!SourceControlProvider.GetState(*FileIt, EStateCacheUsage::Use)->IsAdded())
+							{
+								SourceControlErrors += FText::Format(LOCTEXT("MigratePackages_SourceControlError", "{0} could not be added to source control"), FText::FromString(*FileIt)).ToString();
+								SourceControlErrors += LINE_TERMINATOR;
+							}
+						}
+					}
+				}
+			}
 		}
-		if ( SuccessfullyCopiedPackages.Num() > 0 )
+
+		FText LogMessage = FText::FromString(TEXT("Content migration completed successfully!"));
+		EMessageSeverity::Type Severity = EMessageSeverity::Info;
+		if ( CopyErrors.Len() > 0 || SourceControlErrors.Len() > 0 )
 		{
-			MigrateLog.NewPage( LOCTEXT("MigratePackages_CopyErrorsSuccesslistPage", "Copied Successfully") );
-			MigrateLog.Info(FText::FromString(*SourceControlErrors));
-			ErrorMessage += LINE_TERMINATOR;
-			ErrorMessage += LOCTEXT( "MigratePackages_CopyErrorsSuccesslist", "Some files were copied successfully.").ToString();
+			FString ErrorMessage;
+			Severity = EMessageSeverity::Error;
+			if( CopyErrors.Len() > 0 )
+			{
+				MigrateLog.NewPage( LOCTEXT("MigratePackages_CopyErrorsPage", "Copy Errors") );
+				MigrateLog.Error(FText::FromString(*CopyErrors));
+				ErrorMessage += FText::Format(LOCTEXT( "MigratePackages_CopyErrors", "Copied {0} files. Some content could not be copied."), FText::AsNumber(SuccessfullyCopiedPackages.Num())).ToString();
+			}
+			if( SourceControlErrors.Len() > 0 )
+			{
+				MigrateLog.NewPage( LOCTEXT("MigratePackages_SourceControlErrorsListPage", "Source Control Errors") );
+				MigrateLog.Error(FText::FromString(*SourceControlErrors));
+				ErrorMessage += LINE_TERMINATOR;
+				ErrorMessage += LOCTEXT( "MigratePackages_SourceControlErrorsList", "Some files reported source control errors.").ToString();
+			}
+			if ( SuccessfullyCopiedPackages.Num() > 0 )
+			{
+				MigrateLog.NewPage( LOCTEXT("MigratePackages_CopyErrorsSuccesslistPage", "Copied Successfully") );
+				MigrateLog.Info(FText::FromString(*SourceControlErrors));
+				ErrorMessage += LINE_TERMINATOR;
+				ErrorMessage += LOCTEXT( "MigratePackages_CopyErrorsSuccesslist", "Some files were copied successfully.").ToString();
+				for ( auto FileIt = SuccessfullyCopiedPackages.CreateConstIterator(); FileIt; ++FileIt )
+				{
+					if(FileIt->Len()>0)
+					{
+						MigrateLog.Info(FText::FromString(*FileIt));
+					}
+				}
+			}
+			LogMessage = FText::FromString(ErrorMessage);
+		}
+		else if (bUserCanceled)
+		{
+			LogMessage = LOCTEXT("MigratePackages_CanceledPage", "Content migration was canceled.");
+		}
+		else if ( !bUserCanceled )
+		{
+			MigrateLog.NewPage( LOCTEXT("MigratePackages_CompletePage", "Content migration completed successfully!") );
 			for ( auto FileIt = SuccessfullyCopiedPackages.CreateConstIterator(); FileIt; ++FileIt )
 			{
 				if(FileIt->Len()>0)
@@ -3713,31 +4532,16 @@ void UAssetToolsImpl::MigratePackages_ReportConfirmed(TSharedPtr<TArray<ReportPa
 				}
 			}
 		}
-		LogMessage = FText::FromString(ErrorMessage);
+		MigrateLog.Notify(LogMessage, Severity, true);
 	}
-	else if (bUserCanceled)
-	{
-		LogMessage = LOCTEXT("MigratePackages_CanceledPage", "Content migration was canceled.");
-	}
-	else if ( !bUserCanceled )
-	{
-		MigrateLog.NewPage( LOCTEXT("MigratePackages_CompletePage", "Content migration completed successfully!") );
-		for ( auto FileIt = SuccessfullyCopiedPackages.CreateConstIterator(); FileIt; ++FileIt )
-		{
-			if(FileIt->Len()>0)
-			{
-				MigrateLog.Info(FText::FromString(*FileIt));
-			}
-		}
-	}
-	MigrateLog.Notify(LogMessage, Severity, true);
 }
 
 void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FName>& AllDependencies, TSet<FString>& OutExternalObjectsPaths) const
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TArray<FName> Dependencies;
-	AssetRegistryModule.Get().GetDependencies(PackageName, Dependencies);
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	AssetRegistry.GetDependencies(PackageName, Dependencies);
 	
 	for ( auto DependsIt = Dependencies.CreateConstIterator(); DependsIt; ++DependsIt )
 	{
@@ -3745,7 +4549,11 @@ void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FN
 
 		const bool bIsEnginePackage = DependencyName.StartsWith(TEXT("/Engine"));
 		const bool bIsScriptPackage = DependencyName.StartsWith(TEXT("/Script"));
-		if ( !bIsEnginePackage && !bIsScriptPackage )
+
+		// The asset registry can give some reference to some deleted assets. We don't want to migrate these.
+		const bool bAssetExist = AssetRegistry.GetAssetPackageDataCopy(*DependsIt).IsSet();
+
+		if ( !bIsEnginePackage && !bIsScriptPackage && bAssetExist)
 		{
 			if (!AllDependencies.Contains(*DependsIt))
 			{
@@ -3755,10 +4563,13 @@ void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FN
 		}
 	}
 
-	// Handle Specific External Actors use case (only used for the Migrate path for now)
-	// todo: revisit how to handle those in a more generic way.
+	// Handle Specific External Objects use case (only used for the Migrate path for now)
+	// todo: revisit how to handle those in a more generic way. Should the FWorldPartitionAssetDependencyGatherer handle the external objects reference also?
 	TArray<FAssetData> Assets;
-	if (AssetRegistryModule.Get().GetAssetsByPackageName(PackageName, Assets))
+
+	// The migration only work on the saved version of the assets so no need to scan the for the in memory only assets. This also greatly improve the performance of the migration when a lot assets are loaded in the editor.
+	const bool bOnlyIncludeOnDiskAssets = true;
+	if (AssetRegistryModule.Get().GetAssetsByPackageName(PackageName, Assets, bOnlyIncludeOnDiskAssets))
 	{
 		for (const FAssetData& AssetData : Assets)
 		{
@@ -3773,7 +4584,7 @@ void UAssetToolsImpl::RecursiveGetDependencies(const FName& PackageName, TSet<FN
 						AssetRegistryModule.Get().ScanPathsSynchronous({ ExternalObjectsPath }, /*bForceRescan*/true, /*bIgnoreDenyListScanFilters*/true);
 
 						TArray<FAssetData> ExternalObjectAssets;
-						AssetRegistryModule.Get().GetAssetsByPath(FName(*ExternalObjectsPath), ExternalObjectAssets, /*bRecursive*/true);
+						AssetRegistryModule.Get().GetAssetsByPath(FName(*ExternalObjectsPath), ExternalObjectAssets, /*bRecursive*/true, bOnlyIncludeOnDiskAssets);
 
 						for (const FAssetData& ExternalObjectAsset : ExternalObjectAssets)
 						{

@@ -8,7 +8,7 @@ FExternalPackageHelper::FOnObjectPackagingModeChanged FExternalPackageHelper::On
 
 UPackage* FExternalPackageHelper::CreateExternalPackage(UObject* InObjectOuter, const FString& InObjectPath, EPackageFlags InFlags)
 {
-	UPackage* Package = CreatePackage(*FExternalPackageHelper::GetExternalPackageName(InObjectOuter->GetPackage(), InObjectPath));
+	UPackage* Package = CreatePackage(*FExternalPackageHelper::GetExternalPackageName(InObjectOuter->GetPackage()->GetName(), InObjectPath));
 	Package->SetPackageFlags(InFlags);
 	return Package;
 }
@@ -89,7 +89,7 @@ FString FExternalPackageHelper::GetExternalObjectsPath(UPackage* InPackage, cons
 	return FExternalPackageHelper::GetExternalObjectsPath(InPackage->GetName(), InPackageShortName);
 }
 
-FString FExternalPackageHelper::GetExternalPackageName(UPackage* InOuterPackage, const FString& InObjectPath)
+FString FExternalPackageHelper::GetExternalPackageName(const FString& InOuterPackageName, const FString& InObjectPath)
 {
 	// Convert the object path to lowercase to make sure we get the same hash for case insensitive file systems
 	FString ObjectPath = InObjectPath.ToLower();
@@ -108,7 +108,7 @@ FString FExternalPackageHelper::GetExternalPackageName(UPackage* InOuterPackage,
 	FString GuidBase36 = PackageGuid.ToString(EGuidFormats::Base36Encoded);
 	check(GuidBase36.Len());
 
-	FString BaseDir = FExternalPackageHelper::GetExternalObjectsPath(InOuterPackage);
+	FString BaseDir = FExternalPackageHelper::GetExternalObjectsPath(InOuterPackageName);
 
 	TStringBuilderWithBuffer<TCHAR, NAME_SIZE> ObjectPackageName;
 	ObjectPackageName.Append(BaseDir);

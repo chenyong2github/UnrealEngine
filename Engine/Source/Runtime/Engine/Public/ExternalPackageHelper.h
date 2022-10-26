@@ -54,7 +54,16 @@ public:
 	 * @return the path
 	 */
 	static FString GetExternalObjectsPath(UPackage* InPackage, const FString& InPackageShortName = FString(), bool bTryUsingPackageLoadedPath = false);
-	
+
+
+	/**
+	 * Get the external package name for this object
+	 * @param InOuterPackageName The name of the package of that contains the outer of the object.
+	 * @param InObjectPath the fully qualified object path, in the format: 'Outermost.Outer.Name'
+	 * @return the package name
+	 */
+	static FString GetExternalPackageName(const FString& InOuterPackageName, const FString& InObjectPath);
+
 	/**
 	 * Loads objects from an external package
 	 */
@@ -62,13 +71,6 @@ public:
 	static void LoadObjectsFromExternalPackages(UObject* InOuter, TFunctionRef<void(T*)> Operation);
 
 private:
-	/**
-	 * Get the external package name for this object
-	 * @param InObjectPath the fully qualified object path, in the format: 'Outermost.Outer.Name'
-	 * @return the package name
-	 */
-	static FString GetExternalPackageName(UPackage* InOuterPackage, const FString& InObjectPath);
-
 	/** Get the external object package instance name. */
 	static FString GetExternalObjectPackageInstanceName(const FString& OuterPackageName, const FString& ObjectPackageName);
 };
@@ -139,15 +141,34 @@ void FExternalPackageHelper::LoadObjectsFromExternalPackages(UObject* InOuter, T
 	const bool bInstanced = !PackageResourceName.IsNone() && (PackageResourceName != OuterPackage->GetFName());
 	if (bInstanced)
 	{
+		const FLinkerInstancingContext* OuterInstancingContext = nullptr;
+		if (FLinkerLoad* OuterLinker = InOuter->GetLinker())
+		{
+			OuterInstancingContext = &OuterLinker->GetInstancingContext();
+		}
+
 		InstancingContext.AddPackageMapping(PackageResourceName, OuterPackage->GetFName());
 
 		for (const FString& ObjectPackageName : ObjectPackageNames)
 		{
-			const FString InstancedName = GetExternalObjectPackageInstanceName(OuterPackage->GetName(), ObjectPackageName);
-			InstancingContext.AddPackageMapping(FName(*ObjectPackageName), FName(*InstancedName));
+			FName InstancedName;
+			
+			FName ObjectPackageFName = *ObjectPackageName;
+			if (OuterInstancingContext)
+			{
+				InstancedName = OuterInstancingContext->RemapPackage(ObjectPackageFName);
+			}
+
+			// Remap to the a instanced package if it wasn't remapped already by the outer instancing context
+			if (InstancedName == ObjectPackageFName || InstancedName.IsNone())
+			{
+				InstancedName = *GetExternalObjectPackageInstanceName(OuterPackage->GetName(), ObjectPackageName);
+			}
+
+			InstancingContext.AddPackageMapping(ObjectPackageFName, InstancedName);
 
 			// Create instance package
-			UPackage* InstancePackage = CreatePackage(*InstancedName);
+			UPackage* InstancePackage = CreatePackage(*InstancedName.ToString());
 			// Propagate RF_Transient
 			if (OuterPackage->HasAnyFlags(RF_Transient))
 			{

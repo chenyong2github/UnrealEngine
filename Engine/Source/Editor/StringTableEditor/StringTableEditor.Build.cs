@@ -18,12 +18,8 @@ public class StringTableEditor : ModuleRules
                 "DesktopPlatform",
 				"EditorFramework",
                 "UnrealEd",
-            });
-
-        PrivateIncludePathModuleNames.AddRange(
-            new string[] {
-                "AssetTools"
-            });
+				"AssetTools",
+			});
 
         DynamicallyLoadedModuleNames.Add("WorkspaceMenuStructure");
     }

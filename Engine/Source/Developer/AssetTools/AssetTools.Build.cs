@@ -45,13 +45,13 @@ public class AssetTools : ModuleRules
 				"InterchangeCore",
 				"InterchangeEngine",
 				"PhysicsUtilities",
+				"AssetRegistry",
 			}
 		);
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"Analytics",
-				"AssetRegistry",
 				"ContentBrowser",
 				"CollectionManager",
                 "CurveAssetEditor",
@@ -86,7 +86,6 @@ public class AssetTools : ModuleRules
 
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
-				"AssetRegistry",
 				"ContentBrowser",
 				"CollectionManager",
 				"CurveTableEditor",

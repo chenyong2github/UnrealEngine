@@ -1173,6 +1173,11 @@ public:
 	static ENGINE_API FString GetExternalActorsPath(UPackage* InLevelPackage, const FString& InPackageShortName = FString());
 
 	/**
+	 * Extract the packaging Scheme used by an external actor package based on the name of the package
+	 */
+	static ENGINE_API EActorPackagingScheme GetActorPackagingSchemeFromActorPackageName(const FStringView InActorPackageName);
+
+	/**
 	 * Scans/Updates all Level Assets (level package and external packages)
 	 */
 	static ENGINE_API void ScanLevelAssets(const FString& InLevelPackageName);

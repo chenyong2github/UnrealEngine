@@ -10,6 +10,11 @@
 class IStringTableEditor;
 class UStringTable;
 
+namespace UE::AssetTools
+{
+	struct FPackageMigrationContext;
+}
+
 /** String Table Editor module */
 class STRINGTABLEEDITOR_API FStringTableEditorModule : public IModuleInterface,
 	public IHasMenuExtensibility, public IHasToolBarExtensibility
@@ -39,6 +44,8 @@ public:
 	static const FName StringTableEditorAppIdentifier;
 
 private:
+	void OnPackageMigration(UE::AssetTools::FPackageMigrationContext& MigrationContext);
+
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
 };

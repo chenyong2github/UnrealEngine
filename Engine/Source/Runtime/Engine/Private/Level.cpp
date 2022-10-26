@@ -81,6 +81,7 @@ Level.cpp: Level-related functions
 #include "UObject/LinkerLoad.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "HAL/PlatformFileManager.h"
+#include "Misc/PathViews.h"
 #endif
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
@@ -3513,6 +3514,21 @@ FString ULevel::GetExternalActorsPath(UPackage* InLevelPackage, const FString& I
 	// We can't use the Package->FileName here because it might be a duplicated a package
 	// We can't use the package short name directly in some cases either (PIE, instanced load) as it may contain pie prefix or not reflect the real actor location
 	return GetExternalActorsPath(InLevelPackage->GetName(), InPackageShortName);
+}
+
+EActorPackagingScheme ULevel::GetActorPackagingSchemeFromActorPackageName(const FStringView InActorPackageName)
+{
+	// Use the fact that the end of an actor package path is a GUID that is encoded in a base36 and those are always 25 character long to determine the PackagingScheme.
+	FStringView ActorBaseFilename = FPathViews::GetBaseFilename(InActorPackageName);
+
+	if (ActorBaseFilename.Len() == 22)
+	{
+		return EActorPackagingScheme::Reduced;
+	}
+
+	check(ActorBaseFilename.Len() == 21);
+
+	return EActorPackagingScheme::Original;
 }
 
 void ULevel::ScanLevelAssets(const FString& InLevelPackageName)

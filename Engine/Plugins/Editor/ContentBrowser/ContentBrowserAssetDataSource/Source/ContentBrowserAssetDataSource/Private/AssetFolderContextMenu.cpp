@@ -212,7 +212,11 @@ void FAssetFolderContextMenu::ExecuteMigrateFolder()
 		AssetViewUtils::GetAssetsInPaths(SelectedPaths, AssetDataList);
 		for ( auto AssetIt = AssetDataList.CreateConstIterator(); AssetIt; ++AssetIt )
 		{
-			PackageNames.Add((*AssetIt).PackageName);
+			// Don't collect the external packages here
+			if (AssetIt->GetOptionalOuterPathName().IsNone())
+			{
+				PackageNames.Add((*AssetIt).PackageName);
+			}
 		}
 
 		PackageNames.Append(SelectedPackages);
