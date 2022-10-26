@@ -9,6 +9,7 @@
 #include "Logging/MessageLog.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/Paths.h"
+#include "PerforceMessageLog.h"
 #include "PerforceSourceControlProvider.h"
 #include "PerforceSourceControlSettings.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -524,7 +525,7 @@ bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FStrin
 	bool bIsUnicodeServer = false;
 	bool bConnectionOK = false;
 
-	FMessageLog SourceControlLog("SourceControl");
+	FTSMessageLog SourceControlLog("SourceControl");
 
 	FString NewServerName = InOutServerName;
 	FString NewUserName = InOutUserName;
