@@ -330,6 +330,8 @@ namespace UE4Array_Private
 	{
 		enum { Value = TArrayElementsAreCompatible<ElementType, TElementType_T<RangeType>>::Value };
 	};
+
+	CORE_API void OnInvalidArrayNum(const TCHAR* ArrayNameSuffix, unsigned long long NewNum);
 }
 
 
@@ -360,7 +362,12 @@ private:
 
 	FORCENOINLINE static void OnInvalidNum(USizeType NewNum)
 	{
-		FPlatformMemory::OnOutOfMemory(NewNum * sizeof(ElementType), alignof(ElementType));
+		const TCHAR* ArrayNameSuffix = TEXT("");
+		if constexpr (sizeof(SizeType) == 8)
+		{
+			ArrayNameSuffix = TEXT("64");
+		}
+		UE4Array_Private::OnInvalidArrayNum(ArrayNameSuffix, (unsigned long long)NewNum);
 	}
 
 public:
