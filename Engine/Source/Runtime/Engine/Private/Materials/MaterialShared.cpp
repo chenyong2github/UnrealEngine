@@ -2864,13 +2864,18 @@ void FMaterial::CacheGivenTypes(EShaderPlatform Platform, const TArray<const FVe
 		return;
 	}
 
+	if (bGameThreadShaderMapIsComplete)
+	{
+		UE_LOG(LogMaterial, Verbose, TEXT("Cache given types for a material resource %s with a complete ShaderMap"), *GetFriendlyName());
+		return;
+	}
+
 	if (GameThreadShaderMap)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FMaterial::CacheGivenTypes);
 		check(IsInGameThread());
 		checkf(ShaderTypes.Num() == VFTypes.Num(), TEXT("The size of the shader type array and vertex factory type array must match."));
 		checkf(PipelineTypes.Num() == ShaderTypes.Num(), TEXT("The size of the pipeline type array and shader type array must match.  Pass in null entries if pipelines are not used."));
-		checkf(GameThreadShaderMap, TEXT("Shader map is not initialized.  Please call CacheShaders first."));
 		checkf(GetGameThreadCompilingShaderMapId() != 0, TEXT("Material is not prepared to compile yet.  Please call CacheShaders first."));
 
 		TArray<FShaderCommonCompileJobPtr> CompileJobs;

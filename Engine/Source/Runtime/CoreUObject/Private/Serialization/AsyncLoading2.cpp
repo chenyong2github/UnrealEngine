@@ -3399,10 +3399,25 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 	{
 		FAsyncPackage2* PendingPackage = *It;
 		FPackageStoreEntry PackageEntry;
-		if (EPackageStoreEntryStatus::Ok == PackageStore.GetPackageStoreEntry(PendingPackage->Desc.PackageIdToLoad, PackageEntry))
+		EPackageStoreEntryStatus PendingPackageStatus = PackageStore.GetPackageStoreEntry(PendingPackage->Desc.PackageIdToLoad, PackageEntry);
+		if (PendingPackageStatus == EPackageStoreEntryStatus::Ok)
 		{
 			InitializeAsyncPackageFromPackageStore(ThreadState, IoBatch, PendingPackage, PackageEntry, TArrayView<FName>());
 			PendingPackage->StartLoading(IoBatch);
+			It.RemoveCurrent();
+		}
+		else if (PendingPackageStatus == EPackageStoreEntryStatus::Missing)
+		{
+			// Initialize package with a fake package store entry
+			FPackageStoreEntry FakePackageEntry;
+			FakePackageEntry.ExportInfo.ExportCount = 1;
+			FakePackageEntry.ExportInfo.ExportBundleCount = 1;
+			InitializeAsyncPackageFromPackageStore(ThreadState, IoBatch, PendingPackage, FakePackageEntry, TArrayView<FName>());
+			// Simulate StartLoading() getting back a failed IoRequest and let it go through all package states
+			PendingPackage->AsyncPackageLoadingState = EAsyncPackageLoadingState2::WaitingForIo;
+			PendingPackage->bLoadHasFailed = true;
+			PendingPackage->GetPackageNode(EEventLoadNode2::Package_ProcessSummary).ReleaseBarrier();
+			// Remove from PendingPackages
 			It.RemoveCurrent();
 		}
 	}
@@ -5032,6 +5047,7 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_ProcessPackageSummary(FAsync
 EEventLoadNodeExecutionResult FAsyncPackage2::Event_SetupDependencies(FAsyncLoadingThreadState2& ThreadState, FAsyncPackage2* Package, int32)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_SetupDependencies);
+	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
 	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::SetupDependencies);
 
 #if ALT2_ENABLE_LINKERLOAD_SUPPORT
