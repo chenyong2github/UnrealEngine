@@ -25,7 +25,7 @@ public:
 	/**
 	 * Create a new InstancedStruct from the given source value.
 	 */
-	UFUNCTION(BlueprintCallable, CustomThunk, Category = "Utilities|Instanced Struct", meta = (CustomStructureParam = "Value", BlueprintInternalUseOnly="true"))
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = "Utilities|Instanced Struct", meta = (CustomStructureParam = "Value", BlueprintInternalUseOnly="true", NativeMakeFunc))
 	static FInstancedStruct MakeInstancedStruct(const int32& Value);
 
 	/**

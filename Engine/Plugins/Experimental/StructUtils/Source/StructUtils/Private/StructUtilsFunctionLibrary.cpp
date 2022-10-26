@@ -28,8 +28,7 @@ void UStructUtilsFunctionLibrary::GetInstancedStructValue(EStructUtilsResult& Ex
 
 DEFINE_FUNCTION(UStructUtilsFunctionLibrary::execMakeInstancedStruct)
 {
-	Stack.Step(Stack.Object, nullptr);
-
+	// Read wildcard Value input.
 	Stack.MostRecentPropertyAddress = nullptr;
 	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.StepCompiledIn<FStructProperty>(nullptr);
@@ -64,6 +63,7 @@ DEFINE_FUNCTION(UStructUtilsFunctionLibrary::execSetInstancedStructValue)
 {
 	P_GET_STRUCT_REF(FInstancedStruct, InstancedStruct);
 
+	// Read wildcard Value input.
 	Stack.MostRecentPropertyAddress = nullptr;
 	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.StepCompiledIn<FStructProperty>(nullptr);
@@ -99,6 +99,7 @@ DEFINE_FUNCTION(UStructUtilsFunctionLibrary::execGetInstancedStructValue)
 	P_GET_ENUM_REF(EStructUtilsResult, ExecResult);
 	P_GET_STRUCT_REF(FInstancedStruct, InstancedStruct);
 
+	// Read wildcard Value input.
 	Stack.MostRecentPropertyAddress = nullptr;
 	Stack.MostRecentPropertyContainer = nullptr;
 	Stack.StepCompiledIn<FStructProperty>(nullptr);
