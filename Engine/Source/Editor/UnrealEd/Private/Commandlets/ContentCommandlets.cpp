@@ -32,6 +32,7 @@
 #include "Commandlets/ListMaterialsUsedWithMeshEmittersCommandlet.h"
 #include "Commandlets/ListStaticMeshesImportedFromSpeedTreesCommandlet.h"
 #include "Commandlets/StaticMeshMinLodCommandlet.h"
+#include "Commandlets/LandscapeGrassTypeCommandlet.h"
 #include "Particles/ParticleSystem.h"
 #include "Commandlets/ResavePackagesCommandlet.h"
 #include "Commandlets/WrangleContentCommandlet.h"
@@ -39,6 +40,7 @@
 #include "Particles/ParticleEmitter.h"
 #include "GameFramework/WorldSettings.h"
 #include "Engine/StaticMesh.h"
+#include "Landscape/Classes/LandscapeGrassType.h"
 #include "AssetRegistry/AssetData.h"
 #include "Engine/Brush.h"
 #include "Editor.h"
@@ -3514,30 +3516,6 @@ int32 UStaticMeshMinLodCommandlet::Main(const FString& Params)
 	AssetRegistryModule.Get().GetAssetsByClass(UStaticMesh::StaticClass()->GetClassPathName(), AssetList, true);
 	TArray<UPackage*> PackagesToSave;
 
-	// Platform (group) names
-	const TArray<FString> Filters = { TEXT("NoEditor"), TEXT("Client"), TEXT("Server"), TEXT("AllDesktop") };
-	TMultiMap<FName, FName> GroupToPlatform;
-
-	// sanitize all vanilla platform names
-	// generate a list of all supported platform (from the datadrivenplatform files)
-	const TArray<FName>& SanitizedPlatformNameArray = PlatformInfo::GetAllVanillaPlatformNames().FilterByPredicate([&Filters, &GroupToPlatform](const FName& PlatformName)
-		{
-			for (const FString& Filter : Filters)
-			{
-				const int32 Position = PlatformName.ToString().Find(Filter);
-				if (Position != INDEX_NONE)
-				{
-					return false;
-				}
-			}
-
-			if (const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(PlatformName))
-			{
-				GroupToPlatform.AddUnique(PlatformInfo->DataDrivenPlatformInfo->PlatformGroupName, PlatformName);
-			}
-			return true;
-		});
-
 	for (int32 AssetIdx = 0; AssetIdx < AssetList.Num(); ++AssetIdx)
 	{
 		bool SavePackage = false;
@@ -3696,6 +3674,140 @@ int32 UStaticMeshMinLodCommandlet::Main(const FString& Params)
 		}
 		FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, false, false, nullptr, true, false);
 	}
+	
+	return 0;
+}
+
+
+/* ==========================================================================================================
+	ULandscapeGrassTypeCommandlet
+========================================================================================================== */
+
+ULandscapeGrassTypeCommandlet::ULandscapeGrassTypeCommandlet(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+int32 ULandscapeGrassTypeCommandlet::Main(const FString& Params)
+{
+	TArray<FString> FilesInPath;
+	FEditorFileUtils::FindAllPackageFiles(FilesInPath);
+	if (FilesInPath.Num() == 0)
+	{
+		UE_LOG(LogContentCommandlet, Warning, TEXT("No packages found"));
+		return 1;
+	}
+
+	// parse the mapping from PerPlatform to PerQualityLevel
+	// ex:-mapping=Mobile:Low,Switch:Medium,Desktop:High,PS4:High,XboxOne:High,PS5:Epic,XSX:Epic,console:medium;high;epic,Desktop:high
+	TMultiMap<FName, FName> PerPlatformToQualityLevel;
+	FString MappingStr;
+	if (FParse::Value(*Params, TEXT("-mapping="), MappingStr, false))
+	{
+		TArray<FString> Mappings;
+		MappingStr.ParseIntoArray(Mappings, TEXT(","), true);
+		for (FString& PlatformToQualityLevel : Mappings)
+		{
+			TArray<FString> Entries;
+			PlatformToQualityLevel.ParseIntoArray(Entries, TEXT(":"), false);
+
+			if (Entries.Num() != 2)
+			{
+				UE_LOG(LogContentCommandlet, Error, TEXT("Error bad -mapping argument: %s"), *MappingStr);
+				return 1;
+			}
+
+			TArray<FString> Values;
+			Entries[1].ParseIntoArray(Values, TEXT(";"), false);
+
+			for (const FString& Value : Values)
+			{
+				PerPlatformToQualityLevel.AddUnique(FName(*Entries[0]), FName(*Value));
+			}
+		}
+	}
+
+	if (PerPlatformToQualityLevel.Num() == 0)
+	{
+		UE_LOG(LogContentCommandlet, Warning, TEXT("No Mapping rules found"));
+		return 1;
+	}
+
+	bool bNoSourceControl = FParse::Param(*Params, TEXT("nosourcecontrol"));
+	bool bGenerateCollections = FParse::Param(*Params, TEXT("collections"));
+	ISourceControlProvider* SourceControlProvider = bNoSourceControl ? nullptr : &ISourceControlModule::Get().GetProvider();
+	ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
+
+	// Load the asset registry module
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+
+	// Update Registry Module
+	UE_LOG(LogContentCommandlet, Display, TEXT("Searching Asset Registry for static mesh "));
+	AssetRegistryModule.Get().SearchAllAssets(true);
+
+	// Retrieve list of all assets, used to find unreferenced ones.
+	TArray<FAssetData> AssetList;
+	int32 TotalPackagesChecked = 0;
+	AssetRegistryModule.Get().GetAssetsByClass(ULandscapeGrassType::StaticClass()->GetClassPathName(), AssetList, true);
+	TArray<UPackage*> PackagesToSave;
+
+	for (int32 AssetIdx = 0; AssetIdx < AssetList.Num(); ++AssetIdx)
+	{
+		bool SavePackage = false;
+		const FString Filename = AssetList[AssetIdx].GetObjectPathString();
+		UE_LOG(LogContentCommandlet, Display, TEXT("Processing static mesh (%i/%i):  %s "), AssetIdx, AssetList.Num(), *Filename);
+
+		UPackage* Package = LoadPackage(NULL, *Filename, LOAD_Quiet);
+		if (Package == NULL)
+		{
+			UE_LOG(LogContentCommandlet, Error, TEXT("Error loading %s!"), *Filename);
+			continue;
+		}
+
+		TotalPackagesChecked++;
+
+		for (TObjectIterator<ULandscapeGrassType> It; It; ++It)
+		{
+			ULandscapeGrassType* GrassType = *It;
+			if (GrassType->IsIn(Package) && !GrassType->IsTemplate())
+			{
+				for (FGrassVariety& GrassVariety : GrassType->GrassVarieties)
+				{
+					GrassVariety.GrassDensityQuality.ConvertQualtiyLevelData(GrassVariety.GrassDensity.PerPlatform, PerPlatformToQualityLevel, GrassVariety.GrassDensity.Default);
+					GrassVariety.StartCullDistanceQuality.ConvertQualtiyLevelData(GrassVariety.StartCullDistance.PerPlatform, PerPlatformToQualityLevel, GrassVariety.StartCullDistance.Default);
+					GrassVariety.EndCullDistanceQuality.ConvertQualtiyLevelData(GrassVariety.EndCullDistance.PerPlatform, PerPlatformToQualityLevel, GrassVariety.EndCullDistance.Default);
+				}
+			}
+		}
+
+		if (!SavePackage)
+		{
+			PackagesToSave.AddUnique(Package);
+			SavePackage = true;
+		}
+	}
+
+	// save quality level modifications 
+	if (SourceControlProvider)
+	{
+		FEditorFileUtils::CheckoutPackages(PackagesToSave, nullptr, false);
+	}
+	else
+	{
+		for (UPackage* Package : PackagesToSave)
+		{
+			FString PackageFilename = SourceControlHelpers::PackageFilename(Package);
+			if (IPlatformFile::GetPlatformPhysical().FileExists(*PackageFilename))
+			{
+				if (!IPlatformFile::GetPlatformPhysical().SetReadOnly(*PackageFilename, false))
+				{
+					UE_LOG(LogContentCommandlet, Error, TEXT("Error setting %s writable"), *PackageFilename);
+					return 1;
+				}
+			}
+		}
+	}
+	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, false, false, nullptr, true, false);
 	
 	return 0;
 }

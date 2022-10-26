@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "Engine/EngineTypes.h"
 #include "PerPlatformProperties.h"
+#include "PerQualityLevelProperties.h"
 #include "LandscapeGrassType.generated.h"
 
 class UStaticMesh;
@@ -28,6 +29,8 @@ struct FGrassVariety
 {
 	GENERATED_USTRUCT_BODY()
 
+	FGrassVariety();
+
 	UPROPERTY(EditAnywhere, Category=Grass)
 	TObjectPtr<UStaticMesh> GrassMesh;
 
@@ -37,6 +40,9 @@ struct FGrassVariety
 	/* Instances per 10 square meters. */
 	UPROPERTY(EditAnywhere, Category=Grass, meta = (UIMin = 0, ClampMin = 0, UIMax = 1000, ClampMax = 1000))
 	FPerPlatformFloat GrassDensity;
+
+	UPROPERTY(EditAnywhere, Category=Grass, meta = (UIMin = 0, ClampMin = 0, UIMax = 1000, ClampMax = 1000))
+	FPerQualityLevelFloat GrassDensityQuality;
 
 	/* If true, use a jittered grid sequence for placement, otherwise use a halton sequence. */
 	UPROPERTY(EditAnywhere, Category=Grass)
@@ -49,6 +55,9 @@ struct FGrassVariety
 	UPROPERTY(EditAnywhere, Category=Grass, meta = (UIMin = 0, ClampMin = 0, UIMax = 1000000, ClampMax = 1000000))
 	FPerPlatformInt StartCullDistance;
 
+	UPROPERTY(EditAnywhere, Category = Grass, meta = (UIMin = 0, ClampMin = 0, UIMax = 1000000, ClampMax = 1000000))
+	FPerQualityLevelInt StartCullDistanceQuality;
+
 	/**
 	 * The distance where instances will have completely faded out when using a PerInstanceFadeAmount material node. 0 disables. 
 	 * When the entire cluster is beyond this distance, the cluster is completely culled and not rendered at all.
@@ -56,6 +65,8 @@ struct FGrassVariety
 	UPROPERTY(EditAnywhere, Category = Grass, meta = (UIMin = 0, ClampMin = 0, UIMax = 1000000, ClampMax = 1000000))
 	FPerPlatformInt EndCullDistance;
 
+	UPROPERTY(EditAnywhere, Category = Grass, meta = (UIMin = 0, ClampMin = 0, UIMax = 1000000, ClampMax = 1000000))
+	FPerQualityLevelInt EndCullDistanceQuality;
 	/** 
 	 * Specifies the smallest LOD that will be used for this component.
 	 * If -1 (default), the MinLOD of the static mesh asset will be used instead.
@@ -118,28 +129,14 @@ struct FGrassVariety
 	UPROPERTY(EditAnywhere, Category = Grass)
 	uint32 InstanceWorldPositionOffsetDisableDistance;
 
-	FGrassVariety()
-		: GrassMesh(nullptr)
-		, GrassDensity(400)
-		, bUseGrid(true)
-		, PlacementJitter(1.0f)
-		, StartCullDistance(10000)
-		, EndCullDistance(10000)
-		, MinLOD(-1)
-		, Scaling(EGrassScaling::Uniform)
-		, ScaleX(1.0f, 1.0f)
-		, ScaleY(1.0f, 1.0f)
-		, ScaleZ(1.0f, 1.0f)
-		, RandomRotation(true)
-		, AlignToSurface(true)
-		, bUseLandscapeLightmap(false)
-		, bReceivesDecals(true)
-		, bCastDynamicShadow(true)
-		, bCastContactShadow(true)
-		, bKeepInstanceBufferCPUCopy(false)
-		, InstanceWorldPositionOffsetDisableDistance(0)
-	{
-	}
+	bool IsGrassQualityLevelEnable() const;
+
+	int32 GetStartCullDistance() const;
+
+	int32 GetEndCullDistance() const;
+
+	float GetDensity() const;
+
 };
 
 UCLASS(MinimalAPI)

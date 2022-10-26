@@ -251,6 +251,6 @@ TSharedRef<IPropertyTypeCustomization> FPerQualityLevelPropertyCustomization<Ove
 /* Only explicitly instantiate the types which are supported
 *****************************************************************************/
 template class FPerQualityLevelPropertyCustomization<FPerQualityLevelInt>;
-
+template class FPerQualityLevelPropertyCustomization<FPerQualityLevelFloat>;
 
 #undef LOCTEXT_NAMESPACE

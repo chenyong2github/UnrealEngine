@@ -1552,6 +1552,9 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = PerQualityLevelProperty, AdvancedDisplay)
 	bool UseSkeletalMeshMinLODPerQualityLevels;
 
+	UPROPERTY(config, EditAnywhere, Category = PerQualityLevelProperty, AdvancedDisplay)
+	bool UseGrassVarityPerQualityLevels;
+
 	/** The state of the current map transition.  */
 	UPROPERTY()
 	ETransitionType TransitionType;

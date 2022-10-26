@@ -201,6 +201,19 @@ static TAutoConsoleVariable<int32> CVarRayTracingLandscapeGrass(
 	TEXT("Include landscapes grass in ray tracing effects (default = 1)"));
 #endif
 
+const TCHAR* GGrassQualityLevelCVarName = TEXT("r.grass.DensityQualityLevel");
+const TCHAR* GGrassQualityLevelScalabilitySection = TEXT("ViewDistanceQuality");
+
+int32 GGrassQualityLevel = -1;
+static FAutoConsoleVariableRef CVarGGrassDensityQualityLevelCVar(
+	GGrassQualityLevelCVarName,
+	GGrassQualityLevel,
+	TEXT("The quality level for grass (low, medium, high, epic). \n"),
+	ECVF_Scalability);
+	
+struct FPerQualityLevelInt;
+struct FPerQualityLevelFloat;
+
 DECLARE_CYCLE_STAT(TEXT("Grass Async Build Time"), STAT_FoliageGrassAsyncBuildTime, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("Grass Start Comp"), STAT_FoliageGrassStartComp, STATGROUP_Foliage);
 DECLARE_CYCLE_STAT(TEXT("Grass End Comp"), STAT_FoliageGrassEndComp, STATGROUP_Foliage);
@@ -1304,6 +1317,80 @@ void UMaterialExpressionLandscapeGrassOutput::ValidateInputName(FGrassInput& InI
 #endif
 
 //
+// FGrassVariety
+//
+
+FGrassVariety::FGrassVariety()
+	: GrassMesh(nullptr)
+	, GrassDensity(400)
+	, GrassDensityQuality(400.0f)
+	, bUseGrid(true)
+	, PlacementJitter(1.0f)
+	, StartCullDistance(10000)
+	, StartCullDistanceQuality(10000)
+	, EndCullDistance(10000)
+	, EndCullDistanceQuality(10000)
+	, MinLOD(-1)
+	, Scaling(EGrassScaling::Uniform)
+	, ScaleX(1.0f, 1.0f)
+	, ScaleY(1.0f, 1.0f)
+	, ScaleZ(1.0f, 1.0f)
+	, RandomRotation(true)
+	, AlignToSurface(true)
+	, bUseLandscapeLightmap(false)
+	, bReceivesDecals(true)
+	, bCastDynamicShadow(true)
+	, bCastContactShadow(true)
+	, bKeepInstanceBufferCPUCopy(false)
+	, InstanceWorldPositionOffsetDisableDistance(0)
+{
+	GrassDensityQuality.Init(GGrassQualityLevelCVarName, GGrassQualityLevelScalabilitySection);
+	StartCullDistanceQuality.Init(GGrassQualityLevelCVarName, GGrassQualityLevelScalabilitySection);
+	EndCullDistanceQuality.Init(GGrassQualityLevelCVarName, GGrassQualityLevelScalabilitySection);
+}
+
+bool FGrassVariety::IsGrassQualityLevelEnable() const
+{
+	return (GEngine && GEngine->UseGrassVarityPerQualityLevels);
+}
+
+int32 FGrassVariety::GetStartCullDistance() const
+{
+	if (IsGrassQualityLevelEnable())
+	{
+		return StartCullDistanceQuality.GetValue(GGrassQualityLevel);
+	}
+	else
+	{
+		return StartCullDistance.GetValue();
+	}
+}
+
+int32 FGrassVariety::GetEndCullDistance() const
+{
+	if (IsGrassQualityLevelEnable())
+	{
+		return EndCullDistanceQuality.GetValue(GGrassQualityLevel);
+	}
+	else
+	{
+		return EndCullDistance.GetValue();
+	}
+}
+
+float FGrassVariety::GetDensity() const
+{
+	if (IsGrassQualityLevelEnable())
+	{
+		return GrassDensityQuality.GetValue(GGrassQualityLevel);
+	}
+	else
+	{
+		return GrassDensity.GetValue();
+	}
+}
+
+
 // ULandscapeGrassType
 //
 
@@ -1669,7 +1756,7 @@ struct FGrassBuilderBase
 	FGrassBuilderBase(ALandscapeProxy* Landscape, ULandscapeComponent* Component, const FGrassVariety& GrassVariety, ERHIFeatureLevel::Type FeatureLevel, int32 SqrtSubsections = 1, int32 SubX = 0, int32 SubY = 0, bool bEnableDensityScaling = true)
 	{
 		const float DensityScale = bEnableDensityScaling ? GGrassDensityScale : 1.0f;
-		GrassDensity = GrassVariety.GrassDensity.GetValue() * DensityScale;
+		GrassDensity = GrassVariety.GetDensity() * DensityScale;
 
 		DrawScale = Landscape->GetRootComponent()->GetRelativeScale3D();
 		DrawLoc = Landscape->GetActorLocation();
@@ -2352,7 +2439,7 @@ void ALandscapeProxy::GetGrassTypes(const UWorld* World, UMaterialInterface* Lan
 			{
 				for (auto& GrassVariety : GrassType->GrassVarieties)
 				{
-					const int32 EndCullDistance = GrassVariety.EndCullDistance.GetValue();
+					int32 EndCullDistance = GrassVariety.GetEndCullDistance();
 					if (EndCullDistance > OutMaxDiscardDistance)
 					{
 						OutMaxDiscardDistance = EndCullDistance;
@@ -2833,8 +2920,8 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNu
 						for (auto& GrassVariety : GrassType->GrassVarieties)
 						{
 							GrassVarietyIndex++;
-							int32 EndCullDistance = GrassVariety.EndCullDistance.GetValue();
-							if (GrassVariety.GrassMesh && GrassVariety.GrassDensity.GetValue() > 0.0f && EndCullDistance > 0)
+							int32 EndCullDistance = GrassVariety.GetEndCullDistance();
+							if (GrassVariety.GrassMesh && GrassVariety.GetDensity() > 0.0f && EndCullDistance > 0)
 							{
 								float MustHaveDistance = GuardBand * (float)EndCullDistance * CullDistanceScale;
 								float DiscardDistance = DiscardGuardBand * (float)EndCullDistance * CullDistanceScale;
@@ -3079,8 +3166,8 @@ void ALandscapeProxy::UpdateGrass(const TArray<FVector>& Cameras, int32& InOutNu
 										}
 										else
 										{
-											GrassInstancedStaticMeshComponent->InstanceStartCullDistance = GrassVariety.StartCullDistance.GetValue() * CullDistanceScale;
-											GrassInstancedStaticMeshComponent->InstanceEndCullDistance = GrassVariety.EndCullDistance.GetValue() * CullDistanceScale;
+											GrassInstancedStaticMeshComponent->InstanceStartCullDistance = GrassVariety.GetStartCullDistance() * CullDistanceScale;
+											GrassInstancedStaticMeshComponent->InstanceEndCullDistance = GrassVariety.GetEndCullDistance() * CullDistanceScale;
 										}
 
 										//@todo - take the settings from a UFoliageType object.  For now, disable distance field lighting on grass so we don't hitch.

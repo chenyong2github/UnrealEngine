@@ -50,8 +50,11 @@ namespace QualityLevelProperty
 
 	ENGINE_API FName QualityLevelToFName(int32 QL);
 	ENGINE_API int32 FNameToQualityLevel(FName QL);
-	ENGINE_API TMap<int32, int32> ConvertQualtiyLevelData(const TMap<EPerQualityLevels, int32>& Data);
-	ENGINE_API TMap<EPerQualityLevels, int32> ConvertQualtiyLevelData(const TMap<int32, int32>& Data);
+	template<typename _ValueType>
+	ENGINE_API TMap<int32, _ValueType> ConvertQualtiyLevelData(const TMap<EPerQualityLevels, _ValueType>& Data);
+	template<typename _ValueType>
+	ENGINE_API TMap<EPerQualityLevels, _ValueType> ConvertQualtiyLevelData(const TMap<int32, _ValueType>& Data);
+	
 #if WITH_EDITOR
 	ENGINE_API FSupportedQualityLevelArray PerPlatformOverrideMapping(FString& InPlatformName);
 #endif
@@ -61,13 +64,12 @@ template<typename _StructType, typename _ValueType, EName _BasePropertyName>
 struct ENGINE_API FPerQualityLevelProperty
 {
 	typedef _ValueType ValueType;
+	typedef _StructType StructType;
 
 	FPerQualityLevelProperty() 
 	{
 	}
 	~FPerQualityLevelProperty() {}
-
-	bool operator==(const FPerQualityLevelProperty& Other) const;
 
 	_ValueType GetValueForQualityLevel(int32 QualityLevel) const
 	{
@@ -77,7 +79,7 @@ struct ENGINE_API FPerQualityLevelProperty
 			return This->Default;
 		}
 
-		int32* Value = (int32*)This->PerQuality.Find(QualityLevel);
+		_ValueType* Value = (_ValueType*)This->PerQuality.Find(QualityLevel);
 		
 		if (Value)
 		{
@@ -94,6 +96,7 @@ struct ENGINE_API FPerQualityLevelProperty
 	FSupportedQualityLevelArray GetSupportedQualityLevels(const TCHAR* InPlatformName = nullptr) const;
 	void StripQualtiyLevelForCooking(const TCHAR* InPlatformName = nullptr);
 	bool IsQualityLevelValid(int32 QualityLevel) const;
+	void ConvertQualtiyLevelData(TMap<FName, _ValueType>& PlaformData, TMultiMap<FName, FName>& PerPlatformToQualityLevel, _ValueType Default);
 #endif
 
 	void Init(const TCHAR* InCVarName, const TCHAR* InSection)
@@ -115,7 +118,20 @@ struct ENGINE_API FPerQualityLevelProperty
 		return GetValueForQualityLevel(QualityLevel);
 	}
 
-	_ValueType GetLowestValue() const;
+	_ValueType GetLowestValue() const
+	{
+		const _StructType* This = StaticCast<const _StructType*>(this);
+		_ValueType Value = This->Default;
+
+		for (const TPair<int32, _ValueType>& Pair : This->PerQuality)
+		{
+			if (Pair.Value < Value)
+			{
+				Value = Pair.Value;
+			}
+		}
+		return Value;
+	}
 
 	/* Load old properties that have been converted to FPerQualityLevel */
 	bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FArchive& Ar)
@@ -182,6 +198,7 @@ struct ENGINE_API FPerQualityLevelInt
 	}
 
 	FString ToString() const;
+	int32 MaxType() const { return MAX_int32; }
 };
 
 extern template ENGINE_API FArchive& operator<<(FArchive&, FPerQualityLevelProperty<FPerQualityLevelInt, int32, NAME_IntProperty>&);
@@ -197,3 +214,46 @@ struct TStructOpsTypeTraits<FPerQualityLevelInt>
 		WithSerializer = true
 	};
 };
+
+USTRUCT()
+struct ENGINE_API FPerQualityLevelFloat
+#if CPP
+	:	public FPerQualityLevelProperty<FPerQualityLevelFloat, float, NAME_FloatProperty>
+#endif
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category = PerQualityLevel)
+	float Default;
+
+	UPROPERTY(EditAnywhere, Category = PerQualityLevel)
+	TMap<int32, float> PerQuality;
+
+	FPerQualityLevelFloat()
+	{
+		Default = 0.0f;
+	}
+
+	FPerQualityLevelFloat(float InDefaultValue)
+	{
+		Default = InDefaultValue;
+	}
+
+	FString ToString() const;
+	float MaxType() const { return UE_MAX_FLT; }
+};
+
+extern template ENGINE_API FArchive& operator<<(FArchive&, FPerQualityLevelProperty<FPerQualityLevelFloat, float, NAME_FloatProperty>&);
+extern template ENGINE_API void operator<<(FStructuredArchive::FSlot Slot, FPerQualityLevelProperty<FPerQualityLevelFloat, float, NAME_FloatProperty>&);
+
+template<>
+struct TStructOpsTypeTraits<FPerQualityLevelFloat>
+	: public TStructOpsTypeTraitsBase2<FPerQualityLevelFloat>
+{
+	enum
+	{
+		WithSerializeFromMismatchedTag = true,
+		WithSerializer = true
+	};
+};
+
