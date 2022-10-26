@@ -560,15 +560,14 @@ void FScreenShotManager::CopyDirectory(const FString& DestDir, const FString& Sr
 {
 	TArray<FString> FilesToCopy;
 
-	FString NormalizedSrc = SrcDir;
-	FPaths::NormalizeDirectoryName(NormalizedSrc);
+	FString AbsoluteSrcDir = FPaths::ConvertRelativePathToFull(SrcDir);
 
-	IFileManager::Get().FindFilesRecursive(FilesToCopy, *SrcDir, TEXT("*"), /*Files=*/true, /*Directories=*/false);
+	IFileManager::Get().FindFilesRecursive(FilesToCopy, *AbsoluteSrcDir, TEXT("*"), /*Files=*/true, /*Directories=*/false);
 
 	ParallelFor(FilesToCopy.Num(), [&](int32 Index)
 		{
 			const FString& SourceFilePath = FilesToCopy[Index];
-			FString DestFilePath = FPaths::Combine(DestDir, SourceFilePath.RightChop(SrcDir.Len()));
+			FString DestFilePath = FPaths::Combine(DestDir, SourceFilePath.RightChop(AbsoluteSrcDir.Len()));
 			IFileManager::Get().Copy(*DestFilePath, *SourceFilePath, true, true);
 		});
 }
