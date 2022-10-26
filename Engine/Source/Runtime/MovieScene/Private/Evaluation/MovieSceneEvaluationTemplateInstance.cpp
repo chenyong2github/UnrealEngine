@@ -149,6 +149,11 @@ void FMovieSceneRootEvaluationTemplateInstance::Initialize(UMovieSceneSequence& 
 		TSharedPtr<FMovieSceneEntitySystemRunner> Runner = WeakRunner.Pin();
 		if (ensure(Runner) && EntitySystemLinker)
 		{
+			if (Runner->IsAttachedToLinker() && Runner->GetLinker() != EntitySystemLinker)
+			{
+				Runner->DetachFromLinker();
+			}
+
 			if (!Runner->IsAttachedToLinker())
 			{
 				Runner->AttachToLinker(EntitySystemLinker);
