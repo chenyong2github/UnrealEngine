@@ -741,7 +741,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	: FPrimitiveSceneProxy(InComponent, NAME_LandscapeResourceNameForDebugging)
 	, FLandscapeSectionInfo(InComponent->GetWorld(), InComponent->GetLandscapeProxy()->GetLandscapeGuid(), InComponent->GetSectionBase() / InComponent->ComponentSizeQuads)
 	, MaxLOD(FMath::CeilLogTwo(InComponent->SubsectionSizeQuads + 1) - 1)
-	, NumWeightmapLayerAllocations(InComponent->GetWeightmapLayerAllocations().Num())
+	, NumWeightmapLayerAllocations(InComponent->GetWeightmapLayerAllocations(/*InReturnEditingWeightmap*/false, /*bInCheckIsUpToDate*/false).Num())
 	, StaticLightingLOD(InComponent->GetLandscapeProxy()->StaticLightingLOD)
 	, WeightmapSubsectionOffset(InComponent->WeightmapSubsectionOffset)
 	, FirstLOD(0)
@@ -1003,7 +1003,8 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	UpdateDefaultInstanceSceneData();
 
 #if WITH_EDITOR
-	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = InComponent->GetWeightmapLayerAllocations();
+	// Scene proxies are sometimes constructed before it's possible to update these allocations, so don't check for updated values
+	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = InComponent->GetWeightmapLayerAllocations(/*InReturnEditingWeightmap*/false, /*bInCheckIsUpToDate*/false);
 	for (const FWeightmapLayerAllocationInfo& Allocation : ComponentWeightmapLayerAllocations)
 	{
 		if (Allocation.LayerInfo != nullptr)

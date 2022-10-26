@@ -1583,25 +1583,33 @@ void FLandscapeEditDataInterface::GetHeightDataFast(const int32 X1, const int32 
 
 void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLandscapeEditDataInterface& LandscapeEdit)
 {
+	FGuid EditLayerGuid = this->GetEditingLayerGUID();
+	DeleteLayerInternal(LayerInfo, LandscapeEdit, EditLayerGuid);
+}
+
+void ULandscapeComponent::DeleteLayerInternal(ULandscapeLayerInfoObject* LayerInfo, FLandscapeEditDataInterface& LandscapeEdit, const FGuid &EditLayerGuid)
+{
 	TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeComponent_DeleteLayer);
 
 	ULandscapeComponent* Component = this;
-	FGuid EditLayerGuid = Component->GetEditingLayerGUID();
-	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(EditLayerGuid);
+	
+	// This can be called during WeightmapFixup, so skip checking for updated weightmap allocations
+	const TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = Component->GetWeightmapLayerAllocations(EditLayerGuid, /*bInCheckUpToDate*/ false);
 	const TArray<UTexture2D*>& ComponentWeightmapTextures = Component->GetWeightmapTextures(EditLayerGuid);
 
-	// Find the index for this layer in this component.
-	const int32 DeleteLayerIdx = ComponentWeightmapLayerAllocations.IndexOfByPredicate(
+	// Delete the first LayerAllocation with a matching LayerInfo
+	const int32 DeleteAllocIdx = ComponentWeightmapLayerAllocations.IndexOfByPredicate(
 		[LayerInfo](const FWeightmapLayerAllocationInfo& Allocation) { return Allocation.LayerInfo == LayerInfo; });
-	if (DeleteLayerIdx == INDEX_NONE)
+	if (DeleteAllocIdx == INDEX_NONE)
 	{
 		// Layer not used for this component.
 		return;
 	}
 
-	Component->DeleteLayerAllocation(EditLayerGuid, DeleteLayerIdx, LandscapeEdit.GetShouldDirtyPackage());
+	Component->DeleteLayerAllocation(EditLayerGuid, DeleteAllocIdx, LandscapeEdit.GetShouldDirtyPackage());
 
 	// See if the deleted layer is a NoWeightBlend layer - if not, we don't have to worry about normalization
+	// If the layer doesn't exist, assume it is a blended layer (so renormalization will run whether needed or not)
 	bool bDeleteLayerIsNoWeightBlend = (LayerInfo && LayerInfo->bNoWeightBlend);
 
 	if (!bDeleteLayerIsNoWeightBlend)
@@ -1648,7 +1656,7 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 						int32 OtherLayerWeightSum = 0;
 						for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 						{
-							if (LayerIdx != DeleteLayerIdx && LayerNoWeightBlends[LayerIdx] == false)
+							if (LayerIdx != DeleteAllocIdx && LayerNoWeightBlends[LayerIdx] == false)
 							{
 								OtherLayerWeightSum += LayerDataPtrs[LayerIdx][TexDataIndex];
 							}
@@ -1661,7 +1669,7 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 							// There's nothing we can easily do if this was the only weight-blend layer on this component
 							for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 							{
-								if (LayerIdx != DeleteLayerIdx && LayerNoWeightBlends[LayerIdx] == false)
+								if (LayerIdx != DeleteAllocIdx && LayerNoWeightBlends[LayerIdx] == false)
 								{
 									uint8& Weight = LayerDataPtrs[LayerIdx][TexDataIndex];
 									Weight = 255;
@@ -1674,7 +1682,7 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 							// Adjust other layer weights
 							for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
 							{
-								if (LayerIdx != DeleteLayerIdx && LayerNoWeightBlends[LayerIdx] == false)
+								if (LayerIdx != DeleteAllocIdx && LayerNoWeightBlends[LayerIdx] == false)
 								{
 									uint8& Weight = LayerDataPtrs[LayerIdx][TexDataIndex];
 									Weight = FMath::Clamp<int32>(FMath::RoundToInt(255.0f * (float)Weight / (float)OtherLayerWeightSum), 0, 255);
@@ -2806,6 +2814,8 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 				}
 				Component->RequestWeightmapUpdate();
 			}
+
+			check(UpdateLayerIdx < ComponentWeightmapLayerAllocations.Num());
 
 			// Lock data for all the weightmaps
 			TexDataInfos.Reset();
