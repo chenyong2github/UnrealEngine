@@ -112,9 +112,18 @@ void UPCGGraph::PostLoad()
 	InputNode->OnNodeChangedDelegate.AddUObject(this, &UPCGGraph::OnNodeChanged);
 	OutputNode->OnNodeChangedDelegate.AddUObject(this, &UPCGGraph::OnNodeChanged);
 
-	for (UPCGNode* Node : Nodes)
+	// Also, try to remove all nodes that are invalid (meaning that the settings are null)
+	// We remove it at the end, to let the nodes that have null settings to clean up their pins and edges.
+	for (int32 i = Nodes.Num() - 1; i >= 0; --i)
 	{
-		OnNodeAdded(Node);
+		if (!Nodes[i]->DefaultSettings)
+		{
+			Nodes.RemoveAtSwap(i);
+		}
+		else
+		{
+			OnNodeAdded(Nodes[i]);
+		}
 	}
 #endif
 }

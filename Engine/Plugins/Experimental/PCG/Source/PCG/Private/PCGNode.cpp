@@ -427,6 +427,23 @@ bool UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocator)
 			Modify();
 		}
 
+		// Clean up edges
+		for (UPCGPin* Pin : InputPins)
+		{
+			if (Pin)
+			{
+				Pin->BreakAllEdges();
+			}
+		}
+
+		for (UPCGPin* Pin : OutputPins)
+		{
+			if (Pin)
+			{
+				Pin->BreakAllEdges();
+			}
+		}
+
 		InputPins.Reset();
 		OutputPins.Reset();
 		return bChanged;
