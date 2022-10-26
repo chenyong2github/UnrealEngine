@@ -951,11 +951,6 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 		float3 Scale = 0;
 		float4x4 LocalToRelativeWorld							= DecodeTransform( RotationScale, Translation, Scale );
 
-		uint4  PrevRotationScale								= asuint(LoadInstanceSceneDataElement(3 * SOAStride + InstanceId));
-		float3 PrevTranslation									= LoadInstanceSceneDataElement(4 * SOAStride + InstanceId).xyz;
-		float3 PrevScale = 0;
-		float4x4 PrevLocalToRelativeWorld						= DecodeTransform( PrevRotationScale, PrevTranslation, PrevScale );
-
 		InstanceData.NonUniformScale.xyz						= abs(Scale);
 		InstanceData.InvNonUniformScale							= rcp(InstanceData.NonUniformScale.xyz);
 #else
@@ -963,17 +958,10 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 																			LoadInstanceSceneDataElement(2 * SOAStride + InstanceId),
 																	                LoadInstanceSceneDataElement(3 * SOAStride + InstanceId),
 																	                float4(0.0f, 0.0f, 0.0f, 1.0f)));
-
-		float4x4 PrevLocalToRelativeWorld						= transpose(float4x4(LoadInstanceSceneDataElement(4 * SOAStride + InstanceId),
-																	                LoadInstanceSceneDataElement(5 * SOAStride + InstanceId),
-																	                LoadInstanceSceneDataElement(6 * SOAStride + InstanceId),
-																	                float4(0.0f, 0.0f, 0.0f, 1.0f)));
-
 #endif
 
 
 		InstanceData.LocalToWorld	= MakeLWCMatrix(TilePosition, LocalToRelativeWorld);
-		InstanceData.PrevLocalToWorld	= MakeLWCMatrix(TilePosition, PrevLocalToRelativeWorld);
 		ComputeInstanceDerivedData(InstanceData, TilePosition, LocalToRelativeWorld);
 
 		InstanceData.NaniteRuntimeResourceID	= PrimitiveData.NaniteResourceID;
@@ -1029,6 +1017,10 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride, bool bC
 
 			float3 TilePosition 				= PrimitiveData.TilePosition;
 			InstanceData.PrevLocalToWorld		= MakeLWCMatrix(TilePosition, PrevLocalToRelativeWorld);
+		}
+		else
+		{
+			InstanceData.PrevLocalToWorld		= MakeLWCMatrix(TilePosition, LocalToRelativeWorld);
 		}
 
 	#if 1 //NEEDS_LIGHTMAP_COORDINATE

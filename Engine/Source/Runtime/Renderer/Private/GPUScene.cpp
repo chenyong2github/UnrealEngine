@@ -1149,8 +1149,7 @@ void FGPUScene::UploadGeneral(FRDGBuilder& GraphBuilder, FScene& Scene, FRDGExte
 							UploadInfo.InstanceCustomDataCount,
 							RandomID,
 							SceneData.LocalToPrimitive,
-							UploadInfo.PrimitiveToWorld,
-							UploadInfo.PrevPrimitiveToWorld
+							UploadInfo.PrimitiveToWorld
 						);
 
 						// RefIndex* BufferState.InstanceSceneDataSOAStride + UploadInfo.InstanceSceneDataOffset + InstanceIndex

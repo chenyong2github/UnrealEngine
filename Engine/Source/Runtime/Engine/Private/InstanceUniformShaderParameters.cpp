@@ -14,7 +14,7 @@ void FInstanceSceneShaderData::Build
 	float RandomID
 )
 {
-	BuildInternal(PrimitiveId, RelativeId, InstanceFlags, LastUpdateFrame, CustomDataCount, RandomID, FRenderTransform::Identity, FRenderTransform::Identity);
+	BuildInternal(PrimitiveId, RelativeId, InstanceFlags, LastUpdateFrame, CustomDataCount, RandomID, FRenderTransform::Identity);
 }
 
 void FInstanceSceneShaderData::Build
@@ -26,18 +26,15 @@ void FInstanceSceneShaderData::Build
 	uint32 CustomDataCount,
 	float RandomID,
 	const FRenderTransform& LocalToPrimitive,
-	const FRenderTransform& PrimitiveToWorld,
-	const FRenderTransform& PrevPrimitiveToWorld // TODO: Temporary PrevVelocityHack
+	const FRenderTransform& PrimitiveToWorld
 )
 {
 	FRenderTransform LocalToWorld = LocalToPrimitive * PrimitiveToWorld;
-	FRenderTransform PrevLocalToWorld = LocalToPrimitive * PrevPrimitiveToWorld; // TODO: Temporary PrevVelocityHack
 
 	// Remove shear
 	LocalToWorld.Orthogonalize();
-	PrevLocalToWorld.Orthogonalize(); // TODO: Temporary PrevVelocityHack
 
-	BuildInternal(PrimitiveId, RelativeId, InstanceFlags, LastUpdateFrame, CustomDataCount, RandomID, LocalToWorld, PrevLocalToWorld);
+	BuildInternal(PrimitiveId, RelativeId, InstanceFlags, LastUpdateFrame, CustomDataCount, RandomID, LocalToWorld);
 }
 
 void FInstanceSceneShaderData::BuildInternal
@@ -48,8 +45,7 @@ void FInstanceSceneShaderData::BuildInternal
 	uint32 LastUpdateFrame,
 	uint32 CustomDataCount,
 	float RandomID,
-	const FRenderTransform& LocalToWorld, // Assumes shear has been removed already
-	const FRenderTransform& PrevLocalToWorld // Assumes shear has been removed already // TODO: Temporary PrevVelocityHack
+	const FRenderTransform& LocalToWorld // Assumes shear has been removed already
 )
 {
 	// Note: layout must match GetInstanceData in SceneData.ush and InitializeInstanceSceneData in GPUSceneWriter.ush
@@ -76,21 +72,15 @@ void FInstanceSceneShaderData::BuildInternal
 	Data[0].Z  = *(const float*)&LastUpdateFrame;
 	Data[0].W  = *(const float*)&RandomID;
 
-	// TODO: Temporary PrevVelocityHack
 	if (FDataDrivenShaderPlatformInfo::GetSupportSceneDataCompressedTransforms(GMaxRHIShaderPlatform))
 	{
 		FCompressedTransform CompressedLocalToWorld(LocalToWorld);
 		Data[1] = *(const FVector4f*)&CompressedLocalToWorld.Rotation[0];
 		Data[2] = *(const FVector3f*)&CompressedLocalToWorld.Translation;
-
-		FCompressedTransform CompressedPrevLocalToWorld(PrevLocalToWorld);
-		Data[3] = *(const FVector4f*)&CompressedPrevLocalToWorld.Rotation[0];
-		Data[4] = *(const FVector3f*)&CompressedPrevLocalToWorld.Translation;
 	}
 	else
 	{
 		// Note: writes 3x float4s
 		LocalToWorld.To3x4MatrixTranspose((float*)&Data[1]);
-		PrevLocalToWorld.To3x4MatrixTranspose((float*)&Data[4]);
 	}
 }

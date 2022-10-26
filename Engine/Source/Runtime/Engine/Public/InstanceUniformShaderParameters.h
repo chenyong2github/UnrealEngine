@@ -93,9 +93,8 @@ struct FInstanceSceneShaderData
 private:
 	// Must match GetInstanceSceneData() in SceneData.ush
 	// Allocate the max Float4s usage when compressed transform is used.
-	// TODO: Temporary PrevVelocityHack (last float4s when compressed)
-	static constexpr uint32 CompressedTransformDataStrideInFloat4s = 5;
-	static constexpr uint32 UnCompressedTransformDataStrideInFloat4s = 7;
+	static constexpr uint32 CompressedTransformDataStrideInFloat4s = 3;
+	static constexpr uint32 UnCompressedTransformDataStrideInFloat4s = 4;
 
 public:
 
@@ -139,8 +138,7 @@ public:
 		uint32 CustomDataCount,
 		float RandomID,
 		const FRenderTransform& LocalToPrimitive,
-		const FRenderTransform& PrimitiveToWorld,
-		const FRenderTransform& PrevPrimitiveToWorld // TODO: Temporary PrevVelocityHack
+		const FRenderTransform& PrimitiveToWorld
 	);
 
 	ENGINE_API void BuildInternal
@@ -151,8 +149,7 @@ public:
 		uint32 LastUpdateFrame,
 		uint32 CustomDataCount,
 		float RandomID,
-		const FRenderTransform& LocalToWorld,
-		const FRenderTransform& PrevLocalToWorld // Assumes shear has been removed already // TODO: Temporary PrevVelocityHack
+		const FRenderTransform& LocalToWorld
 	);
 
 	TStaticArray<FVector4f, UnCompressedTransformDataStrideInFloat4s> Data;
