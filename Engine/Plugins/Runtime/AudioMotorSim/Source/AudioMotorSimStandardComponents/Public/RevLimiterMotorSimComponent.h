@@ -5,6 +5,7 @@
 #include "IAudioMotorSim.h"
 #include "RevLimiterMotorSimComponent.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRevLimiterHit);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnRevLimiterStateChanged, bool, bNewState);
 
 // Temporarily cuts throttle and reduces RPM when drifting or in the air
@@ -28,6 +29,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "RevLimiter")
 	float LimiterMaxRpm = 0.f;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnRevLimiterHit OnRevLimiterHit;
 
 	UPROPERTY(BlueprintAssignable)
 	FOnRevLimiterStateChanged OnRevLimiterStateChanged;

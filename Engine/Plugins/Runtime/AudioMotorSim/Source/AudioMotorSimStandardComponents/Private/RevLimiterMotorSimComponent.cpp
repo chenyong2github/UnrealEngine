@@ -32,6 +32,7 @@ void URevLimiterMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAu
 	{
 		TimeRemaining = LimitTime;
 		RuntimeInfo.Rpm = LimiterMaxRpm;
+		OnRevLimiterHit.Broadcast();
 	}
 
 	if (TimeRemaining > 0.0f)
