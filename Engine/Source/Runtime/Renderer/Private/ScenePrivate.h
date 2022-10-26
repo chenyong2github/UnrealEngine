@@ -1037,6 +1037,11 @@ public:
 	FVector VolumetricCloudShadowmapPreviousAnchorPoint[NUM_ATMOSPHERE_LIGHTS];
 	FVector VolumetricCloudShadowmapPreviousAtmosphericLightDir[NUM_ATMOSPHERE_LIGHTS];
 
+	virtual FRDGTextureRef GetVolumetricCloudTexture(FRDGBuilder& GraphBuilder) override
+	{
+		return VolumetricCloudRenderTarget.GetDstVolumetricReconstructRT(GraphBuilder);
+	}
+
 	FHairStrandsViewStateData HairStrandsViewStateData;
 
 	FShaderPrintStateData ShaderPrintStateData;

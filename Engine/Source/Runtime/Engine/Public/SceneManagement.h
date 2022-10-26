@@ -219,6 +219,9 @@ public:
 	 */
 	virtual uint32 GetViewKey() const = 0;
 
+	/* Return the active volumetric cloud texture, can be null. */
+	virtual FRDGTextureRef GetVolumetricCloudTexture(FRDGBuilder& GraphBuilder) = 0;
+
 	//
 	virtual uint32 GetCurrentTemporalAASampleIndex() const = 0;
 

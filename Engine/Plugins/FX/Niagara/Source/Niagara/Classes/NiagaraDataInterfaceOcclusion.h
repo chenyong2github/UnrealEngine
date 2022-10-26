@@ -12,7 +12,9 @@ class NIAGARA_API UNiagaraDataInterfaceOcclusion : public UNiagaraDataInterface
 	GENERATED_UCLASS_BODY()
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
-		SHADER_PARAMETER(FVector3f, SystemLWCTile)
+		SHADER_PARAMETER(FVector3f,				SystemLWCTile)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CloudVolumetricTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState,	CloudVolumetricTextureSampler)
 	END_SHADER_PARAMETER_STRUCT();
 
 public:
@@ -41,6 +43,7 @@ private:
 	static const TCHAR* TemplateShaderFilePath;
 	static const FName GetCameraOcclusionRectangleName;
 	static const FName GetCameraOcclusionCircleName;
+	static const FName QueryCloudOcclusionWithCircleName;
 };
 
 struct FNiagaraDataIntefaceProxyOcclusionQuery : public FNiagaraDataInterfaceProxy

@@ -2150,6 +2150,15 @@ FInt32Range FViewInfo::GetDynamicMeshElementRange(uint32 PrimitiveIndex) const
 	return FInt32Range(Start, AfterEnd);
 }
 
+FRDGTextureRef FViewInfo::GetVolumetricCloudTexture(FRDGBuilder& GraphBuilder) const
+{
+	if (State)
+	{
+		return State->GetVolumetricCloudTexture(GraphBuilder);
+	}
+	return nullptr;
+}
+
 FSceneViewState* FViewInfo::GetEyeAdaptationViewState() const
 {
 	return static_cast<FSceneViewState*>(EyeAdaptationViewState);
