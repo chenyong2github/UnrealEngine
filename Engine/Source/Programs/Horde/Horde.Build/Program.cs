@@ -19,6 +19,9 @@ using Serilog;
 using Serilog.Configuration;
 using Serilog.Core;
 using Serilog.Events;
+using Serilog.Exceptions;
+using Serilog.Exceptions.Core;
+using Serilog.Exceptions.Grpc.Destructurers;
 using Serilog.Formatting.Json;
 using Serilog.Sinks.SystemConsole.Themes;
 
@@ -159,6 +162,9 @@ namespace Horde.Build
 			Serilog.Log.Logger = new LoggerConfiguration()
 				.WithHordeConfig(hordeSettings)
 				.Enrich.FromLogContext()
+				.Enrich.WithExceptionDetails(new DestructuringOptionsBuilder()
+					.WithDefaultDestructurers()
+					.WithDestructurers(new[] { new RpcExceptionDestructurer() }))
 				.WriteTo.Console(hordeSettings)
 				.WriteTo.File(Path.Combine(logDir.FullName, "Log.txt"), outputTemplate: "[{Timestamp:HH:mm:ss} {Level:w3}] {Indent}{Message:l}{NewLine}{Exception} [{SourceContext}]", rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
 				.WriteTo.File(new JsonFormatter(renderMessage: true), Path.Combine(logDir.FullName, "Log.json"), rollingInterval: RollingInterval.Day, rollOnFileSizeLimit: true, fileSizeLimitBytes: 20 * 1024 * 1024, retainedFileCountLimit: 10)
