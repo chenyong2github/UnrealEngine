@@ -40,6 +40,11 @@ namespace UE::MLDeformer
 	}
 }	// namespace UE::MLDeformer
 
+FString UMLDeformerModel::GetDisplayName() const
+{ 
+	return GetClass()->GetFName().ToString();
+}
+
 UMLDeformerInputInfo* UMLDeformerModel::CreateInputInfo()
 { 
 	return NewObject<UMLDeformerInputInfo>(this);
@@ -178,6 +183,11 @@ void UMLDeformerModel::FloatArrayToVector3Array(const TArray<float>& FloatArray,
 }
 
 #if WITH_EDITOR
+	void UMLDeformerModel::UpdateNumTargetMeshVertices()
+	{ 
+		NumTargetMeshVerts = 0;
+	}
+
 	void UMLDeformerModel::UpdateNumBaseMeshVertices()
 	{
 		NumBaseMeshVerts = UMLDeformerModel::ExtractNumImportedSkinnedVertices(GetSkeletalMesh());

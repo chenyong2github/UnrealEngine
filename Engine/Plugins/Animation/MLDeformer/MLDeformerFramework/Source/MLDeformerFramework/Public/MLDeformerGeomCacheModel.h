@@ -31,7 +31,6 @@ public:
 	// ~END UObject overrides.
 
 	// UMLDeformerModel overrides.
-	virtual FString GetDisplayName() const override			{ return "GeomCache Based Model"; }
 #if WITH_EDITORONLY_DATA
 	virtual bool HasTrainingGroundTruth() const override	{ return (GetGeometryCache() != nullptr); }
 	virtual void SampleGroundTruthPositions(float SampleTime, TArray<FVector3f>& OutPositions) override;

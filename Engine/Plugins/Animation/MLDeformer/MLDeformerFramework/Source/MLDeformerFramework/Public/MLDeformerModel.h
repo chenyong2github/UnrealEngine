@@ -98,9 +98,10 @@ public:
 	/**
 	 * Get the display name of this model.
 	 * This will also define with what name this model will appear inside the UI.
+	 * On default this will return the class name.
 	 * @return The name of the model.
 	 */
-	virtual FString GetDisplayName() const PURE_VIRTUAL(UMLDeformerModel::GetDisplayName, return FString(););
+	virtual FString GetDisplayName() const;
 
 	/**
 	 * Defines whether this model supports bone transforms as input or not.
@@ -180,7 +181,7 @@ public:
 	 * The number of vertices should be the number of DCC vertices, so not the number of render vertices.
 	 * This just updates the NumTargetMeshVerts property.
 	 */ 
-	virtual void UpdateNumTargetMeshVertices() PURE_VIRTUAL(UMLDeformerModel::GetNumTargetMeshVertices; mTargetMeshVerts = 0;);
+	virtual void UpdateNumTargetMeshVertices();
 
 	/**
 	 * Extract the number of imported (DCC) vertices from a skeletal mesh.

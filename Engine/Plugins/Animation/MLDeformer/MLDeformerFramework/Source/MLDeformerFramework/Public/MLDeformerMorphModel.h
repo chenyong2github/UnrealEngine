@@ -20,7 +20,6 @@ public:
 	UMLDeformerMorphModel(const FObjectInitializer& ObjectInitializer);
 
 	// UMLDeformerModel overrides.
-	virtual FString GetDisplayName() const override			{ return "Morph Base Model"; }
 	virtual bool IsNeuralNetworkOnGPU() const override		{ return false; }	// CPU based neural network.
 	virtual void Serialize(FArchive& Archive) override;
 	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;

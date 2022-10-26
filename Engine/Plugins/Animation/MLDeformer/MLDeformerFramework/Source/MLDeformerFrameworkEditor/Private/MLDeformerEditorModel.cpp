@@ -1967,6 +1967,17 @@ namespace UE::MLDeformer
 		return FString::Printf(TEXT("%s%s/%s.onnx"), *FPaths::ProjectIntermediateDir(), *ClassName, *ClassName);
 	}
 
+	ETrainingResult FMLDeformerEditorModel::Train()
+	{ 
+		UE_LOG(LogMLDeformer, Warning, TEXT("Please override the FMLDeformerEditorModel::Train() method inside your derived editor model class."));
+		return ETrainingResult::Success;
+	}
+
+	int32 FMLDeformerEditorModel::GetNumTrainingFrames() const
+	{ 
+		UE_LOG(LogMLDeformer, Warning, TEXT("Please override the FMLDeformerEditorModel::GetNumTrainingFrames() method inside your derived editor model class."));
+		return 0;
+	}
 }	// namespace UE::MLDeformer
 
 #undef LOCTEXT_NAMESPACE

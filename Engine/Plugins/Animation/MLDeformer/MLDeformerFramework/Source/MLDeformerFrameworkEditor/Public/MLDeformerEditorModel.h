@@ -96,7 +96,7 @@ namespace UE::MLDeformer
 		 * For example this could return the number of frames inside your geometry cache.
 		 * @return The number of frames in the training data.
 		 */
-		virtual int32 GetNumTrainingFrames() const PURE_VIRTUAL(FMLDeformerEditorModel::GetNumTrainingFrames, return 0;);
+		virtual int32 GetNumTrainingFrames() const;
 
 		/**
 		 * Launch the training. This gets executed when the Train button is pressed.
@@ -129,7 +129,7 @@ namespace UE::MLDeformer
 		 * 
 		 * @return The training result.
 		 */
-		virtual ETrainingResult Train() PURE_VIRTUAL(FMLDeformerEditorModel::Train, return ETrainingResult::Success;);
+		virtual ETrainingResult Train();
 
 		// Optional overrides.
 		/**
