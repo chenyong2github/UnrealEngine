@@ -335,6 +335,12 @@ void DestroySelectionSets()
 */
 static TMap<UPackage*, bool> StartupPackageToWarnState;
 
+
+ERHIFeatureLevel::Type FPreviewPlatformInfo::GetEffectivePreviewFeatureLevel() const
+{
+	return bPreviewFeatureLevelActive ? PreviewFeatureLevel : GMaxRHIFeatureLevel;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // UEditorEngine
 
