@@ -261,6 +261,19 @@ bool UAnimBlueprint::AllowFunctionOverride(const UFunction* const InFunction) co
 	}
 }
 
+void UAnimBlueprint::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+
+	// Make sure we add / remove linked anim layer sharing blueprint extension
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAnimBlueprint, bEnableLinkedAnimLayerInstanceSharing))
+	{
+		bRefreshExtensions = true;
+	}
+}
+
 #endif
 
 USkeletalMesh* UAnimBlueprint::GetPreviewMesh(bool bFindIfNotSet/*=false*/)

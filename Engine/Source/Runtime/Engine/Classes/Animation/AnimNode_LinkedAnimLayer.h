@@ -40,6 +40,7 @@ public:
 	/** FAnimNode_Base interface */
 	virtual void OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance) override;
 	virtual bool NeedsOnInitializeAnimInstance() const override { return true; }
+	void OnUninitializeAnimInstance(UAnimInstance* InAnimInstance);
 
 	/** FAnimNode_CustomProperty interface */
 	virtual void InitializeProperties(const UObject* InSourceInstance, UClass* InTargetClass) override;
@@ -64,6 +65,11 @@ protected:
 	// Initialize the source properties to copy from
 	void InitializeSourceProperties(const UAnimInstance* InAnimInstance);
 
+	virtual bool CanTeardownLinkedInstance(const UAnimInstance* LinkedInstance) const override;
+
+	// Cleanup Shared LinkedLayers Data associated with InPreviousTargetInstance
+	void CleanupSharedLinkedLayersData(const UAnimInstance* InOwningAnimInstance, UAnimInstance* InPreviousTargetInstance);
+	
 #if WITH_EDITOR
 	// Event fired when the instance we are running has changed
 	FSimpleMulticastDelegate OnInstanceChangedEvent;

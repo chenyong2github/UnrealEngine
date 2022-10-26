@@ -11,6 +11,7 @@
 #include "AnimBlueprintExtension_PropertyAccess.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "AnimBlueprintExtension_NodeRelevancy.h"
+#include "AnimBlueprintExtension_SharedLinkedAnimLayers.h"
 #include "AnimBlueprintExtension_Tag.h"
 
 // Set used to refresh extensions. Checks that an extension has a reference from an anim node for each refresh.
@@ -78,6 +79,11 @@ void UAnimBlueprintExtension::RequestExtensionsForNode(UAnimGraphNode_Base* InAn
             UAnimBlueprintExtension_Attributes::StaticClass(),
             UAnimBlueprintExtension_PropertyAccess::StaticClass()
         };
+
+		if (AnimBlueprint->bEnableLinkedAnimLayerInstanceSharing)
+		{
+			ExtensionClasses.Add(UAnimBlueprintExtension_SharedLinkedAnimLayers::StaticClass());
+		}
 
 		// As this can be called when we have not regenerated the skeleton class, we need to be less conservative
 		// and request extensions if it *looks* like we have a valid reference, rather than a verified concrete ref.

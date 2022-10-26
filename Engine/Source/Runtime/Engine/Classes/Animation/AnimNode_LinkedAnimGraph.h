@@ -113,6 +113,9 @@ protected:
 	// Shutdown the currently running instance
 	void TeardownInstance(const UAnimInstance* InOwningAnimInstance);
 
+	// Check if the currently linked instance can be teared down
+	virtual bool CanTeardownLinkedInstance(const UAnimInstance* LinkedInstance) const {return true;}
+
 	// FAnimNode_CustomProperty interface
 	virtual UClass* GetTargetClass() const override 
 	{

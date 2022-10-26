@@ -113,6 +113,11 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 	UPROPERTY(EditAnywhere, Category = Optimization)
 	bool bWarnAboutBlueprintUsage;
 
+	/** If true, linked animation layers will be instantiated only once per AnimClass instead of once per AnimInstance, AnimClass and AnimGroup.
+	Extra instances will be created if two or more active anim graph override the same layer Function */
+	UPROPERTY(EditDefaultsOnly, Category = Optimization)
+	uint8 bEnableLinkedAnimLayerInstanceSharing : 1;
+
 	// @todo document
 	class UAnimBlueprintGeneratedClass* GetAnimBlueprintGeneratedClass() const;
 
@@ -181,7 +186,8 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 	virtual bool SupportsDelegates() const override;
 	virtual bool SupportsMacros() const override;
 	virtual bool AllowFunctionOverride(const UFunction* const InFunction) const override;
-
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	
 protected:
 	// Broadcast when an override is changed, allowing derived blueprints to be updated
 	FOnOverrideChangedMulticaster OnOverrideChanged;

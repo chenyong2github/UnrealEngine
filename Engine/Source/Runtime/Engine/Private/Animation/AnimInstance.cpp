@@ -35,6 +35,7 @@
 #include "Animation/AnimSubsystem_Tag.h"
 #include "Animation/AnimStateMachineTypes.h"
 #include "Animation/ActiveMontageInstanceScope.h"
+#include "Animation/AnimSubsystem_SharedLinkedAnimLayers.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AnimInstance)
 
@@ -340,6 +341,26 @@ void UAnimInstance::UninitializeAnimation()
 
 	SlotGroupInertializationRequestMap.Reset();
 	
+	// Cleanup layer nodes
+	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
+	{
+		for (FStructProperty* LayerNodeProperty : AnimBlueprintClass->GetLinkedAnimLayerNodeProperties())
+		{
+			if (FAnimNode_LinkedAnimLayer* Layer = LayerNodeProperty->ContainerPtrToValuePtr<FAnimNode_LinkedAnimLayer>(this))
+			{
+				Layer->OnUninitializeAnimInstance(this);
+			}
+		}
+	}
+	
+	// Cleanup shared layers data
+	if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = FindSubsystem<FAnimSubsystem_SharedLinkedAnimLayers>())
+	{
+		// Reset shared linked instances when the main instance in uninitialized. 
+		// This is required in part for SkeletalMeshComponent::OnUnregister so that the linked instances array isn't modified as we iterate on it to unitialize them. (see FAnimNode_LinkedLayer::CleanupSharedLinkedLayersData)
+		SharedLinkedAnimLayers->Reset();
+	}
+
 	TRACE_OBJECT_LIFETIME_END(this);
 }
 
@@ -2990,7 +3011,82 @@ void UAnimInstance::PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance
 		{
 			for (TPair<FName, TArray<FAnimNode_LinkedAnimLayer*, TInlineAllocator<4>>> LayerPair : ClassLayerNodesToSet.Value)
 			{
-				if (LayerPair.Key == NAME_None)
+				if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = MeshComp->GetAnimInstance()->FindSubsystem<FAnimSubsystem_SharedLinkedAnimLayers>())
+				{
+					// Shared instances path
+					UClass* ClassToSet = ClassLayerNodesToSet.Key;
+					for (FAnimNode_LinkedAnimLayer* LayerNode : LayerPair.Value)
+					{
+						// Disallow setting the same class as this instance, which would create infinite recursion
+						if (ClassToSet != nullptr && ClassToSet != GetClass())
+						{
+							UAnimInstance* TargetInstance = LayerNode->GetTargetInstance<UAnimInstance>();
+
+							// Skip setting if the class is the same
+							if (TargetInstance == nullptr || ClassToSet != TargetInstance->GetClass())
+							{
+								FLinkedAnimLayerClassData& ClassesData = SharedLinkedAnimLayers->FindOrAddClassData(ClassToSet);
+
+								const FName FunctionToLink = LayerNode->GetDynamicLinkFunctionName();
+
+								// Try to find an existing instance whose function is available for linking
+								FLinkedAnimLayerInstanceData* LayerAnimInstanceData = ClassesData.FindInstanceForLinking(FunctionToLink);
+
+								bool bIsNewInstance;
+								UAnimInstance* LinkedInstance = nullptr;
+								// Use existing instance if possible
+								if (LayerAnimInstanceData)
+								{
+									bIsNewInstance = false;
+									LinkedInstance = LayerAnimInstanceData->Instance;
+								}
+								// Create the new linked instance if needed
+								else
+								{
+									bIsNewInstance = true;
+									
+									// Init new instance
+									LinkedInstance = NewObject<UAnimInstance>(MeshComp, ClassToSet);
+									LinkedInstance->bCreatedByLinkedAnimGraph = true;
+									LinkedInstance->InitializeAnimation();
+									
+									// Insert new instance data
+									LayerAnimInstanceData = &ClassesData.AddInstance(LinkedInstance);
+									
+									// Unlink any layer nodes in the new linked instance, as they may have been hooked up to self in InitializeAnimation above.
+									UnlinkLayerNodesInInstance(LinkedInstance, LayerPair.Value);
+								}
+
+								// Mark function as linked
+								LayerAnimInstanceData->AddLinkedFunction(FunctionToLink, this);
+								LayerNode->SetLinkedLayerInstance(this, LinkedInstance);
+
+								// Propagate notify flags. If any nodes have this set then we need to propagate to the group.
+								LinkedInstance->bPropagateNotifiesToLinkedInstances |= LayerNode->bPropagateNotifiesToLinkedInstances;
+								LinkedInstance->bReceiveNotifiesFromLinkedInstances |= LayerNode->bReceiveNotifiesFromLinkedInstances;
+
+								if (!bInDeferSubGraphInitialization)
+								{
+									FAnimInstanceProxy& ThisProxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
+									FAnimInstanceProxy& LinkedProxy = LinkedInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
+
+									// Initialize the correct parts of the linked instance
+									InitializeAndCacheBonesForLinkedRoot(LayerNode, ThisProxy, LinkedInstance, LinkedProxy);
+								}
+
+								if (bIsNewInstance)
+								{
+									MeshComp->GetLinkedAnimInstances().Add(LinkedInstance);
+								}
+							}
+						}
+						else
+						{
+							LayerNode->SetLinkedLayerInstance(this, nullptr);
+						}
+					}
+				}
+				else if (LayerPair.Key == NAME_None)
 				{
 					// Ungrouped path - each layer gets a separate instance
 					for (FAnimNode_LinkedAnimLayer* LayerNode : LayerPair.Value)

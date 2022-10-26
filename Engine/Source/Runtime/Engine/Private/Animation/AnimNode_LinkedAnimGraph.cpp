@@ -231,12 +231,15 @@ void FAnimNode_LinkedAnimGraph::TeardownInstance(const UAnimInstance* InOwningAn
 		// Never delete the owning animation instance
 		if (InstanceToRun != InOwningAnimInstance)
 		{
-			USkeletalMeshComponent* MeshComp = InOwningAnimInstance->GetSkelMeshComponent();
-			check(MeshComp);
-			MeshComp->GetLinkedAnimInstances().Remove(InstanceToRun);
-			// Only call UninitializeAnimation if we are not the owning anim instance
-			InstanceToRun->UninitializeAnimation();
-			InstanceToRun->MarkAsGarbage();
+			if (CanTeardownLinkedInstance(InstanceToRun))
+			{
+				USkeletalMeshComponent* MeshComp = InOwningAnimInstance->GetSkelMeshComponent();
+				check(MeshComp);
+				MeshComp->GetLinkedAnimInstances().Remove(InstanceToRun);
+				// Only call UninitializeAnimation if we are not the owning anim instance
+				InstanceToRun->UninitializeAnimation();
+				InstanceToRun->MarkAsGarbage();
+			}
 		}
 
 		InstanceToRun = nullptr;
