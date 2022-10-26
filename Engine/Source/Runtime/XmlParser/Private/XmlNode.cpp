@@ -15,14 +15,20 @@ const FString& FXmlAttribute::GetValue() const
 
 void FXmlNode::Delete()
 {
-	const int32 ChildCount = Children.Num();
-	for(int32 ChildIndex = 0; ChildIndex < ChildCount; ++ChildIndex)
+	TArray<FXmlNode*> ToDelete = MoveTemp(Children);
+	check(Children.IsEmpty());
+
+	for (int32 Index = 0; Index != ToDelete.Num(); ++Index)
 	{
-		check(Children[ChildIndex] != nullptr);
-		Children[ChildIndex]->Delete();
-		delete Children[ChildIndex];
+		FXmlNode* NodeToDelete = ToDelete[Index];
+		ToDelete.Append(MoveTemp(NodeToDelete->Children));
+		check(NodeToDelete->Children.IsEmpty());
 	}
-	Children.Empty();
+
+	for (FXmlNode* Node : ToDelete)
+	{
+		delete Node;
+	}
 }
 
 const FXmlNode* FXmlNode::GetNextNode() const

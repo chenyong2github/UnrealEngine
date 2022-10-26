@@ -456,20 +456,7 @@ TArray<FString> FXmlFile::Tokenize(const TArray<FString>& Input)
 	return Tokens;
 }
 
-/** Checks if the passed string is an important tag operator */
-static bool IsTagOperator(FString ToCheck)
-{
-	if(ToCheck == TEXT("<") ||
-		ToCheck == TEXT(">") ||
-		ToCheck == TEXT("</") ||
-		ToCheck == TEXT("/>"))
-	{
-		return true;
-	}
-	return false;
-}
-
-void FXmlFile::AddAttribute(const FString& InToken, TArray<FXmlAttribute>& OutAttributes)
+static void AddAttribute(const FString& InToken, TArray<FXmlAttribute>& OutAttributes)
 {
 	int32 EqualsIdx;
 	if(InToken.FindChar(TEXT('='), EqualsIdx))
@@ -500,7 +487,118 @@ void FXmlFile::AddAttribute(const FString& InToken, TArray<FXmlAttribute>& OutAt
 	}
 }
 
-FXmlNode* FXmlFile::CreateNodeRecursive(const TArray<FString>& Tokens, int32 StartIndex, int32* OutNextIndex)
+enum class ETryParseTagResult
+{
+	Error,
+	None,
+	ParsedStartTag,         // <key>
+	ParsedEmptyElementTag,  // <key />
+	ParsedEndTag,           // </key>
+	NotATag                 // content - iterator is not advanced past this
+};
+
+static ETryParseTagResult TryParseTag(FString& OutTag, TArray<FXmlAttribute>& Attributes, const FString*& InOutToken, const FString* LastToken)
+{
+	const FString* Token = InOutToken;
+
+	if (Token == LastToken)
+	{
+		return ETryParseTagResult::None;
+	}
+
+	if (*Token == TEXT(">") || *Token == TEXT("/>"))
+	{
+		// Error: Found an unexpected end-of-tag (ex: >list>)
+		return ETryParseTagResult::Error;
+	}
+
+	// Found an end tag
+	if (*Token == TEXT("</"))
+	{
+		++Token;
+
+		if (Token == LastToken || *Token == TEXT("<") || *Token == TEXT("</") || *Token == TEXT(">") || *Token == TEXT("/>"))
+		{
+			// Error: Didn't find a tag name before the end of the tokens (ex: </>)
+			return ETryParseTagResult::Error;
+		}
+
+		OutTag = *Token++;
+
+		for (;;)
+		{
+			if (Token == LastToken || *Token == TEXT("<") || *Token == TEXT("</") || *Token == TEXT("/>"))
+			{
+				// Error: Didn't find a closing bracket (ex: </EndToken<)
+				return ETryParseTagResult::Error;
+			}
+
+			if (*Token++ == TEXT(">"))
+			{
+				InOutToken = Token;
+				return ETryParseTagResult::ParsedEndTag;
+			}
+
+			// Don't error if we find text after the final tag - they may be like options or modifiers or some such
+		}
+	}
+
+	if (*Token != TEXT("<"))
+	{
+		// Found a non-tag
+		// Don't advance the Token iterator because we want the caller to be able to examine it
+		InOutToken = Token;
+		return ETryParseTagResult::NotATag;
+	}
+
+	++Token;
+
+	if (Token == LastToken || *Token == TEXT("<") || *Token == TEXT("</") || *Token == TEXT(">") || *Token == TEXT("/>"))
+	{
+		// Error: Didn't find a tag name before the end of the tokens (ex: <)
+		return ETryParseTagResult::Error;
+	}
+
+	// Copy tag to output
+	OutTag = *Token++;
+
+	for (;;)
+	{
+		if (Token == LastToken)
+		{
+			// Error: Didn't find the closing tag (ex: <key)
+			return ETryParseTagResult::Error;
+		}
+
+		const FString& TokenStr = *Token++;
+
+		// Closing the tag and also finalizing it
+		if (TokenStr == TEXT("/>"))
+		{
+			InOutToken = Token;
+			return ETryParseTagResult::ParsedEmptyElementTag;
+		}
+
+		// Closing the tag starting
+		if (TokenStr == TEXT(">"))
+		{
+			InOutToken = Token;
+			return ETryParseTagResult::ParsedStartTag;
+		}
+
+		// Error
+		if (TokenStr == TEXT("<") || TokenStr == TEXT("</"))
+		{
+			// Error: malformed file (ex: <key<)
+			return ETryParseTagResult::Error;
+		}
+
+		// Assume this is an attribute
+		AddAttribute(TokenStr, Attributes);
+	}
+}
+
+FXmlNode* FXmlFile::CreateRootNode(TArrayView<const FString> Tokens)
 {
 	// Algorithm (Draft):
 	//  - First found token should always be a '<'
@@ -511,224 +609,122 @@ FXmlNode* FXmlFile::CreateNodeRecursive(const TArray<FString>& Tokens, int32 Sta
 	//  - Continue parsing until </tag> for self is found
 	//  - Return own constructed node (and index of next starting point
 
-	const int32 RecursiveStartIndex = StartIndex;
-	int32 SavedIndex = StartIndex;
-
-	// Get the tag & any attributes
-	FString Tag;
-	TArray<FXmlAttribute> Attributes;
-	bool bInTag = false;
-	for(int32 i = StartIndex; i < Tokens.Num(); ++i)
+	// Stack of nodes currently being parsed - Last() is the current node being parsed
+	TArray<FXmlNode*> ParsingNodeStack;
+	ON_SCOPE_EXIT
 	{
-		if(bCreationFailed)
+		// Clean up partially-parsed nodes - only the root node needs deletion because nested nodes
+		// will have been added to the Children list of that node, and Delete already cleans those up.
+		if (ParsingNodeStack.Num() != 0)
 		{
-			break;
+			delete ParsingNodeStack[0];
 		}
+	};
 
-		if(Tokens[i].Len() == 0 || Tokens[i] == TEXT("\n") || Tokens[i] == TEXT("\r") || Tokens[i] == TEXT("\n\r"))
+	const FString* Token     = Tokens.GetData();
+	const FString* LastToken = Token + Tokens.Num();
+	for (;;)
+	{
+		FString               Tag;
+		TArray<FXmlAttribute> Attributes;
+
+		ETryParseTagResult ParseResult = TryParseTag(Tag, Attributes, Token, LastToken);
+		if (ParseResult == ETryParseTagResult::None)
 		{
-			continue;
-		}
+			// Run out of tokens mid-parse
 
-		// Looking for tag start
-		if(!bInTag)
-		{
-			if(Tokens[i] == TEXT("<"))
+			if (!ParsingNodeStack.IsEmpty())
 			{
-				bInTag = true;
-			}
-
-			else
-			{
-				// Error: Found text before any operators (ex: plist>)
 				bCreationFailed = true;
 				ErrorMessage = NSLOCTEXT("XmlParser", "MalformedXMLFile", "Malformed Xml File").ToString();
+				return nullptr;
 			}
+
+			// Should only be possible if there was no content - original parser
+			// would return nullptr without setting bCreationFailed and ErrorMessage
+			return nullptr;
 		}
 
-		// Already found tag start, reading inside of it now
-		else if(bInTag)
+		if (ParseResult == ETryParseTagResult::Error)
 		{
-			// Text for the tag
-			if(!IsTagOperator(Tokens[i]))
-			{
-				if(Tag.Len())
-				{
-					// this could be an attribute
-					AddAttribute(Tokens[i], Attributes);
-				}
-				else
-				{
-					Tag = Tokens[i];
-				}
-			}
+			// Malformed tag
 
-			// Found another tag operator
-			else
-			{
-				// Closing the tag starting
-				if(Tokens[i] == TEXT(">"))
-				{
-					SavedIndex = i + 1; // We want to find the content starting here possibly
-					break;
-				}
-
-				// Closing the tag and also finalizing it
-				else if(Tokens[i] == TEXT("/>"))
-				{
-					FXmlNode* NewNode = new FXmlNode();
-					NewNode->Tag = Tag;
-					NewNode->Attributes = Attributes;
-					if (OutNextIndex != nullptr)
-					{
-						*OutNextIndex = i + 1;
-					}
-					return NewNode;
-				}
-
-				// Error
-				else
-				{
-					// Error: malformed file (ex: <key<)
-					bCreationFailed = true;
-					ErrorMessage = NSLOCTEXT("XmlParser", "MalformedXMLFile", "Malformed Xml File").ToString();
-				}
-			}
-		}
-	}
-	
-	// Create a new node for the current tag
-	FXmlNode* NewNode = new FXmlNode();
-	NewNode->Tag = Tag;
-	NewNode->Attributes = Attributes;
-
-	// Got the tag. Continue and try to get the content
-	FString Content;
-	FString FinalTag;
-	bInTag = false;
-	for(int32 i = SavedIndex; i < Tokens.Num(); ++i)
-	{
-		if(bCreationFailed)
-		{
-			break;
+			bCreationFailed = true;
+			ErrorMessage = NSLOCTEXT("XmlParser", "MalformedXMLFile", "Malformed Xml File").ToString();
+			return nullptr;
 		}
 
-		if(Tokens[i].Len() == 0 || Tokens[i] == TEXT("\n") || Tokens[i] == TEXT("\r") || Tokens[i] == TEXT("\n\r"))
+		if (ParseResult == ETryParseTagResult::ParsedEndTag)
 		{
-			continue;
-		}
+			// Found an end tag - pop the current node and return to parsing the parent
 
-		if(!bInTag)
-		{
-			// Found the start of another tag
-			if(Tokens[i] == TEXT("<"))
+			if (ParsingNodeStack.IsEmpty())
 			{
-				// Recursively enter function creating a child at the new tag
-				FXmlNode* Child = nullptr;
-				if (i > RecursiveStartIndex)
-				{
-					Child = CreateNodeRecursive(Tokens, i, &SavedIndex);
-				}
-
-				// Save child to parent
-				if(Child != nullptr)
-				{
-					NewNode->Children.Add(Child);
-				}
-
-				// Error creating a child
-				else
-				{
-					// Some error occurred in creating a child. The algorithm should abort
-					bCreationFailed = true;
-					ErrorMessage = NSLOCTEXT("XmlParser", "MalformedXMLFile", "Malformed Xml File").ToString();
-					break;
-				}
-
-				// Continue algorithm at the returned index
-				i = SavedIndex - 1; // (-1) because continuing will increment i;
-				continue;
-			}
-
-			// Found what should be the end of the current tag
-			else if(Tokens[i] == TEXT("</"))
-			{
-				// Continue, getting the tag and checking to make sure it matched
-				bInTag = true;
-			}
-
-			// Error
-			else if(IsTagOperator(Tokens[i]))
-			{
-				// Error: Invalid token such as '<key>>'
+				// Error: encountered an end tag before we found any opening tag
 				bCreationFailed = true;
 				ErrorMessage = NSLOCTEXT("XmlParser", "MalformedXMLFile", "Malformed Xml File").ToString();
 			}
 
-			// Not an operator, save the text 
-			else
+			if (ParsingNodeStack.Last()->Tag != Tag)
 			{
-				if(Content.Len() > 0)
-				{
-					Content += TEXT(" ");
-				}
-				Content += Tokens[i];
+				// Error: Tag and ending tag don't match
+				bCreationFailed = true;
+				ErrorMessage = NSLOCTEXT("XmlParser", "MalformedXMLFile", "Malformed Xml File").ToString();
+				return nullptr;
 			}
+
+			FXmlNode* FullyParsedNode = ParsingNodeStack.Pop();
+
+			if (ParsingNodeStack.IsEmpty())
+			{
+				// Found the end tag of the root node - stop
+				return FullyParsedNode;
+			}
+
+			continue;
 		}
 
-		// In the finalizing tag
-		else
+		if (ParseResult == ETryParseTagResult::NotATag)
 		{
-			// Text for the tag
-			if(!IsTagOperator(Tokens[i]))
+			// Found some content - add it to the content of the current node
+
+			if (ParsingNodeStack.IsEmpty())
 			{
-				if(FinalTag.Len())
-				{
-					// Ignore this bit of text then (they may be like options or modifiers or some such)
-				}
-				else
-				{
-					FinalTag = Tokens[i];
-				}
+				// Error: encountered content tokens outside of a nested tag
+				bCreationFailed = true;
+				ErrorMessage = NSLOCTEXT("XmlParser", "MalformedXMLFile", "Malformed Xml File").ToString();
 			}
 
-			else
-			{
-				// Found the end of the final tag
-				if(Tokens[i] == TEXT(">"))
-				{
-					// Error: Tag and ending tag don't match
-					if(Tag != FinalTag)
-					{
-						// Error: Tag and ending tag don't match
-						bCreationFailed = true;
-						ErrorMessage = NSLOCTEXT("XmlParser", "MalformedXMLFile", "Malformed Xml File").ToString();
-					}
-					
-					// Check to make sure tags match and create the node and return it
-					SavedIndex = i + 1;
-					if(OutNextIndex != nullptr) // Might be null because of the top-level node not sending it in
-					{
-						*OutNextIndex = SavedIndex;
-					}
-					NewNode->Content = Content;
-					return NewNode;
-				}
+			FString& Content = ParsingNodeStack.Last()->Content;
 
-				// Error
-				else
-				{
-					// Error: malformed file (ex: <key>stuff</key/>)
-					bCreationFailed = true;
-					ErrorMessage = NSLOCTEXT("XmlParser", "MalformedXMLFile", "Malformed Xml File").ToString();
-				}
+			if (Content.Len() > 0)
+			{
+				Content += TEXT(" ");
 			}
+			Content += *Token++;
+
+			continue;
+		}
+
+		// Found a nested node
+
+		check(ParseResult == ETryParseTagResult::ParsedStartTag || ParseResult == ETryParseTagResult::ParsedEmptyElementTag);
+
+		FXmlNode* NewNode = new FXmlNode();
+		NewNode->Tag = MoveTemp(Tag);
+		NewNode->Attributes = MoveTemp(Attributes);
+
+		// If we are already parsing nodes, this is a child node, so add it to the parent
+		if (!ParsingNodeStack.IsEmpty())
+		{
+			ParsingNodeStack.Last()->Children.Add(NewNode);
+		}
+
+		if (ParseResult == ETryParseTagResult::ParsedStartTag)
+		{
+			ParsingNodeStack.Add(NewNode);
 		}
 	}
-
-	// Something bad happened, return NULL!
-	delete NewNode;
-	return nullptr;
 }
 
 void FXmlFile::HookUpNextPtrs(FXmlNode* Node)
@@ -753,7 +749,7 @@ void FXmlFile::CreateNodes(const TArray<FString>& Tokens)
 {
 	// Assumption..There is only 1 top-level node which contains everything inside of it
 	bCreationFailed = false;
-	FXmlNode* Root = CreateNodeRecursive(Tokens, 0);
+	FXmlNode* Root = CreateRootNode(Tokens);
 
 	if(Root)
 	{
