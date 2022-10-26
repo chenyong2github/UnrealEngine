@@ -1,7 +1,6 @@
 {
 	"Version": 1,
-	"Name":
-	[
+	"Name": [
 		{
 			"Language": "en",
 			"Text": "Top Down"
@@ -19,8 +18,7 @@
 			"Text": "トップダウン"
 		}
 	],
-	"Description":
-	[
+	"Description": [
 		{
 			"Language": "en",
 			"Text": "The top down template features a playable character where the camera is positioned behind and above the avatar at greater distance than in third person perspective. The player is controlled by using the mouse, gamepad, or touchscreen and moves the character by clicking on a destination, or following the cursor if input is held. This perspective is often used in action role playing games."
@@ -38,15 +36,13 @@
 			"Text": "トップダウン テンプレートは、カメラがアバターの後ろと上に配置されている (サードパーソン視点よりも距離が遠い位置) プレイ可能なキャラクターを特徴としています。プレイヤーは、マウス、ゲームパッド、またはタッチ スクリーンの使用により制御され、目的地をクリックするか、入力が保持されている場合はカーソルをたどることでキャラクターを移動させます。この視点は、アクション ロールプレイ ゲームでよく使用されます。"
 		}
 	],
-	"AssetTypes":
-	[
+	"AssetTypes": [
 		{
 			"Language": "en",
 			"Text": "Animation Sequence, Skeletal Mesh, Animation Blueprint, Skeleton"
 		}
-	],	
-	"SearchTags":
-	[
+	],
+	"SearchTags": [
 		{
 			"Language": "en",
 			"Text": "RPG,Role Playing,Top Down"
@@ -54,32 +50,27 @@
 	],
 	"ClassTypes": "Character, PlayerController, CameraComponent, SpringArmComponent, GameMode",
 	"Category": "BlueprintFeature",
-	"FocusAsset": "/Game/TopDown/Blueprints",
+	"FocusAsset": "/Game/TopDown/Blueprints/BP_TopDownCharacter.BP_TopDownCharacter",
 	"Thumbnail": "TP_TopDownBP.png",
-	"Screenshots":
-	[
+	"Screenshots": [
 		"TP_TopDownBP_Preview.png"
 	],
-	"AdditionalFeaturePacks":
-	[
+	"AdditionalFeaturePacks": [
 		{
 			"MountName": "LevelPrototyping",
-			"DetailLevels":
-			[			
+			"DetailLevels": [
 				"High"
 			]
 		},
 		{
 			"MountName": "Cursor",
-			"DetailLevels":
-			[			
+			"DetailLevels": [
 				"Standard"
 			]
 		},
 		{
 			"MountName": "Characters",
-			"DetailLevels":
-			[
+			"DetailLevels": [
 				"High"
 			]
 		}

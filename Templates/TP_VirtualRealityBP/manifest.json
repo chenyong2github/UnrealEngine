@@ -67,18 +67,16 @@
 	],
 	"ClassTypes": "Pawn, GameMode, Blueprint Interface, Actor",
 	"Category": "BlueprintFeature",
-	"FocusAsset": "/Game/VRTemplate/Blueprints",
+	"FocusAsset": "/Game/VRTemplate/Blueprints/VRPawn.VRPawn",
 	"Thumbnail": "TP_VirtualRealityBP.png",
 	"Screenshots": [
 		"TP_VirtualRealityBP_Preview.png"
 	],
 	"SortKey": "VirtualRealityBP",
-	"AdditionalFeaturePacks": 
-	[
+	"AdditionalFeaturePacks": [
 		{
 			"MountName": "LevelPrototyping",
-			"DetailLevels": 
-			[
+			"DetailLevels": [
 				"High"
 			]
 		},

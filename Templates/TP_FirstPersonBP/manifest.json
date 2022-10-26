@@ -1,7 +1,6 @@
 {
 	"Version": 1,
-	"Name":
-	[
+	"Name": [
 		{
 			"Language": "en",
 			"Text": "First Person"
@@ -19,8 +18,7 @@
 			"Text": "ファーストパーソン"
 		}
 	],
-	"Description":
-	[
+	"Description": [
 		{
 			"Language": "en",
 			"Text": "The first person template features a player character (represented by a pair of arms) which is viewed from first person perspective. The character can be moved around the level using keyboard, controller or virtual joystick on a touch device. Additionally the player can look around using mouse, controller or virtual joystick on a touch device. The character can also pick up a gun that, using mouse, controller or virtual joystick on a touch device will fire a simple sphere projectile that will affect some physics objects in the level, whilst bounce off the arena walls."
@@ -38,15 +36,13 @@
 			"Text": "ファーストパーソンテンプレートには、一人称視点で表示されるプレイヤーキャラクタ（腕として表示されています）がいます。キーボード、コントローラー、タッチデバイスでのバーチャルジョイスティックでこのキャラクタを移動させることができます。追加して、プレイヤーはマウス、コントローラー、タッチデバイスでのバーチャルジョイスティックで周りを見回すことができます。さらにキャラクタは銃を装備して、マウス、コントローラー、タッチデバイスでのバーチャルジョイスティックを使ってシンプルな球体の弾を発射できます。この弾は物理オブジェクトに影響し、アリーナの壁で反射します。"
 		}
 	],
-	"AssetTypes":
-	[
+	"AssetTypes": [
 		{
 			"Language": "en",
 			"Text": "Animation Sequence, Animation Montage, Sound Wave, Skeletal Mesh, Animation Blueprint, Skeleton, Static Mesh."
 		}
-	],	
-	"SearchTags":
-	[
+	],
+	"SearchTags": [
 		{
 			"Language": "en",
 			"Text": "First Person,Shoot,Fire,Aim"
@@ -54,10 +50,9 @@
 	],
 	"ClassTypes": "Actor, Character, GameMode",
 	"Category": "BlueprintFeature",
-	"FocusAsset": "/Game/FirstPersonBP/FirstPersonOverview.FirstPersonOverview",
+	"FocusAsset": "/Game/FirstPerson/Blueprints/BP_FirstPersonCharacter.BP_FirstPersonCharacter",
 	"Thumbnail": "TP_FirstPersonBP.png",
-	"Screenshots":
-	[
+	"Screenshots": [
 		"TP_FirstPersonBP_Preview.png"
 	],
 	"AdditionalFeaturePacks": [
@@ -75,8 +70,7 @@
 		},
 		{
 			"MountName": "FirstPersonArms",
-			"DetailLevels":
-			[
+			"DetailLevels": [
 				"Standard"
 			]
 		}

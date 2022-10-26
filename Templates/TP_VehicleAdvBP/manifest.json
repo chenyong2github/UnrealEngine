@@ -1,7 +1,6 @@
 {
 	"Version": 1,
-	"Name":
-	[
+	"Name": [
 		{
 			"Language": "en",
 			"Text": "Vehicle"
@@ -19,8 +18,7 @@
 			"Text": "비히클"
 		}
 	],
-	"Description":
-	[
+	"Description": [
 		{
 			"Language": "en",
 			"Text": "The vehicle pack features both a regular vehicle and a more complex vehicle. Vehicle movement can be controlled with either keyboard, controller or virtual joystick on a touch device. The advanced vehicle itself features working double wishbone suspension. There is also an engine sound in this template. There is also a HUD that shows the current gear and speed."
@@ -38,49 +36,42 @@
 			"Text": "비히클 팩은 일반 비히클과 조금 더 복잡한 비히클을 모두 제공합니다. 비히클의 이동은 키보드, 컨트롤러 또는 터치 디바이스의 버추얼 조이스틱으로 제어 가능합니다. 고급 비히클은 더블 위시본 서스펜션을 갖추고 있습니다. 이 템플릿에는 엔진 사운드와, 현재 기어와 속도를 보여주는 HUD도 포함되어 있습니다."
 		}
 	],
-	"AssetTypes":
-	[
+	"AssetTypes": [
 		{
 			"Language": "en",
 			"Text": "Static Mesh, Landscape Layer, Material, Instance, Physical Material, Sound Attenuation, Sound cue, Sound Wave, Texture, Skeletal Mesh, Skeleton, Physics Asset, Animation blueprint, Data Asset, Vehicle Wheel"
 		}
-	],	
-	"SearchTags":
-	[
+	],
+	"SearchTags": [
 		{
 			"Language": "en",
 			"Text": "Tyre,Suspension,Wheel,Racing,Vehicle,Car"
 		}
 	],
-	"ClassTypes": "GameMode, WheeledVehicle, HUD, SpringArmComponent, Font, CameraComponent, TextRenderComponent, InputComponent, PhysicalMaterial, AudioComponent",	
+	"ClassTypes": "GameMode, WheeledVehicle, HUD, SpringArmComponent, Font, CameraComponent, TextRenderComponent, InputComponent, PhysicalMaterial, AudioComponent",
 	"Category": "BlueprintFeature",
-	"FocusAsset": "/Game/VehicleAdvBP/AdvancedVehicleOverview.AdvancedVehicleOverview",
+	"FocusAsset": "/Game/VehicleTemplate/Blueprints/VehiclePlayerController.VehiclePlayerController",
 	"Thumbnail": "TP_VehicleAdvBP.png",
-	"Screenshots":
-	[
+	"Screenshots": [
 		"TP_VehicleAdvBP_Preview.png"
 	],
 	"SortKey": "ZVehicle_AdvBP",
-	"AdditionalFeaturePacks":
-	[
+	"AdditionalFeaturePacks": [
 		{
 			"MountName": "Vehicles",
-			"DetailLevels":
-			[
+			"DetailLevels": [
 				"Standard"
 			]
 		},
 		{
 			"MountName": "Track",
-			"DetailLevels":
-			[
+			"DetailLevels": [
 				"High"
 			]
 		},
 		{
 			"MountName": "LevelPrototyping",
-			"DetailLevels":
-			[
+			"DetailLevels": [
 				"High"
 			]
 		}
