@@ -97,6 +97,7 @@ class TArrayNDBase
 	FORCEINLINE TArrayNDBase(const TArrayNDBase<T_DERIVED, T, d>& Other) = delete;
 	FORCEINLINE TArrayNDBase(TArrayNDBase<T_DERIVED, T, d>&& Other)
 	    : MCounts(Other.MCounts), MArray(MoveTemp(Other.MArray)) {}
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 	FORCEINLINE TArrayNDBase(std::istream& Stream)
 	    : MCounts(Stream)
 	{
@@ -108,7 +109,7 @@ class TArrayNDBase
 		MCounts.Write(Stream);
 		Stream.write(reinterpret_cast<const char*>(MArray.GetData()), sizeof(T) * MArray.Num());
 	}
-
+#endif
 	void Serialize(FArchive& Ar)
 	{
 		Ar.UsingCustomVersion(FDestructionObjectVersion::GUID);
@@ -197,8 +198,10 @@ class TArrayND : public TArrayNDBase<TArrayND<T, d>, T, d>
 	FORCEINLINE TArrayND(const TArrayND<T, d>& Other) = delete;
 	FORCEINLINE TArrayND(TArrayND<T, d>&& Other)
 	    : Base(MoveTemp(Other)) {}
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 	FORCEINLINE TArrayND(std::istream& Stream)
 	    : Base(Stream) {}
+#endif
 	FORCEINLINE TArrayND<T, d>& operator=(const TArrayND<T, d>& Other)
 	{
 		Base::operator=(Other);
@@ -250,8 +253,10 @@ class TArrayND<T, 3> : public TArrayNDBase<TArrayND<T, 3>, T, 3>
 	FORCEINLINE TArrayND(const TArrayND<T, 3>& Other) = delete;
 	FORCEINLINE TArrayND(TArrayND<T, 3>&& Other)
 	    : Base(MoveTemp(Other)) {}
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 	FORCEINLINE TArrayND(std::istream& Stream)
 	    : Base(Stream) {}
+#endif
 	FORCEINLINE TArrayND<T, 3>& operator=(const TArrayND<T, 3>& Other)
 	{
 		Base::operator=(Other);

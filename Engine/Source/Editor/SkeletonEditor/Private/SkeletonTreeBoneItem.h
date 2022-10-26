@@ -3,21 +3,31 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Styling/SlateColor.h"
 #include "Input/Reply.h"
+#include "ISkeletonTreeItem.h"
+#include "SkeletonTreeItem.h"
+#include "Animation/Skeleton.h"
+#include "BoneProxy.h"
+#include "UObject/GCObject.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Styling/SlateColor.h"
 #include "Layout/Visibility.h"
 #include "Widgets/SWidget.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
-#include "ISkeletonTreeItem.h"
-#include "SkeletonTreeItem.h"
-#include "Animation/Skeleton.h"
 #include "Widgets/Input/SComboButton.h"
-#include "BoneProxy.h"
-#include "UObject/GCObject.h"
+#endif
 
+
+class SComboButton;
+class SWidget;
 class UDebugSkelMeshComponent;
+struct EVisibility;
+struct FSlateBrush;
+struct FSlateColor;
+struct FSlateFontInfo;
 
 class FSkeletonTreeBoneItem : public FSkeletonTreeItem, public FGCObject
 {

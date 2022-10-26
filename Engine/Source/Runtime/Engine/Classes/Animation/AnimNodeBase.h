@@ -11,7 +11,9 @@
 #include "Animation/AnimCurveTypes.h"
 #include "BonePose.h"
 #include "Stats/StatsHierarchical.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Animation/AnimTrace.h"
+#endif
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AttributesRuntime.h"
 #include "Animation/AnimNodeMessages.h"

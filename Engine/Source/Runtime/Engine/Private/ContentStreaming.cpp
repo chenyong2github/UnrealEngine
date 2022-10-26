@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-// Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	ContentStreaming.cpp: Implementation of content streaming classes.
@@ -17,6 +16,7 @@
 #include "EngineGlobals.h"
 #include "Components/MeshComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/Level.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "Streaming/StreamingManagerTexture.h"
 #include "AudioStreaming.h"
@@ -1004,6 +1004,11 @@ void FStreamingManagerCollection::NotifyLevelChange()
 bool FStreamingManagerCollection::IsStreamingEnabled() const
 {
 	return DisableResourceStreamingCount == 0;
+}
+
+bool FStreamingManagerCollection::IsTextureStreamingEnabled() const
+{
+	return IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::Texture);
 }
 
 bool FStreamingManagerCollection::IsRenderAssetStreamingEnabled(EStreamableRenderAssetType FilteredAssetType) const

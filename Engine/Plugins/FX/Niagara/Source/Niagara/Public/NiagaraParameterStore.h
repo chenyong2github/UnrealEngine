@@ -2,13 +2,19 @@
 
 #pragma once
 
+#include "NiagaraTypes.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "NiagaraCommon.h"
 #include "NiagaraDataInterface.h"
+#endif
+
 #include "NiagaraParameterStore.generated.h"
 
 // When not cooked, sort by actual name to ensure deterministic cooked data
 #define NIAGARA_VARIABLE_LEXICAL_SORTING WITH_EDITORONLY_DATA
 
+class UNiagaraDataInterface;
 struct FNiagaraParameterStore;
 
 USTRUCT()
@@ -112,7 +118,7 @@ struct FNiagaraParameterStoreBinding
 	FORCEINLINE_DEBUGGABLE void Empty(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore);
 	FORCEINLINE_DEBUGGABLE bool Initialize(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, const FNiagaraBoundParameterArray* BoundParameters = nullptr);
 	FORCEINLINE_DEBUGGABLE bool VerifyBinding(const FNiagaraParameterStore* DestStore, const FNiagaraParameterStore* SrcStore)const;
-	FORCEINLINE_DEBUGGABLE void Tick(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, bool bForce = false);
+	void Tick(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, bool bForce = false);
 	FORCEINLINE_DEBUGGABLE void Dump(const FNiagaraParameterStore* DestStore, const FNiagaraParameterStore* SrcStore)const;
 	/** TODO: Merge contiguous ranges into a single binding? */
 	//FORCEINLINE_DEBUGGABLE void Optimize();
@@ -294,7 +300,7 @@ public:
 	/** Recreates any bindings to reflect a layout change etc. */
 	void TransferBindings(FNiagaraParameterStore& OtherStore);
 	/** Handles any update such as pushing parameters to bound stores etc. */
-	FORCEINLINE_DEBUGGABLE void Tick();
+	void Tick();
 	/** Unbinds this store from all stores it's being driven by. */
 	void UnbindFromSourceStores();
 	
@@ -429,13 +435,7 @@ public:
 	}
 
 	/** Returns the data interface for the passed parameter if it exists in this store. */
-	FORCEINLINE_DEBUGGABLE UNiagaraDataInterface* GetDataInterface(const FNiagaraVariable& Parameter)const
-	{
-		int32 Offset = IndexOf(Parameter);
-		UNiagaraDataInterface* Interface = GetDataInterface(Offset);
-		checkSlow(!Interface || Parameter.GetType().GetClass() == Interface->GetClass());
-		return Interface;
-	}
+	UNiagaraDataInterface* GetDataInterface(const FNiagaraVariable& Parameter) const;
 
 	/** Returns a struct converter for the given variable, if the store contains the variable and it's a LWC type. */
 	FNiagaraLwcStructConverter GetStructConverter(const FNiagaraVariable& Parameter) const;
@@ -468,47 +468,7 @@ public:
 	}
 
 	/** Copies the passed parameter from this parameter store into another. */
-	FORCEINLINE_DEBUGGABLE void CopyParameterData(FNiagaraParameterStore& DestStore, const FNiagaraVariable& Parameter) const
-	{
-		int32 DestIndex = DestStore.IndexOf(Parameter);
-		int32 SrcIndex = IndexOf(Parameter);
-		if (DestIndex != INDEX_NONE && SrcIndex != INDEX_NONE)
-		{
-			if (Parameter.IsDataInterface())
-			{
-				ensure(DestStore.DataInterfaces.IsValidIndex(DestIndex));
-				UNiagaraDataInterface* DestDataInterface = DestStore.DataInterfaces[DestIndex];
-				if (DestDataInterface == nullptr)
-				{
-					if (ensureMsgf(DestStore.Owner != nullptr, TEXT("Destination data interface pointer was null and a new one couldn't be created because the destination store's owner pointer was also null.")))
-					{
-						UE_LOG(LogNiagara, Warning, TEXT("While trying to copy parameter data the destination data interface was null, creating a new one.  Parameter: %s Destination Store Owner: %s"), *Parameter.GetName().ToString(), *GetPathNameSafe(DestStore.Owner.Get()));
-						DestDataInterface = NewObject<UNiagaraDataInterface>(DestStore.Owner.Get(), Parameter.GetType().GetClass(), NAME_None, RF_Transactional | RF_Public);
-						DestStore.DataInterfaces[DestIndex] = DestDataInterface;
-					}
-					else
-					{
-						return;
-					}
-				}
-				DataInterfaces[SrcIndex]->CopyTo(DestDataInterface);
-				DestStore.OnInterfaceChange();
-			}
-			else if (Parameter.IsUObject())
-			{
-				DestStore.SetUObject(GetUObject(SrcIndex), DestIndex);
-			}
-			else if (Parameter.GetType() == FNiagaraTypeDefinition::GetPositionDef())
-			{
-				const FVector* SourceVector = GetPositionParameterValue(Parameter.GetName());
-				DestStore.SetPositionParameterValue(SourceVector ? *SourceVector : FVector::ZeroVector, Parameter.GetName());
-			}
-			else
-			{
-				DestStore.SetParameterData(GetParameterData(SrcIndex), DestIndex, Parameter.GetSizeInBytes());
-			}
-		}
-	}
+	void CopyParameterData(FNiagaraParameterStore& DestStore, const FNiagaraVariable& Parameter) const;
 
 	enum class EDataInterfaceCopyMethod
 	{
@@ -723,22 +683,6 @@ FORCEINLINE bool FNiagaraParameterStore::SetParameterValue(const FQuat4d& InValu
 	return SetParameterValue((FQuat4f)InValue, Param, bAdd);
 }
 
-FORCEINLINE_DEBUGGABLE void FNiagaraParameterStore::Tick()
-{
-#if NIAGARA_NAN_CHECKING
-	CheckForNaNs();
-#endif
-	if (Bindings.Num() > 0 && (bParametersDirty || bInterfacesDirty || bUObjectsDirty))
-	{
-		TickBindings();
-	}
-
-	//We have to have ticked all our source stores before now.
-	bParametersDirty = false;
-	bInterfacesDirty = false;
-	bUObjectsDirty = false;
-}
-
 FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Empty(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore)
 {
 	if (DestStore)
@@ -828,37 +772,6 @@ FORCEINLINE_DEBUGGABLE bool FNiagaraParameterStoreBinding::VerifyBinding(const F
 // {
 // 	//TODO
 // }
-
-FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Tick(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, bool bForce)
-{
-	if (SrcStore->GetParametersDirty() || bForce)
-	{
-		for (FParameterBinding& Binding : ParameterBindings)
-		{
-			DestStore->SetParameterData(SrcStore->GetParameterData(Binding.SrcOffset), Binding.DestOffset, Binding.Size);
-		}
-	}
-
-	if (SrcStore->GetInterfacesDirty() || bForce)
-	{
-		for (FInterfaceBinding& Binding : InterfaceBindings)
-		{
-			DestStore->SetDataInterface(SrcStore->GetDataInterface(Binding.SrcOffset), Binding.DestOffset);
-		}
-	}
-
-	if (SrcStore->GetUObjectsDirty() || bForce)
-	{
-		for (FUObjectBinding& Binding : UObjectBindings)
-		{
-			DestStore->SetUObject(SrcStore->GetUObject(Binding.SrcOffset), Binding.DestOffset);
-		}
-	}
-
-#if NIAGARA_NAN_CHECKING
-	DestStore->CheckForNaNs();
-#endif
-}
 
 FORCEINLINE_DEBUGGABLE void FNiagaraParameterStoreBinding::Dump(const FNiagaraParameterStore* DestStore, const FNiagaraParameterStore* SrcStore)const
 {

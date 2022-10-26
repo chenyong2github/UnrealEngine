@@ -16,6 +16,7 @@
 #include "EngineDefines.h"
 #include "EngineGlobals.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/Level.h"
 #include "Components/ActorComponent.h"
 #include "Components/SceneComponent.h"
 #include "CollisionQueryParams.h"
@@ -1474,6 +1475,26 @@ bool UParticleEmitter::IsLODLevelValid(int32 LODLevel)
 	return false;
 }
 
+UParticleLODLevel* UParticleEmitter::GetCurrentLODLevel(FParticleEmitterInstance* Instance)
+{
+	if (!FPlatformProperties::HasEditorOnlyData())
+	{
+		return Instance->CurrentLODLevel;
+	}
+	else
+	{
+		// for the game (where we care about perf) we don't branch
+		if (Instance->GetWorld()->IsGameWorld() )
+		{
+			return Instance->CurrentLODLevel;
+		}
+		else
+		{
+			EditorUpdateCurrentLOD( Instance );
+			return Instance->CurrentLODLevel;
+		}
+	}
+}
 
 void UParticleEmitter::EditorUpdateCurrentLOD(FParticleEmitterInstance* Instance)
 {

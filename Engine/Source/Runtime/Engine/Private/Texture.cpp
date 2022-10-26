@@ -48,6 +48,8 @@
 #include "Misc/ScopeRWLock.h"
 #endif
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(Texture)
+
 #if WITH_EDITORONLY_DATA
 	#include "EditorFramework/AssetImportData.h"
 #endif
@@ -109,6 +111,7 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 		[this]()-> FTextureResource* { return GetResource(); },
 		[this](FTextureResource* InTextureResource) { SetResource(InTextureResource); })
 #endif
+	, TextureReference(*new FTextureReference())
 {
 	SRGB = true;
 	Filter = TF_Default;
@@ -189,6 +192,18 @@ FTextureResource* UTexture::GetResource()
 	ensureMsgf(false, TEXT("Attempted to access a texture resource from an unkown thread."));
 	return nullptr;
 }
+
+UTexture::UTexture(FVTableHelper& Helper)
+	: TextureReference(*new FTextureReference())
+{
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+UTexture::~UTexture()
+{
+	delete& TextureReference;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UTexture::SetResource(FTextureResource* InResource)
 {

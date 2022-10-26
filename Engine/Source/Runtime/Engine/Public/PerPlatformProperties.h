@@ -6,7 +6,9 @@ PerPlatformProperties.h: Property types that can be overridden on a per-platform
 
 #pragma once
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Engine/Engine.h"
+#endif
 #include "Serialization/Archive.h"
 #include "RHIDefinitions.h"
 #include "Containers/Map.h"
@@ -14,11 +16,12 @@ PerPlatformProperties.h: Property types that can be overridden on a per-platform
 #include "Serialization/MemoryLayout.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 
-#if WITH_EDITORONLY_DATA && WITH_EDITOR
-#include "Engine/Engine.h"
-#endif
-
 #include "PerPlatformProperties.generated.h"
+
+/** Helper function to avoid including Engine.h in this header */
+#if WITH_EDITORONLY_DATA && WITH_EDITOR
+ENGINE_API bool GEngine_GetPreviewPlatformName(FName& PlatformName);
+#endif
 
 namespace PerPlatformProperty::Private
 {
@@ -193,7 +196,7 @@ struct ENGINE_API TPerPlatformProperty
 		FName PlatformName;
 		// Lookup the override preview platform info, if any
 		// @todo this doesn't set PlatformName, just a group, but GetValueForPlatform() will technically work being given a Group name instead of a platform name, so we just use it
-		if (GEngine && GEngine->GetPreviewPlatformName(PlatformName))
+		if (GEngine_GetPreviewPlatformName(PlatformName))
 		{
 			return GetValueForPlatform(PlatformName);
 		}

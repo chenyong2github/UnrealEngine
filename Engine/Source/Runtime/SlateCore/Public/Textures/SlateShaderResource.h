@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "SlateGlobals.h"
+#include "Rendering/SlateResourceHandle.h"
 
 class FSlateShaderResourceProxy;
 
@@ -200,37 +201,4 @@ class IViewportRenderTargetProvider
 {
 public:
 	virtual FSlateShaderResource* GetViewportRenderTargetTexture() = 0;
-};
-
-/**
- * A SlateResourceHandle is used as fast path for looking up a rendering resource for a given brush when adding Slate draw elements
- * This can be cached and stored safely in code.  It will become invalid when a resource is destroyed
-*/
-class FSlateResourceHandle
-{
-	friend class FSlateShaderResourceManager;
-	friend class FSlateNullShaderResourceManager;
-public:
-	FSlateResourceHandle() {}
-
-	/**
-	 * @return true if the handle still points to a valid rendering resource
-	 */
-	bool IsValid() const { return Data.IsValid() && Data->Proxy; }
-
-	/**
-	 * @return the resource proxy used to render.
-	 */
-	const FSlateShaderResourceProxy* GetResourceProxy() const
-	{
-		return Data.IsValid() ? Data->Proxy : nullptr;
-	}
-
-private:
-	FSlateResourceHandle(const TSharedPtr<FSlateSharedHandleData>& InData)
-		: Data(InData)
-	{}
-
-	/** Internal data to pair the handle to the resource */
-	TSharedPtr<FSlateSharedHandleData> Data;
 };

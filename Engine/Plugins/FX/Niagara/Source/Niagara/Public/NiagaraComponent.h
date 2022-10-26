@@ -4,12 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "NiagaraDefines.h"
+#include "NiagaraScalabilityState.h"
+#include "NiagaraTickBehaviorEnum.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "NiagaraCommon.h"
 #include "NiagaraComponentPool.h"
 #include "NiagaraSystemInstanceController.h"
+#include "PrimitiveSceneProxy.h"
+#endif
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "NiagaraVariant.h"
-#include "PrimitiveSceneProxy.h"
 #include "PrimitiveViewRelevance.h"
 #include "Particles/ParticlePerfStats.h"
 #include "Particles/ParticleSystemComponent.h"
@@ -18,11 +23,18 @@
 
 class FMeshElementCollector;
 class FNiagaraRenderer;
+class UNiagaraEffectType;
 class UNiagaraSystem;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
+class FNiagaraSystemRenderData;
+class FNiagaraSystemInstance;
+class FNiagaraSystemInstanceController;
 class FNiagaraSystemSimulation;
 class FNiagaraGpuComputeDispatchInterface;
+enum class ENCPoolMethod : uint8;
+using FNiagaraSystemInstanceControllerPtr = TSharedPtr<FNiagaraSystemInstanceController, ESPMode::ThreadSafe>;
+using FNiagaraSystemInstanceControllerConstPtr = TSharedPtr<const FNiagaraSystemInstanceController, ESPMode::ThreadSafe>;
 
 // Called when the particle system is done
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNiagaraSystemFinished, class UNiagaraComponent*, PSystem);
@@ -194,10 +206,10 @@ public:
 	virtual void Deactivate() override;
 	virtual void DeactivateImmediate() override;
 
-	FORCEINLINE ENiagaraExecutionState GetRequestedExecutionState() const { return SystemInstanceController ? SystemInstanceController->GetRequestedExecutionState() : ENiagaraExecutionState::Complete; }
-	FORCEINLINE ENiagaraExecutionState GetExecutionState() const { return SystemInstanceController ? SystemInstanceController->GetActualExecutionState() : ENiagaraExecutionState::Complete; }
+	ENiagaraExecutionState GetRequestedExecutionState() const;
+	ENiagaraExecutionState GetExecutionState() const;
 
-	FORCEINLINE bool IsComplete() const { return SystemInstanceController ? SystemInstanceController->IsComplete() : true; }
+	bool IsComplete() const;
 
 private:
 
@@ -348,7 +360,7 @@ public:
 	void SetAutoDestroy(bool bInAutoDestroy);
 
 	UE_DEPRECATED(5.0, "This interface is no longer safe to access directly. Use the interface provided by GetSystemInstanceController instead.")
-	FNiagaraSystemInstance* GetSystemInstance() const { return SystemInstanceController ? SystemInstanceController->GetSystemInstance_Unsafe() : nullptr; }
+	FNiagaraSystemInstance* GetSystemInstance() const;
 
 	FNiagaraSystemInstanceControllerPtr GetSystemInstanceController() { return SystemInstanceController; }
 	FNiagaraSystemInstanceControllerConstPtr GetSystemInstanceController() const { return SystemInstanceController; }
@@ -559,7 +571,7 @@ public:
 		The significant index for this component. i.e. this is the Nth most significant instance of it's system in the scene.
 		Passed to the script to allow us to scale down internally for less significant systems instances.
 	*/
-	FORCEINLINE void SetSystemSignificanceIndex(int32 InIndex) 	{ if(SystemInstanceController) SystemInstanceController->SetSystemSignificanceIndex(InIndex); }
+	void SetSystemSignificanceIndex(int32 InIndex);
 
 	//~ Begin UObject Interface.
 	virtual void Serialize(FStructuredArchive::FRecord Record) override;
@@ -611,7 +623,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Performance, meta = (Keywords = "Niagara Performance"))
 	void InitForPerformanceBaseline();
 
-	FORCEINLINE void SetLODDistance(float InLODDistance, float InMaxLODDistance);
+	void SetLODDistance(float InLODDistance, float InMaxLODDistance);
 
 #if WITH_EDITOR
 	void PostLoadNormalizeOverrideNames();
@@ -835,113 +847,8 @@ private:
 	void DestroyCullProxy();
 
 public:
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext(){ return FParticlePerfStatsContext(GetWorld(), Asset, this); }
+	FParticlePerfStatsContext GetPerfStatsContext();
 };
 
 FORCEINLINE bool UNiagaraComponent::GetPreviewLODDistanceEnabled()const { return bEnablePreviewLODDistance; }
 FORCEINLINE float UNiagaraComponent::GetPreviewLODDistance()const { return bEnablePreviewLODDistance ? PreviewLODDistance : 0.0f; }
-
-/**
-* Scene proxy for drawing niagara particle simulations.
-*/
-class NIAGARA_API FNiagaraSceneProxy : public FPrimitiveSceneProxy
-{
-public:
-	virtual SIZE_T GetTypeHash() const override;
-
-	FNiagaraSceneProxy(UNiagaraComponent* InComponent);
-	~FNiagaraSceneProxy();
-
-	/** Retrieves the render data for a single system */
-	FNiagaraSystemRenderData* GetSystemRenderData() { return RenderData; }
-
-	/** Called to allow renderers to free render state */
-	void DestroyRenderState_Concurrent();
-
-	/** Gets whether or not this scene proxy should be rendered. */
-	bool GetRenderingEnabled() const;
-
-	/** Sets whether or not this scene proxy should be rendered. */
-	void SetRenderingEnabled(bool bInRenderingEnabled);
-
-	FNiagaraGpuComputeDispatchInterface* GetComputeDispatchInterface() const { return ComputeDispatchInterface; }
-
-#if RHI_RAYTRACING
-	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override;
-	virtual bool IsRayTracingRelevant() const override { return true; }
-	virtual bool HasRayTracingRepresentation() const override { return true; }
-#endif
-
-	FORCEINLINE const FMatrix& GetLocalToWorldInverse() const { return LocalToWorldInverse; }
-
-	const FVector3f& GetLWCRenderTile() const { return RenderData ? RenderData->LWCRenderTile : FVector3f::ZeroVector; }
-
-	TUniformBuffer<FPrimitiveUniformShaderParameters>* GetCustomUniformBufferResource(bool bHasVelocity, const FBox& InstanceBounds = FBox(ForceInitToZero)) const;
-	FRHIUniformBuffer* GetCustomUniformBuffer(bool bHasVelocity, const FBox& InstanceBounds = FBox(ForceInitToZero)) const;
-
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
-
-	/** Some proxy wide dynamic settings passed down with the emitter dynamic data. */
-	struct FDynamicData
-	{
-		bool bUseCullProxy = false;
-		float LODDistanceOverride = -1.0f;
-#if WITH_PARTICLE_PERF_STATS
-		FParticlePerfStatsContext PerfStatsContext;
-#endif
-	};
-	const FDynamicData& GetProxyDynamicData()const { return DynamicData; }
-	void SetProxyDynamicData(const FDynamicData& NewData) { DynamicData = NewData; }
-
-private:
-	void ReleaseRenderThreadResources();
-
-	void ReleaseUniformBuffers(bool bEmpty);
-
-	//~ Begin FPrimitiveSceneProxy Interface.
-	virtual void CreateRenderThreadResources() override;
-
-	//virtual void OnActorPositionChanged() override;
-	virtual void OnTransformChanged() override;
-
-	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
-
-
-	virtual bool CanBeOccluded() const override
-	{
-		// TODO account for MaterialRelevance.bDisableDepthTest and MaterialRelevance.bPostMotionBlurTranslucency as well
-		return !ShouldRenderCustomDepth();
-	}
-
-
-	/** Callback from the renderer to gather simple lights that this proxy wants renderered. */
-	virtual void GatherSimpleLights(const FSceneViewFamily& ViewFamily, FSimpleLightArray& OutParticleLights) const override;
-
-	virtual uint32 GetMemoryFootprint() const override;
-
-	uint32 GetAllocatedSize() const;
-
-private:
-	/** Custom Uniform Buffers, allows us to have renderer specific data packed inside such as pre-skinned bounds. */
-	mutable TMap<uint64, TUniformBuffer<FPrimitiveUniformShaderParameters>*> CustomUniformBuffers;
-
-	/** The data required to render a single instance of a NiagaraSystem */
-	FNiagaraSystemRenderData* RenderData = nullptr;
-
-	FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface = nullptr;
-
-	FMatrix LocalToWorldInverse;
-
-	TStatId SystemStatID;
-
-	FDynamicData DynamicData;
-};
-
-FORCEINLINE void UNiagaraComponent::SetLODDistance(float InLODDistance, float InMaxLODDistance)
-{
-	if (!bEnablePreviewLODDistance && SystemInstanceController)
-	{
-		SystemInstanceController->SetLODDistance(InLODDistance, InMaxLODDistance, false);
-	}
-}
-

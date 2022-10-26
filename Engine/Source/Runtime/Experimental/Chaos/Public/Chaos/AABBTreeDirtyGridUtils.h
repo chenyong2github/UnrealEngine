@@ -4,6 +4,7 @@
 #include "Chaos/AABB.h"
 #include "Chaos/Defines.h"
 #include "ChaosLog.h"
+#include <limits>
 
 namespace Chaos
 {

@@ -3,7 +3,9 @@
 #pragma once
 
 #include "ChaosInterfaceWrapper.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Engine/Engine.h"
+#endif
 #include "Chaos/Declares.h"
 #include "PhysicsEngine/ConstraintTypes.h"
 #include "PhysicsInterfaceWrapperShared.h"

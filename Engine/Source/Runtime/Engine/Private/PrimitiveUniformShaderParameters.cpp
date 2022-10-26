@@ -6,7 +6,25 @@
 #include "PrimitiveSceneInfo.h"
 #include "NaniteSceneProxy.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
+#include "UnrealEngine.h"
 
+FPrimitiveUniformShaderParametersBuilder& FPrimitiveUniformShaderParametersBuilder::InstanceDrawDistance(FVector2f DistanceMinMax)
+{
+	// Only scale the far distance by scalability parameters
+	DistanceMinMax.Y *= GetCachedScalabilityCVars().ViewDistanceScale;
+	Parameters.InstanceDrawDistanceMinMaxSquared = FMath::Square(DistanceMinMax);
+	bHasInstanceDrawDistanceCull = true;
+	return *this;
+}
+
+FPrimitiveUniformShaderParametersBuilder& FPrimitiveUniformShaderParametersBuilder::InstanceWorldPositionOffsetDisableDistance(float WPODisableDistance)
+{
+	WPODisableDistance *= GetCachedScalabilityCVars().ViewDistanceScale;
+	bHasWPODisableDistance = true;
+	Parameters.InstanceWPODisableDistanceSquared = WPODisableDistance * WPODisableDistance;
+
+	return *this;
+}
 
 void FSinglePrimitiveStructured::InitRHI() 
 {

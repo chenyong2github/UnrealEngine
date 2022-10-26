@@ -5,6 +5,11 @@
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
 #include "Math/Vector4.h"
+#include <cmath>
+#else
+#include <iostream>
+#include <utility>
+#include <limits>
 #endif
 
 #include "Chaos/Real.h"
@@ -12,10 +17,8 @@
 #include "Chaos/Pair.h"
 
 #include "Containers/StaticArray.h"
-#include <iostream>
-#include <utility>
+
 #include <initializer_list>
-#include <limits>
 
 namespace Chaos
 {
@@ -137,6 +140,7 @@ namespace Chaos
 			return NumElements;
 		}
 
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 		TVector(std::istream& Stream)
 		{
 			for (int32 i = 0; i < NumElements; ++i)
@@ -151,7 +155,7 @@ namespace Chaos
 				Stream.write(reinterpret_cast<const char*>(&V[i]), sizeof(FElement));
 			}
 		}
-
+#endif
 		friend bool operator==(const TVector<T, d>& L, const TVector<T, d>& R)
 		{
 			for (int32 i = 0; i < NumElements; ++i)
@@ -409,6 +413,8 @@ namespace Chaos
 		    : UE::Math::TVector<FRealSingle>(vec.X, vec.Y, vec.Z) {}
 		TVector(const UE::Math::TVector4<FRealDouble>& vec)					// LWC_TODO: Precision loss. Make explicit for FRealSingle = FRealSingle?
 			: UE::Math::TVector<FRealSingle>((UE::Math::TVector4<FRealSingle>)vec) {}
+
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 		TVector(std::istream& Stream)
 		{
 			Stream.read(reinterpret_cast<char*>(&X), sizeof(X));
@@ -422,6 +428,7 @@ namespace Chaos
 			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(Y));
 			Stream.write(reinterpret_cast<const char*>(&Z), sizeof(Z));
 		}
+#endif
 		static inline TVector<FRealSingle, 3> Lerp(const TVector<FRealSingle, 3>& V1, const TVector<FRealSingle, 3>& V2, const FRealSingle F) { return FMath::Lerp<UE::Math::TVector<FRealSingle>, FRealSingle>(V1, V2, F); }
 		static inline TVector<FRealSingle, 3> CrossProduct(const TVector<FRealSingle, 3>& V1, const TVector<FRealSingle, 3>& V2) { return UE::Math::TVector<FRealSingle>::CrossProduct(V1, V2); }
 		static inline FRealSingle DotProduct(const TVector<FRealSingle, 3>& V1, const TVector<FRealSingle, 3>& V2) { return UE::Math::TVector<FRealSingle>::DotProduct(V1, V2); }
@@ -610,6 +617,7 @@ namespace Chaos
 			: UE::Math::TVector<FRealDouble>((UE::Math::TVector<FRealDouble>)vec) {}
 		TVector(const FVector4& vec)
 			: UE::Math::TVector<FRealDouble>(vec.X, vec.Y, vec.Z) {}
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 		TVector(std::istream& Stream)
 		{
 			Stream.read(reinterpret_cast<char*>(&X), sizeof(X));
@@ -623,6 +631,7 @@ namespace Chaos
 			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(Y));
 			Stream.write(reinterpret_cast<const char*>(&Z), sizeof(Z));
 		}
+#endif
 		static inline TVector<FRealDouble, 3> Lerp(const TVector<FRealDouble, 3>& V1, const TVector<FRealDouble, 3>& V2, const FRealDouble F) { return FMath::Lerp<UE::Math::TVector<FRealDouble>, FRealDouble>(V1, V2, F); }
 		static inline TVector<FRealDouble, 3> CrossProduct(const TVector<FRealDouble, 3>& V1, const TVector<FRealDouble, 3>& V2) { return UE::Math::TVector<FRealDouble>::CrossProduct(V1, V2); }
 		static inline FRealDouble DotProduct(const TVector<FRealDouble, 3>& V1, const TVector<FRealDouble, 3>& V2) { return UE::Math::TVector<FRealDouble>::DotProduct(V1, V2); }
@@ -807,23 +816,26 @@ namespace Chaos
 		    : FVector2f((decltype(FVector2f::X))x, (decltype(FVector2f::X))y) {}
 		TVector(const FVector2f& vec)
 		    : FVector2f(vec) {}
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 		TVector(std::istream& Stream)
 		{
 			Stream.read(reinterpret_cast<char*>(&X), sizeof(X));
 			Stream.read(reinterpret_cast<char*>(&Y), sizeof(Y));
 		}
+#endif
 		template <typename OtherT>
 		TVector(const TVector<OtherT, 2>& InVector)
 		{
 			X = ((decltype(X))InVector[0]);	// LWC_TODO: Remove casts once FVector2f supports variants
 			Y = ((decltype(Y))InVector[1]);
 		}
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 		void Write(std::ostream& Stream) const
 		{
 			Stream.write(reinterpret_cast<const char*>(&X), sizeof(X));
 			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(Y));
 		}
-
+#endif
 		static TVector<FRealSingle, 2> AxisVector(const int32 Axis)
 		{
 			check(Axis >= 0 && Axis <= 1);
@@ -892,23 +904,26 @@ namespace Chaos
 		    : FVector2d((decltype(FVector2d::X))x, (decltype(FVector2d::X))y) {}
 		TVector(const FVector2d& vec)
 		    : FVector2d(vec) {}
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 		TVector(std::istream& Stream)
 		{
 			Stream.read(reinterpret_cast<char*>(&X), sizeof(X));
 			Stream.read(reinterpret_cast<char*>(&Y), sizeof(Y));
 		}
+#endif
 		template <typename OtherT>
 		TVector(const TVector<OtherT, 2>& InVector)
 		{
 			X = ((decltype(X))InVector[0]);	// LWC_TODO: Remove casts once FVector2d supports variants
 			Y = ((decltype(Y))InVector[1]);
 		}
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 		void Write(std::ostream& Stream) const
 		{
 			Stream.write(reinterpret_cast<const char*>(&X), sizeof(X));
 			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(Y));
 		}
-
+#endif
 		static TVector<FRealDouble, 2> AxisVector(const int32 Axis)
 		{
 			check(Axis >= 0 && Axis <= 1);
@@ -991,6 +1006,7 @@ namespace Chaos
 		    , Z(static_cast<T>(Other.Z))
 		{}
 
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 		FORCEINLINE TVector(std::istream& Stream)
 		{
 			Stream.read(reinterpret_cast<char*>(&X), sizeof(T));
@@ -1003,6 +1019,7 @@ namespace Chaos
 			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(T));
 			Stream.write(reinterpret_cast<const char*>(&Z), sizeof(T));
 		}
+#endif
 		FORCEINLINE TVector<T, 3>& operator=(const TVector<T, 3>& Other)
 		{
 			X = Other.X;
@@ -1165,12 +1182,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			: X((int32)InVector.X)
 			, Y((int32)InVector.Y)
 		{}
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 		FORCEINLINE TVector(std::istream& Stream)
 		{
 			Stream.read(reinterpret_cast<char*>(&X), sizeof(int32));
 			Stream.read(reinterpret_cast<char*>(&Y), sizeof(int32));
 		}
-
+#endif
 		FORCEINLINE int32 Num() const { return 2; }
 
 		FORCEINLINE FElement Product() const
@@ -1185,11 +1203,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			return Result;
 		}
 
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 		FORCEINLINE void Write(std::ostream& Stream) const
 		{
 			Stream.write(reinterpret_cast<const char*>(&X), sizeof(FElement));
 			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(FElement));
 		}
+#endif
 
 		FORCEINLINE TVector<FElement, 2>& operator=(const TVector<FElement, 2>& Other)
 		{

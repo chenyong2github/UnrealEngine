@@ -11,11 +11,14 @@
 #include "Interfaces/Interface_AssetUserData.h"
 #include "Interfaces/Interface_AsyncCompilation.h"
 #include "RenderCommandFence.h"
-#include "RenderResource.h"
 #include "Serialization/EditorBulkData.h"
 #include "Engine/TextureDefines.h"
+#include "MaterialValueType.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "MaterialShared.h"
 #include "TextureResource.h"
+#include "RenderResource.h"
+#endif
 #include "Engine/StreamableRenderAsset.h"
 #include "PerPlatformProperties.h"
 #include "Misc/FieldAccessor.h"
@@ -41,7 +44,7 @@
 
 namespace FOodleDataCompression {enum class ECompressor : uint8; enum class ECompressionLevel : int8; }
 
-
+class FTextureReference;
 class ITargetPlatform;
 class UAssetUserData;
 struct FPropertyChangedEvent;
@@ -1408,9 +1411,8 @@ public:
 	TFieldPtrAccessor<FTextureResource> Resource;
 #endif
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	ENGINE_API virtual ~UTexture() {};
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ENGINE_API UTexture(FVTableHelper& Helper);
+	ENGINE_API virtual ~UTexture();
 	
 	/** Set texture's resource, can be NULL */
 	ENGINE_API void SetResource(FTextureResource* Resource);
@@ -1422,7 +1424,7 @@ public:
 	ENGINE_API const FTextureResource* GetResource() const;
 
 	/** Stable RHI texture reference that refers to the current RHI texture. Note this is manually refcounted! */
-	FTextureReference TextureReference;
+	FTextureReference& TextureReference;
 
 	/** Release fence to know when resources have been freed on the rendering thread. */
 	FRenderCommandFence ReleaseFence;
@@ -1863,34 +1865,3 @@ protected:
 	 */
 	FStreamableRenderResourceState GetResourcePostInitState(const FTexturePlatformData* PlatformData, bool bAllowStreaming, int32 MinRequestMipCount = 0, int32 MaxMipCount = 0, bool bSkipCanBeLoaded = false) const;
 };
-
-/** 
-* Replaces the RHI reference of one texture with another.
-* Allows one texture to be replaced with another at runtime and have all existing references to it remain valid.
-*/
-struct FTextureReferenceReplacer
-{
-	FTextureReferenceRHIRef OriginalRef;
-
-	FTextureReferenceReplacer(UTexture* OriginalTexture)
-	{
-		if (OriginalTexture)
-		{
-			OriginalTexture->ReleaseResource();
-			OriginalRef = OriginalTexture->TextureReference.TextureReferenceRHI;
-		}
-		else
-		{
-			OriginalRef = nullptr;
-		}
-	}
-
-	void Replace(UTexture* NewTexture)
-	{
-		if (OriginalRef)
-		{
-			NewTexture->TextureReference.TextureReferenceRHI = OriginalRef;
-		}
-	}
-};
- 

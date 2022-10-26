@@ -16,7 +16,7 @@
  * Enumerates modes for the viewport's rotation grid.
  */
 UENUM()
-enum ERotationGridMode
+enum ERotationGridMode : int
 {
 	/** Using Divisions of 360 degrees (e.g 360/2. 360/3, 360/4, ... ). */
 	GridMode_DivisionsOf360,

@@ -15,6 +15,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/Engine.h"
 #include "Engine/Console.h"
+#include "Engine/GameViewportClient.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Engine/GameEngine.h"
 #include "GameFramework/GameModeBase.h"
@@ -40,6 +41,19 @@
 #include "Editor/EditorEngine.h"
 #include "EngineAnalytics.h"
 #include "StudioAnalytics.h"
+#endif
+
+#if WITH_EDITOR
+FGameInstancePIEParameters::FGameInstancePIEParameters()
+	: bSimulateInEditor(false)
+	, bAnyBlueprintErrors(false)
+	, bStartInSpectatorMode(false)
+	, bRunAsDedicated(false)
+	, bIsPrimaryPIEClient(false)
+	, WorldFeatureLevel(ERHIFeatureLevel::Num)
+	, EditorPlaySettings(nullptr)
+	, NetMode(EPlayNetMode::PIE_Standalone)
+{}
 #endif
 
 UGameInstance::UGameInstance(const FObjectInitializer& ObjectInitializer)

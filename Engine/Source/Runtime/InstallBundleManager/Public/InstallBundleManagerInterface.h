@@ -11,7 +11,9 @@
 #include "Internationalization/Text.h"
 #include "Logging/LogMacros.h"
 #include "Logging/LogVerbosity.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Misc/ConfigCacheIni.h"
+#endif
 #include "Misc/EnumClassFlags.h"
 #include "Misc/Optional.h"
 #include "Templates/SharedPointer.h"

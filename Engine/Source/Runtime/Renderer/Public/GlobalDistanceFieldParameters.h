@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GlobalDistanceFieldConstants.h"
 #include "ShaderParameterMacros.h"
 #include "ShaderParameters.h"
 #include "RenderUtils.h"
@@ -10,12 +11,6 @@
 #include "RenderGraphResources.h"
 
 class FShaderParameterMap;
-
-namespace GlobalDistanceField
-{
-	/** Must match global distance field shaders. */
-	const int32 MaxClipmaps = 6;
-}
 
 class FGlobalDistanceFieldParameterData
 {

@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Camera/CameraTypes.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Engine/TextureRenderTarget2D.h"
+#endif
 #include "Misc/PathViews.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"

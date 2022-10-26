@@ -16,7 +16,9 @@
 #include "Animation/PreviewAssetAttachComponent.h"
 #include "Animation/SmartName.h"
 #include "Engine/AssetUserData.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Engine/SkeletalMesh.h"
+#endif
 #include "HAL/CriticalSection.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "Interfaces/Interface_PreviewMeshProvider.h"
@@ -27,6 +29,7 @@ class UAnimSequence;
 class UBlendProfile;
 class URig;
 class USkeletalMeshSocket;
+class USkinnedAsset;
 class FPackageReloadedEvent;
 struct FAssetData;
 enum class EPackageReloadPhase : uint8;

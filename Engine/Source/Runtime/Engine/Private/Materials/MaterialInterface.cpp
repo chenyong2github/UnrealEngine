@@ -17,12 +17,14 @@
 #include "EditorFramework/AssetImportData.h"
 #include "Engine/AssetUserData.h"
 #include "Engine/Texture2D.h"
+#include "Engine/World.h"
 #include "ObjectCacheEventSink.h"
 #include "Engine/SubsurfaceProfile.h"
 #include "Engine/TextureStreamingTypes.h"
 #include "Algo/BinarySearch.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Components.h"
+#include "Components/PrimitiveComponent.h"
 #include "ContentStreaming.h"
 #include "MeshBatch.h"
 #include "TextureCompiler.h"
@@ -1402,6 +1404,11 @@ float UMaterialInterface::GetTextureDensity(FName TextureName, const FMeshUVChan
 
 	// Otherwise return 0 to indicate the data is not found.
 	return 0;
+}
+
+uint32 UMaterialInterface::GetFeatureLevelsToCompileForAllMaterials()
+{
+	return FeatureLevelsForAllMaterials | (1 << GMaxRHIFeatureLevel);
 }
 
 bool UMaterialInterface::UseAnyStreamingTexture() const

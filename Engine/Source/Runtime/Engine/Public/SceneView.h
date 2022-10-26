@@ -5,21 +5,28 @@
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/EngineBaseTypes.h"
+#include "EngineDefines.h"
 #include "RenderResource.h"
 #include "UniformBuffer.h"
-#include "Engine/World.h"
+#include "GameTime.h"
 #include "SceneTypes.h"
 #include "ShowFlags.h"
 #include "ConvexVolume.h"
 #include "Engine/GameViewportClient.h"
 #include "SceneInterface.h"
 #include "FinalPostProcessSettings.h"
-#include "GlobalDistanceFieldParameters.h"
+#include "GlobalDistanceFieldConstants.h"
 #include "DebugViewModeHelpers.h"
+#include "PhysicsInterfaceDeclaresCore.h"
 #include "RendererInterface.h"
 #include "Interfaces/Interface_PostProcessVolume.h"
 #include "DynamicRenderScaling.h"
 #include "Math/MirrorMatrix.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/World.h"
+#include "GlobalDistanceFieldParameters.h"
+#endif
 
 class FSceneView;
 class FSceneViewFamily;
@@ -1638,32 +1645,12 @@ public:
 	*/
 	struct ConstructionValues
 	{
-		ConstructionValues(
+		ENGINE_API ConstructionValues(
 			const FRenderTarget* InRenderTarget,
 			FSceneInterface* InScene,
 			const FEngineShowFlags& InEngineShowFlags
-			)
-		:	RenderTarget(InRenderTarget)
-		,	Scene(InScene)
-		,	EngineShowFlags(InEngineShowFlags)
-		,	ViewModeParam(-1)
-		,	GammaCorrection(1.0f)
-		,	bAdditionalViewFamily(false)
-		,	bRealtimeUpdate(false)
-		,	bDeferClear(false)
-		,	bResolveScene(true)			
-		,	bTimesSet(false)
-		{
-			if( InScene != NULL )			
-			{
-				UWorld* World = InScene->GetWorld();
-				// Ensure the world is valid and that we are being called from a game thread (GetRealTimeSeconds requires this)
-				if( World && IsInGameThread() )
-				{	
-					SetTime(World->GetTime());
-				}
-			}
-		}
+			);
+
 		/** The views which make up the family. */
 		const FRenderTarget* RenderTarget;
 

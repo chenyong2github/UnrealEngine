@@ -15,7 +15,9 @@
 #include "PropertyPairsMap.h"
 #include "Components/ChildActorComponent.h"
 #include "RenderCommandFence.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Engine/Level.h"
+#endif
 #include "Net/Core/Misc/NetSubObjectRegistry.h"
 #include "Engine/HitResult.h"
 #include "Engine/ReplicatedState.h"

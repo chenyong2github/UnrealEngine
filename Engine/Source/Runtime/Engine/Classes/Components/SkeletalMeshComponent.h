@@ -9,22 +9,22 @@
 #include "Components/SceneComponent.h"
 #include "EngineDefines.h"
 #include "CollisionQueryParams.h"
-#include "SkeletalMeshTypes.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "SkeletalMeshTypes.h"
 #include "Engine/SkeletalMesh.h"
+#include "ClothCollisionPrim.h"
+#include "PhysicsEngine/PhysicsAsset.h"
+#endif
 #include "Animation/AnimationAsset.h"
 #include "Animation/AnimCurveTypes.h"
 #include "Components/SkinnedMeshComponent.h"
 #include "ClothSimData.h"
 #include "SingleAnimationPlayData.h"
 #include "Animation/PoseSnapshot.h"
-#include "SkeletalMeshTypes.h"
-
 #include "ClothingSystemRuntimeTypes.h"
 #include "ClothingSimulationInterface.h"
 #include "ClothingSimulationFactory.h"
-#include "ClothCollisionPrim.h"
-#include "PhysicsEngine/PhysicsAsset.h"
 #include "Animation/AttributesRuntime.h"
 #if WITH_ENGINE
 #include "Engine/PoseWatchRenderData.h"
@@ -39,8 +39,11 @@ class FCanvas;
 class FSceneView;
 class UAnimInstance;
 class UPhysicalMaterial;
+class USkeletalMesh;
 class USkeletalMeshComponent;
+struct FClothCollisionSource;
 struct FConstraintInstance;
+struct FConstraintProfileProperties;
 struct FNavigableGeometryExport;
 struct FCompactPose;
 
@@ -61,18 +64,6 @@ typedef FOnSkelMeshTeleportedMultiCast::FDelegate FOnSkelMeshTeleported;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBoneTransformsFinalized);  // Deprecated, use FOnBoneTransformsFinalizedMultiCast instead
 
 DECLARE_MULTICAST_DELEGATE(FOnBoneTransformsFinalizedMultiCast);
-
-UENUM()
-enum class EAnimCurveType : uint8 
-{
-	AttributeCurve,
-	MaterialCurve, 
-	MorphTargetCurve, 
-	// make sure to update MaxCurve 
-	MaxAnimCurveType UMETA(Hidden)
-};
-
-ENUM_RANGE_BY_COUNT(EAnimCurveType, EAnimCurveType::MaxAnimCurveType);
 
 /** Method used when retrieving a attribute value*/
 UENUM()
@@ -301,35 +292,6 @@ struct ENGINE_API FClosestPointOnPhysicsAsset
 	{
 	}
 };
-
-/** Helper struct used to store info about a cloth collision source */
-struct FClothCollisionSource
-{
-	FClothCollisionSource(USkeletalMeshComponent* InSourceComponent, UPhysicsAsset* InSourcePhysicsAsset, const FOnBoneTransformsFinalizedMultiCast::FDelegate& InOnBoneTransformsFinalizedDelegate);
-	ENGINE_API ~FClothCollisionSource();
-
-	/** Component that collision data will be copied from */
-	TWeakObjectPtr<USkeletalMeshComponent> SourceComponent;
-
-	/** Physics asset to use to generate collision against the source component */
-	TWeakObjectPtr<UPhysicsAsset> SourcePhysicsAsset;
-
-	/** Callback used to remove the cloth transform updates delegate */
-	FDelegateHandle OnBoneTransformsFinalizedHandle;
-
-	/** Cached skeletal mesh used to invalidate the cache if the skeletal mesh has changed */
-	TWeakObjectPtr<USkeletalMesh> CachedSkeletalMesh;
-
-	/** Cached spheres from physics asset */
-	TArray<FClothCollisionPrim_Sphere> CachedSpheres;
-
-	/** Cached sphere connections from physics asset */
-	TArray<FClothCollisionPrim_SphereConnection> CachedSphereConnections;
-
-	/** Flag whether the cache is valid */
-	bool bCached;
-};
-
 
 /**
  * SkeletalMeshComponent is used to create an instance of an animated SkeletalMesh asset.

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "DrawElementTextOverflowArgs.h"
+#include "Fonts/FontCache.h"
 #include "SlateRenderBatch.h"
 #include "Styling/SlateBrush.h"
 #include "Types/SlateVector2.h"
@@ -32,16 +34,6 @@ struct FSlateGradientStop
 	}
 };
 template <> struct TIsPODType<FSlateGradientStop> { enum { Value = true }; };
-
-enum class ETextOverflowDirection : uint8
-{
-	// No overflow
-	NoOverflow,
-	// Left justification overflow
-	LeftToRight,
-	// Right justification overflow
-	RightToLeft
-};
 
 struct FSlateDataPayload
 {
@@ -155,28 +147,6 @@ struct FSlateTextPayload : public FSlateDataPayload, public FSlateTintableElemen
 	}
 };
 
-
-
-struct FTextOverflowArgs
-{
-	FTextOverflowArgs(FShapedGlyphSequencePtr& InOverflowText, ETextOverflowDirection InOverflowDirection)
-		: OverflowTextPtr(InOverflowText)
-		, OverflowDirection(InOverflowDirection)
-		, bForceEllipsisDueToClippedLine(false)
-		
-	{}
-
-	FTextOverflowArgs()
-		: OverflowDirection(ETextOverflowDirection::NoOverflow)
-		, bForceEllipsisDueToClippedLine(false)
-	{}
-
-	/** Sequence that represents the ellipsis glyph */
-	FShapedGlyphSequencePtr OverflowTextPtr;
-	ETextOverflowDirection OverflowDirection;
-	bool bForceEllipsisDueToClippedLine;
-	
-};
 
 struct FSlateShapedTextPayload : public FSlateDataPayload, public FSlateTintableElement
 { 

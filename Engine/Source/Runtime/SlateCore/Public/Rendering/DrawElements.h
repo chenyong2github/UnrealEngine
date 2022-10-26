@@ -9,25 +9,32 @@
 #include "Misc/MemStack.h"
 #include "Styling/WidgetStyle.h"
 #include "Fonts/SlateFontInfo.h"
-#include "Fonts/FontCache.h"
 #include "Layout/SlateRect.h"
 #include "Layout/Clipping.h"
 #include "Types/PaintArgs.h"
 #include "Types/SlateVector2.h"
 #include "Layout/Geometry.h"
-#include "Rendering/ShaderResourceManager.h"
 #include "Rendering/RenderingCommon.h"
 #include "Debugging/SlateDebugging.h"
-#include "DrawElementPayloads.h"
+#include "Rendering/SlateRenderBatch.h"
+#include "DrawElementTextOverflowArgs.h"
 #include "ElementBatcher.h"
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Fonts/FontCache.h"
+#include "Rendering/ShaderResourceManager.h"
+#include "DrawElementPayloads.h"
+#endif
 
 class FSlateRenderBatch;
+class FSlateDrawLayerHandle;
+class FSlateResourceHandle;
 class FSlateWindowElementList;
 class SWidget;
 class SWindow;
-
-class FSlateDrawLayerHandle;
+struct FSlateBrush;
+struct FSlateDataPayload;
+struct FSlateGradientStop;
 
 enum class EElementType : uint8
 {

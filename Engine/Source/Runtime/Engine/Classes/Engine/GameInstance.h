@@ -16,9 +16,11 @@
 #include "GameFramework/OnlineReplStructs.h"
 #include "ReplayTypes.h"
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
 #endif 
+#endif
 
 #include "GameInstance.generated.h"
 
@@ -26,8 +28,10 @@ class AGameModeBase;
 class APlayerController;
 class FOnlineSessionSearchResult;
 class FTimerManager;
+class UGameViewportClient;
 class ULocalPlayer;
 class UOnlineSession;
+enum EPlayNetMode : int;
 struct FLatentActionManager;
 class ULevelEditorPlaySettings;
 class IAnalyticsProvider;
@@ -102,16 +106,7 @@ private:
 //@TODO: Some of these are really mutually exclusive and should be refactored (put into a struct to make this easier in the future)
 struct FGameInstancePIEParameters
 {
-	FGameInstancePIEParameters()
-		: bSimulateInEditor(false)
-		, bAnyBlueprintErrors(false)
-		, bStartInSpectatorMode(false)
-		, bRunAsDedicated(false)
-		, bIsPrimaryPIEClient(false)
-		, WorldFeatureLevel(ERHIFeatureLevel::Num)
-		, EditorPlaySettings(nullptr)
-		, NetMode(EPlayNetMode::PIE_Standalone)
-	{}
+	ENGINE_API FGameInstancePIEParameters();
 
 	// Are we doing SIE instead of PIE?
 	bool bSimulateInEditor;

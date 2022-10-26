@@ -1,10 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/SkinnedAsset.h"
+#include "Engine/SkinnedAssetAsyncCompileUtils.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "SkinnedAssetCompiler.h"
 #include "Animation/AnimStats.h"
 #include "SkeletalRenderGPUSkin.h"
 #include "PSOPrecache.h"
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(SkinnedAsset)
 
 #if INTEL_ISPC
 #include "SkinnedAsset.ispc.generated.h"
@@ -24,6 +28,22 @@ static FAutoConsoleVariableRef CVarAnimSkinnedAssetISPCEnabled(TEXT("a.SkinnedAs
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkinnedAsset, Log, All);
+
+USkinnedAsset::USkinnedAsset(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{}
+
+USkinnedAsset::~USkinnedAsset() {}
+
+bool USkinnedAsset::IsValidMaterialIndex(int32 Index) const
+{
+	return GetMaterials().IsValidIndex(Index);
+}
+
+int32 USkinnedAsset::GetNumMaterials() const
+{
+	return GetMaterials().Num();
+}
 
 void USkinnedAsset::PostLoad()
 {
@@ -264,6 +284,11 @@ static bool IsISPCEnabled()
 	return bAnim_SkinnedAsset_ISPC_Enabled;
 }
 
+ESkeletalMeshVertexFlags USkinnedAsset::GetVertexBufferFlags() const
+{
+	return GetHasVertexColors() ? ESkeletalMeshVertexFlags::HasVertexColors : ESkeletalMeshVertexFlags::None;
+}
+
 void USkinnedAsset::FillComponentSpaceTransforms(const TArray<FTransform>& InBoneSpaceTransforms,
 												 const TArray<FBoneIndexType>& InFillComponentSpaceTransformsRequiredBones, 
 												 TArray<FTransform>& OutComponentSpaceTransforms) const
@@ -339,4 +364,16 @@ void USkinnedAsset::FillComponentSpaceTransforms(const TArray<FTransform>& InBon
 			checkSlow(!SpaceBase->ContainsNaN());
 		}
 	}
+}
+
+TArray<FSkeletalMeshLODInfo>& USkinnedAsset::GetMeshLodInfoDummyArray()
+{
+	static TArray<FSkeletalMeshLODInfo> Dummy;
+	return Dummy;
+}
+
+TArray<FSkeletalMaterial>& USkinnedAsset::GetSkeletalMaterialDummyArray()
+{
+	static TArray<FSkeletalMaterial> Dummy;
+	return Dummy;
 }

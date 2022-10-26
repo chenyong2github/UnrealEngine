@@ -101,6 +101,8 @@
 #include "ContentStreaming.h"
 #include "Streaming/StaticMeshUpdate.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(StaticMesh)
+
 #define LOCTEXT_NAMESPACE "StaticMesh"
 DEFINE_LOG_CATEGORY(LogStaticMesh);	
 
@@ -3140,6 +3142,42 @@ FArchive& operator<<(FArchive& Ar, FStaticMaterial& Elem)
 	}
 	
 	return Ar;
+}
+
+FStaticMaterial::FStaticMaterial()
+: MaterialInterface(NULL)
+, MaterialSlotName(NAME_None)
+#if WITH_EDITORONLY_DATA
+, ImportedMaterialSlotName(NAME_None)
+#endif //WITH_EDITORONLY_DATA
+{
+
+}
+
+FStaticMaterial::FStaticMaterial(class UMaterialInterface* InMaterialInterface
+, FName InMaterialSlotName
+#if WITH_EDITORONLY_DATA
+, FName InImportedMaterialSlotName)
+#else
+)
+#endif
+: MaterialInterface(InMaterialInterface)
+, MaterialSlotName(InMaterialSlotName)
+#if WITH_EDITORONLY_DATA
+, ImportedMaterialSlotName(InImportedMaterialSlotName)
+#endif //WITH_EDITORONLY_DATA
+{
+//If not specified add some valid material slot name
+if (MaterialInterface && MaterialSlotName == NAME_None)
+{
+	MaterialSlotName = MaterialInterface->GetFName();
+}
+#if WITH_EDITORONLY_DATA
+if (ImportedMaterialSlotName == NAME_None)
+{
+	ImportedMaterialSlotName = MaterialSlotName;
+}
+#endif
 }
 
 bool operator== (const FStaticMaterial& LHS, const FStaticMaterial& RHS)

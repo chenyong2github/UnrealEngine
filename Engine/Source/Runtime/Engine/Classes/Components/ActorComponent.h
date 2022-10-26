@@ -11,7 +11,9 @@
 #include "Engine/EngineTypes.h"
 #include "Engine/EngineBaseTypes.h"
 #include "UObject/ScriptMacros.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "EdGraph/EdGraphPin.h"
+#endif
 #include "Interfaces/Interface_AssetUserData.h"
 #include "UObject/StructOnScope.h"
 #include "PropertyPairsMap.h"
@@ -26,7 +28,7 @@ class UAssetUserData;
 class ULevel;
 class UWorld;
 class UPrimitiveComponent;
-
+struct FSimpleMemberReference;
 
 ENGINE_API extern int32 GEnableDeferredPhysicsCreation;
 

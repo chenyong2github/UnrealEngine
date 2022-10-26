@@ -6,7 +6,9 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/Interface.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Animation/AnimInstance.h"
+#endif
 #include "PreviewCollectionInterface.generated.h"
 
 class UAnimInstance;

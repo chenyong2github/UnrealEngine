@@ -14,7 +14,7 @@ namespace EButtonClickMethod
 	/**
 	 * Enumerates different methods that a button click can be triggered. Normally, DownAndUp is appropriate.
 	 */
-	enum Type
+	enum Type : int
 	{
 		/**
 		 * User must press the button, then release while over the button to trigger the click.
@@ -46,7 +46,7 @@ UENUM(BlueprintType)
 namespace EButtonTouchMethod
 {
 	/** Ways in which touch interactions trigger a "Clicked" event. */
-	enum Type
+	enum Type : int
 	{
 		/** Most buttons behave this way. */
 		DownAndUp,
@@ -70,7 +70,7 @@ namespace EButtonPressMethod
 	/**
 	* Enumerates different methods that a button can be triggered with keyboard/controller. Normally, DownAndUp is appropriate.
 	*/
-	enum Type
+	enum Type : int
 	{
 		/**
 		* User must press the button, then release while the button has focus to trigger the click.
@@ -170,7 +170,7 @@ enum class ENavigationGenesis : uint8
  * Enumerates horizontal alignment options, i.e. for widget slots.
  */
 UENUM(BlueprintType)
-enum EHorizontalAlignment
+enum EHorizontalAlignment : int
 {
 	/** Fill the entire width. */
 	HAlign_Fill UMETA(DisplayName="Fill"),
@@ -190,7 +190,7 @@ enum EHorizontalAlignment
  * Enumerates vertical alignment options, i.e. for widget slots.
  */
 UENUM(BlueprintType)
-enum EVerticalAlignment
+enum EVerticalAlignment : int
 {
 	/** Fill the entire height. */
 	VAlign_Fill UMETA(DisplayName="Fill"),
@@ -210,7 +210,7 @@ enum EVerticalAlignment
  * Enumerates possible placements for pop-up menus.
  */
 UENUM(BlueprintType)
-enum EMenuPlacement
+enum EMenuPlacement : int
 {
 	/** Place the menu immediately below the anchor */
 	MenuPlacement_BelowAnchor UMETA(DisplayName="Below"),
@@ -257,7 +257,7 @@ enum EMenuPlacement
  * Enumerates widget orientations.
  */
 UENUM(BlueprintType)
-enum EOrientation
+enum EOrientation : int
 {
 	/** Orient horizontally, i.e. left to right. */
 	Orient_Horizontal UMETA(DisplayName="Horizontal"),
@@ -271,7 +271,7 @@ enum EOrientation
  * Enumerates scroll directions.
  */
 UENUM(BlueprintType)
-enum EScrollDirection
+enum EScrollDirection : int
 {
 	/** Scroll down. */
 	Scroll_Down UMETA(DisplayName="Down"),
@@ -287,7 +287,7 @@ enum EScrollDirection
 UENUM(BlueprintType)
 namespace ETextCommit
 {
-	enum Type
+	enum Type : int
 	{
 		/** Losing focus or similar event caused implicit commit */
 		Default,
@@ -307,7 +307,7 @@ namespace ETextCommit
 UENUM(BlueprintType)
 namespace ESelectInfo
 {
-	enum Type
+	enum Type : int
 	{
 		/** User selected via a key press */
 		OnKeyPress,

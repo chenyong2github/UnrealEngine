@@ -2,7 +2,9 @@
 
 #include "Engine/StreamableRenderAsset.h"
 #include "Misc/App.h"
+#include "Containers/Ticker.h"
 #include "ContentStreaming.h"
+#include "RenderAssetUpdate.h"
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StreamableRenderAsset)
@@ -26,6 +28,8 @@ UStreamableRenderAsset::UStreamableRenderAsset(const FObjectInitializer& ObjectI
 	SetNoRefStreamingLODBias(-1);
 	NoRefStreamingLODBias.Init(GNoRefBiasQualityLevelCVarName, GNoRefBiasQualityLevelScalabilitySection);
 }
+
+UStreamableRenderAsset::~UStreamableRenderAsset() = default;
 
 void UStreamableRenderAsset::RegisterMipLevelChangeCallback(UPrimitiveComponent* Component, int32 LODIndex, float TimeoutSecs, bool bOnStreamIn, FLODStreamingCallback&& Callback)
 {

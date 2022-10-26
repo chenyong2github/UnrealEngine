@@ -15,6 +15,9 @@
 #include "RawIndexBuffer.h"
 #include "Engine/TextureStreamingTypes.h"
 #include "Engine/Brush.h"
+#include "Engine/SkinnedAssetAsyncCompileUtils.h"
+#include "Engine/SkinnedAssetCommon.h"
+#include "Engine/SkeletalMeshLODSettings.h"
 #include "MaterialShared.h"
 #include "Materials/Material.h"
 #include "Components/SkinnedMeshComponent.h"
@@ -38,6 +41,7 @@
 #include "EngineUtils.h"
 #include "EditorSupportDelegates.h"
 #include "GPUSkinVertexFactory.h"
+#include "SkeletalMeshSceneProxy.h"
 #include "SkeletalRenderPublic.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
@@ -437,6 +441,30 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 USkeletalMesh::~USkeletalMesh() = default;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+FSkeletalMeshRenderData* USkeletalMesh::GetSkeletalMeshRenderData() const
+{
+	WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkeletalMeshRenderData);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return SkeletalMeshRenderData.Get();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void USkeletalMesh::SetSkeletalMeshRenderData(TUniquePtr<FSkeletalMeshRenderData>&& InSkeletalMeshRenderData)
+{
+	WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkeletalMeshRenderData);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	SkeletalMeshRenderData = MoveTemp(InSkeletalMeshRenderData);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+FSkeletalMeshRenderData* USkeletalMesh::GetResourceForRendering() const
+{
+	WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkeletalMeshRenderData);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return SkeletalMeshRenderData.Get();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 void USkeletalMesh::PostInitProperties()
 {
 #if WITH_EDITORONLY_DATA
@@ -594,6 +622,14 @@ FSkeletalMeshOptimizationSettings USkeletalMesh::GetReductionSettings(int32 LODI
 }
 
 #endif
+
+void USkeletalMesh::SetMaterials(const TArray<FSkeletalMaterial>& InMaterials)
+{
+	WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::Materials);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	Materials = InMaterials;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
 
 void USkeletalMesh::AddClothingAsset(UClothingAssetBase* InNewAsset)
 {
@@ -5044,6 +5080,22 @@ class UNodeMappingContainer* USkeletalMesh::GetNodeMappingContainer(class UBluep
 	return nullptr;
 }
 
+FSkeletalMeshLODInfo* USkeletalMesh::GetLODInfo(int32 Index)
+{
+	WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return LODInfo.IsValidIndex(Index) ? &LODInfo[Index] : nullptr;  
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+	
+const FSkeletalMeshLODInfo* USkeletalMesh::GetLODInfo(int32 Index) const
+{
+	WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return LODInfo.IsValidIndex(Index) ? &LODInfo[Index] : nullptr;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 const UAnimSequence* USkeletalMesh::GetBakePose(int32 LODIndex) const
 {
 	const FSkeletalMeshLODInfo* LOD = GetLODInfo(LODIndex);
@@ -5074,6 +5126,24 @@ const USkeletalMeshLODSettings* USkeletalMesh::GetDefaultLODSetting() const
 #endif // WITH_EDITORONLY_DATA
 
 	return GetDefault<USkeletalMeshLODSettings>();
+}
+
+bool USkeletalMesh::IsValidLODIndex(int32 Index) const
+{
+	WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return LODInfo.IsValidIndex(Index);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+/* 
+	* Returns total number of LOD. USkinnedAsset interface.
+	*/
+int32 USkeletalMesh::GetLODNum() const
+{
+	WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo, ESkinnedAssetAsyncPropertyLockType::ReadOnly);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return LODInfo.Num();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool USkeletalMesh::IsMaterialUsed(int32 MaterialIndex) const
@@ -5114,6 +5184,16 @@ bool USkeletalMesh::IsMaterialUsed(int32 MaterialIndex) const
 
 	return false;
 }
+
+#if WITH_EDITOR
+void USkeletalMesh::AddSkinWeightProfile(const FSkinWeightProfileInfo& Profile) 
+{
+	WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::SkinWeightProfiles); 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	SkinWeightProfiles.Add(Profile); 
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+#endif
 
 void USkeletalMesh::ReleaseSkinWeightProfileResources()
 {
@@ -5172,6 +5252,14 @@ FSkeletalMeshLODInfo& USkeletalMesh::AddLODInfo()
 	}
 
 	return LODInfoArray[NewIndex];
+}
+
+void USkeletalMesh::AddLODInfo(const FSkeletalMeshLODInfo& NewLODInfo) 
+{
+	WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::LODInfo);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	LODInfo.Add(NewLODInfo);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void USkeletalMesh::RemoveLODInfo(int32 Index)

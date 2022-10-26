@@ -17,6 +17,32 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LineBatchComponent)
 
+/** Represents a LineBatchComponent to the scene manager. */
+class ENGINE_API FLineBatcherSceneProxy : public FPrimitiveSceneProxy
+{
+public:
+	SIZE_T GetTypeHash() const override;
+
+	FLineBatcherSceneProxy(const ULineBatchComponent* InComponent);
+
+	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
+
+	/**
+	*  Returns a struct that describes to the renderer when to draw this proxy.
+	*	@param		Scene view to use to determine our relevence.
+	*  @return		View relevance struct
+	*/
+	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
+	virtual uint32 GetMemoryFootprint( void ) const override;
+	uint32 GetAllocatedSize( void ) const;
+
+private:
+	TArray<FBatchedLine> Lines;
+	TArray<FBatchedPoint> Points;
+	TArray<FBatchedMesh> Meshes;
+};
+
+
 FLineBatcherSceneProxy::FLineBatcherSceneProxy(const ULineBatchComponent* InComponent) :
 	FPrimitiveSceneProxy(InComponent), Lines(InComponent->BatchedLines), 
 	Points(InComponent->BatchedPoints), Meshes(InComponent->BatchedMeshes)

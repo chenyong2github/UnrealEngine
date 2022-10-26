@@ -16,7 +16,10 @@
 #include "Interfaces/Interface_PostProcessVolume.h"
 #include "WaterWaves.h"
 #include "WaterBodyTypes.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "DynamicMeshBuilder.h"
+#endif
 
 #if WITH_EDITOR
 #include "MeshDescription.h"
@@ -33,6 +36,7 @@ class ALandscapeProxy;
 class UMaterialInstanceDynamic;
 class FTokenizedMessage;
 namespace UE::Geometry { class FDynamicMesh3; }
+struct FDynamicMeshVertex;
 
 // ----------------------------------------------------------------------------------
 
@@ -88,16 +92,12 @@ enum class EWaterBodyStatus : uint8
 struct FWaterBodyMeshSection
 {
 public:
-	FWaterBodyMeshSection()
-		: Vertices()
-		, Indices()
-		, SectionBounds()
-	{
-	}
+	FWaterBodyMeshSection();
+	~FWaterBodyMeshSection();
 
 	bool IsValid() const { return (bool)SectionBounds.bIsValid; }
 
-	uint32 GetAllocatedSize() const { return Vertices.GetAllocatedSize() + Indices.GetAllocatedSize(); }
+	uint32 GetAllocatedSize() const;
 
 	TArray<FDynamicMeshVertex> Vertices;
 	TArray<uint32> Indices;

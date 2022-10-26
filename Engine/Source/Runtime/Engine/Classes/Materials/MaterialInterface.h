@@ -16,25 +16,36 @@
 #include "UObject/ScriptMacros.h"
 #include "RenderCommandFence.h"
 #include "SceneTypes.h"
-#include "RHI.h"
+#include "RHIDefinitions.h"
 #include "Engine/BlendableInterface.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "MaterialSceneTextureId.h"
 #include "Materials/MaterialRelevance.h"
+#include "MaterialRecursionGuard.h"
+#include "MaterialShaderPrecompileMode.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "RHI.h"
 #include "Physics/PhysicsInterfaceCore.h"
 #include "MaterialShared.h"
+#endif
+
 #include "MaterialInterface.generated.h"
 
 class FMaterialCompiler;
 class FMaterialRenderProxy;
 class FMaterialResource;
+class FShaderPipelineType;
+class FShaderType;
+class FVertexFactoryType;
 class UMaterial;
 class UPhysicalMaterial;
 class UPhysicalMaterialMask;
 class USubsurfaceProfile;
 class UTexture;
 class UMaterialInstance;
+struct FDebugShaderTypeInfo;
 struct FMaterialParameterInfo;
 struct FMaterialResourceLocOnDisk;
 class FMaterialCachedData;
@@ -964,7 +975,7 @@ public:
 #endif // WITH_EDITOR
 
 	/** Get bitfield indicating which feature levels should be compiled by default */
-	ENGINE_API static uint32 GetFeatureLevelsToCompileForAllMaterials() { return FeatureLevelsForAllMaterials | (1 << GMaxRHIFeatureLevel); }
+	ENGINE_API static uint32 GetFeatureLevelsToCompileForAllMaterials();
 
 	/** Return number of used texture coordinates and whether or not the Vertex data is used in the shader graph */
 	ENGINE_API void AnalyzeMaterialProperty(EMaterialProperty InProperty, int32& OutNumTextureCoordinates, bool& bOutRequiresVertexData);

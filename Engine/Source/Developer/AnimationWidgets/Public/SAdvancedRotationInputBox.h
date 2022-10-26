@@ -18,7 +18,7 @@
 
 namespace ESlateRotationRepresentation
 {
-	enum Type
+	enum Type : int
 	{
 		EulerXYZ,
 		EulerXZY,
@@ -35,7 +35,7 @@ namespace ESlateRotationRepresentation
 
 namespace ESlateTransformSubComponent
 {
-	enum Type
+	enum Type : int
 	{
 		X,
 		Y,

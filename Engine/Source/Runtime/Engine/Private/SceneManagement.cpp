@@ -14,6 +14,8 @@
 #include "Engine/Engine.h"
 #include "Engine/LightMapTexture2D.h"
 #include "Engine/ShadowMapTexture2D.h"
+#include "Engine/TextureLightProfile.h"
+#include "TextureResource.h"
 #include "VT/LightmapVirtualTexture.h"
 #include "UnrealEngine.h"
 #include "ColorSpace.h"
@@ -23,6 +25,12 @@ static TAutoConsoleVariable<float> CVarLODTemporalLag(
 	0.5f,
 	TEXT("This controls the the time lag for temporal LOD, in seconds."),
 	ECVF_Scalability | ECVF_Default);
+
+FTexture* FLightSceneProxy::GetIESTextureResource() const
+{
+	return IESTexture ? IESTexture->GetResource() : nullptr;
+}
+
 
 void FTemporalLODState::UpdateTemporalLODTransition(const FViewInfo& View, float LastRenderTime)
 {

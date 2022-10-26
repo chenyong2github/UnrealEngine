@@ -8,12 +8,17 @@
 
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CanvasTypes.h"
 #include "UnrealClient.h"
+#endif
+#include "Serialization/BulkData.h"
 
 class AActor;
 class FSoundSource;
 class UPrimitiveComponent;
+class FCanvas;
+class FViewport;
 class FSoundWaveData;
 class FSoundWaveProxy;
 class ICompressedAudioInfo;
@@ -21,6 +26,7 @@ class UTexture2D;
 struct FRenderAssetStreamingManager;
 struct FWaveInstance;
 class UAnimStreamable;
+enum class EStreamableRenderAssetType : uint8;
 struct FCompressedAnimSequence;
 
 using FSoundWaveProxyPtr = TSharedPtr<FSoundWaveProxy, ESPMode::ThreadSafe>;
@@ -695,12 +701,12 @@ struct FStreamingManagerCollection : public IStreamingManager
 	/**
 	 * Checks whether texture streaming is enabled. 
 	 */
-	FORCEINLINE bool IsTextureStreamingEnabled() const { return IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::Texture); }
+	ENGINE_API bool IsTextureStreamingEnabled() const;
 
 	/**
 	 * Checks whether texture/mesh streaming is enabled
 	 */
-	ENGINE_API bool IsRenderAssetStreamingEnabled(EStreamableRenderAssetType FilteredAssetType = EStreamableRenderAssetType::None) const;
+	ENGINE_API bool IsRenderAssetStreamingEnabled(EStreamableRenderAssetType FilteredAssetType) const;
 
 	/**
 	 * Gets a reference to the Texture Streaming Manager interface

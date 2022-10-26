@@ -2,6 +2,7 @@
 
 #include "NiagaraComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "Engine/TextureRenderTarget.h"
 #include "EngineUtils.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "NiagaraCommon.h"
@@ -12,8 +13,10 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraSceneProxy.h"
 #include "NiagaraStats.h"
 #include "NiagaraSystem.h"
+#include "NiagaraSystemInstanceController.h"
 #include "NiagaraWorldManager.h"
 #include "PrimitiveSceneInfo.h"
 #include "ProfilingDebugging/CsvProfiler.h"
@@ -287,6 +290,11 @@ void FNiagaraSceneProxy::ReleaseUniformBuffers(bool bEmpty)
 	CustomUniformBuffers.Empty(bEmpty ? 0 : FMath::Min(ExpectedRendererCount, CurrentUBCount));
 }
 
+const FVector3f& FNiagaraSceneProxy::GetLWCRenderTile() const
+{
+	return RenderData ? RenderData->LWCRenderTile : FVector3f::ZeroVector;
+}
+
 TUniformBuffer<FPrimitiveUniformShaderParameters>* FNiagaraSceneProxy::GetCustomUniformBufferResource(bool bHasVelocity, const FBox& InstanceBounds) const
 {
 	// Use a hash to determine if we can re-use any uniform buffer
@@ -544,6 +552,14 @@ void UNiagaraComponent::InitForPerformanceBaseline()
 	bNeverDistanceCull = true;
 	SetAllowScalability(false);
 	SetPreviewLODDistance(true, 1.0f, 10000.0f);
+}
+
+void UNiagaraComponent::SetLODDistance(float InLODDistance, float InMaxLODDistance)
+{
+	if (!bEnablePreviewLODDistance && SystemInstanceController)
+	{
+		SystemInstanceController->SetLODDistance(InLODDistance, InMaxLODDistance, false);
+	}
 }
 
 void UNiagaraComponent::SetEmitterEnable(FName EmitterName, bool bNewEnableState)
@@ -909,6 +925,11 @@ bool UNiagaraComponent::IsPaused()const
 UNiagaraDataInterface* UNiagaraComponent::GetDataInterface(const FString& Name)
 {
 	return UNiagaraFunctionLibrary::GetDataInterface(UNiagaraDataInterface::StaticClass(), this, *Name);
+}
+
+void UNiagaraComponent::SetSystemSignificanceIndex(int32 InIndex)
+{
+	if(SystemInstanceController) SystemInstanceController->SetSystemSignificanceIndex(InIndex);
 }
 
 bool UNiagaraComponent::IsWorldReadyToRun() const
@@ -1294,6 +1315,21 @@ void UNiagaraComponent::DeactivateInternal(bool bIsScalabilityCull /* = false */
 void UNiagaraComponent::DeactivateImmediate()
 {
 	DeactivateImmediateInternal(false);
+}
+
+ENiagaraExecutionState UNiagaraComponent::GetRequestedExecutionState() const
+{
+	return SystemInstanceController ? SystemInstanceController->GetRequestedExecutionState() : ENiagaraExecutionState::Complete;
+}
+
+ENiagaraExecutionState UNiagaraComponent::GetExecutionState() const
+{
+	return SystemInstanceController ? SystemInstanceController->GetActualExecutionState() : ENiagaraExecutionState::Complete;
+}
+
+bool UNiagaraComponent::IsComplete() const
+{
+	return SystemInstanceController ? SystemInstanceController->IsComplete() : true;
 }
 
 void UNiagaraComponent::DeactivateImmediateInternal(bool bIsScalabilityCull)
@@ -1850,6 +1886,11 @@ void UNiagaraComponent::DestroyCullProxy()
 		CullProxy->UnregisterCulledComponent(this);
 		CullProxy = nullptr;
 	}
+}
+
+FParticlePerfStatsContext UNiagaraComponent::GetPerfStatsContext()
+{
+	return FParticlePerfStatsContext(GetWorld(), Asset, this);
 }
 
 TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> UNiagaraComponent::GetSystemSimulation()
@@ -3526,6 +3567,11 @@ void UNiagaraComponent::SetAutoDestroy(bool bInAutoDestroy)
 	{
 		bAutoDestroy = bInAutoDestroy;
 	}
+}
+
+FNiagaraSystemInstance* UNiagaraComponent::GetSystemInstance() const
+{
+	return SystemInstanceController ? SystemInstanceController->GetSystemInstance_Unsafe() : nullptr;
 }
 
 void UNiagaraComponent::SetPreviewLODDistance(bool bInEnablePreviewLODDistance, float InPreviewLODDistance, float InPreviewMaxDistance)

@@ -4,14 +4,20 @@
 
 #include "Subsystems/LocalPlayerSubsystem.h"
 #include "CommonInputBaseTypes.h"
+#include "Containers/Ticker.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/SlateTypes.h"
+#endif
+
 #include "CommonInputSubsystem.generated.h"
 
 class UWidget;
 class ULocalPlayer;
 class APlayerController;
 class FCommonInputPreprocessor;
+class FSlateUser;
 class UCommonInputActionDomainTable;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FInputMethodChangedDelegate, ECommonInputType, bNewInputType);

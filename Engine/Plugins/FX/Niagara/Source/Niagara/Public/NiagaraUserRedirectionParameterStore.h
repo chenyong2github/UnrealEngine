@@ -2,8 +2,11 @@
 
 #pragma once
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "NiagaraCommon.h"
 #include "NiagaraDataInterface.h"
+#endif
+
 #include "NiagaraParameterStore.h"
 #include "NiagaraUserRedirectionParameterStore.generated.h"
 

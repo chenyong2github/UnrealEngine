@@ -28,6 +28,7 @@
 #include "WaterRuntimeSettings.h"
 #include "WaterUtils.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Engine/Texture2D.h"
 #include "GerstnerWaterWaves.h"
 #include "WaterMeshComponent.h"
 #include "WaterVersion.h"
@@ -70,6 +71,22 @@ TAutoConsoleVariable<float> CVarWaterOceanFallbackDepth(
 	3000.0f,
 	TEXT("Depth to report for the ocean when no terrain is found under the query location. Not used when <= 0."),
 	ECVF_Default);
+
+
+FWaterBodyMeshSection::FWaterBodyMeshSection()
+	: Vertices()
+	, Indices()
+	, SectionBounds()
+{
+}
+
+FWaterBodyMeshSection::~FWaterBodyMeshSection() = default;
+
+uint32 FWaterBodyMeshSection::GetAllocatedSize() const
+{
+	return Vertices.GetAllocatedSize() + Indices.GetAllocatedSize();
+}
+
 
 const FName UWaterBodyComponent::WaterBodyIndexParamName(TEXT("WaterBodyIndex"));
 const FName UWaterBodyComponent::WaterBodyZOffsetParamName(TEXT("WaterBodyZOffset"));

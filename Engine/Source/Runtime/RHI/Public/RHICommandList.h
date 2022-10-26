@@ -25,6 +25,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "RHI.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Trace/Trace.h"
@@ -1271,72 +1272,6 @@ FRHICOMMAND_MACRO(FRHICommandNextSubpass)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FLocalCmdListParallelRenderPass
-{
-	TRefCountPtr<struct FRHIParallelRenderPass> RenderPass;
-};
-
-FRHICOMMAND_MACRO(FRHICommandBeginParallelRenderPass)
-{
-	FRHIRenderPassInfo Info;
-	FLocalCmdListParallelRenderPass* LocalRenderPass;
-	const TCHAR* Name;
-
-	FRHICommandBeginParallelRenderPass(const FRHIRenderPassInfo& InInfo, FLocalCmdListParallelRenderPass* InLocalRenderPass, const TCHAR* InName)
-		: Info(InInfo)
-		, LocalRenderPass(InLocalRenderPass)
-		, Name(InName)
-	{
-	}
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-FRHICOMMAND_MACRO(FRHICommandEndParallelRenderPass)
-{
-	FLocalCmdListParallelRenderPass* LocalRenderPass;
-
-	FRHICommandEndParallelRenderPass(FLocalCmdListParallelRenderPass* InLocalRenderPass)
-		: LocalRenderPass(InLocalRenderPass)
-	{
-	}
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-struct FLocalCmdListRenderSubPass
-{
-	TRefCountPtr<struct FRHIRenderSubPass> RenderSubPass;
-};
-
-FRHICOMMAND_MACRO(FRHICommandBeginRenderSubPass)
-{
-	FLocalCmdListParallelRenderPass* LocalRenderPass;
-	FLocalCmdListRenderSubPass* LocalRenderSubPass;
-
-	FRHICommandBeginRenderSubPass(FLocalCmdListParallelRenderPass* InLocalRenderPass, FLocalCmdListRenderSubPass* InLocalRenderSubPass)
-		: LocalRenderPass(InLocalRenderPass)
-		, LocalRenderSubPass(InLocalRenderSubPass)
-	{
-	}
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-FRHICOMMAND_MACRO(FRHICommandEndRenderSubPass)
-{
-	FLocalCmdListParallelRenderPass* LocalRenderPass;
-	FLocalCmdListRenderSubPass* LocalRenderSubPass;
-
-	FRHICommandEndRenderSubPass(FLocalCmdListParallelRenderPass* InLocalRenderPass, FLocalCmdListRenderSubPass* InLocalRenderSubPass)
-		: LocalRenderPass(InLocalRenderPass)
-		, LocalRenderSubPass(InLocalRenderSubPass)
-	{
-	}
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
 struct FRHICommandSetComputeShaderString
 {
 	static const TCHAR* TStr() { return TEXT("FRHICommandSetComputeShader"); }
@@ -1722,67 +1657,6 @@ FRHICOMMAND_MACRO(FRHICommandWriteGPUFence)
 		if (Fence)
 		{
 			Fence->NumPendingWriteCommands.Increment();
-		}
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-FRHICOMMAND_MACRO(FRHICommandClearColorTexture)
-{
-	FRHITexture* Texture;
-	FLinearColor Color;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandClearColorTexture(
-		FRHITexture* InTexture,
-		const FLinearColor& InColor
-		)
-		: Texture(InTexture)
-		, Color(InColor)
-	{
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-FRHICOMMAND_MACRO(FRHICommandClearDepthStencilTexture)
-{
-	FRHITexture* Texture;
-	float Depth;
-	uint32 Stencil;
-	EClearDepthStencil ClearDepthStencil;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandClearDepthStencilTexture(
-		FRHITexture* InTexture,
-		EClearDepthStencil InClearDepthStencil,
-		float InDepth,
-		uint32 InStencil
-	)
-		: Texture(InTexture)
-		, Depth(InDepth)
-		, Stencil(InStencil)
-		, ClearDepthStencil(InClearDepthStencil)
-	{
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-FRHICOMMAND_MACRO(FRHICommandClearColorTextures)
-{
-	FLinearColor ColorArray[MaxSimultaneousRenderTargets];
-	FRHITexture* Textures[MaxSimultaneousRenderTargets];
-	int32 NumClearColors;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandClearColorTextures(
-		int32 InNumClearColors,
-		FRHITexture** InTextures,
-		const FLinearColor* InColorArray
-		)
-		: NumClearColors(InNumClearColors)
-	{
-		check(InNumClearColors <= MaxSimultaneousRenderTargets);
-		for (int32 Index = 0; Index < InNumClearColors; Index++)
-		{
-			ColorArray[Index] = InColorArray[Index];
-			Textures[Index] = InTextures[Index];
 		}
 	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);

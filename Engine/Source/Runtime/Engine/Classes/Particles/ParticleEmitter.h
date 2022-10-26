@@ -325,27 +325,7 @@ class UParticleEmitter : public UObject
 	*	@return NULL if the requested LODLevel is not valid.
 	*			The pointer to the requested UParticleLODLevel if valid.
 	*/
-	FORCEINLINE UParticleLODLevel* GetCurrentLODLevel(FParticleEmitterInstance* Instance)
-	{
-		if (!FPlatformProperties::HasEditorOnlyData())
-		{
-			return Instance->CurrentLODLevel;
-		}
-		else
-		{
-			// for the game (where we care about perf) we don't branch
-			if (Instance->GetWorld()->IsGameWorld() )
-			{
-				return Instance->CurrentLODLevel;
-			}
-			else
-			{
-				EditorUpdateCurrentLOD( Instance );
-				return Instance->CurrentLODLevel;
-			}
-		}
-	}
-
+	ENGINE_API UParticleLODLevel* GetCurrentLODLevel(FParticleEmitterInstance* Instance);
 
 	/**
 	 * This will update the LOD of the particle in the editor.

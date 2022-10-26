@@ -16,8 +16,11 @@
 #include "Misc/FrameRate.h"
 #include "Subsystems/SubsystemCollection.h"
 #include "Subsystems/EngineSubsystem.h"
+#include "RHIDefinitions.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RHI.h"
 #include "AudioDeviceManager.h"
+#endif
 #include "Templates/UniqueObj.h"
 #include "Containers/Ticker.h"
 #include "DynamicRenderScaling.h"
@@ -27,6 +30,7 @@
 
 class APlayerController;
 class Error;
+class FAudioDeviceManager;
 class FCanvas;
 class FCommonViewportClient;
 class FFineGrainedPerformanceTracker;

@@ -24,7 +24,7 @@
 
 namespace ESlateTransformComponent
 {
-	enum Type
+	enum Type : int
 	{
 		Location,
 		Rotation,

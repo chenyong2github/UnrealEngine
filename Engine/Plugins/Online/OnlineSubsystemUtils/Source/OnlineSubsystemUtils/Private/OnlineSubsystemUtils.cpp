@@ -16,6 +16,7 @@
 #include "OnlineSubsystemBPCallHelper.h"
 
 #include "VoiceModule.h"
+#include "VoipListenerSynthComponent.h"
 #include "AudioDevice.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundWaveProcedural.h"

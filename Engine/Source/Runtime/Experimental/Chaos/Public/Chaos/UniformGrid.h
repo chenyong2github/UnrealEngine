@@ -84,21 +84,24 @@ class CHAOS_API TUniformGridBase
 			}
 		}
 	}
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 	TUniformGridBase(std::istream& Stream)
 	    : MMinCorner(Stream), MMaxCorner(Stream), MCells(Stream)
 	{
 		MDx = TVector<T, d>(MMaxCorner - MMinCorner) / MCells;
 	}
-
+#endif
 	~TUniformGridBase() {}
 
   public:
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 	void Write(std::ostream& Stream) const
 	{
 		MMinCorner.Write(Stream);
 		MMaxCorner.Write(Stream);
 		MCells.Write(Stream);
 	}
+#endif
 	void Serialize(FArchive& Ar)
 	{
 		Ar << MMinCorner;
@@ -273,8 +276,10 @@ class CHAOS_API TUniformGrid : public TUniformGridBase<T, d>
 	TUniformGrid() {}
 	TUniformGrid(const TVector<T, d>& MinCorner, const TVector<T, d>& MaxCorner, const TVector<int32, d>& Cells, const uint32 GhostCells = 0)
 	    : TUniformGridBase<T, d>(MinCorner, MaxCorner, Cells, GhostCells) {}
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 	TUniformGrid(std::istream& Stream)
 	    : TUniformGridBase<T, d>(Stream) {}
+#endif
 	~TUniformGrid() {}
 	TVector<int32, d> GetIndex(const int32 Index) const;
 	TVector<T, d> Center(const int32 Index) const
@@ -322,8 +327,10 @@ public:
 		: TUniformGridBase<T, 3>(MinCorner, MaxCorner, Cells, GhostCells) {}
 	TMPMGrid(const int32 GridN) { for (int32 i = 0; i < 3; i++) { MDx[i] = (T)1. / (T)GridN; } }
 	TMPMGrid(const T GridDx) { for (int32 i = 0; i < 3; i++) { MDx[i] = GridDx; } }
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 	TMPMGrid(std::istream& Stream)
 		: TUniformGridBase<T, 3>(Stream) {}
+#endif
 	~TMPMGrid() {}
 
 	void BaseNodeIndex(const TVector<T, 3>& X, TVector<int32, 3>& Index, TVector<T, 3>& weights) const;
@@ -423,8 +430,10 @@ class TUniformGrid<T, 3> : public TUniformGridBase<T, 3>
 	TUniformGrid() {}
 	TUniformGrid(const TVector<T, 3>& MinCorner, const TVector<T, 3>& MaxCorner, const TVector<int32, 3>& Cells, const uint32 GhostCells = 0)
 	    : TUniformGridBase<T, 3>(MinCorner, MaxCorner, Cells, GhostCells) {}
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 	TUniformGrid(std::istream& Stream)
 	    : TUniformGridBase<T, 3>(Stream) {}
+#endif
 	~TUniformGrid() {}
 	TVector<int32, 3> GetIndex(const int32 Index) const;
 	Pair<int32, TVector<int32, 3>> GetFaceIndex(int32 Index) const;

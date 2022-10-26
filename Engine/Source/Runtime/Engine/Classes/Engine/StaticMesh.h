@@ -14,20 +14,26 @@
 #include "UObject/ScriptMacros.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "RenderCommandFence.h"
-#include "Components.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
 #include "Interfaces/Interface_AsyncCompilation.h"
+#include "MeshUVChannelInfo.h"
 #include "Engine/StreamableRenderAsset.h"
 #include "Templates/UniquePtr.h"
 #include "StaticMeshSourceData.h"
-#include "StaticMeshResources.h"
 #include "PerPlatformProperties.h"
-#include "RenderAssetUpdate.h"
 #include "MeshTypes.h"
 #include "PerQualityLevelProperties.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Components.h"
+#include "StaticMeshResources.h"
+#include "RenderAssetUpdate.h"
+#endif
+
 #include "StaticMesh.generated.h"
 
 class FSpeedTreeWind;
+class FStaticMeshLODGroup;
 class UAssetUserData;
 class UMaterialInterface;
 class UNavCollisionBase;
@@ -477,41 +483,14 @@ struct FStaticMaterial
 {
 	GENERATED_USTRUCT_BODY()
 
-		FStaticMaterial()
-		: MaterialInterface(NULL)
-		, MaterialSlotName(NAME_None)
-#if WITH_EDITORONLY_DATA
-		, ImportedMaterialSlotName(NAME_None)
-#endif //WITH_EDITORONLY_DATA
-	{
+	ENGINE_API FStaticMaterial();
 
-	}
-
-	FStaticMaterial(class UMaterialInterface* InMaterialInterface
+	ENGINE_API FStaticMaterial(class UMaterialInterface* InMaterialInterface
 		, FName InMaterialSlotName = NAME_None
 #if WITH_EDITORONLY_DATA
-		, FName InImportedMaterialSlotName = NAME_None)
-#else
-		)
+		, FName InImportedMaterialSlotName = NAME_None
 #endif
-		: MaterialInterface(InMaterialInterface)
-		, MaterialSlotName(InMaterialSlotName)
-#if WITH_EDITORONLY_DATA
-		, ImportedMaterialSlotName(InImportedMaterialSlotName)
-#endif //WITH_EDITORONLY_DATA
-	{
-		//If not specified add some valid material slot name
-		if (MaterialInterface && MaterialSlotName == NAME_None)
-		{
-			MaterialSlotName = MaterialInterface->GetFName();
-		}
-#if WITH_EDITORONLY_DATA
-		if (ImportedMaterialSlotName == NAME_None)
-		{
-			ImportedMaterialSlotName = MaterialSlotName;
-		}
-#endif
-	}
+		);
 
 	friend FArchive& operator<<(FArchive& Ar, FStaticMaterial& Elem);
 

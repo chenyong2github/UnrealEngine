@@ -10,7 +10,9 @@
 #include "GameplayTagContainer.h"
 #include "AttributeSet.h"
 #include "EngineDefines.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "GameplayEffectTypes.h"
+#endif
 #include "GameplayPrediction.h"
 #include "GameplayCueInterface.h"
 #include "GameplayTagAssetInterface.h"

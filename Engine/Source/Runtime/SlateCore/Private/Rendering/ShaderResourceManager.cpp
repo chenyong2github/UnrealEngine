@@ -4,6 +4,30 @@
 
 DECLARE_CYCLE_STAT(TEXT("GetResourceHandle Time"), STAT_SlateGetResourceHandle, STATGROUP_Slate);
 
+FSlateResourceHandle::FSlateResourceHandle()
+{
+}
+
+FSlateResourceHandle::~FSlateResourceHandle()
+{
+}
+
+bool FSlateResourceHandle::IsValid() const
+{
+	return Data.IsValid() && Data->Proxy;
+}
+
+const FSlateShaderResourceProxy* FSlateResourceHandle::GetResourceProxy() const
+{
+	return Data.IsValid() ? Data->Proxy : nullptr;
+}
+
+FSlateResourceHandle::FSlateResourceHandle(const TSharedPtr<FSlateSharedHandleData>& InData)
+	: Data(InData)
+{
+}
+
+
 FSlateResourceHandle FSlateShaderResourceManager::GetResourceHandle(const FSlateBrush& Brush, FVector2f LocalSize, float DrawScale)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SlateGetResourceHandle);

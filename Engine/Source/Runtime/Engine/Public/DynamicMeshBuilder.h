@@ -11,11 +11,15 @@
 #include "HitProxies.h"
 #include "RenderUtils.h"
 #include "LocalVertexFactory.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "SceneManagement.h"
+#endif
 
 class FMaterialRenderProxy;
+class FMeshBuilderOneFrameResources;
 class FMeshElementCollector;
 class FPrimitiveDrawInterface;
+struct FMeshBatch;
 
 /** The vertex type used for dynamic meshes. */
 struct FDynamicMeshVertex
@@ -99,21 +103,6 @@ struct FDynamicMeshVertex
 	FPackedNormal TangentX;
 	FPackedNormal TangentZ;
 	FColor Color;
-};
-
-class FMeshBuilderOneFrameResources : public FOneFrameResource
-{
-public:
-	class FPooledDynamicMeshVertexBuffer* VertexBuffer = nullptr;
-	class FPooledDynamicMeshIndexBuffer* IndexBuffer = nullptr;
-	class FPooledDynamicMeshVertexFactory* VertexFactory = nullptr;
-	class FDynamicMeshPrimitiveUniformBuffer* PrimitiveUniformBuffer = nullptr;
-	virtual ENGINE_API ~FMeshBuilderOneFrameResources();
-
-	inline bool IsValidForRendering() 
-	{
-		return VertexBuffer && IndexBuffer && PrimitiveUniformBuffer && VertexFactory;
-	}
 };
 
 struct FDynamicMeshDrawOffset

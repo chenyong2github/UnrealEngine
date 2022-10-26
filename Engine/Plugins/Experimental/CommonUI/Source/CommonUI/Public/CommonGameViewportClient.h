@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "InputCoreTypes.h"
+#include "InputKeyEventArgs.h"
+#include "Input/Reply.h"
 #include "Engine/GameViewportClient.h"
 #include "CommonGameViewportClient.generated.h"
 

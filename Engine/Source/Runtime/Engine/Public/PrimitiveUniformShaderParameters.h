@@ -14,7 +14,9 @@
 #include "UnifiedBuffer.h"
 #include "Containers/StaticArray.h"
 #include "NaniteDefinitions.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "UnrealEngine.h"
+#endif
 
 /** 
  * The uniform shader parameters associated with a primitive. 
@@ -322,23 +324,9 @@ public:
 		return *this;
 	}
 
-	inline FPrimitiveUniformShaderParametersBuilder& InstanceDrawDistance(FVector2f DistanceMinMax)
-	{
-		// Only scale the far distance by scalability parameters
-		DistanceMinMax.Y *= GetCachedScalabilityCVars().ViewDistanceScale;
-		Parameters.InstanceDrawDistanceMinMaxSquared = FMath::Square(DistanceMinMax);
-		bHasInstanceDrawDistanceCull = true;
-		return *this;
-	}
+	ENGINE_API FPrimitiveUniformShaderParametersBuilder& InstanceDrawDistance(FVector2f DistanceMinMax);
 
-	inline FPrimitiveUniformShaderParametersBuilder& InstanceWorldPositionOffsetDisableDistance(float WPODisableDistance)
-	{
-		WPODisableDistance *= GetCachedScalabilityCVars().ViewDistanceScale;
-		bHasWPODisableDistance = true;
-		Parameters.InstanceWPODisableDistanceSquared = WPODisableDistance * WPODisableDistance;
-
-		return *this;
-	}
+	ENGINE_API FPrimitiveUniformShaderParametersBuilder& InstanceWorldPositionOffsetDisableDistance(float WPODisableDistance);
 
 	inline const FPrimitiveUniformShaderParameters& Build()
 	{
@@ -540,7 +528,7 @@ struct FPrimitiveSceneShaderData
 	FPrimitiveSceneShaderData()
 		: Data(InPlace, NoInit)
 	{
-		static_assert(FPrimitiveSceneShaderData::DataStrideInFloat4s == FScatterUploadBuffer::PrimitiveDataStrideInFloat4s,"");
+		static_assert(FPrimitiveSceneShaderData::DataStrideInFloat4s == (int)FScatterUploadBuffer::PrimitiveDataStrideInFloat4s,"");
 		Setup(GetIdentityPrimitiveParameters());
 	}
 

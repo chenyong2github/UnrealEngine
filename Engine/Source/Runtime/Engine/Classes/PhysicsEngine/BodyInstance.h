@@ -8,7 +8,9 @@
 #include "Engine/EngineTypes.h"
 #include "CollisionQueryParams.h"
 #include "EngineDefines.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "PhysxUserData.h"
+#endif
 #include "Physics/PhysicsInterfaceCore.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 #include "PhysicsPublic.h"
@@ -24,6 +26,7 @@ struct FCollisionNotifyInfo;
 struct FCollisionShape;
 struct FConstraintInstance;
 struct FPropertyChangedEvent;
+struct FRigidBodyState;
 struct FShapeData;
 class UPrimitiveComponent;
 

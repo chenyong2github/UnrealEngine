@@ -31,6 +31,7 @@ class SCaptureRegionWidget;
 class SGameLayerManager;
 class UFoliageType;
 enum class EMapChangeType : uint8;
+enum ELabelAnchorMode : int;
 
 /**
  * Encapsulates an SViewport and an SLevelViewportToolBar

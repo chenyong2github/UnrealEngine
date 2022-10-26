@@ -20,9 +20,11 @@
 #include "NavigationOctreeController.h"
 #include "NavigationDirtyAreasController.h"
 #include "Math/MovingWindowAverageFast.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #if WITH_EDITOR
 #include "UnrealEdMisc.h"
 #endif // WITH_EDITOR
+#endif
 #include "NavigationSystem.generated.h"
 
 

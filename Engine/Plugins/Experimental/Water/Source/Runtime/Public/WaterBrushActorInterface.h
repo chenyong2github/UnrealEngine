@@ -5,13 +5,16 @@
 #include "CoreMinimal.h"
 #include "CoreGlobals.h"
 #include "UObject/Interface.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Engine/TextureRenderTarget2D.h"
+#endif
 #include "WaterBrushActorInterface.generated.h"
 
 struct FWaterCurveSettings;
 struct FWaterBodyHeightmapSettings;
 struct FWaterBodyWeightmapSettings;
 class UPrimitiveComponent;
+enum ETextureRenderTargetFormat : int;
 
 /** Dummy class needed to support Cast<IWaterBrushActorInterface>(Object). */
 UINTERFACE()

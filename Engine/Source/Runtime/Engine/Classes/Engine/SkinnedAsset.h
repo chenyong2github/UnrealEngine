@@ -12,18 +12,25 @@
 #include "Interfaces/Interface_AsyncCompilation.h"
 #include "ReferenceSkeleton.h"
 #include "PerPlatformProperties.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "SkeletalMeshTypes.h"
 #include "SkinnedAssetAsyncCompileUtils.h"
 #include "SkinnedAssetCommon.h"
+#endif
 #include "SkinnedAsset.generated.h"
 
 struct FSkeletalMaterial;
 struct FSkeletalMeshLODInfo;
+class FSkinnedAssetBuildContext;
+class FSkinnedAssetPostLoadContext;
+class FSkinnedAsyncTaskContext;
+class FVertexFactoryType;
 class ITargetPlatform;
 class UMeshDeformer;
 class UMorphTarget;
 class UPhysicsAsset;
 class USkeleton;
+struct FSkinnedAssetAsyncBuildTask;
 
 enum class ESkinnedAssetAsyncPropertyLockType
 {
@@ -46,11 +53,8 @@ class ENGINE_API USkinnedAsset : public UStreamableRenderAsset, public IInterfac
 	GENERATED_BODY()
 
 public:
-	USkinnedAsset(const FObjectInitializer& ObjectInitializer)
-		: Super(ObjectInitializer)
-	{}
-
-	virtual ~USkinnedAsset() {}
+	USkinnedAsset(const FObjectInitializer& ObjectInitializer);
+	virtual ~USkinnedAsset();
 
 	/** Return the reference skeleton. */
 	virtual struct FReferenceSkeleton& GetRefSkeleton()
@@ -65,12 +69,10 @@ public:
 	PURE_VIRTUAL(USkinnedAsset::GetLODInfo, return nullptr;);
 
 	/** Return if the material index is valid. */
-	virtual bool IsValidMaterialIndex(int32 Index) const
-	{ return GetMaterials().IsValidIndex(Index); }
+	virtual bool IsValidMaterialIndex(int32 Index) const;
 
 	/** Return the number of materials of this mesh. */
-	virtual int32 GetNumMaterials() const
-	{ return GetMaterials().Num(); }
+	virtual int32 GetNumMaterials() const;
 
 	/** Return the physics asset whose shapes will be used for shadowing. */
 	virtual UPhysicsAsset* GetShadowPhysicsAsset() const
@@ -110,9 +112,9 @@ public:
 
 	/** Return the whole array of LOD info. */
 	virtual TArray<FSkeletalMeshLODInfo>& GetLODInfoArray()
-	PURE_VIRTUAL(USkinnedAsset::GetLODInfoArray, static TArray<FSkeletalMeshLODInfo> Dummy; return Dummy;);
+	PURE_VIRTUAL(USkinnedAsset::GetLODInfoArray, return GetMeshLodInfoDummyArray(););
 	virtual const TArray<FSkeletalMeshLODInfo>& GetLODInfoArray() const
-	PURE_VIRTUAL(USkinnedAsset::GetLODInfoArray, static const TArray<FSkeletalMeshLODInfo> Dummy; return Dummy;);
+	PURE_VIRTUAL(USkinnedAsset::GetLODInfoArray, return GetMeshLodInfoDummyArray(););
 
 	/** Get the data to use for rendering. */
 	virtual class FSkeletalMeshRenderData* GetResourceForRendering() const
@@ -131,9 +133,9 @@ public:
 	PURE_VIRTUAL(USkinnedAsset::GetPhysicsAsset, return nullptr;);
 
 	virtual TArray<FSkeletalMaterial>& GetMaterials()
-	PURE_VIRTUAL(USkinnedAsset::GetMaterials, static TArray<FSkeletalMaterial> Dummy; return Dummy;);
+	PURE_VIRTUAL(USkinnedAsset::GetMaterials, return GetSkeletalMaterialDummyArray(););
 	virtual const TArray<FSkeletalMaterial>& GetMaterials() const
-	PURE_VIRTUAL(USkinnedAsset::GetMaterials, static const TArray<FSkeletalMaterial> Dummy; return Dummy;);
+	PURE_VIRTUAL(USkinnedAsset::GetMaterials, return GetSkeletalMaterialDummyArray(););
 
 	virtual int32 GetLODNum() const
 	PURE_VIRTUAL(USkinnedAsset::GetLODNum, return 0;);
@@ -213,8 +215,7 @@ public:
 	virtual void SetSkinWeightProfilesData(int32 LODIndex, struct FSkinWeightProfilesData& SkinWeightProfilesData) {}
 
 	/** Computes flags for building vertex buffers. */
-	virtual ESkeletalMeshVertexFlags GetVertexBufferFlags() const
-	{ return GetHasVertexColors() ? ESkeletalMeshVertexFlags::HasVertexColors : ESkeletalMeshVertexFlags::None; }
+	virtual ESkeletalMeshVertexFlags GetVertexBufferFlags() const;
 
 	/**
 	 * Take the BoneSpaceTransforms array (translation vector, rotation quaternion and scale vector) and update the array of component-space bone transformation matrices (ComponentSpaceTransforms).
@@ -329,5 +330,8 @@ private:
 
 	friend class FSkinnedAssetCompilingManager;
 	friend class FSkinnedAssetAsyncBuildWorker;
+
+	static TArray<FSkeletalMeshLODInfo>& GetMeshLodInfoDummyArray();
+	static TArray<FSkeletalMaterial>& GetSkeletalMaterialDummyArray();
 };
 

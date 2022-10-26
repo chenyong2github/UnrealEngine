@@ -11,11 +11,14 @@
 #include "UObject/Object.h"
 #include "HAL/ThreadSafeBool.h"
 #include "Misc/Guid.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "UniformBuffer.h"
+#endif
 #include "Templates/UniquePtr.h"
 #include "RenderCommandFence.h"
 #include "MaterialParameterCollection.generated.h"
 
+class FShaderParametersMetadata;
 struct FPropertyChangedEvent;
 
 /** Base struct for collection parameters */

@@ -25,7 +25,9 @@
 #include "Engine/StaticMesh.h"
 #include "ComponentReregisterContext.h"
 #include "EngineUtils.h"
+#include "StaticMeshComponentLODInfo.h"
 #include "StaticMeshResources.h"
+#include "StaticMeshSceneProxy.h"
 #include "Rendering/NaniteResources.h"
 #include "SpeedTreeWind.h"
 #include "PhysicalMaterials/PhysicalMaterialMask.h"
@@ -1384,6 +1386,11 @@ bool FStaticMeshSceneProxy::IsCollisionView(const FEngineShowFlags& EngineShowFl
 	}
 #endif
 	return bInCollisionView;
+}
+
+uint8 FStaticMeshSceneProxy::GetCurrentFirstLODIdx_Internal() const
+{
+	return RenderData->CurrentFirstLODIdx;
 }
 
 void FStaticMeshSceneProxy::GetMeshDescription(int32 LODIndex, TArray<FMeshBatch>& OutMeshElements) const

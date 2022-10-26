@@ -7,9 +7,14 @@
 #include "UObject/ObjectMacros.h"
 #include "Engine/TextureStreamingTypes.h"
 #include "Components/PrimitiveComponent.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Materials/MaterialInterface.h"
+#endif
 #include "Containers/SortedMap.h"
 #include "MeshComponent.generated.h"
+
+class UMaterialInterface;
+struct FMaterialRelevance;
 
 /**
  * MeshComponent is an abstract base for any component that is an instance of a renderable collection of triangles.

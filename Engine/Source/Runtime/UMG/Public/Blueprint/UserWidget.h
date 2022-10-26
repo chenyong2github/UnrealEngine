@@ -24,7 +24,9 @@
 #include "EngineStats.h"
 #include "SlateGlobals.h"
 #include "Animation/WidgetAnimationEvents.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
+#endif
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 	#include "Animation/WidgetAnimation.h"
@@ -39,6 +41,7 @@ class UTexture2D;
 class UUMGSequencePlayer;
 class UUMGSequenceTickManager;
 class UWidgetAnimation;
+class UWidgetBlueprintGeneratedClass;
 class UWidgetTree;
 class UNamedSlot;
 class UUserWidgetExtension;

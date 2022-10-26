@@ -139,6 +139,18 @@ const FString FSlateBrush::UTextureIdentifier()
 	return FString(TEXT("texture:/"));
 }
 
+const FSlateResourceHandle& FSlateBrush::GetRenderingResource() const
+{
+	if (ImageType == ESlateBrushImageType::Vector)
+	{
+		UE_LOG(LogSlate, Warning, TEXT("FSlateBrush::GetRenderingResource should be called with a size and scale for vector brushes"));
+	}
+	
+	UpdateRenderingResource(GetImageSize(), 1.0f);
+
+	return ResourceHandle;
+}
+
 void FSlateBrush::UpdateRenderingResource(FVector2D LocalSize, float DrawScale) const
 {
 	if (DrawAs != ESlateBrushDrawType::NoDrawType && (ResourceName != NAME_None || ResourceObject != nullptr))

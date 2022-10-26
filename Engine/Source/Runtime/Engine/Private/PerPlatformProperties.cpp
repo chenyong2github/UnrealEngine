@@ -2,6 +2,7 @@
 
 #include "PerPlatformProperties.h"
 #include "Serialization/Archive.h"
+#include "Engine/Engine.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PerPlatformProperties)
 
@@ -111,3 +112,9 @@ FString FFreezablePerPlatformInt::ToString() const
 	return FPerPlatformInt(*this).ToString();
 }
 
+#if WITH_EDITORONLY_DATA && WITH_EDITOR
+bool GEngine_GetPreviewPlatformName(FName& PlatformName)
+{
+	return GEngine && GEngine->GetPreviewPlatformName(PlatformName);
+}
+#endif

@@ -11,7 +11,9 @@
 #include "Engine/OverlapInfo.h"
 #include "Engine/ScopedMovementUpdate.h"
 #endif
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Engine/HitResult.h"
+#endif
 #include "ComponentInstanceDataCache.h"
 #include "Components/ActorComponent.h"
 #include "RHIDefinitions.h"
@@ -21,6 +23,7 @@ class AActor;
 class APhysicsVolume;
 class USceneComponent;
 class FScopedMovementUpdate;
+struct FHitResult;
 struct FLevelCollection;
 
 struct FOverlapInfo;

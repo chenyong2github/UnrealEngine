@@ -12,11 +12,14 @@
 #include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
 #include "HitProxies.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "UObject/UObjectHash.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
 #include "GameFramework/WorldSettings.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RendererInterface.h"
+#endif
 
 class FCanvas;
 class FViewport;

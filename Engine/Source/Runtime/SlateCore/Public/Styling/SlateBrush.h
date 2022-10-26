@@ -6,7 +6,10 @@
 #include "UObject/ObjectMacros.h"
 #include "Styling/SlateColor.h"
 #include "Layout/Margin.h"
+#include "Rendering/SlateResourceHandle.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Textures/SlateShaderResource.h"
+#endif
 #include "Types/SlateBox2.h"
 #include "Types/SlateVector2.h"
 #include "SlateBrush.generated.h"
@@ -441,17 +444,7 @@ public:
 		return ResourceHandle;
 	}
 
-	const FSlateResourceHandle& GetRenderingResource() const
-	{
-		if (ImageType == ESlateBrushImageType::Vector)
-		{
-			UE_LOG(LogSlate, Warning, TEXT("FSlateBrush::GetRenderingResource should be called with a size and scale for vector brushes"));
-		}
-	
-		UpdateRenderingResource(GetImageSize(), 1.0f);
-
-		return ResourceHandle;
-	}
+	const FSlateResourceHandle& GetRenderingResource() const;
 
 	bool IsSet() const { return bIsSet; }
 

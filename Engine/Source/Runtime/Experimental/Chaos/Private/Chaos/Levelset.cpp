@@ -156,6 +156,7 @@ FLevelSet::FLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<FReal, 3>
 	ComputeConvexity(InterfaceIndices);
 }
 
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 FLevelSet::FLevelSet(std::istream& Stream)
     : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet)
     , MGrid(Stream)
@@ -165,7 +166,7 @@ FLevelSet::FLevelSet(std::istream& Stream)
 	Stream.read(reinterpret_cast<char*>(&MBandWidth), sizeof(MBandWidth));
 	ComputeNormals();
 }
-
+#endif
 FLevelSet::FLevelSet(TUniformGrid<FReal, 3>&& Grid, TArrayND<FReal, 3>&& Phi, int32 BandWidth)
 	: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet)
 	, MGrid(MoveTemp(Grid))
@@ -1398,12 +1399,14 @@ void FLevelSet::ComputeNormals(const FParticles& InParticles, const FTriangleMes
 	}
 }
 
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 void FLevelSet::Write(std::ostream& Stream) const
 {
 	MGrid.Write(Stream);
 	MPhi.Write(Stream);
 	Stream.write(reinterpret_cast<const char*>(&MBandWidth), sizeof(MBandWidth));
 }
+#endif
 
 FReal FLevelSet::SignedDistance(const FVec3& x) const
 {

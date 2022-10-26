@@ -12,6 +12,7 @@
 #include "EngineUtils.h"
 #include "Engine/CoreSettings.h"
 #include "Net/UnrealNetwork.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 #include "WorldPartition/WorldPartition.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldDataLayers)

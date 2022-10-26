@@ -14,7 +14,7 @@ class UGameViewportClient;
 
 struct FInputEvent;
 enum class ECommonInputType : uint8;
-enum EOrientation;
+enum EOrientation : int;
 
 /**
  * Analog cursor preprocessor that tastefully hijacks things a bit to support controller navigation by moving a hidden cursor around based on focus.

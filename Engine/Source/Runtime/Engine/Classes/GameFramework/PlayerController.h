@@ -6,13 +6,13 @@
 #include "SlateFwd.h"
 #include "UObject/ObjectMacros.h"
 #include "Containers/SortedMap.h"
+#include "Containers/StaticArray.h"
 #include "Misc/Guid.h"
 #include "InputCoreTypes.h"
 #include "Templates/SubclassOf.h"
 #include "Engine/NetSerialization.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/EngineBaseTypes.h"
-#include "Widgets/SWidget.h"
 #include "Engine/LatentActionManager.h"
 #include "SceneTypes.h"
 #include "GameFramework/Controller.h"
@@ -20,13 +20,19 @@
 #include "GameFramework/OnlineReplStructs.h"
 #include "GameFramework/PlayerMuteList.h"
 #include "Camera/PlayerCameraManager.h"
-#include "Components/InputComponent.h"
 #include "GameFramework/ForceFeedbackEffect.h"
 #include "GameFramework/UpdateLevelVisibilityLevelInfo.h"
+#include "GenericPlatform/ICursor.h"
 #include "GenericPlatform/IInputInterface.h"
-#include "GameFramework/PlayerInput.h"
 #include "Physics/AsyncPhysicsData.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Widgets/SWidget.h"
+#include "Components/InputComponent.h"
+#include "GameFramework/PlayerInput.h"
+#endif
+
 #include "PlayerController.generated.h"
 
 class ACameraActor;
@@ -35,15 +41,21 @@ class APawn;
 class APlayerCameraManager;
 class ASpectatorPawn;
 class FDebugDisplayInfo;
+class SWidget;
 class UActorChannel;
 class UCheatManager;
 class UGameViewportClient;
+class UInputComponent;
 class ULocalMessage;
 class UNetConnection;
 class UPlayer;
+class UPlayerInput;
 class UPrimitiveComponent;
+namespace EControllerAnalogStick { enum Type : int; }
 struct FActiveHapticFeedbackEffect;
 struct FCollisionQueryParams;
+struct FInputKeyParams;
+struct FPlatformUserId;
 class UAsyncPhysicsInputComponent;
 
 /** Default delegate that provides an implementation for those that don't have special needs other than a toggle */

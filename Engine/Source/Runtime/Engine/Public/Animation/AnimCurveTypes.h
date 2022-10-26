@@ -11,6 +11,18 @@
 #include "Misc/EnumRange.h"
 #include "AnimCurveTypes.generated.h"
 
+UENUM()
+enum class EAnimCurveType : uint8 
+{
+	AttributeCurve,
+	MaterialCurve, 
+	MorphTargetCurve, 
+	// make sure to update MaxCurve 
+	MaxAnimCurveType UMETA(Hidden)
+};
+
+ENUM_RANGE_BY_COUNT(EAnimCurveType, EAnimCurveType::MaxAnimCurveType);
+
 /** This is curve flags that are saved in asset and **/
 UENUM(BlueprintType, meta=(Bitflags))
 enum EAnimAssetCurveFlags

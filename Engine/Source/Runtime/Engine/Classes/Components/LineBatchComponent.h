@@ -6,8 +6,11 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Components/PrimitiveComponent.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "PrimitiveSceneProxy.h"
 #include "DynamicMeshBuilder.h"
+#endif
+
 #include "LineBatchComponent.generated.h"
 
 class FPrimitiveSceneProxy;
@@ -178,32 +181,4 @@ class ULineBatchComponent : public UPrimitiveComponent
 
 	/** Clear all batched lines, points and meshes */
 	ENGINE_API void Flush();
-};
-
-
-
-
-/** Represents a LineBatchComponent to the scene manager. */
-class ENGINE_API FLineBatcherSceneProxy : public FPrimitiveSceneProxy
-{
-public:
-	SIZE_T GetTypeHash() const override;
-
-	FLineBatcherSceneProxy(const ULineBatchComponent* InComponent);
-
-	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
-
-	/**
-	*  Returns a struct that describes to the renderer when to draw this proxy.
-	*	@param		Scene view to use to determine our relevence.
-	*  @return		View relevance struct
-	*/
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
-	virtual uint32 GetMemoryFootprint( void ) const override;
-	uint32 GetAllocatedSize( void ) const;
-
-private:
-	TArray<FBatchedLine> Lines;
-	TArray<FBatchedPoint> Points;
-	TArray<FBatchedMesh> Meshes;
 };

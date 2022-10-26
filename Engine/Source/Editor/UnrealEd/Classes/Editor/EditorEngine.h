@@ -19,8 +19,10 @@
 #include "Engine/Brush.h"
 #include "Model.h"
 #include "Engine/Engine.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Settings/LevelEditorPlaySettings.h"
 #include "Settings/LevelEditorViewportSettings.h"
+#endif
 #include "Misc/CompilationResult.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
@@ -39,6 +41,7 @@ class APlayerStart;
 class Error;
 class FEditorViewportClient;
 class FEditorWorldManager;
+class FLevelEditorViewportClient;
 class FMessageLog;
 class FOutputLogErrorsToMessageLogProxy;
 class FPoly;
@@ -58,6 +61,7 @@ class UBrushBuilder;
 class UFoliageType;
 class UFbxImportUI;
 class UGameViewportClient;
+class ULevelEditorPlaySettings;
 class ULocalPlayer;
 class UNetDriver;
 class UPrimitiveComponent;
@@ -67,6 +71,7 @@ class USoundNode;
 class UTextureRenderTarget2D;
 class UTransactor;
 class FTransactionObjectEvent;
+enum ERotationGridMode : int;
 struct FEdge;
 struct FTransactionContext;
 struct FEditorTransactionDeltaContext;

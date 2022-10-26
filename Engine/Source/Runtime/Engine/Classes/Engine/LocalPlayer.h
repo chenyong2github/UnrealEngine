@@ -11,7 +11,9 @@
 #include "Templates/SubclassOf.h"
 #include "Engine/EngineTypes.h"
 #include "Input/Reply.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Engine/GameViewportClient.h"
+#endif
 #include "Online/CoreOnline.h"
 #include "SceneTypes.h"
 #include "Engine/Player.h"
@@ -28,7 +30,9 @@
 class AActor;
 class FSceneView;
 class FSlateUser;
+class FViewport;
 class UGameInstance;
+class UGameViewportClient;
 class ULocalPlayer;
 struct FMinimalViewInfo;
 struct FSceneViewProjectionData;

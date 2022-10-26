@@ -7,13 +7,16 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/ScriptMacros.h"
 #include "Engine/Texture.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "TextureResource.h"
+#endif
 #include "Misc/FieldAccessor.h"
 #include "Serialization/BulkData.h"
 #include "Texture2D.generated.h"
 
 class FTexture2DResourceMem;
 class FTexture2DResource;
+struct FUpdateTextureRegion2D;
 
 UCLASS(hidecategories=Object, MinimalAPI, BlueprintType)
 class UTexture2D : public UTexture

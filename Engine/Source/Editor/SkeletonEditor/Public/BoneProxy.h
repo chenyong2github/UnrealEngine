@@ -7,11 +7,17 @@
 #include "TickableEditorObject.h"
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "SAdvancedTransformInputBox.h"
+#endif
 #include "BoneProxy.generated.h"
 
-
 class UDebugSkelMeshComponent;
+enum class ETransformType : uint8;
+namespace ESlateTransformComponent { enum Type : int; }
+namespace ESlateRotationRepresentation { enum Type : int; }
+namespace ESlateTransformSubComponent { enum Type : int; }
+namespace ETextCommit { enum Type : int; }
 
 /** Proxy object used to display/edit bone transforms */
 UCLASS()

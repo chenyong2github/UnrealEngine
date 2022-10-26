@@ -33,7 +33,9 @@ class CHAOS_API FLevelSet final : public FImplicitObject
 
 	FLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<FReal, 3>& InGrid, const FParticles& InParticles, const FTriangleMesh& Mesh, const int32 BandWidth = 0);
 	FLevelSet(FErrorReporter& ErrorReporter, const TUniformGrid<FReal, 3>& InGrid, const FImplicitObject& InObject, const int32 BandWidth = 0, const bool bUseObjectPhi = false);
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 	FLevelSet(std::istream& Stream);
+#endif
 	FLevelSet(TUniformGrid<FReal, 3>&& Grid, TArrayND<FReal, 3>&& Phi, int32 BandWidth);
 	FLevelSet(const FLevelSet& Other) = delete;
 	FLevelSet(FLevelSet&& Other);
@@ -44,7 +46,9 @@ class CHAOS_API FLevelSet final : public FImplicitObject
 	virtual TUniquePtr<FImplicitObject> DeepCopy() const;
 	virtual TUniquePtr<FImplicitObject> DeepCopyWithScale(const FVec3& Scale) const;
 
+#if COMPILE_WITHOUT_UNREAL_SUPPORT
 	void Write(std::ostream& Stream) const;
+#endif
 	virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const override;
 	FReal SignedDistance(const FVec3& x) const;
 

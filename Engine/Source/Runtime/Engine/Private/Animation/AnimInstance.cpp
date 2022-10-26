@@ -14,6 +14,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "DisplayDebugHelpers.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
@@ -1269,6 +1270,11 @@ void UAnimInstance::RecalcRequiredBones()
 void UAnimInstance::RecalcRequiredCurves(const FCurveEvaluationOption& CurveEvalOption)
 {
 	GetProxyOnGameThread<FAnimInstanceProxy>().RecalcRequiredCurves(CurveEvalOption);
+}
+
+USkeletalMeshComponent* UAnimInstance::GetSkelMeshComponent() const
+{
+	return CastChecked<USkeletalMeshComponent>(GetOuter());
 }
 
 void UAnimInstance::Serialize(FArchive& Ar)
@@ -3831,6 +3837,18 @@ bool UAnimInstance::ShouldTriggerAnimNotifyState(const UAnimNotifyState* AnimNot
 		return true;
 	}
 	return false;
+}
+
+bool UAnimInstance::IsSkeletalMeshComponent(const UObject* Object)
+{
+	return Object && Object->IsA<USkeletalMeshComponent>();
+}
+
+void UAnimInstance::HandleExistingParallelEvaluationTask(USkeletalMeshComponent* Component)
+{
+	bool bBlockOnTask = true;
+	bool bPerformPostAnimEvaluation = true;
+	Component->HandleExistingParallelEvaluationTask(bBlockOnTask, bPerformPostAnimEvaluation);
 }
 
 void UAnimInstance::RecordMachineWeight(const int32 InMachineClassIndex, const float InMachineWeight)

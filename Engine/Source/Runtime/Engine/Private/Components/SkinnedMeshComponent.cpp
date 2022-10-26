@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Components/SkinnedMeshComponent.h"
+#include "Components/ExternalMorphSet.h"
 #include "Misc/App.h"
 #include "RenderingThread.h"
 #include "GameFramework/PlayerController.h"
@@ -18,11 +19,13 @@
 #include "Animation/AnimStats.h"
 #include "SkeletalMeshDeformerHelpers.h"
 #include "Engine/SkeletalMeshSocket.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "EngineGlobals.h"
 #include "PrimitiveSceneProxy.h"
 #include "Engine/CollisionProfile.h"
 #include "Rendering/SkinWeightVertexBuffer.h"
+#include "SkeletalMeshSceneProxy.h"
 #include "SkeletalMeshTypes.h"
 #include "Animation/MeshDeformer.h"
 #include "Animation/MeshDeformerInstance.h"
@@ -33,6 +36,7 @@
 #include "GPUSkinCache.h"
 #include "PipelineStateCache.h"
 #include "SkeletalRender.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkinnedMeshComp, Log, All);
 
@@ -440,6 +444,8 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+USkinnedMeshComponent::USkinnedMeshComponent(FVTableHelper& Helper) : Super(Helper) {}
+USkinnedMeshComponent::~USkinnedMeshComponent() = default;
 
 void USkinnedMeshComponent::UpdateMorphMaterialUsageOnProxy()
 {
@@ -662,6 +668,16 @@ void USkinnedMeshComponent::BeginPlay()
 	// Recreate the deformer instance to collect any changes for component bindings during startup.
 	UMeshDeformer* ActiveMeshDeformer = GetActiveMeshDeformer();
 	MeshDeformerInstance = ActiveMeshDeformer != nullptr ? ActiveMeshDeformer->CreateInstance(this, MeshDeformerInstanceSettings) : nullptr;
+}
+
+const FExternalMorphWeightData& USkinnedMeshComponent::GetExternalMorphWeights(int32 LOD) const
+{
+	return ExternalMorphWeightData[LOD];
+}
+
+FExternalMorphWeightData& USkinnedMeshComponent::GetExternalMorphWeights(int32 LOD)
+{
+	return ExternalMorphWeightData[LOD];
 }
 
 void USkinnedMeshComponent::AddExternalMorphSet(int32 LOD, int32 ID, TSharedPtr<FExternalMorphSet> MorphSet)
@@ -1962,6 +1978,11 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* NewMesh, bool bReinit
 USkeletalMesh* USkinnedMeshComponent::GetSkeletalMesh_DEPRECATED() const
 {
 	return Cast<class USkeletalMesh>(GetSkinnedAsset());
+}
+
+void USkinnedMeshComponent::SetSkeletalMesh_DEPRECATED(USkeletalMesh* NewMesh)
+{
+	SetSkinnedAssetAndUpdate(Cast<USkinnedAsset>(NewMesh));
 }
 
 void USkinnedMeshComponent::SetSkinnedAssetAndUpdate(USkinnedAsset* InSkinnedAsset, bool /*bReinitPose*/)

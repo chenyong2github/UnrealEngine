@@ -2809,6 +2809,33 @@ TArray<const FSceneView*> FSceneView::GetSecondaryViews() const
 	return Views;
 }
 
+FSceneViewFamily::ConstructionValues::ConstructionValues(
+	const FRenderTarget* InRenderTarget,
+	FSceneInterface* InScene,
+	const FEngineShowFlags& InEngineShowFlags
+	)
+:	RenderTarget(InRenderTarget)
+,	Scene(InScene)
+,	EngineShowFlags(InEngineShowFlags)
+,	ViewModeParam(-1)
+,	GammaCorrection(1.0f)
+,	bAdditionalViewFamily(false)
+,	bRealtimeUpdate(false)
+,	bDeferClear(false)
+,	bResolveScene(true)			
+,	bTimesSet(false)
+{
+	if( InScene != NULL )			
+	{
+		UWorld* World = InScene->GetWorld();
+		// Ensure the world is valid and that we are being called from a game thread (GetRealTimeSeconds requires this)
+		if( World && IsInGameThread() )
+		{	
+			SetTime(World->GetTime());
+		}
+	}
+}
+
 FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 	:
 	ViewMode(VMI_Lit),

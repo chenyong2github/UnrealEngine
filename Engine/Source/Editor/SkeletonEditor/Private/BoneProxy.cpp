@@ -4,6 +4,7 @@
 #include "IPersonaPreviewScene.h"
 #include "BoneControllers/AnimNode_ModifyBone.h"
 #include "AnimPreviewInstance.h"
+#include "SAdvancedTransformInputBox.h"
 #include "ScopedTransaction.h"
 #include "Animation/DebugSkelMeshComponent.h"
 

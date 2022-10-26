@@ -6,12 +6,15 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Animation/AnimTypes.h"
+#include "Animation/AttributesRuntime.h"
 #include "Animation/Skeleton.h"
 #include "Animation/AnimationAsset.h"
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimMontage.h"
 #include "BonePose.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Components/SkeletalMeshComponent.h"
+#endif
 #include "Animation/AnimNotifyQueue.h"
 #include "Animation/AnimSubsystemInstance.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
@@ -25,7 +28,9 @@ class FDebugDisplayInfo;
 class IAnimClassInterface;
 class UAnimInstance;
 class UCanvas;
+class USkeletalMeshComponent;
 struct FAnimInstanceProxy;
+struct FAnimationEvaluationContext;
 struct FAnimNode_AssetPlayerBase;
 struct FAnimNode_AssetPlayerRelevancyBase;
 struct FAnimNode_StateMachine;
@@ -1454,7 +1459,7 @@ public:
 	void RecalcRequiredCurves(const FCurveEvaluationOption& CurveEvalOption);
 
 	// @todo document
-	inline USkeletalMeshComponent* GetSkelMeshComponent() const { return CastChecked<USkeletalMeshComponent>(GetOuter()); }
+	USkeletalMeshComponent* GetSkelMeshComponent() const;
 
 	virtual UWorld* GetWorld() const override;
 
@@ -1568,11 +1573,9 @@ protected:
 		{
 			check(IsInGameThread());
 			UObject* OuterObj = InAnimInstance->GetOuter();
-			if (OuterObj && OuterObj->IsA<USkeletalMeshComponent>())
+			if (IsSkeletalMeshComponent(OuterObj))
 			{
-				bool bBlockOnTask = true;
-				bool bPerformPostAnimEvaluation = true;
-				InAnimInstance->GetSkelMeshComponent()->HandleExistingParallelEvaluationTask(bBlockOnTask, bPerformPostAnimEvaluation);
+				HandleExistingParallelEvaluationTask(InAnimInstance->GetSkelMeshComponent());
 			}
 			if (InAnimInstance->AnimInstanceProxy == nullptr)
 			{
@@ -1595,11 +1598,9 @@ protected:
 	FORCEINLINE const T& GetProxyOnGameThread() const
 	{
 		check(IsInGameThread());
-		if(GetOuter() && GetOuter()->IsA<USkeletalMeshComponent>())
+		if(IsSkeletalMeshComponent(GetOuter()))
 		{
-			bool bBlockOnTask = true;
-			bool bPerformPostAnimEvaluation = true;
-			GetSkelMeshComponent()->HandleExistingParallelEvaluationTask(bBlockOnTask, bPerformPostAnimEvaluation);
+			HandleExistingParallelEvaluationTask(GetSkelMeshComponent());
 		}
 		if(AnimInstanceProxy == nullptr)
 		{
@@ -1612,13 +1613,11 @@ protected:
 	template <typename T/* = FAnimInstanceProxy*/>	// @TODO: Cant default parameters to this function on Xbox One until we move off the VS2012 compiler
 	FORCEINLINE T& GetProxyOnAnyThread()
 	{
-		if(GetOuter() && GetOuter()->IsA<USkeletalMeshComponent>())
+		if(IsSkeletalMeshComponent(GetOuter()))
 		{
 			if(IsInGameThread())
 			{
-				bool bBlockOnTask = true;
-				bool bPerformPostAnimEvaluation = true;
-				GetSkelMeshComponent()->HandleExistingParallelEvaluationTask(bBlockOnTask, bPerformPostAnimEvaluation);
+				HandleExistingParallelEvaluationTask(GetSkelMeshComponent());
 			}
 		}
 		if(AnimInstanceProxy == nullptr)
@@ -1632,13 +1631,11 @@ protected:
 	template <typename T/* = FAnimInstanceProxy*/>	// @TODO: Cant default parameters to this function on Xbox One until we move off the VS2012 compiler
 	FORCEINLINE const T& GetProxyOnAnyThread() const
 	{
-		if(GetOuter() && GetOuter()->IsA<USkeletalMeshComponent>())
+		if(IsSkeletalMeshComponent(GetOuter()))
 		{
 			if(IsInGameThread())
 			{
-				bool bBlockOnTask = true;
-				bool bPerformPostAnimEvaluation = true;
-				GetSkelMeshComponent()->HandleExistingParallelEvaluationTask(bBlockOnTask, bPerformPostAnimEvaluation);
+				HandleExistingParallelEvaluationTask(GetSkelMeshComponent());
 			}
 		}
 		if(AnimInstanceProxy == nullptr)
@@ -1657,6 +1654,9 @@ public:
 	virtual bool ShouldTriggerAnimNotifyState(const UAnimNotifyState* AnimNotifyState) const;
 
 protected:
+	static bool IsSkeletalMeshComponent(const UObject* Object);
+	static void HandleExistingParallelEvaluationTask(USkeletalMeshComponent* Component);
+
 	/** Proxy object, nothing should access this from an externally-callable API as it is used as a scratch area on worker threads */
 	mutable FAnimInstanceProxy* AnimInstanceProxy;
 

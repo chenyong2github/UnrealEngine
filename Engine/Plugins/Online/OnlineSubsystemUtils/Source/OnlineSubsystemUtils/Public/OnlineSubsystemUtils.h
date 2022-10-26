@@ -10,11 +10,17 @@
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "Online.h"
 #include "EngineGlobals.h"
-#include "VoipListenerSynthComponent.h"
 #include "Features/IModularFeatures.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "VoipListenerSynthComponent.h"
+#endif
+
 
 class UWorld;
 class UAudioComponent;
+class UVoipListenerSynthComponent;
+struct FVoiceSettings;
 
 #ifdef ONLINESUBSYSTEMUTILS_API
 

@@ -17,11 +17,14 @@
 #include "RHI.h"
 #include "RenderResource.h"
 #include "EngineDefines.h"
+#include "GameFramework/Actor.h"
 #include "HitProxies.h"
 #include "SceneTypes.h"
 #include "ConvexVolume.h"
 #include "RendererInterface.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Engine/TextureLightProfile.h"
+#endif
 #include "BatchedElements.h"
 #include "MeshBatch.h"
 #include "SceneUtils.h"
@@ -39,6 +42,7 @@ class FPrimitiveSceneProxy;
 class FSceneViewState;
 class FShadowMap;
 class FStaticMeshRenderData;
+class FTexture;
 class UDecalComponent;
 class ULightComponent;
 class ULightMapTexture2D;
@@ -48,6 +52,7 @@ class UShadowMapTexture2D;
 class USkyAtmosphereComponent;
 class FSkyAtmosphereRenderSceneInfo;
 class USkyLightComponent;
+class UTextureLightProfile;
 struct FDynamicMeshVertex;
 class ULightMapVirtualTexture2D;
 class FGPUScenePrimitiveCollector;
@@ -1559,7 +1564,7 @@ public:
 	inline float GetLightFunctionFadeDistance() const { return LightFunctionFadeDistance; }
 	inline float GetLightFunctionDisabledBrightness() const { return LightFunctionDisabledBrightness; }
 	inline UTextureLightProfile* GetIESTexture() const { return IESTexture; }
-	inline FTexture* GetIESTextureResource() const { return IESTexture ? IESTexture->GetResource() : nullptr; }
+	FTexture* GetIESTextureResource() const;
 	inline const FMaterialRenderProxy* GetLightFunctionMaterial() const { return LightFunctionMaterial; }
 	inline bool IsMovable() const { return bMovable; }
 	inline bool HasStaticLighting() const { return bStaticLighting; }

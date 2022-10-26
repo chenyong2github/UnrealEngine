@@ -4,13 +4,21 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineBaseTypes.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Engine/TextureRenderTarget2D.h"
+#endif
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Particles/ParticlePerfStats.h"
+#include "RHIDefinitions.h"
 #include "UObject/ObjectKey.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakFieldPtr.h"
 
+#include "NiagaraCompileHashVisitor.h"
+#include "NiagaraComponentPoolMethodEnum.h"
+#include "NiagaraDefines.h"
+#include "NiagaraScalabilityState.h"
+#include "NiagaraTickBehaviorEnum.h"
 #include "NiagaraTypes.h"
 #include "NiagaraCore.h"
 #include "NiagaraCommon.generated.h"
@@ -25,18 +33,13 @@ class FNiagaraSystemInstance;
 class UNiagaraParameterCollection;
 class UNiagaraParameterDefinitionsBase;
 struct FNiagaraParameterStore;
-
-//#define NIAGARA_NAN_CHECKING 1
-#define NIAGARA_NAN_CHECKING 0
+enum class EPSCPoolMethod : uint8;
+enum ETextureRenderTargetFormat : int;
 
 #define NIAGARA_MEMORY_TRACKING	!UE_BUILD_SHIPPING
 
 #ifndef NIAGARA_COMPUTEDEBUG_ENABLED
 	#define NIAGARA_COMPUTEDEBUG_ENABLED WITH_EDITOR
-#endif
-
-#ifndef WITH_NIAGARA_DEBUGGER
-	#define WITH_NIAGARA_DEBUGGER !UE_BUILD_SHIPPING
 #endif
 
 #define WITH_NIAGARA_GPU_PROFILER_EDITOR (WITH_EDITOR && STATS)
@@ -57,20 +60,6 @@ constexpr uint32 NIAGARA_MAX_GPU_SPAWN_INFOS = 8;
 constexpr ETickingGroup NiagaraFirstTickGroup = TG_PrePhysics;
 constexpr ETickingGroup NiagaraLastTickGroup = TG_LastDemotable;
 constexpr int NiagaraNumTickGroups = NiagaraLastTickGroup - NiagaraFirstTickGroup + 1;
-
-/** Niagara ticking behaviour */
-UENUM()
-enum class ENiagaraTickBehavior : uint8
-{
-	/** Niagara will tick after all prereqs have ticked for attachements / data interfaces, this is the safest option. */
-	UsePrereqs,
-	/** Niagara will ignore prereqs (attachments / data interface dependencies) and use the tick group set on the component. */
-	UseComponentTickGroup,
-	/** Niagara will tick in the first tick group (default is TG_PrePhysics). */
-	ForceTickFirst,
-	/** Niagara will tick in the last tick group (default is TG_LastDemotable). */
-	ForceTickLast,
-};
 
 enum ENiagaraBaseTypes
 {
@@ -1462,101 +1451,6 @@ public:
 	}
 };
 
-
-USTRUCT()
-struct FNiagaraScalabilityState
-{
-	GENERATED_BODY()
-
-	FNiagaraScalabilityState()
-		: Significance(1.0f)
-		, LastVisibleTime(0.0f)
-		, SystemDataIndex(INDEX_NONE)
-		, bCulled(0)
-		, bPreviousCulled(0)
-		, bCulledByDistance(0)
-		, bCulledByInstanceCount(0)
-		, bCulledByVisibility(0)
-		, bCulledByGlobalBudget(0)
-	{
-	}
-
-	FNiagaraScalabilityState(float InSignificance, bool InCulled, bool InPreviousCulled)
-		: Significance(InSignificance)
-		, LastVisibleTime(0.0f)
-		, SystemDataIndex(INDEX_NONE)
-		, bCulled(InCulled)
-		, bPreviousCulled(InPreviousCulled)
-		, bCulledByDistance(0)
-		, bCulledByInstanceCount(0)
-		, bCulledByVisibility(0)
-		, bCulledByGlobalBudget(0)
-	{
-	}
-
-	bool IsDirty() const { return bCulled != bPreviousCulled; }
-	void Apply() { bPreviousCulled = bCulled; }
-
-	UPROPERTY(VisibleAnywhere, Category="Scalability")
-	float Significance;
-
-	UPROPERTY(VisibleAnywhere, Category = "Scalability")
-	float LastVisibleTime;
-
-	int16 SystemDataIndex;
-
-	UPROPERTY(VisibleAnywhere, Category = "Scalability")
-	uint8 bCulled : 1;
-
-	UPROPERTY(VisibleAnywhere, Category="Scalability")
-	uint8 bPreviousCulled : 1;
-
-	UPROPERTY(VisibleAnywhere, Category="Scalability")
-	uint8 bCulledByDistance : 1;
-
-	UPROPERTY(VisibleAnywhere, Category = "Scalability")
-	uint8 bCulledByInstanceCount : 1;
-
-	UPROPERTY(VisibleAnywhere, Category = "Scalability")
-	uint8 bCulledByVisibility : 1;
-	
-	UPROPERTY(VisibleAnywhere, Category = "Scalability")
-	uint8 bCulledByGlobalBudget : 1;
-};
-
-
-UENUM()
-enum class ENCPoolMethod : uint8
-{
-	/**
-	* The component will be created fresh and not allocated from the pool.
-	*/
-	None,
-
-	/**
-	* The component is allocated from the pool and will be automatically released back to it.
-	* User need not handle this any more that other NCs but interaction with the NC after the tick it's spawned in are unsafe.
-	* This method is useful for one-shot fx that you don't need to keep a reference to and can fire and forget.
-	*/
-	AutoRelease,
-
-	/**
-	* NC is allocated from the pool but will NOT be automatically released back to it. User has ownership of the NC and must call ReleaseToPool when finished with it otherwise the NC will leak.
-	* Interaction with the NC after it has been released are unsafe.
-	* This method is useful for persistent FX that you need to modify parameters upon etc over it's lifetime.
-	*/
-	ManualRelease,
-
-	/**
-	Special entry allowing manual release NCs to be manually released but wait until completion to be returned to the pool.
-	*/
-	ManualRelease_OnComplete UMETA(Hidden),
-
-	/**
-	Special entry that marks a NC as having been returned to the pool. All NCs currently in the pool are marked this way.
-	*/
-	FreeInPool UMETA(Hidden),
-};
 
 extern NIAGARA_API ENCPoolMethod ToNiagaraPooling(EPSCPoolMethod PoolingMethod);
 extern NIAGARA_API EPSCPoolMethod ToPSCPoolMethod(ENCPoolMethod PoolingMethod);

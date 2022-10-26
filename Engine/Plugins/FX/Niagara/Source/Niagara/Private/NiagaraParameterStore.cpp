@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraParameterStore.h"
+#include "Algo/Find.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraComponent.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraDataInterface.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraStats.h"
 
@@ -319,6 +321,37 @@ void FNiagaraParameterStoreBinding::MatchParameters(FNiagaraParameterStore* Dest
 	}
 }
 
+void FNiagaraParameterStoreBinding::Tick(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, bool bForce)
+{
+	if (SrcStore->GetParametersDirty() || bForce)
+	{
+		for (FParameterBinding& Binding : ParameterBindings)
+		{
+			DestStore->SetParameterData(SrcStore->GetParameterData(Binding.SrcOffset), Binding.DestOffset, Binding.Size);
+		}
+	}
+
+	if (SrcStore->GetInterfacesDirty() || bForce)
+	{
+		for (FInterfaceBinding& Binding : InterfaceBindings)
+		{
+			DestStore->SetDataInterface(SrcStore->GetDataInterface(Binding.SrcOffset), Binding.DestOffset);
+		}
+	}
+
+	if (SrcStore->GetUObjectsDirty() || bForce)
+	{
+		for (FUObjectBinding& Binding : UObjectBindings)
+		{
+			DestStore->SetUObject(SrcStore->GetUObject(Binding.SrcOffset), Binding.DestOffset);
+		}
+	}
+
+#if NIAGARA_NAN_CHECKING
+	DestStore->CheckForNaNs();
+#endif
+}
+
 void FNiagaraParameterStoreBinding::GetBindingData(FNiagaraParameterStore* DestStore, FNiagaraParameterStore* SrcStore, FNiagaraBoundParameterArray& OutBoundParameters)
 {
 	OutBoundParameters.Empty();
@@ -531,6 +564,22 @@ void FNiagaraParameterStore::TickBindings()
 		Binding.Value.Tick(Binding.Key, this);
 	}
 	Dump();
+}
+
+void FNiagaraParameterStore::Tick()
+{
+#if NIAGARA_NAN_CHECKING
+	CheckForNaNs();
+#endif
+	if (Bindings.Num() > 0 && (bParametersDirty || bInterfacesDirty || bUObjectsDirty))
+	{
+		TickBindings();
+	}
+
+	//We have to have ticked all our source stores before now.
+	bParametersDirty = false;
+	bInterfacesDirty = false;
+	bUObjectsDirty = false;
 }
 
 void FNiagaraParameterStore::UnbindFromSourceStores()
@@ -1256,6 +1305,48 @@ const FNiagaraVariableBase* FNiagaraParameterStore::FindVariable(const UNiagaraD
 	return nullptr;
 }
 
+void FNiagaraParameterStore::CopyParameterData(FNiagaraParameterStore& DestStore, const FNiagaraVariable& Parameter) const
+{
+	int32 DestIndex = DestStore.IndexOf(Parameter);
+	int32 SrcIndex = IndexOf(Parameter);
+	if (DestIndex != INDEX_NONE && SrcIndex != INDEX_NONE)
+	{
+		if (Parameter.IsDataInterface())
+		{
+			ensure(DestStore.DataInterfaces.IsValidIndex(DestIndex));
+			UNiagaraDataInterface* DestDataInterface = DestStore.DataInterfaces[DestIndex];
+			if (DestDataInterface == nullptr)
+			{
+				if (ensureMsgf(DestStore.Owner != nullptr, TEXT("Destination data interface pointer was null and a new one couldn't be created because the destination store's owner pointer was also null.")))
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("While trying to copy parameter data the destination data interface was null, creating a new one.  Parameter: %s Destination Store Owner: %s"), *Parameter.GetName().ToString(), *GetPathNameSafe(DestStore.Owner.Get()));
+					DestDataInterface = NewObject<UNiagaraDataInterface>(DestStore.Owner.Get(), Parameter.GetType().GetClass(), NAME_None, RF_Transactional | RF_Public);
+					DestStore.DataInterfaces[DestIndex] = DestDataInterface;
+				}
+				else
+				{
+					return;
+				}
+			}
+			DataInterfaces[SrcIndex]->CopyTo(DestDataInterface);
+			DestStore.OnInterfaceChange();
+		}
+		else if (Parameter.IsUObject())
+		{
+			DestStore.SetUObject(GetUObject(SrcIndex), DestIndex);
+		}
+		else if (Parameter.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+		{
+			const FVector* SourceVector = GetPositionParameterValue(Parameter.GetName());
+			DestStore.SetPositionParameterValue(SourceVector ? *SourceVector : FVector::ZeroVector, Parameter.GetName());
+		}
+		else
+		{
+			DestStore.SetParameterData(GetParameterData(SrcIndex), DestIndex, Parameter.GetSizeInBytes());
+		}
+	}
+}
+
 bool FNiagaraParameterStore::CopyParameterData(const FNiagaraVariable& Parameter, uint8* DestinationData) const
 {
 	if (const FNiagaraVariableWithOffset* NiagaraVariableWithOffset = FindParameterVariable(Parameter))
@@ -1272,6 +1363,14 @@ bool FNiagaraParameterStore::CopyParameterData(const FNiagaraVariable& Parameter
 		return true;
 	}
 	return false;
+}
+
+UNiagaraDataInterface* FNiagaraParameterStore::GetDataInterface(const FNiagaraVariable& Parameter)const
+{
+	int32 Offset = IndexOf(Parameter);
+	UNiagaraDataInterface* Interface = GetDataInterface(Offset);
+	checkSlow(!Interface || Parameter.GetType().GetClass() == Interface->GetClass());
+	return Interface;
 }
 
 FNiagaraLwcStructConverter FNiagaraParameterStore::GetStructConverter(const FNiagaraVariable& Parameter) const

@@ -5,6 +5,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/App.h"
+#include "DummyViewport.h"
 #include "EngineStats.h"
 #include "EngineGlobals.h"
 #include "RenderingThread.h"
@@ -2382,6 +2383,42 @@ void FCommonViewportClient::DrawHighResScreenshotCaptureRegion(FCanvas& Canvas)
 	LineItem.Draw( &Canvas, FVector2D(Config.UnscaledCaptureRegion.Max.X, Config.UnscaledCaptureRegion.Min.Y), FVector2D(Config.UnscaledCaptureRegion.Max.X, Config.UnscaledCaptureRegion.Max.Y));
 	LineItem.Draw( &Canvas, FVector2D(Config.UnscaledCaptureRegion.Max.X, Config.UnscaledCaptureRegion.Max.Y), FVector2D(Config.UnscaledCaptureRegion.Min.X, Config.UnscaledCaptureRegion.Max.Y));
 	LineItem.Draw( &Canvas, FVector2D(Config.UnscaledCaptureRegion.Min.X, Config.UnscaledCaptureRegion.Max.Y), FVector2D(Config.UnscaledCaptureRegion.Min.X, Config.UnscaledCaptureRegion.Min.Y));
+}
+
+void FViewportClient::RedrawRequested(FViewport* Viewport)
+{
+	Viewport->Draw();
+}
+
+void FViewportClient::RequestInvalidateHitProxy(FViewport* Viewport)
+{
+	Viewport->InvalidateHitProxy();
+}
+
+bool FViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return InputKey(EventArgs.Viewport, EventArgs.ControllerId, EventArgs.Key, EventArgs.Event, EventArgs.AmountDepressed, EventArgs.Key.IsGamepadKey());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+TOptional<TSharedRef<SWidget>> FViewportClient::MapCursor(FViewport* Viewport, const FCursorReply& CursorReply)
+{
+	return TOptional<TSharedRef<SWidget>>();
+}
+
+FPopupMethodReply FViewportClient::OnQueryPopupMethod() const
+{
+	return FPopupMethodReply::Unhandled();
+}
+
+FCommonViewportClient::~FCommonViewportClient()
+{
+	//make to clean up the global "stat" client when we delete the active one.
+	if (GStatProcessingViewportClient == this)
+	{
+		GStatProcessingViewportClient = NULL;
+	}
 }
 
 void FCommonViewportClient::RequestUpdateDPIScale()

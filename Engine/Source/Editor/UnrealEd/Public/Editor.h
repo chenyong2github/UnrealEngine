@@ -11,6 +11,7 @@
 #include "Engine/Level.h"
 #include "AssetRegistry/AssetData.h"
 #include "Editor/EditorEngine.h"
+#include "Editor/UnrealEdTypes.h"
 #include "Engine/StaticMesh.h"
 
 #include "Subsystems/ImportSubsystem.h"

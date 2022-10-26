@@ -12,7 +12,10 @@
 #include "Sound/QuartzQuantizationUtilities.h"
 #include "Sound/QuartzSubscription.h"
 #include "Sound/SoundAttenuation.h"
+#include "Sound/SoundModulationDestination.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Sound/SoundWave.h"
+#endif
 #include "UObject/ObjectMacros.h"
 
 #include "AudioComponent.generated.h"
@@ -20,13 +23,16 @@
 
 // Forward Declarations
 class FAudioDevice;
+class ISourceBufferListener;
 class UAudioComponent;
 class USoundBase;
 class USoundClass;
 class USoundConcurrency;
+class USoundEffectSourcePresetChain;
 class USoundWave;
-
+enum class EBusSendType : uint8;
 struct FAudioComponentParam;
+using FSharedISourceBufferListenerPtr = TSharedPtr<ISourceBufferListener, ESPMode::ThreadSafe>;
 
 
 // Enum describing the audio component play state

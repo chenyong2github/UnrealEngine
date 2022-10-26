@@ -3,7 +3,9 @@
 
 #include "Templates/TypeHash.h"
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include <functional>
+#endif
 
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 #include "Containers/Array.h"
