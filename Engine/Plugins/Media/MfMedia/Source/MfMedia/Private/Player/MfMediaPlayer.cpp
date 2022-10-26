@@ -749,7 +749,20 @@ void FMfMediaPlayer::ReceiveSourceReaderEvent(MediaEventType Event)
 
 void FMfMediaPlayer::ReceiveSourceReaderFlush()
 {
-	Samples->FlushSamples();
+	if (IsInGameThread() || IsInSlateThread())
+	{
+		Samples->FlushSamples();
+	}
+	else
+	{
+		TWeakPtr<FMediaSamples, ESPMode::ThreadSafe> WeakSamples(Samples);
+		Async(EAsyncExecution::TaskGraphMainThread, [WeakSamples]() {
+			if (auto PinnedSamples = WeakSamples.Pin())
+			{
+				PinnedSamples->FlushSamples();
+			}
+			});
+	}
 }
 
 
