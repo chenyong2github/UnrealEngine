@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MassEntityConfigAsset.h"
+#include "Logging/MessageLog.h"
 #include "MassEntityTraitBase.h"
 #include "MassSpawnerTypes.h"
 #include "MassSpawnerSubsystem.h"
