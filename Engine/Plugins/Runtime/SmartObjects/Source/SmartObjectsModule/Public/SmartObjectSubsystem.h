@@ -558,7 +558,7 @@ protected:
 
 	const USmartObjectBehaviorDefinition* Use(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
-	void AbortAll(FSmartObjectRuntime& SmartObjectRuntime, const ESmartObjectSlotState NewState);
+	void AbortAll(const FSmartObjectRuntime& SmartObjectRuntime, const ESmartObjectSlotState NewState);
 
 	FSmartObjectSlotClaimState* GetMutableSlotState(const FSmartObjectClaimHandle& ClaimHandle);
 
@@ -590,9 +590,13 @@ protected:
 	 */
 	void UnbindComponentFromSimulation(USmartObjectComponent& SmartObjectComponent);
 
-	void RemoveRuntimeInstanceFromSimulation(const FSmartObjectHandle Handle);
-	void RemoveCollectionEntryFromSimulation(const FSmartObjectCollectionEntry& Entry);
+	/** @return whether the removal was successful */
+	bool RemoveRuntimeInstanceFromSimulation(const FSmartObjectHandle Handle);
+	bool RemoveCollectionEntryFromSimulation(const FSmartObjectCollectionEntry& Entry);
 	void RemoveComponentFromSimulation(USmartObjectComponent& SmartObjectComponent);
+
+	/** Destroy SmartObjectRuntime contents as Handle's representation. */
+	void DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, const FSmartObjectRuntime& SmartObjectRuntime, FMassEntityManager& EntityManagerRef);
 
 	/**
 	 * Name of the Space partition class to use.

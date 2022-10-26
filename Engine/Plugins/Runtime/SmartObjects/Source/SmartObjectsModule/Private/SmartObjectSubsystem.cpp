@@ -224,55 +224,79 @@ FSmartObjectRuntime* USmartObjectSubsystem::AddCollectionEntryToSimulation(const
 	return &Runtime;
 }
 
-void USmartObjectSubsystem::RemoveRuntimeInstanceFromSimulation(const FSmartObjectHandle Handle)
+bool USmartObjectSubsystem::RemoveRuntimeInstanceFromSimulation(const FSmartObjectHandle Handle)
 {
 	UE_VLOG_UELOG(this, LogSmartObject, Verbose, TEXT("Removing SmartObject '%s' from runtime simulation."), *LexToString(Handle));
 
 	FSmartObjectRuntime* SmartObjectRuntime = RuntimeSmartObjects.Find(Handle);
-	if (!ensureMsgf(SmartObjectRuntime != nullptr, TEXT("RemoveFromSimulation is an internal call and should only be used for objects still part of the simulation")))
+#if WITH_SMARTOBJECT_DEBUG
+	ensureMsgf(SmartObjectRuntime != nullptr, TEXT("RemoveFromSimulation is an internal call and should only be used for objects still part of the simulation"));
+#endif // WITH_SMARTOBJECT_DEBUG
+
+	if (SmartObjectRuntime == nullptr)
 	{
-		return;
+		// temporary debug data logging to help fixing FORT-515024
+		UE_LOG(LogSmartObject, Error, TEXT("%s called with %s SO Handle and no corresponding SmartObjectRuntime")
+			, ANSI_TO_TCHAR(__FUNCTION__)
+			, Handle.IsValid() ? TEXT("a VALID") : TEXT("an INVALID"));
+
+		return false;
 	}
 
 	if (!ensureMsgf(EntityManager, TEXT("Entity subsystem required to remove a smartobject from the simulation")))
 	{
-		return;
+		return false;
 	}
 
+	DestroyRuntimeInstanceInternal(Handle, *SmartObjectRuntime, *EntityManager.Get());
+
+	// Remove object runtime data
+	RuntimeSmartObjects.Remove(Handle);
+
+	return true;
+}
+
+void USmartObjectSubsystem::DestroyRuntimeInstanceInternal(const FSmartObjectHandle Handle, const FSmartObjectRuntime& SmartObjectRuntime, FMassEntityManager& EntityManagerRef)
+{
 	// Abort everything before removing since abort flow may require access to runtime data
-	AbortAll(*SmartObjectRuntime, ESmartObjectSlotState::Free);
+	AbortAll(SmartObjectRuntime, ESmartObjectSlotState::Free);
 
 	// Remove from space partition
 	checkfSlow(SpacePartition != nullptr, TEXT("Space partition is expected to be valid since we use the plugins default in OnWorldComponentsUpdated."));
-	SpacePartition->Remove(Handle, SmartObjectRuntime->SpatialEntryData);
+	SpacePartition->Remove(Handle, SmartObjectRuntime.SpatialEntryData);
 
 	// Destroy entities associated to slots
 	TArray<FMassEntityHandle> EntitiesToDestroy;
-	EntitiesToDestroy.Reserve(SmartObjectRuntime->SlotHandles.Num());
-	for (const FSmartObjectSlotHandle SlotHandle : SmartObjectRuntime->SlotHandles)
+	EntitiesToDestroy.Reserve(SmartObjectRuntime.SlotHandles.Num());
+	for (const FSmartObjectSlotHandle SlotHandle : SmartObjectRuntime.SlotHandles)
 	{
 		RuntimeSlotStates.Remove(SlotHandle);
 		EntitiesToDestroy.Add(SlotHandle);
 	}
 
-	EntityManager->Defer().DestroyEntities(EntitiesToDestroy);
-
-	// Remove object runtime data
-	RuntimeSmartObjects.Remove(Handle);
+	EntityManagerRef.Defer().DestroyEntities(EntitiesToDestroy);
 }
 
-void USmartObjectSubsystem::RemoveCollectionEntryFromSimulation(const FSmartObjectCollectionEntry& Entry)
+bool USmartObjectSubsystem::RemoveCollectionEntryFromSimulation(const FSmartObjectCollectionEntry& Entry)
 {
-	RemoveRuntimeInstanceFromSimulation(Entry.GetHandle());
+	return RemoveRuntimeInstanceFromSimulation(Entry.GetHandle());
 }
 
 void USmartObjectSubsystem::RemoveComponentFromSimulation(USmartObjectComponent& SmartObjectComponent)
 {
-	RemoveRuntimeInstanceFromSimulation(SmartObjectComponent.GetRegisteredHandle());
-	SmartObjectComponent.OnRuntimeInstanceDestroyed();
+	if (RemoveRuntimeInstanceFromSimulation(SmartObjectComponent.GetRegisteredHandle()))
+	{
+		SmartObjectComponent.OnRuntimeInstanceDestroyed();
+	}
+	else
+	{
+		UE_LOG(LogSmartObject, Warning, TEXT("%s call failed for %s")
+			, ANSI_TO_TCHAR(__FUNCTION__)
+			, *GetFullNameSafe(&SmartObjectComponent));
+	}
 }
 
-void USmartObjectSubsystem::AbortAll(FSmartObjectRuntime& SmartObjectRuntime, const ESmartObjectSlotState NewState)
+void USmartObjectSubsystem::AbortAll(const FSmartObjectRuntime& SmartObjectRuntime, const ESmartObjectSlotState NewState)
 {
 	for (const FSmartObjectSlotHandle SlotHandle : SmartObjectRuntime.SlotHandles)
 	{
@@ -1275,18 +1299,12 @@ void USmartObjectSubsystem::CleanupRuntime()
 		}
 	}
 
-	// Cleanup all remaining entries (e.g. associated to unloaded entries)
-	TArray<FSmartObjectHandle> RemainingHandles;
-	if (RuntimeSmartObjects.GetKeys(RemainingHandles))
+	// Cleanup all remaining entries (e.g. associated to unloaded SmartObjectComponents)
+	for (auto It(RuntimeSmartObjects.CreateIterator()); It; ++It)
 	{
-		for (const FSmartObjectHandle& SOHandle : RemainingHandles)
-		{
-			if (SOHandle.IsValid())
-			{
-				RemoveRuntimeInstanceFromSimulation(SOHandle);
-			}
-		}
-	}
+		DestroyRuntimeInstanceInternal(It.Key(), It.Value(), *EntityManager);
+	}	
+	RuntimeSmartObjects.Reset();
 
 	RuntimeCreatedEntries.Reset();
 	bInitialCollectionAddedToSimulation = false;
