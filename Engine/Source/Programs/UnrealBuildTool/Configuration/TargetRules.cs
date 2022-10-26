@@ -120,16 +120,25 @@ namespace UnrealBuildTool
 		V1,
 
 		/// <summary>
-		/// New defaults for 4.24: ModuleRules.PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs, ModuleRules.bLegacyPublicIncludePaths = false.
+		/// New defaults for 4.24:
+		/// * ModuleRules.PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs
+		/// * ModuleRules.bLegacyPublicIncludePaths = false
 		/// </summary>
 		V2,
+
+		/// <summary>
+		/// New defaults for 5.2:
+		/// * ModuleRules.bLegacyParentIncludePaths = false
+		/// Work in progress, not ready to be enabled as Latest.
+		/// </summary>
+		V3,
 
 		// *** When adding new entries here, be sure to update GameProjectUtils::GetDefaultBuildSettingsVersion() to ensure that new projects are created correctly. ***
 
 		/// <summary>
 		/// Always use the defaults for the current engine version. Note that this may cause compatibility issues when upgrading.
 		/// </summary>
-		Latest
+		Latest = V2,
 	}
 
 	/// <summary>
@@ -1853,6 +1862,16 @@ namespace UnrealBuildTool
 		private bool? bLegacyPublicIncludePathsPrivate;
 
 		/// <summary>
+		/// Add all the parent folders as include paths for the compile environment.
+		/// </summary>
+		public bool bLegacyParentIncludePaths
+		{
+			get { return bLegacyParentIncludePathsPrivate ?? (DefaultBuildSettings < BuildSettingsVersion.V3); }
+			set { bLegacyParentIncludePathsPrivate = value; }
+		}
+		private bool? bLegacyParentIncludePathsPrivate;
+
+		/// <summary>
 		/// Which C++ stanard to use for compiling this target
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -2462,17 +2481,32 @@ namespace UnrealBuildTool
 		/// <param name="Diagnostics">List of diagnostic messages</param>
 		internal void GetBuildSettingsInfo(List<string> Diagnostics)
 		{
-			if(DefaultBuildSettings < BuildSettingsVersion.V2)
+			// Resolve BuildSettingsVersion.Latest to the version it's assigned to
+			BuildSettingsVersion LatestVersion = BuildSettingsVersion.Latest;
+			foreach (BuildSettingsVersion Value in Enum.GetValues(typeof(BuildSettingsVersion)))
+			{
+				if ((int)Value == (int)BuildSettingsVersion.Latest)
+				{
+					LatestVersion = Value;
+				}
+			}
+
+			if (DefaultBuildSettings < LatestVersion) 
 			{
 				Diagnostics.Add("[Upgrade]");
 				Diagnostics.Add("[Upgrade] Using backward-compatible build settings. The latest version of UE sets the following values by default, which may require code changes:");
 
 				List<Tuple<string, string>> ModifiedSettings = new List<Tuple<string, string>>();
-				if(DefaultBuildSettings < BuildSettingsVersion.V2)
+				if (BuildSettingsVersion.V2 <= LatestVersion && DefaultBuildSettings < BuildSettingsVersion.V2)
 				{
 					ModifiedSettings.Add(Tuple.Create(String.Format("{0} = false", nameof(bLegacyPublicIncludePaths)), "Omits subfolders from public include paths to reduce compiler command line length. (Previously: true)."));
 					ModifiedSettings.Add(Tuple.Create(String.Format("{0} = WarningLevel.Error", nameof(ShadowVariableWarningLevel)), "Treats shadowed variable warnings as errors. (Previously: WarningLevel.Warning)."));
 					ModifiedSettings.Add(Tuple.Create(String.Format("{0} = PCHUsageMode.UseExplicitOrSharedPCHs", nameof(ModuleRules.PCHUsage)), "Set in build.cs files to enables IWYU-style PCH model. See https://docs.unrealengine.com/en-US/Programming/BuildTools/UnrealBuildTool/IWYU/index.html. (Previously: PCHUsageMode.UseSharedPCHs)."));
+				}
+
+				if (BuildSettingsVersion.V3 <= LatestVersion && DefaultBuildSettings < BuildSettingsVersion.V3)
+				{
+					ModifiedSettings.Add(Tuple.Create(String.Format("{0} = false", nameof(bLegacyParentIncludePaths)), "Omits module parent folders from include paths to reduce compiler command line length. (Previously: true)."));
 				}
 
 				if (ModifiedSettings.Count > 0)
@@ -2483,7 +2517,7 @@ namespace UnrealBuildTool
 						Diagnostics.Add(String.Format(FormatString, ModifiedSetting.Item1, ModifiedSetting.Item2));
 					}
 				}
-				Diagnostics.Add(String.Format("[Upgrade] Suppress this message by setting 'DefaultBuildSettings = BuildSettingsVersion.{0};' in {1}, and explicitly overriding settings that differ from the new defaults.", (BuildSettingsVersion)(BuildSettingsVersion.Latest - 1), File!.GetFileName()));
+				Diagnostics.Add(String.Format("[Upgrade] Suppress this message by setting 'DefaultBuildSettings = BuildSettingsVersion.{0};' in {1}, and explicitly overriding settings that differ from the new defaults.", LatestVersion, File!.GetFileName()));
 				Diagnostics.Add("[Upgrade]");
 			}
 
@@ -3458,6 +3492,11 @@ namespace UnrealBuildTool
 		public bool bLegacyPublicIncludePaths
 		{
 			get { return Inner.bLegacyPublicIncludePaths; }
+		}
+
+		public bool bLegacyParentIncludePaths
+		{
+			get { return Inner.bLegacyParentIncludePaths; }
 		}
 
 		public CppStandardVersion CppStandard
