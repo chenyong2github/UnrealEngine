@@ -269,12 +269,14 @@ struct FOptimusNodeGraphAction_AddRemoveLink :
 
 	FOptimusNodeGraphAction_AddRemoveLink(
 		UOptimusNodePin* InNodeOutputPin, 
-		UOptimusNodePin* InNodeInputPin
+		UOptimusNodePin* InNodeInputPin,
+		bool bInCanFail = false
 		);
 
 	FOptimusNodeGraphAction_AddRemoveLink(
 		const FString& InNodeOutputPinPath,
-		const FString& InNodeInputPinPath
+		const FString& InNodeInputPinPath,
+		bool bInCanFail = false
 		);
 
 protected:
@@ -286,6 +288,10 @@ protected:
 
 	// The path of the output input on the node to connect/disconnect to/from.
 	FString NodeInputPinPath;
+
+	// The operation is allowed to fail gracefully without terminating the
+	// rest of the actions being performed.
+	bool bCanFail = false;
 };
 
 // Mark FOptimusNodeGraphAction_AddRemoveLink as pure virtual, so that the UObject machinery
@@ -312,12 +318,14 @@ struct FOptimusNodeGraphAction_AddLink :
 
 	FOptimusNodeGraphAction_AddLink(
 		UOptimusNodePin* InNodeOutputPin,
-		UOptimusNodePin* InNodeInputPin
+		UOptimusNodePin* InNodeInputPin,
+		bool bInCanFail = false
 	);
 
 	FOptimusNodeGraphAction_AddLink(
 		const FString& InNodeOutputPinPath,
-		const FString& InNodeInputPinPath
+		const FString& InNodeInputPinPath,
+		bool bInCanFail = false
 		);
 
 protected:

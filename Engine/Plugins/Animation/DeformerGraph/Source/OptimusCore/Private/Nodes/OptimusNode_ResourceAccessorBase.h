@@ -14,6 +14,22 @@ class UOptimusComputeDataInterface;
 class UOptimusResourceDescription;
 
 
+USTRUCT()
+struct FOptimusNode_ResourceAccessorBase_DuplicationInfo
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	FName ResourceName;
+
+	UPROPERTY()
+	FOptimusDataTypeRef DataType;
+
+	UPROPERTY()
+	FOptimusDataDomain DataDomain;
+};
+
+
 UCLASS(Abstract)
 class UOptimusNode_ResourceAccessorBase : 
 	public UOptimusNode,
@@ -46,8 +62,12 @@ public:
 
 	
 protected:
+	void PreDuplicateRequirementActions(const UOptimusNodeGraph* InTargetGraph, FOptimusCompoundAction* InCompoundAction) override;
+	
 	// UObject overrides
-	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+	void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+	void ExportCustomProperties(FOutputDevice& Out, uint32 Indent) override;
+	void ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn) override;
 	
 protected:
 	UPROPERTY()
@@ -56,4 +76,7 @@ protected:
 	/** Logical operation when writing to the resource. */
 	UPROPERTY(EditAnywhere, Category = Resource)
 	EOptimusBufferWriteType WriteType = EOptimusBufferWriteType::Write;
+
+	UPROPERTY(DuplicateTransient)
+	FOptimusNode_ResourceAccessorBase_DuplicationInfo DuplicationInfo;
 };

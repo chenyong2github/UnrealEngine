@@ -25,7 +25,8 @@ public:
 
 	FOptimusResourceAction_AddResource(
 		FOptimusDataTypeRef InDataType,
-		FName InName
+		FName InName,
+		FOptimusDataDomain InDataDomain = FOptimusDataDomain()
 	);
 
 	UOptimusResourceDescription* GetResource(IOptimusPathResolver* InRoot) const;
@@ -40,6 +41,9 @@ private:
 
 	// The data type of the resource
 	FOptimusDataTypeRef DataType;
+
+	// The desired data domain of the resource
+	FOptimusDataDomain DataDomain;
 };
 
 

@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "IOptimusGeneratedClassDefiner.h"
+#include "IOptimusValueProvider.h"
 #include "OptimusNode.h"
 #include "OptimusDataType.h"
-#include "IOptimusValueProvider.h"
 
 #include "OptimusNode_ConstantValue.generated.h"
 
@@ -41,7 +42,8 @@ public:
 UCLASS(Hidden)
 class UOptimusNode_ConstantValue :
 	public UOptimusNode,
-	public IOptimusValueProvider
+	public IOptimusValueProvider,
+	public IOptimusGeneratedClassDefiner
 {
 	GENERATED_BODY()
 
@@ -65,6 +67,17 @@ public:
 	FOptimusDataTypeRef GetValueType() const override;
 	FShaderValueType::FValue GetShaderValue() const override;
 
+	// IOptimusGeneratedClassDefiner implementation
+	FTopLevelAssetPath GetAssetPathForClassDefiner() const override;
+	FString GetClassCreationString() const override;
+	UClass* GetClassFromCreationString(
+		UPackage* InPackage,
+		const TCHAR* InCreationString
+		) const override;
+	
+	
 protected:
 	void ConstructNode() override;
+	
+	UOptimusNode_ConstantValueGeneratorClass* GetGeneratorClass() const;
 };

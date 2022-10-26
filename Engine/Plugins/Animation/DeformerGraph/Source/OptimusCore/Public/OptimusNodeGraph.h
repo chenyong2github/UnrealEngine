@@ -343,7 +343,7 @@ protected:
 	friend class UOptimusNode;
 	friend class UOptimusNodePin;
 	friend class UOptimusNode_ConstantValue;
-	friend class UOptimusClipboardContent;
+	friend class FOptimusEditorClipboard;
 	friend struct FOptimusNodeGraphAction_AddNode;
 	friend struct FOptimusNodeGraphAction_DuplicateNode;
 	friend struct FOptimusNodeGraphAction_RemoveNode;

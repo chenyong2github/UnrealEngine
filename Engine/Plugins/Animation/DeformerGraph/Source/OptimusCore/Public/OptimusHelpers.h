@@ -54,7 +54,7 @@ namespace Optimus
 			// FIXME: The constructor is broken. It only needs a const ref.
 		    : FObjectReader(const_cast<TArray<uint8>&>(InBytes))
 		{
-			this->SetWantBinaryPropertySerialization(true);
+			FObjectReader::SetWantBinaryPropertySerialization(true);
 			Obj->Serialize(*this);
 		}
 	};
@@ -65,7 +65,7 @@ namespace Optimus
 		FBinaryObjectWriter(UObject* Obj, TArray<uint8>& OutBytes)
 		    : FObjectWriter(OutBytes)
 		{
-			this->SetWantBinaryPropertySerialization(true);
+			FObjectWriter::SetWantBinaryPropertySerialization(true);
 			Obj->Serialize(*this);
 		}
 	};

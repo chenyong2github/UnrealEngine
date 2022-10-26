@@ -200,9 +200,12 @@ void UOptimusNode_DataInterface::PostLoad()
 void UOptimusNode_DataInterface::ConstructNode()
 {
 	// Create the component pin.
-	if (ensure(DataInterfaceClass) &&
-		ensure(DataInterfaceData))
+	if (ensure(DataInterfaceClass))
 	{
+		if (!DataInterfaceData)
+		{
+			DataInterfaceData = NewObject<UOptimusComputeDataInterface>(this, DataInterfaceClass);
+		}
 		SetDisplayName(FText::FromString(DataInterfaceData->GetDisplayName()));
 		CreateComponentPin();
 		CreatePinsFromDataInterface(DataInterfaceData);

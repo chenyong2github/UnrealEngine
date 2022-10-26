@@ -328,13 +328,8 @@ FOptimusNodeGraphAction_DuplicateNode::FOptimusNodeGraphAction_DuplicateNode(
 		NodeClassPath = InSourceNode->GetClass()->GetPathName();
 		ConfigureNodeFunc = InConfigureNodeFunc;
 		
-		// Photocopy any non-transient property data
-		{
-			FMemoryWriter NodeArchive(NodeData);
-			FObjectAndNameAsStringProxyArchive NodeProxyArchive(
-					NodeArchive, /* bInLoadIfFindFails=*/ false);
-			InSourceNode->SerializeScriptProperties(NodeProxyArchive);
-		}
+		// Photocopy the node.
+		Optimus::FBinaryObjectWriter(InSourceNode, NodeData);
 	}
 }
 
@@ -353,12 +348,8 @@ bool FOptimusNodeGraphAction_DuplicateNode::Do(
 {
 	auto BootstrapNodeFunc = [this](UOptimusNode* InNode) -> bool
 	{
-		{
-			FMemoryReader NodeArchive(NodeData);
-			FObjectAndNameAsStringProxyArchive NodeProxyArchive(
-					NodeArchive, /* bInLoadIfFindFails=*/true);
-			InNode->SerializeScriptProperties(NodeProxyArchive);
-		}
+		// Paste the data from the old node onto the new one.
+		Optimus::FBinaryObjectReader(InNode, NodeData);
 		if (!ConfigureNodeFunc)
 		{
 			return true;
@@ -505,7 +496,8 @@ bool FOptimusNodeGraphAction_RemoveNode::Undo(
 
 FOptimusNodeGraphAction_AddRemoveLink::FOptimusNodeGraphAction_AddRemoveLink(
 	UOptimusNodePin* InNodeOutputPin, 
-	UOptimusNodePin* InNodeInputPin
+	UOptimusNodePin* InNodeInputPin,
+	bool bInCanFail
 	)
 {
 	if (ensure(InNodeOutputPin != nullptr) && ensure(InNodeInputPin != nullptr) &&
@@ -517,19 +509,22 @@ FOptimusNodeGraphAction_AddRemoveLink::FOptimusNodeGraphAction_AddRemoveLink(
 	{
 		NodeOutputPinPath = InNodeOutputPin->GetPinPath();
 		NodeInputPinPath = InNodeInputPin->GetPinPath();
+		bCanFail = bInCanFail;
 	}
 }
 
 
 FOptimusNodeGraphAction_AddRemoveLink::FOptimusNodeGraphAction_AddRemoveLink(
 	const FString& InNodeOutputPinPath,
-	const FString& InNodeInputPinPath
+	const FString& InNodeInputPinPath,
+	bool bInCanFail
 	)
 {
 	if (ensure(!InNodeOutputPinPath.IsEmpty()) && ensure(!InNodeInputPinPath.IsEmpty()))
 	{
 		NodeOutputPinPath = InNodeOutputPinPath;
 		NodeInputPinPath = InNodeInputPinPath;
+		bCanFail = bInCanFail;
 	}
 }
 
@@ -541,13 +536,13 @@ bool FOptimusNodeGraphAction_AddRemoveLink::AddLink(
 	UOptimusNodePin* InNodeOutputPin = InRoot->ResolvePinPath(NodeOutputPinPath);
 	if (InNodeOutputPin == nullptr)
 	{
-		return false;
+		return bCanFail;
 	}
 
 	UOptimusNodePin* InNodeInputPin = InRoot->ResolvePinPath(NodeInputPinPath);
 	if (InNodeInputPin == nullptr)
 	{
-		return false;
+		return bCanFail;
 	}
 
 	UOptimusNodeGraph* Graph = InNodeOutputPin->GetOwningNode()->GetOwningGraph();
@@ -562,13 +557,13 @@ bool FOptimusNodeGraphAction_AddRemoveLink::RemoveLink(
 	UOptimusNodePin* InNodeOutputPin = InRoot->ResolvePinPath(NodeOutputPinPath);
 	if (InNodeOutputPin == nullptr)
 	{
-		return false;
+		return bCanFail;
 	}
 
 	UOptimusNodePin* InNodeInputPin = InRoot->ResolvePinPath(NodeInputPinPath);
 	if (InNodeInputPin == nullptr)
 	{
-		return false;
+		return bCanFail;
 	}
 
 	UOptimusNodeGraph* Graph = InNodeOutputPin->GetOwningNode()->GetOwningGraph();
@@ -580,9 +575,10 @@ bool FOptimusNodeGraphAction_AddRemoveLink::RemoveLink(
 
 FOptimusNodeGraphAction_AddLink::FOptimusNodeGraphAction_AddLink(
 	UOptimusNodePin* InNodeOutputPin, 
-	UOptimusNodePin* InNodeInputPin
+	UOptimusNodePin* InNodeInputPin,
+	bool bInCanFail
 	) :
-	FOptimusNodeGraphAction_AddRemoveLink(InNodeOutputPin, InNodeInputPin)
+	FOptimusNodeGraphAction_AddRemoveLink(InNodeOutputPin, InNodeInputPin, bInCanFail)
 {
 	// FIXME: Prettier name.
 	SetTitlef(TEXT("Add Link"));
@@ -591,9 +587,10 @@ FOptimusNodeGraphAction_AddLink::FOptimusNodeGraphAction_AddLink(
 
 FOptimusNodeGraphAction_AddLink::FOptimusNodeGraphAction_AddLink(
 	const FString& InNodeOutputPinPath,
-	const FString& InNodeInputPinPath
+	const FString& InNodeInputPinPath,
+	bool bInCanFail
 	) :
-	FOptimusNodeGraphAction_AddRemoveLink(InNodeOutputPinPath, InNodeInputPinPath)
+	FOptimusNodeGraphAction_AddRemoveLink(InNodeOutputPinPath, InNodeInputPinPath, bInCanFail)
 {
 	SetTitlef(TEXT("Add Link"));
 }

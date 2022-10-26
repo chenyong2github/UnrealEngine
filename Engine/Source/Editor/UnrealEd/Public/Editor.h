@@ -502,7 +502,7 @@ struct FImportObjectParams
  *
  * @return	NULL if the default values couldn't be imported
  */
-const TCHAR* ImportObjectProperties( FImportObjectParams& InParams );
+UNREALED_API const TCHAR* ImportObjectProperties( FImportObjectParams& InParams );
 
 /**
  * Parse and import text as property values for the object specified.

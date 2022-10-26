@@ -11,11 +11,13 @@
 
 FOptimusResourceAction_AddResource::FOptimusResourceAction_AddResource(
 	FOptimusDataTypeRef InDataType,
-    FName InName
+    FName InName,
+    FOptimusDataDomain InDataDomain
 	)
 {
 	ResourceName = InName;
 	DataType = InDataType;
+	DataDomain = InDataDomain;
 
 	SetTitlef(TEXT("Add resource '%s'"), *ResourceName.ToString());
 }
@@ -46,6 +48,7 @@ bool FOptimusResourceAction_AddResource::Do(
 
 	Resource->ResourceName = Resource->GetFName();
 	Resource->DataType = DataType;
+	Resource->DataDomain = DataDomain;
 
 	if (!Deformer->AddResourceDirect(Resource))
 	{

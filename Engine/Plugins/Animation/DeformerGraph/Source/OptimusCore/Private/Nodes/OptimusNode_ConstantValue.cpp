@@ -2,6 +2,7 @@
 
 #include "Nodes/OptimusNode_ConstantValue.h"
 
+#include "OptimusDataTypeRegistry.h"
 #include "OptimusNodePin.h"
 #include "OptimusNodeGraph.h"
 
@@ -67,6 +68,7 @@ UClass* UOptimusNode_ConstantValueGeneratorClass::GetClassForType(UPackage* InPa
 	return TypeClass;
 }
 
+
 void UOptimusNode_ConstantValue::PostLoad()
 {
 	Super::PostLoad();
@@ -105,7 +107,7 @@ FString UOptimusNode_ConstantValue::GetValueName() const
 
 FOptimusDataTypeRef UOptimusNode_ConstantValue::GetValueType() const
 {
-	UOptimusNode_ConstantValueGeneratorClass* Class = Cast<UOptimusNode_ConstantValueGeneratorClass>(GetClass());
+	const UOptimusNode_ConstantValueGeneratorClass* Class = GetGeneratorClass();
 	if (ensure(Class))
 	{
 		return Class->DataType;
@@ -137,9 +139,52 @@ FShaderValueType::FValue UOptimusNode_ConstantValue::GetShaderValue() const
 }
 
 
+FTopLevelAssetPath UOptimusNode_ConstantValue::GetAssetPathForClassDefiner() const
+{
+	return StaticClass()->GetClassPathName();
+}
+
+
+FString UOptimusNode_ConstantValue::GetClassCreationString() const
+{
+	if (GetGeneratorClass())
+	{
+		return FString::Printf(TEXT("DataType=%s"), *GetGeneratorClass()->DataType->TypeName.ToString()); 
+	}
+	return {};
+}
+
+
+UClass* UOptimusNode_ConstantValue::GetClassFromCreationString(
+	UPackage* InPackage,
+	const TCHAR* InCreationString
+	) const
+{
+	FName DataTypeName;
+	if (!FParse::Value(InCreationString, TEXT("DataType="), DataTypeName))
+	{
+		return nullptr;
+	}
+
+	FOptimusDataTypeHandle FoundDataType = FOptimusDataTypeRegistry::Get().FindType(DataTypeName);
+	if (!FoundDataType.IsValid())
+	{
+		return nullptr;
+	}
+
+	return UOptimusNode_ConstantValueGeneratorClass::GetClassForType(InPackage, FoundDataType);
+}
+
+
 void UOptimusNode_ConstantValue::ConstructNode()
 {
 	SetDisplayName(FText::Format(FText::FromString(TEXT("{0} Constant")), GetValueType()->DisplayName));
 
 	UOptimusNode::ConstructNode();
+}
+
+
+UOptimusNode_ConstantValueGeneratorClass* UOptimusNode_ConstantValue::GetGeneratorClass() const
+{
+	return Cast<UOptimusNode_ConstantValueGeneratorClass>(GetClass());	
 }

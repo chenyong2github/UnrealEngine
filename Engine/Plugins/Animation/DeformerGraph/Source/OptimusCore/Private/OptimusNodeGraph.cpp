@@ -580,6 +580,13 @@ bool UOptimusNodeGraph::DuplicateNodes(
 		Action->SetTitlef(TEXT("%s %d Nodes"), *InActionName, InNodes.Num());
 	}
 
+	// Add all the pre-duplicate requirement actions first. This allows certain nodes to set up their
+	// operating environment correctly (e.g. a missing variable description for get variable nodes, etc.)
+	for (UOptimusNode* Node: InNodes)
+	{
+		Node->PreDuplicateRequirementActions(this, Action);
+	}
+
 	// Duplicate the nodes and place them correctly
 	for (UOptimusNode* Node: InNodes)
 	{
@@ -592,10 +599,14 @@ bool UOptimusNodeGraph::DuplicateNodes(
 		Action->AddSubAction(DuplicateNodeAction);
 	}
 
-	// Add any links that the nodes may have had.
+	// Add any links that the nodes may have had. These operations are allowed to fail, in which case
+	// we just end up with dangling nodes.
+	// In the future we would like to introduce connections that are in an error state (will fail compile)
+	// but show up as disconnectable wires in the graph (e.g. if a type no longer matches).
 	for (const TTuple<FString, FString>& LinkInfo: NodeLinks)
 	{
-		Action->AddSubAction<FOptimusNodeGraphAction_AddLink>(LinkInfo.Key, LinkInfo.Value);
+		constexpr bool bCanFail = true;
+		Action->AddSubAction<FOptimusNodeGraphAction_AddLink>(LinkInfo.Key, LinkInfo.Value, bCanFail);
 	}
 
 	return GetActionStack()->RunAction(Action);

@@ -18,6 +18,7 @@ enum class EOptimusNodePinStorageType : uint8;
 class UOptimusActionStack;
 class UOptimusNodeGraph;
 class UOptimusNodePin;
+struct FOptimusCompoundAction;
 struct FOptimusDataTypeRef;
 struct FOptimusParameterBinding;
 
@@ -217,6 +218,13 @@ protected:
 	{
 		return {};
 	}
+
+	/** Called prior to duplicate to allow the node to add its own graph requirements to
+	 *  to the list of actions being performed.
+	 */
+	virtual void PreDuplicateRequirementActions(
+		const UOptimusNodeGraph* InTargetGraph, 
+		FOptimusCompoundAction *InCompoundAction) {}
 	
 
 	void EnableDynamicPins();
