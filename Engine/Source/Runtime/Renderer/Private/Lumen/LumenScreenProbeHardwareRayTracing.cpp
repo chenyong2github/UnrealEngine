@@ -189,7 +189,7 @@ class FLumenScreenProbeGatherHardwareRayTracing : public FLumenHardwareRayTracin
 IMPLEMENT_LUMEN_RAYGEN_AND_COMPUTE_RAYTRACING_SHADERS(FLumenScreenProbeGatherHardwareRayTracing)
 
 IMPLEMENT_GLOBAL_SHADER(FLumenScreenProbeGatherHardwareRayTracingCS, "/Engine/Private/Lumen/LumenScreenProbeHardwareRayTracing.usf", "LumenScreenProbeGatherHardwareRayTracingCS", SF_Compute);
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FLumenScreenProbeGatherHardwareRayTracingRGS, "/Engine/Private/Lumen/LumenScreenProbeHardwareRayTracing.usf", "LumenScreenProbeGatherHardwareRayTracingRGS", SF_RayGen, ERayTracingPayloadType::LumenMinimal);
+IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FLumenScreenProbeGatherHardwareRayTracingRGS, "/Engine/Private/Lumen/LumenScreenProbeHardwareRayTracing.usf", "LumenScreenProbeGatherHardwareRayTracingRGS", SF_RayGen, ERayTracingPayloadType::LumenMinimal | ERayTracingPayloadType::RayTracingMaterial);
 
 class FLumenScreenProbeGatherHardwareRayTracingIndirectArgsCS : public FGlobalShader
 {
