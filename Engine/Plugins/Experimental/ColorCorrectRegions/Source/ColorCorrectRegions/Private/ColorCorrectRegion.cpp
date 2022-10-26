@@ -325,6 +325,7 @@ AColorCorrectionRegion::AColorCorrectionRegion(const FObjectInitializer& ObjectI
 		MeshComponent->SetMaterial(0, Material);
 		MeshComponent->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 		MeshComponent->SetCollisionProfileName(TEXT("OverlapAll"));
+		MeshComponent->CastShadow = false;
 	}
 
 	SetMeshVisibilityForRegionType();
