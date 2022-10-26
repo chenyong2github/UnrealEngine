@@ -182,6 +182,8 @@ public:
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& InPropertyChangedEvent) override;
 
 	void SetDefault(const float InDefault);
+	// Set Range to reasonable limit given current Default value
+	void SetInitialRange();
 	float GetDefault();
 	FVector2D GetRange();
 	void SetRange(const FVector2D InRange);

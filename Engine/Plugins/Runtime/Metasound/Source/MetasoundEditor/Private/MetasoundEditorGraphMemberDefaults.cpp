@@ -167,6 +167,9 @@ void UMetasoundEditorGraphMemberDefaultFloat::ForceRefresh()
 void UMetasoundEditorGraphMemberDefaultFloat::SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral)
 {
 	Metasound::Editor::MemberDefaultsPrivate::ConvertLiteral<float>(InLiteral, Default);
+
+	// If set from literal, we force the default value to be the literal's value which may require the range to be fixed up 
+	SetInitialRange();
 }
 
 void UMetasoundEditorGraphMemberDefaultFloat::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const
@@ -187,6 +190,10 @@ void UMetasoundEditorGraphMemberDefaultFloat::PostEditChangeChainProperty(FPrope
 		if (WidgetValueType == EMetasoundMemberDefaultWidgetValueType::Volume && VolumeWidgetUseLinearOutput)
 		{
 			VolumeWidgetDecibelRange = FVector2D(Audio::ConvertToDecibels(Range.X), Audio::ConvertToDecibels(Range.Y));
+		}
+		else
+		{
+			SetInitialRange();
 		}
 
 		// If the widget type is changed to none, we need to refresh clamping the value or not, since if the widget was a slider before, the value was clamped
@@ -228,19 +235,7 @@ void UMetasoundEditorGraphMemberDefaultFloat::PostEditChangeChainProperty(FPrope
 	}
 	else if (PropertyChangedEvent.GetPropertyName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, ClampDefault)))
 	{
-		// If value is not within current range, keep it, otherwise set it to a reasonable range 
-		if (!(Default >= Range.X && Default <= Range.Y))
-		{
-			// set range to reasonable limit given current value
-			if (FMath::IsNearlyEqual(Default, 0.0f))
-			{
-				SetRange(FVector2D(0.0f, 1.0f));
-			}
-			else
-			{
-				SetRange(FVector2D(FMath::Min(0.0f, Default), FMath::Max(0.0f, Default)));
-			}
-		}
+		SetInitialRange();
 		OnClampChanged.Broadcast(ClampDefault);
 	}
 	else if (PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue()->GetFName().IsEqual(GET_MEMBER_NAME_CHECKED(UMetasoundEditorGraphMemberDefaultFloat, VolumeWidgetDecibelRange)))
@@ -296,6 +291,22 @@ void UMetasoundEditorGraphMemberDefaultFloat::SetDefault(const float InDefault)
 	{
 		Default = InDefault;
 		OnDefaultValueChanged.Broadcast(InDefault);
+	}
+}
+
+void UMetasoundEditorGraphMemberDefaultFloat::SetInitialRange()
+{
+	// If value is within current range, keep it, otherwise set range to something reasonable 
+	if (!(Default >= Range.X && Default <= Range.Y))
+	{
+		if (FMath::IsNearlyEqual(Default, 0.0f))
+		{
+			SetRange(FVector2D(0.0f, 1.0f));
+		}
+		else
+		{
+			SetRange(FVector2D(FMath::Min(0.0f, Default), FMath::Max(0.0f, Default)));
+		}
 	}
 }
 
