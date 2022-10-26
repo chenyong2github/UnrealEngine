@@ -2,21 +2,25 @@
 #pragma once
 
 
-#include "Audio.h"
+#include "AudioDefines.h"
 #include "CoreMinimal.h"
+#include "Sound/SoundTimecodeOffset.h"
+#include "SoundConcurrency.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "Interfaces/Interface_AssetUserData.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Audio.h"
 #include "IAudioExtensionPlugin.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundClass.h"
-#include "Sound/SoundTimecodeOffset.h"
-#include "SoundConcurrency.h"
 #include "SoundModulationDestination.h"
 #include "SoundSourceBusSend.h"
 #include "SoundSubmixSend.h"
 #include "SoundGenerator.h"
-#include "UObject/Object.h"
-#include "UObject/ObjectMacros.h"
 #include "AudioDeviceManager.h"
-#include "Interfaces/Interface_AssetUserData.h"
+#endif
 
 #include "SoundBase.generated.h"
 
@@ -25,18 +29,33 @@
 namespace Audio
 {
 	class IParameterTransmitter;
+	struct FParameterInterface;
 	struct FParameterTransmitterInitParams;
+	using FDeviceId = uint32;;
+	using FParameterInterfacePtr = TSharedPtr<FParameterInterface, ESPMode::ThreadSafe>;
 } // namespace Audio
 
+class ISoundGenerator;
+class USoundAttenuation;
+class USoundClass;
 class USoundEffectSourcePreset;
 class USoundSourceBus;
 class USoundSubmix;
+class USoundSubmixBase;
+class USoundWave;
 class USoundEffectSourcePresetChain;
 class UAssetUserData;
-
+enum class EBusSendType : uint8;
+namespace EMaxConcurrentResolutionRule { enum Type : int; }
 struct FActiveSound;
+struct FAudioParameter;
+struct FSoundAttenuationSettings;
+struct FSoundGeneratorInitParams;
 struct FSoundParseParameters;
-
+struct FSoundSourceBusSendInfo;
+struct FSoundSubmixSendInfo;
+struct FWaveInstance;
+typedef TSharedPtr<ISoundGenerator, ESPMode::ThreadSafe> ISoundGeneratorPtr;
 
 /**
  * Method of virtualization when a sound is stopped due to playback constraints

@@ -29,7 +29,7 @@ ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogAudioConcurrency, Log, All);
 UENUM()
 namespace EMaxConcurrentResolutionRule
 {
-	enum Type
+	enum Type : int
 	{
 		/** When Max Concurrent sounds are active do not start a new sound. */
 		PreventNew,

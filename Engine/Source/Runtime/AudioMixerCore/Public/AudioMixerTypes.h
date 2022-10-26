@@ -2,7 +2,9 @@
 
 #pragma once
 #include "CoreMinimal.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Misc/ConfigCacheIni.h"
+#endif
 
 namespace Audio {
 
@@ -73,39 +75,7 @@ struct AUDIOMIXERCORE_API FAudioPlatformSettings
 	/** The number of workers to use to compute source audio. Will only use up to the max number of sources. Will evenly divide sources to each source worker. */
 	int32 NumSourceWorkers;
 
-	static FAudioPlatformSettings GetPlatformSettings(const TCHAR* PlatformSettingsConfigFile)
-	{
-		FAudioPlatformSettings Settings;
-
-		FString TempString;
-
-		if (GConfig->GetString(PlatformSettingsConfigFile, TEXT("AudioSampleRate"), TempString, GEngineIni))
-		{
-			Settings.SampleRate = FMath::Max(FCString::Atoi(*TempString), 8000);
-		}
-
-		if (GConfig->GetString(PlatformSettingsConfigFile, TEXT("AudioCallbackBufferFrameSize"), TempString, GEngineIni))
-		{
-			Settings.CallbackBufferFrameSize = FMath::Max(FCString::Atoi(*TempString), 256);
-		}
-
-		if (GConfig->GetString(PlatformSettingsConfigFile, TEXT("AudioNumBuffersToEnqueue"), TempString, GEngineIni))
-		{
-			Settings.NumBuffers = FMath::Max(FCString::Atoi(*TempString), 1);
-		}
-
-		if (GConfig->GetString(PlatformSettingsConfigFile, TEXT("AudioMaxChannels"), TempString, GEngineIni))
-		{
-			Settings.MaxChannels = FMath::Max(FCString::Atoi(*TempString), 0);
-		}
-
-		if (GConfig->GetString(PlatformSettingsConfigFile, TEXT("AudioNumSourceWorkers"), TempString, GEngineIni))
-		{
-			Settings.NumSourceWorkers = FMath::Max(FCString::Atoi(*TempString), 0);
-		}
-
-		return Settings;
-	}
+	static FAudioPlatformSettings GetPlatformSettings(const TCHAR* PlatformSettingsConfigFile);
 
 	FAudioPlatformSettings()
 		: SampleRate(48000)

@@ -74,7 +74,7 @@ struct FSoundSourceBusSendInfo;
  * These are in the sample order OpenAL expects for a 7.1 sound
  * 
  */
-enum EAudioSpeakers
+enum EAudioSpeakers : int
 {							//	4.0	5.1	6.1	7.1
 	SPEAKER_FrontLeft,		//	*	*	*	*
 	SPEAKER_FrontRight,		//	*	*	*	*

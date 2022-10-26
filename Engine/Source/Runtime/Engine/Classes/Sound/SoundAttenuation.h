@@ -3,13 +3,19 @@
 #pragma once
 
 #include "Engine/Attenuation.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "IAudioExtensionPlugin.h"
+#endif
 #include "IAudioParameterInterfaceRegistry.h"
 #include "AudioLinkSettingsAbstract.h"
 
 #include "SoundAttenuation.generated.h"
 
+class UOcclusionPluginSourceSettingsBase;
+class UReverbPluginSourceSettingsBase;
+class USourceDataOverridePluginSourceSettingsBase;
 class USoundSubmixBase;
+class USpatializationPluginSourceSettingsBase;
 
 // This enumeration is deprecated
 UENUM()

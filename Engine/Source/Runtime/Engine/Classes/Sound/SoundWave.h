@@ -8,6 +8,8 @@
 
 #include "CoreMinimal.h"
 #include "Containers/IndirectArray.h"
+#include "Sound/AudioSettings.h"
+#include "Sound/SoundModulationDestination.h"
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
 #include "Async/AsyncWork.h"
@@ -31,6 +33,7 @@
 
 class FSoundWaveData;
 class ITargetPlatform;
+enum EAudioSpeakers : int;
 struct FActiveSound;
 struct FSoundParseParameters;
 struct FPlatformAudioCookOverrides;
