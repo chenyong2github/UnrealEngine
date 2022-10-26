@@ -59,6 +59,10 @@ public:
 	virtual EPCGDataType GetDataType() const override { return EPCGDataType::Settings | Super::GetDataType(); }
 	// ~End UPCGData interface
 
+	//~Begin UObject interface
+	virtual void Serialize(FArchive& Ar) override;
+	//~End UObject interface
+
 	// TODO: check if we need this to be virtual, we don't really need if we're always caching
 	/*virtual*/ FPCGElementPtr GetElement() const;
 	virtual UPCGNode* CreateNode() const;
@@ -71,6 +75,8 @@ public:
 	bool UseSeed() const { return bUseSeed; }
 
 #if WITH_EDITOR
+	virtual void ApplyDeprecation(UPCGNode* InOutNode) {}
+
 	virtual FName GetDefaultNodeName() const { return NAME_None; }
 	virtual FLinearColor GetNodeTitleColor() const { return FLinearColor::White; }
 	virtual EPCGSettingsType GetType() const { return EPCGSettingsType::Generic; }
@@ -119,6 +125,9 @@ public:
 protected:
 	virtual FPCGElementPtr CreateElement() const PURE_VIRTUAL(UPCGSettings::CreateElement, return nullptr;);
 
+	/** An additional custom version number that external system users can use to track versions. This version will be serialized into the asset and will be provided by UserDataVersion after load. */
+	virtual FGuid GetUserCustomVersionGuid() { return FGuid(); }
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool IsStructuralProperty(const FName& InPropertyName) const { return false; }
@@ -133,6 +142,15 @@ protected:
 
 	/** Methods to remove boilerplate code across settings */
 	TArray<FPCGPinProperties> DefaultPointOutputPinProperties() const;
+
+#if WITH_EDITOR
+protected:
+	/** The version number of the data after load and after any data migration. */
+	int32 DataVersion = -1;
+
+	/** If a custom version guid was provided through GetUserCustomVersionGuid(), this field will hold the version number after load and after any data migration. */
+	int32 UserDataVersion = -1;
+#endif
 
 private:
 	mutable FPCGElementPtr CachedElement;

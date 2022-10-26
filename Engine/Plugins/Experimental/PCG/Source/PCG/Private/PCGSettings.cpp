@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PCGSettings.h"
+#include "PCGCustomVersion.h"
 #include "PCGNode.h"
 #include "PCGSubsystem.h"
 #include "Serialization/ArchiveObjectCrc32.h"
@@ -42,6 +43,41 @@ uint32 UPCGSettings::GetCrc32() const
 {
 	FPCGSettingsObjectCrc32 Ar;
 	return Ar.Crc32(const_cast<UPCGSettings*>(this));
+}
+
+void UPCGSettings::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FPCGCustomVersion::GUID);
+
+#if WITH_EDITOR
+	if (Ar.IsLoading())
+	{
+		// Some data migration must happen after the graph is fully initialized, such as manipulating node connections, so we
+		// store off the loaded version number to be used later.
+		DataVersion = Ar.CustomVer(FPCGCustomVersion::GUID);
+	}
+#endif // WITH_EDITOR
+
+	// An additional custom version number that can be driven by external system users to track system modifications. To use a custom
+	// version in user settings objects, override the GetUserCustomVersionGuid() method.
+	const FGuid UserDataGuid = GetUserCustomVersionGuid();
+	const bool bUsingCustomUserVersion = UserDataGuid != FGuid();
+
+	if (bUsingCustomUserVersion)
+	{
+		Ar.UsingCustomVersion(UserDataGuid);
+
+#if WITH_EDITOR
+		if (Ar.IsLoading())
+		{
+			// Some data migration must happen after the graph is fully initialized, such as manipulating node connections, so we
+			// store off the loaded version number to be used later.
+			UserDataVersion = Ar.CustomVer(UserDataGuid);
+		}
+#endif // WITH_EDITOR
+	}
 }
 
 #if WITH_EDITOR

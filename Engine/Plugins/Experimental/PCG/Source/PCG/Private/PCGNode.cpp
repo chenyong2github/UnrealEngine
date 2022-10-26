@@ -116,6 +116,11 @@ void UPCGNode::ApplyDeprecation()
 		}
 	}
 	OutboundEdges_DEPRECATED.Reset();
+
+	if (DefaultSettings)
+	{
+		DefaultSettings->ApplyDeprecation(this);
+	}
 }
 #endif
 
