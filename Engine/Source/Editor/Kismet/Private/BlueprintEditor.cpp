@@ -9604,7 +9604,7 @@ FText FBlueprintEditor::GetToolkitToolTipText() const
 
 	FFormatNamedArguments Args;
 	Args.Add( TEXT("NumberOfObjects"), EditingObjs.Num() );
-	Args.Add( TEXT("ObjectName"), FText::FromString( SharedParentClass->GetName() ) );
+	Args.Add( TEXT("ClassName"), FText::FromString( SharedParentClass->GetName() ) );
 	return FText::Format( NSLOCTEXT("KismetEditor", "ToolkitTitle_UniqueLayerName", "{NumberOfObjects} {ClassName} - Class Defaults"), Args );
 }
 
