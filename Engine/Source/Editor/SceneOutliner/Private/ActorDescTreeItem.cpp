@@ -322,9 +322,9 @@ bool FActorDescTreeItem::ShouldShowPinnedState() const
 	if (ActorDescHandle.IsValid())
 	{
 		// Pinning of ActorDescs is only supported on the main world partition
-		if (UWorldPartition* WorldPartition = Cast<UWorldPartition>(ActorDescHandle->GetContainer()))
+		if (UActorDescContainer* Container = ActorDescHandle->GetContainer())
 		{
-			return WorldPartition->IsMainWorldPartition();
+			return Container->IsMainPartitionContainer();
 		}
 	}
 
@@ -335,11 +335,8 @@ bool FActorDescTreeItem::GetPinnedState() const
 {
 	if (ActorDescHandle.IsValid())
 	{
-		// Pinning of ActorDescs is only supported on the main world partition
-		if (UWorldPartition* WorldPartition = Cast<UWorldPartition>(ActorDescHandle->GetContainer()))
-		{
-			return WorldPartition->IsMainWorldPartition() && WorldPartition->IsActorPinned(GetGuid());
-		}
+		UWorldPartition* WorldPartition = ActorDescHandle->GetContainer()->GetWorld()->GetWorldPartition();
+		return WorldPartition ? WorldPartition->IsActorPinned(GetGuid()) : false;
 	}
 	return false;
 }
