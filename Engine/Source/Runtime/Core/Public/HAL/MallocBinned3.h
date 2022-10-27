@@ -580,7 +580,7 @@ public:
 				{
 					// Reallocate to a smaller/bigger pool if necessary
 					BlockSize = PoolIndexToBlockSize(PoolIndex);
-					if ((!!NewSize) & (NewSize <= BlockSize) & ((!PoolIndex) | (NewSize > PoolIndexToBlockSize(PoolIndex - 1))))
+					if ((!!NewSize) & (NewSize <= BlockSize) & ((!PoolIndex) | (NewSize > PoolIndexToBlockSize(static_cast<uint32>(PoolIndex - 1)))))
 					{
 #if BINNED3_ALLOCATOR_STATS
 						SmallPoolTables[PoolIndex].HeadEndAlloc(NewSize);
@@ -697,7 +697,9 @@ public:
 	/** Dumps current allocator stats to the log. */
 	virtual void DumpAllocatorStats(class FOutputDevice& Ar) override;
 	
-	static uint16 SmallBlockSizesReversedShifted[BINNED3_SMALL_POOL_COUNT]; // this is reversed to get the smallest elements on our main cache line
+	// +1 enables PoolIndexToBlockSize(~0u / -1) dummy access that helps avoid PoolIndex == 0 branching in Realloc(),
+	// see ((!PoolIndex) | (NewSize > PoolIndexToBlockSize(static_cast<uint32>(PoolIndex - 1)))
+	static uint16 SmallBlockSizesReversedShifted[BINNED3_SMALL_POOL_COUNT + 1]; // this is reversed to get the smallest elements on our main cache line
 	static FMallocBinned3* MallocBinned3;
 	static uint32 Binned3TlsSlot;
 	static uint32 OsAllocationGranularity;

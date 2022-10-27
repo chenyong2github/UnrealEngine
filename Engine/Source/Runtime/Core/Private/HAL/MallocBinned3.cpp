@@ -108,7 +108,7 @@ TAtomic<int32> MemoryRangeFreeTotalCount(0);
 #define BINNED3_LARGE_POOL_CANARIES 1 // need to repad the data structure so that the pagesize divides by this to disable
 
 MS_ALIGN(PLATFORM_CACHE_LINE_SIZE) static uint8 Binned3UnusedAlignPadding[PLATFORM_CACHE_LINE_SIZE] GCC_ALIGN(PLATFORM_CACHE_LINE_SIZE) = { 0 };
-uint16 FMallocBinned3::SmallBlockSizesReversedShifted[BINNED3_SMALL_POOL_COUNT] = { 0 };
+uint16 FMallocBinned3::SmallBlockSizesReversedShifted[BINNED3_SMALL_POOL_COUNT + 1] = { 0 };
 uint32 FMallocBinned3::Binned3TlsSlot = 0;
 uint32 FMallocBinned3::OsAllocationGranularity = 0;
 
