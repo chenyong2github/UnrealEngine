@@ -3011,7 +3011,7 @@ void SContentBrowser::OnItemsActivated(TArrayView<const FContentBrowserItem> Act
 			for (const FContentBrowserItemData& ItemToEdit : SourceAndItemsPair.Value)
 			{
 				FText EditErrorMsg;
-				if (!SourceAndItemsPair.Key->CanEditItem(ItemToEdit, &EditErrorMsg))
+				if (!SourceAndItemsPair.Key->CanEditItem(ItemToEdit, &EditErrorMsg) && !SourceAndItemsPair.Key->CanViewItem(ItemToEdit, &EditErrorMsg))
 				{
 					AssetViewUtils::ShowErrorNotifcation(EditErrorMsg);
 				}
