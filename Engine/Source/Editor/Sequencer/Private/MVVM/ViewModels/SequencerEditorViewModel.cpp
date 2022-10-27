@@ -63,6 +63,12 @@ void FSequencerEditorViewModel::SetSequence(UMovieSceneSequence* InRootSequence)
 	SequenceModel->SetSequence(InRootSequence, MovieSceneSequenceID::Root);
 }
 
+bool FSequencerEditorViewModel::IsReadOnly() const
+{
+	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+	return !Sequencer || Sequencer->IsReadOnly();
+}
+
 } // namespace Sequencer
 } // namespace UE
 
