@@ -4,6 +4,7 @@
 
 #include "Components/PostProcessComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/UserInterfaceSettings.h"
 #include "GameFramework/WorldSettings.h"
