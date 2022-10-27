@@ -2087,57 +2087,86 @@ void FCustomizableObjectInstanceDescriptor::CreateParametersLookupTable()
 	}
 }
 
-
-uint32 GetTypeHash(const FCustomizableObjectInstanceDescriptor& Key)
+FDescriptorHash::FDescriptorHash(const FCustomizableObjectInstanceDescriptor& Descriptor)
 {
-	uint32 Hash = 0;
-
-	if (Key.CustomizableObject) 
+	if (Descriptor.CustomizableObject)
 	{
-		Hash = HashCombine(Hash, GetTypeHash(Key.CustomizableObject->GetPathName()));
-		Hash = HashCombine(Hash, GetTypeHash(Key.CustomizableObject->GetCompilationGuid()));
+		Hash = HashCombine(Hash, GetTypeHash(Descriptor.CustomizableObject->GetPathName()));
+		Hash = HashCombine(Hash, GetTypeHash(Descriptor.CustomizableObject->GetCompilationGuid()));
 	}
 
-	for (const FCustomizableObjectBoolParameterValue& Value : Key.BoolParameters)
+	for (const FCustomizableObjectBoolParameterValue& Value : Descriptor.BoolParameters)
 	{
 		Hash = HashCombine(Hash, GetTypeHash(Value));
 	}	
 
-	for (const FCustomizableObjectIntParameterValue& Value : Key.IntParameters)
+	for (const FCustomizableObjectIntParameterValue& Value : Descriptor.IntParameters)
 	{
 		Hash = HashCombine(Hash, GetTypeHash(Value));
 	}
 	
-	for (const FCustomizableObjectFloatParameterValue& Value : Key.FloatParameters)
+	for (const FCustomizableObjectFloatParameterValue& Value : Descriptor.FloatParameters)
 	{
 		Hash = HashCombine(Hash, GetTypeHash(Value));
 	}
 
-	for (const FCustomizableObjectTextureParameterValue& Value : Key.TextureParameters)
+	for (const FCustomizableObjectTextureParameterValue& Value : Descriptor.TextureParameters)
 	{
 		Hash = HashCombine(Hash, GetTypeHash(Value));
 	}
 
-	for (const FCustomizableObjectVectorParameterValue& Value : Key.VectorParameters)
+	for (const FCustomizableObjectVectorParameterValue& Value : Descriptor.VectorParameters)
 	{
 		Hash = HashCombine(Hash, GetTypeHash(Value));
 	}
 
-	for (const FCustomizableObjectProjectorParameterValue& Value : Key.ProjectorParameters)
+	for (const FCustomizableObjectProjectorParameterValue& Value : Descriptor.ProjectorParameters)
 	{
 		Hash = HashCombine(Hash, GetTypeHash(Value));
 	}
 	
-	Hash = HashCombine(Hash, GetTypeHash(Key.State));
-	Hash = HashCombine(Hash, GetTypeHash(Key.bBuildParameterDecorations));
-	Hash = HashCombine(Hash, GetTypeHash(Key.MinLODToLoad));
-	Hash = HashCombine(Hash, GetTypeHash(Key.MaxLODToLoad));
+	Hash = HashCombine(Hash, GetTypeHash(Descriptor.State));
+	Hash = HashCombine(Hash, GetTypeHash(Descriptor.bBuildParameterDecorations));
+	Hash = HashCombine(Hash, GetTypeHash(Descriptor.MinLODToLoad));
+	Hash = HashCombine(Hash, GetTypeHash(Descriptor.MaxLODToLoad));
 
-	for (const TTuple<FName, FMultilayerProjector>& Pair : Key.MultilayerProjectors)
+	for (const TTuple<FName, FMultilayerProjector>& Pair : Descriptor.MultilayerProjectors)
 	{
 		// Hash = HashCombine(Hash, GetTypeHash(Pair.Key)); // Already hashed by the FMultilayerProjector.
 		Hash = HashCombine(Hash, GetTypeHash(Pair.Value));
 	}
-	
-	return Hash;
+}
+
+
+bool FDescriptorHash::operator==(const FDescriptorHash& Other) const
+{
+	return Hash == Other.Hash;
+}
+
+
+bool FDescriptorHash::operator<(const FDescriptorHash& Other) const
+{
+	return Hash < Other.Hash;
+}
+
+
+FString FDescriptorHash::ToString() const
+{
+	return FString::Printf(TEXT("%u"), Hash);
+}
+
+
+FDescriptorRuntimeHash::FDescriptorRuntimeHash(const FCustomizableObjectInstanceDescriptor& Descriptor) :
+	FDescriptorHash(Descriptor)
+{
+	MinLODToLoad = Descriptor.MinLODToLoad;
+	MaxLODToLoad = Descriptor.MaxLODToLoad;	
+}
+
+
+bool FDescriptorRuntimeHash::IsSubset(const FDescriptorRuntimeHash& Other) const
+{
+	return FDescriptorHash::operator==(Other) &&
+		MinLODToLoad >= Other.MinLODToLoad &&
+		MaxLODToLoad <= Other.MaxLODToLoad;
 }

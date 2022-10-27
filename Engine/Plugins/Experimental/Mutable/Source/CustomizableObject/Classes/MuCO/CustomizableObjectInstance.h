@@ -595,11 +595,11 @@ public:
 	/** Instance updated. */
 	void Updated(EUpdateResult Result);
 	
-	/** Hash representing the actual state of the instance (meshes, textures...). This does not include the parameters. */
-	uint32 GetDescriptorHash() const;
+	/** Return the UCustomizableObjectInstance::Descriptor hash on the last update request. */
+	FDescriptorRuntimeHash GetDescriptorRuntimeHash() const;
 
-	/** Hash representing the state of the instance when the update was requested. */
-	uint32 GetUpdateDescriptorHash() const;
+	/** Return the UCustomizableObjectInstance::Descriptor hash on the last successful update. */
+	FDescriptorRuntimeHash GetUpdateDescriptorRuntimeHash() const;
 
 	// --------------------------------------------------------------------
 
@@ -663,11 +663,11 @@ private:
 	UPROPERTY( Transient )
 	TObjectPtr<UCustomizableInstancePrivateData> PrivateData;
 
-	/** Hash of the UCustomizableObjectInstance::Descriptor when UpdateSkeletalMeshAsync has been called. */
-	uint32 UpdateDescriptorHash = 0;
+	/** Hash of the UCustomizableObjectInstance::Descriptor on the last update request. */
+	FDescriptorRuntimeHash UpdateDescriptorRuntimeHash;
 	
 	/** Hash of the UCustomizableObjectInstance::Descriptor on the last successful update. */
-	uint32 DescriptorHash = 0;
+	FDescriptorRuntimeHash DescriptorRuntimeHash;
 
 	// Deprecated properties
 	

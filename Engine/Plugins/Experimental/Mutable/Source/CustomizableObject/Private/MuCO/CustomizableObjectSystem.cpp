@@ -811,14 +811,14 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 		// Skip the update if the Instance has the same descriptor (pending or applied).
 		// If there is a hash collision, at worse, we would add an unnecessary update.
 		{
-			const uint32 UpdateDescriptorHash = Public->GetUpdateDescriptorHash();
+			const FDescriptorRuntimeHash UpdateDescriptorHash = Public->GetUpdateDescriptorRuntimeHash();
 
 			if (const FMutableQueueElem* QueueElem = MutableOperationQueue.Get(Public))
 			{
 				if (const TSharedPtr<FMutableOperation>& QueuedOperation = QueueElem->Operation;
 					QueuedOperation &&
 					QueuedOperation->Type == FMutableOperation::EOperationType::Update &&
-					QueuedOperation->InstanceDescriptorHash == UpdateDescriptorHash)
+					UpdateDescriptorHash.IsSubset(QueuedOperation->InstanceDescriptorRuntimeHash))
 				{
 					return;
 				}
@@ -826,12 +826,12 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 		
 			if (CurrentMutableOperation &&
 				CurrentMutableOperation->Type == FMutableOperation::EOperationType::Update &&
-				CurrentMutableOperation->InstanceDescriptorHash == UpdateDescriptorHash)
+				UpdateDescriptorHash.IsSubset(CurrentMutableOperation->InstanceDescriptorRuntimeHash))
 			{
 				return;
 			}
 			
-			if (Public->GetDescriptorHash() == UpdateDescriptorHash)
+			if (UpdateDescriptorHash.IsSubset(Public->GetDescriptorRuntimeHash()))
 			{
 				UpdateSkeletalMesh(Public);
 				return;
@@ -2421,7 +2421,7 @@ FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectIns
 	Op.bNeverStream = bInNeverStream;
 	Op.MipsToSkip = InMipsToSkip;
 	Op.CustomizableObjectInstance = InCustomizableObjectInstance;
-	Op.InstanceDescriptorHash = InCustomizableObjectInstance->GetUpdateDescriptorHash();
+	Op.InstanceDescriptorRuntimeHash = InCustomizableObjectInstance->GetUpdateDescriptorRuntimeHash();
 	Op.bStarted = false;
 	Op.bBuildParameterDecorations = InCustomizableObjectInstance->GetBuildParameterDecorations();
 	Op.Parameters = InCustomizableObjectInstance->GetPrivate()->ReloadParametersFromObject(InCustomizableObjectInstance, false);

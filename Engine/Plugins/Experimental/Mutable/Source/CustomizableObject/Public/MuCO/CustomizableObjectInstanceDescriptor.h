@@ -6,7 +6,6 @@
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
 #include "Math/Color.h"
-#include "Math/UnrealMathSSE.h"
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "MuCO/CustomizableObject.h"
 #include "MuCO/MultilayerProjector.h"
@@ -18,6 +17,8 @@ class FArchive;
 class UCustomizableInstancePrivateData;
 class UCustomizableObject;
 class UCustomizableObjectInstance;
+class FDescriptorHash;
+class FDescriptorRuntimeHash;
 
 namespace mu
 {
@@ -30,7 +31,7 @@ namespace mu
 
 /** Set of parameters + state that defines a CustomizableObjectInstance.
  *
- * This object has the same parameters + state interfice as UCustomizableObjectInstance.
+ * This object has the same parameters + state interface as UCustomizableObjectInstance.
  * UCustomizableObjectInstance must share the same interface. Any public methods added here should also end up in the Instance. */
 USTRUCT()
 struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
@@ -336,11 +337,45 @@ private:
 	void CreateParametersLookupTable();
 	
 	// Friends
-	friend CUSTOMIZABLEOBJECT_API uint32 GetTypeHash(const FCustomizableObjectInstanceDescriptor& Key);
+	friend FDescriptorHash;
+	friend FDescriptorRuntimeHash;
 	friend UCustomizableObjectInstance;
 	friend UCustomizableInstancePrivateData;
 	friend FMultilayerProjector;
 };
 
 
-CUSTOMIZABLEOBJECT_API uint32 GetTypeHash(const FCustomizableObjectInstanceDescriptor& Key);
+/** Hash of the Descriptor. Hashes everything except runtime information. */
+class CUSTOMIZABLEOBJECT_API FDescriptorHash
+{
+public:
+	FDescriptorHash() = default;
+
+	explicit FDescriptorHash(const FCustomizableObjectInstanceDescriptor& Descriptor);
+
+	bool operator==(const FDescriptorHash& Other) const;
+
+	bool operator<(const FDescriptorHash& Other) const;
+
+	FString ToString() const;
+	
+private:
+	uint32 Hash = 0;
+};
+
+
+/** Hash of the Descriptor. Hashes everything including runtime information. */
+class CUSTOMIZABLEOBJECT_API FDescriptorRuntimeHash : public FDescriptorHash
+{
+public:
+	FDescriptorRuntimeHash() = default;
+
+	explicit FDescriptorRuntimeHash(const FCustomizableObjectInstanceDescriptor& Descriptor);
+
+	/** Return true if this Hash is a subset of the other Hash (i.e., this Descriptor is a subset of the other Descriptor). */
+	bool IsSubset(const FDescriptorRuntimeHash& Other) const;
+	
+private:
+	int32 MinLODToLoad = 0;
+	int32 MaxLODToLoad = INT32_MAX;
+};

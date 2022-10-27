@@ -64,8 +64,8 @@ public:
 	// It is weak because we don't want to lock it in case it becomes irrelevant in the game while operations are pending and it needs to be destroyed.
 	TWeakObjectPtr<UCustomizableObjectInstance> CustomizableObjectInstance;
 
-	/** Hash of the UCustomizableObjectInstance::Descriptor (state of the instance parameters + state). */
-	uint32 InstanceDescriptorHash;
+	/** Hash of the UCustomizableObjectInstance::Descriptor at the time of the update request. */
+	FDescriptorRuntimeHash InstanceDescriptorRuntimeHash;
 
 	//! This is used to calculate stats.
 	double StartUpdateTime = 0.0;

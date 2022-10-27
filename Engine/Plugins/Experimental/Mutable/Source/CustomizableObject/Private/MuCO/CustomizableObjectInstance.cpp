@@ -798,6 +798,8 @@ void UCustomizableInstancePrivateData::DoUpdateSkeletalMeshAsync(UCustomizableOb
 		UE_LOG(LogMutable, Verbose, TEXT("LOD change: %d, %d -> %d, %d"), LastUpdateMinLOD, LastUpdateMaxLOD, Instance->Descriptor.MinLODToLoad, Instance->Descriptor.MaxLODToLoad);
 	}
 
+	Instance->UpdateDescriptorRuntimeHash = FDescriptorRuntimeHash(Instance->Descriptor);
+
 	UCustomizableObjectSystem::GetInstance()->GetPrivate()->InitUpdateSkeletalMesh(Instance, Priority);
 
 #if WITH_EDITOR
@@ -822,8 +824,6 @@ void UCustomizableInstancePrivateData::DoUpdateSkeletalMesh(UCustomizableObjectI
 
 	check(IsInGameThread());
 	check(bAsync);
-
-	CustomizableInstance->UpdateDescriptorHash = GetTypeHash(CustomizableInstance->Descriptor);
 
 	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
 	
@@ -2452,7 +2452,7 @@ void UCustomizableObjectInstance::Updated(EUpdateResult Result)
 {
 	if (Result == EUpdateResult::Success)
 	{
-		DescriptorHash = UpdateDescriptorHash;
+		DescriptorRuntimeHash = UpdateDescriptorRuntimeHash;
 	}
 
 	// Call Customizable Skeletal Components updated callbacks.
@@ -2475,15 +2475,15 @@ void UCustomizableObjectInstance::Updated(EUpdateResult Result)
 }
 
 
-uint32 UCustomizableObjectInstance::GetDescriptorHash() const
+FDescriptorRuntimeHash UCustomizableObjectInstance::GetDescriptorRuntimeHash() const
 {
-	return DescriptorHash;	
+	return DescriptorRuntimeHash;
 }
 
 
-uint32 UCustomizableObjectInstance::GetUpdateDescriptorHash() const
+FDescriptorRuntimeHash UCustomizableObjectInstance::GetUpdateDescriptorRuntimeHash() const
 {
-	return UpdateDescriptorHash;
+	return UpdateDescriptorRuntimeHash;
 }
 
 
