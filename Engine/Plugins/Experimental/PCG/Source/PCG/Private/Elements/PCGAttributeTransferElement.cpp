@@ -120,7 +120,7 @@ UPCGSpatialData* FPCGAttributeTransferElement::TransferSpatialToSpatial(FPCGCont
 	UPCGSpatialData* NewSpatialData = DuplicateObject<UPCGSpatialData>(const_cast<UPCGSpatialData*>(TargetData), nullptr);
 	NewSpatialData->InitializeFromData(TargetData);
 
-	const FName TargetAttributeName = Settings->TargetAttributeName == NAME_None ? Settings->SourceAttributeName : Settings->TargetAttributeName;
+	const FName TargetAttributeName = (Settings->TargetAttributeName == NAME_None) ? Settings->SourceAttributeName : Settings->TargetAttributeName;
 
 	// Making sure the target attribute doesn't exists in the target
 	if (NewSpatialData->Metadata->HasAttribute(TargetAttributeName))
@@ -156,7 +156,7 @@ UPCGPointData* FPCGAttributeTransferElement::TransferPointToPoint(FPCGContext* C
 
 	TargetPoints = TargetData->GetPoints();
 
-	const FName TargetAttributeName = Settings->TargetAttributeName == NAME_None ? Settings->SourceAttributeName : Settings->TargetAttributeName;
+	const FName TargetAttributeName = (Settings->TargetAttributeName == NAME_None) ? Settings->SourceAttributeName : Settings->TargetAttributeName;
 
 	// Making sure the target attribute doesn't exist in the target
 	if (NewPointData->Metadata->HasAttribute(TargetAttributeName))

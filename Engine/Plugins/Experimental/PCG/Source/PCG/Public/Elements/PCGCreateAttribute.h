@@ -7,7 +7,7 @@
 #include "Metadata/PCGMetadataCommon.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 
-#include "PCGCreateAttributeBase.generated.h"
+#include "PCGCreateAttribute.generated.h"
 
 class FPCGMetadataAttributeBase;
 class UPCGMetadata;

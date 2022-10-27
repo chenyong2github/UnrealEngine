@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Elements/PCGCreateAttributeBase.h"
+#include "Elements/PCGCreateAttribute.h"
 
 #include "PCGData.h"
 #include "PCGParamData.h"
@@ -73,7 +73,7 @@ FName UPCGCreateAttributeSettings::AdditionalTaskName() const
 		}
 		else
 		{
-			const FString AttributeName = (OutputAttributeName == NAME_None ? SourceParamAttributeName : OutputAttributeName).ToString();
+			const FString AttributeName = ((OutputAttributeName == NAME_None) ? SourceParamAttributeName : OutputAttributeName).ToString();
 			return FName(FString::Printf(TEXT("%s %s"), *NodeName.ToString(), *AttributeName));
 		}
 	}
@@ -173,7 +173,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 			return true;
 		}
 
-		SourceParamAttributeName = Settings->SourceParamAttributeName == NAME_None ? SourceParamData->Metadata->GetLatestAttributeNameOrNone() : Settings->SourceParamAttributeName;
+		SourceParamAttributeName = (Settings->SourceParamAttributeName == NAME_None) ? SourceParamData->Metadata->GetLatestAttributeNameOrNone() : Settings->SourceParamAttributeName;
 
 		if (!SourceParamData->Metadata->HasAttribute(SourceParamAttributeName))
 		{
