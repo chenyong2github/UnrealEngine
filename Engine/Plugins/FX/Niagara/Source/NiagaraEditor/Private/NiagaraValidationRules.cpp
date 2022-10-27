@@ -5,6 +5,7 @@
 #include "NiagaraClipboard.h"
 #include "NiagaraComponentRendererProperties.h"
 #include "NiagaraDataInterfaceUtilities.h"
+#include "NiagaraEditorSettings.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraSettings.h"
@@ -167,19 +168,46 @@ void NiagaraValidation::ValidateAllRulesInSystem(TSharedPtr<FNiagaraSystemViewMo
 	TArray<FNiagaraValidationResult> NiagaraValidationResults;
 	
 	UNiagaraSystem& NiagaraSystem = SysViewModel->GetSystem();
-	if (NiagaraSystem.GetEffectType())
-	{
-		// go over the validation rules in the effect type
-		for (UNiagaraValidationRule* ValidationRule : NiagaraSystem.GetEffectType()->ValidationRules)
+
+	// Helper function
+	const auto& ExecuteValidateRules =
+		[&](TConstArrayView<TObjectPtr<UNiagaraValidationRule>> ValidationRules)
 		{
-			if (ValidationRule)
+			for (const UNiagaraValidationRule* ValidationRule : ValidationRules)
 			{
-				ValidationRule->CheckValidity(Context, NiagaraValidationResults);
+				if (ValidationRule)
+				{
+					ValidationRule->CheckValidity(Context, NiagaraValidationResults);
+				}
+		}
+	};
+
+	// Validate Global Rules
+	if (const UNiagaraEditorSettings* EditorSettings = GetDefault<UNiagaraEditorSettings>())
+	{
+		for (const TSoftObjectPtr<UNiagaraValidationRuleSet>& ValidationRuleSetPtr : EditorSettings->DefaultValidationRuleSets)
+		{
+			if (const UNiagaraValidationRuleSet* ValidationRuleSet = ValidationRuleSetPtr.Get())
+			{
+				ExecuteValidateRules(ValidationRuleSet->ValidationRules);
 			}
 		}
 	}
 
-	// go over the module-specific rules
+	// Validate EffectType Rules
+	if (UNiagaraEffectType* EffectType = NiagaraSystem.GetEffectType())
+	{
+		ExecuteValidateRules(EffectType->ValidationRules);
+		for (UNiagaraValidationRuleSet* ValidationRuleSet : EffectType->ValidationRuleSets)
+		{
+			if (ValidationRuleSet != nullptr)
+			{
+				ExecuteValidateRules(ValidationRuleSet->ValidationRules);
+			}
+		}
+	}
+
+	// Validate Module Specific Rules
 	TArray<UNiagaraStackModuleItem*> StackModuleItems =	NiagaraValidation::GetAllStackEntriesInSystem<UNiagaraStackModuleItem>(Context.ViewModel);
 	for (UNiagaraStackModuleItem* Module : StackModuleItems)
 	{
@@ -647,7 +675,7 @@ void UNiagaraValidationRule_NoFixedDeltaTime::CheckValidity(const FNiagaraValida
 		{
 			OutResults.Emplace_GetRef(
 				ENiagaraValidationSeverity::Error,
-				LOCTEXT("NoFixedDeltaTime", "Effect tyoe does not allow fixed tick delta time"),
+				LOCTEXT("NoFixedDeltaTime", "Effect type does not allow fixed tick delta time"),
 				LOCTEXT("NoFixedDeltaTimeDetailed", "This system uses a fixed tick delta time, which means it might tick multiple times per frame or might skip ticks depending on the global tick rate.\nThe selected effect type does not allow fixed tick delta times."),
 				NiagaraValidation::GetStackEntry<UNiagaraStackSystemPropertiesItem>(Context.ViewModel->GetSystemStackViewModel())
 			);

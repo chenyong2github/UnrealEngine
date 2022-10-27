@@ -5,6 +5,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraScript.h"
+#include "NiagaraValidationRuleSet.h"
 #include "Engine/DeveloperSettings.h"
 #include "NiagaraSpawnShortcut.h"
 #include "NiagaraEditorSettings.generated.h"
@@ -262,6 +263,10 @@ public:
 	/** Niagara script which is required in the system update script to control system state. */
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	FSoftObjectPath RequiredSystemUpdateScript;
+
+	/** Validation rules applied to all Niagara systems. */
+	UPROPERTY(config, EditAnywhere, Category = Niagara)
+	TArray<TSoftObjectPtr<UNiagaraValidationRuleSet>> DefaultValidationRuleSets;
 
 	/** Shortcut key bindings that if held down while doing a mouse click, will spawn the specified type of Niagara node.*/
 	UPROPERTY(config, EditAnywhere, Category = Niagara)

@@ -7,6 +7,7 @@
 #include "NiagaraPlatformSet.h"
 #include "NiagaraPerfBaseline.h"
 #include "NiagaraValidationRule.h"
+#include "NiagaraValidationRuleSet.h"
 #include "NiagaraEffectType.generated.h"
 
 #define DEBUG_SCALABILITY_STATE (!UE_BUILD_SHIPPING)
@@ -441,9 +442,15 @@ class NIAGARA_API UNiagaraEffectType : public UObject
 	UPROPERTY(EditAnywhere, Category = "Scalability")
 	FNiagaraEmitterScalabilitySettingsArray EmitterScalabilitySettings;
 
+#if WITH_EDITORONLY_DATA
 	/** A set of rules to apply when checking content. To create your own rules, write a custom class that extends UNiagaraValidationRule. */
 	UPROPERTY(EditAnywhere, Category = "Validation", Instanced)
 	TArray<TObjectPtr<UNiagaraValidationRule>> ValidationRules;
+
+	/** Array of reusable rule sets to apply when checking content. To create your own rules, write a custom class that extends UNiagaraValidationRule. */
+	UPROPERTY(EditAnywhere, Category = "Validation")
+	TArray<TObjectPtr<UNiagaraValidationRuleSet>> ValidationRuleSets;
+#endif
 
 	FORCEINLINE const FNiagaraSystemScalabilitySettingsArray& GetSystemScalabilitySettings()const { return SystemScalabilitySettings; }
 	FORCEINLINE const FNiagaraEmitterScalabilitySettingsArray& GetEmitterScalabilitySettings()const { return EmitterScalabilitySettings; }
