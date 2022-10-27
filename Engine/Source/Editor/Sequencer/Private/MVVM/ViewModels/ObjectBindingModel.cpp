@@ -532,7 +532,7 @@ TSharedRef<SWidget> FObjectBindingModel::GetAddTrackMenuContent()
 	{
 		for (const TWeakPtr<FViewModel>& Node : Sequencer->GetSelection().GetSelectedOutlinerItems())
 		{
-			const FObjectBindingModel* ObjectBindingNode = Node.Pin()->CastThisChecked<FObjectBindingModel>();
+			const FObjectBindingModel* ObjectBindingNode = Node.Pin()->CastThis<FObjectBindingModel>();
 			if (!ObjectBindingNode)
 			{
 				continue;
