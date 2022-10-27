@@ -113,19 +113,31 @@ TArray<FIoHash> FindVirtualizedPayloads(const TArray<FString>& PackageNames)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FindVirtualizedPayloads);
 
-	TSet<FIoHash> PayloadsToPrecache;
+	// Each task will write out to its own TSet so we don't have to lock anything, we
+	// will combine the sets at the end.
+	TArray<TSet<FIoHash>> PayloadsPerTask;
 
-	for (const FString& PackageName : PackageNames)
-	{
-		UE::FPackageTrailer Trailer;
-		if (UE::FPackageTrailer::TryLoadFromFile(PackageName, Trailer))
+	ParallelForWithTaskContext(PayloadsPerTask, PackageNames.Num(), 
+		[&PackageNames](TSet<FIoHash>& Context, int32 Index)
 		{
-			TArray<FIoHash> VirtualizedPayloads = Trailer.GetPayloads(UE::EPayloadStorageType::Virtualized);
-			PayloadsToPrecache.Append(VirtualizedPayloads);
-		}
+			const FString& PackageName = PackageNames[Index];
+
+			UE::FPackageTrailer Trailer;
+			if (UE::FPackageTrailer::TryLoadFromFile(PackageName, Trailer))
+			{
+				TArray<FIoHash> VirtualizedPayloads = Trailer.GetPayloads(UE::EPayloadStorageType::Virtualized);
+				Context.Append(VirtualizedPayloads);
+			}
+		});
+
+	// Combine the results into a final set
+	TSet<FIoHash> AllPayloads;
+	for (const TSet<FIoHash>& T : PayloadsPerTask)
+	{
+		AllPayloads.Append(T);
 	}
 
-	return PayloadsToPrecache.Array();
+	return AllPayloads.Array();
 }
 
 }
