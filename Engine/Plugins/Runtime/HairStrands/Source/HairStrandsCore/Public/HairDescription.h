@@ -109,6 +109,18 @@ private:
 	int32 NumStrands;
 };
 
+struct FHairDescriptionVersion
+{
+	FCustomVersionContainer CustomVersions;
+	FPackageFileVersion UEVersion;
+	int32 LicenseeVersion = 0;
+	bool bIsValid = false;
+	bool IsValid() const { return bIsValid; }
+	void CopyVersionsFromArchive(const FArchive& Ar);
+	void CopyVersionsToArchive(FArchive& Ar) const;
+};
+FArchive& operator<<(FArchive& Ar, FHairDescriptionVersion& Version);
+
 /**
  * Bulk data storage for FHairDescription
  */
@@ -139,8 +151,8 @@ private:
 	/** Internally store bulk data as bytes */
 	UE::Serialization::FEditorBulkData BulkData;
 
-	/** Custom version to propagate to archive when serializing the bulk data */
-	FCustomVersionContainer CustomVersions;
+	/** UE/Custom/Licensee version to propagate to archive when serializing the bulk data */
+	FHairDescriptionVersion BulkDataVersion;
 
 	/** Whether the bulk data has been written via SaveHairDescription */
 	bool bBulkDataUpdated = false;

@@ -81,6 +81,38 @@ void FHairDescription::Serialize(FArchive& Ar)
 	Ar << GroomAttributesSet;
 }
 
+FArchive& operator<<(FArchive& Ar, FHairDescriptionVersion& Version)
+{
+	Ar << Version.bIsValid;
+	if (Version.bIsValid)
+	{
+		Ar << Version.UEVersion;
+		Ar << Version.LicenseeVersion;
+		Version.CustomVersions.Serialize(Ar);
+	}
+	else if (Ar.IsLoading())
+	{
+		Version = FHairDescriptionVersion();
+	}
+	return Ar;
+}
+
+void FHairDescriptionVersion::CopyVersionsFromArchive(const FArchive& Ar)
+{
+	bIsValid = true;
+	UEVersion = Ar.UEVer();
+	LicenseeVersion = Ar.LicenseeUEVer();
+	CustomVersions = Ar.GetCustomVersions();
+}
+
+void FHairDescriptionVersion::CopyVersionsToArchive(FArchive& Ar) const
+{
+	check(bIsValid);
+	Ar.SetUEVer(UEVersion);
+	Ar.SetLicenseeUEVer(LicenseeVersion);
+	Ar.SetCustomVersions(CustomVersions);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // FHairDescriptionBulkData
 
@@ -94,7 +126,7 @@ void FHairDescriptionBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	if (Ar.IsTransacting())
 	{
 		// If transacting, keep these members alive the other side of an undo, otherwise their values will get lost
-		CustomVersions.Serialize(Ar);
+		Ar << BulkDataVersion;
 		Ar << bBulkDataUpdated;
 	}
 	else
@@ -125,17 +157,15 @@ void FHairDescriptionBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	}
 	else
 	{
-		BulkData.Serialize(Ar, Owner);
+	BulkData.Serialize(Ar, Owner);
 	}
 
 	if (!Ar.IsTransacting() && Ar.IsLoading())
 	{
 		// If loading, take the package custom version so it can be applied to the bulk data archive
 		// when unpacking HairDescription from it
-		// TODO: Save the UEVersion and LicenseeVersion as well
-		FPackageFileVersion UEVersion;
-		int32 LicenseeUEVersion;
-		BulkData.GetBulkDataVersions(Ar, UEVersion, LicenseeUEVersion, CustomVersions);
+		BulkDataVersion.bIsValid = true;
+		BulkData.GetBulkDataVersions(Ar, BulkDataVersion.UEVersion, BulkDataVersion.LicenseeVersion, BulkDataVersion.CustomVersions);
 	}
 }
 
@@ -149,14 +179,13 @@ void FHairDescriptionBulkData::SaveHairDescription(FHairDescription& HairDescrip
 		HairDescription.Serialize(Ar);
 
 		// Preserve CustomVersions at save time so we can reuse the same ones when reloading direct from memory
-		CustomVersions = Ar.GetCustomVersions();
+		BulkDataVersion.CopyVersionsFromArchive(Ar);
 	}
 
 	// Mark the HairDescriptionBulkData as having been updated.
 	// This means we know that its version is up-to-date.
 	bBulkDataUpdated = true;
 }
-
 
 void FHairDescriptionBulkData::LoadHairDescription(FHairDescription& HairDescription)
 {
@@ -168,7 +197,8 @@ void FHairDescriptionBulkData::LoadHairDescription(FHairDescription& HairDescrip
 
 		// Propagate the custom version information from the package to the bulk data, so that the HairDescription
 		// is serialized with the same versioning
-		Ar.SetCustomVersions(CustomVersions);
+		checkf(BulkDataVersion.IsValid(), TEXT("If BulkData is non-empty, we should have set the BulkDataVersion when we populated it."));
+		BulkDataVersion.CopyVersionsToArchive(Ar);
 
 		HairDescription.Serialize(Ar);
 	}
@@ -180,7 +210,7 @@ void FHairDescriptionBulkData::Empty()
 }
 
 FString FHairDescriptionBulkData::GetIdString() const
-{		
+{
 	FString GuidString = UE::Serialization::IoHashToGuid(BulkData.GetPayloadId()).ToString();
 	GuidString += TEXT("X");
 	return GuidString;
