@@ -2,27 +2,25 @@
 #pragma once
 
 #include "BehaviorTree/BTTaskNode.h"
-#include "TestBTTask_StopTree.generated.h"
+#include "TestBTStopAction.h"
+#include "TestBTTask_BTStopAction.generated.h"
 
 UENUM()
-namespace EBTTestTaskStopTree
+enum class EBTTestTaskStopTiming : uint8
 {
-	enum Type
-	{
-		DuringExecute,
-		DuringTick,
-		DuringAbort,
-		DuringFinish,
-	};
-}
+	DuringExecute,
+	DuringTick,
+	DuringAbort,
+	DuringFinish,
+};
 
 UCLASS(meta=(HiddenNode))
-class UTestBTTask_StopTree : public UBTTaskNode
+class UTestBTTask_BTStopAction : public UBTTaskNode
 {
 	GENERATED_BODY()
 
 public:
-	UTestBTTask_StopTree(const FObjectInitializer& ObjectInitializer);
+	UTestBTTask_BTStopAction(const FObjectInitializer& ObjectInitializer);
 
 	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
@@ -31,7 +29,10 @@ public:
 	virtual void OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult) override;
 
 	UPROPERTY()
-	TEnumAsByte<EBTTestTaskStopTree::Type> StopTimming;
+	EBTTestTaskStopTiming StopTiming;
+
+	UPROPERTY()
+	EBTTestStopAction StopAction;
 
 	UPROPERTY()
 	int32 LogIndex;

@@ -2,21 +2,19 @@
 #pragma once
 
 #include "BehaviorTree/BTService.h"
-#include "TestBTService_StopTree.generated.h"
+#include "TestBTStopAction.h"
+#include "TestBTService_BTStopAction.generated.h"
 
 UENUM()
-namespace EBTTestServiceStopTree
+enum class EBTTestServiceStopTiming : uint8
 {
-	enum Type
-	{
-		DuringBecomeRelevant,
-		DuringTick,
-		DuringCeaseRelevant,
-	};
-}
+	DuringBecomeRelevant,
+	DuringTick,
+	DuringCeaseRelevant,
+};
 
 UCLASS(meta = (HiddenNode))
-class UTestBTService_StopTree : public UBTService
+class UTestBTService_BTStopAction : public UBTService
 {
 	GENERATED_UCLASS_BODY()
 
@@ -24,7 +22,10 @@ class UTestBTService_StopTree : public UBTService
 	int32 LogIndex;
 
 	UPROPERTY()
-	TEnumAsByte<EBTTestServiceStopTree::Type> StopTimming;
+	EBTTestServiceStopTiming StopTiming;
+
+	UPROPERTY()
+	EBTTestStopAction StopAction;
 
 	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;

@@ -2149,14 +2149,14 @@ struct FAITest_BTSubtreeAbortOutToLowerPrio2 : public FAITest_SimpleBT
 			FBTBuilder::AddTask(CompNode, MainTaskExecute, EBTNodeResult::Succeeded, 1, MainTaskTick);
 		}
 
-		ExpectedResult.Add(SubtreeTaskExecute);
-		ExpectedResult.Add(SubtreeTaskTick);
-		ExpectedResult.Add(SubtreeTaskTick);
-		ExpectedResult.Add(BBDecoratorBecomeRelevant);
-		ExpectedResult.Add(MainTaskExecute);
-		ExpectedResult.Add(MainTaskTick);
-		ExpectedResult.Add(MainTaskTick);
-		ExpectedResult.Add(BBDecoratorCeaseRelevant);
+		ExpectedResult.Add(SubtreeTaskExecute/*1*/);
+		ExpectedResult.Add(SubtreeTaskTick/*2*/);
+		ExpectedResult.Add(SubtreeTaskTick/*2*/);
+		ExpectedResult.Add(BBDecoratorBecomeRelevant/*3*/);
+		ExpectedResult.Add(MainTaskExecute/*5*/);
+		ExpectedResult.Add(MainTaskTick/*6*/);
+		ExpectedResult.Add(MainTaskTick/*6*/);
+		ExpectedResult.Add(BBDecoratorCeaseRelevant/*4*/);
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTSubtreeAbortOutToLowerPrio2, "System.AI.Behavior Trees.Subtree: abort out lower prio 2")
@@ -2325,25 +2325,38 @@ struct FAITest_BTPostponeDuringSearch2 : public FAITest_SimpleBT
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTPostponeDuringSearch2, "System.AI.Behavior Trees.Service: Postpone during search (lower pri)")
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// Stop tree tests
+//////////////////////////////////////////////////////////////////////////////////////////////////
 struct FAITest_BTStopDuringTaskExecute : public FAITest_SimpleBT
 {
 	FAITest_BTStopDuringTaskExecute()
 	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			UninitTaskExecute,
+		};
+
 		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
 		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
 		{
-			FBTBuilder::WithServiceLog(CompNode, 1/*ActivationIndex*/, 2/*DeactivationIndex*/, 3/*TickIndex*/);
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
 
 			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
 			{
-				FBTBuilder::AddTaskStopTree(Comp1Node, 4, EBTNodeResult::Succeeded, EBTTestTaskStopTree::DuringExecute);
+				// UninitTask
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, UninitTaskExecute, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringExecute, EBTTestStopAction::StopTree);
 			}
 		}
 
-		ExpectedResult.Add(1);
-		ExpectedResult.Add(3);
-		ExpectedResult.Add(4);
-		ExpectedResult.Add(2);
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(UninitTaskExecute/*4*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTStopDuringTaskExecute, "System.AI.Behavior Trees.Stop: during task execute")
@@ -2352,21 +2365,31 @@ struct FAITest_BTStopDuringTaskTick : public FAITest_SimpleBT
 {
 	FAITest_BTStopDuringTaskTick()
 	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			UninitTaskTick,
+		};
+
 		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
 		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
 		{
-			FBTBuilder::WithServiceLog(CompNode, 1/*ActivationIndex*/, 2/*DeactivationIndex*/, 3/*TickIndex*/);
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
 
 			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
 			{
-				FBTBuilder::AddTaskStopTree(Comp1Node, 4, EBTNodeResult::Succeeded, EBTTestTaskStopTree::DuringTick);
+				// UninitTask
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, UninitTaskTick, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringTick, EBTTestStopAction::StopTree);
 			}
 		}
 
-		ExpectedResult.Add(1);
-		ExpectedResult.Add(3);
-		ExpectedResult.Add(4);
-		ExpectedResult.Add(2);
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(UninitTaskTick/*4*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTStopDuringTaskTick, "System.AI.Behavior Trees.Stop: during task tick")
@@ -2376,31 +2399,47 @@ struct FAITest_BTStopDuringTaskAbort : public FAITest_SimpleBT
 {
 	FAITest_BTStopDuringTaskAbort()
 	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitTaskAborting,
+			TaskExecute,
+		};
+
 		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
 		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
 		{
-			FBTBuilder::WithServiceLog(CompNode, 1/*ActivationIndex*/, 2/*DeactivationIndex*/, 3/*TickIndex*/);
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
 
 			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
 			{
-				FBTBuilder::WithServiceLog(Comp1Node, 4/*ActivationIndex*/, 5/*DeactivationIndex*/, 6/*TickIndex*/, TEXT("Bool1"));
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
 
-				FBTBuilder::AddTaskStopTree(Comp1Node, 7, EBTNodeResult::Succeeded, EBTTestTaskStopTree::DuringAbort);
+				// UninitTask
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, UninitTaskAborting, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringAbort, EBTTestStopAction::StopTree);
 				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
 
-				FBTBuilder::AddTask(Comp1Node, 8, EBTNodeResult::Succeeded);
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
 			}
 		}
 
-		ExpectedResult.Add(1);
-		ExpectedResult.Add(4);
-		ExpectedResult.Add(3);
-		ExpectedResult.Add(6);
-		ExpectedResult.Add(3);
-		ExpectedResult.Add(6);
-		ExpectedResult.Add(7);
-		ExpectedResult.Add(2);
-		ExpectedResult.Add(5);
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*5*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskAborting/*7*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTStopDuringTaskAbort, "System.AI.Behavior Trees.Stop: during task abort")
@@ -2410,31 +2449,47 @@ struct FAITest_BTStopDuringTaskFinished : public FAITest_SimpleBT
 {
 	FAITest_BTStopDuringTaskFinished()
 	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitTaskFinished,
+			TaskExecute,
+		};
+
 		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
 		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
 		{
-			FBTBuilder::WithServiceLog(CompNode, 1/*ActivationIndex*/, 2/*DeactivationIndex*/, 3/*TickIndex*/);
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
 
 			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
 			{
-				FBTBuilder::WithServiceLog(Comp1Node, 4/*ActivationIndex*/, 5/*DeactivationIndex*/, 6/*TickIndex*/, TEXT("Bool1"));
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
 
-				FBTBuilder::AddTaskStopTree(Comp1Node, 7, EBTNodeResult::Succeeded, EBTTestTaskStopTree::DuringFinish);
+				// UninitTask
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, UninitTaskFinished, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringFinish, EBTTestStopAction::StopTree);
 				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
 
-				FBTBuilder::AddTask(Comp1Node, 8, EBTNodeResult::Succeeded);
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
 			}
 		}
 
-		ExpectedResult.Add(1);
-		ExpectedResult.Add(4);
-		ExpectedResult.Add(3);
-		ExpectedResult.Add(6);
-		ExpectedResult.Add(3);
-		ExpectedResult.Add(6);
-		ExpectedResult.Add(7);
-		ExpectedResult.Add(2);
-		ExpectedResult.Add(5);
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskFinished/*7*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTStopDuringTaskFinished, "System.AI.Behavior Trees.Stop: during task finished")
@@ -2443,31 +2498,49 @@ struct FAITest_BTStopDuringServiceTick : public FAITest_SimpleBT
 {
 	FAITest_BTStopDuringServiceTick()
 	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitServiceTick,
+			TaskExecute,
+			Task2Execute,
+		};
+
 		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
 		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
 		{
-			FBTBuilder::WithServiceLog(CompNode, 1/*ActivationIndex*/, 2/*DeactivationIndex*/, 3/*TickIndex*/);
+			// Servier
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
 
 			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
 			{
-				FBTBuilder::WithServiceLog(Comp1Node, 4/*ActivationIndex*/, 5/*DeactivationIndex*/, 6/*TickIndex*/, TEXT("Bool1"));
-				FBTBuilder::WithServiceStopTree(Comp1Node, 9, EBTTestServiceStopTree::DuringTick);
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+				// UninitServiceTick
+				FBTBuilder::WithServiceBTStopAction(Comp1Node, UninitServiceTick, EBTTestServiceStopTiming::DuringTick, EBTTestStopAction::StopTree);
 
-				FBTBuilder::AddTask(Comp1Node, 7, EBTNodeResult::Succeeded);
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
 				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
 
-				FBTBuilder::AddTask(Comp1Node, 8, EBTNodeResult::Succeeded);
+				// Task2
+				FBTBuilder::AddTask(Comp1Node, Task2Execute, EBTNodeResult::Succeeded);
 			}
 		}
 
-		ExpectedResult.Add(1);
-		ExpectedResult.Add(4);
-		ExpectedResult.Add(3);
-		ExpectedResult.Add(6);
-		ExpectedResult.Add(9);
-		ExpectedResult.Add(7);
-		ExpectedResult.Add(2);
-		ExpectedResult.Add(5);
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitServiceTick/*7*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTStopDuringServiceTick, "System.AI.Behavior Trees.Stop: during service tick")
@@ -2476,31 +2549,49 @@ struct FAITest_BTStopDuringServiceBecomeRelevant : public FAITest_SimpleBT
 {
 	FAITest_BTStopDuringServiceBecomeRelevant()
 	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitServiceBecomeRelevant,
+			TaskExecute,
+			Task2Execute,
+		};
+
 		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
 		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
 		{
-			FBTBuilder::WithServiceLog(CompNode, 1/*ActivationIndex*/, 2/*DeactivationIndex*/, 3/*TickIndex*/);
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
 
 			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
 			{
-				FBTBuilder::WithServiceLog(Comp1Node, 4/*ActivationIndex*/, 5/*DeactivationIndex*/, 6/*TickIndex*/, TEXT("Bool1"));
-				FBTBuilder::WithServiceStopTree(Comp1Node, 9, EBTTestServiceStopTree::DuringBecomeRelevant);
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+				// UninitService
+				FBTBuilder::WithServiceBTStopAction(Comp1Node, UninitServiceBecomeRelevant, EBTTestServiceStopTiming::DuringBecomeRelevant, EBTTestStopAction::StopTree);
 
-				FBTBuilder::AddTask(Comp1Node, 7, EBTNodeResult::Succeeded);
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
 				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
 
-				FBTBuilder::AddTask(Comp1Node, 8, EBTNodeResult::Succeeded);
+				// Task2
+				FBTBuilder::AddTask(Comp1Node, Task2Execute, EBTNodeResult::Succeeded);
 			}
 		}
 
-		ExpectedResult.Add(1);
-		ExpectedResult.Add(4);
-		ExpectedResult.Add(9);
-		ExpectedResult.Add(3);
-		ExpectedResult.Add(6);
-		ExpectedResult.Add(7);
-		ExpectedResult.Add(2);
-		ExpectedResult.Add(5);
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(UninitServiceBecomeRelevant/*7*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTStopDuringServiceBecomeRelevant, "System.AI.Behavior Trees.Stop: during service become relevant")
@@ -2509,33 +2600,51 @@ struct FAITest_BTStopDuringServiceCeaseRelevant : public FAITest_SimpleBT
 {
 	FAITest_BTStopDuringServiceCeaseRelevant()
 	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitServiceCeaseRelevant,
+			TaskExecute,
+			Task2Execute,
+		};
+
 		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
 		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
 		{
-			FBTBuilder::WithServiceLog(CompNode, 1/*ActivationIndex*/, 2/*DeactivationIndex*/, 3/*TickIndex*/);
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
 
 			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
 			{
-				FBTBuilder::WithServiceLog(Comp1Node, 4/*ActivationIndex*/, 5/*DeactivationIndex*/, 6/*TickIndex*/, TEXT("Bool1"));
-				FBTBuilder::WithServiceStopTree(Comp1Node, 9, EBTTestServiceStopTree::DuringCeaseRelevant);
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+				// UninitService
+				FBTBuilder::WithServiceBTStopAction(Comp1Node, UninitServiceCeaseRelevant, EBTTestServiceStopTiming::DuringCeaseRelevant, EBTTestStopAction::StopTree);
 
-				FBTBuilder::AddTask(Comp1Node, 7, EBTNodeResult::Succeeded);
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
 				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
 			}
-			FBTBuilder::AddTask(CompNode, 8, EBTNodeResult::Succeeded);
+			// Task2
+			FBTBuilder::AddTask(CompNode, Task2Execute, EBTNodeResult::Succeeded);
 		}
 
-		ExpectedResult.Add(1);
-		ExpectedResult.Add(4);
-		ExpectedResult.Add(3);
-		ExpectedResult.Add(6);
-		ExpectedResult.Add(7);
-		ExpectedResult.Add(3);
-		ExpectedResult.Add(6);
-		ExpectedResult.Add(5);
-		ExpectedResult.Add(9);
-		ExpectedResult.Add(8);
-		ExpectedResult.Add(2);
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+		ExpectedResult.Add(UninitServiceCeaseRelevant/*7*/);
+		ExpectedResult.Add(Task2Execute/*9*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTStopDuringServiceCeaseRelevant, "System.AI.Behavior Trees.Stop: during service cease relevant")
@@ -2544,31 +2653,44 @@ struct FAITest_BTStopDuringTaskServiceTick : public FAITest_SimpleBT
 {
 	FAITest_BTStopDuringTaskServiceTick()
 	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitTaskServiceTick,
+			TaskExecute,
+			Task2Execute,
+		};
+
 		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
 		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
 		{
-			FBTBuilder::WithServiceLog(CompNode, 1/*ActivationIndex*/, 2/*DeactivationIndex*/, 3/*TickIndex*/);
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
 
 			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
 			{
-				FBTBuilder::WithServiceLog(Comp1Node, 4/*ActivationIndex*/, 5/*DeactivationIndex*/, 6/*TickIndex*/, TEXT("Bool1"));
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
 
-				FBTBuilder::AddTask(Comp1Node, 7, EBTNodeResult::Succeeded);
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
 				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
-				FBTBuilder::WithTaskServiceStopTree(Comp1Node, 9, EBTTestServiceStopTree::DuringTick);
+				FBTBuilder::WithTaskServiceBTStopAction(Comp1Node, UninitTaskServiceTick, EBTTestServiceStopTiming::DuringTick, EBTTestStopAction::StopTree);
 
-				FBTBuilder::AddTask(Comp1Node, 8, EBTNodeResult::Succeeded);
+				FBTBuilder::AddTask(Comp1Node, Task2Execute, EBTNodeResult::Succeeded);
 			}
 		}
 
-		ExpectedResult.Add(1);
-		ExpectedResult.Add(4);
-		ExpectedResult.Add(3);
-		ExpectedResult.Add(6);
-		ExpectedResult.Add(9);
-		ExpectedResult.Add(7);
-		ExpectedResult.Add(2);
-		ExpectedResult.Add(5);
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskServiceTick/*7*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTStopDuringTaskServiceTick, "System.AI.Behavior Trees.Stop: during task service tick")
@@ -2577,31 +2699,44 @@ struct FAITest_BTStopDuringTaskServiceBecomeRelevant : public FAITest_SimpleBT
 {
 	FAITest_BTStopDuringTaskServiceBecomeRelevant()
 	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitTaskServiceBecomeRelevant,
+			TaskExecute,
+			Task2Execute,
+		};
+
 		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
 		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
 		{
-			FBTBuilder::WithServiceLog(CompNode, 1/*ActivationIndex*/, 2/*DeactivationIndex*/, 3/*TickIndex*/);
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
 
 			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
 			{
-				FBTBuilder::WithServiceLog(Comp1Node, 4/*ActivationIndex*/, 5/*DeactivationIndex*/, 6/*TickIndex*/, TEXT("Bool1"));
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
 
-				FBTBuilder::AddTask(Comp1Node, 7, EBTNodeResult::Succeeded);
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
 				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
-				FBTBuilder::WithTaskServiceStopTree(Comp1Node, 9, EBTTestServiceStopTree::DuringBecomeRelevant);
+				FBTBuilder::WithTaskServiceBTStopAction(Comp1Node, UninitTaskServiceBecomeRelevant, EBTTestServiceStopTiming::DuringBecomeRelevant, EBTTestStopAction::StopTree);
 
-				FBTBuilder::AddTask(Comp1Node, 8, EBTNodeResult::Succeeded);
+				FBTBuilder::AddTask(Comp1Node, Task2Execute, EBTNodeResult::Succeeded);
 			}
 		}
 
-		ExpectedResult.Add(1);
-		ExpectedResult.Add(4);
-		ExpectedResult.Add(3);
-		ExpectedResult.Add(6);
-		ExpectedResult.Add(9);
-		ExpectedResult.Add(7);
-		ExpectedResult.Add(2);
-		ExpectedResult.Add(5);
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskServiceBecomeRelevant/*7*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTStopDuringTaskServiceBecomeRelevant, "System.AI.Behavior Trees.Stop: during task service become relevant")
@@ -2611,36 +2746,982 @@ struct FAITest_BTStopDuringTaskServiceCeaseRelevant : public FAITest_SimpleBT
 {
 	FAITest_BTStopDuringTaskServiceCeaseRelevant()
 	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitTaskServiceCeaseRelevant,
+			TaskExecute,
+			Task2Execute,
+		};
+
 		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
 		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
 		{
-			FBTBuilder::WithServiceLog(CompNode, 1/*ActivationIndex*/, 2/*DeactivationIndex*/, 3/*TickIndex*/);
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
 
 			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
 			{
-				FBTBuilder::WithServiceLog(Comp1Node, 4/*ActivationIndex*/, 5/*DeactivationIndex*/, 6/*TickIndex*/, TEXT("Bool1"));
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
 
-				FBTBuilder::AddTask(Comp1Node, 7, EBTNodeResult::Succeeded);
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
 				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
-				FBTBuilder::WithTaskServiceStopTree(Comp1Node, 9, EBTTestServiceStopTree::DuringCeaseRelevant);
+				FBTBuilder::WithTaskServiceBTStopAction(Comp1Node, UninitTaskServiceCeaseRelevant, EBTTestServiceStopTiming::DuringCeaseRelevant, EBTTestStopAction::StopTree);
 
-				FBTBuilder::AddTask(CompNode, 8, EBTNodeResult::Succeeded);
+				FBTBuilder::AddTask(CompNode, Task2Execute, EBTNodeResult::Succeeded);
 			}
 		}
 
-		ExpectedResult.Add(1);
-		ExpectedResult.Add(4);
-		ExpectedResult.Add(3);
-		ExpectedResult.Add(6);
-		ExpectedResult.Add(7);
-		ExpectedResult.Add(3);
-		ExpectedResult.Add(6);
-		ExpectedResult.Add(9);
-		ExpectedResult.Add(5);
-		ExpectedResult.Add(8);
-		ExpectedResult.Add(2);
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskServiceCeaseRelevant/*7*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+		ExpectedResult.Add(Task2Execute/*9*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTStopDuringTaskServiceCeaseRelevant, "System.AI.Behavior Trees.Stop: during task service cease relevant")
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// Uninitialize tests
+//////////////////////////////////////////////////////////////////////////////////////////////////
+struct FAITest_BTUninitializeDuringTaskExecute : public FAITest_SimpleBT
+{
+	FAITest_BTUninitializeDuringTaskExecute()
+	{
+	    enum
+	    {
+		    ServiceActivate = 1,
+		    ServiceDeactivate,
+		    ServiceTick,
+		    UninitTaskExecute,
+	    };
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				// UninitTask
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, UninitTaskExecute, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringExecute, EBTTestStopAction::UnInitialize);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(UninitTaskExecute/*4*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTUninitializeDuringTaskExecute, "System.AI.Behavior Trees.Uninitialize: during task execute")
+
+struct FAITest_BTUninitializeDuringTaskTick : public FAITest_SimpleBT
+{
+	FAITest_BTUninitializeDuringTaskTick()
+	{
+	    enum
+	    {
+		    ServiceActivate = 1,
+		    ServiceDeactivate,
+		    ServiceTick,
+		    UninitTaskTick,
+	    };
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				// UninitTask
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, UninitTaskTick, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringTick, EBTTestStopAction::UnInitialize);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(UninitTaskTick/*4*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTUninitializeDuringTaskTick, "System.AI.Behavior Trees.Uninitialize: during task tick")
+
+
+struct FAITest_BTUninitializeDuringTaskAbort : public FAITest_SimpleBT
+{
+	FAITest_BTUninitializeDuringTaskAbort()
+	{
+	    enum
+	    {
+		    ServiceActivate = 1,
+		    ServiceDeactivate,
+		    ServiceTick,
+		    SubServiceActivate,
+		    SubServiceDeactivate,
+		    SubServiceTick,
+		    UninitTaskAborting,
+			TaskExecute,
+	    };
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+
+				// UninitTask
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, UninitTaskAborting, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringAbort, EBTTestStopAction::UnInitialize);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*5*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskAborting/*7*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTUninitializeDuringTaskAbort, "System.AI.Behavior Trees.Uninitialize: during task abort")
+
+
+struct FAITest_BTUninitializeDuringTaskFinished : public FAITest_SimpleBT
+{
+	FAITest_BTUninitializeDuringTaskFinished()
+	{
+	    enum
+	    {
+		    ServiceActivate = 1,
+		    ServiceDeactivate,
+		    ServiceTick,
+		    SubServiceActivate,
+		    SubServiceDeactivate,
+		    SubServiceTick,
+		    UninitTaskFinished,
+			TaskExecute,
+	    };
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+
+				// UninitTask
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, UninitTaskFinished, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringFinish, EBTTestStopAction::UnInitialize);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskFinished/*7*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTUninitializeDuringTaskFinished, "System.AI.Behavior Trees.Uninitialize: during task finished")
+
+struct FAITest_BTUninitializeDuringServiceTick : public FAITest_SimpleBT
+{
+	FAITest_BTUninitializeDuringServiceTick()
+	{
+	    enum
+	    {
+		    ServiceActivate = 1,
+		    ServiceDeactivate,
+		    ServiceTick,
+		    SubServiceActivate,
+		    SubServiceDeactivate,
+		    SubServiceTick,
+		    UninitServiceTick,
+			TaskExecute,
+			Task2Execute,
+	    };
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Servier
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+				// UninitServiceTick
+				FBTBuilder::WithServiceBTStopAction(Comp1Node, UninitServiceTick, EBTTestServiceStopTiming::DuringTick, EBTTestStopAction::UnInitialize);
+
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+
+				// Task2
+				FBTBuilder::AddTask(Comp1Node, Task2Execute, EBTNodeResult::Succeeded);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitServiceTick/*7*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTUninitializeDuringServiceTick, "System.AI.Behavior Trees.Uninitialize: during service tick")
+
+struct FAITest_BTUninitializeDuringServiceBecomeRelevant : public FAITest_SimpleBT
+{
+	FAITest_BTUninitializeDuringServiceBecomeRelevant()
+	{
+	    enum
+	    {
+		    ServiceActivate = 1,
+		    ServiceDeactivate,
+		    ServiceTick,
+		    SubServiceActivate,
+		    SubServiceDeactivate,
+		    SubServiceTick,
+		    UninitServiceBecomeRelevant,
+			TaskExecute,
+			Task2Execute,
+	    };
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+				// UninitService
+				FBTBuilder::WithServiceBTStopAction(Comp1Node, UninitServiceBecomeRelevant, EBTTestServiceStopTiming::DuringBecomeRelevant, EBTTestStopAction::UnInitialize);
+
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+
+				// Task2
+				FBTBuilder::AddTask(Comp1Node, Task2Execute, EBTNodeResult::Succeeded);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(UninitServiceBecomeRelevant/*7*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTUninitializeDuringServiceBecomeRelevant, "System.AI.Behavior Trees.Uninitialize: during service become relevant")
+
+struct FAITest_BTUninitializeDuringServiceCeaseRelevant : public FAITest_SimpleBT
+{
+	FAITest_BTUninitializeDuringServiceCeaseRelevant()
+	{
+	    enum
+	    {
+		    ServiceActivate = 1,
+		    ServiceDeactivate,
+		    ServiceTick,
+		    SubServiceActivate,
+		    SubServiceDeactivate,
+		    SubServiceTick,
+		    UninitServiceCeaseRelevant,
+			TaskExecute,
+			Task2Execute,
+	    };
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+				// UninitService
+				FBTBuilder::WithServiceBTStopAction(Comp1Node, UninitServiceCeaseRelevant, EBTTestServiceStopTiming::DuringCeaseRelevant, EBTTestStopAction::UnInitialize);
+
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+			}
+			// Task2
+			FBTBuilder::AddTask(CompNode, Task2Execute, EBTNodeResult::Succeeded);
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+		ExpectedResult.Add(UninitServiceCeaseRelevant/*7*/);
+		ExpectedResult.Add(Task2Execute/*9*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTUninitializeDuringServiceCeaseRelevant, "System.AI.Behavior Trees.Uninitialize: during service cease relevant")
+
+struct FAITest_BTUninitializeDuringTaskServiceTick : public FAITest_SimpleBT
+{
+	FAITest_BTUninitializeDuringTaskServiceTick()
+	{
+	    enum
+	    {
+		    ServiceActivate = 1,
+		    ServiceDeactivate,
+		    ServiceTick,
+		    SubServiceActivate,
+		    SubServiceDeactivate,
+		    SubServiceTick,
+		    UninitTaskServiceTick,
+			TaskExecute,
+			Task2Execute,
+	    };
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+				FBTBuilder::WithTaskServiceBTStopAction(Comp1Node, UninitTaskServiceTick, EBTTestServiceStopTiming::DuringTick, EBTTestStopAction::UnInitialize);
+
+				FBTBuilder::AddTask(Comp1Node, Task2Execute, EBTNodeResult::Succeeded);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskServiceTick/*7*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTUninitializeDuringTaskServiceTick, "System.AI.Behavior Trees.Uninitialize: during task service tick")
+
+struct FAITest_BTUninitializeDuringTaskServiceBecomeRelevant : public FAITest_SimpleBT
+{
+	FAITest_BTUninitializeDuringTaskServiceBecomeRelevant()
+	{
+	    enum
+	    {
+		    ServiceActivate = 1,
+		    ServiceDeactivate,
+		    ServiceTick,
+		    SubServiceActivate,
+		    SubServiceDeactivate,
+		    SubServiceTick,
+		    UninitTaskServiceBecomeRelevant,
+			TaskExecute,
+			Task2Execute,
+	    };
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+				FBTBuilder::WithTaskServiceBTStopAction(Comp1Node, UninitTaskServiceBecomeRelevant, EBTTestServiceStopTiming::DuringBecomeRelevant, EBTTestStopAction::UnInitialize);
+
+				FBTBuilder::AddTask(Comp1Node, Task2Execute, EBTNodeResult::Succeeded);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskServiceBecomeRelevant/*7*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTUninitializeDuringTaskServiceBecomeRelevant, "System.AI.Behavior Trees.Uninitialize: during task service become relevant")
+
+
+struct FAITest_BTUninitializeDuringTaskServiceCeaseRelevant : public FAITest_SimpleBT
+{
+	FAITest_BTUninitializeDuringTaskServiceCeaseRelevant()
+	{
+	    enum
+	    {
+		    ServiceActivate = 1,
+		    ServiceDeactivate,
+		    ServiceTick,
+		    SubServiceActivate,
+		    SubServiceDeactivate,
+		    SubServiceTick,
+		    UninitTaskServiceCeaseRelevant,
+			TaskExecute,
+			Task2Execute,
+	    };
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+				FBTBuilder::WithTaskServiceBTStopAction(Comp1Node, UninitTaskServiceCeaseRelevant, EBTTestServiceStopTiming::DuringCeaseRelevant, EBTTestStopAction::UnInitialize);
+
+				FBTBuilder::AddTask(CompNode, Task2Execute, EBTNodeResult::Succeeded);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskServiceCeaseRelevant/*7*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+		ExpectedResult.Add(Task2Execute/*9*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTUninitializeDuringTaskServiceCeaseRelevant, "System.AI.Behavior Trees.Uninitialize: during task service cease relevant")
+
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+// Cleanup tests
+//////////////////////////////////////////////////////////////////////////////////////////////////
+struct FAITest_BTCleanupDuringTaskExecute : public FAITest_SimpleBT
+{
+	FAITest_BTCleanupDuringTaskExecute()
+	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			UninitTaskExecute,
+		};
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				// UninitTask
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, UninitTaskExecute, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringExecute, EBTTestStopAction::Cleanup);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(UninitTaskExecute/*4*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTCleanupDuringTaskExecute, "System.AI.Behavior Trees.Cleanup: during task execute")
+
+struct FAITest_BTCleanupDuringTaskTick : public FAITest_SimpleBT
+{
+	FAITest_BTCleanupDuringTaskTick()
+	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			UninitTaskTick,
+		};
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				// UninitTask
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, UninitTaskTick, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringTick, EBTTestStopAction::Cleanup);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(UninitTaskTick/*4*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTCleanupDuringTaskTick, "System.AI.Behavior Trees.Cleanup: during task tick")
+
+
+struct FAITest_BTCleanupDuringTaskAbort : public FAITest_SimpleBT
+{
+	FAITest_BTCleanupDuringTaskAbort()
+	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitTaskAborting,
+			TaskExecute,
+		};
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+
+				// UninitTask
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, UninitTaskAborting, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringAbort, EBTTestStopAction::Cleanup);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*5*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskAborting/*7*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTCleanupDuringTaskAbort, "System.AI.Behavior Trees.Cleanup: during task abort")
+
+
+struct FAITest_BTCleanupDuringTaskFinished : public FAITest_SimpleBT
+{
+	FAITest_BTCleanupDuringTaskFinished()
+	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitTaskFinished,
+			TaskExecute,
+		};
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+
+				// UninitTask
+				FBTBuilder::AddTaskBTStopAction(Comp1Node, UninitTaskFinished, EBTNodeResult::Succeeded, EBTTestTaskStopTiming::DuringFinish, EBTTestStopAction::Cleanup);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskFinished/*7*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTCleanupDuringTaskFinished, "System.AI.Behavior Trees.Cleanup: during task finished")
+
+struct FAITest_BTCleanupDuringServiceTick : public FAITest_SimpleBT
+{
+	FAITest_BTCleanupDuringServiceTick()
+	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitServiceTick,
+			TaskExecute,
+			Task2Execute,
+		};
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Servier
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+				// UninitServiceTick
+				FBTBuilder::WithServiceBTStopAction(Comp1Node, UninitServiceTick, EBTTestServiceStopTiming::DuringTick, EBTTestStopAction::Cleanup);
+
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+
+				// Task2
+				FBTBuilder::AddTask(Comp1Node, Task2Execute, EBTNodeResult::Succeeded);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitServiceTick/*7*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTCleanupDuringServiceTick, "System.AI.Behavior Trees.Cleanup: during service tick")
+
+struct FAITest_BTCleanupDuringServiceBecomeRelevant : public FAITest_SimpleBT
+{
+	FAITest_BTCleanupDuringServiceBecomeRelevant()
+	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitServiceBecomeRelevant,
+			TaskExecute,
+			Task2Execute,
+		};
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+				// UninitService
+				FBTBuilder::WithServiceBTStopAction(Comp1Node, UninitServiceBecomeRelevant, EBTTestServiceStopTiming::DuringBecomeRelevant, EBTTestStopAction::Cleanup);
+
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+
+				// Task2
+				FBTBuilder::AddTask(Comp1Node, Task2Execute, EBTNodeResult::Succeeded);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(UninitServiceBecomeRelevant/*7*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTCleanupDuringServiceBecomeRelevant, "System.AI.Behavior Trees.Cleanup: during service become relevant")
+
+struct FAITest_BTCleanupDuringServiceCeaseRelevant : public FAITest_SimpleBT
+{
+	FAITest_BTCleanupDuringServiceCeaseRelevant()
+	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitServiceCeaseRelevant,
+			TaskExecute,
+			Task2Execute,
+		};
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			// Service
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				// SubService
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+				// UninitService
+				FBTBuilder::WithServiceBTStopAction(Comp1Node, UninitServiceCeaseRelevant, EBTTestServiceStopTiming::DuringCeaseRelevant, EBTTestStopAction::Cleanup);
+
+				// Task
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+			}
+			// Task2
+			FBTBuilder::AddTask(CompNode, Task2Execute, EBTNodeResult::Succeeded);
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+		ExpectedResult.Add(UninitServiceCeaseRelevant/*7*/);
+		ExpectedResult.Add(Task2Execute/*9*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTCleanupDuringServiceCeaseRelevant, "System.AI.Behavior Trees.Cleanup: during service cease relevant")
+
+struct FAITest_BTCleanupDuringTaskServiceTick : public FAITest_SimpleBT
+{
+	FAITest_BTCleanupDuringTaskServiceTick()
+	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitTaskServiceTick,
+			TaskExecute,
+			Task2Execute,
+		};
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+				FBTBuilder::WithTaskServiceBTStopAction(Comp1Node, UninitTaskServiceTick, EBTTestServiceStopTiming::DuringTick, EBTTestStopAction::Cleanup);
+
+				FBTBuilder::AddTask(Comp1Node, Task2Execute, EBTNodeResult::Succeeded);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskServiceTick/*7*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTCleanupDuringTaskServiceTick, "System.AI.Behavior Trees.Cleanup: during task service tick")
+
+struct FAITest_BTCleanupDuringTaskServiceBecomeRelevant : public FAITest_SimpleBT
+{
+	FAITest_BTCleanupDuringTaskServiceBecomeRelevant()
+	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitTaskServiceBecomeRelevant,
+			TaskExecute,
+			Task2Execute,
+		};
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+				FBTBuilder::WithTaskServiceBTStopAction(Comp1Node, UninitTaskServiceBecomeRelevant, EBTTestServiceStopTiming::DuringBecomeRelevant, EBTTestStopAction::Cleanup);
+
+				FBTBuilder::AddTask(Comp1Node, Task2Execute, EBTNodeResult::Succeeded);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskServiceBecomeRelevant/*7*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTCleanupDuringTaskServiceBecomeRelevant, "System.AI.Behavior Trees.Cleanup: during task service become relevant")
+
+
+struct FAITest_BTCleanupDuringTaskServiceCeaseRelevant : public FAITest_SimpleBT
+{
+	FAITest_BTCleanupDuringTaskServiceCeaseRelevant()
+	{
+		enum
+		{
+			ServiceActivate = 1,
+			ServiceDeactivate,
+			ServiceTick,
+			SubServiceActivate,
+			SubServiceDeactivate,
+			SubServiceTick,
+			UninitTaskServiceCeaseRelevant,
+			TaskExecute,
+			Task2Execute,
+		};
+
+		UBTCompositeNode& RootNode = FBTBuilder::AddSelector(*BTAsset);
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(RootNode);
+		{
+			FBTBuilder::WithServiceLog(CompNode, ServiceActivate, ServiceDeactivate, ServiceTick);
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::WithServiceLog(Comp1Node, SubServiceActivate, SubServiceDeactivate, SubServiceTick, TEXT("Bool1"));
+
+				FBTBuilder::AddTask(Comp1Node, TaskExecute, EBTNodeResult::Succeeded);
+				FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1"));
+				FBTBuilder::WithTaskServiceBTStopAction(Comp1Node, UninitTaskServiceCeaseRelevant, EBTTestServiceStopTiming::DuringCeaseRelevant, EBTTestStopAction::Cleanup);
+
+				FBTBuilder::AddTask(CompNode, Task2Execute, EBTNodeResult::Succeeded);
+			}
+		}
+
+		ExpectedResult.Add(ServiceActivate/*1*/);
+		ExpectedResult.Add(SubServiceActivate/*4*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(TaskExecute/*8*/);
+		ExpectedResult.Add(ServiceTick/*3*/);
+		ExpectedResult.Add(SubServiceTick/*6*/);
+		ExpectedResult.Add(UninitTaskServiceCeaseRelevant/*7*/);
+		ExpectedResult.Add(SubServiceDeactivate/*5*/);
+		ExpectedResult.Add(Task2Execute/*9*/);
+		ExpectedResult.Add(ServiceDeactivate/*2*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTCleanupDuringTaskServiceCeaseRelevant, "System.AI.Behavior Trees.Cleanup: during task service cease relevant")
 
 #undef LOCTEXT_NAMESPACE

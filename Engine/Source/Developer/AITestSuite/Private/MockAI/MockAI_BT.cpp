@@ -21,6 +21,8 @@ UMockAI_BT::UMockAI_BT(const FObjectInitializer& ObjectInitializer)
 		UseBrainComponent<UBehaviorTreeComponent>();
 
 		BTComp = Cast<UBehaviorTreeComponent>(BrainComp);
+		BTComp->RegisterComponent();
+		BTComp->InitializeComponent();
 	}
 }
 
