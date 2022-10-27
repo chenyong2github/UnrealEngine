@@ -9,6 +9,7 @@
 
 #include "HAL/PlatformTime.h"
 
+#include <atomic>
 
 struct FFileStatData;
 class FImportParameters;
@@ -31,6 +32,7 @@ private:
 	 * @param MaxDuration is defined in seconds.
 	 */
 	void CheckDuration(const CADLibrary::FFileDescriptor& FileToProcess, const int64 MaxDuration); 
+	void CheckMemory();
 
 private:
 	DatasmithDispatcher::FNetworkClientNode NetworkInterface;
@@ -42,5 +44,7 @@ private:
 	FString CachePath;
 	CADLibrary::FImportParameters ImportParameters;
 	uint64 PingStartCycle;
-	TAtomic<bool> bProcessIsRunning;
+
+	std::atomic<bool> bProcessIsRunning;
+	std::atomic<bool> bRequestExit;
 };

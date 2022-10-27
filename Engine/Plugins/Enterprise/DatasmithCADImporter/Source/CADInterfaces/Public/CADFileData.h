@@ -39,7 +39,11 @@ public:
 			GeomFileHash = GetSceneFileHash();
 			GeomFileHash = HashCombine(GeomFileHash, GetTypeHash(ImportParameters));
 			GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(FImportParameters::bGSewMeshIfNeeded));
+			GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(FImportParameters::bGRemoveDuplicatedTriangle));
 			GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(FImportParameters::GStitchingTolerance));
+			GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(FImportParameters::bGStitchingForceSew));
+			GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(FImportParameters::bGStitchingRemoveThinFaces));
+			GeomFileHash = HashCombine(GeomFileHash, ::GetTypeHash(FImportParameters::GStitchingForceFactor));
 		}
 		return GeomFileHash;
 	}
@@ -80,7 +84,7 @@ public:
 	{
 		if (IsCacheDefined())
 		{
-			return CADLibrary::BuildCacheFilePath(*CachePath, TEXT("cad"), FileDescription.GetDescriptorHash());
+			return CADLibrary::BuildCadCachePath(*CachePath, FileDescription.GetDescriptorHash());
 		}
 		return FString();
 	}
@@ -230,6 +234,16 @@ public:
 	const FImportParameters& GetImportParameters() const
 	{
 		return ImportParameters;
+	}
+
+	void UpdateExternalRefPath()
+	{
+		const FString Root = FileDescription.GetRootFolder();
+		const FString ArchiveRoot = FPaths::GetPath(SceneGraphArchive.FullPath);
+		for (FFileDescriptor& File : SceneGraphArchive.ExternalReferenceFiles)
+		{
+			File.ChangePath(ArchiveRoot, Root);
+		}
 	}
 
 private:

@@ -156,7 +156,8 @@ struct FThinFaceContext
 	TArray<double> EdgeMaxSquareDistance;
 
 	double MaxSquareDistance = 0;
-	double SideEdgeLength = 0;
+	double ThinSideEdgeLength = 0;
+	double OppositSideEdgeLength = 0;
 
 	FThinFaceContext(const FTopologicalLoop& InLoop)
 		: Loop(InLoop)

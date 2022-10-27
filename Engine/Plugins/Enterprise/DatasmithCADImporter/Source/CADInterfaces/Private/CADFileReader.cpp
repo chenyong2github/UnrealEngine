@@ -110,16 +110,16 @@ namespace CADLibrary
 			bool bNeedToProceed = true;
 
 			FString CADFileCachePath = CADFileData.GetCADCachePath();
-			if (!FImportParameters::bGOverwriteCache && IFileManager::Get().FileExists(*CADFileCachePath))
+			if (IFileManager::Get().FileExists(*CADFileCachePath))
 			{
-				FString MeshArchiveFilePath = CADFileData.GetMeshArchiveFilePath();
-				if (IFileManager::Get().FileExists(*MeshArchiveFilePath)) // the file has been proceed with same meshing parameters
+				CADFileData.GetCADFileDescription().SetCacheFile(CADFileCachePath);
+				if (!FImportParameters::bGOverwriteCache)
 				{
-					bNeedToProceed = false;
-				}
-				else // the file has been converted into TechSoft file (".prc") but meshed with different parameters
-				{
-					CADFileData.GetCADFileDescription().SetCacheFile(CADFileCachePath);
+					FString MeshArchiveFilePath = CADFileData.GetMeshArchiveFilePath();
+					if (IFileManager::Get().FileExists(*MeshArchiveFilePath)) // the file has been proceed with same meshing parameters
+					{
+						bNeedToProceed = false;
+					}
 				}
 			}
 
@@ -127,6 +127,10 @@ namespace CADLibrary
 			{
 				// The file has been yet proceed, get ExternalRef
 				CADFileData.LoadSceneGraphArchive();
+				// update the ExternalRef path according to the current file path
+				// Indeed, the loaded file can be in another folder with differents other files
+				// Without the update, this is the files in the other folder that will be proceed 
+				CADFileData.UpdateExternalRefPath();
 				return ECADParsingResult::ProcessOk;
 			}
 		}

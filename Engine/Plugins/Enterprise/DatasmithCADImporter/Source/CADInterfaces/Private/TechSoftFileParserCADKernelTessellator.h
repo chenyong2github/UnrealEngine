@@ -50,6 +50,9 @@ private:
 	FCadId LastEntityId = 1;
 	int32 LastHostIdUsed = 0;
 
+	const double GeometricTolerance = 0.01; // mm
+	const double ForceFactor = 5.;
+
 };
 
 } // ns CADLibrary

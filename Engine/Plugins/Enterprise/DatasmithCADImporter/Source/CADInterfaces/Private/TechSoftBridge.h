@@ -175,10 +175,11 @@ private:
 
 
 	const double GeometricTolerance;
+	const double EdgeLengthTolerance;
 	const double SquareGeometricTolerance;
 	const double SquareJoiningVertexTolerance;
 
-	TMap<const A3DEntity*, UE::CADKernel::FBody*> TechSoftToCADKernel;
+	TMap<const A3DEntity*, TSharedPtr<UE::CADKernel::FBody>> TechSoftToCADKernel;
 	TMap<UE::CADKernel::FBody*, const A3DEntity*> CADKernelToTechSoft;
 	TMap<const A3DTopoCoEdge*, TSharedPtr<UE::CADKernel::FTopologicalEdge>> A3DEdgeToEdge;
 

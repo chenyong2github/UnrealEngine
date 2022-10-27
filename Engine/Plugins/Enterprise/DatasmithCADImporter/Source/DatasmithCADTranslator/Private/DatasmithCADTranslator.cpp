@@ -125,17 +125,18 @@ bool FDatasmithCADTranslator::IsSourceSupported(const FDatasmithSceneSource& Sou
 
 bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithScene)
 {
+	using namespace CADLibrary;
 	const FDatasmithTessellationOptions& TesselationOptions = GetCommonTessellationOptions();
 	CADLibrary::FFileDescriptor FileDescriptor(*FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile()));
 
 	UE_LOG(LogCADTranslator, Display, TEXT("CAD translation [%s]."), *FileDescriptor.GetSourcePath());
 	UE_LOG(LogCADTranslator, Display, TEXT(" - Parsing Library:      %s"), TEXT("TechSoft"));
 	UE_LOG(LogCADTranslator, Display, TEXT(" - Tessellation Library: %s")
-		, CADLibrary::FImportParameters::bGDisableCADKernelTessellation ? TEXT("TechSoft") : TEXT("CADKernel"));
+		, FImportParameters::bGDisableCADKernelTessellation ? TEXT("TechSoft") : TEXT("CADKernel"));
 	UE_LOG(LogCADTranslator, Display, TEXT(" - Cache mode:           %s")
-		, CADLibrary::FImportParameters::bGEnableCADCache ? (CADLibrary::FImportParameters::bGOverwriteCache ? TEXT("Override") : TEXT("Enabled")) : TEXT("Disabled"));
+		, FImportParameters::bGEnableCADCache ? (FImportParameters::bGOverwriteCache ? TEXT("Override") : TEXT("Enabled")) : TEXT("Disabled"));
 	UE_LOG(LogCADTranslator, Display, TEXT(" - Processing:           %s")
-		, CADLibrary::FImportParameters::bGEnableCADCache ? (CADLibrary::GMaxImportThreads == 1 ? TEXT("Sequencial") : TEXT("Parallel")) : TEXT("Sequencial"));
+		, FImportParameters::bGEnableCADCache ? (GMaxImportThreads == 1 ? TEXT("Sequencial") : TEXT("Parallel")) : TEXT("Sequencial"));
 
 	TFunction<double(double, double, const TCHAR*)> CheckParameterValue = [](double Value, double MinValue, const TCHAR* ParameterName) -> double
 	{
@@ -150,8 +151,34 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	ImportParameters.SetTesselationParameters(CheckParameterValue(TesselationOptions.ChordTolerance, UE::DatasmithTessellation::MinTessellationChord, TEXT("Chord tolerance")),
 		FMath::IsNearlyZero(TesselationOptions.MaxEdgeLength) ? 0. : CheckParameterValue(TesselationOptions.MaxEdgeLength, UE::DatasmithTessellation::MinTessellationEdgeLength, TEXT("Max Edge Length")),
 		CheckParameterValue(TesselationOptions.NormalTolerance, UE::DatasmithTessellation::MinTessellationAngle, TEXT("Max Angle")),
-		(CADLibrary::EStitchingTechnique)TesselationOptions.StitchingTechnique);
+		(EStitchingTechnique)TesselationOptions.StitchingTechnique);
 	ImportParameters.SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded);
+
+	UE_LOG(LogCADTranslator, Display, TEXT(" - Import parameters:"));
+	UE_LOG(LogCADTranslator, Display, TEXT("     - ChordTolerance:     %f"), ImportParameters.GetChordTolerance());
+	UE_LOG(LogCADTranslator, Display, TEXT("     - MaxEdgeLength:      %f"), ImportParameters.GetMaxEdgeLength());
+	UE_LOG(LogCADTranslator, Display, TEXT("     - MaxNormalAngle:     %f"), ImportParameters.GetMaxNormalAngle());
+	FString StitchingTechnique;
+	switch(ImportParameters.GetStitchingTechnique())
+	{
+		case EStitchingTechnique::StitchingHeal:
+			StitchingTechnique = TEXT("Heal");
+			break;
+		case EStitchingTechnique::StitchingSew:
+			StitchingTechnique = TEXT("Sew");
+			break;
+		default:
+			StitchingTechnique = TEXT("None");
+			break;
+	}
+	UE_LOG(LogCADTranslator, Display, TEXT("     - StitchingTechnique: %s"), *StitchingTechnique);
+	if (!FImportParameters::bGDisableCADKernelTessellation)
+	{
+		UE_LOG(LogCADTranslator, Display, TEXT("     - Stitching Options:"));
+		UE_LOG(LogCADTranslator, Display, TEXT("         - ForceSew:        %s"), ImportParameters.bGStitchingForceSew ? TEXT("True") : TEXT("False"));
+		UE_LOG(LogCADTranslator, Display, TEXT("         - RemoveThinFaces: %s"), ImportParameters.bGStitchingRemoveThinFaces ? TEXT("True") : TEXT("False"));
+		UE_LOG(LogCADTranslator, Display, TEXT("         - ForceFactor:     %f"), ImportParameters.GStitchingForceFactor);
+	}
 
 	switch (FileDescriptor.GetFileFormat())
 	{
@@ -160,25 +187,25 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 		break;
 	}
 
-	case CADLibrary::ECADFormat::SOLIDWORKS:
+	case ECADFormat::SOLIDWORKS:
 	{
 		ImportParameters.SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem::YUp_RightHanded);
 		break;
 	}
 
-	case CADLibrary::ECADFormat::INVENTOR:
-	case CADLibrary::ECADFormat::CREO:
+	case ECADFormat::INVENTOR:
+	case ECADFormat::CREO:
 	{
 		ImportParameters.SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem::YUp_RightHanded);
 		break;
 	}
 
-	case CADLibrary::ECADFormat::DWG:
+	case ECADFormat::DWG:
 	{
 		break;
 	}
 
-	case CADLibrary::ECADFormat::IFC:
+	case ECADFormat::IFC:
 	{
 		ImportParameters.SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy);
 		break;
@@ -195,16 +222,16 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	}
 
 	// Use sequential translation (multi-processed or not)
-	if (CADLibrary::FImportParameters::bGEnableCADCache)
+	if (FImportParameters::bGEnableCADCache)
 	{
 		TMap<uint32, FString> CADFileToUEFileMap;
 		{
 			int32 NumCores = FPlatformMisc::NumberOfCores();
-			if (CADLibrary::GMaxImportThreads > 1)
+			if (GMaxImportThreads > 1)
 			{
 				if (FileDescriptor.CanReferenceOtherFiles())
 				{
-					NumCores = FMath::Min(CADLibrary::GMaxImportThreads, NumCores);
+					NumCores = FMath::Min(GMaxImportThreads, NumCores);
 				}
 				else 
 				{
@@ -214,7 +241,7 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumCores, CADFileToUEFileMap, CADFileToUEGeomMap);
 			Dispatcher.AddTask(FileDescriptor);
 
-			Dispatcher.Process(CADLibrary::GMaxImportThreads != 1);
+			Dispatcher.Process(GMaxImportThreads != 1);
 		}
 
 		FDatasmithSceneGraphBuilder SceneGraphBuilder(CADFileToUEFileMap, CachePath, DatasmithScene, GetSource(), ImportParameters);
@@ -225,13 +252,13 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 		return true;
 	}
 
-	CADLibrary::FCADFileReader FileReader(ImportParameters, FileDescriptor, *FPaths::EnginePluginsDir(), CachePath);
-	if (FileReader.ProcessFile() != CADLibrary::ECADParsingResult::ProcessOk)
+	FCADFileReader FileReader(ImportParameters, FileDescriptor, *FPaths::EnginePluginsDir(), CachePath);
+	if (FileReader.ProcessFile() != ECADParsingResult::ProcessOk)
 	{
 		return false;
 	}
 
-	CADLibrary::FCADFileData& CADFileData = FileReader.GetCADFileData();
+	FCADFileData& CADFileData = FileReader.GetCADFileData();
 	FDatasmithSceneBaseGraphBuilder SceneGraphBuilder(&CADFileData.GetSceneGraphArchive(), CachePath, DatasmithScene, GetSource(), ImportParameters);
 	SceneGraphBuilder.Build();
 
