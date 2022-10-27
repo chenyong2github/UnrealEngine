@@ -70,7 +70,6 @@ extern TRDGUniformBufferRef<FMobileBasePassUniformParameters> CreateMobileBasePa
 
 extern void SetupMobileDirectionalLightUniformParameters(
 	const FScene& Scene,
-	int32 ViewIndex,
 	const FViewInfo& View,
 	const TArray<FVisibleLightInfo,SceneRenderingAllocator>& VisibleLightInfos,
 	int32 ChannelIdx,

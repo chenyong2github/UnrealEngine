@@ -1441,7 +1441,7 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 	}
 }
 
-void FMobileSceneRenderer::RenderOcclusion(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+void FMobileSceneRenderer::RenderOcclusion(FRHICommandListImmediate& RHICmdList)
 {
 	if (!DoOcclusionQueries())
 	{
