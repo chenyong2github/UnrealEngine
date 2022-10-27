@@ -31,6 +31,13 @@ static FAutoConsoleVariableRef CVarForceUpdateWaterInfoNextFrames(
 	ForceUpdateWaterInfoNextFrames,
 	TEXT("Force the water info texture to regenerate on the next N frames. A negative value will force update every frame."));
 
+TAutoConsoleVariable<float> CVarWaterFallbackDepth(
+	TEXT("r.Water.FallbackDepth"),
+	3000.0f,
+	TEXT("Depth to use for all water when there are no ground actors defined."),
+	ECVF_Default);
+
+
 
 AWaterZone::AWaterZone(const FObjectInitializer& Initializer)
 	: Super(Initializer)
@@ -396,6 +403,13 @@ bool AWaterZone::UpdateWaterInfoTexture()
 				GroundZMax = FMath::Max(GroundZMax, LandscapeBox.Max.Z);
 				GroundActors.Add(LandscapeProxy);
 			}
+		}
+
+		// If we have no ground actors we need to set GroundZMin to be something sensible because it won't have been set above.
+		if (GroundActors.Num() == 0)
+		{
+			GroundZMax = WaterZMax;
+			GroundZMin = GroundZMax - CVarWaterFallbackDepth.GetValueOnGameThread();
 		}
 
 #if WITH_EDITOR
