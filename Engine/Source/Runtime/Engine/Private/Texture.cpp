@@ -73,6 +73,16 @@ static TAutoConsoleVariable<int32> CVarVirtualTexturesAutoImport(
 	TEXT("Enable virtual texture on texture import"),
 	ECVF_Default);
 
+// GSkipInvalidDXTDimensions prevents crash with non-4x4 aligned DXT
+// if the Texture code is working correctly, this should not be necessary
+// turn this bool off when possible ; FORT-515901
+int32 GSkipInvalidDXTDimensions = 1;
+static FAutoConsoleVariableRef CVarSkipInvalidDXTDimensions(
+	TEXT("r.SkipInvalidDXTDimensions"),
+	GSkipInvalidDXTDimensions,
+	TEXT("If set will skip over creating DXT textures that are smaller than 4x4 or other invalid dimensions.")
+);
+
 DEFINE_LOG_CATEGORY(LogTexture);
 DEFINE_LOG_CATEGORY(LogTextureUpload);
 
@@ -256,6 +266,65 @@ void UTexture::UpdateResource()
 	{
 		// Create a new texture resource.
 		FTextureResource* NewResource = CreateResource();
+
+		if (GSkipInvalidDXTDimensions != 0)
+		{
+			if (FStreamableTextureResource* StreamableResource = NewResource ? NewResource->GetStreamableTextureResource() : nullptr)
+			{
+				uint32 SizeX = StreamableResource->GetSizeX();
+				uint32 SizeY = StreamableResource->GetSizeY();
+				uint32 SizeZ = StreamableResource->GetSizeZ();
+
+				bool bIsBCN = false;
+				switch (StreamableResource->GetPixelFormat())
+				{
+				case PF_DXT1:
+				case PF_DXT3:
+				case PF_DXT5:
+				case PF_BC4:
+				case PF_BC5:
+				case PF_BC6H:
+				case PF_BC7:
+				{
+					bIsBCN = true;
+					break;
+				}
+				default:
+					break;
+				}
+
+				if (bIsBCN && (SizeX < 4 || (SizeX % 4) != 0 || SizeY < 4 || (SizeY % 4) != 0))
+				{
+					FTexturePlatformData** PtrPlatformData = GetRunningPlatformData();
+					const FTexturePlatformData* PlatformData = PtrPlatformData ? *PtrPlatformData : nullptr;
+			
+					int32 MipsNum=0;
+					int32 NumNonStreamingMips=0;
+					int32 NumNonOptionalMips=0;
+					int32 PDSizeX=0;
+					int32 PDSizeY=0;
+					if ( PlatformData )
+					{
+						MipsNum = PlatformData->Mips.Num();
+						bool bIsStreamingPossible = IsPossibleToStream();
+						NumNonStreamingMips = PlatformData->GetNumNonStreamingMips(bIsStreamingPossible);
+						NumNonOptionalMips = PlatformData->GetNumNonOptionalMips();
+						PDSizeX = PlatformData->SizeX;
+						PDSizeY = PlatformData->SizeY;
+					}
+
+					ensureMsgf( (SizeX%4)==0 && (SizeY%4) == 0, TEXT("Skipping init of %s texture %s with non 4x4-aligned size. Resource Size=%ix%ix%i. "
+						"Texture PD Size=%dx%d, mips=%d, nonstreaming=%d, nonopt=%d, LODBias=%d,cached=%d,cinematic=%d."), 
+						GPixelFormats[StreamableResource->GetPixelFormat()].Name, *GetName(), SizeX, SizeY, SizeZ,
+						PDSizeX,PDSizeY,MipsNum,NumNonStreamingMips,NumNonOptionalMips,
+						LODBias,CachedCombinedLODBias,NumCinematicMipLevels);
+
+					delete NewResource;
+					return;
+				}
+			}
+		}
+
 		SetResource(NewResource);
 		if (NewResource)
 		{
