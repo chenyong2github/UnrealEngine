@@ -1326,73 +1326,88 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 		bool bIsBoundsEdgeHoveredFound = false;
 		for (const FWorldPartitionActorDescViewBoundsProxy& ActorDescView: ActorDescList)
 		{
-			const FBox ActorBounds = ActorDescView.GetBounds();
-			FVector Origin, Extent;
-			ActorBounds.GetCenterAndExtents(Origin, Extent);
-
-			FVector2D TopLeftW = FVector2D(Origin - Extent);
-			FVector2D BottomRightW = FVector2D(Origin + Extent);
-			FVector2D TopRightW = FVector2D(BottomRightW.X, TopLeftW.Y);
-			FVector2D BottomLeftW = FVector2D(TopLeftW.X, BottomRightW.Y);
-
-			FVector2D TopLeft = WorldToScreen.TransformPoint(TopLeftW);
-			FVector2D BottomRight = WorldToScreen.TransformPoint(BottomRightW);
-			FVector2D TopRight = WorldToScreen.TransformPoint(TopRightW);
-			FVector2D BottomLeft = WorldToScreen.TransformPoint(BottomLeftW);
-
-			FBox2D ActorViewBox(TopLeft, BottomRight);
-
-			const float MinimumAreaCull = 32.0f;
-			const float AreaFadeDistance = 128.0f;
-			if ((Extent.Size2D() < KINDA_SMALL_NUMBER) || (ActorViewBox.GetArea() > MinimumAreaCull))
+			auto ShowActorBox = [this, &AllottedGeometry, &OutDrawElements, &LayerId, &bIsBoundsEdgeHoveredFound, &DrawActorLabel](const FBox& ActorBounds, bool bIsSelected, bool bIsSpatiallyLoaded, const FName ActorLabel)
 			{
-				const UClass* ActorClass = ActorDescView.GetActorNativeClass();
-				const AActor* Actor = ActorDescView.GetActor();
-				const FPaintGeometry ActorGeometry = AllottedGeometry.ToPaintGeometry(TopLeft, BottomRight - TopLeft);
-				const FPaintGeometry ActorGeometryShadow = AllottedGeometry.ToPaintGeometry(TopLeft - FVector2D::One(), BottomRight - TopLeft + FVector2D::One() * 2.0);
-				const bool bIsSelected = Actor ? Actor->IsSelected() : false;
-				const bool bIsBoundsEdgeHovered = !bIsBoundsEdgeHoveredFound && IsBoundsEdgeHovered(MouseCursorPos, ActorViewBox, 10.0f);
-				const float ActorColorGradient = FMath::Cube(FMath::Clamp((ActorViewBox.GetArea() - MinimumAreaCull) / AreaFadeDistance, 0.0f, 1.0f));
-				const float ActorBrightness = ActorDescView.GetIsSpatiallyLoaded() ? 1.0f : 0.3f;
+				FVector Origin, Extent;
+				ActorBounds.GetCenterAndExtents(Origin, Extent);
 
-				// Only draw the first edge bounds hovered
-				bIsBoundsEdgeHoveredFound |= bIsBoundsEdgeHovered;
-				
-				FLinearColor ActorColor(ActorBrightness, ActorBrightness, ActorBrightness, bIsBoundsEdgeHovered ? 1.0f : ActorColorGradient);
+				FVector2D TopLeftW = FVector2D(Origin - Extent);
+				FVector2D BottomRightW = FVector2D(Origin + Extent);
+				FVector2D TopRightW = FVector2D(BottomRightW.X, TopLeftW.Y);
+				FVector2D BottomLeftW = FVector2D(TopLeftW.X, BottomRightW.Y);
 
-				if (bIsSelected || bIsBoundsEdgeHovered)
+				FVector2D TopLeft = WorldToScreen.TransformPoint(TopLeftW);
+				FVector2D BottomRight = WorldToScreen.TransformPoint(BottomRightW);
+				FVector2D TopRight = WorldToScreen.TransformPoint(TopRightW);
+				FVector2D BottomLeft = WorldToScreen.TransformPoint(BottomLeftW);
+
+				FBox2D ActorViewBox(TopLeft, BottomRight);
+
+				const float MinimumAreaCull = 32.0f;
+				const float AreaFadeDistance = 128.0f;
+				if ((Extent.Size2D() < KINDA_SMALL_NUMBER) || (ActorViewBox.GetArea() > MinimumAreaCull))
 				{
-					const FName ActorLabel = ActorDescView.GetActorLabel();
-					if (!ActorLabel.IsNone())
+					const FPaintGeometry ActorGeometry = AllottedGeometry.ToPaintGeometry(TopLeft, BottomRight - TopLeft);
+					const FPaintGeometry ActorGeometryShadow = AllottedGeometry.ToPaintGeometry(TopLeft - FVector2D::One(), BottomRight - TopLeft + FVector2D::One() * 2.0);
+					const bool bIsBoundsEdgeHovered = !bIsBoundsEdgeHoveredFound && IsBoundsEdgeHovered(MouseCursorPos, ActorViewBox, 10.0f);
+					const float ActorColorGradient = FMath::Cube(FMath::Clamp((ActorViewBox.GetArea() - MinimumAreaCull) / AreaFadeDistance, 0.0f, 1.0f));
+					const float ActorBrightness = bIsSpatiallyLoaded ? 1.0f : 0.3f;
+
+					// Only draw the first edge bounds hovered
+					bIsBoundsEdgeHoveredFound |= bIsBoundsEdgeHovered;
+				
+					FLinearColor ActorColor(ActorBrightness, ActorBrightness, ActorBrightness, bIsBoundsEdgeHovered ? 1.0f : ActorColorGradient);
+
+					if (bIsSelected || bIsBoundsEdgeHovered)
 					{
-						DrawActorLabel(ActorLabel.ToString(), bIsBoundsEdgeHovered ? MouseCursorPos : ActorViewBox.GetCenter(), ActorGeometry, FLinearColor::Yellow, SmallLayoutFont, true);
+						if (!ActorLabel.IsNone())
+						{
+							DrawActorLabel(ActorLabel.ToString(), bIsBoundsEdgeHovered ? MouseCursorPos : ActorViewBox.GetCenter(), ActorGeometry, FLinearColor::Yellow, SmallLayoutFont, true);
+						}
+
+						ActorColor = FLinearColor::Yellow.CopyWithNewOpacity(ActorColor.A);
+					}
+					else if ((SelectBoxGridSnapped.GetVolume() > 0) && SelectBoxGridSnapped.Intersect(ActorBounds))
+					{
+						ActorColor = FLinearColor::White.CopyWithNewOpacity(ActorColor.A);
 					}
 
-					ActorColor = FLinearColor::Yellow.CopyWithNewOpacity(ActorColor.A);
+					FSlateDrawElement::MakeBox(
+						OutDrawElements,
+						++LayerId,
+						ActorGeometryShadow,
+						FAppStyle::GetBrush(TEXT("Border")),
+						ESlateDrawEffect::None,
+						FLinearColor::Black.CopyWithNewOpacity(ActorColor.A)
+					);
+
+					FSlateDrawElement::MakeBox(
+						OutDrawElements,
+						++LayerId,
+						ActorGeometry,
+						FAppStyle::GetBrush(TEXT("Border")),
+						ESlateDrawEffect::None,
+						ActorColor
+					);
 				}
-				else if ((SelectBoxGridSnapped.GetVolume() > 0) && SelectBoxGridSnapped.Intersect(ActorDescView.GetBounds()))
+			};
+
+			const FBox ActorBounds = ActorDescView.GetBounds();
+			const AActor* Actor = ActorDescView.GetActor();
+			const bool bIsSelected = Actor ? Actor->IsSelected() : false;
+			const bool bIsSpatiallyLoaded = ActorDescView.GetIsSpatiallyLoaded();
+			const FName ActorLabel = ActorDescView.GetActorLabel();
+
+			if (bIsSelected)
+			{
+				const FBox ActorDescBounds = ActorDescView.GetActorDesc()->GetBounds();
+				if (!ActorDescBounds.Equals(ActorBounds, 1.0f))
 				{
-					ActorColor = FLinearColor::White.CopyWithNewOpacity(ActorColor.A);
+					ShowActorBox(ActorDescBounds, false, bIsSpatiallyLoaded, ActorLabel);
 				}
-
-				FSlateDrawElement::MakeBox(
-					OutDrawElements,
-					++LayerId,
-					ActorGeometryShadow,
-					FAppStyle::GetBrush(TEXT("Border")),
-					ESlateDrawEffect::None,
-					FLinearColor::Black.CopyWithNewOpacity(ActorColor.A)
-				);
-
-				FSlateDrawElement::MakeBox(
-					OutDrawElements,
-					++LayerId,
-					ActorGeometry,
-					FAppStyle::GetBrush(TEXT("Border")),
-					ESlateDrawEffect::None,
-					ActorColor
-				);
 			}
+
+			ShowActorBox(ActorBounds, bIsSelected, bIsSpatiallyLoaded, ActorLabel);
 		};
 	}
 

@@ -174,11 +174,8 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 
 		auto PaintGridLinesFaded = [this, &EffectiveCellSize, EditorSpatialHash, &PaintGridLines, &VisibleGridRectWorld, CellScreenSize](int32 Granularity, float Thickness)
 		{
-			if (EffectiveCellSize >= EditorSpatialHash->CellSize * Granularity)
-			{
-				const float Alpha = FMath::Min(CellScreenSize / (WantedCellScreenSize * Granularity), 1.0f);
-				PaintGridLines(VisibleGridRectWorld, EffectiveCellSize / Granularity, Thickness, FLinearColor(0.1f, 0.1f, 0.1f, Alpha * 0.25f));
-			}
+			const float Alpha = FMath::Min(CellScreenSize / (WantedCellScreenSize * Granularity), (EffectiveCellSize >= EditorSpatialHash->CellSize * Granularity) ? 1.0f : 0.5f);
+			PaintGridLines(VisibleGridRectWorld, EffectiveCellSize / Granularity, Thickness, FLinearColor(0.1f, 0.1f, 0.1f, Alpha * 0.25f));
 		};
 
 		PaintGridLinesFaded(4, 1.0f);
