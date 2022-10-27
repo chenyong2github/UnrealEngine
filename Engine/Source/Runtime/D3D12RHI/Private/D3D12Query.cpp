@@ -326,23 +326,18 @@ bool FD3D12DynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64
 FD3D12BufferedGPUTiming::FD3D12BufferedGPUTiming(FD3D12Device* InParent)
 	: FD3D12DeviceChild(InParent)
 {
-	// StaticInitialize operates on all devices so only call it once.
-	UE_CALL_ONCE([InParent]()
-	{
-		StaticInitialize(InParent->GetParentAdapter(), PlatformStaticInitialize);
-	});
 }
 
-/**
- * Initializes the static variables, if necessary.
- */
-void FD3D12BufferedGPUTiming::PlatformStaticInitialize(void* UserData)
+void FD3D12BufferedGPUTiming::Initialize(FD3D12Adapter* ParentAdapter)
 {
-	// Are the static variables initialized?
-	check(!GAreGlobalsInitialized);
+	StaticInitialize(ParentAdapter, [](void* UserData)
+	{
+		// Are the static variables initialized?
+		check(!GAreGlobalsInitialized);
 
-	FD3D12Adapter* ParentAdapter = (FD3D12Adapter*)UserData;
-	CalibrateTimers(ParentAdapter);
+		FD3D12Adapter* ParentAdapter = (FD3D12Adapter*)UserData;
+		CalibrateTimers(ParentAdapter);
+	});
 }
 
 void FD3D12BufferedGPUTiming::CalibrateTimers(FD3D12Adapter* ParentAdapter)

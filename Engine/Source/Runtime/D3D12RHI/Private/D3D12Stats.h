@@ -171,12 +171,9 @@ public:
 
 	static void CalibrateTimers(FD3D12Adapter* ParentAdapter);
 
-private:
-	/**
-	* Initializes the static variables, if necessary.
-	*/
-	static void PlatformStaticInitialize(void* UserData);
+	static void Initialize(FD3D12Adapter* ParentAdapter);
 
+private:
 	struct
 	{
 		uint64 Result = 0;
