@@ -91,6 +91,7 @@ public:
 	const FSlateBrush* GetIconBrush() const override;
 	FText GetLabel() const override;
 	FSlateColor GetLabelColor() const override;
+	FText GetLabelToolTipText() const override;
 	
 	/*~ IDimmableExtension */
 	bool IsDimmed() const override;
@@ -138,6 +139,8 @@ private:
 	void OnConstruct() override;
 
 	void ForceUpdate();
+
+	bool FindBoundObjects(TArray<UObject*>& OutBoundObjects) const;
 
 	/** A second children list for the sections inside this track */
 	FViewModelListHead SectionList;

@@ -533,28 +533,59 @@ FSlateColor FTrackModel::GetLabelColor() const
 			return bIsDimmed ? FSlateColor::UseSubduedForeground() : FSlateColor::UseForeground();
 		}
 
-		TSharedPtr<FSequenceModel> SequenceModel = FindAncestorOfType<FSequenceModel>();
-		TSharedPtr<ISequencer> Sequencer = SequenceModel->GetSequencer();
-
-		if (TSharedPtr<IObjectBindingExtension> ParentBinding = FindAncestorOfType<IObjectBindingExtension>())
+		// Return a normal colour if we have at least one bound object for which the property binding resolves
+		// correctly. Otherwise, return a red colour indicating a binding issue.
+		TArray<UObject*> BoundObjects;
+		FindBoundObjects(BoundObjects);
+		for (UObject* BoundObject : BoundObjects)
 		{
-			for (TWeakObjectPtr<> WeakObject : Sequencer->FindBoundObjects(ParentBinding->GetObjectGuid(), Sequencer->GetFocusedTemplateID()))
+			FTrackInstancePropertyBindings PropertyBinding(PropertyTrack->GetPropertyName(), PropertyTrack->GetPropertyPath().ToString());
+			if (PropertyBinding.GetProperty(*BoundObject))
 			{
-				if (UObject* Object = WeakObject.Get())
-				{
-					FTrackInstancePropertyBindings PropertyBinding(PropertyTrack->GetPropertyName(), PropertyTrack->GetPropertyPath().ToString());
-					if (PropertyBinding.GetProperty(*Object))
-					{
-						return bIsDimmed ? FSlateColor::UseSubduedForeground() : FSlateColor::UseForeground();
-					}
-				}
+				return bIsDimmed ? FSlateColor::UseSubduedForeground() : FSlateColor::UseForeground();
 			}
-
-			return bIsDimmed ? FSlateColor(FLinearColor::Red.Desaturate(0.6f)) : FLinearColor::Red;
 		}
+		return bIsDimmed ? FSlateColor(FLinearColor::Red.Desaturate(0.6f)) : FLinearColor::Red;
 	}
 
 	return FOutlinerItemModel::GetLabelColor();
+}
+
+FText FTrackModel::GetLabelToolTipText() const
+{
+	UMovieSceneTrack* Track = GetTrack();
+	if (!Track)
+	{
+		return FText();
+	}
+
+	if (UMovieScenePropertyTrack* PropertyTrack = Cast<UMovieScenePropertyTrack>(Track))
+	{
+		TArray<UObject*> BoundObjects;
+		FindBoundObjects(BoundObjects);
+		for (UObject* BoundObject : BoundObjects)
+		{
+			FTrackInstancePropertyBindings PropertyBinding(PropertyTrack->GetPropertyName(), PropertyTrack->GetPropertyPath().ToString());
+			if (FProperty* BoundProperty = PropertyBinding.GetProperty(*BoundObject))
+			{
+				FString PropertyName = BoundProperty->GetMetaData(TEXT("DisplayName"));
+				if (PropertyName.IsEmpty())
+				{
+					PropertyName = BoundProperty->GetName();
+				}
+
+				FString CategoryName = BoundProperty->GetMetaData(TEXT("Category")).Replace(TEXT("|"), TEXT(" \u00BB "));
+				if (!CategoryName.IsEmpty())
+				{
+					CategoryName.Append(TEXT(" \u00BB "));
+				}
+
+				return FText::FromString(FString::Printf(TEXT("%s%s\n(Path: %s)"), *CategoryName, *PropertyName, *PropertyBinding.GetPropertyPath()));
+			}
+		}
+	}
+	
+	return Track->GetDisplayNameToolTipText();
 }
 
 TSharedRef<SWidget> FTrackModel::CreateOutlinerView(const FCreateOutlinerViewParams& InParams)
@@ -702,6 +733,32 @@ void FTrackModel::Delete()
 	}
 }
 
+bool FTrackModel::FindBoundObjects(TArray<UObject*>& OutBoundObjects) const
+{
+	TSharedPtr<FSequenceModel> SequenceModel = FindAncestorOfType<FSequenceModel>();
+	TSharedPtr<ISequencer> Sequencer = SequenceModel ? SequenceModel->GetSequencer() : nullptr;
+	if (!Sequencer)
+	{
+		return false;
+	}
+
+	TSharedPtr<IObjectBindingExtension> ParentBinding = FindAncestorOfType<IObjectBindingExtension>();
+	if (!ParentBinding)
+	{
+		return false;
+	}
+
+	TArrayView<TWeakObjectPtr<>> FoundBoundObjects = Sequencer->FindBoundObjects(ParentBinding->GetObjectGuid(), Sequencer->GetFocusedTemplateID());
+	OutBoundObjects.Reserve(OutBoundObjects.Num() + FoundBoundObjects.Num());
+	for (TWeakObjectPtr<> WeakObject : FoundBoundObjects)
+	{
+		if (UObject* Object = WeakObject.Get())
+		{
+			OutBoundObjects.Add(Object);
+		}
+	}
+	return true;
+}
 
 } // namespace Sequencer
 } // namespace UE
