@@ -211,7 +211,7 @@ static FAutoConsoleVariableRef CVarNanitePersistentThreadsCulling(
 // i.e. if r.Nanite.MaxPixelsPerEdge is 1.0 and r.Nanite.PrimaryRaster.PixelsPerEdgeScaling is 20%, when heavily over budget r.Nanite.MaxPixelsPerEdge will be scaled to to 5.0
 static TAutoConsoleVariable<float> CVarNanitePrimaryPixelsPerEdgeScalingPercentage(
 	TEXT("r.Nanite.PrimaryRaster.PixelsPerEdgeScaling"),
-	100.0f, // 100% - no scaling - set to < 100% to scale pixel error when over budget
+	20.0f, // 100% - no scaling - set to < 100% to scale pixel error when over budget
 	TEXT("Lower limit percentage to scale the Nanite primary raster MaxPixelsPerEdge value when over budget."),
 	ECVF_RenderThreadSafe | ECVF_Default);
 
@@ -244,7 +244,7 @@ static DynamicRenderScaling::FHeuristicSettings GetDynamicNaniteScalingPrimarySe
 	BucketSetting.MinResolutionFraction = DynamicRenderScaling::PercentageToFraction(PixelsPerEdgeScalingPercentage);
 	BucketSetting.MaxResolutionFraction = DynamicRenderScaling::PercentageToFraction(100.0f);
 	BucketSetting.BudgetMs = CVarNanitePrimaryTimeBudgetMs.GetValueOnAnyThread();
-	BucketSetting.ChangeThreshold = DynamicRenderScaling::PercentageToFraction(10.0f);
+	BucketSetting.ChangeThreshold = DynamicRenderScaling::PercentageToFraction(1.0f);
 	BucketSetting.TargetedHeadRoom = DynamicRenderScaling::PercentageToFraction(5.0f); // 5% headroom
 	BucketSetting.UpperBoundQuantization = DynamicRenderScaling::FHeuristicSettings::kDefaultUpperBoundQuantization;
 	return BucketSetting;
@@ -260,7 +260,7 @@ static DynamicRenderScaling::FHeuristicSettings GetDynamicNaniteScalingShadowSet
 	BucketSetting.MinResolutionFraction = DynamicRenderScaling::PercentageToFraction(PixelsPerEdgeScalingPercentage);
 	BucketSetting.MaxResolutionFraction = DynamicRenderScaling::PercentageToFraction(100.0f);
 	BucketSetting.BudgetMs = CVarNaniteShadowTimeBudgetMs.GetValueOnAnyThread();
-	BucketSetting.ChangeThreshold = DynamicRenderScaling::PercentageToFraction(10.0f);
+	BucketSetting.ChangeThreshold = DynamicRenderScaling::PercentageToFraction(1.0f);
 	BucketSetting.TargetedHeadRoom = DynamicRenderScaling::PercentageToFraction(5.0f); // 5% headroom
 	BucketSetting.UpperBoundQuantization = DynamicRenderScaling::FHeuristicSettings::kDefaultUpperBoundQuantization;
 	return BucketSetting;
