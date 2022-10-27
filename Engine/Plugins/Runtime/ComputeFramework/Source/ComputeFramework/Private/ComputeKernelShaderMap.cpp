@@ -40,6 +40,8 @@ namespace ComputeKernelShaderCookStats
 TMap<FComputeKernelShaderMapId, FComputeKernelShaderMap*> FComputeKernelShaderMap::GIdToComputeKernelShaderMap[SP_NumPlatforms];
 TArray<FComputeKernelShaderMap*> FComputeKernelShaderMap::AllComputeKernelShaderMaps;
 
+#if WITH_EDITOR
+
 // The Id of 0 is reserved for global shaders
 uint32 FComputeKernelShaderMap::NextCompilingId = 2;
 
@@ -49,6 +51,7 @@ uint32 FComputeKernelShaderMap::NextCompilingId = 2;
  * Uses a TRefCountPtr as this will be the only reference to a shader map while it is being compiled.
  */
 TMap<TRefCountPtr<FComputeKernelShaderMap>, TArray<FComputeKernelResource*> > FComputeKernelShaderMap::ComputeKernelShaderMapsBeingCompiled;
+#endif // WITH_EDITOR
 
 
 
@@ -107,9 +110,9 @@ bool FComputeKernelShaderMapId::operator==(const FComputeKernelShaderMapId& InRe
 	return true;
 }
 
+#if WITH_EDITOR
 void FComputeKernelShaderMapId::AppendKeyString(FString& OutKeyString) const
 {
-#if WITH_EDITOR
 	OutKeyString.Appendf(TEXT("%llX"), ShaderCodeHash);
 	OutKeyString.AppendChar('_');
 
@@ -122,7 +125,6 @@ void FComputeKernelShaderMapId::AppendKeyString(FString& OutKeyString) const
 
 	// Add the inputs for any shaders that are stored inline in the shader map
 	AppendKeyStringShaderDependencies(MakeArrayView(ShaderTypeDependencies), LayoutParams, OutKeyString);
-#endif //WITH_EDITOR
 }
 
 /**
@@ -211,6 +213,7 @@ FShader* FComputeKernelShaderType::FinishCompileShader(
 
 	return Shader;
 }
+#endif // WITH_EDITOR
 
 /**
  * Finds the shader map for a kernel.
@@ -225,23 +228,20 @@ FComputeKernelShaderMap* FComputeKernelShaderMap::FindId(const FComputeKernelSha
 	return Result;
 }
 
+#if WITH_EDITOR
+
 /** Creates a string key for the derived data cache given a shader map id. */
 static FString GetComputeKernelShaderMapKeyString(const FComputeKernelShaderMapId& InShaderMapId, EShaderPlatform InPlatform)
 {
-#if WITH_EDITOR
 	const FName Format = LegacyShaderPlatformToShaderFormat(InPlatform);
 	FString ShaderMapKeyString = Format.ToString() + TEXT("_") + FString(FString::FromInt(GetTargetPlatformManagerRef().ShaderFormatVersion(Format))) + TEXT("_");
 	ShaderMapAppendKeyString(InPlatform, ShaderMapKeyString);
 	InShaderMapId.AppendKeyString(ShaderMapKeyString);
 	return FDerivedDataCacheInterface::BuildCacheKey(TEXT("CKERSM"), COMPUTEKERNEL_DERIVEDDATA_VER, *ShaderMapKeyString);
-#else
-	return FString();
-#endif
 }
 
 void FComputeKernelShaderMap::LoadFromDerivedDataCache(const FComputeKernelResource* InKernel, const FComputeKernelShaderMapId& InShaderMapId, EShaderPlatform InPlatform, TRefCountPtr<FComputeKernelShaderMap>& InOutShaderMap)
 {
-#if WITH_EDITOR
 	if (InOutShaderMap != nullptr)
 	{
 		check(InOutShaderMap->GetShaderPlatform() == InPlatform);
@@ -283,24 +283,21 @@ void FComputeKernelShaderMap::LoadFromDerivedDataCache(const FComputeKernelResou
 		}
 		INC_FLOAT_STAT_BY(STAT_ShaderCompiling_DDCLoading,(float)ComputeKernelShaderDDCTime);
 	}
-#endif
 }
 
 void FComputeKernelShaderMap::SaveToDerivedDataCache()
 {
-#if WITH_EDITOR
 	COOK_STAT(auto Timer = ComputeKernelShaderCookStats::UsageStats.TimeSyncWork());
-	
-TArray<uint8> SaveData;
+
+	TArray<uint8> SaveData;
 	FMemoryWriter Ar(SaveData, true);
 	Serialize(Ar);
 
 	const FString DataKey = GetComputeKernelShaderMapKeyString(GetContent()->ShaderMapId, GetShaderPlatform());
 
 	GetDerivedDataCacheRef().Put(*DataKey, SaveData, GetFriendlyName());
-	
-COOK_STAT(Timer.AddMiss(SaveData.Num()));
-#endif
+
+	COOK_STAT(Timer.AddMiss(SaveData.Num()));
 }
 
 /**
@@ -323,7 +320,6 @@ void FComputeKernelShaderMap::Compile(
 	{
 		UE_LOG(LogComputeFramework, Fatal, TEXT("Trying to compile ComputeKernel shader %s at run-time, which is not supported on consoles!"), *InKernel->GetFriendlyName() );
 	}
-#if WITH_EDITOR
 	else
 	{
 		// Make sure we are operating on a referenced shader map or the below Find will cause this shader map to be deleted,
@@ -437,7 +433,6 @@ void FComputeKernelShaderMap::Compile(
 			}
 		}
 	}
-#endif
 }
 
 FShader* FComputeKernelShaderMap::ProcessCompilationResultsForSingleJob(FShaderCompileJob& CurrentJob, const FSHAHash& InShaderMapHash)
@@ -512,6 +507,7 @@ bool FComputeKernelShaderMap::TryToAddToExistingCompilationTask(FComputeKernelRe
 
 	return false;
 }
+#endif // WITH_EDITOR
 
 bool FComputeKernelShaderMap::IsComputeKernelShaderComplete(const FComputeKernelResource* InKernel, const FComputeKernelShaderType* InShaderType, bool bSilent)
 {
@@ -539,6 +535,8 @@ bool FComputeKernelShaderMap::IsComplete(const FComputeKernelResource* InKernel,
 	// Make sure we are operating on a referenced shader map or the below Find will cause this shader map to be deleted,
 	// Since it creates a temporary ref counted pointer.
 	check(NumRefs > 0);
+
+#if WITH_EDITOR
 	const TArray<FComputeKernelResource*>* CorrespondingKernels = FComputeKernelShaderMap::ComputeKernelShaderMapsBeingCompiled.Find(this);
 
 	if (CorrespondingKernels)
@@ -546,6 +544,7 @@ bool FComputeKernelShaderMap::IsComplete(const FComputeKernelResource* InKernel,
 		check(!bCompilationFinalized);
 		return false;
 	}
+#endif
 
 	// Iterate over all shader types.
 	for(TLinkedList<FShaderType*>::TIterator ShaderTypeIt(FShaderType::GetTypeList());ShaderTypeIt;ShaderTypeIt.Next())
@@ -561,6 +560,7 @@ bool FComputeKernelShaderMap::IsComplete(const FComputeKernelResource* InKernel,
 	return true;
 }
 
+#if WITH_EDITOR
 void FComputeKernelShaderMap::LoadMissingShadersFromMemory(const FComputeKernelResource* InKernel)
 {
 #if 0
@@ -595,6 +595,8 @@ void FComputeKernelShaderMap::LoadMissingShadersFromMemory(const FComputeKernelR
 	}
 #endif
 }
+
+#endif // WITH_EDITOR
 
 void FComputeKernelShaderMap::GetShaderList(TMap<FShaderId, TShaderRef<FShader>>& OutShaders) const
 {
@@ -661,23 +663,6 @@ FComputeKernelShaderMap::~FComputeKernelShaderMap()
 	AllComputeKernelShaderMaps.RemoveSwap(this);
 }
 
-/**
- * Removes all entries in the cache with exceptions based on a shader type
- * @param ShaderType - The shader type to flush
- */
-void FComputeKernelShaderMap::FlushShadersByShaderType(const FShaderType* InShaderType)
-{
-	if (InShaderType->GetComputeKernelShaderType())
-	{
-		const int32 PermutationCount = InShaderType->GetPermutationCount();
-		for (int32 PermutationId = 0; PermutationId < PermutationCount; ++PermutationId)
-		{
-			GetMutableContent()->RemoveShaderTypePermutaion(InShaderType->GetComputeKernelShaderType(), PermutationId);	
-		}
-	}
-}
-
-
 bool FComputeKernelShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources)
 {
 	// Note: This is saved to the DDC, not into packages (except when cooked)
@@ -685,6 +670,8 @@ bool FComputeKernelShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResource
 	// Instead, just bump COMPUTEKERNEL_DERIVEDDATA_VER
 	return Super::Serialize(Ar, bInlineShaderResources, false);
 }
+
+#if WITH_EDITOR
 
 void FComputeKernelShaderMap::RemovePending(FComputeKernelResource* InKernel)
 {
@@ -706,3 +693,4 @@ void FComputeKernelShaderMap::RemovePending(FComputeKernelResource* InKernel)
 	}
 }
 
+#endif // WITH_EDITOR

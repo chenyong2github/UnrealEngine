@@ -29,10 +29,8 @@ FComputeKernelShaderCompilationManager GComputeKernelShaderCompilationManager;
 
 void FComputeKernelShaderCompilationManager::Tick(float DeltaSeconds)
 {
-#if WITH_EDITOR
 	RunCompileJobs();
 	ProcessAsyncResults();
-#endif
 }
 
 FComputeKernelShaderCompilationManager::FComputeKernelShaderCompilationManager()
@@ -52,7 +50,6 @@ FComputeKernelShaderCompilationManager::~FComputeKernelShaderCompilationManager(
 
 void FComputeKernelShaderCompilationManager::RunCompileJobs()
 {
-#if WITH_EDITOR
 	check(IsInGameThread());
 
 	InitWorkerInfo();
@@ -178,7 +175,6 @@ void FComputeKernelShaderCompilationManager::RunCompileJobs()
 		CurrentWorkerInfo.bComplete = false;
 		CurrentWorkerInfo.QueuedJobs.Empty();
 	}
-#endif
 }
 
 void FComputeKernelShaderCompilationManager::InitWorkerInfo()
@@ -198,7 +194,6 @@ void FComputeKernelShaderCompilationManager::InitWorkerInfo()
 
 void FComputeKernelShaderCompilationManager::AddJobs(TArray<FShaderCommonCompileJobPtr> InNewJobs)
 {
-#if WITH_EDITOR
 	for (auto& Job : InNewJobs)
 	{
 		FComputeKernelShaderMapCompileResults& ShaderMapInfo = ComputeKernelShaderMapJobs.FindOrAdd(Job->Id);
@@ -207,13 +202,11 @@ void FComputeKernelShaderCompilationManager::AddJobs(TArray<FShaderCommonCompile
 	}
 
 	JobQueue.Append(InNewJobs);
-#endif
 }
 
 
 void FComputeKernelShaderCompilationManager::ProcessAsyncResults()
 {
-#if WITH_EDITOR
 	int32 NumCompilingComputeKernelShaderMaps = 0;
 	TArray<int32> ShaderMapsToRemove;
 
@@ -241,7 +234,6 @@ void FComputeKernelShaderCompilationManager::ProcessAsyncResults()
 	{
 		ProcessCompiledComputeKernelShaderMaps(PendingFinalizeComputeKernelShaderMaps, 0.1f);
 	}
-#endif
 }
 
 
@@ -249,7 +241,6 @@ void FComputeKernelShaderCompilationManager::ProcessCompiledComputeKernelShaderM
 	TMap<int32, FComputeKernelShaderMapFinalizeResults>& CompiledShaderMaps,
 	float TimeBudget)
 {
-#if WITH_EDITOR
 	// Keeps shader maps alive as they are passed from the shader compiler and applied to the owning kernel
 	TArray<TRefCountPtr<FComputeKernelShaderMap> > LocalShaderMapReferences;
 	TMap<FComputeKernelResource*, FComputeKernelShaderMap*> KernelsToUpdate;
@@ -451,19 +442,17 @@ void FComputeKernelShaderCompilationManager::ProcessCompiledComputeKernelShaderM
 			}
 		}
 	}
-#endif
 }
 
 
 void FComputeKernelShaderCompilationManager::FinishCompilation(const TCHAR* InKernelName, const TArray<int32>& ShaderMapIdsToFinishCompiling)
 {
-#if WITH_EDITOR
 	check(!FPlatformProperties::RequiresCookedData());
 
 	RunCompileJobs();	// since we don't async compile through another process, this will run all oustanding jobs
 	ProcessAsyncResults();	// grab compiled shader maps and assign them to their resources
 
 	check(ComputeKernelShaderMapJobs.Num() == 0);
-#endif
 }
-#endif
+
+#endif // WITH_EDITOR

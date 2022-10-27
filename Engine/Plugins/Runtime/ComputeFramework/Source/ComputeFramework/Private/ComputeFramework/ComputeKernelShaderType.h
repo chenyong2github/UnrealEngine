@@ -6,7 +6,9 @@
 #include "Engine/EngineTypes.h"
 #include "GlobalShader.h"
 #include "Shader.h"
+#if WITH_EDITOR
 #include "ShaderCompiler.h"
+#endif
 
 class FShaderCommonCompileJob;
 class FShaderCompileJob;
@@ -98,6 +100,7 @@ public:
 	{
 	}
 
+#if WITH_EDITOR
 	void BeginCompileShader(
 		uint32 ShaderMapId,
 		int32 PermutationId,
@@ -116,6 +119,7 @@ public:
 		const FShaderCompileJob& CurrentJob,
 		const FString& InDebugDescription
 		) const;
+#endif // WITH_EDITOR
 
 	/**
 	 * Checks if the shader type should be cached.
@@ -126,7 +130,7 @@ public:
 		return ShouldCompilePermutation(FComputeKernelShaderPermutationParameters(InPlatform));
 	}
 
-
+#if WITH_EDITOR
 protected:
 	/**
 	 * Sets up the environment used to compile an instance of this shader type.
@@ -137,4 +141,5 @@ protected:
 	{
 		ModifyCompilationEnvironment(FComputeKernelShaderPermutationParameters(InPlatform), OutEnvironment);
 	}
+#endif // WITH_EDITOR
 };
