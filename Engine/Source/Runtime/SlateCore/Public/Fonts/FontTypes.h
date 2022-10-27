@@ -74,10 +74,8 @@ struct FSlateFontKeyFuncs : BaseKeyFuncs<TPair<FSlateFontKey, ValueType>, FSlate
 		TPair<FSlateFontKey, ValueType>,
 		FSlateFontKey
 	> Super;
-	typedef typename Super::ElementInitType ElementInitType;
-	typedef typename Super::KeyInitType     KeyInitType;
 
-	FORCEINLINE static const FSlateFontKey& GetSetKey(ElementInitType Element)
+	FORCEINLINE static const FSlateFontKey& GetSetKey(const TPair<FSlateFontKey, ValueType>& Element)
 	{
 		return Element.Key;
 	}

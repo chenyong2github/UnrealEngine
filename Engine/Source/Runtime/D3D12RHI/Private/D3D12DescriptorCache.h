@@ -126,9 +126,11 @@ struct FD3D12UniqueSamplerTable
 
 struct FD3D12UniqueSamplerTableKeyFuncs : BaseKeyFuncs<FD3D12UniqueSamplerTable, FD3D12UniqueSamplerTable, /*bInAllowDuplicateKeys = */ false>
 {
+private:
 	typedef typename TCallTraits<FD3D12UniqueSamplerTable>::ParamType KeyInitType;
 	typedef typename TCallTraits<FD3D12UniqueSamplerTable>::ParamType ElementInitType;
 
+public:
 	/**
 	* @return The key used to index the given element.
 	*/

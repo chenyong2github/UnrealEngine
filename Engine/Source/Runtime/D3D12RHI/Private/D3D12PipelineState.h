@@ -430,9 +430,11 @@ protected:
 	template <typename TDesc, typename TValue>
 	struct TStateCacheKeyFuncs : BaseKeyFuncs<TPair<TDesc, TValue>, TDesc, false>
 	{
+	private:
 		typedef typename TTypeTraits<TDesc>::ConstPointerType KeyInitType;
 		typedef const TPairInitializer<typename TTypeTraits<TDesc>::ConstInitType, typename TTypeTraits<TValue>::ConstInitType>& ElementInitType;
 
+	public:
 		static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
 		{
 			return Element.Key;

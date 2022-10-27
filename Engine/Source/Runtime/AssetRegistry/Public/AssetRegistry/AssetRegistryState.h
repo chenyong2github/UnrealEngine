@@ -152,8 +152,12 @@ namespace UE::AssetRegistry::Private
 	*/
 	struct FCachedAssetKeyFuncs
 	{
+	private:
 		using KeyInitType = FCachedAssetKey;
 		using ElementInitType = void; // TSet doesn't actually use this type 
+
+	public:
+		using KeyType = FCachedAssetKey;
 
 		enum { bAllowDuplicateKeys = false };
 

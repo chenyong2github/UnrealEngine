@@ -1019,12 +1019,12 @@ private:
 
 	struct FGraphicsPSOInitializerKeyFuncs : DefaultKeyFuncs<FGraphicsPipelineStateInitializer>
 	{
-		static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
+		static FORCEINLINE bool Matches(const FGraphicsPipelineStateInitializer& A, const FGraphicsPipelineStateInitializer& B)
 		{
 			return RHIMatchPrecachePSOInitializers(A, B);
 		}
 
-		static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+		static FORCEINLINE uint32 GetKeyHash(const FGraphicsPipelineStateInitializer& Key)
 		{
 			return RHIComputePrecachePSOHash(Key);
 		}

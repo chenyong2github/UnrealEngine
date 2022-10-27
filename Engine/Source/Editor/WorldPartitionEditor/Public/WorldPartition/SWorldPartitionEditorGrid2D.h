@@ -123,17 +123,17 @@ protected:
 
 	struct FKeyFuncs : public BaseKeyFuncs<TWeakInterfacePtr<IWorldPartitionActorLoaderInterface>, TWeakInterfacePtr<IWorldPartitionActorLoaderInterface>, false>
 	{
-		static KeyInitType GetSetKey(ElementInitType Entry)
+		static const TWeakInterfacePtr<IWorldPartitionActorLoaderInterface>& GetSetKey(const TWeakInterfacePtr<IWorldPartitionActorLoaderInterface>& Entry)
 		{
 			return Entry;
 		}
 
-		static bool Matches(KeyInitType A, KeyInitType B)
+		static bool Matches(const TWeakInterfacePtr<IWorldPartitionActorLoaderInterface>& A, const TWeakInterfacePtr<IWorldPartitionActorLoaderInterface>& B)
 		{
 			return A == B;
 		}
 
-		static uint32 GetKeyHash(KeyInitType Key)
+		static uint32 GetKeyHash(const TWeakInterfacePtr<IWorldPartitionActorLoaderInterface>& Key)
 		{
 			return GetTypeHash(Key.GetWeakObjectPtr());
 		}

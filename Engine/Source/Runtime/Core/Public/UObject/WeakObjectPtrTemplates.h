@@ -323,64 +323,18 @@ template<class T> struct TIsWeakPointerType<TWeakObjectPtr<T> > { enum { Value =
 template <typename KeyType, typename ValueType, bool bInAllowDuplicateKeys = false>
 struct TWeakObjectPtrMapKeyFuncs : public TDefaultMapKeyFuncs<KeyType, ValueType, bInAllowDuplicateKeys>
 {
-	typedef typename TDefaultMapKeyFuncs<KeyType, ValueType, bInAllowDuplicateKeys>::KeyInitType KeyInitType;
-
-	static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
+	template <typename LhsKeyType, typename RhsKeyType>
+	static FORCEINLINE bool Matches(const LhsKeyType& A, const RhsKeyType& B)
 	{
 		return A.HasSameIndexAndSerialNumber(B);
 	}
 
-	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+	template <typename ComparableKeyType>
+	static FORCEINLINE uint32 GetKeyHash(const ComparableKeyType& Key)
 	{
 		return GetTypeHash(Key);
 	}
 };
-
-/**
- * Automatic version of the weak object pointer
- */
-template<class T> 
-class TAutoWeakObjectPtr : public TWeakObjectPtr<T>
-{
-public:
-	/** NULL constructor **/
-	UE_DEPRECATED(4.15, "TAutoWeakObjectPtr has been deprecated - use TWeakObjectPtr instead")
-	FORCEINLINE TAutoWeakObjectPtr()
-	{
-	}
-	/** Construct from a raw pointer **/
-	UE_DEPRECATED(4.15, "TAutoWeakObjectPtr has been deprecated - use TWeakObjectPtr instead")
-	FORCEINLINE TAutoWeakObjectPtr(const T* Target)
-		: TWeakObjectPtr<T>(Target)
-	{
-	}
-	/**  Construct from the base type **/
-	UE_DEPRECATED(4.15, "TAutoWeakObjectPtr has been deprecated - use TWeakObjectPtr instead")
-	FORCEINLINE TAutoWeakObjectPtr(const TWeakObjectPtr<T>& Other) 
-		: TWeakObjectPtr<T>(Other)
-	{
-	}
-	UE_DEPRECATED(4.15, "Implicit conversion from TAutoWeakObjectPtr to the pointer type has been deprecated - use Get() instead")
-	FORCEINLINE operator T* () const
-	{
-		return this->Get();
-	}
-	UE_DEPRECATED(4.15, "Implicit conversion from TAutoWeakObjectPtr to the pointer type has been deprecated - use Get() instead")
-	FORCEINLINE operator const T* () const
-	{
-		return (const T*)this->Get();
-	}
-
-	UE_DEPRECATED(4.15, "Implicit conversion from TAutoWeakObjectPtr to the pointer type has been deprecated - use Get() instead")
-	FORCEINLINE explicit operator bool() const
-	{
-		return this->Get() != nullptr;
-	}
-};
-
-template<class T> struct TIsPODType<TAutoWeakObjectPtr<T> > { enum { Value = true }; };
-template<class T> struct TIsZeroConstructType<TAutoWeakObjectPtr<T> > { enum { Value = true }; };
-template<class T> struct TIsWeakPointerType<TAutoWeakObjectPtr<T> > { enum { Value = true }; };
 
 /** Utility function to fill in a TArray<ClassName*> from a TArray<TWeakObjectPtr<ClassName>> */
 template<typename DestArrayType, typename SourceArrayType>

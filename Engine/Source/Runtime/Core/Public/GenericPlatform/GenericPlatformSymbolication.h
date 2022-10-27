@@ -86,9 +86,12 @@ struct FGenericPlatformSymbolDatabase
 struct FGenericPlatformSymbolDatabaseKeyFuncs
 {
 	enum { bAllowDuplicateKeys = 0 };
+
+private:
 	typedef TCallTraits<FString>::ParamType KeyInitType;
 	typedef TCallTraits<FGenericPlatformSymbolDatabase>::ParamType ElementInitType;
 
+public:
 	/**
 	 * @return The key used to index the given element.
 	 */

@@ -277,12 +277,12 @@ struct FNaniteMaterialEntry
 
 struct FNaniteMaterialEntryKeyFuncs : TDefaultMapHashableKeyFuncs<FMeshDrawCommand, FNaniteMaterialEntry, false>
 {
-	static inline bool Matches(KeyInitType A, KeyInitType B)
+	static inline bool Matches(const FMeshDrawCommand& A, const FMeshDrawCommand& B)
 	{
 		return A.MatchesForDynamicInstancing(B);
 	}
 
-	static inline uint32 GetKeyHash(KeyInitType Key)
+	static inline uint32 GetKeyHash(const FMeshDrawCommand& Key)
 	{
 		return Key.GetDynamicInstancingHash();
 	}

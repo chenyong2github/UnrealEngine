@@ -541,14 +541,12 @@ template<class T> struct TIsWeakPointerType<TFieldPath<T> > { enum { Value = tru
 template <typename KeyType, typename ValueType, bool bInAllowDuplicateKeys = false>
 struct TPropertyPathMapKeyFuncs : public TDefaultMapKeyFuncs<KeyType, ValueType, bInAllowDuplicateKeys>
 {
-	typedef typename TDefaultMapKeyFuncs<KeyType, ValueType, bInAllowDuplicateKeys>::KeyInitType KeyInitType;
-
-	static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
+	static FORCEINLINE bool Matches(const KeyType& A, const KeyType& B)
 	{
 		return A == B;
 	}
 
-	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+	static FORCEINLINE uint32 GetKeyHash(const KeyType& Key)
 	{
 		return GetTypeHash(Key);
 	}

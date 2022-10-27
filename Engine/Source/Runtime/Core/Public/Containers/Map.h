@@ -76,32 +76,23 @@ public:
 template<typename KeyType, typename ValueType, bool bInAllowDuplicateKeys>
 struct TDefaultMapKeyFuncs : BaseKeyFuncs<TPair<KeyType, ValueType>, KeyType, bInAllowDuplicateKeys>
 {
-	typedef typename TTypeTraits<KeyType>::ConstPointerType KeyInitType;
-	typedef const TPairInitializer<typename TTypeTraits<KeyType>::ConstInitType, typename TTypeTraits<ValueType>::ConstInitType>& ElementInitType;
+	using KeyInitType     UE_DEPRECATED(5.2, "TDefaultMapKeyFuncs::KeyInitType has been deprecated.")     = const KeyType&;
+	using ElementInitType UE_DEPRECATED(5.2, "TDefaultMapKeyFuncs::ElementInitType has been deprecated.") = const TPairInitializer<const KeyType&, const ValueType&>&;
 
-	static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
+	template <typename ElementType>
+	static FORCEINLINE auto GetSetKey(const ElementType& Element) -> decltype((Element.Key)) // double brackets here to get a reference type
 	{
 		return Element.Key;
 	}
 
-	static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
+	template <typename LhsKeyType, typename RhsKeyType>
+	static FORCEINLINE bool Matches(const LhsKeyType& A, const RhsKeyType& B)
 	{
 		return A == B;
 	}
 
-	template<typename ComparableKey>
-	static FORCEINLINE bool Matches(KeyInitType A, ComparableKey B)
-	{
-		return A == B;
-	}
-
-	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
-	{
-		return GetTypeHash(Key);
-	}
-
-	template<typename ComparableKey>
-	static FORCEINLINE uint32 GetKeyHash(ComparableKey Key)
+	template <typename ComparableKeyType>
+	static FORCEINLINE uint32 GetKeyHash(const ComparableKeyType& Key)
 	{
 		return GetTypeHash(Key);
 	}
@@ -129,7 +120,7 @@ struct TDefaultMapHashableKeyFuncs : TDefaultMapKeyFuncs<KeyType, ValueType, bIn
  * -- Reducing contention around hash tables protected by a lock. It is often important to incur
  *    the cache misses of reading key data and doing the hashing *before* acquiring the lock.
  **/
-template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+template <typename InKeyType, typename InValueType, typename SetAllocator, typename KeyFuncs>
 class TMapBase
 {
 	template <typename OtherKeyType, typename OtherValueType, typename OtherSetAllocator, typename OtherKeyFuncs>
@@ -138,12 +129,13 @@ class TMapBase
 	friend struct TContainerTraits<TMapBase>;
 
 public:
-	static constexpr bool SupportsFreezeMemoryImage = TAllocatorTraits<SetAllocator>::SupportsFreezeMemoryImage;
+	using KeyType     = InKeyType;
+	using ValueType   = InValueType;
+	using ElementType = TPair<KeyType, ValueType>;
 
-	typedef typename TTypeTraits<KeyType  >::ConstPointerType KeyConstPointerType;
-	typedef typename TTypeTraits<KeyType  >::ConstInitType    KeyInitType;
-	typedef typename TTypeTraits<ValueType>::ConstInitType    ValueInitType;
-	typedef TPair<KeyType, ValueType> ElementType;
+	using KeyConstPointerType UE_DEPRECATED(5.2, "TMapBase::KeyConstPointerType has been deprecated - use const KeyType& instead.") = const KeyType&;
+	using KeyInitType         UE_DEPRECATED(5.2, "TMapBase::KeyInitType has been deprecated - use const KeyType& instead.")         = const KeyType&;
+	using ValueInitType       UE_DEPRECATED(5.2, "TMapBase::ValueInitType has been deprecated - use const ValueType& instead.")     = const ValueType&;
 
 protected:
 	TMapBase() = default;
@@ -457,7 +449,8 @@ public:
 	 * @param InKey The key to remove associated values for.
 	 * @return The number of values that were associated with the key.
 	 */
-	FORCEINLINE int32 Remove(KeyConstPointerType InKey)
+	template <typename InFindKeyType = KeyType>
+	FORCEINLINE int32 Remove(const InFindKeyType& InKey)
 	{
 		const int32 NumRemovedPairs = Pairs.Remove(InKey);
 		return NumRemovedPairs;
@@ -471,6 +464,21 @@ public:
 		return NumRemovedPairs;
 	}
 
+private:
+	template <typename InValueInitType>
+	const KeyType* FindKeyImpl(InValueInitType Value) const
+	{
+		for (typename ElementSetType::TConstIterator PairIt(Pairs); PairIt; ++PairIt)
+		{
+			if (PairIt->Value == Value)
+			{
+				return &PairIt->Key;
+			}
+		}
+		return nullptr;
+	}
+
+public:
 	/**
 	 * Find the key associated with the specified value.
 	 *
@@ -481,16 +489,11 @@ public:
 	 *     or nullptr if the value isn't contained in this map. The pointer
 	 *     is only valid until the next change to any key in the map.
 	 */
-	const KeyType* FindKey(ValueInitType Value) const
+	template <typename InFindValueType = ValueType>
+	const KeyType* FindKey(const InFindValueType& InValue) const
 	{
-		for (typename ElementSetType::TConstIterator PairIt(Pairs); PairIt; ++PairIt)
-		{
-			if (PairIt->Value == Value)
-			{
-				return &PairIt->Key;
-			}
-		}
-		return nullptr;
+		// Defer use of ValueType until call time
+		return FindKeyImpl<typename TTypeTraits<ValueType>::ConstInitType>(InValue);
 	}
 
 	/**
@@ -522,7 +525,8 @@ public:
 	 * @return A pointer to the value associated with the specified key, or nullptr if the key isn't contained in this map.  The pointer
 	 *			is only valid until the next change to any key in the map.
 	 */
-	FORCEINLINE ValueType* Find(KeyConstPointerType Key)
+	template <typename InFindKeyType = KeyType>
+	FORCEINLINE ValueType* Find(const InFindKeyType& Key)
 	{
 		if (auto* Pair = Pairs.Find(Key))
 		{
@@ -531,7 +535,8 @@ public:
 
 		return nullptr;
 	}
-	FORCEINLINE const ValueType* Find(KeyConstPointerType Key) const
+	template <typename InFindKeyType = KeyType>
+	FORCEINLINE const ValueType* Find(const InFindKeyType& Key) const
 	{
 		return const_cast<TMapBase*>(this)->Find(Key);
 	}
@@ -637,7 +642,8 @@ public:
 	 * @param Key The key to search for.
 	 * @return The value associated with the specified key, or triggers an assertion if the key does not exist.
 	 */
-	FORCEINLINE const ValueType& FindChecked(KeyConstPointerType Key) const
+	template <typename InFindKeyType = KeyType>
+	FORCEINLINE const ValueType& FindChecked(const InFindKeyType& Key) const
 	{
 		const auto* Pair = Pairs.Find(Key);
 		check(Pair != nullptr);
@@ -650,7 +656,8 @@ public:
 	 * @param Key The key to search for.
 	 * @return The value associated with the specified key, or triggers an assertion if the key does not exist.
 	 */
-	FORCEINLINE ValueType& FindChecked(KeyConstPointerType Key)
+	template <typename InFindKeyType = KeyType>
+	FORCEINLINE ValueType& FindChecked(const InFindKeyType& Key)
 	{
 		auto* Pair = Pairs.Find(Key);
 		check(Pair != nullptr);
@@ -663,7 +670,8 @@ public:
 	 * @param Key The key to search for.
 	 * @return The value associated with the specified key, or the default value for the ValueType if the key isn't contained in this map.
 	 */
-	FORCEINLINE ValueType FindRef(KeyConstPointerType Key) const
+	template <typename InFindKeyType = KeyType>
+	FORCEINLINE ValueType FindRef(const InFindKeyType& Key) const
 	{
 		if (const auto* Pair = Pairs.Find(Key))
 		{
@@ -679,7 +687,8 @@ public:
 	 * @param Key The key to check for.
 	 * @return true if the map contains the key.
 	 */
-	FORCEINLINE bool Contains(KeyConstPointerType Key) const
+	template <typename InFindKeyType = KeyType>
+	FORCEINLINE bool Contains(const InFindKeyType& Key) const
 	{
 		return Pairs.Contains(Key);
 	}
@@ -1157,14 +1166,15 @@ class TMap : public TSortableMapBase<InKeyType, InValueType, SetAllocator, KeyFu
 	static_assert(!KeyFuncs::bAllowDuplicateKeys, "TMap cannot be instantiated with a KeyFuncs which allows duplicate keys");
 
 public:
-	typedef InKeyType      KeyType;
-	typedef InValueType    ValueType;
-	typedef SetAllocator   SetAllocatorType;
-	typedef KeyFuncs       KeyFuncsType;
+	using KeyType          = InKeyType;
+	using ValueType        = InValueType;
+	using SetAllocatorType = SetAllocator;
+	using KeyFuncsType     = KeyFuncs;
 
-	typedef TSortableMapBase<KeyType, ValueType, SetAllocator, KeyFuncs> Super;
-	typedef typename Super::KeyInitType KeyInitType;
-	typedef typename Super::KeyConstPointerType KeyConstPointerType;
+	using Super = TSortableMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>;
+
+	using KeyInitType         UE_DEPRECATED(5.2, "TMap::KeyInitType has been deprecated - use const KeyType& instead")         = const KeyType&;
+	using KeyConstPointerType UE_DEPRECATED(5.2, "TMap::KeyConstPointerType has been deprecated - use const KeyType& instead") = const KeyType&;
 
 	TMap() = default;
 	TMap(TMap&&) = default;
@@ -1223,15 +1233,9 @@ public:
 		return *this;
 	}
 
-	/**
-	 * Remove the pair with the specified key and copies the value
-	 * that was removed to the ref parameter
-	 *
-	 * @param Key The key to search for
-	 * @param OutRemovedValue If found, the value that was removed (not modified if the key was not found)
-	 * @return whether or not the key was found
-	 */
-	FORCEINLINE bool RemoveAndCopyValue(KeyInitType Key, ValueType& OutRemovedValue)
+private:
+	template <typename InKeyInitType>
+	FORCEINLINE bool RemoveAndCopyValueImpl(InKeyInitType Key, ValueType& OutRemovedValue)
 	{
 		const FSetElementId PairId = Super::Pairs.FindId(Key);
 		if (!PairId.IsValidId())
@@ -1243,7 +1247,23 @@ public:
 		Super::Pairs.Remove(PairId);
 		return true;
 	}
-	
+
+public:
+	/**
+	 * Remove the pair with the specified key and copies the value
+	 * that was removed to the ref parameter
+	 *
+	 * @param Key The key to search for
+	 * @param OutRemovedValue If found, the value that was removed (not modified if the key was not found)
+	 * @return whether or not the key was found
+	 */
+	template <typename InFindKeyType = KeyType>
+	FORCEINLINE bool RemoveAndCopyValue(const InFindKeyType& Key, ValueType& OutRemovedValue)
+	{
+		// Defer use of KeyType until call time
+		return RemoveAndCopyValueImpl<typename TTypeTraits<KeyType>::ConstInitType>(Key, OutRemovedValue);
+	}
+
 	/** See RemoveAndCopyValue() and class documentation section on ByHash() functions */
 	template<typename ComparableKey>
 	FORCEINLINE bool RemoveAndCopyValueByHash(uint32 KeyHash, const ComparableKey& Key, ValueType& OutRemovedValue)
@@ -1259,6 +1279,18 @@ public:
 		return true;
 	}
 
+private:
+	template <typename InKeyConstPointerType>
+	FORCEINLINE ValueType FindAndRemoveCheckedImpl(InKeyConstPointerType Key)
+	{
+		const FSetElementId PairId = Super::Pairs.FindId(Key);
+		check(PairId.IsValidId());
+		ValueType Result = MoveTempIfPossible(Super::Pairs[PairId].Value);
+		Super::Pairs.Remove(PairId);
+		return Result;
+	}
+
+public:
 	/**
 	 * Find a pair with the specified key, removes it from the map, and returns the value part of the pair.
 	 *
@@ -1267,13 +1299,11 @@ public:
 	 * @param Key the key to search for
 	 * @return whether or not the key was found
 	 */
-	FORCEINLINE ValueType FindAndRemoveChecked(KeyConstPointerType Key)
+	template <typename InFindKeyType = KeyType>
+	FORCEINLINE ValueType FindAndRemoveChecked(const InFindKeyType& Key)
 	{
-		const FSetElementId PairId = Super::Pairs.FindId(Key);
-		check(PairId.IsValidId());
-		ValueType Result = MoveTempIfPossible(Super::Pairs[PairId].Value);
-		Super::Pairs.Remove(PairId);
-		return Result;
+		// Defer use of KeyType until call time
+		return FindAndRemoveCheckedImpl<typename TTypeTraits<KeyType>::ConstInitType>(Key);
 	}
 
 	/**
@@ -1310,8 +1340,8 @@ public:
 		}
 	}
 
-	FORCEINLINE       ValueType& operator[](KeyConstPointerType Key) { return this->FindChecked(Key); }
-	FORCEINLINE const ValueType& operator[](KeyConstPointerType Key) const { return this->FindChecked(Key); }
+	template <typename InFindKeyType = KeyType> FORCEINLINE       ValueType& operator[](const InFindKeyType& Key)       { return this->FindChecked(Key); }
+	template <typename InFindKeyType = KeyType> FORCEINLINE const ValueType& operator[](const InFindKeyType& Key) const { return this->FindChecked(Key); }
 };
 
 namespace Freeze
@@ -1340,18 +1370,22 @@ namespace Freeze
 DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>), (TMap<KeyType, ValueType, SetAllocator, KeyFuncs>));
 
 /** A TMapBase specialization that allows multiple values to be associated with each key. */
-template<typename KeyType, typename ValueType, typename SetAllocator /* = FDefaultSetAllocator */, typename KeyFuncs /*= TDefaultMapHashableKeyFuncs<KeyType,ValueType,true>*/>
-class TMultiMap : public TSortableMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>
+template<typename InKeyType, typename InValueType, typename SetAllocator /* = FDefaultSetAllocator */, typename KeyFuncs /*= TDefaultMapHashableKeyFuncs<KeyType,ValueType,true>*/>
+class TMultiMap : public TSortableMapBase<InKeyType, InValueType, SetAllocator, KeyFuncs>
 {
 	friend struct TContainerTraits<TMultiMap>;
 
 	static_assert(KeyFuncs::bAllowDuplicateKeys, "TMultiMap cannot be instantiated with a KeyFuncs which disallows duplicate keys");
 
 public:
-	typedef TSortableMapBase<KeyType, ValueType, SetAllocator, KeyFuncs> Super;
-	typedef typename Super::KeyConstPointerType KeyConstPointerType;
-	typedef typename Super::KeyInitType KeyInitType;
-	typedef typename Super::ValueInitType ValueInitType;
+	using KeyType   = InKeyType;
+	using ValueType = InValueType;
+
+	using Super = TSortableMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>;
+
+	using KeyInitType         UE_DEPRECATED(5.2, "TMultiMap::KeyInitType has been deprecated - use const KeyType& instead.")          = const KeyType&;
+	using ValueInitType       UE_DEPRECATED(5.2, "TMultiMap::ValueInitType has been deprecated - use const ValueType& instead.")      = const ValueType&;
+	using KeyConstPointerType UE_DEPRECATED(5.2, "TMultiMapB::KeyConstPointerType has been deprecated - use const KeyType& instead.") = const KeyType&;
 
 	TMultiMap() = default;
 	TMultiMap(TMultiMap&&) = default;
@@ -1410,14 +1444,9 @@ public:
 		return *this;
 	}
 
-	/**
-	 * Finds all values associated with the specified key.
-	 *
-	 * @param Key The key to find associated values for.
-	 * @param OutValues Upon return, contains the values associated with the key.
-	 * @param bMaintainOrder true if the Values array should be in the same order as the map's pairs.
-	 */
-	template<typename Allocator> void MultiFind(KeyInitType Key, TArray<ValueType, Allocator>& OutValues, bool bMaintainOrder = false) const
+private:
+	template <typename InKeyInitType, typename Allocator>
+	void MultiFindImpl(InKeyInitType Key, TArray<ValueType, Allocator>& OutValues, bool bMaintainOrder = false) const
 	{
 		for (typename Super::ElementSetType::TConstKeyIterator It(Super::Pairs, Key); It; ++It)
 		{
@@ -1430,27 +1459,24 @@ public:
 		}
 	}
 
+public:
 	/**
 	 * Finds all values associated with the specified key.
 	 *
 	 * @param Key The key to find associated values for.
-	 * @param OutValues Upon return, contains pointers to the values associated with the key.
-	 *					Pointers are only valid until the next change to any key in the map.
+	 * @param OutValues Upon return, contains the values associated with the key.
 	 * @param bMaintainOrder true if the Values array should be in the same order as the map's pairs.
 	 */
-	template<typename Allocator> void MultiFindPointer(KeyInitType Key, TArray<const ValueType*, Allocator>& OutValues, bool bMaintainOrder = false) const
+	template <typename InFindKeyType = KeyType, typename Allocator>
+	FORCEINLINE void MultiFind(const InFindKeyType& Key, TArray<ValueType, Allocator>& OutValues, bool bMaintainOrder = false) const
 	{
-		for (typename Super::ElementSetType::TConstKeyIterator It(Super::Pairs, Key); It; ++It)
-		{
-			OutValues.Add(&It->Value);
-		}
-
-		if (bMaintainOrder)
-		{
-			Algo::Reverse(OutValues);
-		}
+		// Defer use of KeyType until call time
+		return MultiFindImpl<typename TTypeTraits<KeyType>::ConstInitType>(Key, OutValues, bMaintainOrder);
 	}
-	template<typename Allocator> void MultiFindPointer(KeyInitType Key, TArray<ValueType*, Allocator>& OutValues, bool bMaintainOrder = false)
+
+private:
+	template <typename InKeyInitType, typename OutType, typename Allocator>
+	void MultiFindPointerImpl(InKeyInitType Key, TArray<OutType, Allocator>& OutValues, bool bMaintainOrder = false)
 	{
 		for (typename Super::ElementSetType::TKeyIterator It(Super::Pairs, Key); It; ++It)
 		{
@@ -1461,6 +1487,28 @@ public:
 		{
 			Algo::Reverse(OutValues);
 		}
+	}
+
+public:
+	/**
+	 * Finds all values associated with the specified key.
+	 *
+	 * @param Key The key to find associated values for.
+	 * @param OutValues Upon return, contains pointers to the values associated with the key.
+	 *					Pointers are only valid until the next change to any key in the map.
+	 * @param bMaintainOrder true if the Values array should be in the same order as the map's pairs.
+	 */
+	template <typename InFindKeyType = KeyType, typename Allocator>
+	FORCEINLINE void MultiFindPointer(const InFindKeyType& Key, TArray<ValueType*, Allocator>& OutValues, bool bMaintainOrder = false)
+	{
+		// Defer use of KeyType until call time
+		return MultiFindPointerImpl<typename TTypeTraits<KeyType>::ConstInitType>(Key, OutValues, bMaintainOrder);
+	}
+	template <typename InFindKeyType = KeyType, typename Allocator>
+	FORCEINLINE void MultiFindPointer(const InFindKeyType& Key, TArray<const ValueType*, Allocator>& OutValues, bool bMaintainOrder = false) const
+	{
+		// Defer use of KeyType until call time
+		return const_cast<TMultiMap*>(this)->MultiFindPointerImpl<typename TTypeTraits<KeyType>::ConstInitType>(Key, OutValues, bMaintainOrder);
 	}
 
 	/**
@@ -1506,19 +1554,15 @@ public:
 	 * @param InKey The key to remove associated values for.
 	 * @return The number of values that were associated with the key.
 	 */
-	FORCEINLINE int32 Remove(KeyConstPointerType InKey)
+	template <typename InFindKeyType = KeyType>
+	FORCEINLINE int32 Remove(const InFindKeyType& InKey)
 	{
 		return Super::Remove(InKey);
 	}
 
-	/**
-	 * Remove associations between the specified key and value from the map.
-	 *
-	 * @param InKey The key part of the pair to remove.
-	 * @param InValue The value part of the pair to remove.
-	 * @return The number of associations removed.
-	 */
-	int32 Remove(KeyInitType InKey, ValueInitType InValue)
+private:
+	template <typename InKeyInitType, typename InValueInitType>
+	int32 RemoveImpl(InKeyInitType InKey, InValueInitType InValue)
 	{
 		// Iterate over pairs with a matching key.
 		int32 NumRemovedPairs = 0;
@@ -1534,14 +1578,25 @@ public:
 		return NumRemovedPairs;
 	}
 
+
+public:
 	/**
-	 * Remove the first association between the specified key and value from the map.
+	 * Remove associations between the specified key and value from the map.
 	 *
 	 * @param InKey The key part of the pair to remove.
 	 * @param InValue The value part of the pair to remove.
 	 * @return The number of associations removed.
 	 */
-	int32 RemoveSingle(KeyInitType InKey, ValueInitType InValue)
+	template <typename InFindKeyType = KeyType, typename InFindValueType = ValueType>
+	FORCEINLINE int32 Remove(const InFindKeyType& InKey, const InFindValueType& InValue)
+	{
+		// Defer use of KeyType and ValueType until call time
+		return RemoveImpl<typename TTypeTraits<KeyType>::ConstInitType, typename TTypeTraits<ValueType>::ConstInitType>(InKey, InValue);
+	}
+
+private:
+	template <typename InKeyInitType, typename InValueInitType>
+	int32 RemoveSingleImpl(InKeyInitType InKey, InValueInitType InValue)
 	{
 		// Iterate over pairs with a matching key.
 		int32 NumRemovedPairs = 0;
@@ -1560,6 +1615,21 @@ public:
 		return NumRemovedPairs;
 	}
 
+public:
+	/**
+	 * Remove the first association between the specified key and value from the map.
+	 *
+	 * @param InKey The key part of the pair to remove.
+	 * @param InValue The value part of the pair to remove.
+	 * @return The number of associations removed.
+	 */
+	template <typename InFindKeyType = KeyType, typename InFindValueType = ValueType>
+	FORCEINLINE int32 RemoveSingle(const InFindKeyType& InKey, const InFindValueType& InValue)
+	{
+		// Defer use of KeyType and ValueType until call time
+		return RemoveSingleImpl<typename TTypeTraits<KeyType>::ConstInitType, typename TTypeTraits<ValueType>::ConstInitType>(InKey, InValue);
+	}
+
 	/**
 	 * Find an association between a specified key and value. (const)
 	 *
@@ -1568,20 +1638,15 @@ public:
 	 * @return If the map contains a matching association, a pointer to the value in the map is returned.  Otherwise nullptr is returned.
 	 *			The pointer is only valid as long as the map isn't changed.
 	 */
-	FORCEINLINE const ValueType* FindPair(KeyInitType Key, ValueInitType Value) const
+	template <typename InFindKeyType = KeyType, typename InFindValueType = ValueType>
+	FORCEINLINE const ValueType* FindPair(const InFindKeyType& Key, const InFindValueType& Value) const
 	{
 		return const_cast<TMultiMap*>(this)->FindPair(Key, Value);
 	}
 
-	/**
-	 * Find an association between a specified key and value.
-	 *
-	 * @param Key The key to find.
-	 * @param Value The value to find.
-	 * @return If the map contains a matching association, a pointer to the value in the map is returned.  Otherwise nullptr is returned.
-	 *			The pointer is only valid as long as the map isn't changed.
-	 */
-	ValueType* FindPair(KeyInitType Key, ValueInitType Value)
+private:
+	template <typename InKeyInitType, typename InValueInitType>
+	ValueType* FindPairImpl(InKeyInitType Key, InValueInitType Value)
 	{
 		// Iterate over pairs with a matching key.
 		for (typename Super::ElementSetType::TKeyIterator It(Super::Pairs, Key); It; ++It)
@@ -1596,8 +1661,25 @@ public:
 		return nullptr;
 	}
 
-	/** Returns the number of values within this map associated with the specified key */
-	int32 Num(KeyInitType Key) const
+public:
+	/**
+	 * Find an association between a specified key and value.
+	 *
+	 * @param Key The key to find.
+	 * @param Value The value to find.
+	 * @return If the map contains a matching association, a pointer to the value in the map is returned.  Otherwise nullptr is returned.
+	 *			The pointer is only valid as long as the map isn't changed.
+	 */
+	template <typename InFindKeyType = KeyType, typename InFindValueType = ValueType>
+	FORCEINLINE ValueType* FindPair(const InFindKeyType& Key, const InFindValueType& Value)
+	{
+		// Defer use of KeyType and ValueType until call time
+		return FindPairImpl<typename TTypeTraits<KeyType>::ConstInitType, typename TTypeTraits<ValueType>::ConstInitType>(Key, Value);
+	}
+
+private:
+	template <typename InKeyInitType>
+	int32 NumImpl(InKeyInitType Key) const
 	{
 		// Iterate over pairs with a matching key.
 		int32 NumMatchingPairs = 0;
@@ -1606,6 +1688,15 @@ public:
 			++NumMatchingPairs;
 		}
 		return NumMatchingPairs;
+	}
+
+public:
+	/** Returns the number of values within this map associated with the specified key */
+	template <typename InFindKeyType = KeyType>
+	FORCEINLINE int32 Num(const InFindKeyType& InKey) const
+	{
+		// Defer use of KeyType until call time
+		return NumImpl<typename TTypeTraits<KeyType>::ConstInitType>(InKey);
 	}
 
 	// Since we implement an overloaded Num() function in TMultiMap, we need to reimplement TMapBase::Num to make it visible.

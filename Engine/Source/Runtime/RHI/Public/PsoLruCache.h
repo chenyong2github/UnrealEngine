@@ -79,12 +79,14 @@ class TPsoLruCache
 			return Entry->Key;
 		}
 
-		FORCEINLINE static bool Matches(KeyType A, KeyType B)
+		template <typename LhsKeyType, typename RhsKeyType>
+		FORCEINLINE static bool Matches(LhsKeyType A, RhsKeyType B)
 		{
 			return A == B;
 		}
 
-		FORCEINLINE static uint32 GetKeyHash(KeyType Key)
+		template <typename InKeyType>
+		FORCEINLINE static uint32 GetKeyHash(InKeyType Key)
 		{
 			return GetTypeHash(Key);
 		}

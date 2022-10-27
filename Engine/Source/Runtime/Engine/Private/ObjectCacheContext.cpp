@@ -224,9 +224,11 @@ private:
 	template<typename ElementType>
 	struct TRawObjectKeyFuncs : BaseKeyFuncs<ElementType, void*, false>
 	{
+	private:
 		typedef typename TTypeTraits<void*>::ConstPointerType KeyInitType;
 		typedef typename TCallTraits<ElementType>::ParamType ElementInitType;
 
+	public:
 		static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element) {	return (void*)Element; }
 		static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B) { return A == B; }
 		static FORCEINLINE uint32 GetKeyHash(KeyInitType Key) { return GetTypeHash(Key); }

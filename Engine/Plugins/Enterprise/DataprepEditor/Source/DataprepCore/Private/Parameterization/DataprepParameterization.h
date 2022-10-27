@@ -106,12 +106,12 @@ uint32 GetTypeHash(const TArray<FDataprepPropertyLink>& PropertyLinks);
  */
 struct FDataprepParametrizationBindingMapKeyFuncs : TDefaultMapHashableKeyFuncs<TSharedRef<FDataprepParameterizationBinding>, FName, false>
 {
-	static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
+	static FORCEINLINE bool Matches(const TSharedRef<FDataprepParameterizationBinding>& A, const TSharedRef<FDataprepParameterizationBinding>& B)
 	{
 		return A.Get() == B.Get();
 	}
 
-	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+	static FORCEINLINE uint32 GetKeyHash(const TSharedRef<FDataprepParameterizationBinding>& Key)
 	{
 		return GetTypeHash( Key.Get() );
 	}
@@ -123,13 +123,14 @@ struct FDataprepParametrizationBindingMapKeyFuncs : TDefaultMapHashableKeyFuncs<
  */
 struct FDataprepParametrizationBindingSetKeyFuncs : DefaultKeyFuncs<TSharedRef<FDataprepParameterizationBinding>>
 {
-	template<typename ComparableKey>
-	static FORCEINLINE bool Matches(KeyInitType A, ComparableKey B)
+	template<typename LhsKeyType, typename RhsKeyType>
+	static FORCEINLINE bool Matches(const LhsKeyType& A, const RhsKeyType& B)
 	{
 		return A.Get() == B.Get();
 	}
 
-	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+	template<typename ComparableKeyType>
+	static FORCEINLINE uint32 GetKeyHash(const ComparableKeyType& Key)
 	{
 		return GetTypeHash(Key.Get());
 	}

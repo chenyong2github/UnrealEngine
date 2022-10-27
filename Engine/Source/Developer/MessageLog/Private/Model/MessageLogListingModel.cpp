@@ -254,8 +254,12 @@ bool FMessageLogListingModel::AreMessagesEqual(const TSharedRef< FTokenizedMessa
 // Specialized KeyFunc for TSharedRef<FTokenizedMessage> usage in TSet
 struct FTokenizedMessageKeyFunc
 {
+private:
 	typedef typename TCallTraits<TSharedRef<FTokenizedMessage>>::ParamType KeyInitType;
 	typedef typename TCallTraits<TSharedRef<FTokenizedMessage>>::ParamType ElementInitType;
+
+public:
+	typedef TSharedRef<FTokenizedMessage> KeyType;
 
 	enum { bAllowDuplicateKeys = false };
 

@@ -29,9 +29,8 @@ struct FLocalizationServiceTranslationIdentifierKeyFuncs : BaseKeyFuncs < TPair<
 		TPair<FLocalizationServiceTranslationIdentifier, ValueType>,
 		FLocalizationServiceTranslationIdentifier
 	> Super;
-	typedef typename Super::ElementInitType ElementInitType;
-	typedef typename Super::KeyInitType     KeyInitType;
-	static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
+
+	static FORCEINLINE const FLocalizationServiceTranslationIdentifier& GetSetKey(const FLocalizationServiceTranslationIdentifier& Element)
 	{
 		return Element.Key;
 	}

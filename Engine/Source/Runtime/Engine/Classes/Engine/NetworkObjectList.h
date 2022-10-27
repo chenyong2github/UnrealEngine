@@ -86,7 +86,7 @@ struct FNetworkObjectKeyFuncs : BaseKeyFuncs<TSharedPtr<FNetworkObjectInfo>, AAc
 	/**
 	 * @return The key used to index the given element.
 	 */
-	static KeyInitType GetSetKey(ElementInitType Element)
+	static AActor* GetSetKey(const TSharedPtr<FNetworkObjectInfo>& Element)
 	{
 		return Element.Get()->Actor;
 	}
@@ -94,13 +94,13 @@ struct FNetworkObjectKeyFuncs : BaseKeyFuncs<TSharedPtr<FNetworkObjectInfo>, AAc
 	/**
 	 * @return True if the keys match.
 	 */
-	static bool Matches(KeyInitType A,KeyInitType B)
+	static bool Matches(const AActor* A, const AActor* B)
 	{
 		return A == B;
 	}
 
 	/** Calculates a hash index for a key. */
-	static uint32 GetKeyHash(KeyInitType Key)
+	static uint32 GetKeyHash(const AActor* Key)
 	{
 		return GetTypeHash(Key);
 	}

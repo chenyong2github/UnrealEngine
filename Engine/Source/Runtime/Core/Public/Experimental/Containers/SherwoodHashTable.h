@@ -11,13 +11,16 @@ namespace Experimental
 template<typename KeyType, typename ValueType>
 struct TSherwoodHashKeyFuncs
 {
-	typedef typename TTypeTraits<KeyType>::ConstPointerType KeyInitType;
+	using KeyInitType UE_DEPRECATED(5.2, "TSherwoodHashKeyFuncs::KeyInitType has been deprecated.") = const KeyType&;
 
-	static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
+	template <typename InKeyType>
+	static FORCEINLINE bool Matches(const InKeyType& A, const InKeyType& B)
 	{
 		return A == B;
 	}
-	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+
+	template <typename InKeyType>
+	static FORCEINLINE uint32 GetKeyHash(const InKeyType& Key)
 	{
 		return GetTypeHash(Key);
 	}

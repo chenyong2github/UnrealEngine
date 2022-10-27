@@ -172,9 +172,11 @@ private:
 	template<typename ValueType>
 	struct TFastGuidKeyFuncs : BaseKeyFuncs<TPair<FGuid,ValueType>,FGuid,false>
 	{
+	private:
 		typedef typename TTypeTraits<FGuid>::ConstPointerType KeyInitType;
 		typedef const TPairInitializer<typename TTypeTraits<FGuid>::ConstInitType, typename TTypeTraits<ValueType>::ConstInitType>& ElementInitType;
 
+	public:
 		static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
 		{
 			return Element.Key;

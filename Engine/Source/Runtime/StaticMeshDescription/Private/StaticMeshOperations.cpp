@@ -1227,7 +1227,7 @@ void ClearNormalsAndTangentsData(FMeshDescription& MeshDescription, bool bClearN
 struct FNTBGroupKeyFuncs : public TDefaultMapKeyFuncs<FVector2f, FVector3f, false>
 {
 	//We need to sanitize the key here to make sure -0.0f fall on the same hash then 0.0f
-	static FORCEINLINE_DEBUGGABLE uint32 GetKeyHash(KeyInitType Key)
+	static FORCEINLINE_DEBUGGABLE uint32 GetKeyHash(const FVector2f& Key)
 	{
 		FVector2f TmpKey;
 		TmpKey.X = FMath::IsNearlyZero(Key.X) ? 0.0f : Key.X;

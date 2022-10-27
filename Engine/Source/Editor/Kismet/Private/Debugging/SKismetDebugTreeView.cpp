@@ -574,9 +574,14 @@ public:
 	class FDebugTreeItemKeyFuncs
 	{
 	public:
+		typedef FDebugTreeItemPtr KeyType;
 		typedef FDebugTreeItemPtr ElementType;
+
+	private:
 		typedef TTypeTraits<ElementType>::ConstPointerType KeyInitType;
 		typedef TCallTraits<ElementType>::ParamType ElementInitType;
+
+	public:
 		enum { bAllowDuplicateKeys = false };
 
 		/**
