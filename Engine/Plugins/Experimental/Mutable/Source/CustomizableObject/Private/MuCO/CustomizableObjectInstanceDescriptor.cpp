@@ -2144,6 +2144,12 @@ bool FDescriptorHash::operator==(const FDescriptorHash& Other) const
 }
 
 
+bool FDescriptorHash::operator!=(const FDescriptorHash& Other) const
+{
+	return Hash != Other.Hash;	
+}
+
+
 bool FDescriptorHash::operator<(const FDescriptorHash& Other) const
 {
 	return Hash < Other.Hash;

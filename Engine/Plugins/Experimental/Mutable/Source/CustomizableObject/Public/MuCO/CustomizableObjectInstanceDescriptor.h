@@ -355,6 +355,8 @@ public:
 
 	bool operator==(const FDescriptorHash& Other) const;
 
+	bool operator!=(const FDescriptorHash& Other) const;
+
 	bool operator<(const FDescriptorHash& Other) const;
 
 	FString ToString() const;
