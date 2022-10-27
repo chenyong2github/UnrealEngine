@@ -36,21 +36,25 @@ UInterchangeMaterialXTranslator::UInterchangeMaterialXTranslator()
 	:
 InputNamesMaterialX2UE
 {
-	{{TEXT(""),                         TEXT("bg")},		TEXT("B")},
-	{{TEXT(""),                         TEXT("center")},	TEXT("Center")},
-	{{TEXT(""),                         TEXT("fg")},		TEXT("A")},
-	{{TEXT(""),                         TEXT("high")},		TEXT("Max")},
-	{{TEXT(""),                         TEXT("in")},		TEXT("Input")},
-	{{TEXT(""),                         TEXT("in1")},		TEXT("A")},
-	{{TEXT(""),                         TEXT("in2")},		TEXT("B")},
-	{{TEXT(""),                         TEXT("in3")},		TEXT("C")},
-	{{TEXT(""),                         TEXT("in4")},		TEXT("D")},
+	{{TEXT(""),                         TEXT("bg")},        TEXT("B")},
+	{{TEXT(""),                         TEXT("center")},    TEXT("Center")},
+	{{TEXT(""),                         TEXT("diminish")},  TEXT("Diminish")},
+	{{TEXT(""),                         TEXT("fg")},        TEXT("A")},
+	{{TEXT(""),                         TEXT("high")},      TEXT("Max")},
+	{{TEXT(""),                         TEXT("in")},        TEXT("Input")},
+	{{TEXT(""),                         TEXT("in1")},       TEXT("A")},
+	{{TEXT(""),                         TEXT("in2")},       TEXT("B")},
+	{{TEXT(""),                         TEXT("in3")},       TEXT("C")},
+	{{TEXT(""),                         TEXT("in4")},       TEXT("D")},
 	{{TEXT(""),                         TEXT("inlow")},     TEXT("InputLow")},
 	{{TEXT(""),                         TEXT("inhigh")},    TEXT("InputHigh")},
-	{{TEXT(""),                         TEXT("low")},		TEXT("Min")},
+	{{TEXT(""),                         TEXT("lacunarity")},TEXT("Lacunarity")},
+	{{TEXT(""),                         TEXT("low")},       TEXT("Min")},
 	{{TEXT(""),                         TEXT("lumacoeffs")},TEXT("LuminanceFactors")}, // for the moment not yet handled by Interchange, because of the attribute being an advanced pin
-	{{TEXT(""),                         TEXT("mix")},		TEXT("Alpha")},
+	{{TEXT(""),                         TEXT("mix")},       TEXT("Alpha")},
+	{{TEXT(""),                         TEXT("position")},  TEXT("Position")},
 	{{TEXT(""),                         TEXT("texcoord")},  TEXT("Coordinates")},
+	{{TEXT(""),                         TEXT("octaves")},   TEXT("Octaves")},
 	{{TEXT(""),                         TEXT("outlow")},    TEXT("TargetLow")},
 	{{TEXT(""),                         TEXT("outhigh")},   TEXT("TargetHigh")},
 	{{TEXT(""),                         TEXT("valuel")},    TEXT("A")},
@@ -145,6 +149,8 @@ NodeNamesMaterialX2UE{
 	{MaterialX::Category::Combine2,     TEXT("AppendVector")},
 	{MaterialX::Category::Combine3,     TEXT("Append3Vector")},
 	{MaterialX::Category::Combine4,     TEXT("Append4Vector")},
+	// Procedural3D nodes
+	{MaterialX::Category::Fractal3D,    TEXT("Fractal3D")}, 
 	// Geometric nodes 
 	{MaterialX::Category::GeomColor,	TEXT("VertexColor")},
 	{MaterialX::Category::TexCoord,		TEXT("TextureCoordinate")},
@@ -160,6 +166,7 @@ UEInputs
 {
     TEXT("A"),
 	TEXT("Alpha"),
+	TEXT("Amplitude"),
 	TEXT("B"),
     TEXT("Base"),
     TEXT("C"),
@@ -171,9 +178,12 @@ UEInputs
     TEXT("Input"),
 	TEXT("InputLow"),
 	TEXT("InputHigh"),
+	TEXT("Lacunarity"),
 	TEXT("LuminanceFactors"),
     TEXT("Max"),
     TEXT("Min"),
+	TEXT("Octaves"),
+	TEXT("Position"),
 	TEXT("TargetLow"),
 	TEXT("TargetHigh"),
 	TEXT("Value"),
@@ -1212,8 +1222,11 @@ bool UInterchangeMaterialXTranslator::AddAttribute(MaterialX::InputPtr Input, co
 		{
 			return ShaderNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputChannelName), mx::fromValueString<float>(Input->getValueString()));
 		}
-
-		if(Input->getType() == mx::Type::Color3 || Input->getType() == mx::Type::Color4)
+		else if(Input->getType() == mx::Type::Integer) //Let's add it a Float attribute, because Interchange doesn't create a scalar if it's an int
+		{
+			return ShaderNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputChannelName), mx::fromValueString<int32>(Input->getValueString()));
+		}
+		else if(Input->getType() == mx::Type::Color3 || Input->getType() == mx::Type::Color4)
 		{
 			FLinearColor LinearColor = GetLinearColor(Input);
 			return ShaderNode->AddLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputChannelName), LinearColor);
@@ -1770,9 +1783,16 @@ void UInterchangeMaterialXTranslator::ConnectPositionInputToOutput(MaterialX::No
 	// object: The local coordinate space of the geometry, after local deformations have been applied, but before any global transforms.
 	// world : The global coordinate space of the geometry, after local deformationsand global transforms have been applied.
 
-	// For the moment we don't have the distinction between model/object, so let's just create an UMaterialExpressionObjectPositionWS
+	// For the moment we don't have the distinction between model/object, so let's just create an UMaterialExpressionWorldPosition
 	// In case of model/object we need to add a TransformPoint from world to local space
-	UInterchangeShaderNode* PositionNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TEXT("ObjectPositionWS"), NamesToShaderNodes, NodeContainer);
+	UInterchangeShaderNode* PositionNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str() + FString(TEXT("_Position")), TEXT("WorldPosition"), NamesToShaderNodes, NodeContainer);
+
+	// In case of the position node, it seems that the unit is different, we assume for now a conversion from mm -> m, even if UE by default is cm
+	// See standard_surface_marble_solid file, especially on the fractal3d node
+	UInterchangeShaderNode* UnitNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TEXT("Multiply"), NamesToShaderNodes, NodeContainer);
+	UnitNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TEXT("B")), 0.001f);
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(UnitNode, TEXT("A"), PositionNode->GetUniqueID());
+
 	UInterchangeShaderNode* NodeToConnectTo = ParentShaderNode;
 	FString InputToConnectTo = InputChannelName;
 
@@ -1797,7 +1817,7 @@ void UInterchangeMaterialXTranslator::ConnectPositionInputToOutput(MaterialX::No
 		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, TransformNode->GetUniqueID());
 	}
 
-	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, PositionNode->GetUniqueID());
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(NodeToConnectTo, InputToConnectTo, UnitNode->GetUniqueID());
 }
 
 void UInterchangeMaterialXTranslator::ConnectNormalInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const

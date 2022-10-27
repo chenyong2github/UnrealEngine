@@ -246,6 +246,11 @@ MATERIALX_NAMESPACE_BEGIN
 		static constexpr const char* RampTB = "ramptb";
 		static constexpr const char* SplitLR = "splitlr";
 		static constexpr const char* SplitTB = "splittb";
+		// Procedural3D nodes 
+		static constexpr const char* CellNoise3D = "cellnoise3d";
+		static constexpr const char* Fractal3D = "fractal3d";
+		static constexpr const char* Noise3D = "noise3d";
+		static constexpr const char* WorleyNoise3D = "worleynoise3d";
 		// Organization nodes 
 		static constexpr const char* Dot = "dot";
 		// Texture nodes 
