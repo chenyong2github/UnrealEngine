@@ -1528,19 +1528,19 @@ void FAssetFileContextMenu::ExecuteCreateBlueprintUsing()
 
 void FAssetFileContextMenu::GetSelectedAssets(TArray<UObject*>& Assets, bool SkipRedirectors) const
 {
-	for (int32 AssetIdx = 0; AssetIdx < SelectedAssets.Num(); ++AssetIdx)
+	TArray<FString> SelectedAssetPaths;
+	for (const FAssetData& SelectedAsset : SelectedAssets)
 	{
-		if (SkipRedirectors && (SelectedAssets[AssetIdx].AssetClassPath == UObjectRedirector::StaticClass()->GetClassPathName()))
-		{
-			// Don't operate on Redirectors
-			continue;
-		}
-
-		if (UObject* Object = SelectedAssets[AssetIdx].GetAsset())
-		{
-			Assets.Add(Object);
-		}
+		if (SkipRedirectors && (SelectedAsset.AssetClassPath == UObjectRedirector::StaticClass()->GetClassPathName()))
+    	{
+    		// Don't operate on Redirectors
+    		continue;
+    	}
+	
+		SelectedAssetPaths.Add(SelectedAsset.GetObjectPathString());
 	}
+
+	AssetViewUtils::LoadAssetsIfNeeded(SelectedAssetPaths, Assets);
 }
 
 /** Generates a reference graph of the world and can then find actors referencing specified objects */

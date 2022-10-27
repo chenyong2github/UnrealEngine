@@ -386,7 +386,7 @@ void FAssetContextMenu::RegisterContextMenu(const FName MenuName)
 			if (Context && Context->CommonAssetTypeActions.IsValid())
 			{
 				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				Context->CommonAssetTypeActions.Pin()->GetActions(Context->LoadSelectedObjects(), InSection);
+				Context->CommonAssetTypeActions.Pin()->GetActions(Context->LoadSelectedObjectsIfNeeded(), InSection);
 				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}));
@@ -397,7 +397,7 @@ void FAssetContextMenu::RegisterContextMenu(const FName MenuName)
 			if (Context && Context->CommonAssetTypeActions.IsValid())
 			{
 				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				Context->CommonAssetTypeActions.Pin()->GetActions(Context->LoadSelectedObjects(), MenuBuilder);
+				Context->CommonAssetTypeActions.Pin()->GetActions(Context->LoadSelectedObjectsIfNeeded(), MenuBuilder);
 				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}));

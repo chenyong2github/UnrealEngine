@@ -6,7 +6,9 @@
 #include "ContentBrowserDataSubsystem.h"
 #include "SContentBrowser.h"
 #include "UObject/UnrealNames.h"
-#include "ToolMenuSection.h"
+#include "ToolMenus.h"
+#include "Algo/Copy.h"
+#include "AssetViewUtils.h"
 
 FName UContentBrowserToolbarMenuContext::GetCurrentPath() const
 {
@@ -26,4 +28,71 @@ bool UContentBrowserToolbarMenuContext::CanWriteToCurrentPath() const
 	}
 
 	return false;
+}
+
+TArray<UObject*> UContentBrowserAssetContextMenuContext::LoadSelectedObjectsIfNeeded() const
+{
+	TArray<FString> SelectedAssetPaths;
+	for (const FAssetData& SelectedAsset : SelectedAssets)
+	{
+		SelectedAssetPaths.Add(SelectedAsset.GetObjectPathString());
+	}
+
+	TArray<UObject*> Objects;
+	AssetViewUtils::LoadAssetsIfNeeded(SelectedAssetPaths, Objects);
+
+	return Objects;
+}
+
+TArray<FAssetData> UContentBrowserAssetContextMenuContext::GetSelectedAssetsOfType(const UClass* AssetClass, EIncludeSubclasses IncludeSubclasses) const
+{
+	TArray<FAssetData> TypedSelectedAssets;
+	if (IncludeSubclasses == EIncludeSubclasses::Yes)
+	{
+		Algo::CopyIf(SelectedAssets, TypedSelectedAssets, [AssetClass](const FAssetData& AssetData) { return AssetData.IsInstanceOf(AssetClass); });
+	}
+	else
+	{
+		Algo::CopyIf(SelectedAssets, TypedSelectedAssets, [AssetClass](const FAssetData& AssetData) { return AssetData.GetClass() == AssetClass; });
+	}
+
+	return TypedSelectedAssets;
+}
+
+const FAssetData* UContentBrowserAssetContextMenuContext::GetSingleSelectedAssetOfType(const UClass* AssetClass, EIncludeSubclasses IncludeSubclasses) const
+{
+	if (SelectedAssets.Num() == 1)
+	{
+		if (IncludeSubclasses == EIncludeSubclasses::Yes)
+		{
+			if (SelectedAssets[0].IsInstanceOf(AssetClass))
+			{
+				return &SelectedAssets[0];
+			}
+		}
+		else
+		{
+			if (SelectedAssets[0].GetClass() == AssetClass)
+			{
+				return &SelectedAssets[0];
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+namespace UE::ContentBrowser
+{
+	UToolMenu* ExtendToolMenu_AssetContextMenu(UClass* AssetClass)
+	{
+		check(AssetClass);
+
+		FNameBuilder Builder;
+		Builder << TEXT("ContentBrowser.AssetContextMenu.");
+		AssetClass->GetFName().AppendString(Builder);
+		const FName MenuName(Builder.ToView());
+
+		return UToolMenus::Get()->ExtendMenu(MenuName);
+	}
 }

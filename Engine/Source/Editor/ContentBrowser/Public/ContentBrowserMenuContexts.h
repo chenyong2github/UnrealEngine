@@ -25,6 +25,12 @@ struct FFrame;
 struct FToolMenuSection;
 struct FToolMenuContext;
 
+enum class EIncludeSubclasses : uint8
+{
+	No,
+	Yes
+};
+
 UCLASS()
 class CONTENTBROWSER_API UContentBrowserAssetContextMenuContext : public UObject
 {
@@ -35,10 +41,13 @@ public:
 	TWeakPtr<FAssetContextMenu> AssetContextMenu;
 
 	TWeakPtr<IAssetTypeActions> CommonAssetTypeActions;
-
+	
 	UE_DEPRECATED(5.1, "Use SelectedAssets now, this field will not contain any objects.")
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 
+	/**
+	 * The currently selected assets in the content browser.
+	 */
 	UPROPERTY()
 	TArray<FAssetData> SelectedAssets;
 
@@ -48,26 +57,53 @@ public:
 	UPROPERTY()
 	bool bCanBeModified;
 
-	UFUNCTION(BlueprintCallable, Category="Tool Menus", meta=(DeprecatedFunction, DeprecationMessage = "GetSelectedObjects has been deprecated.  We no longer implictly load assets upon request.  If you can work without loading the assets, please use SelectedAssets.  Otherwise call LoadSelectedObjects"))
+	//UE_DEPRECATED(5.1, "GetSelectedObjects has been deprecated.  We no longer automatically load assets on right click.  Please use SelectedAssets and determine whatever you need for your context menu options without actually loading the assets.  When you finally need all or a subset of the selected assets use LoadSelectedAssets or LoadSelectedAssetsIf")
+	UFUNCTION(BlueprintCallable, Category="Tool Menus", meta=(DeprecatedFunction, DeprecationMessage = "GetSelectedObjects has been deprecated.  We no longer automatically load assets on right click.  If you can work without loading the assets, please use SelectedAssets.  Otherwise call LoadSelectedObjects"))
 	TArray<UObject*> GetSelectedObjects() const
 	{
-		return LoadSelectedObjects();
+		return LoadSelectedObjectsIfNeeded();
 	}
 
+	/**
+	 * Loads the selected assets (if needed) which is based on AssetViewUtils::LoadAssetsIfNeeded, this exists primarily
+	 * for backwards compatability.  Reliance on a black box to determine 'neededness' is not recommended, this function
+	 * will likely be deprecated a few versions after GetSelectedObjects.
+	 */
 	UFUNCTION(BlueprintCallable, Category="Tool Menus")
-	TArray<UObject*> LoadSelectedObjects() const
+	TArray<UObject*> LoadSelectedObjectsIfNeeded() const;
+
+	/**
+	 * Loads all the selected assets and returns an array of the objects.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Tool Menus")
+	TArray<UObject*> LoadSelectedObjects(TSet<FName> LoadTags) const
 	{
-		return LoadSelectedObjects<UObject>();
+		return LoadSelectedObjects<UObject>(LoadTags);
 	}
 
+	/**
+	 * Loads all the selected assets and returns an array of the ExpectedAssetType.
+	 */
 	template<typename ExpectedAssetType>
-	TArray<ExpectedAssetType*> LoadSelectedObjects() const
+	TArray<ExpectedAssetType*> LoadSelectedObjects(TSet<FName> LoadTags = {}) const
 	{
-		return LoadSelectedObjectsIf<ExpectedAssetType>([](const FAssetData& AssetData){ return true; });
+		return LoadSelectedObjectsIf<ExpectedAssetType>(LoadTags, [](const FAssetData& AssetData){ return true; });
 	}
 
+	/**
+	 * Loads the selected assets if the PredicateFilter returns true, and returns an array of the objects.
+     */
 	template<typename ExpectedAssetType>
-	TArray<ExpectedAssetType*> LoadSelectedObjectsIf(TFunctionRef<bool(const FAssetData& AssetData)> PredicateFilter) const
+    TArray<ExpectedAssetType*> LoadSelectedObjectsIf(TFunctionRef<bool(const FAssetData& AssetData)> PredicateFilter) const
+    {
+		return LoadSelectedObjectsIf<ExpectedAssetType>({}, PredicateFilter);
+    }
+
+	/**
+	 * Loads the selected assets if the PredicateFilter returns true, and returns an array of the objects.
+	 */
+	template<typename ExpectedAssetType>
+	TArray<ExpectedAssetType*> LoadSelectedObjectsIf(TSet<FName> LoadTags, TFunctionRef<bool(const FAssetData& AssetData)> PredicateFilter) const
 	{
 		TArray<ExpectedAssetType*> Result;
 		Result.Reserve(SelectedAssets.Num());
@@ -75,7 +111,7 @@ public:
 		{
 			if (PredicateFilter(Asset))
 			{
-				if (UObject* AssetObject = Asset.GetAsset())
+				if (UObject* AssetObject = Asset.GetAsset(LoadTags))
 				{
 					if (ExpectedAssetType* AssetObjectTyped = Cast<ExpectedAssetType>(AssetObject))
 					{
@@ -87,6 +123,22 @@ public:
 		return Result;
 	}
 
+	/**
+	 * Returns a filtered array of assets that are of the desired class and potentially any subclasses.
+	 */
+	TArray<FAssetData> GetSelectedAssetsOfType(const UClass* AssetClass, EIncludeSubclasses IncludeSubclasses = EIncludeSubclasses::Yes) const;
+	
+	/**
+	 * Sometimes you want to write actions that will only operate on a singular selected asset, in those cases you
+	 * can use the following function which will only return a live ptr if it's an instance of that asset type, and
+	 * only one thing is selected.
+	 */
+	const FAssetData* GetSingleSelectedAssetOfType(const UClass* AssetClass, EIncludeSubclasses IncludeSubclasses = EIncludeSubclasses::Yes) const;
+
+	/**
+	 * Finds the Content Browser MenuContext from a Menu or Section, and returns the context provided there are some
+	 * selected assets.
+	 */
 	template<typename MenuOrSectionType>
 	static const UContentBrowserAssetContextMenuContext* FindContextWithAssets(const MenuOrSectionType& MenuOrSection)
 	{
@@ -181,3 +233,10 @@ public:
 
 	TWeakPtr<SContentBrowser> ContentBrowser;
 };
+
+class UToolMenu;
+
+namespace UE::ContentBrowser
+{
+	CONTENTBROWSER_API UToolMenu* ExtendToolMenu_AssetContextMenu(UClass* AssetClass);
+}
