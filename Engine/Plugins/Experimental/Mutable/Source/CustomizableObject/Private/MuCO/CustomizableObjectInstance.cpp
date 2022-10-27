@@ -964,7 +964,6 @@ USkeleton* UCustomizableInstancePrivateData::MergeSkeletons(UCustomizableObjectI
 		const TObjectPtr<USkeleton> RefSkeleton = ReferencedSkeletons.SkeletonsToMerge[0];
 		ReferencedSkeletons.SkeletonsToMerge.Empty();
 
-		check(RefSkeleton);
 		return RefSkeleton;
 	}
 
