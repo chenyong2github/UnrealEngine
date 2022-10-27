@@ -73,6 +73,7 @@
 #include "RayTracing/RayTracingInstanceCulling.h"
 #include "GPUMessaging.h"
 #include "RectLightTextureManager.h"
+#include "IESTextureManager.h"
 #include "Lumen/LumenFrontLayerTranslucency.h"
 #include "Lumen/LumenSceneLighting.h"
 #include "Containers/ChunkedArray.h"
@@ -2339,8 +2340,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		// Force the subsurface profile texture to be updated.
 		UpdateSubsurfaceProfileTexture(GraphBuilder, ShaderPlatform);
 
-		// Force the rect light texture to be updated.
-		RectLightAtlas::UpdateRectLightAtlasTexture(GraphBuilder, FeatureLevel);
+		// Force the rect light texture & IES texture to be updated.
+		RectLightAtlas::UpdateAtlasTexture(GraphBuilder, FeatureLevel);
+		IESAtlas::UpdateAtlasTexture(GraphBuilder, FeatureLevel);
 	}
 
 	InitializeSceneTexturesConfig(ViewFamily.SceneTexturesConfig, ViewFamily);

@@ -50,7 +50,6 @@
 #include "PrecomputedVolumetricLightmap.h"
 #include "RayTracing/RaytracingOptions.h"
 #if RHI_RAYTRACING
-#include "RayTracing/RayTracingIESLightProfiles.h"
 #include "RayTracing/RayTracingScene.h"
 #endif
 #include "Nanite/Nanite.h"
@@ -978,9 +977,6 @@ public:
 	// Keeps track of the internal path tracer state
 	TPimplPtr<FPathTracingState> PathTracingState;
 	uint32 PathTracingInvalidationCounter = 0;
-
-	// IES light profiles
-	FIESLightProfileResource IESLightProfileResources;
 
 	// Ray Traced Reflection Imaginary GBuffer Data containing a pseudo-geometric representation of the reflected surface(s)
 	TRefCountPtr<IPooledRenderTarget> ImaginaryReflectionGBufferA;
@@ -3165,6 +3161,7 @@ public:
 	virtual void AddHairStrands(FHairStrandsInstance* Proxy) override;
 	virtual void RemoveHairStrands(FHairStrandsInstance* Proxy) override;
 
+	virtual void GetLightIESAtlasSlot(const FLightSceneProxy* Proxy, FLightRenderParameters* Out) override;
 	virtual void GetRectLightAtlasSlot(const FRectLightSceneProxy* Proxy, FLightRenderParameters* Out) override;
 
 	virtual void AddSkyAtmosphere(FSkyAtmosphereSceneProxy* SkyAtmosphereSceneProxy, bool bStaticLightingBuilt) override;

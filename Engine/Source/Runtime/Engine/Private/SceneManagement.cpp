@@ -867,6 +867,11 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	RectLightAtlasTexture = GBlackTextureWithSRV->TextureRHI;
 	RectLightAtlasSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
+	// IES atlas
+	IESAtlasSizeAndInvSize = FVector4f(1, 1, 1, 1);
+	IESAtlasTexture = GBlackTextureWithSRV->TextureRHI;
+	IESAtlasSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
 	// Subsurface profiles/pre-intregrated
 	SSProfilesTextureSizeAndInvSize = FVector4f(1.f,1.f,1.f,1.f);
 	SSProfilesTexture = GBlackTextureWithSRV->TextureRHI;

@@ -654,9 +654,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenDirectLightingNonRayTracedShadowsParameters,
 	SHADER_PARAMETER(int32, VirtualShadowMapId)
 	SHADER_PARAMETER(uint32, SampleDenseShadowMap)
 	SHADER_PARAMETER(uint32, ForceShadowMaps)
-	SHADER_PARAMETER(uint32, UseIESProfile)
-	SHADER_PARAMETER_TEXTURE(Texture2D, IESTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler)
 END_SHADER_PARAMETER_STRUCT()
 
 class FLumenDirectLightingNonRayTracedShadowsCS : public FGlobalShader
@@ -1182,10 +1179,6 @@ void ComputeNonRayTracedShadows(
 			View,
 			GLumenDirectLightingCloudTransmittance != 0 && Light.bHasCloudTransmittance ? Light.LightSceneInfo : nullptr,
 			CommonParameters.LightCloudTransmittanceParameters);
-
-		CommonParameters.UseIESProfile = Light.IESTexture ? 1 : 0;
-		CommonParameters.IESTexture = Light.IESTexture ? Light.IESTexture : GWhiteTexture->TextureRHI.GetReference();
-		CommonParameters.IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	};
 
 	const FMaterialRenderProxy* LightFunctionMaterialProxy = Light.LightSceneInfo->Proxy->GetLightFunctionMaterial();
@@ -1435,7 +1428,8 @@ struct FLumenPackedLight
 
 	uint32 LightingChannelMask;
 	uint32 bHasShadowMask;
-	uint32 Padding[2];
+	float IESAtlasIndex;
+	uint32 Padding;
 };
 
 FRDGBufferRef CreateLumenLightDataBuffer(FRDGBuilder& GraphBuilder, const TArray<FLumenGatheredLight, TInlineAllocator<64>>& GatheredLights, float Exposure)
@@ -1499,7 +1493,7 @@ FRDGBufferRef CreateLumenLightDataBuffer(FRDGBuilder& GraphBuilder, const TArray
 			LightData.SinCosConeAngleOrRectLightAtlasUVScale = FVector2f(FMath::Sin(LightSceneInfo->Proxy->GetOuterConeAngle()), FMath::Cos(LightSceneInfo->Proxy->GetOuterConeAngle()));
 		}
 		LightData.RectLightAtlasUVOffset = ShaderParameters.RectLightAtlasUVOffset;
-
+		LightData.IESAtlasIndex = ShaderParameters.IESAtlasIndex;
 		LightData.LightingChannelMask = LightSceneInfo->Proxy->GetLightingChannelMask();
 		LightData.bHasShadowMask = LumenLight.NeedsShadowMask() ? 1 : 0;
 	}

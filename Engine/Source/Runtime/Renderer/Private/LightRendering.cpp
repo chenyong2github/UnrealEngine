@@ -392,6 +392,7 @@ FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
 	Out.LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
 	Out.LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
 	Out.LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
+	Out.LightParameters.IESAtlasIndex = INDEX_NONE;
 	return Out;
 }
 FDeferredLightUniformStruct GetSimpleDeferredLightParameters(
@@ -561,8 +562,6 @@ class FDeferredLightPS : public FGlobalShader
 		SHADER_PARAMETER(FVector4f, ShadowChannelMask)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LightAttenuationTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LightAttenuationTextureSampler)
-		SHADER_PARAMETER_TEXTURE(Texture2D, IESTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, LightingChannelsTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, LightingChannelsSampler)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairTransmittanceBuffer)
@@ -1974,12 +1973,6 @@ static FDeferredLightPS::FParameters GetDeferredLightPSParameters(
 	Out.CloudShadowEnabled = SetupLightCloudTransmittanceParameters(GraphBuilder, Scene, View, LightSceneInfo, Out.CloudShadow) ? 1 : 0;
 	Out.LightAttenuationTexture = ShadowMaskTexture ? ShadowMaskTexture : WhiteDummy;
 	Out.LightAttenuationTextureSampler = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-	Out.IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	Out.IESTexture = GSystemTextures.WhiteDummy->GetRHI();
-	if (LightSceneInfo->Proxy->GetIESTextureResource())
-	{
-		Out.IESTexture = LightSceneInfo->Proxy->GetIESTextureResource()->TextureRHI;
-	}
 	Out.View = View.ViewUniformBuffer;
 	Out.DeferredLight = CreateDeferredLightUniformBuffer(GraphBuilder, View, *LightSceneInfo);
 	// PS - Hair (default value)
@@ -2541,8 +2534,6 @@ static FSimpleLightsStandardDeferredParameters GetRenderLightSimpleParameters(
 	SetupLightCloudTransmittanceParameters(GraphBuilder, nullptr, View, nullptr, Out.PS.CloudShadow);
 	Out.PS.LightAttenuationTexture = WhiteDummy;
 	Out.PS.LightAttenuationTextureSampler = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-	Out.PS.IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	Out.PS.IESTexture = GSystemTextures.WhiteDummy->GetRHI();
 	Out.PS.View = View.ViewUniformBuffer;
 	Out.PS.DeferredLight = CreateDeferredLightUniformBuffer(GraphBuilder, View, SimpleLight, SimpleLightPosition);
 	// PS - Hair (default)

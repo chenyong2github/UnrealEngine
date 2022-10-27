@@ -28,6 +28,7 @@
 #include "RayTracingDynamicGeometryCollection.h"
 #include "ShaderCompiler.h"
 #include "RectLightTextureManager.h"
+#include "IESTextureManager.h"
 
 class FCopyConvergedLightmapTilesCS : public FGlobalShader
 {
@@ -1970,7 +1971,8 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 		MostCommonLODIndex = NonZeroLODIndices[FrameNumber % NonZeroLODIndices.Num()];
 	}
 
-	RectLightAtlas::UpdateRectLightAtlasTexture(GraphBuilder, Scene->FeatureLevel);
+	RectLightAtlas::UpdateAtlasTexture(GraphBuilder, Scene->FeatureLevel);
+	IESAtlas::UpdateAtlasTexture(GraphBuilder, Scene->FeatureLevel);
 
 	if (!Scene->SetupRayTracingScene(MostCommonLODIndex))
 	{
@@ -2376,8 +2378,6 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 										PassParameters->SkylightPdf = PreviousPassParameters[GPUIndex]->SkylightPdf;
 										PassParameters->SkylightInvResolution = PreviousPassParameters[GPUIndex]->SkylightInvResolution;
 										PassParameters->SkylightMipCount = PreviousPassParameters[GPUIndex]->SkylightMipCount;
-										PassParameters->IESTexture = PreviousPassParameters[GPUIndex]->IESTexture;
-										PassParameters->IESTextureSampler = PreviousPassParameters[GPUIndex]->IESTextureSampler;
 									}
 
 									PassParameters->SSProfilesTexture = GetSubsurfaceProfileTexture();

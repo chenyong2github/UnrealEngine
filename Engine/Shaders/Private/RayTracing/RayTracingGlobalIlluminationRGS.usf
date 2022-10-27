@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#define USE_IES_TERM 0 // this shader doesn't bind the IES atlas, so disable the IES term from path tracer lights
-
 #include "../Common.ush"
 #include "../RectLight.ush"
 //#include "../MonteCarlo.ush"

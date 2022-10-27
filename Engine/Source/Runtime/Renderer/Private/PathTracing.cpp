@@ -737,10 +737,6 @@ class FPathTracingRG : public FGlobalShader
 		// exponential height fog
 		SHADER_PARAMETER_STRUCT_INCLUDE(FPathTracingFogParameters, FogParameters)
 
-		// IES Profiles
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, IESTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler) // Shared sampler for all IES profiles
-
 		// scene decals
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRayTracingDecals, DecalParameters)
 
@@ -782,33 +778,6 @@ class FPathTracingInitExtinctionCoefficientRG : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FPathTracingInitExtinctionCoefficientRG, "/Engine/Private/PathTracing/PathTracingInitExtinctionCoefficient.usf", "PathTracingInitExtinctionCoefficientRG", SF_RayGen, ERayTracingPayloadType::PathTracingMaterial);
-
-class FPathTracingIESAtlasCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FPathTracingIESAtlasCS)
-	SHADER_USE_PARAMETER_STRUCT(FPathTracingIESAtlasCS, FGlobalShader)
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		//OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
-		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_X"), FComputeShaderUtils::kGolden2DGroupSize);
-		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_Y"), FComputeShaderUtils::kGolden2DGroupSize);
-	}
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_TEXTURE(Texture2D, IESTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, IESSampler)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray, IESAtlas)
-		SHADER_PARAMETER(int32, IESAtlasSlice)
-	END_SHADER_PARAMETER_STRUCT()
-};
-IMPLEMENT_SHADER_TYPE(, FPathTracingIESAtlasCS, TEXT("/Engine/Private/PathTracing/PathTracingIESAtlas.usf"), TEXT("PathTracingIESAtlasCS"), SF_Compute);
-
 
 class FPathTracingSwizzleScanlinesCS : public FGlobalShader
 {
@@ -1412,50 +1381,6 @@ RENDERER_API void PrepareSkyTexture_Internal(
 	}
 }
 
-RENDERER_API FRDGTexture* PrepareIESAtlas(const TMap<FTexture*, int>& InIESLightProfilesMap, FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel)
-{
-	// We found some IES profiles to use -- upload them into a single atlas so we can access them easily in HLSL
-
-	// TODO: This is redundant because all the IES textures are already on the GPU. Handling IES profiles via Miss shaders
-	// would be cleaner.
-	
-	// TODO: This is also redundant with the logic in RayTracingLighting.cpp, but the latter is limitted to 1D profiles and 
-	// does not consider the same set of lights as the path tracer. Longer term we should aim to unify the representation of lights
-	// across both passes
-	
-	// TODO: This process is repeated every frame! More motivation to move to a Miss shader based implementation
-	
-	// This size matches the import resolution of light profiles (see FIESLoader::GetWidth)
-	const int kIESAtlasSize = 256;
-	const int NumSlices = InIESLightProfilesMap.Num();
-	FRDGTextureDesc IESTextureDesc = FRDGTextureDesc::Create2DArray(
-		FIntPoint(kIESAtlasSize, kIESAtlasSize),
-		PF_R32_FLOAT,
-		FClearValueBinding::None,
-		TexCreate_ShaderResource | TexCreate_UAV,
-		NumSlices);
-	FRDGTexture* IESTexture = GraphBuilder.CreateTexture(IESTextureDesc, TEXT("PathTracer.IESAtlas"), ERDGTextureFlags::None);
-
-	for (auto&& Entry : InIESLightProfilesMap)
-	{
-		FPathTracingIESAtlasCS::FParameters* AtlasPassParameters = GraphBuilder.AllocParameters<FPathTracingIESAtlasCS::FParameters>();
-		const int Slice = Entry.Value;
-		AtlasPassParameters->IESTexture = Entry.Key->TextureRHI;
-		AtlasPassParameters->IESSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		AtlasPassParameters->IESAtlas = GraphBuilder.CreateUAV(IESTexture);
-		AtlasPassParameters->IESAtlasSlice = Slice;
-		TShaderMapRef<FPathTracingIESAtlasCS> ComputeShader(GetGlobalShaderMap(FeatureLevel));
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("Path Tracing IES Atlas (Slice=%d)", Slice),
-			ComputeShader,
-			AtlasPassParameters,
-			FComputeShaderUtils::GetGroupCount(FIntPoint(kIESAtlasSize, kIESAtlasSize), FComputeShaderUtils::kGolden2DGroupSize));
-	}
-
-	return IESTexture;
-}
-
 RDG_REGISTER_BLACKBOARD_STRUCT(FPathTracingSkylight)
 
 bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, bool SkylightEnabled, bool UseMISCompensation, FPathTracingSkylight* SkylightParameters)
@@ -1684,7 +1609,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.Flags |= Scene->SkyLight->bCastShadows ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
 		DestLight.Flags |= Scene->SkyLight->bCastVolumetricShadow ? PATHTRACER_FLAG_CAST_VOL_SHADOW_MASK : 0;
 		DestLight.VolumetricScatteringIntensity = Scene->SkyLight->VolumetricScatteringIntensity;
-		DestLight.IESTextureSlice = -1;
+		DestLight.IESAtlasIndex = INDEX_NONE;
 		DestLight.MissShaderIndex = 0;
 		DestLight.TranslatedBoundMin = FVector3f(-Inf, -Inf, -Inf);
 		DestLight.TranslatedBoundMax = FVector3f( Inf,  Inf,  Inf);
@@ -1725,7 +1650,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			DestLight.Flags |= LightingChannelMask & PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
 			DestLight.Flags |= Light.LightSceneInfo->Proxy->CastsDynamicShadow() ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
 			DestLight.Flags |= Light.LightSceneInfo->Proxy->CastsVolumetricShadow() ? PATHTRACER_FLAG_CAST_VOL_SHADOW_MASK : 0;
-			DestLight.IESTextureSlice = -1;
+			DestLight.IESAtlasIndex = INDEX_NONE;
 			DestLight.MissShaderIndex = 0;
 
 			// these mean roughly the same thing across all light types
@@ -1760,7 +1685,6 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 
 	int32 NextRectTextureIndex = 0;
 
-	TMap<FTexture*, int> IESLightProfilesMap;
 	const FRayTracingLightFunctionMap* RayTracingLightFunctionMap = GraphBuilder.Blackboard.Get<FRayTracingLightFunctionMap>();
 	for (auto Light : Scene->Lights)
 	{
@@ -1792,18 +1716,8 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.Flags |= LightingChannelMask & PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
 		DestLight.Flags |= Light.LightSceneInfo->Proxy->CastsDynamicShadow() ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
 		DestLight.Flags |= Light.LightSceneInfo->Proxy->CastsVolumetricShadow() ? PATHTRACER_FLAG_CAST_VOL_SHADOW_MASK : 0;
-		DestLight.IESTextureSlice = -1;
+		DestLight.IESAtlasIndex = LightParameters.IESAtlasIndex;
 		DestLight.MissShaderIndex = 0;
-
-		if (View.Family->EngineShowFlags.TexturedLightProfiles)
-		{
-			FTexture* IESTexture = Light.LightSceneInfo->Proxy->GetIESTextureResource();
-			if (IESTexture != nullptr)
-			{
-				// Only add a given texture once
-				DestLight.IESTextureSlice = IESLightProfilesMap.FindOrAdd(IESTexture, IESLightProfilesMap.Num());
-			}
-		}
 
 		// these mean roughly the same thing across all light types
 		DestLight.Color = FVector3f(LightParameters.Color) * LightParameters.GetLightExposureScale(View.GetLastEyeAdaptationExposure());
@@ -1924,16 +1838,6 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		// make all lights in the scene visible
 		PassParameters->SceneVisibleLightCount = PassParameters->SceneLightCount;
 	}
-
-	if (!IESLightProfilesMap.IsEmpty())
-	{
-		PassParameters->IESTexture = PrepareIESAtlas(IESLightProfilesMap, GraphBuilder, View.FeatureLevel);
-	}
-	else
-	{
-		PassParameters->IESTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
-	}
-	PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
 	PrepareLightGrid(GraphBuilder, View.FeatureLevel, &PassParameters->LightGridParameters, Lights, NumLights, NumInfiniteLights, PassParameters->SceneLights);
 }
@@ -2370,8 +2274,6 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 							else
 							{
 								// re-use from last iteration
-								PassParameters->IESTexture = PreviousPassParameters->IESTexture;
-								PassParameters->IESTextureSampler = PreviousPassParameters->IESTextureSampler;
 								PassParameters->LightGridParameters = PreviousPassParameters->LightGridParameters;
 								PassParameters->SceneLightCount = PreviousPassParameters->SceneLightCount;
 								PassParameters->SceneVisibleLightCount = PreviousPassParameters->SceneVisibleLightCount;

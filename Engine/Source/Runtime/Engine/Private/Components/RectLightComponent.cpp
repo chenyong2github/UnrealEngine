@@ -206,7 +206,7 @@ FRectLightSceneProxy::FRectLightSceneProxy(const URectLightComponent* Component)
 	, RayTracingData(Component->RayTracingData)
 	, SourceTexture(Component->SourceTexture)
 {
-	AtlasSlotIndex = ~0u;
+	RectAtlasId = ~0u;
 }
 
 FRectLightSceneProxy::~FRectLightSceneProxy() {}
@@ -243,10 +243,15 @@ void FRectLightSceneProxy::GetLightShaderParameters(FLightRenderParameters& Ligh
 	LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
 	LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
 	LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
-
+	LightParameters.IESAtlasIndex = INDEX_NONE;
 	LightParameters.InverseExposureBlend = InverseExposureBlend;
 
-	if (AtlasSlotIndex != ~0u)
+	if (IESAtlasId != ~0)
+	{
+		GetSceneInterface()->GetLightIESAtlasSlot(this, &LightParameters);
+	}
+
+	if (RectAtlasId != ~0u)
 	{
 		GetSceneInterface()->GetRectLightAtlasSlot(this, &LightParameters);
 	}

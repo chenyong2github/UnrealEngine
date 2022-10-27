@@ -19,6 +19,7 @@ class FMaterialShaderMap;
 class FPrimitiveSceneInfo;
 class FRenderResource;
 class FRenderTarget;
+class FLightSceneProxy;
 class FRectLightSceneProxy;
 class FSkyLightSceneProxy;
 class FTexture;
@@ -336,6 +337,14 @@ public:
 	 * @param Proxy - the hair strands proxy
 	 */
 	virtual void RemoveHairStrands(FHairStrandsInstance* Proxy) = 0;
+
+	/**
+	 * Return the IES profile index corresponding to the local light proxy
+	 *
+	 * @param Proxy - the local light proxy
+	 * @param Out - the light parameters which will be filled with the IES profile  index information
+	 */
+	virtual void GetLightIESAtlasSlot(const FLightSceneProxy* Proxy, FLightRenderParameters* Out) = 0;
 
 	/**
 	 * Return the rect. light atlas slot information corresponding to the rect light proxy

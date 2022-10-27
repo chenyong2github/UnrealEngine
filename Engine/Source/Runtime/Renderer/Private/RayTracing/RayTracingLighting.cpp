@@ -175,30 +175,8 @@ static void SetupRaytracingLightDataPacked(
 	TArrayView<FRTLightingData>& OutLightDataArray)
 {
 	const FScene::FLightSceneInfoCompactSparseArray& Lights = Scene->Lights;
-	TMap<UTextureLightProfile*, int32> IESLightProfilesMap;
-	TMap<FRHITexture*, uint32> RectTextureMap;
 
 	OutLightData.Count = 0;
-	{
-		// IES profiles
-		FRHITexture* IESTextureRHI = nullptr;
-		float IESInvProfileCount = 1.0f;
-
-		if (View.IESLightProfileResource && View.IESLightProfileResource->GetIESLightProfilesCount())
-		{
-			OutLightData.IESLightProfileTexture = View.IESLightProfileResource->GetTexture();
-
-			uint32 ProfileCount = View.IESLightProfileResource->GetIESLightProfilesCount();
-			IESInvProfileCount = ProfileCount ? 1.f / static_cast<float>(ProfileCount) : 0.f;
-		}
-		else
-		{
-			OutLightData.IESLightProfileTexture = GWhiteTexture->TextureRHI;
-		}
-
-		OutLightData.IESLightProfileInvCount = IESInvProfileCount;
-		OutLightData.IESLightProfileTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	}
 
 	const FRayTracingLightFunctionMap* RayTracingLightFunctionMap = GraphBuilder.Blackboard.Get<FRayTracingLightFunctionMap>();
 	for (auto LightIndex : LightIndices)
@@ -216,28 +194,9 @@ static void SetupRaytracingLightDataPacked(
 			LightParameters.FalloffExponent = 0;
 		}
 
-		int32 IESLightProfileIndex = INDEX_NONE;
-		if (View.Family->EngineShowFlags.TexturedLightProfiles)
-		{
-			UTextureLightProfile* IESLightProfileTexture = Light.LightSceneInfo->Proxy->GetIESTexture();
-			if (IESLightProfileTexture)
-			{
-				int32* IndexFound = IESLightProfilesMap.Find(IESLightProfileTexture);
-				if (!IndexFound)
-				{
-					IESLightProfileIndex = IESLightProfilesMap.Add(IESLightProfileTexture, IESLightProfilesMap.Num());
-				}
-				else
-				{
-					IESLightProfileIndex = *IndexFound;
-				}
-			}
-		}
-
 		FRTLightingData& LightDataElement = OutLightDataArray[OutLightData.Count];
 
 		LightDataElement.Type = Light.LightType;
-		LightDataElement.LightProfileIndex = IESLightProfileIndex;
 
 		LightDataElement.Direction = LightParameters.Direction;
 		LightDataElement.TranslatedLightPosition = FVector3f(LightParameters.WorldPosition + View.ViewMatrices.GetPreViewTranslation());
@@ -262,7 +221,7 @@ static void SetupRaytracingLightDataPacked(
 		LightDataElement.SoftSourceRadius = LightParameters.SoftSourceRadius;
 		LightDataElement.RectLightBarnCosAngle = LightParameters.RectLightBarnCosAngle;
 		LightDataElement.RectLightBarnLength = LightParameters.RectLightBarnLength;
-
+		LightDataElement.IESAtlasIndex = LightParameters.IESAtlasIndex;
 		LightDataElement.RectLightAtlasUVOffset[0] = LightParameters.RectLightAtlasUVOffset.X;
 		LightDataElement.RectLightAtlasUVOffset[1] = LightParameters.RectLightAtlasUVOffset.Y;
 		LightDataElement.RectLightAtlasUVScale[0] = LightParameters.RectLightAtlasUVScale.X;
@@ -292,20 +251,6 @@ static void SetupRaytracingLightDataPacked(
 	}
 
 	check(OutLightData.Count <= RAY_TRACING_LIGHT_COUNT_MAXIMUM);
-
-	// Update IES light profiles texture 
-	// TODO (Move to a shared place)
-	if (View.IESLightProfileResource != nullptr && IESLightProfilesMap.Num() > 0)
-	{
-		TArray<UTextureLightProfile*, SceneRenderingAllocator> IESProfilesArray;
-		IESProfilesArray.AddUninitialized(IESLightProfilesMap.Num());
-		for (auto It = IESLightProfilesMap.CreateIterator(); It; ++It)
-		{
-			IESProfilesArray[It->Value] = It->Key;
-		}
-
-		View.IESLightProfileResource->BuildIESLightProfilesTexture(GraphBuilder.RHICmdList, IESProfilesArray);
-	}
 }
 
 

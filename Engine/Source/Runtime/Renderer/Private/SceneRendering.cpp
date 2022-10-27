@@ -76,6 +76,7 @@
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
 #include "Rendering/NaniteStreamingManager.h"
 #include "RectLightTextureManager.h"
+#include "IESTextureManager.h"
 #include "DynamicResolutionState.h"
 #include "NaniteVisualizationData.h"
 #include "Shadows/ShadowSceneRenderer.h"
@@ -1841,7 +1842,7 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	// Rect light. atlas
 	{
-		FRHITexture* AtlasTexture = RectLightAtlas::GetRectLightAtlasTexture();
+		FRHITexture* AtlasTexture = RectLightAtlas::GetAtlasTexture();
 		if (!AtlasTexture && GSystemTextures.BlackDummy.IsValid())
 		{
 			AtlasTexture = GSystemTextures.BlackDummy->GetRHI();
@@ -1856,6 +1857,24 @@ void FViewInfo::SetupUniformBufferParameters(
 			ViewUniformShaderParameters.RectLightAtlasSizeAndInvSize = FVector4f(AtlasSize.X, AtlasSize.Y, 1.0f / AtlasSize.X, 1.0f / AtlasSize.Y);
 		}
 		ViewUniformShaderParameters.RectLightAtlasTexture = OrBlack2DIfNull(ViewUniformShaderParameters.RectLightAtlasTexture);
+	}
+
+	// IES atlas
+	{
+		FRHITexture* AtlasTexture = IESAtlas::GetAtlasTexture();
+		if (!AtlasTexture && GSystemTextures.BlackDummy.IsValid())
+		{
+			AtlasTexture = GSystemTextures.BlackDummy->GetRHI();
+		}
+				
+		if (AtlasTexture)
+		{
+			const FIntVector AtlasSize = AtlasTexture->GetSizeXYZ();
+			ViewUniformShaderParameters.IESAtlasTexture = AtlasTexture;
+			ViewUniformShaderParameters.IESAtlasSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			ViewUniformShaderParameters.IESAtlasSizeAndInvSize = FVector4f(AtlasSize.X, AtlasSize.Y, 1.0f / AtlasSize.X, 1.0f / AtlasSize.Y);
+		}
+		ViewUniformShaderParameters.IESAtlasTexture = OrBlack2DIfNull(ViewUniformShaderParameters.IESAtlasTexture);
 	}
 
 	// Hair global resources 

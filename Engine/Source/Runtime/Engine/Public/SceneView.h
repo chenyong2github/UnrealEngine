@@ -35,7 +35,6 @@ class FViewElementDrawer;
 class ISceneViewExtension;
 class FSceneViewFamily;
 class FVolumetricFogViewResources;
-class FIESLightProfileResource;
 class ISpatialUpscaler;
 class ITemporalUpscaler;
 
@@ -936,6 +935,10 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER(float, RectLightAtlasMaxMipLevel)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float4>, RectLightAtlasTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, RectLightAtlasSampler)
+	// IES atlas
+	SHADER_PARAMETER(FVector4f, IESAtlasSizeAndInvSize)
+	SHADER_PARAMETER_TEXTURE(Texture2DArray<float>, IESAtlasTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, IESAtlasSampler)
 	// Landscape
 	SHADER_PARAMETER_SAMPLER(SamplerState, LandscapeWeightmapSampler)
 	SHADER_PARAMETER_SRV(Buffer<uint>, LandscapeIndirection)
@@ -1305,8 +1308,6 @@ public:
 	const ERHIFeatureLevel::Type FeatureLevel;
 
 #if RHI_RAYTRACING
-	FIESLightProfileResource* IESLightProfileResource;
-
 	/** Use to allow ray tracing on this view. */
 	bool bAllowRayTracing = true;
 #endif

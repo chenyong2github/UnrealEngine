@@ -36,7 +36,6 @@ float VirtualShadowMapSamplingBias;
 float HeightfieldShadowReceiverBias;
 
 int VirtualShadowMapId;
-uint UseIESProfile;
 
 // Debug variables
 uint ForceShadowMaps;
@@ -218,9 +217,9 @@ void LumenSceneDirectLightingNonRayTracedShadowsCS(
 			}
 			#endif
 
-			if (ShadowMaskRay.ShadowFactor > 0.01f && UseIESProfile > 0)
+			if (ShadowMaskRay.ShadowFactor > 0.01f && DeferredLightUniforms.IESAtlasIndex >= 0)
 			{
-				ShadowMaskRay.ShadowFactor *= ComputeLightProfileMultiplier(TranslatedWorldPosition, DeferredLightUniforms.TranslatedWorldPosition, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
+				ShadowMaskRay.ShadowFactor *= ComputeLightProfileMultiplier(TranslatedWorldPosition, DeferredLightUniforms.TranslatedWorldPosition, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent, DeferredLightUniforms.IESAtlasIndex);
 				ShadowMaskRay.bShadowFactorComplete = ShadowMaskRay.bShadowFactorComplete || ShadowMaskRay.ShadowFactor < 0.01f;
 			}
 		}

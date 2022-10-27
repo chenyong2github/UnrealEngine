@@ -317,11 +317,16 @@ static void PackLocalLightData(
 	// Pack spot angles in 2x f16
 	uint32 SpotAnglesPacked = PackRG16(-2, 1);
 
+	// Pack specular scale and IES profile index
+	const float SpecularScale = 1.f;
+	const float IESAtlasIndex = INDEX_NONE;
+	const uint32 SpecularScaleAndIESData = PackRG16(SpecularScale, IESAtlasIndex);
+
 	Out.LightPositionAndInvRadius				= FVector4f(LightTranslatedWorldPosition, 1.0f / FMath::Max(SimpleLight.Radius, KINDA_SMALL_NUMBER));
 	Out.LightColorAndFalloffExponent			= FVector4f((FVector3f)SimpleLight.Color * FLightRenderParameters::GetLightExposureScale(View.GetLastEyeAdaptationExposure(), SimpleLight.InverseExposureBlend), SimpleLight.Exponent);
 	Out.LightDirectionAndShadowMapChannelMask	= FVector4f(FVector3f(1, 0, 0), FMath::AsFloat(ShadowMapChannelMask));
 	Out.SpotAnglesAndIdAndSourceRadiusPacked	= FVector4f(FMath::AsFloat(SpotAnglesPacked), INDEX_NONE, FMath::AsFloat(PackedZ), FMath::AsFloat(PackedW));
-	Out.LightTangentAndSpecularScale			= FVector4f(1.0f, 0.0f, 0.0f, 1.0f);
+	Out.LightTangentAndIESDataAndSpecularScale	= FVector4f(1.0f, 0.0f, 0.0f, FMath::AsFloat(SpecularScaleAndIESData));
 	Out.RectDataAndVirtualShadowMapId			= FVector4f(FMath::AsFloat(RectPackedX), FMath::AsFloat(RectPackedY), -1, FMath::AsFloat(RectPackedW));
 }
 
@@ -353,13 +358,16 @@ static void PackLocalLightData(
 	// Pack spot angles in 2x f16
 	uint32 SpotAnglesPacked = PackRG16(LightParameters.SpotAngles.X, LightParameters.SpotAngles.Y);
 
+	// Pack specular scale and IES profile index
+	const uint32 SpecularScaleAndIESData = PackRG16(LightParameters.SpecularScale, LightParameters.IESAtlasIndex);
+
 	// NOTE: This cast of VirtualShadowMapId to float is not ideal, but bitcast has issues here with INDEX_NONE -> NaN
 	// and 32-bit floats have enough mantissa to cover all reasonable numbers here for now.
 	Out.LightPositionAndInvRadius				= FVector4f(LightTranslatedWorldPosition, LightParameters.InvRadius);
 	Out.LightColorAndFalloffExponent			= FVector4f(LightParameters.Color, LightParameters.FalloffExponent);
 	Out.LightDirectionAndShadowMapChannelMask	= FVector4f(LightParameters.Direction, FMath::AsFloat(LightTypeAndShadowMapChannelMaskPacked));
 	Out.SpotAnglesAndIdAndSourceRadiusPacked	= FVector4f(FMath::AsFloat(SpotAnglesPacked), LightSceneId, FMath::AsFloat(PackedZ), FMath::AsFloat(PackedW));
-	Out.LightTangentAndSpecularScale			= FVector4f(LightParameters.Tangent, LightParameters.SpecularScale);
+	Out.LightTangentAndIESDataAndSpecularScale	= FVector4f(LightParameters.Tangent, FMath::AsFloat(SpecularScaleAndIESData));
 	Out.RectDataAndVirtualShadowMapId			= FVector4f(FMath::AsFloat(RectPackedX), FMath::AsFloat(RectPackedY), float(VirtualShadowMapId), FMath::AsFloat(RectPackedW));
 
 	checkSlow(int32(Out.RectDataAndVirtualShadowMapId.Z) == VirtualShadowMapId);

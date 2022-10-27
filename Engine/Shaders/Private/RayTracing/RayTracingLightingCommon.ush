@@ -29,7 +29,7 @@
 struct FRTLightingData
 {
 	uint Type;
-	int LightProfileIndex;
+	float IESAtlasIndex;
 	float RectLightAtlasMaxLevel;
 	uint LightMissShaderIndex;
 	float3 TranslatedLightPosition;
@@ -67,7 +67,7 @@ FRTLightingData GetRayTracingLightData(int LightIndex)
 	Element = LightDataBuffer[LightIndex++];
 
 	Data.Type = Element.x;
-	Data.LightProfileIndex = Element.y;
+	Data.IESAtlasIndex = asfloat(Element.y);
 	Data.RectLightAtlasMaxLevel = asfloat(Element.z);
 	Data.LightMissShaderIndex = Element.w;
 
@@ -110,8 +110,8 @@ FRTLightingData GetRayTracingLightData(int LightIndex)
 	return Data;
 }
 
-FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
-	inout int OutLightProfileIndex,
+FDeferredLightData GetRayTracingDeferredLightData(
+	int LightIndex,
 	inout uint OutLightType,
 	inout uint OutLightMissShaderIndex)
 {
@@ -158,19 +158,20 @@ FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
 	LightData.RectLightData.AtlasData.AtlasUVScale  = RayTracingLightData.RectLightAtlasUVScale;
 	LightData.RectLightData.AtlasData.AtlasMaxLevel = RayTracingLightData.RectLightAtlasMaxLevel;
 
-	OutLightProfileIndex = RayTracingLightData.LightProfileIndex;
+	LightData.IESAtlasIndex = RayTracingLightData.IESAtlasIndex;
+
 	OutLightType = LightType;
 	OutLightMissShaderIndex = RayTracingLightData.LightMissShaderIndex;
 
 	return LightData;
 }
 
-FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
-	inout int OutLightProfileIndex,
+FDeferredLightData GetRayTracingDeferredLightData(
+	int LightIndex,
 	inout uint OutLightType)
 {
 	uint LightMissShaderIndex = 0;
-	return GetRayTracingDeferredLightData(LightIndex, OutLightProfileIndex, OutLightType, LightMissShaderIndex);
+	return GetRayTracingDeferredLightData(LightIndex, OutLightType, LightMissShaderIndex);
 }
 
 float3 GenerateReflectedRayDirection(
@@ -405,10 +406,9 @@ float3 ComputeDirectLighting(
 
 		LightIndex = CullData.GetLightIndex(Index, Lit);
 
-		int LightProfileIndex = -1;
 		uint LightType = 0;
 		uint LightMissShaderIndex = 0;
-		FDeferredLightData LightData = GetRayTracingDeferredLightData(LightIndex, LightProfileIndex, LightType, LightMissShaderIndex);
+		FDeferredLightData LightData = GetRayTracingDeferredLightData(LightIndex, LightType, LightMissShaderIndex);
 
 		float3 ShadowRayDirection;
 		// ToLight should not be normalized because its length is used to compute the shadow ray TMax 

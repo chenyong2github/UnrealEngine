@@ -63,6 +63,5 @@ protected:
 
 	float MaxDrawDistance;
 	float FadeRange;
-
 	float InverseExposureBlend;
 };

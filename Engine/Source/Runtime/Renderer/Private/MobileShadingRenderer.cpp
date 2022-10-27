@@ -59,6 +59,8 @@
 #include "SceneTextureReductions.h"
 #include "GPUMessaging.h"
 #include "Strata/Strata.h"
+#include "RectLightTextureManager.h"
+#include "IESTextureManager.h"
 
 uint32 GetShadowQuality();
 
@@ -853,6 +855,12 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Force the subsurface profile texture to be updated.
 	UpdateSubsurfaceProfileTexture(GraphBuilder, ShaderPlatform);
+	
+	if (bDeferredShading)
+	{
+		RectLightAtlas::UpdateAtlasTexture(GraphBuilder, FeatureLevel);
+		IESAtlas::UpdateAtlasTexture(GraphBuilder, FeatureLevel);
+	}
 
 	FInstanceCullingManager& InstanceCullingManager = *GraphBuilder.AllocObject<FInstanceCullingManager>(Scene->GPUScene.IsEnabled(), GraphBuilder);
 

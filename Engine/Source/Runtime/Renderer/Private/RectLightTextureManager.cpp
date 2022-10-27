@@ -19,8 +19,6 @@
 #include "CommonRenderResources.h"
 #include "ScreenPass.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogRectLightTextureManager, Log, All);
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Possible improvements:
 // * When copying & filtering the texture, add RGBE/BCH6 encoding to reduce footprint and improve 
@@ -1357,7 +1355,7 @@ static void PackAtlas(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // API
 
-uint32 AddRectLightTexture(UTexture* In)
+uint32 AddTexture(UTexture* In)
 {
 	check(IsInRenderingThread());
 
@@ -1406,7 +1404,7 @@ uint32 AddRectLightTexture(UTexture* In)
 	return SlotIndex;
 }
 
-void RemoveRectLightTexture(uint32 InSlotIndex)
+void RemoveTexture(uint32 InSlotIndex)
 {
 	check(IsInRenderingThread());
 
@@ -1434,7 +1432,7 @@ void RemoveRectLightTexture(uint32 InSlotIndex)
 	}
 }
 
-FAtlasSlotDesc GetRectLightAtlasSlot(uint32 InSlotIndex)
+FAtlasSlotDesc GetAtlasSlot(uint32 InSlotIndex)
 {
 	FAtlasSlotDesc Out;
 	Out.UVOffset = FVector2f(0,0);
@@ -1470,7 +1468,7 @@ static FRDGTextureRef CreateRectLightAtlasTexture(FRDGBuilder& GraphBuilder, con
 		ERDGTextureFlags::MultiFrame);
 }
 
-void UpdateRectLightAtlasTexture(FRDGBuilder& GraphBuilder, const ERHIFeatureLevel::Type FeatureLevel)
+void UpdateAtlasTexture(FRDGBuilder& GraphBuilder, const ERHIFeatureLevel::Type FeatureLevel)
 {
 	if (GRectLightTextureManager.bLock)
 	{
@@ -1626,7 +1624,7 @@ void UpdateRectLightAtlasTexture(FRDGBuilder& GraphBuilder, const ERHIFeatureLev
 	}
 }
 
-void AddRectLightAtlasDebugPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture)
+void AddDebugPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture)
 {
 	if (CVarRectLighTextureDebug.GetValueOnRenderThread() > 0 && ShaderPrint::IsSupported(View.Family->GetShaderPlatform()))
 	{
@@ -1652,7 +1650,7 @@ void AddRectLightAtlasDebugPass(FRDGBuilder& GraphBuilder, const FViewInfo& View
 }
 
 
-FRHITexture* GetRectLightAtlasTexture()
+FRHITexture* GetAtlasTexture()
 {
 	return GRectLightTextureManager.AtlasTexture ? GRectLightTextureManager.AtlasTexture->GetRHI() : nullptr;
 }

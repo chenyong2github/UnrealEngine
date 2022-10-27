@@ -168,8 +168,6 @@ public:
 		SHADER_PARAMETER(FVector3f, LightFunctionParameters2)
 		SHADER_PARAMETER_STRUCT_REF(FDeferredLightUniformStruct, DeferredLightUniforms)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FMobileMovableLocalLightShadowParameters, MobileMovableLocalLightShadow)
-		SHADER_PARAMETER_TEXTURE(Texture2D, IESTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
@@ -683,13 +681,7 @@ static void RenderLocalLight(
 		RenderLocalLight_StencilMask(RHICmdList, Scene, View, LightSceneInfo);
 	}
 
-	bool bUseIESTexture = false;
-	FTexture* IESTextureResource = GWhiteTexture;
-	if (View.Family->EngineShowFlags.TexturedLightProfiles && LightSceneInfo.Proxy->GetIESTextureResource())
-	{
-		IESTextureResource = LightSceneInfo.Proxy->GetIESTextureResource();
-		bUseIESTexture = true;
-	}
+	const bool bUseIESTexture = View.Family->EngineShowFlags.TexturedLightProfiles && LightSceneInfo.Proxy->GetIESTextureResource();
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -729,8 +721,6 @@ static void RenderLocalLight(
 	const bool bShouldCastShadow = LightSceneInfo.SetupMobileMovableLocalLightShadowParameters(View, VisibleLightInfos, PassParameters.MobileMovableLocalLightShadow);
 
 	PassParameters.DeferredLightUniforms = TUniformBufferRef<FDeferredLightUniformStruct>::CreateUniformBufferImmediate(GetDeferredLightParameters(View, LightSceneInfo), EUniformBufferUsage::UniformBuffer_SingleFrame);
-	PassParameters.IESTexture = IESTextureResource->TextureRHI;
-	PassParameters.IESTextureSampler = IESTextureResource->SamplerStateRHI;
 	const float TanOuterAngle = bIsSpotLight ? FMath::Tan(LightSceneInfo.Proxy->GetOuterConeAngle()) : 1.0f;
 	PassParameters.LightFunctionParameters = FVector4f(TanOuterAngle, 1.0f /*ShadowFadeFraction*/, bIsSpotLight ? 1.0f : 0.0f, bIsPointLight ? 1.0f : 0.0f);
 	PassParameters.LightFunctionParameters2 = FVector3f(LightSceneInfo.Proxy->GetLightFunctionFadeDistance(), LightSceneInfo.Proxy->GetLightFunctionDisabledBrightness(), IsMobileMovableSpotlightShadowsEnabled(Scene.GetShaderPlatform()) ? 1.0f : 0.0f);
@@ -881,8 +871,6 @@ static void RenderSimpleLights(
 		FMobileRadialLightFunctionPS::FParameters PassParameters;
 		FDeferredLightUniformStruct DeferredLightUniformsValue = GetSimpleDeferredLightParameters(View, SimpleLight, SimpleLightPerViewData);
 		PassParameters.DeferredLightUniforms = TUniformBufferRef<FDeferredLightUniformStruct>::CreateUniformBufferImmediate(DeferredLightUniformsValue, EUniformBufferUsage::UniformBuffer_SingleFrame);
-		PassParameters.IESTexture = GWhiteTexture->TextureRHI;
-		PassParameters.IESTextureSampler = GWhiteTexture->SamplerStateRHI;
 
 		for (int32 PassIndex = 0; PassIndex < NumPasses; ++PassIndex)
 		{

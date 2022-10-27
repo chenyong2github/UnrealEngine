@@ -795,9 +795,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	, AntiAliasingMethod(AAM_None)
 	, PrimaryScreenPercentageMethod(EPrimaryScreenPercentageMethod::SpatialUpscale)
 	, FeatureLevel(InitOptions.ViewFamily ? InitOptions.ViewFamily->GetFeatureLevel() : GMaxRHIFeatureLevel)
-#if RHI_RAYTRACING
-	, IESLightProfileResource(nullptr)
-#endif
 {
 	check(UnscaledViewRect.Min.X >= 0);
 	check(UnscaledViewRect.Min.Y >= 0);

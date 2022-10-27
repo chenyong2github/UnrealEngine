@@ -24,7 +24,7 @@ struct FPathTracingLight {
 	float   Attenuation;
 	float   FalloffExponent; // for non-inverse square decay lights only
 	float   VolumetricScatteringIntensity;  // scale for volume contributions
-	int32   IESTextureSlice;
+	int32   IESAtlasIndex;
 	uint32  Flags; // see defines PATHTRACER_FLAG_*
 	uint32  MissShaderIndex;  // used to implement light functions
 	FVector3f TranslatedBoundMin;
@@ -82,7 +82,7 @@ struct FPathTracingLight {
 	float   Attenuation;
 	float   FalloffExponent;
 	float   VolumetricScatteringIntensity;  // scale for volume contributions
-	int     IESTextureSlice;
+	int     IESAtlasIndex;
 	uint    Flags;
 	uint    MissShaderIndex;
 	float3  TranslatedBoundMin;

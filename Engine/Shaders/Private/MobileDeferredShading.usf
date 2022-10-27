@@ -169,7 +169,7 @@ void MobileRadialLightPS(
 	
 	// Affect the light color by any other shadow/transmittance before the lighting is evaluated
 	{
-		half Attenuation = ComputeLightProfileMultiplier(TranslatedWorldPosition, DeferredLightUniforms.TranslatedWorldPosition, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent);
+		half Attenuation = ComputeLightProfileMultiplier(TranslatedWorldPosition, DeferredLightUniforms.TranslatedWorldPosition, -DeferredLightUniforms.Direction, DeferredLightUniforms.Tangent, DeferredLightUniforms.IESAtlasIndex);
 		LightData.Color *= Attenuation;
 	}
 

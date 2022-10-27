@@ -59,20 +59,14 @@ RAY_TRACING_ENTRY_MISS(RayTracingLightingMS, FPackedMaterialClosestHitPayload, P
 	float3 V = -CameraVector;
 	Payload.IndirectIrradiance = (float3)0;
 
-	int LightProfileIndex = -1;
-	int RectLightTextureIndex = -1;
 	uint LightType = 0;
-	FDeferredLightData LightData = GetRayTracingDeferredLightData(LightIndex, LightProfileIndex, LightType);
+	FDeferredLightData LightData = GetRayTracingDeferredLightData(LightIndex, LightType);
 
 	float4 LightAttenuation = 1.0f;
-	float LightProfileMultiplier = 1.0f;
 
 	float3 WorldPosition = TranslatedWorldRayOrigin(); // Shadow ray is traced from the shaded point
 
-	if (LightProfileIndex >= 0)
-	{
-		LightProfileMultiplier = ComputeRayTracingLightProfileMultiplier(WorldPosition, LightData.TranslatedWorldPosition, LightData.Direction, LightProfileIndex);
-	}
+	float LightProfileMultiplier = ComputeLightProfileMultiplier(WorldPosition, LightData.TranslatedWorldPosition, -LightData.Direction, LightData.Tangent, LightData.IESAtlasIndex);
 
 	const float Dither = 0.5f;
 	const uint2 SVPos = uint2(0, 0);

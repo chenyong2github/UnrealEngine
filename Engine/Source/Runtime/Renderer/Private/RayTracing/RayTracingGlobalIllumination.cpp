@@ -298,7 +298,7 @@ static void SetupLightParameters(
 
 		DestLight.FalloffExponent = LightShaderParameters.FalloffExponent;
 		DestLight.Attenuation = LightShaderParameters.InvRadius;
-		DestLight.IESTextureSlice = -1; // not used by this path at the moment
+		DestLight.IESAtlasIndex = LightShaderParameters.IESAtlasIndex;
 
 		ELightComponentType LightComponentType = (ELightComponentType)Light.LightSceneInfo->Proxy->GetLightType();
 		switch (LightComponentType)

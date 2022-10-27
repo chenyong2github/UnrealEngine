@@ -1326,6 +1326,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLightShaderParameters, ENGINE_API)
 	SHADER_PARAMETER(FVector2f, RectLightAtlasUVScale)
 	SHADER_PARAMETER(float, RectLightAtlasMaxLevel)
 
+	// UES texture slice index
+	SHADER_PARAMETER(float, IESAtlasIndex)
+
 END_SHADER_PARAMETER_STRUCT()
 
 
@@ -1394,6 +1397,9 @@ struct FLightRenderParameters
 	FVector2f RectLightAtlasUVOffset;
 	FVector2f RectLightAtlasUVScale;
 	float RectLightAtlasMaxLevel;
+
+	// IES atlas slice index
+	float IESAtlasIndex;
 
 	float InverseExposureBlend;
 
@@ -1844,6 +1850,9 @@ protected:
 
 	/** Deep shadow layer distribution. */
 	float DeepShadowLayerDistribution;
+
+	/** IES texture atlas id. */
+	uint32 IESAtlasId;
 
 	/**
 	 * Updates the light proxy's cached transforms.

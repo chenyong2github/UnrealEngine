@@ -7,6 +7,7 @@
 #include "RenderGraphBuilder.h"
 #include "ReflectionEnvironment.h"
 #include "RectLightTextureManager.h"
+#include "IESTextureManager.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "TextureResource.h"
 #include "UObject/UObjectIterator.h"
@@ -61,6 +62,24 @@ FLocalLightRenderState::FLocalLightRenderState(ULightComponent* LightComponent)
 	bStationary = LightComponent->Mobility == EComponentMobility::Stationary;
 	bCastShadow = LightComponent->CastShadows && LightComponent->CastStaticShadows;
 	ShadowMapChannel = LightComponent->PreviewShadowMapChannel;
+	IESTexture = LightComponent->IESTexture ? LightComponent->IESTexture : nullptr;
+}
+
+void FLocalLightRenderState::RenderThreadInit()
+{
+	if (IESTexture)
+	{
+		IESAtlasId = IESAtlas::AddTexture(IESTexture);
+		IESAtlasIndex = IESAtlas::GetAtlasSlot(IESAtlasId);
+	}
+}
+
+void FLocalLightRenderState::RenderThreadFinalize()
+{
+	if (IESTexture)
+	{
+		IESAtlas::RemoveTexture(IESAtlasId);
+	}
 }
 
 FDirectionalLightBuildInfo::FDirectionalLightBuildInfo(UDirectionalLightComponent* DirectionalLightComponent)
@@ -123,7 +142,6 @@ FPointLightRenderState::FPointLightRenderState(UPointLightComponent* PointLightC
 	ShadowMapChannel = PointLightComponent->PreviewShadowMapChannel;
 	FalloffExponent = PointLightComponent->LightFalloffExponent;
 	IsInverseSquared = PointLightComponent->bUseInverseSquaredFalloff;
-	IESTexture = PointLightComponent->IESTexture ? PointLightComponent->IESTexture->GetResource() : nullptr;
 }
 
 FSpotLightBuildInfo::FSpotLightBuildInfo(USpotLightComponent* SpotLightComponent)
@@ -191,7 +209,6 @@ FSpotLightRenderState::FSpotLightRenderState(USpotLightComponent* SpotLightCompo
 	ShadowMapChannel = SpotLightComponent->PreviewShadowMapChannel;
 	FalloffExponent = SpotLightComponent->LightFalloffExponent;
 	IsInverseSquared = SpotLightComponent->bUseInverseSquaredFalloff;
-	IESTexture = SpotLightComponent->IESTexture ? SpotLightComponent->IESTexture->GetResource() : nullptr;
 }
 
 FRectLightBuildInfo::FRectLightBuildInfo(URectLightComponent* RectLightComponent)
@@ -223,15 +240,15 @@ FRectLightRenderState::FRectLightRenderState(URectLightComponent* RectLightCompo
 	BarnDoorLength = FMath::Max(0.1f, RectLightComponent->BarnDoorLength);
 	AttenuationRadius = RectLightComponent->AttenuationRadius;
 	ShadowMapChannel = RectLightComponent->PreviewShadowMapChannel;
-	IESTexture = RectLightComponent->IESTexture ? RectLightComponent->IESTexture->GetResource() : nullptr;
 	SourceTexture = RectLightComponent->SourceTexture;
 }
 
 void FRectLightRenderState::RenderThreadInit()
 {
-	AtlasSlotIndex = RectLightAtlas::AddRectLightTexture(SourceTexture);
+	FLocalLightRenderState::RenderThreadInit();
+	RectAtlasId = RectLightAtlas::AddTexture(SourceTexture);
 
-	const RectLightAtlas::FAtlasSlotDesc Slot = RectLightAtlas::GetRectLightAtlasSlot(AtlasSlotIndex);
+	const RectLightAtlas::FAtlasSlotDesc Slot = RectLightAtlas::GetAtlasSlot(RectAtlasId);
 	RectLightAtlasUVOffset = Slot.UVOffset;
 	RectLightAtlasUVScale = Slot.UVScale;
 	RectLightAtlasMaxLevel = Slot.MaxMipLevel;
@@ -239,7 +256,9 @@ void FRectLightRenderState::RenderThreadInit()
 
 void FRectLightRenderState::RenderThreadFinalize()
 {
-	RectLightAtlas::RemoveRectLightTexture(AtlasSlotIndex);
+	FLocalLightRenderState::RenderThreadFinalize();
+	RectLightAtlas::RemoveTexture(RectAtlasId);
+	RectAtlasId = INDEX_NONE;
 }
 
 FLightRenderParameters FDirectionalLightRenderState::GetLightShaderParameters() const

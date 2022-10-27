@@ -86,13 +86,16 @@ struct FLocalLightBuildInfo
 struct FLocalLightRenderState
 {
 	FLocalLightRenderState(ULightComponent* LightComponent);
-	virtual void RenderThreadInit()  {}
-	virtual void RenderThreadFinalize()  {}
+	virtual void RenderThreadInit();
+	virtual void RenderThreadFinalize();
 	virtual ~FLocalLightRenderState() {}
 
 	bool bStationary = false;
 	bool bCastShadow = true;
 	int ShadowMapChannel = INDEX_NONE;
+	uint32 IESAtlasId = INDEX_NONE;
+	float IESAtlasIndex = INDEX_NONE;
+	UTexture* IESTexture = nullptr;
 	
 	TSharedPtr<FLightComponentMapBuildData, ESPMode::ThreadSafe> LightComponentMapBuildData;
 
@@ -241,7 +244,6 @@ struct FPointLightRenderState : public FLocalLightRenderState
 	float SourceLength;
 	float FalloffExponent;
 	bool IsInverseSquared;
-	FTexture* IESTexture;
 
 	virtual FLightRenderParameters GetLightShaderParameters() const override;
 	virtual void RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, FSceneRenderState& RenderState) override;
@@ -264,7 +266,6 @@ struct FSpotLightRenderState : public FLocalLightRenderState
 	float SourceLength;
 	float FalloffExponent;
 	bool IsInverseSquared;
-	FTexture* IESTexture;
 
 	virtual FLightRenderParameters GetLightShaderParameters() const override;
 	virtual void RenderStaticShadowDepthMap(FRHICommandListImmediate& RHICmdList, FSceneRenderState& RenderState) override;
@@ -287,9 +288,8 @@ struct FRectLightRenderState : public FLocalLightRenderState
 	float SourceHeight;
 	float BarnDoorAngle;
 	float BarnDoorLength;
-	FTexture* IESTexture;
 	UTexture* SourceTexture;
-	uint32 AtlasSlotIndex;
+	uint32 RectAtlasId;
 	FVector2f RectLightAtlasUVOffset;
 	FVector2f RectLightAtlasUVScale;
 	float RectLightAtlasMaxLevel;

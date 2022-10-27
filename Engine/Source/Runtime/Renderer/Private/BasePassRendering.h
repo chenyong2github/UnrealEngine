@@ -52,7 +52,7 @@ public:
 	FVector4f LightColorAndFalloffExponent;
 	FVector4f LightDirectionAndShadowMapChannelMask;
 	FVector4f SpotAnglesAndIdAndSourceRadiusPacked;
-	FVector4f LightTangentAndSpecularScale;
+	FVector4f LightTangentAndIESDataAndSpecularScale;
 	FVector4f RectDataAndVirtualShadowMapId;
 };
 

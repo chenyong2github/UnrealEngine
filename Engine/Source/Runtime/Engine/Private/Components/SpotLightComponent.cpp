@@ -72,8 +72,13 @@ public:
 		LightParameters.RectLightAtlasUVOffset = FVector2f::ZeroVector;
 		LightParameters.RectLightAtlasUVScale = FVector2f::ZeroVector;
 		LightParameters.RectLightAtlasMaxLevel = FLightRenderParameters::GetRectLightAtlasInvalidMIPLevel();
-
+		LightParameters.IESAtlasIndex = INDEX_NONE;
 		LightParameters.InverseExposureBlend = InverseExposureBlend;
+
+		if (IESAtlasId != uint32(INDEX_NONE))
+		{
+			GetSceneInterface()->GetLightIESAtlasSlot(this, &LightParameters);
+		}
 	}
 
 	// FLightSceneInfo interface.

@@ -5221,10 +5221,6 @@ void FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 		for (int32 ViewIndex = Views.Num() - 1; ViewIndex >= 0; --ViewIndex)
 		{
 			FViewInfo& View = Views[ViewIndex];
-
-#if RHI_RAYTRACING
-			View.IESLightProfileResource = View.ViewState ? &View.ViewState->IESLightProfileResources : nullptr;
-#endif
 			// Set the pre-exposure before initializing the constant buffers.
 			if (View.ViewState)
 			{

@@ -65,6 +65,7 @@
 #include "VelocityRendering.h"
 #include "RectLightSceneProxy.h"
 #include "RectLightTextureManager.h"
+#include "IESTextureManager.h"
 
 #if RHI_RAYTRACING
 #include "Nanite/NaniteRayTracing.h"
@@ -1042,13 +1043,6 @@ uint64 FLumenSceneData::GetGPUSizeBytes(bool bLogSizes) const
 		PageTableUploadBuffer.GetNumBytes();
 }
 
-#if RHI_RAYTRACING
-uint64 FIESLightProfileResource::GetGPUSizeBytes(bool bLogSizes) const
-{
-	return GetTextureGPUSizeBytes(DefaultTexture, bLogSizes) + GetTextureGPUSizeBytes(AtlasTexture, bLogSizes);
-}
-#endif
-
 uint64 FPersistentGlobalDistanceFieldData::GetGPUSizeBytes(bool bLogSizes) const
 {
 	uint64 TotalSize =
@@ -1152,7 +1146,6 @@ uint64 FSceneViewState::GetGPUSizeBytes(bool bLogSizes) const
 	TotalSize += GetBufferGPUSizeBytes(BloomFFTKernel.ConstantsBuffer, bLogSizes);
 	TotalSize += GetBufferGPUSizeBytes(FilmGrainCache.ConstantsBuffer, bLogSizes);
 #if RHI_RAYTRACING
-	TotalSize += IESLightProfileResources.GetGPUSizeBytes(bLogSizes);
 	TotalSize += GetRenderTargetGPUSizeBytes(ImaginaryReflectionGBufferA, bLogSizes);
 	TotalSize += GetRenderTargetGPUSizeBytes(ImaginaryReflectionDepthZ, bLogSizes);
 	TotalSize += GetRenderTargetGPUSizeBytes(ImaginaryReflectionVelocity, bLogSizes);
@@ -2636,11 +2629,17 @@ void FScene::AddLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 		}
 	}
 
-	// Register rect. light source texture
+	// Register rect. light texture
 	if (LightType == LightType_Rect)
 	{
 		FRectLightSceneProxy* RectProxy = (FRectLightSceneProxy*)LightSceneInfo->Proxy;
-		RectProxy->AtlasSlotIndex = RectLightAtlas::AddRectLightTexture(RectProxy->SourceTexture);
+		RectProxy->RectAtlasId = RectLightAtlas::AddTexture(RectProxy->SourceTexture);
+	}
+
+	// Register IES texture
+	if (UTexture* IESTexture = LightSceneInfo->Proxy->GetIESTexture())
+	{
+		LightSceneInfo->Proxy->IESAtlasId = IESAtlas::AddTexture(IESTexture);
 	}
 
 	const EShaderPlatform ShaderPlatform = GetShaderPlatform();
@@ -3018,12 +3017,22 @@ void FScene::RemoveHairStrands(FHairStrandsInstance* Proxy)
 	}
 }
 
+
+void FScene::GetLightIESAtlasSlot(const FLightSceneProxy* Proxy, FLightRenderParameters* Out)
+{
+	if (Proxy)
+	{
+		check(IsInRenderingThread());
+		Out->IESAtlasIndex = IESAtlas::GetAtlasSlot(Proxy->IESAtlasId);
+	}
+}
+
 void FScene::GetRectLightAtlasSlot(const FRectLightSceneProxy* Proxy, FLightRenderParameters* Out)
 {
 	if (Proxy)
 	{
 		check(IsInRenderingThread());
-		const RectLightAtlas::FAtlasSlotDesc Slot = RectLightAtlas::GetRectLightAtlasSlot(Proxy->AtlasSlotIndex);
+		const RectLightAtlas::FAtlasSlotDesc Slot = RectLightAtlas::GetAtlasSlot(Proxy->RectAtlasId);
 		Out->RectLightAtlasUVOffset = Slot.UVOffset;
 		Out->RectLightAtlasUVScale = Slot.UVScale;
 		Out->RectLightAtlasMaxLevel = Slot.MaxMipLevel;
@@ -3916,7 +3925,12 @@ void FScene::RemoveLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 	if (LightSceneInfo->Proxy->GetLightType() == LightType_Rect)
 	{
 		const FRectLightSceneProxy* RectProxy = (const FRectLightSceneProxy*)LightSceneInfo->Proxy;
-		RectLightAtlas::RemoveRectLightTexture(RectProxy->AtlasSlotIndex);
+		RectLightAtlas::RemoveTexture(RectProxy->RectAtlasId);
+	}
+
+	if (UTexture* IESTexture = LightSceneInfo->Proxy->GetIESTexture())
+	{
+		IESAtlas::RemoveTexture(LightSceneInfo->Proxy->IESAtlasId);
 	}
 
 	// Free the light scene info and proxy.
@@ -6120,6 +6134,7 @@ public:
 
 	virtual void AddHairStrands(FHairStrandsInstance* Proxy) override {}
 	virtual void RemoveHairStrands(FHairStrandsInstance* Proxy) override {}
+	virtual void GetLightIESAtlasSlot(const FLightSceneProxy* Proxy, FLightRenderParameters* Out) override {}
 	virtual void GetRectLightAtlasSlot(const FRectLightSceneProxy* Proxy, FLightRenderParameters* Out) override {}
 
 	virtual void SetPhysicsField(FPhysicsFieldSceneProxy* PhysicsFieldSceneProxy) override {}

@@ -75,7 +75,7 @@ struct FLocalLightData
 	float4 LightColorAndFalloffExponent;
 	float4 SpotAnglesAndIdAndSourceRadiusPacked;
 	float4 LightDirectionAndShadowMask;
-	float4 LightTangentAndSpecularScale;
+	float4 LightTangentAndIESDataAndSpecularScale;
 	float4 RectDataAndVirtualShadowMapId;
 
 	// Derived terms after unpacking
@@ -126,6 +126,7 @@ struct FLightShaderParameters
 	float2 RectLightAtlasUVOffset;
 	float2 RectLightAtlasUVScale;
 	float  RectLightAtlasMaxLevel;
+	float  IESAtlasIndex;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -169,6 +170,8 @@ struct FDeferredLightData
 	uint   ShadowedBits;
 	/** Rect light data. */
 	FRectLightData RectLightData;
+	/** IES data. */
+	float  IESAtlasIndex;
 	/** Hair transmittance data. */
 	FHairTransmittanceData HairTransmittance;
 };
@@ -231,6 +234,16 @@ float2 GetLightSpotAngles(FLocalLightData In)
 	return SpotAngles;
 }
 
+float UnpackLightSpecularScale(FLocalLightData In)
+{
+	return f16tof32(asuint(In.LightTangentAndIESDataAndSpecularScale.w) & 0xFFFF);
+}
+
+float UnpackLigthIESAtlasIndex(FLocalLightData In)
+{
+	return f16tof32(asuint(In.LightTangentAndIESDataAndSpecularScale.w) >> 16);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Conversion functions
  
@@ -263,10 +276,10 @@ FDeferredLightData ConvertToDeferredLight(
 	Out.SpotAngles				= GetLightSpotAngles(In);
 	Out.SourceRadius			= UnpackLightSourceRadius(In);
 	Out.SourceLength			= UnpackLightSourceLength(In);
-	Out.Tangent					= In.LightTangentAndSpecularScale.xyz;
+	Out.Tangent					= In.LightTangentAndIESDataAndSpecularScale.xyz;
 	Out.SoftSourceRadius		= UnpackLightSoftSourceRadius(In);
 	Out.bInverseSquared			= Out.FalloffExponent == 0;
-	Out.SpecularScale			= In.LightTangentAndSpecularScale.w * InSpecularScale;
+	Out.SpecularScale			= UnpackLightSpecularScale(In) * InSpecularScale;
 	Out.bRadialLight			= true;
 	Out.bSpotLight				= LightType == LIGHT_TYPE_SPOT;
 	Out.bRectLight				= LightType == LIGHT_TYPE_RECT;
@@ -275,6 +288,8 @@ FDeferredLightData ConvertToDeferredLight(
 									asuint(In.RectDataAndVirtualShadowMapId.x),
 									asuint(In.RectDataAndVirtualShadowMapId.y),
 									asuint(In.RectDataAndVirtualShadowMapId.w));
+	Out.IESAtlasIndex			= UnpackLigthIESAtlasIndex(In);
+
 	// Shadow
 	// * Static shadowing uses ShadowMapChannel, 
 	// * Dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
@@ -346,9 +361,10 @@ FLightShaderParameters ConvertFromLocal(const FLocalLightData In)
 	Out.Color					= In.LightColorAndFalloffExponent.xyz;
 	Out.FalloffExponent			= In.LightColorAndFalloffExponent.w;
 	Out.Direction				= In.LightDirectionAndShadowMask.xyz;
-	Out.Tangent					= In.LightTangentAndSpecularScale.xyz;
+	Out.Tangent					= In.LightTangentAndIESDataAndSpecularScale.xyz;
 	Out.SpotAngles				= GetLightSpotAngles(In);
-	Out.SpecularScale			= In.LightTangentAndSpecularScale.w;
+	Out.SpecularScale			= UnpackLightSpecularScale(In);
+	Out.IESAtlasIndex			= UnpackLigthIESAtlasIndex(In);
 	Out.SourceRadius			= UnpackLightSourceRadius(In);
 	Out.SoftSourceRadius		= UnpackLightSoftSourceRadius(In);
 	Out.SourceLength			= UnpackLightSourceLength(In);
