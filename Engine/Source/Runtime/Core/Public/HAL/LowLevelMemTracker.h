@@ -535,13 +535,13 @@ public:
 	/**
 	 * Records the use of memory that was allocated for a pointer.
 	 *
-	 * @param Tracker - Which tracker to use, the high-level default tracker for regular engine allocations, or the
-	 *                  low-level platform tracker for memory management systems.
-	 * @param Ptr - The pointer that was allocated.
-	 * @param Size - The size of the memory that was allocated for the pointer.
-	 * @param DefaultTag - The tag to use if there is no tag already in scope on the callstack.
-	 * @param AllocType - Type of allocation, FMalloc for regular allocations done through GMalloc, System for others.
-	 * @param bTrackInMemPro - Whether to pass the allocation/free information on to FMemProProfiler
+	 * @param Tracker Which tracker to use, the high-level default tracker for regular engine allocations, or the
+	 *        low-level platform tracker for memory management systems.
+	 * @param Ptr The pointer that was allocated.
+	 * @param Size The size of the memory that was allocated for the pointer.
+	 * @param DefaultTag The tag to use if there is no tag already in scope on the callstack.
+	 * @param AllocType Type of allocation, FMalloc for regular allocations done through GMalloc, System for others.
+	 * @param bTrackInMemPro Whether to pass the allocation/free information on to FMemProProfiler.
 	 */
 	void OnLowLevelAlloc(ELLMTracker Tracker, const void* Ptr, uint64 Size, ELLMTag DefaultTag = ELLMTag::Untagged,
 		ELLMAllocType AllocType = ELLMAllocType::None, bool bTrackInMemPro = true);
@@ -551,14 +551,26 @@ public:
 	/**
 	 * Records the release of memory that was allocated for a pointer.
 	 *
-	 * @param Tracker - Which tracker to use, the high-level default tracker for regular engine allocations, or the
-	 *                  low-level platform tracker for memory management systems.
-	 * @param Ptr - The pointer that was freed.
-	 * @param AllocType - Type of allocation, FMalloc for regular allocations done through GMalloc, System for others.
-	 * @param bTrackInMemPro - Whether to pass the allocation/free information on to FMemProProfiler
+	 * @param Tracker Which tracker to use, the high-level default tracker for regular engine allocations, or the
+	 *        low-level platform tracker for memory management systems.
+	 * @param Ptr The pointer that was freed.
+	 * @param AllocType Type of allocation, FMalloc for regular allocations done through GMalloc, System for others.
+	 * @param bTrackInMemPro Whether to pass the allocation/free information on to FMemProProfiler.
 	 */
 	void OnLowLevelFree(ELLMTracker Tracker, const void* Ptr,
 		ELLMAllocType AllocType = ELLMAllocType::None, bool bTrackInMemPro = true);
+
+	/**
+	 * Records an allocation or release of memory by a system that is not directly associated with a single pointer.
+	 *
+	 * @param Tracker Which tracker to use, the high-level default tracker for regular engine allocations, or the
+	 *        low-level platform tracker for memory management systems.
+	 * @param DeltaMemory The amount of memory that was allocated (positive) or freed (negative)
+	 * @param DefaultTag The tag to use if there is no tag already in scope on the callstack.
+	 * @param AllocType Type of allocation, FMalloc for regular allocations done through GMalloc, System for others.
+	 */
+	void OnLowLevelChangeInMemoryUse(ELLMTracker Tracker, int64 DeltaMemory, ELLMTag DefaultTag = ELLMTag::Untagged, ELLMAllocType AllocType = ELLMAllocType::None);
+	void OnLowLevelChangeInMemoryUse(ELLMTracker Tracker, int64 DeltaMemory, FName DefaultTag, ELLMAllocType AllocType = ELLMAllocType::None);
 
 	/** Call if an allocation is moved in memory, such as in a defragger. */
 	void OnLowLevelAllocMoved(ELLMTracker Tracker, const void* Dest, const void* Source,
