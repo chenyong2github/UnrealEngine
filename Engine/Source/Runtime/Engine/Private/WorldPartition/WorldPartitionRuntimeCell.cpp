@@ -57,12 +57,6 @@ void UWorldPartitionRuntimeCell::SetDebugInfo(int64 InCoordX, int64 InCoordY, in
 	UpdateDebugName();
 }
 
-void UWorldPartitionRuntimeCell::SetGridName(FName InGridName)
-{
-	DebugInfo.GridName = InGridName;
-	UpdateDebugName();
-}
-
 void UWorldPartitionRuntimeCell::UpdateDebugName()
 {
 	TStringBuilder<512> Builder;
@@ -129,10 +123,11 @@ int32 UWorldPartitionRuntimeCell::SortCompare(const UWorldPartitionRuntimeCell* 
 
 bool UWorldPartitionRuntimeCell::IsDebugShown() const
 {
-	return FWorldPartitionDebugHelper::IsDebugRuntimeHashGridShown(DebugInfo.GridName) &&
+	return FWorldPartitionDebugHelper::IsDebugRuntimeHashGridShown(GetGridName()) &&
 		   FWorldPartitionDebugHelper::IsDebugStreamingStatusShown(GetStreamingStatus()) &&
-		   FWorldPartitionDebugHelper::AreDebugDataLayersShown(DataLayers) &&
-		   FWorldPartitionDebugHelper::IsDebugCellNameShown(DebugInfo.Name);
+	       FWorldPartitionDebugHelper::AreDebugDataLayersShown(DataLayers) &&
+		   FWorldPartitionDebugHelper::IsDebugCellNameShown(DebugInfo.Name) &&
+		   (FWorldPartitionDebugHelper::CanDrawContentBundles() || !ContentBundleID.IsValid());
 }
 
 FLinearColor UWorldPartitionRuntimeCell::GetDebugStreamingPriorityColor() const

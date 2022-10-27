@@ -8,6 +8,8 @@
 #include "WorldPartition/ContentBundle/ContentBundleClient.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
+#include "WorldPartition/WorldPartitionDebugHelper.h"
+#include "Engine/Canvas.h"
 #include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBundleWorldSubsystem)
@@ -66,6 +68,58 @@ void UContentBundleManager::AddReferencedObjects(UObject* InThis, FReferenceColl
 	}
 }
 
+void UContentBundleManager::DrawContentBundlesStatus(const UWorld* InWorld, UCanvas* Canvas, FVector2D& Offset) const
+{
+	if (const TUniquePtr<FContentBundleContainer>* ContentBundleContainer = GetContentBundleContainer(InWorld))
+	{
+		if ((*ContentBundleContainer)->GetNumContentBundles())
+		{
+			FVector2D Pos = Offset;
+			float MaxTextWidth = 0.f;
+
+			bool bHasInjectedContentBundle = false;
+			(*ContentBundleContainer)->ForEachContentBundleBreakable([&bHasInjectedContentBundle](FContentBundleBase* ContentBundle)
+			{
+				if (ContentBundle->GetStatus() == EContentBundleStatus::ContentInjected)
+				{
+					bHasInjectedContentBundle = true;
+				}
+				return !bHasInjectedContentBundle;
+			});
+
+			if (bHasInjectedContentBundle)
+			{
+				FWorldPartitionDebugHelper::DrawText(Canvas, TEXT("Injected Content Bundles"), GEngine->GetSmallFont(), FColor::Green, Pos, &MaxTextWidth);
+
+				(*ContentBundleContainer)->ForEachContentBundle([&Offset, &Canvas, &Pos, &MaxTextWidth](FContentBundleBase* ContentBundle)
+				{
+					FWorldPartitionDebugHelper::DrawLegendItem(Canvas, *ContentBundle->GetDisplayName(), GEngine->GetSmallFont(), ContentBundle->GetDebugColor(), FColor::White, Pos, &MaxTextWidth);
+				});
+			}
+
+			Offset.X += MaxTextWidth + 10;
+		}
+	}
+}
+
+const FContentBundleBase* UContentBundleManager::GetContentBundle(const UWorld* InWorld, const FGuid& Guid) const
+{
+	const FContentBundleBase* FoundContentBundle = nullptr;
+	if (const TUniquePtr<FContentBundleContainer>* ContentBundleContainer = GetContentBundleContainer(InWorld))
+	{
+		(*ContentBundleContainer)->ForEachContentBundleBreakable([&FoundContentBundle, &Guid](FContentBundleBase* ContentBundle)
+		{
+			if (ContentBundle->GetDescriptor()->GetGuid() == Guid)
+			{
+				FoundContentBundle = ContentBundle;
+				return false;
+			}
+			return true;
+		});
+	}
+	return FoundContentBundle;
+}
+
 #if WITH_EDITOR
 
 bool UContentBundleManager::GetEditorContentBundle(TArray<TSharedPtr<FContentBundleEditor>>& OutContentBundles)
@@ -93,7 +147,7 @@ TSharedPtr<FContentBundleEditor> UContentBundleManager::GetEditorContentBundle(c
 
 #endif
 
-uint32 UContentBundleManager::GetContentBundleContainerIndex(const UWorld* InjectedWorld)
+uint32 UContentBundleManager::GetContentBundleContainerIndex(const UWorld* InjectedWorld) const
 {
 	return ContentBundleContainers.IndexOfByPredicate([InjectedWorld](const TUniquePtr<FContentBundleContainer>& ContentBundleContainer)
 		{
@@ -101,7 +155,7 @@ uint32 UContentBundleManager::GetContentBundleContainerIndex(const UWorld* Injec
 		});
 }
 
-TUniquePtr<FContentBundleContainer>* UContentBundleManager::GetContentBundleContainer(const UWorld* InjectedWorld)
+const TUniquePtr<FContentBundleContainer>* UContentBundleManager::GetContentBundleContainer(const UWorld* InjectedWorld) const
 {
 	uint32 ContainerIndex = GetContentBundleContainerIndex(InjectedWorld);
 	if (ContainerIndex != INDEX_NONE)

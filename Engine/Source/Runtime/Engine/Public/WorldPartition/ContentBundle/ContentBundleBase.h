@@ -26,6 +26,7 @@ public:
 
 	UWorld* GetInjectedWorld() const;
 	const FString& GetDisplayName() const;
+	const FColor& GetDebugColor() const;
 	const TWeakPtr<FContentBundleClient>& GetClient() const;
 	const UContentBundleDescriptor* GetDescriptor() const;
 	EContentBundleStatus GetStatus() const { return Status; }

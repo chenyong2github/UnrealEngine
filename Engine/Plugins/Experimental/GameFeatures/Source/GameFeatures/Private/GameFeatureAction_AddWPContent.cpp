@@ -17,11 +17,7 @@ UGameFeatureAction_AddWPContent::UGameFeatureAction_AddWPContent(const FObjectIn
 #if WITH_EDITOR
 	if (UGameFeatureData* GameFeatureData = GetTypedOuter<UGameFeatureData>())
 	{
-		ContentBundleDescriptor->SetDisplayName(GameFeatureData->GetName());
-
-		FString PackagePath = GetPackage()->GetName();
-		FName MountPoint = FPackageName::GetPackageMountPoint(PackagePath);
-		ContentBundleDescriptor->SetPackageRoot(MountPoint.ToString());
+		ContentBundleDescriptor->InitializeObject(GameFeatureData->GetName(), FPackageName::GetPackageMountPoint(GetPackage()->GetName()).ToString());
 	}
 #endif
 }

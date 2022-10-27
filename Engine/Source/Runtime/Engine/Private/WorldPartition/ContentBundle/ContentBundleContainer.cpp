@@ -83,7 +83,7 @@ uint32 FContentBundleContainer::GetNumContentBundles() const
 #if WITH_EDITOR
 	if(UseEditorContentBundle())
 	{
-		GetEditorContentBundles().Num();
+		return GetEditorContentBundles().Num();
 	}
 #endif
 

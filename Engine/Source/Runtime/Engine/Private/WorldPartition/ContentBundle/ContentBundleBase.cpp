@@ -104,6 +104,11 @@ const FString& FContentBundleBase::GetDisplayName() const
 	return GetDescriptor()->GetDisplayName();
 }
 
+const FColor& FContentBundleBase::GetDebugColor() const
+{
+	return GetDescriptor()->GetDebugColor();
+}
+
 void FContentBundleBase::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(Descriptor);

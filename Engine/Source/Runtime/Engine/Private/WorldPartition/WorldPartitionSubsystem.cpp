@@ -5,6 +5,7 @@
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionDebugHelper.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 #include "HAL/IConsoleManager.h"
 #include "Engine/Canvas.h"
 #include "Engine/Console.h"
@@ -441,17 +442,22 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 		}
 	}
 
-	UDataLayerSubsystem* DataLayerSubsystem = WorldPartition->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-
 	if (GDrawLegends || GDrawRuntimeHash2D)
 	{
 		// Streaming Status Legend
 		WorldPartition->DrawStreamingStatusLegend(Canvas, CurrentOffset);
 	}
 
+	UDataLayerSubsystem* DataLayerSubsystem = WorldPartition->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
 	if (DataLayerSubsystem && (GDrawDataLayers || GDrawDataLayersLoadTime || GDrawRuntimeHash2D))
 	{
 		DataLayerSubsystem->DrawDataLayersStatus(Canvas, CurrentOffset);
+	}
+
+	UContentBundleManager* ContentBundleManager = GetWorld()->ContentBundleManager;
+	if (ContentBundleManager && (FWorldPartitionDebugHelper::CanDrawContentBundles() && GDrawRuntimeHash2D))
+	{
+		ContentBundleManager->DrawContentBundlesStatus(GetWorld(), Canvas, CurrentOffset);
 	}
 
 	if (GDrawRuntimeCellsDetails)

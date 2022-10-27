@@ -14,6 +14,7 @@ class UContentBundleDescriptor;
 class FContentBundleClient;
 class FContentBundleEditor;
 class UWorldPartition;
+class UCanvas;
 
 #if WITH_EDITOR
 class URuntimeHashExternalStreamingObjectBase;
@@ -40,9 +41,12 @@ public:
 	UContentBundleDuplicateForPIEHelper* GetPIEDuplicateHelper() const { return PIEDuplicateHelper; }
 #endif
 
+	const FContentBundleBase* GetContentBundle(const UWorld* InWorld, const FGuid& Guid) const;
+	void DrawContentBundlesStatus(const UWorld* InWorld, UCanvas* Canvas, FVector2D& Offset) const;
+
 private:
-	uint32 GetContentBundleContainerIndex(const UWorld* InjectedWorld);
-	TUniquePtr<FContentBundleContainer>* GetContentBundleContainer(const UWorld* InjectedWorld);
+	uint32 GetContentBundleContainerIndex(const UWorld* InjectedWorld) const;
+	const TUniquePtr<FContentBundleContainer>* GetContentBundleContainer(const UWorld* InjectedWorld) const;
 
 	void OnWorldPartitionInitialized(UWorldPartition* WorldPartition);
 	void OnWorldPartitionUninitialized(UWorldPartition* WorldPartition);
