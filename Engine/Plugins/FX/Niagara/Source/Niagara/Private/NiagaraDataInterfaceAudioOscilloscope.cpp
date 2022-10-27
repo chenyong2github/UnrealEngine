@@ -48,9 +48,6 @@ FNiagaraDataInterfaceProxyOscilloscope::~FNiagaraDataInterfaceProxyOscilloscope(
 {
 	check(IsInRenderingThread());
 	GPUDownsampledBuffer.Release();
-
-	FAudioDeviceManagerDelegates::OnAudioDeviceCreated.Remove(DeviceCreatedHandle);
-	FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(DeviceDestroyedHandle);
 }
 
 void FNiagaraDataInterfaceProxyOscilloscope::RegisterToAllAudioDevices()
@@ -410,6 +407,10 @@ void UNiagaraDataInterfaceAudioOscilloscope::PostInitProperties()
 
 void FNiagaraDataInterfaceProxyOscilloscope::OnBeginDestroy()
 {
+	check(IsInGameThread());
+	FAudioDeviceManagerDelegates::OnAudioDeviceCreated.Remove(DeviceCreatedHandle);
+	FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(DeviceDestroyedHandle);
+
 	if (bIsSubmixListenerRegistered)
 	{
 		UnregisterFromAllAudioDevices(SubmixRegisteredTo);

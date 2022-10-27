@@ -429,15 +429,6 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 
 	PerfTrackers = new FWorldInGamePerformanceTrackers();
 
-	AudioDeviceDestroyedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.AddLambda([this](const Audio::FDeviceId InDeviceId)
-	{
-		if (InDeviceId == AudioDeviceHandle.GetDeviceID())
-		{
-			FAudioDeviceHandle EmptyHandle;
-			SetAudioDevice(EmptyHandle);
-		}
-	});
-
 	IsInBlockTillLevelStreamingCompleted = 0;
 	BlockTillLevelStreamingCompletedEpoch = 0;
 }
@@ -1051,14 +1042,9 @@ void UWorld::BeginDestroy()
 		Scene->UpdateParameterCollections(TArray<FMaterialParameterCollectionInstanceResource*>());
 	}
 
-	if (AudioDeviceDestroyedHandle.IsValid())
-	{
-		FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(AudioDeviceDestroyedHandle);
-		AudioDeviceDestroyedHandle.Reset();
-	}
-
 	FAudioDeviceHandle EmptyHandle;
 	SetAudioDevice(EmptyHandle);
+	check(!AudioDeviceDestroyedHandle.IsValid());
 
 #if UE_WITH_IRIS
 	if (IrisSystemHolder.IsHolding())
@@ -8714,6 +8700,8 @@ void UWorld::AddPostProcessingSettings(FVector ViewLocation, FSceneView* SceneVi
 
 void UWorld::SetAudioDevice(const FAudioDeviceHandle& InHandle)
 {
+	check(IsInGameThread());
+
 	if (InHandle.GetDeviceID() == AudioDeviceHandle.GetDeviceID())
 	{
 		return;
@@ -8741,6 +8729,23 @@ void UWorld::SetAudioDevice(const FAudioDeviceHandle& InHandle)
 	else
 	{
 		AudioDeviceHandle.Reset();
+	}
+
+	if (AudioDeviceHandle.IsValid() && !AudioDeviceDestroyedHandle.IsValid())
+	{
+		AudioDeviceDestroyedHandle = FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.AddLambda([this](const Audio::FDeviceId InDeviceId)
+		{
+			if (InDeviceId == AudioDeviceHandle.GetDeviceID())
+			{
+				FAudioDeviceHandle EmptyHandle;
+				SetAudioDevice(EmptyHandle);
+			}
+		});
+	}
+	else if (!AudioDeviceHandle.IsValid() && AudioDeviceDestroyedHandle.IsValid())
+	{
+		FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(AudioDeviceDestroyedHandle);
+		AudioDeviceDestroyedHandle.Reset();
 	}
 }
 

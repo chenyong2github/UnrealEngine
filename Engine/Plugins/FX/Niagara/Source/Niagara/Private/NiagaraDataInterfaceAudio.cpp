@@ -124,8 +124,7 @@ FNiagaraDataInterfaceProxySubmix::FNiagaraDataInterfaceProxySubmix(int32 InNumSa
 
 FNiagaraDataInterfaceProxySubmix::~FNiagaraDataInterfaceProxySubmix()
 {
-	FAudioDeviceManagerDelegates::OnAudioDeviceCreated.Remove(DeviceCreatedHandle);
-	FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(DeviceDestroyedHandle);
+	check(IsInRenderingThread());
 }
 
 void FNiagaraDataInterfaceProxySubmix::RegisterToAllAudioDevices()
@@ -235,6 +234,10 @@ float FNiagaraDataInterfaceProxySubmix::GetSampleRate() const
 
 void FNiagaraDataInterfaceProxySubmix::OnBeginDestroy()
 {
+	check(IsInGameThread());
+	FAudioDeviceManagerDelegates::OnAudioDeviceCreated.Remove(DeviceCreatedHandle);
+	FAudioDeviceManagerDelegates::OnAudioDeviceDestroyed.Remove(DeviceDestroyedHandle);
+
 	if (bIsSubmixListenerRegistered)
 	{
 		UnregisterFromAllAudioDevices();
