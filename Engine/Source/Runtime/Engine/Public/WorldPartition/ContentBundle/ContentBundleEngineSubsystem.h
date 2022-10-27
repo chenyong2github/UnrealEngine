@@ -28,6 +28,8 @@ public:
 	void RequestContentInjection(FContentBundleClient& Client);
 	void RequestContentRemoval(FContentBundleClient& Client);
 
+	const UContentBundleDescriptor* GetContentBundleDescriptor(const FGuid& ContentBundleGuid) const;
+
 	DECLARE_MULTICAST_DELEGATE_OneParam(FContentBundleRegisterDelegate, TSharedPtr<FContentBundleClient>&);
 	FContentBundleRegisterDelegate OnContentBundleClientRegistered;
 

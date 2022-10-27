@@ -105,6 +105,20 @@ void UContentBundleEngineSubsystem::RequestContentRemoval(FContentBundleClient& 
 	}
 }
 
+const UContentBundleDescriptor* UContentBundleEngineSubsystem::GetContentBundleDescriptor(const FGuid& ContentBundleGuid) const
+{
+	for (const TSharedPtr<FContentBundleClient>& Client : ContentBundleClients)
+	{
+		const UContentBundleDescriptor* Descriptor = Client->GetDescriptor();
+		if (Descriptor->GetGuid() == ContentBundleGuid)
+		{
+			return Descriptor;
+		}
+	}
+
+	return nullptr;
+}
+
 UContentBundleEngineSubsystem* UContentBundleEngineSubsystem::Get()
 {
 	if (GEngine)
