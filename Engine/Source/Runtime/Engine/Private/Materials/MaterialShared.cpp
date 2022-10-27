@@ -4021,7 +4021,6 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 	OutUniformExpressionCache.ParameterCollections = UniformExpressionSet.ParameterCollections;
 
 	++UniformExpressionCacheSerialNumber;
-	OutUniformExpressionCache.bUpToDate = Context.Material.IsRenderingThreadShaderMapComplete();
 }
 
 void FMaterialRenderProxy::CacheUniformExpressions(bool bRecreateUniformBuffer)
@@ -4083,7 +4082,6 @@ void FMaterialRenderProxy::InvalidateUniformExpressionCache(bool bRecreateUnifor
 	++UniformExpressionCacheSerialNumber;
 	for (int32 i = 0; i < ERHIFeatureLevel::Num; ++i)
 	{
-		UniformExpressionCache[i].bUpToDate = false;
 		UniformExpressionCache[i].CachedUniformExpressionShaderMap = nullptr;
 		UniformExpressionCache[i].ResetAllocatedVTs();
 
@@ -4099,16 +4097,15 @@ void FMaterialRenderProxy::InvalidateUniformExpressionCache(bool bRecreateUnifor
 
 void FMaterialRenderProxy::UpdateUniformExpressionCacheIfNeeded(ERHIFeatureLevel::Type InFeatureLevel) const
 {
-	if (!UniformExpressionCache[InFeatureLevel].bUpToDate)
+	// Don't cache uniform expressions if an entirely different FMaterialRenderProxy is going to be used for rendering
+	const FMaterial* Material = GetMaterialNoFallback(InFeatureLevel);
+	// Note: We would actually need to compare the FMaterialShaderMapId of both shader maps but a simple pointer compare also works
+	// because shader maps are currently swapped out whenever they are modified.
+	if (Material && Material->GetRenderingThreadShaderMap() != UniformExpressionCache[InFeatureLevel].CachedUniformExpressionShaderMap)
 	{
-		// Don't cache uniform expressions if an entirely different FMaterialRenderProxy is going to be used for rendering
-		const FMaterial* Material = GetMaterialNoFallback(InFeatureLevel);
-		if (Material)
-		{
-			FMaterialRenderContext MaterialRenderContext(this, *Material, nullptr);
-			MaterialRenderContext.bShowSelection = GIsEditor;
-			EvaluateUniformExpressions(UniformExpressionCache[InFeatureLevel], MaterialRenderContext);
-		}
+		FMaterialRenderContext MaterialRenderContext(this, *Material, nullptr);
+		MaterialRenderContext.bShowSelection = GIsEditor;
+		EvaluateUniformExpressions(UniformExpressionCache[InFeatureLevel], MaterialRenderContext);
 	}
 }
 

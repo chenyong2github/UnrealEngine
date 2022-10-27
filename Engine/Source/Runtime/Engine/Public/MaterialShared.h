@@ -2453,10 +2453,8 @@ struct FUniformExpressionCache
 	TArray<IAllocatedVirtualTexture*> OwnedAllocatedVTs;
 	/** Ids of parameter collections needed for rendering. */
 	TArray<FGuid> ParameterCollections;
-	/** Shader map that was used to cache uniform expressions on this material.  This is used for debugging and verifying correct behavior. */
+	/** Shader map that was used to cache uniform expressions on this material. This is used for debugging, verifying correct behavior and checking if the cache is up to date. */
 	const FMaterialShaderMap* CachedUniformExpressionShaderMap = nullptr;
-	/** True if the cache is up to date. */
-	bool bUpToDate = false;
 
 	/** Destructor. */
 	ENGINE_API ~FUniformExpressionCache();
