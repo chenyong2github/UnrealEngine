@@ -3031,8 +3031,8 @@ FText SDesignerView::GetCurrentDPIScaleText() const
 	Options.MaximumFractionalDigits = 2;
 	Options.MinimumFractionalDigits = 1;
 
-	const UUserInterfaceSettings* UISettings = GetDefault<UUserInterfaceSettings>(UUserInterfaceSettings::StaticClass());
-	if (UISettings && UISettings->UIScaleRule == EUIScalingRule::Custom)
+	const UUserInterfaceSettings* UISettings = GetDefault<UUserInterfaceSettings>();
+	if (UISettings->UIScaleRule == EUIScalingRule::Custom)
 	{
 		UClass* CustomScalingRuleClassInstance = UISettings->CustomScalingRuleClass.TryLoadClass<UDPICustomScalingRule>();
 
@@ -3048,8 +3048,8 @@ FText SDesignerView::GetCurrentDPIScaleText() const
 
 FSlateColor SDesignerView::GetCurrentDPIScaleColor() const
 {
-	const UUserInterfaceSettings* UISettings = GetDefault<UUserInterfaceSettings>(UUserInterfaceSettings::StaticClass());
-	if (UISettings && UISettings->UIScaleRule == EUIScalingRule::Custom)
+	const UUserInterfaceSettings* UISettings = GetDefault<UUserInterfaceSettings>();
+	if (UISettings->UIScaleRule == EUIScalingRule::Custom)
 	{
 		UClass* CustomScalingRuleClassInstance = UISettings->CustomScalingRuleClass.TryLoadClass<UDPICustomScalingRule>();
 

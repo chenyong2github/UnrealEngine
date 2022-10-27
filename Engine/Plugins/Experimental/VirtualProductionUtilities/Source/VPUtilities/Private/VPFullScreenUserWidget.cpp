@@ -899,13 +899,8 @@ float UVPFullScreenUserWidget::GetViewportDPIScale()
 	else
 	{
 		// Otherwise when in Editor mode, the editor automatically scales to the platform size, so we only care about the UI scale
-		FIntPoint ViewportSize = FindSceneViewportSize().IntPoint();
-
-		const UUserInterfaceSettings* UserInterfaceSettings = GetDefault<UUserInterfaceSettings>(UUserInterfaceSettings::StaticClass());
-		if (UserInterfaceSettings)
-		{
-			UIScale = UserInterfaceSettings->GetDPIScaleBasedOnSize(ViewportSize);
-		}
+		const FIntPoint ViewportSize = FindSceneViewportSize().IntPoint();
+		UIScale = GetDefault<UUserInterfaceSettings>()->GetDPIScaleBasedOnSize(ViewportSize);
 	}
 
 	return UIScale;

@@ -415,14 +415,8 @@ float SGameLayerManager::GetGameViewportDPIScale() const
 		return 1;
 	}
 
-	const auto UserInterfaceSettings = GetDefault<UUserInterfaceSettings>(UUserInterfaceSettings::StaticClass());
-
-	if (UserInterfaceSettings == nullptr)
-	{
-		return 1;
-	}
-
-	FIntPoint ViewportSize = Viewport->GetSize();
+	const UUserInterfaceSettings* UserInterfaceSettings = GetDefault<UUserInterfaceSettings>();
+	const FIntPoint ViewportSize = Viewport->GetSize();
 	float GameUIScale;
 
 	if (bUseScaledDPI)

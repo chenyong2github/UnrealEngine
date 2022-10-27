@@ -34,9 +34,7 @@
 
 bool UCommonButtonStyle::NeedsLoadForServer() const
 {
-	const UUserInterfaceSettings* UISettings = GetDefault<UUserInterfaceSettings>(UUserInterfaceSettings::StaticClass());
-	check(UISettings);
-	return UISettings->bLoadWidgetsOnDedicatedServer;
+	return GetDefault<UUserInterfaceSettings>()->bLoadWidgetsOnDedicatedServer;
 }
 
 void UCommonButtonStyle::GetButtonPadding(FMargin& OutButtonPadding) const

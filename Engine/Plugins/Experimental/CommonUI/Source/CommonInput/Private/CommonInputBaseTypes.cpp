@@ -27,15 +27,13 @@ FCommonInputKeySetBrushConfiguration::FCommonInputKeySetBrushConfiguration()
 
 bool UCommonUIInputData::NeedsLoadForServer() const
 {
-	const UUserInterfaceSettings* UISettings = GetDefault<UUserInterfaceSettings>(UUserInterfaceSettings::StaticClass());
-	check(UISettings);
+	const UUserInterfaceSettings* UISettings = GetDefault<UUserInterfaceSettings>();
 	return UISettings->bLoadWidgetsOnDedicatedServer;
 }
 
 bool UCommonInputBaseControllerData::NeedsLoadForServer() const
 {
-	const UUserInterfaceSettings* UISettings = GetDefault<UUserInterfaceSettings>(UUserInterfaceSettings::StaticClass());
-	check(UISettings);
+	const UUserInterfaceSettings* UISettings = GetDefault<UUserInterfaceSettings>();
 	return UISettings->bLoadWidgetsOnDedicatedServer;
 }
 
