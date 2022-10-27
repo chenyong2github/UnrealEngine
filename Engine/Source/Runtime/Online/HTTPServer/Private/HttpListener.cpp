@@ -81,6 +81,13 @@ bool FHttpListener::StartListening()
 		}
 	}
 
+	if (!BindAddress->IsPortValid(ListenPort))
+	{
+		UE_LOG(LogHttpListener, Error,
+			TEXT("HttpListener detected invalid port %u"),
+			ListenPort, *Config.BindAddress, ListenPort);
+		return false;
+	}
 	BindAddress->SetPort(ListenPort);
 
 	if (Config.bReuseAddressAndPort)

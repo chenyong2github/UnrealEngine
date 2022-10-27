@@ -78,6 +78,9 @@ public:
 	 */
 	virtual void SetPort(int32 InPort) = 0;
 
+	/** Report whether the port is in a valid range for SetPort. */
+	virtual bool IsPortValid(int32 InPort) const { return true; }
+
 	/**
 	 * Copies the port number from this address and places it into a host byte order int
 	 *

@@ -111,7 +111,7 @@ TSharedPtr<IHttpRouter> FHttpServerModule::GetHttpRouter(uint32 Port, bool bFail
 			// if listeners are enabled, the existing listener for this port
 			// should always be listening (IsListening() will only be true
 			// if it fully initialized/successfully bound and actually started listening)
-			if (ensureMsgf(ExistingListener->Get()->IsListening(), TEXT("[%s] the existing listener for port %d is not listening/bound and listeners are still enabled"), ANSI_TO_TCHAR(__FUNCTION__), Port))
+			if (ExistingListener->Get()->IsListening())
 			{
 				UE_LOG(LogHttpServerModule, Verbose, TEXT("[%s] found an existing, active listener for port %d"), ANSI_TO_TCHAR(__FUNCTION__), Port);
 				return ExistingListener->Get()->GetRouter();
@@ -119,6 +119,8 @@ TSharedPtr<IHttpRouter> FHttpServerModule::GetHttpRouter(uint32 Port, bool bFail
 			else
 			{
 				// get rid of it and create a new one for now
+				UE_LOG(LogHttpServerModule, Error, TEXT("[%s] the existing listener for port %d is not listening/bound and listeners are still enabled"),
+					ANSI_TO_TCHAR(__FUNCTION__), Port);
 				Listeners.Remove(Port);
 			}
 		}

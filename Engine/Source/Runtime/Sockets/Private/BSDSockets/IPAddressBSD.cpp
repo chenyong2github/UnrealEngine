@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IPAddressBSD.h"
+
+#include "Math/NumericLimits.h"
 #include "SocketSubsystemBSD.h"
 
 #if PLATFORM_HAS_BSD_SOCKETS || PLATFORM_HAS_BSD_IPV6_SOCKETS
@@ -323,6 +325,13 @@ void FInternetAddrBSD::SetPort(int32 InPort)
 
 	((sockaddr_in*)&Addr)->sin_port = htons(IntCastChecked<uint16>(InPort));
 }
+
+/** Report whether the port is in a valid range for SetPort. */
+bool FInternetAddrBSD::IsPortValid(int32 InPort) const
+{
+	return 0 <= InPort && InPort <= MAX_uint16;
+}
+
 
 int32 FInternetAddrBSD::GetPort() const
 {

@@ -182,6 +182,9 @@ public:
 	 */
 	virtual void SetPort(int32 InPort) override;
 
+	/** Report whether the port is in a valid range for SetPort. */
+	virtual bool IsPortValid(int32 InPort) const override;
+
 	/** Returns the port number from this address in host byte order */
 	virtual int32 GetPort() const override;
 
