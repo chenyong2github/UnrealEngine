@@ -4,6 +4,7 @@
 
 #include "UObject/WeakObjectPtr.h"
 #include "Input/Reply.h"
+#include "Layout/Visibility.h"
 #include "IDetailCustomization.h"
 
 class UPCGComponent;
@@ -23,7 +24,10 @@ protected:
 	virtual bool AddDefaultProperties() const { return true; }
 
 private:
+	EVisibility GenerateButtonVisible() const;
+	EVisibility CancelButtonVisible() const;
 	FReply OnGenerateClicked();
+	FReply OnCancelClicked();
 	FReply OnCleanupClicked();
 	FReply OnClearPCGLinkClicked();
 	void OnGraphChanged(UPCGComponent* InComponent);

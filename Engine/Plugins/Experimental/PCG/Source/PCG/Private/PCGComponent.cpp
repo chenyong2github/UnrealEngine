@@ -427,13 +427,17 @@ void UPCGComponent::PostCleanupGraph()
 #endif
 }
 
-void UPCGComponent::OnProcessGraphAborted()
+void UPCGComponent::OnProcessGraphAborted(bool bQuiet)
 {
-	UE_LOG(LogPCG, Warning, TEXT("Process Graph was called but aborted, check for errors in log if you expected a result."));
+	if (!bQuiet)
+	{
+		UE_LOG(LogPCG, Warning, TEXT("Process Graph was called but aborted, check for errors in log if you expected a result."));
+	}
 
 	CleanupUnusedManagedResources();
 
 	CurrentGenerationTask = InvalidPCGTaskId;
+	CurrentCleanupTask = InvalidPCGTaskId; // this is needed to support cancellation
 
 #if WITH_EDITOR
 	bDirtyGenerated = false;
@@ -442,7 +446,7 @@ void UPCGComponent::OnProcessGraphAborted()
 
 void UPCGComponent::Cleanup()
 {
-	if ((!bGenerated && !IsGenerating()) || !GetSubsystem() || IsCleaningUp())
+	if (!GetSubsystem() || IsCleaningUp())
 	{
 		return;
 	}
@@ -466,7 +470,7 @@ void UPCGComponent::CleanupLocal(bool bRemoveComponents, bool bSave)
 
 FPCGTaskId UPCGComponent::CleanupInternal(bool bRemoveComponents, bool bSave, const TArray<FPCGTaskId>& Dependencies)
 {
-	if ((!bGenerated && !IsGenerating()) || !GetSubsystem() || IsCleaningUp())
+	if (!GetSubsystem() || IsCleaningUp())
 	{
 		return InvalidPCGTaskId;
 	}
@@ -475,6 +479,14 @@ FPCGTaskId UPCGComponent::CleanupInternal(bool bRemoveComponents, bool bSave, co
 
 	CurrentCleanupTask = GetSubsystem()->ScheduleCleanup(this, bRemoveComponents, bSave, Dependencies);
 	return CurrentCleanupTask;
+}
+
+void UPCGComponent::CancelGeneration()
+{
+	if (CurrentGenerationTask != InvalidPCGTaskId)
+	{
+		GetSubsystem()->CancelGeneration(this);
+	}
 }
 
 AActor* UPCGComponent::ClearPCGLink(UClass* TemplateActor)

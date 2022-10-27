@@ -130,6 +130,9 @@ public:
 	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = PCG)
 	void Cleanup(bool bRemoveComponents, bool bSave = false);
 
+	/** Cancels in-progress generation */
+	void CancelGeneration();
+
 	/** Move all generated resources under a new actor, following a template (AActor if not provided), clearing all link to this PCG component. Returns the new actor.*/
 	UFUNCTION(BlueprintCallable, Category = PCG)
 	AActor* ClearPCGLink(UClass* TemplateActor = nullptr);
@@ -250,7 +253,7 @@ private:
 	void PostProcessGraph(const FBox& InNewBounds, bool bInGenerated, FPCGContext* Context);
 	void CallPostGenerateFunctions(FPCGContext* Context) const;
 	void PostCleanupGraph();
-	void OnProcessGraphAborted();
+	void OnProcessGraphAborted(bool bQuiet = false);
 	void CleanupUnusedManagedResources();
 	bool MoveResourcesToNewActor(AActor* InNewActor, bool bCreateChild);
 

@@ -9,6 +9,7 @@
 #include "PCGInputOutputSettings.h"
 #include "PCGPin.h"
 #include "PCGSubgraph.h"
+#include "PCGSubsystem.h"
 #include "Tests/Determinism/PCGDeterminismNativeTests.h"
 #include "Tests/Determinism/PCGDeterminismTestBlueprintBase.h"
 #include "Tests/Determinism/PCGDeterminismTestsCommon.h"
@@ -311,6 +312,12 @@ void FPCGEditor::RegisterToolbar() const
 			TAttribute<FText>(),
 			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh")));
 
+		Section.AddEntry(FToolMenuEntry::InitToolBarButton(
+			FPCGEditorCommands::Get().CancelExecution,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Toolbar.Stop")));
+
 		Section.AddSeparator(NAME_None);
 		Section.AddDynamicEntry("Debugging", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 		{
@@ -354,6 +361,10 @@ void FPCGEditor::BindCommands()
 	ToolkitCommands->MapAction(
 		PCGEditorCommands.ForceGraphRegeneration,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnForceGraphRegeneration_Clicked));
+
+	ToolkitCommands->MapAction(
+		PCGEditorCommands.CancelExecution,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnCancelExecution_Clicked));
 
 	ToolkitCommands->MapAction(
 		PCGEditorCommands.RunDeterminismGraphTest,
@@ -438,6 +449,14 @@ void FPCGEditor::OnForceGraphRegeneration_Clicked()
 	if (PCGGraphBeingEdited)
 	{
 		PCGGraphBeingEdited->ForceNotificationForEditor();
+	}
+}
+
+void FPCGEditor::OnCancelExecution_Clicked()
+{
+	if (PCGEditorGraph)
+	{
+		GEditor->GetEditorWorldContext().World()->GetSubsystem<UPCGSubsystem>()->CancelGeneration(PCGEditorGraph->GetPCGGraph());
 	}
 }
 

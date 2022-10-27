@@ -68,6 +68,7 @@ void FPCGComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			[
 				SNew(SButton)
 				.OnClicked(this, &FPCGComponentDetails::OnGenerateClicked)
+				.Visibility(this, &FPCGComponentDetails::GenerateButtonVisible)
 				[
 					SNew(STextBlock)
 					.Font(IDetailLayoutBuilder::GetDetailFont())
@@ -79,9 +80,22 @@ void FPCGComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			.Padding(4.0f)
 			[
 				SNew(SButton)
-				.OnClicked(this, &FPCGComponentDetails::OnCleanupClicked)
+				.OnClicked(this, &FPCGComponentDetails::OnCancelClicked)
+				.Visibility(this, &FPCGComponentDetails::CancelButtonVisible)
 				[
 					SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+					.Text(LOCTEXT("CancelButton", "Cancel"))
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(4.0f)
+			[
+				SNew(SButton)
+				.OnClicked(this, &FPCGComponentDetails::OnCleanupClicked)				
+				[
+					SNew(STextBlock)					
 					.Font(IDetailLayoutBuilder::GetDetailFont())
 					.Text(LOCTEXT("CleanupButton", "Cleanup"))
 				]
@@ -124,6 +138,32 @@ void FPCGComponentDetails::PendingDelete()
 	}
 }
 
+EVisibility FPCGComponentDetails::GenerateButtonVisible() const
+{
+	for (const TWeakObjectPtr<UPCGComponent>& Component : SelectedComponents)
+	{
+		if (Component.IsValid() && !Component->IsGenerating())
+		{
+			return EVisibility::Visible;
+		}
+	}
+
+	return EVisibility::Collapsed;
+}
+
+EVisibility FPCGComponentDetails::CancelButtonVisible() const
+{
+	for (const TWeakObjectPtr<UPCGComponent>& Component : SelectedComponents)
+	{
+		if (Component.IsValid() && Component->IsGenerating())
+		{
+			return EVisibility::Visible;
+		}
+	}
+
+	return EVisibility::Collapsed;
+}
+
 FReply FPCGComponentDetails::OnGenerateClicked()
 {
 	for (TWeakObjectPtr<UPCGComponent>& Component : SelectedComponents)
@@ -131,6 +171,19 @@ FReply FPCGComponentDetails::OnGenerateClicked()
 		if (Component.IsValid())
 		{
 			Component.Get()->Generate();
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FReply FPCGComponentDetails::OnCancelClicked()
+{
+	for (TWeakObjectPtr<UPCGComponent>& Component : SelectedComponents)
+	{
+		if (Component.IsValid())
+		{
+			Component.Get()->CancelGeneration();
 		}
 	}
 

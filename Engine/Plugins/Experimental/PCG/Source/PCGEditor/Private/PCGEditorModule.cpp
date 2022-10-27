@@ -247,6 +247,25 @@ void FPCGEditorModule::PopulateMenuActions(FMenuBuilder& MenuBuilder)
 				}
 				})),
 		NAME_None);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("CancelAllGeneration", "Cancel all PCG tasks"),
+		LOCTEXT("CancelAllGeneration_Tooltip", "Cancels all PCG tasks running"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([]() {
+				if (GEditor)
+				{
+					if (UWorld* World = GEditor->GetEditorWorldContext().World())
+					{
+						if (UPCGSubsystem* Subsystem = World->GetSubsystem<UPCGSubsystem>())
+						{
+							Subsystem->CancelAllGeneration();
+						}
+					}
+				}
+				})),
+		NAME_None);
 }
 
 void FPCGEditorModule::RegisterSettings()

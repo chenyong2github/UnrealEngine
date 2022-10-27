@@ -109,6 +109,9 @@ private:
 	/** Stop inspecting the current inspected node */
 	void OnStopInspectNode();
 
+	/** Cancels the current execution of the selected graph */
+	void OnCancelExecution_Clicked();
+
 	/** Can determinism be tested on the selected node(s) */
 	bool CanRunDeterminismNodeTest() const;
 	/** Run the determinism test on the selected node(s) */

@@ -53,7 +53,9 @@ FPCGGraphExecutor::~FPCGGraphExecutor()
 	DataRootSet.Clear();
 
 #if WITH_EDITOR
-	EndGenerationNotification();
+	// Cleanup + clear notification
+	ClearAllTasks();
+	UpdateGenerationNotification();
 #endif
 }
 
@@ -95,6 +97,7 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 
 		FPCGGraphScheduleTask& ScheduledTask = ScheduledTasks.Emplace_GetRef();
 		ScheduledTask.Tasks = MoveTemp(CompiledTasks);
+		ScheduledTask.SourceComponent = SourceComponent;
 
 		// Offset task node ids
 		FPCGGraphCompiler::OffsetNodeIds(ScheduledTask.Tasks, NextTaskId);
@@ -114,6 +117,116 @@ FPCGTaskId FPCGGraphExecutor::Schedule(UPCGGraph* Graph, UPCGComponent* SourceCo
 	}
 
 	return ScheduledId;
+}
+
+void FPCGGraphExecutor::Cancel(UPCGComponent* InComponent)
+{
+	auto CancelIfSameComponent = [InComponent](TWeakObjectPtr<UPCGComponent> Component)
+	{
+		return Component.IsValid() && InComponent == Component;
+	};
+
+	return Cancel(CancelIfSameComponent);
+}
+
+TArray<UPCGComponent*> FPCGGraphExecutor::Cancel(UPCGGraph* InGraph)
+{
+	TSet<UPCGComponent*> CancelledComponents;
+
+	auto CancelIfComponentUsesGraph = [InGraph, &CancelledComponents](TWeakObjectPtr<UPCGComponent> Component)
+	{
+		if (Component.IsValid() && Component->GetGraph() == InGraph)
+		{
+			CancelledComponents.Add(Component.Get());
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	};
+
+	Cancel(CancelIfComponentUsesGraph);
+	return CancelledComponents.Array();
+}
+
+TArray<UPCGComponent*> FPCGGraphExecutor::CancelAll()
+{
+	TSet<UPCGComponent*> CancelledComponents;
+
+	auto CancelAllGeneration = [&CancelledComponents](TWeakObjectPtr<UPCGComponent> Component)
+	{
+		if (Component.IsValid())
+		{
+			CancelledComponents.Add(Component.Get());
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	};
+
+	Cancel(CancelAllGeneration);
+	return CancelledComponents.Array();
+}
+
+void FPCGGraphExecutor::Cancel(TFunctionRef<bool(TWeakObjectPtr<UPCGComponent>)> CancelFilter)
+{
+	// Remove from scheduled tasks
+	ScheduleLock.Lock();
+	for (int32 ScheduledTaskIndex = ScheduledTasks.Num() - 1; ScheduledTaskIndex >= 0; --ScheduledTaskIndex)
+	{
+		if(CancelFilter(ScheduledTasks[ScheduledTaskIndex].SourceComponent))
+		{
+			ScheduledTasks.RemoveAtSwap(ScheduledTaskIndex);
+		}
+	}
+	ScheduleLock.Unlock();
+
+	// Remove from ready tasks
+	for (int32 ReadyTaskIndex = ReadyTasks.Num() - 1; ReadyTaskIndex >= 0; --ReadyTaskIndex)
+	{
+		FPCGGraphTask& Task = ReadyTasks[ReadyTaskIndex];
+
+		if(CancelFilter(Task.SourceComponent))
+		{
+			FPCGTaskId CancelledTaskId = Task.NodeId;
+			delete Task.Context;
+			ReadyTasks.RemoveAtSwap(ReadyTaskIndex);
+			CancelNextTasks(CancelledTaskId);
+		}
+	}
+
+	// Remove from active tasks
+	for (int32 ActiveTaskIndex = ActiveTasks.Num() - 1; ActiveTaskIndex >= 0; --ActiveTaskIndex)
+	{
+		FPCGGraphActiveTask& Task = ActiveTasks[ActiveTaskIndex];
+		if(Task.Context && CancelFilter(Task.Context->SourceComponent))
+		{
+			CurrentlyUsedThreads -= Task.Context->NumAvailableTasks;
+			FPCGTaskId CancelledTaskId = Task.NodeId;
+			ActiveTasks.RemoveAtSwap(ActiveTaskIndex);
+			CancelNextTasks(CancelledTaskId);
+		}
+	}
+
+	// Remove from sleeping tasks
+	for (int32 SleepingTaskIndex = SleepingTasks.Num() - 1; SleepingTaskIndex >= 0; --SleepingTaskIndex)
+	{
+		FPCGGraphActiveTask& Task = SleepingTasks[SleepingTaskIndex];
+		if(Task.Context && CancelFilter(Task.Context->SourceComponent))
+		{
+			FPCGTaskId CancelledTaskId = Task.NodeId;
+			SleepingTasks.RemoveAtSwap(CancelledTaskId);
+			CancelNextTasks(CancelledTaskId);
+		}
+	}
+
+	// Finally, update the notification so it shows the new information
+#if WITH_EDITOR
+	UpdateGenerationNotification();
+#endif
 }
 
 FPCGTaskId FPCGGraphExecutor::ScheduleGeneric(TFunction<bool()> InOperation, UPCGComponent* InSourceComponent, const TArray<FPCGTaskId>& TaskDependencies)
@@ -145,6 +258,7 @@ FPCGTaskId FPCGGraphExecutor::ScheduleGenericWithContext(TFunction<bool(FPCGCont
 
 	FPCGGraphScheduleTask& ScheduledTask = ScheduledTasks.Emplace_GetRef();
 	ScheduledTask.Tasks.Add(Task);
+	ScheduledTask.SourceComponent = InSourceComponent;
 
 	ScheduleLock.Unlock();
 
@@ -214,7 +328,7 @@ void FPCGGraphExecutor::Execute()
 	if (ReadyTasks.Num() == 0 && ActiveTasks.Num() == 0 && SleepingTasks.Num() == 0 && Tasks.Num() > 0)
 	{
 		UE_LOG(LogPCG, Error, TEXT("PCG Graph executor error: tasks are in a deadlocked state. Will drop all tasks."));
-		Tasks.Reset();
+		ClearAllTasks();
 	}
 
 	// TODO: change this if we support tasks that are not framebound
@@ -226,7 +340,7 @@ void FPCGGraphExecutor::Execute()
 	const bool bAllowMultiDispatch = CVarGraphMultithreading.GetValueOnAnyThread();
 
 #if WITH_EDITOR
-	UpdateGenerationNotification(Tasks.Num() + ReadyTasks.Num() + ActiveTasks.Num());
+	UpdateGenerationNotification();
 #endif
 
 	while(ReadyTasks.Num() > 0 || ActiveTasks.Num() > 0 || SleepingTasks.Num() > 0)
@@ -600,7 +714,8 @@ void FPCGGraphExecutor::Execute()
 			ClearResults();
 
 #if WITH_EDITOR
-			EndGenerationNotification();
+			// Call the notification update here to prevent it from sticking around - needed because we early out before this
+			UpdateGenerationNotification();
 #endif
 		}
 
@@ -610,6 +725,21 @@ void FPCGGraphExecutor::Execute()
 		ReleaseUnusedActors();
 #endif
 	}
+}
+
+void FPCGGraphExecutor::ClearAllTasks()
+{
+	Tasks.Reset();
+
+	// Make sure we don't leak preallocated contexts
+	for (FPCGGraphTask& ReadyTask : ReadyTasks)
+	{
+		delete ReadyTask.Context;
+	}
+
+	ReadyTasks.Reset();
+	ActiveTasks.Reset();
+	SleepingTasks.Reset();
 }
 
 void FPCGGraphExecutor::QueueNextTasks(FPCGTaskId FinishedTask)
@@ -636,6 +766,20 @@ void FPCGGraphExecutor::QueueNextTasks(FPCGTaskId FinishedTask)
 		}
 
 		TaskSuccessors.Remove(FinishedTask);
+	}
+}
+
+void FPCGGraphExecutor::CancelNextTasks(FPCGTaskId CancelledTask)
+{
+	if (TSet<FPCGTaskId>* Successors = TaskSuccessors.Find(CancelledTask))
+	{
+		for (FPCGTaskId Successor : *Successors)
+		{
+			Tasks.Remove(Successor);
+			CancelNextTasks(Successor);
+		}
+
+		TaskSuccessors.Remove(CancelledTask);
 	}
 }
 
@@ -820,19 +964,20 @@ void FPCGGraphExecutor::NotifyGraphChanged(UPCGGraph* InGraph)
 	}
 }
 
-void FPCGGraphExecutor::UpdateGenerationNotification(int32 RemainingTaskNum)
+void FPCGGraphExecutor::UpdateGenerationNotification()
 {
-	if(RemainingTaskNum > 0)
+	const int32 RemainingTaskNum = Tasks.Num() + ReadyTasks.Num() + ActiveTasks.Num() + SleepingTasks.Num();
+
+	if (RemainingTaskNum > 0)
 	{
 		GenerationProgressNotification.Update(RemainingTaskNum);
 	}
-}
-
-void FPCGGraphExecutor::EndGenerationNotification()
-{
-	GenerationProgressNotification.Update(0);
-	// To reset the UI notification
-	GenerationProgressNotification = FAsyncCompilationNotification(GetNotificationTextFormat());
+	else
+	{
+		GenerationProgressNotification.Update(0);
+		// To reset the UI notification
+		GenerationProgressNotification = FAsyncCompilationNotification(GetNotificationTextFormat());
+	}
 }
 
 FTextFormat FPCGGraphExecutor::GetNotificationTextFormat()

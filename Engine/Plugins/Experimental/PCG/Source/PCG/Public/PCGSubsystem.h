@@ -85,6 +85,15 @@ public:
 	*/
 	FPCGTaskId ScheduleGenericWithContext(TFunction<bool(FPCGContext*)> InOperation, UPCGComponent* SourceComponent, const TArray<FPCGTaskId>& TaskDependencies, bool bConsumeInputData = true);
 
+	/** Cancels currently running generation */
+	void CancelGeneration(UPCGComponent* Component);
+
+	/** Cancels currently running generation on given graph */
+	void CancelGeneration(UPCGGraph* Graph);
+
+	/** Cancels everything running */
+	void CancelAllGeneration();
+
 	/** Gets the output data for a given task */
 	bool GetOutputData(FPCGTaskId InTaskId, FPCGDataCollection& OutData);
 

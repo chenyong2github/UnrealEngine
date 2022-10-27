@@ -50,6 +50,7 @@ struct FPCGGraphTask
 struct FPCGGraphScheduleTask
 {
 	TArray<FPCGGraphTask> Tasks;
+	TWeakObjectPtr<UPCGComponent> SourceComponent = nullptr;
 };
 
 struct FPCGGraphActiveTask
@@ -74,6 +75,15 @@ public:
 	/** Schedules the execution of a given graph with specified inputs. This call is threadsafe */
 	FPCGTaskId Schedule(UPCGComponent* InComponent, const TArray<FPCGTaskId>& TaskDependency = TArray<FPCGTaskId>());
 	FPCGTaskId Schedule(UPCGGraph* Graph, UPCGComponent* InSourceComponent, FPCGElementPtr InputElement, const TArray<FPCGTaskId>& TaskDependency);
+
+	/** Cancels all tasks originating from the given component */
+	void Cancel(UPCGComponent* InComponent);
+	
+	/** Cancels all tasks running a given graph */
+	TArray<UPCGComponent*> Cancel(UPCGGraph* InGraph);
+
+	/** Cancels all tasks */
+	TArray<UPCGComponent*> CancelAll();
 
 	// Back compatibility function. Use ScheduleGenericWithContext
 	FPCGTaskId ScheduleGeneric(TFunction<bool()> InOperation, UPCGComponent* InSourceComponent, const TArray<FPCGTaskId>& TaskDependencies);
@@ -106,7 +116,10 @@ public:
 	FPCGGraphCache& GetCache() { return GraphCache; }
 
 private:
+	void Cancel(TFunctionRef<bool(TWeakObjectPtr<UPCGComponent>)> CancelFilter);
+	void ClearAllTasks();
 	void QueueNextTasks(FPCGTaskId FinishedTask);
+	void CancelNextTasks(FPCGTaskId CancelledTask);
 	void BuildTaskInput(const FPCGGraphTask& Task, FPCGDataCollection& TaskInput);
 	void StoreResults(FPCGTaskId InTaskId, const FPCGDataCollection& InTaskOutput);
 	void ClearResults();
@@ -117,8 +130,7 @@ private:
 	void SaveDirtyActors();
 	void ReleaseUnusedActors();
 
-	void UpdateGenerationNotification(int32 RemainingTaskNum);
-	void EndGenerationNotification();
+	void UpdateGenerationNotification();
 	static FTextFormat GetNotificationTextFormat();
 #endif
 

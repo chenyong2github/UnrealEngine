@@ -396,6 +396,61 @@ FPCGTaskId UPCGSubsystem::ScheduleGenericWithContext(TFunction<bool(FPCGContext*
 	return GraphExecutor->ScheduleGenericWithContext(InOperation, Component, TaskDependencies, bConsumeInputData);
 }
 
+void UPCGSubsystem::CancelGeneration(UPCGComponent* Component)
+{
+	check(GraphExecutor);
+
+	if (!Component)
+	{
+		return;
+	}
+
+	if (Component->IsPartitioned())
+	{
+		auto LocalCancel = [this](UPCGComponent* LocalComponent)
+		{
+			if (LocalComponent->IsGenerating())
+			{
+				CancelGeneration(LocalComponent);
+			}
+
+			return InvalidPCGTaskId;
+		};
+
+		DispatchToRegisteredLocalComponents(Component, LocalCancel);
+	}
+
+	GraphExecutor->Cancel(Component);
+	Component->OnProcessGraphAborted(/*bQuiet=*/true);
+}
+
+void UPCGSubsystem::CancelGeneration(UPCGGraph* Graph)
+{
+	check(GraphExecutor);
+
+	if (!Graph)
+	{
+		return;
+	}
+
+	TArray<UPCGComponent*> CancelledComponents = GraphExecutor->Cancel(Graph);
+	for (UPCGComponent* Component : CancelledComponents)
+	{
+		Component->OnProcessGraphAborted(/*bQuiet=*/true);
+	}
+}
+
+void UPCGSubsystem::CancelAllGeneration()
+{
+	check(GraphExecutor);
+
+	TArray<UPCGComponent*> CancelledComponents = GraphExecutor->CancelAll();
+	for (UPCGComponent* Component : CancelledComponents)
+	{
+		Component->OnProcessGraphAborted(/*bQuiet=*/true);
+	}
+}
+
 TArray<FPCGTaskId> UPCGSubsystem::DispatchToRegisteredLocalComponents(UPCGComponent* OriginalComponent, const TFunction<FPCGTaskId(UPCGComponent*)>& InFunc) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSubsystem::DispatchToRegisteredLocalComponents);
