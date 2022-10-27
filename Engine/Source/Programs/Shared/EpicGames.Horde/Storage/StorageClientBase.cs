@@ -399,26 +399,12 @@ namespace EpicGames.Horde.Storage
 		}
 
 		/// <summary>
-		/// Reads a bundle from the given blob id, or retrieves it from the cache
-		/// </summary>
-		/// <param name="locator"></param>
-		/// <param name="cancellationToken"></param>
-		/// <returns></returns>
-		public async Task<Bundle> ReadBundleAsync(BlobLocator locator, CancellationToken cancellationToken = default)
-		{
-			using (Stream stream = await ReadBlobAsync(locator, cancellationToken))
-			{
-				return await Bundle.FromStreamAsync(stream, cancellationToken);
-			}
-		}
-
-		/// <summary>
 		/// Reads a bundle header from the given blob locator, or retrieves it from the cache
 		/// </summary>
 		/// <param name="locator"></param>
 		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public async Task<BundleHeader> ReadBundleHeaderAsync(BlobLocator locator, CancellationToken cancellationToken = default)
+		async Task<BundleHeader> ReadBundleHeaderAsync(BlobLocator locator, CancellationToken cancellationToken = default)
 		{
 			BundleInfo info = await GetBundleInfoAsync(locator, cancellationToken);
 			return info.Header;
@@ -554,13 +540,6 @@ namespace EpicGames.Horde.Storage
 			return await queuedPacket.CompletionSource.Task;
 		}
 
-		/// <inheritdoc/>
-		public async Task<BlobLocator> WriteBundleAsync(Bundle bundle, Utf8String prefix = default, CancellationToken cancellationToken = default)
-		{
-			using ReadOnlySequenceStream stream = new ReadOnlySequenceStream(bundle.AsSequence());
-			return await WriteBlobAsync(stream, prefix, cancellationToken);
-		}
-
 		#endregion
 
 		#region Nodes
@@ -627,7 +606,7 @@ namespace EpicGames.Horde.Storage
 		/// <inheritdoc/>
 		public virtual async Task<NodeLocator> WriteRefAsync(RefName name, Bundle bundle, int exportIdx = 0, Utf8String prefix = default, RefOptions? options = null, CancellationToken cancellationToken = default)
 		{
-			BlobLocator locator = await WriteBundleAsync(bundle, prefix, cancellationToken);
+			BlobLocator locator = await this.WriteBundleAsync(bundle, prefix, cancellationToken);
 			NodeLocator target = new NodeLocator(locator, exportIdx);
 			await WriteRefTargetAsync(name, target, options, cancellationToken);
 			return target;

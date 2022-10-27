@@ -20,6 +20,7 @@ using MongoDB.Driver;
 using System.Runtime.CompilerServices;
 using System.IO;
 using System.Diagnostics;
+using System.Buffers;
 
 namespace Horde.Build.Storage
 {
@@ -275,7 +276,7 @@ namespace Horde.Build.Storage
 			List<WriteModel<GcNode>> updates = new List<WriteModel<GcNode>>();
 			node.Imports = new List<IoHash>();
 
-			BundleHeader? header = await _store.ReadBundleHeaderAsync(node.Locator, cancellationToken);
+			BundleHeader? header = await ReadHeaderAsync(_store, node.Locator, cancellationToken);
 			if (header != null)
 			{
 				foreach (BundleImport import in header.Imports)
@@ -293,6 +294,47 @@ namespace Horde.Build.Storage
 			updates.Add(new UpdateOneModel<GcNode>(Builders<GcNode>.Filter.Eq(x => x.Id, node.Id), Builders<GcNode>.Update.Set(x => x.Imports, node.Imports)));
 
 			await _nodeCollection.BulkWriteAsync(updates, new BulkWriteOptions { IsOrdered = false }, cancellationToken);
+		}
+
+		protected async Task<BundleHeader?> ReadHeaderAsync(IStorageClient store, BlobLocator locator, CancellationToken cancellationToken)
+		{
+			int fetchSize = 64 * 1024;
+			for (; ; )
+			{
+				using (IMemoryOwner<byte> owner = MemoryPool<byte>.Shared.Rent(fetchSize))
+				{
+					using (Stream? stream = await store.ReadBlobRangeAsync(locator, 0, fetchSize, cancellationToken))
+					{
+						if (stream == null)
+						{
+							_logger.LogError("Unable to read blob {Blob}", locator);
+							return null;
+						}
+
+						// Read the start of the blob
+						Memory<byte> memory = owner.Memory.Slice(0, fetchSize);
+
+						int length = await stream.ReadGreedyAsync(memory, cancellationToken);
+						if (length < BundleHeader.PreludeLength)
+						{
+							_logger.LogError("Blob {Blob} does not have a valid prelude", locator);
+							return null;
+						}
+
+						memory = memory.Slice(0, length);
+
+						// Make sure it's large enough to hold the header
+						int headerSize = BundleHeader.ReadPrelude(memory);
+						if (headerSize <= fetchSize)
+						{
+							return new BundleHeader(new MemoryReader(memory));
+						}
+
+						// Increase the fetch size and retry
+						fetchSize = headerSize;
+					}
+				}
+			}
 		}
 
 		WriteModel<GcNode> CreateGcNodeUpsert(IoHash hash, BlobLocator locator)
