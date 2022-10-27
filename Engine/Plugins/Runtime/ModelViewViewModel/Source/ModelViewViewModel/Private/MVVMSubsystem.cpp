@@ -77,12 +77,12 @@ namespace UE::MVVM::Private
 		//Only property defined in BP can be BP visible and really private.
 #if WITH_EDITOR
 		static FName NAME_BlueprintPrivate = "BlueprintPrivate";
-		if (Property->GetBoolMetaData(NAME_BlueprintPrivate) && !bCanAccessPrivate)
+		if (Property->HasMetaData(NAME_BlueprintPrivate) && !bCanAccessPrivate)
 		{
 			return FMVVMAvailableBinding();
 		}
 		static FName NAME_BlueprintProtected = "BlueprintProtected";
-		if (Property->GetBoolMetaData(NAME_BlueprintProtected) && !bCanAccessProtected)
+		if (Property->HasMetaData(NAME_BlueprintProtected) && !bCanAccessProtected)
 		{
 			return FMVVMAvailableBinding();
 		}

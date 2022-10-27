@@ -542,7 +542,7 @@ private:
 					const UFunction* Function = LastField.GetFunction();
 					if (Function != nullptr)
 					{
-						return BindingHelper::GetFirstArgumentProperty(Function);
+						return BindingHelper::GetReturnProperty(Function);
 					}
 				}
 			}

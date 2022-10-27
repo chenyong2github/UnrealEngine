@@ -45,13 +45,17 @@ void FPropertyPathCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InP
 	PropertyHandle = InPropertyHandle;
 
 	const FName PropertyName = PropertyHandle->GetProperty()->GetFName();
+	FText PropertyDisplayName;
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, WidgetPath))
 	{
 		bIsWidget = true;
+		PropertyDisplayName = LOCTEXT("PropertyDisplay_Widget", "Destination");
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, ViewModelPath))
 	{
 		bIsWidget = false;
+
+		PropertyDisplayName = LOCTEXT("PropertyDisplay_Source", "Source");
 	}
 	else
 	{
@@ -96,7 +100,7 @@ void FPropertyPathCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InP
 		.NameWidget
 		.VAlign(VAlign_Center)
 		[
-			PropertyHandle->CreatePropertyNameWidget()
+			PropertyHandle->CreatePropertyNameWidget(PropertyDisplayName)
 		]
 		.ValueWidget
 		.VAlign(VAlign_Center)
