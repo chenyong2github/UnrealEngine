@@ -37,7 +37,12 @@ void SPropertyEditorText::Construct( const FArguments& InArgs, const TSharedRef<
 	static const FName NAME_PasswordField = "PasswordField";
 
 	bIsMultiLine = InPropertyEditor->GetPropertyHandle()->GetBoolMetaData(NAME_MultiLine);
-	MaxLength = InPropertyEditor->PropertyIsA(FNameProperty::StaticClass()) ? NAME_SIZE - 1 : InPropertyEditor->GetPropertyHandle()->GetIntMetaData(NAME_MaxLength);
+
+	MaxLength = InPropertyEditor->GetPropertyHandle()->GetIntMetaData(NAME_MaxLength);
+	if (InPropertyEditor->PropertyIsA(FNameProperty::StaticClass()))
+	{
+		MaxLength = MaxLength <= 0 ? NAME_SIZE - 1 : FMath::Min(MaxLength, NAME_SIZE - 1);
+	}
 
 	const bool bIsPassword = InPropertyEditor->GetPropertyHandle()->GetBoolMetaData(NAME_PasswordField);
 	
