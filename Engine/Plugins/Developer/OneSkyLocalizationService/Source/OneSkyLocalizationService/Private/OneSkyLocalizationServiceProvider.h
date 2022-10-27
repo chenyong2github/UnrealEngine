@@ -30,7 +30,7 @@ struct FLocalizationServiceTranslationIdentifierKeyFuncs : BaseKeyFuncs < TPair<
 		FLocalizationServiceTranslationIdentifier
 	> Super;
 
-	static FORCEINLINE const FLocalizationServiceTranslationIdentifier& GetSetKey(const FLocalizationServiceTranslationIdentifier& Element)
+	static FORCEINLINE const FLocalizationServiceTranslationIdentifier& GetSetKey(const TPair<FLocalizationServiceTranslationIdentifier, ValueType>& Element)
 	{
 		return Element.Key;
 	}

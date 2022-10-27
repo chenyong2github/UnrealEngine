@@ -822,7 +822,7 @@ namespace TraceHelper
 		else
 		{
 			// Not a macro, just a plain graph; we use NULL for that.
-			VisitedTracker = GraphNodesVisited.Find(NULL);
+			VisitedTracker = GraphNodesVisited.Find(nullptr);
 			check(VisitedTracker);
 		}
 
