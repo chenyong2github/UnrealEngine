@@ -806,8 +806,18 @@ ULocalPlayer* UGameInstance::CreateLocalPlayer(FPlatformUserId UserId, FString& 
 
 	ULocalPlayer* NewPlayer = NULL;
 	int32 InsertIndex = INDEX_NONE;
+	UGameViewportClient* GameViewport = GetGameViewportClient();
 
-	const int32 MaxSplitscreenPlayers = (GetGameViewportClient() != NULL) ? GetGameViewportClient()->MaxSplitscreenPlayers : 1;
+	if (GameViewport == nullptr)
+	{
+		if (ensure(IsDedicatedServerInstance()))
+		{
+			OutError = FString::Printf(TEXT("Dedicated servers cannot have local players"));
+			return nullptr;
+		}
+	}
+
+	const int32 MaxSplitscreenPlayers = GameViewport ? GameViewport->MaxSplitscreenPlayers : 1;
 
 	if (FindLocalPlayerFromPlatformUserId(UserId) != NULL)
 	{
