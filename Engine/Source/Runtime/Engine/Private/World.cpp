@@ -3982,7 +3982,7 @@ void UWorld::AddStreamingLevel(ULevelStreaming* StreamingLevelToAdd)
 	{
 		if (ensure(StreamingLevelToAdd->GetWorld() == this))
 		{
-			if (ensure(StreamingLevelToAdd->GetCurrentState() == ULevelStreaming::ECurrentState::Removed))
+			if (ensure(StreamingLevelToAdd->GetLevelStreamingState() == ELevelStreamingState::Removed))
 			{
 				StreamingLevels.Add(StreamingLevelToAdd);
 				FStreamingLevelPrivateAccessor::OnLevelAdded(StreamingLevelToAdd);
@@ -4039,7 +4039,7 @@ bool UWorld::RemoveStreamingLevelAt(const int32 IndexToRemove)
 	if (IndexToRemove >= 0 && IndexToRemove < StreamingLevels.Num())
 	{
 		ULevelStreaming* StreamingLevel = StreamingLevels[IndexToRemove];
-		if (StreamingLevel && StreamingLevel->GetCurrentState() == ULevelStreaming::ECurrentState::Loading)
+		if (StreamingLevel && StreamingLevel->GetLevelStreamingState() == ELevelStreamingState::Loading)
 		{
 			--NumStreamingLevelsBeingLoaded;
 		}
@@ -4086,11 +4086,11 @@ void UWorld::PopulateStreamingLevelsToConsider()
 	for (ULevelStreaming* StreamingLevel : StreamingLevels)
 	{
 		// The streaming level may have just gotten added to the list so have it update its state now
-		if (StreamingLevel->GetCurrentState() == ULevelStreaming::ECurrentState::Removed)
+		if (StreamingLevel->GetLevelStreamingState() == ELevelStreamingState::Removed)
 		{
 			FStreamingLevelPrivateAccessor::OnLevelAdded(StreamingLevel);
 		}
-		else if (StreamingLevel->GetCurrentState() == ULevelStreaming::ECurrentState::Loading)
+		else if (StreamingLevel->GetLevelStreamingState() == ELevelStreamingState::Loading)
 		{
 			++NumStreamingLevelsBeingLoaded;
 		}
@@ -4104,7 +4104,7 @@ void UWorld::PopulateStreamingLevelsToConsider()
 
 void UWorld::UpdateStreamingLevelShouldBeConsidered(ULevelStreaming* StreamingLevelToConsider)
 {
-	if (StreamingLevelToConsider && ensure(StreamingLevelToConsider->GetWorld() == this) && StreamingLevelToConsider->GetCurrentState() != ULevelStreaming::ECurrentState::Removed)
+	if (StreamingLevelToConsider && ensure(StreamingLevelToConsider->GetWorld() == this) && StreamingLevelToConsider->GetLevelStreamingState() != ELevelStreamingState::Removed)
 	{
 		if (FStreamingLevelPrivateAccessor::DetermineTargetState(StreamingLevelToConsider))
 		{
@@ -4240,7 +4240,7 @@ bool UWorld::AreAlwaysLoadedLevelsLoaded() const
 	for (ULevelStreaming* LevelStreaming : StreamingLevels)
 	{
 		// See whether there's a level with a pending request.
-		if (LevelStreaming && LevelStreaming->ShouldBeAlwaysLoaded() && LevelStreaming->GetCurrentState() != ULevelStreaming::ECurrentState::FailedToLoad)
+		if (LevelStreaming && LevelStreaming->ShouldBeAlwaysLoaded() && LevelStreaming->GetLevelStreamingState() != ELevelStreamingState::FailedToLoad)
 		{	
 			const ULevel* LoadedLevel = LevelStreaming->GetLoadedLevel();
 

@@ -197,7 +197,7 @@ ADisplayClusterRootActor* FDisplayClusterGameManager::FindRootActor(UWorld* InWo
 	const TArray<ULevelStreaming*>& StreamingLevels = InWorld->GetStreamingLevels();
 	for (const ULevelStreaming* const StreamingLevel : StreamingLevels)
 	{
-		if (StreamingLevel && StreamingLevel->GetCurrentState() == ULevelStreaming::ECurrentState::LoadedVisible)
+		if (StreamingLevel && StreamingLevel->GetCurrentState() == ELevelStreamingState::LoadedVisible)
 		{
 			// Look for the actor in those sub-levels that have been loaded already
 			const TSoftObjectPtr<UWorld>& SubWorldAsset = StreamingLevel->GetWorldAsset();

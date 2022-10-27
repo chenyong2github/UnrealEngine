@@ -184,13 +184,13 @@ void UWorldPartitionLevelStreamingDynamic::CreateRuntimeLevel()
 bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorld, bool bInAllowLevelLoadRequests, EReqLevelBlock InBlockPolicy)
 {
 	// Quit early in case load request already issued
-	if (GetCurrentState() == ECurrentState::Loading)
+	if (GetLevelStreamingState() == ELevelStreamingState::Loading)
 	{
 		return true;
 	}
 
 	// Previous attempts have failed, no reason to try again
-	if (GetCurrentState() == ECurrentState::FailedToLoad)
+	if (GetLevelStreamingState() == ELevelStreamingState::FailedToLoad)
 	{
 		return false;
 	}
@@ -262,7 +262,7 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 		check(LODPackageNames.Num() == 0);
 		if (RuntimeLevel == nullptr)
 		{
-			check(GetCurrentState() == ECurrentState::Unloaded);
+			check(GetLevelStreamingState() == ELevelStreamingState::Unloaded);
 
 			check(!RuntimeLevel);
 			CreateRuntimeLevel();
@@ -291,7 +291,7 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 				}
 				else
 				{
-					CurrentState = ECurrentState::Loading;
+					CurrentState = ELevelStreamingState::Loading;
 				}
 			}
 		}

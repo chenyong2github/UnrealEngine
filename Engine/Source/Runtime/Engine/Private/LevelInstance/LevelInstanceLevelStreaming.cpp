@@ -229,7 +229,7 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ILevelI
 			// It might not be the final solution to support Undo/Redo in LevelInstances but it handles most of the non-editing part
 			if (ULevel* Level = LevelStreaming->GetLoadedLevel())
 			{
-				check(LevelStreaming->GetCurrentState() == ULevelStreaming::ECurrentState::LoadedVisible);
+				check(LevelStreaming->GetLevelStreamingState() == ELevelStreamingState::LoadedVisible);
 
 				Level->OnLoadedActorAddedToLevelEvent.AddUObject(LevelStreaming, &ULevelStreamingLevelInstance::OnLoadedActorAddedToLevel);
 				Level->OnLoadedActorRemovedFromLevelEvent.AddUObject(LevelStreaming, &ULevelStreamingLevelInstance::OnLoadedActorRemovedFromLevel);

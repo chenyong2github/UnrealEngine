@@ -105,6 +105,28 @@ public:
 DECLARE_DYNAMIC_MULTICAST_DELEGATE( FLevelStreamingLoadedStatus );
 DECLARE_DYNAMIC_MULTICAST_DELEGATE( FLevelStreamingVisibilityStatus );
 
+enum class ELevelStreamingState : uint8
+{
+	Removed,
+	Unloaded,
+	FailedToLoad,
+	Loading,
+	LoadedNotVisible,
+	MakingVisible,
+	LoadedVisible,
+	MakingInvisible
+};
+ENGINE_API const TCHAR* EnumToString(ELevelStreamingState InState);
+
+enum class ELevelStreamingTargetState : uint8
+{
+	Unloaded,
+	UnloadedAndRemoved,
+	LoadedNotVisible,
+	LoadedVisible,
+};
+ENGINE_API const TCHAR* EnumToString(ELevelStreamingTargetState InTargetState);
+
 /**
  * Abstract base class of container object encapsulating data required for streaming and providing 
  * interface for when a level should be streamed in and out of memory.
@@ -115,32 +137,38 @@ class ENGINE_API ULevelStreaming : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
-	enum class ECurrentState : uint8
+	enum class UE_DEPRECATED(5.2, "ULevelStreaming::ECurrentState has been replaced by ELevelStreamingState")
+	ECurrentState : uint8
 	{
-		Removed,
-		Unloaded,
-		FailedToLoad,
-		Loading,
-		LoadedNotVisible,
-		MakingVisible,
-		LoadedVisible,
-		MakingInvisible
+	 	Removed = (uint8)ELevelStreamingState::Removed,
+		Unloaded = (uint8)ELevelStreamingState::Unloaded,
+		FailedToLoad = (uint8)ELevelStreamingState::FailedToLoad,
+		Loading = (uint8)ELevelStreamingState::Loading,
+		LoadedNotVisible = (uint8)ELevelStreamingState::LoadedNotVisible,
+		MakingVisible = (uint8)ELevelStreamingState::MakingVisible,
+		LoadedVisible = (uint8)ELevelStreamingState::LoadedVisible,
+		MakingInvisible = (uint8)ELevelStreamingState::MakingInvisible
 	};
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	static const TCHAR* EnumToString(ECurrentState InCurrentState);
-
-private:
-	enum class ETargetState : uint8
+	friend bool operator==(ELevelStreamingState A, ECurrentState B)
 	{
-		Unloaded,
-		UnloadedAndRemoved,
-		LoadedNotVisible,
-		LoadedVisible,
-	};
+		return A == (ELevelStreamingState)B;
+	}
+	friend bool operator==(ECurrentState A, ELevelStreamingState B)
+	{
+		return (ELevelStreamingState)A == (ELevelStreamingState)B;
+	}
+	friend bool operator!=(ELevelStreamingState A, ECurrentState B)
+	{
+		return A != (ELevelStreamingState)B;
+	}
+	friend bool operator!=(ECurrentState A, ELevelStreamingState B)
+	{
+		return (ELevelStreamingState)A != (ELevelStreamingState)B;
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-	static const TCHAR* EnumToString(ETargetState InTargetState);
-
-public:
 	static ULevelStreaming* FindStreamingLevel(const ULevel* Level);
 	static void RemoveLevelAnnotation(const ULevel* Level);
 
@@ -234,10 +262,12 @@ protected:
 	uint8 bSkipClientUseMakingVisibleTransactionRequest:1;
 
 	/** What the current streamed state of the streaming level is */
-	ECurrentState CurrentState;
+	ELevelStreamingState CurrentState;
 
 	/** What streamed state the streaming level is transitioning towards */
-	ETargetState TargetState;
+	ELevelStreamingTargetState TargetState;
+
+	void SetCurrentState(ELevelStreamingState NewState);
 
 public:
 
@@ -310,7 +340,12 @@ public:
 	//~ End UObject Interface
 
 	/** Returns the current loaded/visible state of the streaming level. */
-	ECurrentState GetCurrentState() const { return CurrentState; }
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	UE_DEPRECATED(5.2, "ULevelStreaming::ECurrentState has been replaced by ELevelStreamingState. Use GetLevelStreamingState instead.")
+	ECurrentState GetCurrentState() const { return (ECurrentState)CurrentState; }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	ELevelStreamingState GetLevelStreamingState() const { return CurrentState; }
 
 private:
 
@@ -385,7 +420,7 @@ public:
 	void SetPriority(int32 NewPriority);
 
 	/** Returns whether the streaming level is in the loading state. */
-	bool HasLoadRequestPending() const { return GetCurrentState() == ECurrentState::Loading; }
+	bool HasLoadRequestPending() const { return CurrentState == ELevelStreamingState::Loading; }
 
 	/** Returns whether the streaming level has loaded a level. */
 	bool HasLoadedLevel() const

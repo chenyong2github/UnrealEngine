@@ -30,12 +30,12 @@ EWorldPartitionRuntimeCellState UWorldPartitionRuntimeLevelStreamingCell::GetCur
 {
 	if (LevelStreaming)
 	{
-		ULevelStreaming::ECurrentState CurrentStreamingState = LevelStreaming->GetCurrentState();
-		if (CurrentStreamingState == ULevelStreaming::ECurrentState::LoadedVisible)
+		ELevelStreamingState CurrentStreamingState = LevelStreaming->GetLevelStreamingState();
+		if (CurrentStreamingState == ELevelStreamingState::LoadedVisible)
 		{
 			return EWorldPartitionRuntimeCellState::Activated;
 		}
-		else if (CurrentStreamingState >= ULevelStreaming::ECurrentState::LoadedNotVisible)
+		else if (CurrentStreamingState >= ELevelStreamingState::LoadedNotVisible)
 		{
 			return EWorldPartitionRuntimeCellState::Loaded;
 		}
@@ -125,8 +125,8 @@ bool UWorldPartitionRuntimeLevelStreamingCell::IsLoading() const
 {
 	if (LevelStreaming)
 	{
-		ULevelStreaming::ECurrentState CurrentState = LevelStreaming->GetCurrentState();
-		return (CurrentState == ULevelStreaming::ECurrentState::Removed || CurrentState == ULevelStreaming::ECurrentState::Unloaded || CurrentState == ULevelStreaming::ECurrentState::Loading);
+		ELevelStreamingState CurrentState = LevelStreaming->GetLevelStreamingState();
+		return (CurrentState == ELevelStreamingState::Removed || CurrentState == ELevelStreamingState::Unloaded || CurrentState == ELevelStreamingState::Loading);
 	}
 	return Super::IsLoading();
 }
@@ -354,7 +354,7 @@ bool UWorldPartitionRuntimeLevelStreamingCell::CanAddToWorld() const
 {
 	return LevelStreaming &&
 		   LevelStreaming->GetLoadedLevel() &&
-		   (LevelStreaming->GetCurrentState() == ULevelStreaming::ECurrentState::MakingVisible);
+		   (LevelStreaming->GetLevelStreamingState() == ELevelStreamingState::MakingVisible);
 }
 
 void UWorldPartitionRuntimeLevelStreamingCell::SetStreamingPriority(int32 InStreamingPriority) const
