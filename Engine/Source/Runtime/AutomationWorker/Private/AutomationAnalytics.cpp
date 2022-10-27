@@ -111,7 +111,6 @@ void FAutomationAnalytics::InititalizeAnalyticParameterNames()
 	AutomationParamNames.SetNum(EAutomationAnalyticParam::NUM_ENGINE_PARAMS);
 
 	AutomationParamNames[EAutomationAnalyticParam::MapName] = TEXT("MapName");
-	AutomationParamNames[EAutomationAnalyticParam::SequenceName] = TEXT("SequenceName");
 	AutomationParamNames[EAutomationAnalyticParam::TimeStamp] = TEXT("TimeStamp");
 	AutomationParamNames[EAutomationAnalyticParam::Platform] = TEXT("Platform");
 	AutomationParamNames[EAutomationAnalyticParam::Spec] = TEXT("Spec");
@@ -169,7 +168,6 @@ void FAutomationAnalytics::FireEvent_FPSCapture(const FAutomationPerformanceSnap
 	// @EventParam CL string The Changelist for the build
 	// @EventParam Spec string The spec of the machine running the test
 	// @EventParam MapName string The map that the test was run on
-	// @EventParam MatineeName string The name of the matinee that fired the event
 	// @EventParam FPS string 
 	// @EventParam BuildConfiguration string Debug/Development/Test/Shipping
 	// @EventParam AverageFrameTime string Time for a frame in ms
@@ -188,7 +186,6 @@ void FAutomationAnalytics::FireEvent_FPSCapture(const FAutomationPerformanceSnap
 		ParamArray.Add(FAnalyticsEventAttribute(GetAutomationParamName(EAutomationAnalyticParam::CL), PerfSnapshot.Changelist));
 		ParamArray.Add(FAnalyticsEventAttribute(GetAutomationParamName(EAutomationAnalyticParam::Spec), MachineSpec));
 		ParamArray.Add(FAnalyticsEventAttribute(GetAutomationParamName(EAutomationAnalyticParam::MapName), PerfSnapshot.MapName));
-		ParamArray.Add(FAnalyticsEventAttribute(GetAutomationParamName(EAutomationAnalyticParam::SequenceName), PerfSnapshot.SequenceName));
 		ParamArray.Add(FAnalyticsEventAttribute(GetAutomationParamName(EAutomationAnalyticParam::FPS), PerfSnapshot.AverageFPS));
 
 		ParamArray.Add(FAnalyticsEventAttribute(GetAutomationParamName(EAutomationAnalyticParam::BuildConfiguration), PerfSnapshot.BuildConfiguration));

@@ -20,7 +20,6 @@ namespace EAutomationAnalyticParam
 	enum Type
 	{
 		MapName,
-		SequenceName,
 		TimeStamp,
 		Platform,
 		Spec,

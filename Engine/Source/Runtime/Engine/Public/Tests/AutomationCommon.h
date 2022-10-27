@@ -125,17 +125,6 @@ DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND(FWaitForMapToLoadCommand);
 */
 DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FWaitForSpecifiedMapToLoadCommand, FString, MapName);
 
-/**
-* Force a matinee to not loop and request that it play
-*/
-DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FPlayMatineeLatentCommand, AActor*, MatineeActor);
-
-
-/**
-* Wait for a particular matinee actor to finish playing
-*/
-DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FWaitForMatineeToCompleteLatentCommand, AActor*, MatineeActor);
-
 
 /**
 * Execute command string
@@ -153,16 +142,6 @@ DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FEngineWaitLatentCommand, 
 */
 DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FStreamAllResourcesLatentCommand, float, Duration);
 
-/**
-* Enqueue performance capture commands after a map has been loaded
-*/
-DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND(FEnqueuePerformanceCaptureCommands);
-
-
-/**
-* Run FPS chart command using for the actual duration of the matinee.
-*/
-DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FMatineePerformanceCaptureCommand, FString, MatineeName);
 
 /**
 * Latent command to run an exec command that also requires a UWorld.

@@ -68,20 +68,6 @@ bool FMultiplayer4PlayerTest::RunTest(const FString& Parameters)
 		END_NETWORK_AUTOMATION_COMMAND(InvitePlayers, i)
 	}
 
-
-	START_NETWORK_AUTOMATION_COMMAND(PerformanceHost)
-	{
-		ADD_LATENT_AUTOMATION_COMMAND(FEnqueuePerformanceCaptureCommands());
-	}
-	END_NETWORK_AUTOMATION_COMMAND(PerformanceHost, EMultiplayerAutomationRoles::Host)
-
-
-	START_NETWORK_AUTOMATION_COMMAND(PerformanceClient0)
-	{
-		ADD_LATENT_AUTOMATION_COMMAND(FEnqueuePerformanceCaptureCommands());
-	}
-	END_NETWORK_AUTOMATION_COMMAND(PerformanceClient0, EMultiplayerAutomationRoles::Client0)
-
 	return true;
 }
 

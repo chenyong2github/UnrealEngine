@@ -685,17 +685,6 @@ bool FWaitForInteractiveFrameRate::Update()
 // Common Latent commands which are used across test type. I.e. Engine, Network, etc...
 
 
-bool FPlayMatineeLatentCommand::Update()
-{
-	return true;
-}
-
-
-bool FWaitForMatineeToCompleteLatentCommand::Update()
-{
-	return true;
-}
-
 
 bool FExecStringLatentCommand::Update()
 {
@@ -744,17 +733,6 @@ bool FStreamAllResourcesLatentCommand::Update()
 	return true;
 }
 
-bool FEnqueuePerformanceCaptureCommands::Update()
-{
-	return true;
-}
-
-
-bool FMatineePerformanceCaptureCommand::Update()
-{
-	return true;
-
-}
 
 
 bool FExecWorldStringLatentCommand::Update()
