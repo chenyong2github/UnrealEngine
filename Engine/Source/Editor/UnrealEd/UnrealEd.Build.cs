@@ -121,7 +121,6 @@ public class UnrealEd : ModuleRules
 				"SubobjectEditor",
 				"PhysicsUtilities",
 				"ToolWidgets",
-				"AssetTools",
 			}
 		);
 
@@ -230,6 +229,7 @@ public class UnrealEd : ModuleRules
 				"TextureEditor",
 				"Cascade",
 				"UMGEditor",
+				"AssetTools",
 				"ClassViewer",
 				"StructViewer",
 				"CollectionManager",
@@ -326,6 +326,7 @@ public class UnrealEd : ModuleRules
 				"BlueprintGraph",
 				"AddContentDialog",
 				"MeshUtilities",
+				"AssetTools",
 				"KismetCompiler",
 				"NavigationSystem",
 				"GameplayTasks",

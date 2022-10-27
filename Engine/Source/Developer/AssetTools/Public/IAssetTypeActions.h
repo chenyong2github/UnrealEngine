@@ -10,7 +10,6 @@
 #include "IAssetTypeActions.generated.h"
 
 class IToolkitHost;
-enum class EAssetTypeActivationOpenedMethod : int32;
 
 namespace EAssetTypeActivationMethod
 {
@@ -21,6 +20,8 @@ namespace EAssetTypeActivationMethod
 		Previewed
 	};
 }
+
+class IToolkitHost;
 
 /* Revision information for a single revision of a file in source control */
 USTRUCT(BlueprintType)
@@ -94,9 +95,6 @@ public:
 
 	/** Opens the asset editor for the specified objects. If EditWithinLevelEditor is valid, the world-centric editor will be used. */
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) = 0;
-
-	/** Opens the asset editor for the specified objects. If EditWithinLevelEditor is valid, the world-centric editor will be used. */
-	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, const EAssetTypeActivationOpenedMethod OpenedMethod, TSharedPtr<IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) = 0;
 
 	/** Allows overriding asset activation to perform asset type specific activation for the supplied assets. This happens when the user double clicks, presses enter, or presses space. Return true if you have overridden the behavior. */
 	virtual bool AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) = 0;
@@ -178,9 +176,6 @@ public:
 
 	/** Returns class path name as a package + class FName pair */
 	virtual FTopLevelAssetPath GetClassPathName() const = 0;
-
-	/** Does this asset support edit or view methods? */
-	virtual bool SupportsOpenedMethod(const EAssetTypeActivationOpenedMethod OpenedMethod) const = 0;
 
 	/** Returns thumbnail brush unique for the given asset data.  Returning null falls back to class thumbnail brush. */
 	virtual const FSlateBrush* GetThumbnailBrush(const FAssetData& InAssetData, const FName InClassName) const = 0;

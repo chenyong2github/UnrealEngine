@@ -1237,21 +1237,6 @@ bool UContentBrowserAssetDataSource::BulkEditItems(TArrayView<const FContentBrow
 	return ContentBrowserAssetData::EditItems(AssetTools, this, InItems);
 }
 
-bool UContentBrowserAssetDataSource::CanViewItem(const FContentBrowserItemData& InItem, FText* OutErrorMsg)
-{
-	return ContentBrowserAssetData::CanViewItem(AssetTools, this, InItem, OutErrorMsg);
-}
-
-bool UContentBrowserAssetDataSource::ViewItem(const FContentBrowserItemData& InItem)
-{
-	return ContentBrowserAssetData::ViewItems(AssetTools, this, MakeArrayView(&InItem, 1));
-}
-
-bool UContentBrowserAssetDataSource::BulkViewItems(TArrayView<const FContentBrowserItemData> InItems)
-{
-	return ContentBrowserAssetData::ViewItems(AssetTools, this, InItems);
-}
-
 bool UContentBrowserAssetDataSource::CanPreviewItem(const FContentBrowserItemData& InItem, FText* OutErrorMsg)
 {
 	return ContentBrowserAssetData::CanPreviewItem(AssetTools, this, InItem, OutErrorMsg);

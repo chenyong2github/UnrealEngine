@@ -151,6 +151,7 @@ int32 UAssetEditorSubsystem::CloseAllEditorsForAsset(UObject* Asset)
 	return EditorInstances.Num();
 }
 
+
 void UAssetEditorSubsystem::RemoveAssetFromAllEditors(UObject* Asset)
 {
 	TArray<IAssetEditorInstance*> EditorInstances = FindEditorsForAsset(Asset);
@@ -310,7 +311,7 @@ bool UAssetEditorSubsystem::IsAssetEditable(const UObject* Asset)
 	return true;
 }
 
-bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor, const bool bShowProgressWindow, const EAssetTypeActivationOpenedMethod OpenedMethod)
+bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor, const bool bShowProgressWindow)
 {
 	SCOPE_STALL_REPORTER(UAssetEditorSubsystem::OpenEditorForAsset, 2.0);
 
@@ -330,21 +331,18 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 
 	const bool bBringToFrontIfOpen = true;
 
-	if (OpenedMethod == EAssetTypeActivationOpenedMethod::Edit)
+	if (UPackage* Package = Asset->GetOutermost())
 	{
-		if (UPackage* Package = Asset->GetOutermost())
+		// Don't open asset editors for cooked packages
+		if (Package->bIsCookedForEditor)
 		{
-			// Don't open asset editors for cooked packages
-			if (Package->bIsCookedForEditor)
-			{
-				return false;
-			}
+			return false;
+		}
 
-			if (!AssetToolsModule.Get().GetWritableFolderPermissionList()->PassesStartsWithFilter(Package->GetName()))
-			{
-				AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
-				return false;
-			}
+		if (!AssetToolsModule.Get().GetWritableFolderPermissionList()->PassesStartsWithFilter(Package->GetName()))
+		{
+			AssetToolsModule.Get().NotifyBlockedByWritableFolderFilter();
+			return false;
 		}
 	}
 
@@ -393,7 +391,7 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 	// Disallow opening an asset editor for classes
 	bool bCanSummonSimpleAssetEditor = !Asset->IsA<UClass>();
 
-	if (AssetTypeActions.IsValid() && AssetTypeActions.Pin()->SupportsOpenedMethod(OpenedMethod))
+	if (AssetTypeActions.IsValid())
 	{
 		TArray<UObject*> AssetsToEdit;
 		AssetsToEdit.Add(Asset);
@@ -402,7 +400,7 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 		TWeakObjectPtr<UObject> WeakAsset = Asset;
 		const FString AssetPath = Asset->GetPathName();
 
-		AssetTypeActions.Pin()->OpenAssetEditor(AssetsToEdit, OpenedMethod, ActualToolkitMode == EToolkitMode::WorldCentric ? OpenedFromLevelEditor : TSharedPtr<IToolkitHost>());
+		AssetTypeActions.Pin()->OpenAssetEditor(AssetsToEdit, ActualToolkitMode == EToolkitMode::WorldCentric ? OpenedFromLevelEditor : TSharedPtr<IToolkitHost>());
 
 		// If the Asset was destroyed, attempt to find it if it was recreated
 		if (!WeakAsset.IsValid() && !AssetPath.IsEmpty())
@@ -441,13 +439,14 @@ bool UAssetEditorSubsystem::OpenEditorForAsset(UObject* Asset, const EToolkitMod
 		FStudioAnalytics::FireEvent_Loading(TEXT("OpenAssetEditor"), OpenTime, {
 			FAnalyticsEventAttribute(TEXT("AssetPath"), Asset->GetFullName()),
 			FAnalyticsEventAttribute(TEXT("AssetType"), Asset->GetClass()->GetName())
-			});
+		});
 	}
-	
+
 	return true;
 }
 
-bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject*>& InAssets, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor, const EAssetTypeActivationOpenedMethod OpenedMethod)
+
+bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject* >& InAssets, const EToolkitMode::Type ToolkitMode, TSharedPtr< IToolkitHost > OpenedFromLevelEditor)
 {
 	TArray<UObject*> Assets;
 	Assets.Reserve(InAssets.Num());
@@ -475,7 +474,7 @@ bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject*>
 
 	if (Assets.Num() == 1)
 	{
-		return OpenEditorForAsset(Assets[0], ToolkitMode, OpenedFromLevelEditor, true, OpenedMethod);
+		return OpenEditorForAsset(Assets[0], ToolkitMode, OpenedFromLevelEditor);
 	}
 	else if (Assets.Num() > 0)
 	{
@@ -485,7 +484,7 @@ bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject*>
 			// If any of the assets are already open or the package is cooked,
 			// remove them from the list of assets to open an editor for
 			UPackage* Package = Asset->GetOutermost();
-			if (FindEditorForAsset(Asset, true) != nullptr || (OpenedMethod == EAssetTypeActivationOpenedMethod::Edit && Package && Package->bIsCookedForEditor))
+			if (FindEditorForAsset(Asset, true) != nullptr || (Package && Package->bIsCookedForEditor))
 			{
 				SkipOpenAssets.Add(Asset);
 			}
@@ -509,7 +508,7 @@ bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject*>
 			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
 			TWeakPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(AssetClass);
 
-			if (AssetTypeActions.IsValid() && AssetTypeActions.Pin()->SupportsOpenedMethod(OpenedMethod))
+			if (AssetTypeActions.IsValid())
 			{
 				GWarn->BeginSlowTask(LOCTEXT("OpenEditors", "Opening Editor(s)..."), true);
 
@@ -552,7 +551,7 @@ bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject*>
 				}
 
 				// How to handle multiple assets is left up to the type actions (i.e. open a single shared editor or an editor for each)
-				AssetTypeActions.Pin()->OpenAssetEditor(Assets, OpenedMethod, ActualToolkitMode == EToolkitMode::WorldCentric ? OpenedFromLevelEditor : TSharedPtr<IToolkitHost>());
+				AssetTypeActions.Pin()->OpenAssetEditor(Assets, ActualToolkitMode == EToolkitMode::WorldCentric ? OpenedFromLevelEditor : TSharedPtr<IToolkitHost>());
 
 				// If any assets were destroyed, attempt to find them if they were recreated
 				for (int32 i = 0; i < Assets.Num(); i++)
@@ -579,7 +578,7 @@ bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject*>
 			{
 				if (!SkipOpenAssets.Contains(Asset))
 				{
-					OpenEditorForAsset(Asset, ToolkitMode, OpenedFromLevelEditor, true, OpenedMethod);
+					OpenEditorForAsset(Asset, ToolkitMode, OpenedFromLevelEditor);
 				}
 			}
 		}
@@ -588,9 +587,9 @@ bool UAssetEditorSubsystem::OpenEditorForAssets_Advanced(const TArray <UObject*>
 	return NumNullAssets == 0;
 }
 
-bool UAssetEditorSubsystem::OpenEditorForAssets(const TArray<UObject*>& Assets, const EAssetTypeActivationOpenedMethod OpenedMethod)
+bool UAssetEditorSubsystem::OpenEditorForAssets(const TArray<UObject*>& Assets)
 {
-	return OpenEditorForAssets_Advanced(Assets, EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), OpenedMethod);
+	return OpenEditorForAssets_Advanced(Assets, EToolkitMode::Standalone, TSharedPtr<IToolkitHost>());
 }
 
 void UAssetEditorSubsystem::HandleRequestOpenAssetMessage(const FAssetEditorRequestOpenAsset& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
@@ -598,7 +597,12 @@ void UAssetEditorSubsystem::HandleRequestOpenAssetMessage(const FAssetEditorRequ
 	OpenEditorForAsset(Message.AssetName);
 }
 
-void UAssetEditorSubsystem::OpenEditorForAsset(const FString& AssetPathName, const EAssetTypeActivationOpenedMethod OpenedMethod)
+void UAssetEditorSubsystem::OpenEditorForAsset(const FSoftObjectPath& AssetPath)
+{
+	OpenEditorForAsset(AssetPath.ToString());
+}
+
+void UAssetEditorSubsystem::OpenEditorForAsset(const FString& AssetPathName)
 {
 	// An asset needs loading
 
@@ -609,7 +613,7 @@ void UAssetEditorSubsystem::OpenEditorForAsset(const FString& AssetPathName, con
 
 		FString AssetName = FPaths::GetBaseFilename(AssetPathName);
 		UObject* Object = FindObject<UObject>(Package, *AssetName);
-		
+
 		if (Object != nullptr)
 		{
 			OpenEditorForAsset(Object);
@@ -622,7 +626,6 @@ void UAssetEditorSubsystem::OpenEditorForAsset(const FString& AssetPathName, con
 		
 		if (Object != nullptr)
 		{
-			OpenEditorForAsset(Object, EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), true, OpenedMethod);
 		}
 	}
 }
@@ -1021,19 +1024,27 @@ void UAssetEditorSubsystem::HandlePackageReloaded(const EPackageReloadPhase InPa
 	}
 }
 
-void UAssetEditorSubsystem::OpenEditorsForAssets(const TArray<FString>& AssetsToOpen, const EAssetTypeActivationOpenedMethod OpenedMethod)
+void UAssetEditorSubsystem::OpenEditorsForAssets(const TArray<FSoftObjectPath>& AssetsToOpen)
 {
-	for (const FString& AssetName : AssetsToOpen)
+	for (const FSoftObjectPath& AssetName : AssetsToOpen)
 	{
-		OpenEditorForAsset(AssetName, OpenedMethod);
+		OpenEditorForAsset(AssetName);
 	}
 }
 
-void UAssetEditorSubsystem::OpenEditorsForAssets(const TArray<FName>& AssetsToOpen, const EAssetTypeActivationOpenedMethod OpenedMethod)
+void UAssetEditorSubsystem::OpenEditorsForAssets(const TArray<FString>& AssetsToOpen)
+{
+	for (const FString& AssetName : AssetsToOpen)
+	{
+		OpenEditorForAsset(AssetName);
+	}
+}
+
+void UAssetEditorSubsystem::OpenEditorsForAssets(const TArray<FName>& AssetsToOpen)
 {
 	for (const FName& AssetName : AssetsToOpen)
 	{
-		OpenEditorForAsset(AssetName.ToString(), OpenedMethod);
+		OpenEditorForAsset(AssetName.ToString());
 	}
 }
 
