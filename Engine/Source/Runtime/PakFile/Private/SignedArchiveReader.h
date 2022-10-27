@@ -220,12 +220,6 @@ public:
  */
 class FSignedArchiveReader : public FArchive
 {
-	enum
-	{
-		/** Number of chunks to pre-cache.*/
-		PrecacheLength = 0
-	};
-
 	struct FReadInfo
 	{
 		FChunkRequest* Request;
