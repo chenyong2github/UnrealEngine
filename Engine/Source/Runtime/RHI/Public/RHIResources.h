@@ -14,7 +14,6 @@
 #include "Math/Color.h"
 #include "Containers/StaticArray.h"
 #include "HAL/ThreadSafeCounter.h"
-#include "RHI.h"
 #include "Templates/RefCounting.h"
 #include "PixelFormat.h"
 #include "TextureProfiler.h"
