@@ -45,7 +45,10 @@ void FUIFrameworkWidgetTree::PreReplicatedRemove(const TArrayView<int32> Removed
 		FUIFrameworkWidgetTreeEntry& Entry = Entries[Index];
 		if (Entry.Child)
 		{
-			OwnerComponent->LocalWidgetRemovedFromTree(Entry);
+			if (ensure(Owner))
+			{
+				Owner->LocalWidgetRemovedFromTree(Entry);
+			}
 
 			// Was it remove but added by something else
 			{
@@ -78,7 +81,10 @@ void FUIFrameworkWidgetTree::PostReplicatedAdd(const TArrayView<int32> AddedIndi
 		FUIFrameworkWidgetTreeEntry& Entry = Entries[Index];
 		if (Entry.ParentId.IsValid() && Entry.ChildId.IsValid())
 		{
-			OwnerComponent->LocalWidgetWasAddedToTree(Entry);
+			if (ensure(Owner))
+			{
+				Owner->LocalWidgetWasAddedToTree(Entry);
+			}
 			WidgetByIdMap.FindOrAdd(Entry.ChildId) = Entry.Child;
 			if (!Entry.ParentId.IsRoot())
 			{
@@ -96,7 +102,10 @@ void FUIFrameworkWidgetTree::PostReplicatedChange(const TArrayView<int32>& Chang
 		FUIFrameworkWidgetTreeEntry& Entry = Entries[Index];
 		if (Entry.ParentId.IsValid() && Entry.ChildId.IsValid())
 		{
-			OwnerComponent->LocalWidgetWasAddedToTree(Entry);
+			if (ensure(Owner))
+			{
+				Owner->LocalWidgetWasAddedToTree(Entry);
+			}
 			WidgetByIdMap.FindOrAdd(Entry.ChildId) = Entry.Child;
 			if (!Entry.ParentId.IsRoot())
 			{
@@ -144,7 +153,6 @@ void FUIFrameworkWidgetTree::AddWidget(UUIFrameworkWidget* Parent, UUIFrameworkW
 
 void FUIFrameworkWidgetTree::AddChildInternal(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child)
 {
-	check(OwnerComponent);
 	int32 PreviousEntryIndex = Entries.IndexOfByPredicate([Child](const FUIFrameworkWidgetTreeEntry& Other){ return Other.Child == Child; });
 	if (PreviousEntryIndex != INDEX_NONE)
 	{
@@ -167,9 +175,9 @@ void FUIFrameworkWidgetTree::AddChildInternal(UUIFrameworkWidget* Parent, UUIFra
 		MarkItemDirty(NewEntry);
 		WidgetByIdMap.FindOrAdd(Child->GetWidgetId()) = Child;
 
-		if (OwnerComponent->GetOwner()->IsUsingRegisteredSubObjectList())
+		if (ensure(ReplicatedOwner) && ReplicatedOwner->IsUsingRegisteredSubObjectList())
 		{
-			OwnerComponent->GetOwner()->AddReplicatedSubObject(Child);
+			ReplicatedOwner->AddReplicatedSubObject(Child);
 		}
 		AddChildRecursiveInternal(Child);
 	}
@@ -185,9 +193,9 @@ void FUIFrameworkWidgetTree::AddChildRecursiveInternal(UUIFrameworkWidget* Widge
 				FUIFrameworkWidgetTreeEntry& NewEntry = Self->Entries.Emplace_GetRef(Widget, ChildWidget);
 				Self->MarkItemDirty(NewEntry);
 				Self->WidgetByIdMap.FindOrAdd(ChildWidget->GetWidgetId()) = ChildWidget;
-				if (Self->OwnerComponent->GetOwner()->IsUsingRegisteredSubObjectList())
+				if (ensure(Self->ReplicatedOwner) && Self->ReplicatedOwner->IsUsingRegisteredSubObjectList())
 				{
-					Self->OwnerComponent->GetOwner()->AddReplicatedSubObject(ChildWidget);
+					Self->ReplicatedOwner->AddReplicatedSubObject(ChildWidget);
 				}
 				Self->AddChildRecursiveInternal(ChildWidget);
 			}
@@ -207,7 +215,10 @@ void FUIFrameworkWidgetTree::RemoveWidget(UUIFrameworkWidget* Widget)
 		{
 			UUIFrameworkWidget* CurrentWidgetToRemove = WidgetsToRemove.Last();
 			WidgetByIdMap.Remove(CurrentWidgetToRemove->GetWidgetId());
-			OwnerComponent->GetOwner()->RemoveReplicatedSubObject(CurrentWidgetToRemove);
+			if (ensure(ReplicatedOwner) && ReplicatedOwner->IsUsingRegisteredSubObjectList())
+			{
+				ReplicatedOwner->RemoveReplicatedSubObject(CurrentWidgetToRemove);
+			}
 
 			WidgetsToRemove.RemoveAt(WidgetsToRemove.Num()-1);
 			for (int32 Index = Entries.Num() - 1; Index >= 0; --Index)

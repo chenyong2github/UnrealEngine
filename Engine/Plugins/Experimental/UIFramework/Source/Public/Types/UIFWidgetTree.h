@@ -10,10 +10,20 @@
 #include "UIFWidgetTree.generated.h"
 
 struct FReplicationFlags;
+struct FUIFrameworkWidgetTreeEntry;
+class AActor;
 class FOutBunch;
 class UActorChannel;
-class UUIFrameworkPlayerComponent;
 class UUIFrameworkWidget;
+
+class IUIFrameworkWidgetTreeOwner
+{
+public:
+	/** A widget was added to the tree. */
+	virtual void LocalWidgetWasAddedToTree(const FUIFrameworkWidgetTreeEntry& Entry) {};
+	/** A widget was removed to the tree. */
+	virtual void LocalWidgetRemovedFromTree(const FUIFrameworkWidgetTreeEntry& Entry) {};
+};
 
 /**
  *
@@ -55,8 +65,9 @@ struct UIFRAMEWORK_API FUIFrameworkWidgetTree : public FFastArraySerializer
 
 public:
 	FUIFrameworkWidgetTree() = default;
-	FUIFrameworkWidgetTree(UUIFrameworkPlayerComponent* InOwnerComponent)
-		: OwnerComponent(InOwnerComponent)
+	FUIFrameworkWidgetTree(AActor* InReplicatedOwner, IUIFrameworkWidgetTreeOwner* InOwner)
+		: ReplicatedOwner(InReplicatedOwner)
+		, Owner(InOwner)
 	{
 	}
 
@@ -106,7 +117,9 @@ private:
 	TMap<FUIFrameworkWidgetId, TWeakObjectPtr<UUIFrameworkWidget>> WidgetByIdMap;
 
 	UPROPERTY(NotReplicated, Transient)
-	TObjectPtr<UUIFrameworkPlayerComponent> OwnerComponent = nullptr;
+	TObjectPtr<AActor> ReplicatedOwner;
+
+	IUIFrameworkWidgetTreeOwner* Owner = nullptr;
 };
 
 template<>

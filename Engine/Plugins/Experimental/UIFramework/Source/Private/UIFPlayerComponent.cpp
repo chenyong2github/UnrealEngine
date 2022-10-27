@@ -61,7 +61,7 @@ FUIFrameworkGameLayerSlot* FUIFrameworkGameLayerSlotList::FindEntry(FUIFramework
  */
 UUIFrameworkPlayerComponent::UUIFrameworkPlayerComponent()
 	: RootList(this)
-	, WidgetTree(this)
+	, WidgetTree(GetOwner(), this)
 {
 	SetIsReplicatedByDefault(true);
 	bWantsInitializeComponent = true;

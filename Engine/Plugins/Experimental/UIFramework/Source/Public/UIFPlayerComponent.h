@@ -93,7 +93,7 @@ struct TStructOpsTypeTraits<FUIFrameworkGameLayerSlotList> : public TStructOpsTy
  * 
  */
 UCLASS(Blueprintable, meta = (BlueprintSpawnableComponent))
-class UIFRAMEWORK_API UUIFrameworkPlayerComponent : public UActorComponent
+class UIFRAMEWORK_API UUIFrameworkPlayerComponent : public UActorComponent, public IUIFrameworkWidgetTreeOwner
 {
 	GENERATED_BODY()
 
@@ -135,8 +135,9 @@ public:
 	//~ End UActorComponent
 
 	void AuthorityRemoveChild(UUIFrameworkWidget* Widget);
-	void LocalWidgetWasAddedToTree(const FUIFrameworkWidgetTreeEntry& Entry);
-	void LocalWidgetRemovedFromTree(const FUIFrameworkWidgetTreeEntry& Entry);
+
+	virtual void LocalWidgetWasAddedToTree(const FUIFrameworkWidgetTreeEntry& Entry) override;
+	virtual void LocalWidgetRemovedFromTree(const FUIFrameworkWidgetTreeEntry& Entry) override;
 
 private:
 	void LocalOnClassLoaded(TSoftClassPtr<UWidget> WidgetClass);
