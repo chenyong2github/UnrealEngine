@@ -913,7 +913,7 @@ HasScriptObjectsChunk(FIoDispatcher& Dispatcher)
 static bool
 HasUseIoStoreParam()
 {
-	static bool bForceIoStore = WITH_IOSTORE_IN_EDITOR && FParse::Param(FCommandLine::Get(), TEXT("UseIoStore"));
+	static bool bForceIoStore = UE_FORCE_USE_IOSTORE || (WITH_IOSTORE_IN_EDITOR && FParse::Param(FCommandLine::Get(), TEXT("UseIoStore")));
 	return bForceIoStore;
 }
 

@@ -7401,14 +7401,19 @@ bool FPakPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) 
 #endif //if WITH_EDITOR
 
 	bool Result = false;
-#if (!WITH_EDITOR || IS_MONOLITHIC)
+#if (!WITH_EDITOR || IS_MONOLITHIC || UE_FORCE_USE_PAKS)
 	if (!FParse::Param(CmdLine, TEXT("NoPak")))
 	{
+#if UE_FORCE_USE_PAKS
+		// Target wants pak file to be used even if no pak files currently exist (they can be downloaded later at runtime)
+		Result = true;
+#else
 		TArray<FString> PakFolders;
 		GetPakFolders(CmdLine, PakFolders);
 		Result = CheckIfPakFilesExist(Inner, PakFolders);
+#endif // UE_FORCE_USE_PAKS
 	}
-#endif //if (!WITH_EDITOR || IS_MONOLITHIC)
+#endif //if (!WITH_EDITOR || IS_MONOLITHIC || UE_FORCE_USE_PAKS)
 	return Result;
 }
 
@@ -7453,7 +7458,7 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 
 	FString GlobalUTocPath = FString::Printf(TEXT("%sPaks/global.utoc"), *FPaths::ProjectContentDir());
 	const bool bShouldMountGlobal = FPlatformFileManager::Get().GetPlatformFile().FileExists(*GlobalUTocPath);
-	const bool bForceIoStore = WITH_IOSTORE_IN_EDITOR && FParse::Param(CmdLine, TEXT("UseIoStore"));
+	const bool bForceIoStore = UE_FORCE_USE_IOSTORE || (WITH_IOSTORE_IN_EDITOR && FParse::Param(CmdLine, TEXT("UseIoStore")));
 	if (bShouldMountGlobal || bForceIoStore)
 	{
 		if (ShouldCheckPak())
