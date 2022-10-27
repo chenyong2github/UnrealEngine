@@ -44,13 +44,16 @@ struct FPackedView
 	FIntVector4	ViewRect;
 	FVector4f	ViewSizeAndInvSize;
 	FVector4f	ClipSpaceScaleOffset;
-	FVector4f	PreViewTranslation;
-	FVector4f	PrevPreViewTranslation;
-	FVector4f	WorldCameraOrigin;
-	FVector4f	ViewForwardAndNearPlane;
-
-	FVector3f	ViewTilePosition;
+	FVector3f	RelativePreViewTranslation;
+	float		ViewTilePositionX;
+	FVector3f	RelativePrevPreViewTranslation;
+	float		ViewTilePositionY;
+	FVector3f	RelativeWorldCameraOrigin;
+	float		ViewTilePositionZ;
+	FVector3f	DrawDistanceOriginTranslatedWorld;
 	float		RangeBasedCullingDistance;
+	FVector3f	ViewForward;
+	float		NearPlane;
 
 	FVector3f	MatrixTilePosition;
 	uint32		Padding1;
@@ -98,6 +101,9 @@ struct FPackedViewParams
 	FIntRect HZBTestViewRect = {0, 0, 0, 0};
 
 	float MaxPixelsPerEdgeMultipler = 1.0f;
+
+	bool bOverrideDrawDistanceOrigin = false;
+	FVector DrawDistanceOrigin = FVector::ZeroVector;
 };
 
 FPackedView CreatePackedView(const FPackedViewParams& Params);

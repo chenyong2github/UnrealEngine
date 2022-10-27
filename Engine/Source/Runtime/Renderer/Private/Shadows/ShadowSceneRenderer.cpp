@@ -163,6 +163,7 @@ void FShadowSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bo
 			{
 				VirtualShadowMapArray.AddRenderViews(
 					ProjectedShadowInfo,
+					SceneRenderer.Views,
 					ComputeNaniteShadowsLODScaleFactor(),
 					PrevHZBPhysical.IsValid(),
 					bVSMUseHZB,

@@ -136,6 +136,7 @@ struct FNaniteView
 	FLWCVector3	PreViewTranslation;
 	FLWCVector3	PrevPreViewTranslation;
 	FLWCVector3	WorldCameraOrigin;
+	float3		DrawDistanceOriginTranslatedWorld;
 	float3		ViewForward;
 	float3		ViewTilePosition;
 	float3		MatrixTilePosition;
@@ -623,11 +624,18 @@ float3 DecodePosition(uint VertIndex, FCluster Cluster)
 
 FNaniteView UnpackNaniteView(FPackedNaniteView PackedView)
 {
+	const float3 ViewTilePosition =
+	{
+		PackedView.ViewTilePositionX,
+		PackedView.ViewTilePositionY,
+		PackedView.ViewTilePositionZ
+	};
+
 	FNaniteView NaniteView;
-	
+
 	NaniteView.SVPositionToTranslatedWorld	= PackedView.SVPositionToTranslatedWorld;
 	NaniteView.ViewToTranslatedWorld		= PackedView.ViewToTranslatedWorld;
-	NaniteView.ViewTilePosition				= PackedView.ViewTilePosition;
+	NaniteView.ViewTilePosition				= ViewTilePosition;
 	NaniteView.MatrixTilePosition			= PackedView.MatrixTilePosition;
 
 	NaniteView.TranslatedWorldToView		= PackedView.TranslatedWorldToView;
@@ -641,14 +649,16 @@ FNaniteView UnpackNaniteView(FPackedNaniteView PackedView)
 	NaniteView.PrevViewToClip				= PackedView.PrevViewToClip;
 	NaniteView.PrevClipToWorld				= MakeLWCMatrix(PackedView.MatrixTilePosition, PackedView.PrevClipToRelativeWorld);
 
+
 	NaniteView.ViewRect						= PackedView.ViewRect;
 	NaniteView.ViewSizeAndInvSize			= PackedView.ViewSizeAndInvSize;
 	NaniteView.ClipSpaceScaleOffset			= PackedView.ClipSpaceScaleOffset;
-	NaniteView.PreViewTranslation			= MakeLWCVector3(-PackedView.ViewTilePosition, PackedView.PreViewTranslation.xyz);
-	NaniteView.PrevPreViewTranslation		= MakeLWCVector3(-PackedView.ViewTilePosition, PackedView.PrevPreViewTranslation.xyz);
-	NaniteView.WorldCameraOrigin			= MakeLWCVector3(PackedView.ViewTilePosition, PackedView.WorldCameraOrigin.xyz);
-	NaniteView.ViewForward					= PackedView.ViewForwardAndNearPlane.xyz;
-	NaniteView.NearPlane					= PackedView.ViewForwardAndNearPlane.w;
+	NaniteView.PreViewTranslation			= MakeLWCVector3(-ViewTilePosition, PackedView.RelativePreViewTranslation);
+	NaniteView.PrevPreViewTranslation		= MakeLWCVector3(-ViewTilePosition, PackedView.RelativePrevPreViewTranslation);
+	NaniteView.WorldCameraOrigin			= MakeLWCVector3(ViewTilePosition, PackedView.RelativeWorldCameraOrigin);
+	NaniteView.DrawDistanceOriginTranslatedWorld = PackedView.DrawDistanceOriginTranslatedWorld;
+	NaniteView.ViewForward					= PackedView.ViewForward;
+	NaniteView.NearPlane					= PackedView.NearPlane;
 	NaniteView.LODScale						= PackedView.LODScales.x;
 	NaniteView.LODScaleHW					= PackedView.LODScales.y;
 	NaniteView.MinBoundsRadiusSq			= PackedView.MinBoundsRadiusSq;

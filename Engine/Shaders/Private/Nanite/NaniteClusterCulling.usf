@@ -255,7 +255,7 @@ struct FNaniteTraversalClusterCullCallback
 
 #if VIRTUAL_TEXTURE_TARGET
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
-		const bool bMaterialInvalidates = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u;
+		const bool bMaterialInvalidates = (CandidateNode.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u;
 		const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates;
 		const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
 #endif
@@ -501,7 +501,7 @@ struct FNaniteTraversalClusterCullCallback
 		const float3 ClusterBoxBoundsExtent = Cluster.BoxBoundsExtent * PrimitiveData.BoundsScale;
 
 #if VIRTUAL_TEXTURE_TARGET
-		const bool bMaterialInvalidates = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) != 0u;
+		const bool bMaterialInvalidates = (VisibleCluster.Flags & NANITE_CULLING_FLAG_ENABLE_WPO) != 0u;
 		const bool bHasMoved = DynamicData.bHasMoved || bMaterialInvalidates;
 
 		const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, bHasMoved);
