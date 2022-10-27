@@ -7,7 +7,13 @@
 #include "AssetTypeActions_Base.h"
 #include "NiagaraEditorModule.h"
 
-class FAssetTypeActions_NiagaraParameterCollection : public FAssetTypeActions_Base
+class FAssetTypeActions_NiagaraParameterCollectionBase : public FAssetTypeActions_Base
+{
+public:
+	virtual const TArray<FText>& GetSubMenus() const override;
+};
+
+class FAssetTypeActions_NiagaraParameterCollection : public FAssetTypeActions_NiagaraParameterCollectionBase
 {
 public:
 	// IAssetTypeActions Implementation
@@ -21,7 +27,7 @@ public:
 	void ExecuteNewNPC(TArray<TWeakObjectPtr<class UNiagaraParameterCollection>> Objects);
 };
 
-class FAssetTypeActions_NiagaraParameterCollectionInstance : public FAssetTypeActions_Base
+class FAssetTypeActions_NiagaraParameterCollectionInstance : public FAssetTypeActions_NiagaraParameterCollectionBase
 {
 public:
 	// IAssetTypeActions Implementation

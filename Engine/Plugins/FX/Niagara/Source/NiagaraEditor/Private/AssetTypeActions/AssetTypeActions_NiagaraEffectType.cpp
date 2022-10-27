@@ -37,4 +37,13 @@ UClass* FAssetTypeActions_NiagaraEffectType::GetSupportedClass() const
 	return UNiagaraEffectType::StaticClass();
 }
 
+const TArray<FText>& FAssetTypeActions_NiagaraEffectType::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		NSLOCTEXT("Niagara", "NiagaraAssetSubMenu_Advanced", "Advanced")
+	};
+	return SubMenus;
+}
+
 #undef LOCTEXT_NAMESPACE

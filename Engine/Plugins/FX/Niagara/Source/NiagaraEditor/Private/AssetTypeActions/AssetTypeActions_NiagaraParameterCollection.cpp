@@ -14,6 +14,15 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions_NiagaraParameterCollection"
 
+const TArray<FText>& FAssetTypeActions_NiagaraParameterCollectionBase::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		NSLOCTEXT("Niagara", "NiagaraAssetSubMenu_Advanced", "Advanced")
+	};
+	return SubMenus;
+}
+
 FColor FAssetTypeActions_NiagaraParameterCollection::GetTypeColor() const
 {
 	return FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.AssetColors.ParameterCollection").ToFColor(true);

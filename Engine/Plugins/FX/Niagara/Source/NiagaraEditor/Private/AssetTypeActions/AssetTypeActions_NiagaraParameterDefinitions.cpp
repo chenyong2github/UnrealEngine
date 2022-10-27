@@ -30,3 +30,12 @@ void FAssetTypeActions_NiagaraParameterDefinitions::OpenAssetEditor(const TArray
 	}
 }
 
+const TArray<FText>& FAssetTypeActions_NiagaraParameterDefinitions::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		NSLOCTEXT("Niagara", "NiagaraAssetSubMenu_Advanced", "Advanced")
+	};
+	return SubMenus;
+}
+

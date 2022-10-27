@@ -29,3 +29,12 @@ void FAssetTypeActions_NiagaraSimCache::OpenAssetEditor(const TArray<UObject*>& 
 		}
 	}
 }
+
+const TArray<FText>& FAssetTypeActions_NiagaraSimCache::GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		NSLOCTEXT("Niagara", "NiagaraAssetSubMenu_Advanced", "Advanced")
+	};
+	return SubMenus;
+}

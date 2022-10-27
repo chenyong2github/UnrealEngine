@@ -72,6 +72,15 @@ void FAssetTypeActions_NiagaraScript::GetActions(const TArray<UObject*>& InObjec
 		FUIAction(FExecuteAction::CreateStatic(&FNiagaraEditorUtilities::MarkDependentCompilableAssetsDirty, InObjects)));
 }
 
+const TArray<FText>& FAssetTypeActions_NiagaraScript:: GetSubMenus() const
+{
+	static const TArray<FText> SubMenus
+	{
+		NSLOCTEXT("Niagara", "NiagaraAssetSubMenu_Script", "Script")
+	};
+	return SubMenus;
+}
+
 UClass* FAssetTypeActions_NiagaraScript::GetSupportedClass() const
 { 
 	return UNiagaraScript::StaticClass(); 
