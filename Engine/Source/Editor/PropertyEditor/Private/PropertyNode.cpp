@@ -420,10 +420,19 @@ FObjectPropertyNode* FPropertyNode::FindRootObjectItemParent()
 	return TopmostObjectItem;
 }
 
-
 bool FPropertyNode::DoesChildPropertyRequireValidation(FProperty* InChildProp)
 {
 	return InChildProp != nullptr && (CastField<FObjectProperty>(InChildProp) != nullptr || CastField<FStructProperty>(InChildProp) != nullptr);
+}
+
+void FPropertyNode::MarkChildrenAsRebuilt()
+{
+	bChildrenRebuilt = false;
+
+	for (const TSharedPtr<FPropertyNode>& ChildNode : ChildNodes)
+	{
+		ChildNode->MarkChildrenAsRebuilt();
+	}
 }
 
 /** 
@@ -437,7 +446,7 @@ EPropertyDataValidationResult FPropertyNode::EnsureDataIsValid()
 	// If we have rebuilt children since last EnsureDataIsValid call let the caller know
 	if (bChildrenRebuilt)
 	{
-		bChildrenRebuilt = false;
+		MarkChildrenAsRebuilt();
 		return EPropertyDataValidationResult::ChildrenRebuilt;
 	}
 

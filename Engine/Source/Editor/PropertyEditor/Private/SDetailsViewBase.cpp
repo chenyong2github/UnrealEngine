@@ -1030,7 +1030,7 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 		}
 		else // standard validation behavior
 		{
-			for (TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+			for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
 			{
 				EPropertyDataValidationResult Result = RootPropertyNode->EnsureDataIsValid();
 				if (Result == EPropertyDataValidationResult::PropertiesChanged || Result == EPropertyDataValidationResult::EditInlineNewValueChanged)
@@ -1038,8 +1038,14 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 					UpdatePropertyMaps();
 					bUpdateFilteredDetails = true;
 				}
-				else if (Result == EPropertyDataValidationResult::ArraySizeChanged || Result == EPropertyDataValidationResult::ChildrenRebuilt)
+				else if (Result == EPropertyDataValidationResult::ArraySizeChanged)
 				{
+					bUpdateFilteredDetails = true;
+				}
+				else if (Result == EPropertyDataValidationResult::ChildrenRebuilt)
+				{
+					RootPropertyNode->MarkChildrenAsRebuilt();
+				
 					bUpdateFilteredDetails = true;
 				}
 				else if (Result == EPropertyDataValidationResult::ObjectInvalid)
@@ -1170,8 +1176,9 @@ static void SetExpandedItems(TSharedPtr<FPropertyNode> InPropertyNode, const TSe
 	{
 		// check if this path is a prefix to some other path
 		// if it's not, we can early out and skip checking every child node, which is a win for very large child arrays
-		if (Item.Len() > Path.Len() && Item.StartsWith(Path) &&
-			(Item[Path.Len()] == '[' || Item[Path.Len()] == '.'))
+		if (Item.Len() > Path.Len() && 
+			(Item[Path.Len()] == '[' || Item[Path.Len()] == '.') &&
+			Item.StartsWith(Path))
 		{
 			bAnyPrefix = true;
 			break;
@@ -1340,8 +1347,6 @@ void SDetailsViewBase::RestoreAllExpandedItems()
 
 void SDetailsViewBase::RestoreExpandedItems(TSharedRef<FPropertyNode> StartNode)
 {
-	FString ExpandedCustomItems;
-
 	UStruct* BestBaseStruct = StartNode->FindComplexParent()->GetBaseStructure();
 
 	//while a valid class, and we're either the same as the base class (for multiple actors being selected and base class is AActor) OR we're not down to AActor yet)
@@ -1357,7 +1362,9 @@ void SDetailsViewBase::RestoreExpandedItems(TSharedRef<FPropertyNode> StartNode)
 
 	if (BestBaseStruct)
 	{
+		FString ExpandedCustomItems;
 		GConfig->GetString(TEXT("DetailCustomWidgetExpansion"), *BestBaseStruct->GetName(), ExpandedCustomItems, GEditorPerProjectIni);
+
 		TArray<FString> ExpandedCustomItemsArray;
 		ExpandedCustomItems.ParseIntoArray(ExpandedCustomItemsArray, TEXT(","), true);
 
