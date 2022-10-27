@@ -277,7 +277,7 @@ bool FPCGAttributeSelectElement::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	const FPCGMetadataAttributeBase* InputAttribute = SpatialData->Metadata->GetConstAttribute(Settings->InputAttributeName);
-	const FName OutputAttributeName = Settings->OutputAttributeName == NAME_None ? Settings->InputAttributeName : Settings->OutputAttributeName;
+	const FName OutputAttributeName = (Settings->OutputAttributeName == NAME_None) ? Settings->InputAttributeName : Settings->OutputAttributeName;
 	UPCGParamData* OutputParamData = NewObject<UPCGParamData>();
 
 	FPCGMetadataAttributeBase* OutputAttribute = OutputParamData->Metadata->CopyAttribute(InputAttribute, OutputAttributeName, /*bKeepParent=*/ false, /*bCopyEntries=*/ false, /*bCopyValues=*/ false);
