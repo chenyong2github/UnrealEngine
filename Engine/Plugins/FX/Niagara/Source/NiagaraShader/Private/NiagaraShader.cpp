@@ -70,24 +70,18 @@ namespace NiagaraShaderCookStats
 //
 // Globals
 //
-NIAGARASHADER_API FCriticalSection GIdToNiagaraShaderMapCS;
+FCriticalSection GIdToNiagaraShaderMapCS;
 TMap<FNiagaraShaderMapId, FNiagaraShaderMap*> FNiagaraShaderMap::GIdToNiagaraShaderMap[SP_NumPlatforms];
 TArray<FNiagaraShaderMap*> FNiagaraShaderMap::AllNiagaraShaderMaps;
 
-
-/** 
- * Tracks FNiagaraShaderScripts and their shader maps that are being compiled.
- * Uses a TRefCountPtr as this will be the only reference to a shader map while it is being compiled.
- */
-TMap<TRefCountPtr<FNiagaraShaderMap>, TArray<FNiagaraShaderScript*> > FNiagaraShaderMap::NiagaraShaderMapsBeingCompiled;
-
-
+#if WITH_EDITOR
+TMap<TRefCountPtr<FNiagaraShaderMap>, TArray<FNiagaraShaderScript*>> FNiagaraShaderMap::NiagaraShaderMapsBeingCompiled;
 
 static inline bool ShouldCacheNiagaraShader(const FNiagaraShaderType* ShaderType, EShaderPlatform Platform, const FNiagaraShaderScript* Script)
 {
 	return ShaderType->ShouldCache(Platform, Script) && Script->ShouldCache(Platform, ShaderType);
 }
-
+#endif //WITH_EDITOR
 
 
 /** Called for every script shader to update the appropriate stats. */
@@ -248,6 +242,7 @@ bool FNiagaraShaderMapId::operator==(const FNiagaraShaderMapId& ReferenceSet) co
 	return true;
 }
 
+#if WITH_EDITOR
 void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 {
 	BaseCompileHash.AppendString(KeyString);
@@ -311,9 +306,6 @@ void FNiagaraShaderMapId::AppendKeyString(FString& KeyString) const
 	// Add the inputs for any shaders that are stored inline in the shader map
 	AppendKeyStringShaderDependencies(MakeArrayView(ShaderTypeDependencies), LayoutParams, KeyString);
 }
-
-
-#if WITH_EDITOR
 
 /**
  * Enqueues a compilation for a new shader of this type.
@@ -392,7 +384,6 @@ void FNiagaraShaderType::BeginCompileShader(
 
 	NewJobs.Add(FShaderCommonCompileJobPtr(NewJob));
 }
-#endif
 
 void FNiagaraShaderType::CacheUniformBufferIncludes(TMap<const TCHAR*, FCachedUniformBufferDeclaration>& Cache, EShaderPlatform Platform) const
 {
@@ -411,8 +402,6 @@ void FNiagaraShaderType::CacheUniformBufferIncludes(TMap<const TCHAR*, FCachedUn
 		}
 	}
 }
-
-
 
 void FNiagaraShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const
 {
@@ -474,6 +463,7 @@ FShader* FNiagaraShaderType::FinishCompileShader(
 
 	return Shader;
 }
+#endif // WITH_EDITOR
 
 /**
 * Finds the shader map for a script.
@@ -488,27 +478,13 @@ FNiagaraShaderMap* FNiagaraShaderMap::FindId(const FNiagaraShaderMapId& ShaderMa
 	return Result;
 }
 
-/** Flushes the given shader types from any loaded FNiagaraShaderMap's. */
-void FNiagaraShaderMap::FlushShaderTypes(TArray<const FShaderType*>& ShaderTypesToFlush)
-{
-	for (int32 ShaderMapIndex = 0; ShaderMapIndex < AllNiagaraShaderMaps.Num(); ShaderMapIndex++)
-	{
-		FNiagaraShaderMap* CurrentShaderMap = AllNiagaraShaderMaps[ShaderMapIndex];
-
-		for (int32 ShaderTypeIndex = 0; ShaderTypeIndex < ShaderTypesToFlush.Num(); ShaderTypeIndex++)
-		{
-			CurrentShaderMap->FlushShadersByShaderType(ShaderTypesToFlush[ShaderTypeIndex]);
-		}
-	}
-}
+#if WITH_EDITOR
 
 void NiagaraShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 {
 	// does nothing at the moment, but needs to append to keystring if runtime options impacting selection of sim shader permutations are added
 	// for example static switches will need to go here
 }
-
-#if WITH_EDITOR
 
 /** Creates a string key for the derived data cache given a shader map id. */
 static FString GetNiagaraShaderMapKeyString(const FNiagaraShaderMapId& ShaderMapId, EShaderPlatform Platform)
@@ -901,7 +877,7 @@ void FNiagaraShaderMap::LoadMissingShadersFromMemory(const FNiagaraShaderScript*
 	}
 #endif
 }
-#endif
+#endif // WITH_EDITOR
 
 void FNiagaraShaderMap::GetShaderList(TMap<FShaderId, TShaderRef<FShader>>& OutShaders) const
 {
@@ -985,21 +961,6 @@ FNiagaraShaderMap::~FNiagaraShaderMap()
 	AllNiagaraShaderMaps.RemoveSwap(this);
 }
 
-/**
- * Removes all entries in the cache with exceptions based on a shader type
- * @param ShaderType - The shader type to flush
- */
-void FNiagaraShaderMap::FlushShadersByShaderType(const FShaderType* ShaderType)
-{
-	if (ShaderType->GetNiagaraShaderType())
-	{
-		for (int32 PermutationId = 0; PermutationId < ShaderType->GetPermutationCount(); ++PermutationId)
-		{
-			GetMutableContent()->RemoveShaderTypePermutaion(ShaderType->GetNiagaraShaderType(), PermutationId);
-		}
-	}
-}
-
 bool FNiagaraShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial)
 {
 	// Note: This is saved to the DDC, not into packages (except when cooked)
@@ -1008,6 +969,7 @@ bool FNiagaraShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, boo
 	return Super::Serialize(Ar, bInlineShaderResources, bLoadedByCookedMaterial);
 }
 
+#if WITH_EDITOR
 bool FNiagaraShaderMap::RemovePendingScript(FNiagaraShaderScript* Script)
 {
 	bool bRemoved = false;
@@ -1082,6 +1044,7 @@ const FNiagaraShaderMap* FNiagaraShaderMap::GetShaderMapBeingCompiled(const FNia
 
 	return NULL;
 }
+#endif // WITH_EDITOR
 
 //////////////////////////////////////////////////////////////////////////
 

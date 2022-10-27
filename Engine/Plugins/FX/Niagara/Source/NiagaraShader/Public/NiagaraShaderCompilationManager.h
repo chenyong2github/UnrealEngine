@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if WITH_EDITOR
+
 #include "NiagaraShared.h"
 #include "ShaderCompiler.h"
 
@@ -55,5 +57,6 @@ private:
 	TMap<int32, FNiagaraShaderMapFinalizeResults> PendingFinalizeNiagaraShaderMaps;
 };
 
-
 extern NIAGARASHADER_API FNiagaraShaderCompilationManager GNiagaraShaderCompilationManager;
+
+#endif //WITH_EDITOR
