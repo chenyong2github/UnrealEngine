@@ -353,12 +353,15 @@ void UAnimInstance::UninitializeAnimation()
 		}
 	}
 	
-	// Cleanup shared layers data
-	if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = FindSubsystem<FAnimSubsystem_SharedLinkedAnimLayers>())
+	if (!GIsReinstancing)
 	{
-		// Reset shared linked instances when the main instance in uninitialized. 
-		// This is required in part for SkeletalMeshComponent::OnUnregister so that the linked instances array isn't modified as we iterate on it to unitialize them. (see FAnimNode_LinkedLayer::CleanupSharedLinkedLayersData)
-		SharedLinkedAnimLayers->Reset();
+		// Cleanup shared layers data (we don't use FAnimSubsystem_SharedLinkedAnimLayers::GetFromMesh here as we only want the main instance to clean the shared layers)
+		if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = FindSubsystem<FAnimSubsystem_SharedLinkedAnimLayers>())
+		{
+			// Reset shared linked instances when the main instance in uninitialized. 
+			// This is required in part for SkeletalMeshComponent::OnUnregister so that the linked instances array isn't modified as we iterate on it to unitialize them. (see FAnimNode_LinkedLayer::CleanupSharedLinkedLayersData)
+			SharedLinkedAnimLayers->Reset();
+		}
 	}
 
 	TRACE_OBJECT_LIFETIME_END(this);
@@ -3011,7 +3014,7 @@ void UAnimInstance::PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance
 		{
 			for (TPair<FName, TArray<FAnimNode_LinkedAnimLayer*, TInlineAllocator<4>>> LayerPair : ClassLayerNodesToSet.Value)
 			{
-				if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = MeshComp->GetAnimInstance()->FindSubsystem<FAnimSubsystem_SharedLinkedAnimLayers>())
+				if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = FAnimSubsystem_SharedLinkedAnimLayers::GetFromMesh(MeshComp))
 				{
 					// Shared instances path
 					UClass* ClassToSet = ClassLayerNodesToSet.Key;

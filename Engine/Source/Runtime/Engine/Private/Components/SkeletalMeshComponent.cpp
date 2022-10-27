@@ -3113,7 +3113,7 @@ void USkeletalMeshComponent::ResetLinkedAnimInstances()
 	// Reset linked anim layers shared data 
 	if (AnimScriptInstance)
 	{
-		if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = AnimScriptInstance->FindSubsystem<FAnimSubsystem_SharedLinkedAnimLayers>())
+		if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = FAnimSubsystem_SharedLinkedAnimLayers::GetFromMesh(this))
 		{
 			SharedLinkedAnimLayers->Reset();
 		}

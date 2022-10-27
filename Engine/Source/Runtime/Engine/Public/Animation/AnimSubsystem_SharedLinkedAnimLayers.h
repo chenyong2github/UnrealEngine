@@ -7,6 +7,7 @@
 #include "AnimSubsystem_SharedLinkedAnimLayers.generated.h"
 
 class UAnimInstance;
+class USkeletalMeshComponent;
 
 // Define to 1 for more extensive runtime validation of linked anim layers data
 #define LINKEDANIMLAYERSDATA_INTEGRITYCHECKS 0
@@ -72,6 +73,9 @@ struct ENGINE_API FAnimSubsystem_SharedLinkedAnimLayers : public FAnimSubsystemI
 {
 	GENERATED_BODY()
 
+	// Retrieve subsystem from skeletal mesh component
+	static FAnimSubsystem_SharedLinkedAnimLayers* GetFromMesh(USkeletalMeshComponent* SkelMesh);
+	
 	// Clear all linked layers data
 	void Reset();
 

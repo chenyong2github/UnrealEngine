@@ -2,6 +2,7 @@
 
 #include "Animation/AnimSubsystem_SharedLinkedAnimLayers.h"
 #include "Animation/AnimInstance.h"
+#include "Components/SkeletalMeshComponent.h"
 
 #if LINKEDANIMLAYERSDATA_INTEGRITYCHECKS
 #include "Animation/AnimClassInterface.h"
@@ -105,6 +106,18 @@ void FLinkedAnimLayerClassData::RemoveInstance(const UAnimInstance* AnimInstance
 		}
 	}
 	check(0);
+}
+
+FAnimSubsystem_SharedLinkedAnimLayers* FAnimSubsystem_SharedLinkedAnimLayers::GetFromMesh(USkeletalMeshComponent* SkelMesh)
+{
+#if WITH_EDITOR
+	if (GIsReinstancing)
+	{
+		return nullptr;
+	}
+#endif
+	check(SkelMesh && SkelMesh->GetAnimInstance());
+	return SkelMesh->GetAnimInstance()->FindSubsystem<FAnimSubsystem_SharedLinkedAnimLayers>();
 }
 
 void FAnimSubsystem_SharedLinkedAnimLayers::Reset()

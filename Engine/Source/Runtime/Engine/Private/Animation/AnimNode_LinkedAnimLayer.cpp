@@ -62,8 +62,7 @@ void FAnimNode_LinkedAnimLayer::OnUninitializeAnimInstance(UAnimInstance* InOwni
 	if (UAnimInstance* CurrentTarget = GetTargetInstance<UAnimInstance>())
 	{
 		USkeletalMeshComponent* MeshComp = InOwningAnimInstance->GetSkelMeshComponent();
-		check(MeshComp && MeshComp->GetAnimInstance());
-		if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = MeshComp->GetAnimInstance()->FindSubsystem<FAnimSubsystem_SharedLinkedAnimLayers>())
+		if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = FAnimSubsystem_SharedLinkedAnimLayers::GetFromMesh(MeshComp))
 		{
 			// If target instance is a shared instance, unlink it when owner uninitialize
 			if (FLinkedAnimLayerInstanceData* PreviousLinkedLayerInstanceData = SharedLinkedAnimLayers->FindInstanceData(CurrentTarget))
@@ -183,8 +182,7 @@ bool FAnimNode_LinkedAnimLayer::CanTeardownLinkedInstance(const UAnimInstance* L
 {
 	// Don't teardown instance that still have function linked to active shared instances
 	USkeletalMeshComponent* MeshComp = LinkedInstance->GetSkelMeshComponent();
-	check(MeshComp && MeshComp->GetAnimInstance());
-	if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = MeshComp->GetAnimInstance()->FindSubsystem<FAnimSubsystem_SharedLinkedAnimLayers>())
+	if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = FAnimSubsystem_SharedLinkedAnimLayers::GetFromMesh(MeshComp))
 	{
 		return SharedLinkedAnimLayers->FindInstanceData(LinkedInstance) == nullptr;
 	}
@@ -196,8 +194,7 @@ void FAnimNode_LinkedAnimLayer::CleanupSharedLinkedLayersData(const UAnimInstanc
 	if (InPreviousTargetInstance)
 	{
 		USkeletalMeshComponent* MeshComp = InPreviousTargetInstance->GetSkelMeshComponent();
-		check(MeshComp && MeshComp->GetAnimInstance());
-		if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = MeshComp->GetAnimInstance()->FindSubsystem<FAnimSubsystem_SharedLinkedAnimLayers>() )
+		if (FAnimSubsystem_SharedLinkedAnimLayers* SharedLinkedAnimLayers = FAnimSubsystem_SharedLinkedAnimLayers::GetFromMesh(MeshComp))
 		{
 			if (FLinkedAnimLayerInstanceData* PreviousLinkedLayerInstanceData = SharedLinkedAnimLayers->FindInstanceData(InPreviousTargetInstance))
 			{
