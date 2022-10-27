@@ -32,9 +32,16 @@ protected:
 	TSharedRef<FUserPresence> FindOrCreatePresence(FAccountId LocalAccountId, FAccountId PresenceAccountId);
 	/** Update a user's presence from EOS's current value */
 	void UpdateUserPresence(FAccountId LocalAccountId, FAccountId PresenceAccountId);
+	/** Performs queued presence updates after a user's login completes */
+	void HandleAuthLoginStatusChanged(const FAuthLoginStatusChanged& EventParameters);
+
 protected:
 	EOS_HPresence PresenceHandle = nullptr;
 
+	/** Login status changed event handle */
+	FOnlineEventDelegateHandle LoginStatusChangedHandle;
+
+	TMap<EOS_EpicAccountId, TArray<EOS_EpicAccountId>> PendingPresenceUpdates;
 	TMap<FAccountId, TMap<FAccountId, TSharedRef<FUserPresence>>> PresenceLists;
 	EOS_NotificationId NotifyPresenceChangedNotificationId = 0;
 };
