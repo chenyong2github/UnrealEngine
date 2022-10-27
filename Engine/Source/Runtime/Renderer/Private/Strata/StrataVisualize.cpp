@@ -130,7 +130,8 @@ class FStrataSystemInfoCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, ClassificationAsync)
 		SHADER_PARAMETER(uint32, Classification8bits)
 		SHADER_PARAMETER(uint32, bRoughRefraction)
-		SHADER_PARAMETER(float, LumenTileOverflow)
+		SHADER_PARAMETER(uint32, bTileOverflowUseMaterialData)
+		SHADER_PARAMETER(float, TileOverflowRatio)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ClassificationTileDrawIndirectBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
@@ -282,10 +283,11 @@ static void AddVisualizeMaterialCountPasses(FRDGBuilder & GraphBuilder, const FV
 	FPixelShaderUtils::AddFullscreenPass<FVisualizeMaterialCountPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("Strata::VisualizeMaterial(Draw)"), PixelShader, PassParameters, ScreenPassSceneColor.ViewRect, PreMultipliedColorTransmittanceBlend);
 }
 
-float GetStrataTileOverflowRatio();
+float GetStrataTileOverflowRatio(const FViewInfo& View);
 bool IsClassificationCoord8bits();
 bool IsClassificationAsync();
 bool SupportsCMask(const FStaticShaderPlatform InPlatform);
+bool DoesStrataTileOverflowUseMaterialData();
 
 static void AddVisualizeSystemInfoPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor, EShaderPlatform Platform)
 {
@@ -302,7 +304,8 @@ static void AddVisualizeSystemInfoPasses(FRDGBuilder& GraphBuilder, const FViewI
 	PassParameters->ClassificationCMask = SupportsCMask(View.GetShaderPlatform()) ? 1 : 0;
 	PassParameters->ClassificationAsync = IsClassificationAsync() ? 1 : 0;
 	PassParameters->Classification8bits = IsClassificationCoord8bits() ? 1 : 0;
-	PassParameters->LumenTileOverflow = GetStrataTileOverflowRatio();
+	PassParameters->TileOverflowRatio = GetStrataTileOverflowRatio(View);
+	PassParameters->bTileOverflowUseMaterialData = DoesStrataTileOverflowUseMaterialData() ? 1 : 0;
 	PassParameters->bRoughRefraction = IsStrataOpaqueMaterialRoughRefractionEnabled() ? 1 : 0;
 	PassParameters->ClassificationTileDrawIndirectBuffer = GraphBuilder.CreateSRV(View.StrataViewData.ClassificationTileDrawIndirectBuffer, PF_R32_UINT);
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
@@ -377,6 +380,7 @@ static FStrataVisualizationData::FViewMode GetStrataVisualizeMode(const FViewInf
 			case 4: return FStrataVisualizationData::FViewMode::MaterialClassification;
 			case 5: return FStrataVisualizationData::FViewMode::DecalClassification;
 			case 6: return FStrataVisualizationData::FViewMode::RoughRefractionClassification;
+			case 7: return FStrataVisualizationData::FViewMode::StrataInfo;
 		}
 
 		const FStrataVisualizationData& VisualizationData = GetStrataVisualizationData();

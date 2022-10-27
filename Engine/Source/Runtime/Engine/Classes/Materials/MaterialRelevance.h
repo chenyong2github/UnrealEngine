@@ -17,6 +17,7 @@ struct ENGINE_API FMaterialRelevance
 		struct
 		{
 			uint16 ShadingModelMask;
+			uint8 StrataBSDFCountMask;
 			uint8 bOpaque : 1;
 			uint8 bMasked : 1;
 			uint8 bDistortion : 1;

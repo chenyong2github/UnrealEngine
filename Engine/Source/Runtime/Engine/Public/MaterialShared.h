@@ -655,7 +655,8 @@ public:
 		bUsesVertexInterpolator(false),
 		bHasRuntimeVirtualTextureOutputNode(false),
 		bUsesAnisotropy(false),
-		StrataMaterialType(0)
+		StrataMaterialType(0),
+		StrataBSDFCount(0)
 	{}
 
 	ENGINE_API bool IsSceneTextureUsed(ESceneTextureId TexId) const { return (UsedSceneTextures & (1 << TexId)) != 0; }
@@ -761,6 +762,9 @@ public:
 
 	/** Strata material type, at compile type (0:simple, 1:single, 2: complex) */
 	LAYOUT_BITFIELD(uint8, StrataMaterialType, 2);
+
+	/** Strata BSDF count, at compile type (0-7) */
+	LAYOUT_BITFIELD(uint8, StrataBSDFCount, 3);
 };
 
 struct FDebugShaderPipelineInfo
@@ -1333,6 +1337,8 @@ public:
 	bool UsesDistanceCullFade() const { return GetContent()->MaterialCompilationOutput.bUsesDistanceCullFade; }
 	bool UsesAnisotropy() const { return GetContent()->MaterialCompilationOutput.bUsesAnisotropy; }
 	uint8 GetStrataMaterialType() const { return GetContent()->MaterialCompilationOutput.StrataMaterialType; }
+	uint8 GetStrataBSDFCount() const { return GetContent()->MaterialCompilationOutput.StrataBSDFCount; }
+	
 #if WITH_EDITOR
 	uint32 GetNumUsedUVScalars() const { return GetContent()->MaterialCompilationOutput.NumUsedUVScalars; }
 	uint32 GetNumUsedCustomInterpolatorScalars() const { return GetContent()->MaterialCompilationOutput.NumUsedCustomInterpolatorScalars; }
@@ -2061,6 +2067,10 @@ public:
 	/** Get Strata material type (single, single, complex slab). */
 	ENGINE_API uint8 MaterialGetStrataMaterialType_GameThread() const;
 	ENGINE_API uint8 MaterialGetStrataMaterialType_RenderThread() const;
+
+	/** Get Strata material BSDF count. */
+	ENGINE_API uint8 MaterialGetStrataBSDFCount_GameThread() const;
+	ENGINE_API uint8 MaterialGetStrataBSDFCount_RenderThread() const;
 
 	class FMaterialShaderMap* GetGameThreadShaderMap() const 
 	{ 

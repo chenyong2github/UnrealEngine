@@ -1110,6 +1110,17 @@ uint8 FMaterial::MaterialGetStrataMaterialType_RenderThread() const
 	return RenderingThreadShaderMap ? RenderingThreadShaderMap->GetStrataMaterialType() : false;
 }
 
+uint8 FMaterial::MaterialGetStrataBSDFCount_GameThread() const
+{
+	return GameThreadShaderMap ? GameThreadShaderMap->GetStrataBSDFCount() : false;
+}
+
+uint8 FMaterial::MaterialGetStrataBSDFCount_RenderThread() const
+{
+	check(IsInParallelRenderingThread());
+	return RenderingThreadShaderMap ? RenderingThreadShaderMap->GetStrataBSDFCount() : false;
+}
+
 void FMaterial::SetGameThreadShaderMap(FMaterialShaderMap* InMaterialShaderMap)
 {
 	checkSlow(IsInGameThread() || IsInAsyncLoadingThread());

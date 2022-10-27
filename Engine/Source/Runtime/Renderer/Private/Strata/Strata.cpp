@@ -74,6 +74,12 @@ static TAutoConsoleVariable<float> CVarStrataTileOverflow(
 	TEXT("Scale the number of Strata tile for overflowing tiles containing multi-BSDFs pixels. (0: 0%, 1: 100%. Default 1.0f)."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarStrataTileOverflowFromMaterial(
+	TEXT("r.Strata.TileOverflowFromMaterial"),
+	1,
+	TEXT("When enable, scale the number of Strata tile for overflowing tiles containing multi-BSDFs pixels based on material data. Otherwise use global overflow scale defined by r.Strata.TileOverflow."),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarStrataDebugPeelLayersAboveDepth(
 	TEXT("r.Strata.Debug.PeelLayersAboveDepth"),
 	0,
@@ -104,7 +110,10 @@ extern bool IsStrataAdvancedVisualizationShadersEnabled();
 
 void FStrataViewData::Reset()
 {
+	// Preserve old max BSDF count which is set prior to the reset operation
+	const uint32 OldMaxBSDFCount = MaxBSDFCount;
 	*this = FStrataViewData();
+	MaxBSDFCount = OldMaxBSDFCount;
 	for (uint32 i = 0; i < EStrataTileType::ECount; ++i)
 	{
 		ClassificationTileListBuffer[i] = nullptr;
@@ -150,12 +159,25 @@ enum EStrataTileSpace
 	StrataTileSpace_Overflow = 2u
 };
 
-float GetStrataTileOverflowRatio()
+bool DoesStrataTileOverflowUseMaterialData() 
 {
-	return FMath::Clamp(CVarStrataTileOverflow.GetValueOnRenderThread(), 0.f, 4.0f);
+	return CVarStrataTileOverflowFromMaterial.GetValueOnRenderThread() > 0;
 }
 
-static FIntPoint GetStrataTextureTileResolution(const FIntPoint& InResolution, uint32 InSpace)
+float GetStrataTileOverflowRatio(const FViewInfo& View)
+{
+	if (DoesStrataTileOverflowUseMaterialData())
+	{
+		const uint32 MaxBDFCount = FMath::Max(View.StrataViewData.MaxBSDFCount,1u);
+		return FMath::Clamp(MaxBDFCount-1, 0.f, 4.0f);
+	}
+	else
+	{
+		return FMath::Clamp(CVarStrataTileOverflow.GetValueOnRenderThread(), 0.f, 4.0f);
+	}
+}
+
+static FIntPoint GetStrataTextureTileResolution(const FViewInfo& View, const FIntPoint& InResolution, uint32 InSpace)
 {
 	FIntPoint Out = InResolution;
 	Out.X = FMath::DivideAndRoundUp(Out.X, STRATA_TILE_SIZE);
@@ -166,17 +188,17 @@ static FIntPoint GetStrataTextureTileResolution(const FIntPoint& InResolution, u
 	}
 	if (InSpace & EStrataTileSpace::StrataTileSpace_Overflow)
 	{
-		const float OverflowRatio = GetStrataTileOverflowRatio();
+		const float OverflowRatio = GetStrataTileOverflowRatio(View);
 		Out.Y += FMath::DivideAndRoundUp(FMath::CeilToInt(InResolution.Y * OverflowRatio), STRATA_TILE_SIZE);
 	}
 	return Out;
 }
 
-FIntPoint GetStrataTextureResolution(const FIntPoint& InResolution)
+FIntPoint GetStrataTextureResolution(const FViewInfo& View, const FIntPoint& InResolution)
 {
 	if (Strata::IsStrataEnabled())
 	{
-		return GetStrataTextureTileResolution(InResolution, EStrataTileSpace::StrataTileSpace_Primary | EStrataTileSpace::StrataTileSpace_Overflow) * STRATA_TILE_SIZE;
+		return GetStrataTextureTileResolution(View, InResolution, EStrataTileSpace::StrataTileSpace_Primary | EStrataTileSpace::StrataTileSpace_Overflow) * STRATA_TILE_SIZE;
 	}
 	{
 		return InResolution;
@@ -287,15 +309,15 @@ static void InitialiseStrataViewData(FRDGBuilder& GraphBuilder, FViewInfo& View,
 		if (bNeedBSDFOffets)
 		{			
 			const FIntPoint BufferSize = SceneTexturesConfig.Extent;
-			const FIntPoint BufferSize_Extended = GetStrataTextureTileResolution(SceneTexturesConfig.Extent, EStrataTileSpace::StrataTileSpace_Primary | EStrataTileSpace::StrataTileSpace_Overflow);
+			const FIntPoint BufferSize_Extended = GetStrataTextureTileResolution(View, SceneTexturesConfig.Extent, EStrataTileSpace::StrataTileSpace_Primary | EStrataTileSpace::StrataTileSpace_Overflow);
 
 			const FIntPoint BaseOverflowTileOffset = FIntPoint(0, FMath::DivideAndRoundUp(BufferSize.Y, STRATA_TILE_SIZE));
 
-			Out.TileCount	= GetStrataTextureTileResolution(ViewResolution, EStrataTileSpace::StrataTileSpace_Primary);
+			Out.TileCount	= GetStrataTextureTileResolution(View, ViewResolution, EStrataTileSpace::StrataTileSpace_Primary);
 			Out.TileOffset  = FIntPoint(FMath::DivideAndRoundUp(View.ViewRect.Min.X, STRATA_TILE_SIZE), FMath::DivideAndRoundUp(View.ViewRect.Min.Y, STRATA_TILE_SIZE));
 
-			Out.OverflowTileCount = GetStrataTextureTileResolution(ViewResolution, EStrataTileSpace::StrataTileSpace_Overflow);
-			Out.OverflowTileOffset = GetStrataTextureTileResolution(Out.TileOffset * STRATA_TILE_SIZE, EStrataTileSpace::StrataTileSpace_Overflow) + BaseOverflowTileOffset;
+			Out.OverflowTileCount = GetStrataTextureTileResolution(View, ViewResolution, EStrataTileSpace::StrataTileSpace_Overflow);
+			Out.OverflowTileOffset = GetStrataTextureTileResolution(View, Out.TileOffset * STRATA_TILE_SIZE, EStrataTileSpace::StrataTileSpace_Overflow) + BaseOverflowTileOffset;
 
 			Out.BSDFTileTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(BufferSize_Extended, PF_R32_UINT, FClearValueBinding::None, TexCreate_UAV | TexCreate_ShaderResource), TEXT("Strata.BSDFTiles"));
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Out.BSDFTileTexture), 0u);
@@ -306,7 +328,7 @@ static void InitialiseStrataViewData(FRDGBuilder& GraphBuilder, FViewInfo& View,
 		}
 		else
 		{
-			Out.TileCount = GetStrataTextureTileResolution(ViewResolution, EStrataTileSpace::StrataTileSpace_Primary);
+			Out.TileCount = GetStrataTextureTileResolution(View, ViewResolution, EStrataTileSpace::StrataTileSpace_Primary);
 			Out.TileOffset = FIntPoint(0,0);
 			Out.OverflowTileCount = FIntPoint(0, 0);
 			Out.OverflowTileOffset = FIntPoint(0, 0);

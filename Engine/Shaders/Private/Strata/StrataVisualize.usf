@@ -1421,12 +1421,13 @@ uint ClassificationCMask;
 uint ClassificationAsync;
 uint Classification8bits;
 uint bRoughRefraction;
-float LumenTileOverflow;
+uint bTileOverflowUseMaterialData;
+float TileOverflowRatio;
 Buffer<uint> ClassificationTileDrawIndirectBuffer;
 
 uint GetTileCount(uint InType)
 {
-	return ClassificationTileDrawIndirectBuffer[InType * 4];
+	return ClassificationTileDrawIndirectBuffer[InType * 4 + 1];
 }
 
 [numthreads(1, 1, 1)]
@@ -1435,8 +1436,8 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	// Print Legend
 	if (all(DispatchThreadId == 0))
 	{
-		FFontColor TitleColor  = FontWhite;
-		FFontColor LegendColor = FontSilver;
+		FFontColor TitleColor  = FontYellow;
+		FFontColor LegendColor = FontWhite;
 		FFontColor ValueColor  = FontOrange;
 		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 50));
 
@@ -1464,8 +1465,15 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		PrintBool(Context, bEnergyPreservation);
 		Newline(Context);
 
-		Print(Context, TEXT(" Lumen overflow     : "), LegendColor);
-		Print(Context, LumenTileOverflow, ValueColor, 3, 1);
+		Print(Context, TEXT(" Tile overflow mat. : "), LegendColor);
+		PrintBool(Context, bTileOverflowUseMaterialData);
+		Newline(Context); 
+
+		Print(Context, TEXT(" Tile overflow      : "), LegendColor);
+		Print(Context, TileOverflowRatio, ValueColor, 3, 1);
+		Print(Context, TEXT(" ["), LegendColor);
+		Print(Context, TileOverflowRatio +1, ValueColor, 2, 0);
+		Print(Context, TEXT(" BSDFs]"), LegendColor);
 		Newline(Context);
 
 		Print(Context, TEXT(" DBuffer pass       : "), LegendColor);
@@ -1565,7 +1573,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		}
 
 		// Debug
-		Print(Context, TEXT(" Debug"), TitleColor);
+		Print(Context, TEXT("Debug"), TitleColor);
 		Newline(Context);
 
 		Print(Context, TEXT(" Adv. debug         : "), LegendColor);

@@ -115,6 +115,9 @@ struct FStrataSceneData
 
 struct FStrataViewData
 {
+	// Max BSDF count among all visible materials
+	uint32 MaxBSDFCount = 0;
+
 	FIntPoint TileCount  = FIntPoint(0, 0);
 	FIntPoint TileOffset = FIntPoint(0, 0);
 	FIntPoint OverflowTileCount = FIntPoint(0, 0);
@@ -151,7 +154,7 @@ constexpr uint32 StencilBit_Complex= 0x20; // In sync with SceneRenderTargets.h 
 bool IsStrataEnabled();
 bool IsStrataDbufferPassEnabled(const EShaderPlatform Platform);
 
-FIntPoint GetStrataTextureResolution(const FIntPoint& InResolution);
+FIntPoint GetStrataTextureResolution(const FViewInfo& View, const FIntPoint& InResolution);
 
 void InitialiseStrataFrameSceneData(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer);
 

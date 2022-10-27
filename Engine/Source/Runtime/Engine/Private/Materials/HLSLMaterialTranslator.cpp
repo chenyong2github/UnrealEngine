@@ -10489,6 +10489,7 @@ bool FHLSLMaterialTranslator::StrataGenerateDerivedMaterialOperatorData()
 			StrataSimplificationStatus.bRunFullSimplification = !StrataSimplificationStatus.bMaterialFitsInMemoryBudget;
 
 			MaterialCompilationOutput.StrataMaterialType = bStrataMaterialIsSimple ? 0 : bStrataMaterialIsSingle? 1 : 2;
+			MaterialCompilationOutput.StrataBSDFCount = StrataMaterialBSDFCount;
 		}
 	}
 	while (!StrataSimplificationStatus.bMaterialFitsInMemoryBudget);

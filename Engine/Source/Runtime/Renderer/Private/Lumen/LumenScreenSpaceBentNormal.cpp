@@ -85,7 +85,7 @@ FLumenScreenSpaceBentNormalParameters ComputeScreenSpaceBentNormal(
 	const FSceneTextureParameters& SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 
 	// When Strata is enabled, increase the resolution for multi-layer tile overflowing (tile containing multi-BSDF data)
-	FIntPoint BentNormalResolution = Strata::GetStrataTextureResolution(View.GetSceneTexturesConfig().Extent);
+	FIntPoint BentNormalResolution = Strata::GetStrataTextureResolution(View, View.GetSceneTexturesConfig().Extent);
 	FRDGTextureDesc ScreenBentNormalDesc(FRDGTextureDesc::Create2D(BentNormalResolution, PF_A2B10G10R10, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	FRDGTextureRef ScreenBentNormal = GraphBuilder.CreateTexture(ScreenBentNormalDesc, TEXT("Lumen.ScreenProbeGather.ScreenBentNormal"));
 
