@@ -5,11 +5,8 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using Grpc.Net.Client;
 using Horde.Agent.Utility;
-using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Polly;
-using Polly.Extensions.Http;
 
 namespace Horde.Agent.Services
 {
@@ -20,16 +17,19 @@ namespace Horde.Agent.Services
 	{
 		private readonly ServerProfile _serverProfile;
 		private readonly ILogger _logger;
+		private readonly ILoggerFactory _loggerFactory;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="settings"></param>
 		/// <param name="logger"></param>
-		public GrpcService(IOptions<AgentSettings> settings, ILogger<GrpcService> logger)
+		/// <param name="loggerFactory"></param>
+		public GrpcService(IOptions<AgentSettings> settings, ILogger<GrpcService> logger, ILoggerFactory loggerFactory)
 		{
 			_serverProfile = settings.Value.GetCurrentServerProfile();
 			_logger = logger;
+			_loggerFactory = loggerFactory;
 		}
 
 		/// <summary>
@@ -86,6 +86,7 @@ namespace Horde.Agent.Services
 				MaxReceiveMessageSize = 1024 * 1024 * 1024, // 1 GB
 				MaxSendMessageSize = 1024 * 1024 * 1024, // 1 GB
 				
+				LoggerFactory = _loggerFactory,
 				HttpClient = httpClient,
 				DisposeHttpClient = true
 			});

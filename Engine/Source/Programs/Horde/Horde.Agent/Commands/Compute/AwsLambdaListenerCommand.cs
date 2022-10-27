@@ -150,7 +150,7 @@ namespace Horde.Agent.Commands.Compute
 				agentSettings.PerforceExecutor.RunConform = false;
 				
 				OptionsWrapper<AgentSettings> agentSettingsOptions = new (agentSettings);
-				GrpcService grpcService = new (agentSettingsOptions, grpcServiceLogger);
+				GrpcService grpcService = new (agentSettingsOptions, grpcServiceLogger, loggerFactory);
 
 				AppDomain.CurrentDomain.ProcessExit += (s, e) => 
 				{
