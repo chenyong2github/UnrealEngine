@@ -41,11 +41,6 @@ struct IKRIG_API FAnimNode_RetargetPoseFromMesh : public FAnimNode_Base
 	/* Copy curves from SouceMeshComponent. This will copy any curves the source/target Skeleton have in common. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (NeverAsPin))
 	bool bCopyCurves = true;
-
-#if WITH_EDITOR
-	/** when true, will copy all setting from target IK Rig asset each tick (for live preview) */
-	bool bDriveWithAsset = false;
-#endif
 	
 	// FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;

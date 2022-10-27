@@ -2210,6 +2210,12 @@ void UIKRetargetProcessor::ApplySettingsFromAsset()
 
 	// copy global settings
 	GlobalSettings = RetargeterAsset->GetGlobalSettings();
+
+	// apply the current profile
+	if (const FRetargetProfile* CurrentProfile = RetargeterAsset->GetCurrentProfile())
+	{
+		ApplySettingsFromProfile(*CurrentProfile);
+	}
 }
 
 void UIKRetargetProcessor::ApplySettingsFromProfile(const FRetargetProfile& Profile)
