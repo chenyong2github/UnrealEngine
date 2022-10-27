@@ -171,5 +171,23 @@ namespace DatasmithRevitExporter
 
 			OutDecalDimensions = new XYZ(DecalQuad[0].Length * CENTIMETERS_PER_FOOT * 0.5, DecalQuad[1].Length * CENTIMETERS_PER_FOOT * 0.5, DimensionZ);
 		}
+
+		public static bool IsElementIdDecal(Document InDocument, ElementId InElementId)
+		{
+			Element Element = InDocument.GetElement(InElementId);
+			return IsElementDecal(Element);
+		}
+
+		public static bool IsElementDecal(Element InElement)
+		{
+			ElementType ElementType = InElement.Document.GetElement(InElement.GetTypeId()) as ElementType;
+
+			if (ElementType != null && (ElementType.FamilyName == "Decal"))
+			{
+				return true;
+			}
+
+			return false;
+		}
 	}
 }

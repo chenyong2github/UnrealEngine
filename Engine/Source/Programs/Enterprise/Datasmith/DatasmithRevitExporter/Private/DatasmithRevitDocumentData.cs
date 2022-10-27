@@ -1359,6 +1359,27 @@ namespace DatasmithRevitExporter
 			Transform InWorldTransform
 		)
 		{
+#if REVIT_API_2023
+			if (DirectLink != null && InElement.Category != null && InElement.Category.BuiltInCategory != BuiltInCategory.OST_Levels)
+#else
+			if (DirectLink != null && InElement.Category != null && (BuiltInCategory)InElement.Category.Id.IntegerValue != BuiltInCategory.OST_Levels)
+#endif
+			{
+				//Check if any of its children is Decal:
+				//If so track them, so that we can use the owner object elementId to update the Decals (when modified, for ep: changing its location)
+				IList<ElementId> DependentElements = InElement.GetDependentElements(null);
+				foreach (ElementId DependentElementId in DependentElements)
+				{
+					if (FUtils.IsElementIdDecal(InElement.Document, DependentElementId))
+					{
+						if (DependentElementId != InElement.Id && !DirectLink.DecalIdToOwnerObjectIdMap.ContainsKey(DependentElementId))
+						{
+							DirectLink.DecalIdToOwnerObjectIdMap.Add(DependentElementId, InElement.Id);
+						}
+					}
+				}
+			}
+
 			DirectLink?.MarkForExport(InElement);
 
 			FElementData ElementData = null;
@@ -1423,6 +1444,14 @@ namespace DatasmithRevitExporter
 						ElementData.InitializePivotPlacement(ref InWorldTransform);
 						ElementData.InitializeElement(InWorldTransform, ElementData);
 						ElementData.MeshMaterialsMap.Clear();
+
+						if (ElementData.bIsDecalElement)
+						{
+							if (!DecalElementsMap.ContainsKey(InElement.Id))
+							{
+								DecalElementsMap.Add(InElement.Id, ElementData);
+							}
+						}
 					}
 					else
 					{

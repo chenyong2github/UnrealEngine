@@ -194,6 +194,8 @@ namespace DatasmithRevitExporter
 			}
 		}
 
+		public Dictionary<ElementId, ElementId> DecalIdToOwnerObjectIdMap = new Dictionary<ElementId, ElementId>();
+
 		public static void OnApplicationIdle()
 		{
 			FDirectLink ActiveInstance = FDocument.ActiveDocument?.ActiveDirectLinkInstance ?? null;
@@ -250,6 +252,16 @@ namespace DatasmithRevitExporter
 					}
 					else
 					{
+						if (FUtils.IsElementDecal(ModifiedElement))
+						{
+							//decal:
+							//modifying decal does not modify the owner object
+							if (ActiveInstance.DecalIdToOwnerObjectIdMap.TryGetValue(ElemId, out var OwnerObjectElementId))
+							{
+								ActiveInstance.RootCache.SetElementModified(true, OwnerObjectElementId);
+							}
+						}
+
 						// Handles a case where Revit won't notify us about modified mullions and their transform remains obsolte, thus wrong.
 						ElementCategoryFilter Filter = new ElementCategoryFilter(BuiltInCategory.OST_CurtainWallMullions);
 						IList<ElementId> DependentElements = ModifiedElement.GetDependentElements(Filter);
@@ -263,6 +275,64 @@ namespace DatasmithRevitExporter
 					}
 
 					ActiveInstance.RootCache.SetElementModified(true, ElemId);
+				}
+			}
+
+			foreach (ElementId ElemId in InArgs.GetAddedElementIds())
+			{
+				Element AddedElement = ActiveInstance.RootCache.SourceDocument.GetElement(ElemId);
+
+				if (FUtils.IsElementDecal(AddedElement))
+				{
+					FilteredElementCollector Collector = new FilteredElementCollector(ActiveInstance.RootCache.SourceDocument, ActiveInstance.RootCache.SourceDocument.ActiveView.Id);
+					IList<Element> AllElementsInView = Collector.ToElements();
+
+					bool ElementFound = false;
+
+					//find the Element that is dependent on the newly added decal:
+					foreach (Element ElementInView in AllElementsInView)
+					{
+#if REVIT_API_2023
+						if (ElementInView.Category != null && ElementInView.Category.BuiltInCategory != BuiltInCategory.OST_Levels)
+#else
+						if (ElementInView.Category != null && (BuiltInCategory)ElementInView.Category.Id.IntegerValue != BuiltInCategory.OST_Levels)
+#endif
+						{
+							IList<ElementId> DependentElements = ElementInView.GetDependentElements(null);
+							foreach (ElementId DependentElementId in DependentElements)
+							{
+								if (DependentElementId == ElemId)
+								{
+									ActiveInstance.RootCache.SetElementModified(true, ElementInView.Id);
+									ElementFound = true;
+									break;
+								}
+							}
+
+							if (ElementFound)
+							{
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			foreach (ElementId ElemId in InArgs.GetDeletedElementIds())
+			{
+				//checking if decal was removed:
+				if (ActiveInstance.DecalIdToOwnerObjectIdMap.ContainsKey(ElemId))
+				{
+					ActiveInstance.DecalIdToOwnerObjectIdMap.Remove(ElemId);
+				}
+				//checking if owner object was removed:
+				if (ActiveInstance.DecalIdToOwnerObjectIdMap.ContainsValue(ElemId))
+				{
+					KeyValuePair<ElementId, ElementId>[] PairsToRemove = ActiveInstance.DecalIdToOwnerObjectIdMap.Where(CurrentPair => CurrentPair.Value == ElemId).ToArray();
+					foreach (KeyValuePair<ElementId, ElementId> PairToRemove in PairsToRemove)
+					{
+						ActiveInstance.DecalIdToOwnerObjectIdMap.Remove(PairToRemove.Key);
+					}
 				}
 			}
 
@@ -321,7 +391,7 @@ namespace DatasmithRevitExporter
 #elif REVIT_API_2023
 				CmdGUID = "CB3186CC-1714-497A-9A54-A5D4B726524A";
 #else
-				#error This version of Revit is not supported yet.
+#error This version of Revit is not supported yet.
 #endif
 
 				if (UIApp == null)
