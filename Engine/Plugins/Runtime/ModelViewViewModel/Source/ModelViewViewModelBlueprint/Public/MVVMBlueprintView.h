@@ -52,6 +52,8 @@ public:
 
 	FMVVMBlueprintViewBinding* GetBindingAt(int32 Index);
 	const FMVVMBlueprintViewBinding* GetBindingAt(int32 Index) const;
+	FMVVMBlueprintViewBinding* GetBinding(FGuid Id);
+	const FMVVMBlueprintViewBinding* GetBinding(FGuid Id) const;
 
 	TArrayView<FMVVMBlueprintViewBinding> GetBindings()
 	{

@@ -63,6 +63,7 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewBinding
 	TArray<FText> Errors;
 
 	/** The unique ID of this binding. */
+	UPROPERTY(VisibleAnywhere, Category = "MVVM")
 	FGuid BindingId;
 
 	/** Whether the binding is enabled or disabled by default. The instance may enable the binding at runtime. */

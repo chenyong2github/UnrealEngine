@@ -176,6 +176,16 @@ const FMVVMBlueprintViewBinding* UMVVMBlueprintView::GetBindingAt(int32 Index) c
 	return nullptr;
 }
 
+FMVVMBlueprintViewBinding* UMVVMBlueprintView::GetBinding(FGuid Id)
+{
+	return Bindings.FindByPredicate([Id](const FMVVMBlueprintViewBinding& Binding){ return Id == Binding.BindingId; });
+}
+
+const FMVVMBlueprintViewBinding* UMVVMBlueprintView::GetBinding(FGuid Id) const
+{
+	return Bindings.FindByPredicate([Id](const FMVVMBlueprintViewBinding& Binding) { return Id == Binding.BindingId; });
+}
+
 void UMVVMBlueprintView::PostLoad()
 {
 	Super::PostLoad();
