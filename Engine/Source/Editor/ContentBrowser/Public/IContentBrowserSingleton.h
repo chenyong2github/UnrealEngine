@@ -684,6 +684,9 @@ public:
 	/** Returns InPath if can be written to, otherwise picks a default path that can be written to */
 	virtual FContentBrowserItemPath GetInitialPathToSaveAsset(const FContentBrowserItemPath& InPath) = 0;
 
+	/** Returns true if the public/private state of the specified asset can be changed */
+	virtual bool CanChangeAssetPublicState(FStringView AssetPath) = 0;
+
 	/** Returns true if FolderPath is a private content edit folder */
 	virtual bool IsShowingPrivateContent(const FStringView VirtualFolderPath) = 0;
 
@@ -695,6 +698,12 @@ public:
 
 	/** Declares the Private Content Permission List dirty */
 	virtual void SetPrivateContentPermissionListDirty() = 0;
+
+	/** Registers the delegate called to determine whether the public/private state of the specified asset can be changed */
+	virtual void RegisterCanChangeAssetPublicStateDelegate(FCanChangeAssetPublicStateDelegate InCanChangeAssetPublicStateDelegate) = 0;
+
+	/** Unregisters the delegate called to determine whether the public/private state of the specified asset can be changed */
+	virtual void UnregisterCanChangeAssetPublicStateDelegate() = 0;
 
 	/** Registers the delegate for custom handling of if a Folder allows private content edits */
 	virtual void RegisterIsFolderShowPrivateContentToggleableDelegate(FIsFolderShowPrivateContentToggleableDelegate InIsFolderShowPrivateContentToggleableDelegate) = 0;

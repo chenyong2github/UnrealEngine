@@ -1260,9 +1260,20 @@ void FAssetContextMenu::CacheCanExecuteVars()
 		{
 			bCanExecuteFindInExplorer = true;
 		}
+		
+		bool bCanChangeAssetPublicState = SelectedItem.CanEdit();
+		if (bCanChangeAssetPublicState)
+		{
+			FNameBuilder ItemVirtualPath(SelectedItem.GetVirtualPath());
+			bCanChangeAssetPublicState = FContentBrowserSingleton::Get().IsShowingPrivateContent(FPathViews::GetPath(ItemVirtualPath));
+		}
+		if (bCanChangeAssetPublicState)
+		{
+			FNameBuilder ItemInternalPath(SelectedItem.GetInternalPath());
+			bCanChangeAssetPublicState = FContentBrowserSingleton::Get().CanChangeAssetPublicState(ItemInternalPath);
+		}
 
-		if(SelectedItem.CanEdit() &&
-			FContentBrowserSingleton::Get().IsShowingPrivateContent(FPathViews::GetPath(FNameBuilder(SelectedItem.GetVirtualPath()))))
+		if (bCanChangeAssetPublicState)
 		{
 			bCanExecutePublicAssetToggle = true;
 		}
