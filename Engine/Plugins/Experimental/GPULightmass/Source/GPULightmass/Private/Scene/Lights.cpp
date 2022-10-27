@@ -2,6 +2,7 @@
 
 #include "Lights.h"
 
+#include "Engine/TextureLightProfile.h"
 #include "LightmapRayTracing.h"
 #include "Scene.h"
 #include "RenderGraphBuilder.h"

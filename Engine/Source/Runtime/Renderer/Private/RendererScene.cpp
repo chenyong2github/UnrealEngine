@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "CoreMinimal.h"
+#include "Engine/TextureLightProfile.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "HAL/PlatformFileManager.h"
 #include "Stats/Stats.h"
