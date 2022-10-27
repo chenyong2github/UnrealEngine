@@ -21,11 +21,14 @@ void FChaosClothAssetEditorModeToolkit::BuildToolPalette(FName PaletteIndex, cla
 {
 	const FChaosClothAssetEditorCommands& Commands = FChaosClothAssetEditorCommands::Get();
 
+	// TODO: make separate palettes to split up the tools tab
 	if (PaletteIndex == FBaseCharacterFXEditorModeToolkit::ToolsTabName)
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginRemeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginWeightMapPaintTool);
+
+		ToolbarBuilder.AddToolBarButton(Commands.BeginClothTrainingTool);
 	}
 }
 

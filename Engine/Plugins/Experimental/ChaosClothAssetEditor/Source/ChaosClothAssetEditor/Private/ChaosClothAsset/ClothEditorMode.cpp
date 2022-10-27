@@ -24,10 +24,8 @@
 #include "ToolTargetManager.h"
 #include "Toolkits/BaseToolkit.h"
 #include "ToolTargets/ToolTarget.h"
-#include "ToolTargets/StaticMeshComponentToolTarget.h"
-#include "ToolTargets/VolumeComponentToolTarget.h"
 #include "ToolTargets/DynamicMeshComponentToolTarget.h"
-#include "ToolTargets/SkeletalMeshComponentToolTarget.h"
+#include "ChaosClothAsset/ClothComponentToolTarget.h"
 #include "Engine/Selection.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
@@ -35,6 +33,7 @@
 #include "AttributeEditorTool.h"
 #include "MeshAttributePaintTool.h"
 #include "ChaosClothAsset/ClothWeightMapPaintTool.h"
+#include "ChaosClothAsset/ClothTrainingTool.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicVertexSkinWeightsAttribute.h"
 #include "DynamicMeshEditor.h"
@@ -141,9 +140,8 @@ void UChaosClothAssetEditorMode::Enter()
 
 void UChaosClothAssetEditorMode::AddToolTargetFactories()
 {
-	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UStaticMeshComponentToolTargetFactory>(GetToolManager()));
-	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UVolumeComponentToolTargetFactory>(GetToolManager()));
 	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UDynamicMeshComponentToolTargetFactory>(GetToolManager()));
+	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UClothComponentToolTargetFactory>(GetToolManager()));
 }
 
 void UChaosClothAssetEditorMode::RegisterTools()
@@ -157,6 +155,7 @@ void UChaosClothAssetEditorMode::RegisterTools()
 	RegisterTool(CommandInfos.BeginRemeshTool, FChaosClothAssetEditorCommands::BeginRemeshToolIdentifier, NewObject<URemeshMeshToolBuilder>());
 	RegisterTool(CommandInfos.BeginAttributeEditorTool, FChaosClothAssetEditorCommands::BeginAttributeEditorToolIdentifier, NewObject<UAttributeEditorToolBuilder>());
 	RegisterTool(CommandInfos.BeginWeightMapPaintTool, FChaosClothAssetEditorCommands::BeginWeightMapPaintToolIdentifier, NewObject<UClothEditorWeightMapPaintToolBuilder>());
+	RegisterTool(CommandInfos.BeginClothTrainingTool, FChaosClothAssetEditorCommands::BeginClothTrainingToolIdentifier, NewObject<UClothTrainingToolBuilder>());
 }
 
 bool UChaosClothAssetEditorMode::ShouldToolStartBeAllowed(const FString& ToolIdentifier) const
@@ -630,6 +629,10 @@ void UChaosClothAssetEditorMode::InitializeTargets(const TArray<TObjectPtr<UObje
 			ClothComponent->SetClothAsset(ChaosClothAsset);
 			ClothComponent->RegisterComponentWithWorld(PreviewWorld);
 
+			USelection* SelectedComponents = GetModeManager()->GetSelectedComponents();
+			SelectedComponents->Modify();
+			SelectedComponents->Select(ClothComponent);
+
 			break;
 		}
 	}
@@ -692,10 +695,11 @@ void UChaosClothAssetEditorMode::ModeTick(float DeltaTime)
 		}
 	}
 
-	if (PreviewWorld)
-	{
-		PreviewWorld->Tick(ELevelTick::LEVELTICK_All, DeltaTime);
-	}
+	// TODO: Uncomment this to enable simulation stepping
+	//if (PreviewWorld)
+	//{
+	//	PreviewWorld->Tick(ELevelTick::LEVELTICK_All, DeltaTime);
+	//}
 }
 
 

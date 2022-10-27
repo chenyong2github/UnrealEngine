@@ -48,6 +48,7 @@ public class ChaosClothAssetEditorTools : ModuleRules
 				"ClothingSystemRuntimeInterface",
 				"ChaosCloth",
 				"ChaosClothAssetTools",
+				"ChaosClothAssetEngine",
 				"ClothingSystemEditor",
 				"MeshConversion"
 				// ... add private dependencies that you statically link with here ...	

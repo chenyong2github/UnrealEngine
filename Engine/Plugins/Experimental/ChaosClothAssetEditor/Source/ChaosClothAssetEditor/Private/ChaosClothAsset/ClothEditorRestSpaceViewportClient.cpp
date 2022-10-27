@@ -76,7 +76,7 @@ void FChaosClothEditorRestSpaceViewportClient::ProcessClick(FSceneView& View, HH
 	USelection* SelectedComponents = ModeTools->GetSelectedComponents();
 	SelectedComponents->Modify();
 	SelectedComponents->BeginBatchSelectOperation();
-	SelectedComponents->DeselectAll();
+	SelectedComponents->DeselectAll(UDynamicMeshComponent::StaticClass());
 
 	if (HitProxy && HitProxy->IsA(HActor::StaticGetType()))
 	{

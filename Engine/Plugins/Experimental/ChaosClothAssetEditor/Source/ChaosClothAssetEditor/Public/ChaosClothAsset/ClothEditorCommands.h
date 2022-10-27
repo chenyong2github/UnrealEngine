@@ -36,6 +36,9 @@ public:
 	const static FString BeginAttributeEditorToolIdentifier;
 	TSharedPtr<FUICommandInfo> BeginAttributeEditorTool;
 
+	const static FString BeginClothTrainingToolIdentifier;
+	TSharedPtr<FUICommandInfo> BeginClothTrainingTool;
+
 	// Rest space viewport commands
 	const static FString TogglePatternModeIdentifier;
 	TSharedPtr<FUICommandInfo> TogglePatternMode;
