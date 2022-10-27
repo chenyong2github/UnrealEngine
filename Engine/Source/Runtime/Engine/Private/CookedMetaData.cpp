@@ -171,3 +171,18 @@ void UClassCookedMetaData::ApplyMetaData(UClass* TargetClass) const
 	}
 }
 
+namespace CookedMetaDataUtil::Internal
+{
+
+void RenameCookedMetaDataForPurge(UObject* CookedMetaDataPtr)
+{
+	// Skip the rename for cooked packages, as IO store cannot currently handle renames
+	if (!CookedMetaDataPtr->GetPackage()->HasAnyPackageFlags(PKG_Cooked))
+	{
+		FNameBuilder BaseMetaDataName(CookedMetaDataPtr->GetFName());
+		BaseMetaDataName << TEXT("_PURGED");
+		CookedMetaDataPtr->Rename(FNameBuilder(MakeUniqueObjectName(CookedMetaDataPtr->GetOuter(), CookedMetaDataPtr->GetClass(), FName(BaseMetaDataName))).ToString(), nullptr, REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);
+	}
+}
+
+} // namespace CookedMetaDataUtil::Internal

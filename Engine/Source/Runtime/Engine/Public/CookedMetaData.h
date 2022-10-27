@@ -123,6 +123,11 @@ protected:
 namespace CookedMetaDataUtil
 {
 
+namespace Internal
+{
+ENGINE_API void RenameCookedMetaDataForPurge(UObject* CookedMetaDataPtr);
+}
+
 template <typename CookedMetaDataType>
 CookedMetaDataType* NewCookedMetaData(UObject* Outer, FName Name, TSubclassOf<CookedMetaDataType> Class = CookedMetaDataType::StaticClass())
 {
@@ -138,11 +143,8 @@ CookedMetaDataType* FindCookedMetaData(UObject* Outer, const TCHAR* Name)
 template <typename CookedMetaDataType, typename CookedMetaDataPtrType>
 void PurgeCookedMetaData(CookedMetaDataPtrType& CookedMetaDataPtr)
 {
-	FNameBuilder BaseMetaDataName(CookedMetaDataPtr->GetFName());
-	BaseMetaDataName << TEXT("_PURGED");
-
+	Internal::RenameCookedMetaDataForPurge(CookedMetaDataPtr);
 	CookedMetaDataPtr->ClearFlags(RF_Standalone | RF_Public);
-	CookedMetaDataPtr->Rename(FNameBuilder(MakeUniqueObjectName(CookedMetaDataPtr->GetOuter(), CookedMetaDataPtr->GetClass(), FName(BaseMetaDataName))).ToString(), nullptr, REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);
 	CookedMetaDataPtr = nullptr;
 }
 
