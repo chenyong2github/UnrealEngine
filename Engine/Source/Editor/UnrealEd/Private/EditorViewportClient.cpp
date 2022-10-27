@@ -55,6 +55,7 @@
 #include "BufferVisualizationData.h"
 #include "NaniteVisualizationData.h"
 #include "LumenVisualizationData.h"
+#include "StrataVisualizationData.h"
 #include "VirtualShadowMapVisualizationData.h"
 #include "GPUSkinCacheVisualizationData.h"
 #include "UnrealWidget.h"
@@ -389,6 +390,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, CurrentBufferVisualizationMode(NAME_None)
 	, CurrentNaniteVisualizationMode(NAME_None)
 	, CurrentLumenVisualizationMode(NAME_None)
+	, CurrentStrataVisualizationMode(NAME_None)
 	, CurrentVirtualShadowMapVisualizationMode(NAME_None)
 	, CurrentRayTracingDebugVisualizationMode(NAME_None)
 	, CurrentGPUSkinCacheVisualizationMode(NAME_None)
@@ -2676,6 +2678,23 @@ FText FEditorViewportClient::GetCurrentVirtualShadowMapVisualizationModeDisplayN
 	return GetVirtualShadowMapVisualizationData().GetModeDisplayName(CurrentVirtualShadowMapVisualizationMode);
 }
 
+void FEditorViewportClient::ChangeStrataVisualizationMode(FName InName)
+{
+	SetViewMode(VMI_VisualizeStrata);
+	CurrentStrataVisualizationMode = InName;
+}
+
+bool FEditorViewportClient::IsStrataVisualizationModeSelected(FName InName) const
+{
+	return IsViewModeEnabled(VMI_VisualizeStrata) && CurrentStrataVisualizationMode == InName;
+}
+
+FText FEditorViewportClient::GetCurrentStrataVisualizationModeDisplayName() const
+{
+	checkf(IsViewModeEnabled(VMI_VisualizeStrata), TEXT("In order to call GetCurrentStrataVisualizationMode(), first you must set ViewMode to VMI_VisualizeStrata."));
+	return GetStrataVisualizationData().GetModeDisplayName(CurrentStrataVisualizationMode);
+}
+
 bool FEditorViewportClient::IsVisualizeCalibrationMaterialEnabled() const
 {
 	// Get the list of requested buffers from the console
@@ -3840,6 +3859,7 @@ void FEditorViewportClient::SetupViewForRendering(FSceneViewFamily& ViewFamily, 
 	View.CurrentBufferVisualizationMode = CurrentBufferVisualizationMode;
 	View.CurrentNaniteVisualizationMode = CurrentNaniteVisualizationMode;
 	View.CurrentLumenVisualizationMode = CurrentLumenVisualizationMode;
+	View.CurrentStrataVisualizationMode = CurrentStrataVisualizationMode;
 	View.CurrentVirtualShadowMapVisualizationMode = CurrentVirtualShadowMapVisualizationMode;
 	View.CurrentGPUSkinCacheVisualizationMode = CurrentGPUSkinCacheVisualizationMode;
 #if RHI_RAYTRACING

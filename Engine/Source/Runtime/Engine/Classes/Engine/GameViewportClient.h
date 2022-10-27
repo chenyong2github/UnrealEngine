@@ -658,6 +658,9 @@ protected:
 	void SetCurrentLumenVisualizationMode(FName NewLumenVisualizationMode) { CurrentLumenVisualizationMode = NewLumenVisualizationMode; }
 	FName GetCurrentLumenVisualizationMode() const { return CurrentLumenVisualizationMode; }
 
+	void SetCurrentStrataVisualizationMode(FName NewStrataVisualizationMode) { CurrentStrataVisualizationMode = NewStrataVisualizationMode; }
+	FName GetCurrentStrataVisualizationMode() const { return CurrentStrataVisualizationMode; }
+
 	void SetCurrentVirtualShadowMapVisualizationMode(FName NewVirtualShadowMapVisualizationMode) { CurrentVirtualShadowMapVisualizationMode = NewVirtualShadowMapVisualizationMode; }
 	FName GetCurrentVirtualShadowMapVisualizationMode() const { return CurrentVirtualShadowMapVisualizationMode; }
 
@@ -964,6 +967,9 @@ private:
 
 	/** Current Lumen visualization mode for this game viewport */
 	FName CurrentLumenVisualizationMode;
+
+	/** Current Strata visualization mode for this game viewport */
+	FName CurrentStrataVisualizationMode;
 
 	/** Current virtual shadow map visualization mode for this game viewport */
 	FName CurrentVirtualShadowMapVisualizationMode;

@@ -1289,6 +1289,26 @@ public:
 	FText GetCurrentLumenVisualizationModeDisplayName() const;
 
 	/**
+	 * Changes the Strata visualization mode for this viewport.
+	 *
+	 * @param InName	The ID of the required visualization mode
+	 */
+	void ChangeStrataVisualizationMode(FName InName);
+
+	/**
+	 * Checks if a Strata visualization mode is selected.
+	 *
+	 * @param InName	The ID of the required visualization mode
+	 * @return	true if the supplied Strata visualization mode is checked
+	 */
+	bool IsStrataVisualizationModeSelected(FName InName) const;
+
+	/**
+	 * Returns the FText display name associated with CurrentStrataVisualizationMode.
+	 */
+	FText GetCurrentStrataVisualizationModeDisplayName() const;
+
+	/**
 	* Changes the virtual shadow map visualization mode for this viewport.
 	*
 	* @param InName	The ID of the required visualization mode
@@ -1654,6 +1674,7 @@ public:
 	FName CurrentBufferVisualizationMode;
 	FName CurrentNaniteVisualizationMode;
 	FName CurrentLumenVisualizationMode;
+	FName CurrentStrataVisualizationMode;
 	FName CurrentVirtualShadowMapVisualizationMode;
 
 	FName CurrentRayTracingDebugVisualizationMode;

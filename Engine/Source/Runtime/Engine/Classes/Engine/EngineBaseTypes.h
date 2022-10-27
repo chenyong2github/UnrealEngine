@@ -922,6 +922,9 @@ enum EViewModeIndex
 	/** Visualize Skin Cache. */
 	VMI_VisualizeGPUSkinCache = 33 UMETA(DisplayName = "GPU Skin Cache Visualization"),
 
+	/** Visualize Strata debug views */
+	VMI_VisualizeStrata = 34 UMETA(DisplayName = "Strata Visualization"),
+
 	VMI_Max UMETA(Hidden),
 
 	// VMI_Unknown - The value assigned to VMI_Unknown must be the highest possible of any member of EViewModeIndex, or GetViewModeName might seg-fault

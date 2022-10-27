@@ -34,6 +34,7 @@
 #include "BufferVisualizationData.h"
 #include "NaniteVisualizationData.h"
 #include "LumenVisualizationData.h"
+#include "StrataVisualizationData.h"
 #include "VirtualShadowMapVisualizationData.h"
 #include "FoliageType.h"
 #include "ShowFlagMenuCommands.h"
@@ -48,6 +49,8 @@
 #include "SLevelViewport.h"
 
 #define LOCTEXT_NAMESPACE "LevelViewportToolBar"
+
+bool LevelEditor_IsStrataEnabled();
 
 /** Override the view menu, just so we can specify the level viewport as active when the button is clicked */
 class SLevelEditorViewportViewMenu : public SEditorViewportViewMenu
@@ -1601,6 +1604,31 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 			EUserInterfaceActionType::RadioButton,
 						/* bInOpenSubMenuOnClick = */ false,
 						FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.VisualizeLumenMode")
+						);
+	}
+
+	if (LevelEditor_IsStrataEnabled())
+	{
+		FToolMenuSection& Section = Menu->FindOrAddSection("ViewMode");
+		Section.AddSubMenu(
+			"VisualizeStrataViewMode",
+			LOCTEXT("VisualizeStrataViewModeDisplayName", "Strata"),
+			LOCTEXT("StrataVisualizationMenu_ToolTip", "Select a mode for Strata visualization"),
+			FNewMenuDelegate::CreateStatic(&FStrataVisualizationMenuCommands::BuildVisualisationSubMenu),
+			FUIAction(
+				FExecuteAction(),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]()
+					{
+						const TSharedRef<SEditorViewport> ViewportRef = Viewport.Pin().ToSharedRef();
+						const TSharedPtr<FEditorViewportClient> ViewportClient = ViewportRef->GetViewportClient();
+						check(ViewportClient.IsValid());
+						return ViewportClient->IsViewModeEnabled(VMI_VisualizeStrata);
+					})
+			),
+			EUserInterfaceActionType::RadioButton,
+						/* bInOpenSubMenuOnClick = */ false,
+						FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorViewport.VisualizeStrataMode")
 						);
 	}
 

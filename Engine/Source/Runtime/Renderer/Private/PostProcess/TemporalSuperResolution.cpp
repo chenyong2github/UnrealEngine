@@ -940,7 +940,8 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	bHasSeparateTranslucency &= 
 		   (!View.Family->EngineShowFlags.VisualizeBuffer || (View.Family->EngineShowFlags.VisualizeBuffer && View.CurrentBufferVisualizationMode == OverviewName))
 		&& (!View.Family->EngineShowFlags.VisualizeNanite || (View.Family->EngineShowFlags.VisualizeNanite && View.CurrentNaniteVisualizationMode == OverviewName))
-		&& (!View.Family->EngineShowFlags.VisualizeLumen  || (View.Family->EngineShowFlags.VisualizeLumen  && View.CurrentLumenVisualizationMode  == OverviewName));
+		&& (!View.Family->EngineShowFlags.VisualizeLumen  || (View.Family->EngineShowFlags.VisualizeLumen  && View.CurrentLumenVisualizationMode  == OverviewName))
+		&& (!View.Family->EngineShowFlags.VisualizeStrata || (View.Family->EngineShowFlags.VisualizeStrata && View.CurrentStrataVisualizationMode == OverviewName));
 #endif
 	if (bHasSeparateTranslucency)
 	{

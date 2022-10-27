@@ -4,6 +4,7 @@
 #include "BufferVisualizationMenuCommands.h"
 #include "NaniteVisualizationMenuCommands.h"
 #include "LumenVisualizationMenuCommands.h"
+#include "StrataVisualizationMenuCommands.h"
 #include "VirtualShadowMapVisualizationMenuCommands.h"
 #include "ShowFlagMenuCommands.h"
 #include "Modules/ModuleManager.h"
@@ -15,6 +16,7 @@ void FCommonMenuExtensionsModule::StartupModule()
 	FBufferVisualizationMenuCommands::Register();
 	FNaniteVisualizationMenuCommands::Register();
 	FLumenVisualizationMenuCommands::Register();
+	FStrataVisualizationMenuCommands::Register();
 	FVirtualShadowMapVisualizationMenuCommands::Register();
 	FShowFlagMenuCommands::Register();
 }
@@ -24,6 +26,7 @@ void FCommonMenuExtensionsModule::ShutdownModule()
 	FShowFlagMenuCommands::Unregister();
 	FVirtualShadowMapVisualizationMenuCommands::Unregister();
 	FNaniteVisualizationMenuCommands::Unregister();
+	FStrataVisualizationMenuCommands::Unregister();
 	FLumenVisualizationMenuCommands::Unregister();
 	FBufferVisualizationMenuCommands::Unregister();
 }

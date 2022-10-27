@@ -474,7 +474,6 @@ private:
 		SetVisualizePostProcessStack(false);
 		SetVirtualTexturePrimitives(false);
 		SetVisualizeVolumetricCloudConservativeDensity(false);
-		SetVisualizeStrataMaterial(false);
 		SetDrawOnlyVSMInvalidatingGeo(false);
 		SetDebugDrawDistantVirtualSMLights(false);
 

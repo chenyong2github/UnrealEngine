@@ -98,6 +98,7 @@ struct UNREALED_API FLevelEditorViewportInstanceSettings
 		, BufferVisualizationMode()
 		, NaniteVisualizationMode()
 		, LumenVisualizationMode()
+		, StrataVisualizationMode()
 		, VirtualShadowMapVisualizationMode()
 		, GPUSkinCacheVisualizationMode()
 		, ExposureSettings()
@@ -147,6 +148,10 @@ struct UNREALED_API FLevelEditorViewportInstanceSettings
 	/** The Lumen visualization mode for the viewport. */
 	UPROPERTY(config)
 	FName LumenVisualizationMode;
+
+	/** The Strata visualization mode for the viewport. */
+	UPROPERTY(config)
+	FName StrataVisualizationMode;
 
 	/** The virtual shadow map visualization mode for the viewport. */
 	UPROPERTY(config)

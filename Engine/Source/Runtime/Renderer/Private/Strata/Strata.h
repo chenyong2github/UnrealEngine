@@ -215,8 +215,4 @@ FStrataTilePassVS::FParameters SetTileParameters(FRDGBuilder& GraphBuilder, cons
 FStrataTilePassVS::FParameters SetTileParameters(const FViewInfo& View, const EStrataTileType Type, EPrimitiveType& PrimitiveType);
 uint32 TileTypeDrawIndirectArgOffset(const EStrataTileType Type);
 uint32 TileTypeDispatchIndirectArgOffset(const EStrataTileType Type);
-
-bool ShouldRenderStrataRoughRefractionRnD();
-void StrataRoughRefractionRnD(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor);
-
 };

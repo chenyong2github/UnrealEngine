@@ -1075,10 +1075,13 @@ public:
 	/** Current Nanite visualization mode */
 	FName CurrentNaniteVisualizationMode;
 
-	/** Current Nanite visualization mode */
+	/** Current Lumen visualization mode */
 	FName CurrentLumenVisualizationMode;
 
-	/** Current Nanite visualization mode */
+	/** Current Strata visualization mode */
+	FName CurrentStrataVisualizationMode;
+
+	/** Current Virtual Shadow Map visualization mode */
 	FName CurrentVirtualShadowMapVisualizationMode;
 
 	/** Current visualize calibration color material name */
