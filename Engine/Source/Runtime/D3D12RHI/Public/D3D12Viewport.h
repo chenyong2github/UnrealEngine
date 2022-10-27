@@ -103,11 +103,7 @@ public:
 	virtual void WaitForFrameEventCompletion() override;
 	virtual void IssueFrameEvent() override;
 
-	/**
-	  * RHIEndDrawingViewport flushes commands internally, so we don't need to flush before calling it.
-	  * Avoids wasteful issuing of another entire command list with just a few commands.
-	  */
-	virtual bool NeedFlushBeforeEndDrawing() { return false; }
+	virtual bool NeedFlushBeforeEndDrawing() override;
 
 #if D3D12_VIEWPORT_EXPOSES_SWAP_CHAIN
 	virtual void* GetNativeSwapChain() const override { return SwapChain1; }
