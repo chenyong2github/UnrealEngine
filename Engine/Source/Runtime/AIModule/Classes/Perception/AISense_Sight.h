@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "GenericTeamAgentInterface.h"
+#include "Misc/MTAccessDetector.h"
 #include "Perception/AISense.h"
 #include "AISense_Sight.generated.h"
 
@@ -46,7 +47,7 @@ struct AIMODULE_API FAISightEvent
 	}
 };
 
-struct FAISightTarget
+struct AIMODULE_API FAISightTarget
 {
 	typedef uint32 FTargetId;
 	static const FTargetId InvalidTargetId;
@@ -122,6 +123,24 @@ struct FAISightQuery
 	};
 };
 
+struct AIMODULE_API FAISightQueryID
+{
+	FPerceptionListenerID ObserverId;
+	FAISightTarget::FTargetId TargetId;
+
+	FAISightQueryID(FPerceptionListenerID ListenerId = FPerceptionListenerID::InvalidID(), FAISightTarget::FTargetId Target = FAISightTarget::InvalidTargetId)
+	: ObserverId(ListenerId), TargetId(Target)
+	{
+	}
+
+	FAISightQueryID(const FAISightQuery& Query)
+	: ObserverId(Query.ObserverId), TargetId(Query.TargetId)
+	{
+	}
+};
+
+DECLARE_DELEGATE_FiveParams(FOnPendingVisibilityQueryProcessedDelegate, const FAISightQueryID&, const bool, const float, const FVector&, const TOptional<int32>&);
+
 UCLASS(ClassGroup=AI, config=Game)
 class AIMODULE_API UAISense_Sight : public UAISense
 {
@@ -140,8 +159,15 @@ public:
 
 		FDigestedSightProperties();
 		FDigestedSightProperties(const UAISenseConfig_Sight& SenseConfig);
-	};	
-	
+	};
+
+	enum class EVisibilityResult
+	{
+		Visible,
+		NotVisible,
+		Pending
+	};
+
 	typedef TMap<FAISightTarget::FTargetId, FAISightTarget> FTargetsContainer;
 	FTargetsContainer ObservedTargets;
 	TMap<FPerceptionListenerID, FDigestedSightProperties> DigestedProperties;
@@ -153,10 +179,15 @@ public:
 	bool bSightQueriesOutOfRangeDirty = true;
 	TArray<FAISightQuery> SightQueriesOutOfRange;
 	TArray<FAISightQuery> SightQueriesInRange;
+	TArray<FAISightQuery> SightQueriesPending;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, Category = "AI Perception", config)
 	int32 MaxTracesPerTick;
+
+	/** Maximum number of asynchronous traces that can be requested in a single update call*/
+	UPROPERTY(EditDefaultsOnly, Category = "AI Perception", config)
+	int32 MaxAsyncTracesPerTick;
 
 	UPROPERTY(EditDefaultsOnly, Category = "AI Perception", config)
 	int32 MinQueriesPerTimeSliceCheck;
@@ -175,7 +206,18 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "AI Perception", config)
 	float SightLimitQueryImportance;
 
+	/** Defines the amount of async trace queries to prevent based on the number of pending queries at the start of an update.
+	 * 1 means that the async trace budget is slashed by the pending queries count
+	 * 0 means that the async trace budget is not impacted by the pending queries
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "AI Perception", config)
+	float PendingQueriesBudgetReductionRatio;
+
 	ECollisionChannel DefaultSightCollisionChannel;
+
+	FOnPendingVisibilityQueryProcessedDelegate OnPendingVisibilityQueryProcessedDelegate;
+
+	UE_MT_DECLARE_RW_ACCESS_DETECTOR(QueriesListAccessDetector);
 
 public:
 
@@ -192,9 +234,10 @@ public:
 protected:
 	virtual float Update() override;
 
-	bool ComputeVisibility(const UWorld* World, FAISightQuery& SightQuery, FPerceptionListener& Listener, const AActor* ListenerActor, FAISightTarget& Target, AActor* TargetActor, const FDigestedSightProperties& PropDigest, float& OutStimulusStrength, FVector& OutSeenLocation, int32& OutNumberOfLoSChecksPerformed) const;
+	EVisibilityResult ComputeVisibility(const UWorld* World, FAISightQuery& SightQuery, FPerceptionListener& Listener, const AActor* ListenerActor, FAISightTarget& Target, AActor* TargetActor, const FDigestedSightProperties& PropDigest, float& OutStimulusStrength, FVector& OutSeenLocation, int32& OutNumberOfLoSChecksPerformed, int32& OutNumberOfAsyncLosCheckRequested) const;
 	virtual bool ShouldAutomaticallySeeTarget(const FDigestedSightProperties& PropDigest, FAISightQuery* SightQuery, FPerceptionListener& Listener, AActor* TargetActor, float& OutStimulusStrength) const;
 	void UpdateQueryVisibilityStatus(FAISightQuery& SightQuery, FPerceptionListener& Listener, const bool bIsVisible, const FVector& SeenLocation, const float StimulusStrength, AActor* TargetActor, const FVector& TargetLocation) const;
+	void OnPendingVisibilityQueryProcessed(const FAISightQueryID& QueryID, const bool bIsVisible, const float StimulusStrength, const FVector& SeenLocation, const TOptional<int32>& UserData);
 
 	void OnNewListenerImpl(const FPerceptionListener& NewListener);
 	void OnListenerUpdateImpl(const FPerceptionListener& UpdatedListener);
