@@ -131,7 +131,7 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 		Dictionary<string, List<Instance>> result = new();
 		foreach ((string az, List<Instance> candidates) in candidatesPerAz)
 		{
-			result[az] = candidates.OrderBy(x => x.LaunchTime).Take(requestCountPerAz[az]).ToList();
+			result[az] = candidates.OrderByDescending(x => x.LaunchTime).Take(requestCountPerAz[az]).ToList();
 		}
 
 		return result;
