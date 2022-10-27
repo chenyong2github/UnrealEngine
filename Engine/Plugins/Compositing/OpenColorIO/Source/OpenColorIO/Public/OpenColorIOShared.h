@@ -64,7 +64,9 @@ public:
 	~FOpenColorIOShaderMapId()
 	{ }
 
+#if WITH_EDITOR
 	void SetShaderDependencies(const TArray<FShaderType*>& InShaderTypes, EShaderPlatform InShaderPlatform);
+#endif // WITH_EDITOR
 
 	//void Serialize(FArchive& Ar);
 
@@ -94,8 +96,10 @@ public:
 		return !(*this == InReferenceSet);
 	}
 
+#if WITH_EDITOR
 	/** Appends string representations of this Id to a key string. */
 	void AppendKeyString(FString& OutKeyString) const;
+#endif // WITH_EDITOR
 
 	/** Returns true if the requested shader type is a dependency of this shader map Id. */
 	bool ContainsShaderType(const FShaderType* ShaderType) const;
@@ -140,17 +144,20 @@ public:
 	template<typename ShaderType> TShaderRef<ShaderType> GetShader() const { return TShaderRef<ShaderType>(GetContent()->GetShader<ShaderType>(), *this); }
 	TShaderRef<FShader> GetShader(FShaderType* ShaderType) const { return TShaderRef<FShader>(GetContent()->GetShader(ShaderType), *this); }
 
+#if WITH_EDITOR
 	/**
 	 * Attempts to load the shader map for the given color transform from the Derived Data Cache.
 	 * If InOutShaderMap is valid, attempts to load the individual missing shaders instead.
 	 */
 	static void LoadFromDerivedDataCache(const FOpenColorIOTransformResource* InColorTransform, const FOpenColorIOShaderMapId& InShaderMapId, EShaderPlatform InPlatform, TRefCountPtr<FOpenColorIOShaderMap>& InOutShaderMap);
+#endif // WITH_EDITOR
 
 	FOpenColorIOShaderMap();
 
 	// Destructor.
 	~FOpenColorIOShaderMap();
 
+#if WITH_EDITOR
 	/**
 	 * Compiles the shaders for a color transform and caches them in this shader map.
 	 * @param InColorTransform - The color transform to compile shaders for.
@@ -169,6 +176,7 @@ public:
 
 	/** Sorts the incoming compiled jobs into the appropriate OCIO shader maps, and finalizes this shader map so that it can be used for rendering. */
 	bool ProcessCompilationResults(const TArray<FShaderCommonCompileJobPtr>& InCompilationResults, int32& InOutResultIndex, float& InOutTimeBudget);
+#endif // WITH_EDITOR
 
 	/**
 	 * Checks whether the shader map is missing any shader types necessary for the given color transform.
@@ -177,6 +185,7 @@ public:
 	 */
 	bool IsComplete(const FOpenColorIOTransformResource* InColorTransform, bool bSilent);
 
+#if WITH_EDITOR
 	/**
 	 * Checks to see if the shader map is already being compiled for another color transform, and if so
 	 * adds the specified color transform to the list to be applied to once the compile finishes.
@@ -184,6 +193,7 @@ public:
 	 * @return True if the shader map was being compiled and we added ColorTransform to the list to be applied.
 	 */
 	bool TryToAddToExistingCompilationTask(FOpenColorIOTransformResource* InColorTransform);
+#endif // WITH_EDITOR
 
 	/** Builds a list of the shaders in a shader map. */
 	OPENCOLORIO_API  void GetShaderList(TMap<FShaderId, TShaderRef<FShader>>& OutShaders) const;
@@ -194,20 +204,18 @@ public:
 	OPENCOLORIO_API  void AddRef();
 	OPENCOLORIO_API  void Release();
 
-	/**
-	 * Removes all entries in the cache with exceptions based on a shader type
-	 * @param ShaderType - The shader type to flush
-	 */
-	void FlushShadersByShaderType(const FShaderType* ShaderType);
-
+#if WITH_EDITOR
 	/** Removes a ColorTransform from OpenColorIOShaderMapsBeingCompiled. */
 	OPENCOLORIO_API static void RemovePendingColorTransform(FOpenColorIOTransformResource* InColorTransform);
+#endif // WITH_EDITOR
 
 	/** Serializes the shader map. */
 	bool Serialize(FArchive& Ar, bool bInlineShaderResources = true);
 
+#if WITH_EDITOR
 	/** Saves this shader map to the derived data cache. */
 	void SaveToDerivedDataCache();
+#endif // WITH_EDITOR
 
 	/** Registers all shaders that have been loaded in Serialize */
 	//virtual void RegisterSerializedShaders(bool bCooked) override;
@@ -228,9 +236,12 @@ public:
 
 	int32 GetNumRefs() const { return NumRefs; }
 	uint32 GetCompilingId()  { return CompilingId; }
+
+#if WITH_EDITOR
 	static TMap<TRefCountPtr<FOpenColorIOShaderMap>, TArray<FOpenColorIOTransformResource*> > &GetInFlightShaderMaps() { return OpenColorIOShaderMapsBeingCompiled; }
 
 	void SetCompiledSuccessfully(bool bSuccess) { bCompiledSuccessfully = bSuccess; }
+#endif // WITH_EDITOR
 private:
 
 	/**
@@ -246,11 +257,13 @@ private:
 	 */
 	static TArray<FOpenColorIOShaderMap*> AllOpenColorIOShaderMaps;
 
+#if WITH_EDITOR
 	/** Next value for CompilingId. */
 	static uint32 NextCompilingId;
 
 	/** Tracks resources and their shader maps that need to be compiled but whose compilation is being deferred. */
 	static TMap<TRefCountPtr<FOpenColorIOShaderMap>, TArray<FOpenColorIOTransformResource*> > OpenColorIOShaderMapsBeingCompiled;
+#endif // WITH_EDITOR
 
 	/** Uniquely identifies this shader map during compilation, needed for deferred compilation where shaders from multiple shader maps are compiled together. */
 	uint32 CompilingId;
@@ -276,7 +289,9 @@ private:
 
 	uint32 bHasFrozenContent : 1;
 
+#if WITH_EDITOR
 	FShader* ProcessCompilationResultsForSingleJob(const TRefCountPtr<class FShaderCommonCompileJob>& SingleJob, const FSHAHash& InShaderMapHash);
+#endif
 
 	bool IsOpenColorIOShaderComplete(const FOpenColorIOTransformResource* InColorTransform, const FOpenColorIOShaderType* InShaderType, bool bSilent);
 
@@ -343,6 +358,7 @@ public:
 	 */
 	virtual bool IsPersistent() const { return true; }
 
+#if WITH_EDITOR
 	/**
 	 * Cancels all outstanding compilation jobs
 	 */
@@ -352,6 +368,7 @@ public:
 	 * Blocks until compilation has completed. Returns immediately if a compilation is not outstanding.
 	 */
 	void FinishCompilation();
+#endif // WITH_EDITOR
 
 	/**
 	 * Checks if the compilation for this shader is finished
@@ -382,10 +399,12 @@ public:
 	/** Note: SetGameThreadShaderMap must also be called with the same value, but from the game thread. */
 	void SetRenderingThreadShaderMap(FOpenColorIOShaderMap* InShaderMap);
 
+#if WITH_EDITOR
 	void AddCompileId(uint32 InIdentifier) 
 	{
 		OutstandingCompileShaderMapIds.Add(InIdentifier);
 	}
+#endif // WITH_EDITOR
 
 	void SetInlineShaderMap(FOpenColorIOShaderMap* InShaderMap)
 	{
@@ -396,7 +415,9 @@ public:
 		CookedShaderMapId = InShaderMap->GetShaderMapId();
 	}
 
+#if WITH_EDITOR
 	void RemoveOutstandingCompileId(const int32 InOldOutstandingCompileShaderMapId);
+#endif // WITH_EDITOR
 
 	/**
 	* Get OCIO generated source code for the shader
@@ -447,12 +468,12 @@ public:
 	
 	bool IsSame(const FOpenColorIOShaderMapId& InId) const;
 protected:
-
+#if WITH_EDITOR
 	/**
 	 * Fills the passed array with IDs of shader maps unfinished compilation jobs.
 	 */
 	void GetShaderMapIDsWithUnfinishedCompilation(TArray<int32>& OutShaderMapIds);
-
+#endif // WITH_EDITOR
 
 	void SetFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel)
 	{
@@ -483,11 +504,13 @@ private:
 	 */
 	FString ShaderCodeAndConfigHash;
 
+#if WITH_EDITOR
 	/** 
 	 * Contains the compiling id of this shader map when it is being compiled asynchronously. 
 	 * This can be used to access the shader map during async compiling, since GameThreadShaderMap will not have been set yet.
 	 */
 	TArray<int32, TInlineAllocator<1> > OutstandingCompileShaderMapIds;
+#endif // WITH_EDITOR
 
 	/** Feature level that this color transform is representing. */
 	ERHIFeatureLevel::Type FeatureLevel;
@@ -501,6 +524,7 @@ private:
 	uint32 bLoadedCookedShaderMapId : 1;
 	FOpenColorIOShaderMapId CookedShaderMapId;
 
+#if WITH_EDITOR
 	/**
 	 * Compiles this color transform for InPlatform, storing the result in OutShaderMap if the compile was synchronous
 	 */
@@ -516,7 +540,7 @@ private:
 		EShaderPlatform InPlatform,
 		FShaderCompilerEnvironment& OutEnvironment
 		) const;
-
+#endif // WITH_EDITOR
 
 	FString FriendlyName;
 

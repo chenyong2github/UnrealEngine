@@ -2,6 +2,8 @@
 
 #pragma once
 
+#if WITH_EDITOR
+
 #include "CoreMinimal.h"
 #include "ShaderCompiler.h"
 
@@ -108,3 +110,4 @@ private:
 
 extern OPENCOLORIO_API FOpenColorIOShaderCompilationManager GOpenColorIOShaderCompilationManager;
 
+#endif // WITH_EDITOR

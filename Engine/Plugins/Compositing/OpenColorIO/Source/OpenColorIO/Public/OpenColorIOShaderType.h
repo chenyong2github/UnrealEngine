@@ -91,6 +91,7 @@ public:
 		check(InTotalPermutationCount == 1);
 	}
 
+#if WITH_EDITOR
 	/**
 	 * Enqueues a compilation for a new shader of this type.
 	 * @param InColorTransform - The ColorTransform to link the shader with.
@@ -113,6 +114,7 @@ public:
 		const FShaderCompileJob& CurrentJob,
 		const FString& InDebugDescription
 		) const;
+#endif // WITH_EDITOR
 
 	/**
 	 * Checks if the shader type should be cached for a particular platform and color transform.
@@ -125,7 +127,7 @@ public:
 		return ShouldCompilePermutation(FOpenColorIOShaderPermutationParameters(GetFName(), InPlatform, InColorTransform));
 	}
 
-
+#if WITH_EDITOR
 protected:
 	/**
 	 * Sets up the environment used to compile an instance of this shader type.
@@ -136,4 +138,5 @@ protected:
 	{
 		ModifyCompilationEnvironment(FOpenColorIOShaderPermutationParameters(GetFName(), InPlatform, InColorTransform), OutEnvironment);
 	}
+#endif // WITH_EDITOR
 };

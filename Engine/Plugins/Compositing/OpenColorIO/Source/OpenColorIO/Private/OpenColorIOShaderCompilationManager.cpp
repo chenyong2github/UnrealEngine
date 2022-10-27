@@ -2,16 +2,15 @@
 
 #include "OpenColorIOShaderCompilationManager.h"
 
+#if WITH_EDITOR
+
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "OpenColorIOShared.h"
 #include "ShaderCompiler.h"
 
-#if WITH_EDITOR
 #include "Interfaces/IShaderFormat.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
-#endif
-
 
 DEFINE_LOG_CATEGORY_STATIC(LogOpenColorIOShaderCompiler, All, All);
 
@@ -22,15 +21,11 @@ static FAutoConsoleVariableRef CVarShowOpenColorIOShaderWarnings(
 	TEXT("When set to 1, will display all warnings from OpenColorIO shader compiles.")
 	);
 
-
-
-OPENCOLORIO_API FOpenColorIOShaderCompilationManager GOpenColorIOShaderCompilationManager;
+FOpenColorIOShaderCompilationManager GOpenColorIOShaderCompilationManager;
 
 void FOpenColorIOShaderCompilationManager::Tick(float DeltaSeconds)
 {
-#if WITH_EDITOR
 	ProcessAsyncResults();
-#endif
 }
 
 FOpenColorIOShaderCompilationManager::FOpenColorIOShaderCompilationManager()
@@ -63,9 +58,8 @@ void FOpenColorIOShaderCompilationManager::InitWorkerInfo()
 	}	
 }
 
-OPENCOLORIO_API void FOpenColorIOShaderCompilationManager::AddJobs(TArray<FShaderCommonCompileJobPtr> InNewJobs)
+void FOpenColorIOShaderCompilationManager::AddJobs(TArray<FShaderCommonCompileJobPtr> InNewJobs)
 {
-#if WITH_EDITOR
 	check(IsInGameThread());
 	JobQueue.Append(InNewJobs);
 
@@ -92,13 +86,10 @@ OPENCOLORIO_API void FOpenColorIOShaderCompilationManager::AddJobs(TArray<FShade
 		}
 	}
 	GShaderCompilingManager->SubmitJobs(InNewJobs, FString(), FString());
-#endif
 }
-
 
 void FOpenColorIOShaderCompilationManager::ProcessAsyncResults()
 {
-#if WITH_EDITOR
 	check(IsInGameThread());
 
 	// Process the results from the shader compile worker
@@ -144,15 +135,12 @@ void FOpenColorIOShaderCompilationManager::ProcessAsyncResults()
 	{
 		ProcessCompiledOpenColorIOShaderMaps(PendingFinalizeOpenColorIOShaderMaps, 10);
 	}
-#endif
 }
-
 
 void FOpenColorIOShaderCompilationManager::ProcessCompiledOpenColorIOShaderMaps(
 	TMap<int32, FOpenColorIOShaderMapFinalizeResults>& CompiledShaderMaps,
 	float TimeBudget)
 {
-#if WITH_EDITOR
 	// Keeps shader maps alive as they are passed from the shader compiler and applied to the owning ColorTransform
 	TArray<TRefCountPtr<FOpenColorIOShaderMap> > LocalShaderMapReferences;
 	TMap<FOpenColorIOTransformResource*, FOpenColorIOShaderMap*> TransformsToUpdate;
@@ -323,16 +311,13 @@ void FOpenColorIOShaderCompilationManager::ProcessCompiledOpenColorIOShaderMaps(
 				});
 		}
 	}
-#endif
 }
-
 
 void FOpenColorIOShaderCompilationManager::FinishCompilation(const TCHAR* InTransformName, const TArray<int32>& ShaderMapIdsToFinishCompiling)
 {
-#if WITH_EDITOR
 	check(!FPlatformProperties::RequiresCookedData());
 	GShaderCompilingManager->FinishCompilation(NULL, ShaderMapIdsToFinishCompiling);
 	ProcessAsyncResults();	// grab compiled shader maps and assign them to their resources
-#endif
 }
 
+#endif // WITH_EDITOR

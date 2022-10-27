@@ -28,13 +28,17 @@ IMPLEMENT_TYPE_LAYOUT(FOpenColorIOShaderMapContent);
 
 FOpenColorIOTransformResource::~FOpenColorIOTransformResource()
 {
+#if WITH_EDITOR
 	FOpenColorIOShaderMap::RemovePendingColorTransform(this);
+#endif
 }
 
+#if WITH_EDITOR
 /** Populates OutEnvironment with defines needed to compile shaders for this color transform. */
 void FOpenColorIOTransformResource::SetupShaderCompilationEnvironment(EShaderPlatform InPlatform, FShaderCompilerEnvironment& OutEnvironment) const
 {
 }
+#endif // WITH_EDITOR
 
 OPENCOLORIO_API bool FOpenColorIOTransformResource::ShouldCache(EShaderPlatform InPlatform, const FShaderType* InShaderType) const
 {
@@ -42,9 +46,10 @@ OPENCOLORIO_API bool FOpenColorIOTransformResource::ShouldCache(EShaderPlatform 
 	return true;
 }
 
+#if WITH_EDITOR
+
 OPENCOLORIO_API void FOpenColorIOTransformResource::CancelCompilation()
 {
-#if WITH_EDITOR
 	if (IsInGameThread())
 	{
 		FOpenColorIOShaderMap::RemovePendingColorTransform(this);
@@ -52,7 +57,6 @@ OPENCOLORIO_API void FOpenColorIOTransformResource::CancelCompilation()
 		UE_LOG(LogShaders, Log, TEXT("CancelCompilation %p."), this);
 		OutstandingCompileShaderMapIds.Empty();
 	}
-#endif
 }
 
 OPENCOLORIO_API void FOpenColorIOTransformResource::RemoveOutstandingCompileId(const int32 InOldOutstandingCompileShaderMapId)
@@ -63,9 +67,13 @@ OPENCOLORIO_API void FOpenColorIOTransformResource::RemoveOutstandingCompileId(c
 	}
 }
 
+#endif // WITH_EDITOR
+
 OPENCOLORIO_API void FOpenColorIOTransformResource::Invalidate()
 {
+#if WITH_EDITOR
 	CancelCompilation();
+#endif
 	ReleaseShaderMap();
 }
 
@@ -103,8 +111,8 @@ OPENCOLORIO_API void FOpenColorIOTransformResource::GetShaderMapId(EShaderPlatfo
 		OutId.FeatureLevel = GetFeatureLevel();
 
 		OutId.ShaderCodeAndConfigHash = ShaderCodeAndConfigHash;
-		OutId.SetShaderDependencies(ShaderTypes, InPlatform);
 #if WITH_EDITOR
+		OutId.SetShaderDependencies(ShaderTypes, InPlatform);
 		OutId.LayoutParams.InitializeForPlatform(TargetPlatform);
 #else
 		if (TargetPlatform != nullptr)
@@ -223,11 +231,13 @@ OPENCOLORIO_API  void FOpenColorIOTransformResource::SetRenderingThreadShaderMap
 
 OPENCOLORIO_API  bool FOpenColorIOTransformResource::IsCompilationFinished() const
 {
-	bool bRet = GameThreadShaderMap && GameThreadShaderMap.IsValid() && GameThreadShaderMap->IsCompilationFinalized();
+#if WITH_EDITOR
 	if (OutstandingCompileShaderMapIds.Num() == 0)
 	{
 		return true;
 	}
+#endif
+	bool bRet = GameThreadShaderMap && GameThreadShaderMap.IsValid() && GameThreadShaderMap->IsCompilationFinalized();
 	return bRet;
 }
 
@@ -273,6 +283,7 @@ bool FOpenColorIOTransformResource::CacheShaders(const FOpenColorIOShaderMapId& 
 			// Attempt to load from the derived data cache if we are uncooked
 			if ((!GameThreadShaderMap || !GameThreadShaderMap->IsComplete(this, true)) && !FPlatformProperties::RequiresCookedData())
 			{
+#if WITH_EDITOR
 				FOpenColorIOShaderMap::LoadFromDerivedDataCache(this, InShaderMapId, InPlatform, GameThreadShaderMap);
 				if (GameThreadShaderMap && GameThreadShaderMap->IsValid())
 				{
@@ -282,6 +293,7 @@ bool FOpenColorIOTransformResource::CacheShaders(const FOpenColorIOShaderMapId& 
 				{
 					UE_LOG(LogTemp, Display, TEXT("Loading shader for OCIO ColorSpace %s from DDC failed. Shader needs recompile."), *GetFriendlyName());
 				}
+#endif // WITH_EDITOR
 			}
 		}
 	}
@@ -297,7 +309,6 @@ bool FOpenColorIOTransformResource::CacheShaders(const FOpenColorIOShaderMapId& 
 	{
 		GameThreadShaderMap->AssociateWithAsset(AssetPath);
 	}
-#endif // WITH_EDITOR
 
 	if (GameThreadShaderMap && GameThreadShaderMap->TryToAddToExistingCompilationTask(this))
 	{
@@ -310,13 +321,16 @@ bool FOpenColorIOTransformResource::CacheShaders(const FOpenColorIOShaderMapId& 
 		GameThreadShaderMap = nullptr;
 		bSucceeded = true;
 	}
-	else if (!GameThreadShaderMap || !(bAssumeShaderMapIsComplete || GameThreadShaderMap->IsComplete(this, false)))
+	else
+#endif // WITH_EDITOR
+	if (!GameThreadShaderMap || !(bAssumeShaderMapIsComplete || GameThreadShaderMap->IsComplete(this, false)))
 	{
 		if (bContainsInlineShaders || FPlatformProperties::RequiresCookedData())
 		{
 			UE_LOG(LogShaders, Log, TEXT("Can't compile %s with cooked content!"), *GetFriendlyName());
 			GameThreadShaderMap = nullptr;
 		}
+#if WITH_EDITOR
 		else
 		{
 			UE_LOG(LogShaders, Log, TEXT("%s cached shader map for color transform %s, compiling."), GameThreadShaderMap? TEXT("Incomplete") : TEXT("Missing"), *GetFriendlyName());
@@ -330,6 +344,7 @@ bool FOpenColorIOTransformResource::CacheShaders(const FOpenColorIOShaderMapId& 
 				GameThreadShaderMap = nullptr;
 			}
 		}
+#endif // WITH_EDITOR
 	}
 	else
 	{
@@ -347,9 +362,9 @@ bool FOpenColorIOTransformResource::CacheShaders(const FOpenColorIOShaderMapId& 
 	return bSucceeded;
 }
 
+#if WITH_EDITOR
 void FOpenColorIOTransformResource::FinishCompilation()
 {
-#if WITH_EDITOR
 	TArray<int32> ShaderMapIdsToFinish;
 	GetShaderMapIDsWithUnfinishedCompilation(ShaderMapIdsToFinish);
 
@@ -368,9 +383,7 @@ void FOpenColorIOTransformResource::FinishCompilation()
 		GetShaderMapIDsWithUnfinishedCompilation(ShaderMapIdsToFinish2);
 		ensure(ShaderMapIdsToFinish2.Num() == 0);
 	}
-#endif
 }
-
 
 void FOpenColorIOTransformResource::GetShaderMapIDsWithUnfinishedCompilation(TArray<int32>& OutShaderMapIds)
 {
@@ -395,7 +408,6 @@ void FOpenColorIOTransformResource::GetShaderMapIDsWithUnfinishedCompilation(TAr
  */
 bool FOpenColorIOTransformResource::BeginCompileShaderMap(const FOpenColorIOShaderMapId& InShaderMapId, EShaderPlatform InPlatform, TRefCountPtr<FOpenColorIOShaderMap>& OutShaderMap, bool bApplyCompletedShaderMapForRendering, bool bSynchronous)
 {
-#if WITH_EDITORONLY_DATA
 	bool bSuccess = false;
 
 	STAT(double OpenColorIOCompileTime = 0);
@@ -403,9 +415,7 @@ bool FOpenColorIOTransformResource::BeginCompileShaderMap(const FOpenColorIOShad
 	SCOPE_SECONDS_COUNTER(OpenColorIOCompileTime);
 
 	TRefCountPtr<FOpenColorIOShaderMap> NewShaderMap = new FOpenColorIOShaderMap();
-#if WITH_EDITOR
 	NewShaderMap->AssociateWithAsset(AssetPath);
-#endif
 
 	// Create a shader compiler environment for the material that will be shared by all jobs from this material
 	TRefCountPtr<FSharedShaderCompilerEnvironment> MaterialEnvironment = new FSharedShaderCompilerEnvironment();
@@ -431,15 +441,10 @@ bool FOpenColorIOTransformResource::BeginCompileShaderMap(const FOpenColorIOShad
 	INC_FLOAT_STAT_BY(STAT_ShaderCompiling_OpenColorIOShaders, (float)OpenColorIOCompileTime);
 
 	return true;
-#else
-	UE_LOG(LogShaders, Fatal, TEXT("Compiling of shaders in a build without editordata is not supported."));
-	return false;
-#endif
 }
 
 void FOpenColorIOShaderMapId::SetShaderDependencies(const TArray<FShaderType*>& InShaderTypes, EShaderPlatform InShaderPlatform)
 {
-#if WITH_EDITOR
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		for (FShaderType* ShaderType : InShaderTypes)
@@ -453,8 +458,9 @@ void FOpenColorIOShaderMapId::SetShaderDependencies(const TArray<FShaderType*>& 
 			}
 		}
 	}
-#endif //WITH_EDITOR
 }
+
+#endif // WITH_EDITOR
 
 bool FOpenColorIOShaderMapId::ContainsShaderType(const FShaderType* ShaderType) const
 {
