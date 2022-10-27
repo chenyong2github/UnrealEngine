@@ -218,6 +218,11 @@ private:
 	TSharedRef<SWidget> OnGetTexturesMenuForMaterial();
 
 	/**
+	 * Create button for browse to nanite override material
+	 */
+	TSharedRef<SWidget> MakeBrowseNaniteOverrideMaterialButton() const;
+
+	/**
 	 * On Get object path handler
 	 */
 	FString OnGetObjectPath() const;
