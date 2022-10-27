@@ -99,6 +99,32 @@ PACKAGE_SCOPE:
 		OnlineAsyncTaskThread(nullptr)
 	{}
 
+	// Options for emulating different types of online platforms, these are settable via OSSNull cvars or in the [OnlineSubsystemNull] config section
+
+	/** True if it should login the first user at startup like single-user platforms, false to only login when requested */
+	static bool bAutoLoginAtStartup;
+
+	/** True if it should support an external UI interface */
+	static bool bSupportExternalUI;
+
+	/** True if login requires calling ShowLoginUI on the externalUI, depends on SupportExternalUI */
+	static bool bRequireShowLoginUI;
+
+	/** True if the user index should change during login UI to emulate a platform user change */
+	static bool bForceShowLoginUIUserChange;
+
+	/** True if login should require a user/pass to act like an external service, false to match most platforms and use the default */
+	static bool bRequireLoginCredentials;
+
+	/** True if login name should include the local user number, which allows different stable IDs per user num */
+	static bool bAddUserNumToNullId;
+
+	/** True if it should use a system-stable null Id for login, same as -StableNullID on command line */
+	static bool bForceStableNullId;
+
+	/** True if it should fail faked network queries and act like an offline system */
+	static bool bForceOfflineMode;
+
 private:
 
 	/** Interface to the session services */
@@ -115,6 +141,9 @@ private:
 
 	/** Interface to the identity registration/auth services */
 	FOnlineIdentityNullPtr IdentityInterface;
+
+	/** Interface to the identity registration/auth services */
+	FOnlineExternalUINullPtr ExternalUIInterface;
 
 	/** Interface for achievements */
 	FOnlineAchievementsNullPtr AchievementsInterface;
