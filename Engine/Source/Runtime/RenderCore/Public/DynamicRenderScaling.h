@@ -9,6 +9,7 @@
 #include "CoreTypes.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/AssertionMacros.h"
+#include "Stats/Stats.h"
 
 namespace DynamicRenderScaling
 {
