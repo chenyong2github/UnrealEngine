@@ -222,6 +222,7 @@ void FSceneTexturesConfig::Init(const FSceneTexturesConfigInitSettings& InitSett
 	ColorFormat				= PF_Unknown;
 	ColorClearValue			= FClearValueBinding::Black;
 	DepthClearValue			= FClearValueBinding::DepthFar;
+	bRequiresAlphaChannel	= InitSettings.bRequiresAlphaChannel;
 	bRequireMultiView		= InitSettings.bRequireMultiView;
 	bIsUsingGBuffers		= IsUsingGBuffers(ShaderPlatform);
 	bSupportsXRTargetManagerDepthAlloc = InitSettings.bSupportsXRTargetManagerDepthAlloc;
