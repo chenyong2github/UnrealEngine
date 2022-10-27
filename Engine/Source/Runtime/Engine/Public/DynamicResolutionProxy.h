@@ -6,17 +6,14 @@
 #include "SceneView.h"
 #include "Engine/EngineTypes.h"
 
-
-/** Render thread proxy that hold's the heuristic for dynamic resolution. */
+/** Render thread proxy that holds the heuristic for dynamic resolution. */
 class ENGINE_API FDynamicResolutionHeuristicProxy
 {
 public:
 	static constexpr uint64 kInvalidEntryId = ~uint64(0);
 
-
 	FDynamicResolutionHeuristicProxy();
 	~FDynamicResolutionHeuristicProxy();
-
 
 	/** Resets the proxy. */
 	void Reset_RenderThread();
@@ -32,29 +29,27 @@ public:
 		const DynamicRenderScaling::TMap<float>& BudgetTimingMs);
 
 	/** Refresh resolution fraction's from history. */
-	void RefreshCurentFrameResolutionFraction_RenderThread();
+	void RefreshCurrentFrameResolutionFraction_RenderThread();
 
 	/** Returns the view fraction that should be used for current frame. */
-	FORCEINLINE DynamicRenderScaling::TMap<float> QueryCurentFrameResolutionFractions() const
+	FORCEINLINE DynamicRenderScaling::TMap<float> QueryCurrentFrameResolutionFractions() const
 	{
 		check(IsInRenderingThread());
-		return QueryCurentFrameResolutionFractions_Internal();
+		return QueryCurrentFrameResolutionFractions_Internal();
 	}
 
 	/** Returns a non thread safe approximation of the current resolution fraction applied on render thread. */
 	FORCEINLINE DynamicRenderScaling::TMap<float> GetResolutionFractionsApproximation_GameThread() const
 	{
 		check(IsInGameThread());
-		return QueryCurentFrameResolutionFractions_Internal();
+		return QueryCurrentFrameResolutionFractions_Internal();
 	}
-
 
 	/** Returns the view fraction upper bound. */
 	DynamicRenderScaling::TMap<float> GetResolutionFractionUpperBounds() const;
 
 	/** Creates a default dynamic resolution state using this proxy that queries GPU timing from the RHI. */
-	static TSharedPtr< class IDynamicResolutionState > CreateDefaultState();
-
+	static TSharedPtr<class IDynamicResolutionState> CreateDefaultState();
 
 private:
 	struct FrameHistoryEntry
@@ -66,7 +61,7 @@ private:
 		// Total GPU busy time for the entire frame in milliseconds.
 		float TotalFrameGPUBusyTimeMs;
 
-		// Total GPU busy time for the render thread commands that does dynamic resolutions.
+		// Total GPU busy time for the render thread commands that perform dynamic resolutions.
 		float GlobalDynamicResolutionTimeMs;
 
 		// Time for each individual timings
@@ -85,7 +80,6 @@ private:
 			BudgetTimingMs.SetAll(-1.0f);
 		}
 
-
 		// Returns whether GPU timings have landed.
 		inline bool HasGPUTimings() const
 		{
@@ -94,7 +88,7 @@ private:
 	};
 
 	// Circular buffer of the history.
-	// We don't use TCircularBuffer because does not support resizes.
+	// We don't use TCircularBuffer because it does not support resizes.
 	TArray<FrameHistoryEntry> History;
 	int32 PreviousFrameIndex;
 	int32 HistorySize;
@@ -102,7 +96,7 @@ private:
 	// Counts the number of frame since the last screen percentage change.
 	int32 NumberOfFramesSinceScreenPercentageChange;
 
-	// Number of frame remaining to ignore.
+	// Number of frames remaining to ignore.
 	int32 IgnoreFrameRemainingCount;
 
 	// Current frame's view fraction.
@@ -112,7 +106,6 @@ private:
 
 	// Frame counter to allocate unique ID for CommitPreviousFrameGPUTimings_RenderThread().
 	uint64 FrameCounter;
-
 
 	inline const FrameHistoryEntry& GetPreviousFrameEntry(int32 BrowsingFrameId) const
 	{
@@ -124,9 +117,11 @@ private:
 		return History[(History.Num() + PreviousFrameIndex - BrowsingFrameId) % History.Num()];
 	}
 
-	DynamicRenderScaling::TMap<float> QueryCurentFrameResolutionFractions_Internal() const;
+	DynamicRenderScaling::TMap<float> QueryCurrentFrameResolutionFractions_Internal() const;
 
-	void RefreshCurentFrameResolutionFractionUpperBound_RenderThread();
+	void RefreshCurrentFrameResolutionFractionUpperBound_RenderThread();
+
+	void RefreshHeuristicStats_RenderThread();
 
 	void ResetInternal();
 

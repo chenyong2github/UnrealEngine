@@ -143,6 +143,14 @@ FBudget::FBudget(const TCHAR* InName, FHeuristicSettings (*InHeuristicSettingsGe
 	}
 #endif
 
+#if STATS
+	StatId_TargetMs			= FDynamicStats::CreateStatIdDouble<STAT_GROUP_TO_FStatGroup(STATGROUP_RenderScaling)>(FString::Printf(TEXT("%s_TargetMs"), InName));
+	StatId_MeasuredMs		= FDynamicStats::CreateStatIdDouble<STAT_GROUP_TO_FStatGroup(STATGROUP_RenderScaling)>(FString::Printf(TEXT("%s_MeasuredMs"), InName));
+	StatId_MinScaling		= FDynamicStats::CreateStatIdDouble<STAT_GROUP_TO_FStatGroup(STATGROUP_RenderScaling)>(FString::Printf(TEXT("%s_MinFraction"), InName));
+	StatId_MaxScaling		= FDynamicStats::CreateStatIdDouble<STAT_GROUP_TO_FStatGroup(STATGROUP_RenderScaling)>(FString::Printf(TEXT("%s_MaxFraction"), InName));
+	StatId_CurrentScaling	= FDynamicStats::CreateStatIdDouble<STAT_GROUP_TO_FStatGroup(STATGROUP_RenderScaling)>(FString::Printf(TEXT("%s_Fraction"), InName));
+#endif
+
 	CachedSettings = (*HeuristicSettingsGetter)();
 }
 

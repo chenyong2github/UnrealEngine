@@ -40,7 +40,6 @@ struct RENDERCORE_API FHeuristicSettings final
 	static constexpr int32 kDefaultFractionQuantization = 0;
 	static constexpr int32 kDefaultUpperBoundQuantization = 0;
 
-
 	EHeuristicModel Model = EHeuristicModel::Unknown;
 	bool bModelScalesWithPrimaryScreenPercentage = false;
 
@@ -52,7 +51,6 @@ struct RENDERCORE_API FHeuristicSettings final
 	float IncreaseAmortizationFactor = kDefaultIncreaseAmortizationFactor;
 	int32 FractionQuantization       = kDefaultFractionQuantization;
 	int32 UpperBoundQuantization     = kDefaultUpperBoundQuantization;
-
 
 	/** Returns whether the heuristic is enabled or not. */
 	bool IsEnabled() const;
@@ -114,6 +112,33 @@ public:
 		return BudgetId == Other.BudgetId;
 	}
 
+#if STATS
+	inline const TStatId& GetStatId_TargetMs() const
+	{
+		return StatId_TargetMs;
+	}
+
+	inline const TStatId& GetStatId_MeasuredMs() const
+	{
+		return StatId_MeasuredMs;
+	}
+
+	inline const TStatId& GetStatId_MinScaling() const
+	{
+		return StatId_MinScaling;
+	}
+
+	inline const TStatId& GetStatId_MaxScaling() const
+	{
+		return StatId_MaxScaling;
+	}
+
+	inline const TStatId& GetStatId_CurrentScaling() const
+	{
+		return StatId_CurrentScaling;
+	}
+#endif
+
 private:
 	const TCHAR* Name;
 	TArray<char> AnsiName;
@@ -121,6 +146,14 @@ private:
 	TLinkedList<FBudget*> GlobalListLink;
 	FHeuristicSettings CachedSettings;
 	int32 BudgetId = 0;
+
+#if STATS
+	TStatId StatId_TargetMs;
+	TStatId StatId_MeasuredMs;
+	TStatId StatId_MinScaling;
+	TStatId StatId_MaxScaling;
+	TStatId StatId_CurrentScaling;
+#endif
 
 	UE_NONCOPYABLE(FBudget);
 
