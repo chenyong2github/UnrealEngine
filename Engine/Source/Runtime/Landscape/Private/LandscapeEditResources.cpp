@@ -15,7 +15,7 @@ FLandscapeTexture2DResource::FLandscapeTexture2DResource(uint32 InSizeX, uint32 
 	: SizeX(InSizeX)
 	, SizeY(InSizeY)
 	, Format(InFormat)
-	, NumMips(bInNumMips)
+	, NumMips(IntCastChecked<uint8>(bInNumMips))
 	, bCreateUAVs(bInNeedUAVs)
 	, bCreateSRV(bInNeedSRV)
 {
@@ -28,7 +28,7 @@ void FLandscapeTexture2DResource::InitRHI()
 
 	FRHITextureCreateDesc Desc =
 		FRHITextureCreateDesc::Create2D(TEXT("FLandscapeTexture2DResource"), SizeX, SizeY, Format)
-		.SetNumMips(static_cast<uint8>(NumMips));
+		.SetNumMips(NumMips);
 
 	if (bCreateUAVs)
 	{
@@ -53,7 +53,7 @@ void FLandscapeTexture2DResource::InitRHI()
 
 	if (bCreateSRV)
 	{
-		TextureSRV = RHICreateShaderResourceView(TextureRHI, /*MipLevel = */0, static_cast<uint8>(NumMips), Format);
+		TextureSRV = RHICreateShaderResourceView(TextureRHI, /*MipLevel = */0, NumMips, Format);
 	}
 }
 

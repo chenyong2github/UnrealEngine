@@ -72,8 +72,8 @@ protected:
 			return;
 		}
 
-		const float CosInterpX = (Interpolant.X >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.X * PI));
-		const float CosInterpY = (Interpolant.Y >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.Y * PI));
+		const float CosInterpX = static_cast<float>(Interpolant.X >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.X * PI));
+		const float CosInterpY = static_cast<float>(Interpolant.Y >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.Y * PI));
 		const float Alpha = FMath::Clamp<float>(CosInterpX * CosInterpY, 0.f, 1.f);
 
 		int32 DataIndex = (Y - MinY)*(1 + MaxX - MinX) + X - MinX;
@@ -81,7 +81,7 @@ protected:
 
 		if (HeightAlphaBlendData)
 		{
-			uint16 NewHeight = (uint16)FMath::Clamp<float>(Interpolant.Z, 0, (float)LandscapeDataAccess::MaxValue);
+			uint16 NewHeight = static_cast<uint16>(FMath::Clamp(static_cast<float>(Interpolant.Z), 0.0f, static_cast<float>(LandscapeDataAccess::MaxValue)));
 			float InterpValue = (NewHeight * Alpha) + (Dest * (1.f - Alpha));
 			Dest = (uint16)FMath::Clamp<float>(InterpValue, 0, (float)LandscapeDataAccess::MaxValue);
 
@@ -102,7 +102,7 @@ protected:
 		}
 		else
 		{
-			float Value = FMath::Lerp<float>((float)Dest, Interpolant.Z, Alpha);
+			float Value = FMath::Lerp<float>(Dest, static_cast<float>(Interpolant.Z), Alpha);
 			uint16 DValue = (uint16)FMath::Clamp<float>(Value, 0, (float)LandscapeDataAccess::MaxValue);
 			if ((bRaiseTerrain && DValue > Dest) ||
 				(bLowerTerrain && DValue < Dest))
@@ -230,20 +230,20 @@ protected:
 		
 		if (ModulateAlpha == nullptr)
 		{
-			const float CosInterpX = (Interpolant.X >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.X * PI));
-			const float CosInterpY = (Interpolant.Y >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.Y * PI));
+			const float CosInterpX = static_cast<float>(Interpolant.X >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.X * PI));
+			const float CosInterpY = static_cast<float>(Interpolant.Y >= 1 ? 1 : 0.5f - 0.5f * FMath::Cos(Interpolant.Y * PI));
 			Alpha = CosInterpX * CosInterpY;
 		}
 		else
 		{
-			const float InterpX = FMath::Clamp<float>(Interpolant.X, 0.0f, 1.0f);
-			const float InterpY = FMath::Clamp<float>(Interpolant.Y, 0.0f, 1.0f);
+			const float InterpX = FMath::Clamp<float>(static_cast<float>(Interpolant.X), 0.0f, 1.0f);
+			const float InterpY = FMath::Clamp<float>(static_cast<float>(Interpolant.Y), 0.0f, 1.0f);
 			Alpha = ModulateAlpha->Modulate(InterpX * InterpY, X, Y);
 		}
 
 		uint8& Dest = Data[(Y - MinY)*(1 + MaxX - MinX) + X - MinX];
-		float Value = FMath::Lerp<float>((float)Dest, Interpolant.Z, Alpha);
-		Dest = (uint32)FMath::Clamp<float>(Value, 0, LandscapeDataAccess::MaxValue);
+		float Value = FMath::Lerp<float>(Dest, static_cast<float>(Interpolant.Z), Alpha);
+		Dest = FMath::Clamp<uint8>(static_cast<uint8>(Value), 0, 255);
 	}
 
 private:
@@ -639,10 +639,10 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, TScriptInterface<I
 		FBox ControlPointBounds = ControlPoint->GetBounds();
 		ControlPointBounds = ControlPointBounds.TransformBy(SplineToLandscape.ToMatrixWithScale());
 
-		int32 MinX = FMath::CeilToInt(ControlPointBounds.Min.X);
-		int32 MinY = FMath::CeilToInt(ControlPointBounds.Min.Y);
-		int32 MaxX = FMath::FloorToInt(ControlPointBounds.Max.X);
-		int32 MaxY = FMath::FloorToInt(ControlPointBounds.Max.Y);
+		int32 MinX = FMath::CeilToInt32(ControlPointBounds.Min.X);
+		int32 MinY = FMath::CeilToInt32(ControlPointBounds.Min.Y);
+		int32 MaxX = FMath::FloorToInt32(ControlPointBounds.Max.X);
+		int32 MaxY = FMath::FloorToInt32(ControlPointBounds.Max.Y);
 
 		MinX = FMath::Max(MinX, LandscapeMinX);
 		MinY = FMath::Max(MinY, LandscapeMinY);
@@ -710,10 +710,10 @@ bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, TScriptInterface<I
 		FBox SegmentBounds = Segment->GetBounds();
 		SegmentBounds = SegmentBounds.TransformBy(SplineToLandscape.ToMatrixWithScale());
 
-		int32 MinX = FMath::CeilToInt(SegmentBounds.Min.X);
-		int32 MinY = FMath::CeilToInt(SegmentBounds.Min.Y);
-		int32 MaxX = FMath::FloorToInt(SegmentBounds.Max.X);
-		int32 MaxY = FMath::FloorToInt(SegmentBounds.Max.Y);
+		int32 MinX = FMath::CeilToInt32(SegmentBounds.Min.X);
+		int32 MinY = FMath::CeilToInt32(SegmentBounds.Min.Y);
+		int32 MaxX = FMath::FloorToInt32(SegmentBounds.Max.X);
+		int32 MaxY = FMath::FloorToInt32(SegmentBounds.Max.Y);
 
 		MinX = FMath::Max(MinX, LandscapeMinX);
 		MinY = FMath::Max(MinY, LandscapeMinY);
@@ -833,10 +833,10 @@ namespace LandscapeSplineRaster
 
 		SegmentBounds = SegmentBounds.TransformBy(SplineToLandscape.ToMatrixWithScale());
 
-		int32 MinX = FMath::CeilToInt(SegmentBounds.Min.X);
-		int32 MinY = FMath::CeilToInt(SegmentBounds.Min.Y);
-		int32 MaxX = FMath::FloorToInt(SegmentBounds.Max.X);
-		int32 MaxY = FMath::FloorToInt(SegmentBounds.Max.Y);
+		int32 MinX = FMath::CeilToInt32(SegmentBounds.Min.X);
+		int32 MinY = FMath::CeilToInt32(SegmentBounds.Min.Y);
+		int32 MaxX = FMath::FloorToInt32(SegmentBounds.Max.X);
+		int32 MaxY = FMath::FloorToInt32(SegmentBounds.Max.Y);
 
 		MinX = FMath::Max(MinX, LandscapeMinX);
 		MinY = FMath::Max(MinY, LandscapeMinY);
@@ -911,9 +911,9 @@ namespace LandscapeSplineRaster
 
 	static bool LineIntersect(const FVector2D& L1Start, const FVector2D& L1End, const FVector2D& L2Start, const FVector2D& L2End, FVector2D& Intersect, float Tolerance = KINDA_SMALL_NUMBER)
 	{
-		float tA = (L2End - L2Start) ^ (L2Start - L1Start);
-		float tB = (L1End - L1Start) ^ (L2Start - L1Start);
-		float Denom = (L2End - L2Start) ^ (L1End - L1Start);
+		float tA = static_cast<float>((L2End - L2Start) ^ (L2Start - L1Start));
+		float tB = static_cast<float>((L1End - L1Start) ^ (L2Start - L1Start));
+		float Denom = static_cast<float>((L2End - L2Start) ^ (L1End - L1Start));
 
 		if (FMath::IsNearlyZero(tA) && FMath::IsNearlyZero(tB))
 		{
@@ -974,7 +974,7 @@ namespace LandscapeSplineRaster
 					// step startSide back until before the endSide point
 					while (StartSide > 0)
 					{
-						const float Projection = (Points[StartSide].*Side - Points[StartSide - 1].*Side) | (Points[EndSide].*Side - Points[StartSide - 1].*Side);
+						const float Projection = static_cast<float>((Points[StartSide].*Side - Points[StartSide - 1].*Side) | (Points[EndSide].*Side - Points[StartSide - 1].*Side));
 						if (Projection >= 0)
 						{
 							break;
@@ -984,7 +984,7 @@ namespace LandscapeSplineRaster
 					// step endSide forwards until after the startSide point
 					while (EndSide < Points.Num() - 1)
 					{
-						const float Projection = (Points[EndSide].*Side - Points[EndSide + 1].*Side) | (Points[StartSide].*Side - Points[EndSide + 1].*Side);
+						const float Projection = static_cast<float>((Points[EndSide].*Side - Points[EndSide + 1].*Side) | (Points[StartSide].*Side - Points[EndSide + 1].*Side));
 						if (Projection >= 0)
 						{
 							break;

@@ -233,7 +233,7 @@ void ULandscapeSubsystem::BuildNanite()
 		return;
 	}
 
-	FScopedSlowTask SlowTask(Proxies.Num(), (LOCTEXT("Landscape_BuildNanite", "Building Nanite Landscape Meshes")));
+	FScopedSlowTask SlowTask(static_cast<float>(Proxies.Num()), (LOCTEXT("Landscape_BuildNanite", "Building Nanite Landscape Meshes")));
 	SlowTask.MakeDialog();
 
 	for (TWeakObjectPtr<ALandscapeProxy> ProxyPtr : Proxies)

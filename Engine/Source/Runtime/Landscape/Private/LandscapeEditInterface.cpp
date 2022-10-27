@@ -152,15 +152,15 @@ namespace
 		}
 	}
 
-	template<typename T>
-	FORCEINLINE T CalcValueFromValueXY( const int32* Dist, const T& ValueX, const T& ValueY, const uint8& CornerSet, const T* CornerValues )
+	template<typename T, typename F>
+	FORCEINLINE T CalcValueFromValueXY( const int32* Dist, const F& ValueX, const F& ValueY, const uint8& CornerSet, const T* CornerValues )
 	{
 		T FinalValue;
 		int32 DistX = FMath::Min(Dist[0], Dist[1]);
 		int32 DistY = FMath::Min(Dist[2], Dist[3]);
 		if (DistX+DistY > 0)
 		{
-			FinalValue = ((ValueX * DistY) + (ValueY * DistX)) / (float)(DistX + DistY);
+			FinalValue = static_cast<T>(((ValueX * DistY) + (ValueY * DistX)) / static_cast<F>((DistX + DistY)));
 		}
 		else
 		{
@@ -182,7 +182,7 @@ namespace
 			}
 			else
 			{
-				FinalValue = ValueX;
+				FinalValue = static_cast<T>(ValueX);
 			}
 		}
 		return FinalValue;
@@ -313,8 +313,8 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 			// Find the texture data corresponding to this vertex
 			int32 SizeU = Heightmap->Source.GetSizeX();
 			int32 SizeV = Heightmap->Source.GetSizeY();
-			int32 HeightmapOffsetX = Component->HeightmapScaleBias.Z * (float)SizeU;
-			int32 HeightmapOffsetY = Component->HeightmapScaleBias.W * (float)SizeV;
+			int32 HeightmapOffsetX = static_cast<int32>(Component->HeightmapScaleBias.Z * SizeU);
+			int32 HeightmapOffsetY = static_cast<int32>(Component->HeightmapScaleBias.W * SizeV);
 
 			// Find coordinates of box that lies inside component
 			int32 ComponentX1 = FMath::Clamp<int32>(X1 - ComponentIndexX*ComponentSizeQuads, 0, ComponentSizeQuads);
@@ -379,8 +379,8 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 							{
 								const int32 NormalDataIndex = (LandscapeX - X1) + NumVertsX * (LandscapeY - Y1);
 								FVector Normal = VertexNormals[NormalDataIndex].GetSafeNormal();
-								TexData.B = FMath::RoundToInt(127.5f * (Normal.X + 1.0f));
-								TexData.A = FMath::RoundToInt(127.5f * (Normal.Y + 1.0f));
+								TexData.B = static_cast<uint8>(FMath::RoundToInt32(127.5f * (Normal.X + 1.0f)));
+								TexData.A = static_cast<uint8>(FMath::RoundToInt32(127.5f * (Normal.Y + 1.0f)));
 							}
 							else if (InNormalData)
 							{
@@ -535,8 +535,8 @@ void FLandscapeEditDataInterface::RecalculateNormals()
 		// Find the texture data corresponding to this vertex
 		int32 SizeU = Component->GetHeightmap(true)->Source.GetSizeX();
 		int32 SizeV = Component->GetHeightmap(true)->Source.GetSizeY();
-		int32 HeightmapOffsetX = Component->HeightmapScaleBias.Z * (float)SizeU;
-		int32 HeightmapOffsetY = Component->HeightmapScaleBias.W * (float)SizeV;
+		int32 HeightmapOffsetX = static_cast<int32>(Component->HeightmapScaleBias.Z * SizeU);
+		int32 HeightmapOffsetY = static_cast<int32>(Component->HeightmapScaleBias.W * SizeV);
 
 		FLandscapeTextureDataInfo* TexDataInfo = GetTextureDataInfo(Component->GetHeightmap(true));
 		FColor* HeightmapTextureData = (FColor*)TexDataInfo->GetMipData(0);
@@ -564,8 +564,8 @@ void FLandscapeEditDataInterface::RecalculateNormals()
 						FColor& TexData = HeightmapTextureData[WriteIndex];
 
 						// Update the channels containing the normals
-						TexData.B = FMath::RoundToInt( 127.5f * (Normal.X + 1.0f) );
-						TexData.A = FMath::RoundToInt( 127.5f * (Normal.Y + 1.0f) );
+						TexData.B = static_cast<uint8>(FMath::RoundToInt32( 127.5f * (Normal.X + 1.0f) ));
+						TexData.A = static_cast<uint8>(FMath::RoundToInt32( 127.5f * (Normal.Y + 1.0f) ));
 					}
 				}
 			}
@@ -655,8 +655,8 @@ void FLandscapeEditDataInterface::GetHeightDataTemplFast(const int32 X1, const i
 							// Find the texture data corresponding to this vertex
 							int32 SizeU = Heightmap->Source.GetSizeX();
 							int32 SizeV = Heightmap->Source.GetSizeY();
-							int32 HeightmapOffsetX = Component->HeightmapScaleBias.Z * (float)SizeU;
-							int32 HeightmapOffsetY = Component->HeightmapScaleBias.W * (float)SizeV;
+							int32 HeightmapOffsetX = static_cast<int32>(Component->HeightmapScaleBias.Z * SizeU);
+							int32 HeightmapOffsetY = static_cast<int32>(Component->HeightmapScaleBias.W * SizeV);
 
 							int32 TexX = HeightmapOffsetX + (SubsectionSizeQuads+1) * SubIndexX + SubX;
 							int32 TexY = HeightmapOffsetY + (SubsectionSizeQuads+1) * SubIndexY + SubY;
@@ -861,7 +861,7 @@ void FLandscapeEditDataInterface::CalcMissingValues(const int32& X1, const int32
 									{
 										int32 Dist1 = LandscapeY - (ComponentIndexY*ComponentSizeQuads);
 										int32 Dist2 = ((ComponentIndexY+1)*ComponentSizeQuads) - LandscapeY;
-										Value[0] = (FType)(Dist2 * CornerValues[0] + Dist1 * CornerValues[2]) / (Dist1 + Dist2);
+										Value[0] = static_cast<TData>((FType)(Dist2 * CornerValues[0] + Dist1 * CornerValues[2]) / (Dist1 + Dist2));
 										Dist[0] = LandscapeX - (ComponentIndexX*ComponentSizeQuads);
 										Exist[0] = true;
 									}
@@ -880,7 +880,7 @@ void FLandscapeEditDataInterface::CalcMissingValues(const int32& X1, const int32
 									{
 										int32 Dist1 = LandscapeY - (ComponentIndexY*ComponentSizeQuads);
 										int32 Dist2 = ((ComponentIndexY+1)*ComponentSizeQuads) - LandscapeY;
-										Value[1] = (FType)(Dist2 * CornerValues[1] + Dist1 * CornerValues[3]) / (Dist1 + Dist2);
+										Value[1] = static_cast<TData>((FType)(Dist2 * CornerValues[1] + Dist1 * CornerValues[3]) / (Dist1 + Dist2));
 										Dist[1] = (ComponentIndexX+1)*ComponentSizeQuads - LandscapeX;
 										Exist[1] = true;
 									}
@@ -905,7 +905,7 @@ void FLandscapeEditDataInterface::CalcMissingValues(const int32& X1, const int32
 									{
 										int32 Dist1 = LandscapeX - (ComponentIndexX*ComponentSizeQuads);
 										int32 Dist2 = (ComponentIndexX+1)*ComponentSizeQuads - LandscapeX;
-										Value[2] = (FType)(Dist2 * CornerValues[0] + Dist1 * CornerValues[1]) / (Dist1 + Dist2);
+										Value[2] = static_cast<TData>((FType)(Dist2 * CornerValues[0] + Dist1 * CornerValues[1]) / (Dist1 + Dist2));
 										Dist[2] = LandscapeY - (ComponentIndexY*ComponentSizeQuads);
 										Exist[2] = true;
 									}
@@ -924,7 +924,7 @@ void FLandscapeEditDataInterface::CalcMissingValues(const int32& X1, const int32
 									{
 										int32 Dist1 = LandscapeX - (ComponentIndexX*ComponentSizeQuads);
 										int32 Dist2 = (ComponentIndexX+1)*ComponentSizeQuads - LandscapeX;
-										Value[3] = (FType)(Dist2 * CornerValues[2] + Dist1 * CornerValues[3]) / (Dist1 + Dist2);
+										Value[3] = static_cast<TData>((FType)(Dist2 * CornerValues[2] + Dist1 * CornerValues[3]) / (Dist1 + Dist2));
 										Dist[3] = (ComponentIndexY+1)*ComponentSizeQuads - LandscapeY;
 										Exist[3] = true;
 									}
@@ -940,11 +940,11 @@ void FLandscapeEditDataInterface::CalcMissingValues(const int32& X1, const int32
 								}
 								else if ( (Exist[0] || Exist[1]) )
 								{
-									FinalValue = ValueX;
+									FinalValue = static_cast<TData>(ValueX);
 								}
 								else if ( (Exist[2] || Exist[3]) )
 								{
-									FinalValue = ValueY;
+									FinalValue = static_cast<TData>(ValueY);
 								}
 
 								StoreData.Store(LandscapeX, LandscapeY, FinalValue);
@@ -968,13 +968,13 @@ FColor& FLandscapeEditDataInterface::GetHeightMapColor(const ULandscapeComponent
 
 	// All Heightmaps of component have the same texture size
 	const FTextureSource& HeightmapTextureSource = Component->GetHeightmap()->Source;
-	int32 SizeU = HeightmapTextureSource.GetSizeX();
-	int32 SizeV = HeightmapTextureSource.GetSizeY();
-	int32 HeightmapOffsetX = Component->HeightmapScaleBias.Z * (float)SizeU;
-	int32 HeightmapOffsetY = Component->HeightmapScaleBias.W * (float)SizeV;
+	const int32 SizeU = HeightmapTextureSource.GetSizeX();
+	const int32 SizeV = HeightmapTextureSource.GetSizeY();
+	const int32 HeightmapOffsetX = static_cast<int32>(Component->HeightmapScaleBias.Z * SizeU);
+	const int32 HeightmapOffsetY = static_cast<int32>(Component->HeightmapScaleBias.W * SizeV);
 
-	int32 TexX = HeightmapOffsetX + TexU;
-	int32 TexY = HeightmapOffsetY + TexV;
+	const int32 TexX = HeightmapOffsetX + TexU;
+	const int32 TexY = HeightmapOffsetY + TexV;
 	FColor& TexData = TextureData[ TexX + TexY * SizeU ];
 	return TexData;
 }
@@ -1320,7 +1320,7 @@ void FLandscapeEditDataInterface::GetHeightDataInternal(int32& ValidX1, int32& V
 									{
 										int32 Dist1 = LandscapeY - (ComponentIndexY*ComponentSizeQuads);
 										int32 Dist2 = ((ComponentIndexY+1)*ComponentSizeQuads) - LandscapeY;
-										Value[0] = (float)(Dist2 * CornerValues[0] + Dist1 * CornerValues[2]) / (Dist1 + Dist2);
+										Value[0] = static_cast<typename TDataAccess::DataType>((float)(Dist2 * CornerValues[0] + Dist1 * CornerValues[2]) / (Dist1 + Dist2));
 										Dist[0] = LandscapeX - (ComponentIndexX*ComponentSizeQuads);
 										Exist[0] = true;
 									}
@@ -1338,7 +1338,7 @@ void FLandscapeEditDataInterface::GetHeightDataInternal(int32& ValidX1, int32& V
 									{
 										int32 Dist1 = LandscapeY - (ComponentIndexY*ComponentSizeQuads);
 										int32 Dist2 = ((ComponentIndexY+1)*ComponentSizeQuads) - LandscapeY;
-										Value[1] = (float)(Dist2 * CornerValues[1] + Dist1 * CornerValues[3]) / (Dist1 + Dist2);
+										Value[1] = static_cast<typename TDataAccess::DataType>((float)(Dist2 * CornerValues[1] + Dist1 * CornerValues[3]) / (Dist1 + Dist2));
 										Dist[1] = (ComponentIndexX+1)*ComponentSizeQuads - LandscapeX;
 										Exist[1] = true;
 									}
@@ -1362,7 +1362,7 @@ void FLandscapeEditDataInterface::GetHeightDataInternal(int32& ValidX1, int32& V
 									{
 										int32 Dist1 = LandscapeX - (ComponentIndexX*ComponentSizeQuads);
 										int32 Dist2 = (ComponentIndexX+1)*ComponentSizeQuads - LandscapeX;
-										Value[2] = (float)(Dist2 * CornerValues[0] + Dist1 * CornerValues[1]) / (Dist1 + Dist2);
+										Value[2] = static_cast<typename TDataAccess::DataType>((float)(Dist2 * CornerValues[0] + Dist1 * CornerValues[1]) / (Dist1 + Dist2));
 										Dist[2] = LandscapeY - (ComponentIndexY*ComponentSizeQuads);
 										Exist[2] = true;
 									}
@@ -1380,7 +1380,7 @@ void FLandscapeEditDataInterface::GetHeightDataInternal(int32& ValidX1, int32& V
 									{
 										int32 Dist1 = LandscapeX - (ComponentIndexX*ComponentSizeQuads);
 										int32 Dist2 = (ComponentIndexX+1)*ComponentSizeQuads - LandscapeX;
-										Value[3] = (float)(Dist2 * CornerValues[2] + Dist1 * CornerValues[3]) / (Dist1 + Dist2);
+										Value[3] = static_cast<typename TDataAccess::DataType>((float)(Dist2 * CornerValues[2] + Dist1 * CornerValues[3]) / (Dist1 + Dist2));
 										Dist[3] = (ComponentIndexY+1)*ComponentSizeQuads - LandscapeY;
 										Exist[3] = true;
 									}
@@ -1395,19 +1395,19 @@ void FLandscapeEditDataInterface::GetHeightDataInternal(int32& ValidX1, int32& V
 								}
 								else if ( (BorderComponent[0] || BorderComponent[1]) )
 								{
-									FinalValue = ValueX;
+									FinalValue = static_cast<typename TDataAccess::DataType>(ValueX);
 								}
 								else if ( (BorderComponent[2] || BorderComponent[3]) )
 								{
-									FinalValue = ValueY;
+									FinalValue = static_cast<typename TDataAccess::DataType>(ValueY);
 								}
 								else if ( (Exist[0] || Exist[1]) )
 								{
-									FinalValue = ValueX;
+									FinalValue = static_cast<typename TDataAccess::DataType>(ValueX);
 								}
 								else if ( (Exist[2] || Exist[3]) )
 								{
-									FinalValue = ValueY;
+									FinalValue = static_cast<typename TDataAccess::DataType>(ValueY);
 								}
 
 								StoreData.Store(LandscapeX, LandscapeY, FinalValue);
@@ -1629,8 +1629,8 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 		// Find the texture data corresponding to this vertex
 		const int32 SizeU = (SubsectionSizeQuads + 1) * NumSubsections;
 		const int32 SizeV = (SubsectionSizeQuads + 1) * NumSubsections;
-		const int32 WeightmapOffsetX = Component->WeightmapScaleBias.Z * (float)SizeU;
-		const int32 WeightmapOffsetY = Component->WeightmapScaleBias.W * (float)SizeV;
+		const int32 WeightmapOffsetX = static_cast<int32>(Component->WeightmapScaleBias.Z * SizeU);
+		const int32 WeightmapOffsetY = static_cast<int32>(Component->WeightmapScaleBias.W * SizeV);
 
 		for (int32 SubIndexY = 0; SubIndexY < NumSubsections; SubIndexY++)
 		{
@@ -1677,7 +1677,7 @@ void ULandscapeComponent::DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLan
 								if (LayerIdx != DeleteLayerIdx && LayerNoWeightBlends[LayerIdx] == false)
 								{
 									uint8& Weight = LayerDataPtrs[LayerIdx][TexDataIndex];
-									Weight = FMath::Clamp<int32>(FMath::RoundToInt(255.0f * (float)Weight / (float)OtherLayerWeightSum), 0, 255);
+									Weight = static_cast<uint8>(FMath::Clamp<int32>(FMath::RoundToInt32(255.0f * (float)Weight / (float)OtherLayerWeightSum), 0, 255));
 								}
 							}
 						}
@@ -1821,8 +1821,8 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 		// Find the texture data corresponding to this vertex
 		const int32 SizeU = (SubsectionSizeQuads + 1) * NumSubsections;
 		const int32 SizeV = (SubsectionSizeQuads + 1) * NumSubsections;
-		const int32 WeightmapOffsetX = Component->WeightmapScaleBias.Z * (float)SizeU;
-		const int32 WeightmapOffsetY = Component->WeightmapScaleBias.W * (float)SizeV;
+		const int32 WeightmapOffsetX = static_cast<int32>(Component->WeightmapScaleBias.Z * SizeU);
+		const int32 WeightmapOffsetY = static_cast<int32>(Component->WeightmapScaleBias.W * SizeV);
 
 		FWeightmapLayerAllocationInfo& FillLayerAllocation = ComponentWeightmapLayerAllocations[FillLayerIdx];
 		uint8* MaterialLayerData = (uint8*)LandscapeEdit.GetTextureDataInfo(ComponentWeightmapTextures[FillLayerAllocation.WeightmapTextureIndex])->GetMipData(0);
@@ -2105,7 +2105,7 @@ void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo,
 
 		for (int32 i = 0; i < FMath::Square(MipSize); i++)
 		{
-			DestTextureData[i*4] = FMath::Min(255, (uint16)DestTextureData[i*4] + (uint16)SrcTextureData[i*4]);
+			DestTextureData[i*4] = static_cast<uint8>(FMath::Min(255, (uint16)DestTextureData[i*4] + (uint16)SrcTextureData[i*4]));
 		}
 
 		// Update all mips
@@ -2969,7 +2969,7 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 										if ((255 - OtherLayerWeightSum) && MaxLayerIdx >= 0)
 										{
 											// No need to check for nullptr here because MaxLayerIdx can only be set to a valid layer
-											LayerDataPtrs[MaxLayerIdx][TexDataIndex] += 255 - OtherLayerWeightSum;
+											LayerDataPtrs[MaxLayerIdx][TexDataIndex] += static_cast<uint8>(255 - OtherLayerWeightSum);
 										}
 									}
 								}
@@ -3035,7 +3035,8 @@ void FLandscapeEditDataInterface::SetAlphaData(ULandscapeLayerInfoObject* const 
 												// Exclude bNoWeightBlend layers
 												if (LayerNoWeightBlends[LayerIdx] == false)
 												{
-													Weight = FMath::Clamp<uint8>(FMath::RoundToInt((float)(255 - NewWeight) * (float)Weight / (float)OtherLayerWeightSum), 0, 255);
+													Weight = static_cast<uint8>(FMath::Clamp(
+														FMath::RoundToInt((float)(255 - NewWeight) * (float)Weight / (float)OtherLayerWeightSum), 0, 255));
 												}
 											}
 
@@ -3528,8 +3529,8 @@ void FLandscapeEditDataInterface::GetWeightDataTemplFast(ULandscapeLayerInfoObje
 									// Find the texture data corresponding to this vertex
 									int32 SizeU = WeightmapTexture->Source.GetSizeX();
 									int32 SizeV = WeightmapTexture->Source.GetSizeY();
-									int32 WeightmapOffsetX = Component->WeightmapScaleBias.Z * (float)SizeU;
-									int32 WeightmapOffsetY = Component->WeightmapScaleBias.W * (float)SizeV;
+									int32 WeightmapOffsetX = static_cast<int32>(Component->WeightmapScaleBias.Z * SizeU);
+									int32 WeightmapOffsetY = static_cast<int32>(Component->WeightmapScaleBias.W * SizeV);
 
 									int32 TexX = WeightmapOffsetX + (SubsectionSizeQuads+1) * SubIndexX + SubX;
 									int32 TexY = WeightmapOffsetY + (SubsectionSizeQuads+1) * SubIndexY + SubY;
@@ -3556,8 +3557,8 @@ void FLandscapeEditDataInterface::GetWeightDataTemplFast(ULandscapeLayerInfoObje
 									// Find the texture data corresponding to this vertex
 									int32 SizeU = ComponentWeightmapTexture->Source.GetSizeX();
 									int32 SizeV = ComponentWeightmapTexture->Source.GetSizeY();
-									int32 WeightmapOffsetX = Component->WeightmapScaleBias.Z * (float)SizeU;
-									int32 WeightmapOffsetY = Component->WeightmapScaleBias.W * (float)SizeV;
+									int32 WeightmapOffsetX = static_cast<int32>(Component->WeightmapScaleBias.Z * SizeU);
+									int32 WeightmapOffsetY = static_cast<int32>(Component->WeightmapScaleBias.W * SizeV);
 
 									int32 TexX = WeightmapOffsetX + (SubsectionSizeQuads+1) * SubIndexX + SubX;
 									int32 TexY = WeightmapOffsetY + (SubsectionSizeQuads+1) * SubIndexY + SubY;
@@ -3608,13 +3609,13 @@ uint8 FLandscapeEditDataInterface::GetWeightMapData(const ULandscapeComponent* C
 
 	if (Texture && TextureData)
 	{
-		int32 SizeU = Texture->Source.GetSizeX();
-		int32 SizeV = Texture->Source.GetSizeY();
-		int32 WeightmapOffsetX = Component->WeightmapScaleBias.Z * (float)SizeU;
-		int32 WeightmapOffsetY = Component->WeightmapScaleBias.W * (float)SizeV;
+		const int32 SizeU = Texture->Source.GetSizeX();
+		const int32 SizeV = Texture->Source.GetSizeY();
+		const int32 WeightmapOffsetX = static_cast<int32>(Component->WeightmapScaleBias.Z * SizeU);
+		const int32 WeightmapOffsetY = static_cast<int32>(Component->WeightmapScaleBias.W * SizeV);
 
-		int32 TexX = WeightmapOffsetX + TexU;
-		int32 TexY = WeightmapOffsetY + TexV;
+		const int32 TexX = WeightmapOffsetX + TexU;
+		const int32 TexY = WeightmapOffsetY + TexV;
 		return TextureData[ 4 * (TexX + TexY * SizeU) + Offset ];
 	}
 	return 0;
@@ -4071,7 +4072,7 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 										{
 											int32 Dist1 = LandscapeY - (ComponentIndexY*ComponentSizeQuads);
 											int32 Dist2 = ((ComponentIndexY+1)*ComponentSizeQuads) - LandscapeY;
-											Value[0] = (float)(Dist2 * CornerValues[0] + Dist1 * CornerValues[2]) / (Dist1 + Dist2);
+											Value[0] = static_cast<uint8>((float)(Dist2 * CornerValues[0] + Dist1 * CornerValues[2]) / (Dist1 + Dist2));
 											Dist[0] = LandscapeX - (ComponentIndexX*ComponentSizeQuads);
 											Exist[0] = true;
 										}
@@ -4089,7 +4090,7 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 										{
 											int32 Dist1 = LandscapeY - (ComponentIndexY*ComponentSizeQuads);
 											int32 Dist2 = ((ComponentIndexY+1)*ComponentSizeQuads) - LandscapeY;
-											Value[1] = (float)(Dist2 * CornerValues[1] + Dist1 * CornerValues[3]) / (Dist1 + Dist2);
+											Value[1] = static_cast<uint8>((float)(Dist2 * CornerValues[1] + Dist1 * CornerValues[3]) / (Dist1 + Dist2));
 											Dist[1] = (ComponentIndexX+1)*ComponentSizeQuads - LandscapeX;
 											Exist[1] = true;
 										}
@@ -4113,7 +4114,7 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 										{
 											int32 Dist1 = LandscapeX - (ComponentIndexX*ComponentSizeQuads);
 											int32 Dist2 = (ComponentIndexX+1)*ComponentSizeQuads - LandscapeX;
-											Value[2] = (float)(Dist2 * CornerValues[0] + Dist1 * CornerValues[1]) / (Dist1 + Dist2);
+											Value[2] = static_cast<uint8>((float)(Dist2 * CornerValues[0] + Dist1 * CornerValues[1]) / (Dist1 + Dist2));
 											Dist[2] = LandscapeY - (ComponentIndexY*ComponentSizeQuads);
 											Exist[2] = true;
 										}
@@ -4131,7 +4132,7 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 										{
 											int32 Dist1 = LandscapeX - (ComponentIndexX*ComponentSizeQuads);
 											int32 Dist2 = (ComponentIndexX+1)*ComponentSizeQuads - LandscapeX;
-											Value[3] = (float)(Dist2 * CornerValues[2] + Dist1 * CornerValues[3]) / (Dist1 + Dist2);
+											Value[3] = static_cast<uint8>((float)(Dist2 * CornerValues[2] + Dist1 * CornerValues[3]) / (Dist1 + Dist2));
 											Dist[3] = (ComponentIndexY+1)*ComponentSizeQuads - LandscapeY;
 											Exist[3] = true;
 										}
@@ -4146,11 +4147,11 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 									}
 									else if ( (Exist[0] || Exist[1]) )
 									{
-										FinalValue = ValueX;
+										FinalValue = static_cast<uint8>(ValueX);
 									}
 									else if ( (Exist[2] || Exist[3]) )
 									{
-										FinalValue = ValueY;
+										FinalValue = static_cast<uint8>(ValueY);
 									}
 
 									Weight = FinalValue;
@@ -4175,8 +4176,8 @@ void FLandscapeEditDataInterface::GetWeightDataTempl(ULandscapeLayerInfoObject* 
 									// Find the texture data corresponding to this vertex
 									int32 SizeU = ComponentWeightmapTexture->Source.GetSizeX();
 									int32 SizeV = ComponentWeightmapTexture->Source.GetSizeY();
-									int32 WeightmapOffsetX = Component->WeightmapScaleBias.Z * (float)SizeU;
-									int32 WeightmapOffsetY = Component->WeightmapScaleBias.W * (float)SizeV;
+									int32 WeightmapOffsetX = static_cast<int32>(Component->WeightmapScaleBias.Z * SizeU);
+									int32 WeightmapOffsetY = static_cast<int32>(Component->WeightmapScaleBias.W * SizeV);
 
 									int32 TexX = WeightmapOffsetX + (SubsectionSizeQuads+1) * SubIndexX + SubX;
 									int32 TexY = WeightmapOffsetY + (SubsectionSizeQuads+1) * SubIndexY + SubY;
@@ -4629,8 +4630,8 @@ void FLandscapeEditDataInterface::GetEditToolTextureData(const int32 X1, const i
 								// Find the texture data corresponding to this vertex
 								int32 SizeU = EditToolTexture->Source.GetSizeX();
 								int32 SizeV = EditToolTexture->Source.GetSizeY();
-								int32 WeightmapOffsetX = Component->WeightmapScaleBias.Z * (float)SizeU;
-								int32 WeightmapOffsetY = Component->WeightmapScaleBias.W * (float)SizeV;
+								int32 WeightmapOffsetX = static_cast<int32>(Component->WeightmapScaleBias.Z * (float)SizeU);
+								int32 WeightmapOffsetY = static_cast<int32>(Component->WeightmapScaleBias.W * (float)SizeV);
 
 								int32 TexX = WeightmapOffsetX + (SubsectionSizeQuads + 1) * SubIndexX + SubX;
 								int32 TexY = WeightmapOffsetY + (SubsectionSizeQuads + 1) * SubIndexY + SubY;
@@ -4693,8 +4694,8 @@ void FLandscapeEditDataInterface::SetEditToolTextureData(int32 X1, int32 Y1, int
 			// Find the texture data corresponding to this vertex
 			int32 SizeU = EditToolTexture->Source.GetSizeX();
 			int32 SizeV = EditToolTexture->Source.GetSizeY();
-			int32 WeightmapOffsetX = Component->WeightmapScaleBias.Z * (float)SizeU;
-			int32 WeightmapOffsetY = Component->WeightmapScaleBias.W * (float)SizeV;
+			int32 WeightmapOffsetX = static_cast<int32>(Component->WeightmapScaleBias.Z * SizeU);
+			int32 WeightmapOffsetY = static_cast<int32>(Component->WeightmapScaleBias.W * SizeV);
 
 			// Find coordinates of box that lies inside component
 			int32 ComponentX1 = FMath::Clamp<int32>(X1-ComponentIndexX*ComponentSizeQuads, 0, ComponentSizeQuads);
@@ -4822,8 +4823,8 @@ void FLandscapeEditDataInterface::SetXYOffsetDataTempl(int32 X1, int32 Y1, int32
 			// Find the texture data corresponding to this vertex
 			int32 SizeU = XYOffsetTexture->Source.GetSizeX();
 			int32 SizeV = XYOffsetTexture->Source.GetSizeY();
-			int32 WeightmapOffsetX = Component->WeightmapScaleBias.Z * (float)SizeU;
-			int32 WeightmapOffsetY = Component->WeightmapScaleBias.W * (float)SizeV;
+			int32 WeightmapOffsetX = static_cast<int32>(Component->WeightmapScaleBias.Z * SizeU);
+			int32 WeightmapOffsetY = static_cast<int32>(Component->WeightmapScaleBias.W * SizeV);
 
 			// Find coordinates of box that lies inside component
 			int32 ComponentX1 = FMath::Clamp<int32>(X1-ComponentIndexX*ComponentSizeQuads, 0, ComponentSizeQuads);
@@ -4865,8 +4866,8 @@ void FLandscapeEditDataInterface::SetXYOffsetDataTempl(int32 X1, int32 Y1, int32
 							int32 TexY = WeightmapOffsetY + (SubsectionSizeQuads+1) * SubIndexY + SubY;
 							FColor& TexData = XYOffsetTextureData[ TexX + TexY * SizeU ];
 
-							uint16 XOffset = FMath::Clamp<uint16>(Value.X * LANDSCAPE_INV_XYOFFSET_SCALE + 32768.0f, 0, 65535);
-							uint16 YOffset = FMath::Clamp<uint16>(Value.Y * LANDSCAPE_INV_XYOFFSET_SCALE + 32768.0f, 0, 65535);
+							uint16 XOffset = FMath::Clamp<uint16>(static_cast<uint16>(Value.X * LANDSCAPE_INV_XYOFFSET_SCALE + 32768.0), 0, 65535);
+							uint16 YOffset = FMath::Clamp<uint16>(static_cast<uint16>(Value.Y * LANDSCAPE_INV_XYOFFSET_SCALE + 32768.0), 0, 65535);
 
 							TexData.R = XOffset >> 8;
 							TexData.G = XOffset & 255;
