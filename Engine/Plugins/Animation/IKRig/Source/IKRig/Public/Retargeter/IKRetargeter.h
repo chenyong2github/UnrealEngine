@@ -421,7 +421,7 @@ public:
 	
 	/** The visual size of the bones in the viewport (saved between sessions). This is set from the viewport Character>Bones menu*/
 	UPROPERTY()
-	float BoneDrawSize = 8.0f;
+	float BoneDrawSize = 1.0f;
 	
 private:
 
