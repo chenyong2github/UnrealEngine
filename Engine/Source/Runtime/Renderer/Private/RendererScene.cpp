@@ -2637,7 +2637,7 @@ void FScene::AddLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 	}
 
 	// Register IES texture
-	if (UTexture* IESTexture = LightSceneInfo->Proxy->GetIESTexture())
+	if (UTextureLightProfile* IESTexture = LightSceneInfo->Proxy->GetIESTexture())
 	{
 		LightSceneInfo->Proxy->IESAtlasId = IESAtlas::AddTexture(IESTexture);
 	}
@@ -3928,7 +3928,7 @@ void FScene::RemoveLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 		RectLightAtlas::RemoveTexture(RectProxy->RectAtlasId);
 	}
 
-	if (UTexture* IESTexture = LightSceneInfo->Proxy->GetIESTexture())
+	if (UTextureLightProfile* IESTexture = LightSceneInfo->Proxy->GetIESTexture())
 	{
 		IESAtlas::RemoveTexture(LightSceneInfo->Proxy->IESAtlasId);
 	}

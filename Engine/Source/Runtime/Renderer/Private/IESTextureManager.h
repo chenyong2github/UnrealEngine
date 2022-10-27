@@ -6,14 +6,14 @@
 #include "RenderGraphDefinitions.h"
 
 class FRHITexture;
-class UTexture;
+class UTextureLightProfile;
 class FViewInfo;
 
 namespace IESAtlas
 {
 	
 // Add an IES light texture to the atlas
-RENDERER_API uint32 AddTexture(UTexture* IESTexture);
+RENDERER_API uint32 AddTexture(UTextureLightProfile* IESTexture);
 
 // Remove an IES texture from the atlas
 RENDERER_API void RemoveTexture(uint32 InSlotId);

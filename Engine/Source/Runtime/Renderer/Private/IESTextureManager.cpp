@@ -252,7 +252,7 @@ static void AddSlotsPass(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // API
 
-uint32 AddTexture(UTexture* In)
+uint32 AddTexture(UTextureLightProfile* In)
 {
 	check(IsInRenderingThread());
 
