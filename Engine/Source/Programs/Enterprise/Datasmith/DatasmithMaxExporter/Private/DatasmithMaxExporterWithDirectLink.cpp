@@ -3482,7 +3482,7 @@ public:
 		ExportedScene.PreExport();
 
 		SetOutputPath(GetDirectlinkCacheDirectory());
-		FString SceneName = FPaths::GetCleanFilename(GetCOREInterface()->GetCurFileName().data());
+		FString SceneName = FPaths::GetBaseFilename(GetCOREInterface()->GetCurFileName().data());
 		SetName(*SceneName);
 
 		DirectLinkImpl.Reset(new FDatasmithDirectLink);
