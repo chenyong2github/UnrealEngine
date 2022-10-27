@@ -34,7 +34,10 @@ struct ENGINE_API FAnimCurveType
 {
 	GENERATED_USTRUCT_BODY()
 
+	UPROPERTY()
 	bool bMaterial;
+
+	UPROPERTY()
 	bool bMorphtarget;
 
 	FAnimCurveType(bool bInMorphtarget = false, bool bInMaterial = false)

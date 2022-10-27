@@ -23,10 +23,15 @@ struct FCurveMetaData
 	GENERATED_USTRUCT_BODY()
 
 	/** connected bones to this meta data */
-	TArray<struct FBoneReference> LinkedBones;
+	UPROPERTY()
+	TArray<FBoneReference> LinkedBones;
+	
 	/* max LOD (lowest LOD) to evaluate this. -1 means it will evaluate all the time. */
+	UPROPERTY()
 	uint8 MaxLOD;
-	struct FAnimCurveType Type;
+	
+	UPROPERTY()
+	FAnimCurveType Type;
 
 	friend FArchive& operator<<(FArchive& Ar, FCurveMetaData& B)
 	{

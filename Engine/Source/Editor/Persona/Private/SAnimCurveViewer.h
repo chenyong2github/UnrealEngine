@@ -19,10 +19,33 @@
 #include "EditorObjectsTracker.h"
 #include "PersonaDelegates.h"
 #include "EditorUndoClient.h"
+#include "SAnimCurveViewer.generated.h"
 
 class FUICommandList;
 class IEditableSkeleton;
 class SAnimCurveViewer;
+
+/** Clipboard contents for anim curves */
+USTRUCT()
+struct FAnimCurveViewerClipboardEntry
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	FName CurveName;
+
+	UPROPERTY()
+	FCurveMetaData MetaData;
+};
+
+USTRUCT()
+struct FAnimCurveViewerClipboard
+{
+	GENERATED_BODY()
+	
+	UPROPERTY()
+	TArray<FAnimCurveViewerClipboardEntry> Entries;
+};
 
 //////////////////////////////////////////////////////////////////////////
 // FDisplayedAnimCurveInfo
@@ -277,6 +300,12 @@ private:
 
 	void OnRenameClicked();
 	bool CanRename();
+
+	void OnCopyClicked();
+	bool CanCopy() const;
+
+	void OnPasteClicked();
+	bool CanPaste() const;
 
 	void OnAddClicked();
 
