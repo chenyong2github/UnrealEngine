@@ -359,7 +359,7 @@ IOnlineSubsystem* FOnlineSubsystemModule::GetOnlineSubsystem(const FName InSubsy
 						bool* bNotedPreviously = OnlineSubsystemFailureNotes.Find(KeyName);
 						if (!bNotedPreviously || !(*bNotedPreviously))
 						{
-							UE_LOG_ONLINE(Log, TEXT("Unable to create OnlineSubsystem module %s"), *SubsystemName.ToString());
+							UE_LOG_ONLINE(Log, TEXT("Unable to create OnlineSubsystem instance %s"), (InstanceName == FOnlineSubsystemImpl::DefaultInstanceName) ? *SubsystemName.ToString() : *KeyName.ToString());
 							OnlineSubsystemFailureNotes.Add(KeyName, true);
 						}
 					}
