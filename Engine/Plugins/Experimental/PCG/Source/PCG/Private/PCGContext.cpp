@@ -2,6 +2,7 @@
 
 #include "PCGContext.h"
 #include "PCGComponent.h"
+#include "PCGHelpers.h"
 #include "GameFramework/Actor.h"
 
 FString FPCGContext::GetTaskName() const
@@ -36,4 +37,14 @@ FString FPCGContext::GetComponentName() const
 bool FPCGContext::ShouldStop() const
 {
 	return FPlatformTime::Seconds() > EndTime;
+}
+
+bool FPCGContext::IsOutputConnectedOrInspecting(FName PinLabel) const
+{
+	const bool bOutputConnected = Node && Node->IsOutputPinConnected(PinLabel);
+#if WITH_EDITOR
+	return bOutputConnected || (!PCGHelpers::IsRuntimeOrPIE() && SourceComponent.IsValid() && SourceComponent->IsInspecting());
+#else
+	return bOutputConnected;
+#endif // WITH_EDITOR
 }

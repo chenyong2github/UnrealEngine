@@ -397,7 +397,7 @@ namespace PCG
 		{
 			enum { CompressData = false };
 			enum { CanMinMax = false };
-			enum { CanSubAdd = true };
+			enum { CanSubAdd = false };
 			enum { CanMulDiv = true };
 			enum { CanInterpolate = true };
 
@@ -406,16 +406,6 @@ namespace PCG
 				return A.GetLocation() == B.GetLocation() &&
 					A.GetRotation() == B.GetRotation() &&
 					A.GetScale3D() == B.GetScale3D();
-			}
-
-			static FTransform Add(const FTransform& A, const FTransform& B)
-			{
-				return A * B;
-			}
-
-			static FTransform Sub(const FTransform& A, const FTransform& B)
-			{
-				return A * B.Inverse();
 			}
 
 			static FTransform Mul(const FTransform& A, const FTransform& B)

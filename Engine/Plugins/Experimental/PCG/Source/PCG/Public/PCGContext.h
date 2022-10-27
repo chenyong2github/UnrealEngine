@@ -75,4 +75,9 @@ struct PCG_API FPCGContext
 	FString GetTaskName() const;
 	FString GetComponentName() const;
 	bool ShouldStop() const;
+
+	/** Helper function to return if the output is connected, or if we need to force the connection because the component is being inspected. 
+	*   Useful to avoid creating output when it is not necessary.
+	*/
+	bool IsOutputConnectedOrInspecting(FName PinLabel) const;
 };
