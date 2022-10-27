@@ -115,6 +115,7 @@ extern const size_t ChannelOffsets[4];
 extern int32 LiveRebuildNaniteOnModification;
 
 ULandscapeLayerInfoObject* ALandscapeProxy::VisibilityLayer = nullptr;
+#endif //WITH_EDITOR
 
 void ULandscapeComponent::Init(int32 InBaseX, int32 InBaseY, int32 InComponentSizeQuads, int32 InNumSubsections, int32 InSubsectionSizeQuads)
 {
@@ -138,6 +139,7 @@ void ULandscapeComponent::Init(int32 InBaseX, int32 InBaseY, int32 InComponentSi
 	UpdatedSharedPropertiesFromActor();
 }
 
+#if WITH_EDITOR
 void ULandscapeComponent::UpdateCachedBounds(bool bInApproximateBounds)
 {
 	// Update local-space bounding box
@@ -181,6 +183,7 @@ void ULandscapeComponent::UpdateCachedBounds(bool bInApproximateBounds)
 		HFCollisionComponent->UpdateComponentToWorld();
 	}
 }
+#endif //WITH_EDITOR
 
 void ULandscapeComponent::UpdateNavigationRelevance()
 {
@@ -200,6 +203,7 @@ void ULandscapeComponent::UpdateRejectNavmeshUnderneath()
 	}
 }
 
+#if WITH_EDITOR
 ULandscapeMaterialInstanceConstant* ALandscapeProxy::GetLayerThumbnailMIC(UMaterialInterface* LandscapeMaterial, FName LayerName, UTexture2D* ThumbnailWeightmap, UTexture2D* ThumbnailHeightmap, ALandscapeProxy* Proxy)
 {
 	if (!LandscapeMaterial)

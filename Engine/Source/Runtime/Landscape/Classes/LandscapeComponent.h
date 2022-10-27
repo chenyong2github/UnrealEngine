@@ -700,14 +700,13 @@ public:
 	const TArray<FLandscapePerLODMaterialOverride>& GetPerLODOverrideMaterials() const { return PerLODOverrideMaterials; }
 	void SetPerLODOverrideMaterials(const TArray<FLandscapePerLODMaterialOverride>& InValue) { PerLODOverrideMaterials = InValue; }
 
+	LANDSCAPE_API void SetHeightmap(UTexture2D* NewHeightmap);
+	LANDSCAPE_API void SetWeightmapTextures(const TArray<UTexture2D*>& InNewWeightmapTextures, bool InApplyToEditingWeightmap = false);
+	LANDSCAPE_API void SetWeightmapLayerAllocations(const TArray<FWeightmapLayerAllocationInfo>& InNewWeightmapLayerAllocations);
+
 #if WITH_EDITOR
 	LANDSCAPE_API uint32 ComputeLayerHash(bool InReturnEditingHash = true) const;
 
-	LANDSCAPE_API void SetHeightmap(UTexture2D* NewHeightmap);
-
-	LANDSCAPE_API void SetWeightmapTextures(const TArray<UTexture2D*>& InNewWeightmapTextures, bool InApplyToEditingWeightmap = false);
-
-	LANDSCAPE_API void SetWeightmapLayerAllocations(const TArray<FWeightmapLayerAllocationInfo>& InNewWeightmapLayerAllocations);
 	LANDSCAPE_API void SetWeightmapTexturesUsage(const TArray<ULandscapeWeightmapUsage*>& InNewWeightmapTexturesUsage, bool InApplyToEditingWeightmap = false);
 	LANDSCAPE_API TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnEditingWeightmap = false);
 	LANDSCAPE_API const TArray<ULandscapeWeightmapUsage*>& GetWeightmapTexturesUsage(bool InReturnEditingWeightmap = false) const;
@@ -883,10 +882,10 @@ public:
 
 	LANDSCAPE_API const FMeshMapBuildData* GetMeshMapBuildData() const;
 
-#if WITH_EDITOR
 	/** Initialize the landscape component */
-	LANDSCAPE_API void Init(int32 InBaseX,int32 InBaseY,int32 InComponentSizeQuads, int32 InNumSubsections,int32 InSubsectionSizeQuads);
+	LANDSCAPE_API void Init(int32 InBaseX, int32 InBaseY, int32 InComponentSizeQuads, int32 InNumSubsections, int32 InSubsectionSizeQuads);
 
+#if WITH_EDITOR
 	/**
 	 * Recalculate cached bounds using height values.
 	 */
@@ -1040,15 +1039,6 @@ public:
 	/** returns the 2D bounds of this component (in landscape quads) */
 	LANDSCAPE_API FIntRect GetComponentExtent() const;
 
-	/** Updates navigation properties to match landscape actor's */
-	void UpdateNavigationRelevance();
-
-	/** Updates the reject navmesh underneath flag in the collision component */
-	void UpdateRejectNavmeshUnderneath();
-	
-	/** Updates the values of component-level properties exposed by the Landscape Actor */
-	LANDSCAPE_API void UpdatedSharedPropertiesFromActor();
-
 	LANDSCAPE_API void ClearUpdateFlagsForModes(uint32 InModeMask);
 	LANDSCAPE_API void RequestWeightmapUpdate(bool bUpdateAll = false, bool bUpdateCollision = true);
 	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false, bool bUpdateCollision = true);
@@ -1063,6 +1053,15 @@ public:
 	void GetLandscapeComponentWeightmapsToRender(TSet<ULandscapeComponent*>& WeightmapComponents) const;
 	void GetLandscapeComponentNeighbors3x3(TStaticArray<ULandscapeComponent*, 9>& OutNeighborComponents) const;
 #endif
+
+	/** Updates navigation properties to match landscape actor's */
+	void UpdateNavigationRelevance();
+
+	/** Updates the reject navmesh underneath flag in the collision component */
+	void UpdateRejectNavmeshUnderneath();
+
+	/** Updates the values of component-level properties exposed by the Landscape Actor */
+	LANDSCAPE_API void UpdatedSharedPropertiesFromActor();
 
 	friend class FLandscapeComponentSceneProxy;
 	friend struct FLandscapeComponentDataInterface;

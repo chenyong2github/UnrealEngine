@@ -960,6 +960,9 @@ public:
 	// Retrieve the screen size at which each LOD should be rendered
 	LANDSCAPE_API TArray<float> GetLODScreenSizeArray() const;
 
+	// Copy properties from parent Landscape actor
+	LANDSCAPE_API void GetSharedProperties(ALandscapeProxy* Landscape);
+
 #if WITH_EDITOR
 	/* Serialize all hashes/guids that record the current state of this proxy */
 	void SerializeStateHashes(FArchive& Ar);
@@ -1019,9 +1022,6 @@ public:
 
 	// Changed Physical Material
 	LANDSCAPE_API void ChangedPhysMaterial();
-
-	// Copy properties from parent Landscape actor
-	LANDSCAPE_API void GetSharedProperties(ALandscapeProxy* Landscape);
 
 	// Assign only mismatching data and mark proxy package dirty
 	LANDSCAPE_API void FixupSharedData(ALandscape* Landscape);

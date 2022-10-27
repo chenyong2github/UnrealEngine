@@ -888,6 +888,7 @@ void ULandscapeInfo::UpdateDebugColorMaterial()
 	FlushRenderingCommands();
 	//GWarn->EndSlowTask();
 }
+#endif // WITH_EDITOR
 
 void ULandscapeComponent::UpdatedSharedPropertiesFromActor()
 {
@@ -909,7 +910,6 @@ void ULandscapeComponent::UpdatedSharedPropertiesFromActor()
 	UpdateNavigationRelevance();
 	UpdateRejectNavmeshUnderneath();
 }
-#endif // WITH_EDITOR
 
 void ULandscapeComponent::PostLoad()
 {
@@ -2095,6 +2095,8 @@ void ULandscapeComponent::RemoveLayerData(const FGuid& InLayerGuid)
 	CachedEditingLayerData = nullptr;
 }
 
+#endif // WITH_EDITOR
+
 void ULandscapeComponent::SetHeightmap(UTexture2D* NewHeightmap)
 {
 	check(NewHeightmap != nullptr);
@@ -2103,6 +2105,7 @@ void ULandscapeComponent::SetHeightmap(UTexture2D* NewHeightmap)
 
 void ULandscapeComponent::SetWeightmapTextures(const TArray<UTexture2D*>& InNewWeightmapTextures, bool InApplyToEditingWeightmap)
 {
+#if WITH_EDITOR
 	FLandscapeLayerComponentData* EditingLayer = GetEditingLayer();
 
 	if (InApplyToEditingWeightmap && EditingLayer != nullptr)
@@ -2111,6 +2114,7 @@ void ULandscapeComponent::SetWeightmapTextures(const TArray<UTexture2D*>& InNewW
 		EditingLayer->WeightmapData.Textures.Append(InNewWeightmapTextures);
 	}
 	else
+#endif // WITH_EDITOR
 	{
 		WeightmapTextures = InNewWeightmapTextures;
 	}
@@ -2121,6 +2125,7 @@ void ULandscapeComponent::SetWeightmapLayerAllocations(const TArray<FWeightmapLa
 	WeightmapLayerAllocations = InNewWeightmapLayerAllocations;
 }
 
+#if WITH_EDITOR
 TArray<ULandscapeWeightmapUsage*>& ULandscapeComponent::GetWeightmapTexturesUsage(bool InReturnEditingWeightmap)
 {
 	if (InReturnEditingWeightmap)
@@ -3431,10 +3436,11 @@ void ALandscapeProxy::Destroyed()
 		FeatureLevelChangedDelegateHandle.Reset();
 	}
 }
+#endif // WITH_EDITOR
 
 void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 {
-	if (GIsEditor && Landscape)
+	if (Landscape)
 	{
 		Modify();
 
@@ -3462,8 +3468,6 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		NumSubsections = Landscape->NumSubsections;
 		SubsectionSizeQuads = Landscape->SubsectionSizeQuads;
 		MaxLODLevel = Landscape->MaxLODLevel;
-		LODDistanceFactor_DEPRECATED = Landscape->LODDistanceFactor_DEPRECATED;
-		LODFalloff_DEPRECATED = Landscape->LODFalloff_DEPRECATED;
 		ComponentScreenSizeToUseSubSections = Landscape->ComponentScreenSizeToUseSubSections;
 		LODDistributionSetting = Landscape->LODDistributionSetting;
 		LOD0DistributionSetting = Landscape->LOD0DistributionSetting;
@@ -3486,17 +3490,27 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		{
 			LandscapeHoleMaterial = Landscape->LandscapeHoleMaterial;
 		}
-		if (LandscapeMaterial == Landscape->LandscapeMaterial)
-		{
-			EditorLayerSettings = Landscape->EditorLayerSettings;
-		}
 		if (!DefaultPhysMaterial)
 		{
 			DefaultPhysMaterial = Landscape->DefaultPhysMaterial;
 		}
 		LightmassSettings = Landscape->LightmassSettings;
 	}
+
+#if WITH_EDITOR
+	if (GIsEditor && Landscape)
+	{
+		LODDistanceFactor_DEPRECATED = Landscape->LODDistanceFactor_DEPRECATED;
+		LODFalloff_DEPRECATED = Landscape->LODFalloff_DEPRECATED;
+		if (LandscapeMaterial == Landscape->LandscapeMaterial)
+		{
+			EditorLayerSettings = Landscape->EditorLayerSettings;
+		}
+	}
+#endif // WITH_EDITOR
 }
+
+#if WITH_EDITOR
 
 void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 {
