@@ -1015,16 +1015,6 @@ namespace UnrealBuildTool
 			set { bWithServerCodeTrustedPrivate = value; }
 		}
 
-		/// <summary>
-		/// Compile untrusted-server-only code.
-		/// </summary>
-		[RequiresUniqueBuildEnvironment]
-		public bool bWithServerCodeUntrusted
-		{
-			get { return bWithServerCode && !bWithServerCodeTrustedPrivate; }
-			set { bWithServerCodeTrustedPrivate = !value; }
-		}
-
 		[CommandLine("-TrustedServer", Value = "true")]
 		[CommandLine("-NoTrustedServer", Value = "false")]
 		private bool bWithServerCodeTrustedPrivate = true;
@@ -2947,11 +2937,6 @@ namespace UnrealBuildTool
 		public bool bWithServerCodeTrusted
 		{
 			get { return Inner.bWithServerCodeTrusted; }
-		}
-
-		public bool bWithServerCodeUntrusted
-		{
-			get { return Inner.bWithServerCodeUntrusted; }
 		}
 
 		public bool bFNameOutlineNumber
