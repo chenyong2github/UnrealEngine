@@ -5,6 +5,7 @@ StreamingTexture.cpp: Definitions of classes used for texture.
 =============================================================================*/
 
 #include "Streaming/StreamingTexture.h"
+#include "Engine/Texture.h"
 #include "Misc/App.h"
 #include "Streaming/StreamingManagerTexture.h"
 #include "HAL/FileManager.h"

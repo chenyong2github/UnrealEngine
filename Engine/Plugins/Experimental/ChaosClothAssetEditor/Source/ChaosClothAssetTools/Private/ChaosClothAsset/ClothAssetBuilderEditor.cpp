@@ -3,6 +3,7 @@
 #include "ChaosClothAsset/ClothAssetBuilderEditor.h"
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothCollection.h"
+#include "Engine/SkeletalMesh.h"
 #include "Modules/ModuleManager.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Utils/ClothingMeshUtils.h"

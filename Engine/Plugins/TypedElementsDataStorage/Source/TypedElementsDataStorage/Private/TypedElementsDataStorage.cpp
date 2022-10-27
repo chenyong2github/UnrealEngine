@@ -3,6 +3,7 @@
 #include "TypedElementsDataStorage.h"
 
 #include "Elements/Framework/TypedElementRegistry.h"
+#include "Misc/CoreDelegates.h"
 #include "TypedElementDatabase.h"
 #include "TypedElementDatabaseCompatibility.h"
 #include "UObject/UObjectGlobals.h"

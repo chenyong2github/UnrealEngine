@@ -3,7 +3,9 @@
 #include "ChaosClothAsset/ClothSimulationContext.h"
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothComponent.h"
+#include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "SceneInterface.h"
 
 namespace UE::Chaos::ClothAsset
 {

@@ -8,6 +8,7 @@
 #include "EdModeInteractiveToolsContext.h"
 #include "CameraController.h"
 #include "Components/DynamicMeshComponent.h"
+#include "Framework/Application/SlateApplication.h"
 
 FChaosClothEditorRestSpaceViewportClient::FChaosClothEditorRestSpaceViewportClient(FEditorModeTools* InModeTools,
 	FPreviewScene* InPreviewScene,

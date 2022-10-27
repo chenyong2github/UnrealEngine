@@ -8,6 +8,8 @@
 
 #include "ObjectMixerEditorListMenuContext.generated.h"	
 
+class UToolMenu;
+
 UCLASS()
 class OBJECTMIXEREDITOR_API UObjectMixerEditorListMenuContext : public UObject
 {

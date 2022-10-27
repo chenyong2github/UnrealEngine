@@ -3,6 +3,7 @@
 #pragma once 
 
 #include "CoreMinimal.h"
+#include "Misc/Timecode.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/PrimaryAssetId.h"

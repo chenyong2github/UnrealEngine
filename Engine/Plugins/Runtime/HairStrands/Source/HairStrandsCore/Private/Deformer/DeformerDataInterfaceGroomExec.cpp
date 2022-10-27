@@ -4,6 +4,7 @@
 
 #include "GroomComponent.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
+#include "ShaderCompilerCore.h"
 #include "ShaderParameterMetadataBuilder.h"
 #include "SkeletalRenderPublic.h"
 

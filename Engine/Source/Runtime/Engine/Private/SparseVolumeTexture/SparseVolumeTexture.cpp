@@ -8,6 +8,7 @@
 
 #include "Misc/SecureHash.h"
 #include "EngineUtils.h"
+#include "Shader/ShaderTypes.h"
 
 #if WITH_EDITORONLY_DATA
 #include "DerivedDataCache/Public/DerivedDataCacheInterface.h"

@@ -8,10 +8,12 @@
 
 #include "Serialization/EditorBulkData.h"
 #include "Containers/Array.h"
+#include "UnrealClient.h"
 #include "UObject/ObjectSaveContext.h"
 
 #include "SparseVolumeTexture.generated.h"
 
+namespace UE { namespace Shader	{ enum class EValueType : uint8; } }
 
 #define SPARSE_VOLUME_TILE_RES	16
 

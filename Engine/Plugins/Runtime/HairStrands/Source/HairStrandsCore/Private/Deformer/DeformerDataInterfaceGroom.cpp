@@ -5,6 +5,7 @@
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "ComputeFramework/ComputeKernelPermutationVector.h"
 #include "OptimusDataDomain.h"
+#include "ShaderCompilerCore.h"
 #include "ShaderParameterMetadataBuilder.h"
 #include "GroomComponent.h"
 #include "GroomInstance.h"

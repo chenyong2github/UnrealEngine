@@ -2,6 +2,7 @@
 
 #include "Animation/AnimData/IAnimationDataModel.h"
 #include "Animation/AnimData/AnimDataModel.h"
+#include "Features/IModularFeatures.h"
 
 namespace UE::Anim::DataModel
 {

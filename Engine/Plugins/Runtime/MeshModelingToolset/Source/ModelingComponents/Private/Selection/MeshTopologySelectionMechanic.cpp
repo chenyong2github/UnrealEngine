@@ -4,6 +4,7 @@
 
 #include "BaseBehaviors/SingleClickOrDragBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
+#include "Engine/World.h"
 #include "InteractiveToolManager.h"
 #include "Util/ColorConstants.h"
 #include "Selection/PersistentMeshSelection.h"
