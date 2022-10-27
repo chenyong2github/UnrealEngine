@@ -34,6 +34,7 @@ public:
 	virtual FText GetBaseToolkitName() const override;
 	virtual FText GetToolkitToolTipText() const override;
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager) override;
+	virtual void UnregisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
 	virtual bool OnRequestClose() override;
 
 	// TODO: Implement this if we want to apply tool changes before saving an asset
@@ -66,6 +67,8 @@ protected:
 	//virtual const FSlateBrush* GetDefaultTabIcon() const override;
 	//virtual FLinearColor GetDefaultTabColor() const override;
 
+private:
+
 	/** Scene in which the 3D sim space preview meshes live. */
 	TUniquePtr<FAdvancedPreviewScene> ClothPreviewScene;
 
@@ -75,6 +78,8 @@ protected:
 	TSharedPtr<FAssetEditorModeManager> ClothPreviewEditorModeManager;
 
 	TWeakPtr<SEditorViewport> RestSpaceViewport;
+
+	void InitDetailsViewPanel();
 
 	// TODO as necessary:
 	//TObjectPtr<UInputRouter> ClothPreviewInputRouter = nullptr;
