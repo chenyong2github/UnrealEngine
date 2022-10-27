@@ -3,20 +3,20 @@
 #include "Android/AndroidJNI.h"
 
 #if USE_ANDROID_JNI
-#include "HAL/ExceptionHandling.h"
-#include "Android/AndroidPlatformCrashContext.h"
-#include "Runtime/Core/Public/Misc/DateTime.h"
-#include "HAL/PlatformStackWalk.h"
 #include "Android/AndroidApplication.h"
 #include "Android/AndroidInputInterface.h"
-#include "Widgets/Input/IVirtualKeyboardEntry.h"
-#include "UnrealEngine.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Misc/FeedbackContext.h"
-#include "Math/Vector.h"
-#include "Misc/EmbeddedCommunication.h"
-#include "Async/TaskGraphInterfaces.h"
+#include "Android/AndroidPlatformCrashContext.h"
 #include "Android/AndroidStats.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "HAL/ExceptionHandling.h"
+#include "HAL/PlatformStackWalk.h"
+#include "Math/Vector.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/DateTime.h"
+#include "Misc/EmbeddedCommunication.h"
+#include "Misc/FeedbackContext.h"
+#include "UnrealEngine.h"
+#include "Widgets/Input/IVirtualKeyboardEntry.h"
 
 THIRD_PARTY_INCLUDES_START
 #include <android/asset_manager.h>

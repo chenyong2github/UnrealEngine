@@ -7,18 +7,18 @@
 //#include "ScreenRendering.h"
 //#include "ScenePrivate.h"
 //#include "PostProcess/SceneFilterRendering.h"
-#include "PostProcess/SceneRenderTargets.h"
-#include "HeadMountedDisplayTypes.h" // for LogHMD
-#include "OculusHMD.h"
-#include "XRThreadUtils.h"
-#include "Engine/Texture2D.h"
-#include "UObject/ConstructorHelpers.h"
-#include "Materials/MaterialInterface.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/GameEngine.h"
-#include "Engine/Public/SceneUtils.h"
-#include "OculusHMDPrivate.h"
+#include "Engine/Texture2D.h"
+#include "HeadMountedDisplayTypes.h" // for LogHMD
+#include "Materials/MaterialInstanceDynamic.h"
+#include "Materials/MaterialInterface.h"
+#include "OculusHMD.h"
 #include "OculusHMDModule.h"
+#include "OculusHMDPrivate.h"
+#include "PostProcess/SceneRenderTargets.h"
+#include "SceneUtils.h"
+#include "UObject/ConstructorHelpers.h"
+#include "XRThreadUtils.h"
 
 
 namespace OculusHMD

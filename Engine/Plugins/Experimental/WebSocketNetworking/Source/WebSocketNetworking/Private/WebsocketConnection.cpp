@@ -7,11 +7,11 @@
 #include "Net/NetworkProfiler.h"
 #include "Net/DataChannel.h"
 
+#include "PacketHandler.h"
+#include "PacketHandlers/StatelessConnectHandlerComponent.h"
+#include "WebSocket.h"
 #include "WebSocketConnection.h"
 #include "WebSocketNetDriver.h"
-#include "WebSocket.h"
-#include "Runtime/PacketHandlers/PacketHandler/Public/PacketHandler.h"
-#include "PacketHandlers/StatelessConnectHandlerComponent.h"
 
 /*-----------------------------------------------------------------------------
 Declarations.

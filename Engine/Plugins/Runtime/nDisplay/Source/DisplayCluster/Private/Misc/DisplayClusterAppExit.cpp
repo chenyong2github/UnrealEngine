@@ -7,8 +7,8 @@
 #include "Async/Async.h"
 
 #if WITH_EDITOR
-#include "Editor/UnrealEd/Public/UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
+#include "UnrealEdGlobals.h"
 #endif
 
 

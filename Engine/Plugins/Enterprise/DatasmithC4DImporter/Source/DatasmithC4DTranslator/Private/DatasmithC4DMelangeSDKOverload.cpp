@@ -2,7 +2,7 @@
 
 #ifdef _MELANGE_SDK_
 
-#include <Runtime/Core/Public/HAL/UnrealMemory.h>
+#include "HAL/UnrealMemory.h"
 
 #include "DatasmithC4DMelangeSDKEnterGuard.h"
 #define DONT_INCLUDE_MEMORY_OVERLOADS

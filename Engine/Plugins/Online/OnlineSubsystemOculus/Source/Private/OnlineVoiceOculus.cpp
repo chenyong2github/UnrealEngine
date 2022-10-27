@@ -6,8 +6,8 @@
 #include "Components/AudioComponent.h"
 #include "Misc/ConfigCacheIni.h"
 
-#include "Runtime/Engine/Classes/Sound/SoundWaveProcedural.h"
 #include "OnlineSubsystemUtils.h"
+#include "Sound/SoundWaveProcedural.h"
 
 #include "Misc/ConfigCacheIni.h"
 #include "OnlineSubsystemOculusPackage.h"

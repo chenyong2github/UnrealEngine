@@ -2,11 +2,11 @@
 
 #include "WindowsMovieStreamer.h"
 
-#include "Rendering/RenderingCommon.h"
-#include "Slate/SlateTextures.h"
+#include "IHeadMountedDisplayModule.h"
 #include "MoviePlayer.h"
 #include "RenderUtils.h"
-#include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
+#include "Rendering/RenderingCommon.h"
+#include "Slate/SlateTextures.h"
 
 #include "MediaShaders.h"
 #include "PipelineStateCache.h"

@@ -4,10 +4,10 @@
 
 #include "Algo/AllOf.h"
 #include "Algo/Transform.h"
-#include "Engine/BlueprintGeneratedClass.h"
 #include "Components/ActorComponent.h"
+#include "Components/ActorComponent.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/Brush.h"
-#include "Engine/Classes/Components/ActorComponent.h"
 #include "Engine/Engine.h"
 #include "EngineUtils.h"
 #include "Misc/Char.h"

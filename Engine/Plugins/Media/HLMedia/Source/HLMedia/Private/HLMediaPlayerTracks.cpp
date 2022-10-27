@@ -2,7 +2,7 @@
 
 #include "HLMediaPlayerTracks.h"
 
-#include "MediaUtils/Public/MediaSamples.h"
+#include "MediaSamples.h"
 
 using namespace HLMediaLibrary;
 

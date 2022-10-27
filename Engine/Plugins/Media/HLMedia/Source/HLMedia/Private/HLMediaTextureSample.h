@@ -5,7 +5,7 @@
 #include "HLMediaPrivate.h"
 
 #include "IMediaTextureSample.h"
-#include "MediaUtils/Public/MediaObjectPool.h"
+#include "MediaObjectPool.h"
 
 #include "ID3D11DynamicRHI.h"
 #include "ID3D12DynamicRHI.h"

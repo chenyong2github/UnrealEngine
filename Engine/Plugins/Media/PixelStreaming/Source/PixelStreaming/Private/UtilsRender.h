@@ -2,11 +2,11 @@
 
 #pragma once
 
+#include "Modules/ModuleManager.h"
 #include "RHIGPUReadback.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
-#include "Runtime/Renderer/Private/ScreenPass.h"
-#include "Modules/ModuleManager.h"
+#include "ScreenPass.h"
 #include "ScreenRendering.h"
 #include "Utils.h"
 

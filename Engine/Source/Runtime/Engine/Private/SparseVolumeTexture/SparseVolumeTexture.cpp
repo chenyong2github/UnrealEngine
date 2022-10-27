@@ -11,7 +11,7 @@
 #include "Shader/ShaderTypes.h"
 
 #if WITH_EDITORONLY_DATA
-#include "DerivedDataCache/Public/DerivedDataCacheInterface.h"
+#include "DerivedDataCacheInterface.h"
 #endif
 
 #include "Serialization/LargeMemoryReader.h"

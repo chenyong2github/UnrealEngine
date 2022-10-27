@@ -4,12 +4,12 @@
 
 #include "UObject/Object.h"
 
+#include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
-#include "Engine/Classes/Components/ActorComponent.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/SoftObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 #include "UObject/UnrealType.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "RemoteControlBinding.generated.h"
 
 namespace UE::RemoteControlBinding

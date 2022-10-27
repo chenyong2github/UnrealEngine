@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Game/WorldSubsystem/TextureShareWorldSubsystemObject.h"
+#include "Game/ViewExtension/TextureShareSceneViewExtension.h"
 #include "Game/WorldSubsystem/TextureShareWorldSubsystemObjectProxy.h"
-#include "Game/ViewExtension//TextureShareSceneViewExtension.h"
 
 #include "Containers/TextureShareContainers.h"
 

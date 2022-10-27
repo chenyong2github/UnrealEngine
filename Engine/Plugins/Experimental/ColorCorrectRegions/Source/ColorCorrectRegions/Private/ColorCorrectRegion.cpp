@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ColorCorrectRegion.h"
+#include "ColorCorrectRegionsModule.h"
+#include "ColorCorrectRegionsSubsystem.h"
 #include "ColorCorrectWindow.h"
 #include "Components/BillboardComponent.h"
-#include "ColorCorrectRegionsSubsystem.h"
-#include "ColorCorrectRegionsModule.h"
-#include "UObject/ConstructorHelpers.h"
+#include "Components/MeshComponent.h"
+#include "Components/StaticMeshComponent.h"
 #include "CoreMinimal.h"
 #include "Engine/GameEngine.h"
-#include "Engine/Classes/Components/MeshComponent.h"
-#include "Materials/Material.h"
 #include "Engine/StaticMesh.h"
-#include "Components/StaticMeshComponent.h"
 #include "Engine/Texture2D.h"
+#include "Materials/Material.h"
+#include "UObject/ConstructorHelpers.h"
 
 ENUM_RANGE_BY_COUNT(EColorCorrectRegionsType, EColorCorrectRegionsType::MAX)
 

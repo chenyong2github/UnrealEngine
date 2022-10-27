@@ -6,15 +6,15 @@
 
 #include "IMediaTracks.h"
 
-#include "CoreTypes.h"
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
 #include "Internationalization/Text.h"
 #include "Math/IntPoint.h"
 #include "Math/Range.h"
+#include "MediaPlayerOptions.h"
 #include "Templates/Function.h"
-#include "MediaUtils/Public/MediaPlayerOptions.h"
 
 #include "HLMediaTextureSample.h"
 

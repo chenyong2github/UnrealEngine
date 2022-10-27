@@ -2,11 +2,11 @@
 
 #pragma once
 
+#include "MediaShaders.h"
 #include "Modules/ModuleManager.h"
 #include "RHI.h"
-#include "Runtime/Renderer/Private/ScreenPass.h"
+#include "ScreenPass.h"
 #include "ScreenRendering.h"
-#include "MediaShaders.h"
 
 /*
     * Copy from one texture to another.

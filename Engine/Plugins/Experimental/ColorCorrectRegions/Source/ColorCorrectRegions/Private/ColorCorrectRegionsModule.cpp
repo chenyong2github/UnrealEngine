@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ColorCorrectRegionsModule.h"
-#include "Runtime/Core/Public/Misc/Paths.h"
 #include "Interfaces/IPluginManager.h"
-#include "Runtime/RenderCore/Public/ShaderCore.h"
+#include "Misc/Paths.h"
+#include "ShaderCore.h"
 
 
 #define LOCTEXT_NAMESPACE "FColorCorrectRegionsModule"

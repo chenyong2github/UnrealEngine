@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OptiXDenoiser.h"
-#include "Renderer/Public/PathTracingDenoiser.h"
+#include "PathTracingDenoiser.h"
 #include <mutex>
 
 #define LOCTEXT_NAMESPACE "FOptiXDenoiseModule"

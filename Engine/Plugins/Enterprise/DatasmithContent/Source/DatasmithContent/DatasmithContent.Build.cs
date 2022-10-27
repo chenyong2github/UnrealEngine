@@ -30,6 +30,12 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
+			PrivateIncludePathModuleNames.AddRange(
+				new string[] {
+					"MainFrame",
+				}
+				);
+
 			if (Target.Type == TargetType.Editor)
 			{
 				PrivateDependencyModuleNames.AddRange(

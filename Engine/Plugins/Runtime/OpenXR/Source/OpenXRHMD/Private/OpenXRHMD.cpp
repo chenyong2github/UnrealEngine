@@ -37,7 +37,7 @@
 #include "DefaultStereoLayers.h"
 
 #if WITH_EDITOR
-#include "Editor/UnrealEd/Classes/Editor/EditorEngine.h"
+#include "Editor/EditorEngine.h"
 #endif
 
 #define OPENXR_PAUSED_IDLE_FPS 10

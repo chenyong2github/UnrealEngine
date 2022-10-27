@@ -5,7 +5,7 @@
 
 #include "HAL/Platform.h"
 #include "Interfaces/IPluginManager.h"
-#include "Runtime/Core/Public/Misc/Paths.h"
+#include "Misc/Paths.h"
 #include "ShaderCore.h"
 
 DEFINE_LOG_CATEGORY(LogExrReaderGpu);

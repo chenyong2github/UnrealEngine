@@ -3,11 +3,11 @@
 #include "HLMediaPlayer.h"
 
 #include "Async/Async.h"
+#include "GenericPlatform/GenericPlatformProcess.h"
 #include "IMediaEventSink.h"
 #include "IMediaOptions.h"
-#include "MediaUtils/Public/MediaPlayerOptions.h"
-#include "MediaUtils/Public/MediaSamples.h"
-#include "GenericPlatform/GenericPlatformProcess.h"
+#include "MediaPlayerOptions.h"
+#include "MediaSamples.h"
 #include "Misc/MessageDialog.h"
 #include "RenderingThread.h"
 

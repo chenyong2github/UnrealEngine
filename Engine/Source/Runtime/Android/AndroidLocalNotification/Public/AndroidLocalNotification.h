@@ -13,7 +13,7 @@
 	#include <android_native_app_glue.h>
 #endif
 
-#include "Runtime/Core/Public/Modules/ModuleManager.h"
+#include "Modules/ModuleManager.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAndroidLocalNotification, Log, All);
 

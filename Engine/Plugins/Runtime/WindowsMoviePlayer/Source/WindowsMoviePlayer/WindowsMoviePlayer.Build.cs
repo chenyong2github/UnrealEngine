@@ -13,7 +13,8 @@ namespace UnrealBuildTool.Rules
 
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
-					"Media"
+					"HeadMountedDisplay",
+					"Media",
 				});
 
 			PrivateIncludePaths.AddRange(

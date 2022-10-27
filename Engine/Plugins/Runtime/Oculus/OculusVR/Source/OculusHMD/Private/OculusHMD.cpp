@@ -42,7 +42,7 @@
 #include "IOculusMRModule.h"
 
 #if WITH_EDITOR
-#include "Editor/UnrealEd/Classes/Editor/EditorEngine.h"
+#include "Editor/EditorEngine.h"
 #endif
 
 #if !UE_BUILD_SHIPPING

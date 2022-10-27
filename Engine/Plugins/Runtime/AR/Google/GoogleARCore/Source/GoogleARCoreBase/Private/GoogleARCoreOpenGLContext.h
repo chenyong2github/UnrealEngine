@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Runtime/Core/Public/Misc/Build.h"
 #include "HAL/Platform.h"
+#include "Misc/Build.h"
 #include "Templates/SharedPointer.h"
 
 #if PLATFORM_ANDROID

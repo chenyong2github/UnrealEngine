@@ -5,11 +5,11 @@
 #if FRAMEPRO_ENABLED
 
 #include "CoreTypes.h"
-#include "HAL/ThreadSingleton.h"
-#include "HAL/IConsoleManager.h"
 #include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
 #include "HAL/MallocAnsi.h"
 #include "HAL/ThreadManager.h"
+#include "HAL/ThreadSingleton.h"
 #include "Misc/App.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/Paths.h"

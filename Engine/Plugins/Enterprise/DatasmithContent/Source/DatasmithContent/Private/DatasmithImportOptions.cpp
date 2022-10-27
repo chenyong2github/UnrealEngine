@@ -5,7 +5,7 @@
 #include "UObject/UnrealType.h"
 
 #include "HAL/FileManager.h"
-#include "Editor/MainFrame/Public/Interfaces/IMainFrameModule.h"
+#include "Interfaces/IMainFrameModule.h"
 
 #include "Dom/JsonValue.h"
 #include "Dom/JsonObject.h"

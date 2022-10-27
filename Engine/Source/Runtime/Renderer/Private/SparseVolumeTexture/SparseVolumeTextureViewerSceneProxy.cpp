@@ -4,9 +4,9 @@
 #include "SparseVolumeTexture/SparseVolumeTextureViewerComponent.h"
 #include "SparseVolumeTexture/SparseVolumeTexture.h"
 
-#include "SceneView.h"
-#include "Renderer/Private/ScenePrivate.h"
 #include "RenderGraphUtils.h"
+#include "ScenePrivate.h"
+#include "SceneView.h"
 
 #define LOCTEXT_NAMESPACE "FSparseVolumeTextureViewerSceneProxy"
 

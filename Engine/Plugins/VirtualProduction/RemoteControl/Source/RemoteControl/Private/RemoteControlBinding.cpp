@@ -17,7 +17,6 @@
 #if WITH_EDITOR
 #include "Components/ActorComponent.h"
 #include "Editor.h"
-#include "Editor/UnrealEd/Public/Editor.h"
 #include "Misc/App.h"
 #endif
 

@@ -12,7 +12,7 @@
 #include "PrimitiveSceneProxy.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphResources.h"
-#include "Renderer/Private/ScenePrivate.h"
+#include "ScenePrivate.h"
 #include "SceneRenderTargetParameters.h"
 #include "MeshPassProcessor.inl"
 #include "UnrealClient.h"
