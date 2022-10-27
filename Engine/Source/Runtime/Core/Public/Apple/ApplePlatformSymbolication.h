@@ -41,6 +41,8 @@ struct FApplePlatformSymbolDatabaseKeyFuncs
 {
 	enum { bAllowDuplicateKeys = 0 };
 
+	typedef FString KeyType;
+
 private:
 	typedef typename TCallTraits<FString>::ParamType KeyInitType;
 	typedef typename TCallTraits<FApplePlatformSymbolDatabase>::ParamType ElementInitType;
