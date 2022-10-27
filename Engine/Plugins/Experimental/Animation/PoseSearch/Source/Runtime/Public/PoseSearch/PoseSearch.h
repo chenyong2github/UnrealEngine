@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/ParallelFor.h"
 #include "CoreMinimal.h"
 #include "Containers/RingBuffer.h"
 #include "Engine/DataAsset.h"

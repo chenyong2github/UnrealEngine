@@ -3,8 +3,8 @@
 #pragma once
 
 #include "ChaosClothAsset/ClothPreset.h"
-#include "Engine/SkeletalMesh.h"  // For FSkeletalMeshLODInfo
 #include "Engine/SkinnedAsset.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "ReferenceSkeleton.h"
 #include "RenderCommandFence.h"
 #include "ClothAsset.generated.h"

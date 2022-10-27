@@ -2,6 +2,7 @@
 
 #include "NiagaraDataInterfaceTexture.h"
 #include "Engine/Texture.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "NiagaraComputeExecutionContext.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraGpuComputeDispatchInterface.h"

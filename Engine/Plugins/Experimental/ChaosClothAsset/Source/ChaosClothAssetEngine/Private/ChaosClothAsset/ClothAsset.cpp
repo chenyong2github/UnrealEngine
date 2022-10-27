@@ -7,8 +7,10 @@
 #include "ChaosClothAsset/ClothAssetPrivate.h"
 #include "ChaosClothAsset/ClothSimulationModel.h"
 #include "Animation/Skeleton.h"
+#include "Engine/SkinnedAssetAsyncCompileUtils.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "EngineUtils.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 #if WITH_EDITOR
 #include "IMeshBuilderModule.h"
 #include "DerivedDataCacheInterface.h"

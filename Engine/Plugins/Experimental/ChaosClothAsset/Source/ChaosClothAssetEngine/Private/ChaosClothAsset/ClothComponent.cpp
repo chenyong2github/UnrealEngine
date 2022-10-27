@@ -6,6 +6,7 @@
 #include "ChaosClothAsset/ClothSimulationModel.h"
 #include "ChaosClothAsset/ClothSimulationProxy.h"
 #include "HAL/IConsoleManager.h"
+#include "Rendering/SkeletalMeshRenderData.h"
 #include "SkeletalRenderPublic.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);

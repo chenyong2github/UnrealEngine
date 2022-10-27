@@ -5,6 +5,7 @@
 
 #include "Animation/AnimSequence.h"
 #include "AnimDataController.h"
+#include "Async/ParallelFor.h"
 #include "IAnimationEditor.h"
 #include "ControlRig.h"
 #include "ControlRigObjectBinding.h"
