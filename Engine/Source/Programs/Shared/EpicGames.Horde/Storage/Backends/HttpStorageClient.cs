@@ -178,7 +178,7 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <inheritdoc/>
 		public override async Task WriteRefTargetAsync(RefName name, NodeLocator target, RefOptions? options = null, CancellationToken cancellationToken = default)
 		{
-			_logger.LogDebug("Setting ref {RefName} -> {Blob}#{ExportIdx}", name, target.Blob, target.ExportIdx);
+			_logger.LogDebug("Writing ref {RefName} -> {Blob}#{ExportIdx}", name, target.Blob, target.ExportIdx);
 			using (HttpResponseMessage response = await _httpClient.PutAsync($"api/v1/storage/{_namespaceId}/refs/{name}", new { locator = target.Blob, exportIdx = target.ExportIdx, options }, cancellationToken))
 			{
 				response.EnsureSuccessStatusCode();

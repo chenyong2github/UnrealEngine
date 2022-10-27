@@ -81,6 +81,8 @@ namespace AutomationTool.Tasks
 		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include</param>
 		public override async Task ExecuteAsync(JobContext Job, HashSet<FileReference> BuildProducts, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
+			DirectoryReference OutputDir = ResolveDirectory(Parameters.OutputDir);
+
 			byte[] buffer = Array.Empty<byte>();
 			for (int idx = 0; idx < Parameters.Count; idx++)
 			{
@@ -89,10 +91,12 @@ namespace AutomationTool.Tasks
 					buffer = RandomNumberGenerator.GetBytes(Parameters.Size);
 				}
 
-				FileReference file = FileReference.Combine(ResolveDirectory(Parameters.OutputDir), $"test-{Parameters.Size}-{idx}.dat");
+				FileReference file = FileReference.Combine(OutputDir, $"test-{Parameters.Size}-{idx}.dat");
 				await FileReference.WriteAllBytesAsync(file, buffer);
 				BuildProducts.Add(file);
 			}
+
+			Job.OwnerCommand.Logger.LogInformation("Created {NumFiles} of {Size:n0} bytes in {OutputDir} (Different={Different})", Parameters.Count, Parameters.Size, OutputDir, Parameters.Different);
 
 			// Apply the optional output tag to them
 			foreach (string TagName in FindTagNamesFromList(Parameters.Tag))

@@ -14,6 +14,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Timers;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Backends;
@@ -693,6 +694,7 @@ namespace Horde.Agent.Execution
 			Dictionary<TempStorageBlockRef, TempStorageBlockManifest> inputManifests = new Dictionary<TempStorageBlockRef, TempStorageBlockManifest>();
 			using (IScope scope = GlobalTracer.Instance.BuildSpan("TempStorage").WithTag("resource", "read").StartActive())
 			{
+				Stopwatch timer = Stopwatch.StartNew();
 				scope.Span.SetTag("blocks", inputStorageBlocks.Count);
 				foreach (TempStorageBlockRef inputStorageBlock in inputStorageBlocks)
 				{
@@ -700,6 +702,7 @@ namespace Horde.Agent.Execution
 					inputManifests[inputStorageBlock] = manifest;
 				}
 				scope.Span.SetTag("size", inputManifests.Sum(x => x.Value.GetTotalSize()));
+				logger.LogInformation("Download took {Time:n1}s", timer.Elapsed.TotalSeconds);
 			}
 
 			// Read all the input storage blocks, keeping track of which block each file came from
@@ -709,8 +712,6 @@ namespace Horde.Agent.Execution
 				TempStorageBlockRef inputStorageBlock = pair.Key;
 				foreach (FileReference file in pair.Value.Files.Select(x => x.ToFileReference(workspaceDir)))
 				{
-					logger.LogInformation("Reading input block: {File}", file);
-
 					TempStorageBlockRef? currentStorageBlock;
 					if (fileToStorageBlock.TryGetValue(file, out currentStorageBlock) && !TempStorage.IsDuplicateBuildProduct(file))
 					{
@@ -824,6 +825,7 @@ namespace Horde.Agent.Execution
 			// Write all the storage blocks, and update the mapping from file to storage block
 			using (GlobalTracer.Instance.BuildSpan("TempStorage").WithTag("resource", "Write").StartActive())
 			{
+				Stopwatch timer = Stopwatch.StartNew();
 				RefName refName = TempStorage.GetRefNameForNode(RefPrefix, step.Name);
 
 				TreeOptions treeOptions = new TreeOptions();
@@ -865,6 +867,7 @@ namespace Horde.Agent.Execution
 
 				// Write the final node
 				await treeWriter.WriteRefAsync(refName, outputNode, new RefOptions { Lifetime = TimeSpan.FromDays(3.0) }, cancellationToken);
+				logger.LogInformation("Upload took {Time:n1}s", timer.Elapsed.TotalSeconds);
 			}
 
 			return true;

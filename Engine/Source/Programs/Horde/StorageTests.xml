@@ -7,7 +7,6 @@
 	<Agent Name="Agent A" Type="CompileWin64;Win64">
 		<Node Name="Create Small Chunks" Produces="#SmallChunks">
 			<RandomData Size="1024" Count="20000" Different="true" Tag="#SmallChunks"/>
-			<Log Message="Output Files:" Files="#SmallChunks"/>
 		</Node>
 	</Agent>
 	<Agent Name="Agent B" Type="CompileWin64;Win64">
@@ -20,7 +19,6 @@
 	<Agent Name="Agent C" Type="CompileWin64;Win64">
 		<Node Name="Create Large Chunks" Produces="#LargeChunks">
 			<RandomData Size="1073741824" Count="20" Different="true" Tag="#LargeChunks"/>
-			<Log Message="Output Files:" Files="#LargeChunks"/>
 		</Node>
 	</Agent>
 	<Agent Name="Agent D" Type="CompileWin64;Win64">
@@ -33,7 +31,6 @@
 	<Agent Name="Agent E" Type="CompileWin64;Win64">
 		<Node Name="Create Small Identical Chunks" Produces="#SmallIdenticalChunks">
 			<RandomData Size="1024" Count="20000" Different="false" Tag="#SmallIdenticalChunks"/>
-			<Log Message="Output Files:" Files="#SmallIdenticalChunks"/>
 		</Node>
 	</Agent>
 	<Agent Name="Agent F" Type="CompileWin64;Win64">
@@ -46,7 +43,6 @@
 	<Agent Name="Agent G" Type="CompileWin64;Win64">
 		<Node Name="Create Large Identical Chunks" Produces="#LargeIdenticalChunks">
 			<RandomData Size="1073741824" Count="20" Different="true" Tag="#LargeIdenticalChunks"/>
-			<Log Message="Output Files:" Files="#LargeIdenticalChunks"/>
 		</Node>
 	</Agent>
 	<Agent Name="Agent H" Type="CompileWin64;Win64">
