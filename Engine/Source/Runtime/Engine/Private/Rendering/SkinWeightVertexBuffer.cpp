@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rendering/SkinWeightVertexBuffer.h"
+
 #include "EngineUtils.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "RenderUtils.h"
 #include "SkeletalMeshTypes.h"
 #include "UObject/AnimObjectVersion.h"
-#include "ProfilingDebugging/LoadTimeTracker.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 /*-----------------------------------------------------------------------------
 FSkinWeightLookupVertexBuffer
