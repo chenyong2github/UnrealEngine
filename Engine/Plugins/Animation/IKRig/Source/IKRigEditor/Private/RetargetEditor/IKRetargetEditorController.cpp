@@ -27,7 +27,7 @@
 #define LOCTEXT_NAMESPACE "IKRetargetEditorController"
 
 
-FBoundIKRig::FBoundIKRig(UIKRigDefinition* InIKRig, const FIKRetargetEditorController& InController)
+FBoundIKRig::FBoundIKRig(UIKRigDefinition* InIKRig, FIKRetargetEditorController& InController)
 {
 	check(InIKRig);
 	IKRig = InIKRig;
@@ -105,7 +105,7 @@ void FIKRetargetEditorController::BindToIKRigAssets(UIKRetargeter* InAsset)
 	}
 }
 
-void FIKRetargetEditorController::HandleIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig) const
+void FIKRetargetEditorController::HandleIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig)
 {
 	UIKRetargeter* Retargeter = AssetController->GetAsset();
 	check(ModifiedIKRig && Retargeter)
@@ -138,10 +138,37 @@ void FIKRetargetEditorController::HandleRetargetChainRemoved(UIKRigDefinition* M
 	RefreshAllViews();
 }
 
-void FIKRetargetEditorController::HandleRetargeterNeedsInitialized(UIKRetargeter* Retargeter) const
+void FIKRetargetEditorController::HandleRetargeterNeedsInitialized(UIKRetargeter* Retargeter)
 {
+	// record status of animation playback so we can restore it after initialization
+	const bool bWasPlayingAnimation = SourceAnimInstance->IsPlaying();
+	UAnimationAsset* AnimToRestore = SourceAnimInstance->GetAnimationAsset();
+	const float PlaybackTimeToRestore = SourceAnimInstance->GetCurrentTime();
+	
 	// clear the output log
 	ClearOutputLog();
+
+	// ensure source and target meshes are setup in case they were modified
+	{
+		// set the source and target skeletal meshes on the component
+		// NOTE: this must be done AFTER setting the AnimInstance so that the correct root anim node is loaded
+		USkeletalMesh* SourceMesh = GetSkeletalMesh(ERetargetSourceOrTarget::Source);
+		USkeletalMesh* TargetMesh = GetSkeletalMesh(ERetargetSourceOrTarget::Target);
+		SourceSkelMeshComponent->SetSkeletalMesh(SourceMesh);
+		TargetSkelMeshComponent->SetSkeletalMesh(TargetMesh);
+	
+		// apply mesh to the preview scene
+		TSharedRef<IPersonaPreviewScene> PreviewScene = Editor.Pin()->GetPersonaToolkit()->GetPreviewScene();
+		if (PreviewScene->GetPreviewMesh() != SourceMesh)
+		{
+			PreviewScene->SetPreviewMeshComponent(SourceSkelMeshComponent);
+			PreviewScene->SetPreviewMesh(SourceMesh);
+			SourceSkelMeshComponent->bCanHighlightSelectedSections = false;
+		}
+	
+		SourceAnimInstance->InitializeAnimation();
+		TargetAnimInstance->InitializeAnimation();
+	}
 
 	// check for "zero height" retarget roots, and prompt user to fix
 	FixZeroHeightRetargetRoot(ERetargetSourceOrTarget::Source);
@@ -157,9 +184,26 @@ void FIKRetargetEditorController::HandleRetargeterNeedsInitialized(UIKRetargeter
 			Retargeter,
 			bSuppressWarnings);
 	}
+
+	// reset bone selections in case of incompatible indices
+	CleanSelection(ERetargetSourceOrTarget::Source);
+	CleanSelection(ERetargetSourceOrTarget::Target);
 	
 	// refresh all the UI views
 	RefreshAllViews();
+
+	// restore animation playback
+	if (bWasPlayingAnimation && AnimToRestore)
+	{
+		// verify that animation is compatible with (potentially) new source mesh
+		USkeletalMesh* NewSourceMesh = GetSkeletalMesh(ERetargetSourceOrTarget::Source);
+		if (AnimThatWasPlaying->GetSkeleton()->IsCompatible(NewSourceMesh->GetSkeleton()))
+		{
+			SourceAnimInstance->SetAnimationAsset(AnimToRestore);
+			SourceAnimInstance->SetPlaying(true);
+			SourceAnimInstance->SetPosition(PlaybackTimeToRestore);	
+		}
+	}
 }
 
 UDebugSkelMeshComponent* FIKRetargetEditorController::GetSkeletalMeshComponent(
@@ -820,6 +864,28 @@ void FIKRetargetEditorController::SetRootSelected(const bool bIsSelected)
 	SetDetailsObject(RootSettings);
 
 	LastSelectedItem = ERetargetSelectionType::ROOT;
+}
+
+void FIKRetargetEditorController::CleanSelection(ERetargetSourceOrTarget SourceOrTarget)
+{
+	USkeletalMesh* SkeletalMesh = GetSkeletalMesh(SourceOrTarget);
+	if (!SkeletalMesh)
+	{
+		SelectedBoneNames[SourceOrTarget].Empty();
+		return;
+	}
+
+	TArray<FName> CleanedSelection;
+	const FReferenceSkeleton& RefSkeleton = SkeletalMesh->GetRefSkeleton();
+	for (const FName& SelectedBone : SelectedBoneNames[SourceOrTarget])
+	{
+		if (RefSkeleton.FindBoneIndex(SelectedBone))
+		{
+			CleanedSelection.Add(SelectedBone);
+		}
+	}
+
+	SelectedBoneNames[SourceOrTarget] = CleanedSelection;
 }
 
 void FIKRetargetEditorController::ClearSelection(const bool bKeepBoneSelection)
