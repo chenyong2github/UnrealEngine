@@ -184,12 +184,25 @@ class FLumenScreenProbeGatherHardwareRayTracing : public FLumenHardwareRayTracin
 
 		return bSurfaceCacheLightingMode && bWriteFinalLighting;
 	}
+
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		FPermutationDomain PermutationVector(PermutationId);
+		if (PermutationVector.Get<FLightingModeDim>() == LumenHWRTPipeline::ELightingMode::SurfaceCache)
+		{
+			return ERayTracingPayloadType::LumenMinimal;
+		}
+		else
+		{
+			return ERayTracingPayloadType::RayTracingMaterial;
+		}
+	}
 };
 
 IMPLEMENT_LUMEN_RAYGEN_AND_COMPUTE_RAYTRACING_SHADERS(FLumenScreenProbeGatherHardwareRayTracing)
 
 IMPLEMENT_GLOBAL_SHADER(FLumenScreenProbeGatherHardwareRayTracingCS, "/Engine/Private/Lumen/LumenScreenProbeHardwareRayTracing.usf", "LumenScreenProbeGatherHardwareRayTracingCS", SF_Compute);
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FLumenScreenProbeGatherHardwareRayTracingRGS, "/Engine/Private/Lumen/LumenScreenProbeHardwareRayTracing.usf", "LumenScreenProbeGatherHardwareRayTracingRGS", SF_RayGen, ERayTracingPayloadType::LumenMinimal | ERayTracingPayloadType::RayTracingMaterial);
+IMPLEMENT_GLOBAL_SHADER(FLumenScreenProbeGatherHardwareRayTracingRGS, "/Engine/Private/Lumen/LumenScreenProbeHardwareRayTracing.usf", "LumenScreenProbeGatherHardwareRayTracingRGS", SF_RayGen);
 
 class FLumenScreenProbeGatherHardwareRayTracingIndirectArgsCS : public FGlobalShader
 {

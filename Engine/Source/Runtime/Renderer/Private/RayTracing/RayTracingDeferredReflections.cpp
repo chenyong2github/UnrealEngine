@@ -303,10 +303,23 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DISPATCH_1D"), 1); // Always using 1D dispatches
 		OutEnvironment.SetDefine(TEXT("ENABLE_TWO_SIDED_GEOMETRY"), 1); // Always using double-sided ray tracing for shadow rays
 	}
+
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		FPermutationDomain PermutationVector(PermutationId);
+		if (PermutationVector.Get<FDeferredMaterialMode>() == EDeferredMaterialMode::Gather)
+		{
+			// gather phase uses a smaller payload
+			return ERayTracingPayloadType::Deferred;
+		}
+		else
+		{
+			// shading phase uses the full material
+			return ERayTracingPayloadType::RayTracingMaterial;
+		}
+	}
 };
-// TODO: In theory only one payload is used at a time here. This would require making the PayloadType a function of the permutation ID.
-//    The simplest fix is to turn the FDeferredMaterialMode permutation parameter into an ordinary template so we can instantiate it the right number of times here.
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingDeferredReflectionsRGS, "/Engine/Private/RayTracing/RayTracingDeferredReflections.usf", "RayTracingDeferredReflectionsRGS", SF_RayGen, ERayTracingPayloadType::Deferred | ERayTracingPayloadType::RayTracingMaterial);
+IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredReflectionsRGS, "/Engine/Private/RayTracing/RayTracingDeferredReflections.usf", "RayTracingDeferredReflectionsRGS", SF_RayGen);
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingDeferredReflections(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
@@ -321,20 +334,10 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingDeferredReflections(const F
 	const bool bHitTokenEnabled = CanUseRayTracingAMDHitToken();
 
 	PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FAMDHitToken>(bHitTokenEnabled);
-
-	{
-		PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Gather);
-		PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FGenerateRays>(bGenerateRaysWithRGS);
-		auto RayGenShader = View.ShaderMap->GetShader<FRayTracingDeferredReflectionsRGS>(PermutationVector);
-		OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
-	}
-
-	{
-		PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Shade);
-		PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FGenerateRays>(false); // shading is independent of how rays are generated
-		auto RayGenShader = View.ShaderMap->GetShader<FRayTracingDeferredReflectionsRGS>(PermutationVector);
-		OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
-	}
+	PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Shade);
+	PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FGenerateRays>(false); // shading is independent of how rays are generated
+	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingDeferredReflectionsRGS>(PermutationVector);
+	OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
 }
 
 static void AddReflectionResolvePass(

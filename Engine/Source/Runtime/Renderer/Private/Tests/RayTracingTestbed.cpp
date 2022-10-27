@@ -305,6 +305,11 @@ public:
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::Minimal;
+	}
+
 	FTestRaygenShader() {}
 	//virtual ~FTestRaygenShader() {}
 
@@ -331,7 +336,7 @@ public:
 	LAYOUT_FIELD(FShaderResourceParameter, Output) // UAV RWStructuredBuffer<uint>
 };
 
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FTestRaygenShader, "/Engine/Private/RayTracing/RayTracingTest.usf", "TestMainRGS", SF_RayGen, ERayTracingPayloadType::Minimal);
+IMPLEMENT_GLOBAL_SHADER(FTestRaygenShader, "/Engine/Private/RayTracing/RayTracingTest.usf", "TestMainRGS", SF_RayGen);
 
 
 bool FRayTracingTestbed::RunTest(const FString& Parameters)

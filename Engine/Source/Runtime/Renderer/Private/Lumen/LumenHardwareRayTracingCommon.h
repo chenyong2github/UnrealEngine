@@ -166,6 +166,7 @@ public:
 			ModifyCompilationEnvironmentInternal(DispatchSize, OutEnvironment); \
 		}\
 		static FIntPoint GetThreadGroupSize() { return GetThreadGroupSizeInternal(Lumen::ERayTracingShaderDispatchType::Inline, DispatchSize); } \
+		static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId) { return ERayTracingPayloadType::None; } \
 	};
 
 #define IMPLEMENT_LUMEN_RAYGEN_RAYTRACING_SHADER(ShaderClass) \

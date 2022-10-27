@@ -33,7 +33,12 @@ class FBasicOcclusionMainRGS : public FBuiltInRayTracingShader
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FBasicRayData>, Rays)
 		SHADER_PARAMETER_UAV(RWStructuredBuffer<uint>, OcclusionOutput)
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::Default;
+	}
 };
 
 class FBasicIntersectionMainRGS : public FBuiltInRayTracingShader
@@ -45,7 +50,12 @@ class FBasicIntersectionMainRGS : public FBuiltInRayTracingShader
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FBasicRayData>, Rays)
 		SHADER_PARAMETER_UAV(RWStructuredBuffer<FIntersectionPayload>, IntersectionOutput)
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::Default;
+	}
 };
 
 class FBasicIntersectionMainCHS : public FBuiltInRayTracingShader
@@ -57,6 +67,11 @@ public:
 	FBasicIntersectionMainCHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FBuiltInRayTracingShader(Initializer)
 	{}
+
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::Default;
+	}
 };
 
 /**

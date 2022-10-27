@@ -96,9 +96,9 @@ public:
 		ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
 		ShouldCompilePermutationType InShouldCompilePermutationRef,
 		ValidateCompiledResultType InValidateCompiledResultRef,
+		GetRayTracingPayloadTypeType InGetRayTracingPayloadTypeRef,
 		uint32 InTypeSize,
-		const FShaderParametersMetadata* InRootParametersMetadata = nullptr,
-		ERayTracingPayloadType InRayTracingPayloadType = ERayTracingPayloadType::None
+		const FShaderParametersMetadata* InRootParametersMetadata = nullptr
 		):
 		FShaderType(EShaderTypeForDynamicCast::Global, InTypeLayout, InName, InSourceFilename, InFunctionName, InFrequency, InTotalPermutationCount,
 			InConstructSerializedRef,
@@ -106,9 +106,9 @@ public:
 			InModifyCompilationEnvironmentRef,
 			InShouldCompilePermutationRef,
 			InValidateCompiledResultRef,
+			InGetRayTracingPayloadTypeRef,
 			InTypeSize,
-			InRootParametersMetadata,
-			InRayTracingPayloadType
+			InRootParametersMetadata
 		)
 	{
 		checkf(FPaths::GetExtension(InSourceFilename) == TEXT("usf"),
@@ -431,4 +431,4 @@ inline FGlobalShaderMap* GetGlobalShaderMap(ERHIFeatureLevel::Type FeatureLevel)
 
 #define DECLARE_GLOBAL_SHADER(ShaderClass) DECLARE_SHADER_TYPE(ShaderClass, Global)
 #define IMPLEMENT_GLOBAL_SHADER(ShaderClass,SourceFilename,FunctionName,Frequency) IMPLEMENT_SHADER_TYPE(,ShaderClass,TEXT(SourceFilename),TEXT(FunctionName),Frequency)
-#define IMPLEMENT_GLOBAL_RAYTRACING_SHADER(ShaderClass,SourceFilename,FunctionName,Frequency,RayTracingPayloadType) IMPLEMENT_RAYTRACING_SHADER_TYPE(,ShaderClass,TEXT(SourceFilename),TEXT(FunctionName),Frequency,RayTracingPayloadType)
+

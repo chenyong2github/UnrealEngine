@@ -54,9 +54,9 @@ public:
 		ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
 		ShouldCompilePermutationType InShouldCompilePermutationRef,
 		ValidateCompiledResultType InValidateCompiledResultRef,
+		GetRayTracingPayloadTypeType InGetRayTracingPayloadTypeRef,
 		uint32 InTypeSize,
-		const FShaderParametersMetadata* InRootParametersMetadata = nullptr,
-		ERayTracingPayloadType InRayTracingPayloadType = ERayTracingPayloadType::None
+		const FShaderParametersMetadata* InRootParametersMetadata = nullptr
 		):
 		FShaderType(EShaderTypeForDynamicCast::MeshMaterial, InTypeLayout, InName,InSourceFilename,InFunctionName,InFrequency,InTotalPermutationCount,
 			InConstructSerializedRef,
@@ -64,9 +64,9 @@ public:
 			InModifyCompilationEnvironmentRef,
 			InShouldCompilePermutationRef,
 			InValidateCompiledResultRef,
+			InGetRayTracingPayloadTypeRef,
 			InTypeSize,
-			InRootParametersMetadata,
-			InRayTracingPayloadType
+			InRootParametersMetadata
 		)
 	{
 		checkf(FPaths::GetExtension(InSourceFilename) == TEXT("usf"),

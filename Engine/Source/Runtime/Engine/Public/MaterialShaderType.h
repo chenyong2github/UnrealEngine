@@ -21,9 +21,6 @@
 		Frequency \
 		);
 
-#define IMPLEMENT_MATERIAL_RAYTRACING_SHADER_TYPE(TemplatePrefix, ShaderClass, SourceFilename, FunctionName, Frequency, RayTracingPayloadType) \
-	IMPLEMENT_RAYTRACING_SHADER_TYPE(TemplatePrefix, ShaderClass, SourceFilename, FunctionName, Frequency, RayTracingPayloadType)
-
 class FMaterial;
 class FMaterialShaderMap;
 class FShaderCommonCompileJob;
@@ -104,9 +101,9 @@ public:
 		ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
 		ShouldCompilePermutationType InShouldCompilePermutationRef,
 		ValidateCompiledResultType InValidateCompiledResultRef,
+		GetRayTracingPayloadTypeType InGetRayTracingPayloadTypeRef,
 		uint32 InTypeSize,
-		const FShaderParametersMetadata* InRootParametersMetadata = nullptr,
-		ERayTracingPayloadType InRayTracingPayloadType = ERayTracingPayloadType::None
+		const FShaderParametersMetadata* InRootParametersMetadata = nullptr
 		):
 		FShaderType(EShaderTypeForDynamicCast::Material, InTypeLayout, InName, InSourceFilename, InFunctionName, InFrequency, InTotalPermutationCount,
 			InConstructSerializedRef,
@@ -114,9 +111,9 @@ public:
 			InModifyCompilationEnvironmentRef,
 			InShouldCompilePermutationRef,
 			InValidateCompiledResultRef,
+			InGetRayTracingPayloadTypeRef,
 			InTypeSize,
-			InRootParametersMetadata,
-			InRayTracingPayloadType
+			InRootParametersMetadata
 		)
 	{
 		checkf(FPaths::GetExtension(InSourceFilename) == TEXT("usf"),

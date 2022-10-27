@@ -123,8 +123,14 @@ class FRayTracingDebugRGS : public FGlobalShader
 	{
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
+
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		// TODO: Convert UseDebugCHS to a permutation so that we can specialize to a single payload type only
+		return ERayTracingPayloadType::RayTracingDebug | ERayTracingPayloadType::RayTracingMaterial;
+	}
 };
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingDebugRGS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugMainRGS", SF_RayGen, ERayTracingPayloadType::RayTracingMaterial | ERayTracingPayloadType::RayTracingDebug);
+IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugRGS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugMainRGS", SF_RayGen);
 
 class FRayTracingDebugCHS : public FGlobalShader
 {
@@ -146,8 +152,13 @@ public:
 	FRayTracingDebugCHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{}
+
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::RayTracingDebug;
+	}
 };
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingDebugCHS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugMainCHS", SF_RayHitGroup, ERayTracingPayloadType::RayTracingDebug);
+IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugCHS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugMainCHS", SF_RayHitGroup);
 
 class FRayTracingDebugTraversalCS : public FGlobalShader
 {
@@ -223,8 +234,13 @@ class FRayTracingPickingRGS : public FGlobalShader
 	{
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
+
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::RayTracingDebug;
+	}
 };
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingPickingRGS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugPickingRGS", SF_RayGen, ERayTracingPayloadType::RayTracingDebug);
+IMPLEMENT_GLOBAL_SHADER(FRayTracingPickingRGS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugPickingRGS", SF_RayGen);
 
 class FRayTracingDebugInstanceOverlapVS : public FGlobalShader
 {

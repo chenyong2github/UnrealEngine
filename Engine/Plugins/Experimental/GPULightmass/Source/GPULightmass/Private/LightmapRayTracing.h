@@ -68,6 +68,11 @@ class FLightmapPathTracingRGS : public FGlobalShader
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
 	}
 
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::Minimal | ERayTracingPayloadType::PathTracingMaterial;
+	}
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(int, LastInvalidationFrame)
 		SHADER_PARAMETER(int, NumTotalSamples)
@@ -128,6 +133,11 @@ class FVolumetricLightmapPathTracingRGS : public FGlobalShader
 		OutEnvironment.CompilerFlags.Add(CFLAG_ForceOptimization);
 	}
 
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::Minimal | ERayTracingPayloadType::PathTracingMaterial;
+	}
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, FrameNumber)
 		SHADER_PARAMETER(FVector4f, VolumeMin)
@@ -184,6 +194,11 @@ class FStationaryLightShadowTracingRGS : public FGlobalShader
 		OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
 	}
 
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::Minimal | ERayTracingPayloadType::PathTracingMaterial;
+	}
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
@@ -220,6 +235,11 @@ class FFirstBounceRayGuidingCDFBuildCS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("GPreviewLightmapPhysicalTileSize"), GPreviewLightmapPhysicalTileSize);
 		OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
 		OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
+	}
+
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::Minimal | ERayTracingPayloadType::PathTracingMaterial;
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )

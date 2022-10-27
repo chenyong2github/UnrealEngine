@@ -309,7 +309,7 @@ public:
   trace various types of rays, or use different kind of callable shaders.
   HitGroup, Miss and Callable shaders must (by definition) only use a single payload type.
 
-  This payload type must be provided through the IMPLEMENT_*RAYTRACING_SHADER macros
+  This payload type must be provided via the GetRayTracingPayloadType static member function when implementing a ray tracing shader.
 */
 enum class ERayTracingPayloadType : uint32
 {
@@ -869,6 +869,9 @@ public:
 	/** Can be overridden by FShader subclasses to determine whether compilation is valid. */
 	static bool ValidateCompiledResult(EShaderPlatform InPlatform, const FShaderParameterMap& InParameterMap, TArray<FString>& OutError) { return true; }
 
+	/** Can be overriden by FShader subclasses to specify which raytracing payload should be used. This method is only called for raytracing shaders. */
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId) { return ERayTracingPayloadType::None; }
+
 	/** Returns the hash of the shader file that this shader was compiled with. */
 	const FSHAHash& GetHash() const;
 
@@ -1120,10 +1123,6 @@ public:
 		return RHIShader;
 	}
 
-	inline ERayTracingPayloadType GetRayTracingPayloadType() const {
-		return GetType()->GetRayTracingPayloadType();
-	}
-
 	UE_DEPRECATED(5.1, "GetRayTracingMaterialLibraryIndex is deprecated. Use GetRayTracingHitGroupLibraryIndex instead.")
 	inline uint32 GetRayTracingMaterialLibraryIndex() const
 	{
@@ -1217,6 +1216,7 @@ public:
 	typedef bool (*ShouldCompilePermutationType)(const FShaderPermutationParameters&);
 	typedef void (*ModifyCompilationEnvironmentType)(const FShaderPermutationParameters&, FShaderCompilerEnvironment&);
 	typedef bool (*ValidateCompiledResultType)(EShaderPlatform, const FShaderParameterMap&, TArray<FString>&);
+	typedef ERayTracingPayloadType (*GetRayTracingPayloadTypeType)(const int32 PermutationId);
 
 	/** @return The global shader factory list. */
 	static TLinkedList<FShaderType*>*& GetTypeList();
@@ -1249,9 +1249,9 @@ public:
 		ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
 		ShouldCompilePermutationType InShouldCompilePermutationRef,
 		ValidateCompiledResultType InValidateCompiledResultRef,
+		GetRayTracingPayloadTypeType InGetRayTracingPayloadTypeRef,
 		uint32 InTypeSize,
-		const FShaderParametersMetadata* InRootParametersMetadata,
-		ERayTracingPayloadType InRayTracingPayloadType = ERayTracingPayloadType::None
+		const FShaderParametersMetadata* InRootParametersMetadata
 	);
 
 	virtual ~FShaderType();
@@ -1270,6 +1270,8 @@ public:
 	* @param OutError - List for appending validation errors.
 	*/
 	bool ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError) const;
+
+	ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId) const;
 
 	/** Calculates a Hash based on this shader type's source code and includes */
 	const FSHAHash& GetSourceHash(EShaderPlatform ShaderPlatform) const;
@@ -1377,10 +1379,6 @@ public:
 	{ 
 		return (EShaderFrequency)Frequency; 
 	}
-	inline ERayTracingPayloadType GetRayTracingPayloadType() const
-	{
-		return RayTracingPayloadType;
-	}
 	inline const TCHAR* GetName() const
 	{ 
 		return Name; 
@@ -1450,7 +1448,6 @@ private:
 	const TCHAR* SourceFilename;
 	const TCHAR* FunctionName;
 	uint32 Frequency;
-	ERayTracingPayloadType RayTracingPayloadType;
 	uint32 TypeSize;
 	int32 TotalPermutationCount;
 
@@ -1459,6 +1456,7 @@ private:
 	ModifyCompilationEnvironmentType ModifyCompilationEnvironmentRef;
 	ShouldCompilePermutationType ShouldCompilePermutationRef;
 	ValidateCompiledResultType ValidateCompiledResultRef;
+	GetRayTracingPayloadTypeType GetRayTracingPayloadTypeRef;
 	const FShaderParametersMetadata* const RootParametersMetadata;
 
 	TLinkedList<FShaderType*> GlobalListLink;
@@ -1521,6 +1519,7 @@ struct FShaderCompiledShaderInitializerType
 	static bool ShouldCompilePermutationImpl(const FShaderPermutationParameters& Parameters) \
 	{ return ShaderClass::ShouldCompilePermutation(static_cast<const typename ShaderClass::FPermutationParameters&>(Parameters)); }
 
+
 #define INTERNAL_DECLARE_SHADER_TYPE_COMMON(ShaderClass,ShaderMetaTypeShortcut,RequiredAPI) \
 	public: \
 	using ShaderMetaType = F##ShaderMetaTypeShortcut##ShaderType; \
@@ -1554,7 +1553,8 @@ struct FShaderCompiledShaderInitializerType
 	ShaderClass::ConstructCompiledInstance, \
 	ShaderClass::ModifyCompilationEnvironmentImpl, \
 	ShaderClass::ShouldCompilePermutationImpl, \
-	ShaderClass::ValidateCompiledResult
+	ShaderClass::ValidateCompiledResult, \
+	ShaderClass::GetRayTracingPayloadType
 
 #if !UE_BUILD_DOCS
 /** A macro to implement a shader type. */
@@ -1571,22 +1571,6 @@ struct FShaderCompiledShaderInitializerType
 		SHADER_TYPE_VTABLE(ShaderClass), \
 		sizeof(ShaderClass), \
 		ShaderClass::GetRootParametersMetadata() \
-		);
-
-#define IMPLEMENT_RAYTRACING_SHADER_TYPE(TemplatePrefix,ShaderClass,SourceFilename,FunctionName,Frequency,RayTracingPayloadType) \
-	IMPLEMENT_UNREGISTERED_TEMPLATE_TYPE_LAYOUT(TemplatePrefix, ShaderClass); \
-	TemplatePrefix \
-	ShaderClass::ShaderMetaType ShaderClass::StaticType( \
-		ShaderClass::StaticGetTypeLayout(), \
-		TEXT(#ShaderClass), \
-		SourceFilename, \
-		FunctionName, \
-		Frequency, \
-		ShaderClass::FPermutationDomain::PermutationCount, \
-		SHADER_TYPE_VTABLE(ShaderClass), \
-		sizeof(ShaderClass), \
-		ShaderClass::GetRootParametersMetadata(), \
-		RayTracingPayloadType \
 		);
 
 /** A macro to implement a shader type. Shader name is got from GetDebugName(), which is helpful for templated shaders. */

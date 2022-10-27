@@ -74,6 +74,7 @@ public:
 		ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
 		ShouldCompilePermutationType InShouldCompilePermutationRef,
 		ValidateCompiledResultType InValidateCompiledResultRef,
+		GetRayTracingPayloadTypeType InGetRayTracingPayloadTypeRef,
 		uint32 InTypeSize,
 		const FShaderParametersMetadata* InRootParametersMetadata = nullptr
 		):
@@ -83,6 +84,7 @@ public:
 			InModifyCompilationEnvironmentRef,
 			InShouldCompilePermutationRef,
 			InValidateCompiledResultRef,
+			InGetRayTracingPayloadTypeRef,
 			InTypeSize,
 			InRootParametersMetadata)
 	{

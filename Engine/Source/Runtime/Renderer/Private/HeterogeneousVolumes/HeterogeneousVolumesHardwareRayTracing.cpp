@@ -295,9 +295,14 @@ class FHeterogeneousVolumesSparseVoxelsHitGroup : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
+
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::SparseVoxel;
+	}
 };
 
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FHeterogeneousVolumesSparseVoxelsHitGroup, "/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesHardwareRayTracing.usf", "closesthit=SparseVoxelsClosestHitShader anyhit=SparseVoxelsAnyHitShader intersection=SparseVoxelsIntersectionShader", SF_RayHitGroup, ERayTracingPayloadType::SparseVoxel);
+IMPLEMENT_GLOBAL_SHADER(FHeterogeneousVolumesSparseVoxelsHitGroup, "/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesHardwareRayTracing.usf", "closesthit=SparseVoxelsClosestHitShader anyhit=SparseVoxelsAnyHitShader intersection=SparseVoxelsIntersectionShader", SF_RayHitGroup);
 
 class FHeterogeneousVolumesSparseVoxelMS : public FGlobalShader
 {
@@ -315,10 +320,15 @@ class FHeterogeneousVolumesSparseVoxelMS : public FGlobalShader
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::SparseVoxel;
+	}
+
 	using FParameters = FEmptyShaderParameters;
 };
 
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FHeterogeneousVolumesSparseVoxelMS, "/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesHardwareRayTracing.usf", "SparseVoxelsMissShader", SF_RayMiss, ERayTracingPayloadType::SparseVoxel);
+IMPLEMENT_GLOBAL_SHADER(FHeterogeneousVolumesSparseVoxelMS, "/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesHardwareRayTracing.usf", "SparseVoxelsMissShader", SF_RayMiss);
 
 class FRenderLightingCacheWithPreshadingRGS : public FGlobalShader
 {
@@ -386,9 +396,14 @@ class FRenderLightingCacheWithPreshadingRGS : public FGlobalShader
 			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 		}
 	}
+
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::SparseVoxel;
+	}
 };
 
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRenderLightingCacheWithPreshadingRGS, "/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesHardwareRayTracing.usf", "RenderLightingCacheWithPreshadingRGS", SF_RayGen, ERayTracingPayloadType::SparseVoxel);
+IMPLEMENT_GLOBAL_SHADER(FRenderLightingCacheWithPreshadingRGS, "/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesHardwareRayTracing.usf", "RenderLightingCacheWithPreshadingRGS", SF_RayGen);
 
 class FRenderSingleScatteringWithPreshadingRGS : public FGlobalShader
 {
@@ -461,9 +476,14 @@ class FRenderSingleScatteringWithPreshadingRGS : public FGlobalShader
 			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 		}
 	}
+
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::SparseVoxel;
+	}
 };
 
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRenderSingleScatteringWithPreshadingRGS, "/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesHardwareRayTracing.usf", "RenderSingleScatteringWithPreshadingRGS", SF_RayGen, ERayTracingPayloadType::SparseVoxel);
+IMPLEMENT_GLOBAL_SHADER(FRenderSingleScatteringWithPreshadingRGS, "/Engine/Private/HeterogeneousVolumes/HeterogeneousVolumesHardwareRayTracing.usf", "RenderSingleScatteringWithPreshadingRGS", SF_RayGen);
 
 FRayTracingLocalShaderBindings* BuildRayTracingMaterialBindings(
 	FRHICommandList& RHICmdList,

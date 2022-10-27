@@ -41,10 +41,15 @@ class FRayTracingDeferredMaterialCHS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_LIGHTWEIGHT_CLOSEST_HIT_SHADER"), 1);
 	}
 
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::Deferred;
+	}
+
 	using FParameters = FEmptyShaderParameters;
 };
 
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingDeferredMaterialCHS, "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialCHS", SF_RayHitGroup, ERayTracingPayloadType::Deferred);
+IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredMaterialCHS, "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialCHS", SF_RayHitGroup);
 
 class FRayTracingDeferredMaterialMS : public FGlobalShader
 {
@@ -61,10 +66,15 @@ class FRayTracingDeferredMaterialMS : public FGlobalShader
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::Deferred;
+	}
+
 	using FParameters = FEmptyShaderParameters;
 };
 
-IMPLEMENT_GLOBAL_RAYTRACING_SHADER(FRayTracingDeferredMaterialMS, "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialMS", SF_RayMiss, ERayTracingPayloadType::Deferred);
+IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredMaterialMS, "/Engine/Private/RayTracing/RayTracingDeferredMaterials.usf", "DeferredMaterialMS", SF_RayMiss);
 
 FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingDeferredMaterialGatherPipeline(FRHICommandList& RHICmdList, const FViewInfo& View, const TArrayView<FRHIRayTracingShader*>& RayGenShaderTable)
 {
