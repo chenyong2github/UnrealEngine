@@ -1603,11 +1603,19 @@ bool FVirtualizationManager::CreateBackend(const FConfigFile& ConfigFile, const 
 			{
 				UE_LOG(LogVirtualization, Fatal, TEXT("IVirtualizationBackendFactory '%s' failed to create an instance!"), *Factory->GetName().ToString());
 				return false;
-
 			}
 
 			if (Backend->Initialize(Cmdine))
 			{
+				// The read only flag can be applied to any backend so we check for it and apply it at this point
+				bool bReadOnly = false;
+				FParse::Bool(*Cmdine, TEXT("ReadOnly="), bReadOnly);
+
+				if (bReadOnly && Backend->DisableOperation(IVirtualizationBackend::EOperations::Push))
+				{
+					UE_LOG(LogVirtualization, Display, TEXT("The backend '%s' was set to readonly by the config file!"), *Backend->GetDebugName());
+				}
+
 				AddBackend(MoveTemp(Backend), PushArray);
 			}
 			else

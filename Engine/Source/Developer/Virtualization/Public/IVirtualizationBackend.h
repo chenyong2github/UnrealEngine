@@ -162,6 +162,22 @@ public:
 
 		return true;
 	}
+
+	/**
+	 * Disables operations on the backend
+	 * @param Operation	The operation(s) to be disabled
+	 * 
+	 * @return	True if at least one previously enabled operation was disabled by the call
+	 *			False if there was no change.
+	 */
+	bool DisableOperation(EOperations Operation)
+	{
+		EOperations OriginalValue = SupportedOperations;
+
+		EnumRemoveFlags(SupportedOperations, Operation);
+
+		return OriginalValue != SupportedOperations;
+	}
 	
 	/** 
 	 * Returns true if the given operation is supported, this is set when the backend is created
