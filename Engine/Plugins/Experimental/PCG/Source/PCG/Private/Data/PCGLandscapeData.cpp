@@ -51,7 +51,10 @@ void UPCGLandscapeData::Initialize(const TArray<TWeakObjectPtr<ALandscapeProxy>>
 
 				for (const FName& Layer : Layers)
 				{
-					Metadata->CreateFloatAttribute(Layer, 0.0f, /*bAllowInterpolation=*/true);
+					if (!Metadata->HasAttribute(Layer))
+					{
+						Metadata->CreateFloatAttribute(Layer, 0.0f, /*bAllowInterpolation=*/true);
+					}
 				}
 			}
 		}
