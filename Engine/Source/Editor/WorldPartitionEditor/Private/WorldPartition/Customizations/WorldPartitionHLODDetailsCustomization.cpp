@@ -79,7 +79,10 @@ FReply FWorldPartitionHLODDetailsCustomization::OnBuildHLOD()
 			// Add all used materials to the material update context.
 			for (UMaterialInterface* UsedMaterial : UsedMaterials)
 			{
-				MaterialUpdateContext.AddMaterialInterface(UsedMaterial);
+				if (UsedMaterial)
+				{
+					MaterialUpdateContext.AddMaterialInterface(UsedMaterial);
+				}
 			}
 		}
 	}
