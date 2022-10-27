@@ -69,6 +69,8 @@ void UAnimStateAliasNode::AutowireNewNode(UEdGraphPin* FromPin)
 
 void UAnimStateAliasNode::PostPasteNode()
 {
+	Super::PostPasteNode();
+
 	// Find an interesting name, but try to keep the same if possible
 	TSharedPtr<INameValidatorInterface> NameValidator = FNameValidatorFactory::MakeValidator(this);
 	NameValidator->FindValidString(StateAliasName);

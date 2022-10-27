@@ -17,6 +17,8 @@
 
 void UAnimGraphNode_LinkedAnimGraph::PostPasteNode()
 {
+	Super::PostPasteNode();
+
 	// Clear incompatible target class
 	if(UClass* InstanceClass = GetTargetClass())
 	{
