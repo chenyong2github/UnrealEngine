@@ -351,7 +351,10 @@ public:
 		uint32 PageAllocationSize = FMath::RoundUpToPowerOfTwo(MaxPageBytes);
 		if (PageAllocationSize > TryGetSize(PageUploadBuffer))
 		{
-			AllocatePooledBuffer(FRDGBufferDesc::CreateByteAddressUploadDesc(PageAllocationSize), PageUploadBuffer, TEXT("Nanite.PageUploadBuffer"));
+			// Add EBufferUsageFlags::Dynamic to skip the unneeded copy from upload to VRAM resource on d3d12 RHI
+			FRDGBufferDesc BufferDesc = FRDGBufferDesc::CreateByteAddressUploadDesc(PageAllocationSize);
+			BufferDesc.Usage = BufferDesc.Usage | EBufferUsageFlags::Dynamic;
+			AllocatePooledBuffer(BufferDesc, PageUploadBuffer, TEXT("Nanite.PageUploadBuffer"));
 		}
 
 		PageDataPtr = (uint8*)RHILockBuffer(PageUploadBuffer->GetRHI(), 0, PageAllocationSize, RLM_WriteOnly);
