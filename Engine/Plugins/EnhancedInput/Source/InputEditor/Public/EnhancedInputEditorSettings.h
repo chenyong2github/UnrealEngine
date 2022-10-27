@@ -5,26 +5,12 @@
 #include "CoreMinimal.h"
 #include "Engine/DeveloperSettings.h"
 #include "Engine/DeveloperSettingsBackedByCVars.h"
+#include "EnhancedInputDeveloperSettings.h"
 
 #include "EnhancedInputEditorSettings.generated.h"
 
 class UEnhancedPlayerInput;
-class UInputMappingContext;
 class UEnhancedInputEditorSubsystem;
-
-USTRUCT()
-struct FDefaultContextSetting
-{
-	GENERATED_BODY()
-
-	/** Input Mapping Context that should be Added to the EnhancedInputEditorSubsystem when it starts listening for input */
-	UPROPERTY(EditAnywhere, Category = "Input")
-	TSoftObjectPtr<const UInputMappingContext> InputMappingContext = nullptr;
-
-	/** The prioirty that should be given to this mapping context when it is added */
-	UPROPERTY(EditAnywhere, Category = "Input")
-	int32 Priority = 0;
-};
 
 /** Settings for the Enhanced Input Editor Subsystem that are persistent between a project's users */
 UCLASS(config = Input, defaultconfig, meta = (DisplayName = "Enhanced Input (Editor Only)"))

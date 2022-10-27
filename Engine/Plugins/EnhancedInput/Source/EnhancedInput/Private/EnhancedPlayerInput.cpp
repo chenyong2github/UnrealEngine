@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
 #include "EnhancedInputDeveloperSettings.h"
+#include "InputMappingContext.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedPlayerInput)
 
@@ -20,6 +21,26 @@ namespace UE
 		static FAutoConsoleVariableRef CVarShouldOnlyTriggerLastActionInChord(TEXT("EnhancedInput.OnlyTriggerLastActionInChord"),
 			ShouldOnlyTriggerLastActionInChord,
 			TEXT("Should only the last action in a ChordedAction trigger be fired? If this is disabled, then the dependant chords will be fired as well"));
+
+		static int32 EnableDefaultMappingContexts = 1;
+		static FAutoConsoleVariableRef CVarEnableDefaultMappingContexts(TEXT("EnhancedInput.EnableDefaultMappingContexts"),
+			EnableDefaultMappingContexts,
+			TEXT("Should the UEnhancedInputDeveloperSettings::DefaultMappingContexts be applied to every UEnhancedPlayerInput?"));
+	}
+}
+
+UEnhancedPlayerInput::UEnhancedPlayerInput()
+	: Super()
+{
+	if (UE::Input::EnableDefaultMappingContexts)
+	{
+		for (const FDefaultContextSetting& DefaultContext : GetDefault<UEnhancedInputDeveloperSettings>()->DefaultMappingContexts)
+		{
+			if (const UInputMappingContext* IMC = DefaultContext.InputMappingContext.LoadSynchronous())
+			{
+				AppliedInputContexts.Add(IMC, DefaultContext.Priority);
+			}
+		}
 	}
 }
 

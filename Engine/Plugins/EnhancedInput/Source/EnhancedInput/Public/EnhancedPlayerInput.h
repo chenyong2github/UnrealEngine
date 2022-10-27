@@ -44,6 +44,8 @@ class ENHANCEDINPUT_API UEnhancedPlayerInput : public UPlayerInput
 
 public:
 
+	UEnhancedPlayerInput();
+
 	/**
 	* Returns the action instance data for the given input action if there is any. Returns nullptr if the action is not available.
 	*/
