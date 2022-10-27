@@ -548,6 +548,12 @@ void MainCS(
 	}
 	#endif
 	
+	#if POST_PROCESS_ALPHA
+		OriginalInput = min(OriginalInput, tsr_simd_halfC::Const(LargestSceneColorRGBA));
+	#else
+		OriginalInput = min(OriginalInput, tsr_simd_halfC::Const(LargestSceneColorRGB));
+	#endif
+
 	// Convert input to LDR
 	OriginalOpaqueInput = OriginalOpaqueInput * rcp(OriginalOpaqueInput + tsr_simd_halfC::Const(1.0));
 	OriginalInput = OriginalInput * rcp(OriginalInput + tsr_simd_halfC::Const(1.0));
