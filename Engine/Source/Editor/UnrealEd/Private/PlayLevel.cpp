@@ -2,6 +2,8 @@
 
 #include "PlayLevel.h"
 #include "CoreMinimal.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
@@ -2621,6 +2623,9 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 
 	// Make sure there's no outstanding load requests
 	FlushAsyncLoading();
+
+	// Gameplay relies on asset registry to be fully constructed, wait for completion before starting PIE
+	IAssetRegistry::GetChecked().WaitForCompletion();
 
 	// Update the Blueprint Debugger 
 	FBlueprintEditorUtils::FindAndSetDebuggableBlueprintInstances();
