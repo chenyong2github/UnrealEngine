@@ -24,6 +24,17 @@ bool FFileSystemBackend::Initialize(const FString& ConfigEntry)
 		return false;
 	}
 
+	FString EnvOverrideName;
+	if (FParse::Value(*ConfigEntry, TEXT("EnvPathOverride="), EnvOverrideName))
+	{
+		FString OverridePath = FPlatformMisc::GetEnvironmentVariable(*EnvOverrideName);
+		if (!OverridePath.IsEmpty())
+		{
+			UE_LOG(LogVirtualization, Log, TEXT("[%s] Overriding path with envvar '%s'"), *GetDebugName(), *EnvOverrideName);
+			RootDirectory = OverridePath;
+		}
+	}
+
 	FPaths::NormalizeDirectoryName(RootDirectory);
 
 	if (RootDirectory.IsEmpty())

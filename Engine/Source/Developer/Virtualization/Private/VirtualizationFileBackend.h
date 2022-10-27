@@ -27,6 +27,9 @@ namespace UE::Virtualization
  * RetryWaitTime:	The length of time the process should wait between each read attempt in milliseconds.
  *					Remember that the max length of time that the process can stall attempting to read
  *					a payload file is RetryCount * RetryWaitTime; [Default=100ms]
+ * EnvPathOverride: The name of the environment variable that the user can set to override 'Path'. This 
+ *					should only ever be set if you wish for the users to be able to choose where the 
+ *					payloads are being stored and do not rely on 'Path' always being used. [Default=""]
  */
 class FFileSystemBackend final : public IVirtualizationBackend
 {
