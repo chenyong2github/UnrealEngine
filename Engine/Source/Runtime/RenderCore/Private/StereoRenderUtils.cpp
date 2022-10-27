@@ -125,4 +125,37 @@ RENDERCORE_API FStereoShaderAspects::FStereoShaderAspects(EShaderPlatform Platfo
 	checkf(!bInstancedStereoEnabled || (bInstancedMultiViewportEnabled || bMobileMultiViewFallback), TEXT("If ISR is enabled, we need either multi-viewport (since we no longer support clip-distance method) or MMV fallback (which uses vertex layer)."));
 }
 	
-} // namespace UE::RenderUtils
+
+RENDERCORE_API void LogISRInit(const UE::StereoRenderUtils::FStereoShaderAspects& Aspects)
+{
+	UE_LOG(LogInit, Log, TEXT("XR: Instanced Stereo Rendering is %s"), (Aspects.IsInstancedStereoEnabled() ? TEXT("Enabled") : TEXT("Disabled")));
+	UE_LOG(LogInit, Log, TEXT("XR: MultiViewport is %s"), (Aspects.IsInstancedMultiViewportEnabled() ? TEXT("Enabled") : TEXT("Disabled")));
+	UE_LOG(LogInit, Log, TEXT("XR: Mobile Multiview is %s"), (Aspects.IsMobileMultiViewEnabled() ? TEXT("Enabled") : TEXT("Disabled")));
+}
+
+RENDERCORE_API void VerifyISRConfig(const UE::StereoRenderUtils::FStereoShaderAspects& Aspects, EShaderPlatform ShaderPlatform)
+{
+	// If instanced stereo is enabled, we should also have either multiviewport enabled, or mmv fallback enabled.
+	// Otherwise, exit gracefully with a message box
+	if (Aspects.IsInstancedStereoEnabled() && !Aspects.IsInstancedMultiViewportEnabled() && !Aspects.IsMobileMultiViewEnabled())
+	{
+		UE_LOG(LogInit, Log, TEXT("ShaderPlatform=%d RHISupportsInstancedStereo()=%d GRHISupportsArrayIndexFromAnyShader=%d"),
+			ShaderPlatform, RHISupportsMultiViewport(ShaderPlatform), GRHISupportsArrayIndexFromAnyShader);
+
+		// MessageBoxExt may not yet handle unattended runs itself (see UE-165694), so special-case here to avoid getting stuck in a commandlet with rendering enabled
+		const FText MessageText = NSLOCTEXT("InstancedStereo", "UnableToUseInstancedStereoRenderingText", "Cannot render an Instanced Stereo-enabled project due to a missing functionality on the system. Please check log files for more info.");
+		if (!FApp::IsUnattended())
+		{
+			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *MessageText.ToString(),
+				*NSLOCTEXT("InstancedStereo", "UnableToUseInstancedStereoRendering", "Unable to use Instanced Stereo Rendering.").ToString());
+		}
+		else
+		{
+			UE_LOG(LogInit, Error, TEXT("%s"), *MessageText.ToString());
+		}
+		FPlatformMisc::RequestExitWithStatus(true, 1);
+		// unreachable
+	}
+}
+
+} // namespace UE::StereoRenderUtils

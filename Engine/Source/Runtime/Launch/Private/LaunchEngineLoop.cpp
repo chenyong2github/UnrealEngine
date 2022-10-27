@@ -6485,29 +6485,11 @@ void FEngineLoop::PostInitRHI()
 	{
 		// perform an early check of hardware capabilities
 		EShaderPlatform ShaderPlatform = GMaxRHIShaderPlatform;
+
 		const UE::StereoRenderUtils::FStereoShaderAspects Aspects(ShaderPlatform);
 
-		// If instanced stereo is enabled, we should also have either multiviewport enabled, or mmv fallback enabled.
-		// Otherwise, exit gracefully with a message box
-		if (Aspects.IsInstancedStereoEnabled() && !Aspects.IsInstancedMultiViewportEnabled() && !Aspects.IsMobileMultiViewEnabled())
-		{
-			UE_LOG(LogInit, Log, TEXT("ShaderPlatform=%d RHISupportsInstancedStereo()=%d GRHISupportsArrayIndexFromAnyShader=%d"),
-				ShaderPlatform, RHISupportsMultiViewport(ShaderPlatform), GRHISupportsArrayIndexFromAnyShader);
-
-			// MessageBoxExt may not yet handle unattended runs itself (see UE-165694), so special-case here to avoid getting stuck in a commandlet with rendering enabled
-			const FText MessageText = NSLOCTEXT("InstancedStereo", "UnableToUseInstancedStereoRenderingText", "Cannot render an Instanced Stereo-enabled project due to a missing functionality on the system. Please check log files for more info.");
-			if (!FApp::IsUnattended())
-			{
-				FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *MessageText.ToString(),
-					*NSLOCTEXT("InstancedStereo", "UnableToUseInstancedStereoRendering", "Unable to use Instanced Stereo Rendering.").ToString());
-			}
-			else
-			{
-				UE_LOG(LogInit, Error, TEXT("%s"), *MessageText.ToString());					
-			}
-			FPlatformMisc::RequestExitWithStatus(true, 1);
-			// unreachable
-		}
+		UE::StereoRenderUtils::LogISRInit(Aspects);
+		UE::StereoRenderUtils::VerifyISRConfig(Aspects, ShaderPlatform);
 	}
 
 #endif
