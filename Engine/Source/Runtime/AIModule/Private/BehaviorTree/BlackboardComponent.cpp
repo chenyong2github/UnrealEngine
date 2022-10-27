@@ -178,7 +178,10 @@ bool UBlackboardComponent::InitializeBlackboard(UBlackboardData& NewAsset)
 		for (int32 Index = 0; Index < InitList.Num(); Index++)
 		{
 			const FBlackboardEntry* KeyData = BlackboardAsset->GetKey(InitList[Index].KeyID);
-			KeyData->KeyType->InitializeKey(*this, InitList[Index].KeyID);
+			if (ensureMsgf(KeyData && KeyData->KeyType, TEXT("Too many elements in blackboard %s (%u)"),*GetNameSafe(BlackboardAsset), InitList.Num()))
+			{
+				KeyData->KeyType->InitializeKey(*this, InitList[Index].KeyID);
+			}
 		}
 
 		// naive initial synchronization with one of already instantiated blackboards using the same BB asset
