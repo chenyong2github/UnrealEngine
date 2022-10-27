@@ -178,14 +178,17 @@ FDateTime IFileViewTreeItem::DefaultDateTimeValue; // Default is FDateTime::MinV
 
 void IFileViewTreeItem::SetLastModifiedDateTime(const FDateTime& Timestamp)
 {
-	LastModifiedDateTime = Timestamp;
-	if (Timestamp != FDateTime::MinValue())
+	if (Timestamp != LastModifiedDateTime) // Pay the text conversion only if needed.
 	{
-		LastModifiedTimestampText = FText::AsDateTime(Timestamp, EDateTimeStyle::Short);
-	}
-	else
-	{
-		LastModifiedTimestampText = FText::GetEmpty();
+		LastModifiedDateTime = Timestamp;
+		if (Timestamp != FDateTime::MinValue())
+		{
+			LastModifiedTimestampText = FText::AsDateTime(Timestamp, EDateTimeStyle::Short);
+		}
+		else
+		{
+			LastModifiedTimestampText = FText::GetEmpty();
+		}
 	}
 }
 

@@ -50,6 +50,7 @@ private:
 	};
 
 private:
+	TSharedRef<SWidget> MakeToolBar();
 	TSharedRef<SChangelistTree> CreateChangelistTreeView(TArray<TSharedPtr<IChangelistTreeItem>>& ItemSources);
 	TSharedRef<STreeView<FChangelistTreeItemPtr>> CreateChangelistFilesView();
 
@@ -88,6 +89,11 @@ private:
 
 	/** Returns list of currently selected files */
 	TArray<FString> GetSelectedFiles();
+	bool HasFilesSelected() const;
+
+	/** Returns list of currently selected shelved files */
+	TArray<FString> GetSelectedShelvedFiles();
+	bool HasShelvedFilesSelected() const;
 
 	/**
 	 * Splits selected files between Controlled and Uncontrolled files.
@@ -102,9 +108,6 @@ private:
 	 * @param 	OutUncontrolledFileStates	Selected uncontrolled file states will be added to this array.
 	 */
 	void GetSelectedFileStates(TArray<FSourceControlStateRef>& OutControlledFileStates, TArray<FSourceControlStateRef>& OutUncontrolledFileStates);
-
-	/** Returns list of currently selected shelved files */
-	TArray<FString> GetSelectedShelvedFiles();
 
 	/** Intercept Enter and Delete key presses to Submit or Delete the selected changelist (if conditions are met) */
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
@@ -171,8 +174,6 @@ private:
 	void SaveExpandedAndSelectionStates(FExpandedAndSelectionStates& OutStates);
 	void RestoreExpandedAndSelectionStates(const FExpandedAndSelectionStates& InStates);
 
-	TSharedRef<SWidget> MakeToolBar();
-	
 	/** Executes an operation to updates the changelist description of the provided changelist with a new description. */
 	void EditChangelistDescription(const FText& InNewChangelistDescription, const FSourceControlChangelistStatePtr& InChangelistState);
 
