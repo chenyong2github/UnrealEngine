@@ -452,9 +452,6 @@ void DrawBasePass(
 
 	FRDGBufferRef VisibleClustersSWHW	= RasterResults.VisibleClustersSWHW;
 
-	// TODO: Reintroduce wave-ops
-	// FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(GMaxRHIShaderPlatform)
-
 	const FIntPoint TileGridDim = FMath::DivideAndRoundUp(ViewSize, { 64, 64 });
 
 	const uint32 MaxMaterialSlots = NANITE_MAX_STATE_BUCKET_ID + 1;

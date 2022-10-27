@@ -380,7 +380,7 @@ DEFINE_GPU_DRAWCALL_STAT(VirtualTextureUpdate);
 DECLARE_GPU_STAT(UploadDynamicBuffers);
 DECLARE_GPU_STAT(PostOpaqueExtensions);
 
-DECLARE_GPU_STAT_NAMED(NaniteVisbuffer, TEXT("Nanite VisBuffer"));
+DECLARE_GPU_STAT_NAMED(NaniteVisBuffer, TEXT("Nanite VisBuffer"));
 
 DECLARE_DWORD_COUNTER_STAT(TEXT("BasePass Total Raster Bins"), STAT_NaniteBasePassTotalRasterBins, STATGROUP_Nanite);
 DECLARE_DWORD_COUNTER_STAT(TEXT("BasePass Total Shading Draws"), STAT_NaniteBasePassTotalShadingDraws, STATGROUP_Nanite);
@@ -2751,9 +2751,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;
 	{
-		RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteVisbuffer);
-		RDG_EVENT_SCOPE(GraphBuilder, "Nanite VisBuffer");
-
 		if (bNaniteEnabled && Views.Num() > 0)
 		{
 			LLM_SCOPE_BYTAG(Nanite);
@@ -2794,8 +2791,30 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				SharedContext.ShaderMap = GetGlobalShaderMap(SharedContext.FeatureLevel);
 				SharedContext.Pipeline = Nanite::EPipeline::Primary;
 
+				FIntRect RasterTextureRect(0, 0, RasterTextureSize.X, RasterTextureSize.Y);
+				if (Views.Num() == 1)
+				{
+					const FViewInfo& View = Views[0];
+					if (View.ViewRect.Min.X == 0 && View.ViewRect.Min.Y == 0)
+					{
+						RasterTextureRect = View.ViewRect;
+					}
+				}
+
 				Nanite::FRasterState RasterState;
-				Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, RasterTextureSize, ViewFamily.EngineShowFlags.VisualizeNanite);
+				Nanite::FRasterContext RasterContext;
+
+				// Nanite::VisBuffer (Visibility Buffer Clear)
+				{
+					RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteVisBuffer);
+					RasterContext = Nanite::InitRasterContext(
+						GraphBuilder,
+						SharedContext,
+						RasterTextureSize,
+						RasterTextureRect,
+						ViewFamily.EngineShowFlags.VisualizeNanite
+					);
+				}
 
 				Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
 				CullingConfig.bTwoPassOcclusion = true;
@@ -2808,17 +2827,9 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				{
 					RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
+					Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
 					const FViewInfo& View = Views[ViewIndex];
 					CullingConfig.SetViewFlags(View);
-
-					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
-						GraphBuilder,
-						SharedContext,
-						*Scene,
-						!bIsEarlyDepthComplete ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB,
-						View.ViewRect,
-						CullingConfig
-					);
 
 					static FString EmptyFilterName = TEXT(""); // Empty filter represents primary view.
 					const bool bExtractStats = Nanite::IsStatFilterActive(EmptyFilterName);
@@ -2852,71 +2863,91 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						&HZBTestRect
 					);
 
-					Nanite::FRasterResults& RasterResults = NaniteRasterResults[ViewIndex];
+					Nanite::FCullingContext CullingContext{};
 
-					Nanite::CullRasterize(
-						GraphBuilder,
-						Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
-						RasterResults.VisibilityResults,
-						*Scene,
-						View,
-						{ PackedView },
-						SharedContext,
-						CullingContext,
-						RasterContext,
-						RasterState,
-						/*OptionalInstanceDraws*/ nullptr,
-						bExtractStats
-					);
-
-					if (bNeedsPrePass)
+					// Nanite::VisBuffer (Culling and Rasterization)
 					{
+						RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteVisBuffer);
+						RDG_EVENT_SCOPE(GraphBuilder, "Nanite::VisBuffer");
+
+						CullingContext = Nanite::InitCullingContext(
+							GraphBuilder,
+							SharedContext,
+							*Scene,
+							!bIsEarlyDepthComplete ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB,
+							View.ViewRect,
+							CullingConfig
+						);
+
+						Nanite::CullRasterize(
+							GraphBuilder,
+							Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+							RasterResults.VisibilityResults,
+							*Scene,
+							View,
+							{ PackedView },
+							SharedContext,
+							CullingContext,
+							RasterContext,
+							RasterState,
+							/*OptionalInstanceDraws*/ nullptr,
+							bExtractStats
+						);
+					}
+
+					// Nanite::BasePass (Depth Pre-Pass and HZB Build)
+					{
+						RDG_GPU_STAT_SCOPE(GraphBuilder, NaniteBasePass);
+
 						// Emit velocity with depth if not writing it in base pass.
 						FRDGTexture* VelocityBuffer = !IsUsingBasePassVelocity(ShaderPlatform) ? SceneTextures.Velocity : nullptr;
 
 						const bool bEmitStencilMask = NANITE_MATERIAL_STENCIL != 0;
 
-						Nanite::EmitDepthTargets(
-							GraphBuilder,
-							*Scene,
-							Views[ViewIndex],
-							CullingContext.PageConstants,
-							CullingContext.VisibleClustersSWHW,
-							CullingContext.ViewsBuffer,
-							SceneTextures.Depth.Target,
-							RasterContext.VisBuffer64,
-							VelocityBuffer,
-							RasterResults.MaterialDepth,
-							RasterResults.MaterialResolve,
-							bNeedsPrePass,
-							bEmitStencilMask
-						);
+						if (bNeedsPrePass)
+						{
+							Nanite::EmitDepthTargets(
+								GraphBuilder,
+								*Scene,
+								Views[ViewIndex],
+								CullingContext.PageConstants,
+								CullingContext.VisibleClustersSWHW,
+								CullingContext.ViewsBuffer,
+								SceneTextures.Depth.Target,
+								RasterContext.VisBuffer64,
+								VelocityBuffer,
+								RasterResults.MaterialDepth,
+								RasterResults.MaterialResolve,
+								bNeedsPrePass,
+								bEmitStencilMask
+							);
+						}
+
+						if (!bIsEarlyDepthComplete && CullingConfig.bTwoPassOcclusion && View.ViewState)
+						{
+							// Won't have a complete SceneDepth for post pass so can't use complete HZB for main pass or it will poke holes in the post pass HZB killing occlusion culling.
+							RDG_EVENT_SCOPE(GraphBuilder, "Nanite::BuildHZB");
+
+							FRDGTextureRef SceneDepth = SystemTextures.Black;
+							FRDGTextureRef GraphHZB = nullptr;
+
+							const FIntRect PrimaryViewRect = View.GetPrimaryView()->ViewRect;
+
+							BuildHZBFurthest(
+								GraphBuilder,
+								SceneDepth,
+								RasterContext.VisBuffer64,
+								PrimaryViewRect,
+								FeatureLevel,
+								ShaderPlatform,
+								TEXT("Nanite.HZB"),
+								/* OutFurthestHZBTexture = */ &GraphHZB);
+
+							GraphBuilder.QueueTextureExtraction(GraphHZB, &View.ViewState->PrevFrameViewInfo.NaniteHZB);
+						}
+
+						Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, RasterResults);
 					}
-
-					if (!bIsEarlyDepthComplete && CullingConfig.bTwoPassOcclusion && View.ViewState)
-					{
-						// Won't have a complete SceneDepth for post pass so can't use complete HZB for main pass or it will poke holes in the post pass HZB killing occlusion culling.
-						RDG_EVENT_SCOPE(GraphBuilder, "Nanite::BuildHZB");
-
-						FRDGTextureRef SceneDepth = SystemTextures.Black;
-						FRDGTextureRef GraphHZB = nullptr;
-
-						const FIntRect PrimaryViewRect = View.GetPrimaryView()->ViewRect;
-
-						BuildHZBFurthest(
-							GraphBuilder,
-							SceneDepth,
-							RasterContext.VisBuffer64,
-							PrimaryViewRect,
-							FeatureLevel,
-							ShaderPlatform,
-							TEXT("Nanite.HZB"),
-							/* OutFurthestHZBTexture = */ &GraphHZB );
-
-						GraphBuilder.QueueTextureExtraction( GraphHZB, &View.ViewState->PrevFrameViewInfo.NaniteHZB );
-					}
-
-					Nanite::ExtractResults(GraphBuilder, CullingContext, RasterContext, RasterResults);
 				}
 			}
 		}

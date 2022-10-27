@@ -123,6 +123,16 @@ static FAutoConsoleVariableRef CVarNaniteAllowProgrammableRaster(
 	ECVF_ReadOnly
 );
 
+// 0 : Disabled
+// 1 : Pixel Clear
+// 2 : Tile Clear
+int32 GNaniteFastVisBufferClear = 1;
+static FAutoConsoleVariableRef CVarNaniteFastVisBufferClear(
+	TEXT("r.Nanite.FastVisBufferClear"),
+	GNaniteFastVisBufferClear,
+	TEXT("")
+);
+
 // Requires r.Nanite.AllowProgrammableRaster=1 for compiled shaders
 // 0: Disabled
 // 1: Enabled
@@ -341,6 +351,28 @@ BEGIN_SHADER_PARAMETER_STRUCT( FVirtualTargetParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutDirtyPageFlags)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutStaticInvalidatingPrimitives)
 END_SHADER_PARAMETER_STRUCT()
+
+class FRasterClearCS : public FNaniteGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRasterClearCS);
+	SHADER_USE_PARAMETER_STRUCT(FRasterClearCS, FNaniteGlobalShader);
+
+	class FClearDepthDim : SHADER_PERMUTATION_BOOL("RASTER_CLEAR_DEPTH");
+	class FClearDebugDim : SHADER_PERMUTATION_BOOL("RASTER_CLEAR_DEBUG");
+	class FClearTiledDim : SHADER_PERMUTATION_BOOL("RASTER_CLEAR_TILED");
+	using FPermutationDomain = TShaderPermutationDomain<FClearDepthDim, FClearDebugDim, FClearTiledDim>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterParameters, RasterParameters)
+		SHADER_PARAMETER(FIntVector4, ClearRect)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FRasterClearCS, "/Engine/Private/Nanite/NaniteRasterClear.usf", "RasterClear", SF_Compute);
 
 class FPrimitiveFilter_CS : public FNaniteGlobalShader
 {
@@ -2723,10 +2755,84 @@ FBinningData AddPass_Rasterize(
 	return BinningData;
 }
 
+void AddClearVisBufferPass(
+	FRDGBuilder& GraphBuilder,
+	const FSharedContext& SharedContext,
+	const EPixelFormat PixelFormat64,
+	const FRasterContext& RasterContext,
+	const FIntPoint& TextureSize,
+	const FIntRect& TextureRect,
+	bool bClearTarget,
+	FRDGBufferSRVRef RectMinMaxBufferSRV,
+	uint32 NumRects,
+	FRDGTextureRef ExternalDepthBuffer)
+{
+	if (!bClearTarget)
+	{
+		return;
+	}
+
+	const bool bUseFastClear = GNaniteFastVisBufferClear != 0 && (RectMinMaxBufferSRV == nullptr && NumRects == 0 && ExternalDepthBuffer == nullptr);
+	if (bUseFastClear)
+	{
+		// TODO: Don't currently support offset views.
+		checkf(TextureRect.Min.X == 0 && TextureRect.Min.Y == 0, TEXT("Viewport offset support is not implemented."));
+
+		const bool bTiled = (GNaniteFastVisBufferClear == 2);
+
+		FRasterClearCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRasterClearCS::FParameters>();
+		PassParameters->ClearRect = FIntVector4(TextureRect.Min.X, TextureRect.Min.Y, TextureRect.Max.X, TextureRect.Max.Y);
+		PassParameters->RasterParameters = RasterContext.Parameters;
+
+		FRasterClearCS::FPermutationDomain PermutationVectorCS;
+		PermutationVectorCS.Set<FRasterClearCS::FClearDepthDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
+		PermutationVectorCS.Set<FRasterClearCS::FClearDebugDim>(RasterContext.VisualizeActive);
+		PermutationVectorCS.Set<FRasterClearCS::FClearTiledDim>(bTiled);
+		auto ComputeShader = SharedContext.ShaderMap->GetShader<FRasterClearCS>(PermutationVectorCS);
+
+		const FIntPoint ClearSize(TextureRect.Width(), TextureRect.Height());
+		const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(ClearSize, bTiled ? 32 : 8);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("RasterClear"),
+			ComputeShader,
+			PassParameters,
+			DispatchDim
+		);
+	}
+	else
+	{
+		const uint32 ClearValue[4] = { 0, 0, 0, 0 };
+
+		TArray<FRDGTextureUAVRef, TInlineAllocator<3>> BufferClearList;
+		if (RasterContext.RasterMode == EOutputBufferMode::DepthOnly)
+		{
+			BufferClearList.Add(RasterContext.Parameters.OutDepthBuffer);
+		}
+		else
+		{
+			BufferClearList.Add(RasterContext.Parameters.OutVisBuffer64);
+
+			if (RasterContext.VisualizeActive)
+			{
+				BufferClearList.Add(RasterContext.Parameters.OutDbgBuffer64);
+				BufferClearList.Add(RasterContext.Parameters.OutDbgBuffer32);
+			}
+		}
+
+		for (FRDGTextureUAVRef UAVRef : BufferClearList)
+		{
+			AddClearUAVPass(GraphBuilder, SharedContext.FeatureLevel, UAVRef, ClearValue, RectMinMaxBufferSRV, NumRects);
+		}
+	}
+}
+
 FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,
 	const FSharedContext& SharedContext,
 	FIntPoint TextureSize,
+	FIntRect TextureRect,
 	bool bVisualize,
 	EOutputBufferMode RasterMode,
 	bool bClearTarget,
@@ -2783,8 +2889,6 @@ FRasterContext InitRasterContext(
 	RasterContext.DbgBuffer64	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PixelFormat64, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV | ETextureCreateFlags::Atomic64Compatible), TEXT("Nanite.DbgBuffer64") );
 	RasterContext.DbgBuffer32	= GraphBuilder.CreateTexture( FRDGTextureDesc::Create2D(RasterContext.TextureSize, PF_R32_UINT, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_UAV), TEXT("Nanite.DbgBuffer32") );
 
-	const uint32 ClearValue[4] = { 0, 0, 0, 0 };
-
 	if (RasterContext.RasterMode == EOutputBufferMode::DepthOnly)
 	{
 		if (!GNaniteAsyncRasterizeShadowDepths && RasterContext.RasterScheduling == ERasterScheduling::HardwareAndSoftwareOverlap)
@@ -2792,37 +2896,39 @@ FRasterContext InitRasterContext(
 			RasterContext.RasterScheduling = ERasterScheduling::HardwareThenSoftware;
 		}
 
-		// TODO: There may be a better way to do this...
-		if ( RasterContext.DepthBuffer->Desc.Dimension == ETextureDimension::Texture2DArray )
+		if (RasterContext.DepthBuffer->Desc.Dimension == ETextureDimension::Texture2DArray)
 		{
-			RasterContext.Parameters.OutDepthBufferArray = GraphBuilder.CreateUAV( RasterContext.DepthBuffer );
-			check(!bClearTarget);		// TODO; not needed at the moment. This path is only used with VSMs right now
+			RasterContext.Parameters.OutDepthBufferArray = GraphBuilder.CreateUAV(RasterContext.DepthBuffer);
+			check(!bClearTarget); // Clearing is not required; this path is only used with VSMs.
 		}
 		else
 		{
-			RasterContext.Parameters.OutDepthBuffer = GraphBuilder.CreateUAV( RasterContext.DepthBuffer );
-			if (bClearTarget)
-			{
-				AddClearUAVPass( GraphBuilder, SharedContext.FeatureLevel, RasterContext.Parameters.OutDepthBuffer, ClearValue, RectMinMaxBufferSRV, NumRects );
-			}
+			RasterContext.Parameters.OutDepthBuffer = GraphBuilder.CreateUAV(RasterContext.DepthBuffer);
 		}
 	}
 	else
 	{
-		RasterContext.Parameters.OutVisBuffer64 = GraphBuilder.CreateUAV( RasterContext.VisBuffer64 );
-		if (bClearTarget)
-		{
-			AddClearUAVPass( GraphBuilder, SharedContext.FeatureLevel, RasterContext.Parameters.OutVisBuffer64, ClearValue, RectMinMaxBufferSRV, NumRects );
-		}
+		RasterContext.Parameters.OutVisBuffer64 = GraphBuilder.CreateUAV(RasterContext.VisBuffer64);
 		
 		if (RasterContext.VisualizeActive)
 		{
-			RasterContext.Parameters.OutDbgBuffer64 = GraphBuilder.CreateUAV( RasterContext.DbgBuffer64 );
-			RasterContext.Parameters.OutDbgBuffer32 = GraphBuilder.CreateUAV( RasterContext.DbgBuffer32 );
-			AddClearUAVPass( GraphBuilder, SharedContext.FeatureLevel, RasterContext.Parameters.OutDbgBuffer64, ClearValue, RectMinMaxBufferSRV, NumRects );
-			AddClearUAVPass( GraphBuilder, SharedContext.FeatureLevel, RasterContext.Parameters.OutDbgBuffer32, ClearValue, RectMinMaxBufferSRV, NumRects );
+			RasterContext.Parameters.OutDbgBuffer64 = GraphBuilder.CreateUAV(RasterContext.DbgBuffer64);
+			RasterContext.Parameters.OutDbgBuffer32 = GraphBuilder.CreateUAV(RasterContext.DbgBuffer32);
 		}
 	}
+
+	AddClearVisBufferPass(
+		GraphBuilder,
+		SharedContext,
+		PixelFormat64,
+		RasterContext,
+		TextureSize,
+		TextureRect,
+		bClearTarget,
+		RectMinMaxBufferSRV,
+		NumRects,
+		ExternalDepthBuffer
+	);
 
 	return RasterContext;
 }

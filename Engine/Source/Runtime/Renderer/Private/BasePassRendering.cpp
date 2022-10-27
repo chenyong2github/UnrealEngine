@@ -148,7 +148,7 @@ DECLARE_CYCLE_STAT(TEXT("AfterAnisotropyPass"), STAT_CLM_AfterAnisotropyPass, ST
 
 DECLARE_CYCLE_STAT(TEXT("BasePass"), STAT_CLP_BasePass, STATGROUP_ParallelCommandListMarkers);
 
-DECLARE_GPU_STAT_NAMED(NaniteBasePass, TEXT("Nanite BasePass"));
+DEFINE_GPU_STAT(NaniteBasePass);
 
 static bool IsBasePassWaitForTasksEnabled()
 {

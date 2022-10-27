@@ -145,6 +145,7 @@ void FShadowSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bo
 			GraphBuilder,
 			SharedContext,
 			VirtualShadowSize,
+			VirtualShadowViewRect,
 			false,
 			Nanite::EOutputBufferMode::DepthOnly,
 			false,	// Clear entire texture

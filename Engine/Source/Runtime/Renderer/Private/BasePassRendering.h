@@ -125,8 +125,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucentBasePassUniformParameters,)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorCopySampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
-
 DECLARE_GPU_DRAWCALL_STAT_EXTERN(Basepass);
+DECLARE_GPU_STAT_NAMED_EXTERN(NaniteBasePass, TEXT("Nanite BasePass"));
 
 extern void SetupSharedBasePassParameters(
 	FRDGBuilder& GraphBuilder,

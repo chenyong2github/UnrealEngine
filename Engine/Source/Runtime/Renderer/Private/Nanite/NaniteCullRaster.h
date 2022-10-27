@@ -164,6 +164,7 @@ FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,
 	const FSharedContext& SharedContext,
 	FIntPoint TextureSize,
+	FIntRect TextureRect,
 	bool bVisualize,
 	EOutputBufferMode RasterMode = EOutputBufferMode::VisBuffer,
 	bool bClearTarget = true,

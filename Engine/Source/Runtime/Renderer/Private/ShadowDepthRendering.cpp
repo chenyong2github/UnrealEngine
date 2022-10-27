@@ -1416,7 +1416,7 @@ static void RenderShadowDepthAtlasNanite(
 		CullingConfig.SetViewFlags(SceneView);
 
 		Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, SharedContext, Scene, PrevAtlasHZB, FullAtlasViewRect, CullingConfig);
-		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, AtlasSize, false, Nanite::EOutputBufferMode::DepthOnly);
+		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, AtlasSize, FullAtlasViewRect, false, Nanite::EOutputBufferMode::DepthOnly);
 
 		bool bExtractStats = false;
 		if (GNaniteShowStats != 0)
@@ -1681,7 +1681,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 	ExternalAccessQueue.Submit(GraphBuilder);
 
-	// Begin new deferred culling bacthing scope to catch shadow render passes, as there can use dynamic primitives that have not been uploaded before 
+	// Begin new deferred culling batching scope to catch shadow render passes, as there can use dynamic primitives that have not been uploaded before 
 	// the previous batching scope. Also flushes the culling views registered during the setup (in InitViewsAfterPrepass) that are referenced in the shadow view
 	// culling.
 	InstanceCullingManager.BeginDeferredCulling(GraphBuilder, Scene->GPUScene);
@@ -1790,7 +1790,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 					CullingConfig.SetViewFlags(SceneView);
 
 					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, SharedContext, *Scene, PrevHZB, ShadowViewRect, CullingConfig);
-					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, TargetSize, false, Nanite::EOutputBufferMode::DepthOnly);
+					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, SharedContext, TargetSize, ShadowViewRect, false, Nanite::EOutputBufferMode::DepthOnly);
 
 					FNaniteVisibilityResults VisibilityResults; // TODO: Hook up culling for shadows
 
