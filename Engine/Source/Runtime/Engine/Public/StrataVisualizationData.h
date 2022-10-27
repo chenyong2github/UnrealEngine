@@ -16,6 +16,7 @@ public:
 		MaterialClassification,
 		DecalClassification,
 		RoughRefractionClassification,
+		StrataInfo,
 	};
 
 	/** Describes a single available visualization mode. */

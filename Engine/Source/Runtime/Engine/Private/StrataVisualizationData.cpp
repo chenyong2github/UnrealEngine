@@ -133,6 +133,14 @@ void FStrataVisualizationData::Initialize()
 				true);
 		}
 
+		AddVisualizationMode(
+			ModeMap,
+			TEXT("StrataInfo"),
+			LOCTEXT("StrataInfo", "Strata Info"),
+			LOCTEXT("StrataInfoDesc", "Visualizes Strata info"),
+			FViewMode::StrataInfo,
+			true);
+
 		ConsoleDocumentationVisualizationMode = ConfigureConsoleCommand(ModeMap);
 	}
 	bIsInitialized = true;

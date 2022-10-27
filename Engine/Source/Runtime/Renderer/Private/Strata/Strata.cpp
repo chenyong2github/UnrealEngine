@@ -130,10 +130,6 @@ const TCHAR* ToString(EStrataTileType Type)
 	return TEXT("Unknown");
 }
 
-FORCEINLINE bool SupportsCMask(const FStaticShaderPlatform InPlatform)
-{
-	return CVarUseCmaskClear.GetValueOnRenderThread() > 0 && FDataDrivenShaderPlatformInfo::GetSupportsRenderTargetWriteMask(InPlatform);
-}
 
 namespace Strata
 {
@@ -154,6 +150,11 @@ enum EStrataTileSpace
 	StrataTileSpace_Overflow = 2u
 };
 
+float GetStrataTileOverflowRatio()
+{
+	return FMath::Clamp(CVarStrataTileOverflow.GetValueOnRenderThread(), 0.f, 4.0f);
+}
+
 static FIntPoint GetStrataTextureTileResolution(const FIntPoint& InResolution, uint32 InSpace)
 {
 	FIntPoint Out = InResolution;
@@ -165,7 +166,7 @@ static FIntPoint GetStrataTextureTileResolution(const FIntPoint& InResolution, u
 	}
 	if (InSpace & EStrataTileSpace::StrataTileSpace_Overflow)
 	{
-		const float OverflowRatio = FMath::Clamp(CVarStrataTileOverflow.GetValueOnRenderThread(), 0.f, 4.0f);
+		const float OverflowRatio = GetStrataTileOverflowRatio();
 		Out.Y += FMath::DivideAndRoundUp(FMath::CeilToInt(InResolution.Y * OverflowRatio), STRATA_TILE_SIZE);
 	}
 	return Out;
@@ -184,10 +185,25 @@ FIntPoint GetStrataTextureResolution(const FIntPoint& InResolution)
 
 static void BindStrataGlobalUniformParameters(FRDGBuilder& GraphBuilder, FStrataViewData* StrataViewData, FStrataGlobalUniformParameters& OutStrataUniformParameters);
 
+bool SupportsCMask(const FStaticShaderPlatform InPlatform)
+{
+	return CVarUseCmaskClear.GetValueOnRenderThread() > 0 && FDataDrivenShaderPlatformInfo::GetSupportsRenderTargetWriteMask(InPlatform);
+}
+
+bool IsClassificationCoord8bits()
+{
+	return CVarStrataTileCoord8Bits.GetValueOnRenderThread() == 1;
+}
+
+bool IsClassificationAsync()
+{
+	return CVarStrataAsyncClassification.GetValueOnRenderThread() > 0;
+}
+
 static EPixelFormat GetClassificationTileFormat(const FIntPoint& InResolution)
 {
 	// For platform which whose resolution is never above 1080p, use 8bit tile format for performance.
-	const bool bRequest8bit = CVarStrataTileCoord8Bits.GetValueOnRenderThread() == 1;
+	const bool bRequest8bit = IsClassificationCoord8bits();
 	if (bRequest8bit)
 	{
 		check(InResolution.X <= 2048 && InResolution.Y <= 2048);
@@ -1120,7 +1136,7 @@ void AddStrataMaterialClassificationPass(FRDGBuilder& GraphBuilder, const FMinim
 	}
 
 	// Optionally run tile classification in async compute
-	const ERDGPassFlags PassFlags = CVarStrataAsyncClassification.GetValueOnRenderThread() > 0 ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute;
+	const ERDGPassFlags PassFlags = IsClassificationAsync() ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute;
 
 	for (int32 i = 0; i < Views.Num(); ++i)
 	{
