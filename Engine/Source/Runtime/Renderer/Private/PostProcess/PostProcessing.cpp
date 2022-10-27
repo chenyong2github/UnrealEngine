@@ -161,6 +161,7 @@ bool IsPostProcessingEnabled(const FViewInfo& View)
 			!View.Family->EngineShowFlags.VisualizeDistanceFieldAO &&
 			!View.Family->EngineShowFlags.VisualizeShadingModels &&
 			!View.Family->EngineShowFlags.VisualizeVolumetricCloudConservativeDensity &&
+			!View.Family->EngineShowFlags.VisualizeVolumetricCloudEmptySpaceSkipping &&
 			!View.Family->EngineShowFlags.ShaderComplexity;
 	}
 	else

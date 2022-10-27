@@ -39,10 +39,12 @@ FCloudLayerParameters GetCloudLayerParams(
 
 #define TRACING_SHADOW_DISTANCE_OFF	0.0f
 
+#define SPACE_SKIPPING_SLICE_DEPTH_OFF 0.0f
+
 // Function to update the material parameter structure for an evaluation
 void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 	FLWCVector3 AbsoluteWorldPosition, in ViewState InputView, in FCloudLayerParameters CloudLayerParams,
-	in float ShadowSampleDistance)
+	in float ShadowSampleDistance, in float EmptySpaceSkippingSliceDepth)
 {
 	MaterialParameters.AbsoluteWorldPosition = AbsoluteWorldPosition;
 	MaterialParameters.WorldPosition_CamRelative = LWCToFloat(LWCAdd(MaterialParameters.AbsoluteWorldPosition, InputView.PreViewTranslation));
@@ -61,8 +63,8 @@ void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 	MaterialParameters.VolumeSampleConservativeDensity = GetVolumetricAdvancedMaterialOutput6(MaterialParameters);	// Evaluate conservative density
 #endif
 
-	MaterialParameters.CloudEmptySpaceSkippingSphereCenterWorldPosition = 0.0f;
-	MaterialParameters.CloudEmptySpaceSkippingSphereRadius = 0.0f;
+	MaterialParameters.CloudEmptySpaceSkippingSphereCenterWorldPosition = LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition); // This is the same as the WorldPosition node but float3
+	MaterialParameters.CloudEmptySpaceSkippingSphereRadius = 0.5f * EmptySpaceSkippingSliceDepth * 1.73f;			// 1.73 = sqrt(1*1+1*1+1*1), the lenght of the diagonal of a cube as compared to its unit edge length
 
 	MaterialParameters.ShadowSampleDistance = ShadowSampleDistance;
 }

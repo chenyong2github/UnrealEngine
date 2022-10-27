@@ -241,6 +241,7 @@ bool IsAutoExposureDebugMode(const FViewInfo& View)
 		EngineShowFlags.RayTracingDebug ||
 		EngineShowFlags.VisualizeDistanceFieldAO ||
 		EngineShowFlags.VisualizeVolumetricCloudConservativeDensity ||
+		EngineShowFlags.VisualizeVolumetricCloudEmptySpaceSkipping ||
 		EngineShowFlags.CollisionVisibility ||
 		EngineShowFlags.CollisionPawn ||
 		!EngineShowFlags.PostProcessing;

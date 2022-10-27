@@ -55,8 +55,8 @@
 #define CLOUD_DEBUG_SAMPLES 0
 #endif
 
-#ifndef CLOUD_SAMPLE_COUNT_DEBUG_MODE
-#define CLOUD_SAMPLE_COUNT_DEBUG_MODE 0
+#ifndef CLOUD_DEBUG_VIEW_MODE
+#define CLOUD_DEBUG_VIEW_MODE 0
 #endif
 
 // Draw debug sample positions
@@ -635,7 +635,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 		const float MsPhaseFactor = 1.0f;
 #endif
 
-#if CLOUD_CONSERVATIVE_DENSITY_DEBUG
+#if CLOUD_DEBUG_VIEW_MODE
 		uint DebugZeroConservativeDensitySampleCount = 0;
 #endif
 
@@ -697,7 +697,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 		// Read from empty space skipping
 		//
 		uint StartStepCount = 0;
-	#if SHADER_RENDERVIEW_CS_WITH_EMPTY_SPACE_SKIPPING
+	#if SHADER_RENDERVIEW_CS_WITH_EMPTY_SPACE_SKIPPING && !CLOUD_DEBUG_VIEW_MODE
 		const float StartDepthKm = StartTracingDistanceTexture[SvPositionToViewportUV(SvPosition) * StartTracingDistanceTextureResolution];
 		const float StartDepthCm = StartDepthKm * KILOMETER_TO_CENTIMETER;
 		if (t < StartDepthCm)
@@ -720,18 +720,13 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 			// Update FMaterialPixelParameters according to current sample.
 			//////////////////////////////
 			UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition,
-				ResolvedView, CloudLayerParams, TRACING_SHADOW_DISTANCE_OFF);
+				ResolvedView, CloudLayerParams, TRACING_SHADOW_DISTANCE_OFF, RenderVolumetricCloudParameters.EmptySpaceSkippingSliceDepth);
 
-#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
+#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY && !CLOUD_DEBUG_VIEW_MODE
 			if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 			{
-#if CLOUD_CONSERVATIVE_DENSITY_DEBUG
-				++DebugZeroConservativeDensitySampleCount;
-				t += StepT;
-#else
 				i += StepSizeOnZeroConservativeDensity - 1;
 				t += StepSizeOnZeroConservativeDensity * StepT;
-#endif
 
 			#if CLOUD_DEBUG_SAMPLES
 				if (bDrawDebugEnabled) AddCrossTWS(LWCToFloat(SampleTranslatedWorldPosition), 60000.0f, float4(1, 0, 0, 0.5));
@@ -746,6 +741,18 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 			#endif // CLOUD_DEBUG_SAMPLES
 #endif
 
+#if CLOUD_DEBUG_VIEW_MODE
+			if (RenderVolumetricCloudParameters.CloudDebugViewMode == 1 && MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
+			{
+				++DebugZeroConservativeDensitySampleCount;
+			}
+		#if SHADER_RENDERVIEW_CS_WITH_EMPTY_SPACE_SKIPPING
+			else if (RenderVolumetricCloudParameters.CloudDebugViewMode == 2 && GetVolumetricCloudEmptySpaceSkippingOutput0(MaterialParameters).x <= 0.0f)
+			{
+				++DebugZeroConservativeDensitySampleCount;
+			}
+		#endif
+#endif
 
 			//////////////////////////////
 			// Sample the participating media material at the sample position.
@@ -837,7 +844,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 						const float DetlaNormT = CurrentNormT - PreviousNormT;
 						const float ShadowSampleDistance = ShadowLengthTest * (CurrentNormT - 0.5 * DetlaNormT);
 						UpdateMaterialCloudParam(MaterialParameters, LWCAdd(SampleWorldPosition, LWCPromote(float3(0.0f, 0.0f, -1.0f) * ShadowSampleDistance)),
-							ResolvedView, CloudLayerParams, ShadowSampleDistance);
+							ResolvedView, CloudLayerParams, ShadowSampleDistance, SPACE_SKIPPING_SLICE_DEPTH_OFF);
 						PreviousNormT = CurrentNormT;
 #if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 						if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
@@ -857,7 +864,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 					{
 						const float ShadowSampleDistance = ShadowLengthTest * (ShadowT * InvShadowStepCount);
 						UpdateMaterialCloudParam(MaterialParameters, LWCAdd(SampleWorldPosition, LWCPromote(float3(0.0f, 0.0f, -1.0f) * ShadowSampleDistance)),
-							ResolvedView, CloudLayerParams, ShadowSampleDistance);
+							ResolvedView, CloudLayerParams, ShadowSampleDistance, SPACE_SKIPPING_SLICE_DEPTH_OFF);
 #if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 						if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 						{
@@ -913,7 +920,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				{
 					PMC.TransmittanceToLight0[ms] *= exp(-OutOpticalDepth * (ms == 0 ? 1.0f : pow(MsExtinFactor, ms)));
 				}
-#else 
+#else			
 				// Use raymarched shadows
 				UNROLL
 				for (ms = 0; ms < MSCOUNT; ++ms)
@@ -927,7 +934,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				{
 					const float ShadowSampleDistance = ShadowLengthTest * (ShadowT * InvShadowStepCount);
 					UpdateMaterialCloudParam(MaterialParameters, LWCAdd(SampleWorldPosition, LWCPromote(Light0Direction * ShadowSampleDistance)),
-						ResolvedView, CloudLayerParams, ShadowSampleDistance);
+						ResolvedView, CloudLayerParams, ShadowSampleDistance, SPACE_SKIPPING_SLICE_DEPTH_OFF);
 					const float ExtinctionFactor = 1.0f;
 #else
 				// Non-linear shadow sample distribution, hardcoded to x^2
@@ -941,7 +948,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 					const float ShadowSampleDistance = ShadowLengthTest * (PreviousNormT + DetlaNormT * ShadowJitterNorm);
 					const FLWCVector3 ShadowSampleWorldPos = LWCAdd(SampleWorldPosition, LWCPromote(Light0Direction * ShadowSampleDistance));
 					UpdateMaterialCloudParam(MaterialParameters, ShadowSampleWorldPos,
-						ResolvedView, CloudLayerParams, ShadowSampleDistance);
+						ResolvedView, CloudLayerParams, ShadowSampleDistance, SPACE_SKIPPING_SLICE_DEPTH_OFF);
 					PreviousNormT = CurrentNormT;
 #endif
 
@@ -1015,7 +1022,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 						const float ExtinctionFactor = DetlaNormT;
 						const float ShadowSampleDistance = ShadowLengthTest * (PreviousNormT + DetlaNormT * ShadowJitterNorm);
 						UpdateMaterialCloudParam(MaterialParameters, LWCAdd(SampleWorldPosition, LWCPromote(Light1Direction * ShadowSampleDistance)),
-							ResolvedView, CloudLayerParams, ShadowSampleDistance);
+							ResolvedView, CloudLayerParams, ShadowSampleDistance, SPACE_SKIPPING_SLICE_DEPTH_OFF);
 						PreviousNormT = CurrentNormT;
 
 #if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
@@ -1145,7 +1152,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 							for (float ShadowT = ShadowJitterNorm; ShadowT < ShadowStepCount; ShadowT += 1.0f)
 							{
 								UpdateMaterialCloudParam(MaterialParameters, LWCAdd(SampleWorldPosition, LWCPromote(SampleToLightNorm * ShadowLengthTest * (ShadowT * InvShadowStepCount))),
-									ResolvedView, CloudLayerParams, TRACING_SHADOW_DISTANCE_OFF);
+									ResolvedView, CloudLayerParams, TRACING_SHADOW_DISTANCE_OFF, SPACE_SKIPPING_SLICE_DEPTH_OFF);
 								const float ExtinctionFactor = 1.0f;
 
 								CalcPixelMaterialInputs(MaterialParameters, PixelMaterialInputs);
@@ -1252,8 +1259,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 			}
 
 			// This is helpful for performance. Can result in less light pucnhing through clouds. Should be a setting.
-			if (all(TransmittanceToView < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold) 
-				&& !CLOUD_CONSERVATIVE_DENSITY_DEBUG)
+			if (all(TransmittanceToView < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold) && (!CLOUD_DEBUG_VIEW_MODE))
 			{
 				break;
 			}
@@ -1261,8 +1267,11 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 			t += StepT;
 			}
 
-#if CLOUD_CONSERVATIVE_DENSITY_DEBUG
-		OutColor0.r = 1.0 - saturate(DebugZeroConservativeDensitySampleCount / float(IStepCount));
+#if CLOUD_DEBUG_VIEW_MODE
+		if (RenderVolumetricCloudParameters.CloudDebugViewMode >= 1)
+		{
+			OutColor0.r = 1.0 - saturate(DebugZeroConservativeDensitySampleCount / float(IStepCount));
+		}
 #endif
 	}
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1338,7 +1347,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 	//
 
 	float GrayScaleTransmittance = MeanTransmittance < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold ? 0.0f : MeanTransmittance;
-#if CLOUD_CONSERVATIVE_DENSITY_DEBUG
+#if CLOUD_DEBUG_VIEW_MODE
 	OutColor0 = float4(OutColor0.r * OutputPreExposure, Luminance.gb * OutputPreExposure, GrayScaleTransmittance);
 #else
 	OutColor0 = float4(Luminance * OutputPreExposure, GrayScaleTransmittance);
@@ -1461,8 +1470,8 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3 GroupThreadId : 
 {
 #if MATERIAL_VOLUMETRIC_CLOUD_EMPTY_SPACE_SKIPPING_OUTPUT
 
+	const float SliceDepth = RenderVolumetricCloudParameters.EmptySpaceSkippingSliceDepth;
 	ResolvedView = ResolveView();
-	const float SliceDepth = StartTracingSampleVolumeDepth * (1.0f / THREADGROUP_SIZEZ);
 
 	float2 PixelUV = float2(DispatchThreadId.x + 0.5, DispatchThreadId.y + 0.5) / StartTracingDistanceTextureResolution;
 	float4 SvPosition = float4(PixelUV * ResolvedView.ViewSizeAndInvSize.xy, 0.1, 1);
@@ -1478,10 +1487,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3 GroupThreadId : 
 	const float SampleDistanceFromCamera = (float(GroupThreadId.z) + 0.5f) * SliceDepth;
 	const float3 Raydir =-MaterialParameters.CameraVector;
 	UpdateMaterialCloudParam(MaterialParameters, LWCAdd(ResolvedView.WorldCameraOrigin, LWCPromote(Raydir * SampleDistanceFromCamera)),
-		ResolvedView, CloudLayerParams, SampleDistanceFromCamera);
-
-	MaterialParameters.CloudEmptySpaceSkippingSphereCenterWorldPosition = LWCHackToFloat(MaterialParameters.AbsoluteWorldPosition); // This is the same as the WorldPOsitionNode but float3
-	MaterialParameters.CloudEmptySpaceSkippingSphereRadius = 0.5f * SliceDepth * 1.73f;	// 1.73 = sqrt(1*1+1*1+1*1), the lenght of the diagonal of a cube as compared to its unit edge length
+		ResolvedView, CloudLayerParams, TRACING_SHADOW_DISTANCE_OFF, RenderVolumetricCloudParameters.EmptySpaceSkippingSliceDepth);
 
 	float CloudEmptySpaceSkippingOutput0 = GetVolumetricCloudEmptySpaceSkippingOutput0(MaterialParameters);
 	GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z].FrontDepthKm = CloudEmptySpaceSkippingOutput0 > 0.0f ? (float(GroupThreadId.z) + 0.0f) * SliceDepth * CENTIMETER_TO_KILOMETER : GetDefaultDepth();
@@ -1706,7 +1712,7 @@ void MainPS(
 		{
 			const float SampleT = ShadowLengthTest * (ShadowT * InvShadowStepCount);
 			UpdateMaterialCloudParam(MaterialParameters, LWCPromote(WorldPosOnLayer + LightDirection * SampleT),			// LWC TODO FIX ME
-				ResolvedView, CloudLayerParams, SampleT);
+				ResolvedView, CloudLayerParams, SampleT, SPACE_SKIPPING_SLICE_DEPTH_OFF);
 
 		#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 			if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)

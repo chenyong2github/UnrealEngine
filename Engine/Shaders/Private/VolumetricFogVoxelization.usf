@@ -310,9 +310,8 @@ void VoxelizePS(
 	FCloudLayerParameters CloudLayerParams = GetCloudLayerParams(
 		VoxelizeVolumePass.RenderVolumetricCloudParametersCloudLayerCenterKm, VoxelizeVolumePass.RenderVolumetricCloudParametersPlanetRadiusKm,
 		VoxelizeVolumePass.RenderVolumetricCloudParametersBottomRadiusKm, VoxelizeVolumePass.RenderVolumetricCloudParametersTopRadiusKm);
-	const float NotShadowSample = 0.0f;
 	FLWCVector3 AbsoluteWorldPosition = SvPositionToWorld(SvPosition);
-	UpdateMaterialCloudParam(MaterialParameters, AbsoluteWorldPosition, ResolvedView, CloudLayerParams, NotShadowSample);
+	UpdateMaterialCloudParam(MaterialParameters, AbsoluteWorldPosition, ResolvedView, CloudLayerParams, TRACING_SHADOW_DISTANCE_OFF, SPACE_SKIPPING_SLICE_DEPTH_OFF);
 #endif
 
 	FPixelMaterialInputs PixelMaterialInputs;
