@@ -5,12 +5,12 @@
 #include "Misc/FeedbackContext.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SBox.h"
-
 #include "DragAndDrop/ClassDragDropOp.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
 #include "UObject/UObjectIterator.h"
+#include "PropertyNode.h"
 #include "PropertyRestriction.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"

@@ -4,7 +4,7 @@
 #include "Misc/FeedbackContext.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SBox.h"
-
+#include "PropertyNode.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "StructViewerModule.h"
 #include "StructViewerFilter.h"

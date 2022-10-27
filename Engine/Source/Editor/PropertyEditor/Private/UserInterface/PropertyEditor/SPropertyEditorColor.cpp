@@ -5,6 +5,7 @@
 #include "Engine/Engine.h"
 #include "Components/LightComponent.h"
 #include "Editor.h"
+#include "PropertyNode.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Materials/MaterialExpressionConstant3Vector.h"
 #include "Widgets/Colors/SColorPicker.h"
