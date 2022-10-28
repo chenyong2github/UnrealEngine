@@ -13,7 +13,7 @@ namespace LowLevelTests
 	public class LowLevelTests : BaseTest
 	{
 		private LowLevelTestContext Context;
-		
+
 		private IAppInstance TestInstance;
 
 		private DateTime SessionStartTime = DateTime.MinValue;
@@ -131,10 +131,10 @@ namespace LowLevelTests
 				Log.Warning("No StdOut returned from low level test app.");
 			}
 			else // Save log artifact
-			{	
+			{
 				const string ClientLogFile = "ClientOutput.log";
 				string ClientOutputLog = Path.Combine(ArtifactPath, ClientLogFile);
-				
+
 				using (var ClientOutputWriter = File.CreateText(ClientOutputLog))
 				{
 					ClientOutputWriter.Write(StdOut);
@@ -158,38 +158,48 @@ namespace LowLevelTests
 				Log.Error("Failed to copy report: {0}", ex.ToString());
 			}
 
-			bool ReportResult = false;
-			if (ReportCopied)
-			{
-				string ReportContents = File.ReadAllText(ReportPath);
-				Console.WriteLine(ReportContents);
-				LowLevelTestsLogParser LowLevelTestsLogParser = new LowLevelTestsLogParser(ReportContents);
-				ReportResult = LowLevelTestsLogParser.GetCatchTestResults().Passed;
-			}
 
-			UnrealProcessResult Result = GetExitCodeAndReason(
-				InReason,
-				ReportResult,
-				StdOut,
-				out string ExitReason,
-				out int ExitCode);
-
-			if (ExitCode == 0)
+			string ExitReason = "";
+			if (TestInstance.WasKilled)
 			{
-				LowLevelTestResult = TestResult.Passed;
-			}
-			else
-			{
-				if (Result == UnrealProcessResult.TimeOut)
+				if (InReason == StopReason.MaxDuration)
 				{
 					LowLevelTestResult = TestResult.TimedOut;
+					ExitReason = "Timed Out";
 				}
 				else
 				{
 					LowLevelTestResult = TestResult.Failed;
+					ExitReason = "Process was killed by Gauntlet.";
 				}
-				Log.Info("Low level test exited with code {0} and reason: {1}", ExitCode, ExitReason);
 			}
+			else if (TestInstance.ExitCode != 0)
+			{
+				LowLevelTestResult = TestResult.Failed;
+				ExitReason = $"Process exited with exit code {TestInstance.ExitCode}";
+			}
+			else if (!ReportCopied)
+			{
+				LowLevelTestResult = TestResult.Failed;
+				ExitReason = "Uabled to read test report";
+			}
+			else
+			{
+				string ReportContents = File.ReadAllText(ReportPath);
+				Log.Info(ReportContents);
+				LowLevelTestsLogParser LowLevelTestsLogParser = new LowLevelTestsLogParser(ReportContents);
+				if (LowLevelTestsLogParser.GetCatchTestResults().Passed)
+				{
+					LowLevelTestResult = TestResult.Passed;
+					ExitReason = "Tests passed";
+				}
+				else
+				{
+					LowLevelTestResult = TestResult.Failed;
+					ExitReason = "Tests failed";
+				}
+			}
+			Log.Info($"Low level test exited with code {TestInstance.ExitCode} and reason: {ExitReason}");
 		}
 
 		public override void CleanupTest()
@@ -198,64 +208,6 @@ namespace LowLevelTests
 			{
 				LowLevelTestsApp.Dispose();
 				LowLevelTestsApp = null;
-			}
-		}
-
-		protected virtual UnrealProcessResult GetExitCodeAndReason(StopReason InReason, bool ReportResult, string StdOut, out string ExitReason, out int ExitCode)
-		{
-			UnrealLog UnrealLog = new UnrealLogParser(StdOut).GetSummary();
-			
-			if (TestInstance.WasKilled)
-			{
-				if (InReason == StopReason.MaxDuration)
-				{
-					ExitReason = "Process was killed by Gauntlet due to a timeout.";
-					ExitCode = -1;
-					return UnrealProcessResult.TimeOut;
-				}
-				else
-				{
-					ExitReason = "Process was killed by Gauntlet.";
-					ExitCode = 0;
-					return UnrealProcessResult.ExitOk;
-				}
-			}
-
-			// First we check for unreal specific issues.
-			// A successful test run must be free of these.
-			if (UnrealLog.FatalError != null)
-			{
-				ExitReason = "Process encountered fatal error";
-				ExitCode = -1;
-				return UnrealProcessResult.EncounteredFatalError;
-			}
-
-			if (UnrealLog.Ensures.Count() > 0)
-			{
-				ExitReason = string.Format("Process encountered {0} Ensures", UnrealLog.Ensures.Count());
-				ExitCode = -1;
-				return UnrealProcessResult.EncounteredEnsure;
-			}
-
-			if (UnrealLog.RequestedExit)
-			{
-				ExitReason = string.Format("Exit was requested: {0}", UnrealLog.RequestedExitReason);
-				ExitCode = 0;
-				return UnrealProcessResult.ExitOk;
-			}
-
-			// Then we check for actual test results.
-			if (ReportResult)
-			{
-				ExitReason = "All Catch2 tests passed.";
-				ExitCode = 0;
-				return UnrealProcessResult.ExitOk;
-			}
-			else
-			{
-				ExitReason = "Catch2 tests failed.";
-				ExitCode = -1;
-				return UnrealProcessResult.TestFailure;
 			}
 		}
 	}

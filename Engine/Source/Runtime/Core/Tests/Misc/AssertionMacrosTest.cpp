@@ -92,14 +92,14 @@ TEST_CASE("Core::Misc::TestEnsure", "[Core][Misc][AssertionMacros][Ensure]")
 	}
 
 	{
-		//not much of test of CHECK_ENSURE as its hard to tell if the coninue part is working
+		//not much of test of CHECK_ENSURE as its hard to tell if the continue part is working
 		int result = 0;
 		CHECK_ENSURE(result = EnsureForCheck(0));
 		REQUIRE(result == 2);
 	}
 	
 	{
-		//multiple failed ensure should continue beecause its wrapped in a scope
+		//multiple failed ensure should continue because its wrapped in a scope
 		int result = 0;
 		REQUIRE_ENSURE(result = EnsureMultipleFailures(7));
 		REQUIRE(result == 8);
@@ -114,7 +114,7 @@ TEST_CASE("Core::Misc::TestEnsure", "[Core][Misc][AssertionMacros][Ensure]")
 	}
 }
 
-DISABLED_TEST_CASE("Core::Misc::TestCheck", "[Core][Misc][AssertionMacros][Check]")
+TEST_CASE("Core::Misc::TestCheck", "[Core][Misc][AssertionMacros][Check]")
 {
 	REQUIRE_CHECK(check(1 == 2));
 	REQUIRE_CHECK_MSG("1 == 2", checkf(1 == 2, TEXT("Error Message")));
