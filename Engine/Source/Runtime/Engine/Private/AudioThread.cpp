@@ -150,11 +150,8 @@ void FAudioThread::SuspendAudioThread()
 		[&SuspendEvent]
 		{
 			GIsAudioThreadSuspended.store(true, std::memory_order_release);
+			UE::Tasks::AddNested(*ResumeEvent);
 			SuspendEvent->Trigger();
-
-			ResumeEvent->BusyWait(); // don't block one of workers while audio pipe is suspended
-			ResumeEvent = MakeUnique<UE::Tasks::FTaskEvent>(UE_SOURCE_LOCATION); // thread-safe because happens "inside" a suspend call and 
-			// can't happen concurrently with a resume call
 		}
 	);
 
@@ -184,6 +181,7 @@ void FAudioThread::ResumeAudioThread()
 
 	check(!ResumeEvent->IsCompleted());
 	ResumeEvent->Trigger();
+	ResumeEvent = MakeUnique<UE::Tasks::FTaskEvent>(UE_SOURCE_LOCATION);
 }
 
 #else // UE_AUDIO_THREAD_AS_PIPE
