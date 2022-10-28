@@ -374,7 +374,7 @@ public:
 
 	// Sets the current descriptor tables on the command list and marks any descriptor tables as dirty if necessary.
 	// Returns true if one of the heaps actually changed, false otherwise.
-	bool SetDescriptorHeaps();
+	bool SetDescriptorHeaps(bool bForceHeapChanged = false);
 
 protected:
 	FD3D12CommandContext& Context;

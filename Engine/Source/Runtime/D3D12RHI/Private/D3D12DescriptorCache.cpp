@@ -72,10 +72,10 @@ void FD3D12DescriptorCache::Init(uint32 InNumLocalViewDescriptors, uint32 InNumS
 	OverrideSamplerHeap = nullptr;
 }
 
-bool FD3D12DescriptorCache::SetDescriptorHeaps()
+bool FD3D12DescriptorCache::SetDescriptorHeaps(bool bForceHeapChanged)
 {
 	// See if the descriptor heaps changed.
-	bool bHeapChanged = false;
+	bool bHeapChanged = bForceHeapChanged;
 
 	ID3D12DescriptorHeap* PendingViewHeap = OverrideViewHeap ? OverrideViewHeap->GetHeap() : CurrentViewHeap->GetHeap();
 	if (LastSetViewHeap != PendingViewHeap)

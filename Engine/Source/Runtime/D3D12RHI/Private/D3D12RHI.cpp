@@ -616,7 +616,7 @@ void FD3D12DynamicRHI::RHIFinishExternalComputeWork(uint32 InDeviceIndex, ID3D12
 	check(InCommandList == Device->GetDefaultCommandContext().GraphicsCommandList().GetNoRefCount());
 
 	Device->GetDefaultCommandContext().StateCache.ForceSetComputeRootSignature();
-	Device->GetDefaultCommandContext().StateCache.GetDescriptorCache()->SetDescriptorHeaps();
+	Device->GetDefaultCommandContext().StateCache.GetDescriptorCache()->SetDescriptorHeaps(true);
 }
 
 void FD3D12DynamicRHI::RHITransitionResource(FRHICommandList& RHICmdList, FRHITexture* InTexture, D3D12_RESOURCE_STATES InState, uint32 InSubResource)
