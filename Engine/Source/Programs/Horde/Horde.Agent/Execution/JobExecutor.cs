@@ -14,7 +14,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Timers;
 using EpicGames.Core;
 using EpicGames.Horde.Storage;
 using EpicGames.Horde.Storage.Backends;
@@ -36,6 +35,8 @@ namespace Horde.Agent.Execution
 {
 	abstract class JobExecutor
 	{
+		public const string StorageHttpClientName = "Storage";
+
 		protected class ExportedNode
 		{
 			public string Name { get; set; } = String.Empty;
@@ -658,11 +659,11 @@ namespace Horde.Agent.Execution
 			// Create the storage client
 			using MemoryCache cache = new MemoryCache(new MemoryCacheOptions { });
 
-			using HttpClient httpClient = _httpClientFactory.CreateClient();
+			using HttpClient httpClient = _httpClientFactory.CreateClient(StorageHttpClientName);
 			httpClient.BaseAddress = _session.ServerUrl;
 			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _session.Token);
 
-			using HttpClient redirectHttpClient = _httpClientFactory.CreateClient();
+			using HttpClient redirectHttpClient = _httpClientFactory.CreateClient(StorageHttpClientName);
 
 			HttpStorageClient storage = new HttpStorageClient(new NamespaceId("default"), httpClient, redirectHttpClient, cache, logger);
 //			FileStorageClient storage = new FileStorageClient(DirectoryReference.Combine(sharedStorageDir, "bundles"), cache, logger);

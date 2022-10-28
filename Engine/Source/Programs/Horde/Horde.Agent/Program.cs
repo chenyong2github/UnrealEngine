@@ -171,6 +171,12 @@ namespace Horde.Agent
 				return builder.WaitAndRetryAsync(new[] { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) });
 			});
 
+			services.AddHttpClient(JobExecutor.StorageHttpClientName)
+				.AddTransientHttpErrorPolicy(builder =>
+				{
+					return builder.WaitAndRetryAsync(new[] { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) });
+				});
+
 			services.AddHordeStorage(settings => configSection.GetCurrentServerProfile().GetSection(nameof(serverProfile.Storage)).Bind(settings));
 
 			services.AddSingleton<GrpcService>();
