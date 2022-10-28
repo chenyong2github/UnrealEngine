@@ -1409,6 +1409,8 @@ void AActor::SetFolderPath_Recursively(const FName& NewFolderPath)
 // Ideally, this should be revisited to implement something more generic.
 void AActor::EditorReplacedActor(AActor* OldActor)
 {
+	ContentBundleGuid = OldActor->ContentBundleGuid;
+
 	SetActorLabel(OldActor->GetActorLabel());
 	Tags = OldActor->Tags;
 	
