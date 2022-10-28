@@ -102,8 +102,9 @@ export class Slack {
 		return this.get('groups.history', args)
 	}
 
-	async lookupUserIdByEmail(email: string) : Promise<string> {
-		return (await this.get('users.lookupByEmail', {email})).user.id
+	async lookupUserIdByEmail(email: string) {
+		const userLookupResult = await this.get('users.lookupByEmail', {email}, true)
+		return userLookupResult.ok ? userLookupResult.user.id : null
 	}
 
 	async openDMConversation(users: string | string[]) : Promise<string> {

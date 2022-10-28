@@ -2024,7 +2024,13 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 							const emailAddress = await this.findEmail(triager)
 							if (emailAddress)
 							{
-								triager = `<@${await this.slackMessages.getSlackUser(emailAddress)}>`
+								const user = await this.slackMessages.getSlackUser(emailAddress)
+								if (user) {
+									triager = `<@${user}>`
+								}
+								else {
+									this.nodeBotLogger.error(`Unable to look up triager from ${triager} (${emailAddress})`)
+								}
 							}
 						}
 

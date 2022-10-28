@@ -357,9 +357,14 @@ export class SlackMessages {
 	async addUserToChannel(emailAddress: string, channel: string)
 	{
 		const user = await this.getSlackUser(emailAddress)
-		const result = await this.slack.addUserToChannel(user, channel)
-		if (!result.ok && result.error !== "already_in_channel") {
-			this.smLogger.error(`Error inviting ${emailAddress} (${user}) to channel ${channel}: ${result.error}`)
+		if (user) {
+			const result = await this.slack.addUserToChannel(user, channel)
+			if (!result.ok && result.error !== "already_in_channel") {
+				this.smLogger.error(`Error inviting ${emailAddress} (${user}) to channel ${channel}: ${result.error}`)
+			}
+		}
+		else {
+			this.smLogger.error(`Unable to add ${emailAddress} to channel ${channel}`)
 		}
 	}
 
