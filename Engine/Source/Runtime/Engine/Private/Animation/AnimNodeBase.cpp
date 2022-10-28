@@ -110,7 +110,7 @@ void FAnimationBaseContext::LogMessageInternal(FName InLogType, EMessageSeverity
 /////////////////////////////////////////////////////
 // FPoseContext
 
-void FPoseContext::Initialize(FAnimInstanceProxy* InAnimInstanceProxy)
+void FPoseContext::InitializeImpl(FAnimInstanceProxy* InAnimInstanceProxy)
 {
 	AnimInstanceProxy = InAnimInstanceProxy;
 
