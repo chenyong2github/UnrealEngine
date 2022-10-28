@@ -132,7 +132,7 @@ export class Slack {
 		throw new Error(`${command} generated:\n\t${resultJson}`)
 	}
 
-	/*private*/ async get(command: string, args: any) {
+	/*private*/ async get(command: string, args: any, canFail? : boolean) {
 
 		// erg: why am I always passing a channel?
 		if (this.channel.id && !args.channel) {
@@ -150,11 +150,16 @@ export class Slack {
 			headers: {Authorization: 'Bearer ' + this.channel.botToken}
 		})
 
-		const result = JSON.parse(rawResult)
-		if (!result.ok) {
-			throw new Error(`url: '${url}' error: '${rawResult}'`)
+		try {
+			const result = JSON.parse(rawResult)
+			if (result.ok || canFail) {
+				return result
+			}
 		}
-		return result
+		catch {
+		}
+		
+		throw new Error(`url: '${url}' error: '${rawResult}'`)
 	}
 
 	async* getPages(command: string, limit?: number, inArgs?: any) {

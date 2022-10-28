@@ -16,6 +16,10 @@ export class DummySlackApp implements AppInterface {
 	post(command: string) {
 		// @todo (maybe) construct app with logger
 
+		if (command.startsWith("conversations.invite")) {
+			return { ok: true }
+		}
+
 		const data = this.req.reqData
 		if (!data) {
 			throw new Error('Nothing to post!')
@@ -29,7 +33,7 @@ export class DummySlackApp implements AppInterface {
 			}
 			catch (exc) {
 				console.log('Non-JSON sent to dummy-slack: ', data)
-				return
+				return {}
 			}
 
 			setDefault(
@@ -44,10 +48,23 @@ export class DummySlackApp implements AppInterface {
 		// look for color for block or resolve?
 
 		// careful, two changes for resolutions, luckily first is what we want
+
+		return {}
 	}
 
 	@Handler('GET', '/posted/*')
 	channelMessages(channel: string) {
 		return [...(posted.get(channel) || [])]
 	}
+
+	@Handler('GET', '/api/*')
+	get(command: string) {
+		console.log('dummy-slack GET: ', command)
+		if (command.startsWith("users.lookupByEmail"))
+		{
+			return { ok: true, user: { id: ""} }
+		}
+		return { ok: false }
+	}
+
 }
