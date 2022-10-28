@@ -12,4 +12,10 @@ public:
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
+	void OnPostEngineInit();
+
+protected:
+
+	TArray<FName> ClassesToUnregisterOnShutdown;
+	TArray<FName> PropertiesToUnregisterOnShutdown;
 };

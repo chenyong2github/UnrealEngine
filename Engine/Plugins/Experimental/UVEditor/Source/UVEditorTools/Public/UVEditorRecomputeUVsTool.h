@@ -19,8 +19,8 @@ class UDynamicMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
 class UUVEditorToolMeshInput;
-class UUVEditorRecomputeUVsToolProperties;
-class UUVEditorRecomputeUVsOpFactory;
+class URecomputeUVsToolProperties;
+class URecomputeUVsOpFactory;
 
 /**
  *
@@ -76,13 +76,13 @@ protected:
 	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;
 
 	UPROPERTY()
-	TObjectPtr<UUVEditorRecomputeUVsToolProperties> Settings = nullptr;
+	TObjectPtr<URecomputeUVsToolProperties> Settings = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UPolygroupLayersProperties> PolygroupLayerProperties = nullptr;
 
 	UPROPERTY()
-	TArray<TObjectPtr<UUVEditorRecomputeUVsOpFactory>> Factories;
+	TArray<TObjectPtr<URecomputeUVsOpFactory>> Factories;
 
 	UPROPERTY()
 	TObjectPtr<UUVToolSelectionAPI> UVToolSelectionAPI = nullptr;

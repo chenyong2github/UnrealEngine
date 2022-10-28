@@ -9,7 +9,7 @@ class IPropertyHandle;
 class FPropertyRestriction;
 
 // Customization for UUVEditorRecomputeUVsToolProperties
-class FUVEditorRecomputeUVsToolDetails : public IDetailCustomization
+class FRecomputeUVsToolDetails : public IDetailCustomization
 {
 public:
 	static TSharedRef<IDetailCustomization> MakeInstance();

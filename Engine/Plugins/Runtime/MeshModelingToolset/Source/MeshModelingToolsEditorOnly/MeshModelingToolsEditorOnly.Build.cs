@@ -17,6 +17,8 @@ public class MeshModelingToolsEditorOnly : ModuleRules
 				"MeshModelingTools",
 				"ModelingComponents",
 				"ModelingOperatorsEditorOnly",
+				"ModelingOperators",
+				"PropertyEditor",
 				"DynamicMesh",
 				// ... add other public dependencies that you statically link with here ...
 			}

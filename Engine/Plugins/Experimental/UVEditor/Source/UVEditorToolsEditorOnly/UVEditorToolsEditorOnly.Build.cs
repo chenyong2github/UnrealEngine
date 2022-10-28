@@ -52,6 +52,7 @@ public class UVEditorToolsEditorOnly : ModuleRules
 				"ModelingComponents",
 				"ModelingOperators",
 				"ModelingOperatorsEditorOnly",
+				"MeshModelingToolsEditorOnly",
 				"UVEditorTools",
 
 				"ToolWidgets",

@@ -45,6 +45,8 @@ void URecomputeUVsTool::Setup()
 
 	Settings = NewObject<URecomputeUVsToolProperties>(this);
 	Settings->RestoreProperties(this);
+	Settings->bUDIMCVAREnabled = false;
+	Settings->bEnableUDIMLayout = false;
 	AddToolPropertySource(Settings);
 
 	UVChannelProperties = NewObject<UMeshUVChannelProperties>(this);

@@ -14,12 +14,12 @@
 
 #include "PropertyRestriction.h"
 
-#include "Operators/UVEditorRecomputeUVsOp.h"
+#include "Properties/RecomputeUVsProperties.h"
 
 
-#define LOCTEXT_NAMESPACE "UVEditorDetailsCustomization"
+#define LOCTEXT_NAMESPACE "UVUnwrapDetailsCustomization"
 
-namespace UVEditorDetailsCustomizationLocal
+namespace UVUnwrapDetailsCustomizationLocal
 {
 
 	template<class UENUM_TYPE>
@@ -51,20 +51,20 @@ namespace UVEditorDetailsCustomizationLocal
 //
 
 
-TSharedRef<IDetailCustomization> FUVEditorRecomputeUVsToolDetails::MakeInstance()
+TSharedRef<IDetailCustomization> FRecomputeUVsToolDetails::MakeInstance()
 {
-	return MakeShareable(new FUVEditorRecomputeUVsToolDetails);
+	return MakeShareable(new FRecomputeUVsToolDetails);
 }
 
 
-void FUVEditorRecomputeUVsToolDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+void FRecomputeUVsToolDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	TSharedRef<IPropertyHandle> IslandGenerationModeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUVEditorRecomputeUVsToolProperties, IslandGeneration), UUVEditorRecomputeUVsToolProperties::StaticClass());
-	TSharedRef<IPropertyHandle> UnwrapTypeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUVEditorRecomputeUVsToolProperties, UnwrapType), UUVEditorRecomputeUVsToolProperties::StaticClass());
-	TSharedRef<IPropertyHandle> LayoutTypeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UUVEditorRecomputeUVsToolProperties, LayoutType), UUVEditorRecomputeUVsToolProperties::StaticClass());
+	TSharedRef<IPropertyHandle> IslandGenerationModeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(URecomputeUVsToolProperties, IslandGeneration), URecomputeUVsToolProperties::StaticClass());
+	TSharedRef<IPropertyHandle> UnwrapTypeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(URecomputeUVsToolProperties, UnwrapType), URecomputeUVsToolProperties::StaticClass());
+	TSharedRef<IPropertyHandle> LayoutTypeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(URecomputeUVsToolProperties, LayoutType), URecomputeUVsToolProperties::StaticClass());
 
-	IslandGenerationModeHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FUVEditorRecomputeUVsToolDetails::EvaluateLayoutTypeRestrictions, IslandGenerationModeHandle, UnwrapTypeHandle, LayoutTypeHandle));
-	UnwrapTypeHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FUVEditorRecomputeUVsToolDetails::EvaluateLayoutTypeRestrictions, IslandGenerationModeHandle, UnwrapTypeHandle, LayoutTypeHandle));
+	IslandGenerationModeHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FRecomputeUVsToolDetails::EvaluateLayoutTypeRestrictions, IslandGenerationModeHandle, UnwrapTypeHandle, LayoutTypeHandle));
+	UnwrapTypeHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FRecomputeUVsToolDetails::EvaluateLayoutTypeRestrictions, IslandGenerationModeHandle, UnwrapTypeHandle, LayoutTypeHandle));
 
 	static FText RestrictReason = LOCTEXT("LayoutTypeRestrictionText", "Requires existing UVs be used for IslandMode and Island Merging not selected as the unwrap strategy.");
 	LayoutTypeEnumRestriction = MakeShareable(new FPropertyRestriction(RestrictReason));
@@ -73,20 +73,20 @@ void FUVEditorRecomputeUVsToolDetails::CustomizeDetails(IDetailLayoutBuilder& De
 	EvaluateLayoutTypeRestrictions(IslandGenerationModeHandle, UnwrapTypeHandle, LayoutTypeHandle);	
 }
 
-void FUVEditorRecomputeUVsToolDetails::EvaluateLayoutTypeRestrictions(TSharedRef<IPropertyHandle> IslandGenerationModeHandle, TSharedRef<IPropertyHandle> UnwrapTypeHandle, TSharedRef<IPropertyHandle> LayoutTypeHandle)
+void FRecomputeUVsToolDetails::EvaluateLayoutTypeRestrictions(TSharedRef<IPropertyHandle> IslandGenerationModeHandle, TSharedRef<IPropertyHandle> UnwrapTypeHandle, TSharedRef<IPropertyHandle> LayoutTypeHandle)
 {
-	EUVEditorRecomputeUVsPropertiesIslandMode IslandMode = EUVEditorRecomputeUVsPropertiesIslandMode::PolyGroups;
-	EUVEditorRecomputeUVsPropertiesUnwrapType UnwrapType = EUVEditorRecomputeUVsPropertiesUnwrapType::Conformal;
-	FPropertyAccess::Result IslandModeResult = UVEditorDetailsCustomizationLocal::GetPropertyValueAsEnum(IslandGenerationModeHandle, IslandMode);
-	FPropertyAccess::Result UnwrapTypeResult = UVEditorDetailsCustomizationLocal::GetPropertyValueAsEnum(UnwrapTypeHandle, UnwrapType);
+	ERecomputeUVsPropertiesIslandMode IslandMode = ERecomputeUVsPropertiesIslandMode::PolyGroups;
+	ERecomputeUVsPropertiesUnwrapType UnwrapType = ERecomputeUVsPropertiesUnwrapType::Conformal;
+	FPropertyAccess::Result IslandModeResult = UVUnwrapDetailsCustomizationLocal::GetPropertyValueAsEnum(IslandGenerationModeHandle, IslandMode);
+	FPropertyAccess::Result UnwrapTypeResult = UVUnwrapDetailsCustomizationLocal::GetPropertyValueAsEnum(UnwrapTypeHandle, UnwrapType);
 
-	UEnum* ImportTypeEnum = StaticEnum<EUVEditorRecomputeUVsPropertiesLayoutType>();
+	UEnum* ImportTypeEnum = StaticEnum<ERecomputeUVsPropertiesLayoutType>();
 
 	LayoutTypeEnumRestriction->RemoveAll();
 	if (IslandModeResult != FPropertyAccess::Fail &&
 		UnwrapTypeResult != FPropertyAccess::Fail &&
-		(IslandMode == EUVEditorRecomputeUVsPropertiesIslandMode::PolyGroups ||
-		 UnwrapType == EUVEditorRecomputeUVsPropertiesUnwrapType::IslandMerging))
+		(IslandMode == ERecomputeUVsPropertiesIslandMode::PolyGroups ||
+		 UnwrapType == ERecomputeUVsPropertiesUnwrapType::IslandMerging))
 	{
 		uint8 EnumValue = static_cast<uint8>(ImportTypeEnum->GetValueByName("EUVEditorRecomputeUVsPropertiesLayoutType::NormalizeToExistingBounds"));
 		LayoutTypeEnumRestriction->AddDisabledValue("NormalizeToExistingBounds");
