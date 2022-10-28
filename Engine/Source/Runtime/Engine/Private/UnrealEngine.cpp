@@ -836,7 +836,7 @@ void ScalabilityCVarsSinkCallback()
 			if (bCacheResourceShaders)
 			{
 				// For all materials, UMaterial::CacheResourceShadersForRendering
-				UMaterial::AllMaterialsCacheResourceShadersForRendering(true);
+				UMaterial::AllMaterialsCacheResourceShadersForRendering();
 				UMaterialInstance::AllMaterialsCacheResourceShadersForRendering(true);
 			}
 		}
