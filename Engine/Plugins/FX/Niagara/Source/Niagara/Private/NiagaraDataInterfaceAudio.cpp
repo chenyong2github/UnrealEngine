@@ -124,7 +124,6 @@ FNiagaraDataInterfaceProxySubmix::FNiagaraDataInterfaceProxySubmix(int32 InNumSa
 
 FNiagaraDataInterfaceProxySubmix::~FNiagaraDataInterfaceProxySubmix()
 {
-	check(IsInRenderingThread());
 }
 
 void FNiagaraDataInterfaceProxySubmix::RegisterToAllAudioDevices()
