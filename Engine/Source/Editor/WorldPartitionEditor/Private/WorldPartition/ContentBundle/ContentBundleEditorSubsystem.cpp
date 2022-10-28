@@ -294,7 +294,7 @@ bool UContentBundleEditorSubsystem::ActivateContentBundleEditing(TSharedPtr<FCon
 	return ContentBundleEditionSubModule->ActivateContentBundleEditing(ContentBundleEditor);
 }
 
-bool UContentBundleEditorSubsystem::DectivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const
+bool UContentBundleEditorSubsystem::DeactivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const
 {
 	return ContentBundleEditionSubModule->DeactivateContentBundleEditing(ContentBundleEditor);
 }

@@ -60,4 +60,9 @@ bool ULevelEditorDragDropHandler::PreDropObjectsAtCoordinates(int32 MouseX, int3
 	return true;
 }
 
+bool ULevelEditorDragDropHandler::PostDropObjectsAtCoordinates(int32 MouseX, int32 MouseY, UWorld* World, FViewport* Viewport, const TArray<UObject*>& DroppedObjects)
+{
+	return true;
+}
+
 #undef LOCTEXT_NAMESPACE

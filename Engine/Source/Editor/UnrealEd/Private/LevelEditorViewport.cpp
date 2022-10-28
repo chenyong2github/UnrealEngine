@@ -1481,10 +1481,10 @@ bool FLevelEditorViewportClient::DropObjectsAtCoordinates(int32 MouseX, int32 Mo
 	bool bResult = false;
 
 	// Allow the drag drop handler to do anything pre-drop.
+	ULevelEditorDragDropHandler* DragDropHandler = GEditor->GetLevelEditorDragDropHandler();
 	if (!bCreateDropPreview)
 	{
-		ULevelEditorDragDropHandler* DragDrop = GEditor->GetLevelEditorDragDropHandler();
-		if (!DragDrop->PreDropObjectsAtCoordinates(MouseX, MouseY, GetWorld(), Viewport, DroppedObjects, OutNewActors))
+		if (!DragDropHandler->PreDropObjectsAtCoordinates(MouseX, MouseY, GetWorld(), Viewport, DroppedObjects, OutNewActors))
 		{
 			return bResult;
 		}
@@ -1694,6 +1694,11 @@ bool FLevelEditorViewportClient::DropObjectsAtCoordinates(int32 MouseX, int32 Mo
 		{
 			FEditorDelegates::OnNewActorsDropped.Broadcast(DroppedObjects, OutNewActors);
 		}
+	}
+
+	if (!bCreateDropPreview)
+	{
+		DragDropHandler->PostDropObjectsAtCoordinates(MouseX, MouseX, World, Viewport, DroppedObjects);
 	}
 
 	// Reset if creating a preview actor.

@@ -117,7 +117,7 @@ public:
 	void UnreferenceAllActors(FContentBundleEditor& EditorContentBundle);
 
 	bool ActivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const;
-	bool DectivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const;
+	bool DeactivateContentBundleEditing(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const;
 	bool IsContentBundleEditingActivated(TSharedPtr<FContentBundleEditor>& ContentBundleEditor) const;
 
 	DECLARE_EVENT_OneParam(UContentBundleEditorSubsystem, FOnContentBundleChanged, const FContentBundleEditor*);
