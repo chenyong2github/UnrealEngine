@@ -6909,6 +6909,12 @@ void FSkeletalMeshSceneProxy::DebugDrawSkeleton(int32 ViewIndex, FMeshElementCol
 		return; // Cannot draw this, world matrix not valid
 	}
 
+	// Can't draw this, don't have ComponentSpaceTransforms. This happens with sk meshes rendered with FSkeletalMeshObjectStatic.
+	if (!MeshObject->GetComponentSpaceTransforms())
+	{
+		return;
+	}
+
 	FTransform LocalToWorldTransform(ProxyLocalToWorld);
 
 	auto MakeRandomColorForSkeleton = [](uint32 InUID)
