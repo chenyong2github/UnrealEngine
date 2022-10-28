@@ -5,7 +5,7 @@
 #include "HAL/RunnableThread.h"
 
 #ifndef D3D12_PLATFORM_SUPPORTS_BLOCKING_FENCES
-#define D3D12_PLATFORM_SUPPORTS_BLOCKING_FENCES 0
+#define D3D12_PLATFORM_SUPPORTS_BLOCKING_FENCES 1
 #endif
 
 // These defines control which threads are enabled in the GPU submission pipeline.
@@ -42,7 +42,7 @@ public:
 	FD3D12Thread(TCHAR const* Name, EThreadPriority Priority, FD3D12DynamicRHI* RHI, FQueueFunc QueueFunc)
 		: RHI(RHI)
 		, QueueFunc(QueueFunc)
-		, Event(CreateEvent(nullptr, false, 0, Name))
+		, Event(CreateEvent(nullptr, false, false, *(FString::Printf(TEXT("%s%s"), TEXT("Local\\"), Name))))
 		, Thread(FRunnableThread::Create(this, Name, 0, Priority))
 	{}
 
