@@ -13679,6 +13679,7 @@ UMaterialInterface* UMaterialFunction::GetPreviewMaterial()
 	if( nullptr == PreviewMaterial )
 	{
 		PreviewMaterial = NewObject<UMaterial>(this, NAME_None, RF_Transient | RF_Public);
+		PreviewMaterial->bIsPreviewMaterial = true;
 
 		PreviewMaterial->AssignExpressionCollection(GetExpressionCollection());
 
