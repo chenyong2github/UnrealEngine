@@ -498,7 +498,7 @@ FVirtualShadowMapArrayCacheManager::FVirtualShadowMapArrayCacheManager(FScene* I
 						LodBiasDirectional);
 					bLoggedPageOverflow = true;
 				}
-				LastOverflowFrame = Scene->GetFrameNumber();
+				LastOverflowTime = float(FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds());
 #endif
 			}
 #if !UE_BUILD_SHIPPING
@@ -511,14 +511,53 @@ FVirtualShadowMapArrayCacheManager::FVirtualShadowMapArrayCacheManager(FScene* I
 	});
 
 #if !UE_BUILD_SHIPPING
+	// Handle message with stats sent back from GPU whenever stats are enabled
+	StatsFeedbackSocket = GPUMessage::RegisterHandler(TEXT("Shadow.Virtual.StatsFeedback"), [this](GPUMessage::FReader Message)
+	{
+		LastLoggedPageOverlapAppTime.SetNumZeroed(Scene->GetMaxPersistentPrimitiveIndex());
+		float RealTimeSeconds = float(FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds());
+
+		TConstArrayView<uint32> PageAreaDiags = Message.GetPayLoad();
+		for (int32 Index = 0; Index < PageAreaDiags.Num(); Index += 2)
+		{
+			uint32 Overlap = PageAreaDiags[Index];
+			uint32 PersistentPrimitiveId = PageAreaDiags[Index + 1];
+			int32 PrimtiveIndex = Scene->GetPrimitiveIndex(FPersistentPrimitiveIndex{ int32(PersistentPrimitiveId) });
+			if (Overlap > 0 && PrimtiveIndex != INDEX_NONE)
+			{
+				if (RealTimeSeconds - LastLoggedPageOverlapAppTime[PersistentPrimitiveId] > 5.0f)
+				{
+					LastLoggedPageOverlapAppTime[PersistentPrimitiveId] = RealTimeSeconds;
+					UE_LOG(LogRenderer, Warning, TEXT("Non-Nanite VSM page overlap performance Warning: Primitive '%s' overlapped %d Pages (full name: %s)"), *Scene->Primitives[PrimtiveIndex]->GetOwnerActorNameOrLabelForDebuggingOnly(), Overlap, *Scene->Primitives[PrimtiveIndex]->GetFullnameForDebuggingOnly());
+				}
+				LargePageAreaItems.Add(PersistentPrimitiveId, FLargePageAreaItem{ Overlap, RealTimeSeconds });
+			}
+		}
+	});
+#endif
+
+#if !UE_BUILD_SHIPPING
 	ScreenMessageDelegate = FRendererOnScreenNotification::Get().AddLambda([this](TMultiMap<FCoreDelegates::EOnScreenMessageSeverity, FText >& OutMessages)
 	{
+		float RealTimeSeconds = float(FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds());
+
 		// Show for ~5s after last overflow
 		int32 CurrentFrameNumber = Scene->GetFrameNumber();
-		if (LastOverflowFrame >= 0 && CurrentFrameNumber - LastOverflowFrame < 30 * 5)
+		if (LastOverflowTime >= 0.0f && RealTimeSeconds - LastOverflowTime < 5.0f)
 		{
-			OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Warning, FText::FromString(FString::Printf(TEXT("Virtual Shadow Map Page Pool overflow detected (%d frames ago)"), CurrentFrameNumber - LastOverflowFrame)));
+			OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Warning, FText::FromString(FString::Printf(TEXT("Virtual Shadow Map Page Pool overflow detected (%0.0f seconds ago)"), RealTimeSeconds - LastOverflowTime)));
 		}
+
+		for (const auto& Item : LargePageAreaItems)
+		{
+			int32 PrimtiveIndex = Scene->GetPrimitiveIndex(FPersistentPrimitiveIndex{ int32(Item.Key) });
+			uint32 Overlap = Item.Value.PageArea;
+			if (PrimtiveIndex != INDEX_NONE && RealTimeSeconds - Item.Value.LastTimeSeen < 2.5f)
+			{
+				OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Warning, FText::FromString(FString::Printf(TEXT("Non-Nanite VSM page overlap performance Warning: Primitive '%s' overlapped %d Pages"), *Scene->Primitives[PrimtiveIndex]->GetOwnerActorNameOrLabelForDebuggingOnly(), Overlap)));
+			}
+		}
+		TrimLoggingInfo();
 	});
 #endif
 }
@@ -697,6 +736,8 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(
 	const FSceneRenderer& SceneRenderer,
 	bool bEnableCaching)
 {
+	TrimLoggingInfo();
+
 	const bool bNewShadowData = VirtualShadowMapArray.IsAllocated();
 	const bool bDropAll = !bEnableCaching;
 	const bool bDropPrevBuffers = bDropAll || bNewShadowData;
@@ -1209,4 +1250,16 @@ void FVirtualShadowMapArrayCacheManager::ProcessInvalidations(
 		Instances.GetWrappedCsGroupCount()
 	);
 
+}
+// Remove old info used to track logging.
+void FVirtualShadowMapArrayCacheManager::TrimLoggingInfo()
+{
+#if !UE_BUILD_SHIPPING
+	// Remove old items
+	float RealTimeSeconds = float(FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds());
+	LargePageAreaItems = LargePageAreaItems.FilterByPredicate([RealTimeSeconds](const TMap<uint32, FLargePageAreaItem>::ElementType& Element)
+	{
+		return RealTimeSeconds - Element.Value.LastTimeSeen < 5.0f;
+	});
+#endif
 }

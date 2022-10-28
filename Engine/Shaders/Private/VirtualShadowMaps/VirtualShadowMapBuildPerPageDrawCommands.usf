@@ -59,9 +59,6 @@ StructuredBuffer<uint> DrawCommandDescs;
 
 RWBuffer<uint> DrawIndirectArgsBufferOut;
 
-RWStructuredBuffer<uint> OutInvalidatingInstances;
-uint NumInvalidatingInstanceSlots;
-
 StructuredBuffer<uint> PrimitiveRevealedMask;
 uint PrimitiveRevealedNum;
 
@@ -73,6 +70,17 @@ RWStructuredBuffer<uint> OutDirtyPageFlags;
 uint HZBMode;
 #endif
 
+// TODO: Move to common header
+// Get the area of an "inclusive" rect (which means that the max is inside the rect), also guards against negative area (where min > max)
+uint GetInclusiveRectArea(uint4 Rect)
+{
+	if (all(Rect.zw >= Rect.xy))
+	{
+		uint2 Size = Rect.zw - Rect.xy;
+		return (Size.x + 1) * (Size.y + 1);
+	}
+	return 0;
+}
 
 bool WasPrimitiveRevealed(FVSMCullingBatchInfo VSMCullingBatchInfo, uint PersistentPrimitiveId)
 {
@@ -184,6 +192,10 @@ bool MarkPageDirty(FVirtualSMLevelOffset PageTableLevelOffset, uint2 vPage, uint
 	return false;
 }
 
+#if VSM_GENERATE_STATS
+uint NumPageAreaDiagnosticSlots;
+uint LargeInstancePageAreaThreshold;
+#endif
 
 
 [numthreads(NUM_THREADS_PER_GROUP, 1, 1)]
@@ -263,6 +275,10 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 		bool bShouldCacheAsStaticForAnyView = false;
 		uint ThreadTotalForAllViews = 0;
+#if VSM_GENERATE_STATS
+		uint TotalPageArea = 0U;
+		float NumVisibleLevels = 0.0f;
+#endif
 		// Loop over views and output visible instance (i.e., those that overlap a valid page)
 		for (uint PrimaryViewId = VSMCullingBatchInfo.FirstPrimaryView; PrimaryViewId < VSMCullingBatchInfo.FirstPrimaryView + VSMCullingBatchInfo.NumPrimaryViews; ++PrimaryViewId)
 		{
@@ -309,6 +325,10 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 					if (OverlapsAnyValidPage(VirtualShadowMapId, MipLevel, RectPages, FlagMask))
 					{
+#if VSM_GENERATE_STATS
+						TotalPageArea += float(GetInclusiveRectArea(RectPages));
+						NumVisibleLevels += 1.0f;
+#endif
 #if USE_HZB_OCCLUSION
 						if (bViewHZB)
 						{
@@ -406,6 +426,25 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 		// Accumulate total number of instances for each indirect argument, is also used to allocate space and output compact range of instances later
 		InterlockedAdd(DrawIndirectArgsBufferOut[Payload.IndirectArgIndex * INDIRECT_ARGS_NUM_WORDS + 1], ThreadTotalForAllViews);
+
+#if VSM_GENERATE_STATS
+		if (NumPageAreaDiagnosticSlots > 0U && TotalPageArea > LargeInstancePageAreaThreshold)
+		{
+			for (uint Index = 0U; Index < NumPageAreaDiagnosticSlots; ++Index)
+			{
+				uint PrevArea = 0U;
+				// Store these after the stats slots
+				InterlockedMax(OutStatsBuffer[VSM_NUM_STATS + 2U * Index], TotalPageArea, PrevArea);
+				// If the area was greater then we store the persistent Primitive ID after the area.
+				// This obviously has a data race, so numbers & IDs will only be approximately correct, could use 64-bit atomics instead...
+				if (PrevArea < TotalPageArea)
+				{
+					OutStatsBuffer[VSM_NUM_STATS + 2U * Index + 1U] = PrimitiveData.PersistentPrimitiveIndex;
+					break;
+				}
+			}
+		}
+#endif
 	}
 	GroupMemoryBarrierWithGroupSync();
 	uint NumMarkingJobs = NumSharedMarkingJobs;

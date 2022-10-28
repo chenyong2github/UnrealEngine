@@ -349,6 +349,7 @@ public:
 
 	// See Engine\Shaders\Private\VirtualShadowMaps\VirtualShadowMapStats.ush for definitions of the different stat indexes
 	static constexpr uint32 NumStats = 16;
+	static constexpr uint32 MaxPageAreaDiagnosticSlots = 32;
 
 	FRDGBufferRef StatsBufferRDG = nullptr;
 

@@ -599,7 +599,8 @@ public:
 
 	/** Return primitive fullname (for debugging only). */
 	FString GetFullnameForDebuggingOnly() const;
-
+	/** Return primitive Owner actor name (for debugging only). */
+	FString GetOwnerActorNameOrLabelForDebuggingOnly() const;
 	FORCEINLINE bool ShouldCacheShadowAsStatic() const
 	{
 		return bCacheShadowAsStatic;

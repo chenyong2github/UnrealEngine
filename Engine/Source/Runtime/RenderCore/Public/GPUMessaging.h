@@ -92,6 +92,8 @@ public:
 
 	uint32 GetPayloadSize() const { return PayloadSize; }
 
+	TConstArrayView<uint32> GetPayLoad() const { return TConstArrayView<uint32>(PayloadData, PayloadSize); }
+
 private:
 	FReader(FMessageId InMessageId, uint32 InPayloadSize, const uint32* InPayloadData)
 		: MessageId(InMessageId)

@@ -284,6 +284,20 @@ TAutoConsoleVariable<int32> CVarDebugSkipDynamicPageInvalidation(
 	TEXT("Skip invalidation of cached pages when geometry moves for debugging purposes. This will create obvious visual artifacts when disabled.\n"),
 	ECVF_RenderThreadSafe
 );
+
+TAutoConsoleVariable<int32> CVarNumPageAreaDiagSlots(
+	TEXT("r.Shadow.Virtual.NonNanite.NumPageAreaDiagSlots"),
+	0,
+	TEXT("Feed back diagnostics to host to report page area coverage for the K first occurrences, < 0 uses the max number allowed, 0 disables."),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarLargeInstancePageAreaThreshold(
+	TEXT("r.Shadow.Virtual.NonNanite.LargeInstancePageAreaThreshold"),
+	-1,
+	TEXT("How large area is considered a 'large' footprint, summed over all overlapped levels, if set to -1 uses the physical page pool size / 8."),
+	ECVF_RenderThreadSafe
+);
 #endif // !UE_BUILD_SHIPPING
 
 static TAutoConsoleVariable<float> CVarMaxMaterialPositionInvalidationRange(
@@ -607,6 +621,7 @@ void FVirtualShadowMapArray::SetShaderDefines(FShaderCompilerEnvironment& OutEnv
 	OutEnvironment.SetDefine(TEXT("VSM_RASTER_WINDOW_PAGES"), FVirtualShadowMap::RasterWindowPages);
 	OutEnvironment.SetDefine(TEXT("VSM_PAGE_TABLE_SIZE"), FVirtualShadowMap::PageTableSize);
 	OutEnvironment.SetDefine(TEXT("VSM_NUM_STATS"), NumStats);
+	OutEnvironment.SetDefine(TEXT("MAX_PAGE_AREA_DIAGNOSTIC_SLOTS"), MaxPageAreaDiagnosticSlots);
 	OutEnvironment.SetDefine(TEXT("INDEX_NONE"), INDEX_NONE);
 }
 
@@ -1321,9 +1336,15 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	UniformParameters.CoarsePagePixelThresholdStatic = CVarCoarsePagePixelThresholdStatic.GetValueOnRenderThread();
 	UniformParameters.CoarsePagePixelThresholdDynamicNanite = CVarCoarsePagePixelThresholdDynamicNanite.GetValueOnRenderThread();
 
-	if (CVarShowStats.GetValueOnRenderThread() || CacheManager->IsAccumulatingStats())
+#if !UE_BUILD_SHIPPING
+	const bool bRunPageAreaDiagnostics = CVarNumPageAreaDiagSlots.GetValueOnRenderThread() != 0;
+#else
+	constexpr bool bRunPageAreaDiagnostics = false;
+#endif
+
+	if (CVarShowStats.GetValueOnRenderThread() || CacheManager->IsAccumulatingStats() || bRunPageAreaDiagnostics)
 	{
-		StatsBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumStats), TEXT("Shadow.Virtual.StatsBuffer"));
+		StatsBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumStats + MaxPageAreaDiagnosticSlots * 2), TEXT("Shadow.Virtual.StatsBuffer"));
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(StatsBufferRDG), 0);
 	}
 	
@@ -1802,6 +1823,11 @@ void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder, TArrayVi
 {
 	check(IsEnabled());
 			
+	if (Views.Num() > 0)
+	{
+		PrintStats(GraphBuilder, Views[0]);
+	}
+
 	if (DebugVisualizationOutput.IsEmpty() || VisualizeLight.IsEmpty())
 	{
 		return;
@@ -1857,10 +1883,12 @@ class FVirtualSmPrintStatsCS : public FVirtualPageManagementShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
+		SHADER_PARAMETER_STRUCT_INCLUDE(GPUMessage::FParameters, GPUMessageParams)
 		SHADER_PARAMETER_STRUCT_INCLUDE( ShaderPrint::FShaderParameters, ShaderPrintStruct )
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, InStatsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FIntVector4>, AllocatedPageRectBounds)
 		SHADER_PARAMETER(int, ShowStatsValue)
+		SHADER_PARAMETER(uint32, StatsMessageId)
 	END_SHADER_PARAMETER_STRUCT()
 
 
@@ -1873,7 +1901,7 @@ class FVirtualSmPrintStatsCS : public FVirtualPageManagementShader
 
 		
 };
-IMPLEMENT_GLOBAL_SHADER(FVirtualSmPrintStatsCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapPrintStats.usf", "PrintStats", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FVirtualSmPrintStatsCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapPrintStats.usf", "PrintVirtualSmStatsCS", SF_Compute);
 
 void FVirtualShadowMapArray::PrintStats(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
@@ -1882,7 +1910,7 @@ void FVirtualShadowMapArray::PrintStats(FRDGBuilder& GraphBuilder, const FViewIn
 
 	// Print stats
 	int ShowStatsValue = CVarShowStats.GetValueOnRenderThread();
-	if (ShowStatsValue != 0 && StatsBufferRDG)
+	if (StatsBufferRDG)
 	{
 		{
 			FVirtualSmPrintStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmPrintStatsCS::FParameters>();
@@ -1891,6 +1919,12 @@ void FVirtualShadowMapArray::PrintStats(FRDGBuilder& GraphBuilder, const FViewIn
 			PassParameters->InStatsBuffer = GraphBuilder.CreateSRV(StatsBufferRDG);
 			PassParameters->VirtualShadowMap = GetUncachedUniformBuffer(GraphBuilder);
 			PassParameters->ShowStatsValue = ShowStatsValue;
+#if !UE_BUILD_SHIPPING
+			PassParameters->StatsMessageId = CacheManager->StatsFeedbackSocket.GetMessageId().IsValid() ? CacheManager->StatsFeedbackSocket.GetMessageId().GetIndex() : INDEX_NONE;
+#else
+			PassParameters->StatsMessageId = INDEX_NONE;
+#endif
+			PassParameters->GPUMessageParams = GPUMessage::GetShaderParameters(GraphBuilder);
 
 			auto ComputeShader = View.ShaderMap->GetShader<FVirtualSmPrintStatsCS>();
 
@@ -2116,8 +2150,8 @@ public:
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutStaticInvalidatingPrimitives)
 
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, OutInvalidatingInstances)
-		SHADER_PARAMETER(uint32, NumInvalidatingInstanceSlots)
+		SHADER_PARAMETER(uint32, NumPageAreaDiagnosticSlots)
+		SHADER_PARAMETER(uint32, LargeInstancePageAreaThreshold)
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutStatsBuffer)
 	END_SHADER_PARAMETER_STRUCT()
@@ -2333,12 +2367,19 @@ static FCullingResult AddCullingPasses(FRDGBuilder& GraphBuilder,
 		PassParameters->VisibleInstancesOut = GraphBuilder.CreateUAV(VisibleInstancesRdg, ERDGUnorderedAccessViewFlags::SkipBarrier);
 		PassParameters->VisibleInstanceCountBufferOut = GraphBuilder.CreateUAV(VisibleInstanceWriteOffsetRDG, ERDGUnorderedAccessViewFlags::SkipBarrier);
 		PassParameters->OutStaticInvalidatingPrimitives = GraphBuilder.CreateUAV(VirtualShadowMapArray.StaticInvalidatingPrimitivesRDG, ERDGUnorderedAccessViewFlags::SkipBarrier);
+
+		PassParameters->NumPageAreaDiagnosticSlots = 0U;
+
 		PassParameters->HZBShaderParameters = HZBShaderParameters;
 
 		bool bGenerateStats = VirtualShadowMapArray.StatsBufferRDG != nullptr;
 		if (bGenerateStats)
 		{
 			PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(VirtualShadowMapArray.StatsBufferRDG, ERDGUnorderedAccessViewFlags::SkipBarrier);
+#if !UE_BUILD_SHIPPING
+			PassParameters->NumPageAreaDiagnosticSlots = CVarNumPageAreaDiagSlots.GetValueOnRenderThread() < 0 ? FVirtualShadowMapArray::MaxPageAreaDiagnosticSlots : FMath::Min(FVirtualShadowMapArray::MaxPageAreaDiagnosticSlots, uint32(CVarNumPageAreaDiagSlots.GetValueOnRenderThread()));
+			PassParameters->LargeInstancePageAreaThreshold = CVarLargeInstancePageAreaThreshold.GetValueOnRenderThread() >= 0 ? CVarLargeInstancePageAreaThreshold.GetValueOnRenderThread() : (VirtualShadowMapArray.GetMaxPhysicalPages() / 8);
+#endif
 		}
 
 		FCullPerPageDrawCommandsCs::FPermutationDomain PermutationVector;
@@ -2364,7 +2405,7 @@ static FCullingResult AddCullingPasses(FRDGBuilder& GraphBuilder,
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(InstanceIdOutOffsetBufferRDG), 0);
 
 		PassParameters->NumIndirectArgs = NumIndirectArgs;
-		PassParameters->InstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(CullingResult.InstanceIdOffsetBufferRDG, PF_R32_UINT);;
+		PassParameters->InstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(CullingResult.InstanceIdOffsetBufferRDG, PF_R32_UINT);
 		PassParameters->OutputOffsetBufferOut = GraphBuilder.CreateUAV(InstanceIdOutOffsetBufferRDG);
 		PassParameters->TmpInstanceIdOffsetBufferOut = GraphBuilder.CreateUAV(TmpInstanceIdOffsetBufferRDG);
 		PassParameters->DrawIndirectArgsBuffer = GraphBuilder.CreateSRV(CullingResult.DrawIndirectArgsRDG, PF_R32_UINT);

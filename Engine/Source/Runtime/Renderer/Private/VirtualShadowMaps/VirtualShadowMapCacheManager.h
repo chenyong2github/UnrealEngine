@@ -287,6 +287,10 @@ public:
 	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 
 	GPUMessage::FSocket StatusFeedbackSocket;
+#if !UE_BUILD_SHIPPING
+	// Socket for optional stats that are only sent back if enabled
+	GPUMessage::FSocket StatsFeedbackSocket;
+#endif 
 
 	FVirtualShadowMapFeedback StaticGPUInvalidationsFeedback;
 
@@ -309,6 +313,8 @@ private:
 			RecentlyRemovedPrimitives[RecentlyRemovedReadIndex][PersistentPrimitiveIndex.Index];
 	}
 
+	// Remove old info used to track logging.
+	void TrimLoggingInfo();
 	// The actual physical texture data is stored here rather than in VirtualShadowMapArray (which is recreated each frame)
 	// This allows us to (optionally) persist cached pages between frames. Regardless of whether caching is enabled,
 	// we store the physical pool here.
@@ -334,8 +340,19 @@ private:
 	FRHIGPUBufferReadback* GPUBufferReadback = nullptr;
 #if !UE_BUILD_SHIPPING
 	FDelegateHandle ScreenMessageDelegate;
-	int32 LastOverflowFrame = -1;
+	float LastOverflowTime = -1.0f;
 	bool bLoggedPageOverflow = false;
+
+	// Stores the last time (wall-clock seconds since app-start) that an non-nanite page area message was logged,
+	TArray<float> LastLoggedPageOverlapAppTime;
+
+	// Map to track non-nanite page area items that are shown on screen
+	struct FLargePageAreaItem
+	{
+		uint32 PageArea;
+		float LastTimeSeen;
+	};
+	TMap<uint32, FLargePageAreaItem> LargePageAreaItems;
 #endif
 #if WITH_MGPU
 	FRHIGPUMask LastGPUMask;

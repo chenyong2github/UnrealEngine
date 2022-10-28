@@ -2165,6 +2165,18 @@ FString FPrimitiveSceneInfo::GetFullnameForDebuggingOnly() const
 	return FString(TEXT("Unknown Object"));
 }
 
+FString FPrimitiveSceneInfo::GetOwnerActorNameOrLabelForDebuggingOnly() const
+{
+	if (ComponentForDebuggingOnly)
+	{
+#if ACTOR_HAS_LABELS
+		return ComponentForDebuggingOnly->GetOwner() ? ComponentForDebuggingOnly->GetOwner()->GetActorNameOrLabel() : ComponentForDebuggingOnly->GetName();
+#else
+		return ComponentForDebuggingOnly->GetName();
+#endif
+	}
+	return FString(TEXT("Unknown Object"));
+}
 void FPrimitiveSceneInfo::SetCacheShadowAsStatic(bool bStatic)
 {
 	if (bCacheShadowAsStatic != bStatic)

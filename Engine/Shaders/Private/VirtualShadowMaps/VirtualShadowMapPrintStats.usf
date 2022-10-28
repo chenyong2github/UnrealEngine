@@ -4,6 +4,7 @@
 #include "../ShaderPrint.ush"
 #include "VirtualShadowMapPageAccessCommon.ush"
 #include "VirtualShadowMapStats.ush"
+#include "../GPUMessaging.ush"
 
 StructuredBuffer<uint>	InStatsBuffer;
 // Rectangles bounding (allocated) pages for each mip level
@@ -54,10 +55,26 @@ void PrintUnits(inout FShaderPrintContext Context, uint Value)
 		Print(Context, Value);
 	}
 }
+uint StatsMessageId;
 
 [numthreads(1, 1, 1)]
-void PrintStats()
+void PrintVirtualSmStatsCS()
 {
+	if (StatsMessageId != INDEX_NONE)
+	{
+		// Just post back the whole buffer
+		FGPUMessageWriter Mw = GPUMessageBegin(StatsMessageId, MAX_PAGE_AREA_DIAGNOSTIC_SLOTS * 2U);
+		for (uint Index = 0; Index < MAX_PAGE_AREA_DIAGNOSTIC_SLOTS * 2U; ++Index)
+		{
+			GPUMessageWriteItem(Mw, InStatsBuffer[VSM_NUM_STATS + Index]);
+		}
+	}
+
+	if (ShowStatsValue == 0U)
+	{
+		return;
+	}
+
 	const bool bShowAll                = ShowStatsValue == 1;
 	// Work around potential compiler bug...
 	const bool bShowPhysicalPages      = (ShowStatsValue == 1) || ShowStatsValue == 2;

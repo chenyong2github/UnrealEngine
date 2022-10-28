@@ -3748,10 +3748,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (VirtualShadowMapArray.IsEnabled())
 	{
 		VirtualShadowMapArray.RenderDebugInfo(GraphBuilder, Views);
-		if (Views.Num() > 0)
-		{
-			VirtualShadowMapArray.PrintStats(GraphBuilder, Views[0]);
-		}
 	}
 
 	for (FViewInfo& View : Views)
