@@ -710,6 +710,6 @@ namespace LowLevelTasks
 	{
 		FEventRef SleepEvent;
 		std::atomic<ESleepState> SleepState { ESleepState::Running };
-		FSleepEvent* Next = nullptr;
+		std::atomic<FSleepEvent*> Next { nullptr };
 	};
 }

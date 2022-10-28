@@ -34,7 +34,7 @@ namespace LowLevelTasks
 		{
 			FEventRef		SleepEvent;
 			FConditional	CompletedDelegate = []() { return true; };
-			FYieldedWork*	Next = nullptr;
+			std::atomic<FYieldedWork*> Next {nullptr};
 			bool			bPermitBackgroundWork = false;
 		};
 	
