@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/FileManager.h"
 #include "Stats/Stats.h"
 #include "Templates/RefCounting.h"
 #include "Misc/SecureHash.h"
@@ -119,6 +120,8 @@ enum ECompilerFlags
 	CFLAG_BindlessSamplers,
 	// EXPERIMENTAL: Run the shader re-writer that removes any unused functions/resources/types from source code before compilation.
 	CFLAG_RemoveDeadCode,
+	// EXPERIMENTAL: Use the DXC preprocessor (instead of the legacy MCPP)
+	CFLAG_PreprocessWithDXC,
 
 	CFLAG_Max,
 };
@@ -235,6 +238,11 @@ struct FShaderCompilerInput
 		bCompilingForShaderPipeline(false),
 		bIncludeUsedOutputs(false)
 	{
+	}
+
+	bool DumpDebugInfoEnabled() const 
+	{
+		return DumpDebugInfoPath != TEXT("") && IFileManager::Get().DirectoryExists(*DumpDebugInfoPath);
 	}
 
 	// generate human readable name for debugging

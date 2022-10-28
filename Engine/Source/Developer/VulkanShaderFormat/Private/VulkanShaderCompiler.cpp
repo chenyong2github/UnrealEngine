@@ -1348,10 +1348,8 @@ FCompilerInfo::FCompilerInfo(const FShaderCompilerInput& InInput, const FString&
 	Input(InInput),
 	WorkingDirectory(InWorkingDirectory),
 	CCFlags(0),
-	Frequency(InFrequency),
-	bDebugDump(false)
+	Frequency(InFrequency)
 {
-	bDebugDump = Input.DumpDebugInfoPath != TEXT("") && IFileManager::Get().DirectoryExists(*Input.DumpDebugInfoPath);
 	BaseSourceFilename = Input.GetSourceFilename();
 }
 
@@ -2156,7 +2154,7 @@ static bool CompileWithShaderConductor(
 	const bool bIsRayTracingShader = Input.IsRayTracingShader();
 	const bool bHasBindless = Input.Environment.CompilerFlags.Contains(CFLAG_BindlessResources) || Input.Environment.CompilerFlags.Contains(CFLAG_BindlessSamplers);
 	const bool bRewriteHlslSource = !bIsRayTracingShader;
-	const bool bDebugDump = CompilerInfo.bDebugDump;
+	const bool bDebugDump = Input.DumpDebugInfoEnabled();
 
 	CrossCompiler::FShaderConductorContext CompilerContext;
 
@@ -2186,6 +2184,8 @@ static bool CompileWithShaderConductor(
 		Options.TargetEnvironment = GetMinimumTargetEnvironment(Input.Target.GetPlatform());
 	}
 
+	UE::ShaderCompilerCommon::DumpDebugShaderData(Input, PreprocessedShader, { CompilerInfo.CCFlags });
+
 	if (bDebugDump)
 	{
 		VulkanCreateDXCCompileBatchFiles(
@@ -2193,8 +2193,6 @@ static bool CompileWithShaderConductor(
 			Frequency,
 			CompilerInfo,
 			Options);
-
-		DumpDebugUSF(Input, PreprocessedShader, CompilerInfo.CCFlags);
 	}
 
 	if (bRewriteHlslSource)
@@ -2406,11 +2404,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		}
 	}
 
-	// Write out the preprocessed file and a batch file to compile it if requested (DumpDebugInfoPath is valid)
-	if (CompilerInfo.bDebugDump)
-	{
-		DumpDebugUSF(Input, PreprocessedShaderSource, CompilerInfo.CCFlags);
-	}
+	UE::ShaderCompilerCommon::DumpDebugShaderData(Input, PreprocessedShaderSource, { CompilerInfo.CCFlags });
 
 	TArray<ANSICHAR> GeneratedGlslSource;
 	FVulkanBindingTable BindingTable(CompilerInfo.Frequency);

@@ -552,7 +552,9 @@ static bool RewriteUsingSC(FString& PreprocessedShaderSource, const FShaderCompi
 
 			if (bDumpDebugInfo)
 			{
-				DumpDebugUSF(Input, CStrSourceData.c_str(), 0, GRewrittenBaseFilename);
+				UE::ShaderCompilerCommon::FDebugShaderDataOptions DebugDataOptions;
+				DebugDataOptions.OverrideBaseFilename = GRewrittenBaseFilename;
+				UE::ShaderCompilerCommon::DumpDebugShaderData(Input, PreprocessedShaderSource, DebugDataOptions);
 			}
 		}
 	}
@@ -611,8 +613,8 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 		bEnable16BitTypes = true;
 	}
 
-	// Write out the preprocessed file and a batch file to compile it if requested (DumpDebugInfoPath is valid)
-	bool bDumpDebugInfo = DumpDebugShaderUSF(PreprocessedShaderSource, Input);
+	UE::ShaderCompilerCommon::DumpDebugShaderData(Input, PreprocessedShaderSource);
+	bool bDumpDebugInfo = Input.DumpDebugInfoEnabled(); 
 
 	FString Filename = Input.GetSourceFilename();
 
@@ -665,12 +667,6 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	{
 		FString BatchFileContents = D3DCreateDXCCompileBatchFile(Args, Filename);
 		FFileHelper::SaveStringToFile(BatchFileContents, *(Input.DumpDebugInfoPath / TEXT("CompileDXC.bat")));
-
-		if (Input.bGenerateDirectCompileFile)
-		{
-			FFileHelper::SaveStringToFile(CreateShaderCompilerWorkerDirectCommandLine(Input), *(Input.DumpDebugInfoPath / TEXT("DirectCompile.txt")));
-			FFileHelper::SaveStringToFile(Input.DebugDescription, *(Input.DumpDebugInfoPath / TEXT("permutation_info.txt")));
-		}
 	}
 
 	TRefCountPtr<IDxcBlob> ShaderBlob;

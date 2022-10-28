@@ -1007,7 +1007,7 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 		Input.DumpDebugInfoPath = FPaths::GetPath(Input.VirtualSourceFilePath);
 	}
 	
-	const bool bDumpDebugInfo = (Input.DumpDebugInfoPath != TEXT("") && IFileManager::Get().DirectoryExists(*Input.DumpDebugInfoPath));
+	const bool bDumpDebugInfo = Input.DumpDebugInfoEnabled();
 
 	// Allow the shader pipeline to override the platform default in here.
 	uint32 MaxUnrollLoops = 32;
@@ -1093,26 +1093,17 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 	// Write out the preprocessed file and a batch file to compile it if requested (DumpDebugInfoPath is valid)
 	if (bDumpDebugInfo && !bDirectCompile)
 	{
-		FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / FPaths::GetBaseFilename(Input.GetSourceFilename() + TEXT(".usf"))));
-		if (FileWriter)
+		UE::ShaderCompilerCommon::FDebugShaderDataOptions DebugDataOptions;
+		DebugDataOptions.HlslCCFlags = CCFlags;
+		DebugDataOptions.AppendPostSource = [&Input]()
 		{
-			FString Line = GetDumpDebugUSFContents(Input, PreprocessedShader, 0);
-
 			// add the remote data if necessary
 //			if (IsRemoteBuildingConfigured(&Input.Environment))
 			{
-				Line += CreateRemoteDataFromEnvironment(Input.Environment);
+				return CreateRemoteDataFromEnvironment(Input.Environment);
 			}
-
-			FileWriter->Serialize(TCHAR_TO_ANSI(*Line), Line.Len());
-			FileWriter->Close();
-			delete FileWriter;
-		}
-
-		if (Input.bGenerateDirectCompileFile)
-		{
-			FFileHelper::SaveStringToFile(CreateShaderCompilerWorkerDirectCommandLine(Input, CCFlags), *(Input.DumpDebugInfoPath / TEXT("DirectCompile.txt")));
-		}
+		};
+		UE::ShaderCompilerCommon::DumpDebugShaderData(Input, PreprocessedShader, DebugDataOptions);
 	}
 
 	FSHAHash GUIDHash;

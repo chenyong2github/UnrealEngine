@@ -498,40 +498,6 @@ inline bool IsCompatibleBinding(const D3D11_SHADER_INPUT_BIND_DESC& BindDesc, ui
 	return true;
 }
 
-bool DumpDebugShaderUSF(FString& PreprocessedShaderSource, const FShaderCompilerInput& Input)
-{
-	bool bDumpDebugInfo = false;
-
-	// Write out the preprocessed file and a batch file to compile it if requested (DumpDebugInfoPath is valid)
-	if (Input.DumpDebugInfoPath.Len() > 0 && IFileManager::Get().DirectoryExists(*Input.DumpDebugInfoPath))
-	{
-		bDumpDebugInfo = true;
-		FString Filename = Input.GetSourceFilename();
-		FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / Filename));
-		if (FileWriter)
-		{
-			auto AnsiSourceFile = StringCast<ANSICHAR>(*PreprocessedShaderSource);
-			FileWriter->Serialize((ANSICHAR*)AnsiSourceFile.Get(), AnsiSourceFile.Length());
-			{
-				FString Line = CrossCompiler::CreateResourceTableFromEnvironment(Input.Environment);
-
-				Line += TEXT("#if 0 /*DIRECT COMPILE*/\n");
-				Line += CreateShaderCompilerWorkerDirectCommandLine(Input);
-				Line += TEXT("\n#endif /*DIRECT COMPILE*/\n");
-				Line += TEXT("//");
-				Line += Input.DebugDescription;
-				Line += TEXT("\n");
-				FileWriter->Serialize(TCHAR_TO_ANSI(*Line), Line.Len());
-			}
-			FileWriter->Close();
-			delete FileWriter;
-		}
-	}
-
-	return bDumpDebugInfo;
-}
-
-
 static void PatchSpirvForPrecompilation(FSpirv& Spirv)
 {
 	// Remove [unroll] loop hints from SPIR-V as this can fail on infinite loops
@@ -622,7 +588,8 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 	auto AnsiSourceFile = StringCast<ANSICHAR>(*PreprocessedShaderSource);
 
 	// Write out the preprocessed file and a batch file to compile it if requested (DumpDebugInfoPath is valid)
-	bool bDumpDebugInfo = DumpDebugShaderUSF(PreprocessedShaderSource, Input);
+	UE::ShaderCompilerCommon::DumpDebugShaderData(Input, PreprocessedShaderSource);
+	bool bDumpDebugInfo = Input.DumpDebugInfoEnabled();
 	FString DisasmFilename;
 	if (bDumpDebugInfo)
 	{
@@ -637,12 +604,6 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 		}
 
 		FFileHelper::SaveStringToFile(BatchFileContents, *(Input.DumpDebugInfoPath / TEXT("CompileFXC.bat")));
-
-		if (Input.bGenerateDirectCompileFile)
-		{
-			FFileHelper::SaveStringToFile(CreateShaderCompilerWorkerDirectCommandLine(Input), *(Input.DumpDebugInfoPath / TEXT("DirectCompile.txt")));
-			FFileHelper::SaveStringToFile(Input.DebugDescription, *(Input.DumpDebugInfoPath / TEXT("permutation_info.txt")));
-		}
 
 		DisasmFilename = *(Input.DumpDebugInfoPath / TEXT("Output.d3dasm"));
 	}
@@ -1204,7 +1165,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		Exceptions.AddUnique(TEXT("SV_CullDistance7"));
 		
 		// Write the preprocessed file out in case so we can debug issues on HlslParser
-		DumpDebugShaderUSF(PreprocessedShaderSource, Input);
+		UE::ShaderCompilerCommon::DumpDebugShaderData(Input, PreprocessedShaderSource);
 
 		TArray<FString> Errors;
 		if (!RemoveUnusedOutputs(PreprocessedShaderSource, UsedOutputs, Exceptions, EntryPointName, Errors))

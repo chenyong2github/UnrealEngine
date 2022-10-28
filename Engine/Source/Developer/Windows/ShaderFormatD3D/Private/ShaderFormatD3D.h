@@ -39,6 +39,5 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	TArray<FString>& FilteredErrors, FShaderCompilerOutput& Output);
 
 bool ValidateResourceCounts(uint32 NumSRVs, uint32 NumSamplers, uint32 NumUAVs, uint32 NumCBs, TArray<FString>& OutFilteredErrors);
-bool DumpDebugShaderUSF(FString& PreprocessedShaderSource, const FShaderCompilerInput& Input);
 
 extern int32 GD3DAllowRemoveUnused;

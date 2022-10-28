@@ -24,7 +24,6 @@ struct FCompilerInfo
 	FString Profile;
 	uint32 CCFlags;
 	EHlslShaderFrequency Frequency;
-	bool bDebugDump;
 	FString BaseSourceFilename;
 
 	FCompilerInfo(const struct FShaderCompilerInput& InInput, const FString& InWorkingDirectory, EHlslShaderFrequency InFrequency);
