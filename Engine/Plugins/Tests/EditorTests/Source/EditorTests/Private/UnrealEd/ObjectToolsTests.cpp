@@ -4,6 +4,7 @@
 
 #include "Misc/Paths.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/ScopeExit.h"
 #include "Editor.h"
 #include "Editor/Transactor.h"
 #include "ObjectTools.h"
@@ -205,6 +206,20 @@ bool FObjectToolsTests_GatherObjectReferencersForDeletion::RunTest(const FString
 	check(MetaData);
 
 	UObjectToolsTestObject* ObjectInPackage = NewObject<UObjectToolsTestObject>(TempPackage, NAME_None, RF_Transactional);
+
+	//Make sure we do not use the legacy referencers for deletion
+	static IConsoleVariable* CVarUseLegacyGetReferencersForDeletion = IConsoleManager::Get().FindConsoleVariable(TEXT("Editor.UseLegacyGetReferencersForDeletion"));
+	check(CVarUseLegacyGetReferencersForDeletion);
+	bool PreviousCVarUseLegacyGetReferencersForDeletionValue = CVarUseLegacyGetReferencersForDeletion->GetBool();
+	CVarUseLegacyGetReferencersForDeletion->Set(0);
+	//Put back the previous value when the test is done
+	ON_SCOPE_EXIT
+	{
+		if (PreviousCVarUseLegacyGetReferencersForDeletionValue)
+		{
+			CVarUseLegacyGetReferencersForDeletion->Set(1);
+		}
+	};
 
 	// Test direct references to ObjectInPackage
 	{
