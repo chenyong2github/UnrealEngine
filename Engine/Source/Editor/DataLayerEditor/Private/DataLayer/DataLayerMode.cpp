@@ -473,21 +473,26 @@ void FDataLayerMode::DeleteItems(const TArray<TWeakPtr<ISceneOutlinerTreeItem>>&
 	}
 	else if (!DataLayersToDelete.IsEmpty())
 	{
-		int32 PrevDeleteCount = SelectedDataLayersSet.Num();
-		for (UDataLayerInstance* DataLayerToDelete : DataLayersToDelete)
-		{
-			SelectedDataLayersSet.Remove(DataLayerToDelete);
-		}
-		
-		{
-			const FScopedTransaction Transaction(LOCTEXT("DeleteDataLayers", "Delete Data Layers"));
-			DataLayerEditorSubsystem->DeleteDataLayers(DataLayersToDelete);
-		}
+		DeleteDataLayers(DataLayersToDelete);
+	}
+}
 
-		if ((SelectedDataLayersSet.Num() != PrevDeleteCount) && DataLayerBrowser)
-		{
-			DataLayerBrowser->OnSelectionChanged(SelectedDataLayersSet);
-		}
+void FDataLayerMode::DeleteDataLayers(const TArray<UDataLayerInstance*>& InDataLayersToDelete)
+{
+	int32 PrevDeleteCount = SelectedDataLayersSet.Num();
+	for (UDataLayerInstance* DataLayerToDelete : InDataLayersToDelete)
+	{
+		SelectedDataLayersSet.Remove(DataLayerToDelete);
+	}
+
+	{
+		const FScopedTransaction Transaction(LOCTEXT("DeleteSelectedDataLayers", "Delete Selected Data Layers"));
+		DataLayerEditorSubsystem->DeleteDataLayers(InDataLayersToDelete);
+	}
+
+	if ((SelectedDataLayersSet.Num() != PrevDeleteCount) && DataLayerBrowser)
+	{
+		DataLayerBrowser->OnSelectionChanged(SelectedDataLayersSet);
 	}
 }
 
@@ -1359,11 +1364,10 @@ void FDataLayerMode::RegisterContextMenu()
 
 				Section.AddMenuEntry("DeleteSelectedDataLayers", LOCTEXT("DeleteSelectedDataLayers", "Delete Selected Data Layers"), FText(), FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateLambda([SelectedDataLayers]() {
+						FExecuteAction::CreateLambda([Mode, SelectedDataLayers]() {
 							check(!SelectedDataLayers.IsEmpty());
 							{
-								const FScopedTransaction Transaction(LOCTEXT("DeleteSelectedDataLayers", "Delete Selected Data Layers"));
-								UDataLayerEditorSubsystem::Get()->DeleteDataLayers(SelectedDataLayers);
+								Mode->DeleteDataLayers(SelectedDataLayers);
 							}}),
 						FCanExecuteAction::CreateLambda([SelectedDataLayers,bSelectedDataLayersContainsLocked] { return !SelectedDataLayers.IsEmpty() && !bSelectedDataLayersContainsLocked; })
 					));
