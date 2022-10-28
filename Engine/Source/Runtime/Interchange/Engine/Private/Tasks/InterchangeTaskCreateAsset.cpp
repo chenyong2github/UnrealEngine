@@ -216,6 +216,8 @@ void UE::Interchange::FTaskCreatePackage::DoTask(ENamedThreads::Type CurrentThre
 			return;
 		}
 
+		Pkg->SetPackageFlags(PKG_NewlyCreated);
+
 		//Import Asset describe by the node
 		UInterchangeFactoryBase::FCreateAssetParams CreateAssetParams;
 		CreateAssetParams.AssetName = AssetName;
