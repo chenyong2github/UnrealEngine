@@ -419,8 +419,14 @@ class FLockFreePointerListLIFOBase
 public:
 	FLockFreePointerListLIFOBase() = default;
 
+	~FLockFreePointerListLIFOBase()
+	{
+		while (Pop()) {};
+	}
+
 	void Reset()
 	{
+		while (Pop()) {};
 		RootList.Reset();
 	}
 
@@ -536,6 +542,12 @@ public:
 		TLinkPtr Stub = FLockFreeLinkPolicy::AllocLockFreeLink();
 		Head.SetPtr(Stub);
 		Tail.SetPtr(Stub);
+	}
+
+	~FLockFreePointerFIFOBase()
+	{
+		while (Pop()) {};
+		FLockFreeLinkPolicy::FreeLockFreeLink(Head.GetPtr());
 	}
 
 	void Push(T* InPayload) TSAN_SAFE
