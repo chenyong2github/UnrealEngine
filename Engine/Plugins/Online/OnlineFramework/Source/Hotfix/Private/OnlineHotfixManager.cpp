@@ -223,7 +223,7 @@ void UOnlineHotfixManager::PostInitProperties()
 	PlatformPrefix = DebugPrefix + ANSI_TO_TCHAR(FPlatformProperties::PlatformName());
 	PlatformPrefix += HOTFIX_SEPARATOR;
 	// Server prefix
-	ServerPrefix = DebugPrefix + TEXT("DedicatedServer");
+	ServerPrefix = DebugPrefix + GetDedicatedServerPrefix();
 	// Build the default prefix too
 	DefaultPrefix = DebugPrefix + TEXT("Default");
 
@@ -1935,6 +1935,11 @@ void UOnlineHotfixManager::HotfixTableUpdate(UObject* Asset, const FString& Asse
 bool UOnlineHotfixManager::ShouldPerformHotfix()
 {
 	return IsRunningGame() || IsRunningDedicatedServer() || IsRunningClientOnly();
+}
+
+FString UOnlineHotfixManager::GetDedicatedServerPrefix() const
+{
+	return TEXT("DedicatedServer");
 }
 
 UWorld* UOnlineHotfixManager::GetWorld() const

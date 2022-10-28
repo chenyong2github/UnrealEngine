@@ -331,6 +331,9 @@ protected:
 
 	virtual bool ShouldPerformHotfix();
 
+	/** Allow the application to override the dedicated server filename prefix. */
+	virtual FString GetDedicatedServerPrefix() const;
+
 public:
 	UOnlineHotfixManager();
 	UOnlineHotfixManager(FVTableHelper& Helper);
