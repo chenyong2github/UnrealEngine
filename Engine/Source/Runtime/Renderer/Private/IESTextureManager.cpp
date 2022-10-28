@@ -18,6 +18,7 @@
 #include "TextureLayout.h"
 #include "CommonRenderResources.h"
 #include "ScreenPass.h"
+#include "Engine/TextureLightProfile.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Config
