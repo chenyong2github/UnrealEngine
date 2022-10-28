@@ -54,12 +54,14 @@ struct FMassEntityTemplateBuildContext
 	{
 		// Tags can be added by multiple traits, so they do not follow the same rules as fragments
 		Template.AddTag<T>();
+		TypeAdded(*T::StaticStruct());
 	}
 
 	void AddTag(const UScriptStruct& TagType)
 	{
 		// Tags can be added by multiple traits, so they do not follow the same rules as fragments
 		Template.AddTag(TagType);
+		TypeAdded(TagType);
 	}
 
 	template<typename T>
@@ -137,6 +139,12 @@ struct FMassEntityTemplateBuildContext
 	//----------------------------------------------------------------------//
 	template<typename T>
 	void RequireFragment()
+	{
+		AddDependency(T::StaticStruct());
+	}
+
+	template<typename T>
+	void RequireTag()
 	{
 		AddDependency(T::StaticStruct());
 	}

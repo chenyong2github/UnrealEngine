@@ -12,4 +12,5 @@ class MASSCROWD_API UMassCrowdVisualizationTrait : public UMassVisualizationTrai
 public:
 	UMassCrowdVisualizationTrait();
 
+	virtual void BuildTemplate(FMassEntityTemplateBuildContext& BuildContext, const UWorld& World) const override;
 };

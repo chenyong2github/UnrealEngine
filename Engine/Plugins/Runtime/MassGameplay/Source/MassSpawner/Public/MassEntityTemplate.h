@@ -140,11 +140,13 @@ struct MASSSPAWNER_API FMassEntityTemplate
 	template<typename T>
 	void AddTag()
 	{
+		static_assert(TIsDerivedFrom<T, FMassTag>::IsDerived, "Given struct doesn't represent a valid mass tag type. Make sure to inherit from FMassTag or one of its child-types.");
 		Composition.Tags.Add<T>();
 	}
 	
 	void AddTag(const UScriptStruct& TagType)
 	{
+		checkf(TagType.IsChildOf(FMassFragment::StaticStruct()), TEXT("Given struct doesn't represent a valid mass tag type. Make sure to inherit from FMassTag or one of its child-types."));
 		Composition.Tags.Add(TagType);
 	}
 

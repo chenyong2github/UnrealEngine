@@ -5,6 +5,7 @@
 #include "MassCrowdVisualizationProcessor.h"
 #include "MassCrowdRepresentationActorManagement.h"
 #include "MassCrowdFragments.h"
+#include "MassEntityTemplateRegistry.h"
 
 UMassCrowdVisualizationTrait::UMassCrowdVisualizationTrait()
 {
@@ -23,14 +24,14 @@ UMassCrowdVisualizationTrait::UMassCrowdVisualizationTrait()
 	Params.NotVisibleUpdateRate = 0.5f;
 
 	LODParams.BaseLODDistance[EMassLOD::High] = 0.f;
-	LODParams.BaseLODDistance[EMassLOD::Medium] = 0.f;
-	LODParams.BaseLODDistance[EMassLOD::Low] = 3000.f;
-	LODParams.BaseLODDistance[EMassLOD::Off] = 6000.f;
+	LODParams.BaseLODDistance[EMassLOD::Medium] = 500.f;
+	LODParams.BaseLODDistance[EMassLOD::Low] = 1000.f;
+	LODParams.BaseLODDistance[EMassLOD::Off] = 5000.f;
 
 	LODParams.VisibleLODDistance[EMassLOD::High] = 0.f;
-	LODParams.VisibleLODDistance[EMassLOD::Medium] = 0.f;
-	LODParams.VisibleLODDistance[EMassLOD::Low] = 6000.f;
-	LODParams.VisibleLODDistance[EMassLOD::Off] = 50000.f;
+	LODParams.VisibleLODDistance[EMassLOD::Medium] = 1000.f;
+	LODParams.VisibleLODDistance[EMassLOD::Low] = 5000.f;
+	LODParams.VisibleLODDistance[EMassLOD::Off] = 10000.f;
 
 	LODParams.LODMaxCount[EMassLOD::High] = 10;
 	LODParams.LODMaxCount[EMassLOD::Medium] = 20;
@@ -42,4 +43,12 @@ UMassCrowdVisualizationTrait::UMassCrowdVisualizationTrait()
 	LODParams.DistanceToFrustumHysteresis = 0.0f;
 
 	LODParams.FilterTag = FMassCrowdTag::StaticStruct();
+}
+
+void UMassCrowdVisualizationTrait::BuildTemplate(FMassEntityTemplateBuildContext& BuildContext,
+	const UWorld& World) const
+{
+	Super::BuildTemplate(BuildContext, World);
+
+	BuildContext.RequireTag<FMassCrowdTag>();
 }
