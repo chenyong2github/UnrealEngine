@@ -265,6 +265,11 @@ FVector USplineMeshComponent::GetEndTangent() const
 
 void USplineMeshComponent::SetEndTangent(FVector EndTangent, bool bUpdateMesh)
 {
+	if (SplineParams.EndTangent == EndTangent)
+	{
+		return;
+	}
+
 	SplineParams.EndTangent = EndTangent;
 	bMeshDirty = true;
 	if (bUpdateMesh)
@@ -275,6 +280,11 @@ void USplineMeshComponent::SetEndTangent(FVector EndTangent, bool bUpdateMesh)
 
 void USplineMeshComponent::SetStartAndEnd(FVector StartPos, FVector StartTangent, FVector EndPos, FVector EndTangent, bool bUpdateMesh)
 {
+	if (SplineParams.StartPos == StartPos && SplineParams.StartTangent == StartTangent && SplineParams.EndPos == EndPos && SplineParams.EndTangent == EndTangent)
+	{
+		return;
+	}
+
 	SplineParams.StartPos = StartPos;
 	SplineParams.StartTangent = StartTangent;
 	SplineParams.EndPos = EndPos;
@@ -293,6 +303,11 @@ FVector2D USplineMeshComponent::GetStartScale() const
 
 void USplineMeshComponent::SetStartScale(FVector2D StartScale, bool bUpdateMesh)
 {
+	if (SplineParams.StartScale == StartScale)
+	{
+		return;
+	}
+
 	SplineParams.StartScale = StartScale;
 	bMeshDirty = true;
 	if (bUpdateMesh)
@@ -338,6 +353,11 @@ FVector2D USplineMeshComponent::GetEndScale() const
 
 void USplineMeshComponent::SetEndScale(FVector2D EndScale, bool bUpdateMesh)
 {
+	if (SplineParams.EndScale == EndScale)
+	{
+		return;
+	}
+
 	SplineParams.EndScale = EndScale;
 	bMeshDirty = true;
 	if (bUpdateMesh)
@@ -383,6 +403,11 @@ ESplineMeshAxis::Type USplineMeshComponent::GetForwardAxis() const
 
 void USplineMeshComponent::SetForwardAxis(ESplineMeshAxis::Type InForwardAxis, bool bUpdateMesh)
 {
+	if (ForwardAxis == InForwardAxis)
+	{
+		return;
+	}
+
 	ForwardAxis = InForwardAxis;
 	bMeshDirty = true;
 	if (bUpdateMesh)

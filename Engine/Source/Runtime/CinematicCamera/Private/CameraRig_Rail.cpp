@@ -128,11 +128,12 @@ void ACameraRig_Rail::UpdatePreviewMeshes()
 				USplineMeshComponent* const SplineMeshComp = PreviewRailMeshSegments[PtIdx];
 				if (SplineMeshComp)
 				{
-					SplineMeshComp->SetVisibility(bShowRailVisualization);
-					SplineMeshComp->SetStartScale(FVector2D(PreviewMeshScale, PreviewMeshScale));
-					SplineMeshComp->SetEndScale(FVector2D(PreviewMeshScale, PreviewMeshScale));
-					SplineMeshComp->SetForwardAxis(ESplineMeshAxis::Z);
-					SplineMeshComp->SetStartAndEnd(StartLoc, StartTangent, EndLoc, EndTangent, true);
+					SplineMeshComp->SetVisibility(bShowRailVisualization,false);
+					SplineMeshComp->SetStartScale(FVector2D(PreviewMeshScale, PreviewMeshScale),false);
+					SplineMeshComp->SetEndScale(FVector2D(PreviewMeshScale, PreviewMeshScale),false);
+					SplineMeshComp->SetForwardAxis(ESplineMeshAxis::Z,false);
+					SplineMeshComp->SetStartAndEnd(StartLoc, StartTangent, EndLoc, EndTangent, false);
+					SplineMeshComp->UpdateMesh();
 				}
 			}
 
