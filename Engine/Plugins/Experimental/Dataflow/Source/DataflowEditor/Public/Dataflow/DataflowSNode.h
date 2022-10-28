@@ -39,6 +39,9 @@ private:
 
 	FCheckBoxStyle CheckBoxStyle;
 	TSharedPtr<SCheckBox> RenderCheckBoxWidget;
+
+	//FCheckBoxStyle CacheStatusStyle;
+	//TSharedPtr<SCheckBox> CacheStatus;
 };
 
 //

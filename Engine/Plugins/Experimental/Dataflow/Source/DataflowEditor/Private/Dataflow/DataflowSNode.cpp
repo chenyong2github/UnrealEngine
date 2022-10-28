@@ -29,10 +29,13 @@ void SDataflowEdNode::Construct(const FArguments& InArgs, UDataflowEdNode* InNod
 	DataflowGraphNode = Cast<UDataflowEdNode>(InNode);
 	UpdateGraphNode();
 
-	/*
+	
 	const FSlateBrush* DisabledSwitchBrush = FDataflowEditorStyle::Get().GetBrush(TEXT("Dataflow.Render.Disabled"));
 	const FSlateBrush* EnabledSwitchBrush = FDataflowEditorStyle::Get().GetBrush(TEXT("Dataflow.Render.Enabled"));
 
+	//
+	// Render
+	//
 	CheckBoxStyle = FCheckBoxStyle()
 		.SetCheckBoxType(ESlateCheckBoxType::CheckBox)
 		.SetUncheckedImage(*DisabledSwitchBrush)
@@ -42,10 +45,9 @@ void SDataflowEdNode::Construct(const FArguments& InArgs, UDataflowEdNode* InNod
 		.SetCheckedHoveredImage(*EnabledSwitchBrush)
 		.SetCheckedPressedImage(*EnabledSwitchBrush)
 		.SetPadding(FMargin(0, 0, 0, 1));
-	*/
-	//TSharedPtr<SNodePanel> ParentPanel = GetParentPanel();
-
+	
 	RenderCheckBoxWidget = SNew(SCheckBox)
+		.Style(&CheckBoxStyle)
 		.IsChecked_Lambda([this]()-> ECheckBoxState
 			{
 				if (DataflowGraphNode && DataflowGraphNode->DoAssetRender())
@@ -64,8 +66,37 @@ void SDataflowEdNode::Construct(const FArguments& InArgs, UDataflowEdNode* InNod
 						DataflowGraphNode->SetAssetRender(false);
 				}
 			});
-		//.Style(&CheckBoxStyle);
 
+
+	//
+	//  Cached
+	//
+	/*
+	const FSlateBrush* CachedFalseBrush = FDataflowEditorStyle::Get().GetBrush(TEXT("Dataflow.Cached.False"));
+	const FSlateBrush* CachedTrueBrush = FDataflowEditorStyle::Get().GetBrush(TEXT("Dataflow.Cached.True"));
+
+	CacheStatusStyle = FCheckBoxStyle()
+		.SetCheckBoxType(ESlateCheckBoxType::CheckBox)
+		.SetUncheckedImage(*CachedFalseBrush)
+		.SetUncheckedHoveredImage(*CachedFalseBrush)
+		.SetUncheckedPressedImage(*CachedFalseBrush)
+		.SetCheckedImage(*CachedTrueBrush)
+		.SetCheckedHoveredImage(*CachedTrueBrush)
+		.SetCheckedPressedImage(*CachedTrueBrush)
+		.SetPadding(FMargin(0, 0, 0, 1));
+
+		CacheStatus = SNew(SCheckBox)
+		.Style(&CacheStatusStyle)
+		.IsChecked_Lambda([this]()-> ECheckBoxState
+		{
+			if (DataflowGraphNode)
+			{
+				return ECheckBoxState::Checked;
+				// @todo(dataflow) : Missing connection to FToolkit
+			}
+			return ECheckBoxState::Unchecked;
+		});
+	*/
 }
 
 TArray<FOverlayWidgetInfo> SDataflowEdNode::GetOverlayWidgets(bool bSelected, const FVector2D& WidgetSize) const
@@ -83,6 +114,19 @@ TArray<FOverlayWidgetInfo> SDataflowEdNode::GetOverlayWidgets(bool bSelected, co
 		Widgets.Add(Info);
 	}
 
+	/*
+	if (DataflowGraphNode )
+	{
+		// @todo(dataflow) : Need to bump the title box over 6px
+		const FVector2D ImageSize = CacheStatus->GetDesiredSize();
+
+		FOverlayWidgetInfo Info;
+		Info.OverlayOffset = FVector2D(6.f, 6.f);
+		Info.Widget = CacheStatus;
+
+		Widgets.Add(Info);
+	}
+	*/
 	return Widgets;
 }
 
