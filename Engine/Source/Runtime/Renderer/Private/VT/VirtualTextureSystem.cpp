@@ -2518,7 +2518,10 @@ void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatur
 
 				for (FProducePageDataPrepareTask& Task : PrepareTasks)
 				{
-					Task.VirtualTexture->GatherProducePageDataTasks(Task.RequestHandle, ProducePageTasks);
+					if (Task.RequestHandle != 0)
+					{
+						Task.VirtualTexture->GatherProducePageDataTasks(Task.RequestHandle, ProducePageTasks);
+					}
 				}
 
 				{
