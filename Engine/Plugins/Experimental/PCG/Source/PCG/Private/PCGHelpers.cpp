@@ -2,8 +2,10 @@
 
 #include "PCGHelpers.h"
 
+#include "PCGComponent.h"
 #include "PCGSubsystem.h"
 #include "PCGWorldActor.h"
+#include "Grid/PCGPartitionActor.h"
 
 #include "GameFramework/Actor.h"
 #include "Landscape.h"
@@ -54,6 +56,39 @@ namespace PCGHelpers
 		{
 			return InA.Overlap(InB);
 		}
+	}
+
+	FBox GetGridBounds(AActor* Actor, const UPCGComponent* Component)
+	{
+		check(Actor);
+
+		FBox Bounds(EForceInit::ForceInit);
+
+		if (APCGPartitionActor* PartitionActor = Cast<APCGPartitionActor>(Actor))
+		{
+			// First, get the bounds from the partition actor
+			Bounds = PartitionActor->GetFixedBounds();
+
+			const UPCGComponent* OriginalComponent = Component ? PartitionActor->GetOriginalComponent(Component) : nullptr;
+			if (OriginalComponent)
+			{
+				if (OriginalComponent->GetOwner() != PartitionActor)
+				{
+					Bounds = Bounds.Overlap(OriginalComponent->GetGridBounds());
+				}
+			}
+		}
+		// TODO: verify this works as expected in non-editor builds
+		else if (ALandscapeProxy* LandscapeActor = Cast<ALandscape>(Actor))
+		{
+			Bounds = GetLandscapeBounds(LandscapeActor);
+		}
+		else
+		{
+			Bounds = GetActorBounds(Actor);
+		}
+
+		return Bounds;
 	}
 
 	FBox GetActorBounds(AActor* InActor, bool bIgnorePCGCreatedComponents)

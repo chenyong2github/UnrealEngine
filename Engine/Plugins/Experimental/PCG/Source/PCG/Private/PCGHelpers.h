@@ -9,6 +9,7 @@ class AActor;
 class APCGWorldActor;
 class ALandscape;
 class ALandscapeProxy;
+class UPCGComponent;
 class UWorld;
 
 namespace PCGHelpers
@@ -26,6 +27,9 @@ namespace PCGHelpers
 	bool IsInsideBoundsXY(const FBox& InBox, const FVector& InPosition);
 
 	FBox OverlapBounds(const FBox& InBoxA, const FBox& InBoxB);
+
+	/** Returns the bounds of InActor, intersected with the component if InActor is a partition actor */
+	FBox GetGridBounds(AActor* InActor, const UPCGComponent* InComponent);
 
 	FBox GetActorBounds(AActor* InActor, bool bIgnorePCGCreatedComponents = true);
 	FBox GetActorLocalBounds(AActor* InActor, bool bIgnorePCGCreatedComponents = true);

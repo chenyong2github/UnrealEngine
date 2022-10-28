@@ -114,6 +114,11 @@ FBox UPCGBlueprintHelpers::GetActorLocalBoundsPCG(AActor* InActor, bool bIgnoreP
 	return PCGHelpers::GetActorLocalBounds(InActor, bIgnorePCGCreatedComponents);
 }
 
+UPCGData* UPCGBlueprintHelpers::CreatePCGDataFromActor(AActor* InActor, bool bParseActor)
+{
+	return UPCGComponent::CreateActorPCGData(InActor, nullptr, bParseActor);
+}
+
 TArray<FPCGLandscapeLayerWeight> UPCGBlueprintHelpers::GetInterpolatedPCGLandscapeLayerWeights(UObject* WorldContextObject, const FVector& Location)
 {
 	UWorld* World = WorldContextObject ? WorldContextObject->GetWorld() : nullptr;

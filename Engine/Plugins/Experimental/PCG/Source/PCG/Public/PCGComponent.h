@@ -225,6 +225,9 @@ public:
 
 	FBox GetGridBounds() const;
 
+	/** Builds the canonical PCG data from a given actor and its PCG component if any. */
+	static UPCGData* CreateActorPCGData(AActor* Actor, const UPCGComponent* Component, bool bParseActor = true);
+
 protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Properties)
 	TObjectPtr<UPCGGraph> Graph;

@@ -108,9 +108,9 @@ bool FPCGPropertyToParamDataPropertyTypeTest::RunTest(const FString& Parameters)
 	bool bSuccess = true;
 
 	UPCGPropertyToParamDataSettings* Settings = NewObject<UPCGPropertyToParamDataSettings>();
-	Settings->ActorSelection = EPCGActorSelection::ByClass;
-	Settings->ActorSelectionClass = APCGUnitTestDummyActor::StaticClass();
-	Settings->ActorFilter = EPCGActorFilter::Self;
+	Settings->ActorSelector.ActorSelection = EPCGActorSelection::ByClass;
+	Settings->ActorSelector.ActorSelectionClass = APCGUnitTestDummyActor::StaticClass();
+	Settings->ActorSelector.ActorFilter = EPCGActorFilter::Self;
 
 	static constexpr int32 Seed = 42;
 	const FString ExtraTestWhat = "PropertyToParamDataPropertyTypeTest";
@@ -209,15 +209,15 @@ bool FPCGPropertyToParamDataActorFindTest::RunTest(const FString& Parameters)
 	static const FString Name = TEXT("MyPCGUnitTestDummyActor");
 
 	UPCGPropertyToParamDataSettings* Settings = NewObject<UPCGPropertyToParamDataSettings>();
-	Settings->ActorSelectionClass = APCGUnitTestDummyActor::StaticClass();
-	Settings->ActorSelectionTag = Tag;
-	Settings->ActorSelectionName = APCGUnitTestDummyActor::StaticClass()->GetFName();
+	Settings->ActorSelector.ActorSelectionClass = APCGUnitTestDummyActor::StaticClass();
+	Settings->ActorSelector.ActorSelectionTag = Tag;
+	Settings->ActorSelector.ActorSelectionName = APCGUnitTestDummyActor::StaticClass()->GetFName();
 	Settings->ComponentClass = UPCGUnitTestDummyComponent::StaticClass();
 
 	// Self by class
 	{
-		Settings->ActorSelection = EPCGActorSelection::ByClass;
-		Settings->ActorFilter = EPCGActorFilter::Self;
+		Settings->ActorSelector.ActorSelection = EPCGActorSelection::ByClass;
+		Settings->ActorSelector.ActorFilter = EPCGActorFilter::Self;
 
 		PCGTestsCommon::FTestData TestData(Seed, Settings, APCGUnitTestDummyActor::StaticClass());
 		Cast<APCGUnitTestDummyActor>(TestData.TestActor)->IntProperty = 42;
@@ -227,8 +227,8 @@ bool FPCGPropertyToParamDataActorFindTest::RunTest(const FString& Parameters)
 
 	// Self by tag
 	{
-		Settings->ActorSelection = EPCGActorSelection::ByTag;
-		Settings->ActorFilter = EPCGActorFilter::Self;
+		Settings->ActorSelector.ActorSelection = EPCGActorSelection::ByTag;
+		Settings->ActorSelector.ActorFilter = EPCGActorFilter::Self;
 
 		PCGTestsCommon::FTestData TestData(Seed, Settings, APCGUnitTestDummyActor::StaticClass());
 		TestData.TestActor->Tags.Add(Tag);
@@ -239,8 +239,8 @@ bool FPCGPropertyToParamDataActorFindTest::RunTest(const FString& Parameters)
 
 	// Self by name
 	{
-		Settings->ActorSelection = EPCGActorSelection::ByName;
-		Settings->ActorFilter = EPCGActorFilter::Self;
+		Settings->ActorSelector.ActorSelection = EPCGActorSelection::ByName;
+		Settings->ActorSelector.ActorFilter = EPCGActorFilter::Self;
 
 		PCGTestsCommon::FTestData TestData(Seed, Settings, APCGUnitTestDummyActor::StaticClass());
 		Cast<APCGUnitTestDummyActor>(TestData.TestActor)->IntProperty = 42;
@@ -294,8 +294,8 @@ bool FPCGPropertyToParamDataActorFindTest::RunTest(const FString& Parameters)
 
 	// Self by class including component
 	{
-		Settings->ActorSelection = EPCGActorSelection::ByTag;
-		Settings->ActorFilter = EPCGActorFilter::Self;
+		Settings->ActorSelector.ActorSelection = EPCGActorSelection::ByTag;
+		Settings->ActorSelector.ActorFilter = EPCGActorFilter::Self;
 		Settings->bSelectComponent = true;
 		
 		PCGTestsCommon::FTestData TestData(Seed, Settings, AActor::StaticClass());
@@ -309,8 +309,8 @@ bool FPCGPropertyToParamDataActorFindTest::RunTest(const FString& Parameters)
 
 	// World by class
 	{
-		Settings->ActorSelection = EPCGActorSelection::ByClass;
-		Settings->ActorFilter = EPCGActorFilter::AllWorldActors;
+		Settings->ActorSelector.ActorSelection = EPCGActorSelection::ByClass;
+		Settings->ActorSelector.ActorFilter = EPCGActorFilter::AllWorldActors;
 
 		PCGTestsCommon::FTestData TestData(Seed, Settings, APCGUnitTestDummyActor::StaticClass());
 		Cast<APCGUnitTestDummyActor>(TestData.TestActor)->IntProperty = 42;
@@ -320,8 +320,8 @@ bool FPCGPropertyToParamDataActorFindTest::RunTest(const FString& Parameters)
 
 	// World by tag
 	{
-		Settings->ActorSelection = EPCGActorSelection::ByTag;
-		Settings->ActorFilter = EPCGActorFilter::AllWorldActors;
+		Settings->ActorSelector.ActorSelection = EPCGActorSelection::ByTag;
+		Settings->ActorSelector.ActorFilter = EPCGActorFilter::AllWorldActors;
 
 		PCGTestsCommon::FTestData TestData(Seed, Settings, APCGUnitTestDummyActor::StaticClass());
 		TestData.TestActor->Tags.Add(Tag);
@@ -332,8 +332,8 @@ bool FPCGPropertyToParamDataActorFindTest::RunTest(const FString& Parameters)
 
 	// World by name
 	{
-		Settings->ActorSelection = EPCGActorSelection::ByName;
-		Settings->ActorFilter = EPCGActorFilter::AllWorldActors;
+		Settings->ActorSelector.ActorSelection = EPCGActorSelection::ByName;
+		Settings->ActorSelector.ActorFilter = EPCGActorFilter::AllWorldActors;
 
 		PCGTestsCommon::FTestData TestData(Seed, Settings, APCGUnitTestDummyActor::StaticClass());
 		Cast<APCGUnitTestDummyActor>(TestData.TestActor)->IntProperty = 42;

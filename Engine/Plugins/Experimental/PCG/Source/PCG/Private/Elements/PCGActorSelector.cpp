@@ -1,0 +1,161 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Elements/PCGActorSelector.h"
+#include "Helpers/PCGActorHelpers.h"
+
+#include "Kismet/GameplayStatics.h"
+
+namespace PCGActorSelector
+{
+	// Need to pass a pointer of pointer to the found actor. The lambda will capture this pointer and modify its value when an actor is found.
+	TFunction<bool(AActor*)> GetFilteringFunction(const FPCGActorSelectorSettings& InSettings, AActor*& InFoundActor)
+	{
+		switch (InSettings.ActorSelection)
+		{
+		case EPCGActorSelection::ByTag:
+			return[ActorSelectionTag = InSettings.ActorSelectionTag, &InFoundActor](AActor* Actor) -> bool
+			{
+				if (Actor->ActorHasTag(ActorSelectionTag))
+				{
+					InFoundActor = Actor;
+					return false;
+				}
+
+				return true;
+			};
+
+		case EPCGActorSelection::ByName:
+			return[ActorSelectionName = InSettings.ActorSelectionName, &InFoundActor](AActor* Actor) -> bool
+			{
+				if (Actor->GetFName().IsEqual(ActorSelectionName, ENameCase::IgnoreCase, /*bCompareNumber=*/ false))
+				{
+					InFoundActor = Actor;
+					return false;
+				}
+
+				return true;
+			};
+
+		case EPCGActorSelection::ByClass:
+			return[ActorSelectionClass = InSettings.ActorSelectionClass, &InFoundActor](AActor* Actor) -> bool
+			{
+				if (Actor->IsA(ActorSelectionClass))
+				{
+					InFoundActor = Actor;
+					return false;
+				}
+
+				return true;
+			};
+
+		default:
+			break;
+		}
+
+		return [](AActor* Actor) -> bool { return false; };
+	}
+
+	AActor* FindActor(const FPCGActorSelectorSettings& Settings, UWorld* World, AActor* Self)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(PCGActorSelector::FindActor);
+
+		AActor* FoundActor = nullptr;
+
+		if (!World)
+		{
+			return FoundActor;
+		}
+
+		// Early out if we have not the information necessary
+		if ((Settings.ActorSelection == EPCGActorSelection::ByTag && Settings.ActorSelectionTag == NAME_None) ||
+			(Settings.ActorSelection == EPCGActorSelection::ByName && Settings.ActorSelectionName == NAME_None) ||
+			(Settings.ActorSelection == EPCGActorSelection::ByClass && !Settings.ActorSelectionClass))
+		{
+			return FoundActor;
+		}
+
+		// We pass FoundActor ref, that will be captured by the FilteringFunction
+		// It will modify the FoundActor pointer to the found actor, if found.
+		TFunction<bool(AActor*)> FilteringFunction = PCGActorSelector::GetFilteringFunction(Settings, FoundActor);
+
+		// In case of iterating over all actors in the world, call our filtering function and get out.
+		if (Settings.ActorFilter == EPCGActorFilter::AllWorldActors)
+		{
+			UPCGActorHelpers::ForEachActorInWorld<AActor>(World, FilteringFunction);
+
+			// FoundActor is set by the FilteringFunction (captured)
+			return FoundActor;
+		}
+
+		// Otherwise, gather all the actors we need to check
+		TArray<AActor*> ActorsToCheck;
+		switch (Settings.ActorFilter)
+		{
+		case EPCGActorFilter::Self:
+			if (Self)
+			{
+				ActorsToCheck.Add(Self);
+			}
+			break;
+
+		case EPCGActorFilter::Parent:
+			if (Self)
+			{
+				if (AActor* Parent = Self->GetParentActor())
+				{
+					ActorsToCheck.Add(Parent);
+				}
+				else
+				{
+					// If there is no parent, set the owner as the parent.
+					ActorsToCheck.Add(Self);
+				}
+			}
+			break;
+
+		case EPCGActorFilter::Root:
+		{
+			AActor* Current = Self;
+			while (Current != nullptr)
+			{
+				AActor* Parent = Current->GetParentActor();
+				if (Parent == nullptr)
+				{
+					ActorsToCheck.Add(Current);
+					break;
+				}
+				Current = Parent;
+			}
+
+			break;
+		}
+
+		//case EPCGActorFilter::TrackedActors:
+			//	//TODO
+			//	break;
+
+		default:
+			break;
+		}
+
+		if (Settings.bIncludeChildren)
+		{
+			const int32 InitialCount = ActorsToCheck.Num();
+			for (int32 i = 0; i < InitialCount; ++i)
+			{
+				ActorsToCheck[i]->GetAttachedActors(ActorsToCheck, /*bResetArray=*/ false, /*bRecursivelyIncludeAttachedActors=*/ true);
+			}
+		}
+
+		for (AActor* Actor : ActorsToCheck)
+		{
+			// FoundActor is set by the FilteringFunction (captured)
+			if (!FilteringFunction(Actor))
+			{
+				break;
+			}
+		}
+
+		return FoundActor;
+	}
+}

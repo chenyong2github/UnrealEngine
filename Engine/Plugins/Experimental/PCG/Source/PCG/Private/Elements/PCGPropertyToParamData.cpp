@@ -7,179 +7,34 @@
 #include "PCGComponent.h"
 #include "PCGParamData.h"
 #include "Helpers/PCGBlueprintHelpers.h"
-#include "Helpers/PCGActorHelpers.h"
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttributeTraits.h"
 
 #include "EngineUtils.h"
-#include "Kismet/GameplayStatics.h"
 
-namespace PCGPropertyToParamDataHelpers
+void UPCGPropertyToParamDataSettings::PostLoad()
 {
-	// Need to pass a pointer of pointer to the found actor. The lambda will capture this pointer and modify its value when an actor is found.
-	TFunction<bool(AActor*)> GetFilteringFunction(const UPCGPropertyToParamDataSettings* InSettings, AActor*& InFoundActor)
+	// Migrate deprecated actor selection settings to struct if needed
+	if (ActorSelection_DEPRECATED != EPCGActorSelection::ByTag ||
+		ActorSelectionTag_DEPRECATED != NAME_None ||
+		ActorSelectionName_DEPRECATED != NAME_None ||
+		ActorSelectionClass_DEPRECATED != TSubclassOf<AActor>{} ||
+		ActorFilter_DEPRECATED != EPCGActorFilter::Self ||
+		bIncludeChildren_DEPRECATED != false)
 	{
-		check(InSettings);
+		ActorSelector.ActorSelection = ActorSelection_DEPRECATED;
+		ActorSelector.ActorSelectionTag = ActorSelectionTag_DEPRECATED;
+		ActorSelector.ActorSelectionName = ActorSelectionName_DEPRECATED;
+		ActorSelector.ActorSelectionClass = ActorSelectionClass_DEPRECATED;
+		ActorSelector.ActorFilter = ActorFilter_DEPRECATED;
+		ActorSelector.bIncludeChildren = bIncludeChildren_DEPRECATED;
 
-		switch (InSettings->ActorSelection)
-		{
-		case EPCGActorSelection::ByTag:
-			return [ActorSelectionTag = InSettings->ActorSelectionTag, &InFoundActor](AActor* Actor) -> bool
-				{
-					if (Actor->ActorHasTag(ActorSelectionTag))
-					{
-						InFoundActor = Actor;
-						return false;
-					}
-
-					return true;
-				};
-
-		case EPCGActorSelection::ByName:
-			return [ActorSelectionName = InSettings->ActorSelectionName, &InFoundActor](AActor* Actor) -> bool
-				{
-					if (Actor->GetFName().IsEqual(ActorSelectionName, ENameCase::IgnoreCase, /*bCompareNumber=*/ false))
-					{
-						InFoundActor = Actor;
-						return false;
-					}
-
-					return true;
-				};
-
-		case EPCGActorSelection::ByClass:
-			return [ActorSelectionClass = InSettings->ActorSelectionClass, &InFoundActor](AActor* Actor) -> bool
-				{
-					if (Actor->IsA(ActorSelectionClass))
-					{
-						InFoundActor = Actor;
-						return false;
-					}
-
-					return true;
-				};
-
-		default:
-			break;
-		}
-
-		return [](AActor* Actor) -> bool { return false; };
-	}
-
-	AActor* FindActor(FPCGContext& InContext)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(PCGPropertyToParamDataHelpers::FindActor);
-
-		AActor* FoundActor = nullptr;
-
-		if (!InContext.SourceComponent.IsValid())
-		{
-			return FoundActor;
-		}
-
-		UPCGComponent* OriginalComponent = UPCGBlueprintHelpers::GetOriginalComponent(InContext);
-		check(OriginalComponent);
-
-		UWorld* World = OriginalComponent->GetWorld();
-		if (!World)
-		{
-			return FoundActor;
-		}
-
-		const UPCGPropertyToParamDataSettings* Settings = InContext.GetInputSettings<UPCGPropertyToParamDataSettings>();
-		check(Settings);
-
-		// Early out if we have not the information necessary
-		if ((Settings->ActorSelection == EPCGActorSelection::ByTag && Settings->ActorSelectionTag == NAME_None) ||
-			(Settings->ActorSelection == EPCGActorSelection::ByName && Settings->ActorSelectionName == NAME_None) ||
-			(Settings->ActorSelection == EPCGActorSelection::ByClass && !Settings->ActorSelectionClass))
-		{
-			return FoundActor;
-		}
-
-		// We pass FoundActor ref, that will be captured by the FilteringFunction
-		// It will modify the FoundActor pointer to the found actor, if found.
-		TFunction<bool(AActor*)> FilteringFunction = PCGPropertyToParamDataHelpers::GetFilteringFunction(Settings, FoundActor);
-
-		// In case of iterating over all actors in the world, call our filtering function and get out.
-		if (Settings->ActorFilter == EPCGActorFilter::AllWorldActors)
-		{
-			UPCGActorHelpers::ForEachActorInWorld<AActor>(World, FilteringFunction);
-
-			// FoundActor is set by the FilteringFunction (captured)
-			return FoundActor;
-		}
-
-		// Otherwise, gather all the actors we need to check
-		TArray<AActor*> ActorsToCheck;
-		switch (Settings->ActorFilter)
-		{
-		case EPCGActorFilter::Self:
-			if (AActor* Owner = OriginalComponent->GetOwner())
-			{
-				ActorsToCheck.Add(Owner);
-			}
-			break;
-
-		case EPCGActorFilter::Parent:
-			if (AActor* Owner = OriginalComponent->GetOwner())
-			{
-				if (AActor* Parent = Owner->GetParentActor())
-				{
-					ActorsToCheck.Add(Parent);
-				}
-				else
-				{
-					// If there is no parent, set the owner as the parent.
-					ActorsToCheck.Add(Owner);
-				}
-			}
-			break;
-
-		case EPCGActorFilter::Root:
-		{
-			AActor* Current = OriginalComponent->GetOwner();
-			while (Current != nullptr)
-			{
-				AActor* Parent = Current->GetParentActor();
-				if (Parent == nullptr)
-				{
-					ActorsToCheck.Add(Current);
-					break;
-				}
-				Current = Parent;
-			}
-
-			break;
-		}
-
-		//case EPCGActorFilter::TrackedActors:
-			//	//TODO
-			//	break;
-
-		default:
-			break;
-		}
-
-		if (Settings->bIncludeChildren)
-		{
-			int32 InitialCount = ActorsToCheck.Num();
-			for (int32 i = 0; i < InitialCount; ++i)
-			{
-				ActorsToCheck[i]->GetAttachedActors(ActorsToCheck, /*bResetArray=*/ false, /*bRecursivelyIncludeAttachedActors=*/ true);
-			}
-		}
-
-		for (AActor* Actor : ActorsToCheck)
-		{
-			// FoundActor is set by the FilteringFunction (captured)
-			if (!FilteringFunction(Actor))
-			{
-				break;
-			}
-		}
-
-		return FoundActor;
+		ActorSelection_DEPRECATED = EPCGActorSelection::ByTag;
+		ActorSelectionTag_DEPRECATED = NAME_None;
+		ActorSelectionName_DEPRECATED = NAME_None;
+		ActorSelectionClass_DEPRECATED = TSubclassOf<AActor>{};
+		ActorFilter_DEPRECATED = EPCGActorFilter::Self;
+		bIncludeChildren_DEPRECATED = false;
 	}
 }
 
@@ -195,7 +50,6 @@ FPCGElementPtr UPCGPropertyToParamDataSettings::CreateElement() const
 {
 	return MakeShared<FPCGPropertyToParamDataElement>();
 }
-
 
 bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 {
@@ -221,7 +75,8 @@ bool FPCGPropertyToParamDataElement::ExecuteInternal(FPCGContext* Context) const
 	}
 
 	// First find the actor depending on the selection
-	AActor* FoundActor = PCGPropertyToParamDataHelpers::FindActor(*Context);
+	UPCGComponent* OriginalComponent = UPCGBlueprintHelpers::GetOriginalComponent(*Context);
+	AActor* FoundActor = PCGActorSelector::FindActor(Settings->ActorSelector, OriginalComponent ? OriginalComponent->GetWorld() : nullptr, OriginalComponent ? OriginalComponent->GetOwner() : nullptr);
 
 	if (!FoundActor)
 	{

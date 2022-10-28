@@ -4,32 +4,11 @@
 
 #include "PCGElement.h"
 #include "PCGSettings.h"
-
-#include "Templates/SubclassOf.h"
+#include "Elements/PCGActorSelector.h"
 
 #include "PCGPropertyToParamData.generated.h"
 
-class AActor;
 class UActorComponent;
-
-UENUM()
-enum class EPCGActorSelection : uint8
-{
-	ByTag,
-	ByName,
-	ByClass
-};
-
-UENUM()
-enum class EPCGActorFilter : uint8
-{
-	Self,
-	Parent,
-	Root,
-	AllWorldActors
-	// TODO
-	// TrackedActors
-};
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGPropertyToParamDataSettings : public UPCGSettings
@@ -37,10 +16,14 @@ class PCG_API UPCGPropertyToParamDataSettings : public UPCGSettings
 	GENERATED_BODY()
 
 public:
+	//~Begin UObject interface
+	virtual void PostLoad() override;
+	//~End UObject interface
+
 	//~Begin UPCGSettings interface
 #if WITH_EDITOR
 	virtual FName GetDefaultNodeName() const override { return FName(TEXT("PropertyToParamDataNode")); }
-	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
+	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Param; }
 #endif
 
 	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
@@ -51,23 +34,8 @@ protected:
 	//~End UPCGSettings interface
 
 public:
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	EPCGActorSelection ActorSelection;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ActorSelection==EPCGActorSelection::ByTag", EditConditionHides))
-	FName ActorSelectionTag;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ActorSelection==EPCGActorSelection::ByName", EditConditionHides))
-	FName ActorSelectionName;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ActorSelection==EPCGActorSelection::ByClass", EditConditionHides))
-	TSubclassOf<AActor> ActorSelectionClass;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
-	EPCGActorFilter ActorFilter = EPCGActorFilter::Self;
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "ActorFilter!=EPCGActorFilter::AllWorldActors", EditConditionHides))
-	bool bIncludeChildren = false;
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ShowOnlyInnerProperties))
+	FPCGActorSelectorSettings ActorSelector;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bSelectComponent = false;
@@ -83,6 +51,25 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bAlwaysRequeryActors = true;
+
+private:
+	UPROPERTY()
+	EPCGActorSelection ActorSelection_DEPRECATED;
+
+	UPROPERTY()
+	FName ActorSelectionTag_DEPRECATED;
+
+	UPROPERTY()
+	FName ActorSelectionName_DEPRECATED;
+
+	UPROPERTY()
+	TSubclassOf<AActor> ActorSelectionClass_DEPRECATED;
+
+	UPROPERTY()
+	EPCGActorFilter ActorFilter_DEPRECATED = EPCGActorFilter::Self;
+
+	UPROPERTY()
+	bool bIncludeChildren_DEPRECATED = false;
 };
 
 class FPCGPropertyToParamDataElement : public FSimplePCGElement

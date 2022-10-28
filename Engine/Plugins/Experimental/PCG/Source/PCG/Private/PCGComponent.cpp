@@ -1710,6 +1710,11 @@ UPCGData* UPCGComponent::CreateActorPCGData()
 
 UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, bool bParseActor)
 {
+	return CreateActorPCGData(Actor, this, bParseActor);
+}
+
+UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, const UPCGComponent* Component, bool bParseActor)
+{
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGComponent::CreateActorPCGData);
 
 	if (!Actor)
@@ -1721,27 +1726,28 @@ UPCGData* UPCGComponent::CreateActorPCGData(AActor* Actor, bool bParseActor)
 	// TODO: add factory for extensibility
 	if (APCGPartitionActor* PartitionActor = Cast<APCGPartitionActor>(Actor))
 	{
-		check(GetOwner() == Actor); // Invalid processing otherwise because of the this usage
-		if (UPCGComponent* OriginalComponent = PartitionActor->GetOriginalComponent(this))
+		check(!Component || Component->GetOwner() == Actor); // Invalid processing otherwise because of the this usage
+
+		UPCGVolumeData* Data = NewObject<UPCGVolumeData>();
+		Data->Initialize(PartitionActor->GetFixedBounds(), PartitionActor);
+
+		UPCGComponent* OriginalComponent = Component ? PartitionActor->GetOriginalComponent(Component) : nullptr;
+		if (OriginalComponent)
 		{
-			check(OriginalComponent->IsPartitioned());
-			// TODO: cache/share the original component's actor pcg data
 			if (const UPCGSpatialData* OriginalComponentSpatialData = Cast<const UPCGSpatialData>(OriginalComponent->GetActorPCGData()))
 			{
-				UPCGVolumeData* Data = NewObject<UPCGVolumeData>();
-				Data->Initialize(PartitionActor->GetFixedBounds(), PartitionActor);
-
 				return Data->IntersectWith(OriginalComponentSpatialData);
 			}
 		}
 
-		// TODO: review this once we support non-spatial data?
-		return nullptr;
+		return Data;
 	}
 	else if (ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(Actor))
 	{
 		UPCGLandscapeData* Data = NewObject<UPCGLandscapeData>();
-		Data->Initialize({ Landscape }, GetGridBounds(Actor), /*bHeightOnly=*/false, /*bUseMetadata=*/Graph && Graph->bLandscapeUsesMetadata);
+		const bool bUseLandscapeMetadata = (!Component || !Component->Graph || (Component->Graph && Component->Graph->bLandscapeUsesMetadata));
+
+		Data->Initialize({ Landscape }, PCGHelpers::GetGridBounds(Actor, Component), /*bHeightOnly=*/false, bUseLandscapeMetadata);
 
 		return Data;
 	}
@@ -2011,40 +2017,12 @@ bool UPCGComponent::IsLandscapeCachedDataDirty(const UPCGData* Data) const
 
 FBox UPCGComponent::GetGridBounds() const
 {
-	return GetGridBounds(GetOwner());
+	return PCGHelpers::GetGridBounds(GetOwner(), this);
 }
 
 FBox UPCGComponent::GetGridBounds(AActor* Actor) const
 {
-	check(Actor);
-
-	FBox Bounds(EForceInit::ForceInit);
-
-	if (APCGPartitionActor* PartitionActor = Cast<APCGPartitionActor>(Actor))
-	{
-		// First, get the bounds from the partition actor
-		Bounds = PartitionActor->GetFixedBounds();
-
-		// Then intersect with the original component's bounds.
-		if (const UPCGComponent* OriginalComponent = PartitionActor->GetOriginalComponent(this))
-		{
-			if (OriginalComponent->GetOwner() != PartitionActor)
-			{
-				Bounds = Bounds.Overlap(OriginalComponent->GetGridBounds());
-			}
-		}
-	}
-	// TODO: verify this works as expected in non-editor builds
-	else if (ALandscapeProxy* LandscapeActor = Cast<ALandscape>(Actor))
-	{
-		Bounds = PCGHelpers::GetLandscapeBounds(LandscapeActor);
-	}
-	else
-	{
-		Bounds = PCGHelpers::GetActorBounds(Actor);
-	}
-
-	return Bounds;
+	return PCGHelpers::GetGridBounds(Actor, this);
 }
 
 UPCGSubsystem* UPCGComponent::GetSubsystem() const
