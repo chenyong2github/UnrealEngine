@@ -157,7 +157,7 @@ TArray<UActorComponent*> UHLODBuilderMeshApproximate::Build(const FHLODBuildCont
 					SwitchParameter.ParameterInfo.Name = ParamName;
 					SwitchParameter.Value = true;
 					SwitchParameter.bOverride = true;
-					StaticParameterSet.EditorOnly.StaticSwitchParameters.Add(SwitchParameter);
+					StaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
 				}
 			};
 

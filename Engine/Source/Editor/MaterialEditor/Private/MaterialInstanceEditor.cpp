@@ -532,7 +532,7 @@ void FMaterialInstanceEditor::ReInitMaterialFunctionProxies()
 		TArray<FFontParameterValue> FontParameterValues = FunctionInstanceProxy->FontParameterValues;
 
 		const FStaticParameterSet& OldStaticParameters = FunctionInstanceProxy->GetStaticParameters();
-		TArray<FStaticSwitchParameter> StaticSwitchParameters = OldStaticParameters.EditorOnly.StaticSwitchParameters;
+		TArray<FStaticSwitchParameter> StaticSwitchParameters = OldStaticParameters.StaticSwitchParameters;
 		TArray<FStaticComponentMaskParameter> StaticComponentMaskParameters = OldStaticParameters.EditorOnly.StaticComponentMaskParameters;
 
 		// Regenerate proxies
@@ -632,14 +632,14 @@ void FMaterialInstanceEditor::ReInitMaterialFunctionProxies()
 		FStaticParameterSet StaticParametersOverride = FunctionInstanceProxy->GetStaticParameters();
 
 		FunctionInstanceProxy->GetAllStaticSwitchParameterInfo(OutParameterInfo, Guids);
-		StaticParametersOverride.EditorOnly.StaticSwitchParameters.Empty();
+		StaticParametersOverride.StaticSwitchParameters.Empty();
 		for (FStaticSwitchParameter& StaticSwitchParameter : StaticSwitchParameters)
 		{
 			int32 Index = Guids.Find(StaticSwitchParameter.ExpressionGUID);
 			if (Index != INDEX_NONE)
 			{
-				StaticParametersOverride.EditorOnly.StaticSwitchParameters.Add(StaticSwitchParameter);
-				StaticParametersOverride.EditorOnly.StaticSwitchParameters.Last().ParameterInfo = OutParameterInfo[Index];
+				StaticParametersOverride.StaticSwitchParameters.Add(StaticSwitchParameter);
+				StaticParametersOverride.StaticSwitchParameters.Last().ParameterInfo = OutParameterInfo[Index];
 			}
 		}
 

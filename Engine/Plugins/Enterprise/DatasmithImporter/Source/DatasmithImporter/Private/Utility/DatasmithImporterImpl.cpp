@@ -370,7 +370,7 @@ void FDatasmithImporterImpl::CompileMaterial( UObject* Material, FMaterialUpdate
 			FStaticParameterSet StaticParameters;
 			ConstantMaterialInstance->GetStaticParameterValues( StaticParameters );
 
-			for ( FStaticSwitchParameter& Switch : StaticParameters.EditorOnly.StaticSwitchParameters )
+			for ( FStaticSwitchParameter& Switch : StaticParameters.StaticSwitchParameters )
 			{
 				if ( Switch.bOverride )
 				{

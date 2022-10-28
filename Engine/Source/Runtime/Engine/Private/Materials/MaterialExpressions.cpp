@@ -14713,7 +14713,7 @@ void UMaterialFunctionInstance::OverrideMaterialInstanceParameterValues(UMateria
 
 	// Static parameters
 	FStaticParameterSet StaticParametersOverride = Instance->GetStaticParameters();
-	StaticParametersOverride.EditorOnly.StaticSwitchParameters = StaticSwitchParameterValues;
+	StaticParametersOverride.StaticSwitchParameters = StaticSwitchParameterValues;
 	StaticParametersOverride.EditorOnly.StaticComponentMaskParameters = StaticComponentMaskParameterValues;
 	Instance->UpdateStaticPermutation(StaticParametersOverride);
 }

@@ -159,7 +159,7 @@ UMaterialInterface* FMaterialUtilities::CreateProxyMaterialAndTextures(UPackage*
 			SwitchParameter.ParameterInfo.Name = *(TEXT("Use") + TrimmedPropertyName);
 			SwitchParameter.Value = true;
 			SwitchParameter.bOverride = true;
-			NewStaticParameterSet.EditorOnly.StaticSwitchParameters.Add(SwitchParameter);
+			NewStaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
 		}
 		else
 		{
@@ -194,10 +194,10 @@ UMaterialInterface* FMaterialUtilities::CreateProxyMaterialAndTextures(UPackage*
 		SwitchParameter.ParameterInfo.Name = TEXT("UseCustomUV");
 		SwitchParameter.Value = true;
 		SwitchParameter.bOverride = true;
-		NewStaticParameterSet.EditorOnly.StaticSwitchParameters.Add(SwitchParameter);
+		NewStaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
 
 		SwitchParameter.ParameterInfo.Name = *(TEXT("UseUV") + FString::FromInt(MeshData.TextureCoordinateIndex));
-		NewStaticParameterSet.EditorOnly.StaticSwitchParameters.Add(SwitchParameter);
+		NewStaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
 	}
 
 	Material->UpdateStaticPermutation(NewStaticParameterSet);

@@ -385,6 +385,10 @@ struct FStaticParameterSetRuntimeData
 	FStaticParameterSetRuntimeData& operator=(const FStaticParameterSetRuntimeData& Rhs) = default;
 	FStaticParameterSetRuntimeData& operator=(const FStaticParameterSet& Rhs) = delete;
 
+	/** An array of static switch parameters in this set */
+	UPROPERTY()
+	TArray<FStaticSwitchParameter> StaticSwitchParameters;
+
 	/** Material layers for this set */
 	UPROPERTY()
 	FMaterialLayersFunctionsRuntimeData MaterialLayers;
@@ -394,13 +398,14 @@ struct FStaticParameterSetRuntimeData
 
 	void Empty()
 	{
+		StaticSwitchParameters.Empty();
 		MaterialLayers.Empty();
 		bHasMaterialLayers = false;
 	}
 
 	bool IsEmpty() const
 	{
-		return !bHasMaterialLayers;
+		return  StaticSwitchParameters.Num() == 0 && !bHasMaterialLayers;
 	}
 };
 
@@ -411,7 +416,7 @@ struct FStaticParameterSetEditorOnlyData
 
 	/** An array of static switch parameters in this set */
 	UPROPERTY()
-	TArray<FStaticSwitchParameter> StaticSwitchParameters;
+	TArray<FStaticSwitchParameter> StaticSwitchParameters_DEPRECATED;
 
 	/** An array of static component mask parameters in this set */
 	UPROPERTY()
@@ -428,7 +433,6 @@ struct FStaticParameterSetEditorOnlyData
 #if WITH_EDITOR
 	void Empty()
 	{
-		StaticSwitchParameters.Empty();
 		StaticComponentMaskParameters.Empty();
 		TerrainLayerWeightParameters.Empty();
 		MaterialLayers.Empty();
@@ -436,7 +440,7 @@ struct FStaticParameterSetEditorOnlyData
 
 	bool IsEmpty() const
 	{
-		return StaticSwitchParameters.Num() == 0 && StaticComponentMaskParameters.Num() == 0 && TerrainLayerWeightParameters.Num() == 0;
+		return StaticComponentMaskParameters.Num() == 0 && TerrainLayerWeightParameters.Num() == 0;
 	}
 #endif // WITH_EDITOR
 };

@@ -1387,7 +1387,7 @@ UMaterialInterface* CreateSpeedTreeMaterial9(UObject* Parent, FString MaterialFu
 	// material static setup
 	FStaticParameterSet StaticParameters;
 	UnrealMaterialInstance->GetStaticParameterValues(StaticParameters);
-	for (FStaticSwitchParameter& SwitchParameter : StaticParameters.EditorOnly.StaticSwitchParameters)
+	for (FStaticSwitchParameter& SwitchParameter : StaticParameters.StaticSwitchParameters)
 	{
 		if (SwitchParameter.ParameterInfo.Name == FName(TEXT("SharedEnable")))
 		{

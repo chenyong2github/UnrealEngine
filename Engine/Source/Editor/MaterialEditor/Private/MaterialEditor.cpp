@@ -3177,7 +3177,7 @@ void FMaterialEditor::UpdateGraphNodeStates()
 				FStaticSwitchParameter SwitchParam;
 				SwitchParam.Value = StaticSwitch->DefaultValue;
 				SwitchParam.ExpressionGUID = StaticSwitch->ExpressionGUID;
-				StaticSwitchSet.EditorOnly.StaticSwitchParameters.Add(SwitchParam);
+				StaticSwitchSet.StaticSwitchParameters.Add(SwitchParam);
 			}
 		}
 	}

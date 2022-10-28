@@ -632,7 +632,7 @@ FHLODBuildResults GenerateHLODMesh_Approximate(const FHLODBuildParams& InBuildPa
 					SwitchParameter.ParameterInfo.Name = ParamName;
 					SwitchParameter.Value = true;
 					SwitchParameter.bOverride = true;
-					StaticParameterSet.EditorOnly.StaticSwitchParameters.Add(SwitchParameter);
+					StaticParameterSet.StaticSwitchParameters.Add(SwitchParameter);
 				}
 			};
 

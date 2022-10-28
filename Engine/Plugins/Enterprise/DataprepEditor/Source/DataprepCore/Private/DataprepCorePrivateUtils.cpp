@@ -211,7 +211,7 @@ void DataprepCorePrivateUtils::CompileMaterial(UMaterialInterface* MaterialInter
 			FStaticParameterSet StaticParameters;
 			ConstantMaterialInstance->GetStaticParameterValues( StaticParameters );
 
-			for ( FStaticSwitchParameter& Switch : StaticParameters.EditorOnly.StaticSwitchParameters )
+			for ( FStaticSwitchParameter& Switch : StaticParameters.StaticSwitchParameters )
 			{
 				if ( Switch.bOverride )
 				{

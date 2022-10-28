@@ -110,7 +110,7 @@ void UMaterialInstanceConstant::CopyMaterialUniformParametersEditorOnly(UMateria
 			FStaticParameterSet MyParamSet;
 			GetStaticParameterValues(MyParamSet);
 
-			MyParamSet.EditorOnly.StaticSwitchParameters = SourceParamSet.EditorOnly.StaticSwitchParameters;
+			MyParamSet.StaticSwitchParameters = SourceParamSet.StaticSwitchParameters;
 
 			UpdateStaticPermutation(MyParamSet);
 

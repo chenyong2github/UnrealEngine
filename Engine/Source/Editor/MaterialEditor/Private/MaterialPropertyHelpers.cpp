@@ -430,7 +430,7 @@ FReply FMaterialPropertyHelpers::OnClickedSaveNewFunctionInstance(class UMateria
 					ChildInstance->FontParameterValues = EditedInstance->FontParameterValues;
 
 					const FStaticParameterSet& StaticParameters = EditedInstance->GetStaticParameters();
-					ChildInstance->StaticSwitchParameterValues = StaticParameters.EditorOnly.StaticSwitchParameters;
+					ChildInstance->StaticSwitchParameterValues = StaticParameters.StaticSwitchParameters;
 					ChildInstance->StaticComponentMaskParameterValues = StaticParameters.EditorOnly.StaticComponentMaskParameters;
 				}
 			}
@@ -523,7 +523,7 @@ FReply FMaterialPropertyHelpers::OnClickedSaveNewLayerInstance(class UMaterialFu
 					ChildInstance->FontParameterValues = EditedInstance->FontParameterValues;
 
 					const FStaticParameterSet& StaticParameters = EditedInstance->GetStaticParameters();
-					ChildInstance->StaticSwitchParameterValues = StaticParameters.EditorOnly.StaticSwitchParameters;
+					ChildInstance->StaticSwitchParameterValues = StaticParameters.StaticSwitchParameters;
 					ChildInstance->StaticComponentMaskParameterValues = StaticParameters.EditorOnly.StaticComponentMaskParameters;
 				}
 			}

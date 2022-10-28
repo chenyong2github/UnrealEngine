@@ -515,7 +515,7 @@ void FExpressionParameter::EmitValuePreshader(FEmitContext& Context, FEmitScope&
 			switch (ParameterType)
 			{
 			case EMaterialParameterType::StaticSwitch:
-				for (const FStaticSwitchParameter& Parameter : EmitMaterialData.StaticParameters->EditorOnly.StaticSwitchParameters)
+				for (const FStaticSwitchParameter& Parameter : EmitMaterialData.StaticParameters->StaticSwitchParameters)
 				{
 					if (Parameter.ParameterInfo == ParameterInfo)
 					{
