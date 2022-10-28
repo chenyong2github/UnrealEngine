@@ -62,6 +62,7 @@ class FSkinnedAssetPostLoadContext;
 class USkeletalMeshLODSettings;
 class USkeleton;
 struct FMeshUVChannelInfo;
+struct FSkeletalMaterial;
 struct FSkinWeightProfileInfo;
 class FSkinWeightVertexBuffer;
 enum class ESkeletalMeshGeoImportVersions : uint8;
