@@ -204,7 +204,7 @@ public:
 	FORCEINLINE const uint8* GetKeyRawData(FBlackboard::FKey KeyID) const { return ValueMemory.Num() && ValueOffsets.IsValidIndex(KeyID) ? (ValueMemory.GetData() + ValueOffsets[KeyID]) : NULL; }
 
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS // re BlackboardAsset
-	FORCEINLINE bool IsValidKey(FBlackboard::FKey KeyID) const { check(BlackboardAsset); return KeyID != FBlackboard::InvalidKey && BlackboardAsset->Keys.IsValidIndex(KeyID); }
+	FORCEINLINE bool IsValidKey(FBlackboard::FKey KeyID) const { check(BlackboardAsset); return BlackboardAsset->IsValidKey(KeyID); }
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS // re BlackboardAsset
 
 	/** compares blackboard's values under specified keys */

@@ -86,6 +86,8 @@ public:
 
 	FORCEINLINE FBlackboard::FKey GetFirstKeyID() const { return FirstKeyID; }
 
+	bool IsValidKey(FBlackboard::FKey KeyID) const { return KeyID != FBlackboard::InvalidKey && KeyID < GetNumKeys(); }
+
 	/** @return key data */
 	const FBlackboardEntry* GetKey(FBlackboard::FKey KeyID) const;
 
