@@ -555,11 +555,11 @@ bool AssetViewUtils::RenameFolder(const FString& DestPath, const FString& Source
 	GetObjectsInAssetData(AssetsInFolder, ObjectsInFolder, bLoadAllExternalObjects);
 
 	FResultMessage Result;
-	Result.bSucceeded = true;
+	Result.bSuccess = true;
 	FEditorDelegates::OnPreDestructiveAssetAction.Broadcast(ObjectsInFolder, EDestructiveAssetActions::AssetRename, Result);
-	if (!Result.WasSuccesful())
+	if (!Result.bSuccess)
 	{
-		UE_LOG(LogAssetViewTools, Warning, TEXT("%s"), *Result.GetErrorMessage());
+		UE_LOG(LogAssetViewTools, Warning, TEXT("%s"), *Result.ErrorMessage);
 		return false;
 	}
 
@@ -670,11 +670,11 @@ bool AssetViewUtils::MoveFolders(const TArray<FString>& InSourcePathNames, const
 	}
 
 	FResultMessage Result;
-	Result.bSucceeded = true;
+	Result.bSuccess = true;
 	FEditorDelegates::OnPreDestructiveAssetAction.Broadcast(AssetsToMove, EDestructiveAssetActions::AssetMove, Result);
-	if (!Result.WasSuccesful())
+	if (!Result.bSuccess)
 	{
-		UE_LOG(LogAssetViewTools, Warning, TEXT("%s"), *Result.GetErrorMessage());
+		UE_LOG(LogAssetViewTools, Warning, TEXT("%s"), *Result.ErrorMessage);
 		return false;
 	}
 	

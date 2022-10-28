@@ -2688,12 +2688,12 @@ namespace ObjectTools
 		}
 
 		FResultMessage Result;
-		Result.bSucceeded = true;
+		Result.bSuccess = true;
 		FEditorDelegates::OnPreDestructiveAssetAction.Broadcast(ObjectsToDelete, EDestructiveAssetActions::AssetDelete, Result);
 
-		if (!Result.WasSuccesful())
+		if (!Result.bSuccess)
 		{
-			UE_LOG(LogObjectTools, Warning, TEXT("%s"), *Result.GetErrorMessage());
+			UE_LOG(LogObjectTools, Warning, TEXT("%s"), *Result.ErrorMessage);
 			return 0;
 		}
 
@@ -2792,12 +2792,12 @@ namespace ObjectTools
 		}
 
 		FResultMessage Result;
-		Result.bSucceeded = true;
+		Result.bSuccess = true;
 		FEditorDelegates::OnPreDestructiveAssetAction.Broadcast(ObjectsToPrivatize, EDestructiveAssetActions::AssetPrivatize, Result);
 
-		if (!Result.WasSuccesful())
+		if (!Result.bSuccess)
 		{
-			UE_LOG(LogObjectTools, Warning, TEXT("%s"), *Result.GetErrorMessage());
+			UE_LOG(LogObjectTools, Warning, TEXT("%s"), *Result.ErrorMessage);
 			return 0;
 		}
 

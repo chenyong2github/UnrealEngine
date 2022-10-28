@@ -857,11 +857,11 @@ bool RenameAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetFi
 	if (UObject* Asset = InAssetPayload.LoadAsset({ ULevel::LoadAllExternalObjectsTag }))
 	{
 		FResultMessage Result;
-		Result.bSucceeded = true;
+		Result.bSuccess = true;
 		FEditorDelegates::OnPreDestructiveAssetAction.Broadcast({Asset}, EDestructiveAssetActions::AssetRename, Result);
-		if (!Result.WasSuccesful())
+		if (!Result.bSuccess)
 		{
-			UE_LOG(LogContentBrowserAssetDataSource, Warning, TEXT("%s"), *Result.GetErrorMessage());
+			UE_LOG(LogContentBrowserAssetDataSource, Warning, TEXT("%s"), *Result.ErrorMessage);
 			return false;
 		}
 
@@ -1028,11 +1028,11 @@ bool MoveAssetFileItems(TArrayView<const TSharedRef<const FContentBrowserAssetFi
 	}
 
 	FResultMessage Result;
-	Result.bSucceeded = true;
+	Result.bSuccess = true;
 	FEditorDelegates::OnPreDestructiveAssetAction.Broadcast(AssetsToMove, EDestructiveAssetActions::AssetMove, Result);
-	if (!Result.WasSuccesful())
+	if (!Result.bSuccess)
 	{
-		UE_LOG(LogContentBrowserAssetDataSource, Warning, TEXT("%s"), *Result.GetErrorMessage());
+		UE_LOG(LogContentBrowserAssetDataSource, Warning, TEXT("%s"), *Result.ErrorMessage);
 		return false;
 	}
 
