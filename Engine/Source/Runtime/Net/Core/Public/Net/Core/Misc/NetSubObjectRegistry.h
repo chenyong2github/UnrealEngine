@@ -55,10 +55,22 @@ public:
 		/** The network condition that chooses which connection this subobject can be replicated to. Default is none which means all connections receive it. */
 		ELifetimeCondition NetCondition = COND_None;
 
+#if UE_NET_REPACTOR_NAME_DEBUG
+		/** Cached name of the subobject class, for minidump debugging */
+		FName SubObjectClassName;
+
+		/** Cached name of the subobject, for minidump debugging */
+		FName SubObjectName;
+#endif
+
 		FEntry(UObject* InSubObject, ELifetimeCondition InNetCondition = COND_None)
 			: SubObject(InSubObject)
 			, Key(InSubObject)
 			, NetCondition(InNetCondition)
+#if UE_NET_REPACTOR_NAME_DEBUG
+			, SubObjectClassName(InSubObject != nullptr ? ((UObjectBase*)((UObjectBase*)InSubObject)->GetClass())->GetFName() : NAME_None)
+			, SubObjectName(InSubObject != nullptr ? ((UObjectBase*)InSubObject)->GetFName() : NAME_None)
+#endif
 		{
 		}
 
@@ -92,10 +104,22 @@ struct FReplicatedComponentInfo
 	/** Collection of subobjects replicated with this component */
 	FSubObjectRegistry SubObjects;
 
+#if UE_NET_REPACTOR_NAME_DEBUG
+	/** Cached name of the component class, for minidump debugging */
+	FName ComponentClassName;
+
+	/** Cached name of the component, for minidump debugging */
+	FName ComponentName;
+#endif
+
 	FReplicatedComponentInfo(UActorComponent* InComponent, ELifetimeCondition InNetCondition = COND_None)
 		: Component(InComponent)
 		, Key((UObject*)InComponent)
 		, NetCondition(InNetCondition)
+#if UE_NET_REPACTOR_NAME_DEBUG
+		, ComponentClassName(InComponent != nullptr ? ((UObjectBase*)((UObjectBase*)InComponent)->GetClass())->GetFName() : NAME_None)
+		, ComponentName(InComponent != nullptr ? ((UObjectBase*)InComponent)->GetFName() : NAME_None)
+#endif
 	{
 	};
 

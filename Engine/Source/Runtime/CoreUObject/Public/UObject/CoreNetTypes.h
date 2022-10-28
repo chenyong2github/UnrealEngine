@@ -5,6 +5,12 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
+/** Whether or not caching of actor/subobject names to the stack should be enabled, for async demo recording crashdumps */
+#ifndef UE_NET_REPACTOR_NAME_DEBUG
+	#define UE_NET_REPACTOR_NAME_DEBUG 0
+#endif
+
+
 /** Secondary condition to check before considering the replication of a lifetime property. */
 UENUM(BlueprintType)
 enum ELifetimeCondition

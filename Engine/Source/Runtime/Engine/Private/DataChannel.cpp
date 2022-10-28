@@ -33,6 +33,9 @@
 #include "Net/Core/PushModel/PushModel.h"
 #include "HAL/LowLevelMemStats.h"
 #include "Net/NetPing.h"
+#include "PacketHandler.h"
+#include "Net/NetNameDebug.h"
+
 
 DEFINE_LOG_CATEGORY(LogNet);
 DEFINE_LOG_CATEGORY(LogNetSubObject);
@@ -150,6 +153,11 @@ namespace UE::Net
 		TEXT("net.PushModelValidateSkipUpdate"),
 		bPushModelValidateSkipUpdate,
 		TEXT("If enabled, detect when we thought we could skip an object replication based on push model state, but we sent data anyway."), ECVF_Default);
+
+#if UE_NET_REPACTOR_NAME_DEBUG
+	/** Whether or not the currently executing ReplicateActor code has met the randomized chance for enabling name debugging */
+	static bool GMetAsyncDemoNameDebugChance = false;
+#endif
 }; // namespace UE::Net
 
 template<typename T>
@@ -3154,6 +3162,9 @@ int32 GNumReplicateActorCalls = 0;
 
 int64 UActorChannel::ReplicateActor()
 {
+	using namespace UE::Net;
+	using namespace UE::Net::Private;
+
 	LLM_SCOPE_BYTAG(NetChannel);
 	SCOPE_CYCLE_COUNTER(STAT_NetReplicateActorTime);
 
@@ -3223,7 +3234,7 @@ int64 UActorChannel::ReplicateActor()
 		UE_LOG(LogNet, Verbose, TEXT("ReplicateActor: bPausedUntilReliableACK is ending now that reliables have been ACK'd. %s"), *Describe());
 	}
 
-	if (UE::Net::bNetReplicateOnlyBeginPlay && !IsActorReadyForReplication() && !bIsForcedSerializeFromRPC)
+	if (bNetReplicateOnlyBeginPlay && !IsActorReadyForReplication() && !bIsForcedSerializeFromRPC)
 	{
 		UE_LOG(LogNet, Verbose, TEXT("ReplicateActor ignored since actor is not BeginPlay yet: %s"), *Describe());
 		return 0;
@@ -3299,6 +3310,23 @@ int64 UActorChannel::ReplicateActor()
 	if (CVarNetReliableDebug.GetValueOnAnyThread() > 0)
 	{
 		Bunch.DebugString = FString::Printf(TEXT("%.2f ActorBunch: %s"), Connection->Driver->GetElapsedTime(), *Actor->GetName() );
+	}
+#endif
+
+#if UE_NET_REPACTOR_NAME_DEBUG
+	// View address in memory viewer
+	volatile PTRINT ActorName;
+
+	if (bReplay && (GCVarNetActorNameDebug || GCVarNetSubObjectNameDebug))
+	{
+		GMetAsyncDemoNameDebugChance = HasMetAsyncDemoNameDebugChance();
+
+		if (GCVarNetActorNameDebug && GMetAsyncDemoNameDebugChance)
+		{
+			ActorName = UE_NET_ALLOCA_NAME_DEBUG_BUFFER();
+
+			StoreFullName(ActorName, Actor);
+		}
 	}
 #endif
 
@@ -3588,6 +3616,7 @@ bool UActorChannel::CanSubObjectReplicateToClient(ELifetimeCondition NetConditio
 bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplicationFlags RepFlags)
 {
 	using namespace UE::Net;
+	using namespace UE::Net::Private;
 
 	check(Actor->IsUsingRegisteredSubObjectList());
 
@@ -3599,6 +3628,12 @@ bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplication
 		// From here track all subobjects that write into the bunch.
 		DataChannelInternal::bTrackReplicatedSubObjects = true;
 	}
+#endif
+
+#if UE_NET_REPACTOR_NAME_DEBUG
+	// View address in memory viewer
+	const bool bSubObjectNameDebug = GCVarNetSubObjectNameDebug && GMetAsyncDemoNameDebugChance && Connection->IsReplay();
+	volatile PTRINT SubObjName = bSubObjectNameDebug ? UE_NET_ALLOCA_NAME_DEBUG_BUFFER() : 0;
 #endif
 
 	const TStaticBitArray<COND_Max> ConditionMap = FSendingRepState::BuildConditionMapFromRepFlags(RepFlags);
@@ -3614,6 +3649,13 @@ bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplication
 			{
 				checkf(IsValid(SubObjectInfo.SubObject), TEXT("Found invalid subobject (%s) registered in %s"), *GetNameSafe(SubObjectInfo.SubObject), *Actor->GetName());
 
+#if UE_NET_REPACTOR_NAME_DEBUG
+				if (bSubObjectNameDebug)
+				{
+					StoreSubObjectName(SubObjName, SubObjectInfo);
+				}
+#endif
+
 				bWroteSomethingImportant |= WriteSubObjectInBunch(SubObjectInfo.SubObject, Bunch, RepFlags);
 			}
 		}
@@ -3627,6 +3669,13 @@ bool UActorChannel::ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplication
 			UActorComponent* ReplicatedComponent = RepComponentInfo.Component;
 
 			checkf(IsValid(ReplicatedComponent), TEXT("Found invalid replicated component (%s) registered in %s"), *GetNameSafe(ReplicatedComponent), *Actor->GetName());
+
+#if UE_NET_REPACTOR_NAME_DEBUG
+			if (bSubObjectNameDebug)
+			{
+				StoreSubObjectName(SubObjName, RepComponentInfo);
+			}
+#endif
 
 			SetCurrentSubObjectOwner(ReplicatedComponent);
 			if (ReplicatedComponent->IsUsingRegisteredSubObjectList())
@@ -3789,13 +3838,30 @@ bool UActorChannel::WriteSubObjects(UActorComponent* ReplicatedComponent, FOutBu
 
 bool UActorChannel::WriteSubObjects(UActorComponent* ReplicatedComponent, const UE::Net::FSubObjectRegistry& SubObjectList, FOutBunch& Bunch, FReplicationFlags RepFlags, const TStaticBitArray<COND_Max>& ConditionMap)
 {
+	using namespace UE::Net;
+	using namespace UE::Net::Private;
+
 	bool bWroteSomethingImportant = false;
-	for (const UE::Net::FSubObjectRegistry::FEntry& SubObjectInfo : SubObjectList.GetRegistryList())
+
+#if UE_NET_REPACTOR_NAME_DEBUG
+	// View address in memory viewer
+	const bool bSubObjectNameDebug = GCVarNetSubObjectNameDebug && GMetAsyncDemoNameDebugChance && Connection->IsReplay();
+	volatile PTRINT SubObjName = bSubObjectNameDebug ? UE_NET_ALLOCA_NAME_DEBUG_BUFFER() : 0;
+#endif
+
+	for (const FSubObjectRegistry::FEntry& SubObjectInfo : SubObjectList.GetRegistryList())
 	{
 		checkf(IsValid(SubObjectInfo.SubObject), TEXT("Found invalid subobject (%s) registered in %s::%s"), *GetNameSafe(SubObjectInfo.SubObject), *Actor->GetName(), *GetNameSafe(ReplicatedComponent));
 
 		if (CanSubObjectReplicateToClient(SubObjectInfo.NetCondition, SubObjectInfo.Key, ConditionMap))
 		{
+#if UE_NET_REPACTOR_NAME_DEBUG
+			if (bSubObjectNameDebug)
+			{
+				StoreSubObjectName(SubObjName, SubObjectInfo);
+			}
+#endif
+
 			bWroteSomethingImportant |= WriteSubObjectInBunch(SubObjectInfo.SubObject, Bunch, RepFlags);
 		}
 	}
