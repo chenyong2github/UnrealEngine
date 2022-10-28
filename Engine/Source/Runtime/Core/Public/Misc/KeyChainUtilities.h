@@ -152,7 +152,7 @@ namespace KeyChainUtilities
 		FArchive* File = IFileManager::Get().CreateFileReader(*InFilename);
 		checkf(File != nullptr, TEXT("Specified crypto keys cache '%s' does not exist!"), *InFilename);
 		TSharedPtr<FJsonObject> RootObject;
-		TSharedRef<TJsonReader<char>> Reader = TJsonReaderFactory<char>::Create(File);
+		TSharedRef<TJsonReader<UTF8CHAR>> Reader = TJsonReaderFactory<UTF8CHAR>::Create(File);
 		if (FJsonSerializer::Deserialize(Reader, RootObject))
 		{
 			const TSharedPtr<FJsonObject>* EncryptionKeyObject;

@@ -325,6 +325,66 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 		check(OutputString == TestOutput);
 	}
 
+	// String Test UTF8
+	{
+		// UTF8TEXT will prepend the first u8 literal specifier
+		// UTF8TEXT does a cast so we can't add it each line and still get the literals to concatenate
+		const UTF8CHAR* InputString = UTF8TEXT(
+			"{"
+				u8"\"Value\":\"Some String, Escape Chars: \\\\, \\\", \\/, \\b, \\f, \\n, \\r, \\t, \\u002B\\uD83D\\uDE10\","
+				u8"\"Value1\":\"Greek String, Σὲ γνωρίζω ἀπὸ τὴν κόψη\","
+				u8"\"Value2\":\"Thai String, สิบสองกษัตริย์ก่อนหน้าแลถัดไป\","
+				u8"\"Value3\":\"Hello world, Καλημέρα κόσμε, コンニチハ\""
+			u8"}"
+		);
+
+		TSharedRef< TJsonReader<UTF8CHAR> > Reader = TJsonReaderFactory<UTF8CHAR>::CreateFromView( InputString );
+
+		TSharedPtr<FJsonObject> Object;
+		bool bSuccessful = FJsonSerializer::Deserialize(Reader, Object);
+		check(bSuccessful);
+		check( Object.IsValid() );
+
+		{
+			const TSharedPtr<FJsonValue>* Value = Object->Values.Find(TEXT("Value"));
+			check(Value && (*Value)->Type == EJson::String);
+			const FString String = (*Value)->AsString();
+			check(String == TEXT("Some String, Escape Chars: \\, \", /, \b, \f, \n, \r, \t, +😐"));
+		}
+		{
+			const TSharedPtr<FJsonValue>* Value = Object->Values.Find(TEXT("Value1"));
+			check(Value && (*Value)->Type == EJson::String);
+			const FString String = (*Value)->AsString();
+			check(String == TEXT("Greek String, Σὲ γνωρίζω ἀπὸ τὴν κόψη"));
+		}
+		{
+			const TSharedPtr<FJsonValue>* Value = Object->Values.Find(TEXT("Value2"));
+			check(Value && (*Value)->Type == EJson::String);
+			const FString String = (*Value)->AsString();
+			check(String == TEXT("Thai String, สิบสองกษัตริย์ก่อนหน้าแลถัดไป"));
+		}
+		{
+			const TSharedPtr<FJsonValue>* Value = Object->Values.Find(TEXT("Value3"));
+			check(Value && (*Value)->Type == EJson::String);
+			const FString String = (*Value)->AsString();
+			check(String == TEXT("Hello world, Καλημέρα κόσμε, コンニチハ"));
+		}
+
+		FString OutputString;
+		TSharedRef< FCondensedJsonStringWriter > Writer = FCondensedJsonStringWriterFactory::Create( &OutputString );
+		verify( FJsonSerializer::Serialize( Object.ToSharedRef(), Writer ) );
+
+		// Note: The literal prefix for the string (u8, L), must be present for every contatenated string, not just the first one
+		const FString TestOutput =
+			TEXT("{")
+				TEXT("\"Value\":\"Some String, Escape Chars: \\\\, \\\", /, \\b, \\f, \\n, \\r, \\t, +😐\",")
+				TEXT("\"Value1\":\"Greek String, Σὲ γνωρίζω ἀπὸ τὴν κόψη\",")
+				TEXT("\"Value2\":\"Thai String, สิบสองกษัตริย์ก่อนหน้าแลถัดไป\",")
+				TEXT("\"Value3\":\"Hello world, Καλημέρα κόσμε, コンニチハ\"")
+			TEXT("}");
+		check(OutputString == TestOutput);
+	}
+
 	// Number Test
 	{
 		const FString InputString =
