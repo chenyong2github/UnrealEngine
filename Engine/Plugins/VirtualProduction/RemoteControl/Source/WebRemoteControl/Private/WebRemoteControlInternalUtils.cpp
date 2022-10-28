@@ -16,7 +16,7 @@ FName NAME_Patch = "PATCH";
 FName NAME_Delete = "DELETE";
 FName NAME_Options = "OPTIONS";
 
-typedef UCS2CHAR PayloadCharType;
+typedef WIDECHAR PayloadCharType;
 const FName ReturnValuePropName(TEXT("ReturnValue"));
 
 void ReplaceFirstOccurence(TConstArrayView<uint8> InPayload, const FString& From, const FString& To, TArray<uint8>& OutModifiedPayload)
@@ -253,7 +253,7 @@ void WebRemoteControlInternalUtils::CreateUTF8ErrorMessage(const FString& InMess
 
 bool WebRemoteControlInternalUtils::GetStructParametersDelimiters(TConstArrayView<uint8> InTCHARPayload, TMap<FString, FBlockDelimiters>& InOutStructParameters, FString* OutErrorText)
 {
-	typedef UCS2CHAR PayloadCharType;
+	typedef WIDECHAR PayloadCharType;
 	FMemoryReaderView Reader(InTCHARPayload);
 	TSharedRef<TJsonReader<PayloadCharType>> JsonReader = TJsonReader<PayloadCharType>::Create(&Reader);
 
@@ -314,7 +314,7 @@ bool WebRemoteControlInternalUtils::GetStructParametersDelimiters(TConstArrayVie
 
 bool WebRemoteControlInternalUtils::GetBatchRequestStructDelimiters(TConstArrayView<uint8> InTCHARPayload, TMap<int32, FBlockDelimiters>& OutStructParameters, FString* OutErrorText)
 {
-	typedef UCS2CHAR PayloadCharType;
+	typedef WIDECHAR PayloadCharType;
 	FMemoryReaderView Reader(InTCHARPayload);
 	TSharedRef<TJsonReader<PayloadCharType>> JsonReader = TJsonReader<PayloadCharType>::Create(&Reader);
 
@@ -383,7 +383,7 @@ bool WebRemoteControlInternalUtils::GetBatchRequestStructDelimiters(TConstArrayV
 
 bool WebRemoteControlInternalUtils::GetBatchWebSocketRequestStructDelimiters(TConstArrayView<uint8> InTCHARPayload, TArray<FBlockDelimiters>& OutStructParameters, FString* OutErrorText)
 {
-	typedef UCS2CHAR PayloadCharType;
+	typedef WIDECHAR PayloadCharType;
 	FMemoryReaderView Reader(InTCHARPayload);
 	TSharedRef<TJsonReader<PayloadCharType>> JsonReader = TJsonReader<PayloadCharType>::Create(&Reader);
 

@@ -22,7 +22,7 @@ FJsonArchiveInputFormatter::FJsonArchiveInputFormatter(FArchive& InInner, TFunct
 	Inner.ArAllowLazyLoading = false;
 
 	TSharedPtr< FJsonObject > RootObject;
-	TSharedRef< TJsonReader<char> > Reader = TJsonReaderFactory<char>::Create(&InInner);
+	TSharedRef< TJsonReader<UTF8CHAR> > Reader = TJsonReaderFactory<UTF8CHAR>::Create(&InInner);
 	ensure(FJsonSerializer::Deserialize(Reader, RootObject, FJsonSerializer::EFlags::StoreNumbersAsStrings));
 	ValueStack.Add(MakeShared<FJsonValueObject>(RootObject));
 

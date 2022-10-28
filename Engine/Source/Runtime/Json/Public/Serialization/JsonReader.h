@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Serialization/JsonTypes.h"
 #include "Serialization/BufferReader.h"
+#include "Misc/StringBuilder.h"
 
 class Error;
 
@@ -212,7 +213,7 @@ protected:
 	 *
 	 * @param InStream An archive containing the input.
 	 */
-	TJsonReader(FArchive* InStream)
+	explicit TJsonReader(FArchive* InStream)
 		: ParseState()
 		, CurrentToken(EJsonToken::None)
 		, Stream(InStream)
@@ -553,7 +554,19 @@ private:
 
 	bool ParseStringToken()
 	{
-		FString String;
+		TStringBuilderWithBuffer<CharType, 512> StringBuffer;
+		TStringBuilderWithBuffer<WIDECHAR, 512> UTF16CodePoints;
+
+		// Add escaped surrogate pairs
+		auto ConditionallyAddCodePoints = [&StringBuffer, &UTF16CodePoints]() -> void
+		{
+			if (UTF16CodePoints.Len() > 0)
+			{
+				// Will convert to CharType encoding if needed
+				StringBuffer.Append(UTF16CodePoints);
+				UTF16CodePoints.Reset();
+			}
+		};
 
 		while (true)
 		{
@@ -572,6 +585,7 @@ private:
 
 			if (Char == CharType('\"'))
 			{
+				ConditionallyAddCodePoints();
 				break;
 			}
 
@@ -583,14 +597,19 @@ private:
 				}
 				++CharacterNumber;
 
+				if (Char != CharType('u'))
+				{
+					ConditionallyAddCodePoints();
+				}
+
 				switch (Char)
 				{
-				case CharType('\"'): case CharType('\\'): case CharType('/'): String += Char; break;
-				case CharType('f'): String += CharType('\f'); break;
-				case CharType('r'): String += CharType('\r'); break;
-				case CharType('n'): String += CharType('\n'); break;
-				case CharType('b'): String += CharType('\b'); break;
-				case CharType('t'): String += CharType('\t'); break;
+				case CharType('\"'): case CharType('\\'): case CharType('/'): StringBuffer.AppendChar(Char); break;
+				case CharType('f'): StringBuffer.AppendChar(CharType('\f')); break;
+				case CharType('r'): StringBuffer.AppendChar(CharType('\r')); break;
+				case CharType('n'): StringBuffer.AppendChar(CharType('\n')); break;
+				case CharType('b'): StringBuffer.AppendChar(CharType('\b')); break;
+				case CharType('t'): StringBuffer.AppendChar(CharType('\t')); break;
 				case CharType('u'):
 					// 4 hex digits, like \uAB23, which is a 16 bit number that we would usually see as 0xAB23
 					{
@@ -622,7 +641,7 @@ private:
 							HexNum += HexDigit * (int32)FMath::Pow(16.f, (float)Radix);
 						}
 
-						String += (FString::ElementType)HexNum;
+						UTF16CodePoints.AppendChar((UTF16CHAR)HexNum);
 					}
 					break;
 
@@ -633,11 +652,12 @@ private:
 			}
 			else
 			{
-				String += Char;
+				ConditionallyAddCodePoints();
+				StringBuffer.AppendChar(Char);
 			}
 		}
 
-		StringValue = MoveTemp(String);
+		StringValue = FString(StringBuffer);
 
 		// Inline combine any surrogate pairs in the data when loading into a UTF-32 string
 		StringConv::InlineCombineSurrogates(StringValue);
@@ -894,7 +914,7 @@ protected:
 	 *
 	 * @param JsonString The Json string to parse.
 	 */
-	FJsonStringReader(const FString& JsonString)
+	explicit FJsonStringReader(const FString& JsonString)
 		: Content(JsonString)
 		, Reader(nullptr)
 	{
@@ -906,7 +926,7 @@ protected:
 	 *
 	 * @param JsonString The Json string to parse.
 	 */
-	FJsonStringReader(FString&& JsonString)
+	explicit FJsonStringReader(FString&& JsonString)
 		: Content(MoveTemp(JsonString))
 		, Reader(nullptr)
 	{
@@ -921,8 +941,6 @@ protected:
 		}
 
 		Reader = MakeUnique<FBufferReader>((void*)*Content, Content.Len() * sizeof(TCHAR), false);
-		check(Reader.IsValid());
-
 		Stream = Reader.Get();
 	}
 
@@ -931,6 +949,50 @@ protected:
 	TUniquePtr<FBufferReader> Reader;
 };
 
+template <class CharType>
+class TJsonStringViewReader
+	: public TJsonReader<CharType>
+{
+public:
+
+	static TSharedRef<TJsonStringViewReader> Create(TStringView<CharType> JsonString)
+	{
+		return MakeShareable(new TJsonStringViewReader(JsonString));
+	}
+
+public:
+
+	virtual ~TJsonStringViewReader() = default;
+
+protected:
+
+	/**
+	 * Parses a string containing Json information.
+	 *
+	 * @param JsonString The Json string to parse.
+	 */
+	explicit TJsonStringViewReader(TStringView<CharType> JsonString)
+		: Content(JsonString)
+		, Reader(nullptr)
+	{
+		InitReader();
+	}
+
+	void InitReader()
+	{
+		if (Content.IsEmpty())
+		{
+			return;
+		}
+
+		Reader = MakeUnique<FBufferReader>((void*)Content.GetData(), Content.Len() * sizeof(CharType), false);
+		TJsonReader<CharType>::Stream = Reader.Get();
+	}
+
+protected:
+	TStringView<CharType> Content;
+	TUniquePtr<FBufferReader> Reader;
+};
 
 template <class CharType = TCHAR>
 class TJsonReaderFactory
@@ -950,5 +1012,10 @@ public:
 	static TSharedRef<TJsonReader<CharType>> Create(FArchive* const Stream)
 	{
 		return TJsonReader<CharType>::Create(Stream);
+	}
+
+	static TSharedRef<TJsonReader<CharType>> CreateFromView(TStringView<CharType> JsonString)
+	{
+		return TJsonStringViewReader<CharType>::Create(JsonString);
 	}
 };

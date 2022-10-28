@@ -783,7 +783,7 @@ bool UTextAssetCommandlet::DoTextAssetProcessing(const FProcessingArgs& InArgs)
 						TRACE_CPUPROFILER_EVENT_SCOPE(UTextAssetCommandlet::VerifyJson);
 						FArchive* File = IFileManager::Get().CreateFileReader(*DestinationFilename);
 						TSharedPtr< FJsonObject > RootObject;
-						TSharedRef< TJsonReader<char> > Reader = TJsonReaderFactory<char>::Create(File);
+						TSharedRef< TJsonReader<UTF8CHAR> > Reader = TJsonReaderFactory<UTF8CHAR>::Create(File);
 						ensure(FJsonSerializer::Deserialize(Reader, RootObject));
 						delete File;
 					}
