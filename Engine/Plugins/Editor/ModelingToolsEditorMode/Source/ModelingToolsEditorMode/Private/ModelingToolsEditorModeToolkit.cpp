@@ -796,8 +796,14 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 		ToolbarBuilder.AddToolBarButton(Commands.BeginVolumeToMeshTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshToVolumeTool);
 		ToolbarBuilder.AddSeparator();
-		ToolbarBuilder.AddToolBarButton(Commands.BeginBspConversionTool);
-		ToolbarBuilder.AddSeparator();
+
+		// BSPConv is disabled in Restrictive Mode.
+		if (Commands.BeginBspConversionTool)
+		{
+			ToolbarBuilder.AddToolBarButton(Commands.BeginBspConversionTool);
+			ToolbarBuilder.AddSeparator();
+		}
+
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPhysicsInspectorTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSetCollisionGeometryTool);
 		//ToolbarBuilder.AddToolBarButton(Commands.BeginEditCollisionGeometryTool);
