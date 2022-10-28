@@ -49,12 +49,26 @@ public:
 
 	virtual FString GetStaticDescription() const override;
 	virtual void DescribeRuntimeValues(const UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTDescriptionVerbosity::Type Verbosity, TArray<FString>& Values) const override;
-	virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override final;
+	virtual bool CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const override;
 	virtual void OnInstanceDestroyed(UBehaviorTreeComponent& OwnerComp) override;
 	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
 
-	/** return if this decorator should abort in current circumstances */
-	bool GetShouldAbort(UBehaviorTreeComponent& OwnerComp) const;
+	enum class EAbortType : uint8
+	{
+		NoAbort,
+		ActivateBranch,
+		DeactivateBranch,
+		Unknown,
+	};
+
+	/** return this decorator abort type in current circumstances */
+	EAbortType EvaluateAbortType(UBehaviorTreeComponent& OwnerComp) const;
+
+	UE_DEPRECATED(5.2, "Use GetShouldAbortType instead")
+	bool GetShouldAbort(UBehaviorTreeComponent& OwnerComp) const
+	{
+		return  EvaluateAbortType(OwnerComp) != EAbortType::NoAbort;
+	}
 
 	virtual void SetOwner(AActor* ActorOwner) override;
 
@@ -116,8 +130,6 @@ protected:
 	/** set if ReceiveConditionCheck is implemented by blueprint */
 	uint32 PerformConditionCheckImplementations : 2;
 
-	bool CalculateRawConditionValueImpl(UBehaviorTreeComponent& OwnerComp) const;
-	
 	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void OnCeaseRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 	virtual void OnNodeActivation(FBehaviorTreeSearchData& SearchData) override;
@@ -211,4 +223,7 @@ protected:
 	bool IsDecoratorObserverActive() const;
 
 	FORCEINLINE bool GetNeedsTickForConditionChecking() const { return PerformConditionCheckImplementations != 0 && (bIsObservingBB == false || bCheckConditionOnlyBlackBoardChanges == false); }
+
+	/** Handle abort request calls from the specified abort type */
+	void RequestAbort(UBehaviorTreeComponent& OwnerComp, const EAbortType Type);
 };

@@ -17,6 +17,7 @@
 
 #include "BehaviorTree/TestBTDecorator_Blackboard.h"
 #include "BehaviorTree/TestBTDecorator_DelayedAbort.h"
+#include "BehaviorTree/TestBTDecorator_Blueprint.h"
 #include "BehaviorTree/TestBTService_Log.h"
 #include "BehaviorTree/TestBTService_BTStopAction.h"
 #include "BehaviorTree/TestBTTask_LatentWithFlags.h"
@@ -299,6 +300,21 @@ struct FBTBuilder
 		UTestBTDecorator_DelayedAbort& AbortDecorator = WithDecorator<UTestBTDecorator_DelayedAbort>(ParentNode);
 		AbortDecorator.DelayTicks = NumTicks;
 		AbortDecorator.bOnlyOnce = bAbortOnlyOnce;
+	}
+
+	static void WithDecoratorBlueprint(UBTCompositeNode& ParentNode, EBTFlowAbortMode::Type Observer, EBPConditionType BPConditionType = EBPConditionType::True,
+		int32 LogIndexBecomeRelevant = -1, int32 LogIndexCeaseRelevant = -1, int32 LogIndexCalculate = -1, FName ObservingKeyName = NAME_None )
+	{
+		UTestBTDecorator_Blueprint& BPDecorator = WithDecorator<UTestBTDecorator_Blueprint>(ParentNode);
+		BPDecorator.LogIndexBecomeRelevant = LogIndexBecomeRelevant;
+		BPDecorator.LogIndexCeaseRelevant = LogIndexCeaseRelevant;
+		BPDecorator.LogIndexCalculate = LogIndexCalculate;
+		BPDecorator.BPConditionType = BPConditionType;
+		BPDecorator.ObservingKeyName = ObservingKeyName;
+
+		FByteProperty* ObserverProp = FindFProperty<FByteProperty>(UBTDecorator_Blackboard::StaticClass(), TEXT("FlowAbortMode"));
+		uint8* ObserverPropData = ObserverProp->ContainerPtrToValuePtr<uint8>(&BPDecorator);
+		ObserverProp->SetIntPropertyValue(ObserverPropData, (uint64)Observer);
 	}
 
 	static void WithDecoratorLoop(UBTCompositeNode& ParentNode, int32 NumLoops = 2)

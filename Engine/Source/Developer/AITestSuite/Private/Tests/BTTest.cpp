@@ -153,6 +153,84 @@ struct FAITest_BTBasicSequence : public FAITest_SimpleBT
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTBasicSequence, "System.AI.Behavior Trees.Composite node: sequence")
 
+struct FAITest_BTDecoratorBlueprint : public FAITest_SimpleBT
+{
+	FAITest_BTDecoratorBlueprint()
+	{
+		enum
+		{
+			DecoratorBlueprintCalculate = 1,
+			DecoratorBlueprintBecomeRelevant,
+			DecoratorBlueprintCeaseRelevant,
+			Task1Execute,
+			Task2Execute,
+			Task3Execute,
+		};
+
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset);
+		{
+			UBTCompositeNode& CompNode1 = FBTBuilder::AddSequence(CompNode);
+			FBTBuilder::WithDecoratorBlueprint(CompNode, EBTFlowAbortMode::Both, EBPConditionType::True, DecoratorBlueprintBecomeRelevant, DecoratorBlueprintCeaseRelevant, DecoratorBlueprintCalculate);
+			{
+				// Task1
+				FBTBuilder::AddTask(CompNode1, Task1Execute, EBTNodeResult::Succeeded);
+
+				// Task2
+				FBTBuilder::AddTask(CompNode1, Task2Execute, EBTNodeResult::Succeeded, /*ExecutionTicks*/1);
+			}
+			// Task3
+			FBTBuilder::AddTask(CompNode, Task3Execute, EBTNodeResult::Failed);
+		}
+
+		ExpectedResult.Add(DecoratorBlueprintCalculate/*1*/);
+		ExpectedResult.Add(DecoratorBlueprintBecomeRelevant/*2*/);
+		ExpectedResult.Add(DecoratorBlueprintCalculate/*1*/);
+		ExpectedResult.Add(Task1Execute/*4*/);
+		ExpectedResult.Add(DecoratorBlueprintCalculate/*1*/);
+		ExpectedResult.Add(Task2Execute/*5*/);
+		ExpectedResult.Add(DecoratorBlueprintCalculate/*1*/);
+		ExpectedResult.Add(DecoratorBlueprintCalculate/*1*/);
+		ExpectedResult.Add(DecoratorBlueprintCeaseRelevant/*3*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTDecoratorBlueprint, "System.AI.Behavior Trees.Decorator: blueprint")
+
+struct FAITest_BTDecoratorBlueprintNoConditionImpl : public FAITest_SimpleBT
+{
+	FAITest_BTDecoratorBlueprintNoConditionImpl()
+	{
+		enum
+		{
+			DecoratorBlueprintCalculate = 1,
+			DecoratorBlueprintBecomeRelevant,
+			DecoratorBlueprintCeaseRelevant,
+			Task1Execute,
+			Task2Execute,
+			Task3Execute,
+		};
+
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset);
+		{
+			// Task1
+			FBTBuilder::AddTask(CompNode, Task1Execute, EBTNodeResult::Succeeded);
+			FBTBuilder::WithDecoratorBlueprint(CompNode, EBTFlowAbortMode::LowerPriority, EBPConditionType::NoCondition, DecoratorBlueprintBecomeRelevant, DecoratorBlueprintCeaseRelevant, DecoratorBlueprintCalculate, TEXT("Bool1"));
+
+			// Task2
+			FBTBuilder::AddTaskFlagChange(CompNode, true, EBTNodeResult::Succeeded, TEXT("Bool1"));
+			FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Self, TEXT("Bool1"));
+
+			// Task3
+			FBTBuilder::AddTask(CompNode, Task3Execute, EBTNodeResult::Succeeded, /*ExecutionTicks*/1);
+		}
+
+		ExpectedResult.Add(DecoratorBlueprintCalculate/*1*/);
+		ExpectedResult.Add(DecoratorBlueprintBecomeRelevant/*2*/);
+		ExpectedResult.Add(Task3Execute/*6*/);
+		ExpectedResult.Add(DecoratorBlueprintCeaseRelevant/*3*/);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTDecoratorBlueprintNoConditionImpl, "System.AI.Behavior Trees.Decorator: blueprint no condition impl")
+
 struct FAITest_BTBasicParallelWait : public FAITest_SimpleBT
 {
 	FAITest_BTBasicParallelWait()

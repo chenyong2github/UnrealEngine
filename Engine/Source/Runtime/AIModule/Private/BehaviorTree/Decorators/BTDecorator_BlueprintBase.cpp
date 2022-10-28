@@ -178,36 +178,65 @@ void UBTDecorator_BlueprintBase::TickNode(UBehaviorTreeComponent& OwnerComp, uin
 	}
 		
 	// possible this got ticked due to the decorator being configured as an observer
-	if (GetNeedsTickForConditionChecking() && GetShouldAbort(OwnerComp))
+	if (GetNeedsTickForConditionChecking())
 	{
-		OwnerComp.RequestExecution(this);
+		RequestAbort(OwnerComp, EvaluateAbortType(OwnerComp));
 	}
 }
 
-bool UBTDecorator_BlueprintBase::GetShouldAbort(UBehaviorTreeComponent& OwnerComp) const 
+UBTDecorator_BlueprintBase::EAbortType  UBTDecorator_BlueprintBase::EvaluateAbortType(UBehaviorTreeComponent& OwnerComp) const
 {
-	// if there's no condition-checking function implemented we always want to abort on any change
 	if (PerformConditionCheckImplementations == 0)
 	{
-		return true;
+		return EAbortType::Unknown;
+	}
+
+	if (FlowAbortMode == EBTFlowAbortMode::None)
+	{
+		return EAbortType::NoAbort;
 	}
 
 	const bool bIsOnActiveBranch = OwnerComp.IsExecutingBranch(GetMyNode(), GetChildIndex());
 
-	bool bShouldAbort = false;
+	EAbortType AbortType = EAbortType::NoAbort;
 	if (bIsOnActiveBranch)
 	{
-		bShouldAbort = (FlowAbortMode == EBTFlowAbortMode::Self || FlowAbortMode == EBTFlowAbortMode::Both) && CalculateRawConditionValueImpl(OwnerComp) == IsInversed();
+		if ((FlowAbortMode == EBTFlowAbortMode::Self || FlowAbortMode == EBTFlowAbortMode::Both) && CalculateRawConditionValue(OwnerComp, /*NodeMemory*/nullptr) == IsInversed())
+		{
+			AbortType = EAbortType::DeactivateBranch;
+		}
 	}
-	else
+	else 
 	{
-		bShouldAbort = (FlowAbortMode == EBTFlowAbortMode::LowerPriority || FlowAbortMode == EBTFlowAbortMode::Both) && CalculateRawConditionValueImpl(OwnerComp) != IsInversed();
-	}
+		if ((FlowAbortMode == EBTFlowAbortMode::LowerPriority || FlowAbortMode == EBTFlowAbortMode::Both) && CalculateRawConditionValue(OwnerComp, /*NodeMemory*/nullptr) != IsInversed())
+	    {
+			AbortType = EAbortType::ActivateBranch;
+	    }
+    }
 
-	return bShouldAbort;
+	return AbortType;
 }
 
-bool UBTDecorator_BlueprintBase::CalculateRawConditionValueImpl(UBehaviorTreeComponent& OwnerComp) const
+void UBTDecorator_BlueprintBase::RequestAbort(UBehaviorTreeComponent& OwnerComp, const EAbortType Type)
+{
+	switch (Type)
+	{
+	case EAbortType::NoAbort:
+		// Nothing to abort, continue
+		break;
+	case EAbortType::ActivateBranch:
+		OwnerComp.RequestBranchActivation(*this, false);
+		break;
+	case EAbortType::DeactivateBranch:
+		OwnerComp.RequestBranchDeactivation(*this);
+		break;
+	case EAbortType::Unknown:
+		checkf(false, TEXT("If decorator is active, it must know whether it needs to abort or not"))
+		break;
+	}
+}
+
+bool UBTDecorator_BlueprintBase::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
 {
 	bool CurrentCallResult = false;
 	if (PerformConditionCheckImplementations != 0)
@@ -226,11 +255,6 @@ bool UBTDecorator_BlueprintBase::CalculateRawConditionValueImpl(UBehaviorTreeCom
 	}
 
 	return CurrentCallResult;
-}
-
-bool UBTDecorator_BlueprintBase::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
-{
-	return CalculateRawConditionValueImpl(OwnerComp);	
 }
 
 bool UBTDecorator_BlueprintBase::IsDecoratorExecutionActive() const
@@ -279,10 +303,14 @@ void UBTDecorator_BlueprintBase::DescribeRuntimeValues(const UBehaviorTreeCompon
 
 EBlackboardNotificationResult UBTDecorator_BlueprintBase::OnBlackboardKeyValueChange(const UBlackboardComponent& Blackboard, FBlackboard::FKey ChangedKeyID)
 {
-	UBehaviorTreeComponent* BehaviorComp = (UBehaviorTreeComponent*)Blackboard.GetBrainComponent();
-	if (BehaviorComp && GetShouldAbort(*BehaviorComp))
+	UBehaviorTreeComponent* BehaviorComp = Cast<UBehaviorTreeComponent>(Blackboard.GetBrainComponent());
+	if (BehaviorComp)
 	{
-		BehaviorComp->RequestExecution(this);
+		const EAbortType Type = EvaluateAbortType(*BehaviorComp);
+		if (Type != EAbortType::Unknown)
+		{
+			RequestAbort(*BehaviorComp, Type);
+		}
 	}
 	return BehaviorComp ? EBlackboardNotificationResult::ContinueObserving : EBlackboardNotificationResult::RemoveObserver;
 }
