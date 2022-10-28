@@ -2046,7 +2046,7 @@ std::tuple<std::unique_ptr<std::byte[]>, size_t> UnpackTensor(const onnx::Tensor
 
 #define CASE_PROTO(X, Y, Z)                                                                        \
   case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_##X: {                           \
-    size_t elementCount = initializer.##Z();                                                       \
+    size_t elementCount = initializer.Z();                                                       \
     tensorByteSize = elementCount * sizeof(Y);                                                     \
     unpackedTensor.reset(new std::byte[tensorByteSize]);                                           \
     ORT_THROW_HR_IF(E_FAIL, !onnxruntime::utils::UnpackTensor(                                         \
