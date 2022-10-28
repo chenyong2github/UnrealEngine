@@ -1027,10 +1027,6 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 						ColorSpaceMtx = ColorSpaceMtx.ApplyScale(1.0f / 80.0f);
 					}
 
-					// We for now hard code this in the shaders!
-					// (skipping this assert as we might get dummy frames passing through here, that are not flagging this correctly)
-					//check(Sample->GetEncodingType() == UE::Color::EEncoding::ST2084);
-
 					FIntPoint TexDim = InputTexture->GetSizeXY();
 					if (InputTexture->GetFormat() == PF_P010)
 					{
@@ -1040,7 +1036,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 
 						FShaderResourceViewRHIRef Y_SRV = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G16);
 						FShaderResourceViewRHIRef UV_SRV = RHICreateShaderResourceView(InputTexture, 0, 1, PF_G16R16);
-						ConvertShader->SetParameters(CommandList, TexDim, Y_SRV, UV_SRV, OutputDim, YUVMtx, ColorSpaceMtx, bIsSampleOutputSrgb);
+						ConvertShader->SetParameters(CommandList, TexDim, Y_SRV, UV_SRV, OutputDim, YUVMtx, ColorSpaceMtx, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084);
 					}
 					else
 					{
@@ -1048,7 +1044,7 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
 						SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
 
-						ConvertShader->SetParameters(CommandList, TexDim, InputTexture, OutputDim, YUVMtx, ColorSpaceMtx, bIsSampleOutputSrgb);
+						ConvertShader->SetParameters(CommandList, TexDim, InputTexture, OutputDim, YUVMtx, ColorSpaceMtx, Sample->GetEncodingType() == UE::Color::EEncoding::ST2084);
 					}
 				}
 				break;

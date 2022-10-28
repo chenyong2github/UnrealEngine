@@ -352,7 +352,7 @@ void P010ConvertPS(
 	Color.z = dot(P010ConvertUB.ColorTransform[2], YUV4);
 
 	// Go linear
-	Color = ST2084ToLinear(Color);
+	Color = P010ConvertUB.IsST2084 ? ST2084ToLinear(Color) : Rec709ToLinear(Color);
 
 	// Adjust colorspace
 	float4 Col4 = float4(Color, 1);
@@ -394,7 +394,7 @@ void P010ConvertAsUINT16sPS(
 	Color.z = dot(P010ConvertAsUINT16sUB.ColorTransform[2], YUV4);
 
 	// Go linear
-	Color = ST2084ToLinear(Color);
+	Color = P010ConvertAsUINT16sUB.IsST2084 ? ST2084ToLinear(Color) : Rec709ToLinear(Color);
 
 	// Adjust colorspace
 	float4 Col4 = float4(Color, 1);
@@ -439,7 +439,7 @@ void P010_2101010ConvertPS(
 	Color.z = dot(P010_2101010ConvertUB.ColorTransform[2], YUV4);
 
 	// Go linear
-	Color = ST2084ToLinear(Color);
+	Color = P010_2101010ConvertUB.IsST2084 ? ST2084ToLinear(Color) : Rec709ToLinear(Color);
 
 	// Adjust colorspace
 	float4 Col4 = float4(Color, 1);
@@ -451,7 +451,7 @@ void P010_2101010ConvertPS(
 	OutColor = float4(Color, 1.0f); 
 #else
 	OutColor = float4(1,0,1,1);
-#endif // COMPILER_PSSL
+#endif // COMPILER_GLSL_ES3_1
 }
 
 
