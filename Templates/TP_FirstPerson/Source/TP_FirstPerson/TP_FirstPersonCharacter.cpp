@@ -42,6 +42,15 @@ void ATP_FirstPersonCharacter::BeginPlay()
 	// Call the base class  
 	Super::BeginPlay();
 
+	//Add Input Mapping Context
+	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
+		{
+			Subsystem->AddMappingContext(DefaultMappingContext, 0);
+		}
+	}
+
 }
 
 //////////////////////////////////////////////////////////////////////////// Input
@@ -63,32 +72,6 @@ void ATP_FirstPersonCharacter::SetupPlayerInputComponent(class UInputComponent* 
 	}
 }
 
-void ATP_FirstPersonCharacter::PossessedBy(AController* NewController)
-{
-	Super::PossessedBy(NewController);
-
-	//Add a mapping context on Possessed
-	if (APlayerController* PlayerController = Cast<APlayerController>(NewController))
-	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-		{
-			Subsystem->AddMappingContext(DefaultMappingContext, 0);
-		}
-	}
-}
-
-void ATP_FirstPersonCharacter::UnPossessed()
-{
-	Super::UnPossessed();
-
-	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
-	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-		{
-			Subsystem->RemoveMappingContext(DefaultMappingContext);
-		}
-	}
-}
 
 void ATP_FirstPersonCharacter::Move(const FInputActionValue& Value)
 {

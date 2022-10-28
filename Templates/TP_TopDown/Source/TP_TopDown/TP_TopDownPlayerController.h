@@ -43,11 +43,10 @@ protected:
 	/** True if the controlled character should navigate to the mouse cursor. */
 	uint32 bMoveToMouseCursor : 1;
 
-	// Begin PlayerController interface
-	virtual void OnPossess(APawn* PossessedPawn) override;
-	virtual void OnUnPossess() override;
 	virtual void SetupInputComponent() override;
-	// End PlayerController interface
+	
+	// To add mapping context
+	virtual void BeginPlay();
 
 	/** Input handlers for SetDestination action. */
 	void OnInputStarted();

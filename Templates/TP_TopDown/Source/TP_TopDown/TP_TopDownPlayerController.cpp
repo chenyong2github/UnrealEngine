@@ -18,24 +18,15 @@ ATP_TopDownPlayerController::ATP_TopDownPlayerController()
 	FollowTime = 0.f;
 }
 
-void ATP_TopDownPlayerController::OnPossess(APawn* PossessedPawn)
+void ATP_TopDownPlayerController::BeginPlay()
 {
-	Super::OnPossess(PossessedPawn);
+	// Call the base class  
+	Super::BeginPlay();
 
+	//Add Input Mapping Context
 	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 	{
 		Subsystem->AddMappingContext(DefaultMappingContext, 0);
-	}
-}
-
-void ATP_TopDownPlayerController::OnUnPossess()
-{
-	Super::OnUnPossess();
-
-	if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
-	{
-		check(DefaultMappingContext);
-		Subsystem->RemoveMappingContext(DefaultMappingContext);
 	}
 }
 

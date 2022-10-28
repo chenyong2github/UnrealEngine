@@ -51,29 +51,17 @@ ATP_ThirdPersonCharacter::ATP_ThirdPersonCharacter()
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
 }
 
-void ATP_ThirdPersonCharacter::PossessedBy(AController* NewController)
+void ATP_ThirdPersonCharacter::BeginPlay()
 {
-	Super::PossessedBy(NewController);
+	// Call the base class  
+	Super::BeginPlay();
 
-	//Add a mapping context on Possessed
-	if (APlayerController* PlayerController = Cast<APlayerController>(NewController))
+	//Add Input Mapping Context
+	if (APlayerController* PlayerController = Cast<APlayerController>(Controller))
 	{
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
 		{
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
-		}
-	}
-}
-
-void ATP_ThirdPersonCharacter::UnPossessed()
-{
-	Super::UnPossessed();
-
-	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
-	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-		{
-			Subsystem->RemoveMappingContext(DefaultMappingContext);
 		}
 	}
 }

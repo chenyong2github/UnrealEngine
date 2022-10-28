@@ -47,11 +47,7 @@ protected:
 	virtual void BeginPlay();
 
 public:
-	
-	/** Called for adding mapping context*/
-	virtual void PossessedBy(AController* NewController) override;
-	virtual void UnPossessed() override;
-
+		
 	/** Look Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	class UInputAction* LookAction;

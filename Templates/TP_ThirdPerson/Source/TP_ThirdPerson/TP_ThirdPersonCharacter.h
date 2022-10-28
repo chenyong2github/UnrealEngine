@@ -39,10 +39,7 @@ class ATP_ThirdPersonCharacter : public ACharacter
 
 public:
 	ATP_ThirdPersonCharacter();
-
-	/** Called for adding mapping context*/
-	virtual void PossessedBy(AController* NewController) override;
-	virtual void UnPossessed() override;
+	
 
 protected:
 
@@ -56,7 +53,9 @@ protected:
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	// End of APawn interface
+	
+	// To add mapping context
+	virtual void BeginPlay();
 
 public:
 	/** Returns CameraBoom subobject **/
