@@ -4,6 +4,9 @@
 
 #include "ClassIconFinder.h"
 #include "Engine/PostProcessVolume.h"
+#include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "IDetailCustomization.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
 #include "PropertyHandle.h"
@@ -18,6 +21,64 @@
 TSharedRef<IDisplayClusterColorGradingDataModelGenerator> FDisplayClusterColorGradingGenerator_PostProcessVolume::MakeInstance()
 {
 	return MakeShareable(new FDisplayClusterColorGradingGenerator_PostProcessVolume());
+}
+
+class FPostProcessVolumeCustomization : public IDetailCustomization
+{
+public:
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override
+	{
+		TArray<FName> Categories;
+		DetailBuilder.GetCategoryNames(Categories);
+
+		for (const FName& Category : Categories)
+		{
+			DetailBuilder.HideCategory(Category);
+		}
+
+		// TransformCommon is a custom category that doesn't get returned by GetCategoryNames that also needs to be hidden
+		DetailBuilder.HideCategory(TEXT("TransformCommon"));
+
+		TSharedRef<IPropertyHandle> SettingsHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(APostProcessVolume, Settings));
+
+		uint32 NumChildren;
+		SettingsHandle->GetNumChildren(NumChildren);
+		for (uint32 Index = 0; Index < NumChildren; ++Index)
+		{
+			TSharedPtr<IPropertyHandle> ChildHandle = SettingsHandle->GetChildHandle(Index);
+
+			FString CategoryName = TEXT("");
+			FString GroupName = TEXT("");
+			ChildHandle->GetDefaultCategoryName().ToString().Split(TEXT("|"), &CategoryName, &GroupName);
+
+			if (CategoryName == "Color Grading")
+			{
+				if (ChildHandle->HasMetaData(TEXT("ColorGradingMode")))
+				{
+					IDetailCategoryBuilder& ColorGradingCategory = DetailBuilder.EditCategory(FName("ColorGradingElements"));
+					ColorGradingCategory.AddProperty(ChildHandle);
+				}
+				else
+				{
+					IDetailCategoryBuilder& GroupCategory = DetailBuilder.EditCategory(FName("DetailView_" + GroupName), FText::FromString(GroupName));
+					GroupCategory.AddProperty(ChildHandle);
+				}
+			}
+		}
+	}
+};
+
+void FDisplayClusterColorGradingGenerator_PostProcessVolume::Initialize(const TSharedRef<class FDisplayClusterColorGradingDataModel>& ColorGradingDataModel, const TSharedRef<IPropertyRowGenerator>& PropertyRowGenerator)
+{
+	PropertyRowGenerator->RegisterInstancedCustomPropertyLayout(APostProcessVolume::StaticClass(), FOnGetDetailCustomizationInstance::CreateLambda([]
+	{
+		return MakeShared<FPostProcessVolumeCustomization>();
+	}));
+}
+
+void FDisplayClusterColorGradingGenerator_PostProcessVolume::Destroy(const TSharedRef<class FDisplayClusterColorGradingDataModel>& ColorGradingDataModel, const TSharedRef<IPropertyRowGenerator>& PropertyRowGenerator)
+{
+	PropertyRowGenerator->UnregisterInstancedCustomPropertyLayout(APostProcessVolume::StaticClass());
 }
 
 void FDisplayClusterColorGradingGenerator_PostProcessVolume::GenerateDataModel(IPropertyRowGenerator& PropertyRowGenerator, FDisplayClusterColorGradingDataModel& OutColorGradingDataModel)
@@ -40,32 +101,51 @@ void FDisplayClusterColorGradingGenerator_PostProcessVolume::GenerateDataModel(I
 
 	const TArray<TSharedRef<IDetailTreeNode>>& RootNodes = PropertyRowGenerator.GetRootTreeNodes();
 
-	const TSharedRef<IDetailTreeNode>* ColorGradingNodePtr = RootNodes.FindByPredicate([](const TSharedRef<IDetailTreeNode>& Node)
+	const TSharedRef<IDetailTreeNode>* ColorGradingElementsNodePtr = RootNodes.FindByPredicate([](const TSharedRef<IDetailTreeNode>& Node)
 	{
-		return Node->GetNodeName() == TEXT("Color Grading");
+		return Node->GetNodeName() == TEXT("ColorGradingElements");
 	});
 
-	if (ColorGradingNodePtr)
+	if (ColorGradingElementsNodePtr)
 	{
-		const TSharedRef<IDetailTreeNode> ColorGradingNode = *ColorGradingNodePtr;
+		const TSharedRef<IDetailTreeNode> ColorGradingElementsNode = *ColorGradingElementsNodePtr;
 		FDisplayClusterColorGradingDataModel::FColorGradingGroup ColorGradingGroup;
 
 		TArray<TSharedRef<IDetailTreeNode>> PropertyGroupNodes;
-		ColorGradingNode->GetChildren(PropertyGroupNodes);
+		ColorGradingElementsNode->GetChildren(PropertyGroupNodes);
+
+		TMap<FString, FDisplayClusterColorGradingDataModel::FColorGradingElement> ColorGradingElements;
 
 		for (const TSharedRef<IDetailTreeNode>& PropertyGroupNode : PropertyGroupNodes)
 		{
-			FString CategoryName = TEXT(""); 
-			FString GroupName = TEXT("");
-			PropertyGroupNode->GetNodeName().ToString().Split(TEXT("|"), &CategoryName, &GroupName);
+			TSharedPtr<IPropertyHandle> PropertyHandle = PropertyGroupNode->CreatePropertyHandle();
 
-			if (GroupName == TEXT("Global") || GroupName == TEXT("Shadows") || GroupName == TEXT("Midtones") || GroupName == TEXT("Highlights"))
+			if (PropertyHandle.IsValid() && PropertyHandle->IsValidHandle())
 			{
-				FDisplayClusterColorGradingDataModel::FColorGradingElement ColorGradingElement = CreateColorGradingElement(PropertyGroupNode, FText::FromString(GroupName));
-				ColorGradingGroup.ColorGradingElements.Add(ColorGradingElement);
-			}
+				FString CategoryName = TEXT("");
+				FString GroupName = TEXT("");
+				PropertyHandle->GetDefaultCategoryName().ToString().Split(TEXT("|"), &CategoryName, &GroupName);
 
-			AddPropertiesToDetailsView(PropertyGroupNode, ColorGradingGroup);
+				if (!ColorGradingElements.Contains(GroupName))
+				{
+					FDisplayClusterColorGradingDataModel::FColorGradingElement& ColorGradingElement = ColorGradingElements.Add(GroupName);
+					ColorGradingElement.DisplayName = FText::FromString(GroupName);
+				}
+
+				AddPropertyToColorGradingElement(PropertyHandle, ColorGradingElements[GroupName]);
+			}
+		}
+
+		ColorGradingElements.GenerateValueArray(ColorGradingGroup.ColorGradingElements);
+
+		// Add all categories that are not the color grading elements category to the list of categories to display in the detail view
+		for (const TSharedRef<IDetailTreeNode>& Node : RootNodes)
+		{
+			FName NodeName = Node->GetNodeName();
+			if (NodeName != TEXT("ColorGradingElements"))
+			{
+				ColorGradingGroup.DetailsViewCategories.Add(NodeName);
+			}
 		}
 
 		ColorGradingGroup.GroupHeaderWidget = SNew(SHorizontalBox)
@@ -98,71 +178,31 @@ void FDisplayClusterColorGradingGenerator_PostProcessVolume::GenerateDataModel(I
 	}
 }
 
-FDisplayClusterColorGradingDataModel::FColorGradingElement FDisplayClusterColorGradingGenerator_PostProcessVolume::CreateColorGradingElement(const TSharedRef<IDetailTreeNode>& GroupNode, FText ElementLabel)
+void FDisplayClusterColorGradingGenerator_PostProcessVolume::AddPropertyToColorGradingElement(const TSharedPtr<IPropertyHandle>& PropertyHandle, FDisplayClusterColorGradingDataModel::FColorGradingElement& ColorGradingElement)
 {
-	FDisplayClusterColorGradingDataModel::FColorGradingElement ColorGradingElement;
-	ColorGradingElement.DisplayName = ElementLabel;
+	const FString ColorGradingModeString = PropertyHandle->GetProperty()->GetMetaData(TEXT("ColorGradingMode")).ToLower();
 
-	TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
-	GroupNode->GetChildren(ChildNodes);
-
-	for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+	if (!ColorGradingModeString.IsEmpty())
 	{
-		TSharedPtr<IPropertyHandle> PropertyHandle = ChildNode->CreatePropertyHandle();
-		if (PropertyHandle.IsValid() && PropertyHandle->IsValidHandle())
+		if (ColorGradingModeString.Compare(TEXT("saturation")) == 0)
 		{
-			const FString ColorGradingModeString = PropertyHandle->GetProperty()->GetMetaData(TEXT("ColorGradingMode")).ToLower();
-
-			if (!ColorGradingModeString.IsEmpty())
-			{
-				if (ColorGradingModeString.Compare(TEXT("saturation")) == 0)
-				{
-					ColorGradingElement.SaturationPropertyHandle = PropertyHandle;
-				}
-				else if (ColorGradingModeString.Compare(TEXT("contrast")) == 0)
-				{
-					ColorGradingElement.ContrastPropertyHandle = PropertyHandle;
-				}
-				else if (ColorGradingModeString.Compare(TEXT("gamma")) == 0)
-				{
-					ColorGradingElement.GammaPropertyHandle = PropertyHandle;
-				}
-				else if (ColorGradingModeString.Compare(TEXT("gain")) == 0)
-				{
-					ColorGradingElement.GainPropertyHandle = PropertyHandle;
-				}
-				else if (ColorGradingModeString.Compare(TEXT("offset")) == 0)
-				{
-					ColorGradingElement.OffsetPropertyHandle = PropertyHandle;
-				}
-			}
+			ColorGradingElement.SaturationPropertyHandle = PropertyHandle;
 		}
-	}
-
-	return ColorGradingElement;
-}
-
-void FDisplayClusterColorGradingGenerator_PostProcessVolume::AddPropertiesToDetailsView(const TSharedRef<IDetailTreeNode>& GroupNode, FDisplayClusterColorGradingDataModel::FColorGradingGroup& ColorGradingGroup)
-{
-	FString CategoryName = TEXT("");
-	FString GroupName = TEXT("");
-	GroupNode->GetNodeName().ToString().Split(TEXT("|"), &CategoryName, &GroupName);
-
-	TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
-	GroupNode->GetChildren(ChildNodes);
-
-	for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
-	{
-		TSharedPtr<IPropertyHandle> PropertyHandle = ChildNode->CreatePropertyHandle();
-		if (PropertyHandle.IsValid() && PropertyHandle->IsValidHandle())
+		else if (ColorGradingModeString.Compare(TEXT("contrast")) == 0)
 		{
-			const bool bIsColorProperty = PropertyHandle->GetProperty()->HasMetaData(TEXT("ColorGradingMode"));
-
-			if (!bIsColorProperty)
-			{
-				PropertyHandle->SetInstanceMetaData(TEXT("CategoryOverride"), GroupName);
-				ColorGradingGroup.DetailsViewPropertyHandles.Add(PropertyHandle);
-			}
+			ColorGradingElement.ContrastPropertyHandle = PropertyHandle;
+		}
+		else if (ColorGradingModeString.Compare(TEXT("gamma")) == 0)
+		{
+			ColorGradingElement.GammaPropertyHandle = PropertyHandle;
+		}
+		else if (ColorGradingModeString.Compare(TEXT("gain")) == 0)
+		{
+			ColorGradingElement.GainPropertyHandle = PropertyHandle;
+		}
+		else if (ColorGradingModeString.Compare(TEXT("offset")) == 0)
+		{
+			ColorGradingElement.OffsetPropertyHandle = PropertyHandle;
 		}
 	}
 }

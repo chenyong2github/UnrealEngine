@@ -2,18 +2,50 @@
 
 #include "DisplayClusterColorGradingDataModel.h"
 
+#include "Drawer/DisplayClusterColorGradingDrawerState.h"
+
 #include "DisplayClusterRootActor.h"
 
-#include "IDetailTreeNode.h"
+#include "DetailWidgetRow.h"
 #include "IPropertyRowGenerator.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "PropertyHandle.h"
-#include "Widgets/Input/SCheckBox.h"
+
 
 #define LOCTEXT_NAMESPACE "DisplayClusterColorGrading"
 
-TMap<FName, FGetColorGradingDataModelGenerator> FDisplayClusterColorGradingDataModel::RegisteredDataModelGenerators;
+TMap<TWeakObjectPtr<UClass>, FGetColorGradingDataModelGenerator> FDisplayClusterColorGradingDataModel::RegisteredDataModelGenerators;
+
+/** Detail customizer intended for color FVector4 properties that don't generate property nodes for the child components of the vector, to speed up property node tree generation */
+class FFastColorStructCustomization : public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	{
+		return MakeShareable(new FFastColorStructCustomization);
+	}
+
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override
+	{
+		HeaderRow.NameContent()
+		[
+			StructPropertyHandle->CreatePropertyNameWidget()
+		];
+	}
+
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override
+	{
+	}
+};
+
+class FColorPropertyTypeIdentifier : public IPropertyTypeIdentifier
+{
+	virtual bool IsPropertyTypeCustomized(const IPropertyHandle& PropertyHandle) const override
+	{
+		return PropertyHandle.HasMetaData(TEXT("ColorGradingMode"));
+	}
+};
 
 FDisplayClusterColorGradingDataModel::FDisplayClusterColorGradingDataModel()
 {
@@ -22,6 +54,14 @@ FDisplayClusterColorGradingDataModel::FDisplayClusterColorGradingDataModel()
 	FPropertyRowGeneratorArgs Args;
 	PropertyRowGenerator = PropertyEditorModule.CreatePropertyRowGenerator(Args);
 	PropertyRowGenerator->OnRowsRefreshed().AddRaw(this, &FDisplayClusterColorGradingDataModel::OnPropertyRowGeneratorRefreshed);
+
+	TSharedRef<FColorPropertyTypeIdentifier> ColorPropertyTypeIdentifier = MakeShared<FColorPropertyTypeIdentifier>();
+
+	// Since there is an entirely custom set of widgets for displaying and editing the color grading settings, set a customizer for any color vectors to prevent the 
+	// property row generator from generating child properties or extraneous widgets, which drastically helps improve performance when loading object properties
+	PropertyRowGenerator->RegisterInstancedCustomPropertyTypeLayout(NAME_Vector4, FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FFastColorStructCustomization::MakeInstance), ColorPropertyTypeIdentifier);
+	PropertyRowGenerator->RegisterInstancedCustomPropertyTypeLayout(NAME_Vector4f, FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FFastColorStructCustomization::MakeInstance), ColorPropertyTypeIdentifier);
+	PropertyRowGenerator->RegisterInstancedCustomPropertyTypeLayout(NAME_Vector4d, FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FFastColorStructCustomization::MakeInstance), ColorPropertyTypeIdentifier);
 }
 
 TArray<TWeakObjectPtr<UObject>> FDisplayClusterColorGradingDataModel::GetObjects() const
@@ -36,6 +76,8 @@ TArray<TWeakObjectPtr<UObject>> FDisplayClusterColorGradingDataModel::GetObjects
 
 void FDisplayClusterColorGradingDataModel::SetObjects(const TArray<UObject*>& InObjects)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDisplayClusterColorGradingDataModel::SetObjects);
+
 	// Only update the data model if the objects being set are new
 	bool bUpdateDataModel = false;
 	if (PropertyRowGenerator.IsValid())
@@ -62,6 +104,14 @@ void FDisplayClusterColorGradingDataModel::SetObjects(const TArray<UObject*>& In
 	if (bUpdateDataModel)
 	{
 		Reset();
+
+		for (const UObject* Object : InObjects)
+		{
+			if (Object)
+			{
+				InitializeDataModelGenerator(Object->GetClass());
+			}
+		}
 
 		if (PropertyRowGenerator.IsValid())
 		{
@@ -93,6 +143,12 @@ bool FDisplayClusterColorGradingDataModel::HasObjectOfType(const UClass* InClass
 
 void FDisplayClusterColorGradingDataModel::Reset()
 {
+	for (const TPair<TWeakObjectPtr<UClass>, TSharedPtr<IDisplayClusterColorGradingDataModelGenerator>>& GeneratorInstance : DataModelGeneratorInstances)
+	{
+		GeneratorInstance.Value->Destroy(SharedThis(this), PropertyRowGenerator.ToSharedRef());
+		PropertyRowGenerator->UnregisterInstancedCustomPropertyLayout(GeneratorInstance.Key.Get());
+	}
+
 	DataModelGeneratorInstances.Empty();
 	ColorGradingGroups.Empty();
 	DetailsSections.Empty();
@@ -100,10 +156,41 @@ void FDisplayClusterColorGradingDataModel::Reset()
 	SelectedColorGradingElementIndex = INDEX_NONE;
 	ColorGradingGroupToolBarWidget = nullptr;
 	bShowColorGradingGroupToolBar = false;
+}
+
+void FDisplayClusterColorGradingDataModel::GetDrawerState(FDisplayClusterColorGradingDrawerState& OutDrawerState)
+{
+	OutDrawerState.SelectedColorGradingGroup = SelectedColorGradingGroupIndex;
+	OutDrawerState.SelectedColorGradingElement = SelectedColorGradingElementIndex;
+}
+
+void FDisplayClusterColorGradingDataModel::SetDrawerState(const FDisplayClusterColorGradingDrawerState& InDrawerState)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDisplayClusterColorGradingDataModel::SetDrawerState);
+
+	SelectedColorGradingGroupIndex = InDrawerState.SelectedColorGradingGroup;
+	SelectedColorGradingElementIndex = InDrawerState.SelectedColorGradingElement;
+
+	TArray<UObject*> ObjectsToSelect;
+	for (const TWeakObjectPtr<UObject>& Object : InDrawerState.SelectedObjects)
+	{
+		if (Object.IsValid())
+		{
+			ObjectsToSelect.Add(Object.Get());
+		}
+	}
+
+	for (const UObject* Object : ObjectsToSelect)
+	{
+		if (Object)
+		{
+			InitializeDataModelGenerator(Object->GetClass());
+		}
+	}
 
 	if (PropertyRowGenerator.IsValid())
 	{
-		PropertyRowGenerator->SetObjects(TArray<UObject*>());
+		PropertyRowGenerator->SetObjects(ObjectsToSelect);
 	}
 }
 
@@ -119,8 +206,28 @@ FDisplayClusterColorGradingDataModel::FColorGradingGroup* FDisplayClusterColorGr
 
 void FDisplayClusterColorGradingDataModel::SetSelectedColorGradingGroup(int32 InColorGradingGroupIndex)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDisplayClusterColorGradingDataModel::SetSelectedColorGradingGroup);
+
 	SelectedColorGradingGroupIndex = InColorGradingGroupIndex <= ColorGradingGroups.Num() ? InColorGradingGroupIndex : INDEX_NONE;
+
+	// When the color grading group has changed, reset the selected color grading element as well
+	const bool bHasColorGradingElements = SelectedColorGradingGroupIndex > INDEX_NONE && ColorGradingGroups[SelectedColorGradingElementIndex].ColorGradingElements.Num();
+	SelectedColorGradingElementIndex = bHasColorGradingElements ? 0 : INDEX_NONE;
+
 	OnColorGradingGroupSelectionChangedDelegate.Broadcast();
+
+	// Force the property row generator to rebuild the property node tree, since the data model generators may have made some optimizations
+	// based on which color grading group is currently selected
+	TArray<UObject*> Objects;
+	for (const TWeakObjectPtr<UObject>& WeakObj : PropertyRowGenerator->GetSelectedObjects())
+	{
+		if (WeakObj.IsValid())
+		{
+			Objects.Add(WeakObj.Get());
+		}
+	}
+
+	PropertyRowGenerator->SetObjects(Objects);
 }
 
 FDisplayClusterColorGradingDataModel::FColorGradingElement* FDisplayClusterColorGradingDataModel::GetSelectedColorGradingElement()
@@ -143,26 +250,34 @@ void FDisplayClusterColorGradingDataModel::SetSelectedColorGradingElement(int32 
 	OnColorGradingElementSelectionChangedDelegate.Broadcast();
 }
 
-TSharedPtr<IDisplayClusterColorGradingDataModelGenerator> FDisplayClusterColorGradingDataModel::GetDataModelGenerator(const UClass* InClass)
+void FDisplayClusterColorGradingDataModel::InitializeDataModelGenerator(UClass* InClass)
 {
-	const UClass* CurrentClass = InClass;
+	UClass* CurrentClass = InClass;
 	while (CurrentClass)
 	{
-		const FName ClassName = CurrentClass->GetFName();
-
-		if (DataModelGeneratorInstances.Contains(ClassName))
+		if (RegisteredDataModelGenerators.Contains(CurrentClass) && !DataModelGeneratorInstances.Contains(CurrentClass))
 		{
-			return DataModelGeneratorInstances[ClassName];
-		}
-		else if (RegisteredDataModelGenerators.Contains(ClassName))
-		{
-			if (RegisteredDataModelGenerators[ClassName].IsBound())
+			if (RegisteredDataModelGenerators[CurrentClass].IsBound())
 			{
-				TSharedRef<IDisplayClusterColorGradingDataModelGenerator> Generator = RegisteredDataModelGenerators[ClassName].Execute();
-				DataModelGeneratorInstances.Add(ClassName, Generator);
+				TSharedRef<IDisplayClusterColorGradingDataModelGenerator> Generator = RegisteredDataModelGenerators[CurrentClass].Execute();
+				Generator->Initialize(SharedThis(this), PropertyRowGenerator.ToSharedRef());
 
-				return Generator;
+				DataModelGeneratorInstances.Add(CurrentClass, Generator);
 			}
+		}
+
+		CurrentClass = CurrentClass->GetSuperClass();
+	}
+}
+
+TSharedPtr<IDisplayClusterColorGradingDataModelGenerator> FDisplayClusterColorGradingDataModel::GetDataModelGenerator(UClass* InClass) const
+{
+	UClass* CurrentClass = InClass;
+	while (CurrentClass)
+	{
+		if (DataModelGeneratorInstances.Contains(CurrentClass))
+		{
+			return DataModelGeneratorInstances[CurrentClass];
 		}
 
 		CurrentClass = CurrentClass->GetSuperClass();
@@ -173,7 +288,9 @@ TSharedPtr<IDisplayClusterColorGradingDataModelGenerator> FDisplayClusterColorGr
 
 void FDisplayClusterColorGradingDataModel::OnPropertyRowGeneratorRefreshed()
 {
-	ColorGradingGroups.Empty();
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDisplayClusterColorGradingDataModel::OnPropertyRowGeneratorRefreshed);
+
+ 	ColorGradingGroups.Empty();
 	DetailsSections.Empty();
 
 	const TArray<TWeakObjectPtr<UObject>>& SelectedObjects = PropertyRowGenerator->GetSelectedObjects();

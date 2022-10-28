@@ -10,10 +10,9 @@
 #include "Widgets/SCompoundWidget.h"
 
 class IDetailTreeNode;
-class IDetaisView;
-class IPropertyHandle;
 class IPropertyRowGenerator;
 class SBox;
+class SDisplayClusterColorGradingDetailView;
 class SHorizontalBox;
 struct FDisplayClusterColorGradingDrawerState;
 
@@ -27,7 +26,7 @@ private:
 	static const uint32 NumColorWheels = 5;
 
 public:
-	~SDisplayClusterColorGradingColorWheelPanel();
+	virtual ~SDisplayClusterColorGradingColorWheelPanel() override;
 
 	SLATE_BEGIN_ARGS(SDisplayClusterColorGradingColorWheelPanel) {}
 		SLATE_ARGUMENT(TSharedPtr<FDisplayClusterColorGradingDataModel>, ColorGradingDataModelSource)
@@ -56,17 +55,16 @@ private:
 	void FillColorGradingElementsToolBar(const TArray<FDisplayClusterColorGradingDataModel::FColorGradingElement>& ColorGradingElements);
 	void ClearColorGradingElementsToolBar();
 
-	void FillDetailsView(const FDisplayClusterColorGradingDataModel::FColorGradingGroup& ColorGradingGroup);
-	void ClearDetailsView();
-
 	void FillColorWheels(const FDisplayClusterColorGradingDataModel::FColorGradingElement& ColorGradingElement);
 	void ClearColorWheels();
+
+	bool FilterDetailTreeNode(const TSharedRef<IDetailTreeNode>& InDetailTreeNode);
 
 	void SetColorWheelOrientation(EOrientation NewOrientation);
 	bool IsColorWheelOrientationSelected(EOrientation Orientation) const;
 
 	void ToggleColorWheelVisible(int32 ColorWheelIndex);
-	bool IsColorWheelVisibile(int32 ColorWheelIndex);
+	bool IsColorWheelVisible(int32 ColorWheelIndex);
 
 	void OnColorGradingGroupSelectionChanged();
 	void OnColorGradingElementSelectionChanged();
@@ -93,7 +91,7 @@ private:
 	TArray<TSharedPtr<SDisplayClusterColorGradingColorWheel>> ColorWheels;
 	TArray<bool> HiddenColorWheels;
 
-	TSharedPtr<IDetailsView> DetailsView;
+	TSharedPtr<SDisplayClusterColorGradingDetailView> DetailView;
 
 	/** Commands used by the color wheel panel */
 	TSharedPtr<FUICommandList> CommandList;
@@ -102,8 +100,8 @@ private:
 	int32 SelectedColorGradingGroup = INDEX_NONE;
 
 	/** The current color display mode for the color wheels */
-	EColorDisplayMode ColorDisplayMode;
+	EColorDisplayMode ColorDisplayMode = EColorDisplayMode::RGB;
 
-	/** The current orientation for the color wheeels */
-	EOrientation ColorWheelOrientation;
+	/** The current orientation for the color wheels */
+	EOrientation ColorWheelOrientation = EOrientation::Orient_Vertical;
 };

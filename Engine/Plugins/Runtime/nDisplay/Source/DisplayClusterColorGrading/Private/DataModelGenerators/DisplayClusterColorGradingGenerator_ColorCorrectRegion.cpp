@@ -4,6 +4,9 @@
 
 #include "ClassIconFinder.h"
 #include "ColorCorrectRegion.h"
+#include "DetailCategoryBuilder.h"
+#include "DetailLayoutBuilder.h"
+#include "IDetailCustomization.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
 #include "PropertyHandle.h"
@@ -18,6 +21,52 @@
 TSharedRef<IDisplayClusterColorGradingDataModelGenerator> FDisplayClusterColorGradingGenerator_ColorCorrectRegion::MakeInstance()
 {
 	return MakeShareable(new FDisplayClusterColorGradingGenerator_ColorCorrectRegion());
+}
+
+class FColorCorrectRegionCustomization : public IDetailCustomization
+{
+public:
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override
+	{
+		TArray<FName> Categories;
+		DetailBuilder.GetCategoryNames(Categories);
+
+		for (const FName& Category : Categories)
+		{
+			if (Category != TEXT("Color Correction"))
+			{
+				DetailBuilder.HideCategory(Category);
+			}
+		}
+
+		// TransformCommon is a custom category that doesn't get returned by GetCategoryNames that also needs to be hidden
+		DetailBuilder.HideCategory(TEXT("TransformCommon"));
+
+		IDetailCategoryBuilder& CCCategoryBuilder = DetailBuilder.EditCategory(TEXT("Color Correction"));
+
+		TArray<TSharedRef<IPropertyHandle>> CCPropertyHandles;
+		CCCategoryBuilder.GetDefaultProperties(CCPropertyHandles);
+
+		IDetailCategoryBuilder& ColorGradingElementsCategory = DetailBuilder.EditCategory(FName("ColorGradingElements"));
+
+		ColorGradingElementsCategory.AddProperty(DetailBuilder.GetProperty((GET_MEMBER_NAME_CHECKED(AColorCorrectionRegion, ColorGradingSettings.Global))));
+		ColorGradingElementsCategory.AddProperty(DetailBuilder.GetProperty((GET_MEMBER_NAME_CHECKED(AColorCorrectionRegion, ColorGradingSettings.Shadows))));
+		ColorGradingElementsCategory.AddProperty(DetailBuilder.GetProperty((GET_MEMBER_NAME_CHECKED(AColorCorrectionRegion, ColorGradingSettings.Midtones))));
+		ColorGradingElementsCategory.AddProperty(DetailBuilder.GetProperty((GET_MEMBER_NAME_CHECKED(AColorCorrectionRegion, ColorGradingSettings.Highlights))));
+	}
+};
+
+void FDisplayClusterColorGradingGenerator_ColorCorrectRegion::Initialize(const TSharedRef<class FDisplayClusterColorGradingDataModel>& ColorGradingDataModel, const TSharedRef<IPropertyRowGenerator>& PropertyRowGenerator)
+{
+	PropertyRowGenerator->RegisterInstancedCustomPropertyLayout(AColorCorrectRegion::StaticClass(), FOnGetDetailCustomizationInstance::CreateLambda([]
+	{
+		return MakeShared<FColorCorrectRegionCustomization>();
+	}));
+}
+
+void FDisplayClusterColorGradingGenerator_ColorCorrectRegion::Destroy(const TSharedRef<class FDisplayClusterColorGradingDataModel>& ColorGradingDataModel, const TSharedRef<IPropertyRowGenerator>& PropertyRowGenerator)
+{
+	PropertyRowGenerator->UnregisterInstancedCustomPropertyLayout(AColorCorrectRegion::StaticClass());
 }
 
 void FDisplayClusterColorGradingGenerator_ColorCorrectRegion::GenerateDataModel(IPropertyRowGenerator& PropertyRowGenerator, FDisplayClusterColorGradingDataModel& OutColorGradingDataModel)
@@ -40,48 +89,27 @@ void FDisplayClusterColorGradingGenerator_ColorCorrectRegion::GenerateDataModel(
 
 	const TArray<TSharedRef<IDetailTreeNode>>& RootNodes = PropertyRowGenerator.GetRootTreeNodes();
 
-	const TSharedRef<IDetailTreeNode>* ColorCorrectionNodePtr = RootNodes.FindByPredicate([](const TSharedRef<IDetailTreeNode>& Node)
+	const TSharedRef<IDetailTreeNode>* ColorGradingElementsPtr = RootNodes.FindByPredicate([](const TSharedRef<IDetailTreeNode>& Node)
 	{
-		return Node->GetNodeName() == TEXT("Color Correction");
+		return Node->GetNodeName() == TEXT("ColorGradingElements");
 	});
 
-	if (ColorCorrectionNodePtr)
+	if (ColorGradingElementsPtr)
 	{
-		const TSharedRef<IDetailTreeNode> ColorCorrectionNode = *ColorCorrectionNodePtr;
+		const TSharedRef<IDetailTreeNode> ColorGradingElements = *ColorGradingElementsPtr;
 		FDisplayClusterColorGradingDataModel::FColorGradingGroup ColorGradingGroup;
 
-		AddPropertiesToDetailsView(ColorCorrectionNode, ColorGradingGroup);
+		ColorGradingGroup.DetailsViewCategories.Add(TEXT("Color Correction"));
 
-		TArray<TSharedRef<IDetailTreeNode>> ColorCorrectionPropertyNodes;
-		ColorCorrectionNode->GetChildren(ColorCorrectionPropertyNodes);
+		TArray<TSharedRef<IDetailTreeNode>> ColorGradingPropertyNodes;
+		ColorGradingElements->GetChildren(ColorGradingPropertyNodes);
 
-		const TSharedRef<IDetailTreeNode>* ColorGradingSettingsNodePtr = ColorCorrectionPropertyNodes.FindByPredicate([](const TSharedRef<IDetailTreeNode>& Node)
+		for (const TSharedRef<IDetailTreeNode>& PropertyNode : ColorGradingPropertyNodes)
 		{
-			return Node->GetNodeName() == GET_MEMBER_NAME_CHECKED(AColorCorrectRegion, ColorGradingSettings);
-		});
+			TSharedPtr<IPropertyHandle> PropertyHandle = PropertyNode->CreatePropertyHandle();
 
-		if (ColorGradingSettingsNodePtr)
-		{
-			const TSharedRef<IDetailTreeNode> ColorGradingSettingsNode = *ColorGradingSettingsNodePtr;
-
-			TArray<TSharedRef<IDetailTreeNode>> ColorGradingPropertyNodes;
-			ColorGradingSettingsNode->GetChildren(ColorGradingPropertyNodes);
-
-			for (const TSharedRef<IDetailTreeNode>& PropertyNode : ColorGradingPropertyNodes)
-			{
-				FName NodeName = PropertyNode->GetNodeName();
-				if (NodeName == GET_MEMBER_NAME_CHECKED(FColorGradingSettings, Global) ||
-					NodeName == GET_MEMBER_NAME_CHECKED(FColorGradingSettings, Shadows) ||
-					NodeName == GET_MEMBER_NAME_CHECKED(FColorGradingSettings, Midtones) ||
-					NodeName == GET_MEMBER_NAME_CHECKED(FColorGradingSettings, Highlights))
-				{
-					TSharedPtr<IPropertyHandle> PropertyHandle = PropertyNode->CreatePropertyHandle();
-					PropertyHandle->MarkHiddenByCustomization();
-
-					FDisplayClusterColorGradingDataModel::FColorGradingElement ColorGradingElement = CreateColorGradingElement(PropertyNode, FText::FromName(PropertyNode->GetNodeName()));
-					ColorGradingGroup.ColorGradingElements.Add(ColorGradingElement);
-				}
-			}
+			FDisplayClusterColorGradingDataModel::FColorGradingElement ColorGradingElement = CreateColorGradingElement(PropertyNode, FText::FromName(PropertyNode->GetNodeName()));
+			ColorGradingGroup.ColorGradingElements.Add(ColorGradingElement);
 		}
 
 		ColorGradingGroup.GroupHeaderWidget = SNew(SHorizontalBox)
@@ -158,24 +186,15 @@ FDisplayClusterColorGradingDataModel::FColorGradingElement FDisplayClusterColorG
 	return ColorGradingElement;
 }
 
-void FDisplayClusterColorGradingGenerator_ColorCorrectRegion::AddPropertiesToDetailsView(const TSharedRef<IDetailTreeNode>& GroupNode, FDisplayClusterColorGradingDataModel::FColorGradingGroup& ColorGradingGroup)
+bool FDisplayClusterColorGradingGenerator_ColorCorrectRegion::FilterDetailsViewProperties(const TSharedRef<IDetailTreeNode>& InDetailTreeNode)
 {
-	TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
-	GroupNode->GetChildren(ChildNodes);
-
-	for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+	if (InDetailTreeNode->GetNodeType() == EDetailNodeType::Category)
 	{
-		TSharedPtr<IPropertyHandle> PropertyHandle = ChildNode->CreatePropertyHandle();
-		if (PropertyHandle.IsValid() && PropertyHandle->IsValidHandle())
-		{
-			const bool bIsColorProperty = PropertyHandle->GetProperty()->HasMetaData(TEXT("ColorGradingMode"));
-
-			if (!bIsColorProperty)
-			{
-				PropertyHandle->SetInstanceMetaData(TEXT("CategoryOverride"), GroupNode->GetNodeName().ToString());
-				ColorGradingGroup.DetailsViewPropertyHandles.Add(PropertyHandle);
-			}
-		}
+		return InDetailTreeNode->GetNodeName() == TEXT("Color Correction");
+	}
+	else
+	{
+		return true;
 	}
 }
 

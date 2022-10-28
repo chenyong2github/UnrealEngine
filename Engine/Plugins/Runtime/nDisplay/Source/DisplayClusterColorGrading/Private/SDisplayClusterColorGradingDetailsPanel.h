@@ -35,7 +35,7 @@ public:
 	void SetDrawerState(const FDisplayClusterColorGradingDrawerState& InDrawerState);
 
 private:
-	/** Fills the details sections based on the current state of the color gradin data model */
+	/** Fills the details sections based on the current state of the color grading data model */
 	void FillDetailsSections();
 
 	/** Gets the visibility state of the specified details section */

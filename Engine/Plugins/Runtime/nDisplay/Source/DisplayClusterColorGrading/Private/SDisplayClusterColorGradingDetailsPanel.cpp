@@ -3,10 +3,10 @@
 #include "SDisplayClusterColorGradingDetailsPanel.h"
 
 #include "DisplayClusterColorGradingDataModel.h"
-#include "Drawer/SDisplayClusterColorGradingDrawer.h"
+#include "Drawer/DisplayClusterColorGradingDrawerState.h"
+#include "DetailView/SDisplayClusterColorGradingDetailView.h"
 
-#include "DetailCategoryBuilder.h"
-#include "IDetailsView.h"
+#include "IDetailTreeNode.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/SBoxPanel.h"
@@ -19,19 +19,11 @@
 class SDetailsSectionView : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SDetailsSectionView)
-	{}
+	SLATE_BEGIN_ARGS(SDetailsSectionView) { }
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs)
+	void Construct(const FArguments& InArgs, TSharedPtr<IPropertyRowGenerator> PropertyRowGenerator)
 	{
-		FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		FDetailsViewArgs DetailsViewArgs;
-		DetailsViewArgs.bAllowSearch = false;
-		DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
-		DetailsViewArgs.bHideSelectionTip = true;
-		DetailsView = EditModule.CreateDetailView(DetailsViewArgs);
-
 		ChildSlot
 		[
 			SNew(SVerticalBox)
@@ -47,7 +39,9 @@ public:
 			.FillHeight(1.0f)
 			.Padding(2, 0)
 			[
-				DetailsView.ToSharedRef()
+				SAssignNew(DetailView, SDisplayClusterColorGradingDetailView)
+				.PropertyRowGeneratorSource(PropertyRowGenerator)
+				.OnFilterDetailTreeNode(this, &SDetailsSectionView::FilterDetailTreeNode)
 			]
 		];
 	}
@@ -56,18 +50,6 @@ public:
 	void FillDetailsSection(const TArray<TWeakObjectPtr<UObject>>& Objects, const FDisplayClusterColorGradingDataModel::FDetailsSection& InDetailsSection)
 	{
 		DetailsSection = &InDetailsSection;
-		ObjectClass = nullptr;
-
-		if (Objects.Num())
-		{
-			ObjectClass = UObject::StaticClass();
-
-			const TWeakObjectPtr<UObject>& Object = Objects[0];
-			if (Object.IsValid())
-			{
-				ObjectClass = Object->GetClass();
-			}
-		}
 
 		// If a details subsection isn't already selected and the details section has subsections, set the selected subsection to the first subsection
 		if (SelectedSubsectionIndex == INDEX_NONE && DetailsSection->Subsections.Num())
@@ -75,28 +57,18 @@ public:
 			SelectedSubsectionIndex = 0;
 		}
 
-		if (ObjectClass)
-		{
-			// If a subsection is selected, use the details customization for that subsection. Otherwise, use the details customization for the entire section
-			if (SelectedSubsectionIndex > INDEX_NONE && SelectedSubsectionIndex < DetailsSection->Subsections.Num())
-			{
-				DetailsView->RegisterInstancedCustomPropertyLayout(ObjectClass, DetailsSection->Subsections[SelectedSubsectionIndex].DetailCustomizationDelegate);
-			}
-			else
-			{
-				DetailsView->RegisterInstancedCustomPropertyLayout(ObjectClass, DetailsSection->DetailCustomizationDelegate);
-			}
-		}
-
-		DetailsView->SetObjects(Objects);
 		HeaderBox->SetContent(CreateHeader());
+
+		if (DetailView.IsValid())
+		{
+			DetailView->Refresh();
+		}
 	}
 
 	/** Clears the details view and header */
 	void EmptyDetailsSection()
 	{
 		DetailsSection = nullptr;
-		ObjectClass = nullptr;
 		SelectedSubsectionIndex = INDEX_NONE;
 
 		if (HeaderBox.IsValid())
@@ -104,10 +76,9 @@ public:
 			HeaderBox->SetContent(SNullWidget::NullWidget);
 		}
 
-		if (DetailsView.IsValid())
+		if (DetailView.IsValid())
 		{
-			TArray<UObject*> EmptyList;
-			DetailsView->SetObjects(EmptyList);
+			DetailView->Refresh();
 		}
 	}
 
@@ -123,23 +94,7 @@ public:
 		if (DetailsSection)
 		{
 			SelectedSubsectionIndex = InSubsectionIndex;
-
-			if (ObjectClass)
-			{
-				DetailsView->UnregisterInstancedCustomPropertyLayout(ObjectClass);
-
-				// If a subsection is selected, use the details customization for that subsection. Otherwise, use the details customization for the entire section
-				if (SelectedSubsectionIndex > INDEX_NONE && SelectedSubsectionIndex < DetailsSection->Subsections.Num())
-				{
-					DetailsView->RegisterInstancedCustomPropertyLayout(ObjectClass, DetailsSection->Subsections[SelectedSubsectionIndex].DetailCustomizationDelegate);
-				}
-				else
-				{
-					DetailsView->RegisterInstancedCustomPropertyLayout(ObjectClass, DetailsSection->DetailCustomizationDelegate);
-				}
-			}
-
-			DetailsView->ForceRefresh();
+			DetailView->Refresh();
 		}
 	}
 
@@ -230,15 +185,39 @@ private:
 		}
 	}
 
+	/** Filters the detail tree nodes to display for the details section */
+	bool FilterDetailTreeNode(const TSharedRef<IDetailTreeNode>& InDetailTreeNode)
+	{
+		if (DetailsSection)
+		{
+			// Filter out any categories that are not configured by the data model to be displayed in the details section or subsection.
+			// All other nodes (which will be any child of the category), should be displayed.
+			if (InDetailTreeNode->GetNodeType() == EDetailNodeType::Category)
+			{
+				if (DetailsSection->Subsections.Num() && SelectedSubsectionIndex > INDEX_NONE)
+				{
+					return DetailsSection->Subsections[SelectedSubsectionIndex].Categories.Contains(InDetailTreeNode->GetNodeName());
+				}
+				else
+				{
+					return DetailsSection->Categories.Contains(InDetailTreeNode->GetNodeName());
+				}
+			}
+			else
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 private:
-	TSharedPtr<IDetailsView> DetailsView;
 	TSharedPtr<SBox> HeaderBox;
+	TSharedPtr<SDisplayClusterColorGradingDetailView> DetailView;
 
 	/** Pointer to the details section this view represents */
 	const FDisplayClusterColorGradingDataModel::FDetailsSection* DetailsSection = nullptr;
-
-	/** The object class of the objects that the details view is currently displaying */
-	UClass* ObjectClass = nullptr;
 
 	/** The index of the currently selected details subsection */
 	int32 SelectedSubsectionIndex = INDEX_NONE;
@@ -259,7 +238,7 @@ void SDisplayClusterColorGradingDetailsPanel::Construct(const FArguments& InArgs
 	{
 		Splitter->AddSlot()
 		[
-			SAssignNew(DetailsSectionViews[Index], SDetailsSectionView)
+			SAssignNew(DetailsSectionViews[Index], SDetailsSectionView, ColorGradingDataModel->GetPropertyRowGenerator())
 			.Visibility(this, &SDisplayClusterColorGradingDetailsPanel::GetDetailsSectionVisibility, Index)
 		];
 	}
@@ -295,11 +274,11 @@ void SDisplayClusterColorGradingDetailsPanel::SetDrawerState(const FDisplayClust
 
 void SDisplayClusterColorGradingDetailsPanel::FillDetailsSections()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SDisplayClusterColorGradingDetailsPanel::FillDetailsSections);
 	if (ColorGradingDataModel.IsValid())
 	{
 		TArray<TWeakObjectPtr<UObject>> Objects = ColorGradingDataModel->GetObjects();
 
-		const int32 NumDetailsSections = FMath::Min(ColorGradingDataModel->DetailsSections.Num(), MaxNumDetailsSections);
 		for (int32 Index = 0; Index < MaxNumDetailsSections; ++Index)
 		{
 			if (Index < ColorGradingDataModel->DetailsSections.Num())

@@ -11,7 +11,6 @@
 
 #include "IDisplayClusterOperator.h"
 #include "IDisplayClusterOperatorViewModel.h"
-#include "DisplayClusterOperatorStatusBarExtender.h"
 
 #include "DisplayClusterRootActor.h"
 #include "Components/DisplayClusterICVFXCameraComponent.h"
@@ -23,7 +22,6 @@
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
-#include "WidgetDrawerConfig.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
@@ -366,10 +364,9 @@ void SDisplayClusterColorGradingDrawer::PostRedo(bool bSuccess)
 FDisplayClusterColorGradingDrawerState SDisplayClusterColorGradingDrawer::GetDrawerState() const
 {
 	FDisplayClusterColorGradingDrawerState DrawerState;
-
-	DrawerState.SelectedColorGradingGroup = ColorGradingDataModel->GetSelectedColorGradingGroupIndex();
-	DrawerState.SelectedColorGradingElement = ColorGradingDataModel->GetSelectedColorGradingElementIndex();
 	DrawerState.DrawerMode = CurrentDrawerMode;
+
+	ColorGradingDataModel->GetDrawerState(DrawerState);
 
 	if (ColorWheelPanel.IsValid())
 	{
@@ -416,14 +413,14 @@ void SDisplayClusterColorGradingDrawer::SetDrawerState(const FDisplayClusterColo
 	{
 		if (SelectedObject.IsValid())
 		{
-			auto FindColorGraidngItem = [&SelectedObject](const FDisplayClusterColorGradingListItemRef& ColorGradingItem)
+			auto FindColorGradingItem = [&SelectedObject](const FDisplayClusterColorGradingListItemRef& ColorGradingItem)
 			{
 				return ColorGradingItem->Actor == SelectedObject || ColorGradingItem->Component == SelectedObject;
 			};
 
 			for (int32 Index = 0; Index < ColorGradingItemLists.Num(); ++Index)
 			{
-				if (FDisplayClusterColorGradingListItemRef* FoundItem = ColorGradingItemLists[Index].FindByPredicate(FindColorGraidngItem))
+				if (FDisplayClusterColorGradingListItemRef* FoundItem = ColorGradingItemLists[Index].FindByPredicate(FindColorGradingItem))
 				{
 					ItemsToSelect[Index].Add(*FoundItem);
 					break;
@@ -432,7 +429,7 @@ void SDisplayClusterColorGradingDrawer::SetDrawerState(const FDisplayClusterColo
 		}
 	}
 
-	// TODO: For now, since we don't support multiple color grading items selected at once, ensure either a level item or a root actor item is seleccted, not both
+	// TODO: For now, since we don't support multiple color grading items selected at once, ensure either a level item or a root actor item is selected, not both
 	for (int32 Index = 0; Index < ColorGradingItemLists.Num(); ++Index)
 	{
 		if (ItemsToSelect[Index].Num())
@@ -444,8 +441,7 @@ void SDisplayClusterColorGradingDrawer::SetDrawerState(const FDisplayClusterColo
 		}
 	}
 
-	ColorGradingDataModel->SetSelectedColorGradingGroup(InDrawerState.SelectedColorGradingGroup);
-	ColorGradingDataModel->SetSelectedColorGradingElement(InDrawerState.SelectedColorGradingElement);
+	ColorGradingDataModel->SetDrawerState(InDrawerState);
 
 	CurrentDrawerMode = InDrawerState.DrawerMode;
 
@@ -492,6 +488,7 @@ void SDisplayClusterColorGradingDrawer::SetDrawerStateToDefault()
 					if (ListItemPtr)
 					{
 						RootActorList->SetSelectedItems({ *ListItemPtr });
+						SetColorGradingDataModelObjects({ CCW });
 					}
 				}
 			}
@@ -499,6 +496,7 @@ void SDisplayClusterColorGradingDrawer::SetDrawerStateToDefault()
 			{
 				// The nDisplay stage actor is always the first item in the root actor color grading items list, so set that as the currently selected item
 				RootActorList->SetSelectedItems({ RootActorColorGradingItems[0] });
+				SetColorGradingDataModelObjects({ RootActorColorGradingItems[0]->Actor.Get() });
 			}
 		}
 	}
@@ -820,6 +818,18 @@ void SDisplayClusterColorGradingDrawer::FillColorCorrectionRegionColorGradingLis
 	}
 }
 
+void SDisplayClusterColorGradingDrawer::SetColorGradingDataModelObjects(const TArray<UObject*>& Objects)
+{
+	ColorGradingDataModel->SetObjects(Objects);
+
+	// If the current drawer mode is the details view but the newly selected objects don't have any details sections to display,
+	// switch to the color grading drawer mode
+	if (CurrentDrawerMode == EDisplayClusterColorGradingDrawerMode::DetailsView && ColorGradingDataModel->DetailsSections.Num() == 0)
+	{
+		CurrentDrawerMode = EDisplayClusterColorGradingDrawerMode::ColorGrading;
+	}
+}
+
 void SDisplayClusterColorGradingDrawer::FillColorGradingGroupToolBar()
 {
 	if (ColorGradingGroupToolBarBox.IsValid())
@@ -1067,14 +1077,12 @@ void SDisplayClusterColorGradingDrawer::OnListSelectionChanged(TSharedRef<SDispl
 
 			if (List->GetSelectedItems().Num())
 			{
-				bUpdateDataModelOnSelectionChanged = false;
 				List->SetSelectedItems(TArray<FDisplayClusterColorGradingListItemRef>());
-				bUpdateDataModelOnSelectionChanged = true;
 			}
 		}
 	}
 
-	if (bUpdateDataModelOnSelectionChanged)
+	if (SelectInfo != ESelectInfo::Direct)
 	{
 		TArray<UObject*> ObjectsToColorGrade;
 		for (const FDisplayClusterColorGradingListItemRef& SelectedObject : SelectedObjects)
@@ -1089,14 +1097,7 @@ void SDisplayClusterColorGradingDrawer::OnListSelectionChanged(TSharedRef<SDispl
 			}
 		}
 
-		ColorGradingDataModel->SetObjects(ObjectsToColorGrade);
-
-		// If the current drawer mode is the details view but the newly selected objects don't have any details sections to display,
-		// switch to the color grading drawer mode
-		if (CurrentDrawerMode == EDisplayClusterColorGradingDrawerMode::DetailsView && ColorGradingDataModel->DetailsSections.Num() == 0)
-		{
-			CurrentDrawerMode = EDisplayClusterColorGradingDrawerMode::ColorGrading;
-		}
+		SetColorGradingDataModelObjects(ObjectsToColorGrade);
 	}
 }
 
