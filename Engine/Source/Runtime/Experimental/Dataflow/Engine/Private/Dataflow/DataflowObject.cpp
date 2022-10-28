@@ -3,6 +3,7 @@
 #include "Dataflow/DataflowObject.h"
 #include "Dataflow/DataflowCore.h"
 #include "Dataflow/DataflowEdNode.h"
+#include "Dataflow/DataflowNodeParameters.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowObject)
 
@@ -56,8 +57,10 @@ void UDataflow::PostLoad()
 
 	for (UEdGraphNode* EdNode : Nodes)
 	{
+		UDataflowEdNode* DataflowEdNode = Cast<UDataflowEdNode>(EdNode);
+
 		// Not all nodes are UDataflowEdNode (There is now UDataflowEdNodeComment)
-		if (UDataflowEdNode* DataflowEdNode = Cast<UDataflowEdNode>(EdNode))
+		if (DataflowEdNode)
 		{
 			DataflowEdNode->SetDataflowGraph(Dataflow);
 		}
@@ -66,10 +69,35 @@ void UDataflow::PostLoad()
 		{
 			EdNode->SetEnabledState(ENodeEnabledState::Disabled);
 		}
+		else
+		{
+			if (DataflowEdNode)
+			{
+				if (DataflowEdNode->DoAssetRender())
+				{
+					RenderTargets.Add(DataflowEdNode);
+				}
+			}
+		}
 	}
 #endif
 
+	LastModifiedRenderTarget = Dataflow::FTimestamp::Current();
 	UObject::PostLoad();
+}
+
+void UDataflow::AddRenderTarget(UDataflowEdNode* InNode)
+{
+	LastModifiedRenderTarget = Dataflow::FTimestamp::Current();
+	InNode->bRenderInAssetEditor = true;
+	RenderTargets.AddUnique(InNode);
+}
+
+void UDataflow::RemoveRenderTarget(UDataflowEdNode* InNode)
+{
+	LastModifiedRenderTarget = Dataflow::FTimestamp::Current();
+	InNode->bRenderInAssetEditor = false;
+	RenderTargets.Remove(InNode);
 }
 
 void UDataflow::Serialize(FArchive& Ar)

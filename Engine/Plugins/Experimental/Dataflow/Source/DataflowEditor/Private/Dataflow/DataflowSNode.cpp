@@ -3,12 +3,18 @@
 #include "Dataflow/DataflowSNode.h"
 
 #include "Dataflow/DataflowEdNode.h"
+#include "Dataflow/DataflowEditorStyle.h"
+#include "Dataflow/DataflowGraphEditor.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowObject.h"
 #include "Dataflow/DataflowCore.h"
 #include "Logging/LogMacros.h"
 #include "SourceCodeNavigation.h"
+#include "Styling/SlateTypes.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowSNode)
 
@@ -20,7 +26,64 @@
 void SDataflowEdNode::Construct(const FArguments& InArgs, UDataflowEdNode* InNode)
 {
 	GraphNode = InNode;
+	DataflowGraphNode = Cast<UDataflowEdNode>(InNode);
 	UpdateGraphNode();
+
+	/*
+	const FSlateBrush* DisabledSwitchBrush = FDataflowEditorStyle::Get().GetBrush(TEXT("Dataflow.Render.Disabled"));
+	const FSlateBrush* EnabledSwitchBrush = FDataflowEditorStyle::Get().GetBrush(TEXT("Dataflow.Render.Enabled"));
+
+	CheckBoxStyle = FCheckBoxStyle()
+		.SetCheckBoxType(ESlateCheckBoxType::CheckBox)
+		.SetUncheckedImage(*DisabledSwitchBrush)
+		.SetUncheckedHoveredImage(*DisabledSwitchBrush)
+		.SetUncheckedPressedImage(*DisabledSwitchBrush)
+		.SetCheckedImage(*EnabledSwitchBrush)
+		.SetCheckedHoveredImage(*EnabledSwitchBrush)
+		.SetCheckedPressedImage(*EnabledSwitchBrush)
+		.SetPadding(FMargin(0, 0, 0, 1));
+	*/
+	//TSharedPtr<SNodePanel> ParentPanel = GetParentPanel();
+
+	RenderCheckBoxWidget = SNew(SCheckBox)
+		.IsChecked_Lambda([this]()-> ECheckBoxState
+			{
+				if (DataflowGraphNode && DataflowGraphNode->DoAssetRender())
+				{
+					return ECheckBoxState::Checked;
+				}
+				return ECheckBoxState::Unchecked;
+			})
+		.OnCheckStateChanged_Lambda([&](const ECheckBoxState NewState)
+			{
+				if (DataflowGraphNode)
+				{
+					if (NewState == ECheckBoxState::Checked)
+						DataflowGraphNode->SetAssetRender(true);
+					else
+						DataflowGraphNode->SetAssetRender(false);
+				}
+			});
+		//.Style(&CheckBoxStyle);
+
+}
+
+TArray<FOverlayWidgetInfo> SDataflowEdNode::GetOverlayWidgets(bool bSelected, const FVector2D& WidgetSize) const
+{
+	TArray<FOverlayWidgetInfo> Widgets = SGraphNode::GetOverlayWidgets(bSelected, WidgetSize);
+
+	if (DataflowGraphNode && DataflowGraphNode->GetDataflowNode()->GetRenderParameters().Num())
+	{
+		const FVector2D ImageSize = RenderCheckBoxWidget->GetDesiredSize();
+
+		FOverlayWidgetInfo Info;
+		Info.OverlayOffset = FVector2D(WidgetSize.X - ImageSize.X - 6.f, 6.f);
+		Info.Widget = RenderCheckBoxWidget;
+
+		Widgets.Add(Info);
+	}
+
+	return Widgets;
 }
 
 FReply SDataflowEdNode::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)

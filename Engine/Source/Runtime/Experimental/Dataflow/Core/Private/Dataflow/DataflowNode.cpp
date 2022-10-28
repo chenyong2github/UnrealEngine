@@ -119,9 +119,20 @@ void FDataflowNode::AddOutput(FDataflowOutput* InPtr)
 	}
 }
 
-
-
 FDataflowOutput* FDataflowNode::FindOutput(FName InName)
+{
+	for (TPair<uint32, FDataflowOutput*> Elem : Outputs)
+	{
+		FDataflowOutput* Con = Elem.Value;
+		if (Con->GetName().IsEqual(InName))
+		{
+			return (FDataflowOutput*)Con;
+		}
+	}
+	return nullptr;
+}
+
+const FDataflowOutput* FDataflowNode::FindOutput(FName InName) const
 {
 	for (TPair<uint32, FDataflowOutput*> Elem : Outputs)
 	{

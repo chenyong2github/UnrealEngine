@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Dataflow/DataflowNodeParameters.h"
+
 #include "Dataflow/DataflowInputOutput.h"
 #include "Dataflow/DataflowNode.h"
 
 namespace Dataflow
 {
 	uint64 FTimestamp::Invalid = 0;
+	uint64 FTimestamp::Current() { return FPlatformTime::Cycles64();  }
 
 	void BeginContextEvaluation(FContext& Context, const FDataflowNode* Node, const FDataflowOutput* Output)
 	{

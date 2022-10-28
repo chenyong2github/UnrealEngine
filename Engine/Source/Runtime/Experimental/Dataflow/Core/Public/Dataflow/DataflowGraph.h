@@ -85,6 +85,18 @@ namespace Dataflow
 			return TSharedPtr<FDataflowNode>(nullptr);
 		}
 
+		TSharedPtr<const FDataflowNode> FindBaseNode(FGuid InGuid) const
+		{
+			for (TSharedPtr<FDataflowNode> Node : Nodes)
+			{
+				if (Node->GetGuid() == InGuid)
+				{
+					return Node;
+				}
+			}
+			return TSharedPtr<FDataflowNode>(nullptr);
+		}
+
 		TSharedPtr<FDataflowNode> FindBaseNode(FName InName)
 		{
 			for (TSharedPtr<FDataflowNode> Node : Nodes)

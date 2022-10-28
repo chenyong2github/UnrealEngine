@@ -8,6 +8,7 @@
 #include "DataflowSNode.generated.h"
 
 class UDataflowEdNode;
+class SCheckBox;
 
 //
 // SDataflowEdNode
@@ -18,19 +19,26 @@ class DATAFLOWEDITOR_API SDataflowEdNode : public SGraphNode
 	typedef SGraphNode Super;
 
 public:
+	typedef TFunction<void(UEdGraphNode* InNode, bool InEnabled)> FToggleRenderCallback;
+
+
 	SLATE_BEGIN_ARGS(SDataflowEdNode)
 		: _GraphNodeObj(nullptr)
 	{}
-
 	SLATE_ARGUMENT(UDataflowEdNode*, GraphNodeObj)
-
 	SLATE_END_ARGS()
 	
 	void Construct(const FArguments& InArgs, UDataflowEdNode* InNode);
 
 	// SGraphNode interface
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
+	TArray<FOverlayWidgetInfo> GetOverlayWidgets(bool bSelected, const FVector2D& WidgetSize) const;
 
+private:
+	UDataflowEdNode* DataflowGraphNode = nullptr;	
+
+	FCheckBoxStyle CheckBoxStyle;
+	TSharedPtr<SCheckBox> RenderCheckBoxWidget;
 };
 
 //

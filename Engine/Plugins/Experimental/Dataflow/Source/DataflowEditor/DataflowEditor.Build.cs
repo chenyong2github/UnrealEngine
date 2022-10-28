@@ -32,6 +32,7 @@ namespace UnrealBuildTool.Rules
 					"GraphEditor",
 					"DataflowCore",
 					"DataflowEngine",
+					"DataflowEnginePlugin",
 					"Slate",
 				}
 			);

@@ -4,6 +4,9 @@
 
 #include "Dataflow/DataflowNode.h"
 #include "Dataflow/DataflowCore.h"
+#include "Dataflow/DataflowObject.h"
+#include "Dataflow/DataflowRenderingFactory.h"
+#include "GeometryCollection/Facades/CollectionRenderingFacade.h"
 #include "Logging/LogMacros.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowEdNode)
@@ -24,6 +27,43 @@ UDataflowEdNode::UDataflowEdNode(const FObjectInitializer& ObjectInitializer)
 	bCanRenameNode = true;
 #endif // WITH_EDITOR && !UE_BUILD_SHIPPING
 }
+
+void UDataflowEdNode::SetAssetRender(bool bInRender)
+{
+	bRenderInAssetEditor = bInRender;
+	if (IsBound())
+	{
+#if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		if (UDataflow* DataflowObject = Cast< UDataflow>(GetGraph()))
+		{
+			if (bRenderInAssetEditor)
+				DataflowObject->AddRenderTarget(this);
+			else
+				DataflowObject->RemoveRenderTarget(this);
+		}
+#endif
+	}
+}
+
+
+TSharedPtr<FDataflowNode> UDataflowEdNode::GetDataflowNode()
+{
+	if(TSharedPtr<Dataflow::FGraph> Dataflow = GetDataflowGraph())
+	{
+		return Dataflow->FindBaseNode(GetDataflowNodeGuid());
+	}
+	return TSharedPtr<FDataflowNode>(nullptr);
+}
+
+TSharedPtr<const FDataflowNode> UDataflowEdNode::GetDataflowNode() const
+{
+	if (TSharedPtr<const Dataflow::FGraph> Dataflow = GetDataflowGraph())
+	{
+		return Dataflow->FindBaseNode(GetDataflowNodeGuid());
+	}
+	return TSharedPtr<FDataflowNode>(nullptr);
+}
+
 
 void UDataflowEdNode::AllocateDefaultPins()
 {
@@ -160,6 +200,37 @@ FLinearColor UDataflowEdNode::GetNodeBodyTintColor() const
 }
 
 #endif
+
+
+TArray<Dataflow::FRenderingParameter> UDataflowEdNode::GetRenderParameters() const
+{
+	if (TSharedPtr<const FDataflowNode> DataflowNode = GetDataflowNode())
+	{
+		return DataflowNode->GetRenderParameters();
+	}
+	return 	TArray<Dataflow::FRenderingParameter>();
+}
+
+
+bool UDataflowEdNode::Render(GeometryCollection::Facades::FRenderingFacade& RenderData, TSharedPtr<Dataflow::FContext> Context) const
+{
+	bool bNeedsRefresh = false;
+	if (DataflowGraph)
+	{
+		if (TSharedPtr<const FDataflowNode> NodeTarget = DataflowGraph->FindBaseNode(FName(GetName())))
+		{
+			if (Dataflow::FRenderingFactory* Factory = Dataflow::FRenderingFactory::GetInstance())
+			{
+				for (Dataflow::FRenderingParameter& Parameter : GetRenderParameters())
+				{
+					Factory->RenderNodeOutput(RenderData, { NodeTarget.Get(), Parameter, *Context });
+					bNeedsRefresh = true;
+				}
+			}
+		}
+	}
+	return bNeedsRefresh;
+}
 
 #undef LOCTEXT_NAMESPACE
 

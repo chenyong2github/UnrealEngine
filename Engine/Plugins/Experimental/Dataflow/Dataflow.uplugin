@@ -22,11 +22,20 @@
 			"LoadingPhase": "Default"
 		},
 		{
+			"Name": "DataflowEnginePlugin",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "DataflowNodes",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
+		{
+			"Name": "ProceduralMeshComponent",
+			"Enabled": true
+		}
 	]
 }

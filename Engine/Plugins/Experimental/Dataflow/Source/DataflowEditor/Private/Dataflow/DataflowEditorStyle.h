@@ -2,6 +2,7 @@
 
 #pragma once
 #include "Styling/SlateStyle.h"
+#include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Interfaces/IPluginManager.h"
 
@@ -12,10 +13,17 @@ public:
 	{
 		const FVector2D Icon16x16(16.f, 16.f);
 		const FVector2D Icon64x64(64.f, 64.f);
+		const FVector2D Icon56x28(56.f, 28.f);
+		const FVector2D Icon28x14(28.f, 14.f);
 
 		SetContentRoot(IPluginManager::Get().FindPlugin("Dataflow")->GetBaseDir() / TEXT("Resources"));
 		Set("ClassIcon.Dataflow", new FSlateVectorImageBrush(RootToContentDir(TEXT("DataflowAsset_16.svg")), Icon16x16));
 		Set("ClassThumbnail.Dataflow", new FSlateVectorImageBrush(RootToContentDir(TEXT("DataflowAsset_64.svg")), Icon64x64));
+
+		Set("Dataflow.Render.Unknown", new FSlateImageBrush(RootToContentDir(TEXT("Slate/Switch_Undetermined_56x_28x")), Icon56x28));
+		Set("Dataflow.Render.Disabled", new FSlateImageBrush(RootToContentDir(TEXT("Slate/Switch_OFF_56x_28x")), Icon56x28));
+		Set("Dataflow.Render.Enabled", new FSlateImageBrush(RootToContentDir(TEXT("Slate/Switch_ON_56x_28x")), Icon56x28));
+
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}
 
@@ -28,20 +36,9 @@ public:
 
 	static FDataflowEditorStyle& Get()
 	{
-		if (!Singleton.IsSet())
-		{
-			Singleton.Emplace();
-		}
-		return Singleton.GetValue();
+		static FDataflowEditorStyle Inst;
+		return Inst;
 	}
 
-	static void Destroy()
-	{
-		Singleton.Reset();
-	}
-
-private:
-	static TOptional<FDataflowEditorStyle> Singleton;
 };
 
-TOptional<FDataflowEditorStyle> FDataflowEditorStyle::Singleton;

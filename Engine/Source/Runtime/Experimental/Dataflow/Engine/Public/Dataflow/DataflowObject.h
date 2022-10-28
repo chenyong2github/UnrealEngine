@@ -17,6 +17,7 @@
 class FArchive;
 class UDataflow;
 class UObject;
+class UDataflowEdNode;
 namespace Dataflow { class FGraph; }
 
 
@@ -57,6 +58,8 @@ class DATAFLOWENGINE_API UDataflow : public UEdGraph
 {
 	GENERATED_UCLASS_BODY()
 
+	Dataflow::FTimestamp LastModifiedRenderTarget = Dataflow::FTimestamp::Invalid; 
+	TArray<const UDataflowEdNode*> RenderTargets; // Not Serialized
 	TSharedPtr<Dataflow::FGraph, ESPMode::ThreadSafe> Dataflow;
 	void PostEditCallback();
 
@@ -87,5 +90,14 @@ public:
 		UDataflow* ThisNC = const_cast<UDataflow*>(this);
 		return FDataflowAssetEdit(ThisNC, [ThisNC]() {ThisNC->PostEditCallback(); });
 	}
+
+	//
+	// Render Targets
+	//
+	void AddRenderTarget(UDataflowEdNode*);
+	void RemoveRenderTarget(UDataflowEdNode*);
+	const TArray<const UDataflowEdNode*>& GetRenderTargets() const { return RenderTargets; }
+	const Dataflow::FTimestamp& GetRenderingTimestamp() const { return LastModifiedRenderTarget; }
+
 };
 

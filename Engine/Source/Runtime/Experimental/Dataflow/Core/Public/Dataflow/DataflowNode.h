@@ -75,6 +75,7 @@ struct DATAFLOWCORE_API FDataflowNode
 	virtual FName GetCategory() const { return ""; }
 	virtual FString GetTags() const { return ""; }
 	virtual FString GetToolTip() const { return ""; }
+	virtual TArray<Dataflow::FRenderingParameter> GetRenderParameters() const { return GetRenderParametersImpl(); }
 
 	//
 	// Connections
@@ -99,6 +100,7 @@ struct DATAFLOWCORE_API FDataflowNode
 
 	FDataflowOutput* FindOutput(FName Name);
 	FDataflowOutput* FindOutput(void* Reference);
+	const FDataflowOutput* FindOutput(FName Name) const;
 	const FDataflowOutput* FindOutput(const void* Reference) const;
 
 
@@ -180,7 +182,10 @@ struct DATAFLOWCORE_API FDataflowNode
 
 	bool IsValid() const { return bValid; }
 
+
 private:
+	virtual TArray<Dataflow::FRenderingParameter> GetRenderParametersImpl() const { return TArray<Dataflow::FRenderingParameter>(); }
+
 
 	bool bValid = true;
 
@@ -199,6 +204,12 @@ namespace Dataflow
 		[](const FNewNodeParameters& InParam){										\
 				TUniquePtr<A> Val = MakeUnique<A>(FNodeParameters{InParam.Name}, InParam.Guid);    \
 				Val->ValidateConnections(); return Val;});
+
+#define DATAFLOW_NODE_RENDER_TYPE(A, B)												\
+	virtual TArray<Dataflow::FRenderingParameter> GetRenderParametersImpl() const {		\
+		TArray<Dataflow::FRenderingParameter> Array;								\
+		Array.Add({ A, {B,} });														\
+		return Array;}
 
 #define DATAFLOW_NODE_DEFINE_INTERNAL(TYPE, DISPLAY_NAME, CATEGORY, TAGS)			\
 public:																				\
