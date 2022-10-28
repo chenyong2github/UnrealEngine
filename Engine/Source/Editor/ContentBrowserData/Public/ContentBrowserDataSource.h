@@ -357,6 +357,35 @@ public:
 	virtual bool BulkEditItems(TArrayView<const FContentBrowserItemData> InItems);
 
 	/**
+     * Query whether the given item is can be viewed (a read-only asset editor), optionally providing error information if it cannot.
+     *
+     * @param InItem The item to query.
+     * @param OutErrorMessage Optional error message to fill on failure.
+     *
+     * @return True if the item can be viewed in a read-only editor, false otherwise.
+     */
+    virtual bool CanViewItem(const FContentBrowserItemData& InItem, FText* OutErrorMsg);
+
+    /**
+     * Attempt to open the given item for read-only viewing.
+     *
+     * @param InItem The item to view.
+     *
+     * @return True if the item was opened for read-only viewing, false otherwise.
+     */
+    virtual bool ViewItem(const FContentBrowserItemData& InItem);
+
+    /**
+     * Attempt to open the given items for read-only viewing.
+     * @note The default implementation of this will call ViewItem for each item. Override if you can provide a more efficient implementation.
+     *
+     * @param InItems The items to view.
+     *
+     * @return True if any items were opened for read-only viewing, false otherwise.
+     */
+    virtual bool BulkViewItems(TArrayView<const FContentBrowserItemData> InItems);
+
+	/**
 	 * Query whether the given item is can be previewed, optionally providing error information if it cannot.
 	 *
 	 * @param InItem The item to query.

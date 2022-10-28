@@ -305,6 +305,26 @@ bool UContentBrowserDataSource::BulkEditItems(TArrayView<const FContentBrowserIt
 	return bSuccess;
 }
 
+bool UContentBrowserDataSource::CanViewItem(const FContentBrowserItemData& InItem, FText* OutErrorMsg)
+{
+	return false;
+}
+
+bool UContentBrowserDataSource::ViewItem(const FContentBrowserItemData& InItem)
+{
+	return false;
+}
+
+bool UContentBrowserDataSource::BulkViewItems(TArrayView<const FContentBrowserItemData> InItems)
+{
+	bool bSuccess = false;
+	for (const FContentBrowserItemData& Item : InItems)
+	{
+		bSuccess |= ViewItem(Item);
+	}
+	return bSuccess;
+}
+
 bool UContentBrowserDataSource::CanPreviewItem(const FContentBrowserItemData& InItem, FText* OutErrorMsg)
 {
 	return false;

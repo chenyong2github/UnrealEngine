@@ -11,6 +11,7 @@
 #include "IAssetTools.h"
 #include "IAssetTypeActions.h"
 #include "AssetToolsModule.h"
+#include "AssetTypeActivationOpenedMethod.h"
 #include "Toolkits/SimpleAssetEditor.h"
 #include "AssetRegistry/ARFilter.h"
 
@@ -33,6 +34,14 @@ public:
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) override
 	{
 		FSimpleAssetEditor::CreateEditor(EToolkitMode::Standalone, EditWithinLevelEditor, InObjects);
+	}
+
+	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, const EAssetTypeActivationOpenedMethod OpenedMethod, TSharedPtr<IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override
+	{
+		if (OpenedMethod == EAssetTypeActivationOpenedMethod::Edit)
+		{
+			OpenAssetEditor(InObjects, EditWithinLevelEditor);
+		}
 	}
 
 	virtual bool AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) override
@@ -160,6 +169,11 @@ public:
 	virtual bool IsSupported() const final
 	{
 		return bIsSupported;
+	}
+
+	virtual bool SupportsOpenedMethod(const EAssetTypeActivationOpenedMethod OpenedMethod) const override
+	{
+		return OpenedMethod == EAssetTypeActivationOpenedMethod::Edit;
 	}
 
 	virtual FName GetFilterName() const override
