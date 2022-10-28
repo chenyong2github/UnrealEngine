@@ -12,7 +12,7 @@
 
 // Types of permissions allowed when attempting to open an asset in editor via activation (EAssetTypeActivationMethod)
 UENUM()
-enum class EAssetTypeActivationOpenedMethod : int32
+enum class EAssetTypeActivationOpenedMethod : uint8
 {
 	Edit,
 	View

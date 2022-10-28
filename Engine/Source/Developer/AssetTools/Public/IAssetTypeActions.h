@@ -10,7 +10,7 @@
 #include "IAssetTypeActions.generated.h"
 
 class IToolkitHost;
-enum class EAssetTypeActivationOpenedMethod : int32;
+enum class EAssetTypeActivationOpenedMethod : uint8;
 
 namespace EAssetTypeActivationMethod
 {
