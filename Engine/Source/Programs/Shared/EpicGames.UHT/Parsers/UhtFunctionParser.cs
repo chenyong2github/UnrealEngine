@@ -290,8 +290,8 @@ namespace EpicGames.UHT.Parsers
 
 					topScope.AddFormattedCommentsAsTooltipMetaData();
 
-					// Optionally consume a semicolon, it's not required for the delegate macro since it contains one internally
-					topScope.TokenReader.Optional(';');
+					// Consume a semicolon, it's not required for the delegate macro since it contains one internally
+					topScope.TokenReader.Require(';');
 				}
 				return UhtParseResult.Handled;
 			}
