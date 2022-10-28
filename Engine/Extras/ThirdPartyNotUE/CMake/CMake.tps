@@ -2,7 +2,7 @@
 <TpsData xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <Name>CMake</Name>
   <Location>/Engine/Extras/ThirdPartyNotUE/CMake/</Location>
-  <Function>Builds third-party libraries that are distributed with the engine.</Function>
+  <Function>Set of tools to build, test and package software.Supports wide range of C++ compilers and platforms.</Function>
   <Eula>https://gitlab.kitware.com/cmake/cmake/-/blob/master/Copyright.txt</Eula>
   <RedistributeTo>
     <EndUserGroup>Licensees</EndUserGroup>
