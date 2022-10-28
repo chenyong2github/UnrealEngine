@@ -32,7 +32,7 @@ public:
 	 * @param Archive The archive to deserialize from.
 	 */
 	FJsonStructDeserializerBackend( FArchive& Archive )
-		: JsonReader(TJsonReader<WIDECHAR>::Create(&Archive))
+		: JsonReader(TJsonReader<UCS2CHAR>::Create(&Archive))
 	{ }
 
 public:
@@ -58,7 +58,7 @@ protected:
 		return LastNotation;
 	}
 
-	TSharedRef<TJsonReader<WIDECHAR>>& GetReader()
+	TSharedRef<TJsonReader<UCS2CHAR>>& GetReader()
 	{
 		return JsonReader;
 	}
@@ -72,5 +72,5 @@ private:
 	EJsonNotation LastNotation;
 
 	/** Holds the Json reader used for the actual reading of the archive. */
-	TSharedRef<TJsonReader<WIDECHAR>> JsonReader;
+	TSharedRef<TJsonReader<UCS2CHAR>> JsonReader;
 };
