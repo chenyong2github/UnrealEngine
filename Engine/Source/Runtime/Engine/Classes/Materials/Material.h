@@ -1760,6 +1760,9 @@ public:
 	// Return true if the property is supported
 	ENGINE_API bool IsPropertySupported(EMaterialProperty InProperty) const;
 
+	/** Returns true if the material property is relevant for mobile platforms */
+	ENGINE_API static bool IsPropertyRelevantForMobile(EMaterialProperty InProperty);
+
 #if WITH_EDITOR
 	static void NotifyCompilationFinished(UMaterialInterface* Material);
 
