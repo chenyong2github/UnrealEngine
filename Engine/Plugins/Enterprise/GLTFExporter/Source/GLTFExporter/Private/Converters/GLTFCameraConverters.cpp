@@ -2,16 +2,23 @@
 
 #include "Converters/GLTFCameraConverters.h"
 #include "Builders/GLTFContainerBuilder.h"
-#include "GameFramework/Actor.h"
 #include "Utilities/GLTFCoreUtilities.h"
 #include "Converters/GLTFNameUtility.h"
 #include "Camera/CameraComponent.h"
+#include "GameFramework/Actor.h"
 
 FGLTFJsonCamera* FGLTFCameraConverter::Convert(const UCameraComponent* CameraComponent)
 {
+	const EGLTFJsonCameraType Type = FGLTFCoreUtilities::ConvertCameraType(CameraComponent->ProjectionMode);
+	if (Type == EGLTFJsonCameraType::None)
+	{
+		// TODO: report error (unsupported camera type)
+		return nullptr;
+	}
+
 	FGLTFJsonCamera* JsonCamera = Builder.AddCamera();
 	JsonCamera->Name = FGLTFNameUtility::GetName(CameraComponent);
-	JsonCamera->Type = FGLTFCoreUtilities::ConvertCameraType(CameraComponent->ProjectionMode);
+	JsonCamera->Type = Type;
 
 	FMinimalViewInfo DesiredView;
 	const_cast<UCameraComponent*>(CameraComponent)->GetCameraView(0, DesiredView);
@@ -38,10 +45,6 @@ FGLTFJsonCamera* FGLTFCameraConverter::Convert(const UCameraComponent* CameraCom
 			JsonCamera->Perspective.YFov = FGLTFCoreUtilities::ConvertFieldOfView(DesiredView.FOV, DesiredView.AspectRatio);
 			JsonCamera->Perspective.ZNear = FGLTFCoreUtilities::ConvertLength(DesiredView.GetFinalPerspectiveNearClipPlane(), ExportScale);
 			break;
-
-		case EGLTFJsonCameraType::None:
-			// TODO: report error (unsupported camera type)
-			return nullptr;
 
 		default:
 			checkNoEntry();

@@ -15,8 +15,7 @@
 
 FGLTFJsonEpicLevelVariantSets* FGLTFEpicLevelVariantSetsConverter::Convert(const ULevelVariantSets* LevelVariantSets)
 {
-	FGLTFJsonEpicLevelVariantSets* JsonLevelVariantSets = Builder.AddEpicLevelVariantSets();
-	LevelVariantSets->GetName(JsonLevelVariantSets->Name);
+	TArray<FGLTFJsonEpicVariantSet> VariantSets;
 
 	for (const UVariantSet* VariantSet: LevelVariantSets->GetVariantSets())
 	{
@@ -34,15 +33,18 @@ FGLTFJsonEpicLevelVariantSets* FGLTFEpicLevelVariantSetsConverter::Convert(const
 
 		if (JsonVariantSet.Variants.Num() > 0)
 		{
-			JsonLevelVariantSets->VariantSets.Add(JsonVariantSet);
+			VariantSets.Add(JsonVariantSet);
 		}
 	}
 
-	if (JsonLevelVariantSets->VariantSets.Num() == 0)
+	if (VariantSets.Num() == 0)
 	{
 		return nullptr;
 	}
 
+	FGLTFJsonEpicLevelVariantSets* JsonLevelVariantSets = Builder.AddEpicLevelVariantSets();
+	LevelVariantSets->GetName(JsonLevelVariantSets->Name);
+	JsonLevelVariantSets->VariantSets = VariantSets;
 	return JsonLevelVariantSets;
 }
 

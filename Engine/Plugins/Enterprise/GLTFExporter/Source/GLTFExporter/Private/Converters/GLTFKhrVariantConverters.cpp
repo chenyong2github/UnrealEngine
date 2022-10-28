@@ -16,16 +16,8 @@ FGLTFJsonKhrMaterialVariant* FGLTFKhrMaterialVariantConverter::Convert(const UVa
 		return nullptr;
 	}
 
-
-	FGLTFJsonKhrMaterialVariant* MaterialVariant = Builder.AddKhrMaterialVariant();
-
-	// TODO: add warning if the variant name is not unique, i.e it's already used?
-	// While material variants are technically allowed to use the same name, it may
-	// cause confusion when trying to select the correct variant in a viewer.
-	MaterialVariant->Name = Variant->GetDisplayText().ToString();
-
-	typedef TTuple<FGLTFJsonPrimitive*, FGLTFJsonMaterial*> TPrimitiveMaterial;
-	TArray<TPrimitiveMaterial> PrimitiveMaterials;
+	typedef TTuple<FGLTFJsonPrimitive*, FGLTFJsonMaterial*> FGLTFPrimitiveMaterial;
+	TArray<TTuple<FGLTFJsonPrimitive*, FGLTFJsonMaterial*>> PrimitiveMaterials;
 
 	for (const UVariantObjectBinding* Binding: Variant->GetBindings())
 	{
@@ -56,7 +48,13 @@ FGLTFJsonKhrMaterialVariant* FGLTFKhrMaterialVariantConverter::Convert(const UVa
 		return nullptr;
 	}
 
-	for (const TPrimitiveMaterial& PrimitiveMaterial: PrimitiveMaterials)
+	FGLTFJsonKhrMaterialVariant* MaterialVariant = Builder.AddKhrMaterialVariant();
+	// TODO: add warning if the variant name is not unique, i.e it's already used?
+	// While material variants are technically allowed to use the same name, it may
+	// cause confusion when trying to select the correct variant in a viewer.
+	MaterialVariant->Name = Variant->GetDisplayText().ToString();
+
+	for (const FGLTFPrimitiveMaterial& PrimitiveMaterial: PrimitiveMaterials)
 	{
 		FGLTFJsonPrimitive* Primitive = PrimitiveMaterial.Key;
 		FGLTFJsonMaterial* Material = PrimitiveMaterial.Value;
