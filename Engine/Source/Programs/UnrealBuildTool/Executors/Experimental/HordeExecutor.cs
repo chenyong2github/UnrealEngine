@@ -421,10 +421,15 @@ namespace UnrealBuildTool
 		/// Executes the specified actions locally.
 		/// </summary>
 		/// <returns>True if all the tasks successfully executed, or false if any of them failed.</returns>
-		public override bool ExecuteActions(List<LinkedAction> InputActions, ILogger Logger)
+		public override bool ExecuteActions(IEnumerable<LinkedAction> InputActions, ILogger Logger)
 		{
+			if (!InputActions.Any())
+			{
+				return true;
+			}
+
 			int NumCompletedActions = 0;
-			int TotalActions = InputActions.Count;
+			int TotalActions = InputActions.Count();
 			int ActualNumParallelProcesses = Math.Min(TotalActions, NumParallelProcesses);
 
 			using ManagedProcessGroup ProcessGroup = new ManagedProcessGroup();

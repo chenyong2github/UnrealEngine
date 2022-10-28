@@ -164,10 +164,15 @@ namespace UnrealBuildTool
 		/// Executes the specified actions locally.
 		/// </summary>
 		/// <returns>True if all the tasks successfully executed, or false if any of them failed.</returns>
-		public override bool ExecuteActions(List<LinkedAction> InputActions, ILogger Logger)
+		public override bool ExecuteActions(IEnumerable<LinkedAction> InputActions, ILogger Logger)
 		{
+			if (!InputActions.Any())
+			{
+				return true;
+			}
+
 			int NumCompletedActions = 0;
-			int TotalActions = InputActions.Count;
+			int TotalActions = InputActions.Count();
 			int ActualNumParallelProcesses = Math.Min(TotalActions, NumParallelProcesses);
 
 			using ManagedProcessGroup ProcessGroup = new ManagedProcessGroup();
@@ -206,7 +211,7 @@ namespace UnrealBuildTool
 			return ExecuteTasks.Values.All(x => x.Result.ExitCode == 0);
 		}
 
-		protected static Task<ExecuteResults> CreateExecuteTask(LinkedAction Action, List<LinkedAction> InputActions, Dictionary<LinkedAction, Task<ExecuteResults>> ExecuteTasks, ManagedProcessGroup ProcessGroup, SemaphoreSlim MaxProcessSemaphore, CancellationToken CancellationToken)
+		protected static Task<ExecuteResults> CreateExecuteTask(LinkedAction Action, IEnumerable<LinkedAction> InputActions, Dictionary<LinkedAction, Task<ExecuteResults>> ExecuteTasks, ManagedProcessGroup ProcessGroup, SemaphoreSlim MaxProcessSemaphore, CancellationToken CancellationToken)
 		{
 			List<LinkedAction> PrerequisiteActions = Action.PrerequisiteActions.Where(x => InputActions.Contains(x)).ToList();
 			if (PrerequisiteActions.Count == 0)
@@ -214,7 +219,7 @@ namespace UnrealBuildTool
 				return Task.Factory.StartNew(
 					() => ExecuteAction(new Task<ExecuteResults>[0], Action, ProcessGroup, MaxProcessSemaphore, CancellationToken),
 					CancellationToken,
-					TaskCreationOptions.LongRunning,
+					TaskCreationOptions.PreferFairness | TaskCreationOptions.LongRunning,
 					TaskScheduler.Current
 				).Unwrap();
 			}
@@ -234,7 +239,7 @@ namespace UnrealBuildTool
 				PrerequisiteTasks.ToArray(),
 				(AntecedentTasks) => ExecuteAction(AntecedentTasks, Action, ProcessGroup, MaxProcessSemaphore, CancellationToken),
 				CancellationToken,
-				TaskContinuationOptions.LongRunning,
+				TaskContinuationOptions.PreferFairness | TaskContinuationOptions.LongRunning,
 				TaskScheduler.Current
 			).Unwrap();
 		}

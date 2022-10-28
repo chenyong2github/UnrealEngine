@@ -197,10 +197,12 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		public override bool ExecuteActions(List<LinkedAction> Actions, ILogger Logger)
+		public override bool ExecuteActions(IEnumerable<LinkedAction> Actions, ILogger Logger)
 		{
-			if (Actions.Count == 0)
+			if (!Actions.Any())
+			{
 				return true;
+			}
 
 			// Clean the intermediate directory in case there are any leftovers from previous builds
 			if (DirectoryReference.Exists(IntermediateDir))
@@ -265,7 +267,7 @@ namespace UnrealBuildTool
 			{
 				StartInfo.Arguments += " -k";
 			}
-			return ExecuteProcessWithProgressMarkup(StartInfo, Actions.Count, Logger);
+			return ExecuteProcessWithProgressMarkup(StartInfo, Actions.Count(), Logger);
 		}
 
 		/// <summary>

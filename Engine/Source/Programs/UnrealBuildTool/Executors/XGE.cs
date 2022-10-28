@@ -390,52 +390,30 @@ namespace UnrealBuildTool
 		}
 
 		[SupportedOSPlatform("windows")]
-		public override bool ExecuteActions(List<LinkedAction> ActionsToExecute, ILogger Logger)
+		public override bool ExecuteActions(IEnumerable<LinkedAction> Actions, ILogger Logger)
 		{
-			bool XGEResult = true;
-
-			// Batch up XGE execution by actions with the same output event handler.
-			List<LinkedAction> ActionBatch = new List<LinkedAction>();
-			ActionBatch.Add(ActionsToExecute[0]);
-			for (int ActionIndex = 1; ActionIndex < ActionsToExecute.Count && XGEResult; ++ActionIndex)
+			if (!Actions.Any())
 			{
-				LinkedAction CurrentAction = ActionsToExecute[ActionIndex];
-				ActionBatch.Add(CurrentAction);
-			}
-			if (ActionBatch.Count > 0 && XGEResult)
-			{
-				XGEResult = ExecuteActionBatch(ActionBatch, Logger);
-				ActionBatch.Clear();
+				return true;
 			}
 
-			return XGEResult;
-		}
+			// Write the actions to execute to a XGE task file.
+			string XGETaskFilePath = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "XGETasks.xml").FullName;
+			WriteTaskFile(Actions, XGETaskFilePath, true, false, Logger);
 
-		[SupportedOSPlatform("windows")]
-		bool ExecuteActionBatch(List<LinkedAction> Actions, ILogger Logger)
-		{
-			bool XGEResult = true;
-			if (Actions.Count > 0)
-			{
-				// Write the actions to execute to a XGE task file.
-				string XGETaskFilePath = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "XGETasks.xml").FullName;
-				WriteTaskFile(Actions, XGETaskFilePath, true, false, Logger);
-
-				XGEResult = ExecuteTaskFileWithProgressMarkup(XGETaskFilePath, Actions.Count, Logger);
-			}
-			return XGEResult;
+			return ExecuteTaskFileWithProgressMarkup(XGETaskFilePath, Actions.Count(), Logger);
 		}
 
 		/// <summary>
 		/// Writes a XGE task file containing the specified actions to the specified file path.
 		/// </summary>
-		static void WriteTaskFile(List<LinkedAction> InActions, string TaskFilePath, bool bProgressMarkup, bool bXGEExport, ILogger Logger)
+		static void WriteTaskFile(IEnumerable<LinkedAction> InActions, string TaskFilePath, bool bProgressMarkup, bool bXGEExport, ILogger Logger)
 		{
 			bool HostOnVpn = TryGetCoordinatorHost(out string? CoordinatorHost) && IsHostOnVpn(CoordinatorHost, Logger);
 
 			Dictionary<string, string> ExportEnv = new Dictionary<string, string>();
 
-			List<LinkedAction> Actions = InActions;
+			List<LinkedAction> Actions = InActions.ToList();
 			if (bXGEExport)
 			{
 				IDictionary CurrentEnvironment = Environment.GetEnvironmentVariables();

@@ -65,8 +65,13 @@ namespace UnrealBuildTool
 		/// <param name="ActionsToExecute">Actions to be executed</param>
 		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the build succeeded, false otherwise</returns>
-		public override bool ExecuteActions(List<LinkedAction> ActionsToExecute, ILogger Logger)
+		public override bool ExecuteActions(IEnumerable<LinkedAction> ActionsToExecute, ILogger Logger)
 		{
+			if (!ActionsToExecute.Any())
+			{
+				return true;
+			}
+
 			// Find the number of dependants for each action
 			Dictionary<LinkedAction, int> ActionToNumDependents = ActionsToExecute.ToDictionary(x => x, x => 0);
 			foreach (LinkedAction Action in ActionsToExecute)
@@ -112,7 +117,7 @@ namespace UnrealBuildTool
 
 			// Split the list of actions into those which should be executed locally and remotely
 			List<LinkedAction> LocalActionsToExecute = new List<LinkedAction>(LeafActions.Count);
-			List<LinkedAction> RemoteActionsToExecute = new List<LinkedAction>(ActionsToExecute.Count - LeafActions.Count);
+			List<LinkedAction> RemoteActionsToExecute = new List<LinkedAction>(ActionsToExecute.Count() - LeafActions.Count);
 			foreach (LinkedAction ActionToExecute in ActionsToExecute)
 			{
 				if (LeafActions.Contains(ActionToExecute))

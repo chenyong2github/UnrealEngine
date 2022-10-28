@@ -16,6 +16,7 @@ using OpenTracing.Util;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 
 namespace UnrealBuildTool
 {
@@ -380,9 +381,12 @@ namespace UnrealBuildTool
 				// Figure out which executor to use
 				ActionExecutor Executor = SelectExecutor(BuildConfiguration, ActionsToExecute.Count, TargetDescriptors, Logger);
 
+				// Ensure actions are ordered
+				IOrderedEnumerable<LinkedAction> OrderedActionsToExecute = ActionsToExecute.OrderByDescending(x => x.NumTotalDependentActions).ThenByDescending(x => x.PrerequisiteItems.Count());
+
 				// Execute the build
 				Stopwatch Timer = Stopwatch.StartNew();
-				if (!Executor.ExecuteActions(ActionsToExecute, Logger))
+				if (!Executor.ExecuteActions(OrderedActionsToExecute, Logger))
 				{
 					throw new CompilationResultException(CompilationResult.OtherCompilationError);
 				}
