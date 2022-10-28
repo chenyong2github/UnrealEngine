@@ -5,6 +5,7 @@
 #include "Delegates/Delegate.h"
 #include "Delegates/DelegateCombinations.h"
 #include "Modules/ModuleInterface.h"
+#include "UObject/StrongObjectPtr.h"
 
 class UNaniteDisplacedMesh;
 class FAssetTypeActions_NaniteDisplacedMesh;
@@ -30,5 +31,5 @@ public:
 
 private:
 	FAssetTypeActions_NaniteDisplacedMesh* NaniteDisplacedMeshAssetActions;
-	UPackage* NaniteDisplacedMeshTransientPackage;
+	TStrongObjectPtr<UPackage> NaniteDisplacedMeshTransientPackage;
 };
