@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DetailColumnSizeData.h"
 #include "PoseSearch/PoseSearch.h"
 #include "Widgets/Views/STreeView.h"
 #include "EditorUndoClient.h"
@@ -29,6 +30,10 @@ namespace UE::PoseSearch
 			TSharedRef<FUICommandList> InCommandList,
 			TSharedPtr<SDatabaseAssetTree> InHierarchy);
 
+		bool IsRootMotionEnabled() const;
+		bool IsLooping() const;
+		EPoseSearchMirrorOption GetMirrorOption() const;
+		
 		int32 SourceAssetIdx;
 		ESearchIndexAssetType SourceAssetType;
 		TSharedPtr<FDatabaseAssetTreeNode> Parent;
@@ -63,6 +68,13 @@ namespace UE::PoseSearch
 		EVisibility GetSelectedActorIconVisbility() const;
 
 		FSlateColor GetNameTextColorAndOpacity() const;
+		FSlateColor GetLoopingColorAndOpacity() const;
+		FText GetLoopingToolTip() const;
+		FSlateColor GetRootMotionColorAndOpacity() const;
+		FText GetRootMotionOptionToolTip() const;
+		const FSlateBrush* GetMirrorOptionSlateBrush() const;
+		FText GetMirrorOptionToolTip() const;
+		
 		FText GetAssetEnabledToolTip() const;
 		ECheckBoxState GetAssetEnabledChecked() const;
 		void OnAssetIsEnabledChanged(ECheckBoxState NewCheckboxState);
@@ -91,6 +103,8 @@ namespace UE::PoseSearch
 		void RefreshTreeView(bool bIsInitialSetup = false, bool bRecoverSelection = false);
 		void FinalizeTreeChanges(bool bRecoverSelection = false);
 
+		FDetailColumnSizeData& GetColumnSizeData() { return ColumnSizeData; }
+		
 	protected:
 		TWeakPtr<FDatabaseViewModel> EditorViewModel;
 
@@ -99,6 +113,7 @@ namespace UE::PoseSearch
 
 		/** tree view widget */
 		TSharedPtr<STreeView<TSharedPtr<FDatabaseAssetTreeNode>>> TreeView;
+		TSharedPtr<SWidget> TreeViewDragAndDropSuggestion;
 		TArray<TSharedPtr<FDatabaseAssetTreeNode>> RootNodes;
 		TArray<TSharedPtr<FDatabaseAssetTreeNode>> AllNodes;
 
@@ -148,6 +163,8 @@ namespace UE::PoseSearch
 
 		friend SDatabaseAssetListItem;
 
+		FDetailColumnSizeData ColumnSizeData;
+		
 	protected:
 		// Called when an item is selected/deselected
 		DECLARE_MULTICAST_DELEGATE_TwoParams(
