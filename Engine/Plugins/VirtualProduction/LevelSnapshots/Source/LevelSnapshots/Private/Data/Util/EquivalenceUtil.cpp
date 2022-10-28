@@ -445,7 +445,8 @@ bool UE::LevelSnapshots::Private::AreReferencesEquivalent(ULevelSnapshot* Snapsh
 	{
 		return AreActorsEquivalent(SnapshotPropertyValue, OriginalActorReference, Snapshot->GetSerializedData(), Snapshot->GetCache());
 	}
-	
+
+	// Fast path for components and other subobjects of actors.
 	const bool bIsWorldObject = SnapshotPropertyValue->IsInA(UWorld::StaticClass()) && OriginalPropertyValue->IsInA(UWorld::StaticClass());
 	if (bIsWorldObject)
 	{
@@ -453,9 +454,22 @@ bool UE::LevelSnapshots::Private::AreReferencesEquivalent(ULevelSnapshot* Snapsh
 		const bool bAreComponents = SnapshotPropertyValue->IsA<UActorComponent>() && OriginalPropertyValue->IsA<UActorComponent>();
 		return (bAreComponents && Internal::HaveSameNames(SnapshotPropertyValue, OriginalPropertyValue, Snapshot->GetCache()))
 			|| !Restorability::IsSubobjectDesirableForCapture(OriginalPropertyValue)
+			// Iterates through all properties -> possibly slow
 			|| (!bAreComponents && Internal::AreEquivalentSubobjects(Snapshot, SnapshotPropertyValue, OriginalPropertyValue, SnapshotActor, OriginalActor));
 	}
-	
+
+	// Example: two materials in the GetTransientPackage()
+	const bool bIsSnapshotObjectTransient = (SnapshotPropertyValue->GetPackage()->GetFlags() & RF_Transient) != 0;
+	const bool bIsWorldObjectTransient = (OriginalPropertyValue->GetPackage()->GetFlags() & RF_Transient) != 0;
+	const bool bAreTransient = bIsSnapshotObjectTransient || bIsWorldObjectTransient;
+	if (bAreTransient)
+	{
+		return !Restorability::IsSubobjectDesirableForCapture(OriginalPropertyValue)
+			// Iterates through all properties -> possibly slow
+			|| !Internal::HaveDifferentPropertyValues(Snapshot, SnapshotPropertyValue, OriginalPropertyValue, SnapshotActor, OriginalActor);
+	}
+
+	// Pointing to assets in asset registry, i.e. no subobjects?
 	return SnapshotPropertyValue == OriginalPropertyValue;
 }
 
