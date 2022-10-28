@@ -22,6 +22,8 @@ float EyeAdaptation_LocalExposureDetailStrength;
 float EyeAdaptation_LocalExposureBlurredLuminanceBlend;
 float EyeAdaptation_LocalExposureMiddleGreyExposureCompensation;
 float EyeAdaptation_BlackHistogramBucketInfluence;
+float EyeAdaptation_IgnoreMaterialsLuminanceScale;
+float EyeAdaptation_IgnoreMaterialsMinBaseColorLuminance;
 float EyeAdaptation_GreyMult;
 float EyeAdaptation_ExponentialUpM;
 float EyeAdaptation_ExponentialDownM;

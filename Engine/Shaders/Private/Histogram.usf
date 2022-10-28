@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "DeferredShadingCommon.ush"
+
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/ScreenPass.ush"
 #include "/Engine/Private/PostProcessHistogramCommon.ush"
@@ -41,6 +43,12 @@ uint2 ThreadGroupCount;
 Texture2D InputTexture;
 Texture2D EyeAdaptationTexture;
 
+#if DIVIDE_ALBEDO
+	SCREEN_PASS_TEXTURE_VIEWPORT(InputGBuffer)
+	Texture2D InputTextureB;
+	Texture2D InputTextureC;
+#endif
+
 ///////////////////////////////////////////////////////
 // * LOCAL DATA STORE *
 // This is where each ThreadGroup accumulates (via InterlockedAdd) a local (per thread group) copy of the histogram
@@ -73,6 +81,10 @@ RWTexture2D<uint> HistogramScatter32Output;
 //  We detect if we're the last thread group to run, if so, then we know that
 //  we should pack up our Temp UINT textures, convert back to float and stick the histogram in the final texture
 RWTexture2D<float4> HistogramOutput;
+
+///////////////////////////////////////////////////////
+//  * DEBUG TEXTURES *
+RWTexture2D<float> DebugOutput;
 
 
 ///////////////////////////////////////////////////////
@@ -144,13 +156,8 @@ void ClearLDS(uint GroupThreadId)
 
 ///////////////////////////////////////////////////////
 //Given a Texel pos this reads in the screen value and calculates the two fractional bucket it lies in.
-void CalculateBucketsAndWeights(in uint2 TexelPos, out float Weight0, out float Weight1, out uint Bucket0, out uint Bucket1)
+void CalculateBucketsAndWeights(in float LuminanceVal, out float Weight0, out float Weight1, out uint Bucket0, out uint Bucket1)
 {
-
-	float4 SceneColor = InputTexture.Load(int3(TexelPos, 0));
-	SceneColor.xyz *= View.OneOverPreExposure;
-
-	float LuminanceVal = CalculateEyeAdaptationLuminance(SceneColor.xyz);
 	float LogLuminance = ComputeHistogramPositionFromLuminance(LuminanceVal);
 	// Map the normalized histogram position into texels.
 	float fBucket = saturate(LogLuminance) * (HISTOGRAM_SIZE-1);
@@ -310,13 +317,40 @@ void MainAtomicCS(
 
 		if (TexelPos.x < Input_ViewportMax.x)
 		{
+			float2 InvViewSize = Input_ViewportSizeInverse.xy;
+			float2 ScreenUV = (TexelPos.xy - Input_ViewportMin) * InvViewSize;
+
+			float4 SceneColor = InputTexture.Load(int3(TexelPos, 0));
+			SceneColor *= View.OneOverPreExposure;
+
+			float LuminanceVal = CalculateEyeAdaptationLuminance(SceneColor.rgb);
+
+#if DIVIDE_ALBEDO
+			uint2 GBufferTexelPos = InputGBuffer_ViewportMin + ScreenUV * InputGBuffer_ViewportSize;
+			float4 GBufferB = InputTextureB.Load(int3(GBufferTexelPos, 0));
+			uint ShadingModelID = DecodeShadingModelId(GBufferB.a);
+
+			if (ShadingModelID != SHADINGMODELID_UNLIT)
+			{
+				float4 GBufferC = InputTextureC.Load(int3(GBufferTexelPos, 0));
+				float3 BaseColor = DecodeBaseColor(GBufferC.rgb);
+
+				float BaseColorLuminanceVal = CalculateEyeAdaptationLuminance(BaseColor.rgb);
+
+				LuminanceVal /= max(BaseColorLuminanceVal, EyeAdaptation_IgnoreMaterialsMinBaseColorLuminance);
+				LuminanceVal *= lerp(EyeAdaptation_IgnoreMaterialsLuminanceScale, 1.0f, EyeAdaptation_IgnoreMaterialsMinBaseColorLuminance);
+			}
+#endif
+
+#if DIVIDE_ALBEDO_DEBUG
+			DebugOutput[TexelPos] = LuminanceVal;
+#endif
+
 			float Weight0,Weight1;
 			uint Bucket0,Bucket1;
 			
-			CalculateBucketsAndWeights(TexelPos, Weight0, Weight1, Bucket0, Bucket1);
+			CalculateBucketsAndWeights(LuminanceVal, Weight0, Weight1, Bucket0, Bucket1);
 
-			float2 InvViewSize = Input_ViewportSizeInverse.xy;
-			float2 ScreenUV = (TexelPos.xy - Input_ViewportMin) * InvViewSize;
 			float ScreenWeight = AdaptationWeightTexture(ScreenUV);
 
 			ScatterWeightsToLDS(Bucket0, Bucket1, Weight0, Weight1, ScreenWeight, GroupThreadId.x);

@@ -66,6 +66,31 @@ namespace
 		TEXT("When set to 1.0, fully dark pixels will accumulate normally, whereas when set to 0.0 fully dark pixels\n")
 		TEXT("will have no influence.\n"),
 		ECVF_RenderThreadSafe);
+
+	TAutoConsoleVariable<bool> CVarAutoExposureIgnoreMaterials(
+		TEXT("r.AutoExposure.IgnoreMaterials"),
+		false,
+		TEXT("(Experimental) Whether to calculate auto exposure assuming every surface uses a perfectly diffuse white material.\n")
+		TEXT("(default: false)"),
+		ECVF_Scalability | ECVF_RenderThreadSafe);
+
+	TAutoConsoleVariable<float> CVarAutoExposureIgnoreMaterialsLuminanceScale(
+		TEXT("r.AutoExposure.IgnoreMaterials.LuminanceScale"),
+		0.18f,
+		TEXT(""),
+		ECVF_RenderThreadSafe);
+
+	TAutoConsoleVariable<float> CVarAutoExposureIgnoreMaterialsMinBaseColorLuminance(
+		TEXT("r.AutoExposure.IgnoreMaterials.MinBaseColorLuminance"),
+		0.01f,
+		TEXT(""),
+		ECVF_RenderThreadSafe);
+
+	TAutoConsoleVariable<bool> CVarAutoExposureIgnoreMaterialsDebug(
+		TEXT("r.AutoExposure.IgnoreMaterials.Debug"),
+		false,
+		TEXT(""),
+		ECVF_RenderThreadSafe);
 }
 
 // Basic eye adaptation is supported everywhere except mobile when MobileHDR is disabled
@@ -441,6 +466,8 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 	Parameters.ExponentialUpM = ExponentialUpM;
 	Parameters.StartDistance = StartDistance;
 	Parameters.LuminanceMax = LuminanceMax;
+	Parameters.IgnoreMaterialsLuminanceScale = CVarAutoExposureIgnoreMaterialsLuminanceScale.GetValueOnRenderThread();
+	Parameters.IgnoreMaterialsMinBaseColorLuminance = CVarAutoExposureIgnoreMaterialsMinBaseColorLuminance.GetValueOnRenderThread();
 	Parameters.ForceTarget = ForceTarget;
 	Parameters.VisualizeDebugType = CVarEyeAdaptationVisualizeDebugType.GetValueOnRenderThread();
 	Parameters.MeterMaskTexture = MeterMask;
