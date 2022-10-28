@@ -177,7 +177,7 @@ struct FTraceDatum : public FBaseTraceDatum
 
 	/** Set Trace Datum for each shape type **/
 	FTraceDatum(UWorld* World, const FCollisionShape& CollisionShape, const FCollisionQueryParams& Param, const struct FCollisionResponseParams& InResponseParam, const struct FCollisionObjectQueryParams& InObjectQueryParam,
-		ECollisionChannel Channel, uint32 InUserData, EAsyncTraceType InTraceType, const FVector& InStart, const FVector& InEnd, const FQuat& InRot, FTraceDelegate* InDelegate, int32 FrameCounter)
+		ECollisionChannel Channel, uint32 InUserData, EAsyncTraceType InTraceType, const FVector& InStart, const FVector& InEnd, const FQuat& InRot, const FTraceDelegate* InDelegate, int32 FrameCounter)
 	{
 		Set(World, CollisionShape, Param, InResponseParam, InObjectQueryParam, Channel, InUserData, FrameCounter);
 		Start = InStart;
@@ -221,7 +221,7 @@ struct FOverlapDatum : FBaseTraceDatum
 
 	FOverlapDatum(UWorld * World, const FCollisionShape& CollisionShape, const FCollisionQueryParams& Param, const struct FCollisionResponseParams &InResponseParam, const struct FCollisionObjectQueryParams& InObjectQueryParam, 
 		ECollisionChannel Channel, uint32 InUserData,
-		const FVector& InPos, const FQuat& InRot, FOverlapDelegate * InDelegate, int32 FrameCounter)
+		const FVector& InPos, const FQuat& InRot, const FOverlapDelegate* InDelegate, int32 FrameCounter)
 	{
 		Set(World, CollisionShape, Param, InResponseParam, InObjectQueryParam, Channel, InUserData, FrameCounter);
 		Pos = InPos;
