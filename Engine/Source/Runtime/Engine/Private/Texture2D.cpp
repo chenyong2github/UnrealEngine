@@ -958,7 +958,30 @@ FTextureResource* UTexture2D::CreateResource()
 	
 			if (!NumMips)
 			{
+#if WITH_EDITOR
+				bool bIsServerCookedPackage = false;
+				if (UPackage* Package = GetPackage())
+				{
+					if ((Package->GetPackageFlags() & PKG_Cooked) ||
+						(Package->GetPackageFlags() & PKG_FilterEditorOnly))
+					{
+						// this is likely a cooked package for a server and the mip data is removed intentionally
+						bIsServerCookedPackage = true;
+					}
+				}
+				if (bIsServerCookedPackage)
+				{
+					// reduce this to a log because we don't need no errors in this case
+					UE_LOG(LogTexture, Log, TEXT("%s contains no miplevels! Please delete. (Format: %d)"), *GetFullName(), (int)PixelFormat);
+				}
+				else
+				{
+					UE_LOG(LogTexture, Error, TEXT("%s contains no miplevels! Please delete. (Format: %d)"), *GetFullName(), (int)PixelFormat);
+				}
+#else
 				UE_LOG(LogTexture, Error, TEXT("%s contains no miplevels! Please delete. (Format: %d)"), *GetFullName(), (int)PixelFormat);
+#endif
+				
 			}
 			else if (!GPixelFormats[PixelFormat].Supported)
 			{
