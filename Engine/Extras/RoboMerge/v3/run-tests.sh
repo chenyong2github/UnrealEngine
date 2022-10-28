@@ -99,5 +99,7 @@ else
 
 fi
 
+docker logs robomerge_functtest > robo.log
+
 cleanup
 
