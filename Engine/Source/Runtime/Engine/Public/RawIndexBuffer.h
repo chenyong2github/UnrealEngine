@@ -398,11 +398,12 @@ public:
 	*/
 	virtual void InitRHI() override
 	{
+		const bool bHadIndexData = Num() > 0;
 		IndexBufferRHI = CreateRHIBuffer_RenderThread();
 
-		if (IndexBufferRHI && IsSRVNeeded() && Num())
+		if (IndexBufferRHI && IsSRVNeeded() && bHadIndexData)
 		{
-			SRVValue = RHICreateShaderResourceView(Num() ? IndexBufferRHI : nullptr);
+			SRVValue = RHICreateShaderResourceView(IndexBufferRHI->GetSize() > 0 ? IndexBufferRHI : nullptr);
 		}
 	}
 	
