@@ -40,7 +40,7 @@ FRigUnit_DataInterface_Float_Execute()
 		const FContext& DataInterfaceContext = DataInterfaceExecuteContext.GetContext();
 
 		// Wrap the internal result we are going to be writing to 
-		TWrapParam<float> CallResult(DataInterfaceContext, &Result);
+		TWrapParam<float> CallResult(&Result);
 
 		// Call the interface
 		DataInterfaceExecuteContext.SetResult(UE::DataInterface::GetDataSafe(DataInterface, DataInterfaceContext, CallResult));
@@ -59,7 +59,7 @@ FRigUnit_DataInterface_Pose_Execute()
 		const FContext& DataInterfaceContext = DataInterfaceUnitContext.DataInterfaceContext;
 
 		// Wrap the internal result we are going to be writing to 
-		TWrapParam<FDataInterfaceExecuteContext> CallResult(DataInterfaceContext, &Result);
+		TWrapParam<FDataInterfaceExecuteContext> CallResult(&Result);
 
 		// Call the interface
 		DataInterfaceUnitContext.bResult &= UE::DataInterface::GetDataSafe(PoseInterface, DataInterfaceContext, CallResult);

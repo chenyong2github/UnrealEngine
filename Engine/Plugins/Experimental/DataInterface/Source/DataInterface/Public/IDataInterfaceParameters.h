@@ -28,6 +28,9 @@ class DATAINTERFACE_API IDataInterfaceParameters
 	// Get a parameter by name
 	virtual bool GetParameter(FName InKey, UE::DataInterface::FParam& OutParam) = 0;
 
+	// Get a parameter pointer by name
+	virtual const UE::DataInterface::FParam* GetParameter(FName InKey) = 0;
+
 	// Default utility implementation for UObjects
 	// Treats key as a property name or function
 	static bool GetParameterForObject(UObject* InObject, FName InKey, UE::DataInterface::FParam& OutParam);

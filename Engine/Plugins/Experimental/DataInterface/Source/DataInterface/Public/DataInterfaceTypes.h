@@ -26,7 +26,12 @@ virtual FName GetReturnTypeNameImpl() const final override\
 	};
 
 #define IMPLEMENT_DATA_INTERFACE_PARAM_TYPE_INTERNAL(ValueType, Identifier) \
-	UE::DataInterface::FParamType::FRegistrar Identifier##_Registrar([](){ UE::DataInterface::FParamType::FRegistrar::RegisterType(Identifier##_DataInterfaceTypeInfo, UE::DataInterface::Private::TParamTypeHelper<ValueType>::GetStruct(), FName(#Identifier), UE::DataInterface::Private::TParamTypeHelper<ValueType>::GetSize(), UE::DataInterface::Private::TParamTypeHelper<ValueType>::GetAlignment()); });
+	UE::DataInterface::FParamType::FRegistrar Identifier##_Registrar([](){ UE::DataInterface::FParamType::FRegistrar::RegisterType( \
+		Identifier##_DataInterfaceTypeInfo, \
+		UE::DataInterface::Private::TParamTypeHelper<ValueType>::GetStruct(), \
+		FName(#Identifier), UE::DataInterface::Private::TParamTypeHelper<ValueType>::GetSize(), \
+		UE::DataInterface::Private::TParamTypeHelper<ValueType>::GetAlignment(), \
+		UE::DataInterface::Private::TParamTypeHelper<ValueType>::GetParamCloneFunction()); });
 
 // Types that are passed between data interfaces (i.e. exist in in public headers) should declare via this mechanism
 #define DECLARE_DATA_INTERFACE_PARAM_TYPE(APIType, ValueType, Identifier) \
@@ -46,7 +51,12 @@ virtual FName GetReturnTypeNameImpl() const final override\
 // If they are exposed in a public header please use the DECLARE_DATA_INTERFACE_PARAM_TYPE & IMPLEMENT_DATA_INTERFACE_PARAM_TYPE macros
 #define IMPLEMENT_DATA_INTERFACE_STATE_TYPE(ValueType, Identifier) \
 	static UE::DataInterface::FParamType Identifier##_DataInterfaceTypeInfo; \
-	static UE::DataInterface::FParamType::FRegistrar Identifier##_Registrar([](){ UE::DataInterface::FParamType::FRegistrar::RegisterType(Identifier##_DataInterfaceTypeInfo, UE::DataInterface::Private::TParamTypeHelper<ValueType>::GetStruct(), FName(#Identifier), UE::DataInterface::Private::TParamTypeHelper<ValueType>::GetSize(), UE::DataInterface::Private::TParamTypeHelper<ValueType>::GetAlignment()); }); \
+	static UE::DataInterface::FParamType::FRegistrar Identifier##_Registrar([](){ UE::DataInterface::FParamType::FRegistrar::RegisterType( \
+		Identifier##_DataInterfaceTypeInfo, \
+		UE::DataInterface::Private::TParamTypeHelper<ValueType>::GetStruct(), \
+		FName(#Identifier), UE::DataInterface::Private::TParamTypeHelper<ValueType>::GetSize(), \
+		UE::DataInterface::Private::TParamTypeHelper<ValueType>::GetAlignment(), \
+		UE::DataInterface::Private::TParamTypeHelper<ValueType>::GetParamCloneFunction()); }); \
 	DECLARE_DATA_INTERFACE_PARAM_TYPE_INTERNAL(ValueType, Identifier);
 
 namespace UE::DataInterface

@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataInterfaceParam.h"
+#include "DataInterfaceParamStorage.h"
 
 namespace UE::DataInterface
 {
@@ -11,6 +12,7 @@ static TArray<TUniqueFunction<void(void)>> GDeferredTypes;
 
 FParam::FParam(const FParamType& InType, void* InData, EFlags InFlags)
 	: Data(InData)
+	, NumElements((InData != nullptr) ? 1 : 0)
 	, TypeId(InType.GetTypeId())
 	, Flags(InFlags)
 {
@@ -18,19 +20,38 @@ FParam::FParam(const FParamType& InType, void* InData, EFlags InFlags)
 	check(Data);
 }
 
+FParam::FParam(const FParamType& InType, void* InData, int32 InNumElements, EFlags InFlags)
+	: Data(InData)
+	, NumElements(InNumElements)
+	, TypeId(InType.GetTypeId())
+	, Flags(InFlags)
+{
+}
+
+FParam::FParam(const FParamType& InType, EFlags InFlags)
+	: Data(nullptr)
+	, NumElements(0)
+	, TypeId(InType.GetTypeId())
+	, Flags(InFlags)
+{
+	check(TypeId != INDEX_NONE);
+}
+
 FParam::FParam(const FParam* InOtherParam)
-	: Data(InOtherParam->Data)
+	: Data(EnumHasAnyFlags(InOtherParam->Flags, FParam::EFlags::Embedded) ? (void*)&InOtherParam->Data : InOtherParam->Data)
+	, NumElements(InOtherParam->NumElements)
 	, TypeId(InOtherParam->TypeId)
 	, Flags(InOtherParam->Flags)
 {
+	EnumRemoveFlags(Flags, FParam::EFlags::Embedded); // For compatibility reasons, I can not keep the embedded value if we create a copy of the FParam
 }
 
 bool FParam::CanAssignTo(const FParam& InParam) const
 {
-	return CanAssignWith(InParam.GetType(), InParam.Flags);
+	return CanAssignWith(InParam.GetType(), InParam.Flags, InParam.GetNumElements());
 }
 
-bool FParam::CanAssignWith(const FParamType& InType, EFlags InFlags, FStringBuilderBase* OutReasonPtr) const
+bool FParam::CanAssignWith(const FParamType& InType, EFlags InFlags, int32 InNumElements, FStringBuilderBase* OutReasonPtr) const
 {
 	// Check type
 	if(TypeId != InType.GetTypeId())
@@ -43,8 +64,8 @@ bool FParam::CanAssignWith(const FParamType& InType, EFlags InFlags, FStringBuil
 		return false;
 	}
 	
-	// Check const
-	if(!EnumHasAnyFlags(InFlags, EFlags::Mutable))
+	// Check const if not empty, else we assume it is an empty param and can be written, mutable or not
+	if(InNumElements > 0 && !EnumHasAnyFlags(InFlags, EFlags::Mutable))
 	{
 		if(OutReasonPtr)
 		{
@@ -53,29 +74,35 @@ bool FParam::CanAssignWith(const FParamType& InType, EFlags InFlags, FStringBuil
 		return false;
 	}
 
-	// Check chunking
-	if(EnumHasAnyFlags(Flags, EFlags::Chunked) != EnumHasAnyFlags(InFlags, EFlags::Chunked))
+	// Check batching
+	if (EnumHasAnyFlags(Flags, EFlags::Batched) != EnumHasAnyFlags(InFlags, EFlags::Batched))
 	{
-		if(OutReasonPtr)
+		// If different batching, allow it if the target is empty and the source is 1 (this enables passing a single value to a context that expects N)
+		if (NumElements != 1 || InNumElements != 0)
 		{
-			OutReasonPtr->Append(TEXT("Incompatible chunking"));
+			if (OutReasonPtr)
+			{
+				OutReasonPtr->Append(TEXT("Incompatible batching"));
+			}
+			return false;
 		}
-		return false;
 	}
 	
 	return true;
 }
 
-void FParamType::FRegistrar::RegisterType(FParamType& InType, const UScriptStruct* InStruct, FName InName, uint32 InSize, uint32 InAlignment)
+void FParamType::FRegistrar::RegisterType(FParamType& InType, const UScriptStruct* InStruct, FName InName, uint32 InSize, uint32 InAlignment, const ParamCopyFunction InParamCopyFunctionPtr)
 {
 	InType.Struct = InStruct;
 	InType.Name = InName;
 	InType.Size = InSize;
 	InType.Alignment = InAlignment;
+	InType.ParamCopyFunctionPtr = InParamCopyFunctionPtr;
 
 	check(InType.Name != NAME_None);
 	check(InType.Size != 0);
 	check(InType.Alignment != 0);
+	check(InType.ParamCopyFunctionPtr != nullptr);
 	
 	InType.TypeId = GTypeRegistry.Add(&InType);
 }
@@ -140,4 +167,30 @@ FPropertyParam::FPropertyParam(const FProperty* InProperty, UObject* InContainer
 {
 }
 */
+
+FHParam::FHParam(FParamStorage* InOwnerStorage, FParamHandle InParamHandle)
+	: OwnerStorage(InOwnerStorage)
+	, ParamHandle(InParamHandle)
+{
 }
+
+FHParam::FHParam(const FHParam& Other)
+	: OwnerStorage(Other.OwnerStorage)
+	, ParamHandle(Other.ParamHandle)
+{
+	if (ParamHandle != InvalidParamHandle)
+	{
+		OwnerStorage->IncRefCount(ParamHandle);
+	}
+}
+
+FHParam::~FHParam()
+{
+	if (ParamHandle != InvalidParamHandle)
+	{
+		check(OwnerStorage != nullptr);
+		OwnerStorage->DecRefCount(ParamHandle);
+	}
+}
+
+} // end namespace UE::DataInterface

@@ -11,38 +11,25 @@ namespace UE::DataInterface
 struct DATAINTERFACE_API FKernel
 {
 public:
-	// Runs a 'kernel' predicate that iterates over the supplied (optionally chunked) params
+	// Runs a 'kernel' predicate that iterates over the supplied (optionally batched) params
 	// Number and type of params must match between the predicate & param pack
+	// The kernel supports passing a single element parameter where N are expected (as a compacted constant)
 	template<typename PredicateType, typename... ParamTypes>
 	static void Run(const FContext& InContext, PredicateType InPredicate, ParamTypes&... InArgs)
 	{
-		// Cache offsets to apply each element for each parameter
-		const uint32 Offsets[sizeof...(InArgs)] =
-		{
-			[](auto& InArg) -> uint32
-			{
-				if constexpr (TIsDerivedFrom<ParamTypes, FParam>::Value)
-				{
-					if(EnumHasAnyFlags(InArg.Flags, FParam::EFlags::Chunked))
-					{
-						return InArg.GetType().GetSize();
-					}
-				}
-
-				return 0;
-			}(InArgs)...
-		};
-
 		// Iterate per-element in the context, applying kernel predicate to all elements
 		const uint32 NumElements = InContext.GetNum();
-		for(uint32 ElementIndex = 0; ElementIndex < NumElements; ++ElementIndex)
+		for (uint32 ElementIndex = 0; ElementIndex < NumElements; ++ElementIndex)
 		{
+			if (InContext.ShouldProcessThisElement(ElementIndex) == false)
+				continue;
+
 			uint32 ParameterIndex = 0;
 
 			// Call predicate, expanding InArgs parameter pack from TParam<ParamType> -> ParamType
-			// and applying correct offset for each param
+			// and applying correct offset for each param (using pointer arithmetic)
 			InPredicate(
-				[&Offsets, &ParameterIndex](uint32 InElementIndex, auto& InArg) -> auto&
+				[&ParameterIndex](uint32 InElementIndex, auto& InArg) -> auto&
 				{
 					auto GetBasePtr = [](auto& InArg)
 					{
@@ -57,16 +44,33 @@ public:
 						}
 					};
 
-					auto GetOffset = [&Offsets, &ParameterIndex](uint32 InElementIndex) -> uint32
+					auto GetOffset = [&ParameterIndex](auto& InArg, int32 InElementIndex) -> int32
 					{
-						return Offsets[ParameterIndex++] * InElementIndex;
+						if constexpr (TIsDerivedFrom<ParamTypes, FParam>::Value)
+						{
+							if (InArg.NumElements > 1)
+							{
+								check(InElementIndex < InArg.NumElements);
+								return InElementIndex;
+							}
+							else // single elements always use 0 offset, even if used on N element batch
+							{
+								check(InArg.NumElements > 0);
+								return 0;
+							}
+						}
+						else
+						{
+							return 0;
+						}
 					};
-		
-					return *(GetBasePtr(InArg) + GetOffset(InElementIndex));
+
+					// note that this uses pointer arithmetic, so an offset of +1 means adding the sizeof of the param type
+					return *(GetBasePtr(InArg) + GetOffset(InArg, InElementIndex));
 				}(ElementIndex, InArgs)...
 			);
 		}
 	}
 };
 
-}
+} // end namespace UE::DataInterface

@@ -42,10 +42,10 @@ FParam* FState::AllocateState(const FInterfaceKeyWithIdAndStack& InKey, const FC
 	{
 	case EStatePersistence::Relevancy:
 		// TODO: chunked allocator for relevancy-based stuff?
-		return &RelevancyValueMap.Add(InKey, FRelevancyParam(InType, Data, InContext.GetChunkFlags(), InContext.UpdateCounter));
+		return &RelevancyValueMap.Add(InKey, FRelevancyParam(InType, Data, InContext.GetBatchedFlags(), InContext.UpdateCounter));
 		break;
 	case EStatePersistence::Permanent:
-		return &PermanentValueMap.Add(InKey, FParam(InType, Data, InContext.GetChunkFlags()));
+		return &PermanentValueMap.Add(InKey, FParam(InType, Data, InContext.GetBatchedFlags()));
 		break;
 	default:
 		check(false);

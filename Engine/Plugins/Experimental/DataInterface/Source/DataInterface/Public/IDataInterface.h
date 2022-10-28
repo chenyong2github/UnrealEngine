@@ -26,6 +26,18 @@ class DATAINTERFACE_API IDataInterface
 
 public:
 	/**
+	 * Gets data using context to retrieve input parameters and result
+	 * @return false if type are incompatible, or if nested calls fail, otherwise true
+	 */
+	bool GetData(const UE::DataInterface::FContext& Context) const;
+
+	/**
+	 * Gets data and stores the value in OutResult, checking whether types are compatible
+	* @return false if nested calls fail, otherwise true
+	*/
+	bool GetDataChecked(const UE::DataInterface::FContext& Context) const;
+
+	/**
 	 * Gets data and stores the value in OutResult.
 	 * @return false if type are incompatible, or if nested calls fail, otherwise true
 	 */

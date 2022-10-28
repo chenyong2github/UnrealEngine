@@ -10,7 +10,7 @@ namespace UE::DataInterface::Private
 static bool CheckCompatibility(const IDataInterface* InDataInterface, const UE::DataInterface::FContext& InContext)
 {
 	check(InDataInterface);
-	return InContext.GetResultRaw().GetType().GetName() == InDataInterface->GetReturnTypeName();
+	return InContext.GetResultParam().GetType().GetName() == InDataInterface->GetReturnTypeName();
 }
 
 }
@@ -23,6 +23,17 @@ bool IDataInterface::GetDataIfCompatibleInternal(const UE::DataInterface::FConte
 	}
 
 	return false;
+}
+
+bool IDataInterface::GetData(const UE::DataInterface::FContext& Context) const
+{
+	return GetDataIfCompatibleInternal(Context);
+}
+
+bool IDataInterface::GetDataChecked(const UE::DataInterface::FContext& Context) const
+{
+	check(UE::DataInterface::Private::CheckCompatibility(this, Context));
+	return GetDataRawInternal(Context);
 }
 
 bool IDataInterface::GetData(const UE::DataInterface::FContext& Context, UE::DataInterface::FParam& OutResult) const

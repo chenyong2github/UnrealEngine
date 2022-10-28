@@ -22,12 +22,10 @@ enum class EStatePersistence : uint8
 // Container for data interface state
 struct DATAINTERFACE_API FState
 {
-	FState(uint32 InNumElements = 1, uint32 InChunkSize = 1)
+	FState(int32 InNumElements = 1)
 		: NumElements(InNumElements)
-		, ChunkSize(InChunkSize)
 	{
 		check(InNumElements > 0);
-		check(InChunkSize > 0);
 	}
 	
 private:
@@ -83,8 +81,7 @@ private:
 	
 	TMap<FInterfaceKeyWithIdAndStack, FRelevancyParam> RelevancyValueMap;
 	TMap<FInterfaceKeyWithIdAndStack, FParam> PermanentValueMap;
-	uint32 NumElements = 0;
-	uint32 ChunkSize = 0;
+	int32 NumElements = 0;
 };
 
 }
