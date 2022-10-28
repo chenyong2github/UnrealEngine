@@ -6,6 +6,7 @@
 
 #include "Engine/Texture2D.h"
 
+#include "Algo/AnyOf.h"
 #include "Misc/App.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
@@ -30,6 +31,7 @@
 #include "Streaming/Texture2DStreamOut_Virtual.h"
 #include "Streaming/Texture2DStreamIn_DDC_AsyncCreate.h"
 #include "Streaming/Texture2DStreamIn_DDC_AsyncReallocate.h"
+#include "Streaming/Texture2DStreamIn_DerivedData.h"
 #include "Streaming/Texture2DStreamIn_IO_AsyncCreate.h"
 #include "Streaming/Texture2DStreamIn_IO_AsyncReallocate.h"
 #include "Streaming/Texture2DStreamIn_IO_Virtual.h"
@@ -1629,6 +1631,16 @@ bool UTexture2D::StreamIn(int32 NewMipCount, bool bHighPrio)
 
 		if (!CustomMipDataProvider && GUseGenericStreamingPath != 1)
 		{
+			const auto HasDerivedData = [](UTexture2D* Texture) -> bool
+			{
+				if (FTexturePlatformData* LocalPlatformData = Texture->GetPlatformData())
+				{
+					return Algo::AnyOf(LocalPlatformData->Mips, &FTexture2DMipMap::DerivedData) ||
+						(LocalPlatformData->VTData && Algo::AnyOf(LocalPlatformData->VTData->Chunks, &FVirtualTextureDataChunk::DerivedData));
+				}
+				return false;
+			};
+
 	#if WITH_EDITORONLY_DATA
 			if (FPlatformProperties::HasEditorOnlyData() && !GetOutermost()->bIsCookedForEditor && !GetOutermost()->HasAnyPackageFlags(PKG_Cooked))
 			{
@@ -1643,6 +1655,25 @@ bool UTexture2D::StreamIn(int32 NewMipCount, bool bHighPrio)
 			}
 			else
 	#endif
+			if (HasDerivedData(this))
+			{
+				// If the future texture is to be a virtual texture, use the virtual stream in path.
+				if (Texture2DResource->bUsePartiallyResidentMips)
+				{
+					PendingUpdate = new UE::FTexture2DStreamIn_DerivedData_Virtual(this, bHighPrio);
+				}
+				// If the platform supports creating the new texture on an async thread, use that path.
+				else if (GRHISupportsAsyncTextureCreation)
+				{
+					PendingUpdate = new UE::FTexture2DStreamIn_DerivedData_AsyncCreate(this, bHighPrio);
+				}
+				// Otherwise use the default path.
+				else
+				{
+					PendingUpdate = new UE::FTexture2DStreamIn_DerivedData_AsyncReallocate(this, bHighPrio);
+				}
+			}
+			else
 			{
 				// If the future texture is to be a virtual texture, use the virtual stream in path.
 				if (Texture2DResource->bUsePartiallyResidentMips)
