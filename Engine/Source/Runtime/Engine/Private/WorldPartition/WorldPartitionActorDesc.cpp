@@ -483,6 +483,16 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	else
 	{
 		Ar << ContentBundleGuid;
+		// @todo_ow: remove once we find why some actors end up with invalid ContentBundleGuids
+		if (Ar.IsLoading())
+		{
+			FGuid FixupContentBundleGuid = ContentBundlePaths::GetContentBundleGuidFromExternalActorPackagePath(ActorPackage.ToString());
+			if (ContentBundleGuid != FixupContentBundleGuid)
+			{
+				UE_LOG(LogWorldPartition, Warning, TEXT("ActorDesc ContentBundleGuid was fixed up: %s"), *GetActorName().ToString());
+				ContentBundleGuid = FixupContentBundleGuid;
+			}
+		}
 	}
 }
 

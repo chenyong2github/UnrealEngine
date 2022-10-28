@@ -883,6 +883,16 @@ void AActor::Serialize(FArchive& Ar)
 		{
 			ContentBundleGuid = ContentBundlePaths::GetContentBundleGuidFromExternalActorPackagePath(GetPackage()->GetFName().ToString());
 		}
+		else // @todo_ow: remove once we find why some actors end up with invalid ContentBundleGuids
+		{
+			FGuid FixupContentBundleGuid = ContentBundlePaths::GetContentBundleGuidFromExternalActorPackagePath(GetPackage()->GetFName().ToString());
+			if (ContentBundleGuid != FixupContentBundleGuid)
+			{
+				UE_LOG(LogActor, Warning, TEXT("Actor ContentBundleGuid was fixed up: %s"), *GetName());
+				ContentBundleGuid = FixupContentBundleGuid;
+			}
+		}
+
 	}
 #endif
 }
