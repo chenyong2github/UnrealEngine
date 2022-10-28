@@ -1326,12 +1326,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-			if (ModuleName == "D3D11RHI")
-			{
-				// To enable platform specific D3D11 RHI Types
-				Rules.PrivateIncludePaths.Add("Runtime/Windows/D3D11RHI/Private/Windows");
-			}
-
 			// Delay-load D3D12 so we can use the latest features and still run on downlevel versions of the OS
 			Rules.PublicDelayLoadDLLs.Add("d3d12.dll");
 		}

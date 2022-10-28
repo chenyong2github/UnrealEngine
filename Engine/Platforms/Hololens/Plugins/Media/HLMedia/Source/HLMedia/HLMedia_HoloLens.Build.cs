@@ -8,8 +8,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public HLMedia_HoloLens(ReadOnlyTargetRules Target) : base(Target)
 		{
-			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-			PrivateIncludePaths.Add(Path.Combine(EngineDir, "Platforms/HoloLens/Source/Runtime/Windows/D3D11RHI/Private"));
 		}
 	}
 }

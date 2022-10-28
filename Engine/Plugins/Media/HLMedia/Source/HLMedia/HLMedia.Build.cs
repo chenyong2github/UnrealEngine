@@ -59,10 +59,5 @@ public class HLMedia : ModuleRules
 			
 		// For D3D11on12
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12", "DX11");
-
-        if (Target.Platform == UnrealTargetPlatform.Win64)
-        {
-            PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/Windows/D3D11RHI/Private/Windows"));
-        }
     }
 }
