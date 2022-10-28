@@ -233,7 +233,9 @@ bool ULensDistortionModelHandlerBase::IsDisplacementMapMaterialReady(UMaterialIn
 			return true;
 		}
 
+#if WITH_EDITOR
 		MaterialResource->SubmitCompileJobs_GameThread(EShaderCompileJobPriority::ForceLocal);
+#endif
 
 		return MaterialResource->IsGameThreadShaderMapComplete();
 	}

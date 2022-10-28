@@ -1005,9 +1005,6 @@ void FMaterialShaderMapId::UpdateFromParameterSet(const FStaticParameterSet& Sta
 		StaticComponentMaskParameter.bOverride = false;
 	}
 }	
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
 
 uint32 GetTypeHash(FPlatformTypeLayoutParameters Params) { return HashCombine(Params.Flags, Params.MaxFieldAlignment); }
 
@@ -1091,9 +1088,7 @@ void FMaterialShaderMapId::AppendKeyString(FString& KeyString) const
 		KeyString += TEXT("_NewHLSL");
 	}
 }
-#endif // WITH_EDITOR
 
-#if WITH_EDITOR
 void FMaterialShaderMapId::SetShaderDependencies(const TArray<FShaderType*>& ShaderTypes, const TArray<const FShaderPipelineType*>& ShaderPipelineTypes, const TArray<FVertexFactoryType*>& VFTypes, EShaderPlatform ShaderPlatform)
 {
 	if (!FPlatformProperties::RequiresCookedData() && AllowShaderCompiling())
@@ -1124,7 +1119,6 @@ void FMaterialShaderMapId::SetShaderDependencies(const TArray<FShaderType*>& Sha
 		}
 	}
 }
-#endif // WITH_EDITOR
 
 static void PrepareMaterialShaderCompileJob(EShaderPlatform Platform,
 	EShaderPermutationFlags PermutationFlags,
@@ -1247,6 +1241,7 @@ FShader* FMaterialShaderType::FinishCompileShader(
 
 	return Shader;
 }
+#endif // WITH_EDITOR
 
 bool FMaterialShaderType::ShouldCompilePermutation(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, int32 PermutationId, EShaderPermutationFlags Flags) const
 {
@@ -1267,11 +1262,13 @@ bool FMaterialShaderType::ShouldCompilePipeline(const FShaderPipelineType* Shade
 	return true;
 }
 
+#if WITH_EDITOR
 void FMaterialShaderType::SetupCompileEnvironment(EShaderPlatform Platform, const FMaterialShaderParameters& MaterialParameters, int32 PermutationId, EShaderPermutationFlags PermutationFlags, FShaderCompilerEnvironment& Environment) const
 {
 	// Allow the shader type to modify its compile environment.
 	ModifyCompilationEnvironment(FMaterialShaderPermutationParameters(Platform, MaterialParameters, PermutationId, PermutationFlags), Environment);
 }
+#endif // WITH_EDITOR
 
 /**
 * Finds the shader map for a material.
@@ -1287,31 +1284,6 @@ TRefCountPtr<FMaterialShaderMap> FMaterialShaderMap::FindId(const FMaterialShade
 	check(Result == nullptr || (!Result->bDeletedThroughDeferredCleanup && Result->bRegistered) );
 	return Result;
 }
-
-#if ALLOW_SHADERMAP_DEBUG_DATA
-/** Flushes the given shader types from any loaded FMaterialShaderMap's. */
-void FMaterialShaderMap::FlushShaderTypes(TArray<const FShaderType*>& ShaderTypesToFlush, TArray<const FShaderPipelineType*>& ShaderPipelineTypesToFlush, TArray<const FVertexFactoryType*>& VFTypesToFlush)
-{
-	FScopeLock AllMatSMAccess(&AllMaterialShaderMapsGuard);
-	for (int32 ShaderMapIndex = 0; ShaderMapIndex < AllMaterialShaderMaps.Num(); ShaderMapIndex++)
-	{
-		FMaterialShaderMap* CurrentShaderMap = AllMaterialShaderMaps[ShaderMapIndex];
-
-		for (int32 ShaderTypeIndex = 0; ShaderTypeIndex < ShaderTypesToFlush.Num(); ShaderTypeIndex++)
-		{
-			CurrentShaderMap->FlushShadersByShaderType(ShaderTypesToFlush[ShaderTypeIndex]);
-		}
-		for (int32 VFTypeIndex = 0; VFTypeIndex < VFTypesToFlush.Num(); VFTypeIndex++)
-		{
-			CurrentShaderMap->FlushShadersByVertexFactoryType(VFTypesToFlush[VFTypeIndex]);
-		}
-		for (int32 TypeIndex = 0; TypeIndex < ShaderPipelineTypesToFlush.Num(); TypeIndex++)
-		{
-			CurrentShaderMap->FlushShadersByShaderPipelineType(ShaderPipelineTypesToFlush[TypeIndex]);
-		}
-	}
-}
-#endif
 
 #if WITH_EDITOR
 void FMaterialShaderMap::GetAllOutdatedTypes(TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes)
@@ -1698,6 +1670,8 @@ void FMaterialShaderMapContent::Finalize(const FShaderMapResourceCode* Code)
 	Hasher.GetHash(ShaderContentHash.Hash);
 }
 
+#if WITH_EDITOR
+
 static TMap<uint32, TRefCountPtr<FMaterialShaderMap>>& GetCompilingShaderMapLookup()
 {
 	static TMap<uint32, TRefCountPtr<FMaterialShaderMap>> Map;
@@ -1783,7 +1757,7 @@ void FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 	const FMaterialShaderParameters MaterialParameters(Material);
 	const FMaterialShaderMapLayout& Layout = AcquireMaterialShaderMapLayout(ShaderPlatform, LocalPermutationFlags, MaterialParameters);
 
-#if ALLOW_SHADERMAP_DEBUG_DATA && WITH_EDITOR
+#if ALLOW_SHADERMAP_DEBUG_DATA
 	FString DebugExtensionStr(TEXT(""));
 	FString DebugDescriptionStr(TEXT(""));
 
@@ -1826,10 +1800,8 @@ void FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 			}
 
 			// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
-#if WITH_EDITOR
 			check(ShaderMapId.ContainsVertexFactoryType(MeshLayout.VertexFactoryType));
 			check(ShaderMapId.ContainsShaderType(ShaderType, kUniqueShaderPermutationId));
-#endif
 
 			NumShadersPerVF++;
 			// only compile the shader if we don't already have it and it is not a pipelined one
@@ -1865,20 +1837,19 @@ void FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 			auto& StageTypes = Pipeline->GetStages();
 
 			// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
-#if WITH_EDITOR
 			check(ShaderMapId.ContainsShaderPipelineType(Pipeline));
 			check(ShaderMapId.ContainsVertexFactoryType(MeshLayout.VertexFactoryType));
-#endif
+
 			if (Pipeline->ShouldOptimizeUnusedOutputs(ShaderPlatform))
 			{
 				NumShadersPerVF += StageTypes.Num();
-#if WITH_EDITOR
+
 				for (auto* ShaderType : StageTypes)
 				{
 					// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
 					check(ShaderMapId.ContainsShaderType(ShaderType, kUniqueShaderPermutationId));
 				}
-#endif
+
 				// Make a pipeline job with all the stages
 				FMeshMaterialShaderType::BeginCompileShaderPipeline(InPriority,
 					CompilingShaderMapId,
@@ -1931,10 +1902,9 @@ void FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 			continue;
 		}
 
-#if WITH_EDITOR
 		// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
 		check(ShaderMapId.ContainsShaderType(ShaderType, kUniqueShaderPermutationId));
-#endif
+
 		// Compile this material shader for this material.
 		TArray<FString> ShaderErrors;
 
@@ -1972,9 +1942,8 @@ void FMaterialShaderMap::SubmitCompileJobs(uint32 CompilingShaderMapId,
 			auto& StageTypes = Pipeline->GetStages();
 
 			// Verify that the shader map Id contains inputs for any shaders that will be put into this shader map
-#if WITH_EDITOR
 			check(ShaderMapId.ContainsShaderPipelineType(Pipeline));
-#endif
+
 			if (Pipeline->ShouldOptimizeUnusedOutputs(ShaderPlatform))
 			{
 				NumShaders += StageTypes.Num();
@@ -2048,7 +2017,7 @@ void FMaterialShaderMap::Compile(
 	ShaderMapId = InShaderMapId;
 	bIsPersistent = Material->IsPersistent();
 
-#if ALLOW_SHADERMAP_DEBUG_DATA && WITH_EDITOR
+#if ALLOW_SHADERMAP_DEBUG_DATA
 	// Store the material name for debugging purposes.
 	// Note: Material instances with static parameters will have the same FriendlyName for their shader maps!
 	NewContent->FriendlyName = Material->GetFriendlyName();
@@ -2226,7 +2195,6 @@ FShader* FMaterialShaderMap::ProcessCompilationResultsForSingleJob(FShaderCompil
 		}
 	}
 
-#if WITH_EDITOR
 	// add shader source
 	{
 		// Keep the preprocessed source list sorted by a name constructed from VF/ShaderType/PermutationId and deduplicate entries
@@ -2238,12 +2206,10 @@ FShader* FMaterialShaderMap::ProcessCompilationResultsForSingleJob(FShaderCompil
 			GetMutableContent()->ShaderProcessedSource.EmplaceAt(Index, Key, *CurrentJob.Output.OptionalFinalShaderSource);
 		}
 	}
-#endif
 
 	return Shader;
 }
 
-#if WITH_EDITOR
 void FMaterialShaderMap::ProcessCompilationResults(const TArray<FShaderCommonCompileJobPtr>& InCompilationResults, int32& InOutJobIndex, float& TimeBudget)
 {
 	check(!bCompilationFinalized);
@@ -2319,6 +2285,7 @@ void FMaterialShaderMap::ProcessCompilationResults(const TArray<FShaderCommonCom
 	}
 	while ((TimeBudget > 0.0f) && InOutJobIndex < InCompilationResults.Num());
 }
+
 #endif // WITH_EDITOR
 
 class FMaterialShaderMapLayoutCache
@@ -2741,9 +2708,7 @@ void FMaterialShaderMap::LoadMissingShadersFromMemory(const FMaterial* Material)
 	}
 #endif
 }
-#endif // WITH_EDITOR
 
-#if WITH_EDITOR
 const FMemoryImageString* FMaterialShaderMap::GetShaderSource(const FVertexFactoryType* VertexFactoryType, const FShaderType* ShaderType, int32 PermutationId) const
 {
 	FHashedName Key = GetPreprocessedSourceKey(VertexFactoryType, ShaderType, PermutationId);
@@ -2893,7 +2858,9 @@ void FMaterialShaderMap::Release()
 				check(GetShaderPlatform()>= EShaderPlatform::SP_NumPlatforms || GIdToMaterialShaderMap[GetShaderPlatform()].FindRef(ShaderMapId) != this);
 			}
 
+#if WITH_EDITOR
 			FinalizedClone.SafeRelease();
+#endif // WITH_EDITOR
 			check(!bDeletedThroughDeferredCleanup);
 			bDeletedThroughDeferredCleanup = true;
 		}
@@ -2905,7 +2872,6 @@ void FMaterialShaderMap::Release()
 }
 
 FMaterialShaderMap::FMaterialShaderMap() :
-	CompilingId(0u),
 	NumRefs(0),
 	bDeletedThroughDeferredCleanup(false),
 	bRegistered(false),
@@ -2958,6 +2924,7 @@ FMaterialShaderMap::~FMaterialShaderMap()
 #endif
 }
 
+#if WITH_EDITOR
 FMaterialShaderMap* FMaterialShaderMap::AcquireFinalizedClone()
 {
 	checkSlow(IsInGameThread());
@@ -2988,9 +2955,7 @@ FMaterialShaderMap* FMaterialShaderMap::AcquireFinalizedClone()
 	Clone->bCompiledSuccessfully = bCompiledSuccessfully;
 	Clone->bIsPersistent = bIsPersistent;
 	Clone->AssignCopy(*this);
-#if WITH_EDITOR
 	Clone->AssociateWithAssets(GetAssociatedAssets());
-#endif
 
 	FinalizedClone = Clone;
 	return Clone;
@@ -3000,60 +2965,7 @@ FMaterialShaderMap* FMaterialShaderMap::GetFinalizedClone() const
 {
 	return FinalizedClone;
 }
-
-/**
- * Removes all entries in the cache with exceptions based on a shader type
- * @param ShaderType - The shader type to flush
- */
-void FMaterialShaderMap::FlushShadersByShaderType(const FShaderType* ShaderType)
-{
-	// flush from all the vertex factory shader maps
-	for (int32 Index = 0; Index < GetContent()->OrderedMeshShaderMaps.Num(); Index++)
-	{
-		FMeshMaterialShaderMap* MeshShaderMap = GetContent()->OrderedMeshShaderMaps[Index];
-		if (MeshShaderMap)
-		{
-			MeshShaderMap->FlushShadersByShaderType(ShaderType);
-		}
-	}
-
-	if (ShaderType->GetMaterialShaderType())
-	{
-		const int32 PermutationCount = ShaderType->GetPermutationCount();
-		for (int32 PermutationId = 0; PermutationId < PermutationCount; ++PermutationId)
-		{
-			GetMutableContent()->RemoveShaderTypePermutaion(ShaderType->GetMaterialShaderType(), PermutationId);
-		}
-	}
-}
-
-void FMaterialShaderMap::FlushShadersByShaderPipelineType(const FShaderPipelineType* ShaderPipelineType)
-{
-	// flush from all the vertex factory shader maps
-	for (int32 Index = 0;Index < GetContent()->OrderedMeshShaderMaps.Num();Index++)
-	{
-		FMeshMaterialShaderMap* MeshShaderMap = GetContent()->OrderedMeshShaderMaps[Index];
-		if (MeshShaderMap)
-		{
-			MeshShaderMap->FlushShadersByShaderPipelineType(ShaderPipelineType);
-		}
-	}
-
-	if (ShaderPipelineType->IsMaterialTypePipeline())
-	{
-		GetMutableContent()->RemoveShaderPipelineType(ShaderPipelineType);
-	}
-}
-
-
-/**
- * Removes all entries in the cache with exceptions based on a vertex factory type
- * @param ShaderType - The shader type to flush
- */
-void FMaterialShaderMap::FlushShadersByVertexFactoryType(const FVertexFactoryType* VertexFactoryType)
-{
-	GetMutableContent()->RemoveMeshShaderMap(VertexFactoryType->GetHashedName());
-}
+#endif // WITH_EDITOR
 
 bool FMaterialShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial, bool bInlineShaderCode)
 {
@@ -3077,54 +2989,6 @@ bool FMaterialShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, bo
 #endif // STATS
 	return bSerialized;
 }
-
-/*void FMaterialShaderMap::RegisterSerializedShaders(bool bLoadedByCookedMaterial)
-{
-	check(IsInGameThread());
-
-	TShaderMapContent<FMaterialShaderType>::RegisterSerializedShaders(bLoadedByCookedMaterial);
-	
-	for (FMeshMaterialShaderMap* MeshShaderMap : OrderedMeshShaderMaps)
-	{
-		if (MeshShaderMap)
-		{
-			MeshShaderMap->RegisterSerializedShaders(bLoadedByCookedMaterial);
-		}
-	}
-
-	// Trim the mesh shader maps by removing empty entries
-	for (int32 VFIndex = 0; VFIndex < OrderedMeshShaderMaps.Num(); VFIndex++)
-	{
-		if (OrderedMeshShaderMaps[VFIndex] && OrderedMeshShaderMaps[VFIndex]->IsEmpty())
-		{
-			OrderedMeshShaderMaps[VFIndex] = nullptr;
-		}
-	}
-
-	for (int32 Index = MeshShaderMaps.Num() - 1; Index >= 0; Index--)
-	{
-		if (MeshShaderMaps[Index].IsEmpty())
-		{
-			MeshShaderMaps.RemoveAt(Index);
-		}
-	}
-}
-
-void FMaterialShaderMap::DiscardSerializedShaders()
-{
-	TShaderMapContent<FMaterialShaderType>::DiscardSerializedShaders();
-
-	for (int32 VFIndex = 0; VFIndex < OrderedMeshShaderMaps.Num(); VFIndex++)
-	{
-		OrderedMeshShaderMaps[VFIndex] = nullptr;
-	}
-
-	for (int32 Index = MeshShaderMaps.Num() - 1; Index >= 0; Index--)
-	{
-		MeshShaderMaps[Index].DiscardSerializedShaders();
-	}
-	MeshShaderMaps.Empty();
-}*/
 
 #if WITH_EDITOR
 uint32 FMaterialShaderMap::GetMaxTextureSamplers() const

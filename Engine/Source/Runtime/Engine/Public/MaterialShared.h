@@ -1020,18 +1020,6 @@ public:
 		EShaderPlatform Platform);
 #endif
 
-	/**
-	 * Removes all entries in the cache with exceptions based on a shader type
-	 * @param ShaderType - The shader type to flush
-	 */
-	void FlushShadersByShaderType(const FShaderType* ShaderType);
-
-		/**
-	 * Removes all entries in the cache with exceptions based on a shader type
-	 * @param ShaderType - The shader type to flush
-	 */
-	void FlushShadersByShaderPipelineType(const FShaderPipelineType* ShaderPipelineType);
-
 	// Accessors.
 	inline const FHashedName& GetVertexFactoryTypeName() const { return VertexFactoryTypeName; }
 
@@ -1127,14 +1115,9 @@ public:
 	 */
 	static TRefCountPtr<FMaterialShaderMap> FindId(const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform);
 
+#if WITH_EDITOR
 	static FMaterialShaderMap* FindCompilingShaderMap(uint32 CompilingId);
 
-#if ALLOW_SHADERMAP_DEBUG_DATA
-	/** Flushes the given shader types from any loaded FMaterialShaderMap's. */
-	static void FlushShaderTypes(TArray<const FShaderType*>& ShaderTypesToFlush, TArray<const FShaderPipelineType*>& ShaderPipelineTypesToFlush, TArray<const FVertexFactoryType*>& VFTypesToFlush);
-#endif
-
-#if WITH_EDITOR
 	/** Gets outdated types from all loaded material shader maps */
 	static void GetAllOutdatedTypes(TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes);
 
@@ -1164,9 +1147,10 @@ public:
 	FMaterialShaderMap();
 	virtual ~FMaterialShaderMap();
 	
+#if WITH_EDITOR
 	FMaterialShaderMap* AcquireFinalizedClone();
 	FMaterialShaderMap* GetFinalizedClone() const;
-
+#endif // WITH_EDITOR
 
 	// ShaderMap interface
 	TShaderRef<FShader> GetShader(FShaderType* ShaderType, int32 PermutationId = 0) const
@@ -1185,6 +1169,7 @@ public:
 
 	uint32 GetMaxNumInstructionsForShader(FShaderType* ShaderType) const { return GetContent()->GetMaxNumInstructionsForShader(*this, ShaderType); }
 
+#if WITH_EDITOR
 	void SubmitCompileJobs(uint32 CompilingShaderMapId,
 		const FMaterial* Material,
 		const TRefCountPtr<FSharedShaderCompilerEnvironment>& MaterialEnvironment,
@@ -1205,7 +1190,6 @@ public:
 		EMaterialShaderPrecompileMode PrecompileMode
 		);
 
-#if WITH_EDITOR
 	/** Sorts the incoming compiled jobs into the appropriate mesh shader maps */
 	void ProcessCompilationResults(const TArray<TRefCountPtr<FShaderCommonCompileJob>>& ICompilationResults, int32& InOutJobIndex, float& TimeBudget);
 #endif
@@ -1253,24 +1237,6 @@ public:
 	ENGINE_API void AddRef();
 	ENGINE_API void Release();
 
-	/**
-	 * Removes all entries in the cache with exceptions based on a shader type
-	 * @param ShaderType - The shader type to flush
-	 */
-	void FlushShadersByShaderType(const FShaderType* ShaderType);
-
-	/**
-	 * Removes all entries in the cache with exceptions based on a shader pipeline type
-	 * @param ShaderPipelineType - The shader pipeline type to flush
-	 */
-	void FlushShadersByShaderPipelineType(const FShaderPipelineType* ShaderPipelineType);
-
-	/**
-	 * Removes all entries in the cache with exceptions based on a vertex factory type
-	 * @param ShaderType - The shader type to flush
-	 */
-	void FlushShadersByVertexFactoryType(const FVertexFactoryType* VertexFactoryType);
-
 	/** Serializes the shader map. */
 	bool Serialize(FArchive& Ar, bool bInlineShaderResources=true, bool bLoadedByCookedMaterial=false, bool bInlineShaderCode=false);
 
@@ -1281,6 +1247,7 @@ public:
 
 	/** Backs up any FShaders in this shader map to memory through serialization and clears FShader references. */
 	TArray<uint8>* BackupShadersToMemory();
+
 	/** Recreates FShaders from the passed in memory, handling shader key changes. */
 	void RestoreShadersFromMemory(const TArray<uint8>& ShaderData);
 
@@ -1304,16 +1271,20 @@ public:
 	const FMaterialShaderMapId& GetShaderMapId() const { return ShaderMapId; }
 	const FSHAHash& GetShaderContentHash() const { return GetContent()->ShaderContentHash; }
 
+#if WITH_EDITOR
 	uint32 AcquireCompilingId(const TRefCountPtr<FSharedShaderCompilerEnvironment>& InMaterialEnvironment);
 	void ReleaseCompilingId();
 	uint32 GetCompilingId() const { return CompilingId; }
 	const TRefCountPtr<FSharedShaderCompilerEnvironment>& GetPendingCompilerEnvironment() const { return PendingCompilerEnvironment; }
+#endif // WITH_EDITOR
 
 	bool IsCompilationFinalized() const { return bCompilationFinalized; }
 	bool CompiledSuccessfully() const { return bCompiledSuccessfully; }
+#if WITH_EDITOR
 	void SetCompiledSuccessfully(bool bSuccess) { bCompiledSuccessfully = bSuccess; }
 	void AddCompilingDependency(FMaterial* Material);
 	void RemoveCompilingDependency(FMaterial* Material);
+#endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
 	const TCHAR* GetFriendlyName() const { return *GetContent()->FriendlyName; }
@@ -1414,9 +1385,11 @@ private:
 	static FCriticalSection AllMaterialShaderMapsGuard;
 #endif
 
+#if WITH_EDITOR
 	TRefCountPtr<FMaterialShaderMap> FinalizedClone;
 	TRefCountPtr<FSharedShaderCompilerEnvironment> PendingCompilerEnvironment;
 	TArray<TRefCountPtr<FMaterial>> CompilingMaterialDependencies;
+#endif // WITH_EDITOR
 
 	FUniformBufferLayoutRHIRef UniformBufferLayout;
 
@@ -1430,8 +1403,10 @@ private:
 	/** Tracks material resources and their shader maps that need to be compiled but whose compilation is being deferred. */
 	//static TMap<TRefCountPtr<FMaterialShaderMap>, TArray<FMaterial*> > ShaderMapsBeingCompiled;
 
+#if WITH_EDITOR
 	/** Uniquely identifies this shader map during compilation, needed for deferred compilation where shaders from multiple shader maps are compiled together. */
-	uint32 CompilingId;
+	uint32 CompilingId = 0;
+#endif // WITH_EDITOR
 
 	mutable int32 NumRefs;
 
@@ -1452,7 +1427,9 @@ private:
 	/** Indicates whether the shader map should be stored in the shader cache. */
 	uint32 bIsPersistent : 1;
 
+#if WITH_EDITOR
 	FShader* ProcessCompilationResultsForSingleJob(class FShaderCompileJob* SingleJob, const FShaderPipelineType* ShaderPipeline, const FSHAHash& MaterialShaderMapHash);
+#endif
 
 	friend ENGINE_API void DumpMaterialStats( EShaderPlatform Platform );
 	friend class FShaderCompilingManager;
@@ -1677,8 +1654,6 @@ public:
 	 * Minimal initialization constructor.
 	 */
 	FMaterial():
-		GameThreadCompilingShaderMapId(0u),
-		RenderingThreadCompilingShaderMapId(0u),
 		RenderingThreadShaderMap(NULL),
 		QualityLevel(EMaterialQualityLevel::Num),
 		FeatureLevel(ERHIFeatureLevel::Num),
@@ -2126,8 +2101,10 @@ public:
 
 	ENGINE_API bool ShouldCacheShaders(const EShaderPlatform ShaderPlatform, const FMaterialShaderTypes& InTypes, const FVertexFactoryType* InVertexFactoryType) const;
 
+#if WITH_EDITOR
 	ENGINE_API void SubmitCompileJobs_GameThread(EShaderCompileJobPriority Priority);
 	ENGINE_API void SubmitCompileJobs_RenderThread(EShaderCompileJobPriority Priority) const;
+#endif // WITH_EDITOR
 
 	/** Returns a string that describes the material's usage for debugging purposes. */
 	virtual FString GetMaterialUsageDescription() const = 0;
@@ -2275,10 +2252,14 @@ protected:
 
 	bool GetLoadedCookedShaderMapId() const { return bLoadedCookedShaderMapId; }
 
+#if WITH_EDITOR
 	void SetCompilingShaderMap(FMaterialShaderMap* InMaterialShaderMap);
+#endif
 
 private:
+#if WITH_EDITOR
 	bool ReleaseGameThreadCompilingShaderMap();
+#endif
 	void ReleaseRenderThreadCompilingShaderMap();
 
 #if WITH_EDITOR
@@ -2296,13 +2277,13 @@ private:
 
 	TSharedPtr<FMaterialShaderMap::FAsyncLoadContext> CacheShadersPending;
 	TUniqueFunction<bool ()> CacheShadersCompletion;
-#endif // WITH_EDITOR
 
-	uint32 GameThreadCompilingShaderMapId;
-	uint32 RenderingThreadCompilingShaderMapId;
+	uint32 GameThreadCompilingShaderMapId = 0;
+	uint32 RenderingThreadCompilingShaderMapId = 0;
 
 	TRefCountPtr<FSharedShaderCompilerEnvironment> GameThreadPendingCompilerEnvironment;
 	TRefCountPtr<FSharedShaderCompilerEnvironment> RenderingThreadPendingCompilerEnvironment;
+#endif // WITH_EDITOR
 
 	/** 
 	 * Used to prevent submitting the material more than once during CacheMeshDrawCommands unless priority has been increased. 
@@ -2393,6 +2374,7 @@ private:
 	FRWLock PrecachePSOVFLock;
 	TArray<FPrecacheVertexTypeWithParams> PrecachedPSOVertexFactories;
 
+#if WITH_EDITOR
 	/**
 	* Compiles this material for Platform, storing the result in OutShaderMap if the compile was synchronous
 	*/
@@ -2431,6 +2413,7 @@ private:
 		const FUniformExpressionSet& InUniformExpressionSet,
 		FShaderCompilerEnvironment& OutEnvironment
 		) const;
+#endif // WITH_EDITOR
 
 	/** Get the float precision mode for the material and shader taking into account any project wide precision values */
 	static void GetOutputPrecision(EMaterialFloatPrecisionMode FloatPrecisionMode, bool& bFullPrecisionInPS, bool& bFullPrecisionInMaterial);

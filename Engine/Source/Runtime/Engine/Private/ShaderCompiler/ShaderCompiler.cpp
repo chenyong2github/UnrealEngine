@@ -4920,6 +4920,7 @@ bool FShaderCompilingManager::HandlePotentialRetryOnError(TMap<int32, FShaderMap
 {
 	bool bRetryCompile = false;
 
+#if WITH_EDITORONLY_DATA
 	for (TMap<int32, FShaderMapFinalizeResults>::TIterator It(CompletedShaderMaps); It; ++It)
 	{
 		FShaderMapFinalizeResults& Results = It.Value();
@@ -4927,6 +4928,7 @@ bool FShaderCompilingManager::HandlePotentialRetryOnError(TMap<int32, FShaderMap
 		if (!Results.bAllJobsSucceeded)
 		{
 			bool bSpecialEngineMaterial = false;
+
 			const FMaterialShaderMap* ShaderMap = FMaterialShaderMap::FindCompilingShaderMap(It.Key());
 			if (ShaderMap)
 			{
@@ -4940,7 +4942,6 @@ bool FShaderCompilingManager::HandlePotentialRetryOnError(TMap<int32, FShaderMap
 				}
 			}
 
-#if WITH_EDITORONLY_DATA
 
 			if (UE_LOG_ACTIVE(LogShaders, Log) 
 				// Always log detailed errors when a special engine material or global shader fails to compile, as those will be fatal errors
@@ -5048,7 +5049,6 @@ bool FShaderCompilingManager::HandlePotentialRetryOnError(TMap<int32, FShaderMap
 					break;
 				}
 			}
-#endif	//WITH_EDITORONLY_DATA
 		}
 	}
 
@@ -5114,6 +5114,7 @@ bool FShaderCompilingManager::HandlePotentialRetryOnError(TMap<int32, FShaderMap
 
 		check(CompletedShaderMaps.Num() == OriginalNumShaderMaps);
 	}
+#endif	//WITH_EDITORONLY_DATA
 
 	return bRetryCompile;
 }
@@ -6553,6 +6554,7 @@ void ProcessCookOnTheFlyShaders(bool bReloadGlobalShaders, const TArray<uint8>& 
 */
 void RecompileGlobalShaders()
 {
+#if WITH_EDITOR
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		// Flush pending accesses to the existing global shaders.
@@ -6566,6 +6568,7 @@ void RecompileGlobalShaders()
 
 		GShaderCompilingManager->ProcessAsyncResults(false, true);
 	}
+#endif // WITH_EDITOR
 }
 
 void GetOutdatedShaderTypes(TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes)
@@ -6614,6 +6617,7 @@ bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar)
 		return true;
 	}
 
+#if WITH_EDITOR
 	FString FlagStr(FParse::Token(Cmd, 0));
 	if( FlagStr.Len() > 0 )
 	{
@@ -6756,12 +6760,16 @@ bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar)
 
 		GWarn->EndSlowTask();
 
-		return 1;
+		return true;
 	}
 
 	UE_LOG(LogShaderCompilers, Warning, TEXT("Invalid parameter. Options are: \n'Changed', 'Global', 'Material [name]', 'All'."));
-	return 1;
+#endif // WITH_EDITOR
+
+	return true;
 }
+
+#if WITH_EDITOR
 
 static void PrepareGlobalShaderCompileJob(EShaderPlatform Platform,
 	EShaderPermutationFlags PermutationFlags,
@@ -6880,6 +6888,9 @@ FShader* FGlobalShaderTypeCompiler::FinishCompileShader(const FGlobalShaderType*
 	return Shader;
 }
 
+#endif // WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
 namespace ShaderCompilerUtil
 {
 	FOnGlobalShadersCompilation GOnGlobalShdersCompilationDelegate;
@@ -6889,6 +6900,7 @@ FOnGlobalShadersCompilation& GetOnGlobalShaderCompilation()
 {
 	return ShaderCompilerUtil::GOnGlobalShdersCompilationDelegate;
 }
+#endif // WITH_EDITORONLY_DATA
 
 /**
 * Makes sure all global shaders are loaded and/or compiled for the passed in platform.
@@ -6933,11 +6945,13 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 		bErrorOnMissing = true;
 	}
 
+#if WITH_EDITOR
 	// All jobs, single & pipeline
 	TArray<FShaderCommonCompileJobPtr> GlobalShaderJobs;
 
 	// Add the single jobs first
 	TMap<TShaderTypePermutation<const FShaderType>, FShaderCompileJob*> SharedShaderJobs;
+#endif // WITH_EDITOR
 
 	for (TLinkedList<FShaderType*>::TIterator ShaderTypeIt(FShaderType::GetTypeList()); ShaderTypeIt; ShaderTypeIt.Next())
 	{
@@ -6961,19 +6975,23 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 						UE_LOG(LogShaders, Fatal, TEXT("Missing global shader %s's permutation %i, Please make sure cooking was successful."),
 							GlobalShaderType->GetName(), PermutationId);
 					}
-
-					if (OutdatedShaderTypes)
+					else
 					{
-						// Remove old shader, if it exists
-						GlobalShaderMap->RemoveShaderTypePermutaion(GlobalShaderType, PermutationId);
-					}
+#if WITH_EDITOR
+						if (OutdatedShaderTypes)
+						{
+							// Remove old shader, if it exists
+							GlobalShaderMap->RemoveShaderTypePermutaion(GlobalShaderType, PermutationId);
+						}
 
-					// Compile this global shader type.
-					FGlobalShaderTypeCompiler::BeginCompileShader(GlobalShaderType, PermutationId, Platform, PermutationFlags, GlobalShaderJobs);
-					//TShaderTypePermutation<const FShaderType> ShaderTypePermutation(GlobalShaderType, PermutationId);
-					//check(!SharedShaderJobs.Find(ShaderTypePermutation));
-					//SharedShaderJobs.Add(ShaderTypePermutation, Job);
-					PermutationCountToCompile++;
+						// Compile this global shader type.
+						FGlobalShaderTypeCompiler::BeginCompileShader(GlobalShaderType, PermutationId, Platform, PermutationFlags, GlobalShaderJobs);
+						//TShaderTypePermutation<const FShaderType> ShaderTypePermutation(GlobalShaderType, PermutationId);
+						//check(!SharedShaderJobs.Find(ShaderTypePermutation));
+						//SharedShaderJobs.Add(ShaderTypePermutation, Job);
+						PermutationCountToCompile++;
+#endif // WITH_EDITOR
+					}
 				}
 			}
 		}
@@ -7009,37 +7027,42 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 				{
 					UE_LOG(LogShaders, Fatal, TEXT("Missing global shader pipeline %s, Please make sure cooking was successful."), Pipeline->GetName());
 				}
-
-				if (!bEmptyMap)
-				{
-					UE_LOG(LogShaders, Log, TEXT("	%s"), Pipeline->GetName());
-				}
-
-				if (Pipeline->ShouldOptimizeUnusedOutputs(Platform))
-				{
-					// Make a pipeline job with all the stages
-					FGlobalShaderTypeCompiler::BeginCompileShaderPipeline(Platform, PermutationFlags, Pipeline, GlobalShaderJobs);
-				}
 				else
 				{
-					// If sharing shaders amongst pipelines, add this pipeline as a dependency of an existing individual job
-					for (const FShaderType* ShaderType : Pipeline->GetStages())
+#if WITH_EDITOR
+					if (!bEmptyMap)
 					{
-						TShaderTypePermutation<const FShaderType> ShaderTypePermutation(ShaderType, kUniqueShaderPermutationId);
-
-						FShaderCompileJob** Job = SharedShaderJobs.Find(ShaderTypePermutation);
-						checkf(Job, TEXT("Couldn't find existing shared job for global shader %s on pipeline %s!"), ShaderType->GetName(), Pipeline->GetName());
-						auto* SingleJob = (*Job)->GetSingleShaderJob();
-						check(SingleJob);
-						auto& SharedPipelinesInJob = SingleJob->SharingPipelines.FindOrAdd(nullptr);
-						check(!SharedPipelinesInJob.Contains(Pipeline));
-						SharedPipelinesInJob.Add(Pipeline);
+						UE_LOG(LogShaders, Log, TEXT("	%s"), Pipeline->GetName());
 					}
+
+					if (Pipeline->ShouldOptimizeUnusedOutputs(Platform))
+					{
+						// Make a pipeline job with all the stages
+						FGlobalShaderTypeCompiler::BeginCompileShaderPipeline(Platform, PermutationFlags, Pipeline, GlobalShaderJobs);
+					}
+					else
+					{
+						// If sharing shaders amongst pipelines, add this pipeline as a dependency of an existing individual job
+						for (const FShaderType* ShaderType : Pipeline->GetStages())
+						{
+							TShaderTypePermutation<const FShaderType> ShaderTypePermutation(ShaderType, kUniqueShaderPermutationId);
+
+							FShaderCompileJob** Job = SharedShaderJobs.Find(ShaderTypePermutation);
+							checkf(Job, TEXT("Couldn't find existing shared job for global shader %s on pipeline %s!"), ShaderType->GetName(), Pipeline->GetName());
+							auto* SingleJob = (*Job)->GetSingleShaderJob();
+							check(SingleJob);
+							auto& SharedPipelinesInJob = SingleJob->SharingPipelines.FindOrAdd(nullptr);
+							check(!SharedPipelinesInJob.Contains(Pipeline));
+							SharedPipelinesInJob.Add(Pipeline);
+						}
+					}
+#endif // WITH_EDITOR
 				}
 			}
 		}
 	}
 
+#if WITH_EDITOR
 	if (GlobalShaderJobs.Num() > 0)
 	{
 		GetOnGlobalShaderCompilation().Broadcast();
@@ -7063,6 +7086,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, const ITargetPlatform* Target
 			GShaderCompilingManager->FinishCompilation(TEXT("Global"), ShaderMapIds);
 		}
 	}
+#endif // WITH_EDITOR
 }
 
 void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile, const TArray<const FShaderType*>* OutdatedShaderTypes, const TArray<const FShaderPipelineType*>* OutdatedShaderPipelineTypes)
@@ -7972,6 +7996,7 @@ void RecompileShadersForRemote(
 
 void BeginRecompileGlobalShaders(const TArray<const FShaderType*>& OutdatedShaderTypes, const TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, EShaderPlatform ShaderPlatform, const ITargetPlatform* TargetPlatform)
 {
+#if WITH_EDITOR
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		// Flush pending accesses to the existing global shaders.
@@ -7987,6 +8012,7 @@ void BeginRecompileGlobalShaders(const TArray<const FShaderType*>& OutdatedShade
 			VerifyGlobalShaders(ShaderPlatform, TargetPlatform, false, &OutdatedShaderTypes, &OutdatedShaderPipelineTypes);
 		}
 	}
+#endif
 }
 
 void FinishRecompileGlobalShaders()
@@ -7994,6 +8020,8 @@ void FinishRecompileGlobalShaders()
 	// Block until global shaders have been compiled and processed
 	GShaderCompilingManager->ProcessAsyncResults(false, true);
 }
+
+#if WITH_EDITOR
 
 static inline FShader* ProcessCompiledJob(FShaderCompileJob* SingleJob, const FShaderPipelineType* Pipeline, TArray<EShaderPlatform>& ShaderPlatformsProcessed, TArray<const FShaderPipelineType*>& OutSharedPipelines)
 {
@@ -8137,6 +8165,7 @@ void SaveGlobalShadersForRemoteRecompile(FArchive& Ar, EShaderPlatform ShaderPla
 		GlobalShaderMap->SaveToGlobalArchive(Ar);
 	}
 }
+#endif // WITH_EDITOR
 
 void LoadGlobalShadersForRemoteRecompile(FArchive& Ar, EShaderPlatform ShaderPlatform)
 {
