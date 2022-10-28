@@ -58,6 +58,7 @@
 #include "MuCOE/GenerateMutableSource/GenerateMutableSourceFloat.h"
 #include "MuCOE/GenerateMutableSource/GenerateMutableSourceLayout.h"
 #include "MuCOE/GenerateMutableSource/GenerateMutableSourceTable.h"
+#include "MuCOE/EdGraphSchema_CustomizableObject.h"
 #include "MuCOE/GraphTraversal.h"
 #include "MuCOE/Nodes/CustomizableObjectNode.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeAnimationPose.h"
@@ -2317,7 +2318,7 @@ bool GetAndValidateReshapePhysicsToDeform(
 
 
 mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
-	TArray<UCustomizableObjectNodeMeshMorph*> TypedNodeMorphs,
+	TArray<FMorphNodeData> TypedNodeMorphs,
 	int32 MorphIndex,
 	mu::NodeMeshPtr SourceNode,
 	FMutableGraphGenerationContext & GenerationContext,
@@ -2331,14 +2332,14 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 	check(MeshNode);
 	
 	// Current morph node
-	const UCustomizableObjectNode* MorphNode = TypedNodeMorphs[MorphIndex];
+	const UCustomizableObjectNode* MorphNode = TypedNodeMorphs[MorphIndex].OwningNode;
 	check(MorphNode);
 	
 	mu::NodeMeshMorphPtr Result = new mu::NodeMeshMorph();
 	Result->SetMorphCount(2);
 	
 	// Factor
-	GenerateMorphFactor(MorphNode, *TypedNodeMorphs[MorphIndex]->FactorPin(), GenerationContext, Result);
+	GenerateMorphFactor(MorphNode, *TypedNodeMorphs[MorphIndex].FactorPin, GenerationContext, Result);
 	
 	// Base
 	if (MorphIndex == TypedNodeMorphs.Num() - 1)
@@ -2366,7 +2367,7 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 		// Should exist
 		mu::TablePtr Table = GenerationContext.GeneratedTables[TypedNodeTable->Table->GetName()];
 
-		FString ColumnName = TableColumnName + TypedNodeMorphs[MorphIndex]->MorphTargetName;
+		FString ColumnName = TableColumnName + TypedNodeMorphs[MorphIndex].MorphTargetName;
 		int32 ColumnIndex = -1;
 
 		for (int32 RowIndex = 0; RowIndex < NumRows; ++RowIndex)
@@ -2380,7 +2381,7 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 				ColumnIndex = Table->AddColumn(TCHAR_TO_ANSI(*ColumnName), mu::TABLE_COLUMN_TYPE::TCT_MESH);
 			}
 
-			mu::MeshPtr MorphedSourceTableMesh = BuildMorphedMutableMesh(Pin, TypedNodeMorphs[MorphIndex]->MorphTargetName, GenerationContext, RowName);
+			mu::MeshPtr MorphedSourceTableMesh = BuildMorphedMutableMesh(Pin, TypedNodeMorphs[MorphIndex].MorphTargetName, GenerationContext, RowName);
 			Table->SetCell(ColumnIndex, RowIndex, MorphedSourceTableMesh.get());
 		}
 
@@ -2411,7 +2412,7 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 	}
 	else
 	{
-		MorphedSourceMesh = BuildMorphedMutableMesh(Pin, TypedNodeMorphs[MorphIndex]->MorphTargetName, GenerationContext);
+		MorphedSourceMesh = BuildMorphedMutableMesh(Pin, TypedNodeMorphs[MorphIndex].MorphTargetName, GenerationContext);
 
 		if (MorphedSourceMesh)
 		{
@@ -2435,49 +2436,50 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 
 			Result->SetMorph(1, Morph);
 
-			UCustomizableObjectNodeMeshMorph* TypedMorphNode = TypedNodeMorphs[MorphIndex];
-
-			Result->SetReshapeSkeleton(TypedMorphNode->bReshapeSkeleton);
-			Result->SetReshapePhysicsVolumes(TypedMorphNode->bReshapePhysicsVolumes);	
+			if (UCustomizableObjectNodeMeshMorph* TypedMorphNode = Cast<UCustomizableObjectNodeMeshMorph>(TypedNodeMorphs[MorphIndex].OwningNode))
 			{
-				const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedMorphNode->MeshPin());
-				const UEdGraphPin* SourceMeshPin = ConnectedPin ? FindMeshBaseSource(*ConnectedPin, false) : nullptr;
-				const UEdGraphNode* SkeletalMeshNode = SourceMeshPin ? SourceMeshPin->GetOwningNode() : nullptr;
-
-				TArray<USkeletalMesh*> SkeletalMeshesToDeform = GetSkeletalMeshesForReshapeSelection(SkeletalMeshNode, SourceMeshPin);
-				
-				bool bWarningFound = false;
-				if (TypedMorphNode->bReshapeSkeleton)
+				Result->SetReshapeSkeleton(TypedMorphNode->bReshapeSkeleton);
+				Result->SetReshapePhysicsVolumes(TypedMorphNode->bReshapePhysicsVolumes);
 				{
-					TArray<FString> BonesToDeform;
-					bWarningFound = GetAndValidateReshapeBonesToDeform(
-						BonesToDeform, TypedMorphNode->BonesToDeform, SkeletalMeshesToDeform, TypedMorphNode, TypedMorphNode->SelectionMethod, GenerationContext);
-					
-					for (const FString& BoneName : BonesToDeform)
+					const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedMorphNode->MeshPin());
+					const UEdGraphPin* SourceMeshPin = ConnectedPin ? FindMeshBaseSource(*ConnectedPin, false) : nullptr;
+					const UEdGraphNode* SkeletalMeshNode = SourceMeshPin ? SourceMeshPin->GetOwningNode() : nullptr;
+
+					TArray<USkeletalMesh*> SkeletalMeshesToDeform = GetSkeletalMeshesForReshapeSelection(SkeletalMeshNode, SourceMeshPin);
+
+					bool bWarningFound = false;
+					if (TypedMorphNode->bReshapeSkeleton)
 					{
-						Result->AddBoneToDeform(TCHAR_TO_ANSI(*BoneName));
+						TArray<FString> BonesToDeform;
+						bWarningFound = GetAndValidateReshapeBonesToDeform(
+							BonesToDeform, TypedMorphNode->BonesToDeform, SkeletalMeshesToDeform, TypedMorphNode, TypedMorphNode->SelectionMethod, GenerationContext);
+
+						for (const FString& BoneName : BonesToDeform)
+						{
+							Result->AddBoneToDeform(TCHAR_TO_ANSI(*BoneName));
+						}
 					}
-				}
 
-				if (TypedMorphNode->bReshapePhysicsVolumes)
-				{
-					TArray<FString> PhysicsToDeform;
-
-					const EBoneDeformSelectionMethod SelectionMethod = TypedMorphNode->PhysicsSelectionMethod;
-					bWarningFound = bWarningFound || GetAndValidateReshapePhysicsToDeform(
-						PhysicsToDeform, 
-						TypedMorphNode->PhysicsBodiesToDeform, SkeletalMeshesToDeform, SelectionMethod, 
-						TypedMorphNode, GenerationContext);
-	
-					for (const FString& PhysicsBoneName : PhysicsToDeform)
+					if (TypedMorphNode->bReshapePhysicsVolumes)
 					{
-						Result->AddPhysicsBodyToDeform(TCHAR_TO_ANSI(*PhysicsBoneName));
-					}	
-				}
-				
-				if (bWarningFound)
-				{
-					TypedMorphNode->SetRefreshNodeWarning();
+						TArray<FString> PhysicsToDeform;
+
+						const EBoneDeformSelectionMethod SelectionMethod = TypedMorphNode->PhysicsSelectionMethod;
+						bWarningFound = bWarningFound || GetAndValidateReshapePhysicsToDeform(
+							PhysicsToDeform, 
+							TypedMorphNode->PhysicsBodiesToDeform, SkeletalMeshesToDeform, SelectionMethod, 
+							TypedMorphNode, GenerationContext);
+	
+						for (const FString& PhysicsBoneName : PhysicsToDeform)
+						{
+							Result->AddPhysicsBodyToDeform(TCHAR_TO_ANSI(*PhysicsBoneName));
+						}
+					}
+						
+					if (bWarningFound)
+					{
+						TypedMorphNode->SetRefreshNodeWarning();
+					}
 				}
 			}
 		}
@@ -2834,7 +2836,8 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*TypedNodeMorph->MeshPin()))
 		{
 			// Mesh Morph Stack Management
-			GenerationContext.MeshMorphStack.Push(TypedNodeMorph);
+			FMorphNodeData NewMorphData = { TypedNodeMorph, TypedNodeMorph->MorphTargetName ,TypedNodeMorph->FactorPin(), TypedNodeMorph->MeshPin() };
+			GenerationContext.MeshMorphStack.Push(NewMorphData);
 			Result = GenerateMutableSourceMesh(ConnectedPin, GenerationContext, MeshData);
 			GenerationContext.MeshMorphStack.Pop(true);
 		}
@@ -2863,73 +2866,44 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 
 				MeshNode->SetMorphCount(2);
 
-				int32 NextPin = -1;
-				bool bAddNewMorph = true;
+				TArray<UEdGraphPin*> MorphPins = TypedNodeMeshMorphStackDef->GetAllNonOrphanPins();
 
-				while (bAddNewMorph)
+				int32 AddedMorphs = 0;
+
+				for (int32 PinIndex = 0; PinIndex < MorphPins.Num(); ++PinIndex)
 				{
-					//Getting next connected pin index
-					NextPin = TypedNodeMeshMorphStackDef->NextConnectedPin(NextPin, TypedNodeMeshMorphStackApp->MorphNames);
+					UEdGraphPin* MorphPin = MorphPins[PinIndex];
 
-					UEdGraphPin* FactorPin = nullptr;
+					const UEdGraphSchema_CustomizableObject* Schema = GetDefault<UEdGraphSchema_CustomizableObject>();
 
-					// If Next Pin is -1 then there is no pin connected, which is a warning
-					if (NextPin != -1)
+					// Checking if it's a valid pin
+					if (MorphPin->Direction == EEdGraphPinDirection::EGPD_Output 
+						|| MorphPin->PinType.PinCategory != Helper_GetPinCategory(Schema->PC_Float) 
+						|| !MorphPins[PinIndex]->LinkedTo.Num())
 					{
-						FactorPin = TypedNodeMeshMorphStackDef->GetMorphPin(NextPin);
+						continue;
 					}
 
-					// Checking if there is another pin connected to add a new morph
-					bAddNewMorph = (TypedNodeMeshMorphStackDef->NextConnectedPin(NextPin, TypedNodeMeshMorphStackApp->MorphNames) != -1);
-
-					// Factor
-					GenerateMorphFactor(Node, *FactorPin, GenerationContext, MeshNode);
-
-					// Base
-					if (const UEdGraphPin* ConnectedMehsPin = FollowInputPin(*TypedNodeMeshMorphStackApp->GetMeshPin()))
+					// Cheking if the morph exists in the application node
+					FString MorphName = MorphPin->PinFriendlyName.ToString();
+					if (!TypedNodeMeshMorphStackApp->MorphNames.Contains(MorphName))
 					{
-						mu::NodeMeshPtr SourceNode = nullptr;
-
-						if (bAddNewMorph)
-						{
-							mu::NodeMeshMorphPtr NextMorph = new mu::NodeMeshMorph();
-
-							SourceNode = NextMorph;
-							MeshNode->SetBase(SourceNode);
-
-							if (const UEdGraphPin* BaseSourcePin = FindMeshBaseSource(*ConnectedMehsPin, false))
-							{
-								FString MorphName = "";
-								if (NextPin != -1)
-								{
-									MorphName = TypedNodeMeshMorphStackDef->MorphNames[NextPin];
-								}
-
-								//Target
-								GenerateMorphTarget(Node, BaseSourcePin, GenerationContext, MeshNode, MorphName);
-							}
-
-							MeshNode = NextMorph;
-							MeshNode->SetMorphCount(2);
-						}
-						else
-						{
-							SourceNode = GenerateMutableSourceMesh(ConnectedMehsPin, GenerationContext, MeshData);
-							MeshNode->SetBase(SourceNode);
-
-							if (const UEdGraphPin* BaseSourcePin = FindMeshBaseSource(*ConnectedMehsPin, false))
-							{
-								FString MorphName = "";
-								if (NextPin != -1)
-								{
-									MorphName = TypedNodeMeshMorphStackDef->MorphNames[NextPin];
-								}
-
-								//Target
-								GenerateMorphTarget(Node, BaseSourcePin, GenerationContext, MeshNode, MorphName);
-							}
-						}
+						continue;
 					}
+
+					// Mesh Morph Stack Management. TODO(Max): should we add the stack application node here instead of the def? Or both?
+					FMorphNodeData NewMorphData = { TypedNodeMeshMorphStackDef, MorphName, MorphPin, TypedNodeMeshMorphStackApp->GetMeshPin() };
+					GenerationContext.MeshMorphStack.Push(NewMorphData);
+				}
+
+				if (const UEdGraphPin* MeshConnectedPin = FollowInputPin(*TypedNodeMeshMorphStackApp->GetMeshPin()))
+				{
+					Result = GenerateMutableSourceMesh(MeshConnectedPin, GenerationContext, MeshData);
+				}
+
+				for (int32 MorphIndex = 0; MorphIndex < AddedMorphs; ++MorphIndex)
+				{
+					GenerationContext.MeshMorphStack.Pop(true);
 				}
 			}
 			else
@@ -3437,4 +3411,3 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 }
 
 #undef LOCTEXT_NAMESPACE
-

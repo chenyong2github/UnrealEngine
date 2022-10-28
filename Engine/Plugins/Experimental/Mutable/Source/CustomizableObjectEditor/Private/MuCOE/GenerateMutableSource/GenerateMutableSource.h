@@ -97,6 +97,32 @@ enum class EMutableMeshConversionFlags : uint32
 };
 
 
+/** 
+	Struct to store the necessary data to generate the morphs of a skeletal mesh 
+	This struct allows the stack morph nodes to use the same functions as the mesh morph nodes
+*/
+struct FMorphNodeData
+{
+	// Pointer to the node that owns this morph data
+	UCustomizableObjectNode* OwningNode;
+
+	// Name of the morph that will be applied
+	FString MorphTargetName;
+
+	// Pin to the node that generates the factor of the morph
+	const UEdGraphPin* FactorPin;
+
+	// Pin of the mesh where the morphs will ble apllied
+	const UEdGraphPin* MeshPin;
+
+	bool operator==(const FMorphNodeData& Other) const
+	{
+		return OwningNode == Other.OwningNode && MorphTargetName == Other.MorphTargetName
+			&& FactorPin == Other.FactorPin && MeshPin == Other.MeshPin;
+	}
+};
+
+
 // Key for the data stored for each processed unreal graph node.
 class FGeneratedKey
 {
@@ -119,7 +145,7 @@ private:
 	uint32 Flags = 0;
 
 	/** Active morphs at the time of mesh generation. */
-	TArray<UCustomizableObjectNodeMeshMorph*> MeshMorphStack;
+	TArray<FMorphNodeData> MeshMorphStack;
 };
 
 
@@ -702,7 +728,7 @@ struct FMutableGraphGenerationContext
 	FPinData PinData; // DEPRECATED. DO NOT USE!
 
 	// Stores all morphs to apply them directly to a skeletal mesh node
-	TArray<UCustomizableObjectNodeMeshMorph*> MeshMorphStack;
+	TArray<FMorphNodeData> MeshMorphStack;
 
 	// Current material parameter name to find the corresponding column in a mutable table
 	FString CurrentMaterialTableParameter;

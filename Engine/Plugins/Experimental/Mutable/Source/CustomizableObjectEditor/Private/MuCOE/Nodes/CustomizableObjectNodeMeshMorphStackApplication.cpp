@@ -12,6 +12,7 @@
 #include "MuCOE/GraphTraversal.h"
 #include "MuCOE/ICustomizableObjectEditor.h"
 #include "MuCOE/Nodes/CustomizableObjectNodeSkeletalMesh.h"
+#include "MuCOE/Nodes/CustomizableObjectNodeTable.h"
 #include "Templates/Casts.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
@@ -98,21 +99,40 @@ void UCustomizableObjectNodeMeshMorphStackApplication::UpdateMorphList()
 {
 	MorphNames.Empty();
 
-	if (UEdGraphPin* MeshPin = GetMeshPin())
-	{
-		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*MeshPin))
-		{
-			if (UCustomizableObjectNodeSkeletalMesh* SkeletalMeshNode = Cast< UCustomizableObjectNodeSkeletalMesh >(ConnectedPin->GetOuter()))
-			{
-				USkeletalMesh* SkeletalMesh = SkeletalMeshNode->SkeletalMesh;
+	UEdGraphPin* MeshPin = GetMeshPin();
 
-				if (SkeletalMesh)
-				{
-					for (int32 i = 0; i < SkeletalMesh->GetMorphTargets().Num(); ++i)
-					{
-						MorphNames.Add(SkeletalMesh->GetMorphTargets()[i]->GetName());
-					}
-				}
+	if (!MeshPin)
+	{
+		return;
+	}
+
+	UEdGraphPin* OutputMeshPin = FollowInputPin(*MeshPin);
+
+	if (!OutputMeshPin)
+	{
+		return;
+	}
+
+	const UEdGraphPin* MeshNodePin = FindMeshBaseSource(*OutputMeshPin, false);
+
+	if (MeshNodePin && MeshNodePin->GetOwningNode())
+	{
+		USkeletalMesh* SkeletalMesh = nullptr;
+
+		if (const UCustomizableObjectNodeSkeletalMesh* SkeletalMeshNode = Cast< UCustomizableObjectNodeSkeletalMesh >(MeshNodePin->GetOwningNode()))
+		{
+			SkeletalMesh = SkeletalMeshNode->SkeletalMesh;
+		}
+		else if (const UCustomizableObjectNodeTable* TableNode = Cast< UCustomizableObjectNodeTable >(MeshNodePin->GetOwningNode()))
+		{
+			SkeletalMesh = TableNode->GetColumnDefaultAssetByType<USkeletalMesh>(MeshNodePin);
+		}
+
+		if (SkeletalMesh)
+		{
+			for (int32 i = 0; i < SkeletalMesh->GetMorphTargets().Num(); ++i)
+			{
+				MorphNames.Add(SkeletalMesh->GetMorphTargets()[i]->GetName());
 			}
 		}
 	}
@@ -121,26 +141,52 @@ void UCustomizableObjectNodeMeshMorphStackApplication::UpdateMorphList()
 
 bool UCustomizableObjectNodeMeshMorphStackApplication::IsNodeOutDatedAndNeedsRefresh()
 {
-	if (UEdGraphPin* MeshPin = GetMeshPin())
-	{
-		if (const UEdGraphPin* ConnectedPin = FollowInputPin(*MeshPin))
-		{
-			if (const UCustomizableObjectNodeSkeletalMesh* SkeletalMeshNode = Cast< UCustomizableObjectNodeSkeletalMesh >(ConnectedPin->GetOuter()))
-			{
-				if (USkeletalMesh* SkeletalMesh = SkeletalMeshNode->SkeletalMesh)
-				{
-					if (SkeletalMesh->GetMorphTargets().Num() != MorphNames.Num())
-					{
-						return true;
-					}
+	UEdGraphPin* MeshPin = GetMeshPin();
 
-					for (int32 i = 0; i < SkeletalMesh->GetMorphTargets().Num(); ++i)
-					{
-						if (!MorphNames.Contains(SkeletalMesh->GetMorphTargets()[i]->GetName()))
-						{
-							return true;
-						}
-					}
+	if (!MeshPin)
+	{
+		return false;
+	}
+
+	UEdGraphPin* OutputMeshPin = FollowInputPin(*MeshPin);
+
+	if (!OutputMeshPin)
+	{
+		if (MorphNames.Num())
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	const UEdGraphPin* MeshNodePin = FindMeshBaseSource(*OutputMeshPin, false);
+
+	if (MeshNodePin && MeshNodePin->GetOwningNode())
+	{
+		USkeletalMesh* SkeletalMesh = nullptr;
+
+		if (const UCustomizableObjectNodeSkeletalMesh* SkeletalMeshNode = Cast< UCustomizableObjectNodeSkeletalMesh >(MeshNodePin->GetOwningNode()))
+		{
+			SkeletalMesh = SkeletalMeshNode->SkeletalMesh;
+		}
+		else if (const UCustomizableObjectNodeTable* TableNode = Cast< UCustomizableObjectNodeTable >(MeshNodePin->GetOwningNode()))
+		{
+			SkeletalMesh = TableNode->GetColumnDefaultAssetByType<USkeletalMesh>(MeshNodePin);
+		}
+
+		if (SkeletalMesh)
+		{
+			if (SkeletalMesh->GetMorphTargets().Num() != MorphNames.Num())
+			{
+				return true;
+			}
+
+			for (int32 i = 0; i < SkeletalMesh->GetMorphTargets().Num(); ++i)
+			{
+				if (!MorphNames.Contains(SkeletalMesh->GetMorphTargets()[i]->GetName()))
+				{
+					return true;
 				}
 			}
 		}
