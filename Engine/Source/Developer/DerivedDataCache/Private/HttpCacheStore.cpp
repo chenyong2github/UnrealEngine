@@ -2752,7 +2752,7 @@ TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateHttpCacheStore(const TCHAR* N
 		UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Missing required parameter 'StructuredNamespace', falling back to '%s'"), NodeName, *Params.Namespace);
 	}
 
-	if (!Params.Host.StartsWith(TEXT("http://localhost")))
+	if (bValidParams && !Params.Host.StartsWith(TEXT("http://localhost")))
 	{
 		bool bValidOAuthAccessToken = !Params.OAuthAccessToken.IsEmpty();
 

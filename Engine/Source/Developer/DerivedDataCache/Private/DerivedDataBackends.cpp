@@ -347,7 +347,7 @@ public:
 				{
 					ParsedNode = MakeTuple(ParseS3Cache(*NodeName, *Entry), ECacheStoreFlags::Local | ECacheStoreFlags::Query | ECacheStoreFlags::StopStore);
 				}
-				else if (NodeType == TEXT("Http"))
+				else if (NodeType == TEXT("Cloud") || NodeType == TEXT("Http"))
 				{
 					ParsedNode = CreateHttpCacheStore(*NodeName, *Entry);
 				}
