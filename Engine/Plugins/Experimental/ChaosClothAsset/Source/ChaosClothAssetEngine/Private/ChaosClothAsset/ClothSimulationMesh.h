@@ -15,7 +15,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_AB
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 	public:
-		FClothSimulationMesh(const FChaosClothSimulationModel& InClothSimulationModel, const FClothSimulationContext& InClothSimulationContext);
+		FClothSimulationMesh(const FChaosClothSimulationModel& InClothSimulationModel, const FClothSimulationContext& InClothSimulationContext, const FString& DebugName);
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 		virtual ~FClothSimulationMesh() override = default;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -37,7 +37,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		virtual TArray<TConstArrayView<::Chaos::FRealSingle>> GetWeightMaps(int32 LODIndex) const override;
 		virtual TArray<TConstArrayView<TTuple<int32, int32, float>>> GetTethers(int32 LODIndex, bool bUseGeodesicTethers) const override;
 		virtual int32 GetReferenceBoneIndex() const override;
-		virtual ::Chaos::FRigidTransform3 GetReferenceBoneTransform() const override;
+		virtual FTransform GetReferenceBoneTransform() const override;
+		virtual const TArray<FTransform>& GetBoneTransforms() const override;
 		virtual const FTransform& GetComponentToWorldTransform() const override;
 		virtual const TArray<FMatrix44f>& GetRefToLocalMatrices() const override;
 		virtual TConstArrayView<int32> GetBoneMap() const override;

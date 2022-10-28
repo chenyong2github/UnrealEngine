@@ -3,6 +3,7 @@
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothAssetBuilder.h"
 #include "ChaosClothAsset/ClothAdapter.h"
+#include "ChaosClothAsset/ClothComponent.h"
 #include "ChaosClothAsset/ClothGeometryTools.h"
 #include "ChaosClothAsset/ClothAssetPrivate.h"
 #include "ChaosClothAsset/ClothSimulationModel.h"
@@ -68,7 +69,7 @@ void UChaosClothAsset::Serialize(FArchive& Ar)
 	Ar << GetRefSkeleton();
 	if (Ar.IsLoading())
 	{
-		const bool bRebuildNameMap = false;
+		constexpr bool bRebuildNameMap = false;
 		GetRefSkeleton().RebuildRefSkeleton(GetSkeleton(), bRebuildNameMap);
 	}
 
@@ -86,6 +87,27 @@ void UChaosClothAsset::PostLoad()
 {
 	Super::PostLoad();
 }
+
+#if WITH_EDITOR
+void UChaosClothAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UChaosClothAsset, PhysicsAsset))
+	{
+		// Recreate the simulation proxies with the updated physics asset
+		for (TObjectIterator<UChaosClothComponent> ObjectIterator; ObjectIterator; ++ObjectIterator)
+		{
+			if (UChaosClothComponent* const Component = *ObjectIterator)
+			{
+				if (Component->GetClothAsset() == this)
+				{
+					const FComponentReregisterContext Context(Component);  // Context goes out of scope, causing the Component to be re-registered
+				}
+			}
+		}
+	}
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif // #if WITH_EDITOR
 
 void UChaosClothAsset::BeginPostLoadInternal(FSkinnedAssetPostLoadContext& Context)
 {

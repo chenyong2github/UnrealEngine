@@ -24,6 +24,7 @@
 #include "Chaos/XPBDBendingConstraints.h"
 #include "Chaos/XPBDSpringConstraints.h"
 #include "DynamicMeshBuilder.h"
+#include "Engine/EngineTypes.h"
 #if WITH_EDITOR
 #include "Materials/Material.h"
 #include "Engine/Canvas.h"  // For draw text
@@ -31,9 +32,9 @@
 #include "Engine/Engine.h"  //
 #endif  // #if WITH_EDITOR
 
-namespace UE::Chaos::Cloth
+namespace Chaos
 {
-	FVisualization::FVisualization(const ::Chaos::FClothingSimulationSolver* InSolver)
+	FClothVisualization::FClothVisualization(const ::Chaos::FClothingSimulationSolver* InSolver)
 		: Solver(InSolver)
 	{
 #if WITH_EDITOR
@@ -42,24 +43,22 @@ namespace UE::Chaos::Cloth
 #endif  // #if WITH_EDITOR
 	}
 
-	FVisualization::~FVisualization() = default;
+	FClothVisualization::~FClothVisualization() = default;
 
-	void FVisualization::SetSolver(const ::Chaos::FClothingSimulationSolver* InSolver)
+	void FClothVisualization::SetSolver(const ::Chaos::FClothingSimulationSolver* InSolver)
 	{
 		Solver = InSolver;
 	}
 
 #if WITH_EDITOR
-	void FVisualization::AddReferencedObjects(FReferenceCollector& Collector)
+	void FClothVisualization::AddReferencedObjects(FReferenceCollector& Collector)
 	{
 		Collector.AddReferencedObject(ClothMaterial);
 		Collector.AddReferencedObject(ClothMaterialVertex);
 	}
 
-	void FVisualization::DrawPhysMeshShaded(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawPhysMeshShaded(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver || !ClothMaterial)
 		{
 			return;
@@ -120,10 +119,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawParticleIndices(FCanvas* Canvas, const FSceneView* SceneView) const
+	void FClothVisualization::DrawParticleIndices(FCanvas* Canvas, const FSceneView* SceneView) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -156,10 +153,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawElementIndices(FCanvas* Canvas, const FSceneView* SceneView) const
+	void FClothVisualization::DrawElementIndices(FCanvas* Canvas, const FSceneView* SceneView) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -198,10 +193,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawMaxDistanceValues(FCanvas* Canvas, const FSceneView* SceneView) const
+	void FClothVisualization::DrawMaxDistanceValues(FCanvas* Canvas, const FSceneView* SceneView) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -254,8 +247,6 @@ namespace UE::Chaos::Cloth
 
 	static void DrawPoint(FPrimitiveDrawInterface* PDI, const FVector& Pos, const FLinearColor& Color, const UMaterial* ClothMaterialVertex, const float Thickness = 1.f)  // Use color or material
 	{
-		using namespace ::Chaos;
-
 		if (!PDI)
 		{
 			FDebugDrawQueue::GetInstance().DrawDebugPoint(Pos, Color.ToFColor(true), false, KINDA_SMALL_NUMBER, SDPG_Foreground, Thickness);
@@ -278,8 +269,6 @@ namespace UE::Chaos::Cloth
 
 	static void DrawLine(FPrimitiveDrawInterface* PDI, const FVector& Pos0, const FVector& Pos1, const FLinearColor& Color)
 	{
-		using namespace ::Chaos;
-
 		if (!PDI)
 		{
 			FDebugDrawQueue::GetInstance().DrawDebugLine(Pos0, Pos1, Color.ToFColor(true), false, KINDA_SMALL_NUMBER, SDPG_Foreground, 0.f);
@@ -292,8 +281,6 @@ namespace UE::Chaos::Cloth
 
 	static void DrawArc(FPrimitiveDrawInterface* PDI, const FVector& Base, const FVector& X, const FVector& Y, ::Chaos::FReal MinAngle, float MaxAngle, ::Chaos::FReal Radius, const FLinearColor& Color)
 	{
-		using namespace ::Chaos;
-
 		static const int32 Sections = 10;
 		const FReal AngleStep = FMath::DegreesToRadians((MaxAngle - MinAngle) / (FReal)Sections);
 		FReal CurrentAngle = FMath::DegreesToRadians(MinAngle);
@@ -310,8 +297,6 @@ namespace UE::Chaos::Cloth
 
 	static void DrawSphere(FPrimitiveDrawInterface* PDI, const ::Chaos::TSphere<::Chaos::FReal, 3>& Sphere, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 	{
-		using namespace ::Chaos;
-
 		const FReal Radius = Sphere.GetRadius();
 		const FVec3 Center = Position + Rotation.RotateVector(Sphere.GetCenter());
 		if (!PDI)
@@ -327,8 +312,6 @@ namespace UE::Chaos::Cloth
 
 	static void DrawBox(FPrimitiveDrawInterface* PDI, const ::Chaos::FAABB3& Box, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 	{
-		using namespace ::Chaos;
-
 		if (!PDI)
 		{
 			const FVec3 Center = Position + Rotation.RotateVector(Box.GetCenter());
@@ -343,8 +326,6 @@ namespace UE::Chaos::Cloth
 
 	static void DrawCapsule(FPrimitiveDrawInterface* PDI, const ::Chaos::FCapsule& Capsule, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 	{
-		using namespace ::Chaos;
-
 		const FReal Radius = Capsule.GetRadius();
 		const FReal HalfHeight = Capsule.GetHeight() * 0.5f + Radius;
 		const FVec3 Center = Position + Rotation.RotateVector(Capsule.GetCenter());
@@ -367,8 +348,6 @@ namespace UE::Chaos::Cloth
 
 	static void DrawTaperedCylinder(FPrimitiveDrawInterface* PDI, const ::Chaos::FTaperedCylinder& TaperedCylinder, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 	{
-		using namespace ::Chaos;
-
 		const FReal HalfHeight = TaperedCylinder.GetHeight() * 0.5f;
 		const FReal Radius1 = TaperedCylinder.GetRadius1();
 		const FReal Radius2 = TaperedCylinder.GetRadius2();
@@ -401,8 +380,6 @@ namespace UE::Chaos::Cloth
 
 	static void DrawConvex(FPrimitiveDrawInterface* PDI, const ::Chaos::FConvex& Convex, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 	{
-		using namespace ::Chaos;
-
 		const TArray<FConvex::FPlaneType>& Planes = Convex.GetFaces();
 		for (int32 PlaneIndex1 = 0; PlaneIndex1 < Planes.Num(); ++PlaneIndex1)
 		{
@@ -450,10 +427,8 @@ namespace UE::Chaos::Cloth
 		DrawLine(PDI, Position, Position + Z, FLinearColor::Blue);
 	}
 
-	void FVisualization::DrawBounds(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawBounds(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -480,10 +455,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawGravity(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawGravity(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -505,10 +478,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawPhysMeshWired(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawPhysMeshWired(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -551,10 +522,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawAnimMeshWired(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawAnimMeshWired(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -590,10 +559,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawAnimNormals(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawAnimNormals(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -626,10 +593,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawPointNormals(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawPointNormals(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -666,10 +631,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawPointVelocities(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawPointVelocities(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -705,10 +668,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawCollision(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawCollision(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -841,10 +802,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawBackstops(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawBackstops(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -913,10 +872,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawBackstopDistances(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawBackstopDistances(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -963,10 +920,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawMaxDistances(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawMaxDistances(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -1016,10 +971,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawAnimDrive(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawAnimDrive(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -1063,8 +1016,6 @@ namespace UE::Chaos::Cloth
 
 	static void DrawSpringConstraintColors(FPrimitiveDrawInterface* PDI, const TConstArrayView<::Chaos::Softs::FSolverVec3>& Positions, const ::Chaos::FVec3& LocalSpaceLocation, const ::Chaos::Softs::FPBDSpringConstraints* const SpringConstraints)
 	{
-		using namespace ::Chaos;
-
 		check(SpringConstraints);
 
 		const TArray<TVec2<int32>>& Constraints = SpringConstraints->GetConstraints();
@@ -1107,10 +1058,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawEdgeConstraint(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawEdgeConstraint(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -1138,10 +1087,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawBendingConstraint(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawBendingConstraint(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -1207,10 +1154,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawLongRangeConstraint(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawLongRangeConstraint(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -1295,10 +1240,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawWindAndPressureForces(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawWindAndPressureForces(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -1342,10 +1285,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawLocalSpace(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawLocalSpace(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -1366,10 +1307,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawSelfCollision(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawSelfCollision(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -1429,10 +1368,8 @@ namespace UE::Chaos::Cloth
 		}
 	}
 
-	void FVisualization::DrawSelfIntersection(FPrimitiveDrawInterface* PDI) const
+	void FClothVisualization::DrawSelfIntersection(FPrimitiveDrawInterface* PDI) const
 	{
-		using namespace ::Chaos;
-
 		if (!Solver)
 		{
 			return;
@@ -1549,12 +1486,12 @@ namespace UE::Chaos::Cloth
 			}
 		}
 	}
-}  // End namespace UE::Chaos::Cloth
+}  // End namespace Chaos
 #else  // #if CHAOS_DEBUG_DRAW
-namespace UE::Chaos::Cloth
+namespace Chaos
 {
-	FVisualization::FVisualization(const ::Chaos::FClothingSimulationSolver* /*InSolver*/) {}
+	FClothVisualization::FClothVisualization(const ::Chaos::FClothingSimulationSolver* /*InSolver*/) {}
 
-	FVisualization::~FVisualization() = default;
+	FClothVisualization::~FClothVisualization() = default;
 }  // End namespace UE::Chaos::Cloth
 #endif  // #if CHAOS_DEBUG_DRAW

@@ -358,10 +358,8 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 
 	// Create collider node
 	const int32 ColliderIndex = Colliders.Emplace(MakeUnique<FClothingSimulationCollider>(
-		Asset,
-		InOwnerComponent,
-		/*bInUseLODIndexOverride =*/ false,
-		/*InLODIndexOverride =*/ INDEX_NONE));
+		Asset->PhysicsAsset,
+		&CastChecked<USkeletalMesh>(Asset->GetOuter())->GetRefSkeleton()));
 
 	// Set the external collision data to get updated at every frame
 	Colliders[ColliderIndex]->SetCollisionData(&ExternalCollisionData);

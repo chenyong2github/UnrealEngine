@@ -122,7 +122,7 @@ namespace Chaos
 
 	private:
 		// Visualization object
-		UE::Chaos::Cloth::FVisualization Visualization;
+		FClothVisualization Visualization;
 
 		// Simulation objects
 		TUniquePtr<FClothingSimulationSolver> Solver;  // Default solver

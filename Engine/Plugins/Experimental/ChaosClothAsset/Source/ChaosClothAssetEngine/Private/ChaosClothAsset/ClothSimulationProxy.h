@@ -15,6 +15,7 @@ namespace Chaos
 	class FClothingSimulationMesh;
 	class FClothingSimulationCloth;
 	class FClothingSimulationCollider;
+	class FClothVisualization;
 }
 
 class UChaosClothComponent;
@@ -79,6 +80,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_AB
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		TArray<TUniquePtr<::Chaos::FClothingSimulationCloth>> Cloths;
 		TArray<TUniquePtr<::Chaos::FClothingSimulationCollider>> Colliders;
+		TUniquePtr<::Chaos::FClothVisualization> Visualization;
 
 		// Properties that must be readable from all threads
 		std::atomic<int32> NumCloths;

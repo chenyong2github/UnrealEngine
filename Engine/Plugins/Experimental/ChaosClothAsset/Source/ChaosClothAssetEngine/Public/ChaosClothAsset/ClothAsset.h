@@ -13,6 +13,7 @@ namespace UE::Chaos::ClothAsset { class FClothCollection; }
 class FSkeletalMeshRenderData;
 class FSkeletalMeshModel;
 struct FChaosClothSimulationModel;
+struct FSkeletalMeshLODInfo;
 
 UENUM()
 enum class EClothAssetAsyncProperties : uint64
@@ -40,6 +41,9 @@ public:
 	virtual void BeginDestroy() override;
 	virtual bool IsReadyForFinishDestroy() override;
 	virtual void PostLoad() override;
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 	//~ End UObject interface
 
 	//~ Begin USkinnedAsset interface
@@ -60,7 +64,7 @@ public:
 	virtual const TArray<FSkeletalMeshLODInfo>& GetLODInfoArray() const override { return LODInfo; }
 	virtual FSkeletalMeshRenderData* GetResourceForRendering() const override;
 	virtual int32 GetDefaultMinLod() const										{ return 0; }
-	virtual UPhysicsAsset* GetPhysicsAsset() const								{ return nullptr; }
+	virtual UPhysicsAsset* GetPhysicsAsset() const								{ return PhysicsAsset; }
 	virtual TArray<FSkeletalMaterial>& GetMaterials() override					{ return Materials; }
 	virtual const TArray<FSkeletalMaterial>& GetMaterials() const override		{ return Materials; }
 	virtual int32 GetLODNum() const override									{ return LODInfo.Num(); }
@@ -172,7 +176,9 @@ private:
 	UPROPERTY(EditAnywhere, Category = Materials)
 	TArray<FSkeletalMaterial> Materials;
 
-	FBoxSphereBounds Bounds;
+	/** Physics asset used for collision. */
+	UPROPERTY(EditAnywhere, Category = Collision)
+	TObjectPtr<UPhysicsAsset> PhysicsAsset;
 
 	/** Skeleton. */
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = Skeleton)
@@ -219,7 +225,10 @@ private:
 	UPROPERTY()
 	FGuid AssetGuid;
 
-	/** mesh-space ref pose, where parent matrices are applied to ref pose matrices */
+	/** Bounds for this asset. */
+	FBoxSphereBounds Bounds;
+
+	/** Mesh-space ref pose, where parent matrices are applied to ref pose matrices. */
 	TArray<FMatrix> CachedComposedRefPoseMatrices;
 
 	/** Cloth Collection containing this asset data. */

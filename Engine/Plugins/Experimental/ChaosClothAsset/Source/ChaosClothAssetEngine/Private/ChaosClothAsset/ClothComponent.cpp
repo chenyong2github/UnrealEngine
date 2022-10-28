@@ -8,6 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "SkeletalRenderPublic.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API, Animation);
 
@@ -207,6 +208,9 @@ void UChaosClothComponent::PostLoad()
 
 void UChaosClothComponent::SetClothAsset(UChaosClothAsset* InClothAsset)
 {
+	// De-register component, and re-register it when it reaches end of scope
+	const FComponentReregisterContext ComponentReregisterContext(this);
+
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #if WITH_EDITORONLY_DATA
 	ClothAsset = InClothAsset;
@@ -226,12 +230,12 @@ void UChaosClothComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	// Set the skinned asset pointer with the alias pointer (must happen before the call to Super::PostEditChangeProperty)
 	if (const FProperty* const Property = PropertyChangedEvent.Property)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UChaosClothComponent, ClothAsset))
 		{
-			SetSkinnedAsset(ClothAsset);
+			SetClothAsset(ClothAsset);
 		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);

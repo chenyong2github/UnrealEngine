@@ -44,7 +44,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		virtual TArray<TConstArrayView<FRealSingle>> GetWeightMaps(int32 LODIndex) const override;
 		virtual TArray<TConstArrayView<TTuple<int32, int32, float>>> GetTethers(int32 LODIndex, bool bUseGeodesicTethers) const override;
 		virtual int32 GetReferenceBoneIndex() const override;
-		virtual FRigidTransform3 GetReferenceBoneTransform() const override;
+		virtual FTransform GetReferenceBoneTransform() const override;
+		virtual const TArray<FTransform>& GetBoneTransforms() const override;
 		virtual const FTransform& GetComponentToWorldTransform() const override;
 		virtual const TArray<FMatrix44f>& GetRefToLocalMatrices() const override;
 		virtual TConstArrayView<int32> GetBoneMap() const override;

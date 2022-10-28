@@ -10,7 +10,9 @@ namespace Chaos
 {
 	FClothingSimulationSkeletalMesh::FClothingSimulationSkeletalMesh(const UClothingAssetCommon* InAsset, const USkeletalMeshComponent* InSkeletalMeshComponent)
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
-		: FClothingSimulationMesh()
+		: FClothingSimulationMesh(InSkeletalMeshComponent->GetOwner() ?
+				FString::Format(TEXT("{0}|{1}"), { InSkeletalMeshComponent->GetOwner()->GetName(), InSkeletalMeshComponent->GetName() }) :
+				InSkeletalMeshComponent->GetName())
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		, Asset(InAsset)
 		, SkeletalMeshComponent(InSkeletalMeshComponent)
@@ -135,7 +137,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return Asset ? Asset->ReferenceBoneIndex : INDEX_NONE;
 	}
 
-	FRigidTransform3 FClothingSimulationSkeletalMesh::GetReferenceBoneTransform() const
+	FTransform FClothingSimulationSkeletalMesh::GetReferenceBoneTransform() const
 	{
 		if (const FClothingSimulationContextCommon* const Context = GetContext())
 		{
@@ -146,7 +148,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				BoneTransforms[ReferenceBoneIndex] * Context->ComponentToWorld :
 				Context->ComponentToWorld;
 		}
-		return FRigidTransform3::Identity;
+		return FTransform::Identity;
+	}
+
+	const TArray<FTransform>& FClothingSimulationSkeletalMesh::GetBoneTransforms() const
+	{
+		return GetContext()->BoneTransforms;
 	}
 
 	const FTransform& FClothingSimulationSkeletalMesh::GetComponentToWorldTransform() const

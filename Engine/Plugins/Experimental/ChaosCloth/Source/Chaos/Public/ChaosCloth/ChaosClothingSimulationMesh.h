@@ -30,13 +30,20 @@ namespace Chaos
 #endif
 	{
 	public:
-		FClothingSimulationMesh();
+		explicit FClothingSimulationMesh(const FString& InDebugName);
+
 		virtual ~FClothingSimulationMesh();
 
 		FClothingSimulationMesh(const FClothingSimulationMesh&) = delete;
 		FClothingSimulationMesh(FClothingSimulationMesh&&) = delete;
 		FClothingSimulationMesh& operator=(const FClothingSimulationMesh&) = delete;
 		FClothingSimulationMesh& operator=(FClothingSimulationMesh&&) = delete;
+
+#if !UE_BUILD_SHIPPING
+		const FString& GetDebugName() const { return DebugName; }
+#else
+		const FString& GetDebugName() const { return FText::GetEmpty().ToString(); }
+#endif
 
 #if !defined(CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT) || !CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 		UE_DEPRECATED(5.2, "Use the FClothingSimulationSkeletalMesh constructor instead.")
@@ -57,7 +64,8 @@ namespace Chaos
 		virtual TArray<TConstArrayView<FRealSingle>> GetWeightMaps(int32 LODIndex) const;
 		virtual TArray<TConstArrayView<TTuple<int32, int32, float>>> GetTethers(int32 LODIndex, bool bUseGeodesicTethers) const;
 		virtual int32 GetReferenceBoneIndex() const;
-		virtual FRigidTransform3 GetReferenceBoneTransform() const;
+		virtual FTransform GetReferenceBoneTransform() const;
+		virtual const TArray<FTransform>& GetBoneTransforms() const;
 		virtual const FTransform& GetComponentToWorldTransform() const;
 		virtual const TArray<FMatrix44f>& GetRefToLocalMatrices() const;
 		virtual TConstArrayView<int32> GetBoneMap() const;
@@ -65,7 +73,6 @@ namespace Chaos
 		virtual TConstArrayView<FMeshToMeshVertData> GetTransitionUpSkinData(int32 LODIndex) const;
 		virtual TConstArrayView<FMeshToMeshVertData> GetTransitionDownSkinData(int32 LODIndex) const;
 #else
-		// ---- Cloth interface ----
 		/* Return the number of LODs on this mesh. */
 		virtual int32 GetNumLODs() const = 0;
 
@@ -100,7 +107,10 @@ namespace Chaos
 		virtual int32 GetReferenceBoneIndex() const = 0;
 
 		/* Return the transform of the bone treated as the root of the simulation space. */
-		virtual FRigidTransform3 GetReferenceBoneTransform() const = 0;
+		virtual FTransform GetReferenceBoneTransform() const = 0;
+
+		/* Return the bone transforms as required when updating the collider pose. */
+		const TArray<FTransform>& GetBoneTransforms() const = 0;
 
 		/* Return the transform of the bone treated as the root of the simulation space. */
 		virtual const FTransform& GetComponentToWorldTransform() const = 0;
@@ -163,6 +173,11 @@ namespace Chaos
 
 		const UClothingAssetCommon* Asset;
 		const USkeletalMeshComponent* SkeletalMeshComponent;
+#endif
+
+#if !UE_BUILD_SHIPPING
+		/** Debug name of the source component. */
+		FString DebugName;
 #endif
 	};
 } // namespace Chaos

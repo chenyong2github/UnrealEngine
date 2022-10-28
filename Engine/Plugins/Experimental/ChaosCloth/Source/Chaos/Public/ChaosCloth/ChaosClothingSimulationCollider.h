@@ -7,7 +7,9 @@
 
 class USkeletalMeshComponent;
 class UClothingAssetCommon;
+class UPhysicsAsset;
 class FClothingSimulationContextCommon;
+struct FReferenceSkeleton;
 
 namespace Chaos
 {
@@ -28,11 +30,15 @@ namespace Chaos
 			LODs,  // LODIndex based start slot for LODs collisions
 		};
 
+		FClothingSimulationCollider(const UPhysicsAsset* InPhysicsAsset, const FReferenceSkeleton* InReferenceSkeleton);
+
+		UE_DEPRECATED(5.2, "Use FClothingSimulationCollider(const UPhysicsAsset* InPhysicsAsset, const FReferenceSkeleton* InReferenceSkeleton) instead.")
 		FClothingSimulationCollider(
 			const UClothingAssetCommon* InAsset,  // Cloth asset for collision data, can be nullptr
 			const USkeletalMeshComponent* InSkeletalMeshComponent,  // For asset LODs management, can be nullptr
 			bool bInUseLODIndexOverride,
 			int32 InLODIndexOverride);
+
 		~FClothingSimulationCollider();
 
 		FClothingSimulationCollider(const FClothingSimulationCollider&) = delete;
@@ -99,18 +105,17 @@ namespace Chaos
 
 		struct FLODData;
 
-		const UClothingAssetCommon* Asset;
-		const USkeletalMeshComponent* SkeletalMeshComponent;
-		const FClothCollisionData* CollisionData;
-		bool bUseLODIndexOverride;
-		int32 LODIndexOverride;
-		bool bHasExternalCollisionChanged;
+		const UPhysicsAsset* PhysicsAsset = nullptr;
+		const FReferenceSkeleton* ReferenceSkeleton = nullptr;
+		const FClothCollisionData* CollisionData = nullptr;  // External collision data
+
+		bool bHasExternalCollisionChanged = false;
 
 		// Collision primitives
 		TArray<TUniquePtr<FLODData>> LODData;  // Actual LODs start at ECollisionDataType::LODs
 		TMap<FSolverClothPair, int32> LODIndices;
 
 		// Initial scale
-		FReal Scale;
+		FReal Scale = 1.f;
 	};
 } // namespace Chaos

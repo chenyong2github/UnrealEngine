@@ -16,18 +16,15 @@ class UMaterial;
 namespace Chaos
 {
 	class FClothingSimulationSolver;
-}
 
-namespace UE::Chaos::Cloth
-{
-	class CHAOSCLOTH_API FVisualization
+	class CHAOSCLOTH_API FClothVisualization
 #if WITH_EDITOR
 		: public FGCObject  // Add garbage collection for cloth material
 #endif  // #if WITH_EDITOR
 	{
 	public:
-		explicit FVisualization(const ::Chaos::FClothingSimulationSolver* InSolver = nullptr);
-		virtual ~FVisualization();
+		explicit FClothVisualization(const ::Chaos::FClothingSimulationSolver* InSolver = nullptr);
+		virtual ~FClothVisualization();
 
 #if CHAOS_DEBUG_DRAW
 		// Editor & runtime functions

@@ -9,6 +9,7 @@
 #include "ChaosCloth/ChaosClothingSimulationCloth.h"
 #include "ChaosCloth/ChaosClothingSimulationCollider.h"
 #include "ChaosCloth/ChaosClothingSimulationSolver.h"
+#include "ChaosCloth/ChaosClothVisualization.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 
 #if INTEL_ISPC
@@ -84,6 +85,7 @@ namespace UE::Chaos::ClothAsset
 	FClothSimulationProxy::FClothSimulationProxy(const UChaosClothComponent& InClothComponent)
 		: ClothComponent(InClothComponent)
 		, Solver(MakeUnique<::Chaos::FClothingSimulationSolver>())
+		, Visualization(MakeUnique<::Chaos::FClothVisualization>(Solver.Get()))
 		, MaxDeltaTime(UPhysicsSettings::Get()->MaxPhysicsDeltaTime)
 	{
 		using namespace ::Chaos;
@@ -96,16 +98,26 @@ namespace UE::Chaos::ClothAsset
 
 		// Create mesh node
 		const UChaosClothAsset* const ClothAsset = ClothComponent.GetClothAsset();
-		const FChaosClothSimulationModel* const ClothSimulationModel = ClothAsset ? ClothAsset->GetClothSimulationModel() : nullptr;
+		if (!ClothAsset)
+		{
+			return;
+		}
+		const FChaosClothSimulationModel* const ClothSimulationModel = ClothAsset->GetClothSimulationModel();
 		check(ClothSimulationModel);
-		const int32 MeshIndex = Meshes.Emplace(MakeUnique<FClothSimulationMesh>(*ClothSimulationModel, ClothSimulationContext));
+
+		FString DebugName;
+#if !UE_BUILD_SHIPPING
+		DebugName = ClothComponent.GetOwner() ?
+			FString::Format(TEXT("{0}|{1}"), { ClothComponent.GetOwner()->GetName(), ClothComponent.GetName() }) :
+			ClothComponent.GetName();
+#endif
+		const int32 MeshIndex = Meshes.Emplace(MakeUnique<FClothSimulationMesh>(*ClothSimulationModel, ClothSimulationContext, DebugName));
 
 		// Create collider node
-		const int32 ColliderIndex = Colliders.Emplace(MakeUnique<FClothingSimulationCollider>(
-			nullptr,
-			nullptr,  // TODO: Cloth Asset Mesh 
-			/*bInUseLODIndexOverride =*/ false,
-			/*InLODIndexOverride =*/ INDEX_NONE));
+PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
+		const FReferenceSkeleton* const ReferenceSkeleton = &ClothAsset->GetRefSkeleton();
+		const int32 ColliderIndex = ClothComponent.GetPhysicsAsset() ? Colliders.Emplace(MakeUnique<FClothingSimulationCollider>(ClothComponent.GetPhysicsAsset(), ReferenceSkeleton)) : INDEX_NONE;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		//// Set the external collision data to get updated at every frame
 		//Colliders[ColliderIndex]->SetCollisionData(&ExternalCollisionData);
@@ -115,7 +127,7 @@ namespace UE::Chaos::ClothAsset
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
 			Meshes[MeshIndex].Get(),
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			TArray<FClothingSimulationCollider*>({ Colliders[ColliderIndex].Get() }),
+			ColliderIndex != INDEX_NONE ? TArray<FClothingSimulationCollider*>({ Colliders[ColliderIndex].Get() }) : TArray<FClothingSimulationCollider*>(),
 			0,
 			FClothingSimulationCloth::EMassMode::Density,  //	(FClothingSimulationCloth::EMassMode)ClothConfig->MassMode,
 			0.35f,  //	ClothConfig->GetMassValue(),
@@ -239,6 +251,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		const float CurrSimulationTime = (float)((FPlatformTime::Seconds() - StartTime) * 1000.);
 		static const float SimulationTimeDecay = 0.03f; // 0.03 seems to provide a good rate of update for the instant average
 		SimulationTime = PrevSimulationTime ? PrevSimulationTime + (CurrSimulationTime - PrevSimulationTime) * SimulationTimeDecay : CurrSimulationTime;
+
+		// Visualization
+		Visualization->DrawPhysMeshWired();
+		Visualization->DrawCollision();
 	}
 
 	void FClothSimulationProxy::CompleteParallelSimulation_GameThread()

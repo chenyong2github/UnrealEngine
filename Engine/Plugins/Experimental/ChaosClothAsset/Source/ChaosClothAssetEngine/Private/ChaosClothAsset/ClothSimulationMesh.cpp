@@ -8,9 +8,9 @@
 
 namespace UE::Chaos::ClothAsset
 {
-	FClothSimulationMesh::FClothSimulationMesh(const FChaosClothSimulationModel& InClothSimulationModel, const FClothSimulationContext& InClothSimulationContext)
+	FClothSimulationMesh::FClothSimulationMesh(const FChaosClothSimulationModel& InClothSimulationModel, const FClothSimulationContext& InClothSimulationContext, const FString& DebugName)
 PRAGMA_DISABLE_DEPRECATION_WARNINGS  // TODO: CHAOS_IS_CLOTHINGSIMULATIONMESH_ABSTRACT
-		: ::Chaos::FClothingSimulationMesh()
+		: ::Chaos::FClothingSimulationMesh(DebugName)
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		, ClothSimulationModel(InClothSimulationModel)
 		, ClothSimulationContext(InClothSimulationContext)
@@ -74,7 +74,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		return ClothSimulationModel.ReferenceBoneIndex;
 	}
 
-	::Chaos::FRigidTransform3 FClothSimulationMesh::GetReferenceBoneTransform() const
+	FTransform FClothSimulationMesh::GetReferenceBoneTransform() const
 	{
 		// TODO: Leader pose component (see FClothingSimulationContextCommon::FillBoneTransforms)
 		const TArray<FTransform>& BoneTransforms = ClothSimulationContext.BoneTransforms;
@@ -84,6 +84,12 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			return BoneTransforms[ClothSimulationModel.ReferenceBoneIndex] * GetComponentToWorldTransform();
 		}
 		return GetComponentToWorldTransform();
+	}
+
+	const TArray<FTransform>& FClothSimulationMesh::GetBoneTransforms() const
+	{
+		// TODO: Leader pose component (see FClothingSimulationContextCommon::FillBoneTransforms)
+		return ClothSimulationContext.BoneTransforms;
 	}
 
 	const FTransform& FClothSimulationMesh::GetComponentToWorldTransform() const
