@@ -10,16 +10,16 @@
 
 FGLTFJsonLight* FGLTFLightConverter::Convert(const ULightComponent* LightComponent)
 {
-	FGLTFJsonLight* Light = Builder.AddLight();
-
-	Light->Name = FGLTFNameUtility::GetName(LightComponent);
-	Light->Type = FGLTFCoreUtilities::ConvertLightType(LightComponent->GetLightType());
-
-	if (Light->Type == EGLTFJsonLightType::None)
+	const EGLTFJsonLightType Type = FGLTFCoreUtilities::ConvertLightType(LightComponent->GetLightType());
+	if (Type == EGLTFJsonLightType::None)
 	{
 		// TODO: report error (unsupported light component type)
 		return nullptr;
 	}
+
+	FGLTFJsonLight* Light = Builder.AddLight();
+	Light->Name = FGLTFNameUtility::GetName(LightComponent);
+	Light->Type = Type;
 
 	Light->Intensity = LightComponent->Intensity;
 
