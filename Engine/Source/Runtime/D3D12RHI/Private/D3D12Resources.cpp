@@ -1007,8 +1007,6 @@ void FD3D12ResourceBarrierBatcher::AddAliasingBarrier(ID3D12Resource* InResource
 
 void FD3D12ResourceBarrierBatcher::FlushIntoCommandList(FD3D12CommandList& CommandList, FD3D12QueryAllocator& TimestampAllocator)
 {
-	int32 const BarrierBatchMax = FD3D12DynamicRHI::GetResourceBarrierBatchSizeLimit();
-
 	auto InsertTimestamp = [&](ED3D12QueryType Type)
 	{
 		CommandList.EndQuery(TimestampAllocator.Allocate(Type, nullptr));
@@ -1020,8 +1018,7 @@ void FD3D12ResourceBarrierBatcher::FlushIntoCommandList(FD3D12CommandList& Comma
 		bool const bIdle = Barriers[BatchEnd].HasIdleFlag();
 
 		while (BatchEnd < Barriers.Num() 
-			&& bIdle == Barriers[BatchEnd].HasIdleFlag() 
-			&& (BatchEnd - BatchStart) < BarrierBatchMax)
+			&& bIdle == Barriers[BatchEnd].HasIdleFlag())
 		{
 			// Clear the idle flag since its not a valid D3D bit.
 			Barriers[BatchEnd++].ClearIdleFlag();
