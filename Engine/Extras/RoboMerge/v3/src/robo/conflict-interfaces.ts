@@ -23,7 +23,9 @@ export interface PersistentConflict {
 	kind: FailureKind
 	time: Date
 
-	nagged: boolean
+	nagCount: number
+	lastNagTime?: Date
+
 	ugsIssue: number
 
 	resolution?: Resolution

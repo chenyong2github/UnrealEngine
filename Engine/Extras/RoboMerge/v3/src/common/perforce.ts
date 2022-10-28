@@ -225,7 +225,7 @@ export interface Change {
 	isUserRequest?: boolean;
 	ignoreExcludedAuthors?: boolean
 	forceCreateAShelf?: boolean
-	sendNoShelfEmail?: boolean // Used for requesting stomps for internal RM usage, such as stomp changes
+	sendNoShelfNotification?: boolean // Used for requesting stomps for internal RM usage, such as stomp changes
 	commandOverride?: string
 	accumulateCommandOverride?: boolean
 

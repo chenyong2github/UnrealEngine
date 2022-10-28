@@ -18,9 +18,6 @@ import { DummySlackApp } from '../common/dummyslackserver'
 
 const notificationsStartupLogger = new ContextualLogger('Notifications Startup')
 
-// var to enable DMs on blockage
-const DIRECT_MESSAGING_ENABLED = true
-
 export const NOTIFICATIONS_PERSISTENCE_KEY = 'notifications'
 export const SLACK_MESSAGES_PERSISTENCE_KEY = 'slackMessages'
 const CHANGELIST_FIELD_TITLE = 'Change'
@@ -71,7 +68,7 @@ export function isUserAKnownBot(user: string) {
 
 
 export async function postToRobomergeAlerts(message: string) {
-	// 'CBGFJQEN6' is #robomerge_alerts
+	// 'C044ZUSS71S' is #dt-robomerge-alert-ext
 	if (!args.devMode) {
 		return postMessageToChannel(message, 'C044ZUSS71S')
 	}
@@ -212,7 +209,7 @@ type SlackConflictMessage = {
 type PersistedSlackMessages = {[key: string]: SlackConflictMessage}
 
 /** Wrapper around Slack, keeping track of messages keyed on target branch and source CL */
-class SlackMessages {
+export class SlackMessages {
 	private readonly smLogger: ContextualLogger
 	constructor(private slack: Slack, private persistence: Context, parentLogger: ContextualLogger) {
 		this.smLogger = parentLogger.createChild('SlackMsgs')
@@ -266,7 +263,24 @@ class SlackMessages {
 		}
 	}
 
-	async postDM(emailAddress: string, sourceCl: number, branchArg: BranchArg, dm: SlackMessage, persistMessage = true) {
+	async postReply(sourceCl: number, branchArg: BranchArg, message: SlackMessage) {
+		const findResult = this.find(sourceCl, branchArg, message.channel)
+
+		if (findResult.messageRecord) {
+			try {
+				await this.slack.reply(findResult.messageRecord.timestamp, message)
+			}
+			catch (err) {
+				console.error('Error updating message in Slack! ' + err.toString())
+				return
+			}
+		}
+		else {
+			this.smLogger.error(`Failed to find message record for ${sourceCl}:${branchArg}:${message.channel}`)
+		}
+	}
+
+	async postDM(emailAddress: string|null, sourceCl: number, branchArg: BranchArg, dm: SlackMessage, persistMessage = true) {
 		// The Slack API requires a user ID to open a direct message with users.
 		// The most consistent way to do this is getting their email address out of P4.
 		if (!emailAddress) {
@@ -274,10 +288,9 @@ class SlackMessages {
 			return
 		}
 
-		// With their email address, we can get their user ID via Slack API
 		let userId : string
 		try {
-			userId = (await this.slack.lookupUserIdByEmail(emailAddress.toLowerCase()))
+			userId = (await this.getSlackUser(emailAddress))
 		} catch (err) {
 			this.smLogger.printException(err, `Failed to get user ID for Slack DM, given email address "${emailAddress}" for CL ${sourceCl}`)
 			return
@@ -341,6 +354,21 @@ class SlackMessages {
 		.catch(err => console.error('Error posting non-conflict to Slack! ' + err.toString()))
 	}
 
+	async addUserToChannel(emailAddress: string, channel: string)
+	{
+		const user = await this.getSlackUser(emailAddress)
+		const result = await this.slack.addUserToChannel(user, channel)
+		if (!result.ok && result.error !== "already_in_channel") {
+			this.smLogger.error(`Error inviting ${emailAddress} (${user}) to channel ${channel}: ${result.error}`)
+		}
+	}
+
+	// With their email address, we can get their user ID via Slack API
+	getSlackUser(emailAddress: string) {
+		
+		return this.slack.lookupUserIdByEmail(emailAddress.toLowerCase())
+	}
+
 	private doHouseKeeping(messages: PersistedSlackMessages) {
 		const nowTicks = Date.now() / 1000.
 
@@ -373,29 +401,25 @@ export class BotNotifications implements BotEventHandler {
 	private readonly botNotificationsLogger : ContextualLogger
 	slackChannel: string;
 
-	constructor(private botname: string, slackChannel: string, persistence: Context, externalUrl: string, 
+	constructor(private botname: string, slackChannel: string, externalUrl: string, 
 		blockageUrlGenerator: NodeOpUrlGenerator, parentLogger: ContextualLogger,
-		slackChannelOverrides?: [Branch, Branch, string, boolean][]) {
+		slackMessages?: SlackMessages, slackChannelOverrides?: [Branch, Branch, string, boolean][]) {
 		this.botNotificationsLogger = parentLogger.createChild('Notifications')
 		// Hacky way to dynamically change the URL for notifications
 		this.externalRobomergeUrl = externalUrl
 		this.slackChannel = slackChannel
+		this.slackMessages = slackMessages
 		this.blockageUrlGenerator = blockageUrlGenerator
 
-		const botToken = args.devMode && SLACK_DEV_DUMMY_TOKEN || SLACK_TOKENS.bot
-		if (botToken && slackChannel) {
-			this.botNotificationsLogger.info('Enabling Slack messages for ' + botname)
-			this.slackMessages = new SlackMessages(new Slack({id: slackChannel, botToken}, args.slackDomain), persistence, this.botNotificationsLogger)
-			if (slackChannelOverrides) {
-				this.additionalBlockChannelIds = new Map(slackChannelOverrides
-					.filter(
-						([_1, _2, channel, _3]) => channel !== slackChannel
-					)
-					.map(
-						([source, target, channel, postOnlyToChannel]) => [`${source.upperName}|${target.upperName}`, [channel, postOnlyToChannel]]
-					)
+		if (slackMessages && slackChannelOverrides) {
+			this.additionalBlockChannelIds = new Map(slackChannelOverrides
+				.filter(
+					([_1, _2, channel, _3]) => channel !== slackChannel
 				)
-			}
+				.map(
+					([source, target, channel, postOnlyToChannel]) => [`${source.upperName}|${target.upperName}`, [channel, postOnlyToChannel]]
+				)
+			)
 		}
 	}
 
@@ -428,9 +452,8 @@ export class BotNotifications implements BotEventHandler {
 		}
 		const issue = blockage.failure.kind.toLowerCase()
 
-		// If we get the user's email, we shouldn't ALSO ping them in the channel.
 		const userEmail = await blockage.ownerEmail
-		const channelPing = userEmail ? blockage.owner : `@${blockage.owner}`
+		const channelPing = `@${blockage.owner}`
 
 		const isBotUser = isUserAKnownBot(blockage.owner)
 		const text =
@@ -458,21 +481,43 @@ export class BotNotifications implements BotEventHandler {
 			if (additionalChannelInfo) {
 				const [sideChannel, postOnlyToSideChannel] = additionalChannelInfo
 				if (!postOnlyToSideChannel) {
+					if (userEmail) {
+						this.slackMessages.addUserToChannel(userEmail, message.channel)
+					}
 					this.slackMessages.postOrUpdate(changeInfo.source_cl, targetBranch.name, message)
+				}
+				if (userEmail) {
+					this.slackMessages.addUserToChannel(userEmail, sideChannel)
 				}
 				this.slackMessages.postOrUpdate(changeInfo.source_cl, targetBranch.name, { ...message, channel: sideChannel })
 			}
 			else {
+				if (userEmail) {
+					this.slackMessages.addUserToChannel(userEmail, message.channel)
+				}
 				this.slackMessages.postOrUpdate(changeInfo.source_cl, targetBranch.name, message)
 			}
 		}
 		else {
+
+			if (userEmail) {
+				this.slackMessages.addUserToChannel(userEmail, message.channel)
+			}
+
 			// separate message for syntax errors (other blockages have a target branch)
 			this.slackMessages.postOrUpdate(changeInfo.source_cl, blockage.failure.kind, message)
+
+			let syntaxErrorMessage: SlackMessage = {
+				text: blockage.failure.description,
+				channel: message.channel,
+				mrkdwn: false
+			}
+			
+			this.slackMessages.postReply(changeInfo.source_cl, blockage.failure.kind, syntaxErrorMessage)
 		}
 
 		// Post message to owner in DM
-		if (DIRECT_MESSAGING_ENABLED && !isBotUser && targetBranch && userEmail) {
+		if (!isBotUser && targetBranch && userEmail) {
 			let dm: SlackMessage
 			if (blockage.approval) {
 				dm = {
@@ -573,33 +618,39 @@ export class BotNotifications implements BotEventHandler {
 	}
 
 	sendTestMessage(username : string) {
-		let text = `${username}, please resolve the following test message:\n(source CL: 0, conflict CL: 1, shelf CL: 2)`
 
-		// This doesn't need to be a full Blockage -- just enough to generate required info for message
-		const testBlockage: Blockage = {
-			action: {
-				branch: {
-					name: "TARGET_BRANCH",
-				} as Branch,
-			} as MergeAction,
-			failure: {
-				kind: "Merge conflict",
-				description: ""
-			}
-		} as Blockage
+		if (this.slackMessages) {
+			let text = `${username}, please resolve the following test message:\n(source CL: 0, conflict CL: 1, shelf CL: 2)`
 
-		const messageOpts = this.makeSlackDirectMessage(text, 0, 1, "TARGETBRANCH",
-			NodeBot.getBlockageUrls(
-				testBlockage,
-				this.externalRobomergeUrl,
-				"TEST",
-				"SOURCE_BRANCH",
-				"0",
-				false
+			// This doesn't need to be a full Blockage -- just enough to generate required info for message
+			const testBlockage: Blockage = {
+				action: {
+					branch: {
+						name: "TARGET_BRANCH",
+					} as Branch,
+				} as MergeAction,
+				failure: {
+					kind: "Merge conflict",
+					description: ""
+				}
+			} as Blockage
+
+			const messageOpts = this.makeSlackDirectMessage(text, 0, 1, "TARGETBRANCH",
+				NodeBot.getBlockageUrls(
+					testBlockage,
+					this.externalRobomergeUrl,
+					"TEST",
+					"SOURCE_BRANCH",
+					"0",
+					false
+				)
 			)
-		)
 
-		this.slackMessages!.postDM(`${username}@companyname.com`, 0, "TARGETBRANCH", messageOpts, false)
+			this.slackMessages.postDM(`${username}@companyname.com`, 0, "TARGETBRANCH", messageOpts, false)
+		}
+		else {
+			this.botNotificationsLogger.error(`Slack not enabled. Unable to send test message to ${username}`)
+		}
 	}
 
 	sendGenericNonConflictMessage(message: string) {
@@ -688,7 +739,7 @@ export class BotNotifications implements BotEventHandler {
 
 		// Append footer
 		attachCollection.push({
-			pretext: "You can get help via the Slack channel <#C9321FLTU> (if you don't have access to 'robomerge-help', please contact the IT helpdesk)",
+			pretext: "You can get help via the Slack channel <#C044ZUNF9MJ> (if you don't have access to '#dt-robomerge-help-ext', please contact the IT helpdesk)",
 			mrkdwn_in: ["pretext"]
 		})
 
@@ -854,9 +905,19 @@ export class BotNotifications implements BotEventHandler {
 
 export function bindBotNotifications(events: BotEvents, slackChannelOverrides: [Branch, Branch, string, boolean][], persistence: Context, blockageUrlGenerator: NodeOpUrlGenerator, 
 	externalUrl: string, logger: ContextualLogger) {
-	events.registerHandler(new BotNotifications(events.botname, events.botConfig.slackChannel, persistence, externalUrl, blockageUrlGenerator, logger, slackChannelOverrides))
-}
 
+	let slackMessages
+
+	const botToken = args.devMode && SLACK_DEV_DUMMY_TOKEN || SLACK_TOKENS.bot
+	if (botToken && events.botConfig.slackChannel) {
+		logger.info('Enabling Slack messages for ' +  events.botname)
+		slackMessages = new SlackMessages(new Slack({id: events.botConfig.slackChannel, botToken}, args.slackDomain), persistence, logger)
+	}
+		
+	events.registerHandler(new BotNotifications(events.botname, events.botConfig.slackChannel, externalUrl, blockageUrlGenerator, logger, slackMessages, slackChannelOverrides))
+
+	return slackMessages
+}
 
 export function runTests(parentLogger: ContextualLogger) {
 	const unitTestLogger = parentLogger.createChild('Notifications')
@@ -871,7 +932,7 @@ export function runTests(parentLogger: ContextualLogger) {
 		kind: 'Unit Test error',
 
 		time: new Date,
-		nagged: false,
+		nagCount: 0,
 		ugsIssue: -1,
 
 		resolution: 'pickled' as Resolution

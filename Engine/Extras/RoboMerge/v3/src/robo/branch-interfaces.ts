@@ -124,7 +124,7 @@ export interface TargetInfo {
 	author: string
 
 	targetWorkspaceForShelf?: string // Filled in during the reconsider in case of a createShelf nodeop request
-	sendNoShelfEmail: boolean // Used for internal use shelves, such as stomp changes
+	sendNoShelfNotification: boolean // Used for internal use shelves, such as stomp changes
 
 	forceStompChanges: boolean
 	additionalDescriptionText?: string

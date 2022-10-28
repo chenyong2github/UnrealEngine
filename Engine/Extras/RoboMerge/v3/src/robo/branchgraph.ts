@@ -54,8 +54,7 @@ if (botname === '__TEST__') {
 	private propagateBotPropertiesToNodes() {
 		const propertiesToPropagate: [keyof BotConfig, keyof NodeOptions, ConfigBlendMode | null][] = [
 			['excludeAuthors', 'excludeAuthors', 'override'],
-			['badgeUrlOverride', 'badgeUrlOverride', 'override'],
-
+			['badgeUrlOverride', 'badgeUrlOverride', 'override']
 		]
 
 		for (const [nameInBot, nameInNode, blendMode] of propertiesToPropagate) {
@@ -239,6 +238,9 @@ if (botname === '__TEST__') {
 			enabled: !options.disabled,
 			allowDeadend: !options.disallowDeadend,
 			resolver: options.resolver || null,
+			triager: options.triager || null,
+			nagSchedule: options.nagSchedule || null,
+			nagWhenBlocked: options.nagWhenBlocked || null,
 			convertIntegratesToEdits: (options.integrationMethod || this.config.defaultIntegrationMethod) === IntegrationMethod.CONVERT_TO_EDIT,
 			visibility: options.visibility || this.config.visibility,
 			get isMonitored() { return !!(this.bot && this.bot.isRunning) }

@@ -35,7 +35,7 @@ function makePersistentConflict(blockage: Blockage): PersistentConflict {
 		owner: blockage.owner,
 		kind: blockage.failure.kind,
 		time: blockage.time,
-		nagged: false,
+		nagCount: 0,
 		ugsIssue: -1
 	}
 
@@ -104,6 +104,10 @@ export class Conflicts {
 		if (conflictsToLoad) {
 			for (const conflict of conflictsToLoad) {
 				conflict.time = new Date(conflict.time)
+				if (conflict.lastNagTime) {
+					conflict.lastNagTime = new Date(conflict.lastNagTime)
+				}
+				conflict.nagCount = conflict.nagCount || 0 // back compat for nag changes
 				this.conflicts.push(conflict)
 			}
 		}
@@ -184,7 +188,8 @@ export class Conflicts {
 					replacement.acknowledger = acknowledger
 					replacement.acknowledgedAt = conflict.acknowledgedAt
 				}
-				replacement.nagged = conflict.nagged
+				replacement.nagCount = conflict.nagCount
+				replacement.lastNagTime = conflict.lastNagTime
 				replacement.ugsIssue = conflict.ugsIssue
 
 				this.conflicts[index] = replacement

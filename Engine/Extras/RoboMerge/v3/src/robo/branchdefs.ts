@@ -18,6 +18,9 @@ export interface BotConfig {
 	isDefaultBot: boolean
 	noStreamAliases: boolean
 	globalNotify: string[]
+	nagWhenBlocked: boolean | null
+	nagSchedule: number[] | null
+	triager: string | null
 	checkIntervalSecs: number
 	excludeAuthors: string[]
 	emailOnBlockage: boolean
@@ -44,6 +47,9 @@ const branchBasePrototype = {
 	forceFlowTo: [''],
 	defaultFlow: [''],
 	resolver: '' as string | null,
+	triager: '' as string | null,
+	nagWhenBlocked: false as boolean | null,
+	nagSchedule: [] as number[] | null,
 	aliases: [''],
 	badgeProject: '' as string | null,
 }
@@ -137,6 +143,10 @@ const edgeOptionFieldsPrototype = {
 	postOnlyToAdditionalChannel: false,
 
 	resolver: '',
+	triager: '',
+
+	nagSchedule: [],
+	nagWhenBlocked: true,
 
 	terminal: false, // changes go along terminal edges but no further
 
@@ -256,6 +266,9 @@ export class BranchDefs {
 			isDefaultBot: false,
 			noStreamAliases: false,
 			globalNotify: [],
+			triager: null,
+			nagSchedule: null,
+			nagWhenBlocked: null,
 			emailOnBlockage: true,
 			checkIntervalSecs: 30.0,
 			excludeAuthors: [],

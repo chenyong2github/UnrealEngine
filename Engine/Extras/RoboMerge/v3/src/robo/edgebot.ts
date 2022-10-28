@@ -536,7 +536,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			case 'no_files': {
 				const msg = `Change ${to_integrate} was not necessary in ${this.targetBranch.name}`
 				const event: AlreadyIntegrated = {change: info, action: target}
-				this.sourceNode.onAlreadyIntegrated(msg, event)
+				this.sourceNode.onAlreadyIntegrated(event)
 
 				// integration not necessary
 				this.edgeBotLogger.info(msg)
@@ -576,7 +576,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		}
 
 		// Send to source node to facilitate notification handling
-		if (this.sourceNode.handleMergeFailure(failure, pending)) {
+		if (await this.sourceNode.handleMergeFailure(failure, pending)) {
 			this.gate.onBlockage()
 		}
 		return new EdgeIntegrationDetails('error', errors.join('\n'))
@@ -623,8 +623,8 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			// the user requested manual merge
 			await this.shelveChangelist(pending)
 
-			if (!pending.change.sendNoShelfEmail) {
-				this.sourceNode.emailShelfRequester(pending)
+			if (!pending.change.sendNoShelfNotification) {
+				await this.sourceNode.notifyShelfRequester(pending)
 			}
 			
 			return new EdgeIntegrationDetails('shelved', pending.newCl)
@@ -660,14 +660,22 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			// or lock a test stream and try to commit
 			// then look for error message in result.message
 			if (!this.options.approval) {
-				failure = { kind: 'Commit failure', description: result.message }
+
+				let summary: string | undefined
+				const match = result.message.match(/.*STDERR:([^]*)STDOUT:/)
+				if (match)
+				{
+					summary = match[1].trim()
+				}
+
+				failure = { kind: 'Commit failure', description: result.message, summary }
 			}
 		}
 
 		// no failure set means the change needs approval
 		if (failure) {
 			await this.handlePostIntegrationFailure(failure, pending)
-			this.sourceNode.handleMergeFailure(failure, pending, true)
+			await this.sourceNode.handleMergeFailure(failure, pending, true)
 		}
 		else {
 			const approval = this.options.approval!
@@ -820,7 +828,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 			pending.newCl = -1
 
-			this.sourceNode._sendError(recipients, `Error merging ${pending.change.source_cl} to ${this.targetBranch.name}`, final_desc)
+			this.sourceNode.sendErrorEmail(recipients, `Error merging ${pending.change.source_cl} to ${this.targetBranch.name}`, final_desc)
 			return
 		}
 

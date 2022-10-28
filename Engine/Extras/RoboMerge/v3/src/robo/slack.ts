@@ -69,6 +69,10 @@ export class Slack {
 	constructor(private channel: SlackChannel, private domain: string) {
 	}
 
+	async addUserToChannel(user: string, channel: string) {
+		return this.post('conversations.invite', {channel: channel, users:user,}, true)
+	}
+
 	async postMessage(message: SlackMessage) {
 		return (await this.post('chat.postMessage', this.makeArgs(message))).ts
 	}
@@ -109,7 +113,7 @@ export class Slack {
 		return (await this.post('conversations.open', {token: this.channel.botToken, users})).channel.id
 	}
 
-	/*private*/ async post(command: string, args: any) {
+	/*private*/ async post(command: string, args: any, canFail? : boolean) {
 		const resultJson = await request.post({
 			url: this.domain + '/api/' + command,
 			body: JSON.stringify(args),
@@ -118,7 +122,7 @@ export class Slack {
 		})
 		try {
 			const result = JSON.parse(resultJson)
-			if (result.ok) {
+			if (result.ok || canFail) {
 				return result
 			}
 		}

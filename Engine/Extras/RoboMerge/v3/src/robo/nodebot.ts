@@ -6,16 +6,18 @@ import { ContextualLogger } from '../common/logger';
 import { Mailer, MailParams, Recipients } from '../common/mailer';
 import { Change, ConflictedResolveNFile, PerforceContext, RoboWorkspace, coercePerforceWorkspace } from '../common/perforce';
 import { IPCControls, NodeBotInterface, QueuedChange, ReconsiderArgs } from './bot-interfaces';
-import { ApprovalOptions } from './branchdefs'
+import { ApprovalOptions, BotConfig, EdgeOptions } from './branchdefs'
 import { BlockagePauseInfo, BranchStatus } from './status-types';
-import { AlreadyIntegrated, Blockage, Branch, BranchArg, BranchGraphInterface, ChangeInfo, EndIntegratingToGateEvent, Failure } from './branch-interfaces';
+import { AlreadyIntegrated, Blockage, Branch, BranchArg, BranchGraphInterface, ChangeInfo, EditableBranch, EndIntegratingToGateEvent, Failure } from './branch-interfaces';
 import { MergeAction, OperationResult, PendingChange, resolveBranchArg, StompedRevision, StompVerification, StompVerificationFile }  from './branch-interfaces';
 import { Conflicts } from './conflicts';
 import { EdgeBot, EdgeMergeResults } from './edgebot';
 import { BotEventTriggers } from './events';
+import { SlackMessages } from './notifications';
 import { PerforceStatefulBot } from './perforce-stateful-bot';
 import { BlockageNodeOpUrls, OperationUrlHelper } from './roboserver';
 import { Context } from './settings';
+import { SlackMessage } from './slack';
 import { PauseState } from './state-interfaces';
 import { newTickJournal, TickJournal } from './tick-journal';
 import { computeTargets, parseDescriptionLines, processOtherBotTargets, getIntegrationOwner, getNodeBotFullName, getNodeBotFullNameForLogging } from './targets';
@@ -25,8 +27,8 @@ import { GraphAPI } from '../new/graph';
  * Bot monitoring a single stream
  **********************************/
 
-
-const NAG_EMAIL_MIN_TIME_SECONDS = 60 * 60 * 1000
+const DEFAULT_NAG_SCHEDULE = [10, 20, 30, 60]
+const NAG_EMAIL_MIN_TIME_MINUTES = 60
 const NAG_EMAIL_MIN_TIME_DESCRIPTION = 'an hour'
 const SYNTAX_ERROR_PAUSE_TIMEOUT_SECONDS = 10 * 60
 
@@ -62,6 +64,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 	private headCL = -1
 
 	private readonly mailer: Mailer
+	private readonly slackMessages?: SlackMessages
 	protected readonly p4: PerforceContext
 
 	private readonly conflicts: Conflicts
@@ -82,7 +85,8 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 	constructor(
 		branchDef: Branch, 
-		mailer: Mailer, 
+		mailer: Mailer,
+		slackMessages: SlackMessages | undefined,
 		externalUrl: string, 
 		private readonly eventTriggers: BotEventTriggers,
 		settings: Context,
@@ -96,6 +100,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		this.branchGraph = branchDef.parent
 		this.graphBotName = this.branchGraph.botname
 		this.nodeBotLogger = new ContextualLogger(this.fullNameForLogging)
+		this.slackMessages = slackMessages
 
 		this.externalRobomergeUrl = externalUrl
 
@@ -284,11 +289,14 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			return false
 		}
 
+		if (this.conflicts.getConflicts().length > 0)
+		{
+			this.sendNagNotifications()
+		}
+
 		// see if our flow is blocked
 		if (this.isBlocked) {
 			this.nodeBotLogger.verbose('tick() - This bot is blocked')
-
-			this.sendNagEmails()
 			await _nextTick()
 			return false
 		}
@@ -356,7 +364,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 			if (!specifiedTargetBranch) {
 				// We somehow have a specified branch from a reconsider request, but it doesn't exist in the branch map. Report the error
-				this._sendError(
+				this.sendErrorEmail(
 					new Recipients(fromQueue.who),
 					`Invalid Reconsider Request -- Branch "${fromQueue.targetBranchName}" does not exist`,
 					`Manually queued change ${fromQueue.cl} on ${this.fullName}, requested by ${fromQueue.who}, ` + 
@@ -366,7 +374,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			}
 			else if (specifiedTargetBranch === this.branch) {
 				// We somehow have targeted our own branch with a merge. Report the issue
-				this._sendError(
+				this.sendErrorEmail(
 					new Recipients(fromQueue.who),
 					`Invalid Reconsider Request -- Trying to merge "${fromQueue.targetBranchName}" into itself`,
 					`Manually queued change ${fromQueue.cl} on ${this.fullName}, requested by ${fromQueue.who}, ` +
@@ -406,8 +414,8 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		if (additionalFlags.indexOf('createashelf') !== -1) {
 			change.forceCreateAShelf = true
 		}
-		if (additionalFlags.indexOf('sendnoshelfemail') != -1) {
-			change.sendNoShelfEmail = true
+		if (additionalFlags.indexOf('sendnoshelfnotification') != -1) {
+			change.sendNoShelfNotification = true
 		}
 
 		// Stomp Changes support
@@ -593,7 +601,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		// Set a variety of flags on the change before processing
 		blockageChange.isUserRequest = true
 		blockageChange.forceCreateAShelf = true // We don't want to submit this
-		blockageChange.sendNoShelfEmail = true // Don't send any shelf creation emails for this
+		blockageChange.sendNoShelfNotification = true // Don't send any shelf creation notifications for this
 
 		// Process and attempt the integration
 		const edgeMap = new Map<string, EdgeBot>([[edge.targetBranch.upperName, edge]])
@@ -1203,8 +1211,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		}
 	}
 
-	onAlreadyIntegrated(msg: string, event: AlreadyIntegrated) {
-		this._emailNoActionIfRequested(event.change, msg)
+	onAlreadyIntegrated(event: AlreadyIntegrated) {
 		this.conflicts.onAlreadyIntegrated(event)
 	}
 
@@ -1216,6 +1223,11 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 	targetCl: ${event.targetCl}
 `)
 		}
+	}
+
+	findEmail = (user: string) => {
+		this._log_action(`Getting email for user ${user}`);
+		return this.p4.getEmail(user);
 	}
 
 	// Listener method to email a blockage owner when the branch encounters said blockage,
@@ -1238,11 +1250,11 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		this._sendBlockageEmail(blockage)
 	}
 
-	emailShelfRequester(pendingChange: PendingChange) {
+	async notifyShelfRequester(pendingChange: PendingChange) {
 		// Get branch referenced by blockage object
 		const shelfBranch : Branch = pendingChange.change.branch
 
-		// Only email for our branch, if the branch is configured to receive emails
+		// Only notify for our branch, if the branch is configured to receive notifications
 		if (this.branch.name !== shelfBranch.name) {
 			return
 		}
@@ -1250,18 +1262,33 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		const owner = pendingChange.change.owner
 		// Should never happen
 		if (!owner) {
-			this.nodeBotLogger.warn(`Unable to send shelf creation email for source CL ${pendingChange.change.source_cl} in branch ${shelfBranch} because there was no owner.`)
+			this.nodeBotLogger.warn(`Unable to send shelf creation notification for source CL ${pendingChange.change.source_cl} in branch ${shelfBranch} because there was no owner.`)
 			return
 		}
 
-		this.nodeBotLogger.info(`Sending reconsider shelf creation (shelf CL ${pendingChange.newCl}) email to ${pendingChange.change.owner} for source CL ${pendingChange.change.source_cl}`)
+		this.nodeBotLogger.info(`Sending reconsider shelf creation (shelf CL ${pendingChange.newCl}) notification to ${pendingChange.change.owner} for source CL ${pendingChange.change.source_cl}`)
 
-		this._sendGenericEmail(
-			new Recipients(owner),
-			`Robomerge created Shelf CL ${pendingChange.newCl} in ${pendingChange.change.targetWorkspaceForShelf}`,
-			`Robomerge has created shelf CL ${pendingChange.newCl} in workspace ${pendingChange.change.targetWorkspaceForShelf} ` +
-				`for merging source CL ${pendingChange.change.source_cl} (${this.fullName}).`,
-			`${pendingChange.change.source_cl}:\n${pendingChange.change.description}`)
+		if (this.slackMessages) {
+			let dm: SlackMessage = {
+				text: `Robomerge has created shelf CL ${pendingChange.newCl} in workspace ${pendingChange.change.targetWorkspaceForShelf} ` +
+				`for merging source CL ${pendingChange.change.source_cl} (${this.fullName}).\n` +
+				`\`\`\`${pendingChange.change.description}\`\`\``,
+				channel: '',
+				mrkdwn: true
+			}
+			
+			let emailAddress = await this.findEmail(owner)
+			this.slackMessages.postDM(emailAddress, pendingChange.newCl, this.branch, dm)
+		}
+		else
+	 	{
+			this._sendGenericEmail(
+				new Recipients(owner),
+				`Robomerge created Shelf CL ${pendingChange.newCl} in ${pendingChange.change.targetWorkspaceForShelf}`,
+				`Robomerge has created shelf CL ${pendingChange.newCl} in workspace ${pendingChange.change.targetWorkspaceForShelf} ` +
+					`for merging source CL ${pendingChange.change.source_cl} (${this.fullName}).`,
+				`${pendingChange.change.source_cl}:\n${pendingChange.change.description}`)
+		}
 	}
 
 	private async _processListOfChanges(availableEdges: Map<string, EdgeBot>, allChanges: Change[], maxChangesToProcess: number) {
@@ -1472,16 +1499,10 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		if (!info.targets) {
 			const nothingToDoMesasage = `Nothing to do for ${info.cl}`
 			this.nodeBotLogger.silly(nothingToDoMesasage)
-			this._emailNoActionIfRequested(info, nothingToDoMesasage);
 			return { errors:  [ nothingToDoMesasage ] }
 		}
 
 		return { info, errors: [] }
-	}
-
-	findEmail = (user: string) => {
-		this._log_action(`Getting email for user ${user}`);
-		return this.p4.getEmail(user);
 	}
 
 	private createEmailLinkButton(buttonText: string, buttonLink: string, buttonDescription: string, textColor: string, buttonColor: string): string {
@@ -1563,15 +1584,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		this.mailer.sendEmail('new-blockage', recipients, subject, params, this.findEmail)
 	}
 
-	_emailNoActionIfRequested(info: ChangeInfo, _msg: string) {
-
-		if (info.userRequest) {
-			// this._sendEmail(new Recipients(info.owner!), msg, `Just an FYI that RoboMerge (${this.botname}) did not perform an integration for this changelist`, info.description);
-		}
-	}
-
-	// TEMPORARY: Removing private from _sendError while EdgeBot work continues
-	_sendError(recipients: Recipients, subject: string, message: string, errorPreface='RoboMerge needs your help:'): void {
+	sendErrorEmail(recipients: Recipients, subject: string, message: string, errorPreface='RoboMerge needs your help:'): void {
 		// log to STDERR
 		this.nodeBotLogger.error(`${subject}\n${message}\n\n`);
 		this._sendGenericEmail(recipients, subject, errorPreface, message);
@@ -1630,7 +1643,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		// By default, we should perform any submit that comes from a change.
 		// If the change is setup to be forcibly shelved, honor it
 		let forceCreateAShelf = !!change.forceCreateAShelf
-		let sendNoShelfEmail = !!change.sendNoShelfEmail
+		let sendNoShelfNotification = !!change.sendNoShelfNotification
 
 		let forceStompChanges = !!change.forceStompChanges
 		let additionalDescriptionText = change.additionalDescriptionText
@@ -1643,7 +1656,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			source: parsedLines.source,
 			description,
 			propagatingNullMerge: parsedLines.propagatingNullMerge,
-			forceCreateAShelf, sendNoShelfEmail,
+			forceCreateAShelf, sendNoShelfNotification,
 
 			forceStompChanges, additionalDescriptionText,
 			overriddenCommand: commandOverride,
@@ -1833,7 +1846,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		this.eventTriggers.reportBlockage(blockage, true)
 	}
 
-	private handleSyntaxError(originalCommitMessage: string, change: ChangeInfo) {
+	private async handleSyntaxError(originalCommitMessage: string, change: ChangeInfo) {
 		const shortMessage = `Syntax error in CL ${change.cl}`
 		let message = `CL ${change.cl} in ${this.branch.rootPath} contained one or more RoboMerge syntax errors (see below).\n\n`
 		for (const err of change.errors!) {
@@ -1844,10 +1857,23 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 		if (change.userRequest) {
 			this.nodeBotLogger.info(shortMessage + ` (reconsider triggered by ${change.owner}):\n${message}.`)
-			this._sendError(new Recipients(owner), shortMessage, message + '\nFull CL description:\n\n' + originalCommitMessage)
+			if (this.slackMessages) {
+
+				let dm: SlackMessage = {
+					text: message,
+					channel: '',
+					mrkdwn: true
+				}
+				
+				let emailAddress = await this.findEmail(owner)
+				this.slackMessages.postDM(emailAddress, change.cl, this.branch, dm)				
+			}
+			else {
+				this.sendErrorEmail(new Recipients(owner), shortMessage, message + '\nFull CL description:\n\n' + originalCommitMessage)
+			}
 		}
 		else {
-			// see if we've already sent an email for this one
+			// see if we've already sent a notification for this one
 			const existingBlockage = this.conflicts.find(null, change.source_cl)
 			const blockageOccurred = existingBlockage ? existingBlockage.time : new Date
 
@@ -1864,7 +1890,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 	}
 
 	/** return true if this is a new flow blockage (excludes reconsiders) */
-	handleMergeFailure(failure: Failure, pending: PendingChange, postIntegrate?: boolean) {
+	async handleMergeFailure(failure: Failure, pending: PendingChange, postIntegrate?: boolean) {
 		const targetBranch = pending.action.branch
 		const shortMessage = `${failure.kind} while merging CL ${pending.change.cl} to ${targetBranch.name}`
 
@@ -1877,8 +1903,28 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 				message += `Shelved in workspace ${pending.change.targetWorkspaceForShelf}\n`
 			}
 
-			message += '\n' + failure.summary 
-			this._sendError(new Recipients(owner), shortMessage, message)
+			if (failure.summary) {
+				message += '\n' + failure.summary 
+			}
+			else
+			{
+				message += '\n' + failure.description
+			}
+
+			if (this.slackMessages) {
+
+				let dm: SlackMessage = {
+					text: message,
+					channel: '',
+					mrkdwn: true
+				}
+				
+				let emailAddress = await this.findEmail(owner)
+				this.slackMessages.postDM(emailAddress, pending.newCl, this.branch, dm)
+			}
+			else {
+				this.sendErrorEmail(new Recipients(owner), shortMessage, message)
+			}
 			return false
 		}
 
@@ -1909,22 +1955,102 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		return true
 	}
 
-	private sendNagEmails() {
+	private async sendNagNotifications() {
 		let naggedSomeone = false
 		const now = Date.now()
 		for (const conflict of this.conflicts.getConflicts()) {
-			if (!conflict.nagged) {
-				const ageSeconds = (now - conflict.time.getTime()) / 1000
-				if (ageSeconds > NAG_EMAIL_MIN_TIME_SECONDS) {
-					conflict.nagged = true
-					naggedSomeone = true
 
-					// send a one-time only additional nag email just to owner
-					this.nodeBotLogger.info(`Sending nag email to ${conflict.owner}`)
-					this._sendError(new Recipients(conflict.owner),
-						`${this.graphBotName} RoboMerge blocked for more than ${NAG_EMAIL_MIN_TIME_DESCRIPTION}`,
-						`Please check #robomerge-${this.graphBotName.toLowerCase()} on Slack for more details`
-					)
+			const getNagProperty = (property:string) => {
+						
+				const configKey = property as keyof BotConfig
+				const edgeKey   = property as keyof EdgeOptions
+				const branchKey = property as keyof EditableBranch
+
+				let prop: any | null = this.branchGraph.config[configKey]
+				if (conflict.targetBranchName) {
+					const targetBranch = this.branchGraph.getBranch(conflict.targetBranchName)
+					if (targetBranch)
+					{
+						prop = targetBranch[branchKey] || prop
+					}
+
+					const edgeProperties = this.branch.edgeProperties.get(conflict.targetBranchName)
+					if (edgeProperties && edgeProperties[edgeKey]) {
+						prop = edgeProperties[edgeKey] || prop
+					}
+				}
+				else
+				{
+					prop = this.branch[branchKey] || prop
+				}
+				return prop
+			}
+			
+			const nagWhenBlocked = getNagProperty("nagWhenBlocked")
+			
+			if (nagWhenBlocked) {
+				const ageMinutes = ((now - conflict.time.getTime()) / 1000) / 60
+
+				if (this.slackMessages) {
+
+					const nagSchedule = getNagProperty("nagSchedule") || DEFAULT_NAG_SCHEDULE
+
+					const nagDelay = conflict.lastNagTime ? ((now - conflict.lastNagTime.getTime()) / 1000) / 60 : ageMinutes
+					const nagWait = nagSchedule[Math.min(conflict.nagCount, nagSchedule.length - 1)]
+
+					if (nagDelay > nagWait) {
+						conflict.nagCount++ 
+						conflict.lastNagTime = new Date(now)
+						naggedSomeone = true
+
+						let timeDesc
+						if (ageMinutes < 60) {
+							timeDesc = `${Math.floor(ageMinutes)} minutes`
+						}
+						else {
+							const hours = Math.floor(ageMinutes / 60)
+							if (hours == 1) {
+								timeDesc = "1 hour"
+							}
+							else {
+								timeDesc = `${hours} hours`
+							}
+						}
+				
+						let triager = getNagProperty("triager")
+
+						if (triager && !triager.startsWith('@'))
+						{
+							const emailAddress = await this.findEmail(triager)
+							if (emailAddress)
+							{
+								triager = `<@${await this.slackMessages.getSlackUser(emailAddress)}>`
+							}
+						}
+
+						const nagMessage: SlackMessage = {
+							text: `${triager} RoboMerge blocked for more than ${timeDesc}`,
+							channel: this.branchGraph.config.slackChannel,
+							mrkdwn: true
+						}
+
+						this.nodeBotLogger.info(`Sending nag notification to ${conflict.owner} after ${Math.floor(ageMinutes)} minutes`)
+						const branchName =  (conflict.kind === "Syntax error" ? conflict.kind : conflict.targetBranchName || conflict.blockedBranchName)
+						this.slackMessages.postReply(conflict.cl, branchName, nagMessage)
+					}
+				}
+				else if (conflict.nagCount == 0) // for now we'll maintain the email only once behavior
+				{
+					if (ageMinutes > NAG_EMAIL_MIN_TIME_MINUTES) {
+
+						conflict.nagCount = 1
+						naggedSomeone = true
+
+						this.sendErrorEmail(new Recipients(conflict.owner),
+							`${this.graphBotName} RoboMerge blocked for more than ${NAG_EMAIL_MIN_TIME_DESCRIPTION}`,
+							`Please check robomerge page for more details`
+						)
+					}
 				}
 			}
 		}

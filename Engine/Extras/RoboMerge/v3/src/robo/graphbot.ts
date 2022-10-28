@@ -15,7 +15,8 @@ import { PersistentConflict } from './conflict-interfaces';
 import { BotEventHandler, BotEventTriggers } from './events';
 import { GraphInterface } from './graph-interface';
 import { NodeBot } from './nodebot';
-import { bindBotNotifications, BotNotifications, NOTIFICATIONS_PERSISTENCE_KEY, postMessageToChannel, postToRobomergeAlerts } from './notifications';
+import { bindBotNotifications, BotNotifications, NOTIFICATIONS_PERSISTENCE_KEY } from './notifications';
+import { postMessageToChannel, postToRobomergeAlerts, SlackMessages } from './notifications';
 import { roboAnalytics } from './roboanalytics';
 import { BlockageNodeOpUrls, OperationUrlHelper } from './roboserver';
 import { Settings } from './settings';
@@ -36,6 +37,7 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 	autoUpdater: AutoBranchUpdater | null
 
 	private botLogger: ContextualLogger;
+	private slackMessages?: SlackMessages
 
 	// separate off into class that only exists while bots are running?
 	private eventTriggers?: BotEventTriggers;
@@ -122,14 +124,14 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 			}
 		}
 
-		bindBotNotifications(this.eventTriggers, slackChannelOverrides, this.settings.getContext(NOTIFICATIONS_PERSISTENCE_KEY), blockageUrlGenerator, this.externalUrl, this.botLogger)
+		this.slackMessages = bindBotNotifications(this.eventTriggers, slackChannelOverrides, this.settings.getContext(NOTIFICATIONS_PERSISTENCE_KEY), blockageUrlGenerator, this.externalUrl, this.botLogger)
 		bindBadgeHandler(this.eventTriggers, this.branchGraph, this.externalUrl, this.botLogger)
 
 		let hasConflicts = false
 		for (const branch of this.branchGraph.branches) {
 			if (branch.enabled) {
 				const persistence = this.settings.getContext(branch.upperName)
-				branch.bot = new NodeBot(branch, this.mailer, this.externalUrl, this.eventTriggers, persistence, ubergraph,
+				branch.bot = new NodeBot(branch, this.mailer, this.slackMessages, this.externalUrl, this.eventTriggers, persistence, ubergraph,
 					async () => {
 						const errPair = await this.handleRequestedIntegrationsForAllNodes()
 						if (errPair) {
@@ -392,7 +394,7 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 		}
 
 		let botNotify = new BotNotifications(this.branchGraph.botname, this.branchGraph.config.slackChannel,
-			this.settings.getContext(NOTIFICATIONS_PERSISTENCE_KEY), this.externalUrl, fakeHelper, this.botLogger)
+			this.externalUrl, fakeHelper, this.botLogger, this.slackMessages)
 
 		return botNotify.sendTestMessage(username)
 	}
