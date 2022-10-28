@@ -64,7 +64,7 @@ class IMappedFileRegion;
 
 /** A loose hash value that can be created from either a filenames or a FIoChunkId */
 using FIoFilenameHash = uint32;
-const FIoFilenameHash INVALID_IO_FILENAME_HASH = 0;
+inline const FIoFilenameHash INVALID_IO_FILENAME_HASH = 0;
 /** Helpers to create the hash from a filename. Returns IOFILENAMEHASH_NONE if and only if the filename is empty. */
 COREUOBJECT_API FIoFilenameHash MakeIoFilenameHash(const FString& Filename);
 /** Helpers to create the hash from a FPackagePath. Returns IOFILENAMEHASH_NONE if and only if the PackagePath is empty. */

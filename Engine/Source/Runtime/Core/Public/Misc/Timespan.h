@@ -20,37 +20,37 @@ template <typename ElementType> struct TIntervalTraits;
 namespace ETimespan
 {
 	/** The maximum number of ticks that can be represented in FTimespan. */
-	constexpr int64 MaxTicks = 9223372036854775807;
+	inline constexpr int64 MaxTicks = 9223372036854775807;
 
 	/** The minimum number of ticks that can be represented in FTimespan. */
-	constexpr int64 MinTicks = -9223372036854775807 - 1;
+	inline constexpr int64 MinTicks = -9223372036854775807 - 1;
 
 	/** The number of nanoseconds per tick. */
-	constexpr int64 NanosecondsPerTick = 100;
+	inline constexpr int64 NanosecondsPerTick = 100;
 
 	/** The number of timespan ticks per day. */
-	constexpr int64 TicksPerDay = 864000000000;
+	inline constexpr int64 TicksPerDay = 864000000000;
 
 	/** The number of timespan ticks per hour. */
-	constexpr int64 TicksPerHour = 36000000000;
+	inline constexpr int64 TicksPerHour = 36000000000;
 
 	/** The number of timespan ticks per microsecond. */
-	constexpr int64 TicksPerMicrosecond = 10;
+	inline constexpr int64 TicksPerMicrosecond = 10;
 
 	/** The number of timespan ticks per millisecond. */
-	constexpr int64 TicksPerMillisecond = 10000;
+	inline constexpr int64 TicksPerMillisecond = 10000;
 
 	/** The number of timespan ticks per minute. */
-	constexpr int64 TicksPerMinute = 600000000;
+	inline constexpr int64 TicksPerMinute = 600000000;
 
 	/** The number of timespan ticks per second. */
-	constexpr int64 TicksPerSecond = 10000000;
+	inline constexpr int64 TicksPerSecond = 10000000;
 
 	/** The number of timespan ticks per week. */
-	constexpr int64 TicksPerWeek = 6048000000000;
+	inline constexpr int64 TicksPerWeek = 6048000000000;
 
 	/** The number of timespan ticks per year (365 days, not accounting for leap years). */
-	constexpr int64 TicksPerYear = 365 * TicksPerDay;
+	inline constexpr int64 TicksPerYear = 365 * TicksPerDay;
 }
 
 

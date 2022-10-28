@@ -18,13 +18,13 @@
 class Error;
 
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
-const int32 ShaderCompileWorkerInputVersion = 17;
+inline const int32 ShaderCompileWorkerInputVersion = 17;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
-const int32 ShaderCompileWorkerOutputVersion = 8;
+inline const int32 ShaderCompileWorkerOutputVersion = 8;
 // this is for the protocol, not the data.
-const int32 ShaderCompileWorkerSingleJobHeader = 'S';
+inline const int32 ShaderCompileWorkerSingleJobHeader = 'S';
 // this is for the protocol, not the data.
-const int32 ShaderCompileWorkerPipelineJobHeader = 'P';
+inline const int32 ShaderCompileWorkerPipelineJobHeader = 'P';
 
 /** Returns true if shader symbols should be kept for a given platform. */
 extern RENDERCORE_API bool ShouldGenerateShaderSymbols(FName ShaderFormat);

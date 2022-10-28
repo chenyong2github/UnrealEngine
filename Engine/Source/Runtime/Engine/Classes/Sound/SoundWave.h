@@ -60,7 +60,7 @@ enum class ESoundWavePrecacheState
 	Done
 };
 
-constexpr uint64 InvalidAudioStreamCacheLookupID = TNumericLimits<uint64>::Max();
+inline constexpr uint64 InvalidAudioStreamCacheLookupID = TNumericLimits<uint64>::Max();
 
 /**
  * A chunk of streamed audio.

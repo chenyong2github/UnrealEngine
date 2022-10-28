@@ -31,24 +31,24 @@ class FToolBarComboButtonBlock;
 namespace MultiBoxConstants
 {	
 	/** The time that a mouse should be hovered over a sub-menu before it automatically opens */
-	const float SubMenuOpenTime = 0.0f;
+	inline const float SubMenuOpenTime = 0.0f;
 
 	/** When a sub-menu is already open (for at least SubMenuClobberMinLifetime), the time that a mouse
 	    should be hovered over another sub-menu entry before dismissing the first menu and opening
 		the new one; this doesn't apply to short-lived sub-menus, see below */
-	const float SubMenuClobberTime = 0.5f;
+	inline const float SubMenuClobberTime = 0.5f;
 
 	/** The time that a sub-menu needs to remain open in order for the SubMenuClobberTime to apply;
 	    menus open shorter than this min lifetime will be instantly dismissed */
-	const float SubMenuClobberMinLifetime = 0.5f;
+	inline const float SubMenuClobberMinLifetime = 0.5f;
 
-	//const FName MenuItemFont = "MenuItem.Font";
-	//const FName MenuBindingFont = "MenuItem.BindingFont";
+	//inline const FName MenuItemFont = "MenuItem.Font";
+	//inline const FName MenuBindingFont = "MenuItem.BindingFont";
 
-	//const FName EditableTextFont = "MenuItem.Font";
+	//inline const FName EditableTextFont = "MenuItem.Font";
 
 	/** Minimum widget of an editable text box within a multi-box */
-	const float EditableTextMinWidth = 30.0f;
+	inline const float EditableTextMinWidth = 30.0f;
 }
 
 /**

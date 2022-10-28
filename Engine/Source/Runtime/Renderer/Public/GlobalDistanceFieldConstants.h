@@ -5,5 +5,5 @@
 namespace GlobalDistanceField
 {
 	/** Must match global distance field shaders. */
-	const int32 MaxClipmaps = 6;
+	inline const int32 MaxClipmaps = 6;
 }

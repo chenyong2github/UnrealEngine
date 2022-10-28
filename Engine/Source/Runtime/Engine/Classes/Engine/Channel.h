@@ -16,7 +16,7 @@ class FOutBunch;
 class UNetConnection;
 
 // Constant for all buffers that are reading from the network
-const int MAX_STRING_SERIALIZE_SIZE	= NAME_SIZE;
+inline const int MAX_STRING_SERIALIZE_SIZE	= NAME_SIZE;
 
 /**
  * Enumerates channel types.

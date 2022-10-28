@@ -53,7 +53,7 @@ class IAnalyticsProvider;
 #define NET_ANALYTICS_MULTITHREADING 0
 
 
-constexpr const ESPMode NetAnalyticsThreadSafety = ESPMode::ThreadSafe;
+inline constexpr const ESPMode NetAnalyticsThreadSafety = ESPMode::ThreadSafe;
 
 
 // Forward Declarations

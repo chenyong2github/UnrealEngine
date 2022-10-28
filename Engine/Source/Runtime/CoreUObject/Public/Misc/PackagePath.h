@@ -67,7 +67,7 @@ enum class EPackageExtension : uint8
 	BulkDataMemoryMapped,
 	PayloadSidecar,
 };
-constexpr int EPackageExtensionCount = static_cast<int>(EPackageExtension::PayloadSidecar) + 1;
+inline constexpr int EPackageExtensionCount = static_cast<int>(EPackageExtension::PayloadSidecar) + 1;
 COREUOBJECT_API const TCHAR* LexToString(EPackageExtension PackageExtension);
 
 

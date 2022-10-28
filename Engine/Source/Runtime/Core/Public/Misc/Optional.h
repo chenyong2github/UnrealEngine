@@ -12,7 +12,7 @@ struct FNullOpt
 {
 	explicit constexpr FNullOpt(int) {}
 };
-constexpr FNullOpt NullOpt{0};
+inline constexpr FNullOpt NullOpt{0};
 
 /**
  * When we have an optional value IsSet() returns true, and GetValue() is meaningful.

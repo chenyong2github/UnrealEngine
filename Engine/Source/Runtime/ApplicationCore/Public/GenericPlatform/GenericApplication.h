@@ -33,19 +33,19 @@ namespace EModifierKey
 	typedef uint8 Type;
 
 	/** No key. */
-	const Type None	= 0;
+	inline const Type None	= 0;
 
 	/** Ctrl key (Command key on Mac, Control key on Windows). */
-	const Type Control = 1 << 0;
+	inline const Type Control = 1 << 0;
 
 	/** Alt key. */
-	const Type Alt = 1 << 1;
+	inline const Type Alt = 1 << 1;
 
 	/** Shift key. */
-	const Type Shift = 1 << 2;
+	inline const Type Shift = 1 << 2;
 
 	/** Cmd key (Control key on Mac, Win key on Windows) */
-	const Type Command = 1 << 3;
+	inline const Type Command = 1 << 3;
 
 	FORCEINLINE EModifierKey::Type FromBools(const bool bControl, const bool bAlt, const bool bShift, const bool bCommand)
 	{

@@ -52,26 +52,26 @@ An empty string reverts to the normal gray on black.
 // putting them in a namespace to protect against future name conflicts
 namespace OutputDeviceColor
 {
-	const TCHAR* const COLOR_BLACK = TEXT("0000");
+	inline const TCHAR* const COLOR_BLACK = TEXT("0000");
 
-	const TCHAR* const COLOR_DARK_RED = TEXT("1000");
-	const TCHAR* const COLOR_DARK_GREEN = TEXT("0100");
-	const TCHAR* const COLOR_DARK_BLUE = TEXT("0010");
-	const TCHAR* const COLOR_DARK_YELLOW = TEXT("1100");
-	const TCHAR* const COLOR_DARK_CYAN = TEXT("0110");
-	const TCHAR* const COLOR_DARK_PURPLE = TEXT("1010");
-	const TCHAR* const COLOR_DARK_WHITE = TEXT("1110");
-	const TCHAR* const COLOR_GRAY = COLOR_DARK_WHITE;
+	inline const TCHAR* const COLOR_DARK_RED = TEXT("1000");
+	inline const TCHAR* const COLOR_DARK_GREEN = TEXT("0100");
+	inline const TCHAR* const COLOR_DARK_BLUE = TEXT("0010");
+	inline const TCHAR* const COLOR_DARK_YELLOW = TEXT("1100");
+	inline const TCHAR* const COLOR_DARK_CYAN = TEXT("0110");
+	inline const TCHAR* const COLOR_DARK_PURPLE = TEXT("1010");
+	inline const TCHAR* const COLOR_DARK_WHITE = TEXT("1110");
+	inline const TCHAR* const COLOR_GRAY = COLOR_DARK_WHITE;
 
-	const TCHAR* const COLOR_RED = TEXT("1001");
-	const TCHAR* const COLOR_GREEN = TEXT("0101");
-	const TCHAR* const COLOR_BLUE = TEXT("0011");
-	const TCHAR* const COLOR_YELLOW = TEXT("1101");
-	const TCHAR* const COLOR_CYAN = TEXT("0111");
-	const TCHAR* const COLOR_PURPLE = TEXT("1011");
-	const TCHAR* const COLOR_WHITE = TEXT("1111");
+	inline const TCHAR* const COLOR_RED = TEXT("1001");
+	inline const TCHAR* const COLOR_GREEN = TEXT("0101");
+	inline const TCHAR* const COLOR_BLUE = TEXT("0011");
+	inline const TCHAR* const COLOR_YELLOW = TEXT("1101");
+	inline const TCHAR* const COLOR_CYAN = TEXT("0111");
+	inline const TCHAR* const COLOR_PURPLE = TEXT("1011");
+	inline const TCHAR* const COLOR_WHITE = TEXT("1111");
 
-	const TCHAR* const COLOR_NONE = TEXT("");
+	inline const TCHAR* const COLOR_NONE = TEXT("");
 }
 
 using namespace OutputDeviceColor;

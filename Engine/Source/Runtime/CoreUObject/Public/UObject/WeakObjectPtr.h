@@ -31,9 +31,9 @@ namespace UE::Core::Private
 {
 	/** Specifies the ObjectIndex used for invalid object pointers. */
 #if UE_WEAKOBJECTPTR_ZEROINIT_FIX
-	static constexpr int32 InvalidWeakObjectIndex = 0;
+	inline constexpr int32 InvalidWeakObjectIndex = 0;
 #else
-	static constexpr int32 InvalidWeakObjectIndex = INDEX_NONE;
+	inline constexpr int32 InvalidWeakObjectIndex = INDEX_NONE;
 #endif
 }
 

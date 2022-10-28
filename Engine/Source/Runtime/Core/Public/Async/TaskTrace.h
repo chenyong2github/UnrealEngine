@@ -30,9 +30,9 @@ namespace TaskTrace
 
 	using FId = uint64;
 
-	const FId InvalidId = ~FId(0);
+	inline const FId InvalidId = ~FId(0);
 
-	static constexpr uint32 TaskTraceVersion = 1;
+	inline constexpr uint32 TaskTraceVersion = 1;
 
 	FId CORE_API GenerateTaskId();
 

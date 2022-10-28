@@ -82,36 +82,36 @@ namespace CoreStyleConstants
 {
 	// Note, these sizes are in Slate Units.
 	// Slate Units do NOT have to map to pixels.
-	const FVector2D Icon5x16(5.0f, 16.0f);
-	const FVector2D Icon8x4(8.0f, 4.0f);
-	const FVector2D Icon16x4(16.0f, 4.0f);
-	const FVector2D Icon8x8(8.0f, 8.0f);
-	const FVector2D Icon10x10(10.0f, 10.0f);
-	const FVector2D Icon12x12(12.0f, 12.0f);
-	const FVector2D Icon12x16(12.0f, 16.0f);
-	const FVector2D Icon14x14(14.0f, 14.0f);
-	const FVector2D Icon16x16(16.0f, 16.0f);
-	const FVector2D Icon18x18(18.0f, 18.0f);
-	const FVector2D Icon20x20(20.0f, 20.0f);
-	const FVector2D Icon22x22(22.0f, 22.0f);
-	const FVector2D Icon24x24(24.0f, 24.0f);
-	const FVector2D Icon25x25(25.0f, 25.0f);
-	const FVector2D Icon32x32(32.0f, 32.0f);
-	const FVector2D Icon40x40(40.0f, 40.0f);
-	const FVector2D Icon64x64(64.0f, 64.0f);
-	const FVector2D Icon36x24(36.0f, 24.0f);
-	const FVector2D Icon128x128(128.0f, 128.0f);
+	inline const FVector2D Icon5x16(5.0f, 16.0f);
+	inline const FVector2D Icon8x4(8.0f, 4.0f);
+	inline const FVector2D Icon16x4(16.0f, 4.0f);
+	inline const FVector2D Icon8x8(8.0f, 8.0f);
+	inline const FVector2D Icon10x10(10.0f, 10.0f);
+	inline const FVector2D Icon12x12(12.0f, 12.0f);
+	inline const FVector2D Icon12x16(12.0f, 16.0f);
+	inline const FVector2D Icon14x14(14.0f, 14.0f);
+	inline const FVector2D Icon16x16(16.0f, 16.0f);
+	inline const FVector2D Icon18x18(18.0f, 18.0f);
+	inline const FVector2D Icon20x20(20.0f, 20.0f);
+	inline const FVector2D Icon22x22(22.0f, 22.0f);
+	inline const FVector2D Icon24x24(24.0f, 24.0f);
+	inline const FVector2D Icon25x25(25.0f, 25.0f);
+	inline const FVector2D Icon32x32(32.0f, 32.0f);
+	inline const FVector2D Icon40x40(40.0f, 40.0f);
+	inline const FVector2D Icon64x64(64.0f, 64.0f);
+	inline const FVector2D Icon36x24(36.0f, 24.0f);
+	inline const FVector2D Icon128x128(128.0f, 128.0f);
 
 	// Common Margins
-	const FMargin DefaultMargins(8.f, 4.f);
+	inline const FMargin DefaultMargins(8.f, 4.f);
 	// Buttons already have a built in (4., 2.) padding - adding to that a little
-	const FMargin ButtonMargins(12.f, 1.5f, 12.f, 1.5f);
+	inline const FMargin ButtonMargins(12.f, 1.5f, 12.f, 1.5f);
 
-	const FMargin PressedButtonMargins(12.f, 2.5f, 12.f, 0.5f);
-	const FMargin ToggleButtonMargins(16.0f, 2.0f);
-	const FMargin ComboButtonMargin(8.f, 1.f, 8.f, 1.f);
-	const FMargin PressedComboButtonMargin(8.f, 2.f, 8.f, 0.f);
+	inline const FMargin PressedButtonMargins(12.f, 2.5f, 12.f, 0.5f);
+	inline const FMargin ToggleButtonMargins(16.0f, 2.0f);
+	inline const FMargin ComboButtonMargin(8.f, 1.f, 8.f, 1.f);
+	inline const FMargin PressedComboButtonMargin(8.f, 2.f, 8.f, 0.f);
 
-	const float InputFocusRadius = 4.f;
-	const float InputFocusThickness = 1.0f;
+	inline const float InputFocusRadius = 4.f;
+	inline const float InputFocusThickness = 1.0f;
 }

@@ -3041,7 +3041,7 @@ namespace UECodeGen_Private
 	ENUM_CLASS_FLAGS(EPropertyGenFlags)
 
 	// Value which masks out the type of combined EPropertyGenFlags.
-	constexpr EPropertyGenFlags PropertyTypeMask = (EPropertyGenFlags)0x3F;
+	inline constexpr EPropertyGenFlags PropertyTypeMask = (EPropertyGenFlags)0x3F;
 
 #if WITH_METADATA
 	struct FMetaDataPairParam

@@ -14,17 +14,17 @@
  * @note Limited to a combined 32-bits so that they can be used directly within render targets, though could be made 64-bits if the 
  *       editor used 64-bit render targets (this would also require 64-bit container support in TTypedElementInternalDataStore).
  */
-constexpr SIZE_T TypedHandleTypeIdBits = 8;
-constexpr SIZE_T TypedHandleElementIdBits = 24;
+inline constexpr SIZE_T TypedHandleTypeIdBits = 8;
+inline constexpr SIZE_T TypedHandleElementIdBits = 24;
 
-constexpr SIZE_T TypedHandleTypeIdBytes = TypedHandleTypeIdBits >> 3;
-constexpr SIZE_T TypedHandleElementIdBytes = TypedHandleElementIdBits >> 3;
+inline constexpr SIZE_T TypedHandleTypeIdBytes = TypedHandleTypeIdBits >> 3;
+inline constexpr SIZE_T TypedHandleElementIdBytes = TypedHandleElementIdBits >> 3;
 
-constexpr SIZE_T TypedHandleMaxTypeId = ((SIZE_T)1 << TypedHandleTypeIdBits) - 1;
-constexpr SIZE_T TypedHandleMaxElementId = ((SIZE_T)1 << TypedHandleElementIdBits) - 1;
+inline constexpr SIZE_T TypedHandleMaxTypeId = ((SIZE_T)1 << TypedHandleTypeIdBits) - 1;
+inline constexpr SIZE_T TypedHandleMaxElementId = ((SIZE_T)1 << TypedHandleElementIdBits) - 1;
 
-constexpr SIZE_T TypedHandleRefTrackingSkipCount = 1;
-constexpr SIZE_T TypedHandleRefTrackingDepth = 31;
+inline constexpr SIZE_T TypedHandleRefTrackingSkipCount = 1;
+inline constexpr SIZE_T TypedHandleRefTrackingDepth = 31;
 
 using FTypedHandleTypeId = uint8;
 using FTypedHandleElementId = int32;

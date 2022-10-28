@@ -161,7 +161,7 @@ static bool CalcMeshNegScaleCompensation(const FVector& InScale3D, FTransform& O
 // TODO: Fixup types, these are more or less the PhysX types renamed as a temporary solution.
 // Probably should move to different header as well.
 
-const uint32 AggregateMaxSize = 128;
+inline const uint32 AggregateMaxSize = 128;
 
 class UPhysicalMaterial;
 class UPrimitiveComponent;
