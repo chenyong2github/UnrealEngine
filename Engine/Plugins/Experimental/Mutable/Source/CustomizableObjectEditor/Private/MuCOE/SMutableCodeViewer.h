@@ -31,8 +31,11 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STreeView.h"
+#include "Widgets/Input/SComboBox.h"
+
 
 class FMutableCodeTreeElement;
+class FMutableOperationElement;
 class FReferenceCollector;
 class ITableRow;
 class SBorder;
@@ -189,33 +192,115 @@ private:
 	mu::OP::ADDRESS HighlightedOperation{};
 
 	/*
+	 * Operations computational cost reference collections
+	 */
+
+	/** Collection with all very expensive to run operation types */
+	const TArray<mu::OP_TYPE> VeryExpensiveOperationTypes
+	{
+		mu::OP_TYPE::ME_BINDSHAPE,
+		mu::OP_TYPE::ME_MASKCLIPMESH,
+	};
+
+	/** Collection with all expensive to run operation types */
+	const TArray<mu::OP_TYPE> ExpensiveOperationTypes
+	{
+		// none
+	};
+	
+	/** Enum designed to be able to notify the row generation of the type of operation being generated */
+	enum class EOperationComputationalCost : uint8
+	{
+		Standard =			0,			// All other operation types
+		Expensive =			1,			// The ones located on ExpensiveOperationTypes
+		VeryExpensive =		2			// The ones located on VeryExpensiveOperationTypes
+	};
+
+	/** Array holding the relation between each computational cost category and the color to be used to display elements related
+	 * with it. 
+	 */
+	const TArray<FSlateColor> ColorPerComputationalCost
+	{
+		FSlateColor(FLinearColor(1,1,1,1)),		// Standard cost color
+		FSlateColor(FLinearColor(1,0.4,0.2,1)),	// Expensive cost color
+		FSlateColor(FLinearColor(1,1,1,1))			// Very Expensive cost color
+	};
+	
+	/** Provided an operation type it returns the category representing how much costs to run an operation of this type
+	 * @param OperationType The operation type you want to know the computational cost of
+	 * @return The enum value representing the computational cost of the operation type provided.
+	 */
+	EOperationComputationalCost GetOperationTypeComputationalCost(mu::OP_TYPE OperationType) const;
+	
+	/*
 	 * Navigation : Operation type navigation Type selection object
 	 */
 	
 	/** Slate object that provides the user a way of selecting what kind of operation it wants to navigate.*/
-	TSharedPtr<STextComboBox> TargetedTypeSelector;
+	TSharedPtr<SComboBox<TSharedPtr<FMutableOperationElement>>> TargetedTypeSelector;
+
+	/** Data backend for the list displayed for the navigation type selection */
+	TArray<TSharedPtr<FMutableOperationElement>> FoundModelOperationTypeElements;
+
+	/** Currently selected element on the TargetedTypeSelector slate. Actively used by the ui */
+	TSharedPtr<FMutableOperationElement> CurrentlySelectedOperationTypeElement;
 	
 	/** Operation type we are using to search for tree nodes. Driven primarily by the UI */
 	mu::OP_TYPE OperationTypeToSearch = mu::OP_TYPE::NONE;
 
+	/** Operation types present on the currently set mutable model. */
+	TArray<mu::OP_TYPE> ModelOperationTypes;
+	
 	/** Array with all the names for each of the operations available on mutable. Used by the UI  */
-	TArray<TSharedPtr<FString>> OperationTypesStrings;
+	TArray<TSharedPtr<FString>> ModelOperationTypeStrings;
 	
 	/** Stores a list of strings based on the possible types of operations mutable define to be used by the UI */
 	void GenerateNavigationOpTypeStrings();
 
-	/** Method called when the user changes the targeted type using the UI. It is only half part of the operation since
-	 * "OnOptionTypeSelectionChangedAfterRefresh" will be the one that at the end will perform the operations over the tree.
-	 */
-	void OnOptionTypeSelectionChanged(TSharedPtr<FString, ESPMode::ThreadSafe> NesSelectedOperationString, ESelectInfo::Type SelectionType);
+	/** Generate a list of elements that will be used as backend for the navigation type selection dropdown */
+	void GenerateNavigationDropdownElements();
 	
 	/** Update the array with all the elements using the current operation. Required when changing the targeted operation type */
-	void LocateNavigationElements();
+	void LocateNavigationElementsOnTree();
+
+	/** Fills ModelOperationTypes with all the types present on the current model.
+	 * It also makes sure we have a NONE operation and that the operations are sorted alphabetically.
+	 * @note Method designed to be called once per model.*/
+	void CacheOperationTypesPresentOnModel();
+	
+	/** Method to scan over all the operations performed on the current model to produce a set of operation types present on it.
+	 * @param InParentAddresses Addresses of the parent objects. Required to be able to perform recursive calls to this method (to get the data from the children)
+	 * @param  InProgram Mutable program.
+	 * @param OutLocatedOperations Output of the method : Set with all the operation types present on the model.
+	 * @param AlreadyProcessedAddresses Addresses already processed. Used to avoid processing the same operation twice.
+	 */
+	void GetOperationTypesPresentOnModel(
+		const TArray< mu::OP::ADDRESS>& InParentAddresses, const mu::FProgram& InProgram, TSet<mu::OP_TYPE>& OutLocatedOperations,
+		TSet<mu::OP::ADDRESS>& AlreadyProcessedAddresses);
 	
 	/*
 	 * Navigation : UI callback methods
 	 */
 
+	/** Generate the text to be used by the navigation operation selector */
+	FText GetCurrentNavigationOpTypeText() const;
+
+	/** Returns the color to be used by the text being currently displayed as selected on the operation selector*/
+	FSlateColor GetCurrentNavigationOpTypeColor() const;
+
+	/** Callback invoked by the ComboBox used for displaying and selecting operation types for navigation. it gets invoked
+	 * each time the slate object requires to draw a line representing one of the elements set on FoundModelOperationTypeElements
+	 */
+	TSharedRef<SWidget> OnGenerateOpNavigationDropDownWidget(TSharedPtr<FMutableOperationElement> MutableOperationElement) const;
+
+	/** Callback invoked each time the selected operation on our navigation slate changes. It can change due to UI interaction
+	 * or also due to direct change by invoking the SetSelectedOption on the SComboBox TargetedTypeSelector
+	 */
+	void OnNavigationSelectedOperationChanged(TSharedPtr<FMutableOperationElement, ESPMode::ThreadSafe> MutableOperationElement, ESelectInfo::Type Arg);
+
+	/** Callback used to print on screen the amount of operations found on the tree that share the same operation type that
+	 * the one currently selected on the navigation system.
+	 */
 	FText OnPrintNavigableObjectAddressesCount() const;
 	
 	/** Method that tells the UI if the bottom to go to the previous element can be interacted
@@ -276,39 +361,15 @@ private:
 
 	/** Fills an array with all the addresses of operations that do have in common the same targeted operation type
 	 * @param TargetOperationType The operation type used to discriminate what operation addresses we want to retrieve.
-	 * @param InParentAddress The address of the parent object. Used to get the children and then process them too.
+	 * @param InParentAddresses The addresses of the parent object. Used to get the children and then process them too.
 	 * @param OutAddressesOfType Output with all the addresses that are of the same type as TargetOperationType.
 	 * @param  AlreadyProcessedAddresses Used during recursive calls. Cache the already processed operations to avoid
 	 * processing them more than once.
 	 */
-	void GetOperationsOfType ( const mu::OP_TYPE& TargetOperationType, const mu::OP::ADDRESS& InParentAddress, const mu::FProgram& InProgram,
+	void GetOperationsOfType ( const mu::OP_TYPE& TargetOperationType,const TArray<mu::OP::ADDRESS>& InParentAddresses,const mu::FProgram& InProgram,
 		TSet<mu::OP::ADDRESS>& OutAddressesOfType,
 		TSet<mu::OP::ADDRESS>& AlreadyProcessedAddresses);
 
-
-	/*
-	 * Navigation : Caching of operation types being used on the model
-	 */
-
-	/** Operation types present on the currently set mutable model. */
-	TArray<mu::OP_TYPE> ModelOperationTypes;
-
-	
-	/** Fills ModelOperationTypes with all the types present on the current model.
-	 * It also makes sure we have a NONE operation and that the operations are sorted alphabetically.
-	 * @note Method designed to be called once per model.*/
-	void CacheOperationTypesPresentOnModel();
-
-	
-	/** Method to scan over all the operations performed on the current model to produce a set of operation types present on it.
-	 * @param InParentAddress Address of the parent object. Required to be able to perform recursive calls to this method (to get the data from the children)
-	 * @param  InProgram Mutable program.
-	 * @param OutLocatedOperations Output of the method : Set with all the operation types present on the model.
-	 * @param AlreadyProcessedAddresses Addresses already processed. Used to avoid processing the same operation twice.
-	 */
-	void GetOperationTypesPresentOnModel( const mu::OP::ADDRESS& InParentAddress, const mu::FProgram& InProgram,
-		TSet<mu::OP_TYPE>& OutLocatedOperations,
-		TSet<mu::OP::ADDRESS>& AlreadyProcessedAddresses);
 
 	/*
 	 * Navigation : Cache operation instances based on constant resource
@@ -371,7 +432,7 @@ private:
 	
 	
 	/*
-	 * Navigation : operation methods and variables
+	 * Navigation : operation methods and variables from Tree
 	 */
 	
 	/** The element on FoundElementsOfType that we are inspecting and using as origin for our search.
@@ -576,17 +637,34 @@ private:
 	void PrepareProjectorViewer();
 };
 
+class FMutableOperationElement : public TSharedFromThis<FMutableOperationElement>
+{
+public:
+	FMutableOperationElement(mu::OP_TYPE InOperationType, FText OperationTypeBeingReprepresented,FSlateColor OperationColor)
+	{
+		OperationType = InOperationType;
+		OperationTypeText = OperationTypeBeingReprepresented;
+		OperationTextColor = OperationColor;
+	}
+
+public:
+	mu::OP_TYPE OperationType;
+	FText OperationTypeText;
+	FSlateColor OperationTextColor;
+};
+
 
 
 /** An row of the code tree in the SMutableCodeViewer. */
 class FMutableCodeTreeElement : public TSharedFromThis<FMutableCodeTreeElement>
 {
 public:
-	FMutableCodeTreeElement(const mu::ModelPtr& InModel, mu::OP::ADDRESS InOperation, const FString& InCaption, const TSharedPtr<FMutableCodeTreeElement>* InDuplicatedOf = nullptr)
+	FMutableCodeTreeElement(const mu::ModelPtr& InModel, mu::OP::ADDRESS InOperation, const FString& InCaption,const FSlateColor InLabelColor, const TSharedPtr<FMutableCodeTreeElement>* InDuplicatedOf = nullptr)
 	{
 		MutableModel = InModel;
 		MutableOperation = InOperation;
 		Caption = InCaption;
+		LabelColor = InLabelColor;
 		if (InDuplicatedOf)
 		{
 			DuplicatedOf = *InDuplicatedOf;
@@ -651,4 +729,7 @@ public:
 
 	/** If this tree element is a duplicated of another op, this is the op. */
 	TSharedPtr<FMutableCodeTreeElement> DuplicatedOf;
+
+	/** The color to be used by the row representing this object */
+	FSlateColor LabelColor;
 };
