@@ -65,16 +65,9 @@ protected:
 	 * Should the invalidation panel cache the widgets?  Making this false makes it so the invalidation
 	 * panel stops acting like an invalidation panel, just becomes a simple container widget.
 	 */
-	UPROPERTY(EditAnywhere, Category="Caching")
+	UE_DEPRECATED(5.2, "Direct access to bCanCache is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "GetCanCache", Setter = "SetCanCache", BlueprintGetter = "GetCanCache", BlueprintSetter = "SetCanCache", Category = "Caching")
 	bool bCanCache;
-
-	/**
-	 * Caches the locations for child draw elements relative to the invalidation box,
-	 * this adds extra overhead to drawing them every frame.  However, in cases where
-	 * the position of the invalidation boxes changes every frame this can be a big savings.
-	 */
-	UPROPERTY()
-	bool CacheRelativeTransforms_DEPRECATED;
 
 protected:
 	TSharedPtr<class SInvalidationPanel> MyInvalidationPanel;

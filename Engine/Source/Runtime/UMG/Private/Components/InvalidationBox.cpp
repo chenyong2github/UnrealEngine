@@ -15,7 +15,9 @@
 UInvalidationBox::UInvalidationBox(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bCanCache = true;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	SetVisibilityInternal(ESlateVisibility::SelfHitTestInvisible);
 }
 
@@ -34,9 +36,9 @@ TSharedRef<SWidget> UInvalidationBox::RebuildWidget()
 		.DebugName(GetPathName())
 #endif
 		;
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyInvalidationPanel->SetCanCache(IsDesignTime() ? false : bCanCache);
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if ( GetChildrenCount() > 0 )
 	{
 		MyInvalidationPanel->SetContent(GetContentSlot()->Content ? GetContentSlot()->Content->TakeWidget() : SNullWidget::NullWidget);
@@ -67,6 +69,7 @@ void UInvalidationBox::InvalidateCache()
 {
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool UInvalidationBox::GetCanCache() const
 {
 	if ( MyInvalidationPanel.IsValid() )
@@ -85,6 +88,7 @@ void UInvalidationBox::SetCanCache(bool CanCache)
 		return MyInvalidationPanel->SetCanCache(bCanCache);
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR
 

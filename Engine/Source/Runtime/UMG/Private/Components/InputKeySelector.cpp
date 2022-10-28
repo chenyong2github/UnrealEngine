@@ -39,10 +39,10 @@ UInputKeySelector::UInputKeySelector( const FObjectInitializer& ObjectInitialize
 		// Unlink UMG default colors.
 		DefaultInputKeySelectorTextStyle->UnlinkColors();
 	}
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	WidgetStyle = *DefaultInputKeySelectorButtonStyle;
 	TextStyle = *DefaultInputKeySelectorTextStyle;
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #if WITH_EDITOR 
 	if (EditorInputKeySelectorButtonStyle == nullptr)
 	{
@@ -62,26 +62,29 @@ UInputKeySelector::UInputKeySelector( const FObjectInitializer& ObjectInitialize
 
 	if (IsEditorWidget())
 	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		WidgetStyle = *EditorInputKeySelectorButtonStyle;
 		TextStyle = *EditorInputKeySelectorTextStyle;
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// The CDO isn't an editor widget and thus won't use the editor style, call post edit change to mark difference from CDO
 		PostEditChange();
 	}
 #endif // WITH_EDITOR
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	KeySelectionText = NSLOCTEXT("InputKeySelector", "DefaultKeySelectionText", "...");
 	NoKeySpecifiedText = NSLOCTEXT("InputKeySelector", "DefaultEmptyText", "Empty");
 	SelectedKey = FInputChord(EKeys::Invalid);
 	bAllowModifierKeys = true;
 	bAllowGamepadKeys = false;
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	EscapeKeys.AddUnique(EKeys::Gamepad_Special_Right); // In most (if not all) cases this is going to be the menu button
 
 	if (!IsRunningDedicatedServer())
 	{
 		static ConstructorHelpers::FObjectFinder<UFont> RobotoFontObj(*UWidget::GetDefaultFontName());
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		TextStyle.Font = FSlateFontInfo(RobotoFontObj.Object, 24, FName("Bold"));
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 }
 
@@ -92,13 +95,23 @@ void UInputKeySelector::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UInputKeySelector::SetSelectedKey( const FInputChord& InSelectedKey )
 {
-	if ( MyInputKeySelector.IsValid() )
+	if (SelectedKey != InSelectedKey)
 	{
-		MyInputKeySelector->SetSelectedKey( InSelectedKey );
+		BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::SelectedKey);
+		if (MyInputKeySelector.IsValid())
+		{
+			MyInputKeySelector->SetSelectedKey(InSelectedKey);
+		}
+		SelectedKey = InSelectedKey;
 	}
-	SelectedKey = InSelectedKey;
+}
+
+FInputChord UInputKeySelector::GetSelectedKey() const
+{
+	return SelectedKey;
 }
 
 void UInputKeySelector::SetKeySelectionText( FText InKeySelectionText )
@@ -108,6 +121,16 @@ void UInputKeySelector::SetKeySelectionText( FText InKeySelectionText )
 		MyInputKeySelector->SetKeySelectionText( InKeySelectionText );
 	}
 	KeySelectionText = MoveTemp(InKeySelectionText);
+}
+
+const FText& UInputKeySelector::GetNoKeySpecifiedText() const
+{
+	return NoKeySpecifiedText;
+}
+
+const FText& UInputKeySelector::GetKeySelectionText() const
+{
+	return KeySelectionText;
 }
 
 void UInputKeySelector::SetNoKeySpecifiedText(FText InNoKeySpecifiedText)
@@ -128,6 +151,11 @@ void UInputKeySelector::SetAllowModifierKeys( const bool bInAllowModifierKeys )
 	bAllowModifierKeys = bInAllowModifierKeys;
 }
 
+bool UInputKeySelector::AllowModifierKeys() const
+{
+	return bAllowModifierKeys;
+}
+
 void UInputKeySelector::SetAllowGamepadKeys(const bool bInAllowGamepadKeys)
 {
 	if (MyInputKeySelector.IsValid())
@@ -137,6 +165,12 @@ void UInputKeySelector::SetAllowGamepadKeys(const bool bInAllowGamepadKeys)
 	bAllowGamepadKeys = bInAllowGamepadKeys;
 }
 
+bool UInputKeySelector::AllowGamepadKeys() const
+{
+	return bAllowGamepadKeys;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 bool UInputKeySelector::GetIsSelectingKey() const
 {
 	return MyInputKeySelector.IsValid() ? MyInputKeySelector->GetIsSelectingKey() : false;
@@ -144,11 +178,36 @@ bool UInputKeySelector::GetIsSelectingKey() const
 
 void UInputKeySelector::SetButtonStyle( const FButtonStyle* InButtonStyle )
 {
-	if ( MyInputKeySelector.IsValid() )
+	SetButtonStyle(*InButtonStyle);
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void UInputKeySelector::SetButtonStyle(const FButtonStyle& InButtonStyle)
+{
+	if (MyInputKeySelector.IsValid())
 	{
-		MyInputKeySelector->SetButtonStyle(InButtonStyle);
+		MyInputKeySelector->SetButtonStyle(&InButtonStyle);
 	}
-	WidgetStyle = *InButtonStyle;
+	WidgetStyle = InButtonStyle;
+}
+
+const FButtonStyle& UInputKeySelector::GetButtonStyle() const
+{
+	return WidgetStyle;
+}
+
+void UInputKeySelector::SetTextStyle(const FTextBlockStyle& InTextStyle)
+{
+	if (MyInputKeySelector.IsValid())
+	{
+		MyInputKeySelector->SetTextStyle(&InTextStyle);
+	}
+	TextStyle = InTextStyle;
+}
+
+const FTextBlockStyle& UInputKeySelector::GetTextStyle() const
+{
+	return TextStyle;
 }
 
 void UInputKeySelector::SetEscapeKeys(const TArray<FKey>& InKeys)
@@ -159,6 +218,22 @@ void UInputKeySelector::SetEscapeKeys(const TArray<FKey>& InKeys)
 	}
 	EscapeKeys = InKeys;
 }
+
+void UInputKeySelector::SetMargin(const FMargin& InMargin)
+{
+	if (MyInputKeySelector.IsValid())
+	{
+		MyInputKeySelector->SetMargin(InMargin);
+	}
+	Margin = InMargin;
+}
+
+const FMargin& UInputKeySelector::GetMargin() const
+{
+	return Margin;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 #if WITH_EDITOR
 const FText UInputKeySelector::GetPaletteCategory()
 {
@@ -166,6 +241,7 @@ const FText UInputKeySelector::GetPaletteCategory()
 }
 #endif
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UInputKeySelector::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
@@ -208,8 +284,10 @@ TSharedRef<SWidget> UInputKeySelector::RebuildWidget()
 void UInputKeySelector::HandleKeySelected(const FInputChord& InSelectedKey)
 {
 	SelectedKey = InSelectedKey;
+	BroadcastFieldValueChanged(FFieldNotificationClassDescriptor::SelectedKey);
 	OnKeySelected.Broadcast(SelectedKey);
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UInputKeySelector::HandleIsSelectingKeyChanged()
 {
