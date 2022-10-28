@@ -2,12 +2,10 @@
 
 #include <catch2/reporters/catch_reporter_streaming_base.hpp>
 #include <catch2/catch_test_case_info.hpp>
+#include <catch2/catch_timer.hpp>
 #include <catch2/reporters/catch_reporter_registrars.hpp>
 #include <catch2/internal/catch_xmlwriter.hpp>
-#include <catch2/internal/catch_textflow.hpp>
 #include "Misc/StringBuilder.h"
-
-#include <iostream>
 
 namespace UE::LowLevelTests
 {
@@ -18,7 +16,7 @@ namespace UE::LowLevelTests
 		<failure>
 			all error text 
 		</failure>
-		<result success="true/false" />
+		<result success="true/false" duration="double seconds"/>
 	</testcase>
 </testrun>
 
@@ -50,6 +48,7 @@ public:
 
 	void testCaseStarting(Catch::TestCaseInfo const& TestCaseInfo) override
 	{
+		Timer.start();
 		Xml.startElement("testcase");
 		Xml.writeAttribute("name", TestCaseInfo.name);
 	}
@@ -57,6 +56,8 @@ public:
 	virtual void testCaseEnded(Catch::TestCaseStats const& TestCaseStats) override
 	{
 		using namespace Catch;
+		double Duration = Timer.getElapsedSeconds();
+
 		if (bHasFailedOnce)
 		{
 			Xml.endElement(); //end failure element
@@ -67,6 +68,7 @@ public:
 			//otherwise any failures would have to be stored as a member
 			XmlWriter::ScopedElement ResultElement = Xml.scopedElement("result");
 			ResultElement.writeAttribute("success", TestCaseStats.totals.assertions.allOk());
+			ResultElement.writeAttribute("duration", Duration);
 		}
 		Xml.endElement();
 	}
@@ -153,6 +155,7 @@ public:
 
 private:
 	Catch::XmlWriter Xml;
+	Catch::Timer Timer;
 	bool bHasFailedOnce = false;
 };
 

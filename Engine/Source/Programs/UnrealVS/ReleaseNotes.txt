@@ -1,3 +1,10 @@
+1.80
+* updated Unreal.TestAdapater to report duration's
+* added a menu for extension to improve discover-ability of features
+* added option to use P4V diff instead of Visual Studio diff
+* refactored code to share files between VS2019 and VS2022 versions
+* chanaged the File Browser to handle paste of file names
+
 1.79
 * added Unreal.TestAdapter to run low level tests from the text explorer
 

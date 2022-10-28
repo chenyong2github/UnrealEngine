@@ -197,14 +197,11 @@ TEST_CASE("Summary of test case", "[unit][feature][fast]")
 ### From Visual Studio
 
 Tests can be built and run directly from Visual Studio on desktop platforms:
-1. Download the [Test Adapter for Catch2](https://marketplace.visualstudio.com/items?itemName=JohnnyHendriks.ext01) and install it.
-2. Build the test projects from Visual Studio to produce the executables. The test adapter will discover tests in the executables and they must contain the word **Test** e.g. *MyModuleTest.exe* or *MyModuleTests.exe*.
+1. Install UnrealVS
+2. Build the test projects from Visual Studio to produce the executables. The test adapter will discover tests in the executables.
 3. The tests will be displayed in the test explorer: select *Test -> Test Explorer* from the menu: from here you can run tests and navigate to their source code.
 Running the tests will generate a *Test Detail Summary* and a Catch test report XML file in the same folder as the executable.
 4. If there are no tests in Test Explorer it's likely because the `Build` at step 3. didn't update the executable. Run a `Rebuild` on the test project and you should be good to go.
-
-> **If there are still no tests shown in the *Test Explorer*, perform a Rebuild on the test project and in the Output tab in VS select `Show output from: Tests` and look for `Catch2Adapter` in the log.
-> You should see a `Started Catch2Adapter test discovery...` line and a `Finished Catch2Adapter test discovery.`: between these lines you will see any problems reported by the Catch2 test adapter.**
 
 ## From command line
 

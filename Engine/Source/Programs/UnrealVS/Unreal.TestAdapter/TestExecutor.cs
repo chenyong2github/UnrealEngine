@@ -147,6 +147,14 @@ namespace Unreal.TestAdapter
 					string strSuccess = xml.GetAttribute("success");
 					bool.TryParse(strSuccess, out bool success);
 					testResult.Outcome = success ? TestOutcome.Passed : TestOutcome.Failed;
+
+					string strDuration = xml.GetAttribute("duration");
+					if (strDuration != null)
+					{
+						double.TryParse(strDuration, out double duraction);
+						testResult.Duration = TimeSpan.FromSeconds(duraction);
+					}
+
 					xml.Read();
 				}
 				else

@@ -12,6 +12,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{9F62E546-30CC-4715-9EFE-4BBFC8B3FD7A}"
 	ProjectSection(SolutionItems) = preProject
 		ReleaseNotes.txt = ReleaseNotes.txt
+		UpdateInstructions.txt = UpdateInstructions.txt
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unreal.TestAdapter", "Unreal.TestAdapter\Unreal.TestAdapter.csproj", "{2571AF3D-AFEE-4A45-B612-2795D5A5FE6B}"

@@ -22,7 +22,7 @@ namespace UnrealVS
 		private const int UBTSubMenuID = 0x3103;
 		private string	  FileToCompileOriginalExt = "";
 
-		static readonly List<string> ValidExtensions = new List<string> { ".c", ".cc", ".cpp", ".cxx" };
+		static readonly HashSet<string> ValidExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".c", ".cc", ".cpp", ".cxx" };
 
 		System.Diagnostics.Process ChildProcess;
 		private OleMenuCommand SubMenuCommand;
@@ -30,11 +30,13 @@ namespace UnrealVS
 		public CompileSingleFile()
 		{
 			CommandID CommandID = new CommandID(GuidList.UnrealVSCmdSet, CompileSingleFileButtonID);
-			MenuCommand CompileSingleFileButtonCommand = new MenuCommand(new EventHandler(CompileSingleFileButtonHandler), CommandID);
+			var CompileSingleFileButtonCommand = new OleMenuCommand(new EventHandler(CompileSingleFileButtonHandler), CommandID);
+			CompileSingleFileButtonCommand.BeforeQueryStatus += CompileSingleFileButtonCommand_BeforeQueryStatus;
 			UnrealVSPackage.Instance.MenuCommandService.AddCommand(CompileSingleFileButtonCommand);
 
 			CommandID CommandID2 = new CommandID(GuidList.UnrealVSCmdSet, PreprocessSingleFileButtonID);
-			MenuCommand PreprocessSingleFileButtonCommand = new MenuCommand(new EventHandler(CompileSingleFileButtonHandler), CommandID2);
+			var PreprocessSingleFileButtonCommand = new OleMenuCommand(new EventHandler(CompileSingleFileButtonHandler), CommandID2);
+			PreprocessSingleFileButtonCommand.BeforeQueryStatus += CompileSingleFileButtonCommand_BeforeQueryStatus;
 			UnrealVSPackage.Instance.MenuCommandService.AddCommand(PreprocessSingleFileButtonCommand);
 
 			CommandID CommandID3 = new CommandID(GuidList.UnrealVSCmdSet, CompileSingleModuleButtonID);
@@ -44,6 +46,27 @@ namespace UnrealVS
 			// add sub menu for UBT commands
 			SubMenuCommand = new OleMenuCommand(null, new CommandID(GuidList.UnrealVSCmdSet, UBTSubMenuID));
 			UnrealVSPackage.Instance.MenuCommandService.AddCommand(SubMenuCommand);
+		}
+
+		private void CompileSingleFileButtonCommand_BeforeQueryStatus(object sender, EventArgs e)
+		{
+			ThreadHelper.ThrowIfNotOnUIThread();
+			DTE DTE = UnrealVSPackage.Instance.DTE;
+			MenuCommand MenuCommand = sender as MenuCommand;
+			if (MenuCommand == null)
+			{
+				return;
+			}
+
+			if (DTE?.ActiveDocument == null)
+			{
+				MenuCommand.Enabled = false;
+				return;
+			}
+
+			// Check if the requested file is valid
+			string FileToCompileExt = Path.GetExtension(DTE.ActiveDocument.FullName);
+			MenuCommand.Enabled = ValidExtensions.Contains(FileToCompileExt);
 		}
 
 		public void Dispose()
