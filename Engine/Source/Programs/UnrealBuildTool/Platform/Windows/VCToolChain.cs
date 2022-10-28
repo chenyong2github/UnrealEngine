@@ -54,6 +54,11 @@ namespace UnrealBuildTool
 				}
 			}
 		}
+		
+		public override FileReference? GetCppCompilerPath()
+		{
+			return EnvVars.CompilerPath;
+		}
 
 		/// <summary>
 		/// Prepares the environment for building

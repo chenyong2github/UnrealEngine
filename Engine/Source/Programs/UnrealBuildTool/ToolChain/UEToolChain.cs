@@ -35,6 +35,12 @@ namespace UnrealBuildTool
 			return DirectoryReference.Combine(OutputDir, "Ifc");
 		}
 
+		// Return the path to the cpp compiler that will be used by this toolchain.
+		public virtual FileReference? GetCppCompilerPath()
+		{
+			return null;
+		}
+
 		public abstract CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph);
 
 		public virtual CPPOutput CompileRCFiles(CppCompileEnvironment Environment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)

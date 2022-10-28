@@ -189,7 +189,7 @@ namespace UnrealBuildTool
 
 			// Find all of the target files.  This will filter out any modules or targets that don't
 			// belong to platforms we're generating project files for.
-			List<FileReference> AllTargetFiles = DiscoverTargets(AllGames, Logger);
+			List<FileReference> AllTargetFiles = DiscoverTargets(AllGames, Logger, OnlyGameProject, SupportedPlatforms, bIncludeEngineSource: bIncludeEngineSource, bIncludeTempTargets: bIncludeTempTargets);
 
 			// Sort the targets by name. When we have multiple targets of a given type for a project, we'll use the order to determine which goes in the primary project file (so that client names with a suffix will go into their own project).
 			AllTargetFiles = AllTargetFiles.OrderBy(x => x.FullName, StringComparer.OrdinalIgnoreCase).ToList();

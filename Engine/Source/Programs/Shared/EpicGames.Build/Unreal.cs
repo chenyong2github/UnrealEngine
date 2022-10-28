@@ -20,6 +20,13 @@ namespace UnrealBuildBase
 				return DirectoryReference.FindCorrectCase(LocationOverride.RootDirectory);
 			}
 
+			string? OverrideArg = Environment.GetCommandLineArgs().FirstOrDefault(x => x?.StartsWith("-rootdirectory=") ?? false, null);
+			if (OverrideArg != null)
+			{
+				string[] Parts = OverrideArg.Split('=', 2);
+				return new DirectoryReference(Path.GetFullPath(Parts[1]));
+			}
+
 			// This base library may be used - and so be launched - from more than one location (at time of writing, UnrealBuildTool and AutomationTool)
 			// Programs that use this assembly must be located under "Engine/Binaries/DotNET" and so we look for that sequence of directories in that path of the executing assembly
 

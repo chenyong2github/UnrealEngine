@@ -53,6 +53,14 @@ namespace UnrealBuildTool
 		[XmlConfigFile(Name = "AddDebugCoreConfig")]
 		private bool bAddDebugCoreConfig = false;
 
+		/// <summary>
+		/// Do not create compile commands json files with compiler arguments for each file; works better with VS Code extension using
+		/// UBT server mode.
+		/// </summary>
+		[XmlConfigFile(Name = "NoCompileCommands")]
+		[CommandLine("-NoCompileCommands")]
+		private bool bNoCompileCommands = false;
+
 		private enum EPathType
 		{
 			Absolute,
@@ -238,7 +246,7 @@ namespace UnrealBuildTool
 
 		public override bool ShouldGenerateIntelliSenseData()
 		{
-			return true;
+			return !bNoCompileCommands;
 		}
 
 		protected override ProjectFile AllocateProjectFile(FileReference InitFilePath, DirectoryReference BaseDir)
@@ -667,7 +675,10 @@ namespace UnrealBuildTool
 			OutFile.BeginObject();
 
 			OutFile.AddField("name", Name);
-			OutFile.AddField("compilerPath", CompilerPath.FullName);
+			if (CompilerPath != null)
+			{
+				OutFile.AddField("compilerPath", CompilerPath.FullName);
+			}
 
 			if (HostPlatform == UnrealTargetPlatform.Mac)
 			{
@@ -723,8 +734,10 @@ namespace UnrealBuildTool
 				OutFile.AddField("intelliSenseMode", "clang-x64");
 			}
 
+			OutFile.AddField("configurationProvider", "epic.ue");
+
 			FileReference CompileCommands = FileReference.Combine(OutputDirectory, string.Format("compileCommands_{0}.json", ProjectName));
-			WriteCompileCommands(CompileCommands, SourceFiles, CompilerPath, ModuleCommandLines);
+			WriteCompileCommands(CompileCommands, SourceFiles, CompilerPath!, ModuleCommandLines);
 			OutFile.AddField("compileCommands", MakePathString(CompileCommands, bInAbsolute: true, bForceSkipQuotes: true));
 
 			OutFile.EndObject();
@@ -1619,6 +1632,8 @@ namespace UnrealBuildTool
 				// Adding this section aids discovery of extensions which are helpful to have installed for Unreal development.
 				WorkspaceFile.BeginArray("recommendations");
 				{
+					// Add when/if published to marketplace. 
+					// WorkspaceFile.AddUnnamedField("epic.vscode-ue");
 					WorkspaceFile.AddUnnamedField("ms-vscode.cpptools");
 					WorkspaceFile.AddUnnamedField("ms-dotnettools.csharp");
 
