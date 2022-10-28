@@ -63,12 +63,11 @@ static void Field_WriteAuxData(uint32 Index, int32 Size, CallbackType&& Callback
 		int32 SegmentSize = (Remaining < Size) ? Remaining : Size;
 
 		// Write header
-		auto* Header = (FAuxHeader*)(Buffer->Cursor);
-		Header->Pack = SegmentSize << FAuxHeader::SizeShift;
-		Header->Pack |= Index << FAuxHeader::FieldShift;
-		Header->Uid = uint8(EKnownEventUids::AuxData) << EKnownEventUids::_UidShift;
+		uint32 Pack = SegmentSize << FAuxHeader::SizeShift;
+		Pack |= Index << FAuxHeader::FieldShift;
+		memcpy(Buffer->Cursor, &Pack, sizeof(uint32)); /* FAuxHeader::Pack */
+		Buffer->Cursor[0] = uint8(EKnownEventUids::AuxData) << EKnownEventUids::_UidShift; /* FAuxHeader::Uid */
 		Buffer->Cursor += sizeof(FAuxHeader);
-
 
 		// Write payload data
 		Callback(Buffer->Cursor, SegmentSize);

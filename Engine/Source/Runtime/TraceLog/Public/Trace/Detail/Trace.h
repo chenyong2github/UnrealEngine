@@ -6,6 +6,8 @@
 
 #if UE_TRACE_ENABLED
 
+#include "Misc/Launder.h"
+
 #include <type_traits>
 
 namespace UE {
@@ -149,7 +151,7 @@ class FChannel;
 #define TRACE_PRIVATE_LOG_PRELUDE(EnterFunc, LoggerName, EventName, ChannelsExpr, ...) \
 	if (TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr)) \
 		if (auto LogScope = F##LoggerName##EventName##Fields::LogScopeType::EnterFunc<F##LoggerName##EventName##Fields>(__VA_ARGS__)) \
-			if (const auto& __restrict EventName = *(F##LoggerName##EventName##Fields*)(&LogScope)) \
+			if (const auto& __restrict EventName = *UE_LAUNDER((F##LoggerName##EventName##Fields*)(&LogScope))) \
 				((void)EventName),
 
 #define TRACE_PRIVATE_LOG_EPILOG() \

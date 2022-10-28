@@ -139,6 +139,7 @@ void FEventNode::Describe() const
 	uint32 EventSize = sizeof(FNewEventEvent);
 	EventSize += sizeof(FNewEventEvent::Fields[0]) * Info->FieldCount;
 	EventSize += NamesSize;
+	EventSize = (EventSize + 1) & ~1; // align to 2 to keep UBSAN happy
 
 	FLogScope LogScope = FLogScope::EnterImpl<FEventInfo::Flag_NoSync>(0, EventSize + sizeof(uint16));
 	auto* Ptr = (uint16*)(LogScope.GetPointer());

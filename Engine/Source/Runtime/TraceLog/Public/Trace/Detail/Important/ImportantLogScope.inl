@@ -75,12 +75,11 @@ inline FImportantLogScope FImportantLogScope::EnterImpl(uint32 Uid, uint32 Size)
 	uint8* Out = (uint8*)Buffer - Bias;
 
 	// Event header
-	auto* Header = (FImportantEventHeader*)Out;
-	Header->Uid = uint16(Uid);
-	Header->Size = uint16(Size);
+	uint16 Values16[] = { uint16(Uid), uint16(Size) };
+	memcpy(Out, Values16, sizeof(Values16)); /* FImportantEventHeader::Uid,Size */
 
 	FImportantLogScope Ret;
-	Ret.Ptr = Header->Data;
+	Ret.Ptr = Out + sizeof(FImportantEventHeader);
 	Ret.BufferOffset = int32(PTRINT(Buffer) - PTRINT(Ret.Ptr));
 	Ret.AuxCursor = 0;
 	return Ret;
@@ -114,12 +113,14 @@ struct FImportantLogScope::FFieldSet<FieldMeta, Type[]>
 	{
 		uint32 Size = Num * sizeof(Type);
 
-		auto* Header = (FAuxHeader*)(Scope->Ptr + Scope->AuxCursor);
-		Header->Pack = Size << FAuxHeader::SizeShift;
-		Header->Pack |= (FieldMeta::Index & int32(EIndexPack::NumFieldsMask)) << FAuxHeader::FieldShift;
-		Header->Uid = uint8(EKnownEventUids::AuxData);
+		uint32 Pack = Size << FAuxHeader::SizeShift;
+		Pack |= (FieldMeta::Index & int32(EIndexPack::NumFieldsMask)) << FAuxHeader::FieldShift;
 
-		memcpy(Header + 1, Data, Size);
+		uint8* Out = Scope->Ptr + Scope->AuxCursor;
+		memcpy(Out, &Pack, sizeof(Pack)); /* FAuxHeader::Pack */
+		Out[0] = uint8(EKnownEventUids::AuxData); /* FAuxHeader::Uid */
+
+		memcpy(Out + sizeof(FAuxHeader), Data, Size);
 
 		Scope->AuxCursor += sizeof(FAuxHeader) + Size;
 		Scope->Ptr[Scope->AuxCursor] = uint8(EKnownEventUids::AuxDataTerminal);
@@ -137,12 +138,14 @@ struct FImportantLogScope::FFieldSet<FieldMeta, AnsiString>
 			Length = int32(strlen(String));
 		}
 
-		auto* Header = (FAuxHeader*)(Scope->Ptr + Scope->AuxCursor);
-		Header->Pack = Length << FAuxHeader::SizeShift;
-		Header->Pack |= (FieldMeta::Index & int32(EIndexPack::NumFieldsMask)) << FAuxHeader::FieldShift;
-		Header->Uid = uint8(EKnownEventUids::AuxData);
+		uint32 Pack = Length << FAuxHeader::SizeShift;
+		Pack |= (FieldMeta::Index & int32(EIndexPack::NumFieldsMask)) << FAuxHeader::FieldShift;
 
-		memcpy(Header + 1, String, Length);
+		uint8* Out = Scope->Ptr + Scope->AuxCursor;
+		memcpy(Out, &Pack, sizeof(Pack)); /* FAuxHeader::FieldIndex_Size */
+		Out[0] = uint8(EKnownEventUids::AuxData); /* FAuxHeader::Uid */
+
+		memcpy(Out + sizeof(FAuxHeader), String, Length);
 
 		Scope->AuxCursor += sizeof(FAuxHeader) + Length;
 		Scope->Ptr[Scope->AuxCursor] = uint8(EKnownEventUids::AuxDataTerminal);
@@ -156,12 +159,14 @@ struct FImportantLogScope::FFieldSet<FieldMeta, AnsiString>
 			for (const WIDECHAR* c = String; *c; ++c, ++Length);
 		}
 
-		auto* Header = (FAuxHeader*)(Scope->Ptr + Scope->AuxCursor);
-		Header->Pack = Length << FAuxHeader::SizeShift;
-		Header->Pack |= (FieldMeta::Index & int32(EIndexPack::NumFieldsMask)) << FAuxHeader::FieldShift;
-		Header->Uid = uint8(EKnownEventUids::AuxData);
+		uint32 Pack = Length << FAuxHeader::SizeShift;
+		Pack |= (FieldMeta::Index & int32(EIndexPack::NumFieldsMask)) << FAuxHeader::FieldShift;
 
-		auto* Out = (int8*)(Header + 1);
+		uint8* Out = Scope->Ptr + Scope->AuxCursor;
+		memcpy(Out, &Pack, sizeof(Pack)); /* FAuxHeader::FieldIndex_Size */
+		Out[0] = uint8(EKnownEventUids::AuxData); /* FAuxHeader::Uid */
+
+		Out += sizeof(FAuxHeader);
 		for (int32 i = 0; i < Length; ++i)
 		{
 			*Out = int8(*String);
@@ -188,12 +193,14 @@ struct FImportantLogScope::FFieldSet<FieldMeta, WideString>
 
 		uint32 Size = Length * sizeof(WIDECHAR);
 
-		auto* Header = (FAuxHeader*)(Scope->Ptr + Scope->AuxCursor);
-		Header->Pack = Size << FAuxHeader::SizeShift;
-		Header->Pack |= (FieldMeta::Index & int32(EIndexPack::NumFieldsMask)) << FAuxHeader::FieldShift;
-		Header->Uid = uint8(EKnownEventUids::AuxData);
+		uint32 Pack = Size << FAuxHeader::SizeShift;
+		Pack |= (FieldMeta::Index & int32(EIndexPack::NumFieldsMask)) << FAuxHeader::FieldShift;
 
-		memcpy(Header + 1, String, Size);
+		uint8* Out = Scope->Ptr + Scope->AuxCursor;
+		memcpy(Out, &Pack, sizeof(Pack));
+		Out[0] = uint8(EKnownEventUids::AuxData);
+
+		memcpy(Out + sizeof(FAuxHeader), String, Size);
 
 		Scope->AuxCursor += sizeof(FAuxHeader) + Size;
 		Scope->Ptr[Scope->AuxCursor] = uint8(EKnownEventUids::AuxDataTerminal);
