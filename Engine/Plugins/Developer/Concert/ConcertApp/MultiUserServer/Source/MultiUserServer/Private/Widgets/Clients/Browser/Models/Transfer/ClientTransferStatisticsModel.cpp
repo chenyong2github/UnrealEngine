@@ -39,12 +39,13 @@ namespace UE::MultiUserServer
 	}
 	
 	FClientTransferStatisticsModel::FClientTransferStatisticsModel(const FMessageAddress& ClientAddress)
-		: FTransferStatisticsModelBase()
-		, ClientAddress(ClientAddress)
-	{
-	}
+		: FTransferStatisticsModelBase(
+			TClientTransferStatTracker<FOutboundTransferStatistics>::FShouldInclude::CreateStatic(&FClientTransferStatisticsModel::ShouldIncludeOutboundStat, ClientAddress),
+			TClientTransferStatTracker<FInboundTransferStatistics>::FShouldInclude::CreateStatic(&FClientTransferStatisticsModel::ShouldIncludeInboundStat, ClientAddress)
+			)
+	{}
 
-	bool FClientTransferStatisticsModel::ShouldIncludeOutboundStat(const FOutboundTransferStatistics& Item) const
+	bool FClientTransferStatisticsModel::ShouldIncludeOutboundStat(const FOutboundTransferStatistics& Item, const FMessageAddress ClientAddress)
 	{
 		if (const INetworkMessagingExtension* Statistics = Private::ClientTransferStatisticsModel::GetMessagingStatistics())
 		{
@@ -54,7 +55,7 @@ namespace UE::MultiUserServer
 		return false;
 	}
 
-	bool FClientTransferStatisticsModel::ShouldIncludeInboundStat(const FInboundTransferStatistics& Item) const
+	bool FClientTransferStatisticsModel::ShouldIncludeInboundStat(const FInboundTransferStatistics& Item, const FMessageAddress ClientAddress)
 	{
 		if (const INetworkMessagingExtension* Statistics = Private::ClientTransferStatisticsModel::GetMessagingStatistics())
 		{

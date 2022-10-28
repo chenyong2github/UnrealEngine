@@ -10,10 +10,15 @@ namespace UE::MultiUserServer
 {
 	class FServerTransferStatisticsModel : public FTransferStatisticsModelBase
 	{
-	protected:
-		
-		virtual bool ShouldIncludeOutboundStat(const FOutboundTransferStatistics& Item) const override { return true; }
-		virtual bool ShouldIncludeInboundStat(const FInboundTransferStatistics& Item) const override { return true; }
+	public:
+
+		FServerTransferStatisticsModel()
+			:
+			FTransferStatisticsModelBase(
+			TClientTransferStatTracker<FOutboundTransferStatistics>::FShouldInclude::CreateLambda([](const auto&){ return true; }),
+			TClientTransferStatTracker<FInboundTransferStatistics>::FShouldInclude::CreateLambda([](const auto& ){ return true; })
+			)
+		{}
 	};
 }
 

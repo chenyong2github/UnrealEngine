@@ -16,11 +16,9 @@ namespace UE::MultiUserServer
 		FClientTransferStatisticsModel(const FMessageAddress& ClientAddress);
 
 	protected:
-
-		const FMessageAddress ClientAddress;
 		
-		virtual bool ShouldIncludeOutboundStat(const FOutboundTransferStatistics& Item) const override;
-		virtual bool ShouldIncludeInboundStat(const FInboundTransferStatistics& Item) const override;
+		static bool ShouldIncludeOutboundStat(const FOutboundTransferStatistics& Item, const FMessageAddress ClientAddress);
+		static bool ShouldIncludeInboundStat(const FInboundTransferStatistics& Item, const FMessageAddress ClientAddress);
 	};
 }
 

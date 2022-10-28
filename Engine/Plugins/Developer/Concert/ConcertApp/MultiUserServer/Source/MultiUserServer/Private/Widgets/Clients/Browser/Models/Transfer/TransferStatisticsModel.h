@@ -33,8 +33,8 @@ namespace UE::MultiUserServer
 		
 	public:
 
-		using FShouldInclude = TFunction<bool(const TStatBase&)>;
-		using FStatGetter = TFunction<uint64(const TStatBase&)>;
+		DECLARE_DELEGATE_RetVal_OneParam(bool, FShouldInclude, const TStatBase&);
+		DECLARE_DELEGATE_RetVal_OneParam(uint64, FStatGetter, const TStatBase&);
 
 		TClientTransferStatTracker(FShouldInclude ShouldIncludeFunc, FStatGetter StatGetterFunc)
 			: ShouldIncludeFunc(MoveTemp(ShouldIncludeFunc))
@@ -43,13 +43,13 @@ namespace UE::MultiUserServer
 
 		void OnTransferUpdatedFromThread(TStatBase TransferStatistics)
 		{
-			if (ShouldIncludeFunc(TransferStatistics))
+			if (ShouldIncludeFunc.Execute(TransferStatistics))
 			{
 				AsyncStatQueue.Enqueue(TStatItem{ FDateTime::Now(), TransferStatistics });
 			}
 		}
 
-		void Tick()
+		bool Tick(float DeltaTime)
 		{
 			const bool bRemovedOldStats = RemoveOldStatTimelines();
 			const bool bRemovedAnyGroups = RemoveOldGroupedStats();
@@ -70,6 +70,8 @@ namespace UE::MultiUserServer
 				
 				OnGroupsUpdatedDelegate.Broadcast();
 			}
+
+			return true;
 		}
 		
 		FOnTransferTimelineUpdated& GetOnTimelineUpdatedDelegates() { return OnTimelineUpdatedDelegates; }
@@ -143,14 +145,14 @@ namespace UE::MultiUserServer
 		
 		void UpdateStatTimeline(const TStatBase& TransferStatistics, FConcertTransferSamplePoint& SamplingThisTick)
 		{
-			uint64 BytesSentSinceLastTime = StatGetterFunc(TransferStatistics);
+			uint64 BytesSentSinceLastTime = StatGetterFunc.Execute(TransferStatistics);
 			// Same message ID may have been queued multiple times
 			if (FIncompleteMessageData* ItemThisTick = IncompleteStatsUntilNow.Find(TransferStatistics.MessageId))
 			{
 				BytesSentSinceLastTime -= ItemThisTick->BytesTransferredSoFar;
 			}
 
-			IncompleteStatsUntilNow.Add(TransferStatistics.MessageId, { StatGetterFunc(TransferStatistics), FDateTime::Now() });
+			IncompleteStatsUntilNow.Add(TransferStatistics.MessageId, { StatGetterFunc.Execute(TransferStatistics), FDateTime::Now() });
 			SamplingThisTick.BytesTransferred += BytesSentSinceLastTime;
 		}
 		
@@ -178,28 +180,29 @@ namespace UE::MultiUserServer
 	{
 	public:
 		
-		FTransferStatisticsModelBase();
+		FTransferStatisticsModelBase(
+			TClientTransferStatTracker<FOutboundTransferStatistics>::FShouldInclude ShouldIncludeOutboundFunc,
+			TClientTransferStatTracker<FInboundTransferStatistics>::FShouldInclude ShouldIncludeInboundFunc
+			);
 		virtual ~FTransferStatisticsModelBase() override;
 		
 		virtual const TArray<FConcertTransferSamplePoint>& GetTransferStatTimeline(EConcertTransferStatistic StatisticType) const override;
-		virtual const TArray<TSharedPtr<FOutboundTransferStatistics>>& GetOutboundTransferStatsGroupedById() const override { return OutboundStatTracker.GetTransferStatisticsGroupedById(); }
-		virtual const TArray<TSharedPtr<FInboundTransferStatistics>>& GetInboundTransferStatsGroupedById() const override { return InboundStatTracker.GetTransferStatisticsGroupedById(); }
+		virtual const TArray<TSharedPtr<FOutboundTransferStatistics>>& GetOutboundTransferStatsGroupedById() const override { return OutboundStatTracker->GetTransferStatisticsGroupedById(); }
+		virtual const TArray<TSharedPtr<FInboundTransferStatistics>>& GetInboundTransferStatsGroupedById() const override { return InboundStatTracker->GetTransferStatisticsGroupedById(); }
 		virtual FOnTransferTimelineUpdated& OnTransferTimelineUpdated(EConcertTransferStatistic StatisticType) override;
-		virtual FOnTransferGroupsUpdated& OnOutboundTransferGroupsUpdated() override { return OutboundStatTracker.GetOnGroupsUpdatedDelegate(); }
-		virtual FOnTransferGroupsUpdated& OnInboundTransferGroupsUpdated() override { return InboundStatTracker.GetOnGroupsUpdatedDelegate(); }
+		virtual FOnTransferGroupsUpdated& OnOutboundTransferGroupsUpdated() override { return OutboundStatTracker->GetOnGroupsUpdatedDelegate(); }
+		virtual FOnTransferGroupsUpdated& OnInboundTransferGroupsUpdated() override { return InboundStatTracker->GetOnGroupsUpdatedDelegate(); }
 
 	private:
-		
-		virtual bool ShouldIncludeOutboundStat(const FOutboundTransferStatistics& Item) const = 0;
-		virtual bool ShouldIncludeInboundStat(const FInboundTransferStatistics& Item) const = 0;
 
-		FTSTicker::FDelegateHandle TickHandle;
+		FTSTicker::FDelegateHandle InboundTickHandle;
+		FTSTicker::FDelegateHandle OutboundTickHandle;
 		
-		
-		bool Tick(float DeltaTime);
 
-		TClientTransferStatTracker<FOutboundTransferStatistics> OutboundStatTracker;
-		TClientTransferStatTracker<FInboundTransferStatistics> InboundStatTracker;
+		// These are used for subscribing to INetworkMessagingExtension - therefore they are shared pointers for synchronization purposes
+		// Prevents race condition when destructor is called and UDP thread attempts to call the callbacks
+		TSharedRef<TClientTransferStatTracker<FOutboundTransferStatistics>> OutboundStatTracker;
+		TSharedRef<TClientTransferStatTracker<FInboundTransferStatistics>> InboundStatTracker;
 	};
 }
 

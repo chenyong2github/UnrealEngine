@@ -37,17 +37,46 @@ namespace UE::MultiUserServer
 			ensureMsgf(false, TEXT("Feature %s is unavailable"), *INetworkMessagingExtension::ModularFeatureName.ToString());
 			return nullptr;
 		}
+
+		static TSharedRef<TClientTransferStatTracker<FOutboundTransferStatistics>> MakeOutbound(TClientTransferStatTracker<FOutboundTransferStatistics>::FShouldInclude ShouldIncludeOutboundFunc)
+		{
+			return MakeShared<TClientTransferStatTracker<FOutboundTransferStatistics>>(
+				MoveTemp(ShouldIncludeOutboundFunc),
+				TClientTransferStatTracker<FOutboundTransferStatistics>::FStatGetter::CreateLambda(
+					[](const FOutboundTransferStatistics& Stats)
+					{
+						return Stats.BytesSent;
+					}
+				)
+			);
+		}
+
+		static TSharedRef<TClientTransferStatTracker<FInboundTransferStatistics>> MakeInbound(TClientTransferStatTracker<FInboundTransferStatistics>::FShouldInclude ShouldIncludeInboundFunc)
+		{
+			return MakeShared<TClientTransferStatTracker<FInboundTransferStatistics>>(
+				MoveTemp(ShouldIncludeInboundFunc),
+				TClientTransferStatTracker<FInboundTransferStatistics>::FStatGetter::CreateLambda(
+					[](const FInboundTransferStatistics& Stats)
+					{
+						return Stats.BytesReceived;
+					}
+				)
+			);
+		}
 	}
 
-	FTransferStatisticsModelBase::FTransferStatisticsModelBase()
-		: OutboundStatTracker([this](const FOutboundTransferStatistics& Stats) { return ShouldIncludeOutboundStat(Stats); }, [](const FOutboundTransferStatistics& Stats){ return Stats.BytesSent; })
-		, InboundStatTracker([this](const FInboundTransferStatistics& Stats) { return ShouldIncludeInboundStat(Stats); }, [](const FInboundTransferStatistics& Stats){ return Stats.BytesReceived; })
+	FTransferStatisticsModelBase::FTransferStatisticsModelBase(
+		TClientTransferStatTracker<FOutboundTransferStatistics>::FShouldInclude ShouldIncludeOutboundFunc,
+		TClientTransferStatTracker<FInboundTransferStatistics>::FShouldInclude ShouldIncludeInboundFunc)
+		: OutboundStatTracker(Private::TransferStatisticsModel::MakeOutbound(MoveTemp(ShouldIncludeOutboundFunc)))
+		, InboundStatTracker(Private::TransferStatisticsModel::MakeInbound(MoveTemp(ShouldIncludeInboundFunc)))
 	{
 		if (INetworkMessagingExtension* Statistics = Private::TransferStatisticsModel::GetMessagingStatistics())
 		{
-			Statistics->OnOutboundTransferUpdatedFromThread().AddRaw(&OutboundStatTracker, &TClientTransferStatTracker<FOutboundTransferStatistics>::OnTransferUpdatedFromThread);
-			Statistics->OnInboundTransferUpdatedFromThread().AddRaw(&InboundStatTracker, &TClientTransferStatTracker<FInboundTransferStatistics>::OnTransferUpdatedFromThread);
-			TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FTransferStatisticsModelBase::Tick));
+			Statistics->OnOutboundTransferUpdatedFromThread().AddSP(OutboundStatTracker, &TClientTransferStatTracker<FOutboundTransferStatistics>::OnTransferUpdatedFromThread);
+			Statistics->OnInboundTransferUpdatedFromThread().AddSP(InboundStatTracker, &TClientTransferStatTracker<FInboundTransferStatistics>::OnTransferUpdatedFromThread);
+			InboundTickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(OutboundStatTracker, &TClientTransferStatTracker<FOutboundTransferStatistics>::Tick));
+			OutboundTickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateSP(InboundStatTracker, &TClientTransferStatTracker<FInboundTransferStatistics>::Tick));
 		}
 	}
 
@@ -59,19 +88,20 @@ namespace UE::MultiUserServer
 			Statistics->OnInboundTransferUpdatedFromThread().RemoveAll(&InboundStatTracker);
 		}
 		
-		FTSTicker::GetCoreTicker().RemoveTicker(TickHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(InboundTickHandle);
+		FTSTicker::GetCoreTicker().RemoveTicker(OutboundTickHandle);
 	}
 
 	const TArray<FConcertTransferSamplePoint>& FTransferStatisticsModelBase::GetTransferStatTimeline(EConcertTransferStatistic StatisticType) const
 	{
 		switch (StatisticType)
 		{
-		case EConcertTransferStatistic::SentToClient: return OutboundStatTracker.GetTransferStatisticsTimeline();
-		case EConcertTransferStatistic::ReceivedFromClient: return InboundStatTracker.GetTransferStatisticsTimeline();;
+		case EConcertTransferStatistic::SentToClient: return OutboundStatTracker->GetTransferStatisticsTimeline();
+		case EConcertTransferStatistic::ReceivedFromClient: return InboundStatTracker->GetTransferStatisticsTimeline();;
 		case EConcertTransferStatistic::Count:
 		default:
 			checkNoEntry();
-			return OutboundStatTracker.GetTransferStatisticsTimeline();
+			return OutboundStatTracker->GetTransferStatisticsTimeline();
 		}
 	}
 
@@ -79,19 +109,12 @@ namespace UE::MultiUserServer
 	{
 		switch (StatisticType)
 		{
-		case EConcertTransferStatistic::SentToClient: return OutboundStatTracker.GetOnTimelineUpdatedDelegates();
-		case EConcertTransferStatistic::ReceivedFromClient: return InboundStatTracker.GetOnTimelineUpdatedDelegates();;
+		case EConcertTransferStatistic::SentToClient: return OutboundStatTracker->GetOnTimelineUpdatedDelegates();
+		case EConcertTransferStatistic::ReceivedFromClient: return InboundStatTracker->GetOnTimelineUpdatedDelegates();;
 		case EConcertTransferStatistic::Count:
 		default:
 			checkNoEntry();
-			return OutboundStatTracker.GetOnTimelineUpdatedDelegates();
+			return OutboundStatTracker->GetOnTimelineUpdatedDelegates();
 		}
-	}
-	
-	bool FTransferStatisticsModelBase::Tick(float DeltaTime)
-	{
-		OutboundStatTracker.Tick();
-		InboundStatTracker.Tick();
-		return true;
 	}
 }
