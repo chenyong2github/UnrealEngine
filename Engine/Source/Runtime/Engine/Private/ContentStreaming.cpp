@@ -1365,6 +1365,9 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 				It->UnlinkStreaming();
 			}
 
+			// Remove unreachable assets from the streamer before it goes away
+			UnhashUnreachableObjects(false);
+
 			RemoveStreamingManager(RenderAssetStreamingManager);
 			delete RenderAssetStreamingManager;
 			RenderAssetStreamingManager = nullptr;
