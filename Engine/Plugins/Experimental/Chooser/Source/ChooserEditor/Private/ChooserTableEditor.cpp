@@ -101,6 +101,7 @@ void FChooserTableEditor::InitEditor( const EToolkitMode::Type Mode, const TShar
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>( "PropertyEditor" );
 	FDetailsViewArgs DetailsViewArgs;
+	DetailsViewArgs.NotifyHook = this;
 	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
 	DetailsView = PropertyEditorModule.CreateDetailView( DetailsViewArgs );
 	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout( "Standalone_ChooserTableEditor_Layout_v1" )
@@ -157,6 +158,26 @@ void FChooserTableEditor::PostRedo(bool bSuccess)
 	UpdateTableColumns();
 	UpdateTableRows();
 }
+
+	
+void FChooserTableEditor::NotifyPreChange(FProperty* PropertyAboutToChange)
+{
+}
+
+void FChooserTableEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
+{
+	if (PropertyThatChanged->GetNameCPP() == GET_MEMBER_NAME_STRING_CHECKED(UChooserTable, OutputObjectType))
+	{
+		// rebuild all result widgets
+		UpdateTableRows();
+	}
+	if (PropertyThatChanged->GetNameCPP() == GET_MEMBER_NAME_STRING_CHECKED(UChooserTable, ContextObjectType))
+	{
+		// rebuild all column header widgets
+		UpdateTableColumns();
+	}
+}
+
 	
 FText FChooserTableEditor::GetToolkitName() const
 {
@@ -1012,7 +1033,7 @@ template <typename PropertyType>
 TSharedRef<SWidget> CreatePropertyWidget(UObject* Object, UClass* ContextClass)
 {
 	TWeakObjectPtr<PropertyType> ContextProperty = Cast<PropertyType>(Object);
-
+	
 	FPropertyBindingWidgetArgs Args;
 	Args.bAllowPropertyBindings = true;
 	Args.OnCanBindProperty = FOnCanBindProperty::CreateLambda([](FProperty* Property)

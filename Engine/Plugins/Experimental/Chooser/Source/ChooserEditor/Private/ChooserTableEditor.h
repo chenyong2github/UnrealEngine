@@ -10,6 +10,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Chooser.h"
 #include "EditorUndoClient.h"
+#include "Misc/NotifyHook.h"
 #include "ChooserTableEditor.generated.h"
 
 class SComboButton;
@@ -29,7 +30,7 @@ public:
 
 namespace UE::ChooserEditor
 {
-	class FChooserTableEditor : public FAssetEditorToolkit, public FSelfRegisteringEditorUndoClient
+	class FChooserTableEditor : public FAssetEditorToolkit, public FSelfRegisteringEditorUndoClient, public FNotifyHook
 	{
 	public:
 		/** Delegate that, given an array of assets, returns an array of objects to use in the details view of an FSimpleAssetEditor */
@@ -65,6 +66,10 @@ namespace UE::ChooserEditor
 		/** FEditorUndoClient Interface */
 		virtual void PostUndo(bool bSuccess) override;
 		virtual void PostRedo(bool bSuccess) override;
+		
+		/** Begin FNotifyHook Interface */
+		virtual void NotifyPreChange( FProperty* PropertyAboutToChange ) override;
+		virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 
 		/** FAssetEditorToolkit interface */
 		virtual void PostRegenerateMenusAndToolbars() override;
