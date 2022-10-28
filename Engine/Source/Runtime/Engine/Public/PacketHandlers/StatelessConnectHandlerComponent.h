@@ -338,11 +338,11 @@ private:
 
 #if !UE_BUILD_SHIPPING
 	/**
-	 * Tracks logs for invalid Session ID's or Connection ID's, and limits the number of these logs
+	 * Tracks logs for invalid Session ID's, Connection ID's or Magic Header's, and limits the number of these logs
 	 *
 	 * @return		Whether or not logging is currently allowed
 	 */
-	bool TrackSessionConnIDLogs();
+	bool TrackValidationLogs();
 #endif
 
 
@@ -378,11 +378,11 @@ private:
 	EHandshakeVersion MinClientHandshakeVersion;
 
 #if !UE_BUILD_SHIPPING
-	/** The last time an 'invalid session/connection id' log period began */
-	double LastSessionConnIDLogPeriodStart = 0.0;
+	/** The last time an 'invalid SessionId/ClientId/MagicHeader' log period began */
+	double LastValidationLogPeriodStart = 0.0;
 
-	/** The number of 'invalid session/connection id' logs in the current log period (for logspam limiting) */
-	uint32 SessionConnIDLogCounter = 0;
+	/** The number of 'invalid SessionId/ClientId/MagicHeader' logs in the current log period (for logspam limiting) */
+	uint32 ValidationLogCounter = 0;
 #endif
 
 
@@ -418,6 +418,9 @@ private:
 
 	/** The magic header which is prepended to all packets */
 	TBitArray<> MagicHeader;
+
+	/** Integer representation of the magic header, for direct comparison */
+	uint32 MagicHeaderUint = 0;
 
 	/** The number of sent handshake packets, added to packets to aid packet dump debugging (may roll over) */
 	uint8 SentHandshakePacketCount = 0;
