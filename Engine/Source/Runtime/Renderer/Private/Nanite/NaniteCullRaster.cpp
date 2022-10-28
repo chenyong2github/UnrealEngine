@@ -143,16 +143,6 @@ static FAutoConsoleVariableRef CVarNaniteProgrammableRaster(
 	TEXT("")
 );
 
-// Nanite DX11 support is deprecated, and will be deleted in UE 5.1
-// Only DX12 with SM 6.6 atomic64 support will be supported going forward.
-int32 GNaniteRequireDX12 = 1;
-static FAutoConsoleVariableRef CVarNaniteRequireDX12(
-	TEXT("r.Nanite.RequireDX12"),
-	GNaniteRequireDX12,
-	TEXT(""),
-	ECVF_ReadOnly
-);
-
 int32 GNaniteBoxCullingHZB = 1;
 static FAutoConsoleVariableRef CVarNaniteBoxCullingHZB(
 	TEXT("r.Nanite.BoxCullingHZB"),
@@ -221,7 +211,7 @@ static FAutoConsoleVariableRef CVarNanitePersistentThreadsCulling(
 // i.e. if r.Nanite.MaxPixelsPerEdge is 1.0 and r.Nanite.PrimaryRaster.PixelsPerEdgeScaling is 20%, when heavily over budget r.Nanite.MaxPixelsPerEdge will be scaled to to 5.0
 static TAutoConsoleVariable<float> CVarNanitePrimaryPixelsPerEdgeScalingPercentage(
 	TEXT("r.Nanite.PrimaryRaster.PixelsPerEdgeScaling"),
-	20.0f, // 100% - no scaling - set to < 100% to scale pixel error when over budget
+	30.0f, // 100% - no scaling - set to < 100% to scale pixel error when over budget
 	TEXT("Lower limit percentage to scale the Nanite primary raster MaxPixelsPerEdge value when over budget."),
 	ECVF_RenderThreadSafe | ECVF_Default);
 
@@ -2625,9 +2615,6 @@ FBinningData AddPass_Rasterize(
 	{
 		RasterPassParameters->VirtualShadowMap = VirtualTargetParameters;
 	}
-
-	const DynamicRenderScaling::FBudget& ScalingBudget = bMainPass ? GDynamicNaniteScalingPrimary : GDynamicNaniteScalingShadow;
-	DynamicRenderScaling::FRDGScope DynamicScalingScope(GraphBuilder, ScalingBudget);
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("HW Rasterize"),
