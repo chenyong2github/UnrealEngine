@@ -43,6 +43,8 @@
 #include "HAL/LowLevelMemStats.h"
 #include "Net/NetPing.h"
 #include "LevelUtils.h"
+#include "Net/RPCDoSDetection.h"
+#include "Net/NetConnectionFaultRecovery.h"
 #if UE_WITH_IRIS
 #include "Iris/IrisConfig.h"
 #include "Iris/ReplicationSystem/ReplicationSystem.h"
@@ -333,6 +335,13 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 {
 }
 
+UNetConnection::UNetConnection(FVTableHelper& Helper)
+	: Super(Helper)
+{
+}
+
+UNetConnection::~UNetConnection() = default;
+
 void UNetConnection::InitChannelData()
 {
 	LLM_SCOPE_BYTAG(NetConnection);
@@ -447,16 +456,17 @@ void UNetConnection::InitBase(UNetDriver* InDriver,class FSocket* InSocket, cons
 	bLoggedFlushNetQueuedBitsOverflow = false;
 
 	// Reset Handler
-	Handler.Reset(NULL);
+	Handler.Reset();
 
 	InitHandler();
 
+	FaultRecovery = MakeUnique<FNetConnectionFaultRecovery>();
 
-	FaultRecovery.InitDefaults((Driver != nullptr ? Driver->GetNetDriverDefinition().ToString() : TEXT("")), this);
+	FaultRecovery->InitDefaults((Driver != nullptr ? Driver->GetNetDriverDefinition().ToString() : TEXT("")), this);
 
 	if (CVarLogUnhandledFaults.GetValueOnAnyThread() != 0)
 	{
-		FaultRecovery.FaultManager.SetUnhandledResultCallback([](FNetResult&& InResult)
+		FaultRecovery->FaultManager.SetUnhandledResultCallback([](FNetResult&& InResult)
 			{
 				static TArray<uint32> LoggedResults;
 
@@ -508,7 +518,9 @@ void UNetConnection::InitBase(UNetDriver* InDriver,class FSocket* InSocket, cons
 
 	if (bIsServer && !bIsReplay)
 	{
-		RPCDoS.Init(Driver->GetNetDriverDefinition(), AnalyticsAggregator,
+		RPCDoS = MakeUnique<FRPCDoSDetection>();
+
+		RPCDoS->Init(Driver->GetNetDriverDefinition(), AnalyticsAggregator,
 			[WorldPtr = TWeakObjectPtr<UWorld>(InDriver->GetWorld())]() -> UWorld*
 			{
 				return WorldPtr.IsValid() ? WorldPtr.Get() : nullptr;
@@ -984,7 +996,11 @@ void UNetConnection::Close(FNetResult&& CloseReason)
 			NetAnalyticsData->CommitAnalytics(AnalyticsVars);
 		}
 
-		RPCDoS.NotifyClose();
+		if (RPCDoS.IsValid())
+		{
+			RPCDoS->NotifyClose();
+		}
+
 		NetPing.Reset();
 
 		if (const uint32 MyConnectionId = GetConnectionId())
@@ -1002,7 +1018,7 @@ void UNetConnection::HandleNetResultOrClose(ENetCloseResult InResult)
 {
 	using namespace UE::Net;
 
-	const EHandleNetResult RecoveryResult = FaultRecovery.HandleNetResult(InResult);
+	const EHandleNetResult RecoveryResult = (FaultRecovery.IsValid() ? FaultRecovery->HandleNetResult(InResult) : EHandleNetResult::NotHandled);
 
 	if (RecoveryResult == EHandleNetResult::NotHandled)
 	{
@@ -1201,7 +1217,7 @@ void UNetConnection::CleanUp()
 
 	CleanupDormantActorState();
 
-	Handler.Reset(NULL);
+	Handler.Reset();
 
 	SetClientLoginState(EClientLoginState::CleanedUp);
 
@@ -1739,7 +1755,9 @@ void UNetConnection::ReceivedRawPacket( void* InData, int32 Count )
 
 			if (!bErrorNotRecoverable)
 			{
-				const EHandleNetResult RecoveryResult = FaultRecovery.FaultManager.HandleNetResult(MoveTemp(*Traits.ExtendedError));
+				const EHandleNetResult RecoveryResult = (FaultRecovery.IsValid() ?
+					FaultRecovery->FaultManager.HandleNetResult(MoveTemp(*Traits.ExtendedError)) :
+					EHandleNetResult::NotHandled);
 
 				bCloseConnection = RecoveryResult == EHandleNetResult::NotHandled;
 			}
@@ -1836,14 +1854,14 @@ void UNetConnection::PreTickDispatch()
 	{
 		double LastTickDispatchRealtime = Driver->LastTickDispatchRealtime;
 
-		if (bIsServer)
+		if (bIsServer && RPCDoS.IsValid())
 		{
-			RPCDoS.PreTickDispatch(LastTickDispatchRealtime);
+			RPCDoS->PreTickDispatch(LastTickDispatchRealtime);
 		}
 
-		if (FaultRecovery.DoesRequireTick())
+		if (FaultRecovery.IsValid() && FaultRecovery->DoesRequireTick())
 		{
-			FaultRecovery.TickRealtime(LastTickDispatchRealtime);
+			FaultRecovery->TickRealtime(LastTickDispatchRealtime);
 		}
 	}
 }
@@ -1862,9 +1880,9 @@ void UNetConnection::PostTickDispatch()
 		PacketAnalytics.Tick();
 	}
 
-	if (bIsServer && !IsReplay())
+	if (RPCDoS.IsValid() && bIsServer && !IsReplay())
 	{
-		RPCDoS.PostTickDispatch();
+		RPCDoS->PostTickDispatch();
 	}
 }
 
@@ -2893,18 +2911,18 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 	double PostReceiveTime = 0.0;
 
 	{
-		if (bIsServer && !IsReplay())
+		if (RPCDoS.IsValid() && bIsServer && !IsReplay())
 		{
-			RPCDoS.PreReceivedPacket(CurrentReceiveTimeInS);
+			RPCDoS->PreReceivedPacket(CurrentReceiveTimeInS);
 		}
 
 		ON_SCOPE_EXIT
 		{
 			PostReceiveTime = FPlatformTime::Seconds();
 
-			if (bIsServer && !IsReplay())
+			if (RPCDoS.IsValid() && bIsServer && !IsReplay())
 			{
-				RPCDoS.PostReceivedPacket(PostReceiveTime);
+				RPCDoS->PostReceivedPacket(PostReceiveTime);
 			}
 		};
 
@@ -5538,4 +5556,23 @@ void ConsumeAllChannelRecords(FWrittenChannelsRecord& WrittenChannelsRecord, Fun
 
 }
 
+/**
+ * FScopedRepContext
+ */
+
+FScopedRepContext::FScopedRepContext(UNetConnection* InConnection, AActor* InActor)
+	: Connection(InConnection)
+{
+	if (Connection)
+	{
+		check(!Connection->RepContextActor);
+		check(!Connection->RepContextLevel);
+
+		Connection->RepContextActor = InActor;
+		if (InActor)
+		{
+			Connection->RepContextLevel = InActor->GetLevel();
+		}
+	}
+}
 

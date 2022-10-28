@@ -6,8 +6,12 @@
 
 #pragma once
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
+#include "Net/RPCDoSDetection.h"
+#include "Net/NetConnectionFaultRecovery.h"
+#endif
+#include "UObject/ObjectKey.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "Serialization/BitWriter.h"
@@ -29,11 +33,10 @@
 #include "Net/Common/Packets/PacketTraits.h"
 #include "Net/Core/Misc/ResizableCircularQueue.h"
 #include "Net/NetAnalyticsTypes.h"
-#include "Net/RPCDoSDetection.h"
 #include "Net/Core/Connection/NetCloseResult.h"
-#include "Net/NetConnectionFaultRecovery.h"
 #include "Net/TrafficControl.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "GameFramework/Actor.h"
 
 #include "NetConnection.generated.h"
 
@@ -48,10 +51,13 @@ class UActorChannel;
 class UChildConnection;
 class ULevelStreaming;
 struct FEncryptionKeyResponse;
+class PacketHandler;
+class FRPCDoSDetection;
 
 namespace UE::Net
 {
 	class FNetPing;
+	class FNetConnectionFaultRecovery;
 }
 
 typedef TMap<TWeakObjectPtr<AActor>, UActorChannel*, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<AActor>, UActorChannel*>> FActorChannelMap;
@@ -334,7 +340,7 @@ public:
 	}
 
 	/** Destructor */
-	ENGINE_API virtual ~UNetConnection() {};
+	ENGINE_API virtual ~UNetConnection();
 
 private:
 	uint32 bInternalAck : 1;				// Internally ack all packets, for 100% reliable connections.
@@ -857,6 +863,8 @@ public:
 
 	// Constructors and destructors.
 	ENGINE_API UNetConnection(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	ENGINE_API UNetConnection(FVTableHelper& Helper);
 
 	//~ Begin UObject Interface.
 
@@ -1654,10 +1662,10 @@ private:
 	bool bLoggedFlushNetQueuedBitsOverflow = false;
 
 	/** RPC/Replication code DoS detection */
-	FRPCDoSDetection RPCDoS;
+	TUniquePtr<FRPCDoSDetection> RPCDoS;
 
 	/** NetConnection specific Fault Recovery for attempting to recover from connection faults, before triggering Close */
-	UE::Net::FNetConnectionFaultRecovery FaultRecovery;
+	TUniquePtr<UE::Net::FNetConnectionFaultRecovery> FaultRecovery;
 
 	/** Whether or not this NetConnection has already received an NMT_CloseReason message */
 	bool bReceivedCloseReason = false;
@@ -1675,14 +1683,14 @@ public:
 	bool GetAutoFlush() const { return bAutoFlush; }
 	void SetAutoFlush(bool bValue) { bAutoFlush = bValue; }
 
-	FRPCDoSDetection& GetRPCDoS()
+	FRPCDoSDetection* GetRPCDoS()
 	{
-		return RPCDoS;
+		return RPCDoS.Get();
 	}
 
 	UE::Net::FNetConnectionFaultRecovery* GetFaultRecovery()
 	{
-		return &FaultRecovery;
+		return FaultRecovery.Get();
 	}
 
 	UE::Net::FNetPing* GetNetPing()
@@ -1733,21 +1741,7 @@ protected:
 struct FScopedRepContext
 {
 public:
-	FScopedRepContext(UNetConnection* InConnection, AActor* InActor)
-		: Connection(InConnection)
-	{
-		if (Connection)
-		{
-			check(!Connection->RepContextActor);
-			check(!Connection->RepContextLevel);
-
-			Connection->RepContextActor = InActor;
-			if (InActor)
-			{
-				Connection->RepContextLevel = InActor->GetLevel();
-			}
-		}
-	}
+	FScopedRepContext(UNetConnection* InConnection, AActor* InActor);
 
 	FScopedRepContext(UNetConnection* InConnection, ULevel* InLevel)
 		: Connection(InConnection)

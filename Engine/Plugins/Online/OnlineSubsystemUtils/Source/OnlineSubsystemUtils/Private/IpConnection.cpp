@@ -21,6 +21,7 @@ Notes:
 #include "Net/Core/Misc/PacketAudit.h"
 #include "Misc/ScopeExit.h"
 #include "NetAddressResolution.h"
+#include "PacketHandler.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(IpConnection)
 

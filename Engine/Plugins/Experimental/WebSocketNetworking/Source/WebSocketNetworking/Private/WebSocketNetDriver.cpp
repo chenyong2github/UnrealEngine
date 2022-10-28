@@ -18,6 +18,7 @@ Unreal WebSocket network driver.
 
 #include "Engine/ChildConnection.h"
 #include "Misc/CommandLine.h"
+#include "PacketHandler.h"
 
 /*-----------------------------------------------------------------------------
 Declarations.

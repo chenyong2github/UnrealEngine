@@ -23,6 +23,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "HAL/LowLevelMemStats.h"
 #include "Net/Core/PushModel/Types/PushModelPerNetDriverState.h"
+#include "Net/RPCDoSDetection.h"
 
 DECLARE_LLM_MEMORY_STAT(TEXT("NetObjReplicator"), STAT_NetObjReplicatorLLM, STATGROUP_LLMFULL);
 LLM_DEFINE_TAG(NetObjReplicator, NAME_None, TEXT("Networking"), GET_STATFNAME(STAT_NetObjReplicatorLLM), GET_STATFNAME(STAT_NetworkingSummaryLLM));
@@ -1263,7 +1264,7 @@ bool FObjectReplicator::ReceivedRPC(FNetBitReader& Reader, const FReplicationFla
 	UObject* Object = GetObject();
 	FName FunctionName = FieldCache->Field.GetFName();
 	UFunction* Function = Object->FindFunction(FunctionName);
-	FRPCDoSDetection& RPCDoS = Connection->GetRPCDoS();
+	FRPCDoSDetection* RPCDoS = Connection->GetRPCDoS();
 	FScopedRPCTimingTracker ScopedTracker(Function, Connection);
 	SCOPE_CYCLE_COUNTER(STAT_NetReceiveRPC);
 	SCOPE_CYCLE_UOBJECT(Function, Function);
@@ -1287,13 +1288,13 @@ bool FObjectReplicator::ReceivedRPC(FNetBitReader& Reader, const FReplicationFla
 	}
 
 
-	if (bIsServer && RPCDoS.IsRPCDoSDetectionEnabled() && !Connection->IsReplay())
+	if (RPCDoS != nullptr && bIsServer && RPCDoS->IsRPCDoSDetectionEnabled() && !Connection->IsReplay())
 	{
-		ScopedTracker.RPCDoS = &RPCDoS;
+		ScopedTracker.RPCDoS = RPCDoS;
 
-		if (UNLIKELY(RPCDoS.ShouldMonitorReceivedRPC()))
+		if (UNLIKELY(RPCDoS->ShouldMonitorReceivedRPC()))
 		{
-			ERPCNotifyResult Result = RPCDoS.NotifyReceivedRPC(Reader, UnmappedGuids, Object, Function, FunctionName);
+			ERPCNotifyResult Result = RPCDoS->NotifyReceivedRPC(Reader, UnmappedGuids, Object, Function, FunctionName);
 
 			if (UNLIKELY(Result == ERPCNotifyResult::BlockRPC))
 			{
@@ -1304,7 +1305,7 @@ bool FObjectReplicator::ReceivedRPC(FNetBitReader& Reader, const FReplicationFla
 		}
 		else
 		{
-			RPCDoS.LightweightReceivedRPC(Function, FunctionName);
+			RPCDoS->LightweightReceivedRPC(Function, FunctionName);
 		}
 	}
 

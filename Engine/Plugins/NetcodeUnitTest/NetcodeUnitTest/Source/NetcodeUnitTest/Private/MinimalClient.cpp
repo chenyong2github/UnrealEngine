@@ -8,6 +8,7 @@
 #include "Engine/GameEngine.h"
 #include "Engine/ActorChannel.h"
 #include "Net/DataChannel.h"
+#include "PacketHandler.h"
 
 #include "UnitTest.h"
 #include "NetcodeUnitTest.h"

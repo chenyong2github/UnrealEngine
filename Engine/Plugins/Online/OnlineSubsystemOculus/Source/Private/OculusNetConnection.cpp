@@ -6,6 +6,7 @@
 #include "IPAddressOculus.h"
 
 #include "Net/DataChannel.h"
+#include "PacketHandler.h"
 
 void UOculusNetConnection::InitBase(UNetDriver* InDriver, class FSocket* InSocket, const FURL& InURL, EConnectionState InState, int32 InMaxPacket, int32 InPacketOverhead)
 {

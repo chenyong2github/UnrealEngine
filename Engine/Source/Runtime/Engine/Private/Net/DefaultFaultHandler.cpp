@@ -3,6 +3,7 @@
 // Includes
 #include "Net/DefaultFaultHandler.h"
 #include "Engine/NetConnection.h"
+#include "Net/Core/Connection/NetConnectionFaultRecoveryBase.h"
 
 
 namespace UE

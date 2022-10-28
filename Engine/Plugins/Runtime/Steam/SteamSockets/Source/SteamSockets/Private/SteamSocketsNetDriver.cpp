@@ -12,6 +12,7 @@
 #include "Engine/NetworkDelegates.h"
 #include "Engine/World.h"
 #include "Misc/CommandLine.h"
+#include "PacketHandler.h"
 
 void USteamSocketsNetDriver::PostInitProperties()
 {

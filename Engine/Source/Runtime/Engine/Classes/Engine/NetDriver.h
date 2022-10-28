@@ -15,8 +15,8 @@
 #include "UObject/CoreNet.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "GameFramework/WorldSettings.h"
-#endif
 #include "PacketHandler.h"
+#endif
 #include "Channel.h"
 #include "Net/Core/Misc/DDoSDetection.h"
 #include "IPAddress.h"
@@ -341,6 +341,8 @@ class UChannel;
 class IAnalyticsProvider;
 class FNetAnalyticsAggregator;
 class UNetDriver;
+class PacketHandler;
+struct FReplicatedStaticActorDestructionInfo;
 
 enum class ECreateReplicationChangelistMgrFlags;
 enum class EEngineNetworkRuntimeFeatures : uint16;
@@ -719,9 +721,7 @@ private:
 public:
 
 	/** Destructor */
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	ENGINE_API virtual ~UNetDriver() {};
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	ENGINE_API virtual ~UNetDriver();
 
 	/** Used to specify the class to use for connections */
 	UPROPERTY(Config)
@@ -1237,6 +1237,8 @@ public:
 
 	// Constructors.
 	ENGINE_API UNetDriver(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+	ENGINE_API UNetDriver(FVTableHelper& Helper);
 
 
 	//~ Begin UObject Interface.
