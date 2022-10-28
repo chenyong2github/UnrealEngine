@@ -216,6 +216,9 @@ public:
 	// Handler function for renaming a notify track
 	void OnCommitTrackName(const FText& InText, ETextCommit::Type CommitInfo, int32 TrackIndexToName);
 
+	// Request a deferred Update call
+	void RequestUpdate();
+	
 	void Update();
 
 	/** Returns the position of the notify node currently being dragged. Returns -1 if no node is being dragged */
@@ -241,6 +244,7 @@ public:
 	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void OnFocusLost(const FFocusEvent& InFocusEvent) override;
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
+	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 	/** End SWidget Interface */
 
 	void RefreshMarqueeSelectedNodes(const FGeometry& PanelGeo);
@@ -287,6 +291,9 @@ private:
 
 	/** Cached list of Notify editor tracks */
 	TArray<TSharedPtr<SNotifyEdTrack>> NotifyEditorTracks;
+
+	// Request a deferred RefreshNotifyTracks call
+	void RequestRefresh();
 
 	// this just refresh notify tracks - UI purpose only
 	// do not call this from here. This gets called by asset. 
@@ -373,4 +380,8 @@ private:
 
 	/** Recursion guard for updating */
 	bool bIsUpdating;
+
+	/** Flags to handle deferred updates */
+	bool bUpdateRequested;
+	bool bRefreshRequested;
 };
