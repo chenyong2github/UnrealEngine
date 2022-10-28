@@ -179,6 +179,8 @@ public:
 	/** Delete any temporary allocated objects that were passed out to external callers and hopefully have been deleted by now */
 	UE_DEPRECATED(5.0, "Supports deprecated functions returning pointers")
 	void TickDeletes();
+	/** Waits for the gatherer to be idle if it is operating synchronously. */
+	void WaitForGathererIdleIfSynchronous();
 	/** Callback type for TickGatherer */
 	typedef TFunctionRef<void(const TRingBuffer<FAssetData*>&)> FAssetsFoundCallback;
 	/** Consume any results from the gatherer and return its status */

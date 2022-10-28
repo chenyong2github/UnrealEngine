@@ -1608,6 +1608,8 @@ void UAssetRegistryImpl::WaitForCompletion()
 			FClassInheritanceBuffer InheritanceBuffer;
 			GetInheritanceContextWithRequiredLock(InterfaceScopeLock, InheritanceContext, InheritanceBuffer);
 
+			GuardedData.WaitForGathererIdleIfSynchronous();
+
 			bool bUnusedInterrupted;
 			Status = GuardedData.TickGatherer(EventContext, InheritanceContext, -1., bUnusedInterrupted);
 		}
@@ -3713,6 +3715,14 @@ void FAssetRegistryImpl::TickDeletes()
 	}
 	DeleteActions.Empty();
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void FAssetRegistryImpl::WaitForGathererIdleIfSynchronous()
+{
+	if (GlobalGatherer && GlobalGatherer->IsSynchronous())
+	{
+		GlobalGatherer->WaitForIdle();
+	}
 }
 
 Impl::EGatherStatus FAssetRegistryImpl::TickGatherer(Impl::FEventContext& EventContext,
