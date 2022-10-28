@@ -237,15 +237,9 @@ bool UPCGActorHelpers::DeleteActors(UWorld* World, const TArray<TSoftObjectPtr<A
 		{
 			if (AActor* Actor = ManagedActor.Get())
 			{
-				if (Actor->GetWorld() == World)
+				if (!ensure(World->DestroyActor(Actor)))
 				{
-					World->DestroyActor(Actor);
-				}
-				else
-				{
-					// If we're here and the world is null, then the actor has either been destroyed already or it will be picked up by GC by design.
-					// Otherwise, we have bigger issues, something is very wrong.
-					check(Actor->GetWorld() == nullptr);
+					UE_LOG(LogPCG, Warning, TEXT("Actor %s failed to be destroyed."), *Actor->GetPathName());
 				}
 			}
 		}
