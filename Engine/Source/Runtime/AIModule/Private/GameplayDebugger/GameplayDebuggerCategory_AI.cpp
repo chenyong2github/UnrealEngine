@@ -12,6 +12,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "NavMesh/RecastNavMesh.h"
 #include "Engine/Canvas.h"
 #include "AIController.h"

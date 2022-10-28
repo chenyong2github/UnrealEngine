@@ -23,6 +23,7 @@
 #include "GameplayTasksComponent.h"
 #include "Tasks/GameplayTask_ClaimResource.h"
 #include "NetworkingDistanceConstants.h"
+#include "Navigation/PathFollowingComponent.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AIController)
 
@@ -871,6 +872,11 @@ bool AAIController::IsFollowingAPath() const
 	return (PathFollowingComponent != nullptr) && (PathFollowingComponent->GetStatus() != EPathFollowingStatus::Idle);
 }
 
+IPathFollowingAgentInterface* AAIController::GetPathFollowingAgent() const
+{
+	return PathFollowingComponent;
+}
+
 FVector AAIController::GetImmediateMoveDestination() const
 {
 	return (PathFollowingComponent) ? PathFollowingComponent->GetCurrentTargetLocation() : FVector::ZeroVector;
@@ -893,6 +899,11 @@ void AAIController::OnMoveCompleted(FAIRequestID RequestID, const FPathFollowing
 void AAIController::OnMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type Result)
 {
 	// deprecated
+}
+
+FAIRequestID AAIController::GetCurrentMoveRequestID() const
+{
+	return GetPathFollowingComponent() ? GetPathFollowingComponent()->GetCurrentRequestId() : FAIRequestID::InvalidRequest;
 }
 
 bool AAIController::RunBehaviorTree(UBehaviorTree* BTAsset)

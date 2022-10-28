@@ -13,7 +13,9 @@
 #include "GameplayTask.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Controller.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Navigation/PathFollowingComponent.h"
+#endif
 #include "Perception/AIPerceptionListenerInterface.h"
 #include "GenericTeamAgentInterface.h"
 #include "VisualLogger/VisualLoggerDebugSnapshotInterface.h"
@@ -28,9 +30,13 @@ class UBrainComponent;
 class UCanvas;
 class UGameplayTaskResource;
 class UGameplayTasksComponent;
+class UPathFollowingComponent;
 class UPawnAction;
 class UPawnActionsComponent;
 struct FVisualLogEntry;
+namespace EPathFollowingRequestResult {	enum Type : int; }
+namespace EPathFollowingResult { enum Type : int; }
+namespace EPathFollowingStatus { enum Type : int; }
 
 #if ENABLE_VISUAL_LOG
 struct FVisualLogEntry;
@@ -191,7 +197,7 @@ public:
 	 *  @param OutPath - optional output param, filled in with assigned path
 	 *  @return struct holding MoveId and enum code
 	 */
-	virtual FPathFollowingRequestResult MoveTo(const FAIMoveRequest& MoveRequest, FNavPathSharedPtr* OutPath = nullptr);
+	virtual struct FPathFollowingRequestResult MoveTo(const FAIMoveRequest& MoveRequest, FNavPathSharedPtr* OutPath = nullptr);
 
 	/** Passes move request and path object to path following */
 	virtual FAIRequestID RequestMove(const FAIMoveRequest& MoveRequest, FNavPathSharedPtr Path);
@@ -222,13 +228,13 @@ public:
 	virtual void StopMovement() override;
 
 	/** Called on completing current movement request */
-	virtual void OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result);
+	virtual void OnMoveCompleted(FAIRequestID RequestID, const struct FPathFollowingResult& Result);
 
 	UE_DEPRECATED_FORGAME(4.13, "This function is now deprecated, please use version with EPathFollowingResultDetails parameter.")
 	virtual void OnMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type Result);
 
 	/** Returns the Move Request ID for the current move */
-	FORCEINLINE FAIRequestID GetCurrentMoveRequestID() const { return GetPathFollowingComponent() ? GetPathFollowingComponent()->GetCurrentRequestId() : FAIRequestID::InvalidRequest; }
+	FAIRequestID GetCurrentMoveRequestID() const;
 
 	/** Blueprint notification that we've completed the current movement request */
 	UPROPERTY(BlueprintAssignable, meta = (DisplayName = "MoveCompleted"))
@@ -385,7 +391,7 @@ public:
 	// INavAgentInterface
 	//----------------------------------------------------------------------//
 	virtual bool IsFollowingAPath() const override;
-	virtual IPathFollowingAgentInterface* GetPathFollowingAgent() const override { return PathFollowingComponent; }
+	virtual IPathFollowingAgentInterface* GetPathFollowingAgent() const override;
 
 	//----------------------------------------------------------------------//
 	// IGenericTeamAgentInterface

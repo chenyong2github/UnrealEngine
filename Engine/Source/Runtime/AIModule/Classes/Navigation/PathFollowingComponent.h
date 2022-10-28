@@ -33,7 +33,7 @@ class UNavigationComponent;
 UENUM(BlueprintType)
 namespace EPathFollowingStatus
 {
-	enum Type
+	enum Type : int
 	{
 		/** No requests */
 		Idle,
@@ -52,7 +52,7 @@ namespace EPathFollowingStatus
 UENUM(BlueprintType)
 namespace EPathFollowingResult
 {
-	enum Type
+	enum Type : int
 	{
 		/** Reached destination */
 		Success,
@@ -140,7 +140,7 @@ struct AIMODULE_API FPathFollowingResult
 UENUM(BlueprintType)
 namespace EPathFollowingAction
 {
-	enum Type
+	enum Type : int
 	{
 		Error,
 		NoMove,
@@ -153,7 +153,7 @@ namespace EPathFollowingAction
 UENUM(BlueprintType)
 namespace EPathFollowingRequestResult
 {
-	enum Type
+	enum Type : int
 	{
 		Failed,
 		AlreadyAtGoal,
@@ -172,7 +172,7 @@ struct AIMODULE_API FPathFollowingRequestResult
 
 namespace EPathFollowingDebugTokens
 {
-	enum Type
+	enum Type : int
 	{
 		Description,
 		ParamName,
@@ -184,7 +184,7 @@ namespace EPathFollowingDebugTokens
 // DEPRECATED, please use EPathFollowingResultDetails instead, will be removed with deprecated override of AbortMove function
 namespace EPathFollowingMessage
 {
-	enum Type
+	enum Type : int
 	{
 		NoPath,
 		OtherRequest,
