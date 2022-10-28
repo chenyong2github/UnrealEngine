@@ -288,7 +288,7 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 				}
 				else
 				{
-					CurrentState = ELevelStreamingState::Loading;
+					SetCurrentState(ELevelStreamingState::Loading);
 				}
 			}
 		}

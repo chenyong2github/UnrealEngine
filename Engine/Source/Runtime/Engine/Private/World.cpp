@@ -97,6 +97,7 @@
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Streaming/ServerStreamingLevelsVisibility.h"
+#include "Streaming/LevelStreamingDelegates.h"
 
 #if WITH_EDITOR
 	#include "DerivedDataCacheInterface.h"
@@ -1233,7 +1234,7 @@ void UWorld::PostLoad()
 			else
 			{
 				FStreamingLevelPrivateAccessor::OnLevelAdded(StreamingLevel);
-				if (FStreamingLevelPrivateAccessor::DetermineTargetState(StreamingLevel))
+				if (FStreamingLevelPrivateAccessor::UpdateTargetState(StreamingLevel))
 				{
 					StreamingLevelsToConsider.Add(StreamingLevel);
 				}
@@ -2828,7 +2829,7 @@ const AServerStreamingLevelsVisibility* UWorld::GetServerStreamingLevelsVisibili
 	return ServerStreamingLevelsVisibility;
 }
 
-void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool bConsiderTimeLimit, FNetLevelVisibilityTransactionId TransactionId)
+void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool bConsiderTimeLimit, FNetLevelVisibilityTransactionId TransactionId, ULevelStreaming* OwningLevelStreaming)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(AddToWorld);
 	SCOPE_CYCLE_COUNTER(STAT_AddToWorldTime);
@@ -2862,6 +2863,11 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 	if( bExecuteNextStep && CurrentLevelPendingVisibility == NULL && CurrentLevelPendingInvisibility != Level )
 	{
 		Level->OwningWorld = this;
+
+		if (OwningLevelStreaming)
+		{
+			FLevelStreamingDelegates::OnLevelBeginMakingVisible.Broadcast(this, OwningLevelStreaming, Level);
+		}
 		
 		// Mark level as being the one in process of being made visible.
 		CurrentLevelPendingVisibility = Level;
@@ -3174,7 +3180,7 @@ void UWorld::BeginTearingDown()
 // Cumulated time doing IncrementalUnregisterComponents in UWorld::RemoveFromWorld since last call to UWorld::UpdateLevelStreaming.
 static double GRemoveFromWorldUnregisterComponentTimeCumul = 0.0;
 
-void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval, FNetLevelVisibilityTransactionId TransactionId)
+void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval, FNetLevelVisibilityTransactionId TransactionId, ULevelStreaming* OwningLevelStreaming)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(RemoveFromWorld);
 	SCOPE_CYCLE_COUNTER(STAT_RemoveFromWorldTime);
@@ -3186,10 +3192,15 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval, FNet
 
 	Level->bIsDisassociatingLevel = true;
 
-	auto BeginRemoval = [Level, this]()
+	auto BeginRemoval = [Level, this, OwningLevelStreaming]()
 	{
 		FWorldDelegates::PreLevelRemovedFromWorld.Broadcast(Level, this);
 		Level->bIsBeingRemoved = true;
+
+		if (OwningLevelStreaming)
+		{
+			FLevelStreamingDelegates::OnLevelBeginMakingInvisible.Broadcast(this, OwningLevelStreaming, Level);
+		}
 
 		if (Level->bRequireFullVisibilityToRender && Level->bIsVisible)
 		{
@@ -3918,7 +3929,7 @@ void UWorld::UpdateLevelStreaming()
 
 				if (bRedetermineTarget)
 				{
-					bShouldContinueToConsider = FStreamingLevelPrivateAccessor::DetermineTargetState(StreamingLevel);
+					bShouldContinueToConsider = FStreamingLevelPrivateAccessor::UpdateTargetState(StreamingLevel);
 				}
 			}
 
@@ -3995,7 +4006,7 @@ void UWorld::AddStreamingLevel(ULevelStreaming* StreamingLevelToAdd)
 			{
 				StreamingLevels.Add(StreamingLevelToAdd);
 				FStreamingLevelPrivateAccessor::OnLevelAdded(StreamingLevelToAdd);
-				if (FStreamingLevelPrivateAccessor::DetermineTargetState(StreamingLevelToAdd))
+				if (FStreamingLevelPrivateAccessor::UpdateTargetState(StreamingLevelToAdd))
 				{
 					StreamingLevelsToConsider.Add(StreamingLevelToAdd);
 				}
@@ -4104,7 +4115,7 @@ void UWorld::PopulateStreamingLevelsToConsider()
 			++NumStreamingLevelsBeingLoaded;
 		}
 
-		if (FStreamingLevelPrivateAccessor::DetermineTargetState(StreamingLevel))
+		if (FStreamingLevelPrivateAccessor::UpdateTargetState(StreamingLevel))
 		{
 			StreamingLevelsToConsider.Add(StreamingLevel);
 		}
@@ -4115,7 +4126,7 @@ void UWorld::UpdateStreamingLevelShouldBeConsidered(ULevelStreaming* StreamingLe
 {
 	if (StreamingLevelToConsider && ensure(StreamingLevelToConsider->GetWorld() == this) && StreamingLevelToConsider->GetLevelStreamingState() != ELevelStreamingState::Removed)
 	{
-		if (FStreamingLevelPrivateAccessor::DetermineTargetState(StreamingLevelToConsider))
+		if (FStreamingLevelPrivateAccessor::UpdateTargetState(StreamingLevelToConsider))
 		{
 			StreamingLevelsToConsider.Add(StreamingLevelToConsider);
 		}

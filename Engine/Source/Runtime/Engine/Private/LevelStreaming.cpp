@@ -33,6 +33,7 @@
 #include "Engine/NetConnection.h"
 #include "Engine/PackageMapClient.h"
 #include "Serialization/LoadTimeTrace.h"
+#include "Streaming/LevelStreamingDelegates.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelStreaming)
@@ -505,12 +506,21 @@ void ULevelStreaming::OnLevelRemoved()
 
 void ULevelStreaming::SetCurrentState(ELevelStreamingState NewState)
 {
+	// TODO: We should only fire the delegate when the current state has changed, but first AsyncLevelLoadComplete needs to be fixed to 
+	// only set the new state once the LoadedLevel is assigned. Clients currently rely on getting a repeated notification after the loaded
+	// level is available.
+	ELevelStreamingState OldState = CurrentState;
 	CurrentState = NewState;
+	FLevelStreamingDelegates::OnLevelStreamingStateChanged.Broadcast(GetWorld(), this, GetLoadedLevel(), OldState, NewState);
 }
 
-bool ULevelStreaming::DetermineTargetState()
+bool ULevelStreaming::UpdateTargetState()
 {
 	FScopeCycleCounterUObject ContextScope(this);
+	if (CurrentState == ELevelStreamingState::FailedToLoad || CurrentState == ELevelStreamingState::Removed)
+	{
+		return false;
+	}
 
 	UWorld* World = GetWorld();
 
@@ -524,9 +534,47 @@ bool ULevelStreaming::DetermineTargetState()
 		}
 	}
 #endif
-	
-	bool bContinueToConsider = true;
 
+	ELevelStreamingTargetState NewTarget = DetermineTargetState();
+
+	if (TargetState != NewTarget)
+	{
+		ELevelStreamingTargetState OldTarget = TargetState;
+		TargetState = NewTarget;
+		FLevelStreamingDelegates::OnLevelStreamingTargetStateChanged.Broadcast(
+			GetWorld(), 
+			this, 
+			GetLoadedLevel(), 
+			CurrentState,
+			OldTarget,
+			NewTarget
+			);
+	}
+
+	// Return whether the level should continue to be considered
+	switch (CurrentState)
+	{
+	case ELevelStreamingState::MakingVisible:
+	case ELevelStreamingState::MakingInvisible:
+	case ELevelStreamingState::Loading:
+		// Always continue to consider if we are actively working on a state change 
+		return true;
+	case ELevelStreamingState::Unloaded:
+		return NewTarget != ELevelStreamingTargetState::Unloaded;
+	case ELevelStreamingState::LoadedNotVisible:
+		return NewTarget != ELevelStreamingTargetState::LoadedNotVisible || !IsDesiredLevelLoaded();
+	case ELevelStreamingState::LoadedVisible:
+		return NewTarget != ELevelStreamingTargetState::LoadedVisible || !IsDesiredLevelLoaded();
+	case ELevelStreamingState::FailedToLoad:
+	case ELevelStreamingState::Removed:
+	default:
+		return false;
+	}
+}
+
+ELevelStreamingTargetState ULevelStreaming::DetermineTargetState() const
+{
+	UWorld* World = GetWorld();
 	switch(CurrentState)
 	{
 	case ELevelStreamingState::MakingVisible:
@@ -536,109 +584,96 @@ bool ULevelStreaming::DetermineTargetState()
 			// Since level doesn't need to be visible anymore, change TargetState to ELevelStreamingTargetState::LoadedNotVisible.
 			// Next UpdateStreamingState will handle switching CurrentState to ELevelStreamingState::LoadedNotVisible.
 			// From there, regular flow will properly handle TargetState.
-			TargetState = ELevelStreamingTargetState::LoadedNotVisible;
+			return ELevelStreamingTargetState::LoadedNotVisible;
 		}
 		else
 		{
-			TargetState = ELevelStreamingTargetState::LoadedVisible;
+			return ELevelStreamingTargetState::LoadedVisible;
 		}
-		break;
 
 	case ELevelStreamingState::MakingInvisible:
 		ensure(LoadedLevel);
-		TargetState = ELevelStreamingTargetState::LoadedNotVisible;
-		break;
+		return ELevelStreamingTargetState::LoadedNotVisible;
 
 	case ELevelStreamingState::Loading:
-		TargetState = ELevelStreamingTargetState::LoadedNotVisible;
-		break;
+		return ELevelStreamingTargetState::LoadedNotVisible;
 
 	case ELevelStreamingState::Unloaded:
 		if (bIsRequestingUnloadAndRemoval)
 		{
-			TargetState = ELevelStreamingTargetState::UnloadedAndRemoved;
+			return ELevelStreamingTargetState::UnloadedAndRemoved;
 		}
 		else if (World->GetShouldForceUnloadStreamingLevels())
 		{
-			bContinueToConsider = false;
+			return ELevelStreamingTargetState::Unloaded;
 		}
 		else if (!World->IsGameWorld())
 		{
-			TargetState = ELevelStreamingTargetState::LoadedNotVisible;
+			return ELevelStreamingTargetState::LoadedNotVisible;
 		}
 		else if (ShouldBeLoaded())
 		{
-			TargetState = ELevelStreamingTargetState::LoadedNotVisible;
+			return ELevelStreamingTargetState::LoadedNotVisible;
 		}
 		else
 		{
-			bContinueToConsider = false;
+			return ELevelStreamingTargetState::Unloaded;
 		}
-		break;
 
 	case ELevelStreamingState::LoadedNotVisible:
 		if (bIsRequestingUnloadAndRemoval || World->GetShouldForceUnloadStreamingLevels())
 		{
-			TargetState = ELevelStreamingTargetState::Unloaded;
+			return ELevelStreamingTargetState::Unloaded;
 		}
 		else if (World->IsGameWorld() && !ShouldBeLoaded())
 		{
-			TargetState = ELevelStreamingTargetState::Unloaded;
+			return ELevelStreamingTargetState::Unloaded;
 		}
 		else if (!IsDesiredLevelLoaded())
 		{
-			TargetState = ELevelStreamingTargetState::LoadedNotVisible;
+			return ELevelStreamingTargetState::LoadedNotVisible;
 		}
 		else if (ShouldBeVisible())
 		{
-			TargetState = ELevelStreamingTargetState::LoadedVisible;
+			return ELevelStreamingTargetState::LoadedVisible;
 		}
 		else
 		{
-			bContinueToConsider = false;
+			return ELevelStreamingTargetState::LoadedNotVisible;
 		}
-		break;
 
 	case ELevelStreamingState::LoadedVisible:
 		if (bIsRequestingUnloadAndRemoval || World->GetShouldForceUnloadStreamingLevels())
 		{
-			TargetState = ELevelStreamingTargetState::LoadedNotVisible;
+			return ELevelStreamingTargetState::LoadedNotVisible;
 		}
 		else if (World->IsGameWorld() && !ShouldBeLoaded())
 		{
-			TargetState = ELevelStreamingTargetState::LoadedNotVisible;
+			return ELevelStreamingTargetState::LoadedNotVisible;
 		}
 		else if (!ShouldBeVisible())
 		{
-			TargetState = ELevelStreamingTargetState::LoadedNotVisible;
+			return ELevelStreamingTargetState::LoadedNotVisible;
 		}
 		else if (!IsDesiredLevelLoaded())
 		{
-			TargetState = ELevelStreamingTargetState::LoadedVisible;
+			return ELevelStreamingTargetState::LoadedVisible;
 		}
 		else
 		{
-			bContinueToConsider = false;
+			return ELevelStreamingTargetState::LoadedVisible;
 		}
-		break;
 
 	case ELevelStreamingState::FailedToLoad:
-
-		// Anything that affects whether we might try to reload changes current state itself
-		bContinueToConsider = false;
-		break;
+		return ELevelStreamingTargetState::Unloaded;
 
 	case ELevelStreamingState::Removed:
-
-		// Never continue to consider a removed streaming level
-		bContinueToConsider = false;
-		break;
+		return ELevelStreamingTargetState::Unloaded;
 
 	default:
 		ensure(false);
+		return ELevelStreamingTargetState::Unloaded;
 	}
-
-	return bContinueToConsider;
 }
 
 bool ULevelStreaming::IsConcernedByNetVisibilityTransactionAck() const
@@ -880,7 +915,7 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 					break;
 				}
 
-				World->AddToWorld(LoadedLevel, LevelTransform, !bShouldBlockOnLoad, TransactionId);
+				World->AddToWorld(LoadedLevel, LevelTransform, !bShouldBlockOnLoad, TransactionId, this);
 
 				if (LoadedLevel->bIsVisible)
 				{
@@ -930,7 +965,7 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 			}
 
 			// Hide loaded level, incrementally if necessary
-			World->RemoveFromWorld(LoadedLevel, !bShouldBlockOnUnload && World->IsGameWorld(), TransactionId);
+			World->RemoveFromWorld(LoadedLevel, !bShouldBlockOnUnload && World->IsGameWorld(), TransactionId, this);
 
 			// Hide loaded level immediately if bRequireFullVisibilityToRender is set
 			const bool LevelBecameInvisible = bWasVisible && !LoadedLevel->bIsVisible;
@@ -1602,6 +1637,7 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 
 void ULevelStreaming::AsyncLevelLoadComplete(const FName& InPackageName, UPackage* InLoadedPackage, EAsyncLoadingResult::Type Result)
 {
+	// TODO: Should not set state here so that observers will have access to LoadedLevel
 	SetCurrentState(ELevelStreamingState::LoadedNotVisible);
 	if (UWorld* World = GetWorld())
 	{

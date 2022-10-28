@@ -261,13 +261,12 @@ protected:
 	/** Whether the streaming level can safely skip making visible transaction request from the client to the server */
 	uint8 bSkipClientUseMakingVisibleTransactionRequest:1;
 
+private:
 	/** What the current streamed state of the streaming level is */
 	ELevelStreamingState CurrentState;
 
 	/** What streamed state the streaming level is transitioning towards */
 	ELevelStreamingTargetState TargetState;
-
-	void SetCurrentState(ELevelStreamingState NewState);
 
 public:
 
@@ -347,6 +346,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	ELevelStreamingState GetLevelStreamingState() const { return CurrentState; }
 
+protected:	
+	/** Updates the current state of the streaming level and notifies any observers. */
+	void SetCurrentState(ELevelStreamingState NewState);
+
 private:
 
 	/** If true client will wait for acknowledgment from server before making streaming levels invisible */
@@ -362,8 +365,11 @@ private:
 	/** Returns whether the streaming level can make invisible (can call RemoveFromWorld). */
 	bool CanMakeInvisible();
 
-	/** Determine what the streaming levels target state should be. Returns whether the streaming level should be in the consider list. */
-	bool DetermineTargetState();
+	/** Determine what the streaming level's target state should be. */
+	ELevelStreamingTargetState DetermineTargetState() const;
+
+	/** Determines a new target state, fires delegates, returns true if the level should continue to be considered for streaming. */
+	bool UpdateTargetState();
 
 	/** Update the load process of the streaming level. Out parameters instruct calling code how to proceed. */
 	void UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRedetermineTarget);
@@ -730,7 +736,7 @@ private:
 	/** Update internal variables when the level is removed from the streaming levels array */
 	static void OnLevelRemoved(ULevelStreaming* StreamingLevel) { StreamingLevel->OnLevelRemoved(); }
 	/** Determine what the streaming levels target state should be. Returns whether the streaming level should be in the consider list. */
-	static bool DetermineTargetState(ULevelStreaming* StreamingLevel) { return StreamingLevel->DetermineTargetState(); }
+	static bool UpdateTargetState(ULevelStreaming* StreamingLevel) { return StreamingLevel->UpdateTargetState(); }
 	/** Update the load process of the streaming level. Out parameters instruct calling code how to proceed. */
 	static void UpdateStreamingState(ULevelStreaming* StreamingLevel, bool& bOutUpdateAgain, bool& bOutRedetermineTarget) { StreamingLevel->UpdateStreamingState(bOutUpdateAgain, bOutRedetermineTarget); }
 
