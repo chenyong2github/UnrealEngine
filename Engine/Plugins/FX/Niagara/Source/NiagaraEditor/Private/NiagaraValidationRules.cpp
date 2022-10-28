@@ -187,7 +187,7 @@ void NiagaraValidation::ValidateAllRulesInSystem(TSharedPtr<FNiagaraSystemViewMo
 	{
 		for (const TSoftObjectPtr<UNiagaraValidationRuleSet>& ValidationRuleSetPtr : EditorSettings->DefaultValidationRuleSets)
 		{
-			if (const UNiagaraValidationRuleSet* ValidationRuleSet = ValidationRuleSetPtr.Get())
+			if (const UNiagaraValidationRuleSet* ValidationRuleSet = ValidationRuleSetPtr.LoadSynchronous())
 			{
 				ExecuteValidateRules(ValidationRuleSet->ValidationRules);
 			}
