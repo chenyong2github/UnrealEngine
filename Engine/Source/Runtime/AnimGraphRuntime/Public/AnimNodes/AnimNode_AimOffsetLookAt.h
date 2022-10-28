@@ -35,11 +35,15 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AimOffsetLookAt : public FAnimNode_BlendSp
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Performance, meta = (DisplayName = "LOD Threshold"))
 	int32 LODThreshold;
 
-	/** Socket to treat as the look at source */
+	/** Socket or bone to treat as the look at source. This will then be pointed at LookAtLocation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LookAt, meta = (PinHiddenByDefault))
 	FName SourceSocketName;
 
-	/** Socket to treat as the look at pivot (optional). This will overwrite the translation of the source socket transform to better match the lookat direction */
+	/** 
+	 * Socket or bone to treat as the look at pivot (optional). This will overwrite the translation of the 
+	 * source socket transform improve the lookat direction, especially when the target is close 
+	 * to the character 
+	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LookAt, meta = (PinHiddenByDefault))
 	FName PivotSocketName;
 
@@ -47,7 +51,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_AimOffsetLookAt : public FAnimNode_BlendSp
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LookAt, meta = (PinShownByDefault))
 	FVector LookAtLocation;
 
-	/** Axis in the socket transform to consider the 'forward' or look at axis */
+	/** Direction in the socket transform to consider the 'forward' or look at axis */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LookAt, meta = (PinHiddenByDefault))
 	FVector SocketAxis;
 

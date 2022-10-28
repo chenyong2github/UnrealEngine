@@ -42,11 +42,21 @@ void FAnimNode_AimOffsetLookAt::OnInitializeAnimInstance(const FAnimInstanceProx
 				SocketLocalTransform = Socket->GetSocketLocalTransform();
 				SocketBoneReference.BoneName = Socket->BoneName;
 			}
+			else if (SkelMeshComp->GetBoneIndex(SourceSocketName) != INDEX_NONE)
+			{
+				SocketLocalTransform.SetIdentity();
+				SocketBoneReference.BoneName = SourceSocketName;
+			}
 
 			if (const USkeletalMeshSocket* Socket = SkelMesh->FindSocket(PivotSocketName))
 			{
 				PivotSocketLocalTransform = Socket->GetSocketLocalTransform();
 				PivotSocketBoneReference.BoneName = Socket->BoneName;
+			}
+			else if (SkelMeshComp->GetBoneIndex(PivotSocketName) != INDEX_NONE)
+			{
+				PivotSocketLocalTransform.SetIdentity();
+				PivotSocketBoneReference.BoneName = PivotSocketName;
 			}
 		}
 	}
@@ -54,18 +64,11 @@ void FAnimNode_AimOffsetLookAt::OnInitializeAnimInstance(const FAnimInstanceProx
 
 void FAnimNode_AimOffsetLookAt::UpdateAssetPlayer(const FAnimationUpdateContext& Context)
 {
-	GetEvaluateGraphExposedInputs().Execute(Context);
-
 	bIsLODEnabled = IsLODEnabled(Context.AnimInstanceProxy);
-
-	// We don't support ticking and advancing time, because Inputs are determined during Evaluate.
-	// it may be possible to advance time there (is it a problem with notifies?)
-	// But typically AimOffsets contain single frame poses, so time doesn't matter.
-
-// 	if (bIsLODEnabled)
-// 	{
-// 		FAnimNode_BlendSpacePlayer::UpdateAssetPlayer(Context);
-// 	}
+ 	if (bIsLODEnabled)
+ 	{
+ 		FAnimNode_BlendSpacePlayer::UpdateAssetPlayer(Context);
+ 	}
 
 	BasePose.Update(Context);
 
@@ -166,10 +169,11 @@ void FAnimNode_AimOffsetLookAt::UpdateFromLookAtTarget(FPoseContext& LocalPoseCo
 #endif // ENABLE_DRAW_DEBUG
 	}
 
-	// Generate BlendSampleDataCache from inputs.
+	// Update Blend Space and put the result into BlendSampleDataCache.
 	if (CurrentBlendSpace)
 	{
-		CurrentBlendSpace->GetSamplesFromBlendInput(CurrentBlendInput, BlendSampleDataCache, CachedTriangulationIndex, true);
+		CurrentBlendSpace->UpdateBlendSamples(
+			CurrentBlendInput, DeltaTimeRecord.Delta, BlendSampleDataCache, CachedTriangulationIndex);
 	}
 }
 

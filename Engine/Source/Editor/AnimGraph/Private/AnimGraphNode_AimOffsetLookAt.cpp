@@ -180,24 +180,59 @@ void UAnimGraphNode_AimOffsetLookAt::ValidateAnimNodeDuringCompilation(class USk
 				MessageLog.Error(TEXT("@@ references blendspace that uses an incompatible skeleton @@"), this, BlendSpaceSkeleton);
 			}
 
-			// Make sure that the source socket name is a valid one for the skeleton
-			UEdGraphPin* SocketNamePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_AimOffsetLookAt, SourceSocketName));
-			FName SocketNameToCheck = (SocketNamePin != nullptr) ? FName(*SocketNamePin->DefaultValue) : Node.SourceSocketName;
-
 			// Temporary fix where skeleton is not fully loaded during AnimBP compilation and thus the socket name check is invalid UE-39499 (NEED FIX) 
 			if (!BlendSpaceSkeleton->HasAnyFlags(RF_NeedPostLoad))
 			{
-				const bool bValidValue = SocketNamePin == nullptr && BlendSpaceSkeleton->FindSocket(Node.SourceSocketName);
-				const bool bValidPinValue = SocketNamePin != nullptr && BlendSpaceSkeleton->FindSocket(FName(*SocketNamePin->DefaultValue));
-				const bool bValidConnectedPin = SocketNamePin != nullptr && SocketNamePin->LinkedTo.Num();
+				{
+					// Make sure that the source socket name is a valid one for the skeleton
+					UEdGraphPin* SocketNamePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_AimOffsetLookAt, SourceSocketName));
+					FName SocketNameToCheck = (SocketNamePin != nullptr) ? FName(*SocketNamePin->DefaultValue) : Node.SourceSocketName;
 
-				if (!bValidValue && !bValidPinValue && !bValidConnectedPin)
-				{ 
-					FFormatNamedArguments Args;
-					Args.Add(TEXT("SocketName"), FText::FromName(SocketNameToCheck));
+					const FReferenceSkeleton& RefSkel = BlendSpaceSkeleton->GetReferenceSkeleton();
+				
+					const bool bValidValue = SocketNamePin == nullptr && (
+						BlendSpaceSkeleton->FindSocket(Node.SourceSocketName) || 
+						RefSkel.FindBoneIndex(Node.SourceSocketName) != INDEX_NONE);
+					const bool bValidPinValue = SocketNamePin != nullptr && (
+						BlendSpaceSkeleton->FindSocket(FName(*SocketNamePin->DefaultValue)) || 
+						RefSkel.FindBoneIndex(FName(*SocketNamePin->DefaultValue)) != INDEX_NONE);
+					const bool bValidConnectedPin = SocketNamePin != nullptr && SocketNamePin->LinkedTo.Num();
 
-					const FText Msg = FText::Format(LOCTEXT("SocketNameNotFound", "@@ - Socket {SocketName} not found in Skeleton"), Args);
-					MessageLog.Error(*Msg.ToString(), this);
+					if (!bValidValue && !bValidPinValue && !bValidConnectedPin)
+					{ 
+						FFormatNamedArguments Args;
+						Args.Add(TEXT("SocketName"), FText::FromName(SocketNameToCheck));
+
+						const FText Msg = FText::Format(LOCTEXT("SocketNameNotFound", "@@ - Socket {SocketName} not found in Skeleton"), Args);
+						MessageLog.Error(*Msg.ToString(), this);
+					}
+				}
+
+				// And similarly the pivot socket, though here we allow it to be blank (but not invalid)
+				{
+					// Make sure that the source socket name is a valid one for the skeleton
+					UEdGraphPin* SocketNamePin = FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_AimOffsetLookAt, PivotSocketName));
+					FName SocketNameToCheck = (SocketNamePin != nullptr) ? FName(*SocketNamePin->DefaultValue) : Node.PivotSocketName;
+
+					const FReferenceSkeleton& RefSkel = BlendSpaceSkeleton->GetReferenceSkeleton();
+
+					const bool bValidValue = SocketNamePin == nullptr && (
+						Node.PivotSocketName.IsNone() || 
+						BlendSpaceSkeleton->FindSocket(Node.PivotSocketName) ||
+						RefSkel.FindBoneIndex(Node.PivotSocketName) != INDEX_NONE);
+					const bool bValidPinValue = SocketNamePin != nullptr && (
+						BlendSpaceSkeleton->FindSocket(FName(*SocketNamePin->DefaultValue)) ||
+						RefSkel.FindBoneIndex(FName(*SocketNamePin->DefaultValue)) != INDEX_NONE);
+					const bool bValidConnectedPin = SocketNamePin != nullptr && SocketNamePin->LinkedTo.Num();
+
+					if (!bValidValue && !bValidPinValue && !bValidConnectedPin)
+					{
+						FFormatNamedArguments Args;
+						Args.Add(TEXT("SocketName"), FText::FromName(SocketNameToCheck));
+
+						const FText Msg = FText::Format(LOCTEXT("PivotSocketNameNotFound", "@@ - PivotSocket {SocketName} not found in Skeleton"), Args);
+						MessageLog.Error(*Msg.ToString(), this);
+					}
 				}
 			}
 		}
