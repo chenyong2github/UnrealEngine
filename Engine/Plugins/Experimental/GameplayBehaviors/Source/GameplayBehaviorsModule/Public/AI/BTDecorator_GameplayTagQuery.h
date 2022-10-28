@@ -17,14 +17,6 @@ class UBehaviorTreeComponent;
 class UBlackboardComponent;
 class UAbilitySystemComponent;
 
-struct FBTDecorator_GameplayTagQueryMemory
-{
-	TWeakObjectPtr<UAbilitySystemComponent> CachedAbilitySystemComponent;
-	
-	/** Array of handles for our gameplay tag query delegates */
-	TArray<TTuple<FGameplayTag, FDelegateHandle>> GameplayTagEventHandles;
-};
-
 /**
  * GameplayTagQuery decorator node.
  * A decorator node that bases its condition on matching a gameplay tag query.

@@ -12,6 +12,14 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BTDecorator_GameplayTagQuery)
 
+struct FBTDecorator_GameplayTagQueryMemory
+{
+	TWeakObjectPtr<UAbilitySystemComponent> CachedAbilitySystemComponent;
+
+	/** Array of handles for our gameplay tag query delegates */
+	TArray<TTuple<FGameplayTag, FDelegateHandle>> GameplayTagEventHandles;
+};
+
 UBTDecorator_GameplayTagQuery::UBTDecorator_GameplayTagQuery(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
 	NodeName = "Gameplay Tag Query";
