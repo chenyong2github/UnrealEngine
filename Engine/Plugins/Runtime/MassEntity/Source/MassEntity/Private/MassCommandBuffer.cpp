@@ -130,7 +130,7 @@ void FMassCommandBuffer::Flush(FMassEntityManager& EntityManager)
 			const FMassBatchedCommand* Command = CommandInstances[i];
 			CommandsOrder.Add(FBatchedCommandsSortedIndex(i, (Command && Command->HasWork())? CommandTypeOrder[(int)Command->GetOperationType()] : MAX_int32));
 		}
-		CommandsOrder.Sort();
+		CommandsOrder.StableSort();
 				
 		for (int32 k = 0; k < CommandsOrder.Num() && CommandsOrder[k].IsValid(); ++k)
 		{
