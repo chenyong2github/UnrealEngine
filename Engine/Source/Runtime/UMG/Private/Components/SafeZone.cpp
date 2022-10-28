@@ -51,7 +51,10 @@ void USafeZone::OnSlotAdded( UPanelSlot* InSlot )
 {
 	Super::OnSlotAdded( InSlot );
 
-	UpdateWidgetProperties();
+	if (MySafeZone.IsValid())
+	{
+		CastChecked<USafeZoneSlot>(InSlot)->BuildSlot(MySafeZone.ToSharedRef());
+	}
 }
 
 void USafeZone::OnSlotRemoved( UPanelSlot* InSlot )
@@ -69,6 +72,7 @@ UClass* USafeZone::GetSlotClass() const
 	return USafeZoneSlot::StaticClass();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void USafeZone::UpdateWidgetProperties()
 {
 	if ( MySafeZone.IsValid() && GetChildrenCount() > 0 )
@@ -98,15 +102,8 @@ void USafeZone::SetSidesToPad(bool InPadLeft, bool InPadRight, bool InPadTop, bo
 }
 
 TSharedRef<SWidget> USafeZone::RebuildWidget()
-{
-	USafeZoneSlot* SafeSlot = Slots.Num() > 0 ? Cast< USafeZoneSlot >( Slots[ 0 ] ) : nullptr;
-	
+{	
 	MySafeZone = SNew( SSafeZone )
-		.IsTitleSafe( SafeSlot ? SafeSlot->bIsTitleSafe : false )
-		.SafeAreaScale( SafeSlot ? SafeSlot->SafeAreaScale : FMargin(1,1,1,1))
-		.HAlign( SafeSlot ? SafeSlot->HAlign.GetValue() : HAlign_Fill )
-		.VAlign( SafeSlot ? SafeSlot->VAlign.GetValue() : VAlign_Fill )
-		.Padding( SafeSlot ? SafeSlot->Padding : FMargin() )
 		.PadLeft( PadLeft )
 		.PadRight( PadRight )
 		.PadTop( PadTop )
@@ -119,8 +116,17 @@ TSharedRef<SWidget> USafeZone::RebuildWidget()
 			GetChildAt( 0 ) ? GetChildAt( 0 )->TakeWidget() : SNullWidget::NullWidget
 		];
 
+	if (GetChildrenCount() > 0)
+	{
+		if (USafeZoneSlot* SafeSlot = Cast<USafeZoneSlot>(GetContentSlot()))
+		{
+			SafeSlot->BuildSlot(MySafeZone.ToSharedRef());
+		}
+	}
+
 	return MySafeZone.ToSharedRef();
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void USafeZone::ReleaseSlateResources(bool bReleaseChildren)
 {
@@ -128,6 +134,60 @@ void USafeZone::ReleaseSlateResources(bool bReleaseChildren)
 
 	MySafeZone.Reset();
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+void USafeZone::SetPadLeft(bool InPadLeft)
+{
+	if (PadLeft != InPadLeft)
+	{
+		SetSidesToPad(InPadLeft, PadRight, PadTop, PadBottom);
+	}
+}
+
+bool USafeZone::GetPadLeft() const
+{
+	return PadLeft;
+}
+
+void USafeZone::SetPadRight(bool InPadRight)
+{
+	if (PadRight != InPadRight)
+	{
+		SetSidesToPad(PadLeft, InPadRight, PadTop, PadBottom);
+	}
+}
+
+bool USafeZone::GetPadRight() const
+{
+	return PadRight;
+}
+
+void USafeZone::SetPadTop(bool InPadTop)
+{
+	if (PadTop != InPadTop)
+	{
+		SetSidesToPad(PadLeft, PadRight, InPadTop, PadBottom);
+	}
+}
+
+bool USafeZone::GetPadTop() const
+{
+	return PadTop;
+}
+
+void USafeZone::SetPadBottom(bool InPadBottom)
+{
+	if (PadBottom != InPadBottom)
+	{
+		SetSidesToPad(PadLeft, PadRight, PadTop, InPadBottom);
+	}
+}
+
+bool USafeZone::GetPadBottom() const
+{
+	return PadBottom;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE
 
