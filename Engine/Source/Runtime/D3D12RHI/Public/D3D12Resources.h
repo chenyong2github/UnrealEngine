@@ -78,7 +78,9 @@ public:
 	void SetHeap(ID3D12Heap* HeapIn, const TCHAR* const InName, bool bTrack = true, bool bForceGetGPUAddress = false);
 
 	void BeginTrackingResidency(uint64 Size);
-	
+
+	void DeferDelete();
+
 	inline FName GetName() const { return HeapName; }
 	inline D3D12_HEAP_DESC GetHeapDesc() const { return HeapDesc; }
 	inline FD3D12ResidencyHandle& GetResidencyHandle() { return ResidencyHandle; }

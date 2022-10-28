@@ -38,6 +38,7 @@ struct FD3D12DeferredDeleteObject
 	{
 		RHIObject,
 		D3DObject,
+		D3DHeap,
 		BindlessDescriptor,
 		CPUAllocation
 	} Type;
@@ -45,6 +46,7 @@ struct FD3D12DeferredDeleteObject
 	union
 	{
 		FD3D12Resource* RHIObject;
+		FD3D12Heap* D3DHeap;
 		ID3D12Object* D3DObject;
 
 		struct
@@ -59,6 +61,11 @@ struct FD3D12DeferredDeleteObject
 	explicit FD3D12DeferredDeleteObject(FD3D12Resource* RHIObject)
 		: Type(EType::RHIObject)
 		, RHIObject(RHIObject)
+	{}
+
+	explicit FD3D12DeferredDeleteObject(FD3D12Heap* D3DHeap)
+		: Type(EType::D3DHeap)
+		, D3DHeap(D3DHeap)
 	{}
 
 	explicit FD3D12DeferredDeleteObject(ID3D12Object* D3DObject)

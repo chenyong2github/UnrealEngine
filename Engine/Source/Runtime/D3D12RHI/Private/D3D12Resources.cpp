@@ -186,6 +186,11 @@ FD3D12Heap::~FD3D12Heap()
 	Heap.SafeRelease();
 }
 
+void FD3D12Heap::DeferDelete()
+{
+	FD3D12DynamicRHI::GetD3DRHI()->DeferredDelete(this);
+}
+
 void FD3D12Heap::SetHeap(ID3D12Heap* HeapIn, const TCHAR* const InName, bool bInTrack, bool bForceGetGPUAddress)
 {
 	*Heap.GetInitReference() = HeapIn; 

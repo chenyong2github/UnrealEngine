@@ -106,6 +106,10 @@ FD3D12TransientHeap::~FD3D12TransientHeap()
 		LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, Heap->GetHeap()));
 		MemoryTrace_Free((uint64)Heap->GetHeap(), EMemoryTraceRootHeap::VideoMemory);
 #endif
+
+		// Add a reference to the underlying to heap to be deferred released later.
+		Heap->AddRef();
+		Heap->DeferDelete();
 	}
 }
 

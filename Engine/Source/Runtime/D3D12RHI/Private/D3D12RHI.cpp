@@ -476,6 +476,10 @@ void FD3D12DynamicRHI::RHIPerFrameRHIFlushComplete()
 					check(ObjectToDelete.RHIObject->GetRefCount() == 1);
 					ObjectToDelete.RHIObject->Release();
 					break;
+				case FD3D12DeferredDeleteObject::EType::D3DHeap:
+					// Heaps can have additional references active.
+					ObjectToDelete.D3DHeap->Release();
+					break;
 				case FD3D12DeferredDeleteObject::EType::D3DObject:
 					ObjectToDelete.D3DObject->Release();
 					break;
