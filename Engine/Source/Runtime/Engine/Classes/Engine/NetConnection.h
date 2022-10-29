@@ -65,7 +65,7 @@ typedef TMap<TWeakObjectPtr<AActor>, UActorChannel*, FDefaultSetAllocator, TWeak
 namespace NetConnectionHelper
 {
 	/** Number of bits to use in the packet header for sending the milliseconds on the clock when the packet is sent */
-	inline constexpr int32 NumBitsForJitterClockTimeInHeader = 10;
+	constexpr int32 NumBitsForJitterClockTimeInHeader = 10;
 }
 
 extern ENGINE_API TAutoConsoleVariable<int32> CVarNetEnableCongestionControl;

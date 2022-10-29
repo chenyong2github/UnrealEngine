@@ -1914,8 +1914,3 @@ RHI_API void RHISetComputeShaderBackwardsCompatible(IRHIComputeContext* InContex
 	TRefCountPtr<FRHIComputePipelineState> ComputePipelineState = RHICreateComputePipelineState(InShader);
 	InContext->RHISetComputePipelineState(ComputePipelineState);
 }
-
-void IRHIComputeContext::RHISetComputeShader(FRHIComputeShader* ComputeShader)
-{
-	RHISetComputeShaderBackwardsCompatible(this, ComputeShader);
-}
