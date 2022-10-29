@@ -5,6 +5,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
+#include "Misc/Paths.h"
 
 #include "WorldPartition/HLOD/HLODSubsystem.h"
 #include "WorldPartition/HLOD/HLODActor.h"
@@ -57,6 +58,22 @@ bool UWorldPartitionRuntimeLevelStreamingCell::HasActors() const
 #else
 	return true;
 #endif
+}
+
+TArray<FName> UWorldPartitionRuntimeLevelStreamingCell::GetActors() const
+{
+	TArray<FName> Actors;
+
+#if WITH_EDITOR
+	Actors.Reserve(Packages.Num());
+
+	for (const FWorldPartitionRuntimeCellObjectMapping& Package : Packages)
+	{
+		Actors.Add(*FPaths::GetExtension(Package.Path.ToString()));
+	}
+#endif
+
+	return Actors;
 }
 
 void UWorldPartitionRuntimeLevelStreamingCell::CreateAndSetLevelStreaming(const FString& InPackageName)

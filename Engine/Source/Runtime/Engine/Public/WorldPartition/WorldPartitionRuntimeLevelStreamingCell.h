@@ -33,6 +33,7 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 	class UWorldPartitionLevelStreamingDynamic* GetLevelStreaming() const;
 
 	bool HasActors() const;
+	virtual TArray<FName> GetActors() const override;
 
 	void CreateAndSetLevelStreaming(const FString& InPackageName);
 	class UWorldPartitionLevelStreamingDynamic* CreateLevelStreaming(const FString& InPackageName = FString()) const;
