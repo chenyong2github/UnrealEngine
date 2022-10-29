@@ -738,10 +738,12 @@ UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(UE::PoseSearch
 		Result.AssetTime = SearchIndex.GetAssetTime(Result.PoseIdx);
 	}
 
+#if ENABLE_DRAW_DEBUG
 	DrawFeatureVector(SearchContext.DebugDrawParams, Result.PoseIdx);
 	
 	EnumAddFlags(SearchContext.DebugDrawParams.Flags, EDebugDrawFlags::DrawQuery);
 	DrawFeatureVector(SearchContext.DebugDrawParams, QueryValues);
+#endif // ENABLE_DRAW_DEBUG
 
 	return Result;
 }
@@ -2600,6 +2602,7 @@ void FFeatureVectorHelper::SetMeanDeviations(float Deviation, Eigen::VectorXd& M
 // FDebugDrawParams
 bool FDebugDrawParams::CanDraw() const
 {
+#if ENABLE_DRAW_DEBUG
 	if (!World)
 	{
 		return false;
@@ -2612,10 +2615,14 @@ bool FDebugDrawParams::CanDraw() const
 	}
 
 	return SearchIndex->IsValid() && !SearchIndex->IsEmpty() && SearchIndex->Schema->SchemaCardinality > 0;
+#else // ENABLE_DRAW_DEBUG
+	return false;
+#endif // ENABLE_DRAW_DEBUG
 }
 
 FColor FDebugDrawParams::GetColor(int32 ColorPreset) const
 {
+#if ENABLE_DRAW_DEBUG
 	FLinearColor Color = FLinearColor::Red;
 
 	const UPoseSearchSchema* Schema = GetSchema();
@@ -2647,6 +2654,9 @@ FColor FDebugDrawParams::GetColor(int32 ColorPreset) const
 	}
 
 	return Color.ToFColor(true);
+#else // ENABLE_DRAW_DEBUG
+	return FColor::Black;
+#endif // ENABLE_DRAW_DEBUG
 }
 
 const FPoseSearchIndex* FDebugDrawParams::GetSearchIndex() const
@@ -4061,6 +4071,7 @@ FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float Or
 
 void DrawFeatureVector(const FDebugDrawParams& DrawParams, TConstArrayView<float> PoseVector)
 {
+#if ENABLE_DRAW_DEBUG
 	if (DrawParams.CanDraw())
 	{
 		const UPoseSearchSchema* Schema = DrawParams.GetSchema();
@@ -4077,19 +4088,23 @@ void DrawFeatureVector(const FDebugDrawParams& DrawParams, TConstArrayView<float
 			}
 		}
 	}
+#endif // ENABLE_DRAW_DEBUG
 }
 
 void DrawFeatureVector(const FDebugDrawParams& DrawParams, int32 PoseIdx)
 {
+#if ENABLE_DRAW_DEBUG
 	// if we're editing the schema while in PIE with Rewind Debugger active, PoseIdx could be out of bound / stale
 	if (DrawParams.CanDraw() && PoseIdx >= 0 && PoseIdx < DrawParams.GetSearchIndex()->NumPoses)
 	{
 		DrawFeatureVector(DrawParams, DrawParams.GetSearchIndex()->GetPoseValues(PoseIdx));
 	}
+#endif // ENABLE_DRAW_DEBUG
 }
 
 void DrawSearchIndex(const FDebugDrawParams& DrawParams)
 {
+#if ENABLE_DRAW_DEBUG
 	if (DrawParams.CanDraw())
 	{
 		const FPoseSearchIndex* SearchIndex = DrawParams.GetSearchIndex();
@@ -4099,6 +4114,7 @@ void DrawSearchIndex(const FDebugDrawParams& DrawParams)
 			DrawFeatureVector(DrawParams, PoseIdx);
 		}
 	}
+#endif // ENABLE_DRAW_DEBUG
 }
 
 static Eigen::VectorXd ComputeChannelsDeviations(const FPoseSearchIndex* SearchIndex)

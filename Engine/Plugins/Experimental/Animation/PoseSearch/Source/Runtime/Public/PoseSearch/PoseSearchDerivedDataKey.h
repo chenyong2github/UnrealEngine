@@ -25,6 +25,7 @@ public:
 	using HashBuilderType = HashBuilder;
 
 	inline static const FName ExcludeFromHashName = FName(TEXT("ExcludeFromHash"));
+	inline static const FName NeverInHashName = FName(TEXT("NeverInHash"));
 
 	/**
 	* Default constructor.
@@ -57,8 +58,14 @@ public:
 		{
 			return true;
 		}
-		const bool bExclude = InProperty->HasMetaData(ExcludeFromHashName);
-		return bExclude;
+		
+		if (InProperty->HasMetaData(ExcludeFromHashName))
+		{
+			return true;
+		}
+		
+		check(!InProperty->HasMetaData(NeverInHashName));
+		return false;
 	}
 
 	virtual void Serialize(void* Data, int64 Length) override

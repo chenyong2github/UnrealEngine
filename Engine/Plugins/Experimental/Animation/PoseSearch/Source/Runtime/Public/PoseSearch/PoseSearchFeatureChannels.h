@@ -44,7 +44,7 @@ public:
 	UPROPERTY()
 	int8 SchemaBoneIdx = 0;
 
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	UPROPERTY(EditAnywhere, Category = "Settings", meta = (ExcludeFromHash))
 	int32 ColorPresetIndex = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
@@ -98,7 +98,7 @@ public:
 	UPROPERTY()
 	int8 SchemaBoneIdx = 0;
 
-	UPROPERTY(EditAnywhere, Category = "Settings")
+	UPROPERTY(EditAnywhere, Category = "Settings", meta = (ExcludeFromHash))
 	int32 ColorPresetIndex = 0;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
@@ -234,7 +234,7 @@ struct POSESEARCH_API FPoseSearchTrajectorySample
 	UPROPERTY(EditAnywhere, Category = Config)
 	float Weight = 1.f;
 
-	UPROPERTY(EditAnywhere, Category = Config)
+	UPROPERTY(EditAnywhere, Category = Config, meta = (ExcludeFromHash))
 	int32 ColorPresetIndex = 0;
 };
 

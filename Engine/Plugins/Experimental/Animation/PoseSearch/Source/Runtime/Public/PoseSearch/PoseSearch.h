@@ -200,7 +200,7 @@ struct POSESEARCH_API FAssetSamplingContext
 	static constexpr float FiniteDelta = 1 / 60.0f;
 
 	// Mirror data table pointer copied from Schema for convenience
-	TObjectPtr<const UMirrorDataTable> MirrorDataTable = nullptr;
+	TObjectPtr<const UMirrorDataTable> MirrorDataTable;
 
 	// Compact pose format of Mirror Bone Map
 	TCustomBoneIndexArray<FCompactPoseBoneIndex, FCompactPoseBoneIndex> CompactPoseMirrorBones;
@@ -533,10 +533,10 @@ struct FPoseSearchSchemaColorPreset
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "Colors")
+	UPROPERTY(EditAnywhere, Category = "Colors", meta = (ExcludeFromHash))
 	FLinearColor Query = FLinearColor::Blue;
 
-	UPROPERTY(EditAnywhere, Category = "Colors")
+	UPROPERTY(EditAnywhere, Category = "Colors", meta = (ExcludeFromHash))
 	FLinearColor Result = FLinearColor::Yellow;
 };
 
@@ -550,7 +550,7 @@ class POSESEARCH_API UPoseSearchSchema : public UDataAsset, public IBoneReferenc
 
 public:
 	UPROPERTY(EditAnywhere, Category = "Schema")
-	TObjectPtr<USkeleton> Skeleton = nullptr;
+	TObjectPtr<USkeleton> Skeleton;
 
 	UPROPERTY(EditAnywhere, meta = (ClampMin = "1", ClampMax = "240"), Category = "Schema")
 	int32 SampleRate = 30;
@@ -590,7 +590,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Schema")
 	float MirrorMismatchCostBias = 0.f;
 
-	UPROPERTY(EditAnywhere, Category = "Schema")
+	UPROPERTY(EditAnywhere, Category = "Schema", meta = (ExcludeFromHash))
 	TArray<FPoseSearchSchemaColorPreset> ColorPresets;
 	
 	bool IsValid () const;
@@ -688,26 +688,26 @@ public:
 
 	// Default to Sequence for now for backward compatibility but
 	// at some point we might want to change this to Invalid.
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	ESearchIndexAssetType Type = ESearchIndexAssetType::Sequence;
 
 	// Index of the source asset in search index's container (i.e. UPoseSearchDatabase)
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	int32 SourceAssetIdx = INDEX_NONE;
 
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	bool bMirrored = false;
 
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	FVector BlendParameters = FVector::Zero();
 
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	FFloatInterval SamplingInterval;
 
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	int32 FirstPoseIdx = INDEX_NONE;
 
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	int32 NumPoses = 0;
 
 	bool IsPoseInRange(int32 PoseIdx) const
@@ -725,29 +725,29 @@ struct POSESEARCH_API FPoseSearchIndex
 {
 	GENERATED_BODY()
 
-	UPROPERTY(Category = Info, VisibleAnywhere)
+	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
 	int32 NumPoses = 0;
 
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	TArray<float> Values;
 
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	TArray<float> PCAValues;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(Category = Info, VisibleAnywhere)
+	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
 	float PCAExplainedVariance = 0.f;
 	
-	UPROPERTY(Category = Info, VisibleAnywhere)
+	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
 	TArray<float> Deviation;
 #endif // WITH_EDITORONLY_DATA
 
 	UE::PoseSearch::FKDTree KDTree;
 
-	UPROPERTY(Category = Info, VisibleAnywhere)
+	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
 	TArray<float> PCAProjectionMatrix;
 
-	UPROPERTY(Category = Info, VisibleAnywhere)
+	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
 	TArray<float> Mean;
 
 	// we store weights square roots to reduce numerical errors when CompareFeatureVectors 
@@ -755,23 +755,23 @@ struct POSESEARCH_API FPoseSearchIndex
 	// instead of
 	// ((VA - VB).square() * VW).sum()
 	// since (VA - VB).square() could lead to big numbers, and VW being multiplied by the variance of the dataset
-	UPROPERTY(Category = Info, VisibleAnywhere) 
+	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
 	TArray<float> WeightsSqrt;
 
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	TArray<FPoseSearchPoseMetadata> PoseMetadata;
 
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	EPoseSearchPoseFlags OverallFlags = EPoseSearchPoseFlags::None;
 
-	UPROPERTY()
-	TObjectPtr<const UPoseSearchSchema> Schema = nullptr;
+	UPROPERTY(meta = (NeverInHash))
+	TObjectPtr<const UPoseSearchSchema> Schema;
 
-	UPROPERTY()
+	UPROPERTY(meta = (NeverInHash))
 	TArray<FPoseSearchIndexAsset> Assets;
 
 	// minimum of the database metadata CostAddend: it represents the minimum cost of any search for the associated database (we'll skip the search in case the search result total cost is already less than MinCostAddend)
-	UPROPERTY(Category = Info, VisibleAnywhere)
+	UPROPERTY(Category = Info, VisibleAnywhere, meta = (NeverInHash))
 	float MinCostAddend = -MAX_FLT;
 
 	bool IsValid() const;
@@ -814,7 +814,7 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAn
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category="Sequence")
-	TObjectPtr<UAnimSequence> Sequence = nullptr;
+	TObjectPtr<UAnimSequence> Sequence;
 
 	UPROPERTY(EditAnywhere, Category = "Sequence")
 	bool bEnabled = true;
@@ -830,14 +830,14 @@ struct POSESEARCH_API FPoseSearchDatabaseSequence : public FPoseSearchDatabaseAn
 	// for one shot anims with past sampling. When past sampling is used without a lead in sequence,
 	// the sampling range of the main sequence will be clamped if necessary.
 	UPROPERTY(EditAnywhere, Category="Sequence")
-	TObjectPtr<UAnimSequence> LeadInSequence = nullptr;
+	TObjectPtr<UAnimSequence> LeadInSequence;
 
 	// Used for sampling future pose information at the end of the main sequence.
 	// This setting is intended for transitions between cycles. It is optional and only used
 	// for one shot anims with future sampling. When future sampling is used without a follow up sequence,
 	// the sampling range of the main sequence will be clamped if necessary.
 	UPROPERTY(EditAnywhere, Category="Sequence")
-	TObjectPtr<UAnimSequence> FollowUpSequence = nullptr;
+	TObjectPtr<UAnimSequence> FollowUpSequence;
 
 	virtual UAnimationAsset* GetAnimationAsset() const override { return Sequence; }
 	virtual bool IsLooping() const override { return Sequence->bLoop; }
@@ -853,7 +853,7 @@ struct POSESEARCH_API FPoseSearchDatabaseBlendSpace : public FPoseSearchDatabase
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "BlendSpace")
-	TObjectPtr<UBlendSpace> BlendSpace = nullptr;
+	TObjectPtr<UBlendSpace> BlendSpace;
 
 	UPROPERTY(EditAnywhere, Category = "BlendSpace")
 	bool bEnabled = true;
@@ -1028,7 +1028,7 @@ struct FSearchResult
 	// lerp value to find AssetTime from PrevPoseIdx -> AssetTime -> NextPoseIdx, within range [-0.5, 0.5]
 	float LerpValue = 0.f;
 
-	TWeakObjectPtr<const UPoseSearchDatabase> Database = nullptr;
+	TWeakObjectPtr<const UPoseSearchDatabase> Database;
 	FPoseSearchFeatureVectorBuilder ComposedQuery;
 
 	// cost of the current pose with the query from database in the result, if possible
@@ -1075,7 +1075,7 @@ class POSESEARCH_API UPoseSearchDatabase : public UPoseSearchSearchableAsset
 public:
 	// Motion Database Config asset to use with this database.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Database", DisplayName="Config")
-	TObjectPtr<const UPoseSearchSchema> Schema = nullptr;
+	TObjectPtr<const UPoseSearchSchema> Schema;
 
 	UPROPERTY(EditAnywhere, Category = "Database")
 	FPoseSearchExtrapolationParameters ExtrapolationParameters;
@@ -1215,15 +1215,15 @@ class POSESEARCH_API UPoseSearchSequenceMetaData : public UAnimMetaData
 public:
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	TObjectPtr<const UPoseSearchSchema> Schema = nullptr;
+	TObjectPtr<const UPoseSearchSchema> Schema;
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
-	FFloatInterval SamplingRange = FFloatInterval(0.0f, 0.0f);
+	FFloatInterval SamplingRange = FFloatInterval(0.f, 0.f);
 
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	FPoseSearchExtrapolationParameters ExtrapolationParameters;
 
-	UPROPERTY()
+	UPROPERTY(meta = (ExcludeFromHash))
 	FPoseSearchIndex SearchIndex;
 
 	bool IsValidForIndexing() const;
@@ -1518,7 +1518,7 @@ struct POSESEARCH_API FPoseSearchDatabaseSetEntry
 
 public:
 	UPROPERTY(EditAnywhere, Category = Settings)
-	TObjectPtr<UPoseSearchSearchableAsset> Searchable = nullptr;
+	TObjectPtr<UPoseSearchSearchableAsset> Searchable;
 
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FGameplayTag Tag;
