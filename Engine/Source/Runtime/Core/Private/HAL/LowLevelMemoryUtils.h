@@ -1038,10 +1038,9 @@ namespace LLMPrivate
 	template<typename KeyType>
 	struct TFastPointerSetKeyFuncs : public DefaultKeyFuncs<KeyType>
 	{
-		template <typename InKeyType>
-		static FORCEINLINE uint32 GetKeyHash(InKeyType Key)
+		using typename DefaultKeyFuncs<KeyType>::KeyInitType;
+		static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
 		{
-			static_assert(std::is_pointer_v<InKeyType>, "Expected key to be a pointer type");
 #if PLATFORM_64BITS
 			static_assert(sizeof(UPTRINT) == sizeof(uint64), "Expected pointer size to be 64 bits");
 			// Ignoring the lower 4 bits since they are likely zero anyway.
@@ -1057,10 +1056,9 @@ namespace LLMPrivate
 	template<typename KeyType, typename ValueType, bool bInAllowDuplicateKeys>
 	struct TFastPointerMapKeyFuncs : public TDefaultMapKeyFuncs<KeyType, ValueType, bInAllowDuplicateKeys>
 	{
-		template <typename InKeyType>
-		static FORCEINLINE uint32 GetKeyHash(InKeyType Key)
+		using typename TDefaultMapKeyFuncs<KeyType, ValueType, bInAllowDuplicateKeys>::KeyInitType;
+		static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
 		{
-			static_assert(std::is_pointer_v<InKeyType>, "Expected key to be a pointer type");
 			return TFastPointerSetKeyFuncs<KeyType>::GetKeyHash(Key);
 		}
 	};

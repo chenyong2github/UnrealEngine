@@ -131,12 +131,9 @@ private:
 	struct FPointerMapKeyFuncs
 	{
 		typedef uint64 KeyType;
-
-	private:
 		typedef uint64 KeyInitType;
 		typedef const TPairInitializer<uint64, ValueType>& ElementInitType;
 
-	public:
 		enum { bAllowDuplicateKeys = false };
 
 		static FORCEINLINE bool Matches(uint64 A, uint64 B)

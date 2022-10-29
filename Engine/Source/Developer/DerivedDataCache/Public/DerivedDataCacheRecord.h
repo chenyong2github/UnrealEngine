@@ -223,12 +223,9 @@ namespace UE::DerivedData
 struct FCacheRecordKeyFuncs
 {
 	using KeyType = FCacheKey;
-
-private:
 	using KeyInitType = const FCacheKey&;
 	using ElementInitType = const FCacheRecord&;
 
-public:
 	static constexpr bool bAllowDuplicateKeys = false;
 
 	static inline KeyInitType GetSetKey(ElementInitType Record) { return Record.GetKey(); }

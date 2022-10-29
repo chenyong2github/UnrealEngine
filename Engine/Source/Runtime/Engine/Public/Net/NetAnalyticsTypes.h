@@ -34,17 +34,17 @@ inline FString LexToString(const FDelinquencyNameTimePair& Value)
 
 struct ENGINE_API FDelinquencyKeyFuncs : public BaseKeyFuncs<FDelinquencyNameTimePair, FDelinquencyNameTimePair, false>
 {
-	static const FDelinquencyNameTimePair& GetSetKey(const FDelinquencyNameTimePair& Element)
+	static KeyInitType GetSetKey(ElementInitType Element)
 	{
 		return Element;
 	}
 
-	static bool Matches(const FDelinquencyNameTimePair& LHS, const FDelinquencyNameTimePair& RHS)
+	static bool Matches(KeyInitType LHS, KeyInitType RHS)
 	{
 		return LHS.Name == RHS.Name;
 	}
 
-	static uint32 GetKeyHash(const FDelinquencyNameTimePair& Key)
+	static uint32 GetKeyHash(KeyInitType Key)
 	{
 		return GetTypeHash(Key.Name);
 	}

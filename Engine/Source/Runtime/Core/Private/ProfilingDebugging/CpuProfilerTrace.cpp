@@ -49,12 +49,9 @@ struct FCpuProfilerTraceInternal
 	struct FDynamicScopeNameMapKeyFuncs
 	{
 		typedef const CharType* KeyType;
-
-	private:
 		typedef const CharType* KeyInitType;
 		typedef const TPairInitializer<const CharType*, uint32>& ElementInitType;
 
-	public:
 		enum { bAllowDuplicateKeys = false };
 
 		static FORCEINLINE bool Matches(const CharType* A, const CharType* B)

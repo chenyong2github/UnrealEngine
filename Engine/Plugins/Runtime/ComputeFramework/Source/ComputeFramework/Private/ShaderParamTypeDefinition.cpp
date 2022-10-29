@@ -19,18 +19,18 @@ static uint32 GetTypeHash(const FShaderValueTypeHandle& InTypeHandle)
 
 struct HandleKeyFuncs : BaseKeyFuncs<FShaderValueTypeHandle,FShaderValueTypeHandle,false>
 {
-	static const FShaderValueTypeHandle& GetSetKey(const FShaderValueTypeHandle& Element)
+	static KeyInitType GetSetKey(ElementInitType Element)
 	{
 		return Element;
 	}
 
-	static bool Matches(const FShaderValueTypeHandle& A, const FShaderValueTypeHandle& B)
+	static bool Matches(KeyInitType A, KeyInitType B)
 	{
 		// The handle value can never be null here.
 		return *A.ValueTypePtr == *B.ValueTypePtr;
 	}
 
-	static uint32 GetKeyHash(const FShaderValueTypeHandle& Key)
+	static uint32 GetKeyHash(KeyInitType Key)
 	{
 		return GetTypeHash(*Key.ValueTypePtr);
 	}

@@ -287,17 +287,17 @@ struct FCachedLandscapeFoliage
 
 	struct FGrassCompKeyFuncs : BaseKeyFuncs<FGrassComp,FGrassCompKey>
 	{
-		static const FGrassCompKey& GetSetKey(const FGrassComp& Element)
+		static KeyInitType GetSetKey(const FGrassComp& Element)
 		{
 			return Element.Key;
 		}
 
-		static bool Matches(const FGrassCompKey& A, const FGrassCompKey& B)
+		static bool Matches(KeyInitType A, KeyInitType B)
 		{
 			return A == B;
 		}
 
-		static uint32 GetKeyHash(const FGrassCompKey& Key)
+		static uint32 GetKeyHash(KeyInitType Key)
 		{
 			return GetTypeHash(Key);
 		}

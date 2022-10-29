@@ -291,10 +291,8 @@ struct FPrimitiveOcclusionHistoryKey
 /** Defines how the hash set indexes the FPrimitiveOcclusionHistory objects. */
 struct FPrimitiveOcclusionHistoryKeyFuncs : BaseKeyFuncs<FPrimitiveOcclusionHistory,FPrimitiveOcclusionHistoryKey>
 {
-private:
 	typedef FPrimitiveOcclusionHistoryKey KeyInitType;
 
-public:
 	static KeyInitType GetSetKey(const FPrimitiveOcclusionHistory& Element)
 	{
 		return FPrimitiveOcclusionHistoryKey(Element);
@@ -1882,15 +1880,15 @@ public:
 
 struct TFDistanceFieldAssetStateFuncs : BaseKeyFuncs<FDistanceFieldAssetState, const FDistanceFieldVolumeData*, /* bInAllowDuplicateKeys = */ false>
 {
-	static FORCEINLINE const FDistanceFieldVolumeData* GetSetKey(const FDistanceFieldAssetState& Element)
+	static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
 	{
 		return Element.BuiltData;
 	}
-	static bool Matches(const FDistanceFieldVolumeData* A, const FDistanceFieldVolumeData* B)
+	static bool Matches(KeyInitType A,KeyInitType B)
 	{
 		return A == B;
 	}
-	static FORCEINLINE uint32 GetKeyHash(const FDistanceFieldVolumeData* Key)
+	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
 	{
 		return PointerHash(Key);
 	}

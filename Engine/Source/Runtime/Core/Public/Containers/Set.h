@@ -29,14 +29,12 @@
  * bInAllowDuplicateKeys=true is slightly faster because it allows the TSet to skip validating that
  * there isn't already a duplicate entry in the TSet.
   */
-template <typename InElementType, typename InKeyType, bool bInAllowDuplicateKeys = false>
+template<typename ElementType,typename InKeyType,bool bInAllowDuplicateKeys = false>
 struct BaseKeyFuncs
 {
-	using KeyType     = InKeyType;
-	using ElementType = InElementType;
-
-	using KeyInitType     UE_DEPRECATED(5.2, "BaseKeyFuncs::KeyInitType has been deprecated.")     = const KeyType&;
-	using ElementInitType UE_DEPRECATED(5.2, "BaseKeyFuncs::ElementInitType has been deprecated.") = const ElementType&;
+	typedef InKeyType KeyType;
+	typedef typename TCallTraits<InKeyType>::ParamType KeyInitType;
+	typedef typename TCallTraits<ElementType>::ParamType ElementInitType;
 
 	enum { bAllowDuplicateKeys = bInAllowDuplicateKeys };
 };
@@ -47,11 +45,13 @@ struct BaseKeyFuncs
 template<typename ElementType,bool bInAllowDuplicateKeys /*= false*/>
 struct DefaultKeyFuncs : BaseKeyFuncs<ElementType,ElementType,bInAllowDuplicateKeys>
 {
+	typedef typename TTypeTraits<ElementType>::ConstPointerType KeyInitType;
+	typedef typename TCallTraits<ElementType>::ParamType ElementInitType;
+
 	/**
 	 * @return The key used to index the given element.
 	 */
-	template <typename KeyType>
-	static FORCEINLINE const KeyType& GetSetKey(const KeyType& Element)
+	static FORCEINLINE KeyInitType GetSetKey(ElementInitType Element)
 	{
 		return Element;
 	}
@@ -59,15 +59,29 @@ struct DefaultKeyFuncs : BaseKeyFuncs<ElementType,ElementType,bInAllowDuplicateK
 	/**
 	 * @return True if the keys match.
 	 */
-	template <typename LhsKeyType, typename RhsKeyType>
-	static FORCEINLINE bool Matches(const LhsKeyType& A, const RhsKeyType& B)
+	static FORCEINLINE bool Matches(KeyInitType A, KeyInitType B)
+	{
+		return A == B;
+	}
+
+	/**
+	 * @return True if the keys match.
+	 */
+	template<typename ComparableKey>
+	static FORCEINLINE bool Matches(KeyInitType A, ComparableKey B)
 	{
 		return A == B;
 	}
 
 	/** Calculates a hash index for a key. */
-	template <typename ComparableKeyType>
-	static FORCEINLINE uint32 GetKeyHash(const ComparableKeyType& Key)
+	static FORCEINLINE uint32 GetKeyHash(KeyInitType Key)
+	{
+		return GetTypeHash(Key);
+	}
+
+	/** Calculates a hash index for a key. */
+	template<typename ComparableKey>
+	static FORCEINLINE uint32 GetKeyHash(ComparableKey Key)
 	{
 		return GetTypeHash(Key);
 	}
@@ -114,10 +128,6 @@ public:
 	FORCEINLINE friend bool operator==(const FSetElementId& A,const FSetElementId& B)
 	{
 		return A.Index == B.Index;
-	}
-	FORCEINLINE friend bool operator!=(const FSetElementId& A,const FSetElementId& B)
-	{
-		return !(A == B);
 	}
 
 	FORCEINLINE int32 AsInteger() const
@@ -276,10 +286,11 @@ template<
 class TSet
 {
 public:
-	using ElementType   = InElementType;
-	using KeyFuncsType  = KeyFuncs;
-	using KeyType       = typename KeyFuncs::KeyType;
-	using AllocatorType = Allocator;
+	static constexpr bool SupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value;
+
+	typedef InElementType ElementType;
+	typedef KeyFuncs    KeyFuncsType;
+	typedef Allocator   AllocatorType;
 
 private:
 	friend struct TContainerTraits<TSet>;
@@ -287,10 +298,10 @@ private:
 	template <typename, typename>
 	friend class TScriptSet;
 
-	using KeyInitType     UE_DEPRECATED(5.2, "TSet::KeyInitType has been deprecated.")     = const KeyType&;
-	using ElementInitType UE_DEPRECATED(5.2, "TSet::ElementInitType has been deprecated.") = const ElementType&;
+	typedef typename KeyFuncs::KeyInitType     KeyInitType;
+	typedef typename KeyFuncs::ElementInitType ElementInitType;
 
-	using SetElementType = TSetElement<InElementType>;
+	typedef TSetElement<InElementType> SetElementType;
 
 public:
 	/** Initialization constructor. */
@@ -849,9 +860,12 @@ public:
 		Elements.RemoveAt(ElementId);
 	}
 
-private:
-	template <typename InKeyInitType>
-	FSetElementId FindIdImpl(InKeyInitType Key) const
+	/**
+	 * Finds an element with the given key in the set.
+	 * @param Key - The key to search for.
+	 * @return The id of the set element matching the given key, or the NULL id if none matches.
+	 */
+	FSetElementId FindId(KeyInitType Key) const
 	{
 		if (Elements.Num())
 		{
@@ -867,19 +881,6 @@ private:
 			}
 		}
 		return FSetElementId();
-	}
-
-public:
-	/**
-	 * Finds an element with the given key in the set.
-	 * @param Key - The key to search for.
-	 * @return The id of the set element matching the given key, or the NULL id if none matches.
-	 */
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE FSetElementId FindId(const InFindKeyType& Key) const
-	{
-		// Defer use of KeyType until call time
-		return FindIdImpl<typename TTypeTraits<KeyType>::ConstPointerType>(Key);
 	}
 
 	/**
@@ -908,9 +909,12 @@ public:
 		return FSetElementId();
 	}
 
-private:
-	template <typename InKeyInitType>
-	FORCEINLINE ElementType* FindImpl(InKeyInitType Key)
+	/**
+	 * Finds an element with the given key in the set.
+	 * @param Key - The key to search for.
+	 * @return A pointer to an element with the given key.  If no element in the set has the given key, this will return NULL.
+	 */
+	FORCEINLINE ElementType* Find(KeyInitType Key)
 	{
 		FSetElementId ElementId = FindId(Key);
 		if(ElementId.IsValidId())
@@ -922,30 +926,15 @@ private:
 			return nullptr;
 		}
 	}
-
-public:
-	/**
-	 * Finds an element with the given key in the set.
-	 * @param Key - The key to search for.
-	 * @return A pointer to an element with the given key.  If no element in the set has the given key, this will return NULL.
-	 */
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE ElementType* Find(const InFindKeyType& Key)
-	{
-		// Defer use of KeyType until call time
-		return FindImpl<typename TTypeTraits<KeyType>::ConstPointerType>(Key);
-	}
-
+	
 	/**
 	 * Finds an element with the given key in the set.
 	 * @param Key - The key to search for.
 	 * @return A const pointer to an element with the given key.  If no element in the set has the given key, this will return NULL.
 	 */
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE const ElementType* Find(const InFindKeyType& Key) const
+	FORCEINLINE const ElementType* Find(KeyInitType Key) const
 	{
-		// Defer use of KeyType until call time
-		return const_cast<TSet*>(this)->FindImpl<typename TTypeTraits<KeyType>::ConstPointerType>(Key);
+		return const_cast<TSet*>(this)->Find(Key);
 	}
 
 	/**
@@ -1005,9 +994,13 @@ private:
 		return NumRemovedElements;
 	}
 
-private:
-	template <typename InKeyInitType>
-	int32 RemoveImpl(InKeyInitType Key)
+public:
+	/**
+	 * Removes all elements from the set matching the specified key.
+	 * @param Key - The key to match elements against.
+	 * @return The number of elements removed.
+	 */
+	int32 Remove(KeyInitType Key)
 	{
 		if (Elements.Num())
 		{
@@ -1015,19 +1008,6 @@ private:
 		}
 
 		return 0;
-	}
-
-public:
-	/**
-	 * Removes all elements from the set matching the specified key.
-	 * @param Key - The key to match elements against.
-	 * @return The number of elements removed.
-	 */
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE int32 Remove(const InFindKeyType& Key)
-	{
-		// Defer use of KeyType until call time
-		return RemoveImpl<typename TTypeTraits<KeyType>::ConstPointerType>(Key);
 	}
 
 	/**
@@ -1055,8 +1035,7 @@ public:
 	 * @param Key - The key to check for.
 	 * @return true if the set contains an element with the given key.
 	 */
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE bool Contains(const InFindKeyType& Key) const
+	FORCEINLINE bool Contains(KeyInitType Key) const
 	{
 		return FindId(Key).IsValidId();
 	}
@@ -1155,9 +1134,7 @@ public:
 		}
 	}
 
-private:
-	template <typename InKeyInitType>
-	bool VerifyHashElementsKeyImpl(InKeyInitType Key)
+	bool VerifyHashElementsKey(KeyInitType Key)
 	{
 		bool bResult=true;
 		if (Elements.Num())
@@ -1176,14 +1153,6 @@ private:
 			}
 		}
 		return bResult;
-	}
-
-public:
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE bool VerifyHashElementsKey(const InFindKeyType& Key)
-	{
-		// Defer use of KeyType until call time
-		return VerifyHashElementsKeyImpl<typename TTypeTraits<KeyType>::ConstPointerType>(Key);
 	}
 
 	void DumpHashElements(FOutputDevice& Ar)
@@ -1466,12 +1435,12 @@ public:
 	void WriteMemoryImage(FMemoryImageWriter& Writer) const
 	{
 		checkf(!Writer.Is32BitTarget(), TEXT("TSet does not currently support freezing for 32bits"));
-		TSupportsFreezeMemoryImageHelper<TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value>::WriteMemoryImage(Writer, *this);
+		TSupportsFreezeMemoryImageHelper<SupportsFreezeMemoryImage>::WriteMemoryImage(Writer, *this);
 	}
 
 	void CopyUnfrozen(const FMemoryUnfreezeContent& Context, void* Dst) const
 	{
-		TSupportsFreezeMemoryImageHelper<TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value>::CopyUnfrozen(Context, *this, Dst);
+		TSupportsFreezeMemoryImageHelper<SupportsFreezeMemoryImage>::CopyUnfrozen(Context, *this, Dst);
 	}
 
 	static void AppendHash(const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
@@ -1668,31 +1637,24 @@ private:
 	};
 
 	/** The base type of whole set iterators. */
-	template <typename SetType>
-	class TBaseSetKeyIterator
+	template<bool bConst>
+	class TBaseKeyIterator
 	{
 	private:
-		using KeyType = typename SetType::KeyType;
-
-		constexpr static bool bKeyTypeIsScalar = std::is_scalar_v<typename KeyFuncs::KeyType>;
-
-		using ReferenceOrValueType =
-			std::conditional_t<
-				bKeyTypeIsScalar,
-				const KeyType,
-				const KeyType&
-			>;
+		typedef typename TChooseClass<bConst,const TSet,TSet>::Result SetType;
+		typedef typename TChooseClass<bConst,const ElementType,ElementType>::Result ItElementType;
+		typedef typename TTypeTraits<typename KeyFuncs::KeyType>::ConstPointerType ReferenceOrValueType;
 
 	public:
 		using KeyArgumentType =
 			std::conditional_t<
-				bKeyTypeIsScalar,
-				const KeyType,
-				TRetainedRef<const KeyType>
+				std::is_reference<ReferenceOrValueType>::value,
+				TRetainedRef<std::remove_reference_t<ReferenceOrValueType>>,
+				KeyInitType
 			>;
 
 		/** Initialization constructor. */
-		FORCEINLINE explicit TBaseSetKeyIterator(SetType& InSet, KeyArgumentType InKey)
+		FORCEINLINE TBaseKeyIterator(SetType& InSet, KeyArgumentType InKey)
 		:	Set(InSet)
 		,	Key(InKey) //-V1041
 		{
@@ -1706,7 +1668,7 @@ private:
 		}
 
 		/** Advances the iterator to the next element. */
-		FORCEINLINE TBaseSetKeyIterator& operator++()
+		FORCEINLINE TBaseKeyIterator& operator++()
 		{
 			Id = NextId;
 
@@ -1722,23 +1684,26 @@ private:
 
 				Id = NextId;
 			}
-
 			return *this;
 		}
 
 		/** conversion to "bool" returning true if the iterator is valid. */
 		FORCEINLINE explicit operator bool() const
-		{
+		{ 
 			return Id.IsValidId(); 
+		}
+		/** inverse of the "bool" operator */
+		FORCEINLINE bool operator !() const 
+		{
+			return !(bool)*this;
 		}
 
 		// Accessors.
-		FORCEINLINE decltype(auto) operator->() const
+		FORCEINLINE ItElementType* operator->() const
 		{
 			return &Set[Id];
 		}
-
-		FORCEINLINE decltype(auto) operator*() const
+		FORCEINLINE ItElementType& operator*() const
 		{
 			return Set[Id];
 		}
@@ -1790,10 +1755,10 @@ public:
 	using TRangedForIterator      = TBaseIterator<false, true>;
 
 	/** Used to iterate over the elements of a const TSet. */
-	class TConstKeyIterator : public TBaseSetKeyIterator<const TSet>
+	class TConstKeyIterator : public TBaseKeyIterator<true>
 	{
 	private:
-		using Super = TBaseSetKeyIterator<const TSet>;
+		using Super = TBaseKeyIterator<true>;
 
 	public:
 		using KeyArgumentType = typename Super::KeyArgumentType;
@@ -1805,10 +1770,10 @@ public:
 	};
 
 	/** Used to iterate over the elements of a TSet. */
-	class TKeyIterator : public TBaseSetKeyIterator<TSet>
+	class TKeyIterator : public TBaseKeyIterator<false>
 	{
 	private:
-		using Super = TBaseSetKeyIterator<TSet>;
+		using Super = TBaseKeyIterator<false>;
 
 	public:
 		using KeyArgumentType = typename Super::KeyArgumentType;
@@ -1821,8 +1786,8 @@ public:
 		/** Removes the current element from the set. */
 		FORCEINLINE void RemoveCurrent()
 		{
-			this->Set.Remove(Super::Id);
-			Super::Id = FSetElementId();
+			this->Set.Remove(TBaseKeyIterator<false>::Id);
+			TBaseKeyIterator<false>::Id = FSetElementId();
 		}
 	};
 

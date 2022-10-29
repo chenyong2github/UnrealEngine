@@ -82,9 +82,9 @@ static void EnumSetFlagsAnd(Enum& Output, Enum Mask, Enum A, Enum B)
 	Output = (Output & ~Mask) | (Mask & A & B);
 }
 
-template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs, typename KeyLookupType>
+template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
 static ValueType MapFindRef(const TMap<KeyType, ValueType, SetAllocator, KeyFuncs>& Map,
-	const KeyLookupType& Key, ValueType DefaultValue)
+	typename TMap<KeyType, ValueType, SetAllocator, KeyFuncs>::KeyConstPointerType Key, ValueType DefaultValue)
 {
 	const ValueType* FoundValue = Map.Find(Key);
 	return FoundValue ? *FoundValue : DefaultValue;

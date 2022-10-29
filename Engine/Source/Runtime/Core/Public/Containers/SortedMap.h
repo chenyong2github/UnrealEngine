@@ -23,12 +23,11 @@ class TSortedMap
 	friend struct TContainerTraits<TSortedMap>;
 
 public:
-	using KeyConstPointerType UE_DEPRECATED(5.2, "TSortedMap::KeyConstPointerType has been deprecated.") = const KeyType&;
-	using KeyInitType         UE_DEPRECATED(5.2, "TSortedMap::KeyInitType has been deprecated.")         = const KeyType&;
-	using ValueInitType       UE_DEPRECATED(5.2, "TSortedMap::ValueInitType has been deprecated.")       = const ValueType&;
-
-	using ElementType = TPair<KeyType, ValueType>;
-
+	typedef typename TTypeTraits<KeyType  >::ConstPointerType KeyConstPointerType;
+	typedef typename TTypeTraits<KeyType  >::ConstInitType    KeyInitType;
+	typedef typename TTypeTraits<ValueType>::ConstInitType    ValueInitType;
+	typedef TPair<KeyType, ValueType> ElementType;
+	
 	TSortedMap() = default;
 	TSortedMap(TSortedMap&&) = default;
 	TSortedMap(const TSortedMap&) = default;
@@ -214,9 +213,13 @@ public:
 		return DataPtr->Value;
 	}
 
-private:
-	template <typename InKeyConstPointerType>
-	FORCEINLINE int32 RemoveImpl(InKeyConstPointerType InKey)
+	/**
+	 * Removes all value associations for a key.
+	 *
+	 * @param InKey The key to remove associated values for.
+	 * @return The number of values that were associated with the key.
+	 */
+	FORCEINLINE int32 Remove(KeyConstPointerType InKey)
 	{
 		int32 RemoveIndex = FindIndex(InKey);
 
@@ -230,23 +233,13 @@ private:
 		return 1;
 	}
 
-public:
 	/**
-	 * Removes all value associations for a key.
+	 * Returns the key associated with the specified value.  The time taken is O(N) in the number of pairs.
 	 *
-	 * @param InKey The key to remove associated values for.
-	 * @return The number of values that were associated with the key.
+	 * @param Value The value to search for.
+	 * @return A pointer to the key associated with the specified value, or nullptr if the value isn't contained in this map (only valid until the next change to any key in the map).
 	 */
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE int32 Remove(const InFindKeyType& InKey)
-	{
-		// Defer use of KeyType until call time
-		return RemoveImpl<typename TTypeTraits<KeyType>::ConstInitType>(InKey);
-	}
-
-private:
-	template <typename InValueInitType>
-	const KeyType* FindKeyImpl(InValueInitType Value) const
+	const KeyType* FindKey(ValueInitType Value) const
 	{
 		for(typename ElementArrayType::TConstIterator PairIt(Pairs);PairIt;++PairIt)
 		{
@@ -258,23 +251,13 @@ private:
 		return nullptr;
 	}
 
-public:
 	/**
-	 * Returns the key associated with the specified value.  The time taken is O(N) in the number of pairs.
+	 * Returns the value associated with a specified key.
 	 *
-	 * @param Value The value to search for.
-	 * @return A pointer to the key associated with the specified value, or nullptr if the value isn't contained in this map (only valid until the next change to any key in the map).
+	 * @param Key The key to search for.
+	 * @return A pointer to the value associated with the specified key, or nullptr if the key isn't contained in this map.  The pointer (only valid until the next change to any key in the map).
 	 */
-	template <typename InFindValueType = ValueType>
-	FORCEINLINE const KeyType* FindKey(const InFindValueType& Value) const
-	{
-		// Defer use of ValueType until call time
-		return FindKeyImpl<typename TTypeTraits<ValueType>::ConstInitType>(Value);
-	}
-
-private:
-	template <typename InKeyConstPointerType>
-	FORCEINLINE ValueType* FindImpl(InKeyConstPointerType Key)
+	FORCEINLINE ValueType* Find(KeyConstPointerType Key)
 	{
 		int32 FoundIndex = FindIndex(Key);
 
@@ -286,22 +269,7 @@ private:
 		return nullptr;
 	}
 
-public:
-	/**
-	 * Returns the value associated with a specified key.
-	 *
-	 * @param Key The key to search for.
-	 * @return A pointer to the value associated with the specified key, or nullptr if the key isn't contained in this map.  The pointer (only valid until the next change to any key in the map).
-	 */
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE ValueType* Find(const InFindKeyType& Key)
-	{
-		// Defer use of KeyType until call time
-		return FindImpl<typename TTypeTraits<KeyType>::ConstPointerType>(Key);
-	}
-
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE const ValueType* Find(const InFindKeyType& Key) const
+	FORCEINLINE const ValueType* Find(KeyConstPointerType Key) const
 	{
 		return const_cast<TSortedMap*>(this)->Find(Key);
 	}
@@ -316,56 +284,33 @@ public:
 	FORCEINLINE ValueType& FindOrAdd(const KeyType&  Key) { return FindOrAddImpl(         Key ); }
 	FORCEINLINE ValueType& FindOrAdd(      KeyType&& Key) { return FindOrAddImpl(MoveTemp(Key)); }
 
-private:
-	template <typename InKeyConstPointerType>
-	FORCEINLINE ValueType& FindCheckedImpl(InKeyConstPointerType Key)
-	{
-		ValueType* Value = Find(Key);
-		check(Value != nullptr);
-		return *Value;
-	}
-
-public:
 	/**
 	 * Returns a reference to the value associated with a specified key.
 	 *
 	 * @param Key The key to search for.
 	 * @return The value associated with the specified key, or triggers an assertion if the key does not exist.
 	 */
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE ValueType& FindChecked(const InFindKeyType& Key)
+	FORCEINLINE ValueType& FindChecked(KeyConstPointerType Key)
 	{
-		// Defer use of KeyType until call time
-		return FindCheckedImpl<typename TTypeTraits<KeyType>::ConstPointerType>(Key);
+		ValueType* Value = Find(Key);
+		check(Value != nullptr);
+		return *Value;
 	}
 
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE const ValueType& FindChecked(const InFindKeyType& Key) const
+	FORCEINLINE const ValueType& FindChecked(KeyConstPointerType Key) const
 	{
-		return const_cast<TSortedMap*>(this)->FindChecked(Key);
+		const ValueType* Value = Find(Key);
+		check(Value != nullptr);
+		return *Value;
 	}
 
-private:
-	template <typename InKeyConstPointerType>
-	FORCEINLINE ValueType FindRefImpl(InKeyConstPointerType Key) const
-	{
-		if (const ValueType* Value = Find(Key))
-		{
-			return *Value;
-		}
-
-		return ValueType();
-	}
-
-public:
 	/**
 	 * Returns the value associated with a specified key.
 	 *
 	 * @param Key The key to search for.
 	 * @return The value associated with the specified key, or the default value for the ValueType if the key isn't contained in this map.
 	 */
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE ValueType FindRef(const InFindKeyType& Key) const
+	FORCEINLINE ValueType FindRef(KeyConstPointerType Key) const
 	{
 		if (const ValueType* Value = Find(Key))
 		{
@@ -381,8 +326,7 @@ public:
 	 * @param Key The key to check for.
 	 * @return true if the map contains the key.
 	 */
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE bool Contains(const InFindKeyType& Key) const
+	FORCEINLINE bool Contains(KeyConstPointerType Key) const
 	{
 		if (Find(Key))
 		{
@@ -454,9 +398,14 @@ public:
 		Pairs.Dump(Ar);
 	}
 
-private:
-	template <typename InKeyInitType>
-	FORCEINLINE bool RemoveAndCopyValueImpl(InKeyInitType Key, ValueType& OutRemovedValue)
+	/**
+	 * Removes the pair with the specified key and copies the value that was removed to the ref parameter.
+	 *
+	 * @param Key The key to search for
+	 * @param OutRemovedValue If found, the value that was removed (not modified if the key was not found)
+	 * @return Whether or not the key was found
+	 */
+	FORCEINLINE bool RemoveAndCopyValue(KeyInitType Key, ValueType& OutRemovedValue)
 	{
 		int32 FoundIndex = FindIndex(Key);
 		if (FoundIndex == INDEX_NONE)
@@ -468,35 +417,7 @@ private:
 		Pairs.RemoveAt(FoundIndex);
 		return true;
 	}
-
-public:
-	/**
-	 * Removes the pair with the specified key and copies the value that was removed to the ref parameter.
-	 *
-	 * @param Key The key to search for
-	 * @param OutRemovedValue If found, the value that was removed (not modified if the key was not found)
-	 * @return Whether or not the key was found
-	 */
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE bool RemoveAndCopyValue(const InFindKeyType& Key, ValueType& OutRemovedValue)
-	{
-		// Defer use of KeyType until call time
-		return RemoveAndCopyValueImpl<typename TTypeTraits<KeyType>::ConstInitType>(Key, OutRemovedValue);
-	}
-
-private:
-	template <typename InKeyConstPointerType>
-	FORCEINLINE ValueType FindAndRemoveCheckedImpl(InKeyConstPointerType Key)
-	{
-		int32 FoundIndex = FindIndex(Key);
-		check(FoundIndex != INDEX_NONE);
-		
-		ValueType OutRemovedValue = MoveTemp(Pairs[FoundIndex].Value);
-		Pairs.RemoveAt(FoundIndex);
-		return OutRemovedValue;
-	}
-
-public:
+	
 	/**
 	 * Finds a pair with the specified key, removes it from the map, and returns the value part of the pair.
 	 * If no pair was found, an exception is thrown.
@@ -504,11 +425,14 @@ public:
 	 * @param Key The key to search for
 	 * @return Whether or not the key was found
 	 */
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE ValueType FindAndRemoveChecked(const InFindKeyType& Key)
+	FORCEINLINE ValueType FindAndRemoveChecked(KeyConstPointerType Key)
 	{
-		// Defer use of KeyType until call time
-		return FindAndRemoveCheckedImpl<typename TTypeTraits<KeyType>::ConstPointerType>(Key);
+		int32 FoundIndex = FindIndex(Key);
+		check(FoundIndex != INDEX_NONE);
+		
+		ValueType OutRemovedValue = MoveTemp(Pairs[FoundIndex].Value);
+		Pairs.RemoveAt(FoundIndex);
+		return OutRemovedValue;
 	}
 
 	/**
@@ -543,8 +467,8 @@ public:
 		}
 	}
 
-	template <typename InFindKeyType = KeyType> FORCEINLINE       ValueType& operator[](const InFindKeyType& Key) { return this->FindChecked(Key); }
-	template <typename InFindKeyType = KeyType> FORCEINLINE const ValueType& operator[](const InFindKeyType& Key) const { return this->FindChecked(Key); }
+	FORCEINLINE       ValueType& operator[](KeyConstPointerType Key)       { return this->FindChecked(Key); }
+	FORCEINLINE const ValueType& operator[](KeyConstPointerType Key) const { return this->FindChecked(Key); }
 
 private:
 	typedef TArray<ElementType, ArrayAllocator> ElementArrayType;
@@ -562,10 +486,9 @@ private:
 	}
 
 	/** Find index of key */
-	template <typename InFindKeyType>
-	FORCEINLINE int32 FindIndex(const InFindKeyType& Key)
+	FORCEINLINE int32 FindIndex(KeyConstPointerType Key)
 	{
-		return Algo::BinarySearchBy(Pairs, (typename TTypeTraits<KeyType>::ConstPointerType)Key, FKeyForward(), SortPredicate());
+		return Algo::BinarySearchBy(Pairs, Key, FKeyForward(), SortPredicate());
 	}
 
 	/** Allocates raw memory for emplacing */
@@ -764,8 +687,7 @@ public:
 	class TConstKeyIterator : public TBaseIterator<true>
 	{
 	public:
-		template <typename InFindKeyType = KeyType>
-		FORCEINLINE TConstKeyIterator(const TSortedMap& InMap, const InFindKeyType& InKey)
+		FORCEINLINE TConstKeyIterator(const TSortedMap& InMap, KeyInitType InKey)
 			: TBaseIterator<true>(InMap.Pairs.CreateIterator())
 		{
 			int32 NewIndex = FindIndex(InKey);
@@ -791,8 +713,7 @@ public:
 	class TKeyIterator : public TBaseIterator<false>
 	{
 	public:
-		template <typename InFindKeyType = KeyType>
-		FORCEINLINE TKeyIterator(TSortedMap& InMap, const InFindKeyType& InKey)
+		FORCEINLINE TKeyIterator(TSortedMap& InMap, KeyInitType InKey)
 			: TBaseIterator<false>(InMap.Pairs.CreateConstIterator())
 		{
 			int32 NewIndex = FindIndex(InKey);
@@ -834,15 +755,13 @@ public:
 	}
 
 	/** Creates an iterator over the values associated with a specified key in a map. This will be at most one value because keys must be unique */
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE TKeyIterator CreateKeyIterator(const InFindKeyType& InKey)
+	FORCEINLINE TKeyIterator CreateKeyIterator(KeyInitType InKey)
 	{
 		return TKeyIterator(*this, InKey);
 	}
 
 	/** Creates a const iterator over the values associated with a specified key in a map. This will be at most one value because keys must be unique */
-	template <typename InFindKeyType = KeyType>
-	FORCEINLINE TConstKeyIterator CreateConstKeyIterator(const InFindKeyType& InKey) const
+	FORCEINLINE TConstKeyIterator CreateConstKeyIterator(KeyInitType InKey) const
 	{
 		return TConstKeyIterator(*this, InKey);
 	}

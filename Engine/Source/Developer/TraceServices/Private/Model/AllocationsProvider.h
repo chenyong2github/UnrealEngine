@@ -290,11 +290,9 @@ private:
 	template<typename ValueType>
 	struct TAddressKeyFuncs : BaseKeyFuncs<TPair<uint64, ValueType>, uint64, false>
 	{
-	private:
 		typedef typename TTypeTraits<uint64>::ConstPointerType KeyInitType;
 		typedef const TPairInitializer<typename TTypeTraits<uint64>::ConstInitType, typename TTypeTraits<ValueType>::ConstInitType>& ElementInitType;
 
-	public:
 		static FORCEINLINE uint64 GetSetKey(ElementInitType Element)
 		{
 			return Element.Key;

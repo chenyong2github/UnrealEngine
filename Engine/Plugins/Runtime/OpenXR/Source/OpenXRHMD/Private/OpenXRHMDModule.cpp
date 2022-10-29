@@ -213,11 +213,9 @@ bool FOpenXRHMDModule::EnumerateLayers()
 
 struct AnsiKeyFunc : BaseKeyFuncs<const ANSICHAR*, const ANSICHAR*, false>
 {
-private:
 	typedef typename TTypeTraits<const ANSICHAR*>::ConstPointerType KeyInitType;
 	typedef typename TCallTraits<const ANSICHAR*>::ParamType ElementInitType;
 
-public:
 	/**
 	 * @return The key used to index the given element.
 	 */

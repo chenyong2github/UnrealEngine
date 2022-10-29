@@ -1631,13 +1631,13 @@ struct MeshDrawCommandKeyFuncs : TDefaultMapHashableKeyFuncs<FMeshDrawCommand, F
 	/**
 	 * @return True if the keys match.
 	 */
-	static inline bool Matches(const FMeshDrawCommand& A, const FMeshDrawCommand& B)
+	static inline bool Matches(KeyInitType A, KeyInitType B)
 	{
 		return A.MatchesForDynamicInstancing(B);
 	}
 
 	/** Calculates a hash index for a key. */
-	static inline uint32 GetKeyHash(const FMeshDrawCommand& Key)
+	static inline uint32 GetKeyHash(KeyInitType Key)
 	{
 		return Key.GetDynamicInstancingHash();
 	}

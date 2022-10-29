@@ -73,13 +73,15 @@ class TScriptSparseArray;
 template<typename InElementType,typename Allocator /*= FDefaultSparseArrayAllocator */>
 class TSparseArray
 {
+	using ElementType = InElementType;
+
 	friend struct TContainerTraits<TSparseArray>;
 
 	template <typename, typename>
 	friend class TScriptSparseArray;
 
 public:
-	using ElementType = InElementType;
+	static constexpr bool SupportsFreezeMemoryImage = TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value;
 
 	/** Destructor. */
 	~TSparseArray()
@@ -101,7 +103,7 @@ public:
 		// Set the allocation info.
 		FSparseArrayAllocationInfo Result;
 		Result.Index = Index;
-		Result.Pointer = &GetData(Result.Index).Union.ElementData;
+		Result.Pointer = &GetData(Result.Index).ElementData;
 
 		return Result;
 	}
@@ -117,11 +119,11 @@ public:
 		{
 			// Remove and use the first index from the list of free elements.
 			Index = FirstFreeIndex;
-			FirstFreeIndex = GetData(FirstFreeIndex).Union.NextFreeIndex;
+			FirstFreeIndex = GetData(FirstFreeIndex).NextFreeIndex;
 			--NumFreeIndices;
 			if(NumFreeIndices)
 			{
-				GetData(FirstFreeIndex).Union.PrevFreeIndex = -1;
+				GetData(FirstFreeIndex).PrevFreeIndex = -1;
 			}
 		}
 		else
@@ -163,18 +165,18 @@ public:
 			// Update FirstFreeIndex
 			if (FirstFreeIndex == Index)
 			{
-				FirstFreeIndex = IndexData.Union.NextFreeIndex;
+				FirstFreeIndex = IndexData.NextFreeIndex;
 			}
 
 			// Link our next and prev free nodes together
-			if (IndexData.Union.NextFreeIndex >= 0)
+			if (IndexData.NextFreeIndex >= 0)
 			{
-				GetData(IndexData.Union.NextFreeIndex).Union.PrevFreeIndex = IndexData.Union.PrevFreeIndex;
+				GetData(IndexData.NextFreeIndex).PrevFreeIndex = IndexData.PrevFreeIndex;
 			}
 
-			if (IndexData.Union.PrevFreeIndex >= 0)
+			if (IndexData.PrevFreeIndex >= 0)
 			{
-				GetData(IndexData.Union.PrevFreeIndex).Union.NextFreeIndex = IndexData.Union.NextFreeIndex;
+				GetData(IndexData.PrevFreeIndex).NextFreeIndex = IndexData.NextFreeIndex;
 			}
 
 			--NumFreeIndices;
@@ -188,7 +190,7 @@ public:
 
 		FSparseArrayAllocationInfo Result;
 		Result.Index = Index;
-		Result.Pointer = &GetData(Result.Index).Union.ElementData;
+		Result.Pointer = &GetData(Result.Index).ElementData;
 		return Result;
 	}
 
@@ -252,7 +254,7 @@ public:
 		else
 		{
 			Allocation.Index = Index;
-			Allocation.Pointer = &GetData(Allocation.Index).Union.ElementData;
+			Allocation.Pointer = &GetData(Allocation.Index).ElementData;			
 		}
 		
 		new(Allocation) ElementType(Forward<ArgsType>(Args)...);
@@ -272,11 +274,11 @@ public:
 			while(AllocationFlags.Num() < Data.Num())
 			{
 				const int32 FreeIndex = AllocationFlags.Num();
-				GetData(FreeIndex).Union.PrevFreeIndex = -1;
-				GetData(FreeIndex).Union.NextFreeIndex = FirstFreeIndex;
+				GetData(FreeIndex).PrevFreeIndex = -1;
+				GetData(FreeIndex).NextFreeIndex = FirstFreeIndex;
 				if(NumFreeIndices)
 				{
-					GetData(FirstFreeIndex).Union.PrevFreeIndex = FreeIndex;
+					GetData(FirstFreeIndex).PrevFreeIndex = FreeIndex;
 				}
 				FirstFreeIndex = FreeIndex;
 				verify(AllocationFlags.Add(false) == FreeIndex);
@@ -289,11 +291,11 @@ public:
 
 		// Remove the index from the list of free elements.
 		--NumFreeIndices;
-		const int32 PrevFreeIndex = GetData(Index).Union.PrevFreeIndex;
-		const int32 NextFreeIndex = GetData(Index).Union.NextFreeIndex;
+		const int32 PrevFreeIndex = GetData(Index).PrevFreeIndex;
+		const int32 NextFreeIndex = GetData(Index).NextFreeIndex;
 		if(PrevFreeIndex != -1)
 		{
-			GetData(PrevFreeIndex).Union.NextFreeIndex = NextFreeIndex;
+			GetData(PrevFreeIndex).NextFreeIndex = NextFreeIndex;
 		}
 		else
 		{
@@ -301,28 +303,18 @@ public:
 		}
 		if(NextFreeIndex != -1)
 		{
-			GetData(NextFreeIndex).Union.PrevFreeIndex = PrevFreeIndex;
+			GetData(NextFreeIndex).PrevFreeIndex = PrevFreeIndex;
 		}
 
 		return AllocateIndex(Index);
 	}
 
-private:
-	template <typename InConstInitType>
-	void InsertImpl(int32 Index, InConstInitType Element)
-	{
-		new(InsertUninitialized(Index)) ElementType(Element);
-	}
-
-public:
 	/**
 	 * Inserts an element to the array.
 	 */
-	template <typename InInitElementType = ElementType>
-	void Insert(int32 Index, const InInitElementType& Element)
+	void Insert(int32 Index,typename TTypeTraits<ElementType>::ConstInitType Element)
 	{
-		// Defer use of ElementType until call time
-		InsertImpl<typename TTypeTraits<ElementType>::ConstInitType>(Index, Element);
+		new(InsertUninitialized(Index)) ElementType(Element);
 	}
 
 	/** Removes Count elements from the array, starting from Index. */
@@ -332,7 +324,7 @@ public:
 		{
 			for (int32 It = Index, ItCount = Count; ItCount; ++It, --ItCount)
 			{
-				((ElementType&)GetData(It).Union.ElementData).~ElementType();
+				((ElementType&)GetData(It).ElementData).~ElementType();
 			}
 		}
 
@@ -349,11 +341,11 @@ public:
 			// Mark the element as free and add it to the free element list.
 			if(NumFreeIndices)
 			{
-				GetData(FirstFreeIndex).Union.PrevFreeIndex = Index;
+				GetData(FirstFreeIndex).PrevFreeIndex = Index;
 			}
 			auto& IndexData = GetData(Index);
-			IndexData.Union.PrevFreeIndex = -1;
-			IndexData.Union.NextFreeIndex = NumFreeIndices > 0 ? FirstFreeIndex : INDEX_NONE;
+			IndexData.PrevFreeIndex = -1;
+			IndexData.NextFreeIndex = NumFreeIndices > 0 ? FirstFreeIndex : INDEX_NONE;
 			FirstFreeIndex = Index;
 			++NumFreeIndices;
 			AllocationFlags[Index] = false;
@@ -424,10 +416,10 @@ public:
 			{
 				if(NumFreeIndices)
 				{
-					GetData(FirstFreeIndex).Union.PrevFreeIndex = FreeIndex;
+					GetData(FirstFreeIndex).PrevFreeIndex = FreeIndex;
 				}
-				GetData(FreeIndex).Union.PrevFreeIndex = -1;
-				GetData(FreeIndex).Union.NextFreeIndex = NumFreeIndices > 0 ? FirstFreeIndex : INDEX_NONE;
+				GetData(FreeIndex).PrevFreeIndex = -1;
+				GetData(FreeIndex).NextFreeIndex = NumFreeIndices > 0 ? FirstFreeIndex : INDEX_NONE;
 				FirstFreeIndex = FreeIndex;
 				++NumFreeIndices;
 			}
@@ -460,15 +452,15 @@ public:
 				{
 					if(FreeIndex >= FirstIndexToRemove)
 					{
-						const int32 PrevFreeIndex = GetData(FreeIndex).Union.PrevFreeIndex;
-						const int32 NextFreeIndex = GetData(FreeIndex).Union.NextFreeIndex;
+						const int32 PrevFreeIndex = GetData(FreeIndex).PrevFreeIndex;
+						const int32 NextFreeIndex = GetData(FreeIndex).NextFreeIndex;
 						if(NextFreeIndex != -1)
 						{
-							GetData(NextFreeIndex).Union.PrevFreeIndex = PrevFreeIndex;
+							GetData(NextFreeIndex).PrevFreeIndex = PrevFreeIndex;
 						}
 						if(PrevFreeIndex != -1)
 						{
-							GetData(PrevFreeIndex).Union.NextFreeIndex = NextFreeIndex;
+							GetData(PrevFreeIndex).NextFreeIndex = NextFreeIndex;
 						}
 						else
 						{
@@ -480,7 +472,7 @@ public:
 					}
 					else
 					{
-						FreeIndex = GetData(FreeIndex).Union.NextFreeIndex;
+						FreeIndex = GetData(FreeIndex).NextFreeIndex;
 					}
 				}
 			}
@@ -513,7 +505,7 @@ public:
 		int32 FreeIndex   = FirstFreeIndex;
 		while (FreeIndex != -1)
 		{
-			int32 NextFreeIndex = GetData(FreeIndex).Union.NextFreeIndex;
+			int32 NextFreeIndex = GetData(FreeIndex).NextFreeIndex;
 			if (FreeIndex < TargetIndex)
 			{
 				// We need an element here
@@ -781,12 +773,12 @@ public:
 					const FElementOrFreeListLink& SrcElement  = SrcData [Index];
 					if (InCopy.IsAllocated(Index))
 					{
-						::new((uint8*)&DestElement.Union.ElementData) ElementType(*(const ElementType*)&SrcElement.Union.ElementData);
+						::new((uint8*)&DestElement.ElementData) ElementType(*(const ElementType*)&SrcElement.ElementData);
 					}
 					else
 					{
-						DestElement.Union.PrevFreeIndex = SrcElement.Union.PrevFreeIndex;
-						DestElement.Union.NextFreeIndex = SrcElement.Union.NextFreeIndex;
+						DestElement.PrevFreeIndex = SrcElement.PrevFreeIndex;
+						DestElement.NextFreeIndex = SrcElement.NextFreeIndex;
 					}
 				}
 			}
@@ -833,13 +825,13 @@ public:
 	{
 		checkSlow(Index >= 0 && Index < Data.Num() && Index < AllocationFlags.Num());
 		//checkSlow(AllocationFlags[Index]); // Disabled to improve loading times -BZ
-		return *(ElementType*)&GetData(Index).Union.ElementData;
+		return *(ElementType*)&GetData(Index).ElementData;
 	}
 	const ElementType& operator[](int32 Index) const
 	{
 		checkSlow(Index >= 0 && Index < Data.Num() && Index < AllocationFlags.Num());
 		//checkSlow(AllocationFlags[Index]); // Disabled to improve loading times -BZ
-		return *(ElementType*)&GetData(Index).Union.ElementData;
+		return *(ElementType*)&GetData(Index).ElementData;
 	}
 	int32 PointerToIndex(const ElementType* Ptr) const
 	{
@@ -1092,20 +1084,14 @@ public:
 	}
 
 private:
-	struct FElementOrFreeListLink
-	{
-		/**
-		 * The element type stored is only indirectly related to the element type requested, to avoid instantiating TArray redundantly for
-		 * compatible types.
-		 *
-		 * FElementOrFreeListLink needs to be a struct rather than a typedef to encapsulate the use of sizeof(ElementType) and
-		 * alignof(ElementType) when ElementType may be incomplete at the time the class is used.  Would like to inherit this to save a
-		 * layer of indirection, but it's a union. :(
-		 */
-		TSparseArrayElementOrFreeListLink<
-			TAlignedBytes<sizeof(ElementType), alignof(ElementType)>
-		> Union;
-	};
+
+	/**
+	 * The element type stored is only indirectly related to the element type requested, to avoid instantiating TArray redundantly for
+	 * compatible types.
+	 */
+	typedef TSparseArrayElementOrFreeListLink<
+		TAlignedBytes<sizeof(ElementType), alignof(ElementType)>
+		> FElementOrFreeListLink;
 
 	/** Extracts the element value from the array's element structure and passes it to the user provided comparison class. */
 	template <typename PREDICATE_CLASS>
@@ -1120,20 +1106,20 @@ private:
 
 		bool operator()( const FElementOrFreeListLink& A,const FElementOrFreeListLink& B ) const
 		{
-			return Predicate(*(ElementType*)&A.Union.ElementData,*(ElementType*)&B.Union.ElementData);
+			return Predicate(*(ElementType*)&A.ElementData,*(ElementType*)&B.ElementData);
 		}
 	};
 
 	/** Accessor for the element or free list data. */
 	FElementOrFreeListLink& GetData(int32 Index)
 	{
-		return Data.GetData()[Index];
+		return ((FElementOrFreeListLink*)Data.GetData())[Index];
 	}
 
 	/** Accessor for the element or free list data. */
 	const FElementOrFreeListLink& GetData(int32 Index) const
 	{
-		return Data.GetData()[Index];
+		return ((FElementOrFreeListLink*)Data.GetData())[Index];
 	}
 
 	typedef TArray<FElementOrFreeListLink,typename Allocator::ElementAllocator> DataType;
@@ -1173,12 +1159,12 @@ private:
 					const uint32 StartOffset = ArrayWriter.WriteAlignment<FElementOrFreeListLink>();
 					if (Object.AllocationFlags[i])
 					{
-						ArrayWriter.WriteObject(&Elem.Union.ElementData, ElementTypeDesc);
+						ArrayWriter.WriteObject(&Elem.ElementData, ElementTypeDesc);
 					}
 					else
 					{
-						ArrayWriter.WriteBytes(Elem.Union.PrevFreeIndex);
-						ArrayWriter.WriteBytes(Elem.Union.NextFreeIndex);
+						ArrayWriter.WriteBytes(Elem.PrevFreeIndex);
+						ArrayWriter.WriteBytes(Elem.NextFreeIndex);
 					}
 					ArrayWriter.WritePaddingToSize(StartOffset + sizeof(FElementOrFreeListLink));
 				}
@@ -1209,12 +1195,12 @@ private:
 					FElementOrFreeListLink& DstElem = DstObject->Data[i];
 					if (Object.AllocationFlags[i])
 					{
-						Context.UnfreezeObject(&Elem.Union.ElementData, ElementTypeDesc, &DstElem.Union.ElementData);
+						Context.UnfreezeObject(&Elem.ElementData, ElementTypeDesc, &DstElem.ElementData);
 					}
 					else
 					{
-						DstElem.Union.PrevFreeIndex = Elem.Union.PrevFreeIndex;
-						DstElem.Union.NextFreeIndex = Elem.Union.NextFreeIndex;
+						DstElem.PrevFreeIndex = Elem.PrevFreeIndex;
+						DstElem.NextFreeIndex = Elem.NextFreeIndex;
 					}
 				}
 			}
@@ -1234,17 +1220,17 @@ public:
 	void WriteMemoryImage(FMemoryImageWriter& Writer) const
 	{
 		checkf(!Writer.Is32BitTarget(), TEXT("TSparseArray does not currently support freezing for 32bits"));
-		TSupportsFreezeMemoryImageHelper<TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value>::WriteMemoryImage(Writer, *this);
+		TSupportsFreezeMemoryImageHelper<SupportsFreezeMemoryImage>::WriteMemoryImage(Writer, *this);
 	}
 
 	void CopyUnfrozen(const FMemoryUnfreezeContent& Context, void* Dst) const
 	{
-		TSupportsFreezeMemoryImageHelper<TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value>::CopyUnfrozen(Context, *this, Dst);
+		TSupportsFreezeMemoryImageHelper<SupportsFreezeMemoryImage>::CopyUnfrozen(Context, *this, Dst);
 	}
 
 	static void AppendHash(const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher)
 	{
-		TSupportsFreezeMemoryImageHelper<TAllocatorTraits<Allocator>::SupportsFreezeMemoryImage && THasTypeLayout<InElementType>::Value>::AppendHash(LayoutParams, Hasher);
+		TSupportsFreezeMemoryImageHelper<SupportsFreezeMemoryImage>::AppendHash(LayoutParams, Hasher);
 	}
 };
 
@@ -1443,8 +1429,6 @@ private:
 		typedef TScriptSparseArray  ScriptType;
 		typedef TSparseArray<int32> RealType;
 
-		using RealTypeElementOrFreeListLinkUnion = decltype(RealType::FElementOrFreeListLink::Union);
-
 		// Check that the class footprint is the same
 		static_assert(sizeof (ScriptType) == sizeof (RealType), "TScriptSparseArray's size doesn't match TSparseArray");
 		static_assert(alignof(ScriptType) == alignof(RealType), "TScriptSparseArray's alignment doesn't match TSparseArray");
@@ -1462,8 +1446,8 @@ private:
 		static_assert(STRUCT_OFFSET(ScriptType, NumFreeIndices)  == STRUCT_OFFSET(RealType, NumFreeIndices),  "TScriptSparseArray's NumFreeIndices member offset does not match TSparseArray's");
 
 		// Check free index offsets
-		static_assert(STRUCT_OFFSET(ScriptType::FFreeListLink, PrevFreeIndex) == STRUCT_OFFSET(RealTypeElementOrFreeListLinkUnion, PrevFreeIndex), "TScriptSparseArray's FFreeListLink's PrevFreeIndex member offset does not match TSparseArray's");
-		static_assert(STRUCT_OFFSET(ScriptType::FFreeListLink, NextFreeIndex) == STRUCT_OFFSET(RealTypeElementOrFreeListLinkUnion, NextFreeIndex), "TScriptSparseArray's FFreeListLink's NextFreeIndex member offset does not match TSparseArray's");
+		static_assert(STRUCT_OFFSET(ScriptType::FFreeListLink, PrevFreeIndex) == STRUCT_OFFSET(RealType::FElementOrFreeListLink, PrevFreeIndex), "TScriptSparseArray's FFreeListLink's PrevFreeIndex member offset does not match TSparseArray's");
+		static_assert(STRUCT_OFFSET(ScriptType::FFreeListLink, NextFreeIndex) == STRUCT_OFFSET(RealType::FElementOrFreeListLink, NextFreeIndex), "TScriptSparseArray's FFreeListLink's NextFreeIndex member offset does not match TSparseArray's");
 	}
 
 	struct FFreeListLink

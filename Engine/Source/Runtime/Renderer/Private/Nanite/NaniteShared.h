@@ -468,12 +468,12 @@ struct FNaniteRasterEntry
 
 struct FNaniteRasterEntryKeyFuncs : TDefaultMapHashableKeyFuncs<FNaniteRasterPipeline, FNaniteRasterEntry, false>
 {
-	static inline bool Matches(const FNaniteRasterPipeline& A, const FNaniteRasterPipeline& B)
+	static inline bool Matches(KeyInitType A, KeyInitType B)
 	{
 		return A.GetPipelineHash() == B.GetPipelineHash();
 	}
 
-	static inline uint32 GetKeyHash(const FNaniteRasterPipeline& Key)
+	static inline uint32 GetKeyHash(KeyInitType Key)
 	{
 		return Key.GetPipelineHash();
 	}
@@ -613,12 +613,12 @@ struct FNaniteShadingEntry
 
 struct FNaniteShadingEntryKeyFuncs : TDefaultMapHashableKeyFuncs<FNaniteShadingPipeline, FNaniteShadingEntry, false>
 {
-	static inline bool Matches(const FNaniteShadingPipeline& A, const FNaniteShadingPipeline& B)
+	static inline bool Matches(KeyInitType A, KeyInitType B)
 	{
 		return A.GetPipelineHash() == B.GetPipelineHash();
 	}
 
-	static inline uint32 GetKeyHash(const FNaniteShadingPipeline& Key)
+	static inline uint32 GetKeyHash(KeyInitType Key)
 	{
 		return Key.GetPipelineHash();
 	}
