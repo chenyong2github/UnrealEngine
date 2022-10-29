@@ -927,9 +927,12 @@ FAssetThumbnailPool::FAssetThumbnailPool( uint32 InNumInPool, double InMaxFrameT
 	, MaxRealTimeThumbnailsPerFrame( InMaxRealTimeThumbnailsPerFrame )
 	, MaxFrameTimeAllowance( InMaxFrameTimeAllowance )
 {
+	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FAssetThumbnailPool::OnObjectPropertyChanged);
 	FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FAssetThumbnailPool::OnAssetLoaded);
-
-	UThumbnailManager::Get().GetOnThumbnailDirtied().AddRaw(this, &FAssetThumbnailPool::OnThumbnailDirtied);
+	if ( GEditor )
+	{
+		GEditor->OnActorMoved().AddRaw( this, &FAssetThumbnailPool::OnActorPostEditMove );
+	}
 
 	// Add the custom thumbnail tag to the list of tags that the asset registry can parse
 	TSet<FName>& MetaDataTagsForAssetRegistry = UObject::GetMetaDataTagsForAssetRegistry();
@@ -938,8 +941,12 @@ FAssetThumbnailPool::FAssetThumbnailPool( uint32 InNumInPool, double InMaxFrameT
 
 FAssetThumbnailPool::~FAssetThumbnailPool()
 {
-	UThumbnailManager::Get().GetOnThumbnailDirtied().RemoveAll(this);
+	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 	FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
+	if ( GEditor )
+	{
+		GEditor->OnActorMoved().RemoveAll(this);
+	}
 
 	// Release all the texture resources
 	ReleaseResources();
@@ -1556,7 +1563,79 @@ void FAssetThumbnailPool::OnAssetLoaded( UObject* Asset )
 	}
 }
 
-void FAssetThumbnailPool::OnThumbnailDirtied( const FSoftObjectPath& ObjectPath )
+void FAssetThumbnailPool::OnActorPostEditMove( AActor* Actor )
 {
-	RefreshThumbnailsFor( ObjectPath );
+	DirtyThumbnailForObject(Actor);
+}
+
+void FAssetThumbnailPool::OnObjectPropertyChanged( UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent )
+{
+	if(PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		DirtyThumbnailForObject(ObjectBeingModified);
+	}
+}
+
+void FAssetThumbnailPool::DirtyThumbnailForObject(UObject* ObjectBeingModified)
+{
+	if (!ObjectBeingModified)
+	{
+		return;
+	}
+
+	if (ObjectBeingModified->HasAnyFlags(RF_ClassDefaultObject))
+	{
+		if (ObjectBeingModified->GetClass()->ClassGeneratedBy != nullptr)
+		{
+			// This is a blueprint modification. Check to see if this thumbnail is the blueprint of the modified CDO
+			ObjectBeingModified = ObjectBeingModified->GetClass()->ClassGeneratedBy;
+		}
+	}
+	else if (AActor* ActorBeingModified = Cast<AActor>(ObjectBeingModified))
+	{
+		// This is a non CDO actor getting modified. Update the actor's world's thumbnail.
+		ObjectBeingModified = ActorBeingModified->GetWorld();
+	}
+
+	if (ObjectBeingModified)
+	{
+		// An object in memory was modified.  We'll mark it's thumbnail as dirty so that it'll be
+		// regenerated on demand later. (Before being displayed in the browser, or package saves, etc.)
+		FObjectThumbnail* Thumbnail = ThumbnailTools::GetThumbnailForObject(ObjectBeingModified);
+
+		// If we don't yet have a thumbnail map, load one from disk if possible
+		if (Thumbnail == nullptr)
+		{
+			UPackage* ObjectPackage = ObjectBeingModified->GetOutermost();
+
+			const bool bMemoryPackage = FPackageName::IsMemoryPackage(ObjectBeingModified->GetPathName());	// Don't try to load from disk if the package is a memory package
+			const bool bUnsavedPackage = ObjectPackage->HasAnyPackageFlags(PKG_NewlyCreated);				// Don't try loading thumbnails for package that have never been saved
+			const bool bIsGarbageCollecting = IsGarbageCollecting();										// Don't attempt to do this while garbage collecting since loading or finding objects during GC is illegal
+
+			const bool bTryLoadThumbnailFromDisk = !bIsGarbageCollecting && !bMemoryPackage && !bUnsavedPackage;
+			if (bTryLoadThumbnailFromDisk)
+			{
+				FName ObjectFullName = FName(*ObjectBeingModified->GetFullName());
+
+				FThumbnailMap LoadedThumbnails;
+				if (ThumbnailTools::ConditionallyLoadThumbnailsForObjects({ ObjectFullName }, LoadedThumbnails))
+				{
+					Thumbnail = LoadedThumbnails.Find(ObjectFullName);
+
+					if (Thumbnail != nullptr)
+					{
+						Thumbnail = ThumbnailTools::CacheThumbnail(ObjectBeingModified->GetFullName(), Thumbnail, ObjectPackage);
+					}
+				}
+			}
+		}
+
+		if (Thumbnail != nullptr)
+		{
+			// Mark the thumbnail as dirty
+			Thumbnail->MarkAsDirty();
+		}
+
+		RefreshThumbnailsFor(FSoftObjectPath(ObjectBeingModified));
+	}
 }
