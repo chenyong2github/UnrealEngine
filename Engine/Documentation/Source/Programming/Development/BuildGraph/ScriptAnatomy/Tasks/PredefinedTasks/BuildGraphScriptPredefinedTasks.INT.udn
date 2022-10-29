@@ -384,6 +384,19 @@ Creates a PAK file from a given set of files.
 | Tag          | TagList       | Optional | Tag to be applied to build products of this task.                                                                                 |
 | If           | Condition     | Optional | Whether to execute this task. It is ignored if this condition evaluates to false.                                                 |
 
+### RandomData
+
+Creates files containing random data in the specified output directory. Used for generating test data for the temp storage system.
+
+|           |           |          |                                                                                   |
+| --------- | --------- | -------- | --------------------------------------------------------------------------------- |
+| Size      | Integer   | Optional | The size of each file.                                                            |
+| Count     | Integer   | Optional | Number of files to write.                                                         |
+| Different | Boolean   | Optional | Whether to generate different data for each output file.                          |
+| OutputDir | String    | Optional | Output directory                                                                  |
+| Tag       | String    | Optional | Optional filter to be applied to the list of input files.                         |
+| If        | Condition | Optional | Whether to execute this task. It is ignored if this condition evaluates to false. |
+
 ### Rename
 
 Renames a file, or group of files.

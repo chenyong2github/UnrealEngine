@@ -420,8 +420,6 @@ $ bWithServerCode (Boolean): Compile server-only code.
 
 $ bWithServerCodeTrusted (Boolean): Compile trusted-server-only code.
 
-$ bWithServerCodeUntrusted (Boolean): Compile untrusted-server-only code.
-
 $ bFNameOutlineNumber (Boolean): Compile with FName storing the number part in the name table. Saves memory when most names are not numbered and those that are are referenced multiple times. The game and engine must ensure they reuse numbered names similarly to name strings to avoid leaking memory.
 
 $ bWithPushModel (Boolean): When enabled, Push Model Networking support will be compiled in. This can help reduce CPU overhead of networking, at the cost of more memory. Always enabled in editor builds.
@@ -447,6 +445,8 @@ $ DeprecationWarningLevel (WarningLevel): Level to report deprecation warnings a
 $ bRetainFramePointers (Boolean): Forces frame pointers to be retained this is usually required when you want reliable callstacks e.g. mallocframeprofiler
 
 $ bLegacyPublicIncludePaths (Boolean): Add all the public folders as include paths for the compile environment.
+
+$ bLegacyParentIncludePaths (Boolean): Add all the parent folders as include paths for the compile environment.
 
 $ LinkType (TargetLinkType): Specifies how to link modules in this target (monolithic or modular). This is currently protected for backwards compatibility. Call the GetLinkType() accessor until support for the deprecated ShouldCompileMonolithic() override has been removed.
 
