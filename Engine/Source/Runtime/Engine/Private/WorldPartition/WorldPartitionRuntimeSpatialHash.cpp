@@ -495,6 +495,29 @@ void FSpatialHashStreamingGrid::ForEachRuntimeCell(const FGridCellCoord& Coords,
 	});
 }
 
+void FSpatialHashStreamingGrid::ForEachRuntimeCell(TFunctionRef<bool(const UWorldPartitionRuntimeCell*)> Func) const
+{
+	auto ForEachGridLevel = [Func](const TArray<FSpatialHashStreamingGridLevel>& InGridLevels)
+	{
+		for (const FSpatialHashStreamingGridLevel& GridLevel : InGridLevels)
+		{
+			for (const FSpatialHashStreamingGridLayerCell& LayerCell : GridLevel.LayerCells)
+			{
+				for (const UWorldPartitionRuntimeSpatialHashCell* Cell : LayerCell.GridCells)
+				{
+					if (!Func(Cell))
+					{
+						return;
+					}
+				}
+			}
+		}
+	};
+
+	ForEachGridLevel(GridLevels);
+	ForEachGridLevel(InjectedGridLevels);
+}
+
 void FSpatialHashStreamingGrid::GetAlwaysLoadedCells(const UDataLayerSubsystem* DataLayerSubsystem, TSet<const UWorldPartitionRuntimeCell*>& OutActivateCells, TSet<const UWorldPartitionRuntimeCell*>& OutLoadCells) const
 {
 	if (GridLevels.Num() > 0)
@@ -1522,19 +1545,7 @@ void UWorldPartitionRuntimeSpatialHash::ForEachStreamingCells(TFunctionRef<bool(
 	{
 		if (IsCellRelevantFor(StreamingGrid.bClientOnlyVisible))
 		{
-			for (const FSpatialHashStreamingGridLevel& GridLevel : StreamingGrid.GridLevels)
-			{
-				for (const FSpatialHashStreamingGridLayerCell& LayerCell : GridLevel.LayerCells)
-				{
-					for (const UWorldPartitionRuntimeSpatialHashCell* Cell : LayerCell.GridCells)
-					{
-						if (!Func(Cell))
-						{
-							break;
-						}
-					}
-				}
-			}
+			StreamingGrid.ForEachRuntimeCell(Func);
 		}
 	});
 }
