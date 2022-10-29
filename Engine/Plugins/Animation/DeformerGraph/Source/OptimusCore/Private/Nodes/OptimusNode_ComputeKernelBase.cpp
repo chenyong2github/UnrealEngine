@@ -179,9 +179,7 @@ FOptimus_ComputeKernelResult UOptimusNode_ComputeKernelBase::CreateComputeKernel
 		}
 	}
 
-	FString CookedSource =
-		"#include \"/Engine/Private/Common.ush\"\n"
-		"#include \"/Plugin/ComputeFramework/Private/ComputeKernelCommon.ush\"\n\n";
+	FString CookedSource;
 	CookedSource += FString::Join(GeneratedFunctions, TEXT("\n"));
 	CookedSource += "\n\n";
 	CookedSource += GetKernelSourceText();

@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-//todo[CF]: 
-// Remove includes to keep the compute framework sandboxed as much as possible
 #include "/Engine/Private/Common.ush"
 
 [numthreads(32, 1, 1)]
