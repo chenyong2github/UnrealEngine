@@ -8,6 +8,7 @@
 #include "HlslccDefinitions.h"
 #include "HAL/FileManager.h"
 #include "String/RemoveFrom.h"
+#include "ShaderMinifier.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, ShaderCompilerCommon);
 
@@ -667,6 +668,42 @@ void UE::ShaderCompilerCommon::ParseRayTracingEntryPoint(const FString& Input, F
 	if (OutMain.IsEmpty() && OutAnyHit.IsEmpty() && OutIntersection.IsEmpty())
 	{
 		OutMain = Input;
+	}
+}
+
+bool UE::ShaderCompilerCommon::RemoveDeadCode(FString& InOutPreprocessedShaderSource, const FString& EntryPoint, TArray<FShaderCompilerError>& OutErrors)
+{
+	FString EntryMain;
+	FString EntryAnyHit;
+	FString EntryIntersection;
+	UE::ShaderCompilerCommon::ParseRayTracingEntryPoint(EntryPoint, EntryMain, EntryAnyHit, EntryIntersection);
+
+	if (!EntryAnyHit.IsEmpty())
+	{
+		EntryMain += TEXT(";");
+		EntryMain += EntryAnyHit;
+	}
+
+	if (!EntryIntersection.IsEmpty())
+	{
+		EntryMain += TEXT(";");
+		EntryMain += EntryIntersection;
+	}
+
+	UE::ShaderMinifier::FMinifiedShader Minified  = UE::ShaderMinifier::Minify(InOutPreprocessedShaderSource, EntryMain, 
+		UE::ShaderMinifier::EMinifyShaderFlags::OutputReasons
+		| UE::ShaderMinifier::EMinifyShaderFlags::OutputStats
+		| UE::ShaderMinifier::EMinifyShaderFlags::OutputLines);
+
+	if (Minified.Success())
+	{
+		Swap(InOutPreprocessedShaderSource, Minified.Code);
+		return true;
+	}
+	else
+	{
+		OutErrors.Add(TEXT("Shader minification failed."));
+		return false;
 	}
 }
 

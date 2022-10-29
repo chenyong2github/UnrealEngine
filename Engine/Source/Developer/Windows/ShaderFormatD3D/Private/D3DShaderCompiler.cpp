@@ -1207,36 +1207,7 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 
 	if (Input.Environment.CompilerFlags.Contains(CFLAG_RemoveDeadCode))
 	{
-		FString EntryMain;
-		FString EntryAnyHit;
-		FString EntryIntersection;
-		UE::ShaderCompilerCommon::ParseRayTracingEntryPoint(EntryPointName, EntryMain, EntryAnyHit, EntryIntersection);
-
-		if (!EntryAnyHit.IsEmpty())
-		{
-			EntryMain += TEXT(";");
-			EntryMain += EntryAnyHit;
-		}
-
-		if (!EntryIntersection.IsEmpty())
-		{
-			EntryMain += TEXT(";");
-			EntryMain += EntryIntersection;
-		}
-
-		UE::ShaderMinifier::FMinifiedShader Minified  = UE::ShaderMinifier::Minify(PreprocessedShaderSource, EntryMain, 
-			UE::ShaderMinifier::EMinifyShaderFlags::OutputReasons
-			| UE::ShaderMinifier::EMinifyShaderFlags::OutputStats
-			| UE::ShaderMinifier::EMinifyShaderFlags::OutputLines);
-
-		if (Minified.Success())
-		{
-			Swap(PreprocessedShaderSource, Minified.Code);
-		}
-		else
-		{
-			FilteredErrors.Add(TEXT("Shader minification failed."));
-		}
+		UE::ShaderCompilerCommon::RemoveDeadCode(PreprocessedShaderSource, EntryPointName, Output.Errors);
 	}
 
 	// @TODO - implement different material path to allow us to remove backwards compat flag on sm5 shaders
