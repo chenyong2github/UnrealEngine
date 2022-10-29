@@ -157,7 +157,7 @@ void MainCS(
 					SampleLowFrequencyColor.rgb  = SampleLowFrequencyColor.rgb  * SampleTranslucencyAlpha + SampleTranslucencyColor.rgb;
 					SampleHighFrequencyColor.rgb = SampleHighFrequencyColor.rgb * SampleTranslucencyAlpha + SampleTranslucencyColor.rgb * SampleHistoryValidity;
 				
-					#if CONFIG_SCENE_COLOR_APLHA
+					#if CONFIG_SCENE_COLOR_ALPHA
 						SampleLowFrequencyColor.a = saturate(tsr_half(1.0) - saturate(tsr_half(1.0) - SampleLowFrequencyColor.a) * SampleTranslucencyAlpha);
 						SampleHighFrequencyColor.a = saturate(tsr_half(1.0) - saturate(tsr_half(1.0) - SampleHighFrequencyColor.a * InvSampleHistoryValidity) * SampleTranslucencyAlpha) * SampleHistoryValidity;
 					#endif

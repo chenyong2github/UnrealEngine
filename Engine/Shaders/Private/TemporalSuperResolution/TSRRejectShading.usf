@@ -630,7 +630,7 @@ void MainCS(
 			tsr_half4 Translucency = FilteredTranslucencyInput.GetElement(SimdIndex);
 
 			Color.rgb = Color.rgb * Translucency.a + Translucency.rgb;
-			#if CONFIG_SCENE_COLOR_APLHA
+			#if CONFIG_SCENE_COLOR_ALPHA
 				Color.a *= Translucency.a;
 			#endif 
 

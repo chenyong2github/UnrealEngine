@@ -79,7 +79,7 @@ tsr_half MeasureTranslucencyRejectionFactor(
 	
 	tsr_half BackbufferQuantizationError = 0.0; //MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(PrevTranslucency[0], Translucency[0]));
 	
-	#if CONFIG_SCENE_COLOR_APLHA
+	#if CONFIG_SCENE_COLOR_ALPHA
 		tsr_half Rejection = MeasureRejectionFactor(
 			PrevTranslucency, ClampedPrevTranslucency,
 			Translucency, TranslucencyMin, TranslucencyMax,

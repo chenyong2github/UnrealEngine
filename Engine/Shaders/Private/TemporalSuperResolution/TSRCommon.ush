@@ -39,12 +39,12 @@
 #define CONFIG_SCENE_COLOR_OVERFLOW 1
 
 #if POST_PROCESS_ALPHA
-	#define CONFIG_SCENE_COLOR_APLHA 1
+	#define CONFIG_SCENE_COLOR_ALPHA 1
 #else
-	#define CONFIG_SCENE_COLOR_APLHA 0
+	#define CONFIG_SCENE_COLOR_ALPHA 0
 #endif
 
-#define CONFIG_ENABLE_STOCASTIC_QUANTIZATION (!CONFIG_SCENE_COLOR_APLHA)
+#define CONFIG_ENABLE_STOCASTIC_QUANTIZATION (!CONFIG_SCENE_COLOR_ALPHA)
 
 //------------------------------------------------------- CONSTANTS
 
@@ -205,7 +205,7 @@ static const uint kPlusIndexes3x3[5] = { 4, 1, 3, 7, 5 };
 
 #endif
 
-#if CONFIG_SCENE_COLOR_APLHA
+#if CONFIG_SCENE_COLOR_ALPHA
 	#define tsr_halfC tsr_half4
 	#define tsr_halfCx2 tsr_half4x2
 	#define CONFIG_CHANNEL_COUNT 4
@@ -884,7 +884,7 @@ tsr_half2 MeasureRejectionFactor(
 {
 	const tsr_halfC Null = tsr_half(0.0);
 	
-	#if CONFIG_SCENE_COLOR_APLHA
+	#if CONFIG_SCENE_COLOR_ALPHA
 		tsr_halfCx2 BackbufferQuantizationErrorVector = tsr_half4x2(BackbufferQuantizationError, BackbufferQuantizationError, BackbufferQuantizationError, BackbufferQuantizationError);
 	#else
 		tsr_halfCx2 BackbufferQuantizationErrorVector = tsr_half3x2(BackbufferQuantizationError, BackbufferQuantizationError, BackbufferQuantizationError);
@@ -903,7 +903,7 @@ tsr_half2 MeasureRejectionFactor(
 
 	tsr_half2 Rejection = min3(Factor[0], Factor[1], Factor[2]);
 	
-	#if CONFIG_SCENE_COLOR_APLHA
+	#if CONFIG_SCENE_COLOR_ALPHA
 		Rejection = min(Rejection, Factor[3]);
 	#endif
 
