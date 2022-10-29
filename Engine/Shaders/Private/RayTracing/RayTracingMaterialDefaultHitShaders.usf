@@ -23,9 +23,11 @@ RAY_TRACING_ENTRY_ANY_HIT(HiddenMaterialAHS,
 	IgnoreHit();
 }
 
+#if IS_PAYLOAD_ENABLED(RT_PAYLOAD_TYPE_DECALS)
 RAY_TRACING_ENTRY_CALLABLE(DefaultCallableShader,
 	FDecalShaderParams, Params)
 {
 	// This shader serves only has a placeholder in RTPSO
 	// If RTPSO doesn't include a required shader, a NULL SBT entry should be used.
 }
+#endif

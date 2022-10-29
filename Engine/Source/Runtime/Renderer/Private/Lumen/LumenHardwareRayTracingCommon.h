@@ -22,6 +22,7 @@
 // Actual screen-probe requirements..
 #include "LumenRadianceCache.h"
 #include "LumenScreenProbeGather.h"
+#include "RayTracingPayloadType.h"
 
 namespace Lumen
 {
@@ -166,7 +167,7 @@ public:
 			ModifyCompilationEnvironmentInternal(DispatchSize, OutEnvironment); \
 		}\
 		static FIntPoint GetThreadGroupSize() { return GetThreadGroupSizeInternal(Lumen::ERayTracingShaderDispatchType::Inline, DispatchSize); } \
-		static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId) { return ERayTracingPayloadType::None; } \
+		static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId) { return static_cast<ERayTracingPayloadType>(0); } \
 	};
 
 #define IMPLEMENT_LUMEN_RAYGEN_RAYTRACING_SHADER(ShaderClass) \

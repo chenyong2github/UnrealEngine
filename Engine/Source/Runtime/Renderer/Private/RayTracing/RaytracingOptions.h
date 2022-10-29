@@ -7,6 +7,7 @@
 #pragma once
 
 #include "RHIDefinitions.h"
+#include "RayTracingPayloadType.h"
 
 class FSkyLightSceneProxy;
 class FViewInfo;

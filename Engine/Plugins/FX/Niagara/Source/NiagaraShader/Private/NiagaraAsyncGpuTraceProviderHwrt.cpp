@@ -9,6 +9,7 @@
 #include "NiagaraRenderer.h"
 #include "NiagaraSettings.h"
 #include "ScenePrivate.h"
+#include "RayTracingPayloadType.h"
 
 static int GNiagaraAsyncGpuTraceHwrtEnabled = 1;
 static FAutoConsoleVariableRef CVarNiagaraAsyncGpuTraceHwrtEnabled(

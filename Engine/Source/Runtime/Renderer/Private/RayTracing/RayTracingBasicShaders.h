@@ -6,6 +6,8 @@
 
 #if RHI_RAYTRACING
 
+#include "RayTracingPayloadType.h"
+
 // C++ counter-part of FBasicRayData declared in RayTracingCommon.ush
 struct FBasicRayTracingRay
 {

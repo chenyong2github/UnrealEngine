@@ -9,8 +9,7 @@
 #include "../Visualization.ush"
 #include "../Strata/Strata.ush"
 
-#include "RayTracingCommon.ush"
-#include "RayTracingHitGroupCommon.ush"
+#include "RayTracingDebugUtils.ush"
 
 #include "/Engine/Shared/RayTracingDebugDefinitions.h"
 #include "/Engine/Shared/RayTracingDebugTypes.h"
@@ -21,7 +20,6 @@ RWTexture2D<float> OutputDepth;
 RaytracingAccelerationStructure TLAS;
 
 uint VisualizationMode;
-uint UseDebugCHS;
 uint PickerDomain;
 uint ShouldUsePreExposure;
 uint OpaqueOnly;
@@ -33,6 +31,8 @@ float3 FarFieldReferencePos;
 
 StructuredBuffer<FRayTracingInstanceDebugData> InstancesDebugData;
 StructuredBuffer<FRayTracingPickingFeedback> PickingBuffer;
+
+#if USE_DEBUG_CHS == 0 // add functions that require shaded payload
 
 float4 AnisoDebugColor(float InAniso)
 {
@@ -158,16 +158,9 @@ float4 DebugRayTracingMaterial(FRayDesc Ray, bool bIsFarField)
 	return (RAY_TRACING_DEBUG_VIZ_FAR_FIELD) ? float4(0, 0, 0, -1) : float4(0, 0, 0, 1);
 }
 
-struct FRayTracingDebugPayload : FMinimalPayload
-{
-	uint InstanceHash;
-	uint TriangleIndex;
-	uint InstanceIndex;
-	uint GeometryInstanceIndex;
+#else // USE_DEBUG_CHS
 
-	float3 WorldNormal;
-	uint GeometryIndex;
-};
+// Add functions that use the debug payload only
 
 float4 DebugRayTracingInstance(FRayDesc Ray, uint2 PixelCoord, out float OutDepth)
 {
@@ -249,6 +242,8 @@ float4 DebugRayTracingInstance(FRayDesc Ray, uint2 PixelCoord, out float OutDept
 
 	return Result;
 }
+#endif
+
 
 RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 {
@@ -266,11 +261,11 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 	float OutDepth = 1.0f;
 #endif
 
-	if (UseDebugCHS)
+#if USE_DEBUG_CHS
 	{
 		Result = DebugRayTracingInstance(Ray, PixelCoord, OutDepth);
 	}
-	else
+#else // USE_DEBUG_CHS
 	{
 		bool bIsFarField = false;
 		Result = DebugRayTracingMaterial(Ray, bIsFarField);
@@ -283,6 +278,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 			Result = DebugRayTracingMaterial(Ray, bIsFarField) * FarFieldTint;
 		}
 	}
+#endif // USE_DEBUG_CHS
 
 	if (ShouldUsePreExposure)
 	{
@@ -305,86 +301,4 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 	{
 		OutputDepth[PixelCoord] = OutDepth;
 	}	
-}
-
-float3 ComputeWorldNormal()
-{
-	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(PrimitiveIndex());
-
-	float3 LocalEdges[2] = {
-		Tri.LocalPositions[1] - Tri.LocalPositions[0],
-		Tri.LocalPositions[2] - Tri.LocalPositions[0]
-	};
-	float3 LocalNormal = cross(LocalEdges[1], LocalEdges[0]);
-
-	float3x3 InverseTranspose3x3 = transpose((float3x3)WorldToObject4x3());
-	float3 WorldNormal = normalize(mul(LocalNormal, InverseTranspose3x3));
-
-	return WorldNormal;
-}
-
-RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingDebugMainCHS,
-	FRayTracingDebugPayload, Payload,
-	FRayTracingIntersectionAttributes, Attributes)
-{
-	Payload.HitT = RayTCurrent();
-
-	const int ScenePrimitiveIndex = GetInstanceUserData();
-	const int ScenePrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
-	Payload.InstanceHash = MurmurAdd(ScenePrimitiveIndex, ScenePrimitiveInstanceIndex);
-
-	Payload.TriangleIndex = PrimitiveIndex();
-
-	Payload.WorldNormal = ComputeWorldNormal();
-	Payload.GeometryInstanceIndex = GetHitGroupUserData();
-	Payload.InstanceIndex = InstanceIndex();
-	Payload.GeometryIndex = 0; // GeometryIndex();
-}
-
-RWStructuredBuffer<FRayTracingPickingFeedback> PickingOutput;
-StructuredBuffer<FRayTracingInstanceDescriptor> InstanceBuffer;
-
-RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugPickingRGS)
-{
-	const uint2 PixelPos = (float2(View.CursorPosition) * View.ViewResolutionFraction);
-	float2 RenderTargetUV = (float2(PixelPos) + .5f) * View.BufferSizeAndInvSize.zw;
-
-	FRayDesc Ray = CreatePrimaryRay(RenderTargetUV);
-
-	const uint InstanceInclusionMask = (OpaqueOnly ? RAY_TRACING_MASK_OPAQUE : RAY_TRACING_MASK_ALL);
-
-	FRayTracingDebugPayload Payload = (FRayTracingDebugPayload)0;
-	Payload.SetMiss();
-
-	TraceRay(
-		TLAS,
-		RAY_FLAG_CULL_BACK_FACING_TRIANGLES  /*RayFlags*/,
-		InstanceInclusionMask,
-		0 /*RayContributionToHitGroupIndex*/,
-		RAY_TRACING_NUM_SHADER_SLOTS /*MultiplierForGeometryContributionToShaderIndex*/,
-		0 /*MissShaderIndex*/,
-		Ray.GetNativeDesc(),
-		Payload);
-
-	FRayTracingPickingFeedback PickingFeedback = (FRayTracingPickingFeedback)0xFFFFFFFFu;
-
-	if (Payload.IsHit())
-	{
-		FRayTracingInstanceDebugData InstanceDebugData = InstancesDebugData[Payload.GeometryInstanceIndex];
-		FRayTracingInstanceDescriptor InstanceDescriptor = InstanceBuffer[Payload.InstanceIndex];
-
-		PickingFeedback.GeometryAddress = InstanceDebugData.GeometryAddress;
-
-		PickingFeedback.InstanceIndex = Payload.InstanceIndex;
-		PickingFeedback.GeometryInstanceIndex = Payload.GeometryInstanceIndex;
-		PickingFeedback.TriangleIndex = Payload.TriangleIndex;
-		PickingFeedback.GeometryIndex = Payload.GeometryIndex;
-
-		PickingFeedback.InstanceId = GetRayTracingInstanceDescriptorInstanceId(InstanceDescriptor);
-		PickingFeedback.Flags = GetRayTracingInstanceDescriptorFlags(InstanceDescriptor);
-		PickingFeedback.Mask = GetRayTracingInstanceDescriptorMask(InstanceDescriptor);
-		PickingFeedback.InstanceContributionToHitGroupIndex = GetRayTracingInstanceDescriptorInstanceContributionToHitGroupIndex(InstanceDescriptor);
-	}
-
-	PickingOutput[0] = PickingFeedback;
 }

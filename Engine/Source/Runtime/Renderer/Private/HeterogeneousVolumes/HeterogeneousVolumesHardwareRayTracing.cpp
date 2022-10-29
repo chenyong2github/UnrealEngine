@@ -6,6 +6,7 @@
 #include "RayTracingDefinitions.h"
 #include "RayTracingInstance.h"
 #include "RayTracingInstanceBufferUtil.h"
+#include "RayTracingPayloadType.h"
 #include "RendererPrivate.h"
 #include "ScenePrivate.h"
 #include "SceneManagement.h"

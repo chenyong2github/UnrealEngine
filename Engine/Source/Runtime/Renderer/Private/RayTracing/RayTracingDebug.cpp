@@ -100,10 +100,13 @@ class FRayTracingDebugRGS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FRayTracingDebugRGS)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingDebugRGS, FGlobalShader)
+	
+	class FUseDebugCHSType : SHADER_PERMUTATION_BOOL("USE_DEBUG_CHS");
+
+	using FPermutationDomain = TShaderPermutationDomain<FUseDebugCHSType>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, VisualizationMode)
-		SHADER_PARAMETER(uint32, UseDebugCHS)
 		SHADER_PARAMETER(uint32, PickerDomain)
 		SHADER_PARAMETER(int32, ShouldUsePreExposure)
 		SHADER_PARAMETER(float, TimingScale)
@@ -126,8 +129,15 @@ class FRayTracingDebugRGS : public FGlobalShader
 
 	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
 	{
-		// TODO: Convert UseDebugCHS to a permutation so that we can specialize to a single payload type only
-		return ERayTracingPayloadType::RayTracingDebug | ERayTracingPayloadType::RayTracingMaterial;
+		FPermutationDomain PermutationVector(PermutationId);
+		if (PermutationVector.Get<FUseDebugCHSType>())
+		{
+			return ERayTracingPayloadType::RayTracingDebug;
+		}
+		else
+		{
+			return ERayTracingPayloadType::RayTracingMaterial;
+		}
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugRGS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugMainRGS", SF_RayGen);
@@ -158,7 +168,7 @@ public:
 		return ERayTracingPayloadType::RayTracingDebug;
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugCHS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugMainCHS", SF_RayHitGroup);
+IMPLEMENT_GLOBAL_SHADER(FRayTracingDebugCHS, "/Engine/Private/RayTracing/RayTracingDebugCHS.usf", "RayTracingDebugMainCHS", SF_RayHitGroup);
 
 class FRayTracingDebugTraversalCS : public FGlobalShader
 {
@@ -240,7 +250,7 @@ class FRayTracingPickingRGS : public FGlobalShader
 		return ERayTracingPayloadType::RayTracingDebug;
 	}
 };
-IMPLEMENT_GLOBAL_SHADER(FRayTracingPickingRGS, "/Engine/Private/RayTracing/RayTracingDebug.usf", "RayTracingDebugPickingRGS", SF_RayGen);
+IMPLEMENT_GLOBAL_SHADER(FRayTracingPickingRGS, "/Engine/Private/RayTracing/RayTracingDebugPicking.usf", "RayTracingDebugPickingRGS", SF_RayGen);
 
 class FRayTracingDebugInstanceOverlapVS : public FGlobalShader
 {
@@ -479,14 +489,11 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingDebug(const FSceneViewFamil
 	if (bEnabled)
 	{
 		{
-			auto RayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FRayTracingDebugRGS>();
+			FRayTracingDebugRGS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FRayTracingDebugRGS::FUseDebugCHSType>(false);
+			auto RayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FRayTracingDebugRGS>(PermutationVector);
 			OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
 		}
-
-		{
-			auto PickingRayGenShader = GetGlobalShaderMap(ViewFamily.GetShaderPlatform())->GetShader<FRayTracingPickingRGS>();
-			OutRayGenShaders.Add(PickingRayGenShader.GetRayTracingShader());
-		}		
 	}
 }
 
@@ -504,7 +511,7 @@ static FRDGBufferRef RayTracingPerformPicking(FRDGBuilder& GraphBuilder, const F
 	FRHIRayTracingShader* HitGroupTable[] = { ClosestHitShader.GetRayTracingShader() };
 	Initializer.SetHitGroupTable(HitGroupTable);
 	Initializer.bAllowHitGroupIndexing = true; // Required for stable output using GetBaseInstanceIndex().
-	Initializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE;
+	Initializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE; // TODO: Debug payload is actually smaller
 	// TODO(UE-157946): This pipeline does not bind any miss shader and relies on the pipeline to do this automatically. This should be made explicit.
 	FRayTracingPipelineState* PickingPipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(GraphBuilder.RHICmdList, Initializer);
 
@@ -861,13 +868,17 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 		InstanceDebugBuffer = GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(uint32));
 	}
 
+	const bool bRequiresDebugCHS = RequiresRayTracingDebugCHS(DebugVisualizationMode);
+
+	FRayTracingDebugRGS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FRayTracingDebugRGS::FUseDebugCHSType>(bRequiresDebugCHS);
+
 	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
-	auto RayGenShader = ShaderMap->GetShader<FRayTracingDebugRGS>();
+	auto RayGenShader = ShaderMap->GetShader<FRayTracingDebugRGS>(PermutationVector);
 
 	FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
 	bool bRequiresBindings = false;
 
-	const bool bRequiresDebugCHS = RequiresRayTracingDebugCHS(DebugVisualizationMode);
 	if (bRequiresDebugCHS)
 	{
 		FRayTracingPipelineStateInitializer Initializer;
@@ -879,7 +890,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 		FRHIRayTracingShader* HitGroupTable[] = { ClosestHitShader.GetRayTracingShader() };
 		Initializer.SetHitGroupTable(HitGroupTable);
 		Initializer.bAllowHitGroupIndexing = true; // Required for stable output using GetBaseInstanceIndex().
-		Initializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE;
+		Initializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE; // TODO: Debug payload is actually smaller
 		// TODO(UE-157946): This pipeline does not bind any miss shader and relies on the pipeline to do this automatically. This should be made explicit.
 		Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(GraphBuilder.RHICmdList, Initializer);
 		bRequiresBindings = true;
@@ -888,7 +899,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDebug(FRDGBuilder& GraphBuil
 	FRayTracingDebugRGS::FParameters* RayGenParameters = GraphBuilder.AllocParameters<FRayTracingDebugRGS::FParameters>();
 
 	RayGenParameters->VisualizationMode = DebugVisualizationMode;
-	RayGenParameters->UseDebugCHS = bRequiresDebugCHS;
 	RayGenParameters->PickerDomain = CVarRayTracingDebugPickerDomain.GetValueOnRenderThread();
 	RayGenParameters->ShouldUsePreExposure = View.Family->EngineShowFlags.Tonemapper;
 	RayGenParameters->TimingScale = CVarRayTracingDebugTimingScale.GetValueOnAnyThread() / 25000.0f;

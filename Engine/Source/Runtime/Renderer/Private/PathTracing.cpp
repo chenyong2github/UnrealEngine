@@ -19,6 +19,7 @@ TAutoConsoleVariable<int32> CVarPathTracing(
 #include "HAL/PlatformApplicationMisc.h"
 #include "RayTracingTypes.h"
 #include "RayTracingDefinitions.h"
+#include "RayTracingPayloadType.h"
 #include "PathTracingDefinitions.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "RayTracing/RayTracingDecals.h"

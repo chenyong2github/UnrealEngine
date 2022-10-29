@@ -32,10 +32,7 @@ class FDefaultMainCHS : public FBuiltInRayTracingShader
 {
 	DECLARE_EXPORTED_SHADER_TYPE(FDefaultMainCHS, Global, RENDERCORE_API);
 public:
-	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
-	{
-		return ERayTracingPayloadType::Default;
-	}
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId);
 
 	FDefaultMainCHS() = default;
 	FDefaultMainCHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -47,10 +44,7 @@ class FDefaultMainCHSOpaqueAHS : public FBuiltInRayTracingShader
 {
 	DECLARE_EXPORTED_SHADER_TYPE(FDefaultMainCHSOpaqueAHS, Global, RENDERCORE_API);
 public:
-	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
-	{
-		return ERayTracingPayloadType::Default;
-	}
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId);
 
 	FDefaultMainCHSOpaqueAHS() = default;
 	FDefaultMainCHSOpaqueAHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -62,10 +56,7 @@ class FDefaultPayloadMS : public FBuiltInRayTracingShader
 {
 	DECLARE_EXPORTED_SHADER_TYPE(FDefaultPayloadMS, Global, RENDERCORE_API);
 public:
-	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
-	{
-		return ERayTracingPayloadType::Default;
-	}
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId);
 
 	FDefaultPayloadMS() = default;
 	FDefaultPayloadMS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -77,10 +68,7 @@ class FPackedMaterialClosestHitPayloadMS : public FBuiltInRayTracingShader
 {
 	DECLARE_EXPORTED_SHADER_TYPE(FPackedMaterialClosestHitPayloadMS, Global, RENDERCORE_API);
 public:
-	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
-	{
-		return ERayTracingPayloadType::RayTracingMaterial;
-	}
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId);
 
 	FPackedMaterialClosestHitPayloadMS() = default;
 	FPackedMaterialClosestHitPayloadMS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)

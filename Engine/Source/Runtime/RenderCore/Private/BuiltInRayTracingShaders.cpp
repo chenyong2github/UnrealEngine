@@ -6,12 +6,36 @@
 
 #if RHI_RAYTRACING
 
+#include "RayTracingPayloadType.h"
+
 IMPLEMENT_GLOBAL_SHADER( FDefaultMainCHS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "DefaultMainCHS", SF_RayHitGroup);
 IMPLEMENT_GLOBAL_SHADER( FDefaultMainCHSOpaqueAHS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "closesthit=DefaultMainCHS anyhit=DefaultOpaqueAHS", SF_RayHitGroup);
 IMPLEMENT_GLOBAL_SHADER( FDefaultPayloadMS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "DefaultPayloadMS", SF_RayMiss);
 IMPLEMENT_GLOBAL_SHADER( FPackedMaterialClosestHitPayloadMS, "/Engine/Private/RayTracing/RayTracingBuiltInShaders.usf", "PackedMaterialClosestHitPayloadMS", SF_RayMiss);
 
 IMPLEMENT_GLOBAL_SHADER(FRayTracingDispatchDescCS, "/Engine/Private/RayTracing/RayTracingDispatchDesc.usf", "RayTracingDispatchDescCS", SF_Compute);
+
+
+ERayTracingPayloadType FDefaultMainCHS::GetRayTracingPayloadType(const int32 PermutationId)
+{
+	return ERayTracingPayloadType::Default;
+}
+
+ERayTracingPayloadType FDefaultMainCHSOpaqueAHS::GetRayTracingPayloadType(const int32 PermutationId)
+{
+	return ERayTracingPayloadType::Default;
+}
+
+ERayTracingPayloadType FDefaultPayloadMS::GetRayTracingPayloadType(const int32 PermutationId)
+{
+	return ERayTracingPayloadType::Default;
+}
+
+ERayTracingPayloadType FPackedMaterialClosestHitPayloadMS::GetRayTracingPayloadType(const int32 PermutationId)
+{
+	return ERayTracingPayloadType::RayTracingMaterial;
+}
+
 
 void FRayTracingDispatchDescCS::Dispatch(FRHICommandList& RHICmdList, 
 	const void* DispatchDescInput, uint32 DispatchDescSize, uint32 DispatchDescDimensionsOffset,

@@ -304,27 +304,7 @@ public:
 	}
 };
 
-/**
-* Represent which payload type a given raytracing shader can use. This is a bitfield because raygen shaders may
-  trace various types of rays, or use different kind of callable shaders.
-  HitGroup, Miss and Callable shaders must (by definition) only use a single payload type.
-
-  This payload type must be provided via the GetRayTracingPayloadType static member function when implementing a ray tracing shader.
-*/
-enum class ERayTracingPayloadType : uint32
-{
-	None = 0, // placeholder for non-raytracing shaders
-	Minimal = 1 << 0,            // FMinimalPayload
-	Default = 1 << 1,            // FDefaultPayload
-	RayTracingMaterial = 1 << 2, // FPackedMaterialClosestHitPayload
-	RayTracingDebug = 1 << 3,    // FRayTracingDebugPayload
-	Deferred = 1 << 4,           // FDeferredMaterialPayload
-	PathTracingMaterial = 1 << 5,// FPackedPathTracingPayload
-	LumenMinimal = 1 << 6,       // FLumenMinimalPayload
-	Niagara = 1 << 7,            // FVFXTracePayload
-	Decals = 1 << 8,             // FDecalShaderParams 
-	SparseVoxel = 1 << 9,        // FSparseVoxelPayload
-};
+enum class ERayTracingPayloadType : uint32; // actual enum is defined in /Shaders/Shared/RayTracingPayloadType.h
 ENUM_CLASS_FLAGS(ERayTracingPayloadType);
 
 class RENDERCORE_API FShaderMapResource : public FRenderResource, public FDeferredCleanupInterface
@@ -870,7 +850,7 @@ public:
 	static bool ValidateCompiledResult(EShaderPlatform InPlatform, const FShaderParameterMap& InParameterMap, TArray<FString>& OutError) { return true; }
 
 	/** Can be overriden by FShader subclasses to specify which raytracing payload should be used. This method is only called for raytracing shaders. */
-	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId) { return ERayTracingPayloadType::None; }
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId) { return static_cast<ERayTracingPayloadType>(0); }
 
 	/** Returns the hash of the shader file that this shader was compiled with. */
 	const FSHAHash& GetHash() const;

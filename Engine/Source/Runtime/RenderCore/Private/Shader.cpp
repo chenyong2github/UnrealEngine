@@ -31,6 +31,10 @@
 #include "Interfaces/IShaderFormat.h"
 #endif
 
+#if RHI_RAYTRACING
+#include "RayTracingPayloadType.h"
+#endif
+
 DEFINE_LOG_CATEGORY(LogShaders);
 
 IMPLEMENT_TYPE_LAYOUT(FShader);
@@ -418,11 +422,12 @@ bool FShaderType::ValidateCompiledResult(EShaderPlatform Platform, const FShader
 
 ERayTracingPayloadType FShaderType::GetRayTracingPayloadType(const int32 PermutationId) const
 {
-	if (GetRayTracingPayloadTypeRef != nullptr)
-	{
-		return (*GetRayTracingPayloadTypeRef)(PermutationId);
-	}
+#if RHI_RAYTRACING
+	return (*GetRayTracingPayloadTypeRef)(PermutationId);
 	return ERayTracingPayloadType::None;
+#else
+	return static_cast<ERayTracingPayloadType>(0);
+#endif
 }
 
 const FSHAHash& FShaderType::GetSourceHash(EShaderPlatform ShaderPlatform) const

@@ -8,6 +8,8 @@
 
 #if RHI_RAYTRACING
 
+#include "RayTracingPayloadType.h"
+
 ENGINE_API uint8 ComputeBlendModeMask(const EBlendMode BlendMode);
 
 class RENDERER_API FRayTracingMeshProcessor

@@ -10,6 +10,7 @@
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "IrradianceCaching.h"
 #include "RayTracingTypes.h"
+#include "RayTracingPayloadType.h"
 
 #if RHI_RAYTRACING
 
