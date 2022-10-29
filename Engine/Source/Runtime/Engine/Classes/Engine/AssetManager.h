@@ -461,6 +461,9 @@ public:
 	/** Dumps out list of primary asset -> managed assets to log */
 	static void DumpReferencersForPackage(const TArray< FString >& PackageNames);
 
+	/** Finds all the referencers for a set of packages. Recursively will get all the referencers up to the max depth */
+	static void GetAllReferencersForPackage(TSet<FAssetData>& OutFoundAssets, const TArray<FName>& InPackageNames, int32 MaxDepth);
+
 	/** Starts initial load, gets called from InitializeObjectReferences */
 	virtual void StartInitialLoading();
 

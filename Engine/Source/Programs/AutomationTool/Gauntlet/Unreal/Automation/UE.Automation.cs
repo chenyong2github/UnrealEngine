@@ -846,7 +846,7 @@ namespace UE
 			MarkdownBuilder MB = new MarkdownBuilder(base.GetTestSummaryHeader());
 
 			// Everything we need is in the editor artifacts
-			var EditorRole = RoleResults.Where(R => R.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor).FirstOrDefault();
+			var EditorRole = RoleResults.Where(R => R.Artifacts != null && R.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor).FirstOrDefault();
 
 			if (EditorRole != null)
 			{
@@ -1073,7 +1073,7 @@ namespace UE
 
 			foreach (var Role in RoleResults)
 			{
-				if (Role.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor)
+				if (Role.Artifacts != null && Role.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor)
 				{
 					AutomationLogParser Parser = new AutomationLogParser(Role.LogSummary.FullLogContent);
 					AllWarnings.AddRange(

@@ -60,6 +60,7 @@ namespace AutomationCommon
 	 */
 	ENGINE_API SWidget* FindWidgetByTag(const FName Tag);
 
+	ENGINE_API UWorld* GetAnyGameWorld();
 #endif
 }
 

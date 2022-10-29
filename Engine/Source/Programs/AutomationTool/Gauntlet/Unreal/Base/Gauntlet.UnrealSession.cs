@@ -1206,83 +1206,84 @@ namespace Gauntlet
 			int DummyClientCount = 0;
 
 			List<UnrealRoleArtifacts> AllArtifacts = new List<UnrealRoleArtifacts>();
-
-			foreach (UnrealSessionInstance.RoleInstance App in TestInstance.RunningRoles)
+			if (TestInstance != null)
 			{
-				string RoleName = (App.Role.IsDummy() ? "Dummy" : "") + App.Role.RoleType.ToString();
-				string FolderName = RoleName;
-
-				int RoleCount = 1;
-
-				if (App.Role.IsDummy())
+				foreach (UnrealSessionInstance.RoleInstance App in TestInstance.RunningRoles)
 				{
-					DummyClientCount++;
-					RoleCount = DummyClientCount;
-				}
-				else
-				{
-					if (!RoleCounts.ContainsKey(App.Role.RoleType))
+					string RoleName = (App.Role.IsDummy() ? "Dummy" : "") + App.Role.RoleType.ToString();
+					string FolderName = RoleName;
+
+					int RoleCount = 1;
+
+					if (App.Role.IsDummy())
 					{
-						RoleCounts.Add(App.Role.RoleType, 1);
+						DummyClientCount++;
+						RoleCount = DummyClientCount;
 					}
 					else
 					{
-						RoleCounts[App.Role.RoleType]++;
-					}
-
-					RoleCount = RoleCounts[App.Role.RoleType];
-				}
-
-				
-				if (RoleCount > 1)
-				{
-					FolderName += string.Format("_{0:00}", RoleCount);
-				}
-
-				string DestPath = Path.Combine(OutputPath, FolderName);
-
-				if (!App.Role.IsNullRole() && !App.Role.InstallOnly )
-				{
-					Log.VeryVerbose("Calling SaveRoleArtifacts, Role: {0}  Artifact Path: {1}", App.ToString(), App.AppInstance.ArtifactPath);
-					UnrealRoleArtifacts Artifacts = null;
-					ITargetDevice device = App.AppInstance.Device;
-					IDeviceUsageReporter.RecordStart(device.Name, device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts);
-					try
-					{
-						Artifacts = SaveRoleArtifacts(Context, App, DestPath);
-					}
-					catch (Exception SaveArtifactsException)
-					{
-						// Caught an exception -> report failure
-						IDeviceUsageReporter.RecordEnd(device.Name, device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts, IDeviceUsageReporter.EventState.Failure);
-
-						// Retry once only, after rebooting device, if artifacts couldn't be saved.
-						if (SaveArtifactsException.Message.Contains("A retry should be performed"))
+						if (!RoleCounts.ContainsKey(App.Role.RoleType))
 						{
-							Log.Info("Rebooting device and retrying save role artifacts once.");
-							App.AppInstance.Device.Reboot();
-							Artifacts = SaveRoleArtifacts(Context, App, DestPath);
+							RoleCounts.Add(App.Role.RoleType, 1);
 						}
 						else
 						{
-							// Pass exception to the surrounding try/catch in UnrealTestNode while preserving the original callstack
-							throw;
+							RoleCounts[App.Role.RoleType]++;
+						}
+
+						RoleCount = RoleCounts[App.Role.RoleType];
+					}
+
+
+					if (RoleCount > 1)
+					{
+						FolderName += string.Format("_{0:00}", RoleCount);
+					}
+
+					string DestPath = Path.Combine(OutputPath, FolderName);
+
+					if (!App.Role.IsNullRole() && !App.Role.InstallOnly)
+					{
+						Log.VeryVerbose("Calling SaveRoleArtifacts, Role: {0}  Artifact Path: {1}", App.ToString(), App.AppInstance.ArtifactPath);
+						UnrealRoleArtifacts Artifacts = null;
+						ITargetDevice device = App.AppInstance.Device;
+						IDeviceUsageReporter.RecordStart(device.Name, device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts);
+						try
+						{
+							Artifacts = SaveRoleArtifacts(Context, App, DestPath);
+						}
+						catch (Exception SaveArtifactsException)
+						{
+							// Caught an exception -> report failure
+							IDeviceUsageReporter.RecordEnd(device.Name, device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts, IDeviceUsageReporter.EventState.Failure);
+
+							// Retry once only, after rebooting device, if artifacts couldn't be saved.
+							if (SaveArtifactsException.Message.Contains("A retry should be performed"))
+							{
+								Log.Info("Rebooting device and retrying save role artifacts once.");
+								App.AppInstance.Device.Reboot();
+								Artifacts = SaveRoleArtifacts(Context, App, DestPath);
+							}
+							else
+							{
+								// Pass exception to the surrounding try/catch in UnrealTestNode while preserving the original callstack
+								throw;
+							}
+						}
+						// Did not catch -> successful reporting
+						IDeviceUsageReporter.RecordEnd(device.Name, device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts, IDeviceUsageReporter.EventState.Success);
+
+						if (Artifacts != null)
+						{
+							AllArtifacts.Add(Artifacts);
 						}
 					}
-					// Did not catch -> successful reporting
-					IDeviceUsageReporter.RecordEnd(device.Name, device.Platform, IDeviceUsageReporter.EventType.SavingArtifacts, IDeviceUsageReporter.EventState.Success);
-
-					if (Artifacts != null)
+					else
 					{
-						AllArtifacts.Add(Artifacts);
+						Log.Verbose("Skipping SaveRoleArtifacts for Null Role: {0}", App.ToString());
 					}
 				}
-				else 
-				{
-					Log.Verbose("Skipping SaveRoleArtifacts for Null Role: {0}", App.ToString());
-				}
 			}
-
 			return AllArtifacts;
 		}
 	}

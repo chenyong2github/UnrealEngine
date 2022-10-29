@@ -3093,6 +3093,39 @@ void UAssetManager::DumpReferencersForPackage(const TArray< FString >& PackageNa
 	Manager.WriteCustomReport(FString::Printf(TEXT("ReferencersForPackage%s%s.gv"), *PackageNames[0], *FDateTime::Now().ToString()), ReportLines);
 }
 
+void UAssetManager::GetAllReferencersForPackage(TSet<FAssetData>& OutFoundAssets, const TArray<FName>& InPackageNames, int32 MaxDepth)
+{
+	ensureMsgf(MaxDepth > 0, TEXT("Max depth to search for referencers should be greater than 0"));
+
+	UAssetManager& Manager = Get();
+	IAssetRegistry& AssetRegistry = Manager.GetAssetRegistry();
+
+	TSet<FName> PackagesForNextLoop;
+	TSet<FName> CurrentPackagesToProcess;
+
+	CurrentPackagesToProcess.Append(InPackageNames);
+	for (int32 CurrentDepth = 0; CurrentDepth < MaxDepth; CurrentDepth++)
+	{
+		for (const FName& PackageName : CurrentPackagesToProcess)
+		{
+			FARFilter Filter;
+			Filter.bIncludeOnlyOnDiskAssets = true;
+			AssetRegistry.GetReferencers(PackageName, Filter.PackageNames, UE::AssetRegistry::EDependencyCategory::Package);
+
+			TArray<FAssetData> AssetReferencers;
+			AssetRegistry.GetAssets(Filter, AssetReferencers);
+			OutFoundAssets.Append(AssetReferencers);
+			for (const FAssetData& AssetData : AssetReferencers)
+			{
+				PackagesForNextLoop.Add(AssetData.PackageName);
+			}
+		}
+		CurrentPackagesToProcess.Reset();
+		CurrentPackagesToProcess.Append(PackagesForNextLoop);
+		PackagesForNextLoop.Reset();
+	}
+}
+
 FName UAssetManager::GetEncryptionKeyAssetTagName()
 {
 	static const FName NAME_EncryptionKey(TEXT("EncryptionKey"));
