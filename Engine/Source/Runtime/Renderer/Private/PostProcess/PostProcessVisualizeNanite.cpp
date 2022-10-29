@@ -42,7 +42,7 @@ void AddVisualizeNanitePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FS
 			{
 				const Nanite::FVisualizeResult& Visualization = RasterResults.Visualizations[0];
 
-				FRHIBlendState* BlendState = BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_One, BF_Zero>::GetRHI();
+				FRHIBlendState* BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_One, BF_Zero>::GetRHI();
 
 				FCopyRectPS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
 				Parameters->InputTexture = Visualization.ModeOutput;
