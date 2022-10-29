@@ -8,13 +8,10 @@
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 #include "Components/ActorComponent.h"
+#include "Components/SkeletalMeshComponent.h" // Needed because AnimInstance::GetOwningComponent. (this only fails on clang compilers)
 #include "Animation/AnimInstance.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/Object.h"
-
-#if defined(__clang__)
-#include "Components/SkeletalMeshComponent.h" // Needed because AnimInstance::GetOwningComponent. (this only fails on clang compilers)
-#endif
 
 
 #if UE_TRACE_ENABLED && !IS_PROGRAM && !UE_BUILD_SHIPPING
