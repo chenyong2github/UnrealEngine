@@ -132,8 +132,14 @@ void FLightSceneInfo::RemoveFromScene()
 {
 	if (OctreeId.IsValidId())
 	{
+		if (!Scene->LocalShadowCastingLightOctree.IsValidElementId(OctreeId))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Octree Element INVALID, possibly already removed this frame"));
+		}
+
 		// Remove the light from the octree.
 		Scene->LocalShadowCastingLightOctree.RemoveElement(OctreeId);
+		OctreeId = FOctreeElementId2();
 	}
 	else
 	{
