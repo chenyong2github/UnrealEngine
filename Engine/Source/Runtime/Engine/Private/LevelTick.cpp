@@ -1607,7 +1607,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 				}
 			}
 
-			// Update cameras and streaming volumes
+			// Update cameras
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateCameraTime);
 				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Camera);
@@ -1626,8 +1626,11 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 						}
 					}
 				}
+			}
 
-				if( !bIsPaused && IsGameWorld())
+			// Update streaming volumes
+			{
+				if (!bIsPaused && IsGameWorld())
 				{
 					// Update world's required streaming levels
 					InternalUpdateStreamingState();
