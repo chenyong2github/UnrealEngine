@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
+#include "WorldPartition/DataLayer/DataLayerLoadingPolicy.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/DataLayer/WorldDataLayersActorDesc.h"
 #include "WorldPartition/DataLayer/DataLayerAsset.h"
@@ -76,6 +77,14 @@ void UDataLayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 
 #if WITH_EDITOR
+	UClass* DataLayerLoadingPolicyClassValue = DataLayerLoadingPolicyClass.Get();
+	if (!DataLayerLoadingPolicyClassValue)
+	{
+		DataLayerLoadingPolicyClassValue = UDataLayerLoadingPolicy::StaticClass();
+	}
+	DataLayerLoadingPolicy = NewObject<UDataLayerLoadingPolicy>(this, DataLayerLoadingPolicyClassValue);
+	check(DataLayerLoadingPolicy);
+
 	if (GEditor)
 	{
 		FModuleManager::LoadModuleChecked<IDataLayerEditorModule>("DataLayerEditor");
@@ -105,6 +114,23 @@ bool UDataLayerSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType)
 
 
 #if WITH_EDITOR
+
+bool UDataLayerSubsystem::ResolveIsLoadedInEditor(const TArray<FName>& InDataLayerInstanceNames) const
+{
+	TArray<const UDataLayerInstance*> DataLayerInstances;
+	for (const FName& DataLayerInstanceName : InDataLayerInstanceNames)
+	{
+		if (const UDataLayerInstance* DataLayerInstance = GetDataLayerInstance(DataLayerInstanceName))
+		{
+			DataLayerInstances.Add(DataLayerInstance);
+		}
+	}
+	if (!DataLayerInstances.IsEmpty())
+	{
+		return DataLayerLoadingPolicy->ResolveIsLoadedInEditor(DataLayerInstances);
+	}
+	return true;
+}
 
 bool UDataLayerSubsystem::CanResolveDataLayers() const
 {

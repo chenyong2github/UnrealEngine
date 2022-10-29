@@ -14,6 +14,7 @@
  */
 
 class UActorDescContainer;
+class UDataLayerLoadingPolicy;
 class UCanvas;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDataLayerRuntimeStateChanged, const UDataLayerInstance*, DataLayer, EDataLayerRuntimeState, State);
@@ -42,7 +43,7 @@ private:
 };
 #endif
 
-UCLASS()
+UCLASS(Config = Engine)
 class ENGINE_API UDataLayerSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
@@ -82,6 +83,7 @@ public:
 	//~ End Blueprint callable functions
 
 #if WITH_EDITOR
+	bool ResolveIsLoadedInEditor(const TArray<FName>& InDataLayerInstanceNames) const;
 	bool CanResolveDataLayers() const;
 
 	bool RemoveDataLayer(const UDataLayerInstance* InDataLayer);
@@ -219,6 +221,12 @@ public:
 	//~ End Deprecated
 
 private:
+	UPROPERTY(Config)
+	TSoftClassPtr<UDataLayerLoadingPolicy> DataLayerLoadingPolicyClass;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UDataLayerLoadingPolicy> DataLayerLoadingPolicy;
+
 #if WITH_EDITOR
 	void RegisterEarlyLoadedWorldDataLayers();
 	void OnActorDescContainerInitialized(UActorDescContainer* InActorDescContainer);
