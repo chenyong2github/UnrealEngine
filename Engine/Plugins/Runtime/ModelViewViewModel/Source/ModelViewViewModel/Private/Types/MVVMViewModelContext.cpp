@@ -20,10 +20,14 @@ bool FMVVMViewModelContext::operator== (const FMVVMViewModelContext& Other) cons
 
 bool FMVVMViewModelContext::IsCompatibleWith(const FMVVMViewModelContext& Other) const
 {
-	return Other.ContextName == ContextName
-		&& Other.ContextClass.Get() != nullptr
+	return Other.ContextName == ContextName && IsCompatibleWith(Other.ContextClass);
+}
+
+bool FMVVMViewModelContext::IsCompatibleWith(const TSubclassOf<UMVVMViewModelBase>& OtherClass) const
+{
+	return OtherClass != nullptr
 		&& ContextClass.Get() != nullptr
-		&& ContextClass.Get()->IsChildOf(Other.ContextClass.Get());
+		&& ContextClass.Get()->IsChildOf(OtherClass);
 }
 
 

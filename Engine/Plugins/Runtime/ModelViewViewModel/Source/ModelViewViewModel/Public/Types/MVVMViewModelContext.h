@@ -28,5 +28,6 @@ public:
 	bool IsValid() const;
 	bool operator== (const FMVVMViewModelContext& Other) const;
 	bool IsCompatibleWith(const FMVVMViewModelContext& Other) const;
+	bool IsCompatibleWith(const TSubclassOf<UMVVMViewModelBase>& OtherClass) const;
 	bool IsCompatibleWith(const UMVVMViewModelBase* Other) const;
 };

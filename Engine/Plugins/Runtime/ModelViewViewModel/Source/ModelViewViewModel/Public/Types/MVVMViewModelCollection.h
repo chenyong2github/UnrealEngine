@@ -19,6 +19,7 @@ struct MODELVIEWVIEWMODEL_API FMVVMViewModelCollection
 
 public:
 	UMVVMViewModelBase* FindViewModelInstance(FMVVMViewModelContext Context) const;
+	UMVVMViewModelBase* FindFirstViewModelInstanceOfType(const TSubclassOf<UMVVMViewModelBase>& ViewModelClass) const;
 
 	bool AddInstance(FMVVMViewModelContext Context, UMVVMViewModelBase* ViewModel);
 	bool RemoveInstance(FMVVMViewModelContext Context);
@@ -50,6 +51,16 @@ public:
 	UMVVMViewModelBase* FindViewModelInstance(FMVVMViewModelContext Context) const
 	{
 		return ViewModelCollection.FindViewModelInstance(Context);
+	}
+
+	/**
+	 * Finds a View Model of the given type.
+	 * If the collection contains multiple instances of the same type then this will return the first one found.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UMVVMViewModelBase* FindFirstViewModelInstanceOfType(const TSubclassOf<UMVVMViewModelBase>& ViewModelClass) const
+	{
+		return ViewModelCollection.FindFirstViewModelInstanceOfType(ViewModelClass);
 	}
 	
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
