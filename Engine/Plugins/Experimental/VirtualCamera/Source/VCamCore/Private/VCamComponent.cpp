@@ -15,6 +15,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "Engine/InputDelegateBinding.h"
 #include "InputMappingContext.h"
+#include "PlayerMappableKeySettings.h"
 
 #include "GameFramework/InputSettings.h"
 
@@ -581,9 +582,9 @@ bool UVCamComponent::AddInputProfileWithCurrentlyActiveMappings(const FName Prof
 			}
 			for (const FEnhancedActionKeyMapping& Mapping : MappingContext->GetMappings())
 			{
-				if (Mapping.bIsPlayerMappable)
+				if (Mapping.IsPlayerMappable())
 				{
-					const FName MappingName = Mapping.PlayerMappableOptions.Name;
+					const FName MappingName = Mapping.GetMappingName();
 
 					// Prefer to use the current mapped key but fallback to the default if no key is mapped
 					FKey CurrentKey = EnhancedInputSubsystemInterface->GetPlayerMappedKey(MappingName);

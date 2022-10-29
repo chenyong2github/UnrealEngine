@@ -2,12 +2,35 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "InputCoreTypes.h"
+#include "Internationalization/Text.h"
+#include "UObject/NameTypes.h"
+#include "UObject/ObjectPtr.h"
 
 #include "EnhancedActionKeyMapping.generated.h"
+
+class UInputModifier;
+class UInputTrigger;
+class UPlayerMappableKeySettings;
+
+enum class EDataValidationResult : uint8;
+
+/**
+* Defines which Player Mappable Key Setting to use for a Action Key Mapping.
+*/
+UENUM(BlueprintType)
+enum class EPlayerMappableKeySettingBehaviors : uint8
+{
+	//Use the Settings specified in the Input Action.
+	InheritSettingsFromAction,
+	//Use the Settings specified in the Action Key Mapping overriding the ones specified in the Input action.
+	OverrideSettings,
+	//Don't use any Settings even if one is specified in the Input Action.
+	IgnoreSettings
+};
 
 /**
  * A struct that represents player facing mapping options for an action key mapping.
@@ -40,7 +63,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
 	TObjectPtr<UObject> Metadata = nullptr;
 	
-	/** A unique name for this player binding to be saved with. */
+	/** A unique name for this player mapping to be saved with. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
 	FName Name;
 	
@@ -48,13 +71,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
 	FText DisplayName;
 
-	/** The category that this player binding is in */
+	/** The category that this player mapping is in */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
 	FText DisplayCategory = FText::GetEmpty();
 };
-
-class UInputTrigger;
-class UInputModifier;
 
 /**
  * Defines a mapping between a key activation and the resulting enhanced action
@@ -67,10 +87,29 @@ struct FEnhancedActionKeyMapping
 {
 	GENERATED_BODY()
 
+	/**
+	* Returns the Player Mappable Key Settings owned by the Action Key Mapping or by the referenced Input Action, or nothing based of the Setting Behavior.
+	*/
+	ENHANCEDINPUT_API UPlayerMappableKeySettings* GetPlayerMappableKeySettings() const;
+
+	/**
+	 * Returns the name of the mapping based on setting behavior used. If no name is found in the Mappable Key Settings it will return the name set in Player Mappable Options if bIsPlayerMappable is true.
+	 */
+	ENHANCEDINPUT_API FName GetMappingName() const;
+
+	/**
+	* Returns true if this Action Key Mapping either holds a Player Mappable Key Settings or is set bIsPlayerMappable.
+	*/
+	ENHANCEDINPUT_API bool IsPlayerMappable() const;
+
+#if WITH_EDITOR
+	EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors);
+#endif
+
 	/** Options for making this a player mappable keymapping */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable", meta = (editCondition = "bIsPlayerMappable", DisplayAfter = "bIsPlayerMappable"))
 	FPlayerMappableKeyOptions PlayerMappableOptions;
-	
+
 	/**
 	* Trigger qualifiers. If any trigger qualifiers exist the mapping will not trigger unless:
 	* If there are any Explicit triggers in this list at least one of them must be met.
@@ -94,10 +133,6 @@ struct FEnhancedActionKeyMapping
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	FKey Key;
 
-	/** If true than this ActionKeyMapping will be exposed as a player mappable key */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
-	uint8 bIsPlayerMappable : 1;
-
 	/**
 	 * If true, then this Key Mapping should be ignored. This is set to true if the key is down
 	 * during a rebuild of it's owning PlayerInput ControlMappings.
@@ -119,8 +154,36 @@ struct FEnhancedActionKeyMapping
 		: PlayerMappableOptions(InAction)
 		, Action(InAction)
 		, Key(InKey)
-		, bIsPlayerMappable(false)
 		, bShouldBeIgnored(false)
+		, bIsPlayerMappable(false)
 	{}
+
+	friend class FEnhancedActionMappingCustomization;
+
+protected:
+
+	/**
+	* Defines which Player Mappable Key Setting to use for a Action Key Mapping.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Input|Settings")
+	EPlayerMappableKeySettingBehaviors SettingBehavior = EPlayerMappableKeySettingBehaviors::InheritSettingsFromAction;
+
+	/**
+	* Used to expose this mapping or to opt-out of settings completely.
+	*/
+	UPROPERTY(EditAnywhere, Instanced, Category = "Input|Settings", meta = (EditCondition = "SettingBehavior == EPlayerMappableKeySettingBehaviors::OverrideSettings", DisplayAfter = "SettingBehavior"))
+	TObjectPtr<UPlayerMappableKeySettings> PlayerMappableKeySettings = nullptr;
+
+	/** If true than this ActionKeyMapping will be exposed as a player mappable key */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|PlayerMappable")
+	uint8 bIsPlayerMappable : 1;
+
+public:
+
+	template<typename T = UPlayerMappableKeySettings> 
+	T* GetPlayerMappableKeySettings() const
+	{
+		return Cast<T>(GetPlayerMappableKeySettings());
+	}
 
 };

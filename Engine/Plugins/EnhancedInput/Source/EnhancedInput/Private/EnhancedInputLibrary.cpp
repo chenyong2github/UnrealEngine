@@ -62,6 +62,22 @@ FInputActionValue UEnhancedInputLibrary::MakeInputActionValue(double X, double Y
 {
 	return FInputActionValue(MatchValueType.GetValueType(), FVector(X, Y, Z));
 }
+
+UPlayerMappableKeySettings* UEnhancedInputLibrary::GetPlayerMappableKeySettings(const FEnhancedActionKeyMapping& ActionKeyMapping)
+{
+	return ActionKeyMapping.GetPlayerMappableKeySettings();
+}
+
+FName UEnhancedInputLibrary::GetMappingName(const FEnhancedActionKeyMapping& ActionKeyMapping)
+{
+	return ActionKeyMapping.GetMappingName();
+}
+
+bool UEnhancedInputLibrary::IsActionKeyMappingPlayerMappable(const FEnhancedActionKeyMapping& ActionKeyMapping)
+{
+	return ActionKeyMapping.IsPlayerMappable();
+}
+
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FInputActionValue UEnhancedInputLibrary::MakeInputActionValueOfType(double X, double Y, double Z, const EInputActionValueType ValueType)

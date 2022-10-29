@@ -11,6 +11,8 @@
 
 #include "InputAction.generated.h"
 
+class UPlayerMappableKeySettings;
+
 enum class ETriggerEventInternal : uint8;
 
 // Input action definition. These are instanced per player (via FInputActionInstance)
@@ -32,8 +34,13 @@ public:
 	 * Returns a bitmask of supported trigger events that is built from each UInputTrigger on this Action.
 	 */
 	ETriggerEventsSupported GetSupportedTriggerEvents() const;
-#endif
+#endif // WITH_EDITOR
 	
+	/**
+	* Returns the Player Mappable Key Settings for this Input Action.
+	*/
+	const TObjectPtr<UPlayerMappableKeySettings>& GetPlayerMappableKeySettings() const { return PlayerMappableKeySettings; }
+
 	// A localized descriptor of this input action
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Description")
 	FText ActionDescription = FText::GetEmpty();
@@ -69,6 +76,14 @@ public:
 	*/
 	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = Action, meta=(DisplayAfter="Triggers"))
 	TArray<TObjectPtr<UInputModifier>> Modifiers;
+
+private:
+
+	/**
+	* Holds setting information about this Action Input for setting screen and save purposes.
+	*/
+	UPROPERTY(EditAnywhere, Instanced, BlueprintReadWrite, Category = "Input|Settings", meta=(AllowPrivateAccess))
+	TObjectPtr<UPlayerMappableKeySettings> PlayerMappableKeySettings;
 };
 
 // Calculate a collective representation of trigger state from evaluations of all triggers in one or more trigger groups.

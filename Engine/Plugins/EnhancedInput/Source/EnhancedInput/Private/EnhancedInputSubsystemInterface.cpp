@@ -4,15 +4,16 @@
 
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputModule.h"
+#include "EnhancedInputPlatformSettings.h"
 #include "EnhancedPlayerInput.h"
 #include "GameFramework/PlayerController.h"
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
 #include "InputTriggers.h"
-#include "UObject/UObjectIterator.h"
 #include "PlayerMappableInputConfig.h"
-#include "EnhancedInputPlatformSettings.h"
+#include "PlayerMappableKeySettings.h"
+#include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(EnhancedInputSubsystemInterface)
 
@@ -393,7 +394,7 @@ TArray<FEnhancedActionKeyMapping> IEnhancedInputSubsystemInterface::GetAllPlayer
     {
     	for (const FEnhancedActionKeyMapping& Mapping : PlayerInput->EnhancedActionMappings)
 		{
-			if (Mapping.bIsPlayerMappable)
+			if (Mapping.IsPlayerMappable())
 			{
 				PlayerMappableMappings.AddUnique(Mapping);
 			}
@@ -655,7 +656,7 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 
 		for (FEnhancedActionKeyMapping& Mapping : OrderedMappings)
 		{
-			if (FKey* PlayerKey = PlayerMappedSettings.Find(Mapping.PlayerMappableOptions.Name))
+			if (FKey* PlayerKey = PlayerMappedSettings.Find(Mapping.GetMappingName()))
 			{
 				Mapping.Key = *PlayerKey;
 			}

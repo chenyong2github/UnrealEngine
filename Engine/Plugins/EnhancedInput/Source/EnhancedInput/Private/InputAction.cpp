@@ -5,6 +5,7 @@
 #include "EnhancedPlayerInput.h"
 #include "InputModifiers.h"
 #include "InputTriggers.h"
+#include "PlayerMappableKeySettings.h"
 #include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InputAction)
@@ -148,6 +149,12 @@ EDataValidationResult UInputAction::IsDataValid(TArray<FText>& ValidationErrors)
 			ValidationErrors.Add(LOCTEXT("NullInputModifier", "There cannot be a null Input Modifier on an Input Action!"));
 		}		
 	}
+	
+	// Validate Settings
+	if (PlayerMappableKeySettings != nullptr)
+	{
+		Result = CombineDataValidationResults(Result, PlayerMappableKeySettings->IsDataValid(ValidationErrors));
+	}
 
 	return Result;
 }
@@ -179,6 +186,6 @@ ETriggerEventsSupported UInputAction::GetSupportedTriggerEvents() const
 	return SupportedTriggers;
 }
 
-#endif
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
