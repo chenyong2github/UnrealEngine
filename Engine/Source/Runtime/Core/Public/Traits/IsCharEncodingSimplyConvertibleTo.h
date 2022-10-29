@@ -10,7 +10,7 @@
 namespace UE::Core::Private
 {
 	template <typename SrcEncoding, typename DestEncoding>
-	static constexpr bool IsCharEncodingSimplyConvertibleToImpl()
+	constexpr bool IsCharEncodingSimplyConvertibleToImpl()
 	{
 		if constexpr (TIsCharEncodingCompatibleWith_V<SrcEncoding, DestEncoding>)
 		{

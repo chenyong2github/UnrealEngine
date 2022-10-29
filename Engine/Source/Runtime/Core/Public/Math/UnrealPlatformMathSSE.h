@@ -19,7 +19,7 @@ namespace UE4
 {
 namespace SSE
 {
-	static FORCEINLINE float InvSqrt(float InValue)
+	FORCEINLINE float InvSqrt(float InValue)
 	{
 		const __m128 One = _mm_set_ss(1.0f);
 		const __m128 Y0 = _mm_set_ss(InValue);
@@ -30,7 +30,7 @@ namespace SSE
 		return temp;
 	}
 
-	static FORCEINLINE double InvSqrt(double InValue)
+	FORCEINLINE double InvSqrt(double InValue)
 	{
 		const __m128d One = _mm_set_sd(1.0);
 		const __m128d Y0 = _mm_set_sd(InValue);
@@ -41,7 +41,7 @@ namespace SSE
 		return temp;
 	}
 
-	static FORCEINLINE float InvSqrtEst(float F)
+	FORCEINLINE float InvSqrtEst(float F)
 	{
 		// Performs one pass of Newton-Raphson iteration on the hardware estimate
 		const __m128 fOneHalf = _mm_set_ss(0.5f);
@@ -61,44 +61,44 @@ namespace SSE
 		return temp;
 	}
 
-	static FORCEINLINE double InvSqrtEst(double InValue)
+	FORCEINLINE double InvSqrtEst(double InValue)
 	{		
 		return InvSqrt(InValue);
 	}
 
-	static FORCEINLINE int32 TruncToInt32(float F)
+	FORCEINLINE int32 TruncToInt32(float F)
 	{
 		return _mm_cvtt_ss2si(_mm_set_ss(F));
 	}
 
-	static FORCEINLINE int32 TruncToInt32(double InValue)
+	FORCEINLINE int32 TruncToInt32(double InValue)
 	{
 		return _mm_cvttsd_si32(_mm_set_sd(InValue));
 	}
 
-	static FORCEINLINE int64 TruncToInt64(double InValue)
+	FORCEINLINE int64 TruncToInt64(double InValue)
 	{
 		return _mm_cvttsd_si64(_mm_set_sd(InValue));
 	}
 
-	static FORCEINLINE int32 FloorToInt32(float F)
+	FORCEINLINE int32 FloorToInt32(float F)
 	{
 		// Note: unlike the Generic solution and the SSE4 float solution, we implement FloorToInt using a rounding instruction, rather than implementing RoundToInt using a floor instruction.  
 		// We therefore need to do the same times-2 transform (with a slighly different formula) that RoundToInt does; see the note on RoundToInt
 		return _mm_cvt_ss2si(_mm_set_ss(F + F - 0.5f)) >> 1;
 	}
 
-	static FORCEINLINE int32 FloorToInt32(double InValue)
+	FORCEINLINE int32 FloorToInt32(double InValue)
 	{
 		return _mm_cvtsd_si32(_mm_set_sd(InValue + InValue - 0.5)) >> 1;
 	}
 
-	static FORCEINLINE int64 FloorToInt64(double InValue)
+	FORCEINLINE int64 FloorToInt64(double InValue)
 	{
 		return _mm_cvtsd_si64(_mm_set_sd(InValue + InValue - 0.5)) >> 1;
 	}
 
-	static FORCEINLINE int32 RoundToInt32(float F)
+	FORCEINLINE int32 RoundToInt32(float F)
 	{
 		// Note: the times-2 is to remove the rounding-to-nearest-even-number behavior that mm_cvt_ss2si uses when the fraction is .5
 		// The formula we uses causes the round instruction to always be applied to a an odd integer when the original value was 0.5, and eliminates the rounding-to-nearest-even-number behavior
@@ -108,36 +108,36 @@ namespace SSE
 		return _mm_cvt_ss2si(_mm_set_ss(F + F + 0.5f)) >> 1;
 	}
 
-	static FORCEINLINE int32 RoundToInt32(double InValue)
+	FORCEINLINE int32 RoundToInt32(double InValue)
 	{
 		return _mm_cvtsd_si32(_mm_set_sd(InValue + InValue + 0.5)) >> 1;
 	}
 
-	static FORCEINLINE int64 RoundToInt64(double InValue)
+	FORCEINLINE int64 RoundToInt64(double InValue)
 	{
 		return _mm_cvtsd_si64(_mm_set_sd(InValue + InValue + 0.5)) >> 1;
 	}
 
-	static FORCEINLINE int32 CeilToInt32(float F)
+	FORCEINLINE int32 CeilToInt32(float F)
 	{
 		// Note: unlike the Generic solution and the SSE4 float solution, we implement CeilToInt using a rounding instruction, rather than a dedicated ceil instruction
 		// We therefore need to do the same times-2 transform (with a slighly different formula) that RoundToInt does; see the note on RoundToInt
 		return -(_mm_cvt_ss2si(_mm_set_ss(-0.5f - (F + F))) >> 1);
 	}
 
-	static FORCEINLINE int32 CeilToInt32(double InValue)
+	FORCEINLINE int32 CeilToInt32(double InValue)
 	{
 		return -(_mm_cvtsd_si32(_mm_set_sd(-0.5 - (InValue + InValue))) >> 1);
 	}
 
-	static FORCEINLINE int64 CeilToInt64(double InValue)
+	FORCEINLINE int64 CeilToInt64(double InValue)
 	{
 		return -(_mm_cvtsd_si64(_mm_set_sd(-0.5 - (InValue + InValue))) >> 1);
 	}
 
 	// https://gist.github.com/rygorous/2156668
 	// float_to_half_rtne_SSE2
-	static __m128i FloatToHalf(__m128 f)
+	inline __m128i FloatToHalf(__m128 f)
 	{
 		const __m128 mask_sign		= _mm_set1_ps(-0.0f);
 		const __m128i c_f16max			= _mm_set1_epi32((127 + 16) << 23); // all FP32 values >=this round to +inf
@@ -192,7 +192,7 @@ namespace SSE
 	}
 	
 	// four halfs should be in the u64 part of input
-	static __m128 HalfToFloat(__m128i four_halfs_u64)
+	inline __m128 HalfToFloat(__m128i four_halfs_u64)
 	{
 		__m128i rgba_half32 = _mm_unpacklo_epi16(four_halfs_u64, _mm_setzero_si128());
 

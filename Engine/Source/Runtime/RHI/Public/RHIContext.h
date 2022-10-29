@@ -227,11 +227,7 @@ public:
 	}
 
 	UE_DEPRECATED(5.1, "ComputePipelineStates should be used instead of direct ComputeShaders.")
-	virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader)
-	{
-		RHI_API void RHISetComputeShaderBackwardsCompatible(IRHIComputeContext*, FRHIComputeShader*);
-		RHISetComputeShaderBackwardsCompatible(this, ComputeShader);
-	}
+	RHI_API virtual void RHISetComputeShader(FRHIComputeShader* ComputeShader);
 
 	virtual void RHISetComputePipelineState(FRHIComputePipelineState* ComputePipelineState) = 0;
 

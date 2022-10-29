@@ -15,7 +15,7 @@ namespace UE::Core::Private
 	 * Tests whether an encoding has fixed-width characters
 	 */
 	template <typename Encoding>
-	static constexpr bool IsFixedWidthEncodingImpl()
+	constexpr bool IsFixedWidthEncodingImpl()
 	{
 		return
 			std::is_same_v<Encoding, ANSICHAR> ||

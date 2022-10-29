@@ -12,7 +12,7 @@
 namespace UE::Core::Private
 {
 	template <typename SrcEncoding, typename DestEncoding>
-	static constexpr bool IsCharEncodingCompatibleWithImpl()
+	constexpr bool IsCharEncodingCompatibleWithImpl()
 	{
 		if constexpr (std::is_same_v<SrcEncoding, DestEncoding>)
 		{

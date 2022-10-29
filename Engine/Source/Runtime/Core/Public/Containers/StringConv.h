@@ -54,7 +54,7 @@ public:
 namespace StringConv
 {
 	/** Is the provided Codepoint within the range of valid codepoints? */
-	static FORCEINLINE bool IsValidCodepoint(const uint32 Codepoint)
+	FORCEINLINE bool IsValidCodepoint(const uint32 Codepoint)
 	{
 		if ((Codepoint > 0x10FFFF) ||						// No Unicode codepoints above 10FFFFh, (for now!)
 			(Codepoint == 0xFFFE) || (Codepoint == 0xFFFF)) // illegal values.
@@ -65,23 +65,23 @@ namespace StringConv
 	}
 
 	/** Is the provided Codepoint within the range of the high-surrogates? */
-	static FORCEINLINE bool IsHighSurrogate(const uint32 Codepoint)
+	FORCEINLINE bool IsHighSurrogate(const uint32 Codepoint)
 	{
 		return Codepoint >= HIGH_SURROGATE_START_CODEPOINT && Codepoint <= HIGH_SURROGATE_END_CODEPOINT;
 	}
 
 	/** Is the provided Codepoint within the range of the low-surrogates? */
-	static FORCEINLINE bool IsLowSurrogate(const uint32 Codepoint)
+	FORCEINLINE bool IsLowSurrogate(const uint32 Codepoint)
 	{
 		return Codepoint >= LOW_SURROGATE_START_CODEPOINT && Codepoint <= LOW_SURROGATE_END_CODEPOINT;
 	}
 
-	static FORCEINLINE uint32 EncodeSurrogate(const uint16 HighSurrogate, const uint16 LowSurrogate)
+	FORCEINLINE uint32 EncodeSurrogate(const uint16 HighSurrogate, const uint16 LowSurrogate)
 	{
 		return ((HighSurrogate - HIGH_SURROGATE_START_CODEPOINT) << 10) + (LowSurrogate - LOW_SURROGATE_START_CODEPOINT) + 0x10000;
 	}
 
-	static FORCEINLINE void DecodeSurrogate(const uint32 Codepoint, uint16& OutHighSurrogate, uint16& OutLowSurrogate)
+	FORCEINLINE void DecodeSurrogate(const uint32 Codepoint, uint16& OutHighSurrogate, uint16& OutLowSurrogate)
 	{
 		const uint32 TmpCodepoint = Codepoint - 0x10000;
 		OutHighSurrogate = (uint16)((TmpCodepoint >> 10) + HIGH_SURROGATE_START_CODEPOINT);
@@ -89,14 +89,14 @@ namespace StringConv
 	}
 
 	/** Is the provided Codepoint outside of the range of the basic multilingual plane, but within the valid range of UTF8/16? */
-	static FORCEINLINE bool IsEncodedSurrogate(const uint32 Codepoint)
+	FORCEINLINE bool IsEncodedSurrogate(const uint32 Codepoint)
 	{
 		return Codepoint >= ENCODED_SURROGATE_START_CODEPOINT && Codepoint <= ENCODED_SURROGATE_END_CODEPOINT;
 	}
 
 	/** Inline combine any UTF-16 surrogate pairs in the given null-terminated character buffer, returning the updated length */
 	template<typename CharType>
-	static FORCEINLINE int32 InlineCombineSurrogates_Buffer(CharType* StrBuffer, int32 StrLen)
+	FORCEINLINE int32 InlineCombineSurrogates_Buffer(CharType* StrBuffer, int32 StrLen)
 	{
 		static_assert(sizeof(CharType) == 4, "CharType must be 4-bytes!");
 
@@ -155,7 +155,7 @@ namespace StringConv
 
 	/** Inline combine any UTF-16 surrogate pairs in the given null-terminated TCHAR array */
 	template<typename AllocatorType>
-	static FORCEINLINE void InlineCombineSurrogates_Array(TArray<TCHAR, AllocatorType>& StrBuffer)
+	FORCEINLINE void InlineCombineSurrogates_Array(TArray<TCHAR, AllocatorType>& StrBuffer)
 	{
 #if PLATFORM_TCHAR_IS_4_BYTES
 		const int32 NewStrLen = InlineCombineSurrogates_Buffer(StrBuffer.GetData(), StrBuffer.Num() - 1);
