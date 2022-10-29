@@ -9,10 +9,6 @@
 
 #include "UIFWidgetTree.generated.h"
 
-#ifndef UE_UIFRAMEWORK_WITH_DEBUG
-	#define UE_UIFRAMEWORK_WITH_DEBUG !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-#endif
-
 struct FReplicationFlags;
 struct FUIFrameworkWidgetTreeEntry;
 class AActor;
@@ -69,8 +65,11 @@ struct UIFRAMEWORK_API FUIFrameworkWidgetTree : public FFastArraySerializer
 
 public:
 	FUIFrameworkWidgetTree() = default;
-	FUIFrameworkWidgetTree(AActor* InReplicatedOwner, IUIFrameworkWidgetTreeOwner* InOwner);
-	~FUIFrameworkWidgetTree();
+	FUIFrameworkWidgetTree(AActor* InReplicatedOwner, IUIFrameworkWidgetTreeOwner* InOwner)
+		: ReplicatedOwner(InReplicatedOwner)
+		, Owner(InOwner)
+	{
+	}
 
 public:
 	//~ Begin of FFastArraySerializer
@@ -87,44 +86,39 @@ public:
 	bool ReplicateSubWidgets(UActorChannel* Channel, FOutBunch* Bunch, FReplicationFlags* RepFlags);
 
 	/** Add a new widget to the top hierarchy. */
-	void AuthorityAddRoot(UUIFrameworkWidget* Widget);
+	void AddRoot(UUIFrameworkWidget* Widget);
 	/**
 	 * Change the parent / child relationship of the child widget.
 	 * If the child widget had a parent, that relationship entry will replaced it by a new one.
 	 */
-	void AuthorityAddWidget(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child);
+	void AddWidget(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child);
 	/**
 	 * Remove the widget and all of its children and grand-children from the tree.
 	 * It will clean all the parent relationship from the tree.
 	 */
-	void AuthorityRemoveWidget(UUIFrameworkWidget* Widget);
+	void RemoveWidget(UUIFrameworkWidget* Widget);
 
-	//~ It is not safe to use the ReplicationId on the Authority because any add or remove would clear the ItemMap.
-	FUIFrameworkWidgetTreeEntry* LocalGetEntryByReplicationId(int32 WidgetId);
-	const FUIFrameworkWidgetTreeEntry* LocalGetEntryByReplicationId(int32 WidgetId) const;
+	FUIFrameworkWidgetTreeEntry* GetEntryByReplicationId(int32 ReplicationId);
+	const FUIFrameworkWidgetTreeEntry* GetEntryByReplicationId(int32 ReplicationId) const;
 
 	/** Find the widget by its unique Id. The widget needs to be in the Tree. */
 	UUIFrameworkWidget* FindWidgetById(FUIFrameworkWidgetId WidgetId);
 	const UUIFrameworkWidget* FindWidgetById(FUIFrameworkWidgetId WidgetId) const;
 
-#if UE_UIFRAMEWORK_WITH_DEBUG
-	void AuthorityTest() const;
-#endif
-
 private:
-	void AuthorityAddChildInternal(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child);
-	void AuthorityAddChildRecursiveInternal(UUIFrameworkWidget* Widget);
-	bool AuthorityRemoveChildRecursiveInternal(UUIFrameworkWidget* Widget);
+	void AddChildInternal(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child);
+	void AddChildRecursiveInternal(UUIFrameworkWidget* Widget);
 
 private:
 	UPROPERTY()
 	TArray<FUIFrameworkWidgetTreeEntry> Entries;
 
+	UPROPERTY(NotReplicated)
+	TMap<FUIFrameworkWidgetId, TWeakObjectPtr<UUIFrameworkWidget>> WidgetByIdMap;
+
 	UPROPERTY(NotReplicated, Transient)
 	TObjectPtr<AActor> ReplicatedOwner;
 
-	TMap<TWeakObjectPtr<UUIFrameworkWidget>, int32> AuthorityIndexByWidgetMap;
-	TMap<FUIFrameworkWidgetId, TWeakObjectPtr<UUIFrameworkWidget>> WidgetByIdMap;
 	IUIFrameworkWidgetTreeOwner* Owner = nullptr;
 };
 

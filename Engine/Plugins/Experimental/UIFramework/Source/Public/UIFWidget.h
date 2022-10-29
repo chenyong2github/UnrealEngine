@@ -9,7 +9,6 @@
 
 #include "UIFWidget.generated.h"
 
-class FUIFrameworkModule;
 
 /**
  * 
@@ -18,7 +17,6 @@ UCLASS(Abstract, BlueprintType)
 class UIFRAMEWORK_API UUIFrameworkWidget : public UObject
 {
 	GENERATED_BODY()
-	friend FUIFrameworkModule;
 
 public:
 	//~ Begin UObject
@@ -46,6 +44,8 @@ public:
 	}
 
 	//~ Authority functions
+	void AuthoritySetParent(UUIFrameworkPlayerComponent* Owner, FUIFrameworkParentWidget NewParent);
+
 	FUIFrameworkParentWidget AuthorityGetParent() const
 	{
 		return AuthorityParent;
@@ -66,6 +66,9 @@ public:
 protected:
 	virtual void AuthorityRemoveChild(UUIFrameworkWidget* Widget) {}
 	virtual void LocalOnUMGWidgetCreated() { }
+
+private:
+	void SetParentPlayerOwnerRecursive();
 
 protected:
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "UI Framework")

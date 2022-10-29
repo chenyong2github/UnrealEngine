@@ -3,7 +3,6 @@
 #include "Widgets/UIFCanvasBox.h"
 #include "Types/UIFWidgetTree.h"
 #include "UIFLog.h"
-#include "UIFModule.h"
 #include "UIFPlayerComponent.h"
 
 #include "Components/CanvasPanel.h"
@@ -106,8 +105,8 @@ void UUIFrameworkCanvasBox::AddWidget(FUIFrameworkCanvasBoxSlot InEntry)
 	}
 	else
 	{
-		// Reset the widget to make sure the id is set and it may have been duplicated during the attach
-		InEntry.AuthoritySetWidget(FUIFrameworkModule::AuthorityAttachWidget(GetPlayerComponent(), this, InEntry.AuthorityGetWidget()));
+		InEntry.AuthoritySetWidget(InEntry.AuthorityGetWidget()); // to make sure the id is set
+		InEntry.AuthorityGetWidget()->AuthoritySetParent(GetPlayerComponent(), FUIFrameworkParentWidget(this));
 		AddEntry(InEntry);
 	}
 }
@@ -127,8 +126,8 @@ void UUIFrameworkCanvasBox::RemoveWidget(UUIFrameworkWidget* Widget)
 		}
 		else
 		{
-			FUIFrameworkModule::AuthorityDetachWidgetFromParent(Widget);
 			RemoveEntry(Widget);
+			Widget->AuthoritySetParent(GetPlayerComponent(), FUIFrameworkParentWidget());
 		}
 	}
 }

@@ -2,7 +2,6 @@
 
 #include "UIFPlayerComponent.h"
 #include "UIFLog.h"
-#include "UIFModule.h"
 #include "UIFWidget.h"
 #include "Blueprint/GameViewportSubsystem.h"
 
@@ -122,8 +121,8 @@ void UUIFrameworkPlayerComponent::AddWidget(FUIFrameworkGameLayerSlot InEntry)
 		}
 		else
 		{
-			// Reset the widget to make sure the id is set and it may have been duplicated during the attach
-			InEntry.AuthoritySetWidget(FUIFrameworkModule::AuthorityAttachWidget(this, this, InEntry.AuthorityGetWidget()));
+			InEntry.AuthoritySetWidget(InEntry.AuthorityGetWidget()); // to make sure the id is set
+			InEntry.AuthorityGetWidget()->AuthoritySetParent(this, FUIFrameworkParentWidget(this));
 			RootList.AddEntry(InEntry);
 		}
 	}
@@ -147,8 +146,8 @@ void UUIFrameworkPlayerComponent::RemoveWidget(UUIFrameworkWidget* Widget)
 		}
 		else
 		{
-			FUIFrameworkModule::AuthorityDetachWidgetFromParent(Widget);
 			RootList.RemoveEntry(Widget);
+			Widget->AuthoritySetParent(this, FUIFrameworkParentWidget());
 		}
 	}
 }
@@ -171,7 +170,7 @@ void UUIFrameworkPlayerComponent::TickComponent(float DeltaTime, enum ELevelTick
 		TGuardValue<bool> TmpGuard = {bAddingWidget, true};
 		for (int32 ReplicationId : AddPending)
 		{
-			if (FUIFrameworkWidgetTreeEntry* Entry = WidgetTree.LocalGetEntryByReplicationId(ReplicationId))
+			if (FUIFrameworkWidgetTreeEntry* Entry = WidgetTree.GetEntryByReplicationId(ReplicationId))
 			{
 				if (ensure(Entry->IsParentValid() && Entry->IsChildValid()))
 				{
@@ -210,7 +209,7 @@ void UUIFrameworkPlayerComponent::TickComponent(float DeltaTime, enum ELevelTick
 
 		for (int32 ReplicationId : TempNetReplicationPending)
 		{
-			if (const FUIFrameworkWidgetTreeEntry* Entry = WidgetTree.LocalGetEntryByReplicationId(ReplicationId))
+			if (const FUIFrameworkWidgetTreeEntry* Entry = WidgetTree.GetEntryByReplicationId(ReplicationId))
 			{
 				LocalWidgetWasAddedToTree(*Entry);
 			}
@@ -300,7 +299,7 @@ void UUIFrameworkPlayerComponent::LocalOnClassLoaded(TSoftClassPtr<UWidget> Widg
 		{
 			for (int32 ReplicationId : FoundWidgetClassToLoad.EntryReplicationIds)
 			{
-				if (const FUIFrameworkWidgetTreeEntry* Entry = WidgetTree.LocalGetEntryByReplicationId(ReplicationId))
+				if (const FUIFrameworkWidgetTreeEntry* Entry = WidgetTree.GetEntryByReplicationId(ReplicationId))
 				{
 					if (Entry->IsParentValid() && Entry->IsChildValid())
 					{

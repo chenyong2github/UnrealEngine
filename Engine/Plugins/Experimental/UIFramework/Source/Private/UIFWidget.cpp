@@ -66,10 +66,74 @@ void UUIFrameworkWidget::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Id, Params);
 }
 
+void UUIFrameworkWidget::AuthoritySetParent(UUIFrameworkPlayerComponent* NewOwner, FUIFrameworkParentWidget NewParent)
+{
+	const bool bDifferentOwner = NewOwner != OwnerPlayerComponent;
+	if (OwnerPlayerComponent)
+	{
+		ensure(OwnerPlayerComponent == NewOwner);
+		NewOwner = OwnerPlayerComponent;
+		NewParent = FUIFrameworkParentWidget();
+	}
+
+	if (AuthorityParent.IsParentValid())
+	{
+		if (AuthorityParent.IsWidget())
+		{
+			AuthorityParent.AsWidget()->AuthorityRemoveChild(this);
+		}
+		else
+		{
+			check(AuthorityParent.IsPlayerComponent());
+			AuthorityParent.AsPlayerComponent()->AuthorityRemoveChild(this);
+		}
+	}
+
+	AuthorityParent = NewParent;
+	OwnerPlayerComponent = NewOwner;
+
+	if (AuthorityParent.IsParentValid() && OwnerPlayerComponent)
+	{
+		if (AuthorityParent.IsWidget())
+		{
+			OwnerPlayerComponent->GetWidgetTree().AddWidget(AuthorityParent.AsWidget(), this);
+		}
+		else
+		{
+			check(AuthorityParent.IsPlayerComponent());
+			OwnerPlayerComponent->GetWidgetTree().AddRoot(this);
+		}
+	}
+	else if (OwnerPlayerComponent)
+	{
+		OwnerPlayerComponent->GetWidgetTree().RemoveWidget(this);
+	}
+
+	if (bDifferentOwner)
+	{
+		SetParentPlayerOwnerRecursive();
+	}
+}
+
+void UUIFrameworkWidget::SetParentPlayerOwnerRecursive()
+{
+	UUIFrameworkWidget* Self = this;
+	AuthorityForEachChildren([Self](UUIFrameworkWidget* Child)
+		{
+			if (Child != nullptr)
+			{
+				check(Child->AuthorityGetParent().IsWidget() && Child->AuthorityGetParent().AsWidget() == Self);
+				Child->OwnerPlayerComponent = Self->OwnerPlayerComponent;
+				Child->AuthorityParent = FUIFrameworkParentWidget(Self);
+				Child->SetParentPlayerOwnerRecursive();
+			}
+		});
+}
+
 void UUIFrameworkWidget::LocalAddChild(FUIFrameworkWidgetId ChildId)
 {
 	// By default we should remove the widget from its previous parent.
-	//Adding a widget to a new slot will automatically remove it from its previous parent.
+	//Adding a widget to a new slot will automaticly remove it from its previous parent.
 	if (OwnerPlayerComponent)
 	{
 		if (UUIFrameworkWidget* Widget = OwnerPlayerComponent->GetWidgetTree().FindWidgetById(ChildId))

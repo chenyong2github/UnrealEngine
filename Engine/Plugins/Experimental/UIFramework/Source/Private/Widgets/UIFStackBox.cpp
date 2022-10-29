@@ -3,7 +3,6 @@
 #include "Widgets/UIFStackBox.h"
 #include "Types/UIFWidgetTree.h"
 #include "UIFLog.h"
-#include "UIFModule.h"
 #include "UIFPlayerComponent.h"
 
 #include "Components/StackBox.h"
@@ -43,23 +42,17 @@ bool FUIFrameworkStackBoxSlotList::NetDeltaSerialize(FNetDeltaSerializeInfo& Del
 
 void FUIFrameworkStackBoxSlotList::AddEntry(FUIFrameworkStackBoxSlot Entry)
 {
-	int32 NewEntryIndex = Slots.Add(MoveTemp(Entry));
-	FUIFrameworkStackBoxSlot& NewEntry = Slots[NewEntryIndex];
-	NewEntry.Index = NewEntryIndex;
+	FUIFrameworkStackBoxSlot& NewEntry = Slots.Add_GetRef(MoveTemp(Entry));
 	MarkItemDirty(NewEntry);
 }
 
 bool FUIFrameworkStackBoxSlotList::RemoveEntry(UUIFrameworkWidget* Widget)
 {
 	check(Widget);
-	int32 Index = Slots.IndexOfByPredicate([Widget](const FUIFrameworkStackBoxSlot& Entry) { return Entry.AuthorityGetWidget() == Widget; });
+	const int32 Index = Slots.IndexOfByPredicate([Widget](const FUIFrameworkStackBoxSlot& Entry) { return Entry.AuthorityGetWidget() == Widget; });
 	if (Index != INDEX_NONE)
 	{
 		Slots.RemoveAt(Index);
-		for (; Index < Slots.Num(); ++Index)
-		{
-			Slots[Index].Index = Index;
-		}
 		MarkArrayDirty();
 	}
 	return Index != INDEX_NONE;
@@ -110,8 +103,8 @@ void UUIFrameworkStackBox::AddWidget(FUIFrameworkStackBoxSlot InEntry)
 	}
 	else
 	{
-		// Reset the widget to make sure the id is set and it may have been duplicated during the attach
-		InEntry.AuthoritySetWidget(FUIFrameworkModule::AuthorityAttachWidget(GetPlayerComponent(), this, InEntry.AuthorityGetWidget()));
+		InEntry.AuthoritySetWidget(InEntry.AuthorityGetWidget()); // to make sure the id is set
+		InEntry.AuthorityGetWidget()->AuthoritySetParent(GetPlayerComponent(), FUIFrameworkParentWidget(this));
 		AddEntry(InEntry);
 	}
 }
@@ -131,8 +124,8 @@ void UUIFrameworkStackBox::RemoveWidget(UUIFrameworkWidget* Widget)
 		}
 		else
 		{
-			FUIFrameworkModule::AuthorityDetachWidgetFromParent(Widget);
 			RemoveEntry(Widget);
+			Widget->AuthoritySetParent(GetPlayerComponent(), FUIFrameworkParentWidget());
 		}
 	}
 }
