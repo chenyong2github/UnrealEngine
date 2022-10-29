@@ -21,6 +21,8 @@ struct FUIFrameworkStackBoxSlot : public FUIFrameworkSlotBase
 {
 	GENERATED_BODY()
 
+	friend FUIFrameworkStackBoxSlotList;
+
 	/** Horizontal alignment of the widget inside the slot. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Framework")
 	TEnumAsByte<EHorizontalAlignment> HorizontalAlignment = EHorizontalAlignment::HAlign_Fill;
@@ -36,6 +38,11 @@ struct FUIFrameworkStackBoxSlot : public FUIFrameworkSlotBase
 	/** How much space this slot should occupy in the direction of the panel. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "UI Framework")
 	FSlateChildSize Size = FSlateChildSize(ESlateSizeRule::Automatic);
+
+private:
+	/** Index in the array the Slot is. The position in the array can change when replicated. */
+	UPROPERTY()
+	int32 Index;
 };
 
 

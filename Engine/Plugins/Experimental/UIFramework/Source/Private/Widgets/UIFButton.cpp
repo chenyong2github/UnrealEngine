@@ -3,6 +3,7 @@
 #include "Widgets/UIFButton.h"
 #include "Types/UIFWidgetTree.h"
 #include "UIFLog.h"
+#include "UIFModule.h"
 #include "UIFPlayerComponent.h"
 
 #include "Components/Button.h"
@@ -41,7 +42,7 @@ void UUIFrameworkButton::SetContent(FUIFrameworkSimpleSlot InEntry)
 		// Remove previous widget
 		if (Slot.AuthorityGetWidget())
 		{
-			Slot.AuthorityGetWidget()->AuthoritySetParent(GetPlayerComponent(), FUIFrameworkParentWidget());
+			FUIFrameworkModule::AuthorityDetachWidgetFromParent(Slot.AuthorityGetWidget());
 		}
 
 		if (InEntry.AuthorityGetWidget())
@@ -56,11 +57,11 @@ void UUIFrameworkButton::SetContent(FUIFrameworkSimpleSlot InEntry)
 	}
 
 	Slot = InEntry;
-	Slot.AuthoritySetWidget(InEntry.AuthorityGetWidget()); // to make sure the id is set
 
 	if (bWidgetIsDifferent && Slot.AuthorityGetWidget())
 	{
-		Slot.AuthorityGetWidget()->AuthoritySetParent(GetPlayerComponent(), FUIFrameworkParentWidget(this));
+		// Reset the widget to make sure the id is set and it may have been duplicated during the attach
+		Slot.AuthoritySetWidget(FUIFrameworkModule::AuthorityAttachWidget(GetPlayerComponent(), this, Slot.AuthorityGetWidget()));
 	}
 
 	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Slot, this);

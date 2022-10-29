@@ -1,0 +1,37 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Modules/ModuleInterface.h"
+#include "Types/UIFParentWidget.h"
+
+class UUIFrameworkWidget;
+class UUIFrameworkPlayerComponent;
+
+/**
+ * 
+ */
+class UIFRAMEWORK_API FUIFrameworkModule : public IModuleInterface
+{
+public:
+	/**
+	 * Set the new widget parent.
+	 * It will attach the widget to the correct ReplicationOwner and add it to the WidgetTree.
+	 * If the ReplicationOwner cannot be changed, a duplicate of the widget will be created and the AuthorityOnReattachWidgets will be broadcast.
+	 * This function is recursive if the owner changed.
+	 */
+	static UUIFrameworkWidget* AuthorityAttachWidget(UUIFrameworkPlayerComponent* ReplicationOwner, FUIFrameworkParentWidget Parent, UUIFrameworkWidget* Child);
+	static bool AuthorityCanWidgetBeAttached(UUIFrameworkPlayerComponent* ReplicationOwner, UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child);
+	/**
+	 * Will remove the widget from the tree and the replication owner.
+	 */
+	static void AuthorityDetachWidgetFromParent(UUIFrameworkWidget* Child);
+	
+	using FOldWidgetToNewWidgetMap = TMap<UUIFrameworkWidget*, UUIFrameworkWidget*>;
+	DECLARE_DELEGATE_OneParam(FOnReattachWidgets, FOldWidgetToNewWidgetMap);
+	FOnReattachWidgets AuthorityOnReattachWidgets;
+
+private:
+	static void AuthoritySetParentReplicationOwnerRecursive(UUIFrameworkWidget* Widget);
+};

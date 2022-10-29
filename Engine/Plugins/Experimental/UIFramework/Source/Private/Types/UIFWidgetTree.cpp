@@ -12,6 +12,25 @@
 #include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
 
+#if UE_UIFRAMEWORK_WITH_DEBUG
+namespace UE::UIFramework::Private
+{
+	TArray<FUIFrameworkWidgetTree*> GTrees;
+	void TestWidgetTree()
+	{
+		for (FUIFrameworkWidgetTree* Tree : GTrees)
+		{
+			Tree->AuthorityTest();
+		}
+	}
+
+	static FAutoConsoleCommand CCmdTestWidgetTree(
+		TEXT("UIFramework.TestWidgetTree"),
+		TEXT("Test if all containers are properly setup"),
+		FConsoleCommandDelegate::CreateStatic(TestWidgetTree),
+		ECVF_Cheat);
+}
+#endif
 
 /**
  *
@@ -38,6 +57,22 @@ bool FUIFrameworkWidgetTreeEntry::IsChildValid() const
 /**
  *
  */
+FUIFrameworkWidgetTree::FUIFrameworkWidgetTree(AActor* InReplicatedOwner, IUIFrameworkWidgetTreeOwner* InOwner)
+	: ReplicatedOwner(InReplicatedOwner)
+	, Owner(InOwner)
+{
+#if UE_UIFRAMEWORK_WITH_DEBUG
+	UE::UIFramework::Private::GTrees.Add(this);
+#endif
+}
+
+FUIFrameworkWidgetTree::~FUIFrameworkWidgetTree()
+{
+#if UE_UIFRAMEWORK_WITH_DEBUG
+	UE::UIFramework::Private::GTrees.RemoveSingleSwap(this);
+#endif
+}
+
 void FUIFrameworkWidgetTree::PreReplicatedRemove(const TArrayView<int32> RemovedIndices, int32 FinalSize)
 {
 	for (int32 Index : RemovedIndices)
@@ -50,26 +85,8 @@ void FUIFrameworkWidgetTree::PreReplicatedRemove(const TArrayView<int32> Removed
 				Owner->LocalWidgetRemovedFromTree(Entry);
 			}
 
-			// Was it remove but added by something else
-			{
-				int32 Count = 0;
-				for (const FUIFrameworkWidgetTreeEntry& Other : Entries)
-				{
-					if (Other.Child == Entry.Child)
-					{
-						++Count;
-						if (Count > 2)
-						{
-							break;
-						}
-					}
-				}
-				if (Count <= 1)
-				{
-					Entry.Child->LocalDestroyUMGWidget();
-					WidgetByIdMap.Remove(Entry.Child->GetWidgetId());
-				}
-			}
+			Entry.Child->LocalDestroyUMGWidget();
+			WidgetByIdMap.Remove(Entry.Child->GetWidgetId());
 		}
 	}
 }
@@ -138,117 +155,114 @@ bool FUIFrameworkWidgetTree::ReplicateSubWidgets(UActorChannel* Channel, FOutBun
 	return bWroteSomething;
 }
 
-void FUIFrameworkWidgetTree::AddRoot(UUIFrameworkWidget* Widget)
+void FUIFrameworkWidgetTree::AuthorityAddRoot(UUIFrameworkWidget* Widget)
 {
 	check(Widget);
-	AddChildInternal(nullptr, Widget);
+	AuthorityAddChildInternal(nullptr, Widget);
 }
 
-void FUIFrameworkWidgetTree::AddWidget(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child)
+void FUIFrameworkWidgetTree::AuthorityAddWidget(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child)
 {
 	check(Parent);
 	check(Child);
-	AddChildInternal(Parent, Child);
+	AuthorityAddChildInternal(Parent, Child);
 }
 
-void FUIFrameworkWidgetTree::AddChildInternal(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child)
+void FUIFrameworkWidgetTree::AuthorityAddChildInternal(UUIFrameworkWidget* Parent, UUIFrameworkWidget* Child)
 {
-	int32 PreviousEntryIndex = Entries.IndexOfByPredicate([Child](const FUIFrameworkWidgetTreeEntry& Other){ return Other.Child == Child; });
-	if (PreviousEntryIndex != INDEX_NONE)
+	if (int32* PreviousEntryIndexPtr = AuthorityIndexByWidgetMap.Find(Child))
 	{
-		const FUIFrameworkWidgetTreeEntry& PreviousEntry = Entries[PreviousEntryIndex];
+		check(Entries.IsValidIndex(*PreviousEntryIndexPtr));
+		FUIFrameworkWidgetTreeEntry& PreviousEntry = Entries[*PreviousEntryIndexPtr];
 		if (PreviousEntry.Parent != Parent)
 		{
-			// New Parent for an existing child.
-			Entries.RemoveAtSwap(PreviousEntryIndex);
-			FUIFrameworkWidgetTreeEntry& NewEntry = Entries.Emplace_GetRef(Parent, Child);
-			MarkItemDirty(NewEntry);
-		}
-		else
-		{
-			UE_LOG(LogUIFramework, Warning, TEXT("A widget was added to the WidgetTree but it's already added."));
+			// Same child, different parent. Need to build a new entry for replication.
+			PreviousEntry = FUIFrameworkWidgetTreeEntry(Parent, Child);
+			MarkItemDirty(PreviousEntry);
 		}
 	}
 	else
 	{
-		FUIFrameworkWidgetTreeEntry& NewEntry = Entries.Emplace_GetRef(Parent, Child);
+		int32 NewEntryIndex = Entries.Emplace(Parent, Child);
+
+		FUIFrameworkWidgetTreeEntry& NewEntry = Entries[NewEntryIndex];
 		MarkItemDirty(NewEntry);
-		WidgetByIdMap.FindOrAdd(Child->GetWidgetId()) = Child;
+
+		AuthorityIndexByWidgetMap.Add(Child) = NewEntryIndex;
+		WidgetByIdMap.Add(Child->GetWidgetId()) = Child;
 
 		if (ensure(ReplicatedOwner) && ReplicatedOwner->IsUsingRegisteredSubObjectList())
 		{
 			ReplicatedOwner->AddReplicatedSubObject(Child);
 		}
-		AddChildRecursiveInternal(Child);
+
+		AuthorityAddChildRecursiveInternal(Child);
 	}
 }
 
-void FUIFrameworkWidgetTree::AddChildRecursiveInternal(UUIFrameworkWidget* Widget)
+void FUIFrameworkWidgetTree::AuthorityAddChildRecursiveInternal(UUIFrameworkWidget* InParentWidget)
 {
 	FUIFrameworkWidgetTree* Self = this;
-	Widget->AuthorityForEachChildren([Self, Widget](UUIFrameworkWidget* ChildWidget)
+	InParentWidget->AuthorityForEachChildren([Self, InParentWidget](UUIFrameworkWidget* ChildWidget)
 		{
 			if (ChildWidget != nullptr)
 			{
-				FUIFrameworkWidgetTreeEntry& NewEntry = Self->Entries.Emplace_GetRef(Widget, ChildWidget);
-				Self->MarkItemDirty(NewEntry);
-				Self->WidgetByIdMap.FindOrAdd(ChildWidget->GetWidgetId()) = ChildWidget;
-				if (ensure(Self->ReplicatedOwner) && Self->ReplicatedOwner->IsUsingRegisteredSubObjectList())
-				{
-					Self->ReplicatedOwner->AddReplicatedSubObject(ChildWidget);
-				}
-				Self->AddChildRecursiveInternal(ChildWidget);
+				Self->AuthorityAddChildInternal(InParentWidget, ChildWidget);
 			}
 		});
 }
 
-void FUIFrameworkWidgetTree::RemoveWidget(UUIFrameworkWidget* Widget)
+void FUIFrameworkWidgetTree::AuthorityRemoveWidget(UUIFrameworkWidget* Widget)
 {
 	check(Widget);
-	bool bDirtyArray = false;
-	{
-		FMemMark Mark(FMemStack::Get());
-		TArray<UUIFrameworkWidget*, TInlineAllocator<60, TMemStackAllocator<>>> WidgetsToRemove;
-		WidgetsToRemove.Add(Widget);
 
-		while (WidgetsToRemove.Num() > 0)
-		{
-			UUIFrameworkWidget* CurrentWidgetToRemove = WidgetsToRemove.Last();
-			WidgetByIdMap.Remove(CurrentWidgetToRemove->GetWidgetId());
-			if (ensure(ReplicatedOwner) && ReplicatedOwner->IsUsingRegisteredSubObjectList())
-			{
-				ReplicatedOwner->RemoveReplicatedSubObject(CurrentWidgetToRemove);
-			}
-
-			WidgetsToRemove.RemoveAt(WidgetsToRemove.Num()-1);
-			for (int32 Index = Entries.Num() - 1; Index >= 0; --Index)
-			{
-				if (Entries[Index].Parent == CurrentWidgetToRemove)
-				{
-					bDirtyArray = true;
-					if (Entries[Index].Child)
-					{
-						WidgetsToRemove.Add(Entries[Index].Child);
-					}
-
-					Entries.RemoveAtSwap(Index);
-				}
-				else if (Entries[Index].Child == CurrentWidgetToRemove)
-				{
-					bDirtyArray = true;
-					Entries.RemoveAtSwap(Index);
-				}
-			}
-		}
-	}
-
-	if (bDirtyArray)
+	if (AuthorityRemoveChildRecursiveInternal(Widget))
 	{
 		MarkArrayDirty();
 	}
 }
 
-FUIFrameworkWidgetTreeEntry* FUIFrameworkWidgetTree::GetEntryByReplicationId(int32 ReplicationId)
+bool FUIFrameworkWidgetTree::AuthorityRemoveChildRecursiveInternal(UUIFrameworkWidget* Widget)
+{
+	if (int32* PreviousEntryIndexPtr = AuthorityIndexByWidgetMap.Find(Widget))
+	{
+		check(Entries.IsValidIndex(*PreviousEntryIndexPtr));
+
+		AuthorityIndexByWidgetMap.Remove(Widget);
+		WidgetByIdMap.Remove(Widget->GetWidgetId());
+
+		if (ensure(ReplicatedOwner) && ReplicatedOwner->IsUsingRegisteredSubObjectList())
+		{
+			ReplicatedOwner->RemoveReplicatedSubObject(Widget);
+		}
+
+		Entries.RemoveAtSwap(*PreviousEntryIndexPtr);
+
+		// Fix up the swap item
+		if (Entries.IsValidIndex(*PreviousEntryIndexPtr))
+		{
+			if (int32* FixUpChildIndexPtr = AuthorityIndexByWidgetMap.Find(Entries[*PreviousEntryIndexPtr].Child))
+			{
+				*FixUpChildIndexPtr = *PreviousEntryIndexPtr;
+			}
+		}
+
+		FUIFrameworkWidgetTree* Self = this;
+		Widget->AuthorityForEachChildren([Self](UUIFrameworkWidget* ChildWidget)
+			{
+				if (ChildWidget)
+				{
+					Self->AuthorityRemoveChildRecursiveInternal(ChildWidget);
+				}
+			});	
+
+		return true;
+	}
+	return false;
+
+}
+
+FUIFrameworkWidgetTreeEntry* FUIFrameworkWidgetTree::LocalGetEntryByReplicationId(int32 ReplicationId)
 {
 	if (const int32* Index = ItemMap.Find(ReplicationId))
 	{
@@ -257,9 +271,9 @@ FUIFrameworkWidgetTreeEntry* FUIFrameworkWidgetTree::GetEntryByReplicationId(int
 	return nullptr;
 }
 
-const FUIFrameworkWidgetTreeEntry* FUIFrameworkWidgetTree::GetEntryByReplicationId(int32 ReplicationId) const
+const FUIFrameworkWidgetTreeEntry* FUIFrameworkWidgetTree::LocalGetEntryByReplicationId(int32 ReplicationId) const
 {
-	return const_cast<FUIFrameworkWidgetTree*>(this)->GetEntryByReplicationId(ReplicationId);
+	return const_cast<FUIFrameworkWidgetTree*>(this)->LocalGetEntryByReplicationId(ReplicationId);
 }
 
 UUIFrameworkWidget* FUIFrameworkWidgetTree::FindWidgetById(FUIFrameworkWidgetId WidgetId)
@@ -272,3 +286,85 @@ const UUIFrameworkWidget* FUIFrameworkWidgetTree::FindWidgetById(FUIFrameworkWid
 {
 	return const_cast<FUIFrameworkWidgetTree*>(this)->FindWidgetById(WidgetId);
 }
+
+#if UE_UIFRAMEWORK_WITH_DEBUG
+void FUIFrameworkWidgetTree::AuthorityTest() const
+{
+	if (ReplicatedOwner == nullptr || !ReplicatedOwner->HasAuthority())
+	{
+		return;
+	}
+
+	TSet<FUIFrameworkWidgetId> UniqueIds;
+	for (int32 Index = 0; Index < Entries.Num(); ++Index)
+	{
+		const FUIFrameworkWidgetTreeEntry& Entry = Entries[Index];
+
+		ensureAlwaysMsgf(Entry.ParentId.IsValid(), TEXT("Invalid ParentId"));
+		if (!Entry.ParentId.IsRoot())
+		{
+			ensureAlwaysMsgf(Entry.Parent, TEXT("Invalid Parent"));
+		}
+		else
+		{
+			ensureAlwaysMsgf(!Entry.Parent, TEXT("Valid Parent"));
+		}
+		ensureAlwaysMsgf(Entry.Child, TEXT("Invalid Child"));
+		ensureAlwaysMsgf(Entry.ChildId.IsValid(), TEXT("Invalid ChildId"));
+
+		if (Entry.ChildId.IsValid())
+		{
+			ensureAlwaysMsgf(!UniqueIds.Contains(Entry.ChildId), TEXT("Duplicated id"));
+			UniqueIds.Add(Entry.ChildId);
+		}
+
+		if (Entry.Child)
+		{
+			ensureAlwaysMsgf(Entry.ChildId == Entry.Child->GetWidgetId(), TEXT("Id do not matches"));
+		}
+		
+		if (Entry.Parent)
+		{
+			bool bFound = false;
+			const UUIFrameworkWidget* ToFindWidget = Entry.Child;
+			Entry.Parent->AuthorityForEachChildren([&bFound, ToFindWidget](UUIFrameworkWidget* ChildWidget)
+				{
+					bFound = bFound || ToFindWidget == ChildWidget;
+				});
+
+			ensureAlwaysMsgf(bFound, TEXT("Widget is in the tree but not in the AuthorityForEachChildren"));
+		}
+
+
+		const int32* FoundIndexPtr = AuthorityIndexByWidgetMap.Find(Entry.Child);
+		if (FoundIndexPtr)
+		{
+			ensureAlwaysMsgf(*FoundIndexPtr == Index, TEXT("Widget index doesn't match what is in the map"));
+		}
+		else
+		{
+			ensureAlwaysMsgf(false, TEXT("Widget no in the map"));
+		}
+		
+
+		if (Entry.Child)
+		{
+			ensureAlwaysMsgf(Entry.Child->GetWidgetId().IsValid(), TEXT("The id is not valid."));
+			const TWeakObjectPtr<UUIFrameworkWidget>* FoundWidgetPtr = WidgetByIdMap.Find(Entry.ChildId);
+			if (FoundWidgetPtr)
+			{
+				ensureAlwaysMsgf(FoundWidgetPtr->Get(), TEXT("The found widget is invalid"));
+				if (UUIFrameworkWidget* Widget = FoundWidgetPtr->Get())
+				{
+					ensureAlwaysMsgf(Widget == Entry.Child, TEXT("Widget in the map doesn't matches with the entry widget."));
+				}
+			}
+			else
+			{
+				ensureAlwaysMsgf(false, TEXT("Widget no in the map"));
+			}
+		}
+		
+	}
+}
+#endif
