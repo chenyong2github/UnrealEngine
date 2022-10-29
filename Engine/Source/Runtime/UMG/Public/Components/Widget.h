@@ -301,7 +301,7 @@ public:
 
 	/** Allows you to set a new flow direction */
 	UE_DEPRECATED(5.1, "Direct access to FlowDirectionPreference is deprecated. Please use the getter or setter.")
-	UPROPERTY(EditAnywhere, Getter, Setter, BlueprintGetter="GetFlowDirectionPreference", BlueprintSetter="SetFlowDirectionPreference", Category="Localization")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Localization")
 	EFlowDirectionPreference FlowDirectionPreference;
 
 	/**
@@ -507,11 +507,9 @@ public:
 	void SetRenderTransformPivot(FVector2D Pivot);
 
 	/** Gets the flow direction preference of the widget */
-	UFUNCTION(BlueprintCallable, Category="Localization")
 	EFlowDirectionPreference GetFlowDirectionPreference() const;
 
 	/** Sets the flow direction preference of the widget */
-	UFUNCTION(BlueprintCallable, Category="Localization")
 	void SetFlowDirectionPreference(EFlowDirectionPreference FlowDirection);
 
 	/** Gets the current enabled status of the widget */
