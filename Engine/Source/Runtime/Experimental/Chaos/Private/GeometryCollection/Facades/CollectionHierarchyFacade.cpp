@@ -26,6 +26,24 @@ namespace Chaos::Facades
 		return LevelAttribute.IsValid() && LevelAttribute.IsPersistent();
 	}
 
+	int32 FCollectionHierarchyFacade::GetRootIndex() const
+	{
+		if (IsValid())
+		{
+			const TManagedArray<int32>& Parents = ParentAttribute.Get();
+			if (Parents.Num() > 0)
+			{
+				int32 RootTransformIndex = 0;
+				while (Parents[RootTransformIndex] != INDEX_NONE)
+				{
+					RootTransformIndex = Parents[RootTransformIndex];
+				}
+				return RootTransformIndex;
+			}
+		}
+		return INDEX_NONE;
+	}
+
 	void FCollectionHierarchyFacade::GenerateLevelAttribute()
 	{
 		check(IsValid());

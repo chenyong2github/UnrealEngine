@@ -32,6 +32,9 @@ namespace Chaos::Facades
 		/** whether the level attribute is persistent */
 		bool IsLevelAttributePersistent() const;
 
+		/** Get the root index */
+		int32 GetRootIndex() const;
+
 		/** 
 		* Update level attribute for all elements (and create it if it is missing ) 
 		* @Param PersistencePolicy whether to make the attribute persistent or keep the existing state

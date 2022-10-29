@@ -601,6 +601,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	int32 GetInitialLevel(int32 ItemIndex);
 	
+	/** Get the root item index of the hierarchy */
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	int32 GetRootIndex();
+
 	/**
 	* Get mass and extent of a specific piece
 	* @param ItemIndex item index ( from HitResult) of the cluster to get level from
@@ -1007,6 +1011,7 @@ protected:
 	TObjectPtr<AGeometryCollectionISMPoolActor> ISMPool;
 
 	int32 ISMPoolMeshGroupIndex = INDEX_NONE;
+	int32 ISMPoolRootProxyMeshId = INDEX_NONE;
 
 	/** Populate the static geometry structures for the render thread. */
 	void InitConstantData(FGeometryCollectionConstantData* ConstantData) const;

@@ -653,7 +653,15 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 	PhysicsThreadCollection.CopyAttribute(*Parameters.RestCollection, /*SrcName=*/"Level", /*DestName=*/"InitialLevel", FTransformCollection::TransformGroup);
 	GameThreadCollection.CopyAttribute(*Parameters.RestCollection, /*SrcName=*/"Level", /*DestName=*/"InitialLevel", FTransformCollection::TransformGroup);
 
-
+	if (Parameters.EnableClustering)
+	{
+		// make sure we set Activate the right way when clustering is enabled ( only root should be enabled at start ) 
+		for (int32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
+		{
+			bool bIsRoot = (GameThreadCollection.Parent[TransformIndex] == INDEX_NONE);
+			GameThreadCollection.Active[TransformIndex] = bIsRoot;
+		}
+	}
 }
 
 

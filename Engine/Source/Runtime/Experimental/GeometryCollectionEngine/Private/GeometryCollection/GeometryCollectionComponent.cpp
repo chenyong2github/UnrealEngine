@@ -11,6 +11,7 @@
 #include "Components/BoxComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/InstancedStaticMesh.h"
+#include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionCache.h"
@@ -3801,10 +3802,6 @@ void UGeometryCollectionComponent::InitializeEmbeddedGeometry()
 		EmbeddedBoneMaps.SetNum(RestCollection->EmbeddedGeometryExemplar.Num());
 		EmbeddedInstanceIndex.Init(INDEX_NONE,RestCollection->GetGeometryCollection()->NumElements(FGeometryCollection::TransformGroup));
 #endif
-
-		CalculateGlobalMatrices();
-		RefreshEmbeddedGeometry();
-		
 	}
 }
 
@@ -3824,6 +3821,7 @@ void UGeometryCollectionComponent::RegisterToISMPool()
 			bool bCanRenderComponent = true;
 			if (RestCollection)
 			{
+				ISMPoolMeshGroupIndex = ISMPoolComp->CreateMeshGroup();
 				if (bChaos_GC_UseISMPoolForNonFracturedParts)
 				{
 					if (RestCollection->GetGeometryCollection())
@@ -3849,7 +3847,6 @@ void UGeometryCollectionComponent::RegisterToISMPool()
 						}
 
 						// now register each mesh 
-						ISMPoolMeshGroupIndex = ISMPoolComp->CreateMeshGroup();
 						for (int32 MeshIndex = 0; MeshIndex < RestCollection->AutoInstanceMeshes.Num(); MeshIndex++)
 						{
 							const FGeometryCollectionAutoInstanceMesh& AutoInstanceMesh = RestCollection->AutoInstanceMeshes[MeshIndex];
@@ -3886,12 +3883,9 @@ void UGeometryCollectionComponent::RegisterToISMPool()
 						// if we use a mesh proxy hide the component for rendering 
 						bCanRenderComponent = false;
 
-						// TODO : store this state in a variable
-
 						FGeometryCollectionStaticMeshInstance StaticMeshInstance;
 						StaticMeshInstance.StaticMesh = RootMeshProxy;
-						// todo : get the mesh index and use it to upadte the mesh transform 
-						ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, 1);
+						ISMPoolRootProxyMeshId = ISMPoolComp->AddMeshToGroup(ISMPoolMeshGroupIndex, StaticMeshInstance, 1);
 					}
 				}
 			}
@@ -3911,6 +3905,7 @@ void UGeometryCollectionComponent::UnregisterFromISMPool()
 		{
 			ISMPoolComp->DestroyMeshGroup(ISMPoolMeshGroupIndex);
 			ISMPoolMeshGroupIndex = INDEX_NONE;
+			ISMPoolRootProxyMeshId = INDEX_NONE;
 		}
 	}
 	SetVisibility(true);
@@ -3937,32 +3932,56 @@ void UGeometryCollectionComponent::RefreshISMPoolInstances()
 							const int32 NumTransforms = RestCollection->NumElements(FGeometryCollection::TransformAttribute);
 							ensure(AutoInstanceMeshIndices->Num() == NumTransforms);
 
-							TArray<FTransform> InstanceTransforms;
 							CalculateGlobalMatrices();
 
 							const FTransform& ComponentTransform = GetComponentTransform();
-							for (int32 MeshIndex = 0; MeshIndex < RestCollection->AutoInstanceMeshes.Num(); MeshIndex++)
+
+							constexpr bool bWorlSpace = true;
+							constexpr bool bMarkRenderStateDirty = true;
+							constexpr bool bTeleport = true;
+
+							const int32 RootIndex = GetRootIndex();
+							//const bool bIsBroken = DynamicCollection ? (DynamicCollection->Children[RootIndex].Num() != Children[RootIndex].Num()) : false;
+							const bool bIsBroken = DynamicCollection ? !DynamicCollection->Active[RootIndex] : false;
+							const bool bHasRootProxyMesh = (ISMPoolRootProxyMeshId != INDEX_NONE);
+
+							if (bHasRootProxyMesh && !bIsBroken)
 							{
-								InstanceTransforms.Reset(NumTransforms); // Allocate for worst case
-								for (int32 TransformIndex = 0; TransformIndex < NumTransforms; TransformIndex++)
+								if (GlobalMatrices.IsValidIndex(RootIndex))
 								{
-									const int32 AutoInstanceMeshIndex = (*AutoInstanceMeshIndices)[TransformIndex];
-									if (AutoInstanceMeshIndex == MeshIndex && Children[TransformIndex].Num() == 0)
-									{
-										InstanceTransforms.Add(FTransform(GlobalMatrices[TransformIndex]) * ComponentTransform);
-									}
+									FTransform RootTransform = FTransform(GlobalMatrices[RootIndex]) * ComponentTransform;
+									ISMPoolComp->BatchUpdateInstancesTransforms(ISMPoolMeshGroupIndex, ISMPoolRootProxyMeshId, 0, { RootTransform }, bWorlSpace, bMarkRenderStateDirty, bTeleport);
 								}
-								constexpr bool bWorlSpace = true;
-								constexpr bool bMarkRenderStateDirty = true;
-								constexpr bool bTeleport = true;
-								ISMPoolComp->BatchUpdateInstancesTransforms(ISMPoolMeshGroupIndex, MeshIndex, 0, InstanceTransforms, bWorlSpace, bMarkRenderStateDirty, bTeleport);
 							}
-				
+							else if (bChaos_GC_UseISMPoolForNonFracturedParts)
+							{
+								// make sure this mesh is invisible 
+								// todo : should be event based instead of doing it every frame
+								if (bHasRootProxyMesh && GlobalMatrices.IsValidIndex(RootIndex))
+								{
+									FTransform RootTransformZeroScale;
+									RootTransformZeroScale.SetIdentityZeroScale();
+									ISMPoolComp->BatchUpdateInstancesTransforms(ISMPoolMeshGroupIndex, ISMPoolRootProxyMeshId, 0, { RootTransformZeroScale }, bWorlSpace, bMarkRenderStateDirty, bTeleport);
+								}
+
+								TArray<FTransform> InstanceTransforms;
+								for (int32 MeshIndex = 0; MeshIndex < RestCollection->AutoInstanceMeshes.Num(); MeshIndex++)
+								{
+									InstanceTransforms.Reset(NumTransforms); // Allocate for worst case
+									for (int32 TransformIndex = 0; TransformIndex < NumTransforms; TransformIndex++)
+									{
+										const int32 AutoInstanceMeshIndex = (*AutoInstanceMeshIndices)[TransformIndex];
+										if (AutoInstanceMeshIndex == MeshIndex && Children[TransformIndex].Num() == 0)
+										{
+											InstanceTransforms.Add(FTransform(GlobalMatrices[TransformIndex]) * ComponentTransform);
+										}
+									}
+									ISMPoolComp->BatchUpdateInstancesTransforms(ISMPoolMeshGroupIndex, MeshIndex, 0, InstanceTransforms, bWorlSpace, bMarkRenderStateDirty, bTeleport);
+								}
+							}
 						}
 					}
 				}
-
-				// todo : update the mesh proxy if set 
 			}
 		}
 	}
@@ -4296,6 +4315,16 @@ int32 UGeometryCollectionComponent::GetInitialLevel(int32 ItemIndex)
 		}
 	}
 	return Level;
+}
+
+int32 UGeometryCollectionComponent::GetRootIndex()
+{
+	if (RestCollection && RestCollection->GetGeometryCollection())
+	{
+		Chaos::Facades::FCollectionHierarchyFacade HierarchyFacade(*RestCollection->GetGeometryCollection());
+		return HierarchyFacade.GetRootIndex();
+	}
+	return INDEX_NONE;
 }
 
 void UGeometryCollectionComponent::GetMassAndExtents(int32 ItemIndex, float& OutMass, FBox& OutExtents)

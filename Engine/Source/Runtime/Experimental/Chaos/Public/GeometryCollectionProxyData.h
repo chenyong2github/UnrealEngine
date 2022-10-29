@@ -216,10 +216,10 @@ public:
 
 	struct FState
 	{
-		int16 DynamicState: 8; // need to fit EObjectStateTypeEnum
-		int16 DisabledState: 1;
-		int16 HasInternalClusterParent: 1;
-		int16 DynamicInternalClusterParent: 1;
+		uint16 DynamicState: 8; // need to fit EObjectStateTypeEnum
+		uint16 DisabledState: 1;
+		uint16 HasInternalClusterParent: 1;
+		uint16 DynamicInternalClusterParent: 1;
 		// 5 bits left
 	};
 
