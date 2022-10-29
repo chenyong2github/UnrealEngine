@@ -149,6 +149,7 @@ ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogSpawn, Warning, All);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorSpawned, AActor*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorDestroyed, AActor*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnActorRemovedFromWorld, AActor*);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnFeatureLevelChanged, ERHIFeatureLevel::Type);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieSceneSequenceTick, float);
 
@@ -1497,6 +1498,9 @@ private:
 	/** a delegate that broadcasts a notification whenever an actor is destroyed */
 	mutable FOnActorDestroyed OnActorDestroyed;
 
+	/** Broadcasts when an actor has been removed from the world. The earliest point an actor can safely be renamed and not affect replication */
+	mutable FOnActorRemovedFromWorld OnActorRemovedFromWorld;
+
 	/** Reset Async Trace Buffer **/
 	void ResetAsyncTrace();
 
@@ -2742,6 +2746,12 @@ public:
 
 	/** Remove a listener for OnActorDestroyed events */
 	void RemoveOnActorDestroyededHandler(FDelegateHandle InHandle) const;
+
+	/** Add a listener for OnActorRemovedFromWorld events */
+	FDelegateHandle AddOnActorRemovedFromWorldHandler(const FOnActorRemovedFromWorld::FDelegate& InHandler) const;
+
+	/** Remove a listener for OnActorRemovedFromWorld events */
+	void RemoveOnActorRemovedFromWorldHandler(FDelegateHandle InHandle) const;
 
 	/**
 	 * Returns whether the passed in actor is part of any of the loaded levels actors array.
