@@ -7,6 +7,7 @@
 #include "PCGWorldActor.h"
 #include "Grid/PCGPartitionActor.h"
 
+#include "Engine/World.h"
 #include "GameFramework/Actor.h"
 #include "Landscape.h"
 #include "UObject/UObjectIterator.h"
