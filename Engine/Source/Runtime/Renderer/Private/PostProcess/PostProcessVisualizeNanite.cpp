@@ -3,6 +3,7 @@
 #include "PostProcess/PostProcessVisualizeNanite.h"
 #include "NaniteVisualizationData.h"
 #include "UnrealEngine.h"
+#include "RHIStaticStates.h"
 
 class FVisualizeNanitePS : public FGlobalShader
 {
@@ -31,44 +32,44 @@ void AddVisualizeNanitePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FS
 	const FNaniteVisualizationData& VisualizationData = GetNaniteVisualizationData();
 	if (VisualizationData.IsActive())
 	{
+		const bool bSingleVisualization = VisualizationData.GetActiveModeID() > 0;
+		const bool bOverviewVisualization = VisualizationData.GetActiveModeID() == 0;
+
 		// Any individual mode
-		if (VisualizationData.GetActiveModeID() > 0)
+		if (bSingleVisualization)
 		{
 			if (ensure(RasterResults.Visualizations.Num() == 1))
 			{
 				const Nanite::FVisualizeResult& Visualization = RasterResults.Visualizations[0];
 
-				if (View.ViewRect != View.UnscaledViewRect)
-				{
-				    FCopyRectPS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
-				    Parameters->InputTexture = Visualization.ModeOutput;
-				    Parameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-				    Parameters->RenderTargets[0] = FRenderTargetBinding(Output.Texture, ERenderTargetLoadAction::ENoAction);
-    
-				    const FScreenPassTextureViewport InputViewport(Visualization.ModeOutput->Desc.Extent);
-				    const FScreenPassTextureViewport OutputViewport(Output);
-				    TShaderMapRef<FCopyRectPS> PixelShader(View.ShaderMap);
-    
-				    // Use separate input and output viewports w/ bilinear sampling to properly support dynamic resolution scaling
-				    AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("DrawTexture"), View, OutputViewport, InputViewport, PixelShader, Parameters, EScreenPassDrawFlags::None);
-				}
-				else
-				{
-					// Can use faster 1:1 blit when view sizes match
-					AddDrawTexturePass(
-					    GraphBuilder,
-					    View,
-					    Visualization.ModeOutput,
-					    Output.Texture,
-					    View.ViewRect.Min,
-					    View.ViewRect.Min,
-					    View.ViewRect.Size()
-				    );
-				}
+				FRHIBlendState* BlendState = BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_One, BF_Zero>::GetRHI();
+
+				FCopyRectPS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
+				Parameters->InputTexture = Visualization.ModeOutput;
+				Parameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+				Parameters->RenderTargets[0] = FRenderTargetBinding(Output.Texture, ERenderTargetLoadAction::ELoad);
+
+				const FScreenPassTextureViewport InputViewport(Visualization.ModeOutput->Desc.Extent);
+				const FScreenPassTextureViewport OutputViewport(Output);
+
+				TShaderMapRef<FScreenPassVS> VertexShader(View.ShaderMap);
+				TShaderMapRef<FCopyRectPS> PixelShader(View.ShaderMap);
+
+				AddDrawScreenPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("DrawTexture"),
+					View,
+					OutputViewport,
+					InputViewport,
+					VertexShader,
+					PixelShader,
+					BlendState,
+					Parameters,
+					EScreenPassDrawFlags::None);
 			}
 		}
 		// Overview mode
-		else if (VisualizationData.GetActiveModeID() == 0)
+		else if (bOverviewVisualization)
 		{
 			struct FTileLabel
 			{

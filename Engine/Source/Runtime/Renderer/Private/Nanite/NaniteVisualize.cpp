@@ -549,7 +549,10 @@ void AddVisualizationPasses(
 
 			Data.Visualizations.Reset();
 
-			if (VisualizationData.GetActiveModeID() > 0)
+			const bool bSingleVisualization = VisualizationData.GetActiveModeID() > 0;
+			const bool bOverviewVisualization = VisualizationData.GetActiveModeID() == 0;
+
+			if (bSingleVisualization)
 			{
 				// Single visualization
 				FVisualizeResult Visualization = {};
@@ -559,7 +562,7 @@ void AddVisualizationPasses(
 				Visualization.bSkippedTile		= false;
 				Data.Visualizations.Emplace(Visualization);
 			}
-			else if (VisualizationData.GetActiveModeID() == 0)
+			else if (bOverviewVisualization)
 			{
 				// Overview mode
 				const auto& OverviewModeNames = VisualizationData.GetOverviewModeNames();

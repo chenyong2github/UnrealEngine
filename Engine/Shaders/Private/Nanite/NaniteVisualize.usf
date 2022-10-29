@@ -138,6 +138,8 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 
 	float3 Result = float3(0, 0, 0);
 	float3 OutlineColor = 1;
+	float Opacity = 1.0f;
+
 	bool bDarkOutline = false;
 	bool bApplySobel = true;
 
@@ -290,6 +292,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		else if (VisualizeMode == NANITE_VISUALIZE_NANITE_MASK)
 		{
 			Result = float3(0, 1, 0);
+			Opacity = 0.5f;
 		}
 		else if (VisualizeMode == NANITE_VISUALIZE_EVALUATE_WORLD_POSITION_OFFSET)
 		{
@@ -394,6 +397,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 			if (SceneDepth[PixelPos] > 0.0f) // only visualize written fragments
 			{
 				Result = float3(1, 0, 0);
+				Opacity = 0.5f;
 			}
 		}
 	}
@@ -403,7 +407,7 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		Result = ApplySobelFilter(PixelPos, DepthInt, Result, OutlineColor, bDarkOutline);
 	}
 
-	DebugOutput[PixelPos] = float4(Result, 0);
+	DebugOutput[PixelPos] = float4(Result, Opacity);
 }
 
 [numthreads(1, 1, 1)]
