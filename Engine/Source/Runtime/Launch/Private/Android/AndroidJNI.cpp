@@ -12,6 +12,7 @@
 #include "HAL/PlatformStackWalk.h"
 #include "Math/Vector.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreDelegates.h"
 #include "Misc/DateTime.h"
 #include "Misc/EmbeddedCommunication.h"
 #include "Misc/FeedbackContext.h"
