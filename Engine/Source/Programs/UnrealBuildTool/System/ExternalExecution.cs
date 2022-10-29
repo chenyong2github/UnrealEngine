@@ -115,6 +115,11 @@ namespace UnrealBuildTool
 		public DirectoryReference[] ModuleDirectories;
 
 		/// <summary>
+		/// The include search path for generated headers to include other headers
+		/// </summary>
+		public DirectoryReference ModuleIncudeBase;
+
+		/// <summary>
 		/// Module type
 		/// </summary>
 		public string ModuleType;
@@ -169,11 +174,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bIsReadOnly;
 
-		public UHTModuleInfo(string ModuleName, FileReference ModuleRulesFile, DirectoryReference[] ModuleDirectories, UHTModuleType ModuleType, DirectoryItem GeneratedCodeDirectory, EGeneratedCodeVersion GeneratedCodeVersion, bool bIsReadOnly, ModuleRules.PackageOverrideType OverrideType)
+		public UHTModuleInfo(string ModuleName, FileReference ModuleRulesFile, DirectoryReference[] ModuleDirectories, DirectoryReference ModuleIncudeBase, UHTModuleType ModuleType, DirectoryItem GeneratedCodeDirectory, EGeneratedCodeVersion GeneratedCodeVersion, bool bIsReadOnly, ModuleRules.PackageOverrideType OverrideType)
 		{
 			this.ModuleName = ModuleName;
 			this.ModuleRulesFile = ModuleRulesFile;
 			this.ModuleDirectories = ModuleDirectories;
+			this.ModuleIncudeBase = ModuleIncudeBase;
 			this.ModuleType = ModuleType.ToString();
 			this.OverrideModuleType = OverrideType.ToString();
 			this.PublicUObjectClassesHeaders = new List<FileItem>();
@@ -191,6 +197,7 @@ namespace UnrealBuildTool
 			ModuleName = Reader.ReadString()!;
 			ModuleRulesFile = Reader.ReadFileReference();
 			ModuleDirectories = Reader.ReadArray<DirectoryReference>(Reader.ReadDirectoryReferenceNotNull)!;
+			ModuleIncudeBase = Reader.ReadDirectoryReference()!;
 			ModuleType = Reader.ReadString()!;
 			OverrideModuleType = Reader.ReadString()!;
 			PublicUObjectClassesHeaders = Reader.ReadList(() => Reader.ReadFileItem())!;
@@ -209,6 +216,7 @@ namespace UnrealBuildTool
 			Writer.WriteString(ModuleName);
 			Writer.WriteFileReference(ModuleRulesFile);
 			Writer.WriteArray<DirectoryReference>(ModuleDirectories, Writer.WriteDirectoryReference);
+			Writer.WriteDirectoryReference(ModuleIncudeBase);
 			Writer.WriteString(ModuleType);
 			Writer.WriteString(OverrideModuleType);
 			Writer.WriteList(PublicUObjectClassesHeaders, Item => Writer.WriteFileItem(Item));
@@ -450,6 +458,43 @@ namespace UnrealBuildTool
 			}
 		}
 
+		static DirectoryReference FindIncludeBase(UEBuildModuleCPP Module, ILogger Logger)
+		{
+			DirectoryReference? ModuleIncludeBase = Module.PublicIncludePaths.FirstOrDefault() ??
+				Module.PrivateIncludePaths.FirstOrDefault() ??
+				Module.InternalIncludePaths.FirstOrDefault() ??
+				(Module.Rules.bLegacyParentIncludePaths ? Module.LegacyParentIncludePaths.FirstOrDefault() : null) ??
+				(Module.Rules.bLegacyPublicIncludePaths ? Module.LegacyPublicIncludePaths.FirstOrDefault() : null);
+
+			if (ModuleIncludeBase == null)
+			{
+				// Project Source directory is also always for modules under a UProject (see UEBuildTarget.FindOrCreateModuleByName)
+				if (Module.Rules.Target.ProjectFile != null)
+				{
+					DirectoryReference ProjectSourceDirectoryName = DirectoryReference.Combine(Module.Rules.Target.ProjectFile.Directory, "Source");
+					if (Module.Rules.File.IsUnderDirectory(ProjectSourceDirectoryName))
+					{
+						ModuleIncludeBase = ProjectSourceDirectoryName;
+					}
+				}
+
+				// If we still cannot find an include base, this most likely means the module is set up incorrectly when using BuildSettingsVersion.V3.=
+				// Fall back to Engine/Source or the UHT generated directory, however this should be resolved by fixing the ModuleRules.
+				if (ModuleIncludeBase == null && Module.ModuleDirectory.IsUnderDirectory(Unreal.EngineSourceDirectory))
+				{
+					ModuleIncludeBase = Unreal.EngineSourceDirectory;
+					Logger.LogWarning("Unable to find a module include path for {Module}, using engine source path '{Path}' because no standard Public/Private/Internal include paths were added. Please resolve by updating the module's .Build.cs", Module.Name, ModuleIncludeBase);
+				}
+				if (ModuleIncludeBase == null)
+				{
+					ModuleIncludeBase = Module.GeneratedCodeDirectoryUHT!;
+					Logger.LogWarning("Unable to find a module include path for {Module}, using generated path '{Path}' because no standard Public/Private/Internal include paths were added. Please resolve by updating the module's .Build.cs", Module.Name, ModuleIncludeBase);
+				}
+			}
+
+			return ModuleIncludeBase;
+		}
+
 		public static void SetupUObjectModules(IEnumerable<UEBuildModuleCPP> ModulesToGenerateHeadersFor, UnrealTargetPlatform Platform, ProjectDescriptor? ProjectDescriptor, List<UHTModuleInfo> UObjectModules, List<UHTModuleHeaderInfo> UObjectModuleHeaders, EGeneratedCodeVersion GeneratedCodeVersion, SourceFileMetadataCache MetadataCache, ILogger Logger)
 		{
 			// Find the type of each module
@@ -472,7 +517,10 @@ namespace UnrealBuildTool
 				{
 					UEBuildModuleCPP Module = ModulesSortedByType[Idx];
 
-					UHTModuleInfo Info = new UHTModuleInfo(Module.Name, Module.RulesFile, Module.ModuleDirectories, ModuleToType[Module], DirectoryItem.GetItemByDirectoryReference(Module.GeneratedCodeDirectoryUHT!), GeneratedCodeVersion, Module.Rules.bUsePrecompiled, Module.Rules.OverridePackageType);
+					DirectoryItem GeneratedCodeDirectory = DirectoryItem.GetItemByDirectoryReference(Module.GeneratedCodeDirectoryUHT!);
+					DirectoryReference ModuleIncludeBase = FindIncludeBase(Module, Logger);
+
+					UHTModuleInfo Info = new UHTModuleInfo(Module.Name, Module.RulesFile, Module.ModuleDirectories, ModuleIncludeBase, ModuleToType[Module], GeneratedCodeDirectory, GeneratedCodeVersion, Module.Rules.bUsePrecompiled, Module.Rules.OverridePackageType);
 					ModuleInfoArray[Idx] = Info;
 
 					Queue.Enqueue(() => SetupUObjectModule(Info, ExcludedFolders, MetadataCache, Queue));
@@ -1007,7 +1055,7 @@ namespace UnrealBuildTool
 						ModuleType = (UHTModuleType)Enum.Parse(typeof(UHTModuleType), UObjectModule.ModuleType),
 						OverrideModuleType = (EPackageOverrideType)Enum.Parse(typeof(EPackageOverrideType), UObjectModule.OverrideModuleType),
 						BaseDirectory = UObjectModule.ModuleDirectories[0].FullName,
-						IncludeBase = UObjectModule.ModuleDirectories[0].ParentDirectory!.FullName,
+						IncludeBase = UObjectModule.ModuleIncudeBase.FullName,
 						OutputDirectory = Path.GetDirectoryName(UObjectModule.GeneratedCPPFilenameBase)!,
 						ClassesHeaders = UObjectModule.PublicUObjectClassesHeaders.Select((Header) => Header.AbsolutePath).ToList(),
 						PublicHeaders = UObjectModule.PublicUObjectHeaders.Select((Header) => Header.AbsolutePath).ToList(),
