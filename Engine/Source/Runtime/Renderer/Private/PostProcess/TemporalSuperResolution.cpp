@@ -61,14 +61,6 @@ TAutoConsoleVariable<float> CVarTSRFlickeringMaxParralaxVelocity(
 	TEXT("Maximum parralax velocity in 1080p 60hz pixels allowed before diminishing flickering.\n"),
 	ECVF_RenderThreadSafe);
 
-TAutoConsoleVariable<int32> CVarTSRFilterShadingRejection(
-	TEXT("r.TSR.ShadingRejection.SpatialFilter"), 1,
-	TEXT("Whether the shading rejection should have spatial statistical filtering pass to reduce flickering (default = 1).\n")
-	TEXT(" 0: Disabled;\n")
-	TEXT(" 1: Spatial filter pass is run at lower resolution than CompareHistory pass (default);\n")
-	TEXT(" 2: Spatial filter pass is run CompareHistory pass resolution to improve stability."),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
-
 TAutoConsoleVariable<int32> CVarTSRRejectionAntiAliasingQuality(
 	TEXT("r.TSR.RejectionAntiAliasingQuality"), 3,
 	TEXT("Controls the quality of spatial anti-aliasing on history rejection (default=1)."),
@@ -543,36 +535,6 @@ class FTSRRejectShadingCS : public FTSRShader
 	}
 }; // class FTSRRejectShadingCS
 
-class FTSRPostfilterRejectionCS : public FTSRShader
-{
-	DECLARE_GLOBAL_SHADER(FTSRPostfilterRejectionCS);
-	SHADER_USE_PARAMETER_STRUCT(FTSRPostfilterRejectionCS, FTSRShader);
-
-	class FOutputHalfRes : SHADER_PERMUTATION_BOOL("DIM_OUTPUT_HALF_RES");
-	using FPermutationDomain = TShaderPermutationDomain<FOutputHalfRes>;
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FIntRect, HistoryRejectionViewport)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, HistoryRejectionOutput)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray, DebugOutput)
-	END_SHADER_PARAMETER_STRUCT()
-}; // class FTSRPostfilterRejectionCS
-
-class FTSRDilateRejectionCS : public FTSRShader
-{
-	DECLARE_GLOBAL_SHADER(FTSRDilateRejectionCS);
-	SHADER_USE_PARAMETER_STRUCT(FTSRDilateRejectionCS, FTSRShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FIntRect, HistoryRejectionViewport)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryRejectionTexture)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DilatedHistoryRejectionOutput)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2DArray, DebugOutput)
-	END_SHADER_PARAMETER_STRUCT()
-}; // class FTSRDilateRejectionCS
-
 class FTSRSpatialAntiAliasingCS : public FTSRShader
 {
 	DECLARE_GLOBAL_SHADER(FTSRSpatialAntiAliasingCS);
@@ -756,8 +718,6 @@ IMPLEMENT_GLOBAL_SHADER(FTSRDilateVelocityCS,        "/Engine/Private/TemporalSu
 IMPLEMENT_GLOBAL_SHADER(FTSRDecimateHistoryCS,       "/Engine/Private/TemporalSuperResolution/TSRDecimateHistory.usf",       "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRCompareTranslucencyCS,   "/Engine/Private/TemporalSuperResolution/TSRCompareTranslucency.usf",   "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRRejectShadingCS,         "/Engine/Private/TemporalSuperResolution/TSRRejectShading.usf",         "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FTSRPostfilterRejectionCS,   "/Engine/Private/TemporalSuperResolution/TSRPostfilterRejection.usf",   "MainCS", SF_Compute);
-IMPLEMENT_GLOBAL_SHADER(FTSRDilateRejectionCS,       "/Engine/Private/TemporalSuperResolution/TSRDilateRejection.usf",       "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRSpatialAntiAliasingCS,   "/Engine/Private/TemporalSuperResolution/TSRSpatialAntiAliasing.usf",   "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRFilterAntiAliasingCS,    "/Engine/Private/TemporalSuperResolution/TSRFilterAntiAliasing.usf",    "MainCS", SF_Compute);
 IMPLEMENT_GLOBAL_SHADER(FTSRUpdateHistoryCS,         "/Engine/Private/TemporalSuperResolution/TSRUpdateHistory.usf",         "MainCS", SF_Compute);
@@ -858,20 +818,8 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		RejectionAntiAliasingQuality = 0; 
 	}
 
-	enum class ERejectionPostFilter : uint8
-	{
-		Disabled,
-		PostRejectionDownsample,
-		PreRejectionDownsample,
-	};
-
-	ERejectionPostFilter PostFilter = ERejectionPostFilter(FMath::Clamp(CVarTSRFilterShadingRejection.GetValueOnRenderThread(), 2, 2)); // TODO(TSR)
-
 	FIntPoint InputExtent = PassInputs.SceneColorTexture->Desc.Extent;
 	FIntRect InputRect = View.ViewRect;
-
-	FIntPoint RejectionExtent = InputExtent / 2;
-	FIntRect RejectionRect = FIntRect(InputRect.Min / 2, InputRect.Min / 2 + FIntPoint::DivideAndRoundUp(InputRect.Size(), 2));
 
 	FIntPoint OutputExtent;
 	FIntRect OutputRect;
@@ -1498,9 +1446,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	FRDGTextureRef HistoryRejectionTexture;
 	FRDGTextureRef InputSceneColorLdrLumaTexture = nullptr;
 	{
-		bool bOutputHalfRes = PostFilter != ERejectionPostFilter::PreRejectionDownsample;
-		check(!bOutputHalfRes); // TODO(TSR)
-
 		{
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 				InputExtent,
@@ -1513,8 +1458,8 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 
 		{
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-				bOutputHalfRes ? RejectionExtent : InputExtent,
-				PF_R8,
+				InputExtent,
+				PF_R8G8,
 				FClearValueBinding::None,
 				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
 
@@ -1634,66 +1579,6 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		}
 	}
 
-	// Post filter the rejection.
-	if (PostFilter != ERejectionPostFilter::Disabled)
-	{
-		bool bOutputHalfRes = PostFilter == ERejectionPostFilter::PreRejectionDownsample;
-		FIntRect Rect = bOutputHalfRes ? InputRect : RejectionRect;
-
-		FRDGTextureRef FilteredHistoryRejectionTexture;
-		{
-			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-				RejectionExtent,
-				PF_R8,
-				FClearValueBinding::None,
-				/* InFlags = */ TexCreate_ShaderResource | TexCreate_UAV);
-
-			FilteredHistoryRejectionTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.HistoryRejection"));
-		}
-
-		FTSRPostfilterRejectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRPostfilterRejectionCS::FParameters>();
-		PassParameters->HistoryRejectionViewport = Rect;
-		PassParameters->HistoryRejectionTexture = HistoryRejectionTexture;
-		PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
-		PassParameters->HistoryRejectionOutput = GraphBuilder.CreateUAV(FilteredHistoryRejectionTexture);
-		PassParameters->DebugOutput = CreateDebugUAV(bOutputHalfRes ? InputExtent : RejectionExtent, TEXT("Debug.TSR.PostfilterRejection"));
-
-		FTSRPostfilterRejectionCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FTSRPostfilterRejectionCS::FOutputHalfRes>(PostFilter == ERejectionPostFilter::PreRejectionDownsample);
-
-		TShaderMapRef<FTSRPostfilterRejectionCS> ComputeShader(View.ShaderMap, PermutationVector);
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("TSR PostfilterRejection %dx%d", Rect.Width(), Rect.Height()),
-			AsyncComputePasses >= 3 ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute,
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(Rect.Size(), 8));
-
-		HistoryRejectionTexture = FilteredHistoryRejectionTexture;
-	}
-
-	// Dilate the rejection.
-	FRDGTextureRef DilatedHistoryRejectionTexture;
-	{
-		DilatedHistoryRejectionTexture = GraphBuilder.CreateTexture(HistoryRejectionTexture->Desc, TEXT("TSR.DilatedHistoryRejection"));
-
-		FTSRDilateRejectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRDilateRejectionCS::FParameters>();
-		PassParameters->HistoryRejectionViewport = RejectionRect;
-		PassParameters->HistoryRejectionTexture = HistoryRejectionTexture;
-		PassParameters->DilatedHistoryRejectionOutput = GraphBuilder.CreateUAV(DilatedHistoryRejectionTexture);
-		PassParameters->DebugOutput = CreateDebugUAV(RejectionExtent, TEXT("Debug.TSR.DilateRejection"));
-
-		TShaderMapRef<FTSRDilateRejectionCS> ComputeShader(View.ShaderMap);
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("TSR DilateRejection %dx%d", RejectionRect.Width(), RejectionRect.Height()),
-			AsyncComputePasses >= 3 ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute,
-			ComputeShader,
-			PassParameters,
-			FComputeShaderUtils::GetGroupCount(RejectionRect.Size(), 8));
-	}
-
 	// Update temporal history.
 	{
 		static const TCHAR* const kUpdateQualityNames[] = {
@@ -1710,7 +1595,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->InputSceneStencilTexture = GraphBuilder.CreateSRV(
 			FRDGTextureSRVDesc::CreateWithPixelFormat(PassInputs.SceneDepthTexture, PF_X24_G8));
 		PassParameters->InputSceneTranslucencyTexture = SeparateTranslucencyTexture;
-		PassParameters->HistoryRejectionTexture = DilatedHistoryRejectionTexture;
+		PassParameters->HistoryRejectionTexture = HistoryRejectionTexture;
 		PassParameters->TranslucencyRejectionTexture = TranslucencyRejectionTexture ? TranslucencyRejectionTexture : BlackDummy;
 
 		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;

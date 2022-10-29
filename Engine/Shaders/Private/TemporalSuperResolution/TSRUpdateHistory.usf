@@ -130,7 +130,7 @@ Texture2D<tsr_halfC> InputSceneColorTexture;
 Texture2D<uint2> InputSceneStencilTexture;
 Texture2D<tsr_half4> InputSceneTranslucencyTexture;
 
-Texture2D<tsr_half> HistoryRejectionTexture;
+Texture2D<tsr_half2> HistoryRejectionTexture;
 Texture2D<tsr_half> TranslucencyRejectionTexture;
 
 Texture2D<float2> DilatedVelocityTexture;
@@ -399,6 +399,7 @@ void MainCS(
 		float2x2 GrandPrevScreenPos = ScreenPos;
 	#endif
 	tsr_half2 LowFrequencyRejection = tsr_half(1.0).xx;
+	tsr_half2 LowFrequencyClamp = tsr_half(1.0).xx;
 	tsr_half2 TranslucencyRejection = tsr_half(1.0).xx;
 	tsr_half2 OutputPixelVelocity = tsr_half(0.0).xx;
 	tsr_half2 NoiseFiltering = tsr_half(0.0).xx;
@@ -429,7 +430,7 @@ void MainCS(
 
 		tsr_half RawParallaxRejectionMask[DPV_PIXEL_PER_LANE];
 		uint RawParallaxFactorBits[DPV_PIXEL_PER_LANE];
-		tsr_half RawLowFrequencyRejection[DPV_PIXEL_PER_LANE];
+		tsr_half2 RawLowFrequencyRejection[DPV_PIXEL_PER_LANE];
 		
 		uint RawSceneStencilRef[DPV_PIXEL_PER_LANE];
 		uint RawSceneStencilRefNeighborhood[CONFIG_SAMPLES - 1][DPV_PIXEL_PER_LANE];
@@ -443,8 +444,6 @@ void MainCS(
 		// Issue overlapped texture fetches
 		PLATFORM_SPECIFIC_ISOLATE
 		{
-			tsr_ushort2x2 RejectionPixelPos = tsr_ushort2x2(InputPixelPos) / 2;
-
 			UNROLL_N(DPV_PIXEL_PER_LANE)
 			for (uint PixelId = 0; PixelId < DPV_PIXEL_PER_LANE; PixelId++)
 			{
@@ -461,7 +460,7 @@ void MainCS(
 				RawParallaxFactorBits[PixelId]    = ParallaxFactorTexture[LocalInputPixelPos];
 				RawSceneStencilRef[PixelId]       = InputSceneStencilTexture.Load(int3(LocalInputPixelPos, 0)) STENCIL_COMPONENT_SWIZZLE;
 				
-				RawLowFrequencyRejection[PixelId] = HistoryRejectionTexture[dpv_access_pixel(RejectionPixelPos, PixelId)];
+				RawLowFrequencyRejection[PixelId] = HistoryRejectionTexture[LocalInputPixelPos];
 				
 				#if CONFIG_REJECTION_ANTI_ALIASING
 				{
@@ -617,7 +616,8 @@ void MainCS(
 				/* out */ bIsDisoccluded);
 
 			// Process input texel, forcing to pack register.
-			LowFrequencyRejection = dpv_force_interleave_registers_array(RawLowFrequencyRejection);
+			LowFrequencyRejection = dpv_force_interleave_registers_array(RawLowFrequencyRejection)[0];
+			LowFrequencyClamp     = dpv_force_interleave_registers_array(RawLowFrequencyRejection)[1];
 			SceneStencilRef       = dpv_force_interleave_registers_array(RawSceneStencilRef);
 			
 			// Process neighborhood
@@ -1248,7 +1248,7 @@ void MainCS(
 
 		tsr_half2 TotalRejection = select(or(bIsOffScreen, bIsDisoccluded), tsr_half(0.0).xx, saturate(LowFrequencyRejection * tsr_half(4.0)));
 
-		tsr_half2 BlendClamp = TotalRejection * HoleFilledVelocityMask[1];
+		tsr_half2 BlendClamp = min(TotalRejection * HoleFilledVelocityMask[1], LowFrequencyClamp);
 		
 		#if CONFIG_PREMULTIPLY_HISTORY
 			tsr_halfCx2 UnpremultipliedPrevHighFrequencyColor = dpv_scale(PrevHighFrequencyColor, InvPrevHistoryWeight);
