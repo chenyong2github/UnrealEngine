@@ -18,7 +18,7 @@ class FDataflowEnginePlugin : public IDataflowEnginePlugin
 	virtual void ShutdownModule() override;
 };
 
-IMPLEMENT_MODULE( FDataflowEnginePlugin, FleshEngine )
+IMPLEMENT_MODULE( FDataflowEnginePlugin, DataflowEnginePlugin)
 
 
 
