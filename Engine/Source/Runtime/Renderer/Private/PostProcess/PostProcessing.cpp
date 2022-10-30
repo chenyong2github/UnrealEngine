@@ -2252,8 +2252,10 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 			PassSequence.AcceptPass(EPass::SeparateTranslucency);
 			FMobileSeparateTranslucencyInputs SeparateTranslucencyInputs;
 			SeparateTranslucencyInputs.SceneColor = SceneColor;
+			SeparateTranslucencyInputs.SceneDepthAux = SceneDepthAux;
 			SeparateTranslucencyInputs.SceneDepth = SceneDepth;
-
+			SeparateTranslucencyInputs.bRequiresMultiPass = Inputs.bRequiresMultiPass;
+			
 			AddMobileSeparateTranslucencyPass(GraphBuilder, Scene, View, SeparateTranslucencyInputs);
 		}
 

@@ -8,7 +8,9 @@
 struct FMobileSeparateTranslucencyInputs
 {
 	FScreenPassTexture SceneColor;
+	FScreenPassTexture SceneDepthAux;
 	FScreenPassTexture SceneDepth;
+	bool bRequiresMultiPass;
 };
 
 void AddMobileSeparateTranslucencyPass(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, const FMobileSeparateTranslucencyInputs& Inputs);

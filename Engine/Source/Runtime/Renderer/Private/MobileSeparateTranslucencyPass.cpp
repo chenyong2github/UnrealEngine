@@ -36,12 +36,17 @@ bool IsMobileSeparateTranslucencyActive(const FViewInfo& View)
 
 void AddMobileSeparateTranslucencyPass(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, const FMobileSeparateTranslucencyInputs& Inputs)
 {
-	// GPUCULL_TODO: View.ParallelMeshDrawCommandPasses[EMeshPass::TranslucencyAfterDOF].BuildRenderingCommands(GraphBuilder, Scene->GPUScene);
+	// Whether BasePass uses single pass rendering with framebuffer fetch
+	const bool bSinglePassRendering = !Inputs.bRequiresMultiPass;
 
 	FMobileSeparateTranslucencyPassParameters* PassParameters = GraphBuilder.AllocParameters<FMobileSeparateTranslucencyPassParameters>();
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(Inputs.SceneColor.Texture, ERenderTargetLoadAction::ELoad);
+	if (bSinglePassRendering)
+	{
+		PassParameters->RenderTargets[1] = FRenderTargetBinding(Inputs.SceneDepthAux.Texture, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets.SubpassHint = ESubpassHint::DepthReadSubpass;
+	}
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(Inputs.SceneDepth.Texture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilRead);
-	PassParameters->RenderTargets.SubpassHint = ESubpassHint::DepthReadSubpass;
 	PassParameters->View = View.ViewUniformBuffer;
 	EMobileSceneTextureSetupMode SetupMode = EMobileSceneTextureSetupMode::SceneDepth | EMobileSceneTextureSetupMode::SceneDepthAux | EMobileSceneTextureSetupMode::CustomDepth;
 	PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Translucent, SetupMode);
@@ -52,10 +57,13 @@ void AddMobileSeparateTranslucencyPass(FRDGBuilder& GraphBuilder, FScene* Scene,
 		RDG_EVENT_NAME("SeparateTranslucency %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[&View, PassParameters](FRHICommandList& RHICmdList)
+		[&View, PassParameters, bSinglePassRendering](FRHICommandList& RHICmdList)
 	{
+		if (bSinglePassRendering)
+		{
+			RHICmdList.NextSubpass();
+		}
 		// Set the view family's render target/viewport.
-		RHICmdList.NextSubpass();
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 		View.ParallelMeshDrawCommandPasses[EMeshPass::TranslucencyAfterDOF].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
 	});

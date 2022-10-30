@@ -62,6 +62,7 @@ struct FMobilePostProcessingInputs
 {
 	TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> SceneTextures = nullptr;
 	FRDGTextureRef ViewFamilyTexture = nullptr;
+	bool bRequiresMultiPass = false;
 
 	void Validate() const
 	{

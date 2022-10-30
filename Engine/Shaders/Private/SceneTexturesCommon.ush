@@ -200,8 +200,8 @@ float LookupDeviceZ( float2 ScreenUV )
 	return VulkanSubpassDepthFetch();
 #elif MOBILE_DEPTHFECTH && (METAL_PROFILE && !MAC)
 	return DepthbufferFetchES2();
-#elif (POST_PROCESS_MATERIAL && !MOBILE_DEFERRED_SHADING)
-	// SceneDepth texture is not accessible during post-processing as we discard it at the end of mobile BasePass (with forward shading) 
+#elif (USE_SCENE_DEPTH_AUX && !MOBILE_DEFERRED_SHADING)
+	// SceneDepth texture is discarded after BasePass (with forward shading) 
 	// instead fetch DeviceZ from SceneDepthAuxTexture
 	return Texture2DSampleLevel(MobileSceneTextures.SceneDepthAuxTexture, MobileSceneTextures.SceneDepthAuxTextureSampler, ScreenUV, 0).r;
 #else

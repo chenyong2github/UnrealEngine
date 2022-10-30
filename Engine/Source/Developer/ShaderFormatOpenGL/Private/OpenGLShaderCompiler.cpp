@@ -2291,6 +2291,7 @@ bool GenerateGlslShader(std::string& OutString, GLSLCompileParameters& GLSLCompi
 	}
 
 	// If we are rendering deferred, then we only need SceneDepthAux on devices that don't support framebuffer fetch depth
+	/*
 	if (bIsDeferred)
 	{
 		std::string SceneDepthAux = "layout(location = 4) out highp float out_var_SV_Target4;";
@@ -2317,6 +2318,7 @@ bool GenerateGlslShader(std::string& OutString, GLSLCompileParameters& GLSLCompi
 			}
 		}
 	}
+	*/
 
 	// Fixup packed globals
 	{
