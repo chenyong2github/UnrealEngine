@@ -363,7 +363,9 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, FRa
 	}
 #endif
 
-#if NANITE_PIXEL_PROGRAMMABLE
+	// Note: NANITE_PIXEL_PROGRAMMABLE is currently too conservative and PDO / Masking needs to be checked explicitly to remove unused code
+	// See ShouldCompileProgrammablePermutation in NaniteCullRaster.cpp
+#if NANITE_PIXEL_PROGRAMMABLE && (WANT_PIXEL_DEPTH_OFFSET || MATERIALBLENDING_MASKED)
 	// Material parameter inputs
 	float4 SvPosition = float4(float(PixelPos.x) + 0.5f, float(PixelPos.y) + 0.5f, DeviceZ, 1.0f);
 	
@@ -387,7 +389,7 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, FRa
 	#if MATERIALBLENDING_MASKED
 	MaterialMask = GetMaterialMask(PixelMaterialInputs);
 	#endif
-#endif
+#endif // NANITE_PIXEL_PROGRAMMABLE && (WANT_PIXEL_DEPTH_OFFSET || MATERIALBLENDING_MASKED)
 
 	BRANCH
 	if (MaterialMask >= 0)
@@ -2042,7 +2044,9 @@ void HWRasterizePS(VSOut In
 		}
 	#endif
 
-	#if NANITE_PIXEL_PROGRAMMABLE
+	// Note: NANITE_PIXEL_PROGRAMMABLE is currently too conservative and PDO / Masking needs to be checked explicitly to remove unused code
+	// See ShouldCompileProgrammablePermutation in NaniteCullRaster.cpp
+	#if NANITE_PIXEL_PROGRAMMABLE && (WANT_PIXEL_DEPTH_OFFSET || MATERIALBLENDING_MASKED)
 		ResolvedView = ResolveView(NaniteView);
 
 		const uint DepthInt = asuint(DeviceZ);
@@ -2106,7 +2110,7 @@ void HWRasterizePS(VSOut In
 		#if MATERIALBLENDING_MASKED
 		MaterialMask = GetMaterialMask(PixelMaterialInputs);
 		#endif
-	#endif
+	#endif // NANITE_PIXEL_PROGRAMMABLE && (WANT_PIXEL_DEPTH_OFFSET || MATERIALBLENDING_MASKED)
 
 		BRANCH
 		if (MaterialMask >= 0)
