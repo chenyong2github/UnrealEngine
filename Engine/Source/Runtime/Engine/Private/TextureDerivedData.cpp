@@ -258,6 +258,18 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		Ar << TempGuid;
 	}
 
+	if ( Settings.bCubemap && Settings.bUseNewMipFilter )
+	{
+		if ( ( Settings.MipGenSettings >= TMGS_Sharpen0 && Settings.MipGenSettings <= TMGS_Sharpen10 ) ||
+			( Settings.MipGenSettings >= TMGS_Blur1 && Settings.MipGenSettings <= TMGS_Blur5 ) )
+		{
+			// @todo SerializeForKey these can go away whenever we bump the overall ddc key
+			// behavior of mip filter changed so modify the key :
+			TempGuid = FGuid(0xB0420236,0x90064562,0x9C1F10B8,0x2771C31F);
+			Ar << TempGuid;			
+		}
+	}
+
 	if ( Settings.MaxTextureResolution != FTextureBuildSettings::MaxTextureResolutionDefault &&
 		( Settings.MipGenSettings == TMGS_LeaveExistingMips || Settings.bDoScaleMipsForAlphaCoverage ) )
 	{

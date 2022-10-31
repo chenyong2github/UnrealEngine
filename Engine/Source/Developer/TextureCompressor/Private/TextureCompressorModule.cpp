@@ -1149,8 +1149,18 @@ static void GenerateMipBorder(
 // how should be treat lookups outside of the image
 static EMipGenAddressMode ComputeAddressMode(const FImage & Image,const FTextureBuildSettings& Settings)
 {
-	// note: all textures Wrap by default even if their address mode is set to Clamp !?
-	EMipGenAddressMode AddressMode = MGTAM_Wrap;
+	if ( Settings.bPreserveBorder )
+	{
+		return Settings.bBorderColorBlack ? MGTAM_BorderBlack : MGTAM_Clamp;
+	}
+	
+	// conditional on bUseNewMipFilter so old textures are not changed
+	//	really this should be done all the time
+	if ( Settings.bCubemap && Settings.bUseNewMipFilter )
+	{
+		// Cubemaps should Clamp on their faces, never wrap :
+		return MGTAM_Clamp;
+	}
 
 	// Wrap uses AND so requires pow2 sizes ; change to Clamp if nonpow2
 	bool bIsPow2 = FMath::IsPowerOfTwo(Image.SizeX) && FMath::IsPowerOfTwo(Image.SizeY);
@@ -1164,13 +1174,15 @@ static EMipGenAddressMode ComputeAddressMode(const FImage & Image,const FTexture
 
 	if ( ! bIsPow2 )
 	{
-		AddressMode = MGTAM_Clamp;
+		return MGTAM_Clamp;
 	}
 
-	if(Settings.bPreserveBorder)
-	{
-		AddressMode = Settings.bBorderColorBlack ? MGTAM_BorderBlack : MGTAM_Clamp;
-	}
+	// note: all textures Wrap by default even if their address mode is set to Clamp !?
+	EMipGenAddressMode AddressMode = MGTAM_Wrap;
+
+	// @todo Oodle : could do Clamp here if both TextureX and Y address modes are set to Clamp (GetTextureAddressX)
+	//	that would catch the most common case with no other code work
+	//	the more complete solution requires separate AddressMode for X/Y/Z
 
 	return AddressMode;
 }
