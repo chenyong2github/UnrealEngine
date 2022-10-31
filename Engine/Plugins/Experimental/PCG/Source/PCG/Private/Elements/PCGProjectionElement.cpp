@@ -1,8 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGProjectionElement.h"
-#include "Data/PCGProjectionData.h"
+
+#include "PCGCustomVersion.h"
+#include "PCGEdge.h"
 #include "Helpers/PCGSettingsHelpers.h"
+
+TArray<FPCGPinProperties> UPCGProjectionSettings::InputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Spatial);
+	PinProperties.Emplace(PCGProjectionConstants::ProjectionTargetLabel, EPCGDataType::Spatial, /*bAllowMultipleConnections=*/false);
+	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/false);
+
+	return PinProperties;
+}
 
 FPCGElementPtr UPCGProjectionSettings::CreateElement() const
 {
@@ -12,12 +24,34 @@ FPCGElementPtr UPCGProjectionSettings::CreateElement() const
 bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGProjectionElement::Execute);
+	check(Context);
 
 	const UPCGProjectionSettings* Settings = Context->GetInputSettings<UPCGProjectionSettings>();
 	check(Settings);
 
-	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
+	TArray<FPCGTaggedData> Sources = Context->InputData.GetInputsByPin(PCGPinConstants::DefaultInputLabel);
+	TArray<FPCGTaggedData> Targets = Context->InputData.GetInputsByPin(PCGProjectionConstants::ProjectionTargetLabel);
+
+	// If there are no sources or no targets, then nothing to do.
+	if (Sources.Num() == 0 || Targets.Num() != 1)
+	{
+		return true;
+	}
+
+	// Ensure we have spatial data to project onto
+	UPCGSpatialData* ProjectionTarget = Cast<UPCGSpatialData>(Targets[0].Data);
+	if (!ProjectionTarget)
+	{
+		return true;
+	}
+
 	UPCGParamData* Params = Context->InputData.GetParams();
+
+	FPCGProjectionParams ProjectionParams = Settings->Params;
+	ProjectionParams.bProjectPositions = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(FPCGProjectionParams, bProjectPositions), ProjectionParams.bProjectPositions, Params);
+	ProjectionParams.bProjectRotations = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(FPCGProjectionParams, bProjectRotations), ProjectionParams.bProjectRotations, Params);
+	ProjectionParams.bProjectScales = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(FPCGProjectionParams, bProjectScales), ProjectionParams.bProjectScales, Params);
+	ProjectionParams.bProjectColors = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(FPCGProjectionParams, bProjectColors), ProjectionParams.bProjectColors, Params);
 
 	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
 
@@ -27,41 +61,31 @@ bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 	const bool bKeepZeroDensityPoints = false;
 #endif
 
-	const UPCGSpatialData* FirstSpatialData = nullptr;
-	UPCGProjectionData* ProjectionData = nullptr;
-	int32 ProjectionTaggedDataIndex = -1;
-
-	// TODO: it might not make sense to perform the projection if the first
-	// data isn't a spatial data, otherwise, what would it really mean?
-	for (FPCGTaggedData& Input : Inputs)
+	for (FPCGTaggedData& Source : Sources)
 	{
-		const UPCGSpatialData* SpatialData = Cast<UPCGSpatialData>(Input.Data);
+		UPCGSpatialData* ProjectionSource = Cast<UPCGSpatialData>(Source.Data);
 
-		if (!SpatialData)
+		if (!ProjectionSource)
 		{
-			Outputs.Add(Input);
+			PCGE_LOG(Error, "Invalid projection source data input found (non-spatial data). Input will be ignored.");
 			continue;
 		}
 
-		if (!FirstSpatialData)
-		{
-			FirstSpatialData = SpatialData;
-			ProjectionTaggedDataIndex = Outputs.Num();
-			Outputs.Add(Input);
-			continue;
-		}
-
-		// Create a new projection
-		ProjectionData = (ProjectionData ? ProjectionData : FirstSpatialData)->ProjectOn(SpatialData);
-
+		UPCGProjectionData* ProjectionData = ProjectionSource->ProjectOn(ProjectionTarget, ProjectionParams);
 #if WITH_EDITORONLY_DATA
 		ProjectionData->bKeepZeroDensityPoints = bKeepZeroDensityPoints;
 #endif
-		
-		// Update the tagged data
-		FPCGTaggedData& ProjectionTaggedData = Outputs[ProjectionTaggedDataIndex];
+
+		if (ProjectionData->RequiresCollapseToSample())
+		{
+			// Calling ToPointData will populate the point cache. Doing so here means we can pass in the Context object, which
+			// means the operation will be multi-threaded. This primes the cache in the most efficient way.
+			ProjectionData->ToPointData(Context);
+		}
+
+		FPCGTaggedData& ProjectionTaggedData = Outputs.Emplace_GetRef(Source);
 		ProjectionTaggedData.Data = ProjectionData;
-		ProjectionTaggedData.Tags.Append(Input.Tags);
+		ProjectionTaggedData.Tags.Append(Targets[0].Tags);
 	}
 
 	// Pass-through exclusions/settings
@@ -69,3 +93,38 @@ bool FPCGProjectionElement::ExecuteInternal(FPCGContext* Context) const
 
 	return true;
 }
+
+#if WITH_EDITOR
+void UPCGProjectionSettings::ApplyDeprecation(UPCGNode* InOutNode)
+{
+	Super::ApplyDeprecation(InOutNode);
+	check(InOutNode);
+
+	if (DataVersion < FPCGCustomVersion::SplitProjectionNodeInputs)
+	{
+		// Split first pin inputs across two pins. The last edge connected to the first pin becomes the projection target.
+		check(InOutNode->GetInputPins().Num() == 2);
+
+		UPCGPin* SourcePin = InOutNode->GetInputPins()[0];
+		check(SourcePin);
+
+		if (SourcePin->EdgeCount() > 1)
+		{
+			UPCGPin* TargetPin = InOutNode->GetInputPins()[1];
+			check(TargetPin);
+
+			UPCGEdge* ProjectionTargetEdge = SourcePin->Edges.Last();
+			check(ProjectionTargetEdge);
+
+			UPCGPin* UpstreamPin = ProjectionTargetEdge->InputPin;
+			check(UpstreamPin);
+
+			UpstreamPin->BreakEdgeTo(SourcePin);
+			UpstreamPin->AddEdgeTo(TargetPin);
+		}
+	}
+
+	// Signal that data is up to date at end of deprecation code.
+	DataVersion = FPCGCustomVersion::LatestVersion;
+}
+#endif // WITH_EDITOR

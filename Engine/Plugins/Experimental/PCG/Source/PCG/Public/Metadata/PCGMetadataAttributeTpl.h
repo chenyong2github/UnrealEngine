@@ -108,8 +108,37 @@ public:
 		check(ItemKey != PCGInvalidEntryKey);
 		bool bAppliedValue = false;
 
-		if (InAttributeA && InAttributeB && bAllowsInterpolation)
+		if (Op == EPCGMetadataOp::TargetValue && InAttributeB)
 		{
+			// Take value of second attribute.
+			if (InAttributeB == this)
+			{
+				SetValueFromValueKey(ItemKey, GetValueKey(InEntryKeyB));
+			}
+			else
+			{
+				SetValue(ItemKey, static_cast<const FPCGMetadataAttribute<T>*>(InAttributeB)->GetValueFromItemKey(InEntryKeyB));
+			}
+
+			bAppliedValue = true;
+		}
+		else if (Op == EPCGMetadataOp::SourceValue && InAttributeA)
+		{
+			// Take value of first attribute.
+			if (InAttributeA == this)
+			{
+				SetValueFromValueKey(ItemKey, GetValueKey(InEntryKeyA));
+			}
+			else
+			{
+				SetValue(ItemKey, static_cast<const FPCGMetadataAttribute<T>*>(InAttributeA)->GetValueFromItemKey(InEntryKeyA));
+			}
+
+			bAppliedValue = true;
+		}
+		else if (InAttributeA && InAttributeB && bAllowsInterpolation)
+		{
+			// Combine attributes using specified operation.
 			if (Op == EPCGMetadataOp::Min)
 			{
 				bAppliedValue = SetMin(ItemKey, InAttributeA, InEntryKeyA, InAttributeB, InEntryKeyB);

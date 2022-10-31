@@ -24,12 +24,21 @@ public:
 	virtual void BeginDestroy() override;
 	//~ End UObject interface
 
-	/** Initializes the metadata from a parent metadata, if any (can be null) */
+	/** Initializes the metadata from a parent metadata, if any (can be null). Copies attributes and values. */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
-	void Initialize(const UPCGMetadata* InParent);
+	void Initialize(const UPCGMetadata* InParent) { InitializeWithAttributeFilter(InParent, TSet<FName>()); }
 
 	/** Initializes the metadata from a parent metadata, if any (can be null) with the option to not add attributes from the parent. */
 	void Initialize(const UPCGMetadata* InParent, bool bAddAttributesFromParent);
+
+	/**
+	 * Initializes the metadata from a parent metadata. Copies attributes and values.
+	 * @param InParent The parent metadata to use as a template, if any (can be null).
+	 * @param InFilteredAttributes Optional list of attributes to exclude or include when adding the attributes from the parent.
+	 * @param InFilterMode Defines attribute filter operation.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void InitializeWithAttributeFilter(const UPCGMetadata* InParent, const TSet<FName>& InFilteredAttributes, EPCGMetadataFilterMode InFilterMode = EPCGMetadataFilterMode::ExcludeAttributes);
 
 	/** Initializes the metadata from a parent metadata by copying all attributes to it. */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
@@ -37,7 +46,16 @@ public:
 
 	/** Creates missing attributes from another metadata if they are not currently present - note that this does not copy values */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
-	void AddAttributes(const UPCGMetadata* InOther);
+	void AddAttributes(const UPCGMetadata* InOther) { AddAttributesFiltered(InOther, TSet<FName>()); }
+
+	/**
+	 * Creates missing attributes from another metadata if they are not currently present - note that this does not copy values.
+	 * @param InOther The other metadata to obtain a list of attributes from.
+	 * @param InFilteredAttributes Optional list of attributes to exclude or include when adding the attributes.
+	 * @param InFilterMode Defines attribute filter operation.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	void AddAttributesFiltered(const UPCGMetadata* InOther, const TSet<FName>& InFilteredAttributes, EPCGMetadataFilterMode InFilterMode = EPCGMetadataFilterMode::ExcludeAttributes);
 
 	/** Creates missing attribute from another metadata if it is not currently present - note that this does not copy values */
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
