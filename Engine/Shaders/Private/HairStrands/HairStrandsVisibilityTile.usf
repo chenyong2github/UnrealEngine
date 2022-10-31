@@ -154,22 +154,25 @@ void FillIndirectBuffers(uint TileType)
 	TileIndirectDrawBuffer[TileType * 4 + 3] = 0;  // StartInstanceLocation
 
 	// Indirect dispatch
-	TileIndirectDispatchBuffer[TileType * 3 + 0] = TileCount >= TileCountXY.x ? TileCountXY.x : TileCount;
-	TileIndirectDispatchBuffer[TileType * 3 + 1] = (TileCount + TileCountXY.x - 1) / TileCountXY.x;
-	TileIndirectDispatchBuffer[TileType * 3 + 2] = 1;
+	WriteDispatchIndirectArgs(TileIndirectDispatchBuffer, TileType,
+		TileCount >= TileCountXY.x ? TileCountXY.x : TileCount,
+		(TileCount + TileCountXY.x - 1) / TileCountXY.x,
+		1);
 
 	// Indirect dispatch with one thread
 	// At 4k, with 8x8 tiles: 4096 x 4096 / 8 x 8 = 512 x 512 tiles 
 	// With a group size of 64 (8x8), the total dispatch count should be 512 x 512 / 8 x 8 = 64 x 64 = 4096, which is below the 65k limit per dimension
-	TilePerThreadIndirectDispatchBuffer[TileType * 3 + 0] = (TileCount + TilePerThread_GroupSize - 1) / TilePerThread_GroupSize;
-	TilePerThreadIndirectDispatchBuffer[TileType * 3 + 1] = 1;
-	TilePerThreadIndirectDispatchBuffer[TileType * 3 + 2] = 1;
+	WriteDispatchIndirectArgs(TilePerThreadIndirectDispatchBuffer, TileType,
+		(TileCount + TilePerThread_GroupSize - 1) / TilePerThread_GroupSize,
+		1,
+		1);
 
 	// Indrect ray dispatch
 	// Ray tracing dispatch dimensions are defined simply in terms of threads/rays, not thread groups.
-	TileIndirectRayDispatchBuffer[TileType * 3 + 0] = TileCount * TileSize;
-	TileIndirectRayDispatchBuffer[TileType * 3 + 1] = TileSize;
-	TileIndirectRayDispatchBuffer[TileType * 3 + 2] = 1;
+	WriteDispatchIndirectArgs(TileIndirectRayDispatchBuffer, TileType,
+		TileCount * TileSize,
+		TileSize,
+		1);
 }
 
 [numthreads(HAIRTILE_COUNT, 1, 1)]

@@ -92,21 +92,11 @@ void ClearIndirectArgBufferCS(
 {
 	if (DispatchThreadId.x == 0)
 	{
-		RWPageComposeIndirectArgBuffer[0] = 0;
-		RWPageComposeIndirectArgBuffer[1] = 1;
-		RWPageComposeIndirectArgBuffer[2] = 1;
-
-		RWPageUpdateIndirectArgBuffer[0] = 0;
-		RWPageUpdateIndirectArgBuffer[1] = 1;
-		RWPageUpdateIndirectArgBuffer[2] = 1;
-
-		RWCullGridUpdateIndirectArgBuffer[0] = 0;
-		RWCullGridUpdateIndirectArgBuffer[1] = 1;
-		RWCullGridUpdateIndirectArgBuffer[2] = 1;
-
-		RWBuildObjectGridIndirectArgBuffer[0] = 0;
-		RWBuildObjectGridIndirectArgBuffer[1] = 1;
-		RWBuildObjectGridIndirectArgBuffer[2] = 1;
+		const uint3 ClearValue = uint3(0, 1, 1);
+		WriteDispatchIndirectArgs(RWPageComposeIndirectArgBuffer, 0, ClearValue);
+		WriteDispatchIndirectArgs(RWPageUpdateIndirectArgBuffer, 0, ClearValue);
+		WriteDispatchIndirectArgs(RWCullGridUpdateIndirectArgBuffer, 0, ClearValue);
+		WriteDispatchIndirectArgs(RWBuildObjectGridIndirectArgBuffer, 0, ClearValue);
 	}
 }
 
@@ -491,9 +481,7 @@ void PageFreeListReturnIndirectArgBufferCS(
 {
 	if (DispatchThreadId.x == 0)
 	{
-		RWFreeListReturnIndirectArgBuffer[0] = (PageFreeListReturnAllocatorBuffer[0] + 63) / 64;
-		RWFreeListReturnIndirectArgBuffer[1] = 1;
-		RWFreeListReturnIndirectArgBuffer[2] = 1;
+		WriteDispatchIndirectArgs(RWFreeListReturnIndirectArgBuffer, 0, (PageFreeListReturnAllocatorBuffer[0] + 63) / 64, 1, 1);
 
 		// Clamp to 0
 		RWPageFreeListAllocatorBuffer[0] = max(RWPageFreeListAllocatorBuffer[0], 0);

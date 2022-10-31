@@ -66,9 +66,7 @@ void LumenRadianceCacheHardwareRayTracingIndirectArgsCS()
 	uint NumGroups = (NumRays + OutputThreadGroupSize.x - 1) / OutputThreadGroupSize.x;
 
 	int3 IndirectArgs = GetRayTracingThreadCountWrapped(NumGroups, RADIANCE_CACHE_TRACE_TILE_SIZE_1D);
-	RWHardwareRayTracingIndirectArgs[0] = IndirectArgs.x;
-	RWHardwareRayTracingIndirectArgs[1] = IndirectArgs.y;
-	RWHardwareRayTracingIndirectArgs[2] = IndirectArgs.z;
+	WriteDispatchIndirectArgs(RWHardwareRayTracingIndirectArgs, 0, IndirectArgs);
 }
 
 #if LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING

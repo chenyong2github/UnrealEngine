@@ -241,8 +241,6 @@ void InitShadowTraceIndirectArgsCS(
 		uint NumShadowTraces = ShadowTraceAllocator[0];
 
 		// One thread per card tile
-		RWShadowTraceIndirectArgs[0] = (NumShadowTraces + 64 - 1) / 64;
-		RWShadowTraceIndirectArgs[1] = 1;
-		RWShadowTraceIndirectArgs[2] = 1;
+		WriteDispatchIndirectArgs(RWShadowTraceIndirectArgs, 0, (NumShadowTraces + 64 - 1) / 64, 1, 1);
 	}
 }

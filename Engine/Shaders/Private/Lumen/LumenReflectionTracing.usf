@@ -370,19 +370,13 @@ RWBuffer<uint> RWReflectionCompactRayTraceDispatchIndirectArgs;
 void SetupCompactedTracesIndirectArgsCS()
 {
 	// THREADGROUP_SIZE_64
-	RWReflectionCompactTracingIndirectArgs[0 + 0] = (CompactedTraceTexelAllocator[0] + 64 - 1) / 64;
-	RWReflectionCompactTracingIndirectArgs[0 + 1] = 1;
-	RWReflectionCompactTracingIndirectArgs[0 + 2] = 1;
+	WriteDispatchIndirectArgs(RWReflectionCompactTracingIndirectArgs, 0, (CompactedTraceTexelAllocator[0] + 64 - 1) / 64, 1, 1);
 
 	// THREADGROUP_SIZE_32
-	RWReflectionCompactTracingIndirectArgs[3 + 0] = (CompactedTraceTexelAllocator[0] + 32 - 1) / 32;
-	RWReflectionCompactTracingIndirectArgs[3 + 1] = 1;
-	RWReflectionCompactTracingIndirectArgs[3 + 2] = 1;
+	WriteDispatchIndirectArgs(RWReflectionCompactTracingIndirectArgs, 1, (CompactedTraceTexelAllocator[0] + 32 - 1) / 32, 1, 1);
 
 	// Ray tracing dispatch dimensions are defined simply in terms of threads/rays, not thread groups.
-	RWReflectionCompactRayTraceDispatchIndirectArgs[0] = CompactedTraceTexelAllocator[0];
-	RWReflectionCompactRayTraceDispatchIndirectArgs[1] = 1;
-	RWReflectionCompactRayTraceDispatchIndirectArgs[2] = 1;
+	WriteDispatchIndirectArgs(RWReflectionCompactRayTraceDispatchIndirectArgs, 0, CompactedTraceTexelAllocator[0], 1, 1);
 }
 
 uint CardGridPixelSizeShift;

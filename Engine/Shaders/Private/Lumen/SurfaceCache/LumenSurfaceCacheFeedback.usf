@@ -35,9 +35,7 @@ void BuildFeedbackHashTableIndirectArgsCS(
 {
 	if (DispatchThreadId.x == 0)
 	{
-		RWBuildHashTableIndirectArgs[0] = (min(FeedbackBufferAllocator[0], FeedbackBufferSize) + 63) / 64;
-		RWBuildHashTableIndirectArgs[1] = 1;
-		RWBuildHashTableIndirectArgs[2] = 1;
+		WriteDispatchIndirectArgs(RWBuildHashTableIndirectArgs, 0, (min(FeedbackBufferAllocator[0], FeedbackBufferSize) + 63) / 64, 1, 1);
 	}
 }
 

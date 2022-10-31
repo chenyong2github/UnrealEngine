@@ -112,11 +112,8 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 		else
 		{
 			// Clear all output if the allocation is not valid
-			const uint ArgsOffset = MacroGroupId * 3;
-			OutPageIndexResolutionAndOffsetBuffer[MacroGroupId]    = uint4(0, 0, 0, 0);
-			OutPageIndexAllocationIndirectBufferArgs[ArgsOffset]   = 0;
-			OutPageIndexAllocationIndirectBufferArgs[ArgsOffset+1] = 1;
-			OutPageIndexAllocationIndirectBufferArgs[ArgsOffset+2] = 1;
+			OutPageIndexResolutionAndOffsetBuffer[MacroGroupId] = uint4(0, 0, 0, 0);
+			WriteDispatchIndirectArgs(OutPageIndexAllocationIndirectBufferArgs, MacroGroupId, 0, 1, 1);
 
 			FVoxelizationViewInfo ViewInfo;
 			ViewInfo.TranslatedWorldToClip = 0;
@@ -146,10 +143,7 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	// Prepare indirect buffer for doing the actual page index allocation and filling the page index
 	{
 		const uint AllocatedPageIndexCount = PageIndexResolution.x * PageIndexResolution.y * PageIndexResolution.z;
-		const uint ArgsOffset = MacroGroupId * 3;
-		OutPageIndexAllocationIndirectBufferArgs[ArgsOffset] = ceil(AllocatedPageIndexCount / float(IndirectDispatchGroupSize));
-		OutPageIndexAllocationIndirectBufferArgs[ArgsOffset + 1] = 1;
-		OutPageIndexAllocationIndirectBufferArgs[ArgsOffset + 2] = 1;
+		WriteDispatchIndirectArgs(OutPageIndexAllocationIndirectBufferArgs, MacroGroupId, ceil(AllocatedPageIndexCount / float(IndirectDispatchGroupSize), 1, 1);
 	}
 
 	// Matrix generation
@@ -440,9 +434,7 @@ void MarkValid_BuildIndirectArgCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const uint DispatchX = min(DispatchCount, uint(SCATTER_GROUP_LINE));
 	const uint DispatchY = (DispatchCount + SCATTER_GROUP_LINE - 1) / SCATTER_GROUP_LINE;
 
-	OutIndirectArgsBuffer[0] = DispatchX;
-	OutIndirectArgsBuffer[1] = DispatchY;
-	OutIndirectArgsBuffer[2] = 1;
+	WriteDispatchIndirectArgs(OutIndirectArgsBuffer, 0, DispatchX, DispatchY, 1);
 }
 #endif
 
@@ -717,11 +709,7 @@ void AddIndirectBufferCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId
 	const uint MaxGroupCountPerDim = 65535;
 	const uint DispatchX = AllocatedPageCount % MaxGroupCountPerDim;
 	const uint DispatchY = ceil(AllocatedPageCount / float(MaxGroupCountPerDim));
-
-	const uint ArgsIndex = MacroGroupId * 3;
-	OutIndirectArgsBuffer[ArgsIndex]	 = DispatchX;
-	OutIndirectArgsBuffer[ArgsIndex + 1] = DispatchY;
-	OutIndirectArgsBuffer[ArgsIndex + 2] = ceil(VoxelCountPerPage / float(IndirectGroupSize));
+	WriteDispatchIndirectArgs(OutIndirectArgsBuffer, MacroGroupId, DispatchX, DispatchY, ceil(VoxelCountPerPage / float(IndirectGroupSize));
 
 	// Copy current total to previous total
 	OutPageIndexGlobalCounter[1] = TotalAllocatedPageCount;

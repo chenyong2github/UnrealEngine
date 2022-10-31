@@ -43,11 +43,7 @@ void ClearCounterCS()
 void BuildIndirectDispatchArgsCS()
 {
 	uint ValueCount = min(ShaderPrintData.MaxValueCount, ValuesBuffer[SHADER_PRINT_COUNTER_OFFSET_SYMBOL]);
-
-	RWIndirectDispatchArgsBuffer[0] = (ValueCount + 63)/64;
-	RWIndirectDispatchArgsBuffer[1] = 1;
-	RWIndirectDispatchArgsBuffer[2] = 1;
-
+	WriteDispatchIndirectArgs(RWIndirectDispatchArgsBuffer, 0, (ValueCount + 63)/64, 1, 1);
 	ClearCounters(RWSymbolsBuffer);
 }
 

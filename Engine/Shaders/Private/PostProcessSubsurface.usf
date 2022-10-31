@@ -665,15 +665,14 @@ void BuildIndirectDispatchArgsCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		const uint TileCount = TileTypeCountBuffer[TileType];
 		
 		// Indirect draw
-		RWIndirectDrawArgsBuffer[TileType * 4 + 0] = SubsurfaceUniformParameters.bRectPrimitive > 0 ? 4 : 6;  // VertexCountPerInstance
-		RWIndirectDrawArgsBuffer[TileType * 4 + 1] = TileCount;  // InstanceCount
-		RWIndirectDrawArgsBuffer[TileType * 4 + 2] = 0;  // StartVertexLocation
-		RWIndirectDrawArgsBuffer[TileType * 4 + 3] = 0;  // StartInstanceLocation
+		RWIndirectDrawArgsBuffer[TileType * DRAW_INDIRECT_UINT_COUNT + 0] = SubsurfaceUniformParameters.bRectPrimitive > 0 ? 4 : 6;  // VertexCountPerInstance
+		RWIndirectDrawArgsBuffer[TileType * DRAW_INDIRECT_UINT_COUNT + 1] = TileCount;  // InstanceCount
+		RWIndirectDrawArgsBuffer[TileType * DRAW_INDIRECT_UINT_COUNT + 2] = 0;  // StartVertexLocation
+		RWIndirectDrawArgsBuffer[TileType * DRAW_INDIRECT_UINT_COUNT + 3] = 0;  // StartInstanceLocation
 
 		// Indirect dispatch
-		RWIndirectDispatchArgsBuffer[TileType * 3 + 0] = TileCount;// (TileCount + (THREAD_SIZE_1D*THREAD_SIZE_1D) - 1) / (THREAD_SIZE_1D*THREAD_SIZE_1D);
-		RWIndirectDispatchArgsBuffer[TileType * 3 + 1] = 1;
-		RWIndirectDispatchArgsBuffer[TileType * 3 + 2] = 1;
+		const uint IndirectDispatchSize = TileCount; // (TileCount + (THREAD_SIZE_1D*THREAD_SIZE_1D) - 1) / (THREAD_SIZE_1D*THREAD_SIZE_1D);
+		WriteDispatchIndirectArgs(RWIndirectDispatchArgsBuffer, TileType, IndirectDispatchSize, 1, 1);
 	}
 }
 

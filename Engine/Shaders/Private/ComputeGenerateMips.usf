@@ -63,16 +63,11 @@ void BuildIndirectDispatchArgsCS(uint DT_ID : SV_DispatchThreadID)
 				max(TextureSize.y >> (DT_ID + 1u), 1u));
 
 			DestTextureSize = (DestTextureSize + 8 - 1) / 8;
-
-			RWIndirectDispatchArgsBuffer[DT_ID * 3 + 0] = DestTextureSize.x;
-			RWIndirectDispatchArgsBuffer[DT_ID * 3 + 1] = DestTextureSize.y;
-			RWIndirectDispatchArgsBuffer[DT_ID * 3 + 2] = 1;
+			WriteDispatchIndirectArgs(RWIndirectDispatchArgsBuffer, DT_ID, DestTextureSize.x, DestTextureSize.y, 1);
 		}
 		else
 		{
-			RWIndirectDispatchArgsBuffer[DT_ID * 3 + 0] = 0;
-			RWIndirectDispatchArgsBuffer[DT_ID * 3 + 1] = 0;
-			RWIndirectDispatchArgsBuffer[DT_ID * 3 + 2] = 0;
+			WriteDispatchIndirectArgs(RWIndirectDispatchArgsBuffer, DT_ID, 0, 0, 0);
 		}
 	}
 }

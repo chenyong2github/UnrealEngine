@@ -133,9 +133,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const uint TotalVoxelCount = TargetPageResolution * TargetPageResolution * TargetPageResolution;
 	const uint DispatchZ = ceil(TotalVoxelCount / float(DispatchGroupSize));
 
-	OutIndirectArgs[0] = InIndirectArgs[0];
-	OutIndirectArgs[1] = InIndirectArgs[1];
-	OutIndirectArgs[2] = DispatchZ;
+	WriteDispatchIndirectArgs(OutIndirectArgs, 0, InIndirectArgs[0], InIndirectArgs[1], DispatchZ);
 }
 
 #endif

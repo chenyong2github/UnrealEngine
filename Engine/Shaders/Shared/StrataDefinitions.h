@@ -66,6 +66,11 @@
 #define GetStrataTileTypeDrawIndirectArgOffset_Byte(x)  (x * 16)
 #define GetStrataTileTypeDrawIndirectArgOffset_DWord(x) (x * 4)
 
-// sizeof(FRHIDispatchIndirectParameters) = 3 uints = 12 bytes
-#define GetStrataTileTypeDispatchIndirectArgOffset_Byte(x)  (x * 12)
-#define GetStrataTileTypeDispatchIndirectArgOffset_DWord(x) (x * 3)
+// sizeof(FRHIDispatchIndirectParameters) can vary per-platform
+#ifdef __cplusplus
+	#define GetStrataTileTypeDispatchIndirectArgOffset_Byte(x)  (x * sizeof(FRHIDispatchIndirectParameters))
+	#define GetStrataTileTypeDispatchIndirectArgOffset_DWord(x) (x * sizeof(FRHIDispatchIndirectParameters) / sizeof(uint32))
+#else
+	#define GetStrataTileTypeDispatchIndirectArgOffset_Byte(x)  (x * DISPATCH_INDIRECT_UINT_COUNT * 4)
+	#define GetStrataTileTypeDispatchIndirectArgOffset_DWord(x) (x * DISPATCH_INDIRECT_UINT_COUNT)
+#endif

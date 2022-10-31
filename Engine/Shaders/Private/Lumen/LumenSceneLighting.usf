@@ -362,14 +362,10 @@ void SetCardPageIndexIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID
 			RWDirectLightingDrawCardPageIndicesIndirectArgs[3] = 0;
 
 			// Thread per page
-			RWDirectLightingDispatchCardPageIndicesIndirectArgs[0] = (NumPageIndices + 63) / 64;
-			RWDirectLightingDispatchCardPageIndicesIndirectArgs[1] = 1;
-			RWDirectLightingDispatchCardPageIndicesIndirectArgs[2] = 1;
+			WriteDispatchIndirectArgs(RWDirectLightingDispatchCardPageIndicesIndirectArgs, 0, (NumPageIndices + 63) / 64, 1, 1);
 
 			// Thread per tile
-			RWDirectLightingDispatchCardPageIndicesIndirectArgs[3 + 0] = 4 * NumPageIndices;
-			RWDirectLightingDispatchCardPageIndicesIndirectArgs[3 + 1] = 1;
-			RWDirectLightingDispatchCardPageIndicesIndirectArgs[3 + 2] = 1;
+			WriteDispatchIndirectArgs(RWDirectLightingDispatchCardPageIndicesIndirectArgs, 1, 4 * NumPageIndices, 1, 1);
 		}
 
 		{
@@ -382,14 +378,10 @@ void SetCardPageIndexIndirectArgsCS(uint3 DispatchThreadId : SV_DispatchThreadID
 			RWIndirectLightingDrawCardPageIndicesIndirectArgs[3] = 0;
 
 			// Thread per page
-			RWIndirectLightingDispatchCardPageIndicesIndirectArgs[0] = (NumPageIndices + 63) / 64;
-			RWIndirectLightingDispatchCardPageIndicesIndirectArgs[1] = 1;
-			RWIndirectLightingDispatchCardPageIndicesIndirectArgs[2] = 1;
+			WriteDispatchIndirectArgs(RWIndirectLightingDispatchCardPageIndicesIndirectArgs, 0, (NumPageIndices + 63) / 64, 1, 1);
 
 			// Thread per tile
-			RWIndirectLightingDispatchCardPageIndicesIndirectArgs[3 + 0] = 4 * NumPageIndices;
-			RWIndirectLightingDispatchCardPageIndicesIndirectArgs[3 + 1] = 1;
-			RWIndirectLightingDispatchCardPageIndicesIndirectArgs[3 + 2] = 1;
+			WriteDispatchIndirectArgs(RWIndirectLightingDispatchCardPageIndicesIndirectArgs, 1, 4 * NumPageIndices, 1, 1);
 		}
 	}
 }

@@ -1791,7 +1791,7 @@ void FWindowsD3D12Adapter::CreateCommandSignatures()
 
 #endif // D3D12_RHI_RAYTRACING
 
-	// Create windows-specific indirect compute dispatch command signature
+	// Create windows-specific indirect dispatch command signatures
 	{
 		D3D12_COMMAND_SIGNATURE_DESC CommandSignatureDesc = {};
 		CommandSignatureDesc.NumArgumentDescs = 1;
@@ -1801,6 +1801,9 @@ void FWindowsD3D12Adapter::CreateCommandSignatures()
 		D3D12_INDIRECT_ARGUMENT_DESC IndirectParameterDesc[1] = {};
 		IndirectParameterDesc[0].Type = D3D12_INDIRECT_ARGUMENT_TYPE_DISPATCH;
 		CommandSignatureDesc.pArgumentDescs = IndirectParameterDesc;
+
+		checkf(DispatchIndirectGraphicsCommandSignature == nullptr, TEXT("Indirect graphics dispatch command signature is expected to be initialized by FWindowsD3D12Adapter."));
+		VERIFYD3D12RESULT(Device->CreateCommandSignature(&CommandSignatureDesc, nullptr, IID_PPV_ARGS(DispatchIndirectGraphicsCommandSignature.GetInitReference())));
 
 		checkf(DispatchIndirectComputeCommandSignature == nullptr, TEXT("Indirect compute dispatch command signature is expected to be initialized by FWindowsD3D12Adapter."));
 		VERIFYD3D12RESULT(Device->CreateCommandSignature(&CommandSignatureDesc, nullptr, IID_PPV_ARGS(DispatchIndirectComputeCommandSignature.GetInitReference())));

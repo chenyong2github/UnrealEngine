@@ -194,13 +194,8 @@ void BuildHeightfieldComposeTilesIndirectArgBufferCS(
 	{
 		const uint TileNum = PageUpdateIndirectArgBuffer[0];
 
-		RWBuildHeightfieldComposeTilesIndirectArgBuffer[0] = (TileNum + 63) / 64;
-		RWBuildHeightfieldComposeTilesIndirectArgBuffer[1] = 1;
-		RWBuildHeightfieldComposeTilesIndirectArgBuffer[2] = 1;
-
-		RWPageComposeHeightfieldIndirectArgBuffer[0] = 0;
-		RWPageComposeHeightfieldIndirectArgBuffer[1] = 1;
-		RWPageComposeHeightfieldIndirectArgBuffer[2] = 1;
+		WriteDispatchIndirectArgs(RWBuildHeightfieldComposeTilesIndirectArgBuffer, 0, (TileNum + 63) / 64, 1, 1);
+		WriteDispatchIndirectArgs(RWPageComposeHeightfieldIndirectArgBuffer, 0, 0, 1, 1);
 	}
 }
 

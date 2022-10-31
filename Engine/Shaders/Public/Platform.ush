@@ -689,10 +689,30 @@ void ShaderYield()
 #define USE_DEVELOPMENT_SHADERS (COMPILE_SHADERS_FOR_DEVELOPMENT && PLATFORM_SUPPORTS_DEVELOPMENT_SHADERS)
 
 
-// ---------------------------------------------------- Standard sizes of the indirect parameter structs
+// ---------------------------------------------------- Indirect parameter support
+
+// sizeof(FRHIDispatchIndirectParametersNoPadding) / sizeof(uint)
+#define DISPATCH_INDIRECT_NO_PADDING_UINT_COUNT		3
 
 // sizeof(FRHIDispatchIndirectParameters) / sizeof(uint)
-#define DISPATCH_INDIRECT_UINT_COUNT 3
+// The size of FRHIDispatchIndirectParameters may vary per-platform due to padding requirements.  Platforms which diverge
+// from the default of 3 uints must define DISPATCH_INDIRECT_UINT_COUNT in their PlatformCommon.ush to override the default
+// behavior implemented here.
+#ifndef DISPATCH_INDIRECT_UINT_COUNT
+	#define DISPATCH_INDIRECT_UINT_COUNT	DISPATCH_INDIRECT_NO_PADDING_UINT_COUNT
+
+	void WriteDispatchIndirectArgs(RWBuffer<uint> RWIndirectDispatchArgsBuffer, in uint InIndex, in uint InIndirectArgX, in uint InIndirectArgY, in uint InIndirectArgZ)
+	{
+		RWIndirectDispatchArgsBuffer[DISPATCH_INDIRECT_UINT_COUNT * InIndex + 0] = InIndirectArgX;
+		RWIndirectDispatchArgsBuffer[DISPATCH_INDIRECT_UINT_COUNT * InIndex + 1] = InIndirectArgY;
+		RWIndirectDispatchArgsBuffer[DISPATCH_INDIRECT_UINT_COUNT * InIndex + 2] = InIndirectArgZ;
+	}
+#endif // #ifndef DISPATCH_INDIRECT_UINT_COUNT
+
+void WriteDispatchIndirectArgs(RWBuffer<uint> RWIndirectDispatchArgsBuffer, in uint InIndex, in uint3 InIndirectArg)
+{
+	WriteDispatchIndirectArgs(RWIndirectDispatchArgsBuffer, InIndex, InIndirectArg.x, InIndirectArg.y, InIndirectArg.z);
+}
 
 // sizeof(FRHIDrawIndirectParameters) / sizeof(uint)
 #define DRAW_INDIRECT_UINT_COUNT 4

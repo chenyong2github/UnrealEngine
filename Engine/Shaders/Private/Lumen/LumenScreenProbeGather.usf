@@ -384,9 +384,10 @@ RWBuffer<uint> RWScreenProbeIndirectArgs;
 
 void WriteArgs2D(uint Index, uint2 ThreadCount)
 {
-	RWScreenProbeIndirectArgs[Index * 3 + 0] = (ThreadCount.x +	PROBE_THREADGROUP_SIZE_2D - 1) / PROBE_THREADGROUP_SIZE_2D;
-	RWScreenProbeIndirectArgs[Index * 3 + 1] = (ThreadCount.y + PROBE_THREADGROUP_SIZE_2D - 1) / PROBE_THREADGROUP_SIZE_2D;
-	RWScreenProbeIndirectArgs[Index * 3 + 2] = 1;
+	WriteDispatchIndirectArgs(RWScreenProbeIndirectArgs, Index,
+		(ThreadCount.x + PROBE_THREADGROUP_SIZE_2D - 1) / PROBE_THREADGROUP_SIZE_2D,
+		(ThreadCount.y + PROBE_THREADGROUP_SIZE_2D - 1) / PROBE_THREADGROUP_SIZE_2D,
+		1);
 }
 
 [numthreads(1, 1, 1)]
@@ -625,7 +626,7 @@ FLumenMaterialCoord GetLumenMaterialCoordForScreenProbeGather(uint2 DispatchThre
 }
 
 // Return the indirect args offset depending on the permutation type (i.e., primary/overflow)
-#define TILE_CLASSIFICATION_ARGS_OFFSET (PERMUTATION_OVERFLOW_TILE * TILE_CLASSIFICATION_NUM * 3)
+#define TILE_CLASSIFICATION_ARGS_OFFSET (PERMUTATION_OVERFLOW_TILE * TILE_CLASSIFICATION_NUM * DISPATCH_INDIRECT_UINT_COUNT)
 
 [numthreads(INTEGRATE_TILE_SIZE, INTEGRATE_TILE_SIZE, 1)] 
 void ScreenProbeTileClassificationMarkCS(
@@ -633,9 +634,9 @@ void ScreenProbeTileClassificationMarkCS(
 	uint2 DispatchThreadId : SV_DispatchThreadID,
 	uint2 GroupThreadId : SV_GroupThreadID)
 {
-	if (DispatchThreadId.x < TILE_CLASSIFICATION_NUM * 3)
+	if (DispatchThreadId.x < TILE_CLASSIFICATION_NUM * DISPATCH_INDIRECT_UINT_COUNT)
 	{
-		RWIntegrateIndirectArgs[TILE_CLASSIFICATION_ARGS_OFFSET + DispatchThreadId.x] = (DispatchThreadId.x % 3 == 0) ? 0 : 1;
+		RWIntegrateIndirectArgs[TILE_CLASSIFICATION_ARGS_OFFSET + DispatchThreadId.x] = (DispatchThreadId.x % DISPATCH_INDIRECT_UINT_COUNT == 1 || DispatchThreadId.x % DISPATCH_INDIRECT_UINT_COUNT == 2) ? 1 : 0;
 	}
 
 	if (GroupThreadId.x < TILE_CLASSIFICATION_NUM)
@@ -793,7 +794,7 @@ void ScreenProbeTileClassificationBuildListsCS(
 	if (GroupThreadId < TILE_CLASSIFICATION_NUM)
 	{
 		uint Mode = GroupThreadId;
-		InterlockedAdd(RWIntegrateIndirectArgs[TILE_CLASSIFICATION_ARGS_OFFSET + Mode * 3], SharedNumTiles[Mode], SharedGlobalTileOffset[Mode]);
+		InterlockedAdd(RWIntegrateIndirectArgs[TILE_CLASSIFICATION_ARGS_OFFSET + Mode * DISPATCH_INDIRECT_UINT_COUNT], SharedNumTiles[Mode], SharedGlobalTileOffset[Mode]);
 	}
 
 	GroupMemoryBarrierWithGroupSync();
@@ -2005,7 +2006,7 @@ Buffer<uint> IntegrateIndirectArgs;
 // Return the number of tile
 uint GetTileCount(uint InMode, bool bOverflow)
 {
-	const uint Offset = InMode * 3 + (bOverflow ? TILE_CLASSIFICATION_NUM * 3 : 0);
+	const uint Offset = InMode * DISPATCH_INDIRECT_UINT_COUNT + (bOverflow ? TILE_CLASSIFICATION_NUM * DISPATCH_INDIRECT_UINT_COUNT : 0);
 	return IntegrateIndirectArgs[Offset];
 }
 

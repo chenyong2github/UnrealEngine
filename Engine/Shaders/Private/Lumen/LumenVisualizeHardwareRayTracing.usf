@@ -192,9 +192,7 @@ RWBuffer<uint> RWCompactRaysIndirectArgs;
 [numthreads(1, 1, 1)]
 void FLumenVisualizeCompactRaysIndirectArgsCS()
 {
-	RWCompactRaysIndirectArgs[0] = (RayAllocator[0] + THREADGROUP_SIZE_1D - 1) / THREADGROUP_SIZE_1D;
-	RWCompactRaysIndirectArgs[1] = 1;
-	RWCompactRaysIndirectArgs[2] = 1;
+	WriteDispatchIndirectArgs(RWCompactRaysIndirectArgs, 0, (RayAllocator[0] + THREADGROUP_SIZE_1D - 1) / THREADGROUP_SIZE_1D, 1, 1);
 }
 
 /**
@@ -326,9 +324,7 @@ RWBuffer<uint> RWBucketRaysByMaterialIdIndirectArgs;
 void FLumenVisualizeBucketRaysByMaterialIdIndirectArgsCS()
 {
 	const uint ElementsPerGroup = THREADGROUP_SIZE_1D * ELEMENTS_PER_THREAD;
-	RWBucketRaysByMaterialIdIndirectArgs[0] = (RayAllocator[0] + ElementsPerGroup - 1) / ElementsPerGroup;
-	RWBucketRaysByMaterialIdIndirectArgs[1] = 1;
-	RWBucketRaysByMaterialIdIndirectArgs[2] = 1;
+	WriteDispatchIndirectArgs(RWBucketRaysByMaterialIdIndirectArgs, 0, (RayAllocator[0] + ElementsPerGroup - 1) / ElementsPerGroup, 1, 1);
 }
 
 RWStructuredBuffer<FTraceDataLocalPacked> RWTraceDataPacked;

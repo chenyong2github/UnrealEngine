@@ -83,28 +83,30 @@ void SetupProbeIndirectArgsCS()
 
 	uint NumProbesToTrace = ProbeTraceAllocator[0];
 
-	RWClearProbePDFsIndirectArgs[0] = (NumProbesToTrace * NUM_RADIANCE_PROBE_PDF_COEFFICIENTS + ClearProbePDFGroupSize - 1) / ClearProbePDFGroupSize;
-	RWClearProbePDFsIndirectArgs[1] = 1;
-	RWClearProbePDFsIndirectArgs[2] = 1;
+	WriteDispatchIndirectArgs(RWClearProbePDFsIndirectArgs, 0,
+		(NumProbesToTrace * NUM_RADIANCE_PROBE_PDF_COEFFICIENTS + ClearProbePDFGroupSize - 1) / ClearProbePDFGroupSize,
+		1,
+		1);
 
-	RWGenerateProbeTraceTilesIndirectArgs[0] = 1;
-	RWGenerateProbeTraceTilesIndirectArgs[1] = 1;
-	RWGenerateProbeTraceTilesIndirectArgs[2] = NumProbesToTrace;
+	WriteDispatchIndirectArgs(RWGenerateProbeTraceTilesIndirectArgs, 0, 1, 1, NumProbesToTrace);
 
 	RWProbeTraceTileAllocator[0] = 0;
 
-	RWFilterProbesIndirectArgs[0] = (RadianceProbeResolution + FilterProbesGroupSizeXY - 1) / FilterProbesGroupSizeXY;
-	RWFilterProbesIndirectArgs[1] = (RadianceProbeResolution + FilterProbesGroupSizeXY - 1) / FilterProbesGroupSizeXY;
-	RWFilterProbesIndirectArgs[2] = NumProbesToTrace;
+	WriteDispatchIndirectArgs(RWFilterProbesIndirectArgs, 0,
+		(RadianceProbeResolution + FilterProbesGroupSizeXY - 1) / FilterProbesGroupSizeXY,
+		(RadianceProbeResolution + FilterProbesGroupSizeXY - 1) / FilterProbesGroupSizeXY,
+		NumProbesToTrace);
 
 	uint FinalOcclusionProbeResolution = OcclusionProbeResolution + 2 * (1u << FinalRadianceAtlasMaxMip);
-	RWPrepareProbeOcclusionIndirectArgs[0] = (FinalOcclusionProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY;
-	RWPrepareProbeOcclusionIndirectArgs[1] = (FinalOcclusionProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY;
-	RWPrepareProbeOcclusionIndirectArgs[2] = NumProbesToTrace;
+	WriteDispatchIndirectArgs(RWPrepareProbeOcclusionIndirectArgs, 0,
+		(FinalOcclusionProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY,
+		(FinalOcclusionProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY,
+		NumProbesToTrace);
 
-	RWFixupProbeBordersIndirectArgs[0] = (FinalProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY;
-	RWFixupProbeBordersIndirectArgs[1] = (FinalProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY;
-	RWFixupProbeBordersIndirectArgs[2] = NumProbesToTrace;
+	WriteDispatchIndirectArgs(RWFixupProbeBordersIndirectArgs, 0,
+		(FinalProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY,
+		(FinalProbeResolution + TraceFromProbesGroupSizeXY - 1) / TraceFromProbesGroupSizeXY,
+		NumProbesToTrace);
 }
 
 groupshared float4 SharedBestOffset[THREADGROUP_SIZE];
@@ -524,17 +526,20 @@ void SetupTraceFromProbesCS()
 	// Decompose the dispatch group layout into 2d to work around hitting D3D11_CS_DISPATCH_MAX_THREAD_GROUPS_PER_DIMENSION (65k) with a 1d layout,
 	// which manifests as flickering during Force Full Update
 
-	RWTraceProbesIndirectArgs[0] = TRACE_TILE_GROUP_STRIDE;
-	RWTraceProbesIndirectArgs[1] = (NumProbeTraceTiles + TRACE_TILE_GROUP_STRIDE - 1) / TRACE_TILE_GROUP_STRIDE;
-	RWTraceProbesIndirectArgs[2] = 1;
+	WriteDispatchIndirectArgs(RWTraceProbesIndirectArgs, 0,
+		TRACE_TILE_GROUP_STRIDE,
+		(NumProbeTraceTiles + TRACE_TILE_GROUP_STRIDE - 1) / TRACE_TILE_GROUP_STRIDE,
+		1);
 
-	RWSortProbeTraceTilesIndirectArgs[0] = (NumProbeTraceTiles + SortTraceTilesGroupSize - 1) / SortTraceTilesGroupSize;
-	RWSortProbeTraceTilesIndirectArgs[1] = 1;
-	RWSortProbeTraceTilesIndirectArgs[2] = 1;
+	WriteDispatchIndirectArgs(RWSortProbeTraceTilesIndirectArgs, 0,
+		(NumProbeTraceTiles + SortTraceTilesGroupSize - 1) / SortTraceTilesGroupSize,
+		1,
+		1);
 
-	RWRadianceCacheHardwareRayTracingIndirectArgs[0] = RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
-	RWRadianceCacheHardwareRayTracingIndirectArgs[1] = NumProbeTraceTiles;
-	RWRadianceCacheHardwareRayTracingIndirectArgs[2] = 1;
+	WriteDispatchIndirectArgs(RWRadianceCacheHardwareRayTracingIndirectArgs, 0,
+		RADIANCE_CACHE_TRACE_TILE_SIZE_1D,
+		NumProbeTraceTiles,
+		1);
 
 	RWHardwareRayTracingRayAllocatorBuffer[0] = NumProbeTraceTiles * RADIANCE_CACHE_TRACE_TILE_SIZE_1D;
 }

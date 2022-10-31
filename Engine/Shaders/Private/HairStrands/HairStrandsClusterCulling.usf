@@ -291,9 +291,7 @@ void MainClusterCullingIndClearCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 #else
 	if (DispatchThreadId.x==0)
 	{
-		DispatchIndirectParametersClusterCount[0] = 0;
-		DispatchIndirectParametersClusterCount[1] = 1;
-		DispatchIndirectParametersClusterCount[2] = 1;
+		WriteDispatchIndirectArgs(DispatchIndirectParametersClusterCount, 0, 0, 1, 1);
 
 		DrawIndirectParameters[0] = 0;	// 0 vertex (to be accumulated)
 		DrawIndirectParameters[1] = 1;	// 1 instance
@@ -510,23 +508,12 @@ void MainClusterCullingPrepareIndirectDrawsCS(uint3 DispatchThreadId : SV_Dispat
 		uint ClusterCount = DispatchIndirectParametersClusterCount[0];
 		uint ClusterCountDivUp512 = (ClusterCount + PREFIXSUM_PARALLEL - 1) / PREFIXSUM_PARALLEL;
 		uint ClusterCountDivUp512DivUp512 = (ClusterCountDivUp512 + PREFIXSUM_PARALLEL - 1) / PREFIXSUM_PARALLEL;
-
-		DispatchIndirectParametersClusterCountDiv512[0] = ClusterCountDivUp512;
-		DispatchIndirectParametersClusterCountDiv512[1] = 1;
-		DispatchIndirectParametersClusterCountDiv512[2] = 1;
-
-		DispatchIndirectParametersClusterCountDiv512Div512[0] = ClusterCountDivUp512DivUp512;
-		DispatchIndirectParametersClusterCountDiv512Div512[1] = 1;
-		DispatchIndirectParametersClusterCountDiv512Div512[2] = 1;
-
 		uint3 DispatchGroupCount2D = ComputeDispatchGroupCount2D(ClusterCount);
-		DispatchIndirectParametersClusterCount2D[0] = DispatchGroupCount2D.x;
-		DispatchIndirectParametersClusterCount2D[1] = DispatchGroupCount2D.y;
-		DispatchIndirectParametersClusterCount2D[2] = 1.0;
 
-		DispatchIndirectParametersClusterCount1D[0] = (ClusterCount + GroupSize1D - 1) / GroupSize1D;
-		DispatchIndirectParametersClusterCount1D[1] = 1;
-		DispatchIndirectParametersClusterCount1D[2] = 1;
+		WriteDispatchIndirectArgs(DispatchIndirectParametersClusterCountDiv512, 0, ClusterCountDivUp512, 1, 1);
+		WriteDispatchIndirectArgs(DispatchIndirectParametersClusterCountDiv512Div512, 0, ClusterCountDivUp512DivUp512, 1, 1);
+		WriteDispatchIndirectArgs(DispatchIndirectParametersClusterCount2D, 0, DispatchGroupCount2D.x, DispatchGroupCount2D.y, 1);	
+		WriteDispatchIndirectArgs(DispatchIndirectParametersClusterCount1D, 0, (ClusterCount + GroupSize1D - 1) / GroupSize1D, 1, 1);
 	}
 }
 

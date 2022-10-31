@@ -68,7 +68,7 @@ FFontColor GetValidColor(bool bIsValid)
 
 uint GetCount(uint InMode, bool bOverflow)
 {
-	const uint Offset = InMode * 3 + (bOverflow ? TILE_CLASSIFICATION_NUM * 3 : 0);
+	const uint Offset = InMode * DISPATCH_INDIRECT_UINT_COUNT + (bOverflow ? TILE_CLASSIFICATION_NUM * DISPATCH_INDIRECT_UINT_COUNT : 0);
 	return IntegrateIndirectArgs[Offset];
 }
 

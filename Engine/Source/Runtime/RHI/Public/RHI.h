@@ -35,6 +35,10 @@ class FResourceBulkDataInterface;
 #define SHADER_PARAMETER_POINTER_ALIGNMENT sizeof(uint64)
 static_assert(sizeof(void*) <= SHADER_PARAMETER_POINTER_ALIGNMENT, "The alignment of pointer needs to match the largest pointer.");
 
+// Support platforms which require indirect dispatch arguments to not cross memory boundaries
+#ifndef PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE
+	#define PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE	0
+#endif
 
 /** RHI Logging. */
 RHI_API DECLARE_LOG_CATEGORY_EXTERN(LogRHI,Log,VeryVerbose);
@@ -2575,12 +2579,22 @@ struct FRHIBufferRange
 	uint64 Size{ 0 };
 };
 
-struct FRHIDispatchIndirectParameters
+struct FRHIDispatchIndirectParametersNoPadding
 {
 	uint32 ThreadGroupCountX;
 	uint32 ThreadGroupCountY;
 	uint32 ThreadGroupCountZ;
 };
+
+struct FRHIDispatchIndirectParameters : public FRHIDispatchIndirectParametersNoPadding
+{
+#if PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE == 64
+	uint32 Padding;			// pad to 32 bytes to prevent crossing of 64 byte boundary in ExecuteIndirect calls
+#elif PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE != 0
+	#error FRHIDispatchIndirectParameters does not account for PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE.
+#endif
+};
+static_assert(PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE == 0 || PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE % sizeof(FRHIDispatchIndirectParameters) == 0);
 
 struct FRHIDrawIndirectParameters
 {

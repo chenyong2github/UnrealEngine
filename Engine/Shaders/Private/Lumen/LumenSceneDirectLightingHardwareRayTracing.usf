@@ -33,9 +33,10 @@ uint2 OutputThreadGroupSize;
 [numthreads(1, 1, 1)]
 void LumenDirectLightingHardwareRayTracingIndirectArgsCS()
 {
-	RWHardwareRayTracingIndirectArgs[0] = (CARD_TILE_SIZE * CARD_TILE_SIZE + OutputThreadGroupSize.x - 1) / OutputThreadGroupSize.x;
-	RWHardwareRayTracingIndirectArgs[1] = (DispatchLightTilesIndirectArgs[0] + OutputThreadGroupSize.y - 1) / OutputThreadGroupSize.y;
-	RWHardwareRayTracingIndirectArgs[2] = 1;
+	WriteDispatchIndirectArgs(RWHardwareRayTracingIndirectArgs, 0,
+		(CARD_TILE_SIZE * CARD_TILE_SIZE + OutputThreadGroupSize.x - 1) / OutputThreadGroupSize.x,
+		(DispatchLightTilesIndirectArgs[0] + OutputThreadGroupSize.y - 1) / OutputThreadGroupSize.y,
+		1);
 }
 
 #if LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING
