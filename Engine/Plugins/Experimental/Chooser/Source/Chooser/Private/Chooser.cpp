@@ -91,11 +91,11 @@ void UChooserColumnFloatRange::Filter(const UObject* ContextObject, const TArray
 	}
 }
 
-static UObject* StaticEvaluateChooser(const UObject* ContextObject, const UChooserTable* Chooser)
+static IObjectChooser::EIteratorStatus StaticEvaluateChooser(const UObject* ContextObject, const UChooserTable* Chooser, IObjectChooser::FObjectChooserIteratorCallback Callback)
 {
 	if (Chooser == nullptr)
 	{
-		return nullptr;
+		return IObjectChooser::EIteratorStatus::Continue;
 	}
 
 	TArray<uint32> Indices1;
@@ -125,21 +125,34 @@ static UObject* StaticEvaluateChooser(const UObject* ContextObject, const UChoos
 	{
 		if (Chooser->Results.Num() > (int32)SelectedIndex)
 		{
-			const IObjectChooser* SelectedResult = Chooser->Results[SelectedIndex].GetInterface();
-
-			if(UObject* Result = SelectedResult->ChooseObject(ContextObject))
+			if (const IObjectChooser* SelectedResult = Chooser->Results[SelectedIndex].GetInterface())
 			{
-				return Result;
+				if (SelectedResult->ChooseMulti(ContextObject, Callback) == IObjectChooser::EIteratorStatus::Stop)
+				{
+					return IObjectChooser::EIteratorStatus::Stop;
+				}
 			}
 		}
 	}
-
-	return nullptr;
+	
+	return IObjectChooser::EIteratorStatus::Continue;
 }
 
 UObject* UObjectChooser_EvaluateChooser::ChooseObject(const UObject* ContextObject) const
 {
-	return StaticEvaluateChooser(ContextObject, Chooser);
+	UObject* Result = nullptr;
+	StaticEvaluateChooser(ContextObject, Chooser, FObjectChooserIteratorCallback::CreateLambda([&Result](UObject* InResult)
+	{
+		Result = InResult;
+		return IObjectChooser::EIteratorStatus::Stop;
+	}));
+
+	return Result;
+}
+
+IObjectChooser::EIteratorStatus UObjectChooser_EvaluateChooser::ChooseMulti(const UObject* ContextObject, FObjectChooserIteratorCallback Callback) const
+{
+	return StaticEvaluateChooser(ContextObject, Chooser, Callback);
 }
 
 UChooserFunctionLibrary::UChooserFunctionLibrary(const FObjectInitializer& ObjectInitializer)
@@ -149,5 +162,14 @@ UChooserFunctionLibrary::UChooserFunctionLibrary(const FObjectInitializer& Objec
 
 UObject* UChooserFunctionLibrary::EvaluateChooser(const UObject* ContextObject, const UChooserTable* Chooser)
 {
-	return StaticEvaluateChooser(ContextObject, Chooser);
+	UObject* Result = nullptr;
+	StaticEvaluateChooser(ContextObject, Chooser, IObjectChooser::FObjectChooserIteratorCallback::CreateLambda([&Result](UObject* InResult)
+	{
+		Result = InResult;
+		return IObjectChooser::EIteratorStatus::Stop;
+	}));
+
+	return Result;
+
+	return Result;
 }

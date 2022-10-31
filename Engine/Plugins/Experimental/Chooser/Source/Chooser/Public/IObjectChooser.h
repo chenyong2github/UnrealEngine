@@ -20,4 +20,17 @@ class CHOOSER_API IObjectChooser
 public:
 
 	virtual UObject* ChooseObject(const UObject* ContextObject) const { return nullptr; };
+
+	enum class EIteratorStatus { Continue,Stop };
+
+	DECLARE_DELEGATE_RetVal_OneParam( EIteratorStatus, FObjectChooserIteratorCallback, UObject*);
+	virtual EIteratorStatus ChooseMulti(const UObject* ContextObject, FObjectChooserIteratorCallback Callback) const
+	{
+		// fallback implementation just calls the single version
+		if (UObject* Result = ChooseObject(ContextObject))
+		{
+			return Callback.Execute(Result);
+		}
+		return EIteratorStatus::Continue;
+	};
 };

@@ -132,10 +132,10 @@ public:
 	UPROPERTY(EditAnywhere, Meta = (EditInlineInterface = "true"), Category="Hidden")
 	TArray<TScriptInterface<IChooserColumn>> Columns;
 
-	UPROPERTY(EditAnywhere, Category="Input")
+	UPROPERTY(EditAnywhere, Category="Input", Meta = (AllowAbstract=true))
 	TObjectPtr<UClass> ContextObjectType;
 	
-	UPROPERTY(EditAnywhere, Category="Output")
+	UPROPERTY(EditAnywhere, Category="Output", Meta = (AllowAbstract=true))
 	TObjectPtr<UClass> OutputObjectType;
 };
 
@@ -145,7 +145,7 @@ class CHOOSER_API UObjectChooser_EvaluateChooser : public UObject, public IObjec
 	GENERATED_BODY()
 
 	virtual UObject* ChooseObject(const UObject* ContextObject) const final override;
-
+	virtual EIteratorStatus ChooseMulti(const UObject* ContextObject, FObjectChooserIteratorCallback Callback) const final override;
 	public:
 	
 	UPROPERTY(EditAnywhere, Category="Parameters")
