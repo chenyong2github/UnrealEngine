@@ -532,27 +532,39 @@ void UPatternTool::Setup()
 	Settings = NewObject<UPatternToolSettings>();
 	AddToolPropertySource(Settings);
 	Settings->RestoreProperties(this);
-	Settings->WatchProperty(Settings->Shape, [this](EPatternToolShape) { OnShapeUpdated(); } );
-	Settings->WatchProperty(Settings->SingleAxis, [this](EPatternToolSingleAxis) { OnParametersUpdated(); } );
-	Settings->WatchProperty(Settings->SinglePlane, [this](EPatternToolSinglePlane) { OnParametersUpdated(); } );
-	Settings->WatchProperty(Settings->bHideSources, [this](bool bNewValue) { OnSourceVisibilityToggled(!bNewValue); } );
 	Settings->WatchProperty(Settings->Seed, [this](int32 NewSeed) { MarkPatternDirty(); } );
 	Settings->WatchProperty(Settings->bProjectElementsDown, [this](bool bNewValue) { MarkPatternDirty(); } );
 	Settings->WatchProperty(Settings->ProjectionOffset, [this](float NewValue) { MarkPatternDirty(); } );
+	Settings->WatchProperty(Settings->bHideSources, [this](bool bNewValue) { OnSourceVisibilityToggled(!bNewValue); } );
+	Settings->WatchProperty(Settings->bUseRelativeTransforms, [this](bool bNewValue) { MarkPatternDirty(); } );
+	Settings->WatchProperty(Settings->Shape, [this](EPatternToolShape) { OnShapeUpdated(); } );
+	Settings->WatchProperty(Settings->SingleAxis, [this](EPatternToolSingleAxis) { OnParametersUpdated(); } );
+	Settings->WatchProperty(Settings->SinglePlane, [this](EPatternToolSinglePlane) { OnParametersUpdated(); } );
 
+	BoundingBoxSettings = NewObject<UPatternTool_BoundingBoxSettings>();
+	AddToolPropertySource(BoundingBoxSettings);
+	BoundingBoxSettings->RestoreProperties(this);
+	BoundingBoxSettings->WatchProperty(BoundingBoxSettings->bIgnoreTransforms, [this](bool bNewValue) { MarkPatternDirty(); } );
+	BoundingBoxSettings->WatchProperty(BoundingBoxSettings->Adjustment, [this](float NewScale) { MarkPatternDirty(); });
+	SetToolPropertySourceEnabled(BoundingBoxSettings, false);
+	
 	LinearSettings = NewObject<UPatternTool_LinearSettings>();
 	AddToolPropertySource(LinearSettings);
 	LinearSettings->RestoreProperties(this);
+	LinearSettings->WatchProperty(LinearSettings->SpacingMode, [this](EPatternToolAxisSpacingMode NewSpacingMode) { OnSpacingModeUpdated(); });
 	SetToolPropertySourceEnabled(LinearSettings, false);
 
 	GridSettings = NewObject<UPatternTool_GridSettings>();
 	AddToolPropertySource(GridSettings);
 	GridSettings->RestoreProperties(this);
+	GridSettings->WatchProperty(GridSettings->SpacingX, [this](EPatternToolAxisSpacingMode NewSpacingMode) { OnSpacingModeUpdated(); });
+	GridSettings->WatchProperty(GridSettings->SpacingY, [this](EPatternToolAxisSpacingMode NewSpacingMode) { OnSpacingModeUpdated(); });
 	SetToolPropertySourceEnabled(GridSettings, false);
 
 	RadialSettings = NewObject<UPatternTool_RadialSettings>();
 	AddToolPropertySource(RadialSettings);
 	RadialSettings->RestoreProperties(this);
+	RadialSettings->WatchProperty(RadialSettings->SpacingMode, [this](EPatternToolAxisSpacingMode NewSpacingMode) { OnSpacingModeUpdated(); });
 	SetToolPropertySourceEnabled(RadialSettings, false);
 
 	RotationSettings = NewObject<UPatternTool_RotationSettings>();
@@ -637,6 +649,8 @@ void UPatternTool::Setup()
 	AddToolPropertySource(OutputSettings);
 	OutputSettings->RestoreProperties(this);
 
+	BoundingBoxVisualizer.LineThickness = 2.0f;
+	
 	InitializeElements();
 	for (const FPatternElement& Element : Elements)
 	{
@@ -695,6 +709,7 @@ void UPatternTool::OnShutdown(EToolShutdownType ShutdownType)
 	PreviewGeometry->Disconnect();
 
 	Settings->SaveProperties(this);
+	BoundingBoxSettings->SaveProperties(this);
 	LinearSettings->SaveProperties(this);
 	GridSettings->SaveProperties(this);
 	RadialSettings->SaveProperties(this);
@@ -723,6 +738,14 @@ void UPatternTool::Render(IToolsContextRenderAPI* RenderAPI)
 	DragAlignmentMechanic->Render(RenderAPI);
 	PlaneMechanic->Render(RenderAPI);
 
+	// We should only render here if bVisualize is true and also visible in the details panel.
+	// We don't want to leave the user with no obvious way to turn it off which might happen if they
+	// enable bVisualize and then change the spacing mode to something other than packed
+	if (BoundingBoxSettings->IsPropertySetEnabled() && BoundingBoxSettings->bVisualize)
+	{
+		RenderBoundingBoxes(RenderAPI);
+	}
+	
 	if (bPatternNeedsUpdating)
 	{
 		// throttle update rate as it is somewhat expensive
@@ -736,7 +759,46 @@ void UPatternTool::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
+void UPatternTool::RenderBoundingBoxes(IToolsContextRenderAPI* RenderAPI)
+{
+	BoundingBoxVisualizer.BeginFrame(RenderAPI);
 
+	// Render the individual elements' PatternBounds along the current pattern with green lines
+	BoundingBoxVisualizer.LineColor = FLinearColor::Green;
+	for (int32 ElemIdx = 0; ElemIdx < Elements.Num(); ++ElemIdx)
+	{
+		FPatternElement& Element = Elements[ElemIdx];
+		
+		if (Settings->bUseRelativeTransforms)
+		{
+			const FTransformSRT3d RelativePositionTransform(FQuaterniond(RotationSettings->StartRotation), FVector3d::ZeroVector, ScaleSettings->StartScale);
+			BoundingBoxVisualizer.PushTransform(FTransform(RelativePositionTransform.TransformVector(Element.RelativePosition)));
+		}
+	
+		for (int32 k = 0; k < CurrentPattern.Num(); ++k)
+		{
+			BoundingBoxVisualizer.PushTransform(FTransform(CurrentPattern[k].GetTranslation()) * CurrentStartFrameWorld.ToFTransform());
+			BoundingBoxVisualizer.DrawWireBox(FBox(Element.PatternBounds));
+			BoundingBoxVisualizer.PopTransform();
+		}
+
+		if (Settings->bUseRelativeTransforms)
+		{
+			BoundingBoxVisualizer.PopTransform();
+		}
+	}
+
+	// Render the CombinedPatternBounds along the current pattern with red lines
+	BoundingBoxVisualizer.LineColor = FLinearColor::Red;
+	for (int32 k = 0; k < CurrentPattern.Num(); ++k)
+	{
+		BoundingBoxVisualizer.PushTransform(FTransform(CurrentPattern[k].GetTranslation()) * CurrentStartFrameWorld.ToFTransform());
+		BoundingBoxVisualizer.DrawWireBox(FBox(CombinedPatternBounds));
+		BoundingBoxVisualizer.PopTransform();
+	}
+	
+	BoundingBoxVisualizer.EndFrame();
+}
 
 void UPatternTool::OnSourceVisibilityToggled(bool bVisible)
 {
@@ -772,6 +834,7 @@ void UPatternTool::InitializeElements()
 		Element.SourceComponent = UE::ToolTarget::GetTargetComponent(Targets[TargetIdx]);
 		Element.SourceMaterials = UE::ToolTarget::GetMaterialSet(Targets[TargetIdx], false).Materials;
 		Element.SourceTransform = UE::ToolTarget::GetLocalToWorldTransform(Targets[TargetIdx]);
+		Element.RelativePosition = Element.SourceTransform.GetTranslation() - Elements[0].SourceTransform.GetTranslation();
 		Element.BaseRotateScale = Element.SourceTransform;
 		Element.BaseRotateScale.SetTranslation(FVector3d::Zero());		// clear translation from base transform
 		Element.SourceTransform.SetRotation(FQuaterniond::Identity());	// clear rotate/scale from source transform, so only location is used
@@ -782,24 +845,26 @@ void UPatternTool::InitializeElements()
 		if (UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(Element.SourceComponent))
 		{
 			Element.SourceStaticMesh = StaticMeshComp->GetStaticMesh();
-			Element.LocalBounds = (FAxisAlignedBox3d)Element.SourceStaticMesh->GetBounds().GetBox();
-			Element.PatternBounds = Element.LocalBounds;
-		}
+			Element.LocalBounds = Element.SourceStaticMesh->GetBounds().GetBox();
+		}	
 		else if (UDynamicMeshComponent* DynamicMeshComp = Cast<UDynamicMeshComponent>(Element.SourceComponent))
 		{
 			Element.SourceDynamicMesh = DynamicMeshComp->GetDynamicMesh();
 			Element.SourceDynamicMesh->ProcessMesh([&](const FDynamicMesh3& Mesh) {
 				Element.LocalBounds = Mesh.GetBounds(true);
 			});
-			Element.PatternBounds = Element.LocalBounds;
 		}
 		else
 		{
 			Element.bValid = false;
 		}
+		
+		Element.PatternBounds = Element.LocalBounds;
 	}
 
 	PreviewComponents.SetNum(NumElements);
+
+	ComputeCombinedPatternBounds();
 }
 
 
@@ -855,6 +920,36 @@ void UPatternTool::OnShapeUpdated()
 	OnParametersUpdated();
 }
 
+void UPatternTool::OnSpacingModeUpdated()
+{
+	bool bBoundingBoxSettings = false;
+	
+	if (Settings->Shape == EPatternToolShape::Line)
+	{
+		if (LinearSettings->SpacingMode == EPatternToolAxisSpacingMode::Packed)
+		{
+			bBoundingBoxSettings = true;
+		}
+	}
+	else if (Settings->Shape == EPatternToolShape::Grid)
+	{
+		if (GridSettings->SpacingX == EPatternToolAxisSpacingMode::Packed || GridSettings->SpacingY == EPatternToolAxisSpacingMode::Packed)
+		{
+			bBoundingBoxSettings = true;
+		}
+	}
+	else if (Settings->Shape == EPatternToolShape::Circle)
+	{
+		if (RadialSettings->SpacingMode == EPatternToolAxisSpacingMode::Packed)
+		{
+			bBoundingBoxSettings = true;
+		}
+	}
+
+	SetToolPropertySourceEnabled(BoundingBoxSettings, bBoundingBoxSettings);
+
+	OnParametersUpdated();
+}
 
 void UPatternTool::OnParametersUpdated()
 {
@@ -946,8 +1041,10 @@ void UPatternTool::GetPatternTransforms_Linear(TArray<UE::Geometry::FTransformSR
 {
 	FLinearPatternGenerator Generator;
 	InitializeGenerator(Generator, this);
-	Generator.Dimensions = this->Elements[0].PatternBounds;
-
+	
+	ComputeCombinedPatternBounds();
+	Generator.Dimensions = CombinedPatternBounds;
+	
 	double ExtentX = LinearSettings->Extent;
 
 	Generator.StartFrame = FFrame3d();
@@ -978,8 +1075,10 @@ void UPatternTool::GetPatternTransforms_Grid(TArray<UE::Geometry::FTransformSRT3
 {
 	FLinearPatternGenerator Generator;
 	InitializeGenerator(Generator, this);
-	Generator.Dimensions = this->Elements[0].PatternBounds;
-
+	
+	ComputeCombinedPatternBounds();
+	Generator.Dimensions = CombinedPatternBounds;
+	
 	double ExtentX = GridSettings->ExtentX;
 	double ExtentY = GridSettings->ExtentY;
 
@@ -1029,8 +1128,10 @@ void UPatternTool::GetPatternTransforms_Radial(TArray<UE::Geometry::FTransformSR
 {
 	FRadialPatternGenerator Generator;
 	InitializeGenerator(Generator, this);
-	Generator.Dimensions = this->Elements[0].PatternBounds;
 
+	ComputeCombinedPatternBounds();
+	Generator.Dimensions = CombinedPatternBounds;
+	
 	// Orient the CenterFrame based on the plane setting of the tool & determine which axis is used if bOriented is true
 	const FVector3d Origin(0, 0, 0);
 	switch (Settings->SinglePlane)
@@ -1100,6 +1201,11 @@ void UPatternTool::UpdatePattern()
 		FTransformSRT3d ElementTransform = Element.BaseRotateScale;
 		FComponentSet& ElemComponents = PreviewComponents[ElemIdx];
 
+		if (Settings->bUseRelativeTransforms)
+		{
+			ElementTransform.SetTranslation(ElementTransform.GetTranslation() + Element.RelativePosition);
+		}
+		
 		for (int32 k = 0; k < NumPatternItems; ++k)
 		{
 			UPrimitiveComponent* Component = nullptr;
@@ -1152,6 +1258,49 @@ void UPatternTool::ComputeWorldTransform(FTransform& OutWorldTransform, const FT
 	}
 }
 
+void UPatternTool::ComputePatternBounds(int32 ElemIdx)
+{
+	FPatternElement& Element = Elements[ElemIdx];
+	FTransformSRT3d Transform = Element.BaseRotateScale;
+	
+	if (!BoundingBoxSettings->bIgnoreTransforms)
+	{
+		Transform = (FTransform) FTransformSRT3d(FQuaterniond(RotationSettings->StartRotation), FVector3d::ZeroVector, ScaleSettings->StartScale) * Transform;
+	}
+
+	Element.PatternBounds = FAxisAlignedBox3d(Element.LocalBounds, Transform);
+}
+
+void UPatternTool::ComputeCombinedPatternBounds()
+{
+	// CombinedPatternBounds is the bounding box that contains every pattern element and is computed by setting it
+	// to the first element's pattern bounds and then expanding the box to contain each following element.
+
+	ComputePatternBounds(0);
+	CombinedPatternBounds = Elements[0].PatternBounds;
+
+	// If StartScale or StartRotation are not zero vectors, then Element.RelativePosition must be transformed to be accurate if bUseRelativeTransforms is true
+	const FTransformSRT3d RelativePositionTransform(FQuaterniond(RotationSettings->StartRotation), FVector3d::ZeroVector, ScaleSettings->StartScale);
+	
+	for (int32 ElemIdx = 1; ElemIdx < Elements.Num(); ++ElemIdx)
+	{
+		const FPatternElement& Element = Elements[ElemIdx];
+		ComputePatternBounds(ElemIdx);
+		
+		if (Settings->bUseRelativeTransforms)
+		{
+			CombinedPatternBounds.Contain(Element.PatternBounds.Min + RelativePositionTransform.TransformVector(Element.RelativePosition));
+			CombinedPatternBounds.Contain(Element.PatternBounds.Max + RelativePositionTransform.TransformVector(Element.RelativePosition));
+		}
+		else
+		{
+			CombinedPatternBounds.Contain(Element.PatternBounds);
+		}
+	}
+
+	// The user can manually adjust the box if desired to fine tune packed behavior
+	CombinedPatternBounds.Expand(BoundingBoxSettings->Adjustment);
+}
 
 UStaticMeshComponent* UPatternTool::GetPreviewStaticMesh(FPatternElement& Element)
 {
@@ -1337,6 +1486,11 @@ void UPatternTool::EmitResults()
 		}
 		FTransformSRT3d ElementTransform = Element.BaseRotateScale;
 
+		if (Settings->bUseRelativeTransforms)
+		{
+			ElementTransform.SetTranslation(ElementTransform.GetTranslation() + Element.RelativePosition);
+		}
+		
 		if (Element.SourceDynamicMesh != nullptr || bConvertToDynamic )
 		{
 			FDynamicMesh3 ElementMesh = UE::ToolTarget::GetDynamicMeshCopy(Targets[ElemIdx], true);

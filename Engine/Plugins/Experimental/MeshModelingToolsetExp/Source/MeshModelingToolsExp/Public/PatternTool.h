@@ -9,6 +9,7 @@
 #include "Changes/TransformChange.h"
 #include "FrameTypes.h"
 #include "BoxTypes.h"
+#include "ToolDataVisualizer.h"
 #include "TransformTypes.h"
 #include "PatternTool.generated.h"
 
@@ -102,6 +103,26 @@ class MESHMODELINGTOOLSEXP_API UPatternToolSettings : public UInteractiveToolPro
 {
 	GENERATED_BODY()
 public:
+	/** The seed used to introduce random transform variations when enabled */
+	UPROPERTY(EditAnywhere, Category = General, meta = (NoResetToDefault))
+	int32 Seed = FMath::Rand();
+
+	/** Whether or not the pattern items should be projected along the negative Z axis of the plane mechanic */
+	UPROPERTY(EditAnywhere, Category = General)
+	bool bProjectElementsDown = false;
+
+	/** How much each pattern item should be moved along the negative Z axis of the plane mechanic if Project Elements Down is enabled */
+	UPROPERTY(EditAnywhere, Category = General, meta = (EditCondition = "bProjectElementsDown == true", EditConditionHides))
+	float ProjectionOffset = 0.0f;
+
+	/** Hide the source meshes when enabled */
+	UPROPERTY(EditAnywhere, Category = General)
+	bool bHideSources = true;
+
+	/** If false, all pattern elements will be positioned at the origin of the first pattern element */
+	UPROPERTY(EditAnywhere, Category = General)
+	bool bUseRelativeTransforms = true;
+	
 	/** Shape of the underlying Pattern */
 	UPROPERTY(EditAnywhere, Category = Shape)
 	EPatternToolShape Shape = EPatternToolShape::Line;
@@ -113,25 +134,29 @@ public:
 	/** Plane used for the Pattern geometry */
 	UPROPERTY(EditAnywhere, Category = Shape, meta = (DisplayName = "Plane", EditCondition = "Shape != EPatternToolShape::Line", EditConditionHides))
 	EPatternToolSinglePlane SinglePlane = EPatternToolSinglePlane::XYPlane;
-
-	/** Hide the source meshes when enabled */
-	UPROPERTY(EditAnywhere, Category = Shape)
-	bool bHideSources = true;
-
-	/** The seed used to introduce random transform variations when enabled */
-	UPROPERTY(EditAnywhere, Category = Shape, meta = (NoResetToDefault))
-	int32 Seed = FMath::Rand();
-
-	/** Whether or not the pattern items should be projected along the negative Z axis of the plane mechanic */
-	UPROPERTY(EditAnywhere, Category = Shape)
-	bool bProjectElementsDown = false;
-
-	/** How much each pattern item should be moved along the negative Z axis of the plane mechanic if Project Elements Down is enabled */
-	UPROPERTY(EditAnywhere, Category = Shape, meta = (EditCondition = "bProjectElementsDown == true", EditConditionHides))
-	float ProjectionOffset = 0.0f;
 };
 
+/**
+ * Settings for Bounding Box adjustments in the Pattern Tool
+ */
+UCLASS()
+class MESHMODELINGTOOLSEXP_API UPatternTool_BoundingBoxSettings : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	/** If true, pattern element bounding boxes are not changed to account for StartScale or StartRotation */
+	UPROPERTY(EditAnywhere, Category = BoundingBox)
+	bool bIgnoreTransforms = false;
+	
+	/** Value added to the all pattern elements' bounding boxes for adjusting the behavior of packed spacing mode manually */
+	UPROPERTY(EditAnywhere, Category = BoundingBox)
+	float Adjustment = 0.0f;
 
+	/** If true, the bounding boxes of each element are rendered in green and the combined bounding box of all source elements is rendered in red */
+	UPROPERTY(EditAnywhere, Category = BoundingBox)
+	bool bVisualize = false;
+};
+	
 /**
  * Settings for Linear Patterns in the Pattern Tool
  */
@@ -145,11 +170,11 @@ public:
 	EPatternToolAxisSpacingMode SpacingMode = EPatternToolAxisSpacingMode::ByCount;
 
 	/** Number of Pattern Elements to place */
-	UPROPERTY(EditAnywhere, Category = LinearPattern, meta = (ClampMin = 1, UIMax = 25, EditCondition = "SpacingMode == EPatternToolAxisSpacingMode::ByCount"))
+	UPROPERTY(EditAnywhere, Category = LinearPattern, meta = (ClampMin = 1, UIMax = 25, EditCondition = "SpacingMode == EPatternToolAxisSpacingMode::ByCount", EditConditionHides))
 	int32 Count = 10;
 
 	/** Fixed Increment used to place Pattern Elements */
-	UPROPERTY(EditAnywhere, Category = LinearPattern, meta = (ClampMin = 0, EditCondition = "SpacingMode == EPatternToolAxisSpacingMode::StepSize"))
+	UPROPERTY(EditAnywhere, Category = LinearPattern, meta = (ClampMin = 0, EditCondition = "SpacingMode == EPatternToolAxisSpacingMode::StepSize", EditConditionHides))
 	double StepSize = 100.0;
 
 	/** Length of Pattern along the Axis */
@@ -177,12 +202,12 @@ public:
 	UPROPERTY(EditAnywhere, Category = GridPatternX)
 	EPatternToolAxisSpacingMode SpacingX = EPatternToolAxisSpacingMode::ByCount;
 
-	/** Number of  Pattern Elements to place along the Main axis */
-	UPROPERTY(EditAnywhere, Category = GridPatternX, meta = (ClampMin = 1, UIMax = 25, EditCondition = "SpacingX == EPatternToolAxisSpacingMode::ByCount"))
+	/** Number of Pattern Elements to place along the Main axis */
+	UPROPERTY(EditAnywhere, Category = GridPatternX, meta = (ClampMin = 1, UIMax = 25, EditCondition = "SpacingX == EPatternToolAxisSpacingMode::ByCount", EditConditionHides))
 	int32 CountX = 10;
 
 	/** Fixed Increment used to place Pattern Elements along the Main axis */
-	UPROPERTY(EditAnywhere, Category = GridPatternX, meta = (ClampMin = 0, EditCondition = "SpacingX == EPatternToolAxisSpacingMode::StepSize"))
+	UPROPERTY(EditAnywhere, Category = GridPatternX, meta = (ClampMin = 0, EditCondition = "SpacingX == EPatternToolAxisSpacingMode::StepSize", EditConditionHides))
 	double StepSizeX = 100.0;
 
 	/** Length/Extent of Pattern falong the Main Axis */
@@ -198,11 +223,11 @@ public:
 	EPatternToolAxisSpacingMode SpacingY = EPatternToolAxisSpacingMode::ByCount;
 
 	/** Number of  Pattern Elements to place along the Secondary axis */
-	UPROPERTY(EditAnywhere, Category = GridPatternY, meta = (ClampMin = 1, UIMax = 25, EditCondition = "SpacingY == EPatternToolAxisSpacingMode::ByCount"))
+	UPROPERTY(EditAnywhere, Category = GridPatternY, meta = (ClampMin = 1, UIMax = 25, EditCondition = "SpacingY == EPatternToolAxisSpacingMode::ByCount", EditConditionHides))
 	int32 CountY = 10;
 
 	/** Fixed Increment used to place Pattern Elements along the Secondary axis */
-	UPROPERTY(EditAnywhere, Category = GridPatternY, meta = (ClampMin = 0, EditCondition = "SpacingY == EPatternToolAxisSpacingMode::StepSize"))
+	UPROPERTY(EditAnywhere, Category = GridPatternY, meta = (ClampMin = 0, EditCondition = "SpacingY == EPatternToolAxisSpacingMode::StepSize", EditConditionHides))
 	double StepSizeY = 100.0;
 
 	/** Length/Extent of Pattern falong the Secondary Axis */
@@ -231,11 +256,11 @@ public:
 	EPatternToolAxisSpacingMode SpacingMode = EPatternToolAxisSpacingMode::ByCount;
 
 	/** Number of  Pattern Elements to place */
-	UPROPERTY(EditAnywhere, Category = RadialPattern, meta = (ClampMin = 1, UIMax = 25, EditCondition = "SpacingMode == EPatternToolAxisSpacingMode::ByCount"))
+	UPROPERTY(EditAnywhere, Category = RadialPattern, meta = (ClampMin = 1, UIMax = 25, EditCondition = "SpacingMode == EPatternToolAxisSpacingMode::ByCount", EditConditionHides))
 	int32 Count = 10;
 
 	/** Fixed Increment (in Degrees) used to position Pattern Elements around the Circle/Arc */
-	UPROPERTY(EditAnywhere, Category = RadialPattern, meta = (Units = "Degrees", ClampMin = 0, EditCondition = "SpacingMode == EPatternToolAxisSpacingMode::StepSize"))
+	UPROPERTY(EditAnywhere, Category = RadialPattern, meta = (Units = "Degrees", ClampMin = 0, EditCondition = "SpacingMode == EPatternToolAxisSpacingMode::StepSize", EditConditionHides))
 	double StepSize = 100.0;
 
 	/** Radius of the Circle/Arc */
@@ -417,6 +442,9 @@ public:
 	TObjectPtr<UPatternToolSettings> Settings;
 
 	UPROPERTY()
+	TObjectPtr<UPatternTool_BoundingBoxSettings> BoundingBoxSettings;
+	
+	UPROPERTY()
 	TObjectPtr<UPatternTool_LinearSettings> LinearSettings;
 
 	UPROPERTY()
@@ -471,6 +499,7 @@ protected:
 	void OnSourceVisibilityToggled(bool bVisible);
 	void OnMainFrameUpdated();
 	void OnShapeUpdated();
+	void OnSpacingModeUpdated();
 	void OnParametersUpdated();
 	void UpdatePattern();
 	void ComputeWorldTransform(FTransform& OutWorldTransform, const FTransform& InElementTransform, const FTransform& InPatternTransform) const;
@@ -478,6 +507,8 @@ protected:
 	void GetPatternTransforms_Grid(TArray<UE::Geometry::FTransformSRT3d>& TransformsOut);
 	void GetPatternTransforms_Radial(TArray<UE::Geometry::FTransformSRT3d>& TransformsOut);
 
+	void RenderBoundingBoxes(IToolsContextRenderAPI* RenderAPI);
+	FToolDataVisualizer BoundingBoxVisualizer;
 	
 	struct FPatternElement
 	{
@@ -491,16 +522,29 @@ protected:
 		UE::Geometry::FTransformSRT3d SourceTransform = UE::Geometry::FTransformSRT3d::Identity();
 		UE::Geometry::FTransformSRT3d BaseRotateScale = UE::Geometry::FTransformSRT3d::Identity();
 
+		// We don't need to store rotation or scale relative to first
+		// element because that is handled by BaseRotateScale
+		FVector3d RelativePosition = FVector3d::ZeroVector;
+
 		UDynamicMesh* SourceDynamicMesh = nullptr;
 		UStaticMesh* SourceStaticMesh = nullptr;
 
-		UE::Geometry::FAxisAlignedBox3d LocalBounds = UE::Geometry::FAxisAlignedBox3d::Empty();
-		UE::Geometry::FAxisAlignedBox3d PatternBounds = UE::Geometry::FAxisAlignedBox3d::Empty();
+		UE::Geometry::FAxisAlignedBox3d LocalBounds = UE::Geometry::FAxisAlignedBox3d::Empty();			// The unchanged bounding box of the source mesh. Only used indirectly through PatternBounds
+		UE::Geometry::FAxisAlignedBox3d PatternBounds = UE::Geometry::FAxisAlignedBox3d::Empty();		// The bounding box used for computing CombinedPatternBounds for packed spacing. By default this box adapts to StartScale/StartRotation
 	};
 	TArray<FPatternElement> Elements;
+	UE::Geometry::FAxisAlignedBox3d CombinedPatternBounds = UE::Geometry::FAxisAlignedBox3d::Empty();	// The bounding box that contains all of the elements' PatternBounds bounding boxes. Used for packed mode spacing
 
+	void ComputePatternBounds(int32 ElemIdx);
+	void ComputeCombinedPatternBounds();
+
+	// Given an Element index and an FTransformSRT3d, determine the bounding box that contains the transformed underlying mesh
+	// BoundingBox is made empty before growing to contain the transformed mesh.
+	void ComputeBoundingBoxWithTransform(int32 ElemIdx, UE::Geometry::FAxisAlignedBox3d& BoundingBox, const UE::Geometry::FTransformSRT3d& Transform);
+	
 	bool bHaveNonUniformScaleElements = false;
 
+	
 	struct FComponentSet
 	{
 		TArray<UPrimitiveComponent*> Components;
