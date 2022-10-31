@@ -508,7 +508,7 @@ public:
 		return TPlatformProperties::GetZlibReplacementFormat() != nullptr ? FName(TPlatformProperties::GetZlibReplacementFormat()) : NAME_Zlib;
 	}
 
-	virtual int32 GetMemoryMappingAlignment() const override
+	virtual int64 GetMemoryMappingAlignment() const override
 	{
 		return TPlatformProperties::GetMemoryMappingAlignment();
 	}

@@ -766,7 +766,7 @@ protected:
 
 		// find a set of valid target platform names (the platform DataDrivenPlatformInfo.ini file was found indicates support for the platform 
 		// exists on disk, so the TP is expected to work)
-		FScopedSlowTask SlowTask(FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos().Num());
+		FScopedSlowTask SlowTask((float)FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos().Num());
 		for (auto Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
 		{
 			FName PlatformName = Pair.Key;

@@ -291,7 +291,7 @@ bool FTargetDeviceService::StoreDeployedFile(FArchive* FileReader, const FString
 
 	// copy file contents
 	int64 BytesRemaining = FileReader->TotalSize();
-	int32 BufferSize = 128 * 1024;
+	int64 BufferSize = 128 * 1024;
 
 	if (BytesRemaining < BufferSize)
 	{

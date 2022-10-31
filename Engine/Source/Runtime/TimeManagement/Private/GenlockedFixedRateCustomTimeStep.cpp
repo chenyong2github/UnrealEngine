@@ -80,7 +80,7 @@ bool UGenlockedFixedRateCustomTimeStep::WaitForSync()
 			// Normal sleep for the bulk of the idle time.
 			if (LastIdleTime > 5.f / 1000.f)
 			{
-				FPlatformProcess::SleepNoStats(LastIdleTime - 0.002f);
+				FPlatformProcess::SleepNoStats((float)LastIdleTime - 0.002f);
 			}
 
 			// Give up timeslice for small remainder of wait time.

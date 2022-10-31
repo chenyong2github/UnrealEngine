@@ -261,7 +261,7 @@ bool FWindowsVideoRecordingSystem::NewRecording(const TCHAR* DestinationFileName
 	if (Recorder->GetState() == FHighlightRecorder::EState::Stopped)
 	{
 		// Call Start to initialize the internals, and pause right away
-		if (Recorder->Start(Parameters.RecordingLengthSeconds) == false)
+		if (Recorder->Start(double(Parameters.RecordingLengthSeconds)) == false)
 		{
 			// this could be if running with -nullrhi, and the Pause below will crash
 			return false;
@@ -296,7 +296,7 @@ void FWindowsVideoRecordingSystem::StartRecording()
 
 	if (Recorder->GetState() == FHighlightRecorder::EState::Stopped)
 	{
-		Recorder->Start(Parameters.RecordingLengthSeconds);
+		Recorder->Start(double(Parameters.RecordingLengthSeconds));
 	}
 	if (Recorder->GetState() == FHighlightRecorder::EState::Paused)
 	{
@@ -343,7 +343,7 @@ uint64 FWindowsVideoRecordingSystem::GetMaximumRecordingSeconds() const
 
 float FWindowsVideoRecordingSystem::GetCurrentRecordingSeconds() const
 {
-	float Ret = (FPlatformTime::Cycles64() - CurrentStartRecordingCycles + CyclesBeforePausing) * FPlatformTime::GetSecondsPerCycle();
+	float Ret = float((FPlatformTime::Cycles64() - CurrentStartRecordingCycles + CyclesBeforePausing) * FPlatformTime::GetSecondsPerCycle());
 	UE_LOG(WindowsVideoRecordingSystem, Verbose, TEXT("%s: reporting %f"), __FUNCTIONW__, Ret);
 	return Ret;
 }
@@ -371,7 +371,7 @@ void FWindowsVideoRecordingSystem::FinalizeRecording(const bool bSaveRecording, 
 				FSimpleDelegateGraphTask::FDelegate::CreateRaw(this, &FWindowsVideoRecordingSystem::FinalizeCallbackOnGameThread,
 					bRes, Parameters.bAutoContinue && !bStopAutoContinue, InFullPathToFile, true),
 				TStatId(), nullptr, ENamedThreads::GameThread);
-		}, Parameters.RecordingLengthSeconds);
+		}, double(Parameters.RecordingLengthSeconds));
 
 		if (!bRet)
 		{

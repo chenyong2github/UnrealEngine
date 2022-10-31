@@ -80,7 +80,7 @@ public:
 	// ViewportInteractorInterface overrides
 	virtual void Shutdown_Implementation() override;
 	virtual void Tick_Implementation( const float DeltaTime ) override;
-	virtual void CalculateDragRay( float& InOutDragRayLength, float& InOutDragRayVelocity ) override;
+	virtual void CalculateDragRay( double& InOutDragRayLength, double& InOutDragRayVelocity ) override;
 
 	/** @return Returns the type of HMD we're dealing with */
 	UFUNCTION( BlueprintCallable, Category = "UVREditorInteractor" )

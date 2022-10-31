@@ -261,7 +261,7 @@ struct FEncodedTextureDescription
 			check(InMipIndex == NumMips - InExtendedData->NumMipsInTail);
 
 			// We want the layout for the entire tail.
-			MipTextureDescription.NumMips = InExtendedData->NumMipsInTail;
+			MipTextureDescription.NumMips = IntCastChecked<uint8>(InExtendedData->NumMipsInTail);
 		}		
 		return MipTextureDescription;
 	}

@@ -161,7 +161,7 @@ public:
 	bool PreprocessedInputKey( const FKey Key, const EInputEvent Event );
 
 	/** Handles the axis input from the Input Preprocessor*/
-	bool PreprocessedInputAxis( const int32 ControllerId, const FKey Key, const float Delta, const float DeltaTime );
+	bool PreprocessedInputAxis( const int32 ControllerId, const FKey Key, const float Delta, const double DeltaTime );
 
 	/** Gets the world space transform of the calibrated VR room origin.  When using a seated VR device, this will feel like the
 	camera's world transform (before any HMD positional or rotation adjustments are applied.) */

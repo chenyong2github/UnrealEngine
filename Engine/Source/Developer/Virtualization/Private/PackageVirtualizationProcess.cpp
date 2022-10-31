@@ -246,7 +246,7 @@ void VirtualizePackages(TConstArrayView<FString> PackagePaths, TArray<FText>& Ou
 	// Build up the info in the payload provider and the final array of payload push requests
 	FWorkspaceDomainPayloadProvider PayloadProvider;
 	TArray<Virtualization::FPushRequest> PayloadsToSubmit;
-	PayloadsToSubmit.Reserve(TotalPayloadsToVirtualize);
+	PayloadsToSubmit.Reserve( IntCastChecked<int32>(TotalPayloadsToVirtualize) );
 
 	for (FPackageInfo& PackageInfo : Packages)
 	{

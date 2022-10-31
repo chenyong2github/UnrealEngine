@@ -106,9 +106,9 @@ void APivotTransformGizmo::UpdateGizmo(const EGizmoHandleTypes InGizmoType, cons
 	SetActorTransform(InLocalToWorld);
 
 	// Increase scale with distance, to make gizmo handles easier to click on
-	const float WorldSpaceDistanceToToPivot = FMath::Max(VREd::PivotGizmoMinDistanceForScaling->GetFloat(), FMath::Sqrt(FVector::DistSquared( GetActorLocation(), InViewLocation )));
-	const float WorldScaleFactor = WorldInteraction->GetWorldScaleFactor();
-	const float GizmoScale = (InScaleMultiplier * ((WorldSpaceDistanceToToPivot / WorldScaleFactor) * VREd::PivotGizmoDistanceScaleFactor->GetFloat())) * WorldScaleFactor;
+	const double WorldSpaceDistanceToToPivot = FMath::Max(VREd::PivotGizmoMinDistanceForScaling->GetFloat(), FMath::Sqrt(FVector::DistSquared( GetActorLocation(), InViewLocation )));
+	const double WorldScaleFactor = WorldInteraction->GetWorldScaleFactor();
+	const double GizmoScale = (InScaleMultiplier * ((WorldSpaceDistanceToToPivot / WorldScaleFactor) * VREd::PivotGizmoDistanceScaleFactor->GetFloat())) * WorldScaleFactor;
 	const bool bIsWorldSpaceGizmo = (WorldInteraction->GetTransformGizmoCoordinateSpace() == COORD_World);
 
 	if (LastDraggingHandle != nullptr && DraggingHandle == nullptr)
@@ -116,12 +116,12 @@ void APivotTransformGizmo::UpdateGizmo(const EGizmoHandleTypes InGizmoType, cons
 		AimingAtGizmoScaleAlpha = 0.0f;
 	}
 
-	float AnimatedGizmoScale = GizmoScale;
+	double AnimatedGizmoScale = GizmoScale;
 	// Only scale the gizmo down when not aiming at it for VR implementations
 	if (WorldInteraction->IsInVR())
 	{
 		bool bIsAimingTowards = false;
-		const float GizmoRadius = (GizmoScale * 350) * 0.5f;
+		const double GizmoRadius = (GizmoScale * 350) * 0.5f;
 
 		// Check if any interactor has a laser close to the gizmo
 		for (UViewportInteractor* Interactor : WorldInteraction->GetInteractors())
@@ -133,7 +133,7 @@ void APivotTransformGizmo::UpdateGizmo(const EGizmoHandleTypes InGizmoType, cons
 				if (Interactor->GetLaserPointer(/*Out*/ LaserPointerStart, /*Out*/ LaserPointerEnd))
 				{
 					const FVector ClosestPointOnLaser = FMath::ClosestPointOnLine(LaserPointerStart, LaserPointerEnd, InLocalToWorld.GetLocation());
-					const float ClosestPointDistance = (ClosestPointOnLaser - InLocalToWorld.GetLocation()).Size();
+					const double ClosestPointDistance = (ClosestPointOnLaser - InLocalToWorld.GetLocation()).Size();
 					if (ClosestPointDistance <= GizmoRadius)
 					{
 						bIsAimingTowards = true;
@@ -167,10 +167,11 @@ void APivotTransformGizmo::UpdateGizmo(const EGizmoHandleTypes InGizmoType, cons
 		{
 			bool bIsHoveringOrDraggingThisHandleGroup = false;
 			
-			const float Scale = HandleGroup == StretchGizmoHandleGroup ? GizmoScale : AnimatedGizmoScale;
+			const double Scale = HandleGroup == StretchGizmoHandleGroup ? GizmoScale : AnimatedGizmoScale;
+			const float FloatScale = FloatCastChecked<float>(Scale, 1.0 / 16.0);
 
 			HandleGroup->UpdateGizmoHandleGroup(InLocalToWorld, InLocalBounds, InViewLocation, bInAllHandlesVisible, DraggingHandle,
-				InHoveringOverHandles, AnimationAlpha, Scale, InGizmoHoverScale, InGizmoHoverAnimationDuration, /* Out */ bIsHoveringOrDraggingThisHandleGroup);
+				InHoveringOverHandles, AnimationAlpha, FloatScale, InGizmoHoverScale, InGizmoHoverAnimationDuration, /* Out */ bIsHoveringOrDraggingThisHandleGroup);
 
 			
 			if (HandleGroup != RotationGizmoHandleGroup)
@@ -493,7 +494,7 @@ EGizmoHandleTypes UPivotRotationGizmoHandleGroup::GetHandleType() const
 
 void UPivotRotationGizmoHandleGroup::UpdateIndicator(USceneComponent* IndicatorRoot, const FVector& Direction, const uint32 FacingAxisIndex)
 {
-	float Y = 0, X = 0;
+	double Y = 0, X = 0;
 	if (FacingAxisIndex == 0)
 	{
 		Y = Direction.Y;
@@ -510,7 +511,7 @@ void UPivotRotationGizmoHandleGroup::UpdateIndicator(USceneComponent* IndicatorR
 		X = -Direction.X;
 	}
 
-	const float Angle = FMath::RadiansToDegrees(FMath::Atan2(Y, X));
+	const double Angle = FMath::RadiansToDegrees(FMath::Atan2(Y, X));
 	IndicatorRoot->SetRelativeRotation(FRotator(0, 0, Angle));
 }
 

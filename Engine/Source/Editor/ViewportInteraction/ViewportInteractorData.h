@@ -72,7 +72,7 @@ struct FViewportInteractorData
 	bool bWasAssistingDrag;
 
 	/** Length of the ray that's dragging */
-	float DragRayLength;
+	double DragRayLength;
 
 	/** Location that we dragged to last frame (end point of the ray) */
 	FVector LastDragToLocation;
@@ -90,7 +90,7 @@ struct FViewportInteractorData
 	FVector DragTranslationVelocity;
 
 	/** How fast to adjust ray length every frame for inertial ray length changes */
-	float DragRayLengthVelocity;
+	double DragRayLengthVelocity;
 
 	/** While dragging, true if we're dragging at least one simulated object that we're driving the velocities of.  When this
 	    is true, our default inertia system is disabled and we rely on the physics engine to take care of inertia */

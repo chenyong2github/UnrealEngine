@@ -174,7 +174,8 @@ class SDrawerOverlay : public SCompoundWidget
 		if (bIsResizing && this->HasMouseCapture() && !MouseEvent.GetCursorDelta().IsZero())
 		{
 			const FVector2D LocalMousePos = InitialResizeGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-			const float DeltaHeight = (InitialResizeGeometry.GetLocalPositionAtCoordinates(FVector2D::ZeroVector) - LocalMousePos).Y;
+			const double NarrowingPrecision = 1.0 / 16.0;
+			const float DeltaHeight = FloatCastChecked<float>((InitialResizeGeometry.GetLocalPositionAtCoordinates(FVector2D::ZeroVector) - LocalMousePos).Y, NarrowingPrecision);
 
 			TargetHeight = FMath::Clamp(InitialHeightAtResize + DeltaHeight, MinHeight, MaxHeight);
 			SetHeight(InitialHeightAtResize + DeltaHeight);
@@ -376,7 +377,7 @@ public:
 				//.AutoWidth()
 				[
 					SNew(SBox)
-					.HeightOverride(8)
+					.HeightOverride(8.f)
 					[
 						SNew(SOverlay)
 						+ SOverlay::Slot()
@@ -1020,7 +1021,7 @@ TSharedRef<SWidget> SStatusBar::OnGetProgressBarMenuContent()
 
 	return
 		SNew(SBox)
-		.WidthOverride(ProgressBar->GetDesiredSize().X-8.0f)
+		.WidthOverride((float)ProgressBar->GetDesiredSize().X-8.0f)
 		[
 			ProgressBarMenu.MakeWidget()
 		];

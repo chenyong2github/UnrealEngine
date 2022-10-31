@@ -587,7 +587,7 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 
 		FString CharacterCopyMsg = TEXT("Re-Importing : ") + CharacterName;
 		FText CharacterCopyMsgDialogMessage = FText::FromString(CharacterCopyMsg);
-		FScopedSlowTask CharacterLoadprogress((float)SourceCharacterFiles.Num() * 3.0, CharacterCopyMsgDialogMessage);
+		FScopedSlowTask CharacterLoadprogress((float)SourceCharacterFiles.Num() * 3.0f, CharacterCopyMsgDialogMessage);
 		CharacterLoadprogress.MakeDialog();
 		
 

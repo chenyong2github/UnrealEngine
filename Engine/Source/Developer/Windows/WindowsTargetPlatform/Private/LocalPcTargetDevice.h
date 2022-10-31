@@ -275,7 +275,7 @@ public:
 
 	virtual bool TerminateProcess( const int64 ProcessId ) override
 	{
-		HANDLE ProcessHandle = OpenProcess(PROCESS_TERMINATE, false, ProcessId);
+		HANDLE ProcessHandle = OpenProcess(PROCESS_TERMINATE, false, (DWORD)ProcessId );
 
 		if (ProcessHandle != NULL)
 		{

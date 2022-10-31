@@ -96,7 +96,7 @@ void SStatsViewer::Construct( const FArguments& InArgs )
 				.Padding(0.0f)
 				[
 					SNew( SComboButton )
-					.ContentPadding(3)
+					.ContentPadding(3.f)
 					.OnGetMenuContent( this, &SStatsViewer::OnGetDisplayMenuContent )
 					.ButtonContent()
 					[
@@ -111,7 +111,7 @@ void SStatsViewer::Construct( const FArguments& InArgs )
 				[
 					SNew( SButton )
 					.Visibility( this, &SStatsViewer::OnGetStatsVisibility )
-					.ContentPadding(3)
+					.ContentPadding(3.f)
 					.OnClicked( this, &SStatsViewer::OnRefreshClicked )
 					.Content()
 					[
@@ -126,7 +126,7 @@ void SStatsViewer::Construct( const FArguments& InArgs )
 				[
 					SNew( SButton )
 					.Visibility( this, &SStatsViewer::OnGetStatsVisibility )
-					.ContentPadding(3)
+					.ContentPadding(3.f)
 					.OnClicked( this, &SStatsViewer::OnExportClicked )
 					.Content()
 					[
@@ -193,7 +193,7 @@ void SStatsViewer::Construct( const FArguments& InArgs )
 				[
 					SNew( SComboButton )
 					.Visibility( this, &SStatsViewer::OnGetStatsVisibility )
-					.ContentPadding(2)
+					.ContentPadding(2.f)
 					.OnGetMenuContent( this, &SStatsViewer::OnGetFilterMenuContent )
 					.ButtonContent()
 					[
@@ -805,7 +805,7 @@ void SStatsViewer::SetDisplayedStats( TSharedRef<IStatsPage> StatsPage )
 		{
 			CustomFilterWidget = SNew( SComboButton )
 				.Visibility( this, &SStatsViewer::OnGetObjectSetsVisibility )
-				.ContentPadding(3)
+				.ContentPadding(3.f)
 				.OnGetMenuContent( this, &SStatsViewer::OnGetObjectSetMenuContent )
 				.ButtonContent()
 				[

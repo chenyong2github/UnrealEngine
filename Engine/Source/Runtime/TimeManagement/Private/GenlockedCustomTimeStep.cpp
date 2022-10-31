@@ -39,6 +39,6 @@ uint32 UGenlockedCustomTimeStep::GetExpectedSyncCountDelta() const
 	//Depending on format, sync count per frame will not be 1.
 	//For example, PsF will have 2 sync counts
 	const FFrameRate DeltaFrameRate = GetSyncRate() / GetFixedFrameRate();
-	return FMath::RoundToInt(DeltaFrameRate.AsDecimal());
+	return FMath::RoundToInt32(DeltaFrameRate.AsDecimal());
 }
 

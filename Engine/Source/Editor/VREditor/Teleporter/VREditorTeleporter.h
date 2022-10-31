@@ -172,10 +172,10 @@ private:
 	float TeleportGoalScale;
 
 	/** The current length of the laser where the teleport should be at */
-	float DragRayLength;
+	double DragRayLength;
 
 	/** The current drag velocity to push or pull the teleport along the laser */
-	float DragRayLengthVelocity;
+	double DragRayLengthVelocity;
 
 	/** If the teleporter has been pushed by the trackpad */
 	bool bPushedFromEndOfLaser;

@@ -283,7 +283,7 @@ public:
 	 *
 	 * @return alignment of memory mapping.
 	 */
-	virtual int32 GetMemoryMappingAlignment() const = 0;
+	virtual int64 GetMemoryMappingAlignment() const = 0;
 
 	/**
 	 * Generates a platform specific asset manifest given an array of FAssetData.

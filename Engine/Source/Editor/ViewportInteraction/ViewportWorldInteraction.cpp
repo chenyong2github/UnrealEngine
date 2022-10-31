@@ -105,7 +105,7 @@ struct FGuideData
 	FVector GuideEnd;
 	FColor GuideColor;
 	float DrawAlpha;
-	float GuideLength;
+	double GuideLength;
 };
 
 // @todo vreditor: Hacky inline implementation of a double vector.  Move elsewhere and polish or get rid.
@@ -657,11 +657,11 @@ bool UViewportWorldInteraction::InputAxis( FEditorViewportClient* InViewportClie
 	return bWasHandled;
 }
 
-bool UViewportWorldInteraction::PreprocessedInputAxis( const int32 ControllerId, const FKey Key, const float Delta, const float DeltaTime )
+bool UViewportWorldInteraction::PreprocessedInputAxis( const int32 ControllerId, const FKey Key, const float Delta, const double DeltaTime )
 {
 	if( DefaultOptionalViewportClient != nullptr && bUseInputPreprocessor == true )
 	{
-		return InputAxis( DefaultOptionalViewportClient, DefaultOptionalViewportClient->Viewport, ControllerId, Key, Delta, DeltaTime );
+		return InputAxis( DefaultOptionalViewportClient, DefaultOptionalViewportClient->Viewport, ControllerId, Key, Delta, (float)DeltaTime );
 	}
 
 	return false;
@@ -710,7 +710,7 @@ void UViewportWorldInteraction::SetHeadTransform( const FTransform& NewHeadTrans
 		FRotator UseRotation( NewHeadTransform.GetRotation().Rotator() );
 
 		// adjust the yaw by the difference of the flag and the HMD
-		float YawDifference = GetHeadTransform().GetRotation().Rotator().Yaw - UseRotation.Yaw;
+		double YawDifference = GetHeadTransform().GetRotation().Rotator().Yaw - UseRotation.Yaw;
 		UseRotation.Yaw = GetRoomTransform().GetRotation().Rotator().Yaw - YawDifference;
 		UseRotation.Pitch = 0.0f;
 		UseRotation.Roll = 0.0f;
@@ -1084,7 +1084,7 @@ void UViewportWorldInteraction::InteractionTick( const float DeltaTime )
 							if( !bIsInterpolatingTransformablesFromSnapshotTransform )	// Let the last animation finish first
 							{
 								const FVector WorldSpaceDragDelta = InteractorData.bIsFirstDragUpdate ? FVector::ZeroVector : ( DraggedTo - InteractorData.LastDragToLocation );
-								const float ScaledDragDistance = WorldSpaceDragDelta.Size() * WorldScaleFactor;
+								const double ScaledDragDistance = WorldSpaceDragDelta.Size() * WorldScaleFactor;
 								if( ScaledDragDistance >= VI::DragAtLaserImpactInterpolationThreshold->GetFloat() )
 								{
 									bIsInterpolatingTransformablesFromSnapshotTransform = true;
@@ -1292,8 +1292,8 @@ void UViewportWorldInteraction::InteractionTick( const float DeltaTime )
 				bool bCrossedGridLine = false;
 				for( int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex )
 				{
-					const int32 OldGridCellIndex = FMath::TruncToInt( OldViewLocation[ AxisIndex ] / WorldSpaceHapticTranslationInterval );
-					const int32 NewGridCellIndex = FMath::TruncToInt( NewViewLocation[ AxisIndex ] / WorldSpaceHapticTranslationInterval );
+					const int32 OldGridCellIndex = FMath::TruncToInt32( OldViewLocation[ AxisIndex ] / WorldSpaceHapticTranslationInterval );
+					const int32 NewGridCellIndex = FMath::TruncToInt32( NewViewLocation[ AxisIndex ] / WorldSpaceHapticTranslationInterval );
 					if( OldGridCellIndex != NewGridCellIndex )
 					{
 						bCrossedGridLine = true;
@@ -1811,18 +1811,18 @@ void UViewportWorldInteraction::UpdateDragging(
 
 				const FVector LineStart = DraggedTo;
 				const FVector LineStartDelta = DragDelta;
-				const float LineStartDistance = LineStartDelta.Size();
+				const double LineStartDistance = LineStartDelta.Size();
 				const FVector LastLineStart = LineStart - LineStartDelta;
 
 				const FVector LineEnd = OtherHandDraggedTo;
 				const FVector LineEndDelta = OtherHandDragDelta;
-				const float LineEndDistance = LineEndDelta.Size();
+				const double LineEndDistance = LineEndDelta.Size();
 				const FVector LastLineEnd = LineEnd - LineEndDelta;
 
 				// Choose a point along the new line segment to rotate and scale relative to.  We'll weight it toward the
 				// side of the line that moved the most this update.
-				const float TotalDistance = LineStartDistance + LineEndDistance;
-				float LineStartToEndActivityWeight = 0.5f;	// Default to right in the center, if no distance moved yet.
+				const double TotalDistance = LineStartDistance + LineEndDistance;
+				double LineStartToEndActivityWeight = 0.5f;	// Default to right in the center, if no distance moved yet.
 				if (GetDefault<UVISettings>()->bScaleWorldWithDynamicPivot && !FMath::IsNearlyZero( TotalDistance ) )	// Avoid division by zero
 				{
 					LineStartToEndActivityWeight = LineStartDistance / TotalDistance;
@@ -1846,20 +1846,20 @@ void UViewportWorldInteraction::UpdateDragging(
 					DrawDebugSphere( GetWorld(), LinesRelativeTo.TransformPosition( PivotLocation ), 2.5f * GetWorldScaleFactor(), 32, FColor::White, false, 0.0f );
 				}
 
-				const float LastLineLength = ( LastLineEnd - LastLineStart ).Size();
-				const float LineLength = ( LineEnd - LineStart ).Size();
+				const double LastLineLength = ( LastLineEnd - LastLineStart ).Size();
+				const double LineLength = ( LineEnd - LineStart ).Size();
 				ScaleOffset = FVector( LineLength / LastLineLength );
 				//			ScaleOffset = FVector( 0.98f + 0.04f * FMath::MakePulsatingValue( FPlatformTime::Seconds(), 0.1f ) ); // FVector( LineLength / LastLineLength );
-				GizmoScaleSinceDragStarted += ( LineLength - LastLineLength ) / GetWorldScaleFactor();
+				GizmoScaleSinceDragStarted += FloatCastChecked<float>((LineLength - LastLineLength) / GetWorldScaleFactor(), 1.0 / 16.0);
 
 				// How much did the line rotate since last time?
 				RotationOffset = FQuat::FindBetweenVectors( LastLineEnd - LastLineStart, LineEnd - LineStart );
-				GizmoRotationRadiansSinceDragStarted += RotationOffset.AngularDistance( FQuat::Identity );
+				GizmoRotationRadiansSinceDragStarted += (float)RotationOffset.AngularDistance( FQuat::Identity );
 
 				// For translation, only move proportionally to the common vector between the two deltas.  Basically,
 				// you need to move both hands in the same direction to translate while gripping with two hands.
 				const FVector AverageDelta = ( DragDelta + OtherHandDragDelta ) * 0.5f;
-				const float TranslationWeight = FMath::Max( 0.0f, FVector::DotProduct( DragDelta.GetSafeNormal(), OtherHandDragDelta.GetSafeNormal() ) );
+				const double TranslationWeight = FMath::Max( 0.0f, FVector::DotProduct( DragDelta.GetSafeNormal(), OtherHandDragDelta.GetSafeNormal() ) );
 				TranslationOffset = FMath::Lerp( FVector::ZeroVector, AverageDelta, TranslationWeight );
 			}
 			else
@@ -1960,7 +1960,7 @@ void UViewportWorldInteraction::UpdateDragging(
 				if (bAllowWorldScaling)
 				{
 					// Adjust world scale
-					const float WorldScaleOffset = ScaleOffset.GetAbsMax();
+					const float WorldScaleOffset = (float)ScaleOffset.GetAbsMax();
 					if (WorldScaleOffset != 0.0f)
 					{
 						const float OldWorldToMetersScale = GetWorld()->GetWorldSettings()->WorldToMeters;
@@ -2569,9 +2569,9 @@ bool UViewportWorldInteraction::FindPlacementPointUnderLaser( UViewportInteracto
 					ExtremeDirection.X >= 0.0f ? Box.Max.X : Box.Min.X,
 					ExtremeDirection.Y >= 0.0f ? Box.Max.Y : Box.Min.Y,
 					ExtremeDirection.Z >= 0.0f ? Box.Max.Z : Box.Min.Z );
-				const float ProjectionDistance = FVector::DotProduct( ExtremePoint, ExtremeDirection );
+				const double ProjectionDistance = FVector::DotProduct( ExtremePoint, ExtremeDirection );
 
-				const float ExtraOffset = 
+				const double ExtraOffset =
 					( bAnyPhysicallySimulatedTransformables && GEditor->bIsSimulatingInEditor ) ? ( GizmoLocalBounds.GetSize().GetAbsMax() * VI::PlacementOffsetScaleWhileSimulating->GetFloat() ) : 0.0f;
 
 				ExtremePointOnBox = ExtremeDirection * ( ProjectionDistance + ExtraOffset );
@@ -2773,11 +2773,11 @@ void UViewportWorldInteraction::RefreshTransformGizmo( const bool bNewObjectsSel
 			const FBox GizmoWorldBoundsFlattened = GizmoLocalBoundsFlattened.TransformBy( GizmoToWorld );
 
 			// Make sure we're at least as big as the gizmo bounds, but also large enough that you can see at least a few grid cells (depending on your snap size)
-			const float SnapGridSize = 
+			const double SnapGridSize = 
 				FMath::Max( GizmoWorldBoundsFlattened.GetSize().GetAbsMax(), GEditor->GetGridSize() * 2.5f ) * VI::SnapGridSize->GetFloat();
 
 			// The mesh is 100x100, so we'll scale appropriately
-			const float SnapGridScale = SnapGridSize / 100.0f;
+			const double SnapGridScale = SnapGridSize / 100.0f;
 			SnapGridActor->SetActorScale3D( FVector( SnapGridScale ) );
 
 			EViewportInteractionDraggingMode DraggingMode = EViewportInteractionDraggingMode::Nothing;
@@ -2841,7 +2841,7 @@ void UViewportWorldInteraction::RefreshTransformGizmo( const bool bNewObjectsSel
 				LocalSnapGridMID->SetScalarParameterValue( GridIntervalParameterName, GridInterval );
 
 				static FName GridRadiusParameterName( "GridRadius" );
-				LocalSnapGridMID->SetScalarParameterValue( GridRadiusParameterName, SnapGridSize * 0.5f );
+				LocalSnapGridMID->SetScalarParameterValue( GridRadiusParameterName, FloatCastChecked<float>(SnapGridSize * 0.5f, 1./16.) );
 
 				static FName LineWidthParameterName( "LineWidth" );
 				LocalSnapGridMID->SetScalarParameterValue( LineWidthParameterName, LineWidth );
@@ -2955,16 +2955,16 @@ float UViewportWorldInteraction::GetTransformGizmoScale() const
 
 void UViewportWorldInteraction::ApplyVelocityDamping( FVector& Velocity, const bool bVelocitySensitive )
 {
-	const float InertialMovementZeroEpsilon = 0.01f;	// @todo vreditor tweak
+	const double InertialMovementZeroEpsilon = 0.01f;	// @todo vreditor tweak
 	if ( !Velocity.IsNearlyZero( InertialMovementZeroEpsilon ) )
 	{
 		// Apply damping
 		if ( bVelocitySensitive )
 		{
-			const float DampenMultiplierAtLowSpeeds = LowSpeedInertiaDamping;
-			const float DampenMultiplierAtHighSpeeds = HighSpeedInertiaDamping;
-			const float SpeedForMinimalDamping = 2.5f * GetWorldScaleFactor();	// cm/frame	// @todo vreditor tweak
-			const float SpeedBasedDampeningScalar = FMath::Clamp( Velocity.Size(), 0.0f, SpeedForMinimalDamping ) / SpeedForMinimalDamping;	// @todo vreditor: Probably needs a curve applied to this to compensate for our framerate insensitivity
+			const double DampenMultiplierAtLowSpeeds = LowSpeedInertiaDamping;
+			const double DampenMultiplierAtHighSpeeds = HighSpeedInertiaDamping;
+			const double SpeedForMinimalDamping = 2.5f * GetWorldScaleFactor();	// cm/frame	// @todo vreditor tweak
+			const double SpeedBasedDampeningScalar = FMath::Clamp( Velocity.Size(), 0.0f, SpeedForMinimalDamping ) / SpeedForMinimalDamping;	// @todo vreditor: Probably needs a curve applied to this to compensate for our framerate insensitivity
 			Velocity = Velocity * FMath::Lerp( DampenMultiplierAtLowSpeeds, DampenMultiplierAtHighSpeeds, SpeedBasedDampeningScalar );	// @todo vreditor: Frame rate sensitive damping.  Make use of delta time!
 		}
 		else
@@ -3409,7 +3409,7 @@ FVector UViewportWorldInteraction::FindTransformGizmoAlignPoint(const FTransform
 	}
 
 	// Our snap distances are some percentage of the transform gizmo's dimensions
-	const float AdjustedSnapDistance = (VI::ForceSnapDistance->GetFloat() / 100.0f) * 2.0f * (MinGuideLength.GetAbsMax());
+	const double AdjustedSnapDistance = (VI::ForceSnapDistance->GetFloat() / 100.0f) * 2.0f * (MinGuideLength.GetAbsMax());
 	int32 NumberOfMatchesNeeded = 0;
 	if (bShouldConstrainMovement)
 	{
@@ -3451,7 +3451,7 @@ FVector UViewportWorldInteraction::FindTransformGizmoAlignPoint(const FTransform
 		// Find all possible candidates for alignment
 		// TODO: add the world grid
 		// TODO: remove anything it might not make sense to align to
-		const float CompareDistance = VI::AlignCandidateDistance->GetFloat() * MinGuideLength.GetAbsMax();
+		const float CompareDistance = FloatCastChecked<float>(VI::AlignCandidateDistance->GetFloat() * MinGuideLength.GetAbsMax(), 1./16.);
 		const FVector Start = DesiredGizmoTransform.GetLocation();
 		const FVector End = DesiredGizmoTransform.GetLocation();
 		TArray<FOverlapResult> OutOverlaps;
@@ -3543,10 +3543,10 @@ FVector UViewportWorldInteraction::FindTransformGizmoAlignPoint(const FTransform
 	// Now find the best guide from all available point combinations
 	FGuideData AlignedGuide;
 	bool bFoundAlignedTransform = false;
-	float AlignedDeltaSize = 10000000.0f;
+	double AlignedDeltaSize = 10000000.0f;
 	for (FGuideData PotentialGizmoGuide : PotentialGizmoGuides)
 	{	
-		const float OffsetSize = PotentialGizmoGuide.LocalOffset.Size();
+		const double OffsetSize = PotentialGizmoGuide.LocalOffset.Size();
 
 		// Keep finding the guide with the shortest offset size
 		if (OffsetSize < AlignedDeltaSize && !FMath::IsNearlyZero(OffsetSize))
@@ -3594,13 +3594,13 @@ void UViewportWorldInteraction::DrawBoxBrackets(const FBox InActor, const FTrans
 
 
 			// MinVector
-			OutVectorMin.X = FMath::Min<float>(LocalBox.Min.X, OutVectorMin.X);
-			OutVectorMin.Y = FMath::Min<float>(LocalBox.Min.Y, OutVectorMin.Y);
-			OutVectorMin.Z = FMath::Min<float>(LocalBox.Min.Z, OutVectorMin.Z);
+			OutVectorMin.X = FMath::Min<double>(LocalBox.Min.X, OutVectorMin.X);
+			OutVectorMin.Y = FMath::Min<double>(LocalBox.Min.Y, OutVectorMin.Y);
+			OutVectorMin.Z = FMath::Min<double>(LocalBox.Min.Z, OutVectorMin.Z);
 			// MaxVector
-			OutVectorMax.X = FMath::Max<float>(LocalBox.Max.X, OutVectorMax.X);
-			OutVectorMax.Y = FMath::Max<float>(LocalBox.Max.Y, OutVectorMax.Y);
-			OutVectorMax.Z = FMath::Max<float>(LocalBox.Max.Z, OutVectorMax.Z);
+			OutVectorMax.X = FMath::Max<double>(LocalBox.Max.X, OutVectorMax.X);
+			OutVectorMax.Y = FMath::Max<double>(LocalBox.Max.Y, OutVectorMax.Y);
+			OutVectorMax.Z = FMath::Max<double>(LocalBox.Max.Z, OutVectorMax.Z);
 		}
 	};
 
@@ -3611,7 +3611,7 @@ void UViewportWorldInteraction::DrawBoxBrackets(const FBox InActor, const FTrans
 	Local::GetBoundingVectors(InActor, MinVector, MaxVector);
 
 	// Create a bracket offset to determine the length of our corner axises
-	const float BracketOffset = FVector::Dist(MinVector, MaxVector) * 0.1f;
+	const double BracketOffset = FVector::Dist(MinVector, MaxVector) * 0.1f;
 
 	// Calculate bracket corners based on min/max vectors
 	TArray<FVector> BracketCorners;
@@ -3645,9 +3645,9 @@ void UViewportWorldInteraction::DrawBoxBrackets(const FBox InActor, const FTrans
 		const FVector WorldBracketY = LocalToWorld.TransformPosition(LocalBracketY);
 		const FVector WorldBracketZ = LocalToWorld.TransformPosition(LocalBracketZ);
 
-		DrawDebugLine(GetWorld(), WorldCorner, WorldBracketX, GROUP_COLOR, false, -1.0f, 1.0f, 2.0f);
-		DrawDebugLine(GetWorld(), WorldCorner, WorldBracketY, GROUP_COLOR, false, -1.0f, 1.0f, 2.0f);
-		DrawDebugLine(GetWorld(), WorldCorner, WorldBracketZ, GROUP_COLOR, false, -1.0f, 1.0f, 2.0f);
+		DrawDebugLine(GetWorld(), WorldCorner, WorldBracketX, GROUP_COLOR, false, -1.0f, 1, 2.0f);
+		DrawDebugLine(GetWorld(), WorldCorner, WorldBracketY, GROUP_COLOR, false, -1.0f, 1, 2.0f);
+		DrawDebugLine(GetWorld(), WorldCorner, WorldBracketZ, GROUP_COLOR, false, -1.0f, 1, 2.0f);
 	}
 
 }

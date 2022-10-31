@@ -66,11 +66,11 @@ float ABaseTransformGizmo::GetAnimationAlpha()
 	float AnimationAlpha = 0.0f;
 	{
 		const FTimespan CurrentTime = FTimespan::FromSeconds( FApp::GetCurrentTime() );
-		const float TimeSinceSelectionChange = (CurrentTime - SelectedAtTime).GetTotalSeconds();
-		const float AnimLength = VREd::GizmoSelectionAnimationDuration->GetFloat();
+		const double TimeSinceSelectionChange = (CurrentTime - SelectedAtTime).GetTotalSeconds();
+		const double AnimLength = VREd::GizmoSelectionAnimationDuration->GetFloat();
 		if ( TimeSinceSelectionChange < AnimLength )
 		{
-			AnimationAlpha = FMath::Max( 0.0f, TimeSinceSelectionChange / AnimLength );
+			AnimationAlpha = FMath::Max( 0.0f, float(TimeSinceSelectionChange / AnimLength) );
 		}
 		else
 		{

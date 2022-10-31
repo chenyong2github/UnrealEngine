@@ -90,14 +90,14 @@ bool FHighlightRecorder::Pause(bool bPause)
 		return false;
 	}
 
-	if (bPause && PauseTimestamp == 0.0)
+	if (bPause && PauseTimestamp == 0)
 	{
 		PauseTimestamp = GetRecordingTime();
 		State = EState::Paused;
 		UE_LOG(HighlightRecorder, Log, TEXT("paused"));
 	}
 	//allow unpause to occur if we are actually paused or if we happened to pause on the same frame as recording start
-	else if (!bPause && (PauseTimestamp != 0.0 || PauseTimestamp == GetRecordingTime()))
+	else if (!bPause && (PauseTimestamp != 0 || PauseTimestamp == GetRecordingTime()))
 	{
 		FTimespan LastPausedDuration = GetRecordingTime() - PauseTimestamp;
 		TotalPausedDuration += LastPausedDuration;

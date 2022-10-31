@@ -280,7 +280,7 @@ TSharedPtr<SWidget> FStaticMeshLightingInfoStatsPage::GetCustomWidget(TWeakPtr<I
 		.HAlign(HAlign_Fill)
 		[
 			SAssignNew(SwapComboButton, SComboButton)
-			.ContentPadding(3)
+			.ContentPadding(3.f)
 			.OnGetMenuContent( this, &FStaticMeshLightingInfoStatsPage::OnGetSwapComboButtonMenuContent, InParentStatsViewer )
 			.ButtonContent()
 			[
@@ -295,7 +295,7 @@ TSharedPtr<SWidget> FStaticMeshLightingInfoStatsPage::GetCustomWidget(TWeakPtr<I
 		.HAlign(HAlign_Fill)
 		[
 			SAssignNew(SetToComboButton, SComboButton)
-			.ContentPadding(3)
+			.ContentPadding(3.f)
 			.OnGetMenuContent( this, &FStaticMeshLightingInfoStatsPage::OnGetSetToComboButtonMenuContent, InParentStatsViewer )
 			.ButtonContent()
 			[

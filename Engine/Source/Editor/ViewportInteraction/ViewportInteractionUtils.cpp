@@ -106,9 +106,9 @@ namespace ViewportInteractionUtils
 		return Result;
 	}
 
-	const float FOneEuroFilter::CalculateAlpha(const float InCutoff, const double InDeltaTime) const
+	const double FOneEuroFilter::CalculateAlpha(const double InCutoff, const double InDeltaTime) const
 	{
-		const double tau = 1.0 / (2 * PI * InCutoff);
+		const double tau = 1.0 / (2 * UE_DOUBLE_PI * InCutoff);
 		return 1.0 / (1.0 + tau / InDeltaTime);
 	}
 

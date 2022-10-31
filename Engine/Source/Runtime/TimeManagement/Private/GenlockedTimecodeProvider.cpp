@@ -125,7 +125,7 @@ void UGenlockedTimecodeProvider::FetchAndUpdate()
 
 				if (CalcRoundedRateRatio(GenlockRate, LastFrameTime.Rate, RateRatio))
 				{
-					LastFrameTime.Rate.Numerator *= RateRatio; // RateRatio should already be rounded.
+					LastFrameTime.Rate.Numerator = FMath::TruncToInt32(LastFrameTime.Rate.Numerator * RateRatio); // RateRatio should already be rounded.
 					LastFrameTime.Time = FFrameTime::FromDecimal(LastFrameTime.Time.AsDecimal() * RateRatio);
 				}
 			}

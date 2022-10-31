@@ -103,8 +103,8 @@ bool FFrameTimeToSecondsTest::RunTest(const FString& Parameters)
 		FFrameTime Time     = TestTimes[Index];
 
 		// We test as floats so they round to the same precision as the sub frame
-		float     Actual   = Time / TestRate;
-		float     Expected = ExpectedSeconds[Index];
+		float     Actual   = float(Time / TestRate);
+		float     Expected = float(ExpectedSeconds[Index]);
 
 		ensureAlwaysMsgf(FMath::IsNearlyEqual(Actual, Expected, 6e-6f), TEXT("%d (+%0.3f) @ 60fps: %.9f seconds (actual) == %.9f (expected) seconds"),  Time.GetFrame().Value, Time.GetSubFrame(), Actual, Expected);
 	}

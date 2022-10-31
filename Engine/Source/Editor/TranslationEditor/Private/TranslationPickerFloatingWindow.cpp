@@ -209,7 +209,7 @@ void STranslationPickerFloatingWindow::Tick( const FGeometry& AllottedGeometry, 
 		DesiredPosition.X -= WindowSize.X;
 
 		// Clamp to work area
-		DesiredPosition = FSlateApplication::Get().CalculateTooltipWindowPosition(FSlateRect(DesiredPosition.X, DesiredPosition.Y, DesiredPosition.X, DesiredPosition.Y), WindowSize, false);
+		DesiredPosition = FSlateApplication::Get().CalculateTooltipWindowPosition(FSlateRect(DesiredPosition, DesiredPosition), WindowSize, false);
 
 		// also kind of a hack, but this is the only way at the moment to get a 'cursor decorator' without using the drag-drop code path
 		ParentWindow.Pin()->MoveWindowTo(DesiredPosition);

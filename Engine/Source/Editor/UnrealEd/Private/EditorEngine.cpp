@@ -1167,7 +1167,7 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("AnimationSettings")
 		};
 
-		FScopedSlowTask ModuleSlowTask(UE_ARRAY_COUNT(ModuleNames));
+		FScopedSlowTask ModuleSlowTask((float)UE_ARRAY_COUNT(ModuleNames));
 		for (const TCHAR* ModuleName : ModuleNames)
 		{
 			ModuleSlowTask.EnterProgressFrame(1);

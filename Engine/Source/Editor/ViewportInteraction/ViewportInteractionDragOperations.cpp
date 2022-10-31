@@ -100,7 +100,7 @@ void URotateOnAngleDragOperation::ExecuteDrag(FDraggingTransformableData& Draggi
 			}
 
 			// Get the angle between the center and the intersected point
-			float AngleToIntersectedLocation = FMath::Atan2(RotatedIntersectLocationOnPlane.Y, RotatedIntersectLocationOnPlane.Z);
+			float AngleToIntersectedLocation = (float)FMath::Atan2(RotatedIntersectLocationOnPlane.Y, RotatedIntersectLocationOnPlane.Z);
 			if (!StartDragAngleOnRotation.IsSet())
 			{
 				StartDragAngleOnRotation = AngleToIntersectedLocation;
@@ -134,7 +134,7 @@ void UScaleDragOperation::ExecuteDrag(struct FDraggingTransformableData& Draggin
 	HandlePlacement.GetCenterHandleCountAndFacingAxisIndex(/* Out */ CenterHandleCount, /* Out */ FacingAxisIndex, /* Out */ CenterAxisIndex);
 
 	const FVector PassGizmoSpaceDraggedTo = DraggingData.GizmoStartTransform.InverseTransformPositionNoScale(DraggingData.PassDraggedTo);
-	float AddedScaleOnAxis = PassGizmoSpaceDraggedTo[FacingAxisIndex] * VI::ScaleSensitivity->GetFloat();
+	double AddedScaleOnAxis = PassGizmoSpaceDraggedTo[FacingAxisIndex] * VI::ScaleSensitivity->GetFloat();
 
 	// Invert if we we are scaling on the negative side of the gizmo
 	USceneComponent* DraggingTransformGizmoComponent = DraggingData.Interactor->GetInteractorData().DraggingTransformGizmoComponent.Get();

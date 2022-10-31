@@ -792,7 +792,7 @@ FName UVREditorInteractor::GetHMDDeviceType() const
 	return GetVRMode().GetHMDDeviceType();
 }
 
-void UVREditorInteractor::CalculateDragRay( float& InOutDragRayLength, float& InOutDragRayVelocity )
+void UVREditorInteractor::CalculateDragRay( double& InOutDragRayLength, double& InOutDragRayVelocity )
 {
 	const FTimespan CurrentTime = FTimespan::FromSeconds( FPlatformTime::Seconds() );
 	const float WorldScaleFactor = WorldInteraction->GetWorldScaleFactor();

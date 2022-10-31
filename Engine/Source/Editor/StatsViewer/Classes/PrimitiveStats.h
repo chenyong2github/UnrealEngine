@@ -99,15 +99,15 @@ class UPrimitiveStats : public UObject
 
 	/** Minimum radius of bounding sphere of instance in map */
 	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category="Stats", meta=( DisplayName = "Min R", ColumnWidth = "84", ShowTotal = "true" ) )
-	float RadiusMin;
+	double RadiusMin;
 
 	/** Maximum radius of bounding sphere of instance in map */
 	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category="Stats", meta=( DisplayName = "Max R", ColumnWidth = "88", ShowTotal = "true" ) )
-	float RadiusMax;
+	double RadiusMax;
 
 	/** Average radius of bounding sphere of instance in map */
 	UPROPERTY(VisibleAnywhere, AssetRegistrySearchable, Category="Stats", meta=( DisplayName = "Avg R", ColumnWidth = "86", ShowTotal = "true" ) )
-	float RadiusAvg;
+	double RadiusAvg;
 
 public:
 

@@ -75,7 +75,6 @@ void STranslationPickerEditWindow::Construct(const FArguments& InArgs)
 	for (FText PickedText : PickedTexts)
 	{
 		TSharedPtr<SEditableTextBox> TextBox;
-		int32 DefaultPadding = 0.0f;
 
 		TSharedRef<STranslationPickerEditWidget> NewEditWidget = 
 			SNew(STranslationPickerEditWidget)
@@ -96,7 +95,7 @@ void STranslationPickerEditWindow::Construct(const FArguments& InArgs)
 	}
 
 	TSharedPtr<SEditableTextBox> TextBox;
-	int32 DefaultPadding = 0.0f;
+	float DefaultPadding = 0.0f;
 
 	// Layout the Translation Picker Edit Widgets and some save/close buttons below them
 	WindowContents->SetContent(
@@ -251,7 +250,6 @@ void STranslationPickerEditWidget::Construct(const FArguments& InArgs)
 {
 	PickedText = InArgs._PickedText;
 	bAllowEditing = InArgs._bAllowEditing;
-	int32 DefaultPadding = 0.0f;
 
 	// Try and get the localization information for this text
 	FTextId TextId;

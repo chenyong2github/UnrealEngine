@@ -64,7 +64,7 @@ namespace ViewportInteractionUtils
 
 		const FVector CalculateCutoff(const FVector& InValue);
 		const FVector CalculateAlpha(const FVector& InCutoff, const double InDeltaTime) const;
-		const float CalculateAlpha(const float InCutoff, const double InDeltaTime) const;
+		const double CalculateAlpha(const double InCutoff, const double InDeltaTime) const;
 
 		double MinCutoff;
 		double CutoffSlope;

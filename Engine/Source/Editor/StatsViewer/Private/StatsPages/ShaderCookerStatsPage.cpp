@@ -339,7 +339,7 @@ TSharedPtr<SWidget> FShaderCookerStatsPage::GetCustomWidget(TWeakPtr<IStatsViewe
 			.HAlign(HAlign_Fill)
 			[
 				SAssignNew(PlatformComboButton, SComboButton)
-				.ContentPadding(3)
+				.ContentPadding(3.f)
 				.OnGetMenuContent(this, &FShaderCookerStatsPage::OnGetPlatformButtonMenuContent, InParentStatsViewer)
 				.ButtonContent()
 				[

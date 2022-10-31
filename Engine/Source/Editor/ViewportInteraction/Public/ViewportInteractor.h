@@ -192,6 +192,9 @@ public:
 	virtual void ResetHoverState();
 
 	/** Needs to be implemented by the base to calculate drag ray length and the velocity for the ray */
+	virtual void CalculateDragRay( double& InOutDragRayLength, double& InOutDragRayVelocity ) {};
+
+	UE_DEPRECATED(5.2, "CalculateDragRay() now uses double-precision arguments.")
 	virtual void CalculateDragRay( float& InOutDragRayLength, float& InOutDragRayVelocity ) {};
 
 	/**
