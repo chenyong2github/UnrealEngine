@@ -47,6 +47,11 @@ TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FSubversionSourceC
 	return FindHistoryRevision(PendingMergeBaseFileRevNumber);
 }
 
+TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FSubversionSourceControlState::GetCurrentRevision() const
+{
+	return FindHistoryRevision(LocalRevNumber);
+}
+
 FSlateIcon FSubversionSourceControlState::GetIcon() const
 {
 	if (LockState == ELockState::Locked)

@@ -56,6 +56,11 @@ TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FGitSourceControlS
 	return nullptr;
 }
 
+TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FGitSourceControlState::GetCurrentRevision() const
+{
+	return nullptr;
+}
+
 FSlateIcon FGitSourceControlState::GetIcon() const
 {
 	switch (WorkingCopyState)

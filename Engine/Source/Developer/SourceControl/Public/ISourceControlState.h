@@ -60,6 +60,12 @@ public:
 	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> GetBaseRevForMerge() const = 0;
 
 	/**
+	 * Get the revision that we are currently synced to
+	 * @returns a revision identifier or NULL if none exist
+	 */
+	virtual TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> GetCurrentRevision() const = 0;
+
+	/**
 	 * Gets the icon we should use to display the state in a UI.
 	 */
 	virtual FSlateIcon GetIcon() const = 0;

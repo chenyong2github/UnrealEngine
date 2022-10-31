@@ -86,6 +86,20 @@ TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPlasticSourceCont
 	return nullptr;
 }
 
+TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPlasticSourceControlState::GetCurrentRevision() const
+{
+	for (const auto& Revision : History)
+	{
+		// look for the SHA1 id of the file, not the commit id (revision)
+		if (Revision->ChangesetNumber == LocalRevisionChangeset)
+		{
+			return Revision;
+		}
+	}
+
+	return nullptr;
+}
+
 FSlateIcon FPlasticSourceControlState::GetIcon() const
 {
 	if (!IsCurrent())

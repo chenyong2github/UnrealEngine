@@ -54,6 +54,11 @@ TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> FConcertSourceControlSta
 	return ActualState.IsValid() ? ActualState->GetBaseRevForMerge() : TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe>();
 }
 
+TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe> FConcertSourceControlStateProxy::GetCurrentRevision() const
+{
+	return ActualState.IsValid() ? ActualState->GetCurrentRevision() : TSharedPtr<ISourceControlRevision, ESPMode::ThreadSafe>();
+}
+
 FSlateIcon FConcertSourceControlStateProxy::GetIcon() const
 {
 	return ActualState.IsValid() ? ActualState->GetIcon() : FSlateIcon();

@@ -28,7 +28,7 @@ TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPerforceSourceCon
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPerforceSourceControlState::FindHistoryRevision(const FString& InRevision) const
@@ -41,7 +41,7 @@ TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPerforceSourceCon
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 
@@ -71,12 +71,22 @@ bool FPerforceSourceControlState::GetOtherBranchHeadModification(FString& HeadBr
 
 TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPerforceSourceControlState::GetBaseRevForMerge() const
 {
-	if( PendingResolveRevNumber == INVALID_REVISION )
+	if (PendingResolveRevNumber == INVALID_REVISION)
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	return FindHistoryRevision(PendingResolveRevNumber);
+}
+
+TSharedPtr<class ISourceControlRevision, ESPMode::ThreadSafe> FPerforceSourceControlState::GetCurrentRevision() const
+{
+	if (LocalRevNumber == INVALID_REVISION)
+	{
+		return nullptr;
+	}
+
+	return FindHistoryRevision(LocalRevNumber);
 }
 
 FSlateIcon FPerforceSourceControlState::GetIcon() const
@@ -268,7 +278,7 @@ bool FPerforceSourceControlState::IsCheckedOut() const
 
 bool FPerforceSourceControlState::IsCheckedOutOther(FString* Who) const
 {
-	if(Who != NULL)
+	if(Who != nullptr)
 	{
 		*Who = OtherUserCheckedOut;
 	}
@@ -332,8 +342,7 @@ bool FPerforceSourceControlState::IsConflicted() const
 
 bool FPerforceSourceControlState::CanRevert() const
 {
-	// Note that this is not entirely true, as for instance conflicted files can technically be reverted by perforce
-	return CanCheckIn();
+	return IsCheckedOut() || IsAdded();
 }
 
 void FPerforceSourceControlState::Update(const FPerforceSourceControlState& InOther, const FDateTime* InTimeStamp /* = nullptr */)
