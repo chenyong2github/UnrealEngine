@@ -14,6 +14,7 @@
 #include "OnlineMessageSanitizerNull.h"
 #include "Stats/Stats.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CommandLine.h"
 
 #if WITH_ENGINE
 #include "VoiceInterfaceNull.h"
