@@ -182,5 +182,24 @@ namespace DatasmithSolidworks
 			MathUtility MUtil = Addin.Instance.SolidworksApp.IGetMathUtility();
 			return (MathPoint)MUtil.CreatePoint(new[] { InX, InY, InZ }); ;
 		}
-	}
+
+		public static FVec3 ToEuler(FMatrix4 Mat)
+		{
+			// See UE::Math::TMatrix<T>::Rotator()
+
+			FVec3 XAxis = Mat.XBasis;
+			FVec3 YAxis = Mat.YBasis;
+			FVec3 ZAxis = Mat.ZBasis;
+
+			double Pitch = Math.Atan2(XAxis.Z, Math.Sqrt(XAxis.X*XAxis.X + XAxis.Y*XAxis.Y));
+			double Yaw = Math.Atan2(XAxis.Y, XAxis.X);
+
+			FVec3 SYAxis = new FVec3(-Math.Sin(Yaw), Math.Cos(Yaw), 0);
+
+			double Roll = Math.Atan2(FVec3.Dot(ZAxis, SYAxis), FVec3.Dot(YAxis, SYAxis));
+
+			// Y <-> Pitch,  Z <-> Yaw, X <-> Roll
+			return new FVec3(MathUtils.Rad2Deg * Roll, MathUtils.Rad2Deg * Pitch, MathUtils.Rad2Deg * Yaw);
+		}
+    }
 }

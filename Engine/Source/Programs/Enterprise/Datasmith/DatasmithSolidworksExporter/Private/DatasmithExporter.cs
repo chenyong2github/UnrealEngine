@@ -878,16 +878,13 @@ namespace DatasmithSolidworks
 				{
 					FMatrix4 LocalMatrix = Keyframe.LocalMatrix;
 
-					// Get euler angles in degrees
-					float X = MathUtils.Rad2Deg * (float)Math.Atan2(LocalMatrix[6], LocalMatrix[10]);
-					float Y = MathUtils.Rad2Deg * (float)Math.Atan2(-LocalMatrix[2], Math.Sqrt(LocalMatrix[6] * LocalMatrix[6] + LocalMatrix[10] * LocalMatrix[10]));
-					float Z = MathUtils.Rad2Deg * (float)Math.Atan2(LocalMatrix[1], LocalMatrix[0]);
+					FVec3 Euler = MathUtils.ToEuler(LocalMatrix);
 
 					float Scale = LocalMatrix[15];
 
 					FVec3 Translation = new FVec3(LocalMatrix[12], LocalMatrix[13], LocalMatrix[14]);
 
-					Anim.AddFrame(EDatasmithFacadeAnimationTransformType.Rotation, Keyframe.Step, X, -Y, -Z);
+					Anim.AddFrame(EDatasmithFacadeAnimationTransformType.Rotation, Keyframe.Step, Euler.X, - Euler.Y, - Euler.Z);
 					Anim.AddFrame(EDatasmithFacadeAnimationTransformType.Scale, Keyframe.Step, Scale, Scale, Scale);
 					Anim.AddFrame(EDatasmithFacadeAnimationTransformType.Translation, Keyframe.Step, Translation.X, -Translation.Y, Translation.Z);
 				}

@@ -87,7 +87,7 @@ namespace DatasmithSolidworks
 			int StepIndex = 0;
 			uint AllSteps = (uint)(Duration / Step);
 
-			MathTransform RootTransform = Root.GetTotalTransform(true);
+			MathTransform RootTransform = Root.GetTotalTransform(true) ?? Root.Transform2;
 
 			for (double CurTime = 0.0; CurTime < Duration; CurTime += Step)
 			{
@@ -122,20 +122,28 @@ namespace DatasmithSolidworks
 
                 if (ComponentTransform != null)
                 {
-					MathTransform ComponentWorldTransform = RootTransform.IMultiply(ComponentTransform);
+					MathTransform ComponentWorldTransform = RootTransform != null ? RootTransform.IMultiply(ComponentTransform) : ComponentTransform;
 					MathTransform ParentWorldTransform = RootTransform;
 
 					Component2 Parent = Component.GetParent();
 
 					if (Parent != null)
 					{
-						ParentWorldTransform = RootTransform.IMultiply(Parent.GetTotalTransform(true));
+						ParentWorldTransform = RootTransform != null ? RootTransform.IMultiply(Parent.GetTotalTransform(true)) : Parent.GetTotalTransform(true);
 					}
 
-					MathTransform ParentWorldTransformInverse = ParentWorldTransform.Inverse();
-					MathTransform ComponentLocalTransform = ComponentWorldTransform.IMultiply(ParentWorldTransformInverse);
+					MathTransform ComponentLocalTransform;
+					if (ParentWorldTransform != null)
+					{
+						MathTransform ParentInverse = ParentWorldTransform.Inverse();
+						ComponentLocalTransform = ComponentWorldTransform.IMultiply(ParentInverse);
+					}					
+					else
+					{
+						ComponentLocalTransform = ComponentWorldTransform;
+					}
 
-                    FAnimation.FChannel Channel = Anim.GetChannel(Component);
+					FAnimation.FChannel Channel = Anim.GetChannel(Component);
                     if (Channel == null)
                     {
                         Channel = Anim.NewChannel(Component);
