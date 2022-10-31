@@ -56,16 +56,17 @@ public:
 
 	bool RequestUnloading(const UWorldPartitionRuntimeCell* InCell);
 
+	const TArray<AWorldPartitionHLOD*>& GetHLODActorsForCell(const UWorldPartitionRuntimeCell* InCell) const;
+
 	static bool IsHLODEnabled();
 	
 private:
 	struct FCellData
 	{
-		bool						bIsCellVisible;
-		TSet<AWorldPartitionHLOD*>	LoadedHLODs;
-
-		uint32						WarmupStartFrame;
-		uint32						WarmupEndFrame;
+		bool bIsCellVisible;
+		TArray<AWorldPartitionHLOD*> LoadedHLODs;
+		uint32 WarmupStartFrame;
+		uint32 WarmupEndFrame;
 
 		FCellData() 
 			: bIsCellVisible(false)

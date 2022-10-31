@@ -9,6 +9,7 @@
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODActorDesc.h"
+#include "WorldPartition/HLOD/HLODModifier.h"
 #include "WorldPartition/HLOD/IWorldPartitionHLODUtilitiesModule.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 
@@ -319,8 +320,20 @@ static TMap<FName, FSpatialHashRuntimeGrid> CreateHLODGrids(TMap<UHLODLayer*, in
 			HLODGrid.LoadingRange = HLODLayer->GetLoadingRange();
 			HLODGrid.DebugColor = FLinearColor::Red;
 			HLODGrid.GridName = HLODLayer->GetRuntimeGrid(HLODLevel);
-			HLODGrid.bClientOnlyVisible = true;
 			HLODGrid.HLODLayer = HLODLayer;
+
+			// Temp solution to have replication working for hlod layers that have a modifier
+			// The real solution would probably be to check if we have any actors that are
+			// returning true for NeedsLoadForServer()
+			HLODGrid.bClientOnlyVisible = HLODLayer->GetHLODModifierClass() == nullptr;
+
+			// HLOD grid have a lower priority than standard grids
+			HLODGrid.Priority = 100 + HLODLevel;
+
+			// Setup grid debug color to match HLODColorationColors
+			const int32 LastLODColorationColorIdx = GEngine->HLODColorationColors.Num() - 1;
+			const int32 HLODColorIdx = FMath::Clamp(HLODLevel + 2, 0U, (int32)LastLODColorationColorIdx);
+			HLODGrid.DebugColor = GEngine->HLODColorationColors[HLODColorIdx];
 
 			HLODGrids.Emplace(HLODGrid.GridName, HLODGrid);
 		}
@@ -358,34 +371,39 @@ static void UpdateHLODGridsActors(UWorld* World, const TMap<FName, FSpatialHashR
 		}
 	}
 
-	// Create missing HLOD grid actors 
+	// Create missing HLOD grid actors or update existing actors
 	for (const auto& HLODGridEntry : HLODGrids)
 	{
 		FName GridName = HLODGridEntry.Key;
-		if (!ExistingGridActors.Contains(GridName))
-		{
-			const FSpatialHashRuntimeGrid& GridSettings = HLODGridEntry.Value;
+		const FSpatialHashRuntimeGrid& GridSettings = HLODGridEntry.Value;
 
+		bool bDirty = false;
+
+		ASpatialHashRuntimeGridInfo* GridActor = ExistingGridActors.FindRef(GridName);
+		if (!GridActor)
+		{
 			FActorSpawnParameters SpawnParams;
 			SpawnParams.bCreateActorPackage = true;
-			ASpatialHashRuntimeGridInfo* GridActor = World->SpawnActor<ASpatialHashRuntimeGridInfo>(SpawnParams);
+			GridActor = World->SpawnActor<ASpatialHashRuntimeGridInfo>(SpawnParams);
 			GridActor->Tags.Add(HLODGridTag);
-			GridActor->SetActorLabel(GridSettings.GridName.ToString());
+			bDirty = true;
+		}
+
+		const FString ActorLabel = GridSettings.GridName.ToString();
+		if (GridActor->GetActorLabel() != ActorLabel)
+		{
+			GridActor->SetActorLabel(ActorLabel);
+			bDirty = true;
+		}
+
+		if (GridActor->GridSettings != GridSettings)
+		{
 			GridActor->GridSettings = GridSettings;
+			bDirty = true;
+		}			
 
-			// Setup grid debug color to match HLODColorationColors
-			const uint32 LastLODColorationColorIdx = GEngine->HLODColorationColors.Num() - 1;
-			uint32 HLODLevel;
-			if (!LexTryParseString(HLODLevel, *GridSettings.GridName.ToString().Mid(HLODGridTagLen, 1)))
-			{
-				HLODLevel = LastLODColorationColorIdx;
-			}
-
-			GridActor->GridSettings.Priority = 100 + HLODLevel;
-
-			HLODLevel = FMath::Clamp(HLODLevel + 2, 0U, LastLODColorationColorIdx);
-			GridActor->GridSettings.DebugColor = GEngine->HLODColorationColors[HLODLevel];
-
+		if (bDirty)
+		{
 			SavePackage(GridActor->GetPackage(), SourceControlHelper);
 		}
 	}

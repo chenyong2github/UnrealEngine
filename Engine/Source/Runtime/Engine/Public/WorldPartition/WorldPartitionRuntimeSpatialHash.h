@@ -210,6 +210,9 @@ struct FSpatialHashRuntimeGrid
 
 	UPROPERTY()
 	TObjectPtr<const UHLODLayer> HLODLayer;
+
+	bool operator == (const FSpatialHashRuntimeGrid& Other) const;
+	bool operator != (const FSpatialHashRuntimeGrid& Other) const;
 #endif
 };
 

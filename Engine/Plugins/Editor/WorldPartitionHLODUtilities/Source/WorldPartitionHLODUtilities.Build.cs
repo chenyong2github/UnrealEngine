@@ -17,14 +17,17 @@ public class WorldPartitionHLODUtilities : ModuleRules
             new string[]
 			{
 				"Engine",
-				"MaterialUtilities"
+				"MaterialUtilities",
+				"MeshDescription",
+				"MeshMergeUtilities",
+				"StaticMeshDescription"
 			}
         );
 
         PrivateIncludePathModuleNames.AddRange(
             new string[]
             {
-				"GeometryProcessingInterfaces",
+				"GeometryProcessingInterfaces"
 			}
         );
 
@@ -32,7 +35,6 @@ public class WorldPartitionHLODUtilities : ModuleRules
             new string[]
             {
                 "MeshUtilities",
-                "MeshMergeUtilities",
                 "MeshReductionInterface",
 				"GeometryProcessingInterfaces",
 			}

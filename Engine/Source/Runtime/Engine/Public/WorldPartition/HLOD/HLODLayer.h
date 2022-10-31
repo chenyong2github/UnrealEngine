@@ -11,13 +11,14 @@
 #include "EngineDefines.h"
 #include "Engine/MeshMerging.h"
 
-#include "WorldPartition/HLOD/HLODBuilder.h"
-
 #include "HLODLayer.generated.h"
 
 class AActor;
+class UHLODBuilder;
+class UHLODBuilderSettings;
 class UMaterial;
 class UWorldPartition;
+class UWorldPartitionHLODModifier;
 class FWorldPartitionActorDesc;
 class FWorldPartitionActorDescView;
 
@@ -52,6 +53,7 @@ public:
 	void SetLayerType(EHLODLayerType InLayerType) { LayerType = InLayerType; }
 	const TSubclassOf<UHLODBuilder> GetHLODBuilderClass() const { return HLODBuilderClass; }
 	const UHLODBuilderSettings* GetHLODBuilderSettings() const { return HLODBuilderSettings; }
+	const TSubclassOf<UWorldPartitionHLODModifier> GetHLODModifierClass() const { return HLODModifierClass; }
 	FName GetRuntimeGrid(uint32 InHLODLevel) const;
 	int32 GetCellSize() const { return !bIsSpatiallyLoaded ? 0 : CellSize; }
 	double GetLoadingRange() const { return !bIsSpatiallyLoaded ? WORLD_MAX : LoadingRange; }
@@ -76,7 +78,7 @@ private:
 	UPROPERTY(EditAnywhere, Config, Category=HLOD)
 	EHLODLayerType LayerType;
 
-	/** HLODBuilder class */
+	/** HLOD Builder class */
 	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (DisplayName = "HLOD Builder Class", EditConditionHides, EditCondition = "LayerType == EHLODLayerType::Custom"))
 	TSubclassOf<UHLODBuilder> HLODBuilderClass;
 
@@ -98,6 +100,10 @@ private:
 	/** HLOD Layer to assign to the generated HLOD actors */
 	UPROPERTY(EditAnywhere, Config, Category=HLOD, meta = (EditConditionHides, EditCondition = "bIsSpatiallyLoaded"))
 	TSoftObjectPtr<UHLODLayer> ParentLayer;
+
+	/** HLOD Modifier class, to allow changes to the HLOD at runtime */
+	UPROPERTY(EditAnywhere, Config, Category = HLOD, AdvancedDisplay, meta = (DisplayName = "HLOD Modifier Class"))
+	TSubclassOf<UWorldPartitionHLODModifier> HLODModifierClass;
 
 private:
 	friend class FWorldPartitionHLODUtilities;

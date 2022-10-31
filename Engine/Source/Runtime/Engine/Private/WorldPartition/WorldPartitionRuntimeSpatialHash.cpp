@@ -919,6 +919,29 @@ void FSpatialHashStreamingGrid::DrawStreamingSource2D(UCanvas* Canvas, const FSp
 
 // ------------------------------------------------------------------------------------------------
 
+#if WITH_EDITORONLY_DATA
+
+bool FSpatialHashRuntimeGrid::operator == (const FSpatialHashRuntimeGrid& Other) const
+{
+	return GridName == Other.GridName &&
+		   CellSize == Other.CellSize &&
+		   LoadingRange == Other.LoadingRange &&
+		   bBlockOnSlowStreaming == Other.bBlockOnSlowStreaming &&
+		   Priority == Other.Priority &&
+		   DebugColor == Other.DebugColor &&
+		   bClientOnlyVisible == Other.bClientOnlyVisible &&
+		   HLODLayer == Other.HLODLayer;
+}
+
+bool FSpatialHashRuntimeGrid::operator != (const FSpatialHashRuntimeGrid& Other) const
+{
+	return !(*this == Other);
+}
+
+#endif
+
+// ------------------------------------------------------------------------------------------------
+
 ASpatialHashRuntimeGridInfo::ASpatialHashRuntimeGridInfo(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

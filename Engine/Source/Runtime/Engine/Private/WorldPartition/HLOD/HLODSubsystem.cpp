@@ -68,6 +68,14 @@ static TAutoConsoleVariable<int32> CVarHLODWarmupVTSizeClamp(
 
 namespace FHLODSubsystem
 {
+	const UWorldPartitionRuntimeCell* GetActorRuntimeCell(AActor* InActor)
+	{
+		const ULevel* ActorLevel = InActor->GetLevel();
+		const ULevelStreaming* LevelStreaming = FLevelUtils::FindStreamingLevel(ActorLevel);
+		const UWorldPartitionLevelStreamingDynamic* LevelStreamingDynamic = Cast<UWorldPartitionLevelStreamingDynamic>(LevelStreaming);
+		return LevelStreamingDynamic ? LevelStreamingDynamic->GetWorldPartitionRuntimeCell() : nullptr;
+	}
+
 	UWorldPartition* GetWorldPartition(AWorldPartitionHLOD* InWorldPartitionHLOD)
 	{
 		// Alwaysloaded Cell level will have a WorldPartition
@@ -75,9 +83,9 @@ namespace FHLODSubsystem
 		{
 			return WorldPartition;
 		} // If not find it through the cell
-		else if (UWorldPartitionLevelStreamingDynamic* LevelStreaming = Cast<UWorldPartitionLevelStreamingDynamic>(FLevelUtils::FindStreamingLevel(InWorldPartitionHLOD->GetLevel())))
+		else if (const UWorldPartitionRuntimeCell* RuntimeCell = GetActorRuntimeCell(InWorldPartitionHLOD))
 		{
-			return LevelStreaming->GetWorldPartitionRuntimeCell()->GetCellOwner()->GetOuterWorld()->GetWorldPartition();;
+			return RuntimeCell->GetCellOwner()->GetOuterWorld()->GetWorldPartition();
 		}
 
 		return nullptr;
@@ -241,6 +249,25 @@ void UHLODSubsystem::UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHL
 			check(NumRemoved == 1);
 		}
 	}
+}
+
+const TArray<AWorldPartitionHLOD*>& UHLODSubsystem::GetHLODActorsForCell(const UWorldPartitionRuntimeCell* InCell) const
+{
+	const UWorldPartition* WorldPartition = InCell->GetWorld()->GetWorldPartition();
+
+	const FWorldPartitionHLODRuntimeData* WorldPartitionHLODRuntimeData = WorldPartitionsHLODRuntimeData.Find(WorldPartition);
+	if (WorldPartitionHLODRuntimeData)
+	{
+		const FCellData* CellData = WorldPartitionHLODRuntimeData->CellsData.Find(InCell->GetFName());
+		if (CellData)
+		{
+			return CellData->LoadedHLODs;
+		}
+	}
+
+	// No HLOD found for the given cell, return a dummy array
+	static const TArray<AWorldPartitionHLOD*> DummyArray;
+	return DummyArray;
 }
 
 void UHLODSubsystem::OnCellShown(const UWorldPartitionRuntimeCell* InCell)

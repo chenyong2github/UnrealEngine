@@ -5,22 +5,20 @@
 =============================================================================*/
 
 #include "WorldPartition/HLOD/HLODLayer.h"
-#include "WorldPartition/HLOD/HLODActor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(HLODLayer)
 
 #if WITH_EDITOR
-#include "Serialization/ArchiveCrc32.h"
-
 #include "Engine/World.h"
 #include "Misc/ConfigCacheIni.h"
-
+#include "Modules/ModuleManager.h"
+#include "Serialization/ArchiveCrc32.h"
+#include "WorldPartition/HLOD/HLODActor.h"
+#include "WorldPartition/HLOD/HLODBuilder.h"
+#include "WorldPartition/HLOD/IWorldPartitionHLODUtilitiesModule.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
-#include "WorldPartition/HLOD/IWorldPartitionHLODUtilitiesModule.h"
-
-#include "Modules/ModuleManager.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogHLODLayer, Log, All);
