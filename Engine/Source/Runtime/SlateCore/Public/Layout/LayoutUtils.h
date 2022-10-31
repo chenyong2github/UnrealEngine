@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Layout/Children.h"
+#include "Types/SlateStructs.h"
 #include "CoreMinimal.h"
 #include "Margin.h"
 #include "Visibility.h"
@@ -213,6 +215,144 @@ static void ArrangeSingleChild(EFlowDirection InFlowDirection, const FGeometry& 
 			FVector2D(XResult.Offset, YResult.Offset),
 			FVector2D(XResult.Size, YResult.Size)
 		));
+	}
+}
+
+template<EOrientation Orientation, typename SlotType>
+static void ArrangeChildrenInStack(EFlowDirection InLayoutFlow, const TPanelChildren<SlotType>& Children, const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren, float InOffset, bool InAllowShrink)
+{
+	// Allotted space will be given to fixed-size children first.
+	// Remaining space will be proportionately divided between stretch children (SizeRule_Stretch)
+	// based on their stretch coefficient
+
+	if (Children.Num() > 0)
+	{
+		float StretchCoefficientTotal = 0.0f;
+		float FixedTotal = 0.0f;
+		float StretchSizeTotal = 0.0f;
+
+		bool bAnyChildVisible = false;
+		// Compute the sum of stretch coefficients (SizeRule_Stretch) and space required by fixed-size widgets (SizeRule_Auto),
+		// as well as the total desired size.
+		for (int32 ChildIndex = 0; ChildIndex < Children.Num(); ++ChildIndex)
+		{
+			const SlotType& CurChild = Children[ChildIndex];
+
+			if (CurChild.GetWidget()->GetVisibility() != EVisibility::Collapsed)
+			{
+				bAnyChildVisible = true;
+				// All widgets contribute their margin to the fixed space requirement
+				FixedTotal += CurChild.GetPadding().template GetTotalSpaceAlong<Orientation>();
+
+				FVector2D ChildDesiredSize = CurChild.GetWidget()->GetDesiredSize();
+
+				// Auto-sized children contribute their desired size to the fixed space requirement
+				const float ChildSize = (Orientation == Orient_Vertical)
+					? ChildDesiredSize.Y
+					: ChildDesiredSize.X;
+
+				if (CurChild.GetSizeRule() == FSizeParam::SizeRule_Stretch)
+				{
+					// for stretch children we save sum up the stretch coefficients
+					StretchCoefficientTotal += CurChild.GetSizeValue();
+					StretchSizeTotal += ChildSize;
+				}
+				else
+				{
+
+					// Clamp to the max size if it was specified
+					float MaxSize = CurChild.GetMaxSize();
+					FixedTotal += MaxSize > 0.0f ? FMath::Min(MaxSize, ChildSize) : ChildSize;
+				}
+			}
+		}
+
+		if (!bAnyChildVisible)
+		{
+			return;
+		}
+
+		//When shrink is not allowed, we'll ensure to use all the space desired by the stretchable widgets.
+		const float MinSize = InAllowShrink ? 0.0f : StretchSizeTotal;
+
+		// The space available for SizeRule_Stretch widgets is any space that wasn't taken up by fixed-sized widgets.
+		const float NonFixedSpace = FMath::Max(MinSize, (Orientation == Orient_Vertical)
+			? AllottedGeometry.GetLocalSize().Y - FixedTotal
+			: AllottedGeometry.GetLocalSize().X - FixedTotal);
+
+		float PositionSoFar = 0.0f;
+
+		// Now that we have the total fixed-space requirement and the total stretch coefficients we can
+		// arrange widgets top-to-bottom or left-to-right (depending on the orientation).
+		for (TPanelChildrenConstIterator<SlotType> It(Children, Orientation, InLayoutFlow); It; ++It)
+		{
+			const SlotType& CurChild = *It;
+			const EVisibility ChildVisibility = CurChild.GetWidget()->GetVisibility();
+
+			// Figure out the area allocated to the child in the direction of BoxPanel
+			// The area allocated to the slot is ChildSize + the associated margin.
+			float ChildSize = 0.0f;
+			if (ChildVisibility != EVisibility::Collapsed)
+			{
+				// The size of the widget depends on its size type
+				if (CurChild.GetSizeRule() == FSizeParam::SizeRule_Stretch)
+				{
+					if (StretchCoefficientTotal > 0.0f)
+					{
+						// Stretch widgets get a fraction of the space remaining after all the fixed-space requirements are met
+						ChildSize = NonFixedSpace * CurChild.GetSizeValue() / StretchCoefficientTotal;
+					}
+				}
+				else
+				{
+					const FVector2D ChildDesiredSize = CurChild.GetWidget()->GetDesiredSize();
+
+					// Auto-sized widgets get their desired-size value
+					ChildSize = (Orientation == Orient_Vertical)
+						? ChildDesiredSize.Y
+						: ChildDesiredSize.X;
+				}
+
+				// Clamp to the max size if it was specified
+				float MaxSize = CurChild.GetMaxSize();
+				if (MaxSize > 0.0f)
+				{
+					ChildSize = FMath::Min(MaxSize, ChildSize);
+				}
+			}
+
+			const FMargin SlotPadding(LayoutPaddingWithFlow(InLayoutFlow, CurChild.GetPadding()));
+
+			FVector2D SlotSize = (Orientation == Orient_Vertical)
+				? FVector2D(AllottedGeometry.GetLocalSize().X, ChildSize + SlotPadding.template GetTotalSpaceAlong<Orient_Vertical>())
+				: FVector2D(ChildSize + SlotPadding.template GetTotalSpaceAlong<Orient_Horizontal>(), AllottedGeometry.GetLocalSize().Y);
+
+			// Figure out the size and local position of the child within the slot			
+			AlignmentArrangeResult XAlignmentResult = AlignChild<Orient_Horizontal>(InLayoutFlow, SlotSize.X, CurChild, SlotPadding);
+			AlignmentArrangeResult YAlignmentResult = AlignChild<Orient_Vertical>(SlotSize.Y, CurChild, SlotPadding);
+
+			const FVector2D LocalPosition = (Orientation == Orient_Vertical)
+				? FVector2D(XAlignmentResult.Offset, PositionSoFar + YAlignmentResult.Offset + InOffset)
+				: FVector2D(PositionSoFar + XAlignmentResult.Offset + InOffset, YAlignmentResult.Offset);
+
+			const FVector2D LocalSize = FVector2D(XAlignmentResult.Size, YAlignmentResult.Size);
+
+			// Add the information about this child to the output list (ArrangedChildren)
+			ArrangedChildren.AddWidget(ChildVisibility, AllottedGeometry.MakeChild(
+				// The child widget being arranged
+				CurChild.GetWidget(),
+				// Child's local position (i.e. position within parent)
+				LocalPosition,
+				// Child's size
+				LocalSize
+			));
+
+			if (ChildVisibility != EVisibility::Collapsed)
+			{
+				// Offset the next child by the size of the current child and any post-child (bottom/right) margin
+				PositionSoFar += (Orientation == Orient_Vertical) ? SlotSize.Y : SlotSize.X;
+			}
+		}
 	}
 }
 

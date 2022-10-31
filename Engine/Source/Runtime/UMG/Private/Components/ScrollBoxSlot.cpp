@@ -16,6 +16,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	HorizontalAlignment = HAlign_Fill;
 	VerticalAlignment = VAlign_Fill;
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	Size = FSlateChildSize(ESlateSizeRule::Automatic);
 }
 
 void UScrollBoxSlot::BuildSlot(TSharedRef<SScrollBox> ScrollBox)
@@ -26,7 +27,8 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		.HAlign(HorizontalAlignment)
 		.VAlign(VerticalAlignment)
 		.Expose(Slot)
-		[
+		.SizeParam(UWidget::ConvertSerializedSizeParamToRuntime(Size))
+	[
 			Content == nullptr ? SNullWidget::NullWidget : Content->TakeWidget()
 		];
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -44,6 +46,20 @@ void UScrollBoxSlot::SetPadding(FMargin InPadding)
 	if ( Slot )
 	{
 		Slot->SetPadding(InPadding);
+	}
+}
+
+FSlateChildSize UScrollBoxSlot::GetSize() const
+{
+	return Size;
+}
+
+void UScrollBoxSlot::SetSize(FSlateChildSize InSize)
+{
+	Size = InSize;
+	if (Slot)
+	{
+		Slot->SetSizeParam(UWidget::ConvertSerializedSizeParamToRuntime(InSize));
 	}
 }
 
@@ -83,6 +99,7 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SetHorizontalAlignment(HorizontalAlignment);
 	SetVerticalAlignment(VerticalAlignment);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	SetSize(Size);
 }
 
 void UScrollBoxSlot::ReleaseSlateResources(bool bReleaseChildren)

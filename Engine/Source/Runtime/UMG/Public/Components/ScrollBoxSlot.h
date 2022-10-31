@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/ScriptMacros.h"
 #include "Layout/Margin.h"
+#include "Components/SlateWrapperTypes.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Components/PanelSlot.h"
 
@@ -16,6 +17,12 @@ UCLASS()
 class UMG_API UScrollBoxSlot : public UPanelSlot
 {
 	GENERATED_UCLASS_BODY()
+
+private:
+
+	/** How much space this slot should occupy in the direction of the panel. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Layout|ScrollBox Slot", meta = (AllowPrivateAccess = "true", DisplayAfter = "Padding"))
+	FSlateChildSize Size;
 
 public:
 	
@@ -40,6 +47,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category="Layout|ScrollBox Slot")
 	void SetPadding(FMargin InPadding);
+
+	FSlateChildSize GetSize() const;
+
+	void SetSize(FSlateChildSize InSize);
 
 	EHorizontalAlignment GetHorizontalAlignment() const;
 

@@ -9,6 +9,27 @@
 #include "Widgets/Images/SImage.h"
 
 
+void SScrollBox::FSlot::Construct(const FChildren& SlotOwner, FSlotArguments&& InArgs)
+{
+	TBasicLayoutWidgetSlot<FSlot>::Construct(SlotOwner, MoveTemp(InArgs));
+	if (InArgs._MaxSize.IsSet())
+	{
+		SetMaxSize(MoveTemp(InArgs._MaxSize));
+	}
+	if (InArgs._SizeParam.IsSet())
+	{
+		SetSizeParam(MoveTemp(InArgs._SizeParam.GetValue()));
+	}
+}
+
+void SScrollBox::FSlot::RegisterAttributes(FSlateWidgetSlotAttributeInitializer& AttributeInitializer)
+{
+	TBasicLayoutWidgetSlot<FSlot>::RegisterAttributes(AttributeInitializer);
+	SLATE_ADD_SLOT_ATTRIBUTE_DEFINITION_WITH_NAME(FSlot, AttributeInitializer, "Slot.MaxSize", MaxSize, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_SLOT_ATTRIBUTE_DEFINITION_WITH_NAME(FSlot, AttributeInitializer, "Slot.SizeValue", SizeValue, EInvalidateWidgetReason::Layout)
+		.UpdatePrerequisite("Slot.MaxSize");
+}
+
 SScrollBox::FSlot::FSlotArguments SScrollBox::Slot()
 {
 	return FSlot::FSlotArguments(MakeUnique<FSlot>());
@@ -41,26 +62,17 @@ void SScrollPanel::Construct(const FArguments& InArgs, TArray<SScrollBox::FSlot:
 
 void SScrollPanel::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren) const
 {
-	float ScrollPadding = Orientation == Orient_Vertical ? AllottedGeometry.GetLocalSize().Y : AllottedGeometry.GetLocalSize().X;
-	float CurChildOffset = -PhysicalOffset; 
-	CurChildOffset += BackPadScrolling ? ScrollPadding : 0;
+	const float ScrollPadding = Orientation == Orient_Vertical ? AllottedGeometry.GetLocalSize().Y : AllottedGeometry.GetLocalSize().X;
+	const float ChildrenOffset = -PhysicalOffset + (BackPadScrolling ? ScrollPadding : 0);
+	const bool AllowShrink = false;
 
-	for (int32 SlotIndex = 0; SlotIndex < Children.Num(); ++SlotIndex)
+	if (Orientation == EOrientation::Orient_Horizontal)
 	{
-		const SScrollBox::FSlot& ThisSlot = Children[SlotIndex];
-		const EVisibility ChildVisibility = ThisSlot.GetWidget()->GetVisibility();
-
-		if (ChildVisibility != EVisibility::Collapsed)
-		{
-			if (Orientation == Orient_Vertical)
-			{
-				CurChildOffset = ArrangeChildVerticalAndReturnOffset(AllottedGeometry, ArrangedChildren, ThisSlot, CurChildOffset);
-			}
-			else
-			{
-				CurChildOffset = ArrangeChildHorizontalAndReturnOffset(AllottedGeometry, ArrangedChildren, ThisSlot, CurChildOffset);
-			}
-		}
+		ArrangeChildrenInStack<EOrientation::Orient_Horizontal>(GSlateFlowDirection, this->Children, AllottedGeometry, ArrangedChildren, ChildrenOffset, AllowShrink);
+	}
+	else
+	{
+		ArrangeChildrenInStack<EOrientation::Orient_Vertical>(GSlateFlowDirection, this->Children, AllottedGeometry, ArrangedChildren, ChildrenOffset, AllowShrink);
 	}
 }
 
@@ -75,13 +87,13 @@ FVector2D SScrollPanel::ComputeDesiredSize(float) const
 			const FVector2D ChildDesiredSize = ThisSlot.GetWidget()->GetDesiredSize();
 			if (Orientation == Orient_Vertical)
 			{
-				ThisDesiredSize.X = FMath::Max(ChildDesiredSize.X, ThisDesiredSize.X);
+				ThisDesiredSize.X = FMath::Max(ChildDesiredSize.X + ThisSlot.GetPadding().GetTotalSpaceAlong<Orient_Horizontal>(), ThisDesiredSize.X);
 				ThisDesiredSize.Y += ChildDesiredSize.Y + ThisSlot.GetPadding().GetTotalSpaceAlong<Orient_Vertical>();
 			}
 			else
 			{
 				ThisDesiredSize.X += ChildDesiredSize.X + ThisSlot.GetPadding().GetTotalSpaceAlong<Orient_Horizontal>();
-				ThisDesiredSize.Y = FMath::Max(ChildDesiredSize.Y, ThisDesiredSize.Y);
+				ThisDesiredSize.Y = FMath::Max(ChildDesiredSize.Y + ThisSlot.GetPadding().GetTotalSpaceAlong<Orient_Vertical>(), ThisDesiredSize.Y);
 			}
 		}
 	}
@@ -92,34 +104,6 @@ FVector2D SScrollPanel::ComputeDesiredSize(float) const
 	SizeSideToPad += FrontPadScrolling ? ScrollPadding : 0;
 
 	return ThisDesiredSize;
-}
-
-float SScrollPanel::ArrangeChildVerticalAndReturnOffset(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren, const SScrollBox::FSlot& ThisSlot, float CurChildOffset) const
-{
-	const FMargin& ThisPadding = ThisSlot.GetPadding();
-	const FVector2D& WidgetDesiredSize = ThisSlot.GetWidget()->GetDesiredSize();
-	const float ThisSlotDesiredHeight = WidgetDesiredSize.Y + ThisPadding.GetTotalSpaceAlong<Orient_Vertical>();
-
-	// Figure out the size and local position of the child within the slot.  There is no vertical alignment, because 
-	// it does not make sense in a panel where items are stacked vertically end-to-end.
-	AlignmentArrangeResult XAlignmentResult = AlignChild<Orient_Horizontal>(AllottedGeometry.GetLocalSize().X, ThisSlot, ThisPadding);
-
-	ArrangedChildren.AddWidget(AllottedGeometry.MakeChild(ThisSlot.GetWidget(), FVector2D(XAlignmentResult.Offset, CurChildOffset + ThisPadding.Top), FVector2D(XAlignmentResult.Size, WidgetDesiredSize.Y)));
-	return CurChildOffset + ThisSlotDesiredHeight;
-}
-
-float SScrollPanel::ArrangeChildHorizontalAndReturnOffset(const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren, const SScrollBox::FSlot& ThisSlot, float CurChildOffset) const
-{
-	const FMargin& ThisPadding = ThisSlot.GetPadding();
-	const FVector2D& WidgetDesiredSize = ThisSlot.GetWidget()->GetDesiredSize();
-	const float ThisSlotDesiredWidth = WidgetDesiredSize.X + ThisPadding.GetTotalSpaceAlong<Orient_Horizontal>();
-
-	// Figure out the size and local position of the child within the slot.  There is no horizontal alignment, because
-	// it doesn't make sense in a panel where items are stacked horizontally end-to-end.
-	AlignmentArrangeResult YAlignmentResult = AlignChild<Orient_Vertical>(AllottedGeometry.GetLocalSize().Y, ThisSlot, ThisPadding);
-
-	ArrangedChildren.AddWidget(AllottedGeometry.MakeChild(ThisSlot.GetWidget(), FVector2D(CurChildOffset + ThisPadding.Left, YAlignmentResult.Offset), FVector2D(WidgetDesiredSize.X, YAlignmentResult.Size)));
-	return CurChildOffset + ThisSlotDesiredWidth;
 }
 
 SScrollBox::SScrollBox()

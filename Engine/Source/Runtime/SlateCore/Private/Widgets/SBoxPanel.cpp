@@ -105,138 +105,6 @@ const SStackBox::FSlot& SStackBox::GetSlot(int32 SlotIndex) const
 	return static_cast<const SStackBox::FSlot&>(BaseSlot);
 }
 
-template<EOrientation Orientation, typename SlotType>
-static void ArrangeChildrenAlong(EFlowDirection InLayoutFlow, const TPanelChildren<SlotType>& Children, const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren )
-{
-	// Allotted space will be given to fixed-size children first.
-	// Remaining space will be proportionately divided between stretch children (SizeRule_Stretch)
-	// based on their stretch coefficient
-
-	if (Children.Num() > 0)
-	{
-		float StretchCoefficientTotal = 0;
-		float FixedTotal = 0;
-
-		bool bAnyChildVisible = false;
-		// Compute the sum of stretch coefficients (SizeRule_Stretch) and space required by fixed-size widgets
-		// (SizeRule_Auto).
-		for( int32 ChildIndex=0; ChildIndex < Children.Num(); ++ChildIndex )
-		{
-			const SlotType& CurChild = Children[ChildIndex];
-
-			if ( CurChild.GetWidget()->GetVisibility() != EVisibility::Collapsed )
-			{
-				bAnyChildVisible = true;
-				// All widgets contribute their margin to the fixed space requirement
-				FixedTotal += CurChild.GetPadding().template GetTotalSpaceAlong<Orientation>();
-
-				if ( CurChild.GetSizeRule() == FSizeParam::SizeRule_Stretch )
-				{
-					// for stretch children we save sum up the stretch coefficients
-					StretchCoefficientTotal += CurChild.GetSizeValue();
-				}
-				else
-				{
-					FVector2D ChildDesiredSize = CurChild.GetWidget()->GetDesiredSize();
-
-					// Auto-sized children contribute their desired size to the fixed space requirement
-					const float ChildSize = (Orientation == Orient_Vertical)
-						? ChildDesiredSize.Y
-						: ChildDesiredSize.X;
-
-					// Clamp to the max size if it was specified
-					float MaxSize = CurChild.GetMaxSize();
-					FixedTotal += MaxSize > 0 ? FMath::Min( MaxSize, ChildSize ) : ChildSize;
-				}
-			}
-		}
-
-		if (!bAnyChildVisible)
-		{
-			return;
-		}
-
-		// The space available for SizeRule_Stretch widgets is any space that wasn't taken up by fixed-sized widgets.
-		const float NonFixedSpace = FMath::Max( 0.0f, (Orientation == Orient_Vertical)
-			? AllottedGeometry.GetLocalSize().Y - FixedTotal
-			: AllottedGeometry.GetLocalSize().X - FixedTotal );
-
-		float PositionSoFar = 0;
-
-		// Now that we have the total fixed-space requirement and the total stretch coefficients we can
-		// arrange widgets top-to-bottom or left-to-right (depending on the orientation).
-		for (TPanelChildrenConstIterator<SlotType> It(Children, Orientation, InLayoutFlow); It; ++It)
-		{
-			const SlotType& CurChild = *It;
-			const EVisibility ChildVisibility = CurChild.GetWidget()->GetVisibility();
-
-			// Figure out the area allocated to the child in the direction of BoxPanel
-			// The area allocated to the slot is ChildSize + the associated margin.
-			float ChildSize = 0;
-			if (ChildVisibility != EVisibility::Collapsed)
-			{
-				// The size of the widget depends on its size type
-				if (CurChild.GetSizeRule() == FSizeParam::SizeRule_Stretch)
-				{
-					if (StretchCoefficientTotal > 0)
-					{
-						// Stretch widgets get a fraction of the space remaining after all the fixed-space requirements are met
-						ChildSize = NonFixedSpace * CurChild.GetSizeValue() / StretchCoefficientTotal;
-					}
-				}
-				else
-				{
-					const FVector2D ChildDesiredSize = CurChild.GetWidget()->GetDesiredSize();
-
-					// Auto-sized widgets get their desired-size value
-					ChildSize = (Orientation == Orient_Vertical)
-						? ChildDesiredSize.Y
-						: ChildDesiredSize.X;
-				}
-
-				// Clamp to the max size if it was specified
-				float MaxSize = CurChild.GetMaxSize();
-				if (MaxSize > 0)
-				{
-					ChildSize = FMath::Min(MaxSize, ChildSize);
-				}
-			}
-
-			const FMargin SlotPadding(LayoutPaddingWithFlow(InLayoutFlow, CurChild.GetPadding()));
-
-			FVector2D SlotSize = (Orientation == Orient_Vertical)
-				? FVector2D(AllottedGeometry.GetLocalSize().X, ChildSize + SlotPadding.template GetTotalSpaceAlong<Orient_Vertical>())
-				: FVector2D(ChildSize + SlotPadding.template GetTotalSpaceAlong<Orient_Horizontal>(), AllottedGeometry.GetLocalSize().Y);
-
-			// Figure out the size and local position of the child within the slot			
-			AlignmentArrangeResult XAlignmentResult = AlignChild<Orient_Horizontal>(InLayoutFlow, SlotSize.X, CurChild, SlotPadding);
-			AlignmentArrangeResult YAlignmentResult = AlignChild<Orient_Vertical>(SlotSize.Y, CurChild, SlotPadding);
-
-			const FVector2D LocalPosition = (Orientation == Orient_Vertical)
-				? FVector2D(XAlignmentResult.Offset, PositionSoFar + YAlignmentResult.Offset)
-				: FVector2D(PositionSoFar + XAlignmentResult.Offset, YAlignmentResult.Offset);
-
-			const FVector2D LocalSize = FVector2D(XAlignmentResult.Size, YAlignmentResult.Size);
-
-			// Add the information about this child to the output list (ArrangedChildren)
-			ArrangedChildren.AddWidget(ChildVisibility, AllottedGeometry.MakeChild(
-				// The child widget being arranged
-				CurChild.GetWidget(),
-				// Child's local position (i.e. position within parent)
-				LocalPosition,
-				// Child's size
-				LocalSize
-			));
-
-			if (ChildVisibility != EVisibility::Collapsed)
-			{
-				// Offset the next child by the size of the current child and any post-child (bottom/right) margin
-				PositionSoFar += (Orientation == Orient_Vertical) ? SlotSize.Y : SlotSize.X;
-			}
-		}
-	}
-}
-
 /**
  * Panels arrange their children in a space described by the AllottedGeometry parameter. The results of the arrangement
  * should be returned by appending a FArrangedWidget pair for every child widget. See StackPanel for an example
@@ -246,13 +114,16 @@ static void ArrangeChildrenAlong(EFlowDirection InLayoutFlow, const TPanelChildr
  */
 void SBoxPanel::OnArrangeChildren( const FGeometry& AllottedGeometry, FArrangedChildren& ArrangedChildren ) const
 {
+	const float Offset = 0.0f;
+	const bool AllowShrink = true;
+
 	if ( this->Orientation == EOrientation::Orient_Horizontal )
 	{
-		ArrangeChildrenAlong<EOrientation::Orient_Horizontal>(GSlateFlowDirection, this->Children, AllottedGeometry, ArrangedChildren );
+		ArrangeChildrenInStack<EOrientation::Orient_Horizontal>(GSlateFlowDirection, this->Children, AllottedGeometry, ArrangedChildren, Offset, AllowShrink );
 	}
 	else
 	{
-		ArrangeChildrenAlong<EOrientation::Orient_Vertical>(GSlateFlowDirection, this->Children, AllottedGeometry, ArrangedChildren );
+		ArrangeChildrenInStack<EOrientation::Orient_Vertical>(GSlateFlowDirection, this->Children, AllottedGeometry, ArrangedChildren, Offset, AllowShrink );
 	}
 }
 
