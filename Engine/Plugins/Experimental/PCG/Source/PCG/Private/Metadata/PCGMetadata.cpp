@@ -68,12 +68,15 @@ void UPCGMetadata::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void UPCGMetadata::Initialize(const UPCGMetadata* InParent)
+void UPCGMetadata::Initialize(const UPCGMetadata* InParent, bool bAddAttributesFromParent)
 {
-	Initialize(InParent, /*bAddAttributesFromParent=*/true);
+	// If we are adding attributes from parent, then we use exclude filter with empty list so
+	// that all parameters added. Otherwise use include filter with empty list so none are added.
+	const EPCGMetadataFilterMode bFilter = bAddAttributesFromParent ? EPCGMetadataFilterMode::ExcludeAttributes : EPCGMetadataFilterMode::IncludeAttributes;
+	InitializeWithAttributeFilter(InParent, TSet<FName>(), bFilter);
 }
 
-void UPCGMetadata::Initialize(const UPCGMetadata* InParent, bool bAddAttributesFromParent)
+void UPCGMetadata::InitializeWithAttributeFilter(const UPCGMetadata* InParent, const TSet<FName>& InFilteredAttributes, EPCGMetadataFilterMode InFilterMode)
 {
 	if (Parent.IsValid() || Attributes.Num() != 0)
 	{
@@ -84,9 +87,11 @@ void UPCGMetadata::Initialize(const UPCGMetadata* InParent, bool bAddAttributesF
 	Parent = ((InParent != this) ? InParent : nullptr);
 	ItemKeyOffset = Parent.IsValid() ? Parent->GetItemCountForChild() : 0;
 
-	if (bAddAttributesFromParent)
+	// If we have been given an include list which is empty, then don't bother adding any attributes
+	const bool bSkipAddingAttributesFromParent = (InFilterMode == EPCGMetadataFilterMode::IncludeAttributes) && (InFilteredAttributes.Num() == 0);
+	if (!bSkipAddingAttributesFromParent)
 	{
-		AddAttributes(InParent);
+		AddAttributesFiltered(InParent, InFilteredAttributes, InFilterMode);
 	}
 }
 
@@ -116,7 +121,7 @@ void UPCGMetadata::InitializeAsCopy(const UPCGMetadata* InMetadataToCopy)
 	}
 }
 
-void UPCGMetadata::AddAttributes(const UPCGMetadata* InOther)
+void UPCGMetadata::AddAttributesFiltered(const UPCGMetadata* InOther, const TSet<FName>& InFilteredAttributes, EPCGMetadataFilterMode InFilterMode)
 {
 	if (!InOther)
 	{
@@ -125,7 +130,12 @@ void UPCGMetadata::AddAttributes(const UPCGMetadata* InOther)
 
 	for (const TPair<FName, FPCGMetadataAttributeBase*> OtherAttribute : InOther->Attributes)
 	{
-		if (HasAttribute(OtherAttribute.Key))
+		// Skip this attribute if it is in an exclude list, or if it is not in an include list
+		const bool bAttributeInFilterList = InFilteredAttributes.Contains(OtherAttribute.Key);
+		const bool bSkipAttributesInFilterList = InFilterMode == EPCGMetadataFilterMode::ExcludeAttributes;
+		const bool bSkipThisAttribute = bSkipAttributesInFilterList == bAttributeInFilterList;
+
+		if (bSkipThisAttribute || HasAttribute(OtherAttribute.Key))
 		{
 			continue;
 		}
@@ -135,7 +145,7 @@ void UPCGMetadata::AddAttributes(const UPCGMetadata* InOther)
 		}
 	}
 
-	if(InOther != Parent)
+	if (InOther != Parent)
 	{
 		OtherParents.Add(InOther);
 	}

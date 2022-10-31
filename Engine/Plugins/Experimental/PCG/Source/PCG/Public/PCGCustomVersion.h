@@ -13,6 +13,9 @@ struct PCG_API FPCGCustomVersion
 		// Before any version changes were made in the plugin
 		BeforeCustomVersionWasAdded = 0,
 
+		// Split projection nodes inputs to separate source edges and target edge
+		SplitProjectionNodeInputs = 1,
+		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

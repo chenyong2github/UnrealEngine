@@ -426,6 +426,7 @@ bool UPCGPointData::SamplePoint(const FTransform& InTransform, const FBox& InBou
 	if (OutMetadata)
 	{
 		//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGPointData::SamplePoint::SetupMetadata);
+		// Initialise metadata entry for this temporary point
 		UPCGMetadataAccessorHelpers::InitializeMetadataWithParent(OutPoint, OutMetadata, *MaxContributor, Metadata);
 
 		if (ContributionsForMetadata.Num() > 1)
