@@ -1062,6 +1062,10 @@ public:
 		{
 			Archive << BuildMode;
 		}
+		else if(Archive.IsLoading())
+		{
+			BuildMode = BuildGame ? ELauncherProfileBuildModes::Build : ELauncherProfileBuildModes::DoNotBuild;
+		}
 
 		if (Version >= LAUNCHERSERVICES_ADDEDUSEIOSTORE)
 		{
@@ -1089,11 +1093,6 @@ public:
 			Archive << BuildTargetName;
 		}
 
-		else if(Archive.IsLoading())
-		{
-			BuildMode = BuildGame ? ELauncherProfileBuildModes::Build : ELauncherProfileBuildModes::DoNotBuild;
-		}
-		
 		DefaultLaunchRole->Serialize(Archive);
 
 		// serialize launch roles
