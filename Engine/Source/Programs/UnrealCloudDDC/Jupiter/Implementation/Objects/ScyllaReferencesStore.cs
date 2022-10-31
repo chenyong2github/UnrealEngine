@@ -133,13 +133,23 @@ namespace Jupiter.Implementation
             int retryAttempts = 0;
             const int MaxRetryAttempts = 3;
             RowSet rowSet = await _session.ExecuteAsync(_getObjectsStatement.Bind(ns.ToString()));
+
+            Task? prefetchTask = null;
             foreach (Row row in rowSet)
             {
                 try
                 {
-                    if (rowSet.GetAvailableWithoutFetching() == 0)
+                    // when we only have a fow rows left we start prefetching the next page
+                    // this also allows us to get any read timeouts here instead of in the foreach line that moves the enumerator thus enabling us to handle it
+                    if (prefetchTask == null && rowSet.GetAvailableWithoutFetching() < 5)
                     {
-                        await rowSet.FetchMoreResultsAsync();
+                        prefetchTask = rowSet.FetchMoreResultsAsync();
+                    }
+
+                    if (prefetchTask is { IsCompleted: true })
+                    {
+                        await prefetchTask;
+                        prefetchTask = null;
                     }
                 }
                 catch (ReadTimeoutException)
