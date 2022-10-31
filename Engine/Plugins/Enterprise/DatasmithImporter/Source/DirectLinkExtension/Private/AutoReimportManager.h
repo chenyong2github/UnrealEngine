@@ -23,7 +23,7 @@ namespace UE::DatasmithImporter
 	public:
 		/* Begin FTickableGameObject Interface */
 		virtual void Tick(float DeltaTime) override;
-		virtual bool IsAllowedToTick() const override { return PendingAutoReimportObjects.Num() > 0 || !PendingReimportQueue.IsEmpty(); }
+		virtual bool IsAllowedToTick() const override { return PendingAutoReimportObjects.Num() > 0 || !PendingReimportQueue.IsEmpty() || !PendingInvalidateQueue.IsEmpty(); }
 		virtual TStatId GetStatId() const override;
 		virtual bool IsTickableWhenPaused() const override { return true; }
 		virtual bool IsTickableInEditor() const override { return true; }
