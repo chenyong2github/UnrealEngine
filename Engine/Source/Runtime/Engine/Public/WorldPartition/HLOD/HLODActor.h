@@ -62,11 +62,12 @@ public:
 protected:
 	//~ Begin UObject Interface.
 	virtual void Serialize(FArchive& Ar) override;
+	virtual bool NeedsLoadForServer() const override;
 #if WITH_EDITOR
 	virtual void PostLoad() override;
 	virtual void RerunConstructionScripts() override;
-	virtual bool CanEditChange(const FProperty* InProperty) const { return false; }
-	virtual bool CanEditChangeComponent(const UActorComponent* Component, const FProperty* InProperty) const { return false; }
+	virtual bool CanEditChange(const FProperty* InProperty) const override { return false; }
+	virtual bool CanEditChangeComponent(const UActorComponent* Component, const FProperty* InProperty) const override { return false; }
 #endif
 	//~ End UObject Interface.
 
@@ -81,7 +82,7 @@ protected:
 	virtual FBox GetStreamingBounds() const override;
 
 	virtual bool ShouldImport(FStringView ActorPropString, bool IsMovingLevel) override { return false; }
-	virtual bool IsLockLocation() const { return true; }
+	virtual bool IsLockLocation() const override { return true; }
 	virtual bool IsUserManaged() const override { return false; }
 #endif
 	//~ End AActor Interface.
