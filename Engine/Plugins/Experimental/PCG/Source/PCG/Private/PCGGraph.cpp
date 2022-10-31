@@ -253,17 +253,18 @@ void UPCGGraph::OnNodeRemoved(UPCGNode* InNode)
 #endif
 }
 
-UPCGNode* UPCGGraph::AddEdge(UPCGNode* From, UPCGNode* To)
+UPCGNode* UPCGGraph::AddEdge(UPCGNode* From, const FName& InboundLabel, UPCGNode* To, const FName& OutboundLabel)
 {
-	return AddLabeledEdge(From, NAME_None, To, NAME_None);
+	AddLabeledEdge(From, InboundLabel, To, OutboundLabel);
+	return To;
 }
 
-UPCGNode* UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, UPCGNode* To, const FName& OutboundLabel)
+bool UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, UPCGNode* To, const FName& OutboundLabel)
 {
 	if (!From || !To)
 	{
 		UE_LOG(LogPCG, Error, TEXT("Invalid edge nodes"));
-		return To;
+		return false;
 	}
 
 	UPCGPin* FromPin = From->GetOutputPin(InboundLabel);
@@ -271,7 +272,7 @@ UPCGNode* UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, U
 	if(!FromPin)
 	{
 		UE_LOG(LogPCG, Error, TEXT("From node %s does not have the %s label"), *From->GetName(), *InboundLabel.ToString());
-		return To;
+		return false;
 	}
 
 	UPCGPin* ToPin = To->GetInputPin(OutboundLabel);
@@ -279,17 +280,25 @@ UPCGNode* UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, U
 	if(!ToPin)
 	{
 		UE_LOG(LogPCG, Error, TEXT("To node %s does not have the %s label"), *To->GetName(), *OutboundLabel.ToString());
-		return To;
+		return false;
 	}
 
 	// Create edge
 	FromPin->AddEdgeTo(ToPin);
+
+	bool bToPinBrokeOtherEdges = false;
+	
+	// Add an edge to a pin that doesn't allow multiple connections requires to do some cleanup
+	if (!ToPin->Properties.bAllowMultipleConnections)
+	{
+		bToPinBrokeOtherEdges = ToPin->BreakAllIncompatibleEdges();
+	}
 	
 #if WITH_EDITOR
 	NotifyGraphChanged(EPCGChangeType::Structural);
 #endif
 
-	return To;
+	return bToPinBrokeOtherEdges;
 }
 
 TObjectPtr<UPCGNode> UPCGGraph::ReconstructNewNode(const UPCGNode* InNode)

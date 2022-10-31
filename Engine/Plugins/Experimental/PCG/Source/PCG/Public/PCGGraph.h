@@ -57,10 +57,7 @@ public:
 
 	/** Adds a directed edge in the graph. Returns the "To" node for easy chaining */
 	UFUNCTION(BlueprintCallable, Category = Graph)
-	UPCGNode* AddEdge(UPCGNode* From, UPCGNode* To);
-
-	UFUNCTION(BlueprintCallable, Category = Graph)
-	UPCGNode* AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, UPCGNode* To, const FName& OutboundLabel);
+	UPCGNode* AddEdge(UPCGNode* From, const FName& InboundLabel, UPCGNode* To, const FName& OutboundLabel);
 
 	/** Returns the graph input node */
 	UFUNCTION(BlueprintCallable, Category = Graph)
@@ -72,6 +69,9 @@ public:
 
 	/** Duplicate a given node by creating a new node with the same settings and properties, but without any edges and add it to the graph */
 	TObjectPtr<UPCGNode> ReconstructNewNode(const UPCGNode* InNode);
+
+	/** Creates an edge between two nodes/pins based on the labels. Returns true if the To node has removed other edges (happens with single pins) */
+	bool AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, UPCGNode* To, const FName& OutboundLabel);
 
 	bool Contains(UPCGNode* Node) const;
 	const TArray<UPCGNode*>& GetNodes() const { return Nodes; }

@@ -189,7 +189,7 @@ UPCGNode* UPCGNode::AddEdgeTo(FName InboundName, UPCGNode* To, FName OutboundNam
 	check(GetGraph());
 	if (UPCGGraph* Graph = GetGraph())
 	{
-		return Graph->AddLabeledEdge(this, InboundName, To, OutboundName);
+		return Graph->AddEdge(this, InboundName, To, OutboundName);
 	}
 	else
 	{

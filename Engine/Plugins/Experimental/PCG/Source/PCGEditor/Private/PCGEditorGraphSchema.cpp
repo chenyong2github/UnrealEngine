@@ -133,19 +133,12 @@ bool UPCGEditorGraphSchema::TryCreateConnection(UEdGraphPin* InA, UEdGraphPin* I
 		UPCGGraph* PCGGraph = PCGNodeA->GetGraph();
 		check(PCGGraph);
 
-		PCGGraph->AddLabeledEdge(PCGNodeA, A->PinName, PCGNodeB, B->PinName);
+		const bool bReconstructNodeB = PCGGraph->AddLabeledEdge(PCGNodeA, A->PinName, PCGNodeB, B->PinName);
 
-		// TODO: unclear if that kind of behavior should be down the code hierarchy or not,
-		// Since we really want to do cleanup only on manual interaction
-		if (UPCGPin* InputPin = PCGNodeB->GetInputPin(B->PinName))
+		// If AddLabeledEdge return true, then it means that the ToPin triggered a change that requires a fuil node reconstruct
+		if (bReconstructNodeB)
 		{
-			if (!InputPin->Properties.bAllowMultipleConnections)
-			{
-				if (InputPin->BreakAllIncompatibleEdges())
-				{
-					PCGGraphNodeB->ReconstructNode();
-				}
-			}
+			PCGGraphNodeB->ReconstructNode();
 		}
 	}
 
