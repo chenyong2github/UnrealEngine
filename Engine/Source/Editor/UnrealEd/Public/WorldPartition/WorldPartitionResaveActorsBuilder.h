@@ -37,6 +37,9 @@ private:
 	bool bResaveDirtyActorDescsOnly;
 
 	UPROPERTY()
+	bool bDiffDirtyActorDescs;
+
+	UPROPERTY()
 	bool bSwitchActorPackagingSchemeToReduced;
 
 	UPROPERTY()
