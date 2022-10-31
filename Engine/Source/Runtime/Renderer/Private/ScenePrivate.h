@@ -597,9 +597,11 @@ struct FPersistentSkyAtmosphereData
 {
 	FPersistentSkyAtmosphereData();
 
-	void InitialiseOrNextFrame(ERHIFeatureLevel::Type FeatureLevel, FPooledRenderTargetDesc& AerialPerspectiveDesc, FRHICommandListImmediate& RHICmdList);
+	void InitialiseOrNextFrame(ERHIFeatureLevel::Type FeatureLevel, FPooledRenderTargetDesc& AerialPerspectiveDesc, FRHICommandListImmediate& RHICmdList, bool bSeparatedAtmosphereMieRayLeigh);
 
 	TRefCountPtr<IPooledRenderTarget> GetCurrentCameraAerialPerspectiveVolume();
+	TRefCountPtr<IPooledRenderTarget> GetCurrentCameraAerialPerspectiveVolumeMieOnly();
+	TRefCountPtr<IPooledRenderTarget> GetCurrentCameraAerialPerspectiveVolumeRayOnly();
 
 	uint64 GetGPUSizeBytes(bool bLogSizes) const;
 
@@ -609,8 +611,11 @@ private:
 	int32 CurrentDepthResolution;
 	EPixelFormat CurrentTextureAerialLUTFormat;
 	TRefCountPtr<IPooledRenderTarget> CameraAerialPerspectiveVolumes[2];
+	TRefCountPtr<IPooledRenderTarget> CameraAerialPerspectiveVolumesMieOnly[2];
+	TRefCountPtr<IPooledRenderTarget> CameraAerialPerspectiveVolumesRayOnly[2];
 	uint8 CameraAerialPerspectiveVolumeCount;
 	uint8 CameraAerialPerspectiveVolumeIndex;
+	bool bSeparatedAtmosphereMieRayLeigh;
 };
 
 struct FPersistentGlobalDistanceFieldData : public FThreadSafeRefCountedObject

@@ -40,7 +40,8 @@ float4 GetAerialPerspectiveLuminanceTransmittance(
 	float AerialPerspectiveVolumeStartDepth,
 	float AerialPerspectiveVolumeDepthSliceLengthKm,
 	float AerialPerspectiveVolumeDepthSliceLengthKmInv,
-	float OneOverExposure)
+	float OneOverExposure,
+	float NearFadeOutRangeInvDepthKm)
 {
 	float2 ScreenUv = (NDC.xy / NDC.ww) * float2(0.5f, -0.5f) + 0.5f;
 
@@ -58,6 +59,7 @@ float4 GetAerialPerspectiveLuminanceTransmittance(
 		// We multiply by weight to fade to 0 at depth 0. It works for luminance and opacity.
 		Weight = saturate(NonLinSlice*NonLinSlice * 2.0f); // Square to have a linear falloff from the change of distribution above
 	}
+	Weight *= saturate(tDepth * NearFadeOutRangeInvDepthKm);
 
 #if AP_SUPPORT_REALTIME_REFLECTION_CAPTURE
 	if (ViewIsRealTimeReflectionCapture)
@@ -110,6 +112,7 @@ float4 GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
 	float AerialPerspectiveVolumeDepthSliceLengthKmInv,
 	float OneOverExposure, float4 FogToApplyOver)
 {
+	const float NearFadeOutRangeInvDepthKm = 1.0 / 0.00001f; // 1 centimeter fade region
 	float4 AP = GetAerialPerspectiveLuminanceTransmittance(
 		ViewIsRealTimeReflectionCapture, CameraAerialPerspectiveVolumeSizeAndInvSize,
 		NDC, WorldPositionRelativeToCamera,
@@ -119,7 +122,8 @@ float4 GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
 		AerialPerspectiveVolumeStartDepth,
 		AerialPerspectiveVolumeDepthSliceLengthKm,
 		AerialPerspectiveVolumeDepthSliceLengthKmInv,
-		OneOverExposure);
+		OneOverExposure,
+		NearFadeOutRangeInvDepthKm);
 
 	float4 FinalFog;
 	// Apply any other fog OVER aerial perspective because AP is usually optically thiner.

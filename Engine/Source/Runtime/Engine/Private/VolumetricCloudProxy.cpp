@@ -25,6 +25,10 @@ FVolumetricCloudSceneProxy::FVolumetricCloudSceneProxy(const UVolumetricCloudCom
 	, ShadowReflectionViewSampleCountScale(InComponent->ShadowReflectionViewSampleCountScaleValue)
 	, ShadowTracingDistance(InComponent->ShadowTracingDistance)
 	, StopTracingTransmittanceThreshold(InComponent->StopTracingTransmittanceThreshold)
+	, AerialPespectiveMieScatteringStartDistance(InComponent->AerialPespectiveMieScatteringStartDistance) 
+	, AerialPespectiveMieScatteringFadeDistance(InComponent->AerialPespectiveMieScatteringFadeDistance) 
+	, AerialPespectiveRayleighScatteringStartDistance(InComponent->AerialPespectiveRayleighScatteringStartDistance)
+	, AerialPespectiveRayleighScatteringFadeDistance(InComponent->AerialPespectiveRayleighScatteringFadeDistance)
 	, CloudVolumeMaterial(InComponent->Material)
 {
 }

@@ -876,6 +876,8 @@ void FViewInfo::Init()
 	VolumetricFogNearFadeInDistanceInv = 100000000.0f;
 
 	SkyAtmosphereCameraAerialPerspectiveVolume = nullptr;
+	SkyAtmosphereCameraAerialPerspectiveVolumeMieOnly = nullptr;
+	SkyAtmosphereCameraAerialPerspectiveVolumeRayOnly = nullptr;
 	SkyAtmosphereUniformShaderParameters = nullptr;
 
 	VolumetricCloudSkyAO = nullptr;
@@ -1276,6 +1278,8 @@ void FViewInfo::SetupUniformBufferParameters(
 	FRHITexture* TransmittanceLutTextureFound = nullptr;
 	FRHITexture* SkyViewLutTextureFound = nullptr;
 	FRHITexture* CameraAerialPerspectiveVolumeFound = nullptr;
+	FRHITexture* CameraAerialPerspectiveVolumeMieOnlyFound = nullptr;
+	FRHITexture* CameraAerialPerspectiveVolumeRayOnlyFound = nullptr;
 	FRHITexture* DistantSkyLightLutTextureFound = nullptr;
 	if (ShouldRenderSkyAtmosphere(Scene, Family->EngineShowFlags))
 	{
@@ -1301,6 +1305,14 @@ void FViewInfo::SetupUniformBufferParameters(
 		if (this->SkyAtmosphereCameraAerialPerspectiveVolume.IsValid())
 		{
 			CameraAerialPerspectiveVolumeFound = this->SkyAtmosphereCameraAerialPerspectiveVolume->GetRHI();
+		}
+		if (this->SkyAtmosphereCameraAerialPerspectiveVolumeMieOnly.IsValid())
+		{
+			CameraAerialPerspectiveVolumeMieOnlyFound = this->SkyAtmosphereCameraAerialPerspectiveVolumeMieOnly->GetRHI();
+		}
+		if (this->SkyAtmosphereCameraAerialPerspectiveVolumeRayOnly.IsValid())
+		{
+			CameraAerialPerspectiveVolumeRayOnlyFound = this->SkyAtmosphereCameraAerialPerspectiveVolumeRayOnly->GetRHI();
 		}
 
 		float SkyViewLutWidth = 1.0f;
@@ -1422,7 +1434,11 @@ void FViewInfo::SetupUniformBufferParameters(
 	ViewUniformShaderParameters.SkyViewLutTexture = OrBlack2DIfNull(SkyViewLutTextureFound);
 	ViewUniformShaderParameters.SkyViewLutTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 	ViewUniformShaderParameters.CameraAerialPerspectiveVolume = OrBlack3DAlpha1IfNull(CameraAerialPerspectiveVolumeFound);
+	ViewUniformShaderParameters.CameraAerialPerspectiveVolumeMieOnly = OrBlack3DAlpha1IfNull(CameraAerialPerspectiveVolumeMieOnlyFound);
+	ViewUniformShaderParameters.CameraAerialPerspectiveVolumeRayOnly = OrBlack3DAlpha1IfNull(CameraAerialPerspectiveVolumeRayOnlyFound);
 	ViewUniformShaderParameters.CameraAerialPerspectiveVolumeSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+	ViewUniformShaderParameters.CameraAerialPerspectiveVolumeMieOnlySampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+	ViewUniformShaderParameters.CameraAerialPerspectiveVolumeRayOnlySampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 
 	ViewUniformShaderParameters.AtmosphereTransmittanceTexture = OrBlack2DIfNull(AtmosphereTransmittanceTexture);
 	ViewUniformShaderParameters.AtmosphereIrradianceTexture = OrBlack2DIfNull(AtmosphereIrradianceTexture);

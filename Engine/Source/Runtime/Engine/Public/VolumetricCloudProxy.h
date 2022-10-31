@@ -47,6 +47,11 @@ public:
 	float ShadowReflectionViewSampleCountScale;
 	float ShadowTracingDistance;
 	float StopTracingTransmittanceThreshold;
+
+	float AerialPespectiveMieScatteringStartDistance;
+	float AerialPespectiveMieScatteringFadeDistance;
+	float AerialPespectiveRayleighScatteringStartDistance;
+	float AerialPespectiveRayleighScatteringFadeDistance;
 private:
 
 	UMaterialInterface* CloudVolumeMaterial = nullptr;

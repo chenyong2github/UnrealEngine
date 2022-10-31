@@ -67,6 +67,10 @@
 #define VIRTUAL_SHADOW_MAP 0
 #endif
 
+#ifndef SEPARATE_MIE_RAYLEIGH_SCATTERING
+#define SEPARATE_MIE_RAYLEIGH_SCATTERING 0
+#endif
+
 #if SAMPLE_OPAQUE_SHADOW
 
 #define DYNAMICALLY_SHADOWED 1
@@ -374,8 +378,12 @@ float SkyAtmosphereNoise(float2 UV)
 struct SingleScatteringResult
 {
 	float3 L;						// Scattered light (luminance)
+	float3 LMieOnly;				// L but Mie scattering only
+	float3 LRayOnly;				// L but Rayleigh scattering only
 	float3 OpticalDepth;			// Optical depth (1/m)
 	float3 Transmittance;			// Transmittance in [0,1] (unitless)
+	float3 TransmittanceMieOnly;	// Transmittance in [0,1] (unitless) but Mie scattering only
+	float3 TransmittanceRayOnly;	// Transmittance in [0,1] (unitless) but Rayleigh scattering only
 	float3 MultiScatAs1;
 };
 
@@ -398,8 +406,12 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 {
 	SingleScatteringResult Result;
 	Result.L = 0;
+	Result.LMieOnly = 0;
+	Result.LRayOnly = 0;
 	Result.OpticalDepth = 0;
 	Result.Transmittance = 1.0f;
+	Result.TransmittanceMieOnly = 1.0f;
+	Result.TransmittanceRayOnly = 1.0f;
 	Result.MultiScatAs1 = 0;
 
 	if (dot(WorldPos, WorldPos) <= Atmosphere.BottomRadiusKm * Atmosphere.BottomRadiusKm)
@@ -500,7 +512,11 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 
 	// Ray march the atmosphere to integrate optical depth
 	float3 L = 0.0f;
+	float3 LMieOnly = 0.0f;
+	float3 LRayOnly = 0.0f;
 	float3 Throughput = 1.0f;
+	float3 ThroughputMieOnly = 1.0f;
+	float3 ThroughputRayOnly = 1.0f;
 	float3 OpticalDepth = 0.0f;
 	float t = 0.0f;
 	float tPrev = 0.0f;
@@ -556,31 +572,49 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		const float3 SampleTransmittance = exp(-SampleOpticalDepth);
 		OpticalDepth += SampleOpticalDepth;
 
+		// Transmittance Ray only and Mie only set half of ozone in rayleigh and half of ozone in mie parts.
+		// This is not great but I do not have any better solution. 
+		// Also most of the time Ozone is high in the atmosphere so it should be fine this way.
+		ThroughputMieOnly *= exp(-(Medium.ExtinctionMie + Medium.ExtinctionOzo) * dt * AerialPespectiveViewDistanceScale);
+		ThroughputRayOnly *= exp(-(Medium.ExtinctionRay + Medium.ExtinctionOzo) * dt * AerialPespectiveViewDistanceScale);
+
 		// Phase and transmittance for light 0
 		const float3 UpVector = P / PHeight;
 		float Light0ZenithCosAngle = dot(Light0Dir, UpVector);
 		float3 TransmittanceToLight0 = GetTransmittance(Light0ZenithCosAngle, PHeight);
 		float3 PhaseTimesScattering0;
+		float3 PhaseTimesScattering0MieOnly;
+		float3 PhaseTimesScattering0RayOnly;
 		if (MieRayPhase)
 		{
-			PhaseTimesScattering0 = Medium.ScatteringMie * MiePhaseValueLight0 + Medium.ScatteringRay * RayleighPhaseValueLight0;
+			PhaseTimesScattering0MieOnly= Medium.ScatteringMie * MiePhaseValueLight0;
+			PhaseTimesScattering0RayOnly= Medium.ScatteringRay * RayleighPhaseValueLight0;
+			PhaseTimesScattering0		= PhaseTimesScattering0MieOnly + PhaseTimesScattering0RayOnly;
 		}
 		else
 		{
-			PhaseTimesScattering0 = Medium.Scattering * uniformPhase;
+			PhaseTimesScattering0MieOnly= Medium.ScatteringMie * uniformPhase;
+			PhaseTimesScattering0RayOnly= Medium.ScatteringRay * uniformPhase;
+			PhaseTimesScattering0		= Medium.Scattering * uniformPhase;
 		}
 #if SECOND_ATMOSPHERE_LIGHT_ENABLED
 		// Phase and transmittance for light 1
 		float Light1ZenithCosAngle = dot(Light1Dir, UpVector);
 		float3 TransmittanceToLight1 = GetTransmittance(Light1ZenithCosAngle, PHeight);
 		float3 PhaseTimesScattering1;
+		float3 PhaseTimesScattering1MieOnly;
+		float3 PhaseTimesScattering1RayOnly;
 		if (MieRayPhase)
 		{
-			PhaseTimesScattering1 = Medium.ScatteringMie * MiePhaseValueLight1 + Medium.ScatteringRay * RayleighPhaseValueLight1;
+			PhaseTimesScattering1MieOnly= Medium.ScatteringMie * MiePhaseValueLight1;
+			PhaseTimesScattering1RayOnly= Medium.ScatteringRay * RayleighPhaseValueLight1;
+			PhaseTimesScattering1		= PhaseTimesScattering1MieOnly + PhaseTimesScattering1RayOnly;
 		}
 		else
 		{
-			PhaseTimesScattering1 = Medium.Scattering * uniformPhase;
+			PhaseTimesScattering1MieOnly= Medium.ScatteringMie * uniformPhase;
+			PhaseTimesScattering1RayOnly= Medium.ScatteringRay * uniformPhase;
+			PhaseTimesScattering1		= Medium.Scattering * uniformPhase;
 		}
 #endif
 
@@ -624,7 +658,9 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 #endif
 		// MultiScatteredLuminance is already pre-exposed, atmospheric light contribution needs to be pre exposed
 		// Multi-scattering is also not affected by PlanetShadow or TransmittanceToLight because it contains diffuse light after single scattering.
-		float3 S = ExposedLight0Illuminance * (PlanetShadow0 * TransmittanceToLight0 * PhaseTimesScattering0 + MultiScatteredLuminance0 * Medium.Scattering);
+		float3 S		= ExposedLight0Illuminance * (PlanetShadow0 * TransmittanceToLight0 * PhaseTimesScattering0			+ MultiScatteredLuminance0 * Medium.Scattering);
+		float3 SMieOnly = ExposedLight0Illuminance * (PlanetShadow0 * TransmittanceToLight0 * PhaseTimesScattering0MieOnly	+ MultiScatteredLuminance0 * Medium.ScatteringMie);
+		float3 SRayOnly = ExposedLight0Illuminance * (PlanetShadow0 * TransmittanceToLight0 * PhaseTimesScattering0RayOnly	+ MultiScatteredLuminance0 * Medium.ScatteringRay);
 
 #if SECOND_ATMOSPHERE_LIGHT_ENABLED
 		float tPlanet1 = RaySphereIntersectNearest(P, Light1Dir, PlanetO + PLANET_RADIUS_OFFSET * UpVector, Atmosphere.BottomRadiusKm);
@@ -652,7 +688,9 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 			VolumetricCloudCommonParameters.CloudShadowmapFarDepthKm[1].x, VolumetricCloudShadowMapTexture1, VolumetricCloudShadowMapTexture1Sampler, OutOpticalDepth3), VolumetricCloudShadowStrength1));
 #endif
 		//  Multi-scattering can work for the second light but it is disabled for the sake of performance.
-		S += ExposedLight1Illuminance * PlanetShadow1 * TransmittanceToLight1 * PhaseTimesScattering1;// +MultiScatteredLuminance * Medium.Scattering);
+		S		+= ExposedLight1Illuminance * PlanetShadow1 * TransmittanceToLight1 * PhaseTimesScattering1			;// +MultiScatteredLuminance * Medium.Scattering);
+		SMieOnly+= ExposedLight1Illuminance * PlanetShadow1 * TransmittanceToLight1 * PhaseTimesScattering1MieOnly	;// +MultiScatteredLuminance * Medium.Scattering);
+		SRayOnly+= ExposedLight1Illuminance * PlanetShadow1 * TransmittanceToLight1 * PhaseTimesScattering1RayOnly	;// +MultiScatteredLuminance * Medium.Scattering);
 #endif
 
 		// When using the power serie to accumulate all sattering order, serie r must be <1 for a serie to converge. 
@@ -670,13 +708,19 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 #endif 
 
 #if 0
-		L += Throughput * S * dt;
-		Throughput *= SampleTransmittance;
+		L			+= Throughput * S * dt;
+		LMieOnly	+= Throughput * SMieOnly * dt;
+		LRayOnly	+= Throughput * SRayOnly * dt;
+		Throughput	*= SampleTransmittance;
 #else
 		// See slide 28 at http://www.frostbite.com/2015/08/physically-based-unified-volumetric-rendering-in-frostbite/ 
-		float3 Sint = (S - S * SampleTransmittance) / Medium.Extinction;	// integrate along the current step segment 
-		L += Throughput * Sint;														// accumulate and also take into account the transmittance from previous steps
-		Throughput *= SampleTransmittance;
+		float3 Sint			= (S        - S        * SampleTransmittance) / Medium.Extinction;	// integrate along the current step segment 
+		float3 SintMieOnly	= (SMieOnly - SMieOnly * SampleTransmittance) / Medium.Extinction;
+		float3 SintRayOnly	= (SRayOnly - SRayOnly * SampleTransmittance) / Medium.Extinction;
+		L			+= Throughput * Sint;														// accumulate and also take into account the transmittance from previous steps
+		LMieOnly	+= Throughput * SintMieOnly;
+		LRayOnly	+= Throughput * SintRayOnly;
+		Throughput	*= SampleTransmittance;
 #endif
 
 		tPrev = t;
@@ -704,9 +748,13 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 #endif
 	}
 
-	Result.L = L;
-	Result.OpticalDepth = OpticalDepth;
-	Result.Transmittance = Throughput * PlanetOnOpaque;
+	Result.L					= L;
+	Result.LMieOnly				= LMieOnly;
+	Result.LRayOnly				= LRayOnly;
+	Result.OpticalDepth			= OpticalDepth;
+	Result.Transmittance		= Throughput * PlanetOnOpaque;
+	Result.TransmittanceMieOnly	= ThroughputMieOnly * PlanetOnOpaque;
+	Result.TransmittanceRayOnly	= ThroughputRayOnly * PlanetOnOpaque;
 
 	return Result;
 }
@@ -869,6 +917,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 	float3 DepthBufferTranslatedWorldPos = GetScreenTranslatedWorldPos(SVPos, DeviceZ).xyz;
 	float4 NDCPosition = mul(float4(DepthBufferTranslatedWorldPos.xyz, 1), View.TranslatedWorldToClip);
 
+	const float NearFadeOutRangeInvDepthKm = 1.0 / 0.00001f; // 1 centimeter fade region
 	float4 AP = GetAerialPerspectiveLuminanceTransmittance(
 		ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
 		NDCPosition, (DepthBufferTranslatedWorldPos - GetCameraTranslatedWorldPos()) * CM_TO_SKY_UNIT,
@@ -878,7 +927,8 @@ void RenderSkyAtmosphereRayMarchingPS(
 		AerialPerspectiveStartDepthKm,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthSliceLengthKm,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
-		ViewOneOverPreExposure * OutputPreExposure);
+		ViewOneOverPreExposure * OutputPreExposure,
+		NearFadeOutRangeInvDepthKm);
 
 	PreExposedL += AP.rgb * LuminanceScale;
 	float Transmittance = AP.a;
@@ -1288,6 +1338,10 @@ void RenderDistantSkyLightLutCS(uint3 ThreadId : SV_DispatchThreadID)
 ////////////////////////////////////////////////////////////
 
 RWTexture3D<float4> CameraAerialPerspectiveVolumeUAV;
+#if SEPARATE_MIE_RAYLEIGH_SCATTERING
+RWTexture3D<float4> CameraAerialPerspectiveVolumeMieOnlyUAV;
+RWTexture3D<float4> CameraAerialPerspectiveVolumeRayOnlyUAV;
+#endif
 float RealTimeReflection360Mode;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
@@ -1296,6 +1350,10 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 	if (SkyAtmosphere.FogShowFlagFactor <= 0.0f)
 	{ 
 		CameraAerialPerspectiveVolumeUAV[ThreadId] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+	#if SEPARATE_MIE_RAYLEIGH_SCATTERING
+		CameraAerialPerspectiveVolumeMieOnlyUAV[ThreadId] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		CameraAerialPerspectiveVolumeRayOnlyUAV[ThreadId] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+	#endif
 		return;
 	}
 
@@ -1364,6 +1422,10 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 			VoxelWorldPos = CamPos + 2.0f * (MiddlePointOnGround - CamPos);
 
 			//CameraAerialPerspectiveVolumeUAV[ThreadId] = float4(1, 0, 0, 0);
+			//#if SEPARATE_MIE_RAYLEIGH_SCATTERING
+			//	CameraAerialPerspectiveVolumeMieOnlyUAV[ThreadId] = float4(1, 0, 0, 0);
+			//	CameraAerialPerspectiveVolumeRayOnlyUAV[ThreadId] = float4(1, 0, 0, 0);
+			//#endif
 			//return; // debug
 		}
 		else if (UnderGround)
@@ -1373,6 +1435,10 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 			//VoxelWorldPos = CamPos + CameraToVoxelDir * PlanetNearT;		// better match but gives visual artefact as visible voxels on a simple plane at altitude 0
 
 			//CameraAerialPerspectiveVolumeUAV[ThreadId] = float4(0, 1, 0, 0);
+			//#if SEPARATE_MIE_RAYLEIGH_SCATTERING
+			//	CameraAerialPerspectiveVolumeMieOnlyUAV[ThreadId] = float4(0, 1, 0, 0);
+			//	CameraAerialPerspectiveVolumeRayOnlyUAV[ThreadId] = float4(0, 1, 0, 0);
+			//#endif
 			//return; // debug
 		}
 		 
@@ -1391,6 +1457,10 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 		{
 			// Ray is not intersecting the atmosphere
 			CameraAerialPerspectiveVolumeUAV[ThreadId] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		#if SEPARATE_MIE_RAYLEIGH_SCATTERING
+			CameraAerialPerspectiveVolumeMieOnlyUAV[ThreadId] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+			CameraAerialPerspectiveVolumeRayOnlyUAV[ThreadId] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		#endif
 			return;
 		}
 		float LengthToAtmosphere = length(prevWorlPos - RayStartWorldPos);
@@ -1398,6 +1468,10 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 		{
 			// tMaxMax for this voxel is not within the planet atmosphere
 			CameraAerialPerspectiveVolumeUAV[ThreadId] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		#if SEPARATE_MIE_RAYLEIGH_SCATTERING
+			CameraAerialPerspectiveVolumeMieOnlyUAV[ThreadId] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+			CameraAerialPerspectiveVolumeRayOnlyUAV[ThreadId] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		#endif
 			return;
 		}
 		// Now world position has been moved to the atmosphere boundary: we need to reduce tMaxMax accordingly. 
@@ -1424,6 +1498,12 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 
 	const float Transmittance = dot(ss.Transmittance, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f));
 	CameraAerialPerspectiveVolumeUAV[ThreadId] = float4(ss.L, Transmittance);
+#if SEPARATE_MIE_RAYLEIGH_SCATTERING
+		const float TransmittanceMieOnly = dot(ss.TransmittanceMieOnly, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f));
+		const float TransmittanceRayOnly = dot(ss.TransmittanceRayOnly, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f));
+		CameraAerialPerspectiveVolumeMieOnlyUAV[ThreadId]	= float4(ss.LMieOnly, TransmittanceMieOnly);
+		CameraAerialPerspectiveVolumeRayOnlyUAV[ThreadId]	= float4(ss.LRayOnly, TransmittanceRayOnly);
+#endif
 }
 
 

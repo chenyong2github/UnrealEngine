@@ -417,6 +417,17 @@ Texture2D<float> StartTracingDistanceTexture;
 
 #endif // SHADER_RENDERVIEW_CS_WITH_EMPTY_SPACE_SKIPPING
 
+#define GETAERIALPERSPECTIVE(t, ts, x, o, f) GetAerialPerspectiveLuminanceTransmittance(\
+		ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,\
+		ClipPos, (x - ResolvedView.TranslatedWorldCameraOrigin) * CM_TO_SKY_UNIT,\
+		t, ts,\
+		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,\
+		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,\
+		o,\
+		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm,\
+		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,\
+		ResolvedView.OneOverPreExposure,\
+		f);\
 
 void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosition, inout float4 OutColor0, inout float2 OutColor1)
 {
@@ -1301,18 +1312,25 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 
 	if (RenderVolumetricCloudParameters.EnableAerialPerspectiveSampling && tAPWeightsSum > 0.0f)
 	{
-		// Apply AP only once according to the mean position within the participating media weighted by transmittance/visibility.
-		// This allows to apply AP only once per pixel instead of per sample.
-		float4 AerialPerspective = GetAerialPerspectiveLuminanceTransmittance(
-			ResolvedView.RealTimeReflectionCapture, ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeSizeAndInvSize,
-			ClipPos, (FogSampleTranslatedWorldPosition - ResolvedView.TranslatedWorldCameraOrigin) * CM_TO_SKY_UNIT,
-			View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
-			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
-			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,
-			ResolvedView.SkyAtmosphereAerialPerspectiveStartDepthKm,
-			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKm,
-			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
-			ResolvedView.OneOverPreExposure);
+		float4 AerialPerspective;
+
+		if (!ResolvedView.RealTimeReflectionCapture &&	// We do not generate a 360 CameraAerialPerspectiveVolume with separated Mie and Ray contribution as of today.
+			(RenderVolumetricCloudParameters.AerialPerspectiveRayOnlyStartDistanceKm + RenderVolumetricCloudParameters.AerialPerspectiveMieOnlyStartDistanceKm) > 0.0f)
+		{
+			float4 MieAP = GETAERIALPERSPECTIVE(View.CameraAerialPerspectiveVolumeMieOnly, View.CameraAerialPerspectiveVolumeMieOnlySampler, FogSampleTranslatedWorldPosition, 
+				max(ResolvedView.SkyAtmosphereAerialPerspectiveStartDepthKm, RenderVolumetricCloudParameters.AerialPerspectiveMieOnlyStartDistanceKm), RenderVolumetricCloudParameters.AerialPerspectiveMieOnlyFadeDistanceKmInv);
+			float4 RayAP = GETAERIALPERSPECTIVE(View.CameraAerialPerspectiveVolumeRayOnly, View.CameraAerialPerspectiveVolumeRayOnlySampler, FogSampleTranslatedWorldPosition, 
+				max(ResolvedView.SkyAtmosphereAerialPerspectiveStartDepthKm, RenderVolumetricCloudParameters.AerialPerspectiveRayOnlyStartDistanceKm), RenderVolumetricCloudParameters.AerialPerspectiveRayOnlyFadeDistanceKmInv);
+
+			AerialPerspective = float4(MieAP.rgb + RayAP.rgb, MieAP.a * RayAP.a);
+		}
+		else
+		{
+			const float NearFadeOutRangeInvDepthKm = 1.0 / 0.00001f; // 1 centimeter fade region
+			// Apply AP only once according to the mean position within the participating media weighted by transmittance/visibility.
+			// This allows to apply AP only once per pixel instead of per sample.
+			AerialPerspective = GETAERIALPERSPECTIVE(View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler, FogSampleTranslatedWorldPosition, ResolvedView.SkyAtmosphereAerialPerspectiveStartDepthKm, NearFadeOutRangeInvDepthKm);
+		}
 
 		// Apply aerial perspective OVER the cloud, assiming coverage is from the full transmittance.
 		// skip if MeanTransmittance is 1

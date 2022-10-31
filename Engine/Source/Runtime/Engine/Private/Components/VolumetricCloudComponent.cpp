@@ -54,6 +54,10 @@ UVolumetricCloudComponent::UVolumetricCloudComponent(const FObjectInitializer& O
 	, ShadowReflectionSampleCountScale_DEPRECATED(1.0f)
 	, ShadowTracingDistance(15.0f)
 	, StopTracingTransmittanceThreshold(0.005f)
+	, AerialPespectiveRayleighScatteringStartDistance(0.0f)
+	, AerialPespectiveRayleighScatteringFadeDistance(0.0f)
+	, AerialPespectiveMieScatteringStartDistance(0.0f)
+	, AerialPespectiveMieScatteringFadeDistance(0.0f)
 	, VolumetricCloudSceneProxy(nullptr)
 {
 	static ConstructorHelpers::FObjectFinder<UMaterialInterface> VolumetricCloudDefaultMaterialRef(TEXT("/Engine/EngineSky/VolumetricClouds/m_SimpleVolumetricCloud_Inst.m_SimpleVolumetricCloud_Inst"));

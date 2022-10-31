@@ -85,6 +85,8 @@ struct FSkyAtmosphereRenderContext
 	FRDGTextureRef MultiScatteredLuminanceLut;
 	FRDGTextureRef SkyAtmosphereViewLutTexture;
 	FRDGTextureRef SkyAtmosphereCameraAerialPerspectiveVolume;
+	FRDGTextureRef SkyAtmosphereCameraAerialPerspectiveVolumeMieOnly;
+	FRDGTextureRef SkyAtmosphereCameraAerialPerspectiveVolumeRayOnly;
 
 	///////////////////////////////////
 	// Per view parameters

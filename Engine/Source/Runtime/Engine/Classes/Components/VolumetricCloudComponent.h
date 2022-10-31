@@ -121,6 +121,20 @@ class UVolumetricCloudComponent : public USceneComponent
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cloud Tracing", meta = (UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0", SliderExponent = 5.0))
 	float StopTracingTransmittanceThreshold;
+	
+	
+	/** Specify the aerial perspective start distance on cloud for Rayleigh scattering only. (kilometers) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art Direction", AdvancedDisplay, meta = (UIMin = 0.0, UIMax = 100.0, ClampMin = 0.0, SliderExponent = 2.0))
+	float AerialPespectiveRayleighScatteringStartDistance;
+	/** Specify the distance over which the Rayleigh scattering will linearly ramp up to ful leffect. (kilometers) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art Direction", AdvancedDisplay, meta = (UIMin = 0.0, UIMax = 100.0, ClampMin = 0.0, SliderExponent = 2.0))
+	float AerialPespectiveRayleighScatteringFadeDistance;
+	/** Specify the aerial perspective start distance on cloud for Mie scattering only. (kilometers) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art Direction", AdvancedDisplay, meta = (UIMin = 0.0, UIMax = 100.0, ClampMin = 0.0, SliderExponent = 2.0))
+	float AerialPespectiveMieScatteringStartDistance;
+	/** Specify the distance over which the Rayleigh scattering will linearly ramp up to ful leffect. (kilometers) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = "Art Direction", AdvancedDisplay, meta = (UIMin = 0.0, UIMax = 100.0, ClampMin = 0.0, SliderExponent = 2.0))
+	float AerialPespectiveMieScatteringFadeDistance;
 
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
