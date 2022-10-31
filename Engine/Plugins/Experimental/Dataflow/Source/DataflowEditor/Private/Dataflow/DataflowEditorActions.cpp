@@ -181,6 +181,8 @@ void FDataflowEditorCommands::OnPropertyValueChanged(UDataflow* OutDataflow, TSh
 		TSharedPtr<const FDataflowNode> UpdatedNode = nullptr;
 		if (OutDataflow && InPropertyChangedEvent.Property && InPropertyChangedEvent.Property->GetOwnerUObject())
 		{
+			OutDataflow->Modify(true);
+
 			FString Name = InPropertyChangedEvent.Property->GetOwnerUObject()->GetName();
 			Name = Name.Left(Name.Len() - FString("DataflowNode").Len());
 			{
