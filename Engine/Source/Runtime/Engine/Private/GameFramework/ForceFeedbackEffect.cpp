@@ -91,8 +91,19 @@ void UForceFeedbackEffect::SetDeviceProperties(const FPlatformUserId PlatformUse
 	{
 		if (DeviceProp)
 		{
-			DeviceProp->EvaluateDeviceProperty(DeltaTime, EvalTime);
+			DeviceProp->EvaluateDeviceProperty(PlatformUser, DeltaTime, EvalTime);
 			DeviceProp->ApplyDeviceProperty(PlatformUser);
+		}
+	}
+}
+
+void UForceFeedbackEffect::ResetDeviceProperties(const FPlatformUserId PlatformUser)
+{
+	for (TObjectPtr<UInputDeviceProperty> DeviceProp : DeviceProperties)
+	{
+		if (DeviceProp)
+		{
+			DeviceProp->ResetDeviceProperty(PlatformUser);
 		}
 	}
 }
@@ -134,4 +145,12 @@ bool FActiveForceFeedbackEffect::Update(const float DeltaTime, FForceFeedbackVal
 	ForceFeedbackEffect->SetDeviceProperties(PlatformUser, DeltaTime, EvalTime);
 
 	return true;
+}
+
+void FActiveForceFeedbackEffect::ResetDeviceProperties()
+{
+	if (ForceFeedbackEffect)
+	{
+		ForceFeedbackEffect->ResetDeviceProperties(PlatformUser);
+	}
 }

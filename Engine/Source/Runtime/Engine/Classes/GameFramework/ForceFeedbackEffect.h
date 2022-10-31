@@ -97,6 +97,9 @@ struct ENGINE_API FActiveForceFeedbackEffect
 	// Updates the final force feedback values based on this effect.  Returns true if the effect should continue playing, false if it is finished.
 	bool Update(float DeltaTime, FForceFeedbackValues& Values);
 
+	/** Reset any device properties that may need to be after the duration of this effect has ended. */
+	void ResetDeviceProperties();
+
 	// Gets the current values at the stored play time
 	void GetValues(FForceFeedbackValues& Values) const;
 };
@@ -129,4 +132,7 @@ class UForceFeedbackEffect : public UObject
 	void GetValues(const float EvalTime, FForceFeedbackValues& Values, float ValueMultiplier = 1.f) const;
 
 	void SetDeviceProperties(const FPlatformUserId PlatformUser, const float DeltaTime, const float EvalTime);
+
+	/** Reset any device properties that may need to be after the duration of this effect has ended. */
+	void ResetDeviceProperties(const FPlatformUserId PlatformUser);
 };

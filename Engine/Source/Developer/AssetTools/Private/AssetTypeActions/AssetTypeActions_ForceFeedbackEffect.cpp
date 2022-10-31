@@ -151,6 +151,7 @@ void FAssetTypeActions_ForceFeedbackEffect::PlayEffect(UForceFeedbackEffect* Eff
 
 void FAssetTypeActions_ForceFeedbackEffect::StopEffect() 
 {
+	PreviewForceFeedbackEffect.ResetDeviceProperties();
 	PreviewForceFeedbackEffect.ForceFeedbackEffect = nullptr;
 
 	IInputInterface* InputInterface = FSlateApplication::Get().GetInputInterface();
@@ -247,6 +248,7 @@ void FPreviewForceFeedbackEffect::Tick( float DeltaTime )
 
 	if (!Update(DeltaTime, ForceFeedbackValues))
 	{
+		ResetDeviceProperties();
 		ForceFeedbackEffect = nullptr;
 	}
 

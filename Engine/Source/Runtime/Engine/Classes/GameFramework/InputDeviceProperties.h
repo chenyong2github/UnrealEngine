@@ -29,13 +29,15 @@ public:
 
 	/**
 	* Evaluate this device property for a given duration. 
+	* If overriding in Blueprints, make sure to call the parent function!
 	* 
-	* @param DeltaTime		Delta time
-	* @param Duration		The number of seconds that this property has been active. Use this to get things like curve data over time.
-	* @return				A pointer to the evaluated input device property.
+ 	* @param PlatformUser		The platform user that should receive this device property change
+	* @param DeltaTime			Delta time
+	* @param Duration			The number of seconds that this property has been active. Use this to get things like curve data over time.
+	* @return					A pointer to the evaluated input device property.
 	*/
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "InputDevice")
-	void EvaluateDeviceProperty(const float DeltaTime, const float Duration);
+	void EvaluateDeviceProperty(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration);
 
 	/** 
 	* Native C++ implementation of EvaluateDeviceProperty.
@@ -43,10 +45,28 @@ public:
 	* Override this to alter your device property in native code.
 	* @see UInputDeviceProperty::EvaluateDeviceProperty
 	*/
-	virtual void EvaluateDeviceProperty_Implementation(const float DeltaTime, const float Duration) { }
+	virtual void EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration);
 
 	/**
-	* Apply the given device property to the Input Interface 
+	* Reset the current device property. Provides an opportunity to reset device state after evaluation is complete. 
+	* If overriding in Blueprints, make sure to call the parent function!
+	* 
+	* @param PlatformUser		The platform user that should receive this device property change
+	*/
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "InputDevice")
+	void ResetDeviceProperty(const FPlatformUserId PlatformUser);
+
+	/**
+	* Native C++ implementation of ResetDeviceProperty
+	* Override this in C++ to alter the device property behavior in native code. 
+	* 
+	* @see ResetDeviceProperty
+	*/
+	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser);
+
+	/**
+	* Apply the given device property to the Input Interface. 
+	* Note: To remove any applied affects of this device property, call ResetDeviceProperty.
 	* 
 	* @param UserId		The owning Platform User whose input device this property should be applied to.
 	*/
@@ -92,7 +112,8 @@ public:
 
 	UColorInputDeviceProperty();
 
-	virtual void EvaluateDeviceProperty_Implementation(const float DeltaTime, const float Duration) override;
+	virtual void EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration) override;
+	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser) override;
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
 
 protected:

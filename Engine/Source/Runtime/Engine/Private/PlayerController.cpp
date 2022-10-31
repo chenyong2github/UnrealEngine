@@ -4100,6 +4100,8 @@ void APlayerController::ClientPlayForceFeedback_Internal_Implementation( UForceF
 			{
 				if (ActiveForceFeedbackEffects[Index].Parameters.Tag == Params.Tag)
 				{
+					// Reset the device properties on an active effect before removal
+					ActiveForceFeedbackEffects[Index].ResetDeviceProperties();
 					ActiveForceFeedbackEffects.RemoveAtSwap(Index);
 				}
 			}
@@ -4127,6 +4129,11 @@ void APlayerController::ClientStopForceFeedback_Implementation( UForceFeedbackEf
 {
 	if (ForceFeedbackEffect == NULL && Tag == NAME_None)
 	{
+		// Reset all device properties
+		for (FActiveForceFeedbackEffect& Effect : ActiveForceFeedbackEffects)
+		{
+			Effect.ResetDeviceProperties();
+		}
 		ActiveForceFeedbackEffects.Empty();
 	}
 	else
@@ -4136,6 +4143,8 @@ void APlayerController::ClientStopForceFeedback_Implementation( UForceFeedbackEf
 			if (    (ForceFeedbackEffect == NULL || ActiveForceFeedbackEffects[Index].ForceFeedbackEffect == ForceFeedbackEffect)
 				 && (Tag == NAME_None || ActiveForceFeedbackEffects[Index].Parameters.Tag == Tag) )
 			{
+				// Reset the device properties on an active effect before removal
+				ActiveForceFeedbackEffects[Index].ResetDeviceProperties();
 				ActiveForceFeedbackEffects.RemoveAtSwap(Index);
 			}
 		}
@@ -4538,6 +4547,8 @@ void APlayerController::ProcessForceFeedbackAndHaptics(const float DeltaTime, co
 			{
 				if (!ActiveForceFeedbackEffects[Index].Update(DeltaTime, ForceFeedbackValues))
 				{
+					// Reset any device properties that may need it (i.e. trigger resistance) 
+					ActiveForceFeedbackEffects[Index].ResetDeviceProperties();
 					ActiveForceFeedbackEffects.RemoveAtSwap(Index);
 				}
 			}

@@ -24,6 +24,16 @@ void UInputDeviceProperty::ApplyDeviceProperty(const FPlatformUserId UserId)
 	}
 }
 
+void UInputDeviceProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
+{
+
+}
+
+void UInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser)
+{
+
+}
+
 ///////////////////////////////////////////////////////////////////////
 // UColorInputDeviceProperty
 
@@ -42,12 +52,19 @@ UColorInputDeviceProperty::UColorInputDeviceProperty()
 	}
 }
 
-void UColorInputDeviceProperty::EvaluateDeviceProperty_Implementation(const float DeltaTime, const float Duration)
+void UColorInputDeviceProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
 {
 	InternalProperty.bEnable = bEnable;
 	
 	FLinearColor CurveColor = DeviceColorCurve->GetLinearColorValue(Duration);
 	InternalProperty.Color = CurveColor.ToFColorSRGB();
+}
+
+void UColorInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser)
+{
+	// Disabling the light will reset the color
+	InternalProperty.bEnable = false;
+	ApplyDeviceProperty(PlatformUser);
 }
 
 FInputDeviceProperty* UColorInputDeviceProperty::GetInternalDeviceProperty()
