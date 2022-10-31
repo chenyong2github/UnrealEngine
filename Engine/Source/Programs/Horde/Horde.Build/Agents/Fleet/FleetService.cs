@@ -180,15 +180,17 @@ namespace Horde.Build.Agents.Fleet
 			int deltaAgentCount = desiredAgentCount - currentAgentCount;
 
 			IFleetManager fleetManager = CreateFleetManager(poolSizeResult.Pool);
-
-			Dictionary<string, object> logScope = new() { ["FleetManager"] = fleetManager.GetType().Name };
-			logScope["PoolSizeStrategy"] = poolSizeResult.Status ?? new Dictionary<string, object>();
-
-			using (_logger.BeginScope(logScope))
+			Dictionary<string, object> logScopeMetadata = new()
 			{
-				_logger.LogInformation("{PoolName} Current={Current} Target={Target} Delta={Delta}",
-					pool.Name, currentAgentCount, desiredAgentCount, deltaAgentCount);
-			}
+				["FleetManager"] = fleetManager.GetType().Name,
+				["PoolSizeStrategy"] = poolSizeResult.Status ?? new Dictionary<string, object>(),
+				["PoolId"] = poolSizeResult.Pool.Id,
+			};
+
+			using IDisposable logScope = _logger.BeginScope(logScopeMetadata);
+			
+			_logger.LogInformation("{PoolName} Current={Current} Target={Target} Delta={Delta}",
+				pool.Name, currentAgentCount, desiredAgentCount, deltaAgentCount);
 
 			try
 			{

@@ -111,8 +111,11 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 		Dictionary<string, List<Instance>> stoppedInstancesPerAz = GetInstancesToLaunch(candidatesPerAz, requestCountPerAz);
 		List<InstanceType>? instanceTypePriority = Settings.InstanceTypes?.Select(InstanceType.FindValue).ToList();
 
-		var info = new { MissingInstanceCount = remainingInstancesCount, InstancesToStartCount = requestCountPerAz.Values.Sum(x => x)};
-		_logger.LogWarning("Not enough stopped instances to accommodate the full pool scale-out. {@info}", info);
+		if (remainingInstancesCount > 0)
+		{
+			var info = new { StoppedInstancesMissingCount = remainingInstancesCount, InstancesToStartCount = requestCountPerAz.Values.Sum(x => x)};
+			_logger.LogWarning("Not enough stopped instances to accommodate the full pool scale-out. {@info}", info);			
+		}
 
 		foreach ((string az, List<Instance> instances) in stoppedInstancesPerAz)
 		{
