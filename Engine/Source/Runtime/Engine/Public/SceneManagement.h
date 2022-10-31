@@ -2634,6 +2634,18 @@ public:
 	ENGINE_API void Set(
 		const FMatrix& LocalToWorld,
 		const FMatrix& PreviousLocalToWorld,
+		const FVector& ActorPositionWS, 
+		const FBoxSphereBounds& WorldBounds,
+		const FBoxSphereBounds& LocalBounds,
+		const FBoxSphereBounds& PreSkinnedLocalBounds,
+		bool bReceivesDecals,
+		bool bHasPrecomputedVolumetricLightmap,
+		bool bOutputVelocity,
+		const FCustomPrimitiveData* CustomPrimitiveData);
+
+	ENGINE_API void Set(
+		const FMatrix& LocalToWorld,
+		const FMatrix& PreviousLocalToWorld,
 		const FBoxSphereBounds& WorldBounds,
 		const FBoxSphereBounds& LocalBounds,
 		const FBoxSphereBounds& PreSkinnedLocalBounds,

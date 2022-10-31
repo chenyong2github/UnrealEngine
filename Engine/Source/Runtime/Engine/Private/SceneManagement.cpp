@@ -350,6 +350,7 @@ void FMeshElementCollector::AddMesh(int32 ViewIndex, FMeshBatch& MeshBatch)
 void FDynamicPrimitiveUniformBuffer::Set(
 	const FMatrix& LocalToWorld,
 	const FMatrix& PreviousLocalToWorld,
+	const FVector& ActorPositionWS,
 	const FBoxSphereBounds& WorldBounds,
 	const FBoxSphereBounds& LocalBounds,
 	const FBoxSphereBounds& PreSkinnedLocalBounds,
@@ -364,7 +365,7 @@ void FDynamicPrimitiveUniformBuffer::Set(
 		.Defaults()
 			.LocalToWorld(LocalToWorld)
 			.PreviousLocalToWorld(PreviousLocalToWorld)
-			.ActorWorldPosition(WorldBounds.Origin)
+			.ActorWorldPosition(ActorPositionWS)
 			.WorldBounds(WorldBounds)
 			.LocalBounds(LocalBounds)
 			.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
@@ -375,6 +376,20 @@ void FDynamicPrimitiveUniformBuffer::Set(
 		.Build()
 	);
 	UniformBuffer.InitResource();
+}
+
+void FDynamicPrimitiveUniformBuffer::Set(
+	const FMatrix& LocalToWorld,
+	const FMatrix& PreviousLocalToWorld,
+	const FBoxSphereBounds& WorldBounds,
+	const FBoxSphereBounds& LocalBounds,
+	const FBoxSphereBounds& PreSkinnedLocalBounds,
+	bool bReceivesDecals,
+	bool bHasPrecomputedVolumetricLightmap,
+	bool bOutputVelocity,
+	const FCustomPrimitiveData* CustomPrimitiveData)
+{
+	Set(LocalToWorld, PreviousLocalToWorld, WorldBounds.Origin, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, bHasPrecomputedVolumetricLightmap, bOutputVelocity, CustomPrimitiveData);
 }
 
 void FDynamicPrimitiveUniformBuffer::Set(
