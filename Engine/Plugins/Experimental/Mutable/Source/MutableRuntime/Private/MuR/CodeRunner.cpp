@@ -2504,9 +2504,6 @@ namespace mu
             {
                 MUTABLE_CPUPROFILER_SCOPE(ImageMultiLayer);
 
-                Ptr<const Image> pResult;
-                Ptr<Image> pNew;
-
 				int32 iterations = item.customState;
 
                 // TODO: Reuse base if possible
@@ -2514,15 +2511,12 @@ namespace mu
 
                 if (iterations==0)
                 {
-                    pResult = pBase;
+					// Early out
+					GetMemory().SetImage(item, pBase);
+					break;
                 }
-                else
-                {
-                    EImageFormat resultFormat = GetUncompressedFormat(pBase->GetFormat());
-                    pNew = new Image( pBase->GetSizeX(), pBase->GetSizeY(),
-                                      pBase->GetLODCount(), resultFormat );
-					pResult = pNew;
-                }
+
+				Ptr<const Image> pResult;
 
                 // This shouldn't happen in optimised models, but it could happen in editors, etc.
                 // \todo: raise a performance warning?
@@ -2532,6 +2526,9 @@ namespace mu
                     pBase = ImagePixelFormat( m_pSettings->GetPrivate()->m_imageCompressionQuality,
                                               pBase.get(), baseFormat );
                 }
+
+				Ptr<Image> pNew = mu::CloneOrTakeOver(pBase.get());
+				pResult = pNew;
 
                 SCHEDULED_OP itemCopy = item;
                 ExecutionIndex index = GetMemory().GetRageIndex( item.executionIndex );
@@ -2612,16 +2609,22 @@ namespace mu
 
                         switch (EBlendType(args.blendType))
                         {
-						case EBlendType::BT_NORMAL_COMBINE: ImageNormalCombine(pNew.get(), pBase.get(), pMask.get(), pBlended.get()); break; 
-                        case EBlendType::BT_SOFTLIGHT: ImageSoftLight( pNew.get(), pBase.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_HARDLIGHT: ImageHardLight( pNew.get(), pBase.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_BURN: ImageBurn( pNew.get(), pBase.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_DODGE: ImageDodge( pNew.get(), pBase.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_SCREEN: ImageScreen( pNew.get(), pBase.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_OVERLAY: ImageOverlay( pNew.get(), pBase.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_ALPHA_OVERLAY: ImageAlphaOverlay( pNew.get(), pBase.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_MULTIPLY: ImageMultiply( pNew.get(), pBase.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_BLEND: ImageBlend( pNew.get(), pBase.get(), pMask.get(), pBlended.get(), false ); break;
+						case EBlendType::BT_NORMAL_COMBINE: 
+							// \todo: optimise with ping pong buffers or blend-in-place
+							ImageNormalCombine(pNew.get(), pBase.get(), pMask.get(), pBlended.get());
+							pResult = pNew;
+							pBase = pNew;
+							pNew = new Image(pBase->GetSizeX(), pBase->GetSizeY(), pBase->GetLODCount(), pBase->GetFormat());
+							break;
+                        case EBlendType::BT_SOFTLIGHT: ImageLayerOnBase<SoftLightChannelMasked, SoftLightChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_HARDLIGHT: ImageLayerOnBase<HardLightChannelMasked, HardLightChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_BURN: ImageLayerOnBase<BurnChannelMasked, BurnChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_DODGE: ImageLayerOnBase<DodgeChannelMasked, DodgeChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_SCREEN: ImageLayerOnBase<ScreenChannelMasked, ScreenChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_OVERLAY: ImageLayerOnBase<OverlayChannelMasked, OverlayChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_ALPHA_OVERLAY: ImageLayerOnBase<AlphaOverlayChannelMasked, AlphaOverlayChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_MULTIPLY: ImageLayerOnBase<MultiplyChannelMasked, MultiplyChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_BLEND: ImageLayerOnBase<BlendChannelMasked, BlendChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
                         default: check(false);
                         }
 
@@ -2630,25 +2633,25 @@ namespace mu
                     {
                         switch (EBlendType(args.blendType))
                         {
-						case EBlendType::BT_NORMAL_COMBINE: ImageNormalCombine(pNew.get(), pBase.get(), pBlended.get()); break;
-                        case EBlendType::BT_SOFTLIGHT: ImageSoftLight( pNew.get(), pBase.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_HARDLIGHT: ImageHardLight( pNew.get(), pBase.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_BURN: ImageBurn( pNew.get(), pBase.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_DODGE: ImageDodge( pNew.get(), pBase.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_SCREEN: ImageScreen( pNew.get(), pBase.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_OVERLAY: ImageOverlay( pNew.get(), pBase.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_ALPHA_OVERLAY: ImageAlphaOverlay( pNew.get(), pBase.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_MULTIPLY: ImageMultiply( pNew.get(), pBase.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_BLEND: pNew = pBase->Clone(); break;
+						case EBlendType::BT_NORMAL_COMBINE: 
+							// \todo: optimise with ping pong buffers or blend-in-place
+							ImageNormalCombine(pNew.get(), pBase.get(), pBlended.get());
+							pResult = pNew;
+							pBase = pNew;
+							pNew = new Image(pBase->GetSizeX(), pBase->GetSizeY(), pBase->GetLODCount(), pBase->GetFormat());
+							break;
+                        case EBlendType::BT_SOFTLIGHT: ImageLayerOnBase<SoftLightChannel, false>( pNew.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_HARDLIGHT: ImageLayerOnBase<HardLightChannel, false>( pNew.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_BURN: ImageLayerOnBase<BurnChannel, false>( pNew.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_DODGE: ImageLayerOnBase<DodgeChannel, false>( pNew.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_SCREEN: ImageLayerOnBase<ScreenChannel, false>( pNew.get(),  pBlended.get(), false ); break;
+                        case EBlendType::BT_OVERLAY: ImageLayerOnBase<OverlayChannel, false>( pNew.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_ALPHA_OVERLAY: ImageLayerOnBase<AlphaOverlayChannel, false>( pNew.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_MULTIPLY: ImageLayerOnBase<MultiplyChannel, false>( pNew.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_BLEND: pNew = pBlended->Clone(); break;
                         default: check(false);
                         }
                     }
-
-                    pResult = pNew;
-                    pBase = pNew;
-                    // \todo: optimise with ping pong buffers or blend-in-place
-                    pNew = new Image( pBase->GetSizeX(), pBase->GetSizeY(),
-                                      pBase->GetLODCount(), pBase->GetFormat() );
 				}
 
                 GetMemory().SetImage( item, pResult );

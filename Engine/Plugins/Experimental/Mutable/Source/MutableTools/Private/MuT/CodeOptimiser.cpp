@@ -1197,8 +1197,7 @@ namespace mu
 		{
 			// We use 4 times the count because at the time we moved to sharing this count it
 			// was being used 4 times, and we want to keep the tests consistent.
-			m_optimizeIterationsLeft =
-				m_options->GetPrivate()->m_optimisationOptions.m_maxOptimisationLoopCount * 4;
+			m_optimizeIterationsLeft = m_options->GetPrivate()->m_optimisationOptions.m_maxOptimisationLoopCount * 4;
 			m_optimizeIterationsMax = m_optimizeIterationsLeft;
 
 			// The first duplicated data remover has the special mission of removing
@@ -1247,12 +1246,14 @@ namespace mu
 			}
 
 			UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("ast size"), int64(ASTOp::CountNodes(roots)));
+			ASTOp::LogHistogram(roots);
 
 			// Main optimisation stage
 			{
 				MUTABLE_CPUPROFILER_SCOPE(MainStage);
 				FullOptimiseAST( roots, pTaskManager );
 				UE_LOG(LogMutableCore, Verbose, TEXT("(int) %s : %ld"), TEXT("ast size"), int64(ASTOp::CountNodes(roots)));
+				ASTOp::LogHistogram(roots);
 			}
 
 	//            // Third optimisation stage: introduce image compose conditions
@@ -1266,15 +1267,15 @@ namespace mu
 	//            }
 
 
-			{
-				MUTABLE_CPUPROFILER_SCOPE(ConditionalsStage);
+			//{
+			//	MUTABLE_CPUPROFILER_SCOPE(ConditionalsStage);
 
-				//program.Check();
+			//	//program.Check();
 
-				// Optimise the conditionals added by the image compose condition generator
-				// also the constants generator at the end of previous fulloptimiseAST.
-				FullOptimiseAST( roots, pTaskManager );
-			}
+			//	// Optimise the conditionals added by the image compose condition generator
+			//	// also the constants generator at the end of previous fulloptimiseAST.
+			//	FullOptimiseAST( roots, pTaskManager );
+			//}
 
 			// Analyse mesh constants to see which of them are in optimised mesh formats, and set the flags.
 			ASTOp::Traverse_BottomUp_Unique_NonReentrant( roots, [&](Ptr<ASTOp>& n)

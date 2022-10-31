@@ -65,7 +65,7 @@ template <class SCALAR> class vec4;
 		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		uint64 Hash() const override;
 		void Link(FProgram& program, const FLinkerOptions*) override;
-		FImageDesc GetImageDesc(bool, class GetImageDescContext*) override;
+		FImageDesc GetImageDesc(bool, class FGetImageDescContext*) const override;
 		void GetBlockLayoutSize(int blockIndex, int* pBlockX, int* pBlockY,
 			BLOCK_LAYOUT_SIZE_CACHE* cache) override;
 		void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;

@@ -119,12 +119,12 @@ void ASTOpImageCompose::Link( FProgram& program, const FLinkerOptions*)
 }
 
 
-FImageDesc ASTOpImageCompose::GetImageDesc( bool returnBestOption, GetImageDescContext* context )
+FImageDesc ASTOpImageCompose::GetImageDesc( bool returnBestOption, FGetImageDescContext* context ) const
 {
     FImageDesc res;
 
     // Local context in case it is necessary
-    GetImageDescContext localContext;
+    FGetImageDescContext localContext;
     if (!context)
     {
       context = &localContext;

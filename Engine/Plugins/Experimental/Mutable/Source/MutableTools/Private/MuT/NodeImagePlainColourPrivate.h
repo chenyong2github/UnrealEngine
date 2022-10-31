@@ -29,30 +29,44 @@ namespace mu
 
 		static NODE_TYPE s_type;
 
-		NodeColourPtr m_pColour;
-		int m_sizeX, m_sizeY;
+		Ptr<NodeColour> m_pColour;
+		int32 m_sizeX, m_sizeY;
+		EImageFormat Format = EImageFormat::IF_RGB_UBYTE;
+
 
 		//!
 		void Serialise( OutputArchive& arch ) const
 		{
-            uint32_t ver = 0;
+            uint32 ver = 1;
 			arch << ver;
 
 			arch << m_pColour;
 			arch << m_sizeX;
 			arch << m_sizeY;
+			arch << (uint32)Format;
 		}
 
 		//!
 		void Unserialise( InputArchive& arch )
 		{
-            uint32_t ver;
+            uint32 ver;
 			arch >> ver;
-			check(ver==0);
+			check(ver<=1);
 
 			arch >> m_pColour;
 			arch >> m_sizeX;
 			arch >> m_sizeY;
+
+			if (ver >= 1)
+			{
+				uint32 Temp = 0;
+				arch >> Temp;
+				Format = EImageFormat(Temp);
+			}
+			else
+			{
+				Format = EImageFormat::IF_RGB_UBYTE;
+			}
 		}
 	};
 

@@ -661,14 +661,14 @@ namespace mu
 
         //! This class contains the support data to accelerate the GetImageDesc recursive function.
         //! If none is provided in the call, one will be created at that level and used from there on.
-        class GetImageDescContext
+        class FGetImageDescContext
         {
         public:
             TMap<const ASTOp*, FImageDesc> m_results;
         };
 
         //!
-        virtual FImageDesc GetImageDesc( bool returnBestOption=false, GetImageDescContext* context=nullptr );
+        virtual FImageDesc GetImageDesc( bool returnBestOption=false, FGetImageDescContext* context=nullptr ) const;
 
         //! Optional cache struct to use int he method below.
         using BLOCK_LAYOUT_SIZE_CACHE=TMap< const TPair<ASTOp*,int>, TPair<int,int>>;
@@ -969,7 +969,7 @@ namespace mu
         void Link( FProgram& program, const FLinkerOptions* Options) override;
         bool IsEqual(const ASTOp& otherUntyped) const override;
 		uint64 Hash() const override;
-		FImageDesc GetImageDesc( bool returnBestOption, GetImageDescContext* context ) override;
+		FImageDesc GetImageDesc( bool returnBestOption, FGetImageDescContext* context ) const override;
         void GetBlockLayoutSize( int blockIndex, int* pBlockX, int* pBlockY,
                                  BLOCK_LAYOUT_SIZE_CACHE* cache ) override;
         void GetLayoutBlockSize( int* pBlockX, int* pBlockY ) override;
@@ -1019,7 +1019,7 @@ namespace mu
     private:
 
         //
-        inline FImageDesc GetImageDesc( OP::ADDRESS at, bool returnBestOption=false, GetImageDescContext* context=nullptr )
+        inline FImageDesc GetImageDesc( OP::ADDRESS at, bool returnBestOption=false, FGetImageDescContext* context=nullptr ) const
         {
 			FImageDesc res;
 

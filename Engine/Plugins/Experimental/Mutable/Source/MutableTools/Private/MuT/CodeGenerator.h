@@ -684,7 +684,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     extern FImageDesc GetImageDesc( const FProgram& program, OP::ADDRESS at,
                                     bool returnBestOption = false,
-                                    class GetImageDescContext* context=nullptr );
+                                    class FGetImageDescContext* context=nullptr );
 
     //!
     extern void PartialOptimise( Ptr<ASTOp>& op, const CompilerOptions* options );

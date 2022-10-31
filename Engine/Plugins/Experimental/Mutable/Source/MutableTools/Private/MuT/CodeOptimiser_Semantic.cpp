@@ -302,55 +302,57 @@ namespace mu
         case OP_TYPE::IM_SWIZZLE:
         {
             // If children channels are also swizzle ops, recurse them
+            Ptr<ASTOpFixed> sat;
+
+            for ( int c=0; c<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c )
             {
-                Ptr<ASTOpFixed> sat;
+                Ptr<ASTOp> candidate = children[op.args.ImageSwizzle.sources[c]].child();
+				if (!candidate)
+				{
+					continue;
+				}
 
-                for ( int c=0; c<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++c )
+                // Swizzle
+				if (candidate->GetOpType()==OP_TYPE::IM_SWIZZLE)
                 {
-                    auto candidate = children[op.args.ImageSwizzle.sources[c]].child();
-
-                    // Swizzle
-                    if (candidate && candidate->GetOpType()==OP_TYPE::IM_SWIZZLE)
+                    if (!sat)
                     {
-                        if (!sat)
-                        {
-                            sat = mu::Clone<ASTOpFixed>(this);
-                        }
-                        ASTOpFixed* typedCandidate = dynamic_cast<ASTOpFixed*>(candidate.get());
-                        int candidateChannel = op.args.ImageSwizzle.sourceChannels[c];
-
-                        sat->SetChild( sat->op.args.ImageSwizzle.sources[c],
-                                       typedCandidate->children[typedCandidate->op.args.ImageSwizzle.sources[candidateChannel]] );
-                        sat->op.args.ImageSwizzle.sourceChannels[c] =  typedCandidate->op.args.ImageSwizzle.sourceChannels[candidateChannel];
+                        sat = mu::Clone<ASTOpFixed>(this);
                     }
+                    ASTOpFixed* typedCandidate = dynamic_cast<ASTOpFixed*>(candidate.get());
+                    int candidateChannel = op.args.ImageSwizzle.sourceChannels[c];
 
-                    // Format
-                    if (candidate && candidate->GetOpType()==OP_TYPE::IM_PIXELFORMAT)
+                    sat->SetChild( sat->op.args.ImageSwizzle.sources[c],
+                                    typedCandidate->children[typedCandidate->op.args.ImageSwizzle.sources[candidateChannel]] );
+                    sat->op.args.ImageSwizzle.sourceChannels[c] =  typedCandidate->op.args.ImageSwizzle.sourceChannels[candidateChannel];
+                }
+
+                // Format
+                if (candidate->GetOpType()==OP_TYPE::IM_PIXELFORMAT)
+                {
+                    // We can remove the format if its source is already an uncompressed format
+                    ASTOpImagePixelFormat* typedCandidate = dynamic_cast<ASTOpImagePixelFormat*>(candidate.get());
+                    Ptr<ASTOp> formatSource = typedCandidate->Source.child();
+
+                    if (formatSource)
                     {
-                        // We can remove the format if its source is already an uncompressed format
-                        ASTOpImagePixelFormat* typedCandidate = dynamic_cast<ASTOpImagePixelFormat*>(candidate.get());
-                        Ptr<ASTOp> formatSource = typedCandidate->Source.child();
-
-                        if (formatSource)
+                        auto desc = formatSource->GetImageDesc();
+                        if ( desc.m_format!= EImageFormat::IF_NONE && !IsCompressedFormat( desc.m_format ) )
                         {
-                            auto desc = formatSource->GetImageDesc();
-                            if ( desc.m_format!= EImageFormat::IF_NONE && !IsCompressedFormat( desc.m_format ) )
+                            if (!sat)
                             {
-                                if (!sat)
-                                {
-                                    sat = mu::Clone<ASTOpFixed>(this);
-                                }
-                                sat->SetChild( sat->op.args.ImageSwizzle.sources[c], formatSource );
+                                sat = mu::Clone<ASTOpFixed>(this);
                             }
+                            sat->SetChild( sat->op.args.ImageSwizzle.sources[c], formatSource );
                         }
                     }
-
                 }
 
-                if (sat)
-                {
-                    at = sat;
-                }
+            }
+
+            if (sat)
+            {
+                at = sat;
             }
 
             break;
@@ -398,7 +400,7 @@ namespace mu
 					check(sourceMaskUsage.size[0] > 0);
 					check(sourceMaskUsage.size[1] > 0);
 					
-					GetImageDescContext context;
+					FGetImageDescContext context;
                     maskDesc = maskAt->GetImageDesc( false, &context );
                 }
             }
@@ -530,6 +532,7 @@ namespace mu
 					NewSwizzle->op.args.ColourSwizzle.sourceChannels[i] = op.args.ImageSwizzle.sourceChannels[i];
 				}
 				NewPlain->SetChild(NewPlain->op.args.ImagePlainColour.colour, NewSwizzle);
+				NewPlain->op.args.ImagePlainColour.format = this->op.args.ImageSwizzle.format;
 				at = NewPlain;
 				break;
 			}
@@ -1111,7 +1114,7 @@ namespace mu
             const ASTOpImagePatch* typedPatch = dynamic_cast<const ASTOpImagePatch*>(at.get());
 
             auto rectOp = typedPatch->patch.child();
-            ASTOp::GetImageDescContext context;
+            ASTOp::FGetImageDescContext context;
             auto patchDesc = rectOp->GetImageDesc( false, &context );
             box<vec2<int16_t>> patchBox;
             patchBox.min = typedPatch->location;

@@ -44,7 +44,7 @@ struct FProgram;
 		void Assert() override;
 		void ForEachChild(const TFunctionRef<void(ASTChild&)> f) override;
 		void Link(FProgram& program, const FLinkerOptions* Options) override;
-		FImageDesc GetImageDesc(bool returnBestOption, class GetImageDescContext* context) override;
+		FImageDesc GetImageDesc(bool returnBestOption, class FGetImageDescContext* context) const override;
 		void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;
 		void GetBlockLayoutSize(int blockIndex, int* pBlockX, int* pBlockY,
 			BLOCK_LAYOUT_SIZE_CACHE* cache) override;

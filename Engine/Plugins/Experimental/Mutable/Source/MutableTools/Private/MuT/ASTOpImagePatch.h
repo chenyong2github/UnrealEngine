@@ -34,7 +34,7 @@ struct FProgram;
 		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		void ForEachChild(const TFunctionRef<void(ASTChild&)>) override;
 		void Link(FProgram& program, const FLinkerOptions* Options) override;
-		FImageDesc GetImageDesc(bool returnBestOption, GetImageDescContext* context) override;
+		FImageDesc GetImageDesc(bool returnBestOption, FGetImageDescContext* context) const override;
 		Ptr<ImageSizeExpression> GetImageSizeExpression() const override;
 		//TODO: void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;
 		//TODO: bool IsImagePlainConstant(vec4<float>& colour) const override;

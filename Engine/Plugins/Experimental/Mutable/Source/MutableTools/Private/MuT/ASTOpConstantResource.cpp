@@ -177,7 +177,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	FImageDesc ASTOpConstantResource::GetImageDesc(bool, class GetImageDescContext*)
+	FImageDesc ASTOpConstantResource::GetImageDesc(bool, class FGetImageDescContext*) const
 	{
 		FImageDesc res;
 

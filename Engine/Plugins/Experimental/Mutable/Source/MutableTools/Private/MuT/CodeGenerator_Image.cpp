@@ -1276,7 +1276,7 @@ namespace mu
         Ptr<ASTOpFixed> op = new ASTOpFixed();
         op->op.type = OP_TYPE::IM_PLAINCOLOUR;
         op->SetChild( op->op.args.ImagePlainColour.colour, base);
-        op->op.args.ImagePlainColour.format = EImageFormat::IF_RGB_UBYTE;
+		op->op.args.ImagePlainColour.format = node.Format;
         op->op.args.ImagePlainColour.size[0] = uint16(node.m_sizeX);
         op->op.args.ImagePlainColour.size[1] = uint16(node.m_sizeY);
 
@@ -2049,7 +2049,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     //! This class contains the support data to accelerate the GetImageDesc recursive function.
     //! _If none is provided in the call, one will be created at that level and used from there on.
-    class GetImageDescContext
+    class FGetImageDescContext
     {
     public:
         vector<bool> m_visited;

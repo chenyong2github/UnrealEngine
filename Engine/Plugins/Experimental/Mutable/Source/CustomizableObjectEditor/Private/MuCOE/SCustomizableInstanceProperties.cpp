@@ -2019,9 +2019,8 @@ void SCustomizableInstanceProperties::OnProjectorTextureParameterComboBoxChanged
 					FString ValueName = CustomObject->GetIntParameterAvailableOption(ParamIndexInObject, v);
 					if (ValueName == *Selection)
 					{
-						if (RangeIndex >= 0)
+						if (IntParameters[i].ParameterRangeValueNames.IsValidIndex(RangeIndex))
 						{
-							check(IntParameters[i].ParameterRangeValueNames.IsValidIndex(RangeIndex));
 							IntParameters[i].ParameterRangeValueNames[RangeIndex] = ValueName;
 						}
 						else

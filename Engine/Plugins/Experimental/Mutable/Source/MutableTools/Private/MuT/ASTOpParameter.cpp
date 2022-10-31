@@ -155,7 +155,7 @@ namespace mu
 	}
 
 
-	FImageDesc ASTOpParameter::GetImageDesc(bool, GetImageDescContext*)
+	FImageDesc ASTOpParameter::GetImageDesc(bool, FGetImageDescContext*) const
 	{
 		check(type == OP_TYPE::IM_PARAMETER);
 		return FImageDesc();

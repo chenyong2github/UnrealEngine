@@ -56,7 +56,7 @@ namespace mu
 	//-------------------------------------------------------------------------------------------------
 	uint64 ASTOpImageTransform::Hash() const
 	{
-		uint64 res = std::hash<OP_TYPE>()(OP_TYPE::IM_MULTILAYER);
+		uint64 res = std::hash<OP_TYPE>()(OP_TYPE::IM_TRANSFORM);
 		hash_combine(res, base.child().get());
 		hash_combine(res, offsetX.child().get());
 		hash_combine(res, offsetY.child().get());
@@ -116,12 +116,12 @@ namespace mu
 	}
 
 	//-------------------------------------------------------------------------------------------------
-	FImageDesc ASTOpImageTransform::GetImageDesc(bool returnBestOption, GetImageDescContext* context)
+	FImageDesc ASTOpImageTransform::GetImageDesc(bool returnBestOption, FGetImageDescContext* context) const
 	{
 		FImageDesc res;
 
 		// Local context in case it is necessary
-		GetImageDescContext localContext;
+		FGetImageDescContext localContext;
 		if (!context)
 		{
 			context = &localContext;

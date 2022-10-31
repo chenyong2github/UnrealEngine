@@ -190,12 +190,12 @@ mu::Ptr<ASTOp> ASTOpImagePixelFormat::OptimiseSink(const MODEL_OPTIMIZATION_OPTI
 
 
 //!
-FImageDesc ASTOpImagePixelFormat::GetImageDesc(bool returnBestOption, GetImageDescContext* context)
+FImageDesc ASTOpImagePixelFormat::GetImageDesc(bool returnBestOption, FGetImageDescContext* context) const
 {
 	FImageDesc res;
 
 	// Local context in case it is necessary
-	GetImageDescContext localContext;
+	FGetImageDescContext localContext;
 	if (!context)
 	{
 		context = &localContext;

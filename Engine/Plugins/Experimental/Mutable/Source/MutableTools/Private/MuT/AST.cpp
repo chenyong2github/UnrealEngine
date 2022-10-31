@@ -11,9 +11,11 @@
 #include "MuR/Platform.h"
 #include "MuT/ASTOpConstantResource.h"
 #include "MuT/ASTOpMeshRemoveMask.h"
+#include "MuT/ASTOpImageMultiLayer.h"
 #include "MuT/ASTOpParameter.h"
 #include "MuT/StreamsPrivate.h"
 #include "MuT/Platform.h"
+#include "MuT/ErrorLogPrivate.h"
 #include "Trace/Detail/Channel.h"
 
 #include <atomic>
@@ -266,40 +268,69 @@ void ASTOp::LogHistogram( ASTOpList& roots )
 {
     (void)roots;
 
-#if 0
-    uint64_t countPerType[(int)OP_TYPE::COUNT];
-    FMemory::Memzero(countPerType,sizeof(countPerType));
+ //   uint64 CountPerType[(int)OP_TYPE::COUNT];
+ //   FMemory::Memzero(CountPerType,sizeof(CountPerType));
 
-    size_t count=0;
+ //   size_t count=0;
 
-    Traverse_TopRandom_Unique_NonReentrant( roots,
-                             [&](const Ptr<ASTOp>& n)
-    {
-        ++count;
-        countPerType[(int)n->GetOpType()]++;
-        return true;
-    });
+ //   Traverse_TopRandom_Unique_NonReentrant( roots,
+ //                            [&](const Ptr<ASTOp>& n)
+ //   {
+ //       ++count;
+	//	CountPerType[(int)n->GetOpType()]++;
+ //       return true;
+ //   });
 
-    vector< pair<uint64_t,OP_TYPE> > sorted((int)OP_TYPE::COUNT);
-    for (int i=0; i<(int)OP_TYPE::COUNT; ++i)
-    {
-        sorted[i].second = (OP_TYPE)i;
-        sorted[i].first = countPerType[i];
-    }
+	//TArray< TPair<uint64, OP_TYPE> > Sorted;
+	//Sorted.SetNum((int)OP_TYPE::COUNT);
+ //   for (int i=0; i<(int)OP_TYPE::COUNT; ++i)
+ //   {
+ //       Sorted[i].Value = (OP_TYPE)i;
+ //       Sorted[i].Key = CountPerType[i];
+ //   }
 
-    std::sort(sorted.begin(),sorted.end(), []( const pair<uint64_t,OP_TYPE>& a, const pair<uint64_t,OP_TYPE>& b )
-    {
-        return a.first>b.first;
-    });
 
-    UE_LOG(LogMutableCore,Log, TEXT("Op histogram (%llu ops):"), count);
-    for(int i=0; i<8; ++i)
-    {
-        float p = sorted[i].first/float(count)*100.0f;
-        int op = (int)sorted[i].second;
-        UE_LOG(LogMutableCore,Log, TEXT("  %5.2f%% : %s"), p, s_opNames[op] );
-    }
-#endif
+	//Sorted.Sort( [](const TPair<uint64, OP_TYPE>& a, const TPair<uint64, OP_TYPE>& b)
+ //   {
+ //       return a.Key >b.Key;
+ //   });
+
+ //   UE_LOG(LogMutableCore,Log, TEXT("Op histogram (%llu ops):"), count);
+ //   for(int i=0; i<8; ++i)
+ //   {
+ //       float p = Sorted[i].Key/float(count)*100.0f;
+ //       int OpType = (int)Sorted[i].Value;
+ //       UE_LOG(LogMutableCore, Log, TEXT("  %5.2f%% : %s"), p, s_opNames[OpType] );
+ //   }
+
+	//// Debug log part of the tree
+	//Traverse_TopDown_Unique( roots,
+	//	[&](const Ptr<ASTOp>& n)
+	//	{
+	//		if (n->GetOpType() == OP_TYPE::IM_MULTILAYER)
+	//		{
+	//			Ptr<const ASTOpImageMultiLayer> Typed = dynamic_cast<const ASTOpImageMultiLayer*>(n.get());
+	//			Ptr<const ASTOp> Base = Typed->base.child();
+	//			Ptr<const ASTOpConstantResource> Constant = dynamic_cast<const ASTOpConstantResource*>(Base.get());
+
+	//			// Log the op
+	//			UE_LOG(LogMutableCore, Log, TEXT("Multilayer at %x:"), n.get());
+	//			UE_LOG(LogMutableCore, Log, TEXT("    base is type %s:"), s_opNames[(int)Base->GetOpType()]);
+	//			if (Constant)
+	//			{
+	//				int Format = int( ((mu::Image*)Constant->GetValue().get())->GetFormat() );
+	//				UE_LOG(LogMutableCore, Log, TEXT("    constant image format is %d:"), Format);
+	//			}
+	//			else
+	//			{
+	//				FGetImageDescContext Context;
+	//				FImageDesc Desc = Base->GetImageDesc(true, &Context);
+	//				UE_LOG(LogMutableCore, Log, TEXT("    estimated image format is %d:"), int(Desc.m_format) );
+	//			}
+	//		}
+	//		return true;
+	//	});
+
 }
 
 
@@ -864,7 +895,7 @@ void ASTOp::Replace( const Ptr<ASTOp>& node, const Ptr<ASTOp>& other )
 }
 
 
-FImageDesc ASTOp::GetImageDesc( bool, GetImageDescContext* )
+FImageDesc ASTOp::GetImageDesc( bool, FGetImageDescContext* ) const
 {
     check(false);
     return FImageDesc();
@@ -1063,12 +1094,12 @@ uint64 ASTOpFixed::Hash() const
 
 
 //!
-FImageDesc ASTOpFixed::GetImageDesc( bool returnBestOption, GetImageDescContext* context )
+FImageDesc ASTOpFixed::GetImageDesc( bool returnBestOption, FGetImageDescContext* context ) const
 {
     FImageDesc res;
 
     // Local context in case it is necessary
-    GetImageDescContext localContext;
+    FGetImageDescContext localContext;
     if (!context)
     {
       context = &localContext;

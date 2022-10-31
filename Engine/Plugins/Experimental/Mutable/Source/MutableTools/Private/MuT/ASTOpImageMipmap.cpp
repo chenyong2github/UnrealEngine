@@ -163,12 +163,12 @@ mu::Ptr<ASTOp> ASTOpImageMipmap::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS& 
 
 
 //!
-FImageDesc ASTOpImageMipmap::GetImageDesc(bool returnBestOption, GetImageDescContext* context)
+FImageDesc ASTOpImageMipmap::GetImageDesc(bool returnBestOption, FGetImageDescContext* context) const
 {
 	FImageDesc res;
 
 	// Local context in case it is necessary
-	GetImageDescContext localContext;
+	FGetImageDescContext localContext;
 	if (!context)
 	{
 		context = &localContext;
@@ -392,7 +392,7 @@ mu::Ptr<ASTOp> Sink_ImageMipmapAST::Visit(mu::Ptr<ASTOp> at, const ASTOpImageMip
 
 			const ASTOpImagePatch* typedSource = dynamic_cast<const ASTOpImagePatch*>(at.get());
 			auto rectOp = typedSource->patch.child();
-			ASTOp::GetImageDescContext context;
+			ASTOp::FGetImageDescContext context;
 			auto patchDesc = rectOp->GetImageDesc(false, &context);
 
 			uint8_t blockLevels = 0;

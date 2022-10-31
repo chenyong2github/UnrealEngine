@@ -51,7 +51,7 @@ namespace mu
 		void Link(FProgram& program, const FLinkerOptions*) override;
 		int EvaluateInt(ASTOpList& facts, bool& unknown) const override;
 		FBoolEvalResult EvaluateBool(ASTOpList& /*facts*/, FEvaluateBoolCache* = nullptr) const override;
-		FImageDesc GetImageDesc(bool, GetImageDescContext*) override;
+		FImageDesc GetImageDesc(bool, FGetImageDescContext*) const override;
 
 	};
 

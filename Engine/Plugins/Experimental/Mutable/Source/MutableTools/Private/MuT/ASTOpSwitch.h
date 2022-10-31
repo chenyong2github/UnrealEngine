@@ -67,10 +67,8 @@ template <class SCALAR> class vec4;
 		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		void Assert() override;
 		void Link(FProgram& program, const FLinkerOptions* Options) override;
-		FImageDesc GetImageDesc(bool returnBestOption,
-			class GetImageDescContext* context) override;
-		void GetBlockLayoutSize(int blockIndex, int* pBlockX, int* pBlockY,
-			BLOCK_LAYOUT_SIZE_CACHE* cache) override;
+		FImageDesc GetImageDesc(bool returnBestOption, class FGetImageDescContext* context) const  override;
+		void GetBlockLayoutSize(int blockIndex, int* pBlockX, int* pBlockY, BLOCK_LAYOUT_SIZE_CACHE* cache) override;
 		void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;
 		Ptr<ASTOp> OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS&) const override;
 		bool GetNonBlackRect(FImageRect& maskUsage) const override;
