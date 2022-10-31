@@ -256,6 +256,7 @@
 #include "Rendering/StaticLightingSystemInterface.h"
 #include "LevelEditorDragDropHandler.h"
 #include "IProjectExternalContentInterface.h"
+#include "IDocumentation.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 
@@ -334,6 +335,78 @@ void DestroySelectionSets()
 * A mapping of all startup packages to whether or not we have warned the user about editing them
 */
 static TMap<UPackage*, bool> StartupPackageToWarnState;
+
+#if PLATFORM_WINDOWS
+static TWeakPtr<SNotificationItem> MissingAdvancedRenderingRequirementsNotificationPtr;
+#endif
+
+static void CheckForMissingAdvancedRenderingRequirements()
+{
+#if PLATFORM_WINDOWS
+	if (FSlateApplication::IsInitialized() && GDynamicRHIFailedToInitializeAdvancedPlatform)
+	{
+		/** Utility functions for the notification */
+		struct Local
+		{
+			static ECheckBoxState GetDontAskAgainCheckBoxState()
+			{
+				bool bSuppressNotification = false;
+				GConfig->GetBool(TEXT("WindowsEditor"), TEXT("SuppressMissingAdvancedRenderingRequirementsNotification"), bSuppressNotification, GEditorPerProjectIni);
+				return bSuppressNotification ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			}
+
+			static void OnDontAskAgainCheckBoxStateChanged(ECheckBoxState NewState)
+			{
+				const bool bSuppressNotification = (NewState == ECheckBoxState::Checked);
+				GConfig->SetBool(TEXT("WindowsEditor"), TEXT("SuppressMissingAdvancedRenderingRequirementsNotification"), bSuppressNotification, GEditorPerProjectIni);
+			}
+
+			static void OnMissingAdvancedRenderingRequirementsNotificationDismissed()
+			{
+				TSharedPtr<SNotificationItem> NotificationItem = MissingAdvancedRenderingRequirementsNotificationPtr.Pin();
+
+				if (NotificationItem.IsValid())
+				{
+					NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
+					NotificationItem->Fadeout();
+
+					MissingAdvancedRenderingRequirementsNotificationPtr.Reset();
+				}
+			}
+		};
+
+		const ECheckBoxState DontAskAgainCheckBoxState = Local::GetDontAskAgainCheckBoxState();
+		if (DontAskAgainCheckBoxState == ECheckBoxState::Unchecked)
+		{
+			const FText TitleText = LOCTEXT("MissingAdvancedRenderingRequirementsNotificationTitle", "Missing support for advanced rendering features");
+			const FText MessageText = LOCTEXT("MissingAdvancedRenderingRequirementsNotificationText",
+				"This project attempted to launch DirectX 12 with the SM6 shader format but it is not supported by your system. This will prevent advanced rendering features like Nanite and Virtual Shadow Maps from working.\n\nMake sure your system meets the requirements for these UE5 rendering features."
+			);
+
+			FNotificationInfo Info(TitleText);
+			Info.SubText = MessageText;
+
+			Info.HyperlinkText = LOCTEXT("UnrealSoftwareRequirements", "Unreal Software Requirements");
+			Info.Hyperlink = FSimpleDelegate::CreateStatic([]() { IDocumentation::Get()->Open(TEXT("hardware-and-software-specifications-for-unreal-engine")); });
+
+			Info.bFireAndForget = false;
+			Info.FadeOutDuration = 3.0f;
+			Info.ExpireDuration = 0.0f;
+			Info.bUseLargeFont = false;
+			Info.bUseThrobber = false;
+
+			Info.ButtonDetails.Add(FNotificationButtonInfo(LOCTEXT("OK", "OK"), FText::GetEmpty(), FSimpleDelegate::CreateStatic(&Local::OnMissingAdvancedRenderingRequirementsNotificationDismissed)));
+
+			Info.CheckBoxState = TAttribute<ECheckBoxState>::Create(&Local::GetDontAskAgainCheckBoxState);
+			Info.CheckBoxStateChanged = FOnCheckStateChanged::CreateStatic(&Local::OnDontAskAgainCheckBoxStateChanged);
+			Info.CheckBoxText = NSLOCTEXT("ModalDialogs", "DefaultCheckBoxMessage", "Don't show this again");
+
+			MissingAdvancedRenderingRequirementsNotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+			MissingAdvancedRenderingRequirementsNotificationPtr.Pin()->SetCompletionState(SNotificationItem::CS_Pending);
+		}
+	}
+#endif // PLATFORM_WINDOWS
+}
 
 
 ERHIFeatureLevel::Type FPreviewPlatformInfo::GetEffectivePreviewFeatureLevel() const
@@ -1167,6 +1240,8 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 	Cleanse( false, 0, NSLOCTEXT("UnrealEd", "Startup", "Startup") );
 
 	FEditorCommandLineUtils::ProcessEditorCommands(FCommandLine::Get());
+
+	CheckForMissingAdvancedRenderingRequirements();
 
 	// for IsInitialized()
 	bIsInitialized = true;

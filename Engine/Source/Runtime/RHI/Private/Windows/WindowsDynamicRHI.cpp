@@ -11,6 +11,8 @@
 
 #include "Windows/WindowsPlatformApplicationMisc.h"
 
+bool GDynamicRHIFailedToInitializeAdvancedPlatform = false;
+
 static const TCHAR* GLoadedRHIModuleName;
 
 enum class EWindowsRHI
@@ -682,6 +684,11 @@ static bool HandleUnsupportedFeatureLevel(EWindowsRHI& WindowsRHI, ERHIFeatureLe
 		}
 
 		return false;
+	}
+
+	if (FeatureLevel == ERHIFeatureLevel::SM6)
+	{
+		GDynamicRHIFailedToInitializeAdvancedPlatform = true;
 	}
 
 	if (TOptional<ERHIFeatureLevel::Type> FallbackFeatureLevel = Config.GetNextHighestTargetedFeatureLevel(WindowsRHI, FeatureLevel))
