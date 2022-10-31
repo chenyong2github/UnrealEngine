@@ -134,11 +134,13 @@ private:
 	public:
 		SLATE_METADATA_TYPE(FPinInfoMetaData, ISlateMetaData)
 
-		FPinInfoMetaData(const FString& InCPPType)
+		FPinInfoMetaData(const FString& InCPPType, const FString& InBoundVariableName)
 		: CPPType(InCPPType)
+		, BoundVariableName(InBoundVariableName)
 		{}
 
 		FString CPPType;
+		FString BoundVariableName;
 	};
 	
 	TArray<FPinInfo> PinInfos;

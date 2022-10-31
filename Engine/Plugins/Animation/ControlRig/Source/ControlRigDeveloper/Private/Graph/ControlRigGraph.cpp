@@ -452,7 +452,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 								{
 									if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
 									{
-										RigNode->ReconstructNode_Internal(true);
+										RigNode->ModelPinsChanged(true);
 									}
 								}
 							}
@@ -546,7 +546,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 							{
 								if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdNode))
 								{
-									RigNode->ReconstructNode_Internal(true);
+									RigNode->ModelPinsChanged(true);
 								}
 							}
 						}

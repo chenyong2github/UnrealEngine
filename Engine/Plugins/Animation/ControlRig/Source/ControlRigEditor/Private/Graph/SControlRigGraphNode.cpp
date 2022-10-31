@@ -327,6 +327,7 @@ void SControlRigGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
 {
 	bool bShowPin = true;
 	FString CPPType;
+	FString BoundVariableName;
 	if(const UControlRigGraphNode* RigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
 	{
 		if(const URigVMPin* ModelPin = RigGraphNode->FindModelPinFromGraphPin(CurPin))
@@ -338,6 +339,7 @@ void SControlRigGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
 				ModelPin->GetDirection() == ERigVMPinDirection::IO;
 			
 			CPPType = ModelPin->GetCPPType();
+			BoundVariableName = ModelPin->GetBoundVariableName();
 		}
 	}
 	
@@ -352,7 +354,8 @@ void SControlRigGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
 			const TSharedPtr<FPinInfoMetaData> PinInfoMetaData = RecycledPin->GetMetaData<FPinInfoMetaData>();
 			if(PinInfoMetaData.IsValid())
 			{
-				if(PinInfoMetaData->CPPType == CPPType)
+				if(PinInfoMetaData->CPPType == CPPType &&
+					PinInfoMetaData->BoundVariableName == BoundVariableName)
 				{
 					NewPin = RecycledPin;
 				}
@@ -366,7 +369,7 @@ void SControlRigGraphNode::CreateStandardPinWidget(UEdGraphPin* CurPin)
 				(*RecycledPinPtr)->InvalidateGraphData();
 			}
 			NewPin = CreatePinWidget(CurPin);
-			NewPin->AddMetadata(MakeShared<FPinInfoMetaData>(CPPType));
+			NewPin->AddMetadata(MakeShared<FPinInfoMetaData>(CPPType, BoundVariableName));
 			check(NewPin.IsValid());
 			PinsToKeep.Remove(CurPin);
 		}
