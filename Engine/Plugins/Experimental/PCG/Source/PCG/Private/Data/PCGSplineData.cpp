@@ -104,17 +104,17 @@ bool UPCGSplineData::SamplePoint(const FTransform& InTransform, const FBox& InBo
 	}
 }
 
-UPCGProjectionData* UPCGSplineData::ProjectOn(const UPCGSpatialData* InOther, const FPCGProjectionParams& InParams) const
+UPCGProjectionData* UPCGSplineData::ProjectOn(const UPCGSpatialData* InOther) const
 {
 	if(InOther->GetDimension() == 2)
 	{
 		UPCGSplineProjectionData* SplineProjectionData = NewObject<UPCGSplineProjectionData>(const_cast<UPCGSplineData*>(this));
-		SplineProjectionData->Initialize(this, InOther, InParams);
+		SplineProjectionData->Initialize(this, InOther);
 		return SplineProjectionData;
 	}
 	else
 	{
-		return Super::ProjectOn(InOther, InParams);
+		return Super::ProjectOn(InOther);
 	}
 }
 
@@ -152,9 +152,9 @@ FVector2D UPCGSplineProjectionData::Project(const FVector& InVector) const
 	return Projection2D;
 }
 
-void UPCGSplineProjectionData::Initialize(const UPCGSplineData* InSourceSpline, const UPCGSpatialData* InTargetSurface, const FPCGProjectionParams& InParams)
+void UPCGSplineProjectionData::Initialize(const UPCGSplineData* InSourceSpline, const UPCGSpatialData* InTargetSurface)
 {
-	Super::Initialize(InSourceSpline, InTargetSurface, InParams);
+	Super::Initialize(InSourceSpline, InTargetSurface);
 
 	const USplineComponent* Spline = GetSpline()->Spline.Get();
 	const FVector& SurfaceNormal = GetSurface()->GetNormal();
@@ -181,6 +181,60 @@ void UPCGSplineProjectionData::Initialize(const UPCGSplineData* InSourceSpline, 
 			ProjectedPoint.InterpMode = SplinePoint.InterpMode;
 		}
 	}
+}
+
+bool UPCGSplineProjectionData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
+{
+	// TODO: support metadata
+	// TODO: support bounds
+
+	// Find nearest point on projected spline
+	const FVector InPosition = InTransform.GetLocation();
+	const USplineComponent* Spline = GetSpline()->Spline.Get();
+	const FVector& SurfaceNormal = GetSurface()->GetNormal();
+
+	// Project to 2D space
+	const FTransform LocalTransform = InTransform * Spline->GetComponentTransform().Inverse();
+	FVector2D LocalPosition2D = Project(LocalTransform.GetLocation());
+	float Dummy;
+	// Find nearest key on 2D spline
+	float NearestInputKey = ProjectedPosition.InaccurateFindNearest(LocalPosition2D, Dummy);
+	// TODO: if we didn't want to hand off density computation to the spline and do it here instead, we could do it in 2D space.
+	// Find point on original spline using the previously found key
+	// Note: this is an approximation that might not hold true since we are changing the curve length
+	const FVector NearestPointOnSpline = Spline->GetLocationAtSplineInputKey(NearestInputKey, ESplineCoordinateSpace::World);
+	const FVector PointOnLine = FMath::ClosestPointOnInfiniteLine(InPosition, InPosition + SurfaceNormal, NearestPointOnSpline);
+
+	// TODO: this is super inefficient
+	FPCGPoint SplinePoint;
+	if (GetSpline()->SamplePoint(FTransform(PointOnLine), InBounds, SplinePoint, OutMetadata))
+	{
+		FPCGPoint SurfacePoint;
+		if (GetSurface()->SamplePoint(SplinePoint.Transform, InBounds, SurfacePoint, OutMetadata))
+		{
+			OutPoint = SplinePoint;
+			OutPoint.Transform = SurfacePoint.Transform;
+			OutPoint.Density *= SurfacePoint.Density;
+			OutPoint.Color *= SurfacePoint.Color;
+
+			if (OutMetadata)
+			{
+				if (SplinePoint.MetadataEntry != PCGInvalidEntryKey && SurfacePoint.MetadataEntry)
+				{
+					//TODO review op
+					OutMetadata->MergePointAttributesSubset(SplinePoint, OutMetadata, GetSpline()->Metadata, SurfacePoint, OutMetadata, GetSurface()->Metadata, OutPoint, EPCGMetadataOp::Max);
+				}
+				else if (SurfacePoint.MetadataEntry != PCGInvalidEntryKey)
+				{
+					OutPoint.MetadataEntry = SurfacePoint.MetadataEntry;
+				}
+			}
+
+			return true;
+		}
+	}
+
+	return false;
 }
 
 const UPCGSplineData* UPCGSplineProjectionData::GetSpline() const

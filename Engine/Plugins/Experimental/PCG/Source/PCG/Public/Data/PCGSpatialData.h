@@ -6,7 +6,6 @@
 #include "PCGContext.h"
 #include "PCGData.h"
 #include "PCGPoint.h"
-#include "Elements/PCGProjectionParams.h"
 #include "Metadata/PCGMetadata.h"
 
 #include "PCGSpatialData.generated.h"
@@ -85,7 +84,7 @@ public:
 
 	/** Returns a specialized data to project this on another data of equal or higher dimension */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
-	virtual UPCGProjectionData* ProjectOn(const UPCGSpatialData* InOther, const FPCGProjectionParams& InParams = FPCGProjectionParams()) const;
+	virtual UPCGProjectionData* ProjectOn(const UPCGSpatialData* InOther) const;
 
 	/** Returns a specialized data to union this with another data */
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
@@ -105,9 +104,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
 	void InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride = nullptr, bool bInheritMetadata = true);
-
-	/** True if this operation does not have an inverse and cannot be queried analytically/implicitly, and therefore must be collapsed to an explicit point representation. */
-	virtual bool RequiresCollapseToSample() const { return false; }
 
 	UPROPERTY(Transient, BlueprintReadWrite, EditAnywhere, Category = Data)
 	TWeakObjectPtr<AActor> TargetActor = nullptr;

@@ -4,7 +4,7 @@
 #include "Helpers/PCGAsync.h"
 #include "Metadata/PCGMetadataAccessor.h"
 
-void UPCGProjectionData::Initialize(const UPCGSpatialData* InSource, const UPCGSpatialData* InTarget, const FPCGProjectionParams& InParams)
+void UPCGProjectionData::Initialize(const UPCGSpatialData* InSource, const UPCGSpatialData* InTarget)
 {
 	check(InSource && InTarget);
 	// TODO: improve support for higher-dimension projection.
@@ -13,8 +13,6 @@ void UPCGProjectionData::Initialize(const UPCGSpatialData* InSource, const UPCGS
 	Source = InSource;
 	Target = InTarget;
 	TargetActor = InSource->TargetActor;
-
-	Params = InParams;
 
 	CachedBounds = ProjectBounds(Source->GetBounds());
 	CachedStrictBounds = ProjectBounds(Source->GetStrictBounds());
@@ -75,13 +73,32 @@ FBox UPCGProjectionData::ProjectBounds(const FBox& InBounds) const
 
 bool UPCGProjectionData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const
 {
-	// Detecting if a point is in a projection is a non-trivial. Projection is not in general a bijection and we cannot simply unproject
-	// the point from the Target and check if it is in the Source. However we can approximate the image of the projection and check
-	// if the query point is in the image.
+	//TRACE_CPUPROFILER_EVENT_SCOPE(UPCGProjectionData::SamplePoint);
+	FPCGPoint PointFromSource;
+	if (!Source->SamplePoint(InTransform, InBounds, PointFromSource, OutMetadata))
+	{
+		return false;
+	}
+
+	FPCGPoint PointFromTarget;
+	if (!Target->SamplePoint(PointFromSource.Transform, PointFromSource.GetLocalBounds(), PointFromTarget, OutMetadata))
+	{
+		return false;
+	}
+
+	// Merge points into a single point
+	OutPoint = PointFromSource;
+	OutPoint.Transform = PointFromTarget.Transform;
+	OutPoint.Density *= PointFromTarget.Density;
+	OutPoint.Color *= PointFromTarget.Color;
 	
-	// Passing nullptr for the context means the operation will execute single threaded which is not ideal. To mitigate this we
-	// prewarm the point cache when this projection data is constructed in the projection element.
-	return ToPointData(nullptr)->SamplePoint(InTransform, InBounds, OutPoint, OutMetadata);
+	if (OutMetadata && PointFromTarget.MetadataEntry != PCGInvalidEntryKey)
+	{
+		//METADATA TODO Review op
+		OutMetadata->MergePointAttributesSubset(PointFromSource, OutMetadata, Source->Metadata, PointFromTarget, OutMetadata, Target->Metadata, OutPoint, EPCGMetadataOp::Max);
+	}
+
+	return true;
 }
 
 bool UPCGProjectionData::HasNonTrivialTransform() const
@@ -98,34 +115,16 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 	const TArray<FPCGPoint>& SourcePoints = SourcePointData->GetPoints();
 
 	UPCGPointData* PointData = NewObject<UPCGPointData>();
-
-	// Copy metadata attributes from source point including values
 	PointData->InitializeFromData(this, SourcePointData->Metadata);
 	check(PointData->Metadata);
+	PointData->Metadata->AddAttributes(Target->Metadata);
 
-	// The projection operation will write into this temporary metadata
 	UPCGMetadata* TempTargetMetadata = nullptr;
 	if (Target->Metadata)
 	{
 		TempTargetMetadata = NewObject<UPCGMetadata>();
-
-		// We achieve filtering of metadata attributes by manipulating this temporary metadata, which works because
-		// the projection operation operates on the attributes in this metadata.
-
-		// Behavior modes:
-		// * An excluded attribute that exists on source data will be kept and unchanged
-		// * An excluded attribute that does not exist on source data will not be kept in result
-		// * Included attributes are the only attributes that can be changed during projection
-		// * Included attributes are the only attributes that will be added from target data
-
-		TSet<FName> AttributesFilter;
-		GetIncludeExcludeAttributeNames(AttributesFilter);
-
-		TempTargetMetadata->InitializeWithAttributeFilter(Target->Metadata, AttributesFilter, Params.AttributeMode);
+		TempTargetMetadata->Initialize(Target->Metadata);
 	}
-
-	// Add any attributes from filtered metadata to produce final list
-	PointData->Metadata->AddAttributes(TempTargetMetadata);
 
 	TArray<FPCGPoint>& Points = PointData->GetMutablePoints();
 
@@ -145,15 +144,15 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 
 		// Merge points into a single point
 		OutPoint = SourcePoint;
-		// Assign metadata key and copy values
 		UPCGMetadataAccessorHelpers::InitializeMetadata(OutPoint, PointData->Metadata, SourcePoint);
-
-		ApplyProjectionResult(PointFromTarget, OutPoint);
+		OutPoint.Transform = PointFromTarget.Transform;
+		OutPoint.Density *= PointFromTarget.Density;
+		OutPoint.Color *= PointFromTarget.Color;
 
 		if (PointData->Metadata && TempTargetMetadata && PointFromTarget.MetadataEntry != PCGInvalidEntryKey)
 		{
-			// Merge metadata to produce final attribute values
-			PointData->Metadata->MergePointAttributesSubset(SourcePoint, SourcePointData->Metadata, SourcePointData->Metadata, PointFromTarget, TempTargetMetadata, TempTargetMetadata, OutPoint, Params.AttributeMergeOperation);
+			//METADATA TODO review op
+			PointData->Metadata->MergePointAttributesSubset(SourcePoint, SourcePointData->Metadata, SourcePointData->Metadata, PointFromTarget, TempTargetMetadata, TempTargetMetadata, OutPoint, EPCGMetadataOp::Max);
 		}
 
 		return true;
@@ -162,45 +161,4 @@ const UPCGPointData* UPCGProjectionData::CreatePointData(FPCGContext* Context) c
 	UE_LOG(LogPCG, Verbose, TEXT("Projection generated %d points from %d source points"), Points.Num(), SourcePoints.Num());
 
 	return PointData;
-}
-
-void UPCGProjectionData::ApplyProjectionResult(const FPCGPoint& InTargetPoint, FPCGPoint& InOutProjected) const
-{
-	if (Params.bProjectPositions)
-	{
-		InOutProjected.Transform.SetLocation(InTargetPoint.Transform.GetLocation());
-	}
-
-	if (Params.bProjectRotations)
-	{
-		InOutProjected.Transform.SetRotation(InTargetPoint.Transform.GetRotation());
-	}
-
-	if (Params.bProjectScales)
-	{
-		InOutProjected.Transform.SetScale3D(InTargetPoint.Transform.GetScale3D());
-	}
-
-	if (Params.bProjectColors)
-	{
-		InOutProjected.Color *= InTargetPoint.Color;
-	}
-
-	InOutProjected.Density *= InTargetPoint.Density;
-}
-
-void UPCGProjectionData::GetIncludeExcludeAttributeNames(TSet<FName>& OutAttributeNames) const
-{
-	if (Params.AttributeList.IsEmpty())
-	{
-		return;
-	}
-
-	TArray<FString> AttributeNameStrings;
-	Params.AttributeList.ParseIntoArray(AttributeNameStrings, TEXT(","), true);
-
-	for (const FString& Attribute : AttributeNameStrings)
-	{
-		OutAttributeNames.Add(FName(*Attribute));
-	}
 }

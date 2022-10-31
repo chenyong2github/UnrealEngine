@@ -2,12 +2,9 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "PCGPolyLineData.h"
 #include "PCGProjectionData.h"
-#include "Elements/PCGProjectionParams.h"
-
-#include "CoreMinimal.h"
-
 #include "PCGSplineData.generated.h"
 
 class USplineComponent;
@@ -39,7 +36,7 @@ public:
 	//~Begin UPCGSpatialData interface
 	virtual FBox GetBounds() const override;
 	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
-	virtual UPCGProjectionData* ProjectOn(const UPCGSpatialData* InOther, const FPCGProjectionParams& InParams = FPCGProjectionParams()) const override;
+	virtual UPCGProjectionData* ProjectOn(const UPCGSpatialData* InOther) const override;
 	//~End 
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SourceData)
@@ -50,13 +47,16 @@ protected:
 	FBox CachedBounds = FBox(EForceInit::ForceInit);
 };
 
-/* The projection of a spline onto a surface. */
 UCLASS(BlueprintType, ClassGroup=(Procedural))
 class PCG_API UPCGSplineProjectionData : public UPCGProjectionData
 {
 	GENERATED_BODY()
 public:
-	void Initialize(const UPCGSplineData* InSourceSpline, const UPCGSpatialData* InTargetSurface, const FPCGProjectionParams& InParams);
+	void Initialize(const UPCGSplineData* InSourceSpline, const UPCGSpatialData* InTargetSurface);
+
+	//~Begin UPCGSpatialData interface
+	virtual bool SamplePoint(const FTransform& Transform, const FBox& Bounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const override;
+	//~End UPCGSpatialData interface
 
 	const UPCGSplineData* GetSpline() const;
 	const UPCGSpatialData* GetSurface() const;

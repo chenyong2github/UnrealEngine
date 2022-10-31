@@ -16,29 +16,10 @@ const PCGMetadataValueKey PCGDefaultValueKey = -1;
 UENUM()
 enum class EPCGMetadataOp : uint8
 {
-	/** Take the minimum value. */
 	Min,
-	/** Take the maximum value. */
 	Max,
-	/** Subtract the values. */
 	Sub,
-	/** Add the values. */
 	Add,
-	/** Multiply the values. */
 	Mul,
-	/** Divide the values. */
-	Div,
-	/** Pick the source (first) value. */
-	SourceValue,
-	/** Pick the target (second) value. */
-	TargetValue
-};
-
-UENUM()
-enum class EPCGMetadataFilterMode : uint8
-{
-	/** The listed attributes will be unchanged by the projection and will not be added from the target data. */
-	ExcludeAttributes,
-	/** Only the listed attributes will be changed by the projection or added from the target data. */
-	IncludeAttributes,
+	Div
 };

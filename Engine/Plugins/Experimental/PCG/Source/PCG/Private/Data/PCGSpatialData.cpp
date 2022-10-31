@@ -90,10 +90,10 @@ UPCGIntersectionData* UPCGSpatialData::IntersectWith(const UPCGSpatialData* InOt
 	return IntersectionData;
 }
 
-UPCGProjectionData* UPCGSpatialData::ProjectOn(const UPCGSpatialData* InOther, const FPCGProjectionParams& InParams) const
+UPCGProjectionData* UPCGSpatialData::ProjectOn(const UPCGSpatialData* InOther) const
 {
 	UPCGProjectionData* ProjectionData = NewObject<UPCGProjectionData>();
-	ProjectionData->Initialize(this, InOther, InParams);
+	ProjectionData->Initialize(this, InOther);
 
 	return ProjectionData;
 }
