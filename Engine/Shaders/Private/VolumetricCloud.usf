@@ -1455,6 +1455,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 float2	StartTracingDistanceTextureResolution;
 float	StartTracingSampleVolumeDepth;
+float	StartTracingSliceBias;
 
 RWTexture2D<float> OutStartTracingDistanceTexture;
 
@@ -1508,7 +1509,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3 GroupThreadId : 
 		ResolvedView, CloudLayerParams, TRACING_SHADOW_DISTANCE_OFF, RenderVolumetricCloudParameters.EmptySpaceSkippingSliceDepth);
 
 	float CloudEmptySpaceSkippingOutput0 = GetVolumetricCloudEmptySpaceSkippingOutput0(MaterialParameters);
-	GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z].FrontDepthKm = CloudEmptySpaceSkippingOutput0 > 0.0f ? (float(GroupThreadId.z) + 0.0f) * SliceDepth * CENTIMETER_TO_KILOMETER : GetDefaultDepth();
+	GroupData[GroupThreadId.x][GroupThreadId.y][GroupThreadId.z].FrontDepthKm = max(0.0f, CloudEmptySpaceSkippingOutput0 > 0.0f ? (float(GroupThreadId.z) + StartTracingSliceBias) * SliceDepth * CENTIMETER_TO_KILOMETER : GetDefaultDepth());
 
 	GroupMemoryBarrierWithGroupSync();
 
