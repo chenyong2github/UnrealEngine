@@ -226,26 +226,20 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
  						if (SkeletalMesh->GetPhysicsAsset() && MutableMesh->GetPhysicsBody() && MutableMesh->GetPhysicsBody()->GetBodyCount())
 						{	
 							TSoftObjectPtr<UPhysicsAsset> PhysicsAsset = SkeletalMesh->GetPhysicsAsset();
-							int32 CurrentTagCount = MutableMesh->GetTagCount();
-							MutableMesh->SetTagCount(CurrentTagCount + 1);
 							GenerationContext.PhysicsAssetMap.Add(PhysicsAsset.ToString(), PhysicsAsset);
 							FString PhysicsAssetTag = FString("__PhysicsAsset:") + PhysicsAsset.ToString();
-							MutableMesh->SetTag(CurrentTagCount, TCHAR_TO_ANSI(*PhysicsAssetTag));						
+
+							AddTagToMutableMeshUnique(*MutableMesh, PhysicsAssetTag);
 						}
 
 						if (!AnimBPAssetTag.IsEmpty())
 						{
-							int32 CurrentTagCount = MutableMesh->GetTagCount();
-							MutableMesh->SetTagCount(CurrentTagCount + 1);
-							MutableMesh->SetTag(CurrentTagCount, TCHAR_TO_ANSI(*AnimBPAssetTag));
+							AddTagToMutableMeshUnique(*MutableMesh, AnimBPAssetTag);
 						}
 
 						for (const FGameplayTag& Tag : GameplayTags)
 						{
-							const FString AnimBPTag = GenerateGameplayTag(Tag.ToString());
-							const int32 CurrentTagCount = MutableMesh->GetTagCount();
-							MutableMesh->SetTagCount(CurrentTagCount + 1);
-							MutableMesh->SetTag(CurrentTagCount, TCHAR_TO_ANSI(*AnimBPTag));
+							AddTagToMutableMeshUnique(*MutableMesh, GenerateGameplayTag(Tag.ToString()));
 						}
 
 						MutableTable->SetCell(CurrentColumn, RowIdx, MutableMesh.get());

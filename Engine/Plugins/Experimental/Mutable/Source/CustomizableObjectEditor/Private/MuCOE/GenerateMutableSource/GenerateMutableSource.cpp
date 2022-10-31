@@ -1206,6 +1206,23 @@ bool AffectsCurrentComponent(const UEdGraphPin* Pin, FMutableGraphGenerationCont
 	return ComponentIndex == GenerationContext.CurrentMeshComponent;
 }
 
+int32 AddTagToMutableMeshUnique(mu::Mesh& MutableMesh, const FString& Tag)
+{
+	const int32 TagCount = MutableMesh.GetTagCount();
+
+	for (int32 TagIndex = TagCount - 1; TagIndex >= 0; --TagIndex)
+	{
+		if (FString(MutableMesh.GetTag(TagIndex)) == Tag)
+		{
+			return TagIndex;
+		}
+	}
+
+	MutableMesh.SetTagCount(TagCount + 1);
+	MutableMesh.SetTag(TagCount, StringCast<ANSICHAR>(*Tag).Get());
+
+	return TagCount;
+}
 
 FString GenerateAnimationInstanceTag(const FString& AnimInstance, int32 SlotIndex)
 {

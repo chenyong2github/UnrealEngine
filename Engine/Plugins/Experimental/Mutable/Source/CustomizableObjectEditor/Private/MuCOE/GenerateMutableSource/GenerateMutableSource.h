@@ -787,6 +787,9 @@ UTexture2D* FindReferenceImage(const UEdGraphPin* Pin, FMutableGraphGenerationCo
 mu::NodeMeshApplyPosePtr CreateNodeMeshApplyPose(mu::NodeMeshPtr InputMeshNode, UCustomizableObject * CustomizableObject, TArray<FString> ArrayBoneName, TArray<FTransform> ArrayTransform);
 
 
+/** Adds Tag to MutableMesh uniquely, returns the index were the tag has been inserted or the index where an intance of the tag has been found */
+int32 AddTagToMutableMeshUnique(mu::Mesh& MutableMesh, const FString& Tag);
+
 // Generates the tag for an animation instance
 FString GenerateAnimationInstanceTag(const FString& AnimInstance, int32 SlotIndex);
 

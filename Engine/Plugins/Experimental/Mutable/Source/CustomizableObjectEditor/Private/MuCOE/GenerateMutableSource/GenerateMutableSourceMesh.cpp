@@ -2616,8 +2616,8 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 					TSoftObjectPtr<UPhysicsAsset> PhysicsAsset = TypedNodeSkel->SkeletalMesh->GetPhysicsAsset();
 					GenerationContext.PhysicsAssetMap.Add(PhysicsAsset.ToString(), PhysicsAsset);
 					FString PhysicsAssetTag = FString("__PhysicsAsset:") + PhysicsAsset.ToString();
-					MutableMesh->SetTagCount(1);
-					MutableMesh->SetTag(0, TCHAR_TO_ANSI(*PhysicsAssetTag));
+
+					AddTagToMutableMeshUnique(*MutableMesh, PhysicsAssetTag);
 				}
 
 				if (GenerationContext.Options.bClothingEnabled)
@@ -2641,9 +2641,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 						
 						GenerationContext.PhysicsAssetMap.Add(PhysicsAsset.ToString(), ClothingAssetCommon->PhysicsAsset.Get());
 
-						int32 CurrentTagCount = MutableMesh->GetTagCount();
-						MutableMesh->SetTagCount(CurrentTagCount + 1);
-						MutableMesh->SetTag(CurrentTagCount, TCHAR_TO_ANSI(*ClothPhysicsAssetTag));
+						AddTagToMutableMeshUnique(*MutableMesh, ClothPhysicsAssetTag);
 					}
 				}
 
@@ -2668,17 +2666,16 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 					GenerationContext.AnimBPAssetsMap.Add(TypedNodeSkel->AnimInstance.ToString(), TypedNodeSkel->AnimInstance);
 
 					FString AnimBPAssetTag = GenerateAnimationInstanceTag(TypedNodeSkel->AnimInstance.ToString(), SlotIndex);
-					int32 CurrentTagCount = MutableMesh->GetTagCount();
-					MutableMesh->SetTagCount(CurrentTagCount + 1);
-					MutableMesh->SetTag(CurrentTagCount, TCHAR_TO_ANSI(*AnimBPAssetTag));
+
+					AddTagToMutableMeshUnique(*MutableMesh, AnimBPAssetTag);
 				}
 
 				for (const FGameplayTag& GamePlayTag : TypedNodeSkel->AnimationGameplayTags)
 				{
 					const FString AnimBPTag = GenerateGameplayTag(GamePlayTag.ToString());
 					const int32 CurrentTagCount = MutableMesh->GetTagCount();
-					MutableMesh->SetTagCount(CurrentTagCount + 1);
-					MutableMesh->SetTag(CurrentTagCount, TCHAR_TO_ANSI(*AnimBPTag));
+					
+					AddTagToMutableMeshUnique(*MutableMesh, AnimBPTag);
 				}
 
 				MeshData.bHasVertexColors = TypedNodeSkel->SkeletalMesh->GetHasVertexColors();
