@@ -224,6 +224,11 @@ static TAutoConsoleVariable<float> CVarVolumetricCloudEmptySpaceSkippingStartTra
 	TEXT("The number of slices to bias the start depth with. A valuie of -1 means a bias of one slice towards the view point."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
+static TAutoConsoleVariable<int32> CVarVolumetricCloudEmptySpaceSkippingSampleCorners(
+	TEXT("r.VolumetricCloud.EmptySpaceSkipping.SampleCorners"), 1,
+	TEXT("0 means center samples only, >0 means corner are also sampled."),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
+
 ////////////////////////////////////////////////////////////////////////// 
 
 
@@ -900,8 +905,9 @@ class FRenderVolumetricCloudEmptySpaceSkippingCS : public FMeshMaterialShader
 	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FRenderVolumetricCloudEmptySpaceSkippingCS, FMeshMaterialShader)
 
 	class FCloudEmptySpaceSkippingDebug : SHADER_PERMUTATION_BOOL("EMPTY_SPACE_SKIPPING_DEBUG");
+	class FCloudEmptySpaceSkippingSampleCorners : SHADER_PERMUTATION_BOOL("EMPTY_SPACE_SKIPPING_SAMPLE_CORNERS");
 
-	using FPermutationDomain = TShaderPermutationDomain<FCloudEmptySpaceSkippingDebug>;
+	using FPermutationDomain = TShaderPermutationDomain<FCloudEmptySpaceSkippingDebug, FCloudEmptySpaceSkippingSampleCorners>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FVector2f, StartTracingDistanceTextureResolution)
@@ -2289,8 +2295,11 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 			const FMaterial* MaterialResource = &CloudVolumeMaterialProxy->GetMaterialWithFallback(Scene->GetFeatureLevel(), MaterialRenderProxy);
 			MaterialRenderProxy = MaterialRenderProxy ? MaterialRenderProxy : CloudVolumeMaterialProxy;
 
+			const bool bSampleCorners = CVarVolumetricCloudEmptySpaceSkippingSampleCorners.GetValueOnRenderThread() > 0;
+
 			typename FRenderVolumetricCloudEmptySpaceSkippingCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<typename FRenderVolumetricCloudEmptySpaceSkippingCS::FCloudEmptySpaceSkippingDebug>(bCloudEmptySpaceSkippingDebug);
+			PermutationVector.Set<typename FRenderVolumetricCloudEmptySpaceSkippingCS::FCloudEmptySpaceSkippingSampleCorners>(bSampleCorners);
 
 			TShaderRef<FRenderVolumetricCloudEmptySpaceSkippingCS> ComputeShader = MaterialResource->GetShader<FRenderVolumetricCloudEmptySpaceSkippingCS>(&FLocalVertexFactory::StaticType, PermutationVector, false);
 
