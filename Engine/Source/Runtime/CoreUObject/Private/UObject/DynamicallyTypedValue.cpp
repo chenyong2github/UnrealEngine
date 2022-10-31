@@ -8,15 +8,14 @@ UE::FDynamicallyTypedValueType& UE::FDynamicallyTypedValue::NullType()
 	{
 		FNullType(): FDynamicallyTypedValueType(0, 0, EContainsReferences::DoesNot) {}
 
-		virtual void MarkReachable() {}
-		virtual void MarkValueReachable(void* Data, FReferenceCollector& Collector) const {}
+		virtual void MarkReachable() override {}
+		virtual void MarkValueReachable(void* Data, FReferenceCollector& Collector) const override {}
 
-		virtual void InitializeValue(void* Data) const {}
-		virtual void InitializeValueFromCopy(void* DestData, const void* SourceData) const {}
-		virtual void DestroyValue(void* Data) const {}
+		virtual void InitializeValue(void* Data) const override {}
+		virtual void InitializeValueFromCopy(void* DestData, const void* SourceData) const override {}
+		virtual void DestroyValue(void* Data) const override {}
 
-		virtual void ClearValue(void* Data) const {}
-		virtual void SerializeValue(FStructuredArchive::FSlot Slot, void* Data) const {}
+		virtual void SerializeValue(FStructuredArchive::FSlot Slot, void* Data) const override {}
 
 		virtual uint32 GetValueHash(const void* Data) const override { return 0; }
 		virtual bool AreIdentical(const void* DataA, const void* DataB) const override { return true; }
