@@ -784,6 +784,16 @@ struct CORE_API FGenericPlatformMisc
 		return true;
 	}
 
+	/**
+	 * For platforms that support cache storage functionality, setting a directory for it when it's not available can result in errors.
+	 * This method's purpose is to be overridden in such platforms, with logic that checks if said cache is available.
+	 * In all other platforms without this constraint, it should return true by default.
+	 */
+	static bool IsCacheStorageAvailable()
+	{
+		return true;
+	}
+
 	static bool SupportsLocalCaching()
 	{
 		return true;

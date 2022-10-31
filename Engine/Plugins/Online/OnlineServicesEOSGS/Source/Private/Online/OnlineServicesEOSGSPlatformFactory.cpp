@@ -118,7 +118,15 @@ IEOSPlatformHandlePtr FOnlineServicesEOSGSPlatformFactory::CreatePlatform()
 	PlatformOptions.ClientCredentials.ClientId = ClientId.Get();
 	PlatformOptions.ClientCredentials.ClientSecret = ClientSecret.Get();
 	PlatformOptions.EncryptionKey = EncryptionKey.Get();
-	PlatformOptions.CacheDirectory = CacheDirectory.Get();
+
+	if (FPlatformMisc::IsCacheStorageAvailable())
+	{
+		PlatformOptions.CacheDirectory = CacheDirectory.Get();
+	}
+	else
+	{
+		PlatformOptions.CacheDirectory = nullptr;
+	}
 
 	IEOSPlatformHandlePtr EOSPlatformHandle = SDKManager->CreatePlatform(PlatformOptions);
 	if (!EOSPlatformHandle)
