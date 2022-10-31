@@ -1178,6 +1178,7 @@ private:
 	bool bIgnoreRerouteCompactnessChanges;
 	ERigVMPinDirection UserLinkDirection;
 	bool bEnableTypeCasting;
+	mutable TArray<FString> LinksWithCast;
 
 	// temporary maps used for pin redirection
 	// only valid between Detach & ReattachLinksToPinObjects
