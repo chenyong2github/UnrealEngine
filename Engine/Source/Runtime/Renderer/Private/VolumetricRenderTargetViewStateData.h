@@ -28,6 +28,7 @@ public:
 		int32 UpsamplingMode);
 
 	FRDGTextureRef GetOrCreateVolumetricTracingRT(FRDGBuilder& GraphBuilder);
+	FRDGTextureRef GetOrCreateVolumetricSecondaryTracingRT(FRDGBuilder& GraphBuilder);
 	FRDGTextureRef GetOrCreateVolumetricTracingRTDepth(FRDGBuilder& GraphBuilder);
 
 	FRDGTextureRef GetDstVolumetricReconstructRT(FRDGBuilder& GraphBuilder);
@@ -81,6 +82,7 @@ private:
 	TRefCountPtr<IPooledRenderTarget> VolumetricReconstructRTDepth[kRenderTargetCount];
 
 	TRefCountPtr<IPooledRenderTarget> VolumetricTracingRT;
+	TRefCountPtr<IPooledRenderTarget> VolumetricSecondaryTracingRT;
 	TRefCountPtr<IPooledRenderTarget> VolumetricTracingRTDepth;
 
 	float UvNoiseScale;

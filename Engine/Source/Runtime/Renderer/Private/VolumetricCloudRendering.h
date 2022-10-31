@@ -108,8 +108,9 @@ bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& En
 bool ShouldViewVisualizeVolumetricCloudConservativeDensity(const FViewInfo& ViewInfo, const FEngineShowFlags& EngineShowFlags);
 bool VolumetricCloudWantsToSampleLocalLights(const FScene* Scene, const FEngineShowFlags& EngineShowFlags);
 uint32 GetVolumetricCloudDebugViewMode(const FEngineShowFlags& ShowFlags);
+bool ShouldVolumetricCloudTraceWithMinMaxDepth(const FViewInfo& ViewInfo);
+bool ShouldVolumetricCloudTraceWithMinMaxDepth(const TArray<FViewInfo>& Views);
 bool VolumetricCloudWantsSeparatedAtmosphereMieRayLeigh(const FScene* Scene);
-
 
 // Structure with data necessary to specify a cloud render.
 struct FCloudRenderContext
@@ -121,6 +122,7 @@ struct FCloudRenderContext
 	FMaterialRenderProxy* CloudVolumeMaterialProxy;
 
 	FRDGTextureRef SceneDepthZ = nullptr;
+	FRDGTextureRef SceneDepthMinAndMax = nullptr;
 
 	///////////////////////////////////
 	// Per view parameters
@@ -128,6 +130,8 @@ struct FCloudRenderContext
 	FViewInfo* MainView;
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer;
 	FRenderTargetBindingSlots RenderTargets;
+
+	FRDGTextureRef SecondaryCloudTracingDataTexture = nullptr;
 
 	bool bShouldViewRenderVolumetricRenderTarget;
 	bool bSkipAerialPerspective;
@@ -149,10 +153,12 @@ struct FCloudRenderContext
 	int VirtualShadowMapId0 = INDEX_NONE;
 
 	FRDGTextureRef DefaultCloudColorCubeTexture = nullptr;
-	FRDGTextureRef DefaultCloudColor2DTexture = nullptr;
+	FRDGTextureRef DefaultCloudColor02DTexture = nullptr;
+	FRDGTextureRef DefaultCloudColor12DTexture = nullptr;
 	FRDGTextureRef DefaultCloudDepthTexture = nullptr;
 	FRDGTextureUAVRef DefaultCloudColorCubeTextureUAV = nullptr;
-	FRDGTextureUAVRef DefaultCloudColor2DTextureUAV = nullptr;
+	FRDGTextureUAVRef DefaultCloudColor02DTextureUAV = nullptr;
+	FRDGTextureUAVRef DefaultCloudColor12DTextureUAV = nullptr;
 	FRDGTextureUAVRef DefaultCloudDepthTextureUAV = nullptr;
 
 	FRDGTextureUAVRef ComputeOverlapCloudColorCubeTextureUAVWithoutBarrier = nullptr;

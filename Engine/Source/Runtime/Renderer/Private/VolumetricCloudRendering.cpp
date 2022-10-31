@@ -290,6 +290,28 @@ static bool ShouldRenderCloudShadowmap(const FLightSceneProxy* AtmosphericLight)
 	return CVarVolumetricCloudShadowMap.GetValueOnRenderThread() > 0 && AtmosphericLight && AtmosphericLight->GetCastCloudShadows();
 }
 
+bool ShouldVolumetricCloudTraceWithMinMaxDepth(const FViewInfo& ViewInfo)
+{
+	if (ViewInfo.ViewState)
+	{
+		FVolumetricRenderTargetViewStateData& VRT = ViewInfo.ViewState->VolumetricCloudRenderTarget;
+		return ShouldViewRenderVolumetricCloudRenderTarget(ViewInfo) && ShouldUseComputeForCloudTracing(ViewInfo.FeatureLevel) && VRT.GetMode() == 0;
+	}
+	return false;
+}
+
+bool ShouldVolumetricCloudTraceWithMinMaxDepth(const TArray<FViewInfo>& Views)
+{
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		if (ShouldVolumetricCloudTraceWithMinMaxDepth(Views[ViewIndex]))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 bool VolumetricCloudWantsSeparatedAtmosphereMieRayLeigh(const FScene* Scene)
 {
 	const FVolumetricCloudRenderSceneInfo* VCloud = Scene->GetVolumetricCloudSceneInfo();
@@ -553,6 +575,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRenderVolumetricCloudGlobalParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVolumetricCloudCommonShaderParameters, VolumetricCloud)
 	SHADER_PARAMETER_STRUCT(FSceneTextureUniformParameters, SceneTextures)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float2>, SceneDepthMinAndMaxTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, CloudShadowTexture0)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, CloudShadowTexture1)
 	SHADER_PARAMETER_SAMPLER(SamplerState, CloudBilinearTextureSampler)
@@ -810,6 +833,7 @@ class FRenderVolumetricCloudRenderViewCS : public FMeshMaterialShader
 	class FCloudSampleAtmosphericLightShadowmap : SHADER_PERMUTATION_BOOL("CLOUD_SAMPLE_ATMOSPHERIC_LIGHT_SHADOWMAP");
 	class FCloudSampleSecondLight : SHADER_PERMUTATION_BOOL("CLOUD_SAMPLE_SECOND_LIGHT");
 	class FCloudSampleLocalLights : SHADER_PERMUTATION_BOOL("CLOUD_SAMPLE_LOCAL_LIGHTS");
+	class FCloudMinAndMaxDepth : SHADER_PERMUTATION_BOOL("CLOUD_MIN_AND_MAX_DEPTH");
 	class FCloudDebugViewMode : SHADER_PERMUTATION_BOOL("CLOUD_DEBUG_VIEW_MODE");	// Only the CS feature this because CS is typically used in editor.
 
 	using FPermutationDomain = TShaderPermutationDomain<
@@ -817,6 +841,7 @@ class FRenderVolumetricCloudRenderViewCS : public FMeshMaterialShader
 		FCloudSampleAtmosphericLightShadowmap,
 		FCloudSampleSecondLight,
 		FCloudSampleLocalLights,
+		FCloudMinAndMaxDepth,
 		FCloudDebugViewMode>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -828,7 +853,8 @@ class FRenderVolumetricCloudRenderViewCS : public FMeshMaterialShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMap)
 		SHADER_PARAMETER(int32, VirtualShadowMapId0)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutCloudColor)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutCloudColor0)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutCloudColor1)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutCloudDepth)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutCloudColorCube)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, StartTracingDistanceTexture)
@@ -2067,7 +2093,11 @@ void FCloudRenderContext::CreateDefaultTexturesIfNeeded(FRDGBuilder& GraphBuilde
 			FRDGTextureDesc::CreateCube(1, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
 			TEXT("Cloud.ColorCubeDummy"));
 
-		DefaultCloudColor2DTexture = GraphBuilder.CreateTexture(
+		DefaultCloudColor02DTexture = GraphBuilder.CreateTexture(
+			FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_FloatRGBA, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
+			TEXT("Cloud.ColorDummy"));
+
+		DefaultCloudColor12DTexture = GraphBuilder.CreateTexture(
 			FRDGTextureDesc::Create2D(FIntPoint(1, 1), PF_FloatRGBA, FClearValueBinding::None, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
 			TEXT("Cloud.ColorDummy"));
 
@@ -2077,7 +2107,8 @@ void FCloudRenderContext::CreateDefaultTexturesIfNeeded(FRDGBuilder& GraphBuilde
 
 
 		DefaultCloudColorCubeTextureUAV = GraphBuilder.CreateUAV(DefaultCloudColorCubeTexture, ERDGUnorderedAccessViewFlags::SkipBarrier);
-		DefaultCloudColor2DTextureUAV = GraphBuilder.CreateUAV(DefaultCloudColor2DTexture, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		DefaultCloudColor02DTextureUAV = GraphBuilder.CreateUAV(DefaultCloudColor12DTexture, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		DefaultCloudColor12DTextureUAV = GraphBuilder.CreateUAV(DefaultCloudColor02DTexture, ERDGUnorderedAccessViewFlags::SkipBarrier);
 		DefaultCloudDepthTextureUAV = GraphBuilder.CreateUAV(DefaultCloudDepthTexture, ERDGUnorderedAccessViewFlags::SkipBarrier);
 	}
 }
@@ -2091,6 +2122,7 @@ static TRDGUniformBufferRef<FRenderVolumetricCloudGlobalParameters> CreateCloudP
 	SetupDefaultRenderVolumetricCloudGlobalParameters(GraphBuilder, VolumetricCloudParams, CloudInfo, MainView);
 
 	VolumetricCloudParams.SceneDepthTexture = CloudRC.SceneDepthZ;
+	VolumetricCloudParams.SceneDepthMinAndMaxTexture = CloudRC.SceneDepthMinAndMax ? CloudRC.SceneDepthMinAndMax : ((bool)ERHIZBuffer::IsInverted ? GSystemTextures.GetBlackDummy(GraphBuilder) : GSystemTextures.GetWhiteDummy(GraphBuilder));
 	if (CloudRC.bShouldViewRenderVolumetricRenderTarget && MainView.ViewState)
 	{
 		FVolumetricRenderTargetViewStateData& VRT = MainView.ViewState->VolumetricCloudRenderTarget;
@@ -2169,7 +2201,12 @@ static TRDGUniformBufferRef<FRenderVolumetricCloudGlobalParameters> CreateCloudP
 	return GraphBuilder.CreateUniformBuffer(&VolumetricCloudParams);
 }
 
-static void GetOutputTexturesWithFallback(FRDGBuilder& GraphBuilder, FCloudRenderContext& CloudRC, FRDGTextureUAVRef& CloudColorCubeTextureUAV, FRDGTextureUAVRef& CloudColorTextureUAV, FRDGTextureUAVRef& CloudDepthTextureUAV)
+static void GetOutputTexturesWithFallback(
+	FRDGBuilder& GraphBuilder, FCloudRenderContext& CloudRC, 
+	FRDGTextureUAVRef& CloudColorCubeTextureUAV, 
+	FRDGTextureUAVRef& CloudColor0TextureUAV,
+	FRDGTextureUAVRef& CloudColor1TextureUAV,
+	FRDGTextureUAVRef& CloudDepthTextureUAV)
 {
 	CloudRC.CreateDefaultTexturesIfNeeded(GraphBuilder);
 
@@ -2191,14 +2228,24 @@ static void GetOutputTexturesWithFallback(FRDGBuilder& GraphBuilder, FCloudRende
 		}
 	}
 
-	FRDGTextureRef CloudColorTexture = CloudRC.RenderTargets[0].GetTexture();
-	if (!CloudColorTexture || CloudColorTexture->Desc.IsTextureCube())
+	FRDGTextureRef CloudColor0Texture = CloudRC.RenderTargets[0].GetTexture();
+	if (!CloudColor0Texture || CloudColor0Texture->Desc.IsTextureCube())
 	{
-		CloudColorTextureUAV = CloudRC.DefaultCloudColor2DTextureUAV;
+		CloudColor0TextureUAV = CloudRC.DefaultCloudColor02DTextureUAV;
 	}
 	else
 	{
-		CloudColorTextureUAV = GraphBuilder.CreateUAV(CloudColorTexture, ERDGUnorderedAccessViewFlags::SkipBarrier);
+		CloudColor0TextureUAV = GraphBuilder.CreateUAV(CloudColor0Texture, ERDGUnorderedAccessViewFlags::SkipBarrier);
+	}
+
+	FRDGTextureRef CloudColor1Texture = CloudRC.SecondaryCloudTracingDataTexture;
+	if (!CloudColor1Texture || CloudColor1Texture->Desc.IsTextureCube())
+	{
+		CloudColor1TextureUAV = CloudRC.DefaultCloudColor12DTextureUAV;
+	}
+	else
+	{
+		CloudColor1TextureUAV = GraphBuilder.CreateUAV(CloudColor1Texture, ERDGUnorderedAccessViewFlags::SkipBarrier);
 	}
 
 	FRDGTextureRef CloudDepthTexture = CloudRC.RenderTargets[1].GetTexture();
@@ -2353,9 +2400,10 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 		//
 
 		FRDGTextureUAVRef CloudColorCubeTextureUAV;
-		FRDGTextureUAVRef CloudColorTextureUAV;
+		FRDGTextureUAVRef CloudColor0TextureUAV;
+		FRDGTextureUAVRef CloudColor1TextureUAV;
 		FRDGTextureUAVRef CloudDepthTextureUAV;
-		GetOutputTexturesWithFallback(GraphBuilder, CloudRC, CloudColorCubeTextureUAV, CloudColorTextureUAV, CloudDepthTextureUAV);
+		GetOutputTexturesWithFallback(GraphBuilder, CloudRC, CloudColorCubeTextureUAV, CloudColor0TextureUAV, CloudColor1TextureUAV, CloudDepthTextureUAV);
 
 		bool bSampleVirtualShadowMap = (!bCloudDebugViewModeEnabled && !bSkipAtmosphericLightShadowmap && CVarVolumetricCloudShadowSampleAtmosphericLightShadowmap.GetValueOnRenderThread() > 0);
 
@@ -2369,7 +2417,8 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 		{
 			PassParameters->VirtualShadowMap = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 		}
-		PassParameters->OutCloudColor = CloudColorTextureUAV;
+		PassParameters->OutCloudColor0 = CloudColor0TextureUAV;
+		PassParameters->OutCloudColor1 = CloudColor1TextureUAV;
 		PassParameters->OutCloudDepth = CloudDepthTextureUAV;
 		PassParameters->OutCloudColorCube = CloudColorCubeTextureUAV;
 
@@ -2386,11 +2435,14 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 		const FMaterial* MaterialResource = &CloudVolumeMaterialProxy->GetMaterialWithFallback(Scene->GetFeatureLevel(), MaterialRenderProxy);
 		MaterialRenderProxy = MaterialRenderProxy ? MaterialRenderProxy : CloudVolumeMaterialProxy;
 
+		FVolumetricRenderTargetViewStateData& VRT = MainView.ViewState->VolumetricCloudRenderTarget;
+
 		typename FRenderVolumetricCloudRenderViewCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<typename FRenderVolumetricCloudRenderViewCS::FCloudPerSampleAtmosphereTransmittance>(!bCloudDebugViewModeEnabled && ShouldUsePerSampleAtmosphereTransmittance(Scene, &MainView));
 		PermutationVector.Set<typename FRenderVolumetricCloudRenderViewCS::FCloudSampleAtmosphericLightShadowmap>(bSampleVirtualShadowMap);
 		PermutationVector.Set<typename FRenderVolumetricCloudRenderViewCS::FCloudSampleSecondLight>(!bCloudDebugViewModeEnabled && bSecondAtmosphereLightEnabled);
 		PermutationVector.Set<typename FRenderVolumetricCloudRenderViewCS::FCloudSampleLocalLights>(!bCloudDebugViewModeEnabled && bCloudEnableLocalLightSampling && !CloudRC.bIsSkyRealTimeReflectionRendering);
+		PermutationVector.Set<typename FRenderVolumetricCloudRenderViewCS::FCloudMinAndMaxDepth>(ShouldVolumetricCloudTraceWithMinMaxDepth(MainView) && CloudRC.SecondaryCloudTracingDataTexture!=nullptr && !CloudRC.bIsReflectionRendering);// Only for mode 0 in non reflection
 		PermutationVector.Set<typename FRenderVolumetricCloudRenderViewCS::FCloudDebugViewMode>(bCloudDebugViewModeEnabled);
 
 		TShaderRef<FRenderVolumetricCloudRenderViewCS> ComputeShader = MaterialResource->GetShader<FRenderVolumetricCloudRenderViewCS>(&FLocalVertexFactory::StaticType, PermutationVector, false);
@@ -2484,6 +2536,7 @@ bool FSceneRenderer::RenderVolumetricCloud(
 	bool bSkipVolumetricRenderTarget,
 	bool bSkipPerPixelTracing,
 	FRDGTextureRef HalfResolutionDepthCheckerboardMinMaxTexture,
+	FRDGTextureRef QuarterResolutionDepthMinMaxTexture,
 	bool bAsyncCompute,
 	FInstanceCullingManager& InstanceCullingManager)
 {
@@ -2620,10 +2673,17 @@ bool FSceneRenderer::RenderVolumetricCloud(
 					CloudRC.TracingCoordToZbufferCoordScaleBias.W += ViewInfo.CachedViewUniformShaderParameters->ViewRectMin.Y / ((VRT.GetMode() == 0 || VRT.GetMode() == 3) ? 2 : 1);
 					CloudRC.TracingCoordToFullResPixelCoordScaleBias = VRT.GetTracingCoordToFullResPixelCoordScaleBias();
 
+					const bool bShouldVolumetricCloudTraceWithMinMaxDepth = ShouldVolumetricCloudTraceWithMinMaxDepth(ViewInfo);
+					if (bShouldVolumetricCloudTraceWithMinMaxDepth)
+					{
+						CloudRC.SecondaryCloudTracingDataTexture = VRT.GetOrCreateVolumetricSecondaryTracingRT(GraphBuilder); 
+					}
+
 					CloudRC.NoiseFrameIndexModPattern = VRT.GetNoiseFrameIndexModPattern();
 
 					check(VRT.GetMode() != 0 || CloudRC.bCloudDebugViewModeEnabled || HalfResolutionDepthCheckerboardMinMaxTexture);
 					CloudRC.SceneDepthZ = (VRT.GetMode() == 0 || VRT.GetMode() == 3) ? HalfResolutionDepthCheckerboardMinMaxTexture : SceneDepthZ;
+					CloudRC.SceneDepthMinAndMax = bShouldVolumetricCloudTraceWithMinMaxDepth ? QuarterResolutionDepthMinMaxTexture : SceneDepthZ;
 				}
 				else
 				{
@@ -2658,11 +2718,13 @@ bool FSceneRenderer::RenderVolumetricCloud(
 					CloudRC.RenderTargets[1] = FRenderTargetBinding(DestinationRTDepth, bShouldUseHighQualityAerialPerspective ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction);
 
 					CloudRC.SceneDepthZ = SceneDepthZ;
+					CloudRC.SceneDepthMinAndMax = SceneDepthZ;
 				}
 
 				if (CloudRC.bCloudDebugViewModeEnabled)
 				{
 					CloudRC.SceneDepthZ = (bool)ERHIZBuffer::IsInverted ? GSystemTextures.GetBlackDummy(GraphBuilder) : GSystemTextures.GetWhiteDummy(GraphBuilder);
+					CloudRC.SceneDepthMinAndMax = CloudRC.SceneDepthZ;
 				}
 
 				const FProjectedShadowInfo* ProjectedShadowInfo0 = nullptr;

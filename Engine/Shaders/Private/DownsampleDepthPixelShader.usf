@@ -19,17 +19,47 @@ float2 SourceMaxUV;
 float2 DestinationResolution;
 uint DownsampleDepthFilter;
 
+// Only valid when using OUTPUT_MIN_AND_MAX_DEPTH
+int4 DstPixelCoordMinAndMax;
+int4 SrcPixelCoordMinAndMax;
+
 float GetDeviceZ(float2 UV)
 {
 	return DepthTexture.Sample(GlobalPointClampedSampler, min(UV, SourceMaxUV));
 }
 
 void Main(
-	noperspective float4 UV : TEXCOORD0,
-	out float OutDepth : SV_DEPTH,
-	out float4 OutColor : SV_Target0)
+	noperspective float4 OutUVAndScreenPos : TEXCOORD0,
+	in float4 SVPos : SV_POSITION,
+#if OUTPUT_MIN_AND_MAX_DEPTH
+	out float4 OutColor : SV_Target0
+#else
+	out float OutDepth : SV_DEPTH
+#endif
+)
 {
-	OutColor = 0;
+#if OUTPUT_MIN_AND_MAX_DEPTH
+
+	// We do things differently when downsampling min and max depth because it is executed from half to quarter resolution.
+	// And in this case OutUVAndScreenPos is not valid because it uses view rect data.
+
+	// Pixel coordinate for the output 
+	const int2 DstPixelPos = SVPos;
+	// Lower left corner from the input 2x2 quad
+	const int2 PixelPos = DstPixelPos * 2;
+
+	float DeviceZ0 = DepthTexture.Load(uint3(clamp(PixelPos + int2(0,0), SrcPixelCoordMinAndMax.xy, SrcPixelCoordMinAndMax.zw), 0));
+	float DeviceZ1 = DepthTexture.Load(uint3(clamp(PixelPos + int2(0,1), SrcPixelCoordMinAndMax.xy, SrcPixelCoordMinAndMax.zw), 0));
+	float DeviceZ2 = DepthTexture.Load(uint3(clamp(PixelPos + int2(1,1), SrcPixelCoordMinAndMax.xy, SrcPixelCoordMinAndMax.zw), 0));
+	float DeviceZ3 = DepthTexture.Load(uint3(clamp(PixelPos + int2(1,0), SrcPixelCoordMinAndMax.xy, SrcPixelCoordMinAndMax.zw), 0));
+
+	const float MaxDeviceZ = max(max(DeviceZ0, DeviceZ1), max(DeviceZ2, DeviceZ3));
+	const float MinDeviceZ = min(min(DeviceZ0, DeviceZ1), min(DeviceZ2, DeviceZ3));
+	OutColor = float4(MinDeviceZ, MaxDeviceZ, 0.0f, 0.0f);
+
+#else // OUTPUT_MIN_AND_MAX_DEPTH
+
+	const float2 UV = OutUVAndScreenPos.xy;
 	float Depth = 0;
 
 	// Lookup the four DeviceZ's of the full resolution pixels corresponding to this low resolution pixel
@@ -87,6 +117,8 @@ void Main(
 	}
 
 	OutDepth = Depth;
+
+#endif // OUTPUT_MIN_AND_MAX_DEPTH
 }
 
 #ifndef STENCIL_LIGHTING_CHANNELS_SHIFT 

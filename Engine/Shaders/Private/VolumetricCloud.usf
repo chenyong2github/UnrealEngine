@@ -59,6 +59,10 @@
 #define CLOUD_DEBUG_VIEW_MODE 0
 #endif
 
+#ifndef CLOUD_MIN_AND_MAX_DEPTH
+#define CLOUD_MIN_AND_MAX_DEPTH 0
+#endif
+
 // Draw debug sample positions
 #if CLOUD_DEBUG_SAMPLES || EMPTY_SPACE_SKIPPING_DEBUG
 #include "ShaderPrint.ush"
@@ -429,7 +433,12 @@ Texture2D<float> StartTracingDistanceTexture;
 		ResolvedView.OneOverPreExposure,\
 		f);\
 
-void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosition, inout float4 OutColor0, inout float2 OutColor1)
+void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosition, 
+	inout float4 OutColor0
+#if CLOUD_MIN_AND_MAX_DEPTH
+	, inout float4 OutColor1 
+#endif
+	, inout float4 OutDepth)
 {
 	ResolvedView = ResolveView();
 
@@ -448,7 +457,7 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 	//
 	
 	OutColor0					= float4(0.0f, 0.0f, 0.0f, 1.0f);
-	OutColor1					= MaxHalfFloat;
+	OutDepth					= MaxHalfFloat;
 
 	FPixelMaterialInputs PixelMaterialInputs	= (FPixelMaterialInputs)0;
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true);
@@ -463,6 +472,24 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 	MATVEC TransmittanceToView	= 1.0f;
 	float tAPWeightedSum		= 0.0f;
 	float tAPWeightsSum			= 0.0f;
+
+#if CLOUD_MIN_AND_MAX_DEPTH
+	OutColor1 = float4(0.0f, 0.0f, 0.0f, 1.0f);
+	float3 ClosestLuminance = 0.0f;
+	MATVEC ClosestTransmittanceToView = 1.0f;
+	float ClostestTAPWeightedSum = 0.0f;
+	float ClostestTAPWeightsSum = 0.0f;
+#endif // CLOUD_MIN_AND_MAX_DEPTH
+
+	uint4 TracingCoordToZbufferCoordScaleBias = RenderVolumetricCloudParameters.TracingCoordToZbufferCoordScaleBias;
+	uint2 SceneDepthTextureCoord = uint2(SvPosition.xy - 0.5) * TracingCoordToZbufferCoordScaleBias.xy + TracingCoordToZbufferCoordScaleBias.zw;
+	SceneDepthTextureCoord = clamp(SceneDepthTextureCoord, RenderVolumetricCloudParameters.SceneDepthTextureMinMaxCoord.xy, RenderVolumetricCloudParameters.SceneDepthTextureMinMaxCoord.zw);
+	{
+		float DeviceZ = RenderVolumetricCloudParameters.SceneDepthTexture.Load(uint3(SceneDepthTextureCoord, 0)).r;
+		float3 DepthBufferTranslatedWorldPos = SvPositionToTranslatedWorld(float4(SvPosition.xy, DeviceZ, 1.0));
+		const float TDepthBufferKm = min(length(DepthBufferTranslatedWorldPos * CENTIMETER_TO_KILOMETER - RayTranslatedWorldOriginKm), MaxHalfFloat);
+		OutDepth.xyzw = float4(TDepthBufferKm, TDepthBufferKm, DeviceZ, DeviceZ);
+	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Begin the cloud ray marching and setup the variable above
@@ -523,16 +550,34 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 		// Sample the depth buffer and update tracing distance
 		//
 
-		uint4 TracingCoordToZbufferCoordScaleBias = RenderVolumetricCloudParameters.TracingCoordToZbufferCoordScaleBias;
-		uint2 SceneDepthTextureCoord = uint2(SvPosition.xy - 0.5) * TracingCoordToZbufferCoordScaleBias.xy + TracingCoordToZbufferCoordScaleBias.zw;
-		SceneDepthTextureCoord = clamp(SceneDepthTextureCoord, RenderVolumetricCloudParameters.SceneDepthTextureMinMaxCoord.xy, RenderVolumetricCloudParameters.SceneDepthTextureMinMaxCoord.zw);
+#if CLOUD_MIN_AND_MAX_DEPTH
+
+		float2 MinAndMaxDepth = RenderVolumetricCloudParameters.SceneDepthMinAndMaxTexture.Load(uint3(SceneDepthTextureCoord / 2, 0)).rg;
+	#if HAS_INVERTED_Z_BUFFER
+		MinAndMaxDepth = max(0.000000000001, MinAndMaxDepth.yx); // x is clostest depth, y is furthest depth
+	#endif
+
+		// Trace up to furthest depth.
+		float DeviceZ = MinAndMaxDepth.y;
+
+		float3 ClostestDepthBufferTranslatedWorldPos = SvPositionToTranslatedWorld(float4(SvPosition.xy, MinAndMaxDepth.x, 1.0));
+		const float TClosestDepthBufferCm = min(length(ClostestDepthBufferTranslatedWorldPos * CENTIMETER_TO_KILOMETER - RayTranslatedWorldOriginKm), MaxHalfFloat) * KILOMETER_TO_CENTIMETER;
+
+		OutDepth.zw = MinAndMaxDepth;
+
+#else // CLOUD_MIN_AND_MAX_DEPTH
+
 		float DeviceZ = RenderVolumetricCloudParameters.SceneDepthTexture.Load(uint3(SceneDepthTextureCoord, 0)).r;
-#if HAS_INVERTED_Z_BUFFER
+	#if HAS_INVERTED_Z_BUFFER
 		DeviceZ = max(0.000000000001, DeviceZ);
-#endif
+	#endif
+
+#endif // CLOUD_MIN_AND_MAX_DEPTH
+
 		float3 DepthBufferTranslatedWorldPos = SvPositionToTranslatedWorld(float4(SvPosition.xy, DeviceZ, 1.0));
 		const float TDepthBufferKm = min(length(DepthBufferTranslatedWorldPos * CENTIMETER_TO_KILOMETER - RayTranslatedWorldOriginKm), MaxHalfFloat);
-		OutColor1.y = TDepthBufferKm;
+
+		OutDepth.y = TDepthBufferKm;
 
 		//
 		// Skip tracing if the depth buffer is in front of the cloud layer front interface. If inside the layer, clamp the tracing to the depth buffer
@@ -726,6 +771,10 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 			int ms;
 			float3	  SampleTranslatedWorldPosition = RayTranslatedWorldOriginKm + t * Raydir;
 			FLWCVector3 SampleWorldPosition = LWCSubtract(LWCPromote(SampleTranslatedWorldPosition), PrimaryView.PreViewTranslation);
+#if CLOUD_MIN_AND_MAX_DEPTH
+			const bool SampleContributeToClosest = t <= TClosestDepthBufferCm;
+#endif // CLOUD_MIN_AND_MAX
+			 
 
 			//////////////////////////////
 			// Update FMaterialPixelParameters according to current sample.
@@ -1082,6 +1131,11 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				float tAPWeight = min(TransmittanceToView.MATSUF.r, min(TransmittanceToView.MATSUF.g, TransmittanceToView.MATSUF.b));
 				tAPWeightedSum += t * tAPWeight;
 				tAPWeightsSum += tAPWeight;
+
+			#if CLOUD_MIN_AND_MAX_DEPTH
+				ClostestTAPWeightedSum += SampleContributeToClosest ? t * tAPWeight : 0.0f;
+				ClostestTAPWeightsSum  += SampleContributeToClosest ?     tAPWeight : 0.0f;
+			#endif // CLOUD_MIN_AND_MAX_DEPTH
 			}
 
 
@@ -1232,21 +1286,31 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				const float3 ScatteredLuminance = SunSkyLuminance * ScatteringCoefficients + EmissiveLuminance;
 
 #if 0
-	// Default iterative integration
+				// Default iterative integration
 				const MATVEC SafePathSegmentTransmittance = exp(-ExtinctionCoefficients * dtMeters);
-				Luminance += TransmittanceToView * ScatteredLuminance * dtMeters;
+				const float3 LuminanceContribution = TransmittanceToView * ScatteredLuminance * dtMeters;
+				Luminance += LuminanceContribution;
+				
+			#if CLOUD_MIN_AND_MAX_DEPTH
+				ClosestLuminance += SampleContributeToClosest ? LuminanceContribution : 0.0;
+			#endif // CLOUD_MIN_AND_MAX_DEPTH
 
 #elif 1
-	// Improved scattering integration. See slide 28 of "Physically Based and Unified Volumetric Rendering in Frostbite"
-	// Automatically works with emission. Emissive color is considered as a constant luminance emitted in all direction uniformly.
+				// Improved scattering integration. See slide 28 of "Physically Based and Unified Volumetric Rendering in Frostbite"
+				// Automatically works with emission. Emissive color is considered as a constant luminance emitted in all direction uniformly.
 				MATVEC SafeExtinctionThreshold = 0.000001f;
 				const MATVEC SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
 				const MATVEC SafePathSegmentTransmittance = exp(-SafeExtinctionCoefficients * dtMeters);
 				float3 LuminanceIntegral = (ScatteredLuminance - ScatteredLuminance * SafePathSegmentTransmittance) / SafeExtinctionCoefficients;
-				Luminance += TransmittanceToView * LuminanceIntegral;
+				const float3 LuminanceContribution = TransmittanceToView * LuminanceIntegral;
+				Luminance += LuminanceContribution;
+				
+			#if CLOUD_MIN_AND_MAX_DEPTH
+				ClosestLuminance += SampleContributeToClosest ? LuminanceContribution : 0.0;
+			#endif // CLOUD_MIN_AND_MAX_DEPTH
 
 #else
-	// Another integration that is not working nicely yet: explodes or need to use high extinction threshold 0.000001 to make it safe. And that has an impact on the final image.
+				// Another integration that is not working nicely yet: explodes or need to use high extinction threshold 0.000001 to make it safe. And that has an impact on the final image.
 				MATVEC S1 = TransmittanceToLight0 * ScatteringCoefficients;
 				MATVEC SafeExtinctionThreshold = 0.000001f;
 				const MATVEC SafeExtinctionCoefficients = max(SafeExtinctionThreshold, ExtinctionCoefficients);
@@ -1258,14 +1322,22 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 				/// Not handled yet: second light and emissive 
 				float3 SkyScatteredLuminance = SunSkyLuminance * ScatteringCoefficients;
 				float3 SkyLuminanceIntegral = (ScatteredLuminance - ScatteredLuminance * SafePathSegmentTransmittance) / SafeExtinctionCoefficients;
-				Luminance += TransmittanceToView * ((AnalyticalShadowedScattered * Light0IlluminanceFinal * PMPC.Phase0[ms]) + (ms == 0 ? SkyLuminanceIntegral : float3(0.0f, 0.0f, 0.0f)));
+				const float3 LuminanceContribution = TransmittanceToView * ((AnalyticalShadowedScattered * Light0IlluminanceFinal * PMPC.Phase0[ms]) + (ms == 0 ? SkyLuminanceIntegral : float3(0.0f, 0.0f, 0.0f)));
+				Luminance += LuminanceContribution;
 				if (ms == 0) S0 = S1;
-
+				
+			#if CLOUD_MIN_AND_MAX_DEPTH
+				ClosestLuminance += SampleContributeToClosest ? LuminanceContribution : 0.0;
+			#endif // CLOUD_MIN_AND_MAX_DEPTH
 #endif
 
 				if (ms == 0)
 				{
 					TransmittanceToView *= SafePathSegmentTransmittance;
+
+				#if CLOUD_MIN_AND_MAX_DEPTH
+					ClosestTransmittanceToView *= TClosestDepthBufferCm > t ? SafePathSegmentTransmittance : 1.0;
+				#endif // CLOUD_MIN_AND_MAX_DEPTH
 				}
 			}
 
@@ -1306,6 +1378,10 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 	const float NoCloudDepth = TMax;
 	const float tAP = tAPWeightsSum==0.0f ? NoCloudDepth : tAPWeightedSum / max(0.0000000001f, tAPWeightsSum);
 	float MeanTransmittance = dot(TransmittanceToView.MATSUF, 1.0f / 3.0f);
+#if CLOUD_MIN_AND_MAX_DEPTH
+	const float ClosestTAP = ClostestTAPWeightsSum == 0.0f ? NoCloudDepth : ClostestTAPWeightedSum / max(0.0000000001f, ClostestTAPWeightsSum);
+	float ClosestMeanTransmittance = dot(ClosestTransmittanceToView.MATSUF, 1.0f / 3.0f);
+#endif // CLOUD_MIN_AND_MAX
 
 	float3 FogSampleTranslatedWorldPosition = RayTranslatedWorldOriginKm + tAP * Raydir;
 	float4 ClipPos = mul(float4(FogSampleTranslatedWorldPosition, 1.0f), PrimaryView.TranslatedWorldToClip);
@@ -1360,6 +1436,64 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 	}
 
 
+	// Apply atmospehre and and fog on closest
+#if CLOUD_MIN_AND_MAX_DEPTH
+	{
+		float3 FogSampleTranslatedWorldPosition = RayTranslatedWorldOriginKm + ClosestTAP * Raydir;
+		float4 ClipPos = mul(float4(FogSampleTranslatedWorldPosition, 1.0f), PrimaryView.TranslatedWorldToClip);
+
+		if (RenderVolumetricCloudParameters.EnableAerialPerspectiveSampling && ClostestTAPWeightsSum > 0.0f)
+		{
+			float4 AerialPerspective;
+
+			if (!ResolvedView.RealTimeReflectionCapture &&	// We do not generate a 360 CameraAerialPerspectiveVolume with separated Mie and Ray contribution as of today.
+				(RenderVolumetricCloudParameters.AerialPerspectiveRayOnlyStartDistanceKm + RenderVolumetricCloudParameters.AerialPerspectiveMieOnlyStartDistanceKm) > 0.0f)
+			{
+				float4 MieAP = GETAERIALPERSPECTIVE(View.CameraAerialPerspectiveVolumeMieOnly, View.CameraAerialPerspectiveVolumeMieOnlySampler, FogSampleTranslatedWorldPosition,
+					max(ResolvedView.SkyAtmosphereAerialPerspectiveStartDepthKm, RenderVolumetricCloudParameters.AerialPerspectiveMieOnlyStartDistanceKm), RenderVolumetricCloudParameters.AerialPerspectiveMieOnlyFadeDistanceKmInv);
+				float4 RayAP = GETAERIALPERSPECTIVE(View.CameraAerialPerspectiveVolumeRayOnly, View.CameraAerialPerspectiveVolumeRayOnlySampler, FogSampleTranslatedWorldPosition,
+					max(ResolvedView.SkyAtmosphereAerialPerspectiveStartDepthKm, RenderVolumetricCloudParameters.AerialPerspectiveRayOnlyStartDistanceKm), RenderVolumetricCloudParameters.AerialPerspectiveRayOnlyFadeDistanceKmInv);
+
+				AerialPerspective = float4(MieAP.rgb + RayAP.rgb, MieAP.a * RayAP.a);
+			}
+			else
+			{
+				const float NearFadeOutRangeInvDepthKm = 1.0 / 0.00001f; // 1 centimeter fade region
+				// Apply AP only once according to the mean position within the participating media weighted by transmittance/visibility.
+				// This allows to apply AP only once per pixel instead of per sample.
+				AerialPerspective = GETAERIALPERSPECTIVE(View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler, FogSampleTranslatedWorldPosition, ResolvedView.SkyAtmosphereAerialPerspectiveStartDepthKm, NearFadeOutRangeInvDepthKm);
+			}
+
+			// Apply aerial perspective OVER the cloud, assiming coverage is from the full transmittance.
+			// skip if ClosestMeanTransmittance is 1
+			float MeanCoverage = 1.0 - ClosestMeanTransmittance;
+			ClosestLuminance = AerialPerspective.rgb * MeanCoverage + AerialPerspective.a * ClosestLuminance;
+		}
+
+
+		//
+		// Apply height fog if needed
+		//
+		if (RenderVolumetricCloudParameters.EnableHeightFog && ClostestTAPWeightsSum > 0.0f)
+		{
+			float4 HeightFogInscatteringAndTransmittance = CalculateHeightFog(FogSampleTranslatedWorldPosition - ResolvedView.TranslatedWorldCameraOrigin);
+
+			if (FogStruct.ApplyVolumetricFog > 0)
+			{
+				float3 VolumeUV = ComputeVolumeUVFromNDC(ClipPos);
+				const uint EyeIndex = 0;
+				HeightFogInscatteringAndTransmittance = CombineVolumetricFog(HeightFogInscatteringAndTransmittance, VolumeUV, EyeIndex, ConvertFromDeviceZ(ClipPos.z));
+			}
+
+			// Apply aerial perspective OVER the cloud, assiming coverage is from the full transmittance.
+			// skip if MeanTransmittance is 1
+			float MeanCoverage = 1.0 - ClosestMeanTransmittance;
+			ClosestLuminance = HeightFogInscatteringAndTransmittance.rgb * MeanCoverage + HeightFogInscatteringAndTransmittance.a * ClosestLuminance;
+		}
+	}
+#endif // CLOUD_MIN_AND_MAX_DEPTH
+
+
 	//
 	// Output result
 	//
@@ -1371,10 +1505,15 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 	OutColor0 = float4(Luminance * OutputPreExposure, GrayScaleTransmittance);
 #endif
 
-	OutColor1.x = MaxHalfFloat; // Default to far away depth to be flat and not intersect with any geometry.
+#if CLOUD_MIN_AND_MAX_DEPTH
+	float ClosestGrayScaleTransmittance = ClosestMeanTransmittance < RenderVolumetricCloudParameters.StopTracingTransmittanceThreshold ? 0.0f : ClosestMeanTransmittance;
+	OutColor1 = float4(ClosestLuminance * OutputPreExposure, ClosestGrayScaleTransmittance);
+#endif // CLOUD_MIN_AND_MAX
+
+	OutDepth.x = MaxHalfFloat; // Default to far away depth to be flat and not intersect with any geometry.
 	if (RenderVolumetricCloudParameters.OpaqueIntersectionMode >= 1)
 	{
-		OutColor1.x = ((GrayScaleTransmittance > 0.99) ? NoCloudDepth : tAP) * CENTIMETER_TO_KILOMETER; // using a small threshold on transmittance
+		OutDepth.x = ((GrayScaleTransmittance > 0.99) ? NoCloudDepth : tAP) * CENTIMETER_TO_KILOMETER; // using a small threshold on transmittance
 	}
 }
 
@@ -1385,11 +1524,13 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 void MainPS(
 	in float4 SvPosition : SV_Position
 	, out float4 OutColor0 : SV_Target0
-	, out float2 OutColor1 : SV_Target1)
+	, out float2 OutDepth : SV_Target1)
 {
 	FMaterialPixelParameters MaterialParameters = MakeInitializedMaterialPixelParameters();
-
-	MainCommon(MaterialParameters, SvPosition, OutColor0, OutColor1);
+	
+	float4 OutDepth4 = 0;
+	MainCommon(MaterialParameters, SvPosition, OutColor0, OutDepth4);
+	OutDepth = OutDepth4.xy;
 }
 
 #endif // SHADER_RENDERVIEW_PS
@@ -1400,8 +1541,11 @@ float4 OutputViewRect;
 int bBlendCloudColor;
 int TargetCubeFace;
 
-RWTexture2D<float4> OutCloudColor;
-RWTexture2D<float2> OutCloudDepth;
+RWTexture2D<float4> OutCloudColor0;
+#if CLOUD_MIN_AND_MAX_DEPTH
+RWTexture2D<float4> OutCloudColor1;
+#endif
+RWTexture2D<float4> OutCloudDepth;
 RWTextureCube<float4> OutCloudColorCube;
 
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
@@ -1412,11 +1556,18 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	{
 		float4 SvPosition = float4(DispatchThreadId.x + 0.5, DispatchThreadId.y + 0.5, 0.5, 1);
 		float4 OutColor0;
-		float2 OutColor1;
+#if CLOUD_MIN_AND_MAX_DEPTH
+		float4 OutColor1;
+#endif
+		float4 OutDepth;
 
 		FMaterialPixelParameters MaterialParameters = MakeInitializedMaterialPixelParameters();
 
-		MainCommon(MaterialParameters, SvPosition, OutColor0, OutColor1);
+		MainCommon(MaterialParameters, SvPosition, OutColor0
+#if CLOUD_MIN_AND_MAX_DEPTH
+			, OutColor1
+#endif
+			, OutDepth);
 
 		if (TargetCubeFace >= 0)
 		{
@@ -1435,15 +1586,18 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		{
 			if (bBlendCloudColor)
 			{
-				float4 CurColor0 = OutCloudColor[DispatchThreadId];
-				OutCloudColor[DispatchThreadId] = float4(CurColor0.rgb * OutColor0.a + OutColor0.rgb, CurColor0.a * OutColor0.a);
+				float4 CurColor0 = OutCloudColor0[DispatchThreadId];
+				OutCloudColor0[DispatchThreadId] = float4(CurColor0.rgb * OutColor0.a + OutColor0.rgb, CurColor0.a * OutColor0.a);
 			}
 			else
 			{
-				OutCloudColor[DispatchThreadId] = OutColor0;
+				OutCloudColor0[DispatchThreadId] = OutColor0;
 			}
 		}
-		OutCloudDepth[DispatchThreadId] = OutColor1;
+#if CLOUD_MIN_AND_MAX_DEPTH
+		OutCloudColor1[DispatchThreadId] = OutColor1;
+#endif
+		OutCloudDepth[DispatchThreadId] = OutDepth;
 	}
 }
 

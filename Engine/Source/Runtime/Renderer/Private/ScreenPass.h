@@ -660,7 +660,10 @@ enum class EDownsampleDepthFilter
 	Max,
 
 	// Produces a checkerboarded selection of min and max depth values
-	Checkerboard
+	Checkerboard,
+
+	// Procuce a color texture where R=min and G=max DeviceZ
+	MinAndMaxDepth
 };
 
 void AddDownsampleDepthPass(

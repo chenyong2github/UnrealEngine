@@ -177,6 +177,10 @@ public:
 	DECLARE_GLOBAL_SHADER(FDownsampleDepthPS);
 	SHADER_USE_PARAMETER_STRUCT(FDownsampleDepthPS, FGlobalShader);
 
+	class FOutputMinAndMaxDepth : SHADER_PERMUTATION_BOOL("OUTPUT_MIN_AND_MAX_DEPTH");
+
+	using FPermutationDomain = TShaderPermutationDomain<FOutputMinAndMaxDepth>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
@@ -184,6 +188,8 @@ public:
 		SHADER_PARAMETER(FVector2f, SourceMaxUV)
 		SHADER_PARAMETER(FVector2f, DestinationResolution)
 		SHADER_PARAMETER(uint32, DownsampleDepthFilter)
+		SHADER_PARAMETER(FIntVector4, DstPixelCoordMinAndMax)
+		SHADER_PARAMETER(FIntVector4, SrcPixelCoordMinAndMax)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -206,7 +212,11 @@ void AddDownsampleDepthPass(
 	const FScreenPassTextureViewport OutputViewport(Output);
 
 	TShaderMapRef<FScreenPassVS> VertexShader(View.ShaderMap);
-	TShaderMapRef<FDownsampleDepthPS> PixelShader(View.ShaderMap);
+
+	const bool bIsMinAndMaxDepthFilter = DownsampleDepthFilter == EDownsampleDepthFilter::MinAndMaxDepth;
+	FDownsampleDepthPS::FPermutationDomain Permutation;
+	Permutation.Set<FDownsampleDepthPS::FOutputMinAndMaxDepth>(bIsMinAndMaxDepthFilter ? 1 : 0);
+	TShaderMapRef<FDownsampleDepthPS> PixelShader(View.ShaderMap, Permutation);
 
 	FDownsampleDepthPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDownsampleDepthPS::FParameters>();
 	PassParameters->View = View.ViewUniformBuffer;
@@ -219,14 +229,26 @@ void AddDownsampleDepthPass(
 	const int32 DownsampledSizeY = OutputViewport.Rect.Height();
 	PassParameters->DestinationResolution = FVector2f(DownsampledSizeX, DownsampledSizeY);
 
-	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(Output.Texture, Output.LoadAction, Output.LoadAction, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+	PassParameters->DstPixelCoordMinAndMax = FIntVector4(OutputViewport.Rect.Min.X, OutputViewport.Rect.Min.Y, OutputViewport.Rect.Max.X, OutputViewport.Rect.Max.Y);
+	PassParameters->SrcPixelCoordMinAndMax = FIntVector4( InputViewport.Rect.Min.X,  InputViewport.Rect.Min.Y,  InputViewport.Rect.Max.X,  InputViewport.Rect.Max.Y);
 
 	FRHIDepthStencilState* DepthStencilState = TStaticDepthStencilState<true, CF_Always>::GetRHI();
+
+	if (bIsMinAndMaxDepthFilter)
+	{
+		DepthStencilState = TStaticDepthStencilState<false>::GetRHI();
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(Output.Texture, Output.LoadAction);
+	}
+	else
+	{
+		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(Output.Texture, Output.LoadAction, Output.LoadAction, FExclusiveDepthStencil::DepthWrite_StencilWrite);
+	}
 
 	static const TCHAR* kFilterNames[] = {
 		TEXT("Point"),
 		TEXT("Max"),
 		TEXT("CheckerMinMax"),
+		TEXT("MinAndMaxDepth"),
 	};
 
 	AddDrawScreenPass(
