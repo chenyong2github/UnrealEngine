@@ -14,16 +14,19 @@ class CHOOSER_API UChooserParameterBool_ContextProperty :  public UObject, publi
 {
 	GENERATED_BODY()
 public:
-	UPROPERTY()
- 	FName PropertyName;
-	
-	virtual bool GetValue(const UObject* ContextObject, bool& OutResult) override;
 
-	static const FString& CPPTypeName()
+	UPROPERTY()
+	TArray<FName> PropertyBindingChain;
+	
+	virtual bool GetValue(const UObject* ContextObject, bool& OutResult) const override;
+
+#if WITH_EDITOR
+	static bool CanBind(const FString& TypeName)
 	{
-		static FString TypeName = "bool";
-		return TypeName;
+		static FString BoolTypeName = "bool";
+		return TypeName == BoolTypeName;
 	}
+#endif
 };
 
 UCLASS()
@@ -32,15 +35,18 @@ class CHOOSER_API UChooserParameterFloat_ContextProperty :  public UObject, publ
 	GENERATED_BODY()
 public:
 	UPROPERTY()
-	FName PropertyName;
+	TArray<FName> PropertyBindingChain;
 	
-	virtual bool GetValue(const UObject* ContextObject, float& OutResult) override;
-	
-	static const FString& CPPTypeName()
+	virtual bool GetValue(const UObject* ContextObject, float& OutResult) const override;
+
+#if WITH_EDITOR
+	static bool CanBind(const FString& TypeName)
 	{
-		static FString TypeName = "double";
-		return TypeName;
+		static FString DoubleTypeName = "double";
+		static FString FloatTypeName = "float";
+		return TypeName == FloatTypeName || TypeName == DoubleTypeName;
 	}
+#endif
 };
 
 UCLASS()

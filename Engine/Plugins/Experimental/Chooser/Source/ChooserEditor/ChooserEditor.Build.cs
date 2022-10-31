@@ -22,7 +22,8 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"EditorStyle",
 					"PropertyEditor",
-					"BlueprintGraph"
+					"BlueprintGraph",
+					"GraphEditor"
 					// ... add private dependencies that you statically link with here ...
 				}
 			);

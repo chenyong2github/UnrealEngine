@@ -18,7 +18,7 @@ class CHOOSER_API IChooserParameterBool
 	GENERATED_BODY()
 
 public:
-	virtual bool GetValue(const UObject* ContextObject, bool& OutResult) { return false; }
+	virtual bool GetValue(const UObject* ContextObject, bool& OutResult) const { return false; }
 };
 
 UINTERFACE(NotBlueprintType, meta = (CannotImplementInterfaceInBlueprint))
@@ -32,5 +32,5 @@ class CHOOSER_API IChooserParameterFloat
 	GENERATED_BODY()
 
 public:
-	virtual bool GetValue(const UObject* ContextObject, float& OutResult) { return false; }
+	virtual bool GetValue(const UObject* ContextObject, float& OutResult) const { return false; }
 };

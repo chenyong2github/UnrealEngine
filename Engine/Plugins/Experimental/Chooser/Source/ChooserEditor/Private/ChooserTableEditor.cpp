@@ -28,7 +28,7 @@
 #include "ObjectChooser_Asset.h"
 #include "ObjectChooserClassFilter.h"
 #include "ObjectChooserWidgetFactories.h"
-#include "EdGraphSchema_K2.h"
+#include "GraphEditorSettings.h"
 #include "IDetailCustomization.h"
 #include "PropertyCustomizationHelpers.h"
 #include "ScopedTransaction.h"
@@ -448,7 +448,11 @@ public:
 						}
 						ColumnClass = ColumnClass->GetSuperClass();
 					}
-					return ColumnWidget.ToSharedRef();
+					
+					if (ColumnWidget.IsValid())
+					{
+						return ColumnWidget.ToSharedRef();
+					}
 				}
 			}
 		}
@@ -1025,9 +1029,24 @@ void ConvertToText_ContextProperty(const UObject* Object, FText& OutText)
 {
 	if (const PropertyType* ContextProperty = Cast<PropertyType>(Object))
 	{
-		OutText = FText::FromName(ContextProperty->PropertyName);
+		if (ContextProperty->PropertyBindingChain.Num()>0)
+		{
+			OutText = FText::FromName(ContextProperty->PropertyBindingChain.Last());
+		}
 	}
 }
+
+FLinearColor GetBindingColor(UChooserParameterBool_ContextProperty* Property)
+{
+	return GetDefault<UGraphEditorSettings>()->BooleanPinTypeColor;
+}
+	
+FLinearColor GetBindingColor(UChooserParameterFloat_ContextProperty* Property)
+{
+	return GetDefault<UGraphEditorSettings>()->DoublePinTypeColor;
+}
+	
+const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
 
 template <typename PropertyType>
 TSharedRef<SWidget> CreatePropertyWidget(UObject* Object, UClass* ContextClass)
@@ -1036,26 +1055,21 @@ TSharedRef<SWidget> CreatePropertyWidget(UObject* Object, UClass* ContextClass)
 	
 	FPropertyBindingWidgetArgs Args;
 	Args.bAllowPropertyBindings = true;
+	
 	Args.OnCanBindProperty = FOnCanBindProperty::CreateLambda([](FProperty* Property)
 	{
-		return Property == nullptr || Property->GetCPPType() == PropertyType::CPPTypeName();
+		return Property == nullptr || PropertyType::CanBind(Property->GetCPPType());
 	});
 	Args.OnCanBindToClass = FOnCanBindToClass::CreateLambda([ContextClass ](UClass* InClass)
 	{
-		return ContextClass->IsChildOf(InClass);
+		return true;
 	});
 	
 	Args.CurrentBindingColor = MakeAttributeLambda([ContextProperty, ContextClass]() {
-		if (ContextProperty.IsValid())
-		{
-			if (const FProperty* Property = FindFProperty<FProperty>(ContextClass, ContextProperty->PropertyName))
-			{
-				const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-				FEdGraphPinType VariablePinType;
-				Schema->ConvertPropertyToPinType(Property, VariablePinType);
-				return Schema->GetPinTypeColor(VariablePinType);
-			}
-		}
+		 if (ContextProperty.IsValid() && ContextProperty->PropertyBindingChain.Num() > 0)
+		 {
+		 	return GetBindingColor(ContextProperty.Get());
+		 }
 		return FLinearColor::Gray;
 	});
 
@@ -1070,15 +1084,46 @@ TSharedRef<SWidget> CreatePropertyWidget(UObject* Object, UClass* ContextClass)
 			IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
 			if (ContextProperty.IsValid())
 			{
-				if (InBindingChain.Num() == 2)
-			 	{
-					const FScopedTransaction Transaction(LOCTEXT("Change Property Binding", "Change Property Binding"));
-					ContextProperty->Modify(true);
-					ContextProperty->PropertyName = FName(InBindingChain[1].Field.GetName());
+				const FScopedTransaction Transaction(LOCTEXT("Change Property Binding", "Change Property Binding"));
+				ContextProperty->Modify(true);
+				
+				ContextProperty->PropertyBindingChain.Empty();
+
+				if (InBindingChain.Num() > 1)
+				{
+					for(int i = 1; i<InBindingChain.Num(); i++)
+					{
+						ContextProperty->PropertyBindingChain.Add(InBindingChain[i].Field.GetFName());
+					}
+				}
+				else
+				{
+					ContextProperty->PropertyBindingChain.Empty();
 				}
 			}
 		});
 
+	Args.CurrentBindingToolTipText = MakeAttributeLambda([ContextProperty]()
+			{
+				const FText Bind = LOCTEXT("Bind", "Bind");
+				FText CurrentValue = Bind;
+
+				if (ContextProperty.IsValid() && ContextProperty->PropertyBindingChain.Num()>0)
+				{
+					TArray<FText> BindingChainText;
+                 	BindingChainText.Reserve(ContextProperty->PropertyBindingChain.Num());
+                 
+                 	for (const FName& Name : ContextProperty->PropertyBindingChain)
+                 	{
+                 		BindingChainText.Add(FText::FromName(Name));
+                 	}
+					
+					CurrentValue = FText::Join(LOCTEXT("PropertyPathSeparator","."), BindingChainText);
+				}
+
+				return CurrentValue;	
+			});
+	
 	Args.CurrentBindingText = MakeAttributeLambda([ContextProperty]()
 			{
 				const FText Bind = LOCTEXT("Bind", "Bind");
@@ -1086,7 +1131,24 @@ TSharedRef<SWidget> CreatePropertyWidget(UObject* Object, UClass* ContextClass)
 
 				if (ContextProperty.IsValid())
 				{
-					CurrentValue = FText::FromName(ContextProperty->PropertyName);
+					int BindingChainLength = ContextProperty->PropertyBindingChain.Num();
+					if (BindingChainLength > 0)
+					{
+						if (BindingChainLength == 1)
+						{
+							// single property, just use the property name
+							CurrentValue = FText::FromName(ContextProperty->PropertyBindingChain.Last());
+						}
+						else
+						{
+							// for longer chains always show the last struct/object name, and the final property name (full path in tooltip)
+							CurrentValue = FText::Join(LOCTEXT("PropertyPathSeparator","."),
+								TArray<FText>({
+									FText::FromName(ContextProperty->PropertyBindingChain[BindingChainLength-2]),
+									FText::FromName(ContextProperty->PropertyBindingChain[BindingChainLength-1])
+								}));
+						}
+					}
 				}
 
 				return CurrentValue;

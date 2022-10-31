@@ -2,23 +2,76 @@
 #include "Chooser.h"
 #include "ChooserFunctionLibrary.h"
 
-bool UChooserParameterBool_ContextProperty::GetValue(const UObject* ContextObject, bool& OutResult)
+bool ResolvePropertyChain(const void*& Container, UStruct*& StructType, const TArray<FName>& PropertyBindingChain)
 {
-	if (const FBoolProperty* Property = FindFProperty<FBoolProperty>(ContextObject->GetClass(), PropertyName))
+	if (PropertyBindingChain.IsEmpty())
 	{
-		OutResult = *Property->ContainerPtrToValuePtr<bool>(ContextObject);
+		return false;
 	}
 	
+	const int PropertyChainLength = PropertyBindingChain.Num();
+	for(int PropertyChainIndex = 0; PropertyChainIndex < PropertyChainLength - 1; PropertyChainIndex++)
+	{
+		if (const FStructProperty* StructProperty = FindFProperty<FStructProperty>(StructType, PropertyBindingChain[PropertyChainIndex]))
+		{
+			StructType = StructProperty->Struct;
+			Container = StructProperty->ContainerPtrToValuePtr<void>(Container);
+		}
+		else if (const FObjectProperty* ObjectProperty = FindFProperty<FObjectProperty>(StructType, PropertyBindingChain[PropertyChainIndex]))
+		{
+			StructType = ObjectProperty->PropertyClass;
+			Container = *ObjectProperty->ContainerPtrToValuePtr<TObjectPtr<UObject>>(Container);
+			if (Container == nullptr)
+			{
+				return false;
+			}
+		}
+		else
+		{
+			return false;
+		}
+	}
+	
+	return true;
+}
+
+bool UChooserParameterBool_ContextProperty::GetValue(const UObject* ContextObject, bool& OutResult) const
+{
+	UStruct* StructType = ContextObject->GetClass();
+	const void* Container = ContextObject;
+	
+	if (ResolvePropertyChain(Container, StructType, PropertyBindingChain))
+	{
+		if (const FBoolProperty* Property = FindFProperty<FBoolProperty>(StructType, PropertyBindingChain.Last()))
+		{
+			OutResult = *Property->ContainerPtrToValuePtr<bool>(Container);
+			return true;
+		}
+	}
+
 	return false;
 }
 
-bool UChooserParameterFloat_ContextProperty::GetValue(const UObject* ContextObject, float& OutResult)
+bool UChooserParameterFloat_ContextProperty::GetValue(const UObject* ContextObject, float& OutResult) const
 {
-	if (const FDoubleProperty* Property = FindFProperty<FDoubleProperty>(ContextObject->GetClass(), PropertyName))
-	{
-		OutResult = *Property->ContainerPtrToValuePtr<double>(ContextObject);
-	}
+	UStruct* StructType = ContextObject->GetClass();
+	const void* Container = ContextObject;
 	
+	if (ResolvePropertyChain(Container, StructType, PropertyBindingChain))
+	{
+		if (const FDoubleProperty* DoubleProperty = FindFProperty<FDoubleProperty>(StructType, PropertyBindingChain.Last()))
+		{
+			OutResult = *DoubleProperty->ContainerPtrToValuePtr<double>(Container);
+			return true;
+		}
+		
+		if (const FFloatProperty* FloatProperty = FindFProperty<FFloatProperty>(StructType, PropertyBindingChain.Last()))
+		{
+			OutResult = *FloatProperty->ContainerPtrToValuePtr<float>(Container);
+			return true;
+		}
+	}
+
 	return false;
 }
 
