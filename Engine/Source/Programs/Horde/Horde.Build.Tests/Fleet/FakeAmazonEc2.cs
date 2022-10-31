@@ -27,6 +27,11 @@ public class FakeAmazonEc2
 	private readonly Mock<IAmazonEC2> _mock;
 	private readonly Dictionary<string, Instance> _instances = new();
 	private int _instanceIdCounter;
+
+	/// <summary>
+	/// Callback when StartInstances method is called. Can be used for mocking exception throwing.
+	/// </summary>
+	internal Action<StartInstancesRequest, CancellationToken> OnStartInstances { get; set; } = (_, _) => { };
 	
 	internal IReadOnlyDictionary<string, Instance> Instances => _instances;
 
@@ -117,6 +122,8 @@ public class FakeAmazonEc2
 			{
 				throw new AmazonEC2Exception("Insufficient capacity.");
 			}
+
+			OnStartInstances(request, cancellationToken);
 
 			azInstanceTypeCapacities[az][instanceType] = capacity - 1;
 		}

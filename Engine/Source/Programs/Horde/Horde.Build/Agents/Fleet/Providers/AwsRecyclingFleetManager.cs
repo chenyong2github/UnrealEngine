@@ -283,6 +283,8 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 			{
 				throw new AwsInsufficientCapacityException();
 			}
+
+			throw;
 		}
 
 		if (!IsResponseSuccessful(startResponse))

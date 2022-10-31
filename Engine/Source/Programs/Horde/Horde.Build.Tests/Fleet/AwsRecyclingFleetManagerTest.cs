@@ -21,6 +21,16 @@ namespace Horde.Build.Tests.Fleet
 	public class AwsRecyclingFleetManagerTest : TestSetup
 	{
 		[TestMethod]
+		public async Task ExpandAmazonEc2ExceptionsArePropagated()
+		{
+			FakeAmazonEc2 ec2 = new ();
+			ec2.AddInstance(FakeAmazonEc2.StateStopped, InstanceType.M5Large, FakeAmazonEc2.AzUsEast1A);
+			ec2.SetCapacity(FakeAmazonEc2.AzUsEast1A, InstanceType.M5Large, 1);
+			ec2.OnStartInstances = (_, _) => throw new AmazonEC2Exception("Something bad happened");
+			await Assert.ThrowsExceptionAsync<AmazonEC2Exception>(() => ExpandPoolAsync(ec2.Get(), 1, new()));
+		}
+		
+		[TestMethod]
 		public async Task ExpandOneAzPartialCapacityWithFallback()
 		{
 			FakeAmazonEc2 ec2 = new ();
