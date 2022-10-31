@@ -124,6 +124,7 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 				.Orientation(Orient_Horizontal)
 				.ExternalScrollbar(HorizontalScrollBar)
 				+SScrollBox::Slot()
+				.FillSize(1.0f)
 				[
 					TreeView.ToSharedRef()
 				]
