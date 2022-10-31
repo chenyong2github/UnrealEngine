@@ -37,6 +37,11 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromRigVMVariableDescript
 		ExternalVariable.TypeObject = InVariableDescription.CPPTypeObject;
 	}
 
+	if (UEnum* Enum = Cast<UEnum>(ExternalVariable.TypeObject))
+	{
+		ExternalVariable.TypeName = Enum->GetFName();
+	}	
+
 	ExternalVariable.bIsPublic = false;
 	ExternalVariable.bIsReadOnly = false;
 	ExternalVariable.Memory = nullptr;

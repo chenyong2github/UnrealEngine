@@ -400,6 +400,11 @@ namespace EpicGames.UHT.Types
 		/// True if the property should codegen as an array
 		/// </summary>
 		IsRigVMArray = 1 << 14,
+		
+		/// <summary>
+		/// True if the property should codegen as an array
+		/// </summary>
+		IsRigVMEnumAsByte = 1 << 15,
 	}
 
 	/// <summary>

@@ -216,6 +216,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 										string variableType = parameter.TypeVariableRef(true);
 										string extractedType = parameter.TypeOriginal();
 
+										if (parameter.IsEnumAsByte)
+										{
+											extractedType = parameter.TypeOriginal(true);
+										}
+
 										builder
 											.Append("\t\t")
 											.Append(variableType)

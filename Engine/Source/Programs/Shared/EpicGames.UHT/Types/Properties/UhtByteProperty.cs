@@ -51,6 +51,7 @@ namespace EpicGames.UHT.Types
 			if (Enum != null)
 			{
 				PropertyCaps |= UhtPropertyCaps.IsRigVMEnum;
+				PropertyCaps |= UhtPropertyCaps.IsRigVMEnumAsByte;
 			}
 		}
 

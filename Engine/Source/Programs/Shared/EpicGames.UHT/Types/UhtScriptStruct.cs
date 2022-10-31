@@ -50,6 +50,11 @@ namespace EpicGames.UHT.Types
 		/// Set if the property is an enum
 		/// </summary>
 		IsEnum = 0x00010000,
+		
+		/// <summary>
+		/// Set if the property is an enum as byte
+		/// </summary>
+		IsEnumAsByte = 0x00010004,
 
 		/// <summary>
 		/// Set if the property is an array
@@ -176,6 +181,12 @@ namespace EpicGames.UHT.Types
 		/// </summary>
 		[JsonIgnore]
 		public bool IsEnum => ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.IsEnum);
+		
+		/// <summary>
+		/// True if the parameter is an enum as byte
+		/// </summary>
+		[JsonIgnore]
+		public bool IsEnumAsByte => ParameterFlags.HasAnyFlags(UhtRigVMParameterFlags.IsEnumAsByte);
 
 		/// <summary>
 		/// True if the parameter is an array
@@ -216,6 +227,11 @@ namespace EpicGames.UHT.Types
 				if (property.PropertyCaps.HasAnyFlags(UhtPropertyCaps.IsRigVMEnum))
 				{
 					ParameterFlags |= UhtRigVMParameterFlags.IsEnum;
+				}
+				if (property.PropertyCaps.HasAnyFlags(UhtPropertyCaps.IsRigVMEnumAsByte))
+				{
+					ParameterFlags |= UhtRigVMParameterFlags.IsEnumAsByte;
+					CastType = $"TEnumAsByte<{Type}>";
 				}
 				if (property.PropertyCaps.HasAnyFlags(UhtPropertyCaps.IsRigVMArray))
 				{

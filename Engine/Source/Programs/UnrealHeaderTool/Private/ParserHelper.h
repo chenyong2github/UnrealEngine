@@ -532,6 +532,7 @@ struct FRigVMParameter
 		, CastType()
 		, bEditorOnly(false)
 		, bIsEnum(false)
+		, bIsEnumAsByte(false)
 	{
 	}
 
@@ -546,6 +547,7 @@ struct FRigVMParameter
 	FString CastType;
 	bool bEditorOnly;
 	bool bIsEnum;
+	bool bIsEnumAsByte;
 
 	const FString& NameOriginal(bool bCastName = false) const
 	{
