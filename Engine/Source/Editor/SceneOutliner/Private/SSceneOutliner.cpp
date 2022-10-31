@@ -362,14 +362,34 @@ void SSceneOutliner::HandleHiddenColumnsChanged()
 	{
 		TMap<FName, bool> ColumnVisibilities = OutlinerConfig->ColumnVisibilities;
 
+		bool bAnyColumnVisibilityChanged = false;
+		
 		for (const TPair<FName, TSharedPtr<ISceneOutlinerColumn>>& Pair : Columns)
 		{
-			ColumnVisibilities.Add(Pair.Key, HiddenColumns.Find(Pair.Key) == INDEX_NONE);
+			const bool bIsColumnVisible = HiddenColumns.Find(Pair.Key) == INDEX_NONE;
+
+			// If this column already has a visibility saved in the config, only update if it changed
+			if (bool* ExistingColumnVisibility = ColumnVisibilities.Find(Pair.Key))
+			{
+				if(*ExistingColumnVisibility != bIsColumnVisible)
+				{
+					*ExistingColumnVisibility = bIsColumnVisible;
+					bAnyColumnVisibilityChanged = true;
+				}
+			}
+			else
+			{
+				ColumnVisibilities.Add(Pair.Key, bIsColumnVisible);
+				bAnyColumnVisibilityChanged = true;
+			}
 		}
 
-		OutlinerConfig->ColumnVisibilities = ColumnVisibilities;
-
-		SaveConfig();
+		// Only call SaveConfig if something actually changed
+		if(bAnyColumnVisibilityChanged)
+		{
+			OutlinerConfig->ColumnVisibilities = ColumnVisibilities;
+			SaveConfig();
+		}
 	}
 }
 
