@@ -8,12 +8,30 @@
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 
+namespace PCGAttributeFilterConstants
+{
+	const FName NodeName = TEXT("FilterAttribute");
+}
+
 #if WITH_EDITOR
 FName UPCGAttributeFilterSettings::GetDefaultNodeName() const
 {
-	return TEXT("FilterAttribute");
+	return PCGAttributeFilterConstants::NodeName;
 }
 #endif
+
+FName UPCGAttributeFilterSettings::AdditionalTaskName() const
+{
+	// If we filter only one attribute, show its name
+	if (AttributesToKeep.Num() == 1)
+	{
+		return FName(FString::Printf(TEXT("%s: %s"), *PCGAttributeFilterConstants::NodeName.ToString(), *AttributesToKeep[0].ToString()));
+	}
+	else
+	{
+		return NAME_None;
+	}
+}
 
 TArray<FPCGPinProperties> UPCGAttributeFilterSettings::OutputPinProperties() const
 {
@@ -53,6 +71,8 @@ bool FPCGAttributeFilterElement::ExecuteInternal(FPCGContext* Context) const
 
 			UPCGSpatialData* NewSpatialData = DuplicateObject<UPCGSpatialData>(const_cast<UPCGSpatialData*>(InputSpatialData), nullptr);
 			NewSpatialData->Metadata = Metadata;
+			// We also need set the Metadata outer to this new data.
+			Metadata->Rename(nullptr, NewSpatialData);
 			NewSpatialData->Metadata->Initialize(ParentMetadata, /*bAddAttributesFromParent=*/false);
 
 			// No need to inherit metadata since we already initialized it.
@@ -62,11 +82,10 @@ bool FPCGAttributeFilterElement::ExecuteInternal(FPCGContext* Context) const
 		}
 		else if (const UPCGParamData* InputParamData = Cast<UPCGParamData>(InputData))
 		{
-			Metadata = NewObject<UPCGMetadata>();
 			ParentMetadata = InputParamData->Metadata;
 
 			UPCGParamData* NewParamData = NewObject<UPCGParamData>();
-			NewParamData->Metadata = Metadata;
+			Metadata = NewParamData->Metadata;
 
 			Metadata->Initialize(InputParamData->Metadata, /*bAddAttributesFromParent=*/false);
 			OutputData = NewParamData;

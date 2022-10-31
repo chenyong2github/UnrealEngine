@@ -206,8 +206,8 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 
 		if (const UPCGSpatialData* InputSpatialData = Cast<UPCGSpatialData>(InputData))
 		{
-			UPCGSpatialData* NewSpatialData = DuplicateObject<UPCGSpatialData>(const_cast<UPCGSpatialData*>(InputSpatialData), nullptr);
-			NewSpatialData->Metadata = NewObject<UPCGMetadata>();
+			UPCGSpatialData* NewSpatialData = DuplicateObject<UPCGSpatialData>(InputSpatialData, nullptr);
+			NewSpatialData->Metadata = NewObject<UPCGMetadata>(NewSpatialData);
 			NewSpatialData->InitializeFromData(InputSpatialData, /*InMetadataParentOverride=*/ nullptr, /*bInheritMetadata=*/ Settings->bKeepExistingAttributes);
 
 			OutputData = NewSpatialData;
