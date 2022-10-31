@@ -33,6 +33,8 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName)
 
 void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UActorDescContainer::Initialize);
+
 	check(!World || World == InitParams.World);
 	World = InitParams.World;
 
@@ -47,31 +49,41 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 
 		// Do a synchronous scan of the level external actors path.			
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-		AssetRegistry.ScanPathsSynchronous({ ContainerExternalActorsPath }, /*bForceRescan*/true, /*bIgnoreDenyListScanFilters*/false);
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ScanPathsSynchronous);
+			AssetRegistry.ScanPathsSynchronous({ ContainerExternalActorsPath }, /*bForceRescan*/true, /*bIgnoreDenyListScanFilters*/false);
+		}
 
 		FARFilter Filter;
 		Filter.bRecursivePaths = true;
 		Filter.bIncludeOnlyOnDiskAssets = true;
 		Filter.PackagePaths.Add(*ContainerExternalActorsPath);
 
+		TRACE_CPUPROFILER_EVENT_SCOPE(GetAssets);
 		AssetRegistry.GetAssets(Filter, Assets);
 	}
 
-	for (const FAssetData& Asset : Assets)
 	{
-		TUniquePtr<FWorldPartitionActorDesc> ActorDesc = FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(Asset);
+		TRACE_CPUPROFILER_EVENT_SCOPE(RegisterDescriptors);
+		for (const FAssetData& Asset : Assets)
+		{
+			TUniquePtr<FWorldPartitionActorDesc> ActorDesc = FWorldPartitionActorDescUtils::GetActorDescriptorFromAssetData(Asset);
 
-		if (ActorDesc.IsValid() && (!InitParams.FilterActorDesc || InitParams.FilterActorDesc(ActorDesc.Get())))
-		{
-			AddActorDescriptor(ActorDesc.Release());
-		}
-		else
-		{
-			InvalidActors.Emplace(MoveTemp(ActorDesc));
+			if (ActorDesc.IsValid() && (!InitParams.FilterActorDesc || InitParams.FilterActorDesc(ActorDesc.Get())))
+			{
+				AddActorDescriptor(ActorDesc.Release());
+			}
+			else
+			{
+				InvalidActors.Emplace(MoveTemp(ActorDesc));
+			}
 		}
 	}
 
-	OnActorDescContainerInitialized.Broadcast(this);
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(OnActorDescContainerInitialized)
+		OnActorDescContainerInitialized.Broadcast(this);
+	}
 
 	RegisterEditorDelegates();
 

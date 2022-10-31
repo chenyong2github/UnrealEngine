@@ -36,6 +36,7 @@ UWorld* FContentBundleContainer::GetInjectedWorld() const
 
 void FContentBundleContainer::Initialize()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FContentBundleContainer::Initialize);
 	UE_LOG(LogContentBundle, Log, TEXT("[Container: %s] Creating new contrainer."), *GetInjectedWorld()->GetName());
 
 #if WITH_EDITOR
@@ -251,16 +252,19 @@ void FContentBundleContainer::DeinitializeContentBundle(FContentBundleBase& Cont
 
 void FContentBundleContainer::InjectContentBundle(FContentBundleBase& ContentBundle)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(InjectContentBundle);
 	ContentBundle.InjectContent();
 }
 
 void FContentBundleContainer::RemoveContentBundle(FContentBundleBase& ContentBundle)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(RemoveContentBundle);
 	ContentBundle.RemoveContent();
 }
 
 void FContentBundleContainer::OnContentBundleClientRegistered(TSharedPtr<FContentBundleClient>& ContentBundleClient)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(InitializeContentBundle);
 	InitializeContentBundle(ContentBundleClient);
 }
 

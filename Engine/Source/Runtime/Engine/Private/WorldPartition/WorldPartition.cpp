@@ -521,10 +521,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 				);
 		}
 
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(UActorDescContainer::Initialize);
-			ActorDescContainer = RegisterActorDescContainer(PackageName);
-		}
+		ActorDescContainer = RegisterActorDescContainer(PackageName);
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UActorDescContainer::Hash);
@@ -554,7 +551,10 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	{
 		// Here we need to flush any async loading before starting any synchronous load (mixing synchronous and asynchronous load on the same package is not handled properly).
 		// Also, this will ensure that FindObject will work on an external actor that was loading asynchronously.
-		FlushAsyncLoading();
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FlushAsyncLoading);
+			FlushAsyncLoading();
+		}
 
 		// Make sure to preload only AWorldDataLayers actor first
 		for (FActorDescList::TIterator<> ActorDescIterator(ActorDescContainer); ActorDescIterator; ++ActorDescIterator)
@@ -582,6 +582,8 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		// Apply level transform on actors already part of the level
 		if (!GetInstanceTransform().Equals(FTransform::Identity))
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ApplyLevelTransform);
+
 			check(!OuterWorld->PersistentLevel->bAlreadyMovedActors);
 			for (AActor* Actor : OuterWorld->PersistentLevel->Actors)
 			{
@@ -601,7 +603,10 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	if (bIsEditor && !bIsCooking)
 	{
 		// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
-		AlwaysLoadedActors->Load();
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(LoadAlwaysLoaded);
+			AlwaysLoadedActors->Load();
+		}
 
 		// Load more cells depending on the user's settings
 		// Skipped when running from a commandlet and for subpartitions
@@ -610,6 +615,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			// Load last loaded regions
 			if (GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEnableLoadingOfLastLoadedRegions())
 			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(LoadLastLoadedRegions);
 				LoadLastLoadedRegions();
 			}
 		}
