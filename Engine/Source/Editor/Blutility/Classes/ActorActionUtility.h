@@ -3,10 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "EditorUtilityObject.h"
-#include "UObject/ScriptMacros.h"
-#include "BlutilityMenuExtensions.h"
+#include "IEditorUtilityExtension.h"
 #include "ActorActionUtility.generated.h"
 
 /** 
@@ -21,6 +19,27 @@ class BLUTILITY_API UActorActionUtility : public UEditorUtilityObject, public IE
 
 public:
 	/** Return the class that this actor action supports. Leave this blank to support all actor classes. */
-	UFUNCTION(BlueprintPure, BlueprintImplementableEvent, Category="Assets")
+	UE_DEPRECATED(5.2, "GetSupportedClasses() instead, but ideally you're not requesting this directly and are instead using GetSupportedClasses_FromAssetTags.")
+	UFUNCTION(BlueprintPure, BlueprintImplementableEvent, Category="Assets", meta=(DeprecatedFunction, DeprecationMessage="If you were just returning a single class.  Add it to the SupportedClasses array.  If you were doing complex logic to simulate having multiple classes act as filters, add them to the SupportedClasses array.  If you were doing 'other' logic, you'll need to do that upon action execution."))
 	UClass* GetSupportedClass() const;
+	
+	/**
+     * Gets the statically determined supported classes, these classes are used as a first pass filter when determining
+     * if we can utilize this asset utility action on the asset.
+     */
+    UFUNCTION(BlueprintPure, Category = "Assets")
+    const TArray<TSoftClassPtr<UObject>>& GetSupportedClasses() const { return SupportedClasses; }
+
+public:
+    // Begin UObject
+    virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+    // End UObject
+	
+private:
+	/**
+	 * For simple Asset Action's you should fill out the supported class here.  Don't bother with GetSupportedClass()
+	 * * unless you actually need to do specialized dynamic logic.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category="Assets", meta=(AllowAbstract))
+	TArray<TSoftClassPtr<UObject>> SupportedClasses;
 };

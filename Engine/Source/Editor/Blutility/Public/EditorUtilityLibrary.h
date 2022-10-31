@@ -148,6 +148,9 @@ public:
 	// Gets the set of currently selected assets
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
 	static TArray<UObject*> GetSelectedAssets();
+	
+	UFUNCTION(BlueprintCallable, Category = "Development|Editor")
+	static TArray<UObject*> GetSelectedAssetsOfClass(UClass* AssetClass);
 
 	// Gets the set of currently selected classes
 	UFUNCTION(BlueprintCallable, Category = "Development|Editor")

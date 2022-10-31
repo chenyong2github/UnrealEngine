@@ -10,9 +10,12 @@
 #include "Containers/Set.h"
 #include "ContentBrowserDelegates.h"
 #include "ContentBrowserModule.h"
+#include "EditorUtilityAssetPrototype.h"
 #include "Delegates/Delegate.h"
 #include "EditorUtilityBlueprint.h"
+#include "Algo/AnyOf.h"
 #include "Engine/Blueprint.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
@@ -25,6 +28,7 @@
 #include "UObject/Class.h"
 #include "UObject/NameTypes.h"
 #include "UObject/UObjectIterator.h"
+#include "Logging/MessageLog.h"
 
 #define LOCTEXT_NAMESPACE "BlutilityContentBrowserExtensions"
 
@@ -39,111 +43,78 @@ public:
 		TSharedRef<FExtender> Extender(new FExtender());
 
 		// Run thru the assets to determine if any meet our criteria
-		TMap<IEditorUtilityExtension*, TSet<int32>> UtilityAndSelectionIndices;
-		TArray<IEditorUtilityExtension*> SupportedUtils;
+		TMap<TSharedRef<FAssetActionUtilityPrototype>, TSet<int32>> UtilityAndSelectionIndices;
 		TArray<FAssetData> SupportedAssets;
+		
 		if (SelectedAssets.Num() > 0)
 		{
-			// Check blueprint utils (we need to load them to query their validity against these assets)
-			TArray<FAssetData> UtilAssets;
-			FBlutilityMenuExtensions::GetBlutilityClasses(UtilAssets, UAssetActionUtility::StaticClass()->GetClassPathName());
-
-			// Collect all UAssetActionUtility derived classes
-			TSet<UAssetActionUtility*> AssetClasses;
-			for (TObjectIterator<UClass> AssetActionClassIt; AssetActionClassIt; ++AssetActionClassIt)
+			FMessageLog EditorErrors("EditorErrors");
+			EditorErrors.NewPage(LOCTEXT("ScriptedActions", "Scripted Actions"));
+			
+			auto ProcessAssetAction = [&EditorErrors, &SupportedAssets, &UtilityAndSelectionIndices, &SelectedAssets](const TSharedRef<FAssetActionUtilityPrototype>& ActionUtilityPrototype)
 			{
-				if (AssetActionClassIt->IsChildOf(UAssetActionUtility::StaticClass()) && UAssetActionUtility::StaticClass()->GetFName() != AssetActionClassIt->GetFName() && AssetActionClassIt->ClassGeneratedBy == nullptr)
+				if (ActionUtilityPrototype->IsLatestVersion())
 				{
-					AssetClasses.Add(Cast<UAssetActionUtility>(AssetActionClassIt->GetDefaultObject()));
-				}
-			}
-
-			auto ProcessAssetAction = [&SupportedAssets, &UtilityAndSelectionIndices, &SelectedAssets](UAssetActionUtility* InAction)
-			{
-				if (UClass* SupportedClass = InAction->GetSupportedClass())
-				{
-					const bool bIsActionForBlueprints = InAction->IsActionForBlueprints();
-
-					for (const FAssetData& Asset : SelectedAssets)
+					TArray<TSoftClassPtr<UObject>> SupportedClassPtrs = ActionUtilityPrototype->GetSupportedClasses();
+					if (SupportedClassPtrs.Num() > 0)
 					{
-						bool bPassesClassFilter = false;
-						if (bIsActionForBlueprints)
+						const bool bIsActionForBlueprints = ActionUtilityPrototype->AreSupportedClassesForBlueprints();
+
+						for (const FAssetData& Asset : SelectedAssets)
 						{
-							if (TSubclassOf<UBlueprint> AssetClass = Asset.GetClass())
+							bool bPassesClassFilter = false;
+							if (bIsActionForBlueprints)
 							{
-								if (UBlueprint* AssetAsBlueprint = Cast<UBlueprint>(Asset.GetAsset()))
+								if (TSubclassOf<UBlueprint> AssetClass = Asset.GetClass())
 								{
-									// It's a blueprint, but is it the right kind?
-									bPassesClassFilter = AssetAsBlueprint->ParentClass && AssetAsBlueprint->ParentClass->IsChildOf(SupportedClass);
-								}
-								else
-								{
-									// Not a blueprint
-									bPassesClassFilter = false;
+									if (const UClass* Blueprint_ParentClass = UBlueprint::GetBlueprintParentClassFromAssetTags(Asset))
+	                                {
+										bPassesClassFilter = 
+											Algo::AnyOf(SupportedClassPtrs, [Blueprint_ParentClass](TSoftClassPtr<UObject> ClassPtr){ return Blueprint_ParentClass->IsChildOf(ClassPtr.Get()); });
+	                                }
 								}
 							}
 							else
 							{
-								// Not a blueprint
-								bPassesClassFilter = false;
+								// Is the asset the right kind?
+								bPassesClassFilter = 
+									Algo::AnyOf(SupportedClassPtrs, [&Asset](TSoftClassPtr<UObject> ClassPtr){ return Asset.IsInstanceOf(ClassPtr.Get()); });
 							}
-						}
-						else
-						{
-							// Is the asset the right kind?
-							bPassesClassFilter = Asset.IsInstanceOf(SupportedClass);
-						}
 
-						if (bPassesClassFilter)
-						{
-							const int32 Index = SupportedAssets.AddUnique(Asset);
-							UtilityAndSelectionIndices.FindOrAdd(InAction).Add(Index);
+							if (bPassesClassFilter)
+							{
+								const int32 Index = SupportedAssets.AddUnique(Asset);
+								UtilityAndSelectionIndices.FindOrAdd(ActionUtilityPrototype).Add(Index);
+							}
 						}
 					}
 				}
 				else
 				{
-					TSet<int32>& ActionIndices = UtilityAndSelectionIndices.FindOrAdd(InAction);
-					for (const FAssetData& Asset : SelectedAssets)
-					{ 
-						const int32 Index = SupportedAssets.AddUnique(Asset);
-						ActionIndices.Add(Index);
-					}
+					TSharedRef<FTokenizedMessage> ErrorMessage = EditorErrors.Error();
+                    ErrorMessage->AddToken(FAssetNameToken::Create(ActionUtilityPrototype->GetUtilityBlueprintAsset().GetObjectPathString(),FText::FromString(ActionUtilityPrototype->GetUtilityBlueprintAsset().GetObjectPathString())));
+                    ErrorMessage->AddToken(FTextToken::Create(LOCTEXT("NeedsToBeUpdated", "needs to be re-saved and possibly upgraded.")));
 				}
 			};
+
+			// Check blueprint utils (we need to load them to query their validity against these assets)
+			TArray<FAssetData> UtilAssets;
+			FBlutilityMenuExtensions::GetBlutilityClasses(UtilAssets, UAssetActionUtility::StaticClass()->GetClassPathName());
 
 			// Process asset based utilities
 			for (const FAssetData& UtilAsset : UtilAssets)
 			{
-				FString ParentClassName;
-				if (UtilAsset.GetTagValue(FBlueprintTags::NativeParentClassPath, ParentClassName))
+				if (const UClass* ParentClass = UBlueprint::GetBlueprintParentClassFromAssetTags(UtilAsset))
 				{
-					UObject* Outer = nullptr;
-					ResolveName(Outer, ParentClassName, false, false);
-					const UClass* ParentClass = FindObject<UClass>(Outer, *ParentClassName);
-
 					// We only care about UEditorUtilityBlueprint's that are compiling subclasses of UAssetActionUtility
-					if (ParentClass && ParentClass->IsChildOf(UAssetActionUtility::StaticClass()))
+					if (ParentClass->IsChildOf(UAssetActionUtility::StaticClass()))
 					{
-						if (const UEditorUtilityBlueprint* Blueprint = Cast<UEditorUtilityBlueprint>(UtilAsset.GetAsset()))
-						{
-							if (const UClass* BPClass = Blueprint->GeneratedClass.Get())
-							{
-								if (UAssetActionUtility* DefaultObject = Cast<UAssetActionUtility>(BPClass->GetDefaultObject()))
-								{
-									ProcessAssetAction(DefaultObject);
-								}
-							}
-						}
+						ProcessAssetAction(MakeShared<FAssetActionUtilityPrototype>(UtilAsset));
 					}
 				}
 			}
 
-			// Process non-asset based utilities
-			for (UAssetActionUtility* Action : AssetClasses)
-			{
-				ProcessAssetAction(Action);
-			}
+			EditorErrors.Notify(LOCTEXT("SomeProblemsWithAssetActionUtility", "There were some problems with some AssetActionUtility Blueprints."));
 		}
 
 		if (UtilityAndSelectionIndices.Num() > 0)

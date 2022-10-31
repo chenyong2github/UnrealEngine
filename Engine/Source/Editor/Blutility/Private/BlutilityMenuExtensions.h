@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "EditorUtilityAssetPrototype.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/Set.h"
@@ -14,8 +15,6 @@
 #include "UObject/TopLevelAssetPath.h"
 #include "UObject/UObjectGlobals.h"
 
-#include "BlutilityMenuExtensions.generated.h"
-
 class AActor;
 class FMenuBuilder;
 class FProperty;
@@ -24,7 +23,7 @@ class FText;
 class IEditorUtilityExtension;
 class UFunction;
 class UObject;
-struct FAssetData;
+class FAssetActionUtilityPrototype;
 
 // Blutility Menu extension helpers
 class FBlutilityMenuExtensions
@@ -34,45 +33,47 @@ public:
 	static void GetBlutilityClasses(TArray<FAssetData>& OutAssets, FTopLevelAssetPath InClassName);
 
 	/** Helper function that populates a menu based on the exposed functions in a set of Blutility objects */
-	static void CreateAssetBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<class IEditorUtilityExtension*, TSet<int32>> Utils, const TArray<FAssetData> SelectedSupportedAssets);
-	static void CreateActorBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<class IEditorUtilityExtension*, TSet<int32>> Utils, const TArray<AActor*> SelectedSupportedActors);
+	static void CreateAssetBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<TSharedRef<FAssetActionUtilityPrototype>, TSet<int32>> Utils, const TArray<FAssetData> SelectedSupportedAssets);
+	static void CreateActorBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<TSharedRef<FAssetActionUtilityPrototype>, TSet<int32>> Utils, const TArray<AActor*> SelectedSupportedActors);
 	
 protected:
 	// Helper struct to track the util to call a function on
 	struct FFunctionAndUtil
 	{
-		FFunctionAndUtil(UFunction* InFunction, IEditorUtilityExtension* InUtil, TSet<int32>& InSelection)
-			: Function(InFunction)
+		FFunctionAndUtil(const FBlutilityFunctionData& InFunctionData, const TSharedRef<FAssetActionUtilityPrototype>& InUtil, TSet<int32>& InSelection)
+			: FunctionData(InFunctionData)
 			, Util(InUtil) 
 			, SelectionIndices(InSelection)
 		{}
 
 		bool operator==(const FFunctionAndUtil& InFunction) const
 		{
-			return InFunction.Function == Function && InFunction.Util == Util;
+			return InFunction.FunctionData == InFunction.FunctionData && InFunction.Util == Util;
 		}
 
-		UFunction* Function;
-		IEditorUtilityExtension* Util;
+		UFunction* GetFunction() const
+		{
+			if (const UObject* UtilityCDO = Util->LoadUtilityAsset())
+			{
+				if (const UClass* UtilityClass = UtilityCDO->GetClass())
+				{
+					return UtilityClass->FindFunctionByName(FunctionData.Name);
+				}
+			}
+
+			return nullptr;
+		}
+
+		FBlutilityFunctionData FunctionData;
+		TSharedRef<FAssetActionUtilityPrototype> Util;
 		/** Indices to original object selection array which are supported by this utility */
 		TSet<int32> SelectionIndices;
 	};
 
 protected:
 	template<typename SelectionType>
-	static void CreateBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<class IEditorUtilityExtension*, TSet<int32>> Utils, const FText& MenuLabel, const FText& MenuToolTip, TFunction<bool(const FProperty * Property)> IsValidPropertyType, const TArray<SelectionType> Selection, const FName& IconName = "GraphEditor.Event_16x");
+	static void CreateBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<TSharedRef<FAssetActionUtilityPrototype>, TSet<int32>> Utils, const FText& MenuLabel, const FText& MenuToolTip, TFunction<bool(const FProperty* Property)> IsValidPropertyType, const TArray<SelectionType> Selection, const FName& IconName = "GraphEditor.Event_16x");
 
 	static void OpenEditorForUtility(const FFunctionAndUtil& FunctionAndUtil);
-	static void ExtractFunctions(TMap<class IEditorUtilityExtension*, TSet<int32>>& Utils, TMap<FString, TArray<FFunctionAndUtil>>& OutCategoryFunctions);
-};
-
-UINTERFACE(BlueprintType)
-class UEditorUtilityExtension : public UInterface
-{
-	GENERATED_UINTERFACE_BODY()
-};
-
-class IEditorUtilityExtension
-{
-	GENERATED_IINTERFACE_BODY()
+	static void ExtractFunctions(TMap<TSharedRef<FAssetActionUtilityPrototype>, TSet<int32>>& Utils, TMap<FString, TArray<FFunctionAndUtil>>& OutCategoryFunctions);
 };

@@ -33,6 +33,8 @@ public class Blutility : ModuleRules
 				"CollectionManager",
                 "PropertyEditor",
                 "BlueprintGraph",
+                "Json",
+                "JsonUtilities",
 				"UMG",
                 "UMGEditor",
                 "KismetCompiler",

@@ -14,6 +14,7 @@
 #include "DetailsViewArgs.h"
 #include "EdGraphSchema_K2.h"
 #include "Editor.h"
+#include "EditorUtilityAssetPrototype.h"
 #include "Editor/EditorEngine.h"
 #include "EditorUtilityBlueprint.h"
 #include "Engine/Blueprint.h"
@@ -23,6 +24,7 @@
 #include "GameFramework/Actor.h"
 #include "GenericPlatform/GenericApplication.h"
 #include "IDetailsView.h"
+#include "IEditorUtilityExtension.h"
 #include "IStructureDetailsView.h"
 #include "Input/Reply.h"
 #include "Internationalization/Internationalization.h"
@@ -222,10 +224,9 @@ void FBlutilityMenuExtensions::GetBlutilityClasses(TArray<FAssetData>& OutAssets
 	// Get class names
 	TArray<FTopLevelAssetPath> BaseNames;
 	BaseNames.Add(InClassName);
-	TSet<FTopLevelAssetPath> Excluded;
-	TSet<FTopLevelAssetPath> DerivedNames;
-	AssetRegistry.GetDerivedClassNames(BaseNames, Excluded, DerivedNames);
-
+	TSet<FTopLevelAssetPath> DerivedClasses;
+	AssetRegistry.GetDerivedClassNames(BaseNames, TSet<FTopLevelAssetPath>(), DerivedClasses);
+	
 	// Now get all UEditorUtilityBlueprint assets
 	FARFilter Filter;
 	Filter.ClassPaths.Add(UEditorUtilityBlueprint::StaticClass()->GetClassPathName());
@@ -238,19 +239,35 @@ void FBlutilityMenuExtensions::GetBlutilityClasses(TArray<FAssetData>& OutAssets
 	// Check each asset to see if it matches our type
 	for (const FAssetData& Asset : AssetList)
 	{
+		// Abstract or deprecated blutilities should not be included.
+		const EClassFlags BPFlags = static_cast<EClassFlags>(Asset.GetTagValueRef<uint32>(FBlueprintTags::ClassFlags));
+		if (EnumHasAnyFlags(BPFlags, CLASS_Abstract | CLASS_Deprecated))
+		{
+			continue;
+		}
+		
 		FAssetDataTagMapSharedView::FFindTagResult Result = Asset.TagsAndValues.FindTag(FBlueprintTags::GeneratedClassPath);
 		if (Result.IsSet())
 		{
+			// If it's a menu extension blutility, don't include ones from other peoples developer folders, just your own.
+			if (FPaths::IsUnderDirectory(Asset.PackagePath.ToString(), FPaths::GameDevelopersDir()))
+			{
+				if (!FPaths::IsUnderDirectory(Asset.PackagePath.ToString(), FPaths::GameUserDeveloperFolderName()))
+				{
+					continue;
+				}
+			}
+			
 			const FTopLevelAssetPath ClassObjectPath(FPackageName::ExportTextPathToObjectPath(Result.GetValue()));
 
-			if (DerivedNames.Contains(ClassObjectPath))
+			if (DerivedClasses.Contains(ClassObjectPath))
 			{
 				OutAssets.Add(Asset);
 			}
 		}
 	}
 }
-void FBlutilityMenuExtensions::CreateActorBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<class IEditorUtilityExtension*, TSet<int32>> Utils, const TArray<AActor*> SelectedSupportedActors)
+void FBlutilityMenuExtensions::CreateActorBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<TSharedRef<FAssetActionUtilityPrototype>, TSet<int32>> Utils, const TArray<AActor*> SelectedSupportedActors)
 {
 	CreateBlutilityActionsMenu<AActor*>(MenuBuilder, Utils,
 		LOCTEXT("ScriptedActorActions", "Scripted Actor Actions"),
@@ -269,7 +286,7 @@ void FBlutilityMenuExtensions::CreateActorBlutilityActionsMenu(FMenuBuilder& Men
 	);
 }
 
-void FBlutilityMenuExtensions::CreateAssetBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<class IEditorUtilityExtension*, TSet<int32>> Utils, const TArray<FAssetData> SelectedSupportedAssets)
+void FBlutilityMenuExtensions::CreateAssetBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<TSharedRef<FAssetActionUtilityPrototype>, TSet<int32>> Utils, const TArray<FAssetData> SelectedSupportedAssets)
 {
 	CreateBlutilityActionsMenu<FAssetData>(MenuBuilder, Utils,
 		LOCTEXT("ScriptedAssetActions", "Scripted Asset Actions"),
@@ -293,70 +310,50 @@ void FBlutilityMenuExtensions::CreateAssetBlutilityActionsMenu(FMenuBuilder& Men
 void FBlutilityMenuExtensions::OpenEditorForUtility(const FFunctionAndUtil& FunctionAndUtil)
 {
 	// Edit the script if we have shift held down
-	if (UBlueprint* Blueprint = Cast<UBlueprint>(Cast<UObject>(FunctionAndUtil.Util)->GetClass()->ClassGeneratedBy))
+	if (UBlueprint* Blueprint = Cast<UBlueprint>(Cast<UObject>(FunctionAndUtil.Util->LoadUtilityAsset())->GetClass()->ClassGeneratedBy))
 	{
 		if (IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Blueprint, true))
 		{
 			check(AssetEditor->GetEditorName() == TEXT("BlueprintEditor"));
 			IBlueprintEditor* BlueprintEditor = static_cast<IBlueprintEditor*>(AssetEditor);
-			BlueprintEditor->JumpToHyperlink(FunctionAndUtil.Function, false);
+			BlueprintEditor->JumpToHyperlink(FunctionAndUtil.GetFunction(), false);
 		}
 		else
 		{
 			FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
 			TSharedRef<IBlueprintEditor> BlueprintEditor = BlueprintEditorModule.CreateBlueprintEditor(EToolkitMode::Standalone, TSharedPtr<IToolkitHost>(), Blueprint, false);
-			BlueprintEditor->JumpToHyperlink(FunctionAndUtil.Function, false);
+			BlueprintEditor->JumpToHyperlink(FunctionAndUtil.GetFunction(), false);
 		}
 	}
 }
 
-void FBlutilityMenuExtensions::ExtractFunctions(TMap<class IEditorUtilityExtension*, TSet<int32>>& Utils, TMap<FString, TArray<FFunctionAndUtil>>& OutCategoryFunctions)
+void FBlutilityMenuExtensions::ExtractFunctions(TMap<TSharedRef<FAssetActionUtilityPrototype>, TSet<int32>>& Utils, TMap<FString, TArray<FFunctionAndUtil>>& OutCategoryFunctions)
 {
 	TSet<UClass*> ProcessedClasses;
 	const static FName NAME_CallInEditor(TEXT("CallInEditor"));
 
 	// Find the exposed functions available in each class, making sure to not list shared functions from a parent class more than once
-	for (TPair< IEditorUtilityExtension*, TSet<int32>> UtilitySelectionPair : Utils)
+	for (TPair<TSharedRef<FAssetActionUtilityPrototype>, TSet<int32>> UtilitySelectionPair : Utils)
 	{
-		IEditorUtilityExtension* Util = UtilitySelectionPair.Key;
-		UClass* Class = Cast<UObject>(Util)->GetClass();
+		const TSharedRef<FAssetActionUtilityPrototype>& Util = UtilitySelectionPair.Key;
 
-		if (ProcessedClasses.Contains(Class))
+		TArray<FBlutilityFunctionData> FunctionDatas = Util->GetCallableFunctions();
+		for (const FBlutilityFunctionData& FunctionData : FunctionDatas)
 		{
-			continue;
-		}
-
-		for (UClass* ParentClass = Class; ParentClass != UObject::StaticClass(); ParentClass = ParentClass->GetSuperClass())
-		{
-			ProcessedClasses.Add(ParentClass);
-		}
-
-		for (TFieldIterator<UFunction> FunctionIt(Class); FunctionIt; ++FunctionIt)
-		{
-			if (UFunction* Func = *FunctionIt)
-			{
-				if (Func->HasMetaData(NAME_CallInEditor) && Func->GetReturnProperty() == nullptr)
-				{
-					const static FName NAME_Category(TEXT("Category"));
-
-					const FString& FunctionCategory = Func->GetMetaData(NAME_Category);
-					TArray<FFunctionAndUtil>& Functions = OutCategoryFunctions.FindOrAdd(FunctionCategory);
-
-					Functions.AddUnique(FFunctionAndUtil(Func, Util, UtilitySelectionPair.Value));
-				}
-			}
+			TArray<FFunctionAndUtil>& Functions = OutCategoryFunctions.FindOrAdd(FunctionData.Category);
+			Functions.AddUnique(FFunctionAndUtil(FunctionData, Util, UtilitySelectionPair.Value));
 		}
 	}
 
 	for (TPair<FString, TArray<FFunctionAndUtil>>& CategoryFunctionPair : OutCategoryFunctions)
 	{
 		// Sort the functions by name
-		CategoryFunctionPair.Value.Sort([](const FFunctionAndUtil& A, const FFunctionAndUtil& B) { return A.Function->GetName() < B.Function->GetName(); });
+		CategoryFunctionPair.Value.Sort([](const FFunctionAndUtil& A, const FFunctionAndUtil& B) { return A.FunctionData.Name.LexicalLess(B.FunctionData.Name); });
 	}
 }
 
 template<typename SelectionType>
-void FBlutilityMenuExtensions::CreateBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<IEditorUtilityExtension*, TSet<int32>> Utils, const FText& MenuLabel, const FText& MenuToolTip, TFunction<bool(const FProperty * Property)> IsValidPropertyType, const TArray<SelectionType> Selection, const FName& IconName)
+void FBlutilityMenuExtensions::CreateBlutilityActionsMenu(FMenuBuilder& MenuBuilder, TMap<TSharedRef<FAssetActionUtilityPrototype>, TSet<int32>> Utils, const FText& MenuLabel, const FText& MenuToolTip, TFunction<bool(const FProperty * Property)> IsValidPropertyType, const TArray<SelectionType> Selection, const FName& IconName)
 {
 	TMap<FString, TArray<FFunctionAndUtil>> CategoryFunctions;
 	ExtractFunctions(Utils, CategoryFunctions);
@@ -365,10 +362,10 @@ void FBlutilityMenuExtensions::CreateBlutilityActionsMenu(FMenuBuilder& MenuBuil
 	{
 		for (const FFunctionAndUtil& FunctionAndUtil : FunctionUtils)
 		{
-			const FText TooltipText = FText::Format(LOCTEXT("AssetUtilTooltipFormat", "{0}\n(Shift-click to edit script)"), FunctionAndUtil.Function->GetToolTipText());
+			const FText TooltipText = FText::Format(LOCTEXT("AssetUtilTooltipFormat", "{0}\n(Shift-click to edit script)"), FunctionAndUtil.FunctionData.TooltipText);
 
 			SubMenuBuilder.AddMenuEntry(
-				FunctionAndUtil.Function->GetDisplayNameText(),
+				FunctionAndUtil.FunctionData.NameText,
 				TooltipText,
 				FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Event_16x"),
 				FExecuteAction::CreateLambda([FunctionAndUtil, Selection, IsValidPropertyType]
@@ -380,21 +377,23 @@ void FBlutilityMenuExtensions::CreateBlutilityActionsMenu(FMenuBuilder& MenuBuil
 					else
 					{
 						// We dont run this on the CDO, as bad things could occur!
-						UObject* TempObject = NewObject<UObject>(GetTransientPackage(), Cast<UObject>(FunctionAndUtil.Util)->GetClass());
+						UObject* TempObject = NewObject<UObject>(GetTransientPackage(), Cast<UObject>(FunctionAndUtil.Util->LoadUtilityAsset())->GetClass());
 						TempObject->AddToRoot(); // Some Blutility actions might run GC so the TempObject needs to be rooted to avoid getting destroyed
 
-						if (FunctionAndUtil.Function->NumParms > 0)
+						UFunction* Function = FunctionAndUtil.GetFunction();
+						
+						if (Function->NumParms > 0)
 						{
 							// Create a parameter struct and fill in defaults
-							TSharedRef<FStructOnScope> FuncParams = MakeShared<FStructOnScope>(FunctionAndUtil.Function);
+							TSharedRef<FStructOnScope> FuncParams = MakeShared<FStructOnScope>(Function);
 
 							FProperty* FirstParamProperty = nullptr;
 
 							int32 ParameterIndex = 0;
-							for (TFieldIterator<FProperty> It(FunctionAndUtil.Function); It&& It->HasAnyPropertyFlags(CPF_Parm); ++It)
+							for (TFieldIterator<FProperty> It(Function); It&& It->HasAnyPropertyFlags(CPF_Parm); ++It)
 							{
 								FString Defaults;
-								if (UEdGraphSchema_K2::FindFunctionParameterDefaultValue(FunctionAndUtil.Function, *It, Defaults))
+								if (UEdGraphSchema_K2::FindFunctionParameterDefaultValue(Function, *It, Defaults))
 								{
 									It->ImportText_Direct(*Defaults, It->ContainerPtrToValuePtr<uint8>(FuncParams->GetStructMemory()), nullptr, PPF_None);
 								}
@@ -414,7 +413,7 @@ void FBlutilityMenuExtensions::CreateBlutilityActionsMenu(FMenuBuilder& MenuBuil
 							{
 								// pop up a dialog to input params to the function
 								TSharedRef<SWindow> Window = SNew(SWindow)
-									.Title(FunctionAndUtil.Function->GetDisplayNameText())
+									.Title(Function->GetDisplayNameText())
 									.ClientSize(FVector2D(400, 200))
 									.SupportsMinimize(false)
 									.SupportsMaximize(false);
@@ -423,7 +422,7 @@ void FBlutilityMenuExtensions::CreateBlutilityActionsMenu(FMenuBuilder& MenuBuil
 								Window->SetContent(
 									SAssignNew(Dialog, SFunctionParamDialog, Window, FuncParams, FirstParamProperty ? FirstParamProperty->GetFName() : NAME_None)
 									.OkButtonText(LOCTEXT("OKButton", "OK"))
-									.OkButtonTooltipText(FunctionAndUtil.Function->GetToolTipText()));
+									.OkButtonTooltipText(Function->GetToolTipText()));
 
 								GEditor->EditorAddModalWindow(Window);
 								bApply = Dialog->bOKPressed;
@@ -438,20 +437,20 @@ void FBlutilityMenuExtensions::CreateBlutilityActionsMenu(FMenuBuilder& MenuBuil
 								if (bForwardUserSelection)
 								{
 									// For each user-select asset forward the selection object into the function first's parameter (if it matches)
-									const FString Path = FirstParamProperty->GetPathName(FunctionAndUtil.Function);
+									const FString Path = FirstParamProperty->GetPathName(Function);
 
 									// Ensure we only process selection objects that are valid for this function/utility
 									for (const int32& SelectionIndex : FunctionAndUtil.SelectionIndices)
 									{
 										const auto SelectedAsset = Selection[SelectionIndex];
 										FirstParamProperty->CopySingleValue(FirstParamProperty->ContainerPtrToValuePtr<uint8>(FuncParams->GetStructMemory()), &SelectedAsset);
-										TempObject->ProcessEvent(FunctionAndUtil.Function, FuncParams->GetStructMemory());
+										TempObject->ProcessEvent(Function, FuncParams->GetStructMemory());
 									}
 								}
 								else
 								{
 									// User is expected to manage the asset selection on its own
-									TempObject->ProcessEvent(FunctionAndUtil.Function, FuncParams->GetStructMemory());
+									TempObject->ProcessEvent(Function, FuncParams->GetStructMemory());
 								}
 							}
 						}
@@ -459,7 +458,7 @@ void FBlutilityMenuExtensions::CreateBlutilityActionsMenu(FMenuBuilder& MenuBuil
 						{
 							FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "BlutilityAction", "Blutility Action"));
 							FEditorScriptExecutionGuard ScriptGuard;
-							TempObject->ProcessEvent(FunctionAndUtil.Function, nullptr);
+							TempObject->ProcessEvent(Function, nullptr);
 						}
 
 						TempObject->RemoveFromRoot();

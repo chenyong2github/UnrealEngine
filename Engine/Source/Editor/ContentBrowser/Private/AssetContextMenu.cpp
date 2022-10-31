@@ -92,61 +92,8 @@ void FAssetContextMenu::BindCommands(TSharedPtr< FUICommandList >& Commands)
 		));
 }
 
-class FDontLoadAssetsDuringThisScope
-{
-public:
-	FDontLoadAssetsDuringThisScope()
-	{
-		FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FDontLoadAssetsDuringThisScope::OnAssetLoaded);
-	}
-
-	~FDontLoadAssetsDuringThisScope()
-	{
-		FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
-
-		FMessageLog EditorErrors("EditorErrors");
-		
-		for (const FLoadEvent& LoadEvent : ObjectsLoaded)
-		{
-			TSharedRef<FTokenizedMessage> ErrorMessage = EditorErrors.Error();
-			ErrorMessage->AddToken(FAssetNameToken::Create(LoadEvent.ObjectPath.ToString(),FText::FromString(LoadEvent.ObjectPath.ToString())));
-			ErrorMessage->AddToken(FTextToken::Create(LOCTEXT("DontLoadAssetsNow", "was loaded while creating the asset context menu.  Don't do this, it causes the operation to hitch.")));
-			
-			for (const FProgramCounterSymbolInfo& CallInfo : LoadEvent.Callstack)
-			{
-				ErrorMessage->AddToken(FTextToken::Create(FText::FromString(FString(CallInfo.FunctionName) + TEXT("\n"))));
-			}
-		}
-
-		EditorErrors.Notify(LOCTEXT("AssetsOpenedDuringContextMenuNotify", "Don't Load Assets Now!"));
-	}
-	
-private:
-	void OnAssetLoaded(UObject* InObject)
-	{
-		FLoadEvent Event;
-		Event.ObjectPath = FSoftObjectPath(InObject);
-		Event.Callstack = FPlatformStackWalk::GetStack(4, 10);
-		ObjectsLoaded.Add(MoveTemp(Event));
-	}
-
-private:
-	struct FLoadEvent
-	{
-		FSoftObjectPath ObjectPath;
-		TArray<FProgramCounterSymbolInfo> Callstack;
-	};
-	
-	TArray<FLoadEvent> ObjectsLoaded;
-};
-
 TSharedRef<SWidget> FAssetContextMenu::MakeContextMenu(TArrayView<const FContentBrowserItem> InSelectedItems, const FSourcesData& InSourcesData, TSharedPtr< FUICommandList > InCommandList)
 {
-#if DEPRECATE_ASSET_TYPE_ACTIONS_CALLING_GETACTIONS
-	// If we're not calling GetActions any more, then fire off errors when people open the context menu and it loads assets
-	FDontLoadAssetsDuringThisScope DontLoadScope;
-#endif
-	
 	SetSelectedItems(InSelectedItems);
 	SourcesData = InSourcesData;
 
@@ -377,32 +324,31 @@ void FAssetContextMenu::RegisterContextMenu(const FName MenuName)
 		UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName);
 		FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
 
-#if  !DEPRECATE_ASSET_TYPE_ACTIONS_CALLING_GETACTIONS
-
-		// Note: Do  not use "GetActions" again when copying this code, otherwise "GetActions" menu entry will be overwritten
-		Section.AddDynamicEntry("GetActions", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+		// TODO Remove when IAssetTypeActions is dead or fully deprecated.
 		{
-			UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
-			if (Context && Context->CommonAssetTypeActions.IsValid())
+			// Note: Do  not use "GetActions" again when copying this code, otherwise "GetActions" menu entry will be overwritten
+			Section.AddDynamicEntry("GetActions", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 			{
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				Context->CommonAssetTypeActions.Pin()->GetActions(Context->LoadSelectedObjectsIfNeeded(), InSection);
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			}
-		}));
+				UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
+				if (Context && Context->CommonAssetTypeActions.IsValid())
+				{
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
+					Context->CommonAssetTypeActions.Pin()->GetActions(Context->LoadSelectedObjectsIfNeeded(), InSection);
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
+				}
+			}));
 
-		Section.AddDynamicEntry("GetActionsLegacy", FNewToolMenuDelegateLegacy::CreateLambda([](FMenuBuilder& MenuBuilder, UToolMenu* InMenu)
-		{
-			UContentBrowserAssetContextMenuContext* Context = InMenu->FindContext<UContentBrowserAssetContextMenuContext>();
-			if (Context && Context->CommonAssetTypeActions.IsValid())
+			Section.AddDynamicEntry("GetActionsLegacy", FNewToolMenuDelegateLegacy::CreateLambda([](FMenuBuilder& MenuBuilder, UToolMenu* InMenu)
 			{
-				PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				Context->CommonAssetTypeActions.Pin()->GetActions(Context->LoadSelectedObjectsIfNeeded(), MenuBuilder);
-				PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			}
-		}));
-		
-#endif
+				UContentBrowserAssetContextMenuContext* Context = InMenu->FindContext<UContentBrowserAssetContextMenuContext>();
+				if (Context && Context->CommonAssetTypeActions.IsValid())
+				{
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
+					Context->CommonAssetTypeActions.Pin()->GetActions(Context->LoadSelectedObjectsIfNeeded(), MenuBuilder);
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
+				}
+			}));
+		}		
 
 		Menu->AddDynamicSection("AddMenuOptions", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 		{

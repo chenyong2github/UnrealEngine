@@ -239,6 +239,11 @@ void UEditorUtilityLibrary::GetSelectionBounds(FVector& Origin, FVector& BoxExte
 
 TArray<UObject*> UEditorUtilityLibrary::GetSelectedAssets()
 {
+	return GetSelectedAssetsOfClass(UObject::StaticClass());
+}
+
+TArray<UObject*> UEditorUtilityLibrary::GetSelectedAssetsOfClass(UClass* AssetClass)
+{
 	//@TODO: Blocking load, no slow dialog
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 	TArray<FAssetData> SelectedAssets;
@@ -247,7 +252,10 @@ TArray<UObject*> UEditorUtilityLibrary::GetSelectedAssets()
 	TArray<UObject*> Result;
 	for (FAssetData& AssetData : SelectedAssets)
 	{
-		Result.Add(AssetData.GetAsset());
+		if (AssetData.IsInstanceOf(AssetClass))
+		{
+			Result.Add(AssetData.GetAsset());
+		}
 	}
 
 	return Result;

@@ -1145,7 +1145,7 @@ public:
 
 		return false;
 	}
-
+	
 #if WITH_EDITOR
 	static FName GetFunctionNameFromClassByGuid(const UClass* InClass, const FGuid FunctionGuid);
 	static bool GetFunctionGuidFromClassByFieldName(const UClass* InClass, const FName FunctionName, FGuid& FunctionGuid);
@@ -1158,6 +1158,10 @@ public:
 
 	/* Notify the blueprint when a graph is renamed to allow for additional fixups. */
 	virtual void NotifyGraphRenamed(class UEdGraph* Graph, FName OldName, FName NewName) { }
+#endif
+
+#if WITH_EDITOR
+	static UClass* GetBlueprintParentClassFromAssetTags(const FAssetData& BlueprintAsset);
 #endif
 
 	/** Find a function given its name and optionally an object property name within this Blueprint */

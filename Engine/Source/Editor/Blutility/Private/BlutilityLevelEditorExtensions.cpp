@@ -9,12 +9,15 @@
 #include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "CoreTypes.h"
+#include "EditorUtilityAssetPrototype.h"
 #include "Delegates/Delegate.h"
 #include "EditorUtilityBlueprint.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "GameFramework/Actor.h"
 #include "HAL/PlatformCrt.h"
 #include "LevelEditor.h"
+#include "Algo/AnyOf.h"
+#include "Logging/MessageLog.h"
 #include "Modules/ModuleManager.h"
 #include "Templates/Casts.h"
 #include "Templates/SharedPointer.h"
@@ -36,76 +39,65 @@ public:
 	{
 		TSharedRef<FExtender> Extender(new FExtender());
 			   
-		TMap<IEditorUtilityExtension*, TSet<int32>> UtilityAndSelectionIndices;
+		TMap<TSharedRef<FAssetActionUtilityPrototype>, TSet<int32>> UtilityAndSelectionIndices;
 
 		// Run thru the actors to determine if any meet our criteria
 		TArray<AActor*> SupportedActors;
 		if (SelectedActors.Num() > 0)
 		{
+			FMessageLog EditorErrors("EditorErrors");
+			EditorErrors.NewPage(LOCTEXT("ScriptedActions", "Scripted Actions"));
+			
+			auto ProcessActorAction = [&UtilityAndSelectionIndices, &SelectedActors, &SupportedActors, &EditorErrors](const TSharedRef<FAssetActionUtilityPrototype>& ActionUtilityPrototype)
+			{
+				if (ActionUtilityPrototype->IsLatestVersion())
+				{
+					TArray<TSoftClassPtr<UObject>> SupportedClassPtrs = ActionUtilityPrototype->GetSupportedClasses();
+					if (SupportedClassPtrs.Num() > 0)
+					{
+						for (AActor* Actor : SelectedActors)
+						{
+							if (Actor)
+							{
+								UClass* ActorClass = Actor->GetClass();
+								const bool bPassesClassFilter = 
+									Algo::AnyOf(SupportedClassPtrs, [ActorClass](TSoftClassPtr<UObject> ClassPtr){ return ActorClass->IsChildOf(ClassPtr.Get()); });
+
+								if (bPassesClassFilter)
+								{
+									const int32 Index = SupportedActors.AddUnique(Actor);
+									UtilityAndSelectionIndices.FindOrAdd(ActionUtilityPrototype).Add(Index);
+								}
+							}
+						}
+					}
+				}
+				else
+                {
+					TSharedRef<FTokenizedMessage> ErrorMessage = EditorErrors.Error();
+                    ErrorMessage->AddToken(FAssetNameToken::Create(ActionUtilityPrototype->GetUtilityBlueprintAsset().GetObjectPathString(),FText::FromString(ActionUtilityPrototype->GetUtilityBlueprintAsset().GetObjectPathString())));
+                    ErrorMessage->AddToken(FTextToken::Create(LOCTEXT("NeedsToBeUpdated", "needs to be re-saved and possibly upgraded.")));
+                }
+			};
+
 			// Check blueprint utils (we need to load them to query their validity against these assets)
 			TArray<FAssetData> UtilAssets;
 			FBlutilityMenuExtensions::GetBlutilityClasses(UtilAssets, UActorActionUtility::StaticClass()->GetClassPathName());
 
-			TMap<UActorActionUtility*, UClass*> ActorActionUtilities;
-
 			// Process asset based utilities
-			for (const FAssetData& UtilAsset : UtilAssets)
-			{
-				if (UEditorUtilityBlueprint* Blueprint = Cast<UEditorUtilityBlueprint>(UtilAsset.GetAsset()))
-				{
-					if (UClass* BPClass = Blueprint->GeneratedClass.Get())
-					{
-						if (UActorActionUtility* ActorActionUtility = Cast<UActorActionUtility>(BPClass->GetDefaultObject()))
-						{
-							UClass*& SupportedClass = ActorActionUtilities.FindOrAdd(ActorActionUtility);
-							if (!SupportedClass)
-							{
-								SupportedClass = ActorActionUtility->GetSupportedClass();
-							}
-						}
+            for (const FAssetData& UtilAsset : UtilAssets)
+            {
+            	if (const UClass* ParentClass = UBlueprint::GetBlueprintParentClassFromAssetTags(UtilAsset))
+            	{
+            		// We only care about UEditorUtilityBlueprint's that are compiling subclasses of UActorActionUtility
+            		if (ParentClass->IsChildOf(UActorActionUtility::StaticClass()))
+            		{
+            			ProcessActorAction(MakeShared<FAssetActionUtilityPrototype>(UtilAsset));
 					}
 				}
 			}
-
-			// Process non-asset based utilities
-			for (TObjectIterator<UClass> AssetActionClassIt; AssetActionClassIt; ++AssetActionClassIt)
-			{
-				if (AssetActionClassIt->IsChildOf(UActorActionUtility::StaticClass()) && UActorActionUtility::StaticClass()->GetFName() != AssetActionClassIt->GetFName() && AssetActionClassIt->ClassGeneratedBy == nullptr)
-				{
-					if (UActorActionUtility* ActorActionUtility = Cast<UActorActionUtility>(AssetActionClassIt->GetDefaultObject()))
-					{
-						UClass*& SupportedClass = ActorActionUtilities.FindOrAdd(ActorActionUtility);
-						if (!SupportedClass)
-						{
-							SupportedClass = ActorActionUtility->GetSupportedClass();
-						}
-					}
-				}
-			}
-
-			if (UtilAssets.Num() + ActorActionUtilities.Num() > 0)
-			{
-				for (AActor* Actor : SelectedActors)
-				{
-					if (Actor)
-					{
-						int32 SupportedActorIndex = INDEX_NONE;
-						for (const TPair<UActorActionUtility*, UClass*>& ActorActionUtilityIt : ActorActionUtilities)
-						{
-							UClass* SupportedClass = ActorActionUtilityIt.Value;
-							if (SupportedClass == nullptr || (SupportedClass && Actor->GetClass()->IsChildOf(SupportedClass)))
-							{
-								UActorActionUtility* Action = ActorActionUtilityIt.Key;
-								if (SupportedActorIndex == INDEX_NONE)
-								{
-									SupportedActorIndex = SupportedActors.Add(Actor);
-								}
-								UtilityAndSelectionIndices.FindOrAdd(Action).Add(SupportedActorIndex);
-							}
-						}
-					}
-				}
-			}
+			
+			EditorErrors.Notify(LOCTEXT("SomeProblemsWithActorActionUtility", "There were some problems with some ActorActionUtility Blueprints."));
 		}
 
 		if (SupportedActors.Num() > 0)

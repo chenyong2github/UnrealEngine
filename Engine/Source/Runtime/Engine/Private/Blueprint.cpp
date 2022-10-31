@@ -2094,6 +2094,29 @@ UEdGraph* UBlueprint::GetLastEditedUberGraph() const
 	return nullptr;
 }
 
+#if WITH_EDITOR
+
+UClass* UBlueprint::GetBlueprintParentClassFromAssetTags(const FAssetData& BlueprintAsset)
+{
+	UClass* ParentClass = nullptr;
+	FString ParentClassName;
+	if(!BlueprintAsset.GetTagValue(FBlueprintTags::NativeParentClassPath, ParentClassName))
+	{
+		BlueprintAsset.GetTagValue(FBlueprintTags::ParentClassPath, ParentClassName);
+	}
+	
+	if(!ParentClassName.IsEmpty())
+	{
+		UObject* Outer = nullptr;
+		ResolveName(Outer, ParentClassName, false, false);
+		ParentClass = FindObject<UClass>(Outer, *ParentClassName);
+	}
+	
+	return ParentClass;
+}
+
+#endif
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 TArrayView<const TObjectPtr<UBlueprintExtension>> UBlueprint::GetExtensions() const
