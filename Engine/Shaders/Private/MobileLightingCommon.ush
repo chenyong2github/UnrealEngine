@@ -125,7 +125,7 @@ return ShadowMap;
 #endif
 
 #ifndef MAX_MOBILE_SHADOWCASCADES
-#define MAX_MOBILE_SHADOWCASCADES 4
+#define MAX_MOBILE_SHADOWCASCADES 4u
 #endif 
 
 half MobileDirectionalLightCSM(float2 ScreenPosition, float SceneDepth, inout float ShadowPositionZ)
@@ -144,7 +144,7 @@ half MobileDirectionalLightCSM(float2 ScreenPosition, float SceneDepth, inout fl
 	Settings.ProjectionDepthBiasParameters = 0;
 
 	float4 ShadowPosition = float4(0, 0, 0, 0);
-	for (int i = 0; i < MAX_MOBILE_SHADOWCASCADES; i++)
+	for (uint i = 0; i < MAX_MOBILE_SHADOWCASCADES; i++)
 	{
 		if (SceneDepth < MobileDirectionalLight.DirectionalLightShadowDistances[i])
 		{

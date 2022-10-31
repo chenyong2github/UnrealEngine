@@ -683,11 +683,14 @@ void Main(
 	OutSceneDepthAux = SvPosition.z;
 #endif
 
-	#if !MATERIALBLENDING_MODULATE
-		OutColor.rgb *= ResolvedView.PreExposure;
-	#endif
+#if !MATERIALBLENDING_MODULATE
+	OutColor.rgb *= ResolvedView.PreExposure;
+#endif
 
+#if !MATERIAL_SHADINGMODEL_UNLIT && !DEFERRED_SHADING_PATH
+	// clamp lit color to avoid overflows
 	OutColor.rgb = SafeGetOutColor(OutColor.rgb);
+#endif
 
 #if USE_EDITOR_COMPOSITING && (MOBILE_EMULATION)
 	// Editor primitive depth testing
