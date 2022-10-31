@@ -22271,6 +22271,7 @@ FStrataOperator* UMaterialExpressionStrataLegacyConversion::StrataGenerateMateri
 		SlabOperator.bBSDFHasSSS = true;
 		SlabOperator.bBSDFHasMFPPluggedIn = true;
 		SlabOperator.bBSDFHasFuzz = true;
+		SlabOperator.bBSDFHasAnisotropy = Anisotropy.IsConnected();
 
 		return &SlabOperator;
 	};
