@@ -97,9 +97,9 @@ namespace GeometryCollectionTest
 
 		TManagedArray<bool>& Active = Collection->DynamicCollection->Active;
 
-		EXPECT_TRUE(Active[0]);
-		EXPECT_TRUE(Active[1]);
-		EXPECT_TRUE(Active[2]);
+		EXPECT_FALSE(Active[0]);
+		EXPECT_FALSE(Active[1]);
+		EXPECT_TRUE(Active[2]); // only the root cluster should be active when using clustering 
 		UnitTest.Advance();
 		EXPECT_FALSE(Active[0]);
 		EXPECT_FALSE(Active[1]);
