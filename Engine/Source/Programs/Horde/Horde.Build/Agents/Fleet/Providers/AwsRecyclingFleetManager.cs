@@ -269,7 +269,6 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	internal async Task StartInstancesAsync(List<Instance> instances, InstanceType? instanceType, CancellationToken cancellationToken)
 	{
 		if (instances.Count == 0) return;
-		_logger.LogInformation("StartInstancesAsync()");
 		if (instanceType != null)
 		{
 			await ChangeInstanceTypeAsync(instances, instanceType, cancellationToken);
@@ -281,6 +280,7 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 		StartInstancesResponse startResponse = new();
 		try
 		{
+			_logger.LogInformation("StartInstancesAsync()");
 			using IScope scope = GlobalTracer.Instance.BuildSpan("StartInstances").StartActive();
 			scope.Span.SetTag("req.instanceIds", String.Join(",", startRequest.InstanceIds));
 			startResponse = await _ec2.StartInstancesAsync(startRequest, cancellationToken);
