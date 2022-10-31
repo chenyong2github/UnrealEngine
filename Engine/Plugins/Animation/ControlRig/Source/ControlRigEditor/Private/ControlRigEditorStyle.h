@@ -166,6 +166,11 @@ public:
 			Set("ControlRig.SpacePicker.RoundedRect", new FSlateRoundedBoxBrush(FStyleColors::White, 4.0f, FStyleColors::Transparent, 0.0f));
 		}
 
+		// Test Data
+		{
+			Set("ControlRig.TestData.Record", new IMAGE_BRUSH("Slate/RecordingIndicator", Icon32x32));
+		}
+
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}
 

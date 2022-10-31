@@ -138,6 +138,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Control Rig")
 	float GetAbsoluteTime() const { return AbsoluteTime; }
 
+	/** Gets the current delta time */
+	UFUNCTION(BlueprintPure, Category = "Control Rig")
+	float GetDeltaTime() const { return DeltaTime; }
+
 	/** Set the current delta time */
 	UFUNCTION(BlueprintCallable, Category="Control Rig")
 	void SetDeltaTime(float InDeltaTime);

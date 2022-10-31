@@ -103,6 +103,8 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
+TAutoConsoleVariable<bool> CVarControlRigShowTestingToolbar(TEXT("ControlRig.Test.EnableTestingToolbar"), false, TEXT("When true we'll show the testing toolbar in Control Rig Editor."));
+
 const FName ControlRigEditorAppName(TEXT("ControlRigEditorApp"));
 
 const FName FControlRigEditorModes::ControlRigEditorMode("Rigging");
@@ -855,6 +857,213 @@ TSharedRef<SWidget> FControlRigEditor::GenerateExecutionModeMenuContent()
 	return MenuBuilder.MakeWidget();
 }
 
+FText FControlRigEditor::GetTestAssetName() const
+{
+	if(TestDataStrongPtr.IsValid())
+	{
+		return FText::FromString(TestDataStrongPtr->GetName());
+	}
+
+	static const FText NoTestAsset = LOCTEXT("NoTestAsset", "No Test Asset");
+	return NoTestAsset;
+}
+
+FText FControlRigEditor::GetTestAssetTooltip() const
+{
+	if(TestDataStrongPtr.IsValid())
+	{
+		return FText::FromString(TestDataStrongPtr->GetPathName());
+	}
+	static const FText NoTestAssetTooltip = LOCTEXT("NoTestAssetTooltip", "Click the record button to the left to record a new frame");
+	return NoTestAssetTooltip;
+}
+
+bool FControlRigEditor::SetTestAssetPath(const FString& InAssetPath)
+{
+	if(TestDataStrongPtr.IsValid())
+	{
+		if(TestDataStrongPtr->GetPathName().Equals(InAssetPath, ESearchCase::CaseSensitive))
+		{
+			return false;
+		}
+	}
+
+	if(TestDataStrongPtr.IsValid())
+	{
+		TestDataStrongPtr->ReleaseReplay();
+		TestDataStrongPtr.Reset();
+	}
+
+	if(!InAssetPath.IsEmpty())
+	{
+		if(UControlRigTestData* TestData = LoadObject<UControlRigTestData>(GetControlRigBlueprint(), *InAssetPath))
+		{
+			TestDataStrongPtr = TStrongObjectPtr<UControlRigTestData>(TestData);
+		}
+	}
+	return true;
+}
+
+TSharedRef<SWidget> FControlRigEditor::GenerateTestAssetModeMenuContent()
+{
+	FMenuBuilder MenuBuilder(true, GetToolkitCommands());
+
+	MenuBuilder.BeginSection(TEXT("Default"));
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ClearTestAssset", "Clear"),
+		LOCTEXT("ClearTestAsset_ToolTip", "Clears the test asset"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				SetTestAssetPath(FString());
+			}
+		)	
+	));
+	MenuBuilder.EndSection();
+
+	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	TArray<FAssetData> TestDataAssets;
+	FARFilter AssetFilter;
+	AssetFilter.ClassPaths.Add(UControlRigTestData::StaticClass()->GetClassPathName());
+	AssetRegistryModule.Get().GetAssets(AssetFilter, TestDataAssets);
+
+	const FString CurrentObjectPath = GetControlRigBlueprint()->GetPathName();
+	TestDataAssets.RemoveAll([CurrentObjectPath](const FAssetData& InAssetData)
+	{
+		const FString ControlRigObjectPath = InAssetData.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UControlRigTestData, ControlRigObjectPath));
+		return ControlRigObjectPath != CurrentObjectPath;
+	});
+
+	if(!TestDataAssets.IsEmpty())
+	{
+		MenuBuilder.BeginSection(TEXT("Assets"));
+		for(const FAssetData& TestDataAsset : TestDataAssets)
+		{
+			const FString TestDataObjectPath = TestDataAsset.GetObjectPathString();
+			FString Right;
+			if(TestDataObjectPath.Split(TEXT("."), nullptr, &Right))
+			{
+				MenuBuilder.AddMenuEntry(FText::FromString(Right), FText::FromString(TestDataObjectPath), FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateLambda([this, TestDataObjectPath]()
+						{
+							SetTestAssetPath(TestDataObjectPath);
+						}
+					)	
+				));
+			}
+		}
+		MenuBuilder.EndSection();
+	}
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> FControlRigEditor::GenerateTestAssetRecordMenuContent()
+{
+	FMenuBuilder MenuBuilder(true, GetToolkitCommands());
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("TestAssetRecordSingleFrame", "Single Frame"),
+		LOCTEXT("TestAssetRecordSingleFrame_ToolTip", "Records a single frame into the test data asset"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				RecordTestData(0);
+			}
+		)	
+	));
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("TestAssetRecordOneSecond", "1 Second"),
+		LOCTEXT("TestAssetRecordOneSecond_ToolTip", "Records 1 second of animation into the test data asset"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				RecordTestData(1);
+			}
+		)	
+	));
+
+	MenuBuilder.AddMenuEntry(
+	LOCTEXT("TestAssetRecordFiveSeconds", "5 Seconds"),
+	LOCTEXT("TestAssetRecordFiveSeconds_ToolTip", "Records 5 seconds of animation into the test data asset"),
+	FSlateIcon(),
+	FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				RecordTestData(5);
+			}
+		)	
+	));
+
+	MenuBuilder.AddMenuEntry(
+	LOCTEXT("TestAssetRecordTenSeconds", "10 Seconds"),
+	LOCTEXT("TestAssetRecordTenSeconds_ToolTip", "Records 10 seconds of animation into the test data asset"),
+	FSlateIcon(),
+	FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				RecordTestData(10);
+			}
+		)	
+	));
+
+	return MenuBuilder.MakeWidget();
+}
+
+bool FControlRigEditor::RecordTestData(double InRecordingDuration)
+{
+	if(ControlRig == nullptr)
+	{
+		return false;
+	}
+	
+	if(!TestDataStrongPtr.IsValid())
+	{
+		// create a new test asset
+		static const FString Folder = TEXT("/Game/Animation/ControlRig/NoCook/");
+		const FString DesiredPackagePath =  FString::Printf(TEXT("%s/%s_TestData"), *Folder, *GetControlRigBlueprint()->GetName());
+
+		if(UControlRigTestData* TestData = UControlRigTestData::CreateNewAsset(DesiredPackagePath, GetControlRigBlueprint()->GetPathName()))
+		{
+			SetTestAssetPath(TestData->GetPathName());
+		}
+	}
+	
+	if(UControlRigTestData* TestData = TestDataStrongPtr.Get())
+	{
+		TestData->Record(ControlRig, InRecordingDuration);
+	}
+	return true;
+}
+
+void FControlRigEditor::ToggleTestData()
+{
+	if(TestDataStrongPtr.IsValid())
+	{
+		switch(TestDataStrongPtr->GetPlaybackMode())
+		{
+			case EControlRigTestDataPlaybackMode::ReplayInputs:
+			{
+				TestDataStrongPtr->ReleaseReplay();
+				break;
+			}
+			case EControlRigTestDataPlaybackMode::GroundTruth:
+			{
+				TestDataStrongPtr->SetupReplay(ControlRig, false);
+				break;
+			}
+			default:
+			{
+				TestDataStrongPtr->SetupReplay(ControlRig, true);
+				break;
+			}
+		}
+	}
+}
+
 void FControlRigEditor::ExtendToolbar()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -960,6 +1169,131 @@ void FControlRigEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 
 		ToolbarBuilder.EndStyleOverride();
 
+		if(CVarControlRigShowTestingToolbar.GetValueOnAnyThread())
+		{
+			ToolbarBuilder.AddSeparator();
+
+			FUIAction TestAssetAction;
+			ToolbarBuilder.AddComboButton(
+				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([this]()
+				{
+					if(TestDataStrongPtr.IsValid())
+					{
+						return !TestDataStrongPtr->IsReplaying() && !TestDataStrongPtr->IsRecording();
+					}
+					return true;
+				})),
+				FOnGetContent::CreateSP(this, &FControlRigEditor::GenerateTestAssetModeMenuContent),
+				TAttribute<FText>::CreateSP(this, &FControlRigEditor::GetTestAssetName),
+				TAttribute<FText>::CreateSP(this, &FControlRigEditor::GetTestAssetTooltip),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "AutomationTools.TestAutomation"),
+				false);
+
+			ToolbarBuilder.AddToolBarButton(FUIAction(
+					FExecuteAction::CreateLambda([this]()
+					{
+						RecordTestData(0.0);
+					}),
+					FCanExecuteAction::CreateLambda([this]()
+					{
+						if(TestDataStrongPtr.IsValid())
+						{
+							return !TestDataStrongPtr->IsReplaying() && !TestDataStrongPtr->IsRecording();
+						}
+						return true;
+					})
+				),
+				NAME_None,
+				LOCTEXT("TestDataRecordButton", "Record"),
+				LOCTEXT("TestDataRecordButton_Tooltip", "Records a new frame into the test data asset.\nA test data asset will be created if necessary."),
+				FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(),"ControlRig.TestData.Record")
+				);
+			ToolbarBuilder.AddComboButton(
+				FUIAction(),
+				FOnGetContent::CreateSP(this, &FControlRigEditor::GenerateTestAssetRecordMenuContent),
+				LOCTEXT("TestDataRecordMenu_Label", "Recording Modes"),
+				LOCTEXT("TestDataRecordMenu_ToolTip", "Pick between different modes for recording"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Recompile"),
+				true);
+
+			ToolbarBuilder.AddToolBarButton(FUIAction(
+					FExecuteAction::CreateLambda([this]()
+					{
+						ToggleTestData();
+					}),
+					FCanExecuteAction::CreateLambda([this]
+					{
+						if(TestDataStrongPtr.IsValid())
+						{
+							return !TestDataStrongPtr->IsRecording();
+						}
+						return false;
+					})
+				),
+				NAME_None,
+				TAttribute<FText>::CreateLambda([this]()
+				{
+					static const FText LiveStatus = LOCTEXT("LiveStatus", "Live"); 
+					static const FText ReplayInputsStatus = LOCTEXT("ReplayInputsStatus", "Replay Inputs");
+					static const FText GroundTruthStatus = LOCTEXT("GroundTruthStatus", "Ground Truth");
+					if(TestDataStrongPtr.IsValid())
+					{
+						switch(TestDataStrongPtr->GetPlaybackMode())
+						{
+							case EControlRigTestDataPlaybackMode::ReplayInputs:
+							{
+								return ReplayInputsStatus;
+							}
+							case EControlRigTestDataPlaybackMode::GroundTruth:
+							{
+								return GroundTruthStatus;
+							}
+							default:
+							{
+								break;
+							}
+						}
+					}
+					return LiveStatus;
+				}),
+				TAttribute<FText>::CreateLambda([this]()
+				{
+					static const FText LiveStatusTooltip = LOCTEXT("LiveStatusTooltip", "The test data is not affecting the rig."); 
+					static const FText ReplayInputsStatusTooltip = LOCTEXT("ReplayInputsStatusTooltip", "The test data inputs are being replayed onto the rig.");
+					static const FText GroundTruthStatusTooltip = LOCTEXT("GroundTruthStatusTooltip", "The complete result of the rig is being overwritten.");
+					if(TestDataStrongPtr.IsValid())
+					{
+						switch(TestDataStrongPtr->GetPlaybackMode())
+						{
+							case EControlRigTestDataPlaybackMode::ReplayInputs:
+							{
+								return ReplayInputsStatusTooltip;
+							}
+							case EControlRigTestDataPlaybackMode::GroundTruth:
+							{
+								return GroundTruthStatusTooltip;
+							}
+							default:
+							{
+								break;
+							}
+						}
+					}
+					return LiveStatusTooltip;
+				}),
+				TAttribute<FSlateIcon>::CreateLambda([this]()
+				{
+					static const FSlateIcon LiveIcon = FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(),"ClassIcon.ControlRigBlueprint"); 
+					static const FSlateIcon ReplayIcon = FSlateIcon(FControlRigEditorStyle::Get().GetStyleSetName(),"ClassIcon.ControlRigSequence"); 
+					if(TestDataStrongPtr.IsValid() && TestDataStrongPtr->IsReplaying())
+					{
+						return ReplayIcon;
+					}
+					return LiveIcon;
+				}),
+				EUserInterfaceActionType::Button
+			);
+		}
 	}
 	ToolbarBuilder.EndSection();
 }
@@ -4032,6 +4366,11 @@ void FControlRigEditor::UpdateControlRig()
 		{
 			if (ControlRig)
 			{
+				if(TestDataStrongPtr.IsValid())
+				{
+					TestDataStrongPtr->ReleaseReplay();
+				}
+				
 				// if this control rig is from a temporary step,
 				// for example the reinstancing class, clear it 
 				// and create a new one!

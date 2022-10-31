@@ -21,6 +21,7 @@
 #include "Graph/ControlRigGraphNode.h"
 #include "RigVMModel/RigVMController.h"
 #include "Editor/DetailsViewWrapperObject.h"
+#include "ControlRigTestData.h"
 
 class UControlRigBlueprint;
 class IPersonaToolkit;
@@ -377,6 +378,14 @@ private:
 
 	void FrameSelection();
 
+	FText GetTestAssetName() const;
+	FText GetTestAssetTooltip() const;
+	bool SetTestAssetPath(const FString& InAssetPath);
+	TSharedRef<SWidget> GenerateTestAssetModeMenuContent();
+	TSharedRef<SWidget> GenerateTestAssetRecordMenuContent();
+	bool RecordTestData(double InRecordingDuration);
+	void ToggleTestData();
+
 protected:
 
 	/** Toolbox hosting widget */
@@ -492,6 +501,8 @@ protected:
 	bool bIsConstructionEventRunning;
 	uint32 LastHierarchyHash;
 
+	TStrongObjectPtr<UControlRigTestData> TestDataStrongPtr;
+	
 	static const TArray<FName> ForwardsSolveEventQueue;
 	static const TArray<FName> BackwardsSolveEventQueue;
 	static const TArray<FName> ConstructionEventQueue;
