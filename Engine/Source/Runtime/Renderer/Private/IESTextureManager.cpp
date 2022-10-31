@@ -190,7 +190,7 @@ class FIESAtlasAddTextureCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_TEXTURE_ARRAY(Texture2D, InTexture, [8])
 		SHADER_PARAMETER_ARRAY(FUintVector4, InSliceIndex, [8])
-		SHADER_PARAMETER_SAMPLER(SamplerState, InSampler)
+		SHADER_PARAMETER_SAMPLER_ARRAY(SamplerState, InSampler, [8])
 		SHADER_PARAMETER(FIntPoint, AtlasResolution)
 		SHADER_PARAMETER(uint32, AtlasSliceCount)
 		SHADER_PARAMETER(uint32, ValidCount)
@@ -231,11 +231,11 @@ static void AddSlotsPass(
 		Parameters->AtlasResolution = OutAtlas->Desc.Extent;
 		Parameters->AtlasSliceCount = OutAtlas->Desc.ArraySize;
 		Parameters->ValidCount = SlotCount;
-		Parameters->InSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		for (uint32 SlotIt = 0; SlotIt < SlotCountPerPass; ++SlotIt)
 		{
 			Parameters->InTexture[SlotIt] = GSystemTextures.BlackDummy->GetRHI();
 			Parameters->InSliceIndex[SlotIt].X = InvalidSlotIndex;
+			Parameters->InSampler[SlotIt] = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		}
 		for (uint32 SlotIt = 0; SlotIt<SlotCount;++SlotIt)
 		{
