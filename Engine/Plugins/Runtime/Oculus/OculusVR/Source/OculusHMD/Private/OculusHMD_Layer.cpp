@@ -10,8 +10,8 @@
 #include "Engine/GameEngine.h"
 #include "Engine/Texture2D.h"
 #include "HeadMountedDisplayTypes.h" // for LogHMD
+#include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "Materials/MaterialInterface.h"
 #include "OculusHMD.h"
 #include "OculusHMDModule.h"
 #include "OculusHMDPrivate.h"
