@@ -305,7 +305,7 @@ bool FObjectReferenceCache::CreateObjectReferenceInternal(const UObject* Object,
 	CachedObject.NetHandle = NetHandle;
 	CachedObject.RelativePath = PathToken;
 	CachedObject.OuterNetHandle = CreateObjectReferenceHandle(Object->GetOuter());
-	CachedObject.bIsPackage = bIsStatic && Object && !Object->GetOuter();
+	CachedObject.bIsPackage = bIsStatic && !Object->GetOuter();
 	CachedObject.bNoLoad = !CanClientLoadObjectInternal(Object, bIsDynamic); // We are probably going to deal with this as a dependency
 	CachedObject.bIgnoreWhenMissing = !CachedObject.bNoLoad;
 	CachedObject.bIsPending = false;

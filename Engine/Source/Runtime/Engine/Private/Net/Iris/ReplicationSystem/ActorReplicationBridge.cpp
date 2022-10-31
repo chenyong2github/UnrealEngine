@@ -21,6 +21,7 @@
 #include "Iris/Serialization/IrisObjectReferencePackageMap.h"
 #include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/Level.h"
 #include "Engine/NetConnection.h"
 #include "Engine/NetDriver.h"
 #include "Engine/World.h"
@@ -270,7 +271,7 @@ UE::Net::FNetHandle UActorReplicationBridge::BeginReplication(AActor* Actor, con
 
 	// Set owning connection filtering if actor is only relevant to owner
 	{
-		if (Actor->bOnlyRelevantToOwner & !Actor->bAlwaysRelevant)
+		if (Actor->bOnlyRelevantToOwner && !Actor->bAlwaysRelevant)
 		{
 			GetReplicationSystem()->SetFilter(ActorHandle, ToOwnerFilterHandle);
 		}
@@ -888,7 +889,7 @@ void UActorReplicationBridge::GetActorCreationHeader(const AActor* Actor, UE::Ne
 			Header.LevelReference = GetOrCreateObjectReference(ActorLevel);
 		}
 
-		if (USceneComponent* RootComponent = Actor ? Actor->GetRootComponent() : nullptr)
+		if (USceneComponent* RootComponent = Actor->GetRootComponent())
 		{
 			Header.SpawnInfo.Location = FRepMovement::RebaseOntoZeroOrigin(Actor->GetActorLocation(), Actor);
 			Header.SpawnInfo.Rotation = Actor->GetActorRotation();

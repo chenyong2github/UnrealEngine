@@ -361,7 +361,7 @@ FNetRPC* FNetRPC::Create(UReplicationSystem* ReplicationSystem, const FNetBlobCr
 	uint8* QuantizedBlobState = nullptr;
 
 	// Don't spend CPU cycles on quantizing zero parameters
-	if (BlobDescriptor->InternalSize)
+	if (BlobDescriptor != nullptr && BlobDescriptor->InternalSize)
 	{
 		uint8* StateBuffer = static_cast<uint8*>(GMalloc->Malloc(BlobDescriptor->InternalSize, BlobDescriptor->InternalAlignment));
 		FMemory::Memzero(StateBuffer, BlobDescriptor->InternalSize);

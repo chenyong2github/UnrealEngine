@@ -5,6 +5,7 @@
 #include "Net/Core/Misc/ResizableCircularQueue.h"
 #include "Net/DataBunch.h"
 #include "Net/Core/Trace/NetTrace.h"
+#include "PacketHandler.h"
 
 #if UE_WITH_IRIS
 #include "Iris/IrisConfig.h"

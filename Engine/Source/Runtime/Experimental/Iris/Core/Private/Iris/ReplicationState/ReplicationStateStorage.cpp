@@ -56,31 +56,42 @@ const uint8* FReplicationStateStorage::GetState(uint32 ObjectIndex, EReplication
 
 	if (const FPerObjectInfo* ObjectInfo = GetPerObjectInfoForObject(ObjectIndex))
 	{
-		if (StateType == EReplicationStateType::CurrentSendState)
+		switch (StateType)
 		{
-			return ObjectInfo->StateBuffers[(unsigned)EStateBufferType::SendState];
+			case EReplicationStateType::CurrentSendState:
+			{
+				return ObjectInfo->StateBuffers[(unsigned)EStateBufferType::SendState];
+			}
+			case EReplicationStateType::CurrentRecvState:
+			{
+				return ObjectInfo->StateBuffers[(unsigned)EStateBufferType::RecvState];
+			}
+			default:
+			{
+				checkf(false, TEXT("Unknown EReplicationStateType"));
+				return nullptr;
+			}
 		}
-
-		if (StateType == EReplicationStateType::CurrentRecvState)
-		{
-			return ObjectInfo->StateBuffers[(unsigned)EStateBufferType::RecvState];
-		}
-
-		return nullptr;
 	}
 
 	// Slow path but we don't want to keep PerObjectInfo around unless we have to.
-	if (StateType == EReplicationStateType::CurrentSendState)
+	switch (StateType)
 	{
-		return NetHandleManager->GetReplicatedObjectStateBufferNoCheck(ObjectIndex);
+		case EReplicationStateType::CurrentSendState:
+		{
+			return NetHandleManager->GetReplicatedObjectStateBufferNoCheck(ObjectIndex);
+		}
+		case EReplicationStateType::CurrentRecvState:
+		{
+			const Private::FNetHandleManager::FReplicatedObjectData& ReplicatedObjectData = NetHandleManager->GetReplicatedObjectData(ObjectIndex);
+			return ReplicatedObjectData.ReceiveStateBuffer;
+		}
+		default:
+		{
+			checkf(false, TEXT("Unknown EReplicationStateType"));
+			return nullptr;
+		}
 	}
-	else if (StateType == EReplicationStateType::CurrentSendState)
-	{
-		const Private::FNetHandleManager::FReplicatedObjectData& ReplicatedObjectData = NetHandleManager->GetReplicatedObjectData(ObjectIndex);
-		return ReplicatedObjectData.ReceiveStateBuffer;
-	}
-
-	return nullptr;
 }
 
 uint8* FReplicationStateStorage::AllocBaseline(uint32 ObjectIndex, EReplicationStateType Base)

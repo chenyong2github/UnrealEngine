@@ -195,7 +195,7 @@ public:
 				 * A pair of surrogates would be encoded as 6 bytes. So we construct the 4-byte codepoint and encode them as 3 bytes.
 				 * We let the decoder deal with invalid surrogate sequences, such as wrong order or a single surrogate.
 				 */
-				if (IsHighSurrogate(Char) & IsLowSurrogate(NextChar))
+				if (IsHighSurrogate(Char) && IsLowSurrogate(NextChar))
 				{
 					const uint32 Codepoint = GetCodepointFromSurrogates(Char, NextChar);
 					Dest[DestIt + 0] = EncodeType(0x80) | static_cast<EncodeType>(Codepoint >> 14U);

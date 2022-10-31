@@ -239,7 +239,7 @@ void FPackedVectorNetSerializerBase::Deserialize(uint32 ScaleBitCount, FNetSeria
 			TempValue.Z |= static_cast<uint64>(Reader->ReadBits(32U)) << 32U;
 
 			FVector3d Vector;
-			memcpy(&Vector, &TempValue.X, 3U*sizeof(double));
+			memcpy(&Vector, &TempValue.X, 3U*sizeof(double)); //-V512
 			if (Vector.ContainsNaN())
 			{
 				// While we could detect this at send time it's very likely that a NaN or infinite value
@@ -518,7 +518,7 @@ void FPackedVectorNetSerializerBase::DeserializeDelta(uint32 ScaleBitCount, FNet
 			}
 
 			FVector3d Vector;
-			memcpy(&Vector, &TempValue.X, 3U*sizeof(double));
+			memcpy(&Vector, &TempValue.X, 3U*sizeof(double)); //-V512
 			if (Vector.ContainsNaN())
 			{
 				// While we could detect this at send time it's very likely that a NaN or infinite value
@@ -680,12 +680,12 @@ void FPackedVectorNetSerializerBase::Dequantize(uint32 ScaleBitCount, FNetSerial
 		{
 			if constexpr (std::is_same<SourceType, FVector3d>::value)
 			{
-				memcpy(&Target.X, &Source.X, 3U*sizeof(double));
+				memcpy(&Target.X, &Source.X, 3U*sizeof(double)); //-V512
 			}
 			else
 			{
 				FVector3d Vector;
-				memcpy(&Vector.X, &Source.X, 3U*sizeof(double));
+				memcpy(&Vector.X, &Source.X, 3U*sizeof(double)); //-V512
 				Target = SourceType(Vector);
 			}
 		}

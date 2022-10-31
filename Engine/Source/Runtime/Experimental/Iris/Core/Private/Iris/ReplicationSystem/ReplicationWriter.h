@@ -95,7 +95,7 @@ public:
 		FlushFlags_None				= 0U,
 		FlushFlags_FlushState		= 1U << 0U,											// Make sure that all current state data is acknowledged before we stop replicating the object
 		FlushFlags_FlushReliable	= FlushFlags_FlushState << 1U,						// Make sure that all enqueued Reliable RPCs are delivered before we stop replicating the object
-		FlushFlags_All				= FlushFlags_FlushState | FlushFlags_FlushState,
+		FlushFlags_All				= FlushFlags_FlushState | FlushFlags_FlushReliable,
 		FlushFlags_Default			= FlushFlags_FlushReliable,
 	};
 

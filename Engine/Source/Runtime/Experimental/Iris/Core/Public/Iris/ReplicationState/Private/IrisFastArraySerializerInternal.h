@@ -171,7 +171,7 @@ void TIrisFastArrayEditor<FastArrayType>::Add(const FastArrayItemType& ItemEntry
 template <typename FastArrayType>
 typename TIrisFastArrayEditor<FastArrayType>::FastArrayItemType& TIrisFastArrayEditor<FastArrayType>::Edit(int32 ItemIdx)
 {
-	FastArrayItemType& Item = FastArray.GetItemArray()[ItemIdx];
+	FastArrayItemType& Item = FastArray.GetItemArray()[ItemIdx]; //-V758
 	MarkItemDirty(Item);
 	return Item;
 }

@@ -92,7 +92,7 @@ FDequantizeAndApplyHelper::FContext* FDequantizeAndApplyHelper::Initialize(FNetS
 		ChangeMaskReader.ReadBitStream(ChangeMaskStorage, ChangeMaskBitCount);
 
 		// Cache all ReplicationStates with dirty changes
-		const bool bShouldDequantizeState = ChangeMask.IsAnyBitSet() | (NetSerializationContext.IsInitState() & CurrentDescriptor->IsInitState());
+		const bool bShouldDequantizeState = ChangeMask.IsAnyBitSet() || (NetSerializationContext.IsInitState() && CurrentDescriptor->IsInitState());
 		if (bShouldDequantizeState)
 		{
 			FContext::FStateData& StateData = CachedStateData[CachedStateCount];
@@ -131,7 +131,7 @@ FDequantizeAndApplyHelper::FContext* FDequantizeAndApplyHelper::Initialize(FNetS
 					const FNetBitArrayView UnresolvedChangeMask = MakeNetBitArrayView(UnresolvedChangeMaskData, Protocol->ChangeMaskBitCount);
 					bHasUnresolvableReferences = UnresolvedChangeMask.IsAnyBitSet(CurrentChangeMaskBitOffset, CurrentDescriptor->ChangeMaskBitCount);
 				}
-				bMightHaveUnresolvableInitReferences = Parameters.bHasUnresolvedInitReferences & NetSerializationContext.IsInitState() & CurrentDescriptor->IsInitState();
+				bMightHaveUnresolvableInitReferences = Parameters.bHasUnresolvedInitReferences && NetSerializationContext.IsInitState() && CurrentDescriptor->IsInitState();
 			}
 
 			StateData.bHasUnresolvableReferences = bHasUnresolvableReferences;

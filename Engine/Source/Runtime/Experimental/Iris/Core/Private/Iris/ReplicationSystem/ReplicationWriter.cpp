@@ -651,7 +651,7 @@ void FReplicationWriter::UpdateScope(const FNetBitArrayView& UpdatedScope)
 				if (OwnerInfo.GetState() < EReplicatedObjectState::PendingDestroy)
 				{
 					OwnerInfo.HasDirtySubObjects |= Info.HasDirtyChangeMask;
-					ObjectsWithDirtyChanges.SetBitValue(ObjectData.SubObjectRootIndex, ObjectsWithDirtyChanges.GetBit(ObjectData.SubObjectRootIndex) | Info.HasDirtyChangeMask);
+					ObjectsWithDirtyChanges.SetBitValue(ObjectData.SubObjectRootIndex, ObjectsWithDirtyChanges.GetBit(ObjectData.SubObjectRootIndex) || Info.HasDirtyChangeMask);
 				}
 			}
 		}
@@ -822,7 +822,7 @@ uint32 FReplicationWriter::ScheduleObjects(FScheduleObjectInfo* OutScheduledObje
 		ScheduledObjectInfo.Index = Index;
 		ScheduledObjectInfo.SortKey = UpdatedPriority;
 
-		ScheduledObjectCount += (UpdatedPriority >= FReplicationWriter::SchedulingThresholdPriority) ? 1.f : 0.f;
+		ScheduledObjectCount += (UpdatedPriority >= FReplicationWriter::SchedulingThresholdPriority) ? 1 : 0;
 	};
 
 	// Invoke functor for all updated objects that not are sub objects.
@@ -1211,7 +1211,7 @@ void FReplicationWriter::HandleDroppedRecord<FReplicationWriter::EReplicatedObje
 			if (OwnerInfo.GetState() < EReplicatedObjectState::PendingDestroy)
 			{
 				OwnerInfo.HasDirtySubObjects |= Info.HasDirtyChangeMask;
-				ObjectsWithDirtyChanges.SetBitValue(ObjectData.SubObjectRootIndex, ObjectsWithDirtyChanges.GetBit(ObjectData.SubObjectRootIndex) | OwnerInfo.HasDirtySubObjects);
+				ObjectsWithDirtyChanges.SetBitValue(ObjectData.SubObjectRootIndex, ObjectsWithDirtyChanges.GetBit(ObjectData.SubObjectRootIndex) || OwnerInfo.HasDirtySubObjects);
 			}
 		}
 		else
@@ -1713,16 +1713,16 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 	uint8* ReplicatedObjectStateBuffer = NetHandleManager->GetReplicatedObjectStateBufferNoCheck(InternalIndex);
 
 	// Filter out changemasks that are not supposed to be replicated to this connection
-	const bool bNeedToFilterChangeMask = (bIsInitialState | Info.HasDirtyChangeMask) & Info.HasChangemaskFilter;
+	const bool bNeedToFilterChangeMask = (bIsInitialState || Info.HasDirtyChangeMask) && Info.HasChangemaskFilter;
 	if (bNeedToFilterChangeMask)
 	{
 		ApplyFilterToChangeMask(OutBatchInfo.ParentInternalIndex, InternalIndex, Info, ObjectData.Protocol, ReplicatedObjectStateBuffer);
 	}
 
 	const bool bIsObjectIndexForAttachment = IsObjectIndexForOOBAttachment(InternalIndex);
-	const bool bHasState = (bIsInitialState | Info.HasDirtyChangeMask) & !!(WriteObjectFlags & EWriteObjectFlag::WriteObjectFlag_State);
-	const bool bHasAttachments = (Info.HasAttachments | bIsObjectIndexForAttachment);
-	const bool bWriteAttachments = bHasAttachments & !!(WriteObjectFlags & EWriteObjectFlag::WriteObjectFlag_Attachments);
+	const bool bHasState = (bIsInitialState || Info.HasDirtyChangeMask) && !!(WriteObjectFlags & EWriteObjectFlag::WriteObjectFlag_State);
+	const bool bHasAttachments = (Info.HasAttachments || bIsObjectIndexForAttachment);
+	const bool bWriteAttachments = bHasAttachments && !!(WriteObjectFlags & EWriteObjectFlag::WriteObjectFlag_Attachments);
 	BatchEntry.bHasUnsentAttachments = bHasAttachments;
 
 	// Check if we must defer tearoff until after flush
@@ -2033,7 +2033,7 @@ FReplicationWriter::EWriteObjectStatus FReplicationWriter::WriteObjectInBatch(FN
 			if (OutBatchInfo.ObjectInfos.Num() > BatchObjectInfoCount)
 			{
 				const FBatchObjectInfo& SubObjectEntry = OutBatchInfo.ObjectInfos.Last();
-				bHasDirtySubObjects = SubObjectEntry.bHasDirtySubObjects | SubObjectEntry.bHasUnsentAttachments;
+				bHasDirtySubObjects = SubObjectEntry.bHasDirtySubObjects || SubObjectEntry.bHasUnsentAttachments;
 			}
 		}
 
@@ -2555,7 +2555,7 @@ int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FR
 			Info.PendingBaselineIndex = BatchObjectInfo.NewBaselineIndex;
 		}
 		
-		const bool bObjectIsStillDirty = BatchObjectInfo.bHasUnsentAttachments | BatchObjectInfo.bHasDirtySubObjects;
+		const bool bObjectIsStillDirty = BatchObjectInfo.bHasUnsentAttachments || BatchObjectInfo.bHasDirtySubObjects;
 		ObjectsWithDirtyChanges.SetBitValue(BatchObjectInfo.InternalIndex, bObjectIsStillDirty);
 
 		// Reset scheduling priority if everything was replicated
@@ -2571,7 +2571,7 @@ int FReplicationWriter::HandleObjectBatchSuccess(const FBatchInfo& BatchInfo, FR
 		}
 
 #if UE_NET_IRIS_CSV_STATS && CSV_PROFILER
-		if (BatchObjectInfo.bSentState & (Info.LastAckedBaselineIndex != FDeltaCompressionBaselineManager::InvalidBaselineIndex))
+		if (BatchObjectInfo.bSentState && (Info.LastAckedBaselineIndex != FDeltaCompressionBaselineManager::InvalidBaselineIndex))
 		{
 			++WriteContext.DeltaCompressedObjectCount;
 		}

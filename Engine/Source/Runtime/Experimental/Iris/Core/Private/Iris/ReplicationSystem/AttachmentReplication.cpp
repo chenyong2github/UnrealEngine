@@ -1008,26 +1008,6 @@ FNetObjectAttachmentReceiveQueue* FNetObjectAttachmentsReader::GetOrCreateQueue(
 
 		return Queue;
 	}
-
-
-	FNetObjectAttachmentReceiveQueue* Queue = ObjectToQueue.Find(ObjectIndex);
-	if (Queue != nullptr)
-	{
-		return Queue;
-	}
-
-	if (ObjectToQueue.Num() >= AttachmentReplicationCVars::MaxSimultaneousObjectsWithRPCs)
-	{
-		return nullptr;
-	}
-
-	Queue = &ObjectToQueue.Add(ObjectIndex);
-	if (ObjectIndex == 0)
-	{
-		Queue->SetUnreliableQueueCapacity(AttachmentReplicationCVars::ClientToServerUnreliableRPCQueueSize);
-	}
-
-	return Queue;
 }
 
 }

@@ -442,7 +442,7 @@ bool FReplicationConditionals::ApplyConditionalsToChangeMask(uint32 ReplicatingC
 						const FReplicationStateMemberChangeMaskDescriptor& ChangeMaskDescriptor = ChangeMaskDescriptors[MemberIt];
 						for (uint32 BitIt = ChangeMaskBitOffset + ChangeMaskDescriptor.BitOffset, BitEndIt = BitIt + ChangeMaskDescriptor.BitCount; BitIt != BitEndIt; ++BitIt)
 						{
-							bMaskWasModified = bMaskWasModified | !ChangeMask.GetBit(BitIt);
+							bMaskWasModified |= !ChangeMask.GetBit(BitIt);
 							ChangeMask.SetBit(BitIt);
 						}
 					}
@@ -452,7 +452,7 @@ bool FReplicationConditionals::ApplyConditionalsToChangeMask(uint32 ReplicatingC
 					const FReplicationStateMemberChangeMaskDescriptor& ChangeMaskDescriptor = ChangeMaskDescriptors[MemberIt];
 					for (uint32 BitIt = ChangeMaskBitOffset + ChangeMaskDescriptor.BitOffset, BitEndIt = BitIt + ChangeMaskDescriptor.BitCount; BitIt != BitEndIt; ++BitIt)
 					{
-						bMaskWasModified = bMaskWasModified | ChangeMask.GetBit(BitIt);
+						bMaskWasModified |= ChangeMask.GetBit(BitIt);
 						ChangeMask.ClearBit(BitIt);
 					}
 				}
@@ -481,7 +481,7 @@ bool FReplicationConditionals::ApplyConditionalsToChangeMask(uint32 ReplicatingC
 								const FReplicationStateMemberChangeMaskDescriptor& ChangeMaskDescriptor = ChangeMaskDescriptors[MemberIt];
 								for (uint32 BitIt = CurrentChangeMaskBitOffset + ChangeMaskDescriptor.BitOffset, BitEndIt = BitIt + ChangeMaskDescriptor.BitCount; BitIt != BitEndIt; ++BitIt)
 								{
-									bMaskWasModified = bMaskWasModified | !ChangeMask.GetBit(BitIt);
+									bMaskWasModified |= !ChangeMask.GetBit(BitIt);
 									ChangeMask.SetBit(BitIt);
 								}
 							}
@@ -491,7 +491,7 @@ bool FReplicationConditionals::ApplyConditionalsToChangeMask(uint32 ReplicatingC
 							const FReplicationStateMemberChangeMaskDescriptor& ChangeMaskDescriptor = ChangeMaskDescriptors[MemberIt];
 							for (uint32 BitIt = CurrentChangeMaskBitOffset + ChangeMaskDescriptor.BitOffset, BitEndIt = BitIt + ChangeMaskDescriptor.BitCount; BitIt != BitEndIt; ++BitIt)
 							{
-								bMaskWasModified = bMaskWasModified | ChangeMask.GetBit(BitIt);
+								bMaskWasModified |= ChangeMask.GetBit(BitIt);
 								ChangeMask.ClearBit(BitIt);
 							}
 						}
