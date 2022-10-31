@@ -281,5 +281,5 @@ namespace UE::NNIHlslShaders::Internal
 		return Result;
 	}
 
-	IMPLEMENT_GLOBAL_SHADER(FConvTransposeCS, "/NNX/ConvTransposeOp.usf", "main", SF_Compute);
+	IMPLEMENT_GLOBAL_SHADER(FConvTransposeCS, "/NNI/NNIHlslShadersConvTranspose.usf", "ConvTranspose", SF_Compute);
 } // UE::NNIHlslShaders::Internal

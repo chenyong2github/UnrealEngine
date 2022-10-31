@@ -24,7 +24,7 @@ public class NNXRuntimeRDG : ModuleRules
         {
             "NNXCore",
 			"NNXUtils",
-			"NNXHlslShaders",
+			"NNIHlslShaders",
             "RHI"
         });
 

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "/Engine/Public/Platform.ush"
-#include "BroadcastHelper.ush"
+#include "NNIHlslShadersBroadcastHelper.ush"
 
 #define BUFFER_TYPE float
 
@@ -17,7 +17,7 @@ uint ThreadCountX;
 float Scale;
 
 [numthreads(THREADGROUP_SIZE_X, 1, 1)]
-void ElementWiseVariadicOp(in const uint3 DispatchThreadID : SV_DispatchThreadID)
+void ElementWiseVariadic(in const uint3 DispatchThreadID : SV_DispatchThreadID)
 {
 	const uint Index = DispatchThreadID.y * ThreadCountX + DispatchThreadID.x;
 	
@@ -41,7 +41,7 @@ void ElementWiseVariadicOp(in const uint3 DispatchThreadID : SV_DispatchThreadID
 
 		BUFFER_TYPE Result = Input0[Input0Index];
 
-		 // Must correspond to EVariadicNumInput defined in NNXElementWiseVariadicCS.h
+		 // Must correspond to EVariadicNumInput defined in NNIElementWiseVariadicCS.h
 		#if NUMINPUT >= 2
 			Result  = ELEMENTWISE_OP(Result, Input1[Input1Index]);
 		#endif

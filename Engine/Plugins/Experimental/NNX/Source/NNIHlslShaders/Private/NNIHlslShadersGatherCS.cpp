@@ -75,7 +75,7 @@ namespace UE::NNIHlslShaders::Internal
 
 	//typedef TGatherCS<float, int32> FGatherFloatInt32CS;
 	//IMPLEMENT_SHADER_TYPE(template<>, TGatherCS, TEXT("/NNX/GatherOp.usf"), TEXT("main"), SF_Compute);
-	IMPLEMENT_GLOBAL_SHADER(TGatherCS, "/NNX/GatherOp.usf", "main", SF_Compute);
+	IMPLEMENT_GLOBAL_SHADER(TGatherCS, "/NNI/NNIHlslShadersGather.usf", "Gather", SF_Compute);
 	//template class TGatherCS<float, int32>;
 
 } // UE::NNIHlslShaders::Internal

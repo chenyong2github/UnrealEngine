@@ -288,5 +288,5 @@ namespace UE::NNIHlslShaders::Internal
 		return EConvGroupSize::MAX;
 	}
 
-	IMPLEMENT_GLOBAL_SHADER(FConvCS, "/NNX/ConvOp.usf", "main", SF_Compute);
+	IMPLEMENT_GLOBAL_SHADER(FConvCS, "/NNI/NNIHlslShadersConv.usf", "Conv", SF_Compute);
 } // UE::NNIHlslShaders::Internal

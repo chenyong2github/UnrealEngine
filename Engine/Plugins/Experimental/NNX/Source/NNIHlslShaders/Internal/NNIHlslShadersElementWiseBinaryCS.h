@@ -17,7 +17,7 @@ namespace UE::NNIHlslShaders::Internal
 		static const int32 NUM_GROUP_THREADS{ 256 };
 	};
 
-	class NNXHLSLSHADERS_API TElementWiseBinaryCS : public FGlobalShader
+	class NNIHLSLSHADERS_API TElementWiseBinaryCS : public FGlobalShader
 	{
 		DECLARE_GLOBAL_SHADER(TElementWiseBinaryCS);
 		SHADER_USE_PARAMETER_STRUCT(TElementWiseBinaryCS, FGlobalShader)

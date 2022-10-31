@@ -7,7 +7,7 @@ RWBuffer<float> Output;
 uint Num;
 
 [numthreads(THREADGROUP_SIZE_X, 1, 1)]
-void IdentityOp(in const uint3 DispatchThreadID : SV_DispatchThreadID)
+void Identity(in const uint3 DispatchThreadID : SV_DispatchThreadID)
 {
 	const uint Index = DispatchThreadID.x;
 	

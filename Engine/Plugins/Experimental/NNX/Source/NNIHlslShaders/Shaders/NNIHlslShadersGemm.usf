@@ -35,7 +35,7 @@ uint4 StackShapeA_StackShapeB_StackStrideA_StackStrideB[MAX_NUM_STACK_DIMENSIONS
 
 uint3 GetMatrixStackOffsets(const uint3 GroupID)
 {
-// Must correspond to FGemmNumDimensions defined in NNXGemmCS.h
+// Must correspond to FGemmNumDimensions defined in NNIHlslShadersGemmCS.h
 #if NUM_STACK_DIMENSIONS == 0
 	return uint3(0, 0, 0);
 #else
@@ -77,7 +77,7 @@ uint3 GetMatrixStackOffsets(const uint3 GroupID)
 
 WORK_TYPE GetBetaTimesC(const uint3 DispatchThreadID)
 {
-// Must correspond to EGemmCScalar defined in NNXGemmCS.h
+// Must correspond to EGemmCScalar defined in NNIHlslShadersGemmCS.h
 #if C_SCALAR == 0
 	return Beta * READ(C[(DispatchThreadID.y % CHeight) * N + (DispatchThreadID.x % CWidth)]);
 #elif C_SCALAR == 1
@@ -87,7 +87,7 @@ WORK_TYPE GetBetaTimesC(const uint3 DispatchThreadID)
 #endif
 }
 
-// Must correspond to EGemmAlgorithm defined in NNXGemmCS.h
+// Must correspond to EGemmAlgorithm defined in NNIHlslShadersGemmCS.h
 #if ALGORITHM < 4
 
 #if ALGORITHM == 0
@@ -99,7 +99,7 @@ WORK_TYPE GetBetaTimesC(const uint3 DispatchThreadID)
 #elif ALGORITHM == 3
 [numthreads(256, 1, 1)]
 #endif
-void main(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 GroupID : SV_GroupID)
+void Gemm(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 GroupID : SV_GroupID)
 {
 	if (DispatchThreadID.y >= M || DispatchThreadID.x >= N)
 	{
@@ -161,7 +161,7 @@ groupshared WORK_TYPE SharedMemoryA[GROUP_SIZE * GROUP_SIZE];
 groupshared WORK_TYPE SharedMemoryB[GROUP_SIZE * GROUP_SIZE];
 
 [numthreads(GROUP_SIZE, GROUP_SIZE, 1)]
-void main(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 GroupThreadID : SV_GroupThreadID, in const uint3 GroupID : SV_GroupID)
+void Gemm(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 GroupThreadID : SV_GroupThreadID, in const uint3 GroupID : SV_GroupID)
 {
 	// Calculate the number of steps each group needs to make to cover the full length of the matrix
 	uint NumGroupSteps = (uint)ceil((float)K / (float)GROUP_SIZE);
@@ -297,7 +297,7 @@ groupshared WORK_TYPE SharedMemoryA[GROUP_SIZE_X * GROUP_SIZE_X];
 groupshared WORK_TYPE SharedMemoryB[GROUP_SIZE_X * GROUP_SIZE_X];
 
 [numthreads(GROUP_SIZE_X, GROUP_SIZE_Y, 1)]
-void main(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 GroupThreadID : SV_GroupThreadID, in const uint3 GroupID : SV_GroupID)
+void Gemm(in const uint3 DispatchThreadID : SV_DispatchThreadID, in const uint3 GroupThreadID : SV_GroupThreadID, in const uint3 GroupID : SV_GroupID)
 {
 	// Initialize the result
 	WORK_TYPE Results[LOAD_PER_THREAD];

@@ -18,7 +18,7 @@ namespace UE::NNIHlslShaders::Internal
 		static const uint32 MAX_NUM_INPUT{ 4 };
 	};
 
-	class NNXHLSLSHADERS_API TElementWiseVariadicCS : public FGlobalShader
+	class NNIHLSLSHADERS_API TElementWiseVariadicCS : public FGlobalShader
 	{
 		DECLARE_GLOBAL_SHADER(TElementWiseVariadicCS);
 		SHADER_USE_PARAMETER_STRUCT(TElementWiseVariadicCS, FGlobalShader)

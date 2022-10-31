@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "/Engine/Public/Platform.ush"
-#include "BroadcastHelper.ush"
+#include "NNIHlslShadersBroadcastHelper.ush"
 
 Buffer<float> LHSInput;
 Buffer<float> RHSInput;
@@ -36,7 +36,7 @@ float safe_pow(float base, float xp)
 }
 
 [numthreads(THREADGROUP_SIZE_X, 1, 1)]
-void ElementWiseBinaryOp(in const uint3 DispatchThreadID : SV_DispatchThreadID)
+void ElementWiseBinary(in const uint3 DispatchThreadID : SV_DispatchThreadID)
 {
 	const uint Index = DispatchThreadID.y * ThreadCountX + DispatchThreadID.x;
 	

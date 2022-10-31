@@ -18,7 +18,7 @@ namespace UE::NNIHlslShaders::Internal
 	};
 
 	// template <typename DataElementType, typename IndicesElementType>
-	class NNXHLSLSHADERS_API TGatherCS : public FGlobalShader
+	class NNIHLSLSHADERS_API TGatherCS : public FGlobalShader
 	{
 		DECLARE_GLOBAL_SHADER(TGatherCS);
 		SHADER_USE_PARAMETER_STRUCT(TGatherCS, FGlobalShader)

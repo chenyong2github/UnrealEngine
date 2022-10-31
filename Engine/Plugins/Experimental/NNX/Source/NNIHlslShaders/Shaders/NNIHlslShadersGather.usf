@@ -30,7 +30,7 @@ Buffer<INDICES_BUFFER_TYPE> Indices;
 RWBuffer<DATA_BUFFER_TYPE> Output;
 
 [numthreads(NUM_GROUP_THREADS, 1, 1)]
-void main(in const uint3 DispatchThreadID : SV_DispatchThreadID)
+void Gather(in const uint3 DispatchThreadID : SV_DispatchThreadID)
 {
 	if (DispatchThreadID.x >= OutputSize)
 	{

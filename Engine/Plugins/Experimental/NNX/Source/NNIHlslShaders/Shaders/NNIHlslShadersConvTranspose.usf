@@ -32,7 +32,7 @@
 
 #endif
 
-// Must correspond to EConvGroupSize defined in ConvCS.h
+// Must correspond to EConvGroupSize defined in NNIHlslShadersConvCS.h
 #if GROUP_SIZE == 0
 #define NUM_GROUP_THREADS 128
 #elif GROUP_SIZE == 1
@@ -96,11 +96,11 @@ float OneDivGroup;
 groupshared WORK_TYPE SharedMemoryX[NUM_GROUP_THREADS<<NUM_READS_PER_THREAD_POW2];
 groupshared WORK_TYPE SharedMemoryW[NUM_GROUP_THREADS];
 
-// Must correspond to EConvAlgorithm defined in ConvCS.h
+// Must correspond to EConvAlgorithm defined in NNIHlslShadersConvCS.h
 #if ALGORITHM < 1
 
 [numthreads(NUM_GROUP_THREADS, 1, 1)]
-void main(in const int3 DispatchThreadID : SV_DispatchThreadID, in const int3 GroupID : SV_GroupID, in const int3 GroupThreadID : SV_GroupThreadID)
+void ConvTranspose(in const int3 DispatchThreadID : SV_DispatchThreadID, in const int3 GroupID : SV_GroupID, in const int3 GroupThreadID : SV_GroupThreadID)
 {
 	// Group Z dimension and Y dimension are used for batch and output kernel
     // This works as each group only works on the inner dimensions (num threads in y and z set to one, group count to N and M respectively)

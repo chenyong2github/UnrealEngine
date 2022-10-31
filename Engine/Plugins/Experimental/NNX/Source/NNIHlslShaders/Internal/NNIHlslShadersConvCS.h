@@ -39,7 +39,7 @@ namespace UE::NNIHlslShaders::Internal
 		static const int32 MAX_NUM_READS_PER_THREAD_POW2{3};
 	};
 
-	class NNXHLSLSHADERS_API FConvCS : public FGlobalShader
+	class NNIHLSLSHADERS_API FConvCS : public FGlobalShader
 	{
 		DECLARE_GLOBAL_SHADER(FConvCS);
 		SHADER_USE_PARAMETER_STRUCT(FConvCS, FGlobalShader)

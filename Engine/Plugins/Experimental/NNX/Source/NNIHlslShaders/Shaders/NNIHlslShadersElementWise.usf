@@ -108,7 +108,7 @@ float leakyRelu(float x)
 
 
 [numthreads(THREADGROUP_SIZE_X, 1, 1)]
-void ElementWiseOp(in const uint3 DispatchThreadID : SV_DispatchThreadID)
+void ElementWise(in const uint3 DispatchThreadID : SV_DispatchThreadID)
 {
 	const uint Index = DispatchThreadID.y * ThreadCountX + DispatchThreadID.x;
 	if (Index < Num)

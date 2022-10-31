@@ -44,7 +44,7 @@ namespace UE::NNIHlslShaders::Internal
 		static const int32 MAX_NUM_STACK_DIMENSIONS{8};
 	};
 
-	class NNXHLSLSHADERS_API TGemmCS : public FGlobalShader
+	class NNIHLSLSHADERS_API TGemmCS : public FGlobalShader
 	{
 		DECLARE_GLOBAL_SHADER(TGemmCS);
 		SHADER_USE_PARAMETER_STRUCT(TGemmCS, FGlobalShader)
