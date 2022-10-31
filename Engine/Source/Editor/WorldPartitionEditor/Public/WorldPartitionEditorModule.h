@@ -79,10 +79,8 @@ public:
 	 * Creates a Content Bundle Browser widget
 	 */
 	TSharedRef<class SWidget> CreateContentBundleBrowser();
-private:
-	/** Called when the level editors map changes. We will determine if the new map is a valid world partition world and close world partition tabs if not */
-	void OnMapChanged(uint32 MapFlags);
 
+private:
 	/** Register menus */
 	void RegisterMenus();
 

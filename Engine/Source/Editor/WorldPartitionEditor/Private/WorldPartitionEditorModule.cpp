@@ -164,8 +164,6 @@ void FWorldPartitionEditorModule::ShutdownModule()
 
 		}
 
-		FEditorDelegates::MapChange.RemoveAll(this);
-
 		UToolMenus::UnRegisterStartupCallback(this);
 		UToolMenus::UnregisterOwner(this);
 	}
@@ -209,8 +207,6 @@ void FWorldPartitionEditorModule::RegisterMenus()
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "DeveloperTools.MenuIcon"),
 		FUIAction(FExecuteAction::CreateRaw(this, &FWorldPartitionEditorModule::OnConvertMap))
 	));
-
-	FEditorDelegates::MapChange.AddRaw(this, &FWorldPartitionEditorModule::OnMapChanged);
 }
 
 TSharedRef<SWidget> FWorldPartitionEditorModule::CreateWorldPartitionEditor()
@@ -613,31 +609,6 @@ bool FWorldPartitionEditorModule::BuildLandscapeSplineMeshes(UWorld* InWorld)
 		return false;
 	}
 	return true;
-}
-
-void FWorldPartitionEditorModule::OnMapChanged(uint32 MapFlags)
-{
-	if (MapFlags == MapChangeEventFlags::NewMap)
-	{
-		FLevelEditorModule* LevelEditorModule = FModuleManager::Get().GetModulePtr<FLevelEditorModule>("LevelEditor");
-	
-		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule ? LevelEditorModule->GetLevelEditorTabManager() : nullptr;
-
-		// If the world opened is a world partition world spawn the world partition tab if not open.
-		UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
-		if (EditorWorld && EditorWorld->IsPartitionedWorld())
-		{
-			if(LevelEditorTabManager && !WorldPartitionTab.IsValid())
-			{
-				WorldPartitionTab = LevelEditorTabManager->TryInvokeTab(WorldPartitionEditorTabId);
-			}
-		}
-		else if(TSharedPtr<SDockTab> WorldPartitionTabPin = WorldPartitionTab.Pin())
-		{
-			// close the WP tab if not a world partition world
-			WorldPartitionTabPin->RequestCloseTab();
-		}
-	}
 }
 
 TSharedRef<SDockTab> FWorldPartitionEditorModule::SpawnWorldPartitionTab(const FSpawnTabArgs& Args)
