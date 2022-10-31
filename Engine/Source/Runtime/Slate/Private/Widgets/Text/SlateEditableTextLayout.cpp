@@ -898,31 +898,34 @@ bool FSlateEditableTextLayout::HandleFocusLost(const FFocusEvent& InFocusEvent)
 		ClearSelection();
 	}
 
-	// When focus is lost let anyone who is interested that text was committed
-	// See if user explicitly tabbed away or moved focus
-	ETextCommit::Type TextAction;
-	switch (InFocusEvent.GetCause())
+	if (!OwnerWidget->IsTextReadOnly())
 	{
-	case EFocusCause::Navigation:
-	case EFocusCause::Mouse:
-		TextAction = ETextCommit::OnUserMovedFocus;
-		break;
+		// When focus is lost let anyone who is interested that text was committed
+		// See if user explicitly tabbed away or moved focus
+		ETextCommit::Type TextAction;
+		switch (InFocusEvent.GetCause())
+		{
+		case EFocusCause::Navigation:
+		case EFocusCause::Mouse:
+			TextAction = ETextCommit::OnUserMovedFocus;
+			break;
 
-	case EFocusCause::Cleared:
-		TextAction = ETextCommit::OnCleared;
-		break;
+		case EFocusCause::Cleared:
+			TextAction = ETextCommit::OnCleared;
+			break;
 
-	default:
-		TextAction = ETextCommit::Default;
-		break;
+		default:
+			TextAction = ETextCommit::Default;
+			break;
+		}
+
+		// Always clear the local undo chain on commit
+		ClearUndoStates();
+
+		const FText EditedText = GetEditableText();
+
+		OwnerWidget->OnTextCommitted(EditedText, TextAction);
 	}
-
-	// Always clear the local undo chain on commit
-	ClearUndoStates();
-
-	const FText EditedText = GetEditableText();
-
-	OwnerWidget->OnTextCommitted(EditedText, TextAction);
 
 	// Reload underlying value now it is committed  (commit may alter the value) 
 	// so it can be re-displayed in the edit box
