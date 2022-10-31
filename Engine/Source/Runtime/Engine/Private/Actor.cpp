@@ -888,7 +888,7 @@ void AActor::Serialize(FArchive& Ar)
 			FGuid FixupContentBundleGuid = ContentBundlePaths::GetContentBundleGuidFromExternalActorPackagePath(GetPackage()->GetFName().ToString());
 			if (ContentBundleGuid != FixupContentBundleGuid)
 			{
-				UE_LOG(LogActor, Warning, TEXT("Actor ContentBundleGuid was fixed up: %s"), *GetName());
+				UE_LOG(LogActor, Log, TEXT("Actor ContentBundleGuid was fixed up: %s"), *GetName());
 				ContentBundleGuid = FixupContentBundleGuid;
 			}
 		}
