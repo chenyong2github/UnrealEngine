@@ -29,7 +29,6 @@ uint  MaterialBinCount;
 uint  RowTileCount;
 uint2 FetchClamp;
 
-groupshared uint  TileMaterialCount;
 groupshared uint  TileMaterialBins[NANITE_MAX_MATERIAL_BINS]; // 16384 material slot max (1 bit per material slot)
 
 static const uint IndirectArgStride = DRAW_INDEXED_INDIRECT_UINT_COUNT + DISPATCH_INDIRECT_UINT_COUNT;
@@ -43,11 +42,6 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 
 	const uint2 GroupPixelStart = ThreadIndex.xy + GroupID.xy * 64u + ViewRect.xy;
 
-	if (all(ThreadIndex.xy == 0u))
-	{
-		TileMaterialCount = 0;
-	}
-
 	if (TileBin1Offset < MaterialBinCount)
 	{
 		TileMaterialBins[TileBin1Offset] = 0;
@@ -59,6 +53,53 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 
 	GroupMemoryBarrierWithGroupSync();
 
+#if MATERIAL_RESOLVE
+	for (uint BlockY = 0; BlockY < 64u; BlockY += 16)
+	{
+		// Overlap all 4 loads for BlockX
+		uint MaterialResolveData[4];
+		UNROLL
+		for(uint i = 0; i < 4; i++)
+		{
+			const uint2 FetchPos = min(GroupPixelStart + uint2(i * 16, BlockY), FetchClamp);
+			MaterialResolveData[i] = MaterialResolve[FetchPos]; 
+		}
+
+		uint PrevMaterialSlot = ~0u;
+		for(uint i = 0; i < 4; i++)
+		{
+			bool IsNanitePixel = false;
+			bool IsDecalReceiver = false;
+			uint MaterialSlot = 0;
+			UnpackMaterialResolve(MaterialResolveData[i], IsNanitePixel, IsDecalReceiver, MaterialSlot);
+			
+			if (IsNanitePixel && MaterialSlot != PrevMaterialSlot)	// Skip if it is a material slot we have already processed
+			{
+				bool bWrite = false;
+
+				// Scalarize to get rid of duplicate updates that would otherwise result in atomic contention
+				do
+				{
+					if(WaveIsFirstLane())
+					{
+						// Only the first lane with a given material slot gets to write
+						bWrite = true;
+					}
+				} while(MaterialSlot != ToScalarMemory(MaterialSlot));
+
+				if (bWrite)
+				{
+					const uint TileBinIndex = MaterialSlot >> 5u;
+					const uint TileBinOffset = MaterialSlot & 31u;
+					const uint TileBinUsage = 1u << TileBinOffset;
+					InterlockedOr(TileMaterialBins[TileBinIndex], TileBinUsage);
+				}
+
+				PrevMaterialSlot = MaterialSlot;
+			}
+		}
+	}
+#else
 	for (uint BlockY = 0; BlockY < 64u; BlockY += 16)
 	{
 		for (uint BlockX = 0; BlockX < 64u; BlockX += 16)
@@ -66,20 +107,6 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 			uint2 FetchPos = GroupPixelStart + uint2(BlockX, BlockY);
 			FetchPos = min(FetchPos, FetchClamp);
 
-	#if MATERIAL_RESOLVE
-			bool IsNanitePixel = false;
-			bool IsDecalReceiver = false;
-			uint MaterialSlot = 0;
-			UnpackMaterialResolve(MaterialResolve[FetchPos], IsNanitePixel, IsDecalReceiver, MaterialSlot);
-
-			if (IsNanitePixel)
-			{
-				const uint TileBinIndex = MaterialSlot >> 5u;
-				const uint TileBinOffset = MaterialSlot & 31u;
-				const uint TileBinUsage = 1u << TileBinOffset;
-				InterlockedOr(TileMaterialBins[TileBinIndex], TileBinUsage);
-			}
-	#else
 			UlongType VisPixel = VisBuffer64[FetchPos];
 
 			uint DepthInt = 0;
@@ -88,10 +115,8 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 			UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
 
 			const bool ValidClusterIndex = (VisibleClusterIndex != 0xFFFFFFFF);
-		#if COMPILER_SUPPORTS_WAVE_VOTE
 			const bool TileHasNanite = WaveActiveAnyTrue(ValidClusterIndex);
 			if (TileHasNanite)
-		#endif
 			{
 				if (ValidClusterIndex)
 				{
@@ -100,8 +125,7 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 					FCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 					const uint MaterialSlot = GetMaterialShadingSlot(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialSlotTable);
 
-				// Scalarize tile classify if all lanes ballot the same material slot index
-				#if COMPILER_SUPPORTS_WAVE_VOTE
+					// Scalarize tile classify if all lanes ballot the same material slot index	
 					const uint FirstMaterialSlot = ToScalarMemory(WaveReadLaneFirst(MaterialSlot));
 					if (WaveActiveAllTrue(FirstMaterialSlot == MaterialSlot))
 					{
@@ -115,22 +139,19 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 					}
 					else
 					{
-				#endif
 						const uint TileBinIndex  = MaterialSlot >> 5u;
 						const uint TileBinOffset = MaterialSlot & 31u;
 						const uint TileBinUsage  = 1u << TileBinOffset;
 						InterlockedOr(TileMaterialBins[TileBinIndex], TileBinUsage);
-				#if COMPILER_SUPPORTS_WAVE_VOTE
 					}
-				#endif
 
 					// TODO: Pull out depth into custom HiZ?
 					//const uint MaterialDepthId = GetMaterialDepthId(MaterialSlot, MaterialDepthTable);
 				}
 			}
-	#endif // MATERIAL_RESOLVE
 		}
 	}
+#endif // MATERIAL_RESOLVE
 
 	GroupMemoryBarrierWithGroupSync();
 
@@ -143,8 +164,6 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 		uint TileBin1 = TileMaterialBins[TileBin1Offset];
 		if (TileBin1 != 0u)
 		{
-			InterlockedAdd(TileMaterialCount, countbits(TileBin1));
-
 			const uint MaterialSlot1Base = TileBin1Offset * 32u;
 			while (TileBin1 != 0)
 			{
@@ -168,8 +187,6 @@ void ClassifyMaterials(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupID : SV_
 			uint TileBin2 = TileMaterialBins[TileBin2Offset];
 			if (TileBin2 != 0)
 			{
-				InterlockedAdd(TileMaterialCount, countbits(TileBin2));
-
 				const uint MaterialSlot2Base = TileBin2Offset * 32u;
 				while (TileBin2 != 0)
 				{
