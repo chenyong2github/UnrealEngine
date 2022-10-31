@@ -1535,6 +1535,8 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 		FCoreDelegates::OnSyncLoadPackage.Broadcast(PackagePath.GetPackageNameOrFallback());
 	}
 	
+	TRACE_LOADTIME_POSTLOAD_SCOPE;
+
 	// Set up a load context
 	TRefCountPtr<FUObjectSerializeContext> LoadContext = FUObjectThreadContext::Get().GetSerializeContext();
 
@@ -1542,6 +1544,18 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 
 	// Try to load.
 	BeginLoad(LoadContext, *PackagePath.GetDebugName());
+
+	if (!ImportLinker)
+	{
+		TRACE_LOADTIME_BEGIN_REQUEST(0);
+	}
+	ON_SCOPE_EXIT
+	{
+		if (!ImportLinker)
+		{
+			TRACE_LOADTIME_END_REQUEST(0);
+		}
+	};
 
 	bool bFullyLoadSkipped = false;
 
@@ -1574,6 +1588,14 @@ UPackage* LoadPackageInternal(UPackage* InOuter, const FPackagePath& PackagePath
 		{
 			FUObjectSerializeContext* InOutLoadContext = LoadContext;
 			Linker = GetPackageLinker(InOuter, PackagePath, LoadFlags, nullptr, InReaderOverride, &InOutLoadContext, ImportLinker, InstancingContext);
+			if (ImportLinker)
+			{
+				TRACE_LOADTIME_ASYNC_PACKAGE_IMPORT_DEPENDENCY(ImportLinker, Linker);
+			}
+			else
+			{
+				TRACE_LOADTIME_ASYNC_PACKAGE_REQUEST_ASSOCIATION(Linker, 0);
+			}
 			if (InOutLoadContext != LoadContext && InOutLoadContext)
 			{
 				// The linker already existed and was associated with another context
@@ -1853,6 +1875,7 @@ UPackage* LoadPackage(UPackage* InOuter, const FPackagePath& PackagePath, uint32
 											FDynamicStats::CreateMemoryStatId<FStatGroup_STATGROUP_LLMAssets>(FName(*(FString(TEXT("Package ")) + PackagePath.GetPackageNameOrFallback()))).GetName() :
 											NAME_None,
 										 ELLMTagSet::Assets, ELLMTracker::Default);
+	TRACE_LOADTIME_REQUEST_GROUP_SCOPE(TEXT("SyncLoad - %s"), *PackagePath.GetDebugName());
 	return LoadPackageInternal(InOuter, PackagePath, LoadFlags, /*ImportLinker =*/ nullptr, InReaderOverride, InstancingContext, DiffPackagePath);
 }
 

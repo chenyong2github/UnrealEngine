@@ -108,7 +108,6 @@ FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession
 	, ClassInfos(Session.GetLinearAllocator(), 16384)
 	, Requests(Session.GetLinearAllocator(), 16384)
 	, Packages(Session.GetLinearAllocator(), 16384)
-	, PackageLoads(Session.GetLinearAllocator(), 16384)
 	, IoDispatcherBatches(Session.GetLinearAllocator(), 16384)
 	, Exports(Session.GetLinearAllocator(), 16384)
 	, RequestsTable(Requests)
@@ -149,11 +148,22 @@ FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession
 				return Row.PackageInfo->Name;
 			},
 			TEXT("Package")).
+		AddColumn<uint64>([](const FPackagesTableRow& Row)
+			{
+				return Row.PackageInfo ? Row.PackageInfo->RequestId : 0;
+			},
+			TEXT("RequestId")).
+		AddColumn(&FPackagesTableRow::TotalSerializedSize, TEXT("SerializedSize"), TableColumnDisplayHint_Memory | TableColumnDisplayHint_Summable).
 		AddColumn(&FPackagesTableRow::SerializedHeaderSize, TEXT("SerializedHeaderSize"), TableColumnDisplayHint_Memory | TableColumnDisplayHint_Summable).
 		AddColumn(&FPackagesTableRow::SerializedExportsCount, TEXT("SerializedExportsCount"), TableColumnDisplayHint_Summable).
 		AddColumn(&FPackagesTableRow::SerializedExportsSize, TEXT("SerializedExportsSize"), TableColumnDisplayHint_Memory | TableColumnDisplayHint_Summable).
 		AddColumn(&FPackagesTableRow::MainThreadTime, TEXT("MainThreadTime"), TableColumnDisplayHint_Time | TableColumnDisplayHint_Summable).
-		AddColumn(&FPackagesTableRow::AsyncLoadingThreadTime, TEXT("AsyncLoadingThreadTime"), TableColumnDisplayHint_Time | TableColumnDisplayHint_Summable);
+		AddColumn(&FPackagesTableRow::AsyncLoadingThreadTime, TEXT("AsyncLoadingThreadTime"), TableColumnDisplayHint_Time | TableColumnDisplayHint_Summable).
+		AddColumn<int32>([](const FPackagesTableRow& Row)
+			{
+				return Row.PackageInfo ? Row.PackageInfo->ImportedPackages.Num() : 0;
+			},
+			TEXT("ImportedPackagesCount"), TableColumnDisplayHint_Summable);
 
 	ExportsTableLayout.
 		AddColumn<const TCHAR*>([](const FExportsTableRow& Row)
@@ -161,6 +171,11 @@ FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession
 				return Row.ExportInfo->Package ? Row.ExportInfo->Package->Name : TEXT("[unknown]");
 			},
 			TEXT("Package")).
+		AddColumn<uint64>([](const FExportsTableRow& Row)
+			{
+				return Row.ExportInfo->Package ? Row.ExportInfo->Package->RequestId : 0;
+			},
+			TEXT("RequestId")).
 		AddColumn<const TCHAR*>([](const FExportsTableRow& Row)
 			{
 				return Row.ExportInfo->Class ? Row.ExportInfo->Class->Name : TEXT("[unknown]");
@@ -174,6 +189,38 @@ FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession
 		AddColumn(&FExportsTableRow::SerializedSize, TEXT("SerializedSize"), TableColumnDisplayHint_Memory | TableColumnDisplayHint_Summable).
 		AddColumn(&FExportsTableRow::MainThreadTime, TEXT("MainThreadTime"), TableColumnDisplayHint_Time | TableColumnDisplayHint_Summable).
 		AddColumn(&FExportsTableRow::AsyncLoadingThreadTime, TEXT("AsyncLoadingThreadTime"), TableColumnDisplayHint_Time | TableColumnDisplayHint_Summable);
+
+	RequestsTableLayout.
+		AddColumn(&FRequestsTableRow::Id, TEXT("Id")).
+		AddColumn(&FRequestsTableRow::Name, TEXT("Name")).
+		AddColumn(&FRequestsTableRow::StartTime, TEXT("StartTime"), TableColumnDisplayHint_Time).
+		AddColumn(&FRequestsTableRow::Duration, TEXT("Duration"), TableColumnDisplayHint_Time | TableColumnDisplayHint_Summable).
+		AddColumn<int32>(
+			[](const FRequestsTableRow& Row)
+			{
+				return Row.Packages.Num();
+			},
+			TEXT("PackageCount"), TableColumnDisplayHint_Summable).
+		AddColumn<uint64>([](const FRequestsTableRow& Row)
+			{
+				uint64 Sum = 0;
+				for (const FPackageInfo* Package : Row.Packages)
+				{
+					Sum += Package->Summary.TotalHeaderSize;
+					for (const FPackageExportInfo* Export : Package->Exports)
+					{
+						Sum += Export->SerialSize;
+					}
+				}
+				return Sum;
+			},
+			TEXT("SerializedSize"), TableColumnDisplayHint_Memory | TableColumnDisplayHint_Summable).
+		AddColumn<const TCHAR*>(
+			[](const FRequestsTableRow& Row)
+			{
+				return Row.Packages.Num() ? Row.Packages[0]->Name : TEXT("N/A");
+			},
+			TEXT("FirstPackage"));
 }
 
 bool FLoadTimeProfilerProvider::GetCpuThreadTimelineIndex(uint32 ThreadId, uint32& OutTimelineIndex) const
@@ -268,61 +315,105 @@ ITable<FLoadTimeProfilerAggregatedStats>* FLoadTimeProfilerProvider::CreateObjec
 
 ITable<FPackagesTableRow>* FLoadTimeProfilerProvider::CreatePackageDetailsTable(double IntervalStart, double IntervalEnd) const
 {
-	TTable<FPackagesTableRow>* Table = new TTable<FPackagesTableRow>(PackagesTableLayout);
-
-	TMap<const FPackageInfo*, FPackagesTableRow*> PackagesMap;
-
-	auto FindRow = [Table, &PackagesMap](const FLoadTimeProfilerCpuEvent& Event) -> FPackagesTableRow*
+	struct FTempRow
 	{
-		if (Event.Package)
-		{
-			FPackagesTableRow** FindIt = PackagesMap.Find(Event.Package);
-			FPackagesTableRow* Row = nullptr;
-			if (!FindIt)
-			{
-				Row = &Table->AddRow();
-				Row->PackageInfo = Event.Package;
-				PackagesMap.Add(Event.Package, Row);
-			}
-			else
-			{
-				Row = *FindIt;
-			}
-
-			if (Event.Export && Event.EventType == LoadTimeProfilerObjectEventType_Serialize)
-			{
-				++Row->SerializedExportsCount;
-				Row->SerializedExportsSize += Event.Export->SerialSize;
-			}
-
-			Row->SerializedHeaderSize = Event.Package->Summary.TotalHeaderSize;
-
-			return Row;
-		}
-		else
-		{
-			return nullptr;
-		}
+		double StartTime = 0.0;
+		const FPackageInfo* PackageInfo = nullptr;
+		uint64 SerializedHeaderSize = 0;
+		uint64 SerializedExportsCount = 0;
+		uint64 SerializedExportsSize = 0;
+		double MainThreadTime = 0.0;
+		double AsyncLoadingThreadTime = 0.0;
 	};
-
-	for (int32 TimelineIndex = 0, TimelineCount = CpuTimelines.Num(); TimelineIndex < TimelineCount; ++TimelineIndex)
+	TArray<FTempRow> Rows;
+	struct FStackEntry
 	{
-		CpuTimelines[TimelineIndex]->EnumerateEvents(IntervalStart, IntervalEnd, [Table, &PackagesMap, FindRow, TimelineIndex](double StartTime, double EndTime, uint32, const FLoadTimeProfilerCpuEvent& Event)
+		double StartTime;
+		int32 RowIndex;
+	};
+	TArray<FStackEntry, TInlineAllocator<64>> Stack;
+	double LastTime = 0.0;
+	int32 TimelineIndex = 0;
+	TMap<const FPackageInfo*, int32> RowMap;
+	for (const TSharedRef<CpuTimelineInternal>& Timeline : CpuTimelines)
+	{
+		Timeline->EnumerateEvents(IntervalStart, IntervalEnd, [&Stack, &Rows, &RowMap, IntervalStart, IntervalEnd, &LastTime, TimelineIndex](bool IsEnter, double Time, const FLoadTimeProfilerCpuEvent& Event)
 		{
-			FPackagesTableRow* Row = FindRow(Event);
-			if (Row)
+			if (!Event.Package)
 			{
+				return EEventEnumerate::Continue;
+			}
+			double ClampedTime = FMath::Clamp(Time, IntervalStart, IntervalEnd);
+			if (Stack.Num())
+			{
+				FStackEntry& StackEntry = Stack.Top();
+				FTempRow& Row = Rows[StackEntry.RowIndex];
 				if (TimelineIndex == 0)
 				{
-					Row->MainThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
+					Row.MainThreadTime += ClampedTime - LastTime;
 				}
 				else
 				{
-					Row->AsyncLoadingThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
+					Row.AsyncLoadingThreadTime += ClampedTime - LastTime;
 				}
+			}
+			LastTime = ClampedTime;
+			if (IsEnter)
+			{
+				FTempRow* Row;
+				int32 RowIndex = -1;
+				int32* FindRowIndex = RowMap.Find(Event.Package);
+				if (FindRowIndex)
+				{
+					Row = &Rows[*FindRowIndex];
+					RowIndex = *FindRowIndex;
+				}
+				else
+				{
+					RowIndex = Rows.Num();
+					Row = &Rows.AddDefaulted_GetRef();
+					Row->StartTime = Time;
+					Row->PackageInfo = Event.Package;
+					RowMap.Add(Event.Package, RowIndex);
+				}
+				FStackEntry& StackEntry = Stack.AddDefaulted_GetRef();
+				StackEntry.StartTime = ClampedTime;
+				StackEntry.RowIndex = RowIndex;
+				if (Event.Export && Event.EventType == LoadTimeProfilerObjectEventType_Serialize)
+				{
+					Row->SerializedExportsSize += Event.Export->SerialSize;
+					++Row->SerializedExportsCount;
+				}
+				else if (!Event.Export && Event.Package && !Row->SerializedHeaderSize)
+				{
+					Row->SerializedHeaderSize = Event.Package->Summary.TotalHeaderSize;
+				}
+			}
+			else
+			{
+				Stack.Pop(false);
 			}
 			return EEventEnumerate::Continue;
 		});
+		++TimelineIndex;
+	}
+
+	Algo::Sort(Rows, [](const FTempRow& A, const FTempRow& B)
+		{
+			return A.StartTime < B.StartTime;
+		});
+	TTable<FPackagesTableRow>* Table = new TTable<FPackagesTableRow>(PackagesTableLayout);
+	for (const FTempRow& TempRow : Rows)
+	{
+		FPackagesTableRow& Row = Table->AddRow();
+		Row.PackageInfo = TempRow.PackageInfo;
+		Row.TotalSerializedSize = TempRow.SerializedHeaderSize + TempRow.SerializedExportsSize;
+		Row.SerializedHeaderSize = TempRow.SerializedHeaderSize;
+		Row.SerializedExportsCount = TempRow.SerializedExportsCount;
+		Row.SerializedExportsSize = TempRow.SerializedExportsSize;
+
+		Row.MainThreadTime = TempRow.MainThreadTime;
+		Row.AsyncLoadingThreadTime = TempRow.AsyncLoadingThreadTime;
 	}
 
 	return Table;
@@ -330,61 +421,105 @@ ITable<FPackagesTableRow>* FLoadTimeProfilerProvider::CreatePackageDetailsTable(
 
 ITable<FExportsTableRow>* FLoadTimeProfilerProvider::CreateExportDetailsTable(double IntervalStart, double IntervalEnd) const
 {
-	TTable<FExportsTableRow>* Table = new TTable<FExportsTableRow>(ExportsTableLayout);
-
-	TMap<TTuple<const FPackageExportInfo*, ELoadTimeProfilerObjectEventType>, FExportsTableRow*> ExportsMap;
-
-	auto FindRow = [Table, &ExportsMap](const FLoadTimeProfilerCpuEvent& Event) -> FExportsTableRow*
+	struct FTempRow
 	{
-		if (Event.Export)
-		{
-			auto Key = MakeTuple(Event.Export, Event.EventType);
-			FExportsTableRow** FindIt = ExportsMap.Find(Key);
-			FExportsTableRow* Row = nullptr;
-			if (!FindIt)
-			{
-				Row = &Table->AddRow();
-				Row->ExportInfo = Event.Export;
-				Row->EventType = Event.EventType;
-				ExportsMap.Add(Key, Row);
-			}
-			else
-			{
-				Row = *FindIt;
-			}
-
-			if (Event.EventType == LoadTimeProfilerObjectEventType_Serialize)
-			{
-				Row->SerializedSize += Event.Export->SerialSize;
-			}
-
-			return Row;
-		}
-		else
-		{
-			return nullptr;
-		}
+		double StartTime = 0.0;
+		const FPackageExportInfo* ExportInfo = nullptr;
+		uint64 SerializedSize = 0;
+		double MainThreadTime = 0.0;
+		double AsyncLoadingThreadTime = 0.0;
+		ELoadTimeProfilerObjectEventType EventType;
 	};
-
-	for (int32 TimelineIndex = 0, TimelineCount = CpuTimelines.Num(); TimelineIndex < TimelineCount; ++TimelineIndex)
+	TArray<FTempRow> Rows;
+	struct FStackEntry
 	{
-		CpuTimelines[TimelineIndex]->EnumerateEvents(IntervalStart, IntervalEnd, [Table, &ExportsMap, FindRow, TimelineIndex](double StartTime, double EndTime, uint32, const FLoadTimeProfilerCpuEvent& Event)
+		double StartTime;
+		int32 RowIndex;
+	};
+	TArray<FStackEntry, TInlineAllocator<64>> Stack;
+	double LastTime = 0.0;
+	int32 TimelineIndex = 0;
+	for (const TSharedRef<CpuTimelineInternal>& Timeline : CpuTimelines)
+	{
+		Timeline->EnumerateEvents(IntervalStart, IntervalEnd, [&Stack, &Rows, IntervalStart, IntervalEnd, &LastTime, TimelineIndex](bool IsEnter, double Time, const FLoadTimeProfilerCpuEvent& Event)
 		{
-			FExportsTableRow* Row = FindRow(Event);
-			if (Row)
+			if (!Event.Export)
 			{
+				return EEventEnumerate::Continue;
+			}
+			double ClampedTime = FMath::Clamp(Time, IntervalStart, IntervalEnd);
+			if (Stack.Num())
+			{
+				FStackEntry& StackEntry = Stack.Top();
+				FTempRow& Row = Rows[StackEntry.RowIndex];
 				if (TimelineIndex == 0)
 				{
-					Row->MainThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
+					Row.MainThreadTime += ClampedTime - LastTime;
 				}
 				else
 				{
-					Row->AsyncLoadingThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
+					Row.AsyncLoadingThreadTime += ClampedTime - LastTime;
 				}
+			}
+			LastTime = ClampedTime;
+			if (IsEnter)
+			{
+				FStackEntry& StackEntry = Stack.AddDefaulted_GetRef();
+				StackEntry.StartTime = ClampedTime;
+				StackEntry.RowIndex = Rows.Num();
+				FTempRow& Row = Rows.AddDefaulted_GetRef();
+				Row.StartTime = Time;
+				Row.ExportInfo = Event.Export;
+				Row.EventType = Event.EventType;
+				if ( Event.EventType == LoadTimeProfilerObjectEventType_Serialize)
+				{
+					Row.SerializedSize = Event.Export->SerialSize;
+				}
+			}
+			else
+			{
+				Stack.Pop(false);
 			}
 			return EEventEnumerate::Continue;
 		});
+		++TimelineIndex;
 	}
+
+	Algo::Sort(Rows, [](const FTempRow& A, const FTempRow& B)
+		{
+			return A.StartTime < B.StartTime;
+		});
+	TTable<FExportsTableRow>* Table = new TTable<FExportsTableRow>(ExportsTableLayout);
+	for (const FTempRow& TempRow : Rows)
+	{
+		FExportsTableRow& Row = Table->AddRow();
+		Row.ExportInfo = TempRow.ExportInfo;
+		Row.SerializedSize = TempRow.SerializedSize;
+		Row.MainThreadTime = TempRow.MainThreadTime;
+		Row.AsyncLoadingThreadTime = TempRow.AsyncLoadingThreadTime;
+		Row.EventType = TempRow.EventType;
+	}
+
+	return Table;
+}
+
+ITable<FRequestsTableRow>* FLoadTimeProfilerProvider::CreateRequestsTable(double IntervalStart, double IntervalEnd) const
+{
+	TTable<FRequestsTableRow>* Table = new TTable<FRequestsTableRow>(RequestsTableLayout);
+	for (const FLoadRequest& Request : Requests)
+	{
+		if (Request.EndTime < IntervalStart || Request.StartTime > IntervalEnd)
+		{
+			continue;
+		}
+		FRequestsTableRow& Row = Table->AddRow();
+		Row.Id = Request.Id;
+		Row.Name = Request.Name;
+		Row.StartTime = Request.StartTime;
+		Row.Duration = Request.EndTime - Request.StartTime;
+		Row.Packages = Request.Packages;
+	}
+
 	return Table;
 }
 
@@ -402,6 +537,7 @@ FLoadRequest& FLoadTimeProfilerProvider::CreateRequest()
 	Session.WriteAccessCheck();
 
 	FLoadRequest& RequestInfo = Requests.PushBack();
+	RequestInfo.Id = Requests.Num();
 	return RequestInfo;
 }
 
@@ -465,36 +601,6 @@ void FLoadTimeProfilerProvider::DistributeBytesAcrossFrames(uint64 ByteCount, do
 	TotalDistributed += BytesInLastFrame;
 
 	check(TotalDistributed == OriginalByteCount);
-}
-
-uint64 FLoadTimeProfilerProvider::BeginLoadPackage(const FPackageInfo& PackageInfo, double Time)
-{
-	Session.WriteAccessCheck();
-
-	CreateCounters();
-
-	LoadingPackagesCounter->AddValue(Time, int64(1));
-
-	uint64 LoadHandle = PackageLoads.Num();
-	FPackageLoad& PackageLoad = PackageLoads.PushBack();
-	PackageLoad.Package = &PackageInfo;
-	PackageLoad.StartTime = Time;
-	return LoadHandle;
-}
-
-void FLoadTimeProfilerProvider::EndLoadPackage(uint64 LoadHandle, double Time)
-{
-	Session.WriteAccessCheck();
-
-	FPackageLoad& PackageLoad = PackageLoads[LoadHandle];
-	PackageLoad.EndTime = Time;
-	check(PackageLoad.EndTime >= PackageLoad.StartTime);
-
-	DistributeBytesAcrossFrames(PackageLoad.Package->Summary.TotalHeaderSize, PackageLoad.StartTime, PackageLoad.EndTime, &FLoaderFrame::HeaderLoadedBytes);
-	DistributeBytesAcrossFrames(PackageLoad.Package->TotalExportsSerialSize, PackageLoad.StartTime, PackageLoad.EndTime, &FLoaderFrame::ExportLoadedBytes);
-
-	TotalLoaderBytesLoadedCounter->AddValue(Time, int64(PackageLoad.Package->Summary.TotalHeaderSize + PackageLoad.Package->TotalExportsSerialSize));
-	LoadingPackagesCounter->AddValue(Time, int64(-1));
 }
 
 uint64 FLoadTimeProfilerProvider::BeginIoDispatcherBatch(uint64 BatchId, double Time)

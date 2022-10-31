@@ -31,6 +31,7 @@ public:
 private:
 	struct FRequestState;
 	struct FAsyncPackageState;
+	struct FLinkerLoadState;
 
 	struct FRequestGroupState
 	{
@@ -39,7 +40,6 @@ private:
 		FLoadRequest* LoadRequest = nullptr;
 		uint64 LatestEndCycle = 0;
 		uint64 ActiveRequestsCount = 0;
-		bool bIsClosed = false;
 	};
 
 	struct FRequestState
@@ -55,9 +55,15 @@ private:
 	{
 		FPackageInfo* PackageInfo = nullptr;
 		FRequestState* Request = nullptr;
-		uint64 LoadHandle = uint64(-1);
-		uint64 LoadStartCycle = 0;
-		uint64 LoadEndCycle = 0;
+		FLinkerLoadState* Linker = nullptr;
+		TSet<FAsyncPackageState*> ImportedAsyncPackages;
+	};
+
+	struct FLinkerLoadState
+	{
+		FPackageInfo* PackageInfo = nullptr;
+		FAsyncPackageState* AsyncPackage = nullptr;
+		bool bHasFakeAsyncPackageState = false;
 	};
 
 	struct FScopeStackEntry
@@ -70,14 +76,16 @@ private:
 	{
 		FScopeStackEntry CpuScopeStack[256];
 		uint64 CpuScopeStackDepth = 0;
+		int64 PostLoadScopeDepth = 0;
 		FLoadTimeProfilerCpuEvent CurrentEvent;
 		TArray<TSharedPtr<FRequestGroupState>> RequestGroupStack;
 		
 		FLoadTimeProfilerProvider::CpuTimelineInternal* CpuTimeline;
 
-		void EnterExportScope(double Time, const FPackageExportInfo* ExportInfo, ELoadTimeProfilerObjectEventType EventType);
-		void LeaveExportScope(double Time);
-		ELoadTimeProfilerObjectEventType GetCurrentExportScopeEventType();
+		void EnterScope(double Time, const FPackageInfo* PackageInfo);
+		void EnterScope(double Time, const FPackageExportInfo* ExportInfo, ELoadTimeProfilerObjectEventType EventType);
+		void LeaveScope(double Time);
+		ELoadTimeProfilerObjectEventType GetCurrentScopeEventType();
 		FPackageExportInfo* GetCurrentExportScope();
 	};
 
@@ -91,22 +99,27 @@ private:
 		RouteId_SuspendAsyncLoading,
 		RouteId_ResumeAsyncLoading,
 		RouteId_NewAsyncPackage,
-		RouteId_BeginLoadAsyncPackage,
-		RouteId_EndLoadAsyncPackage,
 		RouteId_DestroyAsyncPackage,
+		RouteId_NewLinker,
+		RouteId_DestroyLinker,
 		RouteId_BeginRequest,
 		RouteId_EndRequest,
 		RouteId_BeginRequestGroup,
 		RouteId_EndRequestGroup,
 		RouteId_PackageSummary,
 		RouteId_AsyncPackageRequestAssociation,
+		RouteId_AsyncPackageLinkerAssociation,
 		RouteId_AsyncPackageImportDependency,
+		RouteId_BeginProcessSummary,
+		RouteId_EndProcessSummary,
 		RouteId_BeginCreateExport,
 		RouteId_EndCreateExport,
 		RouteId_BeginSerializeExport,
 		RouteId_EndSerializeExport,
-		RouteId_BeginPostLoadExport,
-		RouteId_EndPostLoadExport,
+		RouteId_BeginPostLoad,
+		RouteId_EndPostLoad,
+		RouteId_BeginPostLoadObject,
+		RouteId_EndPostLoadObject,
 		RouteId_ClassInfo,
 		RouteId_BatchIssued,
 		RouteId_BatchResolved,
@@ -114,7 +127,8 @@ private:
 		// Backwards compatibility
 		RouteId_BeginObjectScope,
 		RouteId_EndObjectScope,
-		RouteId_AsyncPackageLinkerAssociation,
+		RouteId_BeginPostLoadExport,
+		RouteId_EndPostLoadExport,
 	};
 
 	enum
@@ -156,14 +170,13 @@ private:
 	using TPointerMap = TMap<uint64, ValueType, FDefaultSetAllocator, FPointerMapKeyFuncs<ValueType>>;
 
 	TPointerMap<FAsyncPackageState*> ActiveAsyncPackagesMap;
+	TPointerMap<FLinkerLoadState*> ActiveLinkersMap;
 	TPointerMap<FPackageExportInfo*> ExportsMap;
 	TMap<uint64, FRequestState*> ActiveRequestsMap;
+	TArray<FRequestState*> FakeRequestsStack;
 	TPointerMap<uint64> ActiveBatchesMap;
 	TMap<uint32, FThreadState*> ThreadStatesMap;
 	TPointerMap<const FClassInfo*> ClassInfosMap;
-
-	// Backwards compatibility
-	TPointerMap<FAsyncPackageState*> LinkerToAsyncPackageMap;
 };
 
 } // namespace TraceServices

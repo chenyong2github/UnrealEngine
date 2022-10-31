@@ -31,12 +31,11 @@ public:
 	virtual ITable<FLoadTimeProfilerAggregatedStats>* CreateObjectTypeAggregation(double IntervalStart, double IntervalEnd) const override;
 	virtual ITable<FPackagesTableRow>* CreatePackageDetailsTable(double IntervalStart, double IntervalEnd) const override;
 	virtual ITable<FExportsTableRow>* CreateExportDetailsTable(double IntervalStart, double IntervalEnd) const override;
+	virtual ITable<FRequestsTableRow>* CreateRequestsTable(double IntervalStart, double IntervalEnd) const override;
 	virtual const ITable<FLoadRequest>& GetRequestsTable() const override { return RequestsTable; }
 	const FClassInfo& AddClassInfo(const TCHAR* ClassName);
 	FLoadRequest& CreateRequest();
 	FPackageInfo& CreatePackage();
-	uint64 BeginLoadPackage(const FPackageInfo& PackageInfo, double Time);
-	void EndLoadPackage(uint64 LoadHandle, double Time);
 	FPackageExportInfo& CreateExport();
 	CpuTimelineInternal& EditCpuTimeline(uint32 ThreadId);
 	uint64 BeginIoDispatcherBatch(uint64 BatchId, double Time);
@@ -106,7 +105,6 @@ private:
 	TPagedArray<FClassInfo> ClassInfos;
 	TPagedArray<FLoadRequest> Requests;
 	TPagedArray<FPackageInfo> Packages;
-	TPagedArray<FPackageLoad> PackageLoads;
 	TPagedArray<FIoDispatcherBatch> IoDispatcherBatches;
 	TPagedArray<FPackageExportInfo> Exports;
 	TArray<TSharedRef<CpuTimelineInternal>> CpuTimelines;
@@ -115,6 +113,7 @@ private:
 	TTableLayout<FLoadTimeProfilerAggregatedStats> AggregatedStatsTableLayout;
 	TTableLayout<FPackagesTableRow> PackagesTableLayout;
 	TTableLayout<FExportsTableRow> ExportsTableLayout;
+	TTableLayout<FRequestsTableRow> RequestsTableLayout;
 	TPagedArray<FLoaderFrame> Frames;
 	bool bHasCreatedCounters = false;
 	IEditableCounter* ActiveIoDispatcherBatchesCounter = nullptr;

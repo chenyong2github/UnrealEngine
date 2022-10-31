@@ -1774,8 +1774,6 @@ FORCEINLINE static bool CanAddWaitingPackages(FAsyncLoadingThread& AsyncLoadingT
 
 void FAsyncLoadingThread::QueueEvent_CreateLinker(FAsyncPackage* Package, int32 EventSystemPriority)
 {
-	TRACE_LOADTIME_BEGIN_LOAD_ASYNC_PACKAGE(Package);
-
 	FileOpenLogActive();  // make sure GRandomizeLoadOrder is set up
 	check(Package);
 	Package->AddNode(EEventLoadNode::Package_LoadSummary);
@@ -1976,8 +1974,6 @@ void FAsyncPackage::Event_FinishLinker()
 				}
 			}
 		}
-
-		TRACE_LOADTIME_PACKAGE_SUMMARY(this, Desc.Name, Linker->Summary.TotalHeaderSize, Linker->Summary.ImportCount, Linker->Summary.ExportCount);
 
 		check(AsyncPackageLoadingState == EAsyncPackageLoadingState::WaitingForSummary);
 		AsyncPackageLoadingState = EAsyncPackageLoadingState::StartImportPackages;
@@ -4821,8 +4817,6 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 
 				CompletedPackages.Add(Package);
 
-				TRACE_LOADTIME_END_LOAD_ASYNC_PACKAGE(Package);
-
 				if (IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, TEXT("ProcessLoadedPackages Misc")) || (FlushRequest && !ContainsRequestInternal(FlushRequest.GetId())))
 				{
 					// The only package we care about has finished loading, so we're good to exit
@@ -6322,6 +6316,7 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 		Linker->AsyncRoot = this;
 
 		UE_LOG(LogStreaming, Verbose, TEXT("FAsyncPackage::CreateLinker for %s finished."), *Desc.PackagePath.GetDebugName());
+		TRACE_LOADTIME_ASYNC_PACKAGE_LINKER_ASSOCIATION(this, Linker);
 	}
 	return EAsyncPackageState::Complete;
 }
@@ -6896,6 +6891,7 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadObjects()
 	}
 
 	// PostLoad objects.
+	TRACE_LOADTIME_POSTLOAD_SCOPE;
 	while (PostLoadIndex < PackageObjLoaded.Num() && PostLoadIndex < PreLoadIndex && !IsTimeLimitExceeded())
 	{
 		UObject* Object = PackageObjLoaded[PostLoadIndex++];
@@ -6916,10 +6912,7 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadObjects()
 				check(!GEventDrivenLoaderEnabled || !Object->HasAnyFlags(RF_NeedLoad));
 
 				ThreadContext.CurrentlyPostLoadedObjectByALT = Object;
-				{
-					TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object);
-					Object->ConditionalPostLoad();
-				}
+				Object->ConditionalPostLoad();
 				ThreadContext.CurrentlyPostLoadedObjectByALT = nullptr;
 
 				LastObjectWorkWasPerformedOn = Object;
@@ -6982,6 +6975,7 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 	{
 		TGuardValue<bool> GuardIsRoutingPostLoad(PackageScope.ThreadContext.IsRoutingPostLoad, true);
 
+		TRACE_LOADTIME_POSTLOAD_SCOPE;
 		while (DeferredPostLoadIndex < DeferredPostLoadObjects.Num() &&
 			!AsyncLoadingThread.IsAsyncLoadingSuspendedInternal() &&
 			!::IsTimeLimitExceeded(InTickStartTime, bInUseTimeLimit, InOutTimeLimit, LastTypeOfWorkPerformed, LastObjectWorkWasPerformedOn))
@@ -7001,10 +6995,7 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 			FScopeCycleCounterUObject ConstructorScope(Object, GET_STATID(STAT_FAsyncPackage_PostLoadObjectsGameThread));
 
 			PackageScope.ThreadContext.CurrentlyPostLoadedObjectByALT = Object;
-			{
-				TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object);
-				Object->ConditionalPostLoad();
-			}
+			Object->ConditionalPostLoad();
 			PackageScope.ThreadContext.CurrentlyPostLoadedObjectByALT = nullptr;
 
 			if (ObjLoadedInPostLoad.Num())

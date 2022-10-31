@@ -4376,6 +4376,7 @@ void FAsyncPackage2::CreateLinker(const FLinkerInstancingContext* InstancingCont
 	check(Linker);
 	check(Linker->LinkerRoot == LinkerRoot);
 	check(!Linker->AsyncRoot);
+	TRACE_LOADTIME_ASYNC_PACKAGE_LINKER_ASSOCIATION(this, Linker);
 	Linker->AsyncRoot = this;
 	LinkerLoadState->Linker = Linker;
 #if ALT2_ENABLE_NEW_ARCHIVE_FOR_LINKERLOAD
@@ -4397,7 +4398,6 @@ void FAsyncPackage2::DetachLinker()
 void FAsyncPackage2::StartLoading(FIoBatch& IoBatch)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(StartLoading);
-	TRACE_LOADTIME_BEGIN_LOAD_ASYNC_PACKAGE(this);
 
 	LoadStartTime = FPlatformTime::Seconds();
 
@@ -4556,6 +4556,7 @@ EEventLoadNodeExecutionResult FAsyncPackage2::ProcessLinkerLoadPackageSummary(FA
 	if (!LinkerLoadState->Linker->GetLoader()->IsError())
 	{
 		LinkerLoadState->Linker->bUseTimeLimit = false;
+		TRACE_LOADTIME_PROCESS_SUMMARY_SCOPE(LinkerLoadState->Linker);
 		LinkerResult = LinkerLoadState->Linker->ProcessPackageSummary(nullptr);
 	}
 #else
@@ -4900,6 +4901,8 @@ bool FAsyncPackage2::ProcessLinkerLoadPackageExports(FAsyncLoadingThreadState2& 
 
 EEventLoadNodeExecutionResult FAsyncPackage2::PostLoadLinkerLoadPackageExports(FAsyncLoadingThreadState2& ThreadState)
 {
+	TRACE_LOADTIME_POSTLOAD_SCOPE;
+
 	FAsyncLoadingTickScope2 InAsyncLoadingTick(AsyncLoadingThread);
 
 	const int32 ObjectCount = ConstructedObjects.Num();
@@ -4944,6 +4947,7 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_ProcessPackageSummary(FAsync
 	}
 	else
 	{
+		TRACE_LOADTIME_PROCESS_SUMMARY_SCOPE(Package);
 		check(Package->ExportBundleEntryIndex == 0);
 
 		ReadAsyncPackageHeader(Package->SerializationState, Package->HeaderData);
@@ -5959,6 +5963,7 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_PostLoadExportBundle(FAsyncL
 		const TArrayView<FExportObject>& Exports = Package->Data.Exports;
 #endif
 
+		TRACE_LOADTIME_POSTLOAD_SCOPE;
 		while (Package->ExportBundleEntryIndex < int32(ExportBundle->EntryCount))
 		{
 			const FExportBundleEntry& BundleEntry = HeaderData->ExportBundleEntries[ExportBundle->FirstEntryIndex + Package->ExportBundleEntryIndex];
@@ -5990,10 +5995,7 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_PostLoadExportBundle(FAsyncL
 					if (!bIsMultithreaded || (bAsyncPostLoadEnabled && CanPostLoadOnAsyncLoadingThread(Object)))
 					{
 						ThreadContext.CurrentlyPostLoadedObjectByALT = Object;
-						{
-							TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object);
-							Object->ConditionalPostLoad();
-						}
+						Object->ConditionalPostLoad();
 						ThreadContext.CurrentlyPostLoadedObjectByALT = nullptr;
 					}
 				} while (false);
@@ -6087,6 +6089,7 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_DeferredPostLoadExportBundle
 		const TArrayView<FExportObject>& Exports = Package->Data.Exports;
 #endif
 
+		TRACE_LOADTIME_POSTLOAD_SCOPE;
 		while (Package->ExportBundleEntryIndex < int32(ExportBundle->EntryCount))
 		{
 			const FExportBundleEntry& BundleEntry = HeaderData->ExportBundleEntries[ExportBundle->FirstEntryIndex + Package->ExportBundleEntryIndex];
@@ -6113,7 +6116,6 @@ EEventLoadNodeExecutionResult FAsyncPackage2::Event_DeferredPostLoadExportBundle
 					{
 						PackageScope.ThreadContext.CurrentlyPostLoadedObjectByALT = Object;
 						{
-							TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object);
 							FScopeCycleCounterUObject ConstructorScope(Object, GET_STATID(STAT_FAsyncPackage_PostLoadObjectsGameThread));
 							Object->ConditionalPostLoad();
 						}
@@ -6447,7 +6449,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			--LoadingPackagesCounter;
 
 			TRACE_COUNTER_SET(AsyncLoadingLoadingPackages, LoadingPackagesCounter);
-			TRACE_LOADTIME_END_LOAD_ASYNC_PACKAGE(Package);
 
 			PackagesReadyForCallback.Add(Package);
 		}

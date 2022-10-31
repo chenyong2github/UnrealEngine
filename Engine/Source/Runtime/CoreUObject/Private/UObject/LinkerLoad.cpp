@@ -703,6 +703,8 @@ FUObjectSerializeContext* FLinkerLoad::GetSerializeContext()
 
 FLinkerLoad::ELinkerStatus FLinkerLoad::ProcessPackageSummary(TMap<TPair<FName, FPackageIndex>, FPackageIndex>* ObjectNameWithOuterToExportMap)
 {
+	TRACE_LOADTIME_BEGIN_PROCESS_SUMMARY(this);
+
 	ELinkerStatus Status = LINKER_Loaded;
 	{
 		SCOPED_LOADTIMER(LinkerLoad_SerializePackageFileSummary);
@@ -814,6 +816,8 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::ProcessPackageSummary(TMap<TPair<FName, 
 		SCOPED_LOADTIMER(LinkerLoad_SerializePreloadDependencies);
 		Status = SerializePreloadDependencies();
 	}
+
+	TRACE_LOADTIME_END_PROCESS_SUMMARY;
 
 	// Finalize creation process.
 	if( Status == LINKER_Loaded )
@@ -972,10 +976,14 @@ FLinkerLoad::FLinkerLoad(UPackage* InParent, const FPackagePath& InPackagePath, 
 	{
 		InstancingContext.AddPackageMapping(PackageNameToLoad, LinkerRoot->GetFName());
 	}
+
+	TRACE_LOADTIME_NEW_LINKER(this);
 }
 
 FLinkerLoad::~FLinkerLoad()
 {
+	TRACE_LOADTIME_DESTROY_LINKER(this);
+
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 	FLinkerManager::Get().RemoveLiveLinker(this);
 #endif
@@ -2550,6 +2558,11 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::FinalizeCreation(TMap<TPair<FName, FPack
 			Verify();
 		}
 
+
+		if (LinkerRoot)
+		{
+			TRACE_LOADTIME_PACKAGE_SUMMARY(this, LinkerRoot->GetFName(), Summary.TotalHeaderSize, Summary.ImportCount, Summary.ExportCount);
+		}
 
 		// Avoid duplicate work in the case of async linker creation.
 		bHasFinishedInitialization = true;
@@ -4329,6 +4342,7 @@ void FLinkerLoad::Preload( UObject* Object )
 
 				{
 					SCOPE_CYCLE_COUNTER(STAT_LinkerSerialize);
+					TRACE_LOADTIME_SERIALIZE_EXPORT_SCOPE(Object, Export.SerialSize);
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 					// communicate with FLinkerPlaceholderBase, what object is currently serializing in
 					FScopedPlaceholderContainerTracker SerializingObjTracker(Object);
@@ -5141,7 +5155,10 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 			Params.ExternalPackage->SetPackageFlags(ThisParent->GetPackage()->GetPackageFlags() & PKG_PlayInEditor);
 		}
 
-		Export.Object = StaticConstructObject_Internal(Params);
+		{
+			TRACE_LOADTIME_CREATE_EXPORT_SCOPE(this, &Export.Object);
+			Export.Object = StaticConstructObject_Internal(Params);
+		}
 
 		if (FPlatformProperties::RequiresCookedData())
 		{

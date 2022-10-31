@@ -197,20 +197,6 @@ void SLoadingProfilerWindow::UpdateExportDetailsTreeView()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FProxyUntypedTable : public  TraceServices::IUntypedTable
-{
-public:
-	FProxyUntypedTable(const TraceServices::IUntypedTable* InTable) : TablePtr(InTable) {}
-	virtual ~FProxyUntypedTable() = default;
-
-	virtual const TraceServices::ITableLayout& GetLayout() const { return TablePtr->GetLayout(); }
-	virtual uint64 GetRowCount() const { return TablePtr->GetRowCount(); }
-	virtual TraceServices::IUntypedTableReader* CreateReader() const { return TablePtr->CreateReader(); }
-
-private:
-	const TraceServices::IUntypedTable* TablePtr;
-};
-
 void SLoadingProfilerWindow::UpdateRequestsTreeView()
 {
 	if (RequestsTreeView)
@@ -221,8 +207,8 @@ void SLoadingProfilerWindow::UpdateRequestsTreeView()
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 			const TraceServices::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *TraceServices::ReadLoadTimeProfilerProvider(*Session.Get());
 
-			const TraceServices::ITable<TraceServices::FLoadRequest>& RequestsTable = LoadTimeProfilerProvider.GetRequestsTable();
-			RequestsTreeView->UpdateSourceTable(MakeShared<FProxyUntypedTable>(&RequestsTable));
+			TraceServices::ITable<TraceServices::FRequestsTableRow>* RequestsTable = LoadTimeProfilerProvider.CreateRequestsTable(SelectionStartTime, SelectionEndTime);
+			RequestsTreeView->UpdateSourceTable(MakeShareable(RequestsTable));
 		}
 		else
 		{
@@ -542,7 +528,7 @@ TSharedRef<FTabManager::FLayout> SLoadingProfilerWindow::CreateDefaultTabLayout(
 				->AddTab(FLoadingProfilerTabs::PackageDetailsTreeViewID, ETabState::OpenedTab)
 				->AddTab(FLoadingProfilerTabs::ExportDetailsTreeViewID, ETabState::OpenedTab)
 				->AddTab(FLoadingProfilerTabs::RequestsTreeViewID, ETabState::OpenedTab)
-				->SetForegroundTab(FLoadingProfilerTabs::EventAggregationTreeViewID)
+				->SetForegroundTab(FLoadingProfilerTabs::PackageDetailsTreeViewID)
 			)
 		);
 }

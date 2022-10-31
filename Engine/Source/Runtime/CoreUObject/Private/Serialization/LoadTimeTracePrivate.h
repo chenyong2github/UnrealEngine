@@ -15,16 +15,25 @@ struct FLoadTimeProfilerTracePrivate
 	static void OutputSuspendAsyncLoading();
 	static void OutputResumeAsyncLoading();
 	static void OutputNewAsyncPackage(const void* AsyncPackage);
-	static void OutputBeginLoadAsyncPackage(const void* AsyncPackage);
-	static void OutputEndLoadAsyncPackage(const void* AsyncPackage);
 	static void OutputDestroyAsyncPackage(const void* AsyncPackage);
+	static void OutputNewLinker(const void* Linker);
+	static void OutputDestroyLinker(const void* Linker);
 	static void OutputBeginRequest(uint64 RequestId);
 	static void OutputEndRequest(uint64 RequestId);
 	static void OutputPackageSummary(const void* AsyncPackage, const FName& PackageName, uint32 TotalHeaderSize, uint32 ImportCount, uint32 ExportCount);
 	static void OutputAsyncPackageImportDependency(const void* Package, const void* ImportedPackage);
 	static void OutputAsyncPackageRequestAssociation(const void* AsyncPackage, uint64 RequestId);
+	static void OutputAsyncPackageLinkerAssociation(const void* AsyncPackage, const void* Linker);
 	static void OutputClassInfo(const UClass* Class, const FName& Name);
 	static void OutputClassInfo(const UClass* Class, const TCHAR* Name);
+	static void OutputBeginProcessSummary(const void* AsyncPackage);
+	static void OutputEndProcessSummary();
+
+	struct FProcessSummaryScope
+	{
+		FProcessSummaryScope(const void* AsyncPackage);
+		~FProcessSummaryScope();
+	};
 
 	struct FCreateExportScope
 	{
@@ -41,12 +50,17 @@ struct FLoadTimeProfilerTracePrivate
 		~FSerializeExportScope();
 	};
 
-	struct FPostLoadExportScope
+	struct FPostLoadScope
 	{
-		FPostLoadExportScope(const UObject* Object);
-		~FPostLoadExportScope();
+		FPostLoadScope();
+		~FPostLoadScope();
 	};
 
+	struct FPostLoadObjectScope
+	{
+		FPostLoadObjectScope(const UObject* Object);
+		~FPostLoadObjectScope();
+	};
 };
 
 #define TRACE_LOADTIME_START_ASYNC_LOADING() \
@@ -67,14 +81,14 @@ struct FLoadTimeProfilerTracePrivate
 #define TRACE_LOADTIME_NEW_ASYNC_PACKAGE(AsyncPackage) \
 	FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(AsyncPackage)
 
-#define TRACE_LOADTIME_BEGIN_LOAD_ASYNC_PACKAGE(AsyncPackage) \
-	FLoadTimeProfilerTracePrivate::OutputBeginLoadAsyncPackage(AsyncPackage)
-
-#define TRACE_LOADTIME_END_LOAD_ASYNC_PACKAGE(AsyncPackage) \
-	FLoadTimeProfilerTracePrivate::OutputEndLoadAsyncPackage(AsyncPackage)
-
 #define TRACE_LOADTIME_DESTROY_ASYNC_PACKAGE(AsyncPackage) \
 	FLoadTimeProfilerTracePrivate::OutputDestroyAsyncPackage(AsyncPackage);
+
+#define TRACE_LOADTIME_NEW_LINKER(Linker) \
+	FLoadTimeProfilerTracePrivate::OutputNewLinker(Linker)
+
+#define TRACE_LOADTIME_DESTROY_LINKER(Linker) \
+	FLoadTimeProfilerTracePrivate::OutputDestroyLinker(Linker);
 
 #define TRACE_LOADTIME_PACKAGE_SUMMARY(AsyncPackage, PackageName, TotalHeaderSize, ImportCount, ExportCount) \
 	FLoadTimeProfilerTracePrivate::OutputPackageSummary(AsyncPackage, PackageName, TotalHeaderSize, ImportCount, ExportCount);
@@ -82,11 +96,20 @@ struct FLoadTimeProfilerTracePrivate
 #define TRACE_LOADTIME_ASYNC_PACKAGE_REQUEST_ASSOCIATION(AsyncPackage, RequestId) \
 	FLoadTimeProfilerTracePrivate::OutputAsyncPackageRequestAssociation(AsyncPackage, RequestId);
 
-#define TRACE_LOADTIME_ASYNC_PACKAGE_LINKER_ASSOCIATION(AsyncPackage, Linker) \
+#define TRACE_LOADTIME_ASYNC_PACKAGE_LINKER_ASSOCIATION(AsyncPackage, LinkerLinker) \
 	FLoadTimeProfilerTracePrivate::OutputAsyncPackageLinkerAssociation(AsyncPackage, Linker);
 
 #define TRACE_LOADTIME_ASYNC_PACKAGE_IMPORT_DEPENDENCY(AsyncPackage, ImportedAsyncPackage) \
 	FLoadTimeProfilerTracePrivate::OutputAsyncPackageImportDependency(AsyncPackage, ImportedAsyncPackage);
+
+#define TRACE_LOADTIME_PROCESS_SUMMARY_SCOPE(AsyncPackage) \
+	FLoadTimeProfilerTracePrivate::FProcessSummaryScope __LoadTimeTraceProcessSummaryScope(AsyncPackage);
+
+#define TRACE_LOADTIME_BEGIN_PROCESS_SUMMARY(AsyncPackage) \
+	FLoadTimeProfilerTracePrivate::OutputBeginProcessSummary(AsyncPackage);
+
+#define TRACE_LOADTIME_END_PROCESS_SUMMARY \
+	FLoadTimeProfilerTracePrivate::OutputEndProcessSummary();
 
 #define TRACE_LOADTIME_CREATE_EXPORT_SCOPE(AsyncPackage, Object) \
 	FLoadTimeProfilerTracePrivate::FCreateExportScope __LoadTimeTraceCreateExportScope(AsyncPackage, Object);
@@ -94,8 +117,11 @@ struct FLoadTimeProfilerTracePrivate
 #define TRACE_LOADTIME_SERIALIZE_EXPORT_SCOPE(Object, SerialSize) \
 	FLoadTimeProfilerTracePrivate::FSerializeExportScope __LoadTimeTraceSerializeExportScope(Object, SerialSize);
 
-#define TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object) \
-	FLoadTimeProfilerTracePrivate::FPostLoadExportScope __LoadTimeTracePostLoadExportScope(Object);
+#define TRACE_LOADTIME_POSTLOAD_SCOPE \
+	FLoadTimeProfilerTracePrivate::FPostLoadScope __LoadTimeTracePostLoadScope;
+
+#define TRACE_LOADTIME_POSTLOAD_OBJECT_SCOPE(Object) \
+	FLoadTimeProfilerTracePrivate::FPostLoadObjectScope __LoadTimeTracePostLoadObjectScope(Object);
 
 #define TRACE_LOADTIME_CLASS_INFO(Class, Name) \
 	FLoadTimeProfilerTracePrivate::OutputClassInfo(Class, Name);
@@ -108,15 +134,20 @@ struct FLoadTimeProfilerTracePrivate
 #define TRACE_LOADTIME_BEGIN_REQUEST(...)
 #define TRACE_LOADTIME_END_REQUEST(...)
 #define TRACE_LOADTIME_NEW_ASYNC_PACKAGE(...)
-#define TRACE_LOADTIME_BEGIN_LOAD_ASYNC_PACKAGE(...)
-#define TRACE_LOADTIME_END_LOAD_ASYNC_PACKAGE(...)
 #define TRACE_LOADTIME_DESTROY_ASYNC_PACKAGE(...)
+#define TRACE_LOADTIME_NEW_LINKER(...)
+#define TRACE_LOADTIME_DESTROY_LINKER(...)
 #define TRACE_LOADTIME_PACKAGE_SUMMARY(...)
 #define TRACE_LOADTIME_ASYNC_PACKAGE_REQUEST_ASSOCIATION(...)
+#define TRACE_LOADTIME_ASYNC_PACKAGE_LINKER_ASSOCIATION(...)
 #define TRACE_LOADTIME_ASYNC_PACKAGE_IMPORT_DEPENDENCY(...)
+#define TRACE_LOADTIME_PROCESS_SUMMARY_SCOPE(...)
+#define TRACE_LOADTIME_BEGIN_PROCESS_SUMMARY(...)
+#define TRACE_LOADTIME_END_PROCESS_SUMMARY
 #define TRACE_LOADTIME_CREATE_EXPORT_SCOPE(...)
 #define TRACE_LOADTIME_SERIALIZE_EXPORT_SCOPE(...)
-#define TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(...)
+#define TRACE_LOADTIME_POSTLOAD_SCOPE
+#define TRACE_LOADTIME_POSTLOAD_OBJECT_SCOPE(...)
 #define TRACE_LOADTIME_CLASS_INFO(...)
 
 #endif

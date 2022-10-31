@@ -65,6 +65,7 @@
 #include "Misc/PackageAccessTrackingOps.h"
 #include "ProfilingDebugging/AssetMetadataTrace.h"
 #include "Containers/VersePath.h"
+#include "Serialization/LoadTimeTracePrivate.h"
 
 DEFINE_LOG_CATEGORY(LogObj);
 
@@ -1113,7 +1114,8 @@ void UObject::ConditionalPostLoad()
 				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Package, ELLMTagSet::Assets);
 				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetClass(), ELLMTagSet::AssetClasses);
 				UE_TRACE_METADATA_SCOPE_ASSET(Package, GetClass());
-
+				TRACE_LOADTIME_POSTLOAD_OBJECT_SCOPE(this);
+				
 				PostLoad();
 
 				LLM_PUSH_STATS_FOR_ASSET_TAGS();

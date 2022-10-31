@@ -88,12 +88,15 @@ struct FPackageInfo
 	uint32 Id;
 	const TCHAR* Name = nullptr;
 	FPackageSummaryInfo Summary;
+	TArray<const FPackageInfo*> ImportedPackages;
 	TArray<const FPackageExportInfo*> Exports;
 	uint64 TotalExportsSerialSize = 0;
+	uint64 RequestId = 0;
 };
 
 struct FLoadRequest
 {
+	uint64 Id = 0;
 	const TCHAR* Name = nullptr;
 	uint32 ThreadId = uint32(-1);
 	double StartTime = 0.0;
@@ -121,11 +124,21 @@ struct FExportsTableRow
 struct FPackagesTableRow
 {
 	const FPackageInfo* PackageInfo = nullptr;
+	uint64 TotalSerializedSize = 0;
 	uint64 SerializedHeaderSize = 0;
 	uint64 SerializedExportsCount = 0;
 	uint64 SerializedExportsSize = 0;
 	double MainThreadTime = 0.0;
 	double AsyncLoadingThreadTime = 0.0;
+};
+
+struct FRequestsTableRow
+{
+	uint64 Id = 0;
+	const TCHAR* Name = nullptr;
+	double StartTime = 0.0;
+	double Duration = 0.0;
+	TArray<const FPackageInfo*> Packages;
 };
 
 struct FLoadTimeProfilerCpuEvent
@@ -162,6 +175,7 @@ public:
 	virtual ITable<FLoadTimeProfilerAggregatedStats>* CreateObjectTypeAggregation(double IntervalStart, double IntervalEnd) const = 0;
 	virtual ITable<FPackagesTableRow>* CreatePackageDetailsTable(double IntervalStart, double IntervalEnd) const = 0;
 	virtual ITable<FExportsTableRow>* CreateExportDetailsTable(double IntervalStart, double IntervalEnd) const = 0;
+	virtual ITable<FRequestsTableRow>* CreateRequestsTable(double IntervalStart, double IntervalEnd) const = 0;
 	virtual const ITable<FLoadRequest>& GetRequestsTable() const = 0;
 };
 

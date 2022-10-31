@@ -173,6 +173,7 @@
 
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/Formatters/JsonArchiveInputFormatter.h"
+#include "Serialization/LoadTimeTrace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorServer, Log, All);
 
@@ -2445,6 +2446,7 @@ bool UEditorEngine::PackageIsAMapFile( const TCHAR* PackageFilename, FText& OutN
 bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine::Map_Load);
+	TRACE_LOADTIME_REQUEST_GROUP_SCOPE(TEXT("LoadMap - %s"), Str);
 
 	auto FindWorldInPackageOrFollowRedirector = [](UPackage*& InOutPackage)
 	{

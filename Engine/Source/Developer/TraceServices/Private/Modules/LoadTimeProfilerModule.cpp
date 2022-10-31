@@ -89,7 +89,8 @@ void FLoadTimeProfilerModule::GenerateReports(const IAnalysisSession& Session, c
 		Table2Csv(*PackagesTable.Get(), *(ReportDirectory / TEXT("Packages.csv")));
 		TUniquePtr<ITable<FExportsTableRow>> ExportsTable(LoadTimeProfiler->CreateExportDetailsTable(CaptureStartTime, CaptureEndTime));
 		Table2Csv(*ExportsTable.Get(), *(ReportDirectory / TEXT("Exports.csv")));
-		Table2Csv(LoadTimeProfiler->GetRequestsTable(), *(ReportDirectory / TEXT("Requests.csv")));
+		TUniquePtr<ITable<FRequestsTableRow>> RequestsTable(LoadTimeProfiler->CreateRequestsTable(CaptureStartTime, CaptureEndTime));
+		Table2Csv(*RequestsTable.Get(), *(ReportDirectory / TEXT("Requests.csv")));
 	}
 	const IFileActivityProvider* FileActivityProvider = ReadFileActivityProvider(Session);
 	if (FileActivityProvider)
