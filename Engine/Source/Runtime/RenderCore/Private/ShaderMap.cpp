@@ -169,8 +169,9 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 
 		// Serialize a copy of ShaderPlatform directly into the archive
 		// This will allow us to correctly deserialize the stream, even if we're not able to load the frozen content
-		TEnumAsByte<EShaderPlatform> ShaderPlatform = GetShaderPlatform();
-		Ar << ShaderPlatform;
+		const EShaderPlatform ShaderPlatform = GetShaderPlatform();
+		FString ShaderPlatformName = FDataDrivenShaderPlatformInfo::GetName(GetShaderPlatform()).ToString();
+		Ar << ShaderPlatformName;
 
 		if (Ar.IsCooking())
 		{
@@ -205,8 +206,10 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 		bool bShareCode = false;
 		Ar << bShareCode;
 
-		TEnumAsByte<EShaderPlatform> ShaderPlatform = SP_NumPlatforms;
-		Ar << ShaderPlatform;
+		FString ShaderPlatformName;
+		Ar << ShaderPlatformName;
+		
+		const EShaderPlatform ShaderPlatform = FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(FName(ShaderPlatformName));
 
 		if (bShareCode)
 		{
@@ -483,14 +486,15 @@ void FShaderMapContent::GetShaderList(const FShaderMapBase& InShaderMap, TMap<FH
 
 void FShaderMapContent::GetShaderPipelineList(const FShaderMapBase& InShaderMap, TArray<FShaderPipelineRef>& OutShaderPipelines, FShaderPipeline::EFilter Filter) const
 {
+	const EShaderPlatform ShaderPlatform = GetShaderPlatform();
 	for (FShaderPipeline* Pipeline : ShaderPipelines)
 	{
 		const FShaderPipelineType* PipelineType = FShaderPipelineType::GetShaderPipelineTypeByName(Pipeline->TypeName);
-		if (PipelineType->ShouldOptimizeUnusedOutputs(Platform) && Filter == FShaderPipeline::EOnlyShared)
+		if (PipelineType->ShouldOptimizeUnusedOutputs(ShaderPlatform) && Filter == FShaderPipeline::EOnlyShared)
 		{
 			continue;
 		}
-		else if (!PipelineType->ShouldOptimizeUnusedOutputs(Platform) && Filter == FShaderPipeline::EOnlyUnique)
+		else if (!PipelineType->ShouldOptimizeUnusedOutputs(ShaderPlatform) && Filter == FShaderPipeline::EOnlyUnique)
 		{
 			continue;
 		}

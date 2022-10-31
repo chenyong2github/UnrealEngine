@@ -2414,6 +2414,7 @@ const FName LANGUAGE_Sony("Sony");
 const FName LANGUAGE_Nintendo("Nintendo");
 
 RHI_API FGenericDataDrivenShaderPlatformInfo FGenericDataDrivenShaderPlatformInfo::Infos[SP_NumPlatforms];
+TMap<FName, EShaderPlatform> PlatformNameToShaderPlatformMap;
 
 // Gets a string from a section, or empty string if it didn't exist
 static inline FString GetSectionString(const FConfigSection& Section, FName Key)
@@ -2667,6 +2668,7 @@ void FGenericDataDrivenShaderPlatformInfo::Initialize()
 	{
 		return;
 	}
+	PlatformNameToShaderPlatformMap.Empty();
 
 	// look for the standard DataDriven ini files
 	int32 NumDDInfoFiles = FDataDrivenPlatformInfoRegistry::GetNumDataDrivenIniFiles();
@@ -2708,6 +2710,7 @@ void FGenericDataDrivenShaderPlatformInfo::Initialize()
 				
 				// at this point, we can start pulling information out
 				Infos[ShaderPlatform].Name = *SectionName.Mid(15);
+				PlatformNameToShaderPlatformMap.FindOrAdd(Infos[ShaderPlatform].Name) = ShaderPlatform;
 				ParseDataDrivenShaderInfo(Section.Value, Infos[ShaderPlatform]);	
 				Infos[ShaderPlatform].bContainsValidPlatformInfo = true;
 
@@ -2718,12 +2721,14 @@ void FGenericDataDrivenShaderPlatformInfo::Initialize()
 					if (Item.ShaderPlatformToPreview == PreviewPlatformName)
 					{
 						EShaderPlatform PreviewShaderPlatform = EShaderPlatform(CustomShaderPlatform++);
+						
 						ParseDataDrivenShaderInfo(Section.Value, Infos[PreviewShaderPlatform]);
 						if (!Item.OptionalFriendlyNameOverride.IsEmpty())
 						{
 							Infos[PreviewShaderPlatform].FriendlyName = Item.OptionalFriendlyNameOverride;
 						}
 						Infos[PreviewShaderPlatform].Name = Item.PreviewShaderPlatformName;
+						PlatformNameToShaderPlatformMap.FindOrAdd(Infos[PreviewShaderPlatform].Name) = PreviewShaderPlatform;
 						Infos[PreviewShaderPlatform].PreviewShaderPlatformParent = ShaderPlatform;
 						Infos[PreviewShaderPlatform].bIsPreviewPlatform = true;
 						Infos[PreviewShaderPlatform].bContainsValidPlatformInfo = true;
@@ -2786,18 +2791,9 @@ FText FGenericDataDrivenShaderPlatformInfo::GetFriendlyName(const FStaticShaderP
 
 const EShaderPlatform FGenericDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(const FName ShaderPlatformName)
 {
-	for (int32 i = 0; i < SP_NumPlatforms; ++i)
+	if (EShaderPlatform* ShaderPlatform = PlatformNameToShaderPlatformMap.Find(ShaderPlatformName))
 	{
-		const EShaderPlatform Platform = static_cast<EShaderPlatform>(i);
-		if (!Infos[Platform].bContainsValidPlatformInfo)
-		{
-			continue;
-		}
-
-		if (Infos[Platform].Name == ShaderPlatformName)
-		{
-			return Platform;
-		}
+		return *ShaderPlatform;
 	}
 	return SP_NumPlatforms;
 }
