@@ -129,7 +129,7 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 		{
 			if (instancesToStartCount == 0)
 			{
-				_logger.LogWarning("Unable to start any instance(s)");
+				_logger.LogWarning("Unable to start any instance(s). No stopped instances are available.");
 			}
 			else if (stoppedInstancesMissingCount > 0)
 			{
