@@ -82,12 +82,14 @@ bool NiagaraAny(bool4 b) { return b.x || b.y || b.z || b.w; }
 	uint3 DispatchThreadIdBounds;		// Used to track thread bounds
 	uint3 DispatchThreadIdToLinear;		// Used to convert from DispatchThreadId to a linear thread id
 
+	static uint3 GDispatchThreadId;		// SV_DispatchThreadId
+	static uint3 GGroupId;				// SV_GroupdId
+	static uint3 GGroupThreadId;		// SV_GroupThreadId
+	static uint  GGroupIndex;			// SV_GroupIndex
 	static uint GLinearThreadId;
-	static uint3 GDispatchThreadId;
-	static uint3 GGroupThreadId;
 	static uint GEmitterTickCounter;
 	static uint GRandomSeedOffset = 0;
-	
+
 	// To be removed as well but don't know who is using it
 	#include "/Engine/Private/SceneTexturesCommon.ush"
 
