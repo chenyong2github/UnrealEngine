@@ -13,7 +13,7 @@ public class Kiss_FFT : ModuleRules
 		// Compile and link with kissFFT
 		string Kiss_FFTPath = Target.UEThirdPartySourceDirectory + "Kiss_FFT/kiss_fft129";
 
-		PublicIncludePaths.Add(Kiss_FFTPath);
+		PublicSystemIncludePaths.Add(Kiss_FFTPath);
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{

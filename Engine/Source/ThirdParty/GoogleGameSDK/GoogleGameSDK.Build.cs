@@ -14,7 +14,7 @@ public class GoogleGameSDK : ModuleRules
 		{
 			PublicAdditionalLibraries.Add(GoogleGameSDKPath + "/gamesdk/libs/arm64-v8a_API24_NDK21_cpp_shared_Release/libgamesdk.a");
 			PublicAdditionalLibraries.Add(GoogleGameSDKPath + "/gamesdk/libs/x86_64_API24_NDK21_cpp_shared_Release/libgamesdk.a");
-			PublicIncludePaths.Add(GoogleGameSDKPath + "/gamesdk/include");
+			PublicSystemIncludePaths.Add(GoogleGameSDKPath + "/gamesdk/include");
 
             // Register Plugin Language
             string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);

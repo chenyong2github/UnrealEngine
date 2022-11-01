@@ -13,11 +13,11 @@ public class Imath : ModuleRules
 
 		string DeploymentDirectory = Path.Combine(ModuleDirectory, "Deploy", "Imath-3.1.3");
 
-		PublicIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
+		PublicSystemIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
 
 		// XXX: OpenEXR and Alembic include some Imath headers without the
 		// leading "Imath/..."
-		PublicIncludePaths.Add(Path.Combine(DeploymentDirectory, "include", "Imath"));
+		PublicSystemIncludePaths.Add(Path.Combine(DeploymentDirectory, "include", "Imath"));
 
 		string LibPostfix = bDebug ? "_d" : "";
 

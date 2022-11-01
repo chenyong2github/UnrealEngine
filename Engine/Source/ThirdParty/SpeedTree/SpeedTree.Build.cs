@@ -18,10 +18,10 @@ public class SpeedTree : ModuleRules
 			PublicDefinitions.Add("SPEEDTREE_KEY=INSERT_KEY_HERE");
 
             string SpeedTreePath = Target.UEThirdPartySourceDirectory + "SpeedTree/SpeedTreeSDK-v7.0/";
-            PublicIncludePaths.Add(SpeedTreePath + "Include");
+            PublicSystemIncludePaths.Add(SpeedTreePath + "Include");
 
             string SpeedTree8Path = Target.UEThirdPartySourceDirectory + "SpeedTree/SpeedTreeDataBuffer/";
-            PublicIncludePaths.Add(SpeedTree8Path);
+            PublicSystemIncludePaths.Add(SpeedTree8Path);
 
             if (Target.Platform == UnrealTargetPlatform.Win64)
 			{

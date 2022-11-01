@@ -6,7 +6,7 @@ public class detex : ModuleRules
 	public detex(ReadOnlyTargetRules Target) : base(Target)
 	{
 		string detexpath = Target.UEThirdPartySourceDirectory + "Android/detex/";
-		PublicIncludePaths.Add(detexpath);
+		PublicSystemIncludePaths.Add(detexpath);
 		
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

@@ -88,6 +88,6 @@ public class UElibPNG : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(LibPNGPath, "Unix", Target.Architecture, "libpng.a"));
 		}
 
-		PublicIncludePaths.Add(IncPNGPath);
+		PublicSystemIncludePaths.Add(IncPNGPath);
 	}
 }

@@ -13,7 +13,7 @@ public class MaterialX : ModuleRules
 
 		string DeploymentDirectory = Path.Combine(ModuleDirectory, "Deploy", "MaterialX-1.38.5");
 
-		PublicIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
+		PublicSystemIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
 
 		string[] MaterialXLibraries = {
 			"MaterialXCore",

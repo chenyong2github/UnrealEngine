@@ -9,7 +9,7 @@ public class VHACD : ModuleRules
 
 		string VHACDDirectory = Target.UEThirdPartySourceDirectory + "VHACD/";
 		string VHACDLibPath = VHACDDirectory;
-		PublicIncludePaths.Add(VHACDDirectory + "public");
+		PublicSystemIncludePaths.Add(VHACDDirectory + "public");
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{

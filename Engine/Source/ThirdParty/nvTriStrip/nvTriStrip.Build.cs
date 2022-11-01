@@ -9,7 +9,7 @@ public class nvTriStrip : ModuleRules
 		Type = ModuleType.External;
 
 		string NvTriStripPath = Target.UEThirdPartySourceDirectory + "nvTriStrip/nvTriStrip-1.0.0/";
-        PublicIncludePaths.Add(NvTriStripPath + "Inc");
+        PublicSystemIncludePaths.Add(NvTriStripPath + "Inc");
 
 		string NvTriStripLibPath = NvTriStripPath + "Lib/";
 

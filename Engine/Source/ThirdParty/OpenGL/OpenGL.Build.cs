@@ -7,7 +7,7 @@ public class OpenGL : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		PublicIncludePaths.Add(ModuleDirectory);
+		PublicSystemIncludePaths.Add(ModuleDirectory);
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{

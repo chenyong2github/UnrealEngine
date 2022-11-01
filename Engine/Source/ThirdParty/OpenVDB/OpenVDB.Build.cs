@@ -19,7 +19,7 @@ public class OpenVDB : ModuleRules
 
 		string DeploymentDirectory = Path.Combine(ModuleDirectory, "Deploy", "openvdb-8.1.0");
 
-		PublicIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
+		PublicSystemIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
 
 		PublicDefinitions.Add("OPENVDB_STATICLIB");
 		PublicDefinitions.Add("OPENVDB_OPENEXR_STATICLIB");

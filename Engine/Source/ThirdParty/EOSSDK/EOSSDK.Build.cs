@@ -145,7 +145,7 @@ public class EOSSDK : ModuleRules
 		Type = ModuleType.External;
 
 		PublicDefinitions.Add("WITH_EOS_SDK=1");
-		PublicIncludePaths.Add(SDKIncludesDir);
+		PublicSystemIncludePaths.Add(SDKIncludesDir);
 
 		PublicDefinitions.Add(String.Format("EOSSDK_RUNTIME_LOAD_REQUIRED={0}", bRequiresRuntimeLoad ? 1 : 0));
 		PublicDefinitions.Add(String.Format("EOSSDK_RUNTIME_LIBRARY_NAME=\"{0}\"", RuntimeLibraryFileName));
@@ -154,7 +154,7 @@ public class EOSSDK : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			PublicIncludePaths.Add(Path.Combine(SDKIncludesDir, "Android"));
+			PublicSystemIncludePaths.Add(Path.Combine(SDKIncludesDir, "Android"));
 
 			if (!bUseProjectBinary)
 			{

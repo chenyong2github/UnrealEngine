@@ -10,7 +10,7 @@ public class ADO : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicIncludePaths.Add("$(CommonProgramFiles)");
+			PublicSystemIncludePaths.Add("$(CommonProgramFiles)");
 		}
 	}
 }

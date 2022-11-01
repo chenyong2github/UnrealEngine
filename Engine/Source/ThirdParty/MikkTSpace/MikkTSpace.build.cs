@@ -10,7 +10,7 @@ public class MikkTSpace : ModuleRules
 
 		string MikkTSpacePath = Target.UEThirdPartySourceDirectory + "MikkTSpace/";
 
-		PublicIncludePaths.Add(MikkTSpacePath + "inc/");
+		PublicSystemIncludePaths.Add(MikkTSpacePath + "inc/");
 
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{

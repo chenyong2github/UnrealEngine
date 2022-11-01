@@ -9,7 +9,7 @@ public class UElibJPG : ModuleRules
         Type = ModuleType.External;
 
 		string libJPGPath = Target.UEThirdPartySourceDirectory + "libJPG";
-		PublicIncludePaths.Add(libJPGPath);
+		PublicSystemIncludePaths.Add(libJPGPath);
 
 		ShadowVariableWarningLevel = WarningLevel.Off;
 	}

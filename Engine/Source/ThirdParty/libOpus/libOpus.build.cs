@@ -99,6 +99,6 @@ public class libOpus : ModuleRules
 			}
 		}
 
-		PublicIncludePaths.Add(IsWinPlatform ? Path.Combine(OpusLibraryPath, "include") : OpusIncPath);
+		PublicSystemIncludePaths.Add(IsWinPlatform ? Path.Combine(OpusLibraryPath, "include") : OpusIncPath);
     }
 }

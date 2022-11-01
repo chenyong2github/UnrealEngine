@@ -13,7 +13,7 @@ public class OpenSubdiv : ModuleRules
 
 		string DeploymentDirectory = Path.Combine(ModuleDirectory, "Deploy", "OpenSubdiv-3.4.4");
 
-		PublicIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
+		PublicSystemIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
 
 		string LibPostfix = bDebug ? "_d" : "";
 

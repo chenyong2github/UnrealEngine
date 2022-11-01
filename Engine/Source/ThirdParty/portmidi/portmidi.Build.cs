@@ -8,7 +8,7 @@ public class portmidi : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory + "portmidi/include");
+		PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "portmidi/include");
 
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {

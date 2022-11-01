@@ -10,7 +10,7 @@ public class LibOVRAudio : ModuleRules
 
 		string SourceDirectory = Target.UEThirdPartySourceDirectory + "Oculus/LibOVRAudio/LibOVRAudio/";
 
-		PublicIncludePaths.Add(SourceDirectory + "include");
+		PublicSystemIncludePaths.Add(SourceDirectory + "include");
 
 		// Note: DLL/.so dynamically loaded by FOculusAudioLibraryManager::LoadDll()		
 	}

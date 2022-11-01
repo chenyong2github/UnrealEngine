@@ -9,7 +9,7 @@ public class Distorm : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "include"));
+		PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "include"));
 
 		if(Target.Platform == UnrealTargetPlatform.Win64)
 		{

@@ -15,7 +15,7 @@ public class Vorbis : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		PublicIncludePaths.Add(VorbisIncPath);
+		PublicSystemIncludePaths.Add(VorbisIncPath);
 		PublicDefinitions.Add("WITH_OGGVORBIS=1");
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)

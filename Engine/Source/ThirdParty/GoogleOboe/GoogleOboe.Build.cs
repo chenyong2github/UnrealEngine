@@ -18,7 +18,7 @@ public class GoogleOboe : ModuleRules
 
             
 
-        PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory + "GoogleOboe/Public");
+        PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "GoogleOboe/Public");
         PublicDefinitions.Add("WITH_GOOGLEOBOE=1");
     }
 }

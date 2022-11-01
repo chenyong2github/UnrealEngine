@@ -11,7 +11,7 @@ public class VisualStudioSetup : ModuleRules
 		
 		if(Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicIncludePaths.Add("$(ModuleDir)/include");
+			PublicSystemIncludePaths.Add("$(ModuleDir)/include");
 			PublicAdditionalLibraries.Add("$(ModuleDir)/v141/x64/Microsoft.VisualStudio.Setup.Configuration.Native.lib");
 		}
 	}

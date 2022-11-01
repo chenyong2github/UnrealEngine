@@ -11,8 +11,8 @@ public class etc2comp : ModuleRules
 
 		PublicDefinitions.Add("WITH_ETC2COMP=1");
 		
-		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "EtcLib", "Etc"));
-		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "EtcLib", "EtcCodec"));
+		PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "EtcLib", "Etc"));
+		PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "EtcLib", "EtcCodec"));
 		
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{

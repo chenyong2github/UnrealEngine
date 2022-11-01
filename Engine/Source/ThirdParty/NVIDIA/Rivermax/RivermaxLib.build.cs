@@ -9,14 +9,14 @@ public class RivermaxLib : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		PublicIncludePaths.Add(Path.Combine(ModuleDirectory, "include"));
+		PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, "include"));
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			string SDKPath = Path.Combine(Target.UEThirdPartySourceDirectory, "NVIDIA/Rivermax");
 			string LibraryPath = Path.Combine(SDKPath, "lib/Win64");
 			string LibraryName = "rivermax.dll";
-			PublicIncludePaths.Add(Path.Combine(SDKPath,"include"));
+			PublicSystemIncludePaths.Add(Path.Combine(SDKPath,"include"));
 			PublicRuntimeLibraryPaths.Add(LibraryPath);
 			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "rivermax.lib"));
 

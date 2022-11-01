@@ -13,7 +13,7 @@ public class FontConfig : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		PublicIncludePaths.Add(Path.Combine(ThirdPartyDirectory, "FontConfig", FontConfigVersion, "include", "fontconfig"));
+		PublicSystemIncludePaths.Add(Path.Combine(ThirdPartyDirectory, "FontConfig", FontConfigVersion, "include", "fontconfig"));
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{

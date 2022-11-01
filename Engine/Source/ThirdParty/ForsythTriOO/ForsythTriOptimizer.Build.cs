@@ -9,7 +9,7 @@ public class ForsythTriOptimizer : ModuleRules
 		Type = ModuleType.External;
 
 		string ForsythTriOptimizerPath = Target.UEThirdPartySourceDirectory + "ForsythTriOO/";
-        PublicIncludePaths.Add(ForsythTriOptimizerPath + "Src");
+        PublicSystemIncludePaths.Add(ForsythTriOptimizerPath + "Src");
 
 		string ForsythTriOptimizerLibPath = ForsythTriOptimizerPath + "Lib/";
 

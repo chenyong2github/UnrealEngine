@@ -12,7 +12,7 @@ public class coremod: ModuleRules
 		string CoreModVersion = "4.2.6";
 		string LibraryPath = Target.UEThirdPartySourceDirectory + "coremod/coremod-" + CoreModVersion + "/";
 
-		PublicIncludePaths.Add(LibraryPath + "include/coremod");
+		PublicSystemIncludePaths.Add(LibraryPath + "include/coremod");
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{

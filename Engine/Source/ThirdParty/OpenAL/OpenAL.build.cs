@@ -10,7 +10,7 @@ public class OpenAL : ModuleRules
 		string version = Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ? "1.18.1" : "1.15.1";
 
 		string OpenALPath = Target.UEThirdPartySourceDirectory + "OpenAL/" + version + "/";
-		PublicIncludePaths.Add(OpenALPath + "include");
+		PublicSystemIncludePaths.Add(OpenALPath + "include");
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{

@@ -18,7 +18,7 @@ public class libxml2 : ModuleRules
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");
-				PublicIncludePaths.Add(Path.Combine(xml2Path, "include"));
+				PublicSystemIncludePaths.Add(Path.Combine(xml2Path, "include"));
 				PublicAdditionalLibraries.Add(Path.Combine(xml2Path, "lib", Target.Architecture, "libxml2.a"));
 			}
 		}

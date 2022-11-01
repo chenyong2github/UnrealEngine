@@ -28,7 +28,7 @@ using UnrealBuildTool;
 
 			ShortName = "OodleDataCompression";
 
-			PublicIncludePaths.Add(IncludeDirectory);
+			PublicSystemIncludePaths.Add(IncludeDirectory);
 
 			string ReleaseLib = null;
 			string DebugLib = null;

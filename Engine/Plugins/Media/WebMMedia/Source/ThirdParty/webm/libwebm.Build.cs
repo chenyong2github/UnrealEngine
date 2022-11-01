@@ -28,6 +28,6 @@ public class LibWebM : ModuleRules
 		}
 
 		string IncludePath = RootPath + "/include";
-		PublicIncludePaths.Add(IncludePath);
+		PublicSystemIncludePaths.Add(IncludePath);
 	}
 }

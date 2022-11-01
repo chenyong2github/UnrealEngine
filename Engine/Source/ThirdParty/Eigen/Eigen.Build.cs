@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
 using UnrealBuildTool;
 
 public class Eigen : ModuleRules
@@ -8,8 +9,8 @@ public class Eigen : ModuleRules
     {
         Type = ModuleType.External;
 		
-		PublicIncludePaths.Add(ModuleDirectory);
-        PublicIncludePaths.Add( ModuleDirectory + "/Eigen/" );
+		PublicSystemIncludePaths.Add(ModuleDirectory);
+        PublicSystemIncludePaths.Add(Path.Join(ModuleDirectory, "Eigen"));
 		PublicDefinitions.Add("EIGEN_MPL2_ONLY");
 		PublicDefinitions.Add("EIGEN_USE_THREADS");
 		PublicDefinitions.Add("EIGEN_HAS_C99_MATH");

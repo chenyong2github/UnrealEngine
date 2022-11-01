@@ -19,7 +19,7 @@ public class llvm : ModuleRules
 		var TargetArch = "Win64";
 		var VSVersion = "VS2017";
 		var RootDirectory = Path.Combine(ModuleDirectory, LLVMVersion);
-		PublicIncludePaths.AddRange(
+		PublicSystemIncludePaths.AddRange(
 			new string[] {
 				Path.Combine(RootDirectory, "include"),
 			});

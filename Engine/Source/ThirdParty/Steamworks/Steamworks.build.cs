@@ -54,7 +54,7 @@ public class Steamworks : ModuleRules
 		}
 		
 		// Add the SDK headers
-		PublicIncludePaths.Add(SdkBase + "/public");
+		PublicSystemIncludePaths.Add(SdkBase + "/public");
 		
 		// Path for static linking (for Windows & Linux)
 		string LibraryPath = SdkBase + "/redistributable_bin/";

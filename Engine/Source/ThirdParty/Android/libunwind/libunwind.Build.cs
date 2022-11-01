@@ -12,7 +12,7 @@ public class libunwind : ModuleRules
 		{
 			string libunwindLibraryPath = Target.UEThirdPartySourceDirectory + "Android/libunwind/Android/Release/";
 			string libunwindIncludePath = Target.UEThirdPartySourceDirectory + "Android/libunwind/libunwind/include/";
-			PublicIncludePaths.Add(libunwindIncludePath);
+			PublicSystemIncludePaths.Add(libunwindIncludePath);
 
 			PublicAdditionalLibraries.AddRange(new string[] {
 				Path.Combine(libunwindLibraryPath, "arm64-v8a", "libunwind.a"),

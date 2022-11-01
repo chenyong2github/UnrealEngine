@@ -9,7 +9,7 @@ public class SoundSwitch : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
-			PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory + "IOS/SoundSwitch/SoundSwitch/SoundSwitch");
+			PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "IOS/SoundSwitch/SoundSwitch/SoundSwitch");
 		}
 	}
 }

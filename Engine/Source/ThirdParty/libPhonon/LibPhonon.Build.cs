@@ -12,7 +12,7 @@ public class libPhonon : ModuleRules
         string LibraryPath = Target.UEThirdPartySourceDirectory + "libPhonon/phonon_api/";
         string BinaryPath = "$(EngineDir)/Binaries/ThirdParty/Phonon/";
 
-        PublicIncludePaths.Add(LibraryPath + "include");
+        PublicSystemIncludePaths.Add(LibraryPath + "include");
 
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {

@@ -10,7 +10,7 @@ public class OVRPlugin : ModuleRules
 
 		string SourceDirectory = Target.UEThirdPartySourceDirectory + "Oculus/OVRPlugin/OVRPlugin/";
 
-		PublicIncludePaths.Add(SourceDirectory + "Include");
+		PublicSystemIncludePaths.Add(SourceDirectory + "Include");
 
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{

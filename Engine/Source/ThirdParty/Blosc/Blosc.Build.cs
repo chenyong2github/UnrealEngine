@@ -13,7 +13,7 @@ public class Blosc : ModuleRules
 
 		string DeploymentDirectory = Path.Combine(ModuleDirectory, "Deploy", "c-blosc-1.21.0");
 
-		PublicIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
+		PublicSystemIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
 
 		string LibPostfix = bDebug ? "_d" : "";
 

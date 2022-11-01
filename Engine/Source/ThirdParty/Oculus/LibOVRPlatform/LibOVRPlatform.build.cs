@@ -33,7 +33,7 @@ public class LibOVRPlatform : ModuleRules
 		
 		if (isLibrarySupported)
 		{
-			PublicIncludePaths.Add(Path.Combine( OculusThirdPartyDirectory, "include" ));
+			PublicSystemIncludePaths.Add(Path.Combine( OculusThirdPartyDirectory, "include" ));
 		}
 	}
 }

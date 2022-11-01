@@ -20,7 +20,7 @@ public class OpenVR : ModuleRules
 			throw new BuildException(Err);
 		}
 
-		PublicIncludePaths.Add(SdkBase + "/headers");
+		PublicSystemIncludePaths.Add(SdkBase + "/headers");
 
 		string LibraryPath = SdkBase + "/lib/";
 

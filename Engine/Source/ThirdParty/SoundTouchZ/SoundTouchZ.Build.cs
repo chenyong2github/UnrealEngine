@@ -40,7 +40,7 @@ public class SoundTouchZ : ModuleRules
 		Type = ModuleType.External;
 
 		PublicDefinitions.Add(String.Format("WITH_SOUNDTOUCHZ={0}", bPlatformSupportsSoundTouchZ ? 1 : 0));
-		PublicIncludePaths.Add(IncludeDir);
+		PublicSystemIncludePaths.Add(IncludeDir);
 
 		if (Target.Platform == UnrealTargetPlatform.Android)
 		{

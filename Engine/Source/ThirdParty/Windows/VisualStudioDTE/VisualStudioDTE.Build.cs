@@ -13,7 +13,7 @@ namespace UnrealBuildTool.Rules
 		{
 			Type = ModuleType.External;
 
-			PublicIncludePaths.Add(ModuleDirectory);
+			PublicSystemIncludePaths.Add(ModuleDirectory);
 
 			if (Target.Platform != UnrealBuildTool.UnrealTargetPlatform.Win64 ||
 				Target.WindowsPlatform.Compiler == WindowsCompiler.Clang ||

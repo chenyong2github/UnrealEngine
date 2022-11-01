@@ -15,8 +15,8 @@ public class CryptoPP : ModuleRules
 
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-            PublicIncludePaths.Add(CryptoPPPath + "include");
-            PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory);
+            PublicSystemIncludePaths.Add(CryptoPPPath + "include");
+            PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory);
             LibFolder += "Win64/VS2015/";
             LibPostfixAndExt += "lib";
         }

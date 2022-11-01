@@ -13,7 +13,7 @@ public class GpgCppSDK : ModuleRules
 		{
 			string GPGAndroidPath = Path.Combine(Target.UEThirdPartySourceDirectory, "GooglePlay/gpg-cpp-sdk.v3.0.1/gpg-cpp-sdk/android/");
 
-			PublicIncludePaths.Add(Path.Combine(GPGAndroidPath, "include/"));
+			PublicSystemIncludePaths.Add(Path.Combine(GPGAndroidPath, "include/"));
 
 			PublicAdditionalLibraries.Add(Path.Combine(GPGAndroidPath, "lib/c++/arm64-v8a/libgpg.a"));
 		}

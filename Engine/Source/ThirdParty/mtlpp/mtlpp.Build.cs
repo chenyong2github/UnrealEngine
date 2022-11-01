@@ -25,7 +25,7 @@ public class MTLPP : ModuleRules
 				PlatformName = "TVOS";
 			}
 		
-			PublicIncludePaths.Add(MTLPPPath + "src");
+			PublicSystemIncludePaths.Add(MTLPPPath + "src");
 			PublicSystemIncludePaths.Add(MTLPPPath + "interpose");
 			
 			// A full debug build without any optimisation and validation code enabled

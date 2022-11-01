@@ -12,7 +12,7 @@ public class nvTextureTools : ModuleRules
 
 		string nvttLibPath = nvttPath + "lib";
 
-		PublicIncludePaths.Add(nvttPath + "src/src");
+		PublicSystemIncludePaths.Add(nvttPath + "src/src");
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{

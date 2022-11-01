@@ -17,7 +17,7 @@ public class AlembicLib : ModuleRules
 
 		string DeploymentDirectory = Path.Combine(ModuleDirectory, "Deploy", "alembic-1.8.2");
 
-		PublicIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
+		PublicSystemIncludePaths.Add(Path.Combine(DeploymentDirectory, "include"));
 
 		string LibPostfix = bDebug ? "_d" : "";
 

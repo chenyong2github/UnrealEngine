@@ -8,7 +8,7 @@ public class MCPP : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory + "MCPP/mcpp-2.7.2/inc");
+		PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "MCPP/mcpp-2.7.2/inc");
 
 		string LibPath = Target.UEThirdPartySourceDirectory + "MCPP/mcpp-2.7.2/lib/";
 

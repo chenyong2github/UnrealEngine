@@ -18,7 +18,7 @@ public class libcurl : ModuleRules
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			PublicIncludePaths.Add(Path.Combine(LinuxLibCurlPath, "include"));
+			PublicSystemIncludePaths.Add(Path.Combine(LinuxLibCurlPath, "include"));
 			PublicAdditionalLibraries.Add(Path.Combine(LinuxLibCurlPath, "lib", "Unix", Target.Architecture, "Release", "libcurl.a"));
 			PublicDefinitions.Add("CURL_STATICLIB=1");
 
@@ -37,7 +37,7 @@ public class libcurl : ModuleRules
 				"x64",
 			};
  
-			PublicIncludePaths.Add(AndroidLibCurlPath + "include/Android/");
+			PublicSystemIncludePaths.Add(AndroidLibCurlPath + "include/Android/");
 			foreach(var Architecture in Architectures)
 			{
 				PublicAdditionalLibraries.Add(AndroidLibCurlPath + "lib/Android/" + Architecture + "/libcurl.a");
@@ -45,7 +45,7 @@ public class libcurl : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			PublicIncludePaths.Add(Path.Combine(MacLibCurlPath, "include"));
+			PublicSystemIncludePaths.Add(Path.Combine(MacLibCurlPath, "include"));
 			PublicAdditionalLibraries.Add(Path.Combine(MacLibCurlPath, "lib", "Mac", "Release", "libcurl.a"));
 			PublicDefinitions.Add("CURL_STATICLIB=1");
 			PublicFrameworks.Add("SystemConfiguration");

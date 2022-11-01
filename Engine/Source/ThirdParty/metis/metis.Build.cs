@@ -10,7 +10,7 @@ public class metis : ModuleRules
 
         string MetisPath = Target.UEThirdPartySourceDirectory + "metis/5.1.0";
 
-		PublicIncludePaths.Add(MetisPath + "/include" );
+		PublicSystemIncludePaths.Add(MetisPath + "/include" );
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
