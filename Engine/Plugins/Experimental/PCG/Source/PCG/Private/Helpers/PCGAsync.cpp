@@ -87,7 +87,17 @@ namespace FPCGAsync
 	void AsyncPointProcessing(FPCGContext* Context, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<bool(int32, FPCGPoint&)>& PointFunc)
 	{
 		const int32 MinIterationsPerTask = 256;
-		AsyncPointProcessing(Context ? Context->NumAvailableTasks : 1, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
+		
+		if (Context && !Context->bIsRunningAsyncCall)
+		{
+			Context->bIsRunningAsyncCall = true;
+			AsyncPointProcessing(Context->NumAvailableTasks, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
+			Context->bIsRunningAsyncCall = false;
+		}
+		else
+		{
+			AsyncPointProcessing(1, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
+		}
 	}
 
 	void AsyncPointProcessing(FPCGContext* Context, const TArray<FPCGPoint>& InPoints, TArray<FPCGPoint>& OutPoints, const TFunction<bool(const FPCGPoint&, FPCGPoint&)>& PointFunc)
@@ -110,7 +120,16 @@ namespace FPCGAsync
 			return NumPointsWritten;
 		};
 
-		AsyncPointProcessing(Context ? Context->NumAvailableTasks : 1, MinIterationsPerTask, InPoints.Num(), OutPoints, IterationInnerLoop);
+		if (Context && !Context->bIsRunningAsyncCall)
+		{
+			Context->bIsRunningAsyncCall = true;
+			AsyncPointProcessing(Context->NumAvailableTasks, MinIterationsPerTask, InPoints.Num(), OutPoints, IterationInnerLoop);
+			Context->bIsRunningAsyncCall = false;
+		}
+		else
+		{
+			AsyncPointProcessing(1, MinIterationsPerTask, InPoints.Num(), OutPoints, IterationInnerLoop);
+		}
 	}
 
 	void AsyncPointProcessing(int32 NumAvailableTasks, int32 MinIterationsPerTask, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<bool(int32, FPCGPoint&)>& PointFunc)
@@ -137,7 +156,17 @@ namespace FPCGAsync
 	void AsyncPointFilterProcessing(FPCGContext* Context, int32 NumIterations, TArray<FPCGPoint>& InFilterPoints, TArray<FPCGPoint>& OutFilterPoints, const TFunction<bool(int32, FPCGPoint&, FPCGPoint&)>& PointFunc)
 	{
 		const int32 MinIterationsPerTask = 256;
-		AsyncPointFilterProcessing(Context ? Context->NumAvailableTasks : 1, MinIterationsPerTask, NumIterations, InFilterPoints, OutFilterPoints, PointFunc);
+
+		if (Context && !Context->bIsRunningAsyncCall)
+		{
+			Context->bIsRunningAsyncCall = true;
+			AsyncPointFilterProcessing(Context->NumAvailableTasks, MinIterationsPerTask, NumIterations, InFilterPoints, OutFilterPoints, PointFunc);
+			Context->bIsRunningAsyncCall = false;
+		}
+		else
+		{
+			AsyncPointFilterProcessing(1, MinIterationsPerTask, NumIterations, InFilterPoints, OutFilterPoints, PointFunc);
+		}
 	}
 
 	void AsyncPointFilterProcessing(int32 NumAvailableTasks, int32 MinIterationsPerTask, int32 NumIterations, TArray<FPCGPoint>& InFilterPoints, TArray<FPCGPoint>& OutFilterPoints, const TFunction<bool(int32, FPCGPoint&, FPCGPoint&)>& PointFunc)
@@ -266,7 +295,16 @@ namespace FPCGAsync
 	void AsyncMultiPointProcessing(FPCGContext* Context, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<TArray<FPCGPoint>(int32)>& PointFunc)
 	{
 		const int32 MinIterationsPerTask = 256;
-		AsyncMultiPointProcessing(Context ? Context->NumAvailableTasks : 1, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
+		if (Context && !Context->bIsRunningAsyncCall)
+		{
+			Context->bIsRunningAsyncCall = true;
+			AsyncMultiPointProcessing(Context->NumAvailableTasks, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
+			Context->bIsRunningAsyncCall = false;
+		}
+		else
+		{
+			AsyncMultiPointProcessing(1, MinIterationsPerTask, NumIterations, OutPoints, PointFunc);
+		}
 	}
 
 	void AsyncMultiPointProcessing(int32 NumAvailableTasks, int32 MinIterationsPerTask, int32 NumIterations, TArray<FPCGPoint>& OutPoints, const TFunction<TArray<FPCGPoint>(int32)>& PointFunc)

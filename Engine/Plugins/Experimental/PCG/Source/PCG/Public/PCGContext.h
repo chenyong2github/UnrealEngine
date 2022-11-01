@@ -61,6 +61,9 @@ struct PCG_API FPCGContext
 	double EndTime = 0.0;
 	bool bIsRunningOnMainThread = false;
 
+	/** True if currently inside a PCGAsync scope - will prevent further async processing */
+	bool bIsRunningAsyncCall = false;
+
 #if WITH_EDITOR
 	double ElapsedTime = 0.0;
 	int32 ExecutionCount = 0;
