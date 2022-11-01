@@ -1723,6 +1723,12 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 				Out.Logf(ELogVerbosity::Display, TEXT("Total number of Serialize calls: %lld"), TotalSerializeCalls);
 			}
 #endif // !NO_LOGGING
+
+			// Flush logs while the disabled times, category, and verbosity are in scope.
+			if (GLog)
+			{
+				GLog->Flush();
+			}
 		}
 		CollectGarbage(RF_NoFlags);
 	}
