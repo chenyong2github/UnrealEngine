@@ -25,6 +25,8 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "WorldPartition/WorldPartitionActorDescUtils.h"
+#include "Engine/Level.h"
+#include "Engine/World.h"
 #include "EditorWorldUtils.h"
 #include "PackageHelperFunctions.h"
 #include "ShaderCompiler.h"
