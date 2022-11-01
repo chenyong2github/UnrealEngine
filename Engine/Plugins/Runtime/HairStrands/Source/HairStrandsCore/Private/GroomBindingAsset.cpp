@@ -10,6 +10,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/ObjectSaveContext.h"
+#include "UObject/DevObjectVersion.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GroomBindingAsset)
 
@@ -662,13 +663,16 @@ void UGroomBindingAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define GROOM_BINDING_DERIVED_DATA_VERSION TEXT("30769E530C574C7BA15C56F224A64E32")
+// DDC Guid needs to be bumped in:
+// * Main    : Engine\Source\Runtime\Core\Private\UObject\DevObjectVersion.cpp
+// * Release : Engine\Source\Runtime\Core\Private\UObject\UE5ReleaseStreamObjectVersion.cpp
+// * ...
 
 namespace GroomBindingDerivedDataCacheUtils
 {
 	const FString& GetGroomBindingDerivedDataVersion()
 	{
-		static FString CachedVersionString(GROOM_BINDING_DERIVED_DATA_VERSION);
+		static FString CachedVersionString = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().GROOM_BINDING_DERIVED_DATA_VERSION).ToString();
 		return CachedVersionString;
 	}
 

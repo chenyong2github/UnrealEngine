@@ -19,14 +19,16 @@ struct CORE_API FDevSystemGuids
 	
 	FDevSystemGuids();
 	const FGuid GLOBALSHADERMAP_DERIVEDDATA_VER;
+	const FGuid GROOM_BINDING_DERIVED_DATA_VERSION;
+	const FGuid GROOM_DERIVED_DATA_VERSION;
 	const FGuid LANDSCAPE_MOBILE_COOK_VERSION;
 	const FGuid MATERIALSHADERMAP_DERIVEDDATA_VER;
 	const FGuid NANITE_DERIVEDDATA_VER;
 	const FGuid NIAGARASHADERMAP_DERIVEDDATA_VER;
 	const FGuid Niagara_LatestScriptCompileVersion;
+	const FGuid POSESEARCHDB_DERIVEDDATA_VER;
 	const FGuid SkeletalMeshDerivedDataVersion;
 	const FGuid STATICMESH_DERIVEDDATA_VER;
-	const FGuid POSESEARCHDB_DERIVEDDATA_VER;
 };
 
 class CORE_API FDevVersionRegistration :  public FCustomVersionRegistration

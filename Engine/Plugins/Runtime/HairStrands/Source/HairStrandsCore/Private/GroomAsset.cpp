@@ -38,6 +38,7 @@
 #include "HairCardsVertexFactory.h"
 #include "PSOPrecache.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/DevObjectVersion.h"
 
 #if WITH_EDITORONLY_DATA
 #include "DerivedDataCache.h"
@@ -1881,7 +1882,10 @@ void UGroomAsset::SetHairWidth(float Width)
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define GROOM_DERIVED_DATA_VERSION TEXT("05A37379F8A049D5986824E9AAA83F41")
+// DDC Guid needs to be bumped in:
+// * Main    : Engine\Source\Runtime\Core\Private\UObject\DevObjectVersion.cpp
+// * Release : Engine\Source\Runtime\Core\Private\UObject\UE5ReleaseStreamObjectVersion.cpp
+// * ...
 
 #if WITH_EDITORONLY_DATA
 
@@ -1889,7 +1893,7 @@ namespace GroomDerivedDataCacheUtils
 {
 	const FString& GetGroomDerivedDataVersion()
 	{
-		static FString CachedVersionString(GROOM_DERIVED_DATA_VERSION);
+		static FString CachedVersionString = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().GROOM_DERIVED_DATA_VERSION).ToString();
 		return CachedVersionString;
 	}
 
