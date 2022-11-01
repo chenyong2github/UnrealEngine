@@ -56,6 +56,16 @@ struct IChangelistTreeItem : TSharedFromThis<IChangelistTreeItem>
 	/** Remove a child from this item */
 	void RemoveChild(const TSharedRef<IChangelistTreeItem>& Child);
 
+	/** Remove all children from this item. */
+	void RemoveAllChildren();
+
+public:
+	/** A sequence number representing the last time the item was inspected by the widget owning this UI item. Detect when the underlying model object stopped to exist between two UI updates.*/
+	int64 VisitedUpdateNum = -1;
+
+	/** A sequence number representing the last time the item was displayed by the widget owning this item. Used to detect when an existing item started/stopped to be visible between two UI updates.*/
+	int64 DisplayedUpdateNum = -1;
+
 protected:
 	IChangelistTreeItem(TreeItemType InType) { Type = InType; }
 
@@ -92,6 +102,9 @@ struct IFileViewTreeItem : public IChangelistTreeItem
 	/** The values displayed in the 'User' column. */
 	virtual const FString& GetCheckedOutBy() const { return DefaultStrValue; }
 
+	/** Returns the full pathname of the files on the file sytem. */
+	virtual const FString& GetFullPathname() const { return DefaultStrValue; }
+
 	/** Set the last modified time timestamp. */
 	void SetLastModifiedDateTime(const FDateTime& Timestamp);
 
@@ -100,6 +113,10 @@ struct IFileViewTreeItem : public IChangelistTreeItem
 
 	/** The values displayed in the 'Last Modified' column as text. */
 	FText GetLastModifiedTimestamp() const { return LastModifiedTimestampText; }
+
+public:
+	/** Keep the icon sorting priority as it was the last time the item was displayed. Used to detect if the priority changed between two refreshes of the UI. */
+	int32 DisplayedIconPriority = -1;
 
 protected:
 	IFileViewTreeItem(TreeItemType InType) : IChangelistTreeItem(InType) {}
@@ -112,6 +129,14 @@ private:
 	/** The timestamp of the last modification to the file. */
 	FText LastModifiedTimestampText;
 	FDateTime LastModifiedDateTime;
+};
+
+
+/** Root node to group shelved files as children. */
+struct FShelvedChangelistTreeItem : public IChangelistTreeItem
+{
+	FShelvedChangelistTreeItem() : IChangelistTreeItem(IChangelistTreeItem::ShelvedChangelist) {}
+	FText GetDisplayText() const;
 };
 
 
@@ -145,6 +170,7 @@ struct FChangelistTreeItem : public IChangelistTreeItem
 	}
 
 	TSharedRef<ISourceControlChangelistState> ChangelistState;
+	TSharedPtr<FShelvedChangelistTreeItem> ShelvedChangelistItem;
 };
 
 
@@ -185,6 +211,7 @@ struct FFileTreeItem : public IFileViewTreeItem
 	virtual const FString& GetName() const override { return AssetNameStr; }
 	virtual const FString& GetPath() const override { return AssetPathStr; }
 	virtual const FString& GetType() const override { return AssetTypeStr; }
+	virtual const FString& GetFullPathname() const override { return FileState->GetFilename(); }
 	virtual const FString& GetCheckedOutBy() const override;
 
 	/** Updates informations based on AssetData */
@@ -288,14 +315,6 @@ private:
 };
 
 
-/** Root node to group shelved files as children. */
-struct FShelvedChangelistTreeItem : public IChangelistTreeItem
-{
-	FShelvedChangelistTreeItem() : IChangelistTreeItem(IChangelistTreeItem::ShelvedChangelist) {}
-	FText GetDisplayText() const;
-};
-
-
 struct FShelvedFileTreeItem : public FFileTreeItem
 {
 	explicit FShelvedFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyPaths = true)
@@ -315,6 +334,7 @@ public:
 	virtual const FString& GetName() const override { return AssetNameStr; }
 	virtual const FString& GetPath() const override { return AssetPathStr; }
 	virtual const FString& GetType() const override { return AssetTypeStr; }
+	virtual const FString& GetFullPathname() const override { return Filename; }
 
 	const FString& GetFilename() const { return Filename; }
 	const FText& GetPackageName() const { return PackageName; }
@@ -376,4 +396,3 @@ typedef TSharedPtr<IChangelistTreeItem> FChangelistTreeItemPtr;
 typedef TSharedRef<IChangelistTreeItem> FChangelistTreeItemRef;
 typedef TSharedPtr<FFileTreeItem> FFileTreeItemPtr;
 typedef TSharedRef<FFileTreeItem> FFileTreeItemRef;
-

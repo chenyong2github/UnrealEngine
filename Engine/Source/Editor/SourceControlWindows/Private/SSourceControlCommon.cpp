@@ -20,7 +20,9 @@
 #include "Widgets/Layout/SBox.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "Logging/MessageLog.h"
 #include "Misc/ScopedSlowTask.h"
+#include "Modules/ModuleManager.h"
 #include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
@@ -49,6 +51,15 @@ void IChangelistTreeItem::RemoveChild(const TSharedRef<IChangelistTreeItem>& Chi
 	{
 		Child->Parent = nullptr;
 	}
+}
+
+void IChangelistTreeItem::RemoveAllChildren()
+{
+	for (TSharedPtr<IChangelistTreeItem>& Child : Children)
+	{
+		Child->Parent = nullptr;
+	}
+	Children.Reset();
 }
 
 static FString RetrieveAssetName(const FAssetData& InAssetData)
@@ -281,7 +292,7 @@ FText FFileTreeItem::GetAssetName()
 
 FText FShelvedChangelistTreeItem::GetDisplayText() const
 {
-	return FText::Format(LOCTEXT("SourceControl_ShelvedFiles", "Shelved Items ({0})"), Children.Num());
+	return LOCTEXT("SourceControl_ShelvedFiles", "Shelved Items");
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -400,6 +411,8 @@ void DisplaySourceControlOperationNotification(const FText& Message, SNotificati
 	{
 		return;
 	}
+
+	FMessageLog("SourceControl").Message(CompletionState == SNotificationItem::ECompletionState::CS_Fail ? EMessageSeverity::Error : EMessageSeverity::Info, Message);
 
 	FNotificationInfo NotificationInfo(Message);
 	NotificationInfo.ExpireDuration = 6.0f;

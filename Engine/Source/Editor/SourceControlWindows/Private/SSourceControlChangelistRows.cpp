@@ -36,6 +36,12 @@ FName SourceControlFileViewColumn::CheckedOutByUser::Id() { return TEXT("Checked
 FText SourceControlFileViewColumn::CheckedOutByUser::GetDisplayText() { return LOCTEXT("CheckedOutByUser_Column", "User"); }
 FText SourceControlFileViewColumn::CheckedOutByUser::GetToolTipText() { return LOCTEXT("CheckedOutByUser_Column_Tooltip", "Displays the other user(s) that checked out the file/asset, if any"); }
 
+FText FormatChangelistFileCountText(int32 DisplayedCount, int32 TotalCount)
+{
+	return DisplayedCount == TotalCount ?
+		FText::Format(INVTEXT("({0})"), TotalCount) :
+		FText::Format(LOCTEXT("FilterNum", "({0} out of {1})"), DisplayedCount, TotalCount);
+}
 
 void SChangelistTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwner)
 {
@@ -73,7 +79,11 @@ void SChangelistTableRow::Construct(const FArguments& InArgs, const TSharedRef<S
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Text(FText::Format(INVTEXT("({0})"), TreeItem->GetFileCount()))
+				.Text_Lambda([this]()
+				{
+					// Check if the 'Shelved Files' node is currently linked to the  tree view. (not filtered out).
+					return FormatChangelistFileCountText(TreeItem->ShelvedChangelistItem->GetParent() ? TreeItem->GetChildren().Num() - 1 : TreeItem->GetChildren().Num(), TreeItem->GetFileCount());
+				})
 			]
 			+SHorizontalBox::Slot() // Description.
 			.Padding(2, 0, 0, 0)
@@ -200,7 +210,10 @@ void SUncontrolledChangelistTableRow::Construct(const FArguments& InArgs, const 
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Text(FText::Format(INVTEXT("({0})"), TreeItem->GetFileCount()))
+				.Text_Lambda([this]()
+				{
+					return FormatChangelistFileCountText(TreeItem->GetChildren().Num(), TreeItem->GetFileCount());
+				})
 			]
 		], InOwner);
 }
@@ -375,10 +388,21 @@ void SShelvedFilesTableRow::Construct(const FArguments& InArgs, const TSharedRef
 				+SHorizontalBox::Slot()
 				.Padding(2.0f, 1.0f)
 				.VAlign(VAlign_Center)
+				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.Text(TreeItem->GetDisplayText())
+					.Text_Lambda([this](){ return TreeItem->GetDisplayText(); })
 					.HighlightText(InArgs._HighlightText)
+				]
+				+SHorizontalBox::Slot() // Shelved file count.
+				.Padding(4, 0, 4, 0)
+				.AutoWidth()
+				[
+					SNew(STextBlock)
+					.Text_Lambda([this]()
+					{
+						return FormatChangelistFileCountText(TreeItem->GetChildren().Num(), static_cast<const FChangelistTreeItem*>(TreeItem->GetParent().Get())->GetShelvedFileCount());
+					})
 				]
 		],
 		InOwnerTableView);
