@@ -54,9 +54,14 @@ public:
 	virtual UClass* GetAssetFamilyClass(UClass* InClass) const = 0;
 
 	/** Record that an asset was opened */
+	UE_DEPRECATED(5.2, "Please use FPersonaModule::RecordAssetOpened to inform all asset familes rather than just one.")
 	virtual void RecordAssetOpened(const FAssetData& InAssetData) = 0;
 
 	/** Event fired when an asset is opened */
 	DECLARE_EVENT_OneParam(IAssetFamily, FOnAssetOpened, UObject*)
 	virtual FOnAssetOpened& GetOnAssetOpened() = 0;
+
+	/** Event fired when an asset family changes (e.g. relationships are altered) */
+	DECLARE_EVENT(IAssetFamily, FOnAssetFamilyChanged)
+	virtual FOnAssetFamilyChanged& GetOnAssetFamilyChanged() = 0;
 };

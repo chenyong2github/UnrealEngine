@@ -374,9 +374,10 @@ void FAnimNode_PoseDriver::Evaluate_AnyThread(FPoseContext& Output)
 		if (OutputWeights.Num() > 0)
 		{
 			// If we want to drive poses, and PoseAsset is assigned and compatible
+			const UPoseAsset* CachedPoseAsset = CurrentPoseAsset.Get();
 			if (DriveOutput == EPoseDriverOutput::DrivePoses &&
-				CurrentPoseAsset.IsValid() &&
-				Output.AnimInstanceProxy->IsSkeletonCompatible(CurrentPoseAsset->GetSkeleton()))
+				CachedPoseAsset &&
+				CurrentPoseAsset->GetSkeleton() != nullptr)
 			{
 				FPoseContext CurrentPose(Output);
 

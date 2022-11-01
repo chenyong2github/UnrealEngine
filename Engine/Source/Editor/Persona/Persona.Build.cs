@@ -26,7 +26,6 @@ public class Persona : ModuleRules
                 "AssetRegistry", 
                 "MainFrame",
                 "DesktopPlatform",
-                "ContentBrowser",
                 "AssetTools",
                 "MeshReductionInterface",
                 "SequenceRecorder",
@@ -77,13 +76,13 @@ public class Persona : ModuleRules
 				"StatusBar",
 				"ToolWidgets",
 				"InteractiveToolsFramework",
+				"ContentBrowser",
             }
         );
 
         DynamicallyLoadedModuleNames.AddRange(
             new string[] {
-                "ContentBrowser",
-                "Documentation",
+	            "Documentation",
                 "MainFrame",
                 "DesktopPlatform",
                 "SkeletonEditor",

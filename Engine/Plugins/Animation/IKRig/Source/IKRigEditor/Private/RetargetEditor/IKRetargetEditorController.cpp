@@ -197,7 +197,7 @@ void FIKRetargetEditorController::HandleRetargeterNeedsInitialized(UIKRetargeter
 	{
 		// verify that animation is compatible with (potentially) new source mesh
 		USkeletalMesh* NewSourceMesh = GetSkeletalMesh(ERetargetSourceOrTarget::Source);
-		if (AnimThatWasPlaying->GetSkeleton()->IsCompatible(NewSourceMesh->GetSkeleton()))
+		if (AnimThatWasPlaying->GetSkeleton()->IsCompatibleForEditor(NewSourceMesh->GetSkeleton()))
 		{
 			SourceAnimInstance->SetAnimationAsset(AnimToRestore);
 			SourceAnimInstance->SetPlaying(true);

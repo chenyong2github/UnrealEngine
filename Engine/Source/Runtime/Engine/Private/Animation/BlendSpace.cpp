@@ -885,12 +885,7 @@ void UBlendSpace::GetAnimationPose_Internal(TArray<FBlendSampleData>& BlendSampl
 			}
 			else
 			{
-				if (Sample.Animation
-#if WITH_EDITOR
-					// verify if Sample.Animation->GetSkeleton matches
-					&& ensure(GetSkeleton()->IsCompatible(Sample.Animation->GetSkeleton()))
-#endif // WITH_EDITOR
-					)
+				if (Sample.Animation && Sample.Animation->GetSkeleton() != nullptr)
 				{
 					const float Time = FMath::Clamp<float>(BlendSampleDataCache[I].Time, 0.f, Sample.Animation->GetPlayLength());
 
@@ -1467,7 +1462,10 @@ bool UBlendSpace::IsAnimationCompatibleWithSkeleton(const UAnimSequence* Animati
 {
 	// Check if the animation sequences skeleton is compatible with the blendspace one
 	const USkeleton* MySkeleton = GetSkeleton();
-	const bool bIsAnimationCompatible = AnimationSequence && MySkeleton && AnimationSequence->GetSkeleton() && MySkeleton->IsCompatible(AnimationSequence->GetSkeleton());
+	bool bIsAnimationCompatible = AnimationSequence && MySkeleton && AnimationSequence->GetSkeleton();
+#if WITH_EDITORONLY_DATA
+	bIsAnimationCompatible = bIsAnimationCompatible && MySkeleton->IsCompatibleForEditor(AnimationSequence->GetSkeleton());
+#endif
 	return bIsAnimationCompatible;
 }
 

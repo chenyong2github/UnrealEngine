@@ -56,7 +56,7 @@ void UAnimGraphNode_BlendSpaceBase::CustomizePinData(UEdGraphPin* Pin, FName Sou
 
 void UAnimGraphNode_BlendSpaceBase::PreloadRequiredAssets()
 {
-	PreloadObject(GetBlendSpace());
+	PreloadRequiredAssetsHelper(GetBlendSpace(), FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_BlendSpacePlayer, BlendSpace)));
 
 	Super::PreloadRequiredAssets();
 }

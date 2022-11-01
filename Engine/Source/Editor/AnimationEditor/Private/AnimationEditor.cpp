@@ -536,8 +536,7 @@ TSharedPtr<SDockTab> FAnimationEditor::OpenNewAnimationDocumentTab(UAnimationAss
 		}
 
 		// let the asset family know too
-		TSharedRef<IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(InAnimAsset);
-		AssetFamily->RecordAssetOpened(FAssetData(InAnimAsset));
+		PersonaModule.RecordAssetOpened(FAssetData(InAnimAsset));
 	}
 
 	return OpenedTab;

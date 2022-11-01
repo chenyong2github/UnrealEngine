@@ -266,6 +266,12 @@ public:
 	/** Create an asset family for the supplied persona asset */
 	virtual TSharedRef<IAssetFamily> CreatePersonaAssetFamily(const UObject* InAsset) const;
 
+	/** Broadcast event that all asset families need to change */
+	virtual void BroadcastAssetFamilyChange() const;
+
+	/** Record that an asset was opened (forward to relevant asset families) */
+	virtual void RecordAssetOpened(const FAssetData& InAssetData) const;
+	
 	/** Create a shortcut widget for an asset family */
 	virtual TSharedRef<SWidget> CreateAssetFamilyShortcutWidget(const TSharedRef<class FWorkflowCentricApplication>& InHostingApp, const TSharedRef<class IAssetFamily>& InAssetFamily) const;
 
@@ -460,6 +466,7 @@ private:
 	
 	static bool HandleAssetCreated(const TArray<UObject*> NewAssets);
 
+	void RegisterToolMenuExtensions();
 private:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
 	TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;

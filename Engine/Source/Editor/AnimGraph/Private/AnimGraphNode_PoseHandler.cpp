@@ -41,7 +41,7 @@ void UAnimGraphNode_PoseHandler::OnOverrideAssets(IAnimBlueprintNodeOverrideAsse
 
 void UAnimGraphNode_PoseHandler::PreloadRequiredAssets()
 {
-	PreloadObject(GetPoseHandlerNode()->PoseAsset);
+	PreloadRequiredAssetsHelper(GetPoseHandlerNode()->PoseAsset, FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_PoseHandler, PoseAsset)));
 
 	Super::PreloadRequiredAssets();
 }

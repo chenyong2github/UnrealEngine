@@ -114,5 +114,5 @@ TSharedRef<SWidget> FAnimInstanceDetails::CreateFilteredObjectPropertyWidget(FPr
 
 bool FAnimInstanceDetails::OnShouldFilterAnimAsset(const FAssetData& AssetData, const USkeleton* TargetSkeleton) const
 {
-	return !(TargetSkeleton && TargetSkeleton->IsCompatibleSkeletonByAssetData(AssetData));
+	return !(TargetSkeleton && TargetSkeleton->IsCompatibleForEditor(AssetData));
 }

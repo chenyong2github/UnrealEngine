@@ -454,20 +454,17 @@ void UAnimMontage::PostLoad()
 		}
 	}
 
-	// verify if skeleton matches, otherwise clear it, this can happen if anim sequence has been modified when this hasn't been loaded. 
-	if (const USkeleton* MySkeleton = GetSkeleton())
+	// verify if skeleton is valid, otherwise clear it, this can happen if anim sequence has been modified when this hasn't been loaded. 
+	for (int32 I=0; I<SlotAnimTracks.Num(); ++I)
 	{
-		for (int32 I=0; I<SlotAnimTracks.Num(); ++I)
+		if ( SlotAnimTracks[I].AnimTrack.AnimSegments.Num() > 0 )
 		{
-			if ( SlotAnimTracks[I].AnimTrack.AnimSegments.Num() > 0 )
+			UAnimSequenceBase* SequenceBase = SlotAnimTracks[I].AnimTrack.AnimSegments[0].GetAnimReference();
+			if (SequenceBase && SequenceBase->GetSkeleton() == nullptr)
 			{
-				UAnimSequenceBase* SequenceBase = SlotAnimTracks[I].AnimTrack.AnimSegments[0].GetAnimReference();
-				if (SequenceBase && !MySkeleton->IsCompatible(SequenceBase->GetSkeleton()))
-				{
-					SlotAnimTracks[I].AnimTrack.AnimSegments[0].SetAnimReference(nullptr);
-					MarkPackageDirty();
-					break;
-				}
+				SlotAnimTracks[I].AnimTrack.AnimSegments[0].SetAnimReference(nullptr);
+				MarkPackageDirty();
+				break;
 			}
 		}
 	}

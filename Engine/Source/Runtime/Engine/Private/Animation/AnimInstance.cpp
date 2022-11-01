@@ -2002,7 +2002,7 @@ UAnimMontage* UAnimInstance::PlaySlotAnimationAsDynamicMontage_WithBlendArgs(UAn
 
 UAnimMontage* UAnimInstance::PlaySlotAnimationAsDynamicMontage_WithBlendSettings(UAnimSequenceBase* Asset, FName SlotNodeName, const FMontageBlendSettings& BlendInSettings, const FMontageBlendSettings& BlendOutSettings, float InPlayRate, int32 LoopCount, float BlendOutTriggerTime, float InTimeToStartMontageAt)
 {
-	if (Asset && CurrentSkeleton->IsCompatible(Asset->GetSkeleton()))
+	if (Asset && Asset->GetSkeleton())
 	{
 		// create asset using the information
 		UAnimMontage* NewMontage = UAnimMontage::CreateSlotAnimationAsDynamicMontage_WithBlendSettings(Asset, SlotNodeName, BlendInSettings, BlendOutSettings, InPlayRate, LoopCount, BlendOutTriggerTime);
@@ -2093,7 +2093,7 @@ float UAnimInstance::Montage_PlayInternal(UAnimMontage* MontageToPlay, const FMo
 
 	if (MontageToPlay && (MontageToPlay->GetPlayLength() > 0.f) && MontageToPlay->HasValidSlotSetup())
 	{
-		if (CurrentSkeleton && CurrentSkeleton->IsCompatible(MontageToPlay->GetSkeleton()))
+		if (CurrentSkeleton && MontageToPlay->GetSkeleton())
 		{
 			const FName NewMontageGroupName = MontageToPlay->GetGroupName();
 			if (bStopAllMontages)
@@ -2934,18 +2934,6 @@ void UAnimInstance::PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance
 	if (IAnimClassInterface* AnimBlueprintClass = IAnimClassInterface::GetFromClass(GetClass()))
 	{
 		UClass* NewClass = InClass.Get();
-		if(NewClass)
-		{
-			// Verify target skeleton matches at runtime
-			IAnimClassInterface* LinkedAnimBlueprintClass = IAnimClassInterface::GetFromClass(NewClass);
-			USkeleton* LinkedSkeleton = LinkedAnimBlueprintClass->GetTargetSkeleton();
-			USkeleton* OuterSkeleton = AnimBlueprintClass->GetTargetSkeleton();
-			if(!LinkedSkeleton->IsCompatible(OuterSkeleton))
-			{
-				UE_LOG(LogAnimation, Warning, TEXT("Linking layer: Linked instance class has a mismatched target skeleton. Expected %s, found %s. Anim instance: %s Linked layer class : %s"), OuterSkeleton ? *OuterSkeleton->GetName() : TEXT("null"), LinkedSkeleton ? *LinkedSkeleton->GetName() : TEXT("null"), *this->GetName(), *NewClass->GetName());
-				return;
-			}
-		}
 
 		// Make sure we have valid objects as initialization can route back out of linked instances into this outer graph
 		GetProxyOnAnyThread<FAnimInstanceProxy>().InitializeObjects(this);

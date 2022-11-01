@@ -422,8 +422,7 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 	PersonaToolkit->GetPreviewScene()->SetDefaultAnimationMode(EPreviewSceneDefaultAnimationMode::AnimationBlueprint);
 	PersonaToolkit->GetPreviewScene()->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &FAnimationBlueprintEditor::HandlePreviewMeshChanged));
 
-	TSharedRef<IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(InAnimBlueprint);
-	AssetFamily->RecordAssetOpened(FAssetData(InAnimBlueprint));
+	PersonaModule.RecordAssetOpened(InAnimBlueprint);
 
 	if(InAnimBlueprint->BlueprintType != BPTYPE_Interface && !InAnimBlueprint->bIsTemplate)
 	{
@@ -2269,7 +2268,7 @@ bool FAnimationBlueprintEditor::HandleShouldFilterAsset(
 	
 	const USkeleton* Skeleton = PersonaPreviewSceneDescription->PreviewMesh->GetSkeleton();
 	const FString SkeletonTag = InAssetData.GetTagValueRef<FString>(InTag);
-	if (Skeleton && Skeleton->IsCompatibleSkeletonByAssetString(SkeletonTag))
+	if (Skeleton && Skeleton->IsCompatibleForEditor(SkeletonTag))
 	{
 		return false;
 	}

@@ -482,7 +482,7 @@ bool FPreviewSceneDescriptionCustomization::HandleShouldFilterAsset(const FAsset
 
 	const USkeleton* Skeleton = PersonaPreviewSceneDescription->PreviewMesh->GetSkeleton();
 	const FString SkeletonTag = InAssetData.GetTagValueRef<FString>(InTag);
-	if (Skeleton && Skeleton->IsCompatibleSkeletonByAssetString(SkeletonTag))
+	if (Skeleton && Skeleton->IsCompatibleForEditor(SkeletonTag))
 	{
 		return false;
 	}
@@ -688,7 +688,7 @@ bool FPreviewMeshCollectionEntryCustomization::HandleShouldFilterAsset(const FAs
 		return false;
 	}
 
-	if (Skeleton && Skeleton->IsCompatibleSkeletonByAssetData(InAssetData))
+	if (Skeleton && Skeleton->IsCompatibleForEditor(InAssetData))
 	{
 		return false;
 	}

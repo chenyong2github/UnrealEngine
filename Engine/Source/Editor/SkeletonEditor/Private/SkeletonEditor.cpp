@@ -99,8 +99,7 @@ void FSkeletonEditor::InitSkeletonEditor(const EToolkitMode::Type Mode, const TS
 
 	PersonaToolkit->GetPreviewScene()->SetDefaultAnimationMode(EPreviewSceneDefaultAnimationMode::ReferencePose);
 
-	TSharedRef<IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(InSkeleton);
-	AssetFamily->RecordAssetOpened(FAssetData(InSkeleton));
+	PersonaModule.RecordAssetOpened(FAssetData(InSkeleton));
 
 	FSkeletonTreeArgs SkeletonTreeArgs;
 	SkeletonTreeArgs.OnSelectionChanged = FOnSkeletonTreeSelectionChanged::CreateSP(this, &FSkeletonEditor::HandleSelectionChanged);

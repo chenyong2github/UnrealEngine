@@ -142,7 +142,7 @@ bool SIKRigAssetBrowser::OnShouldFilterAsset(const struct FAssetData& AssetData)
 		return true;
 	}
 
-	return !DesiredSkeleton->IsCompatibleSkeletonByAssetData(AssetData);
+	return !DesiredSkeleton->IsCompatibleForEditor(AssetData);
 }
 
 #undef LOCTEXT_NAMESPACE

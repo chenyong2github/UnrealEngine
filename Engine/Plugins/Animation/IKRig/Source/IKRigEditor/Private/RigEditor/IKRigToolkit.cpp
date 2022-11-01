@@ -60,9 +60,6 @@ void FIKRigEditorToolkit::InitAssetEditor(
 	const FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 	PersonaToolkit = PersonaModule.CreatePersonaToolkit(IKRigAsset, PersonaToolkitArgs);
 
-	const TSharedRef<IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(IKRigAsset);
-	AssetFamily->RecordAssetOpened(FAssetData(IKRigAsset));
-
 	static constexpr bool bCreateDefaultStandaloneMenu = true;
 	static constexpr bool bCreateDefaultToolbar = true;
 	FAssetEditorToolkit::InitAssetEditor(

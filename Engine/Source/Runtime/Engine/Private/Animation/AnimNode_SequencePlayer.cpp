@@ -91,7 +91,7 @@ void FAnimNode_SequencePlayerBase::UpdateAssetPlayer(const FAnimationUpdateConte
 		CurrentSequence = nullptr;
 	}
 
-	if ((CurrentSequence != nullptr) && (Context.AnimInstanceProxy->IsSkeletonCompatible(CurrentSequence->GetSkeleton())))
+	if (CurrentSequence != nullptr && CurrentSequence->GetSkeleton() != nullptr)
 	{
 		const float CurrentPlayRate = GetPlayRate();
 		const float CurrentPlayRateBasis = GetPlayRateBasis();
@@ -119,7 +119,7 @@ void FAnimNode_SequencePlayerBase::Evaluate_AnyThread(FPoseContext& Output)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread);
 
 	UAnimSequenceBase* CurrentSequence = GetSequence();
-	if ((CurrentSequence != nullptr) && (Output.AnimInstanceProxy->IsSkeletonCompatible(CurrentSequence->GetSkeleton())))
+	if (CurrentSequence != nullptr && CurrentSequence->GetSkeleton() != nullptr)
 	{
 		const bool bExpectedAdditive = Output.ExpectsAdditivePose();
 		const bool bIsAdditive = CurrentSequence->IsValidAdditive();

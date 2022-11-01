@@ -168,7 +168,7 @@ bool FGroomCustomAssetEditorToolkit::OnShouldFilterAnimAsset(const FAssetData& A
 	if (PreviewSkeletalMeshComponent != nullptr)
 	{
 		USkeleton* Skeleton = PreviewSkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton();
-		if (Skeleton && Skeleton->IsCompatibleSkeletonByAssetData(AssetData))
+		if (Skeleton && Skeleton->IsCompatibleForEditor(AssetData))
 		{
 			return false;
 		}
@@ -379,7 +379,7 @@ static UAnimationAsset* GetFirstCompatibleAnimAsset(const USkeletalMeshComponent
 	// Filter binding asset which match the groom asset (as the tag/value filter above does not work)
 	for (FAssetData& Asset : AnimAssetData)
 	{
-		if (InSkeleton->IsCompatibleSkeletonByAssetData(Asset))
+		if (InSkeleton->IsCompatibleForEditor(Asset))
 		{
 			return (UAnimationAsset*)Asset.GetAsset();
 		}

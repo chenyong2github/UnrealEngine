@@ -72,9 +72,9 @@ void UAnimGraphNode_Mirror::ValidateAnimNodeDuringCompilation(class USkeleton* F
 	else if (ForSkeleton)
 	{
 		const USkeleton* MirrorTableSkeleton = Node.GetMirrorDataTable()->Skeleton;
-		if (!ForSkeleton->IsCompatible(MirrorTableSkeleton))
+		if (MirrorTableSkeleton == nullptr)
 		{
-			MessageLog.Error(TEXT("@@ has a mirror data table that is not compatible with the current skeleton. Please update the table or create a new table for the skeleton."), this);
+			MessageLog.Warning(TEXT("@@ has a mirror data table that has a missing skeleton. Please update the table or create a new table for the skeleton."), this);
 		}
 	}
 	
@@ -264,7 +264,7 @@ bool UAnimGraphNode_Mirror::HasMirrorDataTableForBlueprints(const TArray<UBluepr
 				if (Asset.IsAssetLoaded())
 				{
 					UMirrorDataTable* MirrorDataTable = Cast<UMirrorDataTable>(Asset.GetAsset());
-					if (AnimBlueprint->TargetSkeleton && AnimBlueprint->TargetSkeleton->IsCompatible(MirrorDataTable->Skeleton))
+					if (AnimBlueprint->TargetSkeleton && AnimBlueprint->TargetSkeleton->IsCompatibleForEditor(MirrorDataTable->Skeleton))
 					{
 						return true; 
 					}
@@ -296,7 +296,7 @@ bool UAnimGraphNode_Mirror::IsActionFilteredOut(class FBlueprintActionFilter con
 			UMirrorDataTable* MirrorDataTable = Node.GetMirrorDataTable();
 			if (MirrorDataTable)
 			{
-				if(AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatible(MirrorDataTable->Skeleton))
+				if(AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatibleForEditor(MirrorDataTable->Skeleton))
 				{
 					// Mirror Data Table does not use the same skeleton as the Blueprint, cannot use
 					bIsFilteredOut = true;
@@ -305,7 +305,7 @@ bool UAnimGraphNode_Mirror::IsActionFilteredOut(class FBlueprintActionFilter con
 			}
 			else if(!UnloadedSkeletonName.IsEmpty())
 			{
-				if(AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(UnloadedSkeletonName))
+				if(AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatibleForEditor(UnloadedSkeletonName))
 				{
 					bIsFilteredOut = true;
 					break;

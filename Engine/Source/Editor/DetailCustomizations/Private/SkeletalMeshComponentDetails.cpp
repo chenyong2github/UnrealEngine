@@ -258,7 +258,7 @@ EVisibility FSkeletalMeshComponentDetails::VisibilityForAnimationMode(EAnimation
 bool FSkeletalMeshComponentDetails::OnShouldFilterAnimAsset( const FAssetData& AssetData )
 {
 	// Check the compatible skeletons.
-	if (Skeleton && Skeleton->IsCompatibleSkeletonByAssetData(AssetData))
+	if (Skeleton && Skeleton->IsCompatibleForEditor(AssetData))
 	{
 		return false;
 	}
@@ -395,7 +395,7 @@ void FSkeletalMeshComponentDetails::UseSelectedAnimBlueprint()
 		{
 			if(USkeleton* AnimBlueprintSkeleton = AnimBlueprintToAssign->TargetSkeleton)
 			{
-				if (Skeleton && Skeleton->IsCompatible(AnimBlueprintSkeleton))
+				if (Skeleton && Skeleton->IsCompatibleForEditor(AnimBlueprintSkeleton))
 				{
 					OnClassPicked(AnimBlueprintToAssign->GetAnimBlueprintGeneratedClass());
 				}

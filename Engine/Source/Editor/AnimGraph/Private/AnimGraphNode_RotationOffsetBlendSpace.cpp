@@ -161,10 +161,9 @@ void UAnimGraphNode_RotationOffsetBlendSpace::ValidateAnimNodeDuringCompilation(
 	else if (ForSkeleton)
 	{
 		USkeleton* BlendSpaceSkeleton = BlendSpaceToCheck->GetSkeleton();
-		if (BlendSpaceSkeleton && // if blend space doesn't have skeleton, it might be due to blend space not loaded yet, @todo: wait with anim blueprint compilation until all assets are loaded?
-			!ForSkeleton->IsCompatible(BlendSpaceSkeleton))
+		if (BlendSpaceSkeleton == nullptr)
 		{
-			MessageLog.Error(TEXT("@@ references blendspace that uses an incompatible skeleton @@"), this, BlendSpaceSkeleton);
+			MessageLog.Error(TEXT("@@ references blendspace that uses a missing skeleton @@"), this, BlendSpaceSkeleton);
 		}
 	}
 

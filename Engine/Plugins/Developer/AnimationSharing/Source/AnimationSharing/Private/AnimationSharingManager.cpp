@@ -403,7 +403,7 @@ void UAnimationSharingManager::RegisterActorWithSkeleton(AActor* InActor, const 
 	{
 		uint32 ArrayIndex = Skeletons.IndexOfByPredicate([SharingSkeleton](const USkeleton* Skeleton)
 		{
-			return (Skeleton == SharingSkeleton) || (Skeleton->IsCompatible(SharingSkeleton));
+			return (Skeleton == SharingSkeleton);
 		});
 		return ArrayIndex;
 	}();

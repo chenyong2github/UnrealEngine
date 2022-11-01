@@ -124,12 +124,17 @@ void FAnimSequenceDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	if (TargetSkeleton.IsValid())
 	{
 		RegisterRetargetSourceChanged();
-		// go through profile and see if it has mine
-		for (auto Iter = TargetSkeleton->AnimRetargetSources.CreateConstIterator(); Iter; ++Iter)
-		{
-			RetargetSourceComboList.Add( MakeShareable( new FString ( Iter.Key().ToString() )));
 
-			if (Iter.Key() == CurrentPoseName) 
+		// Add each retarget source
+		TArray<FName> RetargetSources;
+		TargetSkeleton->GetRetargetSources(RetargetSources);
+		
+		// go through profile and see if it has mine
+		for (FName& RetargetSource : RetargetSources)
+		{
+			RetargetSourceComboList.Add( MakeShareable( new FString ( RetargetSource.ToString() )));
+
+			if (RetargetSource == CurrentPoseName) 
 			{
 				InitialSelected = RetargetSourceComboList.Last();
 			}
@@ -613,9 +618,9 @@ void SAnimationRefPoseViewport::Tick( const FGeometry& AllottedGeometry, const d
 		{
 			Description->SetText( FText::Format( LOCTEXT( "Previewing", "Previewing {0}" ), FText::FromString( Component->AnimClass->GetName() ) ) );
 		}
-		else if ( PreviewAnimationSequence && !PreviewAnimationSequence->GetSkeleton()->IsCompatible(TargetSkeleton) )
+		else if ( PreviewAnimationSequence && !PreviewAnimationSequence->GetSkeleton()->IsCompatibleForEditor(TargetSkeleton) )
 		{
-			Description->SetText( FText::Format( LOCTEXT( "IncorrectSkeleton", "The preview asset doesn't work for the skeleton '{0}'" ), FText::FromString( TargetSkeletonName ) ) );
+			Description->SetText( FText::Format( LOCTEXT( "IncorrectSkeleton", "The preview asset is incompatible with the skeleton '{0}'" ), FText::FromString( TargetSkeletonName ) ) );
 		}
 		else if ( Component->GetSkeletalMeshAsset() == NULL )
 		{

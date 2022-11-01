@@ -11,8 +11,9 @@
 
 class UAnimBlueprint;
 class UPhysicsAsset;
+class UPersonaOptions;
 
-class FPersonaAssetFamily : public IAssetFamily
+class FPersonaAssetFamily : public IAssetFamily, public TSharedFromThis<FPersonaAssetFamily>
 {
 public:
 	FPersonaAssetFamily(const UObject* InFromObject);
@@ -30,12 +31,23 @@ public:
 	virtual void RecordAssetOpened(const FAssetData& InAssetData) override;
 	DECLARE_DERIVED_EVENT(FPersonaAssetFamily, IAssetFamily::FOnAssetOpened, FOnAssetOpened)
 	virtual FOnAssetOpened& GetOnAssetOpened() override { return OnAssetOpened;  }
+	DECLARE_DERIVED_EVENT(FPersonaAssetFamily, IAssetFamily::FOnAssetFamilyChanged, FOnAssetFamilyChanged)
+	virtual FOnAssetFamilyChanged& GetOnAssetFamilyChanged() override { return OnAssetFamilyChanged; }
 
 	/** Helper functions for constructor and other systems that need to discover meshes/skeletons from related assets */
 	static void FindCounterpartAssets(const UObject* InAsset, TWeakObjectPtr<const USkeleton>& OutSkeleton, TWeakObjectPtr<const USkeletalMesh>& OutMesh);
 	static void FindCounterpartAssets(const UObject* InAsset, const USkeleton*& OutSkeleton, const USkeletalMesh*& OutMesh);
 
 private:
+	/** Initialization to avoid shared ptr access in constructor */
+	void Initialize();
+	
+	/** Hande key persona settings changes (e.g. skeleton compatibilty) */
+	void OnSettingsChange(const UPersonaOptions* InOptions, EPropertyChangeType::Type InChangeType);
+	
+private:
+	friend class FPersonaAssetFamilyManager;
+	
 	/** The skeleton that links all assets */
 	TWeakObjectPtr<const USkeleton> Skeleton;
 
@@ -53,4 +65,7 @@ private:
 
 	/** Event fired when an asset is opened */
 	FOnAssetOpened OnAssetOpened;
+
+	/** Event fired when an asset family changes (e.g. relationships are altered) */
+	FOnAssetFamilyChanged OnAssetFamilyChanged;
 };

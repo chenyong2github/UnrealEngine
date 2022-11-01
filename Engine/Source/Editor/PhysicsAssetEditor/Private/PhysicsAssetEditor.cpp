@@ -187,8 +187,7 @@ void FPhysicsAssetEditor::InitPhysicsAssetEditor(const EToolkitMode::Type Mode, 
 	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 	PersonaToolkit = PersonaModule.CreatePersonaToolkit(SharedData->PhysicsAsset, PersonaToolkitArgs);
 
-	TSharedRef<IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(ObjectToEdit);
-	AssetFamily->RecordAssetOpened(FAssetData(ObjectToEdit));
+	PersonaModule.RecordAssetOpened(FAssetData(ObjectToEdit));
 
 	FSkeletonTreeArgs SkeletonTreeArgs;
 	SkeletonTreeArgs.OnSelectionChanged = FOnSkeletonTreeSelectionChanged::CreateSP(this, &FPhysicsAssetEditor::HandleSelectionChanged);

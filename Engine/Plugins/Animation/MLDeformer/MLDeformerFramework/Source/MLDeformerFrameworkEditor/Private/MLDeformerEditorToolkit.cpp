@@ -74,9 +74,6 @@ namespace UE::MLDeformer
 		FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
 		PersonaToolkit = PersonaModule.CreatePersonaToolkit(DeformerAsset, PersonaToolkitArgs);
 
-		TSharedRef<IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(DeformerAsset);
-		AssetFamily->RecordAssetOpened(FAssetData(DeformerAsset));
-
 		const bool bCreateDefaultStandaloneMenu = true;
 		const bool bCreateDefaultToolbar = true;
 		FAssetEditorToolkit::InitAssetEditor(

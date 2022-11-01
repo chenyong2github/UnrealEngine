@@ -59,7 +59,7 @@ bool USkeletalMeshLODSettings::SetLODSettingsToMesh(USkeletalMesh* InMesh, int32
 		// if we have available bake pose
 		// it's possible for skeleton to be null if this happens in the middle of importing
 		// so if skeleton is null, we allow copy (the GetBakePose will check correct skeleton when get it)
-		if (Setting.BakePose && (!InMesh->GetSkeleton() || InMesh->GetSkeleton()->IsCompatible(Setting.BakePose->GetSkeleton())))
+		if (Setting.BakePose && (!InMesh->GetSkeleton() || !Setting.BakePose->GetSkeleton()))
 		{
 			LODInfo->BakePose = Setting.BakePose;
 		}

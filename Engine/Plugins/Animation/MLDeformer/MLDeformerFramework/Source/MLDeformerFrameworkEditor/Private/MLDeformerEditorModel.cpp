@@ -934,9 +934,9 @@ namespace UE::MLDeformer
 		FText Result;
 		if (InSkelMesh && InAnimSeq)
 		{
-			if (!InSkelMesh->GetSkeleton()->IsCompatible(InAnimSeq->GetSkeleton()))
+			if (!InSkelMesh->GetSkeleton()->IsCompatibleForEditor(InAnimSeq->GetSkeleton()))
 			{
-				Result = LOCTEXT("SkeletonMismatch", "The base skeletal mesh and anim sequence use different skeletons. The animation might not play correctly.");
+				Result = LOCTEXT("SkeletonMismatch", "The base skeletal mesh and anim sequence use incompatible skeletons. The animation might not play correctly.");
 			}
 		}
 		return Result;

@@ -275,7 +275,7 @@ TSharedRef<SWidget> FAnimGraphNodeDetails::CreatePropertyWidget(FProperty* Targe
 bool FAnimGraphNodeDetails::OnShouldFilterAnimAsset( const FAssetData& AssetData, UClass* NodeToFilterFor ) const
 {
 	FAssetDataTagMapSharedView::FFindTagResult Result = AssetData.TagsAndValues.FindTag("Skeleton");
-	if (Result.IsSet() && TargetSkeleton && TargetSkeleton->IsCompatibleSkeletonByAssetData(AssetData))
+	if (Result.IsSet() && TargetSkeleton && TargetSkeleton->IsCompatibleForEditor(AssetData))
 	{
 		const UClass* AssetClass = AssetData.GetClass();
 		// If node is an 'asset player', only let you select the right kind of asset for it
@@ -1073,7 +1073,7 @@ TSharedRef<SWidget> SParentPlayerTreeRow::GenerateWidgetForColumn(const FName& C
 bool SParentPlayerTreeRow::OnShouldFilterAsset(const FAssetData& AssetData)
 {
 	const USkeleton* CurrentSkeleton = CastChecked<UAnimBlueprint>(BlueprintEditor.Pin()->GetBlueprintObj())->TargetSkeleton;
-	return CurrentSkeleton != nullptr && !CurrentSkeleton->IsCompatibleSkeletonByAssetData(AssetData);
+	return CurrentSkeleton != nullptr && !CurrentSkeleton->IsCompatibleForEditor(AssetData);
 }
 
 void SParentPlayerTreeRow::OnAssetSelected(const FAssetData& AssetData)

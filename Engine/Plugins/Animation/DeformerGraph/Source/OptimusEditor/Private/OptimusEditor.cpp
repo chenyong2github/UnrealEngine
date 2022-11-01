@@ -94,10 +94,6 @@ void FOptimusEditor::Construct(
 	// graph component's scene component bindings.
 	PersonaToolkit->GetPreviewScene()->RegisterOnPreviewMeshChanged(FOnPreviewMeshChanged::CreateSP(this, &FOptimusEditor::HandlePreviewMeshChanged));
 
-	// TODO: Do we need this?
-	TSharedRef<IAssetFamily> AssetFamily = PersonaModule.CreatePersonaAssetFamily(InDeformerObject);
-	AssetFamily->RecordAssetOpened(FAssetData(InDeformerObject));
-	
 	// Construct a new graph with a default name
 	// TODO: Use a document manager like blueprints.
 	// FIXME: The deformer asset shouldn't really be the owner.

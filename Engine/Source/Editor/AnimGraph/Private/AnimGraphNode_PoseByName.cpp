@@ -18,7 +18,7 @@ UAnimGraphNode_PoseByName::UAnimGraphNode_PoseByName(const FObjectInitializer& O
 
 void UAnimGraphNode_PoseByName::PreloadRequiredAssets()
 {
-	PreloadObject(Node.PoseAsset);
+	PreloadRequiredAssetsHelper(Node.PoseAsset, FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_PoseHandler, PoseAsset)));
 
 	Super::PreloadRequiredAssets();
 }
@@ -122,11 +122,10 @@ void UAnimGraphNode_PoseByName::ValidateAnimNodeDuringCompilation(class USkeleto
 	}
 	else if (ForSkeleton)
 	{
-		USkeleton* SeqSkeleton = PoseAssetToCheck->GetSkeleton();
-		if (SeqSkeleton && // if anim sequence doesn't have skeleton, it might be due to anim sequence not loaded yet, @todo: wait with anim blueprint compilation until all assets are loaded?
-			!ForSkeleton->IsCompatible(SeqSkeleton))
+		USkeleton* PoseAssetSkeleton = PoseAssetToCheck->GetSkeleton();
+		if (PoseAssetSkeleton == nullptr)
 		{
-			MessageLog.Error(TEXT("@@ references sequence that uses an incompatible skeleton @@"), this, SeqSkeleton);
+			MessageLog.Error(TEXT("@@ references pose asset that uses a missing skeleton @@"), this, PoseAssetSkeleton);
 		}
 	}
 }

@@ -413,17 +413,16 @@ void SAnimSegmentsPanel::FillSubMenu(FMenuBuilder& MenuBuilder, int32 AnimSegmen
 			AssetPickerConfig.Filter.bRecursiveClasses = false;
 			AssetPickerConfig.bAllowNullSelection = false;
 
-			USkeleton* Skeleton = OldSequenceBase->GetSkeleton();
-			AssetPickerConfig.Filter.TagsAndValues.Add(TEXT("Skeleton"), FAssetData(Skeleton).GetExportTextName());
-
 			// only do this for anim sequence because we don't know additive or not otherwise from asset registry
+			TEnumAsByte<EAdditiveAnimationType> AdditiveType;
 			bool bFilterAdditive = OldSequenceBase->GetClass() == UAnimSequence::StaticClass();
-			if (bFilterAdditive)
+			if(bFilterAdditive)
 			{
-				// we do just check additiveanimtype, not IsValidAdditive because we only check asset registry string, we just assume this only checks additive anim type
-				// in order to check IsValidAdditive, we have to load all animations, which is too slow
-				AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateRaw(this, &SAnimSegmentsPanel::ShouldFilter, CastChecked<UAnimSequence>(OldSequenceBase)->AdditiveAnimType);
+				AdditiveType = CastChecked<UAnimSequence>(OldSequenceBase)->AdditiveAnimType;
 			}
+
+			AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateRaw(this, &SAnimSegmentsPanel::ShouldFilter, OldSequenceBase->GetSkeleton(), bFilterAdditive, AdditiveType);
+
 			/** The delegate that fires when an asset was selected */
 			AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateRaw(this, &SAnimSegmentsPanel::ReplaceAnimSegment, AnimSegmentIndex);
 
@@ -445,12 +444,20 @@ void SAnimSegmentsPanel::FillSubMenu(FMenuBuilder& MenuBuilder, int32 AnimSegmen
 	}
 }
 
-bool SAnimSegmentsPanel::ShouldFilter(const FAssetData& DataToDisplay, TEnumAsByte<EAdditiveAnimationType> InAdditiveType)
+bool SAnimSegmentsPanel::ShouldFilter(const FAssetData& DataToDisplay, USkeleton* InSkeleton, bool bInFilterAdditive, TEnumAsByte<EAdditiveAnimationType> InAdditiveType)
 {
-	UEnum* AdditiveTypeEnum = StaticEnum<EAdditiveAnimationType>();
-	const FString EnumString = DataToDisplay.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
-	EAdditiveAnimationType AdditiveType = (!EnumString.IsEmpty() ? (EAdditiveAnimationType)AdditiveTypeEnum->GetValueByName(*EnumString) : AAT_None);
-	return (AdditiveType != InAdditiveType);
+	bool bFilter = false;
+	if(bInFilterAdditive)
+	{
+		UEnum* AdditiveTypeEnum = StaticEnum<EAdditiveAnimationType>();
+		const FString EnumString = DataToDisplay.GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UAnimSequence, AdditiveAnimType));
+		EAdditiveAnimationType AdditiveType = (!EnumString.IsEmpty() ? (EAdditiveAnimationType)AdditiveTypeEnum->GetValueByName(*EnumString) : AAT_None);
+		bFilter |= (AdditiveType != InAdditiveType);
+	}
+
+	bFilter |= InSkeleton->ShouldFilterAsset(DataToDisplay);
+
+	return bFilter;
 }
 
 void SAnimSegmentsPanel::OnTrackDragDrop( TSharedPtr<FDragDropOperation> DragDropOp, float DataPos )

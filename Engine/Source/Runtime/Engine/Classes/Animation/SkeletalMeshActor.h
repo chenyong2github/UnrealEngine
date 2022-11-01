@@ -85,9 +85,6 @@ public:
 	//~ End AActor Interface
 
 private:
-	// utility function to see if it can play animation or not
-	bool CanPlayAnimation(class UAnimSequenceBase* AnimAssetBase=NULL) const;
-
 	// currently actively playing montage
 	TMap<FName, TWeakObjectPtr<class UAnimMontage>> CurrentlyPlayingMontages;
 

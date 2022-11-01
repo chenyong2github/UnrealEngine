@@ -352,7 +352,7 @@ bool UAnimGraphNode_AssetPlayerBase::IsActionFilteredOut(class FBlueprintActionF
 			UAnimationAsset* Asset = GetAnimationAsset();
 			if(Asset)
 			{
-				if (AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatible(Asset->GetSkeleton()))
+				if (AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatibleForEditor(Asset->GetSkeleton()))
 				{
 					// Asset does not use a compatible skeleton with the Blueprint, cannot use
 					bIsFilteredOut = true;
@@ -361,7 +361,7 @@ bool UAnimGraphNode_AssetPlayerBase::IsActionFilteredOut(class FBlueprintActionF
 			}
 			else if(!UnloadedSkeletonName.IsEmpty())
 			{
-				if(AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(UnloadedSkeletonName))
+				if(AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatibleForEditor(UnloadedSkeletonName))
 				{
 					bIsFilteredOut = true;
 					break;
@@ -534,11 +534,22 @@ void UAnimGraphNode_AssetPlayerBase::ValidateAnimNodeDuringCompilationHelper(USk
 		USkeleton* AssetSkeleton = AssetToCheck->GetSkeleton();
 		
 		// if asset doesn't have a skeleton, it might be due to the asset no being not loaded yet
-		if(AssetSkeleton && (!ForSkeleton || !ForSkeleton->IsCompatible(AssetSkeleton)))
+		if(AssetSkeleton == nullptr)
 		{
-			MessageLog.Error(*FText::Format(LOCTEXT("IncompatibleSkeletonFormat", "@@ references {0} that uses an incompatible skeleton @@"), InAssetType->GetDisplayNameText()).ToString(), this, AssetSkeleton);
+			MessageLog.Error(*FText::Format(LOCTEXT("MissingSkeletonFormat", "@@ references {0} that uses a missing skeleton @@"), InAssetType->GetDisplayNameText()).ToString(), this, AssetSkeleton);
 		}
 	}
+}
+
+void UAnimGraphNode_AssetPlayerBase::PreloadRequiredAssetsHelper(UAnimationAsset* InAsset, UEdGraphPin* InExposedPin)
+{
+	UAnimationAsset* AssetToLoad = InAsset;
+	if(InExposedPin != nullptr && AssetToLoad == nullptr)
+	{
+		AssetToLoad = Cast<UAnimationAsset>(InExposedPin->DefaultObject);
+	}
+
+	PreloadObject(AssetToLoad);
 }
 
 #undef LOCTEXT_NAMESPACE

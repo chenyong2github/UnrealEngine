@@ -232,7 +232,7 @@ bool SIKRetargetAssetBrowser::OnShouldFilterAsset(const struct FAssetData& Asset
 		return true;
 	}
 
-	return !DesiredSkeleton->IsCompatibleSkeletonByAssetData(AssetData);
+	return !DesiredSkeleton->IsCompatibleForEditor(AssetData);
 }
 
 // ------------------------------------------BEGIN  SBatchExportDialog ----------------------------

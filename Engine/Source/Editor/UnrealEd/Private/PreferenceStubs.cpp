@@ -154,6 +154,10 @@ UPersonaOptions::UPersonaOptions(const FObjectInitializer& ObjectInitializer)
 	TimelineEnabledSnaps = { "CompositeSegment", "MontageSection" };
 
 	bExpandTreeOnSelection = true;
+
+	bAllowIncompatibleSkeletonSelection = false;
+
+	USkeleton::AreAllSkeletonsCompatibleDelegate.BindUObject(this, &UPersonaOptions::GetAllowIncompatibleSkeletonSelection);
 }
 
 void UPersonaOptions::SetShowGrid( bool bInShowGrid )
@@ -292,4 +296,9 @@ void UPersonaOptions::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	OnSettingsChange.Broadcast(this, PropertyChangedEvent.ChangeType);
+}
+
+bool UPersonaOptions::GetAllowIncompatibleSkeletonSelection() const
+{
+	return bAllowIncompatibleSkeletonSelection;
 }

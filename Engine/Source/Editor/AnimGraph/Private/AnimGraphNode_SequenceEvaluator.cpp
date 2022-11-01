@@ -29,7 +29,7 @@ UAnimGraphNode_SequenceEvaluator::UAnimGraphNode_SequenceEvaluator(const FObject
 
 void UAnimGraphNode_SequenceEvaluator::PreloadRequiredAssets()
 {
-	PreloadObject(Node.GetSequence());
+	PreloadRequiredAssetsHelper(Node.GetSequence(), FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequenceEvaluator, Sequence)));
 
 	Super::PreloadRequiredAssets();
 }

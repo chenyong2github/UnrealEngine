@@ -926,7 +926,7 @@ namespace UsdSkelRootTranslatorImpl
 		else
 		{
 			// Force skeletons to be compatible if they aren't (we need both ways!)
-			if ( !Skeleton->IsCompatible( AnimBP->TargetSkeleton ) )
+			if ( !Skeleton->IsCompatibleForEditor( AnimBP->TargetSkeleton ) )
 			{
 				AnimBP->TargetSkeleton->AddCompatibleSkeleton( Skeleton );
 				Skeleton->AddCompatibleSkeleton( AnimBP->TargetSkeleton );

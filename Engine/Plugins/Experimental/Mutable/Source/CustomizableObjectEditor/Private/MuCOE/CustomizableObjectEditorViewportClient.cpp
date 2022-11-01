@@ -2098,7 +2098,7 @@ void FCustomizableObjectEditorViewportClient::SetAnimation(UAnimationAsset* Anim
 	{
 		if (SkeletalMeshComponent.IsValid() && Animation != nullptr
 			&& SkeletalMeshComponent->GetSkinnedAsset() != nullptr
-			&& SkeletalMeshComponent->GetSkinnedAsset()->GetSkeleton()->IsCompatible(Animation->GetSkeleton())
+			&& SkeletalMeshComponent->GetSkinnedAsset()->GetSkeleton()->IsCompatibleForEditor(Animation->GetSkeleton())
 			)
 		{
 			SetRealtime(true);

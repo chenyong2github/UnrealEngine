@@ -245,6 +245,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Engine/CoreSettings.h"
 #include "IEyeTrackerModule.h"
 #include "Interfaces/IPluginManager.h"
+#include "Animation/SkeletonRemappingRegistry.h"
 
 #if !UE_BUILD_SHIPPING
 #include "GenericPlatform/GenericPlatformCrashContext.h"
@@ -330,6 +331,8 @@ void FEngineModule::StartupModule()
 #endif
 
 	FSkinWeightProfileManager::OnStartup();
+
+	UE::Anim::FSkeletonRemappingRegistry::Init();
 }
 
 void FEngineModule::ShutdownModule()
@@ -345,6 +348,8 @@ void FEngineModule::ShutdownModule()
 	FParticleSystemWorldManager::OnShutdown();
 
 	FSkinWeightProfileManager::OnShutdown();
+
+	UE::Anim::FSkeletonRemappingRegistry::Destroy();
 }
 
 /* Global variables

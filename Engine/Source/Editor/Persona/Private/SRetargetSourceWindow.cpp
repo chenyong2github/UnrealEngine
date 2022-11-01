@@ -438,8 +438,14 @@ void SRetargetSourceWindow::OnAddRetargetSource()
 
 	const USkeleton& Skeleton = EditableSkeletonPtr.Pin()->GetSkeleton();
 
-	FString SkeletonString = FAssetData(&Skeleton).GetExportTextName();
-	AssetPickerConfig.Filter.TagsAndValues.Add(USkeletalMesh::GetSkeletonMemberName(), SkeletonString);
+	AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateLambda([&Skeleton](const FAssetData& InAssetData)
+	{
+		if(Skeleton.IsCompatibleForEditor(InAssetData))
+		{
+			return false;
+		}
+		return true;
+	});
 
 	TSharedRef<SWidget> Widget = SNew(SBox)
 		.WidthOverride(384.f)

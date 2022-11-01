@@ -517,17 +517,6 @@ FString UDebugSkelMeshComponent::GetPreviewText() const
 
 void UDebugSkelMeshComponent::InitAnim(bool bForceReinit)
 {
-	// If we already have PreviewInstance and its asset's Skeleton isn't compatible with the mesh's Skeleton
-	// then we need to clear it up to avoid an issue
-	if ( PreviewInstance && PreviewInstance->GetCurrentAsset() && GetSkeletalMeshAsset())
-	{
-		if (!GetSkeletalMeshAsset()->GetSkeleton()->IsCompatible(PreviewInstance->GetCurrentAsset()->GetSkeleton()))
-		{
-			// if it doesn't match, just clear it
-			PreviewInstance->SetAnimationAsset(nullptr);
-		}
-	}
-
 	if (PreviewInstance != nullptr && AnimScriptInstance == PreviewInstance && bForceReinit)
 	{
 		// Reset current animation data

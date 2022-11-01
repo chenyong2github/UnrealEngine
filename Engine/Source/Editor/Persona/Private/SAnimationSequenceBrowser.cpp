@@ -1545,7 +1545,7 @@ bool SAnimationSequenceBrowser::HandleFilterAsset(const FAssetData& InAssetData)
 		const USkeleton* DesiredSkeleton = PersonaToolkitPtr.Pin()->GetSkeleton();
 		if (DesiredSkeleton)
 		{
-			return !DesiredSkeleton->IsCompatibleSkeletonByAssetData(InAssetData);
+			return !DesiredSkeleton->IsCompatibleForEditor(InAssetData);
 		}
 	}
 

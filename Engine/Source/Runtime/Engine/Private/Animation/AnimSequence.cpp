@@ -936,7 +936,7 @@ void UAnimSequence::PostLoad()
 	// but this causes issue since once this happens this is unrecoverable until you delete from outside of editor
 	if (IsValidAdditive())
 	{
-		if (RefPoseSeq && GetSkeleton() && !GetSkeleton()->IsCompatible(RefPoseSeq->GetSkeleton()))
+		if (RefPoseSeq && RefPoseSeq->GetSkeleton() == nullptr)
 		{
 			// if this happens, there was a issue with retargeting
 			UE_LOG(LogAnimation, Warning, TEXT("Animation %s - Invalid additive animation base animation (%s)"), *GetName(), *RefPoseSeq->GetName());

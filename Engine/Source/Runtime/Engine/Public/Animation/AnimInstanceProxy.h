@@ -244,10 +244,10 @@ public:
 	/** Trigger any anim notifies */
 	void TriggerAnimNotifies(USkeletalMeshComponent* SkelMeshComp, float DeltaSeconds);
 
-	/** Check whether animation content authored on the supplied skeleton may be played on this instance's skeleton */
+	UE_DEPRECATED(5.2, "Skeleton compatibility is now an editor-only concern, this function is no longer used.")
 	bool IsSkeletonCompatible(USkeleton const* InSkeleton) const
 	{
-		return Skeleton && Skeleton->IsCompatible(InSkeleton);
+		return Skeleton != nullptr && InSkeleton != nullptr;
 	}
 
 	/** Check whether we should extract root motion */

@@ -150,12 +150,6 @@ void ASkeletalMeshActor::OnRep_ReplicatedMaterial1()
 	SkeletalMeshComponent->SetMaterial(1, ReplicatedMaterial1);
 }
 
-bool ASkeletalMeshActor::CanPlayAnimation(class UAnimSequenceBase* AnimAssetBase/*=NULL*/) const
-{
-	return (SkeletalMeshComponent->GetSkeletalMeshAsset() && SkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton() &&
-		(!AnimAssetBase || SkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->IsCompatible(AnimAssetBase->GetSkeleton())));
-}
-
 #if WITH_EDITOR
 
 bool ASkeletalMeshActor::GetReferencedContentObjects(TArray<UObject*>& Objects) const

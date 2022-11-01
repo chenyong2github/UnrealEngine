@@ -720,7 +720,7 @@ public:
 				}
 				else if(Skeleton)
 				{
-					if (Skeleton->IsCompatibleSkeletonByAssetString(PreviewSkeleton))
+					if (Skeleton->IsCompatibleForEditor(PreviewSkeleton))
 					{
 						return true;
 					}
@@ -733,7 +733,7 @@ public:
 			}
 			else if (Skeleton)
 			{
-				if (Skeleton->IsCompatibleSkeletonByAssetString(PreviewSkeleton))
+				if (Skeleton->IsCompatibleForEditor(PreviewSkeleton))
 				{
 					return true;
 				}
@@ -745,7 +745,7 @@ public:
 			}
 			else if (Skeleton)
 			{
-				if (Skeleton->IsCompatibleSkeletonByAssetString(SourceHierarchyImport))
+				if (Skeleton->IsCompatibleForEditor(SourceHierarchyImport))
 				{
 					return true;
 				}
@@ -757,7 +757,7 @@ public:
 			}
 			else if (Skeleton)
 			{
-				if (Skeleton->IsCompatibleSkeletonByAssetString(SourceCurveImport))
+				if (Skeleton->IsCompatibleForEditor(SourceCurveImport))
 				{
 					return true;
 				}
@@ -4701,7 +4701,7 @@ void FControlRigParameterSection::AddAnimationSubMenuForFK(FMenuBuilder& MenuBui
 		AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateRaw(this, &FControlRigParameterSection::ShouldFilterAssetForFK);
 		AssetPickerConfig.Filter.bRecursiveClasses = true;
 		AssetPickerConfig.Filter.ClassPaths.Add(UAnimSequenceBase::StaticClass()->GetClassPathName());
-		AssetPickerConfig.Filter.TagsAndValues.Add(TEXT("Skeleton"), FAssetData(Skeleton).GetExportTextName());
+		AssetPickerConfig.OnShouldFilterAsset = FOnShouldFilterAsset::CreateUObject(Skeleton, &USkeleton::ShouldFilterAsset, TEXT("Skeleton"));
 		AssetPickerConfig.SaveSettingsName = TEXT("SequencerAssetPicker");
 		AssetPickerConfig.AdditionalReferencingAssets.Add(FAssetData(Sequence));
 	}

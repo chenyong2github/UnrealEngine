@@ -1069,7 +1069,7 @@ bool UPoseSearchDatabase::IsValidForIndexing() const
 			}
 
 			const USkeleton* SeqSkeleton = DbSequence.Sequence->GetSkeleton();
-			if (!SeqSkeleton || !SeqSkeleton->IsCompatible(Schema->Skeleton))
+			if (!SeqSkeleton)
 			{
 				bValid = false;
 				break;
@@ -1085,7 +1085,7 @@ bool UPoseSearchDatabase::IsValidForIndexing() const
 			}
 
 			const USkeleton* SeqSkeleton = DbBlendSpace.BlendSpace->GetSkeleton();
-			if (!SeqSkeleton || !SeqSkeleton->IsCompatible(Schema->Skeleton))
+			if (!SeqSkeleton)
 			{
 				bValid = false;
 				break;
@@ -4425,7 +4425,7 @@ bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* Sequ
 	}
 
 	USkeleton* SeqSkeleton = Sequence->GetSkeleton();
-	if (!SeqSkeleton || !SeqSkeleton->IsCompatible(SequenceMetaData->Schema->Skeleton))
+	if (!SeqSkeleton)
 	{
 		return false;
 	}

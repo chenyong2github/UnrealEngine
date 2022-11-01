@@ -16,6 +16,8 @@
 #include "Animation/AnimationPoseData.h"
 #include "Animation/BlendProfile.h"
 #include "Animation/MirrorDataTable.h"
+#include "SkeletonRemappingRegistry.h"
+#include "SkeletonRemapping.h"
 
 DEFINE_LOG_CATEGORY(LogAnimation);
 DEFINE_LOG_CATEGORY(LogRootMotion);
@@ -2598,10 +2600,10 @@ void FAnimationRuntime::RetargetBoneTransform(const USkeleton* SourceSkeleton, c
 	if (SourceSkeleton)
 	{
 		const USkeleton* TargetSkeleton = RequiredBones.GetSkeletonAsset();
-		const FSkeletonRemapping* SkeletonRemapping = TargetSkeleton->GetSkeletonRemapping(SourceSkeleton);
+		const FSkeletonRemapping& SkeletonRemapping = UE::Anim::FSkeletonRemappingRegistry::Get().GetRemapping(SourceSkeleton, TargetSkeleton);
 
 		const int32 TargetSkeletonBoneIndex = RequiredBones.GetSkeletonIndex(BoneIndex);
-		const int32 SourceSkeletonBoneIndex = (SkeletonRemapping) ? SkeletonRemapping->GetSourceSkeletonBoneIndex(TargetSkeletonBoneIndex) : SkeletonBoneIndex;
+		const int32 SourceSkeletonBoneIndex = SkeletonRemapping.IsValid() ? SkeletonRemapping.GetSourceSkeletonBoneIndex(TargetSkeletonBoneIndex) : SkeletonBoneIndex;
 
 		switch (TargetSkeleton->GetBoneTranslationRetargetingMode(TargetSkeletonBoneIndex))
 		{
@@ -2635,9 +2637,9 @@ void FAnimationRuntime::RetargetBoneTransform(const USkeleton* SourceSkeleton, c
 
 					// Remap the base pose onto the target skeleton so that we are working entirely in target space
 					FTransform BaseTransform = AuthoredOnRefSkeleton[SourceSkeletonBoneIndex];
-					if (SkeletonRemapping)
+					if (SkeletonRemapping.RequiresReferencePoseRetarget())
 					{
-						BaseTransform = SkeletonRemapping->RetargetBoneTransformToTargetSkeleton(TargetSkeletonBoneIndex, BaseTransform);
+						BaseTransform = SkeletonRemapping.RetargetBoneTransformToTargetSkeleton(TargetSkeletonBoneIndex, BaseTransform);
 					}
 
 					// Apply the retargeting as if it were an additive difference between the current skeleton and the retarget skeleton. 

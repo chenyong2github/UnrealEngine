@@ -302,19 +302,6 @@ void FAnimNode_LinkedAnimGraph::ReinitializeLinkedAnimInstance(const UAnimInstan
 void FAnimNode_LinkedAnimGraph::SetAnimClass(TSubclassOf<UAnimInstance> InClass, const UAnimInstance* InOwningAnimInstance)
 {
 	UClass* NewClass = InClass.Get();
-	if(NewClass)
-	{
-		// Verify target skeleton match at runtime
-		IAnimClassInterface* LinkedAnimBlueprintClass = IAnimClassInterface::GetFromClass(NewClass);
-		IAnimClassInterface* OuterAnimBlueprintClass = IAnimClassInterface::GetFromClass(InOwningAnimInstance->GetClass());
-		USkeleton* LinkedSkeleton = LinkedAnimBlueprintClass->GetTargetSkeleton();
-		USkeleton* OuterSkeleton = OuterAnimBlueprintClass->GetTargetSkeleton();
-		if(!LinkedSkeleton->IsCompatible(OuterSkeleton))
-		{
-			UE_LOG(LogAnimation, Warning, TEXT("Setting linked anim instance class: Class has a mismatched target skeleton. Expected %s, found %s."), OuterSkeleton ? *OuterSkeleton->GetName() : TEXT("null"), LinkedSkeleton ? *LinkedSkeleton->GetName() : TEXT("null"));
-			return;
-		}
-	}
 
 	// Verified OK, so set it now
 	TSubclassOf<UAnimInstance> OldClass = InstanceClass;

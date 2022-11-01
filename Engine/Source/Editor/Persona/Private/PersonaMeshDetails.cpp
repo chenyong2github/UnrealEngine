@@ -4298,7 +4298,7 @@ void FPersonaMeshDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 			{
 				if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(PostProcessAnimBlueprintClass->ClassGeneratedBy))
 				{
-					return !SkeletalMeshPtr->GetSkeleton()->IsCompatible(AnimBlueprint->TargetSkeleton) ? EVisibility::Visible : EVisibility::Collapsed;
+					return !SkeletalMeshPtr->GetSkeleton()->IsCompatibleForEditor(AnimBlueprint->TargetSkeleton) ? EVisibility::Visible : EVisibility::Collapsed;
 				}
 			}
 		}
@@ -4431,7 +4431,7 @@ bool FPersonaMeshDetails::OnShouldFilterPostProcessBlueprint(const FAssetData& A
 		if (!SkelMesh->IsCompiling())
 		{
 			const FString SkeletonName = AssetData.GetTagValueRef<FString>("TargetSkeleton");
-			return !SkelMesh->GetSkeleton()->IsCompatibleSkeletonByAssetString(SkeletonName);
+			return !SkelMesh->GetSkeleton()->IsCompatibleForEditor(SkeletonName);
 		}
 	}
 
@@ -6564,6 +6564,6 @@ void FPersonaMeshDetails::OnPreviewMeshChanged(USkeletalMesh* OldSkeletalMesh, U
 
 bool FPersonaMeshDetails::FilterOutBakePose(const FAssetData& AssetData, USkeleton* Skeleton) const
 {
-	return !(Skeleton && Skeleton->IsCompatibleSkeletonByAssetData(AssetData));
+	return !(Skeleton && Skeleton->IsCompatibleForEditor(AssetData));
 }
 #undef LOCTEXT_NAMESPACE

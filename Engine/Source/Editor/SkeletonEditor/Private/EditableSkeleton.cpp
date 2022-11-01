@@ -24,6 +24,8 @@
 #include "SBlendProfilePicker.h"
 #include "AssetNotifications.h"
 #include "BlueprintActionDatabase.h"
+#include "IAssetFamily.h"
+#include "PersonaModule.h"
 #include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "SSkeletonWidget.h"
@@ -1324,6 +1326,14 @@ void FEditableSkeleton::RenameRetargetSource(const FName InOldName, const FName 
 		TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UAnimSequence, RetargetSource), InOldName.ToString());
 		AssetRegistryModule.Get().GetAssetsByTagValues(TagsAndValues, AssetList);
 
+		// This could get assets of different skeletons here, so trim them
+		const FString SkeletonName = FAssetData(Skeleton).GetExportTextName();
+		AssetList.RemoveAll([&SkeletonName](const FAssetData& InAssetData)
+		{
+			FString AssetSkeletonName = InAssetData.GetTagValueRef<FString>(TEXT("Skeleton"));
+			return AssetSkeletonName != SkeletonName;
+		});
+		
 		// ask users if they'd like to continue and/or fix up
 		if (AssetList.Num() > 0)
 		{
@@ -1421,6 +1431,14 @@ void FEditableSkeleton::DeleteRetargetSources(const TArray<FName>& InRetargetSou
 			TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UAnimSequence, RetargetSource), PoseFound->PoseName.ToString());
 			AssetRegistryModule.Get().GetAssetsByTagValues(TagsAndValues, AssetList);
 
+			// This could get assets of different skeletons here, so trim them
+			const FString SkeletonName = FAssetData(Skeleton).GetExportTextName();
+			AssetList.RemoveAll([&SkeletonName](const FAssetData& InAssetData)
+			{
+				FString AssetSkeletonName = InAssetData.GetTagValueRef<FString>(TEXT("Skeleton"));
+				return AssetSkeletonName != SkeletonName;
+			});
+			
 			// ask users if they'd like to continue and/or fix up
 			if (AssetList.Num() > 0)
 			{
@@ -1510,6 +1528,10 @@ void FEditableSkeleton::AddCompatibleSkeleton(const USkeleton* InCompatibleSkele
 	Skeleton->Modify();
 
 	Skeleton->AddCompatibleSkeleton(InCompatibleSkeleton);
+
+	// Inform asset families
+	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
+	PersonaModule.BroadcastAssetFamilyChange();
 }
 
 void FEditableSkeleton::RemoveCompatibleSkeleton(const USkeleton* InCompatibleSkeleton)
@@ -1518,6 +1540,10 @@ void FEditableSkeleton::RemoveCompatibleSkeleton(const USkeleton* InCompatibleSk
 	Skeleton->Modify();
 
 	Skeleton->RemoveCompatibleSkeleton(InCompatibleSkeleton);
+
+	// Inform asset families
+	FPersonaModule& PersonaModule = FModuleManager::LoadModuleChecked<FPersonaModule>("Persona");
+	PersonaModule.BroadcastAssetFamilyChange();
 }
 
 void FEditableSkeleton::RefreshRigConfig()

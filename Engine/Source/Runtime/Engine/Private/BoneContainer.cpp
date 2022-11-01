@@ -6,7 +6,8 @@
 #include "Engine/SkeletalMesh.h"
 #include "EngineLogs.h"
 #include "Animation/AnimCurveTypes.h"
-
+#include "Animation/SkeletonRemappingRegistry.h"
+#include "Animation/SkeletonRemapping.h"
 #include "HAL/LowLevelMemTracker.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BoneContainer)
@@ -33,10 +34,10 @@ FSkeletonRemappingCurve::FSkeletonRemappingCurve(FBlendedCurve& InCurve, FBoneCo
 	, BoneContainer(InBoneContainer)
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/BoneContainer"));
-	const FSkeletonRemapping* SkeletonRemapping = BoneContainer.GetSkeletonAsset()->GetSkeletonRemapping(SourceSkeleton);
-	if (SkeletonRemapping) // No remapping is required, just continue as we normally would.
+	const FSkeletonRemapping& SkeletonRemapping = UE::Anim::FSkeletonRemappingRegistry::Get().GetRemapping(SourceSkeleton, BoneContainer.GetSkeletonAsset());
+	if (SkeletonRemapping.IsValid()) // No remapping is required, just continue as we normally would.
 	{
-		const FCachedSkeletonCurveMapping& CurveMapping = BoneContainer.GetOrCreateCachedCurveMapping(SkeletonRemapping);
+		const FCachedSkeletonCurveMapping& CurveMapping = BoneContainer.GetOrCreateCachedCurveMapping(&SkeletonRemapping);
 		Curve.UIDToArrayIndexLUT = &CurveMapping.UIDToArrayIndices;
 		bIsRemapping = true;
 	}

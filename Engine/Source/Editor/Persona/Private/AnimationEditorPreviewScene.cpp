@@ -159,7 +159,7 @@ void FAnimationEditorPreviewScene::SetPreviewMesh(USkeletalMesh* NewPreviewMesh,
 	if (NewPreviewMesh != nullptr && GetEditableSkeleton().IsValid() && !GetEditableSkeleton()->GetSkeleton().IsCompatibleMesh(NewPreviewMesh))
 	{
 		const USkeleton& Skeleton = GetEditableSkeleton()->GetSkeleton();
-		if (NewPreviewMesh->GetSkeleton() && Skeleton.IsCompatible(NewPreviewMesh->GetSkeleton()))
+		if (NewPreviewMesh->GetSkeleton() && Skeleton.IsCompatibleForEditor(NewPreviewMesh->GetSkeleton()))
 		{
 			SetPreviewMeshInternal(NewPreviewMesh);
 		}	
@@ -649,7 +649,7 @@ void FAnimationEditorPreviewScene::SetPreviewAnimationAsset(UAnimationAsset* Ani
 			}
 
 			// Treat it as invalid if it's got a bogus skeleton pointer
-			if (Skeleton != nullptr && !Skeleton->IsCompatible(AnimAsset->GetSkeleton()))
+			if (AnimAsset->GetSkeleton() == nullptr)
 			{
 				return;
 			}

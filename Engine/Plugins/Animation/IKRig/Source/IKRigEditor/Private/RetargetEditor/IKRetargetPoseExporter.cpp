@@ -466,7 +466,7 @@ bool FIKRetargetPoseExporter::OnShouldFilterSequenceToImport(const FAssetData& A
 		return true;
 	}
 
-	return !DesiredSkeleton->IsCompatibleSkeletonByAssetData(AssetData);
+	return !DesiredSkeleton->IsCompatibleForEditor(AssetData);
 }
 
 FReply FIKRetargetPoseExporter::OnImportPoseFromSequence()

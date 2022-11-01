@@ -570,7 +570,7 @@ bool UAnimGraphNode_BlendSpaceGraphBase::IsActionFilteredOut(class FBlueprintAct
 		{
 			if(!SkeletonName.IsEmpty())
 			{
-				if(AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(SkeletonName))
+				if(AnimBlueprint->TargetSkeleton == nullptr || !AnimBlueprint->TargetSkeleton->IsCompatibleForEditor(SkeletonName))
 				{
 					bIsFilteredOut = true;
 					break;

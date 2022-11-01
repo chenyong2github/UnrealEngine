@@ -14,20 +14,40 @@ FPersonaAssetFamilyManager& FPersonaAssetFamilyManager::Get()
 TSharedRef<IAssetFamily> FPersonaAssetFamilyManager::CreatePersonaAssetFamily(const UObject* InAsset)
 {
 	// compact any invalid entries
-	AssetFamilies.RemoveAll([](const TWeakPtr<class IAssetFamily>& InAssetFamily) { return !InAssetFamily.IsValid(); });
+	AssetFamilies.RemoveAll([](const TWeakPtr<IAssetFamily>& InAssetFamily) { return !InAssetFamily.IsValid(); });
 
-	// look for an existing matching asset family
-	FAssetData AssetData(InAsset);
-	for (TWeakPtr<class IAssetFamily>& AssetFamily : AssetFamilies)
-	{
-		if (AssetFamily.Pin()->IsAssetCompatible(AssetData))
-		{
-			return AssetFamily.Pin().ToSharedRef();
-		}
-	}
-
-	// not found - make a new one
-	TSharedRef<IAssetFamily> NewAssetFamily = MakeShareable(new FPersonaAssetFamily(InAsset));
+	// Create new asset family
+	TSharedRef<FPersonaAssetFamily> NewAssetFamily = MakeShared<FPersonaAssetFamily>(InAsset);
+	NewAssetFamily->Initialize();
 	AssetFamilies.Add(NewAssetFamily);
 	return NewAssetFamily;
+}
+
+void FPersonaAssetFamilyManager::BroadcastAssetFamilyChange()
+{
+	// Create copy as delegate can modify the AssetFamilies array
+	TArray<TWeakPtr<IAssetFamily>> AssetFamiliesCopy = AssetFamilies;
+	for (TWeakPtr<IAssetFamily>& AssetFamily : AssetFamiliesCopy)
+	{
+		if (TSharedPtr<IAssetFamily> PinnedAssetFamily = AssetFamily.Pin())
+		{
+			PinnedAssetFamily->GetOnAssetFamilyChanged().Broadcast();
+		}
+	}
+}
+
+void FPersonaAssetFamilyManager::RecordAssetOpened(const FAssetData& InAssetData) const
+{
+	for (const TWeakPtr<IAssetFamily>& AssetFamily : AssetFamilies)
+	{
+		if (TSharedPtr<IAssetFamily> PinnedAssetFamily = AssetFamily.Pin())
+		{
+			if(PinnedAssetFamily->IsAssetCompatible(InAssetData))
+			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				PinnedAssetFamily->RecordAssetOpened(InAssetData);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			}
+		}
+	}
 }

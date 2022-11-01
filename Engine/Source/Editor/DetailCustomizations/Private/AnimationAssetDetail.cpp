@@ -40,7 +40,7 @@ void FAnimationAssetDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	{
 		if (UAnimationAsset* TestAsset = Cast<UAnimationAsset>(SelectionIt->Get()))
 		{
-			if (TargetSkeleton.IsValid() && !TestAsset->GetSkeleton()->IsCompatible(TargetSkeleton.Get()))
+			if (TargetSkeleton.IsValid() && !TestAsset->GetSkeleton()->IsCompatibleForEditor(TargetSkeleton.Get()))
 			{
 				TargetSkeleton = nullptr;
 				break;
@@ -86,7 +86,7 @@ bool FAnimationAssetDetails::ShouldFilterAsset(const FAssetData& AssetData)
 {
 	if (TargetSkeleton.IsValid())
 	{
-		return !TargetSkeleton->IsCompatibleSkeletonByAssetData(AssetData);
+		return !TargetSkeleton->IsCompatibleForEditor(AssetData);
 	}
 
 	return true;

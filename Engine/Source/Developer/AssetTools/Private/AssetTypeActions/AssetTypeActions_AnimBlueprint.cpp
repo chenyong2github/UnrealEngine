@@ -108,7 +108,7 @@ void FAssetTypeActions_AnimBlueprint::GetActions(const TArray<UObject*>& InObjec
 							{
 								// Filter on compatible skeletons
 								const FString ExportTextName = AssetData.GetExportTextName();
-								return !LocalAnimBlueprint->TargetSkeleton->IsCompatibleSkeletonByAssetString(ExportTextName);
+								return !LocalAnimBlueprint->TargetSkeleton->IsCompatibleForEditor(ExportTextName);
 							}
 						}
 						

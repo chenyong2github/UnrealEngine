@@ -18,6 +18,7 @@ struct FAssetData;
 class FMenuBuilder;
 class UAnimSequenceBase;
 struct FAnimSegment;
+class USkeleton;
 
 DECLARE_DELEGATE( FOnPreAnimUpdate )
 DECLARE_DELEGATE( FOnPostAnimUpdate )
@@ -135,7 +136,7 @@ private:
 	void				ReplaceAnimSegment(UAnimSequenceBase* NewSequenceBase, float NewStartPos);
 	void				ReplaceAnimSegment(int32 AnimSegmentIndex, UAnimSequenceBase* NewSequenceBase);
 	void				ReplaceAnimSegment(const FAssetData& NewSequenceData, int32 AnimSegmentIndex);
-	bool				ShouldFilter(const FAssetData& DataToDisplay, TEnumAsByte<EAdditiveAnimationType> InAdditiveType);
+	bool				ShouldFilter(const FAssetData& DataToDisplay, USkeleton* InSkeleton, bool bInFilterAdditive, TEnumAsByte<EAdditiveAnimationType> InAdditiveType);
 
 	// Remove all selected anim segments in all segment tracks
 	void RemoveSelectedAnimSegments();

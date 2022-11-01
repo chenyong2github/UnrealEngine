@@ -324,7 +324,7 @@ bool FPoseAssetDetails::ShouldFilterAsset(const FAssetData& AssetData)
 {
 	if (TargetSkeleton.IsValid())
 	{
-		return !TargetSkeleton->IsCompatibleSkeletonByAssetData(AssetData);
+		return !TargetSkeleton->IsCompatibleForEditor(AssetData);
 	}
 
 	return true;
@@ -644,7 +644,7 @@ void FPoseAssetDetails::CachePoseAssetData()
 		 SourceAnimationPropertyHandle->GetValue(ObjectSet);
 
 		 UAnimSequence* AnimSequenceSelected = Cast<UAnimSequence>(ObjectSet);
-		 if (AnimSequenceSelected && PoseAsset->GetSkeleton()->IsCompatible(AnimSequenceSelected->GetSkeleton()))
+		 if (AnimSequenceSelected && PoseAsset->GetSkeleton()->IsCompatibleForEditor(AnimSequenceSelected->GetSkeleton()))
 		 {
 			 FScopedTransaction Transaction(LOCTEXT("UpdatePoseSourceAnimation_Transaction", "Update Pose"));
 			 PoseAsset->Modify();

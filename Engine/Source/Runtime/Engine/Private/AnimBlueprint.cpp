@@ -414,7 +414,7 @@ bool UAnimBlueprint::IsCompatible(const UAnimBlueprint* InAnimBlueprint) const
 		return true;
 	}
 
-	return (TargetSkeleton != nullptr && TargetSkeleton->IsCompatible(InAnimBlueprint->TargetSkeleton));
+	return (TargetSkeleton != nullptr && TargetSkeleton->IsCompatibleForEditor(InAnimBlueprint->TargetSkeleton));
 }
 
 bool UAnimBlueprint::IsCompatibleByAssetString(const FString& InSkeletonAsset, bool bInIsTemplate, bool bInIsInterface) const
@@ -431,6 +431,6 @@ bool UAnimBlueprint::IsCompatibleByAssetString(const FString& InSkeletonAsset, b
 		return true;
 	}
 
-	return (TargetSkeleton != nullptr && TargetSkeleton->IsCompatibleSkeletonByAssetString(InSkeletonAsset));
+	return (TargetSkeleton != nullptr && TargetSkeleton->IsCompatibleForEditor(InSkeletonAsset));
 }
 #endif

@@ -475,10 +475,7 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 		// if it has a preview pose asset, we have to handle that after we do all animation
 		if (const UPoseAsset* PoseAsset = Proxy->CurrentAsset->PreviewPoseAsset)
 		{
-			USkeleton* MySkeleton = Proxy->CurrentAsset->GetSkeleton();
-
-			// if skeleton doesn't match it won't work
-			if (MySkeleton->IsCompatible(PoseAsset->GetSkeleton()))
+			if (PoseAsset->GetSkeleton() != nullptr)
 			{
 				const TArray<FSmartName>& PoseNames = PoseAsset->GetPoseNames();
 

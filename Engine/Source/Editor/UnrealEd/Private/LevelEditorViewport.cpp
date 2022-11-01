@@ -819,20 +819,16 @@ static bool AttemptApplyObjToComponent(UObject* ObjToUse, USceneComponent* Compo
 						const FScopedTransaction Transaction(LOCTEXT("DropAnimBlueprintOnObject", "Drop Anim Blueprint On Object"));
 						SkeletalMeshComponent->Modify();
 
-						// If the component doesn't have a mesh or the anim blueprint's skeleton isn't compatible with the existing mesh's skeleton, the mesh should change
-						const bool bShouldChangeMesh = !SkeletalMeshComponent->GetSkeletalMeshAsset() || !SkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->IsCompatible(AnimBPSkeleton);
+						// If the component doesn't have a mesh, the mesh should change
+						const bool bShouldChangeMesh = !SkeletalMeshComponent->GetSkeletalMeshAsset();
 
 						if (bShouldChangeMesh)
 						{
 							SkeletalMeshComponent->SetSkeletalMesh(AnimBPSkeleton->GetPreviewMesh(true));
 						}
 
-						// Verify that the skeletons are compatible before changing the anim BP
-						if (SkeletalMeshComponent->GetSkeletalMeshAsset() && SkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->IsCompatible(AnimBPSkeleton))
-						{
-							SkeletalMeshComponent->SetAnimInstanceClass(DroppedObjAsAnimBlueprint->GeneratedClass);
-							bResult = true;
-						}
+						SkeletalMeshComponent->SetAnimInstanceClass(DroppedObjAsAnimBlueprint->GeneratedClass);
+						bResult = true;
 					}
 				}
 			}
@@ -854,8 +850,8 @@ static bool AttemptApplyObjToComponent(UObject* ObjToUse, USceneComponent* Compo
 						const FScopedTransaction Transaction(LOCTEXT("DropAnimationOnObject", "Drop Animation On Object"));
 						SkeletalMeshComponent->Modify();
 
-						// If the component doesn't have a mesh or the anim blueprint's skeleton isn't compatible with the existing mesh's skeleton, the mesh should change
-						const bool bShouldChangeMesh = !SkeletalMeshComponent->GetSkeletalMeshAsset() || !SkeletalMeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->IsCompatible(AnimSkeleton);
+						// If the component doesn't have a mesh, the mesh should change
+						const bool bShouldChangeMesh = !SkeletalMeshComponent->GetSkeletalMeshAsset();
 
 						if (bShouldChangeMesh)
 						{

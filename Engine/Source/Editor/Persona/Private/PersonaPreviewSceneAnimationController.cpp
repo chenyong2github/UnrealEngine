@@ -51,7 +51,7 @@ IDetailPropertyRow* UPersonaPreviewSceneAnimationController::AddPreviewControlle
 
 bool UPersonaPreviewSceneAnimationController::HandleShouldFilterAsset(const FAssetData& InAssetData, const USkeleton* InSkeleton) const
 {
-	if (InSkeleton && InSkeleton->IsCompatibleSkeletonByAssetData(InAssetData))
+	if (InSkeleton && InSkeleton->IsCompatibleForEditor(InAssetData))
 	{
 		return false;
 	}

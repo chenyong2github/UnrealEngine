@@ -48,7 +48,7 @@ bool UEditorAnimSegment::ApplyChangesToMontage()
 	{
 		if(Montage->SlotAnimTracks.IsValidIndex(AnimSlotIndex) && Montage->SlotAnimTracks[AnimSlotIndex].AnimTrack.AnimSegments.IsValidIndex(AnimSegmentIndex) )
 		{
-			if (AnimSegment.GetAnimReference() && Montage->GetSkeleton()->IsCompatible(AnimSegment.GetAnimReference()->GetSkeleton()))
+			if (AnimSegment.GetAnimReference() && Montage->GetSkeleton()->IsCompatibleForEditor(AnimSegment.GetAnimReference()->GetSkeleton()))
 			{
 				Montage->SlotAnimTracks[AnimSlotIndex].AnimTrack.AnimSegments[AnimSegmentIndex] = AnimSegment;
 				Montage->UpdateLinkableElements(AnimSlotIndex, AnimSegmentIndex);

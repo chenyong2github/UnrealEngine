@@ -50,8 +50,8 @@ void UAnimSingleNodeInstance::SetAnimationAsset(class UAnimationAsset* NewAsset,
 		}
 		else if (CurrentAsset != nullptr)
 		{
-			// if we have an asset, make sure their skeleton matches, otherwise, null it
-			if (!MeshComponent->GetSkeletalMeshAsset()->GetSkeleton()->IsCompatible(CurrentAsset->GetSkeleton()))
+			// if we have an asset, make sure their skeleton is valid, otherwise, null it
+			if (CurrentAsset->GetSkeleton() == nullptr)
 			{
 				// clear asset since we do not have matching skeleton
 				CurrentAsset = nullptr;

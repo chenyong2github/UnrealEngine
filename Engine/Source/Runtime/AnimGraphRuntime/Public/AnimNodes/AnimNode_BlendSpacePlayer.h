@@ -121,6 +121,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_BlendSpacePlayer : public FAnimNode_BlendS
 {
 	GENERATED_BODY()
 
+	friend class UAnimGraphNode_BlendSpaceBase;
 	friend class UAnimGraphNode_BlendSpacePlayer;
 	friend class UAnimGraphNode_BlendSpaceEvaluator;
 	friend class UAnimGraphNode_RotationOffsetBlendSpace;

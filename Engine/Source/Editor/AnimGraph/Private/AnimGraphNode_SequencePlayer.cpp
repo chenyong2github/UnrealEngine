@@ -45,7 +45,7 @@ void UAnimGraphNode_SequencePlayer::Serialize(FArchive& Ar)
 
 void UAnimGraphNode_SequencePlayer::PreloadRequiredAssets()
 {
-	PreloadObject(Node.GetSequence());
+	PreloadRequiredAssetsHelper(Node.GetSequence(), FindPin(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_SequencePlayer, Sequence)));
 
 	Super::PreloadRequiredAssets();
 }

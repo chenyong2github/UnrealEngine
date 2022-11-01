@@ -294,6 +294,9 @@ public:
 	/** Notifies the asset view that the filter-list filter has changed */
 	void SetBackendFilter(const FARFilter& InBackendFilter);
 
+	/** Get the current backend filter */
+	const FARFilter& GetBackendFilter() const { return BackendFilter; }
+	
 	/** Handler for when a data source requests folder item creation */
 	void NewFolderItemRequested(const FContentBrowserItemTemporaryContext& NewItemContext);
 
