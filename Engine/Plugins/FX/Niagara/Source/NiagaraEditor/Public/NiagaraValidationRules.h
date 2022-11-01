@@ -12,6 +12,7 @@ class UNiagaraScript;
 
 namespace NiagaraValidation
 {
+	NIAGARAEDITOR_API bool HasValidationRules(UNiagaraSystem* NiagaraSystem);
 	NIAGARAEDITOR_API void ValidateAllRulesInSystem(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TFunction<void(const FNiagaraValidationResult& Result)> ResultCallback);
 }
 
