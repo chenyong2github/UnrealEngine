@@ -12,6 +12,7 @@
 #include "Misc/CoreDelegates.h"
 #include "ADPCMAudioInfo.h"
 #include "BinkAudioInfo.h"
+#include "Misc/CommandLine.h"
 
 /*
  This implementation only depends on the audio units API which allows it to run on MacOS, iOS and tvOS.
@@ -25,6 +26,7 @@
 #include <AudioToolbox/AudioToolbox.h>
 #include <AudioUnit/AudioUnit.h>
 #include <AVFoundation/AVAudioSession.h>
+
 
 static int32 SuspendCounter = 0;
 
