@@ -139,6 +139,7 @@ namespace Chaos
 		bool bCollisionEnabled;
 		bool bProjectionEnabled;		// @chaos(todo): remove - implied by alpha and teleport settings
 		bool bShockPropagationEnabled;	// @chaos(todo): remove - implied by alpha
+		bool bMassConditioningEnabled;
 
 		TVector<EJointMotionType, 3> LinearMotionTypes;
 		FReal LinearLimit;

@@ -118,6 +118,36 @@ bool UConstraintInstanceBlueprintLibrary::GetParentDominates(FConstraintInstance
 	return false;
 }
 
+
+void UConstraintInstanceBlueprintLibrary::SetMassConditioningEnabled(
+	FConstraintInstanceAccessor& Accessor,
+	bool bEnableMassConditioning
+)
+{
+	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
+	{
+		Accessor.Modify();
+
+		if (bEnableMassConditioning)
+		{
+			ConstraintInstance->EnableMassConditioning();
+		}
+		else
+		{
+			ConstraintInstance->DisableMassConditioning();
+		}
+	}
+}
+
+bool UConstraintInstanceBlueprintLibrary::GetMassConditioningEnabled(FConstraintInstanceAccessor& Accessor)
+{
+	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
+	{
+		return ConstraintInstance->IsMassConditioningEnabled();
+	}
+	return false;
+}
+
 //---------------------------------------------------------------------------------------------------
 //
 // LINEAR LIMITS

@@ -202,10 +202,22 @@ void FPBDJointCachedSolver::Init(
 
 	InitDerivedState();
 
-	FReal ConditionedInvMs[2];
-	FVec3 ConditionedInvILs[2];
-	FPBDJointUtilities::ConditionInverseMassAndInertia(Body0().InvM(), Body1().InvM(), Body0().InvILocal(), Body1().InvILocal(), SolverSettings.MinParentMassRatio, SolverSettings.MaxInertiaRatio, ConditionedInvMs[0], ConditionedInvMs[1], ConditionedInvILs[0], ConditionedInvILs[1]);
-
+	// Set the mass and inertia.
+	// If enabled, adjust the mass so that we limit the maximum mass and inertia ratios
+	FReal ConditionedInvMs[2] = 
+	{
+		Body0().InvM(),
+		Body1().InvM()
+	};
+	FVec3 ConditionedInvILs[2] = 
+	{
+		Body0().InvILocal(), 
+		Body1().InvILocal()
+	};
+	if (JointSettings.bMassConditioningEnabled)
+	{
+		FPBDJointUtilities::ConditionInverseMassAndInertia(Body0().InvM(), Body1().InvM(), Body0().InvILocal(), Body1().InvILocal(), SolverSettings.MinParentMassRatio, SolverSettings.MaxInertiaRatio, ConditionedInvMs[0], ConditionedInvMs[1], ConditionedInvILs[0], ConditionedInvILs[1]);
+	}
 	UpdateMass0(ConditionedInvMs[0], ConditionedInvILs[0]);
 	UpdateMass1(ConditionedInvMs[1], ConditionedInvILs[1]);
 

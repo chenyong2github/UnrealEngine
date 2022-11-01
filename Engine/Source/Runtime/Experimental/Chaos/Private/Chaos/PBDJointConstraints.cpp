@@ -192,6 +192,7 @@ namespace Chaos
 		, bCollisionEnabled(true)
 		, bProjectionEnabled(false)
 		, bShockPropagationEnabled(false)
+		, bMassConditioningEnabled(true)
 		, LinearMotionTypes({ EJointMotionType::Locked, EJointMotionType::Locked, EJointMotionType::Locked })
 		, LinearLimit(FLT_MAX)
 		, AngularMotionTypes({ EJointMotionType::Free, EJointMotionType::Free, EJointMotionType::Free })

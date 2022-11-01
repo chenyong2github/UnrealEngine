@@ -47,6 +47,7 @@ namespace ImmediatePhysics_Chaos
 
 		ConstraintSettings.bProjectionEnabled = Profile.bEnableProjection;
 		ConstraintSettings.bShockPropagationEnabled = Profile.bEnableShockPropagation;
+		ConstraintSettings.bMassConditioningEnabled = Profile.bEnableMassConditioning;
 
 		ConstraintSettings.LinearProjection = Profile.bEnableProjection ? Profile.ProjectionLinearAlpha : 0.0f;
 		ConstraintSettings.AngularProjection = Profile.bEnableProjection ? Profile.ProjectionAngularAlpha : 0.0f;

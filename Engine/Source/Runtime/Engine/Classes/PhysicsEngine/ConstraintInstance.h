@@ -134,6 +134,15 @@ struct ENGINE_API FConstraintProfileProperties
 	UPROPERTY(EditAnywhere, Category = Projection)
 	uint8 bEnableProjection : 1;
 
+	/** 
+	 * Whether mass conditioning is enabled for this joint. Mass conditioning applies a non-physical scale to the mass and inertia of the two
+	 * bodies that only affects this joint, so that the mass and inertia ratios are smaller. This helps stabilize joints where the bodies
+	 * are very different sizes, and especially when the parent body is heavier than the child. However, it can lead to unrealistic
+	 * behaviour, especially when collisions are involved.
+	*/
+	UPROPERTY(EditAnywhere, Category = Projection)
+	uint8 bEnableMassConditioning : 1;
+
 	/** Whether it is possible to break the joint with angular force. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Angular)
 	uint8 bAngularBreakable : 1;
@@ -959,6 +968,21 @@ public:
 	void EnableParentDominates();
 	void DisableParentDominates();
 
+	/** Whether mass conditioning is enabled. @see FConstraintProfileProperties::bEnableMassConditioning */
+	bool IsMassConditioningEnabled() const
+	{
+		return ProfileInstance.bEnableMassConditioning;
+	}
+
+	/**
+	 * Enable maxx conditioning. @see FConstraintProfileProperties::bEnableMassConditioning
+	*/
+	void EnableMassConditioning();
+
+	/**
+	 * Disable maxx conditioning. @see FConstraintProfileProperties::bEnableMassConditioning
+	*/
+	void DisableMassConditioning();
 
 	float GetLastKnownScale() const { return LastKnownScale; }
 

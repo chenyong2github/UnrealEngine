@@ -98,6 +98,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
 	static bool GetParentDominates(UPARAM(ref) FConstraintInstanceAccessor& Accessor);
 
+	/**
+	 * @brief Enable or disable mass conditioning for the constraint.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
+	static void SetMassConditioningEnabled(
+		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
+		bool bEnableMassConditioning);
+
+	/**
+	 * @brief Gets whether mass conditioning is enabled for the constraint.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
+	static bool GetMassConditioningEnabled(UPARAM(ref) FConstraintInstanceAccessor& Accessor);
+
+
 	//---------------------------------------------------------------------------------------------------
 	//
 	// LINEAR LIMITS

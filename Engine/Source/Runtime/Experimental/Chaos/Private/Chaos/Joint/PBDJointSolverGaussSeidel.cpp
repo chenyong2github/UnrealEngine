@@ -102,9 +102,18 @@ namespace Chaos
 		SolverBodies[0].SetInvMScale(JointSettings.ParentInvMassScale);
 		SolverBodies[1].SetInvMScale(FReal(1));
 
+		// Set the mass and inertia.
+		// If enabled, adjust the mass so that we limit the maximum mass and inertia ratios
 		InvMScales[0] = FReal(1);
 		InvMScales[1] = FReal(1);
-		FPBDJointUtilities::ConditionInverseMassAndInertia(Body0().InvM(), Body1().InvM(), Body0().InvILocal(), Body1().InvILocal(), SolverSettings.MinParentMassRatio, SolverSettings.MaxInertiaRatio, ConditionedInvMs[0], ConditionedInvMs[1], ConditionedInvILs[0], ConditionedInvILs[1]);
+		ConditionedInvMs[0] = Body0().InvM();
+		ConditionedInvMs[1] = Body1().InvM();
+		ConditionedInvILs[0] = Body0().InvILocal();
+		ConditionedInvILs[1] = Body1().InvILocal();
+		if (JointSettings.bMassConditioningEnabled)
+		{
+			FPBDJointUtilities::ConditionInverseMassAndInertia(Body0().InvM(), Body1().InvM(), Body0().InvILocal(), Body1().InvILocal(), SolverSettings.MinParentMassRatio, SolverSettings.MaxInertiaRatio, ConditionedInvMs[0], ConditionedInvMs[1], ConditionedInvILs[0], ConditionedInvILs[1]);
+		}
 		UpdateMass0();
 		UpdateMass1();
 

@@ -197,6 +197,7 @@ FConstraintProfileProperties::FConstraintProfileProperties()
 	, bParentDominates(false)
 	, bEnableShockPropagation(false)
 	, bEnableProjection(true)
+	, bEnableMassConditioning(true)
 	, bAngularBreakable(false)
 	, bAngularPlasticity(false)
 	, bLinearBreakable(false)
@@ -556,6 +557,7 @@ void FConstraintProfileProperties::UpdateConstraintFlags_AssumesLocked(const FPh
 	FPhysicsInterface::SetProjectionEnabled_AssumesLocked(InConstraintRef, bEnableProjection, ProjectionLinearAlpha, ProjectionAngularAlpha, ProjectionLinearTolerance, ProjectionAngularTolerance);
 	FPhysicsInterface::SetShockPropagationEnabled_AssumesLocked(InConstraintRef, bEnableShockPropagation, ShockPropagationAlpha);
 	FPhysicsInterface::SetParentDominates_AssumesLocked(InConstraintRef, bParentDominates);
+	FPhysicsInterface::SetMassConditioningEnabled_AssumesLocked(InConstraintRef, bEnableMassConditioning);
 }
 
 
@@ -1342,6 +1344,24 @@ void FConstraintInstance::DisableParentDominates()
 	FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& Constraint)
 	{
 		FPhysicsInterface::SetParentDominates_AssumesLocked(Constraint, false);
+	});
+}
+
+void FConstraintInstance::EnableMassConditioning()
+{
+	ProfileInstance.bEnableMassConditioning = true;
+	FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& Constraint)
+	{
+		FPhysicsInterface::SetMassConditioningEnabled_AssumesLocked(Constraint, true);
+	});
+}
+
+void FConstraintInstance::DisableMassConditioning()
+{
+	ProfileInstance.bEnableMassConditioning = false;
+	FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& Constraint)
+	{
+		FPhysicsInterface::SetMassConditioningEnabled_AssumesLocked(Constraint, false);
 	});
 }
 
