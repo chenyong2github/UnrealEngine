@@ -162,8 +162,11 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 	SystemGraphSelectionViewModel = MakeShared<FNiagaraSystemGraphSelectionViewModel>();
 	SystemGraphSelectionViewModel->Initialize(this->AsShared());
 	
-	SetupPreviewComponentAndInstance();
-	SetupSequencer();
+	if (bIsForDataProcessingOnly == false)
+	{
+		SetupPreviewComponentAndInstance();
+		SetupSequencer();
+	}
 	RefreshAll();
 	AddSystemEventHandlers();
 }

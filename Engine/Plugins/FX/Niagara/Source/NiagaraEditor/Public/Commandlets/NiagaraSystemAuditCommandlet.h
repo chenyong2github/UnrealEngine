@@ -29,6 +29,9 @@ class UNiagaraSystemAuditCommandlet : public UCommandlet
 	/** All Niagara Systems & Emitters with simulation stages enabled*/
 	TSet<FString> NiagaraSystemsWithSimulationStages;
 
+	/** All Validation Issues */
+	TUniquePtr<FArchive> NiagaraValidationIssues;
+
 	/** Optional list of data interface usage */
 	struct FDataInterfaceUsage
 	{
@@ -56,6 +59,9 @@ class UNiagaraSystemAuditCommandlet : public UCommandlet
 
 	/** DeviceProfiles we want to disable GPU emitters for. */
 	TArray<class UDeviceProfile*> DeviceProfilesToDisableGpu;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UPackage>> PackagesToSave;
 
 	/** Entry point */
 	int32 Main(const FString& Params) override;
