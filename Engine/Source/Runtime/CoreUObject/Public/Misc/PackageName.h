@@ -317,6 +317,13 @@ public:
 	static FName GetPackageMountPoint(const FString& InPackagePath, bool InWithoutSlashes = true);
 
 	/**
+	 * Get the path associated with the given package root
+	 * @param InPackageRoot Package root to return the path for, e.g. /Game/, /Engine/, /PluginName/
+	 * @return Filesystem path associated with the provided package root
+	 */
+	static FString GetContentPathForPackageRoot(FStringView InPackageRoot);
+
+	/**
 	 * Checks if the package exists on disk.
 	 * 
 	 * @param LongPackageName Package name.
