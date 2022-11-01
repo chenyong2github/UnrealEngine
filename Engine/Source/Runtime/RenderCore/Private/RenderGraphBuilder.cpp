@@ -383,15 +383,15 @@ void FRDGBuilder::TickPoolElements()
 	GRenderGraphResourcePool.TickPoolElements();
 
 #if RDG_ENABLE_DEBUG
+	if (GRDGDumpGraph)
+	{
+		--GRDGDumpGraph;
+	}
 	if (GRDGTransitionLog > 0)
 	{
 		--GRDGTransitionLog;
 	}
-#endif
-
-#if RDG_EVENTS != RDG_EVENTS_NONE
-	// This is polled once as a workaround for a race condition since the underlying global is not always changed on the render thread.
-	GRDGEmitDrawEvents_RenderThread = GetEmitDrawEvents();
+	GRDGDumpGraphUnknownCount = 0;
 #endif
 
 #if STATS
@@ -551,6 +551,11 @@ FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName I
 	, TransientResourceAllocator(GRDGTransientResourceAllocator.Get())
 {
 	AddProloguePass();
+
+#if RDG_EVENTS != RDG_EVENTS_NONE
+	// This is polled once as a workaround for a race condition since the underlying global is not always changed on the render thread.
+	GRDGEmitEvents = GetEmitDrawEvents();
+#endif
 
 #if RHI_WANT_BREADCRUMB_EVENTS
 	if (bParallelExecuteEnabled)

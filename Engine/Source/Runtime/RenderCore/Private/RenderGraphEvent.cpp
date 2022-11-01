@@ -511,7 +511,7 @@ RENDERCORE_API bool GetEmitRDGEvents()
 #if RDG_ENABLE_TRACE
 	bRDGChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(RDGChannel);
 #endif // RDG_ENABLE_TRACE
-	return GRDGEvents != 0 && (GRDGEmitDrawEvents_RenderThread != 0 || GRDGDebug != 0 || bRDGChannelEnabled != 0);
+	return GRDGEmitEvents != 0 || GRDGDebug != 0 || bRDGChannelEnabled != 0;
 #else
 	return false;
 #endif
@@ -564,19 +564,13 @@ FString FRDGEventScope::GetPath(const FRDGEventName& Event) const
 	return MoveTemp(Path);
 }
 
-FRDGEventScopeGuard::FRDGEventScopeGuard(FRDGBuilder& InGraphBuilder, FRDGEventName&& ScopeName, bool InbCondition, ERDGEventScopeFlags InFlags)
+FRDGEventScopeGuard::FRDGEventScopeGuard(FRDGBuilder& InGraphBuilder, FRDGEventName&& ScopeName, bool InbCondition)
 	: GraphBuilder(InGraphBuilder)
-	, bCondition(InbCondition && !GraphBuilder.bFinalEventScopeActive)
+	, bCondition(InbCondition)
 {
 	if (bCondition)
 	{
-		if (GRDGEvents == 2)
-		{
-			EnumRemoveFlags(InFlags, ERDGEventScopeFlags::Final);
-		}
-
-		GraphBuilder.bFinalEventScopeActive = EnumHasAnyFlags(InFlags, ERDGEventScopeFlags::Final);
-		GraphBuilder.GPUScopeStacks.BeginEventScope(MoveTemp(ScopeName), GraphBuilder.RHICmdList.GetGPUMask(), InFlags);
+		GraphBuilder.GPUScopeStacks.BeginEventScope(MoveTemp(ScopeName), GraphBuilder.RHICmdList.GetGPUMask());
 	}
 }
 
@@ -585,7 +579,6 @@ FRDGEventScopeGuard::~FRDGEventScopeGuard()
 	if (bCondition)
 	{
 		GraphBuilder.GPUScopeStacks.EndEventScope();
-		GraphBuilder.bFinalEventScopeActive = false;
 	}
 }
 
@@ -677,10 +670,7 @@ FRDGEventScopeOpArray FRDGEventScopeStack::CompilePassPrologue(const FRDGPass* P
 	FRDGEventScopeOpArray Ops(bRDGEvents);
 	if (IsEnabled())
 	{
-		const FRDGEventScope* Scope = Pass->GetGPUScopes().Event;
-		const bool bEmitPassName = GetEmitRDGEvents() && (!Scope || !EnumHasAnyFlags(Scope->Flags, ERDGEventScopeFlags::Final));
-
-		Ops.Ops = ScopeStack.CompilePassPrologue(Scope, bEmitPassName ? Pass->GetEventName().GetTCHAR() : nullptr);
+		Ops.Ops = ScopeStack.CompilePassPrologue(Pass->GetGPUScopes().Event, GetEmitRDGEvents() ? Pass->GetEventName().GetTCHAR() : nullptr);
 	}
 	return MoveTemp(Ops);
 }
