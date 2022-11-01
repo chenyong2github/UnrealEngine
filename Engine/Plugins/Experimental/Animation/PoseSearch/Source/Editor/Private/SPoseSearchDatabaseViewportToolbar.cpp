@@ -63,6 +63,22 @@ namespace UE::PoseSearch
 			})
 			);
 
+			
+			ShowMenuBuilder.AddSubMenu(
+				LOCTEXT("ShowMenu_DebugSubMenu", "Debug"),
+				LOCTEXT("ShowMenu_DebugSubMenuToolTip", "Debug Options"),
+				FNewMenuDelegate::CreateLambda([](FMenuBuilder& SubMenuBuilder)
+			{
+				const FDatabaseEditorCommands& Commands = FDatabaseEditorCommands::Get();
+
+				SubMenuBuilder.BeginSection("Debug", LOCTEXT("ShowMenu_DebugLabel", "Debug"));
+				{
+					SubMenuBuilder.AddMenuEntry(Commands.ShowDisplayRootMotionSpeed);
+				}
+				SubMenuBuilder.EndSection();
+			})
+			);
+			
 		}
 
 		return ShowMenuBuilder.MakeWidget();

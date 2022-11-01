@@ -97,6 +97,10 @@ namespace UE::PoseSearch
 		void OnSetAnimationPreviewMode(EAnimationPreviewMode PreviewMode);
 		bool IsAnimationPreviewMode(EAnimationPreviewMode PreviewMode) const;
 
+		void OnToggleDisplayRootMotionSpeed();
+		bool CanDisplayRootMotionSpeed() const;
+		bool IsDisplayRootMotionSpeedChecked() const { return DisplayRootMotionSpeed; };
+		
 		void AddSequenceToDatabase(UAnimSequence* AnimSequence);
 		void AddBlendSpaceToDatabase(UBlendSpace* BlendSpace);
 
@@ -140,6 +144,9 @@ namespace UE::PoseSearch
 		/** What animations to show in the viewport */
 		EAnimationPreviewMode AnimationPreviewMode = EAnimationPreviewMode::OriginalAndMirrored;
 
+		/** Is animation debug draw enabled */
+		bool DisplayRootMotionSpeed = false;
+		
 		TArray<TSharedPtr<FDatabaseAssetTreeNode>> SelectedNodes;
 
 		int32 SelectedActorIndexAssetIndex = INDEX_NONE;

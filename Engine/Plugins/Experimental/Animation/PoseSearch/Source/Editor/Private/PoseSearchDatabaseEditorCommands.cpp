@@ -30,6 +30,7 @@ namespace UE::PoseSearch
 			ShowAnimationOriginalAndMirrored, "Original and mirrored", "Show original and mirrored animations",
 			EUserInterfaceActionType::RadioButton, FInputChord());
 
+		UI_COMMAND(ShowDisplayRootMotionSpeed, "Display Root Motion Speed", "Show root motion speed for the selected item", EUserInterfaceActionType::ToggleButton, FInputChord());
 	}
 }
 

@@ -108,6 +108,12 @@ namespace UE::PoseSearch
 				ViewModelRef,
 				&FDatabaseViewModel::IsAnimationPreviewMode,
 				EAnimationPreviewMode::OriginalAndMirrored));
+
+		CommandList->MapAction(
+			Commands.ShowDisplayRootMotionSpeed,
+			FExecuteAction::CreateSP(ViewModelRef, &FDatabaseViewModel::OnToggleDisplayRootMotionSpeed),
+			FCanExecuteAction::CreateSP(ViewModelRef, &FDatabaseViewModel::CanDisplayRootMotionSpeed),
+			FIsActionChecked::CreateSP(ViewModelRef, &FDatabaseViewModel::IsDisplayRootMotionSpeedChecked));
 	}
 
 	TSharedRef<FEditorViewportClient> SDatabaseViewport::MakeEditorViewportClient()

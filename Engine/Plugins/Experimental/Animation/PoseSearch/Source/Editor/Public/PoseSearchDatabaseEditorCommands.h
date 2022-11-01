@@ -33,7 +33,8 @@ namespace UE::PoseSearch
 		TSharedPtr<FUICommandInfo> ShowAnimationNone;
 		TSharedPtr<FUICommandInfo> ShowAnimationOriginalOnly;
 		TSharedPtr<FUICommandInfo> ShowAnimationOriginalAndMirrored;
-
+		
+		TSharedPtr<FUICommandInfo> ShowDisplayRootMotionSpeed;
 	};
 }
 
