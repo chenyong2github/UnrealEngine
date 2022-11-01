@@ -3468,6 +3468,7 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		bBakeMaterialPositionOffsetIntoCollision = Landscape->bBakeMaterialPositionOffsetIntoCollision;
 		RuntimeVirtualTextures = Landscape->RuntimeVirtualTextures;
 		VirtualTextureLodBias = Landscape->VirtualTextureLodBias;
+		bVirtualTextureRenderWithQuad = Landscape->bVirtualTextureRenderWithQuad;
 		VirtualTextureNumLods = Landscape->VirtualTextureNumLods;
 		VirtualTextureRenderPassType = Landscape->VirtualTextureRenderPassType;
 
