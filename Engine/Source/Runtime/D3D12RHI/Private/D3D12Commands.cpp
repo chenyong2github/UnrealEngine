@@ -1862,7 +1862,7 @@ void FD3D12CommandContext::CommitComputeResourceTables()
 
 void FD3D12CommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPrimitives, uint32 NumInstances)
 {
-	RHI_DRAW_CALL_STATS_MGPU(GetGPUIndex(), StateCache.GetGraphicsPipelinePrimitiveType(), FMath::Max(NumInstances, 1U) * NumPrimitives);
+	RHI_DRAW_CALL_STATS(StateCache.GetGraphicsPipelinePrimitiveType(), FMath::Max(NumInstances, 1U) * NumPrimitives);
 
 	CommitGraphicsResourceTables();
 	CommitNonComputeShaderConstants();
@@ -1887,7 +1887,7 @@ void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRH
 {
 	FD3D12Buffer* ArgumentBuffer = RetrieveObject<FD3D12Buffer>(ArgumentBufferRHI);
 
-	RHI_DRAW_CALL_INC_MGPU(GetGPUIndex());
+	RHI_DRAW_CALL_INC();
 	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(0);
@@ -1929,7 +1929,7 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FR
 	FD3D12Buffer* IndexBuffer = RetrieveObject<FD3D12Buffer>(IndexBufferRHI);
 	FD3D12Buffer* ArgumentsBuffer = RetrieveObject<FD3D12Buffer>(ArgumentsBufferRHI);
 
-	RHI_DRAW_CALL_INC_MGPU(GetGPUIndex());
+	RHI_DRAW_CALL_INC();
 	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(1);
@@ -1972,7 +1972,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, i
 {
 	// called should make sure the input is valid, this avoid hidden bugs
 	ensure(NumPrimitives > 0);
-	RHI_DRAW_CALL_STATS_MGPU(GetGPUIndex(), StateCache.GetGraphicsPipelinePrimitiveType(), FMath::Max(NumInstances, 1U) * NumPrimitives);
+	RHI_DRAW_CALL_STATS(StateCache.GetGraphicsPipelinePrimitiveType(), FMath::Max(NumInstances, 1U) * NumPrimitives);
 
 	NumInstances = FMath::Max<uint32>(1, NumInstances);
 
@@ -2011,7 +2011,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuff
 	FD3D12Buffer* IndexBuffer = RetrieveObject<FD3D12Buffer>(IndexBufferRHI);
 	FD3D12Buffer* ArgumentBuffer = RetrieveObject<FD3D12Buffer>(ArgumentBufferRHI);
 
-	RHI_DRAW_CALL_INC_MGPU(GetGPUIndex());
+	RHI_DRAW_CALL_INC();
 	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(0);
@@ -2073,7 +2073,7 @@ void FD3D12CommandContext::RHIDispatchIndirectMeshShader(FRHIBuffer* ArgumentBuf
 {
 	FD3D12Buffer* ArgumentBuffer = RetrieveObject<FD3D12Buffer>(ArgumentBufferRHI);
 
-	RHI_DRAW_CALL_INC_MGPU(GetGPUIndex());
+	RHI_DRAW_CALL_INC();
 	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(0);

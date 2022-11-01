@@ -17638,7 +17638,7 @@ int32 UEngine::RenderStatUnit(UWorld* World, FViewport* Viewport, FCanvas* Canva
 // DRAWCOUNT
 int32 UEngine::RenderStatDrawCount(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
 {
-#if CSV_PROFILER
+#if HAS_GPU_STATS
 	int32 TotalCount[MAX_NUM_GPUS] = { 0 };
 	// Display all the categories of draw counts. This may always report 0 in some modes if AreGPUStatsEnabled is not enabled.
 	// Most likely because we are not currently capturing a CSV.
@@ -17675,7 +17675,7 @@ int32 UEngine::RenderStatDrawCount(UWorld* World, FViewport* Viewport, FCanvas* 
 #else
 	Canvas->DrawShadowedString(X - 200,
 		Y,
-		*FString::Printf(TEXT("DrawCount only supported with CSV_PROFILER")),
+		*FString::Printf(TEXT("DrawCount only supported with HAS_GPU_STATS")),
 		GetSmallFont(),
 		FColor::Red);
 #endif

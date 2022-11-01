@@ -763,17 +763,6 @@ FRHICommandList* FParallelCommandListSet::NewParallelCommandList()
 	Result->SwitchPipeline(ERHIPipeline::Graphics);
 	Result->SetExecuteStat(ExecuteStat);
 
-#if RDG_GPU_DEBUG_SCOPES
-	if (Pass->GetGPUScopes().Stat != nullptr && (**Pass->GetGPUScopes().Stat->DrawCallCounter) != -1)
-	{
-		Result->EnqueueLambda(
-			[DrawCallCounter = Pass->GetGPUScopes().Stat->DrawCallCounter](auto&)
-		{
-			RHISetCurrentNumDrawCallPtr(DrawCallCounter);
-		});
-	}
-#endif
-
 #if RHI_WANT_BREADCRUMB_EVENTS
 	if (GParallelCmdListInheritBreadcrumbs)
 	{

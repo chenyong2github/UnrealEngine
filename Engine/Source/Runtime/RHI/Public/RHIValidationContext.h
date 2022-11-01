@@ -1107,6 +1107,11 @@ public:
 		RHIContext->RHISetRayTracingMissShader(Scene, ShaderSlotInScene, Pipeline, ShaderIndexInPipeline, NumUniformBuffers, UniformBuffers, UserData);
 	}
 
+	virtual void StatsSetCategory(FRHIDrawStats* InStats, uint32 InCategoryID) final override
+	{
+		RHIContext->StatsSetCategory(InStats, InCategoryID);
+	}
+
 	void SetupDrawing()
 	{
 		// nothing to validate right now

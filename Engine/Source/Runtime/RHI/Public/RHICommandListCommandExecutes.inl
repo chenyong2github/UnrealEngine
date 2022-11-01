@@ -733,7 +733,7 @@ void FRHICommandEndScene::Execute(FRHICommandListBase& CmdList)
 void FRHICommandBeginFrame::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BeginFrame);
-	RHIPrivateBeginFrame();
+	CmdList.GetAsImmediate().ProcessStats();
 	INTERNAL_DECORATOR(RHIBeginFrame)();
 }
 

@@ -16,6 +16,8 @@
 #include "Math/PerspectiveMatrix.h"
 #include "Math/ScaleMatrix.h"
 #include "Math/TranslationMatrix.h"
+#include "ProfilingDebugging/CsvProfilerConfig.h"
+#include "GpuProfilerTrace.h"
 
 #ifndef RHI_COMMAND_LIST_DEBUG_TRACES
 #define RHI_COMMAND_LIST_DEBUG_TRACES 0
@@ -638,18 +640,6 @@ extern RHI_API int32 GPoolSizeVRAMPercentage;
 /** Amount of local video memory demoted to system memory. In bytes. */
 extern RHI_API uint64 GDemotedLocalMemorySize;
 
-/** Some simple runtime stats, reset on every call to RHIBeginFrame */
-/** Num draw calls & primitives on previous frame (accurate on any thread)*/
-extern RHI_API int32 GNumDrawCallsRHI[MAX_NUM_GPUS];
-extern RHI_API int32 GNumPrimitivesDrawnRHI[MAX_NUM_GPUS];
-
-/** Num draw calls and primitives this frame (only accurate on RenderThread) */
-extern RHI_API int32 GCurrentNumDrawCallsRHI[MAX_NUM_GPUS];
-extern RHI_API int32 GCurrentNumPrimitivesDrawnRHI[MAX_NUM_GPUS];
-using FRHIDrawCallsStatPtr = int32(*)[MAX_NUM_GPUS];
-RHI_API void RHIIncCurrentNumDrawCallPtr(uint32 GPUIndex);
-RHI_API void RHISetCurrentNumDrawCallPtr(FRHIDrawCallsStatPtr InNumDrawCallsRHIPtr);
-
 /** Whether or not the RHI can handle a non-zero BaseVertexIndex - extra SetStreamSource calls will be needed if this is false */
 extern RHI_API bool GRHISupportsBaseVertexIndex;
 
@@ -871,10 +861,6 @@ inline bool RHIIsTypedUAVStoreSupported(EPixelFormat InFormat)
 * GPixelFormats[Format].Get2D/3DImageSizeInBytes instead, unless you need PF_A1.
 */
 extern RHI_API SIZE_T CalculateImageBytes(uint32 SizeX,uint32 SizeY,uint32 SizeZ,uint8 Format);
-
-/** Called once per frame only from RHIBeginFrame's command execution. */
-void RHIPrivateBeginFrame();
-
 
 RHI_API FName LegacyShaderPlatformToShaderFormat(EShaderPlatform Platform);
 RHI_API EShaderPlatform ShaderFormatToLegacyShaderPlatform(FName ShaderFormat);
@@ -2666,68 +2652,105 @@ struct FTextureMemoryStats
 	}
 };
 
-struct RHI_API FDrawCallCategoryName
-{
-	FDrawCallCategoryName() 
-	{
-		for (int32& Counter : Counters)
-		{
-			Counter = -1;
-		}
-	}
-
-	FDrawCallCategoryName(FName InName)
-		: Name(InName)
-	{
-		for (int32& Counter : Counters)
-		{
-			Counter = 0;
-		}
-
-		check(NumCategory < MAX_DRAWCALL_CATEGORY);
-		if (NumCategory < MAX_DRAWCALL_CATEGORY)
-		{
-			Array[NumCategory] = this;
-			NumCategory++;
-		}
-	}
-
-	FName Name;
-	int32 Counters[MAX_NUM_GPUS];
-
-	static constexpr int32 MAX_DRAWCALL_CATEGORY = 256;
-	static FDrawCallCategoryName* Array[MAX_DRAWCALL_CATEGORY];
-	static int32 DisplayCounts[MAX_DRAWCALL_CATEGORY][MAX_NUM_GPUS]; // A backup of the counts that can be used to display on screen to avoid flickering.
-	static int32 NumCategory;
-};
-
-// RHI counter stats.
-DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("DrawPrimitive calls"),STAT_RHIDrawPrimitiveCalls,STATGROUP_RHI,RHI_API);
-DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Triangles drawn"),STAT_RHITriangles,STATGROUP_RHI,RHI_API);
-DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Lines drawn"),STAT_RHILines,STATGROUP_RHI,RHI_API);
-
-#if STATS
-#define RHI_DRAW_CALL_INC_MGPU(GPUIndex) \
-		INC_DWORD_STAT(STAT_RHIDrawPrimitiveCalls); \
-		RHIIncCurrentNumDrawCallPtr(GPUIndex);
-
-#define RHI_DRAW_CALL_STATS_MGPU(GPUIndex,PrimitiveType,NumPrimitives) \
-		RHI_DRAW_CALL_INC_MGPU(GPUIndex); \
-		INC_DWORD_STAT_BY(STAT_RHITriangles,(uint32)(PrimitiveType != PT_LineList ? (NumPrimitives) : 0)); \
-		INC_DWORD_STAT_BY(STAT_RHILines,(uint32)(PrimitiveType == PT_LineList ? (NumPrimitives) : 0)); \
-		FPlatformAtomics::InterlockedAdd(&GCurrentNumPrimitivesDrawnRHI[GPUIndex], NumPrimitives);
-#else
-#define RHI_DRAW_CALL_INC_MGPU(GPUIndex) \
-		RHIIncCurrentNumDrawCallPtr(GPUIndex);
-
-#define RHI_DRAW_CALL_STATS_MGPU(GPUIndex,PrimitiveType,NumPrimitives) \
-		FPlatformAtomics::InterlockedAdd(&GCurrentNumPrimitivesDrawnRHI[GPUIndex], NumPrimitives); \
-		RHIIncCurrentNumDrawCallPtr(GPUIndex);
+// GPU stats
+#ifndef HAS_GPU_STATS
+#define HAS_GPU_STATS ((STATS || CSV_PROFILER || GPUPROFILERTRACE_ENABLED) && (!UE_BUILD_SHIPPING))
 #endif
 
-#define RHI_DRAW_CALL_INC() RHI_DRAW_CALL_INC_MGPU(0)
-#define RHI_DRAW_CALL_STATS(PrimitiveType,NumPrimitives) RHI_DRAW_CALL_STATS_MGPU(0, PrimitiveType,NumPrimitives)
+extern RHI_API int32 GNumDrawCallsRHI      [MAX_NUM_GPUS];
+extern RHI_API int32 GNumPrimitivesDrawnRHI[MAX_NUM_GPUS];
 
+#if HAS_GPU_STATS
+
+	struct RHI_API FDrawCallCategoryName
+	{
+		FDrawCallCategoryName()
+			: Name(NAME_None)
+			, Index(-1)
+		{}
+
+		FDrawCallCategoryName(FName InName)
+			: Name(InName)
+			, Index(NumCategory++)
+		{
+			check(Index < MAX_DRAWCALL_CATEGORY);
+			if (Index < MAX_DRAWCALL_CATEGORY)
+			{
+				Array[Index] = this;
+			}
+		}
+
+		bool ShouldCountDraws() const { return Index != -1; }
+
+		FName  const Name;
+		uint32 const Index;
+
+		static constexpr int32 MAX_DRAWCALL_CATEGORY = 256;
+
+		static TStaticArray<FDrawCallCategoryName*, MAX_DRAWCALL_CATEGORY> Array;
+		static TStaticArray<TStaticArray<int32, MAX_NUM_GPUS>, MAX_DRAWCALL_CATEGORY> DisplayCounts; // A backup of the counts that can be used to display on screen to avoid flickering.
+		static int32 NumCategory;
+	};
+
+	// RHI counter stats.
+	DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("DrawPrimitive calls"),STAT_RHIDrawPrimitiveCalls,STATGROUP_RHI,RHI_API);
+	DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Triangles drawn")    ,STAT_RHITriangles         ,STATGROUP_RHI,RHI_API);
+	DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Lines drawn")        ,STAT_RHILines             ,STATGROUP_RHI,RHI_API);
+
+#else
+
+	struct FDrawCallCategoryName {};
+
+#endif
+
+// Macros for use inside RHI context Draw functions.
+// Updates the Stats structure on the underlying RHI context class (IRHICommandContext)
+
+#define RHI_DRAW_CALL_INC() do { Stats->Draws++; } while (false)
+#define RHI_DRAW_CALL_STATS(PrimitiveType,NumPrimitives)   \
+	do                                                     \
+	{												       \
+		Stats->Primitives[PrimitiveType] += NumPrimitives; \
+		Stats->Draws++;                                    \
+	} while(false)
+
+struct FRHIDrawStats
+{
+#if HAS_GPU_STATS
+	// The +1 is for "uncategorised"
+	static constexpr int32 NumCategories = FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY + 1;
+#else
+	static constexpr int32 NumCategories = 1;
+#endif
+
+	static constexpr int32 NoCategory = NumCategories - 1;
+
+	struct FPerCategoryStats
+	{
+		uint32 Draws = 0;
+		TStaticArray<uint32, PT_Num> Primitives { InPlace, 0 };
+	};
+
+	struct FPerGPUStats
+	{
+		TStaticArray<FPerCategoryStats, NumCategories> Categories { InPlace };
+	};
+
+	TStaticArray<FPerGPUStats, MAX_NUM_GPUS> GPUs { InPlace };
+
+	FRHIDrawStats()
+	{
+		Reset();
+	}
+
+	void Reset()
+	{
+		FMemory::Memzero(*this);
+	}
+
+	// Adds the values from Other into the current instance.
+	RHI_API void Accumulate(FRHIDrawStats& Other);
+};
 
 // RHI memory stats.
 DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Render target memory 2D"),STAT_RenderTargetMemory2D,STATGROUP_RHI,FPlatformMemory::MCR_GPU,RHI_API);

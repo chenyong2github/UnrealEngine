@@ -129,6 +129,7 @@ RHI_API FRHICommandListExecutor GRHICommandList;
 
 FGraphEventArray FRHICommandListImmediate::WaitOutstandingTasks;
 FGraphEventRef   FRHICommandListImmediate::RHIThreadTask;
+FRHIDrawStats    FRHICommandListImmediate::FrameDrawStats;
 
 static FGraphEventRef GRHIThreadEndDrawingViewportFences[2];
 static uint32 GRHIThreadEndDrawingViewportFenceIndex = 0;
@@ -307,6 +308,27 @@ void FRHICommandListBase::SetCurrentStat(TStatId Stat)
 	}
 }
 
+#if HAS_GPU_STATS
+void FRHICommandListBase::SetStatsCategory(FDrawCallCategoryName* Category)
+{
+	check(!Category || Category->ShouldCountDraws());
+
+	PersistentState.Stats.CategoryTOP = Category;
+	EnqueueLambda([Category](FRHICommandListBase& ExecutingCmdList)
+	{
+		ExecutingCmdList.PersistentState.Stats.CategoryBOP = Category;
+
+		for (IRHIComputeContext* Context : ExecutingCmdList.Contexts)
+		{
+			if (Context)
+			{
+				ExecutingCmdList.PersistentState.Stats.ApplyToContext(Context);
+			}
+		}
+	});
+}
+#endif
+
 ERHIPipeline FRHICommandListBase::SwitchPipeline(ERHIPipeline Pipeline)
 {
 	checkf(Pipeline == ERHIPipeline::None || FMath::IsPowerOfTwo((__underlying_type(ERHIPipeline))Pipeline), TEXT("Only one pipeline may be active at a time."));
@@ -367,6 +389,9 @@ ERHIPipeline FRHICommandListBase::SwitchPipeline(ERHIPipeline Pipeline)
 
 				// (Re-)apply the current GPU mask.
 				Context->RHISetGPUMask(ExecutingCmdList.PersistentState.CurrentGPUMask);
+
+				// Ensure the context has an up-to-date stat pointer.
+				ExecutingCmdList.PersistentState.Stats.ApplyToContext(Context);
 			}
 		});
 	}
@@ -374,13 +399,14 @@ ERHIPipeline FRHICommandListBase::SwitchPipeline(ERHIPipeline Pipeline)
 	return Pipeline;
 }
 
-void FRHICommandListBase::Execute(TRHIPipelineArray<IRHIComputeContext*>& InOutContexts)
+void FRHICommandListBase::Execute(TRHIPipelineArray<IRHIComputeContext*>& InOutContexts, FPersistentState::FGPUStats* ParentStats)
 {
 	check(!IsExecuting());
 	bExecuting = true;
 
 	Contexts = InOutContexts;
 	PersistentState.CurrentGPUMask = PersistentState.InitialGPUMask;
+	PersistentState.Stats.InitFrom(ParentStats);
 
 	ON_SCOPE_EXIT
 	{
@@ -476,6 +502,7 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 			FGraphEventRef Event;
 			TArrayView<FRHICommandListBase*> InCmdLists;
 			TArray<IRHIPlatformCommandList*, TInlineAllocator<GetRHIPipelineCount()>> OutCmdLists;
+			FRHIDrawStats Stats;
 		};
 
 		uint32 NumTasks = 0;
@@ -557,7 +584,7 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 
 			// Start a parallel translate task to replay the command list batch into the given pipeline contexts
 			Task.Event = FFunctionGraphTask::CreateAndDispatchWhenReady(
-				[&Task]()
+				[&Task, GPUStatsInitial = PersistentState.Stats]()
 				{
 					FOptionalTaskTagScope Scope(ETaskTag::EParallelRhiThread);
 					SCOPE_CYCLE_COUNTER(STAT_ParallelTranslate);
@@ -569,7 +596,11 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 					// contexts depending on the SwitchPipeline commands that were recorded.
 					for (FRHICommandListBase* RHICmdList : Task.InCmdLists)
 					{
-						RHICmdList->Execute(Contexts);
+						// Redirect the output stats to this parallel task's copy
+						FPersistentState::FGPUStats Stats = GPUStatsInitial;
+						Stats.Ptr = &Task.Stats;
+
+						RHICmdList->Execute(Contexts, &Stats);
 						delete RHICmdList;
 					}
 
@@ -600,7 +631,7 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 
 		// Finally, add an RHI thread task to submit the completed platform command lists.
 		// The task blocks for each parallel translate completion, in the order they will be submitted in.
-		EnqueueLambda([Tasks](FRHICommandListBase&)
+		EnqueueLambda([Tasks](FRHICommandListBase& ExecutingCmdList)
 		{
 			TArray<IRHIPlatformCommandList*> AllCmdLists;
 
@@ -615,6 +646,7 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 				}
 
 				AllCmdLists.Append(Task.OutCmdLists);
+				ExecutingCmdList.PersistentState.Stats.Ptr->Accumulate(Task.Stats);
 
 				Task.~FTask();
 			}
@@ -642,7 +674,7 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 			for (FRHICommandListBase* CmdList : CmdListsView)
 			{
 				CmdList->WaitForDispatchEvent();
-				CmdList->Execute(ParentCmdList.Contexts);
+				CmdList->Execute(ParentCmdList.Contexts, &ParentCmdList.PersistentState.Stats);
 				delete CmdList;
 			}
 		});
@@ -739,7 +771,7 @@ void FRHICommandListImmediate::ExecuteAndReset()
 					    FScopeLock Lock(&GRHIThreadOnTasksCritical);
 					    GWorkingRHIThreadStartCycles = FPlatformTime::Cycles();
     
-					    RHICmdList.Execute(RHICmdList.Contexts);
+					    RHICmdList.Execute(RHICmdList.Contexts, nullptr);
     
 					    GWorkingRHIThreadTime += (FPlatformTime::Cycles() - GWorkingRHIThreadStartCycles);
 				    }
@@ -760,7 +792,7 @@ void FRHICommandListImmediate::ExecuteAndReset()
 	    {
 		    // We're going to be executing the command list on the render thread.
 		    WaitForDispatchEvent();
-		    FRHICommandListBase::Execute(Contexts);
+		    FRHICommandListBase::Execute(Contexts, nullptr);
 	    }
 	}
 }
@@ -840,7 +872,7 @@ FRHICommandList_RecursiveHazardous::~FRHICommandList_RecursiveHazardous()
 
 	if (HasCommands())
 	{
-		Execute(Contexts);
+		Execute(Contexts, nullptr);
 	}
 }
 
@@ -868,7 +900,7 @@ FRHIComputeCommandList_RecursiveHazardous::~FRHIComputeCommandList_RecursiveHaza
 
 	if (HasCommands())
 	{
-		Execute(Contexts);
+		Execute(Contexts, nullptr);
 	}
 }
 	
@@ -1119,7 +1151,7 @@ void FRHICommandListImmediate::UnStallRHIThread()
 	}
 }
 
-void FRHICommandList::BeginScene()
+void FRHICommandListImmediate::BeginScene()
 {
 	check(IsImmediate() && IsInRenderingThread());
 	if (Bypass())
@@ -1137,7 +1169,7 @@ void FRHICommandList::BeginScene()
 	}
 }
 
-void FRHICommandList::EndScene()
+void FRHICommandListImmediate::EndScene()
 {
 	check(IsImmediate() && IsInRenderingThread());
 	if (Bypass())
@@ -1155,7 +1187,7 @@ void FRHICommandList::EndScene()
 	}
 }
 
-void FRHICommandList::BeginDrawingViewport(FRHIViewport* Viewport, FRHITexture* RenderTargetRHI)
+void FRHICommandListImmediate::BeginDrawingViewport(FRHIViewport* Viewport, FRHITexture* RenderTargetRHI)
 {
 	check(IsImmediate() && IsInRenderingThread());
 	if (Bypass())
@@ -1173,7 +1205,7 @@ void FRHICommandList::BeginDrawingViewport(FRHIViewport* Viewport, FRHITexture* 
 	}
 }
 
-void FRHICommandList::EndDrawingViewport(FRHIViewport* Viewport, bool bPresent, bool bLockToVsync)
+void FRHICommandListImmediate::EndDrawingViewport(FRHIViewport* Viewport, bool bPresent, bool bLockToVsync)
 {
 	// Make sure all prior graphics and async compute work has been submitted.
 	// This is necessary because platform RHIs often submit additional work on the graphics queue during present, and we need to ensure we won't deadlock on async work that wasn't yet submitted by the renderer.
@@ -1217,12 +1249,12 @@ void FRHICommandList::EndDrawingViewport(FRHIViewport* Viewport, bool bPresent, 
 	RHIAdvanceFrameForGetViewportBackBuffer(Viewport);
 }
 
-void FRHICommandList::BeginFrame()
+void FRHICommandListImmediate::BeginFrame()
 {
 	check(IsImmediate() && IsInRenderingThread());
 	if (Bypass())
 	{
-		RHIPrivateBeginFrame();
+		ProcessStats();
 		GetContext().RHIBeginFrame();
 		return;
 	}
@@ -1237,7 +1269,7 @@ void FRHICommandList::BeginFrame()
 
 }
 
-void FRHICommandList::EndFrame()
+void FRHICommandListImmediate::EndFrame()
 {
 	check(IsImmediate() && IsInRenderingThread());
 	if (Bypass())

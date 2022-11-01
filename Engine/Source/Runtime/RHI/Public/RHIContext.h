@@ -446,10 +446,9 @@ public:
 #endif
 
 #if ENABLE_RHI_VALIDATION
-	virtual void SetTrackedAccess(const FRHITrackedAccessInfo& Info)
-#else
-	inline  void SetTrackedAccess(const FRHITrackedAccessInfo& Info)
+	virtual
 #endif
+	void SetTrackedAccess(const FRHITrackedAccessInfo& Info)
 	{
 		check(Info.Resource != nullptr);
 		check(Info.Access != ERHIAccess::Unknown);
@@ -464,6 +463,25 @@ public:
 
 	virtual void* RHIGetNativeCommandBuffer() { return nullptr; }
 	virtual void RHIPostExternalCommandsReset() { }
+
+protected:
+	FRHIDrawStats::FPerCategoryStats* Stats = nullptr;
+
+public:
+	void StatsSetCategory(FRHIDrawStats* InStats, uint32 InCategoryID, uint32 InGPUIndex)
+	{
+		FRHIDrawStats::FPerGPUStats& GPU = InStats->GPUs[InGPUIndex];
+		FRHIDrawStats::FPerCategoryStats& Category = GPU.Categories[InCategoryID];
+		Stats = &Category;
+	}
+
+#if WITH_MGPU || ENABLE_RHI_VALIDATION
+	virtual
+#endif
+	void StatsSetCategory(FRHIDrawStats* InStats, uint32 InCategoryID)
+	{
+		StatsSetCategory(InStats, InCategoryID, 0);
+	}
 };
 
 enum class EAccelerationStructureBuildMode

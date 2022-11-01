@@ -1087,6 +1087,14 @@ public:
 		return PhysicalContexts[GPUIndex];
 	}
 
+	virtual void StatsSetCategory(FRHIDrawStats* InStats, uint32 InCategoryID) final override
+	{
+		for (uint32 GPUIndex : PhysicalGPUMask)
+		{
+			PhysicalContexts[GPUIndex]->StatsSetCategory(InStats, InCategoryID, GPUIndex);
+		}
+	}
+
 private:
 	TStaticArray<FD3D12CommandContext*, MAX_NUM_GPUS> PhysicalContexts;
 };

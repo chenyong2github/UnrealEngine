@@ -34,9 +34,11 @@ CSV_DEFINE_CATEGORY(DrawCall, true);
 #endif
 
 // Define counter stats.
-DEFINE_STAT(STAT_RHIDrawPrimitiveCalls);
-DEFINE_STAT(STAT_RHITriangles);
-DEFINE_STAT(STAT_RHILines);
+#if HAS_GPU_STATS
+	DEFINE_STAT(STAT_RHIDrawPrimitiveCalls);
+	DEFINE_STAT(STAT_RHITriangles);
+	DEFINE_STAT(STAT_RHILines);
+#endif
 
 // Define memory stats.
 DEFINE_STAT(STAT_RenderTargetMemory2D);
@@ -296,9 +298,13 @@ std::atomic<TClosableMpscQueue<FRHIResource*>*> FRHIResource::PendingDeletes { n
 FHazardPointerCollection FRHIResource::PendingDeletesHPC;
 FRHIResource* FRHIResource::CurrentlyDeleting = nullptr;
 
-RHI_API FDrawCallCategoryName* FDrawCallCategoryName::Array[FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY];
-RHI_API int32 FDrawCallCategoryName::DisplayCounts[FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY][MAX_NUM_GPUS];
-RHI_API int32 FDrawCallCategoryName::NumCategory = 0;
+#if HAS_GPU_STATS
+
+	TStaticArray<FDrawCallCategoryName*, FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY> FDrawCallCategoryName::Array { InPlace, nullptr };
+	TStaticArray<TStaticArray<int32, MAX_NUM_GPUS>, FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY> FDrawCallCategoryName::DisplayCounts { InPlace };
+	int32 FDrawCallCategoryName::NumCategory = 0;
+
+#endif
 
 TRefCountPtr<FRHITexture> FRHITextureReference::DefaultTexture;
 
@@ -1591,11 +1597,8 @@ RHI_API EShaderPlatform GShaderPlatformForFeatureLevel[ERHIFeatureLevel::Num] = 
 
 // simple stats about draw calls. GNum is the previous frame and 
 // GCurrent is the current frame.
-// GCurrentNumDrawCallsRHIPtr points to the drawcall counter to increment
-RHI_API int32 GCurrentNumDrawCallsRHI[MAX_NUM_GPUS] = {};
-RHI_API int32 GNumDrawCallsRHI[MAX_NUM_GPUS] = {};
-thread_local FRHIDrawCallsStatPtr GCurrentNumDrawCallsRHIPtr = &GCurrentNumDrawCallsRHI;
-RHI_API int32 GCurrentNumPrimitivesDrawnRHI[MAX_NUM_GPUS] = {};
+
+RHI_API int32 GNumDrawCallsRHI      [MAX_NUM_GPUS] = {};
 RHI_API int32 GNumPrimitivesDrawnRHI[MAX_NUM_GPUS] = {};
 
 RHI_API uint64 GRHITransitionPrivateData_SizeInBytes = 0;
@@ -1607,57 +1610,116 @@ ERHIAccess GRHIMergeableAccessMask = ERHIAccess::ReadOnlyMask | ERHIAccess::UAVM
 // By default, only exclusively read only accesses are allowed.
 ERHIAccess GRHIMultiPipelineMergeableAccessMask = ERHIAccess::ReadOnlyExclusiveMask;
 
-/** Called once per frame only from within an RHI. */
-void RHIPrivateBeginFrame()
+RHI_API void FRHIDrawStats::Accumulate(FRHIDrawStats& Other)
 {
-	for (int32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS; GPUIndex++)
+	for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
 	{
-		GNumDrawCallsRHI[GPUIndex] = GCurrentNumDrawCallsRHI[GPUIndex];
-	}
-	
-#if CSV_PROFILER
-	// Only copy the display counters every so many frames to keep things more stable.
-	const int32 FramesUntilDisplayCopy = 30;
-	static int32 FrameCount = 0;
-	bool bCopyDisplayFrames = false;
-	++FrameCount;
-	if (FrameCount >= FramesUntilDisplayCopy)
-	{
-		bCopyDisplayFrames = true;
-		FrameCount = 0;
-	}
+		FPerGPUStats& LeftGPU = GPUs[GPUIndex];
+		FPerGPUStats& RightGPU = Other.GPUs[GPUIndex];
 
-	for (int32 Index=0; Index<FDrawCallCategoryName::NumCategory; ++Index)
-	{
-		FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[Index];
-		for (int32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS; GPUIndex++)
+		for (int32 CategoryIndex = 0; CategoryIndex < NumCategories; ++CategoryIndex)
 		{
-			if (bCopyDisplayFrames)
+			FPerCategoryStats& LeftCategory = LeftGPU.Categories[CategoryIndex];
+			FPerCategoryStats& RightCategory = RightGPU.Categories[CategoryIndex];
+
+			LeftCategory.Draws += RightCategory.Draws;
+
+			for (uint32 PrimitiveType = 0; PrimitiveType < PT_Num; ++PrimitiveType)
 			{
-				FDrawCallCategoryName::DisplayCounts[Index][GPUIndex] = CategoryName->Counters[GPUIndex];
+				LeftCategory.Primitives[PrimitiveType] += RightCategory.Primitives[PrimitiveType];
 			}
-			GNumDrawCallsRHI[GPUIndex] += CategoryName->Counters[GPUIndex];
 		}
-		// Multi-GPU support : CSV stats do not support MGPU yet
-		FCsvProfiler::RecordCustomStat(CategoryName->Name, CSV_CATEGORY_INDEX(DrawCall), CategoryName->Counters[0], ECsvCustomStatOp::Set);
-		for (int32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS; GPUIndex++)
-		{
-			CategoryName->Counters[GPUIndex] = 0;
-		}
+	}
+}
+
+// Called from RHIBeginFrame
+void FRHICommandListImmediate::ProcessStats()
+{
+#if HAS_GPU_STATS
+	// Only copy the display counters every half second keep things more stable.
+	constexpr float TimeoutSeconds = 0.5;
+
+	static double LastTime = 0.0;
+	double CurrentTime = FPlatformTime::Seconds();
+
+	bool bCopyDisplayFrames = false;
+	if (CurrentTime - LastTime > TimeoutSeconds)
+	{
+		LastTime = CurrentTime;
+		bCopyDisplayFrames = true;
 	}
 #endif
 
-	for (int32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS; GPUIndex++)
+	// Summed stats across all GPUs
+	uint32 TotalDraws     = 0;
+	uint32 TotalTriangles = 0;
+	uint32 TotalLines     = 0;
+	TStaticArray<uint32, FRHIDrawStats::NumCategories> TotalDrawsPerCategory { InPlace, 0 };
+
+	for (int32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS; ++GPUIndex)
 	{
-		GNumPrimitivesDrawnRHI[GPUIndex] = GCurrentNumPrimitivesDrawnRHI[GPUIndex];
+		uint32 TotalDraws_ThisGPU      = 0;
+		uint32 TotalPrimitives_ThisGPU = 0;
+
+		FRHIDrawStats::FPerGPUStats& GPUStats = FrameDrawStats.GPUs[GPUIndex];
+
+		for (int32 CategoryIndex = 0; CategoryIndex < FRHIDrawStats::NumCategories; ++CategoryIndex)
+		{
+			FRHIDrawStats::FPerCategoryStats& Category = GPUStats.Categories[CategoryIndex];
+
+			TotalDraws                           += Category.Draws;
+			TotalDraws_ThisGPU                   += Category.Draws;
+			TotalDrawsPerCategory[CategoryIndex] += Category.Draws;
+
+			for (uint32 PrimitiveType = 0; PrimitiveType < PT_Num; ++PrimitiveType)
+			{
+				uint32 PrimitiveCount = Category.Primitives[PrimitiveType];
+				TotalPrimitives_ThisGPU += PrimitiveCount;
+
+				switch (PrimitiveType)
+				{
+				case PT_TriangleList:
+				case PT_TriangleStrip:
+					TotalTriangles += PrimitiveCount;
+					break;
+
+				case PT_LineList:
+					TotalLines += PrimitiveCount;
+					break;
+				}
+			}
+
+#if HAS_GPU_STATS
+			if (bCopyDisplayFrames && CategoryIndex < FDrawCallCategoryName::NumCategory)
+			{
+				FDrawCallCategoryName::DisplayCounts[CategoryIndex][GPUIndex] = Category.Draws;
+			}
+#endif // HAS_GPU_STATS
+		}
+		
+		GNumDrawCallsRHI      [GPUIndex] = TotalDraws_ThisGPU;
+		GNumPrimitivesDrawnRHI[GPUIndex] = TotalPrimitives_ThisGPU;
 	}
-	// Multi-GPU support : CSV stats do not support MGPU yet
-	CSV_CUSTOM_STAT(RHI, DrawCalls, GNumDrawCallsRHI[0], ECsvCustomStatOp::Set);
-	CSV_CUSTOM_STAT(RHI, PrimitivesDrawn, GNumPrimitivesDrawnRHI[0], ECsvCustomStatOp::Set);
-	for (int32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS; GPUIndex++)
+
+	// Multi-GPU support : CSV stats do not support MGPU yet. We're summing the totals across all GPUs here.
+	CSV_CUSTOM_STAT(RHI, DrawCalls      , int32(TotalDraws                 ), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(RHI, PrimitivesDrawn, int32(TotalTriangles + TotalLines), ECsvCustomStatOp::Set);
+
+#if HAS_GPU_STATS
+	SET_DWORD_STAT(STAT_RHITriangles         , TotalTriangles);
+	SET_DWORD_STAT(STAT_RHILines             , TotalLines    );
+	SET_DWORD_STAT(STAT_RHIDrawPrimitiveCalls, TotalDraws    );
+
+	#if CSV_PROFILER
+	for (int32 CategoryIndex = 0; CategoryIndex < FDrawCallCategoryName::NumCategory; ++CategoryIndex)
 	{
-		GCurrentNumDrawCallsRHI[GPUIndex] = GCurrentNumPrimitivesDrawnRHI[GPUIndex] = 0;
+		FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[CategoryIndex];
+		FCsvProfiler::RecordCustomStat(CategoryName->Name, CSV_CATEGORY_INDEX(DrawCall), int32(TotalDrawsPerCategory[CategoryIndex]), ECsvCustomStatOp::Set);
 	}
+	#endif
+#endif // HAS_GPU_STATS
+
+	FrameDrawStats.Reset();
 }
 
 /** Whether to initialize 3D textures using a bulk data (or through a mip update if false). */
@@ -3133,14 +3195,4 @@ void FDebugName::AppendString(FStringBuilderBase& Builder) const
 	{
 		Builder << '_' << Number;
 	}
-}
-
-RHI_API void RHISetCurrentNumDrawCallPtr(FRHIDrawCallsStatPtr InNumDrawCallsRHIPtr)
-{
-	GCurrentNumDrawCallsRHIPtr = InNumDrawCallsRHIPtr;
-}
-
-RHI_API void RHIIncCurrentNumDrawCallPtr(uint32 GPUIndex)
-{
-	FPlatformAtomics::InterlockedIncrement(&(*GCurrentNumDrawCallsRHIPtr)[GPUIndex]);
 }
