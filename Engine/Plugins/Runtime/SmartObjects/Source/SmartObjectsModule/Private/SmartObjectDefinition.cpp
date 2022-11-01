@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmartObjectDefinition.h"
-
 #include "SmartObjectSettings.h"
 #include "SmartObjectTypes.h"
+#if WITH_EDITOR
+#include "UObject/ObjectSaveContext.h"
+#endif
+
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectDefinition)
 
@@ -140,4 +143,103 @@ const USmartObjectBehaviorDefinition* USmartObjectDefinition::GetBehaviorDefinit
 	return BehaviorDefinition != nullptr ? *BehaviorDefinition : nullptr;
 }
 
+#if WITH_EDITOR
+int32 USmartObjectDefinition::FindSlotByID(const FGuid ID) const
+{
+	const int32 Slot = Slots.IndexOfByPredicate([&ID](const FSmartObjectSlotDefinition& Slot) { return Slot.ID == ID; });
+	return Slot;
+}
 
+void USmartObjectDefinition::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+
+	const FProperty* Property = PropertyChangedEvent.Property;
+	if (Property == nullptr)
+	{
+		return;
+	}
+	const FProperty* MemberProperty = nullptr;
+	if (PropertyChangedEvent.PropertyChain.GetActiveMemberNode())
+	{
+		MemberProperty = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue();
+	}
+	if (MemberProperty == nullptr)
+	{
+		return;
+	}
+
+	// Ensure unique Slot ID on added or duplicated items.
+	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd
+		|| PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
+	{
+		if (Property->GetFName() == GET_MEMBER_NAME_CHECKED(USmartObjectDefinition, Slots))
+		{
+			const int32 ArrayIndex = PropertyChangedEvent.GetArrayIndex(MemberProperty->GetFName().ToString());
+			if (Slots.IsValidIndex(ArrayIndex))
+			{
+				FSmartObjectSlotDefinition& Slot = Slots[ArrayIndex];
+				Slot.ID = FGuid::NewGuid();
+			}
+		}
+	}
+
+	// Anything in the slots changed, update references.
+	if (MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(USmartObjectDefinition, Slots))
+	{
+		UpdateSlotReferences();
+	}
+}
+
+void USmartObjectDefinition::PostLoad()
+{
+	Super::PostLoad();
+
+	// Fill in missing slot ID for old data.
+	for (FSmartObjectSlotDefinition& Slot : Slots)
+	{
+		if (!Slot.ID.IsValid())
+		{
+			Slot.ID = FGuid::NewGuid();
+		}
+	}
+	
+	UpdateSlotReferences();
+}
+
+void USmartObjectDefinition::PreSave(FObjectPreSaveContext SaveContext)
+{
+	UpdateSlotReferences();
+	Super::PreSave(SaveContext);
+}
+
+void USmartObjectDefinition::UpdateSlotReferences()
+{
+	for (FSmartObjectSlotDefinition& Slot : Slots)
+	{
+		for (FInstancedStruct& Data : Slot.Data)
+		{
+			if (!Data.IsValid())
+			{
+				continue;
+			}
+			const UScriptStruct* ScriptStruct = Data.GetScriptStruct();
+			uint8* Memory = Data.GetMutableMemory();
+			
+			for (TFieldIterator<FProperty> It(ScriptStruct); It; ++It)
+			{
+				if (FStructProperty* StructProp = CastField<FStructProperty>(*It))
+				{
+					if (StructProp->Struct == TBaseStructure<FSmartObjectSlotReference>::Get())
+					{
+						FSmartObjectSlotReference& Ref = *StructProp->ContainerPtrToValuePtr<FSmartObjectSlotReference>(Memory);
+						const int32 Index = FindSlotByID(Ref.GetSlotID());
+						Ref.SetIndex(Index);
+					}
+				}
+			}
+		}
+	}
+}
+
+#endif // WITH_EDITOR

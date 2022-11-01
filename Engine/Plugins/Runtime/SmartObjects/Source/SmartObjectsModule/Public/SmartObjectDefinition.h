@@ -6,6 +6,7 @@
 #include "InstancedStruct.h"
 #include "MassEntityTypes.h"
 #include "Engine/DataAsset.h"
+#include "SmartObjectTypes.h"
 #include "SmartObjectDefinition.generated.h"
 
 class UGameplayBehaviorConfig;
@@ -36,7 +37,18 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 
 	UPROPERTY(EditAnywhere, Category = SmartObject, meta = (DisplayName = "Color"))
 	FColor DEBUG_DrawColor = FColor::Yellow;
+
+	UPROPERTY(EditAnywhere, Category = SmartObject, meta = (Hidden))
+	FGuid ID;
 #endif // WITH_EDITORONLY_DATA
+
+	/** Whether the slot is enable initially. */
+	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	bool bEnabled = true;
+
+	/** Initial runtime tags. */
+	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	FGameplayTagContainer RuntimeTags;
 
 	/** This slot is available only for users matching this query. */
 	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
@@ -71,28 +83,6 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 	TArray<TObjectPtr<USmartObjectBehaviorDefinition>> BehaviorDefinitions;
 };
 
-/**
- * Helper struct to wrap basic functionalities to store the index of a slot in a SmartObject definition
- */
-USTRUCT(BlueprintType)
-struct SMARTOBJECTSMODULE_API FSmartObjectSlotIndex
-{
-	GENERATED_BODY()
-
-	explicit FSmartObjectSlotIndex(const int32 InSlotIndex = INDEX_NONE) : Index(InSlotIndex) {}
-
-	bool IsValid() const { return Index != INDEX_NONE; }
-	void Invalidate() { Index = INDEX_NONE; }
-
-	operator int32() const { return Index; }
-
-	bool operator==(const FSmartObjectSlotIndex& Other) const { return Index == Other.Index; }
-	friend FString LexToString(const FSmartObjectSlotIndex& SlotIndex) { return FString::Printf(TEXT("[Slot:%d]"), SlotIndex.Index); }
-
-private:
-	UPROPERTY(Transient)
-	int32 Index = INDEX_NONE;
-};
 
 /**
  * SmartObject definition asset. Contains sharable information that can be used by multiple SmartObject instances at runtime.
@@ -116,8 +106,11 @@ public:
 	 */
 	const USmartObjectBehaviorDefinition* GetBehaviorDefinition(const FSmartObjectSlotIndex& SlotIndex, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass) const;
 
-	/** Returns a view on all the slot definitions */
+	/** @return a view on all the slot definitions */
 	TConstArrayView<FSmartObjectSlotDefinition> GetSlots() const { return Slots; }
+
+	/** @return True if specified slot index is valie. */
+	bool IsValidSlotIndex(const int32 SlotIndex) const { return Slots.IsValidIndex(SlotIndex); } 
 
 #if WITH_EDITOR
 	/** Returns a view on all the slot definitions */
@@ -212,7 +205,20 @@ public:
 	/** Path of the static mesh used for previewing the definition in the asset editor. */
 	UPROPERTY()
 	FSoftObjectPath PreviewMeshPath;
-#endif
+#endif // WITH_EDITORONLY_DATA
+
+protected:
+
+#if WITH_EDITOR
+	/** @return Index of the slot that has the specified ID, or INDEX_NONE if not found. */
+	int32 FindSlotByID(const FGuid ID) const;
+
+	void UpdateSlotReferences();
+
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	virtual void PostLoad() override;
+	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
+#endif // WITH_EDITOR
 
 private:
 	/** Finds first behavior definition of a given class in the provided list of definitions. */
@@ -222,34 +228,36 @@ private:
 	 * Where SmartObject's user needs to stay to be able to activate it. These
 	 * will be used by AI to approach the object. Locations are relative to object's location.
 	 */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
 	TArray<FSmartObjectSlotDefinition> Slots;
 
 	/** List of behavior definitions of different types provided to SO's user if the slot does not provide one. */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject, Instanced)
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject", Instanced)
 	TArray<TObjectPtr<USmartObjectBehaviorDefinition>> DefaultBehaviorDefinitions;
 
 	/** This object is available if user tags match this query; always available if query is empty. */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
 	FGameplayTagQuery UserTagFilter;
 
 	/** This object is available if instance tags match this query; always available if query is empty. */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject, meta = (DisplayName = "Object Activation Tag Filter"))
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject", meta = (DisplayName = "Object Activation Tag Filter"))
 	FGameplayTagQuery ObjectTagFilter;
 
 	/** Tags identifying this Smart Object's use case. Can be used while looking for objects supporting given activity */
-	UPROPERTY(EditDefaultsOnly, Category = SmartObject)
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject")
 	FGameplayTagContainer ActivityTags;
 
 	/** Indicates how Tags from slots and parent object are combined to be evaluated by a TagQuery from a find request. */
-	UPROPERTY(EditAnywhere, Category = SmartObject, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "SmartObject", AdvancedDisplay)
 	ESmartObjectTagMergingPolicy ActivityTagsMergingPolicy;
 
 	/** Indicates how TagQueries from slots and parent object will be processed against User Tags from a find request. */
-	UPROPERTY(EditAnywhere, Category = SmartObject, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "SmartObject", AdvancedDisplay)
 	ESmartObjectTagFilteringPolicy UserTagsFilteringPolicy;
 
 	mutable TOptional<bool> bValid;
+
+	friend class FSmartObjectSlotReferenceDetails;
 };
 
 /**

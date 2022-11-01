@@ -26,7 +26,7 @@ enum class ESmartObjectSlotState : uint8
 	/** Slot is claimed and interaction is active */
 	Occupied,
 	/** Slot can no longer be claimed or used since the parent object and its slot are disabled (e.g. instance tags) */
-	Disabled
+	Disabled UE_DEPRECATED(5.2, "Use IsEnabled() instead."),
 };
 
 /**
@@ -77,13 +77,16 @@ struct SMARTOBJECTSMODULE_API FSmartObjectClaimHandle
 
 	static const FSmartObjectClaimHandle InvalidHandle;
 
-	UPROPERTY(Transient)
+	/** Handle to the Smart Object where the claimed slot belongs to.  */
+	UPROPERTY(EditAnywhere, Transient, Category="Default")
 	FSmartObjectHandle SmartObjectHandle;
 
-	UPROPERTY(Transient)
+	/** Handle of the claimed slot. */
+	UPROPERTY(EditAnywhere, Transient, Category="Default")
 	FSmartObjectSlotHandle SlotHandle;
 
-	UPROPERTY(Transient)
+	/** Handle describing the user which claimed the slot. */
+	UPROPERTY(EditAnywhere, Transient, Category="Default")
 	FSmartObjectUserHandle UserHandle;
 };
 
@@ -91,7 +94,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectClaimHandle
  * Runtime data holding the final slot transform (i.e. parent transform applied on slot local offset and rotation)
  */
 USTRUCT()
-struct SMARTOBJECTSMODULE_API  FSmartObjectSlotTransform : public FSmartObjectSlotStateData
+struct SMARTOBJECTSMODULE_API FSmartObjectSlotTransform : public FSmartObjectSlotStateData
 {
 	GENERATED_BODY()
 
@@ -112,42 +115,84 @@ DECLARE_DELEGATE_TwoParams(FOnSlotInvalidated, const FSmartObjectClaimHandle&, E
 /**
  * Struct to store and manage state of a runtime instance associated to a given slot definition
  */
+
 USTRUCT()
-struct FSmartObjectSlotClaimState
+struct FSmartObjectRuntimeSlot
 {
 	GENERATED_BODY()
 
 public:
 	/* Provide default constructor to be able to compile template instantiation 'UScriptStruct::TCppStructOps<FSmartObjectSlotState>' */
 	/* Also public to pass void 'UScriptStruct::TCppStructOps<FSmartObjectSlotState>::ConstructForTests(void *)' */
-	FSmartObjectSlotClaimState() {}
+	FSmartObjectRuntimeSlot() : bEnabled(true) {}
+	
+	explicit FSmartObjectRuntimeSlot(const FSmartObjectHandle InRuntimeObjectHandle, const int32 InSlotIndex)
+		: RuntimeObjectHandle(InRuntimeObjectHandle)
+		, SlotIndex(IntCastChecked<uint8>(InSlotIndex))
+		, bEnabled(true)
+	{
+	}
 
+	/** @return Current claim state of the slot. */
 	ESmartObjectSlotState GetState() const { return State; }
 
-	bool CanBeClaimed() const { return State == ESmartObjectSlotState::Free; }
+	/** @return True if the slot can be claimed. */
+	bool CanBeClaimed() const { return bEnabled && State == ESmartObjectSlotState::Free; }
 
+	/** @return reference to the slot event delegate. */
+	const FOnSmartObjectEvent& GetEventDelegate() const { return OnEvent; }
+
+	/** @return mutable reference to the slot event delegate. */
+	FOnSmartObjectEvent& GetMutableEventDelegate() { return OnEvent; }
+
+	/** @return the runtime gameplay tags of the slot. */
+	const FGameplayTagContainer& GetTags() const { return Tags; }
+
+	/** @return true of the slot is enabled. */
+	bool IsEnabled() const { return bEnabled; }
+
+	/** @return Handle of the owner runtime object. */
+	FSmartObjectHandle GetOwnerRuntimeObject() const { return RuntimeObjectHandle; }
+	
 protected:
 	/** Struct could have been nested inside the subsystem but not possible with USTRUCT */
 	friend class USmartObjectSubsystem;
 	friend struct FSmartObjectRuntime;
 
 	bool Claim(const FSmartObjectUserHandle& InUser);
-	bool Release(const FSmartObjectClaimHandle& ClaimHandle, const ESmartObjectSlotState NewState, const bool bAborted);
+	bool Release(const FSmartObjectClaimHandle& ClaimHandle, const bool bAborted);
 	
-	friend FString LexToString(const FSmartObjectSlotClaimState& ClaimState)
+	friend FString LexToString(const FSmartObjectRuntimeSlot& Slot)
 	{
-		return FString::Printf(TEXT("User:%s State:%s"), *LexToString(ClaimState.User), *UEnum::GetValueAsString(ClaimState.State));
+		return FString::Printf(TEXT("User:%s State:%s"), *LexToString(Slot.User), *UEnum::GetValueAsString(Slot.State));
 	}
 
-	/** Handle to the user that reserves or uses the slot */
-	FSmartObjectUserHandle User;
+	/** Runtime tags associated with this slot. */
+	FGameplayTagContainer Tags;
+
+	/** Multicast delegate that is fired when the slot state changes. */
+	FOnSmartObjectEvent OnEvent;
 
 	/** Delegate used to notify when a slot gets invalidated. See RegisterSlotInvalidationCallback */
 	FOnSlotInvalidated OnSlotInvalidatedDelegate;
 
+	/** Handle of the owner object */
+	FSmartObjectHandle RuntimeObjectHandle;
+	
+	/** Handle to the user that reserves or uses the slot */
+	FSmartObjectUserHandle User;
+
 	/** Current availability state of the slot */
 	ESmartObjectSlotState State = ESmartObjectSlotState::Free;
+
+	/** Index of the slot in the definition. */
+	uint8 SlotIndex = 0;
+
+	/** True if the slot is enabled */
+	uint8 bEnabled : 1;
 };
+
+using FSmartObjectSlotClaimState UE_DEPRECATED(5.2, "Deprecated struct. Please use FSmartObjectRuntimeSlot instead.") = FSmartObjectRuntimeSlot;
 
 /**
  * Struct to store and manage state of a runtime instance associated to a given smart object definition
@@ -168,13 +213,33 @@ public:
 	/** Returns delegate that is invoked whenever a tag is added or removed */
 	FOnSmartObjectTagChanged& GetTagChangedDelegate() { return OnTagChangedDelegate; }
 
+	/** @return reference to the Smart Object event delegate. */
+	const FOnSmartObjectEvent& GetEventDelegate() const { return OnEvent; }
+
+	/** @return mutable reference to the Smart Object event delegate. */
+	FOnSmartObjectEvent& GetMutableEventDelegate() { return OnEvent; }
+	
 	/** Indicates that this instance is still part of the simulation (space partition) but should not be considered valid by queries */
-	uint32 IsDisabled() const { return bDisabledByTags; }
+	UE_DEPRECATED(5.1, "Use IsEnabled instead.")
+	bool IsDisabled() const { return !bEnabled; }
+
+	/** @return True of the Smart Object is enabled. */
+	bool IsEnabled() const { return bEnabled; }
 
 	/* Provide default constructor to be able to compile template instantiation 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>' */
 	/* Also public to pass void 'UScriptStruct::TCppStructOps<FSmartObjectRuntime>::ConstructForTests(void *)' */
-	FSmartObjectRuntime() {}
+	FSmartObjectRuntime() : bEnabled(true) {}
 
+	/** @return handle of the specified slot. */
+	FSmartObjectSlotHandle GetSlotHandle(const int32 Index) const
+	{
+		if (SlotHandles.IsValidIndex(Index))
+		{
+			return SlotHandles[Index];
+		}
+		return FSmartObjectSlotHandle();
+	}
+	
 private:
 	/** Struct could have been nested inside the subsystem but not possible with USTRUCT */
 	friend class USmartObjectSubsystem;
@@ -201,6 +266,9 @@ private:
 	/** Delegate fired whenever a new tag is added or an existing one gets removed */
 	FOnSmartObjectTagChanged OnTagChangedDelegate;
 
+	/**  Delegate that is fired when the Smart Object changes. */
+	FOnSmartObjectEvent OnEvent;
+
 	/** RegisteredHandle != FSmartObjectHandle::Invalid when registered with SmartObjectSubsystem */
 	FSmartObjectHandle RegisteredHandle;
 
@@ -213,7 +281,7 @@ private:
 #endif
 
 	/** Each slot has its own disable state but keeping it also in the parent instance allow faster validation in some cases. */
-	bool bDisabledByTags = false;
+	uint8 bEnabled : 1;
 };
 
 USTRUCT()
@@ -334,12 +402,42 @@ public:
 		return nullptr;
 	}
 
+	/** @return the claim state of the slot. */
+	ESmartObjectSlotState GetState() const
+	{
+		checkf(Slot, TEXT("State can only be accessed through a valid SlotView"));
+		return Slot->GetState();
+	}
+
+	/** @return true of the slot can be claimed. */
+	bool CanBeClaimed() const
+	{
+		checkf(Slot, TEXT("Claim can only be accessed through a valid SlotView"));
+		return Slot->CanBeClaimed();
+	}
+
+	/** @return runtime gameplay tags of the slot. */
+	const FGameplayTagContainer& GetTags() const
+	{
+		checkf(Slot, TEXT("Tags can only be accessed through a valid SlotView"));
+		return Slot->GetTags();
+	}
+
+	/** @return handle to the owning Smart Object. */
+	FSmartObjectHandle GetOwnerRuntimeObject() const
+	{
+		checkf(Slot, TEXT("Tags can only be accessed through a valid SlotView"));
+		return Slot->GetOwnerRuntimeObject();
+	}
+
 private:
 	friend class USmartObjectSubsystem;
 
-	FSmartObjectSlotView(const FMassEntityManager& EntityManager, const FSmartObjectSlotHandle SlotHandle) 
+	FSmartObjectSlotView(const FMassEntityManager& EntityManager, const FSmartObjectSlotHandle SlotHandle, const FSmartObjectRuntimeSlot* InSlot) 
 		: EntityView(EntityManager, SlotHandle.EntityHandle)
+		, Slot(InSlot)
 	{}
 
 	FMassEntityView EntityView;
+	const FSmartObjectRuntimeSlot* Slot = nullptr;
 };

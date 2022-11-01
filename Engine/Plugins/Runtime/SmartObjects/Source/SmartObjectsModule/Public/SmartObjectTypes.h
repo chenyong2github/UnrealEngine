@@ -5,6 +5,7 @@
 #include "MassEntityTypes.h"
 #include "Containers/UnrealString.h"
 #include "EngineDefines.h"
+#include "GameplayTagContainer.h"
 #include "SmartObjectTypes.generated.h"
 
 class FDebugRenderSceneProxy;
@@ -122,7 +123,7 @@ private:
 /**
  * Struct used to identify a runtime slot instance
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct SMARTOBJECTSMODULE_API FSmartObjectSlotHandle
 {
 	GENERATED_BODY()
@@ -178,8 +179,8 @@ USTRUCT(meta=(Hidden))
 struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinitionData
 {
 	GENERATED_BODY()
+	virtual ~FSmartObjectSlotDefinitionData() {}
 };
-
 
 /**
  * This is the base struct to inherit from to store custom state data associated to a slot
@@ -217,3 +218,125 @@ public:
 	virtual void Draw(FDebugRenderSceneProxy* DebugProxy) {}
 #endif
 };
+
+
+/**
+ * Helper struct to wrap basic functionalities to store the index of a slot in a SmartObject definition
+ */
+USTRUCT(BlueprintType)
+struct SMARTOBJECTSMODULE_API FSmartObjectSlotIndex
+{
+	GENERATED_BODY()
+
+	explicit FSmartObjectSlotIndex(const int32 InSlotIndex = INDEX_NONE) : Index(InSlotIndex) {}
+
+	bool IsValid() const { return Index != INDEX_NONE; }
+	void Invalidate() { Index = INDEX_NONE; }
+
+	operator int32() const { return Index; }
+
+	bool operator==(const FSmartObjectSlotIndex& Other) const { return Index == Other.Index; }
+	friend FString LexToString(const FSmartObjectSlotIndex& SlotIndex) { return FString::Printf(TEXT("[Slot:%d]"), SlotIndex.Index); }
+
+private:
+	UPROPERTY(Transient)
+	int32 Index = INDEX_NONE;
+};
+
+/**
+ * Reference to a specific Smart Object slot in a Smart Object Definition.
+ * When placed on a slot definition data, the Index is resolved automatically when changed, on load and save. 
+ */
+USTRUCT()
+struct SMARTOBJECTSMODULE_API FSmartObjectSlotReference
+{
+	GENERATED_BODY()
+
+	static constexpr uint8 InvalidValue = 0xff;
+
+	bool IsValid() const { return Index != InvalidValue; }
+
+	int32 GetIndex() const { return Index == InvalidValue ? INDEX_NONE : Index; }
+	
+	void SetIndex(const int32 InIndex)
+	{
+		if (InIndex >= 0 && InIndex < InvalidValue)
+		{
+			Index = (uint8)InIndex;
+		}
+		else
+		{
+			Index = InvalidValue; 
+		}
+	}
+
+#if WITH_EDITORONLY_DATA
+	const FGuid& GetSlotID() const { return SlotID; }
+#endif
+	
+private:
+	UPROPERTY()
+	uint8 Index = InvalidValue;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	FGuid SlotID;
+#endif // WITH_EDITORONLY_DATA
+
+	friend class FSmartObjectSlotReferenceDetails;
+};
+
+/**
+ * Describes how Smart Object or slot was changed.
+ */
+UENUM()
+enum class ESmartObjectChangeReason : uint8
+{
+	/** No Change. */
+	None,
+	/** External event sent. */
+	OnEvent,
+	/** A tag was added. */
+	OnTagAdded,
+	/** A tag was removed. */
+	OnTagRemoved,
+	/** Slot was claimed. */
+	OnClaimed,
+	/** Slot claim was released. */
+	OnReleased,
+	/** Object or slot was enabled. */
+	OnEnabled,
+	/** Object or slot was disabled. */
+	OnDisabled,
+};
+
+/**
+ * Strict describing a change in Smart Object or Slot. 
+ */
+USTRUCT()
+struct SMARTOBJECTSMODULE_API FSmartObjectEventData
+{
+	GENERATED_BODY()
+
+	/** Handle to the changed Smart Object. */
+	UPROPERTY(Transient)
+	FSmartObjectHandle SmartObjectHandle;
+
+	/** Handle to the changed slot, if invalid, the event is for the object. */
+	UPROPERTY(Transient)
+	FSmartObjectSlotHandle SlotHandle;
+
+	/** Change reason. */
+	UPROPERTY(Transient)
+	ESmartObjectChangeReason Reason;
+
+	/** Added/Removed tag, or event tag, depending on Reason. */
+	UPROPERTY(Transient)
+	FGameplayTag Tag;
+
+	/** Event payload. */
+	FConstStructView EventPayload;
+};
+
+/** Delegate called when Smart Object or Slot is changed. */
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSmartObjectEvent, const FSmartObjectEventData& /*Event*/);

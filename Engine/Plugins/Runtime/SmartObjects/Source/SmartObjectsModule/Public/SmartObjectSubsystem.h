@@ -225,6 +225,13 @@ public:
 	void FindSlots(const FSmartObjectHandle Handle, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutSlots) const;
 
 	/**
+	 * Return all slots of a given smart object.
+	 * @param Handle Handle to the smart object.
+	 * @param OutSlots All slots of the smart object
+	 */
+	void GetAllSlots(const FSmartObjectHandle Handle, TArray<FSmartObjectSlotHandle>& OutSlots) const;
+
+	/**
 	 * Claims smart object from a request result.
 	 * @param RequestResult Request result for given smart object and slot index.
 	 * @return A handle binding the claimed smart object, its slot and a user id.
@@ -272,7 +279,7 @@ public:
 	 * @param SlotHandle Handle to a smart object slot.
 	 * @return True if the handle is valid and its associated slot is accessible; false otherwise.
 	 */
-	bool IsSmartObjectSlotValid(const FSmartObjectSlotHandle SlotHandle) const { return SlotHandle.IsValid() && RuntimeSlotStates.Find(SlotHandle) != nullptr; }
+	bool IsSmartObjectSlotValid(const FSmartObjectSlotHandle SlotHandle) const { return SlotHandle.IsValid() && RuntimeSlots.Find(SlotHandle) != nullptr; }
 
 	/**
 	 * Start using a claimed smart object slot.
@@ -470,6 +477,55 @@ public:
 	void RemoveTagFromInstance(const FSmartObjectHandle Handle, const FGameplayTag& Tag);
 
 	/**
+	 * Returns the list of tags associated to the smart object slot represented by the provided handle.
+	 * @param SlotHandle Handle to the smart object slot.
+	 * @return Container of tags associated to the smart object instance, or empty container if slot was not valid.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	const FGameplayTagContainer& GetSlotTags(const FSmartObjectSlotHandle SlotHandle) const;
+
+	/**
+	 * Adds a single tag to the smart object slot represented by the provided handle.
+	 * @param SlotHandle Handle to the smart object slot.
+	 * @param Tag Tag to add to the smart object slot.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	void AddTagToSlot(const FSmartObjectSlotHandle SlotHandle, const FGameplayTag& Tag);
+
+	/**
+	 * Removes a single tag from the smart object slot represented by the provided handle.
+	 * @param SlotHandle Handle to the smart object slot.
+	 * @param Tag Tag to remove from the smart object slot.
+	 * @return True if the tag was removed.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	bool RemoveTagFromSlot(const FSmartObjectSlotHandle SlotHandle, const FGameplayTag& Tag);
+
+	/**
+	 * Enables or disables the smart object slot represented by the provided handle.
+	 * @param SlotHandle Handle to the smart object slot.
+	 * @param bEnabled If true enables the slot, if false, disables the slot.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "SmartObject")
+	void SetSlotEnabled(const FSmartObjectSlotHandle SlotHandle, const bool bEnabled);
+
+	/**
+	 * Sends event to a Smart Object slot.
+	 * @param SlotHandle Handle to the smart object slot.
+	 * @param EventTag Gameplay Tag describing the event type.
+	 * @param Payload Struct payload for the event.
+	 * @return True if the event was successfully sent. 
+	 */
+	bool SendSlotEvent(const FSmartObjectSlotHandle SlotHandle, const FGameplayTag EventTag, const FConstStructView Payload = FConstStructView());
+
+	/**
+	 * Returns pointer to the smart object slot changed delegate by the provided handle.
+	 * @param SlotHandle Handle to the smart object slot.
+	 * @return Pointer to slot's delegate, or nullptr if slot does not exists.
+	 */
+	FOnSmartObjectEvent* GetSlotEventDelegate(const FSmartObjectSlotHandle SlotHandle);
+	
+	/**
 	 * Register a callback to be notified if the claimed slot is no longer available and user need to perform cleanup.
 	 * @param ClaimHandle Handle to a claimed slot returned by any of the Claim methods.
 	 * @param Callback Delegate that will be called to notify that a slot gets invalidated and can no longer be used.
@@ -533,6 +589,24 @@ protected:
 	bool IsSlotValidVerbose(const FSmartObjectSlotHandle SlotHandle, const TCHAR* LogContext) const;
 	
 	/**
+	 * Returns pointer to the specified slot if it exists. 
+	 * Log is produced for any failing condition using provided LogContext.
+	 * @param SlotHandle Handle to a smart object slot.
+	 * @param LogContext String describing the context in which the method is called (e.g. caller function name)
+	 * @return Pointer to the slot state if the handle is valid and its associated slot is accessible; nullptr otherwise.
+	 */
+	FSmartObjectRuntimeSlot* GetMutableSlotVerbose(const FSmartObjectSlotHandle SlotHandle, const TCHAR* LogContext);
+
+	/**
+	 * Returns pointer to the specified slot if it exists. 
+	 * Log is produced for any failing condition using provided LogContext.
+	 * @param SlotHandle Handle to a smart object slot.
+	 * @param LogContext String describing the context in which the method is called (e.g. caller function name)
+	 * @return Pointer to the slot state if the handle is valid and its associated slot is accessible; nullptr otherwise.
+	 */
+	const FSmartObjectRuntimeSlot* GetSlotVerbose(const FSmartObjectSlotHandle SlotHandle, const TCHAR* LogContext) const;
+
+	/**
 	 * Returns the const runtime instance associated to the provided handle.
 	 * Method produces log messages with provided context if provided handle is not set or associated instance can't be found.
 	 */
@@ -542,11 +616,12 @@ protected:
 	 * Returns the mutable runtime instance associated to the provided handle
 	 * Method produces log messages with provided context if provided handle is not set or associated instance can't be found.
 	 */
-	FSmartObjectRuntime* GetValidatedMutableRuntime(const FSmartObjectHandle Handle, const TCHAR* Context);
+	FSmartObjectRuntime* GetValidatedMutableRuntime(const FSmartObjectHandle Handle, const TCHAR* Context) const;
 
 	void AddTagToInstance(FSmartObjectRuntime& SmartObjectRuntime, const FGameplayTag& Tag);
 	void RemoveTagFromInstance(FSmartObjectRuntime& SmartObjectRuntime, const FGameplayTag& Tag);
-	void UpdateRuntimeInstanceStatus(FSmartObjectRuntime& SmartObjectRuntime);
+	void UpdateRuntimeInstanceStatus(FSmartObjectRuntime& SmartObjectRuntime, const ESmartObjectChangeReason Reason);
+	void OnSlotChanged(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRuntimeSlot& Slot, const FSmartObjectSlotHandle SlotHandle, const ESmartObjectChangeReason Reason, const FGameplayTag ChangedTag = FGameplayTag()) const;
 
 	/** Goes through all defined slots of smart object represented by SmartObjectRuntime and finds the ones matching the filter. */
 	void FindSlots(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectRequestFilter& Filter, TArray<FSmartObjectSlotHandle>& OutResults) const;
@@ -558,9 +633,9 @@ protected:
 
 	const USmartObjectBehaviorDefinition* Use(const FSmartObjectRuntime& SmartObjectRuntime, const FSmartObjectClaimHandle& ClaimHandle, const TSubclassOf<USmartObjectBehaviorDefinition>& DefinitionClass);
 
-	void AbortAll(const FSmartObjectRuntime& SmartObjectRuntime, const ESmartObjectSlotState NewState);
+	void AbortAll(const FSmartObjectRuntime& SmartObjectRuntime);
 
-	FSmartObjectSlotClaimState* GetMutableSlotState(const FSmartObjectClaimHandle& ClaimHandle);
+	FSmartObjectRuntimeSlot* GetMutableSlot(const FSmartObjectClaimHandle& ClaimHandle);
 
 	/** Make sure that all SmartObjectCollection actors from our associated world are registered. */
 	void RegisterCollectionInstances();
@@ -622,7 +697,7 @@ protected:
 	TSharedPtr<FMassEntityManager> EntityManager;
 
 	TMap<FSmartObjectHandle, FSmartObjectRuntime> RuntimeSmartObjects;
-	TMap<FSmartObjectSlotHandle, FSmartObjectSlotClaimState> RuntimeSlotStates;
+	TMap<FSmartObjectSlotHandle, FSmartObjectRuntimeSlot> RuntimeSlots;
 
 	/** Keep track of Ids associated to objects entirely created at runtime (i.e. not part of the initial collection) */
 	TArray<FSmartObjectHandle> RuntimeCreatedEntries;
@@ -657,7 +732,7 @@ protected:
 public:
 	uint32 DebugGetNumRuntimeObjects() const { return RuntimeSmartObjects.Num(); }
 	const TMap<FSmartObjectHandle, FSmartObjectRuntime>& DebugGetRuntimeObjects() const { return RuntimeSmartObjects; }
-	const TMap<FSmartObjectSlotHandle, FSmartObjectSlotClaimState>& DebugGetRuntimeSlots() const { return RuntimeSlotStates; }
+	const TMap<FSmartObjectSlotHandle, FSmartObjectRuntimeSlot>& DebugGetRuntimeSlots() const { return RuntimeSlots; }
 	uint32 DebugGetNumRegisteredComponents() const { return RegisteredSOComponents.Num(); }
 
 	/** Debugging helper to remove all registered smart objects from the simulation */

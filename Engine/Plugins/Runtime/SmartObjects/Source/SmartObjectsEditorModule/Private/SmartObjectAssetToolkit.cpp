@@ -1,7 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SmartObjectAssetToolkit.h"
-
 #include "AssetEditorModeManager.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "EdModeInteractiveToolsContext.h"
@@ -13,99 +12,18 @@
 #include "Viewports.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Text/STextBlock.h"
-
-#include UE_INLINE_GENERATED_CPP_BY_NAME(SmartObjectAssetToolkit)
+#include "SSmartObjectViewport.h"
 
 #define LOCTEXT_NAMESPACE "SmartObjectAssetToolkit"
 
 const FName FSmartObjectAssetToolkit::PreviewSettingsTabID(TEXT("SmartObjectAssetToolkit_Preview"));
-
-//----------------------------------------------------------------------//
-// USmartObjectAssetEditorTool
-//----------------------------------------------------------------------//
-void USmartObjectAssetEditorTool::Initialize(UInteractiveToolsContext* InteractiveToolsContext, USmartObjectDefinition* SmartObjectDefinition, USmartObjectComponent* SmartObjectComponent)
-{
-	ToolsContext = InteractiveToolsContext;
-	Definition = SmartObjectDefinition;
-	PreviewComponent = SmartObjectComponent;
-
-	// Register gizmo context
-	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(InteractiveToolsContext);
-
-	// Create gizmos
-	CreateGizmos();
-}
-
-void USmartObjectAssetEditorTool::CreateGizmos()
-{
-	check(ToolsContext != nullptr);
-	check(PreviewComponent != nullptr);
-
-	UInteractiveGizmoManager* GizmoManager = ToolsContext->GizmoManager;
-
-	for (int32 Index = 0; Index < Definition->GetSlots().Num(); ++Index)
-	{
-		FSmartObjectSlotEditorTarget Transformable;
-		Transformable.TransformProxy = NewObject<UTransformProxy>(this);
-		Transformable.TransformProxy->AddComponentCustom(PreviewComponent,
-			[this, Index]()
-			{
-				return Definition->GetSlotTransform(FTransform::Identity, FSmartObjectSlotIndex(Index)).GetValue();
-			},
-			[this, Index](const FTransform NewTransform)
-			{
-				const TArrayView<FSmartObjectSlotDefinition> SlotDefinitions = Definition->GetMutableSlots();
-				FSmartObjectSlotDefinition& SlotDefinition = SlotDefinitions[Index];
-				SlotDefinition.Offset = NewTransform.GetTranslation();
-				SlotDefinition.Rotation = NewTransform.Rotator();
-			},
-			Index,
-			/*bModifyComponentOnTransform*/ false
-		);
-
-		constexpr ETransformGizmoSubElements GizmoElements = ETransformGizmoSubElements::StandardTranslateRotate;
-		Transformable.TransformGizmo = UE::TransformGizmoUtil::CreateCustomRepositionableTransformGizmo(GizmoManager, GizmoElements, this);
-		Transformable.TransformGizmo->SetActiveTarget(Transformable.TransformProxy, GizmoManager);
-		ActiveGizmos.Add(Transformable);
-	}
-}
-
-void USmartObjectAssetEditorTool::DestroyGizmos()
-{
-	ToolsContext->GizmoManager->DestroyAllGizmosByOwner(this);
-	ActiveGizmos.Reset();
-}
-
-void USmartObjectAssetEditorTool::Cleanup()
-{
-	DestroyGizmos();
-	UE::TransformGizmoUtil::DeregisterTransformGizmoContextObject(ToolsContext);
-}
-
-void USmartObjectAssetEditorTool::RebuildGizmos()
-{
-	DestroyGizmos();
-	CreateGizmos();
-}
-
-void USmartObjectAssetEditorTool::RefreshGizmos()
-{
-	check(Definition != nullptr);
-	check(ActiveGizmos.Num() == Definition->GetSlots().Num());
-
-	for (int32 Index = 0; Index < Definition->GetSlots().Num(); ++Index)
-	{
-		const FTransform NewTransform = Definition->GetSlotTransform(FTransform::Identity, FSmartObjectSlotIndex(Index)).GetValue();
-		ActiveGizmos[Index].TransformGizmo->ReinitializeGizmoTransform(NewTransform);
-	}
-}
+const FName FSmartObjectAssetToolkit::SceneViewportTabID(TEXT("SmartObjectAssetToolkit_Viewport"));
 
 //----------------------------------------------------------------------//
 // FSmartObjectAssetToolkit
 //----------------------------------------------------------------------//
 FSmartObjectAssetToolkit::FSmartObjectAssetToolkit(UAssetEditor* InOwningAssetEditor)
 	: FBaseAssetToolkit(InOwningAssetEditor)
-	, Tool(nullptr)
 {
 	FPreviewScene::ConstructionValues PreviewSceneArgs;
 	AdvancedPreviewScene = MakeUnique<FAdvancedPreviewScene>(PreviewSceneArgs);
@@ -115,7 +33,7 @@ FSmartObjectAssetToolkit::FSmartObjectAssetToolkit(UAssetEditor* InOwningAssetEd
 	AdvancedPreviewScene->SetFloorOffset(DefaultFloorOffset);
 
 	// Setup our default layout
-	StandaloneDefaultLayout = FTabManager::NewLayout(FName("SmartObjectAssetEditorLayout1"))
+	StandaloneDefaultLayout = FTabManager::NewLayout(FName("SmartObjectAssetEditorLayout2"))
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -128,28 +46,16 @@ FSmartObjectAssetToolkit::FSmartObjectAssetToolkit(UAssetEditor* InOwningAssetEd
 				(
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.7f)
-					->AddTab(ViewportTabID, ETabState::OpenedTab)
+					->AddTab(SceneViewportTabID, ETabState::OpenedTab)
 					->SetHideTabWell(true)
 				)
 				->Split
 				(
-					FTabManager::NewSplitter()
-					->SetOrientation(Orient_Vertical)
+					FTabManager::NewStack()
 					->SetSizeCoefficient(0.3f)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.3f)
-						->AddTab(PreviewSettingsTabID, ETabState::OpenedTab)
-						->SetHideTabWell(true)
-					)
-					->Split
-					(
-						FTabManager::NewStack()
-						->SetSizeCoefficient(0.7f)
-						->AddTab(DetailsTabID, ETabState::OpenedTab)
-						->SetHideTabWell(true)
-					)
+					->AddTab(PreviewSettingsTabID, ETabState::OpenedTab)
+					->AddTab(DetailsTabID, ETabState::OpenedTab)
+					->SetForegroundTab(DetailsTabID)
 				)
 			)
 		);
@@ -172,20 +78,12 @@ TSharedPtr<FEditorViewportClient> FSmartObjectAssetToolkit::CreateEditorViewport
 
 void FSmartObjectAssetToolkit::PostInitAssetEditor()
 {
-	USmartObjectComponent* PreviewComponent = NewObject<USmartObjectComponent>(GetTransientPackage(), NAME_None, RF_Transient );
 	USmartObjectDefinition* Definition = Cast<USmartObjectDefinition>(GetEditingObject());
-	PreviewComponent->SetDefinition(Definition);
-
-	// Add component to the preview scene
-	if (FPreviewScene* PreviewScene = ViewportClient.Get()->GetPreviewScene())
-	{
-		check(AdvancedPreviewScene.Get() == PreviewScene);
-		PreviewScene->AddComponent(PreviewComponent, FTransform::Identity);
-	}
+	check(Definition);
 
 	// Allow the viewport client to interact with the preview component
 	checkf(SmartObjectViewportClient.IsValid(), TEXT("ViewportClient is created in CreateEditorViewportClient before calling PostInitAssetEditor"));
-	SmartObjectViewportClient->SetPreviewComponent(PreviewComponent);
+	SmartObjectViewportClient->SetSmartObjectDefinition(*Definition);
 
 	// Use preview information from asset
 	if (const UClass* ActorClass = Definition->PreviewClass.Get())
@@ -211,10 +109,6 @@ void FSmartObjectAssetToolkit::PostInitAssetEditor()
 		SmartObjectViewportClient->SetPreviewMesh(PreviewMesh);
 	}
 
-	// Instantiate the tool to author slot definitions through the preview component
-	Tool = NewObject<USmartObjectAssetEditorTool>(GetTransientPackage(), NAME_None, RF_Transient );
-	Tool->Initialize(GetEditorModeManager().GetInteractiveToolsContext(), Definition, PreviewComponent);
-
 	// Register to be notified when properties are edited
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FSmartObjectAssetToolkit::OnPropertyChanged);
 }
@@ -223,10 +117,27 @@ void FSmartObjectAssetToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>
 {
 	FBaseAssetToolkit::RegisterTabSpawners(InTabManager);
 
+	InTabManager->RegisterTabSpawner(SceneViewportTabID, FOnSpawnTab::CreateSP(this, &FSmartObjectAssetToolkit::SpawnTab_SceneViewport))
+		.SetDisplayName(LOCTEXT("Viewport", "Viewport"))
+		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Viewports"));
+
 	InTabManager->RegisterTabSpawner(PreviewSettingsTabID, FOnSpawnTab::CreateSP(this, &FSmartObjectAssetToolkit::SpawnTab_PreviewSettings))
 		.SetDisplayName(LOCTEXT("PreviewSettings", "Preview Settings"))
 		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Visibility"));
+}
+
+TSharedRef<SDockTab> FSmartObjectAssetToolkit::SpawnTab_SceneViewport(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == FSmartObjectAssetToolkit::SceneViewportTabID);
+
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab).Label(LOCTEXT("ViewportTab_Title", "Viewport"));
+
+	TSharedRef<SSmartObjectViewport> ViewportWidget = SNew(SSmartObjectViewport, StaticCastSharedRef<FSmartObjectAssetToolkit>(AsShared()), AdvancedPreviewScene.Get());
+	SpawnedTab->SetContent(ViewportWidget);
+
+	return SpawnedTab;
 }
 
 TSharedRef<SDockTab> FSmartObjectAssetToolkit::SpawnTab_PreviewSettings(const FSpawnTabArgs& Args)
@@ -341,8 +252,6 @@ TSharedRef<SDockTab> FSmartObjectAssetToolkit::SpawnTab_PreviewSettings(const FS
 
 void FSmartObjectAssetToolkit::OnClose()
 {
-	Tool->Cleanup();
-
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
 
 	FBaseAssetToolkit::OnClose();
@@ -350,7 +259,6 @@ void FSmartObjectAssetToolkit::OnClose()
 
 void FSmartObjectAssetToolkit::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObject(Tool);
 }
 
 void FSmartObjectAssetToolkit::OnPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent) const
@@ -358,25 +266,6 @@ void FSmartObjectAssetToolkit::OnPropertyChanged(UObject* ObjectBeingModified, F
 	if (ObjectBeingModified == nullptr || ObjectBeingModified != GetEditingObject())
 	{
 		return;
-	}
-
-	// Only monitor changes to Slots since we need to recreate the proper amount of Gizmos
-	// Note that we can't use GET_MEMBER_NAME_CHECKED(USmartObjectDefinition, Slots)) since
-	// the property is not public
-	const FName SlotsMemberName(TEXT("Slots"));
-	if (PropertyChangedEvent.GetPropertyName() == SlotsMemberName)
-	{
-		Tool->RebuildGizmos();
-	}
-	else if (PropertyChangedEvent.MemberProperty == nullptr)
-	{
-		// Provided event is invalid for undo, refresh isn't enough when it is undoing a delete, 
-		// A rebuild is needed in that case as the gizmos are being destroyed upon deletion.
-		Tool->RebuildGizmos();
-	}
-	else if (PropertyChangedEvent.MemberProperty->GetFName() == SlotsMemberName)
-	{
-		Tool->RefreshGizmos();
 	}
 }
 

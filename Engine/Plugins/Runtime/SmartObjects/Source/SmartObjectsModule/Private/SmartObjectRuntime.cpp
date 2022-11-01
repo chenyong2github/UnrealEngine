@@ -14,17 +14,18 @@ const FSmartObjectClaimHandle FSmartObjectClaimHandle::InvalidHandle = {};
 //----------------------------------------------------------------------//
 FSmartObjectRuntime::FSmartObjectRuntime(const USmartObjectDefinition& InDefinition)
 	: Definition(&InDefinition)
+	, bEnabled(true)
 {
 	const int32 NumSlotDefinitions = InDefinition.GetSlots().Num();
 	SlotHandles.SetNum(NumSlotDefinitions);
 }
 
 //----------------------------------------------------------------------//
-// FSmartObjectSlotClaimState
+// FSmartObjectRuntimeSlot
 //----------------------------------------------------------------------//
-bool FSmartObjectSlotClaimState::Claim(const FSmartObjectUserHandle& InUser)
+bool FSmartObjectRuntimeSlot::Claim(const FSmartObjectUserHandle& InUser)
 {
-	if (State == ESmartObjectSlotState::Free)
+	if (bEnabled && State == ESmartObjectSlotState::Free)
 	{
 		State = ESmartObjectSlotState::Claimed;
 		User = InUser;
@@ -33,7 +34,7 @@ bool FSmartObjectSlotClaimState::Claim(const FSmartObjectUserHandle& InUser)
 	return false;
 }
 
-bool FSmartObjectSlotClaimState::Release(const FSmartObjectClaimHandle& ClaimHandle, const ESmartObjectSlotState NewState, const bool bAborted)
+bool FSmartObjectRuntimeSlot::Release(const FSmartObjectClaimHandle& ClaimHandle, const bool bAborted)
 {
 	if (!ensureMsgf(ClaimHandle.IsValid(), TEXT("Attempting to release a slot using an invalid handle: %s"), *LexToString(ClaimHandle)))
 	{
@@ -60,7 +61,7 @@ bool FSmartObjectSlotClaimState::Release(const FSmartObjectClaimHandle& ClaimHan
 			UE_LOG(LogSmartObject, Verbose, TEXT("Slot invalidated callback was%scalled for %s"), bFunctionWasExecuted ? TEXT(" ") : TEXT(" not "), *LexToString(ClaimHandle));
 		}
 
-		State = NewState;
+		State = ESmartObjectSlotState::Free;
 		User.Invalidate();
 		bReleased = true;
 	}
