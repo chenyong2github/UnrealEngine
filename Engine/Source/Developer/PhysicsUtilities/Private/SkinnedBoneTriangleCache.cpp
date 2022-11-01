@@ -81,7 +81,7 @@ void FSkinnedBoneTriangleCache::AddIndexToInfluencerBoneSets(const FSkinnedVerte
 
 	const FSkelMeshSection& Section = StaticLODModel.LODModels[0].Sections[SectionIndex];
 	const FSoftSkinVertex& SoftVert = Section.SoftVertices[SoftVertIndex];
-	const uint8 MaxWeight = InfluenceHeuristic == EVW_DominantWeight ? SoftVert.GetMaximumWeight() : 0;
+	const uint16 MaxWeight = InfluenceHeuristic == EVW_DominantWeight ? SoftVert.GetMaximumWeight() : 0;
 
 	for (int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
 	{
