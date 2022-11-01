@@ -3049,26 +3049,29 @@ bool FPerforceDownloadFileWorker::Execute(FPerforceSourceControlCommand& InComma
 		if (TargetDirectory.IsEmpty())
 		{
 			// Download and store the files as blobs in memory that the caller can access as they wish
-			for (const FString& TargetFilePath : InCommand.Files)
+			Parameters.Add(TEXT("-q")); // Do not print the header, we only want the actual file contents
+			Parameters.Append(InCommand.Files);
+
+			TArray<FSharedBuffer> FilesData;
+			const ERunCommandFlags Flags = Operation->ShouldLogToStdOutput() ? ERunCommandFlags::Default : ERunCommandFlags::DisableCommandLogging;
+
+			InCommand.bCommandSuccessful = Connection.RunCommand(	TEXT("print"), Parameters, Records, &FilesData, InCommand.ResultInfo.ErrorMessages,
+																	FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), 
+																	InCommand.bConnectionDropped, Flags);
+			
+			if (!InCommand.ResultInfo.ErrorMessages.IsEmpty() || (InCommand.Files.Num() != FilesData.Num()))
 			{
-				Parameters.Add(TEXT("-q")); // Do not print the header, we only want the actual file contents
-				Parameters.Add(TargetFilePath);
+				InCommand.bCommandSuccessful = false;
+			}
 
-				TOptional<FSharedBuffer> FileData = FSharedBuffer();
-				const ERunCommandFlags Flags = Operation->ShouldLogToStdOutput() ? ERunCommandFlags::Default : ERunCommandFlags::DisableCommandLogging;
+			if (InCommand.bCommandSuccessful)
+			{
+				check(InCommand.Files.Num() == FilesData.Num());
 
-				InCommand.bCommandSuccessful = Connection.RunCommand(	TEXT("print"), Parameters, Records, FileData, InCommand.ResultInfo.ErrorMessages, 
-																		FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), 
-																		InCommand.bConnectionDropped, Flags);
-				
-				if (InCommand.bCommandSuccessful)
+				for (int32 Index = 0; Index < InCommand.Files.Num(); ++Index)
 				{
-					Operation->AddFileData(TargetFilePath, FileData.GetValue());
+					Operation->AddFileData(InCommand.Files[Index], FilesData[Index]);
 				}
-
-				// Keep the already allocated memory for future files to prevent reallocation
-				Parameters.Reset();
-				Records.Reset();
 			}
 		}
 		else
@@ -3087,10 +3090,9 @@ bool FPerforceDownloadFileWorker::Execute(FPerforceSourceControlCommand& InComma
 				Parameters.Add(TEXT("-q")); // Do not print the header, we only want the actual file contents
 				Parameters.Add(TargetFilePath);
 
-				TOptional<FSharedBuffer> NullBuffer;
 				const ERunCommandFlags Flags = Operation->ShouldLogToStdOutput() ? ERunCommandFlags::Default : ERunCommandFlags::DisableCommandLogging;
 
-				InCommand.bCommandSuccessful = Connection.RunCommand(	TEXT("print"), Parameters, Records, NullBuffer, InCommand.ResultInfo.ErrorMessages, 
+				InCommand.bCommandSuccessful = Connection.RunCommand(	TEXT("print"), Parameters, Records, nullptr, InCommand.ResultInfo.ErrorMessages, 
 																		FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), 
 																		InCommand.bConnectionDropped, Flags);
 
@@ -3243,7 +3245,6 @@ bool FPerforceDeleteWorkspaceWorker::Execute(FPerforceSourceControlCommand& InCo
 		Parameters.Add(Operation->GetWorkspaceName());
 
 		FP4RecordSet Records;
-		TOptional<FSharedBuffer> NullBuffer;
 		// p4 client command does not return tagged results, which means info will get printed to
 		// stdout which we do not want, so we can use the Quiet flag which is the same as passing
 		// in -q as a global-opt in the command.
@@ -3252,7 +3253,7 @@ bool FPerforceDeleteWorkspaceWorker::Execute(FPerforceSourceControlCommand& InCo
 		Connection.RunCommand(	TEXT("client"), 
 								Parameters, 
 								Records, 
-								NullBuffer,
+								nullptr,
 								InCommand.ResultInfo.ErrorMessages, 
 								FOnIsCancelled::CreateRaw(&InCommand, &FPerforceSourceControlCommand::IsCanceled), 
 								InCommand.bConnectionDropped,

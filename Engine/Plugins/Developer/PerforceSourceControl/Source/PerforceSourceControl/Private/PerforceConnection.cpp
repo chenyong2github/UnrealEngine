@@ -19,27 +19,144 @@
 #define FROM_TCHAR(InText, bIsUnicodeServer) (bIsUnicodeServer ? TCHAR_TO_UTF8(InText) : TCHAR_TO_ANSI(InText))
 #define TO_TCHAR(InText, bIsUnicodeServer) (bIsUnicodeServer ? UTF8_TO_TCHAR(InText) : ANSI_TO_TCHAR(InText))
 
-namespace
-{
-	enum class EP4ClientUserFlags
-	{
-		None			= 0,
-		/** The server uses unicode */
-		UnicodeServer	= 1 << 0,
-		/** Binary data returned by commands should be collected in the DataBuffer member */
-		CollectData		= 1 << 1,
-	};
-
-	ENUM_CLASS_FLAGS(EP4ClientUserFlags);
-}
-
 const FString FP4Record::EmptyStr;
 
+namespace
+{
+
+enum class EP4ClientUserFlags
+{
+	None = 0,
+	/** The server uses unicode */
+	UnicodeServer = 1 << 0,
+	/** Binary data returned by commands should be collected in the DataBuffer member */
+	CollectData = 1 << 1,
+};
+
+ENUM_CLASS_FLAGS(EP4ClientUserFlags);
+
+/**
+ * A utility class to make it easier to gather a depot file from perforce when running
+ * p4 print.
+ */
+class FP4DepotFile
+{
+public:
+	FP4DepotFile() = default;
+	~FP4DepotFile() = default;
+
+	/** 
+	 * Start gathering the file in the given record. If the record is missing data
+	 * then the gather will not begin. The calling code should check for this and
+	 * raise errors or warnings accordingly.
+	 * This class does not actually do any perforce work itself, and relies on a
+	 * ClientUser to actually provide the data as it is downloaded.
+	 */
+	void Initialize(const FP4Record& Record)
+	{
+		const FString& SizeAsString = Record(TEXT("fileSize"));
+		DepotFilePath = Record(TEXT("depotFile"));
+
+		if (!SizeAsString.IsEmpty() && !DepotFilePath.IsEmpty())
+		{
+			int64 FileSize = FCString::Atoi64(*SizeAsString);
+
+			Data = FUniqueBuffer::Alloc(FileSize);
+			Offset = 0;
+		}
+	}
+
+	/** Returns true if the FP4DepotFile was set up correctly and can gather a file. */
+	bool IsValid() const
+	{
+		return !Data.IsNull();
+	}
+
+	/** Returns true if all of the files data has been acquired. */
+	bool IsFileComplete() const
+	{
+		return Offset == (int64)Data.GetSize();
+	}
+
+	/** Returns the number of bytes in the file that have not yet been acquired. */
+	int64 GetRemainingBytes() const
+	{
+		return (int64)Data.GetSize() - Offset;
+	}
+
+	/** Returns the depot path of the file we are gathering */
+	const FString& GetDepotPath() const
+	{
+		return DepotFilePath;
+	}
+
+	/** 
+	 * Returns the currently acquired file data and then invalidates the FP4DepotFile.
+	 * It is up to the caller to ensure that the entire file has been acquired or to
+	 * decide if a partially acquired file is okay.
+	 */
+	FSharedBuffer Release()
+	{
+		Offset = INDEX_NONE;
+
+		DepotFilePath.Reset();
+
+		return Data.MoveToShared();
+	}
+
+	/* Used to reset the FP4DepotFile if an error is encountered */
+	void Reset()
+	{
+		Offset = INDEX_NONE;
+
+		DepotFilePath.Reset();
+
+		Data.Reset();
+	}
+
+	/** 
+	 * Called when new data for the file has been downloaded and we can add it to the
+	 * data that we have already required.
+	 * 
+	 * @param DataPtr		The pointer to the downloaded data
+	 * @param DataLength	The size of the downloaded data in bytes
+	 * @return				True if the FP4DepotFile is valid and there was enough space
+	 *						for the downloaded data. False if the FP4DepotFile is invalid
+	 *						or if there is not enough space.		
+	 */
+	bool OnDataDownloaded(const char* DataPtr, int DataLength)
+	{
+		if (DataLength <= GetRemainingBytes())
+		{
+			FMemory::Memcpy((char*)Data.GetData() + Offset, DataPtr, DataLength);
+			Offset += DataLength;
+
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+private:
+
+	/** The path of the file in the perforce depot */
+	FString DepotFilePath;
+
+	/** The buffer containing the file data, allocated up front. */
+	FUniqueBuffer Data;
+	/** Tracks where the next set on downloaded data should be placed in the buffer. */
+	int64 Offset = INDEX_NONE;
+};
+
+} //namespace
 
 /** Custom ClientUser class for handling results and errors from Perforce commands */
 class FP4ClientUser : public ClientUser
 {
 public:
+
 	FP4ClientUser(FP4RecordSet& InRecords, EP4ClientUserFlags InFlags, TArray<FText>& InOutErrorMessages)
 		: ClientUser()
 		, Flags(InFlags)
@@ -61,19 +178,17 @@ public:
 			Record.Add(TO_TCHAR(Var.Text(), IsUnicodeServer()), TO_TCHAR(Value.Text(), IsUnicodeServer()));
 		}
 
-		// Try to reserve the data array if we have one as we just got the filesize info.
-		// NOTE: This code is built on the assumption that the data array will contain the
-		// data sent via p4 print and our code only called p4 print on a single file at the 
-		// time.
-		if (IsCollectingData() && DataBuffer.GetAllocatedSize() == 0)
+		if (IsCollectingData())
 		{
-			const FString& SizeAsString = Record(TEXT("fileSize"));
-			if (!SizeAsString.IsEmpty())
+			if (File.IsValid())
 			{
-				const int64 Size = FCString::Atoi64(*SizeAsString);
-				DataBuffer.Reserve(Size);
+				FText Message = FText::Format(LOCTEXT("P4Client_GatheringUnfinished", "Started gathering depot file '{0}' before the previous file finished!"),
+					FText::FromString(File.GetDepotPath()));
+
+				OutErrorMessages.Add(MoveTemp(Message));
 			}
 
+			File.Initialize(Record);
 		}
 
 		Records.Add(Record);
@@ -84,7 +199,25 @@ public:
 	{
 		if (IsCollectingData())
 		{
-			DataBuffer.Append(DataPtr, DataLength);
+			if (File.OnDataDownloaded(DataPtr, DataLength))
+			{
+				if (File.IsFileComplete())
+				{
+					Files.Add(File.Release());
+				}
+			}
+			else
+			{
+				FText Message = FText::Format(	
+					LOCTEXT("P4Client_TextCollectionFailed", "Collecting text data requires {0} bytes but the buffer only has {1} bytes remaining: {2}"),
+					DataLength,
+					File.GetRemainingBytes(),
+					FText::FromString(File.GetDepotPath()));
+
+				OutErrorMessages.Add(MoveTemp(Message));
+
+				File.Reset();
+			}
 		}
 		else
 		{
@@ -97,7 +230,38 @@ public:
 	{
 		if (IsCollectingData())
 		{
-			DataBuffer.Append(DataPtr, DataLength);
+			// For binary files we get a zero size call once the file is completed so we wait for that
+			// rather than checking FP4DepotFile::isFileComplete after every transfer
+			if (DataLength == 0)
+			{
+				if (File.IsFileComplete())
+				{
+					Files.Add(File.Release());
+				}
+				else
+				{
+					FText Message = FText::Format(
+						LOCTEXT("P4Client_IncompleteFIle", "Collecting binary data completed but missing {0} bytes: {1}"),
+						File.GetRemainingBytes(),
+						FText::FromString(File.GetDepotPath()));
+
+					OutErrorMessages.Add(MoveTemp(Message));
+
+					File.Reset();
+				}
+			}
+			else if (!File.OnDataDownloaded(DataPtr, DataLength))
+			{
+				FText Message = FText::Format(
+					LOCTEXT("P4Client_BinaryCollectionFailed", "Collecting binary data requires {0} bytes but the buffer only has {1} bytes remaining: {2}"),
+					DataLength,
+					File.GetRemainingBytes(),
+					FText::FromString(File.GetDepotPath()));
+
+				OutErrorMessages.Add(MoveTemp(Message));
+
+				File.Reset();
+			}
 		}
 		else
 		{
@@ -105,7 +269,7 @@ public:
 		}
 	}
 
-	/** Called by P4API when an error message is avaliable. */
+	/** Called by P4API when an error message is available. */
 	virtual void HandleError(Error* InError) override
 	{
 		StrBuf ErrorMessage;
@@ -124,9 +288,9 @@ public:
 	}
 
 	/** Returns DataBuffer as a FSharedBuffer, note that once called DataBuffer will be empty */
-	inline FSharedBuffer ReleaseData()
+	inline TArray<FSharedBuffer> ReleaseData()
 	{
-		return MakeSharedBufferFromArray(MoveTemp(DataBuffer));
+		return MoveTemp(Files);
 	}
 
 	EP4ClientUserFlags Flags;
@@ -134,7 +298,9 @@ public:
 	TArray<FText>& OutErrorMessages;
 
 private:
-	TArray64<char> DataBuffer;
+	TArray<FSharedBuffer> Files;
+
+	FP4DepotFile File;
 };
 
 /** A class used instead of FP4ClientUser for handling changelist create command */
@@ -814,7 +980,7 @@ void FPerforceConnection::Disconnect()
 }
 
 bool FPerforceConnection::RunCommand(	const FString& InCommand, const TArray<FString>& InParameters, FP4RecordSet& OutRecordSet, 
-										TOptional<FSharedBuffer>& OutData, TArray<FText>& OutErrorMessage, 
+										TArray<FSharedBuffer>* OutData, TArray<FText>& OutErrorMessage, 
 										FOnIsCancelled InIsCancelled, bool& OutConnectionDropped, ERunCommandFlags RunFlags)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("FPerforceConnection::RunCommand_%s"), *InCommand));
@@ -868,7 +1034,7 @@ bool FPerforceConnection::RunCommand(	const FString& InCommand, const TArray<FSt
 
 	EP4ClientUserFlags ClientUserFlags = EP4ClientUserFlags::None;
 	ClientUserFlags |= bIsUnicode ? EP4ClientUserFlags::UnicodeServer : EP4ClientUserFlags::None;
-	ClientUserFlags |= OutData ? EP4ClientUserFlags::CollectData : EP4ClientUserFlags::None;
+	ClientUserFlags |= OutData != nullptr ? EP4ClientUserFlags::CollectData : EP4ClientUserFlags::None;
 	
 	FP4ClientUser User(OutRecordSet, ClientUserFlags, OutErrorMessage);
 	if (EnumHasAllFlags(RunFlags, ERunCommandFlags::Quiet))
@@ -882,9 +1048,9 @@ bool FPerforceConnection::RunCommand(	const FString& InCommand, const TArray<FSt
 		OutConnectionDropped = true;
 	}
 
-	if (OutData)
+	if (OutData != nullptr)
 	{
-		OutData = User.ReleaseData();
+		*OutData = User.ReleaseData();
 	}	
 
 	P4Client.SetBreak(nullptr);
@@ -938,7 +1104,6 @@ int32 FPerforceConnection::EditPendingChangelist(const FText& NewDescription, in
 	// Get changelist current specification
 	{
 		TArray<FString> Params;
-		TOptional<FSharedBuffer> CommandData;
 		bool bConnectionDropped = false;
 		const ERunCommandFlags RunFlags = ERunCommandFlags::DisableCommandLogging;
 
@@ -946,7 +1111,7 @@ int32 FPerforceConnection::EditPendingChangelist(const FText& NewDescription, in
 		// TODO : make this work also for default changelist, but should really be a Create
 		Params.Add(FString::Printf(TEXT("%d"), ChangelistNumber));
 
-		if (!RunCommand(TEXT("change"), Params, PreviousRecords, CommandData, OutErrorMessages, InIsCancelled, bConnectionDropped, RunFlags))
+		if (!RunCommand(TEXT("change"), Params, PreviousRecords, nullptr, OutErrorMessages, InIsCancelled, bConnectionDropped, RunFlags))
 		{
 			return 0;
 		}
@@ -1049,13 +1214,12 @@ void FPerforceConnection::EstablishConnection(const FPerforceConnectionInfo& InC
 		TArray<FString> Params;
 		TArray<FText> ErrorMessages;
 		FP4RecordSet Records;
-		TOptional<FSharedBuffer> CommandData;
 		bool bConnectionDropped = false;
 		const ERunCommandFlags RunFlags = ERunCommandFlags::DisableCommandLogging;
 
 		UE_LOG(LogSourceControl, Verbose, TEXT(" ... checking unicode status" ));
 
-		if (RunCommand(TEXT("info"), Params, Records, CommandData, ErrorMessages, FOnIsCancelled(), bConnectionDropped, RunFlags))
+		if (RunCommand(TEXT("info"), Params, Records, nullptr, ErrorMessages, FOnIsCancelled(), bConnectionDropped, RunFlags))
 		{
 			// Get character encoding
 			bIsUnicode = Records[0].Find(TEXT("unicode")) != nullptr;
@@ -1088,7 +1252,7 @@ void FPerforceConnection::EstablishConnection(const FPerforceConnectionInfo& InC
 			// Gather the client root
 			UE_LOG(LogSourceControl, Verbose, TEXT(" ... getting info" ));
 			bConnectionDropped = false;
-			if (RunCommand(TEXT("info"), Params, Records, CommandData, ErrorMessages, FOnIsCancelled(), bConnectionDropped, RunFlags))
+			if (RunCommand(TEXT("info"), Params, Records, nullptr, ErrorMessages, FOnIsCancelled(), bConnectionDropped, RunFlags))
 			{
 				UE_LOG(LogSourceControl, Verbose, TEXT(" ... getting clientroot" ));
 				ClientRoot = Records[0](TEXT("clientRoot"));

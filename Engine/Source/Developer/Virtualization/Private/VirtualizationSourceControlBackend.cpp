@@ -204,13 +204,26 @@ static void CreateDescription(const FString& ProjectName, TArrayView<const FPush
 	return SCCProvider.GetState(DepotPaths, OutStates, EStateCacheUsage::Use);
 }
 
-/** Parse all error messages in a FSourceControlResultInfo and return true if the file not found error message is found */
-[[nodiscard]] static bool IsDepotFileMissing(const FSourceControlResultInfo& ResultInfo)
+/** 
+ * If the only reason we failed an operation is because of missing depot files then there
+ * is no point retrying that operation however other kinds of errors, such as connection
+ * problems, might be not be encountered if we try again.
+ * 
+ * @param ResultInfo	The results of a failed operation
+ * @return				True if there were no errors (as we don't really know what went wrong)
+ *						or if there errors not relating to missing files, otherwise false.
+ */
+[[nodiscard]] static bool ShouldRetryOperation(const FSourceControlResultInfo& ResultInfo)
 {
+	if (ResultInfo.ErrorMessages.IsEmpty())
+	{
+		return true;
+	}
+
 	// Ideally we'd parse for this sort of thing in the source control module itself and return an error enum
 	for (const FText& ErrorTest : ResultInfo.ErrorMessages)
 	{
-		if (ErrorTest.ToString().Find(" - no such file(s).") != INDEX_NONE)
+		if (ErrorTest.ToString().Find(" - no such file(s).") == INDEX_NONE)
 		{
 			return true;
 		}
@@ -352,66 +365,6 @@ bool FSourceControlBackend::PullData(TArrayView<FPullRequest> Requests)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlBackend::PullData);
 
-#if 0
-	TRACE_CPUPROFILER_EVENT_SCOPE(FSourceControlBackend::PullData);
-
-	for (FPullRequest& Request : Requests)
-	{
-		TStringBuilder<512> DepotPath;
-		CreateDepotPath(Request.Identifier, DepotPath);
-
-		// TODO: When multiple threads are blocked waiting on this we could gather X payloads together and make a single
-		// batch request on the same connection, which should be a lot faster with less overhead.
-		// Although ideally this backend will not get hit very often.
-		FSemaphoreScopeLock _(ConcurrentConnectionLimit.Get());
-
-		UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Attempting to pull '%s' from source control"), *GetDebugName(), *DepotPath);
-
-		int32 Retries = 0;
-
-		while (Retries < RetryCount)
-		{
-			// Only warn if the backend is configured to retry
-			if (Retries != 0)
-			{
-				UE_LOG(LogVirtualization, Warning, TEXT("[%s] Failed to download '%s' retrying (%d/%d) in %dms..."), *GetDebugName(), DepotPath.ToString(), Retries, RetryCount, RetryWaitTimeMS);
-				FPlatformProcess::SleepNoStats(RetryWaitTimeMS * 0.001f);
-			}
-
-#if IS_SOURCE_CONTROL_THREAD_SAFE
-			TSharedRef<FDownloadFile, ESPMode::ThreadSafe> DownloadCommand = ISourceControlOperation::Create<FDownloadFile>(FDownloadFile::EVerbosity::None);
-			if (SCCProvider->Execute(DownloadCommand, DepotPath.ToString(), EConcurrency::Synchronous) == ECommandResult::Succeeded)
-			{
-				// The payload was created by FCompressedBuffer::Compress so we can return it as a FCompressedBuffer.
-				FSharedBuffer Buffer = DownloadCommand->GetFileData(DepotPath);
-				return FCompressedBuffer::FromCompressed(Buffer);
-			}
-#else
-			TSharedRef<FDownloadFile> DownloadCommand = ISourceControlOperation::Create<FDownloadFile>(FDownloadFile::EVerbosity::None);
-			if (SCCProvider->TryToDownloadFileFromBackgroundThread(DownloadCommand, DepotPath.ToString()))
-			{
-				// The payload was created by FCompressedBuffer::Compress so we can return it as a FCompressedBuffer.
-				Request.Status = FPullRequest::EStatus::Success;
-				Request.Payload = FCompressedBuffer::FromCompressed(DownloadCommand->GetFileData(DepotPath));
-
-				break;
-			}
-#endif
-
-			// If this was the first try then check to see if the error being returns is that the file does not exist
-			// in the depot. If it does not exist then there is no point in us retrying and we can error out at this point.
-			if (Retries == 0 && IsDepotFileMissing(DownloadCommand->GetResultInfo()))
-			{
-				break;
-			}
-
-			Retries++;
-		}
-	}
-
-	return true;
-
-#else
 	TArray<FString> DepotPaths;
 	DepotPaths.Reserve(Requests.Num());
 
@@ -428,8 +381,6 @@ bool FSourceControlBackend::PullData(TArrayView<FPullRequest> Requests)
 	// Although ideally this backend will not get hit very often.
 	FSemaphoreScopeLock _(ConcurrentConnectionLimit.Get());
 
-//	UE_LOG(LogVirtualization, Verbose, TEXT("[%s] Attempting to pull '%s' from source control"), *GetDebugName(), *DepotPath);
-
 	int32 Retries = 0;
 
 	while (Retries < RetryCount)
@@ -443,44 +394,37 @@ bool FSourceControlBackend::PullData(TArrayView<FPullRequest> Requests)
 
 #if IS_SOURCE_CONTROL_THREAD_SAFE
 		TSharedRef<FDownloadFile, ESPMode::ThreadSafe> DownloadCommand = ISourceControlOperation::Create<FDownloadFile>(FDownloadFile::EVerbosity::None);
-		if (SCCProvider->Execute(DownloadCommand, DepotPath.ToString(), EConcurrency::Synchronous) == ECommandResult::Succeeded)
-		{
-			// The payload was created by FCompressedBuffer::Compress so we can return it as a FCompressedBuffer.
-			FSharedBuffer Buffer = DownloadCommand->GetFileData(DepotPath);
-
-			Request.Payload = FCompressedBuffer::FromCompressed(Buffer);
-			Request.Status = FPullRequest::EStatus::Success;
-		}
+		const bool bOperationSuccess = SCCProvider->Execute(DownloadCommand, DepotPaths, EConcurrency::Synchronous) == ECommandResult::Succeeded;
 #else
 		TSharedRef<FDownloadFile> DownloadCommand = ISourceControlOperation::Create<FDownloadFile>(FDownloadFile::EVerbosity::None);
-		if (SCCProvider->TryToDownloadFileFromBackgroundThread(DownloadCommand, DepotPaths))
-		{
-			for(int32 Index = 0; Index < Requests.Num(); ++Index)
-			{
-				// The payload was created by FCompressedBuffer::Compress so we can return it as a FCompressedBuffer.
-				FSharedBuffer Buffer = DownloadCommand->GetFileData(DepotPaths[Index]);
-
-				Requests[Index].SetPayload(FCompressedBuffer::FromCompressed(Buffer));
-			}
-
-			break;
-		}
+		const bool bOperationSuccess = SCCProvider->TryToDownloadFileFromBackgroundThread(DownloadCommand, DepotPaths);
 #endif
+
+		// Check and assign what payloads we did find, even if the download command failed we might have been able to download some
+		// files and since we found them we might as well return them.
+		for(int32 Index = 0; Index < Requests.Num(); ++Index)
+		{
+			// The payload was created by FCompressedBuffer::Compress so we can return it as a FCompressedBuffer.
+			FSharedBuffer Buffer = DownloadCommand->GetFileData(DepotPaths[Index]);
+			Requests[Index].SetPayload(FCompressedBuffer::FromCompressed(Buffer));
+		}
+
+		if (bOperationSuccess)
+		{
+			return true;
+		}
 
 		// If this was the first try then check to see if the error being returns is that the file does not exist
 		// in the depot. If it does not exist then there is no point in us retrying and we can error out at this point.
-		if (Retries == 0 && IsDepotFileMissing(DownloadCommand->GetResultInfo()))
+		if (Retries == 0 && !ShouldRetryOperation(DownloadCommand->GetResultInfo()))
 		{
-			break;
+			return false;
 		}
 
 		Retries++;
 	}
 
-	// TODO -  Should we error here if the payload failed? 
-
-	return true;
-#endif
+	return false;
 }
 
 bool FSourceControlBackend::DoesPayloadExist(const FIoHash& Id)
