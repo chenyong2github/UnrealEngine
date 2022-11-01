@@ -799,6 +799,9 @@ public:
 	virtual void SetEditRenderType() override { GLandscapeEditRenderMode = ELandscapeEditRenderMode::None | (GLandscapeEditRenderMode & ELandscapeEditRenderMode::BitMaskForMask); }
 	virtual bool SupportsMask() override { return false; }
 
+	// Sphere traces can result in components being added at a good distance from any neighboring components, because it intersects against a virtual plane
+	virtual bool UseSphereTrace() override { return false; }
+
 	virtual bool CanToolBeActivated() const override
 	{ 
 		return FLandscapeToolBase<FLandscapeToolStrokeAddComponent>::CanToolBeActivated() && bIsToolActionResolutionCompliant;
