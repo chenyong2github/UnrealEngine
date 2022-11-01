@@ -28,6 +28,7 @@ namespace Metasound
 		METASOUND_PARAM(InputAttackCurve, "Attack Curve", "The exponential curve factor of the attack. 1.0 = linear growth, < 1.0 logorithmic growth, > 1.0 exponential growth.");
 		METASOUND_PARAM(InputDecayCurve, "Decay Curve", "The exponential curve factor of the decay. 1.0 = linear decay, < 1.0 exponential decay, > 1.0 logarithmic decay.");
 		METASOUND_PARAM(InputLooping, "Looping", "Set to true to enable looping of the envelope. This will allow the envelope to be an LFO or wave generator.");
+		METASOUND_PARAM(InputHardReset, "Hard Reset", "Set to true to always reset the envelope level to 0 when triggering.");
 
 		METASOUND_PARAM(OutputOnTrigger, "On Trigger", "Triggers when the envelope is triggered.");
 		METASOUND_PARAM(OutputOnDone, "On Done", "Triggers when the envelope finishes or loops back if looping is enabled.");
@@ -58,6 +59,7 @@ namespace Metasound
 			float CurrentEnvelopeValue = 0.0f;
 
 			bool bLooping = false;
+			bool bHardReset = false;
 		};
 
 		template<typename ValueType>
@@ -143,8 +145,15 @@ namespace Metasound
 						float AttackFraction = (float)InState.CurrentSampleIndex++ / InState.AttackSampleCount;
 						float EnvValue = FMath::Pow(AttackFraction, InState.AttackCurveFactor);
 						float TargetEnvelopeValue = InState.StartingEnvelopeValue + (1.0f - InState.StartingEnvelopeValue) * EnvValue;
-						InState.EnvEase.SetValue(TargetEnvelopeValue);
-						InState.CurrentEnvelopeValue = InState.EnvEase.GetNextValue();
+						if (InState.bHardReset)
+						{
+							InState.CurrentEnvelopeValue = TargetEnvelopeValue;
+						}
+						else
+						{
+							InState.EnvEase.SetValue(TargetEnvelopeValue);
+							InState.CurrentEnvelopeValue = InState.EnvEase.GetNextValue();
+						}
 						OutEnvPtr[i] = InState.CurrentEnvelopeValue;
 					}
 					else 
@@ -157,8 +166,15 @@ namespace Metasound
 							int32 SampleCountInDecayState = InState.CurrentSampleIndex++ - InState.AttackSampleCount;
 							float DecayFracton = (float)SampleCountInDecayState / InState.DecaySampleCount;
 							float TargetEnvelopeValue = 1.0f - FMath::Pow(DecayFracton, InState.DecayCurveFactor);
-							InState.EnvEase.SetValue(TargetEnvelopeValue);
-							InState.CurrentEnvelopeValue = InState.EnvEase.GetNextValue();
+							if (InState.bHardReset)
+							{
+								InState.CurrentEnvelopeValue = TargetEnvelopeValue;
+							}
+							else
+							{
+								InState.EnvEase.SetValue(TargetEnvelopeValue);
+								InState.CurrentEnvelopeValue = InState.EnvEase.GetNextValue();
+							}
 							OutEnvPtr[i] = InState.CurrentEnvelopeValue;
 						}
 						// We are looping so reset the sample index
@@ -171,11 +187,11 @@ namespace Metasound
 						}
 						else
 						{
-							InState.CurrentEnvelopeValue = InState.EnvEase.GetNextValue();
+							InState.CurrentEnvelopeValue = InState.bHardReset ? 0 : InState.EnvEase.GetNextValue();
 							OutEnvPtr[i] = InState.CurrentEnvelopeValue;
 
 							// Envelope is done
-							if (InState.EnvEase.IsDone())
+							if (InState.EnvEase.IsDone() || InState.bHardReset)
 							{
 								// Zero out the rest of the envelope
 								int32 NumSamplesLeft = EndFrame - i - 1;
@@ -211,7 +227,8 @@ namespace Metasound
 					TInputDataVertex<FTime>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputDecayTime), 1.0f),
 					TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputAttackCurve), 1.0f),
 					TInputDataVertex<float>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputDecayCurve), 1.0f),
-					TInputDataVertex<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputLooping), false)
+					TInputDataVertex<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputLooping), false),
+					TInputDataVertex<bool>(METASOUND_GET_PARAM_NAME_AND_METADATA(InputHardReset), false)
 				),
 				FOutputVertexInterface(
 					TOutputDataVertex<FTrigger>(METASOUND_GET_PARAM_NAME_AND_METADATA(OutputOnTrigger)),
@@ -267,8 +284,9 @@ namespace Metasound
 			FFloatReadRef AttackCurveFactor = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputAttackCurve), InParams.OperatorSettings);
 			FFloatReadRef DecayCurveFactor = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<float>(InputInterface, METASOUND_GET_PARAM_NAME(InputDecayCurve), InParams.OperatorSettings);
 			FBoolReadRef bLooping = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, METASOUND_GET_PARAM_NAME(InputLooping), InParams.OperatorSettings);
+			FBoolReadRef bHardReset = InParams.InputDataReferences.GetDataReadReferenceOrConstructWithVertexDefault<bool>(InputInterface, METASOUND_GET_PARAM_NAME(InputHardReset), InParams.OperatorSettings);
 
-			return MakeUnique<TADEnvelopeNodeOperator<ValueType>>(InParams.OperatorSettings, TriggerIn, AttackTime, DecayTime, AttackCurveFactor, DecayCurveFactor, bLooping);
+			return MakeUnique<TADEnvelopeNodeOperator<ValueType>>(InParams.OperatorSettings, TriggerIn, AttackTime, DecayTime, AttackCurveFactor, DecayCurveFactor, bLooping, bHardReset);
 		}
 
 		TADEnvelopeNodeOperator(const FOperatorSettings& InSettings,
@@ -277,13 +295,15 @@ namespace Metasound
 			const FTimeReadRef& InDecayTime,
 			const FFloatReadRef& InAttackCurveFactor,
 			const FFloatReadRef& InDecayeCurveFactor,
-			const FBoolReadRef& bInLooping)
+			const FBoolReadRef& bInLooping,
+			const FBoolReadRef& bInHardReset)
 			: TriggerAttackIn(InTriggerIn)
 			, AttackTime(InAttackTime)
 			, DecayTime(InDecayTime)
 			, AttackCurveFactor(InAttackCurveFactor)
 			, DecayCurveFactor(InDecayeCurveFactor)
 			, bLooping(bInLooping)
+			, bHardReset(bInHardReset)
 			, OnAttackTrigger(TDataWriteReferenceFactory<FTrigger>::CreateAny(InSettings))
 			, OnDone(TDataWriteReferenceFactory<FTrigger>::CreateAny(InSettings))
 			, OutputEnvelope(TDataWriteReferenceFactory<ValueType>::CreateAny(InSettings))
@@ -315,6 +335,7 @@ namespace Metasound
 			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputAttackCurve), AttackCurveFactor);
 			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputDecayCurve), DecayCurveFactor);
 			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputLooping), bLooping);
+			Inputs.AddDataReadReference(METASOUND_GET_PARAM_NAME(InputHardReset), bHardReset);
 
 			return Inputs;
 		}
@@ -340,6 +361,7 @@ namespace Metasound
 			EnvState.AttackCurveFactor = FMath::Max(KINDA_SMALL_NUMBER, *AttackCurveFactor);
 			EnvState.DecayCurveFactor = FMath::Max(KINDA_SMALL_NUMBER, *DecayCurveFactor);
 			EnvState.bLooping = *bLooping;
+			EnvState.bHardReset = *bHardReset;
 		}
 
 
@@ -373,7 +395,7 @@ namespace Metasound
 
 					// Set the sample index to the top of the envelope
 					EnvState.CurrentSampleIndex = 0;
-					EnvState.StartingEnvelopeValue = EnvState.CurrentEnvelopeValue;
+					EnvState.StartingEnvelopeValue = EnvState.bHardReset ? 0 : EnvState.CurrentEnvelopeValue;
 
 					// Generate the output (this will no-op if we're block rate)
 					TArray<int32> FinishedFrames;
@@ -397,6 +419,7 @@ namespace Metasound
 		FFloatReadRef AttackCurveFactor;
 		FFloatReadRef DecayCurveFactor;
 		FBoolReadRef bLooping;
+		FBoolReadRef bHardReset;
 
 		FTriggerWriteRef OnAttackTrigger;
 		FTriggerWriteRef OnDone;
