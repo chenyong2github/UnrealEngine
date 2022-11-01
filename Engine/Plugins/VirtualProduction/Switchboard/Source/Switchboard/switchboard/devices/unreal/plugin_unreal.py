@@ -422,6 +422,15 @@ class DeviceUnreal(Device):
                 "Expects an absolute path to the device directory containing the ugs.dll library file. \n"
                 "If left blank, switchboard will attempt to find UGS by searching the system PATH and default install locations. \n"
                 "On Windows, the default install location is '${LOCALAPPDATA}/UnrealGameSync/Latest/'.")
+        ),
+        'slate_allow_throttling': BoolSetting(
+            attr_name='slate_allow_throttling',
+            nice_name='Allow Slate Throttling',
+            value=False,
+            tool_tip=(
+                'Sets the Slate.bAllowThrottling cvar. When unchecked, the Editor viewports do not freeze/throttle \n'
+                'during certain operations. Not thottling is typically desired when using the Editor in \n'
+                'a virtual production stage.\n')
         )
         
     }
@@ -1486,6 +1495,10 @@ class DeviceUnreal(Device):
                 dp_cvars.append('r.AllowMultiGPUInEditor=1')
         except ValueError:
             LOGGER.warning(f"Invalid Number of GPUs '{max_gpu_count}'")
+
+        # Slate.bAllowThrottling. Makes ICVFX panel and Vcam more responsive to Editor interactive changes.
+        slate_allow_throttling = DeviceUnreal.csettings["slate_allow_throttling"].get_value()
+        dp_cvars.append(f'Slate.bAllowThrottling={int(slate_allow_throttling)}')
 
         # Add user set dp cvars, overriding any of the forced ones.
         user_dp_cvars = DeviceUnreal.csettings["dp_cvars"].get_value(self.name)
