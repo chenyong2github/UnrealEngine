@@ -414,6 +414,11 @@ bool FPlasticSourceControlProvider::UsesFileRevisions() const
 	return true;
 }
 
+bool FPlasticSourceControlProvider::AllowsDiffAgainstDepot() const
+{
+	return true;
+}
+
 TOptional<bool> FPlasticSourceControlProvider::IsAtLatestRevision() const
 {
 	return TOptional<bool>();

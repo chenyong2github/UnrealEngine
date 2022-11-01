@@ -507,13 +507,30 @@ bool FConcertSourceControlProxy::UsesFileRevisions() const
 	return false;
 }
 
+bool FConcertSourceControlProxy::AllowsDiffAgainstDepot() const
+{
+	if (ActualProvider)
+	{
+		return ActualProvider->AllowsDiffAgainstDepot();
+	}
+	return true;
+}
+
 TOptional<bool> FConcertSourceControlProxy::IsAtLatestRevision() const
 {
+	if (ActualProvider)
+	{
+		return ActualProvider->IsAtLatestRevision();
+	}
 	return TOptional<bool>();
 }
 
 TOptional<int> FConcertSourceControlProxy::GetNumLocalChanges() const
 {
+	if (ActualProvider)
+	{
+		return ActualProvider->GetNumLocalChanges();
+	}
 	return TOptional<int>();
 }
 

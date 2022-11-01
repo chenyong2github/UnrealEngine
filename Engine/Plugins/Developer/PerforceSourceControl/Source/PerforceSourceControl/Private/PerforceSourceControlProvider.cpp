@@ -496,6 +496,11 @@ bool FPerforceSourceControlProvider::UsesFileRevisions() const
 	return true;
 }
 
+bool FPerforceSourceControlProvider::AllowsDiffAgainstDepot() const
+{
+	return true;
+}
+
 TOptional<bool> FPerforceSourceControlProvider::IsAtLatestRevision() const
 {
 	return TOptional<bool>();

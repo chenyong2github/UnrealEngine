@@ -235,7 +235,8 @@ bool FSourceControlWindows::PromptForCheckin(FCheckinResultInfo& OutResultInfo, 
 					return SourceControlProvider.UsesFileRevisions();
 				}
 				return true;
-			});
+			})
+		.AllowDiffAgainstDepot(SourceControlProvider.AllowsDiffAgainstDepot());
 
 	NewWindow->SetContent(
 		SourceControlWidget

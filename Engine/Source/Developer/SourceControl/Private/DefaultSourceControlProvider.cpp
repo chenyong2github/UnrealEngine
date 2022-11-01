@@ -99,6 +99,11 @@ bool FDefaultSourceControlProvider::UsesFileRevisions() const
 	return true;
 }
 
+bool FDefaultSourceControlProvider::AllowsDiffAgainstDepot() const
+{
+	return true;
+}
+
 TOptional<bool> FDefaultSourceControlProvider::IsAtLatestRevision() const
 {
 	return TOptional<bool>();

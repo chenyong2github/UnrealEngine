@@ -35,6 +35,7 @@ public:
 	virtual bool UsesChangelists() const override;
 	virtual bool UsesCheckout() const override;
 	virtual bool UsesFileRevisions() const override;
+	virtual bool AllowsDiffAgainstDepot() const override;
 	virtual TOptional<bool> IsAtLatestRevision() const override;
 	virtual TOptional<int> GetNumLocalChanges() const override;
 	virtual void Tick() override;

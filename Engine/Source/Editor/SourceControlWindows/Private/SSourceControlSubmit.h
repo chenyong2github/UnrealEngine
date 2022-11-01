@@ -60,6 +60,7 @@ public:
 		, _AllowKeepCheckedOut(true)
 		, _AllowSubmit(true)
 		, _AllowSaveAndClose(false)
+		, _AllowDiffAgainstDepot(true)
 	{}
 
 		SLATE_ATTRIBUTE(TSharedPtr<SWindow>, ParentWindow)
@@ -73,6 +74,7 @@ public:
 		SLATE_ATTRIBUTE(bool, AllowKeepCheckedOut)
 		SLATE_ATTRIBUTE(bool, AllowSubmit)
 		SLATE_ATTRIBUTE(bool, AllowSaveAndClose)
+		SLATE_ATTRIBUTE(bool, AllowDiffAgainstDepot)
 
 	SLATE_END_ARGS()
 
@@ -194,6 +196,9 @@ private:
 
 	/** Whether the submit button should be enabled or not */
 	bool bAllowSubmit;
+
+	/** Whether a diff against the depot may be performed from within the submit dialog */
+	bool bAllowDiffAgainstDepot;
 
 	/** Specify which column to sort with */
 	FName SortByColumn;

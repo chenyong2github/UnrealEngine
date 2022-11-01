@@ -228,6 +228,11 @@ bool FSubversionSourceControlProvider::UsesFileRevisions() const
 	return true;
 }
 
+bool FSubversionSourceControlProvider::AllowsDiffAgainstDepot() const
+{
+	return true;
+}
+
 TOptional<bool> FSubversionSourceControlProvider::IsAtLatestRevision() const
 {
 	return TOptional<bool>();

@@ -141,6 +141,7 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 		GSavedChangeListDescription = InArgs._Description.Get();
 	}
 	bAllowSubmit = InArgs._AllowSubmit.Get();
+	bAllowDiffAgainstDepot = InArgs._AllowDiffAgainstDepot.Get();
 
 	const bool bDescriptionIsReadOnly = !InArgs._AllowDescriptionChange.Get();
 	const bool bAllowUncheckFiles = InArgs._AllowUncheckFiles.Get();
@@ -452,10 +453,13 @@ TSharedPtr<SWidget> SSourceControlSubmitWidget::OnCreateContextMenu()
 bool SSourceControlSubmitWidget::CanDiffAgainstDepot() const
 {
 	bool bCanDiff = false;
-	const auto& SelectedItems = ListView->GetSelectedItems();
-	if (SelectedItems.Num() == 1)
+	if (bAllowDiffAgainstDepot)
 	{
-		bCanDiff = SelectedItems[0]->CanDiff();
+		const auto& SelectedItems = ListView->GetSelectedItems();
+		if (SelectedItems.Num() == 1)
+		{
+			bCanDiff = SelectedItems[0]->CanDiff();
+		}
 	}
 	return bCanDiff;
 }
@@ -471,21 +475,24 @@ void SSourceControlSubmitWidget::OnDiffAgainstDepot()
 
 void SSourceControlSubmitWidget::OnDiffAgainstDepotSelected(TSharedPtr<FFileTreeItem> InSelectedItem)
 {
-	FString PackageName;
-	if (FPackageName::TryConvertFilenameToLongPackageName(InSelectedItem->GetFileName().ToString(), PackageName))
+	if (bAllowDiffAgainstDepot)
 	{
-		TArray<FAssetData> Assets;
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		AssetRegistryModule.Get().GetAssetsByPackageName(*PackageName, Assets);
-		if (Assets.Num() == 1)
+		FString PackageName;
+		if (FPackageName::TryConvertFilenameToLongPackageName(InSelectedItem->GetFileName().ToString(), PackageName))
 		{
-			const FAssetData& AssetData = Assets[0];
-			UObject* CurrentObject = AssetData.GetAsset();
-			if (CurrentObject)
+			TArray<FAssetData> Assets;
+			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+			AssetRegistryModule.Get().GetAssetsByPackageName(*PackageName, Assets);
+			if (Assets.Num() == 1)
 			{
-				const FString AssetName = AssetData.AssetName.ToString();
-				FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
-				AssetToolsModule.Get().DiffAgainstDepot(CurrentObject, PackageName, AssetName);
+				const FAssetData& AssetData = Assets[0];
+				UObject* CurrentObject = AssetData.GetAsset();
+				if (CurrentObject)
+				{
+					const FString AssetName = AssetData.AssetName.ToString();
+					FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
+					AssetToolsModule.Get().DiffAgainstDepot(CurrentObject, PackageName, AssetName);
+				}
 			}
 		}
 	}

@@ -339,6 +339,11 @@ public:
 	virtual bool UsesFileRevisions() const = 0;
 
 	/**
+	 * Whether the provider allow a diff between a changed file and the depot
+	 */
+	virtual bool AllowsDiffAgainstDepot() const = 0;
+
+	/**
 	 * Whether the current source control client is at the latest version 
 	 * @note This concept is currently only implemented for the Skein source control provider.
 	 * 
