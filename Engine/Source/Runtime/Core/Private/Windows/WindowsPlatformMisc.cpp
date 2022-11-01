@@ -2608,7 +2608,7 @@ static void GetVideoDriverDetailsFromSetup(const FString& DeviceName, FGPUDriver
 
 	if(Out.IsNVIDIA())
 	{
-		Out.UserDriverVersion = Out.GetUnifiedDriverVersion();
+		Out.UserDriverVersion = Out.TrimNVIDIAInternalVersion(Out.InternalDriverVersion);
 	}
 	else if(Out.IsAMD() && !RegistryKey.IsEmpty())
 	{
