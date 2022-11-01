@@ -12,7 +12,7 @@ namespace UnrealBuildTool.Rules
 			//string VSVersion = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 
 			//// Add includes
-			//PublicIncludePaths.Add(Path.Combine(OpenSSL111kPath, "include", PlatformSubdir, VSVersion));
+			//PublicSystemIncludePaths.Add(Path.Combine(OpenSSL111kPath, "include", PlatformSubdir, VSVersion));
 
 			//// Add Libs
 			//string LibPath = Path.Combine(OpenSSL111kPath, "lib", PlatformSubdir, VSVersion, ConfigFolder);
