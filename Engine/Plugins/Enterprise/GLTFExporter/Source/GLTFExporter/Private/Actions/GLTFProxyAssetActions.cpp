@@ -8,55 +8,68 @@
 #include "Options/GLTFProxyOptions.h"
 #include "UI/GLTFProxyOptionsWindow.h"
 #include "Converters/GLTFMaterialProxyFactory.h"
+#include "ContentBrowserMenuContexts.h"
 #include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "GLTFProxyAssetActions"
 
-FGLTFProxyAssetActions::FGLTFProxyAssetActions(const TSharedRef<IAssetTypeActions>& OriginalActions)
-	: OriginalActions(OriginalActions)
+FName FGLTFProxyAssetActions::MenuName = TEXT("ContentBrowser.AssetContextMenu.MaterialInterface");
+FName FGLTFProxyAssetActions::SectionName = TEXT("GetAssetActions");
+FName FGLTFProxyAssetActions::EntryName = TEXT("MenuEntry_CreateProxy");
+
+void FGLTFProxyAssetActions::AddMenuEntry()
 {
+	UToolMenus* ToolMenus = UToolMenus::TryGet();
+	if (ToolMenus == nullptr)
+	{
+		return;
+	}
+
+	UToolMenu* Menu = ToolMenus->ExtendMenu(MenuName);
+	FToolMenuSection& Section = Menu->FindOrAddSection(SectionName);
+	Section.AddDynamicEntry(EntryName, FNewToolMenuSectionDelegate::CreateStatic(&FGLTFProxyAssetActions::OnConstructMenu));
 }
 
-void FGLTFProxyAssetActions::GetActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
+void FGLTFProxyAssetActions::RemoveMenuEntry()
 {
-	OriginalActions->GetActions(InObjects, Section);
-	GetProxyActions(InObjects, Section);
+	UToolMenus* ToolMenus = UToolMenus::TryGet();
+	if (ToolMenus == nullptr)
+	{
+		return;
+	}
+
+	ToolMenus->RemoveEntry(MenuName, SectionName, EntryName);
 }
 
-void FGLTFProxyAssetActions::GetProxyActions(const TArray<UObject*>& InObjects, FToolMenuSection& Section)
+void FGLTFProxyAssetActions::OnConstructMenu(FToolMenuSection& MenuSection)
 {
-	const TArray<FWeakObjectPtr> Objects(InObjects);
-
-	Section.AddMenuEntry(
-		"MenuEntry_CreateProxy",
-		LOCTEXT("MenuEntry_CreateProxy", "Create glTF Proxy Material"),
-		LOCTEXT("MenuEntry_CreateProxyTooltip", "Creates a proxy version of this material for glTF export."),
-		FSlateIcon(FGLTFEditorStyle::Get().GetStyleSetName(), "Icon16"),
-		FUIAction(FExecuteAction::CreateSP(this, &FGLTFProxyAssetActions::OnCreateProxy, Objects))
-		);
+	const TAttribute<FText> Label = LOCTEXT("MenuEntry_CreateProxy", "Create glTF Proxy Material");
+	const TAttribute<FText> ToolTip = LOCTEXT("MenuEntry_CreateProxyTooltip", "Creates a proxy version of this material for glTF export.");
+	const FSlateIcon Icon = FSlateIcon(FGLTFEditorStyle::Get().GetStyleSetName(), TEXT("Icon16"));
+	const FToolMenuExecuteAction Action = FToolMenuExecuteAction::CreateStatic(&FGLTFProxyAssetActions::OnExecuteAction);
+	MenuSection.AddMenuEntry("MenuEntry_CreateProxy", Label, ToolTip, Icon, Action);
 }
 
-void FGLTFProxyAssetActions::OnCreateProxy(TArray<FWeakObjectPtr> Objects) const
+void FGLTFProxyAssetActions::OnExecuteAction(const FToolMenuContext& MenuContext)
 {
+	const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(MenuContext);
+	if (Context == nullptr)
+	{
+		return;
+	}
+
 	UGLTFProxyOptions* Options = NewObject<UGLTFProxyOptions>();
-
 	if (!SGLTFProxyOptionsWindow::ShowDialog(Options))
 	{
 		return;
 	}
 
 	FGLTFMaterialProxyFactory ProxyFactory(Options);
-
-	for (const FWeakObjectPtr& Object : Objects)
+	for (UMaterialInterface* Material : Context->LoadSelectedObjects<UMaterialInterface>())
 	{
-		if (UMaterialInterface* Material = Cast<UMaterialInterface>(Object.Get()))
-		{
-			ProxyFactory.RootPath = FPaths::GetPath(Material->GetPathName()) / TEXT("GLTF");
-			ProxyFactory.Create(Material);
-		}
+		ProxyFactory.RootPath = FPaths::GetPath(Material->GetPathName()) / TEXT("GLTF");
+		ProxyFactory.Create(Material);
 	}
-
-	ProxyFactory.OpenLog();
 }
 
 #undef LOCTEXT_NAMESPACE

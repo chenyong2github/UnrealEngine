@@ -30,63 +30,17 @@ public:
 		AddShaderSourceDirectoryMapping(TEXT("/Plugin/GLTFExporter"), PluginShaderDir);
 
 #if WITH_EDITOR
-		// TODO: UI and editor-only functions should be moved (as much as possible) into its own module
-		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FGLTFExporterModule::PostEngineInit);
+		// TODO: UI and editor-only functions should be moved (as much as possible) into their own module
+		FCoreDelegates::OnPostEngineInit.AddStatic(&FGLTFProxyAssetActions::AddMenuEntry);
 #endif
 	}
-
-#if WITH_EDITOR
-	void PostEngineInit()
-	{
-		AddProxyAssetActions();
-	}
-
-	void AddProxyAssetActions()
-	{
-		if (FAssetToolsModule::IsModuleLoaded())
-		{
-			IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
-
-			// TODO: add support for when GetAssetTypeActionsForClass returns null pointer
-			AssetTypeActionsArray.Add(MakeShared<FGLTFProxyAssetActions>(AssetTools.GetAssetTypeActionsForClass(UMaterial::StaticClass()).Pin().ToSharedRef()));
-			AssetTypeActionsArray.Add(MakeShared<FGLTFProxyAssetActions>(AssetTools.GetAssetTypeActionsForClass(UMaterialInstanceConstant::StaticClass()).Pin().ToSharedRef()));
-			AssetTypeActionsArray.Add(MakeShared<FGLTFProxyAssetActions>(AssetTools.GetAssetTypeActionsForClass(UMaterialInstanceDynamic::StaticClass()).Pin().ToSharedRef()));
-			AssetTypeActionsArray.Add(MakeShared<FGLTFProxyAssetActions>(AssetTools.GetAssetTypeActionsForClass(UMaterialInterface::StaticClass()).Pin().ToSharedRef()));
-
-			for (TSharedRef<IAssetTypeActions>& AssetTypeActions : AssetTypeActionsArray)
-			{
-				AssetTools.RegisterAssetTypeActions(AssetTypeActions);
-			}
-		}
-	}
-
-	void RemoveProxyAssetActions()
-	{
-		if (FAssetToolsModule::IsModuleLoaded())
-		{
-			IAssetTools& AssetTools = FAssetToolsModule::GetModule().Get();
-			for (TSharedRef<IAssetTypeActions>& AssetTypeActions : AssetTypeActionsArray)
-			{
-				AssetTools.UnregisterAssetTypeActions(AssetTypeActions);
-			}
-		}
-
-		AssetTypeActionsArray.Empty();
-	}
-#endif
 
 	virtual void ShutdownModule() override
 	{
 #if WITH_EDITOR
-		RemoveProxyAssetActions();
+		FGLTFProxyAssetActions::RemoveMenuEntry();
 #endif
 	}
-
-private:
-
-#if WITH_EDITOR
-	TArray<TSharedRef<IAssetTypeActions>> AssetTypeActionsArray;
-#endif
 };
 
 IMPLEMENT_MODULE(FGLTFExporterModule, GLTFExporter);
