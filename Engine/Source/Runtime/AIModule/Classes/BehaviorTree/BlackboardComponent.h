@@ -70,13 +70,13 @@ public:
 	bool HasValidAsset() const;
 
 	/** register observer for blackboard key */
-	FDelegateHandle RegisterObserver(FBlackboard::FKey KeyID, UObject* NotifyOwner, FOnBlackboardChangeNotification ObserverDelegate);
+	FDelegateHandle RegisterObserver(FBlackboard::FKey KeyID, const UObject* NotifyOwner, FOnBlackboardChangeNotification ObserverDelegate);
 
 	/** unregister observer from blackboard key */
 	void UnregisterObserver(FBlackboard::FKey KeyID, FDelegateHandle ObserverHandle);
 
 	/** unregister all observers associated with given owner */
-	void UnregisterObserversFrom(UObject* NotifyOwner);
+	void UnregisterObserversFrom(const UObject* NotifyOwner);
 
 	/** pause observer change notifications, any new ones will be added to a queue */
 	void PauseObserverNotifications();
@@ -97,7 +97,7 @@ public:
 	bool InitializeBlackboard(UBlackboardData& NewAsset);
 	
 	/** @return true if component can be used with specified blackboard asset */
-	bool IsCompatibleWith(UBlackboardData* TestAsset) const;
+	bool IsCompatibleWith(const UBlackboardData* TestAsset) const;
 
 	UFUNCTION(BlueprintCallable, Category="AI|Components|Blackboard")
 	UObject* GetValueAsObject(const FName& KeyName) const;
@@ -276,7 +276,7 @@ protected:
 	mutable TMultiMap<uint8, FOnBlackboardChangeNotificationInfo> Observers;
 	
 	/** observers registered from owner objects */
-	mutable TMultiMap<UObject*, FDelegateHandle> ObserverHandles;
+	mutable TMultiMap<const UObject*, FDelegateHandle> ObserverHandles;
 
 	/** queued key change notification, will be processed on ResumeUpdates call */
 	mutable TArray<uint8> QueuedUpdates;
@@ -436,7 +436,7 @@ public:
 	FBBKeyCachedAccessor() : BBKey(FBlackboard::InvalidKey), CachedValue(TBlackboardKey::InvalidValue)
 	{}
 
-	FBBKeyCachedAccessor(UBlackboardComponent& BBComponent, FBlackboard::FKey InBBKey)
+	FBBKeyCachedAccessor(const UBlackboardComponent& BBComponent, FBlackboard::FKey InBBKey)
 	{
 		ensure(InBBKey != FBlackboard::InvalidKey);
 		if (ensure(BBComponent.IsKeyOfType<TBlackboardKey>(InBBKey)))

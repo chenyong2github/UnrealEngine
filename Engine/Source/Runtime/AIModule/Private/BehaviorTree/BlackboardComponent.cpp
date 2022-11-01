@@ -294,7 +294,7 @@ FBlackboard::FKey UBlackboardComponent::GetKeyID(const FName& KeyName) const
 
 TSubclassOf<UBlackboardKeyType> UBlackboardComponent::GetKeyType(FBlackboard::FKey KeyID) const
 {
-	return BlackboardAsset ? BlackboardAsset->GetKeyType(KeyID) : NULL;
+	return BlackboardAsset ? BlackboardAsset->GetKeyType(KeyID) : nullptr;
 }
 
 bool UBlackboardComponent::IsKeyInstanceSynced(FBlackboard::FKey KeyID) const
@@ -307,7 +307,7 @@ int32 UBlackboardComponent::GetNumKeys() const
 	return BlackboardAsset ? BlackboardAsset->GetNumKeys() : 0;
 }
 
-FDelegateHandle UBlackboardComponent::RegisterObserver(FBlackboard::FKey KeyID, UObject* NotifyOwner, FOnBlackboardChangeNotification ObserverDelegate)
+FDelegateHandle UBlackboardComponent::RegisterObserver(FBlackboard::FKey KeyID, const UObject* NotifyOwner, FOnBlackboardChangeNotification ObserverDelegate)
 {
 	for (auto It = Observers.CreateConstKeyIterator(KeyID); It; ++It)
 	{
@@ -354,7 +354,7 @@ void UBlackboardComponent::UnregisterObserver(FBlackboard::FKey KeyID, FDelegate
 	}
 }
 
-void UBlackboardComponent::UnregisterObserversFrom(UObject* NotifyOwner)
+void UBlackboardComponent::UnregisterObserversFrom(const UObject* NotifyOwner)
 {
 	for (auto It = ObserverHandles.CreateKeyIterator(NotifyOwner); It; ++It)
 	{
@@ -482,7 +482,7 @@ void UBlackboardComponent::NotifyObservers(FBlackboard::FKey KeyID) const
 	}
 }
 
-bool UBlackboardComponent::IsCompatibleWith(UBlackboardData* TestAsset) const
+bool UBlackboardComponent::IsCompatibleWith(const UBlackboardData* TestAsset) const
 {
 	for (UBlackboardData* It = BlackboardAsset; It; It = It->Parent)
 	{
