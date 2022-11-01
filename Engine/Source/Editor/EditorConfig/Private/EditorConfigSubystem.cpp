@@ -51,12 +51,13 @@ void UEditorConfigSubsystem::Tick(float DeltaTime)
 		Save.TimeSinceQueued += DeltaTime;
 
 		const float SaveDelaySeconds = 3.0f;
-		if (Save.TimeSinceQueued > SaveDelaySeconds)
+		if (Save.TimeSinceQueued > SaveDelaySeconds && 
+			!Save.WasSuccess.IsValid())
 		{
 			const FString* FilePath = LoadedConfigs.FindKey(Save.Config);
 			check(FilePath != nullptr);
 			
-			Save.WasSuccess = Async(EAsyncExecution::Thread, 
+			Save.WasSuccess = Async(EAsyncExecution::TaskGraph, 
 				[Config = Save.Config, File = *FilePath]()
 				{
 					return Config->SaveToFile(File);
@@ -249,7 +250,7 @@ void UEditorConfigSubsystem::SaveConfig(TSharedRef<FEditorConfig> Config)
 	if (Existing != nullptr)
 	{
 		// reset the timer if we're saving within the grace period and no save is already being executed
-		if (!Existing->WasSuccess.IsReady())
+		if (!Existing->WasSuccess.IsValid())
 		{
 			Existing->TimeSinceQueued = 0;
 		}
