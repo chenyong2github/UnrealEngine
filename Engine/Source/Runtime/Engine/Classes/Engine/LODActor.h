@@ -53,7 +53,7 @@ struct FHLODInstancingKey
 
 	friend uint32 GetTypeHash(const FHLODInstancingKey& Key)
 	{
-		return HashCombine(::GetTypeHash(Key.StaticMesh), ::GetTypeHash(Key.Material));
+		return HashCombine(GetTypeHash(Key.StaticMesh), GetTypeHash(Key.Material));
 	}
 };
 

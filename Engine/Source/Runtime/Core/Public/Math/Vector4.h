@@ -521,6 +521,18 @@ public:
 	// Conversion from other type: float->double
 	template<typename FArg, TEMPLATE_REQUIRES(TAnd<TIsSame<FArg, float>, TIsSame<T, double>>::Value)>
 	explicit TVector4(const TVector4<FArg>& From) : TVector4<T>((T)From.X, (T)From.Y, (T)From.Z, (T)From.W) {}
+
+	/**
+	 * Creates a hash value from a TVector4.
+	 *
+	 * @param Vector the vector to create a hash value for
+	 *
+	 * @return The hash value from the components
+	 */
+	FORCEINLINE friend uint32 GetTypeHash(const UE::Math::TVector4<T>& Vector)
+	{
+		return FCrc::MemCrc_DEPRECATED(&Vector, sizeof(Vector));
+	}
 };
 
 /**
@@ -921,21 +933,6 @@ inline bool FVector4d::SerializeFromMismatchedTag(FName StructTag, FArchive& Ar)
 	}
 
 	return UE_SERIALIZE_VARIANT_FROM_MISMATCHED_TAG(Ar, Vector4, Vector4d, Vector4f);
-}
-
-
-/**
- * Creates a hash value from a TVector4.
- *
- * @param Vector the vector to create a hash value for
- *
- * @return The hash value from the components
- */
-template<typename T>
-FORCEINLINE uint32 GetTypeHash(const UE::Math::TVector4<T>& Vector)
-{
-	// Note: this assumes there's no padding in FVector that could contain uncompared data.
-	return FCrc::MemCrc_DEPRECATED(&Vector, sizeof(Vector));
 }
 
 

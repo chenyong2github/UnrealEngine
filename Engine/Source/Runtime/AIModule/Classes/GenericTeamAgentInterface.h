@@ -65,12 +65,12 @@ protected:
 
 public:
 	static const FGenericTeamId NoTeam;
-};
 
-FORCEINLINE uint32 GetTypeHash(const FGenericTeamId TeamID)
-{
-	return TeamID.GetId();
-}
+	friend FORCEINLINE uint32 GetTypeHash(const FGenericTeamId Value)
+	{
+		return Value.GetId();
+	}
+};
 
 UINTERFACE()
 class AIMODULE_API UGenericTeamAgentInterface : public UInterface

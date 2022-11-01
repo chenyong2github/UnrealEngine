@@ -68,8 +68,8 @@ namespace Metasound
 
 	uint32 FSendAddress::GetHash() const
 	{
-		uint32 HashedChannel = HashCombineFast(::GetTypeHash(DataType), ::GetTypeHash(ChannelName));
-		HashedChannel = HashCombineFast(HashedChannel, ::GetTypeHash(InstanceID));
+		uint32 HashedChannel = HashCombineFast(GetTypeHashHelper(DataType), GetTypeHashHelper(ChannelName));
+		HashedChannel = HashCombineFast(HashedChannel, GetTypeHashHelper(InstanceID));
 		return HashedChannel;
 	}
 

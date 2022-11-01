@@ -94,10 +94,8 @@ private:
 
 	uint64 PathId = static_cast<uint64>(EPathId::None);
 
-	friend uint32 GetTypeHash(FObjectPathId PathId);
+	friend FORCEINLINE uint32 GetTypeHash(FObjectPathId Value)
+	{
+		return GetTypeHash(Value.PathId);
+	}
 };
-
-FORCEINLINE uint32 GetTypeHash(FObjectPathId PathId)
-{
-	return GetTypeHash(PathId.PathId);
-}

@@ -246,6 +246,11 @@ namespace Chaos
 
 			return Result;
 		}
+
+		friend inline uint32 GetTypeHash(const TRigidTransform<FRealSingle, 3>& InTransform)
+		{
+			return HashCombine(GetTypeHash(InTransform.GetTranslation()), HashCombine(GetTypeHash(InTransform.GetRotation().Euler()), GetTypeHash(InTransform.GetScale3D())));
+		}
 	};
 
 	template<>
@@ -350,16 +355,10 @@ namespace Chaos
 
 			return Result;
 		}
+
+		friend inline uint32 GetTypeHash(const TRigidTransform<FRealDouble, 3>& InTransform)
+		{
+			return HashCombine(GetTypeHash(InTransform.GetTranslation()), HashCombine(GetTypeHash(InTransform.GetRotation().Euler()), GetTypeHash(InTransform.GetScale3D())));
+		}
 	};
 }
-
-inline uint32 GetTypeHash(const Chaos::TRigidTransform<Chaos::FRealSingle, 3>& InTransform)
-{
-	return HashCombine(GetTypeHash(InTransform.GetTranslation()), HashCombine(GetTypeHash(InTransform.GetRotation().Euler()), GetTypeHash(InTransform.GetScale3D())));
-}
-
-inline uint32 GetTypeHash(const Chaos::TRigidTransform<Chaos::FRealDouble, 3>& InTransform)
-{
-	return HashCombine(GetTypeHash(InTransform.GetTranslation()), HashCombine(GetTypeHash(InTransform.GetRotation().Euler()), GetTypeHash(InTransform.GetScale3D())));
-}
-

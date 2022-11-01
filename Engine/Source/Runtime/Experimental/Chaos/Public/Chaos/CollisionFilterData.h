@@ -39,15 +39,15 @@ struct CHAOS_API FCollisionFilterData
 		const uint32 FilterFlags = (Word3 & 0xFFFFFF);
 		return FilterFlags & static_cast<uint32>(InFlag);
 	}
+
+	friend inline bool operator!=(const FCollisionFilterData& A, const FCollisionFilterData& B)
+	{
+		return A.Word0!=B.Word0 || A.Word1!=B.Word1 || A.Word2!=B.Word2 || A.Word3!=B.Word3;
+	}
 };
 
 inline Chaos::FChaosArchive& operator<<(Chaos::FChaosArchive& Ar, FCollisionFilterData& Filter)
 {
 	Ar << Filter.Word0 << Filter.Word1 << Filter.Word2 << Filter.Word3;
 	return Ar;
-}
-
-inline bool operator!=(const FCollisionFilterData& A, const FCollisionFilterData& B)
-{
-	return A.Word0!=B.Word0 || A.Word1!=B.Word1 || A.Word2!=B.Word2 || A.Word3!=B.Word3;
 }

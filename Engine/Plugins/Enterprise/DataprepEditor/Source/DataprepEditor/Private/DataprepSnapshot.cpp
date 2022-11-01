@@ -211,7 +211,7 @@ namespace DataprepSnapshotUtil
 	{
 		static FString FileNamePrefix( TEXT("stream_") );
 
-		FString PackageFileName = FileNamePrefix + FString::Printf( TEXT("%08x"), ::GetTypeHash( AssetPath ) );
+		FString PackageFileName = FileNamePrefix + FString::Printf( TEXT("%08x"), GetTypeHash( AssetPath ) );
 		return FPaths::ConvertRelativePathToFull( FPaths::Combine( RootPath, PackageFileName ) + SnapshotExtension );
 	}
 

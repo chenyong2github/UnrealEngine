@@ -733,14 +733,14 @@ private:
 public:
 	/** Helper function that tries to convert short class name to path name */
 	COREUOBJECT_API static FTopLevelAssetPath TryConvertShortClassNameToPathName(FName InClassName, ELogVerbosity::Type FailureMessageVerbosity = ELogVerbosity::Warning);
+
+	friend FORCEINLINE uint32 GetTypeHash(const FAssetData& AssetData)
+	{
+		return HashCombine(GetTypeHash(AssetData.PackageName), GetTypeHash(AssetData.AssetName));
+	}
 };
 
 ENUM_CLASS_FLAGS(FAssetData::ECreationFlags);
-
-FORCEINLINE uint32 GetTypeHash(const FAssetData& AssetData)
-{
-	return HashCombine(GetTypeHash(AssetData.PackageName), GetTypeHash(AssetData.AssetName));
-}
 
 
 template<>

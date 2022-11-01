@@ -75,6 +75,20 @@ struct ENGINE_API FEdGraphTerminalType
 	static FEdGraphTerminalType FromPinType(const FEdGraphPinType& PinType);
 
 	friend FArchive& operator<<(FArchive& Ar, FEdGraphTerminalType& P);
+
+	friend inline bool operator!= (const FEdGraphTerminalType& A, const FEdGraphTerminalType& B)
+	{
+		return A.TerminalCategory != B.TerminalCategory
+			|| A.TerminalSubCategory != B.TerminalSubCategory
+			|| A.TerminalSubCategoryObject != B.TerminalSubCategoryObject
+			|| A.bTerminalIsConst != B.bTerminalIsConst
+			|| A.bTerminalIsWeakPointer != B.bTerminalIsWeakPointer;
+	}
+
+	friend inline bool operator==(const FEdGraphTerminalType& A, const FEdGraphTerminalType& B)
+	{
+		return !(A != B);
+	}
 };
 
 /** Enum used to define which way data flows into or out of this pin. */

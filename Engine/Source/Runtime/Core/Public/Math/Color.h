@@ -459,6 +459,12 @@ struct FLinearColor
 	static CORE_API const FLinearColor Green;
 	static CORE_API const FLinearColor Blue;
 	static CORE_API const FLinearColor Yellow;
+
+	friend FORCEINLINE uint32 GetTypeHash( const FLinearColor& LinearColor )
+	{
+		// Note: this assumes there's no padding in FLinearColor that could contain uncompared data.
+		return FCrc::MemCrc_DEPRECATED(&LinearColor, sizeof(FLinearColor));
+	}
 };
 DECLARE_INTRINSIC_TYPE_LAYOUT(FLinearColor);
 
@@ -779,6 +785,11 @@ public:
 	static CORE_API const FColor Silver;
 	static CORE_API const FColor Emerald;
 
+	friend FORCEINLINE uint32 GetTypeHash( const FColor& Color )
+	{
+		return Color.DWColor();
+	}
+
 private:
 	/**
 	 * Please use .ToFColor(true) on FLinearColor if you wish to convert from FLinearColor to FColor,
@@ -835,18 +846,6 @@ FORCEINLINE FColor FLinearColor::ToFColor(const bool bSRGB) const
 	{
 		return QuantizeRound();
 	}
-}
-
-FORCEINLINE uint32 GetTypeHash( const FColor& Color )
-{
-	return Color.DWColor();
-}
-
-
-FORCEINLINE uint32 GetTypeHash( const FLinearColor& LinearColor )
-{
-	// Note: this assumes there's no padding in FLinearColor that could contain uncompared data.
-	return FCrc::MemCrc_DEPRECATED(&LinearColor, sizeof(FLinearColor));
 }
 
 

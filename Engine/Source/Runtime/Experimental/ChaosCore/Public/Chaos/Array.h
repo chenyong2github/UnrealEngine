@@ -44,6 +44,14 @@ class TArray : public std::vector<T>
 	{
 		std::sort(begin(), end());
 	}
+
+	friend uint32 GetTypeHash(const TArray<int32>& Array)
+	{
+		uint32 Seed = 0;
+		for (const auto& Elem : Array)
+			Seed ^= GetTypeHash(Elem) + 0x9e3779b9 + (Seed << 6) + (Seed >> 2);
+		return Seed;
+	}
 };
 
 namespace std
@@ -61,11 +69,3 @@ struct hash<TArray<int32>>
 };
 }
 #endif
-
-static uint32 GetTypeHash(const TArray<int32>& Array)
-{
-	uint32 Seed = 0;
-	for (const auto& Elem : Array)
-		Seed ^= GetTypeHash(Elem) + 0x9e3779b9 + (Seed << 6) + (Seed >> 2);
-	return Seed;
-}

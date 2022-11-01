@@ -334,24 +334,21 @@ private:
 
 	template <typename OtherType>
 	friend class TRefCountPtr;
+
+	friend FORCEINLINE bool operator==(const TRefCountPtr& A, const TRefCountPtr& B)
+	{
+		return A.GetReference() == B.GetReference();
+	}
+
+	friend FORCEINLINE bool operator==(const TRefCountPtr& A, ReferencedType* B)
+	{
+		return A.GetReference() == B;
+	}
+
+	friend FORCEINLINE bool operator==(ReferencedType* A, const TRefCountPtr& B)
+	{
+		return A == B.GetReference();
+	}
 };
 
 ALIAS_TEMPLATE_TYPE_LAYOUT(template<typename T>, TRefCountPtr<T>, void*);
-
-template<typename ReferencedType>
-FORCEINLINE bool operator==(const TRefCountPtr<ReferencedType>& A, const TRefCountPtr<ReferencedType>& B)
-{
-	return A.GetReference() == B.GetReference();
-}
-
-template<typename ReferencedType>
-FORCEINLINE bool operator==(const TRefCountPtr<ReferencedType>& A, ReferencedType* B)
-{
-	return A.GetReference() == B;
-}
-
-template<typename ReferencedType>
-FORCEINLINE bool operator==(ReferencedType* A, const TRefCountPtr<ReferencedType>& B)
-{
-	return A == B.GetReference();
-}

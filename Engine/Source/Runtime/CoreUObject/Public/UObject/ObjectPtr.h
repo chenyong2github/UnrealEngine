@@ -239,8 +239,86 @@ struct TIsTObjectPtr
 
 namespace ObjectPtr_Private
 {
+	/** Coerce to pointer through implicit conversion to const T* (overload through less specific "const T*" parameter to avoid ambiguity with other coercion options that may also exist. */
+	template <typename T>
+	FORCEINLINE const T* CoerceToPointer(const T* Other)
+	{
+		return Other;
+	}
+
+#if UE_OBJECT_PTR_NONCONFORMANCE_SUPPORT
+	/**
+	 * Force acceptance of explicitly TYPE_OF_NULL to avoid ambiguity issues triggered by the presence of a type conversion operator to bool.
+	 * This has the negative consequence of making it possible to coerce an arbitrary integer for the purpose of use in the comparison operators.
+	 */
+	template <typename T>
+	UE_OBJPTR_DEPRECATED(5.0, "Coercing a NULL for operations with a TObjectPtr is deprecated when running in a non-standards conforming compiler mode.")
+	constexpr const T* CoerceToPointer(TYPE_OF_NULL Other)
+	{
+		checkfSlow(Other == 0, TEXT("TObjectPtr cannot be compared to a non-zero NULL type value."));
+		return nullptr;
+	}
+#endif
+
+	/** Coerce to pointer through implicit conversion to CommonPointerType where CommonPointerType is deduced, and must be a C++ pointer, not a wrapper type. */
+	template <
+		typename T,
+		typename U,
+		typename CommonPointerType =  decltype(std::declval<bool>() ? std::declval<const T*>() : std::declval<U>()),
+		std::enable_if_t<
+			std::is_pointer<CommonPointerType>::value
+		>* = nullptr
+	>
+	FORCEINLINE auto CoerceToPointer(U&& Other) -> CommonPointerType
+	{
+		return Other;
+	}
+
+	/** Coerce to pointer through the use of a ".Get()" member, which is the convention within Unreal smart pointer types. */
+	template <
+		typename T,
+		typename U,
+		std::enable_if_t<
+			!TIsTObjectPtr<std::decay_t<U>>::Value,
+			decltype(std::declval<U>().Get())
+		>* = nullptr
+	>
+	FORCEINLINE auto CoerceToPointer(U&& Other) -> decltype(std::declval<U>().Get())
+	{
+		return Other.Get();
+	}
+
 	template <typename T, typename U>
-	FORCEINLINE bool IsObjectPtrEqualToRawPtrOfRelatedType(const TObjectPtr<T>& Ptr, const U* Other);
+	bool IsObjectPtrEqualToRawPtrOfRelatedType(const TObjectPtr<T>& Ptr, const U* Other)
+	{
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+		if (Ptr.IsResolved())
+		{
+			return Ptr.GetNoResolveNoCheck() == Other;
+		}
+		else if (!Other) //avoids resolving if Other is null
+		{
+			return !Ptr;
+		}
+#endif
+		return Ptr.GetNoReadNoCheck() == Other;
+	}
+
+	/** Perform shallow equality check between a TObjectPtr and another (non TObjectPtr) type that we can coerce to a pointer. */
+	template <
+		typename T,
+		typename U,
+		std::enable_if_t<
+			!TIsTObjectPtr<std::decay_t<U>>::Value,
+			decltype(CoerceToPointer<T>(std::declval<U>()) == std::declval<const T*>())
+		>* = nullptr
+	>
+	bool IsObjectPtrEqual(const TObjectPtr<T>& Ptr, U&& Other)
+	{
+		// This function deliberately avoids the tracking code path as we are only doing
+		// a shallow pointer comparison.
+		return IsObjectPtrEqualToRawPtrOfRelatedType<T>(Ptr, ObjectPtr_Private::CoerceToPointer<T>(Other));
+	}
 };
 
 /**
@@ -343,6 +421,7 @@ public:
 		return *this;
 	}
 
+	// Equality/Inequality comparisons against other TObjectPtr
 	template <
 		typename U,
 		typename Base = std::decay_t<decltype(false ? std::declval<std::decay_t<T*>>() : std::declval<std::decay_t<U*>>())>
@@ -351,17 +430,6 @@ public:
 	{
 		return ObjectPtr == Other.ObjectPtr;
 	}
-
-	bool operator==(TYPE_OF_NULLPTR) const
-	{
-		return !ObjectPtr.operator bool();
-	}
-
-	bool operator!=(TYPE_OF_NULLPTR) const
-	{
-		return ObjectPtr.operator bool();
-	}
-
 	template <
 		typename U,
 		typename Base = std::decay_t<decltype(false ? std::declval<std::decay_t<T*>>() : std::declval<std::decay_t<U*>>())>
@@ -369,6 +437,63 @@ public:
 	FORCEINLINE bool operator!=(const TObjectPtr<U>& Other) const
 	{
 		return ObjectPtr != Other.ObjectPtr;
+	}
+
+
+	// Equality/Inequality comparisons against nullptr
+	FORCEINLINE bool operator==(TYPE_OF_NULLPTR) const
+	{
+		return !ObjectPtr.operator bool();
+	}
+
+	FORCEINLINE bool operator!=(TYPE_OF_NULLPTR) const
+	{
+		return ObjectPtr.operator bool();
+	}
+
+	friend FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TObjectPtr& Rhs)
+	{
+		return Rhs == nullptr;
+	}
+
+	friend FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TObjectPtr& Rhs)
+	{
+		return Rhs != nullptr;
+	}
+
+	// Equality/Inequality comparisons against another type that can be implicitly converted to the pointer type kept in a TObjectPtr
+	template <
+		typename U,
+		typename = decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))
+	>
+	friend FORCEINLINE bool operator==(const TObjectPtr<T>& Ptr, U&& Other)
+	{
+		return ObjectPtr_Private::IsObjectPtrEqual(Ptr, Other);
+	}
+	template <
+		typename U,
+		typename = decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))
+	>
+	friend FORCEINLINE bool operator==(U&& Other, const TObjectPtr<T>& Ptr)
+	{
+		return ObjectPtr_Private::IsObjectPtrEqual(Ptr, Other);
+	}
+
+	template <
+		typename U,
+		typename = decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))
+	>
+	friend FORCEINLINE bool operator!=(const TObjectPtr<T>& Ptr, U&& Other)
+	{
+		return !ObjectPtr_Private::IsObjectPtrEqual(Ptr, Other);
+	}
+	template <
+		typename U,
+		typename = decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))
+	>
+	friend FORCEINLINE bool operator!=(U&& Other, const TObjectPtr<T>& Ptr)
+	{
+		return !ObjectPtr_Private::IsObjectPtrEqual(Ptr, Other);
 	}
 
 	// @TODO: OBJPTR: There is a risk that the FObjectPtr is storing a reference to the wrong type.  This could
@@ -452,17 +577,6 @@ private:
 };
 
 // Equals against nullptr to optimize comparing against nullptr as it avoids resolving
-template <typename U>
-bool operator==(TYPE_OF_NULLPTR, const TObjectPtr<U>& Rhs)
-{
-	return Rhs == nullptr;
-}
-
-template <typename U>
-bool operator!=(TYPE_OF_NULLPTR, const TObjectPtr<U>& Rhs)
-{
-	return Rhs != nullptr;
-}
 
 template <typename T> struct TIsTObjectPtr<               TObjectPtr<T>> { enum { Value = true }; };
 template <typename T> struct TIsTObjectPtr<const          TObjectPtr<T>> { enum { Value = true }; };
@@ -487,125 +601,6 @@ namespace ObjectPtr_Private
 	template <typename T> struct TRawPointerType<const          TObjectPtr<T>> { using Type = T*; };
 	template <typename T> struct TRawPointerType<      volatile TObjectPtr<T>> { using Type = T*; };
 	template <typename T> struct TRawPointerType<const volatile TObjectPtr<T>> { using Type = T*; };
-
-	/** Coerce to pointer through implicit conversion to const T* (overload through less specific "const T*" parameter to avoid ambiguity with other coercion options that may also exist. */
-	template <typename T>
-	FORCEINLINE const T* CoerceToPointer(const T* Other)
-	{
-		return Other;
-	}
-
-#if UE_OBJECT_PTR_NONCONFORMANCE_SUPPORT
-	/**
-	 * Force acceptance of explicitly TYPE_OF_NULL to avoid ambiguity issues triggered by the presence of a type conversion operator to bool.
-	 * This has the negative consequence of making it possible to coerce an arbitrary integer for the purpose of use in the comparison operators.
-	 */
-	template <typename T>
-	UE_OBJPTR_DEPRECATED(5.0, "Coercing a NULL for operations with a TObjectPtr is deprecated when running in a non-standards conforming compiler mode.")
-	constexpr const T* CoerceToPointer(TYPE_OF_NULL Other)
-	{
-		checkfSlow(Other == 0, TEXT("TObjectPtr cannot be compared to a non-zero NULL type value."));
-		return nullptr;
-	}
-#endif
-
-	/** Coerce to pointer through implicit conversion to CommonPointerType where CommonPointerType is deduced, and must be a C++ pointer, not a wrapper type. */
-	template <
-		typename T,
-		typename U,
-		typename CommonPointerType =  decltype(std::declval<bool>() ? std::declval<const T*>() : std::declval<U>()),
-		std::enable_if_t<
-			std::is_pointer<CommonPointerType>::value
-		>* = nullptr
-	>
-	FORCEINLINE auto CoerceToPointer(U&& Other) -> CommonPointerType
-	{
-		return Other;
-	}
-
-	/** Coerce to pointer through the use of a ".Get()" member, which is the convention within Unreal smart pointer types. */
-	template <
-		typename T,
-		typename U,
-		std::enable_if_t<
-			!TIsTObjectPtr<std::decay_t<U>>::Value,
-			decltype(std::declval<U>().Get())
-		>* = nullptr
-	>
-	FORCEINLINE auto CoerceToPointer(U&& Other) -> decltype(std::declval<U>().Get())
-	{
-		return Other.Get();
-	}
-
-	template <typename T, typename U>
-	bool IsObjectPtrEqualToRawPtrOfRelatedType(const TObjectPtr<T>& Ptr, const U* Other)
-	{
-#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-		if (Ptr.IsResolved())
-		{
-			return Ptr.GetNoResolveNoCheck() == Other;
-		}
-		else if (!Other) //avoids resolving if Other is null
-		{
-			return !Ptr;
-		}
-#endif
-		return Ptr.GetNoReadNoCheck() == Other;
-	}
-
-	/** Perform shallow equality check between a TObjectPtr and another (non TObjectPtr) type that we can coerce to a pointer. */
-	template <
-		typename T,
-		typename U,
-		std::enable_if_t<
-			!TIsTObjectPtr<std::decay_t<U>>::Value,
-			decltype(CoerceToPointer<T>(std::declval<U>()) == std::declval<const T*>())
-		>* = nullptr
-	>
-	bool IsObjectPtrEqual(const TObjectPtr<T>& Ptr, U&& Other)
-	{
-		// This function deliberately avoids the tracking code path as we are only doing
-		// a shallow pointer comparison.
-		return IsObjectPtrEqualToRawPtrOfRelatedType<T>(Ptr, ObjectPtr_Private::CoerceToPointer<T>(Other));
-	}
-}
-
-// Equality/Inequality comparisons against another type that can be implicitly converted to the pointer type kept in a TObjectPtr
-template <
-	typename T,
-	typename U,
-	decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))* = nullptr
->
-FORCEINLINE bool operator==(const TObjectPtr<T>& Ptr, U&& Other)
-{
-	return ObjectPtr_Private::IsObjectPtrEqual(Ptr, Other);
-}
-template <
-	typename T,
-	typename U,
-	decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))* = nullptr
->
-FORCEINLINE bool operator==(U&& Other, const TObjectPtr<T>& Ptr)
-{
-	return ObjectPtr_Private::IsObjectPtrEqual(Ptr, Other);
-}
-template <
-	typename T,
-	typename U,
-	decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))* = nullptr
->
-FORCEINLINE bool operator!=(const TObjectPtr<T>& Ptr, U&& Other)
-{
-	return !ObjectPtr_Private::IsObjectPtrEqual(Ptr, Other);
-}
-template <
-	typename T,
-	typename U,
-	decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))* = nullptr
->
-FORCEINLINE bool operator!=(U&& Other, const TObjectPtr<T>& Ptr)
-{
-	return !ObjectPtr_Private::IsObjectPtrEqual(Ptr, Other);
 }
 
 template <typename T>

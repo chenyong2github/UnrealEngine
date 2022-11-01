@@ -270,6 +270,11 @@ public:
 
 	Chaos::FPerShapeData* Shape;
     FPhysicsActorHandle ActorRef;
+
+	friend FORCEINLINE uint32 GetTypeHash(const FPhysicsShapeReference_Chaos& InShapeReference)
+	{
+		return PointerHash(InShapeReference.Shape);
+	}
 };
 
 class PHYSICSCORE_API FPhysicsShapeAdapter_Chaos
@@ -286,11 +291,6 @@ private:
 	TUniquePtr<FPhysicsGeometry> Geometry;
 	FQuat GeometryRotation;
 };
-
-FORCEINLINE uint32 GetTypeHash(const FPhysicsShapeReference_Chaos& InShapeReference)
-{
-    return PointerHash(InShapeReference.Shape);
-}
 
 /**
  Wrapper around geometry. This is really just needed to make the physx chaos abstraction easier

@@ -300,10 +300,10 @@ private:
 	};
 	friend uint32 GetTypeHash(const FConfigHistory& CH)
 	{
-		uint32 Hash = ::GetTypeHash(CH.Type);
-		Hash = HashCombine(Hash, ::GetTypeHash(CH.FileName));
-		Hash = HashCombine(Hash, ::GetTypeHash(CH.SectionName));
-		Hash = HashCombine(Hash, ::GetTypeHash(CH.Key));
+		uint32 Hash = GetTypeHash(CH.Type);
+		Hash = HashCombine(Hash, GetTypeHash(CH.FileName));
+		Hash = HashCombine(Hash, GetTypeHash(CH.SectionName));
+		Hash = HashCombine(Hash, GetTypeHash(CH.Key));
 		return Hash;
 	}
 	friend bool operator==(const FConfigHistory& A, const FConfigHistory& B)

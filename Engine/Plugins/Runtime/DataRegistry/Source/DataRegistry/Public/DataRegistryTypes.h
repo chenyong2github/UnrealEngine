@@ -132,6 +132,25 @@ struct DATAREGISTRY_API FDataRegistryLookup
 	/** Generate a debug string */
 	FString ToString() const;
 
+	friend FORCEINLINE uint32 GetTypeHash(const FDataRegistryLookup& Lookup)
+	{
+		uint32 Hash = GetTypeHash(Lookup.SourceLookups.Num());
+		for (int32 i = 0; i < Lookup.SourceLookups.Num(); i++)
+		{
+			Hash = HashCombine(Hash, GetTypeHash(Lookup.SourceLookups[i]));
+		}
+		return Hash;
+	}
+
+	friend FORCEINLINE bool operator==(const FDataRegistryLookup& X, const FDataRegistryLookup& Y)
+	{
+		return X.SourceLookups == Y.SourceLookups;
+	}
+
+	friend FORCEINLINE bool operator!=(const FDataRegistryLookup& X, const FDataRegistryLookup& Y)
+	{
+		return X.SourceLookups != Y.SourceLookups;
+	}
 };
 
 template<>
@@ -142,26 +161,6 @@ struct TStructOpsTypeTraits<FDataRegistryLookup> : public TStructOpsTypeTraitsBa
 		WithCopy = true, // This ensures the opaque type is copied correctly in BPs
 	};
 };
-
-FORCEINLINE uint32 GetTypeHash(const FDataRegistryLookup& Lookup)
-{
-	uint32 Hash = GetTypeHash(Lookup.SourceLookups.Num());
-	for (int32 i = 0; i < Lookup.SourceLookups.Num(); i++)
-	{
-		Hash = HashCombine(Hash, GetTypeHash(Lookup.SourceLookups[i]));
-	}
-	return Hash;
-}
-
-FORCEINLINE bool operator==(const FDataRegistryLookup& X, const FDataRegistryLookup& Y)
-{
-	return X.SourceLookups == Y.SourceLookups;
-}
-
-FORCEINLINE bool operator!=(const FDataRegistryLookup& X, const FDataRegistryLookup& Y)
-{
-	return X.SourceLookups != Y.SourceLookups;
-}
 
 
 /** A debugging/editor struct used to describe the source for a single data registry item */
@@ -184,25 +183,25 @@ struct DATAREGISTRY_API FDataRegistrySourceItemId
 
 	/** Gets a unique ID key for this item, or None for invalid cached data */
 	FString GetDebugString() const;
+
+	friend FORCEINLINE uint32 GetTypeHash(const FDataRegistrySourceItemId& SourceItem)
+	{
+		uint32 Hash = GetTypeHash(SourceItem.ItemId);
+		Hash = HashCombine(Hash, GetTypeHash(SourceItem.CacheLookup));
+		Hash = HashCombine(Hash, GetTypeHash(SourceItem.SourceResolvedName));
+		return Hash;
+	}
+
+	friend FORCEINLINE bool operator==(const FDataRegistrySourceItemId& X, const FDataRegistrySourceItemId& Y)
+	{
+		return X.ItemId == Y.ItemId && X.CacheLookup == Y.CacheLookup && X.SourceResolvedName == Y.SourceResolvedName;
+	}
+
+	friend FORCEINLINE bool operator!=(const FDataRegistrySourceItemId& X, const FDataRegistrySourceItemId& Y)
+	{
+		return !(X.ItemId == Y.ItemId && X.CacheLookup == Y.CacheLookup && X.SourceResolvedName == Y.SourceResolvedName);
+	}
 };
-
-FORCEINLINE uint32 GetTypeHash(const FDataRegistrySourceItemId& SourceItem)
-{
-	uint32 Hash = GetTypeHash(SourceItem.ItemId);
-	Hash = HashCombine(Hash, GetTypeHash(SourceItem.CacheLookup));
-	Hash = HashCombine(Hash, GetTypeHash(SourceItem.SourceResolvedName));
-	return Hash;
-}
-
-FORCEINLINE bool operator==(const FDataRegistrySourceItemId& X, const FDataRegistrySourceItemId& Y)
-{
-	return X.ItemId == Y.ItemId && X.CacheLookup == Y.CacheLookup && X.SourceResolvedName == Y.SourceResolvedName;
-}
-
-FORCEINLINE bool operator!=(const FDataRegistrySourceItemId& X, const FDataRegistrySourceItemId& Y)
-{
-	return !(X.ItemId == Y.ItemId && X.CacheLookup == Y.CacheLookup && X.SourceResolvedName == Y.SourceResolvedName);
-}
 
 
 /** Information about the cache status of an item */

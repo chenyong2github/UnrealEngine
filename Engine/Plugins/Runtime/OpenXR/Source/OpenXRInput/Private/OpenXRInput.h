@@ -21,12 +21,6 @@ struct FInputActionKeyMapping;
 struct FInputAxisKeyMapping;
 struct FKey;
 
-// On some platforms the XrPath type becomes ambiguous for overloading
-FORCEINLINE uint32 GetTypeHash(const TPair<XrPath, XrPath>& Pair)
-{
-	return HashCombine(GetTypeHash((uint64)Pair.Key), GetTypeHash((uint64)Pair.Value));
-}
-
 class FOpenXRInputPlugin : public IOpenXRInputPlugin
 {
 public:

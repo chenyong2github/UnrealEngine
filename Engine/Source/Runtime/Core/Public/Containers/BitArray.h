@@ -1730,6 +1730,19 @@ public:
 		checkf(!Writer.Is32BitTarget(), TEXT("TBitArray does not currently support freezing for 32bits"));
 		TSupportsFreezeMemoryImageHelper<bSupportsFreezeMemoryImage>::WriteMemoryImage(Writer, *this);
 	}
+
+	friend FORCEINLINE uint32 GetTypeHash(const TBitArray& BitArray)
+	{
+		uint32 NumWords = FBitSet::CalculateNumWords(BitArray.Num());
+		uint32 Hash = NumWords;
+		const uint32* Data = BitArray.GetData();
+		for (uint32 i = 0; i < NumWords; i++)
+		{
+			Hash ^= Data[i];
+		}
+		return Hash;
+	}
+
 };
 
 namespace Freeze
@@ -1742,19 +1755,6 @@ namespace Freeze
 }
 
 DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT(template<typename Allocator>, TBitArray<Allocator>);
-
-template<typename Allocator>
-FORCEINLINE uint32 GetTypeHash(const TBitArray<Allocator>& BitArray)
-{
-	uint32 NumWords = FBitSet::CalculateNumWords(BitArray.Num());
-	uint32 Hash = NumWords;
-	const uint32* Data = BitArray.GetData();
-	for (uint32 i = 0; i < NumWords; i++)
-	{
-		Hash ^= Data[i];
-	}
-	return Hash;
-}
 
 template<typename Allocator>
 struct TContainerTraits<TBitArray<Allocator> > : public TContainerTraitsBase<TBitArray<Allocator> >

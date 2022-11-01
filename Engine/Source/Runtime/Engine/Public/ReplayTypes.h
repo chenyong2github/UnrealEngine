@@ -416,7 +416,7 @@ public:
 
 	uint32 GetConstTypeHash() const
 	{
-		return ::GetTypeHash(ToString(true));
+		return GetTypeHashHelper(ToString(true));
 	}
 
 	friend uint32 GetTypeHash(const FInternetAddrDemo& A)

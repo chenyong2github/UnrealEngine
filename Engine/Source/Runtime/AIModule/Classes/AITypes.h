@@ -254,6 +254,11 @@ public:
 		static const FAINamedID<TCounter> InvalidIDInstance;
 		return InvalidIDInstance;
 	}
+
+	friend FORCEINLINE uint32 GetTypeHash(const FAINamedID& ID)
+	{
+		return GetTypeHash(ID.Index);
+	}
 };
 
 template<typename TCounter>

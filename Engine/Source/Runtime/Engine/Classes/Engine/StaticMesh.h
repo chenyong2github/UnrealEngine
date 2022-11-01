@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/AsyncWork.h"
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
@@ -386,11 +387,11 @@ struct FMeshSectionInfo
 		, bForceOpaque(false)
 	{
 	}
-};
 
-/** Comparison for mesh section info. */
-bool operator==(const FMeshSectionInfo& A, const FMeshSectionInfo& B);
-bool operator!=(const FMeshSectionInfo& A, const FMeshSectionInfo& B);
+	/** Comparison for mesh section info. */
+	friend bool operator==(const FMeshSectionInfo& A, const FMeshSectionInfo& B);
+	friend bool operator!=(const FMeshSectionInfo& A, const FMeshSectionInfo& B);
+};
 
 /**
  * Map containing per-section settings for each section of each LOD.

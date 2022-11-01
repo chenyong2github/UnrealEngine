@@ -71,20 +71,6 @@ FORCEINLINE FArchive& operator<<(FArchive& Ar, FSimpleMemberReference& Data)
 	return Ar;
 }
 
-inline bool operator!= (const FEdGraphTerminalType& A, const FEdGraphTerminalType& B)
-{
-	return A.TerminalCategory != B.TerminalCategory
-		|| A.TerminalSubCategory != B.TerminalSubCategory
-		|| A.TerminalSubCategoryObject != B.TerminalSubCategoryObject
-		|| A.bTerminalIsConst != B.bTerminalIsConst
-		|| A.bTerminalIsWeakPointer != B.bTerminalIsWeakPointer;
-}
-
-inline bool operator==(const FEdGraphTerminalType& A, const FEdGraphTerminalType& B)
-{
-	return !(A != B);
-}
-
 /** Struct used to define the type of information carried on this pin */
 USTRUCT(BlueprintType)
 struct FEdGraphPinType

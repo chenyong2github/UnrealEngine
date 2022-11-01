@@ -56,10 +56,10 @@ struct ENGINE_API FDialogueContext
 
 	/** Gets a generated hash created from the source and targets. */
 	FString GetContextHash() const;
-};
 
-ENGINE_API bool operator==(const FDialogueContext& LHS, const FDialogueContext& RHS);
-ENGINE_API bool operator!=(const FDialogueContext& LHS, const FDialogueContext& RHS);
+	friend ENGINE_API bool operator==(const FDialogueContext& LHS, const FDialogueContext& RHS);
+	friend ENGINE_API bool operator!=(const FDialogueContext& LHS, const FDialogueContext& RHS);
+};
 
 USTRUCT()
 struct ENGINE_API FDialogueWaveParameter

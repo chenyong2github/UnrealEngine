@@ -377,6 +377,66 @@ public:
 private:
 	using PtrType = T*;
 	LAYOUT_FIELD(PtrType, Ptr);
+
+	/**
+	 * Equality comparison operator
+	 *
+	 * @param Lhs The first TUniquePtr to compare.
+	 * @param Rhs The second TUniquePtr to compare.
+	 *
+	 * @return true if the two TUniquePtrs are logically substitutable for each other, false otherwise.
+	 */
+	template <typename RhsT>
+	friend FORCEINLINE bool operator==(const TUniquePtr& Lhs, const TUniquePtr<RhsT>& Rhs)
+	{
+		return Lhs.Get() == Rhs.Get();
+	}
+
+	/**
+	 * Inequality comparison operator
+	 *
+	 * @param Lhs The first TUniquePtr to compare.
+	 * @param Rhs The second TUniquePtr to compare.
+	 *
+	 * @return false if the two TUniquePtrs are logically substitutable for each other, true otherwise.
+	 */
+	template <typename RhsT>
+	friend FORCEINLINE bool operator!=(const TUniquePtr& Lhs, const TUniquePtr<RhsT>& Rhs)
+	{
+		return Lhs.Get() != Rhs.Get();
+	}
+
+	/**
+	 * Equality comparison operator against nullptr.
+	 *
+	 * @param Lhs The TUniquePtr to compare.
+	 *
+	 * @return true if the TUniquePtr is null, false otherwise.
+	 */
+	friend FORCEINLINE bool operator==(const TUniquePtr& Lhs, TYPE_OF_NULLPTR)
+	{
+		return !Lhs.IsValid();
+	}
+	friend FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TUniquePtr& Rhs)
+	{
+		return !Rhs.IsValid();
+	}
+
+	/**
+	 * Inequality comparison operator against nullptr.
+	 *
+	 * @param Rhs The TUniquePtr to compare.
+	 *
+	 * @return true if the TUniquePtr is not null, false otherwise.
+	 */
+	friend FORCEINLINE bool operator!=(const TUniquePtr& Lhs, TYPE_OF_NULLPTR)
+	{
+		return Lhs.IsValid();
+	}
+	friend FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TUniquePtr& Rhs)
+	{
+		return Rhs.IsValid();
+	}
 };
 
 template <typename T, typename Deleter>
@@ -650,81 +710,67 @@ public:
 
 private:
 	T* Ptr;
+
+	/**
+	 * Equality comparison operator
+	 *
+	 * @param Lhs The first TUniquePtr to compare.
+	 * @param Rhs The second TUniquePtr to compare.
+	 *
+	 * @return true if the two TUniquePtrs are logically substitutable for each other, false otherwise.
+	 */
+	template <typename RhsT>
+	friend FORCEINLINE bool operator==(const TUniquePtr& Lhs, const TUniquePtr<RhsT>& Rhs)
+	{
+		return Lhs.Get() == Rhs.Get();
+	}
+
+	/**
+	 * Inequality comparison operator
+	 *
+	 * @param Lhs The first TUniquePtr to compare.
+	 * @param Rhs The second TUniquePtr to compare.
+	 *
+	 * @return false if the two TUniquePtrs are logically substitutable for each other, true otherwise.
+	 */
+	template <typename RhsT>
+	friend FORCEINLINE bool operator!=(const TUniquePtr& Lhs, const TUniquePtr<RhsT>& Rhs)
+	{
+		return Lhs.Get() != Rhs.Get();
+	}
+
+	/**
+	 * Equality comparison operator against nullptr.
+	 *
+	 * @param Lhs The TUniquePtr to compare.
+	 *
+	 * @return true if the TUniquePtr is null, false otherwise.
+	 */
+	friend FORCEINLINE bool operator==(const TUniquePtr& Lhs, TYPE_OF_NULLPTR)
+	{
+		return !Lhs.IsValid();
+	}
+	friend FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TUniquePtr& Rhs)
+	{
+		return !Rhs.IsValid();
+	}
+
+	/**
+	 * Inequality comparison operator against nullptr.
+	 *
+	 * @param Rhs The TUniquePtr to compare.
+	 *
+	 * @return true if the TUniquePtr is not null, false otherwise.
+	 */
+	friend FORCEINLINE bool operator!=(const TUniquePtr& Lhs, TYPE_OF_NULLPTR)
+	{
+		return Lhs.IsValid();
+	}
+	friend FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TUniquePtr& Rhs)
+	{
+		return Rhs.IsValid();
+	}
 };
-
-/**
- * Equality comparison operator
- *
- * @param Lhs The first TUniquePtr to compare.
- * @param Rhs The second TUniquePtr to compare.
- *
- * @return true if the two TUniquePtrs are logically substitutable for each other, false otherwise.
- */
-template <typename LhsT, typename RhsT>
-FORCEINLINE bool operator==(const TUniquePtr<LhsT>& Lhs, const TUniquePtr<RhsT>& Rhs)
-{
-	return Lhs.Get() == Rhs.Get();
-}
-template <typename T>
-FORCEINLINE bool operator==(const TUniquePtr<T>& Lhs, const TUniquePtr<T>& Rhs)
-{
-	return Lhs.Get() == Rhs.Get();
-}
-
-/**
- * Inequality comparison operator
- *
- * @param Lhs The first TUniquePtr to compare.
- * @param Rhs The second TUniquePtr to compare.
- *
- * @return false if the two TUniquePtrs are logically substitutable for each other, true otherwise.
- */
-template <typename LhsT, typename RhsT>
-FORCEINLINE bool operator!=(const TUniquePtr<LhsT>& Lhs, const TUniquePtr<RhsT>& Rhs)
-{
-	return Lhs.Get() != Rhs.Get();
-}
-template <typename T>
-FORCEINLINE bool operator!=(const TUniquePtr<T>& Lhs, const TUniquePtr<T>& Rhs)
-{
-	return Lhs.Get() != Rhs.Get();
-}
-
-/**
- * Equality comparison operator against nullptr.
- *
- * @param Lhs The TUniquePtr to compare.
- *
- * @return true if the TUniquePtr is null, false otherwise.
- */
-template <typename T>
-FORCEINLINE bool operator==(const TUniquePtr<T>& Lhs, TYPE_OF_NULLPTR)
-{
-	return !Lhs.IsValid();
-}
-template <typename T>
-FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TUniquePtr<T>& Rhs)
-{
-	return !Rhs.IsValid();
-}
-
-/**
- * Inequality comparison operator against nullptr.
- *
- * @param Rhs The TUniquePtr to compare.
- *
- * @return true if the TUniquePtr is not null, false otherwise.
- */
-template <typename T>
-FORCEINLINE bool operator!=(const TUniquePtr<T>& Lhs, TYPE_OF_NULLPTR)
-{
-	return Lhs.IsValid();
-}
-template <typename T>
-FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TUniquePtr<T>& Rhs)
-{
-	return Rhs.IsValid();
-}
 
 // Trait which allows TUniquePtr to be default constructed by memsetting to zero.
 template <typename T>

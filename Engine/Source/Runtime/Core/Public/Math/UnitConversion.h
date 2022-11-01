@@ -188,14 +188,39 @@ private:
 
 	/** Given a string, skip past whitespace, then any numeric characters. Set End pointer to the end of the last numeric character. */
 	static bool ExtractNumberBoundary(const TCHAR* Start, const TCHAR*& End);
+
+	/** Global arithmetic operators for number types. Deals with conversion from related units correctly. Note must be inlined for hidden friend optimization to work */
+	template<typename OtherType>
+	friend inline bool operator==(const FNumericUnit<NumericType>& LHS, const FNumericUnit<OtherType>& RHS)
+	{
+		if (LHS.Units != EUnit::Unspecified && RHS.Units != EUnit::Unspecified)
+		{
+			if (LHS.Units == RHS.Units)
+			{
+				return LHS.Value == RHS.Value;
+			}
+			else if (FUnitConversion::AreUnitsCompatible(LHS.Units, RHS.Units))
+			{
+				return LHS.Value == FUnitConversion::Convert(RHS.Value, RHS.Units, LHS.Units);
+			}
+			else
+			{
+				// Invalid conversion
+				return false;
+			}
+		}
+		else
+		{
+			return LHS.Value == RHS.Value;
+		}
+	}
+
+	template<typename OtherType>
+	friend inline bool operator!=(const FNumericUnit<NumericType>& LHS, const FNumericUnit<OtherType>& RHS)
+	{
+		return !(LHS == RHS);
+	}
 };
-
-/** Global arithmetic operators for number types. Deals with conversion from related units correctly. */
-template<typename NumericType, typename OtherType>
-bool operator==(const FNumericUnit<NumericType>& LHS, const FNumericUnit<OtherType>& RHS);
-
-template<typename NumericType, typename OtherType>
-bool operator!=(const FNumericUnit<NumericType>& LHS, const FNumericUnit<OtherType>& RHS);
 
 template<typename T>
 FString LexToString(const FNumericUnit<T>& NumericUnit);

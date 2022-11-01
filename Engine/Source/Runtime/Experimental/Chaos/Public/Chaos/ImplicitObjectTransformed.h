@@ -345,7 +345,7 @@ public:
 	virtual uint32 GetTypeHash() const override
 	{
 		// Combine the hash from the inner, non transformed object with our transform
-		return HashCombine(MObject->GetTypeHash(), ::GetTypeHash(MTransform));
+		return HashCombine(MObject->GetTypeHash(), GetTypeHashHelper(MTransform));
 	}
 
 	virtual uint16 GetMaterialIndex(uint32 HintIndex) const override

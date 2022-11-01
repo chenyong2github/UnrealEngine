@@ -196,15 +196,16 @@ struct FShaderCompileJobKey
 	const FShaderType* ShaderType;
 	const FVertexFactoryType* VFType;
 	int32 PermutationId;
+
+	friend inline bool operator==(const FShaderCompileJobKey& Lhs, const FShaderCompileJobKey& Rhs)
+	{
+		return Lhs.VFType == Rhs.VFType && Lhs.ShaderType == Rhs.ShaderType && Lhs.PermutationId == Rhs.PermutationId;
+	}
+	friend inline bool operator!=(const FShaderCompileJobKey& Lhs, const FShaderCompileJobKey& Rhs)
+	{
+		return !operator==(Lhs, Rhs);
+	}
 };
-inline bool operator==(const FShaderCompileJobKey& Lhs, const FShaderCompileJobKey& Rhs)
-{
-	return Lhs.VFType == Rhs.VFType && Lhs.ShaderType == Rhs.ShaderType && Lhs.PermutationId == Rhs.PermutationId;
-}
-inline bool operator!=(const FShaderCompileJobKey& Lhs, const FShaderCompileJobKey& Rhs)
-{
-	return !operator==(Lhs, Rhs);
-}
 
 /** Stores all of the input and output information used to compile a single shader. */
 class FShaderCompileJob : public FShaderCommonCompileJob
@@ -247,15 +248,16 @@ struct FShaderPipelineCompileJobKey
 	const FShaderPipelineType* ShaderPipeline;
 	const FVertexFactoryType* VFType;
 	int32 PermutationId;
+
+	friend inline bool operator==(const FShaderPipelineCompileJobKey& Lhs, const FShaderPipelineCompileJobKey& Rhs)
+	{
+		return Lhs.ShaderPipeline == Rhs.ShaderPipeline && Lhs.VFType == Rhs.VFType && Lhs.PermutationId == Rhs.PermutationId;
+	}
+	friend inline bool operator!=(const FShaderPipelineCompileJobKey& Lhs, const FShaderPipelineCompileJobKey& Rhs)
+	{
+		return !operator==(Lhs, Rhs);
+	}
 };
-inline bool operator==(const FShaderPipelineCompileJobKey& Lhs, const FShaderPipelineCompileJobKey& Rhs)
-{
-	return Lhs.ShaderPipeline == Rhs.ShaderPipeline && Lhs.VFType == Rhs.VFType && Lhs.PermutationId == Rhs.PermutationId;
-}
-inline bool operator!=(const FShaderPipelineCompileJobKey& Lhs, const FShaderPipelineCompileJobKey& Rhs)
-{
-	return !operator==(Lhs, Rhs);
-}
 
 class FShaderPipelineCompileJob : public FShaderCommonCompileJob
 {

@@ -317,7 +317,7 @@ struct ENGINE_API FCurveTableRowHandle
 	/** Used so we can have a TMap of this struct */
 	FORCEINLINE friend uint32 GetTypeHash(const FCurveTableRowHandle& Handle)
 	{
-		return HashCombine(::GetTypeHash(Handle.RowName), PointerHash(Handle.CurveTable));
+		return HashCombine(GetTypeHash(Handle.RowName), PointerHash(Handle.CurveTable));
 	}
 };
 

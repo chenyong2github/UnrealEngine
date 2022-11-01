@@ -497,9 +497,9 @@ public:
 
 	/** Whether spatialization is an external send */
 	bool GetSpatializationIsExternalSend() const {	return bSpatializationIsExternalSend;}
-};
 
-inline uint32 GetTypeHash(FWaveInstance* A) { return A->TypeHash; }
+	friend inline uint32 GetTypeHash(FWaveInstance* A) { return A->TypeHash; }
+};
 
 /*-----------------------------------------------------------------------------
 	FSoundBuffer.

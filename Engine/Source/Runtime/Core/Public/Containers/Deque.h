@@ -576,38 +576,37 @@ private:
 			checkf((Index >= 0) & (Index < Count), TEXT("Parameter index %d exceeds container size %d"), Index, Count);
 		}
 	}
-};
 
-//---------------------------------------------------------------------------------------------------------------------
-// TDeque comparison operators
-//---------------------------------------------------------------------------------------------------------------------
+	//---------------------------------------------------------------------------------------------------------------------
+	// TDeque comparison operators
+	//---------------------------------------------------------------------------------------------------------------------
 
-template <typename InElementType, typename InAllocatorType>
-inline bool operator==(
-	const TDeque<InElementType, InAllocatorType>& Left,
-	const TDeque<InElementType, InAllocatorType>& Right)
-{
-	if (Left.Num() == Right.Num())
+	friend inline bool operator==(
+		const TDeque<InElementType, InAllocatorType>& Left,
+		const TDeque<InElementType, InAllocatorType>& Right)
 	{
-		auto EndIt = Left.end();
-		auto LeftIt = Left.begin();
-		auto RightIt = Right.begin();
-		while (LeftIt != EndIt)
+		if (Left.Num() == Right.Num())
 		{
-			if (*LeftIt++ != *RightIt++)
+			auto EndIt = Left.end();
+			auto LeftIt = Left.begin();
+			auto RightIt = Right.begin();
+			while (LeftIt != EndIt)
 			{
-				return false;
+				if (*LeftIt++ != *RightIt++)
+				{
+					return false;
+				}
 			}
+			return true;
 		}
-		return true;
+		return false;
 	}
-	return false;
-}
 
-template <typename InElementType, typename InAllocatorType>
-inline bool operator!=(
-	const TDeque<InElementType, InAllocatorType>& Left,
-	const TDeque<InElementType, InAllocatorType>& Right)
-{
-	return !(Left == Right);
-}
+	friend inline bool operator!=(
+		const TDeque<InElementType, InAllocatorType>& Left,
+		const TDeque<InElementType, InAllocatorType>& Right)
+	{
+		return !(Left == Right);
+	}
+
+};

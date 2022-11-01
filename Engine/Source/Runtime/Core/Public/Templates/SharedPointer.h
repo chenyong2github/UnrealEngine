@@ -633,6 +633,33 @@ private:
 
 		Init(InObject);
 	}
+
+public:
+
+	/**
+	 * Global equality operator for TSharedRef
+	 *
+	 * @return  True if the two shared references are equal
+	 */
+	template< class ObjectTypeB >
+	[[nodiscard]] FORCEINLINE bool operator==( TSharedRef< ObjectTypeB, InMode > const& InSharedRefB ) const
+	{
+		return &( Get() ) == &( InSharedRefB.Get() );
+	}
+
+
+	/**
+	 * Global inequality operator for TSharedRef
+	 *
+	 * @return  True if the two shared references are not equal
+	 */
+	template< class ObjectTypeB >
+	[[nodiscard]] FORCEINLINE bool operator!=( TSharedRef< ObjectTypeB, InMode > const& InSharedRefB ) const
+	{
+		return &( Get() ) != &( InSharedRefB.Get() );
+	}
+
+
 };
 
 
@@ -1196,6 +1223,123 @@ private:
 	/** Interface to the reference counter for this object.  Note that the actual reference
 		controller object is shared by all shared and weak pointers that refer to the object */
 	SharedPointerInternals::FSharedReferencer< Mode > SharedReferenceCount;
+
+public:
+
+	/**
+	 * Global equality operator for TSharedPtr
+	 *
+	 * @return  True if the two shared pointers are equal
+	 */
+	template< class ObjectTypeB >
+	[[nodiscard]] FORCEINLINE bool operator==( TSharedPtr< ObjectTypeB, InMode > const& InSharedPtrB ) const
+	{
+		return Get() == InSharedPtrB.Get();
+	}
+
+
+	/**
+	 * Global inequality operator for TSharedPtr
+	 *
+	 * @return  True if the two shared pointers are not equal
+	 */
+	template< class ObjectTypeB >
+	[[nodiscard]] FORCEINLINE bool operator!=( TSharedPtr< ObjectTypeB, InMode > const& InSharedPtrB ) const
+	{
+		return Get() != InSharedPtrB.Get();
+	}
+
+
+	/**
+	 * Global equality operator for TSharedPtr
+	 *
+	 * @return  True if the shared pointer is null
+	 */
+	[[nodiscard]] friend FORCEINLINE bool operator==(TSharedPtr const& InSharedPtr, TYPE_OF_NULLPTR )
+	{
+		return !InSharedPtr.IsValid();
+	}
+
+
+	/**
+	 * Global inequality operator for TSharedPtr
+	 *
+	 * @return  True if the shared pointer is not null
+	 */
+	[[nodiscard]] friend FORCEINLINE bool operator!=( TSharedPtr const& InSharedPtr, TYPE_OF_NULLPTR )
+	{
+		return InSharedPtr.IsValid();
+	}
+
+
+	/**
+	 * Tests to see if a TSharedRef is "equal" to a TSharedPtr (both are valid and refer to the same object) (reverse)
+	 *
+	 * @return  True if the shared reference and shared pointer are "equal"
+	 */
+	template< class ObjectTypeB >
+	[[nodiscard]] friend FORCEINLINE bool operator==(TSharedPtr const& InSharedPtr, TSharedRef< ObjectTypeB, InMode > const& InSharedRef )
+	{
+		return InSharedPtr.IsValid() && InSharedPtr.Get() == &( InSharedRef.Get() );
+	}
+
+
+	/**
+	 * Tests to see if a TSharedRef is not "equal" to a TSharedPtr (shared pointer is invalid, or both refer to different objects) (reverse)
+	 *
+	 * @return  True if the shared reference and shared pointer are not "equal"
+	 */
+	template< class ObjectTypeB >
+	[[nodiscard]] friend FORCEINLINE bool operator!=(TSharedPtr const& InSharedPtr, TSharedRef< ObjectTypeB, InMode > const& InSharedRef )
+	{
+		return !InSharedPtr.IsValid() || ( InSharedPtr.Get() != &( InSharedRef.Get() ) );
+	}
+
+
+
+	/**
+	 * Global equality operator for TSharedPtr
+	 *
+	 * @return  True if the shared pointer is null
+	 */
+	[[nodiscard]] friend FORCEINLINE bool operator==( TYPE_OF_NULLPTR, TSharedPtr const& InSharedPtrB )
+	{
+		return !InSharedPtrB.IsValid();
+	}
+
+
+	/**
+	 * Global inequality operator for TSharedPtr
+	 *
+	 * @return  True if the shared pointer is not null
+	 */
+	[[nodiscard]] friend FORCEINLINE bool operator!=( TYPE_OF_NULLPTR, TSharedPtr const& InSharedPtrB )
+	{
+		return InSharedPtrB.IsValid();
+	}
+
+	/**
+	 * Tests to see if a TSharedRef is "equal" to a TSharedPtr (both are valid and refer to the same object)
+	 *
+	 * @return  True if the shared reference and shared pointer are "equal"
+	 */
+	template< class ObjectTypeA >
+	[[nodiscard]] friend FORCEINLINE bool operator==( TSharedRef< ObjectTypeA, InMode > const& InSharedRef, TSharedPtr const& InSharedPtr)
+	{
+		return InSharedPtr.IsValid() && InSharedPtr.Get() == &( InSharedRef.Get() );
+	}
+
+
+	/**
+	 * Tests to see if a TSharedRef is not "equal" to a TSharedPtr (shared pointer is invalid, or both refer to different objects)
+	 *
+	 * @return  True if the shared reference and shared pointer are not "equal"
+	 */
+	template< class ObjectTypeA >
+	[[nodiscard]] friend FORCEINLINE bool operator!=( TSharedRef< ObjectTypeA, InMode > const& InSharedRef, TSharedPtr const& InSharedPtr )
+	{
+		return !InSharedPtr.IsValid() || ( InSharedPtr.Get() != &( InSharedRef.Get() ) );
+	}
 };
 
 namespace Freeze
@@ -1510,6 +1654,171 @@ private:
 	/** Interface to the reference counter for this object.  Note that the actual reference
 		controller object is shared by all shared and weak pointers that refer to the object */
 	SharedPointerInternals::FWeakReferencer< Mode > WeakReferenceCount;
+
+
+public:
+	/**
+	 * Global equality operator for TWeakPtr
+	 *
+	 * @return  True if the two weak pointers are equal
+	 */
+	template< class ObjectTypeB >
+	[[nodiscard]] FORCEINLINE bool operator==( TWeakPtr< ObjectTypeB, InMode > const& InWeakPtrB ) const
+	{
+		return Pin().Get() == InWeakPtrB.Pin().Get();
+	}
+
+
+	/**
+	 * Global inequality operator for TWeakPtr
+	 *
+	 * @return  True if the two weak pointers are not equal
+	 */
+	template< class ObjectTypeB>
+	[[nodiscard]] FORCEINLINE bool operator!=( TWeakPtr< ObjectTypeB, InMode > const& InWeakPtrB ) const
+	{
+		return Pin().Get() != InWeakPtrB.Pin().Get();
+	}
+
+
+	/**
+	 * Global equality operator for TWeakPtr
+	 *
+	 * @return  True if the weak pointer and the shared ref are equal
+	 */
+	template< class ObjectTypeB >
+	[[nodiscard]] friend FORCEINLINE bool operator==( TWeakPtr const& InWeakPtr, TSharedRef< ObjectTypeB, InMode > const& InSharedRefB )
+	{
+		return InWeakPtr.Pin().Get() == &InSharedRefB.Get();
+	}
+
+
+	/**
+	 * Global equality operator for TWeakPtr
+	 *
+	 * @return  True if the weak pointer and the shared ptr are equal
+	 */
+	template< class ObjectTypeB >
+	[[nodiscard]] friend FORCEINLINE bool operator==( TWeakPtr const& InWeakPtr, TSharedPtr< ObjectTypeB, InMode > const& InSharedPtrB )
+	{
+		return InWeakPtr.Pin().Get() == InSharedPtrB.Get();
+	}
+
+
+	/**
+	 * Global equality operator for TWeakPtr
+	 *
+	 * @return  True if the weak pointer and the shared ref are equal
+	 */
+	template< class ObjectTypeA >
+	[[nodiscard]] friend FORCEINLINE bool operator==( TSharedRef< ObjectTypeA, InMode > const& InSharedRefA, TWeakPtr const& InWeakPtrB )
+	{
+		return &InSharedRefA.Get() == InWeakPtrB.Pin().Get();
+	}
+
+
+	/**
+	 * Global equality operator for TWeakPtr
+	 *
+	 * @return  True if the weak pointer and the shared ptr are equal
+	 */
+	template< class ObjectTypeA >
+	[[nodiscard]] friend FORCEINLINE bool operator==( TSharedPtr< ObjectTypeA, InMode > const& InSharedPtrA, TWeakPtr const& InWeakPtrB )
+	{
+		return InSharedPtrA.Get() == InWeakPtrB.Pin().Get();
+	}
+
+
+	/**
+	 * Global equality operator for TWeakPtr
+	 *
+	 * @return  True if the weak pointer is null
+	 */
+	[[nodiscard]] friend FORCEINLINE bool operator==( TWeakPtr const& InWeakPtr, TYPE_OF_NULLPTR )
+	{
+		return !InWeakPtr.IsValid();
+	}
+
+
+	/**
+	 * Global equality operator for TWeakPtr
+	 *
+	 * @return  True if the weak pointer is null
+	 */
+	[[nodiscard]] friend FORCEINLINE bool operator==( TYPE_OF_NULLPTR, TWeakPtr const& InWeakPtr )
+	{
+		return !InWeakPtr.IsValid();
+	}
+
+
+	/**
+	 * Global equality operator for TWeakPtr
+	 *
+	 * @return  True if the weak pointer and the shared ref are not equal
+	 */
+	template< class ObjectTypeB>
+	[[nodiscard]] friend FORCEINLINE bool operator!=( TWeakPtr const& InWeakPtr, TSharedRef< ObjectTypeB, InMode > const& InSharedRefB )
+	{
+		return InWeakPtr.Pin().Get() != &InSharedRefB.Get();
+	}
+
+
+	/**
+	 * Global equality operator for TWeakPtr
+	 *
+	 * @return  True if the weak pointer and the shared ptr are not equal
+	 */
+	template< class ObjectTypeB>
+	[[nodiscard]] friend FORCEINLINE bool operator!=( TWeakPtr const& InWeakPtr, TSharedPtr< ObjectTypeB, InMode > const& InSharedPtrB )
+	{
+		return InWeakPtr.Pin().Get() != InSharedPtrB.Get();
+	}
+
+
+	/**
+	 * Global equality operator for TWeakPtr
+	 *
+	 * @return  True if the weak pointer and the shared ref are not equal
+	 */
+	template< class ObjectTypeA>
+	[[nodiscard]] friend FORCEINLINE bool operator!=( TSharedRef< ObjectTypeA, InMode > const& InSharedRefA, TWeakPtr const& InWeakPtrB )
+	{
+		return &InSharedRefA.Get() != InWeakPtrB.Pin().Get();
+	}
+
+
+	/**
+	 * Global equality operator for TWeakPtr
+	 *
+	 * @return  True if the weak pointer and the shared ptr are not equal
+	 */
+	template< class ObjectTypeA >
+	[[nodiscard]] friend FORCEINLINE bool operator!=( TSharedPtr< ObjectTypeA, InMode > const& InSharedPtrA, TWeakPtr const& InWeakPtrB )
+	{
+		return InSharedPtrA.Get() != InWeakPtrB.Pin().Get();
+	}
+
+
+	/**
+	 * Global inequality operator for TWeakPtr
+	 *
+	 * @return  True if the weak pointer is not null
+	 */
+	[[nodiscard]] friend FORCEINLINE bool operator!=( TWeakPtr const& InWeakPtr, TYPE_OF_NULLPTR )
+	{
+		return InWeakPtr.IsValid();
+	}
+
+
+	/**
+	 * Global inequality operator for TWeakPtr
+	 *
+	 * @return  True if the weak pointer is not null
+	 */
+	[[nodiscard]] friend FORCEINLINE bool operator!=( TYPE_OF_NULLPTR, TWeakPtr const& InWeakPtr )
+	{
+		return InWeakPtr.IsValid();
+	}
 };
 
 
@@ -1719,318 +2028,6 @@ private:
 	    with ourselves.  Note this is declared mutable only so that UpdateWeakReferenceInternal() can update it. */
 	mutable TWeakPtr< ObjectType, Mode > WeakThis;	
 };
-
-
-/**
- * Global equality operator for TSharedRef
- *
- * @return  True if the two shared references are equal
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator==( TSharedRef< ObjectTypeA, Mode > const& InSharedRefA, TSharedRef< ObjectTypeB, Mode > const& InSharedRefB )
-{
-	return &( InSharedRefA.Get() ) == &( InSharedRefB.Get() );
-}
-
-
-/**
- * Global inequality operator for TSharedRef
- *
- * @return  True if the two shared references are not equal
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator!=( TSharedRef< ObjectTypeA, Mode > const& InSharedRefA, TSharedRef< ObjectTypeB, Mode > const& InSharedRefB )
-{
-	return &( InSharedRefA.Get() ) != &( InSharedRefB.Get() );
-}
-
-
-/**
- * Global equality operator for TSharedPtr
- *
- * @return  True if the two shared pointers are equal
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator==( TSharedPtr< ObjectTypeA, Mode > const& InSharedPtrA, TSharedPtr< ObjectTypeB, Mode > const& InSharedPtrB )
-{
-	return InSharedPtrA.Get() == InSharedPtrB.Get();
-}
-
-
-/**
- * Global equality operator for TSharedPtr
- *
- * @return  True if the shared pointer is null
- */
-template< class ObjectTypeA, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator==( TSharedPtr< ObjectTypeA, Mode > const& InSharedPtrA, TYPE_OF_NULLPTR )
-{
-	return !InSharedPtrA.IsValid();
-}
-
-
-/**
- * Global equality operator for TSharedPtr
- *
- * @return  True if the shared pointer is null
- */
-template< class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator==( TYPE_OF_NULLPTR, TSharedPtr< ObjectTypeB, Mode > const& InSharedPtrB )
-{
-	return !InSharedPtrB.IsValid();
-}
-
-
-/**
- * Global inequality operator for TSharedPtr
- *
- * @return  True if the two shared pointers are not equal
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator!=( TSharedPtr< ObjectTypeA, Mode > const& InSharedPtrA, TSharedPtr< ObjectTypeB, Mode > const& InSharedPtrB )
-{
-	return InSharedPtrA.Get() != InSharedPtrB.Get();
-}
-
-
-/**
- * Global inequality operator for TSharedPtr
- *
- * @return  True if the shared pointer is not null
- */
-template< class ObjectTypeA, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator!=( TSharedPtr< ObjectTypeA, Mode > const& InSharedPtrA, TYPE_OF_NULLPTR )
-{
-	return InSharedPtrA.IsValid();
-}
-
-
-/**
- * Global inequality operator for TSharedPtr
- *
- * @return  True if the shared pointer is not null
- */
-template< class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator!=( TYPE_OF_NULLPTR, TSharedPtr< ObjectTypeB, Mode > const& InSharedPtrB )
-{
-	return InSharedPtrB.IsValid();
-}
-
-
-/**
- * Tests to see if a TSharedRef is "equal" to a TSharedPtr (both are valid and refer to the same object)
- *
- * @return  True if the shared reference and shared pointer are "equal"
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator==( TSharedRef< ObjectTypeA, Mode > const& InSharedRef, TSharedPtr< ObjectTypeB, Mode > const& InSharedPtr )
-{
-	return InSharedPtr.IsValid() && InSharedPtr.Get() == &( InSharedRef.Get() );
-}
-
-
-/**
- * Tests to see if a TSharedRef is not "equal" to a TSharedPtr (shared pointer is invalid, or both refer to different objects)
- *
- * @return  True if the shared reference and shared pointer are not "equal"
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator!=( TSharedRef< ObjectTypeA, Mode > const& InSharedRef, TSharedPtr< ObjectTypeB, Mode > const& InSharedPtr )
-{
-	return !InSharedPtr.IsValid() || ( InSharedPtr.Get() != &( InSharedRef.Get() ) );
-}
-
-
-/**
- * Tests to see if a TSharedRef is "equal" to a TSharedPtr (both are valid and refer to the same object) (reverse)
- *
- * @return  True if the shared reference and shared pointer are "equal"
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator==( TSharedPtr< ObjectTypeB, Mode > const& InSharedPtr, TSharedRef< ObjectTypeA, Mode > const& InSharedRef )
-{
-	return InSharedRef == InSharedPtr;
-}
-
-
-/**
- * Tests to see if a TSharedRef is not "equal" to a TSharedPtr (shared pointer is invalid, or both refer to different objects) (reverse)
- *
- * @return  True if the shared reference and shared pointer are not "equal"
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator!=( TSharedPtr< ObjectTypeB, Mode > const& InSharedPtr, TSharedRef< ObjectTypeA, Mode > const& InSharedRef )
-{
-	return InSharedRef != InSharedPtr;
-}
-
-
-/**
- * Global equality operator for TWeakPtr
- *
- * @return  True if the two weak pointers are equal
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator==( TWeakPtr< ObjectTypeA, Mode > const& InWeakPtrA, TWeakPtr< ObjectTypeB, Mode > const& InWeakPtrB )
-{
-	return InWeakPtrA.Pin().Get() == InWeakPtrB.Pin().Get();
-}
-
-
-/**
- * Global equality operator for TWeakPtr
- *
- * @return  True if the weak pointer and the shared ref are equal
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator==( TWeakPtr< ObjectTypeA, Mode > const& InWeakPtrA, TSharedRef< ObjectTypeB, Mode > const& InSharedRefB )
-{
-	return InWeakPtrA.Pin().Get() == &InSharedRefB.Get();
-}
-
-
-/**
- * Global equality operator for TWeakPtr
- *
- * @return  True if the weak pointer and the shared ptr are equal
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator==( TWeakPtr< ObjectTypeA, Mode > const& InWeakPtrA, TSharedPtr< ObjectTypeB, Mode > const& InSharedPtrB )
-{
-	return InWeakPtrA.Pin().Get() == InSharedPtrB.Get();
-}
-
-
-/**
- * Global equality operator for TWeakPtr
- *
- * @return  True if the weak pointer and the shared ref are equal
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator==( TSharedRef< ObjectTypeA, Mode > const& InSharedRefA, TWeakPtr< ObjectTypeB, Mode > const& InWeakPtrB )
-{
-	return &InSharedRefA.Get() == InWeakPtrB.Pin().Get();
-}
-
-
-/**
- * Global equality operator for TWeakPtr
- *
- * @return  True if the weak pointer and the shared ptr are equal
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator==( TSharedPtr< ObjectTypeA, Mode > const& InSharedPtrA, TWeakPtr< ObjectTypeB, Mode > const& InWeakPtrB )
-{
-	return InSharedPtrA.Get() == InWeakPtrB.Pin().Get();
-}
-
-
-/**
- * Global equality operator for TWeakPtr
- *
- * @return  True if the weak pointer is null
- */
-template< class ObjectTypeA, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator==( TWeakPtr< ObjectTypeA, Mode > const& InWeakPtrA, TYPE_OF_NULLPTR )
-{
-	return !InWeakPtrA.IsValid();
-}
-
-
-/**
- * Global equality operator for TWeakPtr
- *
- * @return  True if the weak pointer is null
- */
-template< class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator==( TYPE_OF_NULLPTR, TWeakPtr< ObjectTypeB, Mode > const& InWeakPtrB )
-{
-	return !InWeakPtrB.IsValid();
-}
-
-
-/**
- * Global inequality operator for TWeakPtr
- *
- * @return  True if the two weak pointers are not equal
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator!=( TWeakPtr< ObjectTypeA, Mode > const& InWeakPtrA, TWeakPtr< ObjectTypeB, Mode > const& InWeakPtrB )
-{
-	return InWeakPtrA.Pin().Get() != InWeakPtrB.Pin().Get();
-}
-
-
-/**
- * Global equality operator for TWeakPtr
- *
- * @return  True if the weak pointer and the shared ref are not equal
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator!=( TWeakPtr< ObjectTypeA, Mode > const& InWeakPtrA, TSharedRef< ObjectTypeB, Mode > const& InSharedRefB )
-{
-	return InWeakPtrA.Pin().Get() != &InSharedRefB.Get();
-}
-
-
-/**
- * Global equality operator for TWeakPtr
- *
- * @return  True if the weak pointer and the shared ptr are not equal
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator!=( TWeakPtr< ObjectTypeA, Mode > const& InWeakPtrA, TSharedPtr< ObjectTypeB, Mode > const& InSharedPtrB )
-{
-	return InWeakPtrA.Pin().Get() != InSharedPtrB.Get();
-}
-
-
-/**
- * Global equality operator for TWeakPtr
- *
- * @return  True if the weak pointer and the shared ref are not equal
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator!=( TSharedRef< ObjectTypeA, Mode > const& InSharedRefA, TWeakPtr< ObjectTypeB, Mode > const& InWeakPtrB )
-{
-	return &InSharedRefA.Get() != InWeakPtrB.Pin().Get();
-}
-
-
-/**
- * Global equality operator for TWeakPtr
- *
- * @return  True if the weak pointer and the shared ptr are not equal
- */
-template< class ObjectTypeA, class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator!=( TSharedPtr< ObjectTypeA, Mode > const& InSharedPtrA, TWeakPtr< ObjectTypeB, Mode > const& InWeakPtrB )
-{
-	return InSharedPtrA.Get() != InWeakPtrB.Pin().Get();
-}
-
-
-/**
- * Global inequality operator for TWeakPtr
- *
- * @return  True if the weak pointer is not null
- */
-template< class ObjectTypeA, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator!=( TWeakPtr< ObjectTypeA, Mode > const& InWeakPtrA, TYPE_OF_NULLPTR )
-{
-	return InWeakPtrA.IsValid();
-}
-
-
-/**
- * Global inequality operator for TWeakPtr
- *
- * @return  True if the weak pointer is not null
- */
-template< class ObjectTypeB, ESPMode Mode >
-[[nodiscard]] FORCEINLINE bool operator!=( TYPE_OF_NULLPTR, TWeakPtr< ObjectTypeB, Mode > const& InWeakPtrB )
-{
-	return InWeakPtrB.IsValid();
-}
 
 
 /**

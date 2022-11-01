@@ -64,8 +64,12 @@ public:
 		Ar << InSubjectName.Name;
 		return Ar;
 	}
+	
+	friend inline uint32 GetTypeHash(const FLiveLinkSubjectName& Value)
+	{
+		return GetTypeHash(Value.Name);
+	}
 };
-template <> struct TModels<CGetTypeHashable, FLiveLinkSubjectName> { enum { Value = TModels<CGetTypeHashable, FName>::Value }; };
 
 
 // Structure that identifies an individual subject

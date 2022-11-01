@@ -242,18 +242,18 @@ struct FParameterAllocation
 		Ar << Allocation.Type;
 		return Ar;
 	}
+
+	friend inline bool operator==(const FParameterAllocation& A, const FParameterAllocation& B)
+	{
+		return
+			A.BufferIndex == B.BufferIndex && A.BaseIndex == B.BaseIndex && A.Size == B.Size && A.Type == B.Type && A.bBound == B.bBound;
+	}
+
+	friend inline bool operator!=(const FParameterAllocation& A, const FParameterAllocation& B)
+	{
+		return !(A == B);
+	}
 };
-
-inline bool operator==(const FParameterAllocation& A, const FParameterAllocation& B)
-{
-	return
-		A.BufferIndex == B.BufferIndex && A.BaseIndex == B.BaseIndex && A.Size == B.Size && A.Type == B.Type && A.bBound == B.bBound;
-}
-
-inline bool operator!=(const FParameterAllocation& A, const FParameterAllocation& B)
-{
-	return !(A == B);
-}
 
 /**
  * A map of shader parameter names to registers allocated to that parameter.
@@ -716,17 +716,18 @@ struct FShaderCodeVendorExtension
 	{
 		return Ar << Extension.VendorId << Extension.Parameter;
 	}
+
+	friend inline bool operator==(const FShaderCodeVendorExtension& A, const FShaderCodeVendorExtension& B)
+	{
+		return A.VendorId == B.VendorId && A.Parameter == B.Parameter;
+	}
+
+	friend inline bool operator!=(const FShaderCodeVendorExtension& A, const FShaderCodeVendorExtension& B)
+	{
+		return !(A == B);
+	}
+
 };
-
-inline bool operator==(const FShaderCodeVendorExtension& A, const FShaderCodeVendorExtension& B)
-{
-	return A.VendorId == B.VendorId && A.Parameter == B.Parameter;
-}
-
-inline bool operator!=(const FShaderCodeVendorExtension& A, const FShaderCodeVendorExtension& B)
-{
-	return !(A == B);
-}
 
 #ifndef RENDERCORE_ATTRIBUTE_UNALIGNED
 // TODO find out if using GCC_ALIGN(1) instead of this new #define break on all kinds of platforms...

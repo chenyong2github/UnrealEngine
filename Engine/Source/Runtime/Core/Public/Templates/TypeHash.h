@@ -7,6 +7,7 @@
 #include "Misc/Crc.h"
 
 #include <stdint.h>
+#include <type_traits>
 
 
 namespace UE
@@ -88,94 +89,69 @@ inline uint32 PointerHash(const void* Key, uint32 C)
 //           expect them to be consistent across multiple runs.
 //
 
-inline uint32 GetTypeHash( const uint8 A )
+template <
+	typename ScalarType,
+	std::enable_if_t<std::is_scalar_v<ScalarType>>* = nullptr
+>
+inline uint32 GetTypeHash(ScalarType Value)
 {
-	return A;
+	if constexpr (std::is_integral_v<ScalarType>)
+	{
+		if constexpr (sizeof(ScalarType) <= 4)
+		{
+			return Value;
+		}
+		else if constexpr (sizeof(ScalarType) == 8)
+		{
+			return (uint32)Value + ((uint32)(Value >> 32) * 23);
+		}
+		else if constexpr (sizeof(ScalarType) == 16)
+		{
+			const uint64 Low = (uint64)Value;
+			const uint64 High = (uint64)(Value >> 64);
+			return GetTypeHash(Low) ^ GetTypeHash(High);
+		}
+		else
+		{
+			static_assert(sizeof(ScalarType) == 0, "Unsupported integral type");
+		}
+	}
+	else if constexpr (std::is_floating_point_v<ScalarType>)
+	{
+		if constexpr (std::is_same_v<ScalarType, float>)
+		{
+			return *(uint32*)&Value;
+		}
+		else if constexpr (std::is_same_v<ScalarType, double>)
+		{
+			return GetTypeHash(*(uint64*)&Value);
+		}
+		else
+		{
+			static_assert(sizeof(ScalarType) == 0, "Unsupported floating point type");
+		}
+	}
+	else if constexpr (std::is_enum_v<ScalarType>)
+	{
+		return GetTypeHash((__underlying_type(ScalarType))Value);
+	}
+	else if constexpr (std::is_pointer_v<ScalarType>)
+	{
+		if constexpr (std::is_same_v<std::remove_cv_t<std::remove_pointer_t<ScalarType>>, TCHAR>)
+		{
+			return FCrc::Strihash_DEPRECATED(Value);
+		}
+		else
+		{
+			return PointerHash(Value);
+		}
+	}
+	else
+	{
+		static_assert(sizeof(ScalarType) == 0, "Unsupported scalar type");
+	}
 }
 
-inline uint32 GetTypeHash( const int8 A )
-{
-	return A;
-}
-
-inline uint32 GetTypeHash( const uint16 A )
-{
-	return A;
-}
-
-inline uint32 GetTypeHash( const int16 A )
-{
-	return A;
-}
-
-inline uint32 GetTypeHash( const int32 A )
-{
-	return A;
-}
-
-inline uint32 GetTypeHash( const uint32 A )
-{
-	return A;
-}
-
-inline uint32 GetTypeHash( const uint64 A )
-{
-	return (uint32)A+((uint32)(A>>32) * 23);
-}
-
-inline uint32 GetTypeHash( const int64 A )
-{
-	return (uint32)A+((uint32)(A>>32) * 23);
-}
-
-#if PLATFORM_MAC
-inline uint32 GetTypeHash( const __uint128_t A )
-{
-	uint64 Low = (uint64)A;
-	uint64 High = (uint64)(A >> 64);
-	return GetTypeHash(Low) ^ GetTypeHash(High);
-}
-#endif
-
-#if defined(INT64_T_TYPES_NOT_LONG_LONG)
-// int64_t and uint64_t are long types, not long long (aka int64/uint64). These types can't be automatically converted.
-inline uint32 GetTypeHash(uint64_t A)
-{
-	return GetTypeHash((uint64)A);
-}
-inline uint32 GetTypeHash(int64_t A)
-{
-	return GetTypeHash((int64)A);
-}
-#endif
-
-inline uint32 GetTypeHash( float Value )
-{
-	return *(uint32*)&Value;
-}
-
-inline uint32 GetTypeHash( double Value )
-{
-	return GetTypeHash(*(uint64*)&Value);
-}
-
-inline uint32 GetTypeHash( const TCHAR* S )
-{
-	return FCrc::Strihash_DEPRECATED(S);
-}
-
-inline uint32 GetTypeHash( const void* A )
-{
-	return PointerHash(A);
-}
-
-inline uint32 GetTypeHash( void* A )
-{
-	return PointerHash(A);
-}
-
-template <typename EnumType>
-FORCEINLINE  typename TEnableIf<TIsEnum<EnumType>::Value, uint32>::Type GetTypeHash(EnumType E)
-{
-	return GetTypeHash((__underlying_type(EnumType))E);
-}
+// Use this when inside type that has GetTypeHash() (no in-parameters) implemented. It makes GetTypeHash dispatch in global namespace
+template <typename T>
+FORCEINLINE uint32 GetTypeHashHelper(const T& V) { return GetTypeHash(V); }

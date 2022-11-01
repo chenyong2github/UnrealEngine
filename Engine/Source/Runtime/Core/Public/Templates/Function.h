@@ -916,6 +916,38 @@ public:
 	{
 		return Super::IsSet();
 	}
+
+	/**
+	 * Nullptr equality operator.
+	 */
+	friend FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TFunction& Func)
+	{
+		return !Func;
+	}
+
+	/**
+	 * Nullptr equality operator.
+	 */
+	friend FORCEINLINE bool operator==(const TFunction& Func, TYPE_OF_NULLPTR)
+	{
+		return !Func;
+	}
+
+	/**
+	 * Nullptr inequality operator.
+	 */
+	friend FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TFunction& Func)
+	{
+		return (bool)Func;
+	}
+
+	/**
+	 * Nullptr inequality operator.
+	 */
+	friend FORCEINLINE bool operator!=(const TFunction& Func, TYPE_OF_NULLPTR)
+	{
+		return (bool)Func;
+	}
 };
 
 /**
@@ -1021,39 +1053,3 @@ public:
 		return Super::IsSet();
 	}
 };
-
-/**
- * Nullptr equality operator.
- */
-template <typename FuncType>
-FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TFunction<FuncType>& Func)
-{
-	return !Func;
-}
-
-/**
- * Nullptr equality operator.
- */
-template <typename FuncType>
-FORCEINLINE bool operator==(const TFunction<FuncType>& Func, TYPE_OF_NULLPTR)
-{
-	return !Func;
-}
-
-/**
- * Nullptr inequality operator.
- */
-template <typename FuncType>
-FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TFunction<FuncType>& Func)
-{
-	return (bool)Func;
-}
-
-/**
- * Nullptr inequality operator.
- */
-template <typename FuncType>
-FORCEINLINE bool operator!=(const TFunction<FuncType>& Func, TYPE_OF_NULLPTR)
-{
-	return (bool)Func;
-}

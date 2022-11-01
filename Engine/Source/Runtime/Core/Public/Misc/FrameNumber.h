@@ -66,16 +66,16 @@ struct FFrameNumber
 	friend FFrameNumber operator*(FFrameNumber A, float Scalar)   { return FFrameNumber(static_cast<int32>(FMath::Clamp(FMath::FloorToDouble(double(A.Value) * Scalar), (double)TNumericLimits<int32>::Min(), (double)TNumericLimits<int32>::Max()))); }
 	friend FFrameNumber operator/(FFrameNumber A, float Scalar)   { return FFrameNumber(static_cast<int32>(FMath::Clamp(FMath::FloorToDouble(double(A.Value) / Scalar), (double)TNumericLimits<int32>::Min(), (double)TNumericLimits<int32>::Max()))); }
 
+	friend inline uint32 GetTypeHash(FFrameNumber A)
+	{
+		return A.Value;
+	}
+
 	/**
 	 * The value of the frame number
 	 */
 	int32 Value;
 };
-
-inline uint32 GetTypeHash(FFrameNumber A)
-{
-	return A.Value;
-}
 
 template<>
 struct TNumericLimits<FFrameNumber>

@@ -236,12 +236,12 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVersionNumber
 	{
 		return FString::Format(TEXT("v{0}.{1}"), { Major, Minor });
 	}
-};
 
-FORCEINLINE uint32 GetTypeHash(const FMetasoundFrontendVersionNumber& InNumber)
-{
-	return HashCombineFast(GetTypeHash(InNumber.Major), GetTypeHash(InNumber.Minor));
-}
+	friend FORCEINLINE uint32 GetTypeHash(const FMetasoundFrontendVersionNumber& InNumber)
+	{
+		return HashCombineFast(GetTypeHash(InNumber.Major), GetTypeHash(InNumber.Minor));
+	}
+};
 
 // General purpose version info for Metasound Frontend objects.
 USTRUCT()
@@ -312,12 +312,12 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendVersion
 	{
 		return InLHS == InRHS || InLHS < InRHS;
 	}
-};
 
-FORCEINLINE uint32 GetTypeHash(const FMetasoundFrontendVersion& InVersion)
-{
-	return HashCombineFast(GetTypeHash(InVersion.Name), GetTypeHash(InVersion.Number));
-}
+	friend FORCEINLINE uint32 GetTypeHash(const FMetasoundFrontendVersion& InVersion)
+	{
+		return HashCombineFast(GetTypeHash(InVersion.Name), GetTypeHash(InVersion.Number));
+	}
+};
 
 // An FMetasoundFrontendVertex provides a named connection point of a node.
 USTRUCT() 

@@ -549,12 +549,12 @@ private:
 	void SetStaticSwitchParameterValue(const FMaterialParameterInfo& ParameterInfo, const FGuid& ExpressionGuid, bool Value);
 	void SetStaticComponentMaskParameterValue(const FMaterialParameterInfo& ParameterInfo, const FGuid& ExpressionGuid, bool R, bool G, bool B, bool A);
 #endif // WITH_EDITORONLY_DATA
-};
 
-bool operator==(const FStaticParameterSet&, const FStaticParameterSetRuntimeData&) = delete;
-bool operator==(const FStaticParameterSetRuntimeData&, const FStaticParameterSet&) = delete;
-bool operator!=(const FStaticParameterSet&, const FStaticParameterSetRuntimeData&) = delete;
-bool operator!=(const FStaticParameterSetRuntimeData&, const FStaticParameterSet&) = delete;
+	friend bool operator==(const FStaticParameterSet&, const FStaticParameterSetRuntimeData&) = delete;
+	friend bool operator==(const FStaticParameterSetRuntimeData&, const FStaticParameterSet&) = delete;
+	friend bool operator!=(const FStaticParameterSet&, const FStaticParameterSetRuntimeData&) = delete;
+	friend bool operator!=(const FStaticParameterSetRuntimeData&, const FStaticParameterSet&) = delete;
+};
 
 template<>
 struct TStructOpsTypeTraits<FStaticParameterSet> : TStructOpsTypeTraitsBase2<FStaticParameterSet>

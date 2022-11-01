@@ -878,7 +878,7 @@ public:
 
 	virtual uint32 GetTypeHash() const override
 	{
-		return ::GetTypeHash(UniqueNetIdStr);
+		return GetTypeHashHelper(UniqueNetIdStr);
 	}
 
 public:
@@ -978,7 +978,7 @@ public: \
 	} \
 	friend uint32 GetTypeHash(const SUBCLASSNAME& A) \
 	{ \
-		return ::GetTypeHash(A.UniqueNetIdStr); \
+		return GetTypeHashHelper(A.UniqueNetIdStr); \
 	} \
 	static const SUBCLASSNAME##Ref& EmptyId() \
 	{ \
@@ -1580,14 +1580,14 @@ public:
 
 protected:
 	TInternalType Value;
+
+	friend inline uint32 GetTypeHash(const FOnlinePartyTypeId Id)
+	{
+		return Id.GetValue();
+	}
 };
 
 inline bool IsValid(const FOnlinePartyTypeId Id) { return Id.GetValue() != 0; }
-
-inline uint32 GetTypeHash(const FOnlinePartyTypeId Id)
-{
-	return Id.GetValue();
-}
 
 class FOnlineFriendSettingsSourceData
 {

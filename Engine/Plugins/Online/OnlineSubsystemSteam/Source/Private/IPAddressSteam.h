@@ -176,7 +176,7 @@ public:
 
 	virtual uint32 GetTypeHash() const override
 	{
-		return ::GetTypeHash(ToString(true));
+		return GetTypeHashHelper(ToString(true));
 	}
 
 	friend uint32 GetTypeHash(const FInternetAddrSteam& A)

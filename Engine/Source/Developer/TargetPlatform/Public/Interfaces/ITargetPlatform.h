@@ -789,11 +789,11 @@ struct FTargetPlatform
 		return Ordinal == Other.Ordinal;
 	}
 
+	friend inline uint32 GetTypeHash(const FTargetPlatform& Key) { return Key.GetOrdinal(); }
+
 private:
 	uint32 Ordinal = 0;
 };
-
-inline uint32 GetTypeHash(const FTargetPlatform& Key) { return Key.GetOrdinal(); }
 
 /**
  * Target platform set implementation using bitmask for compactness

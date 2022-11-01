@@ -399,13 +399,12 @@ public:
 private:
 	static const IndexType kNullIndex = TNumericLimits<IndexType>::Max();
 	IndexType Index = kNullIndex;
-};
 
-template <typename ObjectType, typename IndexType>
-FORCEINLINE uint32 GetTypeHash(TRDGHandle<ObjectType, IndexType> Handle)
-{
-	return Handle.GetIndex();
-}
+	friend FORCEINLINE uint32 GetTypeHash(TRDGHandle Handle)
+	{
+		return Handle.GetIndex();
+	}
+};
 
 enum class ERDGHandleRegistryDestructPolicy
 {

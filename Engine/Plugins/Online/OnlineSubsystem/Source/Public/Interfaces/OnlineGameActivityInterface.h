@@ -19,15 +19,15 @@ struct FOnlineActivityPlayerLocation
 	FString ZoneId;
 	/** Coordinates */
 	FVector Coordinates;
-};
 
-/**
- * Equals operator for comparing FOnlineActivityPlayerLocation objects
- */
-inline bool operator==(const FOnlineActivityPlayerLocation& Location1, const FOnlineActivityPlayerLocation& Location2)
-{
-	return Location1.ZoneId == Location2.ZoneId && Location1.Coordinates == Location2.Coordinates;
-}
+	/**
+	 * Equals operator for comparing FOnlineActivityPlayerLocation objects
+	 */
+	friend inline bool operator==(const FOnlineActivityPlayerLocation& Location1, const FOnlineActivityPlayerLocation& Location2)
+	{
+		return Location1.ZoneId == Location2.ZoneId && Location1.Coordinates == Location2.Coordinates;
+	}
+};
 
 /**
  * Outcome representation of ending an activity.

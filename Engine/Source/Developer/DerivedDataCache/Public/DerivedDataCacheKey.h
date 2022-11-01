@@ -90,6 +90,28 @@ struct FCacheKey
 
 	/** A key with a null bucket and a zero hash. */
 	static const FCacheKey Empty;
+
+	friend inline bool operator==(const FCacheKey& A, const FCacheKey& B)
+	{
+		return A.Bucket == B.Bucket && A.Hash == B.Hash;
+	}
+
+	friend inline bool operator!=(const FCacheKey& A, const FCacheKey& B)
+	{
+		return A.Bucket != B.Bucket || A.Hash != B.Hash;
+	}
+
+	friend inline bool operator<(const FCacheKey& A, const FCacheKey& B)
+	{
+		const FCacheBucket& BucketA = A.Bucket;
+		const FCacheBucket& BucketB = B.Bucket;
+		return BucketA == BucketB ? A.Hash < B.Hash : BucketA < BucketB;
+	}
+
+	friend inline uint32 GetTypeHash(const FCacheKey& Key)
+	{
+		return HashCombine(GetTypeHash(Key.Bucket), GetTypeHash(Key.Hash));
+	}
 };
 
 inline const FCacheKey FCacheKey::Empty;
@@ -111,28 +133,6 @@ UE_API FCbWriter& operator<<(FCbWriter& Writer, FCacheBucket Bucket);
 UE_API bool LoadFromCompactBinary(FCbFieldView Field, FCacheBucket& OutBucket);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline bool operator==(const FCacheKey& A, const FCacheKey& B)
-{
-	return A.Bucket == B.Bucket && A.Hash == B.Hash;
-}
-
-inline bool operator!=(const FCacheKey& A, const FCacheKey& B)
-{
-	return A.Bucket != B.Bucket || A.Hash != B.Hash;
-}
-
-inline bool operator<(const FCacheKey& A, const FCacheKey& B)
-{
-	const FCacheBucket& BucketA = A.Bucket;
-	const FCacheBucket& BucketB = B.Bucket;
-	return BucketA == BucketB ? A.Hash < B.Hash : BucketA < BucketB;
-}
-
-inline uint32 GetTypeHash(const FCacheKey& Key)
-{
-	return HashCombine(GetTypeHash(Key.Bucket), GetTypeHash(Key.Hash));
-}
 
 template <typename CharType>
 inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCacheKey& Key)

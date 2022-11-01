@@ -380,39 +380,6 @@ bool FNumericUnit<NumericType>::ExtractNumberBoundary(const TCHAR* Start, const 
 	return true;
 }
 
-/** Global arithmetic operators for number types. Deals with conversion from related units correctly. */
-template<typename NumericType, typename OtherType>
-bool operator==(const FNumericUnit<NumericType>& LHS, const FNumericUnit<OtherType>& RHS)
-{
-	if (LHS.Units != EUnit::Unspecified && RHS.Units != EUnit::Unspecified)
-	{
-		if (LHS.Units == RHS.Units)
-		{
-			return LHS.Value == RHS.Value;
-		}
-		else if (FUnitConversion::AreUnitsCompatible(LHS.Units, RHS.Units))
-		{
-			return LHS.Value == FUnitConversion::Convert(RHS.Value, RHS.Units, LHS.Units);
-		}
-		else
-		{
-			// Invalid conversion
-			return false;
-		}
-	}
-	else
-	{
-		return LHS.Value == RHS.Value;
-	}
-}
-
-template<typename NumericType, typename OtherType>
-bool operator!=(const FNumericUnit<NumericType>& LHS, const FNumericUnit<OtherType>& RHS)
-{
-	return !(LHS == RHS);
-}
-
-
 template <typename NumericType>
 struct TNumericLimits<FNumericUnit<NumericType>> : public TNumericLimits<NumericType>
 { };

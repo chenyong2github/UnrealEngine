@@ -43,12 +43,12 @@ namespace Metasound
 
 		uint32 FAnalyzerAddress::GetHash() const
 		{
-			uint32 AddressHash = HashCombineFast(AnalyzerInstanceID.A, ::GetTypeHash(AnalyzerMemberName));
-			AddressHash = HashCombineFast(AddressHash, ::GetTypeHash(AnalyzerName));
-			AddressHash = HashCombineFast(AddressHash, ::GetTypeHash(DataType));
-			AddressHash = HashCombineFast(AddressHash, ::GetTypeHash(InstanceID));
+			uint32 AddressHash = HashCombineFast(AnalyzerInstanceID.A, GetTypeHashHelper(AnalyzerMemberName));
+			AddressHash = HashCombineFast(AddressHash, GetTypeHashHelper(AnalyzerName));
+			AddressHash = HashCombineFast(AddressHash, GetTypeHashHelper(DataType));
+			AddressHash = HashCombineFast(AddressHash, GetTypeHashHelper(InstanceID));
 			AddressHash = HashCombineFast(AddressHash, NodeID.A);
-			AddressHash = HashCombineFast(AddressHash, ::GetTypeHash(OutputName));
+			AddressHash = HashCombineFast(AddressHash, GetTypeHashHelper(OutputName));
 
 			return AddressHash;
 		}

@@ -229,6 +229,76 @@ public:
 		Ar << static_cast<TWeakObjectPtrBase&>(WeakObjectPtr);
 		return Ar;
 	}
+
+	/**
+	 * Compare weak pointers for equality.
+	 * If both pointers would return nullptr from Get() they count as equal even if they were not initialized to the same object.
+	 * @param Other weak pointer to compare to
+	 */
+	template <typename RhsT, typename = decltype((T*)nullptr == (RhsT*)nullptr)>
+	friend FORCENOINLINE bool operator==(const TWeakObjectPtr& Lhs, const TWeakObjectPtr<RhsT, TWeakObjectPtrBase>& Rhs)
+	{
+		return (const TWeakObjectPtrBase&)Lhs == (const TWeakObjectPtrBase&)Rhs;
+	}
+
+	template <typename RhsT, typename = decltype((T*)nullptr == (RhsT*)nullptr)>
+	friend FORCENOINLINE bool operator==(const TWeakObjectPtr& Lhs, const RhsT* Rhs)
+	{
+		// NOTE: this constructs a TWeakObjectPtrBase, which has some amount of overhead, so this may not be an efficient operation
+		return (const TWeakObjectPtrBase&)Lhs == TWeakObjectPtrBase(Rhs);
+	}
+
+	template <typename LhsT, typename = decltype((LhsT*)nullptr == (T*)nullptr)>
+	friend FORCENOINLINE bool operator==(const LhsT* Lhs, const TWeakObjectPtr& Rhs)
+	{
+		// NOTE: this constructs a TWeakObjectPtrBase, which has some amount of overhead, so this may not be an efficient operation
+		return TWeakObjectPtrBase(Lhs) == (const TWeakObjectPtrBase&)Rhs;
+	}
+
+	friend FORCENOINLINE bool operator==(const TWeakObjectPtr& Lhs, TYPE_OF_NULLPTR)
+	{
+		return !Lhs.IsValid();
+	}
+
+	friend FORCENOINLINE bool operator==(TYPE_OF_NULLPTR, const TWeakObjectPtr& Rhs)
+	{
+		return !Rhs.IsValid();
+	}
+
+	/**
+	 * Compare weak pointers for inequality
+	 * @param Other weak pointer to compare to
+	 */
+	template <typename RhsT, typename = decltype((T*)nullptr != (RhsT*)nullptr)>
+	friend FORCENOINLINE bool operator!=(const TWeakObjectPtr& Lhs, const TWeakObjectPtr<RhsT, TWeakObjectPtrBase>& Rhs)
+	{
+		return (const TWeakObjectPtrBase&)Lhs != (const TWeakObjectPtrBase&)Rhs;
+	}
+
+	template <typename RhsT, typename = decltype((T*)nullptr != (RhsT*)nullptr)>
+	friend FORCENOINLINE bool operator!=(const TWeakObjectPtr& Lhs, const RhsT* Rhs)
+	{
+		// NOTE: this constructs a TWeakObjectPtrBase, which has some amount of overhead, so this may not be an efficient operation
+		return (const TWeakObjectPtrBase&)Lhs != TWeakObjectPtrBase(Rhs);
+	}
+
+	template <typename LhsT, typename = decltype((LhsT*)nullptr != (T*)nullptr)>
+	friend FORCENOINLINE bool operator!=(const LhsT* Lhs, const TWeakObjectPtr& Rhs)
+	{
+		// NOTE: this constructs a TWeakObjectPtrBase, which has some amount of overhead, so this may not be an efficient operation
+		return TWeakObjectPtrBase(Lhs) != (const TWeakObjectPtrBase&)Rhs;
+	}
+
+	friend FORCENOINLINE bool operator!=(const TWeakObjectPtr& Lhs, TYPE_OF_NULLPTR)
+	{
+		return Lhs.IsValid();
+	}
+
+	friend FORCENOINLINE bool operator!=(TYPE_OF_NULLPTR, const TWeakObjectPtr& Rhs)
+	{
+		return Rhs.IsValid();
+	}
+
 };
 
 // Helper function which deduces the type of the initializer
@@ -237,80 +307,6 @@ FORCEINLINE TWeakObjectPtr<T> MakeWeakObjectPtr(T* Ptr)
 {
 	return TWeakObjectPtr<T>(Ptr);
 }
-
-/**
- * Compare weak pointers for equality.
- * If both pointers would return nullptr from Get() they count as equal even if they were not initialized to the same object.
- * @param Other weak pointer to compare to
- */
-template <typename LhsT, typename RhsT, typename OtherTWeakObjectPtrBase, typename = decltype((LhsT*)nullptr == (RhsT*)nullptr)>
-FORCENOINLINE bool operator==(const TWeakObjectPtr<LhsT, OtherTWeakObjectPtrBase>& Lhs, const TWeakObjectPtr<RhsT, OtherTWeakObjectPtrBase>& Rhs)
-{
-	return (const OtherTWeakObjectPtrBase&)Lhs == (const OtherTWeakObjectPtrBase&)Rhs;
-}
-
-template <typename LhsT, typename RhsT, typename OtherTWeakObjectPtrBase, typename = decltype((LhsT*)nullptr == (RhsT*)nullptr)>
-FORCENOINLINE bool operator==(const TWeakObjectPtr<LhsT, OtherTWeakObjectPtrBase>& Lhs, const RhsT* Rhs)
-{
-	// NOTE: this constructs a TWeakObjectPtrBase, which has some amount of overhead, so this may not be an efficient operation
-	return (const OtherTWeakObjectPtrBase&)Lhs == OtherTWeakObjectPtrBase(Rhs);
-}
-
-template <typename LhsT, typename RhsT, typename OtherTWeakObjectPtrBase, typename = decltype((LhsT*)nullptr == (RhsT*)nullptr)>
-FORCENOINLINE bool operator==(const LhsT* Lhs, const TWeakObjectPtr<RhsT, OtherTWeakObjectPtrBase>& Rhs)
-{
-	// NOTE: this constructs a TWeakObjectPtrBase, which has some amount of overhead, so this may not be an efficient operation
-	return OtherTWeakObjectPtrBase(Lhs) == (const OtherTWeakObjectPtrBase&)Rhs;
-}
-
-template <typename LhsT, typename OtherTWeakObjectPtrBase>
-FORCENOINLINE bool operator==(const TWeakObjectPtr<LhsT, OtherTWeakObjectPtrBase>& Lhs, TYPE_OF_NULLPTR)
-{
-	return !Lhs.IsValid();
-}
-
-template <typename RhsT, typename OtherTWeakObjectPtrBase>
-FORCENOINLINE bool operator==(TYPE_OF_NULLPTR, const TWeakObjectPtr<RhsT, OtherTWeakObjectPtrBase>& Rhs)
-{
-	return !Rhs.IsValid();
-}
-
-/**
- * Compare weak pointers for inequality
- * @param Other weak pointer to compare to
- */
-template <typename LhsT, typename RhsT, typename OtherTWeakObjectPtrBase, typename = decltype((LhsT*)nullptr != (RhsT*)nullptr)>
-FORCENOINLINE bool operator!=(const TWeakObjectPtr<LhsT, OtherTWeakObjectPtrBase>& Lhs, const TWeakObjectPtr<RhsT, OtherTWeakObjectPtrBase>& Rhs)
-{
-	return (const OtherTWeakObjectPtrBase&)Lhs != (const OtherTWeakObjectPtrBase&)Rhs;
-}
-
-template <typename LhsT, typename RhsT, typename OtherTWeakObjectPtrBase, typename = decltype((LhsT*)nullptr != (RhsT*)nullptr)>
-FORCENOINLINE bool operator!=(const TWeakObjectPtr<LhsT, OtherTWeakObjectPtrBase>& Lhs, const RhsT* Rhs)
-{
-	// NOTE: this constructs a TWeakObjectPtrBase, which has some amount of overhead, so this may not be an efficient operation
-	return (const OtherTWeakObjectPtrBase&)Lhs != OtherTWeakObjectPtrBase(Rhs);
-}
-
-template <typename LhsT, typename RhsT, typename OtherTWeakObjectPtrBase, typename = decltype((LhsT*)nullptr != (RhsT*)nullptr)>
-FORCENOINLINE bool operator!=(const LhsT* Lhs, const TWeakObjectPtr<RhsT, OtherTWeakObjectPtrBase>& Rhs)
-{
-	// NOTE: this constructs a TWeakObjectPtrBase, which has some amount of overhead, so this may not be an efficient operation
-	return OtherTWeakObjectPtrBase(Lhs) != (const OtherTWeakObjectPtrBase&)Rhs;
-}
-
-template <typename LhsT, typename OtherTWeakObjectPtrBase>
-FORCENOINLINE bool operator!=(const TWeakObjectPtr<LhsT, OtherTWeakObjectPtrBase>& Lhs, TYPE_OF_NULLPTR)
-{
-	return Lhs.IsValid();
-}
-
-template <typename RhsT, typename OtherTWeakObjectPtrBase>
-FORCENOINLINE bool operator!=(TYPE_OF_NULLPTR, const TWeakObjectPtr<RhsT, OtherTWeakObjectPtrBase>& Rhs)
-{
-	return Rhs.IsValid();
-}
-
 
 template<class T> struct TIsPODType<TWeakObjectPtr<T> > { enum { Value = true }; };
 template<class T> struct TIsZeroConstructType<TWeakObjectPtr<T> > { enum { Value = true }; };

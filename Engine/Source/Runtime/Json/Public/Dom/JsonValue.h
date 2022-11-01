@@ -107,17 +107,17 @@ protected:
 	virtual FString GetType() const = 0;
 
 	void ErrorMessage(const FString& InType) const;
+
+	friend inline bool operator==(const FJsonValue& Lhs, const FJsonValue& Rhs)
+	{
+		return FJsonValue::CompareEqual(Lhs, Rhs);
+	}
+
+	friend inline bool operator!=(const FJsonValue& Lhs, const FJsonValue& Rhs)
+	{
+		return !FJsonValue::CompareEqual(Lhs, Rhs);
+	}
 };
-
-inline bool operator==(const FJsonValue& Lhs, const FJsonValue& Rhs)
-{
-	return FJsonValue::CompareEqual(Lhs, Rhs);
-}
-
-inline bool operator!=(const FJsonValue& Lhs, const FJsonValue& Rhs)
-{
-	return !FJsonValue::CompareEqual(Lhs, Rhs);
-}
 
 
 /** A Json String Value. */

@@ -100,17 +100,16 @@ struct TShaderTypePermutation
 	{
 		return !(*this == Other);
 	}
+
+	friend FORCEINLINE uint32 GetTypeHash(const TShaderTypePermutation& Var)
+	{
+		return HashCombine(GetTypeHash(Var.Type), (uint32)Var.PermutationId);
+	}
 };
 
 using FShaderPermutation = TShaderTypePermutation<FShaderType>;
 
-const int32 kUniqueShaderPermutationId = 0;
-
-template<typename MetaShaderType>
-FORCEINLINE uint32 GetTypeHash(const TShaderTypePermutation<MetaShaderType>& Var)
-{
-	return HashCombine(GetTypeHash(Var.Type), (uint32)Var.PermutationId);
-}
+inline const int32 kUniqueShaderPermutationId = 0;
 
 /** Used to compare order shader types permutation deterministically. */
 template<typename MetaShaderType>
@@ -1140,24 +1139,25 @@ private:
 
 	ShaderType* ShaderContent;
 	const FShaderMapBase* ShaderMap;
-};
 
-template<typename ShaderType0, typename ShaderType1, typename PointerTableType>
-inline bool operator==(const TShaderRefBase<ShaderType0, PointerTableType>& Lhs, const TShaderRefBase<ShaderType1, PointerTableType>& Rhs)
-{
-	if (Lhs.GetShader() == Rhs.GetShader())
+	template<typename ShaderType1>
+	friend inline bool operator==(const TShaderRefBase& Lhs, const TShaderRefBase<ShaderType1, PointerTableType>& Rhs)
 	{
-		check(Lhs.GetShaderMap() == Rhs.GetShaderMap());
-		return true;
+		if (Lhs.GetShader() == Rhs.GetShader())
+		{
+			check(Lhs.GetShaderMap() == Rhs.GetShaderMap());
+			return true;
+		}
+		return false;
 	}
-	return false;
-}
 
-template<typename ShaderType0, typename ShaderType1, typename PointerTableType>
-inline bool operator!=(const TShaderRefBase<ShaderType0, PointerTableType>& Lhs, const TShaderRefBase<ShaderType1, PointerTableType>& Rhs)
-{
-	return !operator==(Lhs, Rhs);
-}
+	template<typename ShaderType1>
+	friend inline bool operator!=(const TShaderRefBase& Lhs, const TShaderRefBase<ShaderType1, PointerTableType>& Rhs)
+	{
+		return !operator==(Lhs, Rhs);
+	}
+
+};
 
 template<typename ShaderType>
 using TShaderRef = TShaderRefBase<ShaderType, FShaderMapPointerTable>;

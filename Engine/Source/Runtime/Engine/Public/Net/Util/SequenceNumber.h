@@ -51,6 +51,47 @@ public:
 private:
 	void Increment(SequenceT InValue) { *this = TSequenceNumber(Value + InValue); }
 	SequenceT Value;
+
+	friend bool operator<(const TSequenceNumber& Lhs, const TSequenceNumber& Rhs)
+	{
+		return !(Lhs >= Rhs);
+	}
+
+	friend bool operator<=(const TSequenceNumber& Lhs, const TSequenceNumber& Rhs)
+	{
+		return !(Lhs > Rhs);
+	}
+
+	/** Equals, NOTE that sequence numbers wrap around so 0 == 0 + SequenceNumberCount */
+	friend bool operator==(const TSequenceNumber& Lhs, const TSequenceNumber& Rhs)
+	{ 
+		return Lhs.Get() == Rhs.Get(); 
+	}
+
+	friend bool operator!=(const TSequenceNumber& Lhs, const TSequenceNumber& Rhs)
+	{
+		return Lhs.Get() != Rhs.Get();
+	}
+
+	friend const TSequenceNumber operator+(const TSequenceNumber& Lhs, const TSequenceNumber& Rhs)
+	{
+		return TSequenceNumber(Lhs.Get() + Rhs.Get());
+	}
+
+	friend const TSequenceNumber operator-(const TSequenceNumber& Lhs, const TSequenceNumber& Rhs)
+	{
+		return TSequenceNumber(Lhs.Get() - Rhs.Get());
+	}
+
+	friend const TSequenceNumber operator+(const TSequenceNumber& Lhs, SequenceType Rhs)
+	{
+		return TSequenceNumber(Lhs.Get() + Rhs);
+	}
+
+	friend const TSequenceNumber operator-(const TSequenceNumber& Lhs, SequenceType Rhs)
+	{
+		return TSequenceNumber(Lhs.Get() - Rhs);
+	}
 };
 
 template <SIZE_T NumBits, typename SequenceType>
@@ -63,64 +104,3 @@ typename TSequenceNumber<NumBits, SequenceType>::DifferenceT TSequenceNumber<Num
 
 	return (DifferenceT)((ValueA - ValueB) << ShiftValue) >> ShiftValue;
 };
-
-template <SIZE_T NumBits, typename SequenceType>
-bool operator>(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
-{ 
-	return Lhs > Rhs; 
-}
-
-template <SIZE_T NumBits, typename SequenceType>
-bool operator>=(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
-{
-	return Lhs >= Rhs;
-}
-
-template <SIZE_T NumBits, typename SequenceType>
-bool operator<(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
-{
-	return !(Lhs >= Rhs);
-}
-
-template <SIZE_T NumBits, typename SequenceType>
-bool operator<=(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
-{
-	return !(Lhs > Rhs);
-}
-
-/** Equals, NOTE that sequence numbers wrap around so 0 == 0 + SequenceNumberCount */
-template <SIZE_T NumBits, typename SequenceType>
-bool operator==(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
-{ 
-	return Lhs.Get() == Rhs.Get(); 
-}
-
-template <SIZE_T NumBits, typename SequenceType>
-bool operator!=(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
-{
-	return Lhs.Get() != Rhs.Get();
-}
-
-template <SIZE_T NumBits, typename SequenceType>
-const TSequenceNumber<NumBits, SequenceType> operator+(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
-{
-	return TSequenceNumber<NumBits, SequenceType>(Lhs.Get() + Rhs.Get());
-}
-
-template <SIZE_T NumBits, typename SequenceType>
-const TSequenceNumber<NumBits, SequenceType> operator-(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
-{
-	return TSequenceNumber<NumBits, SequenceType>(Lhs.Get() - Rhs.Get());
-}
-
-template <SIZE_T NumBits, typename SequenceType>
-const TSequenceNumber<NumBits, SequenceType> operator+(const TSequenceNumber<NumBits, SequenceType>& Lhs, SequenceType Rhs)
-{
-	return TSequenceNumber<NumBits, SequenceType>(Lhs.Get() + Rhs);
-}
-
-template <SIZE_T NumBits, typename SequenceType>
-const TSequenceNumber<NumBits, SequenceType> operator-(const TSequenceNumber<NumBits, SequenceType>& Lhs, SequenceType Rhs)
-{
-	return TSequenceNumber<NumBits, SequenceType>(Lhs.Get() - Rhs);
-}

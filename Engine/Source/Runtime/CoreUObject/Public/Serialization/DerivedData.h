@@ -420,14 +420,14 @@ public:
 
 private:
 	TPimplPtr<DerivedData::Private::FIoResponse> Response;
+
+	constexpr uint32 GetTypeHash(const FDerivedDataIoPriority& Priority)
+	{
+		return uint32(Priority.Value);
+	}
 };
 
 } // UE
-
-constexpr uint32 GetTypeHash(const UE::FDerivedDataIoPriority& Priority)
-{
-	return uint32(Priority.Value);
-}
 
 namespace UE::DerivedData::IoStore
 {

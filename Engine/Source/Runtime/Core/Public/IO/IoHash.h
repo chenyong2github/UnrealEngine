@@ -71,6 +71,26 @@ public:
 
 private:
 	alignas(uint32) ByteArray Hash{};
+
+	friend inline bool operator==(const FIoHash& A, const FIoHash& B)
+	{
+		return FMemory::Memcmp(A.GetBytes(), B.GetBytes(), sizeof(decltype(A.GetBytes()))) == 0;
+	}
+
+	friend inline bool operator!=(const FIoHash& A, const FIoHash& B)
+	{
+		return FMemory::Memcmp(A.GetBytes(), B.GetBytes(), sizeof(decltype(A.GetBytes()))) != 0;
+	}
+
+	friend inline bool operator<(const FIoHash& A, const FIoHash& B)
+	{
+		return FMemory::Memcmp(A.GetBytes(), B.GetBytes(), sizeof(decltype(A.GetBytes()))) < 0;
+	}
+
+	friend inline uint32 GetTypeHash(const FIoHash& Value)
+	{
+		return *reinterpret_cast<const uint32*>(Value.GetBytes());
+	}
 };
 
 inline const FIoHash FIoHash::Zero;
@@ -142,30 +162,10 @@ inline FIoHash FIoHash::HashBuffer(const FCompositeBuffer& Buffer)
 	return FBlake3::HashBuffer(Buffer);
 }
 
-inline bool operator==(const FIoHash& A, const FIoHash& B)
-{
-	return FMemory::Memcmp(A.GetBytes(), B.GetBytes(), sizeof(decltype(A.GetBytes()))) == 0;
-}
-
-inline bool operator!=(const FIoHash& A, const FIoHash& B)
-{
-	return FMemory::Memcmp(A.GetBytes(), B.GetBytes(), sizeof(decltype(A.GetBytes()))) != 0;
-}
-
-inline bool operator<(const FIoHash& A, const FIoHash& B)
-{
-	return FMemory::Memcmp(A.GetBytes(), B.GetBytes(), sizeof(decltype(A.GetBytes()))) < 0;
-}
-
 inline FArchive& operator<<(FArchive& Ar, FIoHash& Hash)
 {
 	Ar.Serialize(Hash.GetBytes(), sizeof(decltype(Hash.GetBytes())));
 	return Ar;
-}
-
-inline uint32 GetTypeHash(const FIoHash& Hash)
-{
-	return *reinterpret_cast<const uint32*>(Hash.GetBytes());
 }
 
 template <typename CharType>

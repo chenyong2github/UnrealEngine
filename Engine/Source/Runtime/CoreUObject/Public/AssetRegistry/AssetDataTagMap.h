@@ -54,10 +54,10 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	bool IsEmpty() const { return ClassPath.IsNull() & Package.IsNone() & Object.IsNone(); } //-V792
 	explicit operator bool() const { return !IsEmpty(); }
-};
 
-bool operator==(const FAssetRegistryExportPath& A, const FAssetRegistryExportPath& B);
-uint32 GetTypeHash(const FAssetRegistryExportPath& Export);
+	friend bool operator==(const FAssetRegistryExportPath& A, const FAssetRegistryExportPath& B);
+	friend uint32 GetTypeHash(const FAssetRegistryExportPath& Export);
+};
 
 namespace FixedTagPrivate
 {
@@ -266,18 +266,18 @@ private:
 
 	friend class FixedTagPrivate::FStoreBuilder;
 	friend FAssetRegistryState;
+
+	friend inline bool operator==(FAssetTagValueRef A, FStringView B) { return  A.Equals(B); }
+	friend inline bool operator!=(FAssetTagValueRef A, FStringView B) { return !A.Equals(B); }
+	friend inline bool operator==(FStringView A, FAssetTagValueRef B) { return  B.Equals(A); }
+	friend inline bool operator!=(FStringView A, FAssetTagValueRef B) { return !B.Equals(A); }
+
+	// These overloads can be removed when the deprecated implicit operator FString is removed
+	friend inline bool operator==(FAssetTagValueRef A, const FString& B) { return  A.Equals(B); }
+	friend inline bool operator!=(FAssetTagValueRef A, const FString& B) { return !A.Equals(B); }
+	friend inline bool operator==(const FString& A, FAssetTagValueRef B) { return  B.Equals(A); }
+	friend inline bool operator!=(const FString& A, FAssetTagValueRef B) { return !B.Equals(A); }
 };
-
-inline bool operator==(FAssetTagValueRef A, FStringView B) { return  A.Equals(B); }
-inline bool operator!=(FAssetTagValueRef A, FStringView B) { return !A.Equals(B); }
-inline bool operator==(FStringView A, FAssetTagValueRef B) { return  B.Equals(A); }
-inline bool operator!=(FStringView A, FAssetTagValueRef B) { return !B.Equals(A); }
-
-// These overloads can be removed when the deprecated implicit operator FString is removed
-inline bool operator==(FAssetTagValueRef A, const FString& B) { return  A.Equals(B); }
-inline bool operator!=(FAssetTagValueRef A, const FString& B) { return !A.Equals(B); }
-inline bool operator==(const FString& A, FAssetTagValueRef B) { return  B.Equals(A); }
-inline bool operator!=(const FString& A, FAssetTagValueRef B) { return !B.Equals(A); }
 
 using FAssetDataTagMapBase = TSortedMap<FName, FString, FDefaultAllocator, FNameFastLess>;
 
@@ -499,9 +499,9 @@ public:
 		SIZE_T GetLooseSize() const { return LooseBytes; }
 		SIZE_T GetFixedSize() const;		
 	};
-};
 
-inline bool operator==(const FAssetDataTagMap& A, const FAssetDataTagMapSharedView& B)				{ return B == A; }
-inline bool operator!=(const FAssetDataTagMap& A, const FAssetDataTagMapSharedView& B)				{ return !(B == A); }
-inline bool operator!=(const FAssetDataTagMapSharedView& A, const FAssetDataTagMap& B)				{ return !(A == B); }
-inline bool operator!=(const FAssetDataTagMapSharedView& A, const FAssetDataTagMapSharedView& B)	{ return !(A == B); }
+	friend inline bool operator==(const FAssetDataTagMap& A, const FAssetDataTagMapSharedView& B)			{ return B == A; }
+	friend inline bool operator!=(const FAssetDataTagMap& A, const FAssetDataTagMapSharedView& B)			{ return !(B == A); }
+	friend inline bool operator!=(const FAssetDataTagMapSharedView& A, const FAssetDataTagMap& B)			{ return !(A == B); }
+	friend inline bool operator!=(const FAssetDataTagMapSharedView& A, const FAssetDataTagMapSharedView& B)	{ return !(A == B); }
+};

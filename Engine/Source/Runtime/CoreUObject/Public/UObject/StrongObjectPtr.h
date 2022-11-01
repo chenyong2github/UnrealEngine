@@ -178,16 +178,17 @@ public:
 
 private:
 	TUniquePtr< UEStrongObjectPtr_Private::TInternalReferenceCollector<ReferencerNameProvider> > ReferenceCollector;
+
+	template <typename RHSObjectType, typename RHSReferencerNameProvider>
+	friend FORCEINLINE bool operator==(const TStrongObjectPtr<ObjectType, ReferencerNameProvider>& InLHS, const TStrongObjectPtr<RHSObjectType, RHSReferencerNameProvider>& InRHS)
+	{
+		return InLHS.Get() == InRHS.Get();
+	}
+
+	template <typename RHSObjectType, typename RHSReferencerNameProvider>
+	friend FORCEINLINE bool operator!=(const TStrongObjectPtr<ObjectType, ReferencerNameProvider>& InLHS, const TStrongObjectPtr<RHSObjectType, RHSReferencerNameProvider>& InRHS)
+	{
+		return InLHS.Get() != InRHS.Get();
+	}
+
 };
-
-template <typename LHSObjectType, typename LHSReferencerNameProvider, typename RHSObjectType, typename RHSReferencerNameProvider>
-FORCEINLINE bool operator==(const TStrongObjectPtr<LHSObjectType, LHSReferencerNameProvider>& InLHS, const TStrongObjectPtr<RHSObjectType, RHSReferencerNameProvider>& InRHS)
-{
-	return InLHS.Get() == InRHS.Get();
-}
-
-template <typename LHSObjectType, typename LHSReferencerNameProvider, typename RHSObjectType, typename RHSReferencerNameProvider>
-FORCEINLINE bool operator!=(const TStrongObjectPtr<LHSObjectType, LHSReferencerNameProvider>& InLHS, const TStrongObjectPtr<RHSObjectType, RHSReferencerNameProvider>& InRHS)
-{
-	return InLHS.Get() != InRHS.Get();
-}

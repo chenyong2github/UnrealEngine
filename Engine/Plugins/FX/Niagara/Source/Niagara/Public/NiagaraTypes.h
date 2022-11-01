@@ -207,6 +207,11 @@ struct NIAGARA_API FNiagaraAssetVersion
 	bool operator<=(const FNiagaraAssetVersion& Other) const { return *this < Other || (MajorVersion == Other.MajorVersion && MinorVersion == Other.MinorVersion); }
 
 	static FGuid CreateStableVersionGuid(UObject* Object);
+
+	friend FORCEINLINE uint32 GetTypeHash(const FNiagaraAssetVersion& Version)
+	{
+		return HashCombine(GetTypeHash(Version.MajorVersion), GetTypeHash(Version.MinorVersion));
+	}
 };
 
 struct NIAGARA_API FNiagaraLWCConverter
@@ -279,11 +284,6 @@ private:
 	TArray<FNiagaraStructConversionStep> ConversionSteps;
 };
 
-FORCEINLINE uint32 GetTypeHash(const FNiagaraAssetVersion& Version)
-{
-	return HashCombine(GetTypeHash(Version.MajorVersion), GetTypeHash(Version.MinorVersion));
-}
-
 /** Data controlling the spawning of particles */
 USTRUCT(BlueprintType, meta = (DisplayName = "Spawn Info", NiagaraClearEachFrame = "true"))
 struct FNiagaraSpawnInfo
@@ -333,6 +333,11 @@ struct FNiagaraID
 	bool operator==(const FNiagaraID& Other)const { return Index == Other.Index && AcquireTag == Other.AcquireTag; }
 	bool operator!=(const FNiagaraID& Other)const { return !(*this == Other); }
 	bool operator<(const FNiagaraID& Other)const { return Index < Other.Index || (Index == Other.Index && AcquireTag < Other.AcquireTag); }
+
+	friend FORCEINLINE uint32 GetTypeHash(const FNiagaraID& ID)
+	{
+		return HashCombine(GetTypeHash(ID.Index), GetTypeHash(ID.AcquireTag));
+	}
 };
 
 USTRUCT()
@@ -351,11 +356,6 @@ struct FNiagaraRandInfo
 };
 
 #define NIAGARA_INVALID_ID (FNiagaraID({(INDEX_NONE), (INDEX_NONE)}))
-
-FORCEINLINE uint32 GetTypeHash(const FNiagaraID& ID)
-{
-	return HashCombine(GetTypeHash(ID.Index), GetTypeHash(ID.AcquireTag));
-}
 
 enum class ENiagaraStructConversion : uint8
 {
@@ -1206,6 +1206,11 @@ private:
 	static TSet<UStruct*> BoolStructs;
 
 	static FNiagaraTypeDefinition CollisionEventDef;
+
+	friend FORCEINLINE uint32 GetTypeHash(const FNiagaraTypeDefinition& Type)
+	{
+		return HashCombine(HashCombine(GetTypeHash(Type.ClassStructOrEnum), GetTypeHash(Type.UnderlyingType)), GetTypeHash(Type.GetFlags()));
+	}
 };
 
 template<>
@@ -1234,11 +1239,6 @@ const FNiagaraTypeDefinition& FNiagaraTypeDefinition::Get()
 	if (TIsSame<T, FLinearColor>::Value) { return GetColorDef(); }
 	if (TIsSame<T, FNiagaraID>::Value) { return GetIDDef(); }
 	if (TIsSame<T, FNiagaraRandInfo>::Value) { return GetRandInfoDef(); }
-}
-
-FORCEINLINE uint32 GetTypeHash(const FNiagaraTypeDefinition& Type)
-{
-	return HashCombine(HashCombine(GetTypeHash(Type.ClassStructOrEnum), GetTypeHash(Type.UnderlyingType)), GetTypeHash(Type.GetFlags()));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1704,6 +1704,11 @@ protected:
 	UPROPERTY(meta = (DeprecatedProperty))
 	FNiagaraTypeDefinition TypeDef_DEPRECATED;
 #endif
+
+	friend FORCEINLINE uint32 GetTypeHash(const FNiagaraVariableBase& Var)
+	{
+		return HashCombine(GetTypeHash(Var.GetType()), GetTypeHash(Var.GetName()));
+	}
 };
 
 template<>
@@ -1717,11 +1722,6 @@ struct TStructOpsTypeTraits<FNiagaraVariableBase> : public TStructOpsTypeTraitsB
 #endif
 	};
 };
-
-FORCEINLINE uint32 GetTypeHash(const FNiagaraVariableBase& Var)
-{
-	return HashCombine(GetTypeHash(Var.GetType()), GetTypeHash(Var.GetName()));
-}
 
 USTRUCT()
 struct FNiagaraVariable : public FNiagaraVariableBase
@@ -2081,6 +2081,11 @@ struct NIAGARA_API FVersionedNiagaraEmitter
 	{
 		return !(*this == Other);
 	}
+
+	friend inline uint32 GetTypeHash(const FVersionedNiagaraEmitter& Item)
+	{
+		return GetTypeHash(Item.Emitter) + GetTypeHash(Item.Version);
+	}
 };
 
 struct NIAGARA_API FVersionedNiagaraEmitterWeakPtr
@@ -2103,16 +2108,9 @@ struct NIAGARA_API FVersionedNiagaraEmitterWeakPtr
 
 	TWeakObjectPtr<UNiagaraEmitter> Emitter;
 	FGuid Version;
+
+	friend inline uint32 GetTypeHash(const FVersionedNiagaraEmitterWeakPtr& Item)
+	{
+		return GetTypeHash(Item.Emitter);
+	}
 };
-
-inline uint32 GetTypeHash(const FVersionedNiagaraEmitterWeakPtr& Item)
-{
-	return GetTypeHash(Item.Emitter);
-}
-
-inline uint32 GetTypeHash(const FVersionedNiagaraEmitter& Item)
-{
-	return GetTypeHash(Item.Emitter) + GetTypeHash(Item.Version);
-}
-
-

@@ -179,12 +179,10 @@ private:
 	mutable FName Path;
 	FRootObject RootObject;
 	mutable FGuid ActorFolderGuid; // Optional : Used to find Level's ActorFolder faster than by using the path
+
+	friend FORCEINLINE uint32 GetTypeHash(const FFolder& InFolder)
+	{
+		return HashCombine(GetTypeHash(InFolder.GetPath()), GetTypeHash(InFolder.GetRootObject()));
+	}
 #endif
 };
-
-#if WITH_EDITOR
-FORCEINLINE uint32 GetTypeHash(const FFolder& InFolder)
-{
-	return HashCombine(GetTypeHash(InFolder.GetPath()), GetTypeHash(InFolder.GetRootObject()));
-}
-#endif

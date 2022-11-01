@@ -1433,7 +1433,7 @@ public:
 
 			if constexpr (TModels<CGetTypeHashable, CPPSTRUCT>::Value)
 			{
-				return GetTypeHash(*(const CPPSTRUCT*)Src);
+				return GetTypeHashHelper(*(const CPPSTRUCT*)Src);
 			}
 			else
 			{

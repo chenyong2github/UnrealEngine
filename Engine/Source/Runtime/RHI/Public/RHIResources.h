@@ -747,6 +747,13 @@ struct FRHIUniformBufferResource
 
 	/** Type of the member that allow (). */
 	LAYOUT_FIELD(EUniformBufferBaseType, MemberType);
+
+	/** Compare two uniform buffer layout resources. */
+	friend inline bool operator==(const FRHIUniformBufferResource& A, const FRHIUniformBufferResource& B)
+	{
+		return A.MemberOffset == B.MemberOffset
+			&& A.MemberType == B.MemberType;
+	}
 };
 
 inline FArchive& operator<<(FArchive& Ar, FRHIUniformBufferResource& Ref)
@@ -758,14 +765,7 @@ inline FArchive& operator<<(FArchive& Ar, FRHIUniformBufferResource& Ref)
 	return Ar;
 }
 
-/** Compare two uniform buffer layout resources. */
-inline bool operator==(const FRHIUniformBufferResource& A, const FRHIUniformBufferResource& B)
-{
-	return A.MemberOffset == B.MemberOffset
-		&& A.MemberType == B.MemberType;
-}
-
-static constexpr uint16 kUniformBufferInvalidOffset = TNumericLimits<uint16>::Max();
+inline constexpr uint16 kUniformBufferInvalidOffset = TNumericLimits<uint16>::Max();
 
 /** Initializer for the layout of a uniform buffer in memory. */
 struct FRHIUniformBufferLayoutInitializer
@@ -915,16 +915,16 @@ public:
 
 	/** Used for platforms which use emulated ub's, forces a real uniform buffer instead */
 	LAYOUT_FIELD_INITIALIZED(bool, bNoEmulatedUniformBuffer, false);
-};
 
-/** Compare two uniform buffer layout initializers. */
-inline bool operator==(const FRHIUniformBufferLayoutInitializer& A, const FRHIUniformBufferLayoutInitializer& B)
-{
-	return A.ConstantBufferSize == B.ConstantBufferSize
-		&& A.StaticSlot == B.StaticSlot
-		&& A.BindingFlags == B.BindingFlags
-		&& A.Resources == B.Resources;
-}
+	/** Compare two uniform buffer layout initializers. */
+	friend inline bool operator==(const FRHIUniformBufferLayoutInitializer& A, const FRHIUniformBufferLayoutInitializer& B)
+	{
+		return A.ConstantBufferSize == B.ConstantBufferSize
+			&& A.StaticSlot == B.StaticSlot
+			&& A.BindingFlags == B.BindingFlags
+			&& A.Resources == B.Resources;
+	}
+};
 
 /** The layout of a uniform buffer in memory. */
 struct FRHIUniformBufferLayout : public FRHIResource
@@ -1014,16 +1014,16 @@ struct FRHIUniformBufferLayout : public FRHIResource
 
 	/** Used for platforms which use emulated ub's, forces a real uniform buffer instead */
 	const bool bNoEmulatedUniformBuffer;
-};
 
-/** Compare two uniform buffer layouts. */
-inline bool operator==(const FRHIUniformBufferLayout& A, const FRHIUniformBufferLayout& B)
-{
-	return A.ConstantBufferSize == B.ConstantBufferSize
-		&& A.StaticSlot == B.StaticSlot
-		&& A.BindingFlags == B.BindingFlags
-		&& A.Resources == B.Resources;
-}
+	/** Compare two uniform buffer layouts. */
+	friend inline bool operator==(const FRHIUniformBufferLayout& A, const FRHIUniformBufferLayout& B)
+	{
+		return A.ConstantBufferSize == B.ConstantBufferSize
+			&& A.StaticSlot == B.StaticSlot
+			&& A.BindingFlags == B.BindingFlags
+			&& A.Resources == B.Resources;
+	}
+};
 
 class FRHIUniformBuffer : public FRHIResource
 #if ENABLE_RHI_VALIDATION

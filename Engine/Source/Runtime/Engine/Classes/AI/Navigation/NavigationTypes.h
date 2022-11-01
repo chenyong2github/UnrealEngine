@@ -514,12 +514,12 @@ struct ENGINE_API FNavAgentProperties : public FMovementProperties
 	void SetPreferredNavData(TSubclassOf<AActor> NavDataClass);
 
 	static const FNavAgentProperties DefaultProperties;
-};
 
-inline uint32 GetTypeHash(const FNavAgentProperties& A)
-{
-	return ((int16(A.AgentRadius) << 16) | int16(A.AgentHeight)) ^ int32(A.AgentStepHeight);
-}
+	friend inline uint32 GetTypeHash(const FNavAgentProperties& A)
+	{
+		return ((int16(A.AgentRadius) << 16) | int16(A.AgentHeight)) ^ int32(A.AgentStepHeight);
+	}
+};
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 USTRUCT(BlueprintType)

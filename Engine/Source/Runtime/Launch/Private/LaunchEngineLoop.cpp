@@ -1214,8 +1214,8 @@ private:
 	};
 	friend uint32 GetTypeHash(const FFileInPakFileHistory& H)
 	{
-		uint32 Hash = ::GetTypeHash(H.PakFileName);
-		Hash = HashCombine(Hash, ::GetTypeHash(H.FileName));
+		uint32 Hash = GetTypeHash(H.PakFileName);
+		Hash = HashCombine(Hash, GetTypeHash(H.FileName));
 		return Hash;
 	}
 	friend bool operator==(const FFileInPakFileHistory& A, const FFileInPakFileHistory& B)

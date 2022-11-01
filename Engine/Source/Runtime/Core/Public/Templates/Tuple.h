@@ -764,18 +764,12 @@ public:
 	template <int N> friend decltype(auto) get(      volatile TTuple&& val) { return static_cast<      volatile TTuple&&>(val).template Get<N>(); }
 	template <int N> friend decltype(auto) get(const volatile TTuple&& val) { return static_cast<const volatile TTuple&&>(val).template Get<N>(); }
 #endif
+
+	FORCEINLINE friend uint32 GetTypeHash(const TTuple<Types...>& Tuple)
+	{
+		return UE::Core::Private::Tuple::TGetTupleHashHelper<1u, sizeof...(Types)>::Do(GetTypeHash(Tuple.template Get<0>()), Tuple);
+	}
 };
-
-template <typename... Types>
-FORCEINLINE uint32 GetTypeHash(const TTuple<Types...>& Tuple)
-{
-	return UE::Core::Private::Tuple::TGetTupleHashHelper<1u, sizeof...(Types)>::Do(GetTypeHash(Tuple.template Get<0>()), Tuple);
-}
-
-FORCEINLINE uint32 GetTypeHash(const TTuple<>& Tuple)
-{
-	return 0;
-}
 
 namespace Freeze
 {

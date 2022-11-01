@@ -475,6 +475,49 @@ public:
 
 		return Get() != Other;
 	}
+
+
+	template <typename LhsT>
+	friend FORCENOINLINE bool operator==(const LhsT* Lhs, const TFieldPath<PropertyType>& Rhs)
+	{
+		// It's also possible that these static_asserts may fail for valid conversions because
+		// one or both of the types have only been forward-declared.
+		static_assert(TPointerIsConvertibleFromTo<LhsT, const FField>::Value, "TFieldPath can only be compared with FField types");
+		static_assert(TPointerIsConvertibleFromTo<LhsT, PropertyType>::Value || TPointerIsConvertibleFromTo<PropertyType, LhsT>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
+
+		return Rhs == Lhs;
+	}
+
+	friend FORCENOINLINE bool operator==(const TFieldPath<PropertyType>& Lhs, TYPE_OF_NULLPTR)
+	{
+		return !Lhs.Get();
+	}
+
+	friend FORCENOINLINE bool operator==(TYPE_OF_NULLPTR, const TFieldPath<PropertyType>& Rhs)
+	{
+		return !Rhs.Get();
+	}
+
+	template <typename LhsT>
+	friend FORCENOINLINE bool operator!=(const LhsT* Lhs, const TFieldPath<PropertyType>& Rhs)
+	{
+		// It's also possible that these static_asserts may fail for valid conversions because
+		// one or both of the types have only been forward-declared.
+		static_assert(TPointerIsConvertibleFromTo<LhsT, const FField>::Value, "TFieldPath can only be compared with FField types");
+		static_assert(TPointerIsConvertibleFromTo<LhsT, PropertyType>::Value || TPointerIsConvertibleFromTo<PropertyType, LhsT>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
+
+		return Rhs != Lhs;
+	}
+
+	friend FORCENOINLINE bool operator!=(const TFieldPath<PropertyType>& Lhs, TYPE_OF_NULLPTR)
+	{
+		return !!Lhs.Get();
+	}
+
+	friend FORCENOINLINE bool operator!=(TYPE_OF_NULLPTR, const TFieldPath<PropertyType>& Rhs)
+	{
+		return !!Rhs.Get();
+	}
 };
 
 // Helper function which deduces the type of the initializer
@@ -484,51 +527,6 @@ FORCEINLINE TFieldPath<PropertyType> MakePropertyPath(PropertyType* Ptr)
 	return TFieldPath<PropertyType>(Ptr);
 }
 
-template <typename LhsT, typename RhsT>
-FORCENOINLINE bool operator==(const LhsT* Lhs, const TFieldPath<RhsT>& Rhs)
-{
-	// It's also possible that these static_asserts may fail for valid conversions because
-	// one or both of the types have only been forward-declared.
-	static_assert(TPointerIsConvertibleFromTo<LhsT, const FField>::Value, "TFieldPath can only be compared with FField types");
-	static_assert(TPointerIsConvertibleFromTo<LhsT, RhsT>::Value || TPointerIsConvertibleFromTo<RhsT, LhsT>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
-
-	return Rhs == Lhs;
-}
-
-template <typename LhsT>
-FORCENOINLINE bool operator==(const TFieldPath<LhsT>& Lhs, TYPE_OF_NULLPTR)
-{
-	return !Lhs.Get();
-}
-
-template <typename RhsT>
-FORCENOINLINE bool operator==(TYPE_OF_NULLPTR, const TFieldPath<RhsT>& Rhs)
-{
-	return !Rhs.Get();
-}
-
-template <typename LhsT, typename RhsT>
-FORCENOINLINE bool operator!=(const LhsT* Lhs, const TFieldPath<RhsT>& Rhs)
-{
-	// It's also possible that these static_asserts may fail for valid conversions because
-	// one or both of the types have only been forward-declared.
-	static_assert(TPointerIsConvertibleFromTo<LhsT, const FField>::Value, "TFieldPath can only be compared with FField types");
-	static_assert(TPointerIsConvertibleFromTo<LhsT, RhsT>::Value || TPointerIsConvertibleFromTo<RhsT, LhsT>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
-
-	return Rhs != Lhs;
-}
-
-template <typename LhsT>
-FORCENOINLINE bool operator!=(const TFieldPath<LhsT>& Lhs, TYPE_OF_NULLPTR)
-{
-	return !!Lhs.Get();
-}
-
-template <typename RhsT>
-FORCENOINLINE bool operator!=(TYPE_OF_NULLPTR, const TFieldPath<RhsT>& Rhs)
-{
-	return !!Rhs.Get();
-}
 
 template<class T> struct TIsPODType<TFieldPath<T> > { enum { Value = true }; };
 template<class T> struct TIsZeroConstructType<TFieldPath<T> > { enum { Value = true }; };

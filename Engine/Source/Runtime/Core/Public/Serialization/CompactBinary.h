@@ -500,39 +500,39 @@ public:
 
 private:
 	alignas(uint32) ByteArray Bytes{};
+
+	friend inline bool operator==(const FCbObjectId& A, const FCbObjectId& B)
+	{
+		return FMemory::Memcmp(&A, &B, sizeof(FCbObjectId)) == 0;
+	}
+
+	friend inline bool operator!=(const FCbObjectId& A, const FCbObjectId& B)
+	{
+		return FMemory::Memcmp(&A, &B, sizeof(FCbObjectId)) != 0;
+	}
+
+	friend inline bool operator<(const FCbObjectId& A, const FCbObjectId& B)
+	{
+		return FMemory::Memcmp(&A, &B, sizeof(FCbObjectId)) <= 0;
+	}
+
+	friend inline uint32 GetTypeHash(const FCbObjectId& Id)
+	{
+		return *reinterpret_cast<const uint32*>(&Id);
+	}
+
+	/** Convert the ObjectId to a 24-character hex string. */
+	template <typename CharType>
+	friend inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCbObjectId& Id)
+	{
+		UE::String::BytesToHexLower(Id.GetBytes(), Builder);
+		return Builder;
+	}
 };
 
 inline FCbObjectId::FCbObjectId(const ByteArray& ObjectId)
 {
 	FMemory::Memcpy(Bytes, ObjectId, sizeof(ByteArray));
-}
-
-inline bool operator==(const FCbObjectId& A, const FCbObjectId& B)
-{
-	return FMemory::Memcmp(&A, &B, sizeof(FCbObjectId)) == 0;
-}
-
-inline bool operator!=(const FCbObjectId& A, const FCbObjectId& B)
-{
-	return FMemory::Memcmp(&A, &B, sizeof(FCbObjectId)) != 0;
-}
-
-inline bool operator<(const FCbObjectId& A, const FCbObjectId& B)
-{
-	return FMemory::Memcmp(&A, &B, sizeof(FCbObjectId)) <= 0;
-}
-
-inline uint32 GetTypeHash(const FCbObjectId& Id)
-{
-	return *reinterpret_cast<const uint32*>(&Id);
-}
-
-/** Convert the ObjectId to a 24-character hex string. */
-template <typename CharType>
-inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCbObjectId& Id)
-{
-	UE::String::BytesToHexLower(Id.GetBytes(), Builder);
-	return Builder;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -139,9 +139,10 @@ struct FTypeLayoutDesc
 	uint8 NumVirtualBases;
 	uint8 IsIntrinsic : 1;
 	uint8 IsInitialized : 1;
+
+	friend inline bool operator==(const FTypeLayoutDesc& Lhs, const FTypeLayoutDesc& Rhs) { return &Lhs == &Rhs; }
+	friend inline bool operator!=(const FTypeLayoutDesc& Lhs, const FTypeLayoutDesc& Rhs) { return &Lhs != &Rhs; }
 };
-inline bool operator==(const FTypeLayoutDesc& Lhs, const FTypeLayoutDesc& Rhs) { return &Lhs == &Rhs; }
-inline bool operator!=(const FTypeLayoutDesc& Lhs, const FTypeLayoutDesc& Rhs) { return &Lhs != &Rhs; }
 
 struct FRegisterTypeLayoutDesc
 {

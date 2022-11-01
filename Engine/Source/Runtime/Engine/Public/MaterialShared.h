@@ -366,6 +366,11 @@ public:
 		return true;
 	}
 
+	friend inline bool operator!=(const FMaterialVirtualTextureStack& Lhs, const FMaterialVirtualTextureStack& Rhs)
+	{
+		return !operator==(Lhs, Rhs);
+	}
+
 	/** Number of layers that have been allocated in this stack. */
 	LAYOUT_FIELD(uint32, NumLayers);
 	/** Indices of the expressions that were set to layers in this stack. */
@@ -373,11 +378,6 @@ public:
 	/** Index of a texture reference if we create a stack from a single known texture that has it's own layer stack. */
 	LAYOUT_FIELD(int32, PreallocatedStackTextureIndex);
 };
-
-inline bool operator!=(const FMaterialVirtualTextureStack& Lhs, const FMaterialVirtualTextureStack& Rhs)
-{
-	return !operator==(Lhs, Rhs);
-}
 
 class FMaterialUniformPreshaderField
 {

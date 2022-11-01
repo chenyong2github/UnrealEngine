@@ -1849,6 +1849,13 @@ public:
 	{
 		Data.CountBytes(Ar);
 	}
+
+	/** Case insensitive string hash function. */
+	friend FORCEINLINE uint32 GetTypeHash(const FString& S)
+	{
+		// This must match the GetTypeHash behavior of FStringView
+		return FCrc::Strihash_DEPRECATED(S.Len(), *S);
+	}
 };
 
 template<>
@@ -1873,13 +1880,6 @@ inline const TCHAR* GetData(const FString& String)
 inline int32 GetNum(const FString& String)
 {
 	return String.Len();
-}
-
-/** Case insensitive string hash function. */
-FORCEINLINE uint32 GetTypeHash(const FString& S)
-{
-	// This must match the GetTypeHash behavior of FStringView
-	return FCrc::Strihash_DEPRECATED(S.Len(), *S);
 }
 
 /** 

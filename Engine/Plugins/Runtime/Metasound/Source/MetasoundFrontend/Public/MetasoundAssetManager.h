@@ -98,7 +98,7 @@ namespace Metasound
 
 				FORCEINLINE friend uint32 GetTypeHash(const IMetaSoundAssetManager::FAssetInfo& InInfo)
 				{
-					return HashCombineFast(::GetTypeHash(InInfo.RegistryKey), GetTypeHash(InInfo.AssetPath));
+					return HashCombineFast(GetTypeHash(InInfo.RegistryKey), GetTypeHash(InInfo.AssetPath));
 				}
 			};
 

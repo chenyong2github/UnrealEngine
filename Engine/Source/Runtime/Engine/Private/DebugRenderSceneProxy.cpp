@@ -137,7 +137,7 @@ void FDebugRenderSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVie
 		FMaterialRenderProxy* operator[](FLinearColor Color)
 		{
 			FMaterialRenderProxy* MeshColor = NULL;
-			const uint32 HashKey = ::GetTypeHash(Color);
+			const uint32 HashKey = GetTypeHashHelper(Color);
 			if (MeshColorInstances.Contains(HashKey))
 			{
 				MeshColor = *MeshColorInstances.Find(HashKey);

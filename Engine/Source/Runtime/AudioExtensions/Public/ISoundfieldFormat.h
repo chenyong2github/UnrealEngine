@@ -446,9 +446,9 @@ struct FSoundfieldEncodingKey
 	{
 		return (SoundfieldFormat == Other.SoundfieldFormat) && (EncodingSettingsID == Other.EncodingSettingsID);
 	} 
-};
 
-inline uint32 GetTypeHash(const FSoundfieldEncodingKey& Value)
-{
-	return HashCombine(Value.EncodingSettingsID, Value.SoundfieldFormat.GetNumber());
-}
+	friend inline uint32 GetTypeHash(const FSoundfieldEncodingKey& Value)
+	{
+		return HashCombine(Value.EncodingSettingsID, Value.SoundfieldFormat.GetNumber());
+	}
+};

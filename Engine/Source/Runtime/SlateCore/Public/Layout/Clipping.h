@@ -170,12 +170,12 @@ private:
 	uint8 bIntersect : 1;
 	/** Should this clipping zone always clip, even if another zone wants to ignore intersection? */
 	uint8 bAlwaysClip : 1;
-};
 
-FORCEINLINE uint32 GetTypeHash(const FSlateClippingZone& Zone)
-{
-	return Zone.ComputeHash();
-}
+	friend FORCEINLINE uint32 GetTypeHash(const FSlateClippingZone& Zone)
+	{
+		return Zone.ComputeHash();
+	}
+};
 
 template<> struct TIsPODType<FSlateClippingZone> { enum { Value = true }; };
 

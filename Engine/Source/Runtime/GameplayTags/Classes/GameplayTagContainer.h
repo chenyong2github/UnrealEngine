@@ -161,7 +161,7 @@ struct GAMEPLAYTAGS_API FGameplayTag
 	/** Used so we can have a TMap of this struct */
 	FORCEINLINE friend uint32 GetTypeHash(const FGameplayTag& Tag)
 	{
-		return ::GetTypeHash(Tag.TagName);
+		return GetTypeHash(Tag.TagName);
 	}
 
 	/** Displays gameplay tag as a string for blueprint graph usage */

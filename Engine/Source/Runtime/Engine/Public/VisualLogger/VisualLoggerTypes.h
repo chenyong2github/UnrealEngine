@@ -80,6 +80,11 @@ struct ENGINE_API FVisualLogEvent
 	FVisualLogEvent() : Counter(1) { /* Empty */ }
 	FVisualLogEvent(const FVisualLogEventBase& Event);
 	FVisualLogEvent& operator=(const FVisualLogEventBase& Event);
+
+	friend inline bool operator==(const FVisualLogEvent& Left, const FVisualLogEvent& Right) 
+	{ 
+		return Left.Name == Right.Name; 
+	}
 };
 
 struct ENGINE_API FVisualLogLine
@@ -283,13 +288,13 @@ struct ENGINE_API FVisualLoggerCategoryVerbosityPair
 
 	FName CategoryName;
 	ELogVerbosity::Type Verbosity;
-};
 
-inline bool operator==(const FVisualLoggerCategoryVerbosityPair& A, const FVisualLoggerCategoryVerbosityPair& B)
-{
-	return A.CategoryName == B.CategoryName
-		&& A.Verbosity == B.Verbosity;
-}
+	friend inline bool operator==(const FVisualLoggerCategoryVerbosityPair& A, const FVisualLoggerCategoryVerbosityPair& B)
+	{
+		return A.CategoryName == B.CategoryName
+			&& A.Verbosity == B.Verbosity;
+	}
+};
 
 struct ENGINE_API FVisualLoggerHelpers
 {
@@ -338,12 +343,6 @@ ENGINE_API  FArchive& operator<<(FArchive& Ar, FVisualLogEvent& Event);
 ENGINE_API  FArchive& operator<<(FArchive& Ar, FVisualLogLine& LogLine);
 ENGINE_API  FArchive& operator<<(FArchive& Ar, FVisualLogStatusCategory& Status);
 ENGINE_API  FArchive& operator<<(FArchive& Ar, FVisualLogEntry& LogEntry);
-
-inline
-bool operator==(const FVisualLogEvent& Left, const FVisualLogEvent& Right) 
-{ 
-	return Left.Name == Right.Name; 
-}
 
 inline
 FVisualLogEvent::FVisualLogEvent(const FVisualLogEventBase& Event)

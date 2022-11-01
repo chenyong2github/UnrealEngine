@@ -463,16 +463,15 @@ struct FRichCurveEditInfoTemplate
 
 	uint32 GetTypeHash() const
 	{
-		return HashCombine(::GetTypeHash(CurveName), PointerHash(CurveToEdit));
+		return HashCombine(GetTypeHashHelper(CurveName), PointerHash(CurveToEdit));
+	}
+
+	friend inline uint32 GetTypeHash(const FRichCurveEditInfoTemplate<T>& RichCurveEditInfo)
+	{
+		return RichCurveEditInfo.GetTypeHash();
 	}
 };
 
-
-template<class T>
-inline uint32 GetTypeHash(const FRichCurveEditInfoTemplate<T>& RichCurveEditInfo)
-{
-	return RichCurveEditInfo.GetTypeHash();
-}
 
 // Rename and deprecate
 typedef FRichCurveEditInfoTemplate<FRealCurve*>			FRichCurveEditInfo;

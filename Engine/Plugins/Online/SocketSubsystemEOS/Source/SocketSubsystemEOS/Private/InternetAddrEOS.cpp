@@ -166,7 +166,7 @@ FString FInternetAddrEOS::ToString(bool bAppendPort) const
 
 uint32 FInternetAddrEOS::GetTypeHash() const
 {
-	return HashCombine(HashCombine(HashCombine(::GetTypeHash((void*)LocalUserId), ::GetTypeHash((void*)RemoteUserId)), ::GetTypeHash(FAnsiStringView(SocketName, EOS_SOCKET_NAME_SIZE))), Channel);
+	return HashCombine(HashCombine(HashCombine(GetTypeHashHelper((void*)LocalUserId), GetTypeHashHelper((void*)RemoteUserId)), GetTypeHashHelper(FAnsiStringView(SocketName, EOS_SOCKET_NAME_SIZE))), Channel);
 }
 
 bool FInternetAddrEOS::IsValid() const

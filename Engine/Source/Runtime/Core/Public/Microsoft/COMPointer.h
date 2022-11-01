@@ -264,4 +264,9 @@ private:
 
 	/** Pointer to the actual object, if any. */
 	PointerType* RawPointer;
+
+	friend FORCEINLINE uint32 GetTypeHash(const TComPtr<T>& InObjectPtr)
+	{
+		return GetTypeHash(InObjectPtr.RawPointer);
+	}
 };

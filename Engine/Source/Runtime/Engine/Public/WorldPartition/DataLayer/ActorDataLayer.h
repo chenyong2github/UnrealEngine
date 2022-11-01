@@ -34,4 +34,9 @@ struct ENGINE_API FActorDataLayer
 	/** The name of this layer */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = DataLayer)
 	FName Name;
+
+	friend uint32 GetTypeHash(const FActorDataLayer& Value)
+	{
+		return GetTypeHash(Value.Name);
+	}
 };

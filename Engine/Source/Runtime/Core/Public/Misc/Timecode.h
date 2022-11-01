@@ -345,14 +345,16 @@ public:
 
 	/** If true, this Timecode represents a Drop Frame timecode used to account for fractional frame rates in NTSC play rates. */
 	bool bDropFrameFormat;
+
+
+	friend inline bool operator==(const FTimecode& A, const FTimecode& B)
+	{
+		return A.Hours == B.Hours && A.Minutes == B.Minutes && A.Seconds == B.Seconds && A.Frames == B.Frames;
+	}
+
+	friend inline bool operator!=(const FTimecode& A, const FTimecode& B)
+	{
+		return !(A == B);
+	}
+
 };
-
-inline bool operator==(const FTimecode& A, const FTimecode& B)
-{
-	return A.Hours == B.Hours && A.Minutes == B.Minutes && A.Seconds == B.Seconds && A.Frames == B.Frames;
-}
-
-inline bool operator!=(const FTimecode& A, const FTimecode& B)
-{
-	return !(A == B);
-}
