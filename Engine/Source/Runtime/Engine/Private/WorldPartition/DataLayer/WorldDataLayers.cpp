@@ -184,10 +184,6 @@ void AWorldDataLayers::SetDataLayerRuntimeState(const UDataLayerInstance* InData
 			{
 				ActiveDataLayerNames.Add(InDataLayerInstance->GetDataLayerFName());
 			}
-			else if (InState == EDataLayerRuntimeState::Unloaded)
-			{
-				GLevelStreamingContinuouslyIncrementalGCWhileLevelsPendingPurgeOverride = 1;
-			}
 
 			// Update Replicated Properties
 			RepActiveDataLayerNames = ActiveDataLayerNames.Array();
