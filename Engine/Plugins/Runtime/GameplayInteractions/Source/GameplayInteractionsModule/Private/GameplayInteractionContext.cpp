@@ -10,6 +10,7 @@
 #include "StateTreeReference.h"
 #include "VisualLogger/VisualLogger.h"
 #include "GameplayInteractionStateTreeSchema.h"
+#include "SmartObjectSubsystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayInteractionContext)
 
@@ -61,6 +62,23 @@ bool FGameplayInteractionContext::Activate(const UGameplayInteractionSmartObject
 		return false;
 	}
 
+	// Set slot user actor
+	USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(ContextActor->GetWorld());
+	check(SmartObjectSubsystem);
+	FSmartObjectSlotView SlotView = SmartObjectSubsystem->GetSlotView(ClaimedHandle.SlotHandle);
+	if (SlotView.IsValid())
+	{
+		if (FGameplayInteractionSlotUserData* UserData = SlotView.GetStateDataPtr<FGameplayInteractionSlotUserData>())
+		{
+			UserData->UserActor = ContextActor;
+		}
+		else
+		{
+			SmartObjectSubsystem->AddSlotDataDeferred(ClaimedHandle, FConstStructView::Make(FGameplayInteractionSlotUserData(ContextActor)));
+		}
+	}
+
+	// Start State Tree
 	StateTreeContext.Start();
 	
 	return true;
@@ -101,9 +119,26 @@ void FGameplayInteractionContext::Deactivate()
 	{
 		StateTreeContext.Stop();
 	}
+
+	// Remove user
+	USmartObjectSubsystem* SmartObjectSubsystem = USmartObjectSubsystem::GetCurrent(ContextActor->GetWorld());
+	check(SmartObjectSubsystem);
+	FSmartObjectSlotView SlotView = SmartObjectSubsystem->GetSlotView(ClaimedHandle.SlotHandle);
+	if (SlotView.IsValid())
+	{
+		if (FGameplayInteractionSlotUserData* UserData = SlotView.GetStateDataPtr<FGameplayInteractionSlotUserData>())
+		{
+			UserData->UserActor = nullptr;
+		}
+	}
 }
 
 void FGameplayInteractionContext::SendEvent(const FStateTreeEvent& Event)
+{
+	SendEvent(Event.Tag, Event.Payload, Event.Origin);
+}
+
+void FGameplayInteractionContext::SendEvent(const FGameplayTag Tag, const FConstStructView Payload, const FName Origin)
 {
 	if (Definition == nullptr)
 	{
@@ -112,8 +147,8 @@ void FGameplayInteractionContext::SendEvent(const FStateTreeEvent& Event)
 	
 	const FStateTreeReference& StateTreeReference = Definition->StateTreeReference;
 	const UStateTree* StateTree = StateTreeReference.GetStateTree();
-	FStateTreeExecutionContext StateTreeContext(*ContextActor, *StateTree, StateTreeInstanceData);
-	StateTreeContext.SendEvent(Event);
+	const FStateTreeExecutionContext StateTreeContext(*ContextActor, *StateTree, StateTreeInstanceData);
+	StateTreeContext.SendEvent(Tag, Payload, Origin);
 }
 
 bool FGameplayInteractionContext::ValidateSchema(const FStateTreeExecutionContext& StateTreeContext) const

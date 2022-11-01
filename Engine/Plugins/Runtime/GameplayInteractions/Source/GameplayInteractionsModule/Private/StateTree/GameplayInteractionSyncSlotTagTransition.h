@@ -1,0 +1,75 @@
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "GameplayInteractionsTypes.h"
+#include "SmartObjectTypes.h"
+#include "GameplayInteractionSyncSlotTagTransition.generated.h"
+
+class USmartObjectSubsystem;
+
+/**
+ * Task to monitor transition of a Gameplay Tag on the specified Smart Object slot.
+ *
+ * First the task will wait until it sees TransitionFromTag tag on the target Smart Object slot.
+ * - TransitionEventTag event is sent to the target slot, which is assumed to trigger a transition to a state that sets TransitionToTag on the Smart Object slot.
+ *
+ * Then the task will wait until it sees TransitionToTag tag on the target Smart Object slot.
+ * - TransitionEventTag event is sent to running State Tree, which allows the running State Tree to transition a new state that is now executed in sync with the other tree.
+ */
+
+UENUM()
+enum class EGameplayInteractionSyncSlotTransitionState : uint8
+{
+	WaitingForFromTag,
+	WaitingForToTag,
+	Completed,
+};
+
+USTRUCT()
+struct FGameplayInteractionSyncSlotTagTransitionInstanceData
+{
+	GENERATED_BODY()
+
+	/** The target slot to monitor */
+	UPROPERTY(EditAnywhere, Category="Input")
+	FSmartObjectSlotHandle TargetSlot;
+
+	/** Smart Object Slot event handle */
+	FDelegateHandle OnEventHandle;
+
+	/** Transition monitoring state */
+	EGameplayInteractionSyncSlotTransitionState State = EGameplayInteractionSyncSlotTransitionState::WaitingForFromTag;
+};
+
+USTRUCT(meta = (DisplayName = "(Gameplay Interaction) Sync Slot Tag Transition"))
+struct FGameplayInteractionSyncSlotTagTransitionTask : public FGameplayInteractionStateTreeTask
+{
+	GENERATED_BODY()
+
+	FGameplayInteractionSyncSlotTagTransitionTask();
+	
+	using FInstanceDataType = FGameplayInteractionSyncSlotTagTransitionInstanceData;
+
+protected:
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
+
+	virtual bool Link(FStateTreeLinker& Linker) override;
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
+
+	/** Tag to monitor to see if the slot is ready to transition. */
+	UPROPERTY(EditAnywhere, Category = "Parameter")
+	FGameplayTag TransitionFromTag;
+
+	/** Tag to monitor to see if the slot has transitioned. */
+	UPROPERTY(EditAnywhere, Category = "Parameter")
+	FGameplayTag TransitionToTag;
+
+	/** Event that is sent to target slot when TransitionFromTag is seen, and event that is send to running State Tree when TransitionToTag is seen. */
+	UPROPERTY(EditAnywhere, Category = "Parameter")
+	FGameplayTag TransitionEventTag;
+
+	/** Handle to retrieve USmartObjectSubsystem. */
+	TStateTreeExternalDataHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
+};
