@@ -275,7 +275,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			return builder;
 		}
 
-		protected static StringBuilder AppendEventFunctionPrologue(StringBuilder builder, UhtFunction function, string functionName, int tabs, string endl)
+		protected static StringBuilder AppendEventFunctionPrologue(StringBuilder builder, UhtFunction function, string functionName, int tabs, string endl, bool addEventParameterStruct)
 		{
 			builder.AppendTabs(tabs).Append('{').Append(endl);
 			if (function.Children.Count == 0)
@@ -284,6 +284,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 
 			++tabs;
+
+			if (addEventParameterStruct)
+				AppendEventParameter(builder, function, functionName, UhtPropertyTextType.EventParameterMember, true, tabs, "\r\n");
 
 			string eventParameterStructName = GetEventStructParametersName(function.Outer, functionName);
 

@@ -424,7 +424,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 				builder.Append("\t\tif (!").Append(registrationName).Append(".OuterSingleton)\r\n");
 				builder.Append("\t\t{\r\n");
-				builder.Append("\t\t\t").Append(registrationName).Append(".OuterSingleton = GetStaticEnum(").Append(singletonName).Append(", ")
+				builder.Append("\t\t\t").Append(registrationName).Append(".OuterSingleton = GetStaticEnum(").Append(singletonName).Append(", (UObject*)")
 					.Append(PackageSingletonName).Append("(), TEXT(\"").Append(enumObj.SourceName).Append("\"));\r\n");
 				builder.Append("\t\t}\r\n");
 				builder.Append("\t\treturn ").Append(registrationName).Append(".OuterSingleton;\r\n");
@@ -532,7 +532,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					.Append(registrationName)
 					.Append(".OuterSingleton = GetStaticStruct(")
 					.Append(singletonName)
-					.Append(", ")
+					.Append(", (UObject*)")
 					.Append(PackageSingletonName)
 					.Append("(), TEXT(\"")
 					.Append(scriptStruct.EngineName)
@@ -751,6 +751,24 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		private StringBuilder AppendDelegate(StringBuilder builder, UhtFunction function)
 		{
 			AppendFunction(builder, function, false);
+
+			int tabs = 0;
+			string strippedFunctionName = function.StrippedFunctionName;
+			string exportFunctionName = GetDelegateFunctionExportName(function);
+			string extraParameter = GetDelegateFunctionExtraParameter(function);
+
+			AppendNativeFunctionHeader(builder, function, UhtPropertyTextType.EventFunctionArgOrRetVal, false, exportFunctionName, extraParameter, UhtFunctionExportFlags.None, "\r\n");
+			AppendEventFunctionPrologue(builder, function, strippedFunctionName, tabs, "\r\n", true);
+			builder
+				.Append('\t')
+				.Append(strippedFunctionName)
+				.Append('.')
+				.Append(function.FunctionFlags.HasAnyFlags(EFunctionFlags.MulticastDelegate) ? "ProcessMulticastDelegate" : "ProcessDelegate")
+				.Append("<UObject>(")
+				.Append(function.Children.Count > 0 ? "&Parms" : "NULL")
+				.Append(");\r\n");
+			AppendEventFunctionEpilogue(builder, function, tabs, "\r\n");
+
 			return builder;
 		}
 
@@ -1769,7 +1787,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						}
 						else
 						{
-							AppendEventFunctionPrologue(builder, function, function.EngineName, 1, "\r\n");
+							AppendEventFunctionPrologue(builder, function, function.EngineName, 1, "\r\n", false);
 
 							// Cast away const just in case, because ProcessEvent isn't const
 							builder.Append("\t\t");

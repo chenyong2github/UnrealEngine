@@ -10,18 +10,11 @@
 #include "UObject/ObjectMacros.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/SWidget.h"
+#include "Components/Slider.h"
 #include "Components/TextBlock.h"
 #include "Components/Widget.h"
 #include "Components/ContentWidget.h"
 #include "SynthKnob.generated.h"
-
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMouseCaptureBeginEvent);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMouseCaptureEndEvent);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnControllerCaptureBeginEvent);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnControllerCaptureEndEvent);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFloatValueChangedEvent, float, Value);
-
 
 /**
  * A simple widget that shows a sliding bar with a handle that allows you to control the value between 0..1.

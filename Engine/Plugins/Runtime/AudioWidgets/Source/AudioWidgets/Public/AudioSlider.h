@@ -4,6 +4,7 @@
 
 #include "AudioDefines.h"
 #include "AudioWidgetsSlateTypes.h"
+#include "Components/Slider.h"
 #include "Components/Widget.h"
 #include "Curves/CurveFloat.h"
 #include "Styling/StyleColors.h"
@@ -13,8 +14,6 @@
 #include "AudioSlider.generated.h"
 
 class SAudioSliderBase;
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFloatValueChangedEvent, float, Value);
 
 /**
  * An audio slider widget. 

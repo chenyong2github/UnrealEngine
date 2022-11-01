@@ -317,24 +317,30 @@ namespace EpicGames.UHT.Exporters.CodeGen
 		{
 			using (UhtMacroCreator macro = new(builder, this, function, DelegateMacroSuffix))
 			{
-				int tabs = 0;
-				string strippedFunctionName = function.StrippedFunctionName;
 				string exportFunctionName = GetDelegateFunctionExportName(function);
 				string extraParameter = GetDelegateFunctionExtraParameter(function);
 
-				AppendEventParameter(builder, function, strippedFunctionName, UhtPropertyTextType.EventParameterMember, true, tabs, " \\\r\n");
-				builder.Append("static ");
-				AppendNativeFunctionHeader(builder, function, UhtPropertyTextType.EventFunctionArgOrRetVal, true, exportFunctionName, extraParameter, UhtFunctionExportFlags.Inline, " \\\r\n");
-				AppendEventFunctionPrologue(builder, function, strippedFunctionName, tabs, " \\\r\n");
-				builder
-					.Append('\t')
-					.Append(strippedFunctionName)
-					.Append('.')
-					.Append(function.FunctionFlags.HasAnyFlags(EFunctionFlags.MulticastDelegate) ? "ProcessMulticastDelegate" : "ProcessDelegate")
-					.Append("<UObject>(")
-					.Append(function.Children.Count > 0 ? "&Parms" : "NULL")
-					.Append("); \\\r\n");
-				AppendEventFunctionEpilogue(builder, function, tabs, " \\\r\n");
+				bool addAPI = true;
+
+				UhtClass? outerClass = function.Outer as UhtClass;
+				if (outerClass != null)
+				{
+					builder.Append("static ");
+					if (outerClass.ClassFlags.HasFlag(EClassFlags.RequiredAPI))
+					{
+						addAPI = false;
+					}
+				}
+
+				//if (!function.FunctionFlags.HasAnyFlags(EFunctionFlags.RequiredAPI)) // TODO: This requires too much fixup for now
+				//	addAPI = false
+
+				if (addAPI)
+				{
+					builder.Append(PackageApi);
+				}
+
+				AppendNativeFunctionHeader(builder, function, UhtPropertyTextType.EventFunctionArgOrRetVal, true, exportFunctionName, extraParameter, UhtFunctionExportFlags.None, "; \\\r\n");
 			}
 			return builder;
 		}
