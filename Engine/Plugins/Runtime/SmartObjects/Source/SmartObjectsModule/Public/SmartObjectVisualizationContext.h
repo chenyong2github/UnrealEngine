@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "EngineDefines.h"
 #include "Math/MathFwd.h"
 #include "Math/Transform.h"
 #include "Math/Color.h"
