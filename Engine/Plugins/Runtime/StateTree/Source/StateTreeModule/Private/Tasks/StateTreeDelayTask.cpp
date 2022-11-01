@@ -8,7 +8,7 @@
 
 EStateTreeRunStatus FStateTreeDelayTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
 {
-	InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	if (!InstanceData.bRunForever)
 	{
@@ -21,7 +21,7 @@ EStateTreeRunStatus FStateTreeDelayTask::EnterState(FStateTreeExecutionContext& 
 
 EStateTreeRunStatus FStateTreeDelayTask::Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const
 {
-	InstanceDataType& InstanceData = Context.GetInstanceData<InstanceDataType>(*this);
+	FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
 
 	if (!InstanceData.bRunForever)
 	{

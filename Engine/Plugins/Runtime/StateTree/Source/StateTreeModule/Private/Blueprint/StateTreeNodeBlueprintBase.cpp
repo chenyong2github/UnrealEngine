@@ -40,6 +40,6 @@ void UStateTreeNodeBlueprintBase::SendEvent(const FStateTreeEvent& Event)
 		UE_VLOG_UELOG(this, LogStateTree, Error, TEXT("Trying to call SendEvent() outside StateTree tick. Use SendEvent() on UStateTreeComponent instead for sending signals externally."));
 		return;
 	}
-	CurrentContext->SendEvent(Event);
+	CurrentContext->SendEvent(Event.Tag, Event.Payload, Event.Origin);
 }
 

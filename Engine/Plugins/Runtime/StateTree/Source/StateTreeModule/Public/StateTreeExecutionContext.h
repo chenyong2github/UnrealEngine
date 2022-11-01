@@ -90,12 +90,15 @@ public:
 	/** @return the StateTree asset in use. */
 	const UStateTree* GetStateTree() const { return &StateTree; }
 
-	/** @retrun const references to the instance data in use, or nullptr if the context is not valid. */
+	/** @return const references to the instance data in use, or nullptr if the context is not valid. */
 	const FStateTreeInstanceData* GetInstanceData() const { return &InstanceData; }
 
-	/** @retrun mutable references to the instance data in use, or nullptr if the context is not valid. */
+	/** @retuen mutable references to the instance data in use, or nullptr if the context is not valid. */
 	FStateTreeInstanceData* GetMutableInstanceData() const { return &InstanceData; }
-	
+
+	/** @retuen mutable references to the instance data in use. */
+	FStateTreeEventQueue& GetEventQueue() const { return InstanceData.GetEventQueue(); }
+
 	/** @return The owner of the context */
 	UObject* GetOwner() const { return &Owner; }
 	/** @return The world of the owner or nullptr if the owner is not set. */ 
@@ -138,7 +141,11 @@ public:
 	TArray<FName> GetActiveStateNames() const;
 
 	/** Sends event for the StateTree. */
-	void SendEvent(const FStateTreeEvent& Event);
+	// @todo: remove temporarily - UE_DEPRECATED(5.2, "Use AddEvent() with individual parameters instead.")
+	void SendEvent(const FStateTreeEvent& Event) const;
+
+	/** Sends event for the StateTree. */
+	void SendEvent(const FGameplayTag Tag, const FConstStructView Payload = FConstStructView(), const FName Origin = FName()) const;
 
 	/** Iterates over all events. Can only be used during StateTree tick. Expects a lambda which takes const FStateTreeEvent& Event, and returns EStateTreeLoopEvents. */
 	template<typename TFunc>
@@ -247,6 +254,14 @@ public:
 		return DataViews[Node.DataViewIndex.Get()].template GetMutable<typename T::FInstanceDataType>();
 	}
 
+	/** @returns reference to instance data struct that can be passed to lambdas. See TStateTreeInstanceDataStructRef for usage. */
+	template <typename T>
+	TStateTreeInstanceDataStructRef<typename T::FInstanceDataType> GetInstanceDataStructRef(const T& Node) const
+	{
+		static_assert(TIsDerivedFrom<T, FStateTreeNodeBase>::IsDerived, "Expecting Node to derive from FStateTreeNodeBase.");
+		return TStateTreeInstanceDataStructRef<typename T::FInstanceDataType>(InstanceData, DataViews[Node.DataViewIndex.Get()].template GetMutable<typename T::FInstanceDataType>());
+	}
+	
 protected:
 
 	/** @return Prefix that will be used by STATETREE_LOG and STATETREE_CLOG, empty by default. */
@@ -312,7 +327,7 @@ protected:
 	 * If a state cannot be selected, false is returned. 
 	 * If NextState is a selector state, SelectStateInternal is called recursively (depth-first) to all child states (where NextState will be one of child states).
 	 * If NextState is a leaf state, the active states leading from root to the leaf are returned.
-	 * @param InstanceData Reference to the instance data
+	 * @param SharedInstanceData Reference to the instance data
 	 * @param NextState The state which we try to select next.
 	 * @param OutNewActiveStates Active states that got selected.
 	 * @return True if succeeded to select new active states.
@@ -351,6 +366,9 @@ protected:
 	/** @return String describing full path of an activate state for logging and debug. */
 	FString DebugGetStatePath(const FStateTreeActiveStates& ActiveStates, int32 ActiveStateIndex) const;
 
+	/** @return String describing all events that are currently being processed  for logging and debug. */
+	FString DebugGetEventsAsString() const;
+	
 	/** Helper function to update struct or object dataview of a node. */
 	template<typename T>
 	void SetNodeDataView(T& Node, int32& InstanceStructIndex, int32& InstanceObjectIndex)

@@ -39,7 +39,9 @@ protected:
 	 * Note: The API has been deprecated. ChangeType is moved into FStateTreeTransitionResult.
 	 * You can configure the task to be only called on state changes (that is, never call sustained changes) by setting bShouldStateChangeOnReselect to true.
 	 */
+	UE_DEPRECATED(5.2, "Use EnterState without ChangeType instead.")
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) final { return EStateTreeRunStatus::Running; }
+	UE_DEPRECATED(5.2, "Use ExitState without ChangeType instead.")
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) final {};
 
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition);
@@ -53,7 +55,11 @@ protected:
 	 * Generally this should be true for action type tasks, like playing animation,
 	 * and false on state like tasks like claiming a resource that is expected to be acquired on child states. */
 	UPROPERTY(EditDefaultsOnly, Category="Default")
-	bool bShouldStateChangeOnReselect = true;
+	uint8 bShouldStateChangeOnReselect : 1;
+
+	/** If set to true, Tick() is called. Default false. */
+	UPROPERTY(EditDefaultsOnly, Category="Default")
+	uint8 bShouldCallTickOnlyOnEvents : 1;
 
 	uint8 bHasEnterState : 1;
 	uint8 bHasExitState : 1;

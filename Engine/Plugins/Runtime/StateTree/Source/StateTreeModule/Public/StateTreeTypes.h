@@ -30,17 +30,6 @@ enum class EStateTreeRunStatus : uint8
 	Unset,
 };
 
-/** Evaluator evaluation type. */
-UENUM()
-enum class EStateTreeEvaluationType : uint8
-{
-	/** Called during selection process on states that have not been visited yet. */
-	PreSelect,
-	
-	/** Called during tick on active states. */
-    Tick,
-};
-
 /** State change type. Passed to EnterState() and ExitState() to indicate how the state change affects the state and Evaluator or Task is on. */
 UENUM()
 enum class EStateTreeStateChangeType : uint8

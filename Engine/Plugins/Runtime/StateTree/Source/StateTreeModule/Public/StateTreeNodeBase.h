@@ -25,7 +25,6 @@ struct STATETREEMODULE_API FStateTreeNodeBase
 	/**
 	 * Called when the StateTree asset is linked. Allows to resolve references to other StateTree data.
 	 * @see TStateTreeExternalDataHandle
-	 * @see TStateTreeInstanceDataPropertyHandle
 	 * @param Linker Reference to the linker
 	 * @return true if linking succeeded. 
 	 */

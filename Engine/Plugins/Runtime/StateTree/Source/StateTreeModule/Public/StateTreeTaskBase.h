@@ -19,6 +19,10 @@ struct STATETREEMODULE_API FStateTreeTaskBase : public FStateTreeNodeBase
 
 	FStateTreeTaskBase()
 		: bShouldStateChangeOnReselect(true)
+		, bShouldCallTick(true)
+		, bShouldCallTickOnlyOnEvents(false)
+		, bShouldCopyBoundPropertiesOnTick(true)
+		, bShouldCopyBoundPropertiesOnExitState(true)
 	{
 	}
 	
@@ -73,6 +77,16 @@ struct STATETREEMODULE_API FStateTreeTaskBase : public FStateTreeNodeBase
 	 * and false on state like tasks like claiming a resource that is expected to be acquired on child states.
 	 * Default value is true. */
 	uint8 bShouldStateChangeOnReselect : 1;
+
+	/** If set to true, Tick() is called. Default true. */
+	uint8 bShouldCallTick : 1;
+	/** If set to true, Tick() is called only when there are events. No effect if bShouldCallTickState is true. Default false. */
+	uint8 bShouldCallTickOnlyOnEvents : 1;
+
+	/** If set to true, copy the values of bound properties before calling Tick(). Default true. */
+	uint8 bShouldCopyBoundPropertiesOnTick : 1;
+	/** If set to true, copy the values of bound properties before calling ExitState(). Default true. */
+	uint8 bShouldCopyBoundPropertiesOnExitState : 1;
 };
 
 /**

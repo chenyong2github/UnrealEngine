@@ -17,7 +17,6 @@
 
 namespace UE::StateTree
 {
-	constexpr int32 MaxActiveEvents = 16;	// Maximum number of events that can be accumulated.
 	constexpr int32 DebugIndentSize = 2;	// Debug printing indent for hierarchical data.
 }; // UE::StateTree
 
@@ -261,8 +260,9 @@ EStateTreeRunStatus FStateTreeExecutionContext::Stop()
 	FStateTreeExecutionState& Exec = GetExecState();
 
 	// Capture events added between ticks.
-	EventsToProcess = InstanceData.GetEvents();
-	InstanceData.GetEvents().Reset();
+	FStateTreeEventQueue& EventQueue = InstanceData.GetEventQueue();
+	EventsToProcess = EventQueue.GetEvents();
+	EventQueue.Reset();
 
 	TickEvaluators(0.0f);
 
@@ -322,12 +322,14 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 
 	const TSharedPtr<FStateTreeInstanceData> SharedInstanceData = StateTree.GetSharedInstanceData();
 	check(SharedInstanceData.IsValid());
-
+	
+	FStateTreeEventQueue& EventQueue = InstanceData.GetEventQueue();
+	
 	FStateTreeExecutionState* Exec = &GetExecState();
 
 	// Capture events added between ticks.
-	EventsToProcess = InstanceData.GetEvents();
-	InstanceData.GetEvents().Reset();
+	EventsToProcess = EventQueue.GetEvents();
+	EventQueue.Reset();
 	
 	// No ticking of the tree is done or stopped.
 	if (Exec->TreeRunStatus != EStateTreeRunStatus::Running)
@@ -356,22 +358,22 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 		}
 	}
 
-	// Append events accumulated during the tick, so that transitions can immediately act on them.
-	// We'll consume the events only if they lead to state change below (EnterState is treated the same as Tick),
-	// or let them be processed next frame if no transition.
-	EventsToProcess.Append(InstanceData.GetEvents());
-
 	// The state selection is repeated up to MaxIteration time. This allows failed EnterState() to potentially find a new state immediately.
 	// This helps event driven StateTrees to not require another event/tick to find a suitable state.
 	static constexpr int32 MaxIterations = 5;
 	for (int32 Iter = 0; Iter < MaxIterations; Iter++)
 	{
+		// Append events accumulated during the tick, so that transitions can immediately act on them.
+		// We'll consume the events only if they lead to state change below (EnterState is treated the same as Tick),
+		// or let them be processed next frame if no transition.
+		EventsToProcess.Append(EventQueue.GetEvents());
+
 		// Trigger conditional transitions or state succeed/failed transitions. First tick transition is handled here too.
 		FStateTreeTransitionResult Transition;
 		if (TriggerTransitions(*SharedInstanceData.Get(), Transition))
 		{
 			// We have committed to state change, consume events that were accumulated during the tick above.
-			InstanceData.GetEvents().Reset();
+			EventQueue.Reset();
 
 			ExitState(Transition);
 
@@ -384,11 +386,14 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 			}
 
 			// Append and consume the events accumulated during the state exit.
-			EventsToProcess.Append(InstanceData.GetEvents());
-			InstanceData.GetEvents().Reset();
+			EventsToProcess.Append(EventQueue.GetEvents());
+			EventQueue.Reset();
 
 			// Enter state tasks can fail/succeed, treat it same as tick.
 			const EStateTreeRunStatus LastTickStatus = EnterState(Transition);
+
+			// Consider events so far processed. Events sent during EnterState went into EventQueue, and are processed in next iteration.
+			EventsToProcess.Reset();
 
 			// Need to reacquire the exec state as EnterState may alter the allocation. 
 			Exec = &GetExecState();
@@ -422,16 +427,14 @@ EStateTreeRunStatus FStateTreeExecutionContext::Tick(const float DeltaTime)
 	return Exec->TreeRunStatus;
 }
 
-void FStateTreeExecutionContext::SendEvent(const FStateTreeEvent& Event)
+void FStateTreeExecutionContext::SendEvent(const FStateTreeEvent& Event) const
+{
+	SendEvent(Event.Tag, Event.Payload, Event.Origin);
+}
+
+void FStateTreeExecutionContext::SendEvent(const FGameplayTag Tag, const FConstStructView Payload, const FName Origin) const
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_SendEvent);
-
-	if (!Event.Tag.IsValid())
-	{
-		STATETREE_LOG(Warning, TEXT("%s: Event tag cannot be empty, '%s' using StateTree '%s'."),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
-		return;
-	}
 
 	if (!IsValid())
 	{
@@ -447,14 +450,8 @@ void FStateTreeExecutionContext::SendEvent(const FStateTreeEvent& Event)
 		return;
 	}
 
-	if (InstanceData.GetEvents().Num() >= UE::StateTree::MaxActiveEvents)
-	{
-		STATETREE_LOG(Warning, TEXT("%s: Too many events send on '%s' using StateTree '%s'."),
-			ANSI_TO_TCHAR(__FUNCTION__), *GetNameSafe(&Owner), *GetFullNameSafe(&StateTree));
-		return;
-	}
-
-	InstanceData.GetEvents().Add(Event);
+	FStateTreeEventQueue& EventQueue = InstanceData.GetEventQueue();
+	EventQueue.SendEvent(&Owner, Tag, Payload, Origin);
 }
 
 
@@ -732,7 +729,7 @@ void FStateTreeExecutionContext::ExitState(const FStateTreeTransitionResult& Tra
 			SetNodeDataView(Task, InstanceStructIndex, InstanceObjectIndex);
 
 			// Copy bound properties.
-			if (Task.BindingsBatch.IsValid())
+			if (Task.BindingsBatch.IsValid() && Task.bShouldCopyBoundPropertiesOnExitState)
 			{
 				StateTree.PropertyBindings.CopyTo(DataViews, Task.BindingsBatch, DataViews[Task.DataViewIndex.Get()]);
 			}
@@ -923,6 +920,8 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(const float DeltaTime)
 	EStateTreeRunStatus Result = EStateTreeRunStatus::Running;
 	int32 NumTotalTasks = 0;
 
+	const bool bHasEvents = !EventsToProcess.IsEmpty();
+	
 	check(Exec.FirstTaskStructIndex.IsValid() && Exec.FirstTaskObjectIndex.IsValid()); 
 	int32 InstanceStructIndex = Exec.FirstTaskStructIndex.Get();
 	int32 InstanceObjectIndex = Exec.FirstTaskObjectIndex.Get();
@@ -954,13 +953,15 @@ EStateTreeRunStatus FStateTreeExecutionContext::TickTasks(const float DeltaTime)
 			SetNodeDataView(Task, InstanceStructIndex, InstanceObjectIndex);
 
 			// Copy bound properties.
-			if (Task.BindingsBatch.IsValid())
+			if (Task.BindingsBatch.IsValid() && Task.bShouldCopyBoundPropertiesOnTick)
 			{
 				StateTree.PropertyBindings.CopyTo(DataViews, Task.BindingsBatch, DataViews[Task.DataViewIndex.Get()]);
 			}
 			STATETREE_LOG(VeryVerbose, TEXT("%*s  Tick: '%s'"), Index*UE::StateTree::DebugIndentSize, TEXT(""), *Task.Name.ToString());
 
-			if (bShouldTickTasks)
+			const bool bNeedTick = Task.bShouldCallTick || (bHasEvents && Task.bShouldCallTickOnlyOnEvents);
+			
+			if (bShouldTickTasks && bNeedTick)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(StateTree_Task_Tick);
 				CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_Task_Tick);
@@ -1069,6 +1070,20 @@ bool FStateTreeExecutionContext::TestAllConditions(FStateTreeInstanceData& Share
 	return Values[0];
 }
 
+FString FStateTreeExecutionContext::DebugGetEventsAsString() const
+{
+	FString Result;
+	for (const FStateTreeEvent& Event : EventsToProcess)
+	{
+		if (!Result.IsEmpty())
+		{
+			Result += TEXT(", ");
+		}
+		Result += Event.Tag.ToString();
+	}
+	return Result;
+}
+
 bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& SharedInstanceData, FStateTreeTransitionResult& OutTransition)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(StateTree_TriggerTransition);
@@ -1085,6 +1100,8 @@ bool FStateTreeExecutionContext::TriggerTransitions(FStateTreeInstanceData& Shar
 		CompletionTrigger = EStateTreeTransitionTrigger::OnStateFailed;
 	}
 
+	STATETREE_CLOG(!EventsToProcess.IsEmpty(), Verbose, TEXT("Trigger transitions with events [%s]"), *DebugGetEventsAsString());
+	
 	auto HasEvent = [this](const FGameplayTag QueriedTag)
 	{
 		if (EventsToProcess.IsEmpty())

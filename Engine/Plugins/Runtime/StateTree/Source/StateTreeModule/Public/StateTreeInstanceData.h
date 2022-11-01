@@ -44,6 +44,9 @@ struct STATETREEMODULE_API FStateTreeInstanceData
 	/** @return Number of items in the instance data. */
 	int32 NumStructs() const { return InstanceStructs.Num(); }
 
+	/** @return true if the specified index is valid index into the struct data container. */
+	bool IsValidStructIndex(const int32 Index) const { return InstanceStructs.IsValidIndex(Index); }
+	
 	/** @return mutable view to the struct at specified index. */
 	FStructView GetMutableStruct(const int32 Index) const { return InstanceStructs[Index]; }
 
@@ -60,7 +63,11 @@ struct STATETREEMODULE_API FStateTreeInstanceData
 	const UObject* GetObject(const int32 Index) const { return InstanceObjects[Index]; }
 
 	/** @return array to store unprocessed events. */
-	TArray<FStateTreeEvent>& GetEvents() { return Events; }
+	UE_DEPRECATED(5.2, "Use GetEventQueue() instead.")
+	TArray<FStateTreeEvent>& GetEvents();
+
+	/** @return reference to the event queue. */
+	FStateTreeEventQueue& GetEventQueue() { return EventQueue; }
 	
 	int32 GetEstimatedMemoryUsage() const;
 	int32 GetNumItems() const;
@@ -80,7 +87,7 @@ private:
 
 	/** Events */
 	UPROPERTY()
-	TArray<FStateTreeEvent> Events;
+	FStateTreeEventQueue EventQueue;
 };
 
 template<>
@@ -90,4 +97,62 @@ struct TStructOpsTypeTraits<FStateTreeInstanceData> : public TStructOpsTypeTrait
 	{
 		WithIdentical = true,
 	};
+};
+
+/**
+ * Stores indexed reference to a instance data struct.
+ * The instance data structs may be relocated when the instance data composition changed. For that reason you cannot store pointers to the instance data.
+ * This is often needed for example when dealing with delegate lambda's. This helper struct stores the instance data as index to the instance data array.
+ * That way we can access the instance data even of the array changes.
+ *
+ * You generally do not use this directly, but via FStateTreeExecutionContext.
+ *
+ *	EStateTreeRunStatus FTestTask::EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const
+ *	{
+ *		FInstanceDataType& InstanceData = Context.GetInstanceData(*this);
+ *
+ *		Context.GetWorld()->GetTimerManager().SetTimer(
+ *	        InstanceData.TimerHandle,
+ *	        [InstanceDataRef = Context.GetInstanceDataStructRef()]()
+ *	        {
+ *	            FInstanceDataType& InstanceData = *InstanceDataRef;
+ *	            ...
+ *	        },
+ *	        Delay, true);
+ *
+ *	    return EStateTreeRunStatus::Running;
+ *	}
+ */
+template <typename T>
+struct TStateTreeInstanceDataStructRef
+{
+	TStateTreeInstanceDataStructRef(FStateTreeInstanceData& InInstanceData, const T& InstanceDataStruct)
+		: InstanceData(InInstanceData)
+	{
+		const FConstStructView InstanceDataStructView = FConstStructView::template Make(InstanceDataStruct);
+		// Find struct in the instance data.
+		for (int32 Index = 0; Index < InstanceData.NumStructs(); Index++)
+		{
+			if (InstanceData.GetStruct(Index) == InstanceDataStructView)
+			{
+				StructIndex = Index;
+				break;
+			}
+		}
+		check(StructIndex != INDEX_NONE);
+	}
+
+	bool IsValid() const { return InstanceData.IsValidStructIndex(StructIndex); }
+
+	T& operator*() const
+	{
+		check(IsValid());
+		const FStructView Struct = InstanceData.GetMutableStruct(StructIndex);
+		check(Struct.GetScriptStruct() == TBaseStructure<T>::Get());
+		return *reinterpret_cast<T*>(Struct.GetMutableMemory());
+	}
+
+protected:
+	FStateTreeInstanceData& InstanceData;
+	int32 StructIndex = INDEX_NONE;
 };

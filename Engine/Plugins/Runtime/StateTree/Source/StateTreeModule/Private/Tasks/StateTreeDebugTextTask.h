@@ -9,6 +9,10 @@ USTRUCT()
 struct STATETREEMODULE_API FStateTreeDebugTextTaskInstanceData
 {
 	GENERATED_BODY()
+
+	/** Optional actor where to draw the text at. */
+	UPROPERTY(EditAnywhere, Category = "Parameter")
+	TObjectPtr<AActor> ReferenceActor = nullptr;
 };
 
 /**
@@ -19,30 +23,27 @@ struct STATETREEMODULE_API FStateTreeDebugTextTask : public FStateTreeTaskCommon
 {
 	GENERATED_BODY()
 
-	typedef FStateTreeDebugTextTaskInstanceData InstanceDataType;
+	using FInstanceDataType = FStateTreeDebugTextTaskInstanceData;
 	
 	FStateTreeDebugTextTask() = default;
 
-	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 
-	virtual bool Link(FStateTreeLinker& Linker) override;
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const FStateTreeTransitionResult& Transition) const override;
 
-	TStateTreeExternalDataHandle<AActor, EStateTreeExternalDataRequirement::Optional> ReferenceActorHandle;
-	
-	UPROPERTY(EditAnywhere, Category = Parameter)
+	UPROPERTY(EditAnywhere, Category = "Parameter")
 	FString Text;
 
-	UPROPERTY(EditAnywhere, Category = Parameter)
+	UPROPERTY(EditAnywhere, Category = "Parameter")
 	FColor TextColor = FColor::White;
 
-	UPROPERTY(EditAnywhere, Category = Parameter, meta=(ClampMin = 0, UIMin = 0))
+	UPROPERTY(EditAnywhere, Category = "Parameter", meta=(ClampMin = 0, UIMin = 0))
 	float FontScale = 1.0f;
 	
-	UPROPERTY(EditAnywhere, Category = Parameter)
+	UPROPERTY(EditAnywhere, Category = "Parameter")
 	FVector Offset = FVector::ZeroVector;
 
-	UPROPERTY(EditAnywhere, Category = Parameter)
+	UPROPERTY(EditAnywhere, Category = "Parameter")
 	bool bEnabled = true;
 };

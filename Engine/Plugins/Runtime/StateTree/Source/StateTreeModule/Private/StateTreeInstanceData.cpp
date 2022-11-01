@@ -9,6 +9,11 @@
 //  FStateTreeInstanceData
 //----------------------------------------------------------------//
 
+TArray<FStateTreeEvent>& FStateTreeInstanceData::GetEvents()
+{
+	return EventQueue.GetEventsArray();
+}
+
 int32 FStateTreeInstanceData::GetEstimatedMemoryUsage() const
 {
 	int32 Size = sizeof(FStateTreeInstanceData);
@@ -181,5 +186,6 @@ void FStateTreeInstanceData::Reset()
 {
 	InstanceStructs.Reset();
 	InstanceObjects.Reset();
+	EventQueue.Reset();
 }
 

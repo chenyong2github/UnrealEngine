@@ -13,6 +13,8 @@
 
 UStateTreeTaskBlueprintBase::UStateTreeTaskBlueprintBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bShouldStateChangeOnReselect(true)
+	, bShouldCallTickOnlyOnEvents(false)
 {
 	bHasEnterState = BlueprintNodeHelpers::HasBlueprintFunction(TEXT("ReceiveEnterState"), *this, *StaticClass());
 	bHasExitState = BlueprintNodeHelpers::HasBlueprintFunction(TEXT("ReceiveExitState"), *this, *StaticClass());
@@ -106,6 +108,16 @@ EStateTreeRunStatus FStateTreeBlueprintTaskWrapper::Tick(FStateTreeExecutionCont
 {
 	UStateTreeTaskBlueprintBase* Instance = Context.GetInstanceDataPtr<UStateTreeTaskBlueprintBase>(*this);
 	check(Instance);
-	return Instance->Tick(Context, DeltaTime);
+
+	// @todo: reflect this value into the node.
+	const bool bNeedsTick = !Instance->bShouldCallTickOnlyOnEvents
+		|| (Instance->bShouldCallTickOnlyOnEvents && !Context.GetEventsToProcess().IsEmpty());
+	
+	if (bNeedsTick)
+	{
+		return Instance->Tick(Context, DeltaTime);
+	}
+	
+	return EStateTreeRunStatus::Running;
 }
 
