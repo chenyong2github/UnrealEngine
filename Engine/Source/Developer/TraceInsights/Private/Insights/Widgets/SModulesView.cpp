@@ -1015,7 +1015,7 @@ void SModulesView::UpdateSorting()
 					{
 						return false;
 					}
-					return FCString::Strcmp(A->GetModule()->Name, B->GetModule()->Name) < 0;
+					return FCString::Stricmp(A->GetModule()->Name, B->GetModule()->Name) < 0;
 				});
 		}
 		else
@@ -1030,7 +1030,7 @@ void SModulesView::UpdateSorting()
 					{
 						return true;
 					}
-					return FCString::Strcmp(A->GetModule()->Name, B->GetModule()->Name) > 0;
+					return FCString::Stricmp(A->GetModule()->Name, B->GetModule()->Name) > 0;
 				});
 		}
 	}
@@ -1113,7 +1113,7 @@ void SModulesView::UpdateSorting()
 					{
 						return false;
 					}
-					return FCString::Strcmp(A->GetModule()->StatusMessage, B->GetModule()->StatusMessage) < 0;
+					return FCString::Stricmp(A->GetModule()->StatusMessage, B->GetModule()->StatusMessage) < 0;
 				});
 		}
 		else
@@ -1128,7 +1128,7 @@ void SModulesView::UpdateSorting()
 					{
 						return true;
 					}
-					return FCString::Strcmp(A->GetModule()->StatusMessage, B->GetModule()->StatusMessage) > 0;
+					return FCString::Stricmp(A->GetModule()->StatusMessage, B->GetModule()->StatusMessage) > 0;
 				});
 		}
 	}

@@ -1667,12 +1667,11 @@ void STableTreeView::UpdateCStringSameValueAggregationRec(FTableColumn& Column, 
 			if (!NodePtr->IsGroup())
 			{
 				const TOptional<FTableCellValue> NodeValue = Column.GetValue(*NodePtr);
-				if (!NodeValue.IsSet() ||
-					NodeValue.GetValue().DataType != ETableCellDataType::CString ||
-					AggregatedValue != NodeValue.GetValue().CString)
+				if (NodeValue.IsSet() &&
+					NodeValue.GetValue().DataType == ETableCellDataType::CString &&
+					AggregatedValue == NodeValue.GetValue().CString)
 				{
-					AggregatedValue = nullptr;
-					break;
+					continue;
 				}
 			}
 			else
@@ -1681,14 +1680,16 @@ void STableTreeView::UpdateCStringSameValueAggregationRec(FTableColumn& Column, 
 				if (TableNode.HasAggregatedValue(Column.GetId()))
 				{
 					const FTableCellValue& ChildGroupAggregatedValue = TableNode.GetAggregatedValue(Column.GetId());
-					if (ChildGroupAggregatedValue.DataType != ETableCellDataType::CString ||
-						AggregatedValue != ChildGroupAggregatedValue.CString)
+					if (ChildGroupAggregatedValue.DataType == ETableCellDataType::CString &&
+						AggregatedValue == ChildGroupAggregatedValue.CString)
 					{
-						AggregatedValue = nullptr;
-						break;
+						continue;
 					}
 				}
 			}
+
+			AggregatedValue = nullptr;
+			break;
 		}
 	}
 
@@ -3657,7 +3658,7 @@ FText STableTreeView::ViewPreset_GetSelectedToolTipText() const
 void STableTreeView::StopAllTableDataTasks(bool bWait)
 {
 	DataTaskInfos.RemoveAllSwap([](TSharedPtr<FTableTaskInfo> Data) { return Data->Event->IsComplete(); });
-	
+
 	for (int32 Index = 0; Index < DataTaskInfos.Num(); ++Index)
 	{
 		DataTaskInfos[Index]->CancellationToken->Cancel();

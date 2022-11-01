@@ -492,20 +492,20 @@ FSorterByCStringValue::FSorterByCStringValue(TSharedRef<FTableColumn> InColumnRe
 		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
 		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
 
-		const TCHAR* ValueA = OptionalValueA.IsSet() ? OptionalValueA.GetValue().CString : TEXT("");
-		const TCHAR* ValueB = OptionalValueB.IsSet() ? OptionalValueB.GetValue().CString : TEXT("");
+		const TCHAR* ValueA = OptionalValueA.IsSet() ? OptionalValueA.GetValue().CString : nullptr;
+		const TCHAR* ValueB = OptionalValueB.IsSet() ? OptionalValueB.GetValue().CString : nullptr;
 
 		// If any value is nullptr
 		if (!ValueA || !ValueB)
 		{
-			if(!ValueA && !ValueB)
+			if (!ValueA && !ValueB)
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 			}
 			return ValueA < ValueB;
 		}
-			
-		const int32 Compare = FCString::Strcmp(ValueA, ValueB);
+
+		const int32 Compare = FCString::Stricmp(ValueA, ValueB);
 		if (Compare == 0)
 		{
 			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
@@ -524,20 +524,20 @@ FSorterByCStringValue::FSorterByCStringValue(TSharedRef<FTableColumn> InColumnRe
 		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
 		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
 
-		const TCHAR* ValueA = OptionalValueA.IsSet() ? OptionalValueA.GetValue().CString : TEXT("");
-		const TCHAR* ValueB = OptionalValueB.IsSet() ? OptionalValueB.GetValue().CString : TEXT("");
-		
+		const TCHAR* ValueA = OptionalValueA.IsSet() ? OptionalValueA.GetValue().CString : nullptr;
+		const TCHAR* ValueB = OptionalValueB.IsSet() ? OptionalValueB.GetValue().CString : nullptr;
+
 		// If any value is nullptr
 		if (!ValueA || !ValueB)
 		{
-			if(!ValueA && !ValueB)
+			if (!ValueA && !ValueB)
 			{
 				INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 			}
 			return ValueA > ValueB;
 		}
 
-		const int32 Compare = FCString::Strcmp(ValueA, ValueB);
+		const int32 Compare = FCString::Stricmp(ValueA, ValueB);
 		if (Compare == 0)
 		{
 			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
@@ -624,7 +624,7 @@ void FSorterByTextValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode S
 			const FString& ValueB = UniqueValues[B.ValueId];
 
 			// Sort by value (ascending).
-			return ValueA.Compare(ValueB) <= 0;
+			return ValueA.Compare(ValueB, ESearchCase::IgnoreCase) <= 0;
 		});
 	}
 	else // if (SortMode == ESortMode::Descending)
@@ -652,7 +652,7 @@ void FSorterByTextValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode S
 			const FString& ValueB = UniqueValues[B.ValueId];
 
 			// Sort by value (descending).
-			return ValueA.Compare(ValueB) >= 0;
+			return ValueA.Compare(ValueB, ESearchCase::IgnoreCase) >= 0;
 		});
 	}
 
@@ -748,7 +748,7 @@ void FSorterByTextValueWithId::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESort
 			const FString& ValueB = UniqueValues[B.ValueIndex];
 
 			// Sort by value (ascending).
-			return ValueA.Compare(ValueB) <= 0;
+			return ValueA.Compare(ValueB, ESearchCase::IgnoreCase) <= 0;
 		});
 	}
 	else // if (SortMode == ESortMode::Descending)
@@ -776,7 +776,7 @@ void FSorterByTextValueWithId::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESort
 			const FString& ValueB = UniqueValues[B.ValueIndex];
 
 			// Sort by value (descending).
-			return ValueA.Compare(ValueB) >= 0;
+			return ValueA.Compare(ValueB, ESearchCase::IgnoreCase) >= 0;
 		});
 	}
 
