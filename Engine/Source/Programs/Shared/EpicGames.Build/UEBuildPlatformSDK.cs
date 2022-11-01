@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -764,6 +764,34 @@ namespace EpicGames.Core
 			}
 			return Result;
 		}
+
+		/// <summary>
+		/// Compare two sdk versions, for Sort() purposes
+		/// e.g. SdkVersions.Sort( (A,B) => PlatformSDK.SdkVersionsCompare(A,B) );
+		/// </summary>
+		/// <param name="StringValueA">First Version to compare</param>
+		/// <param name="StringValueB">Second Version to compare</param>
+		/// <param name="Hint">A platform specific hint that can help guide conversion (usually SDKName or device type)</param>
+		/// <returns>Comparison integer</returns>
+		public int SdkVersionsCompare( string? StringValueA, string? StringValueB, string? Hint = null )
+		{
+			UInt64 ValueA = 0, ValueB = 0;
+			TryConvertVersionToInt(StringValueA, out ValueA, Hint);
+			TryConvertVersionToInt(StringValueB, out ValueB, Hint);
+			if (ValueA == ValueB)
+			{
+				return 0;
+			}
+			else if (ValueA < ValueB)
+			{
+				return -1;
+			}
+			else
+			{
+				return 1;
+			}
+		}
+
 
 		/// <summary>
 		/// Allow the platform SDK to override the name it will use in AutoSDK, but default to the platform name
