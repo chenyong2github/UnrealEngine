@@ -37,6 +37,15 @@ TArray<FString> FUnsavedAssetsTrackerModule::GetUnsavedAssets() const
 	return TArray<FString>();
 }
 
+bool FUnsavedAssetsTrackerModule::IsAssetUnsaved(const FString& FileAbsPathname) const
+{
+	if (UnsavedAssetTracker)
+	{
+		return UnsavedAssetTracker->IsAssetUnsaved(FileAbsPathname);
+	}
+	return false;
+}
+
 TSharedRef<SWidget> FUnsavedAssetsTrackerModule::MakeUnsavedAssetsStatusBarWidget()
 {
 	if (!UnsavedAssetTracker)

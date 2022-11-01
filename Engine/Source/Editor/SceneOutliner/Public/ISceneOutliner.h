@@ -150,6 +150,9 @@ public:
 
 	/** Get the associated source control object for the specified item. */
 	virtual TSharedPtr<FSceneOutlinerTreeItemSCC> GetItemSourceControl(const FSceneOutlinerTreeItemPtr& InItem) = 0;
+
+	/** Check if a filter with the given name exists and is active in the filter bar for this Outliner (if this Outliner has a filter bar). */
+	virtual bool IsFilterActive(const FString& FilterName) const = 0;
 protected:
 	ISceneOutlinerMode* Mode;
 };

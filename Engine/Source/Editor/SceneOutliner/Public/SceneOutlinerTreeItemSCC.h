@@ -7,7 +7,11 @@
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerTreeItemSCC"
 
+class FUncontrolledChangelistState;
+
 DECLARE_DELEGATE_OneParam(FSourceControlStateChangedDelegate, FSourceControlStatePtr);
+DECLARE_DELEGATE_OneParam(FUncontrolledStateChangedDelegate, TSharedPtr<FUncontrolledChangelistState>);
+
 
 class FSceneOutlinerTreeItemSCC : public TSharedFromThis<FSceneOutlinerTreeItemSCC>
 {
@@ -27,6 +31,10 @@ public:
 	UPackage* GetPackage() { return ExternalPackage; }
 
 	FSourceControlStateChangedDelegate OnSourceControlStateChanged;
+	
+	FUncontrolledStateChangedDelegate OnUncontrolledChangelistsStateChanged;
+	
+	TWeakPtr<FUncontrolledChangelistState> GetUncontrolledChangelistState() { return UncontrolledChangelistState; }
 
 private:
 
@@ -39,6 +47,8 @@ private:
 	void HandleSourceControlProviderChanged(ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider);
 
 	void BroadcastNewState(FSourceControlStatePtr SourceControlState);
+
+	void HandleUncontrolledChangelistsStateChanged();
 
 	/** The tree item we relate to */
 	FSceneOutlinerTreeItemPtr TreeItemPtr;
@@ -55,6 +65,12 @@ private:
 
 	/** Actor packaging mode changed delegate handle */
 	FDelegateHandle ActorPackingModeChangedDelegateHandle;
+
+	/** Uncontrolled Changelist Changed changed delegate handle */
+	FDelegateHandle UncontrolledChangelistChangedHandle;
+
+	/** The uncontrolled changelist this file belongs to, empty if this item is not uncontrolled */
+	TSharedPtr<FUncontrolledChangelistState> UncontrolledChangelistState;
 };
 
 #undef LOCTEXT_NAMESPACE

@@ -343,7 +343,15 @@ public:
 	 *   @see FGenericFilter on how to create generic filters
 	 *   NOTE: Currently does not support adding filters dynamically, they must be added before the Level Editor is init
 	 */
-	virtual void AddCustomFilterToOutliner(TSharedRef<FFilterBase<SceneOutliner::FilterBarType>> InCustomFilter);
+	UE_DEPRECATED(5.2, "Use the AddCustomFilterToOutliner override that takes in a delegate instead so each Outliner can have a unique instance of the filter")
+	virtual void AddCustomFilterToOutliner(TSharedRef<FFilterBase<const ISceneOutlinerTreeItem&>> InCustomFilter);
+
+	/**  Add a custom filter to the outliner filter bar. These are all AND'd together
+	 *	 This function takes in a delegate that will be called to create an instance of the custom filter for each Outliner that
+	 *	 the level editor creates.
+	 *   @see FGenericFilter on how to create generic filters
+	 */
+	void AddCustomFilterToOutliner(FLevelEditorOutlinerSettings::FOutlinerFilterFactory InCreateCustomFilter);
 
 	/**  Add a custom class filter to the outliner filter bar. These represent asset/actor type filters and are OR'd
 	 *   @see FLevelEditorOutlinerSettings

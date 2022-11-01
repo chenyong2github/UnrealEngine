@@ -424,6 +424,11 @@ void FUnsavedAssetsTracker::PrompToSavePackages()
 	}
 }
 
+bool FUnsavedAssetsTracker::IsAssetUnsaved(const FString& FileAbsPathname) const
+{
+	return UnsavedAbsFilePathames.Contains(FileAbsPathname);
+}
+
 void FUnsavedAssetsTracker::OnSourceControlWarningNotification(const ISourceControlState& State, FStatus& InOutStatus)
 {
 	auto UpdateAndShowWarningIfNotAlreadyShown = [this](EWarningTypes WarningType, const FText& Msg, FStatus& InOutStatus)

@@ -42,6 +42,9 @@ public:
 	/** Displays a dialog prompting the user to save the packages. */
 	void PrompToSavePackages();
 
+	/** Check if the input asset is unsaved. */
+	bool IsAssetUnsaved(const FString& FileAbsPathname) const;
+
 private:
 	enum class EWarningTypes
 	{

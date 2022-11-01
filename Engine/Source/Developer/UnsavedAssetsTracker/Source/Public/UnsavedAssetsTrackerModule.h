@@ -45,6 +45,9 @@ public:
 	/** Returns the list of unsaved assets. */
 	TArray<FString> GetUnsavedAssets() const;
 
+	/** Check if the input asset is unsaved. */
+	bool IsAssetUnsaved(const FString& FileAbsPathname) const;
+
 	/** Construct the widget for the Editor status bar.*/
 	TSharedRef<SWidget> MakeUnsavedAssetsStatusBarWidget();
 

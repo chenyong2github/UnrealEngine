@@ -4,9 +4,17 @@
 
 #include "Filters/FilterBase.h"
 #include "Filters/CustomClassFilterData.h"
+#include "Filters/GenericFilter.h"
+
+#include "LevelEditor.h"
+#include "IPlacementModeModule.h"
+
+#include "UnsavedAssetsTrackerModule.h"
+#include "UncontrolledChangelistsModule.h"
 
 #include "SceneOutlinerPublicTypes.h"
-#include "IPlacementModeModule.h"
+#include "ISceneOutliner.h"
+#include "SceneOutlinerHelpers.h"
 
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/SkyAtmosphereComponent.h"
@@ -23,9 +31,19 @@
 
 #define LOCTEXT_NAMESPACE "LevelEditorOutlinerSettings"
 
-void FLevelEditorOutlinerSettings::AddCustomFilter(TSharedRef<FFilterBase<SceneOutliner::FilterBarType>> InCustomFilter)
+const FString FLevelEditorOutlinerSettings::UnsavedAssetsFilterName("UnsavedAssetsFilter");
+const FString FLevelEditorOutlinerSettings::UncontrolledAssetsFilterName("UncontrolledAssetsFilter");
+
+void FLevelEditorOutlinerSettings::AddCustomFilter(TSharedRef<FFilterBase<const ISceneOutlinerTreeItem&>> InCustomFilter)
 {
 	CustomFilters.Add(InCustomFilter);
+}
+
+void FLevelEditorOutlinerSettings::AddCustomFilter(FOutlinerFilterFactory InCreateCustomFilter)
+{
+	check (InCreateCustomFilter.IsBound())
+	
+	CustomFilterDelegates.Add(InCreateCustomFilter);
 }
 
 void FLevelEditorOutlinerSettings::AddCustomClassFilter(TSharedRef<FCustomClassFilterData> InCustomClassFilterData)
@@ -37,7 +55,7 @@ void FLevelEditorOutlinerSettings::AddCustomClassFilter(TSharedRef<FCustomClassF
 
 	// If a filter for the class already exists, just add the new categories to it
 	// TODO: Not perfect, what if the user wants to use InCustomClassFilterData after if there is already a dupe?
-	if(FoundFilter)
+	if (FoundFilter)
 	{
 		TArray<TSharedPtr<FFilterCategory>> Categories = InCustomClassFilterData->GetCategories();
 
@@ -54,7 +72,7 @@ void FLevelEditorOutlinerSettings::AddCustomClassFilter(TSharedRef<FCustomClassF
 
 TSharedPtr<FFilterCategory> FLevelEditorOutlinerSettings::GetFilterCategory(const FName& CategoryName)
 {
-	if(TSharedPtr<FFilterCategory>* FoundCategory = FilterBarCategories.Find(CategoryName))
+	if (TSharedPtr<FFilterCategory>* FoundCategory = FilterBarCategories.Find(CategoryName))
 	{
 		return *FoundCategory;
 	}
@@ -102,6 +120,36 @@ void FLevelEditorOutlinerSettings::SetupBuiltInCategories()
 	FilterBarCategories.Add(FLevelEditorOutlinerBuiltInCategories::Volumes(), VolumesFilterCategory);
 }
 
+void FLevelEditorOutlinerSettings::RefreshOutlinersWithActiveFilter(bool bFullRefresh, const FString& InFilterName)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FLevelEditorOutlinerSettings::RefreshOutlinersWithActiveFilter);
+
+	TWeakPtr<ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
+	if (LevelEditor.IsValid())
+	{
+		TArray<TWeakPtr<ISceneOutliner>> SceneOutlinerPtrs = LevelEditor.Pin()->GetAllSceneOutliners();
+
+		for (TWeakPtr<ISceneOutliner> SceneOutlinerPtr : SceneOutlinerPtrs)
+		{
+			if (TSharedPtr<ISceneOutliner> SceneOutlinerPin = SceneOutlinerPtr.Pin())
+			{
+				// If this outliner has the input filter active, refresh it
+				if (SceneOutlinerPin->IsFilterActive(InFilterName))
+				{
+					if (bFullRefresh)
+					{
+						SceneOutlinerPin->FullRefresh();
+					}
+					else
+					{
+						SceneOutlinerPin->Refresh();
+					}
+				}
+			}
+		}
+	}
+}
+
 void FLevelEditorOutlinerSettings::CreateDefaultFilters()
 {
 	// First we will add all items registered to the place actors panel as filters
@@ -126,7 +174,7 @@ void FLevelEditorOutlinerSettings::CreateDefaultFilters()
 			return FilterData->GetClassPathName() == Class->GetClassPathName();
 		});
 		
-		if(ExistingClassData)
+		if (ExistingClassData)
 		{
 			(*ExistingClassData)->AddCategory(FilterCategory);
 		}
@@ -141,7 +189,7 @@ void FLevelEditorOutlinerSettings::CreateDefaultFilters()
 	{
 		// Make an FFilterCategory using the current PlacementCategory if it doesn't already exist (built in)
 		TSharedPtr<FFilterCategory> FilterCategory;
-		if(TSharedPtr<FFilterCategory>* FoundCategory = FilterBarCategories.Find(Category.UniqueHandle))
+		if (TSharedPtr<FFilterCategory>* FoundCategory = FilterBarCategories.Find(Category.UniqueHandle))
 		{
 			FilterCategory = *FoundCategory;
 		}
@@ -153,7 +201,7 @@ void FLevelEditorOutlinerSettings::CreateDefaultFilters()
 		FName CategoryName = Category.UniqueHandle;
 
 		// If it is a built in placement mode category, convert the name to a built in filter category
-		if(FName* MappedCategoryName = PlacementToFilterCategoryMap.Find(CategoryName))
+		if (FName* MappedCategoryName = PlacementToFilterCategoryMap.Find(CategoryName))
 		{
 			CategoryName = *MappedCategoryName;
 		}
@@ -182,7 +230,7 @@ void FLevelEditorOutlinerSettings::CreateDefaultFilters()
 				DefaultActor = CastChecked<AActor>(CastChecked<UClass>(Item->AssetData.GetAsset())->ClassDefaultObject);
 			
 			}
-			if(!DefaultActor)
+			if (!DefaultActor)
 			{
 				continue;
 			}
@@ -196,7 +244,7 @@ void FLevelEditorOutlinerSettings::CreateDefaultFilters()
 
 	TSharedPtr<FFilterCategory>* CommonFilterCategory = FilterBarCategories.Find(FLevelEditorOutlinerBuiltInCategories::Common());
 
-	if(CommonFilterCategory)
+	if (CommonFilterCategory)
 	{
 		FindOrAddClassFilter(AStaticMeshActor::StaticClass(), *CommonFilterCategory);
 		FindOrAddClassFilter(ALevelInstance::StaticClass(), *CommonFilterCategory);
@@ -207,7 +255,7 @@ void FLevelEditorOutlinerSettings::CreateDefaultFilters()
 
 	TSharedPtr<FFilterCategory>* GeometryFilterCategory = FilterBarCategories.Find(FLevelEditorOutlinerBuiltInCategories::Geometry());
 
-	if(GeometryFilterCategory)
+	if (GeometryFilterCategory)
 	{
 		FindOrAddClassFilter(AStaticMeshActor::StaticClass(), *GeometryFilterCategory);
 		FindOrAddClassFilter(ABrush::StaticClass(), *GeometryFilterCategory);
@@ -215,14 +263,14 @@ void FLevelEditorOutlinerSettings::CreateDefaultFilters()
 
 	TSharedPtr<FFilterCategory>* AnimationFilterCategory = FilterBarCategories.Find(FLevelEditorOutlinerBuiltInCategories::Animation());
 
-	if(AnimationFilterCategory)
+	if (AnimationFilterCategory)
 	{
 		FindOrAddClassFilter(ASkeletalMeshActor::StaticClass(), *AnimationFilterCategory);
 	}
 
 	TSharedPtr<FFilterCategory>* EnvironmentFilterCategory = FilterBarCategories.Find(FLevelEditorOutlinerBuiltInCategories::Environment());
 
-	if(EnvironmentFilterCategory)
+	if (EnvironmentFilterCategory)
 	{
 		FindOrAddClassFilter(AExponentialHeightFog::StaticClass(), *EnvironmentFilterCategory);
 		FindOrAddClassFilter(AInstancedFoliageActor::StaticClass(), *EnvironmentFilterCategory);
@@ -232,10 +280,84 @@ void FLevelEditorOutlinerSettings::CreateDefaultFilters()
 	
 	TSharedPtr<FFilterCategory>* AudioFilterCategory = FilterBarCategories.Find(FLevelEditorOutlinerBuiltInCategories::Audio());
 
-	if(AudioFilterCategory)
+	if (AudioFilterCategory)
 	{
 		FindOrAddClassFilter(AAmbientSound::StaticClass(), *AudioFilterCategory);
 	}
+	
+	CreateSCCFilters();
+}
+
+bool FLevelEditorOutlinerSettings::DoesActorPassUnsavedFilter(const ISceneOutlinerTreeItem& InItem)
+{
+	return UnsavedAssets.Contains(SceneOutliner::FSceneOutlinerHelpers::GetExternalPackageName(InItem));
+}
+
+bool FLevelEditorOutlinerSettings::DoesActorPassUncontrolledFilter(const ISceneOutlinerTreeItem& InItem)
+{
+	FString ExternalPackageName = SceneOutliner::FSceneOutlinerHelpers::GetExternalPackageName(InItem);
+	
+	for (const TSharedRef<FUncontrolledChangelistState>& UncontrolledChangelistState : UncontrolledChangelistStates)
+	{
+		return UncontrolledChangelistState->GetFilenames().Contains(ExternalPackageName);
+	}
+	
+	return false;
+}
+
+void FLevelEditorOutlinerSettings::OnUnsavedAssetAdded(const FString& InAsset)
+{
+	UnsavedAssets.Add(InAsset);
+
+	// Refresh any outliners that have the unsaved assets filter active to refilter on adding an unsaved asset
+	RefreshOutlinersWithActiveFilter(/*bFullRefresh*/ true, UnsavedAssetsFilterName);
+}
+
+void FLevelEditorOutlinerSettings::OnUnsavedAssetRemoved(const FString& InAsset)
+{
+	UnsavedAssets.Remove(InAsset);
+
+	// Refresh any outliners that have the unsaved assets filter active to refilter on adding an unsaved asset
+	RefreshOutlinersWithActiveFilter(/*bFullRefresh*/ true, UnsavedAssetsFilterName);
+}
+
+void FLevelEditorOutlinerSettings::CreateSCCFilters()
+{
+	// Source Control Category
+	TSharedPtr<FFilterCategory> SCCFiltersCategory = MakeShared<FFilterCategory>(LOCTEXT("SCCFiltersCategory", "Source Control"), FText::GetEmpty());
+	
+	// Uncontrolled Actors Filter
+	FUncontrolledChangelistsModule& UncontrolledChangelistModule = FUncontrolledChangelistsModule::Get();
+	UncontrolledChangelistStates = FUncontrolledChangelistsModule::Get().GetChangelistStates();
+	UncontrolledChangelistModule.OnUncontrolledChangelistModuleChanged.AddSP(this, &FLevelEditorOutlinerSettings::OnUncontrolledChangelistModuleChanged);
+	
+	FGenericFilter<const ISceneOutlinerTreeItem&>::FOnItemFiltered UncontrolledFilterDelegate = FGenericFilter<const ISceneOutlinerTreeItem&>::FOnItemFiltered::CreateSP(this, &FLevelEditorOutlinerSettings::DoesActorPassUncontrolledFilter);
+	TSharedPtr<FGenericFilter<const ISceneOutlinerTreeItem&>> UncontrolledFilter = MakeShared<FGenericFilter<const ISceneOutlinerTreeItem&>>(SCCFiltersCategory, UncontrolledAssetsFilterName, LOCTEXT("UncontrolledFilterName", "Uncontrolled"), UncontrolledFilterDelegate);
+	UncontrolledFilter->SetToolTipText(LOCTEXT("UncontrolledFilterTooltip", "Only show items that are uncontrolled (locally modified outside of source control)"));
+	CustomFilters.Add(UncontrolledFilter.ToSharedRef());
+	
+	// File Management Category
+	TSharedPtr<FFilterCategory> FileManagementFiltersCategory = MakeShared<FFilterCategory>(LOCTEXT("FileManagementFiltersCategory", "File Management"), FText::GetEmpty());
+
+	// Unsaved Actors
+	FUnsavedAssetsTrackerModule& UnsavedAssetsTrackerModule = FUnsavedAssetsTrackerModule::Get();
+	UnsavedAssets = UnsavedAssetsTrackerModule.GetUnsavedAssets();
+	UnsavedAssetsTrackerModule.OnUnsavedAssetAdded.AddSP(this, &FLevelEditorOutlinerSettings::OnUnsavedAssetAdded);
+	UnsavedAssetsTrackerModule.OnUnsavedAssetRemoved.AddSP(this, &FLevelEditorOutlinerSettings::OnUnsavedAssetRemoved);
+	
+	FGenericFilter<const ISceneOutlinerTreeItem&>::FOnItemFiltered UnsavedActorsFilterDelegate = FGenericFilter<const ISceneOutlinerTreeItem&>::FOnItemFiltered::CreateSP(this, & FLevelEditorOutlinerSettings::DoesActorPassUnsavedFilter);
+	TSharedPtr<FGenericFilter<const ISceneOutlinerTreeItem&>> UnsavedAssetsFilter = MakeShared<FGenericFilter<const ISceneOutlinerTreeItem&>>(FileManagementFiltersCategory, UnsavedAssetsFilterName, LOCTEXT("UnsavedFilterName", "Unsaved"), UnsavedActorsFilterDelegate);
+	UnsavedAssetsFilter->SetToolTipText(LOCTEXT("UnsavedAssetsFilterTooltip", "Only show items that are unsaved"));
+	CustomFilters.Add(UnsavedAssetsFilter.ToSharedRef());
+}
+
+void FLevelEditorOutlinerSettings::OnUncontrolledChangelistModuleChanged()
+{
+	// Update our cached uncontrolled CL states
+	UncontrolledChangelistStates = FUncontrolledChangelistsModule::Get().GetChangelistStates();
+
+	// Refresh any Outliners that have the Uncontrolled Filter active
+	RefreshOutlinersWithActiveFilter(/*bFullRefresh*/ true, UncontrolledAssetsFilterName);
 }
 
 void FLevelEditorOutlinerSettings::GetOutlinerFilters(FSceneOutlinerFilterBarOptions& OutFilterBarOptions)
@@ -248,6 +370,12 @@ void FLevelEditorOutlinerSettings::GetOutlinerFilters(FSceneOutlinerFilterBarOpt
 	
 	OutFilterBarOptions.CustomClassFilters.Append(CustomClassFilters);
 	OutFilterBarOptions.CustomFilters.Append(CustomFilters);
+
+	for(FOutlinerFilterFactory& CreateFilterDelegate : CustomFilterDelegates)
+	{
+		TSharedRef<FFilterBase<const ISceneOutlinerTreeItem&>> NewFilter = CreateFilterDelegate.Execute().ToSharedRef();
+		OutFilterBarOptions.CustomFilters.Add(NewFilter);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

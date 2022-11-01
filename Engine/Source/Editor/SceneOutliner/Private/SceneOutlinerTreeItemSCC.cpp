@@ -8,7 +8,9 @@
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "SceneOutlinerHelpers.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "UncontrolledChangelistsModule.h"
 
 FSceneOutlinerTreeItemSCC::FSceneOutlinerTreeItemSCC(FSceneOutlinerTreeItemPtr InTreeItemPtr)
 {
@@ -16,17 +18,16 @@ FSceneOutlinerTreeItemSCC::FSceneOutlinerTreeItemSCC(FSceneOutlinerTreeItemPtr I
 
 	if (TreeItemPtr.IsValid())
 	{
+		ExternalPackageName = SceneOutliner::FSceneOutlinerHelpers::GetExternalPackageName(*TreeItemPtr.Get());
+		ExternalPackage = SceneOutliner::FSceneOutlinerHelpers::GetExternalPackage(*TreeItemPtr.Get());
+		
 		if (FActorTreeItem* ActorItem = TreeItemPtr->CastTo<FActorTreeItem>())
 		{
 			if (AActor* Actor = ActorItem->Actor.Get())
 			{
 				if (Actor->IsPackageExternal())
 				{
-					ExternalPackageName = USourceControlHelpers::PackageFilename(Actor->GetExternalPackage());
-					ExternalPackage = Actor->GetExternalPackage();
-				}
-
-				ActorPackingModeChangedDelegateHandle = Actor->OnPackagingModeChanged.AddLambda([this](AActor* InActor, bool bExternal)
+					ActorPackingModeChangedDelegateHandle = Actor->OnPackagingModeChanged.AddLambda([this](AActor* InActor, bool bExternal)
 					{
 						if (bExternal)
 						{
@@ -41,37 +42,29 @@ FSceneOutlinerTreeItemSCC::FSceneOutlinerTreeItemSCC(FSceneOutlinerTreeItemPtr I
 							DisconnectSourceControl();
 						}
 					});
-			}
-		}
-		else if (FActorFolderTreeItem* ActorFolderItem = TreeItemPtr->CastTo<FActorFolderTreeItem>())
-		{
-			if (const UActorFolder* ActorFolder = ActorFolderItem->GetActorFolder())
-			{
-				if (ActorFolder->IsPackageExternal())
-				{
-					ExternalPackageName = USourceControlHelpers::PackageFilename(ActorFolder->GetExternalPackage());
-					ExternalPackage = ActorFolder->GetExternalPackage();
 				}
 			}
 		}
-		else if (FActorDescTreeItem* ActorDescItem = TreeItemPtr->CastTo<FActorDescTreeItem>())
-		{
-			if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get())
-			{
-				ExternalPackageName =  USourceControlHelpers::PackageFilename(ActorDesc->GetActorPackage().ToString());
-				ExternalPackage = FindPackage(nullptr, *ActorDesc->GetActorPackage().ToString());
-			}
-		}
-
+		
 		if (!ExternalPackageName.IsEmpty())
 		{
 			ConnectSourceControl();
 		}
 	}
+
+	FUncontrolledChangelistsModule& UncontrolledChangelistModule = FUncontrolledChangelistsModule::Get();
+	UncontrolledChangelistChangedHandle = UncontrolledChangelistModule.OnUncontrolledChangelistModuleChanged.AddRaw(this, &FSceneOutlinerTreeItemSCC::HandleUncontrolledChangelistsStateChanged);
+
+	// Call the delegate to update the initial uncontrolled state
+	HandleUncontrolledChangelistsStateChanged();
+
 }
 
 FSceneOutlinerTreeItemSCC::~FSceneOutlinerTreeItemSCC()
 {
+	FUncontrolledChangelistsModule& UncontrolledChangelistModule = FUncontrolledChangelistsModule::Get();
+	UncontrolledChangelistModule.OnUncontrolledChangelistModuleChanged.Remove(UncontrolledChangelistChangedHandle);
+
 	DisconnectSourceControl();
 }
 
@@ -145,4 +138,28 @@ void FSceneOutlinerTreeItemSCC::HandleSourceControlProviderChanged(ISourceContro
 void FSceneOutlinerTreeItemSCC::BroadcastNewState(FSourceControlStatePtr SourceControlState)
 {
 	OnSourceControlStateChanged.ExecuteIfBound(SourceControlState);
+}
+
+void FSceneOutlinerTreeItemSCC::HandleUncontrolledChangelistsStateChanged()
+{
+	TSharedPtr<FUncontrolledChangelistState> PrevUncontrolledChangelistState = UncontrolledChangelistState;
+	
+	UncontrolledChangelistState = nullptr;
+	
+	TArray<FUncontrolledChangelistStateRef> UncontrolledChangelistStates = FUncontrolledChangelistsModule::Get().GetChangelistStates();
+
+	for (const TSharedRef<FUncontrolledChangelistState>& UncontrolledChangelistStateRef : UncontrolledChangelistStates)
+	{
+		if(UncontrolledChangelistStateRef->GetFilenames().Contains(ExternalPackageName))
+		{
+			UncontrolledChangelistState = UncontrolledChangelistStateRef;
+			break;
+		}
+	}
+
+	// Broadcast the delegate if our uncontrolled status was changed
+	if(UncontrolledChangelistState != PrevUncontrolledChangelistState)
+	{
+		OnUncontrolledChangelistsStateChanged.ExecuteIfBound(UncontrolledChangelistState);
+	}
 }

@@ -1841,9 +1841,17 @@ TSharedPtr<FLevelEditorOutlinerSettings> FLevelEditorModule::GetLevelEditorOutli
 	return OutlinerSettings;
 }
 
-void FLevelEditorModule::AddCustomFilterToOutliner(TSharedRef<FFilterBase<SceneOutliner::FilterBarType>> InCustomFilter)
+void FLevelEditorModule::AddCustomFilterToOutliner(TSharedRef<FFilterBase<const ISceneOutlinerTreeItem&>> InCustomFilter)
 {
+	// Disable deprecation warnings so we can call the deprecated function to support this function (which is also deprecated)
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OutlinerSettings->AddCustomFilter(InCustomFilter);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+void FLevelEditorModule::AddCustomFilterToOutliner(FLevelEditorOutlinerSettings::FOutlinerFilterFactory InCreateCustomFilter)
+{
+	OutlinerSettings->AddCustomFilter(InCreateCustomFilter);
 }
 
 void FLevelEditorModule::AddCustomClassFilterToOutliner(TSharedRef<FCustomClassFilterData> InCustomClassFilterData)

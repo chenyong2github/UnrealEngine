@@ -2481,7 +2481,7 @@ bool SSceneOutliner::CompareItemWithClassName(SceneOutliner::FilterBarType InIte
 
 void SSceneOutliner::CreateFilterBar(const FSceneOutlinerFilterBarOptions& FilterBarOptions)
 {
-	if(!FilterBarOptions.bHasFilterBar)
+	if (!FilterBarOptions.bHasFilterBar)
 	{
 		return;
 	}
@@ -2505,6 +2505,19 @@ void SSceneOutliner::CreateFilterBar(const FSceneOutlinerFilterBarOptions& Filte
 	}));
 
 	FilterBar->LoadSettings();
+}
+
+bool SSceneOutliner::IsFilterActive(const FString& FilterName) const
+{
+	if (FilterBar.IsValid())
+	{
+		if (TSharedPtr<FFilterBase<SceneOutliner::FilterBarType>> FoundFilter = FilterBar->GetFilter(FilterName))
+		{
+			return FilterBar->IsFilterActive(FoundFilter);
+		}
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

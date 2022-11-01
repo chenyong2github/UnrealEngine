@@ -372,6 +372,9 @@ public:
 	/** Hook to add custom options to toolbar in a derived class */
 	virtual void CustomAddToToolbar(TSharedPtr<class SHorizontalBox> Toolbar) {}
 
+	/** Check if a filter with the given name exists and is active in the filter bar for this Outliner (if this Outliner has a filter bar). */
+	virtual bool IsFilterActive(const FString& FilterName) const override;
+
 public:
 	/** Event to react to a user double click on a item */
 	SceneOutliner::FTreeItemPtrEvent& GetDoubleClickEvent() { return OnDoubleClickOnTreeEvent; }

@@ -95,6 +95,8 @@ public class LevelEditor : ModuleRules
 				"EditorWidgets",
 				"ToolWidgets",
 				"VirtualizationEditor",
+				"UnsavedAssetsTracker",
+				"UncontrolledChangelists"
 			}
 		);
 

@@ -12,6 +12,7 @@
 #include "SceneOutlinerActorSCCColumn.h"
 #include "SceneOutlinerPinnedColumn.h"
 #include "SceneOutlinerTextInfoColumn.h"
+#include "SceneOutlinerUnsavedColumn.h"
 #include "SceneOutlinerPublicTypes.h"
 
 #include "ActorPickingMode.h"
@@ -51,6 +52,7 @@ void FSceneOutlinerModule::StartupModule()
 	RegisterColumnType<FTypeInfoColumn>();
 	RegisterColumnType<FSceneOutlinerActorSCCColumn>();
 	RegisterColumnType<FSceneOutlinerPinnedColumn>();
+	RegisterColumnType<FSceneOutlinerActorUnsavedColumn>();
 }
 
 
@@ -61,6 +63,7 @@ void FSceneOutlinerModule::ShutdownModule()
 	UnRegisterColumnType<FTypeInfoColumn>();
 	UnRegisterColumnType<FSceneOutlinerActorSCCColumn>();
 	UnRegisterColumnType<FSceneOutlinerPinnedColumn>();
+	UnRegisterColumnType<FSceneOutlinerActorUnsavedColumn>();
 }
 
 TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateSceneOutliner(const FSceneOutlinerInitializationOptions& InitOptions) const
@@ -161,18 +164,23 @@ TSharedRef< ISceneOutliner > FSceneOutlinerModule::CreateActorBrowser(const FSce
 		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::ActorInfo(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 20, FCreateSceneOutlinerColumn(), true, TOptional<float>(), FSceneOutlinerBuiltInColumnTypes::ActorInfo_Localized()));
 		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::SourceControl(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Invisible, 30, FCreateSceneOutlinerColumn(), true, TOptional<float>(), FSceneOutlinerBuiltInColumnTypes::SourceControl_Localized()));
 
-		// TODO: Figure out a better way to get the current world
+		ESceneOutlinerColumnVisibility UnsavedColumnVisibility = ESceneOutlinerColumnVisibility::Invisible;
+		
 		UWorld* WorldPtr = GEditor->GetEditorWorldContext().World();
-
 		if (WorldPtr)
 		{
-			// We don't want the pinned column in non wp levels
 			if (WorldPtr->IsPartitionedWorld())
 			{
+				// We don't want the pinned column in non wp levels
 				InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Pinned(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 5, FCreateSceneOutlinerColumn(), true, TOptional<float>(), FSceneOutlinerBuiltInColumnTypes::Pinned_Localized()));
+
+				// We want the unsaved column to be visible by default in partitioned levels
+				UnsavedColumnVisibility = ESceneOutlinerColumnVisibility::Visible;
 			}
 			CreateActorInfoColumns(InitOptions, WorldPtr);
 		}
+
+		InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Unsaved(), FSceneOutlinerColumnInfo(UnsavedColumnVisibility, 1, FCreateSceneOutlinerColumn(), true, TOptional<float>(), FSceneOutlinerBuiltInColumnTypes::Unsaved_Localized()));
 		
 	}
 
