@@ -331,7 +331,7 @@ FText FSourceControlMenuHelpers::GetSourceControlSyncStatusTooltipText()
 	{
 		return LOCTEXT("SyncLatestButtonAtHeadTooltipText", "Currently at the latest Snapshot for this project");
 	}
-	return LOCTEXT("SyncLatestButtonNotAtHeadTooltipText", "Get the latest Snapshot for this project");
+	return LOCTEXT("SyncLatestButtonNotAtHeadTooltipText", "Sync to the latest Snapshot for this project");
 }
 
 const FSlateBrush* FSourceControlMenuHelpers::GetSourceControlSyncStatusIcon()
@@ -507,38 +507,7 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::MakeSourceControlStatusWidget()
 			//       ensure its position with respect to the source control button.
 			FUnsavedAssetsTrackerModule::Get().MakeUnsavedAssetsStatusBarWidget()
 		]
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		[
-			SNew(SButton)
-			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("StatusBar.StatusBarButton"))
-			.ToolTipText_Static(&FSourceControlMenuHelpers::GetSourceControlSyncStatusTooltipText)
-			.Visibility_Static(&FSourceControlMenuHelpers::GetSourceControlSyncStatusVisibility)
-			.IsEnabled_Lambda([]() { return !IsAtLatestRevision(); })
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Center)
-				[
-					SNew(SImage)
-					.Image_Static(&FSourceControlMenuHelpers::GetSourceControlSyncStatusIcon)
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(FMargin(5, 0, 0, 0))
-				[
-					SNew(STextBlock)
-					.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
-					.Text_Static(&FSourceControlMenuHelpers::GetSourceControlSyncStatusText)
-				]
-			]
-			.OnClicked_Static(&FSourceControlMenuHelpers::OnSourceControlSyncClicked)
-		]
-		+ SHorizontalBox::Slot()
+		+ SHorizontalBox::Slot() // Check In Changes Button
 		.VAlign(VAlign_Center)
 		.Padding(FMargin(8.0f, 0.0f, 4.0f, 0.0f))
 		.AutoWidth()
@@ -570,7 +539,38 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::MakeSourceControlStatusWidget()
 			]
 			.OnClicked_Static(&FSourceControlMenuHelpers::OnSourceControlCheckInChangesClicked)
 		]
-		+ SHorizontalBox::Slot()
+		+ SHorizontalBox::Slot() // Sync Latest Button
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("StatusBar.StatusBarButton"))
+			.ToolTipText_Static(&FSourceControlMenuHelpers::GetSourceControlSyncStatusTooltipText)
+			.Visibility_Static(&FSourceControlMenuHelpers::GetSourceControlSyncStatusVisibility)
+			.IsEnabled_Lambda([]() { return !IsAtLatestRevision(); })
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				[
+					SNew(SImage)
+					.Image_Static(&FSourceControlMenuHelpers::GetSourceControlSyncStatusIcon)
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(5, 0, 0, 0))
+				[
+					SNew(STextBlock)
+					.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
+					.Text_Static(&FSourceControlMenuHelpers::GetSourceControlSyncStatusText)
+				]
+			]
+			.OnClicked_Static(&FSourceControlMenuHelpers::OnSourceControlSyncClicked)
+		]
+		+ SHorizontalBox::Slot() // Source Control Menu
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
