@@ -737,7 +737,7 @@ protected:
 	FLandscapeVertexFactory*	FixedGridVertexFactory;
 
 	/** All available materials, including LOD Material, Tessellation generated materials*/
-	TArray<UMaterialInterface*> AvailableMaterials;
+	TArray<FMaterialRenderProxy*> AvailableMaterials;
 
 	// FLightCacheInterface
 	TUniquePtr<FLandscapeLCI> ComponentLightInfo;
@@ -786,7 +786,7 @@ protected:
 	
 	int8 GetLODFromScreenSize(float InScreenSizeSquared, float InViewLODScale) const;
 
-	bool GetMeshElementForVirtualTexture(int32 InLodIndex, ERuntimeVirtualTextureMaterialType MaterialType, UMaterialInterface* InMaterialInterface, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams>& OutStaticBatchParamArray) const;
+	bool GetMeshElementForVirtualTexture(int32 InLodIndex, ERuntimeVirtualTextureMaterialType MaterialType, FMaterialRenderProxy* InMaterialInterface, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams>& OutStaticBatchParamArray) const;
 	template<class ArrayType> bool GetStaticMeshElement(int32 LODIndex, bool bForToolMesh, FMeshBatch& MeshBatch, ArrayType& OutStaticBatchParamArray) const;
 	
 	virtual void ApplyMeshElementModifier(FMeshBatchElement& InOutMeshElement, int32 InLodIndex) const {}
