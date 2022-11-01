@@ -34,7 +34,7 @@ public:
 	virtual void Enter() override;
 	virtual void Exit() override;
 
-	//virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
+	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) override;
 
@@ -79,8 +79,11 @@ private:
 	/** Handle package reloading (might be our geometry collection) */
 	void HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
 
-	static FConvexVolume TranformFrustum(const FConvexVolume& InFrustum, const FMatrix& InMatrix);
+	static FConvexVolume TransformFrustum(const FConvexVolume& InFrustum, const FMatrix& InMatrix);
 	static FConvexVolume GetVolumeFromBox(const FBox &InBox);
+
+	void ConfigureRealTimeViewportsOverride(bool bEnable);
+
 private:
 	/** This selection set is updated from actor selection changed event.  We change state on components as they are selected so we have to maintain or own list **/
 	TArray<UGeometryCollectionComponent*> SelectedGeometryComponents;

@@ -2,6 +2,7 @@
 
 #include "FractureToolPlaneCut.h"
 #include "FractureEditorStyle.h"
+#include "FractureSettings.h"
 #include "PlanarCut.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
@@ -10,12 +11,122 @@
 #include "Drawing/MeshDebugDrawing.h"
 #include "FrameTypes.h"
 #include "FractureToolBackgroundTask.h"
+#include "MeshOpPreviewHelpers.h"
+#include "Materials/MaterialInterface.h"
+#include "ToolSetupUtil.h"
+#include "Generators/RectangleMeshGenerator.h"
+#include "DynamicMesh/MeshNormals.h"
+#include "DynamicMesh/MeshTransforms.h"
+#include "DynamicMeshEditor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolPlaneCut)
 
 using namespace UE::Fracture;
 
 #define LOCTEXT_NAMESPACE "FracturePlanar"
+
+// This op runs in a background thread to generate a preview of the cutting mesh, with noise applied
+class FPlaneNoisePreviewOp : public UE::Geometry::FDynamicMeshOperator
+{
+public:
+	virtual ~FPlaneNoisePreviewOp() {}
+
+	// inputs
+	TArray<FTransform> PlaneTransforms;
+	TArray<FVector> NoisePivots, ExplodedVectors;
+	TArray<FNoiseOffsets> NoiseOffsets;
+	FNoiseSettings NoiseSettings;
+	float PlaneSize;
+
+	// FDynamicMeshOperator implementation
+	virtual void CalculateResult(FProgressCancel* Progress) override
+	{
+		if (PlaneTransforms.IsEmpty())
+		{
+			return;
+		}
+
+		UE::Geometry::FDynamicMeshEditor MeshEditor(ResultMesh.Get());
+		FVector Center(0, 0, 0);
+		for (const FTransform& Transform : PlaneTransforms)
+		{
+			Center += Transform.GetLocation();
+		}
+		Center /= (double)PlaneTransforms.Num();
+		UE::Geometry::FTransformSRT3d CenteringTransform(Center);
+		SetResultTransform(CenteringTransform);
+
+		for (int32 PlaneIdx = 0; PlaneIdx < PlaneTransforms.Num(); ++PlaneIdx)
+		{
+			UE::Geometry::FRectangleMeshGenerator RectangleGenerator;
+			RectangleGenerator.Width = PlaneSize;
+			RectangleGenerator.Height = PlaneSize;
+			
+			constexpr int32 MaxCountPerDim = 2000;
+			RectangleGenerator.WidthVertexCount = FMath::Min(MaxCountPerDim, RectangleGenerator.Width / NoiseSettings.PointSpacing);
+			RectangleGenerator.HeightVertexCount = FMath::Min(MaxCountPerDim, RectangleGenerator.Height / NoiseSettings.PointSpacing);
+
+			if (Progress && Progress->Cancelled())
+			{
+				return;
+			}
+
+			FDynamicMesh3 RectMesh(&RectangleGenerator.Generate());
+			const FTransform& PlaneTransform = PlaneTransforms[PlaneIdx];
+			const FVector& NoisePivot = NoisePivots[PlaneIdx];
+			const FNoiseOffsets& NoiseOffset = NoiseOffsets[PlaneIdx];
+			const FVector& ExplodedVector = ExplodedVectors[PlaneIdx];
+			FVector Normal = PlaneTransform.GetUnitAxis(EAxis::Z);
+			for (int VID : RectMesh.VertexIndicesItr())
+			{
+				FVector3d WorldPos = PlaneTransform.TransformPosition(RectMesh.GetVertex(VID));
+				FVector3d NewWorldPos = WorldPos + NoiseSettings.NoiseVector(WorldPos - NoisePivot, NoiseOffset).Dot(Normal) * Normal;
+				RectMesh.SetVertex(VID, NewWorldPos + ExplodedVector - Center);
+			}
+			UE::Geometry::FMeshIndexMappings Mappings;
+			MeshEditor.AppendMesh(&RectMesh, Mappings);
+		}
+		UE::Geometry::FMeshNormals::QuickRecomputeOverlayNormals(*ResultMesh);
+	}
+};
+
+
+TUniquePtr<UE::Geometry::FDynamicMeshOperator> UFractureToolPlaneCut::MakeNewOperator()
+{
+	UFractureSettings* FractureSettings = GetMutableDefault<UFractureSettings>();
+	NoisePreviewExplodeAmount = FractureSettings->ExplodeAmount;
+
+	TUniquePtr<FPlaneNoisePreviewOp> NoisePreviewOp = MakeUnique<FPlaneNoisePreviewOp>();
+	CutterSettings->TransferNoiseSettings(NoisePreviewOp->NoiseSettings);
+
+	if (GizmoSettings->IsGizmoEnabled()) // set preview from gizmo
+	{
+		NoisePreviewOp->PlaneSize = GizmoPlaneSize;
+		const FTransform& Transform = GizmoSettings->GetTransform();
+		EnumerateVisualizationMapping(PlanesMappings, RenderCuttingPlanesTransforms.Num(), [&](int32 Idx, FVector ExplodedVector)
+			{
+				NoisePreviewOp->PlaneTransforms.Add(Transform);
+				NoisePreviewOp->ExplodedVectors.Add(ExplodedVector);
+				NoisePreviewOp->NoiseOffsets.Add(NoiseOffsets[Idx]);
+				NoisePreviewOp->NoisePivots.Add(NoisePivots[Idx]);
+			});
+	}
+	else // set from computed transforms
+	{
+		NoisePreviewOp->PlaneSize = RenderCuttingPlaneSize;
+		EnumerateVisualizationMapping(PlanesMappings, RenderCuttingPlanesTransforms.Num(), [&](int32 Idx, FVector ExplodedVector)
+			{
+				const FTransform& Transform = RenderCuttingPlanesTransforms[Idx];
+				NoisePreviewOp->PlaneTransforms.Add(Transform);
+				NoisePreviewOp->ExplodedVectors.Add(ExplodedVector);
+				NoisePreviewOp->NoiseOffsets.Add(NoiseOffsets[Idx]);
+				NoisePreviewOp->NoisePivots.Add(NoisePivots[Idx]);
+			});
+	}
+	NoisePreviewOp->PlaneSize *= PlaneCutSettings->NoisePreviewScale;
+
+	return NoisePreviewOp;
+}
 
 
 UFractureToolPlaneCut::UFractureToolPlaneCut(const FObjectInitializer& ObjInit) 
@@ -35,6 +146,27 @@ void UFractureToolPlaneCut::Setup()
 	GizmoSettings->Setup(this);
 	PlaneCutSettings->bCanCutWithMultiplePlanes = !GizmoSettings->bUseGizmo;
 	NotifyOfPropertyChangeByTool(PlaneCutSettings);
+
+	// Initialize the background compute object for the noise preview
+	if (GEditor && !NoisePreview)
+	{
+		UWorld* World = GEditor->GetEditorWorldContext().World();
+		NoisePreview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
+		NoisePreview->Setup(World, this);
+
+		TArray<UMaterialInterface*> Materials;
+		// Note the ToolSetupUtil functions optionally take a UInteractiveToolManager to provide fallback materials,
+		// but fracture mode does not set that up, so they may return a null material.
+		// Note that if the working material is null, the preview will just always use the default material instead.
+		UMaterialInterface* NoiseMaterial = ToolSetupUtil::GetDefaultSculptMaterial(nullptr);
+		if (!NoiseMaterial)
+		{
+			NoiseMaterial = ToolSetupUtil::GetDefaultMaterial();
+		}
+		UMaterialInterface* WorkingMaterial = ToolSetupUtil::GetDefaultWorkingMaterial(nullptr);
+		Materials.Add(NoiseMaterial);
+		NoisePreview->ConfigureMaterials(Materials, WorkingMaterial);
+	}
 }
 
 
@@ -42,6 +174,12 @@ void UFractureToolPlaneCut::Shutdown()
 {
 	Super::Shutdown();
 	GizmoSettings->Shutdown();
+
+	if (NoisePreview)
+	{
+		NoisePreview->Shutdown();
+		NoisePreview = nullptr;
+	}
 }
 
 
@@ -68,6 +206,15 @@ void UFractureToolPlaneCut::RegisterUICommand( FFractureEditorCommands* BindingC
 
 void UFractureToolPlaneCut::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
+	// Note: ExplodeAmount changes generally do not trigger tool context changes, but can affect visualization
+	// So we detect such changes here and invalidate the preview
+	// We could instead try to translate the existing NoisePreview, but that would require a separate NoisePreview per plane
+	UFractureSettings* FractureSettings = GetMutableDefault<UFractureSettings>();
+	if (NoisePreview && NoisePreviewExplodeAmount != FractureSettings->ExplodeAmount)
+	{
+		NoisePreview->InvalidateResult();
+	}
+
 	const UFracturePlaneCutSettings* LocalCutSettings = PlaneCutSettings;
 	if (CutterSettings->bDrawDiagram)
 	{
@@ -104,7 +251,7 @@ void UFractureToolPlaneCut::Render(const FSceneView* View, FViewport* Viewport, 
 			const FTransform& Transform = GizmoSettings->GetTransform();
 			EnumerateVisualizationMapping(PlanesMappings, RenderCuttingPlanesTransforms.Num(), [&](int32 Idx, FVector ExplodedVector)
 			{
-				DrawPlane(Transform, 100.f, ExplodedVector);
+				DrawPlane(Transform, GizmoPlaneSize, ExplodedVector);
 			});
 		}
 		else // draw from computed transforms
@@ -141,12 +288,42 @@ void UFractureToolPlaneCut::PostEditChangeChainProperty(FPropertyChangedChainEve
 }
 
 
+void UFractureToolPlaneCut::ClearVisualizations()
+{
+	Super::ClearVisualizations();
+	RenderCuttingPlanesTransforms.Empty();
+	NoiseOffsets.Empty();
+	NoisePivots.Empty();
+	PlanesMappings.Empty();
+	if (NoisePreview)
+	{
+		NoisePreview->InvalidateResult();
+	}
+}
+
+
+void UFractureToolPlaneCut::OnTick(float DeltaTime)
+{
+	if (NoisePreview)
+	{
+		NoisePreview->Tick(DeltaTime);
+	}
+
+	Super::OnTick(DeltaTime);
+}
+
+
 void UFractureToolPlaneCut::FractureContextChanged()
 {
 	UpdateDefaultRandomSeed();
 	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
 
 	ClearVisualizations();
+
+	if (NoisePreview)
+	{
+		NoisePreview->SetVisibility(PlaneCutSettings->bShowNoisePreview);
+	}
 
 	RenderCuttingPlaneSize = FLT_MAX;
 	for (FFractureToolContext& FractureContext : FractureContexts)
@@ -158,14 +335,27 @@ void UFractureToolPlaneCut::FractureContextChanged()
 		}
 		int32 CollectionIdx = VisualizedCollections.Add(FractureContext.GetGeometryCollectionComponent());
 		int32 BoneIdx = FractureContext.GetSelection().Num() == 1 ? FractureContext.GetSelection()[0] : INDEX_NONE;
-		PlanesMappings.AddMapping(CollectionIdx, BoneIdx, RenderCuttingPlanesTransforms.Num());
+		int32 TransformsStart = RenderCuttingPlanesTransforms.Num();
+		PlanesMappings.AddMapping(CollectionIdx, BoneIdx, TransformsStart);
 
 		GenerateSliceTransforms(FractureContext, RenderCuttingPlanesTransforms);
+		for (int32 Idx = TransformsStart; Idx < RenderCuttingPlanesTransforms.Num(); ++Idx)
+		{
+			FRandomStream RandomStream(FractureContext.GetSeed());
+			FNoiseOffsets NoiseOffset(RandomStream);
+			NoiseOffsets.Add(NoiseOffset);
+			NoisePivots.Add(FractureContext.GetTransform().GetLocation());
+		}
 
 		if (Bounds.GetExtent().GetMax() < RenderCuttingPlaneSize)
 		{
 			RenderCuttingPlaneSize = Bounds.GetExtent().GetMax();
 		}
+	}
+
+	if (NoisePreview)
+	{
+		NoisePreview->InvalidateResult();
 	}
 }
 

@@ -3,11 +3,14 @@
 #pragma once
 
 #include "FractureToolCutter.h"
+#include "ModelingOperators.h"
 
 #include "FractureToolPlaneCut.generated.h"
 
 class FFractureToolContext;
-
+class UMeshOpPreviewWithBackgroundCompute;
+struct FNoiseOffsets;
+struct FNoiseSettings;
 
 UCLASS(config = EditorPerProjectUserSettings)
 class UFracturePlaneCutSettings : public UFractureToolSettings
@@ -25,11 +28,20 @@ public:
 
 	UPROPERTY()
 	bool bCanCutWithMultiplePlanes = false;
+
+	/** Whether to show the noise displacement on the preview visualization of the cutting planes */
+	UPROPERTY(EditAnywhere, Category = Visualization)
+	bool bShowNoisePreview = true;
+
+	/** Scale of the noise preview plane */
+	UPROPERTY(EditAnywhere, Category = Visualization, meta = (ClampMin = ".01", ClampMax = "1000", UIMin = ".25", UIMax = "10", EditCondition = "bShowNoisePreview", HideEditConditionToggle))
+	double NoisePreviewScale = 1.;
+
 };
 
 
 UCLASS(DisplayName = "Plane Cut Tool", Category = "FractureTools")
-class UFractureToolPlaneCut : public UFractureToolCutterBase
+class UFractureToolPlaneCut : public UFractureToolCutterBase, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 public:
 	GENERATED_BODY()
@@ -42,7 +54,9 @@ public:
 	virtual FSlateIcon GetToolIcon() const override;
 	virtual void SelectedBonesChanged() override;
 
-	void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
+
+	virtual void OnTick(float DeltaTime) override;
+	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 
 	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
 
@@ -54,13 +68,11 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown() override;
 
+	// IDynamicMeshOperatorFactory API, for generating noise preview meshes
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
+
 protected:
-	virtual void ClearVisualizations() override
-	{
-		Super::ClearVisualizations();
-		RenderCuttingPlanesTransforms.Empty();
-		PlanesMappings.Empty();
-	}
+	virtual void ClearVisualizations() override;
 
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
@@ -72,11 +84,18 @@ private:
 	UPROPERTY(EditAnywhere, Category = Uniform)
 	TObjectPtr<UFractureTransformGizmoSettings> GizmoSettings;
 
+	UPROPERTY()
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> NoisePreview;
+
 	void GenerateSliceTransforms(const FFractureToolContext& Context, TArray<FTransform>& CuttingPlaneTransforms);
 
 	float RenderCuttingPlaneSize;
+	const float GizmoPlaneSize = 100.f;
 	TArray<FTransform> RenderCuttingPlanesTransforms;
+	TArray<FNoiseOffsets> NoiseOffsets;
+	TArray<FVector> NoisePivots;
 	FVisualizationMappings PlanesMappings;
+	float NoisePreviewExplodeAmount = 0;
 };
 
 

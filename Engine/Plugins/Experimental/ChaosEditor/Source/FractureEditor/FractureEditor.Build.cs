@@ -37,6 +37,7 @@ public class FractureEditor : ModuleRules
 				"ModelingComponents",
 				"ModelingOperators",
 				"GeometryCore",
+				"DynamicMesh",
 				"MeshDescription",
 				"StaticMeshDescription",
 				"PlanarCut",

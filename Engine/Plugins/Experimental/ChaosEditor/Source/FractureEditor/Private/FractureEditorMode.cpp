@@ -31,7 +31,7 @@
 #include "BaseGizmos/TransformGizmoUtil.h"
 #include "Snapping/ModelingSceneSnappingManager.h"
 #include "Components/InstancedStaticMeshComponent.h"
-
+#include "SLevelViewport.h"
 
 #include "UnrealEdGlobals.h"
 #include "EditorModeManager.h"
@@ -87,6 +87,8 @@ void UFractureEditorMode::Enter()
 	
 	OnActorSelectionChanged(SelectedObjects, false);
 
+	ConfigureRealTimeViewportsOverride(true);
+
 }
 
 void UFractureEditorMode::Exit()
@@ -115,6 +117,8 @@ void UFractureEditorMode::Exit()
 		LevelEditor->OnMapChanged().RemoveAll( this );
 	}
 
+	ConfigureRealTimeViewportsOverride(false);
+
 	// Call base Exit method to ensure proper cleanup
 	Super::Exit();
 }
@@ -139,6 +143,52 @@ void UFractureEditorMode::PostUndo(bool bSuccess)
 void UFractureEditorMode::PostRedo(bool bSuccess)
 {
 	OnUndoRedo();
+}
+
+void UFractureEditorMode::ConfigureRealTimeViewportsOverride(bool bEnable)
+{
+	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
+	TSharedPtr<ILevelEditor> LevelEditor = LevelEditorModule.GetFirstLevelEditor();
+	if (LevelEditor.IsValid())
+	{
+		TArray<TSharedPtr<SLevelViewport>> Viewports = LevelEditor->GetViewports();
+		for (const TSharedPtr<SLevelViewport>& ViewportWindow : Viewports)
+		{
+			if (ViewportWindow.IsValid())
+			{
+				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
+				const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_FractureMode", "Fracture Mode");
+				if (bEnable)
+				{
+					Viewport.AddRealtimeOverride(bEnable, SystemDisplayName);
+				}
+				else
+				{
+					Viewport.RemoveRealtimeOverride(SystemDisplayName, false);
+				}
+			}
+		}
+	}
+}
+
+
+void UFractureEditorMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
+{
+	Super::Tick(ViewportClient, DeltaTime);
+
+	if (!Toolkit.IsValid())
+	{
+		return;
+	}
+
+	// TODO: show a warning if realtime tick is not enabled?
+
+	FFractureEditorModeToolkit* FractureToolkit = (FFractureEditorModeToolkit*)Toolkit.Get();
+
+	if (UFractureModalTool* FractureTool = FractureToolkit->GetActiveTool())
+	{
+		FractureTool->OnTick(DeltaTime);
+	}
 }
 
 void UFractureEditorMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
@@ -318,7 +368,7 @@ bool UFractureEditorMode::UpdateSelectionInFrustum(const FConvexVolume& InFrustu
 	FTransform ActorTransform = Actor->GetTransform();
 	FMatrix InvActorMatrix(ActorTransform.ToInverseMatrixWithScale());
 
-	FConvexVolume SelectionFrustum(TranformFrustum(InFrustum, InvActorMatrix));
+	FConvexVolume SelectionFrustum(TransformFrustum(InFrustum, InvActorMatrix));
 
 	TArray<FBox> BoundsPerBone;
 	TArray<int32> SelectedBonesArray;
@@ -629,7 +679,7 @@ void UFractureEditorMode::HandlePackageReloaded(const EPackageReloadPhase InPack
 	}
 }
 
-FConvexVolume UFractureEditorMode::TranformFrustum(const FConvexVolume& InFrustum, const FMatrix& InMatrix)
+FConvexVolume UFractureEditorMode::TransformFrustum(const FConvexVolume& InFrustum, const FMatrix& InMatrix)
 {
 	FConvexVolume NewFrustum;
 	NewFrustum.Planes.Empty(6);
