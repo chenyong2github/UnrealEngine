@@ -61,7 +61,7 @@ class UCurveEditorRetimeToolData : public UObject
 	GENERATED_BODY()
 
 public:
-	// List of anchor points. Assumes they're in order from lowest input time time to greatest.
+	// List of anchor points. Assumes they're in order from lowest input time to greatest.
 	UPROPERTY()
 	TArray<FCurveEditorRetimeAnchor> RetimingAnchors;
 };

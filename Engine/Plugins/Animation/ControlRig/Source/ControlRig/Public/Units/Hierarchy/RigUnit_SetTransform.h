@@ -77,7 +77,7 @@ struct CONTROLRIG_API FRigUnit_SetTransform : public FRigUnitMutable
 	UPROPERTY(meta=(Input))
 	bool bPropagateToChildren;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
@@ -149,7 +149,7 @@ struct CONTROLRIG_API FRigUnit_SetTranslation : public FRigUnitMutable
 	UPROPERTY(meta=(Input))
 	bool bPropagateToChildren;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
@@ -221,7 +221,7 @@ struct CONTROLRIG_API FRigUnit_SetRotation : public FRigUnitMutable
 	UPROPERTY(meta=(Input))
 	bool bPropagateToChildren;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
@@ -281,7 +281,7 @@ struct FRigUnit_SetScale : public FRigUnitMutable
 	UPROPERTY(meta=(Input))
 	bool bPropagateToChildren;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
@@ -343,7 +343,7 @@ struct CONTROLRIG_API FRigUnit_SetTransformArray : public FRigUnitMutable
 	UPROPERTY(meta=(Input))
 	bool bPropagateToChildren;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	TArray<FCachedRigElement> CachedIndex;
 	
@@ -408,7 +408,7 @@ struct CONTROLRIG_API FRigUnit_SetTransformItemArray : public FRigUnitMutable
 	UPROPERTY(meta=(Input))
 	bool bPropagateToChildren;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	TArray<FCachedRigElement> CachedIndex;
 };

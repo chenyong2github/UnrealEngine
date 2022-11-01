@@ -511,7 +511,7 @@ TSharedRef<SWidget> SSurfaceProperties::ConstructTextureScale()
 		.IsChecked( this, &SSurfaceProperties::IsPreserveScaleRatioChecked )
 		.OnCheckStateChanged( this, &SSurfaceProperties::OnPreserveScaleRatioToggled )
 		.Style( FAppStyle::Get(), "TransparentCheckBox" )
-		.ToolTipText( LOCTEXT("PreserveScaleSurfaceToolTip", "When locked changes to ether scaling value will be applied to the other.") )
+		.ToolTipText( LOCTEXT("PreserveScaleSurfaceToolTip", "When locked changes to either scaling value will be applied to the other.") )
 		[
 			SNew( SImage )
 			.Image( this, &SSurfaceProperties::GetPreserveScaleRatioImage )

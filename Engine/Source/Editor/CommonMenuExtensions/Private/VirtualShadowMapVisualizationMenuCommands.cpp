@@ -30,7 +30,7 @@ FVirtualShadowMapVisualizationMenuCommands::FVirtualShadowMapVisualizationMenuCo
 	: TCommands<FVirtualShadowMapVisualizationMenuCommands>
 	(
 		TEXT("VirtualShadowMapVisualizationMenu"), // Context name for fast lookup
-		NSLOCTEXT("Contexts", "VirtualShadowMapVisualizationMenu", "VirtualShadowMa Visualization"), // Localized context name for displaying
+		NSLOCTEXT("Contexts", "VirtualShadowMapVisualizationMenu", "VirtualShadowMap Visualization"), // Localized context name for displaying
 		NAME_None, // Parent context name.  
 		FAppStyle::GetAppStyleSetName() // Icon Style Set
 	),

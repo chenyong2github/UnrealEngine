@@ -41,11 +41,11 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetParent : public FRigUnit_HierarchyBas
 	UPROPERTY(meta = (Output))
 	FRigElementKey Parent;
 
-	// Used to cache the internally
+	// Used to cache the internally used child
 	UPROPERTY()
 	FCachedRigElement CachedChild;
 
-	// Used to cache the internally
+	// Used to cache the internally used parent
 	UPROPERTY()
 	FCachedRigElement CachedParent;
 };
@@ -82,11 +82,11 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetParents : public FRigUnit_HierarchyBa
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Parents;
 
-	// Used to cache the internally
+	// Used to cache the internally used child
 	UPROPERTY()
 	FCachedRigElement CachedChild;
 
-	// Used to cache the internally
+	// Used to cache the internally used parents
 	UPROPERTY()
 	FRigElementKeyCollection CachedParents;
 
@@ -126,11 +126,11 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetParentsItemArray : public FRigUnit_Hi
 	UPROPERTY(meta = (Output))
 	TArray<FRigElementKey> Parents;
 
-	// Used to cache the internally
+	// Used to cache the internally used child
 	UPROPERTY()
 	FCachedRigElement CachedChild;
 
-	// Used to cache the internally
+	// Used to cache the internally used parents
 	UPROPERTY()
 	FRigElementKeyCollection CachedParents;
 };
@@ -168,11 +168,11 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetChildren : public FRigUnit_HierarchyB
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Children;
 
-	// Used to cache the internally
+	// Used to cache the internally used parent
 	UPROPERTY()
 	FCachedRigElement CachedParent;
 
-	// Used to cache the internally
+	// Used to cache the internally used children
 	UPROPERTY()
 	FRigElementKeyCollection CachedChildren;
 
@@ -208,11 +208,11 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetSiblings : public FRigUnit_HierarchyB
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Siblings;
 
-	// Used to cache the internally
+	// Used to cache the internally used item
 	UPROPERTY()
 	FCachedRigElement CachedItem;
 
-	// Used to cache the internally
+	// Used to cache the internally used siblings
 	UPROPERTY()
 	FRigElementKeyCollection CachedSiblings;
 
@@ -248,11 +248,11 @@ struct CONTROLRIG_API FRigUnit_HierarchyGetSiblingsItemArray : public FRigUnit_H
 	UPROPERTY(meta = (Output))
 	TArray<FRigElementKey> Siblings;
 
-	// Used to cache the internally
+	// Used to cache the internally used item
 	UPROPERTY()
 	FCachedRigElement CachedItem;
 
-	// Used to cache the internally
+	// Used to cache the internally used siblings
 	UPROPERTY()
 	FRigElementKeyCollection CachedSiblings;
 };

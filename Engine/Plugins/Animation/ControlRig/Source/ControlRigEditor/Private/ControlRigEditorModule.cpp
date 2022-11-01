@@ -1502,7 +1502,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 							VariablesSection.AddMenuEntry(
 								"PromotePinToVariable",
 								LOCTEXT("PromotePinToVariable", "Promote Pin To Variable"),
-								LOCTEXT("PromotePinToVariable_Tooltip", "Turns the variable into a variable"),
+								LOCTEXT("PromotePinToVariable_Tooltip", "Turns the pin into a variable"),
 								FSlateIcon(),
 								FUIAction(FExecuteAction::CreateLambda([Controller, ModelPin, NodePosition]() {
 

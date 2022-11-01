@@ -14,7 +14,7 @@ class UNavigationSystemConfig;
 UENUM()
 enum class ENavSystemOverridePolicy : uint8
 {
-	Override, // the pre-exising nav system instance will be destroyed.
+	Override, // the pre-existing nav system instance will be destroyed.
 	Append, // config information will be added to pre-existing nav system instance
 	Skip	// if there's already a NavigationSystem in the world then the overriding config will be ignored
 };

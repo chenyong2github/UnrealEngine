@@ -61,7 +61,7 @@ struct CONTROLRIG_API FRigUnit_GetTransform : public FRigUnit
 	UPROPERTY(meta=(Output))
 	FTransform Transform;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
@@ -108,7 +108,7 @@ struct CONTROLRIG_API FRigUnit_GetTransformArray : public FRigUnit
 	UPROPERTY(meta=(Output))
 	TArray<FTransform> Transforms;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	TArray<FCachedRigElement> CachedIndex;
 
@@ -158,7 +158,7 @@ struct CONTROLRIG_API FRigUnit_GetTransformItemArray : public FRigUnit
 	UPROPERTY(meta=(Output))
 	TArray<FTransform> Transforms;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	TArray<FCachedRigElement> CachedIndex;
 };

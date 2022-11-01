@@ -177,7 +177,7 @@ public:
 	void UpdateReferences(const FRigUnitContext* InContext);
 
 	/**
-	 * Resets the current pose of a filtered lost if elements to the initial / ref pose.
+	 * Resets the current pose of a filtered list of elements to the initial / ref pose.
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	void ResetPoseToInitial(ERigElementType InTypeFilter);
@@ -2773,7 +2773,7 @@ public:
 	 * Returns true if an element is parented to another element
 	 * @param InChild The key of the child element to check for a parent
 	 * @param InParent The key of the parent element to check for
-	 * @return True if the child is parented to the parent
+	 * @return True if the given parent and given child have a parent-child relationship
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
 	FORCEINLINE bool IsParentedTo(FRigElementKey InChild, FRigElementKey InParent) const
@@ -2786,7 +2786,7 @@ public:
 	 * @param InChildIndex The index of the child element to check for a parent
 	 * @param InParentIndex The index of the parent element to check for
 	 * @param InDependencyMap An additional map of dependencies to respect
-	 * @return True if the child is parented to the parent
+	 * @return True if the given parent and given child have a parent-child relationship
 	 */
     FORCEINLINE bool IsParentedTo(int32 InChildIndex, int32 InParentIndex, const TElementDependencyMap& InDependencyMap = TElementDependencyMap()) const
 	{
@@ -3406,7 +3406,7 @@ public:
 	 * @param InChild The child element to check for a parent
 	 * @param InParent The parent element to check for
 	 * @param InDependencyMap An additional map of dependencies to respect
-	 * @return True if the child is parented to the parent
+	 * @return True if the given parent and given child have a parent-child relationship
 	 */
 	bool IsParentedTo(FRigBaseElement* InChild, FRigBaseElement* InParent, const TElementDependencyMap& InDependencyMap = TElementDependencyMap()) const;
 
@@ -3416,7 +3416,7 @@ public:
 	 * @param InDependency The dependency element to check for
 	 * @param InElementsVisited An array to keep track of whether an element is visited to avoid infinite recursion
 	 * @param InDependencyMap An additional map of dependencies to respect
-	 * @return True if the child is parented to the parent
+	 * @return True if the given dependent is affected by the given dependency 
 	 */
 	bool IsDependentOn(FRigBaseElement* InDependent, FRigBaseElement* InDependency, TArray<bool>& InElementsVisited, const TElementDependencyMap& InDependencyMap = TElementDependencyMap()) const;
 

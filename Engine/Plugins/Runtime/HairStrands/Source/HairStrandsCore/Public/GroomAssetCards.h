@@ -132,7 +132,7 @@ struct HAIRSTRANDSCORE_API FHairGroupsProceduralCards
 	UPROPERTY(EditAnywhere, Category = "GeometrySettings", meta = (ToolTip = "Cards geometry settings"))
 	FHairCardsGeometrySettings GeometrySettings;
 
-	UPROPERTY(EditAnywhere, Category = "TextureSettings", meta = (ToolTip = "Cards texture atlast settings"))
+	UPROPERTY(EditAnywhere, Category = "TextureSettings", meta = (ToolTip = "Cards texture atlas settings"))
 	FHairCardsTextureSettings TextureSettings;
 
 	/* Use to track when a cards asset need to be regenerated */

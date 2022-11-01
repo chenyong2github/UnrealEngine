@@ -26,7 +26,7 @@ struct HAIRSTRANDSCORE_API FHairGeometrySettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeometrySettings", AdvancedDisplay, meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "2.0", SliderExponent = 6))
 	float HairRootScale;
 
-	/** Scale the hair with at the tip */
+	/** Scale the hair width at the tip */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "GeometrySettings", AdvancedDisplay, meta = (ClampMin = "0.0001", UIMin = "0.001", UIMax = "2.0", SliderExponent = 6))
 	float HairTipScale;
 

@@ -101,7 +101,7 @@ struct FRigTransformConstraint
 	UPROPERTY(/*EditAnywhere, Category="FTransformBaseConstraint"*/)
 	TEnumAsByte<EConstraintTransform::Type>	TranformType = EConstraintTransform::Absolute;
 
-	/** Parent space that are define **/
+	/** Parent space that is defined **/
 	UPROPERTY(EditAnywhere, Category="FTransformBaseConstraint")
 	FName	ParentSpace;
 

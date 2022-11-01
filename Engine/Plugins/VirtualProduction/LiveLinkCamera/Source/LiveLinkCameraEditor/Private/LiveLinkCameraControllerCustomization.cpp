@@ -69,7 +69,7 @@ void FLiveLinkCameraControllerCustomization::CustomizeDetails(IDetailLayoutBuild
 					[
 						SNew(SImage)
 						.Image(FCoreStyle::Get().GetBrush("Icons.Warning"))
-					.ToolTipText(LOCTEXT("LensFileWarning", "The selected LiveLink subjects requires encoder mapping the current lens file is invalid."))
+					.ToolTipText(LOCTEXT("LensFileWarning", "The selected LiveLink subject requires encoder mapping. The current lens file is invalid."))
 					.Visibility(this, &FLiveLinkCameraControllerCustomization::HandleEncoderMappingWarningIconVisibility)
 					]
 					]

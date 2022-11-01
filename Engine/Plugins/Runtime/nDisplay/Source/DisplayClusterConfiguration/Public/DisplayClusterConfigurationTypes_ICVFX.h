@@ -398,7 +398,7 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraB
 {
 	GENERATED_BODY()
 
-	/** Enable Innder Frustum Border. */
+	/** Enable Inner Frustum Border. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum Border"))
 	bool Enable = false;
 
@@ -427,11 +427,11 @@ struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFX_CameraC
 	UPROPERTY(BlueprintReadOnly, Category = NDisplay, meta = (HideInDetailPanel))
 	float OverscanPixelsIncrease;
 
-	/** Enable Custom Frustum Frustum. */
+	/** Enable Custom Frustum. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Enable Inner Frustum Overscan"))
 	bool bEnable = false;
 
-	/** Enable Custom Frustum Frustum. */
+	/** Enable adaptive resolution. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Adapt Resolution", EditCondition = "bEnable"))
 	bool bAdaptResolution = false;
 

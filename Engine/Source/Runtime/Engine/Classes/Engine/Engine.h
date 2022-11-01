@@ -1486,7 +1486,7 @@ public:
 	/** 
 	 * Whether we should check for more than N pawns spawning in a single frame.
 	 * Basically, spawning pawns and all of their attachments can be slow.  And on consoles it
-	 * can be really slow.  If this bool is true we will display a 
+	 * can be really slow.  If enabled, we will display an on-screen warning whenever this multi-spawn occurs.
 	 **/
 	UPROPERTY(config)
 	uint32 bCheckForMultiplePawnsSpawnedInAFrame:1;

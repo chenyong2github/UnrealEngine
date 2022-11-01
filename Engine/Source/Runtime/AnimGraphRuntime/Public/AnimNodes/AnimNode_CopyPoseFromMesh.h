@@ -27,7 +27,7 @@ struct ANIMGRAPHRUNTIME_API FAnimNode_CopyPoseFromMesh : public FAnimNode_Base
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Copy, meta = (NeverAsPin))
 	uint8 bUseAttachedParent : 1;
 
-	/* Copy curves also from SouceMeshComponent. This will copy the curves if this instance also contains */
+	/* Copy curves also from SouceMeshComponent. This will copy the curves if this instance also contains curve attributes */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Copy, meta = (NeverAsPin))
 	uint8 bCopyCurves : 1;
   

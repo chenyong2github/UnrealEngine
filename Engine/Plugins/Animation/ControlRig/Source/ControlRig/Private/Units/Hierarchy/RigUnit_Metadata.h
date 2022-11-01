@@ -202,7 +202,7 @@ struct CONTROLRIG_API FRigUnit_RemoveMetadata : public FRigUnitMutable
 	UPROPERTY(meta=(Output))
 	bool Removed;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
@@ -234,7 +234,7 @@ struct CONTROLRIG_API FRigUnit_RemoveAllMetadata : public FRigUnitMutable
 	UPROPERTY(meta=(Output))
 	bool Removed;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
@@ -280,7 +280,7 @@ struct CONTROLRIG_API FRigUnit_HasMetadata : public FRigUnit
 	UPROPERTY(meta=(Output))
 	bool Found;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
@@ -348,7 +348,7 @@ struct CONTROLRIG_API FRigUnit_GetMetadataTags : public FRigUnit
 	UPROPERTY(meta = (Output))
 	TArray<FName> Tags;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
@@ -382,7 +382,7 @@ struct CONTROLRIG_API FRigUnit_SetMetadataTag : public FRigUnitMutable
 	UPROPERTY(meta = (Input, CustomWidget="MetadataTagName"))
 	FName Tag;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
@@ -416,7 +416,7 @@ struct CONTROLRIG_API FRigUnit_SetMetadataTagArray : public FRigUnitMutable
 	UPROPERTY(meta = (Input, CustomWidget="MetadataTagName"))
 	TArray<FName> Tags;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
@@ -457,7 +457,7 @@ struct CONTROLRIG_API FRigUnit_RemoveMetadataTag : public FRigUnitMutable
 	UPROPERTY(meta = (Output))
 	bool Removed;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
@@ -496,7 +496,7 @@ struct CONTROLRIG_API FRigUnit_HasMetadataTag : public FRigUnit
 	UPROPERTY(meta=(Output))
 	bool Found;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
@@ -535,7 +535,7 @@ struct CONTROLRIG_API FRigUnit_HasMetadataTagArray : public FRigUnit
 	UPROPERTY(meta=(Output))
 	bool Found;
 
-	// Used to cache the internally
+	// Used to cache the internally used index
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
@@ -633,7 +633,7 @@ struct CONTROLRIG_API FRigUnit_FilterItemsByMetadataTags : public FRigUnit
 	UPROPERTY(meta=(Output))
 	TArray<FRigElementKey> Result;
 
-	// Used to cache the internally
+	// Used to cache the internally used indices
 	UPROPERTY()
 	TArray<FCachedRigElement> CachedIndices;
 };

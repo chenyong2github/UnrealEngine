@@ -232,7 +232,7 @@ struct CONTROLRIG_API FRigUnit_ChainHarmonics : public FRigUnit_HighlevelBaseMut
 };
 
 /**
- * Given a root will drive all items underneath in a chain base harmonics spectrum
+ * Given a root will drive all items underneath in a chain based harmonics spectrum
  */
 USTRUCT(meta=(DisplayName="Chain Harmonics", Category = "Simulation"))
 struct CONTROLRIG_API FRigUnit_ChainHarmonicsPerItem : public FRigUnit_HighlevelBaseMutable

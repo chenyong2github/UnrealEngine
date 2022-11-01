@@ -349,7 +349,7 @@ void UK2Node_EvaluateLiveLinkFrame::EarlyValidation(class FCompilerResultsLog& M
 	UScriptStruct* ActualOutputStruct = GetReturnTypeForOutputDataStruct();
 	if (DesiredOutputStruct != ActualOutputStruct)
 	{
-		MessageLog.Error(*LOCTEXT("OutputPinDoNotMatches", "The output data pin do not maches in @@").ToString(), this);
+		MessageLog.Error(*LOCTEXT("OutputPinDoNotMatches", "The output data pin does not match in @@").ToString(), this);
 		return;
 	}
 
