@@ -267,6 +267,11 @@ class FStaticShadowDepthMapTracingRGS : public FGlobalShader
 		OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
 	}
 
+	static ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId)
+	{
+		return ERayTracingPayloadType::Minimal | ERayTracingPayloadType::PathTracingMaterial;
+	}
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER(int32, StaticShadowDepthMapSuperSampleFactor)
