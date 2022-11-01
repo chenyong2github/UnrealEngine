@@ -659,7 +659,8 @@ bool FStaticMeshBuilder::BuildMeshVertexPositions(
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::BuildMeshVertexPositions);
 
-	if (!StaticMesh->IsMeshDescriptionValid(0))
+	FStaticMeshSourceModel& SourceModel = StaticMesh->IsHiResMeshDescriptionValid() ? StaticMesh->GetHiResSourceModel() : StaticMesh->GetSourceModel(0);
+	if (!SourceModel.IsMeshDescriptionValid())
 	{
 		//Warn the user that there is no mesh description data
 		UE_LOG(LogStaticMeshBuilder, Error, TEXT("Cannot find a valid mesh description to build the asset."));
@@ -670,10 +671,10 @@ bool FStaticMeshBuilder::BuildMeshVertexPositions(
 	if (NumSourceModels > 0)
 	{
 		FMeshDescription MeshDescription;
-		const bool bIsMeshDescriptionValid = StaticMesh->CloneMeshDescription(/*LodIndex*/ 0, MeshDescription);
+		const bool bIsMeshDescriptionValid = SourceModel.CloneMeshDescription(MeshDescription);
 		if (bIsMeshDescriptionValid)
 		{
-			const FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(0).BuildSettings;
+			const FMeshBuildSettings& BuildSettings = SourceModel.BuildSettings;
 
 			const FStaticMeshConstAttributes Attributes(MeshDescription);
 			TArrayView<const FVector3f> VertexPositions = Attributes.GetVertexPositions().GetRawArray();
