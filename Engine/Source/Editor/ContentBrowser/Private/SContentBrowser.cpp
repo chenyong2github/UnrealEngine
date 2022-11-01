@@ -2230,11 +2230,6 @@ void SContentBrowser::OnSaveSearchButtonClicked(const FText& InSearchText)
 	{
 		SourcesViewExpandClicked();
 	}
-	if (!GetDefault<UContentBrowserSettings>()->GetDockCollections() && ActiveSourcesWidgetIndex != ContentBrowserSourcesWidgetSwitcherIndex::CollectionsView)
-	{
-		ActiveSourcesWidgetIndex = ContentBrowserSourcesWidgetSwitcherIndex::CollectionsView;
-		SourcesWidgetSwitcher->SetActiveWidgetIndex(ActiveSourcesWidgetIndex);
-	}
 
 	// We want to add any currently selected paths to the final saved query so that you get back roughly the same list of objects as what you're currently seeing
 	FString SelectedPathsQuery;

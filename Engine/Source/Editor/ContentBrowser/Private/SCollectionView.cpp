@@ -71,6 +71,10 @@ struct FSlateBrush;
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
+// Workaround to hide Save As Collection buttons until collections support the AliasDataSource
+bool bHideSaveCollectionButton = false;
+FAutoConsoleVariableRef CVarHideSaveSearchButton(TEXT("ContentBrowser.HideSaveCollectionButton"), bHideSaveCollectionButton, TEXT("Hide the Content Browser button to save search as a dynamic collection."));
+
 namespace CollectionViewFilter
 {
 
@@ -844,7 +848,10 @@ void SCollectionView::MakeSaveDynamicCollectionMenu(FText InQueryString, FSimple
 		MakeSaveSearchMenu(MenuBuilder, OnSaveSearchClicked);
 	}
 
-	CollectionContextMenu->MakeSaveDynamicCollectionSubMenu(MenuBuilder, InQueryString);
+	if (!bHideSaveCollectionButton)
+	{
+		CollectionContextMenu->MakeSaveDynamicCollectionSubMenu(MenuBuilder, InQueryString);
+	}
 
 	FWidgetPath WidgetPath;
 	if (FSlateApplication::Get().GeneratePathToWidgetUnchecked(AsShared(), WidgetPath, EVisibility::All)) // since the collection window can be hidden, we need to manually search the path with a EVisibility::All instead of the default EVisibility::Visible
