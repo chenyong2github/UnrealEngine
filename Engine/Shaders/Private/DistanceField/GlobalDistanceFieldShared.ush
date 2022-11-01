@@ -395,7 +395,7 @@ float3 GetDistanceFieldGradientGlobal(float3 WorldPosition)
 	return float3(0, 0, .001f);
 }
 
-float CalculateDistanceFieldApproxAO(float3 WorldPosition, float3 WorldNormal, uint NumSteps, float BaseStepDistance, float StepScale, float MaxDistance)
+float CalculateDistanceFieldApproxAO(float3 WorldPosition, float3 WorldNormal, uint NumSteps, float StepDistance, float StepScale, float DistanceBias, float MaxDistance)
 {
 	return 1.0f;
 }
