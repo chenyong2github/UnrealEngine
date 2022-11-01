@@ -55,6 +55,9 @@ private:
 		/** The complete set of dependencies for the package */
 		TSet<FName> Dependencies;
 
+		/** The set of external actors to process for a world partition map package */
+		TSet<FGuid> ExternalActors;
+
 		/** Localization cache state of this package */
 		EPackageLocCacheState PackageLocCacheState;
 
