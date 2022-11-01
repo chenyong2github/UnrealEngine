@@ -11,6 +11,8 @@
 #include "EngineDefines.h"
 #include "Engine/MeshMerging.h"
 
+#include "WorldPartition/HLOD/HLODBuilder.h"
+
 #include "HLODLayer.generated.h"
 
 class AActor;
