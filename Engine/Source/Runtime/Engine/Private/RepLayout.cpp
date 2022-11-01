@@ -6,6 +6,7 @@
 
 #include "Net/RepLayout.h"
 #include "HAL/IConsoleManager.h"
+#include "Net/Serialization/FastArraySerializer.h"
 #include "UObject/UnrealType.h"
 #include "EngineStats.h"
 #include "GameFramework/OnlineReplStructs.h"

@@ -2,6 +2,7 @@
 
 #include "IoStoreUtilities.h"
 
+#include "Async/AsyncWork.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Hash/CityHash.h"

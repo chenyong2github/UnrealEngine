@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "GameplayTask.h"
+#include "UObject/Package.h"
 #include "AITask.generated.h"
 
 class AActor;

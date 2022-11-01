@@ -5,6 +5,7 @@ PipelineStateCache.cpp: Pipeline state cache implementation.
 =============================================================================*/
 
 #include "PipelineStateCache.h"
+#include "Async/AsyncWork.h"
 #include "PipelineFileCache.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/ScopeLock.h"

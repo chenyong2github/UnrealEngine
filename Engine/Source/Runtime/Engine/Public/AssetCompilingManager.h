@@ -8,6 +8,8 @@
 #include "Interfaces/Interface_AsyncCompilation.h"
 #include "AssetCompilingManager.generated.h"
 
+class FQueuedThreadPool;
+
 USTRUCT(BlueprintType)
 struct FAssetCompileData
 {

@@ -15,6 +15,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/ObjectSaveContext.h"
+#include "UObject/Package.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "Widgets/Notifications/SNotificationList.h"
 

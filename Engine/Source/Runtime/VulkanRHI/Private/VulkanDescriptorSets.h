@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "Async/AsyncWork.h"
 #include "VulkanConfiguration.h"
 #include "VulkanMemory.h"
 #include "VulkanShaderResources.h"

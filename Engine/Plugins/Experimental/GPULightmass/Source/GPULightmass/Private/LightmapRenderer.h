@@ -3,6 +3,7 @@
 #pragma once
 
 #include "LightmapTilePool.h"
+#include "Misc/QueuedThreadPool.h"
 #include "RHIGPUReadback.h"
 #include "GPULightmassSettings.h"
 // TBB suffers from extreme fragmentation problem in editor

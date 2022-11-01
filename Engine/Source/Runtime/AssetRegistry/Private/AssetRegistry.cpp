@@ -21,6 +21,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Optional.h"
+#include "Misc/PackageAccessTracking.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
 #include "Misc/RedirectCollector.h"

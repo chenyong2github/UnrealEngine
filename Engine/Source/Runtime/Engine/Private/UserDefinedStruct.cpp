@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/UserDefinedStruct.h"
+#include "UObject/Package.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/StructOnScope.h"
 #include "UObject/UnrealType.h"

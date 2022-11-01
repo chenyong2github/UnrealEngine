@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Net/Serialization/FastArraySerializer.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 #include "Templates/SubclassOf.h"

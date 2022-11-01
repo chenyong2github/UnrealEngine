@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "GBufferInfo.h"
+#include "HAL/IConsoleManager.h"
 
 
 // This is very ugly, but temporary. We can't include EngineTypes.h because this file is ShaderCore and that

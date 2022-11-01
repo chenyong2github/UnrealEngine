@@ -5,6 +5,7 @@
 
 #include "Components/Slider.h"
 #include "Components/Widget.h"
+#include "Curves/CurveFloat.h"
 #include "Styling/SlateTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "Widgets/SWidget.h"

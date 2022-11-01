@@ -3,6 +3,8 @@
 
 #include "Engine/Level.h"
 #include "Engine/World.h"
+#include "Misc/PackageName.h"
+#include "UObject/Package.h"
 #include "WorldPartition/ContentBundle/ContentBundleBase.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "Misc/Paths.h"

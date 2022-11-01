@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionRuntimeSpatialHashCell.h"
+#include "UObject/Package.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "HAL/IConsoleManager.h"
 

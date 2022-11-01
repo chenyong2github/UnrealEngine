@@ -4,6 +4,7 @@
 
 #include "IO/IoDispatcherBackend.h"
 #include "HAL/Runnable.h"
+#include "Misc/IQueuedWork.h"
 
 #if !UE_BUILD_SHIPPING
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/ScopeExit.h"
 #include "UObject/UnrealType.h"
 #include "Templates/UniquePtr.h"
 #include "GenericPlatform/GenericPlatformCriticalSection.h"

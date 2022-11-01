@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DrawCurveOnMeshSampleTool.h"
+#include "Engine/HitResult.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 #include "SceneManagement.h"   // FPrimitiveDrawInterface

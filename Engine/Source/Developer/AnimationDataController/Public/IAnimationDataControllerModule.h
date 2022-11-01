@@ -4,6 +4,7 @@
 
 #include "Animation/AnimData/IAnimationDataController.h"
 #include "Modules/ModuleInterface.h"
+#include "UObject/Package.h"
 
 class UAnimSequence;
 class UAnimSequenceBase;

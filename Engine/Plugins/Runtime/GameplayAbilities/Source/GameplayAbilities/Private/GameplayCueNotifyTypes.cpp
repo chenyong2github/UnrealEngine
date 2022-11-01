@@ -4,6 +4,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Camera/CameraLensEffectInterface.h"
 #include "Engine/World.h"
+#include "GameFramework/ForceFeedbackEffect.h"
 #include "NiagaraSystem.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"

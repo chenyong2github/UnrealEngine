@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HTTPChunkInstaller.h"
+#include "Async/AsyncWork.h"
 #include "HTTPChunkInstallerLog.h"
 #include "ChunkInstall.h"
 #include "Interfaces/IBuildManifest.h"

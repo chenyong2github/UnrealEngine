@@ -2,6 +2,7 @@
 
 #include "SoundWaveCompiler.h"
 #include "Audio.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/PackageName.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/SoftObjectPtr.h"
@@ -142,10 +143,7 @@ public:
 	uint32 bHideLevelInstanceContent : 1;
 
 private:
-	bool ShouldSaveSettings(const UWorld* InWorld) const
-	{
-		return InWorld && !InWorld->IsGameWorld() && FPackageName::DoesPackageExist(InWorld->GetPackage()->GetName());
-	}
+	bool ShouldSaveSettings(const UWorld* InWorld) const;
 
 	UPROPERTY(config)
 	uint32 bDisableLoadingOfLastLoadedRegions : 1;

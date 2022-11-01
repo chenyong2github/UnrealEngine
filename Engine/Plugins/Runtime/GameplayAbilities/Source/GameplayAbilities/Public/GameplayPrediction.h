@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Engine/NetSerialization.h"
+#include "Net/Serialization/FastArraySerializer.h"
 #include "GameplayPrediction.generated.h"
 
 class UAbilitySystemComponent;

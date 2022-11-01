@@ -2,6 +2,7 @@
 
 #include "ViewModel/MVVMViewModelBlueprintGeneratedClass.h"
 #include "MVVMViewModelBase.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MVVMViewModelBlueprintGeneratedClass)
 

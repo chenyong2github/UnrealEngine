@@ -14,6 +14,7 @@
 #include "Engine/PackageMapClient.h"
 #include "Net/RepLayout.h"
 #include "Engine/ActorChannel.h"
+#include "Net/Serialization/FastArraySerializer.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Engine/Engine.h"
 #include "Engine/NetConnection.h"

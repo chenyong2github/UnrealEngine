@@ -17,6 +17,7 @@
 #include "HairStrandsTranslator.h"
 #include "Logging/LogMacros.h"
 #include "Misc/ScopedSlowTask.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ReimportHairStrandsFactory)
 

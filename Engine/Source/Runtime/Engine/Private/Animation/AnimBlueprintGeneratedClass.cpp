@@ -11,6 +11,7 @@
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimInstance.h"
 #include "UObject/AnimObjectVersion.h"
+#include "UObject/Package.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "Animation/AnimNode_LinkedAnimGraph.h"
 #include "Animation/AnimNode_Root.h"

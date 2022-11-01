@@ -97,4 +97,9 @@ const FWorldPartitionPerWorldSettings* UWorldPartitionEditorPerProjectUserSettin
 	return nullptr;
 }
 
+bool UWorldPartitionEditorPerProjectUserSettings::ShouldSaveSettings(const UWorld* InWorld) const
+{
+	return InWorld && !InWorld->IsGameWorld() && FPackageName::DoesPackageExist(InWorld->GetPackage()->GetName());
+}
+
 #endif

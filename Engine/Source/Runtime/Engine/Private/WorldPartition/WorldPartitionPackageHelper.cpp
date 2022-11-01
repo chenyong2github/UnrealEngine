@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionPackageHelper.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 

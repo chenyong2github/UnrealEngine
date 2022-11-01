@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StorageServerIoDispatcherBackend.h"
+#include "Misc/QueuedThreadPool.h"
 #include "StorageServerConnection.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/RunnableThread.h"

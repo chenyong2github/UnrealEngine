@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InstancedReferenceSubobjectHelper.h"
+#include "UObject/Package.h"
+#include "UObject/Package.h"
 	
 UObject* FInstancedPropertyPath::Resolve(const UObject* Container) const
 {

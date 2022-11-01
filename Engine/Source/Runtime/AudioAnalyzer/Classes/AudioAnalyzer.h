@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/AsyncWork.h"
 #include "CoreMinimal.h"
 #include "IAudioAnalyzerInterface.h"
 #include "AudioAnalyzerAsset.h"

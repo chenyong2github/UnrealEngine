@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/IConsoleManager.h"
 #include "PacketHandler.h"
 #include "EncryptionComponent.h"
 #include "UObject/CoreNet.h"

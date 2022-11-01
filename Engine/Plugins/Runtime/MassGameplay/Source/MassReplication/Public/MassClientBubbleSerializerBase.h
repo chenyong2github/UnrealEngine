@@ -4,6 +4,7 @@
 
 #include "Engine/NetSerialization.h"
 #include "MassReplicationTypes.h"
+#include "Net/Serialization/FastArraySerializer.h"
 
 #include "MassClientBubbleSerializerBase.generated.h"
 

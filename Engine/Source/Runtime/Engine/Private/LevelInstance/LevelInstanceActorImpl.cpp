@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelInstance/LevelInstanceActorImpl.h"
+#include "Misc/PackageName.h"
 
 #if WITH_EDITOR
 

@@ -3,6 +3,9 @@
 // Implementation of D3D12 Pipelinestate related functions
 
 #pragma once
+
+#include "Async/AsyncWork.h"
+
 #if PLATFORM_HOLOLENS
 	#include "d3d12.h"
 #endif

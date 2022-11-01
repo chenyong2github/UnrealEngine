@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SwitchboardShortcuts.h"
+#include "Misc/ScopeExit.h"
 #include "SwitchboardEditorModule.h"
 #include "SwitchboardEditorSettings.h"
 #include "Misc/EngineVersion.h"

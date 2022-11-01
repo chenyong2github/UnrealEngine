@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/IConsoleManager.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 #include "Engine/NetSerialization.h"

@@ -5,6 +5,7 @@
 
 #include "GameFramework/Actor.h"
 #include "Logging/MessageLog.h"
+#include "Misc/PackageName.h"
 #include "Misc/UObjectToken.h"
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 

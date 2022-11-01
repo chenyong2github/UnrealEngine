@@ -6,6 +6,7 @@
 #include "Engine/CoreSettings.h"
 #include "Engine/NetDriver.h"
 #include "Engine/Engine.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectGlobalsInternal.h"
 #include "UObject/ReferenceChainSearch.h"

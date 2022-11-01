@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SocialSettings.h"
+#include "HAL/IConsoleManager.h"
 #include "SocialManager.h"
 #include "Misc/CommandLine.h"
 

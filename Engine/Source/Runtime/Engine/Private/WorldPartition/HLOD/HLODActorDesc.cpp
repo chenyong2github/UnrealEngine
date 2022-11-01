@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/HLOD/HLODActorDesc.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 #include "Algo/Transform.h"
 #include "Algo/RemoveIf.h"
 #include "HAL/FileManager.h"
+#include "Misc/PackageName.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"

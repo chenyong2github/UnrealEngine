@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "ShowFlags.h"
+#include "HAL/IConsoleManager.h"
 #include "SystemSettings.h"
 
 static bool IsValidNameChar(TCHAR c)

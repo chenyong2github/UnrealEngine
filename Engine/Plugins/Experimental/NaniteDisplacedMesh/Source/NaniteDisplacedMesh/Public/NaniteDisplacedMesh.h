@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/QueuedThreadPool.h"
 #include "RenderCommandFence.h"
 #include "Rendering/NaniteResources.h"
 #include "UObject/ObjectMacros.h"
