@@ -1243,6 +1243,22 @@ FName FPackageName::GetPackageMountPoint(const FString& InPackagePath, bool InWi
 	return FName();
 }
 
+FString FPackageName::GetContentPathForPackageRoot(FStringView InMountPoint)
+{
+	FLongPackagePathsSingleton& Paths = FLongPackagePathsSingleton::Get();
+
+	FReadScopeLock ScopeLock(ContentMountPointCriticalSection);
+	for (const FPathPair& RootToPathEntry : Paths.ContentRootToPath)
+	{
+		if (RootToPathEntry.RootPath == InMountPoint)
+		{
+			return RootToPathEntry.AbsolutePath;
+		}
+	}
+
+	return FString();
+}
+
 bool FPackageName::TryConvertToMountedPathComponents(FStringView InFilePathOrPackageName,
 	FStringBuilderBase& OutMountPointPackageName, FStringBuilderBase& OutMountPointFilePath,
 	FStringBuilderBase& OutRelPath, FStringBuilderBase& OutObjectName, EPackageExtension& OutExtension,
