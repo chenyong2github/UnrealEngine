@@ -44,6 +44,7 @@
 #include "Components/SpotLightComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/Level.h"
 #include "Engine/Light.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
