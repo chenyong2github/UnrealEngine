@@ -262,6 +262,7 @@ namespace Audio
 	void FQuartzClock::LowResolutionTick(float InDeltaTimeSeconds)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzClock::Tick_LowRes);
+		UE_LOG(LogAudioQuartz, Verbose, TEXT("Quartz Clock Tick (low-res): %s"), *Name.ToString());
 		PreTickCommands->PumpCommandQueue(this);
 		Tick(static_cast<int32>(InDeltaTimeSeconds * Metronome.GetTickRate().GetSampleRate()));
 	}
@@ -269,8 +270,10 @@ namespace Audio
 	void FQuartzClock::Tick(int32 InNumFramesUntilNextTick)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzClock::Tick);
-
 		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzClock::GameThreadCommands);
+
+		UE_LOG(LogAudioQuartz, Verbose, TEXT("Quartz Clock Tick: %s"), *Name.ToString());
+		
 		PreTickCommands->PumpCommandQueue(this);
 
 		TRACE_CPUPROFILER_EVENT_SCOPE(QuartzClock::TickInternal);
@@ -438,6 +441,12 @@ namespace Audio
 		// if this is un-quantized, execute immediately (even if the clock is paused)
 		if (InQuantizationBondary.Quantization == EQuartzCommandQuantization::None)
 		{
+			UE_LOG(LogAudioQuartz, Display, TEXT("Quartz Command:(%s) | Deadline (frames):[%i] | Boundary: [%s]")
+				, *InNewEvent->GetCommandName().ToString()
+				, FramesUntilExec
+				, *InQuantizationBondary.ToString()
+				);
+			
 			InNewEvent->AboutToStart();
 			InNewEvent->OnFinalCallback(0);
 			return;
@@ -445,7 +454,18 @@ namespace Audio
 
 		// get number of frames until event (assuming we are at frame 0)
 		FramesUntilExec = FMath::RoundToInt(Metronome.GetFramesUntilBoundary(InQuantizationBondary)); // query metronome (round result to int)
-		FramesUntilExec = FMath::Max(0, InNewEvent->OverrideFramesUntilExec(FramesUntilExec)); // allow command to override the deadline (clamp result)
+		const int32 OverriddenFramesUntilExec = FMath::Max(0, InNewEvent->OverrideFramesUntilExec(FramesUntilExec)); // allow command to override the deadline (clamp result)
+		const bool bOverridden = (FramesUntilExec != OverriddenFramesUntilExec);
+
+		UE_LOG(LogAudioQuartz, Display, TEXT("Quartz Command:(%s) | Deadline (frames):[%i%s] | Boundary: [%s]")
+			, *InNewEvent->GetCommandName().ToString()
+			, OverriddenFramesUntilExec
+			, bOverridden? *FString::Printf(TEXT("(overridden from %i)"), FramesUntilExec) : TEXT("")
+			, *InQuantizationBondary.ToString()
+			);
+
+		// after the log, use tho Overridden value
+		FramesUntilExec = OverriddenFramesUntilExec;
 
 		// finalize the requested subscriber offsets and notify the command of their deadline
 		InNewEvent->OnScheduled(Metronome.GetTickRate());

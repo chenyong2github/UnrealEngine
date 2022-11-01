@@ -155,6 +155,85 @@ void FQuartLatencyTracker::DigestQueue()
 	}
 }
 
+static FString EnumToString(EQuartzCommandQuantization inEnum)
+{
+	switch (inEnum)
+	{
+	case EQuartzCommandQuantization::Bar:
+		return(TEXT("Bar"));
+	case EQuartzCommandQuantization::Beat:
+		return(TEXT("Beat"));
+		
+	case EQuartzCommandQuantization::ThirtySecondNote:
+		return(TEXT("ThirtySecondNote"));
+	case EQuartzCommandQuantization::SixteenthNote:
+		return(TEXT("SixteenthNote"));
+	case EQuartzCommandQuantization::EighthNote:
+		return(TEXT("EighthNote"));
+	case EQuartzCommandQuantization::QuarterNote:
+		return(TEXT("QuarterNote"));
+	case EQuartzCommandQuantization::HalfNote:
+		return(TEXT("HalfNote"));
+	case EQuartzCommandQuantization::WholeNote:
+		return(TEXT("WholeNote"));
+
+	case EQuartzCommandQuantization::DottedSixteenthNote:
+		return(TEXT("DottedSixteenthNote"));
+	case EQuartzCommandQuantization::DottedEighthNote:
+		return(TEXT("DottedEighthNote"));
+	case EQuartzCommandQuantization::DottedQuarterNote:
+		return(TEXT("DottedQuarterNote"));
+	case EQuartzCommandQuantization::DottedHalfNote:
+		return(TEXT("DottedHalfNote"));
+	case EQuartzCommandQuantization::DottedWholeNote:
+		return(TEXT("WholeNote"));
+
+	case EQuartzCommandQuantization::SixteenthNoteTriplet:
+		return(TEXT("SixteenthNoteTriplet"));
+	case EQuartzCommandQuantization::EighthNoteTriplet:
+		return(TEXT("EighthNoteTriplet"));
+	case EQuartzCommandQuantization::QuarterNoteTriplet:
+		return(TEXT("QuarterNoteTriplet"));
+	case EQuartzCommandQuantization::HalfNoteTriplet:
+		return(TEXT("HalfNoteTriplet"));
+
+	case EQuartzCommandQuantization::None:
+		return(TEXT("None"));
+		
+	default:
+		return {};
+	}
+	
+}
+
+static FString EnumToString(EQuarztQuantizationReference inEnum)
+{
+	switch (inEnum)
+	{
+	case EQuarztQuantizationReference::BarRelative:
+			return(TEXT("BarRelative"));
+	case EQuarztQuantizationReference::TransportRelative:
+		return(TEXT("TransportRelative"));
+	case EQuarztQuantizationReference::CurrentTimeRelative:
+		return(TEXT("CurrentTimeRelative"));
+		
+		default:
+			return {};
+	}
+	
+}
+
+FString FQuartzQuantizationBoundary::ToString() const 
+{
+	FString String;
+
+	String
+	.Append(*FString::Printf(TEXT("Quant:(%s) - "), *EnumToString(Quantization)))
+	.Append(*FString::Printf(TEXT("Mult:(%f) - "), Multiplier))
+	.Append(*FString::Printf(TEXT("Ref:(%s)"), *EnumToString(CountingReferencePoint)));
+	
+	return String;
+}
 
 
 namespace Audio

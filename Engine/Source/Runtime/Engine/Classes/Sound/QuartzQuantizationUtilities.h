@@ -526,6 +526,8 @@ struct ENGINE_API FQuartzQuantizationBoundary
 		, CountingReferencePoint(InReferencePoint)
 		, bFireOnClockStart(bInFireOnClockStart)
 	{}
+
+	FString ToString() const;
 }; // struct FQuartzQuantizationBoundary
 
 
