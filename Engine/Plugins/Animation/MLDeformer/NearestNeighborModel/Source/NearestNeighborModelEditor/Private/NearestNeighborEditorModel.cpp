@@ -73,7 +73,10 @@ namespace UE::NearestNeighborModel
 	void FNearestNeighborEditorModel::OnPostTraining(ETrainingResult TrainingResult, bool bUsePartiallyTrainedWhenAborted)
 	{
 		FMLDeformerMorphModelEditorModel::OnPostTraining(TrainingResult, bUsePartiallyTrainedWhenAborted);
-		GetNearestNeighborModel()->InitPreviousWeights();
+		if (TrainingResult == ETrainingResult::Success || (TrainingResult == ETrainingResult::Aborted && bUsePartiallyTrainedWhenAborted))
+		{
+			GetNearestNeighborModel()->InitPreviousWeights();
+		}
 	}
 
 	FString FNearestNeighborEditorModel::GetTrainedNetworkOnnxFile() const

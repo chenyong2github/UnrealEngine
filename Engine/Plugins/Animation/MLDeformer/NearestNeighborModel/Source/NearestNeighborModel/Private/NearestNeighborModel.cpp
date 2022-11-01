@@ -4,12 +4,13 @@
 #include "NearestNeighborModelInputInfo.h"
 #include "NearestNeighborModelInstance.h"
 #include "MLDeformerComponent.h"
-#include "Components/ExternalMorphSet.h"
 #include "Engine/SkeletalMesh.h"
 #include "GeometryCache.h"
 #include "Misc/FileHelper.h"
 #include "Components/SkinnedMeshComponent.h"
+#include "Components/ExternalMorphSet.h"
 #include "Rendering/SkeletalMeshModel.h"
+#include "Rendering/MorphTargetVertexInfoBuffers.h"
 #include "UObject/UObjectGlobals.h"
 #include "NeuralNetwork.h"
 
@@ -94,6 +95,16 @@ void UNearestNeighborModel::ClipInputs(float* InputPtr, int NumInputs)
 			}
 		}
 	}	
+}
+
+int32 UNearestNeighborModel::GetTotalNumNeighbors() const
+{
+	int32 TotalNumNeighbors = 0;
+	for (int32 PartId = 0; PartId < GetNumParts(); PartId++)
+	{
+		TotalNumNeighbors += GetNumNeighbors(PartId);
+	}
+	return TotalNumNeighbors;
 }
 
 class FMorphTargetBuffersInfo : public FMorphTargetVertexInfoBuffers
@@ -290,12 +301,7 @@ bool UNearestNeighborModel::CheckPCAData(int32 PartId) const
 
 void UNearestNeighborModel::InitPreviousWeights()
 {
-	int32 NumWeights = 1;
-	for (int32 PartId = 0; PartId < GetNumParts(); PartId++)
-	{
-		NumWeights += GetPCACoeffNum(PartId);
-		NumWeights += GetNumNeighbors(PartId);
-	}
+	const int32 NumWeights = GetMorphTargetSet()->MorphBuffers.GetNumMorphs();
 	PreviousWeights.SetNumZeroed(NumWeights);
 }
 #undef LOCTEXT_NAMESPACE

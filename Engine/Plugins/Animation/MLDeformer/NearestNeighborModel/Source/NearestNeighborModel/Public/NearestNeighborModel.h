@@ -165,6 +165,8 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
 	int32 GetNumNeighbors(int32 PartId) const { return ClothPartData[PartId].NumNeighbors; }
 
+	int32 GetTotalNumNeighbors() const;
+
 	float GetDecayFactor() const { return DecayFactor; };
 	float GetNearestNeighborOffsetWeight() const { return NearestNeighborOffsetWeight; }
 

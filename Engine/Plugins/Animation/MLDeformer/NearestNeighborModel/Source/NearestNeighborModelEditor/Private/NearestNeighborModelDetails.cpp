@@ -119,7 +119,6 @@ namespace UE::NearestNeighborModel
 				.OnClicked_Lambda([this]
 				{
 					NearestNeighborModel->UpdateClothPartData();
-					NearestNeighborModel->InitPreviousWeights();
 					NearestNeighborEditorModel->UpdateNearestNeighborActors();
 					EditorModel->GetEditor()->GetModelDetailsView()->ForceRefresh();
 					return FReply::Handled();
@@ -142,7 +141,7 @@ namespace UE::NearestNeighborModel
 				.OnClicked_Lambda([this]
 				{
 					NearestNeighborEditorModel->UpdateNearestNeighborData();
-					NearestNeighborModel->InitPreviousWeights();
+					NearestNeighborEditorModel->UpdateNearestNeighborActors();
 					EditorModel->GetEditor()->GetModelDetailsView()->ForceRefresh();
 					return FReply::Handled();
 				})
@@ -173,6 +172,7 @@ namespace UE::NearestNeighborModel
 				.OnClicked_Lambda([this]
 				{
 					NearestNeighborEditorModel->OnMorphTargetUpdate();
+					NearestNeighborModel->InitPreviousWeights();
 					return FReply::Handled();
 				})
 			];

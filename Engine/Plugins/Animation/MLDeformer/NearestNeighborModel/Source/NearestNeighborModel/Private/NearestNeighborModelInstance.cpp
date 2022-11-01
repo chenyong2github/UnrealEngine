@@ -6,7 +6,6 @@
 #include "NeuralNetwork.h"
 #include "Components/ExternalMorphSet.h"
 #include "Components/SkeletalMeshComponent.h"
-
 using namespace UE::MLDeformer;
 using namespace UE::NearestNeighborModel;
 
@@ -104,6 +103,17 @@ void UNearestNeighborModelInstance::Execute(float ModelWeight)
 	RunNearestNeighborModel(ModelWeight);
 }
 
+TArray<float> ExtractArray(const TArray<float>& InArr, int32 Start, int32 End)
+{
+	int32 Num = End - Start;
+	TArray<float> Result; Result.SetNum(Num);
+	for (int32 i = 0; i < Num; i++)
+	{
+		Result[i] = InArr[Start + i];
+	}
+	return Result;
+}
+
 void UNearestNeighborModelInstance::RunNearestNeighborModel(float ModelWeight)
 {
 	UNearestNeighborModel* NearestNeighborModel = Cast<UNearestNeighborModel>(Model);
@@ -130,8 +140,9 @@ void UNearestNeighborModelInstance::RunNearestNeighborModel(float ModelWeight)
 	{
 		const FNeuralTensor& OutputTensor = NeuralNetwork->GetOutputTensorForContext(NeuralNetworkInferenceHandle);
 		const int32 NumNetworkWeights = OutputTensor.Num();
-		const int32 NumMorphTargets = WeightData->Weights.Num();;
-		if (NumMorphTargets >= NumNetworkWeights + 1)
+		const int32 NumMorphTargets = WeightData->Weights.Num();
+		const int32 TotalNumNeighbors = NearestNeighborModel->GetTotalNumNeighbors();
+		if (NumMorphTargets >= NumNetworkWeights + 1 + TotalNumNeighbors)
 		{
 			WeightData->Weights[0] = 1.0f * ModelWeight;
 
