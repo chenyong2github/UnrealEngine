@@ -189,3 +189,23 @@ float ApplySmoothBias(float Roughness)
 	// Only opaque reflections get the denoiser, force to mirror
 	return ReflectionPass == 0 ? NewRoughness : 0.0f;
 }
+
+float MaxRoughnessToTrace;
+float InvRoughnessFadeLength;
+uint TraceReflectionForFoliage;
+
+// Weight of a specular ray
+// 0 means that specular ray shouldn't be traced at all
+// 1 means that it shouldn't be blended with any kind of a rough specular
+float LumenCombineReflectionsAlpha(float InRoughness, bool bIsFoliage)
+{
+	float FadeAlpha = saturate((MaxRoughnessToTrace - InRoughness) * InvRoughnessFadeLength);
+
+	// Don't trace expensive specular reflections rays for foliage
+	if (bIsFoliage && TraceReflectionForFoliage > 0)
+	{
+		FadeAlpha = 0.0f;
+	}
+
+	return FadeAlpha;
+}

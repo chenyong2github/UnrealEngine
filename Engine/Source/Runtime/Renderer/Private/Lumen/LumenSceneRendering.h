@@ -93,12 +93,16 @@ namespace Lumen
 extern void UpdateLumenCardSceneUniformBuffer(FRDGBuilder& GraphBuilder, FScene* Scene, const FLumenSceneData& LumenSceneData, FLumenSceneFrameTemporaries& FrameTemporaries);
 extern void UpdateLumenMeshCards(FRDGBuilder& GraphBuilder, const FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneFrameTemporaries& FrameTemporaries, FLumenSceneData& LumenSceneData);
 
-BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionCompositeParameters, )
-	SHADER_PARAMETER(float, MaxRoughnessToTrace)
-	SHADER_PARAMETER(float, InvRoughnessFadeLength)
-END_SHADER_PARAMETER_STRUCT()
+namespace LumenReflections
+{
+	BEGIN_SHADER_PARAMETER_STRUCT(FCompositeParameters, )
+		SHADER_PARAMETER(float, MaxRoughnessToTrace)
+		SHADER_PARAMETER(float, InvRoughnessFadeLength)
+		SHADER_PARAMETER(uint32, TraceReflectionForFoliage)
+	END_SHADER_PARAMETER_STRUCT()
 
-extern FLumenReflectionCompositeParameters GetLumenReflectionCompositeParameters();
+	void SetupCompositeParameters(LumenReflections::FCompositeParameters& OutParameters);
+}
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenScreenSpaceBentNormalParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, ScreenBentNormal)

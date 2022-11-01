@@ -21,6 +21,7 @@
 #include "../TextureSampling.ush"
 #include "../MortonCode.ush"
 #include "LumenScreenSpaceBentNormal.ush"
+#include "LumenReflectionsCombine.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
@@ -556,8 +557,6 @@ RWTexture2D<float3> RWRoughSpecularIndirect;
 RWTexture2D<uint> RWTileClassificationModes;
 
 uint DefaultDiffuseIntegrationMethod;
-float MaxRoughnessToTrace;
-float RoughnessFadeLength;
 float MaxRoughnessToEvaluateRoughSpecular;
 
 // Computes the lerp factor to diffuse for rough specular, as an optimization to skip rough specular computations
@@ -672,9 +671,9 @@ void ScreenProbeTileClassificationMarkCS(
 				}
 
 				const float DiffuseLerp = GetDiffuseLerp(Material.Roughness);
-				float MinRoughnessForProbeImportanceSampling = MaxRoughnessToTrace - RoughnessFadeLength;
-
-				if ((DiffuseLerp < 1.0f && Material.Roughness >= MinRoughnessForProbeImportanceSampling) || IsClearCoat(Material))
+				const float LumenSpecularRayAlpha = LumenCombineReflectionsAlpha(Material.Roughness, IsFoliage(Material));
+				const float RoughReflectionFadeAlpha = 1.0f - LumenSpecularRayAlpha;
+				if ((DiffuseLerp < 1.0f && RoughReflectionFadeAlpha > 0.0f) || IsClearCoat(Material))
 				{
 					TileClassification = TILE_CLASSIFICATION_SUPPORT_IMPORTANCE_SAMPLE_BRDF;
 				}
@@ -1483,12 +1482,11 @@ void ScreenProbeIntegrateCS(
 			// Prevent NaNs from ImportanceSampleVisibleGGX
 			Material.Roughness = max(Material.Roughness, .01f);
 
-			float MinRoughnessForProbeImportanceSampling = MaxRoughnessToTrace - RoughnessFadeLength;
-
-			if ((DiffuseLerp < 1.0f && Material.Roughness >= MinRoughnessForProbeImportanceSampling) || IsClearCoat(Material))
+			const float LumenSpecularRayAlpha = LumenCombineReflectionsAlpha(Material.Roughness, IsFoliage(Material));
+			const float RoughReflectionFadeAlpha = 1.0f - LumenSpecularRayAlpha;
+			if ((DiffuseLerp < 1.0f && RoughReflectionFadeAlpha > 0.0f) || IsClearCoat(Material))
 			{
 				// Must match MixSpecularAndRoughReflections in DiffuseIndirectComposite.usf
-				const float RoughReflectionFadeAlpha = 1 - saturate((MaxRoughnessToTrace - Material.Roughness) / RoughnessFadeLength);
 
 				// Prevent low roughness values that we can't support through screen probes with acceptable quality, eg clearcoat with bottom layer roughness 0
 				Material.Roughness = max(Material.Roughness, MaxRoughnessToTrace);
@@ -1985,7 +1983,7 @@ void ScreenProbeTemporalReprojectionCS(
 #else
 		float3 HistoryBackfaceDiffuseIndirect = Texture2DSampleLevel(BackfaceDiffuseIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).xyz * PrevSceneColorPreExposureCorrection;
 #endif
-		float3 NewBackfaceDiffuseLighting = BackfaceDiffuseIndirect[Coord.SvPositionFlatten];
+		float3 NewBackfaceDiffuseLighting = BackfaceDiffuseIndirect[Coord.SvPositionFlatten].xyz;
 		OutBackfaceDiffuseIndirect = lerp(HistoryBackfaceDiffuseIndirect, NewBackfaceDiffuseLighting, Alpha);
 	}
 

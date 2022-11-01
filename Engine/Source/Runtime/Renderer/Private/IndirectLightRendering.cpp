@@ -134,7 +134,7 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(float, AmbientOcclusionStaticFraction)
 		SHADER_PARAMETER(int32, bVisualizeDiffuseIndirect)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionCompositeParameters, LumenReflectionCompositeParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenScreenSpaceBentNormalParameters, ScreenBentNormalParameters)
 		SHADER_PARAMETER(uint32, bLumenSupportBackfaceDiffuse)
 
@@ -1158,7 +1158,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 			PassParameters->BufferUVToOutputPixelPosition = BufferExtent;
 			PassParameters->EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
-			PassParameters->LumenReflectionCompositeParameters = GetLumenReflectionCompositeParameters();
+			LumenReflections::SetupCompositeParameters(PassParameters->ReflectionsCompositeParameters);
 			PassParameters->ScreenBentNormalParameters = ScreenBentNormalParameters;
 			PassParameters->bLumenSupportBackfaceDiffuse = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && DenoiserOutputs.Textures[1] != SystemTextures.Black;
 

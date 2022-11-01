@@ -872,9 +872,8 @@ class FScreenProbeTileClassificationMarkCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
 		SHADER_PARAMETER(uint32, DefaultDiffuseIntegrationMethod)
-		SHADER_PARAMETER(float, MaxRoughnessToTrace)
-		SHADER_PARAMETER(float, RoughnessFadeLength)
 		SHADER_PARAMETER(float, MaxRoughnessToEvaluateRoughSpecular)
 		RDG_BUFFER_ACCESS(TileIndirectBuffer, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
@@ -960,9 +959,8 @@ class FScreenProbeIntegrateCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenScreenSpaceBentNormalParameters, ScreenSpaceBentNormalParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
 		SHADER_PARAMETER(float, FullResolutionJitterWidth)
-		SHADER_PARAMETER(float, MaxRoughnessToTrace)
-		SHADER_PARAMETER(float, RoughnessFadeLength)
 		SHADER_PARAMETER(float, MaxRoughnessToEvaluateRoughSpecular)
 		SHADER_PARAMETER(uint32, ApplyMaterialAO)
 		SHADER_PARAMETER(uint32, DefaultDiffuseIntegrationMethod)
@@ -1223,10 +1221,7 @@ void InterpolateAndIntegrate(
 				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 				PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
-				extern float GLumenReflectionMaxRoughnessToTrace;
-				extern float GLumenReflectionRoughnessFadeLength;
-				PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
-				PassParameters->RoughnessFadeLength = GLumenReflectionRoughnessFadeLength;
+				LumenReflections::SetupCompositeParameters(PassParameters->ReflectionsCompositeParameters);
 				PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
 
 				FScreenProbeTileClassificationMarkCS::FPermutationDomain PermutationVector;
@@ -1334,10 +1329,7 @@ void InterpolateAndIntegrate(
 				PassParameters->View = View.ViewUniformBuffer;
 				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 				PassParameters->FullResolutionJitterWidth = LumenScreenProbeGather::GetScreenProbeFullResolutionJitterWidth(View);
-				extern float GLumenReflectionMaxRoughnessToTrace;
-				extern float GLumenReflectionRoughnessFadeLength;
-				PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
-				PassParameters->RoughnessFadeLength = GLumenReflectionRoughnessFadeLength;
+				LumenReflections::SetupCompositeParameters(PassParameters->ReflectionsCompositeParameters);
 				PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
 				PassParameters->ApplyMaterialAO = GLumenScreenProbeMaterialAO;
 				PassParameters->ScreenSpaceBentNormalParameters = ScreenSpaceBentNormalParameters;
@@ -1398,10 +1390,7 @@ void InterpolateAndIntegrate(
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 		PassParameters->FullResolutionJitterWidth = LumenScreenProbeGather::GetScreenProbeFullResolutionJitterWidth(View);
-		extern float GLumenReflectionMaxRoughnessToTrace;
-		extern float GLumenReflectionRoughnessFadeLength;
-		PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
-		PassParameters->RoughnessFadeLength = GLumenReflectionRoughnessFadeLength;
+		LumenReflections::SetupCompositeParameters(PassParameters->ReflectionsCompositeParameters);
 		PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
 		PassParameters->ApplyMaterialAO = GLumenScreenProbeMaterialAO;
 		PassParameters->ScreenSpaceBentNormalParameters = ScreenSpaceBentNormalParameters;

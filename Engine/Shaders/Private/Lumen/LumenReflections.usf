@@ -19,8 +19,6 @@
 #define THREADGROUP_SIZE 1
 #endif
 
-float MaxRoughnessToTrace;
-
 RWBuffer<uint> RWReflectionResolveTileIndirectArgs;
 RWBuffer<uint> RWReflectionTracingTileIndirectArgs;
 RWTexture2D<float> RWDownsampledDepth;
@@ -48,7 +46,7 @@ bool NeedRayTracedReflections(float InRoughness, const FLumenMaterialData In)
 
 	if (ReflectionPass == 0)
 	{
-		bNeedReflections = IsValid(In) && (InRoughness <= MaxRoughnessToTrace || IsClearCoat(In));
+		bNeedReflections = IsValid(In) && (LumenCombineReflectionsAlpha(InRoughness, IsFoliage(In)) > 0.0f || IsClearCoat(In));
 	}
 	else if (ReflectionPass == 1)
 	{
@@ -267,7 +265,6 @@ void ReflectionTileClassificationBuildListsCS(
 	}
 }
 
-float InvRoughnessFadeLength;
 float GGXSamplingBias;
 float MaxTraceDistance;
 float RadianceCacheAngleThresholdScale;
