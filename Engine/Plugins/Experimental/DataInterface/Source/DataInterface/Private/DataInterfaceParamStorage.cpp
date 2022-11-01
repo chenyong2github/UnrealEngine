@@ -107,8 +107,9 @@ uint8* FParamStorage::GetBlockMemory(FParamStorageHandle BlockHandle)
 
 	if (ensure(BlockIndex >= 0 && BlockIndex < FreeBlockIndex))
 	{
-		ensure(BlockFreeFlag[BlockIndex] == false);
-		BlockMemory = (BlockFreeFlag[BlockIndex] == false) ? RawMemory + BlockOffets[BlockIndex] : nullptr;
+		bool IsSet = BlockFreeFlag[BlockIndex];
+		ensure(IsSet == false);
+		BlockMemory = (IsSet == false) ? RawMemory + BlockOffets[BlockIndex] : nullptr;
 	}
 
 	return BlockMemory;
