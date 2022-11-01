@@ -88,7 +88,11 @@
 			"Enabled": true
 		},
 		{
-			"Name": "ChaosClothAsset",
+			"Name": "UdpMessaging",
+			"Enabled": true
+		},
+		{
+			"Name": "UdpMessaging",
 			"Enabled": true
 		}
 	]

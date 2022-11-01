@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
 				{
 					"Engine",
 					"InputCore",
+					"UdpMessaging", // required for DirectLink networking
 				}
 			);
 
