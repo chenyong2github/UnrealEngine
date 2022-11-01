@@ -200,7 +200,6 @@ ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 	, bNaniteActive(false)
 #if WITH_EDITORONLY_DATA
-	, CachedEditingLayerData(nullptr)
 	, LayerUpdateFlagPerMode(0)
 	, bPendingCollisionDataUpdate(false)
 	, bPendingLayerCollisionDataUpdate(false)
@@ -1906,29 +1905,16 @@ TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAll
 
 #if WITH_EDITOR
 
-void ULandscapeComponent::SetEditingLayer(const FGuid& InEditingLayer)
-{
-	LandscapeEditingLayer = InEditingLayer;
-}
-
 FLandscapeLayerComponentData* ULandscapeComponent::GetEditingLayer()
 {
-	if (CachedEditingLayer != LandscapeEditingLayer)
-	{
-		CachedEditingLayer = LandscapeEditingLayer;
-		CachedEditingLayerData = CachedEditingLayer.IsValid() ? LayersData.Find(CachedEditingLayer) : nullptr;
-	}
-	return CachedEditingLayerData;
+	const FGuid& EditingLayerGuid = GetLandscapeActor()->EditingLayer;
+	return EditingLayerGuid.IsValid() ? LayersData.Find(EditingLayerGuid) : nullptr;
 }
 
 const FLandscapeLayerComponentData* ULandscapeComponent::GetEditingLayer() const
 {
-	if (CachedEditingLayer != LandscapeEditingLayer)
-	{
-		CachedEditingLayer = LandscapeEditingLayer;
-		CachedEditingLayerData = CachedEditingLayer.IsValid() ? const_cast<TMap<FGuid, FLandscapeLayerComponentData>&>(LayersData).Find(CachedEditingLayer) : nullptr;
-	}
-	return CachedEditingLayerData;
+	const FGuid& EditingLayerGuid = GetLandscapeActor()->EditingLayer;
+	return EditingLayerGuid.IsValid() ? LayersData.Find(EditingLayerGuid) : nullptr;
 }
 
 void ULandscapeComponent::CopyFinalLayerIntoEditingLayer(FLandscapeEditDataInterface& DataInterface, TSet<UTexture2D*>& ProcessedHeightmaps)
@@ -2001,11 +1987,8 @@ void ULandscapeComponent::ForEachLayer(TFunctionRef<void(const FGuid&, struct FL
 void ULandscapeComponent::AddLayerData(const FGuid& InLayerGuid, const FLandscapeLayerComponentData& InData)
 {
 	Modify();
-	check(!LandscapeEditingLayer.IsValid());
 	FLandscapeLayerComponentData& Data = LayersData.FindOrAdd(InLayerGuid);
 	Data = InData;
-	CachedEditingLayer.Invalidate();
-	CachedEditingLayerData = nullptr;
 }
 
 void ULandscapeComponent::AddDefaultLayerData(const FGuid& InLayerGuid, const TArray<ULandscapeComponent*>& InComponentsUsingHeightmap, TMap<UTexture2D*, UTexture2D*>& InOutCreatedHeightmapTextures)
@@ -2089,10 +2072,7 @@ void ULandscapeComponent::AddDefaultLayerData(const FGuid& InLayerGuid, const TA
 void ULandscapeComponent::RemoveLayerData(const FGuid& InLayerGuid)
 {
 	Modify();
-	check(!LandscapeEditingLayer.IsValid());
 	LayersData.Remove(InLayerGuid);
-	CachedEditingLayer.Invalidate();
-	CachedEditingLayerData = nullptr;
 }
 
 #endif // WITH_EDITOR
@@ -2193,19 +2173,20 @@ void ULandscapeComponent::SetWeightmapTexturesUsage(const TArray<ULandscapeWeigh
 	}
 }
 
-void ULandscapeComponent::DeleteLayerAllocation(const FGuid& InEditLayerGuid, int32 InLayerIdx, bool bInShouldDirtyPackage)
+void ULandscapeComponent::DeleteLayerAllocation(const FGuid& InEditLayerGuid, int32 InLayerAllocationIdx, bool bInShouldDirtyPackage)
 {
 	TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(InEditLayerGuid);
 	TArray<UTexture2D*>& ComponentWeightmapTextures = GetWeightmapTextures(InEditLayerGuid);
 	TArray<ULandscapeWeightmapUsage*>& ComponentWeightmapTexturesUsage = GetWeightmapTexturesUsage(InEditLayerGuid);
-	const FWeightmapLayerAllocationInfo& LayerAllocation = ComponentWeightmapLayerAllocations[InLayerIdx];
+
+	const FWeightmapLayerAllocationInfo& LayerAllocation = ComponentWeightmapLayerAllocations[InLayerAllocationIdx];
 	const int32 DeleteLayerWeightmapTextureIndex = LayerAllocation.WeightmapTextureIndex;
 
 	ALandscapeProxy* Proxy = GetLandscapeProxy();
 	Modify(bInShouldDirtyPackage);
 	Proxy->Modify(bInShouldDirtyPackage);
 
-	// Mark the channel as unallocated, so we can reuse it later
+	// Mark the weightmap channel as unallocated, so we can reuse it later
 	ULandscapeWeightmapUsage* Usage = ComponentWeightmapTexturesUsage.IsValidIndex(DeleteLayerWeightmapTextureIndex) ? ComponentWeightmapTexturesUsage[DeleteLayerWeightmapTextureIndex] : nullptr;
 	if (Usage) // can be null if WeightmapUsageMap hasn't been built yet
 	{
@@ -2213,27 +2194,29 @@ void ULandscapeComponent::DeleteLayerAllocation(const FGuid& InEditLayerGuid, in
 	}
 
 	// Remove the layer:
-	ComponentWeightmapLayerAllocations.RemoveAt(InLayerIdx);
+	ComponentWeightmapLayerAllocations.RemoveAt(InLayerAllocationIdx);
 
-	// Check if the weightmap texture used by the layer we just removed is used by any other layer, and if so, remove the texture too
+	// Check if the weightmap texture used by the material layer we just removed is used by any other material layer -- if not then we can remove the texture from the local list (as it's not used locally)
 	bool bCanRemoveLayerTexture = !ComponentWeightmapLayerAllocations.ContainsByPredicate([DeleteLayerWeightmapTextureIndex](const FWeightmapLayerAllocationInfo& Allocation) { return Allocation.WeightmapTextureIndex == DeleteLayerWeightmapTextureIndex; });
 	if (bCanRemoveLayerTexture)
 	{
+	    // Make sure the texture can be garbage collected, if necessary
 		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->ClearFlags(RF_Standalone);
+
+		// Remove from our local list of textures and usages
 		ComponentWeightmapTextures.RemoveAt(DeleteLayerWeightmapTextureIndex);
 		if (Usage)
 		{
 			ComponentWeightmapTexturesUsage.RemoveAt(DeleteLayerWeightmapTextureIndex);
 		}
 
-		// Adjust WeightmapTextureChannel index for other layers
+		// Adjust WeightmapTextureIndex for other allocations (as we just reordered the Weightmap list with the deletions above)
 		for (FWeightmapLayerAllocationInfo& Allocation : ComponentWeightmapLayerAllocations)
 		{
 			if (Allocation.WeightmapTextureIndex > DeleteLayerWeightmapTextureIndex)
 			{
 				Allocation.WeightmapTextureIndex--;
 			}
-
 			check(Allocation.WeightmapTextureIndex < ComponentWeightmapTextures.Num());
 		}
 	}
@@ -2249,9 +2232,17 @@ void ALandscapeProxy::PostRegisterAllComponents()
 	ULandscapeInfo* LandscapeInfo = nullptr;
 	if (!IsPendingKillPending())
 	{
-		// Duplicated Landscapes don't have a valid guid until PostEditImport is called, we'll register then
+		// Duplicated or newly spawned Landscapes don't have a valid guid until PostEditImport is called, we'll register then
 		if (LandscapeGuid.IsValid())
 		{
+			LandscapeInfo = GetLandscapeInfo();
+
+			// Depending what action triggered this callback, we may have already registered.  If not register now with LandscapeInfo.
+			if ((LandscapeInfo == nullptr) || !LandscapeInfo->IsRegistered(this))
+			{
+				LandscapeInfo = CreateLandscapeInfo(true);
+			}
+
 #if WITH_EDITOR
 			if (GIsEditor)
 			{
@@ -2262,15 +2253,18 @@ void ALandscapeProxy::PostRegisterAllComponents()
 					LandscapeComponents.Empty();
 				}
 
+				if (WeightmapFixupVersion != CurrentVersion)
+				{
+					FixupWeightmaps();
+				}
+
 				UpdateCachedHasLayersContent(true);
 
 				// Cache the value at this point as CreateLandscapeInfo (-> RegisterActor) might create/destroy layers content if there was a mismatch between landscape & proxy
 				// Check the actual flag here not HasLayersContent() which could return true if the LandscapeActor is valid.
 				bool bHasLayersContentBefore = bHasLayersContent;
 
-				LandscapeInfo = CreateLandscapeInfo(true);
-
-				FixupWeightmaps();
+				check(WeightmapFixupVersion == CurrentVersion);
 
 				const bool bNeedOldDataMigration = !bHasLayersContentBefore && CanHaveLayersContent();
 				if (bNeedOldDataMigration && LandscapeInfo->LandscapeActor.IsValid() && LandscapeInfo->LandscapeActor.Get()->HasLayersContent())
@@ -2278,11 +2272,7 @@ void ALandscapeProxy::PostRegisterAllComponents()
 					LandscapeInfo->LandscapeActor.Get()->CopyOldDataToDefaultLayer(this);
 				}
 			}
-			else
 #endif // WITH_EDITOR
-			{
-				LandscapeInfo = CreateLandscapeInfo(true);
-			}
 		}
 
 		if (UWorld* OwningWorld = GetWorld())
@@ -4134,6 +4124,40 @@ void ULandscapeInfo::ForAllLandscapeProxies(TFunctionRef<void(ALandscapeProxy*)>
 	}
 }
 
+bool ULandscapeInfo::IsRegistered(const ALandscapeProxy* Proxy) const
+{
+	if (Proxy == nullptr)
+		return false;
+
+	bool bResult = false;
+	if (Proxy->IsA<ALandscape>())
+	{
+		bResult = (LandscapeActor.Get() == Proxy);
+	}
+	else if (const ALandscapeStreamingProxy *StreamingProxy = Cast<ALandscapeStreamingProxy>(Proxy))
+	{
+		TWeakObjectPtr<const ALandscapeStreamingProxy> StreamingProxyPtr = StreamingProxy;
+		bResult = StreamingProxies.Contains(StreamingProxyPtr);
+	}
+
+#if WITH_EDITORONLY_DATA
+	// NOTE: during an Undo operation, the LandscapeActor/StreamingProxies are transacted, and the registration status may be restored
+	// however, in that case, the Proxy is NOT fully registered yet, because some other data in LandscapeInfo still needs to be updated (XY maps for instance are not transacted)
+	// so we trust the bIsRegisteredWithLandscapeInfo flag over the actual pointers.
+
+	// at minimum, if the proxy flag says it is registered, then the pointers should definitely be valid
+	if (Proxy->bIsRegisteredWithLandscapeInfo)
+	{
+		check(bResult == Proxy->bIsRegisteredWithLandscapeInfo);
+	}
+
+	// trust the proxy flag over the landscape info pointers
+	bResult = Proxy->bIsRegisteredWithLandscapeInfo;
+#endif // WITH_EDITORONLY_DATA
+
+	return bResult;
+}
+
 void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck, bool bUpdateAllAddCollisions)
 {
 	UWorld* OwningWorld = Proxy->GetWorld();
@@ -4257,6 +4281,10 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck, bool 
 	{
 		RegisterCollisionComponent(CollComp);
 	}
+
+#if WITH_EDITORONLY_DATA
+	Proxy->bIsRegisteredWithLandscapeInfo = true;
+#endif // WITH_EDITORONLY_DATA
 }
 
 void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
@@ -4264,7 +4292,7 @@ void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 	UWorld* OwningWorld = Proxy->GetWorld();
 	if (ALandscape* Landscape = Cast<ALandscape>(Proxy))
 	{
-		// Note: UnregisterActor sometimes gets triggered twice, e.g. it has been observed to happen during redo
+		// Note: UnregisterActor sometimes gets triggered twice, e.g. it has been observed to happen during undo/ redo
 		// Note: In some cases LandscapeActor could be updated to a new landscape actor before the old landscape is unregistered/destroyed
 		// e.g. this has been observed when merging levels in the editor
 
@@ -4285,7 +4313,8 @@ void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 	else
 	{
 		ALandscapeStreamingProxy* StreamingProxy = CastChecked<ALandscapeStreamingProxy>(Proxy);
-		StreamingProxies.Remove(StreamingProxy);
+		TWeakObjectPtr<ALandscapeStreamingProxy> StreamingProxyPtr = StreamingProxy;
+		StreamingProxies.Remove(StreamingProxyPtr);
 		StreamingProxy->LandscapeActor = nullptr;
 	}
 
@@ -4317,6 +4346,10 @@ void ULandscapeInfo::UnregisterActor(ALandscapeProxy* Proxy)
 	UpdateLayerInfoMap();
 	UpdateAllAddCollisions();
 #endif
+
+#if WITH_EDITORONLY_DATA
+	Proxy->bIsRegisteredWithLandscapeInfo = false;
+#endif // WITH_EDITORONLY_DATA
 }
 
 #if WITH_EDITOR

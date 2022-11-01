@@ -691,8 +691,15 @@ public:
 	UPROPERTY(Transient, NonTransactional)
 	TMap<TObjectPtr<UTexture2D>, TObjectPtr<ULandscapeWeightmapUsage>> WeightmapUsageMap;
 
+	/** True when this Proxy is registered with the LandscapeInfo */
+	bool bIsRegisteredWithLandscapeInfo = false;
+
 	/** Set to true when on undo, when it's necessary to completely regenerate weightmap usages (since some weightmap allocations are transactional and others not, e.g. splines edit layer) */
 	bool bNeedsWeightmapUsagesUpdate = false;
+
+	/** CurrentVersion is bumped whenever a landscape component has an undo/redo operation applied. This lets us detect when the weightmap fixup needs to be run. */
+	uint32 CurrentVersion = 1;
+	uint32 WeightmapFixupVersion = 0;
 
 	/** Set to true when we know that weightmap usages are being reconstructed and might be temporarily invalid as a result (ValidateProxyLayersWeightmapUsage should be called after setting this back to false) */
 	bool bTemporarilyDisableWeightmapUsagesValidation = false;
@@ -935,6 +942,7 @@ public:
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual void PostLoad() override;
 
+	/** Creates the LandscapeInfo if necessary, then registers this proxy with it */
 	LANDSCAPE_API ULandscapeInfo* CreateLandscapeInfo(bool bMapCheck = false, bool bUpdateAllAddCollisions = true);
 	virtual LANDSCAPE_API ULandscapeInfo* GetLandscapeInfo() const override;
 

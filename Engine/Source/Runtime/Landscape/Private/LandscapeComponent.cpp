@@ -10,6 +10,9 @@
 
 #include "LandscapeHLODBuilder.h"
 
+uint32 ULandscapeComponent::UndoRedoModifiedComponentCount;
+TArray<ULandscapeComponent*> ULandscapeComponent::UndoRedoModifiedComponents;
+
 #endif
 
 FName FWeightmapLayerAllocationInfo::GetLayerName() const

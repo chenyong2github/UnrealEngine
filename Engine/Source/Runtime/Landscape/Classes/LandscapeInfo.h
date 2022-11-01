@@ -366,6 +366,9 @@ public:
 	/** Deassociates passed actor with this info object*/
 	LANDSCAPE_API void UnregisterActor(ALandscapeProxy* Proxy);
 
+	/** Returns true if the Proxy is currently registered with this ULandscapeInfo */
+	bool IsRegistered(const ALandscapeProxy* Proxy) const;
+
 	/** Associates passed landscape component with this info object
 	 *  @param	Component	Landscape component to register
 	 *  @param  bMapCheck	Whether to warn about landscape errors

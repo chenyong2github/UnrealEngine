@@ -463,14 +463,10 @@ private:
 	UPROPERTY()
 	FGuid LightingGuid;
 
+	/** Edit Layers that have data for this component store it here */
 	UPROPERTY()
 	TMap<FGuid, FLandscapeLayerComponentData> LayersData;
 
-	/** Compoment's Data for Editing Layer */
-	FGuid LandscapeEditingLayer;
-	mutable FGuid CachedEditingLayer;
-	mutable FLandscapeLayerComponentData* CachedEditingLayerData;
-		
 	// Final layer data
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<ULandscapeWeightmapUsage>> WeightmapTexturesUsage;
@@ -650,6 +646,7 @@ public:
 
 #if WITH_EDITOR
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	virtual void PreEditUndo() override;
 	virtual void PostEditUndo() override;
 	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -722,9 +719,14 @@ public:
 	LANDSCAPE_API void RemoveLayerData(const FGuid& InLayerGuid);
 	LANDSCAPE_API void ForEachLayer(TFunctionRef<void(const FGuid&, struct FLandscapeLayerComponentData&)> Fn);
 
-	LANDSCAPE_API void SetEditingLayer(const FGuid& InEditingLayer);
+	UE_DEPRECATED(5.1, "SetEditingLayer has been deprecated, use GetLandscapeActor()->SetEditingLayer() instead.")
+	LANDSCAPE_API void SetEditingLayer(const FGuid& InEditingLayer) {}
+
+	/** Get the Landscape Actor's editing layer data */
 	FLandscapeLayerComponentData* GetEditingLayer();
 	const FLandscapeLayerComponentData* GetEditingLayer() const;
+
+	/** Get the Landscape Actor's editing layer GUID */
 	FGuid GetEditingLayerGUID() const;
 
 	void CopyFinalLayerIntoEditingLayer(FLandscapeEditDataInterface& DataInterface, TSet<UTexture2D*>& ProcessedHeightmaps);
@@ -768,11 +770,14 @@ public:
 
 #if WITH_EDITOR
 
-	/** Deletes a layer from this component, removing all its data, adjusting other layer's weightmaps if necessary, etc. */
+	/** Deletes a material layer from the current edit layer on this component, removing all its data, adjusting other layer's weightmaps if necessary, etc. */
 	LANDSCAPE_API void DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, FLandscapeEditDataInterface& LandscapeEdit);
+	
+	/** Deletes a material layer from the specified edit layer on this component, removing all its data, adjusting other layer's weightmaps if necessary, etc. */
+	void DeleteLayerInternal(ULandscapeLayerInfoObject* LayerInfo, FLandscapeEditDataInterface& LandscapeEdit, const FGuid& EditLayerGuid);
 
 	/** Deletes a layer from this component, but doesn't do anything else (assumes the user knows what he's doing, use DeleteLayer otherwise) */
-	void DeleteLayerAllocation(const FGuid& InEditLayerGuid, int32 InLayerIdx, bool bInShouldDirtyPackage);
+	void DeleteLayerAllocation(const FGuid& InEditLayerGuid, int32 InLayerAllocationIdx, bool bInShouldDirtyPackage);
 
 	/** Fills a layer to 100% on this component, adding it if needed and removing other layers that get painted away */
 	LANDSCAPE_API void FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLandscapeEditDataInterface& LandscapeEdit);
@@ -1096,4 +1101,11 @@ protected:
 	{
 		return true;
 	}
+
+#if WITH_EDITOR
+public:
+	/** Records the ULandscapeComponents that are modified in any undo/redo operation that is being applied currently */
+	static uint32 UndoRedoModifiedComponentCount;
+	static TArray<ULandscapeComponent*> UndoRedoModifiedComponents;
+#endif // WITH_EDITOR
 };
