@@ -261,5 +261,6 @@ public:
 	 * This is useful if your implementation doesn't need to validate nodes every tick or needs to perform some other form of validation. */
 	virtual void SetCustomValidatePropertyNodesFunction(FOnValidateDetailsViewPropertyNodes InCustomValidatePropertyNodesFunction) = 0;
 
-
+	/** Sets the minimum width of the detail panel's right column. */
+	virtual void SetRightColumnMinWidth(float InMinWidth) = 0;
 };

@@ -284,6 +284,11 @@ void SDetailsViewBase::SetOnDisplayedPropertiesChanged(FOnDisplayedPropertiesCha
 	OnDisplayedPropertiesChangedDelegate = InOnDisplayedPropertiesChangedDelegate;
 }
 
+void SDetailsViewBase::SetRightColumnMinWidth(float InMinWidth)
+{
+	ColumnSizeData.SetRightColumnMinWidth(InMinWidth);
+}
+
 void SDetailsViewBase::RerunCurrentFilter()
 {
 	UpdateFilteredDetails();
