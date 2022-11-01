@@ -293,7 +293,7 @@ public:
 			}
 		}
 
-		FText Message = FText::Format(LOCTEXT("RenameSuccessFmt", "Renamed \"{0}\" to \"{1}\"."), Trace.Name, FText::FromString(NewTraceName));
+		FText Message = FText::Format(LOCTEXT("RenameSuccessFmt", "Renamed \"{0}\" to \"{1}\"."), FText::FromString(TraceName), FText::FromString(NewTraceName));
 		WeakParentWidget.Pin()->ShowSuccessMessage(Message);
 	}
 
