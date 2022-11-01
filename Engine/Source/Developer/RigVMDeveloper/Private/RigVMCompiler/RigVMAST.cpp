@@ -1037,8 +1037,30 @@ FRigVMExprAST* FRigVMParserAST::CreateExpressionForNode(const FRigVMASTProxy& In
 {
 	URigVMNode* Node = InNodeProxy.GetSubjectChecked<URigVMNode>();
 
+	bool bIsEntry = Node->IsEvent();
+	if (LibraryNodeBeingCompiled)
+	{
+		if (Node->GetTypedOuter<URigVMLibraryNode>() == LibraryNodeBeingCompiled)
+		{
+			if (URigVMFunctionEntryNode* EntryNode = Cast<URigVMFunctionEntryNode>(Node))
+			{
+				if (EntryNode->IsMutable())
+				{
+					bIsEntry = true;
+				}
+			}
+			if (URigVMFunctionReturnNode* ReturnNode = Cast<URigVMFunctionReturnNode>(Node))
+			{
+				if (!ReturnNode->IsMutable())
+				{
+					bIsEntry = true;
+				}
+			}
+		}
+	}
+
 	FRigVMExprAST* NodeExpr = nullptr;
-	if (Node->IsEvent())
+	if (bIsEntry)
 	{
 		NodeExpr = MakeExpr<FRigVMEntryExprAST>(InNodeProxy);
 		NodeExpr->Name = Node->GetEventName();
@@ -1453,6 +1475,11 @@ void FRigVMParserAST::InjectExitsToEntries()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
+	if (LibraryNodeBeingCompiled)
+	{
+		return;
+	}
+	
 	for (FRigVMExprAST* RootExpr : RootExpressions)
 	{
 		if (RootExpr->IsA(FRigVMExprAST::EType::Entry))
