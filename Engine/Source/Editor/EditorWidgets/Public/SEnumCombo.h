@@ -38,6 +38,7 @@ public:
 		SLATE_EVENT(FOnEnumSelectionChanged, OnEnumSelectionChanged)
 		SLATE_EVENT(FOnGetToolTipForValue, OnGetToolTipForValue)
 		SLATE_STYLE_ARGUMENT(FButtonStyle, ButtonStyle)
+		SLATE_ARGUMENT(TArray<int32>, EnumValueSubset)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const UEnum* InEnum);
