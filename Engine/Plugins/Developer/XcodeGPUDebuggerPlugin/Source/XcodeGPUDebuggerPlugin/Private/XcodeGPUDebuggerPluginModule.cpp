@@ -10,6 +10,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "RendererInterface.h"
 #include "RenderingThread.h"
+#include "UnrealClient.h"
 #include "GeneralProjectSettings.h"
 
 #if WITH_EDITOR
@@ -19,7 +20,6 @@
 #include "ISettingsSection.h"
 #include "LevelEditor.h"
 #include "SXcodeGPUDebuggerPluginEditorExtension.h"
-#include "UnrealClient.h"
 extern UNREALED_API UEditorEngine* GEditor;
 #endif // WITH_EDITOR
 
