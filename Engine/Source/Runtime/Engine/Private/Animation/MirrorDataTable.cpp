@@ -182,7 +182,7 @@ void UMirrorDataTable::FindReplaceMirroredNames()
 
 	const FReferenceSkeleton& RefSkeleton = Skeleton->GetReferenceSkeleton();
 
-	TSet<FName> NamesByCategory[3];
+	TSet<FName> NamesByCategory[4];
 	ForeachRow<FMirrorTableRow>(TEXT("UMirrorDataTable::FindReplaceMirroredNames"), [&NamesByCategory] (const FName& Key, const FMirrorTableRow& Value) mutable
 		{
 			NamesByCategory[Value.MirrorEntryType].Add(Value.Name);
@@ -195,7 +195,7 @@ void UMirrorDataTable::FindReplaceMirroredNames()
 	{
 		// directly add rows to avoid using FDataTableEditorUtils, which is not appropriate at this point
 		// equivalent to FDataTableEditorUtils::AddRow(DataTable, BoneName);
-		static const FString CategoryName[] = { TEXT(":Bone"), TEXT(":Notify"), TEXT(":Curve") };
+		static const FString CategoryName[] = { TEXT(":Bone"), TEXT(":Notify"), TEXT(":Curve"), TEXT(":SyncMarker") };
 		if (!NamesByCategory[RowType].Contains(Name))
 		{
 			FName RowName = Name;
@@ -250,6 +250,15 @@ void UMirrorDataTable::FindReplaceMirroredNames()
 		if (!MirroredName.IsNone() && Skeleton->AnimationNotifies.Contains(MirroredName))
 		{
 			AddMirrorRow(Notify, MirroredName, EMirrorRowType::AnimationNotify);
+		}
+	}
+
+	for (const FName& SyncMarker : Skeleton->GetExistingMarkerNames())
+	{
+		FName MirroredName = FindReplace(SyncMarker);
+		if (!MirroredName.IsNone() && Skeleton->GetExistingMarkerNames().Contains(MirroredName))
+		{
+			AddMirrorRow(SyncMarker, MirroredName, EMirrorRowType::SyncMarker);
 		}
 	}
 
