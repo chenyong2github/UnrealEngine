@@ -677,6 +677,7 @@ bool AnimationData::Trim(UAnimSequence* InSequence, float TrimStart, float TrimE
 	{
 		const FFrameRate& FrameRate = DataModel->GetFrameRate();
 
+
 		// if there is only one key, there is nothing to trim away
 		if (NumKeys <= 1)
 		{
@@ -782,9 +783,16 @@ void AnimationData::RemoveKeys(UAnimSequence* InSequence, int32 StartKeyIndex, i
 
 		auto ShrinkKeys = [&](auto& KeyData)
 		{
-			if (KeyData.Num() >= (StartKeyIndex + NumKeysToRemove))
+			// Dont allow us to trim below 2 keys (1 frame)
+			int32 NumKeyDataToRemove = NumKeysToRemove;
+			if((KeyData.Num() - NumKeysToRemove) < 2)
 			{
-				KeyData.RemoveAt(StartKeyIndex, NumKeysToRemove);
+				NumKeyDataToRemove = KeyData.Num() - 2;
+			}
+
+			if (KeyData.Num() >= (StartKeyIndex + NumKeyDataToRemove))
+			{
+				KeyData.RemoveAt(StartKeyIndex, NumKeyDataToRemove);
 				check(KeyData.Num() > 0);
 				KeyData.Shrink();
 			}
