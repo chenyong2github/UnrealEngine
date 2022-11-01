@@ -19,6 +19,7 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+					"GameplayTags"
 					// ... add private dependencies that you statically link with here ...
 				}
 			);

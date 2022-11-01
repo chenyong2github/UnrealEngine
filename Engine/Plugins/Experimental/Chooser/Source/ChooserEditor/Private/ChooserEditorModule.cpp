@@ -4,6 +4,7 @@
 #include "IAssetTools.h"
 #include "AssetTypeActions_Chooser.h"
 #include "ChooserTableEditor.h"
+#include "GameplayTagColumnEditor.h"
 
 #define LOCTEXT_NAMESPACE "ChooserEditorModule"
 
@@ -16,6 +17,7 @@ void FModule::StartupModule()
 	AssetTypeActions_ChooserTable = MakeShared<FAssetTypeActions_ChooserTable>();
 	AssetTools.RegisterAssetTypeActions(AssetTypeActions_ChooserTable.ToSharedRef());
 	FChooserTableEditor::RegisterWidgets();
+	RegisterGameplayTagWidgets();
 	
 	InterfacePropertyTypeIdentifier = MakeShared<UE::ChooserEditor::FPropertyTypeIdentifier>();
 	

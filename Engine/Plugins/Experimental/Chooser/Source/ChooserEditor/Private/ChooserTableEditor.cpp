@@ -2,6 +2,7 @@
 
 #include "ChooserTableEditor.h"
 
+#include "ContextPropertyWidget.h"
 #include "Framework/Docking/TabManager.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/AppStyle.h"
@@ -1024,148 +1025,16 @@ TSharedRef<SWidget> CreateBoolColumnWidget(UObject* Column, int Row)
 	});
 }
 	
-template <typename PropertyType>
-void ConvertToText_ContextProperty(const UObject* Object, FText& OutText)
+TSharedRef<SWidget> CreateBoolPropertyWidget(UObject* Object, UClass* ContextClass)
 {
-	if (const PropertyType* ContextProperty = Cast<PropertyType>(Object))
-	{
-		if (ContextProperty->PropertyBindingChain.Num()>0)
-		{
-			OutText = FText::FromName(ContextProperty->PropertyBindingChain.Last());
-		}
-	}
-}
-
-FLinearColor GetBindingColor(UChooserParameterBool_ContextProperty* Property)
-{
-	return GetDefault<UGraphEditorSettings>()->BooleanPinTypeColor;
+	return CreatePropertyWidget<UChooserParameterBool_ContextProperty>(Object, ContextClass, GetDefault<UGraphEditorSettings>()->BooleanPinTypeColor);
 }
 	
-FLinearColor GetBindingColor(UChooserParameterFloat_ContextProperty* Property)
+TSharedRef<SWidget> CreateFloatPropertyWidget(UObject* Object, UClass* ContextClass)
 {
-	return GetDefault<UGraphEditorSettings>()->DoublePinTypeColor;
+	return CreatePropertyWidget<UChooserParameterFloat_ContextProperty>(Object, ContextClass, GetDefault<UGraphEditorSettings>()->FloatPinTypeColor);
 }
 	
-const UGraphEditorSettings* Settings = GetDefault<UGraphEditorSettings>();
-
-template <typename PropertyType>
-TSharedRef<SWidget> CreatePropertyWidget(UObject* Object, UClass* ContextClass)
-{
-	TWeakObjectPtr<PropertyType> ContextProperty = Cast<PropertyType>(Object);
-	
-	FPropertyBindingWidgetArgs Args;
-	Args.bAllowPropertyBindings = true;
-	
-	Args.OnCanBindProperty = FOnCanBindProperty::CreateLambda([](FProperty* Property)
-	{
-		return Property == nullptr || PropertyType::CanBind(Property->GetCPPType());
-	});
-	Args.OnCanBindToClass = FOnCanBindToClass::CreateLambda([ContextClass ](UClass* InClass)
-	{
-		return true;
-	});
-	
-	Args.CurrentBindingColor = MakeAttributeLambda([ContextProperty, ContextClass]() {
-		 if (ContextProperty.IsValid() && ContextProperty->PropertyBindingChain.Num() > 0)
-		 {
-		 	return GetBindingColor(ContextProperty.Get());
-		 }
-		return FLinearColor::Gray;
-	});
-
-	Args.OnCanAcceptPropertyOrChildren = FOnCanBindProperty::CreateLambda([](FProperty* InProperty)
-		{
-			// Make only editor visible properties visible for binding.
-			return InProperty->HasAnyPropertyFlags(CPF_Edit);
-		});	
-
-	Args.OnAddBinding = FOnAddBinding::CreateLambda([ContextProperty](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
-		{
-			IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
-			if (ContextProperty.IsValid())
-			{
-				const FScopedTransaction Transaction(LOCTEXT("Change Property Binding", "Change Property Binding"));
-				ContextProperty->Modify(true);
-				
-				ContextProperty->PropertyBindingChain.Empty();
-
-				if (InBindingChain.Num() > 1)
-				{
-					for(int i = 1; i<InBindingChain.Num(); i++)
-					{
-						ContextProperty->PropertyBindingChain.Add(InBindingChain[i].Field.GetFName());
-					}
-				}
-				else
-				{
-					ContextProperty->PropertyBindingChain.Empty();
-				}
-			}
-		});
-
-	Args.CurrentBindingToolTipText = MakeAttributeLambda([ContextProperty]()
-			{
-				const FText Bind = LOCTEXT("Bind", "Bind");
-				FText CurrentValue = Bind;
-
-				if (ContextProperty.IsValid() && ContextProperty->PropertyBindingChain.Num()>0)
-				{
-					TArray<FText> BindingChainText;
-                 	BindingChainText.Reserve(ContextProperty->PropertyBindingChain.Num());
-                 
-                 	for (const FName& Name : ContextProperty->PropertyBindingChain)
-                 	{
-                 		BindingChainText.Add(FText::FromName(Name));
-                 	}
-					
-					CurrentValue = FText::Join(LOCTEXT("PropertyPathSeparator","."), BindingChainText);
-				}
-
-				return CurrentValue;	
-			});
-	
-	Args.CurrentBindingText = MakeAttributeLambda([ContextProperty]()
-			{
-				const FText Bind = LOCTEXT("Bind", "Bind");
-				FText CurrentValue = Bind;
-
-				if (ContextProperty.IsValid())
-				{
-					int BindingChainLength = ContextProperty->PropertyBindingChain.Num();
-					if (BindingChainLength > 0)
-					{
-						if (BindingChainLength == 1)
-						{
-							// single property, just use the property name
-							CurrentValue = FText::FromName(ContextProperty->PropertyBindingChain.Last());
-						}
-						else
-						{
-							// for longer chains always show the last struct/object name, and the final property name (full path in tooltip)
-							CurrentValue = FText::Join(LOCTEXT("PropertyPathSeparator","."),
-								TArray<FText>({
-									FText::FromName(ContextProperty->PropertyBindingChain[BindingChainLength-2]),
-									FText::FromName(ContextProperty->PropertyBindingChain[BindingChainLength-1])
-								}));
-						}
-					}
-				}
-
-				return CurrentValue;
-			});
-
-	Args.CurrentBindingImage = MakeAttributeLambda([]() -> const FSlateBrush*
-		{
-			static FName PropertyIcon(TEXT("Kismet.Tabs.Variables"));
-			return FAppStyle::GetBrush(PropertyIcon);
-		});
-
-	IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
-	FBindingContextStruct StructInfo;
-	StructInfo.Struct = ContextClass;
-	return PropertyAccessEditor.MakePropertyBindingWidget({StructInfo}, Args);
-}
-
 TSharedRef<SWidget> CreateFloatRangeColumnWidget(UObject* Column, int Row)
 {
 	UChooserColumnFloatRange* FloatRangeColumn = Cast<UChooserColumnFloatRange>(Column);
@@ -1300,8 +1169,8 @@ void FChooserTableEditor::RegisterWidgets()
 	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UObjectChooser_Asset::StaticClass(), CreateAssetWidget);
 	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UObjectChooser_EvaluateChooser::StaticClass(), CreateEvaluateChooserWidget);
 	
-	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UChooserParameterBool_ContextProperty::StaticClass(), CreatePropertyWidget<UChooserParameterBool_ContextProperty>);
-	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UChooserParameterFloat_ContextProperty::StaticClass(), CreatePropertyWidget<UChooserParameterFloat_ContextProperty>);
+	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UChooserParameterBool_ContextProperty::StaticClass(), CreateBoolPropertyWidget);
+	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UChooserParameterFloat_ContextProperty::StaticClass(), CreateFloatPropertyWidget);
 	FObjectChooserWidgetFactories::ChooserTextConverter.Add(UChooserParameterBool_ContextProperty::StaticClass(), ConvertToText_ContextProperty<UChooserParameterBool_ContextProperty>);
 	FObjectChooserWidgetFactories::ChooserTextConverter.Add(UChooserParameterFloat_ContextProperty::StaticClass(), ConvertToText_ContextProperty<UChooserParameterFloat_ContextProperty>);
 

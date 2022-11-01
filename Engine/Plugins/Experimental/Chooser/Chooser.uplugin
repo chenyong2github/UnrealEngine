@@ -16,6 +16,10 @@
 	"IsExperimentalVersion" : true,
 	"Installed" : false,
 	"Plugins": [
+		{
+			"Name": "GameplayTagsEditor",
+			"Enabled": true
+		}
 	],
 	"Modules" :
 	[

@@ -1,46 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chooser.h"
 #include "ChooserFunctionLibrary.h"
-
-bool ResolvePropertyChain(const void*& Container, UStruct*& StructType, const TArray<FName>& PropertyBindingChain)
-{
-	if (PropertyBindingChain.IsEmpty())
-	{
-		return false;
-	}
-	
-	const int PropertyChainLength = PropertyBindingChain.Num();
-	for(int PropertyChainIndex = 0; PropertyChainIndex < PropertyChainLength - 1; PropertyChainIndex++)
-	{
-		if (const FStructProperty* StructProperty = FindFProperty<FStructProperty>(StructType, PropertyBindingChain[PropertyChainIndex]))
-		{
-			StructType = StructProperty->Struct;
-			Container = StructProperty->ContainerPtrToValuePtr<void>(Container);
-		}
-		else if (const FObjectProperty* ObjectProperty = FindFProperty<FObjectProperty>(StructType, PropertyBindingChain[PropertyChainIndex]))
-		{
-			StructType = ObjectProperty->PropertyClass;
-			Container = *ObjectProperty->ContainerPtrToValuePtr<TObjectPtr<UObject>>(Container);
-			if (Container == nullptr)
-			{
-				return false;
-			}
-		}
-		else
-		{
-			return false;
-		}
-	}
-	
-	return true;
-}
+#include "ChooserPropertyAccess.h"
 
 bool UChooserParameterBool_ContextProperty::GetValue(const UObject* ContextObject, bool& OutResult) const
 {
 	UStruct* StructType = ContextObject->GetClass();
 	const void* Container = ContextObject;
 	
-	if (ResolvePropertyChain(Container, StructType, PropertyBindingChain))
+	if (UE::Chooser::ResolvePropertyChain(Container, StructType, PropertyBindingChain))
 	{
 		if (const FBoolProperty* Property = FindFProperty<FBoolProperty>(StructType, PropertyBindingChain.Last()))
 		{
@@ -57,7 +25,7 @@ bool UChooserParameterFloat_ContextProperty::GetValue(const UObject* ContextObje
 	UStruct* StructType = ContextObject->GetClass();
 	const void* Container = ContextObject;
 	
-	if (ResolvePropertyChain(Container, StructType, PropertyBindingChain))
+	if (UE::Chooser::ResolvePropertyChain(Container, StructType, PropertyBindingChain))
 	{
 		if (const FDoubleProperty* DoubleProperty = FindFProperty<FDoubleProperty>(StructType, PropertyBindingChain.Last()))
 		{

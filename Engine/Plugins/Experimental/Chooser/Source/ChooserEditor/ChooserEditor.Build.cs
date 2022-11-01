@@ -16,6 +16,7 @@ namespace UnrealBuildTool.Rules
 					"Chooser",
 					"UnrealEd",
 					"EditorWidgets",
+					"ToolWidgets",
 					"SlateCore",
 					"Slate",
 					"PropertyEditor",
@@ -23,7 +24,9 @@ namespace UnrealBuildTool.Rules
 					"EditorStyle",
 					"PropertyEditor",
 					"BlueprintGraph",
-					"GraphEditor"
+					"GraphEditor",
+					"GameplayTags",
+					"GameplayTagsEditor"
 					// ... add private dependencies that you statically link with here ...
 				}
 			);
