@@ -67,6 +67,12 @@ FString LexToString(const EIoChunkType Type)
 	}
 }
 
+FArchive& operator<<(FArchive& Ar, FIoChunkId& ChunkId)
+{
+	Ar.Serialize(&ChunkId.Id, sizeof FIoChunkId::Id);
+	return Ar;
+}
+
 FString LexToString(const FIoChunkId& Id)
 {
 	FString Output;
