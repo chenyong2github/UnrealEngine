@@ -14,17 +14,30 @@ class UUIFrameworkWidget;
  *
  */
 USTRUCT(BlueprintType)
-struct FUIFrameworkClickEventArgument
+struct FUIFrameworkSimpleEventArgument
 {
 	GENERATED_BODY()
 
-	FUIFrameworkClickEventArgument() = default;
+	FUIFrameworkSimpleEventArgument() = default;
 
 	UPROPERTY()
 	TObjectPtr<APlayerController> PlayerController;
 
 	UPROPERTY()
 	TObjectPtr<UUIFrameworkWidget> Sender;
+};
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FUIFrameworkSimpleEvent, FUIFrameworkSimpleEventArgument);
+
+/**
+ *
+ */
+USTRUCT(BlueprintType)
+struct FUIFrameworkClickEventArgument : public FUIFrameworkSimpleEventArgument
+{
+	GENERATED_BODY()
+
+	FUIFrameworkClickEventArgument() = default;
 };
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FUIFrameworkClickEvent, FUIFrameworkClickEventArgument);
