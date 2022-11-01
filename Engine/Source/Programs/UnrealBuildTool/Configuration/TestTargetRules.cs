@@ -178,7 +178,7 @@ namespace UnrealBuildTool
 
 			VSTestRunSettingsFile = FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "LowLevelTests", "vstest.runsettings");
 
-			DefaultBuildSettings = BuildSettingsVersion.V2;
+			DefaultBuildSettings = BuildSettingsVersion.Latest;
 
 			Type = TargetType.Program;
 			LinkType = TargetLinkType.Monolithic;

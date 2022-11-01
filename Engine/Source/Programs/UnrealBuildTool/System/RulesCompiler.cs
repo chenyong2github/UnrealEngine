@@ -25,7 +25,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// 
 		/// </summary>
-		const BuildSettingsVersion DefaultEngineBuildSettingsVersion = BuildSettingsVersion.V2;
+		const BuildSettingsVersion DefaultEngineBuildSettingsVersion = BuildSettingsVersion.Latest;
 
 		/// <summary>
 		/// Find all the module rules files under a given directory
