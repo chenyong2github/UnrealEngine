@@ -19,7 +19,7 @@ public class NNXRuntimeCPU : ModuleRules
 				"Core",
 				"Engine",
 				"NNXCore",
-				"NNXProfiling",
+				"NNIProfiling",
 				"ORTHelper",
 			}
 		);
