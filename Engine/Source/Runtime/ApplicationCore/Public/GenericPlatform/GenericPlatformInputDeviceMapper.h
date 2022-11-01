@@ -81,7 +81,7 @@ public:
 
 	/**
 	 * Returns the 'Primary' Platform user for this platform.
-	 * This typcially has an internal ID of '0' and is used as the default platform user to
+	 * This typically has an internal ID of '0' and is used as the default platform user to
 	 * map devices such as the keyboard and mouse that don't get assigned unique ID's from their
 	 * owning platform code.
 	 */

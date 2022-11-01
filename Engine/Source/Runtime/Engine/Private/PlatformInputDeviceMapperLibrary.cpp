@@ -30,6 +30,11 @@ FPlatformUserId UPlatformInputDeviceMapperLibrary::GetUserForUnpairedInputDevice
 	return IPlatformInputDeviceMapper::Get().GetUserForUnpairedInputDevices();
 }
 
+FPlatformUserId UPlatformInputDeviceMapperLibrary::GetPrimaryPlatformUser()
+{
+	return IPlatformInputDeviceMapper::Get().GetPrimaryPlatformUser();
+}
+
 bool UPlatformInputDeviceMapperLibrary::IsUnpairedUserId(const FPlatformUserId PlatformId)
 {
 	return IPlatformInputDeviceMapper::Get().IsUnpairedUserId(PlatformId);
