@@ -4048,6 +4048,8 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UA
 		RecordingSettings.bRecordAttributeCurves = ExportOptions->bExportAttributeCurves;
 		RecordingSettings.bRecordMaterialCurves = ExportOptions->bExportMaterialCurves;
 		RecordingSettings.bRecordInWorldSpace = ExportOptions->bRecordInWorldSpace;
+		RecordingSettings.IncludeAnimationNames = ExportOptions->IncludeAnimationNames;
+		RecordingSettings.ExcludeAnimationNames = ExportOptions->ExcludeAnimationNames;
 		AnimationRecorder.Init(SkelMeshComp, AnimSequence, nullptr, RecordingSettings);	
 		});
 
