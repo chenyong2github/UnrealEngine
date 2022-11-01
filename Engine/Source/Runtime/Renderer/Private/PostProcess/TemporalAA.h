@@ -179,7 +179,8 @@ public:
 
 	struct FPassInputs
 	{
-		bool bAllowDownsampleSceneColor = false;
+		bool bGenerateSceneColorHalfRes = false;
+		bool bGenerateSceneColorQuarterRes = false;
 		bool bGenerateOutputMip1 = false;
 		bool bGenerateVelocityFlattenTextures = false;
 		EPixelFormat DownsampleOverrideFormat;
@@ -193,6 +194,7 @@ public:
 	{
 		FScreenPassTexture FullRes;
 		FScreenPassTexture HalfRes;
+		FScreenPassTexture QuarterRes;
 		FVelocityFlattenTextures VelocityFlattenTextures;
 	};
 

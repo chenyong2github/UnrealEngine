@@ -639,6 +639,7 @@ class FTSRUpdateHistoryCS : public FTSRShader
 		SHADER_PARAMETER(float, GrandPrevPreExposureCorrection)
 		SHADER_PARAMETER(int32, ResponsiveStencilMask)
 		SHADER_PARAMETER(int32, bGenerateOutputMip1)
+		SHADER_PARAMETER(int32, bGenerateOutputMip2)
 		SHADER_PARAMETER(int32, bHasSeparateTranslucency)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTSRPrevHistoryParameters, PrevHistoryParameters)
@@ -1105,9 +1106,10 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	FRDGTextureRef UpdateHistoryOutputTexture;
 	FRDGTextureRef SceneColorOutputTexture;
 	FRDGTextureRef SceneColorOutputHalfResTexture = nullptr;
+	FRDGTextureRef SceneColorOutputQuarterResTexture = nullptr;
 	FTSRHistoryTextures History;
 	{
-		check(!(PassInputs.bGenerateOutputMip1 && PassInputs.bAllowDownsampleSceneColor));
+		check(!(PassInputs.bGenerateOutputMip1 && (PassInputs.bGenerateSceneColorHalfRes || PassInputs.bGenerateSceneColorQuarterRes)));
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 			HistoryExtent,
 			ColorFormat,
@@ -1127,11 +1129,20 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		{
 			SceneColorOutputTexture = UpdateHistoryOutputTexture;
 		}
-
-		if (PassInputs.bAllowDownsampleSceneColor)
+		
+		// Generate quarter res output if only one needed, otherwise only output half res and let caller downscale to quarter res. 
+		// This is motivated to saves UAV slots on FTSRUpdateHistoryCS
+		if (PassInputs.bGenerateSceneColorQuarterRes && !PassInputs.bGenerateSceneColorHalfRes && OutputRect.Size() == HistorySize)
 		{
-			Desc.Extent /= 2;
-			SceneColorOutputHalfResTexture = GraphBuilder.CreateTexture(Desc, TEXT("TSR.HalfResOutput"));
+			FRDGTextureDesc QuarterResDesc = Desc;
+			QuarterResDesc.Extent /= 4;
+			SceneColorOutputQuarterResTexture = GraphBuilder.CreateTexture(QuarterResDesc, TEXT("TSR.QuarterResOutput"));
+		}
+		else if (PassInputs.bGenerateSceneColorHalfRes || PassInputs.bGenerateSceneColorQuarterRes)
+		{
+			FRDGTextureDesc HalfResDesc = Desc;
+			HalfResDesc.Extent /= 2;
+			SceneColorOutputHalfResTexture = GraphBuilder.CreateTexture(HalfResDesc, TEXT("TSR.HalfResOutput"));
 		}
 	}
 	{
@@ -1622,7 +1633,8 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		PassParameters->InputContributionMultiplier = FMath::Pow(float(HistorySize.X) / float(OutputRect.Width()), 2.0f); 
 		PassParameters->GrandPrevPreExposureCorrection = bCameraCut ? 1.0f : View.PreExposure / InputHistory.PrevSceneColorPreExposure;
 		PassParameters->ResponsiveStencilMask = CVarTSREnableResponiveAA.GetValueOnRenderThread() ? (STENCIL_TEMPORAL_RESPONSIVE_AA_MASK) : 0;
-		PassParameters->bGenerateOutputMip1 = ((PassInputs.bGenerateOutputMip1 || PassInputs.bAllowDownsampleSceneColor) && HistorySize == OutputRect.Size()) ? 1 : 0;
+		PassParameters->bGenerateOutputMip1 = false;
+		PassParameters->bGenerateOutputMip2 = false;
 		PassParameters->bHasSeparateTranslucency = bHasSeparateTranslucency;
 
 		PassParameters->PrevHistoryParameters = PrevHistoryParameters;
@@ -1639,21 +1651,24 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 			PassParameters->SceneColorOutputMip0 = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(UpdateHistoryOutputTexture, /* InMipLevel = */ 0));
 		}
 		
-		if (!PassParameters->bGenerateOutputMip1)
+		if (PassInputs.bGenerateOutputMip1 && HistorySize == OutputRect.Size())
 		{
-			PassParameters->SceneColorOutputMip1 = CreateDummyUAV(GraphBuilder, PF_FloatR11G11B10);
-		}
-		else if (PassInputs.bGenerateOutputMip1)
-		{
+			PassParameters->bGenerateOutputMip1 = true;
 			PassParameters->SceneColorOutputMip1 = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColorOutputTexture, /* InMipLevel = */ 1));
 		}
-		else if (PassInputs.bAllowDownsampleSceneColor)
+		else if (SceneColorOutputHalfResTexture && HistorySize == OutputRect.Size())
 		{
+			PassParameters->bGenerateOutputMip1 = true;
 			PassParameters->SceneColorOutputMip1 = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColorOutputHalfResTexture));
+		}
+		else if (SceneColorOutputQuarterResTexture && HistorySize == OutputRect.Size())
+		{
+			PassParameters->bGenerateOutputMip2 = true;
+			PassParameters->SceneColorOutputMip1 = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColorOutputQuarterResTexture));
 		}
 		else
 		{
-			unimplemented();
+			PassParameters->SceneColorOutputMip1 = CreateDummyUAV(GraphBuilder, PF_FloatR11G11B10);
 		}
 		PassParameters->DebugOutput = CreateDebugUAV(HistoryExtent, TEXT("Debug.TSR.UpdateHistory"));
 
@@ -1665,11 +1680,12 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		TShaderMapRef<FTSRUpdateHistoryCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("TSR UpdateHistory(Quality=%s%s%s%s) %dx%d",
+			RDG_EVENT_NAME("TSR UpdateHistory(Quality=%s%s%s%s%s) %dx%d",
 				kUpdateQualityNames[int32(PermutationVector.Get<FTSRUpdateHistoryCS::FQualityDim>())],
 				PermutationVector.Get<FTSRUpdateHistoryCS::FSeparateTranslucencyDim>() ? TEXT(" SeparateTranslucency") : TEXT(""),
+				PermutationVector.Get<FTSRUpdateHistoryCS::FGrandReprojectionDim>() ? TEXT(" GrandReprojection") : TEXT(""),
 				(History.ColorArray ? History.ColorArray : History.Output)->Desc.Format == PF_FloatR11G11B10 ? TEXT(" R11G11B10") : TEXT(""),
-				PassParameters->bGenerateOutputMip1 ? TEXT(" OutputMip1") : TEXT(""),
+				PassParameters->bGenerateOutputMip2 ? TEXT(" OutputMip2") : (PassParameters->bGenerateOutputMip1 ? TEXT(" OutputMip1") : TEXT("")),
 				HistorySize.X, HistorySize.Y),
 			AsyncComputePasses >= 3 ? ERDGPassFlags::AsyncCompute : ERDGPassFlags::Compute,
 			ComputeShader,
@@ -1703,6 +1719,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	// If we upscaled the history buffer, downsize back to the secondary screen percentage size.
 	if (HistorySize != OutputRect.Size())
 	{
+		check(!SceneColorOutputQuarterResTexture);
 		FTSRResolveHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTSRResolveHistoryCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
 		PassParameters->DispatchThreadToHistoryPixelPos = (
@@ -1712,7 +1729,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 				FScreenTransform::ETextureBasis::ViewportUV, FScreenTransform::ETextureBasis::TexelPosition));
 		PassParameters->OutputViewRectMin = OutputRect.Min;
 		PassParameters->OutputViewRectMax = OutputRect.Max;
-		PassParameters->bGenerateOutputMip1 = (PassInputs.bGenerateOutputMip1 || PassInputs.bAllowDownsampleSceneColor) ? 1 : 0;
+		PassParameters->bGenerateOutputMip1 = (PassInputs.bGenerateOutputMip1 || PassInputs.bGenerateSceneColorHalfRes) ? 1 : 0;
 		PassParameters->HistoryValidityMultiply = float(HistorySize.X * HistorySize.Y) / float(OutputRect.Width() * OutputRect.Height());
 
 		PassParameters->History = CreateSRVs(GraphBuilder, History);
@@ -1722,7 +1739,7 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 		{
 			PassParameters->SceneColorOutputMip1 = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColorOutputTexture, /* InMipLevel = */ 1));
 		}
-		else if (PassInputs.bAllowDownsampleSceneColor)
+		else if (SceneColorOutputHalfResTexture)
 		{
 			PassParameters->SceneColorOutputMip1 = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColorOutputHalfResTexture));
 		}
@@ -1831,11 +1848,17 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 	ITemporalUpscaler::FOutputs Outputs;
 	Outputs.FullRes.Texture = SceneColorOutputTexture;
 	Outputs.FullRes.ViewRect = OutputRect;
-	if (PassInputs.bAllowDownsampleSceneColor)
+	if (SceneColorOutputHalfResTexture)
 	{
 		Outputs.HalfRes.Texture = SceneColorOutputHalfResTexture;
 		Outputs.HalfRes.ViewRect.Min = OutputRect.Min / 2;
 		Outputs.HalfRes.ViewRect.Max = Outputs.HalfRes.ViewRect.Min + FIntPoint::DivideAndRoundUp(OutputRect.Size(), 2);
+	}
+	if (SceneColorOutputQuarterResTexture)
+	{
+		Outputs.QuarterRes.Texture = SceneColorOutputQuarterResTexture;
+		Outputs.QuarterRes.ViewRect.Min = OutputRect.Min / 4;
+		Outputs.QuarterRes.ViewRect.Max = Outputs.HalfRes.ViewRect.Min + FIntPoint::DivideAndRoundUp(OutputRect.Size(), 4);
 	}
 	Outputs.VelocityFlattenTextures = VelocityFlattenTextures;
 	return Outputs;

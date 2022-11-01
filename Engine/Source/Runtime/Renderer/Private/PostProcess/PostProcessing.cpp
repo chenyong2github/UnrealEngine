@@ -628,9 +628,13 @@ void AddPostProcessingPasses(
 			}
 			else
 			{
-				UpscalerPassInputs.bAllowDownsampleSceneColor =
-					(bNeedPostMotionBlurHalfRes || bNeedPostMotionBlurQuarterRes) &&
-					DownsampleQuality == EDownsampleQuality::Low;;
+				UpscalerPassInputs.bGenerateSceneColorHalfRes =
+					bNeedPostMotionBlurHalfRes &&
+					DownsampleQuality == EDownsampleQuality::Low;
+
+				UpscalerPassInputs.bGenerateSceneColorQuarterRes =
+					bNeedPostMotionBlurQuarterRes &&
+					DownsampleQuality == EDownsampleQuality::Low;
 			}
 			UpscalerPassInputs.DownsampleOverrideFormat = DownsampleOverrideFormat;
 			UpscalerPassInputs.SceneColorTexture = SceneColor.Texture;
@@ -645,6 +649,7 @@ void AddPostProcessingPasses(
 
 			SceneColor = Outputs.FullRes;
 			HalfResSceneColor = Outputs.HalfRes;
+			QuarterResSceneColor = Outputs.QuarterRes;
 			VelocityFlattenTextures = Outputs.VelocityFlattenTextures;
 		}
 		else if (ReflectionsMethod == EReflectionsMethod::SSR)
