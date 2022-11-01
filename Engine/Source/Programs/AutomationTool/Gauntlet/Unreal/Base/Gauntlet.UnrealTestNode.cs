@@ -1545,11 +1545,19 @@ namespace Gauntlet
 		protected virtual UnrealProcessResult GetExitCodeAndReason(StopReason InReason, UnrealLog InLog, UnrealRoleArtifacts InArtifacts, out string ExitReason, out int ExitCode)
 		{
 			// first check for fatal issues
-			if (InLog.FatalError != null)
+			if (InLog == null
+				|| InLog.FatalError != null)
 			{
 				ExitReason = "Process encountered fatal error";
 				ExitCode = -1;
 				return UnrealProcessResult.EncounteredFatalError;
+			}
+
+			if (InArtifacts == null)
+			{
+				ExitReason = "No role artifacts generated";
+				ExitCode = -1;
+				return UnrealProcessResult.TestFailure;
 			}
 
 			// Catch failed engine init. Early issues can result in the engine exiting with hard to diagnose reasons

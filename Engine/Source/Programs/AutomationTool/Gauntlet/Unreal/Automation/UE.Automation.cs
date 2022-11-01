@@ -522,37 +522,39 @@ namespace UE
 			const float IdleTimeout = 30 * 60;
 
 			List<string> ChannelEntries = new List<string>();
-
-			// We are primarily interested in what the editor is doing
-			var AppInstance = TestInstance.EditorApp;
-
-			UnrealLogParser Parser = new UnrealLogParser(AppInstance.StdOut);
-			ChannelEntries.AddRange(Parser.GetEditorBusyChannels());
-
-			// Any new entries?
-			if (ChannelEntries.Count > LastAutomationEntryCount)
+			if (TestInstance != null)
 			{
-				// log new entries so people have something to look at
-				ChannelEntries.Skip(LastAutomationEntryCount).ToList().ForEach(S => Log.Info("{0}", S));
-				LastAutomationEntryTime = DateTime.Now;
-				LastAutomationEntryCount = ChannelEntries.Count;
-			}
-			else
-			{
-				// Check for timeouts
-				if (LastAutomationEntryTime == DateTime.MinValue)
+				// We are primarily interested in what the editor is doing
+				var AppInstance = TestInstance.EditorApp;
+
+				UnrealLogParser Parser = new UnrealLogParser(AppInstance.StdOut);
+				ChannelEntries.AddRange(Parser.GetEditorBusyChannels());
+
+				// Any new entries?
+				if (ChannelEntries.Count > LastAutomationEntryCount)
 				{
+					// log new entries so people have something to look at
+					ChannelEntries.Skip(LastAutomationEntryCount).ToList().ForEach(S => Log.Info("{0}", S));
 					LastAutomationEntryTime = DateTime.Now;
+					LastAutomationEntryCount = ChannelEntries.Count;
 				}
-
-				double ElapsedTime = (DateTime.Now - LastAutomationEntryTime).TotalSeconds;
-
-				// Check for timeout
-				if (ElapsedTime > IdleTimeout)
+				else
 				{
-					Log.Error("No activity observed in last {0:0.00} minutes. Aborting test", IdleTimeout / 60);
-					MarkTestComplete();
-					SetUnrealTestResult(TestResult.TimedOut);
+					// Check for timeouts
+					if (LastAutomationEntryTime == DateTime.MinValue)
+					{
+						LastAutomationEntryTime = DateTime.Now;
+					}
+
+					double ElapsedTime = (DateTime.Now - LastAutomationEntryTime).TotalSeconds;
+
+					// Check for timeout
+					if (ElapsedTime > IdleTimeout)
+					{
+						Log.Error("No activity observed in last {0:0.00} minutes. Aborting test", IdleTimeout / 60);
+						MarkTestComplete();
+						SetUnrealTestResult(TestResult.TimedOut);
+					}
 				}
 			}
 
@@ -750,7 +752,8 @@ namespace UE
 			UnrealProcessResult UnrealResult = base.GetExitCodeAndReason(InReason, InLog, InArtifacts, out ExitReason, out ExitCode);
 
 			// The editor is an additional arbiter of success
-			if (InArtifacts.SessionRole.RoleType == UnrealTargetRole.Editor 
+			if (InArtifacts.SessionRole.RoleType == UnrealTargetRole.Editor
+				&& InLog != null
 				&& InLog.HasAbnormalExit == false)
 			{
 				// if no fatal errors, check test results

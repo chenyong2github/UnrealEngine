@@ -212,6 +212,7 @@ namespace Gauntlet
 
 				// The editor is an additional arbiter of success
 				if (InArtifacts.SessionRole.RoleType == UnrealTargetRole.Editor
+					&& InLog != null
 					&& InLog.HasAbnormalExit == false)
 				{
 					// if no fatal errors, check test results
