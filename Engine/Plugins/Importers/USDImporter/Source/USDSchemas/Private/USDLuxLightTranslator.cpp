@@ -98,4 +98,14 @@ void FUsdLuxLightTranslator::UpdateComponents( USceneComponent* SceneComponent )
 	}
 }
 
+bool FUsdLuxLightTranslator::CollapsesChildren( ECollapsingType CollapsingType ) const
+{
+	return false;
+}
+
+bool FUsdLuxLightTranslator::CanBeCollapsed( ECollapsingType CollapsingType ) const
+{
+	return false;
+}
+
 #endif // #if USE_USD_SDK

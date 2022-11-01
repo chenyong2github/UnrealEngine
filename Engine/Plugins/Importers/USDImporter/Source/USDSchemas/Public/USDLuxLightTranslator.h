@@ -26,6 +26,9 @@ public:
 
 	virtual USceneComponent* CreateComponents() override;
 	virtual void UpdateComponents( USceneComponent* SceneComponent );
+
+	virtual bool CollapsesChildren( ECollapsingType CollapsingType ) const override;
+	virtual bool CanBeCollapsed( ECollapsingType CollapsingType ) const override;
 };
 
 #endif // #if USE_USD_SDK

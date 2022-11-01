@@ -411,4 +411,14 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 	}
 }
 
+bool FUsdShadeMaterialTranslator::CollapsesChildren( ECollapsingType CollapsingType ) const
+{
+	return false;
+}
+
+bool FUsdShadeMaterialTranslator::CanBeCollapsed( ECollapsingType CollapsingType ) const
+{
+	return false;
+}
+
 #endif // #if USE_USD_SDK

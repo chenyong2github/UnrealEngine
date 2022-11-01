@@ -105,4 +105,14 @@ void FUsdGeomCameraTranslator::UpdateComponents( USceneComponent* SceneComponent
 	}
 }
 
+bool FUsdGeomCameraTranslator::CollapsesChildren( ECollapsingType CollapsingType ) const
+{
+	return false;
+}
+
+bool FUsdGeomCameraTranslator::CanBeCollapsed( ECollapsingType CollapsingType ) const
+{
+	return false;
+}
+
 #endif // #if USE_USD_SDK
