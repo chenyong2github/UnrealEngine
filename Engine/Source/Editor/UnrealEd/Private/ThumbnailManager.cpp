@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ThumbnailRendering/ThumbnailManager.h"
+
+#include "Editor.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "ObjectTools.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Materials/Material.h"
 #include "ISourceControlOperation.h"
@@ -72,6 +75,13 @@ void UThumbnailManager::Initialize(void)
 		InitializeRenderTypeArray(RenderableThumbnailTypes);
 
 		SharedThumbnailPool = MakeShared<FAssetThumbnailPool>(100);
+
+		FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UThumbnailManager::OnObjectPropertyChanged);
+
+		if (GEditor)
+		{
+			GEditor->OnActorMoved().AddUObject(this, &UThumbnailManager::OnActorPostEditMove);
+		}
 
 		bIsInitialized = true;
 	}
@@ -377,3 +387,92 @@ bool UThumbnailManager::CaptureProjectThumbnail(FViewport* Viewport, const FStri
 
 	return false;
 }
+
+void UThumbnailManager::OnObjectPropertyChanged(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		DirtyThumbnailForObject(ObjectBeingModified);
+	}
+}
+
+void UThumbnailManager::OnActorPostEditMove(AActor* Actor)
+{
+	DirtyThumbnailForObject(Actor);
+}
+
+void UThumbnailManager::DirtyThumbnailForObject(UObject* ObjectBeingModified)
+{
+	if (!ObjectBeingModified)
+	{
+		return;
+	}
+
+	if (ObjectBeingModified->HasAnyFlags(RF_ClassDefaultObject))
+	{
+		if (ObjectBeingModified->GetClass()->ClassGeneratedBy != nullptr)
+		{
+			// This is a blueprint modification. Check to see if this thumbnail is the blueprint of the modified CDO
+			ObjectBeingModified = ObjectBeingModified->GetClass()->ClassGeneratedBy;
+		}
+	}
+	else if (AActor* ActorBeingModified = Cast<AActor>(ObjectBeingModified))
+	{
+		// This is a non CDO actor getting modified. Update the actor's world's thumbnail.
+		ObjectBeingModified = ActorBeingModified->GetWorld();
+	}
+
+	if (ObjectBeingModified)
+	{
+		// An object in memory was modified.  We'll mark its thumbnail as dirty so that it'll be
+		// regenerated on demand later. (Before being displayed in the browser, or package saves, etc.)
+		FObjectThumbnail* Thumbnail = ThumbnailTools::GetThumbnailForObject(ObjectBeingModified);
+
+		// If we don't yet have a thumbnail map, load one from disk if possible
+		if (Thumbnail == nullptr)
+		{
+			UPackage* ObjectPackage = ObjectBeingModified->GetOutermost();
+
+			const bool bMemoryPackage = FPackageName::IsMemoryPackage(ObjectBeingModified->GetPathName());  // Don't try to load from disk if the package is a memory package
+			const bool bUnsavedPackage = ObjectPackage->HasAnyPackageFlags(PKG_NewlyCreated);               // Don't try loading thumbnails for package that have never been saved
+			const bool bIsGarbageCollecting = IsGarbageCollecting();                                        // Don't attempt to do this while garbage collecting since loading or finding objects during GC is illegal
+			const bool bUsesGenericThumbnail = [ObjectBeingModified, this]() -> bool                        // No need to dirty generic thumbnails
+			{
+				if (FThumbnailRenderingInfo* RenderingInfo = GetRenderingInfo(ObjectBeingModified))
+				{
+					return RenderingInfo->Renderer == nullptr;
+				}
+				else
+				{
+					return true;
+				}
+			}();
+
+			const bool bTryLoadThumbnailFromDisk = !bIsGarbageCollecting && !bMemoryPackage && !bUnsavedPackage && !bUsesGenericThumbnail;
+			if (bTryLoadThumbnailFromDisk)
+			{
+				FName ObjectFullName = FName(*ObjectBeingModified->GetFullName());
+
+				FThumbnailMap LoadedThumbnails;
+				if (ThumbnailTools::ConditionallyLoadThumbnailsForObjects({ ObjectFullName }, LoadedThumbnails))
+				{
+					Thumbnail = LoadedThumbnails.Find(ObjectFullName);
+
+					if (Thumbnail != nullptr)
+					{
+						Thumbnail = ThumbnailTools::CacheThumbnail(ObjectBeingModified->GetFullName(), Thumbnail, ObjectPackage);
+					}
+				}
+			}
+		}
+
+		if (Thumbnail != nullptr)
+		{
+			// Mark the thumbnail as dirty
+			Thumbnail->MarkAsDirty();
+		}
+
+		OnThumbnailDirtied.Broadcast(FSoftObjectPath(ObjectBeingModified));
+	}
+}
+

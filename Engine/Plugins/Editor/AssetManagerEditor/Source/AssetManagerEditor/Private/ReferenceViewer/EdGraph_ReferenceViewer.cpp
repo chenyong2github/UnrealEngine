@@ -45,7 +45,10 @@ int32 FReferenceNodeInfo::ProvisionSize(const FAssetIdentifier& InParentId) cons
 UEdGraph_ReferenceViewer::UEdGraph_ReferenceViewer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	AssetThumbnailPool = MakeShareable( new FAssetThumbnailPool(1024) );
+	if (!IsTemplate())
+	{
+		AssetThumbnailPool = MakeShareable( new FAssetThumbnailPool(1024) );
+	}
 
 	Settings = GetMutableDefault<UReferenceViewerSettings>();
 }
