@@ -14,6 +14,7 @@ RWStructuredBuffer<uint> RWPageStatsBuffer;
 StructuredBuffer<uint> PageStatsBuffer;
 Texture3D<uint> PageTableCombinedTexture;
 Texture3D PageAtlasTexture;
+SamplerState DistanceFieldSampler;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
 void GlobalDistanceFieldPageStatsCS(
@@ -45,7 +46,7 @@ void GlobalDistanceFieldPageStatsCS(
 
 						uint3 PageAtlasOffset = GlobalDistanceFieldPageLinearIndexToPageAtlasOffset(Page) * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS;
 						float3 PageUV = (PageAtlasOffset + CoordInPage) * InvPageAtlasSize;
-						float DistanceFieldValue = Texture3DSampleLevel(PageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
+						float DistanceFieldValue = Texture3DSampleLevel(PageAtlasTexture, DistanceFieldSampler, PageUV, 0).x;
 
 						if (DistanceFieldValue > 0.0f && DistanceFieldValue < 1.0f)
 						{
