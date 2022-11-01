@@ -20,6 +20,15 @@ enum class EPCGSpawnActorOption : uint8
 	NoMerging
 };
 
+UENUM()
+enum class EPCGSpawnActorGenerationTrigger : uint8
+{
+	Default, // Generate if the component has "Generate On Load"
+	ForceGenerate, // Generate in all cases
+	DoNotGenerateInEditor, // Does not call generate in editor, but decays to Default otherwise
+	DoNotGenerate // Does not call generate
+};
+
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGSpawnActorSettings : public UPCGBaseSubgraphSettings
 {
@@ -38,6 +47,9 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Option==EPCGSpawnActorOption::NoMerging"))
 	bool bForceDisableActorParsing = true;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Option==EPCGSpawnActorOption::NoMerging"))
+	EPCGSpawnActorGenerationTrigger bGenerationTrigger = EPCGSpawnActorGenerationTrigger::Default;
 
 	/** Warning: inheriting parent actor tags work only in non-collapsed actor hierarchies */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Option!=EPCGSpawnActorOption::CollapseActors"))
