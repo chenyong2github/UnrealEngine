@@ -63,7 +63,8 @@ TUniquePtr<FWorldPartitionActorDesc> FWorldPartitionActorDescUtils::GetActorDesc
 		if (!ActorDescInitData.NativeClass)
 		{
 			UE_LOG(LogWorldPartition, Log, TEXT("Invalid class for actor guid `%s` ('%s') from package '%s'"), *NewActorDesc->GetGuid().ToString(), *NewActorDesc->GetActorName().ToString(), *NewActorDesc->GetActorPackage().ToString());
-			return nullptr;
+			NewActorDesc->NativeClass.Reset();
+			return NewActorDesc;
 		}
 		/*else if (UClass* Class = FindObject<UClass>(InAssetData.AssetClassPath); !Class)
 		{

@@ -1122,7 +1122,10 @@ void FActorBrowsingMode::RepairErrors() const
 			{
 				for (const TUniquePtr<FWorldPartitionActorDesc>& InvalidActor : ActorDescContainer->GetInvalidActors())
 				{
-					InvalidActorDescs.Add(InvalidActor.Get());
+					if (FWorldPartitionActorDesc* InvalidActorDesc = InvalidActor.Get())
+					{
+						InvalidActorDescs.Add(InvalidActorDesc);
+					}
 				}
 				ActorDescContainer->ClearInvalidActors();
 			});
