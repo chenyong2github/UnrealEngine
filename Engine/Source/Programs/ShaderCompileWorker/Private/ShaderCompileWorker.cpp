@@ -714,13 +714,8 @@ private:
 
 			int32 NumBatches = 0;
 			InputFile << NumBatches;
-			// Flush cache, to make sure we load the latest version of the input file.
-			// (Otherwise quick changes to a shader file can result in the wrong output.)
-			FString ShaderPlatformNameString;
-			InputFile << ShaderPlatformNameString;
-			FName ShaderPlatformName = FName(*ShaderPlatformNameString);
 
-			FlushShaderFileCache(&ShaderPlatformName);
+			FlushShaderFileCache();
 			
 			for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
 			{

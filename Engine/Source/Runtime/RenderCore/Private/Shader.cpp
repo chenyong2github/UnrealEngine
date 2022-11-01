@@ -216,10 +216,12 @@ FShaderType::FShaderType(
 	int32 InTotalPermutationCount,
 	ConstructSerializedType InConstructSerializedRef,
 	ConstructCompiledType InConstructCompiledRef,
-	ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
 	ShouldCompilePermutationType InShouldCompilePermutationRef,
-	ValidateCompiledResultType InValidateCompiledResultRef,
 	GetRayTracingPayloadTypeType InGetRayTracingPayloadTypeRef,
+#if WITH_EDITOR
+	ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
+	ValidateCompiledResultType InValidateCompiledResultRef,
+#endif // WITH_EDITOR
 	uint32 InTypeSize,
 	const FShaderParametersMetadata* InRootParametersMetadata
 ):
@@ -236,16 +238,16 @@ FShaderType::FShaderType(
 	TotalPermutationCount(InTotalPermutationCount),
 	ConstructSerializedRef(InConstructSerializedRef),
 	ConstructCompiledRef(InConstructCompiledRef),
-	ModifyCompilationEnvironmentRef(InModifyCompilationEnvironmentRef),
 	ShouldCompilePermutationRef(InShouldCompilePermutationRef),
-	ValidateCompiledResultRef(InValidateCompiledResultRef),
 	GetRayTracingPayloadTypeRef(InGetRayTracingPayloadTypeRef),
+#if WITH_EDITOR
+	ModifyCompilationEnvironmentRef(InModifyCompilationEnvironmentRef),
+	ValidateCompiledResultRef(InValidateCompiledResultRef),
+#endif // WITH_EDITOR
 	RootParametersMetadata(InRootParametersMetadata),
 	GlobalListLink(this)
 {
 	FTypeLayoutDesc::Register(InTypeLayout);
-
-	CachedUniformBufferPlatform = SP_NumPlatforms;
 
 	// This will trigger if an IMPLEMENT_SHADER_TYPE was in a module not loaded before InitializeShaderTypes
 	// Shader types need to be implemented in modules that are loaded before that
@@ -379,6 +381,8 @@ bool FShaderType::ShouldCompilePermutation(const FShaderPermutationParameters& P
 	return ShouldCompileShaderFrequency((EShaderFrequency)Frequency, Parameters.Platform) && (*ShouldCompilePermutationRef)(Parameters);
 }
 
+#if WITH_EDITOR
+
 void FShaderType::ModifyCompilationEnvironment(const FShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment) const
 {
 	(*ModifyCompilationEnvironmentRef)(Parameters, OutEnvironment);
@@ -420,6 +424,8 @@ bool FShaderType::ValidateCompiledResult(EShaderPlatform Platform, const FShader
 	return (*ValidateCompiledResultRef)(Platform, ParameterMap, OutError);
 }
 
+#endif // WITH_EDITOR
+
 ERayTracingPayloadType FShaderType::GetRayTracingPayloadType(const int32 PermutationId) const
 {
 #if RHI_RAYTRACING
@@ -437,6 +443,7 @@ const FSHAHash& FShaderType::GetSourceHash(EShaderPlatform ShaderPlatform) const
 
 void FShaderType::Initialize(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables)
 {
+#if WITH_EDITOR
 	//#todo-rco: Need to call this only when Initializing from a Pipeline once it's removed from the global linked list
 	if (!FPlatformProperties::RequiresCookedData())
 	{
@@ -461,6 +468,7 @@ void FShaderType::Initialize(const TMap<FString, TArray<const TCHAR*> >& ShaderF
 		}
 #endif
 	}
+#endif // WITH_EDITOR
 
 	bInitializedSerializationHistory = true;
 }

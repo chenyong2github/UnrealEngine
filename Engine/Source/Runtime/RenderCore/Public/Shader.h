@@ -1194,9 +1194,11 @@ public:
 	typedef class FShader* (*ConstructSerializedType)();
 	typedef FShader* (*ConstructCompiledType)(const FShader::CompiledShaderInitializerType& Initializer);
 	typedef bool (*ShouldCompilePermutationType)(const FShaderPermutationParameters&);
+	typedef ERayTracingPayloadType(*GetRayTracingPayloadTypeType)(const int32 PermutationId);
+#if WITH_EDITOR
 	typedef void (*ModifyCompilationEnvironmentType)(const FShaderPermutationParameters&, FShaderCompilerEnvironment&);
 	typedef bool (*ValidateCompiledResultType)(EShaderPlatform, const FShaderParameterMap&, TArray<FString>&);
-	typedef ERayTracingPayloadType (*GetRayTracingPayloadTypeType)(const int32 PermutationId);
+#endif // WITH_EDITOR
 
 	/** @return The global shader factory list. */
 	static TLinkedList<FShaderType*>*& GetTypeList();
@@ -1226,10 +1228,12 @@ public:
 		int32 TotalPermutationCount,
 		ConstructSerializedType InConstructSerializedRef,
 		ConstructCompiledType InConstructCompiledRef,
-		ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
 		ShouldCompilePermutationType InShouldCompilePermutationRef,
-		ValidateCompiledResultType InValidateCompiledResultRef,
 		GetRayTracingPayloadTypeType InGetRayTracingPayloadTypeRef,
+#if WITH_EDITOR
+		ModifyCompilationEnvironmentType InModifyCompilationEnvironmentRef,
+		ValidateCompiledResultType InValidateCompiledResultRef,
+#endif // WITH_EDITOR
 		uint32 InTypeSize,
 		const FShaderParametersMetadata* InRootParametersMetadata
 	);
@@ -1241,6 +1245,8 @@ public:
 	FShader* ConstructCompiled(const FShader::CompiledShaderInitializerType& Initializer) const;
 
 	bool ShouldCompilePermutation(const FShaderPermutationParameters& Parameters) const;
+
+#if WITH_EDITOR
 	void ModifyCompilationEnvironment(const FShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment) const;
 
 	/**
@@ -1250,6 +1256,7 @@ public:
 	* @param OutError - List for appending validation errors.
 	*/
 	bool ValidateCompiledResult(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutError) const;
+#endif // WITH_EDITOR
 
 	ERayTracingPayloadType GetRayTracingPayloadType(const int32 PermutationId) const;
 
@@ -1399,15 +1406,16 @@ public:
 		return TotalPermutationCount;
 	}
 
-	inline const TMap<const TCHAR*, FCachedUniformBufferDeclaration>& GetReferencedUniformBufferStructsCache() const
-	{
-		return ReferencedUniformBufferStructsCache;
-	}
-
 	/** Returns the meta data for the root shader parameter struct. */
 	inline const FShaderParametersMetadata* GetRootParametersMetadata() const
 	{
 		return RootParametersMetadata;
+	}
+
+#if WITH_EDITOR
+	inline const TMap<const TCHAR*, FCachedUniformBufferDeclaration>& GetReferencedUniformBufferStructsCache() const
+	{
+		return ReferencedUniformBufferStructsCache;
 	}
 
 	/** Adds include statements for uniform buffers that this shader type references, and builds a prefix for the shader file with the include statements. */
@@ -1415,8 +1423,10 @@ public:
 
 	void FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables);
 
-	void DumpDebugInfo();
 	void GetShaderStableKeyParts(struct FStableShaderKeyAndValue& SaveKeyVal);
+#endif // WITH_EDITOR
+
+	void DumpDebugInfo();
 
 private:
 	EShaderTypeForDynamicCast ShaderTypeForDynamicCast;
@@ -1433,10 +1443,12 @@ private:
 
 	ConstructSerializedType ConstructSerializedRef;
 	ConstructCompiledType ConstructCompiledRef;
-	ModifyCompilationEnvironmentType ModifyCompilationEnvironmentRef;
 	ShouldCompilePermutationType ShouldCompilePermutationRef;
-	ValidateCompiledResultType ValidateCompiledResultRef;
 	GetRayTracingPayloadTypeType GetRayTracingPayloadTypeRef;
+#if WITH_EDITOR
+	ModifyCompilationEnvironmentType ModifyCompilationEnvironmentRef;
+	ValidateCompiledResultType ValidateCompiledResultRef;
+#endif
 	const FShaderParametersMetadata* const RootParametersMetadata;
 
 	TLinkedList<FShaderType*> GlobalListLink;
@@ -1446,9 +1458,10 @@ private:
 	/** Tracks whether serialization history for all shader types has been initialized. */
 	static bool bInitializedSerializationHistory;
 
+#if WITH_EDITOR
 protected:
 	/** Tracks what platforms ReferencedUniformBufferStructsCache has had declarations cached for. */
-	mutable std::atomic<EShaderPlatform> CachedUniformBufferPlatform;
+	mutable std::atomic<EShaderPlatform> CachedUniformBufferPlatform{ SP_NumPlatforms };
 
 	/**
 	* Cache of referenced uniform buffer includes.
@@ -1456,7 +1469,7 @@ protected:
 	* FShaderType::Initialize will add an entry for each referenced uniform buffer, but the declarations are added on demand as shaders are compiled.
 	*/
 	mutable TMap<const TCHAR*, FCachedUniformBufferDeclaration> ReferencedUniformBufferStructsCache;
-
+#endif // WITH_EDITOR
 };
 
 struct FShaderCompiledShaderInitializerType
@@ -1486,18 +1499,25 @@ struct FShaderCompiledShaderInitializerType
 	);
 };
 
+#if WITH_EDITOR
+	#define SHADER_DECLARE_EDITOR_VTABLE(ShaderClass) \
+		static void ModifyCompilationEnvironmentImpl(const FShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment) \
+		{ \
+			const typename ShaderClass::FPermutationDomain PermutationVector(Parameters.PermutationId); \
+			PermutationVector.ModifyCompilationEnvironment(OutEnvironment); \
+			ShaderClass::ModifyCompilationEnvironment(static_cast<const typename ShaderClass::FPermutationParameters&>(Parameters), OutEnvironment); \
+		}
+#else
+	#define SHADER_DECLARE_EDITOR_VTABLE(ShaderClass)
+#endif // WITH_EDITOR
+
 #define SHADER_DECLARE_VTABLE(ShaderClass) \
 	static FShader* ConstructSerializedInstance() { return new ShaderClass(); } \
 	static FShader* ConstructCompiledInstance(const typename FShader::CompiledShaderInitializerType& Initializer) \
 	{ return new ShaderClass(static_cast<const typename ShaderMetaType::CompiledShaderInitializerType&>(Initializer)); }\
-	static void ModifyCompilationEnvironmentImpl(const FShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment) \
-	{ \
-		const typename ShaderClass::FPermutationDomain PermutationVector(Parameters.PermutationId); \
-		PermutationVector.ModifyCompilationEnvironment(OutEnvironment); \
-		ShaderClass::ModifyCompilationEnvironment(static_cast<const typename ShaderClass::FPermutationParameters&>(Parameters), OutEnvironment); \
-	} \
 	static bool ShouldCompilePermutationImpl(const FShaderPermutationParameters& Parameters) \
-	{ return ShaderClass::ShouldCompilePermutation(static_cast<const typename ShaderClass::FPermutationParameters&>(Parameters)); }
+	{ return ShaderClass::ShouldCompilePermutation(static_cast<const typename ShaderClass::FPermutationParameters&>(Parameters)); } \
+	SHADER_DECLARE_EDITOR_VTABLE(ShaderClass)
 
 
 #define INTERNAL_DECLARE_SHADER_TYPE_COMMON(ShaderClass,ShaderMetaTypeShortcut,RequiredAPI) \
@@ -1528,13 +1548,20 @@ struct FShaderCompiledShaderInitializerType
 	DECLARE_EXPORTED_TYPE_LAYOUT_EXPLICIT_BASES(ShaderClass,, NonVirtual, __VA_ARGS__); \
 	public:
 
+#if WITH_EDITOR
+#define SHADER_TYPE_EDITOR_VTABLE(ShaderClass) \
+	, ShaderClass::ModifyCompilationEnvironmentImpl \
+	, ShaderClass::ValidateCompiledResult
+#else
+#define SHADER_TYPE_EDITOR_VTABLE(ShaderClass)
+#endif
+
 #define SHADER_TYPE_VTABLE(ShaderClass) \
 	ShaderClass::ConstructSerializedInstance, \
 	ShaderClass::ConstructCompiledInstance, \
-	ShaderClass::ModifyCompilationEnvironmentImpl, \
 	ShaderClass::ShouldCompilePermutationImpl, \
-	ShaderClass::ValidateCompiledResult, \
-	ShaderClass::GetRayTracingPayloadType
+	ShaderClass::GetRayTracingPayloadType \
+	SHADER_TYPE_EDITOR_VTABLE(ShaderClass)
 
 #if !UE_BUILD_DOCS
 /** A macro to implement a shader type. */

@@ -726,6 +726,7 @@ void GetAllVirtualShaderSourcePaths(TArray<FString>& OutVirtualFilePaths, EShade
 */
 void VerifyShaderSourceFiles(EShaderPlatform ShaderPlatform)
 {
+#if WITH_EDITORONLY_DATA
 	if (!FPlatformProperties::RequiresCookedData() && AllowShaderCompiling())
 	{
 		// get the list of shader files that can be used
@@ -739,6 +740,7 @@ void VerifyShaderSourceFiles(EShaderPlatform ShaderPlatform)
 			LoadShaderSourceFile(*VirtualShaderSourcePaths[ShaderFileIdx], ShaderPlatform, nullptr, nullptr);
 		}
 	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 static void LogShaderSourceDirectoryMappings()
@@ -936,6 +938,7 @@ bool ReplaceVirtualFilePathForShaderAutogen(FString& InOutVirtualFilePath, EShad
 
 bool LoadShaderSourceFile(const TCHAR* InVirtualFilePath, EShaderPlatform ShaderPlatform, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors, const FName* ShaderPlatformName) // TODO: const FString&
 {
+#if WITH_EDITORONLY_DATA
 	// it's not expected that cooked platforms get here, but if they do, this is the final out
 	if (FPlatformProperties::RequiresCookedData())
 	{
@@ -1014,6 +1017,9 @@ bool LoadShaderSourceFile(const TCHAR* InVirtualFilePath, EShaderPlatform Shader
 	INC_FLOAT_STAT_BY(STAT_ShaderCompiling_LoadingShaderFiles,(float)ShaderFileLoadingTime);
 
 	return bResult;
+#else
+	return false;
+#endif // WITH_EDITORONLY_DATA
 }
 
 void LoadShaderSourceFileChecked(const TCHAR* VirtualFilePath, EShaderPlatform ShaderPlatform, FString& OutFileContents, const FName* ShaderPlatformName)
@@ -1405,12 +1411,13 @@ const FSHAHash& GetShaderFilesHash(const TArray<FString>& VirtualFilePaths, ESha
 	}
 }
 
-void BuildShaderFileToUniformBufferMap(TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables, const FName* ShaderPlatformName)
+#if WITH_EDITOR
+void BuildShaderFileToUniformBufferMap(TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables)
 {
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		TArray<FString> ShaderSourceFiles;
-		GetAllVirtualShaderSourcePaths(ShaderSourceFiles, GMaxRHIShaderPlatform, ShaderPlatformName);
+		GetAllVirtualShaderSourcePaths(ShaderSourceFiles, GMaxRHIShaderPlatform);
 
 		FScopedSlowTask SlowTask((float)ShaderSourceFiles.Num());
 
@@ -1441,7 +1448,7 @@ void BuildShaderFileToUniformBufferMap(TMap<FString, TArray<const TCHAR*> >& Sha
 			SlowTask.EnterProgressFrame(1);
 
  			FString ShaderFileContents;
-			LoadShaderSourceFileChecked(*ShaderSourceFiles[FileIndex], GMaxRHIShaderPlatform, ShaderFileContents, ShaderPlatformName);
+			LoadShaderSourceFileChecked(*ShaderSourceFiles[FileIndex], GMaxRHIShaderPlatform, ShaderFileContents);
 
 			// To allow case sensitive search which is way faster on some platforms (no need to look up locale, etc)
 			ShaderFileContents.ToUpperInline();
@@ -1460,6 +1467,7 @@ void BuildShaderFileToUniformBufferMap(TMap<FString, TArray<const TCHAR*> >& Sha
 		}
 	}
 }
+#endif // WITH_EDITOR
 
 void InitializeShaderHashCache()
 {
@@ -1491,7 +1499,9 @@ void InitializeShaderTypes()
 	LogShaderSourceDirectoryMappings();
 
 	TMap<FString, TArray<const TCHAR*> > ShaderFileToUniformBufferVariables;
+#if WITH_EDITOR
 	BuildShaderFileToUniformBufferMap(ShaderFileToUniformBufferVariables);
+#endif // WITH_EDITOR
 
 	FShaderType::Initialize(ShaderFileToUniformBufferVariables);
 	FVertexFactoryType::Initialize(ShaderFileToUniformBufferVariables);
@@ -1517,7 +1527,7 @@ void UninitializeShaderTypes()
  * Flushes the shader file and CRC cache, and regenerates the binary shader files if necessary.
  * Allows shader source files to be re-read properly even if they've been modified since startup.
  */
-void FlushShaderFileCache(const FName* ShaderPlatformName)
+void FlushShaderFileCache()
 {
 	UE_LOG(LogShaders, Log, TEXT("FlushShaderFileCache() begin"));
 
@@ -1530,12 +1540,13 @@ void FlushShaderFileCache(const FName* ShaderPlatformName)
 		GShaderFileCache.Empty();
 	}
 
+#if WITH_EDITOR
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		LogShaderSourceDirectoryMappings();
 
 		TMap<FString, TArray<const TCHAR*> > ShaderFileToUniformBufferVariables;
-		BuildShaderFileToUniformBufferMap(ShaderFileToUniformBufferVariables, ShaderPlatformName);
+		BuildShaderFileToUniformBufferMap(ShaderFileToUniformBufferVariables);
 
 		for (TLinkedList<FShaderPipelineType*>::TConstIterator It(FShaderPipelineType::GetTypeList()); It; It.Next())
 		{
@@ -1556,10 +1567,12 @@ void FlushShaderFileCache(const FName* ShaderPlatformName)
 			It->FlushShaderFileCache(ShaderFileToUniformBufferVariables);
 		}
 	}
+#endif // WITH_EDITOR
 
 	UE_LOG(LogShaders, Log, TEXT("FlushShaderFileCache() end"));
 }
 
+#if WITH_EDITOR
 void GenerateReferencedUniformBuffers(
 	const TCHAR* SourceFilename, 
 	const TCHAR* ShaderTypeName, 
@@ -1720,6 +1733,7 @@ void SerializeUniformBufferInfo_Internal(FShaderSaveArchive& Ar, const TSortedMa
 
 } // anonymous namespace
 
+
 FSHAHash GetShaderTypeLayoutHash(const FTypeLayoutDesc& TypeDesc, FPlatformTypeLayoutParameters LayoutParameters)
 {
 	static FFrozenMaterialLayoutHashCache GFrozenMaterialLayoutHashes;
@@ -1752,9 +1766,7 @@ void AppendKeyStringShaderDependencies(
 	for (const FShaderTypeDependency& ShaderTypeDependency : ShaderTypeDependencies)
 	{
 		const FShaderType* ShaderType = FindShaderTypeByName(ShaderTypeDependency.ShaderTypeName);
-#if WITH_EDITORONLY_DATA
 		checkf(ShaderType != nullptr, TEXT("Failed to find FShaderType for dependency %s (total in the NameToTypeMap: %d)"), ShaderTypeDependency.ShaderTypeName.GetDebugString().String.Get(), FShaderType::GetNameToTypeMap().Num());
-#endif
 
 		OutKeyString.AppendChar('_');
 		OutKeyString.Append(ShaderType->GetName());
@@ -1783,9 +1795,7 @@ void AppendKeyStringShaderDependencies(
 	for (const FShaderPipelineTypeDependency& Dependency : ShaderPipelineTypeDependencies)
 	{
 		const FShaderPipelineType* ShaderPipelineType = FShaderPipelineType::GetShaderPipelineTypeByName(Dependency.ShaderPipelineTypeName);
-#if WITH_EDITORONLY_DATA
 		checkf(ShaderPipelineType != nullptr, TEXT("Failed to find FShaderPipelineType for dependency %s (total in the NameToTypeMap: %d)"), Dependency.ShaderPipelineTypeName.GetDebugString().String.Get(), FShaderType::GetNameToTypeMap().Num());
-#endif
 
 		OutKeyString.AppendChar('_');
 		OutKeyString.Append(ShaderPipelineType->GetName());
@@ -1847,6 +1857,8 @@ void SerializeUniformBufferInfo(FShaderSaveArchive& Ar, const TSortedMap<const T
 {
 	SerializeUniformBufferInfo_Internal(Ar, UniformBufferEntries);
 }
+
+#endif // WITH_EDITOR
 
 FString MakeInjectedShaderCodeBlock(const TCHAR* BlockName, const FString& CodeToInject)
 {

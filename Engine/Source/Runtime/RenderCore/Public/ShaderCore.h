@@ -1074,15 +1074,21 @@ extern RENDERCORE_API void HashShaderFileWithIncludes(FArchive& HashingArchive, 
  */
 extern RENDERCORE_API const class FSHAHash& GetShaderFilesHash(const TArray<FString>& VirtualFilePaths, EShaderPlatform ShaderPlatform);
 
-extern void BuildShaderFileToUniformBufferMap(TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables, const FName* ShaderPlatformName = nullptr);
-
 /**
  * Flushes the shader file and CRC cache, and regenerates the binary shader files if necessary.
  * Allows shader source files to be re-read properly even if they've been modified since startup.
  */
-extern RENDERCORE_API void FlushShaderFileCache(const FName* ShaderPlatformName = nullptr);
+extern RENDERCORE_API void FlushShaderFileCache();
+
+UE_DEPRECATED(5.2, "FlushShaderFileCache no longer needs a ShaderPlatformName argument")
+inline void FlushShaderFileCache(const FName* ShaderPlatformName)
+{
+	FlushShaderFileCache();
+}
 
 extern RENDERCORE_API void VerifyShaderSourceFiles(EShaderPlatform ShaderPlatform);
+
+#if WITH_EDITOR
 
 struct FCachedUniformBufferDeclaration
 {
@@ -1110,7 +1116,8 @@ using FSortedMapUniformBufferDeclaration = TSortedMap<const TCHAR*, FCachedUnifo
 /** Records information about all the uniform buffer layouts referenced by UniformBufferEntries. This function is now deprecated as there now a unified way of preparing
  * shadermap keys that includes this and more: AppendKeyStringShaderDependencies.
  */
-UE_DEPRECATED(5.2, "SerializeUniformBufferInfo is depreceated. For creating shadermap keys please use AppendKeyStringShaderDependencies") extern RENDERCORE_API void SerializeUniformBufferInfo(class FShaderSaveArchive& Ar, const FSortedMapUniformBufferDeclaration& UniformBufferEntries);
+UE_DEPRECATED(5.2, "SerializeUniformBufferInfo is depreceated. For creating shadermap keys please use AppendKeyStringShaderDependencies")
+extern RENDERCORE_API void SerializeUniformBufferInfo(class FShaderSaveArchive& Ar, const FSortedMapUniformBufferDeclaration& UniformBufferEntries);
 
 /**
  * Return the hash of the given type layout for a partical platform type layout. This function employs caching to avoid re-hashing the same parameters several times.
@@ -1127,12 +1134,14 @@ extern RENDERCORE_API void AppendKeyStringShaderDependencies(
 	TConstArrayView<FShaderTypeDependency> ShaderTypeDependencies,
 	FPlatformTypeLayoutParameters LayoutParams,
 	FString& OutKeyString);
+
 extern RENDERCORE_API void AppendKeyStringShaderDependencies(
 	TConstArrayView<FShaderTypeDependency> ShaderTypeDependencies,
 	TConstArrayView<FShaderPipelineTypeDependency> ShaderPipelineTypeDependencies,
 	TConstArrayView<FVertexFactoryTypeDependency> VertexFactoryTypeDependencies,
 	FPlatformTypeLayoutParameters LayoutParams,
 	FString& OutKeyString);
+#endif // WITH_EDITOR
 
 /** Create a block of source code to be injected in the preprocessed shader code. The Block will be put into a #line directive
  * to show up in case shader compilation failures happen in this code block.

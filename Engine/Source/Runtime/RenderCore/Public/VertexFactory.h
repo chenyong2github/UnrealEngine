@@ -349,10 +349,12 @@ public:
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams);
 	typedef void (*GetPSOPrecacheVertexFetchElementsType)(EVertexInputStreamType VertexInputStreamType, FVertexDeclarationElementList& Elements);
-
 	typedef bool (*ShouldCacheType)(const FVertexFactoryShaderPermutationParameters&);
+
+#if WITH_EDITOR
 	typedef void (*ModifyCompilationEnvironmentType)(const FVertexFactoryShaderPermutationParameters&, FShaderCompilerEnvironment&);
 	typedef void (*ValidateCompiledResultType)(const FVertexFactoryType*, EShaderPlatform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors);
+#endif // WITH_EDITOR
 
 	static int32 GetNumVertexFactoryTypes() { return NumVertexFactories; }
 
@@ -382,9 +384,11 @@ public:
 		GetParameterTypeLayoutType InGetParameterTypeLayout,
 		GetParameterTypeElementShaderBindingsType InGetParameterTypeElementShaderBindings,
 		GetPSOPrecacheVertexFetchElementsType InGetPSOPrecacheVertexFetchElements,
-		ShouldCacheType InShouldCache,
-		ModifyCompilationEnvironmentType InModifyCompilationEnvironment,
-		ValidateCompiledResultType InValidateCompiledResult
+		ShouldCacheType InShouldCache
+#if WITH_EDITOR
+		, ModifyCompilationEnvironmentType InModifyCompilationEnvironment
+		, ValidateCompiledResultType InValidateCompiledResult
+#endif // WITH_EDITOR
 		);
 
 	RENDERCORE_API virtual ~FVertexFactoryType();
@@ -461,6 +465,7 @@ public:
 		return (*ShouldCacheRef)(Parameters);
 	}
 
+#if WITH_EDITOR
 	/**
 	* Calls the function ptr for the shader type on the given environment
 	* @param Environment - shader compile environment to modify
@@ -485,10 +490,12 @@ public:
 	RENDERCORE_API void AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const;
 
 	RENDERCORE_API void FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables);
+
 	const TMap<const TCHAR*, FCachedUniformBufferDeclaration>& GetReferencedUniformBufferStructsCache() const
 	{
 		return ReferencedUniformBufferStructsCache;
 	}
+#endif // WITH_EDITOR
 
 private:
 	static RENDERCORE_API uint32 NumVertexFactories;
@@ -506,11 +513,14 @@ private:
 	GetParameterTypeElementShaderBindingsType GetParameterTypeElementShaderBindings;
 	GetPSOPrecacheVertexFetchElementsType GetPSOPrecacheVertexFetchElements;
 	ShouldCacheType ShouldCacheRef;
+#if WITH_EDITOR
 	ModifyCompilationEnvironmentType ModifyCompilationEnvironmentRef;
 	ValidateCompiledResultType ValidateCompiledResultRef;
+#endif // WITH_EDITOR
 
 	TLinkedList<FVertexFactoryType*> GlobalListLink;
 
+#if WITH_EDITOR
 	/** 
 	 * Cache of referenced uniform buffer includes.  
 	 * These are derived from source files so they need to be flushed when editing and recompiling shaders on the fly. 
@@ -519,7 +529,8 @@ private:
 	mutable TMap<const TCHAR*, FCachedUniformBufferDeclaration> ReferencedUniformBufferStructsCache;
 
 	/** Tracks what platforms ReferencedUniformBufferStructsCache has had declarations cached for. */
-	mutable std::atomic<EShaderPlatform> CachedUniformBufferPlatform;
+	mutable std::atomic<EShaderPlatform> CachedUniformBufferPlatform{ SP_NumPlatforms };
+#endif // WITH_EDITOR
 };
 
 /**
@@ -541,14 +552,21 @@ extern RENDERCORE_API FVertexFactoryType* FindVertexFactoryType(const FHashedNam
 	static FVertexFactoryType StaticType; \
 	virtual FVertexFactoryType* GetType() const override;
 
+#if WITH_EDITOR
+	#define IMPLEMENT_VERTEX_FACTORY_EDITOR_VTABLE(FactoryClass) \
+		, FactoryClass::ModifyCompilationEnvironment \
+		, FactoryClass::ValidateCompiledResult
+#else
+	#define IMPLEMENT_VERTEX_FACTORY_EDITOR_VTABLE(FactoryClass)
+#endif // WITH_EDITOR
+
 #define IMPLEMENT_VERTEX_FACTORY_VTABLE(FactoryClass) \
 	&ConstructVertexFactoryParameters<FactoryClass>, \
 	&GetVertexFactoryParametersLayout<FactoryClass>, \
 	&GetVertexFactoryParametersElementShaderBindings<FactoryClass>, \
 	FactoryClass::GetPSOPrecacheVertexFetchElements, \
-	FactoryClass::ShouldCompilePermutation, \
-	FactoryClass::ModifyCompilationEnvironment, \
-	FactoryClass::ValidateCompiledResult
+	FactoryClass::ShouldCompilePermutation \
+	IMPLEMENT_VERTEX_FACTORY_EDITOR_VTABLE(FactoryClass)
 
 /**
  * A macro for implementing the static vertex factory type object, and specifying parameters used by the type.

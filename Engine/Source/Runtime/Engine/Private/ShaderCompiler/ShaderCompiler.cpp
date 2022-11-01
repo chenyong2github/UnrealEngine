@@ -1517,9 +1517,6 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 		int32 NumBatches = QueuedSingleJobs.Num();
 		TransferFile << NumBatches;
 
-		FString ShaderPlatformNameString = FDataDrivenShaderPlatformInfo::GetName(GMaxRHIShaderPlatform).ToString();
-		TransferFile << ShaderPlatformNameString;
-
 		// Serialize all the batched jobs
 		for (int32 JobIndex = 0; JobIndex < QueuedSingleJobs.Num(); JobIndex++)
 		{
@@ -2040,6 +2037,7 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<FShaderCommonCompil
 	}
 }
 
+#if WITH_EDITOR
 static bool CheckSingleJob(const FShaderCompileJob& SingleJob, TArray<FString>& OutErrors, FString* OutDumpedSource)
 {
 	if (SingleJob.bSucceeded)
@@ -2112,6 +2110,7 @@ static void AddErrorsForFailedJob(FShaderCompileJob& CurrentJob, TArray<EShaderP
 		}
 	}
 }
+#endif // WITH_EDITOR
 
 /** Information tracked for each shader compile worker process instance. */
 struct FShaderCompileWorkerInfo
@@ -5405,6 +5404,8 @@ bool FShaderCompilingManager::IsShaderCompilerWorkerRunning(FProcHandle & Worker
 	return FPlatformProcess::IsProcRunning(WorkerHandle);
 }
 
+#if WITH_EDITOR
+
 /* Generates a uniform buffer struct member hlsl declaration using the member's metadata. */
 static void GenerateUniformBufferStructMember(FString& Result, const FShaderParametersMetadata::FMember& Member, EShaderPlatform ShaderPlatform)
 {
@@ -5423,7 +5424,7 @@ static void GenerateUniformBufferStructMember(FString& Result, const FShaderPara
 }
 
 /* Generates the instanced stereo hlsl code that's dependent on view uniform declarations. */
-ENGINE_API void GenerateInstancedStereoCode(FString& Result, EShaderPlatform ShaderPlatform)
+void GenerateInstancedStereoCode(FString& Result, EShaderPlatform ShaderPlatform)
 {
 	// Find the InstancedView uniform buffer struct
 	const FShaderParametersMetadata* InstancedView = nullptr;
@@ -5579,9 +5580,7 @@ void GlobalBeginCompileShader(
 	EShaderPlatform ShaderPlatform = EShaderPlatform(Target.Platform);
 	const FName ShaderFormatName = LegacyShaderPlatformToShaderFormat(ShaderPlatform);
 
-#if WITH_EDITOR
 	FShaderCompileUtilities::GenerateBrdfHeaders(ShaderPlatform);
-#endif
 
 	Input.Target = Target;
 	Input.ShaderPlatformName = FDataDrivenShaderPlatformInfo::GetName(ShaderPlatform);
@@ -6092,13 +6091,11 @@ void GlobalBeginCompileShader(
 	{
 		// Allow GBuffer containing a velocity target to be overridden at a higher level with GBUFFER_LAYOUT
 		bool bGBufferHasVelocity = IsUsingBasePassVelocity((EShaderPlatform)Target.Platform);
-	#if WITH_EDITOR
 		if (!bGBufferHasVelocity)
 		{
 			const EGBufferLayout Layout = FShaderCompileUtilities::FetchGBufferLayout(Input.Environment);
 			bGBufferHasVelocity |= (Layout == GBL_ForceVelocity);
 		}
-	#endif
 		Input.Environment.SetDefine(TEXT("GBUFFER_HAS_VELOCITY"), bGBufferHasVelocity ? 1 : 0);
 	}
 
@@ -6366,11 +6363,10 @@ void GlobalBeginCompileShader(
 
 	// Allow the GBuffer and other shader defines to cause dependend environment changes, but minimizing the #ifdef magic in the shaders, which
 	// is nearly impossible to debug when it goes wrong.
-#if WITH_EDITOR
 	FShaderCompileUtilities::ApplyDerivedDefines(Input.Environment, Input.SharedEnvironment, (EShaderPlatform)Target.Platform);
-#endif
 }
 
+#endif // WITH_EDITOR
 
 /** Timer class used to report information on the 'recompileshaders' console command. */
 class FRecompileShadersTimer
@@ -6690,7 +6686,7 @@ bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar)
 				if( Material && Material->GetName() == RequestedMaterialName)
 				{
 					bMaterialFound = true;
-#if WITH_EDITOR
+
 					// <Pre/Post>EditChange will force a re-creation of the resource,
 					// in turn recompiling the shader.
 					if (TargetPlatform)
@@ -6708,7 +6704,7 @@ bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar)
 						Material->PreEditChange(nullptr);
 						Material->PostEditChange();
 					}
-#endif // WITH_EDITOR
+
 					break;
 				}
 			}
@@ -6732,12 +6728,11 @@ bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar)
 				{
 					UE_LOG(LogShaderCompilers, Log, TEXT("recompiling [%s]"),*Material->GetFullName());
 					UpdateContext.AddMaterial(Material);
-#if WITH_EDITOR
+
 					// <Pre/Post>EditChange will force a re-creation of the resource,
 					// in turn recompiling the shader.
 					Material->PreEditChange(nullptr);
 					Material->PostEditChange();
-#endif // WITH_EDITOR
 				}
 			}
 		}
@@ -7195,7 +7190,7 @@ static UE::DerivedData::FSharedString GetGlobalShaderMapName(const FGlobalShader
 {
 	return UE::DerivedData::FSharedString(WriteToString<256>(TEXTVIEW("GlobalShaderMap ["), LegacyShaderPlatformToShaderFormat(Platform), TEXTVIEW(", "), Key, TEXTVIEW("]")));
 }
-#endif
+#endif // WITH_EDITOR
 
 /** Saves the platform's shader map to the DDC. It is assumed that the caller will check IsComplete() first before calling the function. */
 static void SaveGlobalShaderMapToDerivedDataCache(EShaderPlatform Platform)
@@ -7260,7 +7255,7 @@ FString SaveGlobalShaderFile(EShaderPlatform Platform, FString SavePath, class I
 		}
 		
 		MemoryWriter.SetCookData(CookData.GetPtrOrNull());
-#endif
+#endif // WITH_EDITOR
 
 		GlobalShaderMap->SaveToGlobalArchive(MemoryWriter);
 	}
@@ -7719,7 +7714,7 @@ bool RecompileChangedShadersForPlatform(const FString& PlatformName)
 				(*It)->ClearCachedCookedPlatformData(TargetPlatform);
 			}
 		}
-#endif
+#endif // WITH_EDITOR
 	}
 
 	if (OutdatedFactoryTypes.Num() || OutdatedShaderTypes.Num())

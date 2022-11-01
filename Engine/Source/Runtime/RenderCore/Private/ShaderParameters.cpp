@@ -76,6 +76,7 @@ FArchive& operator<<(FArchive& Ar,FShaderResourceParameter& P)
 	return Ar << P.BaseIndex << P.NumResources;
 }
 
+#if WITH_EDITOR
 void FShaderUniformBufferParameter::ModifyCompilationEnvironment(const TCHAR* ParameterName,const FShaderParametersMetadata& Struct,EShaderPlatform Platform,FShaderCompilerEnvironment& OutEnvironment)
 {
 	const FString IncludeName = FString::Printf(TEXT("/Engine/Generated/UniformBuffers/%s.ush"),ParameterName);
@@ -90,6 +91,7 @@ void FShaderUniformBufferParameter::ModifyCompilationEnvironment(const TCHAR* Pa
 	GeneratedUniformBuffersInclude.Append(Include);
 	Struct.AddResourceTableEntries(OutEnvironment.ResourceTableMap, OutEnvironment.UniformBufferMap);
 }
+#endif // WITH_EDITOR
 
 void FShaderUniformBufferParameter::Bind(const FShaderParameterMap& ParameterMap,const TCHAR* ParameterName,EShaderParameterFlags Flags)
 {
@@ -119,6 +121,8 @@ void FShaderUniformBufferParameter::Bind(const FShaderParameterMap& ParameterMap
 		check(IsBound());
 	}
 }
+
+#if WITH_EDITOR
 
 /** The individual bits of a uniform buffer declaration. */
 struct FUniformBufferDecl
@@ -451,6 +455,8 @@ void FShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment&
 	GeneratedUniformBuffersInclude.Append(UniformBufferIncludes);
 }
 
+#endif // WITH_EDITOR
+
 void FShaderType::DumpDebugInfo()
 {
 	UE_LOG(LogConsoleResponse, Display, TEXT("----------------------------- GLobalShader %s"), GetName());
@@ -488,9 +494,9 @@ void FShaderType::DumpDebugInfo()
 #endif
 }
 
+#if WITH_EDITOR
 void FShaderType::GetShaderStableKeyParts(FStableShaderKeyAndValue& SaveKeyVal)
 {
-#if WITH_EDITOR
 	static FName NAME_Material(TEXT("Material"));
 	static FName NAME_MeshMaterial(TEXT("MeshMaterial"));
 	static FName NAME_Niagara(TEXT("Niagara"));
@@ -510,7 +516,6 @@ void FShaderType::GetShaderStableKeyParts(FStableShaderKeyAndValue& SaveKeyVal)
 		break;
 	}
 	SaveKeyVal.ShaderType = FName(GetName() ? GetName() : TEXT("null"));
-#endif
 }
 
 void FVertexFactoryType::FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables)
@@ -588,3 +593,5 @@ void FVertexFactoryType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvir
 	FString& GeneratedUniformBuffersInclude = OutEnvironment.IncludeVirtualPathToContentsMap.FindOrAdd("/Engine/Generated/GeneratedUniformBuffers.ush");
 	GeneratedUniformBuffersInclude.Append(UniformBufferIncludes);
 }
+
+#endif // WITH_EDITOR

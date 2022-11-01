@@ -1160,8 +1160,7 @@ extern ENGINE_API FShaderCompilingManager* GShaderCompilingManager;
 /** The global shader compiling stats */
 extern ENGINE_API FShaderCompilerStats* GShaderCompilerStats;
 
-/** The shader precompilers for each platform.  These are only set during the console shader compilation while cooking or in the PrecompileShaders commandlet. */
-extern class FConsoleShaderPrecompiler* GConsoleShaderPrecompilers[SP_NumPlatforms];
+#if WITH_EDITOR
 
 /** Enqueues a shader compile job with GShaderCompilingManager. */
 extern ENGINE_API void GlobalBeginCompileShader(
@@ -1194,6 +1193,8 @@ extern ENGINE_API void GlobalBeginCompileShader(
 	const TCHAR* DebugDescription = nullptr,
 	const TCHAR* DebugExtension = nullptr
 );
+
+#endif // WITH_EDITOR
 
 extern void GetOutdatedShaderTypes(TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes);
 

@@ -54,6 +54,7 @@ FVertexFactoryType* FVertexFactoryType::GetVFByName(const FHashedName& VFName)
 
 void FVertexFactoryType::Initialize(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables)
 {
+#if WITH_EDITOR
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		// Cache serialization history for each VF type
@@ -64,6 +65,7 @@ void FVertexFactoryType::Initialize(const TMap<FString, TArray<const TCHAR*> >& 
 			GenerateReferencedUniformBuffers(Type->ShaderFilename, Type->Name, ShaderFileToUniformBufferVariables, Type->ReferencedUniformBufferStructsCache);
 		}
 	}
+#endif // WITH_EDITOR
 
 	bInitializedSerializationHistory = true;
 }
@@ -81,9 +83,11 @@ FVertexFactoryType::FVertexFactoryType(
 	GetParameterTypeLayoutType InGetParameterTypeLayout,
 	GetParameterTypeElementShaderBindingsType InGetParameterTypeElementShaderBindings,
 	GetPSOPrecacheVertexFetchElementsType InGetPSOPrecacheVertexFetchElements,
-	ShouldCacheType InShouldCache,
-	ModifyCompilationEnvironmentType InModifyCompilationEnvironment,
-	ValidateCompiledResultType InValidateCompiledResult
+	ShouldCacheType InShouldCache
+#if WITH_EDITOR
+	, ModifyCompilationEnvironmentType InModifyCompilationEnvironment
+	, ValidateCompiledResultType InValidateCompiledResult
+#endif // WITH_EDITOR
 	):
 	Name(InName),
 	ShaderFilename(InShaderFilename),
@@ -95,8 +99,10 @@ FVertexFactoryType::FVertexFactoryType(
 	GetParameterTypeElementShaderBindings(InGetParameterTypeElementShaderBindings),
 	GetPSOPrecacheVertexFetchElements(InGetPSOPrecacheVertexFetchElements),
 	ShouldCacheRef(InShouldCache),
+#if WITH_EDITOR
 	ModifyCompilationEnvironmentRef(InModifyCompilationEnvironment),
 	ValidateCompiledResultRef(InValidateCompiledResult),
+#endif // WITH_EDITOR
 	GlobalListLink(this)
 {
 	// Make sure the format of the source file path is right.
@@ -105,8 +111,6 @@ FVertexFactoryType::FVertexFactoryType(
 	checkf(FPaths::GetExtension(InShaderFilename) == TEXT("ush"),
 		TEXT("Incorrect virtual shader path extension for vertex factory shader header '%s': Only .ush files should be included."),
 		InShaderFilename);
-
-	CachedUniformBufferPlatform = SP_NumPlatforms;
 
 	// This will trigger if an IMPLEMENT_VERTEX_FACTORY_TYPE was in a module not loaded before InitializeShaderTypes
 	// Vertex factory types need to be implemented in modules that are loaded before that
