@@ -25,6 +25,7 @@ protected:
 		TSharedPtr<FUICommandInfo> UnloadHoveredRegion;
 		TSharedPtr<FUICommandInfo> ConvertSelectedRegionsToActors;
 		TSharedPtr<FUICommandInfo> MoveCameraHere;
+		TSharedPtr<FUICommandInfo> BugItHere;
 		TSharedPtr<FUICommandInfo> PlayFromHere;
 		TSharedPtr<FUICommandInfo> LoadFromHere;
 
@@ -45,6 +46,7 @@ protected:
 	void LoadSelectedRegions();
 	void UnloadSelectedRegions();
 	void ConvertSelectedRegionsToActors();
+	void BugItHere();
 	void MoveCameraHere();
 	void PlayFromHere();
 	void LoadFromHere();

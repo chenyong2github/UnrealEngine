@@ -4,6 +4,7 @@
 #include "ActorFactories/ActorFactory.h"
 #include "Brushes/SlateColorBrush.h"
 #include "Builders/CubeBuilder.h"
+#include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Engine/Selection.h"
 #include "Engine/Texture2D.h"
@@ -24,6 +25,7 @@
 #include "WorldBrowserModule.h"
 #include "WorldPartition/LoaderAdapter/LoaderAdapterShape.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionLog.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionActorDescView.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
@@ -34,6 +36,7 @@
 #include "WorldPartition/WorldPartitionMiniMap.h"
 #include "WorldPartition/WorldPartitionMiniMapHelper.h"
 #include "WorldPartition/WorldPartitionMiniMapVolume.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #include "IAssetViewport.h"
 #include "Kismet2/DebuggerCommands.h"
@@ -153,6 +156,14 @@ static bool IsBoundsEdgeHovered(const FVector2D& Point, const FBox2D& Bounds, fl
 	return DistanceToPoint > UE_KINDA_SMALL_NUMBER && DistanceToPoint < Size;
 }
 
+static bool HitTestZFromLocation(UWorld* World, const FVector2D& WorldLocation, FHitResult& OutResult)
+{
+	const FVector TraceStart(WorldLocation.X, WorldLocation.Y, HALF_WORLD_MAX);
+	const FVector TraceEnd(WorldLocation.X, WorldLocation.Y, -HALF_WORLD_MAX);
+	const FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(SWorldPartitionEditorGrid2D_HitTestZFromLocation), true);
+	return World->LineTraceSingleByChannel(OutResult, TraceStart, TraceEnd, ECC_WorldStatic, TraceParams);
+}
+
 template <class T>
 void ForEachIntersectingLoaderAdapters(UWorldPartition* WorldPartition, const FBox& SelectBox, T Func)
 {
@@ -238,7 +249,8 @@ void SWorldPartitionEditorGrid2D::FEditorCommands::RegisterCommands()
 	UI_COMMAND(LoadSelectedRegions, "Load Selected Regions", "Load the selected regions.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(UnloadSelectedRegions, "Unload Selected Regions", "Unload the selected regions.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ConvertSelectedRegionsToActors, "Convert Selected Regions To Actors", "Convert the selected regions to actors.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(MoveCameraHere, "Move Camera Here", "Move the camera to the selected position.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(MoveCameraHere, "Move Camera Here", "Move the camera to the selected location.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BugItHere, "Bug It", "Log BugItGo command of the selected location to console (also adds it to clipboard).", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(PlayFromHere, "Play From Here", "Play from here.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(LoadFromHere, "Load From Here", "Load from here.", EUserInterfaceActionType::Button, FInputChord());
 }
@@ -455,6 +467,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 	ActionList.MapAction(Commands.UnloadSelectedRegions, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::UnloadSelectedRegions), FCanExecuteAction::CreateLambda(CanUnloadSelectedRegions));
 	ActionList.MapAction(Commands.ConvertSelectedRegionsToActors, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::ConvertSelectedRegionsToActors), FCanExecuteAction::CreateLambda(CanConvertSelectedRegionsToActors));
 	ActionList.MapAction(Commands.MoveCameraHere, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::MoveCameraHere));
+	ActionList.MapAction(Commands.BugItHere, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::BugItHere));
 	ActionList.MapAction(Commands.PlayFromHere, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::PlayFromHere));
 	ActionList.MapAction(Commands.LoadFromHere, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::LoadFromHere));
 }
@@ -569,15 +582,30 @@ void SWorldPartitionEditorGrid2D::ConvertSelectedRegionsToActors()
 	Refresh();
 }
 
+void SWorldPartitionEditorGrid2D::BugItHere()
+{
+	FVector WorldLocation = FVector(MouseCursorPosWorld, 0);
+
+	FHitResult HitResult;
+	const bool bHitResultValid = HitTestZFromLocation(World, MouseCursorPosWorld, HitResult);
+
+	if (bHitResultValid && GCurrentLevelEditingViewportClient)
+	{
+		const FRotator ViewRotation = GCurrentLevelEditingViewportClient->GetViewRotation();
+		const FString GoString = FString::Printf(TEXT("BugItGo %f %f %f %f %f %f"), MouseCursorPosWorld.X, MouseCursorPosWorld.Y, HitResult.Location.Z + 1000.0f, ViewRotation.Pitch, ViewRotation.Yaw, ViewRotation.Roll);
+		
+		UE_LOG(LogWorldPartition, Log, TEXT("%s"), *GoString);
+
+		FPlatformApplicationMisc::ClipboardCopy(*GoString);
+	}
+}
+
 void SWorldPartitionEditorGrid2D::MoveCameraHere()
 {
 	FVector WorldLocation = FVector(MouseCursorPosWorld, 0);
 
 	FHitResult HitResult;
-	const FVector TraceStart(WorldLocation.X, WorldLocation.Y, HALF_WORLD_MAX);
-	const FVector TraceEnd(WorldLocation.X, WorldLocation.Y, -HALF_WORLD_MAX);
-	const FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(SWorldPartitionEditorGrid2D_MoveCameraHere), true);
-	const bool bHitResultValid = World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_WorldStatic, TraceParams);
+	const bool bHitResultValid = HitTestZFromLocation(World, MouseCursorPosWorld, HitResult);
 
 	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
 	{
@@ -596,10 +624,7 @@ void SWorldPartitionEditorGrid2D::PlayFromHere()
 	FRotator StartRotation;
 
 	FHitResult HitResult;
-	const FVector TraceStart(StartLocation.X, StartLocation.Y, HALF_WORLD_MAX);
-	const FVector TraceEnd(StartLocation.X, StartLocation.Y, -HALF_WORLD_MAX);
-	const FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(SWorldPartitionEditorGrid2D_MoveCameraHere), true);
-	const bool bHitResultValid = World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_WorldStatic, TraceParams);
+	const bool bHitResultValid = HitTestZFromLocation(World, MouseCursorPosWorld, HitResult);
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 	TSharedPtr<IAssetViewport> ActiveLevelViewport = LevelEditorModule.GetFirstActiveViewport();
@@ -740,6 +765,11 @@ FReply SWorldPartitionEditorGrid2D::OnMouseButtonUp(const FGeometry& MyGeometry,
 
 			MenuBuilder.BeginSection(NAME_None, LOCTEXT("WorldPartitionMisc", "Misc"));
 				MenuBuilder.AddMenuEntry(Commands.MoveCameraHere);
+
+				if (!GetDefault<UWorldPartitionEditorSettings>()->bDisableBugIt)
+				{
+					MenuBuilder.AddMenuEntry(Commands.BugItHere);
+				}
 
 				if (!GetDefault<UWorldPartitionEditorSettings>()->bDisablePIE)
 				{

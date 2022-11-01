@@ -8,6 +8,7 @@ public class WorldPartitionEditor : ModuleRules
     {     
         PrivateDependencyModuleNames.AddRange(
             new string[] {
+				"ApplicationCore",
 				"Core",
 				"CoreUObject",
 				"EditorFramework",

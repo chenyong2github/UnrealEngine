@@ -60,6 +60,12 @@ public:
 	virtual void SetDisablePIE(bool bInDisablePIE) override;
 
 	/**
+	 * Returns if bugit command in the editor is disabled or not.
+	 */
+	virtual bool GetDisableBugIt() const override;
+	virtual void SetDisableBugIt(bool bInDisableBugIt) override;
+
+	/**
 	 * Convert the specified map to a world partition map.
 	 */
 	virtual bool ConvertMap(const FString& InLongPackageName) override;

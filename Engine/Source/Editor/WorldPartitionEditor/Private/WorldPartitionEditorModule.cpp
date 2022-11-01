@@ -259,6 +259,16 @@ void FWorldPartitionEditorModule::SetDisablePIE(bool bInDisablePIE)
 	GetMutableDefault<UWorldPartitionEditorSettings>()->bDisablePIE = bInDisablePIE;
 }
 
+bool FWorldPartitionEditorModule::GetDisableBugIt() const
+{
+	return GetDefault<UWorldPartitionEditorSettings>()->bDisableBugIt;
+}
+
+void FWorldPartitionEditorModule::SetDisableBugIt(bool bInDisableBugIt)
+{
+	GetMutableDefault<UWorldPartitionEditorSettings>()->bDisableBugIt = bInDisableBugIt;
+}
+
 void FWorldPartitionEditorModule::OnConvertMap()
 {
 	IContentBrowserSingleton& ContentBrowserSingleton = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
@@ -672,6 +682,7 @@ UWorldPartitionEditorSettings::UWorldPartitionEditorSettings()
 	MinimapLowQualityWorldUnitsPerPixelThreshold = 12800;
 	bDisableLoadingInEditor = false;
 	bDisablePIE = false;
+	bDisableBugIt = false;
 }
 
 FString UWorldPartitionConvertOptions::ToCommandletArgs() const

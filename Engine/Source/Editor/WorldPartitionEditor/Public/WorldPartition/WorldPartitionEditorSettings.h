@@ -25,5 +25,6 @@ public:
 	int32 MinimapLowQualityWorldUnitsPerPixelThreshold;
 
 	bool bDisableLoadingInEditor;
+	bool bDisableBugIt;
 	bool bDisablePIE;
 };

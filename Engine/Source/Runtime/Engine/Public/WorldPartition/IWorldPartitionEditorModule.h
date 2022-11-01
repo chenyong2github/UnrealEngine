@@ -41,6 +41,9 @@ public:
 	virtual bool GetDisablePIE() const = 0;
 	virtual void SetDisablePIE(bool bInDisablePIE) = 0;
 
+	virtual bool GetDisableBugIt() const = 0;
+	virtual void SetDisableBugIt(bool bInDisableBugIt) = 0;
+
 	/** Triggered when a world is added. */
 	DECLARE_EVENT_OneParam(IWorldPartitionEditorModule, FWorldPartitionCreated, UWorld*);
 
