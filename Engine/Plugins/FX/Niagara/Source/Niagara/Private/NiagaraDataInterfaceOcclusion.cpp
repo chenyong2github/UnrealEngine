@@ -29,6 +29,7 @@ struct FNiagaraOcclusionDIFunctionVersion
 	{
 		InitialVersion = 0,
 		LWCConversion = 1,
+		AddAtmosphereTransmittance = 2,
 
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -103,6 +104,7 @@ void UNiagaraDataInterfaceOcclusion::GetFunctions(TArray<FNiagaraFunctionSignatu
 		Sig.Inputs.Emplace_GetRef(FNiagaraTypeDefinition::GetIntDef(), TEXT("SamplesPerRing")).SetValue(1);
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("VisibilityFraction"));
 		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetFloatDef(), TEXT("SampleFraction"));
+		Sig.Outputs.Emplace(FNiagaraTypeDefinition::GetVec3Def(), TEXT("AtmosphereTransmittance"));
 
 		Sig.SetInputDescription(Sig.Inputs[1], CircleCenterPosDescription);
 		Sig.SetInputDescription(Sig.Inputs[2], SampleWindowDiameterDescription);

@@ -12,6 +12,11 @@
 // Disabled for all mobile platforms, see USkyLightComponent::IsRealTimeCaptureEnabled
 #define AP_SUPPORT_REALTIME_REFLECTION_CAPTURE (FEATURE_LEVEL > FEATURE_LEVEL_ES3_1)
 
+// Controlls Atmosphere. struct access as not all shaders have access to thi
+#ifndef AP_SUPPORT_SAMPLE_ATMOSHPERE
+	#define AP_SUPPORT_SAMPLE_ATMOSHPERE 1
+#endif
+
 // The constants below should match the one in SceneRendering.cpp
 // Kilometers as unit for computations related to the sky and its atmosphere
 #define CM_TO_SKY_UNIT 0.00001f
@@ -254,6 +259,7 @@ float3 GetLightDiskLuminance(
 	return 0.0f;
 }
 
+#if AP_SUPPORT_SAMPLE_ATMOSHPERE
 ////////////////////////////////////////////////////////////
 // Participating medium properties
 ////////////////////////////////////////////////////////////
@@ -318,3 +324,4 @@ MediumSampleRGB SampleAtmosphereMediumRGB(in float3 WorldPos)
 
 	return s;
 }
+#endif //AP_SUPPORT_SAMPLE_ATMOSHPERE

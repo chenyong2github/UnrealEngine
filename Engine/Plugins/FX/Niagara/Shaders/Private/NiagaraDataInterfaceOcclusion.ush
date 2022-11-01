@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#define AP_SUPPORT_SAMPLE_ATMOSHPERE 0
+#include "/Engine/Private/SkyAtmosphereCommon.ush"
+
 float3				{ParameterName}_SystemLWCTile;
 Texture2D<float4>	{ParameterName}_CloudVolumetricTexture;
 SamplerState		{ParameterName}_CloudVolumetricTextureSampler;
@@ -124,7 +127,7 @@ void QueryOcclusionFactorWithCircleGPU_{ParameterName}(in float3 In_SampleCenter
 	Out_SampleFraction = Steps == 0 ? 0 : (TotalSamples / (Rays * Steps + 1));
 }
 
-void QueryCloudOcclusionWithCircle_{ParameterName}(float3 WorldPosition, float WorldDiameter, bool bIncludeCenterSample, int NumberOfRings, int SamplesPerRing, out float VisibilityFraction, out float SampleFraction)
+void QueryCloudOcclusionWithCircle_{ParameterName}(float3 WorldPosition, float WorldDiameter, bool bIncludeCenterSample, int NumberOfRings, int SamplesPerRing, out float VisibilityFraction, out float SampleFraction, out float3 AtmosphereTransmittance)
 {
 	const float PI = 3.14159265;
 	const float SPIRAL_TURN = 2.0f * PI * 0.61803399; // use golden ratio to rotate sample pattern each ring so we get a spiral
@@ -180,4 +183,17 @@ void QueryCloudOcclusionWithCircle_{ParameterName}(float3 WorldPosition, float W
 
 	VisibilityFraction = TotalSamples > 0.0f ? TotalVisibility / TotalSamples : 0.0f;
 	SampleFraction = TotalSamples > 0.0f ? TotalSamples / ExpectedSamples : 0.0f;
+
+	// Sample Atmosphere Transmittance
+	{
+		const float3 RayDirection = normalize(PreViewPosition);
+
+		const float3 PlanetCenterToTranslatedWorldPos = (LWCToFloat(LWCAdd(LWCWorldPosition, PrimaryView.PreViewTranslation)) - PrimaryView.SkyPlanetTranslatedWorldCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
+		AtmosphereTransmittance = GetAtmosphereTransmittance(
+			PlanetCenterToTranslatedWorldPos,
+			RayDirection,
+			PrimaryView.SkyAtmosphereBottomRadiusKm, PrimaryView.SkyAtmosphereTopRadiusKm,
+			View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler
+		);
+	}
 }
