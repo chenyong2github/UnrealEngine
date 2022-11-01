@@ -51,7 +51,7 @@ void UActorDescContainer::Initialize(const FInitializeParams& InitParams)
 		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ScanPathsSynchronous);
-			AssetRegistry.ScanPathsSynchronous({ ContainerExternalActorsPath }, /*bForceRescan*/true, /*bIgnoreDenyListScanFilters*/false);
+			AssetRegistry.ScanPathsSynchronous({ ContainerExternalActorsPath }, /*bForceRescan*/false, /*bIgnoreDenyListScanFilters*/false);
 		}
 
 		FARFilter Filter;
