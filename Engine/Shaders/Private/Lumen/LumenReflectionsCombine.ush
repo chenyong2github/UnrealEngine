@@ -1,0 +1,23 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+float MaxRoughnessToTrace;
+float InvRoughnessFadeLength;
+uint TraceReflectionForFoliage;
+
+// Weight of reflection rays for a current pixel
+// 0 - specular should fallback to some specular approximation
+// 1 - specular should only composite reflection rays
+float LumenCombineReflectionsAlpha(float InRoughness, bool bIsFoliage)
+{
+	float FadeAlpha = saturate((MaxRoughnessToTrace - InRoughness) * InvRoughnessFadeLength);
+
+	// Don't trace expensive specular reflections rays for foliage
+	if (bIsFoliage && TraceReflectionForFoliage > 0)
+	{
+		FadeAlpha = 0.0f;
+	}
+
+	return FadeAlpha;
+}
