@@ -272,6 +272,11 @@ bool FGitSourceControlProvider::UsesFileRevisions() const
 	return false;
 }
 
+bool FGitSourceControlProvider::AllowsDiffAgainstDepot() const
+{
+	return true;
+}
+
 TOptional<bool> FGitSourceControlProvider::IsAtLatestRevision() const
 {
 	return TOptional<bool>();
