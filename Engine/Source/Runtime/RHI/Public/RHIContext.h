@@ -437,14 +437,10 @@ public:
 		return WrappingContext ? *WrappingContext : *this;
 	}
 
-#elif WITH_MGPU
-	// Needs to be virtual, because it's required for multi GPU resource uploads (FD3D12RHICommandInitializeBuffer, etc)
-	virtual IRHIComputeContext& GetLowestLevelContext() { return *this; }
-	inline IRHIComputeContext& GetHighestLevelContext() { return *this; }
 #else
 
 	// Fast implementations when the RHI validation layer is disabled.
-	inline IRHIComputeContext& GetLowestLevelContext() { return *this; }
+	inline IRHIComputeContext& GetLowestLevelContext () { return *this; }
 	inline IRHIComputeContext& GetHighestLevelContext() { return *this; }
 
 #endif

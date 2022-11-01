@@ -793,7 +793,7 @@ public:
 #endif
 
 public:
-	void* QueryBatchData = nullptr;
+	TStaticArray<void*, MAX_NUM_GPUS> QueryBatchData { InPlace, nullptr };
 
 private:
 	FRHICommandListBase(FPersistentState&& InPersistentState);

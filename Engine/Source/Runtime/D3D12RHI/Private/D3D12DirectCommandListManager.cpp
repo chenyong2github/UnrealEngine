@@ -65,19 +65,18 @@ void FD3D12DynamicRHI::RHIWriteGPUFence_TopOfPipe(FRHICommandListBase& RHICmdLis
 		Fence->SyncPoints[GPUIndex] = FD3D12SyncPoint::Create(ED3D12SyncPointType::GPUAndCPU);
 	}
 
-	FDynamicRHI::RHIWriteGPUFence_TopOfPipe(RHICmdList, FenceRHI);
+	Fence->NumPendingWriteCommands.Increment();
+	RHICmdList.EnqueueLambda([Fence, SyncPoints = Fence->SyncPoints](FRHICommandListBase& ExecutingCmdList)
+	{
+		for (uint32 GPUIndex : ExecutingCmdList.GetGPUMask())
+		{
+			FD3D12CommandContext& Context = FD3D12CommandContext::Get(ExecutingCmdList, GPUIndex);
+			Context.SignalSyncPoint(SyncPoints[GPUIndex]);
+		}
+
+		Fence->NumPendingWriteCommands.Decrement();
+	});
 }
-
-void FD3D12CommandContext::RHIWriteGPUFence(FRHIGPUFence* FenceRHI)
-{
-	FD3D12GPUFence* Fence = FD3D12DynamicRHI::ResourceCast(FenceRHI);
-
-	check(Fence);
-	check(Fence->SyncPoints[GetGPUIndex()]);
-
-	SignalSyncPoint(Fence->SyncPoints[GetGPUIndex()]);
-}
-
 
 FGPUFenceRHIRef FD3D12DynamicRHI::RHICreateGPUFence(const FName& Name)
 {

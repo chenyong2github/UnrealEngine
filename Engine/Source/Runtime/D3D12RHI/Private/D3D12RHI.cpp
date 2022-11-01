@@ -622,20 +622,27 @@ void FD3D12DynamicRHI::RHIFinishExternalComputeWork(uint32 InDeviceIndex, ID3D12
 void FD3D12DynamicRHI::RHITransitionResource(FRHICommandList& RHICmdList, FRHITexture* InTexture, D3D12_RESOURCE_STATES InState, uint32 InSubResource)
 {
 	FD3D12Texture* D3D12Texture = GetD3D12TextureFromRHITexture(InTexture);
-	FD3D12CommandContext::Get(RHICmdList).TransitionResource(D3D12Texture->GetResource(), D3D12_RESOURCE_STATE_TBD, InState, InSubResource);
+	for (uint32 GPUIndex : RHICmdList.GetGPUMask())
+	{
+		FD3D12CommandContext::Get(RHICmdList, GPUIndex).TransitionResource(D3D12Texture->GetResource(), D3D12_RESOURCE_STATE_TBD, InState, InSubResource);
+	}
 }
 
 void FD3D12DynamicRHI::RHISignalManualFence(FRHICommandList& RHICmdList, ID3D12Fence* Fence, uint64 Value)
 {
 	checkf(FRHIGPUMask::All() == FRHIGPUMask::GPU0(), TEXT("RHISignalManualFence cannot be used by multi-GPU code"));
-	FD3D12CommandContext& Context = FD3D12CommandContext::Get(RHICmdList);
+	const uint32 GPUIndex = 0;
+
+	FD3D12CommandContext& Context = FD3D12CommandContext::Get(RHICmdList, GPUIndex);
 	Context.SignalManualFence(Fence, Value);
 }
 
 void FD3D12DynamicRHI::RHIWaitManualFence(FRHICommandList& RHICmdList, ID3D12Fence* Fence, uint64 Value)
 {
 	checkf(FRHIGPUMask::All() == FRHIGPUMask::GPU0(), TEXT("RHIWaitManualFence cannot be used by multi-GPU code"));
-	FD3D12CommandContext& Context = FD3D12CommandContext::Get(RHICmdList);
+	const uint32 GPUIndex = 0;
+
+	FD3D12CommandContext& Context = FD3D12CommandContext::Get(RHICmdList, GPUIndex);
 	Context.WaitManualFence(Fence, Value);
 }
 

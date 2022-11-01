@@ -156,27 +156,33 @@ FRenderQueryRHIRef FD3D12DynamicRHI::RHICreateRenderQuery(ERenderQueryType Query
 
 void FD3D12DynamicRHI::RHIBeginOcclusionQueryBatch_TopOfPipe(FRHICommandListBase& RHICmdList, uint32 NumQueriesInBatch)
 {
-	checkf(RHICmdList.QueryBatchData == nullptr, TEXT("An occlusion query batch has already begun on this command list."));
+	// Each occlusion query batch uses a single sync point to signal when the results are ready (one per active GPU).
+	for (uint32 GPUIndex : RHICmdList.GetGPUMask())
+	{
+		checkf(RHICmdList.QueryBatchData[GPUIndex] == nullptr, TEXT("An occlusion query batch has already begun on this command list."));
 
-	// Each occlusion query batch uses a single sync point to signal when the results are ready. Allocate this now.
-	FD3D12SyncPointRef SyncPoint = FD3D12SyncPoint::Create(ED3D12SyncPointType::GPUAndCPU);
+		FD3D12SyncPointRef SyncPoint = FD3D12SyncPoint::Create(ED3D12SyncPointType::GPUAndCPU);
 
-	// Keep a reference on the RHI command list, so we can retrieve it later in BeginQuery/EndQuery/EndBatch.
-	RHICmdList.QueryBatchData = SyncPoint.GetReference();
-	SyncPoint->AddRef();
+		// Keep a reference on the RHI command list, so we can retrieve it later in BeginQuery/EndQuery/EndBatch.
+		RHICmdList.QueryBatchData[GPUIndex] = SyncPoint.GetReference();
+		SyncPoint->AddRef();
+	}
 
 	if (RHIConsoleVariables::GInsertOuterOcclusionQuery)
 	{
 		// Insert an outer query that encloses the whole batch
 		RHICmdList.EnqueueLambda([](FRHICommandListBase& ExecutingCmdList)
 		{
-			FD3D12CommandContext& Context = FD3D12CommandContext::Get(ExecutingCmdList);
+			for (uint32 GPUIndex : ExecutingCmdList.GetGPUMask())
+			{
+				FD3D12CommandContext& Context = FD3D12CommandContext::Get(ExecutingCmdList, GPUIndex);
 
-			if (!Context.OuterOcclusionQuery.IsValid())
-				Context.OuterOcclusionQuery = GDynamicRHI->RHICreateRenderQuery(RQT_Occlusion);
+				if (!Context.OuterOcclusionQuery.IsValid())
+					Context.OuterOcclusionQuery = GDynamicRHI->RHICreateRenderQuery(RQT_Occlusion);
 
-			Context.RHIBeginRenderQuery(Context.OuterOcclusionQuery);
-			Context.bOuterOcclusionQuerySubmitted = true;
+				Context.RHIBeginRenderQuery(Context.OuterOcclusionQuery);
+				Context.bOuterOcclusionQuerySubmitted = true;
+			}
 		});
 	}
 }
@@ -189,8 +195,8 @@ void FD3D12DynamicRHI::RHIBeginRenderQuery_TopOfPipe(FRHICommandListBase& RHICmd
 		FD3D12RenderQuery* Query = ResourceCast(RenderQuery, GPUIndex);
 		checkf(Query->Type == RQT_Occlusion, TEXT("Only occlusion queries support RHIBeginRenderQuery()."));
 
-		checkf(RHICmdList.QueryBatchData, TEXT("Cannot use an occlusion query outside of an occlusion query batch."));
-		Query->SyncPoint = static_cast<FD3D12SyncPoint*>(RHICmdList.QueryBatchData);
+		checkf(RHICmdList.QueryBatchData[GPUIndex], TEXT("Cannot use an occlusion query outside of an occlusion query batch."));
+		Query->SyncPoint = static_cast<FD3D12SyncPoint*>(RHICmdList.QueryBatchData[GPUIndex]);
 	}
 
 	// Enqueue the RHI command to record the BeginQuery() call on the context.
@@ -216,16 +222,16 @@ void FD3D12DynamicRHI::RHIEndRenderQuery_TopOfPipe(FRHICommandListBase& RHICmdLi
 		if (Query->Type == RQT_Occlusion)
 		{
 			// Occlusion query sync points are allocated by BeginOcclusionQueryBatch().
-			checkf(RHICmdList.QueryBatchData, TEXT("Cannot use an occlusion query outside of an occlusion query batch."));
+			checkf(RHICmdList.QueryBatchData[GPUIndex], TEXT("Cannot use an occlusion query outside of an occlusion query batch."));
 		}
 		else
 		{
 			// All other query types use one sync point per query.
 			Query->SyncPoint = FD3D12SyncPoint::Create(ED3D12SyncPointType::GPUAndCPU);
 
-			RHICmdList.EnqueueLambda([SyncPoint = Query->SyncPoint](FRHICommandListBase& ExecutingCmdList) mutable
+			RHICmdList.EnqueueLambda([SyncPoint = Query->SyncPoint, GPUIndex](FRHICommandListBase& ExecutingCmdList) mutable
 			{
-				FD3D12CommandContext& Context = FD3D12CommandContext::Get(ExecutingCmdList);
+				FD3D12CommandContext& Context = FD3D12CommandContext::Get(ExecutingCmdList, GPUIndex);
 				Context.BatchedSyncPoints.ToSignal.Emplace(MoveTemp(SyncPoint));
 			});
 		}
@@ -260,26 +266,29 @@ void FD3D12CommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 
 void FD3D12DynamicRHI::RHIEndOcclusionQueryBatch_TopOfPipe(FRHICommandListBase& RHICmdList)
 {
-	checkf(RHICmdList.QueryBatchData, TEXT("An occlusion query batch is not open on this command list."));
-	FD3D12SyncPointRef SyncPoint = static_cast<FD3D12SyncPoint*>(RHICmdList.QueryBatchData);
-
-	RHICmdList.EnqueueLambda([SyncPoint](FRHICommandListBase& ExecutingCmdList)
+	for (uint32 GPUIndex : RHICmdList.GetGPUMask())
 	{
-		FD3D12CommandContext& Context = FD3D12CommandContext::Get(ExecutingCmdList);
+		checkf(RHICmdList.QueryBatchData[GPUIndex], TEXT("An occlusion query batch is not open on this command list."));
+		FD3D12SyncPointRef SyncPoint = static_cast<FD3D12SyncPoint*>(RHICmdList.QueryBatchData[GPUIndex]);
 
-		// End the outer query
-		if (Context.bOuterOcclusionQuerySubmitted)
+		// Clear the sync point reference on the RHI command list
+		SyncPoint->Release();
+		RHICmdList.QueryBatchData[GPUIndex] = nullptr;
+
+		RHICmdList.EnqueueLambda([GPUIndex, SyncPoint = MoveTemp(SyncPoint)](FRHICommandListBase& ExecutingCmdList)
 		{
-			Context.RHIEndRenderQuery(Context.OuterOcclusionQuery);
-			Context.bOuterOcclusionQuerySubmitted = false;
-		}
+			FD3D12CommandContext& Context = FD3D12CommandContext::Get(ExecutingCmdList, GPUIndex);
 
-		Context.BatchedSyncPoints.ToSignal.Add(SyncPoint);
-	});
+			// End the outer query
+			if (Context.bOuterOcclusionQuerySubmitted)
+			{
+				Context.RHIEndRenderQuery(Context.OuterOcclusionQuery);
+				Context.bOuterOcclusionQuerySubmitted = false;
+			}
 
-	// Clear the sync point reference on the RHI command list
-	SyncPoint->Release();
-	RHICmdList.QueryBatchData = nullptr;
+			Context.BatchedSyncPoints.ToSignal.Add(SyncPoint);
+		});
+	}
 }
 
 bool FD3D12DynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64& OutResult, bool bWait, uint32 QueryGPUIndex)

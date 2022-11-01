@@ -208,10 +208,14 @@ FRHICommandListBase::FRHICommandListBase(FRHICommandListBase&& Other)
 
 FRHICommandListBase::~FRHICommandListBase()
 {
-	check(QueryBatchData == nullptr);
 	checkf(!HasCommands(), TEXT("FRHICommandListBase has been deleted while it still contained commands. The command list was not submitted."));
 
 #if DO_CHECK
+	for (void* Data : QueryBatchData)
+	{
+		check(Data == nullptr);
+	}
+
 	if (PersistentState.RecordingThread == ERecordingThread::Render)
 	{
 		GRHICommandList.OutstandingCmdListCount.Decrement();

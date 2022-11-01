@@ -77,8 +77,11 @@ struct FRHICommandRenameUploadBuffer final : public FRHICommand<FRHICommandRenam
 		// Clear the resource if still bound to make sure the SRVs are rebound again on next operation. This needs to happen
 		// on the RHI timeline when this command runs at the top of the pipe (which can happen when locking buffers in
 		// RLM_WriteOnly_NoOverwrite mode).
-		CmdList.EnqueueLambda([ResourceLocation = &Resource->ResourceLocation](FRHICommandListBase& RHICmdList) {
-			FD3D12CommandContext& Context = (FD3D12CommandContext&)(RHICmdList.GetComputeContext().GetLowestLevelContext());
+		CmdList.EnqueueLambda([ResourceLocation = &Resource->ResourceLocation](FRHICommandListBase& RHICmdList)
+		{
+			const uint32 GPUIndex = 0; // @todo mgpu - seems wrong we're only doing this for the 0th GPU
+
+			FD3D12CommandContext& Context = FD3D12CommandContext::Get(RHICmdList, GPUIndex);
 			Context.ConditionalClearShaderResource(ResourceLocation);
 		});
 
@@ -113,22 +116,9 @@ struct FD3D12RHICommandInitializeBuffer final : public FRHICommand<FD3D12RHIComm
 
 	void Execute(FRHICommandListBase& CmdList)
 	{
-		FD3D12CommandContext& CommandContext = (FD3D12CommandContext&)(CmdList.GetComputeContext().GetLowestLevelContext());
-#if ENABLE_RHI_VALIDATION && WITH_MGPU
-		// Need to do a second level of indirection, to potentially go from FD3D12CommandContextRedirector to FD3D12CommandContext, when
-		// -rhivalidation is enabled.  The issue arises because GetLowestLevelContext on FValidationContext returns the contained
-		// FD3D12CommandContextRedirector, and doesn't attempt to call GetLowestLevelContext on that to get the physical FD3D12CommandContext
-		// required here.  Only when both validation and MGPU are present is it possible for this second level of indirection to be required.
-		// The call to "GetLowestLevelContext" is a nop (returns *this) if already a leaf command context.
-		//
-		// I thought about changing the original FValidationContext::GetLowestLevelContext implementation to attempt a second indirection there,
-		// but I wasn't sure what other side effects there might be for that change.  Here, the change is extremely safe, because the
-		// CommandContext passed to ExecuteOnCommandContext is solely used for a validation assert when WITH_MGPU is true, not actual rendering.
-		// So it can't affect behavior, it's just to avoid a spurious assert.
-		ExecuteOnCommandContext((FD3D12CommandContext&)CommandContext.GetLowestLevelContext());
-#else
+		const uint32 GPUIndex = 0; // @todo mgpu - why isn't this using the RHICmdList GPU mask?
+		FD3D12CommandContext& CommandContext = FD3D12CommandContext::Get(CmdList, GPUIndex);
 		ExecuteOnCommandContext(CommandContext);
-#endif
 	}
 
 	void ExecuteOnCommandContext(FD3D12CommandContext& CommandContext)

@@ -382,7 +382,13 @@ public:
 
 	virtual class FD3D12CommandContextRedirector* AsRedirector() { return nullptr; }
 
+	static FD3D12CommandContextBase& Get(FRHICommandListBase& RHICmdList)
+	{
+		return static_cast<FD3D12CommandContextBase&>(RHICmdList.GetComputeContext().GetLowestLevelContext());
+	}
+
 protected:
+	friend class FD3D12CommandContext;
 	virtual FD3D12CommandContext* GetContext(uint32 InGPUIndex) = 0;
 
 	FRHIGPUMask GPUMask;
@@ -399,9 +405,14 @@ public:
 	FD3D12CommandContext(class FD3D12Device* InParent, ED3D12QueueType QueueType, bool InIsDefaultContext);
 	virtual ~FD3D12CommandContext();
 
-	static FD3D12CommandContext& Get(FRHICommandListBase& RHICmdList)
+	static FD3D12CommandContext& Get(FRHICommandListBase& RHICmdList, uint32 GPUIndex)
 	{
-		return static_cast<FD3D12CommandContext&>(RHICmdList.GetComputeContext().GetLowestLevelContext());
+		FD3D12CommandContextBase& Base = FD3D12CommandContextBase::Get(RHICmdList);
+#if WITH_MGPU
+		return *Base.GetContext(GPUIndex);
+#else
+		return static_cast<FD3D12CommandContext&>(Base);
+#endif
 	}
 
 	virtual void OpenCommandList() override final;
@@ -535,7 +546,6 @@ public:
 	virtual void RHICopyTexture(FRHITexture* SourceTexture, FRHITexture* DestTexture, const FRHICopyTextureInfo& CopyInfo) final override;
 	virtual void RHICopyBufferRegion(FRHIBuffer* DestBuffer, uint64 DstOffset, FRHIBuffer* SourceBuffer, uint64 SrcOffset, uint64 NumBytes) final override;
 	virtual void RHICopyToStagingBuffer(FRHIBuffer* SourceBuffer, FRHIStagingBuffer* DestinationStagingBuffer, uint32 Offset, uint32 NumBytes) final override;
-	virtual void RHIWriteGPUFence(FRHIGPUFence* Fence) final override;
 	virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) final override;
 	virtual void RHIEndRenderQuery(FRHIRenderQuery* RenderQuery) final override;
 	virtual void RHICalibrateTimers(FRHITimestampCalibrationQuery* CalibrationQuery) final override;
@@ -756,10 +766,6 @@ public:
 	FORCEINLINE virtual void RHICopyToStagingBuffer(FRHIBuffer* SourceBuffer, FRHIStagingBuffer* DestinationStagingBuffer, uint32 Offset, uint32 NumBytes) final override
 	{
 		ContextRedirect(RHICopyToStagingBuffer(SourceBuffer, DestinationStagingBuffer, Offset, NumBytes));
-	}
-	FORCEINLINE virtual void RHIWriteGPUFence(FRHIGPUFence* Fence) final override
-	{
-		ContextRedirect(RHIWriteGPUFence(Fence));
 	}
 	FORCEINLINE virtual void RHISetShaderTexture(FRHIComputeShader* PixelShader, uint32 TextureIndex, FRHITexture* NewTexture) final override
 	{
@@ -1080,13 +1086,6 @@ public:
 	{
 		return PhysicalContexts[GPUIndex];
 	}
-
-#if ENABLE_RHI_VALIDATION || WITH_MGPU
-	IRHIComputeContext& GetLowestLevelContext() final override
-	{
-		return *PhysicalContexts[0];
-	}
-#endif
 
 private:
 	TStaticArray<FD3D12CommandContext*, MAX_NUM_GPUS> PhysicalContexts;
