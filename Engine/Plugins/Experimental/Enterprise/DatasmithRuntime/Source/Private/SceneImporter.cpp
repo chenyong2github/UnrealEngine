@@ -15,6 +15,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "RenderingThread.h"
+#include "Misc/Paths.h"
 
 namespace DatasmithRuntime
 {
