@@ -2097,6 +2097,12 @@ void UMaterialInstance::UpdateOverridableBaseProperties()
 		}
 	}
 
+	if (!GIsEditor)
+	{
+		// Filter out ShadingModels field to a current platform settings
+		FilterOutPlatformShadingModels(GMaxRHIShaderPlatform, ShadingModels);
+	}
+
 	if (BasePropertyOverrides.bOverride_TwoSided)
 	{
 		TwoSided = BasePropertyOverrides.TwoSided != 0;
