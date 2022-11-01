@@ -14,6 +14,7 @@ public class AudioGameplay : ModuleRules
 				"Core",
 				"AudioExtensions",
 				"GameplayTags",
+				"AudioExtensions",
 			}
 			);
 			
