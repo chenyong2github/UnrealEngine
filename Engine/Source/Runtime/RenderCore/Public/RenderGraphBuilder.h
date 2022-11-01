@@ -744,6 +744,7 @@ private:
 	bool bFlushResourcesRHI = false;
 	bool bParallelExecuteEnabled = false;
 	bool bParallelSetupEnabled = false;
+	bool bFinalEventScopeActive = false;
 
 #if RDG_ENABLE_DEBUG
 	FRDGUserValidation UserValidation;

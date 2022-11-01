@@ -56,24 +56,6 @@ FAutoConsoleVariableRef CVarRDGDebugDisableTransientResource(
 	TEXT("Filters out transient resources from the transient allocator. Use r.rdg.debug.resourcefilter to specify the filter. Defaults to all resources if enabled."),
 	ECVF_RenderThreadSafe);
 
-int32 GRDGDumpGraph = 0;
-FAutoConsoleVariableRef CVarDumpGraph(
-	TEXT("r.RDG.DumpGraph"),
-	GRDGDumpGraph,
-	TEXT("Dumps several visualization logs to disk.\n")
-	TEXT(" 0: disabled;\n")
-	TEXT(" 1: visualizes producer / consumer pass dependencies;\n")
-	TEXT(" 2: visualizes resource states and transitions;\n")
-	TEXT(" 3: visualizes graphics / async compute overlap;\n"),
-	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable*)
-	{
-		if (GRDGDumpGraph)
-		{
-			GRDGDebug = 1;
-		}
-	}),
-	ECVF_RenderThreadSafe);
-
 int32 GRDGBreakpoint = 0;
 FAutoConsoleVariableRef CVarRDGBreakpoint(
 	TEXT("r.RDG.Breakpoint"),
@@ -328,6 +310,18 @@ FAutoConsoleVariableRef CVarRDGTransientExtractedResource(
 	TEXT(" 2: force enables all external transient resources (not recommended);"),
 	ECVF_RenderThreadSafe);
 
+#if RDG_EVENTS != RDG_EVENTS_NONE
+int32 GRDGEvents = 1;
+FAutoConsoleVariableRef CVarRDGEvents(
+	TEXT("r.RDG.Events"),
+	GRDGEvents,
+	TEXT("Controls how RDG events are emitted.\n")
+	TEXT(" 0: off;\n")
+	TEXT(" 1: events are enabled and RDG_EVENT_SCOPE_FINAL is respected; (default)\n")
+	TEXT(" 2: all events are enabled (RDG_EVENT_SCOPE_FINAL is ignored);"),
+	ECVF_RenderThreadSafe);
+#endif
+
 #if RDG_ENABLE_PARALLEL_TASKS
 
 int32 GRDGParallelSetup = 1;
@@ -476,7 +470,7 @@ DEFINE_STAT(STAT_RDG_MemoryWatermark);
 #endif
 
 #if RDG_EVENTS != RDG_EVENTS_NONE
-int32 GRDGEmitEvents = 0;
+int32 GRDGEmitDrawEvents_RenderThread = 0;
 #endif
 
 void InitRenderGraph()
@@ -514,6 +508,31 @@ void InitRenderGraph()
 		GRDGClobberResources = 1;
 	}
 
+	int32 OverlapUAVsValue = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgoverlapuavs="), OverlapUAVsValue))
+	{
+		GRDGOverlapUAVs = OverlapUAVsValue;
+	}
+
+	FString GraphFilter;
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdebuggraphfilter="), GraphFilter))
+	{
+		CVarRDGDebugGraphFilter->Set(*GraphFilter);
+	}
+
+	FString PassFilter;
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdebugpassfilter="), PassFilter))
+	{
+		CVarRDGDebugPassFilter->Set(*PassFilter);
+	}
+
+	FString ResourceFilter;
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdebugresourcefilter="), ResourceFilter))
+	{
+		CVarRDGDebugResourceFilter->Set(*ResourceFilter);
+	}
+#endif
+
 	int32 TransientAllocatorValue = 0;
 	if (FParse::Value(FCommandLine::Get(), TEXT("rdgtransientallocator="), TransientAllocatorValue))
 	{
@@ -546,40 +565,17 @@ void InitRenderGraph()
 		GRDGMergeRenderPasses = MergeRenderPassesValue;
 	}
 
-	int32 OverlapUAVsValue = 0;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgoverlapuavs="), OverlapUAVsValue))
-	{
-		GRDGOverlapUAVs = OverlapUAVsValue;
-	}
-
-	int32 DumpGraphValue = 0;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdumpgraph="), DumpGraphValue))
-	{
-		CVarDumpGraph->Set(DumpGraphValue);
-	}
-
 	int32 AsyncComputeValue = 0;
 	if (FParse::Value(FCommandLine::Get(), TEXT("rdgasynccompute="), AsyncComputeValue))
 	{
 		CVarRDGAsyncCompute->Set(AsyncComputeValue);
 	}
 
-	FString GraphFilter;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdebuggraphfilter="), GraphFilter))
+#if RDG_EVENTS != RDG_EVENTS_NONE
+	int32 RDGEventValue = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgevents="), RDGEventValue))
 	{
-		CVarRDGDebugGraphFilter->Set(*GraphFilter);
-	}
-
-	FString PassFilter;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdebugpassfilter="), PassFilter))
-	{
-		CVarRDGDebugPassFilter->Set(*PassFilter);
-	}
-
-	FString ResourceFilter;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdebugresourcefilter="), ResourceFilter))
-	{
-		CVarRDGDebugResourceFilter->Set(*ResourceFilter);
+		CVarRDGEvents->Set(RDGEventValue);
 	}
 #endif
 }
