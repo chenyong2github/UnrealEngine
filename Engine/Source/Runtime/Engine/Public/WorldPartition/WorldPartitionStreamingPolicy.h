@@ -24,10 +24,13 @@ class UWorldPartition;
 struct FStreamingSourceVelocity
 {
 	FStreamingSourceVelocity(const FName& InSourceName);
+	void Invalidate() { bIsValid = false; }
+	bool IsValid() { return bIsValid; }
 	float GetAverageVelocity(const FVector& NewPosition, const float CurrentTime);
 
 private:
 	enum { VELOCITY_HISTORY_SAMPLE_COUNT = 16 };
+	bool bIsValid;
 	FName SourceName;
 	int32 LastIndex;
 	float LastUpdateTime;
