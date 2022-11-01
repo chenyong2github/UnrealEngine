@@ -48,7 +48,7 @@ protected:
 
 		bool operator==(const FFunctionAndUtil& InFunction) const
 		{
-			return InFunction.FunctionData == InFunction.FunctionData && InFunction.Util == Util;
+			return FunctionData == InFunction.FunctionData && Util == InFunction.Util;
 		}
 
 		UFunction* GetFunction() const
