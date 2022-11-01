@@ -122,14 +122,13 @@ void TMassClientBubbleTransformHandler<AgentArrayItem>::SetBubblePositionYawFrom
 		bMarkDirty = true;
 	}
 
-	if (const TOptional<float> Yaw = UE::AI::GetYawFromQuaternion(Transform.GetRotation()))
+	const float Yaw = static_cast<float>(FMath::DegreesToRadians(Transform.GetRotation().Rotator().Yaw));
+
+	// Only update the Yaw and mark the item as dirty if it has changed more than the tolerance
+	if (FMath::Abs(FMath::FindDeltaAngleRadians(Yaw, ReplicatedPositionYaw.GetYaw())) > UE::Mass::Replication::YawReplicateTolerance)
 	{
-		// Only update the Yaw and mark the item as dirty if it has changed more than the tolerance
-		if (FMath::Abs(FMath::FindDeltaAngleRadians(Yaw.GetValue(), ReplicatedPositionYaw.GetYaw())) > UE::Mass::Replication::YawReplicateTolerance)
-		{
-			ReplicatedPositionYaw.SetYaw(Yaw.GetValue());
-			bMarkDirty = true;
-		}
+		ReplicatedPositionYaw.SetYaw(Yaw);
+		bMarkDirty = true;
 	}
 
 	if (bMarkDirty)

@@ -39,11 +39,11 @@ void UEnvQueryTest_Overlap::RunTest(FEnvQueryInstance& QueryInstance) const
 			break;
 
 		case EEnvOverlapShape::Sphere:
-			CollisionShape = FCollisionShape::MakeSphere(TraceExtent.X);
+			CollisionShape = FCollisionShape::MakeSphere(FloatCastChecked<float>(TraceExtent.X, UE::LWC::DefaultFloatPrecision));
 			break;
 
 		case EEnvOverlapShape::Capsule:
-			CollisionShape = FCollisionShape::MakeCapsule(TraceExtent.X, TraceExtent.Z);
+			CollisionShape = FCollisionShape::MakeCapsule(FloatCastChecked<float>(TraceExtent.X, UE::LWC::DefaultFloatPrecision), FloatCastChecked<float>(TraceExtent.Z, UE::LWC::DefaultFloatPrecision));
 			break;
 
 		default:

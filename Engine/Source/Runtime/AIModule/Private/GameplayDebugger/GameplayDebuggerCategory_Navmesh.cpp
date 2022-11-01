@@ -119,8 +119,8 @@ void FGameplayDebuggerCategory_Navmesh::CollectData(APlayerController* OwnerPC, 
 		if (NavSys) 
 		{
 			DataPack.NumDirtyAreas = NavSys->GetNumDirtyAreas();
-			DataPack.NumRunningTasks = NavSys->GetNumRunningBuildTasks();
-			DataPack.NumRemainingTasks = NavSys->GetNumRemainingBuildTasks();
+			DataPack.NumRunningTasks = IntCastChecked<uint16>(NavSys->GetNumRunningBuildTasks());
+			DataPack.NumRemainingTasks = IntCastChecked<uint16>(NavSys->GetNumRemainingBuildTasks());
 			DataPack.bIsNavOctreeLocked = NavSys->IsNavigationOctreeLocked();
 			DataPack.bIsNavBuildLocked = NavSys->IsNavigationBuildingLocked();
 			DataPack.NavBuildLockStatusDesc = FString("Unknown");

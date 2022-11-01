@@ -35,7 +35,7 @@ private:
 	const IEQSQueryResultSourceInterface* QueryDataSource;
 	uint32 bDrawOnlyWhenSelected : 1;
 
-	static const FVector ItemDrawRadius;
+	static const FVector3f ItemDrawRadius;
 
 	bool SafeIsActorSelected() const;
 };

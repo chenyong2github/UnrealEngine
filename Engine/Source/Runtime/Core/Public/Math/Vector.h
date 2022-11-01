@@ -2657,16 +2657,18 @@ inline TVector<T> TVector2<T>::SphericalToUnitCartesian() const
 	
 namespace LWC
 {
+constexpr FVector::FReal DefaultFloatPrecision = 1./16.;
+
 // Validated narrowing cast for world positions. FVector -> FVector3f
 FORCEINLINE FVector3f NarrowWorldPositionChecked(const FVector& WorldPosition)
 {
 	FVector3f Narrowed;
-	constexpr FVector::FReal Precision = 1/16.0;
-	Narrowed.X = FloatCastChecked<float>(WorldPosition.X, Precision);
-	Narrowed.Y = FloatCastChecked<float>(WorldPosition.Y, Precision);
-	Narrowed.Z = FloatCastChecked<float>(WorldPosition.Z, Precision);
+	Narrowed.X = FloatCastChecked<float>(WorldPosition.X, DefaultFloatPrecision);
+	Narrowed.Y = FloatCastChecked<float>(WorldPosition.Y, DefaultFloatPrecision);
+	Narrowed.Z = FloatCastChecked<float>(WorldPosition.Z, DefaultFloatPrecision);
 	return Narrowed;
 }
+
 } // namespace UE::LWC
 
 } // namespace UE

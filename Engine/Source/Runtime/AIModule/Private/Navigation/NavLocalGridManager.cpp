@@ -17,7 +17,7 @@ UNavLocalGridManager::UNavLocalGridManager(const FObjectInitializer& ObjectIniti
 
 int32 UNavLocalGridManager::AddGridData(const FNavLocalGridData& GridData, bool bUpdate)
 {
-	const float GameTime = HasSourceGridLimit() ? GetWorld()->GetTimeSeconds() : 0;
+	const double GameTime = HasSourceGridLimit() ? GetWorld()->GetTimeSeconds() : 0.;
 	const int32 NewGridIdx = SourceGrids.Add(GridData);
 
 	SourceGrids[NewGridIdx].SetGridId(NextGridId);
@@ -217,7 +217,7 @@ void UNavLocalGridManager::UpdateAccessTime(int32 CombinedGridIdx)
 {
 	if (CombinedGrids.IsValidIndex(CombinedGridIdx))
 	{
-		const float GameTime = GetWorld()->GetTimeSeconds();
+		const double GameTime = GetWorld()->GetTimeSeconds();
 
 		for (int32 Idx = 0; Idx < CombinedGrids[CombinedGridIdx].SourceIds.Num(); Idx++)
 		{
@@ -250,7 +250,7 @@ bool UNavLocalGridManager::UpdateSourceGrids()
 
 	while (SourceGrids.Num() > MaxActiveSourceGrids)
 	{
-		float BestScore = FLT_MAX;
+		double BestScore = DBL_MAX;
 		int32 BestIdx = 0;
 
 		for (int32 Idx = 0; Idx < SourceGrids.Num(); Idx++)
@@ -343,7 +343,7 @@ int32 UNavLocalGridManager::AddLocalNavigationGridForPoints(UObject* WorldContex
 	if (GridManager)
 	{
 		const FBox Bounds(Locations);
-		const float BoundsSize2D = FMath::Max(Bounds.Max.X - Bounds.Min.X, Bounds.Max.Y - Bounds.Min.Y);
+		const float BoundsSize2D = FloatCastChecked<float>(FMath::Max(Bounds.Max.X - Bounds.Min.X, Bounds.Max.Y - Bounds.Min.Y), UE::LWC::DefaultFloatPrecision);
 
 		FNavLocalGridData GridData(Bounds.GetCenter(), (UNavLocalGridManager::GridCellSize * Radius2D) + BoundsSize2D);
 		GridData.SetHeight(Height);

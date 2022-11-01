@@ -196,7 +196,7 @@ void UBTDecorator_Blackboard::PostEditChangeProperty(FPropertyChangedEvent& Prop
 				// Set both properties to match the first valid value or invalidate them
 				if (EnumType != nullptr && EnumType->NumEnums())
 				{
-					IntValue = EnumType->GetValueByIndex(0);
+					IntValue = IntCastChecked<int32>(EnumType->GetValueByIndex(0));
 					StringValue = EnumType->GetNameStringByIndex(0);
 				}
 				else
@@ -211,7 +211,7 @@ void UBTDecorator_Blackboard::PostEditChangeProperty(FPropertyChangedEvent& Prop
 			}
 			else if (ChangedPropName == StringValueName)
 			{
-				IntValue = (EnumType != nullptr) ? EnumType->GetValueByNameString(StringValue) : INDEX_NONE;
+				IntValue = (EnumType != nullptr) ? IntCastChecked<int32>(EnumType->GetValueByNameString(StringValue)) : INDEX_NONE;
 			}
 		}
 	}
@@ -221,21 +221,21 @@ void UBTDecorator_Blackboard::PostEditChangeProperty(FPropertyChangedEvent& Prop
 	{
 		if (KeyCDO && KeyCDO->GetTestOperation() == EBlackboardKeyOperation::Basic)
 		{
-			OperationType = BasicOperation;
+			OperationType = BasicOperation.GetIntValue();
 		}
 	}
 	else if (ChangedPropName == GET_MEMBER_NAME_CHECKED(UBTDecorator_Blackboard, ArithmeticOperation))
 	{
 		if (KeyCDO && KeyCDO->GetTestOperation() == EBlackboardKeyOperation::Arithmetic)
 		{
-			OperationType = ArithmeticOperation;
+			OperationType = ArithmeticOperation.GetIntValue();
 		}
 	}
 	else if (ChangedPropName == GET_MEMBER_NAME_CHECKED(UBTDecorator_Blackboard, TextOperation))
 	{
 		if (KeyCDO && KeyCDO->GetTestOperation() == EBlackboardKeyOperation::Text)
 		{
-			OperationType = TextOperation;
+			OperationType = TextOperation.GetIntValue();
 		}
 	}
 
@@ -282,14 +282,14 @@ void UBTDecorator_Blackboard::RefreshEnumBasedDecorator(const FBlackboardEntry& 
 	{
 		// Pass string as FName to use fast search path whenever possible 
 		const FName Name = *StringValue;
-		IntValue = Enum->GetValueByName(Name);
+		IntValue = IntCastChecked<int32>(Enum->GetValueByName(Name));
 	}
 	else if (IntValue >= 0 && IntValue < Enum->NumEnums())
 	{
 		// Previous implementation was using only 'IntValue' to store the enumeration
 		// index so we need to extract associated name and update `IntValue` to store the value.
 		StringValue = Enum->GetNameByIndex(IntValue).ToString();
-		IntValue = Enum->GetValueByIndex(IntValue);
+		IntValue = IntCastChecked<int32>(Enum->GetValueByIndex(IntValue));
 	}
 }
 

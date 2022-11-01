@@ -30,9 +30,10 @@ UBTDecorator_IsAtLocation::UBTDecorator_IsAtLocation(const FObjectInitializer& O
 	FlowAbortMode = EBTFlowAbortMode::None;
 }
 
-float UBTDecorator_IsAtLocation::GetGeometricDistanceSquared(const FVector& A, const FVector& B) const
+FVector::FReal UBTDecorator_IsAtLocation::GetGeometricDistanceSquared(const FVector& A, const FVector& B) const
 {
-	float Result = MAX_flt;
+	FVector::FReal Result = TNumericLimits<FVector::FReal>::Max();
+
 	switch (GeometricDistanceType)
 	{
 	case FAIDistanceType::Distance3D:
@@ -90,7 +91,7 @@ bool UBTDecorator_IsAtLocation::CalculateRawConditionValue(UBehaviorTreeComponen
 					? PathFollowingComponent->HasReached(TargetLocation, EPathFollowingReachMode::OverlapAgent, Radius)
 					: (AIOwner->GetPawn()
 						? (GetGeometricDistanceSquared(AIOwner->GetPawn()->GetActorLocation(), TargetLocation) < FMath::Square(Radius))
-						: false);;
+						: false);
 			}
 		}
 	}

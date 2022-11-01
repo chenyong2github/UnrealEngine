@@ -29,7 +29,7 @@ void UBTDecorator_Loop::OnNodeActivation(FBehaviorTreeSearchData& SearchData)
 		(!bIsSpecialNode && ParentMemory->CurrentChild != ChildIndex))
 	{
 		// initialize counter if it's first activation
-		DecoratorMemory->RemainingExecutions = NumLoops;
+		DecoratorMemory->RemainingExecutions = IntCastChecked<uint8>(NumLoops);
 		DecoratorMemory->TimeStarted = GetWorld()->GetTimeSeconds();
 	}
 
@@ -97,7 +97,7 @@ void UBTDecorator_Loop::DescribeRuntimeValues(const UBehaviorTreeComponent& Owne
 	{
 		FBTLoopDecoratorMemory* DecoratorMemory = (FBTLoopDecoratorMemory*)NodeMemory;
 
-		const float TimeRemaining = FMath::Max(InfiniteLoopTimeoutTime - (GetWorld()->GetTimeSeconds() - DecoratorMemory->TimeStarted), 0.f);
+		const double TimeRemaining = FMath::Max(InfiniteLoopTimeoutTime - (GetWorld()->GetTimeSeconds() - DecoratorMemory->TimeStarted), 0.f);
 		Values.Add(FString::Printf(TEXT("time remaining: %s"), *FString::SanitizeFloat(TimeRemaining)));
 	}
 }

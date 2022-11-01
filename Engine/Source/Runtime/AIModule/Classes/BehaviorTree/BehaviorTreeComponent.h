@@ -143,9 +143,9 @@ public:
 	void RestartTree();
 
 	/** request execution change */
-	void RequestExecution(const UBTCompositeNode* RequestedOn, int32 InstanceIdx, 
-		const UBTNode* RequestedBy, int32 RequestedByChildIndex,
-		EBTNodeResult::Type ContinueWithResult, bool bStoreForDebugger = true);
+	void RequestExecution(const UBTCompositeNode* RequestedOn, const int32 InstanceIdx, 
+		const UBTNode* RequestedBy, const int32 RequestedByChildIndex,
+		const EBTNodeResult::Type ContinueWithResult, bool bStoreForDebugger = true);
 
 	/** replaced by the RequestBranchEvaluation from decorator*/
 	void RequestExecution(const UBTDecorator* RequestedBy) { check(RequestedBy); RequestBranchEvaluation(*RequestedBy); }
@@ -254,7 +254,7 @@ public:
 
 	/** @return the cooldown tag end time, 0.0f if CooldownTag is not found */
 	UFUNCTION(BlueprintCallable, Category = "AI|Logic")
-	float GetTagCooldownEndTime(FGameplayTag CooldownTag) const;
+	double GetTagCooldownEndTime(FGameplayTag CooldownTag) const;
 
 	/** add to the cooldown tag's duration */
 	UFUNCTION(BlueprintCallable, Category = "AI|Logic")
@@ -330,7 +330,7 @@ protected:
 	TMultiMap<FBTNodeIndex,FAIMessageObserverHandle> TaskMessageObservers;
 
 	/** behavior cooldowns mapped by tag to last time it was set */
-	TMap<FGameplayTag, float> CooldownTagsMap;
+	TMap<FGameplayTag, double> CooldownTagsMap;
 
 #if USE_BEHAVIORTREE_DEBUGGER
 	/** search flow for debugger */
@@ -389,9 +389,6 @@ protected:
 
 	/** copy memory block from persistent memory to running instances (rollback) */
 	void CopyInstanceMemoryFromPersistent();
-
-	/** find next task to execute */
-	UBTTaskNode* FindNextTask(UBTCompositeNode* ParentNode, uint16 ParentInstanceIdx, EBTNodeResult::Type LastResult);
 
 	/** called when tree runs out of nodes to execute */
 	virtual void OnTreeFinished();
@@ -518,11 +515,11 @@ protected:
 	/** Used to tell tickmanager that we want interval ticking */
 	bool bTickedOnce = false;
 	/** Predicted next DeltaTime*/
-	float NextTickDeltaTime = 0.0f;
+	float NextTickDeltaTime = 0.;
 	/** Accumulated DeltaTime if ticked more than predicted next delta time */
 	float AccumulatedTickDeltaTime = 0.0f;
 	/** GameTime of the last DeltaTime request, used for debugging to output warnings about ticking */
-	float LastRequestedDeltaTimeGameTime = 0;
+	double LastRequestedDeltaTimeGameTime = 0.;
 
 #if CSV_PROFILER
 	/** CSV tick stat name. Can be changed but must point to a static string */

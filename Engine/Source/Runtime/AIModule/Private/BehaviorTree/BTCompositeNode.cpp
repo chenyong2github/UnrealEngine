@@ -120,7 +120,7 @@ void UBTCompositeNode::OnChildActivation(FBehaviorTreeSearchData& SearchData, in
 	}
 
 	// update active node in current context: child node
-	NodeMemory->CurrentChild = ChildIndex;
+	NodeMemory->CurrentChild = IntCastChecked<int8>(ChildIndex);
 }
 
 void UBTCompositeNode::OnChildDeactivation(FBehaviorTreeSearchData& SearchData, const UBTNode& ChildNode, EBTNodeResult::Type& NodeResult, const bool bRequestedFromValidInstance) const
@@ -429,7 +429,7 @@ static bool UpdateOperationStack(const UBehaviorTreeComponent& OwnerComp, FStrin
 	return bTestResult;
 }
 
-bool UBTCompositeNode::DoDecoratorsAllowExecution(UBehaviorTreeComponent& OwnerComp, int32 InstanceIdx, int32 ChildIdx) const
+bool UBTCompositeNode::DoDecoratorsAllowExecution(UBehaviorTreeComponent& OwnerComp, const int32 InstanceIdx, const int32 ChildIdx) const
 {
 	ensure(Children.IsValidIndex(ChildIdx));
 	if (Children.IsValidIndex(ChildIdx) == false)
@@ -449,6 +449,8 @@ bool UBTCompositeNode::DoDecoratorsAllowExecution(UBehaviorTreeComponent& OwnerC
 
 	FBehaviorTreeInstance& MyInstance = OwnerComp.InstanceStack[InstanceIdx];
 
+	const uint16 InstanceIdxUint16 = IntCastChecked<uint16>(InstanceIdx);
+
 	if (ChildInfo.DecoratorOps.Num() == 0)
 	{
 		// simple check: all decorators must agree
@@ -456,7 +458,7 @@ bool UBTCompositeNode::DoDecoratorsAllowExecution(UBehaviorTreeComponent& OwnerC
 		{
 			const UBTDecorator* TestDecorator = ChildInfo.Decorators[DecoratorIndex];
 			const bool bIsAllowed = TestDecorator ? TestDecorator->WrappedCanExecute(OwnerComp, TestDecorator->GetNodeMemory<uint8>(MyInstance)) : false;
-			OwnerComp.StoreDebuggerSearchStep(TestDecorator, InstanceIdx, bIsAllowed);
+			OwnerComp.StoreDebuggerSearchStep(TestDecorator, InstanceIdxUint16, bIsAllowed);
 
 			const UBTNode* ChildNode = GetChildNode(ChildIdx);
 
@@ -527,7 +529,7 @@ bool UBTCompositeNode::DoDecoratorsAllowExecution(UBehaviorTreeComponent& OwnerC
 					UE_VLOG(OwnerComp.GetOwner(), LogBehaviorTree, Verbose, TEXT("finished execution test: %s"),
 						bResult ? TEXT("allowed") : TEXT("forbidden"));
 
-					OwnerComp.StoreDebuggerSearchStep(ChildInfo.Decorators[FMath::Max(0, FailedDecoratorIdx)], InstanceIdx, bResult);
+					OwnerComp.StoreDebuggerSearchStep(ChildInfo.Decorators[FMath::Max(0, FailedDecoratorIdx)], InstanceIdxUint16, bResult);
 					break;
 				}
 			}
@@ -645,7 +647,7 @@ uint16 UBTCompositeNode::GetChildExecutionIndex(int32 Index, EBTChildIndex Child
 			}
 		}
 
-		return ChildNode->GetExecutionIndex() - Offset;
+		return IntCastChecked<uint16>(ChildNode->GetExecutionIndex() - Offset);
 	}
 
 	return (LastExecutionIndex + 1);

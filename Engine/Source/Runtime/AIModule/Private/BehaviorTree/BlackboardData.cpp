@@ -107,7 +107,10 @@ FBlackboard::FKey UBlackboardData::InternalGetKeyID(const FName& KeyName, EKeyLo
 	{
 		if (Keys[KeyIndex].EntryName == KeyName)
 		{
-			return KeyIndex + FirstKeyID;
+			const int32 OffsetKey = KeyIndex + FirstKeyID;
+			check(OffsetKey != FBlackboard::InvalidKey);
+
+			return IntCastChecked<FBlackboard::FKey>(OffsetKey);
 		}
 	}
 
@@ -280,7 +283,10 @@ void UBlackboardData::UpdateParentKeys()
 
 void UBlackboardData::UpdateKeyIDs()
 {
-	FirstKeyID = Parent ? Parent->GetNumKeys() : 0;
+	const int32 FirstKeyIDInt = Parent ? Parent->GetNumKeys() : 0;
+	check(FirstKeyIDInt != FBlackboard::InvalidKey);
+
+	FirstKeyID = Parent ? IntCastChecked<FBlackboard::FKey>(FirstKeyIDInt) : 0;
 }
 
 void UBlackboardData::UpdateDeprecatedKeys()

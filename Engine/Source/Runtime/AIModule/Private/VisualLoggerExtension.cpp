@@ -44,7 +44,7 @@ void FVisualLoggerExtension::OnItemsSelectionChanged(IVisualLoggerEditorInterfac
 
 void FVisualLoggerExtension::OnLogLineSelectionChanged(IVisualLoggerEditorInterface* EdInterface, TSharedPtr<struct FLogEntryItem> SelectedItem, int64 UserData)
 {
-	SelectedEQSId = SelectedItem.IsValid() ? UserData : INDEX_NONE;
+	SelectedEQSId = SelectedItem.IsValid() ? IntCastChecked<int32>(UserData) : INDEX_NONE;
 	EdInterface->GetHelperActor()->MarkComponentsRenderStateDirty();
 	DrawData(EdInterface, NULL); //we have to refresh rendering components
 }
@@ -133,16 +133,15 @@ void FVisualLoggerExtension::DrawData(UWorld* InWorld, class UEQSRenderingCompon
 			FVector FireDir = Canvas->SceneView->GetViewDirection();
 			FVector CamLocation = Canvas->SceneView->ViewMatrices.GetViewOrigin();
 
-			float bestAim = 0;
+			FVector::FReal bestAim = 0.;
 			for (int32 Index = 0; Index < DebugData.RenderDebugHelpers.Num(); ++Index)
 			{
 				auto& CurrentItem = DebugData.RenderDebugHelpers[Index];
 
 				const FVector AimDir = CurrentItem.Location - CamLocation;
-				float FireDist = AimDir.SizeSquared();
+				const FVector::FReal FireDist = AimDir.Size();
 
-				FireDist = FMath::Sqrt(FireDist);
-				float newAim = FireDir | AimDir;
+				FVector::FReal newAim = FireDir | AimDir;
 				newAim = newAim / FireDist;
 				if (newAim > bestAim)
 				{

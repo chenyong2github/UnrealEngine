@@ -20,7 +20,7 @@ class AIMODULE_API UEnvQueryGenerator_ProjectedPoints : public UEnvQueryGenerato
 
 	struct FSortByHeight
 	{
-		float OriginalZ;
+		FVector::FReal OriginalZ;
 
 		FSortByHeight(const FVector& OriginalPt) : OriginalZ(OriginalPt.Z) {}
 

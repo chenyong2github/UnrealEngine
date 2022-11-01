@@ -34,7 +34,7 @@ public:
 
 	uint8 GetResourceID() const
 	{
-		return bManuallySetID || (ManualResourceID != INDEX_NONE) ? ManualResourceID : AutoResourceID;
+		return bManuallySetID || (ManualResourceID != INDEX_NONE) ? IntCastChecked<uint8>(ManualResourceID) : AutoResourceID;
 	}
 
 	template <class T>

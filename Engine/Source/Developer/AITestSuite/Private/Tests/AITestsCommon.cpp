@@ -27,7 +27,7 @@ namespace FAITestHelpers
 
 bool FAITestCommand_WaitSeconds::Update()
 {
-	float NewTime = FPlatformTime::Seconds();
+	const double NewTime = FPlatformTime::Seconds();
 	if (NewTime - StartTime >= Duration)
 	{
 		return true;

@@ -207,7 +207,7 @@ void LogBlockHelper(AActor* LogOwner, UNavMovementComponent* MoveComp, float Rad
 	{
 		const FVector AgentLocation = MoveComp->GetActorFeetLocation();
 		const FVector ToTarget = (SegmentEnd - AgentLocation);
-		const float SegmentDot = FVector::DotProduct(ToTarget.GetSafeNormal(), (SegmentEnd - SegmentStart).GetSafeNormal());
+		const FVector::FReal SegmentDot = FVector::DotProduct(ToTarget.GetSafeNormal(), (SegmentEnd - SegmentStart).GetSafeNormal());
 		UE_VLOG(LogOwner, LogPathFollowing, Verbose, TEXT("[agent to segment end] dot [segment dir]: %f"), SegmentDot);
 		
 		float AgentRadius = 0.0f;
@@ -215,10 +215,10 @@ void LogBlockHelper(AActor* LogOwner, UNavMovementComponent* MoveComp, float Rad
 		AActor* MovingAgent = MoveComp->GetOwner();
 		MovingAgent->GetSimpleCollisionCylinder(AgentRadius, AgentHalfHeight);
 
-		const float Dist2D = ToTarget.Size2D();
+		const FVector::FReal Dist2D = ToTarget.Size2D();
 		UE_VLOG(LogOwner, LogPathFollowing, Verbose, TEXT("dist 2d: %f (agent radius: %f [%f])"), Dist2D, AgentRadius, AgentRadius * (1 + RadiusPct));
 
-		const float ZDiff = FMath::Abs(ToTarget.Z);
+		const FVector::FReal ZDiff = FMath::Abs(ToTarget.Z);
 		UE_VLOG(LogOwner, LogPathFollowing, Verbose, TEXT("Z diff: %f (agent halfZ: %f [%f])"), ZDiff, AgentHalfHeight, AgentHalfHeight * (1 + HeightPct));
 	}
 #endif // ENABLE_VISUAL_LOG
@@ -530,9 +530,9 @@ bool UPathFollowingComponent::ShouldCheckPathOnResume() const
 		MovementComp->GetOwner()->GetSimpleCollisionCylinder(AgentRadius, AgentHalfHeight);
 
 		const FVector CurrentLocation = MovementComp->GetActorFeetLocation();
-		const float DeltaMove2DSq = (CurrentLocation - LocationWhenPaused).SizeSquared2D();
-		const float DeltaZ = FMath::Abs(CurrentLocation.Z - LocationWhenPaused.Z);
-		if (DeltaMove2DSq < FMath::Square(AgentRadius) && DeltaZ < (AgentHalfHeight * 0.5f))
+		const FVector::FReal DeltaMove2DSq = (CurrentLocation - LocationWhenPaused).SizeSquared2D();
+		const FVector::FReal DeltaZ = FMath::Abs(CurrentLocation.Z - LocationWhenPaused.Z);
+		if (DeltaMove2DSq < FMath::Square(AgentRadius) && DeltaZ < (AgentHalfHeight * 0.5))
 		{
 			bCheckPath = false;
 		}
@@ -794,8 +794,8 @@ int32 UPathFollowingComponent::DetermineStartingPathPoint(const FNavigationPath*
 				const FVector PathPt1 = *ConsideredPath->GetPathPointLocation(1);
 				// making this test in 2d to avoid situation where agent's Z location not being in "navmesh plane"
 				// would influence the result
-				const float SqDistToFirstPoint = (CurrentLocation - PathPt0).SizeSquared2D();
-				const float SqDistToSecondPoint = (CurrentLocation - PathPt1).SizeSquared2D();
+				const FVector::FReal SqDistToFirstPoint = (CurrentLocation - PathPt0).SizeSquared2D();
+				const FVector::FReal SqDistToSecondPoint = (CurrentLocation - PathPt1).SizeSquared2D();
 
 				PickedPathPoint = FMath::IsNearlyEqual(SqDistToFirstPoint, SqDistToSecondPoint) ?
 					((FMath::Abs(CurrentLocation.Z - PathPt0.Z) < FMath::Abs(CurrentLocation.Z - PathPt1.Z)) ? 0 : 1) :
@@ -1031,13 +1031,13 @@ void UPathFollowingComponent::FollowPathSegment(float DeltaTime)
 		if (bStopMovementOnFinish && (MoveSegmentStartIndex >= DecelerationSegmentIndex))
 		{
 			const FVector PathEnd = Path->GetEndLocation();
-			const float DistToEndSq = FVector::DistSquared(CurrentLocation, PathEnd);
+			const FVector::FReal DistToEndSq = FVector::DistSquared(CurrentLocation, PathEnd);
 			const bool bShouldDecelerate = DistToEndSq < FMath::Square(CachedBrakingDistance);
 			if (bShouldDecelerate)
 			{
 				bIsDecelerating = true;
 
-				const float SpeedPct = FMath::Clamp(FMath::Sqrt(DistToEndSq) / CachedBrakingDistance, 0.0f, 1.0f);
+				const FVector::FReal  SpeedPct = FMath::Clamp(FMath::Sqrt(DistToEndSq) / CachedBrakingDistance, 0., 1.);
 				CurrentMoveInput *= SpeedPct;
 			}
 		}
@@ -1164,8 +1164,8 @@ bool UPathFollowingComponent::HasReachedCurrentTarget(const FVector& CurrentLoca
 
 	// check if moved too far
 	const FVector ToTarget = (CurrentTarget - MovementComp->GetActorFeetLocation());
-	const float SegmentDot = FVector::DotProduct(ToTarget, CurrentDirection);
-	if (SegmentDot < 0.0)
+	const FVector::FReal SegmentDot = FVector::DotProduct(ToTarget, CurrentDirection);
+	if (SegmentDot < 0.)
 	{
 		return true;
 	}
@@ -1194,15 +1194,15 @@ bool UPathFollowingComponent::HasReachedInternal(const FVector& GoalLocation, fl
 	// check if they overlap (with added AcceptanceRadius)
 	const FVector ToGoal = GoalLocation - AgentLocation;
 
-	const float Dist2DSq = ToGoal.SizeSquared2D();
-	const float UseRadius = RadiusThreshold + GoalRadius + (AgentRadius * AgentRadiusMultiplier);
+	const FVector::FReal Dist2DSq = ToGoal.SizeSquared2D();
+	const FVector::FReal UseRadius = RadiusThreshold + GoalRadius + (AgentRadius * AgentRadiusMultiplier);
 	if (Dist2DSq > FMath::Square(UseRadius))
 	{
 		return false;
 	}
 
-	const float ZDiff = FMath::Abs(ToGoal.Z);
-	const float UseHeight = GoalHalfHeight + (AgentHalfHeight * MinAgentHalfHeightPct);
+	const FVector::FReal ZDiff = FMath::Abs(ToGoal.Z);
+	const FVector::FReal UseHeight = GoalHalfHeight + (AgentHalfHeight * MinAgentHalfHeightPct);
 	if (ZDiff > UseHeight)
 	{
 		return false;
@@ -1221,7 +1221,7 @@ int32 UPathFollowingComponent::FindPreciseAcceptanceRadiusTestsStartNodeIndex(co
 
 	if (PathPoints.Num() > 1)
 	{
-		float DistanceSum = 0.f;
+		FVector::FReal DistanceSum = 0.f;
 		int32 NodeIndex = PathPoints.Num() - 1;
 		FVector PrevLocation = PathPoints[NodeIndex].Location;
 		--NodeIndex;
@@ -1249,12 +1249,12 @@ float UPathFollowingComponent::GetFinalAcceptanceRadius(const FNavigationPath& P
 	{
 		ensure(FAISystem::IsValidLocation(OriginalGoalLocation));
 
-		const float PathEndToGoalDistance = FVector::Dist(PathEndOverride ? *PathEndOverride : PathInstance.GetEndLocation(), OriginalGoalLocation);
-		const float Remaining = AcceptanceRadius - PathEndToGoalDistance;
+		const FVector::FReal PathEndToGoalDistance = FVector::Dist(PathEndOverride ? *PathEndOverride : PathInstance.GetEndLocation(), OriginalGoalLocation);
+		const FVector::FReal Remaining = AcceptanceRadius - PathEndToGoalDistance;
 		
 		// if goal is more than AcceptanceRadius from the end of the path
 		// we just need to do regular path following, with default radius value
-		return FMath::Max(Remaining, MyDefaultAcceptanceRadius);
+		return FloatCastChecked<float>(FMath::Max(Remaining, (FVector::FReal)MyDefaultAcceptanceRadius), UE::LWC::DefaultFloatPrecision);
 	}
 
 	return AcceptanceRadius;
@@ -1424,7 +1424,7 @@ bool UPathFollowingComponent::IsBlocked() const
 
 	if (LocationSamples.Num() == BlockDetectionSampleCount && BlockDetectionSampleCount > 0)
 	{
-		const float BlockDetectionDistanceSq = FMath::Square(BlockDetectionDistance);
+		const FVector::FReal BlockDetectionDistanceSq = FMath::Square(BlockDetectionDistance);
 
 		FVector Center = FVector::ZeroVector;
 		for (int32 SampleIndex = 0; SampleIndex < LocationSamples.Num(); SampleIndex++)
@@ -1437,7 +1437,7 @@ bool UPathFollowingComponent::IsBlocked() const
 
 		for (int32 SampleIndex = 0; SampleIndex < LocationSamples.Num(); SampleIndex++)
 		{
-			const float TestDistanceSq = FVector::DistSquared(*LocationSamples[SampleIndex], Center);
+			const FVector::FReal TestDistanceSq = FVector::DistSquared(*LocationSamples[SampleIndex], Center);
 			if (TestDistanceSq > BlockDetectionDistanceSq)
 			{
 				bBlocked = false;
@@ -1527,11 +1527,11 @@ void UPathFollowingComponent::UpdateDecelerationData()
 		DecelerationSegmentIndex = 0;
 
 		const TArray<FNavPathPoint>& PathPoints = Path->GetPathPoints();
-		float PathLengthFromEnd = 0.0f;
+		FVector::FReal PathLengthFromEnd = 0.;
 
 		for (int32 Idx = PathPoints.Num() - 1; Idx > 0; Idx--)
 		{
-			const float PathSegmentLength = FVector::Dist(PathPoints[Idx].Location, PathPoints[Idx - 1].Location);
+			const FVector::FReal PathSegmentLength = FVector::Dist(PathPoints[Idx].Location, PathPoints[Idx - 1].Location);
 			PathLengthFromEnd += PathSegmentLength;
 
 			if (PathLengthFromEnd > CachedBrakingDistance)
@@ -1568,9 +1568,9 @@ void UPathFollowingComponent::SetPreciseReachThreshold(float AgentRadiusMultipli
 	MinAgentHalfHeightPct = AgentHalfHeightMultiplier;
 }
 
-float UPathFollowingComponent::GetRemainingPathCost() const
+FVector::FReal UPathFollowingComponent::GetRemainingPathCost() const
 {
-	float Cost = 0.f;
+	FVector::FReal Cost = 0.;
 
 	if (Path.IsValid() && Path->IsValid() && Status == EPathFollowingStatus::Moving)
 	{

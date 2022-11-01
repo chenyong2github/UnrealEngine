@@ -10,7 +10,7 @@ struct FBTLoopDecoratorMemory
 {
 	int32 SearchId;
 	uint8 RemainingExecutions;
-	float TimeStarted;
+	double TimeStarted;
 };
 
 /**
@@ -23,7 +23,7 @@ class AIMODULE_API UBTDecorator_Loop : public UBTDecorator
 	GENERATED_UCLASS_BODY()
 
 	/** number of executions */
-	UPROPERTY(Category=Decorator, EditAnywhere, meta=(EditCondition="!bInfiniteLoop", ClampMin="1"))
+	UPROPERTY(Category=Decorator, EditAnywhere, meta=(EditCondition="!bInfiniteLoop", ClampMin="1", ClampMax="255"))
 	int32 NumLoops;
 
 	/** infinite loop */

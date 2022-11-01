@@ -331,7 +331,7 @@ bool UPawnSensingComponent::CouldSeePawn(const APawn *Other, bool bMaySkipChecks
 	FVector const SelfToOther = OtherLoc - SensorLoc;
 
 	// check max sight distance
-	float const SelfToOtherDistSquared = SelfToOther.SizeSquared();
+	FVector::FReal const SelfToOtherDistSquared = SelfToOther.SizeSquared();
 	if (SelfToOtherDistSquared > FMath::Square(SightRadius))
 	{
 		return false;
@@ -422,7 +422,7 @@ bool UPawnSensingComponent::CanHear(const FVector& NoiseLoc, float Loudness, boo
 
 	FVector const HearingLocation = GetSensorLocation();
 
-	float const LoudnessAdjustedDistSq = (HearingLocation - NoiseLoc).SizeSquared()/(Loudness*Loudness);
+	FVector::FReal const LoudnessAdjustedDistSq = (HearingLocation - NoiseLoc).SizeSquared()/(Loudness*Loudness);
 	if (LoudnessAdjustedDistSq <= FMath::Square(HearingThreshold))
 	{
 		// Hear even occluded sounds within HearingThreshold

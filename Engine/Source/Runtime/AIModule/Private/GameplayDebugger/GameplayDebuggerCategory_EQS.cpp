@@ -184,19 +184,19 @@ int32 FGameplayDebuggerCategory_EQS::DrawLookedAtItem(const EQSDebug::FQueryData
 	const FVector CameraDirection = CanvasContext.Canvas->SceneView->GetViewDirection();
 
 	int32 BestItemIndex = INDEX_NONE;
-	float BestScore = -FLT_MAX;
+	FVector::FReal BestScore = TNumericLimits<FVector::FReal>::Min();
 
 	for (int32 Idx = 0; Idx < QueryData.RenderDebugHelpers.Num(); Idx++)
 	{
 		const EQSDebug::FDebugHelper& ItemInfo = QueryData.RenderDebugHelpers[Idx];
 		const FVector DirToItem = ItemInfo.Location - CameraLocation;
-		float DistToItem = DirToItem.Size();
+		FVector::FReal DistToItem = DirToItem.Size();
 		if (FMath::IsNearlyZero(DistToItem))
 		{
-			DistToItem = 1.0f;
+			DistToItem = 1.;
 		}
 
-		const float ItemScore = FVector::DotProduct(DirToItem, CameraDirection) / DistToItem;
+		const FVector::FReal ItemScore = FVector::DotProduct(DirToItem, CameraDirection) / DistToItem;
 		if (ItemScore > BestScore)
 		{
 			BestItemIndex = Idx;
@@ -429,8 +429,8 @@ void FGameplayDebuggerCategory_EQS::DrawDetailedItemRow(const EQSDebug::FItemDat
 	BackTileItem.Position.X = PosX + ActiveTileItem.Size.X;
 	BackTileItem.Size.X = FMath::Max(BarWidth * (1.0f - Pct), 0.0f);
 
-	CanvasContext.DrawItem(ActiveTileItem, ActiveTileItem.Position.X, ActiveTileItem.Position.Y);
-	CanvasContext.DrawItem(BackTileItem, BackTileItem.Position.X, BackTileItem.Position.Y);
+	CanvasContext.DrawItem(ActiveTileItem, (float)ActiveTileItem.Position.X, (float)ActiveTileItem.Position.Y);
+	CanvasContext.DrawItem(BackTileItem, (float)BackTileItem.Position.X, (float)BackTileItem.Position.Y);
 
 	CanvasContext.PrintfAt(PosX, PosY, FColor::Yellow, TEXT("%.2f"), TotalScoreNotNormalized);
 	PosX += FEQSDebugTable::ItemScoreWidth;

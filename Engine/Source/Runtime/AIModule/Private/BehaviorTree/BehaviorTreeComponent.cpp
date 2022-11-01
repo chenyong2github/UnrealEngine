@@ -493,7 +493,7 @@ void UBehaviorTreeComponent::OnTaskFinished(const UBTTaskNode* TaskNode, EBTNode
 
 	if (TaskResult != EBTNodeResult::InProgress)
 	{
-		StoreDebuggerSearchStep(TaskNode, TaskInstanceIdx, TaskResult);
+		StoreDebuggerSearchStep(TaskNode, IntCastChecked<uint16>(TaskInstanceIdx), TaskResult);
 
 		// cleanup task observers
 		UnregisterMessageObserversFrom(TaskNode);
@@ -937,7 +937,9 @@ void UBehaviorTreeComponent::ActivateBranch(const UBTDecorator& RequestedBy, con
 
 	const bool bIsExecutingBranch = IsExecutingBranch(&RequestedBy, RequestedBy.GetChildIndex());
 	const bool bAbortPending = IsAbortPending();
-	const bool bIsDeactivatingBranchRoot = ExecutionRequest.ContinueWithResult == EBTNodeResult::Failed && ExecutionRequest.SearchStart == FBTNodeIndex(InstanceIdx, RequestedBy.GetExecutionIndex());
+
+	checkf(InstanceIdx != FBTNodeIndex::InvalidIndex, TEXT("Index has used the InvalidIndex value!"));
+	const bool bIsDeactivatingBranchRoot = ExecutionRequest.ContinueWithResult == EBTNodeResult::Failed && ExecutionRequest.SearchStart == FBTNodeIndex(IntCastChecked<uint16>(InstanceIdx), RequestedBy.GetExecutionIndex());
 
 	const bool bLogRequestExecution = !bIsExecutingBranch || (bForceResquestEvenIfExecuting || bAbortPending || bIsDeactivatingBranchRoot);
 	UE_VLOG(GetOwner(), LogBehaviorTree, Verbose, TEXT("%s, ActivateBranch(%s) executingBranch:%d abortPending:%d deactivatingBranchRoot:%d => %s"),
@@ -1085,8 +1087,8 @@ void UBehaviorTreeComponent::ScheduleExecutionUpdate()
 	bRequestedFlowUpdate = true;
 }
 
-void UBehaviorTreeComponent::RequestExecution(const UBTCompositeNode* RequestedOn, int32 InstanceIdx, const UBTNode* RequestedBy,
-											  int32 RequestedByChildIndex, EBTNodeResult::Type ContinueWithResult, bool bStoreForDebugger)
+void UBehaviorTreeComponent::RequestExecution(const UBTCompositeNode* RequestedOn, const int32 InstanceIdx, const UBTNode* RequestedBy,
+											  const int32 RequestedByChildIndex, const EBTNodeResult::Type ContinueWithResult, const bool bStoreForDebugger)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AI_BehaviorTree_SearchTime);
 #if !UE_BUILD_SHIPPING // Disable in shipping builds
@@ -1113,12 +1115,15 @@ void UBehaviorTreeComponent::RequestExecution(const UBTCompositeNode* RequestedO
 		return;
 	}
 
+	checkf(InstanceIdx != FBTNodeIndex::InvalidIndex, TEXT("Index has used the InvalidIndex value!"));
+	const uint16 InstanceIdxUint16 = IntCastChecked<uint16>(InstanceIdx);
+
 	const bool bSwitchToHigherPriority = (ContinueWithResult == EBTNodeResult::Aborted);
 	const bool bAlreadyHasRequest = (ExecutionRequest.ExecuteNode != NULL);
 	const UBTNode* DebuggerNode = bStoreForDebugger ? RequestedBy : NULL;
 
 	FBTNodeIndex ExecutionIdx;
-	ExecutionIdx.InstanceIndex = InstanceIdx;
+	ExecutionIdx.InstanceIndex = InstanceIdxUint16;
 	ExecutionIdx.ExecutionIndex = RequestedBy->GetExecutionIndex();
 	uint16 LastExecutionIndex = MAX_uint16;
 
@@ -1158,7 +1163,10 @@ void UBehaviorTreeComponent::RequestExecution(const UBTCompositeNode* RequestedO
 				const int32 BranchRootInstanceIdx = FindInstanceContainingNode(BranchRoot);
 				if (BranchRootInstanceIdx != INDEX_NONE)
 				{
-					FBTNodeIndexRange Range( FBTNodeIndex(BranchRootInstanceIdx, BranchRoot->GetExecutionIndex()), FBTNodeIndex(BranchRootInstanceIdx, BranchRoot->GetLastExecutionIndex()));
+					checkf(BranchRootInstanceIdx != FBTNodeIndex::InvalidIndex, TEXT("Index has used the InvalidIndex value!"));
+					const uint16 BranchRootInstanceIdxUint16 = IntCastChecked<uint16>(BranchRootInstanceIdx);
+
+					FBTNodeIndexRange Range( FBTNodeIndex(BranchRootInstanceIdxUint16, BranchRoot->GetExecutionIndex()), FBTNodeIndex(BranchRootInstanceIdxUint16, BranchRoot->GetLastExecutionIndex()));
 					if (Range.Contains(ExecutionIdx))
 					{
 						UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: request by %s(%s) is in deactivated branch %s(%s) and was deactivated by %s"), *UBehaviorTreeTypes::DescribeNodeHelper(RequestedBy), *ExecutionIdx.Describe(), *UBehaviorTreeTypes::DescribeNodeHelper(BranchRoot), *Range.Describe(), *UBehaviorTreeTypes::DescribeNodeHelper(Info.Node));
@@ -1181,13 +1189,13 @@ void UBehaviorTreeComponent::RequestExecution(const UBTCompositeNode* RequestedO
 		LastExecutionIndex = RequestedOn->GetChildExecutionIndex(RequestedByChildIndex + 1, EBTChildIndex::FirstNode);
 	}
 
-	const FBTNodeIndex SearchEnd(InstanceIdx, LastExecutionIndex);
+	const FBTNodeIndex SearchEnd(InstanceIdxUint16, LastExecutionIndex);
 
 	// check if it's more important than currently requested
 	if (bAlreadyHasRequest && ExecutionRequest.SearchStart.TakesPriorityOver(ExecutionIdx))
 	{
 		UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: already has request with higher priority"));
-		StoreDebuggerRestart(DebuggerNode, InstanceIdx, true);
+		StoreDebuggerRestart(DebuggerNode, InstanceIdxUint16, true);
 
 		// make sure to update end of search range
 		if (bSwitchToHigherPriority)
@@ -1222,7 +1230,7 @@ void UBehaviorTreeComponent::RequestExecution(const UBTCompositeNode* RequestedO
 			{
 				UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: node index %s in a deactivated instance [%s..%s[ (applying search data for %s)"),
 					*ExecutionIdx.Describe(), *SearchData.DeactivatedBranchStart.Describe(), *SearchData.DeactivatedBranchEnd.Describe(), *SearchData.SearchRootNode.Describe());
-				StoreDebuggerRestart(DebuggerNode, InstanceIdx, false);
+				StoreDebuggerRestart(DebuggerNode, InstanceIdxUint16, false);
 				return;
 			}
 			else if (ExecutionIdx.InstanceIndex == SearchData.DeactivatedBranchStart.InstanceIndex && 
@@ -1231,7 +1239,7 @@ void UBehaviorTreeComponent::RequestExecution(const UBTCompositeNode* RequestedO
 			{
 				UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: node index %s in a deactivated branch [%s..%s[ (applying search data for %s)"),
 					*ExecutionIdx.Describe(), *SearchData.DeactivatedBranchStart.Describe(), *SearchData.DeactivatedBranchEnd.Describe(), *SearchData.SearchRootNode.Describe());
-				StoreDebuggerRestart(DebuggerNode, InstanceIdx, false);
+				StoreDebuggerRestart(DebuggerNode, InstanceIdxUint16, false);
 				return;
 			}
 		}
@@ -1247,7 +1255,7 @@ void UBehaviorTreeComponent::RequestExecution(const UBTCompositeNode* RequestedO
 		if (!bCanExecute)
 		{
 			UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: decorators are not allowing execution"));
-			StoreDebuggerRestart(DebuggerNode, InstanceIdx, false);
+			StoreDebuggerRestart(DebuggerNode, InstanceIdxUint16, false);
 			return;
 		}
 
@@ -1269,7 +1277,7 @@ void UBehaviorTreeComponent::RequestExecution(const UBTCompositeNode* RequestedO
 			const UBTCompositeNode* CommonParent = NULL;
 			uint16 CommonInstanceIdx = MAX_uint16;
 
-			FindCommonParent(InstanceStack, KnownInstances, RequestedOn, InstanceIdx, CurrentNode, CurrentInstanceIdx, CommonParent, CommonInstanceIdx);
+			FindCommonParent(InstanceStack, KnownInstances, RequestedOn, InstanceIdxUint16, CurrentNode, CurrentInstanceIdx, CommonParent, CommonInstanceIdx);
 
 			// check decorators between common parent and restart parent
 			int32 ItInstanceIdx = InstanceIdx;
@@ -1303,7 +1311,7 @@ void UBehaviorTreeComponent::RequestExecution(const UBTCompositeNode* RequestedO
 				if (!bCanExecuteTest)
 				{
 					UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: decorators are not allowing execution"));
-					StoreDebuggerRestart(DebuggerNode, InstanceIdx, false);
+					StoreDebuggerRestart(DebuggerNode, InstanceIdxUint16, false);
 					return;
 				}
 
@@ -1325,16 +1333,16 @@ void UBehaviorTreeComponent::RequestExecution(const UBTCompositeNode* RequestedO
 		if (bCanExecute)
 		{
 			UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: decorators are still allowing execution"));
-			StoreDebuggerRestart(DebuggerNode, InstanceIdx, false);
+			StoreDebuggerRestart(DebuggerNode, InstanceIdxUint16, false);
 			return;
 		}
 
 		ExecutionRequest.ExecuteNode = RequestedOn;
-		ExecutionRequest.ExecuteInstanceIdx = InstanceIdx;
+		ExecutionRequest.ExecuteInstanceIdx = InstanceIdxUint16;
 	}
 
 	// store it
-	StoreDebuggerRestart(DebuggerNode, InstanceIdx, true);
+	StoreDebuggerRestart(DebuggerNode, InstanceIdxUint16, true);
 
 	// search end can be set only when switching to high priority
 	// or previous request was limited and current limit is wider
@@ -1573,7 +1581,7 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 		UWorld* MyWorld = GetWorld();
 		if (MyWorld)
 		{
-			const float CurrentGameTime = MyWorld->GetTimeSeconds();
+			const double CurrentGameTime = MyWorld->GetTimeSeconds();
 			const float CurrentDeltaTime = MyWorld->GetDeltaSeconds();
 			if (CurrentGameTime - LastRequestedDeltaTimeGameTime - CurrentDeltaTime > KINDA_SMALL_NUMBER)
 			{
@@ -1807,7 +1815,7 @@ void UBehaviorTreeComponent::ScheduleNextTick(const float NextNeededDeltaTime)
 		SetComponentTickIntervalAndCooldown(!bTickedOnce && NextTickDeltaTime < FORCE_TICK_INTERVAL_DT ? FORCE_TICK_INTERVAL_DT : NextTickDeltaTime);
 	}
 	UWorld* MyWorld = GetWorld();
-	LastRequestedDeltaTimeGameTime = MyWorld ? MyWorld->GetTimeSeconds() : 0.0f;
+	LastRequestedDeltaTimeGameTime = MyWorld ? MyWorld->GetTimeSeconds() : 0.;
 }
 
 void UBehaviorTreeComponent::ProcessExecutionRequest()
@@ -2130,7 +2138,8 @@ void UBehaviorTreeComponent::RollbackSearchChanges()
 {
 	if (SearchData.RollbackInstanceIdx >= 0)
 	{
-		ActiveInstanceIdx = SearchData.RollbackInstanceIdx;
+		checkf(SearchData.RollbackInstanceIdx != FBTNodeIndex::InvalidIndex, TEXT("Index has used the InvalidIndex value!"));
+		ActiveInstanceIdx = IntCastChecked<uint16>(SearchData.RollbackInstanceIdx);
 		SearchData.DeactivatedBranchStart = SearchData.RollbackDeactivatedBranchStart;
 		SearchData.DeactivatedBranchEnd = SearchData.RollbackDeactivatedBranchEnd;
 
@@ -2241,10 +2250,12 @@ void UBehaviorTreeComponent::UnregisterAuxNodesUpTo(const FBTNodeIndex& Index)
 		FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
 		for (const UBTAuxiliaryNode* AuxNode : InstanceInfo.GetActiveAuxNodes())
 		{
-			FBTNodeIndex AuxIdx(InstanceIndex, AuxNode->GetExecutionIndex());
+			// Could safely use static_cast() here but its a bit safer using IntCastChecked() for future code changes.
+			const uint16 InstanceIndexUint16 = IntCastChecked<uint16>(InstanceIndex);
+			FBTNodeIndex AuxIdx(InstanceIndexUint16, AuxNode->GetExecutionIndex());
 			if (Index.TakesPriorityOver(AuxIdx))
 			{
-				SearchData.AddUniqueUpdate(FBehaviorTreeSearchUpdate(AuxNode, InstanceIndex, EBTNodeUpdateMode::Remove));
+				SearchData.AddUniqueUpdate(FBehaviorTreeSearchUpdate(AuxNode, InstanceIndexUint16, EBTNodeUpdateMode::Remove));
 			}
 		}
 	}
@@ -2257,10 +2268,12 @@ void UBehaviorTreeComponent::UnregisterAuxNodesInRange(const FBTNodeIndex& FromI
 		FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
 		for (const UBTAuxiliaryNode* AuxNode : InstanceInfo.GetActiveAuxNodes())
 		{
-			FBTNodeIndex AuxIdx(InstanceIndex, AuxNode->GetExecutionIndex());
+			// Could safely use static_cast() here but its a bit safer using IntCastChecked() for future code changes.
+			const uint16 InstanceIndexUint16 = IntCastChecked<uint16>(InstanceIndex);
+			FBTNodeIndex AuxIdx(InstanceIndexUint16, AuxNode->GetExecutionIndex());
 			if (FromIndex.TakesPriorityOver(AuxIdx) && AuxIdx.TakesPriorityOver(ToIndex))
 			{
-				SearchData.AddUniqueUpdate(FBehaviorTreeSearchUpdate(AuxNode, InstanceIndex, EBTNodeUpdateMode::Remove));
+				SearchData.AddUniqueUpdate(FBehaviorTreeSearchUpdate(AuxNode, InstanceIndexUint16, EBTNodeUpdateMode::Remove));
 			}
 		}
 	}
@@ -2273,6 +2286,9 @@ void UBehaviorTreeComponent::UnregisterAuxNodesInBranch(const UBTCompositeNode* 
 	{
 		check(Node);
 
+		checkf(InstanceIdx != FBTNodeIndex::InvalidIndex, TEXT("Index has used the InvalidIndex value!"));
+		const uint16 InstanceIdxUint16 = IntCastChecked<uint16>(InstanceIdx);
+
 		TArray<FBehaviorTreeSearchUpdate> UpdateListCopy;
 		if (bApplyImmediately)
 		{
@@ -2280,8 +2296,8 @@ void UBehaviorTreeComponent::UnregisterAuxNodesInBranch(const UBTCompositeNode* 
 			SearchData.PendingUpdates.Reset();
 		}
 
-		const FBTNodeIndex FromIndex(InstanceIdx, Node->GetExecutionIndex());
-		const FBTNodeIndex ToIndex(InstanceIdx, Node->GetLastExecutionIndex());
+		const FBTNodeIndex FromIndex(InstanceIdxUint16, Node->GetExecutionIndex());
+		const FBTNodeIndex ToIndex(InstanceIdxUint16, Node->GetLastExecutionIndex());
 		UnregisterAuxNodesInRange(FromIndex, ToIndex);
 
 		if (bApplyImmediately)
@@ -2398,7 +2414,9 @@ void UBehaviorTreeComponent::RegisterMessageObserver(const UBTTaskNode* TaskNode
 	{
 		FBTNodeIndex NodeIdx;
 		NodeIdx.ExecutionIndex = TaskNode->GetExecutionIndex();
-		NodeIdx.InstanceIndex = InstanceStack.Num() - 1;
+
+		const int32 InstanceIndex = InstanceStack.Num() - 1;
+		NodeIdx.InstanceIndex = IntCastChecked<uint16>(InstanceIndex);
 
 		TaskMessageObservers.Add(NodeIdx,
 			FAIMessageObserver::Create(this, MessageType, FOnAIMessage::CreateUObject(const_cast<UBTTaskNode*>(TaskNode), &UBTTaskNode::ReceivedMessage))
@@ -2415,7 +2433,9 @@ void UBehaviorTreeComponent::RegisterMessageObserver(const UBTTaskNode* TaskNode
 	{
 		FBTNodeIndex NodeIdx;
 		NodeIdx.ExecutionIndex = TaskNode->GetExecutionIndex();
-		NodeIdx.InstanceIndex = InstanceStack.Num() - 1;
+
+		const int32 InstanceIndex = InstanceStack.Num() - 1;
+		NodeIdx.InstanceIndex = IntCastChecked<uint16>(InstanceIndex);
 
 		TaskMessageObservers.Add(NodeIdx,
 			FAIMessageObserver::Create(this, MessageType, RequestID, FOnAIMessage::CreateUObject(const_cast<UBTTaskNode*>(TaskNode), &UBTTaskNode::ReceivedMessage))
@@ -2444,7 +2464,14 @@ void UBehaviorTreeComponent::UnregisterMessageObserversFrom(const UBTTaskNode* T
 
 		FBTNodeIndex NodeIdx;
 		NodeIdx.ExecutionIndex = TaskNode->GetExecutionIndex();
-		NodeIdx.InstanceIndex = FindInstanceContainingNode(TaskNode);
+
+		const int32 InstanceContainingNodeIdx = FindInstanceContainingNode(TaskNode);
+		
+		// InstanceContainingNodeIdx could be INDEX_NONE which means we can't use IntCastChecked() here
+		checkf(InstanceContainingNodeIdx != FBTNodeIndex::InvalidIndex, TEXT("Index has used the InvalidIndex value!"));
+		checkf(InstanceContainingNodeIdx <= MAX_uint16, TEXT("Narrowing conversion causing loss of data"));
+
+		NodeIdx.InstanceIndex = static_cast<uint16>(InstanceContainingNodeIdx);
 		
 		UnregisterMessageObserversFrom(NodeIdx);
 	}
@@ -2596,7 +2623,9 @@ bool UBehaviorTreeComponent::PushInstance(UBehaviorTree& TreeAsset)
 		NewInstance.Initialize(*this, *RootNode, NodeInstanceIndex, bFirstTime ? EBTMemoryInit::Initialize : EBTMemoryInit::RestoreSubtree);
 
 		InstanceStack.Push(NewInstance);
-		ActiveInstanceIdx = InstanceStack.Num() - 1;
+
+		const int32 InstanceIndex = InstanceStack.Num() - 1;
+		ActiveInstanceIdx = IntCastChecked<uint16>(InstanceIndex);
 
 		// start root level services now (they won't be removed on looping tree anyway)
 		for (int32 ServiceIndex = 0; ServiceIndex < RootNode->Services.Num(); ServiceIndex++)
@@ -2650,7 +2679,7 @@ uint8 UBehaviorTreeComponent::UpdateInstanceId(UBehaviorTree* TreeAsset, const U
 	{
 		if (KnownInstances[InstanceIndex] == InstanceId)
 		{
-			return InstanceIndex;
+			return IntCastChecked<uint8>(InstanceIndex);
 		}
 	}
 
@@ -2658,8 +2687,7 @@ uint8 UBehaviorTreeComponent::UpdateInstanceId(UBehaviorTree* TreeAsset, const U
 	InstanceId.FirstNodeInstance = NodeInstances.Num();
 
 	const int32 NewIndex = KnownInstances.Add(InstanceId);
-	check(NewIndex < MAX_uint8);
-	return NewIndex;
+	return IntCastChecked<uint8>(NewIndex);
 }
 
 int32 UBehaviorTreeComponent::FindInstanceContainingNode(const UBTNode* Node) const
@@ -2771,7 +2799,7 @@ void UBehaviorTreeComponent::RemoveAllInstances()
 			// instance memory will be removed on Cleanup in EBTMemoryClear::Destroy mode
 			// prevent from calling it multiple times - StopTree does it for current InstanceStack
 			DummyInstance.SetInstanceMemory(Info.InstanceMemory);
-			DummyInstance.InstanceIdIndex = Idx;
+			DummyInstance.InstanceIdIndex = IntCastChecked<uint8>(Idx);
 			DummyInstance.RootNode = Info.RootNode;
 
 			DummyInstance.Cleanup(*this, EBTMemoryClear::Destroy);
@@ -2878,9 +2906,9 @@ FString UBehaviorTreeComponent::DescribeActiveTrees() const
 	return Assets.Len() ? Assets.LeftChop(2) : TEXT("None");
 }
 
-float UBehaviorTreeComponent::GetTagCooldownEndTime(FGameplayTag CooldownTag) const
+double UBehaviorTreeComponent::GetTagCooldownEndTime(FGameplayTag CooldownTag) const
 {
-	const float CooldownEndTime = CooldownTagsMap.FindRef(CooldownTag);
+	const double CooldownEndTime = CooldownTagsMap.FindRef(CooldownTag);
 	return CooldownEndTime;
 }
 
@@ -2888,7 +2916,7 @@ void UBehaviorTreeComponent::AddCooldownTagDuration(FGameplayTag CooldownTag, fl
 {
 	if (CooldownTag.IsValid())
 	{
-		float* CurrentEndTime = CooldownTagsMap.Find(CooldownTag);
+		double* CurrentEndTime = CooldownTagsMap.Find(CooldownTag);
 
 		// If we are supposed to add to an existing duration, do that, otherwise we set a new value.
 		if (bAddToExistingDuration && (CurrentEndTime != nullptr))
@@ -3072,7 +3100,7 @@ void UBehaviorTreeComponent::StoreDebuggerExecutionStep(EBTExecutionSnap::Type S
 		const FBehaviorTreeInstance& ActiveInstance = InstanceStack[InstanceIndex];
 		
 		FBehaviorTreeDebuggerInstance StoreInfo;
-		StoreDebuggerInstance(StoreInfo, InstanceIndex, SnapType);
+		StoreDebuggerInstance(StoreInfo, IntCastChecked<uint16>(InstanceIndex), SnapType);
 		CurrentStep.InstanceStack.Add(StoreInfo);
 	}
 
@@ -3335,13 +3363,15 @@ void UBehaviorTreeComponent::StoreDebuggerBlackboard(TMap<FName, FString>& Black
 
 		for (int32 KeyIndex = 0; KeyIndex < NumKeys; KeyIndex++)
 		{
-			FString Value = BlackboardComp->DescribeKeyValue(KeyIndex, EBlackboardDescription::OnlyValue);
+			const FBlackboard::FKey Key = IntCastChecked<FBlackboard::FKey>(KeyIndex);
+
+			FString Value = BlackboardComp->DescribeKeyValue(Key, EBlackboardDescription::OnlyValue);
 			if (Value.Len() == 0)
 			{
 				Value = TEXT("n/a");
 			}
 
-			BlackboardValueDesc.Add(BlackboardComp->GetKeyName(KeyIndex), Value);
+			BlackboardValueDesc.Add(BlackboardComp->GetKeyName(Key), Value);
 		}
 	}
 #endif

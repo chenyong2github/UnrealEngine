@@ -125,8 +125,8 @@ void UBTDecorator_ConeCheck::DescribeRuntimeValues(const UBehaviorTreeComponent&
 	if (CalculateDirection(BBComponent, ConeOrigin, Observed, DirectionToObserved)
 		&& CalculateDirection(BBComponent, ConeOrigin, ConeDirection, ConeDir))
 	{
-		const float CurrentAngleDot = ConeDir.CosineAngle2D(DirectionToObserved);
-		const float CurrentAngleRad = FMath::Acos(CurrentAngleDot);
+		const FVector::FReal CurrentAngleDot = ConeDir.CosineAngle2D(DirectionToObserved);
+		const FVector::FReal CurrentAngleRad = FMath::Acos(CurrentAngleDot);
 
 		Values.Add(FString::Printf(TEXT("Angle: %.0f (%s cone)"),
 			FMath::RadiansToDegrees(CurrentAngleRad),

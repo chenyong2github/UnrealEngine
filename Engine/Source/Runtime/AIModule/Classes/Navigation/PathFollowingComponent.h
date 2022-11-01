@@ -324,7 +324,7 @@ class AIMODULE_API UPathFollowingComponent : public UActorComponent, public IAIR
 
 	/** @returns estimated cost of unprocessed path segments
 	 *	@NOTE 0 means, that component is following final path segment or doesn't move */
-	float GetRemainingPathCost() const;
+	FVector::FReal GetRemainingPathCost() const;
 	
 	/** Returns current location on navigation data */
 	FNavLocation GetCurrentNavLocation() const;

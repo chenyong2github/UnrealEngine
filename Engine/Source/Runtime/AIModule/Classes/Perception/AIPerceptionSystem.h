@@ -62,7 +62,7 @@ protected:
 
 	struct FDelayedStimulus
 	{
-		float DeliveryTimestamp;
+		double DeliveryTimestamp;
 		FPerceptionListenerID ListenerId;
 		TWeakObjectPtr<AActor> Instigator;
 		FAIStimulus Stimulus;
@@ -209,10 +209,10 @@ protected:
 	virtual void StartPlay();
 
 	/** Timestamp of the next stimuli aging */
-	float NextStimuliAgingTick;
+	double NextStimuliAgingTick;
 private:
 	/** cached world's timestamp */
-	float CurrentTime;
+	double CurrentTime;
 };
 
 //////////////////////////////////////////////////////////////////////////

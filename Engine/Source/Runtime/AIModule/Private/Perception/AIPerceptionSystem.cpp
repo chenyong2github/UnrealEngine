@@ -36,8 +36,8 @@ UAIPerceptionSystem::UAIPerceptionSystem(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 	, PerceptionAgingRate(0.3f)
 	, bHandlePawnNotification(false)
-	, NextStimuliAgingTick(0.f)
-	, CurrentTime(0.f)
+	, NextStimuliAgingTick(0.)
+	, CurrentTime(0.)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 #if WITH_EDITORONLY_DATA
@@ -182,7 +182,9 @@ void UAIPerceptionSystem::Tick(float DeltaSeconds)
 		bool bSomeListenersNeedUpdateDueToStimuliAging = false;
 		if (NextStimuliAgingTick <= CurrentTime)
 		{
-			bSomeListenersNeedUpdateDueToStimuliAging = AgeStimuli(PerceptionAgingRate + (CurrentTime - NextStimuliAgingTick));
+			constexpr double Precision = 1./64.;
+			const float AgingDt = FloatCastChecked<float>(CurrentTime - NextStimuliAgingTick, Precision);
+			bSomeListenersNeedUpdateDueToStimuliAging = AgeStimuli(PerceptionAgingRate + AgingDt);
 			NextStimuliAgingTick = CurrentTime + PerceptionAgingRate;
 		}
 
@@ -601,7 +603,7 @@ void UAIPerceptionSystem::StartPlay()
 	}
 
 	UWorld* World = GetWorld();
-	NextStimuliAgingTick = World ? World->GetTimeSeconds() : 0.f;
+	NextStimuliAgingTick = World ? World->GetTimeSeconds() : 0.;
 }
 
 void UAIPerceptionSystem::RegisterAllPawnsAsSourcesForSense(FAISenseID SenseID)

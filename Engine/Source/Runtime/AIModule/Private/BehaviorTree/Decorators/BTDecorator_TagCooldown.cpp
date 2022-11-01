@@ -25,9 +25,9 @@ void UBTDecorator_TagCooldown::PostLoad()
 
 bool UBTDecorator_TagCooldown::HasCooldownFinished(const UBehaviorTreeComponent& OwnerComp) const
 {
-	const float TagCooldownEndTime = OwnerComp.GetTagCooldownEndTime(CooldownTag);
+	const double TagCooldownEndTime = OwnerComp.GetTagCooldownEndTime(CooldownTag);
 
-	if (TagCooldownEndTime == 0.f)
+	if (TagCooldownEndTime == 0.)
 	{
 		// special case, we don't have an end time yet for this cooldown tag
 		return true;
@@ -81,12 +81,12 @@ void UBTDecorator_TagCooldown::DescribeRuntimeValues(const UBehaviorTreeComponen
 {
 	Super::DescribeRuntimeValues(OwnerComp, NodeMemory, Verbosity, Values);
 	
-	const float TagCooldownEndTime = OwnerComp.GetTagCooldownEndTime(CooldownTag);
+	const double TagCooldownEndTime = OwnerComp.GetTagCooldownEndTime(CooldownTag);
 
 	// if the tag cooldown end time is 0.f then it hasn't been set yet.
-	if (TagCooldownEndTime > 0.f)
+	if (TagCooldownEndTime > 0.)
 	{
-		const float TimePassed = (OwnerComp.GetWorld()->GetTimeSeconds() - TagCooldownEndTime);
+		const double TimePassed = (OwnerComp.GetWorld()->GetTimeSeconds() - TagCooldownEndTime);
 
 		if (TimePassed < CooldownDuration)
 		{

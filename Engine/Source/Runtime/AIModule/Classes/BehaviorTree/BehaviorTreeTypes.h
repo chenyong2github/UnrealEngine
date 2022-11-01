@@ -257,7 +257,7 @@ struct FBehaviorTreeDebuggerInstance
 /** debugger data about current execution step */
 struct FBehaviorTreeExecutionStep
 {
-	FBehaviorTreeExecutionStep() : TimeStamp(0.f), ExecutionStepId(InvalidExecutionId) {}
+	FBehaviorTreeExecutionStep() : TimeStamp(0.), ExecutionStepId(InvalidExecutionId) {}
 
 	/** subtree instance stack */
 	TArray<FBehaviorTreeDebuggerInstance> InstanceStack;
@@ -266,7 +266,7 @@ struct FBehaviorTreeExecutionStep
 	TMap<FName, FString> BlackboardValues;
 
 	/** Game world's time stamp of this step */
-	float TimeStamp;
+	double TimeStamp;
 
 	static constexpr int32 InvalidExecutionId = -1;
 
@@ -417,17 +417,19 @@ private:
 
 struct FBTNodeIndex
 {
+	static constexpr uint16 InvalidIndex = TNumericLimits<uint16>::Max(); // (This is also the same as INDEX_NONE assigned to IndexType!)
+
 	/** index of instance of stack */
 	uint16 InstanceIndex;
 
 	/** execution index within instance */
 	uint16 ExecutionIndex;
 
-	FBTNodeIndex() : InstanceIndex(MAX_uint16), ExecutionIndex(MAX_uint16) {}
+	FBTNodeIndex() : InstanceIndex(InvalidIndex), ExecutionIndex(InvalidIndex) {}
 	FBTNodeIndex(uint16 InInstanceIndex, uint16 InExecutionIndex) : InstanceIndex(InInstanceIndex), ExecutionIndex(InExecutionIndex) {}
 
 	bool TakesPriorityOver(const FBTNodeIndex& Other) const;
-	bool IsSet() const { return InstanceIndex < MAX_uint16; }
+	bool IsSet() const { return InstanceIndex < InvalidIndex; }
 
 	FORCEINLINE bool operator==(const FBTNodeIndex& Other) const { return Other.ExecutionIndex == ExecutionIndex && Other.InstanceIndex == InstanceIndex; }
 	FORCEINLINE bool operator!=(const FBTNodeIndex& Other) const { return !operator==(Other); }

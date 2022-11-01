@@ -9,7 +9,7 @@
 
 struct FBTCooldownDecoratorMemory
 {
-	float LastUseTimestamp;
+	double LastUseTimestamp;
 	uint8 bRequestedRestart : 1;
 };
 

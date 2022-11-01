@@ -54,7 +54,7 @@ void UBehaviorTreeManager::FinishDestroy()
 	Super::FinishDestroy();
 }
 
-int32 UBehaviorTreeManager::GetAlignedDataSize(int32 Size)
+uint16 UBehaviorTreeManager::GetAlignedDataSize(uint16 Size)
 {
 	// round to 4 bytes
 	return ((Size + 3) & ~3);
@@ -100,7 +100,7 @@ static void MergeDecoratorOpsHelper(TArray<FBTDecoratorLogic>& LinkOps, const TA
 	if (NumOriginalDecorators > 0)
 	{
 		// and operator for two groups of composites: original and new one
-		FBTDecoratorLogic MainAndOp(EBTDecoratorLogic::And, LinkOps.Num() ? 2 : (NumOriginalDecorators + 1));
+		FBTDecoratorLogic MainAndOp(EBTDecoratorLogic::And, LinkOps.Num() ? 2 : IntCastChecked<uint16>(NumOriginalDecorators + 1));
 		LinkOps.Insert(MainAndOp, 0);
 
 		if (NumOriginalOps == 0)
@@ -108,7 +108,7 @@ static void MergeDecoratorOpsHelper(TArray<FBTDecoratorLogic>& LinkOps, const TA
 			// add Test operations, original link didn't have composite operators
 			for (int32 Idx = 0; Idx < NumOriginalDecorators; Idx++)
 			{
-				FBTDecoratorLogic TestOp(EBTDecoratorLogic::Test, Idx);
+				FBTDecoratorLogic TestOp(EBTDecoratorLogic::Test, IntCastChecked<uint16>(Idx));
 				LinkOps.Add(TestOp);
 			}
 		}
@@ -117,12 +117,12 @@ static void MergeDecoratorOpsHelper(TArray<FBTDecoratorLogic>& LinkOps, const TA
 	// add injected operators
 	if (InjectedOps.Num() == 0)
 	{
-		FBTDecoratorLogic InjectedAndOp(EBTDecoratorLogic::And, NumInjectedDecorators);
+		FBTDecoratorLogic InjectedAndOp(EBTDecoratorLogic::And, IntCastChecked<uint16>(NumInjectedDecorators));
 		LinkOps.Add(InjectedAndOp);
 
 		for (int32 Idx = 0; Idx < NumInjectedDecorators; Idx++)
 		{
-			FBTDecoratorLogic TestOp(EBTDecoratorLogic::Test, NumOriginalDecorators + Idx);
+			FBTDecoratorLogic TestOp(EBTDecoratorLogic::Test, IntCastChecked<uint16>(NumOriginalDecorators + Idx));
 			LinkOps.Add(TestOp);
 		}
 	}
@@ -133,7 +133,7 @@ static void MergeDecoratorOpsHelper(TArray<FBTDecoratorLogic>& LinkOps, const TA
 			FBTDecoratorLogic InjectedOpCopy = InjectedOps[Idx];
 			if (InjectedOpCopy.Operation == EBTDecoratorLogic::Test)
 			{
-				InjectedOpCopy.Number += NumOriginalDecorators;
+				InjectedOpCopy.Number = IntCastChecked<uint16>((int32)InjectedOpCopy.Number + NumOriginalDecorators);
 			}
 
 			LinkOps.Add(InjectedOpCopy);
@@ -202,7 +202,7 @@ static void InitializeNodeHelper(UBTCompositeNode* ParentNode, UBTNode* NodeOb,
 
 				FScopedBTLoggingContext LogContext(Decorator);
 				Decorator->InitializeFromAsset(TreeAsset);
-				Decorator->InitializeParentLink(ChildIndex);
+				Decorator->InitializeParentLink(IntCastChecked<uint8>(ChildIndex));
 				ExecutionIndex++;
 			}
 
@@ -233,7 +233,7 @@ static void InitializeNodeHelper(UBTCompositeNode* ParentNode, UBTNode* NodeOb,
 					Decorator->MarkInjectedNode();
 					FScopedBTLoggingContext LogContext(Decorator);
 					Decorator->InitializeFromAsset(TreeAsset);
-					Decorator->InitializeParentLink(ChildIndex);
+					Decorator->InitializeParentLink(IntCastChecked<uint8>(ChildIndex));
 					ExecutionIndex++;
 				}
 
@@ -273,7 +273,7 @@ static void InitializeNodeHelper(UBTCompositeNode* ParentNode, UBTNode* NodeOb,
 
 					FScopedBTLoggingContext LogContext(Service);
 					Service->InitializeFromAsset(TreeAsset);
-					Service->InitializeParentLink(ChildIndex);
+					Service->InitializeParentLink(IntCastChecked<uint8>(ChildIndex));
 					ExecutionIndex++;
 				}
 			}

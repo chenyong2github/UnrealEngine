@@ -91,7 +91,7 @@ void UBTDecorator_KeepInCone::TickNode(UBehaviorTreeComponent& OwnerComp, uint8*
 	
 	if (CalculateCurrentDirection(OwnerComp, CurrentDir))
 	{
-		const float Angle = DecoratorMemory->InitialDirection.CosineAngle2D(CurrentDir);
+		const FVector::FReal Angle = DecoratorMemory->InitialDirection.CosineAngle2D(CurrentDir);
 		if (Angle < ConeHalfAngleDot || (IsInversed() && Angle > ConeHalfAngleDot))
 		{
 			OwnerComp.RequestExecution(this);
@@ -116,8 +116,8 @@ void UBTDecorator_KeepInCone::DescribeRuntimeValues(const UBehaviorTreeComponent
 	
 	if (CalculateCurrentDirection(OwnerComp, CurrentDir))
 	{
-		const float CurrentAngleDot = DecoratorMemory->InitialDirection.CosineAngle2D(CurrentDir);
-		const float CurrentAngleRad = FMath::Acos(CurrentAngleDot);
+		const FVector::FReal CurrentAngleDot = DecoratorMemory->InitialDirection.CosineAngle2D(CurrentDir);
+		const FVector::FReal CurrentAngleRad = FMath::Acos(CurrentAngleDot);
 
 		Values.Add(FString::Printf(TEXT("Angle: %.0f (%s cone)"),
 			FMath::RadiansToDegrees(CurrentAngleRad),

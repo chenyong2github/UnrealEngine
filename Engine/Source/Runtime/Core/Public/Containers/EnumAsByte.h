@@ -94,6 +94,16 @@ public:
 		return (TEnum)Value;
 	}
 
+	/**
+	 * Gets the integer enumeration value.
+	 *
+	 * @return The enumeration value.
+	 */
+	uint8 GetIntValue() const
+	{
+		return Value;
+	}
+
 private:
 
 	/** Holds the value as a byte. **/

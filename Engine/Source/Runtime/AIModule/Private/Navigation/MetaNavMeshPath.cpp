@@ -238,7 +238,7 @@ void FMetaNavMeshPath::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const
 		Element.Category = LogNavigation.GetCategoryName();
 		Element.SetColor(FColorList::Yellow);
 		Element.Points.Reserve(Waypoints.Num());
-		Element.Thicknes = 3.f;
+		Element.Thicknes = 3;
 
 		const FVector DrawingOffset(0, 0, 50);
 		for (int32 Idx = 0; Idx < Waypoints.Num(); Idx++)

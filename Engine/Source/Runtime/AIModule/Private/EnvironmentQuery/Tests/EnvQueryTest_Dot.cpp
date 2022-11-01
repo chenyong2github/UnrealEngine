@@ -90,11 +90,11 @@ void UEnvQueryTest_Dot::RunTest(FEnvQueryInstance& QueryInstance) const
 				switch (TestMode)
 				{
 					case EEnvTestDot::Dot3D:
-						DotValue = FVector::DotProduct(LineADirs[LineAIndex], LineBDirs[LineBIndex]);
+						DotValue = static_cast<float>(FVector::DotProduct(LineADirs[LineAIndex], LineBDirs[LineBIndex]));
 						break;
 
 					case EEnvTestDot::Dot2D:
-						DotValue = LineADirs[LineAIndex].CosineAngle2D(LineBDirs[LineBIndex]);
+						DotValue = static_cast<float>(LineADirs[LineAIndex].CosineAngle2D(LineBDirs[LineBIndex]));
 						break;
 
 					default:

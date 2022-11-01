@@ -390,9 +390,9 @@ void UCrowdFollowingComponent::ApplyCrowdAgentVelocity(const FVector& NewVelocit
 			const bool bAccelerationBased = MovementComp->UseAccelerationForPathFollowing();
 			if (bAccelerationBased)
 			{
-				const float MaxSpeed = GetCrowdAgentMaxSpeed();
-				const float NewSpeed = NewVelocity.Size();
-				const float SpeedPct = FMath::Clamp(NewSpeed / MaxSpeed, 0.0f, 1.0f);
+				const FVector::FReal MaxSpeed = GetCrowdAgentMaxSpeed();
+				const FVector::FReal NewSpeed = NewVelocity.Size();
+				const FVector::FReal SpeedPct = FMath::Clamp(NewSpeed / MaxSpeed, 0., 1.);
 				const FVector MoveInput = FMath::IsNearlyZero(NewSpeed) ? FVector::ZeroVector : ((NewVelocity / NewSpeed) * SpeedPct);
 
 				MovementComp->RequestPathMove(MoveInput);
@@ -717,7 +717,7 @@ void LogPathPartHelper(AActor* LogOwner, FNavMeshPath* NavMeshPath, int32 StartI
 		TArray<FVector> Verts;
 		for (int32 Idx = StartIdx; Idx <= EndIdx; Idx++)
 		{
-			const uint8 AreaID = NavMesh->GetPolyAreaID(NavMeshPath->PathCorridor[Idx]);
+			const uint8 AreaID = IntCastChecked<uint8>(NavMesh->GetPolyAreaID(NavMeshPath->PathCorridor[Idx]));
 			const UClass* AreaClass = NavMesh->GetAreaClass(AreaID);
 
 			Verts.Reset();
@@ -1192,7 +1192,7 @@ void UCrowdFollowingComponent::GetDebugStringTokens(TArray<FString>& Tokens, TAr
 		const FVector CurrentLocation = MovementComp->GetActorFeetLocation();
 
 		// make sure we're not too close to end of path part (poly count can always fail when AI goes off path)
-		const float DistSq = (GetCurrentTargetLocation() - CurrentLocation).SizeSquared();
+		const FVector::FReal DistSq = (GetCurrentTargetLocation() - CurrentLocation).SizeSquared();
 		const float PathSwitchThresSq = FMath::Square(AgentRadius * 5.0f);
 
 		Tokens.Add(TEXT("distance"));

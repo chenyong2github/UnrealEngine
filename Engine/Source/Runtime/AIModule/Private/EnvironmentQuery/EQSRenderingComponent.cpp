@@ -26,7 +26,7 @@ namespace FEQSRenderingHelper
 //----------------------------------------------------------------------//
 // FEQSSceneProxy
 //----------------------------------------------------------------------//
-const FVector FEQSSceneProxy::ItemDrawRadius(30,30,30);
+const FVector3f FEQSSceneProxy::ItemDrawRadius(30.f,30.f,30.f);
 
 SIZE_T FEQSSceneProxy::GetTypeHash() const
 {

@@ -183,7 +183,7 @@ class AIMODULE_API UBTCompositeNode : public UBTNode
 	uint16 GetBranchExecutionIndex(uint16 NodeInBranchIdx) const;
 
 	/** is child execution allowed by decorators? */
-	bool DoDecoratorsAllowExecution(UBehaviorTreeComponent& OwnerComp, int32 InstanceIdx, int32 ChildIdx) const;
+	bool DoDecoratorsAllowExecution(UBehaviorTreeComponent& OwnerComp, const int32 InstanceIdx, const int32 ChildIdx) const;
 
 	bool IsApplyingDecoratorScope() const;
 

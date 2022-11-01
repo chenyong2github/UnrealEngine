@@ -145,7 +145,7 @@ void UGridPathFollowingComponent::UpdateActiveGrid(const FVector& CurrentLocatio
 					for (int32 Idx = 1; Idx < GridPathPoints.Num(); Idx++)
 					{
 						UE_VLOG_BOX(this, LogPathFollowing, Log, FBox::BuildAABB(GridPathPoints[Idx] + DebugDrawOffset, DebugPathPointExtent), FColor::Yellow, TEXT(""));
-						UE_VLOG_SEGMENT_THICK(this, LogPathFollowing, Log, GridPathPoints[Idx - 1] + DebugDrawOffset, GridPathPoints[Idx] + DebugDrawOffset, FColor::Yellow, 3.0f, TEXT(""));
+						UE_VLOG_SEGMENT_THICK(this, LogPathFollowing, Log, GridPathPoints[Idx - 1] + DebugDrawOffset, GridPathPoints[Idx] + DebugDrawOffset, FColor::Yellow, 3, TEXT(""));
 					}
 
 					for (int32 Idx = 0; Idx < GridData.GetCellsCount(); Idx++)

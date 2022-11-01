@@ -143,7 +143,7 @@ float UAISense_Hearing::Update()
 		for (const FAINoiseEvent& Event : NoiseEvents)
 		{
 			const float ClampedLoudness = FMath::Max(0.f, Event.Loudness);
-			const float DistToSoundSquared = FVector::DistSquared(Event.NoiseLocation, Listener.CachedLocation);
+			const FVector::FReal DistToSoundSquared = FVector::DistSquared(Event.NoiseLocation, Listener.CachedLocation);
 			
 			// Limit by loudness modified squared range (this is the old behavior)
 			if (DistToSoundSquared > PropDigest.HearingRangeSq * FMath::Square(ClampedLoudness))
@@ -160,8 +160,8 @@ float UAISense_Hearing::Update()
 			{
 				continue;
 			}
-			// calculate delay and fake it with Age
-			const float Delay = FMath::Sqrt(DistToSoundSquared * SpeedOfSoundSqScalar);
+			// calculate delay and fake it with Age, Delay should be pretty small so a static_cast is safe enough here.
+			const float Delay = FloatCastChecked<float>(FMath::Sqrt(DistToSoundSquared * SpeedOfSoundSqScalar), UE::LWC::DefaultFloatPrecision);
 			// pass over to listener to process 			
 			PerseptionSys->RegisterDelayedStimulus(Listener.GetListenerID(), Delay, Event.Instigator
 				, FAIStimulus(*this, ClampedLoudness, Event.NoiseLocation, Listener.CachedLocation, FAIStimulus::SensingSucceeded, Event.Tag) );

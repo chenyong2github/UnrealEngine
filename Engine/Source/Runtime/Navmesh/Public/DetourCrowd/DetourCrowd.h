@@ -528,7 +528,7 @@ public:
 
 	inline int getNumActiveAgents() const { return m_numActiveAgents; }
 
-	inline int getAgentIndex(const dtCrowdAgent* agent) const  { return agent - m_agents; }
+	inline int getAgentIndex(const dtCrowdAgent* agent) const  { return (int)(agent - m_agents); }
 
 	/// Gets all agent animations
 	const dtCrowdAgentAnimation* getAgentAnims() const { return m_agentAnims;  }

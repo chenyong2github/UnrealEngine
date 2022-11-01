@@ -54,8 +54,8 @@ void FGameplayDebuggerCategory_BehaviorTree::DrawData(APlayerController* OwnerPC
 		TArray<FString> BlackboardLines;
 		DataPack.BlackboardDesc.ParseIntoArrayLines(BlackboardLines, true);
 
-		int32 SavedDefX = CanvasContext.DefaultX;
-		int32 SavedPosY = CanvasContext.CursorY;
+		const float SavedDefX = CanvasContext.DefaultX;
+		const float SavedPosY = CanvasContext.CursorY;
 		CanvasContext.DefaultX = CanvasContext.CursorX = 600.0f;
 		CanvasContext.CursorY = CanvasContext.DefaultY;
 

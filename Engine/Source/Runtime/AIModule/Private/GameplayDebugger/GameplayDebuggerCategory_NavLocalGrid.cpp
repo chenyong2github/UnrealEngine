@@ -91,7 +91,7 @@ public:
 					FDynamicMeshBuilder	MeshBuilder(View->GetFeatureLevel());
 					MeshBuilder.AddVertices(FreeCellMeshVerts);
 					MeshBuilder.AddTriangles(FreeCellMeshIndices);
-					MeshBuilder.GetMesh(FMatrix::Identity, MeshColorInstance, GetDepthPriorityGroup(View), false, false, ViewIndex, Collector);
+					MeshBuilder.GetMesh(FMatrix::Identity, MeshColorInstance, IntCastChecked<uint8>((int32)GetDepthPriorityGroup(View)), false, false, ViewIndex, Collector);
 				}
 
 				if (MarkedCellMeshVerts.Num() > 0)
@@ -100,7 +100,7 @@ public:
 					FDynamicMeshBuilder	MeshBuilder(View->GetFeatureLevel());
 					MeshBuilder.AddVertices(MarkedCellMeshVerts);
 					MeshBuilder.AddTriangles(MarkedCellMeshIndices);
-					MeshBuilder.GetMesh(FMatrix::Identity, MeshColorInstance, GetDepthPriorityGroup(View), false, false, ViewIndex, Collector);
+					MeshBuilder.GetMesh(FMatrix::Identity, MeshColorInstance, IntCastChecked<uint8>((int32)GetDepthPriorityGroup(View)), false, false, ViewIndex, Collector);
 				}
 
 				if (BoundsMeshVerts.Num() > 0)
@@ -109,7 +109,7 @@ public:
 					FDynamicMeshBuilder	MeshBuilder(View->GetFeatureLevel());
 					MeshBuilder.AddVertices(BoundsMeshVerts);
 					MeshBuilder.AddTriangles(BoundsMeshIndices);
-					MeshBuilder.GetMesh(FMatrix::Identity, MeshColorInstance, GetDepthPriorityGroup(View), false, false, ViewIndex, Collector);
+					MeshBuilder.GetMesh(FMatrix::Identity, MeshColorInstance, IntCastChecked<uint8>((int32)GetDepthPriorityGroup(View)), false, false, ViewIndex, Collector);
 				}
 
 				if (PathMeshVerts.Num() > 0)
@@ -118,7 +118,7 @@ public:
 					FDynamicMeshBuilder	MeshBuilder(View->GetFeatureLevel());
 					MeshBuilder.AddVertices(PathMeshVerts);
 					MeshBuilder.AddTriangles(PathMeshIndices);
-					MeshBuilder.GetMesh(FMatrix::Identity, MeshColorInstance, GetDepthPriorityGroup(View), false, false, ViewIndex, Collector);
+					MeshBuilder.GetMesh(FMatrix::Identity, MeshColorInstance, IntCastChecked<uint8>((int32)GetDepthPriorityGroup(View)), false, false, ViewIndex, Collector);
 				}
 			}
 		}
@@ -300,13 +300,13 @@ protected:
 
 	uint32 GetAllocatedSize(void) const
 	{
-		uint32 AllocatedSize = FDebugRenderSceneProxy::GetAllocatedSize() +
+		const SIZE_T AllocatedSize = FDebugRenderSceneProxy::GetAllocatedSize() +
 			FreeCellMeshVerts.GetAllocatedSize() + FreeCellMeshIndices.GetAllocatedSize() +
 			MarkedCellMeshVerts.GetAllocatedSize() + MarkedCellMeshIndices.GetAllocatedSize() +
 			BoundsMeshVerts.GetAllocatedSize() + BoundsMeshIndices.GetAllocatedSize() +
 			PathMeshVerts.GetAllocatedSize() + PathMeshIndices.GetAllocatedSize();
 
-		return AllocatedSize;
+		return IntCastChecked<uint32>(AllocatedSize);
 	}
 
 private:

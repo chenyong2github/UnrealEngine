@@ -20,8 +20,6 @@ void FMassReplicationProcessorPositionYawHandler::AddEntity(const int32 EntityId
 	const FTransformFragment& TransformFragment = TransformList[EntityIdx];
 	InOutReplicatedPositionYawData.SetPosition(TransformFragment.GetTransform().GetLocation());
 
-	if (const TOptional<float> Yaw = UE::AI::GetYawFromQuaternion(TransformFragment.GetTransform().GetRotation()))
-	{
-		InOutReplicatedPositionYawData.SetYaw(Yaw.GetValue());
-	}
+	const FRotator::FReal Yaw = FMath::DegreesToRadians(TransformFragment.GetTransform().Rotator().Yaw);
+	InOutReplicatedPositionYawData.SetYaw(static_cast<float>(Yaw));
 }

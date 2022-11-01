@@ -264,7 +264,7 @@ void AEQSTestingPawn::MakeOneStep()
 	// possible still not valid 
 	if (QueryInstance.IsValid() == true && QueryInstance->IsFinished() == false)
 	{
-		QueryInstance->ExecuteOneStep(double(TimeLimitPerStep));
+		QueryInstance->ExecuteOneStep(TimeLimitPerStep);
 		StepResults.Add(*(QueryInstance.Get()));
 
 		if (QueryInstance->IsFinished())

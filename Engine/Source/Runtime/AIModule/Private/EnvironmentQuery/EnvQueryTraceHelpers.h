@@ -64,7 +64,7 @@ namespace FEQSHelpers
 		FORCEINLINE_DEBUGGABLE bool RunSphereTrace(const FVector& StartPos, const FVector& EndPos, FVector& HitPos)
 		{
 			FHitResult OutHit;
-			const bool bHit = World->SweepSingleByChannel(OutHit, StartPos, EndPos, FQuat::Identity, Channel, FCollisionShape::MakeSphere(Extent.X), QueryParams, ResponseParams);
+			const bool bHit = World->SweepSingleByChannel(OutHit, StartPos, EndPos, FQuat::Identity, Channel, FCollisionShape::MakeSphere(FloatCastChecked<float>(Extent.X, UE::LWC::DefaultFloatPrecision)), QueryParams, ResponseParams);
 			HitPos = OutHit.Location;
 			return bHit;
 		}
@@ -72,7 +72,7 @@ namespace FEQSHelpers
 		FORCEINLINE_DEBUGGABLE bool RunCapsuleTrace(const FVector& StartPos, const FVector& EndPos, FVector& HitPos)
 		{
 			FHitResult OutHit;
-			const bool bHit = World->SweepSingleByChannel(OutHit, StartPos, EndPos, FQuat::Identity, Channel, FCollisionShape::MakeCapsule(Extent.X, Extent.Z), QueryParams, ResponseParams);
+			const bool bHit = World->SweepSingleByChannel(OutHit, StartPos, EndPos, FQuat::Identity, Channel, FCollisionShape::MakeCapsule(FloatCastChecked<float>(Extent.X, UE::LWC::DefaultFloatPrecision), FloatCastChecked<float>(Extent.Z, 1./16.)), QueryParams, ResponseParams);
 			HitPos = OutHit.Location;
 			return bHit;
 		}

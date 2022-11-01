@@ -362,7 +362,7 @@ void FEnvQueryInstance::ExecuteOneStep(float TimeLimit)
 					}
 
 					const double GenTime = FPlatformTime::Seconds();
-					const float StepExecutionTime = GenTime - StepStartTime;
+					const double StepExecutionTime = GenTime - StepStartTime;
 					StepStartTime += StepExecutionTime;
 					TotalExecutionTime += StepExecutionTime;
 					StartTime = GenTime;
@@ -457,7 +457,7 @@ void FEnvQueryInstance::ExecuteOneStep(float TimeLimit)
 			*QueryName, OptionIndex, CurrentTest);
 	}
 
-	const float StepExecutionTime = FPlatformTime::Seconds() - StepStartTime;
+	const double StepExecutionTime = FPlatformTime::Seconds() - StepStartTime;
 	TotalExecutionTime += StepExecutionTime;
 
 #if USE_EQS_DEBUGGER
@@ -503,7 +503,7 @@ void FEnvQueryInstance::ExecuteOneStep(float TimeLimit)
 
 FString FEnvQueryInstance::GetExecutionTimeDescription() const
 {
-	FString Description = FString::Printf(TEXT("Total Execution Time: %.2f ms"), TotalExecutionTime * 1000.f);
+	FString Description = FString::Printf(TEXT("Total Execution Time: %.2f ms"), TotalExecutionTime * 1000.);
 
 #if USE_EQS_DEBUGGER
 	for (int32 OptionIdx = 0; OptionIdx <= OptionIndex; OptionIdx++)
@@ -564,8 +564,8 @@ FEnvQueryInstance::FItemIterator::FItemIterator(const UEnvQueryTest* QueryTest, 
 {
 	check(QueryTest);
 
-	CachedFilterOp = QueryTest->MultipleContextFilterOp.GetValue();
-	CachedScoreOp = QueryTest->MultipleContextScoreOp.GetValue();
+	CachedFilterOp = QueryTest->MultipleContextFilterOp.GetIntValue();
+	CachedScoreOp = QueryTest->MultipleContextScoreOp.GetIntValue();
 	bIsFiltering = (QueryTest->TestPurpose == EEnvTestPurpose::Filter) || (QueryTest->TestPurpose == EEnvTestPurpose::FilterAndScore);
 
 	Deadline = QueryInstance.CurrentStepTimeLimit > 0.0 ? (FPlatformTime::Seconds() + QueryInstance.CurrentStepTimeLimit) : -1.0;
@@ -884,7 +884,7 @@ void FEnvQueryInstance::FinalizeTest()
 #if STATS
 uint32 FEnvQueryInstance::GetAllocatedSize() const
 {
-	uint32 MemSize = sizeof(*this) + Items.GetAllocatedSize() + RawData.GetAllocatedSize();
+	SIZE_T MemSize = sizeof(*this) + Items.GetAllocatedSize() + RawData.GetAllocatedSize();
 	MemSize += GetContextAllocatedSize();
 	MemSize += NamedParams.GetAllocatedSize();
 	MemSize += ItemDetails.GetAllocatedSize();
@@ -895,18 +895,18 @@ uint32 FEnvQueryInstance::GetAllocatedSize() const
 		MemSize += Options[OptionCount].GetAllocatedSize();
 	}
 
-	return MemSize;
+	return IntCastChecked<uint32>(MemSize);
 }
 
 uint32 FEnvQueryInstance::GetContextAllocatedSize() const
 {
-	uint32 MemSize = ContextCache.GetAllocatedSize();
+	SIZE_T MemSize = ContextCache.GetAllocatedSize();
 	for (TMap<UClass*, FEnvQueryContextData>::TConstIterator It(ContextCache); It; ++It)
 	{
 		MemSize += It.Value().GetAllocatedSize();
 	}
 
-	return MemSize;
+	return IntCastChecked<uint32>(MemSize);
 }
 #endif // STATS
 

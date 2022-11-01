@@ -28,7 +28,7 @@ namespace BlueprintNodeHelpers
 			TotalMem = 0;
 		}
 
-		return TotalMem;
+		return IntCastChecked<uint16>(TotalMem);
 	}
 
 #define GET_STRUCT_NAME_CHECKED(StructName) \

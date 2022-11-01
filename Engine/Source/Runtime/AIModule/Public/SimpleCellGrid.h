@@ -50,7 +50,7 @@ public:
 		GridCellSize = InCellSize;
 
 		const FVector RealBoundsSize = Bounds.GetSize();
-		GridSize = FGridSize2D(FMath::CeilToInt(RealBoundsSize.X / InCellSize), FMath::CeilToInt(RealBoundsSize.Y / InCellSize));
+		GridSize = FGridSize2D(IntCastChecked<uint32>(FMath::CeilToInt(RealBoundsSize.X / InCellSize)), IntCastChecked<uint32>(FMath::CeilToInt(RealBoundsSize.Y / InCellSize)));
 		BoundsSize = FVector(GridSize.Width * InCellSize, GridSize.Height * InCellSize, RealBoundsSize.Z);
 		Origin = FVector(Bounds.Min.X, Bounds.Min.Y, (Bounds.Min.Z + Bounds.Max.Z) * 0.5f);
 		UpdateWorldBounds();
@@ -87,15 +87,15 @@ public:
 
 	FORCEINLINE uint32 GetAllocatedSize() const
 	{
-		return Cells.GetAllocatedSize();
+		return IntCastChecked<uint32>(Cells.GetAllocatedSize());
 	}
 
 	/** Convert world location to (X,Y) coords on grid, result can be outside grid */
 	FORCEINLINE FIntVector GetCellCoordsUnsafe(const FVector& WorldLocation) const
 	{
 		return FIntVector(
-			FMath::TruncToInt((WorldLocation.X - Origin.X) / GridCellSize),
-			FMath::TruncToInt((WorldLocation.Y - Origin.Y) / GridCellSize),
+			IntCastChecked<int32>(FMath::TruncToInt((WorldLocation.X - Origin.X) / GridCellSize)),
+			IntCastChecked<int32>(FMath::TruncToInt((WorldLocation.Y - Origin.Y) / GridCellSize)),
 			0);
 	}
 
@@ -241,7 +241,7 @@ public:
 		}
 		else
 		{
-			int32 DataBytesCount = GetAllocatedSize();
+			uint32 DataBytesCount = GetAllocatedSize();
 			Ar << DataBytesCount;
 
 			if (DataBytesCount > 0)

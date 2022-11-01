@@ -820,7 +820,7 @@ struct AIMODULE_API FEnvQueryInstance : public FEnvQueryResult
 	double StartTime;
 
 	/** time spent executing this query */
-	float TotalExecutionTime;
+	double TotalExecutionTime;
 
 	/** if > 0 then it's how much time query has for performing current step */
 	float CurrentStepTimeLimit;

@@ -49,5 +49,5 @@ class AIMODULE_API UBTDecorator_IsAtLocation : public UBTDecorator_BlackboardBas
 #endif // WITH_EDITOR
 
 protected:
-	float GetGeometricDistanceSquared(const FVector& A, const FVector& B) const;
+	FVector::FReal GetGeometricDistanceSquared(const FVector& A, const FVector& B) const;
 };

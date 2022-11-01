@@ -81,7 +81,9 @@ void UBTComposite_SimpleParallel::NotifyChildExecution(UBehaviorTreeComponent& O
 
 			const int32 MyInstanceIdx = OwnerComp.FindInstanceContainingNode(this);
 
-			OwnerComp.UnregisterParallelTask(Children[EBTParallelChild::MainTask].ChildTask, MyInstanceIdx);
+			// use check() here not IntCastChecked() as MyInstanceIdx can be INDEX_NONE!
+			check(MyInstanceIdx < MAX_uint16);
+			OwnerComp.UnregisterParallelTask(Children[EBTParallelChild::MainTask].ChildTask, static_cast<uint16>(MyInstanceIdx));
 			if (NodeResult != EBTNodeResult::Aborted && !MyMemory->bRepeatMainTask)
 			{
 				// check if subtree should be aborted when task finished with success/failed result

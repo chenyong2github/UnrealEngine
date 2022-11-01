@@ -58,18 +58,21 @@ namespace UE::AI
 	 * This method will extract the yaw radian from the specified vector (The vector does not need to be normalized)
 	 * if it is not possible to compute yaw, the function will return an invalid value	 *
 	 */
+	UE_DEPRECATED(5.2, "Deprecated as returning float instead of FVector::FReal. Use FVector::ToOrientationRotator()::Yaw etc.")
 	extern AIMODULE_API TOptional<float> GetYawFromVector(const FVector& Vector);
 
 	/**
 	 * This method will extract the yaw radian from the specified rotator
 	 * if it is not possible to compute yaw, the function will not return an invalid value
 	 */
+	UE_DEPRECATED(5.2, "Deprecated as returning float instead of FVector::FReal. Use FRotator::Yaw etc.")
 	extern AIMODULE_API TOptional<float> GetYawFromRotator(const FRotator& Rotator);
 
 	/**
 	 * This method will extract the yaw radian from the specified quaternion
 	 * if it is not possible to compute yaw, the function will not return an invalid value
 	 */
+	UE_DEPRECATED(5.2, "Deprecated as returning float instead of FVector::FReal. Use FQuat::Rotator()::Yaw etc.")
 	extern AIMODULE_API TOptional<float> GetYawFromQuaternion(const FQuat& Quaternion);
 
 	/**

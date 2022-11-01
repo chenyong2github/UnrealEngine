@@ -120,7 +120,7 @@ void UBTTaskNode::ReceivedMessage(UBrainComponent* BrainComp, const FAIMessage& 
 	UBehaviorTreeComponent* OwnerComp = static_cast<UBehaviorTreeComponent*>(BrainComp);
 	check(OwnerComp);
 	
-	const uint16 InstanceIdx = OwnerComp->FindInstanceContainingNode(this);
+	const uint16 InstanceIdx = IntCastChecked<uint16>(OwnerComp->FindInstanceContainingNode(this));
 	if (OwnerComp->InstanceStack.IsValidIndex(InstanceIdx))
 	{
 		uint8* NodeMemory = GetNodeMemory<uint8>(OwnerComp->InstanceStack[InstanceIdx]);

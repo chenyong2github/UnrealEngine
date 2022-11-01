@@ -148,7 +148,7 @@ struct AIMODULE_API FEQSDebugger
 	struct FEnvQueryInfo
 	{
 		TSharedPtr<FEnvQueryInstance> Instance;
-		float Timestamp;
+		double Timestamp;
 	};
 
 	struct FStatsInfo

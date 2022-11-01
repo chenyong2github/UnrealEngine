@@ -42,7 +42,7 @@ class AIMODULE_API UBehaviorTreeManager : public UObject
 	bool LoadTree(UBehaviorTree& Asset, UBTCompositeNode*& Root, uint16& InstanceMemorySize);
 
 	/** get aligned memory size */
-	static int32 GetAlignedDataSize(int32 Size);
+	static uint16 GetAlignedDataSize(uint16 Size);
 
 	/** helper function for sorting and aligning node memory */
 	static void InitializeMemoryHelper(const TArray<UBTDecorator*>& Nodes, TArray<uint16>& MemoryOffsets, int32& MemorySize, bool bForceInstancing = false);

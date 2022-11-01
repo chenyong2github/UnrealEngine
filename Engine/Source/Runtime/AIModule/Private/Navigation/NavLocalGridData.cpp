@@ -14,7 +14,11 @@ FNavLocalGridData::FNavLocalGridData(const FVector& Center, float Extent2D) : Gr
 	const FBox UseBounds = FBox::BuildAABB(CenterOnGrid, FVector(Extent2D, Extent2D, 0.0f));
 	Init(UseCellSize, UseBounds);
 	
-	OriginWorldCoord = FIntVector(FMath::TruncToInt(Origin.X / UseCellSize), FMath::TruncToInt(Origin.Y / UseCellSize), FMath::TruncToInt(Origin.Z / UseCellSize));
+	const int32 OriginX = IntCastChecked<int32>(FMath::TruncToInt(Origin.X / UseCellSize));
+	const int32 OriginY = IntCastChecked<int32>(FMath::TruncToInt(Origin.Y / UseCellSize));
+	const int32 OriginZ = IntCastChecked<int32>(FMath::TruncToInt(Origin.Z / UseCellSize));
+
+	OriginWorldCoord = FIntVector(OriginX, OriginY, OriginZ);
 }
 
 FNavLocalGridData::FNavLocalGridData(const FVector& Center, const FVector2D& Extent2D) : GridId(0)
@@ -24,7 +28,11 @@ FNavLocalGridData::FNavLocalGridData(const FVector& Center, const FVector2D& Ext
 	const FBox UseBounds = FBox::BuildAABB(CenterOnGrid, FVector(Extent2D.X, Extent2D.Y, 0.0f));
 	Init(UseCellSize, UseBounds);
 
-	OriginWorldCoord = FIntVector(FMath::TruncToInt(Origin.X / UseCellSize), FMath::TruncToInt(Origin.Y / UseCellSize), FMath::TruncToInt(Origin.Z / UseCellSize));
+	const int32 OriginX = IntCastChecked<int32>(FMath::TruncToInt(Origin.X / UseCellSize));
+	const int32 OriginY = IntCastChecked<int32>(FMath::TruncToInt(Origin.Y / UseCellSize));
+	const int32 OriginZ = IntCastChecked<int32>(FMath::TruncToInt(Origin.Z / UseCellSize));
+
+	OriginWorldCoord = FIntVector(OriginX, OriginY, OriginZ);
 }
 
 FNavLocalGridData::FNavLocalGridData(const TArray<FNavLocalGridData>& SourceGrids) : GridId(0)
@@ -42,7 +50,10 @@ FNavLocalGridData::FNavLocalGridData(const TArray<FNavLocalGridData>& SourceGrid
 
 	const float UseCellSize = UNavLocalGridManager::GetCellSize();
 	Init(UseCellSize, CombinedBounds);
-	OriginWorldCoord = FIntVector(FMath::TruncToInt(Origin.X / UseCellSize), FMath::TruncToInt(Origin.Y / UseCellSize), FMath::TruncToInt(Origin.Z / UseCellSize));
+
+	const int32 OriginX = IntCastChecked<int32>(FMath::TruncToInt(Origin.X / UseCellSize));
+	const int32 OriginY = IntCastChecked<int32>(FMath::TruncToInt(Origin.Y / UseCellSize));
+	const int32 OriginZ = IntCastChecked<int32>(FMath::TruncToInt(Origin.Z / UseCellSize));
 
 	for (int32 Idx = 0; Idx < Cells.Num(); Idx++)
 	{
@@ -135,8 +146,8 @@ void FNavLocalGridData::MarkCapsuleObstacle(const FVector& Center, float Radius,
 		for (int32 IdxY = 0; IdxY < (int32)GridSize.Height; IdxY++)
 		{
 			const FVector GridCellLocation = GetWorldCellCenter(IdxX, IdxY);
-			const float Dist2DSq = (GridCellLocation - Center).SizeSquared2D();
-			const float DistZ = FMath::Abs(GridCellLocation.Z - Center.Z);
+			const FVector::FReal Dist2DSq = (GridCellLocation - Center).SizeSquared2D();
+			const FVector::FReal DistZ = FMath::Abs(GridCellLocation.Z - Center.Z);
 
 			const bool bIsInside = (Dist2DSq < RadiusSq) && (DistZ < HalfHeight);
 			if (bIsInside)
@@ -150,7 +161,7 @@ void FNavLocalGridData::MarkCapsuleObstacle(const FVector& Center, float Radius,
 
 void FNavLocalGridData::SetHeight(float ExtentZ)
 {
-	const float CenterZ = (WorldBounds.Max.Z + WorldBounds.Min.Z) * 0.5f;
+	const FVector::FReal CenterZ = (WorldBounds.Max.Z + WorldBounds.Min.Z) * 0.5;
 	WorldBounds.Min.Z = CenterZ - ExtentZ;
 	WorldBounds.Max.Z = CenterZ + ExtentZ;
 }
@@ -385,7 +396,7 @@ void FNavLocalGridData::ProjectCells(const ANavigationData& NavData)
 	const bool bAssignBoundsHeight = FMath::IsNearlyZero(WorldBounds.GetExtent().Z);
 	if (bAssignBoundsHeight)
 	{
-		SetHeight(NavData.GetDefaultQueryExtent().Z);
+		SetHeight(FloatCastChecked<float>(NavData.GetDefaultQueryExtent().Z, UE::LWC::DefaultFloatPrecision));
 	}
 
 	TArray<FNavigationProjectionWork> Workload;
@@ -401,10 +412,10 @@ void FNavLocalGridData::ProjectCells(const ANavigationData& NavData)
 	}
 
 	const FVector ProjectionExtent(GridCellSize * 0.25f, GridCellSize * 0.25f, (WorldBounds.Max.Z - WorldBounds.Min.Z) * 0.5f);
-	const float Extent2DSq = FMath::Square(ProjectionExtent.X);
+	const FVector::FReal Extent2DSq = FMath::Square(ProjectionExtent.X);
 	NavData.BatchProjectPoints(Workload, ProjectionExtent);
 	
-	const float BoundsMidZ = (WorldBounds.Max.Z + WorldBounds.Min.Z) * 0.5f;
+	const FVector::FReal BoundsMidZ = (WorldBounds.Max.Z + WorldBounds.Min.Z) * 0.5;
 	CellZ.Init(BoundsMidZ, Cells.Num());
 
 	int32 WorkloadIdx = 0;

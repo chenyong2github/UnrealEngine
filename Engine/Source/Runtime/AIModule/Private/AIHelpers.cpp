@@ -10,14 +10,14 @@ namespace FAISystem
 	FVector FindClosestLocation(const FVector& Origin, const TArray<FVector>& Locations)
 	{
 		FVector BestLocation = FAISystem::InvalidLocation;
-		float BestDistance = FLT_MAX;
+		FVector::FReal BestDistanceSq = TNumericLimits<FVector::FReal>::Max();
 
 		for (const FVector& Candidate : Locations)
 		{
-			const float CurrentDistanceSq = FVector::DistSquared(Origin, Candidate);
-			if (CurrentDistanceSq < BestDistance)
+			const FVector::FReal CurrentDistanceSq = FVector::DistSquared(Origin, Candidate);
+			if (CurrentDistanceSq < BestDistanceSq)
 			{
-				BestDistance = CurrentDistanceSq;
+				BestDistanceSq = CurrentDistanceSq;
 				BestLocation = Candidate;
 			}
 		}
@@ -61,7 +61,7 @@ namespace FAISystem
 	{
 		const FVector BaseLocation = FMath::IsNearlyZero(ConeDirectionBackwardOffset) ? StartLocation : StartLocation - ConeDirectionNormal * ConeDirectionBackwardOffset;
 		const FVector ActorToTarget = TargetLocation - BaseLocation;
-		const float DistToTargetSq = ActorToTarget.SizeSquared();
+		const FVector::FReal DistToTargetSq = ActorToTarget.SizeSquared();
 		if (DistToTargetSq <= FarClippingRadiusSq && DistToTargetSq >= NearClippingRadiusSq)
 		{
 			// Will return true if squared distance to Target is smaller than SMALL_NUMBER
@@ -86,30 +86,34 @@ namespace UE::AI
 TOptional<float> GetYawFromVector(const FVector& Vector)
 {
 	const FVector2D Vector2D(Vector);
-	const float SizeSquared = Vector2D.SizeSquared();
+	const FVector::FReal SizeSquared = Vector2D.SizeSquared();
 	if (SizeSquared <= SMALL_NUMBER)
 	{
 		return TOptional<float>();
 	}
 
-	const FVector2D ForwardVector(1.0f, 0.0f);
+	const FVector2D ForwardVector(1., 0.);
 	const FVector2D NormVector2D = Vector2D * FMath::InvSqrt(SizeSquared);
-	const float DotVal = ForwardVector | NormVector2D;
-	const float ClampedDot = FMath::Clamp(DotVal, -1.0f, 1.0f);
-	const float Direction = ForwardVector ^ NormVector2D;
-	const float Sign = Direction < 0.0f ? -1.0f : 1.0f;
-	const float Yaw = Sign * FMath::Acos(ClampedDot);
-	return Yaw;
+	const FVector::FReal DotVal = ForwardVector | NormVector2D;
+	const FVector::FReal ClampedDot = FMath::Clamp(DotVal, -1., 1.);
+	const FVector::FReal Direction = ForwardVector ^ NormVector2D;
+	const FVector::FReal Sign = Direction < 0. ? -1. : 1.;
+	const FVector::FReal Yaw = Sign * FMath::Acos(ClampedDot);
+	return static_cast<float>(Yaw);
 }
 
 TOptional<float> GetYawFromRotator(const FRotator& Rotator)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return GetYawFromVector(Rotator.Vector());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 TOptional<float> GetYawFromQuaternion(const FQuat& Quaternion)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return GetYawFromVector(Quaternion.Vector());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void GetActorClassDefaultComponents(const TSubclassOf<AActor>& ActorClass, TArray<UActorComponent*>& OutComponents, const TSubclassOf<UActorComponent>& InComponentClass)
