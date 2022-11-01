@@ -126,8 +126,8 @@ namespace PCGSettingsHelpers
 	* Validate that the InProperty is a PCGData supported type and call InFunc with the value of this property (with the right type).
 	* The function returns the result of InFunc (or default value of the return type of InFunc if it failed).
 	*/
-	template <typename Func>
-	inline decltype(auto) GetPropertyValueWithCallback(const UObject* InObject, const FProperty* InProperty, Func InFunc)
+	template <typename ObjectType, typename Func>
+	inline decltype(auto) GetPropertyValueWithCallback(const ObjectType* InObject, const FProperty* InProperty, Func InFunc)
 	{
 		// Double property is supported by PCG, we use a dummy double to deduce the return type of InFunc.
 		using ReturnType = decltype(InFunc(0.0));
