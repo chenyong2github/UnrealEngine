@@ -82,7 +82,7 @@ public:
 	NIAGARA_API void CalculateFixedBounds(const FTransform& ToWorldSpace);
 #endif
 	
-	bool GetBoundRendererValue_GT(const FNiagaraVariableBase& InBaseVar, const FNiagaraVariableBase& InSubVar, void* OutValueData) const;
+	NIAGARA_API bool GetBoundRendererValue_GT(const FNiagaraVariableBase& InBaseVar, const FNiagaraVariableBase& InSubVar, void* OutValueData) const;
 
 	FNiagaraDataSet& GetData()const { return *ParticleDataSet; }
 
@@ -155,8 +155,8 @@ public:
 	}
 	FBox GetFixedBounds() const;
 
-	UObject* FindBinding(const FNiagaraVariable& InVariable) const;
-	UNiagaraDataInterface* FindDataInterface(const FNiagaraVariable& InVariable) const;
+	NIAGARA_API UObject* FindBinding(const FNiagaraVariable& InVariable) const;
+	NIAGARA_API UNiagaraDataInterface* FindDataInterface(const FNiagaraVariable& InVariable) const;
 
 	bool HasTicked() const { return TickCount > 0;  }
 

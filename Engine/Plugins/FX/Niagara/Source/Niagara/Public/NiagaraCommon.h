@@ -1077,11 +1077,11 @@ struct FNiagaraMaterialAttributeBinding
 	UPROPERTY(EditAnywhere, Category = "Variable")
 	FNiagaraVariableBase NiagaraChildVariable;
 
-	void NIAGARA_API CacheValues(const UNiagaraEmitter* InEmitter); 
-	const FNiagaraVariableBase& GetParamMapBindableVariable() const;
+	NIAGARA_API void CacheValues(const UNiagaraEmitter* InEmitter);
+	NIAGARA_API const FNiagaraVariableBase& GetParamMapBindableVariable() const;
 
-	bool NIAGARA_API RenameVariableIfMatching(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
-	bool NIAGARA_API Matches(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
+	NIAGARA_API bool RenameVariableIfMatching(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
+	NIAGARA_API bool Matches(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode);
 };
 
 USTRUCT()

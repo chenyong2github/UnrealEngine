@@ -24,7 +24,7 @@ class FNiagaraGPURendererCount;
 class FNiagaraSystemInstanceController;
 
 /** Struct used to pass dynamic data from game thread to render thread */
-struct FNiagaraDynamicDataBase
+struct NIAGARA_API FNiagaraDynamicDataBase
 {
 	explicit FNiagaraDynamicDataBase(const FNiagaraEmitterInstance* InEmitter);
 	virtual ~FNiagaraDynamicDataBase();
