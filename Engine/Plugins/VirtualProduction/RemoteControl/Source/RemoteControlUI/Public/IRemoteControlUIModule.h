@@ -19,6 +19,7 @@ class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;
 struct SRCPanelTreeNode;
 class URemoteControlPreset;
+class FPropertyPath;
 
 struct FRCColumnSizeData
 {
@@ -195,4 +196,14 @@ public:
 
 	/** The section of EditorPerProjectUserSettings in which to save filter settings */
 	static const FString SettingsIniSection;
+
+	/**
+	 * If a details panel is open, highlight a property specified by the path in it.
+	 */
+	virtual void HighlightPropertyInDetailsPanel(const FPropertyPath& Path) const = 0;
+
+	/**
+	 * Set the list of selected objects.
+	 */
+	virtual void SelectObjects(const TArray<UObject*>& Objects) const = 0;
 };

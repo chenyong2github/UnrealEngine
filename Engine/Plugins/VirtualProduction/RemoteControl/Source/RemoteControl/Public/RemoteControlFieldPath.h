@@ -2,6 +2,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+
+#if WITH_EDITOR
+#include "PropertyPath.h"
+#endif
+
 #include "RemoteControlFieldPath.generated.h"
 
 
@@ -193,6 +198,12 @@ public:
 
 	/** Builds an EditPropertyChain from the segments */
 	void ToEditPropertyChain(FEditPropertyChain& OutPropertyChain) const;
+
+#if WITH_EDITOR
+	/** Converts this RCPath to a property path. */
+	TSharedRef<FPropertyPath> ToPropertyPath() const;
+#endif
+
 
 private:
 	/**

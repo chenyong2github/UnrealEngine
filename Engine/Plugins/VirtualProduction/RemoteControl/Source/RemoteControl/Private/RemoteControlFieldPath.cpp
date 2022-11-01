@@ -369,6 +369,49 @@ void FRCFieldPathInfo::ToEditPropertyChain(FEditPropertyChain& OutPropertyChain)
 	}
 }
 
+#if WITH_EDITOR
+TSharedRef<FPropertyPath> FRCFieldPathInfo::ToPropertyPath() const
+{
+	TSharedRef<FPropertyPath> Path = FPropertyPath::CreateEmpty();
+	check(IsResolved());
+
+	for (const FRCFieldPathSegment& Segment : Segments)
+	{
+		if (!Segment.Name.IsNone())
+		{
+			// Property path map entries contain duplicates.
+			if (!Segment.MapKey.IsEmpty())
+			{
+				Path->AddProperty(FPropertyInfo(Segment.ResolvedData.Field));
+			}
+
+			if (Segment.ArrayIndex != -1)
+			{
+				if (FArrayProperty* Property = CastField<FArrayProperty>(Segment.ResolvedData.Field))
+				{
+					FPropertyInfo Info;
+					Info.Property = Segment.ResolvedData.Field;
+
+					Path->AddProperty(FPropertyInfo(Property));
+					Path->AddProperty(FPropertyInfo(Property->Inner, Segment.ArrayIndex));
+
+					continue;
+				}
+				
+			}
+
+			FPropertyInfo Info;
+			Info.Property = Segment.ResolvedData.Field;
+			Info.ArrayIndex = Segment.ArrayIndex;
+
+			Path->AddProperty(Info);
+		}
+	}
+
+	return Path;
+}
+#endif
+
 void FRCFieldPathInfo::Initialize(const FString& PathInfo, bool bCleanDuplicates)
 {
 	TArray<FString> PathSegment;

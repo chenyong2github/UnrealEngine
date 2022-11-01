@@ -9,6 +9,7 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyHandle.h"
+#include "PropertyPath.h"
 
 class IToolkitHost;
 class SRemoteControlPanel;
@@ -54,6 +55,8 @@ public:
 	virtual uint32 GetRemoteControlAssetCategory() const override;
 	virtual void RegisterWidgetFactoryForType(UScriptStruct* RemoteControlEntityType, const FOnGenerateRCWidget& OnGenerateRCWidgetDelegate) override;
 	virtual void UnregisterWidgetFactoryForType(UScriptStruct* RemoteControlEntityType) override;
+	virtual void HighlightPropertyInDetailsPanel(const FPropertyPath& Path) const override;
+	virtual void SelectObjects(const TArray<UObject*>& Objects) const override;
 	//~ End IRemoteControlUIModule interface
 
 	/**

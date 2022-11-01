@@ -17,6 +17,7 @@
 #include "Misc/Attribute.h"
 #include "Misc/Guid.h"
 #include "Misc/MessageDialog.h"
+#include "PropertyPath.h"
 #include "RemoteControlPanelStyle.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlUIModule.h"
@@ -34,6 +35,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
+
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanelEntitiesList"
 
@@ -292,13 +294,13 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 			+ SHeaderRow::Column(RemoteControlPresetColumns::OwnerName)
 			.DefaultLabel(LOCTEXT("RCPresetOwnerNameColumnHeader", "Owner Name"))
 			.HAlignHeader(HAlign_Center)
-			.FillWidth(0.125f)
+			.FillWidth(0.15f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
 			+ SHeaderRow::Column(RemoteControlPresetColumns::SubobjectPath)
 			.DefaultLabel(LOCTEXT("RCPresetSubobjectPathColumnHeader", "Subobject Path"))
 			.HAlignHeader(HAlign_Center)
-			.FillWidth(0.125f)
+			.FillWidth(0.15f)
 			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
 			+ SHeaderRow::Column(RemoteControlPresetColumns::Description)
@@ -838,7 +840,7 @@ TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCP
 
 		return FReply::Unhandled();
 	};
-	
+
 	if (Node->GetRCType() == SRCPanelTreeNode::Group)
 	{
 		return SNew(STableRow<TSharedPtr<SWidget>>, OwnerTable)
@@ -889,13 +891,13 @@ void SRCPanelExposedEntitiesList::OnSelectionChanged(TSharedPtr<SRCPanelTreeNode
 			CurrentlySelectedGroup = RCGroup->Id;
 
 			GenerateListWidgets(*RCGroup);
-			
+
 			if (BackendFilter.HasAnyActiveFilters())
 			{
 				bFilterApplicationRequested = true;
 			}
 		}
-	
+
 		FieldsListView->ClearSelection();
 	}
 	else
@@ -903,7 +905,8 @@ void SRCPanelExposedEntitiesList::OnSelectionChanged(TSharedPtr<SRCPanelTreeNode
 		// todo call handler on node itself
 		if (TSharedPtr<FRemoteControlField> RCField = Preset->GetExposedEntity<FRemoteControlField>(Node->GetRCId()).Pin())
 		{
-			TSet<UObject*> Objects = TSet<UObject*>{ RCField->GetBoundObjects() };
+			TArray<UObject*> BoundObjects = RCField->GetBoundObjects();
+			TSet<UObject*> Objects = TSet<UObject*>{ BoundObjects };
 
 			TArray<UObject*> OwnerActors;
 			for (UObject* Object : Objects)
@@ -918,7 +921,55 @@ void SRCPanelExposedEntitiesList::OnSelectionChanged(TSharedPtr<SRCPanelTreeNode
 				}
 			}
 
-			SelectActorsInlevel(OwnerActors);
+			if (RCField->GetStruct() == FRemoteControlProperty::StaticStruct())
+			{
+				TSharedPtr<FRemoteControlProperty> RCProp = StaticCastSharedPtr<FRemoteControlProperty>(RCField);
+				TSharedRef<FPropertyPath> PropertyPath = RCProp->FieldPathInfo.ToPropertyPath();
+
+				for (auto It = BoundObjects.CreateIterator(); It; ++It)
+				{
+					if (AActor* OwnerActor = (*It)->GetTypedOuter<AActor>())
+					{
+						UObject* BindingObject = *It;
+
+						// When we encounter a non-component object, 
+						if (!BindingObject->IsA<UActorComponent>())
+						{
+							BoundObjects.Add(OwnerActor);
+							It.RemoveCurrent();
+						}
+
+						// --- Special NDisplay handling because of their customization ---
+						// Since display cluster config data is not created as a defaeult subobject, therefore we have no way of retrieving the CurrentConfigData property from the config object itself.
+						static FName DisplayClusterConfigDataClassName = "DisplayClusterConfigurationData";
+						if (BindingObject->GetClass()->GetFName() == DisplayClusterConfigDataClassName)
+						{
+							if (FProperty* Property = OwnerActor->GetClass()->FindPropertyByName("CurrentConfigData"))
+							{
+								// Append "CurrentConfigData" to the beginning of the path.
+								TSharedRef<FPropertyPath> NewPropertyPath = FPropertyPath::Create(Property);
+								for (int32 Index = 0; Index < PropertyPath->GetNumProperties(); Index++)
+								{
+									NewPropertyPath->AddProperty(PropertyPath->GetPropertyInfo(Index));
+								}
+
+								PropertyPath = NewPropertyPath;
+							}
+						}
+					}
+				}
+
+				FRemoteControlUIModule::Get().SelectObjects(BoundObjects);
+				
+				FTimerHandle Handle;
+				FTimerDelegate Delegate = FTimerDelegate::CreateLambda(([PropertyPath]()
+					{
+						FRemoteControlUIModule::Get().HighlightPropertyInDetailsPanel(*PropertyPath);
+					}));
+
+				// Needed because modifying the selection set is asynchronous.
+				GEditor->GetTimerManager()->SetTimer(Handle, Delegate, 0.1, 0, -1);
+			}
 		}
 	}
 

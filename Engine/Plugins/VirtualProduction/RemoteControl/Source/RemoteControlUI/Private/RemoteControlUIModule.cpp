@@ -8,6 +8,8 @@
 #include "Commands/RemoteControlCommands.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Elements/Framework/TypedElementRegistry.h"
+#include "Elements/Framework/TypedElementSelectionSet.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -15,6 +17,7 @@
 #include "IRemoteControlModule.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Kismet2/ComponentEditorUtils.h"
+#include "LevelEditorSubsystem.h"
 #include "MaterialEditor/DEditorParameterValue.h"
 #include "Materials/Material.h"
 #include "PropertyHandle.h"
@@ -340,6 +343,7 @@ TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel
 		for (const FName& DetailsTabIdentifier : DetailsTabIdentifiers)
 		{
 			SharedDetailsPanel = PropertyEditor.FindDetailView(DetailsTabIdentifier);
+			SharedDetailsPanel->SetRightColumnMinWidth(50);
 			
 			if (SharedDetailsPanel.IsValid())
 			{
@@ -879,6 +883,42 @@ void FRemoteControlUIModule::RegisterWidgetFactoryForType(UScriptStruct* RemoteC
 void FRemoteControlUIModule::UnregisterWidgetFactoryForType(UScriptStruct* RemoteControlEntityType)
 {
 	GenerateWidgetDelegates.Remove(RemoteControlEntityType);
+}
+
+void FRemoteControlUIModule::HighlightPropertyInDetailsPanel(const FPropertyPath& Path) const
+{
+	if (SharedDetailsPanel)
+	{
+		SharedDetailsPanel->HighlightProperty(Path);
+	}
+}
+
+void FRemoteControlUIModule::SelectObjects(const TArray<UObject*>& Objects) const
+{
+	if (ULevelEditorSubsystem* LevelEditorSubsystem = GEditor->GetEditorSubsystem<ULevelEditorSubsystem>())
+	{
+		FTypedElementListRef ElementHandles = UTypedElementRegistry::GetInstance()->CreateElementList();
+		for (UObject* Object : Objects)
+		{
+			if (UActorComponent* Component = Cast<UActorComponent>(Object))
+			{
+				if (FTypedElementHandle Handle = UEngineElementsLibrary::AcquireEditorComponentElementHandle(Component))
+				{
+					ElementHandles->Add(Handle);
+				}
+			}
+			else if (AActor* Actor = Cast<AActor>(Object))
+			{
+				if (FTypedElementHandle Handle = UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor))
+				{
+					ElementHandles->Add(Handle);
+				}
+			}
+		}
+
+		UTypedElementSelectionSet* SelectionSet = LevelEditorSubsystem->GetSelectionSet();
+		SelectionSet->SetSelection(ElementHandles->GetElementHandles(), FTypedElementSelectionOptions());
+	}
 }
 
 void FRemoteControlUIModule::RegisterWidgetFactories()
