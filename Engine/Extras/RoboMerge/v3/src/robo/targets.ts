@@ -48,7 +48,7 @@ export function getIntegrationOwner(arg0: Branch | PendingChange, overriddenOwne
 	if (pending) {
 		const edgeprops = pending.change.branch.edgeProperties.get(branch!.upperName)
 		if (edgeprops) {
-			resolver = edgeprops.resolver || null
+			resolver = edgeprops.resolver || resolver || null
 		}	
 	}
 

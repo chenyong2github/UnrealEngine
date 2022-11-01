@@ -514,6 +514,7 @@ export class BotNotifications implements BotEventHandler {
 
 			let syntaxErrorMessage: SlackMessage = {
 				text: blockage.failure.description,
+				style: SlackMessageStyles.DANGER,
 				channel: message.channel,
 				mrkdwn: false
 			}

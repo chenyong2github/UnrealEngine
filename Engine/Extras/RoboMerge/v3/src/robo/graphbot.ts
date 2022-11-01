@@ -429,7 +429,8 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 
 	applyStatus(out: Status) {
 		const status: GraphBotState = {
-			isRunningBots: this._runningBots
+			isRunningBots: this._runningBots,
+			aliases: this.branchGraph.config.aliases
 		}
 		if (this.autoUpdater) {
 			status.lastBranchspecCl = this.autoUpdater.lastCl

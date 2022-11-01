@@ -66,7 +66,8 @@ class Graph {
     singleBot(botName) {
         this.branchList = this.allBranches.filter(b => b.bot === botName);
         this.addNodesAndEdges(false);
-        return this.makeGraph(botName, botName + 'integration paths');
+        const title = this.options.aliases.length > 0 ? botName + ' (' + this.options.aliases.join(", ") + ')': botName
+        return this.makeGraph(title, botName + ' integration paths');
     }
     allBots() {
         this.branchList = this.options.botsToShow

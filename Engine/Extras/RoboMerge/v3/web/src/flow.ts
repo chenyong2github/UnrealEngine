@@ -107,7 +107,8 @@ class Graph {
 	singleBot(botName: string) {
 		this.branchList = this.allBranches.filter(b => b.bot === botName)
 		this.addNodesAndEdges(false)
-		return this.makeGraph(botName, botName + 'integration paths')
+        // TODO: Include aliases in graph title
+		return this.makeGraph(botName, botName + ' integration paths')
 	}
 
 	allBots() {

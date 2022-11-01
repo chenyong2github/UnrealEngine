@@ -179,6 +179,7 @@ export interface GraphBotState {
 	isRunningBots: boolean
 	lastBranchspecCl?: number
 	lastError?: GraphBotError
+	aliases?: string[]
 }
 
 export type User = {userName: string, displayName: string, privileges?: string[]}

@@ -17,7 +17,7 @@ import { SlackMessages } from './notifications';
 import { PerforceStatefulBot } from './perforce-stateful-bot';
 import { BlockageNodeOpUrls, OperationUrlHelper } from './roboserver';
 import { Context } from './settings';
-import { SlackMessage } from './slack';
+import { SlackMessage, SlackMessageStyles } from './slack';
 import { PauseState } from './state-interfaces';
 import { newTickJournal, TickJournal } from './tick-journal';
 import { computeTargets, parseDescriptionLines, processOtherBotTargets, getIntegrationOwner, getNodeBotFullName, getNodeBotFullNameForLogging } from './targets';
@@ -363,23 +363,51 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			specifiedTargetBranch = this._getBranch(fromQueue.targetBranchName)
 
 			if (!specifiedTargetBranch) {
-				// We somehow have a specified branch from a reconsider request, but it doesn't exist in the branch map. Report the error
-				this.sendErrorEmail(
-					new Recipients(fromQueue.who),
-					`Invalid Reconsider Request -- Branch "${fromQueue.targetBranchName}" does not exist`,
-					`Manually queued change ${fromQueue.cl} on ${this.fullName}, requested by ${fromQueue.who}, ` + 
-						`specifies non-existant branch ${fromQueue.targetBranchName}. Aborting reconsider.`
-				)
+				if (this.slackMessages) {
+					const dm: SlackMessage = {
+						text: `Manually queued change ${fromQueue.cl} on ${this.fullName}, requested by ${fromQueue.who}, ` + 
+								`specifies non-existant branch ${fromQueue.targetBranchName}. Aborting reconsider.`,
+						style: SlackMessageStyles.DANGER,
+						channel: '',
+						mrkdwn: true
+					}
+					
+					let emailAddress = await this.findEmail(fromQueue.who)
+					this.slackMessages.postDM(emailAddress, fromQueue.cl, this.branch, dm)
+				}
+				else {
+					// We somehow have a specified branch from a reconsider request, but it doesn't exist in the branch map. Report the error
+					this.sendErrorEmail(
+						new Recipients(fromQueue.who),
+						`Invalid Reconsider Request -- Branch "${fromQueue.targetBranchName}" does not exist`,
+						`Manually queued change ${fromQueue.cl} on ${this.fullName}, requested by ${fromQueue.who}, ` + 
+							`specifies non-existant branch ${fromQueue.targetBranchName}. Aborting reconsider.`
+					)
+				}
 				return
 			}
 			else if (specifiedTargetBranch === this.branch) {
-				// We somehow have targeted our own branch with a merge. Report the issue
-				this.sendErrorEmail(
-					new Recipients(fromQueue.who),
-					`Invalid Reconsider Request -- Trying to merge "${fromQueue.targetBranchName}" into itself`,
-					`Manually queued change ${fromQueue.cl} on ${this.fullName}, requested by ${fromQueue.who}, ` +
-						`specifies integration from branch ${fromQueue.targetBranchName} into itself. Aborting reconsider.`
-				)
+				if (this.slackMessages) {
+					const dm: SlackMessage = {
+						text: `Manually queued change ${fromQueue.cl} on ${this.fullName}, requested by ${fromQueue.who}, ` +
+								`specifies integration from branch ${fromQueue.targetBranchName} into itself. Aborting reconsider.`,
+						style: SlackMessageStyles.DANGER,
+						channel: '',
+						mrkdwn: true
+					}
+					
+					let emailAddress = await this.findEmail(fromQueue.who)
+					this.slackMessages.postDM(emailAddress, fromQueue.cl, this.branch, dm)
+				}
+				else {
+					// We somehow have targeted our own branch with a merge. Report the issue
+					this.sendErrorEmail(
+						new Recipients(fromQueue.who),
+						`Invalid Reconsider Request -- Trying to merge "${fromQueue.targetBranchName}" into itself`,
+						`Manually queued change ${fromQueue.cl} on ${this.fullName}, requested by ${fromQueue.who}, ` +
+							`specifies integration from branch ${fromQueue.targetBranchName} into itself. Aborting reconsider.`
+					)
+				}
 				// Persist the remaining queued changes and carry on
 				return
 			}
@@ -393,6 +421,24 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		const changeResult = await this._getChange(fromQueue.cl)
 
 		if (typeof changeResult === 'string') {
+
+			if (this.slackMessages) {
+
+				let reconsiderErrorMessage = `While processing manually queued change ${fromQueue.cl} on ${this.fullName}, `
+				reconsiderErrorMessage += specifiedTargetBranch ? `targeted specifically at ${specifiedTargetBranch.name}` : ''
+				reconsiderErrorMessage += `\n\nError while querying P4 for change ${fromQueue.cl}: ${changeResult}`
+
+				const dm: SlackMessage = {
+					text: reconsiderErrorMessage,
+					style: SlackMessageStyles.DANGER,
+					channel: '',
+					mrkdwn: true
+				}
+				
+				let emailAddress = await this.findEmail(fromQueue.who)
+				this.slackMessages.postDM(emailAddress, fromQueue.cl, this.branch, dm)
+			}
+
 			// change is invalid
 
 			// @todo distinguish between Perforce errors and change not existing in branch
@@ -1861,6 +1907,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 				let dm: SlackMessage = {
 					text: message,
+					style: SlackMessageStyles.DANGER,
 					channel: '',
 					mrkdwn: true
 				}
@@ -1915,6 +1962,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 				let dm: SlackMessage = {
 					text: message,
+					style: SlackMessageStyles.WARNING,
 					channel: '',
 					mrkdwn: true
 				}
@@ -2036,6 +2084,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 						const nagMessage: SlackMessage = {
 							text: `${triager} RoboMerge blocked for more than ${timeDesc}`,
+							style: SlackMessageStyles.DANGER,
 							channel: this.branchGraph.config.slackChannel,
 							mrkdwn: true
 						}

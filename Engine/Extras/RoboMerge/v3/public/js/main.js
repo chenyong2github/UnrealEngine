@@ -121,7 +121,7 @@ function renderBranchList(data) {
 		let graphObj = branchGraphs.get(botName);
 		const branchSpecCl = botState.lastBranchspecCl;
 		if (!graphObj || graphObj.cl !== branchSpecCl) {
-			graphObj = {elem: showFlowGraph(branches, {singleBotName: botName}), cl: branchSpecCl};
+			graphObj = {elem: showFlowGraph(branches, {singleBotName: botName, aliases: botState.aliases}), cl: branchSpecCl};
 			branchGraphs.set(botName, graphObj);
 		}
 	
