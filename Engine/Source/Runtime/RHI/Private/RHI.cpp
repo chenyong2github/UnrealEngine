@@ -1614,20 +1614,15 @@ RHI_API void FRHIDrawStats::Accumulate(FRHIDrawStats& Other)
 {
 	for (uint32 GPUIndex = 0; GPUIndex < GNumExplicitGPUsForRendering; ++GPUIndex)
 	{
-		FPerGPUStats& LeftGPU = GPUs[GPUIndex];
-		FPerGPUStats& RightGPU = Other.GPUs[GPUIndex];
+		FPerGPUStats& LeftGPU = GetGPU(GPUIndex);
+		FPerGPUStats& RightGPU = Other.GetGPU(GPUIndex);
 
 		for (int32 CategoryIndex = 0; CategoryIndex < NumCategories; ++CategoryIndex)
 		{
-			FPerCategoryStats& LeftCategory = LeftGPU.Categories[CategoryIndex];
-			FPerCategoryStats& RightCategory = RightGPU.Categories[CategoryIndex];
+			FPerCategoryStats& LeftCategory = LeftGPU.GetCategory(CategoryIndex);
+			FPerCategoryStats& RightCategory = RightGPU.GetCategory(CategoryIndex);
 
-			LeftCategory.Draws += RightCategory.Draws;
-
-			for (uint32 PrimitiveType = 0; PrimitiveType < PT_Num; ++PrimitiveType)
-			{
-				LeftCategory.Primitives[PrimitiveType] += RightCategory.Primitives[PrimitiveType];
-			}
+			LeftCategory += RightCategory;
 		}
 	}
 }
@@ -1651,43 +1646,23 @@ void FRHICommandListImmediate::ProcessStats()
 #endif
 
 	// Summed stats across all GPUs
-	uint32 TotalDraws     = 0;
-	uint32 TotalTriangles = 0;
-	uint32 TotalLines     = 0;
-	TStaticArray<uint32, FRHIDrawStats::NumCategories> TotalDrawsPerCategory { InPlace, 0 };
+	FRHIDrawStats::FPerCategoryStats Total = {};
+	TStaticArray<FRHIDrawStats::FPerCategoryStats, FRHIDrawStats::NumCategories> TotalPerCategory;
+	FMemory::Memzero(TotalPerCategory);
 
 	for (int32 GPUIndex = 0; GPUIndex < MAX_NUM_GPUS; ++GPUIndex)
 	{
-		uint32 TotalDraws_ThisGPU      = 0;
-		uint32 TotalPrimitives_ThisGPU = 0;
+		FRHIDrawStats::FPerCategoryStats TotalPerGPU = {};
 
-		FRHIDrawStats::FPerGPUStats& GPUStats = FrameDrawStats.GPUs[GPUIndex];
+		FRHIDrawStats::FPerGPUStats& GPUStats = FrameDrawStats.GetGPU(GPUIndex);
 
 		for (int32 CategoryIndex = 0; CategoryIndex < FRHIDrawStats::NumCategories; ++CategoryIndex)
 		{
-			FRHIDrawStats::FPerCategoryStats& Category = GPUStats.Categories[CategoryIndex];
+			FRHIDrawStats::FPerCategoryStats& Category = GPUStats.GetCategory(CategoryIndex);
 
-			TotalDraws                           += Category.Draws;
-			TotalDraws_ThisGPU                   += Category.Draws;
-			TotalDrawsPerCategory[CategoryIndex] += Category.Draws;
-
-			for (uint32 PrimitiveType = 0; PrimitiveType < PT_Num; ++PrimitiveType)
-			{
-				uint32 PrimitiveCount = Category.Primitives[PrimitiveType];
-				TotalPrimitives_ThisGPU += PrimitiveCount;
-
-				switch (PrimitiveType)
-				{
-				case PT_TriangleList:
-				case PT_TriangleStrip:
-					TotalTriangles += PrimitiveCount;
-					break;
-
-				case PT_LineList:
-					TotalLines += PrimitiveCount;
-					break;
-				}
-			}
+			TotalPerCategory[CategoryIndex] += Category;
+			TotalPerGPU                     += Category;
+			Total                           += Category;
 
 #if HAS_GPU_STATS
 			if (bCopyDisplayFrames && CategoryIndex < FDrawCallCategoryName::NumCategory)
@@ -1697,24 +1672,24 @@ void FRHICommandListImmediate::ProcessStats()
 #endif // HAS_GPU_STATS
 		}
 		
-		GNumDrawCallsRHI      [GPUIndex] = TotalDraws_ThisGPU;
-		GNumPrimitivesDrawnRHI[GPUIndex] = TotalPrimitives_ThisGPU;
+		GNumDrawCallsRHI      [GPUIndex] = TotalPerGPU.Draws;
+		GNumPrimitivesDrawnRHI[GPUIndex] = TotalPerGPU.GetTotalPrimitives();
 	}
 
 	// Multi-GPU support : CSV stats do not support MGPU yet. We're summing the totals across all GPUs here.
-	CSV_CUSTOM_STAT(RHI, DrawCalls      , int32(TotalDraws                 ), ECsvCustomStatOp::Set);
-	CSV_CUSTOM_STAT(RHI, PrimitivesDrawn, int32(TotalTriangles + TotalLines), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(RHI, DrawCalls      , int32(Total.Draws               ), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(RHI, PrimitivesDrawn, int32(Total.GetTotalPrimitives()), ECsvCustomStatOp::Set);
 
 #if HAS_GPU_STATS
-	SET_DWORD_STAT(STAT_RHITriangles         , TotalTriangles);
-	SET_DWORD_STAT(STAT_RHILines             , TotalLines    );
-	SET_DWORD_STAT(STAT_RHIDrawPrimitiveCalls, TotalDraws    );
+	SET_DWORD_STAT(STAT_RHITriangles         , Total.Triangles);
+	SET_DWORD_STAT(STAT_RHILines             , Total.Lines    );
+	SET_DWORD_STAT(STAT_RHIDrawPrimitiveCalls, Total.Draws    );
 
 	#if CSV_PROFILER
 	for (int32 CategoryIndex = 0; CategoryIndex < FDrawCallCategoryName::NumCategory; ++CategoryIndex)
 	{
 		FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[CategoryIndex];
-		FCsvProfiler::RecordCustomStat(CategoryName->Name, CSV_CATEGORY_INDEX(DrawCall), int32(TotalDrawsPerCategory[CategoryIndex]), ECsvCustomStatOp::Set);
+		FCsvProfiler::RecordCustomStat(CategoryName->Name, CSV_CATEGORY_INDEX(DrawCall), int32(TotalPerCategory[CategoryIndex].Draws), ECsvCustomStatOp::Set);
 	}
 	#endif
 #endif // HAS_GPU_STATS

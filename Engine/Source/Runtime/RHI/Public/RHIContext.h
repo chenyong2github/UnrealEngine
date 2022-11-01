@@ -470,9 +470,7 @@ protected:
 public:
 	void StatsSetCategory(FRHIDrawStats* InStats, uint32 InCategoryID, uint32 InGPUIndex)
 	{
-		FRHIDrawStats::FPerGPUStats& GPU = InStats->GPUs[InGPUIndex];
-		FRHIDrawStats::FPerCategoryStats& Category = GPU.Categories[InCategoryID];
-		Stats = &Category;
+		Stats = &InStats->GetGPU(InGPUIndex).GetCategory(InCategoryID);
 	}
 
 #if WITH_MGPU || ENABLE_RHI_VALIDATION

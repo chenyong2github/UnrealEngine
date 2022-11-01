@@ -2707,11 +2707,19 @@ extern RHI_API int32 GNumPrimitivesDrawnRHI[MAX_NUM_GPUS];
 // Updates the Stats structure on the underlying RHI context class (IRHICommandContext)
 
 #define RHI_DRAW_CALL_INC() do { Stats->Draws++; } while (false)
-#define RHI_DRAW_CALL_STATS(PrimitiveType,NumPrimitives)   \
-	do                                                     \
-	{												       \
-		Stats->Primitives[PrimitiveType] += NumPrimitives; \
-		Stats->Draws++;                                    \
+#define RHI_DRAW_CALL_STATS(PrimitiveType,NumPrimitives)                  \
+	do                                                                    \
+	{												                      \
+		switch (PrimitiveType)                                            \
+		{                                                                 \
+		case PT_TriangleList : Stats->Triangles  += NumPrimitives; break; \
+		case PT_TriangleStrip: Stats->Triangles  += NumPrimitives; break; \
+		case PT_LineList     : Stats->Lines      += NumPrimitives; break; \
+		case PT_QuadList     : Stats->Quads      += NumPrimitives; break; \
+		case PT_PointList    : Stats->Points     += NumPrimitives; break; \
+		case PT_RectList     : Stats->Rectangles += NumPrimitives; break; \
+		}                                                                 \
+		Stats->Draws++;                                                   \
 	} while(false)
 
 struct FRHIDrawStats
@@ -2727,16 +2735,51 @@ struct FRHIDrawStats
 
 	struct FPerCategoryStats
 	{
-		uint32 Draws = 0;
-		TStaticArray<uint32, PT_Num> Primitives { InPlace, 0 };
+		uint32 Draws;
+		uint32 Triangles;
+		uint32 Lines;
+		uint32 Quads;
+		uint32 Points;
+		uint32 Rectangles;
+
+		uint32 GetTotalPrimitives() const
+		{
+			return Triangles
+				+ Lines
+				+ Quads
+				+ Points
+				+ Rectangles;
+		}
+
+		FPerCategoryStats& operator += (FPerCategoryStats const& RHS)
+		{
+			Draws      += RHS.Draws;
+			Triangles  += RHS.Triangles;
+			Lines      += RHS.Lines;
+			Quads      += RHS.Quads;
+			Points     += RHS.Points;
+			Rectangles += RHS.Rectangles;
+			return *this;
+		}
 	};
 
 	struct FPerGPUStats
 	{
-		TStaticArray<FPerCategoryStats, NumCategories> Categories { InPlace };
+		FPerCategoryStats& GetCategory(uint32 Category)
+		{
+			checkSlow(Category < UE_ARRAY_COUNT(Categories));
+			return Categories[Category];
+		}
+
+	private:
+		FPerCategoryStats Categories[NumCategories];
 	};
 
-	TStaticArray<FPerGPUStats, MAX_NUM_GPUS> GPUs { InPlace };
+	FPerGPUStats& GetGPU(uint32 GPUIndex)
+	{
+		checkSlow(GPUIndex < UE_ARRAY_COUNT(GPUs));
+		return GPUs[GPUIndex];
+	}
 
 	FRHIDrawStats()
 	{
@@ -2748,8 +2791,10 @@ struct FRHIDrawStats
 		FMemory::Memzero(*this);
 	}
 
-	// Adds the values from Other into the current instance.
-	RHI_API void Accumulate(FRHIDrawStats& Other);
+	RHI_API void Accumulate(FRHIDrawStats& RHS);
+
+private:
+	FPerGPUStats GPUs[MAX_NUM_GPUS];
 };
 
 // RHI memory stats.
