@@ -72,7 +72,10 @@ namespace NiagaraShaderCookStats
 //
 FCriticalSection GIdToNiagaraShaderMapCS;
 TMap<FNiagaraShaderMapId, FNiagaraShaderMap*> FNiagaraShaderMap::GIdToNiagaraShaderMap[SP_NumPlatforms];
+#if ALLOW_SHADERMAP_DEBUG_DATA
 TArray<FNiagaraShaderMap*> FNiagaraShaderMap::AllNiagaraShaderMaps;
+FCriticalSection FNiagaraShaderMap::AllNiagaraShaderMapsGuard;
+#endif
 
 #if WITH_EDITOR
 TMap<TRefCountPtr<FNiagaraShaderMap>, TArray<FNiagaraShaderScript*>> FNiagaraShaderMap::NiagaraShaderMapsBeingCompiled;
@@ -950,7 +953,10 @@ FNiagaraShaderMap::FNiagaraShaderMap() :
 	bIsPersistent(true) 
 {
 	checkSlow(IsInGameThread() || IsAsyncLoading());
+#if ALLOW_SHADERMAP_DEBUG_DATA
+	FScopeLock AllSMAccess(&AllNiagaraShaderMapsGuard);
 	AllNiagaraShaderMaps.Add(this);
+#endif
 }
 
 FNiagaraShaderMap::~FNiagaraShaderMap()
@@ -958,7 +964,10 @@ FNiagaraShaderMap::~FNiagaraShaderMap()
 	checkSlow(IsInGameThread() || IsAsyncLoading());
 	check(bDeletedThroughDeferredCleanup);
 	check(!bRegistered);
+#if ALLOW_SHADERMAP_DEBUG_DATA
+	FScopeLock AllSMAccess(&AllNiagaraShaderMapsGuard);
 	AllNiagaraShaderMaps.RemoveSwap(this);
+#endif
 }
 
 bool FNiagaraShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources, bool bLoadedByCookedMaterial)

@@ -12,6 +12,7 @@
 #include "Engine/EngineTypes.h"
 #include "Templates/RefCounting.h"
 #include "Misc/SecureHash.h"
+#include "MaterialShared.h"
 #include "RHI.h"
 #include "RenderResource.h"
 #include "RenderingThread.h"
@@ -631,11 +632,16 @@ private:
 	*/
 	static TMap<FNiagaraShaderMapId, FNiagaraShaderMap*> GIdToNiagaraShaderMap[SP_NumPlatforms];
 
+#if ALLOW_SHADERMAP_DEBUG_DATA
 	/**
 	* All script shader maps in memory.
 	* No ref counting needed as these are removed on destruction of the shader map.
 	*/
 	static TArray<FNiagaraShaderMap*> AllNiagaraShaderMaps;
+
+	/** Guards access to AllNiagaraShaderMaps, which can be written to from an async loading thread. */
+	static FCriticalSection AllNiagaraShaderMapsGuard;
+#endif
 
 #if WITH_EDITOR
 	/** Tracks resources and their shader maps that need to be compiled but whose compilation is being deferred. */
