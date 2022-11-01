@@ -284,7 +284,7 @@ void LumenReflections::SetupCompositeParameters(LumenReflections::FCompositePara
 {
 	OutParameters.MaxRoughnessToTrace = FMath::Clamp(GLumenReflectionMaxRoughnessToTrace, 0.0f, 1.0f);
 	OutParameters.InvRoughnessFadeLength = 1.0f / FMath::Clamp(GLumenReflectionRoughnessFadeLength, 0.001f, 1.0f);
-	OutParameters.TraceReflectionForFoliage = GVarLumenReflectionsFoliage.GetValueOnRenderThread() ? 0 : 1;
+	OutParameters.TraceReflectionForFoliage = GVarLumenReflectionsFoliage.GetValueOnRenderThread() ? 1 : 0;
 }
 
 // Must match usf RESOLVE_TILE_SIZE

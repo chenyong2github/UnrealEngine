@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenReflections.usf
-=============================================================================*/
-
 #include "../Common.ush"
 #include "LumenMaterial.ush"
 
@@ -14,6 +10,7 @@
 #include "../ClearCoatCommon.ush"
 #include "../FastMath.ush"
 #include "LumenRadianceCacheCommon.ush"
+#include "LumenReflectionsCombine.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1

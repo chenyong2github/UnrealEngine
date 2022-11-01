@@ -14,7 +14,7 @@ float LumenCombineReflectionsAlpha(float InRoughness, bool bIsFoliage)
 	float FadeAlpha = saturate((MaxRoughnessToTrace - InRoughness) * InvRoughnessFadeLength);
 
 	// Don't trace expensive specular reflections rays for foliage
-	if (bIsFoliage && TraceReflectionForFoliage > 0)
+	if (bIsFoliage && TraceReflectionForFoliage == 0)
 	{
 		FadeAlpha = 0.0f;
 	}
