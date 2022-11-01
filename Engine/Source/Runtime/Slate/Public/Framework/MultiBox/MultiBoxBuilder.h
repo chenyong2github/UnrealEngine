@@ -369,8 +369,9 @@ public:
 	 * @param	InLabel				Optional label text to be added to the left of the content
 	 * @param	bNoIndent			If true, removes the padding from the left of the widget that lines it up with other menu items (default == false)
 	 * @param	bSearchable			If true, widget will be searchable (default == true)
+	 * @param	InToolTipText	Optional tooltip text to be added to the widget and label
 	 */
-	void AddWidget( TSharedRef<SWidget> InWidget, const FText& Label, bool bNoIndent = false, bool bSearchable = true );
+	void AddWidget( TSharedRef<SWidget> InWidget, const FText& Label, bool bNoIndent = false, bool bSearchable = true, const TAttribute<FText>& InToolTipText = FText());
 
 	/**
 	* Adds the widget the multibox will use for searching

@@ -129,7 +129,7 @@ struct TOOLMENUS_API FToolMenuEntry
 
 	static FToolMenuEntry InitSeparator(const FName InName);
 
-	static FToolMenuEntry InitWidget(const FName InName, const TSharedRef<SWidget>& InWidget, const FText& Label, bool bNoIndent = false, bool bSearchable = true, bool bNoPadding = false);
+	static FToolMenuEntry InitWidget(const FName InName, const TSharedRef<SWidget>& InWidget, const FText& Label, bool bNoIndent = false, bool bSearchable = true, bool bNoPadding = false, const FText& InToolTipText = FText());
 
 	bool IsSubMenu() const { return SubMenuData.bIsSubMenu; }
 

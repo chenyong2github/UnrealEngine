@@ -4,6 +4,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/ToolBarStyle.h"
+#include "Widgets/SToolTip.h"
 
 
 /**
@@ -11,10 +12,11 @@
  *
  * @param	InHeadingText	Heading text
  */
-FWidgetBlock::FWidgetBlock( TSharedRef<SWidget> InContent, const FText& InLabel, bool bInNoIndent, EHorizontalAlignment InHorizontalAlignment)
+FWidgetBlock::FWidgetBlock( TSharedRef<SWidget> InContent, const FText& InLabel, bool bInNoIndent, EHorizontalAlignment InHorizontalAlignment, const TAttribute<FText>& InToolTipText)
 	: FMultiBlock( nullptr, nullptr, NAME_None, EMultiBlockType::Widget )
 	, ContentWidget( InContent )
 	, Label( InLabel )
+	, ToolTipText(InToolTipText)
 	, bNoIndent( bInNoIndent )
 	, HorizontalAlignment(InHorizontalAlignment)
 {
@@ -150,6 +152,7 @@ void SWidgetBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNam
 	.Padding( Padding )	// Large left margin mimics the indent of normal menu items when bNoIndent is false
 	[
 		SNew(SHorizontalBox)
+		.ToolTip(FMultiBoxSettings::ToolTipConstructor.Execute(WidgetBlock->ToolTipText, nullptr, nullptr ))
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		[

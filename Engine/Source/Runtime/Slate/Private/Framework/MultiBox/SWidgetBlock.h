@@ -21,11 +21,12 @@ public:
 	/**
 	 * Constructor
 	 *
-	 * @param	InContent	The widget to place in the block
-	 * @param	InLabel		Optional label text to be added to the left of the content
-	 * @param	bInNoIndent	If true, removes the padding from the left of the widget that lines it up with other menu items
+	 * @param	InContent		The widget to place in the block
+	 * @param	InLabel			Optional label text to be added to the left of the content
+	 * @param	bInNoIndent		If true, removes the padding from the left of the widget that lines it up with other menu items
+	 * @param	InToolTipText	Optional tooltip text to be added to the widget and label
 	 */
-	FWidgetBlock(TSharedRef<SWidget> InContent, const FText& InLabel, bool bInNoIndent, EHorizontalAlignment InHorizontalAlignment = HAlign_Fill);
+	FWidgetBlock(TSharedRef<SWidget> InContent, const FText& InLabel, bool bInNoIndent, EHorizontalAlignment InHorizontalAlignment = HAlign_Fill, const TAttribute<FText>& InToolTipText = FText());
 
 	/** FMultiBlock interface */
 	virtual void CreateMenuEntry(class FMenuBuilder& MenuBuilder) const override;
@@ -48,6 +49,9 @@ private:
 
 	/** Optional label text */
 	FText Label;
+
+	/** Optional ToolTip text */
+	TAttribute<FText> ToolTipText;
 
 	/** Remove the padding from the left of the widget that lines it up with other menu items? */
 	bool bNoIndent;
