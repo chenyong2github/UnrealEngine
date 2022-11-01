@@ -66,12 +66,14 @@ private:
 /**
  * Cooked meta-data for a UEnum.
  */
-UCLASS(Optional)
+UCLASS(Optional, Within=Enum)
 class ENGINE_API UEnumCookedMetaData : public UObject
 {
 public:
 	GENERATED_BODY()
 
+	virtual void PostLoad() override;
+	
 	virtual bool HasMetaData() const;
 	virtual void CacheMetaData(const UEnum* SourceEnum);
 	virtual void ApplyMetaData(UEnum* TargetEnum) const;
@@ -84,12 +86,14 @@ protected:
 /**
  * Cooked meta-data for a UScriptStruct, including its nested FProperty data.
  */
-UCLASS(Optional)
+UCLASS(Optional, Within=ScriptStruct)
 class ENGINE_API UStructCookedMetaData : public UObject
 {
 public:
 	GENERATED_BODY()
 
+	virtual void PostLoad() override;
+	
 	virtual bool HasMetaData() const;
 	virtual void CacheMetaData(const UScriptStruct* SourceStruct);
 	virtual void ApplyMetaData(UScriptStruct* TargetStruct) const;
@@ -102,12 +106,14 @@ protected:
 /**
  * Cooked meta-data for a UClass, including its nested FProperty and UFunction data.
  */
-UCLASS(Optional)
+UCLASS(Optional, Within=Class)
 class ENGINE_API UClassCookedMetaData : public UObject
 {
 public:
 	GENERATED_BODY()
 
+	virtual void PostLoad() override;
+	
 	virtual bool HasMetaData() const;
 	virtual void CacheMetaData(const UClass* SourceClass);
 	virtual void ApplyMetaData(UClass* TargetClass) const;
@@ -125,7 +131,7 @@ namespace CookedMetaDataUtil
 
 namespace Internal
 {
-ENGINE_API void RenameCookedMetaDataForPurge(UObject* CookedMetaDataPtr);
+ENGINE_API void PrepareCookedMetaDataForPurge(UObject* CookedMetaDataPtr);
 }
 
 template <typename CookedMetaDataType>
@@ -143,8 +149,7 @@ CookedMetaDataType* FindCookedMetaData(UObject* Outer, const TCHAR* Name)
 template <typename CookedMetaDataType, typename CookedMetaDataPtrType>
 void PurgeCookedMetaData(CookedMetaDataPtrType& CookedMetaDataPtr)
 {
-	Internal::RenameCookedMetaDataForPurge(CookedMetaDataPtr);
-	CookedMetaDataPtr->ClearFlags(RF_Standalone | RF_Public);
+	Internal::PrepareCookedMetaDataForPurge(CookedMetaDataPtr);
 	CookedMetaDataPtr = nullptr;
 }
 

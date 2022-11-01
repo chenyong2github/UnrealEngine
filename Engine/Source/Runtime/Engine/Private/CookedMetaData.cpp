@@ -6,6 +6,40 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(CookedMetaData)
 
+namespace CookedMetaDataUtil::Internal
+{
+
+void PrepareCookedMetaDataForPurge(UObject* CookedMetaDataPtr)
+{
+	// Skip the rename for cooked packages, as IO store cannot currently handle renames
+	if (!CookedMetaDataPtr->GetPackage()->HasAnyPackageFlags(PKG_Cooked))
+	{
+		FNameBuilder BaseMetaDataName(CookedMetaDataPtr->GetFName());
+		BaseMetaDataName << TEXT("_PURGED");
+		CookedMetaDataPtr->Rename(FNameBuilder(MakeUniqueObjectName(CookedMetaDataPtr->GetOuter(), CookedMetaDataPtr->GetClass(), FName(BaseMetaDataName))).ToString(), nullptr, REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);
+	}
+
+	CookedMetaDataPtr->ClearFlags(RF_Standalone | RF_Public);
+}
+
+template <typename CookedMetaDataOuterType, typename CookedMetaDataType>
+void PostLoadCookedMetaData(CookedMetaDataType* CookedMetaDataPtr)
+{
+#if WITH_EDITORONLY_DATA
+	checkf(CookedMetaDataPtr->GetPackage()->HasAnyPackageFlags(PKG_Cooked), TEXT("Cooked meta-data should only be loaded for a cooked package!"));
+
+	if (CookedMetaDataOuterType* Owner = CastChecked<CookedMetaDataOuterType>(CookedMetaDataPtr->GetOuter()))
+	{
+		Owner->ConditionalPostLoad();
+		CookedMetaDataPtr->ApplyMetaData(Owner);
+		PrepareCookedMetaDataForPurge(CookedMetaDataPtr);
+	}
+#endif
+}
+
+} // namespace CookedMetaDataUtil::Internal
+
+
 bool FObjectCookedMetaDataStore::HasMetaData() const
 {
 	return ObjectMetaData.Num() > 0;
@@ -104,6 +138,12 @@ void FStructCookedMetaDataStore::ApplyMetaData(UStruct* TargetStruct) const
 }
 
 
+void UEnumCookedMetaData::PostLoad()
+{
+	Super::PostLoad();
+	CookedMetaDataUtil::Internal::PostLoadCookedMetaData<UEnum, UEnumCookedMetaData>(this);
+}
+
 bool UEnumCookedMetaData::HasMetaData() const
 {
 	return EnumMetaData.HasMetaData();
@@ -120,6 +160,13 @@ void UEnumCookedMetaData::ApplyMetaData(UEnum* TargetEnum) const
 }
 
 
+
+void UStructCookedMetaData::PostLoad()
+{
+	Super::PostLoad();
+	CookedMetaDataUtil::Internal::PostLoadCookedMetaData<UScriptStruct, UStructCookedMetaData>(this);
+}
+
 bool UStructCookedMetaData::HasMetaData() const
 {
 	return StructMetaData.HasMetaData();
@@ -135,6 +182,12 @@ void UStructCookedMetaData::ApplyMetaData(UScriptStruct* TargetStruct) const
 	StructMetaData.ApplyMetaData(TargetStruct);
 }
 
+
+void UClassCookedMetaData::PostLoad()
+{
+	Super::PostLoad();
+	CookedMetaDataUtil::Internal::PostLoadCookedMetaData<UClass, UClassCookedMetaData>(this);
+}
 
 bool UClassCookedMetaData::HasMetaData() const
 {
@@ -170,19 +223,3 @@ void UClassCookedMetaData::ApplyMetaData(UClass* TargetClass) const
 		}
 	}
 }
-
-namespace CookedMetaDataUtil::Internal
-{
-
-void RenameCookedMetaDataForPurge(UObject* CookedMetaDataPtr)
-{
-	// Skip the rename for cooked packages, as IO store cannot currently handle renames
-	if (!CookedMetaDataPtr->GetPackage()->HasAnyPackageFlags(PKG_Cooked))
-	{
-		FNameBuilder BaseMetaDataName(CookedMetaDataPtr->GetFName());
-		BaseMetaDataName << TEXT("_PURGED");
-		CookedMetaDataPtr->Rename(FNameBuilder(MakeUniqueObjectName(CookedMetaDataPtr->GetOuter(), CookedMetaDataPtr->GetClass(), FName(BaseMetaDataName))).ToString(), nullptr, REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);
-	}
-}
-
-} // namespace CookedMetaDataUtil::Internal

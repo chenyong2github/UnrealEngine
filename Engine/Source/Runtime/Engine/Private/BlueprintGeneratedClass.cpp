@@ -144,15 +144,6 @@ void UBlueprintGeneratedClass::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITORONLY_DATA
-	if (bCooked)
-	{
-		if (const UClassCookedMetaData* CookedMetaData = FindCookedMetaData())
-		{
-			CookedMetaData->ApplyMetaData(this);
-			PurgeCookedMetaData();
-		}
-	}
-
 #if WITH_EDITOR
 	// Make BPGC from a cooked package standalone so it doesn't get GCed
 	if (GEditor && bCooked)

@@ -163,15 +163,6 @@ void UUserDefinedStruct::PostLoad()
 {
 	Super::PostLoad();
 
-	if (GetPackage()->HasAnyPackageFlags(PKG_Cooked))
-	{
-		if (const UStructCookedMetaData* CookedMetaData = FindCookedMetaData())
-		{
-			CookedMetaData->ApplyMetaData(this);
-			PurgeCookedMetaData();
-		}
-	}
-
 	ValidateGuid();
 }
 

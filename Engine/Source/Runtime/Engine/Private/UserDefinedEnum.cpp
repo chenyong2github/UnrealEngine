@@ -82,15 +82,6 @@ void UUserDefinedEnum::PostLoad()
 {
 	Super::PostLoad();
 
-	if (GetPackage()->HasAnyPackageFlags(PKG_Cooked))
-	{
-		if (const UEnumCookedMetaData* CookedMetaData = FindCookedMetaData())
-		{
-			CookedMetaData->ApplyMetaData(this);
-			PurgeCookedMetaData();
-		}
-	}
-
 	FEnumEditorUtils::UpdateAfterPathChanged(this);
 	if (NumEnums() > 1 && DisplayNameMap.Num() == 0) // >1 because User Defined Enums always have a "MAX" entry
 	{
