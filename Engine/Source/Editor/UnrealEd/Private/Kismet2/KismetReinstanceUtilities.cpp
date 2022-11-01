@@ -184,6 +184,10 @@ struct FReplaceReferenceHelper
 						const TMap<FSoftObjectPath, UObject*>& WeakReferencesMap;
 					};
 
+					if (GLogReinstancerReferenceReplacementObj)
+					{
+						UE_LOG(LogBlueprint, Warning, TEXT("Replacing References within: %s"), *(Obj->GetName()));
+					}
 					ReferenceReplace ReplaceAr(Obj, OldToNewInstanceMap, ReinstancedObjectsWeakReferenceMap);
 				}
 			}
