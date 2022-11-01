@@ -133,7 +133,7 @@ FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFea
 bool IsPrimaryPIEClient(const FRequestPlaySessionParams& InPlaySessionParams, const int32 InClientIndex);
 
 // This class listens to output log messages, and forwards warnings and errors to the message log
-class FOutputLogErrorsToMessageLogProxy : public FOutputDevice
+class FOutputLogErrorsToMessageLogProxy final : public FOutputDevice
 {
 public:
 	FOutputLogErrorsToMessageLogProxy()
@@ -167,6 +167,11 @@ public:
 				break;
 			}
 		}
+	}
+
+	virtual bool CanBeUsedOnMultipleThreads() const final
+	{
+		return true;
 	}
 	// End of FOutputDevice interface
 };
@@ -2674,7 +2679,7 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 	// Register for log processing so we can promote errors/warnings to the message log
 	if (GetDefault<ULevelEditorPlaySettings>()->bPromoteOutputLogWarningsDuringPIE)
 	{
-		OutputLogErrorsToMessageLogProxyPtr = MakeShareable(new FOutputLogErrorsToMessageLogProxy());
+		OutputLogErrorsToMessageLogProxyPtr = MakeShared<FOutputLogErrorsToMessageLogProxy>();
 	}
 
 	// Notify the XRSystem that it needs to BeginPlay.
