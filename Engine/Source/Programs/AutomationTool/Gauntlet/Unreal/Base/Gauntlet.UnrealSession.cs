@@ -193,6 +193,10 @@ namespace Gauntlet
 				{
 					RequiredBuildFlags |= BuildFlags.Packaged;
 				}
+				else if (Globals.Params.ParseParam("staged") && TargetBuildSupport.CanSupportBuildType(BuildFlags.Loose))
+				{
+					RequiredBuildFlags |= BuildFlags.Loose;
+				}
 			}
 
 			InstallOnly = false;
