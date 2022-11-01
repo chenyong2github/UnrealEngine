@@ -126,7 +126,7 @@ UPCGMetadata* UPCGSpatialData::CreateEmptyMetadata()
 	return Metadata;
 }
 
-void UPCGSpatialData::InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride, bool bInheritMetadata)
+void UPCGSpatialData::InitializeFromData(const UPCGSpatialData* InSource, const UPCGMetadata* InMetadataParentOverride, bool bInheritAttributes)
 {
 	if (InSource && TargetActor.IsExplicitlyNull())
 	{
@@ -138,11 +138,10 @@ void UPCGSpatialData::InitializeFromData(const UPCGSpatialData* InSource, const 
 		Metadata = NewObject<UPCGMetadata>(this);
 	}
 
-	if (!bInheritMetadata || InMetadataParentOverride || InSource)
+	if (!bInheritAttributes || InMetadataParentOverride || InSource)
 	{
-		const UPCGMetadata* ParentMetadata = bInheritMetadata ? (InMetadataParentOverride ? InMetadataParentOverride : InSource->Metadata) : nullptr;
-
-		Metadata->Initialize(ParentMetadata);
+		const UPCGMetadata* ParentMetadata = (InMetadataParentOverride ? InMetadataParentOverride : InSource->Metadata);
+		Metadata->Initialize(ParentMetadata, bInheritAttributes);
 	}
 	else
 	{

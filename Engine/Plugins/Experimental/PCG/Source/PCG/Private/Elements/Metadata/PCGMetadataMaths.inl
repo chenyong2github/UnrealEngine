@@ -36,7 +36,7 @@ namespace PCGMetadataMaths
 	template <typename T>
 	inline T Frac(const T& Value)
 	{
-		return static_cast<T>(FMath::Frac((double)Value));
+		return static_cast<T>(FMath::Frac(static_cast<double>(Value)));
 	}
 
 	template<>
@@ -63,7 +63,7 @@ namespace PCGMetadataMaths
 	template <typename T>
 	inline T Truncate(const T& Value)
 	{
-		return static_cast<T>(FMath::TruncToDouble((double)Value));
+		return static_cast<T>(FMath::TruncToDouble(static_cast<double>(Value)));
 	}
 
 	template<>
@@ -90,7 +90,7 @@ namespace PCGMetadataMaths
 	template <typename T>
 	inline T Round(const T& Value)
 	{
-		return static_cast<T>(FMath::RoundToDouble((double)Value));
+		return static_cast<T>(FMath::RoundToDouble(static_cast<double>(Value)));
 	}
 
 	template<>
@@ -112,12 +112,66 @@ namespace PCGMetadataMaths
 	}
 
 	////////////////////
+	// Floor
+	////////////////////
+	template <typename T>
+	inline T Floor(const T& Value)
+	{
+		return static_cast<T>(FMath::FloorToDouble(static_cast<double>(Value)));
+	}
+
+	template<>
+	inline FVector2D Floor(const FVector2D& Value)
+	{
+		return FVector2D(Floor(Value.X), Floor(Value.Y));
+	}
+
+	template<>
+	inline FVector Floor(const FVector& Value)
+	{
+		return FVector(Floor(Value.X), Floor(Value.Y), Floor(Value.Z));
+	}
+
+	template<>
+	inline FVector4 Floor(const FVector4& Value)
+	{
+		return FVector4(Floor(Value.X), Floor(Value.Y), Floor(Value.Z), Floor(Value.W));
+	}
+
+	////////////////////
+	// Ceil
+	////////////////////
+	template <typename T>
+	inline T Ceil(const T& Value)
+	{
+		return static_cast<T>(FMath::CeilToDouble(static_cast<double>(Value)));
+	}
+
+	template<>
+	inline FVector2D Ceil(const FVector2D& Value)
+	{
+		return FVector2D(Ceil(Value.X), Ceil(Value.Y));
+	}
+
+	template<>
+	inline FVector Ceil(const FVector& Value)
+	{
+		return FVector(Ceil(Value.X), Ceil(Value.Y), Ceil(Value.Z));
+	}
+
+	template<>
+	inline FVector4 Ceil(const FVector4& Value)
+	{
+		return FVector4(Ceil(Value.X), Ceil(Value.Y), Ceil(Value.Z), Ceil(Value.W));
+	}
+
+	////////////////////
 	// Sqrt
 	////////////////////
 	template <typename T>
 	inline T Sqrt(const T& Value)
 	{
-		return static_cast<T>(FMath::Sqrt((double)Value));
+		return static_cast<T>(FMath::Sqrt(static_cast<double>(Value)));
 	}
 
 	template<>
@@ -225,7 +279,7 @@ namespace PCGMetadataMaths
 	template <typename T>
 	inline T Pow(const T& Value, const T& Power)
 	{
-		return static_cast<T>(FMath::Pow((double)Value, (double)Power));
+		return static_cast<T>(FMath::Pow(static_cast<double>(Value), static_cast<double>(Power)));
 	}
 
 	template<>

@@ -217,7 +217,7 @@ bool FPCGCreateAttributeElement::ExecuteInternal(FPCGContext* Context) const
 		{
 			// If we can reuse input data, it is safe to const_cast, as it was created by ourselves above.
 			UPCGParamData* NewParamData = bCanReuseInputData ? const_cast<UPCGParamData*>(InputParamData) : NewObject<UPCGParamData>();
-			NewParamData->Metadata->Initialize((!bCanReuseInputData && Settings->bKeepExistingAttributes) ? InputParamData->Metadata : nullptr);
+			NewParamData->Metadata->Initialize(bCanReuseInputData ? nullptr : InputParamData->Metadata, Settings->bKeepExistingAttributes);
 
 			OutputData = NewParamData;
 			Metadata = NewParamData->Metadata;

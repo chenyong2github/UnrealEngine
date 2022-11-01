@@ -101,6 +101,10 @@ namespace PCGMetadataMathsSettings
 			return PCGMetadataMaths::Sqrt(Value);
 		case EPCGMedadataMathsOperation::Abs:
 			return PCGMetadataMaths::Abs(Value);
+		case EPCGMedadataMathsOperation::Floor:
+			return PCGMetadataMaths::Floor(Value);
+		case EPCGMedadataMathsOperation::Ceil:
+			return PCGMetadataMaths::Ceil(Value);
 		default:
 			return T{};
 		}

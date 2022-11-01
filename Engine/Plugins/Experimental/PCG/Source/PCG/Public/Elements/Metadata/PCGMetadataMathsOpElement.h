@@ -19,6 +19,8 @@ enum class EPCGMedadataMathsOperation : uint16
 	Round,
 	Sqrt,
 	Abs,
+	Floor,
+	Ceil,
 
 	// Binary op
 	BinaryOp = 1 << 11 UMETA(Hidden),
@@ -73,7 +75,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input)
 	FName Input1AttributeName = NAME_None;
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input, meta = (EditCondition="(Operation & '/Script/PCG.EPCGMedadataMathsOperation::Binary') || (Operation & '/Script/PCG.EPCGMedadataMathsOperation::TernaryOp')", EditConditionHides))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input, meta = (EditCondition="(Operation & '/Script/PCG.EPCGMedadataMathsOperation::BinaryOp') || (Operation & '/Script/PCG.EPCGMedadataMathsOperation::TernaryOp')", EditConditionHides))
 	FName Input2AttributeName = NAME_None;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Input, meta = (EditCondition = "Operation & '/Script/PCG.EPCGMedadataMathsOperation::TernaryOp'", EditConditionHides))
