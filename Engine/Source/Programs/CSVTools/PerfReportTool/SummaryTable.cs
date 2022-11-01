@@ -6,6 +6,8 @@ using System.Linq;
 using System.Xml.Linq;
 using PerfReportTool;
 using System.IO;
+using System.Data.Common;
+using System.Runtime.InteropServices;
 
 namespace PerfSummaries
 {
@@ -312,30 +314,48 @@ namespace PerfSummaries
 		public string displayName;
 		public bool isRowWeightColumn = false;
 		public bool hasDiffRows = false;
+		// Column header tooltip. Displayed when hovering over the header.
+		public string tooltip = null;
+		// Multiplied with the colour of each cell to modify the colour (including header).
+		public Colour columnColourModifier = null;
 		List<double> doubleValues = new List<double>();
 		List<string> stringValues = new List<string>();
 		List<string> toolTips = new List<string>();
+		// Per cell colour modifiers.
+		Dictionary<int, Colour> colourModifiers = new Dictionary<int, Colour>();
 		public SummaryTableElement.Type elementType;
 		public SummaryTableColumnFormatInfo formatInfo = null;
 
 		List<ColourThresholdList> colourThresholds = new List<ColourThresholdList>();
 		ColourThresholdList colourThresholdOverride = null;
 
-		public SummaryTableColumn(string inName, bool inIsNumeric, string inDisplayName, bool inIsRowWeightColumn, SummaryTableElement.Type inElementType)
+		public SummaryTableColumn(
+			string inName,
+			bool inIsNumeric,
+			string inDisplayName,
+			bool inIsRowWeightColumn,
+			SummaryTableElement.Type inElementType,
+			SummaryTableColumnFormatInfo inFormatInfo = null,
+			string inTooltip = null,
+			Colour inColumnColourModifier = null)
 		{
 			name = inName;
 			isNumeric = inIsNumeric;
 			displayName = inDisplayName;
 			isRowWeightColumn = inIsRowWeightColumn;
 			elementType = inElementType;
+			formatInfo = inFormatInfo;
+			tooltip = inTooltip;
+			columnColourModifier = inColumnColourModifier;
 		}
 		public SummaryTableColumn Clone()
 		{
-			SummaryTableColumn newColumn = new SummaryTableColumn(name, isNumeric, displayName, isRowWeightColumn, elementType);
+			SummaryTableColumn newColumn = new SummaryTableColumn(name, isNumeric, displayName, isRowWeightColumn, elementType, formatInfo, tooltip, columnColourModifier);
 			newColumn.doubleValues.AddRange(doubleValues);
 			newColumn.stringValues.AddRange(stringValues);
 			newColumn.colourThresholds.AddRange(colourThresholds);
 			newColumn.toolTips.AddRange(toolTips);
+			newColumn.colourModifiers = colourModifiers.ToDictionary(entry => entry.Key, entry => entry.Value); // Deep copy
 			newColumn.hasDiffRows = hasDiffRows;
 			return newColumn;
 		}
@@ -542,7 +562,25 @@ namespace PerfSummaries
 					return null;
 				}
 			}
-			return thresholds.GetColourForValue(value);
+
+			Colour modifier = null;
+			if (columnColourModifier != null)
+			{
+				// Column modifier takes precedence over the cell modifier
+				modifier = columnColourModifier;
+			}
+			else if (colourModifiers.ContainsKey(index))
+			{
+				modifier = colourModifiers[index];
+			}
+
+			string colourString = thresholds.GetColourForValue(value);
+			if (modifier != null)
+			{
+				var colour = new Colour(colourString.Replace("'", ""));
+				colourString = (colour * modifier).ToHTMLString();
+			}
+			return colourString;
 		}
 
 		public string GetTextColor(int index)
@@ -647,6 +685,20 @@ namespace PerfSummaries
 			colourThresholdOverride.Add(new ThresholdInfo(averageValue, yellow));
 			colourThresholdOverride.Add(new ThresholdInfo(averageValue, yellow));
 			colourThresholdOverride.Add(new ThresholdInfo(maxValue, (autoColorizeMode == AutoColorizeMode.HighIsBad) ? red : green));
+		}
+
+		public List<string> GetHeaderAttributes()
+		{
+			var attributes = new List<string>();
+			if (columnColourModifier != null)
+			{
+				attributes.Add($"style='background-color:{Colour.White * columnColourModifier};'");
+			}
+			if (tooltip != null)
+			{
+				attributes.Add($"title='{tooltip}'");
+			}
+			return attributes;
 		}
 
 		public int GetCount()
@@ -796,6 +848,17 @@ namespace PerfSummaries
 			return toolTips[index];
 		}
 
+		public void DebugMarkRowInvalid(int index, string reason)
+		{
+			colourModifiers.Add(index, new Colour(0.5f, 0.5f, 0.5f, 0.5f));
+			SetToolTipValue(index, $"Cell invalid: {reason}");
+		}
+
+		public void DebugMarkAsFiltered(string filterName, string reason)
+		{
+			tooltip = $"Filtered out by: {filterName}: {reason}";
+			columnColourModifier = new Colour(0.5f, 0.5f, 0.5f, 0.5f);
+		}
 	};
 
 
@@ -804,6 +867,14 @@ namespace PerfSummaries
 	{
 		public SummaryTable()
 		{
+		}
+
+		public void SetColumnFormatInfo(SummaryTableColumnFormatInfoCollection collection)
+		{
+			foreach (SummaryTableColumn column in columns)
+			{
+				column.formatInfo = collection != null ? collection.GetFormatInfo(column.name) : SummaryTableColumnFormatInfoCollection.DefaultColumnInfo;
+			}
 		}
 
 		public SummaryTable CollateSortedTable(List<string> collateByList, bool addMinMaxColumns)
@@ -832,7 +903,7 @@ namespace PerfSummaries
 			{
 				if (collateByColumns.Contains(srcColumn))
 				{
-					newColumns.Add(new SummaryTableColumn(srcColumn.name, false, srcColumn.displayName, false, srcColumn.elementType));
+					newColumns.Add(new SummaryTableColumn(srcColumn.name, false, srcColumn.displayName, false, srcColumn.elementType, srcColumn.formatInfo));
 					finalSortByList.Add(srcColumn.name.ToLower());
 					// Early out if we've found all the columns
 					if (finalSortByList.Count == collateByColumns.Count)
@@ -853,11 +924,11 @@ namespace PerfSummaries
 				if (column.isNumeric && !collateByColumns.Contains(column))
 				{
 					srcToDestBaseColumnIndex.Add(newColumns.Count);
-					newColumns.Add(new SummaryTableColumn("Avg " + column.name, true, null, false, column.elementType));
+					newColumns.Add(new SummaryTableColumn("Avg " + column.name, true, null, false, column.elementType, column.formatInfo, column.tooltip, column.columnColourModifier));
 					if (addMinMaxColumns)
 					{
-						newColumns.Add(new SummaryTableColumn("Min " + column.name, true, null, false, column.elementType));
-						newColumns.Add(new SummaryTableColumn("Max " + column.name, true, null, false, column.elementType));
+						newColumns.Add(new SummaryTableColumn("Min " + column.name, true, null, false, column.elementType, column.formatInfo, column.tooltip, column.columnColourModifier));
+						newColumns.Add(new SummaryTableColumn("Max " + column.name, true, null, false, column.elementType, column.formatInfo, column.tooltip, column.columnColourModifier));
 					}
 				}
 				else
@@ -994,7 +1065,7 @@ namespace PerfSummaries
 			return SortAndFilter(customFilter.Split(',').ToList(), customRowSort.Split(',').ToList(), bReverseSort, weightByColumnName);
 		}
 
-		public SummaryTable SortAndFilter(List<string> columnFilterList, List<string> rowSortList, bool bReverseSort, string weightByColumnName, float statThreshold = 0.0f)
+		public SummaryTable SortAndFilter(List<string> columnFilterList, List<string> rowSortList, bool bReverseSort, string weightByColumnName, bool showFilteredColumns = false, IEnumerable<ISummaryTableColumnFilter> additionalFilters = null)
 		{
 			SummaryTable newTable = SortRows(rowSortList, bReverseSort);
 
@@ -1078,19 +1149,30 @@ namespace PerfSummaries
 				}
 			}
 
-
-			// Filter out csv stat or metric columns below the specified threshold
-			if (statThreshold > 0.0f)
+			// Run the additional filters on the columns
+			if (additionalFilters != null)
 			{
-				List<SummaryTableColumn> oldColumnList = newColumnList;
-				newColumnList = new List<SummaryTableColumn>();
-				foreach (SummaryTableColumn column in oldColumnList)
+				var filteredColumns = new HashSet<string>();
+				foreach (ISummaryTableColumnFilter filter in additionalFilters)
 				{
-					if (!column.isNumeric || 
-						( column.elementType != SummaryTableElement.Type.CsvStatAverage && column.elementType != SummaryTableElement.Type.SummaryTableMetric ) || 
-						column.AreAllValuesOverThreshold((double)statThreshold))
+					if (showFilteredColumns)
 					{
-						newColumnList.Add(column);
+						// Run the filter so we can populate which columns would have been filtered, but don't actually remove them from the list.
+						newColumnList.ForEach(column =>
+						{
+							// If it's already filtered then skip it so we don't overwrite the filter reason.
+							if (!filteredColumns.Contains(column.name))
+							{
+								if (filter.ShouldFilter(column, this))
+								{
+									filteredColumns.Add(column.name);
+								}
+							}
+						});
+					}
+					else
+					{
+						newColumnList = newColumnList.Where(column => !filter.ShouldFilter(column, this)).ToList();
 					}
 				}
 			}
@@ -1189,10 +1271,10 @@ namespace PerfSummaries
 			bool bAddMinMaxColumns, 
 			string hideStatPrefix,
 			int maxColumnStringLength, 
-			SummaryTableColumnFormatInfoCollection columnFormatInfoList, 
 			string weightByColumnName, 
 			string title, 
-			bool bTranspose )
+			bool bTranspose,
+			bool showFilteredColumnDebug = false)
 		{
 			System.IO.StreamWriter htmlFile = new System.IO.StreamWriter(htmlFilename, false);
 			int statColSpan = hasMinMaxColumns ? 3 : 1;
@@ -1231,12 +1313,6 @@ namespace PerfSummaries
 						}
 					}
 				}
-			}
-
-			// Get format info for the columns
-			foreach (SummaryTableColumn column in columns)
-			{
-				column.formatInfo = (columnFormatInfoList != null) ? columnFormatInfoList.GetFormatInfo(column.name) : SummaryTableColumnFormatInfoCollection.DefaultColumnInfo;
 			}
 
 			// Automatically colorize the table if requested.
@@ -1427,10 +1503,12 @@ namespace PerfSummaries
 					// Add the stat columns
 					for (int i = firstStatColumnIndex; i < columns.Count; i++)
 					{
-						string statName = GetBaseStatNameWithPrefixAndSuffix(columns[i].GetDisplayName(hideStatPrefix, bAddStatNameSpacing, bGreyOutStatPrefixes), out string prefix, out string suffix);
+						SummaryTableColumn column = columns[i];
+						string statName = GetBaseStatNameWithPrefixAndSuffix(column.GetDisplayName(hideStatPrefix, bAddStatNameSpacing, bGreyOutStatPrefixes), out string prefix, out string suffix);
 						if ((i - 1) % statColSpan == 0)
 						{
-							topHeaderRow.AddCell(statName + suffix, "colspan='" + statColSpan + "'");
+							string attributes = $"colspan='{statColSpan}'{String.Join(" ", column.GetHeaderAttributes())}";
+							topHeaderRow.AddCell(statName + suffix, attributes);
 						}
 						headerRow.AddCell(prefix.Trim());
 					}
@@ -1441,7 +1519,7 @@ namespace PerfSummaries
 					for (int i = firstStatColumnIndex; i < columns.Count; i++)
 					{
 						string statName = GetBaseStatNameWithPrefixAndSuffix(columns[i].GetDisplayName(hideStatPrefix, bAddStatNameSpacing, bGreyOutStatPrefixes), out _, out string suffix);
-						headerRow.AddCell(statName + suffix);
+						headerRow.AddCell(statName + suffix, String.Join(" ", columns[i].GetHeaderAttributes()));
 					}
 				}
 			}
@@ -1449,7 +1527,7 @@ namespace PerfSummaries
 			{
 				foreach (SummaryTableColumn column in columns)
 				{
-					headerRow.AddCell(column.GetDisplayName(hideStatPrefix, bAddStatNameSpacing, bGreyOutStatPrefixes));
+					headerRow.AddCell(column.GetDisplayName(hideStatPrefix, bAddStatNameSpacing, bGreyOutStatPrefixes), String.Join(" ", column.GetHeaderAttributes()));
 				}
 			}
 			htmlTable.AddRow(headerRow);
@@ -1685,7 +1763,7 @@ namespace PerfSummaries
 			List<SummaryTableColumn> newColumns = new List<SummaryTableColumn>();
 			foreach (SummaryTableColumn srcCol in columns)
 			{
-				SummaryTableColumn destCol = new SummaryTableColumn(srcCol.name, srcCol.isNumeric, null, false, srcCol.elementType);
+				SummaryTableColumn destCol = new SummaryTableColumn(srcCol.name, srcCol.isNumeric, null, false, srcCol.elementType, srcCol.formatInfo);
 				for (int i = 0; i < rowCount; i++)
 				{
 					int srcIndex = columnRemapping[i].Value;
@@ -1764,6 +1842,15 @@ namespace PerfSummaries
 		public int Count
 		{
 			get { return rowCount; }
+		}
+
+		public SummaryTableColumn GetColumnByName(string name)
+		{
+			if (columnLookup.ContainsKey(name))
+			{
+				return columnLookup[name];
+			}
+			return null;
 		}
 
 		Dictionary<string, SummaryTableColumn> columnLookup = new Dictionary<string, SummaryTableColumn>();

@@ -56,6 +56,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ColumnFilters\ISummaryTableColumnFilter.cs" />
+    <Compile Include="ColumnFilters\MetadataColumnFilter.cs" />
+    <Compile Include="ColumnFilters\RegressionColumnFilter.cs" />
+    <Compile Include="ColumnFilters\StatThresholdColumnFilter.cs" />
     <Compile Include="CsvFileCache..cs" />
     <Compile Include="PerfReportTool.cs" />
     <Compile Include="Summaries\BucketSummary.cs" />

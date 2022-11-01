@@ -26,7 +26,7 @@ namespace PerfReportTool
     class Version
     {
 		// Format: Major.Minor.Bugfix
-        private static string VersionString = "4.97.0";
+        private static string VersionString = "4.98.0";
 
         public static string Get() { return VersionString; }
     };
@@ -165,6 +165,14 @@ namespace PerfReportTool
 			"       -transposeTable : write the summary tables transposed\n"+
 			"       -transposeCollatedTable : write the collated summary table transposed (disables min/max columns)\n" +
             "       -addDiffRows : adds diff rows after the first two rows\n" + 
+			"\n" +
+			"Optional Column Filters\n" +
+			"		-debugShowFilteredColumns : grays out filtered columns instead of removing them. Column tooltip will show filtered reason.\n" +
+			"		-hideMetadataColumns : filters out metadata columns from the table (excluding those used in row sort).\n" +
+			"		-onlyShowRegressedColumns : only shows columns where the most recent row group (see -regressionJoinRowsByName) is outside the given standard deviation threshold from the mean of the previous rows.\n" +
+			"			-regressionJoinRowsByName <statName> (optional) : the csv stat name to join rows by for aggregation. If not provided each row is treated distinctly and no aggregation occurs.\n" +
+			"			-regressionStdDevThreshold <n> (default = 2) : how many standard deviations from the mean the most recent row group must be to be considered a regression.\n" +
+			"			-regressionOutlierStdDevThreshold <n> (default = 4) : how many standard deviations from the mean a value must be to be considered an outlier. Used in the initial pass to remove outliers to better identify real regressions.\n" +
 			"\n" +
 			"Json serialization:\n" +
 			"       -summaryTableToJson <filename> : json filename to write summary table row data to\n" +
@@ -769,8 +777,14 @@ namespace PerfReportTool
 				filenameWithoutExtension = Path.Combine(outputDir, filenameWithoutExtension);
 			}
 
-			float statThreshold = GetFloatArg("summaryTableStatThreshold", tableInfo.statThreshold);
-			SummaryTable filteredTable = table.SortAndFilter(tableInfo.columnFilterList, tableInfo.rowSortList, bReverseTable, weightByColumnName, statThreshold);
+			IEnumerable<ISummaryTableColumnFilter> additionalColumnFilters = MakeAdditionalColumnFilters(tableInfo);
+			bool showFilteredColumns = GetBoolArg("debugShowFilteredColumns");
+
+			// Set format info for the columns as some of the info is needed for the filters.
+			// TODO: would be better if we could determine HighIsBad without the format info and store it directly in the column.
+			table.SetColumnFormatInfo(reportXML.columnFormatInfoList);
+
+			SummaryTable filteredTable = table.SortAndFilter(tableInfo.columnFilterList, tableInfo.rowSortList, bReverseTable, weightByColumnName, showFilteredColumns, additionalColumnFilters);
 			if (bCollated)
 			{
 				filteredTable = filteredTable.CollateSortedTable(tableInfo.rowSortList, addMinMaxColumns);
@@ -790,6 +804,9 @@ namespace PerfReportTool
 					filteredTable.AddDiffRows();
 				}
 
+				// Run again to add format info for any new columns that were added (eg. count).
+				filteredTable.SetColumnFormatInfo(reportXML.columnFormatInfoList);
+
 				filteredTable.WriteToHTML(
 					filenameWithoutExtension + ".html", 
 					VersionString, 
@@ -800,12 +817,33 @@ namespace PerfReportTool
 					addMinMaxColumns, 
 					tableInfo.hideStatPrefix,
 					GetIntArg("maxSummaryTableStringLength", Int32.MaxValue), 
-					reportXML.columnFormatInfoList, 
 					weightByColumnName, 
 					summaryTitle,
-					bCollated ? bTransposeCollatedSummaryTable : bTransposeFullSummaryTable
+					bCollated ? bTransposeCollatedSummaryTable : bTransposeFullSummaryTable,
+					showFilteredColumns
 				);
 			}
+		}
+
+		IEnumerable<ISummaryTableColumnFilter> MakeAdditionalColumnFilters(SummaryTableInfo tableInfo)
+		{
+			List<ISummaryTableColumnFilter> additionalColumnFilters = new List<ISummaryTableColumnFilter>();
+			additionalColumnFilters.Add(new StatThresholdColumnFilter(GetFloatArg("summaryTableStatThreshold", tableInfo.statThreshold)));
+
+			if (GetBoolArg("hideMetadataColumns"))
+			{
+				additionalColumnFilters.Add(new MetadataColumnFilter(tableInfo.rowSortList));
+			}
+
+			if (GetBoolArg("onlyShowRegressedColumns"))
+			{
+				string joinByStatName = GetArg("regressionJoinRowsByName");
+				float stdDevThreshold = GetFloatArg("regressionStdDevThreshold", 2.0f);
+				float outlierStdDevThreshold = GetFloatArg("regressionOutlierStdDevThreshold", 4.0f);
+				additionalColumnFilters.Add(new RegressionColumnFilter(joinByStatName, stdDevThreshold, outlierStdDevThreshold));
+			}
+
+			return additionalColumnFilters;
 		}
 
 		string ReplaceFileExtension(string path, string newExtension)

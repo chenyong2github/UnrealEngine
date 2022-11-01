@@ -142,6 +142,11 @@ namespace PerfSummaries
 			return Interpolated;
 		}
 
+		public static Colour operator *(Colour a, Colour b)
+		{
+			return new Colour(a.r * b.r, a.g * b.g, a.b * b.b, a.alpha * b.alpha);
+		}
+
 		public string ToHTMLString()
 		{
 			return "'" + ToString() + "'";
