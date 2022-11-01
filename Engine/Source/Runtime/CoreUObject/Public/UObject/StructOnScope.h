@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
 #include "UObject/WeakObjectPtr.h"
-#include "UObject/Package.h"
 #include "Templates/Casts.h"
 #include "Templates/RemoveReference.h"
 
@@ -30,36 +29,10 @@ protected:
 
 public:
 
-	FStructOnScope()
-		: SampleStructMemory(nullptr)
-		, OwnsMemory(false)
-	{
-	}
-
-	FStructOnScope(const UStruct* InScriptStruct)
-		: ScriptStruct(InScriptStruct)
-		, SampleStructMemory(nullptr)
-		, OwnsMemory(false)
-	{
-		Initialize(); //-V1053
-	}
-
-	FStructOnScope(const UStruct* InScriptStruct, uint8* InData)
-		: ScriptStruct(InScriptStruct)
-		, SampleStructMemory(InData)
-		, OwnsMemory(false)
-	{
-	}
-
-	FStructOnScope(FStructOnScope&& InOther)
-	{
-		ScriptStruct = InOther.ScriptStruct;
-		SampleStructMemory = InOther.SampleStructMemory;
-		OwnsMemory = InOther.OwnsMemory;
-
-		InOther.OwnsMemory = false;
-		InOther.Reset();
-	}
+	COREUOBJECT_API FStructOnScope();
+	COREUOBJECT_API FStructOnScope(const UStruct* InScriptStruct);
+	COREUOBJECT_API FStructOnScope(const UStruct* InScriptStruct, uint8* InData);
+	COREUOBJECT_API FStructOnScope(FStructOnScope&& InOther);
 
 	FStructOnScope& operator=(FStructOnScope&& InOther)
 	{
@@ -100,15 +73,8 @@ public:
 		return ScriptStruct.Get();
 	}
 
-	virtual UPackage* GetPackage() const
-	{
-		return Package.Get();
-	}
-
-	virtual void SetPackage(UPackage* InPackage)
-	{
-		Package = InPackage;
-	}
+	COREUOBJECT_API virtual UPackage* GetPackage() const;
+	COREUOBJECT_API virtual void SetPackage(UPackage* InPackage);
 
 	virtual bool IsValid() const
 	{
@@ -147,10 +113,7 @@ public:
 		OwnsMemory = false;
 	}
 
-	virtual ~FStructOnScope()
-	{
-		Destroy(); //-V1053
-	}
+	COREUOBJECT_API virtual ~FStructOnScope();
 
 	/** Re-initializes the scope with a specified UStruct */
 	void Initialize(TWeakObjectPtr<const UStruct> InScriptStruct)
