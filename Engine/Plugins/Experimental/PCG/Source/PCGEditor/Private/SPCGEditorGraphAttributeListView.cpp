@@ -461,7 +461,7 @@ TSharedRef<SHeaderRow> SPCGEditorGraphAttributeListView::CreateHeaderRowWidget()
 
 void SPCGEditorGraphAttributeListView::OnDebugObjectChanged(UPCGComponent* InPCGComponent)
 {
-	if (PCGComponent)
+	if (PCGComponent.IsValid())
 	{
 		PCGComponent->OnPCGGraphGeneratedDelegate.RemoveAll(this);
 		PCGComponent->OnPCGGraphCleanedDelegate.RemoveAll(this);
@@ -470,7 +470,7 @@ void SPCGEditorGraphAttributeListView::OnDebugObjectChanged(UPCGComponent* InPCG
 
 	PCGComponent = InPCGComponent;
 
-	if (PCGComponent)
+	if (PCGComponent.IsValid())
 	{
 		PCGComponent->EnableInspection();
 		PCGComponent->OnPCGGraphGeneratedDelegate.AddSP(this, &SPCGEditorGraphAttributeListView::OnGenerateUpdated);
@@ -511,7 +511,7 @@ void SPCGEditorGraphAttributeListView::RefreshAttributeList()
 		return;
 	}
 
-	if (!PCGComponent)
+	if (!PCGComponent.IsValid())
 	{
 		return;
 	}
@@ -593,7 +593,7 @@ void SPCGEditorGraphAttributeListView::RefreshDataComboBox()
 	DataComboBox->ClearSelection();
 	DataComboBox->RefreshOptions();
 
-	if (!PCGComponent)
+	if (!PCGComponent.IsValid())
 	{
 		return;
 	}

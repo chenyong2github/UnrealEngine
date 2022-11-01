@@ -96,7 +96,7 @@ private:
 	TWeakPtr<FPCGEditor> PCGEditorPtr;
 
 	/** Cached PCGComponent being viewed */
-	UPCGComponent* PCGComponent = nullptr;
+	TWeakObjectPtr<UPCGComponent> PCGComponent;
 
 	TSharedPtr<SHeaderRow> ListViewHeader;
 	TSharedPtr<SListView<PCGListviewItemPtr>> ListView;

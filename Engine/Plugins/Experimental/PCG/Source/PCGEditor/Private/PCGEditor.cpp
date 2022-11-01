@@ -157,9 +157,9 @@ void FPCGEditor::SetPCGComponentBeingDebugged(UPCGComponent* InPCGComponent)
 	{
 		PCGComponentBeingDebugged = InPCGComponent;
 
-		OnDebugObjectChangedDelegate.Broadcast(PCGComponentBeingDebugged); 
+		OnDebugObjectChangedDelegate.Broadcast(PCGComponentBeingDebugged.Get());
 
-		if (PCGComponentBeingDebugged)
+		if (PCGComponentBeingDebugged.IsValid())
 		{
 			// We need to force generation so that we create debug data
 			PCGComponentBeingDebugged->GenerateLocal(/*bForce=*/true);
@@ -172,7 +172,7 @@ void FPCGEditor::SetPCGNodeBeingInspected(UPCGNode* InPCGNode)
 	if (GetPCGNodeBeingInspected() != InPCGNode)
 	{
 		PCGNodeBeingInspected = InPCGNode;
-		OnInspectedNodeChangedDelegate.Broadcast(PCGNodeBeingInspected);	
+		OnInspectedNodeChangedDelegate.Broadcast(PCGNodeBeingInspected);
 	}
 }
 
@@ -187,7 +187,7 @@ void FPCGEditor::JumpToNode(const UEdGraphNode* InNode)
 void FPCGEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_PCGEditor", "PCG Editor"));
-	auto WorkspaceMenuCategoryRef = WorkspaceMenuCategory.ToSharedRef();
+	const TSharedRef<FWorkspaceItem>& WorkspaceMenuCategoryRef = WorkspaceMenuCategory.ToSharedRef();
 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
@@ -575,14 +575,14 @@ void FPCGEditor::OnDeterminismNodeTest()
 
 bool FPCGEditor::CanRunDeterminismGraphTest() const
 {
-	return PCGEditorGraph && PCGComponentBeingDebugged;
+	return PCGEditorGraph && PCGComponentBeingDebugged.IsValid();
 }
 
 void FPCGEditor::OnDeterminismGraphTest()
 {
 	check(GraphEditorWidget.IsValid());
 
-	if (!DeterminismWidget.IsValid() || !DeterminismWidget->WidgetIsConstructed() || !PCGGraphBeingEdited || !PCGComponentBeingDebugged)
+	if (!DeterminismWidget.IsValid() || !DeterminismWidget->WidgetIsConstructed() || !PCGGraphBeingEdited || !PCGComponentBeingDebugged.IsValid())
 	{
 		return;
 	}
@@ -604,7 +604,7 @@ void FPCGEditor::OnDeterminismGraphTest()
 	TestResult->TestResultName = PCGGraphBeingEdited->GetName();
 	TestResult->Seed = PCGComponentBeingDebugged->Seed;
 
-	PCGDeterminismTests::RunDeterminismTest(PCGGraphBeingEdited, PCGComponentBeingDebugged, *TestResult);
+	PCGDeterminismTests::RunDeterminismTest(PCGGraphBeingEdited, PCGComponentBeingDebugged.Get(), *TestResult);
 
 	DeterminismWidget->AddItem(TestResult);
 	DeterminismWidget->AddDetailsColumn();
@@ -1678,10 +1678,10 @@ void FPCGEditor::JumpToDefinition(const UClass* Class) const
 				{
 					const FScopedTransaction Transaction(LOCTEXT("ChangeEnableNavigateToNativeNodes", "Change Enable Navigate to Native Nodes Setting"));
 
-					UPCGEditorSettings* MutableEditorSetings = GetMutableDefault<UPCGEditorSettings>();
-					MutableEditorSetings->Modify();
-					MutableEditorSetings->bEnableNavigateToNativeNodes = (NewState == ECheckBoxState::Checked) ? true : false;
-					MutableEditorSetings->SaveConfig();
+					UPCGEditorSettings* MutableEditorSettings = GetMutableDefault<UPCGEditorSettings>();
+					MutableEditorSettings->Modify();
+					MutableEditorSettings->bEnableNavigateToNativeNodes = (NewState == ECheckBoxState::Checked) ? true : false;
+					MutableEditorSettings->SaveConfig();
 				}
 			);
 			Info.CheckBoxText = LOCTEXT("EnableNavigationToNative", "Enable Navigate to Native Nodes?");

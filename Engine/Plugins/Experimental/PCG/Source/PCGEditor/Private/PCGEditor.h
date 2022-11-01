@@ -38,7 +38,7 @@ public:
 	void SetPCGComponentBeingDebugged(UPCGComponent* InPCGComponent);
 
 	/** Gets the PCG component we are debugging */
-	UPCGComponent* GetPCGComponentBeingDebugged() const { return PCGComponentBeingDebugged; }
+	UPCGComponent* GetPCGComponentBeingDebugged() const { return PCGComponentBeingDebugged.Get(); }
 
 	/** Sets the PCG node we want to inspect */
 	void SetPCGNodeBeingInspected(UPCGNode* InPCGNode);
@@ -243,7 +243,7 @@ private:
 	UPCGGraph* PCGGraphBeingEdited = nullptr;
 	UPCGEditorGraph* PCGEditorGraph = nullptr;
 
-	UPCGComponent* PCGComponentBeingDebugged = nullptr;
+	TWeakObjectPtr<UPCGComponent> PCGComponentBeingDebugged;
 	UPCGNode* PCGNodeBeingInspected = nullptr;
 	UPCGEditorGraphNodeBase* PCGGraphNodeBeingInspected = nullptr;
 };
