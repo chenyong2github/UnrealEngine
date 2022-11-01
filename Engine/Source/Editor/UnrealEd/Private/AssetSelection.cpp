@@ -311,6 +311,11 @@ namespace AssetSelectionUtils
 						// Just count the total number of actors with counterparts
 						++ActorInfo.NumSimulationChanges;
 					}
+
+					if (!CurrentActor->GetBrowseToAssetOverride().IsEmpty())
+					{
+						ActorInfo.bHaveBrowseOverride = true;
+					}
 				}
 
 				if( ActorInfo.SelectionClass != NULL )

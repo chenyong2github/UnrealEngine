@@ -112,6 +112,8 @@ struct FSelectedActorInfo
 	uint32 bHaveExperimentalClass:1;
 	/** true if an early access actor (or actor containing such a component) is selected */
 	uint32 bHaveEarlyAccessClass:1;
+	/** true if an actor in the selection has an override for the asset it browses to in the Content Browser*/
+	uint32 bHaveBrowseOverride:1;
 
 	FSelectedActorInfo()
 		: SelectionClass(NULL)
@@ -145,6 +147,7 @@ struct FSelectedActorInfo
 		, bHaveLandscape(false)
 		, bHaveExperimentalClass(false)
 		, bHaveEarlyAccessClass(false)
+		, bHaveBrowseOverride(false)
 	{
 	}
 
