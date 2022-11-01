@@ -435,6 +435,8 @@ public:
 		FieldNode_FReturnResultsTerminal
 	};
 
+	uint32 UserData;
+
 	FFieldNodeBase() : Name("") {}
 	virtual ~FFieldNodeBase() {}
 	virtual EFieldType Type() const { check(false); return EFieldType::EField_None; }
