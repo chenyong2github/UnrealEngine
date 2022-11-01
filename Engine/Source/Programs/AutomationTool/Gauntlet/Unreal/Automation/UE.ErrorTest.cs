@@ -119,92 +119,88 @@ namespace UE
 			string LocalReason = "";
 
 			TestResult FinalResult = TestResult.Invalid;
-
-			if (InLog != null)
+			if (ErrorType == ErrorTypes.Ensure)
 			{
-				if (ErrorType == ErrorTypes.Ensure)
-				{
-					// for an ensure we should have an entry and a callstack
-					int EnsureCount = InLog.Ensures.Count();
-					int CallstackLength = EnsureCount > 0 ? InLog.Ensures.First().Callstack.Length : 0;
+				// for an ensure we should have an entry and a callstack
+				int EnsureCount = InLog.Ensures.Count();
+				int CallstackLength = EnsureCount > 0 ? InLog.Ensures.First().Callstack.Length : 0;
 
-					if (EnsureCount == 0)
-					{
-						FinalResult = TestResult.Failed;
-						LocalReason = string.Format("No ensure error found for failure of type {0}", ErrorType);
-					}
-					else if (EnsureCount != 1)
-					{
-						FinalResult = TestResult.Failed;
-						LocalReason = string.Format("Incorrect ensure count found for failure of type {0}", ErrorType);
-					}
-					else if (CallstackLength == 0)
-					{
-						FinalResult = TestResult.Failed;
-						LocalReason = string.Format("No callstack error found for failure of type {0}", ErrorType);
-					}
-					else
-					{
-						FinalResult = TestResult.Passed;
-						LocalReason = string.Format("Found {0} ensures, test result = {1}", EnsureCount, FinalResult);
-					}
+				if (EnsureCount == 0)
+				{
+					FinalResult = TestResult.Failed;
+					LocalReason = string.Format("No ensure error found for failure of type {0}", ErrorType);
+				}
+				else if (EnsureCount != 1)
+				{
+					FinalResult = TestResult.Failed;
+					LocalReason = string.Format("Incorrect ensure count found for failure of type {0}", ErrorType);
+				}
+				else if (CallstackLength == 0)
+				{
+					FinalResult = TestResult.Failed;
+					LocalReason = string.Format("No callstack error found for failure of type {0}", ErrorType);
 				}
 				else
 				{
-					if (InLog.FatalError == null)
+					FinalResult = TestResult.Passed;
+					LocalReason = string.Format("Found {0} ensures, test result = {1}", EnsureCount, FinalResult);
+				}
+			}
+			else
+			{
+				if (InLog.FatalError == null)
+				{
+					FinalResult = TestResult.Failed;
+					Log.Info("No fatal error found for failure of type {0}", ErrorType);
+				}
+				else if (InLog.FatalError.Callstack.Length == 0)
+				{
+					FinalResult = TestResult.Failed;
+					Log.Info("No callstack found for failure of type {0}", ErrorType);
+				}
+				else
+				{
+					// all of these should contain a message and a result
+					if (ErrorType == ErrorTypes.Check)
 					{
-						FinalResult = TestResult.Failed;
-						Log.Info("No fatal error found for failure of type {0}", ErrorType);
+						if (!InLog.FatalError.Message.ToLower().Contains("assertion failed"))
+						{
+							FinalResult = TestResult.Failed;
+							LocalReason = string.Format("Unexpected assertion message");
+						}
+						else
+						{
+							FinalResult = TestResult.Passed;
+						}
+						Log.Info("Assertion message was {0}", InLog.FatalError.Message);
 					}
-					else if (InLog.FatalError.Callstack.Length == 0)
+					else if (ErrorType == ErrorTypes.Fatal)
 					{
-						FinalResult = TestResult.Failed;
-						Log.Info("No callstack found for failure of type {0}", ErrorType);
+						if (!InLog.FatalError.Message.ToLower().Contains("fatal erro"))
+						{
+							FinalResult = TestResult.Failed;
+							LocalReason = string.Format("Unexpected Fatal Error message");
+						}
+						else
+						{
+							FinalResult = TestResult.Passed;
+						}
+
+						Log.Info("Fatal Error message was {0}", InLog.FatalError.Message);
 					}
-					else
+					else if (ErrorType == ErrorTypes.GPF)
 					{
-						// all of these should contain a message and a result
-						if (ErrorType == ErrorTypes.Check)
+						if (!InLog.FatalError.Message.ToLower().Contains("exception"))
 						{
-							if (!InLog.FatalError.Message.ToLower().Contains("assertion failed"))
-							{
-								FinalResult = TestResult.Failed;
-								LocalReason = string.Format("Unexpected assertion message");
-							}
-							else
-							{
-								FinalResult = TestResult.Passed;
-							}
-							Log.Info("Assertion message was {0}", InLog.FatalError.Message);
+							FinalResult = TestResult.Failed;
+							LocalReason = string.Format("Unexpected exception message");
 						}
-						else if (ErrorType == ErrorTypes.Fatal)
+						else
 						{
-							if (!InLog.FatalError.Message.ToLower().Contains("fatal erro"))
-							{
-								FinalResult = TestResult.Failed;
-								LocalReason = string.Format("Unexpected Fatal Error message");
-							}
-							else
-							{
-								FinalResult = TestResult.Passed;
-							}
+							FinalResult = TestResult.Passed;
+						}
 
-							Log.Info("Fatal Error message was {0}", InLog.FatalError.Message);
-						}
-						else if (ErrorType == ErrorTypes.GPF)
-						{
-							if (!InLog.FatalError.Message.ToLower().Contains("exception"))
-							{
-								FinalResult = TestResult.Failed;
-								LocalReason = string.Format("Unexpected exception message");
-							}
-							else
-							{
-								FinalResult = TestResult.Passed;
-							}
-
-							Log.Info("Exception message was {0}", InLog.FatalError.Message);
-						}
+						Log.Info("Exception message was {0}", InLog.FatalError.Message);
 					}
 				}
 			}

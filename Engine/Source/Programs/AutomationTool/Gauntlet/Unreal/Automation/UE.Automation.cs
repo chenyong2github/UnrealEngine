@@ -522,39 +522,36 @@ namespace UE
 			const float IdleTimeout = 30 * 60;
 
 			List<string> ChannelEntries = new List<string>();
-			if (TestInstance != null)
+			// We are primarily interested in what the editor is doing
+			var AppInstance = TestInstance.EditorApp;
+
+			UnrealLogParser Parser = new UnrealLogParser(AppInstance.StdOut);
+			ChannelEntries.AddRange(Parser.GetEditorBusyChannels());
+
+			// Any new entries?
+			if (ChannelEntries.Count > LastAutomationEntryCount)
 			{
-				// We are primarily interested in what the editor is doing
-				var AppInstance = TestInstance.EditorApp;
-
-				UnrealLogParser Parser = new UnrealLogParser(AppInstance.StdOut);
-				ChannelEntries.AddRange(Parser.GetEditorBusyChannels());
-
-				// Any new entries?
-				if (ChannelEntries.Count > LastAutomationEntryCount)
+				// log new entries so people have something to look at
+				ChannelEntries.Skip(LastAutomationEntryCount).ToList().ForEach(S => Log.Info("{0}", S));
+				LastAutomationEntryTime = DateTime.Now;
+				LastAutomationEntryCount = ChannelEntries.Count;
+			}
+			else
+			{
+				// Check for timeouts
+				if (LastAutomationEntryTime == DateTime.MinValue)
 				{
-					// log new entries so people have something to look at
-					ChannelEntries.Skip(LastAutomationEntryCount).ToList().ForEach(S => Log.Info("{0}", S));
 					LastAutomationEntryTime = DateTime.Now;
-					LastAutomationEntryCount = ChannelEntries.Count;
 				}
-				else
+
+				double ElapsedTime = (DateTime.Now - LastAutomationEntryTime).TotalSeconds;
+
+				// Check for timeout
+				if (ElapsedTime > IdleTimeout)
 				{
-					// Check for timeouts
-					if (LastAutomationEntryTime == DateTime.MinValue)
-					{
-						LastAutomationEntryTime = DateTime.Now;
-					}
-
-					double ElapsedTime = (DateTime.Now - LastAutomationEntryTime).TotalSeconds;
-
-					// Check for timeout
-					if (ElapsedTime > IdleTimeout)
-					{
-						Log.Error("No activity observed in last {0:0.00} minutes. Aborting test", IdleTimeout / 60);
-						MarkTestComplete();
-						SetUnrealTestResult(TestResult.TimedOut);
-					}
+					Log.Error("No activity observed in last {0:0.00} minutes. Aborting test", IdleTimeout / 60);
+					MarkTestComplete();
+					SetUnrealTestResult(TestResult.TimedOut);
 				}
 			}
 
@@ -753,7 +750,6 @@ namespace UE
 
 			// The editor is an additional arbiter of success
 			if (InArtifacts.SessionRole.RoleType == UnrealTargetRole.Editor
-				&& InLog != null
 				&& InLog.HasAbnormalExit == false)
 			{
 				// if no fatal errors, check test results
@@ -849,7 +845,7 @@ namespace UE
 			MarkdownBuilder MB = new MarkdownBuilder(base.GetTestSummaryHeader());
 
 			// Everything we need is in the editor artifacts
-			var EditorRole = RoleResults.Where(R => R.Artifacts != null && R.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor).FirstOrDefault();
+			var EditorRole = RoleResults.Where(R => R.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor).FirstOrDefault();
 
 			if (EditorRole != null)
 			{
@@ -1076,7 +1072,7 @@ namespace UE
 
 			foreach (var Role in RoleResults)
 			{
-				if (Role.Artifacts != null && Role.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor)
+				if (Role.Artifacts.SessionRole.RoleType == UnrealTargetRole.Editor)
 				{
 					AutomationLogParser Parser = new AutomationLogParser(Role.LogSummary.FullLogContent);
 					AllWarnings.AddRange(

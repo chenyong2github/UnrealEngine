@@ -1080,29 +1080,19 @@ namespace Gauntlet
 
 			// Shutdown the instance so we can access all files, but do not null it or shutdown the UnrealApp because we still need
 			// access to these objects and their resources! Final cleanup is done in CleanupTest()
-			if (TestInstance != null)
-			{
-				TestInstance.Shutdown();
-			}
+			TestInstance.Shutdown();
 
 			try
 			{
-				if (string.IsNullOrEmpty(ArtifactPath))
-				{
-					Log.Info("ArtifactsPath was null unable to save artifacts");
-				}
-				else
-				{
-					Log.Info("Saving artifacts to {0}", ArtifactPath);
-					// run create dir again just in case the already made dir was cleaned up by another buildfarm job or something similar.
-					Directory.CreateDirectory(ArtifactPath);
-					Utils.SystemHelpers.MarkDirectoryForCleanup(ArtifactPath);
-				}
+				Log.Info("Saving artifacts to {0}", ArtifactPath);
+				// run create dir again just in case the already made dir was cleaned up by another buildfarm job or something similar.
+				Directory.CreateDirectory(ArtifactPath);
+				Utils.SystemHelpers.MarkDirectoryForCleanup(ArtifactPath);
+
 				SessionArtifacts = SaveRoleArtifacts(ArtifactPath);
 
 				// call legacy version
 				SaveArtifacts_DEPRECATED(ArtifactPath);
-				
 			}
 			catch (Exception Ex)
 			{
@@ -1528,10 +1518,6 @@ namespace Gauntlet
 		/// <returns></returns>
 		public virtual IEnumerable<UnrealRoleArtifacts> SaveRoleArtifacts(string OutputPath)
 		{
-			if (UnrealApp == null)
-			{
-				return new List<UnrealRoleArtifacts>();
-			}
 			return UnrealApp.SaveRoleArtifacts(Context, TestInstance, ArtifactPath);
 		}
 
@@ -1545,19 +1531,11 @@ namespace Gauntlet
 		protected virtual UnrealProcessResult GetExitCodeAndReason(StopReason InReason, UnrealLog InLog, UnrealRoleArtifacts InArtifacts, out string ExitReason, out int ExitCode)
 		{
 			// first check for fatal issues
-			if (InLog == null
-				|| InLog.FatalError != null)
+			if (InLog.FatalError != null)
 			{
 				ExitReason = "Process encountered fatal error";
 				ExitCode = -1;
 				return UnrealProcessResult.EncounteredFatalError;
-			}
-
-			if (InArtifacts == null)
-			{
-				ExitReason = "No role artifacts generated";
-				ExitCode = -1;
-				return UnrealProcessResult.TestFailure;
 			}
 
 			// Catch failed engine init. Early issues can result in the engine exiting with hard to diagnose reasons
@@ -1741,24 +1719,6 @@ namespace Gauntlet
 			return new UnrealLogParser(InArtifacts.AppInstance.StdOut).GetSummary();
 		}
 
-		protected virtual UnrealRoleResult GetRoleResultWhenNoArtifactsAreGenerated(StopReason InReason)
-		{
-			int ExitCode = 0;
-			string ExitReason;
-
-			// Give ourselves (and derived classes) a chance to analyze what happened
-			UnrealProcessResult ProcessResult = GetExitCodeAndReason(InReason, null, null, out ExitReason, out ExitCode);
-			// if the test is stopping for a reason other than completion, mark this as failing incase derived classes
-			// don't do the right thing
-			if (InReason == StopReason.MaxDuration)
-			{
-				ProcessResult = UnrealProcessResult.TimeOut;
-				ExitCode = -1;
-			}
-
-			return new UnrealRoleResult(ProcessResult, ExitCode, ExitReason, new UnrealLog(), null, new List<UnrealTestEvent>());
-		}
-
 		/// <summary>
 		/// Returns a list of all results for the roles involved in this test by calling CreateRoleResultFromArtifact for all
 		/// artifacts in the list
@@ -1767,14 +1727,7 @@ namespace Gauntlet
 		/// <returns></returns>
 		protected virtual IEnumerable<UnrealRoleResult> CreateRoleResultsFromArtifacts(StopReason InReason, IEnumerable<UnrealRoleArtifacts> InAllArtifacts)
 		{
-			if (InAllArtifacts != null && InAllArtifacts.Count() > 0)
-			{
-				return InAllArtifacts.Select(A => CreateRoleResultFromArtifact(InReason, A)).ToArray();
-			}
-			else
-			{
-				return new List<UnrealRoleResult>() { GetRoleResultWhenNoArtifactsAreGenerated(InReason) };
-			}
+			return InAllArtifacts.Select(A => CreateRoleResultFromArtifact(InReason, A)).ToArray();
 		}
 
 
@@ -1890,26 +1843,24 @@ namespace Gauntlet
 			UnrealLog LogSummary = InRoleResult.LogSummary;
 			MarkdownBuilder MB = new MarkdownBuilder();
 
-			if (InRoleResult.Artifacts != null)
-			{
-				UnrealRoleArtifacts RoleArtifacts = InRoleResult.Artifacts;
+			UnrealRoleArtifacts RoleArtifacts = InRoleResult.Artifacts;
 
-				MB.H3(string.Format("Role: {0} ({1} {2})", RoleArtifacts.SessionRole.RoleType, RoleArtifacts.SessionRole.Platform, RoleArtifacts.SessionRole.Configuration));
+			MB.H3(string.Format("Role: {0} ({1} {2})", RoleArtifacts.SessionRole.RoleType, RoleArtifacts.SessionRole.Platform, RoleArtifacts.SessionRole.Configuration));
 
-				bool HaveFatalError = LogSummary.FatalError != null;
+			bool HaveFatalError = LogSummary.FatalError != null;
 
-				// If we have no fatal error use "Error" which Horde will highlight. Otherwise use "Failed" since the fatal error will be below and highligted
-				string FailedString = HaveFatalError ? "Failed: " : "Error: ";
-				string CompletedString = "Completed: ";
+			// If we have no fatal error use "Error" which Horde will highlight. Otherwise use "Failed" since the fatal error will be below and highligted
+			string FailedString = HaveFatalError ? "Failed: " : "Error: ";
+			string CompletedString = "Completed: ";
 
-				string RoleState = InRoleResult.ExitCode != 0 && InRoleResult.LogSummary.HasAbnormalExit ? FailedString : CompletedString;
+			string RoleState = InRoleResult.ExitCode != 0 && InRoleResult.LogSummary.HasAbnormalExit ? FailedString : CompletedString;
 
-				MB.H4(string.Format("{0} {1} ({2}, ExitCode={3})", RoleState, InRoleResult.Summary, InRoleResult.ProcessResult, InRoleResult.ExitCode));
+			MB.H4(string.Format("{0} {1} ({2}, ExitCode={3})", RoleState, InRoleResult.Summary, InRoleResult.ProcessResult, InRoleResult.ExitCode));
 
-				// log command line up here for visibility
-				//MB.Paragraph(string.Format("CommandLine: {0}", RoleArtifacts.AppInstance.CommandLine));
+			// log command line up here for visibility
+			//MB.Paragraph(string.Format("CommandLine: {0}", RoleArtifacts.AppInstance.CommandLine));
 
-				MB.UnorderedList(new string[] {
+			MB.UnorderedList(new string[] {
 				string.Format("CommandLine: {0}", RoleArtifacts.AppInstance.CommandLine),
 				string.Format("Log: {0}", RoleArtifacts.LogPath),
 				string.Format("SavedDir: {0}", RoleArtifacts.ArtifactPath),
@@ -1919,112 +1870,112 @@ namespace Gauntlet
 				LogSummary.Warnings.Count() > 0 ? string.Format("Log Warnings: {0}", LogSummary.Warnings.Count()) : null
 			});
 
-				// Separate the events we want to report on
-				IEnumerable<UnrealTestEvent> Asserts = InRoleResult.Events.Where(E => E.Severity == EventSeverity.Fatal);
-				IEnumerable<UnrealTestEvent> Errors = InRoleResult.Events.Where(E => E.Severity == EventSeverity.Error);
-				IEnumerable<UnrealTestEvent> Ensures = InRoleResult.Events.Where(E => E.IsEnsure);
-				IEnumerable<UnrealTestEvent> Warnings = InRoleResult.Events.Where(E => E.Severity == EventSeverity.Warning && !E.IsEnsure);
+			// Separate the events we want to report on
+			IEnumerable<UnrealTestEvent> Asserts = InRoleResult.Events.Where(E => E.Severity == EventSeverity.Fatal);
+			IEnumerable<UnrealTestEvent> Errors = InRoleResult.Events.Where(E => E.Severity == EventSeverity.Error);
+			IEnumerable<UnrealTestEvent> Ensures = InRoleResult.Events.Where(E => E.IsEnsure);
+			IEnumerable<UnrealTestEvent> Warnings = InRoleResult.Events.Where(E => E.Severity == EventSeverity.Warning && !E.IsEnsure);
 
-				foreach (UnrealTestEvent Event in Asserts)
+			foreach (UnrealTestEvent Event in Asserts)
+			{
+				MB.H4(string.Format("Fatal Error: {0}", Event.Summary));
+
+				if (Event.Callstack.Any())
 				{
-					MB.H4(string.Format("Fatal Error: {0}", Event.Summary));
+					MB.UnorderedList(Event.Callstack.Take(MaxCallstackLines));
 
-					if (Event.Callstack.Any())
+					if (Event.Callstack.Count() > MaxCallstackLines)
 					{
-						MB.UnorderedList(Event.Callstack.Take(MaxCallstackLines));
-
-						if (Event.Callstack.Count() > MaxCallstackLines)
-						{
-							MB.Paragraph("See log for full callstack");
-						}
-					}
-					else
-					{
-						MB.Paragraph("Could not parse callstack. See log for full callstack");
+						MB.Paragraph("See log for full callstack");
 					}
 				}
-
-				foreach (UnrealTestEvent Event in Ensures.Distinct())
+				else
 				{
-					MB.H4(string.Format("Warning: Ensure: {0}", Event.Summary));
-
-					if (Event.Callstack.Any())
-					{
-						MB.UnorderedList(Event.Callstack.Take(MaxCallstackLines));
-
-						if (Event.Callstack.Count() > MaxCallstackLines)
-						{
-							MB.Paragraph("See log for full callstack");
-						}
-					}
-					else
-					{
-						MB.Paragraph("Could not parse callstack. See log for full callstack");
-					}
-				}
-
-				if (Errors.Any())
-				{
-					var ErrorList = Errors.Select(E => E.Summary).Distinct();
-					var PrintedErrorList = ErrorList;
-
-					string TrimStatement = "";
-
-					// too many warnings. If there was an abnormal exit show the last ones as they may be relevant
-					if (ErrorList.Count() > MaxLogLines)
-					{
-						if (LogSummary.HasAbnormalExit)
-						{
-							PrintedErrorList = ErrorList.Skip(ErrorList.Count() - MaxLogLines);
-							TrimStatement = string.Format("(Last {0} of {1} errors)", MaxLogLines, ErrorList.Count());
-						}
-						else
-						{
-							PrintedErrorList = ErrorList.Take(MaxLogLines);
-							TrimStatement = string.Format("(First {0} of {1} errors)", MaxLogLines, ErrorList.Count());
-						}
-					}
-
-					MB.H4("Errors:");
-					MB.UnorderedList(PrintedErrorList);
-
-					if (!string.IsNullOrEmpty(TrimStatement))
-					{
-						MB.Paragraph(TrimStatement);
-					}
-				}
-
-				if (Warnings.Any())
-				{
-					var WarningList = Warnings.Select(E => E.Summary).Distinct();
-					var PrintedWarningList = WarningList;
-
-					string TrimStatement = "";
-
-					// too many warnings. If there was an abnormal exit show the last ones as they may be relevant
-					if (WarningList.Count() > MaxLogLines)
-					{
-						if (LogSummary.HasAbnormalExit)
-						{
-							PrintedWarningList = WarningList.Skip(WarningList.Count() - MaxLogLines);
-							TrimStatement = string.Format("(Last {0} of {1} errors)", MaxLogLines, WarningList.Count());
-						}
-						else
-						{
-							PrintedWarningList = WarningList.Take(MaxLogLines);
-							TrimStatement = string.Format("(First {0} of {1} errors)", MaxLogLines, WarningList.Count());
-						}
-					}
-
-					MB.H4("Warnings:");
-					MB.UnorderedList(PrintedWarningList);
-
-					if (!string.IsNullOrEmpty(TrimStatement))
-					{
-						MB.Paragraph(TrimStatement);
-					}
+					MB.Paragraph("Could not parse callstack. See log for full callstack");
 				}
 			}
+
+			foreach (UnrealTestEvent Event in Ensures.Distinct())
+			{
+				MB.H4(string.Format("Warning: Ensure: {0}", Event.Summary));
+
+				if (Event.Callstack.Any())
+				{
+					MB.UnorderedList(Event.Callstack.Take(MaxCallstackLines));
+
+					if (Event.Callstack.Count() > MaxCallstackLines)
+					{
+						MB.Paragraph("See log for full callstack");
+					}
+				}
+				else
+				{
+					MB.Paragraph("Could not parse callstack. See log for full callstack");
+				}
+			}
+
+			if (Errors.Any())
+			{
+				var ErrorList = Errors.Select(E => E.Summary).Distinct();
+				var PrintedErrorList = ErrorList;
+
+				string TrimStatement = "";
+
+				// too many warnings. If there was an abnormal exit show the last ones as they may be relevant
+				if (ErrorList.Count() > MaxLogLines)
+				{
+					if (LogSummary.HasAbnormalExit)
+					{
+						PrintedErrorList = ErrorList.Skip(ErrorList.Count() - MaxLogLines);
+						TrimStatement = string.Format("(Last {0} of {1} errors)", MaxLogLines, ErrorList.Count());
+					}
+					else
+					{
+						PrintedErrorList = ErrorList.Take(MaxLogLines);
+						TrimStatement = string.Format("(First {0} of {1} errors)", MaxLogLines, ErrorList.Count());
+					}
+				}
+
+				MB.H4("Errors:");
+				MB.UnorderedList(PrintedErrorList);
+
+				if (!string.IsNullOrEmpty(TrimStatement))
+				{
+					MB.Paragraph(TrimStatement);
+				}
+			}
+
+			if (Warnings.Any())
+			{
+				var WarningList = Warnings.Select(E => E.Summary).Distinct();
+				var PrintedWarningList = WarningList;
+
+				string TrimStatement = "";
+
+				// too many warnings. If there was an abnormal exit show the last ones as they may be relevant
+				if (WarningList.Count() > MaxLogLines)
+				{
+					if (LogSummary.HasAbnormalExit)
+					{
+						PrintedWarningList = WarningList.Skip(WarningList.Count() - MaxLogLines);
+						TrimStatement = string.Format("(Last {0} of {1} errors)", MaxLogLines, WarningList.Count());
+					}
+					else
+					{
+						PrintedWarningList = WarningList.Take(MaxLogLines);
+						TrimStatement = string.Format("(First {0} of {1} errors)", MaxLogLines, WarningList.Count());
+					}
+				}
+
+				MB.H4("Warnings:");
+				MB.UnorderedList(PrintedWarningList);
+
+				if (!string.IsNullOrEmpty(TrimStatement))
+				{
+					MB.Paragraph(TrimStatement);
+				}
+			}
+
 			return MB.ToString();
 		}
 
@@ -2275,15 +2226,7 @@ namespace Gauntlet
 			// displayed individually by GetFormattedRoleSummary
 			foreach (var RoleResult in SortedRoles)
 			{
-				string RoleName;
-				if (RoleResult.Artifacts == null)
-				{
-					RoleName = "NoRoleArtifact";
-				}
-				else
-				{
-					RoleName = RoleResult.Artifacts.SessionRole.RoleType.ToString();
-				}
+				string RoleName = RoleResult.Artifacts.SessionRole.RoleType.ToString();
 
 				MB.Paragraph(string.Format("{0} Role: {1} ({2}, ExitCode {3})", RoleName, RoleResult.Summary, RoleResult.ProcessResult, RoleResult.ExitCode));
 
