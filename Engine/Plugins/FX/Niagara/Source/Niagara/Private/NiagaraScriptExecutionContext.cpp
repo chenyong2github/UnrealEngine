@@ -141,8 +141,9 @@ void FNiagaraScriptExecutionContextBase::BindData(int32 Index, FNiagaraDataBuffe
 #if STATS
 void FNiagaraScriptExecutionContextBase::CreateStatScopeData()
 {
-	StatScopeData.Empty();
-	for (const TStatId& StatId : Script->GetStatScopeIDs())
+	TArrayView<const TStatId> StatScopeIDs = Script->GetStatScopeIDs();
+	StatScopeData.Empty(StatScopeIDs.Num());
+	for (const TStatId& StatId : StatScopeIDs)
 	{
 		StatScopeData.Add(FStatScopeData(StatId));
 	}
