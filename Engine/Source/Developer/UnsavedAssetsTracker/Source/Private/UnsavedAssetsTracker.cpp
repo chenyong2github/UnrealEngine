@@ -17,6 +17,7 @@
 #include "Engine/World.h"
 #include "UnrealEdGlobals.h"
 #include "Misc/PackageName.h"
+#include "Misc/ScopeLock.h"
 #include "LevelEditor.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "IAssetTools.h"
@@ -97,6 +98,9 @@ FUnsavedAssetsTracker::FUnsavedAssetsTracker()
 	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditor.OnMapChanged().AddRaw(this, &FUnsavedAssetsTracker::OnMapChanged);
 
+	// Register in the ticker.
+	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FUnsavedAssetsTracker::Tick));
+
 	// Hook to detect when a a world is renamed to to catch when a temporary map is saved with a new name.
 	FWorldDelegates::OnPostWorldRename.AddRaw(this, &FUnsavedAssetsTracker::OnWorldPostRename);
 
@@ -111,6 +115,8 @@ FUnsavedAssetsTracker::FUnsavedAssetsTracker()
 
 FUnsavedAssetsTracker::~FUnsavedAssetsTracker()
 {
+	FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+
 	UPackage::PackageDirtyStateChangedEvent.RemoveAll(this);
 	UPackage::PackageMarkedDirtyEvent.RemoveAll(this);
 	UPackage::PackageSavedWithContextEvent.RemoveAll(this);
@@ -170,7 +176,15 @@ void FUnsavedAssetsTracker::OnPackageMarkedDirty(UPackage* Package, bool bWasDir
 {
 	if (ShouldTrackDirtyPackage(Package))
 	{
-		StartTrackingDirtyPackage(Package);
+		if (IsInGameThread())
+		{
+			StartTrackingDirtyPackage(Package);
+		}
+		else
+		{
+			FScopeLock Lock(&DirtyNotificationLock);
+			DirtyPackageEventsReportedOnBackgroundThread.Emplace(Package->GetPathName(), Package);
+		}
 	}
 }
 
@@ -181,13 +195,21 @@ void FUnsavedAssetsTracker::OnPackageDirtyStateUpdated(UPackage* Package)
 		return;
 	}
 
-	if (Package->IsDirty())
+	if (IsInGameThread())
 	{
-		StartTrackingDirtyPackage(Package);
+		if (Package->IsDirty())
+		{
+			StartTrackingDirtyPackage(Package);
+		}
+		else
+		{
+			StopTrackingDirtyPackage(Package->GetPathName());
+		}
 	}
 	else
 	{
-		StopTrackingDirtyPackage(Package->GetPathName());
+		FScopeLock Lock(&DirtyNotificationLock);
+		DirtyPackageEventsReportedOnBackgroundThread.Emplace(Package->GetPathName(), Package);
 	}
 }
 
@@ -452,6 +474,33 @@ void FUnsavedAssetsTracker::ShowWarningNotificationIfNotAlreadyShown(EWarningTyp
 		Notification->SetCompletionState(SNotificationItem::CS_None);
 		ShownWarnings.Add(WarningType);
 	}
+}
+
+bool FUnsavedAssetsTracker::Tick(float DeltaTime)
+{
+	if (DirtyNotificationLock.TryLock()) // Don't block the main thread.
+	{
+		for (TPair<FString, TWeakObjectPtr<UPackage>>& PathNamePackagePair : DirtyPackageEventsReportedOnBackgroundThread)
+		{
+			if (PathNamePackagePair.Value.IsValid())
+			{
+				UPackage* Package = PathNamePackagePair.Value.Get();
+				if (Package->IsDirty())
+				{
+					StartTrackingDirtyPackage(Package);
+				}
+				else
+				{
+					StopTrackingDirtyPackage(Package->GetPathName());
+				}
+			}
+		}
+
+		DirtyPackageEventsReportedOnBackgroundThread.Reset();
+		DirtyNotificationLock.Unlock();
+	}
+
+	return true; // Tick again.
 }
 
 #undef LOCTEXT_NAMESPACE

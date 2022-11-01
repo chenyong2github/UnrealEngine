@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Ticker.h"
+#include "HAL/CriticalSection.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UnrealEdMisc.h"
@@ -117,7 +119,16 @@ private:
 	/** Refresh the list of unsaved files from the list returned by FEditorFileUtils::GetDirtyPackages(). */
 	void SyncWithDirtyPackageList();
 
+	/** Invoked by the engine on the game thread. */
+	bool Tick(float DeltaTime);
+
 private:
+	/** Supports multithreaded Dirty notifications. */
+	FCriticalSection DirtyNotificationLock;
+
+	/** Keep the packages that were marked/unmarked dirty from a background thread to check the status on the game thread. */
+	TMap<FString, TWeakObjectPtr<UPackage>> DirtyPackageEventsReportedOnBackgroundThread;
+
 	/** Maps the package pathname to the status */
 	TMap<FString, FStatus> UnsavedPackages;
 
@@ -129,6 +140,9 @@ private:
 
 	/** Sets of warning shown to the user. */
 	TSet<EWarningTypes> ShownWarnings;
+
+	/** Handle to unregister the tick delegate. */
+	FTSTicker::FDelegateHandle TickerHandle;
 
 	/** Whether toast notification should be shown when a warning is detected. */
 	bool bWarningNotificationEnabled = true;
