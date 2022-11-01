@@ -195,9 +195,8 @@ void UColorCorrectRegionsSubsystem::SortRegionsByDistance(const FVector& ViewLoc
 	TMap<AColorCorrectRegion*, double> DistanceMap;
 	for (AColorCorrectRegion* Region : RegionsDistanceBased)
 	{
-		FVector BoxCenter, BoxExtents;
-		Region->GetBounds(BoxCenter, BoxExtents);
-		FVector CameraToRegionVec = (BoxCenter - ViewLocation);
+		FColorCorrectRenderProxyPtr State = Region->GetCCProxy_RenderThread();
+		FVector CameraToRegionVec = (State->BoxOrigin - ViewLocation);
 		DistanceMap.Add(Region, CameraToRegionVec.Dot(CameraToRegionVec));
 	}
 

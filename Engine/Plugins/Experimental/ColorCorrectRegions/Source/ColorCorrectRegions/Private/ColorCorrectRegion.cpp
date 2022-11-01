@@ -17,7 +17,7 @@
 ENUM_RANGE_BY_COUNT(EColorCorrectRegionsType, EColorCorrectRegionsType::MAX)
 
 
-AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitializer) 
+AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Type(EColorCorrectRegionsType::Sphere)
 	, Priority(0)
@@ -33,6 +33,7 @@ AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitial
 	, bEnablePerActorCC(false)
 	, PerActorColorCorrection(EColorCorrectRegionStencilType::IncludeStencil)
 	, ColorCorrectRegionsSubsystem(nullptr)
+	, ColorCorrectRenderProxy(MakeShared<FColorCorrectRenderProxy>())
 {
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -95,7 +96,8 @@ void AColorCorrectRegion::TickActor(float DeltaTime, ELevelTick TickType, FActor
 	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("CCR.TickActor %s"), *GetName()));
 
 	HandleAffectedActorsPropertyChange();
-	TransferStencilIds();
+	TransferState();
+
 
 	// Check to make sure that no ids have been changed externally.
 	{
@@ -117,23 +119,6 @@ void AColorCorrectRegion::TickActor(float DeltaTime, ELevelTick TickType, FActor
 		}
 
 	}
-
-	FTransform CurrentFrameTransform = GetTransform();
-	if (!PreviousFrameTransform.Equals(CurrentFrameTransform))
-	{
-		PreviousFrameTransform = CurrentFrameTransform;
-		GetActorBounds(true, BoxOrigin, BoxExtent);
-	}
-	
-	// Display Cluster uses HiddenPrimitives to hide Primitive components from view. 
-	// Store component id to be used on render thread.
-	if (const UStaticMeshComponent* FirstMeshComponent = FindComponentByClass<UStaticMeshComponent>())
-	{
-		if (!(FirstPrimitiveId == FirstMeshComponent->ComponentId))
-		{
-			FirstPrimitiveId = FirstMeshComponent->ComponentId;
-		}
-	}
 }
 
 void AColorCorrectRegion::Cleanup()
@@ -141,10 +126,57 @@ void AColorCorrectRegion::Cleanup()
 	ColorCorrectRegionsSubsystem = nullptr;
 }
 
-void AColorCorrectRegion::TransferStencilIds()
+void AColorCorrectRegion::TransferState()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("CCR.TransferState %s"), *GetName()));
+
+	FColorCorrectRenderProxyPtr TempCCRStateRenderThread = MakeShared<FColorCorrectRenderProxy>();
+	if (AColorCorrectionWindow* CCWindow = Cast<AColorCorrectionWindow>(this))
 	{
-		TArray<uint32> TempStencilIds;
+		TempCCRStateRenderThread->WindowType = CCWindow->WindowType;
+	}
+	else
+	{
+		TempCCRStateRenderThread->Type = Type;
+	}
+
+	TempCCRStateRenderThread->bIsActiveThisFrame = IsValid(this)
+		&& Enabled
+#if WITH_EDITOR
+		&& !IsHiddenEd()
+#endif 
+		&& !IsHidden();
+
+	TempCCRStateRenderThread->World = GetWorld();
+	TempCCRStateRenderThread->Priority = Priority;
+	TempCCRStateRenderThread->Intensity = Intensity;
+
+	// Inner could be larger than outer, in which case we need to make sure these are swapped.
+	TempCCRStateRenderThread->Inner = FMath::Min<float>(Outer, Inner);
+	TempCCRStateRenderThread->Outer = FMath::Max<float>(Outer, Inner);
+
+	if (TempCCRStateRenderThread->Inner == TempCCRStateRenderThread->Outer)
+	{
+		TempCCRStateRenderThread->Inner -= 0.0001;
+	}
+
+	TempCCRStateRenderThread->Falloff = Falloff;
+	TempCCRStateRenderThread->Invert = Invert;
+	TempCCRStateRenderThread->TemperatureType = TemperatureType;
+	TempCCRStateRenderThread->Temperature = Temperature;
+	TempCCRStateRenderThread->Tint = Tint;
+	TempCCRStateRenderThread->ColorGradingSettings = ColorGradingSettings;
+	TempCCRStateRenderThread->bEnablePerActorCC = bEnablePerActorCC;
+	TempCCRStateRenderThread->PerActorColorCorrection = PerActorColorCorrection;
+
+	GetActorBounds(true, TempCCRStateRenderThread->BoxOrigin, TempCCRStateRenderThread->BoxExtent);
+	TempCCRStateRenderThread->ActorLocation = (FVector3f)GetActorLocation();
+	TempCCRStateRenderThread->ActorRotation = (FVector3f)GetActorRotation().Euler();
+	TempCCRStateRenderThread->ActorScale = (FVector3f)GetActorScale();
+
+	// Transfer Stencil Ids.
+	{
+
 		for (const TSoftObjectPtr<AActor>& StencilActor : AffectedActors)
 		{
 			if (!StencilActor.IsValid())
@@ -157,15 +189,30 @@ void AColorCorrectRegion::TransferStencilIds()
 			{
 				if (PrimitiveComponent->bRenderCustomDepth)
 				{
-					TempStencilIds.Add(static_cast<uint32>(PrimitiveComponent->CustomDepthStencilValue));
+					TempCCRStateRenderThread->StencilIds.Add(static_cast<uint32>(PrimitiveComponent->CustomDepthStencilValue));
 				}
 			}
 		}
+	}
+
+	// Display Cluster uses HiddenPrimitives to hide Primitive components from view. 
+	// Store component id to be used on render thread.
+	if (const UStaticMeshComponent* FirstMeshComponent = FindComponentByClass<UStaticMeshComponent>())
+	{
+		if (!(TempCCRStateRenderThread->FirstPrimitiveId == FirstMeshComponent->ComponentId))
 		{
-			FScopeLock RegionScopeLock(&StencilIdsCriticalSection);
-			StencilIds = MoveTemp(TempStencilIds);
+			TempCCRStateRenderThread->FirstPrimitiveId = FirstMeshComponent->ComponentId;
 		}
 	}
+
+	{
+		ENQUEUE_RENDER_COMMAND(CopyCCProxy)([this, CCRStateToCopy = MoveTemp(TempCCRStateRenderThread)](FRHICommandListImmediate& RHICmdList)
+			{
+				ColorCorrectRenderProxy = CCRStateToCopy;
+			}
+		);
+	}
+
 }
 
 void AColorCorrectRegion::HandleAffectedActorsPropertyChange()
@@ -299,7 +346,6 @@ void AColorCorrectRegion::PostEditChangeProperty(struct FPropertyChangedEvent& P
 			ColorCorrectRegionsSubsystem->OnLevelsChanged();
 		}
 	}
-	GetActorBounds(true, BoxOrigin, BoxExtent);
 }
 #endif //WITH_EDITOR
 

@@ -17,14 +17,6 @@
 class UColorCorrectRegionsSubsystem;
 class UBillboardComponent;
 
-UENUM(BlueprintType)
-enum class EColorCorrectWindowType : uint8
-{
-	Square		UMETA(DisplayName = "Square"),
-	Circle		UMETA(DisplayName = "Circle"),
-	MAX
-};
-
 /**
  * A Color Correction Window that functions the same way as Color Correction Regions except it modifies anything that is behind it.
  * Color Correction Windows do not have Priority property and instead are sorted based on the distance from the camera.

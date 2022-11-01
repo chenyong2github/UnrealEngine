@@ -6,13 +6,13 @@
 #include "CoreMinimal.h"
 #include "Engine/Scene.h"
 #include "GameFramework/Actor.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/ObjectMacros.h"
 #include "ColorCorrectRegion.generated.h"
 
 
 class UColorCorrectRegionsSubsystem;
 class UBillboardComponent;
+
 
 UENUM(BlueprintType)
 enum class EColorCorrectRegionsType : uint8 
@@ -21,6 +21,14 @@ enum class EColorCorrectRegionsType : uint8
 	Box			UMETA(DisplayName = "Box"),
 	Cylinder	UMETA(DisplayName = "Cylinder"),
 	Cone		UMETA(DisplayName = "Cone"),
+	MAX
+};
+
+UENUM(BlueprintType)
+enum class EColorCorrectWindowType : uint8
+{
+	Square		UMETA(DisplayName = "Square"),
+	Circle		UMETA(DisplayName = "Circle"),
 	MAX
 };
 
@@ -47,6 +55,47 @@ public:
 	uint32 AssignedStencil = 0;
 };
 
+/** A state to store a copy of CCR properties to be used on render thread. */
+struct FColorCorrectRenderProxy
+{
+	EColorCorrectRegionsType Type;
+	EColorCorrectWindowType WindowType;
+
+	/** CCR Properties */
+	int32 Priority;
+	float Intensity;
+	float Inner;
+	float Outer;
+	float Falloff;
+	bool Invert;
+	EColorCorrectRegionTemperatureType TemperatureType;
+	float Temperature;
+	float Tint;
+	FColorGradingSettings ColorGradingSettings;
+
+	bool bEnablePerActorCC;
+	/**
+	* A list of actors that need to be excluded or included from color correction to be used on render thread.
+	* This list is populated during engine tick and populated with Stencil Ids from Primitive Components of AffectedActors.
+	* The main reason for this is accessing Primitive Components is not thread-safe and should be accessed on Game thread.
+	*/
+	TArray<uint32> StencilIds;
+	EColorCorrectRegionStencilType PerActorColorCorrection;
+
+	TWeakObjectPtr<UWorld> World;
+	FVector BoxOrigin;
+	FVector BoxExtent;
+
+	FVector3f ActorLocation;
+	FVector3f ActorRotation;
+	FVector3f ActorScale;
+
+	FPrimitiveComponentId FirstPrimitiveId;
+
+	bool bIsActiveThisFrame;
+};
+
+typedef TSharedPtr<FColorCorrectRenderProxy, ESPMode::ThreadSafe> FColorCorrectRenderProxyPtr;
 
 /**
  * An instance of Color Correction Region. Used to aggregate all active regions.
@@ -165,27 +214,14 @@ public:
 	void Cleanup();
 
 	/**
-	* This is used on render thread, and not atomic on purpose to avoid stalling Render thread even for a little bit. 
+	* Gets a full state for rendering. 
 	*/
-	void GetBounds(FVector& InOutOrigin, FVector& InOutBoxExtent) const
+	FColorCorrectRenderProxyPtr GetCCProxy_RenderThread()
 	{
-		InOutOrigin = BoxOrigin;
-		InOutBoxExtent = BoxExtent;
+		check(IsInRenderingThread());
+		return ColorCorrectRenderProxy;
 	};
 
-	/**
-	* This method is used on render thread, and not atomic on purpose to avoid stalling Render thread even for a little bit.
-	*/
-	const FPrimitiveComponentId& GetFirstPrimitiveId() const
-	{
-		return FirstPrimitiveId;
-	};
-
-	TArray<uint32> GetCopyStencilIds() 
-	{ 
-		FScopeLock RegionScopeLock(&StencilIdsCriticalSection);
-		return StencilIds; 
-	};
 private:
 
 #if WITH_METADATA
@@ -200,29 +236,20 @@ private:
 	void HandleAffectedActorsPropertyChange();
 
 	/**
-	* Copy stencil Ids from Primitive components to the StencilId array to be consumed by Scene view extension.
+	* Copy state required for rendering to be consumed by Scene view extension.
 	*/
-	void TransferStencilIds();
+	void TransferState();
 
 private:
 	UColorCorrectRegionsSubsystem* ColorCorrectRegionsSubsystem;
 
-	FVector BoxOrigin;
-	FVector BoxExtent;
-
-	FTransform PreviousFrameTransform;
-	FPrimitiveComponentId FirstPrimitiveId;
+	/** A copy of all properties required by render thread to process this CCR. */
+	FColorCorrectRenderProxyPtr ColorCorrectRenderProxy;
 
 	bool bActorListIsDirty;
 	uint8 ActorListChangeType;
 
-	/**
-	* A list of actors that need to be excluded or included from color correction to be used on render thread.
-	* This list is populated during engine tick and populated with Stencil Ids from Primitive Components of AffectedActors.
-	* The main reason for this is acessing Primitive Components is not thread safe and is better to be accessed on Game thread.
-	*/
-	TArray<uint32> StencilIds;
-	FCriticalSection StencilIdsCriticalSection;
+	FCriticalSection StateCopyCriticalSecion;
 
 	// This is for optimization purposes that would let us check assigned actors component's stencil ids ever few once in a while.
 	float TimeWaited = 0;
