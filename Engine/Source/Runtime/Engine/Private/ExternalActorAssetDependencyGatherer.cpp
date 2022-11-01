@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#include "WorldPartitionAssetDependencyGatherer.h"
+#include "ExternalActorAssetDependencyGatherer.h"
 
 #if WITH_EDITOR
 
@@ -7,12 +7,12 @@
 #include "Engine/Level.h"
 #include "HAL/FileManager.h"
 
-// Register FWorldPartitionCookPackageSplitter for UWorld class
-REGISTER_ASSETDEPENDENCY_GATHERER(FWorldPartitionAssetDependencyGatherer, UWorld);
+// Register FExternalActorAssetDependencyGatherer for UWorld class
+REGISTER_ASSETDEPENDENCY_GATHERER(FExternalActorAssetDependencyGatherer, UWorld);
 
-void FWorldPartitionAssetDependencyGatherer::GatherDependencies(const FAssetData& AssetData, const FAssetRegistryState& AssetRegistryState, TFunctionRef<FARCompiledFilter(const FARFilter&)> CompileFilterFunc, TArray<IAssetDependencyGatherer::FGathereredDependency>& OutDependencies, TArray<FString>& OutDependencyDirectories) const
+void FExternalActorAssetDependencyGatherer::GatherDependencies(const FAssetData& AssetData, const FAssetRegistryState& AssetRegistryState, TFunctionRef<FARCompiledFilter(const FARFilter&)> CompileFilterFunc, TArray<IAssetDependencyGatherer::FGathereredDependency>& OutDependencies, TArray<FString>& OutDependencyDirectories) const
 {
-	if (ULevel::GetIsLevelPartitionedFromAsset(AssetData))
+	if (ULevel::GetIsLevelUsingExternalActorsFromAsset(AssetData))
 	{
 		const FString ExternalActorsPath = ULevel::GetExternalActorsPath(AssetData.PackageName.ToString());
 		OutDependencyDirectories.Add(ExternalActorsPath);

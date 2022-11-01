@@ -8,12 +8,12 @@
 #include "AssetRegistry/AssetData.h"
 #include "Engine/World.h"
 
-class FWorldPartitionAssetDependencyGatherer : public IAssetDependencyGatherer
+class FExternalActorAssetDependencyGatherer : public IAssetDependencyGatherer
 {
 public:
 	
-	FWorldPartitionAssetDependencyGatherer() = default;
-	virtual ~FWorldPartitionAssetDependencyGatherer() = default;
+	FExternalActorAssetDependencyGatherer() = default;
+	virtual ~FExternalActorAssetDependencyGatherer() = default;
 
 	virtual void GatherDependencies(const FAssetData& AssetData, const FAssetRegistryState& AssetRegistryState, TFunctionRef<FARCompiledFilter(const FARFilter&)> CompileFilterFunc, TArray<IAssetDependencyGatherer::FGathereredDependency>& OutDependencies, TArray<FString>& OutDependencyDirectories) const override;
 };
