@@ -78,5 +78,5 @@ namespace UE::NNIHlslShaders::Internal
 		return OpFunc;
 	}
 
-	IMPLEMENT_GLOBAL_SHADER(TElementWiseUnaryCS, "/NNI/NNIHlslShadersElementWise.usf", "ElementWise", SF_Compute);
+	IMPLEMENT_GLOBAL_SHADER(TElementWiseUnaryCS, "/NNI/NNIHlslShadersElementWiseUnary.usf", "ElementWiseUnary", SF_Compute);
 } // UE::NNIHlslShaders::Internal
