@@ -87,8 +87,7 @@ public class EOSSDK : ModuleRules
 			{
 				return Path.Combine(SDKBinariesDir, "lib" + LibraryLinkNameBase + ".dylib");
 			}
-			else if(Target.Platform == UnrealTargetPlatform.Linux ||
-				Target.Platform == UnrealTargetPlatform.LinuxArm64)
+			else if(Target.Platform == UnrealTargetPlatform.Linux)
 			{
 				return Path.Combine(SDKBinariesDir, "lib" + LibraryLinkNameBase + ".so");
 			}
@@ -116,8 +115,7 @@ public class EOSSDK : ModuleRules
 				return LibraryLinkNameBase + ".framework";
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Android ||
-				Target.Platform == UnrealTargetPlatform.Linux ||
-				Target.Platform == UnrealTargetPlatform.LinuxArm64)
+				Target.Platform == UnrealTargetPlatform.Linux)
 			{
 				return "lib" + LibraryLinkNameBase + ".so";
 			}
