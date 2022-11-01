@@ -137,37 +137,39 @@ namespace Chaos
 			if (UseConvexHull3(BuildMethod)) // Use the newer Geometry Tools code path for generating convex hulls.
 			{
 				UE::Geometry::TConvexHull3<FRealType> HullCompute;
+				HullCompute.bSaveTriangleNeighbors = true;
 				if (HullCompute.Solve<FVec3Type>(*VerticesToUse))
 				{
 					// Get Planes, FaceIndices, Vertices, and LocalBoundingBox
 					TMap<int32, int32> HullVertMap;
-					HullCompute.GetTriangles([&VerticesToUse, &HullVertMap, &OutPlanes, &OutFaceIndices, &OutVertices, &OutLocalBounds](UE::Geometry::FIndex3i Triangle)
+					HullCompute.GetFaces([&VerticesToUse, &HullVertMap, &OutPlanes, &OutFaceIndices, &OutVertices, &OutLocalBounds](TArray<int32>& FaceIndices, FVector3f FaceNormal)
 						{
-							for (int32 j = 0; j < 3; ++j)		// From FMeshConvexHull::Compute_FullMesh
+							TArray<int32>& OutFace = OutFaceIndices.Emplace_GetRef();
+							OutFace.SetNumUninitialized(FaceIndices.Num());
+
+							// Note winding is backwards from what Chaos expects, so this fills OutFace in reverse order
+							for (int32 j = 0, n = FaceIndices.Num(); j < n; ++j)
 							{
-								int32 Index = Triangle[j];
-								if (HullVertMap.Contains(Index) == false)
+								int32 Index = FaceIndices[j];
+								int32* MappedVert = HullVertMap.Find(Index);
+								if (!MappedVert)
 								{
 									const FVec3Type& OrigPos = (*VerticesToUse)[Index];
 									int32 NewVID = OutVertices.Num();
 									OutVertices.Add(OrigPos);
 									HullVertMap.Add(Index, NewVID);
-									Triangle[j] = NewVID;
+									OutFace[n - j - 1] = NewVID;
 								}
 								else
 								{
-									Triangle[j] = HullVertMap[Index];
+									OutFace[n - j - 1] = *MappedVert;
 								}
 							}
 
-							// Winding is backwards from what Chaos expects
-							OutFaceIndices.Add({ Triangle[0], Triangle[2], Triangle[1] });
-
-							UE::Geometry::THalfspace3<FRealType> Halfspace(OutVertices[Triangle[0]], OutVertices[Triangle[1]], OutVertices[Triangle[2]]);
-							const FVec3Type& Normal = Halfspace.Normal;
-							const FVec3Type& Point = OutVertices[Triangle[0]];
+							const FVec3Type& Normal = FaceNormal;
+							const FVec3Type& Point = OutVertices[OutFace[0]];
 							OutPlanes.Add(FPlaneType{ Point, Normal });
-						});
+						}, [&VerticesToUse](int32 Idx) { return (*VerticesToUse)[Idx]; });
 
 					OutLocalBounds = FAABB3Type(OutVertices[0], OutVertices[0]);
 					for (int32 VertexIndex = 1; VertexIndex < OutVertices.Num(); ++VertexIndex)

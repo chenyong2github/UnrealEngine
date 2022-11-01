@@ -661,6 +661,145 @@ bool TConvexHull3<RealType>::Solve(int32 NumPoints, TFunctionRef<TVector<RealTyp
 	return true;
 }
 
+template<class RealType>
+void TConvexHull3<RealType>::GetFaces(TFunctionRef<void(TArray<int32>&, TVector<RealType>)> PolygonFunc, TFunctionRef<TVector<RealType>(int32)> GetPointFunc) const
+{
+	if (!ensureMsgf(bSaveTriangleNeighbors && HullNeighbors.Num() == Hull.Num(), TEXT("To extract faces, set bSaveTriangleNeighbors = true before calling Solve()")))
+	{
+		return;
+	}
+
+	TArray<int32> CurFaceVertIDs; // Used for face vertex IDs
+	TArray<int32> ToProcess; // Used as a stack for hull indices
+
+	// IDs to indicate which triangles can be grouped into the same convex polygon
+	TArray<int32> GroupIDs;
+	GroupIDs.Init(-1, Hull.Num());
+
+	int32 NextGroupID = 0;
+
+	// Greedily flood-fill to find coplanar triangles in each group
+	for (int32 TriIdx = 0; TriIdx < Hull.Num(); ++TriIdx)
+	{
+		if (GroupIDs[TriIdx] >= 0)
+		{
+			continue;
+		}
+
+		int32 CurGroupID = NextGroupID++;
+		GroupIDs[TriIdx] = CurGroupID;
+
+		ToProcess.Reset();
+
+		const FIndex3i& Tri = Hull[TriIdx];
+		const FIndex3i& NbrInds = HullNeighbors[TriIdx];
+		TVector<RealType> TriPosns[3]{ GetPointFunc(Tri.A), GetPointFunc(Tri.B), GetPointFunc(Tri.C) };
+		TVector<RealType> FaceNormal = VectorUtil::Normal(TriPosns[0], TriPosns[1], TriPosns[2]);
+		bool bValidNormal = FaceNormal.SquaredLength() > 0;
+		ToProcess.Add(NbrInds[0]);
+		ToProcess.Add(NbrInds[1]);
+		ToProcess.Add(NbrInds[2]);
+		while (ToProcess.Num() > 0)
+		{
+			int32 NbrTriIdx = ToProcess.Pop(false);
+			if (GroupIDs[NbrTriIdx] >= 0 || GroupIDs[NbrTriIdx] < -CurGroupID - 1)
+			{
+				continue;
+			}
+
+			const FIndex3i& NbrTri = Hull[NbrTriIdx];
+			int32 OtherV = -1;
+			for (int32 SubIdx = 0; SubIdx < 3; ++SubIdx)
+			{
+				int32 V = NbrTri[SubIdx];
+				if (V != Tri.A && V != Tri.B && V != Tri.C)
+				{
+					OtherV = V;
+				}
+			}
+			check(OtherV >= 0);
+			TVector<RealType> OtherPos = GetPointFunc(OtherV);
+			RealType O3DVal = ExactPredicates::Orient3<RealType>(TriPosns[0], TriPosns[1], TriPosns[2], OtherPos);
+			if (O3DVal == 0)
+			{
+				GroupIDs[NbrTriIdx] = CurGroupID;
+
+				if (!bValidNormal)
+				{
+					FaceNormal = VectorUtil::Normal(GetPointFunc(NbrTri.A), GetPointFunc(NbrTri.B), GetPointFunc(NbrTri.C));
+					bValidNormal = FaceNormal.SquaredLength() > 0;
+				}
+
+				const FIndex3i& NbrNbrInds = HullNeighbors[NbrTriIdx];
+				for (int32 SubIdx = 0; SubIdx < 3; ++SubIdx)
+				{
+					int32 NbrNbrTriIdx = NbrNbrInds[SubIdx];
+					if (GroupIDs[NbrNbrTriIdx] >= 0 || GroupIDs[NbrNbrTriIdx] < -CurGroupID - 1)
+					{
+						ToProcess.Add(NbrNbrTriIdx);
+					}
+				}
+			}
+			else
+			{
+				// Flag the unset triangles as already-visited, to avoid repeat tests
+				GroupIDs[NbrTriIdx] = -CurGroupID - 2;
+			}
+		}
+
+		CurFaceVertIDs.Reset();
+		WalkBorder(Hull, HullNeighbors, [&](int32 Idx) { return GroupIDs[Idx] == CurGroupID; }, TriIdx, CurFaceVertIDs);
+		PolygonFunc(CurFaceVertIDs, FaceNormal);
+	}
+}
+
+template<typename RealType>
+void TConvexHull3<RealType>::WalkBorder(const TArray<FIndex3i>& Triangles, const TArray<FIndex3i>& TriangleNeighbors, TFunctionRef<bool(int32)> InGroupFunc, int32 StartIdx, TArray<int32>& OutBorderVertexIndices)
+{
+	check(Triangles.Num() == TriangleNeighbors.Num());
+
+	struct FVisit
+	{
+		int32 Tri;
+		int8 Edge;
+	};
+
+	auto CrossEdge = [&Triangles, &TriangleNeighbors](int32 Tri, int32 EdgeNum) -> FVisit
+	{
+		int32 NbrTri = TriangleNeighbors[Tri][EdgeNum];
+		int32 SecondVert = Triangles[Tri][EdgeNum + 1 < 3 ? EdgeNum + 1 : 0];
+		int8 NbrEdge = (int8)Triangles[NbrTri].IndexOf(SecondVert);
+
+		return FVisit{ NbrTri, NbrEdge };
+	};
+
+	TArray<bool> Visited;
+	Visited.SetNumZeroed(Triangles.Num());
+	TArray<FVisit> VisitStack;
+	VisitStack.Reserve(Triangles.Num() / 3);
+	Visited[StartIdx] = true;
+	VisitStack.Add(CrossEdge(StartIdx, 2));
+	VisitStack.Add(CrossEdge(StartIdx, 1));
+	VisitStack.Add(CrossEdge(StartIdx, 0));
+
+	while (VisitStack.Num())
+	{
+		FVisit Visit = VisitStack.Pop(false);
+		if (!InGroupFunc(Visit.Tri))
+		{
+			OutBorderVertexIndices.Add(Triangles[Visit.Tri][Visit.Edge]);
+			continue;
+		}
+		if (Visited[Visit.Tri])
+		{
+			continue;
+		}
+		Visited[Visit.Tri] = true;
+		VisitStack.Add(CrossEdge(Visit.Tri, (Visit.Edge + 2) % 3));
+		VisitStack.Add(CrossEdge(Visit.Tri, (Visit.Edge + 1) % 3));
+	}
+}
+
 template struct TExtremePoints3<float>;
 template struct TExtremePoints3<double>;
 template class TConvexHull3<float>;

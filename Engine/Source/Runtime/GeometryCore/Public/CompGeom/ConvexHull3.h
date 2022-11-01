@@ -136,6 +136,14 @@ public:
 	}
 
 	/**
+	 * Get faces of the convex hull as convex polygons
+	 * @param PolygonFunc	Callback to be called for each polygon, with the array of vertex indices and the face normal
+	 * @param GetPointFunc	Function providing array-style access into points
+	 * TODO: Provide an optional Epsilon parameter to simplify the hull within some tolerance
+	 */
+	void GetFaces(TFunctionRef<void(TArray<int32>&, TVector<RealType>)> PolygonFunc, TFunctionRef<TVector<RealType>(int32)> GetPointFunc) const;
+
+	/**
 	 * Only valid if bSaveTriangleNeighbors was true when Solve() was called
 	 * @return Neighbors of each hull triangle, in edge order -- i.e., Nbr.A is the triangle across edge(Tri.A, Tri.B)
 	 */
@@ -229,6 +237,10 @@ public:
 
 	/** Set this to be able to cancel running operation */
 	FProgressCancel* Progress = nullptr;
+
+	// Useful helper for walking the border of a convex region, or of a QHull horizon. Will also work for extracting a group boundary for any closed triangle mesh.
+	// Note: Assumes TriangleNeighbors are listed such that the first neighbor is the tri across from the (Tri.A, Tri.B) edge
+	static void WalkBorder(const TArray<FIndex3i>& Triangles, const TArray<FIndex3i>& TriangleNeighbors, TFunctionRef<bool(int32)> InGroupFunc, int32 StartIdx, TArray<int32>& OutBorderVertexIndices);
 
 protected:
 

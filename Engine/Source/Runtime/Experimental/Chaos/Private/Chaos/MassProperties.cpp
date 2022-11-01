@@ -149,29 +149,31 @@ namespace Chaos
 		TVec Center = Vertices[Surfaces[0][0]];
 		for (const auto& Element : Surfaces)
 		{
-			// For now we only support triangular elements
-			check(Element.Num() == 3);
-
-			PMatrix<T,3,3> DeltaMatrix;
-			TVec PerElementSize;
-			for (int32 i = 0; i < Element.Num(); ++i)
+			// implicitly triangulate with a fan
+			for (int32 FanIdx = 0; FanIdx + 2 < Element.Num(); ++FanIdx)
 			{
-				TVec DeltaVector = Vertices[Element[i]] - Center;
-				DeltaMatrix.M[0][i] = DeltaVector[0];
-				DeltaMatrix.M[1][i] = DeltaVector[1];
-				DeltaMatrix.M[2][i] = DeltaVector[2];
-			}
-			
-			PerElementSize[0] = DeltaMatrix.M[0][0] + DeltaMatrix.M[0][1] + DeltaMatrix.M[0][2];
-			PerElementSize[1] = DeltaMatrix.M[1][0] + DeltaMatrix.M[1][1] + DeltaMatrix.M[1][2];
-			PerElementSize[2] = DeltaMatrix.M[2][0] + DeltaMatrix.M[2][1] + DeltaMatrix.M[2][2];
+				int32 FanSubInds[]{ 0, FanIdx + 1, FanIdx + 2 };
+				PMatrix<T, 3, 3> DeltaMatrix;
+				TVec PerElementSize;
+				for (int32 i = 0; i < 3; ++i)
+				{
+					TVec DeltaVector = Vertices[Element[FanSubInds[i]]] - Center;
+					DeltaMatrix.M[0][i] = DeltaVector[0];
+					DeltaMatrix.M[1][i] = DeltaVector[1];
+					DeltaMatrix.M[2][i] = DeltaVector[2];
+				}
 
-			T Det = DeltaMatrix.M[0][0] * (DeltaMatrix.M[1][1] * DeltaMatrix.M[2][2] - DeltaMatrix.M[1][2] * DeltaMatrix.M[2][1]) -
-				DeltaMatrix.M[0][1] * (DeltaMatrix.M[1][0] * DeltaMatrix.M[2][2] - DeltaMatrix.M[1][2] * DeltaMatrix.M[2][0]) +
-				DeltaMatrix.M[0][2] * (DeltaMatrix.M[1][0] * DeltaMatrix.M[2][1] - DeltaMatrix.M[1][1] * DeltaMatrix.M[2][0]);
-			
-			Volume += Det;
-			VolumeTimesSum += Det * PerElementSize;
+				PerElementSize[0] = DeltaMatrix.M[0][0] + DeltaMatrix.M[0][1] + DeltaMatrix.M[0][2];
+				PerElementSize[1] = DeltaMatrix.M[1][0] + DeltaMatrix.M[1][1] + DeltaMatrix.M[1][2];
+				PerElementSize[2] = DeltaMatrix.M[2][0] + DeltaMatrix.M[2][1] + DeltaMatrix.M[2][2];
+
+				T Det = DeltaMatrix.M[0][0] * (DeltaMatrix.M[1][1] * DeltaMatrix.M[2][2] - DeltaMatrix.M[1][2] * DeltaMatrix.M[2][1]) -
+					DeltaMatrix.M[0][1] * (DeltaMatrix.M[1][0] * DeltaMatrix.M[2][2] - DeltaMatrix.M[1][2] * DeltaMatrix.M[2][0]) +
+					DeltaMatrix.M[0][2] * (DeltaMatrix.M[1][0] * DeltaMatrix.M[2][1] - DeltaMatrix.M[1][1] * DeltaMatrix.M[2][0]);
+
+				Volume += Det;
+				VolumeTimesSum += Det * PerElementSize;
+			}
 		}
 		// @todo(mlentine): Should add suppoert for thin shell mass properties
 		if (Volume < UE_KINDA_SMALL_NUMBER)	//handle negative volume using fallback for now. Need to investigate cases where this happens
