@@ -2046,6 +2046,11 @@ void SUsdStage::OnViewportSelectionChanged( UObject* NewSelection )
 	if ( PrimPaths.Num() > 0 )
 	{
 		UsdStageTreeView->SelectPrims( PrimPaths );
+
+		if ( UsdPrimInfoWidget )
+		{
+			UsdPrimInfoWidget->SetPrimPath( GetCurrentStage(), *PrimPaths[ PrimPaths.Num() - 1 ] );
+		}
 	}
 }
 
