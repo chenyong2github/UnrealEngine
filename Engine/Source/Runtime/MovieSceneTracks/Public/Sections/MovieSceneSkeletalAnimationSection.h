@@ -104,6 +104,13 @@ public:
 	virtual void SetStartFrame(TRangeBound<FFrameNumber> NewStartFrame) override;
 	virtual void SetEndFrame(TRangeBound<FFrameNumber> NewEndFrame)override;
 
+	struct FRootMotionParams
+	{
+		bool bBlendFirstChildOfRoot;
+		int32 ChildBoneIndex;
+		TOptional<FTransform> Transform;
+		TOptional<FTransform> PreviousTransform;
+	};
 protected:
 
 	virtual TOptional<TRange<FFrameNumber> > GetAutoSizeRange() const override;
@@ -159,12 +166,13 @@ private:
 	FName SlotName_DEPRECATED;
 
 public:
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Root Motions")
-	/* Location Offset applied to this animations start root motion*/
+	/* Location offset applied before the matched offset*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Root Motions")
 	FVector StartLocationOffset;
 
-	UPROPERTY(BlueprintReadWrite,EditAnywhere, Category = "Root Motions")
-	/* Rotation Offset applied to this animations start root motion*/
+	/* Location offset applied after the matched offset*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Root Motions")
+
 	FRotator StartRotationOffset;
 
 	UPROPERTY()
@@ -173,10 +181,12 @@ public:
 	UPROPERTY()
 	FName MatchedBoneName;
 
-	UPROPERTY()
+	/* Location offset determined by matching*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Root Motions")
 	FVector MatchedLocationOffset;
 
-	UPROPERTY()
+	/* Rotation offset determined by matching*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Root Motions")
 	FRotator MatchedRotationOffset;
 
 	UPROPERTY()
@@ -199,27 +209,36 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Root Motions")
 	bool bShowSkeleton;
 #endif
-	//Temporary transform used to specify the global OffsetTransform while calculting the root motions.
-	FTransform TempOffsetTransform;
+	//Previous transform used to specify the global OffsetTransform while calculting the root motions.
+	FTransform PreviousTransform;
 
 	//Temporary index used by GetRootMotionTransform and set by SetBoneIndexforRootMotionCalculations
 	TOptional<int32> TempRootBoneIndex;
 public:
+
+	struct FRootMotionTransformParam
+	{
+		FFrameTime CurrentTime; //current time
+		FFrameRate FrameRate; //scene frame rate
+		bool bOutIsAdditive; //if this is additive or not
+		FTransform OutTransform; //total transform including current pose plus offset
+		FTransform OutParentTransform; //offset transform not including original bone transform
+		FTransform OutPoseTransform; //original bone transform
+		float OutWeight; //weight at specified time
+	};
+
 	// Functions/params related to root motion calcuations.
 	MOVIESCENETRACKS_API FMovieSceneSkeletalAnimRootMotionTrackParams* GetRootMotionParams() const;
 
-	MOVIESCENETRACKS_API FTransform GetOffsetTransform() const;
 	MOVIESCENETRACKS_API bool GetRootMotionVelocity(FFrameTime PreviousTime, FFrameTime CurrentTime, FFrameRate FrameRate, FTransform& OutVelocity, float& OutWeight) const;
 	MOVIESCENETRACKS_API int32 SetBoneIndexForRootMotionCalculations(bool bBlendFirstChildOfRoot);
-	MOVIESCENETRACKS_API bool GetRootMotionTransform(FFrameTime CurrentTime, FFrameRate FrameRate, FAnimationPoseData& AnimationPoseData,bool &bIsAdditive, FTransform& OutTransform,  float& OutWeight) const;
+	MOVIESCENETRACKS_API bool GetRootMotionTransform(FAnimationPoseData& PoseData, FRootMotionTransformParam& InOutParams) const;
 	MOVIESCENETRACKS_API void MatchSectionByBoneTransform(USkeletalMeshComponent* SkelMeshComp, FFrameTime CurrentFrame, FFrameRate FrameRate,
 		const FName& BoneName); //add options for z and rotation
 
 	MOVIESCENETRACKS_API void ClearMatchedOffsetTransforms();
 	
-	MOVIESCENETRACKS_API void FindBestBlendPoint(USkeletalMeshComponent* SkelMeshComp);
-
-	MOVIESCENETRACKS_API TOptional<FTransform> GetRootMotion(FFrameTime CurrentTime, bool& bBlendFirstChildOfRoot) const;
+	MOVIESCENETRACKS_API void GetRootMotion(FFrameTime CurrentTime, FRootMotionParams& OutRootMotionParams) const;
 
 	MOVIESCENETRACKS_API void ToggleMatchTranslation();
 

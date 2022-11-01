@@ -31,8 +31,6 @@ bool FAnimSequencerInstanceProxy::Evaluate(FPoseContext& Output)
 	SequencerRootNode.Evaluate_AnyThread(Output);
 	if (RootMotionOverride.IsSet())
 	{
-		// Almost always root is first, child is second bone but maybe not, so we do too loops to avoid any if's in the loop
-
 		if (!RootMotionOverride.GetValue().bBlendFirstChildOfRoot)
 		{
 			for (const FCompactPoseBoneIndex BoneIndex : Output.Pose.ForEachBoneIndex())
@@ -44,22 +42,12 @@ bool FAnimSequencerInstanceProxy::Evaluate(FPoseContext& Output)
 				}
 			}
 		}
-		else
+		else if (RootMotionOverride.GetValue().ChildBoneIndex != INDEX_NONE)
 		{
-			int RootIndex = INDEX_NONE;
-			for (const FCompactPoseBoneIndex BoneIndex : Output.Pose.ForEachBoneIndex())
+			FCompactPoseBoneIndex PoseIndex = Output.Pose.GetBoneContainer().GetCompactPoseIndexFromSkeletonIndex(RootMotionOverride.GetValue().ChildBoneIndex);
+			if (PoseIndex.IsValid())
 			{
-				FMeshPoseBoneIndex MeshBoneIndex = Output.Pose.GetBoneContainer().MakeMeshPoseIndex(BoneIndex);
-				int32 ParentIndex = Output.Pose.GetBoneContainer().GetParentBoneIndex(MeshBoneIndex.GetInt());
-				if (ParentIndex == INDEX_NONE)
-				{
-					RootIndex = MeshBoneIndex.GetInt();
-				}
-				else if (ParentIndex == RootIndex)
-				{
-					Output.Pose[BoneIndex] = RootMotionOverride.GetValue().RootMotion;
-					break;
-				}
+				Output.Pose[PoseIndex] = RootMotionOverride.GetValue().RootMotion;
 			}
 		}
 	}

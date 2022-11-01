@@ -61,10 +61,13 @@ protected:
 /** Optional Override To Specify RootMotion*/
 struct FRootMotionOverride
 {
-	FRootMotionOverride() :bBlendFirstChildOfRoot(false) {};
-	/** If true we use the first child of the root, if not we just use the root*/
+	FRootMotionOverride() :bBlendFirstChildOfRoot(false), ChildBoneIndex(INDEX_NONE), RootMotion(FTransform::Identity),
+	PreviousTransform(FTransform::Identity) {};
+	/** If true we use the ChildBoneIndex otherwise we use the root*/
 	bool bBlendFirstChildOfRoot;
+	int32 ChildBoneIndex;
 	FTransform RootMotion;
+	FTransform PreviousTransform;
 };
 
 struct ANIMGRAPHRUNTIME_API FAnimSequencerData

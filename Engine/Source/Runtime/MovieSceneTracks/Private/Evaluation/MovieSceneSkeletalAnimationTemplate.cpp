@@ -542,13 +542,16 @@ namespace MovieScene
 
 				Player.SavePreAnimatedState(*SequencerInst, AnimTypeID, FStatelessPreAnimatedTokenProducer(&ResetAnimSequencerInstance));
 				TOptional <FRootMotionOverride> RootMotion;
-				bool bBlendFirstChildOfRoot = false;
-				TOptional<FTransform> RootMotionTransform = AnimSection->GetRootMotion(CurrentTime, bBlendFirstChildOfRoot);
-				if (RootMotionTransform.IsSet())
+				UMovieSceneSkeletalAnimationSection::FRootMotionParams RootMotionParams;
+
+				AnimSection->GetRootMotion(CurrentTime, RootMotionParams);
+				if (RootMotionParams.Transform.IsSet())
 				{
 					RootMotion = FRootMotionOverride();
-					RootMotion.GetValue().RootMotion = RootMotionTransform.GetValue();
-					RootMotion.GetValue().bBlendFirstChildOfRoot = bBlendFirstChildOfRoot;
+					RootMotion.GetValue().RootMotion = RootMotionParams.Transform.GetValue();
+					RootMotion.GetValue().bBlendFirstChildOfRoot = RootMotionParams.bBlendFirstChildOfRoot;
+					RootMotion.GetValue().ChildBoneIndex = RootMotionParams.ChildBoneIndex;
+					RootMotion.GetValue().PreviousTransform = RootMotionParams.PreviousTransform.GetValue();
 				}
 
 				// If Sequencer has a transform track, we want to set the initial transform so that root motion (if it exists) can be applied relative to that.
@@ -608,13 +611,15 @@ namespace MovieScene
 
 				// Set position and weight
 				TOptional <FRootMotionOverride> RootMotion;
-				bool bBlendFirstChildOfRoot = false;
-				TOptional<FTransform> RootMotionTransform = AnimSection->GetRootMotion(CurrentTime, bBlendFirstChildOfRoot);
-				if (RootMotionTransform.IsSet())
+				UMovieSceneSkeletalAnimationSection::FRootMotionParams RootMotionParams;
+				AnimSection->GetRootMotion(CurrentTime, RootMotionParams);
+				if (RootMotionParams.Transform.IsSet())
 				{
 					RootMotion = FRootMotionOverride();
-					RootMotion.GetValue().RootMotion = RootMotionTransform.GetValue();
-					RootMotion.GetValue().bBlendFirstChildOfRoot = bBlendFirstChildOfRoot;
+					RootMotion.GetValue().RootMotion = RootMotionParams.Transform.GetValue();
+					RootMotion.GetValue().ChildBoneIndex = RootMotionParams.ChildBoneIndex;
+					RootMotion.GetValue().bBlendFirstChildOfRoot = RootMotionParams.bBlendFirstChildOfRoot;
+					RootMotion.GetValue().PreviousTransform = RootMotionParams.PreviousTransform.GetValue();
 				}
 							
 				// If Sequencer has a transform track, we want to set the initial transform so that root motion (if it exists) can be applied relative to that.

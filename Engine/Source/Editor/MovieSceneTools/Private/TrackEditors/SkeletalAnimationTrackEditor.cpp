@@ -771,18 +771,6 @@ void FSkeletalAnimationSection::CustomizePropertiesDetailsView(TSharedRef<IDetai
 		FOnGetPropertyTypeCustomizationInstance::CreateLambda([=]() { return MakeShared<FMovieSceneSkeletalAnimationParamsDetailCustomization>(InParams); }));
 }
 
-void FSkeletalAnimationSection::FindBestBlendSection(FGuid InObjectBinding)
-{
-	if (Sequencer.IsValid())
-	{
-		USkeletalMeshComponent* SkelMeshComp = AcquireSkeletalMeshFromObjectGuid(InObjectBinding, Sequencer.Pin());
-		if (SkelMeshComp)
-		{
-			Section.FindBestBlendPoint(SkelMeshComp);
-		}
-	}
-}
-
 void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding)
 {
 	// Can't pick the object that this track binds
@@ -844,18 +832,12 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 				LOCTEXT("MatchWithThisBoneInPreviousClip", "Match With This Bone In Previous Clip"), LOCTEXT("MatchWithThisBoneInPreviousClip_Tooltip", "Match This Bone With Previous Clip At Current Frame"),
 				FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder) {
 					int32 Index = -1;
-					if (Track->bAutoMatchClipsRootMotions) //IF AutoMatching we can't set it to Zero
-					{
-						Index = 0;
-					}
-					else
-					{
-						FText NoNameText = LOCTEXT("TurnOffBoneMatching", "Turn Off Matching");
-						FText NoNameTooltipText = LOCTEXT("TurnOffMatchingoltip", "Turn Off Any Bone Matching");
-						SubMenuBuilder.AddMenuEntry(
-							NoNameText, NoNameTooltipText,
-							FSlateIcon(), MatchToBone(true, Index++), NAME_None, EUserInterfaceActionType::RadioButton);
-					}
+					FText NoNameText = LOCTEXT("TurnOffBoneMatching", "Turn Off Matching");
+					FText NoNameTooltipText = LOCTEXT("TurnOffMatchingTooltip", "Turn Off Any Bone Matching");
+					SubMenuBuilder.AddMenuEntry(
+						NoNameText, NoNameTooltipText,
+						FSlateIcon(), MatchToBone(true, Index++), NAME_None, EUserInterfaceActionType::RadioButton);
+					
 
 					for (const FName& BoneName : BoneNames)
 					{
@@ -872,18 +854,13 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 				LOCTEXT("MatchWithThisBoneInNextClip", "Match With This Bone In Next Clip"), LOCTEXT("MatchWithThisBoneInNextClip_Tooltip", "Match This Bone With Next Clip At Current Frame"),
 				FNewMenuDelegate::CreateLambda([=](FMenuBuilder& SubMenuBuilder) {
 					int32 Index = -1;
-					if (Track->bAutoMatchClipsRootMotions) //IF AutoMatching we can't set it to Zero
-					{
-						Index = 0;
-					}
-					else
-					{
-						FText NoNameText = LOCTEXT("TurnOffBoneMatching", "Turn Off Matching");
-						FText NoNameTooltipText = LOCTEXT("TurnOffMatchingoltip", "Turn Off Any Bone Matching");
-						SubMenuBuilder.AddMenuEntry(
-							NoNameText, NoNameTooltipText,
-							FSlateIcon(), MatchToBone(false, Index++), NAME_None, EUserInterfaceActionType::RadioButton);
-					}
+					
+					FText NoNameText = LOCTEXT("TurnOffBoneMatching", "Turn Off Matching");
+					FText NoNameTooltipText = LOCTEXT("TurnOffMatchingTooltip", "Turn Off Any Bone Matching");
+					SubMenuBuilder.AddMenuEntry(
+						NoNameText, NoNameTooltipText,
+						FSlateIcon(), MatchToBone(false, Index++), NAME_None, EUserInterfaceActionType::RadioButton);
+					
 
 					for (const FName& BoneName : BoneNames)
 					{
@@ -980,16 +957,6 @@ void FSkeletalAnimationSection::BuildSectionContextMenu(FMenuBuilder& MenuBuilde
 							EUserInterfaceActionType::ToggleButton
 				);
 
-
-
-			/*
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("FindBestBlendPointForNextSection", "Find Best Blend Point For Next Section"),
-				LOCTEXT("FindBestBlendPointForNextSectionTooltip", "Find the best blend position on the the next section from the current time"),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateRaw(this, &FSkeletalAnimationSection::FindBestBlendSection, ObjectBinding))
-			);
-			*/
 
 			MenuBuilder.EndSection();
 		}

@@ -19,6 +19,10 @@
 
 #define LOCTEXT_NAMESPACE "MovieSceneSkeletalAnimationSection"
 
+TAutoConsoleVariable<bool> CVarStartTransformOffsetInBoneSpace(TEXT("Sequencer.StartTransformOffsetInBoneSpace"), true,
+	TEXT("When true we offset the start offsets for skeletal animation matching in bone space, if false we do it in root space, by default true"));
+
+
 namespace
 {
 	FName DefaultSlotName( "DefaultSlot" );
@@ -73,7 +77,6 @@ UMovieSceneSkeletalAnimationSection::UMovieSceneSkeletalAnimationSection( const 
 	bMatchRotationPitch = false;
 	bMatchIncludeZHeight = false;
 
-	TempRootBoneIndex = 0;
 #if WITH_EDITOR
 
 	PreviousPlayRate = Params.PlayRate;
@@ -392,7 +395,7 @@ void UMovieSceneSkeletalAnimationSection::PostEditUndo()
 
 #endif
 
-TOptional<FTransform> UMovieSceneSkeletalAnimationSection::GetRootMotion(FFrameTime CurrentTime, bool& bBlendFirstChildOfRoot) const
+void UMovieSceneSkeletalAnimationSection::GetRootMotion(FFrameTime CurrentTime, UMovieSceneSkeletalAnimationSection::FRootMotionParams& OutRootMotionParams) const
 {
 	if (GetRootMotionParams())
 	{
@@ -404,15 +407,15 @@ TOptional<FTransform> UMovieSceneSkeletalAnimationSection::GetRootMotion(FFrameT
 				Track->SetUpRootMotions(true);
 				if (GetRootMotionParams()->RootTransforms.Num() == 0) //should never be true but just in case
 				{
-					return TOptional<FTransform>();
+					return;
 				}
 			}
 		}
-
-		bBlendFirstChildOfRoot = Track ? Track->bBlendFirstChildOfRoot : false;
-		return GetRootMotionParams()->GetRootMotion(CurrentTime);
+		OutRootMotionParams.bBlendFirstChildOfRoot = Track ? Track->bBlendFirstChildOfRoot : false;
+		OutRootMotionParams.ChildBoneIndex = TempRootBoneIndex.IsSet() ? TempRootBoneIndex.GetValue() : INDEX_NONE;
+		OutRootMotionParams.Transform = GetRootMotionParams()->GetRootMotion(CurrentTime);
+		OutRootMotionParams.PreviousTransform = PreviousTransform;
 	}
-	return TOptional<FTransform>();
 }
 
 
@@ -445,119 +448,135 @@ FMovieSceneSkeletalAnimRootMotionTrackParams*  UMovieSceneSkeletalAnimationSecti
 	return nullptr;
 }
 
-
-FTransform  UMovieSceneSkeletalAnimationSection::GetOffsetTransform() const
-{
-	FTransform OffsetTransform(FQuat(StartRotationOffset), StartLocationOffset);
-	FTransform MatchedTransform(FQuat(MatchedRotationOffset), MatchedLocationOffset);
-	OffsetTransform *= MatchedTransform;
-	return OffsetTransform;
-}
-
 int32 UMovieSceneSkeletalAnimationSection::SetBoneIndexForRootMotionCalculations(bool bBlendFirstChildOfRoot)
 {
-	TempRootBoneIndex = 0;
 	if (!bBlendFirstChildOfRoot)
 	{
-		return TempRootBoneIndex.GetValue();
+		TempRootBoneIndex.Reset();
+		return 0;
 	}
-	else if(UAnimSequence* AnimSequence = Cast<UAnimSequence>(Params.Animation))
+	else if(UAnimSequence* AnimSequence = Cast<UAnimSequence>(Params.Animation) )
 	{ 
-		//but if not first find first
-		int32 RootIndex = INDEX_NONE;
-#if WITH_EDITOR
-		const IAnimationDataModel* DataModel = AnimSequence->GetDataModel();
-		const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
-		const int32 NumTracks = BoneAnimationTracks.Num();
-		for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
+		if(TempRootBoneIndex.IsSet() == false || TempRootBoneIndex.GetValue() == INDEX_NONE)
 		{
-			const FBoneAnimationTrack& AnimationTrack = BoneAnimationTracks[TrackIndex];
-			// verify if this bone exists in skeleton
-			const int32 BoneTreeIndex = AnimationTrack.BoneTreeIndex;
-			if (BoneTreeIndex != INDEX_NONE)
+			//but if not first find first
+			int32 RootIndex = INDEX_NONE;
+			const IAnimationDataModel* DataModel = AnimSequence->GetDataModel();
+			const TArray<FBoneAnimationTrack>& BoneAnimationTracks = DataModel->GetBoneAnimationTracks();
+			const int32 NumTracks = BoneAnimationTracks.Num();
+			for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
 			{
-				int32 ParentIndex = AnimSequence->GetSkeleton()->GetReferenceSkeleton().GetParentIndex(BoneTreeIndex);
-				if (ParentIndex == INDEX_NONE)
+				const FBoneAnimationTrack& AnimationTrack = BoneAnimationTracks[TrackIndex];
+				// verify if this bone exists in skeleton
+				const int32 BoneTreeIndex = AnimationTrack.BoneTreeIndex;
+				if (BoneTreeIndex != INDEX_NONE)
 				{
-					RootIndex = TrackIndex;
-				}
-				else if (ParentIndex == RootIndex)
-				{
-					TempRootBoneIndex = TrackIndex;
-					break;
+					
+					int32 ParentIndex = AnimSequence->GetSkeleton()->GetReferenceSkeleton().GetParentIndex(BoneTreeIndex);
+					if (ParentIndex == INDEX_NONE)
+					{
+						RootIndex = TrackIndex;
+					}
+					//if we are parent of the root and we have animation
+					else if (ParentIndex == RootIndex)
+					{
+						const FRawAnimSequenceTrack& InternalTrackData = AnimationTrack.InternalTrackData;
+						const TArray<FVector3f>& TrackPosKeys = InternalTrackData.PosKeys;
+						for (const FVector3f& Vector : TrackPosKeys)
+						{
+							if (Vector.IsNearlyZero() == false)
+							{
+								TempRootBoneIndex = BoneTreeIndex;
+								break;
+							}
+						}
+						if (TempRootBoneIndex.IsSet() == false)
+						{
+							const TArray<FQuat4f>& TrackRotKeys = InternalTrackData.RotKeys;
+							for (const FQuat4f& Quat : TrackRotKeys)
+							{
+								if (Quat.IsIdentity() == false)
+								{
+									TempRootBoneIndex = BoneTreeIndex;
+									break;
+								}
+							}
+						}
+						if (TempRootBoneIndex.IsSet())
+						{
+							break;
+						}
+					}
+				
 				}
 			}
 		}
-	#else
-		const TArray<FTrackToSkeletonMap>& BoneMappings = AnimSequence->GetCompressedTrackToSkeletonMapTable();
-		const int32 NumTracks = BoneMappings.Num();
-		for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
-		{
-			const FTrackToSkeletonMap& Mapping = BoneMappings[TrackIndex];
-			// verify if this bone exists in skeleton
-			const int32 BoneTreeIndex = Mapping.BoneTreeIndex;
-			if (BoneTreeIndex != INDEX_NONE)
-			{
-				int32 ParentIndex = AnimSequence->GetSkeleton()->GetReferenceSkeleton().GetParentIndex(BoneTreeIndex);
-				if (ParentIndex == INDEX_NONE)
-				{
-					RootIndex = TrackIndex;
-				}
-				else if (ParentIndex == RootIndex)
-				{
-					TempRootBoneIndex = TrackIndex;
-					break;
-				}
-			}
-		}
-	#endif
 	}
 	return TempRootBoneIndex.GetValue();
 }
 
-
-bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FFrameTime CurrentTime, FFrameRate FrameRate, FAnimationPoseData& AnimationPoseData, bool& bIsAdditive,FTransform& OutTransform, float& OutWeight) const
+bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FAnimationPoseData& AnimationPoseData,FRootMotionTransformParam& InOutParams) const
 {
 	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Params.Animation);
-	FTransform OffsetTransform = GetOffsetTransform();
+	FTransform OffsetTransform(FQuat(StartRotationOffset), StartLocationOffset);
+	FTransform MatchedTransform(FQuat(MatchedRotationOffset), MatchedLocationOffset);
+
 	if (AnimSequence)
 	{
 		float ManualWeight = 1.f;
-		Params.Weight.Evaluate(CurrentTime, ManualWeight);
-		OutWeight = ManualWeight * EvaluateEasing(CurrentTime);
-		bIsAdditive = false;
-		const double CurrentTimeSeconds = MapTimeToAnimation(CurrentTime, FrameRate);
-		bIsAdditive = AnimSequence->GetAdditiveAnimType() != EAdditiveAnimationType::AAT_None;
+		Params.Weight.Evaluate(InOutParams.CurrentTime, ManualWeight);
+		InOutParams.OutWeight = ManualWeight * EvaluateEasing(InOutParams.CurrentTime);
+		InOutParams.bOutIsAdditive = false;
+		const double CurrentTimeSeconds = MapTimeToAnimation(InOutParams.CurrentTime, InOutParams.FrameRate);
+		const double StartSeconds = (MapTimeToAnimation(FFrameNumber(0), InOutParams.FrameRate));
 
+		InOutParams.bOutIsAdditive = AnimSequence->GetAdditiveAnimType() != EAdditiveAnimationType::AAT_None;
+		FTransform StartBoneTransform;
 		if (TempRootBoneIndex.IsSet())
 		{
-			FAnimExtractContext ExtractionContext(CurrentTimeSeconds, false);
+			//get the start pose first since we pass out the pose and need the current
+			FCompactPoseBoneIndex PoseIndex = AnimationPoseData.GetPose().GetBoneContainer().GetCompactPoseIndexFromSkeletonIndex(TempRootBoneIndex.GetValue());
+			FAnimExtractContext ExtractionContext(StartSeconds);
 			AnimSequence->GetAnimationPose(AnimationPoseData, ExtractionContext);
-			OutTransform = AnimationPoseData.GetPose()[FCompactPoseBoneIndex(TempRootBoneIndex.GetValue())];
+			StartBoneTransform = AnimationPoseData.GetPose()[FCompactPoseBoneIndex(PoseIndex)];
+
+			ExtractionContext.CurrentTime = CurrentTimeSeconds;
+			AnimSequence->GetAnimationPose(AnimationPoseData, ExtractionContext);
+			InOutParams.OutPoseTransform = AnimationPoseData.GetPose()[FCompactPoseBoneIndex(PoseIndex)];
+
 		}
 		else //not set then just use root.
 		{
-			OutTransform = AnimSequence->ExtractRootTrackTransform(CurrentTimeSeconds, nullptr);
+			StartBoneTransform = AnimSequence->ExtractRootTrackTransform(StartSeconds, nullptr);
+			InOutParams.OutPoseTransform = AnimSequence->ExtractRootTrackTransform(CurrentTimeSeconds, nullptr);
+
 		}
 		//note though we don't support mesh space addtive just local additive it will still work the same here for the root so 
-		if (!bIsAdditive)
+		if (!InOutParams.bOutIsAdditive)
 		{
-			OutTransform = OutTransform * OffsetTransform;
+			const bool bStartTransformOffsetInBoneSpace = CVarStartTransformOffsetInBoneSpace.GetValueOnGameThread();
+			if (bStartTransformOffsetInBoneSpace)
+			{
+				FTransform StartMatchedInRoot = StartBoneTransform * MatchedTransform;
+				FTransform LocalToRoot = (InOutParams.OutPoseTransform * StartBoneTransform.Inverse());
+				FTransform OffsetInLocalSpace = LocalToRoot * OffsetTransform;
+				InOutParams.OutTransform = OffsetInLocalSpace * StartMatchedInRoot;
+			}
+			else
+			{
+				InOutParams.OutTransform = InOutParams.OutPoseTransform * OffsetTransform * MatchedTransform;
+
+			}
+			InOutParams.OutParentTransform = OffsetTransform.GetRelativeTransformReverse(InOutParams.OutTransform);
+
 		}
 		return true;
 	}
 	//for safety always return true for now
-	OutTransform = OffsetTransform;
+	InOutParams.OutParentTransform = OffsetTransform * MatchedTransform;
+	InOutParams.OutTransform = InOutParams.OutParentTransform;
+	InOutParams.OutPoseTransform = FTransform::Identity;
 	return true;
-}
-
-void UMovieSceneSkeletalAnimationSection::FindBestBlendPoint(USkeletalMeshComponent* SkelMeshComp)
-{
-	UMovieSceneSkeletalAnimationTrack* Track = GetTypedOuter<UMovieSceneSkeletalAnimationTrack>();
-	if (Track)
-	{
-		Track->FindBestBlendPoint(SkelMeshComp, this);
-	}
 }
 
 void UMovieSceneSkeletalAnimationSection::MultiplyOutInverseOnNextClips(FVector PreviousMatchedLocationOffset, FRotator PreviousMatchedRotationOffset)

@@ -95,10 +95,8 @@ public:
 
 	MOVIESCENETRACKS_API void SetRootMotionsDirty();
 	MOVIESCENETRACKS_API void SetUpRootMotions(bool bForce);
-	MOVIESCENETRACKS_API void FindBestBlendPoint(USkeletalMeshComponent* SkelMeshComp,UMovieSceneSkeletalAnimationSection* FirstSection);
 	MOVIESCENETRACKS_API void MatchSectionByBoneTransform(bool bMatchWithPrevious, USkeletalMeshComponent* SkelMeshComp, UMovieSceneSkeletalAnimationSection* CurrentSection, FFrameTime CurrentFrame, FFrameRate FrameRate,
 		const FName& BoneName, FTransform& SecondSectionRootDiff, FVector& TranslationDiff, FQuat& RotationDiff); //add options for z and for rotation.
-	MOVIESCENETRACKS_API void ToggleAutoMatchClipsRootMotions();
 #if WITH_EDITORONLY_DATA
 
 	MOVIESCENETRACKS_API void ToggleShowRootMotionTrail();
@@ -116,17 +114,15 @@ public:
 	UPROPERTY()
 	bool bUseLegacySectionIndexBlend;
 
-	/** Automatically align adjacent clips roots to preceeding clip positions*/
-	//MZ todo will need to figure out how to get skelmesh when adding moving clip
-	//UPROPERTY()
-	bool bAutoMatchClipsRootMotions;
-
 	UPROPERTY()
 	FMovieSceneSkeletalAnimRootMotionTrackParams RootMotionParams;
 
-	/** Whether to blend and adjust the first child node instead of the root, this should be true for blending when the root is static, false if the animations have proper root motion*/
+	/** Whether to blend and adjust the first child node with animation instead of the root, this should be true for blending when the root is static, false if the animations have proper root motion*/
 	UPROPERTY(EditAnywhere, Category = "Root Motions")
 	bool bBlendFirstChildOfRoot;
+
+	/** Child bone to blend if bBlendFirstChildOfRoot is true*/
+	int32 ChildBoneIndex;
 
 #if WITH_EDITORONLY_DATA
 public:
