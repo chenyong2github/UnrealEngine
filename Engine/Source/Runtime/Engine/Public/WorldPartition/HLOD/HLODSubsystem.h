@@ -4,28 +4,19 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
-#include "UObject/NameTypes.h"
-#include "SceneViewExtension.h"
-
 #include "HLODSubsystem.generated.h"
 
+
+class AWorldPartitionHLOD;
+class FSceneViewFamily;
+class FHLODResourcesResidencySceneViewExtension;
 class UWorldPartition;
 class UWorldPartitionRuntimeCell;
-class AWorldPartitionHLOD;
 
-class FHLODResourcesResidencySceneViewExtension : public FWorldSceneViewExtension
-{
-public:
-	FHLODResourcesResidencySceneViewExtension(const FAutoRegister& AutoRegister, UWorld* InWorld)
-		: FWorldSceneViewExtension(AutoRegister, InWorld)
-	{
-	}
 
-	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}
-	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override {}
+DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionHLODActorRegisteredEvent, AWorldPartitionHLOD* /* InHLODActor */);
+DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionHLODActorUnregisteredEvent, AWorldPartitionHLOD* /* InHLODActor */);
 
-	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override;
-};
 
 /**
  * UHLODSubsystem
@@ -59,6 +50,9 @@ public:
 	const TArray<AWorldPartitionHLOD*>& GetHLODActorsForCell(const UWorldPartitionRuntimeCell* InCell) const;
 
 	static bool IsHLODEnabled();
+
+	FWorldPartitionHLODActorRegisteredEvent& OnHLODActorRegisteredEvent() { return HLODActorRegisteredEvent; }
+	FWorldPartitionHLODActorUnregisteredEvent& OnHLODActorUnregisteredEvent() { return HLODActorUnregisteredEvent; }
 	
 private:
 	struct FCellData
@@ -97,4 +91,8 @@ private:
 
 	friend class FHLODResourcesResidencySceneViewExtension;
 	TSharedPtr<FHLODResourcesResidencySceneViewExtension, ESPMode::ThreadSafe> SceneViewExtension;
+
+	FWorldPartitionHLODActorRegisteredEvent		HLODActorRegisteredEvent;
+	FWorldPartitionHLODActorUnregisteredEvent	HLODActorUnregisteredEvent;
 };
+
