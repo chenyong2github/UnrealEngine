@@ -526,6 +526,9 @@ public:
 	}
 };
 
+using FNamedOnlineSessionPtr = TSharedPtr<FNamedOnlineSession, ESPMode::ThreadSafe>;
+using FNamedOnlineSessionRef = TSharedRef<FNamedOnlineSession, ESPMode::ThreadSafe>;
+
 /** Value returned on unreachable or otherwise bad search results */
 #define MAX_QUERY_PING 9999
 
