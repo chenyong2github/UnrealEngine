@@ -78,6 +78,7 @@ private:
 	void GenerateColumnsFromMetadata(const UPCGMetadata* PCGMetadata);
 
 	TSharedRef<ITableRow> OnGenerateRow(PCGListviewItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable) const;
+	void OnItemDoubleClicked(PCGListviewItemPtr Item) const;
 
 	void AddColumn(const FName& InColumnID, const FText& ColumnLabel, float ColumnWidth, EHorizontalAlignment HeaderHAlign = HAlign_Center, EHorizontalAlignment CellHAlign = HAlign_Right);
 	void RemoveColumn(const FName& InColumnID);

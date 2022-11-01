@@ -397,6 +397,7 @@ void SPCGEditorGraphAttributeListView::Construct(const FArguments& InArgs, TShar
 		.ListItemsSource(&ListViewItems)
 		.HeaderRow(ListViewHeader)
 		.OnGenerateRow(this, &SPCGEditorGraphAttributeListView::OnGenerateRow)
+		.OnMouseButtonDoubleClick(this, &SPCGEditorGraphAttributeListView::OnItemDoubleClicked)
 		.AllowOverscroll(EAllowOverscroll::No)
 		.ExternalScrollbar(VerticalScrollBar)
 		.ConsumeMouseWheel(EConsumeMouseWheel::Always);
@@ -736,6 +737,17 @@ void SPCGEditorGraphAttributeListView::GenerateColumnsFromMetadata(const UPCGMet
 TSharedRef<ITableRow> SPCGEditorGraphAttributeListView::OnGenerateRow(PCGListviewItemPtr Item, const TSharedRef<STableViewBase>& OwnerTable) const
 {
 	return SNew(SPCGListViewItemRow, OwnerTable, Item);
+}
+
+void SPCGEditorGraphAttributeListView::OnItemDoubleClicked(PCGListviewItemPtr Item) const
+{
+	check(Item);
+
+	if (const FPCGPoint* Point = Item->PCGPoint)
+	{
+		const FBox BoundingBox = Point->GetLocalBounds().TransformBy(Point->Transform.ToMatrixWithScale());
+		GEditor->MoveViewportCamerasToBox(BoundingBox, true, 2.5f);	
+	}
 }
 
 void SPCGEditorGraphAttributeListView::AddColumn(const FName& InColumnID, const FText& ColumnLabel, float ColumnWidth, EHorizontalAlignment HeaderHAlign, EHorizontalAlignment CellHAlign)
