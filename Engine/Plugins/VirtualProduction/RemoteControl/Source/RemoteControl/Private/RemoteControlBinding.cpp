@@ -130,6 +130,11 @@ static FAutoConsoleCommand CCmdDumpBindings = FAutoConsoleCommand(
 	FConsoleCommandWithArgsDelegate::CreateStatic(&DumpBindings)
 );
 
+FSoftObjectPath URemoteControlBinding::GetLastBoundObjectPath() const
+{
+	return LastBoundObjectPath;
+}
+
 void URemoteControlLevelIndependantBinding::SetBoundObject(const TSoftObjectPtr<UObject>& InObject)
 {
 	BoundObject = InObject;
@@ -163,11 +168,20 @@ bool URemoteControlLevelIndependantBinding::PruneDeletedObjects()
 	if (!BoundObject.IsValid())
 	{
 		Modify();
-		BoundObject.Reset();
+		BoundObject.ResetWeakPtr();
 		return true;
 	}
 
 	return false;
+}
+
+void URemoteControlLevelIndependantBinding::PostLoad()
+{
+	Super::PostLoad();
+	if (!LastBoundObjectPath.IsValid())
+	{
+		LastBoundObjectPath = BoundObject.ToSoftObjectPath();
+	}
 }
 
 void URemoteControlLevelDependantBinding::SetBoundObject(const TSoftObjectPtr<UObject>& InObject)
@@ -180,6 +194,7 @@ void URemoteControlLevelDependantBinding::SetBoundObject(const TSoftObjectPtr<UO
 		SubLevelSelectionMapByPath.FindOrAdd(OuterLevel->GetWorld()) = OuterLevel;
 		
 		Name = EditorObject->GetName();
+		LastBoundObjectPath = InObject.ToSoftObjectPath();
 
 		const bool bShouldSetSubObjectContext = !BindingContext.HasValidSubObjectPath() && !EditorObject->IsA<AActor>();
 		
@@ -260,6 +275,10 @@ UObject* URemoteControlLevelDependantBinding::Resolve() const
 		}
 
 		LevelWithLastSuccessfulResolve = Object->GetTypedOuter<ULevel>();
+		if (!LastBoundObjectPath.IsValid())
+		{
+			LastBoundObjectPath = FSoftObjectPath(Object);
+		}
 
 		if (BindingContext.OwnerActorName.IsNone() || (!Object->IsA<AActor>() && !BindingContext.HasValidSubObjectPath()))
 		{
@@ -340,6 +359,11 @@ void URemoteControlLevelDependantBinding::PostLoad()
 
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
+
+	if (!LastBoundObjectPath.IsValid())
+	{
+		LastBoundObjectPath = BoundObjectMapByPath.FindRef(LevelWithLastSuccessfulResolve.ToSoftObjectPath()).ToSoftObjectPath();
+	}
 }
 
 TSoftObjectPtr<UObject> URemoteControlLevelDependantBinding::ResolveForCurrentWorld() const
@@ -404,11 +428,6 @@ void URemoteControlLevelDependantBinding::InitializeBindingContext(UObject* InOb
 	}
 }
 
-TSoftObjectPtr<UObject> URemoteControlLevelDependantBinding::GetLastBoundObject() const
-{
-	return BoundObjectMapByPath.FindRef(LevelWithLastSuccessfulResolve.ToSoftObjectPath());
-}
-
 UClass* URemoteControlLevelDependantBinding::GetSupportedOwnerClass() const
 {
 	return BindingContext.OwnerActorClass.LoadSynchronous();
@@ -433,6 +452,8 @@ void URemoteControlLevelDependantBinding::SetBoundObject(const TSoftObjectPtr<UL
 	SubPath.Split(TEXT("."), &LeftPart, &ObjectName, ESearchCase::Type::IgnoreCase, ESearchDir::FromEnd);
 	ensure(ObjectName.Len());
 	Name = MoveTemp(ObjectName);
+	LastBoundObjectPath = BoundObject.ToSoftObjectPath();
 }
 
-#undef LOCTEXT_NAMESPACE 
+#undef LOCTEXT_NAMESPACE
+

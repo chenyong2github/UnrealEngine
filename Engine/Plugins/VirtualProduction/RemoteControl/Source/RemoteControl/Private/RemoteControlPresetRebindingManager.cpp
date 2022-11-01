@@ -507,7 +507,7 @@ void FRemoteControlPresetRebindingManager::Rebind_NewAlgo(URemoteControlPreset* 
 				// We manually get the path from the last bound object since it was not saved.
 				// We are looking for a path like DisplayClusterConfigurationData_0.DisplayClusterConfigurationCluster_0.Node_1.VP_1
 				// We will then combine this with display cluster root actors in the scene to attempt finding a matching object.
-				FString LastObjectPath = InvalidBinding->GetLastBoundObject().ToSoftObjectPath().ToString();
+				FString LastObjectPath = InvalidBinding->GetLastBoundObjectPath().ToString();
 				if (LastObjectPath.IsEmpty())
 				{
 					UE_LOG(LogRemoteControl, Verbose, TEXT("Could not find the last bound object path on the binding."));

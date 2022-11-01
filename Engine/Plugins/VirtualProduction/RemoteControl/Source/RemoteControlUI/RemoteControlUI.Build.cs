@@ -27,6 +27,7 @@ public class RemoteControlUI : ModuleRules
 				"GraphEditor",
 				"HotReload",
 				"InputCore",
+				"LevelEditor",
 				"MainFrame",
 				"MessageLog",
 				"Projects",
@@ -42,6 +43,8 @@ public class RemoteControlUI : ModuleRules
 				"StructUtils",
 				"ToolMenus",
 				"ToolWidgets",
+				"TypedElementFramework",
+				"TypedElementRuntime",
 				"UnrealEd"
 			}
 		);

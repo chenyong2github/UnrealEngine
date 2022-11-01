@@ -49,6 +49,14 @@ protected:
 	TWeakObjectPtr<URemoteControlPreset> Preset;
 	/** Whether the panel is in live mode or not. */
 	TAttribute<bool> bLiveMode;
+	/** Name of the entity's owner (What actor it's bound to). */
+	FName CachedOwnerName;
+	/** Path from the entity owner to the object holding the exposed property. */
+	FName CachedSubobjectPath;
+	/** Path of the entity's binding. */
+	FName CachedBindingPath;
+	/** Whether the binding is valid at the moment. */
+	bool bValidBinding = false;
 	/** Display name of the entity. */
 	FName CachedLabel;
 	/** Text to be highlighted while searching. */

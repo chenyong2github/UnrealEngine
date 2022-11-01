@@ -108,6 +108,11 @@ struct REMOTECONTROL_API FRemoteControlEntity
 	 */
 	virtual UClass* GetSupportedBindingClass() const { return UObject::StaticClass(); }
 
+	/**
+	 * Get the last valid binding path for this entity.
+	 */
+	FSoftObjectPath GetLastBindingPath() const;
+
 	bool operator==(const FRemoteControlEntity& InEntity) const;
 	bool operator==(FGuid InEntityId) const;
 	friend uint32 REMOTECONTROL_API GetTypeHash(const FRemoteControlEntity& InEntity);

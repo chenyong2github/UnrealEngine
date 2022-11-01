@@ -88,6 +88,21 @@ bool FRemoteControlEntity::IsBound() const
 	return GetBoundObjects().Num() > 0;
 }
 
+FSoftObjectPath FRemoteControlEntity::GetLastBindingPath() const
+{
+	FSoftObjectPath Path;
+	for (const TWeakObjectPtr<URemoteControlBinding>& Binding : Bindings)
+	{
+		if (Binding.IsValid())
+		{
+			Path = Binding->GetLastBoundObjectPath();
+			break;
+		}
+	}
+
+	return Path;
+}
+
 bool FRemoteControlEntity::operator==(const FRemoteControlEntity& InEntity) const
 {
 	return Id == InEntity.Id;

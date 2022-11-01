@@ -69,12 +69,24 @@ public:
 	 */
 	virtual bool PruneDeletedObjects() PURE_VIRTUAL(URemoteControlBinding::PruneDeletedObjects, return false;);
 
+	/**
+	 *  Get the last object this binding was pointing to.
+	 */
+	FSoftObjectPath GetLastBoundObjectPath() const;
+
 public:
 	/**
 	 * The name of this binding. Defaults to the bound object's name.
 	 */
 	UPROPERTY(EditAnywhere, Category=Default)
 	FString Name;
+
+protected:
+	/**
+	 * The path to the last object that was bound.
+	 */
+	UPROPERTY()
+	mutable FSoftObjectPath LastBoundObjectPath;
 };
 
 UCLASS(BlueprintType)
@@ -83,12 +95,19 @@ class REMOTECONTROL_API URemoteControlLevelIndependantBinding : public URemoteCo
 public:
 	GENERATED_BODY()
 
+	//~ Begin UObject Interface
+	virtual void PostLoad() override;
+	//~ End UObject Interface
+
+	//~ Begin URemoteControlBinding Interface
 	virtual void SetBoundObject(const TSoftObjectPtr<UObject>& InObject) override;
 	virtual void UnbindObject(const TSoftObjectPtr<UObject>& InBoundObject) override;
 	virtual UObject* Resolve() const override;
 	virtual bool IsValid() const override;
 	virtual bool IsBound(const TSoftObjectPtr<UObject>& Object) const override;
 	virtual bool PruneDeletedObjects() override;
+	//~ End URemoteControlBinding interface
+
 
 private:
 	/**
@@ -172,6 +191,10 @@ class REMOTECONTROL_API URemoteControlLevelDependantBinding : public URemoteCont
 public:
 	GENERATED_BODY()
 
+	//~ Begin UObject Interface
+	virtual void PostLoad() override;
+	//~ End UObject Interface
+	
 	//~ Begin URemoteControlBinding Interface
 	virtual void SetBoundObject(const TSoftObjectPtr<UObject>& BoundObject) override;
 	virtual void UnbindObject(const TSoftObjectPtr<UObject>& BoundObject) override;
@@ -180,8 +203,6 @@ public:
 	virtual bool IsBound(const TSoftObjectPtr<UObject>& Object) const override;
 	virtual bool PruneDeletedObjects() override;
 	//~ Begin URemoteControlBinding Interface
-
-	virtual void PostLoad() override;
 
 	/**
 	 *	Set the bound object by specifying the level it resides in.
@@ -213,7 +234,6 @@ private:
 
 	void InitializeBindingContext(UObject* InObject) const;
 
-	TSoftObjectPtr<UObject> GetLastBoundObject() const;
 
 private:
 #if WITH_EDITORONLY_DATA

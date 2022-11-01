@@ -7,6 +7,7 @@
 #include "DetailWidgetRow.h"
 #include "IDocumentation.h"
 #include "IPropertyRowGenerator.h"
+#include "RemoteControlBinding.h"
 #include "RemoteControlEntity.h"
 #include "RemoteControlField.h"
 #include "RemoteControlPreset.h"
@@ -128,25 +129,27 @@ void FRemoteControlEntityCustomization::CreateBindingWidget(const FRemoteControl
 	const FSlateFontInfo FontInfo = LayoutBuilder.GetDetailFont();
 	FText ToolTipText = LOCTEXT("RCBindingToolTip", "The object this is currently bound to.");
 
-	FString PathName;
+	FText PathNameText;
 
 	if (ensure(RCEntity))
 	{
 		if (UObject* Obj = RCEntity->GetBoundObject())
 		{
-			PathName = Obj->GetPathName();
+			PathNameText = FText::FromString(Obj->GetPathName());
+		}
+		else
+		{
+			FString BindingPath = RCEntity->GetLastBindingPath().ToString();
+			if (!BindingPath.IsEmpty())
+			{
+				PathNameText = FText::Format(LOCTEXT("InvalidBindingPath", "INVALID_BINDING: {0}"), FText::FromString(BindingPath));
+			}
 		}
 	}
 
-	FText PathNameText;
-
-	if (PathName.IsEmpty())
+	if (PathNameText.IsEmpty())
 	{
-		PathNameText = LOCTEXT("BindingPath", "This entity is not bound.");
-	}
-	else
-	{
-		PathNameText = FText::FromString(MoveTemp(PathName));
+		PathNameText = LOCTEXT("NoBindingInformation", "INVALID_BINDING: - This entity has no binding information.");
 	}
 
 	CategoryBuilder.AddCustomRow(LOCTEXT("BindingLabel", "Binding"))

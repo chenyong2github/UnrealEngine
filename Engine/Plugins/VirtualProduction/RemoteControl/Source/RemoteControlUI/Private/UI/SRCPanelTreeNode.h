@@ -19,6 +19,8 @@ namespace RemoteControlPresetColumns
 {
 	static FName DragDropHandle = TEXT("DragDropHandle");
 	static FName LinkIdentifier = TEXT("LinkID");
+	static FName OwnerName = TEXT("OwnerName");
+	static FName SubobjectPath = TEXT("Subobject Path");
 	static FName Description = TEXT("Description");
 	static FName Mask = TEXT("Mask");
 	static FName Value = TEXT("Value");
@@ -86,6 +88,8 @@ protected:
 	struct FMakeNodeWidgetArgs
 	{
 		TSharedPtr<SWidget> DragHandle;
+		TSharedPtr<SWidget> OwnerNameWidget;
+		TSharedPtr<SWidget> SubObjectPathWidget;
 		TSharedPtr<SWidget> NameWidget;
 		TSharedPtr<SWidget> ValueWidget;
 		TSharedPtr<SWidget> ResetButton;
@@ -121,13 +125,19 @@ private:
 	/** Cached widget of drag handle. */
 	TSharedPtr<SWidget> DragHandleWidget;
 
-	/** Cached widget of node name widget. */
+	/** Cached widget of node owner name. */
+	TSharedPtr<SWidget> NodeOwnerNameWidget;
+	
+	/** Cached widget of subobject path. */
+	TSharedPtr<SWidget> SubobjectPathWidget;
+
+	/** Cached widget of node name. */
 	TSharedPtr<SWidget> NodeNameWidget;
 
-	/** Cached widget of node value widget. */
+	/** Cached widget of node value. */
 	TSharedPtr<SWidget> NodeValueWidget;
 	
-	/** Cached widget of reset arrow widget. */
+	/** Cached widget of reset arrow. */
 	TSharedPtr<SWidget> ResetValueWidget;
 
 private:

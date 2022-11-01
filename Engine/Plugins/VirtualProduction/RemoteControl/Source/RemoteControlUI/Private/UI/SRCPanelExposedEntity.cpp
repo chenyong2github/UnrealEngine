@@ -24,6 +24,7 @@
 #include "SceneOutlinerFilters.h"
 #include "SceneOutlinerModule.h"
 #include "ScopedTransaction.h"
+#include "Styling/CoreStyle.h"
 #include "Styling/RemoteControlStyles.h"
 #include "Styling/SlateIconFinder.h"
 #include "Modules/ModuleManager.h"
@@ -34,6 +35,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/STextBlock.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
@@ -149,7 +151,56 @@ void SRCPanelExposedEntity::Initialize(const FGuid& InEntityId, URemoteControlPr
 	{
 		if (const TSharedPtr<FRemoteControlEntity> RCEntity = InPreset->GetExposedEntity(InEntityId).Pin())
 		{
+			const FString BindingPath = RCEntity->GetLastBindingPath().ToString();
 			CachedLabel = RCEntity->GetLabel();
+			CachedBindingPath = *BindingPath;
+
+			FName OwnerFName;
+			// If the binding is valid, display the actor label if possible
+			if (UObject* Object = RCEntity->GetBoundObject())
+			{
+				bValidBinding = true;
+				
+				if (AActor* OwnerActor = Object->GetTypedOuter<AActor>())
+				{
+					CachedOwnerName = *OwnerActor->GetActorLabel();
+					OwnerFName = OwnerActor->GetFName();
+				}
+				else if (AActor* Actor = Cast<AActor>(Object))
+				{
+					CachedOwnerName = *Actor->GetActorLabel();
+					OwnerFName = Object->GetFName();
+				}
+				else
+				{
+					CachedOwnerName = Object->GetFName();
+					OwnerFName = Object->GetFName();
+				}
+			}
+			else
+			{
+				// If not, default to the owner fname
+				bValidBinding = false;
+
+				static const FString PersistentLevelString = TEXT(":PersistentLevel.");
+				int32 PersistentLevelIndex = BindingPath.Find(PersistentLevelString);
+				if (PersistentLevelIndex != INDEX_NONE)
+				{
+					OwnerFName = *BindingPath.RightChop(PersistentLevelIndex + PersistentLevelString.Len());
+					CachedOwnerName = OwnerFName;
+				}
+			}
+			
+			const int32 OwnerNameIndex = BindingPath.Find(OwnerFName.ToString() + TEXT("."));
+			if (OwnerNameIndex != INDEX_NONE)
+			{
+				CachedSubobjectPath = *BindingPath.RightChop(OwnerNameIndex + OwnerFName.GetStringLength() + 1);
+			}
+
+			if (CachedOwnerName.IsNone())
+			{
+				CachedOwnerName = *LOCTEXT("InvalidOwner", "Invalid Owner").ToString();
+			}
 		}
 	}
 }
@@ -393,6 +444,40 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateEntityWidget(TSharedPtr<SWidget
 		[
 			SNew(SRCPanelDragHandle<FExposedEntityDragDrop>, GetRCId())
 			.Widget(Widget)
+		];
+
+	const FSlateBrush* TrashBrush = FAppStyle::Get().GetBrush("Icons.Delete");
+
+	Args.OwnerNameWidget = SNew(SBox)
+		.Visibility(this, &SRCPanelExposedEntity::GetVisibilityAccordingToLiveMode, EVisibility::Collapsed)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(FMargin(0.0, 0.0, 4.0, 0.0))
+			.AutoWidth()
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.Visibility_Lambda([this]() { return bValidBinding ? EVisibility::Collapsed : EVisibility::Visible; })
+				.Image(TrashBrush)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.ColorAndOpacity_Lambda([this]() { return bValidBinding ? FSlateColor::UseForeground() : FSlateColor::UseSubduedForeground(); })
+				.Text(FText::FromName(CachedOwnerName))
+				.ToolTipText(FText::FromName(CachedBindingPath))
+			]
+		];
+
+	Args.SubObjectPathWidget = SNew(SBox)
+		.Visibility(this, &SRCPanelExposedEntity::GetVisibilityAccordingToLiveMode, EVisibility::Collapsed)
+		[
+			SNew(STextBlock)
+			.ColorAndOpacity_Lambda([this]() { return bValidBinding ? FSlateColor::UseForeground() : FSlateColor::UseSubduedForeground(); })
+			.Text(CachedSubobjectPath.IsNone() ? FText::GetEmpty() : FText::FromName(CachedSubobjectPath))
+			.ToolTipText(LOCTEXT("SubobjectPathToolTip", "The path from the owner actor to the uobject holding the exposed property."))
 		];
 
 	Args.NameWidget = SNew(SHorizontalBox)
