@@ -15,6 +15,7 @@
 #include "Serialization/JsonWriter.h"
 #include "Templates/PimplPtr.h"
 #include "Templates/UniquePtr.h"
+#include "AnalyticsEventAttribute.h"
 #include "ZenGlobals.h"
 
 #if UE_WITH_ZEN
@@ -136,6 +137,7 @@ private:
 	void PromptUserToStopRunningServerInstance(const FString& ServerFilePath);
 	FString ConditionalUpdateLocalInstall();
 	static bool AutoLaunch(const FServiceAutoLaunchSettings& InSettings, FString&& ExecutablePath, FString& OutHostName, uint16& OutPort);
+	void OnAnalyticsEvent(TArray<FAnalyticsEventAttribute>& Attributes);
 
 	mutable TPimplPtr<class FZenHttpRequest> StatsHttpRequest;
 	mutable TFuture<FZenStats> StatsRequest;

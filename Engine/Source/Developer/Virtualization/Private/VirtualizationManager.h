@@ -6,6 +6,8 @@
 #include "HAL/CriticalSection.h"
 #include "Logging/LogMacros.h"
 #include "Templates/UniquePtr.h"
+#include "AnalyticsEventAttribute.h"
+
 
 #include "Virtualization/VirtualizationSystem.h"
 
@@ -154,6 +156,7 @@ private:
 	void OnUpdateDebugMissBackendsFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice);
 	void OnUpdateDebugMissChanceFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice);
 	void OnUpdateDebugMissCountFromConsole(const TArray<FString>& Args, FOutputDevice& OutputDevice);
+	void OnAnalyticsEvent(TArray<FAnalyticsEventAttribute>& Attributes);
 
 	void UpdateBackendDebugState();
 
@@ -175,7 +178,7 @@ private:
 
 	void PullDataFromAllBackends(TArrayView<FPullRequest> Requests);
 	void PullDataFromBackend(IVirtualizationBackend& Backend, TArrayView<FPullRequest> Requests);
-
+	
 	bool ShouldVirtualizeAsset(const UObject* Owner) const;
 
 	/** 

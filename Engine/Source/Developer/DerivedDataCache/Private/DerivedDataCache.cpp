@@ -18,6 +18,7 @@
 #include "DerivedDataPrivate.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
+#include "DerivedDataCacheUsageStats.h"
 #include "Experimental/Async/LazyEvent.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/ThreadSafeCounter.h"
@@ -31,6 +32,8 @@
 #include "Stats/Stats.h"
 #include "Stats/StatsMisc.h"
 #include "ZenServerInterface.h"
+#include "AnalyticsEventAttribute.h"
+#include "Analytics.h"
 #include <atomic>
 
 DEFINE_STAT(STAT_DDC_NumGets);
@@ -661,12 +664,19 @@ public:
 
 		GVerifyDDC = FParse::Param(FCommandLine::Get(), TEXT("VerifyDDC"));
 
+		FAnalytics::Get().GetEventCallback(TEXT("Core.Loading"))->AddRaw(this, &FDerivedDataCache::OnAnalyticsEvent);
+		
 		UE_CLOG(GVerifyDDC, LogDerivedDataCache, Display, TEXT("Items retrieved from the DDC will be verified (-VerifyDDC)"));
 	}
 
 	/** Destructor, flushes all sync tasks **/
 	~FDerivedDataCache()
 	{
+		if (FAnalytics::IsAvailable())
+		{
+			FAnalytics::Get().GetEventCallback(TEXT("Core.Loading"))->RemoveAll(this);
+		}
+		
 		WaitForQuiescence(true);
 		FScopeLock ScopeLock(&SynchronizationObject);
 		for (TMap<uint32,FAsyncTask<FBuildAsyncWorker>*>::TIterator It(PendingTasks); It; ++It)
@@ -1032,6 +1042,77 @@ public:
 	virtual void GatherSummaryStats(FDerivedDataCacheSummaryStats& DDCSummaryStats) const override
 	{
 		GatherDerivedDataCacheSummaryStats(DDCSummaryStats);
+	}
+
+	void OnAnalyticsEvent(TArray<FAnalyticsEventAttribute>& Attributes)
+	{
+#if ENABLE_COOK_STATS
+
+		// Gather the latest resource stats
+		TArray<FDerivedDataCacheResourceStat> ResourceStats;
+
+		GatherDerivedDataCacheResourceStats(ResourceStats);
+
+		FDerivedDataCacheResourceStat ResourceStatsTotal(TEXT("Total"));
+
+		// Accumulate Totals
+		for (const FDerivedDataCacheResourceStat& Stat : ResourceStats)
+		{
+			ResourceStatsTotal += Stat;
+		}
+
+		ResourceStats.Emplace(ResourceStatsTotal);
+
+		// Append to the attributes
+		for (const FDerivedDataCacheResourceStat& Stat : ResourceStats)
+		{
+			FString BaseName = TEXT("DDC.Resource.") + Stat.AssetType;
+
+			BaseName = BaseName.Replace(TEXT("("), TEXT("")).Replace(TEXT(")"), TEXT(""));
+
+			{
+				FString AttrName = BaseName + TEXT(".BuildCount");
+				Attributes.Emplace(MoveTemp(AttrName), Stat.BuildCount);
+			}
+
+			{
+				FString AttrName = BaseName + TEXT(".BuildTimeSec");
+				Attributes.Emplace(MoveTemp(AttrName), Stat.BuildTimeSec);
+			}
+
+			{
+				FString AttrName = BaseName + TEXT(".BuildSizeMB");
+				Attributes.Emplace(MoveTemp(AttrName), Stat.BuildSizeMB);
+			}
+
+			{
+				FString AttrName = BaseName + TEXT(".LoadCount");
+				Attributes.Emplace(MoveTemp(AttrName), Stat.LoadCount);
+			}
+
+			{
+				FString AttrName = BaseName + TEXT(".LoadTimeSecLoadTimeSec");
+				Attributes.Emplace(MoveTemp(AttrName), Stat.LoadTimeSec);
+			}
+
+			{
+				FString AttrName = BaseName + TEXT(".LoadSizeMB");
+				Attributes.Emplace(MoveTemp(AttrName), Stat.LoadSizeMB);
+			}
+		}
+
+		// Gather the summary stats
+		FDerivedDataCacheSummaryStats SummaryStats;
+
+		GatherDerivedDataCacheSummaryStats(SummaryStats);
+
+		// Append to the attributes
+		for (const FDerivedDataCacheSummaryStat& Stat : SummaryStats.Stats)
+		{
+			FString FormattedAttrName = "DDC.Summary." + Stat.Key;
+			Attributes.Emplace(FormattedAttrName, Stat.Value);
+		}
+#endif
 	}
 
 	/** Get event delegate for data cache notifications */

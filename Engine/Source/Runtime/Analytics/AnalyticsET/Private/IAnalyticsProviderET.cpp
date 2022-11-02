@@ -477,16 +477,26 @@ void FAnalyticsProviderET::RecordEvent(FString&& EventName, const TArray<FAnalyt
 	// let higher level code filter the decision of whether to send the event
 	if (ShouldRecordEvent(EventName))
 	{
-		// fire any callbacks
+		// Make a copy of the incoming attributes so we can append any new attributes from the the callback functions
+		TArray<FAnalyticsEventAttribute> FinalAttributes;
+		
+		// Append the incoming attributes to the final attribute list
+		FinalAttributes.Append(Attributes);
+
+		// Fire any analytics callbacks that append attributes to the list
+		FAnalytics::Get().FireEventCallbacks(EventName, FinalAttributes);
+		
+		// Fire any read only callbacks
 		for (const auto& Cb : EventRecordedCallbacks)
 		{
 			// we no longer track if the event was Json, each attribute does.
-			Cb(EventName, Attributes, false);
+			Cb(EventName, FinalAttributes, false);
 		}
 
 		if (!Config.UseLegacyProtocol)
 		{
-			EventCache.AddToCache(MoveTemp(EventName), Attributes);
+			EventCache.AddToCache(MoveTemp(EventName), FinalAttributes);
+
 			// if we aren't caching events, flush immediately. This is really only for debugging as it will significantly affect bandwidth.
 			if (!bShouldCacheEvents)
 			{
@@ -495,7 +505,7 @@ void FAnalyticsProviderET::RecordEvent(FString&& EventName, const TArray<FAnalyt
 		}
 		else
 		{
-			FlushEventLegacy(EventName, Attributes);
+			FlushEventLegacy(EventName, FinalAttributes);
 		}
 	}
 	else

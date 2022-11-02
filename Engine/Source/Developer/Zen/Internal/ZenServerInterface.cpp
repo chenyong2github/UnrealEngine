@@ -26,6 +26,7 @@
 #include "Serialization/CompactBinaryValidation.h"
 #include "String/LexFromString.h"
 #include "SocketSubsystem.h"
+#include "Analytics.h"
 
 #if PLATFORM_WINDOWS
 #	include "Windows/AllowWindowsPlatformTypes.h"
@@ -710,6 +711,10 @@ FZenServiceInstance::FZenServiceInstance(FServiceSettings&& InSettings)
 
 FZenServiceInstance::~FZenServiceInstance()
 {
+	if (FAnalytics::IsAvailable())
+	{
+		FAnalytics::Get().GetEventCallback(TEXT("Core.Loading"))->RemoveAll(this);
+	}
 }
 
 bool 
@@ -767,6 +772,8 @@ FZenServiceInstance::Initialize()
 		bIsRunningLocally = IsLocalHost(HostName);
 	}
 	URL = WriteToString<64>(TEXT("http://"), HostName, TEXT(":"), Port, TEXT("/"));
+
+	FAnalytics::Get().GetEventCallback(TEXT("Core.Loading"))->AddRaw(this,&FZenServiceInstance::OnAnalyticsEvent);
 }
 
 void
@@ -1217,6 +1224,91 @@ FZenServiceInstance::GetStats(FZenStats& Stats)
 	}
 
 	return Stats.IsValid;
+}
+
+void FZenServiceInstance::OnAnalyticsEvent(TArray<FAnalyticsEventAttribute>& Attributes )
+{
+	// Grab the Zen summary stats
+	FZenStats ZenStats;
+
+	GetStats(ZenStats);
+
+	const FString BaseName = TEXT("Zen");
+
+	{
+		FString AttrName = BaseName + TEXT(".Enabled");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.IsValid);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.HitRatio");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.HitRatio);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.Hits");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Hits);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.Misses");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Misses);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.Size.Disk");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Size.Disk);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.Size.Memory");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.Size.Memory);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.UpstreamHits");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.UpstreamHits);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.UpstreamRatio");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CacheStats.UpstreamRatio);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cache.TotalUploadedMB");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.UpstreamStats.TotalUploadedMB);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Upstream.TotalDownloadedMB");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.UpstreamStats.TotalDownloadedMB);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Upstream.TotalUploadedMB");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.UpstreamStats.TotalUploadedMB);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cas.Size.Large");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Large);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cas.Size.Small");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Small);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cas.Size.Tiny");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Tiny);
+	}
+
+	{
+		FString AttrName = BaseName + TEXT(".Cas.Size.Total");
+		Attributes.Emplace(MoveTemp(AttrName), ZenStats.CASStats.Size.Total);
+	}
 }
 
 #endif // UE_WITH_ZEN

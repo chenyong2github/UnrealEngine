@@ -14,6 +14,7 @@ public class Virtualization : ModuleRules
 				"CoreUObject",
 				"ApplicationCore",
 				"DerivedDataCache",
+				"Analytics",
 				"MessageLog",
 				"Projects",
 				"SourceControl"
