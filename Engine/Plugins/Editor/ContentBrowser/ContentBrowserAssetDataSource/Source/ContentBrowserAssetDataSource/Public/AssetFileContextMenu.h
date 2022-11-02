@@ -4,8 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "AssetRegistry/AssetData.h"
+#include "Input/Reply.h"
 
 class UToolMenu;
+class SWindow;
+class SWidget;
 
 class CONTENTBROWSERASSETDATASOURCE_API FAssetFileContextMenu : public TSharedFromThis<FAssetFileContextMenu>
 {
