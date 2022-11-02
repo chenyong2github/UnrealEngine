@@ -2070,65 +2070,66 @@ void UNiagaraScript::PostLoad()
 	for (FVersionedNiagaraScriptData& Data : VersionData)
 	{
 		UNiagaraScriptSourceBase* Source = Data.Source;
-        if (Source != nullptr)
-        {
-        	Source->ConditionalPostLoad();
+		if (Source != nullptr)
+		{
+			Source->ConditionalPostLoad();
 
 			// Synchronize with Definitions after source scripts have been postloaded.
 			FVersionedNiagaraScript& VersionedScriptAdapter = VersionedScriptAdapters.Emplace_GetRef(this, Data.Version.VersionGuid);
 			VersionedScriptAdapter.PostLoadDefinitionsSubscriptions();
 
-        	bool bScriptVMNeedsRebuild = false;
-        	FString RebuildReason;
-        	if (NiagaraVer < FNiagaraCustomVersion::UseHashesToIdentifyCompileStateOfTopLevelScripts && CachedScriptVMId.CompilerVersionID.IsValid())
-        	{
-        		FGuid BaseId = Source->GetCompileBaseId(Usage, UsageId);
-        		if (BaseId.IsValid() == false)
-        		{
-        			UE_LOG(LogNiagara, Warning,
-                        TEXT("Invalidating compile ids for script %s because it doesn't have a valid base id.  The owning asset will continue to compile on load until it is resaved."),
-                        *GetPathName());
-        			InvalidateCompileResults(TEXT("Script didn't have a valid base id."));
-        			Source->ForceGraphToRecompileOnNextCheck();
-        		}
-        		else
-        		{
-        			FNiagaraCompileHash CompileHash = Source->GetCompileHash(Usage, UsageId);
-        			if (CompileHash.IsValid())
-        			{
-        				CachedScriptVMId.BaseScriptCompileHash = CompileHash;
-        			}
-        			else
-        			{
-        				// If the compile hash isn't valid, the vm id needs to be recalculated and the cached vm needs to be invalidated.
-        				bScriptVMNeedsRebuild = true;
-        				RebuildReason = TEXT("Script did not have a valid compile hash.");
-        			}
-        		}
-        	}
+			bool bScriptVMNeedsRebuild = false;
+			FString RebuildReason;
+			if (NiagaraVer < FNiagaraCustomVersion::UseHashesToIdentifyCompileStateOfTopLevelScripts && CachedScriptVMId.CompilerVersionID.IsValid())
+			{
+				FGuid BaseId = Source->GetCompileBaseId(Usage, UsageId);
+				if (BaseId.IsValid() == false)
+				{
+					UE_LOG(LogNiagara, Warning,
+						TEXT("Invalidating compile ids for script %s because it doesn't have a valid base id.  The owning asset will continue to compile on load until it is resaved."),
+						*GetPathName());
+					InvalidateCompileResults(TEXT("Script didn't have a valid base id."));
+					Source->ForceGraphToRecompileOnNextCheck();
+				}
+				else
+				{
+					FNiagaraCompileHash CompileHash = Source->GetCompileHash(Usage, UsageId);
+					if (CompileHash.IsValid())
+					{
+						CachedScriptVMId.BaseScriptCompileHash = CompileHash;
+					}
+					else
+					{
+						// If the compile hash isn't valid, the vm id needs to be recalculated and the cached vm needs to be invalidated.
+						bScriptVMNeedsRebuild = true;
+						RebuildReason = TEXT("Script did not have a valid compile hash.");
+					}
+				}
+			}
 
-        	if (CachedScriptVMId.CompilerVersionID.IsValid() && CachedScriptVMId.CompilerVersionID != FNiagaraCustomVersion::GetLatestScriptCompileVersion())
-        	{
-        		bScriptVMNeedsRebuild = true;
-        		RebuildReason = TEXT("Niagara compiler version changed since the last time the script was compiled.");
-        	}
+			if (CachedScriptVMId.CompilerVersionID.IsValid() && CachedScriptVMId.CompilerVersionID != FNiagaraCustomVersion::GetLatestScriptCompileVersion())
+			{
+				bScriptVMNeedsRebuild = true;
+				RebuildReason = TEXT("Niagara compiler version changed since the last time the script was compiled.");
+			}
 
-        	if (bScriptVMNeedsRebuild)
-        	{
-        		// Force a rebuild on the source vm ids, and then invalidate the current cache to force the script to be unsynchronized.
-        		// We modify here in post load so that it will cause the owning asset to resave when running the resave commandlet.
-        		bool bForceRebuild = true;
-        		Modify();
-        		Source->ComputeVMCompilationId(CachedScriptVMId, Usage, UsageId, bForceRebuild);
-        		InvalidateCompileResults(RebuildReason);
-        	}
+			if (bScriptVMNeedsRebuild)
+			{
+        			// We modify here in post load so that it will cause the owning asset to resave when running the resave commandlet.
+				Modify();
+				InvalidateCompileResults(RebuildReason);
 
-        	// Convert visibility of old assets
-        	if (NiagaraVer < FNiagaraCustomVersion::AddLibraryAssetProperty || (NiagaraVer < FNiagaraCustomVersion::AddLibraryVisibilityProperty && bExposeToLibrary_DEPRECATED))
-        	{
-        		ScriptData->LibraryVisibility = ENiagaraScriptLibraryVisibility::Library;
-        	}
-        }
+				// Older versions of graphs require the script to drive the CachedCompileIds being fully refreshed when the script version changes.
+				// In order to bridge the gap without requiring a new package version we trigger the refresh here
+				Source->RefreshGraphCompileId();
+			}
+
+			// Convert visibility of old assets
+			if (NiagaraVer < FNiagaraCustomVersion::AddLibraryAssetProperty || (NiagaraVer < FNiagaraCustomVersion::AddLibraryVisibilityProperty && bExposeToLibrary_DEPRECATED))
+			{
+				ScriptData->LibraryVisibility = ENiagaraScriptLibraryVisibility::Library;
+			}
+		}
 
 		if (Data.InputSections.Num() > 0)
 		{

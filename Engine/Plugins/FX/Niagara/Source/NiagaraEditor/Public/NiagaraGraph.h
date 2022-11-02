@@ -356,7 +356,12 @@ class UNiagaraGraph : public UEdGraph
 	  */
 	FString GetFunctionAliasByContext(const FNiagaraGraphFunctionAliasContext& FunctionAliasContext);
 
-	void RebuildCachedCompileIds(bool bForce = false);
+	/** In order to support reducing the number of times we need to fully generate the CompileId this function is introduced
+	  * to work with LastBuiltScriptVersionId & bHasValidLastBuiltScriptVersionId.
+	  */
+	void ConditionalRebuildCompileIdCache();
+
+	void RebuildCachedCompileIds();
 
 	void CopyCachedReferencesMap(UNiagaraGraph* TargetGraph);
 
@@ -449,6 +454,8 @@ private:
 
 	void FixupReferenceCollectionsPostRename(const FNiagaraVariable& OrigVariable, const FNiagaraVariable& DestVariable, bool bParameterMerged, bool bSuppressEvents);
 
+	void PostLoad_LWCFixup(int32 NiagaraVersion);
+
 private:
 	/** The current change identifier for this graph overall. Used to sync status with UNiagaraScripts.*/
 	UPROPERTY()
@@ -460,6 +467,13 @@ private:
 
 	UPROPERTY()
 	FGuid LastBuiltTraversalDataChangeId;
+
+	/** The script version that was used when the cached CompileId was generated, a change
+	 *	in script version will invalidate the cached CompileId and a new one will be generated.
+	 *	Will be initialized to an invalid guid but it won't be used until a valid script has been
+	 *	assigned (as dictated by bHasValidLastBuiltScriptVersionId) */
+	UPROPERTY()
+	FGuid LastBuiltScriptVersionId;
 
 	UPROPERTY()
 	TArray<FNiagaraGraphScriptUsageInfo> CachedUsageInfo;
@@ -478,6 +492,11 @@ private:
 
 	UPROPERTY(Transient)
 	mutable TArray<FNiagaraScriptVariableData> CompilationScriptVariables;
+
+	/** Used in conjunction with LastBuiltScriptVersionId to note that we've got a valid script Id stored.
+	 *	Works around things without having to add a custom version. */
+	UPROPERTY()
+	bool bHasValidLastBuiltScriptVersionId = false;
 
 	FOnDataInterfaceChanged OnDataInterfaceChangedDelegate;
 	FOnSubObjectSelectionChanged OnSelectedSubObjectChanged;

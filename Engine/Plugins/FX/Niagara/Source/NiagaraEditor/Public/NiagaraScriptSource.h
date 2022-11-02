@@ -38,7 +38,10 @@ class UNiagaraScriptSource : public UNiagaraScriptSourceBase
 	virtual FGuid GetChangeID() override;
 	FVersionedNiagaraEmitter GetOuterEmitter() const;
 
-	virtual void ComputeVMCompilationId(struct FNiagaraVMExecutableDataId& Id, ENiagaraScriptUsage InUsage, const FGuid& InUsageId, bool bForceRebuild = false) const override;
+	virtual void ComputeVMCompilationId(struct FNiagaraVMExecutableDataId& Id, ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const override;
+
+	// Will conditionally refresh the graph's CompileId
+	virtual void RefreshGraphCompileId() override;
 
 	virtual FGuid GetCompileBaseId(ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const override;
 

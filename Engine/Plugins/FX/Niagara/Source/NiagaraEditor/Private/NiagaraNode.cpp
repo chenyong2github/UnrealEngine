@@ -590,10 +590,12 @@ void UNiagaraNode::MarkNodeRequiresSynchronization(FString Reason, bool bRaiseGr
 	ChangeId = FGuid::NewGuid();
 	//UE_LOG(LogNiagaraEditor, Verbose, TEXT("Node %s was marked requires synchronization.  Reason: %s"), *GetPathName(), *Reason);
 
-	UNiagaraGraph* Graph = Cast<UNiagaraGraph>(GetGraph());
-	if (Graph != nullptr && bRaiseGraphNeedsRecompile)
+	if (bRaiseGraphNeedsRecompile)
 	{
-		Graph->NotifyGraphNeedsRecompile();
+		if (UNiagaraGraph* Graph = Cast<UNiagaraGraph>(GetGraph()))
+		{
+			Graph->NotifyGraphNeedsRecompile();
+		}
 	}
 
 	VisualsChangedDelegate.Broadcast(this);
