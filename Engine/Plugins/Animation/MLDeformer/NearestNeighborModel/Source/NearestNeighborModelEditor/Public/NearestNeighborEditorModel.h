@@ -42,6 +42,7 @@ namespace UE::NearestNeighborModel
 		virtual void OnPropertyChanged(FPropertyChangedEvent& PropertyChangedEvent) override;
 		virtual void OnPostTraining(ETrainingResult TrainingResult, bool bUsePartiallyTrainedWhenAborted) override;
 		virtual FString GetTrainedNetworkOnnxFile() const override;
+		virtual int32 GetNumTrainingFrames() const override;
 		// ~END FMLDeformerGeomCacheEditorModel overrides.
 
 		// Some helpers that cast to this model's variants of some classes.
@@ -95,5 +96,6 @@ namespace UE::NearestNeighborModel
 		uint8 ClothPartUpdateResult = 0;
 		uint8 NearestNeighborUpdateResult = 0;
 		uint8 MorphTargetUpdateResult = 0;
+		int32 NumTrainingFramesOverride = -1;
 	};
 }	// namespace UE::NearestNeighborModel

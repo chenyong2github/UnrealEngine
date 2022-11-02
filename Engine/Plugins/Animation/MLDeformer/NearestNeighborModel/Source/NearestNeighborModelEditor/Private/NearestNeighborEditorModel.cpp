@@ -92,6 +92,18 @@ namespace UE::NearestNeighborModel
 		}
 	}
 
+	int32 FNearestNeighborEditorModel::GetNumTrainingFrames() const
+	{
+		if (NumTrainingFramesOverride >= 0)
+		{
+			return NumTrainingFramesOverride;
+		}
+		else
+		{
+			return FMLDeformerMorphModelEditorModel::GetNumTrainingFrames();
+		}
+	}
+
 	void FNearestNeighborEditorModel::CreateActors(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene)
 	{
 		FMLDeformerMorphModelEditorModel::CreateActors(InPersonaPreviewScene);
@@ -210,6 +222,8 @@ namespace UE::NearestNeighborModel
 					GeometryCacheComponent->Play();
 					GeomCacheSampler->GeneratePartMeshMappings(GetNearestNeighborModel()->PartVertexMap(PartId), NearestNeighborModel->GetUsePartOnlyMesh());
 
+					NumTrainingFramesOverride = NumFrames;
+
 					return true;
 				}
 				else
@@ -256,7 +270,7 @@ namespace UE::NearestNeighborModel
 				SkeletalMeshComponent->Play(false);
 				SkeletalMeshComponent->RefreshBoneTransforms();
 			}
-
+			NumTrainingFramesOverride = -1;
 			GeomCacheSampler->RegisterTargetComponents();
 		}
 	}
