@@ -758,7 +758,10 @@ bool FNiagaraParameterStore::RemoveParameter(const FNiagaraVariableBase& ToRemov
 	}
 	//check(!ParameterOffsets.Num()); // Migration to SortedParameterOffsets
 #endif
-	RemovePositionData(ToRemove.GetName());
+	if (ToRemove.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+	{
+		RemovePositionData(ToRemove.GetName());
+	}
 	
 	if (IndexOf(ToRemove) != INDEX_NONE)
 	{
