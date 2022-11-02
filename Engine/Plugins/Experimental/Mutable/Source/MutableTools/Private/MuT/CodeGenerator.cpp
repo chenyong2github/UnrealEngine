@@ -1351,7 +1351,7 @@ namespace mu
                     IMAGE_STATE newState;
                     newState.m_imageSize = desc.m_size;
                     newState.m_imageRect = box<vec2<int>>::FromMinSize( vec2<int>(0,0), desc.m_size );
-                    newState.m_layoutBlock = -1;
+                    newState.m_layoutBlockId = -1;
                     newState.m_pLayout = nullptr;
                     m_imageState.Add( newState );
 
@@ -1525,7 +1525,7 @@ namespace mu
                             IMAGE_STATE newState;
                             newState.m_imageSize = desc.m_size;
                             newState.m_imageRect = rect;
-                            newState.m_layoutBlock = pLayout->m_blocks[b].m_id;
+                            newState.m_layoutBlockId = pLayout->m_blocks[b].m_id;
                             newState.m_pLayout = pLayout;
                             m_imageState.Add( newState );
 
@@ -1626,7 +1626,7 @@ namespace mu
                                             IMAGE_STATE newState;
                                             newState.m_imageSize = extendDesc.m_size;
                                             newState.m_imageRect = rect;
-                                            newState.m_layoutBlock = pExtendLayout->m_blocks[b].m_id;
+                                            newState.m_layoutBlockId = pExtendLayout->m_blocks[b].m_id;
                                             newState.m_pLayout = pExtendLayout;
                                             m_imageState.Add( newState );
 

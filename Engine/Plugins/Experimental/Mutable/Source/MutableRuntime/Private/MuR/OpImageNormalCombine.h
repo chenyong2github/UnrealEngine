@@ -66,9 +66,9 @@ namespace mu
 		ImageLayerCombineColour<CombineNormal>(pResult, pBase, col);
 	}
 
-	inline void ImageNormalCombine(Image* pResult, const Image* pBase, const Image* pBlended)
+	inline void ImageNormalCombine(Image* pResult, const Image* pBase, const Image* pBlended, bool bOnlyFirstLOD)
 	{
-		ImageLayerCombine<CombineNormal>(pResult, pBase, pBlended);
+		ImageLayerCombine<CombineNormal>(pResult, pBase, pBlended, bOnlyFirstLOD);
 	}
 
 	inline void ImageNormalCombine(Image* pResult, const Image* pBase, const Image* pMask, vec3<float> col)
@@ -76,8 +76,8 @@ namespace mu
 		ImageLayerCombineColour<CombineNormal, CombineNormalMasked>(pResult, pBase, pMask, col);
 	}
 
-	inline void ImageNormalCombine(Image* pResult, const Image* pBase, const Image* pMask, const Image* pBlended)
+	inline void ImageNormalCombine(Image* pResult, const Image* pBase, const Image* pMask, const Image* pBlended, bool bOnlyFirstLOD)
 	{
-		ImageLayerCombine<CombineNormal, CombineNormalMasked>(pResult, pBase, pMask, pBlended);
+		ImageLayerCombine<CombineNormal, CombineNormalMasked>(pResult, pBase, pMask, pBlended, bOnlyFirstLOD);
 	}
 }

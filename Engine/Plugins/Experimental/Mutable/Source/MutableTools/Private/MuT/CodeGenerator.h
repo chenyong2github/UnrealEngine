@@ -246,7 +246,7 @@ namespace mu
         {
             vec2<int> m_imageSize;
             box< vec2<int> > m_imageRect;
-            int32 m_layoutBlock;
+            int32 m_layoutBlockId;
             LayoutPtrConst m_pLayout;
         };
 		TArray<IMAGE_STATE> m_imageState;

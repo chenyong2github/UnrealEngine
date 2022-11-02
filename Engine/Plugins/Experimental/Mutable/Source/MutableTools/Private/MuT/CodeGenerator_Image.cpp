@@ -135,7 +135,7 @@ namespace mu
 			newState.m_imageRect.size = desc.m_size;
 			newState.m_imageRect.min[0] = 0;
 			newState.m_imageRect.min[1] = 0;
-			newState.m_layoutBlock = -1;
+			newState.m_layoutBlockId = -1;
 			m_imageState.Add(newState);
 			addedImageState = true;
 		}
@@ -1440,6 +1440,8 @@ namespace mu
 
         pop->SetChild( pop->op.args.MeshProject.projector, projectorResult.op );
 
+		int32 LayoutBlockIndex = m_imageState.Last().m_pLayout->m_blocks.IndexOfByPredicate([&](const Layout::FBlock& Block) { return Block.m_id == m_imageState.Last().m_layoutBlockId; });
+
         // Mesh
         if ( node.m_pMesh )
         {
@@ -1477,12 +1479,16 @@ namespace mu
             else
             {
                 // Extract the mesh layout block
-                if ( m_imageState.Num() && m_imageState.Last().m_layoutBlock>=0 )
+                if ( m_imageState.Num() && m_imageState.Last().m_layoutBlockId >=0 )
                 {
                     Ptr<ASTOpMeshExtractLayoutBlocks> eop = new ASTOpMeshExtractLayoutBlocks();
                     eop->source = pop->children[pop->op.args.MeshProject.mesh].child();
                     eop->layout = node.m_layout;
-                    eop->blocks.Add( m_imageState.Last().m_layoutBlock );
+					
+					// Match the block id of the block we are generating with the id that resulted in the generated mesh
+					int32 GeneratedLayoutBlockId = MeshResult.GeneratedLayouts[node.m_layout]->m_blocks[LayoutBlockIndex].m_id;
+
+                    eop->blocks.Add(GeneratedLayoutBlockId);
 
                     pop->SetChild( pop->op.args.MeshProject.mesh, eop );
                 }
@@ -1506,13 +1512,12 @@ namespace mu
         else
         {
             // This argument is required
-            MeshPtrConst pMesh = new Mesh();
+            Ptr<const Mesh> pMesh = new Mesh();
             Ptr<ASTOpConstantResource> cop = new ASTOpConstantResource();
             cop->type = OP_TYPE::ME_CONSTANT;
             cop->SetValue( pMesh, m_compilerOptions->m_optimisationOptions.m_useDiskCache );
             pop->SetChild( pop->op.args.MeshProject.mesh, cop );
-            m_pErrorLog->GetPrivate()->Add( "Projector mesh not set.",
-                                            ELMT_ERROR, node.m_errorContext );
+            m_pErrorLog->GetPrivate()->Add( "Projector mesh not set.", ELMT_ERROR, node.m_errorContext );
         }
 
 
@@ -1535,7 +1540,7 @@ namespace mu
             newState.m_imageRect.min[0] = 0;
             newState.m_imageRect.min[1] = 0;
             newState.m_imageRect.size = desc.m_size;
-            newState.m_layoutBlock = -1;
+            newState.m_layoutBlockId = -1;
             m_imageState.Add( newState );
 
             // Generate
@@ -1555,7 +1560,7 @@ namespace mu
         // Image size, from the current block being generated
         op->op.args.ImageRasterMesh.sizeX = (uint16)m_imageState.Last().m_imageRect.size[0];
         op->op.args.ImageRasterMesh.sizeY = (uint16)m_imageState.Last().m_imageRect.size[1];
-        op->op.args.ImageRasterMesh.blockIndex = m_imageState.Last().m_layoutBlock;
+        op->op.args.ImageRasterMesh.blockIndex = LayoutBlockIndex;
 
         // Fading properties are optional, and stored in a colour
         if (node.m_pAngleFadeStart||node.m_pAngleFadeEnd)

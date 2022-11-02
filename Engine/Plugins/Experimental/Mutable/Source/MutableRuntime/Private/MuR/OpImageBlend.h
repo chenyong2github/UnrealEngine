@@ -52,10 +52,10 @@ namespace mu
 
 
     inline void ImageBlendOnBase( Image* pBase, const Image* pMask, const Image* pBlended,
-                                  bool applyToAlpha )
+                                  bool applyToAlpha, bool bOnlyFirstLOD )
 	{
         ImageLayerOnBase<BlendChannelMasked, BlendChannel, false>
-                 ( pBase, pMask, pBlended, applyToAlpha );
+                 ( pBase, pMask, pBlended, applyToAlpha, bOnlyFirstLOD );
 	}
 
 	//! Blend a subimage on the base using a mask.

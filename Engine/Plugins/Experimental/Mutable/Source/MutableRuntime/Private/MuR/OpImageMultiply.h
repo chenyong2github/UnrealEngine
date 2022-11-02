@@ -60,7 +60,7 @@ namespace mu
                                      bool applyToAlpha )
 	{
         ImageLayerOnBase<MultiplyChannelMasked,MultiplyChannel, false>
-                ( pBase, pMask, pBlended, applyToAlpha );
+                ( pBase, pMask, pBlended, applyToAlpha, false );
 	}
 
     inline void ImageMultiplyOnBase( Image* pBase, const Image* pBlended,

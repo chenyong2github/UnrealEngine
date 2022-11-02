@@ -613,7 +613,7 @@ namespace mu
 
     //---------------------------------------------------------------------------------------------
     //! Generate the mipmaps for images.
-	//! if bGenerateOnlyTail is true, generates the mips missing form pBase to levelCount and sets
+	//! if bGenerateOnlyTail is true, generates the mips missing from pBase to levelCount and sets
 	//! them in pDest (the full chain is spit in two images). Otherwise generate the mips missing 
 	//! from pBase up to levelCount and append them in pDest to the already generated pBase's mips.
     //---------------------------------------------------------------------------------------------
@@ -738,5 +738,47 @@ namespace mu
             checkf( false, TEXT("Format not implemented in mipmap generation."));
         }
     }
+
+
+	/** Update all the mipmaps in the image from the data in the base one. 
+	* Only the mipmaps already existing in the image are updated.
+	*/
+	inline void ImageMipmapInPlace(int InImageCompressionQuality, Image* InBase, const FMipmapGenerationSettings& InSettings)
+	{
+		int32 StartLevel = 0;
+		int32 LevelCount = InBase->GetLODCount();
+
+		check(!(InBase->m_flags & Image::IF_CANNOT_BE_SCALED));
+
+		int32 MipsToBuild = InBase->GetLODCount()-1;
+		if (!MipsToBuild)
+		{
+			return;
+		}
+
+		const uint8_t* pSourceBuf = InBase->GetMipData(StartLevel);
+		uint8_t* pDestBuf = InBase->GetMipData(StartLevel + 1);
+
+		vec2<int> sourceSize = InBase->CalculateMipSize(StartLevel);
+
+		switch (InBase->GetFormat())
+		{
+		case EImageFormat::IF_L_UBYTE:
+			GenerateMipmapsUint8<1>(MipsToBuild, pSourceBuf, pDestBuf, sourceSize, InSettings);
+			break;
+
+		case EImageFormat::IF_RGB_UBYTE:
+			GenerateMipmapsUint8<3>(MipsToBuild, pSourceBuf, pDestBuf, sourceSize, InSettings);
+			break;
+
+		case EImageFormat::IF_BGRA_UBYTE:
+		case EImageFormat::IF_RGBA_UBYTE:
+			GenerateMipmapsUint8<4>(MipsToBuild, pSourceBuf, pDestBuf, sourceSize, InSettings);
+			break;
+
+		default:
+			checkf(false, TEXT("Format not implemented in mipmap generation."));
+		}
+	}
 
 }

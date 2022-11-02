@@ -134,9 +134,9 @@ namespace mu
 
 		// This used to be the data in the private implementation of the image interface
 		//-----------------------------------------------------------------------------------------
-		struct BLOCK
+		struct FBlock
 		{
-			BLOCK(vec2<uint16> min = vec2<uint16>(), vec2<uint16> size = vec2<uint16>())
+			FBlock(vec2<uint16> min = vec2<uint16>(), vec2<uint16> size = vec2<uint16>())
 			{
 				m_min = min;
 				m_size = size;
@@ -173,7 +173,7 @@ namespace mu
 			}
 
 			//!
-			inline bool operator==(const BLOCK& o) const
+			inline bool operator==(const FBlock& o) const
 			{
 				return (m_min == o.m_min) &&
 					(m_size == o.m_size) &&
@@ -181,7 +181,7 @@ namespace mu
 					(m_priority == o.m_priority);
 			}
 
-			inline bool IsSimilar(const BLOCK& o) const
+			inline bool IsSimilar(const FBlock& o) const
 			{
 				// All but ids
 				return (m_min == o.m_min) &&
@@ -197,7 +197,7 @@ namespace mu
 		vec2<uint16> m_maxsize;
 
 		//!
-		TArray<BLOCK> m_blocks;
+		TArray<FBlock> m_blocks;
 
 		//! Packing strategy
 		EPackStrategy m_strategy = EPackStrategy::RESIZABLE_LAYOUT;

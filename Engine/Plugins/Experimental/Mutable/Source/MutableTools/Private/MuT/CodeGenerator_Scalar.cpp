@@ -172,7 +172,7 @@ namespace mu
 					newState.m_imageRect.min[0] = 0;
 					newState.m_imageRect.min[1] = 0;
 					newState.m_imageRect.size = desc.m_size;
-					newState.m_layoutBlock = -1;
+					newState.m_layoutBlockId = -1;
 					m_imageState.Add(newState);
 
 					// Generate

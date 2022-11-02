@@ -475,7 +475,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	template< unsigned (*BLEND_FUNC)(unsigned,unsigned), bool CLAMP, int NC >
     inline void BufferLayer(uint8* pDestBuf, const Image* pBase, const Image* pBlended,
-                            bool applyToAlpha )
+                            bool applyToAlpha, bool bOnlyFirstLOD )
 	{
 		check( pBase->GetSizeX() == pBlended->GetSizeX() );
 		check( pBase->GetSizeY() == pBlended->GetSizeY() );
@@ -485,9 +485,17 @@ namespace mu
         const uint8* pBlendedBuf = pBlended->GetData();
 
 		// Generic implementation
-		int32 pixelCount = pBase->CalculatePixelCount();
+		int32 PixelCount = 0;
+		if (bOnlyFirstLOD)
+		{
+			PixelCount = pBase->GetSizeX() * pBase->GetSizeY();
+		}
+		else
+		{
+			PixelCount = pBase->CalculatePixelCount();
+		}
 
-		ParallelFor(pixelCount,
+		ParallelFor(PixelCount,
 			[
 				pBaseBuf, pBlendedBuf, pDestBuf, applyToAlpha
 			] (uint32 i)
@@ -554,15 +562,15 @@ namespace mu
 
 		if ( baseFormat==EImageFormat::IF_RGB_UBYTE )
 		{
-            BufferLayer< BLEND_FUNC, CLAMP, 3 > ( pDestBuf, pBase, pBlended, applyToAlpha );
+            BufferLayer< BLEND_FUNC, CLAMP, 3 > ( pDestBuf, pBase, pBlended, applyToAlpha, false );
 		}
         else if ( baseFormat==EImageFormat::IF_RGBA_UBYTE || baseFormat==EImageFormat::IF_BGRA_UBYTE )
 		{
-            BufferLayer< BLEND_FUNC, CLAMP, 4 > ( pDestBuf, pBase, pBlended, applyToAlpha );
+            BufferLayer< BLEND_FUNC, CLAMP, 4 > ( pDestBuf, pBase, pBlended, applyToAlpha, false);
 		}
 		else if ( baseFormat==EImageFormat::IF_L_UBYTE )
 		{
-            BufferLayer< BLEND_FUNC, CLAMP, 1 > ( pDestBuf, pBase, pBlended, applyToAlpha );
+            BufferLayer< BLEND_FUNC, CLAMP, 1 > ( pDestBuf, pBase, pBlended, applyToAlpha, false);
 		}
 		else
 		{
@@ -576,7 +584,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	template< unsigned (*BLEND_FUNC)(unsigned,unsigned), bool CLAMP >
     inline void ImageLayerOnBase( Image* pBase, const Image* pBlended,
-                                  bool applyToAlpha )
+                                  bool applyToAlpha, bool bOnlyFirstLOD=false )
 	{
 		check( pBase->GetSizeX() == pBlended->GetSizeX() );
 		check( pBase->GetSizeY() == pBlended->GetSizeY() );
@@ -587,15 +595,15 @@ namespace mu
 
 		if ( baseFormat==EImageFormat::IF_RGB_UBYTE )
 		{
-            BufferLayer< BLEND_FUNC, CLAMP, 3 > ( pDestBuf, pBase, pBlended, applyToAlpha );
+            BufferLayer< BLEND_FUNC, CLAMP, 3 > ( pDestBuf, pBase, pBlended, applyToAlpha, bOnlyFirstLOD);
 		}
         else if ( baseFormat==EImageFormat::IF_RGBA_UBYTE || baseFormat==EImageFormat::IF_BGRA_UBYTE )
 		{
-            BufferLayer< BLEND_FUNC, CLAMP, 4 > ( pDestBuf, pBase, pBlended, applyToAlpha );
+            BufferLayer< BLEND_FUNC, CLAMP, 4 > ( pDestBuf, pBase, pBlended, applyToAlpha, bOnlyFirstLOD);
 		}
 		else if ( baseFormat==EImageFormat::IF_L_UBYTE )
 		{
-            BufferLayer< BLEND_FUNC, CLAMP, 1 > ( pDestBuf, pBase, pBlended, applyToAlpha );
+            BufferLayer< BLEND_FUNC, CLAMP, 1 > ( pDestBuf, pBase, pBlended, applyToAlpha, bOnlyFirstLOD);
 		}
 		else
 		{
@@ -613,12 +621,13 @@ namespace mu
                                    const Image* pBase,
                                    const Image* pMask,
                                    const Image* pBlend,
-                                   bool applyToAlpha )
+                                   bool applyToAlpha,
+								   bool bOnlyFirstLOD )
 	{
         check(pBase->GetSizeX()==pMask->GetSizeX() && pBase->GetSizeY()==pMask->GetSizeY());
         check(pBase->GetSizeX()==pBlend->GetSizeX() && pBase->GetSizeY()==pBlend->GetSizeY());
-        check(pBase->GetLODCount() <= pMask->GetLODCount() );
-        check(pBase->GetLODCount() <= pBlend->GetLODCount() );
+        check(bOnlyFirstLOD || pBase->GetLODCount() <= pMask->GetLODCount() );
+        check(bOnlyFirstLOD || pBase->GetLODCount() <= pBlend->GetLODCount() );
 
 		uint8* pDestBuf = pStartDestBuf;
         const uint8* pMaskBuf = pMask->GetData();
@@ -629,15 +638,23 @@ namespace mu
         bool isUncompressed = ( maskFormat == EImageFormat::IF_L_UBYTE );
 
 		// The base determines the number of lods to process.
-		int32 LODCount = pBase->GetLODCount();
+		int32 LODCount = bOnlyFirstLOD ? 1 : pBase->GetLODCount();
 
         if ( isUncompressed )
 		{
-			int32 pixelCount = pBase->CalculatePixelCount();
+			int32 PixelCount = 0;
+			if (bOnlyFirstLOD)
+			{
+				PixelCount = pBase->GetSizeX() * pBase->GetSizeY();
+			}
+			else
+			{
+				PixelCount = pBase->CalculatePixelCount();
+			}
 
             if (!applyToAlpha && NC>3)
             {
-				ParallelFor(pixelCount,
+				ParallelFor(PixelCount,
 					[
 						pBaseBuf, pBlendedBuf, pMaskBuf, pDestBuf
 					] (uint32 i)
@@ -664,7 +681,7 @@ namespace mu
             }
             else
             {
-				ParallelFor(pixelCount,
+				ParallelFor(PixelCount,
 					[
 						pBaseBuf, pBlendedBuf, pMaskBuf, pDestBuf
 					] (uint32 i)
@@ -988,22 +1005,23 @@ namespace mu
 							 const Image* pBase,
 							 const Image* pMask,
                              const Image* pBlend,
-                             bool applyToAlpha )
+                             bool applyToAlpha,
+							 bool bOnlyFirstLOD )
 	{
 		if ( pBase->GetFormat()==EImageFormat::IF_RGB_UBYTE )
 		{
             BufferLayerFormat< BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, 3 >
-                    ( pDestBuf, pBase, pMask, pBlend, applyToAlpha ) ;
+                    ( pDestBuf, pBase, pMask, pBlend, applyToAlpha, bOnlyFirstLOD) ;
 		}
         else if ( pBase->GetFormat()==EImageFormat::IF_RGBA_UBYTE || pBase->GetFormat()==EImageFormat::IF_BGRA_UBYTE )
 		{
             BufferLayerFormat< BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, 4 >
-                    ( pDestBuf, pBase, pMask, pBlend, applyToAlpha ) ;
+                    ( pDestBuf, pBase, pMask, pBlend, applyToAlpha, bOnlyFirstLOD) ;
 		}
 		else if ( pBase->GetFormat()==EImageFormat::IF_L_UBYTE )
 		{
             BufferLayerFormat< BLEND_FUNC_MASKED, BLEND_FUNC, CLAMP, 1 >
-                    ( pDestBuf, pBase, pMask, pBlend, applyToAlpha ) ;
+                    ( pDestBuf, pBase, pMask, pBlend, applyToAlpha, bOnlyFirstLOD) ;
 		}
         else
 		{
@@ -1067,7 +1085,7 @@ namespace mu
         check( pBase->GetLODCount() <= pBlended->GetLODCount() );
 
         BufferLayer<BLEND_FUNC_MASKED,BLEND_FUNC,CLAMP>( pResult->GetData(), pBase, pMask,
-                                                         pBlended, applyToAlpha );
+                                                         pBlended, applyToAlpha, false);
 	}
 
 
@@ -1079,7 +1097,7 @@ namespace mu
 			  unsigned (*BLEND_FUNC)(unsigned,unsigned),
 			  bool CLAMP >
     inline void ImageLayerOnBase( Image* pBase, const Image* pMask, const Image* pBlended,
-                                  bool applyToAlpha )
+                                  bool applyToAlpha, bool bOnlyFirstLOD )
 	{
 		check( pBase->GetSizeX() == pMask->GetSizeX() );
 		check( pBase->GetSizeY() == pMask->GetSizeY() );
@@ -1089,11 +1107,11 @@ namespace mu
 		check( pMask->GetFormat() == EImageFormat::IF_L_UBYTE
 						||
 						pMask->GetFormat() == EImageFormat::IF_L_UBYTE_RLE );
-        check( pBase->GetLODCount() <= pMask->GetLODCount() );
-        check( pBase->GetLODCount() <= pBlended->GetLODCount() );
+        check(bOnlyFirstLOD || pBase->GetLODCount() <= pMask->GetLODCount() );
+        check(bOnlyFirstLOD || pBase->GetLODCount() <= pBlended->GetLODCount() );
 
         BufferLayer<BLEND_FUNC_MASKED,BLEND_FUNC,CLAMP>( pBase->GetData(), pBase, pMask,
-                                                         pBlended, applyToAlpha );
+                                                         pBlended, applyToAlpha, bOnlyFirstLOD);
 	}
 
 
@@ -1386,7 +1404,7 @@ namespace mu
 	template< 
 			uint32 (*BLEND_FUNC)(uint32, uint32), 
 			size_t NC >
-	inline void BufferLayerCombine(uint8* pDestBuf, const Image* pBase, const Image* pBlended)
+	inline void BufferLayerCombine(uint8* pDestBuf, const Image* pBase, const Image* pBlended, bool bOnlyFirstLOD)
 	{
 		//static_assert(NC > 0 && NC <= 4);
 
@@ -1397,9 +1415,17 @@ namespace mu
 		const uint8* pBaseBuf = pBase->GetData();
 		const uint8* pBlendedBuf = pBlended->GetData();
 
-		int32 pixelCount = pBase->CalculatePixelCount();
+		int32 PixelCount = 0;
+		if (bOnlyFirstLOD)
+		{
+			PixelCount = pBase->GetSizeX() * pBase->GetSizeX();
+		}
+		else
+		{
+			PixelCount = pBase->CalculatePixelCount();
+		}		
 
-		for (int i = 0; i < pixelCount; ++i)
+		for (int i = 0; i < PixelCount; ++i)
 		{
 			const uint32 base = PackPixel<NC>(&pBaseBuf[NC * i]);
 			const uint32 blend = PackPixel<NC>(&pBlendedBuf[NC * i]);
@@ -1413,7 +1439,7 @@ namespace mu
 	template< 
 			uint32 (*BLEND_FUNC_MASKED)(uint32, uint32, uint32), 
 			size_t NC >
-	inline void BufferLayerCombine(uint8* pDestBuf, const Image* pBase, const Image* pMask, const Image* pBlended)
+	inline void BufferLayerCombine(uint8* pDestBuf, const Image* pBase, const Image* pMask, const Image* pBlended, bool bOnlyFirstLOD)
 	{
 		//static_assert(NC > 0 && NC <= 4);
 
@@ -1427,9 +1453,17 @@ namespace mu
 		const uint8* pMaskBuf = pMask->GetData();
 		const uint8* pBlendedBuf = pBlended->GetData();
 
-		int32 pixelCount = pBase->CalculatePixelCount();
+		int32 PixelCount = 0;
+		if (bOnlyFirstLOD)
+		{
+			PixelCount = pBase->GetSizeX() * pBase->GetSizeX();
+		}
+		else
+		{
+			PixelCount = pBase->CalculatePixelCount();
+		}
 
-		for (int i = 0; i < pixelCount; ++i)
+		for (int i = 0; i < PixelCount; ++i)
 		{
 			const uint32 base = PackPixel<NC>(&pBaseBuf[NC * i]);
 			const uint32 blend = PackPixel<NC>(&pBlendedBuf[NC * i]);
@@ -1475,32 +1509,32 @@ namespace mu
 	}
 
 	template< uint32 (*BLEND_FUNC)(uint32, uint32) >
-	inline void ImageLayerCombine(Image* pResult, const Image* pBase, const Image* pBlended)
+	inline void ImageLayerCombine(Image* pResult, const Image* pBase, const Image* pBlended, bool bOnlyFirstLOD)
 	{
 		check(pResult->GetFormat() == pBase->GetFormat());
 		check(pResult->GetSizeX() == pBase->GetSizeX());
 		check(pResult->GetSizeY() == pBase->GetSizeY());
-		check(pResult->GetLODCount() == pBase->GetLODCount());
+		check(bOnlyFirstLOD || pResult->GetLODCount() == pBase->GetLODCount());
 		check(pBase->GetSizeX() == pBlended->GetSizeX());
 		check(pBase->GetSizeY() == pBlended->GetSizeY());
 		check(pBase->GetFormat() == pBlended->GetFormat());
-		check(pResult->GetLODCount() <= pBlended->GetLODCount());
+		check(bOnlyFirstLOD || pResult->GetLODCount() <= pBlended->GetLODCount());
 
 		const EImageFormat baseFormat = pBase->GetFormat();
 
 		uint8* pDestBuf = pResult->GetData();
 		if (baseFormat == EImageFormat::IF_L_UBYTE)
 		{
-			BufferLayerCombine<BLEND_FUNC, 1 >(pDestBuf, pBase, pBlended);
+			BufferLayerCombine<BLEND_FUNC, 1 >(pDestBuf, pBase, pBlended, bOnlyFirstLOD);
 		}
 		else if (baseFormat == EImageFormat::IF_RGB_UBYTE)
 		{
-			BufferLayerCombine< BLEND_FUNC, 3 >(pDestBuf, pBase, pBlended);
+			BufferLayerCombine< BLEND_FUNC, 3 >(pDestBuf, pBase, pBlended, bOnlyFirstLOD);
 		}
 		else if (baseFormat == EImageFormat::IF_RGBA_UBYTE || baseFormat == EImageFormat::IF_BGRA_UBYTE)
 		{
 			// \todo: pass swizzle template argument if BGRA_UBYTE, not yet supported.
-			BufferLayerCombine< BLEND_FUNC, 4 >(pDestBuf, pBase, pBlended);
+			BufferLayerCombine< BLEND_FUNC, 4 >(pDestBuf, pBase, pBlended, bOnlyFirstLOD);
 		}
 		else
 		{
@@ -1511,16 +1545,16 @@ namespace mu
 	template< 
 		uint32 (*BLEND_FUNC)(uint32, uint32), 
 		uint32 (*BLEND_FUNC_MASKED)(uint32, uint32, uint32) >
-	inline void ImageLayerCombine(Image* pResult, const Image* pBase, const Image* pMask, const Image* pBlended)
+	inline void ImageLayerCombine(Image* pResult, const Image* pBase, const Image* pMask, const Image* pBlended, bool bOnlyFirstLOD)
 	{
 		check(pResult->GetFormat() == pBase->GetFormat());
 		check(pResult->GetSizeX() == pBase->GetSizeX());
 		check(pResult->GetSizeY() == pBase->GetSizeY());
-		check(pResult->GetLODCount() == pBase->GetLODCount());
+		check(bOnlyFirstLOD || pResult->GetLODCount() == pBase->GetLODCount());
 		check(pBase->GetSizeX() == pBlended->GetSizeX());
 		check(pBase->GetSizeY() == pBlended->GetSizeY());
 		check(pBase->GetFormat() == pBlended->GetFormat());
-		check(pResult->GetLODCount() <= pBlended->GetLODCount());
+		check(bOnlyFirstLOD || pResult->GetLODCount() <= pBlended->GetLODCount());
 
 		const EImageFormat baseFormat = pBase->GetFormat();
 
@@ -1530,21 +1564,21 @@ namespace mu
 		{
 			checkf(false, TEXT("Unsupported mask format."));
 
-			BufferLayerCombine< BLEND_FUNC, 1 >(pDestBuf, pBase, pBlended);
+			BufferLayerCombine< BLEND_FUNC, 1 >(pDestBuf, pBase, pBlended, bOnlyFirstLOD);
 		}
 
 		if (baseFormat == EImageFormat::IF_L_UBYTE)
 		{
-			BufferLayerCombine< BLEND_FUNC_MASKED, 1 >(pDestBuf, pBase, pMask, pBlended);
+			BufferLayerCombine< BLEND_FUNC_MASKED, 1 >(pDestBuf, pBase, pMask, pBlended, bOnlyFirstLOD);
 		}
 		else if (baseFormat == EImageFormat::IF_RGB_UBYTE)
 		{
-			BufferLayerCombine< BLEND_FUNC_MASKED, 3 >(pDestBuf, pBase, pMask, pBlended);
+			BufferLayerCombine< BLEND_FUNC_MASKED, 3 >(pDestBuf, pBase, pMask, pBlended, bOnlyFirstLOD);
 		}
 		else if (baseFormat == EImageFormat::IF_RGBA_UBYTE || baseFormat == EImageFormat::IF_BGRA_UBYTE)
 		{
 			// \todo: pass swizzle template argument if BGRA_UBYTE, not yet supported.
-			BufferLayerCombine< BLEND_FUNC_MASKED, 4 >(pDestBuf, pBase, pMask, pBlended);
+			BufferLayerCombine< BLEND_FUNC_MASKED, 4 >(pDestBuf, pBase, pMask, pBlended, bOnlyFirstLOD);
 		}
 		else
 		{

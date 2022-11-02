@@ -2532,6 +2532,10 @@ namespace mu
 
                 SCHEDULED_OP itemCopy = item;
                 ExecutionIndex index = GetMemory().GetRageIndex( item.executionIndex );
+				
+				// This becomes true if we need to update the mips of the resulting image
+				// This could happen in the base image has mips, but one of the blended one doesn't.
+				bool bBlendOnlyOneMip = false;
 
                 for (int i=0; i<iterations; ++i)
                 {
@@ -2545,36 +2549,21 @@ namespace mu
                     // \todo: raise a performance warning?
                     if (pBlended && pBlended->GetFormat()!=baseFormat )
                     {
-                        pBlended =
-                            ImagePixelFormat( m_pSettings->GetPrivate()->m_imageCompressionQuality,
-                                              pBlended.get(), baseFormat );
+						MUTABLE_CPUPROFILER_SCOPE(ImageResize_BlendedReformat);
+						pBlended = ImagePixelFormat( m_pSettings->GetPrivate()->m_imageCompressionQuality, pBlended.get(), baseFormat );
                     }
 
 					// TODO: This shouldn't happen, but be defensive.
 					FImageSize ResultSize = pBase->GetSize();
 					if (pBlended && pBlended->GetSize() != ResultSize)
 					{
-						MUTABLE_CPUPROFILER_SCOPE(ImageResize_MaskFixForMultilayer);
+						MUTABLE_CPUPROFILER_SCOPE(ImageResize_BlendedFixForMultilayer);
 						pBlended = ImageResizeLinear(0, pBlended.get(), ResultSize);
 					}
 
 					if (pBlended->GetLODCount() < pBase->GetLODCount())
 					{
-						MUTABLE_CPUPROFILER_SCOPE(ImageLayer_MipBlendedEmergencyFix);
-
-						int levelCount = pBase->GetLODCount();
-						ImagePtr pDest = new Image(pBlended->GetSizeX(), pBlended->GetSizeY(),
-							levelCount,
-							pBlended->GetFormat());
-
-						SCRATCH_IMAGE_MIPMAP scratch;
-						FMipmapGenerationSettings settings{};
-
-						ImageMipmap_PrepareScratch(pDest.get(), pBlended.get(), levelCount, &scratch);
-						ImageMipmap(m_pSettings->GetPrivate()->m_imageCompressionQuality, pDest.get(), pBlended.get(), levelCount,
-							&scratch, settings);
-
-						pBlended = pDest;
+						bBlendOnlyOneMip = true;
 					}
 
                     if (args.mask)
@@ -2588,43 +2577,29 @@ namespace mu
 							pMask = ImageResizeLinear(0, pMask.get(), ResultSize);
 						}
 
-                        // emergy fix c36adf47-e40d-490f-b709-41142bafad78
                         if (pMask->GetLODCount()<pBase->GetLODCount())
                         {
-                            MUTABLE_CPUPROFILER_SCOPE(ImageLayer_EmergencyFix);
-
-                            int levelCount = pBase->GetLODCount();
-                            ImagePtr pDest = new Image( pMask->GetSizeX(), pMask->GetSizeY(),
-                                                        levelCount,
-                                                        pMask->GetFormat() );
-							
-                            SCRATCH_IMAGE_MIPMAP scratch;
-							FMipmapGenerationSettings mipSettings{};
-                        
-                            ImageMipmap_PrepareScratch( pDest.get(), pMask.get(), levelCount, &scratch );
-                            ImageMipmap( m_pSettings->GetPrivate()->m_imageCompressionQuality,
-                                         pDest.get(), pMask.get(), levelCount, &scratch, mipSettings );
-                            pMask = pDest;
-                        }
+							bBlendOnlyOneMip = true;
+						}
 
                         switch (EBlendType(args.blendType))
                         {
 						case EBlendType::BT_NORMAL_COMBINE: 
 							// \todo: optimise with ping pong buffers or blend-in-place
-							ImageNormalCombine(pNew.get(), pBase.get(), pMask.get(), pBlended.get());
+							ImageNormalCombine(pNew.get(), pBase.get(), pMask.get(), pBlended.get(), bBlendOnlyOneMip);
 							pResult = pNew;
 							pBase = pNew;
 							pNew = new Image(pBase->GetSizeX(), pBase->GetSizeY(), pBase->GetLODCount(), pBase->GetFormat());
 							break;
-                        case EBlendType::BT_SOFTLIGHT: ImageLayerOnBase<SoftLightChannelMasked, SoftLightChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_HARDLIGHT: ImageLayerOnBase<HardLightChannelMasked, HardLightChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_BURN: ImageLayerOnBase<BurnChannelMasked, BurnChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_DODGE: ImageLayerOnBase<DodgeChannelMasked, DodgeChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_SCREEN: ImageLayerOnBase<ScreenChannelMasked, ScreenChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_OVERLAY: ImageLayerOnBase<OverlayChannelMasked, OverlayChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_ALPHA_OVERLAY: ImageLayerOnBase<AlphaOverlayChannelMasked, AlphaOverlayChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_MULTIPLY: ImageLayerOnBase<MultiplyChannelMasked, MultiplyChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_BLEND: ImageLayerOnBase<BlendChannelMasked, BlendChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_SOFTLIGHT: ImageLayerOnBase<SoftLightChannelMasked, SoftLightChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_HARDLIGHT: ImageLayerOnBase<HardLightChannelMasked, HardLightChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_BURN: ImageLayerOnBase<BurnChannelMasked, BurnChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_DODGE: ImageLayerOnBase<DodgeChannelMasked, DodgeChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_SCREEN: ImageLayerOnBase<ScreenChannelMasked, ScreenChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_OVERLAY: ImageLayerOnBase<OverlayChannelMasked, OverlayChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_ALPHA_OVERLAY: ImageLayerOnBase<AlphaOverlayChannelMasked, AlphaOverlayChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_MULTIPLY: ImageLayerOnBase<MultiplyChannelMasked, MultiplyChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_BLEND: ImageLayerOnBase<BlendChannelMasked, BlendChannel, false>( pNew.get(), pMask.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
                         default: check(false);
                         }
 
@@ -2635,24 +2610,33 @@ namespace mu
                         {
 						case EBlendType::BT_NORMAL_COMBINE: 
 							// \todo: optimise with ping pong buffers or blend-in-place
-							ImageNormalCombine(pNew.get(), pBase.get(), pBlended.get());
+							ImageNormalCombine(pNew.get(), pBase.get(), pBlended.get(), bBlendOnlyOneMip);
 							pResult = pNew;
 							pBase = pNew;
 							pNew = new Image(pBase->GetSizeX(), pBase->GetSizeY(), pBase->GetLODCount(), pBase->GetFormat());
 							break;
-                        case EBlendType::BT_SOFTLIGHT: ImageLayerOnBase<SoftLightChannel, false>( pNew.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_HARDLIGHT: ImageLayerOnBase<HardLightChannel, false>( pNew.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_BURN: ImageLayerOnBase<BurnChannel, false>( pNew.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_DODGE: ImageLayerOnBase<DodgeChannel, false>( pNew.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_SCREEN: ImageLayerOnBase<ScreenChannel, false>( pNew.get(),  pBlended.get(), false ); break;
-                        case EBlendType::BT_OVERLAY: ImageLayerOnBase<OverlayChannel, false>( pNew.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_ALPHA_OVERLAY: ImageLayerOnBase<AlphaOverlayChannel, false>( pNew.get(), pBlended.get(), false ); break;
-                        case EBlendType::BT_MULTIPLY: ImageLayerOnBase<MultiplyChannel, false>( pNew.get(), pBlended.get(), false ); break;
+                        case EBlendType::BT_SOFTLIGHT: ImageLayerOnBase<SoftLightChannel, false>( pNew.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_HARDLIGHT: ImageLayerOnBase<HardLightChannel, false>( pNew.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_BURN: ImageLayerOnBase<BurnChannel, false>( pNew.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_DODGE: ImageLayerOnBase<DodgeChannel, false>( pNew.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_SCREEN: ImageLayerOnBase<ScreenChannel, false>( pNew.get(),  pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_OVERLAY: ImageLayerOnBase<OverlayChannel, false>( pNew.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_ALPHA_OVERLAY: ImageLayerOnBase<AlphaOverlayChannel, false>( pNew.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
+                        case EBlendType::BT_MULTIPLY: ImageLayerOnBase<MultiplyChannel, false>( pNew.get(), pBlended.get(), false, bBlendOnlyOneMip); break;
                         case EBlendType::BT_BLEND: pNew = pBlended->Clone(); break;
                         default: check(false);
                         }
                     }
 				}
+
+				if (bBlendOnlyOneMip)
+				{
+					MUTABLE_CPUPROFILER_SCOPE(ImageLayer_MipFix);
+					FMipmapGenerationSettings DummyMipSettings{};
+					ImageMipmapInPlace(m_pSettings->GetPrivate()->m_imageCompressionQuality, pNew.get(), DummyMipSettings);
+				}
+
+				// TODO: Reconvert to baseFormat?
 
                 GetMemory().SetImage( item, pResult );
                 break;
@@ -3942,9 +3926,11 @@ namespace mu
 					pSource = ImageResizeLinear(0, pSource.get(), pMap->GetSize());
 				}
 
-                ImagePtr pNew = new Image( pSource->GetSizeX(), pSource->GetSizeY(), 1, pSource->GetFormat() );
+				// This works based on the assumption that displacement maps never read from a position they actually write to.
+				// Since they are used for UV border expansion, this should always be the case.
+				//ImagePtr pNew = new Image(pSource->GetSizeX(), pSource->GetSizeY(), 1, pSource->GetFormat());
+				Ptr<Image> pNew = mu::CloneOrTakeOver(pSource.get());
 
-                // TODO: Reuse source if possible
                 ImageDisplace( pNew.get(), pSource.get(), pMap.get() );
 
 				if (OriginalSourceScale != pNew->GetSize())

@@ -77,7 +77,7 @@ namespace mu
 		//	pB->GetPrivate()->m_blocks.end()
 		//);
 
-		for ( const Layout::BLOCK& block: pB->m_blocks )
+		for ( const Layout::FBlock& block: pB->m_blocks )
 		{
 			if ( pResult->FindBlock(block.m_id)<0 )
 			{
