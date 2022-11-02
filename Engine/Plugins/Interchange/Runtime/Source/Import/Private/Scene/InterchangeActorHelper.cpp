@@ -3,6 +3,7 @@
 #include "Scene/InterchangeActorHelper.h"
 
 #include "Engine/Engine.h"
+#include "Engine/Level.h"
 #include "InterchangeActorFactoryNode.h"
 #include "InterchangeMaterialFactoryNode.h"
 #include "InterchangeMeshActorFactoryNode.h"
