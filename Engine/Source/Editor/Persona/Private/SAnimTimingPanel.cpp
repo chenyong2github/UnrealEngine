@@ -527,8 +527,10 @@ float FTimingRelevantElement_NotifyStateEnd::GetElementTime() const
 	if(Sequence->Notifies.IsValidIndex(NotifyIndex))
 	{
 		FAnimNotifyEvent& Event = Sequence->Notifies[NotifyIndex];
-		check(Event.NotifyStateClass);
-		return Event.GetEndTriggerTime();
+		if(Event.NotifyStateClass)
+		{
+			return Event.GetEndTriggerTime();
+		}
 	}
 	return -1.0f;
 }
