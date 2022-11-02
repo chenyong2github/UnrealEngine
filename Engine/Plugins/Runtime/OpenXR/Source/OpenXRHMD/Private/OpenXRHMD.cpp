@@ -2175,7 +2175,6 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 	// Flags might also change. We expect TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead from SceneTextures
 	check(EnumHasAllFlags(DepthSwapchainDesc.Flags, UnifiedCreateFlags));
 	check(DepthSwapchainDesc.Format == Format);
-	check(DepthSwapchainDesc.Extent.X == SizeX && DepthSwapchainDesc.Extent.Y == SizeY);
 	check(DepthSwapchainDesc.NumMips == FMath::Max(NumMips, 1u));
 	check(DepthSwapchainDesc.NumSamples == NumSamples);
 
