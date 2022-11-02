@@ -117,6 +117,11 @@ void UPolygonOnMeshTool::Setup()
 				GetToolManager()->DisplayMessage(LOCTEXT("FailNotification", "Unable to complete cut."),
 					EToolMessageLevel::UserWarning);
 			}
+			else if (EdgesOnFailure.Num() > 0)
+			{
+				GetToolManager()->DisplayMessage(LOCTEXT("BoundaryEdgesNotification", "Cut resulted in one or more boundary edges."),
+					EToolMessageLevel::UserWarning);
+			}
 			else
 			{
 				// This clears the warning if needed
@@ -172,20 +177,20 @@ void UPolygonOnMeshTool::UpdateVisualization()
 		TargetMesh->GetEdgeV(EID, A, B);
 		DrawnLineSet->AddLine((FVector)A, (FVector)B, EmbedEdgeColor, EmbedEdgeThickness, EmbedEdgeDepthBias);
 	}
-	if (!bOperationSucceeded)
+	// We show problematic edges whether or not we consider the operation to be successful because in the case of
+	// booleans, we consider boundary edge results to be important to show but not important enough to be considered
+	// a failure (and in fact are not a failure if you're cutting an open mesh, like a simple rectangle)
+	for (int EID : EdgesOnFailure)
 	{
-		for (int EID : EdgesOnFailure)
-		{
-			TargetMesh->GetEdgeV(EID, A, B);
-			DrawnLineSet->AddLine((FVector)A, (FVector)B, PartialPathEdgeColor, PartialPathEdgeThickness, PartialPathEdgeDepthBias);
-		}
-		// In the case where we don't allow failed results, it can be disorienting to show the broken mesh (especially since sometimes
-		// most of it may be cut away). But user can change this behavior.
-		if (!BasicProperties->bCanAcceptFailedResult && !BasicProperties->bShowIntermediateResultOnFailure)
-		{
-			// Reset the preview.
-			Preview->PreviewMesh->UpdatePreview(OriginalDynamicMesh.Get());
-		}
+		TargetMesh->GetEdgeV(EID, A, B);
+		DrawnLineSet->AddLine((FVector)A, (FVector)B, PartialPathEdgeColor, PartialPathEdgeThickness, PartialPathEdgeDepthBias);
+	}
+	// In the case where we don't allow failed results, it can be disorienting to show the broken mesh (especially since sometimes
+	// most of it may be cut away). But user can change this behavior.
+	if (!BasicProperties->bCanAcceptFailedResult && !BasicProperties->bShowIntermediateResultOnFailure)
+	{
+		// Reset the preview.
+		Preview->PreviewMesh->UpdatePreview(OriginalDynamicMesh.Get());
 	}
 }
 
@@ -276,7 +281,7 @@ TUniquePtr<FDynamicMeshOperator> UPolygonOnMeshTool::MakeNewOperator()
 	bool bOpLeavesOpenBoundaries =
 		BasicProperties->Operation == EEmbeddedPolygonOpMethod::TrimInside ||
 		BasicProperties->Operation == EEmbeddedPolygonOpMethod::TrimOutside;
-	EmbedOp->bAttemptFixHolesOnBoolean = !bOpLeavesOpenBoundaries && BasicProperties->bTryToFixCracks;
+	EmbedOp->bAttemptFixHolesOnBoolean = !bOpLeavesOpenBoundaries && BasicProperties->bTryToFixHoles;
 
 	// Match the world plane in the local space
 	FVector3d LocalOrigin = WorldTransform.InverseTransformPosition(DrawPlaneWorld.Origin);
