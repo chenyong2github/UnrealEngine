@@ -7,14 +7,8 @@ public class Zen : ModuleRules
 {
 	public Zen(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateDependencyModuleNames.AddRange(new string[] { "Core", "Sockets", "SSL", "Json" });
+		PrivateDependencyModuleNames.AddRange(new string[] { "Core", "Sockets", "SSL", "Json", "Analytics" });
 		PrivateIncludePathModuleNames.Add("DesktopPlatform");
-		
-		PublicDependencyModuleNames.AddRange(
-			new string[] {		
-				"Analytics",
-			}
-		);
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "libcurl");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenSSL");
