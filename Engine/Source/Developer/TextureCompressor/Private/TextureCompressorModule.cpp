@@ -307,7 +307,7 @@ private:
 	}
 
 	// InOutTable += InTable
-	static void AddFilterTable1D( float *InOutTable, float *InTable, uint32 TableSize )
+	static void AddFilterTable1D( float *InOutTable, const float *InTable, uint32 TableSize )
 	{
 		for(uint32 x = 0; x < TableSize; ++x)
 		{
@@ -1180,9 +1180,34 @@ static EMipGenAddressMode ComputeAddressMode(const FImage & Image,const FTexture
 	// note: all textures Wrap by default even if their address mode is set to Clamp !?
 	EMipGenAddressMode AddressMode = MGTAM_Wrap;
 
-	// @todo Oodle : could do Clamp here if both TextureX and Y address modes are set to Clamp (GetTextureAddressX)
-	//	that would catch the most common case with no other code work
-	//	the more complete solution requires separate AddressMode for X/Y/Z
+	if ( Settings.bUseNewMipFilter )
+	{
+		// in new filters, we do use address mode to change mipgen
+		//	(isolated to new filters solely to avoid changing old content)
+
+		// texture address mode is Wrap,Clamp,Mirror, with Wrap by default
+		// treat Clamp & Mirror the same
+		bool bAddressXWrap = (Settings.TextureAddressModeX == TA_Wrap);
+		bool bAddressYWrap = (Settings.TextureAddressModeY == TA_Wrap);
+
+		if ( !bAddressXWrap && !bAddressYWrap )
+		{
+			AddressMode = MGTAM_Clamp;
+		}
+		else if ( bAddressXWrap && bAddressYWrap )
+		{
+			AddressMode = MGTAM_Wrap;
+		}
+		else
+		{
+			// use Wrap for now to match legacy behavior
+			// ideally we'd wrap one dimension and clamp the other, but that is not yet supported
+			// @todo Oodle: separate wrap/clamp for X&Y ; remove the heavy templating on AddressMode
+			AddressMode = MGTAM_Wrap;
+
+			UE_LOG(LogTextureCompressor, Verbose, TEXT("Not ideal: Heterogeneous XY Wrap/Clamp will generate mips with Wrap on both dimensions") );
+		}
+	}
 
 	return AddressMode;
 }

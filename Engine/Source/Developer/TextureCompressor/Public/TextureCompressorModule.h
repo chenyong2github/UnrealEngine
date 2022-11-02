@@ -224,6 +224,11 @@ struct FTextureBuildSettings
 	// ETextureEncodeSpeed, either Final or Fast.
 	uint8 RepresentsEncodeSpeedNoSend;
 
+	// "TextureAddress" enum values : (TA_Wrap default)
+	uint8 TextureAddressModeX = 0;
+	uint8 TextureAddressModeY = 0;
+	uint8 TextureAddressModeZ = 0;
+
 	// If the target format is a tiled format and can leverage reusing the linear encoding, this is not nullptr.
 	const ITextureTiler* Tiler = nullptr;
 

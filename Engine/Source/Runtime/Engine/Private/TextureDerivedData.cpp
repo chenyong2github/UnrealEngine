@@ -323,6 +323,16 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		TempGuid = Settings.CompressionCacheId; Ar << TempGuid;
 	}
 
+	if ( Settings.bUseNewMipFilter )
+	{
+		// @todo SerializeForKey : TextureAddressModeX is only used if bUseNewMipFilter is true
+		//	so we hide it in here to avoid changing more DDC keys
+		// todo: when there is an overall DDC key bump, remove ths if on NewFilter so this is just always written
+		TempByte = Settings.TextureAddressModeX; Ar << TempByte;
+		TempByte = Settings.TextureAddressModeY; Ar << TempByte;
+		TempByte = Settings.TextureAddressModeZ; Ar << TempByte;
+	}
+
 	// Note - compression quality is added to the DDC by the formats (based on whether they
 	// use them or not).
 	// This is true for:
@@ -1037,6 +1047,10 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.VirtualTextureTileSize = 0;
 		OutBuildSettings.VirtualTextureBorderSize = 0;
 	}
+	
+	OutBuildSettings.TextureAddressModeX = Texture.GetTextureAddressX();
+	OutBuildSettings.TextureAddressModeY = Texture.GetTextureAddressY();
+	OutBuildSettings.TextureAddressModeZ = Texture.GetTextureAddressZ();
 
 	// By default, initialize settings for layer0
 	FinalizeBuildSettingsForLayer(Texture, 0, &TargetPlatform, InEncodeSpeed, OutBuildSettings, OutBuildResultMetadata);

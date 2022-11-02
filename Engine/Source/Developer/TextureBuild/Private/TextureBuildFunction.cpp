@@ -159,6 +159,9 @@ static FTextureBuildSettings ReadBuildSettingsFromCompactBinary(const FCbObjectV
 	BuildSettings.bOodleUsesRDO = Object["bOodleUsesRDO"].AsBool(BuildSettings.bOodleUsesRDO);
 	BuildSettings.OodleRDO = Object["OodleRDO"].AsUInt8(BuildSettings.OodleRDO);
 	ReadCbField(Object["OodleTextureSdkVersion"], BuildSettings.OodleTextureSdkVersion);
+	ReadCbField(Object["TextureAddressModeX"], BuildSettings.TextureAddressModeX);
+	ReadCbField(Object["TextureAddressModeY"], BuildSettings.TextureAddressModeY);
+	ReadCbField(Object["TextureAddressModeZ"], BuildSettings.TextureAddressModeZ);
 
 	return BuildSettings;
 }

@@ -193,7 +193,12 @@ static void WriteBuildSettings(FCbWriter& Writer, const FTextureBuildSettings& B
 	WriteCbFieldWithDefault<bool>(Writer, "bOodleUsesRDO", BuildSettings.bOodleUsesRDO, DefaultSettings.bOodleUsesRDO);
 	
 	WriteCbFieldWithDefault(Writer, "OodleTextureSdkVersion", BuildSettings.OodleTextureSdkVersion, DefaultSettings.OodleTextureSdkVersion);
-	
+
+	WriteCbFieldWithDefault(Writer, "TextureAddressModeX", BuildSettings.TextureAddressModeX, DefaultSettings.TextureAddressModeX);
+	WriteCbFieldWithDefault(Writer, "TextureAddressModeY", BuildSettings.TextureAddressModeY, DefaultSettings.TextureAddressModeY);
+	WriteCbFieldWithDefault(Writer, "TextureAddressModeZ", BuildSettings.TextureAddressModeZ, DefaultSettings.TextureAddressModeZ);
+
+	// @todo SerializeForKey : remove these when overall key changes
 	if ( BuildSettings.bVolume )
 	{
 		WriteCbField<bool>(Writer, "bVolume_ForceNewDDcKey", true); 

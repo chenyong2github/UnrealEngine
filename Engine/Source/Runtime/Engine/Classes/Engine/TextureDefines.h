@@ -405,6 +405,49 @@ enum class ETextureChromaticAdaptationMethod : uint8
 };
 
 
+UENUM()
+enum TextureFilter
+{
+	TF_Nearest UMETA(DisplayName="Nearest"),
+	TF_Bilinear UMETA(DisplayName="Bi-linear"),
+	TF_Trilinear UMETA(DisplayName="Tri-linear"),
+	/** Use setting from the Texture Group. */
+	TF_Default UMETA(DisplayName="Default (from Texture Group)"),
+	TF_MAX,
+};
+
+UENUM()
+enum TextureAddress
+{
+	TA_Wrap UMETA(DisplayName="Wrap"),
+	TA_Clamp UMETA(DisplayName="Clamp"),
+	TA_Mirror UMETA(DisplayName="Mirror"),
+	TA_MAX,
+};
+
+UENUM()
+enum ETextureMipCount
+{
+	TMC_ResidentMips,
+	TMC_AllMips,
+	TMC_AllMipsBiased,
+	TMC_MAX,
+};
+
+// TextureCompressionQuality is used for ASTC
+UENUM()
+enum ETextureCompressionQuality
+{
+	TCQ_Default = 0		UMETA(DisplayName="Default"),
+	TCQ_Lowest = 1		UMETA(DisplayName="Lowest (ASTC 12x12)"),
+	TCQ_Low = 2			UMETA(DisplayName="Low (ASTC 10x10)"),
+	TCQ_Medium = 3		UMETA(DisplayName="Medium (ASTC 8x8)"),
+	TCQ_High= 4			UMETA(DisplayName="High (ASTC 6x6)"),
+	TCQ_Highest = 5		UMETA(DisplayName="Highest (ASTC 4x4)"),
+	TCQ_MAX,
+};
+
+
 namespace UE
 {
 namespace TextureDefines
