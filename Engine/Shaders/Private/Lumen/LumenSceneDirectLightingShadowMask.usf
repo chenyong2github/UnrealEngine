@@ -76,6 +76,9 @@ void LumenSceneDirectLightingNonRayTracedShadowsCS(
 		SharedShadowTraces[0] = 0;
 	}
 
+	// Need to resolve view for light function computations
+	ResolvedView = ResolveView();
+
 	GroupMemoryBarrierWithGroupSync();
 
 	uint LightTileIndex = LocalLightTileIndex + LightTileOffsetsPerLight[LightIndex * NumViews + ViewIndex];
