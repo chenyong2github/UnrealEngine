@@ -161,7 +161,7 @@
 "connectiontype-title" = "연결 타입";
 
 /* Footer describing the connection type option */
-"connectiontype-footer" = "";
+"connectiontype-footer" = "이제 언리얼 엔진 픽셀 스트리밍이 Live Link  VCAM에서 권장되는 연결 유형으로 언리얼 엔진 5.1 에디터에서 지원됩니다. 이전 프로젝트의 경우 기존 원격 세션 연결 유형은 Live Link VCAM에서 계속 지원됩니다.";
 
 /* Remote Session */
 "connectiontype-value-remotesession" = "리모트 세션";

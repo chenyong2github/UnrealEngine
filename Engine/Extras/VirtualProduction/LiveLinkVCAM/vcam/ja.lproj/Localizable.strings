@@ -161,7 +161,7 @@
 "connectiontype-title" = "接続タイプ";
 
 /* Footer describing the connection type option */
-"connectiontype-footer" = "";
+"connectiontype-footer" = "Unreal Engine Pixel Streaming が Unreal Engine 5.1 でエディタでサポートされるようになり、この接続タイプが Live Link VCAM で推奨されるものになりました。従来のリモート セッション 接続タイプも過去のプロジェクトのために引き続き Live Link VCAM ではサポートされます。";
 
 /* Remote Session */
 "connectiontype-value-remotesession" = "リモート セッション";

@@ -19,8 +19,7 @@ class SettingsViewController : UITableViewController {
             return NSLocalizedString("connectiontype-title", value: "ConnectionType", comment: "")
         }
         class func footer() -> String {
-            return ""
-            //return NSLocalizedString("connectiontype-footer", value: "", comment: "")
+            return NSLocalizedString("connectiontype-footer", value: "Unreal Engine Pixel Streaming introduced editor support in Unreal Engine 5.1 and is the recommended connection type for Live Link VCAM going forward.  The legacy Remote Session connection type will continue to be supported in Live Link VCAM for older projects.", comment: "")
         }
         class func value(_ type : StreamingConnectionType) -> String {
             switch type {

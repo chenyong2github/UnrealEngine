@@ -161,7 +161,7 @@
 "connectiontype-title" = "接続タイプ";
 
 /* Footer describing the connection type option */
-"connectiontype-footer" = "";
+"connectiontype-footer" = "在虚幻引擎5.1中，编辑器将支持像素流送功能，并将成为Live Link VCAM的推荐连接类型。但Live Link VCAM仍将继续支持旧版的远程会话连接类型，以便用于旧项目的开发。";
 
 /* Remote Session */
 "connectiontype-value-remotesession" = "远程会话";
