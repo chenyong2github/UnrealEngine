@@ -151,6 +151,11 @@ public:
 		return true;
 	}
 
+	virtual bool AllowsDevelopmentObjects() const override
+	{
+		return false;
+	}
+
 	virtual bool AllowObject(const UObject* Obj) const override
 	{
 		// probably don't need this check, but it can't hurt

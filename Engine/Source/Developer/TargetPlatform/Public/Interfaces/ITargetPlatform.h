@@ -328,6 +328,14 @@ public:
 	virtual bool AllowsEditorObjects() const = 0;
 
 	/**
+	 * Checks whether this platform will allow development objects to be cooked. This is separate from AllowsEditorObjects
+	 * because cooked editors can be shipped with editor objects but still need to remove development assets.
+	 * 
+	 * @return true if this platform allows development objects to be cooked, false otherwise.
+	 */
+	virtual bool AllowsDevelopmentObjects() const = 0;
+
+	/**
 	 * Checks whether this platform is only a client (and must connect to a server to run).
 	 *
 	 * @return true if this platform must connect to a server.

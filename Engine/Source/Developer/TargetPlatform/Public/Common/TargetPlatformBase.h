@@ -194,6 +194,11 @@ public:
 		return HasEditorOnlyData();
 	}
 
+	virtual bool AllowsDevelopmentObjects() const override
+	{
+		return AllowsEditorObjects();
+	}
+
 	virtual void GetBuildProjectSettingKeys(FString& OutSection, TArray<FString>& InBoolKeys, TArray<FString>& InIntKeys, TArray<FString>& InStringKeys) const override
 	{
 		// do nothing in the base class

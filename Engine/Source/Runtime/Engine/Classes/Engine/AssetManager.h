@@ -778,8 +778,8 @@ protected:
 	UPROPERTY()
 	bool bOnlyCookProductionAssets;
 
-	/** Suppresses bOnlyCookProductionAssets based on the AllowsEditorObjects() property of the TargetPlatforms being cooked. */
-	bool bTargetPlatformsAllowEditorObjects;
+	/** Suppresses bOnlyCookProductionAssets based on the AllowsDevelopmentObjects() property of the TargetPlatforms being cooked. */
+	bool bTargetPlatformsAllowDevelopmentObjects;
 
 	/** >0 if we are currently in bulk scanning mode */
 	UPROPERTY()

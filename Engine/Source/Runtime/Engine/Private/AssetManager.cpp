@@ -268,7 +268,7 @@ UAssetManager::UAssetManager()
 	bShouldUseSynchronousLoad = false;
 	bIsLoadingFromPakFiles = false;
 	bShouldAcquireMissingChunksOnLoad = false;
-	bTargetPlatformsAllowEditorObjects = false;
+	bTargetPlatformsAllowDevelopmentObjects = false;
 	NumBulkScanRequests = 0;
 	bIsManagementDatabaseCurrent = false;
 	bIsPrimaryAssetDirectoryCurrent = false;
@@ -3951,19 +3951,19 @@ void UAssetManager::ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& Pac
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
 
 	check(TargetPlatforms.Num() > 0);
-	bTargetPlatformsAllowEditorObjects = TargetPlatforms[0]->AllowsEditorObjects();
+	bTargetPlatformsAllowDevelopmentObjects = TargetPlatforms[0]->AllowsDevelopmentObjects();
 	for (const ITargetPlatform* TargetPlatform : TargetPlatforms.Slice(1,TargetPlatforms.Num() - 1))
 	{
-		if (TargetPlatform->AllowsEditorObjects() != bTargetPlatformsAllowEditorObjects)
+		if (TargetPlatform->AllowsDevelopmentObjects() != bTargetPlatformsAllowDevelopmentObjects)
 		{
 			const ITargetPlatform* PlatformThatDoesNotAllow =
-				bTargetPlatformsAllowEditorObjects ? TargetPlatform : TargetPlatforms[0];
+				bTargetPlatformsAllowDevelopmentObjects ? TargetPlatform : TargetPlatforms[0];
 			UE_LOG(LogAssetManager, Error,
-				TEXT("Cooking platform %s and %s in a single cook is not supported, because they have different values for AllowsEditorObjects. ")
-				TEXT("This cook session will use AllowsEditorObjects = true, which will add packages to platform % s that should not be present."),
+				TEXT("Cooking platform %s and %s in a single cook is not supported, because they have different values for AllowsDevelopmentObjects. ")
+				TEXT("This cook session will use AllowsDevelopmentObjects = true, which will add packages to platform % s that should not be present."),
 				*TargetPlatforms[0]->PlatformName(), *TargetPlatform->PlatformName(),
 				*PlatformThatDoesNotAllow->PlatformName());
-			bTargetPlatformsAllowEditorObjects = true;
+			bTargetPlatformsAllowDevelopmentObjects = true;
 			break;
 		}
 	}
@@ -4188,7 +4188,7 @@ bool UAssetManager::VerifyCanCookPackage(FName PackageName, bool bLogError) cons
 		bRetVal = false;
 	}
 	else if ((CookRule == EPrimaryAssetCookRule::DevelopmentCook || CookRule == EPrimaryAssetCookRule::DevelopmentAlwaysCook)
-		&& bOnlyCookProductionAssets && !bTargetPlatformsAllowEditorObjects)
+		&& bOnlyCookProductionAssets && !bTargetPlatformsAllowDevelopmentObjects)
 	{
 		if (bLogError)
 		{
