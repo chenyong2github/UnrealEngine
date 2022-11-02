@@ -64,6 +64,8 @@ void UUIFrameworkWidget::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& O
 	FDoRepLifetimeParams Params;
 	Params.bIsPushBased = true;
 	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Id, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, bIsEnabled, Params);
+	DOREPLIFETIME_WITH_PARAMS_FAST(ThisClass, Visibility, Params);
 }
 
 void UUIFrameworkWidget::LocalAddChild(FUIFrameworkWidgetId ChildId)
@@ -96,6 +98,8 @@ void UUIFrameworkWidget::LocalCreateUMGWidget(UUIFrameworkPlayerComponent* InOwn
 			check(Class->IsChildOf(UWidget::StaticClass()));
 			LocalUMGWidget = NewObject<UWidget>(this, Class, FName(), RF_Transient);
 		}
+		LocalUMGWidget->SetIsEnabled(bIsEnabled);
+		LocalUMGWidget->SetVisibility(Visibility);
 		LocalOnUMGWidgetCreated();
 	}
 }
@@ -109,4 +113,49 @@ void UUIFrameworkWidget::LocalDestroyUMGWidget()
 	}
 	LocalUMGWidget = nullptr;
 	OwnerPlayerComponent = nullptr;
+}
+
+
+ESlateVisibility UUIFrameworkWidget::GetVisibility() const
+{
+	return Visibility;
+}
+
+void UUIFrameworkWidget::SetVisibility(ESlateVisibility InVisibility)
+{
+	if (Visibility != InVisibility)
+	{
+		Visibility = InVisibility;
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, Visibility, this);
+	}
+}
+
+bool UUIFrameworkWidget::IsEnabled() const
+{
+	return bIsEnabled;
+}
+
+void UUIFrameworkWidget::SetEnabled(bool bInIsEnabled)
+{
+	if (bIsEnabled != bInIsEnabled)
+	{
+		bIsEnabled = bInIsEnabled;
+		MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, bIsEnabled, this);
+	}
+}
+
+void UUIFrameworkWidget::OnRep_IsEnabled()
+{
+	if (LocalUMGWidget)
+	{
+		LocalUMGWidget->SetIsEnabled(bIsEnabled);
+	}
+}
+
+void UUIFrameworkWidget::OnRep_Visibility()
+{
+	if (LocalUMGWidget)
+	{
+		LocalUMGWidget->SetVisibility(Visibility);
+	}
 }

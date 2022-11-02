@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Components/SlateWrapperTypes.h"
 #include "Components/Widget.h"
 #include "Types/UIFParentWidget.h"
 #include "Types/UIFWidgetId.h"
@@ -19,6 +20,13 @@ class UIFRAMEWORK_API UUIFrameworkWidget : public UObject
 {
 	GENERATED_BODY()
 	friend FUIFrameworkModule;
+
+private:
+	UPROPERTY(BlueprintReadWrite, ReplicatedUsing = "OnRep_IsEnabled", Getter = "IsEnabled", Setter="SetEnabled", Category = "UI Framework", meta = (AllowPrivateAccess = "true"))
+	bool bIsEnabled = true;
+
+	UPROPERTY(BlueprintReadWrite, ReplicatedUsing = "OnRep_Visibility", Getter, Setter = "SetVisibility", Category = "UI Framework", meta = (AllowPrivateAccess = "true"))
+	ESlateVisibility Visibility = ESlateVisibility::Visible;
 
 public:
 	//~ Begin UObject
@@ -63,9 +71,22 @@ public:
 	virtual void LocalAddChild(FUIFrameworkWidgetId ChildId);
 	void LocalDestroyUMGWidget();
 
+	//~ Properties
+	ESlateVisibility GetVisibility() const;
+	void SetVisibility(ESlateVisibility InVisibility);
+
+	bool IsEnabled() const;
+	void SetEnabled(bool bEnabled);
+
 protected:
 	virtual void AuthorityRemoveChild(UUIFrameworkWidget* Widget) {}
 	virtual void LocalOnUMGWidgetCreated() { }
+
+private:
+	UFUNCTION()
+	void OnRep_IsEnabled();
+	UFUNCTION()
+	void OnRep_Visibility();
 
 protected:
 	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, Category = "UI Framework")
@@ -87,10 +108,4 @@ private:
 	//~ LocalOnly
 	UPROPERTY(Transient)
 	TObjectPtr<UWidget> LocalUMGWidget;
-
-	//UPROPERTY(BlueprintReadWrite)
-	//EUIEnability Enablility;
-	//
-	//UPROPERTY(BlueprintReadWrite)
-	//EUIVisibility Visibility;
 };
