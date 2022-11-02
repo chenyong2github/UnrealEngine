@@ -337,7 +337,7 @@ private:
 
         for (int32 Index = 0; Index < ParsedDevices.Num(); ++Index)
         {
-			TObjectPtr<LibIMobileDevice> Found = CachedDevices.FindByPredicate(
+			LibIMobileDevice* Found = CachedDevices.FindByPredicate(
 				[&](LibIMobileDevice Element) {
 					return Element.DeviceID == ParsedDevices[Index].DeviceID;
 				});
