@@ -10,7 +10,7 @@
 URenderGridQueue* UE::RenderGrid::FRenderGridManager::CreateBatchRenderQueue(URenderGrid* Grid)
 {
 	FRenderGridQueueCreateArgs JobArgs;
-	JobArgs.RenderGrid = Grid;
+	JobArgs.RenderGrid = TStrongObjectPtr(Grid);
 	JobArgs.RenderGridJobs.Append(Grid->GetEnabledRenderGridJobs());
 	JobArgs.bIsBatchRender = true;
 	URenderGridQueue* NewRenderQueue = URenderGridQueue::Create(JobArgs);
@@ -26,13 +26,21 @@ URenderGridQueue* UE::RenderGrid::FRenderGridManager::RenderPreviewFrame(const F
 {
 	const FRenderGridManagerRenderPreviewFrameArgsCallback Callback = Args.Callback;
 
-	if (!IsValid(Args.RenderGridJob))
+	URenderGrid* RenderGrid = Args.RenderGrid.Get();
+	if (!IsValid(RenderGrid))
 	{
 		Callback.ExecuteIfBound(false);
 		return nullptr;
 	}
 
-	URenderGridJob* JobCopy = DuplicateObject(Args.RenderGridJob.Get(), Args.RenderGridJob->GetOuter());
+	URenderGridJob* RenderGridJob = Args.RenderGridJob.Get();
+	if (!IsValid(RenderGridJob))
+	{
+		Callback.ExecuteIfBound(false);
+		return nullptr;
+	}
+
+	URenderGridJob* JobCopy = DuplicateObject(RenderGridJob, RenderGridJob->GetOuter());
 	if (!IsValid(JobCopy))
 	{
 		Callback.ExecuteIfBound(false);
@@ -65,8 +73,8 @@ URenderGridQueue* UE::RenderGrid::FRenderGridManager::RenderPreviewFrame(const F
 	JobCopy->SetOutputDirectory(TmpRenderedFramesPath / (Args.Frame.IsSet() ? TEXT("PreviewFrame") : TEXT("PreviewFrames")));
 
 	FRenderGridQueueCreateArgs JobArgs;
-	JobArgs.RenderGrid = Args.RenderGrid;
-	JobArgs.RenderGridJobs.Add(JobCopy);
+	JobArgs.RenderGrid = TStrongObjectPtr(RenderGrid);
+	JobArgs.RenderGridJobs.Add(TStrongObjectPtr(JobCopy));
 	JobArgs.bHeadless = Args.bHeadless;
 	JobArgs.bForceOutputImage = true;
 	JobArgs.bForceOnlySingleOutput = true;

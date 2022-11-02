@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "IRenderGridEditor.h"
+#include "RenderGridEditor.generated.h"
 
 
 class FSpawnTabArgs;
@@ -18,6 +19,28 @@ namespace UE::RenderGrid::Private
 {
 	class FRenderGridBlueprintEditorToolbar;
 }
+
+
+/**
+ * The selected render grid jobs.
+ * This is placed in a separate class, so it can be an UObject, so it can be placed in the undo/redo buffer.
+ */
+UCLASS()
+class RENDERGRIDEDITOR_API URenderGridJobSelection : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	URenderGridJobSelection();
+
+	/** Sets the new job selection. Returns true if it is different from the previous selection, returns false if it was exactly the same. */
+	bool SetSelectedRenderGridJobs(const TArray<URenderGridJob*>& Jobs);
+
+public:
+	/** The GUIDs of the currently selected render grid jobs. */
+	UPROPERTY()
+	TSet<FGuid> SelectedRenderGridJobIds;
+};
 
 
 namespace UE::RenderGrid::Private
@@ -49,7 +72,8 @@ namespace UE::RenderGrid::Private
 		virtual void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated) override;
 		virtual void SetupGraphEditorEvents(UEdGraph* InGraph, SGraphEditor::FGraphEditorEvents& InEvents) override;
 		virtual void RegisterApplicationModes(const TArray<UBlueprint*>& InBlueprints, bool bShouldOpenInDefaultsMode, bool bNewlyCreated = false) override;
-
+		virtual void PostUndo(bool bSuccessful) override;
+		virtual void PostRedo(bool bSuccessful) override;
 		virtual void Compile() override;
 		//~ End FBlueprintEditor Interface
 
@@ -59,9 +83,9 @@ namespace UE::RenderGrid::Private
 		virtual void SetIsDebugging(const bool bInIsDebugging) override;
 		virtual TSharedPtr<FRenderGridBlueprintEditorToolbar> GetRenderGridToolbarBuilder() override { return RenderGridToolbar; }
 		virtual bool IsBatchRendering() const override;
-		virtual URenderGridQueue* GetBatchRenderQueue() const override { return BatchRenderQueue; }
+		virtual URenderGridQueue* GetBatchRenderQueue() const override { return BatchRenderQueue.Get(); }
 		virtual bool IsPreviewRendering() const override;
-		virtual URenderGridQueue* GetPreviewRenderQueue() const override { return PreviewRenderQueue; }
+		virtual URenderGridQueue* GetPreviewRenderQueue() const override { return PreviewRenderQueue.Get(); }
 		virtual void SetPreviewRenderQueue(URenderGridQueue* Queue) override;
 		virtual void MarkAsModified() override;
 		virtual TArray<URenderGridJob*> GetSelectedRenderGridJobs() const override;
@@ -157,22 +181,22 @@ namespace UE::RenderGrid::Private
 		TSharedPtr<FExtender> ToolbarExtender;
 
 		/** The blueprint instance that's currently visible in the editor. */
-		TObjectPtr<URenderGridBlueprint> PreviewBlueprint;
+		TStrongObjectPtr<URenderGridBlueprint> PreviewBlueprint;
 
 		/** The current render grid instance that's visible in the editor. */
 		mutable TWeakObjectPtr<URenderGrid> RenderGridWeakPtr;
 
-		/** The IDs of the currently selected render grid jobs. */
-		TSet<FGuid> SelectedRenderGridJobIds;
+		/** The currently selected render grid jobs. */
+		TStrongObjectPtr<URenderGridJobSelection> RenderGridJobSelection;
 
 		/** True if it should call BatchRenderListAction() next frame. */
 		bool bRunRenderNewBatch;
 
 		/** The current batch render queue, if any. */
-		TObjectPtr<URenderGridQueue> BatchRenderQueue;
+		TStrongObjectPtr<URenderGridQueue> BatchRenderQueue;
 
 		/** The current preview render queue, if any. */
-		TObjectPtr<URenderGridQueue> PreviewRenderQueue;
+		TStrongObjectPtr<URenderGridQueue> PreviewRenderQueue;
 
 		/** The time it should still remain in debugging mode (after it has been turned off). */
 		float DebuggingTimeInSecondsRemaining;

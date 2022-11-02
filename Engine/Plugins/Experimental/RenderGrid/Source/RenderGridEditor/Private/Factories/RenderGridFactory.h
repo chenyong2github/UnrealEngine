@@ -29,6 +29,6 @@ public:
 	virtual uint32 GetMenuCategories() const override;
 
 	/** The parent class of the created blueprint. */
-	UPROPERTY(EditAnywhere, Category="Render Grid|Render Grid Factory", Meta = (AllowAbstract = ""))
+	UPROPERTY(EditAnywhere, Category="Render Grid Factory", Meta = (AllowAbstract = ""))
 	TSubclassOf<URenderGrid> ParentClass;
 };

@@ -31,6 +31,6 @@ namespace UE::RenderGrid::Private
 		TWeakPtr<IRenderGridEditor> BlueprintEditorWeakPtr;
 
 		/** The props source control. */
-		TObjectPtr<URenderGridPropsSourceLocal> PropsSource;
+		TWeakObjectPtr<URenderGridPropsSourceLocal> PropsSourceWeakPtr;
 	};
 }

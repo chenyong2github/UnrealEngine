@@ -59,7 +59,7 @@ namespace UE::RenderGrid::Private
 		TWeakPtr<IRenderGridEditor> BlueprintEditorWeakPtr;
 
 		/** The props source control. */
-		TObjectPtr<URenderGridPropsSourceRemoteControl> PropsSource;
+		TWeakObjectPtr<URenderGridPropsSourceRemoteControl> PropsSourceWeakPtr;
 
 		/** The widget that lists the property rows. */
 		TSharedPtr<SVerticalBox> RowWidgetsContainer;

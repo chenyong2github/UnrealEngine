@@ -42,7 +42,7 @@ namespace UE::RenderGrid::Private
 
 		/** Gets the selected sequence frame of the given render grid job, based on the current value of the frame slider. */
 		TOptional<int32> GetSelectedSequenceFrame(URenderGridJob* Job);
-		
+
 		/** Gets the selected frame (that will be output) of the given render grid job, based on the current value of the frame slider. */
 		TOptional<int32> GetSelectedFrame(URenderGridJob* Job);
 

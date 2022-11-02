@@ -24,6 +24,7 @@
 #include "Misc/MessageDialog.h"
 #include "PropertyCustomizationHelpers.h"
 #include "SBlueprintEditorToolbar.h"
+#include "ScopedTransaction.h"
 #include "SGraphPanel.h"
 #include "SKismetInspector.h"
 #include "SMyBlueprint.h"
@@ -36,6 +37,40 @@
 namespace UE::RenderGrid::Private
 {
 	const FName RenderGridEditorAppName(TEXT("RenderGridEditorApp"));
+}
+
+
+URenderGridJobSelection::URenderGridJobSelection()
+{
+	SetFlags(RF_Public | RF_Transactional);
+}
+
+bool URenderGridJobSelection::SetSelectedRenderGridJobs(const TArray<URenderGridJob*>& Jobs)
+{
+	TSet<FGuid> PreviouslySelectedJobIds;
+	PreviouslySelectedJobIds.Append(SelectedRenderGridJobIds);
+
+	SelectedRenderGridJobIds.Empty();
+	for (URenderGridJob* Job : Jobs)
+	{
+		if (!IsValid(Job))
+		{
+			continue;
+		}
+		SelectedRenderGridJobIds.Add(Job->GetGuid());
+	}
+	if (SelectedRenderGridJobIds.Num() != PreviouslySelectedJobIds.Num())
+	{
+		return true;
+	}
+	for (const FGuid& JobId : SelectedRenderGridJobIds)
+	{
+		if (!PreviouslySelectedJobIds.Contains(JobId))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 
@@ -87,6 +122,7 @@ void UE::RenderGrid::Private::FRenderGridEditor::InitRenderGridEditor(const EToo
 
 UE::RenderGrid::Private::FRenderGridEditor::FRenderGridEditor()
 	: PreviewBlueprint(nullptr)
+	, RenderGridJobSelection(NewObject<URenderGridJobSelection>())
 	, bRunRenderNewBatch(false)
 	, BatchRenderQueue(nullptr)
 	, PreviewRenderQueue(nullptr)
@@ -182,6 +218,22 @@ void UE::RenderGrid::Private::FRenderGridEditor::RegisterApplicationModes(const 
 	}
 }
 
+void UE::RenderGrid::Private::FRenderGridEditor::PostUndo(bool bSuccessful)
+{
+	FBlueprintEditor::PostUndo(bSuccessful);
+
+	OnRenderGridChanged().Broadcast();
+	OnRenderGridJobsSelectionChanged().Broadcast();
+}
+
+void UE::RenderGrid::Private::FRenderGridEditor::PostRedo(bool bSuccessful)
+{
+	FBlueprintEditor::PostRedo(bSuccessful);
+
+	OnRenderGridChanged().Broadcast();
+	OnRenderGridJobsSelectionChanged().Broadcast();
+}
+
 void UE::RenderGrid::Private::FRenderGridEditor::Compile()
 {
 	DestroyInstance();
@@ -214,17 +266,17 @@ void UE::RenderGrid::Private::FRenderGridEditor::SetIsDebugging(const bool bInIs
 
 bool UE::RenderGrid::Private::FRenderGridEditor::IsBatchRendering() const
 {
-	return IsValid(BatchRenderQueue);
+	return IsValid(BatchRenderQueue.Get());
 }
 
 bool UE::RenderGrid::Private::FRenderGridEditor::IsPreviewRendering() const
 {
-	return IsValid(PreviewRenderQueue);
+	return IsValid(PreviewRenderQueue.Get());
 }
 
 void UE::RenderGrid::Private::FRenderGridEditor::SetPreviewRenderQueue(URenderGridQueue* Queue)
 {
-	PreviewRenderQueue = Queue;
+	PreviewRenderQueue = TStrongObjectPtr(Queue);
 	SetIsDebugging(IsValid(Queue));
 }
 
@@ -245,11 +297,14 @@ TArray<URenderGridJob*> UE::RenderGrid::Private::FRenderGridEditor::GetSelectedR
 	TArray<URenderGridJob*> SelectedJobs;
 	if (URenderGrid* Grid = GetInstance(); IsValid(Grid))
 	{
-		for (URenderGridJob* Job : Grid->GetRenderGridJobs())
+		if (URenderGridJobSelection* JobSelection = RenderGridJobSelection.Get(); IsValid(JobSelection))
 		{
-			if (SelectedRenderGridJobIds.Contains(Job->GetGuid()))
+			for (URenderGridJob* Job : Grid->GetRenderGridJobs())
 			{
-				SelectedJobs.Add(Job);
+				if (JobSelection->SelectedRenderGridJobIds.Contains(Job->GetGuid()))
+				{
+					SelectedJobs.Add(Job);
+				}
 			}
 		}
 	}
@@ -258,31 +313,18 @@ TArray<URenderGridJob*> UE::RenderGrid::Private::FRenderGridEditor::GetSelectedR
 
 void UE::RenderGrid::Private::FRenderGridEditor::SetSelectedRenderGridJobs(const TArray<URenderGridJob*>& Jobs)
 {
-	TSet<FGuid> PreviouslySelectedJobIds;
-	PreviouslySelectedJobIds.Append(SelectedRenderGridJobIds);
-
-	SelectedRenderGridJobIds.Empty();
-	for (URenderGridJob* Job : Jobs)
+	if (URenderGridJobSelection* JobSelection = RenderGridJobSelection.Get(); IsValid(JobSelection))
 	{
-		if (!IsValid(Job))
 		{
-			continue;
+			FScopedTransaction Transaction(LOCTEXT("ChangeJobSelection", "Change Job Selection"));
+			JobSelection->Modify();
+			if (!JobSelection->SetSelectedRenderGridJobs(Jobs))
+			{
+				return;
+			}
 		}
-		SelectedRenderGridJobIds.Add(Job->GetGuid());
-	}
 
-	if (SelectedRenderGridJobIds.Num() != PreviouslySelectedJobIds.Num())
-	{
 		OnRenderGridJobsSelectionChanged().Broadcast();
-		return;
-	}
-	for (const FGuid& JobId : SelectedRenderGridJobIds)
-	{
-		if (!PreviouslySelectedJobIds.Contains(JobId))
-		{
-			OnRenderGridJobsSelectionChanged().Broadcast();
-			return;
-		}
 	}
 }
 
@@ -416,10 +458,12 @@ void UE::RenderGrid::Private::FRenderGridEditor::AddJobAction()
 {
 	if (URenderGrid* Instance = GetInstance(); IsValid(Instance))
 	{
+		FScopedTransaction Transaction(LOCTEXT("AddJob", "Add Job"));
+		MarkAsModified();
+
 		if (URenderGridJob* Job = Instance->CreateAndAddNewRenderGridJob(); IsValid(Job))
 		{
 			OnRenderGridJobCreated().Broadcast(Job);
-			MarkAsModified();
 			OnRenderGridChanged().Broadcast();
 		}
 	}
@@ -435,11 +479,13 @@ void UE::RenderGrid::Private::FRenderGridEditor::DuplicateJobAction()
 
 	if (URenderGrid* Instance = GetInstance(); IsValid(Instance))
 	{
+		FScopedTransaction Transaction(LOCTEXT("DuplicateJob", "Duplicate Job"));
+		MarkAsModified();
+
 		for (URenderGridJob* SelectedJob : SelectedJobs)
 		{
 			Instance->DuplicateAndAddRenderGridJob(SelectedJob);
 		}
-		MarkAsModified();
 		OnRenderGridChanged().Broadcast();
 	}
 }
@@ -465,12 +511,13 @@ void UE::RenderGrid::Private::FRenderGridEditor::DeleteJobAction()
 
 	if (URenderGrid* Instance = GetInstance(); IsValid(Instance))
 	{
+		FScopedTransaction Transaction(LOCTEXT("DeleteJob", "Delete Job"));
+		MarkAsModified();
+
 		for (URenderGridJob* SelectedJob : SelectedJobs)
 		{
 			Instance->RemoveRenderGridJob(SelectedJob);
 		}
-
-		MarkAsModified();
 		OnRenderGridChanged().Broadcast();
 	}
 }
@@ -498,7 +545,7 @@ void UE::RenderGrid::Private::FRenderGridEditor::BatchRenderListAction()
 		if (URenderGridQueue* RenderQueue = IRenderGridModule::Get().GetManager().CreateBatchRenderQueue(Instance); IsValid(RenderQueue))
 		{
 			RenderQueue->OnExecuteFinished().AddRaw(this, &FRenderGridEditor::OnBatchRenderListActionFinished);
-			BatchRenderQueue = RenderQueue;
+			BatchRenderQueue = TStrongObjectPtr(RenderQueue);
 
 			SetIsDebugging(true);
 			RenderQueue->Execute();
@@ -512,7 +559,7 @@ void UE::RenderGrid::Private::FRenderGridEditor::OnBatchRenderListActionFinished
 {
 	SetIsDebugging(false);
 
-	URenderGridQueue* FinishedRenderQueue = BatchRenderQueue;
+	URenderGridQueue* FinishedRenderQueue = BatchRenderQueue.Get();
 	BatchRenderQueue = nullptr;
 	OnRenderGridBatchRenderingFinished().Broadcast(FinishedRenderQueue);
 }
@@ -590,6 +637,9 @@ void UE::RenderGrid::Private::FRenderGridEditor::DestroyInstance()
 		// Garbage collection
 		RenderGridWeakPtr.Reset();
 		Instance->MarkAsGarbage();
+
+		// Clear the undo/redo buffer, to prevent any bugs/glitches with undo/redo while the render grid editor is closed
+		GEditor->ResetTransaction(LOCTEXT("RenderGridEditorClosed", "Render Grid Editor Closed"));
 	}
 }
 
@@ -602,7 +652,7 @@ void UE::RenderGrid::Private::FRenderGridEditor::UpdateInstance(UBlueprint* InBl
 		DestroyInstance();
 
 		// Save the Blueprint we're creating a preview for
-		PreviewBlueprint = Cast<URenderGridBlueprint>(InBlueprint);
+		PreviewBlueprint = TStrongObjectPtr(Cast<URenderGridBlueprint>(InBlueprint));
 
 		URenderGrid* RenderGrid;
 		// Create the Widget, we have to do special swapping out of the widget tree.

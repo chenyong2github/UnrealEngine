@@ -108,17 +108,23 @@ void UE::RenderGrid::Private::SRenderGridViewer::Refresh()
 		CachedViewerMode = CurrentViewerMode;
 		WidgetContainer->ClearContent();
 
-		if (CurrentViewerMode == ERenderGridViewerMode::Live)
+		switch (CachedViewerMode)
 		{
-			WidgetContainer->SetContent(SNew(SRenderGridViewerLive, BlueprintEditor));
-		}
-		else if (CurrentViewerMode == ERenderGridViewerMode::Preview)
-		{
-			WidgetContainer->SetContent(SNew(SRenderGridViewerPreview, BlueprintEditor));
-		}
-		else if (CurrentViewerMode == ERenderGridViewerMode::Rendered)
-		{
-			WidgetContainer->SetContent(SNew(SRenderGridViewerRendered, BlueprintEditor));
+			case ERenderGridViewerMode::Preview:
+				WidgetContainer->SetContent(SNew(SRenderGridViewerPreview, BlueprintEditor));
+				break;
+
+			case ERenderGridViewerMode::Rendered:
+				WidgetContainer->SetContent(SNew(SRenderGridViewerRendered, BlueprintEditor));
+				break;
+
+			case ERenderGridViewerMode::None:
+				break;
+
+			case ERenderGridViewerMode::Live:
+			default:
+				WidgetContainer->SetContent(SNew(SRenderGridViewerLive, BlueprintEditor));
+				break;
 		}
 	}
 }

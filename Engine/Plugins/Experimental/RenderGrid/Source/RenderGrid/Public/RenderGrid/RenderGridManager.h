@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/StrongObjectPtr.h"
 #include "RenderGrid/RenderGrid.h"
 #include "RenderGridManager.generated.h"
 
@@ -54,19 +55,16 @@ namespace UE::RenderGrid
 		bool bHeadless = false;
 
 		/** The render grid of the given render grid jobs that will be rendered. */
-		TObjectPtr<URenderGrid> RenderGrid = nullptr;
+		TStrongObjectPtr<URenderGrid> RenderGrid = nullptr;
 
 		/** The specific render grid job that will be rendered. */
-		TObjectPtr<URenderGridJob> RenderGridJob = nullptr;
+		TStrongObjectPtr<URenderGridJob> RenderGridJob = nullptr;
 
 		/** The specific frame number that will be rendered. */
 		TOptional<int32> Frame;
 
 		/** The resolution it will be rendered in. */
 		FIntPoint Resolution = FIntPoint(0, 0);
-
-		/** The texture to reuse for rendering (performance optimization, prevents a new UTexture2D from having to be created, will only be used if the resolution of this texture matches the resolution it will be rendering in). */
-		TObjectPtr<UTexture2D> ReusingTexture2D = nullptr;
 
 		/** The delegate for when the rendering has finished. */
 		FRenderGridManagerRenderPreviewFrameArgsCallback Callback;

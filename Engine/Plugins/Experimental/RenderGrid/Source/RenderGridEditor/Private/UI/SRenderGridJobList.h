@@ -158,7 +158,7 @@ namespace UE::RenderGrid::Private
 		TWeakPtr<IRenderGridEditor> BlueprintEditorWeakPtr;
 
 		/** A reference to the render grid job instance. */
-		TObjectPtr<URenderGridJob> RenderGridJob;
+		TWeakObjectPtr<URenderGridJob> RenderGridJobWeakPtr;
 
 		/** A reference to the job list (the parent widget). */
 		TSharedPtr<SRenderGridJobList> JobListWidget;

@@ -5,6 +5,7 @@
 #include "UI/Components/SRenderGridRemoteControlField.h"
 #include "IRenderGridEditor.h"
 #include "IRenderGridModule.h"
+#include "ScopedTransaction.h"
 #include "RenderGrid/RenderGrid.h"
 #include "RenderGrid/RenderGridManager.h"
 #include "SlateOptMacros.h"
@@ -17,15 +18,15 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void UE::RenderGrid::Private::SRenderGridPropsRemoteControl::Construct(const FArguments& InArgs, TSharedPtr<IRenderGridEditor> InBlueprintEditor, URenderGridPropsSourceRemoteControl* InPropsSource)
 {
 	BlueprintEditorWeakPtr = InBlueprintEditor;
-	PropsSource = InPropsSource;
+	PropsSourceWeakPtr = InPropsSource;
 
 	SAssignNew(RowWidgetsContainer, SVerticalBox);
 	UpdateStoredValuesAndRefresh(true);
 
 	InBlueprintEditor->OnRenderGridJobsSelectionChanged().AddSP(this, &SRenderGridPropsRemoteControl::OnRenderGridJobsSelectionChanged);
-	if (IsValid(PropsSource))
+	if (IsValid(InPropsSource))
 	{
-		if (TObjectPtr<URemoteControlPreset> Preset = PropsSource->GetProps()->GetRemoteControlPreset())
+		if (TObjectPtr<URemoteControlPreset> Preset = InPropsSource->GetProps()->GetRemoteControlPreset())
 		{
 			Preset->OnEntityExposed().AddSP(this, &SRenderGridPropsRemoteControl::OnRemoteControlEntitiesExposed);
 			Preset->OnEntityUnexposed().AddSP(this, &SRenderGridPropsRemoteControl::OnRemoteControlEntitiesUnexposed);
@@ -68,7 +69,7 @@ void UE::RenderGrid::Private::SRenderGridPropsRemoteControl::Refresh(const bool 
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
 		TArray<FRenderGridRemoteControlGenerateWidgetArgs> NewRowWidgetsArgs;
-		if (IsValid(PropsSource))
+		if (URenderGridPropsSourceRemoteControl* PropsSource = PropsSourceWeakPtr.Get(); IsValid(PropsSource))
 		{
 			URenderGridPropsRemoteControl* Props = PropsSource->GetProps();
 			for (URenderGridPropRemoteControl* Prop : Props->GetAllCasted())
@@ -218,6 +219,8 @@ bool UE::RenderGrid::Private::SRenderGridPropsRemoteControl::SetSelectedJobField
 {
 	if (URenderGridJob* SelectedJob = GetSelectedJob(); IsValid(SelectedJob))
 	{
+		FScopedTransaction Transaction(LOCTEXT("ChangeJobProperty", "Change Job Property"));
+		SelectedJob->Modify();
 		return SelectedJob->SetRemoteControlValue(RemoteControlEntity, BinaryArray);
 	}
 	return false;

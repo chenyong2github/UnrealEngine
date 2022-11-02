@@ -11,5 +11,6 @@ namespace UE::RenderGrid::Private
 	/**
 	 * The base class of the render grid props widget.
 	 */
-	class SRenderGridPropsBase : public SCompoundWidget {};
+	class SRenderGridPropsBase : public SCompoundWidget
+	{};
 }

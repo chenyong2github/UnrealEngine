@@ -82,6 +82,9 @@ namespace UE::RenderGrid
 		DECLARE_MULTICAST_DELEGATE_OneParam(FOnRenderGridBatchRenderingFinished, URenderGridQueue*);
 		virtual FOnRenderGridBatchRenderingFinished& OnRenderGridBatchRenderingFinished() { return OnRenderGridBatchRenderingFinishedDelegate; }
 
+		DECLARE_MULTICAST_DELEGATE(FOnRenderGridPreviewRenderedFirstTimeSinceAppStart)
+		virtual FOnRenderGridPreviewRenderedFirstTimeSinceAppStart& OnRenderGridPreviewRenderedFirstTimeSinceAppStart() { return OnRenderGridPreviewRenderedFirstTimeSinceAppStartDelegate; }
+
 	private:
 		/** The delegate for when data in the render grid changed. */
 		FOnRenderGridChanged OnRenderGridChangedDelegate;
@@ -97,5 +100,8 @@ namespace UE::RenderGrid
 
 		/** The delegate for when batch rendering of a render grid has finished, successfully or not. */
 		FOnRenderGridBatchRenderingFinished OnRenderGridBatchRenderingFinishedDelegate;
+
+		/** The delegate for the first time (since the start of this application) that the preview is rendered. */
+		FOnRenderGridPreviewRenderedFirstTimeSinceAppStart OnRenderGridPreviewRenderedFirstTimeSinceAppStartDelegate;
 	};
 }

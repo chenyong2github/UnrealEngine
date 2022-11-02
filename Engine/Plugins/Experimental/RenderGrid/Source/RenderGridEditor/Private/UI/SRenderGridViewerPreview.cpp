@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/SRenderGridViewerPreview.h"
-#include "Engine/Texture2D.h"
-#include "TextureResource.h"
 #include "UI/Components/SRenderGridViewerFrameSlider.h"
 #include "RenderGrid/RenderGrid.h"
+#include "RenderGrid/RenderGridQueue.h"
 #include "IRenderGridEditor.h"
 #include "IRenderGridModule.h"
 #include "LevelSequence.h"
@@ -12,12 +11,13 @@
 #include "MovieScene.h"
 #include "RenderGrid/RenderGridManager.h"
 #include "SlateOptMacros.h"
+#include "TextureResource.h"
+#include "Engine/Texture2D.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "Styles/RenderGridEditorStyle.h"
 #include "Tracks/MovieSceneSubTrack.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SSlider.h"
 #include "Widgets/Layout/SScaleBox.h"
 
 #define LOCTEXT_NAMESPACE "SRenderGridViewerPreview"
@@ -30,7 +30,7 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::Tick(const FGeometry&, c
 {
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
-		if (BlueprintEditor->CanCurrentlyRender() && !CurrentRenderQueue)
+		if (BlueprintEditor->CanCurrentlyRender() && !CurrentRenderQueueWeakPtr.IsValid())
 		{
 			UpdateRerenderButton();
 			UpdateFrameSlider();
@@ -53,7 +53,7 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::Construct(const FArgumen
 {
 	BlueprintEditorWeakPtr = InBlueprintEditor;
 	SelectedJobWeakPtr = nullptr;
-	CurrentRenderQueue = nullptr;
+	CurrentRenderQueueWeakPtr = nullptr;
 	FramesUntilRenderNewPreview = 0;
 	ImageBrushEmpty = FSlateBrush();
 	ImageBrushEmpty.DrawAs = ESlateBrushDrawType::Type::NoDrawType;
@@ -81,7 +81,7 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::Construct(const FArgumen
 	ChildSlot
 	[
 		SNew(SVerticalBox)
-		.Visibility_Lambda([this]() -> EVisibility { return (!IsPreviewWidget() && CurrentRenderQueue) ? EVisibility::Hidden : EVisibility::Visible; })
+		.Visibility_Lambda([this]() -> EVisibility { return (!IsPreviewWidget() && CurrentRenderQueueWeakPtr.IsValid()) ? EVisibility::Hidden : EVisibility::Visible; })
 
 		// image
 		+ SVerticalBox::Slot()
@@ -123,7 +123,7 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::Construct(const FArgumen
 						{
 							if (URenderGridJob* SelectedJob = SelectedJobWeakPtr.Get(); IsValid(SelectedJob))
 							{
-								if (ULevelSequence* Sequence = SelectedJob->GetSequence(); IsValid(Sequence))
+								if (ULevelSequence* Sequence = SelectedJob->GetLevelSequence(); IsValid(Sequence))
 								{
 									if (IsPreviewWidget() || !FrameSlider.IsValid() || (FrameSlider->GetVisibility() != EVisibility::Visible))
 									{
@@ -227,9 +227,9 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::OnObjectModified(UObject
 			GridDataChanged();
 		}
 	}
-	else if (SelectedJobWeakPtr.IsValid() && SelectedJobWeakPtr->GetSequence() && (Cast<UMovieSceneSequence>(Object) || Cast<UMovieScene>(Object) || Cast<UMovieSceneTrack>(Object) || Cast<UMovieSceneSection>(Object) || Cast<UMovieSceneSubTrack>(Object) || Cast<UMovieSceneSubSection>(Object)))
+	else if (SelectedJobWeakPtr.IsValid() && SelectedJobWeakPtr->GetLevelSequence() && (Cast<UMovieSceneSequence>(Object) || Cast<UMovieScene>(Object) || Cast<UMovieSceneTrack>(Object) || Cast<UMovieSceneSection>(Object) || Cast<UMovieSceneSubTrack>(Object) || Cast<UMovieSceneSubSection>(Object)))
 	{
-		ULevelSequence* Sequence = SelectedJobWeakPtr->GetSequence();
+		ULevelSequence* Sequence = SelectedJobWeakPtr->GetLevelSequence();
 		if ((Object == Sequence) || (Object == Sequence->GetMovieScene()) || (Object->GetTypedOuter<UMovieScene>() == Sequence->GetMovieScene()))
 		{
 			// level sequence changed
@@ -338,8 +338,8 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::InternalRenderNewPreview
 			JobArgs.bHeadless = bHasRenderedSinceAppStart;
 			JobArgs.Frame = SelectedFrame.Get(0);
 		}
-		JobArgs.RenderGrid = BlueprintEditor->GetInstance();
-		JobArgs.RenderGridJob = Job;
+		JobArgs.RenderGrid = TStrongObjectPtr(BlueprintEditor->GetInstance());
+		JobArgs.RenderGridJob = TStrongObjectPtr(Job);
 		JobArgs.Resolution = FIntPoint(FMath::RoundToInt32(RenderResolution), FMath::RoundToInt32(RenderResolution / Job->GetOutputAspectRatio()));
 
 		const TSharedPtr<SWidget> BaseThis = AsShared();
@@ -358,8 +358,8 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::InternalRenderNewPreview
 
 		if (URenderGridQueue* NewRenderQueue = IRenderGridModule::Get().GetManager().RenderPreviewFrame(JobArgs))
 		{
-			CurrentRenderQueue = NewRenderQueue;
-			BlueprintEditor->SetPreviewRenderQueue(CurrentRenderQueue);
+			CurrentRenderQueueWeakPtr = NewRenderQueue;
+			BlueprintEditor->SetPreviewRenderQueue(NewRenderQueue);
 			return;
 		}
 	}
@@ -368,14 +368,18 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::InternalRenderNewPreview
 
 void UE::RenderGrid::Private::SRenderGridViewerPreview::RenderNewPreviewCallback(const bool bSuccess)
 {
-	bHasRenderedSinceAppStart = true;
 	UpdateImageTexture();
 
-	CurrentRenderQueue = nullptr;
+	CurrentRenderQueueWeakPtr = nullptr;
 	if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
-		BlueprintEditor->SetPreviewRenderQueue(CurrentRenderQueue);
+		BlueprintEditor->SetPreviewRenderQueue(nullptr);
+		if (!bHasRenderedSinceAppStart)
+		{
+			BlueprintEditor->OnRenderGridPreviewRenderedFirstTimeSinceAppStart().Broadcast();
+		}
 	}
+	bHasRenderedSinceAppStart = true;
 }
 
 void UE::RenderGrid::Private::SRenderGridViewerPreview::UpdateImageTexture(const bool bForce)
@@ -440,20 +444,13 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::SetImageTexture(UTexture
 		}
 		ImageBrush.SetResourceObject(nullptr);
 		ImageBrush.SetImageSize(FVector2D(0, 0));
-
-		if (IsValid(ImageTexture))
-		{
-			ImageTexture->RemoveFromRoot();
-		}
 		ImageTexture = nullptr;
 	}// cleanup <<
 
 	{// set new texture >>
 		if (IsValid(Texture) && Texture->GetResource())
 		{
-			ImageTexture = Texture;
-			ImageTexture->AddToRoot();
-
+			ImageTexture = TStrongObjectPtr(Texture);
 			if (Image.IsValid())
 			{
 				static constexpr double PreviewTabAspectRatio = 1.96875;
@@ -475,7 +472,7 @@ void UE::RenderGrid::Private::SRenderGridViewerPreview::SetImageTexture(UTexture
 				ImageBrush = FSlateBrush();
 				ImageBrush.DrawAs = ESlateBrushDrawType::Type::Image;
 				ImageBrush.ImageType = ESlateBrushImageType::Type::FullColor;
-				ImageBrush.SetResourceObject(ImageTexture);
+				ImageBrush.SetResourceObject(ImageTexture.Get());
 				ImageBrush.SetImageSize(FVector2D(ImageWidth, ImageHeight));
 				Image->SetImage(&ImageBrush);
 				ImageBackground->SetImage(FCoreStyle::Get().GetBrush("Checkerboard"));

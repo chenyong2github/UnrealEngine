@@ -13,7 +13,7 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void UE::RenderGrid::Private::SRenderGridPropsLocal::Construct(const FArguments& InArgs, TSharedPtr<IRenderGridEditor> InBlueprintEditor, URenderGridPropsSourceLocal* InPropsSource)
 {
 	BlueprintEditorWeakPtr = InBlueprintEditor;
-	PropsSource = InPropsSource;
+	PropsSourceWeakPtr = InPropsSource;
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

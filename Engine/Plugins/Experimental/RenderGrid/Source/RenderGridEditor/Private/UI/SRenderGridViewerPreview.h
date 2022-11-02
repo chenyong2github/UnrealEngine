@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Styling/SlateBrush.h"
+#include "Engine/Texture2D.h"
+#include "UObject/StrongObjectPtr.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Styling/SlateBrush.h"
 
 
 class SButton;
@@ -12,7 +14,6 @@ class SImage;
 class SSlider;
 class URenderGridJob;
 class URenderGridQueue;
-class UTexture2D;
 
 
 namespace UE::RenderGrid
@@ -75,7 +76,7 @@ namespace UE::RenderGrid::Private
 		TWeakPtr<IRenderGridEditor> BlueprintEditorWeakPtr;
 
 		/** A reference to the queue that's currently rendering. */
-		TObjectPtr<URenderGridQueue> CurrentRenderQueue;
+		TWeakObjectPtr<URenderGridQueue> CurrentRenderQueueWeakPtr;
 
 		/** A reference to the job that's currently rendering. */
 		TWeakObjectPtr<URenderGridJob> SelectedJobWeakPtr;
@@ -106,7 +107,7 @@ namespace UE::RenderGrid::Private
 		FSlateBrush ImageBrush;
 
 		/** The texture of the image. */
-		TObjectPtr<UTexture2D> ImageTexture;
+		TStrongObjectPtr<UTexture2D> ImageTexture;
 
 		/** The last render grid job used for the LastUpdateImageTexture function. */
 		TWeakObjectPtr<URenderGridJob> LastUpdateImageTextureSelectedJobWeakPtr;

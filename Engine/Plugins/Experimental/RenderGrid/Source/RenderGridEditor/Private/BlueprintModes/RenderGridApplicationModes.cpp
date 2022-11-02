@@ -16,10 +16,10 @@ FText UE::RenderGrid::Private::FRenderGridApplicationModes::GetLocalizedMode(con
 		LocModes.Add(ListingMode, NSLOCTEXT("RenderGridBlueprintModes", "ListingMode", "Listing"));
 		LocModes.Add(LogicMode, NSLOCTEXT("RenderGridBlueprintModes", "LogicMode", "Logic"));
 	}
-	
+
 	check(InMode != NAME_None);
 	const FText* OutDesc = LocModes.Find(InMode);
 	check(OutDesc);
-	
+
 	return *OutDesc;
 }

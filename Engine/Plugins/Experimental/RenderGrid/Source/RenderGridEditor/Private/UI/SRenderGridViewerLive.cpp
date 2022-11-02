@@ -299,7 +299,7 @@ void UE::RenderGrid::Private::SRenderGridViewerLive::Construct(const FArguments&
 					{
 						if (URenderGridJob* SelectedJob = SelectedJobWeakPtr.Get(); IsValid(SelectedJob))
 						{
-							if (ULevelSequence* Sequence = SelectedJob->GetSequence(); IsValid(Sequence))
+							if (ULevelSequence* Sequence = SelectedJob->GetLevelSequence(); IsValid(Sequence))
 							{
 								return LOCTEXT("WaitingForRenderer", "Waiting for renderer...");
 							}
@@ -387,7 +387,7 @@ void UE::RenderGrid::Private::SRenderGridViewerLive::UpdateViewport()
 
 	if (URenderGridJob* SelectedJob = SelectedJobWeakPtr.Get(); IsValid(SelectedJob))
 	{
-		if (ULevelSequence* Sequence = SelectedJob->GetSequence(); IsValid(Sequence))
+		if (ULevelSequence* Sequence = SelectedJob->GetLevelSequence(); IsValid(Sequence))
 		{
 			if (const TSharedPtr<IRenderGridEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 			{

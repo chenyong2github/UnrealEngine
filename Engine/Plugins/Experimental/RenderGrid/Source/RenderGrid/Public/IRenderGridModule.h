@@ -44,7 +44,7 @@ namespace UE::RenderGrid
 
 		/** Creates a URenderGridPropsSourceBase instance, based on the given ERenderGridPropsSourceType. */
 		virtual URenderGridPropsSourceBase* CreatePropsSource(UObject* Outer, ERenderGridPropsSourceType PropsSourceType, UObject* PropsSourceOrigin) = 0;
-		
+
 		/** Returns all set IRenderGridPropsSourceFactory instances, these are used to create URenderGridPropsSourceBase instances based on a given ERenderGridPropsSourceType. */
 		virtual const TMap<ERenderGridPropsSourceType, TSharedPtr<IRenderGridPropsSourceFactory>>& GetPropsSourceFactories() const = 0;
 	};

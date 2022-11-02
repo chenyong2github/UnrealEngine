@@ -7,6 +7,8 @@ public class RenderGridDeveloper : ModuleRules
 	public RenderGridDeveloper(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		//PCHUsage = PCHUsageMode.NoPCHs;
+		//bUseUnity = false;
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]

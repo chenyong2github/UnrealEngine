@@ -28,7 +28,7 @@ public:
 	virtual bool SupportsDelegates() const override { return true; }
 	virtual bool SupportsEventGraphs() const override { return true; }
 	virtual bool SupportsAnimLayers() const override { return false; }
-
+	virtual bool ShouldBeMarkedDirtyUponTransaction() const override { return false; }
 	virtual UClass* GetBlueprintClass() const override;
 	virtual void PostLoad() override;
 	//~ End UBlueprint Interface

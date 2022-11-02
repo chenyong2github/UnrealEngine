@@ -11,5 +11,6 @@ namespace UE::RenderGrid
 	/**
 	 * RenderGridDeveloper module interface.
 	 */
-	class IRenderGridDeveloperModule : public IModuleInterface	{};
+	class IRenderGridDeveloperModule : public IModuleInterface
+	{};
 }

@@ -7,6 +7,8 @@ public class RenderGridEditor : ModuleRules
 	public RenderGridEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
+		//PCHUsage = PCHUsageMode.NoPCHs;
+		//bUseUnity = false;
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]
@@ -17,7 +19,6 @@ public class RenderGridEditor : ModuleRules
 				"RemoteControl",
 			}
 		);
-
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]

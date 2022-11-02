@@ -39,10 +39,10 @@ namespace UE::RenderGrid
 	{
 	public:
 		/** The render grid of the given render grid jobs that will be rendered. */
-		TObjectPtr<URenderGrid> RenderGrid = nullptr;
+		TStrongObjectPtr<URenderGrid> RenderGrid = nullptr;
 
 		/** The specific render grid jobs that will be rendered. */
-		TArray<TObjectPtr<URenderGridJob>> RenderGridJobs;
+		TArray<TStrongObjectPtr<URenderGridJob>> RenderGridJobs;
 
 		/** If not null, it will override the movie pipeline executor class with this class. */
 		TSubclassOf<UMoviePipelinePIEExecutor> PipelineExecutorClass = nullptr;
@@ -167,51 +167,51 @@ public:
 
 public:
 	/** Queues the given job. */
-	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="render append"))
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="render append"))
 	void AddJob(URenderGridJob* Job);
 
 	/** Pauses the queue. */
-	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="wait"))
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="wait"))
 	void Pause();
 
 	/** Resumes the queue. */
-	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="unwait unpause"))
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="unwait unpause"))
 	void Resume();
 
 	/** Cancels the current and the remaining queued jobs. Relies on the internal movie pipeline implementation of job canceling on whether this will stop the current render grid job from rendering or not. Will always prevent new render grid jobs from rendering. */
-	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="stop quit exit kill terminate end"))
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="stop quit exit kill terminate end"))
 	void Cancel();
 
 	/** Returns true if this queue has been canceled. */
-	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="stopped quited exited killed terminated ended"))
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="stopped quited exited killed terminated ended"))
 	bool IsCanceled() const { return bCanceled; }
 
 	/** Retrieves the rendering status of the given render grid job. */
-	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="rendering progression obtain text"))
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain text"))
 	FString GetJobStatus(URenderGridJob* Job) const;
 
 	/** Returns all the jobs that have been and will be rendered. */
-	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="rendering progression obtain"))
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain"))
 	TArray<URenderGridJob*> GetJobs() const;
 
 	/** Returns the number of jobs that have been and will be rendered. */
-	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="rendering progression obtain number amount"))
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain number amount"))
 	int32 GetJobsCount() const;
 
 	/** Returns the number of jobs that have finished rendering. Basically just returns [Get Jobs Count] minus [Get Jobs Remaining Count]. */
-	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="rendering progression obtain number amount finished"))
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain number amount finished"))
 	int32 GetJobsCompletedCount() const;
 
 	/** Returns the percentage of jobs finished, this includes the progression of the job that is currently rendering. */
-	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="rendering progression obtain number amount finished"))
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain number amount finished"))
 	float GetStatusPercentage() const;
 
 	/** Returns the number of jobs that are still left to render, includes the job that is currently rendering. */
-	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="rendering progression obtain number amount finished"))
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain number amount finished"))
 	int32 GetJobsRemainingCount() const;
 
 	/** Returns the status of the rendering process. */
-	UFUNCTION(BlueprintCallable, Category="Render Grid|Queue", Meta=(Keywords="rendering progression obtain text"))
+	UFUNCTION(BlueprintCallable, Category="Render Grid Queue", Meta=(Keywords="rendering progression obtain text"))
 	FString GetStatus() const;
 
 protected:

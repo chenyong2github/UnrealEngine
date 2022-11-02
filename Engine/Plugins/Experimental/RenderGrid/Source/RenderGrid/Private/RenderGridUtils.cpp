@@ -1,17 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RenderGridUtils.h"
-#include "Engine/Engine.h"
+#include "RenderGrid/RenderGrid.h"
 #include "Engine/Texture2D.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "ImageUtils.h"
+#include "TextureResource.h"
 #include "Editor/EditorPerformanceSettings.h"
+#include "Engine/Engine.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
-#include "TextureResource.h"
 
 
 bool UE::RenderGrid::Private::FRenderGridUtils::IsImage(const FString& ImagePath)
@@ -250,6 +251,61 @@ FString UE::RenderGrid::Private::FRenderGridUtils::NormalizeOutputDirectory(cons
 		NewOutputDirectory += TEXT("/");
 	}
 	return NewOutputDirectory;
+}
+
+
+FString UE::RenderGrid::Private::FRenderGridUtils::PurgeJobIdOrReturnEmptyString(const FString& JobId)
+{
+	static FString ValidCharacters = TEXT("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_");
+
+	FString Result;
+	for (TCHAR JobIdChar : JobId)
+	{
+		int32 Index;
+		if (ValidCharacters.FindChar(JobIdChar, Index))
+		{
+			Result += JobIdChar;
+		}
+	}
+	return Result;
+}
+
+FString UE::RenderGrid::Private::FRenderGridUtils::PurgeJobId(const FString& JobId)
+{
+	FString Result = PurgeJobIdOrReturnEmptyString(JobId);
+	if (Result.IsEmpty())
+	{
+		return TEXT("0");
+	}
+	return Result;
+}
+
+FString UE::RenderGrid::Private::FRenderGridUtils::PurgeJobIdOrGenerateUniqueId(URenderGrid* Grid, const FString& JobId)
+{
+	FString Result = PurgeJobIdOrReturnEmptyString(JobId);
+	if (Result.IsEmpty())
+	{
+		return Grid->GenerateNextJobId();
+	}
+	return Result;
+}
+
+FString UE::RenderGrid::Private::FRenderGridUtils::PurgeJobName(const FString& JobName)
+{
+	return JobName.TrimStartAndEnd();
+}
+
+FString UE::RenderGrid::Private::FRenderGridUtils::NormalizeJobOutputDirectory(const FString& OutputDirectory)
+{
+	return NormalizeOutputDirectory(FPaths::ConvertRelativePathToFull(OutputDirectory))
+		.Replace(*NormalizeOutputDirectory(FPaths::ConvertRelativePathToFull(FPaths::ProjectDir())), TEXT("{project_dir}/"));
+}
+
+FString UE::RenderGrid::Private::FRenderGridUtils::DenormalizeJobOutputDirectory(const FString& NormalizedOutputDirectory)
+{
+	return NormalizeOutputDirectory(FPaths::ConvertRelativePathToFull(
+		NormalizedOutputDirectory.Replace(TEXT("{project_dir}"), *FPaths::ProjectDir())
+	));
 }
 
 

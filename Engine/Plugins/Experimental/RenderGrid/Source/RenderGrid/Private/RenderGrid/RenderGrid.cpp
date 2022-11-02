@@ -12,10 +12,19 @@
 #include "UObject/ObjectSaveContext.h"
 
 
+URenderGridDefaults::URenderGridDefaults()
+	: LevelSequence(nullptr)
+	, RenderPreset(nullptr)
+	, OutputDirectory(UE::RenderGrid::Private::FRenderGridUtils::NormalizeJobOutputDirectory(FPaths::ProjectDir() / TEXT("Saved/MovieRenders/")))
+{
+	SetFlags(RF_Public | RF_Transactional);
+}
+
+
 URenderGridJob::URenderGridJob()
 	: Guid(FGuid::NewGuid())
 	, WaitFramesBeforeRendering(0)
-	, Sequence(nullptr)
+	, LevelSequence(nullptr)
 	, bOverrideStartFrame(false)
 	, CustomStartFrame(0)
 	, bOverrideEndFrame(false)
@@ -24,16 +33,18 @@ URenderGridJob::URenderGridJob()
 	, CustomResolution(FIntPoint(3840, 2160))
 	, bIsEnabled(true)
 	, RenderPreset(nullptr)
-{}
+{
+	SetFlags(RF_Public | RF_Transactional);
+}
 
 TOptional<int32> URenderGridJob::GetSequenceStartFrame() const
 {
-	if (!IsValid(Sequence))
+	if (!IsValid(LevelSequence))
 	{
 		return TOptional<int32>();
 	}
 
-	const UMovieScene* MovieScene = Sequence->MovieScene;
+	const UMovieScene* MovieScene = LevelSequence->MovieScene;
 	const FFrameRate TickResolution = MovieScene->GetTickResolution();
 	const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 	const UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings();
@@ -54,12 +65,12 @@ TOptional<int32> URenderGridJob::GetSequenceStartFrame() const
 
 TOptional<int32> URenderGridJob::GetSequenceEndFrame() const
 {
-	if (!IsValid(Sequence))
+	if (!IsValid(LevelSequence))
 	{
 		return TOptional<int32>();
 	}
 
-	const UMovieScene* MovieScene = Sequence->MovieScene;
+	const UMovieScene* MovieScene = LevelSequence->MovieScene;
 	const FFrameRate TickResolution = MovieScene->GetTickResolution();
 	const FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 	const UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings();
@@ -151,12 +162,12 @@ TOptional<int32> URenderGridJob::GetStartFrame() const
 		return Settings->CustomStartFrame;
 	}
 
-	if (!IsValid(Sequence))
+	if (!IsValid(LevelSequence))
 	{
 		return TOptional<int32>();
 	}
 
-	const UMovieScene* MovieScene = Sequence->MovieScene;
+	const UMovieScene* MovieScene = LevelSequence->MovieScene;
 	const FFrameRate TickResolution = MovieScene->GetTickResolution();
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 	if (IsValid(Settings) && Settings->bUseCustomFrameRate)
@@ -180,12 +191,12 @@ TOptional<int32> URenderGridJob::GetEndFrame() const
 		return Settings->CustomEndFrame;
 	}
 
-	if (!IsValid(Sequence))
+	if (!IsValid(LevelSequence))
 	{
 		return TOptional<int32>();
 	}
 
-	const UMovieScene* MovieScene = Sequence->MovieScene;
+	const UMovieScene* MovieScene = LevelSequence->MovieScene;
 	const FFrameRate TickResolution = MovieScene->GetTickResolution();
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 	if (IsValid(Settings) && Settings->bUseCustomFrameRate)
@@ -198,7 +209,7 @@ TOptional<int32> URenderGridJob::GetEndFrame() const
 
 TOptional<double> URenderGridJob::GetStartTime() const
 {
-	if (!IsValid(Sequence))
+	if (!IsValid(LevelSequence))
 	{
 		return TOptional<double>();
 	}
@@ -211,7 +222,7 @@ TOptional<double> URenderGridJob::GetStartTime() const
 
 	const UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings();
 
-	const UMovieScene* MovieScene = Sequence->MovieScene;
+	const UMovieScene* MovieScene = LevelSequence->MovieScene;
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 	if (IsValid(Settings) && Settings->bUseCustomFrameRate)
 	{
@@ -222,7 +233,7 @@ TOptional<double> URenderGridJob::GetStartTime() const
 
 TOptional<double> URenderGridJob::GetEndTime() const
 {
-	if (!IsValid(Sequence))
+	if (!IsValid(LevelSequence))
 	{
 		return TOptional<double>();
 	}
@@ -235,7 +246,7 @@ TOptional<double> URenderGridJob::GetEndTime() const
 
 	const UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings();
 
-	const UMovieScene* MovieScene = Sequence->MovieScene;
+	const UMovieScene* MovieScene = LevelSequence->MovieScene;
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 	if (IsValid(Settings) && Settings->bUseCustomFrameRate)
 	{
@@ -246,7 +257,7 @@ TOptional<double> URenderGridJob::GetEndTime() const
 
 TOptional<double> URenderGridJob::GetDurationInSeconds() const
 {
-	if (!IsValid(Sequence))
+	if (!IsValid(LevelSequence))
 	{
 		return TOptional<double>();
 	}
@@ -260,7 +271,7 @@ TOptional<double> URenderGridJob::GetDurationInSeconds() const
 
 	const UMoviePipelineOutputSetting* Settings = GetRenderPresetOutputSettings();
 
-	const UMovieScene* MovieScene = Sequence->MovieScene;
+	const UMovieScene* MovieScene = LevelSequence->MovieScene;
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 	if (IsValid(Settings) && Settings->bUseCustomFrameRate)
 	{
@@ -322,56 +333,19 @@ bool URenderGridJob::MatchesSearchTerm(const FString& SearchTerm) const
 	return true;
 }
 
-FString URenderGridJob::PurgeJobIdOrReturnEmptyString(const FString& NewJobId)
+void URenderGridJob::SetJobId(const FString& NewJobId)
 {
-	static FString ValidCharacters = TEXT("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_");
-
-	FString Result;
-	for (TCHAR NewJobIdChar : NewJobId)
-	{
-		int32 Index;
-		if (ValidCharacters.FindChar(NewJobIdChar, Index))
-		{
-			Result += NewJobIdChar;
-		}
-	}
-	return Result;
-}
-
-FString URenderGridJob::PurgeJobId(const FString& NewJobId)
-{
-	FString Result = PurgeJobIdOrReturnEmptyString(NewJobId);
-	if (Result.IsEmpty())
-	{
-		return TEXT("0");
-	}
-	return Result;
-}
-
-FString URenderGridJob::PurgeJobIdOrGenerateUniqueId(URenderGrid* Grid, const FString& NewJobId)
-{
-	FString Result = PurgeJobIdOrReturnEmptyString(NewJobId);
-	if (Result.IsEmpty())
-	{
-		return Grid->GenerateNextJobId();
-	}
-	return Result;
-}
-
-FString URenderGridJob::PurgeJobName(const FString& NewJobName)
-{
-	return NewJobName.TrimStartAndEnd();
-}
-
-FString URenderGridJob::PurgeOutputDirectory(const FString& NewOutputDirectory)
-{
-	return UE::RenderGrid::Private::FRenderGridUtils::NormalizeOutputDirectory(FPaths::ConvertRelativePathToFull(NewOutputDirectory))
-		.Replace(*UE::RenderGrid::Private::FRenderGridUtils::NormalizeOutputDirectory(FPaths::ConvertRelativePathToFull(FPaths::ProjectDir())), TEXT("{project_dir}/"));
+	JobId = UE::RenderGrid::Private::FRenderGridUtils::PurgeJobId(NewJobId);
 }
 
 FString URenderGridJob::GetOutputDirectory() const
 {
-	return UE::RenderGrid::Private::FRenderGridUtils::NormalizeOutputDirectory(FPaths::ConvertRelativePathToFull(OutputDirectory.Replace(TEXT("{project_dir}"), *FPaths::ProjectDir())));
+	return UE::RenderGrid::Private::FRenderGridUtils::DenormalizeJobOutputDirectory(OutputDirectory);
+}
+
+void URenderGridJob::SetOutputDirectory(const FString& NewOutputDirectory)
+{
+	OutputDirectory = UE::RenderGrid::Private::FRenderGridUtils::NormalizeJobOutputDirectory(NewOutputDirectory);
 }
 
 UMoviePipelineOutputSetting* URenderGridJob::GetRenderPresetOutputSettings() const
@@ -459,16 +433,18 @@ bool URenderGridJob::SetRemoteControlValue(const TSharedPtr<FRemoteControlEntity
 }
 
 
-URenderGrid::URenderGrid()
-	: Guid(FGuid::NewGuid())
+URenderGrid::URenderGrid(const FObjectInitializer& ObjectInitializer): Super(ObjectInitializer)
+	, Guid(FGuid::NewGuid())
 	, PropsSourceType(ERenderGridPropsSourceType::RemoteControl)
 	, PropsSourceOrigin_RemoteControl(nullptr)
+	, Defaults(ObjectInitializer.CreateDefaultSubobject<URenderGridDefaults>(this, TEXT("RenderGridDefaults")))
 	, bExecutingBlueprintEvent(false)
 	, CachedPropsSource(nullptr)
 	, CachedPropsSourceType(ERenderGridPropsSourceType::Local)
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
+		SetFlags(RF_Public | RF_Transactional);
 		LoadValuesFromCDO();
 		OnPreSaveCDO().AddUObject(this, &URenderGrid::SaveValuesToCDO);
 	}
@@ -532,6 +508,20 @@ void URenderGrid::PostLoad()
 	{
 		PropsSourceType = ERenderGridPropsSourceType::RemoteControl;
 	}
+
+	SetFlags(RF_Public | RF_Transactional);
+	for (TObjectPtr<URenderGridJob> Job : RenderGridJobs)
+	{
+		if (IsValid(Job))
+		{
+			Job->SetFlags(RF_Public | RF_Transactional);
+		}
+	}
+	if (!IsValid(Defaults))
+	{
+		Defaults = NewObject<URenderGridDefaults>(this, TEXT("RenderGridDefaults"));
+	}
+	Defaults->SetFlags(RF_Public | RF_Transactional);
 }
 
 void URenderGrid::BeginEditor()
@@ -641,6 +631,8 @@ void URenderGrid::CopyValuesToOrFromCDO(const bool bToCDO)
 				CDO->RenderGridJobs.Add(JobCopy);
 			}
 		}
+
+		CDO->Defaults = DuplicateObject(Defaults, CDO);
 	}
 }
 
@@ -674,6 +666,40 @@ UObject* URenderGrid::GetPropsSourceOrigin() const
 		return PropsSourceOrigin_RemoteControl;
 	}
 	return nullptr;
+}
+
+UMoviePipelineOutputSetting* URenderGrid::GetDefaultRenderPresetOutputSettings() const
+{
+	if (!IsValid(Defaults->RenderPreset))
+	{
+		return nullptr;
+	}
+	for (UMoviePipelineSetting* Settings : Defaults->RenderPreset->FindSettingsByClass(UMoviePipelineOutputSetting::StaticClass(), false))
+	{
+		if (!IsValid(Settings))
+		{
+			continue;
+		}
+		if (UMoviePipelineOutputSetting* OutputSettings = Cast<UMoviePipelineOutputSetting>(Settings))
+		{
+			if (!OutputSettings->IsEnabled())
+			{
+				continue;
+			}
+			return OutputSettings;
+		}
+	}
+	return nullptr;
+}
+
+FString URenderGrid::GetDefaultOutputDirectory() const
+{
+	return UE::RenderGrid::Private::FRenderGridUtils::DenormalizeJobOutputDirectory(Defaults->OutputDirectory);
+}
+
+void URenderGrid::SetDefaultOutputDirectory(const FString& NewOutputDirectory)
+{
+	Defaults->OutputDirectory = UE::RenderGrid::Private::FRenderGridUtils::NormalizeJobOutputDirectory(NewOutputDirectory);
 }
 
 void URenderGrid::AddRenderGridJob(URenderGridJob* Job)
@@ -864,7 +890,9 @@ URenderGridJob* URenderGrid::CreateTempRenderGridJob()
 	URenderGridJob* Job = NewObject<URenderGridJob>(this);
 	Job->SetJobId(GenerateUniqueRandomJobId());
 	Job->SetJobName(TEXT("New"));
-	Job->SetOutputDirectory(FPaths::ProjectDir() / TEXT("Saved/MovieRenders/"));
+	Job->SetLevelSequence(Defaults->LevelSequence);
+	Job->SetRenderPreset(Defaults->RenderPreset);
+	Job->SetOutputDirectoryRaw(Defaults->OutputDirectory);
 
 	if (URenderGridPropsSourceRemoteControl* PropsSource = GetPropsSource<URenderGridPropsSourceRemoteControl>())
 	{

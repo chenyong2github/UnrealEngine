@@ -18,12 +18,19 @@
 #include "MoviePipelineImageSequenceOutput.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelinePIEExecutor.h"
+#include "MoviePipelinePrimaryConfig.h"
 #include "MoviePipelineQueue.h"
 
 
 URenderGridMoviePipelineRenderJob* URenderGridMoviePipelineRenderJob::Create(URenderGridQueue* Queue, URenderGridJob* Job, const UE::RenderGrid::FRenderGridQueueCreateArgs& Args)
 {
-	if (!IsValid(Queue) || !IsValid(Job) || !IsValid(Args.RenderGrid))
+	if (!IsValid(Queue) || !IsValid(Job))
+	{
+		return nullptr;
+	}
+
+	URenderGrid* RenderGrid = Args.RenderGrid.Get();
+	if (!IsValid(RenderGrid))
 	{
 		return nullptr;
 	}
@@ -36,7 +43,7 @@ URenderGridMoviePipelineRenderJob* URenderGridMoviePipelineRenderJob::Create(URe
 
 	URenderGridMoviePipelineRenderJob* RenderJob = NewObject<URenderGridMoviePipelineRenderJob>(Queue);
 	RenderJob->RenderGridJob = Job;
-	RenderJob->RenderGrid = Args.RenderGrid;
+	RenderJob->RenderGrid = RenderGrid;
 	RenderJob->PipelineQueue = NewObject<UMoviePipelineQueue>(RenderJob);
 	RenderJob->PipelineExecutor = NewObject<UMoviePipelineExecutorBase>(RenderJob, PipelineExecutor);
 	RenderJob->PipelineExecutorJob = nullptr;
@@ -57,7 +64,7 @@ URenderGridMoviePipelineRenderJob* URenderGridMoviePipelineRenderJob::Create(URe
 	}
 
 
-	ULevelSequence* JobSequence = Job->GetSequence();
+	ULevelSequence* JobSequence = Job->GetLevelSequence();
 	if (!IsValid(JobSequence) || !Job->GetSequenceStartFrame().IsSet() || !Job->GetSequenceEndFrame().IsSet() || (Job->GetSequenceStartFrame().Get(0) >= Job->GetSequenceEndFrame().Get(0)))
 	{
 		return RenderJob;
@@ -297,7 +304,8 @@ void URenderGridMoviePipelineRenderJob::ExecuteFinished(UMoviePipelineExecutorBa
 
 URenderGridQueue* URenderGridQueue::Create(const UE::RenderGrid::FRenderGridQueueCreateArgs& Args)
 {
-	if (!IsValid(Args.RenderGrid))
+	URenderGrid* RenderGrid = Args.RenderGrid.Get();
+	if (!IsValid(RenderGrid))
 	{
 		return nullptr;
 	}
@@ -305,12 +313,15 @@ URenderGridQueue* URenderGridQueue::Create(const UE::RenderGrid::FRenderGridQueu
 	URenderGridQueue* RenderQueue = NewObject<URenderGridQueue>(GetTransientPackage());
 	RenderQueue->Args = Args;
 	RenderQueue->Queue = MakeShareable(new UE::RenderGrid::Private::FRenderGridGenericExecutionQueue);
-	RenderQueue->RenderGrid = Args.RenderGrid;
+	RenderQueue->RenderGrid = RenderGrid;
 	RenderQueue->bCanceled = false;
 
-	for (const TObjectPtr<URenderGridJob> Job : Args.RenderGridJobs)
+	for (const TStrongObjectPtr<URenderGridJob>& JobPtr : Args.RenderGridJobs)
 	{
-		RenderQueue->AddJob(Job);
+		if (URenderGridJob* Job = JobPtr.Get(); IsValid(Job))
+		{
+			RenderQueue->AddJob(Job);
+		}
 	}
 	return RenderQueue;
 }
