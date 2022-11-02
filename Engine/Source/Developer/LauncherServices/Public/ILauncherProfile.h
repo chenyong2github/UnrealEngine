@@ -1146,6 +1146,13 @@ public:
 	virtual FString GetReferenceContainerCryptoKeysFileName() const = 0;
 	virtual void SetReferenceContainerCryptoKeysFileName(const FString& InReferenceContainerCryptoKeysFileName) = 0;
 
+	/**
+	* Whether or not to save the unaltered staged directory for platforms that modify
+	* i/o store containers for deployment. This is so that the containers can be saved and used as a reference 
+	* container later.
+	*/
+	virtual bool IsRetainStagedDirectory() const = 0;
+	virtual void SetRetainStagedDirectory(bool bInRetainStagedDirectory) = 0;
 
 	/**
 	 * Sets if we are going to generate a patch 

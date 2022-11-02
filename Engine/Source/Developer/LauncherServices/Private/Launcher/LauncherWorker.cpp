@@ -876,6 +876,13 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 			StageAdditionalCommandLine += TEXT(" -ReferenceContainerCryptoKeys=\"") + InProfile->GetReferenceContainerCryptoKeysFileName() + TEXT("\"") ;
 		}
 	}
+
+	if (InProfile->IsUsingIoStore() && 
+		InProfile->IsRetainStagedDirectory())
+	{
+		StageAdditionalCommandLine += TEXT(" -RetainStagedDirectory");
+	}
+
 	// stage/package/deploy
 	if (InProfile->GetDeploymentMode() != ELauncherProfileDeploymentModes::DoNotDeploy)
 	{

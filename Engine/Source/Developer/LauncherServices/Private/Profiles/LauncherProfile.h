@@ -54,6 +54,7 @@ enum ELauncherVersion
 	LAUNCHERSERVICES_REMOVEDNUMCOOKERSTOSPAWN = 32,
 	LAUNCHERSERVICES_ADDEDORIGINALRELEASEVERSION = 33,
 	LAUNCHERSERVICES_ADDBUILDTARGETNAME = 34,
+	LAUNCHERSERVICED_ADDEDRETAINSTAGEDDIRECTORY = 35,
 	//ADD NEW STUFF HERE
 
 
@@ -577,6 +578,14 @@ public:
 	{
 		ReferenceContainerCryptoKeysFileName = InReferenceContainerCryptoKeysFileName;
 	}
+	virtual bool IsRetainStagedDirectory() const override
+	{
+		return bRetainStagedDirectory;
+	}
+	virtual void SetRetainStagedDirectory(bool bInRetainStagedDirectory) override
+	{
+		bRetainStagedDirectory = bInRetainStagedDirectory;
+	}
 
 	virtual ELauncherProfileDeploymentModes::Type GetDeploymentMode( ) const override
 	{
@@ -1093,6 +1102,11 @@ public:
 			Archive << BuildTargetName;
 		}
 
+		if (Version >= LAUNCHERSERVICED_ADDEDRETAINSTAGEDDIRECTORY)
+		{
+			Archive << bRetainStagedDirectory;
+		}		
+
 		DefaultLaunchRole->Serialize(Archive);
 
 		// serialize launch roles
@@ -1223,6 +1237,7 @@ public:
 		Writer.WriteValue("BasedOnReleaseVersionName", BasedOnReleaseVersionName);
 		Writer.WriteValue("ReferenceContainerGlobalFileName", ReferenceContainerGlobalFileName);
 		Writer.WriteValue("ReferenceContainerCryptoKeysFileName", ReferenceContainerCryptoKeysFileName);
+		Writer.WriteValue("RetainStagedDirectory", bRetainStagedDirectory);
 		Writer.WriteValue("OriginalReleaseVersionName", OriginalReleaseVersionName);
 		Writer.WriteValue("CreateDLC", CreateDLC);
 		Writer.WriteValue("DLCName", DLCName);
@@ -1563,6 +1578,12 @@ public:
 			}
 		}
 
+		if (bIsStaging)
+		{
+			// (only iostore uses this)
+			Writer.WriteValue("RetainStagedDirectory", IsRetainStagedDirectory());
+		}
+
 		/*
 		"script", ""
 		"project", ""
@@ -1893,6 +1914,10 @@ public:
 			OriginalReleaseVersionName.Empty();
 		}
 
+		if (Version >= LAUNCHERSERVICED_ADDEDRETAINSTAGEDDIRECTORY)
+		{
+			bRetainStagedDirectory = Object.GetBoolField("RetainStagedDirectory");
+		}
 
 		CreateDLC = Object.GetBoolField("CreateDLC");
 		DLCName = Object.GetStringField("DLCName");
@@ -3138,6 +3163,10 @@ private:
 	// If ReferenceContainerGlobalFileName refers to encrypted containers, this is the filename of
 	// the json file containing the keys.
 	FString ReferenceContainerCryptoKeysFileName;
+
+	// Some platforms modify iostore containers such that they can't be read as a reference container - if this is true,
+	// the deployment stage will save the staged directory beforehand..
+	bool bRetainStagedDirectory;
 
 	// create a release version of the content (this can be used to base dlc / patches from)
 	bool CreateReleaseVersion;
