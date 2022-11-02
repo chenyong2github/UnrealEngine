@@ -153,7 +153,7 @@ protected:
 /**
  * This class is responsible for rendering the given render grid jobs.
  */
-UCLASS()
+UCLASS(BlueprintType)
 class RENDERGRID_API URenderGridQueue : public UObject
 {
 	GENERATED_BODY()
