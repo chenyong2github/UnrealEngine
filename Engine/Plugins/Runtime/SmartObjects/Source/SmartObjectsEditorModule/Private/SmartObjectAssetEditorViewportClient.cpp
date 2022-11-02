@@ -103,41 +103,40 @@ void FSmartObjectAssetEditorViewportClient::ProcessClick(FSceneView& View, HHitP
 
 FVector FSmartObjectAssetEditorViewportClient::GetWidgetLocation() const
 {
+	FVector Result = FVector::ZeroVector; 
+	
 	const USmartObjectDefinition* Definition = SmartObjectDefinition.Get();
-	if (Definition == nullptr)
+	if (Definition != nullptr)
 	{
-		return FVector::ZeroVector;
-	}
-
-	int32 NumSlots = 0;
-	FVector AccumulatedSlotLocation = FVector::ZeroVector;
-	
-	const FTransform OwnerLocalToWorld = FTransform::Identity;
-	for (int32 Index = 0; Index < Definition->GetSlots().Num(); ++Index)
-	{
-		const FSmartObjectSlotDefinition& Slot = Definition->GetSlots()[Index];
-
-		if (!Selection.Contains(Slot.ID))
-		{
-			continue;
-		}
+		int32 NumSlots = 0;
+		FVector AccumulatedSlotLocation = FVector::ZeroVector;
+		const FTransform OwnerLocalToWorld = FTransform::Identity;
+		const TConstArrayView<FSmartObjectSlotDefinition> Slots = Definition->GetSlots();
 		
-		TOptional<FTransform> Transform = Definition->GetSlotTransform(OwnerLocalToWorld, FSmartObjectSlotIndex(Index));
-		if (!Transform.IsSet())
+		for (int32 Index = 0; Index < Slots.Num(); ++Index)
 		{
-			continue;
+			if (!Selection.Contains(Slots[Index].ID))
+			{
+				continue;
+			}
+			
+			TOptional<FTransform> Transform = Definition->GetSlotTransform(OwnerLocalToWorld, FSmartObjectSlotIndex(Index));
+			if (!Transform.IsSet())
+			{
+				continue;
+			}
+
+			AccumulatedSlotLocation += Transform.GetValue().GetLocation();
+			NumSlots++;
 		}
 
-		AccumulatedSlotLocation += Transform.GetValue().GetLocation();
-		NumSlots++;
-	}
-
-	if (NumSlots == 0)
-	{
-		return FVector::ZeroVector;
+		if (NumSlots > 0)
+		{
+			Result = AccumulatedSlotLocation / NumSlots;
+		}
 	}
 	
-	return AccumulatedSlotLocation / NumSlots;
+	return Result;
 }
 
 FMatrix FSmartObjectAssetEditorViewportClient::GetWidgetCoordSystem() const
@@ -155,14 +154,14 @@ UE::Widget::EWidgetMode FSmartObjectAssetEditorViewportClient::GetWidgetMode() c
 	bool bIsWidgetValid = false;
 
 	const USmartObjectDefinition* Definition = SmartObjectDefinition.Get();
-	if (Definition != nullptr)
+	if (Definition == nullptr)
 	{
 		const FTransform OwnerLocalToWorld = FTransform::Identity;
-		for (int32 Index = 0; Index < Definition->GetSlots().Num(); ++Index)
-		{
-			const FSmartObjectSlotDefinition& Slot = Definition->GetSlots()[Index];
+		const TConstArrayView<FSmartObjectSlotDefinition> Slots = Definition->GetSlots();
 
-			if (!Selection.Contains(Slot.ID))
+		for (int32 Index = 0; Index < Slots.Num(); ++Index)
+		{
+			if (!Selection.Contains(Slots[Index].ID))
 			{
 				continue;
 			}
@@ -256,9 +255,10 @@ bool FSmartObjectAssetEditorViewportClient::InputWidgetDelta(FViewport* InViewpo
 
 	if (bIsManipulating && CurrentAxis != EAxisList::None)
 	{
+		const TArrayView<FSmartObjectSlotDefinition> Slots = Definition->GetMutableSlots();
 		for (int32 Index = 0; Index < Definition->GetSlots().Num(); ++Index)
 		{
-			FSmartObjectSlotDefinition& Slot = Definition->GetMutableSlots()[Index];
+			FSmartObjectSlotDefinition& Slot = Slots[Index];
 
 			if (!Selection.Contains(Slot.ID))
 			{

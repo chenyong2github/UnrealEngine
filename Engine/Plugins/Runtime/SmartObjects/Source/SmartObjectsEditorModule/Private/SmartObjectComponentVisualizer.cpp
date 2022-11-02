@@ -31,9 +31,10 @@ void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FGuid> Selec
 	FGuid SlotID;
 	bool bIsSelected = false;
 
-	for (int32 Index = 0; Index < Definition.GetSlots().Num(); ++Index)
+	const TConstArrayView<FSmartObjectSlotDefinition> Slots = Definition.GetSlots();
+	for (int32 Index = 0; Index < Slots.Num(); ++Index)
 	{
-		const FSmartObjectSlotDefinition& Slot = Definition.GetSlots()[Index];
+		const FSmartObjectSlotDefinition& Slot = Slots[Index];
 		
 		constexpr float DebugCylinderRadius = 40.f;
 		TOptional<FTransform> Transform = Definition.GetSlotTransform(OwnerLocalToWorld, FSmartObjectSlotIndex(Index));
@@ -92,9 +93,10 @@ void DrawCanvas(const USmartObjectDefinition& Definition, TConstArrayView<FGuid>
 	FColor Color = FColor::White;
 	bool bIsSelected = false;
 
-	for (int32 Index = 0; Index < Definition.GetSlots().Num(); ++Index)
+	const TConstArrayView<FSmartObjectSlotDefinition> Slots = Definition.GetSlots();
+	for (int32 Index = 0; Index < Slots.Num(); ++Index)
 	{
-		const FSmartObjectSlotDefinition& Slot = Definition.GetSlots()[Index];
+		const FSmartObjectSlotDefinition& Slot = Slots[Index];
 		
 		TOptional<FTransform> Transform = Definition.GetSlotTransform(OwnerLocalToWorld, FSmartObjectSlotIndex(Index));
 		if (!Transform.IsSet())
@@ -160,7 +162,7 @@ void FSmartObjectComponentVisualizer::DrawVisualization( const UActorComponent* 
 
 void FSmartObjectComponentVisualizer::DrawVisualizationHUD(const UActorComponent* Component, const FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
 {
-	if (View == nullptr || View == nullptr || Canvas == nullptr)
+	if (View == nullptr || Canvas == nullptr)
 	{
 		return;
 	}
