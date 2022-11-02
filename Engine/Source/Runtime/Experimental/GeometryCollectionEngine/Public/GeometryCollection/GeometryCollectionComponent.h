@@ -553,6 +553,18 @@ public:
 	void CrumbleActiveClusters();
 
 	/**
+	* Set a fragment or cluster to be anchored
+	*/
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void SetAnchoredByIndex(int32 Index);
+
+	/**
+	* Set all fragments within a world bounding box to be anchored
+	*/
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void SetAnchoredByBox(FBox WorldSpaceBox);
+
+	/**
 	* this will remove anchors on all the pieces ( inlcuding the static and kinematic initial states ones ) of the geometry colection
 	*/
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")

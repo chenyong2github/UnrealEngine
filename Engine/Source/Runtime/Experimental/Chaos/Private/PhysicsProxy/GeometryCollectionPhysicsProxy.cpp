@@ -1727,6 +1727,48 @@ void FGeometryCollectionPhysicsProxy::BreakActiveClusters_External()
 	}
 }
 
+void FGeometryCollectionPhysicsProxy::SetAnchored_External(int32 Index)
+{
+	check(IsInGameThread());
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, Index, RBDSolver]()
+			{
+				Chaos::FPBDRigidsEvolution* Evolution = RBDSolver->GetEvolution();
+				if (SolverParticleHandles.IsValidIndex(Index))
+				{
+					if (FClusterHandle* ParticleHandle = SolverParticleHandles[Index])
+					{
+						ParticleHandle->SetIsAnchored(true);
+					}
+				}
+			});
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::SetAnchored_External(const FBox& WorldSpaceBox)
+{
+	check(IsInGameThread());
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		Chaos::FAABB3 BoundsToCheck(WorldSpaceBox.Min, WorldSpaceBox.Max);
+		RBDSolver->EnqueueCommandImmediate([this, BoundsToCheck, RBDSolver]()
+			{
+				Chaos::FPBDRigidsEvolution* Evolution = RBDSolver->GetEvolution();
+				for (FClusterHandle* ParticleHandle : GetSolverParticleHandles())
+				{
+					if (ParticleHandle)
+					{
+						if (BoundsToCheck.Contains(ParticleHandle->X()))
+						{
+							ParticleHandle->SetIsAnchored(true);
+						}
+					}
+				}
+			});
+	}
+}
+
 void FGeometryCollectionPhysicsProxy::RemoveAllAnchors_External()
 {
 	check(IsInGameThread());

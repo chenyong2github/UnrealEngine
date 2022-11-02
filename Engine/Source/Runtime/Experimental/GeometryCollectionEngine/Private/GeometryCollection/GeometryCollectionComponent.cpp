@@ -4232,6 +4232,22 @@ void UGeometryCollectionComponent::CrumbleActiveClusters()
 	}
 }
 
+void UGeometryCollectionComponent::SetAnchoredByIndex(int32 Index)
+{
+	if (PhysicsProxy)
+	{
+		PhysicsProxy->SetAnchored_External(Index);
+	}
+}
+
+void UGeometryCollectionComponent::SetAnchoredByBox(FBox WorldSpaceBox)
+{
+	if (PhysicsProxy)
+	{
+		PhysicsProxy->SetAnchored_External(WorldSpaceBox);
+	}
+}
+
 void UGeometryCollectionComponent::RemoveAllAnchors()
 {
 	if (PhysicsProxy)
