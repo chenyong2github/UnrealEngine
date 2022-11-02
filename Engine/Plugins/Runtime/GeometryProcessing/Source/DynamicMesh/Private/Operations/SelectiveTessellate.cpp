@@ -1620,19 +1620,8 @@ namespace SelectiveTessellateLocals
 			Attribute->GetValue(V1, Value1);
 			Attribute->GetValue(V2, Value2);
 			Attribute->GetValue(V3, Value3);
-				
-			// Since FBoneWeights only defines Blend for two inputs, we need to split the barycentric coordinate 
-			// interpolation into two blends. This mimics TDynamicVertexSkinWeightsAttribute::SetBoneWeightsFromBary
-			if (FMath::IsNearlyZero(V + W) == false)
-			{
-				const double BCW = V / (V + W);
-				const FBoneWeights BC = FBoneWeights::Blend(Value2, Value3, (float)BCW);
-				OutValue = FBoneWeights::Blend(Value1, BC, (float)U);
-			}
-			else
-			{
-				OutValue = Value1;
-			}
+			
+			OutValue = FBoneWeights::Blend(Value1, Value2, Value3, (float)U, (float)V, (float)W);
 
 			OutAttribute->SetValue(NewV, OutValue);
 		};

@@ -507,6 +507,8 @@ bool FBoneWeightsTestBlend::RunTest(const FString& Parameters)
 
 		FBoneWeightsSettings S;
 		S.SetNormalizeType(EBoneWeightNormalizeType::None);
+		S.SetBlendZeroInfluence(false);
+		
 		auto BW = FBoneWeights::Blend(BW1, BW2, 0.5f, S);
 
 		UTEST_EQUAL(Name, BW.Num(), 3);
@@ -516,6 +518,17 @@ bool FBoneWeightsTestBlend::RunTest(const FString& Parameters)
 		UTEST_EQUAL(Name, BW[1].GetWeight(), 0.5f);
 		UTEST_EQUAL(Name, BW[2].GetBoneIndex(), 2);
 		UTEST_EQUAL(Name, BW[2].GetWeight(), 0.25f);
+
+		S.SetBlendZeroInfluence(true);
+		BW = FBoneWeights::Blend(BW1, BW2, 0.3f, S);
+
+		UTEST_EQUAL(Name, BW.Num(), 3);
+		UTEST_EQUAL(Name, BW[0].GetBoneIndex(), 0);
+		UTEST_EQUAL(Name, BW[0].GetWeight(), 0.7f);
+		UTEST_EQUAL(Name, BW[1].GetBoneIndex(), 1);
+		UTEST_EQUAL(Name, BW[1].GetWeight(), 0.5f);
+		UTEST_EQUAL(Name, BW[2].GetBoneIndex(), 2);
+		UTEST_EQUAL(Name, BW[2].GetWeight(), 0.075f);
 	}
 
 	{
@@ -526,6 +539,8 @@ bool FBoneWeightsTestBlend::RunTest(const FString& Parameters)
 
 		FBoneWeightsSettings S;
 		S.SetNormalizeType(EBoneWeightNormalizeType::None);
+		S.SetBlendZeroInfluence(false);
+
 		auto BW = FBoneWeights::Blend(BW1, BW2, 0.5f, S);
 
 		UTEST_EQUAL(Name, BW.Num(), 3);
@@ -535,6 +550,41 @@ bool FBoneWeightsTestBlend::RunTest(const FString& Parameters)
 		UTEST_EQUAL(Name, BW[1].GetWeight(), 0.5f);
 		UTEST_EQUAL(Name, BW[2].GetBoneIndex(), 1);
 		UTEST_EQUAL(Name, BW[2].GetWeight(), 0.375f);
+
+		S.SetBlendZeroInfluence(true);
+
+		BW = FBoneWeights::Blend(BW1, BW2, 0.5f, S);
+
+		UTEST_EQUAL(Name, BW.Num(), 3);
+		UTEST_EQUAL(Name, BW[0].GetBoneIndex(), 0);
+		UTEST_EQUAL(Name, BW[0].GetWeight(), 0.75f);
+		UTEST_EQUAL(Name, BW[1].GetBoneIndex(), 1);
+		UTEST_EQUAL(Name, BW[1].GetWeight(), 0.375f);
+		UTEST_EQUAL(Name, BW[2].GetBoneIndex(), 2);
+		UTEST_EQUAL(Name, BW[2].GetWeight(), 0.25f);
+	}
+
+	{
+		const TCHAR* Name = TEXT("FBoneWeights::Blend[Barycentric, Two/Two/Three, Two Overlap]");
+
+		auto BW1 = CreateWeights({ {0, 1.0f}, {1, 0.5f} });
+		auto BW2 = CreateWeights({ {0, 0.5f}, {2, 0.5f} });
+		auto BW3 = CreateWeights({ {0, 0.5f}, {1, 0.5f}, {3, 0.1f} });
+
+		FBoneWeightsSettings S;
+		S.SetNormalizeType(EBoneWeightNormalizeType::None);
+		S.SetBlendZeroInfluence(true);
+		auto BW = FBoneWeights::Blend(BW1, BW2, BW3, 0.2f, 0.3f, 0.5f, S);
+
+		UTEST_EQUAL(Name, BW.Num(), 4);
+		UTEST_EQUAL(Name, BW[0].GetBoneIndex(), 0);
+		UTEST_EQUAL(Name, BW[0].GetWeight(), 0.6f);  // 0.2*1.0 + 0.3*0.5 + 0.5*0.5
+		UTEST_EQUAL(Name, BW[1].GetBoneIndex(), 1);
+		UTEST_EQUAL(Name, BW[1].GetWeight(), 0.35f); // 0.2*0.5 + 0.3*0.0 + 0.5*0.5
+		UTEST_EQUAL(Name, BW[2].GetBoneIndex(), 2);
+		UTEST_EQUAL(Name, BW[2].GetWeight(), 0.15f); // 0.2*0.0 + 0.3*0.5 + 0.5*0.0
+		UTEST_EQUAL(Name, BW[3].GetBoneIndex(), 3);
+		UTEST_EQUAL(Name, BW[3].GetWeight(), 0.05f); // 0.2*0.0 + 0.3*0.0 + 0.5*0.1
 	}
 
 	return true;

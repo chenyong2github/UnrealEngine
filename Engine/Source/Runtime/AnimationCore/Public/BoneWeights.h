@@ -308,12 +308,29 @@ public:
 		return bHasDefaultBoneIndex;
 	}
 
+	/** Set the way we treat the bones with zero influence during the blend. If true, we assume all 
+	  * bones with no influence have a zero weight (default) and participate in the blend calculation.
+	  * If false, we ignore the bone during the blend.
+	  */
+	void SetBlendZeroInfluence(bool bInBlendZeroInfluence) 
+	{
+		bBlendZeroInfluence = bInBlendZeroInfluence;
+	}
+
+	/** Return true if bones with no influence are considered to have a zero weight during the 
+	  * blend calculation. */
+	bool GetBlendZeroInfluence() const 
+	{
+		return bBlendZeroInfluence;
+	}
+
 private:
 	EBoneWeightNormalizeType NormalizeType = EBoneWeightNormalizeType::Always;
 	int32 MaxWeightCount = MaxInlineBoneWeightCount;
 	uint16 WeightThreshold = 257; // == uint8(1) converted to 16 bit using 'v | v << 8'.
 	FBoneIndexType DefaultBoneIndex = static_cast<FBoneIndexType>(0);
 	bool bHasDefaultBoneIndex = false;
+	bool bBlendZeroInfluence = true; 
 };
 
 /** A null adapter for a bone weight container to use with TBoneWeights. Use as a template to
@@ -652,6 +669,18 @@ public:
 	    const FBoneWeights& InA,
 	    const FBoneWeights& InB,
 	    float InBias,
+	    const FBoneWeightsSettings& InSettings = {});
+
+	/** Blend three bone weights via barycentric coordinates using the given settings. 
+	  * Considers the influence from all of the bones. Coordinates should sum to one. 
+	  */
+	static inline FBoneWeights Blend(
+	    const FBoneWeights& InA,
+	    const FBoneWeights& InB,
+		const FBoneWeights& InC,
+	    float InBaryX,
+		float InBaryY,
+		float InBaryZ,
 	    const FBoneWeightsSettings& InSettings = {});
 	
 	// Ranged-based for loop compatibility -- but only the const version.
@@ -1048,6 +1077,21 @@ TBoneWeights<ContainerAdapter>::Blend(
 	const int32 RawBiasB = static_cast<int32>(InBias * static_cast<float>(FBoneWeight::GetMaxRawWeight()));
 	const int32 RawBiasA = FBoneWeight::GetMaxRawWeight() - RawBiasB;
 
+	auto BlendWithZeroInfluenceBone = [&InSettings, &BoneWeights](const FBoneWeight& BW, const int32 RawBias) 
+	{
+		if (InSettings.GetBlendZeroInfluence())  
+		{
+			// Treat the missing bone as having a zero weight 
+			uint16 RawWeight = uint16( (int32)BW.GetRawWeight() * RawBias / FBoneWeight::GetMaxRawWeight() );
+			BoneWeights.Emplace(BW.GetBoneIndex(), RawWeight);
+		}
+		else 
+		{
+			// Ignore the missing bone
+			BoneWeights.Add(BW);
+		}	
+	}; 
+
 	int32 IndexA = 0, IndexB = 0;
 	for (; IndexA < InBoneWeightsA.Num() && IndexB < InBoneWeightsB.Num(); /* */ )
 	{
@@ -1068,23 +1112,23 @@ TBoneWeights<ContainerAdapter>::Blend(
 		}
 		else if (BWA.GetBoneIndex() < BWB.GetBoneIndex())
 		{
-			BoneWeights.Add(BWA);
+			BlendWithZeroInfluenceBone(BWA, RawBiasA);
 			IndexA++;
 		}
 		else
 		{
-			BoneWeights.Add(BWB);
+			BlendWithZeroInfluenceBone(BWB, RawBiasB);
 			IndexB++;
 		}
 	}
 
 	for (; IndexA < InBoneWeightsA.Num(); IndexA++)
 	{
-		BoneWeights.Add(InBoneWeightsA[IndirectIndexA[IndexA]]);
+		BlendWithZeroInfluenceBone(InBoneWeightsA[IndirectIndexA[IndexA]], RawBiasA);
 	}
 	for (; IndexB < InBoneWeightsB.Num(); IndexB++)
 	{
-		BoneWeights.Add(InBoneWeightsB[IndirectIndexB[IndexB]]);
+		BlendWithZeroInfluenceBone(InBoneWeightsB[IndirectIndexB[IndexB]], RawBiasB);		
 	}
 
 	SetBoneWeightsInternal(BoneWeights, InSettings);
@@ -1324,6 +1368,35 @@ FBoneWeights FBoneWeights::Blend(
 	FArrayWrapper B(const_cast<FBoneWeights&>(InB).BoneWeights);
 	W.Blend(A, B, InBias, InSettings);
 	return Result;
+}
+
+FBoneWeights FBoneWeights::Blend(
+	const FBoneWeights& InA,
+	const FBoneWeights& InB,
+	const FBoneWeights& InC,
+	float InBaryX,
+	float InBaryY,
+	float InBaryZ,
+	const FBoneWeightsSettings& InSettings) 
+{
+	if (FMath::IsNearlyZero(InBaryY + InBaryZ) == false)
+	{
+		const float BCW = InBaryZ / (InBaryY + InBaryZ);
+		
+		// Use the default settings to make sure we don't normalize, don't prune bones if we exceed the default limit 
+		// and treat the bones with zero influence as having a zero weight during the first blend
+		FBoneWeightsSettings FirstBlendSettings;
+		FirstBlendSettings.SetNormalizeType(UE::AnimationCore::EBoneWeightNormalizeType::None); 
+		FirstBlendSettings.SetMaxWeightCount(InB.Num() + InC.Num());
+		
+		const FBoneWeights BC = FBoneWeights::Blend(InB, InC, BCW, FirstBlendSettings);
+		const FBoneWeights BCA = FBoneWeights::Blend(BC, InA, InBaryX, InSettings);
+		return BCA;
+	}
+	else
+	{
+		return InA;
+	}
 }
 
 
