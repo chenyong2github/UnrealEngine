@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
 #include "Math/NumericLimits.h"
 #include <type_traits>
 
@@ -104,7 +105,7 @@ public:
 	 */
 	const SignedType GetChecked(const SignedType DefaultValue = 0) const
 	{
-		checkf(IsValid(), "Invalid value in TGuardedSignedInt::GetChecked.");
+		checkf(IsValid(), TEXT("Invalid value in TGuardedSignedInt::GetChecked."));
 		return Get(DefaultValue);
 	}
 

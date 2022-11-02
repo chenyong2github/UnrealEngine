@@ -61,6 +61,15 @@ bool FGuardedIntTest::RunTest(const FString& Parameters)
 			FGuardedInt8 CheckedA{ A };
 			FGuardedInt8 CheckedB{ B };
 
+			// This doesn't test much by itself but ensures we have at least compiled GetChecked.
+			if (A <= 127 && B == 0)
+			{
+				if (CheckedA.GetChecked() != A)
+				{
+					AddError(FString::Printf(TEXT("GetChecked A=%d"), A));
+				}
+			}
+
 			// Compute reference results for the operations that are not defined everywhere
 			int32 ADivB = -256;
 			int32 AModB = -256;
