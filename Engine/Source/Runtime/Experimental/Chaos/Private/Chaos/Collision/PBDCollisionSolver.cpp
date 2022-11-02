@@ -25,7 +25,7 @@ namespace Chaos
 
 		bool bChaos_PBDCollisionSolver_Position_SolveEnabled = true;
 		float Chaos_PBDCollisionSolver_Position_MinInvMassScale = 0.77f;
-		float Chaos_PBDCollisionSolver_Position_StaticFrictionStiffness = 0.5f;
+		float Chaos_PBDCollisionSolver_Position_StaticFrictionStiffness = 1.0f;
 		float Chaos_PBDCollisionSolver_Position_PositionSolverTolerance = 0.001f;		// cms
 		float Chaos_PBDCollisionSolver_Position_RotationSolverTolerance = 0.001f;		// rads
 

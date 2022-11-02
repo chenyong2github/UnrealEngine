@@ -33,6 +33,10 @@ namespace Chaos
 		FRealSingle Chaos_PBDCollisionSolver_AutoStiffness_MassRatio2 = 0;
 		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverAutoStiffnessMassRatio1(TEXT("p.Chaos.PBDCollisionSolver.AutoStiffness.MassRatio1"), Chaos_PBDCollisionSolver_AutoStiffness_MassRatio1, TEXT(""));
 		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverAutoStiffnessMassRatio2(TEXT("p.Chaos.PBDCollisionSolver.AutoStiffness.MassRatio2"), Chaos_PBDCollisionSolver_AutoStiffness_MassRatio2, TEXT(""));
+
+		// Collision solver regularization (experimental, disabled by default)
+		FRealSingle Chaos_PBDCollisionSolver_Regularization = 0;
+		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverRegularization(TEXT("p.Chaos.PBDCollisionSolver.Regularization"), Chaos_PBDCollisionSolver_Regularization, TEXT(""));
 	}
 	using namespace CVars;
 
@@ -186,9 +190,7 @@ namespace Chaos
 			const FConstraintSolverBody& Body1 = Solver.SolverBody1();
 
 			// Friction values. Static and Dynamic friction are applied in the position solve for most shapes.
-			// For quadratic shapes, we run dynamic friction in the velocity solve for better rolling behaviour.
 			// We can also run in a mode without static friction at all. This is faster but stacking is not possible.
-			// @todo(chaos): fix static/dynamic friction for quadratic shapes
 			const FSolverReal StaticFriction = FSolverReal(Constraint->GetStaticFriction());
 			const FSolverReal DynamicFriction = FSolverReal(Constraint->GetDynamicFriction());
 			FSolverReal PositionStaticFriction = FSolverReal(0);
@@ -197,14 +199,7 @@ namespace Chaos
 			if (SolverSettings.NumPositionFrictionIterations > 0)
 			{
 				PositionStaticFriction = StaticFriction;
-				if (!Constraint->HasQuadraticShape())
-				{
-					PositionDynamicFriction = DynamicFriction;
-				}
-				else
-				{
-					VelocityDynamicFriction = DynamicFriction;
-				}
+				PositionDynamicFriction = DynamicFriction;
 			}
 			else
 			{
@@ -215,6 +210,9 @@ namespace Chaos
 
 			const FReal SolverStiffness = CalculateSolverStiffness(Body0.SolverBody(), Body1.SolverBody(), Chaos_PBDCollisionSolver_AutoStiffness_MassRatio1, Chaos_PBDCollisionSolver_AutoStiffness_MassRatio2);
 			Solver.SetStiffness(FSolverReal(SolverStiffness));
+
+			const FReal Regularization = Chaos_PBDCollisionSolver_Regularization / (Dt * Dt);
+			Solver.SetRegularization(FSolverReal(Regularization));
 
 			Solver.SolverBody0().SetInvMScale(Constraint->GetInvMassScale0());
 			Solver.SolverBody0().SetInvIScale(Constraint->GetInvInertiaScale0());
