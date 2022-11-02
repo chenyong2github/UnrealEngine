@@ -90,6 +90,7 @@ struct CORE_API FWindowsPlatformMemory
 	static bool PageProtect(void* const Ptr, const SIZE_T Size, const bool bCanRead, const bool bCanWrite);
 	static void* BinnedAllocFromOS( SIZE_T Size );
 	static void BinnedFreeToOS( void* Ptr, SIZE_T Size );
+	static void MiMallocInit();
 
 	class FPlatformVirtualMemoryBlock : public FBasicVirtualMemoryBlock
 	{

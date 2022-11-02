@@ -390,6 +390,14 @@ struct CORE_API FGenericPlatformMemory
 	static void BinnedFreeToOS( void* Ptr, SIZE_T Size );
 	
 	/**
+	 * Performs initial setup for Mimalloc.
+	 * This is a noop on platforms that do not support Mimalloc, or when MIMALLOC_ENABLED is not defined.
+	 */
+	static void MiMallocInit()
+	{
+	}
+
+	/**
 	 *	Performs initial setup for Nano malloc.
 	 *	This is a noop on non-apple platforms
 	 */

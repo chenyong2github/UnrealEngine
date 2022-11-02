@@ -5,11 +5,13 @@
 =============================================================================*/
 
 #include "HAL/MallocMimalloc.h"
-#include "Math/UnrealMathUtility.h"
-#include "HAL/UnrealMemory.h"
 
 // Only use for supported platforms
-#if PLATFORM_SUPPORTS_MIMALLOC && MIMALLOC_ALLOCATOR_ALLOWED && PLATFORM_BUILDS_MIMALLOC
+#if MIMALLOC_ENABLED
+
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathUtility.h"
+#include "Thirdparty/IncludeMiMalloc.h"
 
 #if PLATFORM_MAC
 #include "Templates/AlignmentTemplates.h"
@@ -21,12 +23,9 @@
 /** Value we fill a new memory block with, in UE_BUILD_DEBUG **/
 #define DEBUG_FILL_NEW (0xcd)
 
-THIRD_PARTY_INCLUDES_START
-#include <mimalloc.h>
-THIRD_PARTY_INCLUDES_END
-
 FMallocMimalloc::FMallocMimalloc()
 {
+	FPlatformMemory::MiMallocInit();
 }
 
 void* FMallocMimalloc::TryMalloc( SIZE_T Size, uint32 Alignment )
@@ -166,4 +165,4 @@ void FMallocMimalloc::Trim(bool bTrimThreadCaches)
 #undef DEBUG_FILL_FREED
 #undef DEBUG_FILL_NEW
 
-#endif
+#endif // MIMALLOC_ENABLED
