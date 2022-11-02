@@ -271,7 +271,7 @@ TUniquePtr<FCVarIniHistoryHelper> IniHistoryHelper;
 class FConfigHistoryHelper
 {
 private:
-	enum class HistoryType
+	enum class HistoryType : int
 	{
 		Value,
 		Section,
