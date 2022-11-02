@@ -341,7 +341,7 @@ void InstanceCull(
 			BRANCH
 			if( bViewHZB && bIsVisible )
 			{
-				TestPrevHZB(NaniteView, LocalBoundsCenter, LocalBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipBoxCullFrustum, bSkipBoxCullHZB, true, bIsVisible, bWasOccluded);
+				TestPrevHZB(NaniteView, LocalBoundsCenter, LocalBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipBoxCullFrustum, bSkipBoxCullHZB, /*bClampToPageLevel*/false, true, bIsVisible, bWasOccluded);
 
 				if( bWasOccluded )
 				{
@@ -358,7 +358,7 @@ void InstanceCull(
 				Cull = BoxCullFrustum(LocalBoundsCenter, LocalBoundsExtent, DynamicData.LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip, bIsOrtho, bNearClip, bSkipBoxCullFrustum);
 
 				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
-				TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipBoxCullHZB, bIsVisible, bWasOccluded);
+				TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipBoxCullHZB, /*bClampToPageLevel*/false, bIsVisible, bWasOccluded);
 			}
 #endif
 

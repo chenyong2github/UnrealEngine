@@ -14,7 +14,7 @@
 #include "NaniteCulling.ush"
 
 
-void TestPrevHZB(FNaniteView NaniteView, float3 BoxBoundsCenter, float3 BoxBoundsExtent, FInstanceSceneData InstanceData, FInstanceDynamicData DynamicData, bool bNearClip, bool bViewHZB, bool bSkipBoxCullFrustum, bool bSkipBoxCullHZB, bool bTreatUnmappedAsOccluded, inout bool bVisible, inout bool bWasOccluded)
+void TestPrevHZB(FNaniteView NaniteView, float3 BoxBoundsCenter, float3 BoxBoundsExtent, FInstanceSceneData InstanceData, FInstanceDynamicData DynamicData, bool bNearClip, bool bViewHZB, bool bSkipBoxCullFrustum, bool bSkipBoxCullHZB, bool bClampToPageLevel, bool bTreatUnmappedAsOccluded, inout bool bVisible, inout bool bWasOccluded)
 {
 	BRANCH
 	if( bViewHZB && bVisible && !bSkipBoxCullHZB)
@@ -27,7 +27,7 @@ void TestPrevHZB(FNaniteView NaniteView, float3 BoxBoundsCenter, float3 BoxBound
 		if (PrevCull.bIsVisible && !PrevCull.bCrossesNearPlane)
 		{
 			FScreenRect PrevRect = GetScreenRect(NaniteView.ViewRect, PrevCull, 4);	// Assume HZBTestViewRect=ViewRect for VSM. Don't load it redundantly.
-			bWasOccluded = !IsVisibleMaskedHZB(NaniteView.TargetPrevLayerIndex, NaniteView.TargetMipLevel, PrevRect, false, bTreatUnmappedAsOccluded, 0U);
+			bWasOccluded = !IsVisibleMaskedHZB(NaniteView.TargetPrevLayerIndex, NaniteView.TargetMipLevel, PrevRect, bClampToPageLevel, bTreatUnmappedAsOccluded, 0U);
 	}
 #else
 		BRANCH
@@ -40,7 +40,7 @@ void TestPrevHZB(FNaniteView NaniteView, float3 BoxBoundsCenter, float3 BoxBound
 	}
 }
 
-void TestCurrentHZB(FFrustumCullData Cull, FScreenRect Rect, FNaniteView NaniteView, FInstanceSceneData InstanceData, FInstanceDynamicData DynamicData, bool bSkipBoxCullHZB, inout bool bVisible, inout bool bWasOccluded)
+void TestCurrentHZB(FFrustumCullData Cull, FScreenRect Rect, FNaniteView NaniteView, FInstanceSceneData InstanceData, FInstanceDynamicData DynamicData, bool bSkipBoxCullHZB, bool bClampToPageLevel, inout bool bVisible, inout bool bWasOccluded)
 {
 	BRANCH
 	if (bVisible && !bSkipBoxCullHZB)
@@ -52,7 +52,7 @@ void TestCurrentHZB(FFrustumCullData Cull, FScreenRect Rect, FNaniteView NaniteV
 			// The logic here is that if the thing has moved it should test against all hzb pages, whereas if it is static we can skip the cached ones (since we'd not render into those anyway).
 			const uint PageTestFlagMask = GetPageFlagMaskForRendering(InstanceData, NaniteView, DynamicData.bHasMoved);
 			//bWasOccluded = !IsVisibleCurrentHZB(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, Rect, PageFlagMask);
-			bWasOccluded = !IsVisibleMaskedHZB(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, Rect, false, true, 0U, PageTestFlagMask);
+			bWasOccluded = !IsVisibleMaskedHZB(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, Rect, bClampToPageLevel, true, 0U, PageTestFlagMask);
 
 #else
 			bWasOccluded = !IsVisibleHZB(Rect, true);

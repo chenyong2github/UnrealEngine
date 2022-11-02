@@ -326,12 +326,12 @@ struct FNaniteTraversalClusterCullCallback
 
 		// VSM supports one-pass occlusion culling hijacking CULLING_PASS_NO_OCCLUSION (using only previous-frame with artifacts as a result), hence the || here
 		#if (CULLING_PASS == CULLING_PASS_NO_OCCLUSION && VIRTUAL_TEXTURE_TARGET) || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-				TestPrevHZB(NaniteView, NodeBoxBoundsCenter, NodeBoxBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipBoxCullFrustum, bSkipBoxCullHZB, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, bVisible, bWasOccluded);
+				TestPrevHZB(NaniteView, NodeBoxBoundsCenter, NodeBoxBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipBoxCullFrustum, bSkipBoxCullHZB, /*bClampToPageLevel*/false, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, bVisible, bWasOccluded);
 			#if CULLING_PASS == CULLING_PASS_NO_OCCLUSION
 				bVisible = bVisible && !bWasOccluded;
 			#endif
 		#elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-				TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipBoxCullHZB, bVisible, bWasOccluded);
+				TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipBoxCullHZB, /*bClampToPageLevel*/false, bVisible, bWasOccluded);
 		#endif
 			}
 		}
@@ -579,12 +579,12 @@ struct FNaniteTraversalClusterCullCallback
 #endif // VIRTUAL_TEXTURE_TARGET
 
 #if (CULLING_PASS == CULLING_PASS_NO_OCCLUSION && VIRTUAL_TEXTURE_TARGET) || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-		TestPrevHZB(NaniteView, ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipBoxCullFrustum, bSkipBoxCullHZB, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, bVisible, bWasOccluded);
+		TestPrevHZB(NaniteView, ClusterBoxBoundsCenter, ClusterBoxBoundsExtent, InstanceData, DynamicData, bNearClip, bViewHZB, bSkipBoxCullFrustum, bSkipBoxCullHZB, /*bClampToPageLevel*/true, CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN, bVisible, bWasOccluded);
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION
 		bVisible = bVisible && !bWasOccluded;
 #endif // CULLING_PASS == CULLING_PASS_NO_OCCLUSION
 #elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-		TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipBoxCullHZB, bVisible, bWasOccluded);
+		TestCurrentHZB(Cull, Rect, NaniteView, InstanceData, DynamicData, bSkipBoxCullHZB, /*bClampToPageLevel*/true, bVisible, bWasOccluded);
 		bVisible = bVisible && !bWasOccluded;
 #endif
 
