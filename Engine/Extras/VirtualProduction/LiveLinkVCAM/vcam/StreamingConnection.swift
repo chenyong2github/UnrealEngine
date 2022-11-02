@@ -88,7 +88,7 @@ class StreamingConnection : NSObject {
     }
     
     var relayTouchEvents = true {
-        willSet {
+        didSet {
         }
     }
 

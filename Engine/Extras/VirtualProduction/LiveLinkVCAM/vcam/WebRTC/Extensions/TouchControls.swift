@@ -45,14 +45,16 @@ final class TouchControls : TouchDelegate {
     var fingerIds = [UITouch : Int]()
     
     var relayTouchEvents = true {
-        willSet {
+        didSet {
             
-            // cancel/end all touches
-            var touches = Set<UITouch>()
-            for t in self.fingerIds {
-                touches.insert(t.key)
+            if !relayTouchEvents {
+                // cancel/end all touches
+                var touches = Set<UITouch>()
+                for t in self.fingerIds {
+                    touches.insert(t.key)
+                }
+                touchesCancelled(touches)
             }
-            touchesCancelled(touches)
         }
 
     }

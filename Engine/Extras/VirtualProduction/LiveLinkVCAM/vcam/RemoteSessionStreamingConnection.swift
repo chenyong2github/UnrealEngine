@@ -80,8 +80,10 @@ class RemoteSessionStreamingConnection : StreamingConnection  {
     }
     
     override var relayTouchEvents : Bool {
-        willSet {
-            self.remoteSessionView?.endAllTouches()
+        didSet {
+            if !relayTouchEvents {
+                self.remoteSessionView?.endAllTouches()
+            }
         }
     }
 

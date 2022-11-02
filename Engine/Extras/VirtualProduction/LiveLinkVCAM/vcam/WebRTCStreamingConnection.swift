@@ -49,7 +49,7 @@ class WebRTCStreamingConnection : StreamingConnection {
     }
     
     override var relayTouchEvents: Bool {
-        willSet {
+        didSet {
             self.touchControls?.relayTouchEvents = relayTouchEvents
         }
     }
