@@ -3,6 +3,7 @@
 #include "Formats/ExrImageWrapper.h"
 #include "ImageWrapperPrivate.h"
 
+#include "ColorSpace.h"
 #include "Containers/StringConv.h"
 #include "HAL/PlatformTime.h"
 #include "Math/Float16.h"
@@ -412,6 +413,16 @@ void FExrImageWrapper::Compress(int32 Quality)
 		ImfHeader.channels().insert(ChannelNames[c], Imf::Channel(ImfPixelType));
 		ImfFrameBuffer.insert(ChannelNames[c], Imf::Slice(ImfPixelType, (char*)ChannelData[c].GetData(), BytesPerChannelPixel, (size_t)BytesPerChannelPixel * Width));
 	}
+
+	// Write the working color space into EXR chromaticities
+	const UE::Color::FColorSpace& WCS = UE::Color::FColorSpace::GetWorking();
+	Imf::Chromaticities Chromaticities = {
+		IMATH_NAMESPACE::V2f((float)WCS.GetRedChromaticity().X, (float)WCS.GetRedChromaticity().Y),
+		IMATH_NAMESPACE::V2f((float)WCS.GetGreenChromaticity().X, (float)WCS.GetGreenChromaticity().Y),
+		IMATH_NAMESPACE::V2f((float)WCS.GetBlueChromaticity().X, (float)WCS.GetBlueChromaticity().Y),
+		IMATH_NAMESPACE::V2f((float)WCS.GetWhiteChromaticity().X, (float)WCS.GetWhiteChromaticity().Y),
+	};
+	Imf::addChromaticities(ImfHeader, Chromaticities);
 
 	FMemFileOut MemFile("");
 	int64 MemFileLength;

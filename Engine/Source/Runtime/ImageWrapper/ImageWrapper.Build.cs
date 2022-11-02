@@ -16,7 +16,12 @@ public class ImageWrapper : ModuleRules
 		PublicDefinitions.Add("WITH_UNREALPNG=1");
 		PublicDefinitions.Add("WITH_UNREALJPEG=1");
 
-		PrivateDependencyModuleNames.Add("Core");
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"Core",
+				"ColorManagement"
+			}
+		);
 
 		PublicDependencyModuleNames.Add("LibTiff");
 		PublicDependencyModuleNames.Add("ImageCore");

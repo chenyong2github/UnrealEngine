@@ -18,6 +18,7 @@ THIRD_PARTY_INCLUDES_START
 	#include "OpenEXR/ImfInputFile.h"
 	#include "OpenEXR/ImfOutputFile.h"
 	#include "OpenEXR/ImfRgbaFile.h"
+	#include "OpenEXR/ImfStandardAttributes.h"
 	#include "OpenEXR/ImfStdIO.h"
 	#include "OpenEXR/ImfVersion.h"
 THIRD_PARTY_INCLUDES_END
