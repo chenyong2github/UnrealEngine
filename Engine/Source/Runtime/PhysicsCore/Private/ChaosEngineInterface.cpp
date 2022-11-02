@@ -47,7 +47,7 @@ FPhysicsGeometryCollection_Chaos::FPhysicsGeometryCollection_Chaos(FPhysicsGeome
 
 ECollisionShapeType FPhysicsGeometryCollection_Chaos::GetType() const
 {
-	return GetImplicitType(Geom);
+	return ChaosInterface::GetImplicitType(Geom);
 }
 
 const Chaos::FImplicitObject& FPhysicsGeometryCollection_Chaos::GetGeometry() const
@@ -1625,7 +1625,7 @@ bool FChaosEngineInterface::IsQueryShape(const FPhysicsShapeHandle& InShape)
 
 ECollisionShapeType FChaosEngineInterface::GetShapeType(const FPhysicsShapeReference_Chaos& InShapeRef)
 {
-	return GetImplicitType(*InShapeRef.Shape->GetGeometry());
+	return ChaosInterface::GetImplicitType(*InShapeRef.Shape->GetGeometry());
 }
 
 FTransform FChaosEngineInterface::GetLocalTransform(const FPhysicsShapeReference_Chaos& InShapeRef)

@@ -11,8 +11,6 @@
 #include "Chaos/Sphere.h"
 #include "Chaos/Capsule.h"
 
-using namespace Chaos;
-
 #include "PhysicsPublicCore.h"
 #include "PhysicsCore.h"
 #include "HAL/FileManager.h"
@@ -41,7 +39,7 @@ void FPhysTestSerializer::Serialize(const TCHAR* FilePrefix)
 	TUniquePtr<FArchive> File(IFileManager::Get().CreateFileWriter(*UseFileName));
 	if (File)
 	{
-		FChaosArchive Ar(*File);
+		Chaos::FChaosArchive Ar(*File);
 		UE_LOG(LogPhysicsCore, Log, TEXT("PhysTestSerialize File: %s"), *UseFileName);
 		Serialize(Ar);
 	}
@@ -62,7 +60,7 @@ void FPhysTestSerializer::Serialize(Chaos::FChaosArchive& Ar)
 	static const FName TestSerializerName = TEXT("PhysTestSerializer");
 
 	{
-		FChaosArchiveScopedMemory ScopedMemory(Ar, TestSerializerName, false);
+		Chaos::FChaosArchiveScopedMemory ScopedMemory(Ar, TestSerializerName, false);
 		int Version = 1;
 		Ar << Version;
 		Ar << bDiskDataIsChaos;
@@ -95,7 +93,7 @@ void FPhysTestSerializer::Serialize(Chaos::FChaosArchive& Ar)
 
 	bool bHasSQCapture = !!SQCapture;
 	{
-		FChaosArchiveScopedMemory ScopedMemory(Ar, TestSerializerName, false);
+		Chaos::FChaosArchiveScopedMemory ScopedMemory(Ar, TestSerializerName, false);
 		Ar << bHasSQCapture;
 	}
 	if(bHasSQCapture)
@@ -114,7 +112,7 @@ void FPhysTestSerializer::SetPhysicsData(Chaos::FPBDRigidsEvolution& Evolution)
 	bDiskDataIsChaos = true;
 	Data.Empty();
 	FMemoryWriter Ar(Data);
-	FChaosArchive ChaosAr(Ar);
+	Chaos::FChaosArchive ChaosAr(Ar);
 	Evolution.Serialize(ChaosAr);
 	ChaosContext = ChaosAr.StealContext();
 	ArchiveVersion = Ar.GetCustomVersions();
@@ -234,14 +232,14 @@ void FPhysTestSerializer::CreateChaosData()
 			++Idx;
 		}
 
-		ChaosEvolution = MakeUnique<FPBDRigidsEvolution>(Particles, PhysicalMaterials);
+		ChaosEvolution = MakeUnique<Chaos::FPBDRigidsEvolution>(Particles, PhysicalMaterials);
 	}
 	else
 	{
-		ChaosEvolution = MakeUnique<FPBDRigidsEvolution>(Particles, PhysicalMaterials);
+		ChaosEvolution = MakeUnique<Chaos::FPBDRigidsEvolution>(Particles, PhysicalMaterials);
 
 		FMemoryReader Ar(Data);
-		FChaosArchive ChaosAr(Ar);
+		Chaos::FChaosArchive ChaosAr(Ar);
 
 		Ar.SetCustomVersions(ArchiveVersion);
 

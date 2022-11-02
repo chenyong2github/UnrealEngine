@@ -1,23 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/RigidParticles.h"
 
-using namespace Chaos;
-
 //Note this has to be in the cpp to avoid allocating/freeing across DLLs
 
-template<typename T, int d>
-void TRigidParticles<T, d>::CollisionParticlesInitIfNeeded(const int32 Index)
+namespace Chaos
 {
-	if (MCollisionParticles[Index] == nullptr)
+	template<typename T, int d>
+	void TRigidParticles<T, d>::CollisionParticlesInitIfNeeded(const int32 Index)
 	{
-		MCollisionParticles[Index] = MakeUnique<TBVHParticles<T, d>>();
+		if(MCollisionParticles[Index] == nullptr)
+		{
+			MCollisionParticles[Index] = MakeUnique<TBVHParticles<T, d>>();
+		}
 	}
-}
 
-template<typename T, int d>
-void TRigidParticles<T, d>::SetCollisionParticles(const int32 Index, TParticles<T, d>&& Points)
-{
-	MCollisionParticles[Index] = MakeUnique<TBVHParticles<T, d>>(MoveTemp(Points));
+	template<typename T, int d>
+	void TRigidParticles<T, d>::SetCollisionParticles(const int32 Index, TParticles<T, d>&& Points)
+	{
+		MCollisionParticles[Index] = MakeUnique<TBVHParticles<T, d>>(MoveTemp(Points));
+	}
 }
 
 template class Chaos::TRigidParticles<Chaos::FReal, 3>;

@@ -84,7 +84,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("(ASync) Shapes"), STAT_NumShapesAsync, STATGROU
 
 ECollisionShapeType GetGeometryType(const Chaos::FPerShapeData& Shape)
 {
-	return GetType(*Shape.GetGeometry());
+	return ChaosInterface::GetType(*Shape.GetGeometry());
 }
 
 Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndex(const FPhysicsShape& Shape, const FPhysicsActor& Actor, uint32 InternalFaceIndex)
@@ -115,6 +115,8 @@ Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndex(const FPhysicsSha
 
 Chaos::FChaosPhysicsMaterial* GetMaterialFromInternalFaceIndexAndHitLocation(const FPhysicsShape& Shape, const FPhysicsActor& Actor, uint32 InternalFaceIndex, const FVector& HitLocation)
 {
+	using namespace ChaosInterface;
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_QueryPhysicalMaterialMaskHit);
 
@@ -981,6 +983,8 @@ void FinishSceneStat()
 
 bool FPhysInterface_Chaos::LineTrace_Geom(FHitResult& OutHit, const FBodyInstance* InInstance, const FVector& WorldStart, const FVector& WorldEnd, bool bTraceComplex, bool bExtractPhysMaterial)
 {
+	using namespace ChaosInterface;
+
 	// Need an instance to trace against
 	check(InInstance);
 
@@ -1077,6 +1081,8 @@ bool FPhysInterface_Chaos::LineTrace_Geom(FHitResult& OutHit, const FBodyInstanc
 
 bool FPhysInterface_Chaos::Sweep_Geom(FHitResult& OutHit, const FBodyInstance* InInstance, const FVector& InStart, const FVector& InEnd, const FQuat& InShapeRotation, const FCollisionShape& InShape, bool bSweepComplex)
 {
+	using namespace ChaosInterface;
+
 	bool bSweepHit = false;
 
 	if (InShape.IsNearlyZero())

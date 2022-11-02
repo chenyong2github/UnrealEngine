@@ -4,8 +4,6 @@
 #include "Async/ParallelFor.h"
 #include "Framework/Threading.h"
 
-using namespace Chaos;
-
 namespace Chaos
 {
 	CHAOS_API int32 GSingleThreadedPhysics = 0;

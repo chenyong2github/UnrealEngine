@@ -262,5 +262,3 @@ bool GetHasBlock(const FSQHitBuffer<HitType>& Callback)
 }
 
 } // namespace ChaosInterface
-
-using namespace ChaosInterface;

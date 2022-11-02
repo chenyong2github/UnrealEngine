@@ -30,8 +30,6 @@
 #endif
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
-using namespace Chaos;
-
 #if VEHICLE_DEBUGGING_ENABLED
 PRAGMA_DISABLE_OPTIMIZATION
 #endif
@@ -297,9 +295,9 @@ void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FCh
 
 }
 
-bool UChaosWheeledVehicleSimulation::ContainsTraces(const FBox& Box, const TArray<FSuspensionTrace>& SuspensionTrace)
+bool UChaosWheeledVehicleSimulation::ContainsTraces(const FBox& Box, const TArray<Chaos::FSuspensionTrace>& SuspensionTrace)
 {
-	const FAABB3 Aabb(Box.Min, Box.Max);
+	const Chaos::FAABB3 Aabb(Box.Min, Box.Max);
 
 	for (int WheelIdx = 0; WheelIdx < SuspensionTrace.Num(); WheelIdx++)
 	{
@@ -312,7 +310,7 @@ bool UChaosWheeledVehicleSimulation::ContainsTraces(const FBox& Box, const TArra
 	return true;
 }
 
-void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<FSuspensionTrace>& SuspensionTrace, FCollisionQueryParams& TraceParams, FCollisionResponseContainer& CollisionResponse, TArray<FWheelTraceParams>& WheelTraceParams)
+void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<Chaos::FSuspensionTrace>& SuspensionTrace, FCollisionQueryParams& TraceParams, FCollisionResponseContainer& CollisionResponse, TArray<FWheelTraceParams>& WheelTraceParams)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ChaosVehicle_SuspensionRaycasts);
 
@@ -491,6 +489,8 @@ void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<FSuspe
 
 void UChaosWheeledVehicleSimulation::ApplyWheelFrictionForces(float DeltaTime)
 {
+	using namespace Chaos;
+
 	for (int WheelIdx = 0; WheelIdx < PVehicle->Wheels.Num(); WheelIdx++)
 	{
 		auto& PWheel = PVehicle->Wheels[WheelIdx]; // Physics Wheel
@@ -571,6 +571,8 @@ void UChaosWheeledVehicleSimulation::ApplyWheelFrictionForces(float DeltaTime)
 
 void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 {
+	using namespace Chaos;
+
 	TArray<float> SusForces;
 	SusForces.Init(0.f, PVehicle->Suspension.Num());
 
@@ -686,6 +688,8 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 
 void UChaosWheeledVehicleSimulation::ProcessSteering(const FControlInputs& ControlInputs)
 {
+	using namespace Chaos;
+
 	auto& PSteering = PVehicle->GetSteering();
 
 	for (int WheelIdx = 0; WheelIdx < PVehicle->Wheels.Num(); WheelIdx++)
@@ -726,6 +730,8 @@ void UChaosWheeledVehicleSimulation::ProcessSteering(const FControlInputs& Contr
 
 void UChaosWheeledVehicleSimulation::ApplyInput(const FControlInputs& ControlInputs, float DeltaTime)
 {
+	using namespace Chaos;
+
 	UChaosVehicleSimulation::ApplyInput(ControlInputs, DeltaTime);
 
 	FControlInputs ModifiedInputs = ControlInputs;
@@ -812,6 +818,8 @@ bool UChaosWheeledVehicleSimulation::IsWheelSpinning() const
 
 void UChaosWheeledVehicleSimulation::ProcessMechanicalSimulation(float DeltaTime)
 {
+	using namespace Chaos;
+
 	if (PVehicle->HasEngine())
 	{
 		auto& PEngine = PVehicle->GetEngine();
@@ -862,6 +870,8 @@ void UChaosWheeledVehicleSimulation::ProcessMechanicalSimulation(float DeltaTime
 
 void UChaosWheeledVehicleSimulation::DrawDebug3D()
 {
+	using namespace Chaos;
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 	UChaosVehicleSimulation::DrawDebug3D();
@@ -1353,6 +1363,8 @@ void UChaosWheeledVehicleMovementComponent::DestroyWheels()
 
 void UChaosWheeledVehicleMovementComponent::SetupVehicle(TUniquePtr<Chaos::FSimpleWheeledVehicle>& PVehicle)
 {
+	using namespace Chaos;
+
 	check(PVehicle);
 
 	Super::SetupVehicle(PVehicle);
@@ -1690,6 +1702,8 @@ void UChaosWheeledVehicleMovementComponent::Update(float DeltaTime)
 // Debug
 void UChaosWheeledVehicleMovementComponent::DrawDebug(UCanvas* Canvas, float& YL, float& YPos)
 {
+	using namespace Chaos;
+
 	ensure(IsInGameThread());
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -2626,6 +2640,8 @@ void UChaosWheeledVehicleMovementComponent::SetTorqueCombineMethod(ETorqueCombin
 
 void UChaosWheeledVehicleMovementComponent::SetDriveTorque(float DriveTorque, int32 WheelIndex)
 {
+	using namespace Chaos;
+
 	SetSleeping(false);
 
 	if (FBodyInstance* TargetInstance = GetBodyInstance())
@@ -2644,6 +2660,8 @@ void UChaosWheeledVehicleMovementComponent::SetDriveTorque(float DriveTorque, in
 
 void UChaosWheeledVehicleMovementComponent::SetBrakeTorque(float BrakeTorque, int32 WheelIndex)
 {
+	using namespace Chaos;
+
 	if (FBodyInstance* TargetInstance = GetBodyInstance())
 	{
 		FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)

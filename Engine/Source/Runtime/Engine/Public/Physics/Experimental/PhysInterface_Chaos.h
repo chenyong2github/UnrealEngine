@@ -138,22 +138,22 @@ FORCEINLINE float GetHalfHeight(const Chaos::FCapsule& Capsule)
 }
 */
 
-FORCEINLINE void DrawOverlappingTris(const UWorld* World, const FLocationHit& Hit, const Chaos::FImplicitObject& Geom, const FTransform& QueryTM)
+FORCEINLINE void DrawOverlappingTris(const UWorld* World, const ChaosInterface::FLocationHit& Hit, const Chaos::FImplicitObject& Geom, const FTransform& QueryTM)
 {
 	//TODO_SQ_IMPLEMENTATION
 }
 
-FORCEINLINE void ComputeZeroDistanceImpactNormalAndPenetration(const UWorld* World, const FLocationHit& Hit, const Chaos::FImplicitObject& Geom, const FTransform& QueryTM, FHitResult& OutResult)
+FORCEINLINE void ComputeZeroDistanceImpactNormalAndPenetration(const UWorld* World, const ChaosInterface::FLocationHit& Hit, const Chaos::FImplicitObject& Geom, const FTransform& QueryTM, FHitResult& OutResult)
 {
 	//TODO_SQ_IMPLEMENTATION
 }
 
-FORCEINLINE void DrawOverlappingTris(const UWorld* World, const FPTLocationHit& Hit, const Chaos::FImplicitObject& Geom, const FTransform& QueryTM)
+FORCEINLINE void DrawOverlappingTris(const UWorld* World, const ChaosInterface::FPTLocationHit& Hit, const Chaos::FImplicitObject& Geom, const FTransform& QueryTM)
 {
 	//TODO_SQ_IMPLEMENTATION
 }
 
-FORCEINLINE void ComputeZeroDistanceImpactNormalAndPenetration(const UWorld* World, const FPTLocationHit& Hit, const Chaos::FImplicitObject& Geom, const FTransform& QueryTM, FHitResult& OutResult)
+FORCEINLINE void ComputeZeroDistanceImpactNormalAndPenetration(const UWorld* World, const ChaosInterface::FPTLocationHit& Hit, const Chaos::FImplicitObject& Geom, const FTransform& QueryTM, FHitResult& OutResult)
 {
 	//TODO_SQ_IMPLEMENTATION
 }

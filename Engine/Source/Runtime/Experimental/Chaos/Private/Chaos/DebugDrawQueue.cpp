@@ -4,33 +4,35 @@
 #include "Misc/ScopeLock.h"
 
 #if CHAOS_DEBUG_DRAW
-using namespace Chaos;
 
-void FDebugDrawQueue::SetConsumerActive(void* Consumer, bool bConsumerActive)
+namespace Chaos
 {
-	FScopeLock Lock(&ConsumersCS);
-
-	if (bConsumerActive)
+	void FDebugDrawQueue::SetConsumerActive(void* Consumer, bool bConsumerActive)
 	{
-		Consumers.AddUnique(Consumer);
+		FScopeLock Lock(&ConsumersCS);
+	
+		if(bConsumerActive)
+		{
+			Consumers.AddUnique(Consumer);
+		}
+		else
+		{
+			Consumers.Remove(Consumer);
+		}
+	
+		NumConsumers = Consumers.Num();
 	}
-	else
+	
+	FDebugDrawQueue& FDebugDrawQueue::GetInstance()
 	{
-		Consumers.Remove(Consumer);
+		static FDebugDrawQueue* PSingleton = nullptr;
+		if(PSingleton == nullptr)
+		{
+			static FDebugDrawQueue Singleton;
+			PSingleton = &Singleton;
+		}
+		return *PSingleton;
 	}
-
-	NumConsumers = Consumers.Num();
-}
-
-FDebugDrawQueue& FDebugDrawQueue::GetInstance()
-{
-	static FDebugDrawQueue* PSingleton = nullptr;
-	if (PSingleton == nullptr)
-	{
-		static FDebugDrawQueue Singleton;
-		PSingleton = &Singleton;
-	}
-	return *PSingleton;
 }
 
 #endif
