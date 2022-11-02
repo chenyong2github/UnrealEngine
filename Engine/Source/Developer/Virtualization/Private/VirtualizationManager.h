@@ -6,13 +6,13 @@
 #include "HAL/CriticalSection.h"
 #include "Logging/LogMacros.h"
 #include "Templates/UniquePtr.h"
-#include "AnalyticsEventAttribute.h"
 
 
 #include "Virtualization/VirtualizationSystem.h"
 
 class IConsoleObject;
 class FOutputDevice;
+struct FAnalyticsEventAttribute;
 
 /**
  * Configuring the backend hierarchy

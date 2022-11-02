@@ -15,7 +15,6 @@
 #include "Serialization/JsonWriter.h"
 #include "Templates/PimplPtr.h"
 #include "Templates/UniquePtr.h"
-#include "AnalyticsEventAttribute.h"
 #include "ZenGlobals.h"
 
 #if UE_WITH_ZEN
@@ -23,6 +22,8 @@
 #endif
 
 #define UE_API ZEN_API
+
+struct FAnalyticsEventAttribute;
 
 namespace UE::Zen
 {

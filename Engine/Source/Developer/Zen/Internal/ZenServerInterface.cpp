@@ -27,6 +27,7 @@
 #include "String/LexFromString.h"
 #include "SocketSubsystem.h"
 #include "Analytics.h"
+#include "AnalyticsEventAttribute.h"
 
 #if PLATFORM_WINDOWS
 #	include "Windows/AllowWindowsPlatformTypes.h"

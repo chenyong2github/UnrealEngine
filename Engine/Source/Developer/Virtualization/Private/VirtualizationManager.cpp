@@ -19,6 +19,7 @@
 #include "ProfilingDebugging/CookStats.h"
 #include "VirtualizationFilterSettings.h"
 #include "Analytics.h"
+#include "AnalyticsEventAttribute.h"
 
 #define LOCTEXT_NAMESPACE "Virtualization"
 
