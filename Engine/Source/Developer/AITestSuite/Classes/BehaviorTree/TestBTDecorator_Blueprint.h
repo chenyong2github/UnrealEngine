@@ -10,8 +10,8 @@ UENUM()
 enum class EBPConditionType
 {
 	NoCondition,
-	True,
-	False
+	TrueCondition,
+	FalseCondition
 };
 
 UCLASS(meta = (HiddenNode))
@@ -22,7 +22,7 @@ class UTestBTDecorator_Blueprint : public UBTDecorator_BlueprintBase
 public:
 
 	UPROPERTY()
-	EBPConditionType BPConditionType = EBPConditionType::True;
+	EBPConditionType BPConditionType = EBPConditionType::TrueCondition;
 	
 	UPROPERTY()
 	int32 LogIndexBecomeRelevant;

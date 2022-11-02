@@ -27,7 +27,7 @@ void UTestBTDecorator_Blueprint::OnCeaseRelevant(UBehaviorTreeComponent& OwnerCo
 bool UTestBTDecorator_Blueprint::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
 {
 	LogExecution(LogIndexCalculate);
-	return BPConditionType == EBPConditionType::True ? true : false;
+	return BPConditionType == EBPConditionType::TrueCondition ? true : false;
 }
 
 void UTestBTDecorator_Blueprint::PostLoad()

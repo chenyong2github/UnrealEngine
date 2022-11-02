@@ -170,7 +170,7 @@ struct FAITest_BTDecoratorBlueprint : public FAITest_SimpleBT
 		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset);
 		{
 			UBTCompositeNode& CompNode1 = FBTBuilder::AddSequence(CompNode);
-			FBTBuilder::WithDecoratorBlueprint(CompNode, EBTFlowAbortMode::Both, EBPConditionType::True, DecoratorBlueprintBecomeRelevant, DecoratorBlueprintCeaseRelevant, DecoratorBlueprintCalculate);
+			FBTBuilder::WithDecoratorBlueprint(CompNode, EBTFlowAbortMode::Both, EBPConditionType::TrueCondition, DecoratorBlueprintBecomeRelevant, DecoratorBlueprintCeaseRelevant, DecoratorBlueprintCalculate);
 			{
 				// Task1
 				FBTBuilder::AddTask(CompNode1, Task1Execute, EBTNodeResult::Succeeded);
