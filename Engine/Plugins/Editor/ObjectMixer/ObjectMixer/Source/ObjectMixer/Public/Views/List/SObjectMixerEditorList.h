@@ -33,7 +33,7 @@ struct FListViewColumnInfo
 {
 	GENERATED_BODY()
 	
-	TObjectPtr<FProperty> PropertyRef = nullptr;
+	FProperty* PropertyRef = nullptr;
 	
 	UPROPERTY()
 	FName PropertyName = NAME_None;

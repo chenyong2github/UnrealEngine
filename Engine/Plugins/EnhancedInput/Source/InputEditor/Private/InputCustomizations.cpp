@@ -70,7 +70,7 @@ void AddInputActionProperties(TSharedRef<IPropertyHandle> PropertyHandle, IDetai
 	void* Data = nullptr;
     if (PropertyHandle->GetValueData(Data) != FPropertyAccess::Fail)
     {
-    	TObjectPtr<FEnhancedActionKeyMapping> ActionKeyMapping = static_cast<FEnhancedActionKeyMapping*>(Data);
+    	FEnhancedActionKeyMapping* ActionKeyMapping = static_cast<FEnhancedActionKeyMapping*>(Data);
     	
     	// Make sure ActionKeyMapping action is valid. If triggers and modifiers are empty we can just back out - nothing to add
     	if (ActionKeyMapping->Action && (!ActionKeyMapping->Action->Triggers.IsEmpty() || !ActionKeyMapping->Action->Modifiers.IsEmpty()))

@@ -367,7 +367,7 @@ TTypedElementOwner<FActorElementData> UEngineElementsLibrary::CreateActorElement
 	}
 	
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
-	TObjectPtr<ITypedElementDataStorageCompatibilityInterface> Storage = Registry->GetMutableDataStorageCompatibility();
+	ITypedElementDataStorageCompatibilityInterface* Storage = Registry->GetMutableDataStorageCompatibility();
 	if (Storage)
 	{
 		Storage->AddCompatibleObject(const_cast<AActor*>(InActor));
@@ -391,7 +391,7 @@ void UEngineElementsLibrary::DestroyActorElement(const AActor* InActor, TTypedEl
 void UEngineElementsLibrary::UnregisterActorElement(const AActor* InActor)
 {
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
-	TObjectPtr<ITypedElementDataStorageCompatibilityInterface> Storage = Registry->GetMutableDataStorageCompatibility();
+	ITypedElementDataStorageCompatibilityInterface* Storage = Registry->GetMutableDataStorageCompatibility();
 	if (Storage)
 	{
 		Storage->RemoveCompatibleObject(const_cast<AActor*>(InActor));
