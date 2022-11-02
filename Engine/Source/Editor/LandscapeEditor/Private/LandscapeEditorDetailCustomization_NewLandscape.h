@@ -89,6 +89,9 @@ public:
 	// Import layers
 	EVisibility GetMaterialTipVisibility() const;
 
+	void ResetMaterialToDefault(TSharedPtr<IPropertyHandle> InPropertyHandle);
+	bool ShouldShowResetMaterialToDefault(TSharedPtr<IPropertyHandle> InPropertyHandle);
+
 protected:
 	bool bUsingSlider;
 };
