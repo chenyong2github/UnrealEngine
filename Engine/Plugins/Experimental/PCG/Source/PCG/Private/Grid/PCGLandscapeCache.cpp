@@ -390,8 +390,6 @@ void FPCGLandscapeCacheEntry::SerializeFromBulkData() const
 
 void FPCGLandscapeCacheEntry::Serialize(FArchive& Archive, UObject* Owner, int32 Index)
 {
-	check(bDataLoaded || Archive.IsLoading());
-
 	if (bDataLoaded && Archive.IsSaving() && Archive.IsCooking())
 	{
 		SerializeToBulkData();
