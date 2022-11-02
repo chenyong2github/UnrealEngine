@@ -9,7 +9,7 @@
 
 #include "HAL/LowLevelMemTrackerDefines.h"
 
-#if ENABLE_LOW_LEVEL_MEM_TRACKER
+#if LLM_ENABLED_IN_CONFIG
 #define MI_USE_EXTERNAL_ALLOCATORS 1
 #endif
 

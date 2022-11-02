@@ -143,10 +143,10 @@ uint64& FHashMapLinearProbingVAlloc::FindOrAdd(uint64 Key, uint64 ValueIfMissing
 {
 	LLMCheck(Key <= MaxKey);
 
-	if (NumActive > NumBuckets * DesiredPopulation)
+	if (NumActive > static_cast<int64>(NumBuckets * DesiredPopulation))
 	{
 		Realloc(NumBuckets * 2);
-		LLMCheck(NumActive < NumBuckets * DesiredPopulation);
+		LLMCheck(NumActive < static_cast<int64>(NumBuckets * DesiredPopulation));
 	}
 
 	int64 FirstBucketIndex = static_cast<int64>(Key & (NumBuckets - 1));
