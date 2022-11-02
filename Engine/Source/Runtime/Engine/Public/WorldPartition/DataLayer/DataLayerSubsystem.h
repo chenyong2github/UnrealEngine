@@ -120,8 +120,8 @@ public:
 	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeState(const UDataLayerInstance* InDataLayer) const;
 	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeStateByName(const FName& InDataLayerName) const;
 	bool IsAnyDataLayerInEffectiveRuntimeState(const TArray<FName>& InDataLayerNames, EDataLayerRuntimeState InState) const;
-	TSet<FName> GetEffectiveActiveDataLayerNames() const;
-	TSet<FName> GetEffectiveLoadedDataLayerNames() const;
+	const TSet<FName>& GetEffectiveActiveDataLayerNames() const;
+	const TSet<FName>& GetEffectiveLoadedDataLayerNames() const;
 
 #if WITH_EDITOR
 	/** Called once a AWorldDataLayers has been registered. */
@@ -242,6 +242,15 @@ private:
 
 	/** Console command used to set Runtime DataLayer state*/
 	static class FAutoConsoleCommand SetDataLayerRuntimeStateCommand;
+
+	void OnEffectiveRuntimeDataLayerStatesChanged(AWorldDataLayers* InWorldDataLayers);
+	void UpdateCachedEffectiveRuntimeStates() const;
+
+	mutable bool bIsCachedEffectiveStateDirty;
+	mutable TSet<FName> CachedEffectiveActiveDataLayerNames;
+	mutable TSet<FName> CachedEffectiveLoadedDataLayerNames;
+
+	friend class AWorldDataLayers;
 
 	FWorldDataLayersCollection WorldDataLayerCollection;
 };

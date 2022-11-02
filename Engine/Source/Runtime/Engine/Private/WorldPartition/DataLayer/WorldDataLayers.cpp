@@ -252,12 +252,20 @@ void AWorldDataLayers::OnRep_EffectiveActiveDataLayerNames()
 {
 	EffectiveActiveDataLayerNames.Reset();
 	EffectiveActiveDataLayerNames.Append(RepEffectiveActiveDataLayerNames);
+	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+	{
+		DataLayerSubsystem->OnEffectiveRuntimeDataLayerStatesChanged(this);
+	}
 }
 
 void AWorldDataLayers::OnRep_EffectiveLoadedDataLayerNames()
 {
 	EffectiveLoadedDataLayerNames.Reset();
 	EffectiveLoadedDataLayerNames.Append(RepEffectiveLoadedDataLayerNames);
+	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+	{
+		DataLayerSubsystem->OnEffectiveRuntimeDataLayerStatesChanged(this);
+	}
 }
 
 EDataLayerRuntimeState AWorldDataLayers::GetDataLayerEffectiveRuntimeStateByName(FName InDataLayerName) const
@@ -310,6 +318,11 @@ void AWorldDataLayers::ResolveEffectiveRuntimeState(const UDataLayerInstance* In
 		// Update Replicated Properties
 		RepEffectiveActiveDataLayerNames = EffectiveActiveDataLayerNames.Array();
 		RepEffectiveLoadedDataLayerNames = EffectiveLoadedDataLayerNames.Array();
+
+		if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+		{
+			DataLayerSubsystem->OnEffectiveRuntimeDataLayerStatesChanged(this);
+		}
 
 		++DataLayersStateEpoch;
 

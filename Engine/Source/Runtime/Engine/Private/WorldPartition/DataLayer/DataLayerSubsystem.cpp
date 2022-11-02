@@ -66,6 +66,7 @@ void FDataLayersEditorBroadcast::StaticOnActorDataLayersEditorLoadingStateChange
 #endif
 
 UDataLayerSubsystem::UDataLayerSubsystem()
+	: bIsCachedEffectiveStateDirty(true)
 {
 #if WITH_EDITOR
 	DataLayerActorEditorContextID = 0;
@@ -75,6 +76,8 @@ UDataLayerSubsystem::UDataLayerSubsystem()
 void UDataLayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
+
+	bIsCachedEffectiveStateDirty = true;
 
 #if WITH_EDITOR
 	UClass* DataLayerLoadingPolicyClassValue = DataLayerLoadingPolicyClass.Get();
@@ -231,26 +234,41 @@ TArray<const UDataLayerInstance*> UDataLayerSubsystem::GetRuntimeDataLayerInstan
 
 #endif
 
-TSet<FName> UDataLayerSubsystem::GetEffectiveActiveDataLayerNames() const
+const TSet<FName>& UDataLayerSubsystem::GetEffectiveActiveDataLayerNames() const
 {
-	TSet<FName> EffectiveActiveDataLayerNames;
-	WorldDataLayerCollection.ForEachWorldDataLayers([&EffectiveActiveDataLayerNames](AWorldDataLayers* WorldDataLayers)
-	{
-		EffectiveActiveDataLayerNames.Append(WorldDataLayers->GetEffectiveActiveDataLayerNames());
-	});
-	
-	return EffectiveActiveDataLayerNames;
+	UpdateCachedEffectiveRuntimeStates();
+	return CachedEffectiveActiveDataLayerNames;
 }
 
-TSet<FName> UDataLayerSubsystem::GetEffectiveLoadedDataLayerNames() const
+const TSet<FName>& UDataLayerSubsystem::GetEffectiveLoadedDataLayerNames() const
 {
-	TSet<FName> EffectiveLoadedDataLayerNames;
-	WorldDataLayerCollection.ForEachWorldDataLayers([&EffectiveLoadedDataLayerNames](AWorldDataLayers* WorldDataLayers)
-	{
-		EffectiveLoadedDataLayerNames.Append(WorldDataLayers->GetEffectiveLoadedDataLayerNames());
-	});
+	UpdateCachedEffectiveRuntimeStates();
+	return CachedEffectiveLoadedDataLayerNames;
+}
 
-	return EffectiveLoadedDataLayerNames;
+void UDataLayerSubsystem::OnEffectiveRuntimeDataLayerStatesChanged(AWorldDataLayers* InWorldDataLayers)
+{
+	bIsCachedEffectiveStateDirty = true;
+}
+
+void UDataLayerSubsystem::UpdateCachedEffectiveRuntimeStates() const
+{
+	if (bIsCachedEffectiveStateDirty)
+	{
+		bIsCachedEffectiveStateDirty = false;
+
+		CachedEffectiveActiveDataLayerNames.Reset();
+		WorldDataLayerCollection.ForEachWorldDataLayers([this](AWorldDataLayers* WorldDataLayers)
+		{
+			CachedEffectiveActiveDataLayerNames.Append(WorldDataLayers->GetEffectiveActiveDataLayerNames());
+		});
+
+		CachedEffectiveLoadedDataLayerNames.Reset();
+		WorldDataLayerCollection.ForEachWorldDataLayers([this](AWorldDataLayers* WorldDataLayers)
+		{
+			CachedEffectiveLoadedDataLayerNames.Append(WorldDataLayers->GetEffectiveLoadedDataLayerNames());
+		});
+	}
 }
 
 void UDataLayerSubsystem::RegisterWorldDataLayer(AWorldDataLayers* WorldDataLayers)
@@ -263,6 +281,7 @@ void UDataLayerSubsystem::RegisterWorldDataLayer(AWorldDataLayers* WorldDataLaye
 
 	if (WorldDataLayerCollection.RegisterWorldDataLayer(WorldDataLayers))
 	{
+		bIsCachedEffectiveStateDirty = true;
 #if WITH_EDITOR
 		OnWorldDataLayerPostRegister.Broadcast(WorldDataLayers);
 #endif
@@ -276,7 +295,7 @@ void UDataLayerSubsystem::UnregisterWorldDataLayer(AWorldDataLayers* WorldDataLa
 #if WITH_EDITOR
 		OnWorldDataLayerPreUnregister.Broadcast(WorldDataLayers);
 #endif
-
+		bIsCachedEffectiveStateDirty = true;
 		WorldDataLayerCollection.UnregisterWorldDataLayer(WorldDataLayers);
 	}
 }
@@ -360,11 +379,26 @@ EDataLayerRuntimeState UDataLayerSubsystem::GetDataLayerEffectiveRuntimeStateByN
 
 bool UDataLayerSubsystem::IsAnyDataLayerInEffectiveRuntimeState(const TArray<FName>& InDataLayerNames, EDataLayerRuntimeState InState) const
 {
-	for (FName DataLayerName : InDataLayerNames)
+	if (InState == EDataLayerRuntimeState::Activated)
 	{
-		if (GetDataLayerEffectiveRuntimeStateByName(DataLayerName) == InState)
+		const TSet<FName>& Activated = GetEffectiveActiveDataLayerNames();
+		for (const FName& DataLayerName : InDataLayerNames)
 		{
-			return true;
+			if (Activated.Contains(DataLayerName))
+			{
+				return true;
+			}
+		}
+	}
+	else if (InState == EDataLayerRuntimeState::Loaded)
+	{
+		const TSet<FName>& Loaded = GetEffectiveLoadedDataLayerNames();
+		for (const FName& DataLayerName : InDataLayerNames)
+		{
+			if (Loaded.Contains(DataLayerName))
+			{
+				return true;
+			}
 		}
 	}
 	return false;
