@@ -41,6 +41,7 @@
 #include "Serialization/DuplicatedDataWriter.h"
 #include "Serialization/LoadTimeTracePrivate.h"
 #include "Misc/PackageName.h"
+#include "Misc/PathViews.h"
 #include "UObject/LinkerLoad.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "Misc/SecureHash.h"
@@ -902,6 +903,59 @@ UPackage* FindPackage( UObject* InOuter, const TCHAR* PackageName )
 	return Result;
 }
 
+#if WITH_EDITOR
+struct FCreatePackageDefaultFlagsMap
+{
+	uint32 Find(FStringView MountPoint)
+	{
+		FReadScopeLock ReadScopeLock(Lock);
+		EPackageFlags* DefaultPackageFlags = MountPointToDefaultPackageFlags.FindByHash(GetTypeHash(MountPoint), MountPoint);
+
+		return DefaultPackageFlags ? *DefaultPackageFlags : EPackageFlags::PKG_None;
+	}
+
+	void Add(const TMap<FString, EPackageFlags>& InMountPointToDefaultPackageFlags)
+	{
+		if (InMountPointToDefaultPackageFlags.IsEmpty())
+		{
+			return;
+		}
+
+		FWriteScopeLock WriteScopeLock(Lock);
+		MountPointToDefaultPackageFlags.Append(InMountPointToDefaultPackageFlags);
+	}
+
+	void Remove(const TArrayView<FString>& InMountPoints)
+	{
+		if (InMountPoints.IsEmpty())
+		{
+			return;
+		}
+
+		FWriteScopeLock WriteScopeLock(Lock);
+		for (const FString& MountPoint : InMountPoints)
+		{
+			MountPointToDefaultPackageFlags.Remove(MountPoint);
+		}
+	}
+private:
+	FRWLock Lock;
+	TMap<FString, EPackageFlags> MountPointToDefaultPackageFlags;
+};
+
+static FCreatePackageDefaultFlagsMap GCreatePackageDefaultFlagsMap;
+
+void SetMountPointDefaultPackageFlags(const TMap<FString, EPackageFlags>& InMountPointToDefaultPackageFlags)
+{
+	GCreatePackageDefaultFlagsMap.Add(InMountPointToDefaultPackageFlags);
+}
+
+void RemoveMountPointDefaultPackageFlags(const TArrayView<FString> InMountPoints)
+{
+	GCreatePackageDefaultFlagsMap.Remove(InMountPoints);
+}
+#endif //if WITH_EDITOR
+
 UPackage* CreatePackage(UObject* InOuter, const TCHAR* PackageName)
 {
 	return CreatePackage(PackageName);
@@ -956,6 +1010,11 @@ UPackage* CreatePackage(const TCHAR* PackageName )
 			else
 			{
 				Result = NewObject<UPackage>(nullptr, NewPackageName, RF_Public);
+#if WITH_EDITOR
+				FStringView PackageMountPoint = FPathViews::GetMountPointNameFromPath(InName);
+				uint32 DefaultPackageFlags = GCreatePackageDefaultFlagsMap.Find(PackageMountPoint);
+				Result->SetPackageFlags(DefaultPackageFlags);
+#endif
 			}
 		}
 	}

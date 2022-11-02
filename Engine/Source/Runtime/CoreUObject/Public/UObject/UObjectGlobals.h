@@ -928,6 +928,20 @@ COREUOBJECT_API void EndLoad(FUObjectSerializeContext* LoadContext);
  */
 COREUOBJECT_API UPackage* FindPackage(UObject* InOuter, const TCHAR* PackageName);
 
+#if WITH_EDITOR
+/**
+* Sets default PackageFlags for new packages made in specified mount points during CreatePackage
+* @param InMountPointToDefaultPackageFlags A map of MountPoints to PackageFlags. Used to provide new Packages in each mount point with the associated DefaultFlags
+*/
+COREUOBJECT_API void SetMountPointDefaultPackageFlags(const TMap<FString, EPackageFlags>& InMountPointToDefaultPackageFlags);
+
+/**
+* Removes the provided list of mount points from the MountPointToDefaultPackageFlags map
+* @param InMountPoints A list of mount points that will be removed and no longer have DefaultPackageFlags associated with them
+*/
+COREUOBJECT_API void RemoveMountPointDefaultPackageFlags(const TArrayView<FString> InMountPoints);
+#endif
+
 /**
  * Find an existing package by name or create it if it doesn't exist
  * @param InOuter		The Outer object to search inside (unused)
