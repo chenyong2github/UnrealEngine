@@ -958,7 +958,7 @@ namespace UnrealBuildTool
 				}
 
 				// Generate the included header dependency list
-				if (!PreprocessDepends && CompileEnvironment.bGenerateDependenciesFile)
+				if (!PreprocessDepends)
 				{
 					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
 					Arguments.Add(GetDepencenciesListFileArgument(DependencyListFile));
@@ -1034,7 +1034,7 @@ namespace UnrealBuildTool
 				CompileEnvironment.bAllowRemotelyCompiledPCHs;
 
 			// Two-pass compile where the preprocessor is run first to output the dependency list
-			if (PreprocessDepends && CompileEnvironment.bGenerateDependenciesFile)
+			if (PreprocessDepends)
 			{
 				Action PrepassAction = Graph.CreateAction(ActionType.Compile);
 				PrepassAction.PrerequisiteItems.AddRange(CompileAction.PrerequisiteItems);

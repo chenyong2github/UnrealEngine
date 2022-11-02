@@ -1376,13 +1376,10 @@ namespace UnrealBuildTool
 					}
 
 					// Generate the included header dependency list
-					if (CompileEnvironment.bGenerateDependenciesFile)
-					{
-						FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(SourceFile.AbsolutePath) + ".d", Arch, true)));
-						FileArguments += string.Format(" -MD -MF\"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/'));
-						CompileAction.DependencyListFile = DependencyListFile;
-						CompileAction.ProducedItems.Add(DependencyListFile);
-					}
+					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(SourceFile.AbsolutePath) + ".d", Arch, true)));
+					FileArguments += string.Format(" -MD -MF\"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/'));
+					CompileAction.DependencyListFile = DependencyListFile;
+					CompileAction.ProducedItems.Add(DependencyListFile);
 
 					// Build a full argument list
 					string AllArguments = Arguments + FileArguments + CompileEnvironment.AdditionalArguments;
@@ -1553,13 +1550,10 @@ namespace UnrealBuildTool
 					}
 
 					// Generate the included header dependency list
-					if (CompileEnvironment.bGenerateDependenciesFile)
-					{
-						FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".d", Arch, true)));
-						Arguments.Add(String.Format("-M -MF \"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/')));
-						CompileAction.DependencyListFile = DependencyListFile;
-						CompileAction.ProducedItems.Add(DependencyListFile);
-					}
+					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".d", Arch, true)));
+					Arguments.Add(String.Format("-M -MF \"{0}\"", DependencyListFile.AbsolutePath.Replace('\\', '/')));
+					CompileAction.DependencyListFile = DependencyListFile;
+					CompileAction.ProducedItems.Add(DependencyListFile);
 
 					CompileAction.ProducedItems.Add(ISPCIncludeHeaderFile);
 
@@ -1757,12 +1751,9 @@ namespace UnrealBuildTool
 					}
 
 					// Consume the included header dependency list
-					if (CompileEnvironment.bGenerateDependenciesFile)
-					{
-						FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".d", Arch, true)));
-						CompileAction.DependencyListFile = DependencyListFile;
-						CompileAction.PrerequisiteItems.Add(DependencyListFile);
-					}
+					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, InlineArchName(Path.GetFileName(ISPCFile.AbsolutePath) + ".d", Arch, true)));
+					CompileAction.DependencyListFile = DependencyListFile;
+					CompileAction.PrerequisiteItems.Add(DependencyListFile);
 
 					CompileAction.ProducedItems.AddRange(CompiledISPCObjFiles);
 

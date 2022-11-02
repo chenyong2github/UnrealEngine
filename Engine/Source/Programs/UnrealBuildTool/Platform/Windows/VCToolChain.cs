@@ -1511,21 +1511,18 @@ namespace UnrealBuildTool
 					GenerateParseTimingInfoAction(SourceFile, CompileAction.TimingFile, Graph);
 				}
 
-				if (CompileEnvironment.bGenerateDependenciesFile)
+				if (Target.WindowsPlatform.Compiler.IsMSVC() && !CompileAction.ForceClFilter)
 				{
-					if (Target.WindowsPlatform.Compiler.IsMSVC() && !CompileAction.ForceClFilter)
-					{
-						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.dep.json"));
-					}
-					else if (Target.WindowsPlatform.Compiler.IsClang())
-					{
-						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.d"));
-					}
-					else
-					{
-						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.txt"));
-						CompileAction.bShowIncludes = Target.WindowsPlatform.bShowIncludes;
-					}
+					CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.dep.json"));
+				}
+				else if (Target.WindowsPlatform.Compiler.IsClang())
+				{
+					CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.d"));
+				}
+				else
+				{
+					CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.txt"));
+					CompileAction.bShowIncludes = Target.WindowsPlatform.bShowIncludes;
 				}
 
 				// Allow derived toolchains to make further changes

@@ -459,13 +459,10 @@ namespace UnrealBuildTool
 				Arguments.Add($"-h \"{NormalizeCommandLinePath(ISPCIncludeHeaderFile)}\"");
 
 				// Generate the included header dependency list
-				if (CompileEnvironment.bGenerateDependenciesFile)
-				{
-					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(ISPCFile.AbsolutePath) + ".txt"));
-					Arguments.Add($"-MMM \"{NormalizeCommandLinePath(DependencyListFile)}\"");
-					CompileAction.DependencyListFile = DependencyListFile;
-					CompileAction.ProducedItems.Add(DependencyListFile);
-				}
+				FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(ISPCFile.AbsolutePath) + ".txt"));
+				Arguments.Add($"-MMM \"{NormalizeCommandLinePath(DependencyListFile)}\"");
+				CompileAction.DependencyListFile = DependencyListFile;
+				CompileAction.ProducedItems.Add(DependencyListFile);
 
 				Arguments.AddRange(GlobalArguments);
 
@@ -671,12 +668,9 @@ namespace UnrealBuildTool
 				Arguments.AddRange(GlobalArguments);
 
 				// Consume the included header dependency list
-				if (CompileEnvironment.bGenerateDependenciesFile)
-				{
-					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(ISPCFile.AbsolutePath) + ".txt"));
-					CompileAction.DependencyListFile = DependencyListFile;
-					CompileAction.PrerequisiteItems.Add(DependencyListFile);
-				}
+				FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(ISPCFile.AbsolutePath) + ".txt"));
+				CompileAction.DependencyListFile = DependencyListFile;
+				CompileAction.PrerequisiteItems.Add(DependencyListFile);
 
 				CompileAction.ProducedItems.AddRange(CompiledISPCObjFiles);
 
