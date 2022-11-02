@@ -273,13 +273,13 @@ protected:
 	mutable int32 ObserversToRemoveCount = 0;
 
 	/** observers registered for blackboard keys */
-	mutable TMultiMap<uint8, FOnBlackboardChangeNotificationInfo> Observers;
+	mutable TMultiMap<FBlackboard::FKey, FOnBlackboardChangeNotificationInfo> Observers;
 	
 	/** observers registered from owner objects */
 	mutable TMultiMap<const UObject*, FDelegateHandle> ObserverHandles;
 
 	/** queued key change notification, will be processed on ResumeUpdates call */
-	mutable TArray<uint8> QueuedUpdates;
+	mutable TArray<FBlackboard::FKey> QueuedUpdates;
 
 	/** set when observation notifies are paused and shouldn't be passed to observers */
 	uint32 bPausedNotifies : 1;
