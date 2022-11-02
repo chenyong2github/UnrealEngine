@@ -8,6 +8,7 @@
 #include "NiagaraSettings.h"
 #include "NiagaraConstants.h"
 #include "NiagaraComputeExecutionContext.h"
+#include "NiagaraDataInterfaceGrid3DCollectionUtils.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceGrid3DCollectionReader)
 
@@ -104,10 +105,27 @@ bool UNiagaraDataInterfaceGrid3DCollectionReader::InitPerInstanceData(void* PerI
 
 		if (GridInterface && ProxyToUse)
 		{
+			// Does the reader think it should be an rgba grid?
+			int32 NumAttribChannelsFound = 0;
+			int32 NumNamedAttribChannelsFound = 0;
+			TArray<FNiagaraVariableBase> Vars;
+			TArray<uint32> Offsets;
+			FindAttributes<UNiagaraDataInterfaceGrid3DCollectionReader>(Vars, Offsets, NumNamedAttribChannelsFound);
+
+			// #todo(dmp): slight hack here - these aren't always the same, but we generally can't use unnamed attrs very well
+			NumAttribChannelsFound = NumNamedAttribChannelsFound;
+			bool UseRGBATexture = FGrid3DCollectionAttributeHelper::ShouldUseRGBAGrid(NumAttribChannelsFound, Vars.Num());
 
 			FGrid3DCollectionRWInstanceData_GameThread* Grid3DInstanceData = GridInterface->GetSystemInstancesToProxyData_GT().FindRef(SystemInstance->GetId());
 			InstanceData->OtherDI = GridInterface;
 			InstanceData->OtherInstanceData = Grid3DInstanceData;
+
+			// error if the reader thinks it should be an rgba grid and the underlying grid collection disagrees.  This is due to the reader not using all attributes defined
+			if (NumAttribChannelsFound > 0 && UseRGBATexture != InstanceData->OtherInstanceData->UseRGBATexture)
+			{
+				UE_LOG(LogNiagara, Error, TEXT("RGBA grids and Grid3DCollectionReaders are not compatible with Emitter %s and DataInterface %s.  Turn off RGBA grids with fx.Niagara.Grid3D.UseRGBAGrid 0, or split up your grid collections so the one passed to this reader has only one attribute."), *this->EmitterName, *this->DIName);
+				return false;
+			}
 
 			// Push Updates to Proxy.
 			FNiagaraDataInterfaceProxyGrid3DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid3DCollectionProxy>();
@@ -123,6 +141,14 @@ bool UNiagaraDataInterfaceGrid3DCollectionReader::InitPerInstanceData(void* PerI
 			});
 			return true;
 		}
+		else
+		{
+			UE_LOG(LogNiagara, Error, TEXT("Emitter %s doesn't have Grid3D Collection DI named %s for DI: %s"), *this->EmitterName, *this->DIName, *Proxy->SourceDIName.ToString());
+		}
+	}
+	else
+	{
+		UE_LOG(LogNiagara, Error, TEXT("Emitter %s doesn't exist for DI: %s"), *this->EmitterName, *Proxy->SourceDIName.ToString());
 	}
 
 	return false;

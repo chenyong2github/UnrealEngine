@@ -193,13 +193,10 @@ public:
 	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const override;
 	//~ UNiagaraDataInterface interface END
 
-private:
-	static void CollectAttributesForScript(UNiagaraScript* Script, FName VariableName, TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& TotalAttributes, TArray<FText>* OutWarnings = nullptr);
 public:
 	/** Finds all attributes by locating the variable name inside the parameter stores. */
 	void FindAttributesByName(FName DataInterfaceName, TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& OutNumAttribChannelsFound, TArray<FText>* OutWarnings = nullptr) const;
-	/** Finds all attributes by locating the data interface amongst the parameter stores. */
-	void FindAttributes(TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& OutNumAttribChannelsFound, TArray<FText>* OutWarnings = nullptr) const;
+
 	// Fills a texture render target 2d with the current data from the simulation
 	// #todo(dmp): this will eventually go away when we formalize how data makes it out of Niagara
 	// #todo(dmp): reimplement for 3d
@@ -344,5 +341,104 @@ protected:
 	TMap<FNiagaraSystemInstanceID, FGrid3DCollectionRWInstanceData_GameThread*> SystemInstancesToProxyData_GT;
 
 	static FNiagaraVariableBase ExposedRTVar;
+
+public:
+	/** Finds all attributes by locating the data interface amongst the parameter stores. */
+	template< typename T = UNiagaraDataInterfaceGrid3DCollection>
+	void FindAttributes(TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& OutNumAttribChannelsFound, TArray<FText>* OutWarnings = nullptr) const
+	{
+		{
+			OutNumAttribChannelsFound = 0;
+
+			UNiagaraSystem* OwnerSystem = GetTypedOuter<UNiagaraSystem>();
+			if (OwnerSystem == nullptr)
+			{
+				return;
+			}
+
+			int32 TotalAttributes = NumAttributes;
+			for (const FNiagaraEmitterHandle& EmitterHandle : OwnerSystem->GetEmitterHandles())
+			{
+				FVersionedNiagaraEmitterData* EmitterData = EmitterHandle.GetEmitterData();
+				if (EmitterData && EmitterHandle.GetIsEnabled() && EmitterData->IsValid() && (EmitterData->SimTarget == ENiagaraSimTarget::GPUComputeSim))
+				{
+					// Search scripts for this data interface so we get the variable name
+					auto FindDataInterfaceVariable =
+						[&OwnerSystem, &EmitterData](const UNiagaraDataInterface* DataInterface) -> FName
+					{
+						UNiagaraScript* Scripts[] =
+						{
+							OwnerSystem->GetSystemSpawnScript(),
+							OwnerSystem->GetSystemUpdateScript(),
+							EmitterData->GetGPUComputeScript(),
+						};
+
+						for (UNiagaraScript* Script : Scripts)
+						{
+							for (FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : Script->GetCachedDefaultDataInterfaces())
+							{
+								if (DataInterfaceInfo.DataInterface == DataInterface)
+								{
+									return DataInterfaceInfo.RegisteredParameterMapRead.IsNone() ? DataInterfaceInfo.RegisteredParameterMapWrite : DataInterfaceInfo.RegisteredParameterMapRead;
+								}
+							}
+						}
+						return NAME_None;
+					};
+
+					const FName VariableName = FindDataInterfaceVariable(this);
+					if (!VariableName.IsNone())
+					{
+						CollectAttributesForScript<T>(EmitterData->GetGPUComputeScript(), VariableName, OutVariables, OutVariableOffsets, TotalAttributes, OutWarnings);
+					}
+				}
+			}
+			OutNumAttribChannelsFound = TotalAttributes - NumAttributes;
+		}
+	}
+protected:
+	template< typename T>
+	static void CollectAttributesForScript(UNiagaraScript* Script, FName VariableName, TArray<FNiagaraVariableBase>& OutVariables, TArray<uint32>& OutVariableOffsets, int32& TotalAttributes, TArray<FText>* OutWarnings = nullptr)
+	{
+		if (const FNiagaraScriptExecutionParameterStore* ParameterStore = Script->GetExecutionReadyParameterStore(ENiagaraSimTarget::GPUComputeSim))
+		{
+			const FNiagaraVariableBase DataInterfaceVariable(FNiagaraTypeDefinition(T::StaticClass()), VariableName);
+
+			const int32* IndexOfDataInterface = ParameterStore->FindParameterOffset(DataInterfaceVariable);
+			if (IndexOfDataInterface != nullptr)
+			{
+				TConstArrayView<FNiagaraDataInterfaceGPUParamInfo> ParamInfoArray = Script->GetDataInterfaceGPUParamInfos();
+				for (const FNiagaraDataInterfaceGeneratedFunction& Func : ParamInfoArray[*IndexOfDataInterface].GeneratedFunctions)
+				{
+					if (const FName* AttributeName = Func.FindSpecifierValue(NAME_Attribute))
+					{
+						FNiagaraVariableBase NewVar(UNiagaraDataInterfaceGrid3DCollection::GetValueTypeFromFuncName(Func.DefinitionName), *AttributeName);
+						if (UNiagaraDataInterfaceGrid3DCollection::CanCreateVarFromFuncName(Func.DefinitionName))
+						{
+							if (!OutVariables.Contains(NewVar))
+							{
+								const int32 FoundNameMatch = OutVariables.IndexOfByPredicate([&](const FNiagaraVariableBase& Var) { return Var.GetName() == *AttributeName; });
+								if (FoundNameMatch == INDEX_NONE)
+								{
+									OutVariables.Add(NewVar);
+									const int32 NumComponents = NewVar.GetSizeInBytes() / sizeof(float);
+									OutVariableOffsets.Add(TotalAttributes);
+									TotalAttributes += NumComponents;
+								}
+								else
+								{
+									if (OutWarnings)
+									{
+										FText Warning = FText::Format(NSLOCTEXT("NiagaraDataInterfaceGrid3DCollection", "BadType", "Same name, different types! {0} vs {1}, Attribute {2}"), NewVar.GetType().GetNameText(), OutVariables[FoundNameMatch].GetType().GetNameText(), FText::FromName(NewVar.GetName()));
+										OutWarnings->Add(Warning);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 };
 
