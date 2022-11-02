@@ -307,8 +307,8 @@ public:
 	,	WorkingDirectory(InWorkingDirectory)
 	,	InputFilename(InInputFilename)
 	,	OutputFilename(InOutputFilename)
-	,	InputFilePath(FString(InWorkingDirectory) + InInputFilename)
-	,	OutputFilePath(FString(InWorkingDirectory) + InOutputFilename)
+	,	InputFilePath(FString(InWorkingDirectory) / InInputFilename)
+	,	OutputFilePath(FString(InWorkingDirectory) / InOutputFilename)
 	,	FormatVersionMap(InFormatVersionMap)
 	{
 		TArray<FString> Tokens, Switches;

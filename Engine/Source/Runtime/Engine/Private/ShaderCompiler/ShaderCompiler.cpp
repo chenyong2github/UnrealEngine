@@ -131,6 +131,12 @@ static TAutoConsoleVariable<bool> CVarJobCacheDDCPolicy(
 	TEXT("Whether to cache shaders in the job cache to your local machine or remotely to the network.\n"),
 	ECVF_ReadOnly);
 
+static TAutoConsoleVariable<bool> CVarDebugDumpWorkerInputs(
+	TEXT("r.ShaderCompiler.DebugDumpWorkerInputs"),
+	false,
+	TEXT("If true, worker input files will be saved for each individual compile job alongside other debug data (note that r.DumpShaderDebugInfo must also be enabled for this to function)"),
+	ECVF_ReadOnly);
+
 static bool IsShaderJobCacheDDCRemotePolicyEnabled()
 {
 	return CVarJobCacheDDCPolicy.GetValueOnAnyThread();
@@ -1344,8 +1350,7 @@ static void SplitJobsByType(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs
 	}
 }
 
-// Serialize Queued Job information
-bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& InTransferFile, IDistributedBuildController* BuildDistributionController, bool bUseRelativePaths, bool bCompressTaskFile)
+bool DoWriteTasksInner(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& InTransferFile, IDistributedBuildController* BuildDistributionController, bool bUseRelativePaths, bool bCompressTaskFile)
 {
 	int32 InputVersion = ShaderCompileWorkerInputVersion;
 	InTransferFile << InputVersion;
@@ -1577,6 +1582,66 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 	}
 
 	return InTransferFile.Close();
+}
+
+const TCHAR* DebugWorkerInputFileName = TEXT("DebugSCW.in");
+const TCHAR* DebugWorkerOutputFileName = TEXT("DebugSCW.out");
+
+FString CreateShaderCompilerWorkerDebugCommandLine(const FShaderCompileJob* Job)
+{
+	return FString::Printf(TEXT("\"%s\" 0 \"%s\" %s %s -TimeToLive 0.5f"), // 0 is parent PID, pass short TTL to prevent SCW from hanging around waiting for input after processing the single job
+		*Job->Input.DumpDebugInfoPath, // working directory for SCW
+		*Job->Input.DebugGroupName, // console window title
+		DebugWorkerInputFileName,
+		DebugWorkerOutputFileName);
+}
+
+// Serialize Queued Job information
+bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& InTransferFile, IDistributedBuildController* BuildDistributionController, bool bUseRelativePaths, bool bCompressTaskFile)
+{
+	if (CVarDebugDumpWorkerInputs.GetValueOnAnyThread())
+	{
+		for (const FShaderCommonCompileJobPtr& CommonJob : QueuedJobs)
+		{
+			auto WriteSingleJobFile = [](FShaderCompileJob* Job)
+			{
+				if (Job->Input.DumpDebugInfoEnabled())
+				{
+					TArray<FShaderCommonCompileJobPtr> SingleJobArray;
+					SingleJobArray.Add(Job);
+
+					FString DebugWorkerInputFilePath = Job->Input.DumpDebugInfoPath / DebugWorkerInputFileName;
+					FArchive* DebugWorkerInputFileWriter = IFileManager::Get().CreateFileWriter(*DebugWorkerInputFilePath, FILEWRITE_NoFail);
+					DoWriteTasksInner(
+						SingleJobArray, 
+						*DebugWorkerInputFileWriter, 
+						nullptr,	// Don't pass a IDistributedBuildController, this is only used for conversion to relative paths which we do not want for debug files
+						false,		// As above, use absolute paths not relative
+						true);		// Always compress the debug files; they are rather large so this saves some disk space
+					DebugWorkerInputFileWriter->Close();
+					delete DebugWorkerInputFileWriter;
+
+					FFileHelper::SaveStringToFile(
+						CreateShaderCompilerWorkerDebugCommandLine(Job), 
+						*(Job->Input.DumpDebugInfoPath / TEXT("DebugCompileArgs.txt")));
+				}
+			};
+			FShaderPipelineCompileJob* PipelineJob = CommonJob->GetShaderPipelineJob();
+			if (PipelineJob)
+			{
+				for (FShaderCompileJob* StageJob : PipelineJob->StageJobs)
+				{
+					WriteSingleJobFile(StageJob);
+				}
+			}
+			else
+			{
+				WriteSingleJobFile(CommonJob->GetSingleShaderJob());
+			}
+		}
+	}
+
+	return DoWriteTasksInner(QueuedJobs, InTransferFile, BuildDistributionController, bUseRelativePaths, bCompressTaskFile);
 }
 
 static void ProcessErrors(const FShaderCompileJob& CurrentJob, TArray<FString>& UniqueErrors, FString& ErrorString, int32& NumDumpedShaderSources)

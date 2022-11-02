@@ -2678,6 +2678,21 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 #endif
 }
 
+#if WITH_EDITOR
+FString FMaterial::GetUniqueAssetName(EShaderPlatform Platform) const
+{
+	TArray<uint8> Buf;
+	FString PathStr = GetAssetPath().GetPlainNameString();
+	FMemoryWriter BufWriter(Buf);
+	BufWriter << PathStr;
+	FStaticParameterSet StaticParams;
+	GetStaticParameterSet(Platform, StaticParams);
+	FStaticParameterSet::StaticStruct()->SerializeBin(BufWriter, &StaticParams);
+	uint64 Hash = CityHash64((const char*)Buf.GetData(), Buf.Num());
+	return FString::Printf(TEXT("%s_%llu"), *GetAssetName(), Hash);
+}
+#endif
+
 /**
  * Helper task used to release the strong object reference to the material interface on the game thread
  * The release has to happen on the gamethread and the material interface can't be GCd while the PSO

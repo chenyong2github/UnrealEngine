@@ -1860,6 +1860,15 @@ public:
 	virtual FString GetFriendlyName() const = 0;
 	/** Similar to GetFriendlyName, but but avoids historical behavior of the former, returning the exact asset name for material instances instead of just the material. */
 	virtual FString GetAssetName() const { return GetFriendlyName(); }
+
+#if WITH_EDITOR
+	/** Similar to GetAssetName, but appends a hash of the asset path and static switch params (if editoronly data is available)
+	to differentiate materials that would collide when considering name alone. */
+	ENGINE_API FString GetUniqueAssetName(EShaderPlatform Platform) const;
+#else
+	/** GetUniqueAssetName just returns GetAssetName in non-editor builds */
+	FString GetUniqueAssetName() const { return GetAssetName(); }
+#endif
 	virtual bool HasVertexPositionOffsetConnected() const { return false; }
 	virtual bool HasPixelDepthOffsetConnected() const { return false; }
 	virtual uint32 GetMaterialDecalResponse() const { return 0; }
