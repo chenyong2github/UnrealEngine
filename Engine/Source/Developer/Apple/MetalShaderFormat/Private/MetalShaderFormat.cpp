@@ -661,6 +661,10 @@ FMetalCompilerToolchain::EMetalToolchainStatus FMetalCompilerToolchain::FetchCom
 		// But the underlying (windows) implementation of CreateProc puts everything into one pipe, which is written to StdOut.
 		bool bResult = this->ExecMetalFrontend(AppleSDKMac, TEXT("-v --target=air64-apple-darwin18.7.0"), &ReturnCode, &StdOut, &StdOut);
 		check(bResult);
+		if (ReturnCode > 0)
+		{
+			return EMetalToolchainStatus::CouldNotParseCompilerVersion;
+		}
 		
 		Result = ParseCompilerVersionAndTarget(StdOut, this->MetalCompilerVersionString[AppleSDKMac], this->MetalCompilerVersion[AppleSDKMac], this->MetalTargetVersion[AppleSDKMac]);
 
@@ -676,6 +680,10 @@ FMetalCompilerToolchain::EMetalToolchainStatus FMetalCompilerToolchain::FetchCom
 		// metal -v writes its output to stderr
 		bool bResult = this->ExecMetalFrontend(AppleSDKMobile, TEXT("-v --target=air64-apple-darwin18.7.0"), &ReturnCode, &StdOut, &StdOut);
 		check(bResult);
+		if (ReturnCode > 0)
+		{
+			return EMetalToolchainStatus::CouldNotParseCompilerVersion;
+		}
 		
 		Result = ParseCompilerVersionAndTarget(StdOut, this->MetalCompilerVersionString[AppleSDKMobile], this->MetalCompilerVersion[AppleSDKMobile], this->MetalTargetVersion[AppleSDKMobile]);
 	}
@@ -760,9 +768,17 @@ FMetalCompilerToolchain::EMetalToolchainStatus FMetalCompilerToolchain::DoMacNat
 	FString StdOut, StdErr;
 	bool bSuccess = this->ExecGenericCommand(*XcrunPath, *FString::Printf(TEXT("--sdk %s --find %s"), *this->MetalMacSDK, *this->MetalFrontendBinary), &ReturnCode, &StdOut, &StdErr);
 	bSuccess |= FPaths::FileExists(StdOut);
-	
 	if(!bSuccess || ReturnCode > 0)
 	{
+		UE_LOG(LogMetalCompilerSetup, Warning, TEXT("Missing Mac Metal toolchain (macos SDK not found)."));
+		return EMetalToolchainStatus::ToolchainNotFound;
+	}
+	
+	bSuccess = this->ExecGenericCommand(*XcrunPath, *FString::Printf(TEXT("--sdk %s --find %s"), *this->MetalMobileSDK, *this->MetalFrontendBinary), &ReturnCode, &StdOut, &StdErr);
+	bSuccess |= FPaths::FileExists(StdOut);
+	if(!bSuccess || ReturnCode > 0)
+	{
+		UE_LOG(LogMetalCompilerSetup, Warning, TEXT("Missing Mobile Metal toolchain (iphoneos SDK not found)."));
 		return EMetalToolchainStatus::ToolchainNotFound;
 	}
 
