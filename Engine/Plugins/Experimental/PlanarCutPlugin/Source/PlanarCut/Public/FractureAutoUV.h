@@ -31,7 +31,11 @@ bool PLANARCUT_API BoxProjectUVs(
 	FGeometryCollection& Collection,
 	const FVector3d& BoxDimensions,
 	EUseMaterials MaterialsPattern = EUseMaterials::OddMaterials,
-	TArrayView<int32> WhichMaterials = TArrayView<int32>()
+	TArrayView<int32> WhichMaterials = TArrayView<int32>(),
+	FVector2f OffsetUVs = FVector2f(.5f,.5f),
+	bool bOverrideBoxDimensionsWithBounds = false,
+	bool bCenterBoxAtPivot = false,
+	bool bUniformProjectionScale = false
 );
 
 /**

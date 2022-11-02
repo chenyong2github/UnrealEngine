@@ -374,7 +374,11 @@ bool BoxProjectUVs(
 	FGeometryCollection& Collection,
 	const FVector3d& BoxDimensions,
 	EUseMaterials MaterialsPattern,
-	TArrayView<int32> WhichMaterials
+	TArrayView<int32> WhichMaterials,
+	FVector2f OffsetUVs,
+	bool bOverrideBoxDimensionsWithBounds,
+	bool bCenterBoxAtPivot,
+	bool bUniformProjectionScale
 )
 {
 	TArray<int32> TransformIndices;
@@ -423,7 +427,27 @@ bool BoxProjectUVs(
 		{
 			FDynamicMeshUVEditor UVEd(&Mesh, TargetUVLayer, false);
 			FFrame3d BoxFrame; // defaults to origin / no rotation
-			UVEd.SetTriangleUVsFromBoxProjection(TargetTris, [](const FVector3d& Pos) { return Pos; }, BoxFrame, BoxDimensions, 1);
+			FVector3d UseBoxDimensions = bUniformProjectionScale ? FVector3d(BoxDimensions.X) : BoxDimensions;
+			if (!bCenterBoxAtPivot || bOverrideBoxDimensionsWithBounds)
+			{
+				FAxisAlignedBox3d Bounds = Mesh.GetBounds(true);
+				if (!bCenterBoxAtPivot)
+				{
+					BoxFrame.Origin = Bounds.Center();
+				}
+				if (bOverrideBoxDimensionsWithBounds)
+				{
+					UseBoxDimensions = bUniformProjectionScale ? FVector3d(Bounds.MaxDim()) : Bounds.Max - Bounds.Min;
+				}
+			}
+			UVEd.SetTriangleUVsFromBoxProjection(TargetTris, [](const FVector3d& Pos) { return Pos; }, BoxFrame, UseBoxDimensions, 1);
+
+			// apply offset to UV space
+			FDynamicMeshUVOverlay* Overlap = UVEd.GetOverlay();
+			for (int ElemID : Overlap->ElementIndicesItr())
+			{
+				Overlap->SetElement(ElemID, OffsetUVs + Overlap->GetElement(ElemID));
+			}
 		}
 
 		Mesh.CompactInPlace();

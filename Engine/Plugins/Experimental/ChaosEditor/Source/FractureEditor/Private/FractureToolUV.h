@@ -109,8 +109,24 @@ public:
 	void DisableBoneColors();
 
 	/** The scale factor to use for UV box projection */
-	UPROPERTY(EditAnywhere, Category = Unwrap)
+	UPROPERTY(EditAnywhere, Category = Unwrap, meta = (EditCondition = "!bAutoFitToBounds"))
 	FVector ProjectionScale = FVector(100, 100, 100);
+
+	/** Set the scale factor for UV box projection based on the bounding box of the geometry */
+	UPROPERTY(EditAnywhere, Category = Unwrap, AdvancedDisplay)
+	bool bAutoFitToBounds = false;
+
+	/** Ensure the projection scale is the same on each axis, either by repeating the X Axis scale, or using the max box dimension if Auto Fit to Bounds is selected. */
+	UPROPERTY(EditAnywhere, Category = Unwrap, AdvancedDisplay, meta = (DisplayName = "Uniform Scale"))
+	bool bUniformProjectionScale = false;
+
+	/** UV Offset to apply after UV box projection */
+	UPROPERTY(EditAnywhere, Category = Unwrap, AdvancedDisplay, meta = (DisplayName = "UV Offset"))
+	FVector2D ProjectionUVOffset = FVector2D(.5, .5);
+
+	/** Optionally center the UV projection around the object pivot */
+	UPROPERTY(EditAnywhere, Category = Unwrap, AdvancedDisplay)
+	bool bCenterAtPivot = false;
 
 	/** Immediately perform a box projection to update the internal UVs of the selected Geometry Collection */
 	UFUNCTION(CallInEditor, Category = Unwrap, meta = (DisplayName = "Box Project UVs"))

@@ -220,7 +220,9 @@ void UFractureToolAutoUV::BoxProjectUVs()
 			*GeometryCollectionComponent->GetRestCollection()->GetGeometryCollection(),
 			(FVector3d)AutoUVSettings->ProjectionScale,
 			UseMaterialIDs,
-			AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs);
+			AutoUVSettings->TargetMaterialIDs == ETargetMaterialIDs::OddIDs ? EmptyMaterialIDs : AutoUVSettings->MaterialIDs,
+			(FVector2f)AutoUVSettings->ProjectionUVOffset,
+			AutoUVSettings->bAutoFitToBounds, AutoUVSettings->bCenterAtPivot, AutoUVSettings->bUniformProjectionScale);
 
 		GeometryCollectionComponent->MarkRenderDynamicDataDirty();
 		GeometryCollectionComponent->MarkRenderStateDirty();
