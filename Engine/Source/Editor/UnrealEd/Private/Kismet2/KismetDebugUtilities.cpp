@@ -1691,7 +1691,7 @@ bool FKismetDebugUtilities::CanInspectPinValue(const UEdGraphPin* Pin)
 	}
 
 	// Can't inspect if not in PIE
-	const UWorld* OwningWorld = Object->GetTypedOuter<UWorld>();
+	const UWorld* OwningWorld = Object->GetWorld();
 	if (!OwningWorld || !(OwningWorld->IsPlayInEditor() || OwningWorld->IsPreviewWorld()))
 	{
 		return false;
