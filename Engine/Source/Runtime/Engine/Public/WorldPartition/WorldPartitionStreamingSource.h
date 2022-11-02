@@ -63,50 +63,10 @@ public:
 	}
 
 	/** Helper method that builds a list of debug display segments */
-	TArray<TPair<FVector, FVector>> BuildDebugMesh() const
-	{
-		TArray<TPair<FVector, FVector>> Segments;
-		if (!IsValid())
-		{
-			return Segments;
-		}
+	TArray<TPair<FVector, FVector>> BuildDebugMesh() const;
 
-		const int32 SegmentCount = FMath::Max(4, FMath::CeilToInt32(64 * (float)Angle / 360.f));
-		const FReal AngleStep = Angle / FReal(SegmentCount);
-		const FRotator ShapeRotation = FRotationMatrix::MakeFromX(Axis).Rotator();
-		const FVector ScaledAxis = FVector::ForwardVector * Radius;
-		const int32 RollCount = 16;
-
-		Segments.Reserve(2 * (RollCount + 1) * (SegmentCount + 2));
-		int32 LastArcStartIndex = -1;
-		for (int32 i = 0; i <= RollCount; ++i)
-		{
-			const float Roll = 180.f * i / float(RollCount);
-			const FTransform Transform(FRotator(0, 0, Roll) + ShapeRotation, Center);
-			FVector SegmentStart = Transform.TransformPosition(FRotator(0, -0.5f * Angle, 0).RotateVector(ScaledAxis));
-			Segments.Emplace(Center, SegmentStart);
-			int32 CurrentArcStartIndex = Segments.Num();
-			// Build sector arc
-			for (int32 j = 1; j <= SegmentCount; j++)
-			{
-				FVector SegmentEnd = Transform.TransformPosition(FRotator(0, -0.5f * Angle + (AngleStep * j), 0).RotateVector(ScaledAxis));
-				Segments.Emplace(SegmentStart, SegmentEnd);
-				SegmentStart = SegmentEnd;
-			}
-			Segments.Emplace(Center, SegmentStart);
-			if (i > 0)
-			{
-				// Connect sector arc to previous arc
-				for (int32 j = 0; j < SegmentCount; j++)
-				{
-					Segments.Emplace(Segments[LastArcStartIndex + j].Key, Segments[CurrentArcStartIndex + j].Key);
-				}
-				Segments.Emplace(Segments[LastArcStartIndex + SegmentCount - 1].Value, Segments[CurrentArcStartIndex + SegmentCount - 1].Value);
-			}
-			LastArcStartIndex = CurrentArcStartIndex;
-		}
-		return Segments;
-	}
+	/** Returns whether spherical sector intersects 2D box */
+	bool IntersectsBox(const FBox2D& InBox) const;
 
 private:
 	/** Sphere center point. */

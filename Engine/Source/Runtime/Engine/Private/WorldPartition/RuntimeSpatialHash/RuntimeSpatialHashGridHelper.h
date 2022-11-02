@@ -70,11 +70,11 @@ struct FSquare2DGridHelper
 		 *
 		 * @return true if the specified coord was valid
 		 */
-		inline bool GetCellBounds(const FGridCellCoord2& InCoords, FBox2D& OutBounds) const
+		inline bool GetCellBounds(const FGridCellCoord2& InCoords, FBox2D& OutBounds, bool bCheckIsValidCoord = true) const
 		{
-			if (IsValidCoords(InCoords))
+			if (!bCheckIsValidCoord || IsValidCoords(InCoords))
 			{
-				const FVector2D Min = (FVector2D(Origin) - FVector2D(GridSize * CellSize * 0.5, GridSize * CellSize * 0.5)) + FVector2D(InCoords.X * CellSize, InCoords.Y * CellSize);
+				const FVector2D Min = (FVector2D(Origin) - FVector2D(GridSize * CellSize * 0.5)) + FVector2D(InCoords.X * CellSize, InCoords.Y * CellSize);
 				const FVector2D Max = Min + FVector2D(CellSize, CellSize);
 				OutBounds = FBox2D(Min, Max);
 				return true;
@@ -196,7 +196,7 @@ struct FSquare2DGridHelper
 						// Validate that generated coordinate is valid (in case we reached the 64-bit limit of cell index)
 						if (IsValidCoords(Coord))
 						{
-							if (!InOperation(FGridCellCoord2(x, y)))
+							if (!InOperation(Coord))
 							{
 								return NumCells;
 							}
@@ -225,16 +225,18 @@ struct FSquare2DGridHelper
 
 			// @todo_ow: rasterize circle instead?
 			const FBox Box(InSphere.Center - FVector(InSphere.W), InSphere.Center + FVector(InSphere.W));
+			const double SquareDistance = InSphere.W * InSphere.W;
+			const FVector2D SphereCenter(InSphere.Center);
 
-			ForEachIntersectingCells(Box, [this, &InSphere, &InOperation, &NumCells](const FGridCellCoord2& Coords)
+			ForEachIntersectingCells(Box, [this, SquareDistance, &SphereCenter, &InOperation, &NumCells](const FGridCellCoord2& Coords)
 			{
-				const int64 CellIndex = Coords.Y * GridSize + Coords.X;
-
+				// No need to check validity of coords as it's already done
+				const bool bCheckIsValidCoords = false;
 				FBox2D CellBounds;
-				GetCellBounds(CellIndex, CellBounds);
+				GetCellBounds(Coords, CellBounds, bCheckIsValidCoords);
 
-				FVector2D Delta = FVector2D(InSphere.Center) - FVector2D::Max(CellBounds.GetCenter() - CellBounds.GetExtent(), FVector2D::Min(FVector2D(InSphere.Center), CellBounds.GetCenter() + CellBounds.GetExtent()));
-				if ((Delta.X * Delta.X + Delta.Y * Delta.Y) < (InSphere.W * InSphere.W))
+				FVector2D Delta = SphereCenter - FVector2D::Max(CellBounds.Min, FVector2D::Min(SphereCenter, CellBounds.Max));
+				if ((Delta.X * Delta.X + Delta.Y * Delta.Y) < SquareDistance)
 				{
 					InOperation(Coords);
 					NumCells++;
@@ -253,7 +255,7 @@ struct FSquare2DGridHelper
 
 	private:
 
-		bool DoesCircleSectorIntersectsCell(const FGridCellCoord2& Coords, const FVector2D& SectorCenter, float SectorRadiusSquared, const FVector2D& SectorStartVector, const FVector2D& SectorEndVector, float SectorAngle) const;
+		bool DoesCircleSectorIntersectsCell(const FGridCellCoord2& Coords, const FSphericalSector& InShape) const;
 	};
 
 	struct FGridLevel : public FGrid2D
