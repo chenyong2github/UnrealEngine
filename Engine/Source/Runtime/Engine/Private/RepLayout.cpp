@@ -2738,7 +2738,14 @@ void FRepLayout::SendProperties_r(
 
 		if (Cmd.Type == ERepLayoutCmdType::DynamicArray)
 		{
-			WritePropertyHandle(Writer, HandleIterator.Handle, bDoChecksum);
+			if (SerializePropertyType == ESerializePropertyType::Handle)
+			{
+				WritePropertyHandle(Writer, HandleIterator.Handle, bDoChecksum);
+			}
+			else if (SerializePropertyType == ESerializePropertyType::Name)
+			{
+				WritePropertyName(Writer, Cmd.Property->GetFName(), bDoChecksum);
+			}
 
 			UE_NET_TRACE_DYNAMIC_NAME_SCOPE(Cmd.Property->GetFName(), Writer, GetTraceCollector(Writer), ENetTraceVerbosity::Trace);
 
