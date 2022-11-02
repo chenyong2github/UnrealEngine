@@ -340,7 +340,10 @@ void UpdateGlobalHeightFieldObjectRemoves(FScene* Scene)
 					PrimitiveBeingMoved->DistanceFieldInstanceIndices[0] = RemoveIndex;
 				}
 
-				SceneData.HeightfieldPrimitives.RemoveAtSwap(RemoveIndex, 1, false);
+				if (SceneData.HeightfieldPrimitives.IsValidIndex(RemoveIndex))
+				{
+					SceneData.HeightfieldPrimitives.RemoveAtSwap(RemoveIndex, 1, false);
+				}
 
 				SceneData.IndicesToUpdateInHeightFieldObjectBuffers.Add(RemoveIndex);
 			}
