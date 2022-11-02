@@ -272,6 +272,11 @@ bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& En
 	return false;
 }
 
+bool ShouldRenderVolumetricCloudWithBlueNoise(const FScene* Scene, const FEngineShowFlags& EngineShowFlags)
+{
+	return Scene && Scene->HasVolumetricCloud() && EngineShowFlags.Atmosphere && EngineShowFlags.Cloud;
+}
+
 bool ShouldViewVisualizeVolumetricCloudConservativeDensity(const FViewInfo& ViewInfo, const FEngineShowFlags& EngineShowFlags)
 {
 	return (!!EngineShowFlags.VisualizeVolumetricCloudConservativeDensity || !!EngineShowFlags.VisualizeVolumetricCloudEmptySpaceSkipping)
@@ -610,6 +615,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRenderVolumetricCloudGlobalParameters, )
 	SHADER_PARAMETER(float, AerialPerspectiveMieOnlyFadeDistanceKmInv)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FFogUniformParameters, FogStruct)
 	SHADER_PARAMETER_STRUCT(FForwardLightData, ForwardLightData)
+	SHADER_PARAMETER_STRUCT(FBlueNoise, BlueNoise)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FRenderVolumetricCloudGlobalParameters, "RenderVolumetricCloudParameters", SceneTextures);
@@ -657,6 +663,8 @@ void SetupDefaultRenderVolumetricCloudGlobalParameters(FRDGBuilder& GraphBuilder
 	VolumetricCloudParams.StepSizeOnZeroConservativeDensity = FMath::Max(CVarVolumetricCloudStepSizeOnZeroConservativeDensity.GetValueOnRenderThread(), 1);
 
 	VolumetricCloudParams.EmptySpaceSkippingSliceDepth = GetEmptySpaceSkippingSliceDepth();
+
+	VolumetricCloudParams.BlueNoise = GetBlueNoiseParameters();
 
 	VolumetricCloudParams.EnableHeightFog = ViewInfo.Family->Scene->HasAnyExponentialHeightFog() && ShouldRenderFog(*ViewInfo.Family);
 	SetupFogUniformParameters(GraphBuilder, ViewInfo, VolumetricCloudParams.FogStruct);
