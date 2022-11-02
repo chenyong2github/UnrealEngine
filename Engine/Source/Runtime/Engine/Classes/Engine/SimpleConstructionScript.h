@@ -42,7 +42,7 @@ class USimpleConstructionScript : public UObject
 	 * @param RootRelativeRotationCache Optional rotation cache to use when applying the transform to the root component.
 	 * @param bIsDefaultTransform	Indicates whether or not the given transform is a "default" transform, in which case it can be overridden by template defaults.
 	 */
-	void ExecuteScriptOnActor(AActor* Actor, const TInlineComponentArray<USceneComponent*>& NativeSceneComponents, const FTransform& RootTransform, const FRotationConversionCache* RootRelativeRotationCache, bool bIsDefaultTransform);
+	void ExecuteScriptOnActor(AActor* Actor, const TInlineComponentArray<USceneComponent*>& NativeSceneComponents, const FTransform& RootTransform, const FRotationConversionCache* RootRelativeRotationCache, bool bIsDefaultTransform, ESpawnActorScaleMethod TransformScaleMethod = ESpawnActorScaleMethod::OverrideRootScale);
 
 	/** Create the map from names to SCS_Nodes to improve FindSCSNode performance during construction script execution */
 	void CreateNameToSCSNodeMap();

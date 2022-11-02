@@ -82,7 +82,7 @@ const FBlueprintCookedComponentInstancingData* USCS_Node::GetActualComponentTemp
 	return OverridenComponentTemplateData ? OverridenComponentTemplateData : &CookedComponentInstancingData;
 }
 
-UActorComponent* USCS_Node::ExecuteNodeOnActor(AActor* Actor, USceneComponent* ParentComponent, const FTransform* RootTransform, const FRotationConversionCache* RootRelativeRotationCache, bool bIsDefaultTransform)
+UActorComponent* USCS_Node::ExecuteNodeOnActor(AActor* Actor, USceneComponent* ParentComponent, const FTransform* RootTransform, const FRotationConversionCache* RootRelativeRotationCache, bool bIsDefaultTransform, ESpawnActorScaleMethod TransformScaleMethod)
 {
 	check(Actor != nullptr);
 	check(IsValid(ParentComponent) || (RootTransform != nullptr)); // must specify either a parent component or a world transform
@@ -129,12 +129,22 @@ UActorComponent* USCS_Node::ExecuteNodeOnActor(AActor* Actor, USceneComponent* P
 			if (!IsValid(ParentComponent) || ParentComponent == NewSceneComp)
 			{
 				FTransform WorldTransform = *RootTransform;
+				switch(TransformScaleMethod)
+				{
+				case ESpawnActorScaleMethod::OverrideRootScale:
+				case ESpawnActorScaleMethod::SelectDefaultAtRuntime:
+					// Use the provided transform and ignore the root component
+					break;
+				case ESpawnActorScaleMethod::MultiplyWithRoot:
+					WorldTransform = NewSceneComp->GetRelativeTransform() * WorldTransform;
+					break;
+				}
+				
 				if(bIsDefaultTransform)
 				{
 					// Note: We use the scale vector from the component template when spawning (to match what happens with a native root). This
 					// does NOT occur when this component is instanced as part of dynamically spawning a Blueprint class in a cooked build (i.e.
-					// 'bIsDefaultTransform' will be 'false' in that situation). In order to maintain the same behavior between a nativized and
-					// non-nativized cooked build, if this ever changes, we would also need to update the code in AActor::PostSpawnInitialize().
+					// 'bIsDefaultTransform' will be 'false' in that situation).
 					WorldTransform.SetScale3D(NewSceneComp->GetRelativeScale3D());
 				}
 

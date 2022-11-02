@@ -813,7 +813,7 @@ class AActor* UGameplayStatics::BeginSpawningActorFromBlueprint(const UObject* W
 	return nullptr;
 }
 
-class AActor* UGameplayStatics::BeginDeferredActorSpawnFromClass(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass, const FTransform& SpawnTransform, ESpawnActorCollisionHandlingMethod CollisionHandlingOverride /*= ESpawnActorCollisionHandlingMethod::Undefined*/, AActor* Owner /*= nullptr*/)
+class AActor* UGameplayStatics::BeginDeferredActorSpawnFromClass(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass, const FTransform& SpawnTransform, ESpawnActorCollisionHandlingMethod CollisionHandlingOverride /*= ESpawnActorCollisionHandlingMethod::Undefined*/, AActor* Owner /*= nullptr*/, ESpawnActorScaleMethod TransformScaleMethod /*= ESpawnActorScaleMethod::MultiplyWithRoot*/)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SpawnTime);
 	if (UClass* Class = *ActorClass)
@@ -833,7 +833,7 @@ class AActor* UGameplayStatics::BeginDeferredActorSpawnFromClass(const UObject* 
 
 		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 		{
-			return World->SpawnActorDeferred<AActor>(Class, SpawnTransform, Owner, AutoInstigator, CollisionHandlingOverride);
+			return World->SpawnActorDeferred<AActor>(Class, SpawnTransform, Owner, AutoInstigator, CollisionHandlingOverride, TransformScaleMethod);
 		}
 		else
 		{
@@ -848,12 +848,12 @@ class AActor* UGameplayStatics::BeginDeferredActorSpawnFromClass(const UObject* 
 	return nullptr;
 }
 
-AActor* UGameplayStatics::FinishSpawningActor(AActor* Actor, const FTransform& SpawnTransform)
+AActor* UGameplayStatics::FinishSpawningActor(AActor* Actor, const FTransform& SpawnTransform, ESpawnActorScaleMethod TransformScaleMethod)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SpawnTime);
 	if (Actor)
 	{
-		Actor->FinishSpawning(SpawnTransform);
+		Actor->FinishSpawning(SpawnTransform, false, nullptr, TransformScaleMethod);
 	}
 
 	return Actor;

@@ -39,8 +39,14 @@ class BLUEPRINTGRAPH_API UK2Node_SpawnActorFromClass : public UK2Node_ConstructO
 	virtual void ExpandNode(class FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph) override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	virtual bool IsCompatibleWithGraph(const UEdGraph* TargetGraph) const override;
+	virtual void PostPlacedNewNode() override;
 	//~ End UEdGraphNode Interface.
 
+	//~ Begin UObject Interface
+	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
+	//~ End UObject Interface
+	
 	//~ Begin UK2Node Interface
 	virtual bool IsNodeSafeToIgnore() const override { return true; }
 	virtual void ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins) override;
@@ -53,11 +59,16 @@ class BLUEPRINTGRAPH_API UK2Node_SpawnActorFromClass : public UK2Node_ConstructO
 	virtual bool IsSpawnVarPin(UEdGraphPin* Pin) const override;
 	//~ End UK2Node_ConstructObjectFromClass Interface
 
+	
 private:
+	void FixupScaleMethodPin();
+	
 	/** Get the spawn transform input pin */	
 	UEdGraphPin* GetSpawnTransformPin() const;
 	/** Get the collision handling method input pin */
 	UEdGraphPin* GetCollisionHandlingOverridePin() const;
+	/** Get the collision handling method input pin */
+	UEdGraphPin* GetScaleMethodPin() const;
 	/** Get the actor owner pin */
 	UEdGraphPin* GetOwnerPin() const;
 
