@@ -42,7 +42,7 @@ public:
 	FD3D12Thread(TCHAR const* Name, EThreadPriority Priority, FD3D12DynamicRHI* RHI, FQueueFunc QueueFunc)
 		: RHI(RHI)
 		, QueueFunc(QueueFunc)
-		, Event(CreateEvent(nullptr, false, false, *(FString::Printf(TEXT("%s%s"), TEXT("Local\\"), Name))))
+		, Event(CreateEvent(nullptr, false, false, nullptr))
 		, Thread(FRunnableThread::Create(this, Name, 0, Priority))
 	{}
 
