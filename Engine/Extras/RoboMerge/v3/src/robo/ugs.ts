@@ -5,7 +5,7 @@ import { Badge } from '../common/badge';
 import { ContextualLogger } from '../common/logger';
 
 // need to check whether build health reporting is working
-const UGS_URL_ROOT = 'http://ugsapi.epicgames.net'
+const UGS_URL_ROOT = '<ugs url root>'
 
 interface IntegrationIssue {
 	Project: string
