@@ -751,7 +751,7 @@ public:
 
 	void CheckCanChangeStructure() const
 	{
-		checkf(IterationCount == 0, TEXT("Mutation of entities is not permissible while entities are being iterated"));
+		checkf(static_cast<uint16>(IterationCount) == 0, TEXT("Mutation of entities is not permissible while entities are being iterated"));
 		checkf(LockdownState == ELockdownState::Unlocked, TEXT("Structural changes to the entity manager are not permitted while it is locked down"));
 	}
 
@@ -786,7 +786,7 @@ public:
 	 */
 	FEntityComponentFilter& ModifyGlobalIterationFilter()
 	{
-		ensureMsgf(!IsLockedDown() && IterationCount == 0, TEXT("Manipulating the global iteration filter while locked down or iterating is not recommended"));
+		ensureMsgf(!IsLockedDown() && static_cast<uint16>(IterationCount) == 0, TEXT("Manipulating the global iteration filter while locked down or iterating is not recommended"));
 		return GlobalIterationFilter;
 	}
 

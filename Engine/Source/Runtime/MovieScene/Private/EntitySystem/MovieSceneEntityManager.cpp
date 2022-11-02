@@ -987,7 +987,7 @@ void FEntityManager::EnterIteration() const
 
 void FEntityManager::ExitIteration() const
 {
-	checkSlow(IterationCount > 0);
+	checkSlow(static_cast<uint16>(IterationCount) > 0);
 	--IterationCount;
 }
 
