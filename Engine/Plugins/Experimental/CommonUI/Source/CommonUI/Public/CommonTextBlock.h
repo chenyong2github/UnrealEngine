@@ -203,6 +203,10 @@ public:
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void SynchronizeProperties() override;
+
+	/** Mobile font size multiplier. Activated by default on mobile. See CVar Mobile_PreviewFontSize */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Mobile", meta = (ClampMin = "0.01", ClampMax = "5.0"))
+	float MobileFontSizeMultiplier = 1.0f;
 	
 #if WITH_EDITOR
 	virtual void OnCreationFromPalette() override;
@@ -234,10 +238,6 @@ private:
 	/** True to automatically collapse this text block when set to display an empty string. Conversely, will be SelfHitTestInvisible when showing a non-empty string. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonText, meta = (AllowPrivateAccess = true))
 	bool bAutoCollapseWithEmptyText = false;
-
-	/** Mobile font size multiplier. Activated by default on mobile. See CVar Mobile_PreviewFontSize */
-	UPROPERTY(EditAnywhere, Category = "Mobile", meta = (ClampMin = "0.01", ClampMax = "5.0"))
-	float MobileFontSizeMultiplier = 1.0f;
 
 #if WITH_EDITORONLY_DATA
 	/** Used to track widgets that were created before changing the default style pointer to null */
