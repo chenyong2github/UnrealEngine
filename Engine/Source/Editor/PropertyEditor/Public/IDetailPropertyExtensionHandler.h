@@ -14,7 +14,7 @@ class IDetailPropertyExtensionHandler
 public:
 	virtual ~IDetailPropertyExtensionHandler(){ }
 
-	virtual bool IsPropertyExtendable(const UClass* InObjectClass, const class IPropertyHandle& PropertyHandle) const = 0;
+	virtual bool IsPropertyExtendable(const UClass* InObjectClass, const IPropertyHandle& PropertyHandle) const = 0;
 
 	UE_DEPRECATED(4.24, "Please use ExtendWidgetRow")
 	virtual TSharedRef<SWidget> GenerateExtensionWidget(const UClass* InObjectClass, TSharedPtr<IPropertyHandle> PropertyHandle) 
