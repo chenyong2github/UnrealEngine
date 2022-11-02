@@ -300,9 +300,36 @@ FRHIResource* FRHIResource::CurrentlyDeleting = nullptr;
 
 #if HAS_GPU_STATS
 
-	TStaticArray<FDrawCallCategoryName*, FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY> FDrawCallCategoryName::Array { InPlace, nullptr };
-	TStaticArray<TStaticArray<int32, MAX_NUM_GPUS>, FDrawCallCategoryName::MAX_DRAWCALL_CATEGORY> FDrawCallCategoryName::DisplayCounts { InPlace };
-	int32 FDrawCallCategoryName::NumCategory = 0;
+	FDrawCallCategoryName::FDrawCallCategoryName()
+		: Name(NAME_None)
+		, Index(-1)
+	{}
+
+	FDrawCallCategoryName::FDrawCallCategoryName(FName InName)
+		: Name(InName)
+		, Index(GetManager().NumCategory++)
+	{
+		check(Index < MAX_DRAWCALL_CATEGORY);
+		if (Index < MAX_DRAWCALL_CATEGORY)
+		{
+			GetManager().Array[Index] = this;
+		}
+	}
+
+	FDrawCallCategoryName::FManager::FManager()
+		: NumCategory(0)
+	{
+		FMemory::Memzero(Array);
+		FMemory::Memzero(DisplayCounts);
+	}
+
+	FDrawCallCategoryName::FManager& FDrawCallCategoryName::GetManager()
+	{
+		// Categories are global scope objects, so the initialization order is undefined.
+		// Lazy init the manager on first use.
+		static FManager Manager;
+		return Manager;
+	}
 
 #endif
 
@@ -1643,6 +1670,8 @@ void FRHICommandListImmediate::ProcessStats()
 		LastTime = CurrentTime;
 		bCopyDisplayFrames = true;
 	}
+
+	FDrawCallCategoryName::FManager& Manager = FDrawCallCategoryName::GetManager();
 #endif
 
 	// Summed stats across all GPUs
@@ -1665,9 +1694,9 @@ void FRHICommandListImmediate::ProcessStats()
 			Total                           += Category;
 
 #if HAS_GPU_STATS
-			if (bCopyDisplayFrames && CategoryIndex < FDrawCallCategoryName::NumCategory)
+			if (bCopyDisplayFrames && CategoryIndex < Manager.NumCategory)
 			{
-				FDrawCallCategoryName::DisplayCounts[CategoryIndex][GPUIndex] = Category.Draws;
+				Manager.DisplayCounts[CategoryIndex][GPUIndex] = Category.Draws;
 			}
 #endif // HAS_GPU_STATS
 		}
@@ -1686,10 +1715,9 @@ void FRHICommandListImmediate::ProcessStats()
 	SET_DWORD_STAT(STAT_RHIDrawPrimitiveCalls, Total.Draws    );
 
 	#if CSV_PROFILER
-	for (int32 CategoryIndex = 0; CategoryIndex < FDrawCallCategoryName::NumCategory; ++CategoryIndex)
+	for (int32 CategoryIndex = 0; CategoryIndex < Manager.NumCategory; ++CategoryIndex)
 	{
-		FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[CategoryIndex];
-		FCsvProfiler::RecordCustomStat(CategoryName->Name, CSV_CATEGORY_INDEX(DrawCall), int32(TotalPerCategory[CategoryIndex].Draws), ECsvCustomStatOp::Set);
+		FCsvProfiler::RecordCustomStat(Manager.Array[CategoryIndex]->Name, CSV_CATEGORY_INDEX(DrawCall), int32(TotalPerCategory[CategoryIndex].Draws), ECsvCustomStatOp::Set);
 	}
 	#endif
 #endif // HAS_GPU_STATS

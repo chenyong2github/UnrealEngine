@@ -17644,39 +17644,50 @@ int32 UEngine::RenderStatUnit(UWorld* World, FViewport* Viewport, FCanvas* Canva
 int32 UEngine::RenderStatDrawCount(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
 {
 #if HAS_GPU_STATS
+
 	int32 TotalCount[MAX_NUM_GPUS] = { 0 };
 	// Display all the categories of draw counts. This may always report 0 in some modes if AreGPUStatsEnabled is not enabled.
 	// Most likely because we are not currently capturing a CSV.
-	for (int32 Index = 0; Index < FDrawCallCategoryName::NumCategory; ++Index)
+	FDrawCallCategoryName::FManager const& Manager = FDrawCallCategoryName::GetManager();
+	for (int32 Index = 0; Index < Manager.NumCategory; ++Index)
 	{
 		for (uint32 GPUIndex : FRHIGPUMask::All())
 		{
-			TotalCount[GPUIndex] += FDrawCallCategoryName::DisplayCounts[Index][GPUIndex];
-		FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[Index];
-			Canvas->DrawShadowedString(X - 100,
-			Y,
+			TotalCount[GPUIndex] += Manager.DisplayCounts[Index][GPUIndex];
+			FDrawCallCategoryName* CategoryName = Manager.Array[Index];
+
+			Canvas->DrawShadowedString(
+				X - 100, Y,
 				*FString::Printf(
 					TEXT("%s%s: %i"),
 					*CategoryName->Name.ToString(),
 					GNumExplicitGPUsForRendering > 1 ? *FString::Printf(TEXT(" (GPU%u)"), GPUIndex) : TEXT(""),
-					FDrawCallCategoryName::DisplayCounts[Index][GPUIndex]),
-			GetSmallFont(),
-			FColor::Green);
-		Y += 12;
+					Manager.DisplayCounts[Index][GPUIndex]
+				),
+				GetSmallFont(),
+				FColor::Green
+			);
+
+			Y += 12;
+		}
 	}
-	}
+
 	for (uint32 GPUIndex : FRHIGPUMask::All())
 	{
-		Canvas->DrawShadowedString(X - 100,
-		Y,
+		Canvas->DrawShadowedString(
+			X - 100, Y,
 			*FString::Printf(
 				TEXT("Total%s: %i"),
 				GNumExplicitGPUsForRendering > 1 ? *FString::Printf(TEXT(" (GPU%u)"), GPUIndex) : TEXT(""),
-				TotalCount[GPUIndex]),
-		GetSmallFont(),
-		FColor::Green);
-	Y += 12;
+				TotalCount[GPUIndex]
+			),
+			GetSmallFont(),
+			FColor::Green
+		);
+
+		Y += 12;
 	}
+
 #else
 	Canvas->DrawShadowedString(X - 200,
 		Y,

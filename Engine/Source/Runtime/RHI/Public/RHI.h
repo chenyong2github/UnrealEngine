@@ -2664,21 +2664,8 @@ extern RHI_API int32 GNumPrimitivesDrawnRHI[MAX_NUM_GPUS];
 
 	struct RHI_API FDrawCallCategoryName
 	{
-		FDrawCallCategoryName()
-			: Name(NAME_None)
-			, Index(-1)
-		{}
-
-		FDrawCallCategoryName(FName InName)
-			: Name(InName)
-			, Index(NumCategory++)
-		{
-			check(Index < MAX_DRAWCALL_CATEGORY);
-			if (Index < MAX_DRAWCALL_CATEGORY)
-			{
-				Array[Index] = this;
-			}
-		}
+		FDrawCallCategoryName();
+		FDrawCallCategoryName(FName InName);
 
 		bool ShouldCountDraws() const { return Index != -1; }
 
@@ -2687,9 +2674,19 @@ extern RHI_API int32 GNumPrimitivesDrawnRHI[MAX_NUM_GPUS];
 
 		static constexpr int32 MAX_DRAWCALL_CATEGORY = 256;
 
-		static TStaticArray<FDrawCallCategoryName*, MAX_DRAWCALL_CATEGORY> Array;
-		static TStaticArray<TStaticArray<int32, MAX_NUM_GPUS>, MAX_DRAWCALL_CATEGORY> DisplayCounts; // A backup of the counts that can be used to display on screen to avoid flickering.
-		static int32 NumCategory;
+		struct FManager
+		{
+			TStaticArray<FDrawCallCategoryName*, MAX_DRAWCALL_CATEGORY> Array;
+
+			// A backup of the counts that can be used to display on screen to avoid flickering.
+			TStaticArray<TStaticArray<int32, MAX_NUM_GPUS>, MAX_DRAWCALL_CATEGORY> DisplayCounts;
+
+			int32 NumCategory;
+
+			FManager();
+		};
+
+		static FManager& GetManager();
 	};
 
 	// RHI counter stats.
