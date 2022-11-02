@@ -17,6 +17,7 @@
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartition/HLOD/IWorldPartitionHLODUtilitiesModule.h"
 
+#include "RHI.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/TextureStreamingTypes.h"
 #endif
