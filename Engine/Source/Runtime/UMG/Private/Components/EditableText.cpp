@@ -277,6 +277,15 @@ bool UEditableText::GetSelectAllTextOnCommit() const
 	return SelectAllTextOnCommit;
 }
 
+void UEditableText::SetWidgetStyle(const FEditableTextStyle& InEditableTextStyle)
+{
+	WidgetStyle = InEditableTextStyle;
+	if (MyEditableText.IsValid())
+	{
+		MyEditableText->SetTextStyle(WidgetStyle);
+	}
+}
+
 bool UEditableText::GetIsReadOnly() const
 {
 	return IsReadOnly;

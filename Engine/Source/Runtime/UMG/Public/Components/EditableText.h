@@ -53,7 +53,7 @@ public:
 	FGetText HintTextDelegate;
 
 	/** The style */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance, meta=(DisplayName="Style", ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Setter, Category=Appearance, meta=(DisplayName="Style", ShowOnlyInnerProperties))
 	FEditableTextStyle WidgetStyle;
 
 	/** Sets whether this text box can actually be modified interactively by the user */
@@ -203,6 +203,9 @@ public:
 
 	/** Whether to select all text when pressing enter to commit changes */
 	bool GetSelectAllTextOnCommit() const;
+
+	/** Set the style and ensure the visual will be updated accordingly */
+	void SetWidgetStyle(const FEditableTextStyle& InEditableTextStyle);
 
 	bool GetIsReadOnly() const;
 
