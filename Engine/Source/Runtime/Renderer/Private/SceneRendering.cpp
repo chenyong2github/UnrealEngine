@@ -5547,7 +5547,7 @@ FRDGTextureRef CreateQuarterResolutionDepthMinAndMax(FRDGBuilder& GraphBuilder, 
 		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
 		const FScreenPassTexture InputDepth(InputDepthTexture, GetDownscaledRect(View.ViewRect, 2));
-		const FScreenPassRenderTarget SmallTextureRT(SmallTexture, GetDownscaledRect(View.ViewRect, 4), View.DecayLoadAction(ERenderTargetLoadAction::ENoAction));
+		const FScreenPassRenderTarget SmallTextureRT(SmallTexture, GetDownscaledRect(InputDepth.ViewRect, 2), View.DecayLoadAction(ERenderTargetLoadAction::ENoAction));
 		AddDownsampleDepthPass(GraphBuilder, View, InputDepth, SmallTextureRT, EDownsampleDepthFilter::MinAndMaxDepth);
 	}
 
