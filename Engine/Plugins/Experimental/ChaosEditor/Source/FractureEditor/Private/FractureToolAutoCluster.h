@@ -29,7 +29,9 @@ enum class EClusterSizeMethod : uint8
 	// Cluster by specifying an absolute number of clusters
 	ByNumber,
 	// Cluster by specifying a fraction of the number of input bones
-	ByFractionOfInput
+	ByFractionOfInput,
+	// Cluster by specifying the density of the input bones
+	BySize,
 };
 
 
@@ -58,6 +60,10 @@ public:
 	/** Choose the number of Voronoi sites used for clustering as a fraction of the number of child bones to process */
 	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (DisplayName = "Cluster Fraction", ClampMin = "0", ClampMax = ".5", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::ByFractionOfInput"))
 	float SiteCountFraction = .25;
+	
+	/** Choose the Edge-Size of the cube used to groups bones under a cluster (in cm). */
+	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (DisplayName = "Cluster Size", UIMin = ".01", UIMax = "100", ClampMin = ".0001", ClampMax = "10000", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::BySize"))
+	float SiteSize = 1;
 
 	/** If true, bones will only be added to the same cluster if they are physically connected (either directly, or via other bones in the same cluster) */
 	UPROPERTY(EditAnywhere, Category = AutoCluster, meta = (DisplayName = "Enforce Cluster Connectivity"))
@@ -84,6 +90,8 @@ public:
 	virtual FSlateIcon GetToolIcon() const override;
 	virtual TArray<UObject*> GetSettingsObjects() const override;
 	virtual void RegisterUICommand( FFractureEditorCommands* BindingContext );
+	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
+	void DrawBox(FPrimitiveDrawInterface* PDI, FVector Center, float SideLength);
 
 	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
 

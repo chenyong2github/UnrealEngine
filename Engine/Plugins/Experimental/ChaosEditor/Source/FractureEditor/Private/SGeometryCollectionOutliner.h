@@ -148,6 +148,7 @@ public:
 		, ParentComponentItem(InParentComponentItem)
 		, ItemColor(FSlateColor::UseForeground())
 		, RelativeSize(0)
+		, Volume(0)
 		, InitialState(INDEX_NONE)
 		, Anchored(false)
 		, Damage(0)
@@ -163,6 +164,7 @@ public:
 	TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, bool bIsPinned = false);
 	TSharedRef<SWidget> MakeNameColumnWidget() const;
 	TSharedRef<SWidget> MakeRelativeSizeColumnWidget() const;
+	TSharedRef<SWidget> MakeVolumeColumnWidget() const;
 	TSharedRef<SWidget> MakeDamagesColumnWidget() const;
 	TSharedRef<SWidget> MakeDamageThresholdColumnWidget() const;
 	TSharedRef<SWidget> MakeBrokenColumnWidget() const;
@@ -194,6 +196,7 @@ private:
 	FSlateColor ItemColor;
 	FText ItemText;
 	float RelativeSize;
+	float Volume;
 	int32 InitialState;
 	bool Anchored;
 	float Damage;
@@ -213,6 +216,7 @@ namespace SGeometryCollectionOutlinerColumnID
 	const FName Bone("Bone");
 	// State and Size column mode
 	const FName RelativeSize("Relative Size");
+	const FName Volume("Volume");
 	const FName InitialState("Initial State");
 	const FName Anchored("Anchored");
 	// Damage Column Mode

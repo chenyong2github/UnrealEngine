@@ -47,12 +47,57 @@ FSlateIcon UFractureToolAutoCluster::GetToolIcon() const
 	return FSlateIcon("FractureEditorStyle", "FractureEditor.AutoCluster");
 }
 
-
 TArray<UObject*> UFractureToolAutoCluster::GetSettingsObjects() const 
 {
 	TArray<UObject*> AllSettings; 
 	AllSettings.Add(AutoClusterSettings);
 	return AllSettings;
+}
+
+void UFractureToolAutoCluster::DrawBox(FPrimitiveDrawInterface* PDI, FVector Center, float SideLength)
+{
+	float SideBy2 = SideLength/2.;
+	
+	FVector X(1., 0, 0);
+	FVector Y(0, 1., 0);
+	FVector Z(0, 0, 1.);
+
+	TArray<FVector> Verts;
+	for (int i=-1; i<=1; i+=2)
+	{
+		for (int j=-1; j<=1; j+=2)
+		{
+			for (int k=-1; k<=1; k+=2)
+			{
+				Verts.Emplace(Center + (X*i + Y*j + Z*k)*SideBy2);
+			}
+		}
+	}
+	
+	Verts.Swap(0,1);
+	Verts.Swap(4,5);
+	
+	for (int i=0; i<4; i+=1)
+	{
+		PDI->DrawLine(Verts[i], Verts[(i+1)%4], FLinearColor(255, 0, 0), SDPG_Foreground);
+		PDI->DrawLine(Verts[4+i], Verts[4+((i+1)%4)], FLinearColor(255, 0, 0), SDPG_Foreground);
+		PDI->DrawLine(Verts[i], Verts[i+4], FLinearColor(255, 0, 0), SDPG_Foreground);
+	}
+}
+
+void UFractureToolAutoCluster::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
+{
+	if (AutoClusterSettings->ClusterSizeMethod != EClusterSizeMethod::BySize)
+	{
+		return;
+	}
+	
+	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
+	
+	for (FFractureToolContext& FractureContext : FractureContexts)
+	{
+		DrawBox(PDI, FractureContext.GetTransform().GetTranslation(), AutoClusterSettings->SiteSize);
+	}
 }
 
 void UFractureToolAutoCluster::RegisterUICommand( FFractureEditorCommands* BindingContext )
@@ -82,9 +127,22 @@ void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTo
 			{
 				FVoronoiPartitioner VoronoiPartition(GeometryCollection, ClusterIndex);
 				int32 NumChildren = GeometryCollection->Children[ClusterIndex].Num();
-				int32 SiteCountToUse = AutoClusterSettings->ClusterSizeMethod == EClusterSizeMethod::ByFractionOfInput ?
-					FMath::Max(2, NumChildren * AutoClusterSettings->SiteCountFraction) :
-					AutoClusterSettings->SiteCount;
+				int32 SiteCountToUse = 1;
+				if (AutoClusterSettings->ClusterSizeMethod == EClusterSizeMethod::ByNumber)
+				{
+					SiteCountToUse = AutoClusterSettings->SiteCount;
+				}
+				else if (AutoClusterSettings->ClusterSizeMethod == EClusterSizeMethod::ByFractionOfInput)
+				{
+					SiteCountToUse = FMath::Max(2, NumChildren * AutoClusterSettings->SiteCountFraction);
+				}
+				else if (AutoClusterSettings->ClusterSizeMethod == EClusterSizeMethod::BySize)
+				{
+					float TotalVolume = GeometryCollection->GetBoundingBox().GetBox().GetVolume();
+					float DesiredVolume = FMath::Pow(AutoClusterSettings->SiteSize, 3);
+					SiteCountToUse = FMath::Max(1, TotalVolume / DesiredVolume);
+				}
+				
 				VoronoiPartition.KMeansPartition(SiteCountToUse);
 				if (VoronoiPartition.GetPartitionCount() == 0)
 				{

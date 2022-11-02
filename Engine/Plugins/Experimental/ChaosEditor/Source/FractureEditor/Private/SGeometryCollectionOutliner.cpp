@@ -210,6 +210,8 @@ TSharedRef<SWidget> SGeometryCollectionOutlinerRow::GenerateWidgetForColumn(cons
 	}
 	if (ColumnName == SGeometryCollectionOutlinerColumnID::RelativeSize)
 		return Item->MakeRelativeSizeColumnWidget();
+	if (ColumnName == SGeometryCollectionOutlinerColumnID::Volume)
+		return Item->MakeVolumeColumnWidget();
 	if (ColumnName == SGeometryCollectionOutlinerColumnID::InitialState)
 		return Item->MakeInitialStateColumnWidget();
 	if (ColumnName == SGeometryCollectionOutlinerColumnID::Anchored)
@@ -277,6 +279,13 @@ void SGeometryCollectionOutliner::RegenerateHeader()
 			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::RelativeSize)
 				.DefaultLabel(LOCTEXT("GCOutliner_Column_RelativeSize", "Relative Size"))
 				.DefaultTooltip(LOCTEXT("GCOutliner_Column_RelativeSize_ToolTip", "Relative size ( Used for size specific data )"))
+				.HAlignHeader(EHorizontalAlignment::HAlign_Center)
+				.FillWidth(CustomFillWidth)
+		);
+		HeaderRowWidget->AddColumn(
+			SHeaderRow::Column(SGeometryCollectionOutlinerColumnID::Volume)
+				.DefaultLabel(LOCTEXT("GCOutliner_Column_Volume", "Size"))
+				.DefaultTooltip(LOCTEXT("GCOutliner_Column_Volume_ToolTip", "Side length of the bounding cube (in cm)"))
 				.HAlignHeader(EHorizontalAlignment::HAlign_Center)
 				.FillWidth(CustomFillWidth)
 		);
@@ -794,6 +803,7 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 	
 	ItemColor = InvalidColor;
 	RelativeSize = 0;
+	Volume = 0;
 	Damage = 0;
 	DamageThreshold = 0;
 	Broken = false;
@@ -823,6 +833,7 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = RestCollection->GetGeometryCollection();
 			const TManagedArray<int32>& SimulationType = GeometryCollectionPtr->SimulationType;
 			const TManagedArray<float>* RelativeSizes = GeometryCollectionPtr->FindAttribute<float>("Size", FTransformCollection::TransformGroup);
+			const TManagedArray<float>* Volumes = GeometryCollectionPtr->FindAttribute<float>("Volume", FTransformCollection::TransformGroup);
 			const TManagedArray<FVector4f>* RemoveOnBreakArray = GeometryCollectionPtr->FindAttribute<FVector4f>("RemoveOnBreak", FTransformCollection::TransformGroup);
 
 			using FImplicitGeom = FGeometryDynamicCollection::FSharedImplicit;
@@ -875,6 +886,11 @@ void FGeometryCollectionTreeItemBone::UpdateItemFromCollection()
 				if (RelativeSizes)
 				{
 					RelativeSize = (*RelativeSizes)[ItemBoneIndex];
+				}
+				
+				if (Volumes)
+				{
+					Volume = FMath::Pow((*Volumes)[ItemBoneIndex], 1./3);
 				}
 
 				if (Collector)
@@ -949,6 +965,23 @@ TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeRelativeSizeColumnWidge
 			[
 				SNew(STextBlock)
 				.Text(FText::AsNumber(RelativeSize, &FormatOptions))
+				.ColorAndOpacity(ItemColor)
+			];
+}
+
+TSharedRef<SWidget> FGeometryCollectionTreeItemBone::MakeVolumeColumnWidget() const
+{
+	static const FNumberFormattingOptions FormatOptions = FNumberFormattingOptions()
+				.SetMinimumFractionalDigits(2)
+				.SetMaximumFractionalDigits(2);
+	
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+			.Padding(12.f, 0.f)
+			.HAlign(HAlign_Right)
+			[
+				SNew(STextBlock)
+				.Text(FText::AsNumber(Volume, &FormatOptions))
 				.ColorAndOpacity(ItemColor)
 			];
 }
