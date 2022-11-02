@@ -39,6 +39,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Panel")
 	UStackBoxSlot* AddChildToStackBox(UWidget* Content);
 
+	/** Replace the widget at the given index it with a different widget. */
+	UFUNCTION(BlueprintCallable, Category = "Panel")
+	bool ReplaceStackBoxChildAt(int32 Index, UWidget* Content);
+
 #if WITH_EDITOR
 	//~ UWidget interface
 	virtual const FText GetPaletteCategory() override;

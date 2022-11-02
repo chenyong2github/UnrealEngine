@@ -12,6 +12,7 @@
 #include "UIFStackBox.generated.h"
 
 class UUIFrameworkStackBox;
+struct FUIFrameworkStackBoxSlotList;
 
 /**
  *
@@ -21,6 +22,7 @@ struct FUIFrameworkStackBoxSlot : public FUIFrameworkSlotBase
 {
 	GENERATED_BODY()
 
+	friend UUIFrameworkStackBox;
 	friend FUIFrameworkStackBoxSlotList;
 
 	/** Horizontal alignment of the widget inside the slot. */

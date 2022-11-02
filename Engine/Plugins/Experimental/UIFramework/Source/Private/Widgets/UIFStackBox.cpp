@@ -6,6 +6,7 @@
 #include "UIFModule.h"
 #include "UIFPlayerComponent.h"
 
+#include "Components/Spacer.h"
 #include "Components/StackBox.h"
 #include "Components/StackBoxSlot.h"
 
@@ -187,8 +188,32 @@ void UUIFrameworkStackBox::LocalAddChild(FUIFrameworkWidgetId ChildId)
 			UWidget* ChildUMGWidget = ChildWidget->LocalGetUMGWidget();
 			if (ensure(ChildUMGWidget))
 			{
-				UPanelSlot* PanelSlot = CastChecked<UStackBox>(LocalGetUMGWidget())->AddChild(ChildUMGWidget);
-				checkf(PanelSlot, TEXT("StackBoxPanel should be able to receive slot"));
+				UStackBox* StackBox = CastChecked<UStackBox>(LocalGetUMGWidget());
+				UPanelSlot* PanelSlot = nullptr;
+				{
+					const int32 ChildCount = StackBox->GetChildrenCount();
+					if (StackBoxEntry->Index < ChildCount)
+					{
+						// replace the existing slot
+						StackBox->ReplaceStackBoxChildAt(StackBoxEntry->Index, ChildUMGWidget);
+						PanelSlot = StackBox->GetSlots()[StackBoxEntry->Index];
+					}
+					else if (StackBoxEntry->Index == ChildCount)
+					{
+						// add to the end
+						PanelSlot = StackBox->AddChild(ChildUMGWidget);
+					}
+					else
+					{
+						// insert until the widget count is correct
+						for (int32 Index = ChildCount; Index < StackBoxEntry->Index; ++Index)
+						{
+							StackBox->AddChild(NewObject<USpacer>(GetTransientPackage()));
+						}
+						PanelSlot = StackBox->AddChild(ChildUMGWidget);
+					}
+					checkf(PanelSlot, TEXT("StackBoxPanel should be able to receive slot"));
+				}
 
 				StackBoxEntry->LocalAquireWidget();
 
