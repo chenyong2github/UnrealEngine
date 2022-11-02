@@ -559,15 +559,35 @@ void UMeshSelectionTool::UpdateFaceSelection(const FBrushStampData& Stamp, const
 	else if (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::ByMaterial)
 	{
 		const FDynamicMeshMaterialAttribute* MaterialIDs = Mesh->Attributes()->GetMaterialID();
-		TArray<int32> StartROI;
-		StartROI.Add(Stamp.HitResult.FaceIndex);
-		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, LocalROI, &TemporaryBuffer, &TemporarySet,
-			[Mesh, MaterialIDs](int t1, int t2) { return MaterialIDs->GetValue(t1) == MaterialIDs->GetValue(t2); });
-		UseROI = &LocalROI;
+		// If material IDs are missing, this logic will be skipped and selection will fall back to brush selection
+		if (MaterialIDs)
+		{
+			TArray<int32> StartROI;
+			StartROI.Add(Stamp.HitResult.FaceIndex);
+			FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, LocalROI, &TemporaryBuffer, &TemporarySet,
+				[Mesh, MaterialIDs](int t1, int t2) { return MaterialIDs->GetValue(t1) == MaterialIDs->GetValue(t2); });
+			UseROI = &LocalROI;
+		}
+	}
+	else if (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::ByMaterialAll)
+	{
+		const FDynamicMeshMaterialAttribute* MaterialIDs = Mesh->Attributes()->GetMaterialID();
+		// If material IDs are missing, this logic will be skipped and selection will fall back to brush selection
+		if (MaterialIDs)
+		{
+			int32 HitMaterialID = MaterialIDs->GetValue(Stamp.HitResult.FaceIndex);
+			for (int32 TID : Mesh->TriangleIndicesItr())
+			{
+				if (MaterialIDs->GetValue(TID) == HitMaterialID)
+				{
+					LocalROI.Add(TID);
+				}
+			}
+			UseROI = &LocalROI;
+		}
 	}
 	else if (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::ByUVIsland)
 	{
-		const FDynamicMeshMaterialAttribute* MaterialIDs = Mesh->Attributes()->GetMaterialID();
 		TArray<int32> StartROI;
 		StartROI.Add(Stamp.HitResult.FaceIndex);
 		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, LocalROI, &TemporaryBuffer, &TemporarySet,

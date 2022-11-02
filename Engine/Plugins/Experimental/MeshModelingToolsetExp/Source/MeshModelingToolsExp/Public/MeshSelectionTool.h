@@ -235,8 +235,11 @@ enum class EMeshSelectionToolPrimaryMode
 	/** Select all triangles in groups connected to any triangle inside the brush */
 	AllInGroup,
 
+	/** Select the connected group of triangles with same material as hit triangle */
+	ByMaterial UMETA(DisplayName = "By Material (Connected)"),
+
 	/** Select all triangles with same material as hit triangle */
-	ByMaterial,
+	ByMaterialAll UMETA(DisplayName = "By Material (All)"),
 
 	/** Select all triangles in same UV island as hit triangle */
 	ByUVIsland,
