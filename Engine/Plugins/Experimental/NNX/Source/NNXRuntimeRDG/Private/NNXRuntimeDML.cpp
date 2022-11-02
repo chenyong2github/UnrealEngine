@@ -174,7 +174,7 @@ namespace DmlUtil
 		for (int32 i = InputDesc.Shape.Num() - 1; i >= 0; --i)
 		{
 			TensorDesc.Strides[i] = CurrStride;
-			CurrStride *= InputDesc.Shape[i];
+			CurrStride *= InputDesc.Shape.Data[i];
 		}
 	}
 
@@ -192,19 +192,19 @@ namespace DmlUtil
 		
 		for (int32 i = 0; i < (int32) TargetDimension; ++i)
 		{
-			TensorDesc.Sizes[i] = i < DimensionOffset ? 1 : InputDesc.Shape[i - DimensionOffset];
+			TensorDesc.Sizes[i] = i < DimensionOffset ? 1 : InputDesc.Shape.Data[i - DimensionOffset];
 		}
 
 		uint32 CurrStride = 1;
 
 		for (int32 i = TargetDimension - 1; i >= 0; --i)
 		{
-			const bool bBroadcast = TensorDesc.Sizes[i] < TargetDesc.Shape[i];
+			const bool bBroadcast = TensorDesc.Sizes[i] < TargetDesc.Shape.Data[i];
 
 			TensorDesc.Strides[i] = bBroadcast ? 0 : CurrStride;
 			CurrStride *= TensorDesc.Sizes[i];
 
-			TensorDesc.Sizes[i] = TargetDesc.Shape[i];
+			TensorDesc.Sizes[i] = TargetDesc.Shape.Data[i];
 		}
 	}
 
@@ -217,7 +217,7 @@ namespace DmlUtil
 		
 		for (int32 Idx = 0; Idx < Left.Shape.Num(); ++Idx)
 		{
-			if (Left.Shape[Idx] != Right.Shape[Idx])
+			if (Left.Shape.Data[Idx] != Right.Shape.Data[Idx])
 			{
 				return false;
 			}
@@ -343,7 +343,7 @@ protected:
 			return false;
 		}
 
-		DmlTensorDesc.Sizes = TensorDesc.Shape;
+		DmlTensorDesc.Sizes = TensorDesc.Shape.Data;
 		// TODO: Support tensor padding using strides defined in FMLTensorDesc
 		//DmlUtil::SetTensorStrides(DmlTensorDesc, TensorDesc.Strides);
 		
@@ -377,7 +377,7 @@ protected:
 
 		if (DmlUtil::IsSameShape(TensorDesc, BroadcastDesc))
 		{
-			DmlTensorDesc.Sizes = TensorDesc.Shape;
+			DmlTensorDesc.Sizes = TensorDesc.Shape.Data;
 			DmlUtil::SetTensorStrides(DmlTensorDesc, TensorDesc);
 		}
 		else if (TensorDesc.Shape.Num() > BroadcastDesc.Shape.Num())
@@ -1277,20 +1277,25 @@ bool FMLInferenceModelDml::Init(UMLInferenceModel* InModel, FDeviceContextDml* I
 	for (int32 Idx = 0; Idx < Format.Operators.Num(); ++Idx)
 	{
 		const FString TypeName = Format.Operators[Idx].TypeName;
-
-		// HACK: This works only for single layer networks
-		TArray<FMLTensorDesc> OpInputTensors = InputTensors;
-		TArray<FMLTensorDesc> OpOutputTensors = OutputTensors;
-
-		// Attributes
-		FMLAttributeMap Attributes;
 		
+		TArray<FMLTensorDesc> OpInputTensors;
+		TArray<FMLTensorDesc> OpOutputTensors;
+		FMLAttributeMap AttributeMap;
+
+		for (int32 InputTensorIndex : Format.Operators[Idx].InTensors)
+		{
+			OpInputTensors.Emplace(AllTensors[InputTensorIndex]);
+		}
+		for (int32 OutputTensorIndex : Format.Operators[Idx].OutTensors)
+		{
+			OpInputTensors.Emplace(AllTensors[OutputTensorIndex]);
+		}
 		for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 		{
-			Attributes.SetAttribute(Desc.Name, Desc.Value);
+			AttributeMap.SetAttribute(Desc.Name, Desc.Value);
 		}
 
-		FMLOperatorDml* Op = OpCreate(TypeName, OpInputTensors, OpOutputTensors, Attributes);
+		FMLOperatorDml* Op = OpCreate(TypeName, OpInputTensors, OpOutputTensors, AttributeMap);
 
 		if (!Op)
 		{

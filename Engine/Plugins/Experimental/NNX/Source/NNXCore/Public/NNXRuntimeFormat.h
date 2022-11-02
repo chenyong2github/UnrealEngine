@@ -95,7 +95,7 @@ struct FMLFormatTensorDesc
 	FString Name;
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	TArray<uint32> Shape;
+	TArray<int32> Shape;
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	EMLFormatTensorType	Type = EMLFormatTensorType::None;

@@ -189,6 +189,78 @@ private:
 namespace NNX
 {
 
+struct FSymbolicTensorShape
+{
+	constexpr static int32	MaxRank = 8;
+	TArray<int32, TInlineAllocator<MaxRank>> Data;
+
+	int32 Num() const
+	{
+		return Data.Num();
+	}
+
+	static FSymbolicTensorShape Make(TConstArrayView<const int32> Data)
+	{
+		if (Data.Num() > MaxRank)
+		{
+			//UE_LOG(LogNNX, Warning, TEXT("Cannot create symbolic tensor shape, input is rank %d while max rank is %d"), Data.Num(), MaxRank);
+			return {};
+		}
+
+		FSymbolicTensorShape Shape;
+		
+		Shape.Data.Append(Data);
+		return Shape;
+	}
+	
+	bool IsConcrete()
+	{
+		for (int32 i = 0; i < Data.Num(); ++i)
+		{
+			if (Data[i] < 0)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+};
+
+struct FConcreteTensorShape
+{
+	TArray<uint32, TInlineAllocator<FSymbolicTensorShape::MaxRank>> Data;
+
+	int32 Num() const
+	{
+		return Data.Num();
+	}
+	
+	static FConcreteTensorShape Make(const FSymbolicTensorShape& SymbolicShape)
+	{
+		FConcreteTensorShape ConcreteShape;
+		for (int32 i = 0; i < SymbolicShape.Data.Num(); ++i)
+		{
+			int32 Dim = SymbolicShape.Data[i];
+			ConcreteShape.Data.Add(Dim < 0 ? 1 : Dim);
+		}
+		return ConcreteShape;
+	}
+
+	static FConcreteTensorShape Make(TConstArrayView<const uint32> Data)
+	{
+		if (Data.Num() > FSymbolicTensorShape::MaxRank)
+		{
+			//UE_LOG(LogNNX, Warning, TEXT("Cannot create concrete tensor shape, input is rank %d while max rank is %d"), Data.Num(), MaxRank);
+			return {};
+		}
+
+		FConcreteTensorShape Shape;
+
+		Shape.Data.Append(Data);
+		return Shape;
+	}
+};
+
 /**
  *  Tensor descriptor
  */
@@ -197,21 +269,14 @@ struct FMLTensorDesc
 	constexpr static int32	MaxTensorDimension = 5;
 
 	FString					Name;
-	TArray<uint32, TInlineAllocator<MaxTensorDimension>> Shape;	//!< Shape
-	uint64					DataSize;							//!< Size of data in bytes
+	FConcreteTensorShape	Shape;
+	uint64					DataSize;//!< Size of data in bytes
 	EMLTensorDataType		DataType;
 
 	/** Make tensor descriptor */
-	static FMLTensorDesc Make(const FString& Name, TArrayView<const uint32> Shape, EMLTensorDataType DataType, uint64 DataSize = 0)
+	static FMLTensorDesc Make(const FString& Name, const FConcreteTensorShape& Shape, EMLTensorDataType DataType, uint64 DataSize = 0)
 	{
-		check(Shape.Num() <= FMLTensorDesc::MaxTensorDimension);
-		if (Shape.Num() > FMLTensorDesc::MaxTensorDimension)
-		{
-			//UE_LOG(LogNNX, Warning, TEXT("Unsupported tensor dimension:%d"), Shape.Num());
-			return {};
-		}
-
-		return {Name, TArray<uint32, TInlineAllocator<MaxTensorDimension>>{Shape}, DataSize, DataType};
+		return {Name, Shape, DataSize, DataType};
 	}
 
 	/** Check if descriptor is valid */
@@ -267,7 +332,7 @@ inline size_t GetTensorDataTypeSizeInBytes(EMLTensorDataType InType)
 /** Check if descriptor is valid */
 inline bool FMLTensorDesc::IsValid() const
 {
-	return DataType != EMLTensorDataType::None && Shape.Num() > 0 && Shape.Num() <= MaxTensorDimension; //&& Volume() >= 1;
+	return DataType != EMLTensorDataType::None && Shape.Data.Num() > 0 && Shape.Data.Num() <= MaxTensorDimension; //&& Volume() >= 1;
 }
 
 /** Return size of one element in bytes */
@@ -281,9 +346,9 @@ inline int32 FMLTensorDesc::Volume() const
 {
 	int32 Result = 1;
 
-	for (int32 Idx = 0; Idx < Shape.Num(); ++Idx)
+	for (int32 Idx = 0; Idx < Shape.Data.Num(); ++Idx)
 	{
-		Result *= Shape[Idx];
+		Result *= Shape.Data[Idx];
 	}
 
 	return Result;

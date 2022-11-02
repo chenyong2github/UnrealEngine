@@ -80,11 +80,11 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			constexpr EConvTransposeAlgorithm Algorithm = EConvTransposeAlgorithm::SharedMemory;
 			constexpr EConvTransposeGroupSize GroupSize = EConvTransposeGroupSize::Size256;
 
-			TArray<int32> OutputShape = FConvTransposeCS::GetOutputShape(Input.Shape, Weights.Shape, AutoPad, Dilations, Strides, Pads, OutputPadding, Group);
+			TArray<int32> OutputShape = FConvTransposeCS::GetOutputShape(Input.Shape.Data, Weights.Shape.Data, AutoPad, Dilations, Strides, Pads, OutputPadding, Group);
 
 			// Set parameters
 			FConvTransposeCS::FParameters* Params = GraphBuilder.AllocParameters<FConvTransposeCS::FParameters>();
-			FConvTransposeCS::FillInParameters(GroupSize, Input.Shape, Weights.Shape, HasBias, AutoPad, Group, Dilations,Strides, Pads, OutputPadding, *Params);
+			FConvTransposeCS::FillInParameters(GroupSize, Input.Shape.Data, Weights.Shape.Data, HasBias, AutoPad, Group, Dilations,Strides, Pads, OutputPadding, *Params);
 			Params->X = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[0].Buffer, PF_R32_FLOAT));
 			Params->W = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[1].Buffer, PF_R32_FLOAT));
 			if (InInputBindings.Num() == 3) {
@@ -97,7 +97,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			PermutationVector.Set<FConvTransposeCS::FConvTransposeAlgorithm>(Algorithm);
 			PermutationVector.Set<FConvTransposeCS::FConvTransposeGroupSize>(GroupSize);
 			PermutationVector.Set<FConvTransposeCS::FConvTransposeNumStackDimensions>(NumDimensions);
-			PermutationVector.Set<FConvTransposeCS::FConvTransposeNumReadsPerThread>(FConvTransposeCS::GetNumReadsPerThread(GroupSize, Weights.Shape, Dilations, Strides));
+			PermutationVector.Set<FConvTransposeCS::FConvTransposeNumReadsPerThread>(FConvTransposeCS::GetNumReadsPerThread(GroupSize, Weights.Shape.Data, Dilations, Strides));
 			PermutationVector.Set<FConvTransposeCS::FConvTransposeHasB>(HasBias);
 			TShaderMapRef<FConvTransposeCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 

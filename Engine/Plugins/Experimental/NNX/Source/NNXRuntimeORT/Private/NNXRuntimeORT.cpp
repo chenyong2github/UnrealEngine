@@ -262,7 +262,7 @@ bool FMLInferenceModelORT::ConfigureTensors(const bool InIsInput)
 		std::pair<EMLTensorDataType, uint64> TypeAndSize = TranslateTensorTypeORTToNNI(ONNXTensorElementDataTypeEnum);
 		CurrentTensorDescriptor.DataType = TypeAndSize.first;
 		
-		CurrentTensorDescriptor.Shape.SetNumUninitialized(CurrentTensorInfo.GetShape().size());
+		CurrentTensorDescriptor.Shape.Data.SetNumUninitialized(CurrentTensorInfo.GetShape().size());
 		uint8 Index = 0;
 		uint64 TensorNumberElements = 1;
 		for (const int64_t CurrentTensorSize : CurrentTensorInfo.GetShape())
@@ -270,14 +270,14 @@ bool FMLInferenceModelORT::ConfigureTensors(const bool InIsInput)
 			// Negative (variable) dimensions not implemented yet
 			if (CurrentTensorSize < 0)
 			{
-				CurrentTensorDescriptor.Shape[Index] = 1;
+				CurrentTensorDescriptor.Shape.Data[Index] = 1;
 				UE_LOG(LogNNX, Display,
 					TEXT("Negative (i.e., variable) dimensions not allowed yet, hard-coded to 1. Let us know if you really need variable dimensions."
 						" Keep in mind that fixed sizes might allow additional optimizations and speedup of the network during Run()."));
 			}
 			else
 			{
-				CurrentTensorDescriptor.Shape[Index] = CurrentTensorSize;
+				CurrentTensorDescriptor.Shape.Data[Index] = CurrentTensorSize;
 				TensorNumberElements *= CurrentTensorSize;
 			}
 			++Index;

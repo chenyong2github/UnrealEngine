@@ -15,7 +15,10 @@ namespace NNX
 //
 //
 //
-bool AlwaysValidValidationFunction(const FMLAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTensorTypes)
+bool AlwaysValidValidationFunction(
+	const FMLAttributeMap& AttributeMap, 
+	TConstArrayView<EMLTensorDataType> InputTensorTypes,
+	TConstArrayView<const FSymbolicTensorShape> InputShapes)
 {
 	return true;
 }
@@ -193,32 +196,33 @@ bool FMLInferenceModelRDG::LoadModel(const FNNIModelRaw& InModel, FMLRuntimeForm
 	// Add tensors
 	for (int32 Idx = 0; Idx < Format.Tensors.Num(); ++Idx)
 	{
-		const FMLFormatTensorDesc& TensorDesc = Format.Tensors[Idx];
+		const FMLFormatTensorDesc& FormatTensorDesc = Format.Tensors[Idx];
 
-		FMLTensorDesc	Tensor;
-
-		Tensor.Name = TensorDesc.Name;
-
-		if (TensorDesc.Shape.Num() > FMLTensorDesc::MaxTensorDimension)
-		{
-			// FIXME: Should we report error here?
-		}
-
-		Tensor.Shape = TensorDesc.Shape;
-
-		// NOTE: Set first the DataType prior setting DataSize
-		Tensor.DataType = TensorDesc.DataType;
+		// When handling dynamic input shape FMLTensorDesc should then contain a FSymbolicTensorShape
+        // while actual inference work on FConcreteTensorShape resolved by shape inference.
+		FSymbolicTensorShape SymbolicShape = FSymbolicTensorShape::Make(FormatTensorDesc.Shape);
+		check(SymbolicShape.IsConcrete());
+		FConcreteTensorShape ConcreteShape = FConcreteTensorShape::Make(SymbolicShape);
+		
+		FMLTensorDesc Tensor = FMLTensorDesc::Make(FormatTensorDesc.Name, ConcreteShape, FormatTensorDesc.DataType);
+		
 		Tensor.DataSize = Tensor.GetElemByteSize() * Tensor.Volume();
 
-		if (TensorDesc.Type == EMLFormatTensorType::Input)
+		if (FormatTensorDesc.Type == EMLFormatTensorType::Input)
 		{
 			InputTensors.Add(Tensor);
+			AllTensors.Add(Tensor);
 		}
-		else if (Format.Tensors[Idx].Type == EMLFormatTensorType::Output)
+		else if (FormatTensorDesc.Type == EMLFormatTensorType::Output)
 		{
 			OutputTensors.Add(Tensor);
+			AllTensors.Add(Tensor);
 		}
-		// FIXME: Read intermediate tensors
+		else if (FormatTensorDesc.Type == EMLFormatTensorType::Intermediate)
+		{
+			AllTensors.Add(Tensor);
+		}
+		checkf(FormatTensorDesc.Type != EMLFormatTensorType::None, TEXT("Unsupported tensor type None"));
 	}
 
 	return true;

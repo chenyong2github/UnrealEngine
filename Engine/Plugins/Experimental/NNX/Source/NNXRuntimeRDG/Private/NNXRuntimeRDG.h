@@ -80,9 +80,9 @@ protected:
 	bool			bUseManualTransitions;
 };
 
-//TODO jira 167584 remove default validation and declare contract in all HLSL operator (see HLSL Gemm for current example)
-//TODO jira remove default validation and declare contract in all DML operator (see HLSL Gemm for current example)
-bool AlwaysValidValidationFunction(const FMLAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes);
+//TODO jira 167585 remove default validation and declare contract in all HLSL operator (see HLSL Gemm for current example)
+//TODO jira 167584 remove default validation and declare contract in all DML operator (see HLSL Gemm for current example)
+bool AlwaysValidValidationFunction(const FMLAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<const FSymbolicTensorShape> InputShapes);
 
 class FInputValidator
 {
@@ -137,7 +137,7 @@ class TOperatorRegistryRDG
 public:
 
 	typedef TOperatorType* (*OperatorCreateFunc)();
-	typedef bool (*OperatorValidateFunc)(const FMLAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes);
+	typedef bool (*OperatorValidateFunc)(const FMLAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<const FSymbolicTensorShape> InputShapes);
 
 	static TOperatorRegistryRDG* Get()
 	{
@@ -203,7 +203,7 @@ public:
 		return TEXT("RDG Model validator");
 	}
 	
-	virtual bool ValidateModel(const FNNIModelRaw& InputModel) const override
+	virtual bool ValidateModel(const FNNIModelRaw& InputModel, const FOptimizerOptionsMap& Options) const override
 	{
 		FMLRuntimeFormat	Format;
 
@@ -220,22 +220,17 @@ public:
 		TOperatorRegistryRDG<TOperatorType>* Registry = TOperatorRegistryRDG<TOperatorType>::Get();
 		check(Registry != nullptr);
 
-		// HACK: This works only for single layer networks
-		// we should get the output tensor type from intermediate tensor 
-		// (can we get it from model definition?, otherwise will need
-		// to infer from input shape type + forward propagation and op callbacks)
-		TArray<EMLTensorDataType> InputTensorTypes;
-		for (int32 Idx = 0; Idx < Format.Tensors.Num(); ++Idx)
-		{
-			if (Format.Tensors[Idx].Type == EMLFormatTensorType::Input)
-			{
-				InputTensorTypes.Add(Format.Tensors[Idx].DataType);
-			}
-		}
-
 		for (int32 Idx = 0; Idx < Format.Operators.Num(); ++Idx)
 		{
+			TArray<EMLTensorDataType> InputTensorTypes;
+			TArray<FSymbolicTensorShape> InputTensorShapes;
 			FMLAttributeMap AttributeMap;
+			
+			for (int32 InputTensorIndex: Format.Operators[Idx].InTensors)
+			{
+				InputTensorTypes.Add(Format.Tensors[InputTensorIndex].DataType);
+				InputTensorShapes.Add(FSymbolicTensorShape::Make(Format.Tensors[InputTensorIndex].Shape));
+			}
 			for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 			{
 				AttributeMap.SetAttribute(Desc.Name, Desc.Value);
@@ -249,7 +244,7 @@ public:
 			//will be needed during the execution of the operator.
 			typename TOperatorRegistryRDG<TOperatorType>::OperatorValidateFunc ValidationFn = Registry->OpFindValidation(OpType);
 
-			if (!ValidationFn(AttributeMap, InputTensorTypes))
+			if (!ValidationFn(AttributeMap, InputTensorTypes, InputTensorShapes))
 			{
 				UE_LOG(LogNNX, Warning, TEXT("Hlsl MLOperatorRegistry failed to validate operator:%s"), *OpType);
 				return false;

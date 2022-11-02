@@ -28,7 +28,7 @@ namespace NNX
 			}
 			else
 			{
-				OutShaderParam[i][Idx] = OutShaderParam[i + 1][Idx] * TensorDesc.Shape[i + 1 - Offset];
+				OutShaderParam[i][Idx] = OutShaderParam[i + 1][Idx] * TensorDesc.Shape.Data[i + 1 - Offset];
 			}
 		}
 	}
@@ -41,7 +41,7 @@ namespace NNX
 		for (int32 i = Offset; i < OutputNumdimension; ++i)
 		{
 			// the stride for broadcast dimension is kept as 0
-			if (TensorDesc.Shape[i - Offset] == 1)
+			if (TensorDesc.Shape.Data[i - Offset] == 1)
 			{
 				OutShaderParam[i][Idx] = 0;
 			}

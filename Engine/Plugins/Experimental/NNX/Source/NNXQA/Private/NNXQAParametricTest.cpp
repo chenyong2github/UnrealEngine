@@ -117,16 +117,12 @@ namespace Test
 			TestSetup.Tags = TestTarget.Tags;
 		}
 
-		static TArray<uint32> GetShapeFromJsonArray(const TArray<int32>& JsonShape)
+		static FConcreteTensorShape GetConcreteShapeFromJsonArray(const TArray<int32>& JsonShape)
 		{
-			TArray<uint32> Shape;
-			Shape.Reserve(JsonShape.Num());
-			for (int32 dim : JsonShape)
-			{
-				Shape.Emplace(dim >= 0 ? dim : 1);
-			}
-
-			return Shape;
+			FSymbolicTensorShape SymbolicShape = FSymbolicTensorShape::Make(JsonShape);
+			check(SymbolicShape.IsConcrete());
+			FConcreteTensorShape ConcreteShape = FConcreteTensorShape::Make(SymbolicShape);
+			return ConcreteShape;
 		}
 
 		static EMLTensorDataType GetTensorTypeFromJson(const FString& TypeName, EMLTensorDataType DefaultValue)
@@ -148,24 +144,24 @@ namespace Test
 			uint32 i = 0;
 			for (auto&& Tensor : TestDataset.Inputs)
 			{
-				TArray<uint32> shape = GetShapeFromJsonArray(Tensor.Shape);
+				FConcreteTensorShape Shape = GetConcreteShapeFromJsonArray(Tensor.Shape);
 				EMLTensorDataType TensorType = GetTensorTypeFromJson(Tensor.Type, DefaultInputType);
-				TestSetup.Inputs.Emplace(FMLTensorDesc::Make(FString::Printf(TEXT("in%d"), i++), shape, TensorType));
+				TestSetup.Inputs.Emplace(FMLTensorDesc::Make(FString::Printf(TEXT("in%d"), i++), Shape, TensorType));
 			}
 
 			i = 0;
 			for (auto&& Tensor : TestDataset.Outputs)
 			{
-				TArray<uint32> shape = GetShapeFromJsonArray(Tensor.Shape);
+				FConcreteTensorShape Shape = GetConcreteShapeFromJsonArray(Tensor.Shape);
 				EMLTensorDataType TensorType = GetTensorTypeFromJson(Tensor.Type, DefaultOutputType);
-				TestSetup.Outputs.Emplace(FMLTensorDesc::Make(FString::Printf(TEXT("output%d"), i++), shape, TensorType));
+				TestSetup.Outputs.Emplace(FMLTensorDesc::Make(FString::Printf(TEXT("output%d"), i++), Shape, TensorType));
 			}
 			//If output is not defined it is the first input shape.
 			if (TestDataset.Outputs.Num() == 0 && TestDataset.Inputs.Num() > 0)
 			{
-				TArray<uint32> shape = GetShapeFromJsonArray(TestDataset.Inputs[0].Shape);
+				FConcreteTensorShape Shape = GetConcreteShapeFromJsonArray(TestDataset.Inputs[0].Shape);
 				EMLTensorDataType TensorType = GetTensorTypeFromJson(TestDataset.Inputs[0].Type, DefaultOutputType);
-				TestSetup.Outputs.Emplace(FMLTensorDesc::Make(TEXT("output"), shape, TensorType));
+				TestSetup.Outputs.Emplace(FMLTensorDesc::Make(TEXT("output"), Shape, TensorType));
 			}
 		}
 

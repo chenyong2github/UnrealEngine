@@ -49,6 +49,30 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const NNX::FMLTensorBinding> InInputBindings, TArrayView<const NNX::FMLTensorBinding> OutOutputBindings) override
 		{
+            //struct RDGTensor
+            //{
+            //    RDGBuffer*
+            //    TensorShape ? Do we need the type? aka TensorDesc?
+            //}
+
+			//Dispatch(FRDGBuilder & GraphBuilder, 
+			         //TConstArrayView<const NNX::RDGTensor> InputBuffers,
+					 //TConstArrayView<const NNX::RDGTensor> OutputBuffers) override
+
+            //or 
+            //Dispatch(FRDGBuilder & GraphBuilder, 
+                     //TConstArrayView<const NNX::FConcreteShape> InputShapes,
+			         //TConstArrayView<const NNX::RDGTensor*> InputBuffers,
+                     //TConstArrayView<const NNX::FConcreteShape> OutputShapes,
+					 //TConstArrayView<const NNX::RDGTensor*> OutputBuffers) override
+
+            //or 
+            //Dispatch(FRDGBuilder & GraphBuilder, 
+                     //TConstArrayView<const NNX::RDGTensor*> Buffers,
+                     //TConstArrayView<const NNX::FConcreteShape> Shapes,
+			         //TConstArrayView<const uint32> InputIndices,
+                     //TConstArrayView<const uint32> OutputIndices) override
+
 			// HACK: This only works for single layer networks
 			FRDGBufferSRVRef InputSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[0].Buffer, PF_R32_FLOAT));
 			FRDGBufferUAVRef OutputUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutOutputBindings[0].Buffer, PF_R32_FLOAT));

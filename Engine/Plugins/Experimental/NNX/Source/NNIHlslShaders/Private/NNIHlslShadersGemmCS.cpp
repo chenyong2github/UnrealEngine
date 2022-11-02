@@ -35,8 +35,8 @@ namespace UE::NNIHlslShaders::Internal
 			const int32 NumDimToCheck = FMath::Min(NumStackDimensionsA, NumStackDimensionsB);
 			for (int32 i = 0; i < NumDimToCheck; i++)
 			{
-				const uint32 VolumeA = InputA.Shape[NumStackDimensionsA - 1 - i];
-				const uint32 VolumeB = InputB.Shape[NumStackDimensionsB - 1 - i];
+				const uint32 VolumeA = InputA.Shape.Data[NumStackDimensionsA - 1 - i];
+				const uint32 VolumeB = InputB.Shape.Data[NumStackDimensionsB - 1 - i];
 
 				check(VolumeA == 1 || VolumeB == 1 || VolumeA == VolumeB);
 			}
@@ -45,10 +45,10 @@ namespace UE::NNIHlslShaders::Internal
 		const bool IsVectorA = InputA.Shape.Num() == 1;
 		const bool IsVectorB = InputB.Shape.Num() == 1;
 
-		Result.M = IsVectorA ? 1 : InputA.Shape[InputA.Shape.Num() - 2];
-		Result.N = IsVectorB ? 1 : InputB.Shape[InputB.Shape.Num() - 1];
-		Result.K = InputA.Shape[IsVectorA ? 0 : InputA.Shape.Num() - 1];
-		check(InputB.Shape[IsVectorB ? 0 : InputB.Shape.Num() - 2] == Result.K);
+		Result.M = IsVectorA ? 1 : InputA.Shape.Data[InputA.Shape.Num() - 2];
+		Result.N = IsVectorB ? 1 : InputB.Shape.Data[InputB.Shape.Num() - 1];
+		Result.K = InputA.Shape.Data[IsVectorA ? 0 : InputA.Shape.Num() - 1];
+		check(InputB.Shape.Data[IsVectorB ? 0 : InputB.Shape.Num() - 2] == Result.K);
 
 		Result.StackShapeA.Init(1, NumStackDimensions);
 		Result.StackShapeB.Init(1, NumStackDimensions);
@@ -58,8 +58,8 @@ namespace UE::NNIHlslShaders::Internal
 			int32 IdxA = InputA.Shape.Num() - 3 - i;
 			int32 IdxB = InputB.Shape.Num() - 3 - i;
 
-			Result.StackShapeA[Result.StackShapeA.Num() - 1 - i] = IdxA >= 0 ? InputA.Shape[IdxA] : 1;
-			Result.StackShapeB[Result.StackShapeB.Num() - 1 - i] = IdxB >= 0 ? InputB.Shape[IdxB] : 1;
+			Result.StackShapeA[Result.StackShapeA.Num() - 1 - i] = IdxA >= 0 ? InputA.Shape.Data[IdxA] : 1;
+			Result.StackShapeB[Result.StackShapeB.Num() - 1 - i] = IdxB >= 0 ? InputB.Shape.Data[IdxB] : 1;
 		}
 
 		Result.StackStrideA.Init(1, NumStackDimensions);
@@ -85,10 +85,10 @@ namespace UE::NNIHlslShaders::Internal
 		check(InputA.Shape.Num() == 2);
 		check(InputB.Shape.Num() == 2);
 
-		uint32 M = TransA != 0 ? InputA.Shape[1] : InputA.Shape[0];
-		uint32 K = TransA != 0 ? InputA.Shape[0] : InputA.Shape[1];
-		uint32 N = TransB != 0 ? InputB.Shape[0] : InputB.Shape[1];
-		check(K == (TransB != 0 ? InputB.Shape[1] : InputB.Shape[0]));
+		uint32 M = TransA != 0 ? InputA.Shape.Data[1] : InputA.Shape.Data[0];
+		uint32 K = TransA != 0 ? InputA.Shape.Data[0] : InputA.Shape.Data[1];
+		uint32 N = TransB != 0 ? InputB.Shape.Data[0] : InputB.Shape.Data[1];
+		check(K == (TransB != 0 ? InputB.Shape.Data[1] : InputB.Shape.Data[0]));
 
 		Parameters.Alpha = Alpha;
 		Parameters.Beta = Beta;
@@ -100,8 +100,8 @@ namespace UE::NNIHlslShaders::Internal
 		Parameters.MxK = M * K;
 		Parameters.KxN = K * N;
 		Parameters.MxN = M * N;
-		Parameters.CWidth = InputC.Shape.Num() == 0 ? 0 : InputC.Shape[InputC.Shape.Num() - 1];;
-		Parameters.CHeight = InputC.Shape.Num() == 0 ? 0 : InputC.Shape.Num() == 1 ? 1 : InputC.Shape[InputC.Shape.Num() - 2];
+		Parameters.CWidth = InputC.Shape.Num() == 0 ? 0 : InputC.Shape.Data[InputC.Shape.Num() - 1];;
+		Parameters.CHeight = InputC.Shape.Num() == 0 ? 0 : InputC.Shape.Num() == 1 ? 1 : InputC.Shape.Data[InputC.Shape.Num() - 2];
 		Parameters.CScalar = CScalar;
 	}
 

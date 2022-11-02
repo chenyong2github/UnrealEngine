@@ -25,17 +25,17 @@ namespace UE::NNIHlslShaders::Internal
 		Parameters.OutputSize = 1;
 		for (int32 i = 0; i < Axis; i++, index++)
 		{
-			OutputShape[index] = Data.Shape[i];
+			OutputShape[index] = Data.Shape.Data[i];
 			Parameters.OutputSize *= OutputShape[index];
 		}
 		for (int32 i = 0; i < Indices.Shape.Num(); i++, index++)
 		{
-			OutputShape[index] = Indices.Shape[i];
+			OutputShape[index] = Indices.Shape.Data[i];
 			Parameters.OutputSize *= OutputShape[index];
 		}
 		for (int32 i = (Axis + 1); i < Data.Shape.Num(); i++, index++)
 		{
-			OutputShape[index] = Data.Shape[i];
+			OutputShape[index] = Data.Shape.Data[i];
 			Parameters.OutputSize *= OutputShape[index];
 		}
 
@@ -47,7 +47,7 @@ namespace UE::NNIHlslShaders::Internal
 		{
 			Parameters.DataStride_IndicesStride_OutputStride[i].X = DataStride;
 			Parameters.OneDivDataStride_OneDivIndicesStride_OneDivOutputStride[i].X = 1.0 / (float)DataStride;
-			DataStride *= Data.Shape[i];
+			DataStride *= Data.Shape.Data[i];
 		}
 
 		int32 IndicesStride = 1;
@@ -55,7 +55,7 @@ namespace UE::NNIHlslShaders::Internal
 		{
 			Parameters.DataStride_IndicesStride_OutputStride[i].Y = IndicesStride;
 			Parameters.OneDivDataStride_OneDivIndicesStride_OneDivOutputStride[i].Y = 1.0 / (float)IndicesStride;
-			IndicesStride *= Indices.Shape[i];
+			IndicesStride *= Indices.Shape.Data[i];
 		}
 
 		int32 OutputStride = 1;

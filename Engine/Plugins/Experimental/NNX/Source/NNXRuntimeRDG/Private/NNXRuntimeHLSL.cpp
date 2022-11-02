@@ -71,23 +71,23 @@ bool FMLInferenceModelHlsl::Init(UMLInferenceModel* InModel)
 		return false;
 	}
 
-	if (Format.Operators.Num() > 1)
-	{
-		UE_LOG(LogNNX, Warning, TEXT("Failed to create inference model, currently on single layer models are supported"));
-		return false;
-	}
-
 	// Loop over all operators in the model and create them
 	for (int32 Idx = 0; Idx < Format.Operators.Num(); ++Idx)
 	{
 		const FString TypeName = Format.Operators[Idx].TypeName;
 
-		// HACK: This works only for single layer networks
-		TArray<FMLTensorDesc> OpInputTensors = InputTensors;
-		TArray<FMLTensorDesc> OpOutputTensors = OutputTensors;
-
-		// Attributes
+		TArray<FMLTensorDesc> OpInputTensors;
+		TArray<FMLTensorDesc> OpOutputTensors;
 		FMLAttributeMap AttributeMap;
+
+		for (int32 InputTensorIndex : Format.Operators[Idx].InTensors)
+		{
+			OpInputTensors.Emplace(AllTensors[InputTensorIndex]);
+		}
+		for (int32 OutputTensorIndex : Format.Operators[Idx].OutTensors)
+		{
+			OpInputTensors.Emplace(AllTensors[OutputTensorIndex]);
+		}
 		for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 		{
 			AttributeMap.SetAttribute(Desc.Name, Desc.Value);

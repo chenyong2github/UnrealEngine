@@ -54,7 +54,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			check(InputB.Shape.Num() == 2);
 			check(InputC.Shape.Num() < 3);
 
-			check(InputC.Shape.Num() != 1 || InputC.Shape[0] != 1); // TODO scalar version not supported yet
+			check(InputC.Shape.Num() != 1 || InputC.Shape.Data[0] != 1); // TODO scalar version not supported yet
 
 			// C is treated as a scalar if there is no valid C, either width or height is zero or C dimension is 1x1
 			bIsCScalar = false; // InputTensors.Num() != 3 || InputC.Sizes[0] * InputC.Sizes[1] < 2;
@@ -108,7 +108,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateGemmOperator(const FMLAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes)
+	bool ValidateGemmOperator(const FMLAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<const NNX::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 

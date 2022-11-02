@@ -16,7 +16,7 @@ class IModelValidator
 public:
 	virtual ~IModelValidator() = default;
 	virtual FString GetName() const = 0;
-	virtual bool ValidateModel(const FNNIModelRaw& InputModel) const = 0;
+	virtual bool ValidateModel(const FNNIModelRaw& InputModel, const FOptimizerOptionsMap& Options) const = 0;
 };
 
 /** Interface class for NNX model optimizer pass */

@@ -171,8 +171,9 @@ protected:
 		: Type(InType)
 	{}
 
-	TArray<FMLTensorDesc >	InputTensors;
-	TArray<FMLTensorDesc >	OutputTensors;
+	TArray<FMLTensorDesc>	InputTensors;
+	TArray<FMLTensorDesc>	OutputTensors;
+	TArray<FMLTensorDesc>	AllTensors;
 	EMLInferenceModelType	Type;
 };
 

@@ -86,7 +86,7 @@ namespace Test
 
 	FString FMLTensorDescToString(const FMLTensorDesc& desc)
 	{
-		TArrayView<const uint32> Shape(desc.Shape);
+		TArrayView<const uint32> Shape(desc.Shape.Data);
 
 		FString TensorDesc;
 		TensorDesc.Reserve(50);
@@ -253,7 +253,7 @@ namespace Test
 		check(RefTensorDesc.Shape.Num() <= RefTensorDesc.MaxTensorDimension);
 		for (int32 i = 0; i < RefTensorDesc.Shape.Num(); ++i)
 		{
-			bTensorDescMatch &= (RefTensorDesc.Shape[i] == OtherTensorDesc.Shape[i]);
+			bTensorDescMatch &= (RefTensorDesc.Shape.Data[i] == OtherTensorDesc.Shape.Data[i]);
 		}
 
 		if (!bTensorDescMatch)

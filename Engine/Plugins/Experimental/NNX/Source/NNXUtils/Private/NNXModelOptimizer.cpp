@@ -303,14 +303,14 @@ public:
 		}
 	}
 
-	bool IsModelValid(const FNNIModelRaw& ModelToValidate)
+	bool IsModelValid(const FNNIModelRaw& ModelToValidate, const FOptimizerOptionsMap& Options)
 	{
 		bool bIsModelValid = true;
 
 		for (TSharedPtr<IModelValidator>& Validator : Validators)
 		{
 			check(Validator.IsValid());
-			if (!Validator->ValidateModel(ModelToValidate))
+			if (!Validator->ValidateModel(ModelToValidate, Options))
 			{
 				UE_LOG(LogNNX, Warning, TEXT("Model validator %s detected an error."), *(Validator->GetName()));
 				bIsModelValid = false;
@@ -321,7 +321,7 @@ public:
 
 	bool ApplyAllPassesAndValidations(FNNIModelRaw& OptimizedModel, const FOptimizerOptionsMap& Options)
 	{
-		if (!IsModelValid(OptimizedModel))
+		if (!IsModelValid(OptimizedModel, Options))
 		{
 			UE_LOG(LogNNX, Warning, TEXT("Model is not valid, skipping optimization passes."));
 			return false;
@@ -336,7 +336,7 @@ public:
 				UE_LOG(LogNNX, Warning, TEXT("Error while executing model optimisation pass %s."), *(Pass->GetName()));
 				return false;
 			}
-			if (!IsModelValid(OptimizedModel))
+			if (!IsModelValid(OptimizedModel, Options))
 			{
 				UE_LOG(LogNNX, Warning, TEXT("Model validation failed after optimisation pass %s."), *(Pass->GetName()));
 				return false;
@@ -368,7 +368,7 @@ public:
 		return TEXT("ONNX Model validator");
 	}
 
-	virtual bool ValidateModel(const FNNIModelRaw& InputModel) const override
+	virtual bool ValidateModel(const FNNIModelRaw& InputModel, const FOptimizerOptionsMap& Options) const override
 	{
 		FMLRuntimeFormat	Format;
 

@@ -120,9 +120,15 @@ public:
 	{
 		int Idx = NNXTensorCast(Tensor);
 		
-		if (Idx < 0)
+		if (Idx < 0 || Idx >= Format.Tensors.Num())
 		{
 			UE_LOG(LogNNX, Warning, TEXT("Failed to add input tensor, invalid tensor index"));
+			return false;
+		}
+		
+		if (Format.Tensors[Idx].Type != EMLFormatTensorType::None)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Failed to add input tensor, tensor usage already setupped"));
 			return false;
 		}
 		
@@ -136,9 +142,15 @@ public:
 	{
 		int Idx = NNXTensorCast(Tensor);
 
-		if (Idx < 0)
+		if (Idx < 0 || Idx >= Format.Tensors.Num())
 		{
 			UE_LOG(LogNNX, Warning, TEXT("Failed to add output tensor, invalid tensor index"));
+			return false;
+		}
+
+		if (Format.Tensors[Idx].Type != EMLFormatTensorType::None)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Failed to add output tensor, tensor usage already setupped"));
 			return false;
 		}
 
@@ -166,7 +178,11 @@ public:
 		int OpIdx = NNXOperatorCast(Op);
 		int TensorIdx = NNXTensorCast(Tensor);
 		
-		// TODO: Set tensor type
+		if (TensorIdx < 0 || TensorIdx >= Format.Tensors.Num())
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Failed to add operator input tensor, invalid tensor index"));
+			return false;
+		}
 
 		Format.Operators[OpIdx].InTensors.Emplace(TensorIdx);
 
@@ -178,9 +194,24 @@ public:
 	{
 		int OpIdx = NNXOperatorCast(Op);
 		int TensorIdx = NNXTensorCast(Tensor);
+		
+		if (TensorIdx < 0 || TensorIdx >= Format.Tensors.Num())
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Failed to add operator output tensor, invalid tensor index"));
+			return false;
+		}
 
-		// TODO: Set tensor type
+		if (Format.Tensors[TensorIdx].Type == EMLFormatTensorType::Input)
+		{
+			UE_LOG(LogNNX, Warning, TEXT("Failed to add output tensor, tensor usage already setupped to input"));
+			return false;
+		}
 
+		if (Format.Tensors[TensorIdx].Type == EMLFormatTensorType::None)
+		{
+			Format.Tensors[TensorIdx].Type = EMLFormatTensorType::Intermediate;
+		}
+		
 		Format.Operators[OpIdx].OutTensors.Emplace(TensorIdx);
 
 		return true;

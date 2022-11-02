@@ -138,7 +138,7 @@ inline void BindTensorsToORT(
 		SizesInt64t = MakeUnique<int64_t[]>(CurrentDescriptor.Shape.Num());
 		for (int32 DimIndex = 0; DimIndex < CurrentDescriptor.Shape.Num(); ++DimIndex)
 		{
-			SizesInt64t.Get()[DimIndex] = CurrentDescriptor.Shape[DimIndex];
+			SizesInt64t.Get()[DimIndex] = CurrentDescriptor.Shape.Data[DimIndex];
 		}
 
 		const uint64 ByteCount { InTensorsDescriptors[Index].DataSize };
