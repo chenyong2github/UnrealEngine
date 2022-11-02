@@ -45,6 +45,7 @@ public:
 private:
 	/** Delegate bindings that keep the cache up-to-date */
 	void HandleOnAssetAdded(const FAssetData& AssetData);
+	void HandleOnAssetsAdded(const TArray<FAssetData>& Assets);
 	void HandleOnAssetRemoved(const FAssetData& AssetData);
 	void HandleOnAssetRenamed(const FAssetData& AssetData, const FString& OldPath);
 	void HandleOnAssetUpdated(const FAssetImportInfo& OldData, const UAssetImportData* ImportData);

@@ -6,6 +6,7 @@
 #include "AssetRegistry/AssetDataTagMap.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
+#include "Async/ParallelFor.h"
 #include "CoreGlobals.h"
 #include "EditorFramework/AssetImportData.h"
 #include "HAL/Platform.h"
@@ -36,10 +37,7 @@ FAssetSourceFilenameCache::FAssetSourceFilenameCache()
 	TArray<FAssetData> Assets;
 	if (AssetRegistry.GetAllAssets(Assets))
 	{
-		for (auto& Asset : Assets)
-		{
-			HandleOnAssetAdded(Asset);
-		}
+		HandleOnAssetsAdded(Assets);
 	}
 }
 
@@ -101,6 +99,29 @@ void FAssetSourceFilenameCache::HandleOnAssetAdded(const FAssetData& AssetData)
 		for (const auto& SourceFile : ImportData->SourceFiles)
 		{
 			SourceFileToObjectPathCache.FindOrAdd(FPaths::GetCleanFilename(SourceFile.RelativeFilename)).Add(AssetData.GetSoftObjectPath());
+		}
+	}
+}
+
+void FAssetSourceFilenameCache::HandleOnAssetsAdded(const TArray<FAssetData>& Assets)
+{
+	const uint32 AssetCount = Assets.Num();
+	TArray<TOptional<FAssetImportInfo>> ImportDataList;
+	ImportDataList.SetNum(AssetCount);
+	ParallelFor(Assets.Num(), [&Assets, &ImportDataList](int32 Index)
+		{
+			ImportDataList[Index] = ExtractAssetImportInfo(Assets[Index]);
+		});
+
+	for (uint32 Index = 0; Index < AssetCount; Index++)
+	{
+		const TOptional<FAssetImportInfo>& ImportData = ImportDataList[Index];
+		if (ImportData.IsSet())
+		{
+			for (const auto& SourceFile : ImportData->SourceFiles)
+			{
+				SourceFileToObjectPathCache.FindOrAdd(FPaths::GetCleanFilename(SourceFile.RelativeFilename)).Add(Assets[Index].GetSoftObjectPath());
+			}
 		}
 	}
 }
