@@ -1,14 +1,14 @@
 #!/bin/sh
-# Needs to be run using MSYS shell on Windows
+# Needs to be run using MSYS shell on Windows. GitHub shell will not work.
 
 #####################
 # configuration
 
 # library versions - expected to match tarball and directory names
-VER=libvpx-1.6.1
+VER=libvpx-1.10.0
 
 # don't forget to match archive options with tarball type (bz/gz)
-TARBALL=../$VER.tar.bz2
+TARBALL=../$VER.tar.gz
 
 # includ PID in scratch dir - needs to be absolute
 SCRATCH_DIR=`pwd`/Temp
@@ -24,7 +24,7 @@ mkdir -p $SCRATCH_DIR
 
 echo "#######################################"
 echo "# Unpacking the tarballs"
-tar xjf $TARBALL -C $SCRATCH_DIR
+tar xzf $TARBALL -C $SCRATCH_DIR
 
 #####################
 # build

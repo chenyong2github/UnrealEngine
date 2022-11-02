@@ -65,10 +65,10 @@ saveFileStates ${LIBFILES[@]}
 # configuration
 
 # library versions - expected to match tarball and directory names
-VER=libvpx-1.6.1
+VER=libvpx-1.10.0
 
 # don't forget to match archive options with tarball type (bz/gz)
-TARBALL=${SCRIPT_DIR}/../$VER.tar.bz2
+TARBALL=${SCRIPT_DIR}/../$VER.tar.gz
 
 # includ PID in scratch dir - needs to be absolute
 SCRATCH_DIR=${TMPDIR}/build
@@ -83,7 +83,7 @@ mkdir -p $SCRATCH_DIR
 
 echo "#######################################"
 echo "# Unpacking the tarballs"
-tar xjf $TARBALL -C $SCRATCH_DIR
+tar xzf $TARBALL -C $SCRATCH_DIR
 
 if [ $? -ne 0 ]; then
 	echo ""
