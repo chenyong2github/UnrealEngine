@@ -9,6 +9,7 @@
 #include "ShaderCompilerCore.h"
 
 #include "SceneTextureParameters.h"
+#include "SystemTextures.h"
 
 TAutoConsoleVariable<int32> CVarUseAtomicHistogram(
 	TEXT("r.Histogram.UseAtomic"), 1,
@@ -133,22 +134,23 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
-		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InputGBuffer)
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTextureB)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTextureC)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 		SHADER_PARAMETER(FIntPoint, ThreadGroupCount)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, HistogramScatter64Output)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, HistogramScatter32Output)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, DebugOutput)
+
+		SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
+		SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FDivideAlbedoDim : SHADER_PERMUTATION_BOOL("DIVIDE_ALBEDO");
-	class FDivideAlbedoDebugDim : SHADER_PERMUTATION_BOOL("DIVIDE_ALBEDO_DEBUG");
-	using FPermutationDomain = TShaderPermutationDomain<FDivideAlbedoDim, FDivideAlbedoDebugDim>;
+	class FUseApproxIlluminanceDim : SHADER_PERMUTATION_BOOL("USE_APPROX_ILLUMINANCE");
+	class FUseApproxIlluminanceDebugDim : SHADER_PERMUTATION_BOOL("USE_APPROX_ILLUMINANCE_DEBUG");
+	using FPermutationDomain = TShaderPermutationDomain<FUseApproxIlluminanceDim, FUseApproxIlluminanceDebugDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -335,11 +337,9 @@ static FRDGTextureRef AddHistogramAtomicPass(
 
 		FHistogramAtomicCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHistogramAtomicCS::FParameters>();
 		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->SceneTextures = SceneTextures;
 		PassParameters->Input = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(SceneColor));
 		PassParameters->InputTexture = SceneColor.Texture;
-		PassParameters->InputGBuffer = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(View.ViewRect));
-		PassParameters->InputTextureB = SceneTextures.GBufferBTexture;
-		PassParameters->InputTextureC = SceneTextures.GBufferCTexture;
 		PassParameters->EyeAdaptationTexture = EyeAdaptationTexture;
 		PassParameters->ThreadGroupCount = FIntPoint(SceneColor.ViewRect.Size().Y, 1);
 		PassParameters->EyeAdaptation = EyeAdaptationParameters;
@@ -352,6 +352,10 @@ static FRDGTextureRef AddHistogramAtomicPass(
 			PassParameters->DebugOutput = GraphBuilder.CreateUAV(DebugOutputTexture);
 		}
 
+
+		PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
+		PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
 		//clear the temp textures
 		uint32 ClearValues[4] = { 0, 0, 0, 0 };
 		// AddClearUAVPass(GraphBuilder, PassParameters->HistogramScatter64Output, ClearValues);
@@ -361,8 +365,8 @@ static FRDGTextureRef AddHistogramAtomicPass(
 		static const auto CVarIgnoreMaterialsDebug = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("r.AutoExposure.IgnoreMaterials.Debug"));
 
 		FHistogramAtomicCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FHistogramAtomicCS::FDivideAlbedoDim>(CVarIgnoreMaterials->GetValueOnRenderThread());
-		PermutationVector.Set<FHistogramAtomicCS::FDivideAlbedoDebugDim>(CVarIgnoreMaterialsDebug->GetValueOnRenderThread());
+		PermutationVector.Set<FHistogramAtomicCS::FUseApproxIlluminanceDim>(CVarIgnoreMaterials->GetValueOnRenderThread());
+		PermutationVector.Set<FHistogramAtomicCS::FUseApproxIlluminanceDebugDim>(CVarIgnoreMaterialsDebug->GetValueOnRenderThread());
 
 		auto ComputeShader = View.ShaderMap->GetShader<FHistogramAtomicCS>(PermutationVector);
 

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DeferredShadingCommon.ush"
+#include "BRDF.ush"
+#include "PositionReconstructionCommon.ush"
 
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/ScreenPass.ush"
@@ -42,12 +44,6 @@ uint2 ThreadGroupCount;
 
 Texture2D InputTexture;
 Texture2D EyeAdaptationTexture;
-
-#if DIVIDE_ALBEDO
-	SCREEN_PASS_TEXTURE_VIEWPORT(InputGBuffer)
-	Texture2D InputTextureB;
-	Texture2D InputTextureC;
-#endif
 
 ///////////////////////////////////////////////////////
 // * LOCAL DATA STORE *
@@ -317,32 +313,53 @@ void MainAtomicCS(
 
 		if (TexelPos.x < Input_ViewportMax.x)
 		{
-			float2 InvViewSize = Input_ViewportSizeInverse.xy;
-			float2 ScreenUV = (TexelPos.xy - Input_ViewportMin) * InvViewSize;
+			const float2 InvViewSize = Input_ViewportSizeInverse.xy;
+			const float2 ScreenUV = (TexelPos.xy - Input_ViewportMin + 0.5f) * InvViewSize;
 
 			float4 SceneColor = InputTexture.Load(int3(TexelPos, 0));
 			SceneColor *= View.OneOverPreExposure;
 
 			float LuminanceVal = CalculateEyeAdaptationLuminance(SceneColor.rgb);
 
-#if DIVIDE_ALBEDO
-			uint2 GBufferTexelPos = InputGBuffer_ViewportMin + ScreenUV * InputGBuffer_ViewportSize;
-			float4 GBufferB = InputTextureB.Load(int3(GBufferTexelPos, 0));
-			uint ShadingModelID = DecodeShadingModelId(GBufferB.a);
+#if USE_APPROX_ILLUMINANCE
+			const uint2 GBufferTexelPos = View.ViewRectMinAndSize.xy + ScreenUV * View.ViewRectMinAndSize.zw;
+			const float2 GBufferUV = (GBufferTexelPos + 0.5f) * View.BufferSizeAndInvSize.zw;
 
-			if (ShadingModelID != SHADINGMODELID_UNLIT)
+			FGBufferData GBufferData = GetGBufferDataFromSceneTextures(GBufferUV);
+			
+			if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
 			{
-				float4 GBufferC = InputTextureC.Load(int3(GBufferTexelPos, 0));
-				float3 BaseColor = DecodeBaseColor(GBufferC.rgb);
+				float3 Denominator = GBufferData.DiffuseColor;
 
-				float BaseColorLuminanceVal = CalculateEyeAdaptationLuminance(BaseColor.rgb);
+				if (GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE
+					|| GBufferData.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN
+					|| GBufferData.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE
+					|| GBufferData.ShadingModelID == SHADINGMODELID_CLOTH
+					|| GBufferData.ShadingModelID == SHADINGMODELID_EYE)
+				{
+					const float3 SubsurfaceColor = ExtractSubsurfaceColor(GBufferData);
+					Denominator += SubsurfaceColor;
+				}
+
+				{
+					const float3 TranslatedWorldPosition = ReconstructTranslatedWorldPositionFromDepth(GBufferUV, GBufferData.Depth);
+					const float3 CameraVector = normalize(View.TranslatedWorldCameraOrigin - TranslatedWorldPosition);
+
+					const float3 N = GBufferData.WorldNormal;
+					const float3 V = CameraVector;
+					const float3 EnvBrdf = EnvBRDF(GBufferData.SpecularColor, GBufferData.Roughness, max(0.0, dot(N, V)));
+
+					Denominator += EnvBrdf;
+				}
+
+				float BaseColorLuminanceVal = CalculateEyeAdaptationLuminance(Denominator);
 
 				LuminanceVal /= max(BaseColorLuminanceVal, EyeAdaptation_IgnoreMaterialsMinBaseColorLuminance);
 				LuminanceVal *= lerp(EyeAdaptation_IgnoreMaterialsLuminanceScale, 1.0f, EyeAdaptation_IgnoreMaterialsMinBaseColorLuminance);
 			}
 #endif
 
-#if DIVIDE_ALBEDO_DEBUG
+#if USE_APPROX_ILLUMINANCE_DEBUG
 			DebugOutput[TexelPos] = LuminanceVal;
 #endif
 
