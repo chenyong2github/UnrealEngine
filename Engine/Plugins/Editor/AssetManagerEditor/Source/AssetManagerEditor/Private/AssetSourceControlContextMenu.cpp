@@ -2,7 +2,7 @@
 
 #include "AssetSourceControlContextMenu.h"
 
-#include "Algo\Transform.h"
+#include "Algo/Transform.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
 #include "AssetViewUtils.h"
