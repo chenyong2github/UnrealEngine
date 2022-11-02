@@ -286,7 +286,9 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			++tabs;
 
 			if (addEventParameterStruct)
+			{
 				AppendEventParameter(builder, function, functionName, UhtPropertyTextType.EventParameterMember, true, tabs, "\r\n");
+			}
 
 			string eventParameterStructName = GetEventStructParametersName(function.Outer, functionName);
 
