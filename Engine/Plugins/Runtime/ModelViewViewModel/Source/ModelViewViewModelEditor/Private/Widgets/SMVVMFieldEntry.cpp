@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SMVVMFieldEntry.h"
+
+#include "Bindings/MVVMBindingHelper.h"
 #include "SMVVMFieldIcon.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
@@ -29,20 +31,89 @@ FText GetFieldDisplayName(const FMVVMConstFieldVariant& Field)
 	return LOCTEXT("None", "<None>");
 }
 
-FText GetFieldToolTip(const FMVVMConstFieldVariant& Field)
+FString GetFunctionSignature(const UFunction* Function)
 {
-	if (!Field.IsEmpty())
+	if (Function == nullptr)
 	{
-		if (Field.IsFunction() && Field.GetFunction() != nullptr)
+		return FString();
+	}
+
+	TStringBuilder<256> Signature;
+
+	const FProperty* ReturnProperty = BindingHelper::GetReturnProperty(Function);
+	if (ReturnProperty != nullptr)
+	{
+		Signature << ReturnProperty->GetCPPType();
+	}
+	else
+	{
+		Signature << TEXT("void");
+	}
+
+	Signature << TEXT(" ");
+	Signature << Function->GetName();
+	Signature << TEXT("(");
+
+	TArray<const FProperty*> Arguments = BindingHelper::GetAllArgumentProperties(Function);
+	Signature << FString::JoinBy(Arguments, TEXT(", "), 
+		[](const FProperty* Property)
 		{
-			return Field.GetFunction()->GetToolTipText();
+			return Property->GetCPPType();
 		}
-		if (Field.IsProperty() && Field.GetProperty() != nullptr)
+	);
+
+	Signature << TEXT(")");
+	return Signature.ToString();
+}
+
+FText GetPathToolTip(TConstArrayView<FMVVMConstFieldVariant> Path)
+{
+	if (Path.IsEmpty())
+	{
+		return FText::GetEmpty();
+	}
+
+	FMVVMConstFieldVariant LastField = Path.Last();
+	if (!LastField.IsEmpty())
+	{
+		FText LastToolTip, LastType;
+		if (LastField.IsFunction() && LastField.GetFunction() != nullptr)
 		{
-			return FText::Join(FText::FromString(TEXT("\n")), 
-				Field.GetProperty()->GetToolTipText(), 
-					FText::FromString(Field.GetProperty()->GetCPPType())
-				);
+			LastToolTip = LastField.GetFunction()->GetToolTipText();
+			LastType = FText::FromString(GetFunctionSignature(LastField.GetFunction()));
+		}
+		else if (LastField.IsProperty() && LastField.GetProperty() != nullptr)
+		{
+			LastToolTip = LastField.GetProperty()->GetToolTipText();
+			LastType = FText::Format(LOCTEXT("PropertyFormat", "Property: {0} {1}"),
+				FText::FromString(LastField.GetProperty()->GetCPPType()),
+				FText::FromString(LastField.GetProperty()->GetName())
+			);
+		}
+
+		// only show the joined name if we've got more than 1 part to the path
+		if (Path.Num() > 1)
+		{
+			TArray<FText> DisplayNames;
+			for (const FMVVMConstFieldVariant& Field : Path)
+			{
+				DisplayNames.Add(GetFieldDisplayName(Field));
+			}
+
+			const FText JoinedDisplayName = FText::Join(FText::FromString(TEXT(".")), DisplayNames);
+
+			return FText::Join(FText::FromString(TEXT("\n")),
+				JoinedDisplayName,
+				LastToolTip,
+				LastType
+			);
+		}
+		else
+		{
+			return FText::Join(FText::FromString(TEXT("\n")),
+				LastToolTip,
+				LastType
+			);
 		}
 	}
 
@@ -69,7 +140,14 @@ void SFieldEntry::Refresh()
 	FieldBox->ClearChildren();
 
 	TArray<FMVVMConstFieldVariant> Fields = Field.GetFields();
-	for (int32 Index = 0; Index < Fields.Num(); ++Index)
+
+	int32 Index = 0;
+	if (bShowOnlyLast && Fields.Num() > 0)
+	{
+		Index = Fields.Num() - 1;
+	}
+
+	for (; Index < Fields.Num(); ++Index)
 	{
 		FieldBox->AddSlot()
 		.HAlign(HAlign_Left)
@@ -107,10 +185,7 @@ void SFieldEntry::Refresh()
 		}
 	}
 
-	if (Fields.Num() > 0)
-	{
-		SetToolTipText(Private::GetFieldToolTip(Fields.Last()));
-	}
+	SetToolTipText(Private::GetPathToolTip(Fields));
 }
 
 void SFieldEntry::SetField(const FMVVMBlueprintPropertyPath& InField)

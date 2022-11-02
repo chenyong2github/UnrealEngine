@@ -95,7 +95,14 @@ void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint*
 			+ SOverlay::Slot()
 			[
 				SNew(SHorizontalBox)
-				.Visibility_Lambda([this]() { return CachedSelectedConversionFunction != nullptr ? EVisibility::Visible : EVisibility::Collapsed; })
+				.Visibility_Lambda([this]() 
+				{
+					return CachedSelectedConversionFunction != nullptr ? EVisibility::Visible : EVisibility::Collapsed; 
+				})
+				.ToolTipText_Lambda([this]() 
+				{
+					return CachedSelectedConversionFunction != nullptr ? CachedSelectedConversionFunction->GetToolTipText() : FText::GetEmpty();
+				})
 				+ SHorizontalBox::Slot()
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
@@ -111,7 +118,10 @@ void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint*
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Text_Lambda([this]() { return CachedSelectedConversionFunction != nullptr ? CachedSelectedConversionFunction->GetDisplayNameText() : FText::GetEmpty(); })
+					.Text_Lambda([this]() 
+					{ 
+						return CachedSelectedConversionFunction != nullptr ? CachedSelectedConversionFunction->GetDisplayNameText() : FText::GetEmpty(); 
+					})
 				]
 			]
 
@@ -122,7 +132,10 @@ void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint*
 				.Padding(FMargin(8, 0, 8, 0))
 				[
 					SNew(STextBlock)
-					.Visibility_Lambda([this]() { return CachedSelectedField.IsEmpty() && CachedSelectedConversionFunction == nullptr ? EVisibility::Visible : EVisibility::Collapsed; })
+					.Visibility_Lambda([this]() 
+					{ 
+						return CachedSelectedField.IsEmpty() && CachedSelectedConversionFunction == nullptr ? EVisibility::Visible : EVisibility::Collapsed;
+					})
 					.TextStyle(FAppStyle::Get(), "HintText")
 					.Text(LOCTEXT("None", "No field selected"))
 				]
@@ -238,7 +251,10 @@ bool SFieldSelector::IsClearEnabled() const
 
 FReply SFieldSelector::OnClearClicked()
 {
-	SetPropertySelection(FMVVMBlueprintPropertyPath());
+	if (FixedSource.IsSet())
+	{
+		SetPropertySelection(FMVVMBlueprintPropertyPath());
+	}
 	SetConversionFunctionSelection(nullptr);
 	return FReply::Handled();
 }

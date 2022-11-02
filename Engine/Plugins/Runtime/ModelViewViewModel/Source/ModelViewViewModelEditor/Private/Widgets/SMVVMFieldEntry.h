@@ -29,6 +29,7 @@ public:
 	{}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
 		SLATE_ARGUMENT(FMVVMBlueprintPropertyPath, Field)
+		SLATE_ARGUMENT(bool, ShowOnlyLast)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -39,6 +40,7 @@ private:
 	const FTextBlockStyle* TextStyle = nullptr;
 	FMVVMBlueprintPropertyPath Field;
 	TSharedPtr<SHorizontalBox> FieldBox;
+	bool bShowOnlyLast = false;
 };
 
 } // namespace UE::MVVM
