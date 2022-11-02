@@ -27,6 +27,7 @@ UGameplayInteractionStateTreeSchema::UGameplayInteractionStateTreeSchema()
 bool UGameplayInteractionStateTreeSchema::IsStructAllowed(const UScriptStruct* InScriptStruct) const
 {
 	return InScriptStruct->IsChildOf(FStateTreeConditionCommonBase::StaticStruct())
+			|| InScriptStruct->IsChildOf(FGameplayInteractionStateTreeCondition::StaticStruct())
 			|| InScriptStruct->IsChildOf(FStateTreeEvaluatorCommonBase::StaticStruct())
 			|| InScriptStruct->IsChildOf(FStateTreeTaskCommonBase::StaticStruct())
 			|| InScriptStruct->IsChildOf(FGameplayInteractionStateTreeTask::StaticStruct());
