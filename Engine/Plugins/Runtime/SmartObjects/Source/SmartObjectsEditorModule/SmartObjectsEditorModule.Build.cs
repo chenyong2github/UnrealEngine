@@ -27,7 +27,8 @@ namespace UnrealBuildTool.Rules
 				"Slate",
 				"SmartObjectsModule",
 				"SourceControl",
-				"UnrealEd"
+				"UnrealEd",
+				"StructUtils",
 			}
 			);
 
