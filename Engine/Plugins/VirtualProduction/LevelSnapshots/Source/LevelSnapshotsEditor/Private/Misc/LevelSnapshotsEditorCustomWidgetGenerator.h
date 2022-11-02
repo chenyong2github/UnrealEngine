@@ -25,17 +25,17 @@ namespace LevelSnapshotsEditorCustomWidgetGenerator
 		const TWeakPtr<SLevelSnapshotsEditorResults>& InResultsView,
 		const TWeakPtr<FLevelSnapshotsEditorResultsRow>& InDirectParentRow);
 
-	void* GetPropertyValueFromProperty(const TObjectPtr<FProperty> InProperty, const TObjectPtr<UObject> InObject);
+	void* GetPropertyValueFromProperty(const FProperty* InProperty, const TObjectPtr<UObject> InObject);
 
 	/** Used for properties which are not specifically handled in another method. Returns an STextBlock widget with the value exported to text. */
 	TSharedPtr<SWidget> GenerateGenericPropertyWidget(
-		const TObjectPtr<FProperty> InProperty, const void* InPropertyValue, const TObjectPtr<UObject> InObject,
+		const FProperty* InProperty, const void* InPropertyValue, const TObjectPtr<UObject> InObject,
 		const TFunction<FString(const FString&, const UObject*)> InWidgetTextEditLambda = nullptr);
 
 	TSharedPtr<SWidget> GenerateObjectPropertyWidget(
 		const TObjectPtr<UObject> InObject, const TFunction<FString(const FString&, const UObject*)> InWidgetTextEditLambda = nullptr);
 
-	TSharedPtr<SWidget> DeterminePropertyTypeAndReturnWidget(const TObjectPtr<FProperty> InProperty, const void* InPropertyValue, const TObjectPtr<UObject> InObject);
+	TSharedPtr<SWidget> DeterminePropertyTypeAndReturnWidget(const FProperty* InProperty, const void* InPropertyValue, const TObjectPtr<UObject> InObject);
 
 	TSharedRef<SWidget> MakeComboBoxWithSelection(const FString& InString, const FText& InToolTipText);
 };

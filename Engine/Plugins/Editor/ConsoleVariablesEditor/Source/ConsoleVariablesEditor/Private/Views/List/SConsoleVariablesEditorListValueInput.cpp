@@ -26,7 +26,7 @@ TSharedRef<SConsoleVariablesEditorListValueInput> SConsoleVariablesEditorListVal
 	{
 		const TSharedPtr<FConsoleVariablesEditorCommandInfo> PinnedInfo = PinnedItem->GetCommandInfo().Pin();
 
-		if (const TObjectPtr<IConsoleVariable> Variable = PinnedInfo->GetConsoleVariablePtr())
+		if (const IConsoleVariable* Variable = PinnedInfo->GetConsoleVariablePtr())
 		{
 			if (Variable->IsVariableFloat())
 			{
