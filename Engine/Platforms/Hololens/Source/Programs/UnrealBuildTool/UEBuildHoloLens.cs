@@ -178,7 +178,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Return the standard Visual C++ library path for the given platform in this toolchain
 		/// </summary>
-		protected override DirectoryReference GetToolChainLibsDir(UnrealTargetPlatform Platform)
+		protected override DirectoryReference GetToolChainLibsDir()
 		{
 			string ArchFolder = WindowsExports.GetArchitectureSubpath(Architecture);
 
