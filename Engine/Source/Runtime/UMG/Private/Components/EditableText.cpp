@@ -97,6 +97,8 @@ TSharedRef<SWidget> UEditableText::RebuildWidget()
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyEditableText = SNew(SEditableText)
 		.Style(&WidgetStyle)
+		.IsReadOnly(IsReadOnly)
+		.IsPassword(IsPassword)
 		.MinDesiredWidth(MinimumDesiredWidth)
 		.IsCaretMovedWhenGainFocus(IsCaretMovedWhenGainFocus)
 		.SelectAllTextWhenFocused(SelectAllTextWhenFocused)

@@ -116,6 +116,8 @@ TSharedRef<SWidget> UEditableTextBox::RebuildWidget()
 {
 	MyEditableTextBlock = SNew(SEditableTextBox)
 		.Style(&WidgetStyle)
+		.IsReadOnly(IsReadOnly)
+		.IsPassword(IsPassword)
 		.MinDesiredWidth(MinimumDesiredWidth)
 		.IsCaretMovedWhenGainFocus(IsCaretMovedWhenGainFocus)
 		.SelectAllTextWhenFocused(SelectAllTextWhenFocused)
