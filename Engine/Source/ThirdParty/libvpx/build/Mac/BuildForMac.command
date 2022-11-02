@@ -13,6 +13,7 @@
 
 # Name of lib
 LIB_NAME="vpx"
+BUILD_UNIVERSAL=true
 # Drops from the location of this script to where libfiles are relative to
 #  e.g.
 #  {DROP_TO_LIBROOT}/README
@@ -20,7 +21,7 @@ LIB_NAME="vpx"
 #  ${DROP_TO_LIBROOT}/$LIBFILES[0])
 DROP_TO_LIBROOT=../..
 # Drops from the location of LIBROOT to Engine/Source/ThirdParrty
-DROP_TO_THIRDPARTY=../../../../../../Source/ThirdParty
+DROP_TO_THIRDPARTY=..
 
 # Path to libs from libroot
 LIB_PATH=lib/Mac
@@ -102,7 +103,7 @@ echo changed to $PWD
 if [ "$BUILD_UNIVERSAL" = true ] ; then
 	SLICES=( 
 		"x86_64-darwin13-gcc"
-		"arm64-darwin13-gcc"
+		"arm64-darwin20-gcc"
 	)
 else
 	SLICES=( 
