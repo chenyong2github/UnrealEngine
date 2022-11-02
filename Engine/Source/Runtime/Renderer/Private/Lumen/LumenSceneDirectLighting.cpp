@@ -1764,7 +1764,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 
 		// Apply shadow map
 		{
-			RDG_EVENT_SCOPE(GraphBuilder, "Non raytraced shadows");
+			RDG_EVENT_SCOPE_FINAL(GraphBuilder, "Non raytraced shadows");
 
 			FRDGBufferUAVRef ShadowMaskTilesUAV = GraphBuilder.CreateUAV(ShadowMaskTiles, ERDGUnorderedAccessViewFlags::SkipBarrier);
 			FRDGBufferUAVRef ShadowTraceAllocatorUAV = ShadowTraceAllocator ? GraphBuilder.CreateUAV(ShadowTraceAllocator, ERDGUnorderedAccessViewFlags::SkipBarrier) : nullptr;
@@ -1828,7 +1828,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 
 		// Offscreen shadowing
 		{
-			RDG_EVENT_SCOPE(GraphBuilder, "Offscreen shadows");
+			RDG_EVENT_SCOPE_FINAL(GraphBuilder, "Offscreen shadows");
 
 			FRDGBufferUAVRef ShadowMaskTilesUAV = GraphBuilder.CreateUAV(ShadowMaskTiles, ERDGUnorderedAccessViewFlags::SkipBarrier);
 

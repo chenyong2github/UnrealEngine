@@ -33,8 +33,6 @@ extern int32 GRDGDebug;
 extern int32 GRDGDebugFlushGPU;
 extern int32 GRDGDebugExtendResourceLifetimes;
 extern int32 GRDGDebugDisableTransientResources;
-extern int32 GRDGDumpGraph;
-extern int32 GRDGDumpGraphUnknownCount;
 extern int32 GRDGBreakpoint;
 extern int32 GRDGTransitionLog;
 extern int32 GRDGImmediateMode;
@@ -97,7 +95,6 @@ const int32 GRDGDebug = 0;
 const int32 GRDGDebugFlushGPU = 0;
 const int32 GRDGDebugExtendResourceLifetimes = 0;
 const int32 GRDGDebugDisableTransientResources = 0;
-const int32 GRDGDumpGraph = 0;
 const int32 GRDGBreakpoint = 0;
 const int32 GRDGTransitionLog = 0;
 const int32 GRDGImmediateMode = 0;
@@ -184,8 +181,12 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Flush RHI Resources"), STAT_RDG_FlushRHIResource
 DECLARE_MEMORY_STAT_EXTERN(TEXT("Builder Watermark"), STAT_RDG_MemoryWatermark, STATGROUP_RDG, RENDERCORE_API);
 #endif
 
+#if RDG_GPU_DEBUG_SCOPES
+extern int32 GRDGEvents;
+#endif
+
 #if RDG_EVENTS != RDG_EVENTS_NONE
-extern int32 GRDGEmitEvents;
+extern int32 GRDGEmitDrawEvents_RenderThread;
 #endif
 
 inline const TCHAR* GetEpilogueBarriersToBeginDebugName(ERHIPipeline Pipelines)
