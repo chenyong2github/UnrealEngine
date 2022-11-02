@@ -249,6 +249,9 @@ public:
 	void DrawRuntimeCellsDetails(UCanvas* Canvas, FVector2D& Offset);
 	void DrawStreamingStatusLegend(UCanvas* Canvas, FVector2D& Offset);
 
+	void OnCellShown(const UWorldPartitionRuntimeCell* InCell);
+	void OnCellHidden(const UWorldPartitionRuntimeCell* InCell);
+
 	EWorldPartitionStreamingPerformance GetStreamingPerformance() const;
 
 #if WITH_EDITORONLY_DATA

@@ -335,9 +335,7 @@ UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::
 	}
 #endif
 
-	// @todo_ow ContentBundles do not support Hlods and events below are forwarding
-	// Events to the HLodSubsystem which assumes knowledge of all cells (not true with plugins)
-	if (LevelStreaming  && !GetContentBundleID().IsValid())
+	if (LevelStreaming)
 	{
 		LevelStreaming->OnLevelShown.AddUniqueDynamic(this, &UWorldPartitionRuntimeLevelStreamingCell::OnLevelShown);
 		LevelStreaming->OnLevelHidden.AddUniqueDynamic(this, &UWorldPartitionRuntimeLevelStreamingCell::OnLevelHidden);
@@ -446,18 +444,18 @@ void UWorldPartitionRuntimeLevelStreamingCell::Deactivate() const
 void UWorldPartitionRuntimeLevelStreamingCell::OnLevelShown()
 {
 	check(LevelStreaming);
-	if (const UWorldPartition* WorldPartition = LevelStreaming->GetWorld()->GetWorldPartition(); WorldPartition && WorldPartition->IsStreamingEnabled())
+	if (UWorldPartition* WorldPartition = LevelStreaming->GetWorld()->GetWorldPartition())
 	{
-		LevelStreaming->GetWorld()->GetSubsystem<UHLODSubsystem>()->OnCellShown(this);
+		WorldPartition->OnCellShown(this);
 	}
 }
 
 void UWorldPartitionRuntimeLevelStreamingCell::OnLevelHidden()
 {
 	check(LevelStreaming);
-	if (const UWorldPartition* WorldPartition = LevelStreaming->GetWorld()->GetWorldPartition(); WorldPartition && WorldPartition->IsStreamingEnabled())
+	if (UWorldPartition* WorldPartition = LevelStreaming->GetWorld()->GetWorldPartition())
 	{
-		LevelStreaming->GetWorld()->GetSubsystem<UHLODSubsystem>()->OnCellHidden(this);
+		WorldPartition->OnCellHidden(this);
 	}
 }
 

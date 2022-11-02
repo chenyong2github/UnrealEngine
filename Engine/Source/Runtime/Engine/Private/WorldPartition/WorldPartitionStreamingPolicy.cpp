@@ -323,7 +323,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		else if (!bCanDeactivateOrUnloadCells)
 		{
 			// When server streaming-out is disabled, revisit existing loaded/activated cells and add them in the proper FrameLoadCells/FrameActivateCells
-			for (const UWorldPartitionRuntimeCell* Cell : ActivatedCells)
+			for (const UWorldPartitionRuntimeCell* Cell : ActivatedCells.GetCells())
 			{
 				AddServerFrameCells(Cell);
 			}
@@ -411,7 +411,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 			}
 		};
 
-		BuildCellsToUnload(ActivatedCells);
+		BuildCellsToUnload(ActivatedCells.GetCells());
 		BuildCellsToUnload(LoadedCells);
 	}
 
@@ -447,14 +447,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	// Sort cells and update streaming priority 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionStreamingPolicy::SortCellsAndUpdateStreamingPriority);
-		SortedAddToWorldCells.Reset();
-		for (const UWorldPartitionRuntimeCell* ActivatedCell : ActivatedCells)
-		{
-			if (!ActivatedCell->IsAddedToWorld() && !ActivatedCell->IsAlwaysLoaded())
-			{
-				SortedAddToWorldCells.Add(ActivatedCell);
-			}
-		}
+		SortedAddToWorldCells = ActivatedCells.GetPendingAddToWorldCells().Array();
 		SortStreamingCellsByImportance(SortedAddToWorldCells);
 
 		// Update level streaming priority so that UWorld::UpdateLevelStreaming will naturally process the levels in the correct order
@@ -830,6 +823,47 @@ void UWorldPartitionStreamingPolicy::DrawRuntimeHash3D()
 	if (WorldPartition->IsInitialized() && WorldPartition->RuntimeHash)
 	{
 		WorldPartition->RuntimeHash->Draw3D(StreamingSources);
+	}
+}
+
+void UWorldPartitionStreamingPolicy::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
+{
+	ActivatedCells.OnAddedToWorld(InCell);
+}
+
+void UWorldPartitionStreamingPolicy::OnCellHidden(const UWorldPartitionRuntimeCell* InCell)
+{
+	ActivatedCells.OnRemovedFromWorld(InCell);
+}
+
+void UWorldPartitionStreamingPolicy::FActivatedCells::Add(const UWorldPartitionRuntimeCell* InCell)
+{
+	Cells.Add(InCell);
+	if (!InCell->IsAlwaysLoaded())
+	{
+		PendingAddToWorldCells.Add(InCell);
+	}
+}
+
+void UWorldPartitionStreamingPolicy::FActivatedCells::Remove(const UWorldPartitionRuntimeCell* InCell)
+{
+	Cells.Remove(InCell);
+	PendingAddToWorldCells.Remove(InCell);
+}
+
+void UWorldPartitionStreamingPolicy::FActivatedCells::OnAddedToWorld(const UWorldPartitionRuntimeCell* InCell)
+{
+	PendingAddToWorldCells.Remove(InCell);
+}
+
+void UWorldPartitionStreamingPolicy::FActivatedCells::OnRemovedFromWorld(const UWorldPartitionRuntimeCell* InCell)
+{
+	if (Cells.Contains(InCell))
+	{
+		if (!InCell->IsAlwaysLoaded())
+		{
+			PendingAddToWorldCells.Add(InCell);
+		}
 	}
 }
 

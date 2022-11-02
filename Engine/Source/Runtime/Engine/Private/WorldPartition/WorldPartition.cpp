@@ -14,6 +14,7 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartitionReplay.h"
+#include "WorldPartition/HLOD/HLODSubsystem.h"
 #include "Algo/Accumulate.h"
 #include "Algo/Transform.h"
 #include "Engine/World.h"
@@ -1374,6 +1375,30 @@ bool UWorldPartition::IsStreamingCompleted(EWorldPartitionRuntimeCellState Query
 	}
 
 	return true;
+}
+
+void UWorldPartition::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
+{
+	if (GetWorld()->IsGameWorld())
+	{
+		if (IsStreamingEnabled())
+		{
+			GetWorld()->GetSubsystem<UHLODSubsystem>()->OnCellShown(InCell);
+		}
+		StreamingPolicy->OnCellShown(InCell);
+	}
+}
+
+void UWorldPartition::OnCellHidden(const UWorldPartitionRuntimeCell* InCell)
+{
+	if (GetWorld()->IsGameWorld())
+	{
+		if (IsStreamingEnabled())
+		{
+			GetWorld()->GetSubsystem<UHLODSubsystem>()->OnCellHidden(InCell);
+		}
+		StreamingPolicy->OnCellHidden(InCell);
+	}
 }
 
 bool UWorldPartition::CanDebugDraw() const

@@ -55,6 +55,9 @@ public:
 	virtual bool IsStreamingCompleted(const TArray<FWorldPartitionStreamingSource>* InStreamingSources) const;
 	virtual bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState = true) const;
 
+	virtual void OnCellShown(const UWorldPartitionRuntimeCell* InCell);
+	virtual void OnCellHidden(const UWorldPartitionRuntimeCell* InCell);
+
 #if WITH_EDITOR
 	virtual TSubclassOf<class UWorldPartitionRuntimeCell> GetRuntimeCellClass() const PURE_VIRTUAL(UWorldPartitionStreamingPolicy::GetRuntimeCellClass, return UWorldPartitionRuntimeCell::StaticClass(); );
 
@@ -86,7 +89,26 @@ protected:
 
 	const UWorldPartition* WorldPartition;
 	TSet<const UWorldPartitionRuntimeCell*> LoadedCells;
-	TSet<const UWorldPartitionRuntimeCell*> ActivatedCells;
+
+	struct FActivatedCells
+	{
+		void Add(const UWorldPartitionRuntimeCell* InCell);
+		void Remove(const UWorldPartitionRuntimeCell* InCell);
+		bool Contains(const UWorldPartitionRuntimeCell* InCell) const { return Cells.Contains(InCell); }
+		void OnAddedToWorld(const UWorldPartitionRuntimeCell* InCell);
+		void OnRemovedFromWorld(const UWorldPartitionRuntimeCell* InCell);
+
+		const TSet<const UWorldPartitionRuntimeCell*>& GetCells() const { return Cells; }
+		const TSet<const UWorldPartitionRuntimeCell*>& GetPendingAddToWorldCells() const { return PendingAddToWorldCells; }
+
+	private:
+
+		TSet<const UWorldPartitionRuntimeCell*> Cells;
+		TSet<const UWorldPartitionRuntimeCell*> PendingAddToWorldCells;
+	};
+
+	FActivatedCells ActivatedCells;
+	mutable TArray<const UWorldPartitionRuntimeCell*> SortedAddToWorldCells;
 
 	// Streaming Sources
 	TArray<FWorldPartitionStreamingSource> StreamingSources;
@@ -97,7 +119,6 @@ protected:
 	
 	bool bCriticalPerformanceRequestedBlockTillOnWorld;
 	int32 CriticalPerformanceBlockTillLevelStreamingCompletedEpoch;
-	mutable TArray<const UWorldPartitionRuntimeCell*> SortedAddToWorldCells;
 
 	int32 DataLayersStatesServerEpoch;
 	int32 ContentBundleServerEpoch;

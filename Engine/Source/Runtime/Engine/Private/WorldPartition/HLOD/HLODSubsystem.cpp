@@ -295,6 +295,12 @@ const TArray<AWorldPartitionHLOD*>& UHLODSubsystem::GetHLODActorsForCell(const U
 
 void UHLODSubsystem::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
 {
+	// @todo_ow ContentBundles do not support Hlods
+	if (InCell->GetContentBundleID().IsValid())
+	{
+		return;
+	}
+
 	const UWorldPartition* WorldPartition = InCell->GetCellOwner()->GetOuterWorld()->GetWorldPartition();
 	check(WorldPartition && WorldPartition->IsStreamingEnabled());
 
@@ -323,6 +329,12 @@ void UHLODSubsystem::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
 
 void UHLODSubsystem::OnCellHidden(const UWorldPartitionRuntimeCell* InCell)
 {
+	// @todo_ow ContentBundles do not support Hlods
+	if (InCell->GetContentBundleID().IsValid())
+	{
+		return;
+	}
+
 	const UWorldPartition* WorldPartition = InCell->GetCellOwner()->GetOuterWorld()->GetWorldPartition();
 	check(WorldPartition && WorldPartition->IsStreamingEnabled());
 
