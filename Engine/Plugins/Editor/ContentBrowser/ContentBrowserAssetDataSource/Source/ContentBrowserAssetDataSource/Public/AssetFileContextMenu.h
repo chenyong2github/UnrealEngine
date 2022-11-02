@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "AssetRegistry/AssetData.h"
-#include "ContentBrowserDataMenuContexts.h"
-#include "Input/Reply.h"
 
 class UToolMenu;
 
@@ -110,15 +108,6 @@ private:
 	/** Adds asset documentation menu options to a menu builder. Returns true if any options were added. */
 	bool AddDocumentationMenuOptions(UToolMenu* Menu);
 	
-	/** Adds source control menu options to a menu builder. */
-	bool AddSourceControlMenuOptions(UToolMenu* Menu);
-
-	/** Fills the source control sub-menu */
-	void FillSourceControlSubMenu(UToolMenu* Menu);
-
-	/** Handler to check to see if SCC actions are allowed */
-	bool CanExecuteSourceControlActions() const;
-
 	/** Creates a sub-menu of Chunk IDs that are are assigned to all selected assets */
 	void MakeChunkIDListMenu(UToolMenu* Menu);
 
@@ -173,36 +162,6 @@ private:
 	/** Handler for Bulk Export */
 	void ExecuteBulkExport();
 
-	/** Handler for when "Refresh source control" is selected */
-	void ExecuteSCCRefresh();
-
-	/** Handler for when "Merge" is selected */
-	void ExecuteSCCMerge();
-
-	/** Handler for when "Checkout from source control" is selected */
-	void ExecuteSCCCheckOut();
-
-	/** Handler for when "Open for add to source control" is selected */
-	void ExecuteSCCOpenForAdd();
-
-	/** Handler for when "Checkin to source control" is selected */
-	void ExecuteSCCCheckIn();
-
-	/** Handler for when "Source Control History" is selected */
-	void ExecuteSCCHistory();
-
-	/** Handler for when "Diff Against Depot" is selected */
-	void ExecuteSCCDiffAgainstDepot() const;
-
-	/** Handler for when "Source Control Revert" is selected */
-	void ExecuteSCCRevert();
-
-	/** Handler for when "Source Control Sync" is selected */
-	void ExecuteSCCSync();
-
-	/** Handler for when source control is disabled */
-	void ExecuteEnableSourceControl();
-
 	/** Handler to assign ChunkID to a selection of assets */
 	void ExecuteAssignChunkID();
 
@@ -237,36 +196,6 @@ private:
 
 	/** Handler to check to see if a "Show MetaData" command is allowed */
 	bool CanExecuteShowAssetMetaData() const;
-
-	/** Handler to check to see if "Refresh source control" can be executed */
-	bool CanExecuteSCCRefresh() const;
-
-	/** Handler to check to see if "Merge" can be executed */
-	bool CanExecuteSCCMerge() const;
-
-	/** Handler to check to see if "Checkout from source control" can be executed */
-	bool CanExecuteSCCCheckOut() const;
-
-	/** Handler to check to see if "Open for add to source control" can be executed */
-	bool CanExecuteSCCOpenForAdd() const;
-
-	/** Handler to check to see if "Checkin to source control" can be executed */
-	bool CanExecuteSCCCheckIn() const;
-
-	/** Handler to check to see if "Source Control History" can be executed */
-	bool CanExecuteSCCHistory() const;
-
-	/** Handler to check to see if "Source Control Revert" can be executed */
-	bool CanExecuteSCCRevert() const;
-
-	/** Handler to check to see if "Source Control Sync" can be executed */
-	bool CanExecuteSCCSync() const;
-
-	/** Handler to check to see if "Diff Against Depot" can be executed */
-	bool CanExecuteSCCDiffAgainstDepot() const;
-
-	/** Handler to check to see if "Diff Selected" can be executed */
-	bool CanExecuteDiffSelected() const;
 
 	/** Handler to check to see if "Capture Thumbnail" can be executed */
 	bool CanExecuteCaptureThumbnail() const;
@@ -308,18 +237,9 @@ private:
 
 	FOnShowAssetsInPathsView OnShowAssetsInPathsView;
 
-	UContentBrowserDataMenuContext_FileMenu::FOnRefreshView OnRefreshView;
-
 	/** Cached CanExecute vars */
 	bool bAtLeastOneNonRedirectorSelected = false;
-	bool bCanExecuteSCCMerge = false;
-	bool bCanExecuteSCCCheckOut = false;
-	bool bCanExecuteSCCOpenForAdd = false;
-	bool bCanExecuteSCCCheckIn = false;
-	bool bCanExecuteSCCHistory = false;
-	bool bCanExecuteSCCRevert = false;
-	bool bCanExecuteSCCSync = false;
-	bool bUsesFileRevisions = false;
+
 	/** */
 	int32 ChunkIDSelected = 0;
 };

@@ -50,6 +50,7 @@
 #include "EdGraphSchema_K2.h"
 #include "SGraphPin.h"
 #include "AssetManagerEditorCommands.h"
+#include "AssetSourceControlContextMenu.h"
 #include "ReferenceViewer/SReferenceViewer.h"
 #include "ReferenceViewer/SReferenceNode.h"
 #include "ReferenceViewer/EdGraphNode_Reference.h"
@@ -380,7 +381,9 @@ private:
 	TSharedPtr<FAssetManagerGraphPanelNodeFactory> AssetManagerGraphPanelNodeFactory;
 	TSharedPtr<FAssetManagerGraphPanelPinFactory> AssetManagerGraphPanelPinFactory;
 
-	static void CreateAssetContextMenu(FToolMenuSection& InSection);
+	FAssetSourceControlContextMenu AssetSourceControlContextMenu;
+
+	void CreateAssetContextMenu(FToolMenuSection& InSection);
 	void OnExtendContentBrowserCommands(TSharedRef<FUICommandList> CommandList, FOnContentBrowserGetSelection GetSelectionDelegate);
 	void OnExtendLevelEditorCommands(TSharedRef<FUICommandList> CommandList);
 	void RegisterMenus();
@@ -847,6 +850,8 @@ void FAssetManagerEditorModule::CreateAssetContextMenu(FToolMenuSection& InSecti
 		TAttribute<FText>(), // Use command tooltip
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "MainFrame.CookContent")
 	);
+
+	AssetSourceControlContextMenu.MakeContextMenu(InSection);
 }
 
 void FAssetManagerEditorModule::OnExtendContentBrowserCommands(TSharedRef<FUICommandList> CommandList, FOnContentBrowserGetSelection GetSelectionDelegate)
@@ -932,12 +937,12 @@ void FAssetManagerEditorModule::ExtendContentBrowserAssetSelectionMenu()
 {
 	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AssetContextMenu");
 	FToolMenuSection& Section = Menu->FindOrAddSection("AssetContextReferences");
-	FToolMenuEntry& Entry = Section.AddDynamicEntry("AssetManagerEditorViewCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	FToolMenuEntry& Entry = Section.AddDynamicEntry("AssetManagerEditorViewCommands", FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection)
 	{
 		UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
 		if (Context && Context->bCanBeModified && Context->SelectedAssets.Num() > 0)
 		{
-			FAssetManagerEditorModule::CreateAssetContextMenu(InSection);
+			CreateAssetContextMenu(InSection);
 		}
 	}));
 }
@@ -946,12 +951,12 @@ void FAssetManagerEditorModule::ExtendContentBrowserPathSelectionMenu()
 {
 	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.FolderContextMenu");
 	FToolMenuSection& Section = Menu->FindOrAddSection("PathContextBulkOperations");
-	FToolMenuEntry& Entry = Section.AddDynamicEntry("AssetManagerEditorViewCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	FToolMenuEntry& Entry = Section.AddDynamicEntry("AssetManagerEditorViewCommands", FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection)
 	{
 		UContentBrowserFolderContext* Context = InSection.FindContext<UContentBrowserFolderContext>();
 		if (Context && Context->bCanBeModified && Context->NumAssetPaths > 0)
 		{
-			FAssetManagerEditorModule::CreateAssetContextMenu(InSection);
+			CreateAssetContextMenu(InSection);
 		}
 	}));
 }
@@ -996,7 +1001,7 @@ void FAssetManagerEditorModule::ExtendAssetEditorMenu()
 {
 	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("MainFrame.MainMenu.Asset");
 	FToolMenuSection& Section = Menu->FindOrAddSection("AssetEditorActions");
-	FToolMenuEntry& Entry = Section.AddDynamicEntry("AssetManagerEditorViewCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
+	FToolMenuEntry& Entry = Section.AddDynamicEntry("AssetManagerEditorViewCommands", FNewToolMenuSectionDelegate::CreateLambda([this](FToolMenuSection& InSection)
 	{
 		UAssetEditorToolkitMenuContext* MenuContext = InSection.FindContext<UAssetEditorToolkitMenuContext>();
 		if (MenuContext && MenuContext->Toolkit.IsValid() && MenuContext->Toolkit.Pin()->IsActuallyAnAsset())
@@ -1005,7 +1010,7 @@ void FAssetManagerEditorModule::ExtendAssetEditorMenu()
 			{
 				if (IsValid(EditedAsset) && EditedAsset->IsAsset())
 				{
-					FAssetManagerEditorModule::CreateAssetContextMenu(InSection);
+					CreateAssetContextMenu(InSection);
 					break;
 				}
 			}
@@ -1019,7 +1024,7 @@ void FAssetManagerEditorModule::ExtendLevelEditorActorContextMenu()
 	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.ActorContextMenu.AssetToolsSubMenu");
 
 	FToolMenuSection& Section = Menu->AddSection("AssetManagerEditorViewCommands", TAttribute<FText>(), FToolMenuInsert(NAME_None, EToolMenuInsertType::First));
-	FAssetManagerEditorModule::CreateAssetContextMenu(Section);
+	CreateAssetContextMenu(Section);
 }
 
 void FAssetManagerEditorModule::OnReloadComplete(EReloadCompleteReason Reason)

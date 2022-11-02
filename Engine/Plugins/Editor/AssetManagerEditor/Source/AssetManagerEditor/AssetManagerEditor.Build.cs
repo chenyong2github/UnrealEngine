@@ -46,6 +46,8 @@ public class AssetManagerEditor : ModuleRules
 				"TreeMap",
 				"ToolMenus",
 				"ToolWidgets",
+				"SourceControl",
+				"SourceControlWindows",
 			}
 		);
 	}

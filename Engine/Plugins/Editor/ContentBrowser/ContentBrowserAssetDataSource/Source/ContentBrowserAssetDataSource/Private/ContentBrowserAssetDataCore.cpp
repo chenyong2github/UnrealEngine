@@ -18,6 +18,7 @@
 #include "AssetFolderContextMenu.h"
 #include "AssetFileContextMenu.h"
 #include "ContentBrowserDataUtils.h"
+#include "ContentBrowserDataMenuContexts.h"
 #include "Settings/ContentBrowserSettings.h"
 #include "Engine/Level.h"
 #include "Framework/Notifications/NotificationManager.h"

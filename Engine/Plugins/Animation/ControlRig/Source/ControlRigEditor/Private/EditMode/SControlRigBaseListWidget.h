@@ -23,7 +23,6 @@
 class UControlRig;
 class FControlRigEditMode;
 class UControlRigPoseAsset;
-class FAssetFileContextMenu;
 
 namespace ESelectedControlAsset
 {
@@ -120,8 +119,6 @@ private:
 
 	TSharedPtr<SWidget> PathPicker;
 	TSharedPtr<SWidget> AssetPicker;
-
-	TSharedPtr<FAssetFileContextMenu> AssetFileContextMenu;
 
 	static FString CurrentlySelectedInternalPath;
 	FString CurrentlyEnteredAssetName;
