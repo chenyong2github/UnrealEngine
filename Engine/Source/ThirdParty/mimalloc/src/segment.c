@@ -806,7 +806,22 @@ static mi_slice_t* mi_segment_page_clear(mi_page_t* page, mi_segments_tld_t* tld
     size_t psize;
     uint8_t* start = _mi_page_start(segment, page, &psize);
     page->is_reset = true;
-    _mi_os_reset(start, psize, tld->stats);
+    // BEGIN EPIC MOD - ResetDecommitsMustClearCommitMask - Clear commit mask if decommitted
+    bool successful =  _mi_os_reset(start, psize, tld->stats);
+    // If the reset also did a decommit, we need to update the commit mask so that when we reuse
+    // the page it will know that it needs to recommit to be able to access the page's data.
+    if (successful && mi_option_is_enabled(mi_option_reset_decommits)) {
+      // huge segments are never reused so we do not need to keep their commit mask up to date.
+      // Trying to get the commit mask on the huge page in a huge segment will fail an assertion
+      // if the huge page happens to have MI_SLICES_PER_SEGMENT slices, and will early exit otherwise
+      if (segment->kind != MI_SEGMENT_HUGE) { 
+        uint8_t* start_p;
+        size_t   full_size; 
+        mi_commit_mask_t mask = mi_segment_commit_mask(segment, false /*conservative*/, start, psize, &start_p, &full_size);
+        mi_commit_mask_clear(&segment->commit_mask, mask);
+      }
+    }
+    // END EPIC MOD
   }
 
   // zero the page data, but not the segment fields
