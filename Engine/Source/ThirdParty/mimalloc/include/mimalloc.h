@@ -337,6 +337,38 @@ mi_decl_nodiscard mi_decl_export long mi_option_get(mi_option_t option);
 mi_decl_export void mi_option_set(mi_option_t option, long value);
 mi_decl_export void mi_option_set_default(mi_option_t option, long value);
 
+// BEGIN EPIC MOD - OsAllocatorHooks
+// -------------------------------------------------------------------------------------------------------
+// Setting the allocation functions used internally by mimallc; these functions are normally provided
+// by the operating system's API, but can be overridden by the program including mimalloc for tracking.
+// Using these overrides has a small cost, so they are only used if MI_USE_EXTERNAL_ALLOCATORS is defined.
+// -------------------------------------------------------------------------------------------------------
+#if !defined(MI_USE_EXTERNAL_ALLOCATORS)
+#define MI_USE_EXTERNAL_ALLOCATORS 0
+#endif
+
+#if defined(_WIN32)
+
+typedef struct mi_ext_win32_allocators_s
+{
+	void* VirtualAlloc; // LPVOID(__stdcall* VirtualAlloc)(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect);
+	void* VirtualFree; // BOOL(__stdcall* VirtualFree)(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType);
+	// We use VirtualAlloc2 for aligned allocation, but it is only supported on Windows 10 and Windows Server 2016.
+	// So, we need to look it up dynamically to run on older systems. Callers of mi_ext_win32_allocators should  
+	// set their version of this function if available, or NULL if not.
+	void* VirtualAlloc2; // PVOID(__stdcall* VirtualAlloc2)(HANDLE, PVOID, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
+	// If available, NtAllocateVirtualAllocEx is used for huge OS page allocation (1GiB). Callers of
+	// mi_ext_win32_allocators should set their version of this function if available, or NULL if not.
+	void* NtAllocateVirtualMemoryEx; // NTSTATUS(__stdcall* NtAllocateVirtualMemoryEx)(HANDLE, PVOID*, SIZE_T*, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
+
+} mi_ext_win32_allocators_t;
+
+#if MI_USE_EXTERNAL_ALLOCATORS
+mi_decl_export void mi_ext_set_win32_allocators(const mi_ext_win32_allocators_t* allocators);
+#endif
+
+#endif
+// END EPIC MOD
 
 // -------------------------------------------------------------------------------------------------------
 // "mi" prefixed implementations of various posix, Unix, Windows, and C++ allocation functions.

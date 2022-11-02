@@ -107,6 +107,10 @@ size_t _mi_os_good_alloc_size(size_t size) {
 }
 
 #if defined(_WIN32)
+// BEGIN EPIC MOD - OsAllocatorHooks - wrapper functions for the win32 allocator pointers
+typedef LPVOID   (__stdcall *PVirtualAlloc)(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect);
+typedef BOOL     (__stdcall *PVirtualFree)(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType);
+
 // We use VirtualAlloc2 for aligned allocation, but it is only supported on Windows 10 and Windows Server 2016.
 // So, we need to look it up dynamically to run on older systems. (use __stdcall for 32-bit compatibility)
 // NtAllocateVirtualAllocEx is used for huge OS page allocation (1GiB)
@@ -115,8 +119,62 @@ size_t _mi_os_good_alloc_size(size_t size) {
 #include <winternl.h>
 typedef PVOID    (__stdcall *PVirtualAlloc2)(HANDLE, PVOID, SIZE_T, ULONG, ULONG, /* MEM_EXTENDED_PARAMETER* */ void*, ULONG);
 typedef NTSTATUS (__stdcall *PNtAllocateVirtualMemoryEx)(HANDLE, PVOID*, SIZE_T*, ULONG, ULONG, /* MEM_EXTENDED_PARAMETER* */ PVOID, ULONG);
+static PVirtualAlloc pVirtualAlloc = NULL;
+static PVirtualFree pVirtualFree = NULL;
 static PVirtualAlloc2 pVirtualAlloc2 = NULL;
 static PNtAllocateVirtualMemoryEx pNtAllocateVirtualMemoryEx = NULL;
+
+
+void mi_ext_set_win32_allocators(const mi_ext_win32_allocators_t * allocators)
+{
+  pVirtualAlloc = (PVirtualAlloc)allocators->VirtualAlloc;
+  pVirtualFree = (PVirtualFree)allocators->VirtualFree;
+  pVirtualAlloc2 = (PVirtualAlloc2)allocators->VirtualAlloc2;
+  pNtAllocateVirtualMemoryEx = (PNtAllocateVirtualMemoryEx)allocators->NtAllocateVirtualMemoryEx;
+}
+
+LPVOID _mi_win_call_virtual_alloc(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect)
+{
+#if MI_USE_EXTERNAL_ALLOCATORS
+  return (*pVirtualAlloc)(lpAddress, dwSize, flAllocationType, flProtect);
+#else
+  return VirtualAlloc(lpAddress, dwSize, flAllocationType, flProtect);
+#endif
+}
+
+BOOL _mi_win_call_virtual_free(LPVOID lpAddress, SIZE_T dwSize, DWORD dwFreeType)
+{
+#if MI_USE_EXTERNAL_ALLOCATORS
+  return (*pVirtualFree)(lpAddress, dwSize, dwFreeType);
+#else
+  return VirtualFree(lpAddress, dwSize, dwFreeType);
+#endif
+}
+
+PVirtualAlloc2 _mi_get_virtualalloc2()
+{
+  PVirtualAlloc2 result = NULL;
+  HINSTANCE  hDll = LoadLibrary(TEXT("kernelbase.dll"));
+  if (hDll != NULL) {
+    // use VirtualAlloc2FromApp if possible as it is available to Windows store apps
+    result = (PVirtualAlloc2)(void (*)(void))GetProcAddress(hDll, "VirtualAlloc2FromApp");
+    if (result ==NULL) result = (PVirtualAlloc2)(void (*)(void))GetProcAddress(hDll, "VirtualAlloc2");
+    FreeLibrary(hDll);
+  }
+  return result;
+}
+
+PNtAllocateVirtualMemoryEx _mi_get_ntallocatevirtualmemoryex()
+{
+  PNtAllocateVirtualMemoryEx result = NULL;
+  HINSTANCE hDll = LoadLibrary(TEXT("ntdll.dll"));
+  if (hDll != NULL) {
+    result = (PNtAllocateVirtualMemoryEx)(void (*)(void))GetProcAddress(hDll, "NtAllocateVirtualMemoryEx");
+    FreeLibrary(hDll);
+  }
+  return result;
+}
+// END EPIC MOD
 
 // Similarly, GetNumaProcesorNodeEx is only supported since Windows 7
 #if (_WIN32_WINNT < 0x601)  // before Win7
@@ -171,22 +229,26 @@ void _mi_os_init(void) {
   if (si.dwPageSize > 0) os_page_size = si.dwPageSize;
   if (si.dwAllocationGranularity > 0) os_alloc_granularity = si.dwAllocationGranularity;
   // get the VirtualAlloc2 function
-  HINSTANCE  hDll;
-  hDll = LoadLibrary(TEXT("kernelbase.dll"));
-  if (hDll != NULL) {
-    // use VirtualAlloc2FromApp if possible as it is available to Windows store apps
-    pVirtualAlloc2 = (PVirtualAlloc2)(void (*)(void))GetProcAddress(hDll, "VirtualAlloc2FromApp");
-    if (pVirtualAlloc2==NULL) pVirtualAlloc2 = (PVirtualAlloc2)(void (*)(void))GetProcAddress(hDll, "VirtualAlloc2");
-    FreeLibrary(hDll);
+
+// BEGIN EPIC MOD - OsAllocatorHooks - initialize the win32 allocator pointers
+#if MI_USE_EXTERNAL_ALLOCATORS
+  // If the external allocators are set by mi_ext_set_win32_allocators before _mi_os_init is called, do not
+  // overwrite them.
+  if (!pVirtualAlloc)
+  {
+    pVirtualAlloc = VirtualAlloc;
+    pVirtualFree = VirtualFree;
+    pVirtualAlloc2 = _mi_get_virtualalloc2();
+    pNtAllocateVirtualMemoryEx = _mi_get_ntallocatevirtualmemoryex();
   }
-  // NtAllocateVirtualMemoryEx is used for huge page allocation
-  hDll = LoadLibrary(TEXT("ntdll.dll"));
-  if (hDll != NULL) {
-    pNtAllocateVirtualMemoryEx = (PNtAllocateVirtualMemoryEx)(void (*)(void))GetProcAddress(hDll, "NtAllocateVirtualMemoryEx");
-    FreeLibrary(hDll);
-  }
+#else
+  pVirtualAlloc2 = _mi_get_virtualalloc2();
+  pNtAllocateVirtualMemoryEx = _mi_get_ntallocatevirtualmemoryex();
+#endif
+
   // Try to use Win7+ numa API
-  hDll = LoadLibrary(TEXT("kernel32.dll"));
+  HINSTANCE hDll = LoadLibrary(TEXT("kernel32.dll"));
+  // END EPIC MOD
   if (hDll != NULL) {
     pGetCurrentProcessorNumberEx = (PGetCurrentProcessorNumberEx)(void (*)(void))GetProcAddress(hDll, "GetCurrentProcessorNumberEx");
     pGetNumaProcessorNodeEx = (PGetNumaProcessorNodeEx)(void (*)(void))GetProcAddress(hDll, "GetNumaProcessorNodeEx");
@@ -224,7 +286,9 @@ static bool mi_os_mem_free(void* addr, size_t size, bool was_committed, mi_stats
   if (addr == NULL || size == 0) return true; // || _mi_os_is_huge_reserved(addr)
   bool err = false;
 #if defined(_WIN32)
-  err = (VirtualFree(addr, 0, MEM_RELEASE) == 0);
+  // BEGIN EPIC MOD - OsAllocatorHooks - Call wrapper function
+  err = (_mi_win_call_virtual_free(addr, 0, MEM_RELEASE) == 0);
+  // END EPIC MOD
 #elif defined(__wasi__)
   err = 0; // WebAssembly's heap cannot be shrunk
 #else
@@ -252,7 +316,9 @@ static void* mi_win_virtual_allocx(void* addr, size_t size, size_t try_alignment
   // on 64-bit systems, try to use the virtual address area after 4TiB for 4MiB aligned allocations
   void* hint;
   if (addr == NULL && (hint = mi_os_get_aligned_hint(try_alignment,size)) != NULL) {
-    void* p = VirtualAlloc(hint, size, flags, PAGE_READWRITE);
+    // BEGIN EPIC MOD - OsAllocatorHooks - Call wrapper function
+    void* p = _mi_win_call_virtual_alloc(hint, size, flags, PAGE_READWRITE);
+    // END EPIC MOD
     if (p != NULL) return p;
     DWORD err = GetLastError();
     if (err != ERROR_INVALID_ADDRESS &&   // If linked with multiple instances, we may have tried to allocate at an already allocated area (#210)
@@ -274,7 +340,9 @@ static void* mi_win_virtual_allocx(void* addr, size_t size, size_t try_alignment
   }
 #endif
   // last resort
-  return VirtualAlloc(addr, size, flags, PAGE_READWRITE);
+  // BEGIN EPIC MOD - OsAllocatorHooks - Call wrapper function
+  return _mi_win_call_virtual_alloc(addr, size, flags, PAGE_READWRITE);
+  // END EPIC MOD
 }
 
 static void* mi_win_virtual_alloc(void* addr, size_t size, size_t try_alignment, DWORD flags, bool large_only, bool allow_large, bool* is_large) {
@@ -706,11 +774,15 @@ static bool mi_os_commitx(void* addr, size_t size, bool commit, bool conservativ
   #if defined(_WIN32)
   if (commit) {
     // *is_zero = true;  // note: if the memory was already committed, the call succeeds but the memory is not zero'd
-    void* p = VirtualAlloc(start, csize, MEM_COMMIT, PAGE_READWRITE);
+    // BEGIN EPIC MOD - OsAllocatorHooks - Call wrapper function
+    void* p = _mi_win_call_virtual_alloc(start, csize, MEM_COMMIT, PAGE_READWRITE);
+    // END EPIC MOD
     err = (p == start ? 0 : GetLastError());
   }
   else {
-    BOOL ok = VirtualFree(start, csize, MEM_DECOMMIT);
+    // BEGIN EPIC MOD - OsAllocatorHooks - Call wrapper function
+    BOOL ok = _mi_win_call_virtual_free(start, csize, MEM_DECOMMIT);
+    // END EPIC MOD
     err = (ok ? 0 : GetLastError());
   }
   #elif defined(__wasi__)
@@ -795,7 +867,9 @@ static bool mi_os_resetx(void* addr, size_t size, bool reset, mi_stats_t* stats)
 
 #if defined(_WIN32)
   // Testing shows that for us (on `malloc-large`) MEM_RESET is 2x faster than DiscardVirtualMemory
-  void* p = VirtualAlloc(start, csize, MEM_RESET, PAGE_READWRITE);
+  // BEGIN EPIC MOD - OsAllocatorHooks - Call wrapper function
+  void* p = _mi_win_call_virtual_alloc(start, csize, MEM_RESET, PAGE_READWRITE);
+  // END EPIC MOD
   mi_assert_internal(p == start);
   #if 1
   if (p == start && start != NULL) {
@@ -974,7 +1048,9 @@ static void* mi_os_alloc_huge_os_pagesx(void* addr, size_t size, int numa_node)
     UNUSED(numa_node);
   #endif
   // otherwise use regular virtual alloc on older windows
-  return VirtualAlloc(addr, size, flags, PAGE_READWRITE);
+  // BEGIN EPIC MOD - OsAllocatorHooks - Call wrapper function
+  return _mi_win_call_virtual_alloc(addr, size, flags, PAGE_READWRITE);
+  // END EPIC MOD
 }
 
 #elif defined(MI_OS_USE_MMAP) && (MI_INTPTR_SIZE >= 8) && !defined(__HAIKU__)
