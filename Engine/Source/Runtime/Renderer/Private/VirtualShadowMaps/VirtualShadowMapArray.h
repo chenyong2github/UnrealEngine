@@ -279,13 +279,18 @@ public:
 	void CreateMipViews( TArray<Nanite::FPackedView, SceneRenderingAllocator>& Views ) const;
 
 	/**
+	 * Draw Nanite geometry into the VSMs.
+	 */
+	void RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, float ShadowsLODScaleFactor, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster);
+
+	/**
 	 * Draw Non-Nanite geometry into the VSMs.
 	 */
 	void RenderVirtualShadowMapsNonNanite(FRDGBuilder& GraphBuilder, const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& VirtualSmMeshCommandPasses, TArrayView<FViewInfo> Views);
 
 	void RenderDebugInfo(FRDGBuilder& GraphBuilder, TArrayView<FViewInfo> Views);
 	
-	void PrintStats(FRDGBuilder& GraphBuilder, const FViewInfo& View);
+	void LogStats(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
 	// Get shader parameters necessary to sample virtual shadow maps
 	// It is safe to bind this buffer even if VSMs are disabled, but the sampling should be branched around in the shader.
@@ -352,6 +357,7 @@ public:
 	static constexpr uint32 MaxPageAreaDiagnosticSlots = 32;
 
 	FRDGBufferRef StatsBufferRDG = nullptr;
+	FRDGBufferRef StatsNaniteBufferRDG = nullptr;
 
 	// Debug visualization
 	TArray<FRDGTextureRef> DebugVisualizationOutput;

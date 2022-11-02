@@ -4,6 +4,7 @@
 #include "../ShaderPrint.ush"
 #include "VirtualShadowMapPageAccessCommon.ush"
 #include "VirtualShadowMapStats.ush"
+#include "../Nanite/NaniteDataDecode.ush"
 #include "../GPUMessaging.ush"
 
 StructuredBuffer<uint>	InStatsBuffer;
@@ -56,18 +57,33 @@ void PrintUnits(inout FShaderPrintContext Context, uint Value)
 	}
 }
 uint StatsMessageId;
+uint StatsMessageTimestampHigh;
+uint StatsMessageTimestampLow;
+
+StructuredBuffer<FNaniteStats> NaniteStats;
+
+void SendStatsMessage()
+{
+	FGPUMessageWriter Mw = GPUMessageBegin(StatsMessageId, 3U + (MAX_PAGE_AREA_DIAGNOSTIC_SLOTS * 2U));
+
+	// Culling stats
+	GPUMessageWriteItem(Mw, NaniteStats[0].NumTris);
+	GPUMessageWriteItem(Mw, NaniteStats[0].NumMainInstancesPostCull);
+	GPUMessageWriteItem(Mw, InStatsBuffer[VSM_STAT_NON_NANITE_INSTANCES_DRAWN]);
+
+	// Large page area instances
+	for (uint Index = 0; Index < MAX_PAGE_AREA_DIAGNOSTIC_SLOTS * 2U; ++Index)
+	{
+		GPUMessageWriteItem(Mw, InStatsBuffer[VSM_NUM_STATS + Index]);
+	}
+}
 
 [numthreads(1, 1, 1)]
-void PrintVirtualSmStatsCS()
+void LogVirtualSmStatsCS()
 {
 	if (StatsMessageId != INDEX_NONE)
 	{
-		// Just post back the whole buffer
-		FGPUMessageWriter Mw = GPUMessageBegin(StatsMessageId, MAX_PAGE_AREA_DIAGNOSTIC_SLOTS * 2U);
-		for (uint Index = 0; Index < MAX_PAGE_AREA_DIAGNOSTIC_SLOTS * 2U; ++Index)
-		{
-			GPUMessageWriteItem(Mw, InStatsBuffer[VSM_NUM_STATS + Index]);
-		}
+		SendStatsMessage();
 	}
 
 	if (ShowStatsValue == 0U)

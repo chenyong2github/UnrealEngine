@@ -1548,16 +1548,14 @@ void BuildHZBPerPageTopCS(uint2 GroupThreadId : SV_GroupThreadID, uint PageInput
 }
 
 uint StatusMessageId;
-StructuredBuffer<int> FreePhysicalPages;
 
+StructuredBuffer<int> FreePhysicalPages;
 
 [numthreads(1, 1, 1)]
 void FeedbackStatusCS()
 {
 	{
-		FGPUMessageWriter Mw = GPUMessageBegin(StatusMessageId, 2U);
-		// 1. Write out frame number
-		GPUMessageWriteItem(Mw, 0U);
+		FGPUMessageWriter Mw = GPUMessageBegin(StatusMessageId, 1U);
 		// 2. Write out the free list status
 		GPUMessageWriteItem(Mw, FreePhysicalPages[VirtualShadowMap.MaxPhysicalPages]);
 	}

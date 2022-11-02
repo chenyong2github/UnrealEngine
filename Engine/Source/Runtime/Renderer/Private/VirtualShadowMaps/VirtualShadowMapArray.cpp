@@ -9,6 +9,7 @@
 #include "GPUMessaging.h"
 #include "HairStrands/HairStrandsData.h"
 #include "InstanceCulling/InstanceCullingMergedContext.h"
+#include "Nanite/Nanite.h"
 #include "RendererModule.h"
 #include "Rendering/NaniteResources.h"
 #include "SceneTextureReductions.h"
@@ -25,6 +26,8 @@
 IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(VirtualShadowMapUbSlot);
 
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FVirtualShadowMapUniformParameters, "VirtualShadowMap", VirtualShadowMapUbSlot);
+
+CSV_DEFINE_CATEGORY(VSM, false);
 
 struct FShadowMapCacheData
 {
@@ -342,6 +345,11 @@ static TAutoConsoleVariable<int32> CVarVirtualShadowMapPageMarkingPixelStrideY(
 	1,
 	TEXT("."),
 	ECVF_RenderThreadSafe);
+
+namespace Nanite
+{
+	extern bool IsStatFilterActive(const FString& FilterName);
+}
 
 FMatrix CalcTranslatedWorldToShadowUVMatrix(
 	const FMatrix& TranslatedWorldToShadowView,
@@ -1338,11 +1346,15 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 
 #if !UE_BUILD_SHIPPING
 	const bool bRunPageAreaDiagnostics = CVarNumPageAreaDiagSlots.GetValueOnRenderThread() != 0;
+#if CSV_PROFILER
+	bool bCsvLogEnabled = FCsvProfiler::Get()->IsCapturing_Renderthread() && FCsvProfiler::Get()->IsCategoryEnabled(CSV_CATEGORY_INDEX(VSM));
+#endif
 #else
 	constexpr bool bRunPageAreaDiagnostics = false;
+	constexpr bool bCsvLogEnabled = false;
 #endif
 
-	if (CVarShowStats.GetValueOnRenderThread() || CacheManager->IsAccumulatingStats() || bRunPageAreaDiagnostics)
+	if (CVarShowStats.GetValueOnRenderThread() || CacheManager->IsAccumulatingStats() || bRunPageAreaDiagnostics || bCsvLogEnabled)
 	{
 		StatsBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumStats + MaxPageAreaDiagnosticSlots * 2), TEXT("Shadow.Virtual.StatsBuffer"));
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(StatsBufferRDG), 0);
@@ -1825,7 +1837,7 @@ void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder, TArrayVi
 			
 	if (Views.Num() > 0)
 	{
-		PrintStats(GraphBuilder, Views[0]);
+		LogStats(GraphBuilder, Views[0]);
 	}
 
 	if (DebugVisualizationOutput.IsEmpty() || VisualizeLight.IsEmpty())
@@ -1876,16 +1888,17 @@ void FVirtualShadowMapArray::RenderDebugInfo(FRDGBuilder& GraphBuilder, TArrayVi
 }
 
 
-class FVirtualSmPrintStatsCS : public FVirtualPageManagementShader
+class FVirtualSmLogStatsCS : public FVirtualPageManagementShader
 {
-	DECLARE_GLOBAL_SHADER(FVirtualSmPrintStatsCS);
-	SHADER_USE_PARAMETER_STRUCT(FVirtualSmPrintStatsCS, FVirtualPageManagementShader)
+	DECLARE_GLOBAL_SHADER(FVirtualSmLogStatsCS);
+	SHADER_USE_PARAMETER_STRUCT(FVirtualSmLogStatsCS, FVirtualPageManagementShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
 		SHADER_PARAMETER_STRUCT_INCLUDE(GPUMessage::FParameters, GPUMessageParams)
 		SHADER_PARAMETER_STRUCT_INCLUDE( ShaderPrint::FShaderParameters, ShaderPrintStruct )
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, InStatsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, InStatsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FNaniteStats>, NaniteStats)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FIntVector4>, AllocatedPageRectBounds)
 		SHADER_PARAMETER(int, ShowStatsValue)
 		SHADER_PARAMETER(uint32, StatsMessageId)
@@ -1898,46 +1911,54 @@ class FVirtualSmPrintStatsCS : public FVirtualPageManagementShader
 		// Disable optimizations as shader print causes long compile times
 		OutEnvironment.CompilerFlags.Add(CFLAG_SkipOptimizations);
 	}
-
-		
 };
-IMPLEMENT_GLOBAL_SHADER(FVirtualSmPrintStatsCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapPrintStats.usf", "PrintVirtualSmStatsCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FVirtualSmLogStatsCS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapPrintStats.usf", "LogVirtualSmStatsCS", SF_Compute);
 
-void FVirtualShadowMapArray::PrintStats(FRDGBuilder& GraphBuilder, const FViewInfo& View)
+void FVirtualShadowMapArray::LogStats(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
 	check(IsEnabled());
 	LLM_SCOPE_BYTAG(Nanite);
 
-	// Print stats
-	int ShowStatsValue = CVarShowStats.GetValueOnRenderThread();
 	if (StatsBufferRDG)
 	{
-		{
-			FVirtualSmPrintStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmPrintStatsCS::FParameters>();
+		int ShowStatsValue = CVarShowStats.GetValueOnRenderThread();
 
-			ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintStruct);
-			PassParameters->InStatsBuffer = GraphBuilder.CreateSRV(StatsBufferRDG);
-			PassParameters->VirtualShadowMap = GetUncachedUniformBuffer(GraphBuilder);
-			PassParameters->ShowStatsValue = ShowStatsValue;
+		FVirtualSmLogStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmLogStatsCS::FParameters>();
+
+		ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintStruct);
+		PassParameters->InStatsBuffer = GraphBuilder.CreateSRV(StatsBufferRDG);
+		PassParameters->VirtualShadowMap = GetUncachedUniformBuffer(GraphBuilder);
+		PassParameters->ShowStatsValue = ShowStatsValue;
+		
 #if !UE_BUILD_SHIPPING
-			PassParameters->StatsMessageId = CacheManager->StatsFeedbackSocket.GetMessageId().IsValid() ? CacheManager->StatsFeedbackSocket.GetMessageId().GetIndex() : INDEX_NONE;
+		PassParameters->StatsMessageId = CacheManager->StatsFeedbackSocket.GetMessageId().IsValid() ? CacheManager->StatsFeedbackSocket.GetMessageId().GetIndex() : INDEX_NONE;
+		bool bBindNaniteStatsBuffer = StatsNaniteBufferRDG != nullptr;
 #else
-			PassParameters->StatsMessageId = INDEX_NONE;
+		PassParameters->StatsMessageId = INDEX_NONE;
+		constexpr bool bBindNaniteStatsBuffer = false;
 #endif
-			PassParameters->GPUMessageParams = GPUMessage::GetShaderParameters(GraphBuilder);
-
-			auto ComputeShader = View.ShaderMap->GetShader<FVirtualSmPrintStatsCS>();
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("Print Stats"),
-				ComputeShader,
-				PassParameters,
-				FIntVector(1, 1, 1)
-			);
+		if (bBindNaniteStatsBuffer)
+		{
+			PassParameters->NaniteStats = GraphBuilder.CreateSRV(StatsNaniteBufferRDG);
 		}
+		else
+		{
+			PassParameters->NaniteStats = GraphBuilder.CreateSRV(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FNaniteStats)));
+		}
+		PassParameters->GPUMessageParams = GPUMessage::GetShaderParameters(GraphBuilder);
+	
+		auto ComputeShader = View.ShaderMap->GetShader<FVirtualSmLogStatsCS>();
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("VSM Log Stats"),
+			ComputeShader,
+			PassParameters,
+			FIntVector(1, 1, 1)
+		);
 	}
 }
+
 
 void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRenderingAllocator>& Views ) const
 {
@@ -2493,6 +2514,125 @@ static void AddRasterPass(
 		});
 }
 
+void FVirtualShadowMapArray::RenderVirtualShadowMapsNanite(FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer, float ShadowsLODScaleFactor, bool bUpdateNaniteStreaming, bool bNaniteProgrammableRaster)
+{
+	bool bCsvLogEnabled = false;
+#if CSV_PROFILER
+	bCsvLogEnabled = FCsvProfiler::Get()->IsCapturing_Renderthread() && FCsvProfiler::Get()->IsCategoryEnabled(CSV_CATEGORY_INDEX(VSM));
+#endif
+
+	const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& VirtualShadowMapShadows = SceneRenderer.SortedShadowsForShadowDepthPass.VirtualShadowMapShadows;
+	TArray<TSharedPtr<FVirtualShadowMapClipmap>, SceneRenderingAllocator>& VirtualShadowMapClipmaps = SceneRenderer.SortedShadowsForShadowDepthPass.VirtualShadowMapClipmaps;
+
+	// TODO: Separate out the decision about nanite using HZB and stuff like HZB culling invalidations?
+	const bool bVSMUseHZB = UseHzbOcclusion();
+
+	const FIntPoint VirtualShadowSize = GetPhysicalPoolSize();
+	const FIntRect VirtualShadowViewRect = FIntRect(0, 0, VirtualShadowSize.X, VirtualShadowSize.Y);
+
+	Nanite::FSharedContext SharedContext{};
+	SharedContext.FeatureLevel = SceneRenderer.FeatureLevel;
+	SharedContext.ShaderMap = GetGlobalShaderMap(SharedContext.FeatureLevel);
+	SharedContext.Pipeline = Nanite::EPipeline::Shadows;
+
+	const TRefCountPtr<IPooledRenderTarget> PrevHZBPhysical = bVSMUseHZB ? CacheManager->PrevBuffers.HZBPhysical : nullptr;
+
+	RDG_EVENT_SCOPE(GraphBuilder, "RenderVirtualShadowMaps(Nanite)");
+
+	check(PhysicalPagePoolRDG != nullptr);
+
+	Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(
+		GraphBuilder,
+		SharedContext,
+		VirtualShadowSize,
+		VirtualShadowViewRect,
+		false,
+		Nanite::EOutputBufferMode::DepthOnly,
+		false,	// Clear entire texture
+		nullptr, 0,
+		PhysicalPagePoolRDG);
+
+	const FViewInfo& SceneView = SceneRenderer.Views[0];
+
+	static FString VirtualFilterName = TEXT("VirtualShadowMaps");
+
+	TArray<Nanite::FPackedView, SceneRenderingAllocator> VirtualShadowViews;
+
+	for (FProjectedShadowInfo* ProjectedShadowInfo : VirtualShadowMapShadows)
+	{
+		if (ProjectedShadowInfo->bShouldRenderVSM)
+		{
+			AddRenderViews(
+				ProjectedShadowInfo,
+				SceneRenderer.Views,
+				ShadowsLODScaleFactor,
+				PrevHZBPhysical.IsValid(),
+				bVSMUseHZB,
+				ProjectedShadowInfo->ShouldClampToNearPlane(),
+				VirtualShadowViews);
+		}
+	}
+
+	if (VirtualShadowViews.Num() > 0)
+	{
+		int32 NumPrimaryViews = VirtualShadowViews.Num();
+		CreateMipViews(VirtualShadowViews);
+
+		Nanite::FRasterState RasterState;
+
+		FNaniteVisibilityResults VisibilityResults; // TODO: Hook up culling for shadows
+
+		Nanite::FCullingContext::FConfiguration CullingConfig = { 0 };
+		CullingConfig.bUpdateStreaming = bUpdateNaniteStreaming;
+		CullingConfig.bTwoPassOcclusion = UseTwoPassHzbOcclusion();
+		CullingConfig.bProgrammableRaster = bNaniteProgrammableRaster;
+		CullingConfig.SetViewFlags(SceneView);
+
+		Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(
+			GraphBuilder,
+			SharedContext,
+			Scene,
+			PrevHZBPhysical,
+			VirtualShadowViewRect,
+			CullingConfig
+		);
+
+		if (bCsvLogEnabled)
+		{
+			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_WRITE_STATS;
+		}
+
+		const bool bExtractStats = Nanite::IsStatFilterActive(VirtualFilterName);
+
+		Nanite::CullRasterize(
+			GraphBuilder,
+			Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+			VisibilityResults,
+			Scene,
+			SceneView,
+			VirtualShadowViews,
+			NumPrimaryViews,
+			SharedContext,
+			CullingContext,
+			RasterContext,
+			RasterState,
+			nullptr,
+			this,
+			bExtractStats
+		);
+
+		if (bCsvLogEnabled)
+		{
+			StatsNaniteBufferRDG = CullingContext.StatsBuffer;
+		}
+	}
+
+	if (bVSMUseHZB)
+	{
+		UpdateHZB(GraphBuilder);
+	}
+}
+
 void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& GraphBuilder, const TArray<FProjectedShadowInfo *, SceneRenderingAllocator>& VirtualSmMeshCommandPasses, TArrayView<FViewInfo> Views)
 {
 	if (VirtualSmMeshCommandPasses.Num() == 0)
@@ -2576,6 +2716,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 	FInstanceCullingMergedContext InstanceCullingMergedContext(GPUScene.GetFeatureLevel());
 	// We don't use the registered culling views (this redundancy should probably be addressed at some point), set the number to disable index range checking
 	InstanceCullingMergedContext.NumCullingViews = -1;
+	int32 TotalPreCullInstanceCount = 0;
 	for (int32 Index = 0; Index < VirtualSmMeshCommandPasses.Num(); ++Index)
 	{
 		FProjectedShadowInfo* ProjectedShadowInfo = VirtualSmMeshCommandPasses[Index];
@@ -2613,6 +2754,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 			MeshCommandPass.WaitForSetupTask();
 
 			FInstanceCullingContext* InstanceCullingContext = MeshCommandPass.GetInstanceCullingContext();
+			TotalPreCullInstanceCount += InstanceCullingContext->TotalInstances;
 
 			if (InstanceCullingContext->HasCullingCommands())
 			{
@@ -2641,6 +2783,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 			}
 		}
 	}
+	CSV_CUSTOM_STAT(VSM, NonNanitePreCullInstanceCount, TotalPreCullInstanceCount, ECsvCustomStatOp::Set);
 	uint32 TotalPrimaryViews = uint32(VirtualShadowViews.Num());
 	CreateMipViews(VirtualShadowViews);
 	FRDGBufferRef VirtualShadowViewsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.VirtualShadowViews"), VirtualShadowViews);

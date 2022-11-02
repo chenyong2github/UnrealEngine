@@ -17,6 +17,8 @@
 
 #define VSM_LOG_STATIC_CACHING 0
 
+CSV_DECLARE_CATEGORY_EXTERN(VSM);
+
 static TAutoConsoleVariable<int32> CVarAccumulateStats(
 	TEXT("r.Shadow.Virtual.AccumulateStats"),
 	0,
@@ -464,60 +466,66 @@ FVirtualShadowMapArrayCacheManager::FVirtualShadowMapArrayCacheManager(FScene* I
 	// Handle message with status sent back from GPU
 	StatusFeedbackSocket = GPUMessage::RegisterHandler(TEXT("Shadow.Virtual.StatusFeedback"), [this](GPUMessage::FReader Message)
 	{
-		// Only process status messages that came from this specific cache manager
-		if (Message.MessageId == this->StatusFeedbackSocket.GetMessageId())
+		// Goes negative on underflow
+		int32 NumPagesFree = Message.Read<int32>(0);
+			
+		CSV_CUSTOM_STAT(VSM, FreePages, NumPagesFree, ECsvCustomStatOp::Set);
+
+		if (NumPagesFree < 0)
 		{
-			// Get the frame that the message was sent.
-			uint32 FrameNumber = Message.Read<uint32>(0);
-			// Goes negative on underflow
-			int32 NumPagesFree = Message.Read<int32>(0);
+			static const auto* CVarResolutionLodBiasLocalPtr = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.Shadow.Virtual.ResolutionLodBiasLocal"));
+			const float LodBiasLocal = CVarResolutionLodBiasLocalPtr->GetValueOnRenderThread();
 
-			if (NumPagesFree < 0)
-			{
-				static const auto* CVarResolutionLodBiasLocalPtr = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.Shadow.Virtual.ResolutionLodBiasLocal"));
-				const float LodBiasLocal = CVarResolutionLodBiasLocalPtr->GetValueOnRenderThread();
+			static const auto* CVarResolutionLodBiasDirectionalPtr = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.Shadow.Virtual.ResolutionLodBiasDirectional"));
+			const float LodBiasDirectional = CVarResolutionLodBiasDirectionalPtr->GetValueOnRenderThread();
 
-				static const auto* CVarResolutionLodBiasDirectionalPtr = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.Shadow.Virtual.ResolutionLodBiasDirectional"));
-				const float LodBiasDirectional = CVarResolutionLodBiasDirectionalPtr->GetValueOnRenderThread();
-
-				static const auto* CVarMaxPhysicalPagesPtr = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.Virtual.MaxPhysicalPages"));
-				const int32 MaxPhysicalPages = CVarMaxPhysicalPagesPtr->GetValueOnRenderThread();
+			static const auto* CVarMaxPhysicalPagesPtr = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.Virtual.MaxPhysicalPages"));
+			const int32 MaxPhysicalPages = CVarMaxPhysicalPagesPtr->GetValueOnRenderThread();
 
 				static const auto* CVarMaxPhysicalPagesSceneCapturePtr = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.Virtual.MaxPhysicalPagesSceneCapture"));
 				const int32 MaxPhysicalPagesSceneCapture = CVarMaxPhysicalPagesSceneCapturePtr->GetValueOnRenderThread();
 
 #if !UE_BUILD_SHIPPING
-				if (!bLoggedPageOverflow)
-				{
-					UE_LOG(LogRenderer, Warning, TEXT("Virtual Shadow Map Page Pool overflow (%d page allocations were not served), this will produce visual artifacts (missing shadow), increase the page pool limit or reduce resolution bias to avoid.\n")
-						TEXT(" See r.Shadow.Virtual.MaxPhysicalPages (%d), r.Shadow.Virtual.MaxPhysicalPagesSceneCapture (%d), r.Shadow.Virtual.ResolutionLodBiasLocal (%.2f), and r.Shadow.Virtual.ResolutionLodBiasDirectional (%.2f)"),
-						-NumPagesFree,
-						MaxPhysicalPages,
-						MaxPhysicalPagesSceneCapture,
-						LodBiasLocal,
-						LodBiasDirectional);
-					bLoggedPageOverflow = true;
-				}
-				LastOverflowTime = float(FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds());
-#endif
-			}
-#if !UE_BUILD_SHIPPING
-			else
+			if (!bLoggedPageOverflow)
 			{
-				bLoggedPageOverflow = false;
+				UE_LOG(LogRenderer, Warning, TEXT("Virtual Shadow Map Page Pool overflow (%d page allocations were not served), this will produce visual artifacts (missing shadow), increase the page pool limit or reduce resolution bias to avoid.\n")
+					TEXT(" See r.Shadow.Virtual.MaxPhysicalPages (%d), r.Shadow.Virtual.MaxPhysicalPagesSceneCapture (%d), r.Shadow.Virtual.ResolutionLodBiasLocal (%.2f), and r.Shadow.Virtual.ResolutionLodBiasDirectional (%.2f)"),
+					-NumPagesFree,
+					MaxPhysicalPages,
+					MaxPhysicalPagesSceneCapture,
+					LodBiasLocal,
+					LodBiasDirectional);
+				bLoggedPageOverflow = true;
 			}
+			LastOverflowTime = float(FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds());
 #endif
 		}
+#if !UE_BUILD_SHIPPING
+		else
+		{
+			bLoggedPageOverflow = false;
+		}
+#endif
 	});
 
 #if !UE_BUILD_SHIPPING
 	// Handle message with stats sent back from GPU whenever stats are enabled
 	StatsFeedbackSocket = GPUMessage::RegisterHandler(TEXT("Shadow.Virtual.StatsFeedback"), [this](GPUMessage::FReader Message)
 	{
+		// Culling stats
+		int32 NaniteNumTris = Message.Read<int32>(0);
+		int32 NanitePostCullNodeCount = Message.Read<int32>(0);
+		int32 NonNanitePostCullInstanceCount = Message.Read<int32>(0);
+
+		CSV_CUSTOM_STAT(VSM, NaniteNumTris, NaniteNumTris, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(VSM, NanitePostCullNodeCount, NanitePostCullNodeCount, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(VSM, NonNanitePostCullInstanceCount, NonNanitePostCullInstanceCount, ECsvCustomStatOp::Set);
+
+		// Large page area items
 		LastLoggedPageOverlapAppTime.SetNumZeroed(Scene->GetMaxPersistentPrimitiveIndex());
 		float RealTimeSeconds = float(FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds());
 
-		TConstArrayView<uint32> PageAreaDiags = Message.GetPayLoad();
+		TConstArrayView<uint32> PageAreaDiags = Message.ReadCount(FVirtualShadowMapArray::MaxPageAreaDiagnosticSlots * 2);
 		for (int32 Index = 0; Index < PageAreaDiags.Num(); Index += 2)
 		{
 			uint32 Overlap = PageAreaDiags[Index];

@@ -90,9 +90,16 @@ public:
 		return DefaultValue;
 	}
 
-	uint32 GetPayloadSize() const { return PayloadSize; }
+	// Read up to N elements
+	TConstArrayView<uint32> ReadCount(int32 Count)
+	{
+		TConstArrayView<uint32> Payload(PayloadData, PayloadSize);
+		Payload.MidInline(ReadOffset, Count);
+		ReadOffset += Payload.Num();
+		return Payload;
+	}
 
-	TConstArrayView<uint32> GetPayLoad() const { return TConstArrayView<uint32>(PayloadData, PayloadSize); }
+	uint32 GetPayloadSize() const { return PayloadSize; }
 
 private:
 	FReader(FMessageId InMessageId, uint32 InPayloadSize, const uint32* InPayloadData)
