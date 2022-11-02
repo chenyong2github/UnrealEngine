@@ -340,6 +340,8 @@ public:
 	{		
 		// We compile the point light shader combinations based on the project settings
 		static auto* MobileSkyLightPermutationCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.SkyLightPermutation"));
+		static auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+		const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0);
 
 		const int32 MobileSkyLightPermutationOptions = MobileSkyLightPermutationCVar->GetValueOnAnyThread();
 		const bool bDeferredShading = IsMobileDeferredShadingEnabled(Parameters.Platform);
@@ -351,7 +353,9 @@ public:
 		// Translucent materials always support clustered shading on mobile deferred
 		const bool bSupportsLocalLights = (!bDeferredShading && MobileForwardEnableLocalLights(Parameters.Platform)) || (bDeferredShading && bMaterialUsesForwardShading);
 		// Only compile skylight version for lit materials
-		const bool bShouldCacheBySkylight = !bEnableSkyLight || bIsLit;
+		const bool bForwardShading = !bDeferredShading || bMaterialUsesForwardShading;
+		const bool bRenderSkyLightInBasePass = bForwardShading || bAllowStaticLighting;
+		const bool bShouldCacheBySkylight = !bEnableSkyLight || (bIsLit && bRenderSkyLightInBasePass);
 
 		// Only compile skylight permutations when they are enabled
 		if (bIsLit && !UseSkylightPermutation(bEnableSkyLight, MobileSkyLightPermutationOptions))
@@ -360,8 +364,7 @@ public:
 		}
 
 		// Deferred shading does not need SkyLight and LocalLight permutations
-		// TODO: skip skylight permutations for deferred
-		const bool bForwardShading = !bDeferredShading || bMaterialUsesForwardShading;
+		// TODO: skip skylight permutations for deferred	
 		const bool bShouldCacheByShading = (bForwardShading || !bEnableLocalLights);
 		const bool bShouldCacheByLocalLights = !bEnableLocalLights || (bIsLit && bEnableLocalLights == bSupportsLocalLights);
 

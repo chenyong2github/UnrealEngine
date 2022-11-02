@@ -353,8 +353,9 @@ static void GetLightMaterial(const FCachedLightMaterial& DefaultLightMaterial, c
 void RenderReflectionEnvironmentSkyLighting(FRHICommandListImmediate& RHICmdList, const FScene& Scene, const FViewInfo& View)
 {
 	// Skylights with static lighting already had their diffuse contribution baked into lightmaps
+	const bool bIsDynamicLighting = !FReadOnlyCVARCache::Get().bAllowStaticLighting || Scene.GetForceNoPrecomputedLighting();
 	const bool bSkyLight = Scene.SkyLight && !Scene.SkyLight->bHasStaticLighting && View.Family->EngineShowFlags.SkyLighting;
-	const bool bDynamicSkyLight = bSkyLight && !Scene.SkyLight->bWantsStaticShadowing;
+	const bool bDynamicSkyLight = bSkyLight && (!Scene.SkyLight->bWantsStaticShadowing || bIsDynamicLighting);
 	const bool bClustredReflection = (View.NumBoxReflectionCaptures + View.NumSphereReflectionCaptures) > 0;
 	const bool bPlanarReflection = Scene.GetForwardPassGlobalPlanarReflection() != nullptr;
 	if (!(bSkyLight || bClustredReflection || bPlanarReflection))
@@ -498,8 +499,9 @@ static void RenderDirectionalLight(FRHICommandListImmediate& RHICmdList, const F
 	}
 
 	// Skylights with static lighting already had their diffuse contribution baked into lightmaps
+	const bool bIsDynamicLighting = !FReadOnlyCVARCache::Get().bAllowStaticLighting || Scene.GetForceNoPrecomputedLighting();
 	const bool bSkyLight = Scene.SkyLight && !Scene.SkyLight->bHasStaticLighting && View.Family->EngineShowFlags.SkyLighting;
-	const bool bDynamicSkyLight = bSkyLight && !Scene.SkyLight->bWantsStaticShadowing;
+	const bool bDynamicSkyLight = bSkyLight && (!Scene.SkyLight->bWantsStaticShadowing || bIsDynamicLighting);
 	const bool bDynamicShadows = DirectionalLight.Proxy->CastsDynamicShadow() && (LightingChannel == 0u) && View.Family->EngineShowFlags.DynamicShadows;
 	const bool bPlanarReflection = Scene.GetForwardPassGlobalPlanarReflection() != nullptr;
 

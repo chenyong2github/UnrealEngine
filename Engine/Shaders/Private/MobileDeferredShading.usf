@@ -90,7 +90,6 @@ half3 SkyLightDiffuseMobile(FGBufferData GBuffer, half3 DiffuseColor, half3 V, i
 
 	// And accumulate the lighting
 	Lighting += DiffuseLookup  * DiffuseColor;
-	Lighting *= View.PreExposure;
 
 #if ALLOW_STATIC_LIGHTING
 	IndirectIrradiance += Luminance(DiffuseLookup);
