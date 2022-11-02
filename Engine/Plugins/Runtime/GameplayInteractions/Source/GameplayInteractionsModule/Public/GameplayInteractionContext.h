@@ -51,7 +51,7 @@ public:
 	GAMEPLAYINTERACTIONSMODULE_API void Deactivate();
 	
 	/** Sends event for the StateTree. Will be received on the next tick by the StateTree. */
-	// @todo: remove temporarily - UE_DEPRECATED(5.2, "Please use SendEvent() with separate parameters instead.")
+	UE_DEPRECATED(5.2, "Please use SendEvent() with separate parameters instead.")
 	GAMEPLAYINTERACTIONSMODULE_API void SendEvent(const FStateTreeEvent& Event);
 
 	/** Sends event for the StateTree. Will be received on the next tick by the StateTree. */
