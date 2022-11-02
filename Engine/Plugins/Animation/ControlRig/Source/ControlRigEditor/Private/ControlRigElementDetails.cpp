@@ -14,6 +14,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "SEnumCombo.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
+#include "Units/Execution/RigUnit_DynamicHierarchy.h"
 #include "Graph/SControlRigGraphPinVariableBinding.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Styling/AppStyle.h"
@@ -523,6 +524,146 @@ void FRigComputedTransformDetails::OnTransformChanged(FEditPropertyChain* InProp
 	}
 }
 
+void FRigControlTransformChannelDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStructPropertyHandle,
+	FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+	Handle = InStructPropertyHandle;
+
+	TArray<int32> VisibleEnumValues;
+	const TArray<ERigControlTransformChannel>* VisibleChannels = nullptr;
+
+	// loop for controls to figure out the control type
+	TArray<UObject*> Objects;
+	InStructPropertyHandle->GetOuterObjects(Objects);
+	for (UObject* Object : Objects)
+	{
+		if (const UDetailsViewWrapperObject* WrapperObject = Cast<UDetailsViewWrapperObject>(Object))
+		{
+			if(WrapperObject->GetWrappedStruct() == FRigControlElement::StaticStruct())
+			{
+				const FRigControlElement ControlElement = WrapperObject->GetContent<FRigControlElement>();
+				VisibleChannels = GetVisibleChannelsForControlType(ControlElement.Settings.ControlType);
+				break;
+			}
+			if (const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(WrapperObject->GetOuter()))
+			{
+				if(UnitNode->GetScriptStruct() && UnitNode->GetScriptStruct()->IsChildOf(FRigUnit_HierarchyAddControlElement::StaticStruct()))
+				{
+					FStructOnScope StructOnScope(UnitNode->GetScriptStruct());
+					WrapperObject->GetContent(StructOnScope.GetStructMemory(), StructOnScope.GetStruct());
+
+					const FRigUnit_HierarchyAddControlElement* RigUnit = (const FRigUnit_HierarchyAddControlElement*)StructOnScope.GetStructMemory();
+					VisibleChannels = GetVisibleChannelsForControlType(RigUnit->GetControlTypeToSpawn());
+					break;
+				}
+			}
+		}
+	}
+
+	if(VisibleChannels)
+	{
+		VisibleEnumValues.Reserve(VisibleChannels->Num());
+		for(int32 Index=0; Index < VisibleChannels->Num(); Index++)
+		{
+			VisibleEnumValues.Add((int32)(*VisibleChannels)[Index]);
+		}
+	}
+	
+	HeaderRow
+	.NameContent()
+	[
+		InStructPropertyHandle->CreatePropertyNameWidget()
+	]
+	.ValueContent()
+	[
+		SNew(SEnumComboBox, StaticEnum<ERigControlTransformChannel>())
+		.CurrentValue_Raw(this, &FRigControlTransformChannelDetails::GetChannelAsInt32)
+		.OnEnumSelectionChanged_Raw(this, &FRigControlTransformChannelDetails::OnChannelChanged)
+		.Font(FAppStyle::GetFontStyle(TEXT("MenuItem.Font")))
+		.EnumValueSubset(VisibleEnumValues)
+	];
+}
+
+void FRigControlTransformChannelDetails::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle,
+	IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+	// nothing to do here
+}
+
+ERigControlTransformChannel FRigControlTransformChannelDetails::GetChannel() const
+{
+	uint8 Value = 0;
+	Handle->GetValue(Value);
+	return (ERigControlTransformChannel)Value;
+}
+
+void FRigControlTransformChannelDetails::OnChannelChanged(int32 NewSelection, ESelectInfo::Type InSelectionInfo)
+{
+	Handle->SetValue((uint8)NewSelection);
+}
+
+const TArray<ERigControlTransformChannel>* FRigControlTransformChannelDetails::GetVisibleChannelsForControlType(ERigControlType InControlType)
+{
+	switch(InControlType)
+	{
+		case ERigControlType::Position:
+		{
+			static const TArray<ERigControlTransformChannel> PositionChannels = {
+				ERigControlTransformChannel::TranslationX,
+				ERigControlTransformChannel::TranslationY,
+				ERigControlTransformChannel::TranslationZ
+			};
+			return &PositionChannels;
+		}
+		case ERigControlType::Rotator:
+		{
+			static const TArray<ERigControlTransformChannel> RotatorChannels = {
+				ERigControlTransformChannel::Pitch,
+				ERigControlTransformChannel::Yaw,
+				ERigControlTransformChannel::Roll
+			};
+			return &RotatorChannels;
+		}
+		case ERigControlType::Scale:
+		{
+			static const TArray<ERigControlTransformChannel> ScaleChannels = {
+				ERigControlTransformChannel::ScaleX,
+				ERigControlTransformChannel::ScaleY,
+				ERigControlTransformChannel::ScaleZ
+			};
+			return &ScaleChannels;
+		}
+		case ERigControlType::Vector2D:
+		{
+			static const TArray<ERigControlTransformChannel> Vector2DChannels = {
+				ERigControlTransformChannel::TranslationX,
+				ERigControlTransformChannel::TranslationY
+			};
+			return &Vector2DChannels;
+		}
+		case ERigControlType::EulerTransform:
+		{
+			static const TArray<ERigControlTransformChannel> EulerTransformChannels = {
+				ERigControlTransformChannel::TranslationX,
+				ERigControlTransformChannel::TranslationY,
+				ERigControlTransformChannel::TranslationZ,
+				ERigControlTransformChannel::Pitch,
+				ERigControlTransformChannel::Yaw,
+				ERigControlTransformChannel::Roll,
+				ERigControlTransformChannel::ScaleX,
+				ERigControlTransformChannel::ScaleY,
+				ERigControlTransformChannel::ScaleZ
+			};
+			return &EulerTransformChannels;
+		}
+		default:
+		{
+			break;
+		}
+	}
+	return nullptr;
+}
+
 void FRigBaseElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	PerElementInfos.Reset();
@@ -856,6 +997,96 @@ bool FRigBaseElementDetails::IsAnyElementProcedural() const
 	{
 		return Info.IsProcedural();
 	});
+}
+
+bool FRigBaseElementDetails::GetCommonElementType(ERigElementType& OutElementType) const
+{
+	OutElementType = ERigElementType::None;
+
+	for(const FPerElementInfo& Info : PerElementInfos)
+	{
+		const FRigElementKey& Key = Info.Element.GetKey();
+		if(Key.IsValid())
+		{
+			if(OutElementType == ERigElementType::None)
+			{
+				OutElementType = Key.Type;
+			}
+			else if(OutElementType != Key.Type)
+			{
+				OutElementType = ERigElementType::None;
+				break;
+			}
+		}
+	}
+
+	return OutElementType != ERigElementType::None;
+}
+
+bool FRigBaseElementDetails::GetCommonControlType(ERigControlType& OutControlType) const
+{
+	OutControlType = ERigControlType::Bool;
+	
+	ERigElementType ElementType = ERigElementType::None;
+	if(GetCommonElementType(ElementType))
+	{
+		if(ElementType == ERigElementType::Control)
+		{
+			bool bSuccess = false;
+			for(const FPerElementInfo& Info : PerElementInfos)
+			{
+				if(const FRigControlElement* ControlElement = Info.Element.Get<FRigControlElement>())
+				{
+					if(!bSuccess)
+					{
+						OutControlType = ControlElement->Settings.ControlType;
+						bSuccess = true;
+					}
+					else if(OutControlType != ControlElement->Settings.ControlType)
+					{
+						OutControlType = ERigControlType::Bool;
+						bSuccess = false;
+						break;
+					}
+				}
+			}
+			return bSuccess;
+		}
+	}
+	return false;
+}
+
+bool FRigBaseElementDetails::GetCommonAnimationType(ERigControlAnimationType& OutAnimationType) const
+{
+	OutAnimationType = ERigControlAnimationType::AnimationControl;
+	
+	ERigElementType ElementType = ERigElementType::None;
+	if(GetCommonElementType(ElementType))
+	{
+		if(ElementType == ERigElementType::Control)
+		{
+			bool bSuccess = false;
+			for(const FPerElementInfo& Info : PerElementInfos)
+			{
+				if(const FRigControlElement* ControlElement = Info.Element.Get<FRigControlElement>())
+				{
+					if(!bSuccess)
+					{
+						OutAnimationType = ControlElement->Settings.AnimationType;
+						bSuccess = true;
+					}
+					else if(OutAnimationType != ControlElement->Settings.AnimationType)
+					{
+						OutAnimationType = ERigControlAnimationType::AnimationControl;
+						bSuccess = false;
+						break;
+					}
+				}
+			}
+			return bSuccess;
+		}
+	}
+	return false;
 }
 
 const FRigBaseElementDetails::FPerElementInfo* FRigBaseElementDetails::FindElementByPredicate(const TFunction<bool(const FPerElementInfo&)>& InPredicate) const
@@ -2798,6 +3029,17 @@ void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBui
 			return false;
 		}));
 	}
+
+	ERigControlType CommonControlType = ERigControlType::Bool;
+	if(GetCommonControlType(CommonControlType))
+	{
+		if(FRigControlTransformChannelDetails::GetVisibleChannelsForControlType(CommonControlType) != nullptr)
+		{
+			const TSharedPtr<IPropertyHandle> FilteredChannelsHandle = SettingsHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FRigControlSettings, FilteredChannels));
+			ControlCategory.AddProperty(FilteredChannelsHandle.ToSharedRef())
+			.IsEnabled(bIsEnabled);
+		}
+	}
 	
 	if(IsAnyControlOfAnimationType(ERigControlAnimationType::ProxyControl) || IsAnyControlOfAnimationType(ERigControlAnimationType::AnimationControl))
 	{
@@ -3209,6 +3451,7 @@ void FRigControlElementDetails::HandleControlTypeChanged(ERigControlType Control
 		ControlElement->Settings.ControlType = ControlType;
 		ControlElement->Settings.LimitEnabled.Reset();
 		ControlElement->Settings.bGroupWithParentControl = false;
+		ControlElement->Settings.FilteredChannels.Reset();
 
 		switch (ControlElement->Settings.ControlType)
 		{

@@ -16,6 +16,8 @@
 #include "Curves/CurveFloat.h"
 #include "RigVMModel/Nodes/RigVMUnitNode.h"
 #include "RigVMCore/RigVMExecuteContext.h"
+#include "Units/Execution/RigUnit_DynamicHierarchy.h"
+#include "ControlRigElementDetails.h"
 #include "IPropertyAccessEditor.h"
 
 TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* InPin) const
@@ -357,7 +359,7 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 				{
 					return SNew(SGraphPinExec, InPin);
 				}
-				else if (InPin->PinType.PinSubCategoryObject == FRuntimeFloatCurve::StaticStruct())
+				if (InPin->PinType.PinSubCategoryObject == FRuntimeFloatCurve::StaticStruct())
 				{
 					return SNew(SControlRigGraphPinCurveFloat, InPin);
 				}
@@ -385,6 +387,51 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 									if(EnumCombo.IsValid())
 									{
 										EnumCombo->RemoveItemByIndex(StaticEnum<ERigElementType>()->GetIndexByValue((int64)ERigElementType::All));
+									}
+								}
+							}
+						}
+					}
+				}
+
+				const UEnum* RigControlTransformChannelEnum = StaticEnum<ERigControlTransformChannel>();
+				if (InPin->PinType.PinSubCategoryObject == RigControlTransformChannelEnum)
+				{
+					TSharedPtr<SWidget> ValueWidget = K2PinWidget->GetValueWidget();
+					if(ValueWidget.IsValid())
+					{
+						if(TSharedPtr<SPinComboBox> EnumCombo = StaticCastSharedPtr<SPinComboBox>(ValueWidget))
+						{
+							if(EnumCombo.IsValid())
+							{
+								if (const UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(InPin->GetOwningNode()))
+								{
+									if (const URigVMPin* ModelPin = RigNode->GetModelPinFromPinPath(InPin->GetName()))
+									{
+										if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelPin->GetNode()))
+										{
+											if(UnitNode->GetScriptStruct() &&
+												UnitNode->GetScriptStruct()->IsChildOf(FRigUnit_HierarchyAddControlElement::StaticStruct()))
+											{
+												const TSharedPtr<FStructOnScope> StructInstanceScope = UnitNode->ConstructStructInstance();
+												const FRigUnit_HierarchyAddControlElement* StructInstance = 
+													(const FRigUnit_HierarchyAddControlElement*)StructInstanceScope->GetStructMemory();
+
+												if(const TArray<ERigControlTransformChannel>* VisibleChannels =
+													FRigControlTransformChannelDetails::GetVisibleChannelsForControlType(StructInstance->GetControlTypeToSpawn()))
+												{
+													for(int32 Index = 0; Index < RigControlTransformChannelEnum->NumEnums(); Index++)
+													{
+														const ERigControlTransformChannel Value =
+															(ERigControlTransformChannel)RigControlTransformChannelEnum->GetValueByIndex(Index);
+														if(!VisibleChannels->Contains(Value))
+														{
+															EnumCombo->RemoveItemByIndex(Index);
+														}
+													}
+												}
+											}
+										}
 									}
 								}
 							}

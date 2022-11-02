@@ -504,6 +504,7 @@ void FRigUnit_HierarchyAddControlVector2D_Settings::Configure(FRigControlSetting
 	
 	OutSettings.ControlType = ERigControlType::Vector2D;
 	OutSettings.PrimaryAxis = PrimaryAxis;
+	OutSettings.FilteredChannels = FilteredChannels;
 
 	Proxy.Configure(OutSettings);
 	Limits.Configure(OutSettings);
@@ -553,6 +554,7 @@ void FRigUnit_HierarchyAddControlVector_Settings::Configure(FRigControlSettings&
 	Super::Configure(OutSettings);
 	
 	OutSettings.ControlType = bIsPosition ? ERigControlType::Position : ERigControlType::Scale;
+	OutSettings.FilteredChannels = FilteredChannels;
 
 	Proxy.Configure(OutSettings);
 	Limits.Configure(OutSettings);
@@ -602,6 +604,7 @@ void FRigUnit_HierarchyAddControlRotator_Settings::Configure(FRigControlSettings
 	Super::Configure(OutSettings);
 	
 	OutSettings.ControlType = ERigControlType::Rotator;
+	OutSettings.FilteredChannels = FilteredChannels;
 
 	Proxy.Configure(OutSettings);
 	Limits.Configure(OutSettings);
@@ -640,6 +643,7 @@ void FRigUnit_HierarchyAddControlTransform_Settings::Configure(FRigControlSettin
 	Super::Configure(OutSettings);
 	
 	OutSettings.ControlType = ERigControlType::EulerTransform;
+	OutSettings.FilteredChannels = FilteredChannels;
 
 	Proxy.Configure(OutSettings);
 	Shape.Configure(OutSettings);

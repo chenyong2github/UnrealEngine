@@ -108,6 +108,31 @@ protected:
 	void OnTransformChanged(FEditPropertyChain* InPropertyChain);
 };
 
+class FRigControlTransformChannelDetails : public IPropertyTypeCustomization
+{
+public:
+
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	{
+		return MakeShareable(new FRigControlTransformChannelDetails);
+	}
+
+	/** IPropertyTypeCustomization interface */
+	virtual void CustomizeHeader(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<class IPropertyHandle> InStructPropertyHandle, class IDetailChildrenBuilder& StructBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+
+protected:
+	ERigControlTransformChannel GetChannel() const;
+	int32 GetChannelAsInt32() const { return (int32)GetChannel(); }
+	void OnChannelChanged(int32 NewSelection, ESelectInfo::Type);
+
+public:
+	static const TArray<ERigControlTransformChannel>* GetVisibleChannelsForControlType(ERigControlType InControlType);
+
+private:
+	TSharedPtr<IPropertyHandle> Handle;
+};
+
 class FRigBaseElementDetails : public IDetailCustomization
 {
 public:
@@ -204,6 +229,9 @@ public:
 	bool IsAnyControlOfValueType(ERigControlType InType) const;
 	bool IsAnyControlNotOfValueType(ERigControlType InType) const;
 	bool IsAnyElementProcedural() const;
+	bool GetCommonElementType(ERigElementType& OutElementType) const;
+	bool GetCommonControlType(ERigControlType& OutControlType) const;
+	bool GetCommonAnimationType(ERigControlAnimationType& OutAnimationType) const;
 	const FPerElementInfo* FindElementByPredicate(const TFunction<bool(const FPerElementInfo&)>& InPredicate) const;
 	bool ContainsElementByPredicate(const TFunction<bool(const FPerElementInfo&)>& InPredicate) const;
 

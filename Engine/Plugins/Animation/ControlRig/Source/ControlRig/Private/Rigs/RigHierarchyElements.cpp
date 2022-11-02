@@ -785,6 +785,7 @@ void FRigControlSettings::Save(FArchive& Ar)
 	Ar << DrivenControls;
 	Ar << bGroupWithParentControl;
 	Ar << bRestrictSpaceSwitching;
+	Ar << FilteredChannels;
 }
 
 void FRigControlSettings::Load(FArchive& Ar)
@@ -944,6 +945,15 @@ void FRigControlSettings::Load(FArchive& Ar)
 	{
 		bRestrictSpaceSwitching = false;
 	}
+
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::ControlTransformChannelFiltering)
+	{
+		Ar << FilteredChannels;
+	}
+	else
+	{
+		FilteredChannels.Reset();
+	}
 }
 
 uint32 GetTypeHash(const FRigControlSettings& Settings)
@@ -962,6 +972,11 @@ uint32 GetTypeHash(const FRigControlSettings& Settings)
 	Hash = HashCombine(Hash, GetTypeHash(Settings.DrivenControls));
 	Hash = HashCombine(Hash, GetTypeHash(Settings.bGroupWithParentControl));
 	Hash = HashCombine(Hash, GetTypeHash(Settings.bRestrictSpaceSwitching));
+	Hash = HashCombine(Hash, GetTypeHash(Settings.FilteredChannels.Num()));
+	for(const ERigControlTransformChannel& Channel : Settings.FilteredChannels)
+	{
+		Hash = HashCombine(Hash, GetTypeHash(Channel));
+	}
 	return Hash;
 }
 
@@ -1036,6 +1051,10 @@ bool FRigControlSettings::operator==(const FRigControlSettings& InOther) const
 		return false;
 	}
 	if(bRestrictSpaceSwitching != InOther.bRestrictSpaceSwitching)
+	{
+		return false;
+	}
+	if(FilteredChannels != InOther.FilteredChannels)
 	{
 		return false;
 	}

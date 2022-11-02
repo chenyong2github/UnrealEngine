@@ -325,6 +325,8 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddElement : public FRigUnit_DynamicHier
 		Name = NAME_None;
 	}
 
+	virtual ERigElementType GetElementTypeToSpawn() const { return ERigElementType::None; }
+
 	/*
 	 * The parent of the new element to add
 	 */
@@ -360,6 +362,8 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddBone : public FRigUnit_HierarchyAddEl
 		Space = EBoneGetterSetterMode::LocalSpace;
 	}
 
+	virtual ERigElementType GetElementTypeToSpawn() const override { return ERigElementType::Bone; }
+
 	/*
 	 * The initial transform of the new element
 	 */
@@ -392,6 +396,8 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddNull : public FRigUnit_HierarchyAddEl
 		Space = EBoneGetterSetterMode::LocalSpace;
 	}
 
+	virtual ERigElementType GetElementTypeToSpawn() const override { return ERigElementType::Null; }
+
 	/*
 	 * The initial transform of the new element
 	 */
@@ -418,7 +424,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControl_Settings
 	{}
 	virtual ~FRigUnit_HierarchyAddControl_Settings(){}
 
-	void Configure(FRigControlSettings& OutSettings) const;
+	virtual void Configure(FRigControlSettings& OutSettings) const;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	FName DisplayName;
@@ -511,7 +517,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlFloat_Settings : public FRigUn
 	{}
 	virtual ~FRigUnit_HierarchyAddControlFloat_Settings() override {}
 
-	void Configure(FRigControlSettings& OutSettings) const;
+	virtual void Configure(FRigControlSettings& OutSettings) const override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	ERigControlAxis PrimaryAxis;
@@ -528,25 +534,42 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlFloat_Settings : public FRigUn
 
 /**
  * Adds a new control to the hierarchy
- * Note: This node only runs as part of the construction event.
  */
-USTRUCT(meta=(DisplayName="Spawn Float Control", TemplateName="SpawnControl", Keywords="Construction,Create,New,AddControl,NewControl,CreateControl", Varying))
-struct CONTROLRIG_API FRigUnit_HierarchyAddControlFloat : public FRigUnit_HierarchyAddElement
+USTRUCT(meta=(TemplateName="SpawnControl", Keywords="Construction,Create,New,AddControl,NewControl,CreateControl", Varying))
+struct CONTROLRIG_API FRigUnit_HierarchyAddControlElement : public FRigUnit_HierarchyAddElement
 {
 	GENERATED_BODY()
 
-	FRigUnit_HierarchyAddControlFloat()
+	FRigUnit_HierarchyAddControlElement()
 	{
 		Name = TEXT("NewControl");
-		OffsetTransform = FTransform::Identity;
-		InitialValue = 0.f;
 	}
+
+	virtual ERigElementType GetElementTypeToSpawn() const override { return ERigElementType::Control; }
+	virtual ERigControlType GetControlTypeToSpawn() const { return ERigControlType::Bool; }
 
 	/*
 	 * The offset transform of the new control
 	 */
 	UPROPERTY(meta = (Input))
 	FTransform OffsetTransform;
+};
+
+/**
+ * Adds a new control to the hierarchy
+ * Note: This node only runs as part of the construction event.
+ */
+USTRUCT(meta=(DisplayName="Spawn Float Control", TemplateName="SpawnControl", Keywords="Construction,Create,New,AddControl,NewControl,CreateControl", Varying))
+struct CONTROLRIG_API FRigUnit_HierarchyAddControlFloat : public FRigUnit_HierarchyAddControlElement
+{
+	GENERATED_BODY()
+
+	FRigUnit_HierarchyAddControlFloat()
+	{
+		InitialValue = 0.f;
+	}
+
+	virtual ERigControlType GetControlTypeToSpawn() const override { return ERigControlType::Float; }
 
 	/*
 	 * The initial value of the new control
@@ -602,7 +625,7 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlInteger_Settings : public FRig
 	{}
 	virtual ~FRigUnit_HierarchyAddControlInteger_Settings() override {}
 
-	void Configure(FRigControlSettings& OutSettings) const;
+	virtual void Configure(FRigControlSettings& OutSettings) const override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	ERigControlAxis PrimaryAxis;
@@ -622,22 +645,16 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlInteger_Settings : public FRig
  * Note: This node only runs as part of the construction event.
  */
 USTRUCT(meta=(DisplayName="Spawn Integer Control", TemplateName="SpawnControl", Keywords="Construction,Create,New,AddControl,NewControl,CreateControl", Varying))
-struct CONTROLRIG_API FRigUnit_HierarchyAddControlInteger : public FRigUnit_HierarchyAddElement
+struct CONTROLRIG_API FRigUnit_HierarchyAddControlInteger : public FRigUnit_HierarchyAddControlElement
 {
 	GENERATED_BODY()
 
 	FRigUnit_HierarchyAddControlInteger()
 	{
-		Name = TEXT("NewControl");
-		OffsetTransform = FTransform::Identity;
 		InitialValue = 0;
 	}
 
-	/*
-	 * The offset transform of the new control
-	 */
-	UPROPERTY(meta = (Input))
-	FTransform OffsetTransform;
+	virtual ERigControlType GetControlTypeToSpawn() const override { return ERigControlType::Integer; }
 
 	/*
 	 * The initial value of the new control
@@ -694,10 +711,12 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlVector2D_Settings : public FRi
 	FRigUnit_HierarchyAddControlVector2D_Settings()
 		: FRigUnit_HierarchyAddControl_Settings()
 		, PrimaryAxis(ERigControlAxis::X)
-	{}
+	{
+		FilteredChannels.Reset();
+	}
 	virtual ~FRigUnit_HierarchyAddControlVector2D_Settings() override {}
 
-	void Configure(FRigControlSettings& OutSettings) const;
+	virtual void Configure(FRigControlSettings& OutSettings) const override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	ERigControlAxis PrimaryAxis;
@@ -710,6 +729,9 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlVector2D_Settings : public FRi
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	FRigUnit_HierarchyAddControl_ProxySettings Proxy;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	TArray<ERigControlTransformChannel> FilteredChannels;
 };
 
 /**
@@ -717,22 +739,16 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlVector2D_Settings : public FRi
  * Note: This node only runs as part of the construction event.
  */
 USTRUCT(meta=(DisplayName="Spawn Vector2D Control", TemplateName="SpawnControl", Keywords="Construction,Create,New,AddControl,NewControl,CreateControl", Varying))
-struct CONTROLRIG_API FRigUnit_HierarchyAddControlVector2D : public FRigUnit_HierarchyAddElement
+struct CONTROLRIG_API FRigUnit_HierarchyAddControlVector2D : public FRigUnit_HierarchyAddControlElement
 {
 	GENERATED_BODY()
 
 	FRigUnit_HierarchyAddControlVector2D()
 	{
-		Name = TEXT("NewControl");
-		OffsetTransform = FTransform::Identity;
 		InitialValue = FVector2D::ZeroVector;
 	}
 
-	/*
-	 * The offset transform of the new control
-	 */
-	UPROPERTY(meta = (Input))
-	FTransform OffsetTransform;
+	virtual ERigControlType GetControlTypeToSpawn() const override { return ERigControlType::Vector2D; }
 
 	/*
 	 * The initial value of the new control
@@ -793,10 +809,12 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlVector_Settings : public FRigU
 	FRigUnit_HierarchyAddControlVector_Settings()
 		: FRigUnit_HierarchyAddControl_Settings()
 		, bIsPosition(true)
-	{}
+	{
+		FilteredChannels.Reset();
+	}
 	virtual ~FRigUnit_HierarchyAddControlVector_Settings() override {}
 
-	void Configure(FRigControlSettings& OutSettings) const;
+	virtual void Configure(FRigControlSettings& OutSettings) const override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	bool bIsPosition;
@@ -809,6 +827,9 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlVector_Settings : public FRigU
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	FRigUnit_HierarchyAddControl_ProxySettings Proxy;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	TArray<ERigControlTransformChannel> FilteredChannels;
 };
 
 /**
@@ -816,22 +837,19 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlVector_Settings : public FRigU
  * Note: This node only runs as part of the construction event.
  */
 USTRUCT(meta=(DisplayName="Spawn Vector Control", TemplateName="SpawnControl", Keywords="Construction,Create,New,AddControl,NewControl,CreateControl", Varying))
-struct CONTROLRIG_API FRigUnit_HierarchyAddControlVector : public FRigUnit_HierarchyAddElement
+struct CONTROLRIG_API FRigUnit_HierarchyAddControlVector : public FRigUnit_HierarchyAddControlElement
 {
 	GENERATED_BODY()
 
 	FRigUnit_HierarchyAddControlVector()
 	{
-		Name = TEXT("NewControl");
-		OffsetTransform = FTransform::Identity;
 		InitialValue = FVector::ZeroVector;
 	}
 
-	/*
-	 * The offset transform of the new control
-	 */
-	UPROPERTY(meta = (Input))
-	FTransform OffsetTransform;
+	virtual ERigControlType GetControlTypeToSpawn() const override
+	{
+		return Settings.bIsPosition ? ERigControlType::Position : ERigControlType::Scale;
+	}
 
 	/*
 	 * The initial value of the new control
@@ -891,10 +909,12 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlRotator_Settings : public FRig
 	
 	FRigUnit_HierarchyAddControlRotator_Settings()
 		: FRigUnit_HierarchyAddControl_Settings()
-	{}
+	{
+		FilteredChannels.Reset();
+	}
 	virtual ~FRigUnit_HierarchyAddControlRotator_Settings() override {}
 
-	void Configure(FRigControlSettings& OutSettings) const;
+	virtual void Configure(FRigControlSettings& OutSettings) const override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	FRigUnit_HierarchyAddControlRotator_LimitSettings Limits;;
@@ -904,6 +924,9 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlRotator_Settings : public FRig
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	FRigUnit_HierarchyAddControl_ProxySettings Proxy;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	TArray<ERigControlTransformChannel> FilteredChannels;
 };
 
 /**
@@ -911,22 +934,16 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlRotator_Settings : public FRig
  * Note: This node only runs as part of the construction event.
  */
 USTRUCT(meta=(DisplayName="Spawn Rotator Control", TemplateName="SpawnControl", Keywords="Construction,Create,New,AddControl,NewControl,CreateControl,Rotation", Varying))
-struct CONTROLRIG_API FRigUnit_HierarchyAddControlRotator : public FRigUnit_HierarchyAddElement
+struct CONTROLRIG_API FRigUnit_HierarchyAddControlRotator : public FRigUnit_HierarchyAddControlElement
 {
 	GENERATED_BODY()
 
 	FRigUnit_HierarchyAddControlRotator()
 	{
-		Name = TEXT("NewControl");
-		OffsetTransform = FTransform::Identity;
 		InitialValue = FRotator::ZeroRotator;
 	}
 
-	/*
-	 * The offset transform of the new control
-	 */
-	UPROPERTY(meta = (Input))
-	FTransform OffsetTransform;
+	virtual ERigControlType GetControlTypeToSpawn() const override { return ERigControlType::Rotator; }
 
 	/*
 	 * The initial value of the new control
@@ -951,16 +968,21 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlTransform_Settings : public FR
 	
 	FRigUnit_HierarchyAddControlTransform_Settings()
 		: FRigUnit_HierarchyAddControl_Settings()
-	{}
+	{
+		FilteredChannels.Reset();
+	}
 	virtual ~FRigUnit_HierarchyAddControlTransform_Settings() override {}
 
-	void Configure(FRigControlSettings& OutSettings) const;
+	virtual void Configure(FRigControlSettings& OutSettings) const override;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	FRigUnit_HierarchyAddControl_ShapeSettings Shape;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	FRigUnit_HierarchyAddControl_ProxySettings Proxy;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	TArray<ERigControlTransformChannel> FilteredChannels;
 };
 
 /**
@@ -968,22 +990,16 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddControlTransform_Settings : public FR
  * Note: This node only runs as part of the construction event.
  */
 USTRUCT(meta=(DisplayName="Spawn Transform Control", TemplateName="SpawnControl", Keywords="Construction,Create,New,AddControl,NewControl,CreateControl", Varying))
-struct CONTROLRIG_API FRigUnit_HierarchyAddControlTransform : public FRigUnit_HierarchyAddElement
+struct CONTROLRIG_API FRigUnit_HierarchyAddControlTransform : public FRigUnit_HierarchyAddControlElement
 {
 	GENERATED_BODY()
 
 	FRigUnit_HierarchyAddControlTransform()
 	{
-		Name = TEXT("NewControl");
-		OffsetTransform = FTransform::Identity;
 		InitialValue = FTransform::Identity;
 	}
 
-	/*
-	 * The offset transform of the new control
-	 */
-	UPROPERTY(meta = (Input))
-	FTransform OffsetTransform;
+	virtual ERigControlType GetControlTypeToSpawn() const override { return ERigControlType::EulerTransform; }
 
 	/*
 	 * The initial value of the new control

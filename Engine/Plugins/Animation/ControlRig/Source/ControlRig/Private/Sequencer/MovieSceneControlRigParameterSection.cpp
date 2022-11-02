@@ -1617,6 +1617,23 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 			}
 		};
 		// end constraints
+
+#if WITH_EDITOR
+		// masking for per control channels based on control filters
+		auto MaybeApplyChannelMask = [](FMovieSceneChannelMetaData& OutMetadata, const FRigControlElement* ControlElement, ERigControlTransformChannel InChannel)
+		{
+			if(!OutMetadata.bEnabled)
+			{
+				return;
+			}
+			
+			const TArray<ERigControlTransformChannel>& FilteredChannels = ControlElement->Settings.FilteredChannels;
+			if(!FilteredChannels.IsEmpty())
+			{
+				OutMetadata.bEnabled = FilteredChannels.Contains(InChannel);
+			}
+		};
+#endif
 		
 		for (FRigControlElement* ControlElement : SortedControls)
 		{
@@ -1805,6 +1822,8 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 								ControlChannelMap.Add(Vector2D.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex, ParentControlIndex, NAME_None, MaskIndex, CategoryIndex));
 							}
 							FParameterVectorChannelEditorData EditorData(ControlRig, Vector2D.ParameterName, bEnabled, Group, TotalIndex, 2);
+							MaybeApplyChannelMask(EditorData.MetaData[0], ControlElement, ERigControlTransformChannel::TranslationX);
+							MaybeApplyChannelMask(EditorData.MetaData[1], ControlElement, ERigControlTransformChannel::TranslationY);
 							Channels.Add(Vector2D.XCurve, EditorData.MetaData[0], EditorData.ExternalValues[0]);
 							Channels.Add(Vector2D.YCurve, EditorData.MetaData[1], EditorData.ExternalValues[1]);
 							FloatChannelIndex += 2;
@@ -1862,6 +1881,26 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 						
 
 							FParameterVectorChannelEditorData EditorData(ControlRig, Vector.ParameterName, bEnabled, Group, TotalIndex, 3);
+
+							if(ControlElement->Settings.ControlType == ERigControlType::Position)
+							{
+								MaybeApplyChannelMask(EditorData.MetaData[0], ControlElement, ERigControlTransformChannel::TranslationX);
+								MaybeApplyChannelMask(EditorData.MetaData[1], ControlElement, ERigControlTransformChannel::TranslationY);
+								MaybeApplyChannelMask(EditorData.MetaData[2], ControlElement, ERigControlTransformChannel::TranslationZ);
+							}
+							else if(ControlElement->Settings.ControlType == ERigControlType::Rotator)
+							{
+								MaybeApplyChannelMask(EditorData.MetaData[0], ControlElement, ERigControlTransformChannel::Pitch);
+								MaybeApplyChannelMask(EditorData.MetaData[1], ControlElement, ERigControlTransformChannel::Yaw);
+								MaybeApplyChannelMask(EditorData.MetaData[2], ControlElement, ERigControlTransformChannel::Roll);
+							}
+							else if(ControlElement->Settings.ControlType == ERigControlType::Scale)
+							{
+								MaybeApplyChannelMask(EditorData.MetaData[0], ControlElement, ERigControlTransformChannel::ScaleX);
+								MaybeApplyChannelMask(EditorData.MetaData[1], ControlElement, ERigControlTransformChannel::ScaleY);
+								MaybeApplyChannelMask(EditorData.MetaData[2], ControlElement, ERigControlTransformChannel::ScaleZ);
+							}
+							
 							Channels.Add(Vector.XCurve, EditorData.MetaData[0], EditorData.ExternalValues[0]);
 							Channels.Add(Vector.YCurve, EditorData.MetaData[1], EditorData.ExternalValues[1]);
 							Channels.Add(Vector.ZCurve, EditorData.MetaData[2], EditorData.ExternalValues[2]);
@@ -1929,9 +1968,18 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 							FParameterTransformChannelEditorData EditorData(ControlRig, Transform.ParameterName, bEnabled, TransformMask.GetChannels(), Group, 
 								TotalIndex);
 
+							MaybeApplyChannelMask(EditorData.MetaData[0], ControlElement, ERigControlTransformChannel::TranslationX);
+							MaybeApplyChannelMask(EditorData.MetaData[1], ControlElement, ERigControlTransformChannel::TranslationY);
+							MaybeApplyChannelMask(EditorData.MetaData[2], ControlElement, ERigControlTransformChannel::TranslationZ);
+							
 							Channels.Add(Transform.Translation[0], EditorData.MetaData[0], EditorData.ExternalValues[0]);
 							Channels.Add(Transform.Translation[1], EditorData.MetaData[1], EditorData.ExternalValues[1]);
 							Channels.Add(Transform.Translation[2], EditorData.MetaData[2], EditorData.ExternalValues[2]);
+
+							// note the order here is different from the rotator
+							MaybeApplyChannelMask(EditorData.MetaData[3], ControlElement, ERigControlTransformChannel::Roll);
+							MaybeApplyChannelMask(EditorData.MetaData[4], ControlElement, ERigControlTransformChannel::Pitch);
+							MaybeApplyChannelMask(EditorData.MetaData[5], ControlElement, ERigControlTransformChannel::Yaw);
 
 							Channels.Add(Transform.Rotation[0], EditorData.MetaData[3], EditorData.ExternalValues[3]);
 							Channels.Add(Transform.Rotation[1], EditorData.MetaData[4], EditorData.ExternalValues[4]);
@@ -1940,6 +1988,9 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 							if (ControlElement->Settings.ControlType == ERigControlType::Transform ||
 								ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 							{
+								MaybeApplyChannelMask(EditorData.MetaData[6], ControlElement, ERigControlTransformChannel::ScaleX);
+								MaybeApplyChannelMask(EditorData.MetaData[7], ControlElement, ERigControlTransformChannel::ScaleY);
+								MaybeApplyChannelMask(EditorData.MetaData[8], ControlElement, ERigControlTransformChannel::ScaleZ);
 								
 								Channels.Add(Transform.Scale[0], EditorData.MetaData[6], EditorData.ExternalValues[6]);
 								Channels.Add(Transform.Scale[1], EditorData.MetaData[7], EditorData.ExternalValues[7]);
