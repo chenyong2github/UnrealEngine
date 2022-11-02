@@ -5283,7 +5283,7 @@ UMaterialExpression* FMaterialEditor::CreateNewMaterialExpression(UClass* NewExp
 
 	if (!IsAllowedExpressionType(NewExpressionClass, MaterialFunction != NULL))
 	{
-		// Disallowed types should not be visible to the ui to be placed, so we don't need a warning here
+		UE_LOG(LogMaterialEditor, Warning, TEXT("Trying to create a disallowed material expression of type %s."), *NewExpressionClass->GetName());
 		return NULL;
 	}
 
