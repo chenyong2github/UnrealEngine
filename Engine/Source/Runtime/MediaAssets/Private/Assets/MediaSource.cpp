@@ -2,7 +2,6 @@
 
 #include "MediaSource.h"
 
-#include "FileMediaSource.h"
 #include "MediaAssetsPrivate.h"
 #include "Misc/Paths.h"
 #include "StreamMediaSource.h"
@@ -54,13 +53,6 @@ UMediaSource* UMediaSource::SpawnMediaSourceForString(const FString& MediaPath, 
 		if ((Delegate != nullptr) && (Delegate->IsBound()))
 		{
 			MediaSource = Delegate->Execute(MediaPath, Outer);
-		}
-		else
-		{
-			// Try a file media source.
-			TObjectPtr<UFileMediaSource> FileMediaSource = NewObject<UFileMediaSource>(Outer, NAME_None, RF_Transactional);
-			FileMediaSource->SetFilePath(MediaPath);
-			MediaSource = FileMediaSource;
 		}
 	}
 

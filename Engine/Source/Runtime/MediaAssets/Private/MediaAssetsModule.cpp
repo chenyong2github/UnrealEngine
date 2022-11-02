@@ -3,6 +3,7 @@
 #include "MediaAssetsPrivate.h"
 
 #include "CoreMinimal.h"
+#include "FileMediaSource.h"
 #include "IMediaAssetsModule.h"
 #include "Misc/CoreMisc.h"
 #include "Modules/ModuleManager.h"
@@ -92,8 +93,25 @@ public:
 	
 	//~ IModuleInterface interface
 
-	virtual void StartupModule() override { }
-	virtual void ShutdownModule() override { }
+	virtual void StartupModule() override
+	{
+		// Register media source spawners.
+		FMediaSourceSpawnDelegate SpawnDelegate =
+			FMediaSourceSpawnDelegate::CreateStatic(&FMediaAssetsModule::SpawnMediaSourceForString);
+		for (const FString& Ext : FileExtensions)
+		{
+			UMediaSource::RegisterSpawnFromFileExtension(Ext, SpawnDelegate);
+		}
+	}
+
+	virtual void ShutdownModule() override
+	{
+		// Unregister media source spawners.
+		for (const FString& Ext : FileExtensions)
+		{
+			UMediaSource::UnregisterSpawnFromFileExtension(Ext);
+		}
+	}
 
 	virtual bool SupportsDynamicReloading() override
 	{
@@ -101,9 +119,31 @@ public:
 	}
 
 private:
+	/**
+	 * Creates a media source for MediaPath.
+	 *
+	 * @param	MediaPath		File path to the media.
+	 * @param	Outer			Outer to use for this object.
+	 */
+	static UMediaSource* SpawnMediaSourceForString(const FString& MediaPath, UObject* Outer)
+	{
+		TObjectPtr<UFileMediaSource> MediaSource =
+			NewObject<UFileMediaSource>(Outer, NAME_None, RF_Transactional);
+		MediaSource->SetFilePath(MediaPath);
+
+		return MediaSource;
+	}
+
 	/** All the functions that can get a player from an object. */
 	TArray<FOnGetPlayerFromObject> GetPlayerFromObjectDelegates;
 
+	/** List of file extensions that we support. */
+	const TArray<FString> FileExtensions =
+	{
+		TEXT("mov"),
+		TEXT("mp4"),
+		TEXT("wmv"),
+	};
 };
 
 
