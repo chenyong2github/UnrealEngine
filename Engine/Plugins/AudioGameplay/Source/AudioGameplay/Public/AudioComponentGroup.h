@@ -136,11 +136,12 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FSoundGroupChanged OnUnvirtualized;
 
+	void IterateComponents(const TFunction<void(UAudioComponent*)> OnIterate);
+
 protected:
 
 	void ApplyParams(UAudioComponent* Component) const;
 	void ApplyModifiers(UAudioComponent* Component, const FAudioComponentModifier& Modifier) const;
-	void IterateComponents(const TFunction<void(UAudioComponent*)> OnIterate);
 
 	void UpdateComponentParameters();
 
