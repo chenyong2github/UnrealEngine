@@ -15,7 +15,7 @@
 		{ \
 			LastLogged[1] = LastLogged[0]; \
 			LastLogged[0] = Platform; \
-			bSSALogEnable = true; \
+			bSSALogEnable = FApp::CanEverRender() && !IsRunningCommandlet(); \
 		} \
 	}
 
