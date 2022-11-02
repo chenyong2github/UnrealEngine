@@ -55,15 +55,13 @@ void UWorldPartitionRuntimeSpatialHashCell::ResetStreamingSourceInfo() const
 	CachedIsBlockingSource = false;
 	CachedMinSquareDistanceToBlockingSource = MAX_dbl;
 	CachedMinSquareDistanceToSource = MAX_dbl;
-	CachedSourceModulatedDistances.Reset();
+	CachedSourceSquaredDistances.Reset();
+	CachedInstersectingShapes.Reset();
 }
 
-void UWorldPartitionRuntimeSpatialHashCell::AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const
+float UWorldPartitionRuntimeSpatialHashCell::ComputeSourceToCellAngleFactor(const FSphericalSector& SourceShape) const
 {
-	Super::AppendStreamingSourceInfo(Source, SourceShape);
-
 	float AngleContribution = FMath::Clamp(GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance, 0.f, 1.f);
-	const double SquareDistance = FVector::DistSquared2D(SourceShape.GetCenter(), Position);
 	float AngleFactor = 1.f;
 	if (!FMath::IsNearlyZero(AngleContribution))
 	{
@@ -94,9 +92,17 @@ void UWorldPartitionRuntimeSpatialHashCell::AppendStreamingSourceInfo(const FWor
 			}
 			Angle = FMath::Abs(FMath::Acos(MaxDot) / UE_PI);
 		}
-		const float NormalizedAngle = FMath::Clamp(Angle, UE_PI/180.f, 1.f);
+		const float NormalizedAngle = FMath::Clamp(Angle, UE_PI / 180.f, 1.f);
 		AngleFactor = FMath::Pow(NormalizedAngle, AngleContribution);
 	}
+	return AngleFactor;
+}
+
+void UWorldPartitionRuntimeSpatialHashCell::AppendStreamingSourceInfo(const FWorldPartitionStreamingSource& Source, const FSphericalSector& SourceShape) const
+{
+	Super::AppendStreamingSourceInfo(Source, SourceShape);
+
+	const double SquareDistance = FVector::DistSquared2D(SourceShape.GetCenter(), Position);
 
 	// Only consider blocking sources
 	if (Source.bBlockOnSlowLoading)
@@ -104,13 +110,8 @@ void UWorldPartitionRuntimeSpatialHashCell::AppendStreamingSourceInfo(const FWor
 		CachedIsBlockingSource = true;
 		CachedMinSquareDistanceToBlockingSource = FMath::Min(SquareDistance, CachedMinSquareDistanceToBlockingSource);
 	}
-
-	CachedMinSquareDistanceToSource = FMath::Min(SquareDistance, CachedMinSquareDistanceToSource);
-
-	// Modulate distance to cell by angle relative to source forward vector (to prioritize cells in front)
-	const double SquareAngleFactor = AngleFactor * AngleFactor;
-	const double ModulatedSquareDistance = SquareDistance * SquareAngleFactor;
-	CachedSourceModulatedDistances.Add(ModulatedSquareDistance);
+	CachedSourceSquaredDistances.Add(SquareDistance);
+	CachedInstersectingShapes.Add(SourceShape);
 }
 
 FBox UWorldPartitionRuntimeSpatialHashCell::GetCellBounds() const
@@ -126,8 +127,11 @@ void UWorldPartitionRuntimeSpatialHashCell::MergeStreamingSourceInfo() const
 {
 	Super::MergeStreamingSourceInfo();
 
-	int32 Count = CachedSourceModulatedDistances.Num();
+	int32 Count = CachedSourceSquaredDistances.Num();
 	check(Count == CachedSourcePriorityWeights.Num());
+	check(Count == CachedInstersectingShapes.Num());
+
+	CachedMinSquareDistanceToSource = Count ? FMath::Min(CachedSourceSquaredDistances) : MAX_dbl;
 
 	if (Count)
 	{
@@ -136,24 +140,28 @@ void UWorldPartitionRuntimeSpatialHashCell::MergeStreamingSourceInfo() const
 		{
 			TotalSourcePriorityWeight += CachedSourcePriorityWeights[i];
 		}
-		int32 HighestPrioMinDistIndex = 0;
-		double WeightedModulatedDistance = 0.f;
+
+		double HighestPrioWeight = 0;
+		double HighestPrioMinModulatedDistance = 0;
+		double WeightedModulatedDistance = 0;
 		for (int32 i = 0; i < Count; ++i)
 		{
-			WeightedModulatedDistance += CachedSourceModulatedDistances[i] * CachedSourcePriorityWeights[i] / TotalSourcePriorityWeight;
-			
+			const float AngleFactor = ComputeSourceToCellAngleFactor(CachedInstersectingShapes[i]);
+			const double CurrentModulatedDistance = CachedSourceSquaredDistances[i] * AngleFactor * AngleFactor;
+			const double CurrentWeight = CachedSourcePriorityWeights[i];
+			WeightedModulatedDistance += CurrentModulatedDistance * CurrentWeight / TotalSourcePriorityWeight;
 			// Find highest priority source with the minimum modulated distance
-			if ((i != 0) &&
-				(CachedSourceModulatedDistances[i] < CachedSourceModulatedDistances[HighestPrioMinDistIndex]) &&
-				(CachedSourcePriorityWeights[i] >= CachedSourcePriorityWeights[HighestPrioMinDistIndex]))
+			if ((i == 0) || ((CurrentModulatedDistance < HighestPrioMinModulatedDistance) && (CurrentWeight >= HighestPrioWeight)))
 			{
-				HighestPrioMinDistIndex = i;
+				HighestPrioMinModulatedDistance = CurrentModulatedDistance;
+				HighestPrioWeight = CurrentWeight;
 			}
 		}
+
 		// Sorting distance is the minimum between these:
 		// - the highest priority source with the minimum modulated distance 
 		// - the weighted modulated distance
-		CachedSourceSortingDistance = FMath::Min(CachedSourceModulatedDistances[HighestPrioMinDistIndex], WeightedModulatedDistance);
+		CachedSourceSortingDistance = FMath::Min(HighestPrioMinModulatedDistance, WeightedModulatedDistance);
 	}
 }
 

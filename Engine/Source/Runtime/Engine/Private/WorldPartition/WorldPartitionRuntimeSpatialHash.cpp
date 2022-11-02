@@ -1783,9 +1783,9 @@ EWorldPartitionStreamingPerformance UWorldPartitionRuntimeSpatialHash::GetStream
 	{
 		const float LoadingRange = StreamingGrid->LoadingRange;
 
-		if (StreamingCell->CachedIsBlockingSource)
+		if (StreamingCell->IsBlockingSource())
 		{
-			const double Distance = FMath::Sqrt(StreamingCell->CachedMinSquareDistanceToBlockingSource) - ((double)StreamingGrid->GetCellSize(StreamingCell->Level) / 2);
+			const double Distance = FMath::Sqrt(StreamingCell->GetMinSquareDistanceToBlockingSource()) - ((double)StreamingGrid->GetCellSize(StreamingCell->Level) / 2);
 
 			const double Ratio = Distance / LoadingRange;
 
