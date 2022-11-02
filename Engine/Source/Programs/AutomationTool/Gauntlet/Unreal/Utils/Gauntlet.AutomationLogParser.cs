@@ -94,8 +94,8 @@ namespace Gauntlet
 
 			Func<string, string> SantizeLine = (L) =>
 			{
-				L = L.Replace(": Error: ", "");
-				L = L.Replace(": Warning: ", "");
+				L = L.Replace(": Error: ", ": ");
+				L = L.Replace(": Warning: ", ": ");
 				L = L.Replace("LogAutomationController: ", "");
 
 				return L;
