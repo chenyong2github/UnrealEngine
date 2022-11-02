@@ -743,8 +743,13 @@ namespace mu
 			const EBoneUsageFlags BoneUsageFlags = Mesh->BonePoses[BoneIndex].BoneUsageFlags;
 
 			// Only deform skinned bones.
-			if (EnumHasAnyFlags(BoneUsageFlags, EBoneUsageFlags::SkinningParent | EBoneUsageFlags::Root) &&
-				!EnumHasAnyFlags(BoneUsageFlags, EBoneUsageFlags::Skinning))
+			//if (EnumHasAnyFlags(BoneUsageFlags, EBoneUsageFlags::SkinningParent | EBoneUsageFlags::Root) &&
+			//	!EnumHasAnyFlags(BoneUsageFlags, EBoneUsageFlags::Skinning))
+			//{
+			//	continue;
+			//}
+
+			if (EnumHasAnyFlags(BoneUsageFlags, EBoneUsageFlags::Root))
 			{
 				continue;
 			}
