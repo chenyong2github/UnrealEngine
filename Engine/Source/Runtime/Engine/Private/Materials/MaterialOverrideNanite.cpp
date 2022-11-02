@@ -5,7 +5,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Materials/MaterialInterface.h"
 #include "RenderUtils.h"
-#include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/UObjectThreadContext.h"
 
 
 bool FMaterialOverrideNanite::CanUseOverride(EShaderPlatform ShaderPlatform) const
@@ -15,23 +15,18 @@ bool FMaterialOverrideNanite::CanUseOverride(EShaderPlatform ShaderPlatform) con
 
 #if WITH_EDITOR
 
-void FMaterialOverrideNanite::RefreshOverrideMaterial(bool& bOutUpdated)
+void FMaterialOverrideNanite::RefreshOverrideMaterial()
 {
-	bOutUpdated = false;
-
 	// We don't resolve the soft pointer if we're cooking. 
 	// Instead we defer any resolve to LoadOverrideForPlatform() which should be called in BeginCacheForCookedPlatformData().
 	if (FApp::CanEverRender())
 	{
-		// We evaluate with the bEnableOverride flag here.
-		// That way we return the correct bOutUpdated status when the flag is being toggled.
-		// And if the flag is not set we don't need to cook the material.
-		UMaterialInterface* ObjectPtr = bEnableOverride ? OverrideMaterialRef.LoadSynchronous() : nullptr;
-		if (ObjectPtr != OverrideMaterial.Get())
-		{
-			OverrideMaterial = ObjectPtr;
-			bOutUpdated = true;
-		}
+		check(IsInGameThread());
+		// We shouldn't get here during PostLoad.
+		// It's not safe to SyncLoad in that phase.
+		check(!FUObjectThreadContext::Get().IsRoutingPostLoad);
+
+		OverrideMaterial = bEnableOverride ? OverrideMaterialRef.LoadSynchronous() : nullptr;
 	}
 }
 
@@ -85,8 +80,8 @@ bool FMaterialOverrideNanite::Serialize(FArchive& Ar)
 void FMaterialOverrideNanite::PostLoad()
 {
 #if WITH_EDITOR
-	bool bUpdated;
-	RefreshOverrideMaterial(bUpdated);
+	// Don't call RefreshOverrideMaterial() directly because we can't SyncLoad during PostLoad phase.
+	bIsRefreshRequested = true;
 #endif
 }
 
@@ -94,8 +89,7 @@ void FMaterialOverrideNanite::PostLoad()
 
 void FMaterialOverrideNanite::PostEditChange()
 {
-	bool bUpdated;
-	RefreshOverrideMaterial(bUpdated);
+	RefreshOverrideMaterial();
 }
 
 void FMaterialOverrideNanite::LoadOverrideForPlatform(const ITargetPlatform* TargetPlatform)

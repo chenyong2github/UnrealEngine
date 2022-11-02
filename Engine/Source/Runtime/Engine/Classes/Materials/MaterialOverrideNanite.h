@@ -6,7 +6,6 @@
 #include "RHIDefinitions.h"
 #include "MaterialOverrideNanite.generated.h"
 
-struct FPropertyChangedEvent;
 class ITargetPlatform;
 class UMaterialInterface;
 
@@ -37,7 +36,17 @@ struct FMaterialOverrideNanite
 	 * This will return the cached override material pointer, if the override material is set and enabled, or nullptr otherwise.
 	 * In a cooked game this will always return nullptr if the platform can't support nanite.
 	 */
-	UMaterialInterface* GetOverrideMaterial() const { return OverrideMaterial; }
+	UMaterialInterface* GetOverrideMaterial()
+	{
+#if WITH_EDITOR
+		if (bIsRefreshRequested)
+		{
+			RefreshOverrideMaterial();
+			bIsRefreshRequested = false;
+		}
+#endif
+		return OverrideMaterial;
+	}
 
 	/** Serialize function as declared in the TStructOpsTypeTraits. */
 	bool Serialize(FArchive& Ar);
@@ -63,8 +72,11 @@ protected:
 	bool CanUseOverride(EShaderPlatform ShaderPlatform) const;
 
 #if WITH_EDITOR
-	/** Refresh the cached hard reference to the override material. Sets bOutUpdated to true if the value changed. */
-	void RefreshOverrideMaterial(bool& bOutUpdated);
+	/** Set true if we need to call RefreshOverrideMaterial() before next access. */
+	bool bIsRefreshRequested = false;
+
+	/** Refresh the cached hard reference to the override material. */
+	void RefreshOverrideMaterial();
 #endif
 };
 
