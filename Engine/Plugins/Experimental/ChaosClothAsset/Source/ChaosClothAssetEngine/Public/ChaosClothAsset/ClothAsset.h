@@ -4,7 +4,6 @@
 
 #include "ChaosClothAsset/ClothPreset.h"
 #include "Engine/SkinnedAsset.h"
-#include "Engine/SkinnedAssetCommon.h"
 #include "ReferenceSkeleton.h"
 #include "RenderCommandFence.h"
 #include "ClothAsset.generated.h"
@@ -49,8 +48,8 @@ public:
 	//~ Begin USkinnedAsset interface
 	virtual FReferenceSkeleton& GetRefSkeleton()								{ return RefSkeleton; }
 	virtual const FReferenceSkeleton& GetRefSkeleton() const					{ return RefSkeleton; }
-	virtual FSkeletalMeshLODInfo* GetLODInfo(int32 Index)						{ return LODInfo.IsValidIndex(Index) ? &LODInfo[Index] : nullptr; }
-	virtual const FSkeletalMeshLODInfo* GetLODInfo(int32 Index) const			{ return LODInfo.IsValidIndex(Index) ? &LODInfo[Index] : nullptr; }
+	virtual FSkeletalMeshLODInfo* GetLODInfo(int32 Index);
+	virtual const FSkeletalMeshLODInfo* GetLODInfo(int32 Index) const;
 	UFUNCTION(BlueprintGetter)
 	virtual class UPhysicsAsset* GetShadowPhysicsAsset() const override			{ return ShadowPhysicsAsset; }
 	virtual FMatrix GetComposedRefPoseMatrix(FName InBoneName) const override;
@@ -103,7 +102,7 @@ public:
 	const TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> GetClothCollection() const { return ClothCollection; }
 
 	/** Return the cloth simulation ready LOD model data. */
-	const FChaosClothSimulationModel* GetClothSimulationModel() const { return ClothSimulationModel.Get(); }
+	TSharedPtr<const FChaosClothSimulationModel> GetClothSimulationModel() const { return ClothSimulationModel; }
 
 	/** Build this asset static render and simulation data. This needs to be done every time the asset has changed. */
 	void Build();
@@ -114,6 +113,9 @@ public:
 	 * @param MaterialIndex The index of the Materials array.
 	 */
 	void CopySimMeshToRenderMesh(int32 MaterialIndex);
+
+	/** Set the physics asset for this cloth. */
+	void SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset) { PhysicsAsset = InPhysicsAsset; }
 
 private:
 	//~ Begin USkinnedAsset interface
@@ -166,6 +168,9 @@ private:
 	/** Load render data from DDC if the data is cached, otherwise generate render data and save into DDC */
 	void CacheDerivedData(FSkinnedAssetPostLoadContext* Context);
 #endif
+
+	/** Reregister all components using this asset to reset the simulation in case anything has changed. */
+	void ReregisterComponents();
 
 	/** List of cloth presets for this cloth asset. */
 	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = ClothPresets)
@@ -251,8 +256,8 @@ private:
 	TSharedPtr<FSkeletalMeshModel> MeshModel;
 #endif
 
-	/** Simulation mesh Lods as fed to the solver for constraints creation. */
-	TUniquePtr<FChaosClothSimulationModel> ClothSimulationModel;
+	/** Simulation mesh Lods as fed to the solver for constraints creation. Ownership gets transferred to the proxy when it is changed during a simulation. */
+	TSharedPtr<FChaosClothSimulationModel> ClothSimulationModel;
 
 	friend class UClothAssetBuilderEditor;
 };

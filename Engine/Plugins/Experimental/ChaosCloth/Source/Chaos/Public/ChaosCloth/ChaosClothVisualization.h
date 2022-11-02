@@ -33,6 +33,7 @@ namespace Chaos
 		void DrawPhysMeshWired(FPrimitiveDrawInterface* PDI = nullptr) const;
 		void DrawAnimMeshWired(FPrimitiveDrawInterface* PDI = nullptr) const;
 		void DrawAnimNormals(FPrimitiveDrawInterface* PDI = nullptr) const;
+		void DrawOpenEdges(FPrimitiveDrawInterface* PDI = nullptr) const;
 		void DrawPointNormals(FPrimitiveDrawInterface* PDI = nullptr) const;
 		void DrawPointVelocities(FPrimitiveDrawInterface* PDI = nullptr) const;
 		void DrawCollision(FPrimitiveDrawInterface* PDI = nullptr) const;
@@ -56,6 +57,7 @@ namespace Chaos
 		void DrawPhysMeshWired(FPrimitiveDrawInterface* /*PDI*/ = nullptr) const {}
 		void DrawAnimMeshWired(FPrimitiveDrawInterface* /*PDI*/ = nullptr) const {}
 		void DrawAnimNormals(FPrimitiveDrawInterface* /*PDI*/ = nullptr) const {}
+		void DrawOpenEdges(FPrimitiveDrawInterface* /*PDI*/ = nullptr) const {}
 		void DrawPointNormals(FPrimitiveDrawInterface* /*PDI*/ = nullptr) const {}
 		void DrawPointVelocities(FPrimitiveDrawInterface* /*PDI*/ = nullptr) const {}
 		void DrawCollision(FPrimitiveDrawInterface* /*PDI*/ = nullptr) const {}

@@ -305,30 +305,65 @@ namespace UE::Chaos::ClothAsset::Private
 					const uint32 TriangleBase = Triangle * 3;
 					const uint32 TriangleIndex0 = Island.SourceIndices[TriangleBase + 0];
 					const uint32 TriangleIndex1 = Island.SourceIndices[TriangleBase + 1];
-					return
-						(SourceEdge[0] == TriangleIndex0 || SourceEdge[1] == TriangleIndex0) ?
-						(SourceEdge[0] == TriangleIndex1 || SourceEdge[1] == TriangleIndex1) ?
-						MakeSortedUintVector2(Island.Indices[TriangleBase + 0], Island.Indices[TriangleBase + 1]) :  // Edge 01
-						MakeSortedUintVector2(Island.Indices[TriangleBase + 2], Island.Indices[TriangleBase + 0]) :  // Edge 20
-						MakeSortedUintVector2(Island.Indices[TriangleBase + 1], Island.Indices[TriangleBase + 2]);   // Edge 12
+					const uint32 TriangleIndex2 = Island.SourceIndices[TriangleBase + 2];
+
+					if (SourceEdge[0] == TriangleIndex0)
+					{
+						if (SourceEdge[1] == TriangleIndex1)
+						{
+							return FUintVector2(Island.Indices[TriangleBase + 0], Island.Indices[TriangleBase + 1]);  // Edge 0 1
+						}
+						else if (SourceEdge[1] == TriangleIndex2)
+						{
+							return FUintVector2(Island.Indices[TriangleBase + 0], Island.Indices[TriangleBase + 2]);  // Edge 0 2
+						}
+					}
+					else if (SourceEdge[0] == TriangleIndex1)
+					{
+						if (SourceEdge[1] == TriangleIndex0)
+						{
+							return FUintVector2(Island.Indices[TriangleBase + 1], Island.Indices[TriangleBase + 0]);  // Edge 1 0
+						}
+						else if (SourceEdge[1] == TriangleIndex2)
+						{
+							return FUintVector2(Island.Indices[TriangleBase + 1], Island.Indices[TriangleBase + 2]);  // Edge 1 2
+						}
+					}
+					else if (SourceEdge[0] == TriangleIndex2)
+					{
+						if (SourceEdge[1] == TriangleIndex0)
+						{
+							return FUintVector2(Island.Indices[TriangleBase + 2], Island.Indices[TriangleBase + 0]);  // Edge 2 0
+						}
+						else if (SourceEdge[1] == TriangleIndex1)
+						{
+							return FUintVector2(Island.Indices[TriangleBase + 2], Island.Indices[TriangleBase + 1]);  // Edge 2 1
+						}
+					}
+					check(false);  // Sanity check
+					return FUintVector2(0);
 				};
 
 			// Look for disconnected triangles
 			for (const TPair<FUintVector2, TArray<uint32>>& SourceEdgeToTriangles : SourceEdgeToTrianglesMap)
 			{
 				const TArray<uint32>& Triangles = SourceEdgeToTriangles.Value;
-				const uint32 NumTriangles = (uint32)Triangles.Num();
+				const int32 NumTriangles = Triangles.Num();
 				if (NumTriangles > 1)
 				{
 					const FUintVector2& SourceEdge = SourceEdgeToTriangles.Key;
 
-					for (uint32 TriangleIndex0 = 0; TriangleIndex0 < NumTriangles - 1; ++TriangleIndex0)
+					for (int32 Index0 = 0; Index0 < NumTriangles - 1; ++Index0)
 					{
+						const uint32 TriangleIndex0 = Triangles[Index0];
+
 						const FUintVector2 Edge0 = GetTriangleEdgeMatchingSourceEdge(TriangleIndex0, SourceEdge);
 						check(Edge0[0] <= (uint32)TNumericLimits<int32>::Max() && Edge0[1] <= (uint32)TNumericLimits<int32>::Max());
 
-						for (uint32 TriangleIndex1 = TriangleIndex0 + 1; TriangleIndex1 < NumTriangles; ++TriangleIndex1)
+						for (int32 Index1 = Index0 + 1; Index1 < NumTriangles; ++Index1)
 						{
+							const uint32 TriangleIndex1 = Triangles[Index1];
+
 							const FUintVector2 Edge1 = GetTriangleEdgeMatchingSourceEdge(TriangleIndex1, SourceEdge);
 							check(Edge1[0] <= (uint32)TNumericLimits<int32>::Max() && Edge1[1] <= (uint32)TNumericLimits<int32>::Max());
 
@@ -380,7 +415,9 @@ namespace UE::Chaos::ClothAsset
 	{
 		const int32 NumSimVertices = GetPatternsNumSimVertices();
 
-		// Initialize welding map
+		// Initialize welding map with same index
+		// The welding map redirects to an existing vertex index if these two are part of the same welding group.
+		// The redirected index must be the smallest index in the group.
 		TArray<int32> WeldingMap;
 		WeldingMap.SetNumUninitialized(NumSimVertices);
 		for (int32 SimVertexIndex = 0; SimVertexIndex < NumSimVertices; ++SimVertexIndex)
@@ -388,42 +425,58 @@ namespace UE::Chaos::ClothAsset
 			WeldingMap[SimVertexIndex] = SimVertexIndex;
 		}
 
+		// Define welding groups
+		// Welding groups contain all stitched pair of indices to be welded together that are required to build the welding map.
+		// Key is the smallest redirected index in the group, and will be the one index used in the welding map redirects.
 		TMap<int32, TSet<int32>> WeldingGroups;
 
 		auto UpdateWeldingMap =
 			[&WeldingMap, &WeldingGroups](int32 Index0, int32 Index1)
 		{
+			// Only process pairs that are not already redirected to the same index
 			if (WeldingMap[Index0] != WeldingMap[Index1])
 			{
+				// Make sure Index0 points to the the smallest redirected index, so that merges are done into the correct group
 				if (WeldingMap[Index0] > WeldingMap[Index1])
 				{
 					Swap(Index0, Index1);
 				}
 
-				TSet<int32>* WeldingGroup0 = WeldingGroups.Find(WeldingMap[Index0]);
+				// Find the group for Index0 if any
+				const int32 Key0 = WeldingMap[Index0];
+				TSet<int32>* WeldingGroup0 = WeldingGroups.Find(Key0);
 				if (!WeldingGroup0)
 				{
-					WeldingGroup0 = &WeldingGroups.Add(WeldingMap[Index0]);
+					// No existing group, create a new one
+					check(Key0 == Index0);  // No group means this index can't already have been redirected  // TODO: Make this a checkSlow
+					WeldingGroup0 = &WeldingGroups.Add(Key0);
 					WeldingGroup0->Add(Index0);
 				}
 
-				if (TSet<int32>* const WeldingGroup1 = WeldingGroups.Find(WeldingMap[Index1]))
+				// Find the group for Index1, if it exists merge the two groups
+				const int32 Key1 = WeldingMap[Index1];
+				if (TSet<int32>* const WeldingGroup1 = WeldingGroups.Find(Key1))
 				{
-					// Update group1 mapped indices
+					// Update group1 redirected indices with the new key
 					for (int32 Index : *WeldingGroup1)
 					{
-						WeldingMap[Index] = WeldingMap[Index0];
+						WeldingMap[Index] = Key0;
 					}
 
 					// Merge group0 & group1
 					WeldingGroup0->Append(*WeldingGroup1);
 
 					// Remove group1
-					WeldingGroups.Remove(WeldingMap[Index1]);
+					WeldingGroups.Remove(Key1);
+
+					// Sanity check
+					check(WeldingGroup0->Contains(Key0) && WeldingGroup0->Contains(Key1));  // TODO: Make this a checkSlow
 				}
 				else
 				{
-					WeldingMap[Index1] = WeldingMap[Index0];
+					// Otherwise add Index1 to Index0's group
+					check(Key1 == Index1);  // No group means this index can't already have been redirected  // TODO: Make this a checkSlow
+					WeldingMap[Index1] = Key0;
 					WeldingGroup0->Add(Index1);
 				}
 			}
@@ -432,7 +485,6 @@ namespace UE::Chaos::ClothAsset
 		// Apply all seams
 		const int32 NumSeams = GetNumSeams();
 		const TConstArrayView<TArray<FIntVector2>> SeamStitches = GetSeamStitches();
-		const TConstArrayView<FIntVector2> SeamPatternFirst = GetSeamPatterns();
 		for (int32 SeamIndex = 0; SeamIndex < NumSeams; ++SeamIndex)
 		{
 			for (const FIntVector2& Stitch : SeamStitches[SeamIndex])
@@ -591,10 +643,19 @@ namespace UE::Chaos::ClothAsset
 
 		const TArrayView<TArray<FIntVector2>> SeamStitches = GetSeamStitches();
 		const TArrayView<FIntVector2> SeamPatterns = GetSeamPatterns();
+		const TArrayView<int32> SimVerticesStart = GetSimVerticesStart();
+
 		for (int32 SeamIndex = 0; SeamIndex < Seams.Num(); ++SeamIndex)
 		{
-			SeamPatterns[SeamIndex] = Seams[SeamIndex].Patterns;
-			SeamStitches[SeamIndex] = Seams[SeamIndex].Stitches.Array();
+			const FIntVector2& Patterns = Seams[SeamIndex].Patterns;
+			SeamPatterns[SeamIndex] = Patterns;
+
+			const int32 NumStitches = Seams[SeamIndex].Stitches.Num();
+			SeamStitches[SeamIndex].Reset(NumStitches);
+			for (const FIntVector2& Stitch : Seams[SeamIndex].Stitches)
+			{
+				SeamStitches[SeamIndex].Emplace(Stitch[0] + SimVerticesStart[Patterns[0]], Stitch[1] + SimVerticesStart[Patterns[1]]);
+			}
 		}
 	}
 }  // End namespace UE::Chaos::ClothAsset

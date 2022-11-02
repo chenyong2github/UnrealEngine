@@ -20,6 +20,7 @@ namespace Chaos
 
 class UChaosClothComponent;
 class UChaosClothAsset;
+struct FChaosClothSimulationModel;
 struct FReferenceSkeleton;
 
 namespace UE::Chaos::ClothAsset
@@ -72,6 +73,9 @@ namespace UE::Chaos::ClothAsset
 
 		// Simulation context used to store the required component data for the duration of the simulation
 		FClothSimulationContext ClothSimulationContext;
+
+		// The cloth simulation model used to create this simulation, ownership might get transferred to this proxy if it changes during the simulation
+		TSharedPtr<const FChaosClothSimulationModel> ClothSimulationModel;
 
 		// Simulation objects
 		TUniquePtr<::Chaos::FClothingSimulationSolver> Solver;

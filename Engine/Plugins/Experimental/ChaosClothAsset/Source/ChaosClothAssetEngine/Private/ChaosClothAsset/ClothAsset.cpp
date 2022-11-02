@@ -40,6 +40,16 @@ UChaosClothAsset::UChaosClothAsset(FVTableHelper& Helper)
 
 UChaosClothAsset::~UChaosClothAsset() = default;
 
+FSkeletalMeshLODInfo* UChaosClothAsset::GetLODInfo(int32 Index)
+{
+	return LODInfo.IsValidIndex(Index) ? &LODInfo[Index] : nullptr;
+}
+
+const FSkeletalMeshLODInfo* UChaosClothAsset::GetLODInfo(int32 Index) const
+{
+	return LODInfo.IsValidIndex(Index) ? &LODInfo[Index] : nullptr;
+}
+
 FMatrix UChaosClothAsset::GetComposedRefPoseMatrix(FName InBoneName) const
 {
 	FMatrix LocalPose(FMatrix::Identity);
@@ -93,17 +103,7 @@ void UChaosClothAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 {
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UChaosClothAsset, PhysicsAsset))
 	{
-		// Recreate the simulation proxies with the updated physics asset
-		for (TObjectIterator<UChaosClothComponent> ObjectIterator; ObjectIterator; ++ObjectIterator)
-		{
-			if (UChaosClothComponent* const Component = *ObjectIterator)
-			{
-				if (Component->GetClothAsset() == this)
-				{
-					const FComponentReregisterContext Context(Component);  // Context goes out of scope, causing the Component to be re-registered
-				}
-			}
-		}
+		ReregisterComponents();
 	}
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -365,6 +365,9 @@ void UChaosClothAsset::Build()
 	{
 		InitResources();
 	}
+
+	// Re-register any components using this asset to restart the simulation with the updated asset
+	ReregisterComponents();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -396,7 +399,7 @@ void UChaosClothAsset::BuildMeshModel()
 
 void UChaosClothAsset::BuildClothSimulationModel()
 {
-	ClothSimulationModel = MakeUnique<FChaosClothSimulationModel>(GetClothCollection(), GetRefSkeleton());
+	ClothSimulationModel = MakeShared<FChaosClothSimulationModel>(GetClothCollection(), GetRefSkeleton());
 }
 
 const FMeshUVChannelInfo* UChaosClothAsset::GetUVChannelData(int32 MaterialIndex) const
@@ -533,4 +536,19 @@ void UChaosClothAsset::CopySimMeshToRenderMesh(int32 MaterialIndex)
 
 	check(ClothCollection.IsValid());
 	FClothGeometryTools::CopySimMeshToRenderMesh(ClothCollection, MaterialIndex);
+}
+
+void UChaosClothAsset::ReregisterComponents()
+{
+	// Recreate the simulation proxies with the updated physics asset
+	for (TObjectIterator<UChaosClothComponent> ObjectIterator; ObjectIterator; ++ObjectIterator)
+	{
+		if (UChaosClothComponent* const Component = *ObjectIterator)
+		{
+			if (Component->GetClothAsset() == this)
+			{
+				const FComponentReregisterContext Context(Component);  // Context goes out of scope, causing the Component to be re-registered
+			}
+		}
+	}
 }

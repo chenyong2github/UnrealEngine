@@ -4,6 +4,8 @@
 #include "ChaosClothAsset/ClothAsset.h"
 #include "ChaosClothAsset/ClothAdapter.h"
 #include "Animation/Skeleton.h"
+#include "Engine/SkinnedAssetCommon.h"
+#include "Engine/SkeletalMesh.h"
 #include "Materials/Material.h"
 #include "Misc/MessageDialog.h"
 #include "ClothingAsset.h"
@@ -48,9 +50,17 @@ void UClothingAssetToChaosClothAssetExporter::Export(const UClothingAssetBase* C
 	UMaterialInterface* const DefaultMaterial = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);
 	const int32 MaterialId = ClothAsset->GetMaterials().Emplace(DefaultMaterial, true, false, DefaultMaterial->GetFName());
 
-	// Set a default skeleton
-	USkeleton* const DefaultSkeleton = LoadObject<USkeleton>(nullptr, TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton"), nullptr, LOAD_None, nullptr);
-	ClothAsset->SetSkeleton(DefaultSkeleton);
+	// Assign the physics asset if any
+	ClothAsset->SetPhysicsAsset(ClothingAssetCommon->PhysicsAsset);
+
+	// Set the skeleton from the skeletal mesh, or create a default skeleton if it can't find one
+	USkeletalMesh* const SkeletalMesh = Cast<USkeletalMesh>(ClothingAssetCommon->GetOuter());
+
+	USkeleton* const Skeleton = SkeletalMesh ?
+		SkeletalMesh->GetSkeleton() :
+		LoadObject<USkeleton>(nullptr, TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton"), nullptr, LOAD_None, nullptr);
+
+	ClothAsset->SetSkeleton(Skeleton);
 
 	// Set the render mesh to duplicate the sim mesh
 	ClothAsset->CopySimMeshToRenderMesh(MaterialId);

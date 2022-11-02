@@ -92,7 +92,7 @@ void UChaosClothComponent::OnRegister()
 
 	if (GetClothAsset())
 	{
-		const FChaosClothSimulationModel* const ClothSimulationModel = GetClothAsset()->GetClothSimulationModel();
+		const TSharedPtr<const FChaosClothSimulationModel> ClothSimulationModel = GetClothAsset()->GetClothSimulationModel();
 		if (ensure(ClothSimulationModel) && ClothSimulationModel->GetNumLods())
 		{
 			FSkeletalMeshLODRenderData& LODData = GetClothAsset()->GetResourceForRendering()->LODRenderData[GetPredictedLODLevel()];

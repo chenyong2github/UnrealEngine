@@ -6,7 +6,7 @@
 
 int32 UClothAssetBuilder::GetNumVertices(const UChaosClothAsset& ClothAsset, int32 LodIndex)
 {
-	const FChaosClothSimulationModel* const ClothSimulationModel = ClothAsset.GetClothSimulationModel();
+	const TSharedPtr<const FChaosClothSimulationModel> ClothSimulationModel = ClothAsset.GetClothSimulationModel();
 	return ClothSimulationModel && ClothSimulationModel->IsValidLodIndex(LodIndex) ?
 		ClothSimulationModel->GetNumVertices(LodIndex) :
 		0;
@@ -14,7 +14,7 @@ int32 UClothAssetBuilder::GetNumVertices(const UChaosClothAsset& ClothAsset, int
 
 TConstArrayView<FVector3f> UClothAssetBuilder::GetSimPositions(const UChaosClothAsset& ClothAsset, int32 LodIndex)
 {
-	const FChaosClothSimulationModel* const ClothSimulationModel = ClothAsset.GetClothSimulationModel();
+	const TSharedPtr<const FChaosClothSimulationModel> ClothSimulationModel = ClothAsset.GetClothSimulationModel();
 	return ClothSimulationModel && ClothSimulationModel->IsValidLodIndex(LodIndex) ?
 		ClothSimulationModel->GetPositions(LodIndex) :
 		TConstArrayView<FVector3f>();
@@ -22,7 +22,7 @@ TConstArrayView<FVector3f> UClothAssetBuilder::GetSimPositions(const UChaosCloth
 
 TConstArrayView<uint32> UClothAssetBuilder::GetSimIndices(const UChaosClothAsset& ClothAsset, int32 LodIndex)
 {
-	const FChaosClothSimulationModel* const ClothSimulationModel = ClothAsset.GetClothSimulationModel();
+	const TSharedPtr<const FChaosClothSimulationModel> ClothSimulationModel = ClothAsset.GetClothSimulationModel();
 	return ClothSimulationModel && ClothSimulationModel->IsValidLodIndex(LodIndex) ?
 		ClothSimulationModel->GetIndices(LodIndex) :
 		TConstArrayView<uint32>();

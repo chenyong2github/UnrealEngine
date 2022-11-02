@@ -181,7 +181,10 @@ namespace Chaos
 			for (int32 Index = 0; Index < Elements.Num(); ++Index)
 			{
 				const TVec3<int32>& Element = Elements[Index];
-				const FVector Position = LocalSpaceLocation + FVector(Positions[Element[0]] + Positions[Element[1]] + Positions[Element[2]]) / (FReal)3.;
+				const FVector Position = LocalSpaceLocation + (
+					FVector(Positions[Element[0] - Offset]) +
+					FVector(Positions[Element[1] - Offset]) +
+					FVector(Positions[Element[2] - Offset])) / (FReal)3.;
 
 				const bool bIsKinematic0 = (InvMasses[Element.X - Offset] == (Softs::FSolverReal)0.);
 				const bool bIsKinematic1 = (InvMasses[Element.Y - Offset] == (Softs::FSolverReal)0.);
@@ -505,7 +508,7 @@ namespace Chaos
 
 			for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
 			{
-				const auto& Element = Elements[ElementIndex];
+				const TVec3<int32>& Element = Elements[ElementIndex];
 
 				const FVector Pos0 = LocalSpaceLocation + FVector(Positions[Element.X - Offset]); // TODO: Triangle Mesh shouldn't really be solver dependent (ie not use an offset)
 				const FVector Pos1 = LocalSpaceLocation + FVector(Positions[Element.Y - Offset]);
@@ -546,7 +549,7 @@ namespace Chaos
 
 			for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
 			{
-				const auto& Element = Elements[ElementIndex];
+				const TVec3<int32>& Element = Elements[ElementIndex];
 
 				const FVector Pos0 = LocalSpaceLocation + FVector(Positions[Element.X - Offset]); // TODO: Triangle Mesh shouldn't really be solver dependent (ie not use an offset)
 				const FVector Pos1 = LocalSpaceLocation + FVector(Positions[Element.Y - Offset]);
@@ -555,6 +558,72 @@ namespace Chaos
 				DrawLine(PDI, Pos0, Pos1, KinematicColor);
 				DrawLine(PDI, Pos1, Pos2, KinematicColor);
 				DrawLine(PDI, Pos2, Pos0, KinematicColor);
+			}
+		}
+	}
+
+	void FClothVisualization::DrawOpenEdges(FPrimitiveDrawInterface* PDI) const
+	{
+		auto MakeSortedUintVector2 = [](uint32 Index0, uint32 Index1) -> FUintVector2
+			{
+				return Index0 < Index1 ? FUintVector2(Index0, Index1) : FUintVector2(Index1, Index0);
+			};
+
+		auto BuildEdgeMap = [&MakeSortedUintVector2](const TConstArrayView<TVec3<int32>>& Elements, TMap<FUintVector2, TArray<uint32>>& OutEdgeToTrianglesMap)
+			{
+			OutEdgeToTrianglesMap.Empty(Elements.Num() * 2);  // Rough estimate for the number of edges
+
+				for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
+				{
+					const TVec3<int32>& Element = Elements[ElementIndex];
+					const uint32 Index0 = Element[0];
+					const uint32 Index1 = Element[1];
+					const uint32 Index2 = Element[2];
+
+					const FUintVector2 Edge0 = MakeSortedUintVector2(Index0, Index1);
+					const FUintVector2 Edge1 = MakeSortedUintVector2(Index1, Index2);
+					const FUintVector2 Edge2 = MakeSortedUintVector2(Index2, Index0);
+
+					OutEdgeToTrianglesMap.FindOrAdd(Edge0).Add(ElementIndex);
+					OutEdgeToTrianglesMap.FindOrAdd(Edge1).Add(ElementIndex);
+					OutEdgeToTrianglesMap.FindOrAdd(Edge2).Add(ElementIndex);
+				}
+			};
+
+		if (!Solver)
+		{
+			return;
+		}
+
+		static const FLinearColor OpenedEdgeColor = FColor::Emerald;
+		static const FLinearColor ClosedEdgeColor = FColor::White;
+
+		const FVec3& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
+
+		for (const FClothingSimulationCloth* const Cloth : Solver->GetCloths())
+		{
+			const int32 Offset = Cloth->GetOffset(Solver);
+			if (Offset == INDEX_NONE)
+			{
+				continue;
+			}
+
+			const TConstArrayView<TVec3<int32>> Elements = Cloth->GetTriangleMesh(Solver).GetElements();
+			const TConstArrayView<Softs::FSolverVec3> Positions = Cloth->GetAnimationPositions(Solver);
+
+			TMap<FUintVector2, TArray<uint32>> EdgeToTrianglesMap;
+			BuildEdgeMap(Elements, EdgeToTrianglesMap);
+
+			for (const TPair<FUintVector2, TArray<uint32>>& EdgeToTriangles : EdgeToTrianglesMap)
+			{
+				const FUintVector2& Edge = EdgeToTriangles.Key;
+				const TArray<uint32>& Triangles = EdgeToTriangles.Value;
+
+				const FVector Pos0 = LocalSpaceLocation + FVector(Positions[Edge[0] - Offset]); // TODO: Triangle Mesh shouldn't really be solver dependent (ie not use an offset)
+				const FVector Pos1 = LocalSpaceLocation + FVector(Positions[Edge[1] - Offset]);
+				const FLinearColor& Color = (Triangles.Num() > 1) ? ClosedEdgeColor : OpenedEdgeColor;
+
+				DrawLine(PDI, Pos0, Pos1, Color);
 			}
 		}
 	}
@@ -810,15 +879,15 @@ namespace Chaos
 		}
 
 		auto DrawBackstop = [PDI](const FVector& Position, const FVector& Normal, FReal Radius, const FVector& Axis, const FLinearColor& Color)
-		{
-			static const FReal MaxCosAngle = (FReal)0.99;
-			if (FMath::Abs(FVector::DotProduct(Normal, Axis)) < MaxCosAngle)
 			{
-				static const FReal ArcLength = (FReal)5.; // Arch length in cm
-				const FReal ArcAngle = (FReal)360. * ArcLength / FMath::Max((Radius * (FReal)2. * (FReal)PI), ArcLength);
-				DrawArc(PDI, Position, Normal, FVector::CrossProduct(Axis, Normal).GetSafeNormal(), -ArcAngle / (FReal)2., ArcAngle / (FReal)2., Radius, Color);
-			}
-		};
+				static const FReal MaxCosAngle = (FReal)0.99;
+				if (FMath::Abs(FVector::DotProduct(Normal, Axis)) < MaxCosAngle)
+				{
+					static const FReal ArcLength = (FReal)5.; // Arch length in cm
+					const FReal ArcAngle = (FReal)360. * ArcLength / FMath::Max((Radius * (FReal)2. * (FReal)PI), ArcLength);
+					DrawArc(PDI, Position, Normal, FVector::CrossProduct(Axis, Normal).GetSafeNormal(), -ArcAngle / (FReal)2., ArcAngle / (FReal)2., Radius, Color);
+				}
+			};
 
 		const FVec3& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
 
@@ -1026,9 +1095,9 @@ namespace Chaos
 			const uint8 HueOffset = 196 / ConstraintColorNum;
 			auto ConstraintColor =
 				[HueOffset](int32 ColorIndex)->FLinearColor
-			{
-				return FLinearColor::MakeFromHSV8(ColorIndex * HueOffset, 255, 255);
-			};
+				{
+					return FLinearColor::MakeFromHSV8(ColorIndex * HueOffset, 255, 255);
+				};
 
 			for (int32 ConstraintColorIndex = 0; ConstraintColorIndex < ConstraintColorNum; ++ConstraintColorIndex)
 			{

@@ -45,6 +45,7 @@
 #include "Engine/Engine.h"
 #include "Engine/RendererSettings.h"
 #include "Engine/SkinnedAsset.h"
+#include "Engine/SkinnedAssetCommon.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 #include "HAL/FileManager.h"

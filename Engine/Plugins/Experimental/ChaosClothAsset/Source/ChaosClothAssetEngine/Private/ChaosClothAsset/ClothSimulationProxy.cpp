@@ -102,8 +102,8 @@ namespace UE::Chaos::ClothAsset
 		{
 			return;
 		}
-		const FChaosClothSimulationModel* const ClothSimulationModel = ClothAsset->GetClothSimulationModel();
-		check(ClothSimulationModel);
+		ClothSimulationModel = ClothAsset->GetClothSimulationModel();
+		check(ClothSimulationModel.IsValid());
 
 		FString DebugName;
 #if !UE_BUILD_SHIPPING
@@ -255,6 +255,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		// Visualization
 		Visualization->DrawPhysMeshWired();
 		Visualization->DrawCollision();
+		Visualization->DrawOpenEdges();
 	}
 
 	void FClothSimulationProxy::CompleteParallelSimulation_GameThread()
