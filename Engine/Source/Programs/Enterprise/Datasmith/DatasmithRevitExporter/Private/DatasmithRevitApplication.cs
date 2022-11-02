@@ -203,6 +203,63 @@ namespace DatasmithRevitExporter
 		{
 			Instance = this;
 
+			if (IsPreHandshakeRevitBuild(InApplication.ControlledApplication.VersionBuild))
+				InitializeRibbonUI(InApplication);
+
+			DocumentOpenedHandler = new EventHandler<DocumentOpenedEventArgs>(OnDocumentOpened);
+			InApplication.ControlledApplication.DocumentOpened += DocumentOpenedHandler;
+
+			DocumentCreatedHandler = new EventHandler<DocumentCreatedEventArgs>(OnDocumentCreated);
+			InApplication.ControlledApplication.DocumentCreated += DocumentCreatedHandler;
+
+			DocumentClosingHandler = new EventHandler<DocumentClosingEventArgs>(OnDocumentClosing);
+			InApplication.ControlledApplication.DocumentClosing += DocumentClosingHandler;
+
+			IdlingEventHandler = new EventHandler<IdlingEventArgs>(OnIdling);
+			InApplication.Idling += IdlingEventHandler;
+
+			ViewActivatedHandler = new EventHandler<ViewActivatedEventArgs>(OnViewActivated);
+			InApplication.ViewActivated += ViewActivatedHandler;
+
+			// Setup Direct Link
+
+			string RevitEngineDir = null;
+
+			try
+			{
+				using (RegistryKey Key = Registry.LocalMachine.OpenSubKey("Software\\Wow6432Node\\EpicGames\\Unreal Engine"))
+				{
+					RevitEngineDir = Key?.GetValue("RevitEngineDir") as string;
+				}
+			}
+			finally
+			{
+				if (RevitEngineDir == null)
+				{
+					// If we could not read the registry, fallback to hardcoded engine dir
+					RevitEngineDir = "C:\\ProgramData\\Epic\\Exporter\\RevitEngine\\";
+				}
+			}
+
+			bool bDirectLinkInitOk = FDatasmithFacadeDirectLink.Init(true, RevitEngineDir);
+
+			Debug.Assert(bDirectLinkInitOk);
+
+			// Register updater to react to view modification
+
+			ViewsUpdater = new View3DUpdater(InApplication.ControlledApplication.ActiveAddInId);
+			UpdaterRegistry.RegisterUpdater(ViewsUpdater);
+
+			ElementCategoryFilter Filter = new ElementCategoryFilter( BuiltInCategory.OST_Views);
+			UpdaterRegistry.AddTrigger(ViewsUpdater.GetUpdaterId(), Filter, Element.GetChangeTypeAny());
+			UpdaterRegistry.AddTrigger(ViewsUpdater.GetUpdaterId(), Filter, Element.GetChangeTypeElementAddition());
+			UpdaterRegistry.AddTrigger(ViewsUpdater.GetUpdaterId(), Filter, Element.GetChangeTypeElementDeletion());
+
+			return Result.Succeeded;
+		}
+
+		void InitializeRibbonUI(UIControlledApplication InApplication)
+		{
 			// Create a custom ribbon tab
 			string TabName = DatasmithRevitResources.Strings.DatasmithTabName;
 			InApplication.CreateRibbonTab(TabName);
@@ -288,57 +345,6 @@ namespace DatasmithRevitExporter
 			ShowLogButton.Image = new BitmapImage(new Uri(DatasmithIconBase + "16.png"));
 			ShowLogButton.LargeImage = new BitmapImage(new Uri(DatasmithIconBase + "32.png"));
 			ShowLogButton.ToolTip = DatasmithRevitResources.Strings.ButtonMessagesHint;
-
-			DocumentOpenedHandler = new EventHandler<DocumentOpenedEventArgs>(OnDocumentOpened);
-			InApplication.ControlledApplication.DocumentOpened += DocumentOpenedHandler;
-
-			DocumentCreatedHandler = new EventHandler<DocumentCreatedEventArgs>(OnDocumentCreated);
-			InApplication.ControlledApplication.DocumentCreated += DocumentCreatedHandler;
-
-			DocumentClosingHandler = new EventHandler<DocumentClosingEventArgs>(OnDocumentClosing);
-			InApplication.ControlledApplication.DocumentClosing += DocumentClosingHandler;
-
-			IdlingEventHandler = new EventHandler<IdlingEventArgs>(OnIdling);
-			InApplication.Idling += IdlingEventHandler;
-
-			ViewActivatedHandler = new EventHandler<ViewActivatedEventArgs>(OnViewActivated);
-			InApplication.ViewActivated += ViewActivatedHandler;
-
-			// Setup Direct Link
-
-			string RevitEngineDir = null;
-
-			try
-			{
-				using (RegistryKey Key = Registry.LocalMachine.OpenSubKey("Software\\Wow6432Node\\EpicGames\\Unreal Engine"))
-				{
-					RevitEngineDir = Key?.GetValue("RevitEngineDir") as string;
-				}
-			}
-			finally
-			{
-				if (RevitEngineDir == null)
-				{
-					// If we could not read the registry, fallback to hardcoded engine dir
-					RevitEngineDir = "C:\\ProgramData\\Epic\\Exporter\\RevitEngine\\";
-				}
-			}
-
-			bool bDirectLinkInitOk = FDatasmithFacadeDirectLink.Init(true, RevitEngineDir);
-
-			Debug.Assert(bDirectLinkInitOk);
-
-			// Register updater to react to view modification
-
-			ViewsUpdater = new View3DUpdater(InApplication.ControlledApplication.ActiveAddInId);
-			UpdaterRegistry.RegisterUpdater(ViewsUpdater);
-
-			ElementCategoryFilter Filter = new ElementCategoryFilter( BuiltInCategory.OST_Views);
-			UpdaterRegistry.AddTrigger(ViewsUpdater.GetUpdaterId(), Filter, Element.GetChangeTypeAny());
-			UpdaterRegistry.AddTrigger(ViewsUpdater.GetUpdaterId(), Filter, Element.GetChangeTypeElementAddition());
-			UpdaterRegistry.AddTrigger(ViewsUpdater.GetUpdaterId(), Filter, Element.GetChangeTypeElementDeletion());
-
-			return Result.Succeeded;
 		}
 
 		void OnIdling(object Sender, IdlingEventArgs Args)
@@ -430,5 +436,10 @@ namespace DatasmithRevitExporter
 				ExportMessagesDialog.Focus();
 			}
 		}
+
+		public static bool IsPreHandshakeRevitBuild(string VersionBuild)
+		{
+			return Version.Parse(VersionBuild) < Version.Parse("23.1");
+		} 
 	}
 }
