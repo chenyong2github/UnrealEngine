@@ -145,6 +145,7 @@ public:
 
 	~FOutputLogErrorsToMessageLogProxy()
 	{
+		GLog->FlushThreadedLogs();
 		GLog->RemoveOutputDevice(this);
 		Tick(0.0f);
 	}
