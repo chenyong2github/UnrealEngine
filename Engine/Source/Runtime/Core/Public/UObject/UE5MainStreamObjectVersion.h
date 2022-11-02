@@ -292,9 +292,6 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// bIsUsedWithVolumetricCloud flag auto conversion
 		UpdateHairDescriptionBulkData,
 
-		// Added TransformScaleMethod pin to SpawnActorFromClass node
-		SpawnActorFromClassTransformScaleMethod,
-
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

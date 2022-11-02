@@ -3627,7 +3627,7 @@ static void ValidateDeferredTransformCache()
 	}
 }
 
-void AActor::PostSpawnInitialize(FTransform const& UserSpawnTransform, AActor* InOwner, APawn* InInstigator, bool bRemoteOwned, bool bNoFail, bool bDeferConstruction, ESpawnActorScaleMethod TransformScaleMethod)
+void AActor::PostSpawnInitialize(FTransform const& UserSpawnTransform, AActor* InOwner, APawn* InInstigator, bool bRemoteOwned, bool bNoFail, bool bDeferConstruction)
 {
 	// General flow here is like so
 	// - Actor sets up the basics.
@@ -3664,16 +3664,7 @@ void AActor::PostSpawnInitialize(FTransform const& UserSpawnTransform, AActor* I
 		// Respect any non-default transform value that the root component may have received from the archetype that's owned
 		// by the native CDO, so the final transform might not always necessarily equate to the passed-in UserSpawnTransform.
 		const FTransform RootTransform(SceneRootComponent->GetRelativeRotation(), SceneRootComponent->GetRelativeLocation(), SceneRootComponent->GetRelativeScale3D());
-		FTransform FinalRootComponentTransform = RootTransform;
-		switch(TransformScaleMethod)
-		{
-		case ESpawnActorScaleMethod::OverrideRootScale:
-			FinalRootComponentTransform = UserSpawnTransform;
-			break;
-		case ESpawnActorScaleMethod::MultiplyWithRoot:
-			FinalRootComponentTransform = RootTransform * UserSpawnTransform;
-			break;
-		}
+		const FTransform FinalRootComponentTransform = RootTransform * UserSpawnTransform;
 		SceneRootComponent->SetWorldTransform(FinalRootComponentTransform, false, nullptr, ETeleportType::ResetPhysics);
 	}
 
@@ -3724,7 +3715,7 @@ void AActor::PostSpawnInitialize(FTransform const& UserSpawnTransform, AActor* I
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(Actor)
 
-void AActor::FinishSpawning(const FTransform& UserTransform, bool bIsDefaultTransform, const FComponentInstanceDataCache* InstanceDataCache, ESpawnActorScaleMethod TransformScaleMethod)
+void AActor::FinishSpawning(const FTransform& UserTransform, bool bIsDefaultTransform, const FComponentInstanceDataCache* InstanceDataCache)
 {
 #if ENABLE_SPAWNACTORTIMER
 	FScopedSpawnActorTimer SpawnTimer(GetClass()->GetFName(), ESpawnActorTimingType::FinishSpawning);
@@ -3768,7 +3759,7 @@ void AActor::FinishSpawning(const FTransform& UserTransform, bool bIsDefaultTran
 
 		{
 			FEditorScriptExecutionGuard ScriptGuard;
-			ExecuteConstruction(FinalRootComponentTransform, nullptr, InstanceDataCache, bIsDefaultTransform, TransformScaleMethod);
+			ExecuteConstruction(FinalRootComponentTransform, nullptr, InstanceDataCache, bIsDefaultTransform);
 		}
 
 		{

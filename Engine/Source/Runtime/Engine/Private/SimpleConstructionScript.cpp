@@ -636,7 +636,7 @@ void USimpleConstructionScript::RegisterInstancedComponent(UActorComponent* Inst
 	}
 }
 
-void USimpleConstructionScript::ExecuteScriptOnActor(AActor* Actor, const TInlineComponentArray<USceneComponent*>& NativeSceneComponents, const FTransform& RootTransform, const FRotationConversionCache* RootRelativeRotationCache, bool bIsDefaultTransform, ESpawnActorScaleMethod TransformScaleMethod)
+void USimpleConstructionScript::ExecuteScriptOnActor(AActor* Actor, const TInlineComponentArray<USceneComponent*>& NativeSceneComponents, const FTransform& RootTransform, const FRotationConversionCache* RootRelativeRotationCache, bool bIsDefaultTransform)
 {
 	if(RootNodes.Num() > 0)
 	{
@@ -684,7 +684,7 @@ void USimpleConstructionScript::ExecuteScriptOnActor(AActor* Actor, const TInlin
 				}
 
 				// Create the new component instance and any child components it may have
-				RootNode->ExecuteNodeOnActor(Actor, ParentComponent != nullptr ? ParentComponent : RootComponent, &RootTransform, RootRelativeRotationCache, bIsDefaultTransform, TransformScaleMethod);
+				RootNode->ExecuteNodeOnActor(Actor, ParentComponent != nullptr ? ParentComponent : RootComponent, &RootTransform, RootRelativeRotationCache, bIsDefaultTransform);
 			}
 		}
 	}
