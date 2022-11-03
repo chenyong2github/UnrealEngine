@@ -79,6 +79,8 @@ public:
 
 	virtual bool IsSocketWaitSupported() const override;
 
+	virtual TSharedRef<FInternetAddr> GetLocalHostAddr(FOutputDevice& Out, bool& bCanBindAll) override;
+
 	/**
 	 * Translates an ESocketProtocolFamily code into a value usable by raw socket apis.
 	 */
@@ -124,6 +126,14 @@ protected:
 	{
 		return InternalBSDSocketFactory(Socket, SocketType, SocketDescription, GetDefaultSocketProtocolFamily());
 	}
+
+	/**
+	 * Helper function that attempts to determine the host address via socket connect
+	 *
+	 * @param HostAddr The address if successful
+	 * @return true if successful, false otherwise
+	 */
+	bool GetLocalHostAddrViaConnect(TSharedRef<FInternetAddr>& HostAddr);
 
 	// allow BSD sockets to use this when creating new sockets from accept() etc
 	friend FSocketBSD;
