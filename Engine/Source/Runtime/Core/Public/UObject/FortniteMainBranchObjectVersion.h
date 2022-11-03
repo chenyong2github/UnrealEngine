@@ -259,6 +259,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// WorldPartitionStreamingSourceComponent property deprecation
 		WorldPartitionStreamingSourceComponentTargetDeprecation,
 
+		// Fixed localization gathering for external actor packages
+		FixedLocalizationGatherForExternalActorPackage,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
