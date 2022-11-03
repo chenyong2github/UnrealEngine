@@ -11,6 +11,7 @@
 #include "Serialization/MemoryReader.h"
 #include "Templates/RefCounting.h"
 #include "UObject/LinkerLoad.h"
+#include "UObject/Package.h"
 #include "UObject/PackageResourceIoDispatcherBackend.h"
 
 //////////////////////////////////////////////////////////////////////////////
