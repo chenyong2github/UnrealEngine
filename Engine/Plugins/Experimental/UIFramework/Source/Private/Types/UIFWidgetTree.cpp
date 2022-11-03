@@ -339,7 +339,8 @@ void FUIFrameworkWidgetTree::AuthorityTest() const
 		const int32* FoundIndexPtr = AuthorityIndexByWidgetMap.Find(Entry.Child);
 		if (FoundIndexPtr)
 		{
-			ensureAlwaysMsgf((*FoundIndexPtr) == Index, TEXT("Widget index doesn't match what is in the map"));
+			int32 FoundIndex = *FoundIndexPtr;
+			ensureAlwaysMsgf(FoundIndex == Index, TEXT("Widget index doesn't match what is in the map"));
 		}
 		else
 		{
