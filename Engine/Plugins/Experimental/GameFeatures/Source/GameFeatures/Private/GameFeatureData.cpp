@@ -10,6 +10,7 @@
 #include "UObject/CoreRedirects.h"
 #include "GameFeatureAction_AddWPContent.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
+#include "AssetRegistry/AssetData.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureData)
 
