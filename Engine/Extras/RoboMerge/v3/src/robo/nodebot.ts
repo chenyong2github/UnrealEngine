@@ -267,8 +267,9 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		let minCl = this.lastCl
 		// Gather the list of available edges for tick -- edges may change mid-tick but we will only allow this set to perform integrations
 		let availableEdges: Map<string, EdgeBot> = new Map<string, EdgeBot>()
+
+		this.conflicts.checkForResolvedConflicts(this.lastCl, this.edges)
 		for (const edgeBot of this.edges.values()) {
-			this.conflicts.checkForResolvedConflicts(edgeBot)
 			if (edgeBot.isAvailable) {
 				availableEdges.set(edgeBot.targetBranch.upperName, edgeBot)
 				if (edgeBot.lastCl > 0 && (minCl < 0 || edgeBot.lastCl < minCl)) {
