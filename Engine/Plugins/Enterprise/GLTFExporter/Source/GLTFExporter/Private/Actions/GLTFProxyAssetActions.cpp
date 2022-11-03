@@ -70,6 +70,8 @@ void FGLTFProxyAssetActions::OnExecuteAction(const FToolMenuContext& MenuContext
 		ProxyFactory.RootPath = FPaths::GetPath(Material->GetPathName()) / TEXT("GLTF");
 		ProxyFactory.Create(Material);
 	}
+
+	ProxyFactory.OpenLog();
 }
 
 #undef LOCTEXT_NAMESPACE
