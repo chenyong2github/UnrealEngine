@@ -158,9 +158,12 @@ class USkyAtmosphereComponent : public USceneComponent
 	float AerialPerspectiveStartDepth;
 
 
-
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void OverrideAtmosphereLightDirection(int32 AtmosphereLightIndex, const FVector& LightDirection);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	ENGINE_API bool IsAtmosphereLightDirectionOverriden(int32 AtmosphereLightIndex);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	ENGINE_API FVector GetOverridenAtmosphereLightDirection(int32 AtmosphereLightIndex);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetAtmosphereHeight(float NewValue);
