@@ -10,6 +10,24 @@ public class GeometryFramework : ModuleRules
 
 		// this is required for raytracing suppport?
 		PublicIncludePaths.Add("../Shaders/Shared");
+		
+		// These are required to register filters to the Level Editor Outliner
+		if (Target.Type == TargetType.Editor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"EditorWidgets",
+				}
+			);
+				
+			PrivateIncludePathModuleNames.AddRange(
+				new string[]
+				{													
+					"LevelEditor",
+				}
+			);
+		}
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {

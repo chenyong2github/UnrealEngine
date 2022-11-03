@@ -4,11 +4,33 @@
 #include "Components/BaseDynamicMeshComponent.h"
 #include "Misc/CoreDelegates.h"
 
+#if WITH_EDITOR
+
+#include "DynamicMeshActor.h"
+#include "LevelEditor.h"
+#include "Filters/CustomClassFilterData.h"
+
+#endif
+
 #define LOCTEXT_NAMESPACE "FGeometryFrameworkModule"
 
 void FGeometryFrameworkModule::StartupModule()
 {
 	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FGeometryFrameworkModule::OnPostEngineInit);
+
+#if WITH_EDITOR
+	if (!IsRunningGame())
+	{
+		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+
+		// Register the Level Editor Outliner filter for ADynamicMeshActor
+		if(TSharedPtr<FFilterCategory> GeometryFilterCategory = LevelEditorModule.GetOutlinerFilterCategory(FLevelEditorOutlinerBuiltInCategories::Geometry()))
+		{
+			TSharedRef<FCustomClassFilterData> DynamicMeshActorClassData = MakeShared<FCustomClassFilterData>(ADynamicMeshActor::StaticClass(), GeometryFilterCategory, FLinearColor::White);
+			LevelEditorModule.AddCustomClassFilterToOutliner(DynamicMeshActorClassData);
+		}
+	}
+#endif
 }
 
 void FGeometryFrameworkModule::OnPostEngineInit()
