@@ -96,6 +96,7 @@ private:
 	uintptr_t	AddressSpaceReservedEnd;
 	uint64		CachedFree;
 	int32		EmptyBackStoreCount[FMemory::AllocationHints::Max];
+	int32		MaxEmptyBackStoreCount[FMemory::AllocationHints::Max];
 
 	FPlatformMemory::FPlatformVirtualMemoryBlock Block;
 
