@@ -320,6 +320,8 @@ public:
 protected:
 	virtual void CreateRenderThreadResources() override;
 
+	virtual void OnEvaluateWorldPositionOffsetChanged_RenderThread() override;
+
 	class FMeshInfo : public FLightCacheInterface
 	{
 	public:

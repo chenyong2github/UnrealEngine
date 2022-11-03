@@ -31,6 +31,7 @@
 #include "Elements/SMInstance/SMInstanceElementData.h" // For SMInstanceElementDataUtil::SMInstanceElementsEnabled
 #include "MaterialCachedData.h"
 #include "EngineStats.h"
+#include "ScenePrivate.h"
 
 #if WITH_EDITOR
 #include "DerivedDataCache.h"
@@ -643,16 +644,18 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 		MaterialSection.ShadingMaterialProxy = ShadingMaterial->GetRenderProxy();
 
+		bool bProgrammableRasterMaterial = false;
 		if (bEvaluateWorldPositionOffset)
 		{
-			bHasProgrammableRaster |= MaterialSection.MaterialRelevance.bUsesWorldPositionOffset;
+			bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesWorldPositionOffset;
 		}
 
-		bHasProgrammableRaster |= MaterialSection.MaterialRelevance.bUsesPixelDepthOffset;
-		bHasProgrammableRaster |= MaterialSection.MaterialRelevance.bMasked;
+		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesPixelDepthOffset;
+		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bMasked;
 
 		// NOTE: MaterialRelevance.bTwoSided does not go into bHasProgrammableRaster because we want only want this flag to control culling, not a full shader graph bin
-		MaterialSection.RasterMaterialProxy = bHasProgrammableRaster ? MaterialSection.ShadingMaterialProxy : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+		MaterialSection.RasterMaterialProxy = bProgrammableRasterMaterial ? MaterialSection.ShadingMaterialProxy : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+		bHasProgrammableRaster |= bProgrammableRasterMaterial;
 	}
 
 	// Nanite supports distance field representation for fully opaque meshes.
@@ -931,6 +934,33 @@ FSceneProxy::~FSceneProxy()
 void FSceneProxy::CreateRenderThreadResources()
 {
 	check(Resources->RuntimeResourceID != INDEX_NONE && Resources->HierarchyOffset != INDEX_NONE);
+}
+
+void FSceneProxy::OnEvaluateWorldPositionOffsetChanged_RenderThread()
+{
+	FMaterialRenderProxy* DefaultRasterProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
+
+	bHasProgrammableRaster = false;
+	for (FMaterialSection& MaterialSection : MaterialSections)
+	{
+		bool bProgrammableRasterMaterial = false;
+		if (bEvaluateWorldPositionOffset)
+		{
+			bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesWorldPositionOffset;
+		}
+
+		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bUsesPixelDepthOffset;
+		bProgrammableRasterMaterial |= MaterialSection.MaterialRelevance.bMasked;
+
+		MaterialSection.RasterMaterialProxy = bProgrammableRasterMaterial ? MaterialSection.ShadingMaterialProxy : DefaultRasterProxy;
+
+		bHasProgrammableRaster |= bProgrammableRasterMaterial;
+	}
+
+	// Mark that we need to re-cache the nanite commands for this primitive
+	FPrimitiveSceneInfo* Info = GetPrimitiveSceneInfo();
+	checkSlow(Info && Info->Scene && Info->IsIndexValid());
+	Info->Scene->PrimitivesNeedingStaticMeshUpdate[Info->GetIndex()] = true;
 }
 
 SIZE_T FSceneProxy::GetTypeHash() const
@@ -2000,7 +2030,7 @@ void FixupMaterials(FMaterialAudit& Audit)
 		}
 		else if (Entry.bHasInvalidUsage)
 		{
-			UE_LOG(LogStaticMesh, Warning, TEXT("Invalid material usage for Nanite static mesh [%s] - forcing default material instead."), *Audit.AssetName);
+			UE_LOG(LogStaticMesh, Warning, TEXT("Invalid usage flag on material [%s] for Nanite static mesh [%s] - forcing default material instead."), *GetNameSafe(Entry.Material), *Audit.AssetName);
 		}
 		else if (Entry.bHasUnsupportedBlendMode)
 		{

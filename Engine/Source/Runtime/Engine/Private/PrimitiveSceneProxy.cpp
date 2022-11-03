@@ -1162,6 +1162,7 @@ void FPrimitiveSceneProxy::SetEvaluateWorldPositionOffset_GameThread(bool bEvalu
 		{
 			PrimitiveSceneProxy->bEvaluateWorldPositionOffset = bWPOEvaluate;
 			PrimitiveSceneProxy->GetScene().RequestGPUSceneUpdate(*PrimitiveSceneProxy->GetPrimitiveSceneInfo(), EPrimitiveDirtyState::ChangedOther);
+			PrimitiveSceneProxy->OnEvaluateWorldPositionOffsetChanged_RenderThread();
 		}
 	});
 }

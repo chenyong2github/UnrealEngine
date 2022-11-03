@@ -1493,6 +1493,9 @@ protected:
 
 	/** Updates hover state for the primitive proxy. This is called in the rendering thread by SetHovered_GameThread. */
 	void SetHovered_RenderThread(const bool bInHovered);
+
+	/** Allows child implementations to do render-thread work when bEvaluateWorldPositionOffset changes */
+	ENGINE_API virtual void OnEvaluateWorldPositionOffsetChanged_RenderThread() {}
 };
 
 /**
