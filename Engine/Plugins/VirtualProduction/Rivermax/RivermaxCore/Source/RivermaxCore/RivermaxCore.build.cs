@@ -13,17 +13,18 @@ public class RivermaxCore : ModuleRules
 				"DeveloperSettings",
 				"MediaAssets",
 				"MediaIOCore",
-				"RivermaxLib",
 				"RHI",
+				"RivermaxLib",
 				"TimeManagement"
 			}
 		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"D3D12RHI",
 				"Engine",
 				"Networking",
-				"RenderCore",
+				"RenderCore"
 			}
 		);
 
@@ -39,5 +40,11 @@ public class RivermaxCore : ModuleRules
 				}
 			);
 		}
+
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+		{
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "CUDA", "DX12");
+		}
+
 	}
 }

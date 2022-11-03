@@ -28,6 +28,7 @@ namespace UE::RivermaxCore::Private
 	private:
 		bool LoadRivermaxLibrary();
 		void InitializeLibrary();
+		void VerifyGPUDirectCapability();
 
 	private:
 

@@ -19,7 +19,7 @@ namespace UE::RivermaxCore::Private::Utils
 	static constexpr uint32 FullHDWidth = 1920;
 
 	/** Maximum payload we can send based on UDP max size and RTP header.  */
-	static constexpr uint32 MaxPayloadSize = 1440;
+	static constexpr uint32 MaxPayloadSize = 1420;
 	
 	/** Smallest payload size to bound our search for a payload that can be equal across a line */
 	static constexpr uint32 MinPayloadSize = 950;

@@ -14,7 +14,7 @@ namespace UE::RivermaxCore::Private
 	 */
 	struct FRivermaxOutputFrame
 	{
-		FRivermaxOutputFrame(uint32 InFrameIndex);
+		FRivermaxOutputFrame(uint32 InFrameIndex, TFunction<void(void*)> InDeallocationFunction);
 		~FRivermaxOutputFrame();
 		FRivermaxOutputFrame(const FRivermaxOutputFrame&) = delete;
 		FRivermaxOutputFrame& operator=(const FRivermaxOutputFrame&) = delete;
@@ -31,8 +31,11 @@ namespace UE::RivermaxCore::Private
 		/** Index of the frame used as unique identifier */
 		uint32 FrameIndex = 0;
 
-		/** Video buffer where we copy texture to be sent out */
-		uint8* VideoBuffer = nullptr;
+		/** 
+		 * Video buffer where we copy texture to be sent out 
+		 * If using GPUDirect, memory will be allocated in cuda space
+		 */
+		void* VideoBuffer = nullptr;
 
 		/** Identifier of the frame incremented every time a frame is captured */
 		static constexpr uint32 InvalidIdentifier = MAX_uint32;
@@ -57,7 +60,10 @@ namespace UE::RivermaxCore::Private
 		void* PayloadPtr = nullptr;
 		void* HeaderPtr = nullptr;
 
-		
+	private:
+
+		/** Method called to deallocate memory. */
+		TFunction<void(void*)> DeallocationFunc;
 	};
 }
 

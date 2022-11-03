@@ -2,6 +2,7 @@
 
 #include "RivermaxManager.h"
 
+#include "CudaModule.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "IRivermaxCoreModule.h"
 #include "Misc/App.h"
@@ -27,6 +28,12 @@
 
 namespace UE::RivermaxCore::Private
 {
+	static TAutoConsoleVariable<int32> CVarRivermaxEnableGPUDirectCapability(
+		TEXT("Rivermax.GPUDirect"), 1,
+		TEXT("Whether GPUDirect capability is validated at launch. Can be used to disable it entirely."),
+		ECVF_Default);
+
+
 	static uint64 RivermaxTimeHandler(void* Context)
 	{
 		IRivermaxCoreModule* RivermaxModule = FModuleManager::GetModulePtr<IRivermaxCoreModule>("RivermaxCore");
@@ -41,6 +48,12 @@ namespace UE::RivermaxCore::Private
 	FRivermaxManager::FRivermaxManager()
 		: DeviceFinder(MakeUnique<FRivermaxDeviceFinder>())
 	{
+		// No need loading Cuda if we won't be looking at gpudirect capabilities
+		if (CVarRivermaxEnableGPUDirectCapability.GetValueOnGameThread())
+		{
+			FModuleManager::LoadModuleChecked<FCUDAModule>("CUDA");
+		}
+
 		const bool bIsLibraryLoaded = LoadRivermaxLibrary();
 		if (bIsLibraryLoaded && FApp::CanEverRender())
 		{
@@ -128,6 +141,15 @@ namespace UE::RivermaxCore::Private
 		rmax_init_config Config;
 		memset(&Config, 0, sizeof(Config));
 		Config.flags |= RIVERMAX_ENABLE_CLOCK_CONFIGURATION;
+
+		ERivermaxTimeSource ConfiguredSource = ERivermaxTimeSource::Platform;
+		const auto ConfigurePlatformClock = [&ConfiguredSource](rmax_init_config& InOutConfig)
+		{
+			InOutConfig.clock_configurations.clock_type = rmax_clock_types::RIVERMAX_USER_CLOCK_HANDLER;
+			InOutConfig.clock_configurations.clock_u.rmax_user_clock_handler.clock_handler = RivermaxTimeHandler;
+			InOutConfig.clock_configurations.clock_u.rmax_user_clock_handler.ctx = nullptr;
+			ConfiguredSource = ERivermaxTimeSource::Platform;
+		};
 			
 		const URivermaxSettings* Settings = GetDefault<URivermaxSettings>();
 
@@ -142,7 +164,7 @@ namespace UE::RivermaxCore::Private
 				if (inet_pton(AF_INET, StringCast<ANSICHAR>(*PTPAddress).Get(), &Config.clock_configurations.clock_u.rmax_ptp_clock.device_ip_addr))
 				{
 					UE_LOG(LogRivermax, Display, TEXT("Initialize Rivermax clock as PTP using device interface %s"), *PTPAddress);
-					TimeSource = ERivermaxTimeSource::PTP;
+					ConfiguredSource = ERivermaxTimeSource::PTP;
 					bConfiguredSuccessfully = true;
 				}
 			}
@@ -153,16 +175,22 @@ namespace UE::RivermaxCore::Private
 			}
 		}
 
-		if(bConfiguredSuccessfully == false)
+		if (bConfiguredSuccessfully == false)
 		{
-			// Todo: Need to update clock fetcher to align with UTC. Refer to SDK
-			Config.clock_configurations.clock_type = rmax_clock_types::RIVERMAX_USER_CLOCK_HANDLER;
-			Config.clock_configurations.clock_u.rmax_user_clock_handler.clock_handler = RivermaxTimeHandler;
-			Config.clock_configurations.clock_u.rmax_user_clock_handler.ctx = nullptr;
-			TimeSource = ERivermaxTimeSource::Platform;
+			ConfigurePlatformClock(Config);
 		}
 
 		rmax_status_t Status = rmax_init(&Config);
+		if (Status == RMAX_ERR_CLOCK_TYPE_NOT_SUPPORTED)
+		{
+			if (Settings->TimeSource == ERivermaxTimeSource::PTP)
+			{
+				UE_LOG(LogRivermax, Warning, TEXT("Failed to configure Rivermax using PTP clock. Falling back to platform clock."));
+				ConfigurePlatformClock(Config);
+				Status = rmax_init(&Config);
+			}
+		}
+
 		if (Status == RMAX_OK)
 		{
 			uint32 Major = 0;
@@ -172,8 +200,15 @@ namespace UE::RivermaxCore::Private
 			Status = rmax_get_version(&Major, &Minor, &Release, &Build);
 			if (Status == RMAX_OK)
 			{
+				if (CVarRivermaxEnableGPUDirectCapability.GetValueOnGameThread())
+				{
+					VerifyGPUDirectCapability();
+				}
+
 				bIsInitialized = true;
-				UE_LOG(LogRivermax, Log, TEXT("Rivermax library version %d.%d.%d.%d succesfully initialized"), Major, Minor, Release, Build);
+				TimeSource = ConfiguredSource;
+				const TCHAR* GPUDirectSupport = bIsGPUDirectSupported ? TEXT("with GPUDirect support.") : TEXT("without GPUDirect support.");
+				UE_LOG(LogRivermax, Log, TEXT("Rivermax library version %d.%d.%d.%d succesfully initialized, %s"), Major, Minor, Release, Build, GPUDirectSupport);
 			}
 			else
 			{
@@ -209,6 +244,61 @@ namespace UE::RivermaxCore::Private
 	bool FRivermaxManager::IsGPUDirectSupported() const
 	{
 		return bIsGPUDirectSupported;
+	}
+
+	void FRivermaxManager::VerifyGPUDirectCapability()
+	{
+		bIsGPUDirectSupported = false;
+
+		const ERHIInterfaceType RHIType = RHIGetInterfaceType();
+		if (RHIType != ERHIInterfaceType::D3D12)
+		{
+			UE_LOG(LogRivermax, Log, TEXT("GPUDirect won't be available for Rivermax as it's only available with D3D12 RHI."));
+			return;
+		}
+		
+		FCUDAModule* CudaModule = FModuleManager::GetModulePtr<FCUDAModule>("CUDA");
+		if (CudaModule)
+		{
+			CudaModule->DriverAPI()->cuCtxPushCurrent(CudaModule->GetCudaContext());
+
+			int DeviceCount = -1;
+			CUresult Result = CudaModule->DriverAPI()->cuDeviceGetCount(&DeviceCount);
+			if (DeviceCount <= 0)
+			{
+				UE_LOG(LogRivermax, Log, TEXT("No Cuda compatible device found. GPUDirect won't be available for Rivermax. Cuda status: %d"), Result);
+				return;
+			}
+
+			// todo: add support for mgpu compatibility verification
+			const int GPUIndex = 0;
+			CUdevice CudaDevice;
+			Result = CudaModule->DriverAPI()->cuDeviceGet(&CudaDevice, GPUIndex);
+			if (Result != CUDA_SUCCESS)
+			{
+				UE_LOG(LogRivermax, Log, TEXT("Could not get a valid Cuda device. GPUDirect won't be available for Rivermax. Cuda status: %d"), Result);
+				return;
+			}
+
+
+			int SupportsVMM = 0;
+			Result  = CudaModule->DriverAPI()->cuDeviceGetAttribute(&SupportsVMM, CU_DEVICE_ATTRIBUTE_VIRTUAL_MEMORY_MANAGEMENT_SUPPORTED, CudaDevice);
+			if (SupportsVMM != 1)
+			{
+				UE_LOG(LogRivermax, Log, TEXT("Cuda device doesn't support virtual memory management. GPUDirect won't be available for Rivermax. Cuda status: %d"), Result);
+				return;
+			}
+
+			int SupportsRDMA = 0;
+			Result = CudaModule->DriverAPI()->cuDeviceGetAttribute(&SupportsRDMA, CU_DEVICE_ATTRIBUTE_GPU_DIRECT_RDMA_WITH_CUDA_VMM_SUPPORTED, CudaDevice);
+			if (SupportsRDMA != 1)
+			{
+				UE_LOG(LogRivermax, Log, TEXT("Cuda device doesn't support RDMA. GPUDirect won't be available for Rivermax. Cuda status: %d"), Result);
+				return;
+			}
+
+			bIsGPUDirectSupported = true;
+		}
 	}
 }
 

@@ -36,7 +36,7 @@ namespace UE::RivermaxCore
 		FIntPoint AlignedResolution = FIntPoint::ZeroValue;
 
 		/** Whether to leverage GPUDirect (Cuda) capability to transfer memory to NIC if available */
-		bool bUseGPUDirect = false;
+		bool bUseGPUDirect = true;
 	};
 
 	enum class RIVERMAXCORE_API ERivermaxStreamType : uint8

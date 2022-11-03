@@ -4,6 +4,7 @@
 
 #include "IRivermaxOutputStream.h"
 
+#include "Containers/SpscQueue.h"
 #include "HAL/Runnable.h"
 #include "RivermaxHeader.h"
 #include "RivermaxOutputFrame.h"
@@ -126,8 +127,12 @@ namespace UE::RivermaxCore::Private
 		void InitializeStreamTimingSettings();
 		void ShowStats();
 		uint32 GetTimestampFromTime(uint64 InTimeNanosec, double InMediaClockRate) const;
+		
+		bool AllocateGPUBuffers();
 		void AllocateSystemBuffers();
+		void DeallocateBuffers();
 		int32 GetStride() const;
+		void* GetMappedAddress(const FBufferRHIRef& InBuffer);
 
 	private:
 
@@ -187,6 +192,18 @@ namespace UE::RivermaxCore::Private
 		
 		/** Whether stream is using gpudirect to host memory consumed by Rivermax */
 		bool bUseGPUDirect = false;
+
+		/** Allocated memory base address used when it's time to free */
+		void* CudaAllocatedMemoryBaseAddress = nullptr;
+
+		/** Total allocated gpu memory. */
+		int32 CudaAllocatedMemory = 0;
+
+		/** Map between buffer we are sending and their mapped address in gpu space */
+		TMap<FBufferRHIRef, void*> BufferCudaMemoryMap;
+
+		/** Queued identifiers to be consumed by cuda callback when work has been completed */
+		TSpscQueue<uint32> PendingIdentifiers;
 	};
 }
 

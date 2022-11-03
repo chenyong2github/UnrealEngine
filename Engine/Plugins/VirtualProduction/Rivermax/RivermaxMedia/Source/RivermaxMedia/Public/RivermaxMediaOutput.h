@@ -77,5 +77,5 @@ public:
 
 	/** Whether to use GPUDirect if available (Memcopy from GPU to NIC directly bypassing system) if available */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Output")
-	bool bUseGPUDirect = false;
+	bool bUseGPUDirect = true;
 };
