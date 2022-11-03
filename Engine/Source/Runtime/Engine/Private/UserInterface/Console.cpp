@@ -89,7 +89,7 @@ class FConsoleVariableAutoCompleteVisitor
 public:
 	// @param Name must not be 0
 	// @param CVar must not be 0
-	static void OnConsoleVariable(const TCHAR* Name, IConsoleObject* CVar, TArray<struct FAutoCompleteCommand>& Sink)
+	static void OnConsoleVariable(const TCHAR* Name, IConsoleObject* CVar, TArray<struct FAutoCompleteCommand>* Sink)
 	{
 #if DISABLE_CHEAT_CVARS
 		if (CVar->TestFlags(ECVF_Cheat))
@@ -105,8 +105,8 @@ public:
 		const UConsoleSettings* ConsoleSettings = GetDefault<UConsoleSettings>();
 
 		// can be optimized
-		int32 NewIdx = Sink.AddDefaulted();
-		FAutoCompleteCommand& Cmd = Sink[NewIdx];
+		int32 NewIdx = Sink->AddDefaulted();
+		FAutoCompleteCommand& Cmd = (*Sink)[NewIdx];
 		Cmd.Command = Name;
 
 		if (ConsoleSettings->bDisplayHelpInAutoComplete)
@@ -228,9 +228,9 @@ void UConsole::BuildRuntimeAutoCompleteList(bool bForce)
 	// console variables
 	{
 		IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(
-			FConsoleObjectVisitor::CreateStatic< TArray<struct FAutoCompleteCommand>& >(
+			FConsoleObjectVisitor::CreateStatic(
 				&FConsoleVariableAutoCompleteVisitor::OnConsoleVariable,
-				AutoCompleteList));
+				&AutoCompleteList));
 	}
 
 	// iterate through script exec functions and append to the list

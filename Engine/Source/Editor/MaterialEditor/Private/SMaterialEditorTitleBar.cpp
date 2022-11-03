@@ -225,7 +225,7 @@ void SMaterialEditorTitleBar::RebuildBreadcrumbTrail()
 	{
 		UEdGraph* Graph = Stack.Pop();
 		
-		auto TitleText = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic<const UEdGraph*, const UEdGraph*>(&SMaterialEditorTitleBar::GetTitleForOneCrumb, LastObj, Graph));
+		auto TitleText = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic(&SMaterialEditorTitleBar::GetTitleForOneCrumb, (const UEdGraph*)LastObj, (const UEdGraph*)Graph));
 
 		BreadcrumbTrail->PushCrumb(TitleText, Graph);
 	}

@@ -259,7 +259,7 @@ void SGraphTitleBar::RebuildBreadcrumbTrail()
 	{
 		UEdGraph* Graph = Stack.Pop();
 		
-		auto Foo = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic<const UEdGraph*>(&SGraphTitleBar::GetTitleForOneCrumb, Graph));
+		auto Foo = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic(&SGraphTitleBar::GetTitleForOneCrumb, (const UEdGraph*)Graph));
 		BreadcrumbTrail->PushCrumb(Foo, Graph);
 	}
 }

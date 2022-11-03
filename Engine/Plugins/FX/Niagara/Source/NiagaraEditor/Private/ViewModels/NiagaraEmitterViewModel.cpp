@@ -511,16 +511,16 @@ void FNiagaraEmitterViewModel::AddScriptEventHandlers()
 		{
 			UNiagaraScriptSource* ScriptSource = CastChecked<UNiagaraScriptSource>(Script->GetLatestSource());
 			FDelegateHandle OnGraphChangedHandle = ScriptSource->NodeGraph->AddOnGraphChangedHandler(
-				FOnGraphChanged::FDelegate::CreateThreadSafeSP<FNiagaraEmitterViewModel, const UNiagaraScript&>(this->AsShared(), &FNiagaraEmitterViewModel::ScriptGraphChanged, *Script));
+				FOnGraphChanged::FDelegate::CreateThreadSafeSP(this->AsShared(), &FNiagaraEmitterViewModel::ScriptGraphChanged, (const UNiagaraScript*)Script));
 			FDelegateHandle OnGraphNeedRecompileHandle = ScriptSource->NodeGraph->AddOnGraphNeedsRecompileHandler(
-				FOnGraphChanged::FDelegate::CreateThreadSafeSP<FNiagaraEmitterViewModel, const UNiagaraScript&>(this->AsShared(), &FNiagaraEmitterViewModel::ScriptGraphChanged, *Script));
+				FOnGraphChanged::FDelegate::CreateThreadSafeSP(this->AsShared(), &FNiagaraEmitterViewModel::ScriptGraphChanged, (const UNiagaraScript*)Script));
 
 			ScriptToOnGraphChangedHandleMap.Add(FObjectKey(Script), OnGraphChangedHandle);
 			ScriptToRecompileHandleMap.Add(FObjectKey(Script), OnGraphNeedRecompileHandle);
 
 			FDelegateHandle OnParameterStoreChangedHandle = Script->RapidIterationParameters.AddOnChangedHandler(
-				FNiagaraParameterStore::FOnChanged::FDelegate::CreateThreadSafeSP<FNiagaraEmitterViewModel, const FNiagaraParameterStore&, const UNiagaraScript&>(
-					this->AsShared(), &FNiagaraEmitterViewModel::ScriptParameterStoreChanged, Script->RapidIterationParameters, *Script));
+				FNiagaraParameterStore::FOnChanged::FDelegate::CreateThreadSafeSP(
+					this->AsShared(), &FNiagaraEmitterViewModel::ScriptParameterStoreChanged, (const FNiagaraParameterStore*)&Script->RapidIterationParameters, (const UNiagaraScript*)Script));
 			ScriptToOnParameterStoreChangedHandleMap.Add(FObjectKey(Script), OnParameterStoreChangedHandle);
 		}
 	}
@@ -561,14 +561,14 @@ void FNiagaraEmitterViewModel::RemoveScriptEventHandlers()
 	ScriptToOnParameterStoreChangedHandleMap.Empty();
 }
 
-void FNiagaraEmitterViewModel::ScriptGraphChanged(const FEdGraphEditAction& InAction, const UNiagaraScript& OwningScript)
+void FNiagaraEmitterViewModel::ScriptGraphChanged(const FEdGraphEditAction& InAction, const UNiagaraScript* OwningScript)
 {
-	OnScriptGraphChangedDelegate.Broadcast(InAction, OwningScript);
+	OnScriptGraphChangedDelegate.Broadcast(InAction, *OwningScript);
 }
 
-void FNiagaraEmitterViewModel::ScriptParameterStoreChanged(const FNiagaraParameterStore& ChangedParameterStore, const UNiagaraScript& OwningScript)
+void FNiagaraEmitterViewModel::ScriptParameterStoreChanged(const FNiagaraParameterStore* ChangedParameterStore, const UNiagaraScript* OwningScript)
 {
-	OnScriptParameterStoreChangedDelegate.Broadcast(ChangedParameterStore, OwningScript);
+	OnScriptParameterStoreChangedDelegate.Broadcast(*ChangedParameterStore, *OwningScript);
 }
 
 void FNiagaraEmitterViewModel::OnEmitterPropertiesChanged()

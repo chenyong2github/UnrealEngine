@@ -60,8 +60,8 @@ private:
 	void BuildCommandMap();
 	bool AddCommandTypeToMenu(FMenuBuilder& Menu, const FLumenVisualizationType Type) const;
 
-	static void ChangeLumenVisualizationMode(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
-	static bool IsLumenVisualizationModeSelected(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
+	static void ChangeLumenVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
+	static bool IsLumenVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
 
 private:
 	TLumenVisualizationModeCommandMap CommandMap;

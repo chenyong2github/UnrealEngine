@@ -118,23 +118,29 @@ void FLumenVisualizationMenuCommands::BindCommands(FUICommandList& CommandList, 
 		const FLumenVisualizationMenuCommands::FLumenVisualizationRecord& Record = It.Value();
 		CommandList.MapAction(
 			Record.Command,
-			FExecuteAction::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FLumenVisualizationMenuCommands::ChangeLumenVisualizationMode, Client, Record.Name),
+			FExecuteAction::CreateStatic(&FLumenVisualizationMenuCommands::ChangeLumenVisualizationMode, Client.ToWeakPtr(), Record.Name),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FLumenVisualizationMenuCommands::IsLumenVisualizationModeSelected, Client, Record.Name)
+			FIsActionChecked::CreateStatic(&FLumenVisualizationMenuCommands::IsLumenVisualizationModeSelected, Client.ToWeakPtr(), Record.Name)
 		);
 	}
 }
 
-void FLumenVisualizationMenuCommands::ChangeLumenVisualizationMode(const TSharedPtr<FEditorViewportClient>& Client, FName InName)
+void FLumenVisualizationMenuCommands::ChangeLumenVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName)
 {
-	check(Client.IsValid());
-	Client->ChangeLumenVisualizationMode(InName);
+	if (TSharedPtr<FEditorViewportClient> Client = WeakClient.Pin())
+	{
+		Client->ChangeLumenVisualizationMode(InName);
+	}
 }
 
-bool FLumenVisualizationMenuCommands::IsLumenVisualizationModeSelected(const TSharedPtr<FEditorViewportClient>& Client, FName InName)
+bool FLumenVisualizationMenuCommands::IsLumenVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName)
 {
-	check(Client.IsValid());
-	return Client->IsLumenVisualizationModeSelected(InName);
+	if (TSharedPtr<FEditorViewportClient> Client = WeakClient.Pin())
+	{
+		return Client->IsLumenVisualizationModeSelected(InName);
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -61,8 +61,8 @@ private:
 	void BuildCommandMap();
 	bool AddCommandTypeToMenu(FMenuBuilder& Menu, const FNaniteVisualizationType Type) const;
 
-	static void ChangeNaniteVisualizationMode(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
-	static bool IsNaniteVisualizationModeSelected(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
+	static void ChangeNaniteVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
+	static bool IsNaniteVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
 
 private:
 	TNaniteVisualizationModeCommandMap CommandMap;

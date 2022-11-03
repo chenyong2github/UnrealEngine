@@ -128,24 +128,28 @@ void FRayTracingDebugVisualizationMenuCommands::BindCommands(FUICommandList& Com
 	{
 		CommandList.MapAction(
 			Record.Command,
-			FExecuteAction::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FRayTracingDebugVisualizationMenuCommands::ChangeRayTracingDebugVisualizationMode, Client, Record.Name),
+			FExecuteAction::CreateStatic(&FRayTracingDebugVisualizationMenuCommands::ChangeRayTracingDebugVisualizationMode, Client.ToWeakPtr(), Record.Name),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FRayTracingDebugVisualizationMenuCommands::IsRayTracingDebugVisualizationModeSelected, Client, Record.Name));
+			FIsActionChecked::CreateStatic(&FRayTracingDebugVisualizationMenuCommands::IsRayTracingDebugVisualizationModeSelected, Client.ToWeakPtr(), Record.Name));
 	}
 }
 
-void FRayTracingDebugVisualizationMenuCommands::ChangeRayTracingDebugVisualizationMode(const TSharedPtr<FEditorViewportClient>& Client, FName InName)
+void FRayTracingDebugVisualizationMenuCommands::ChangeRayTracingDebugVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName)
 {
-	check(Client.IsValid());
-
-	Client->ChangeRayTracingDebugVisualizationMode(InName);
+	if (TSharedPtr<FEditorViewportClient> Client = WeakClient.Pin())
+	{
+		Client->ChangeRayTracingDebugVisualizationMode(InName);
+	}
 }
 
-bool FRayTracingDebugVisualizationMenuCommands::IsRayTracingDebugVisualizationModeSelected(const TSharedPtr<FEditorViewportClient>& Client, FName InName)
+bool FRayTracingDebugVisualizationMenuCommands::IsRayTracingDebugVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName)
 {
-	check(Client.IsValid());
+	if (TSharedPtr<FEditorViewportClient> Client = WeakClient.Pin())
+	{
+		return Client->IsRayTracingDebugVisualizationModeSelected(InName);
+	}
 
-	return Client->IsRayTracingDebugVisualizationModeSelected(InName);
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

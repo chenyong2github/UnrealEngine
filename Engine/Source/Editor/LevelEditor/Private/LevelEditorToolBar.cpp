@@ -528,7 +528,7 @@ namespace LevelEditorActionHelpers
 				LevelEditorActionHelpers::FBlueprintMenuSettings GameModeMenuSettings;
 				GameModeMenuSettings.EditCommand =
 					FUIAction(
-						FExecuteAction::CreateStatic< TWeakPtr< SLevelEditor > >(&OpenGameModeBlueprint, Context->LevelEditor, bInProjectSettings)
+						FExecuteAction::CreateStatic(&OpenGameModeBlueprint, Context->LevelEditor, bInProjectSettings)
 					);
 				GameModeMenuSettings.OnCreateClassPicked = FOnClassPicked::CreateStatic(&LevelEditorActionHelpers::OnCreateGameModeClassPicked, Context->LevelEditor, bInProjectSettings);
 				GameModeMenuSettings.OnSelectClassPicked = FOnClassPicked::CreateStatic(&LevelEditorActionHelpers::OnSelectGameModeClassPicked, Context->LevelEditor, bInProjectSettings);
@@ -571,7 +571,7 @@ namespace LevelEditorActionHelpers
 		LevelEditorActionHelpers::FBlueprintMenuSettings GameStateMenuSettings;
 		GameStateMenuSettings.EditCommand = 
 			FUIAction(
-				FExecuteAction::CreateStatic< TWeakPtr< SLevelEditor > >( &OpenGameStateBlueprint, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings )
+				FExecuteAction::CreateStatic( &OpenGameStateBlueprint, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings )
 			);
 		GameStateMenuSettings.OnCreateClassPicked = FOnClassPicked::CreateStatic( &LevelEditorActionHelpers::OnCreateGameStateClassPicked, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings );
 		GameStateMenuSettings.OnSelectClassPicked = FOnClassPicked::CreateStatic( &LevelEditorActionHelpers::OnSelectGameStateClassPicked, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings );
@@ -589,7 +589,7 @@ namespace LevelEditorActionHelpers
 		LevelEditorActionHelpers::FBlueprintMenuSettings PawnMenuSettings;
 		PawnMenuSettings.EditCommand = 
 			FUIAction(
-				FExecuteAction::CreateStatic< TWeakPtr< SLevelEditor > >( &OpenDefaultPawnBlueprint, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings )
+				FExecuteAction::CreateStatic( &OpenDefaultPawnBlueprint, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings )
 			);
 		PawnMenuSettings.OnCreateClassPicked = FOnClassPicked::CreateStatic( &LevelEditorActionHelpers::OnCreatePawnClassPicked, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings );
 		PawnMenuSettings.OnSelectClassPicked = FOnClassPicked::CreateStatic( &LevelEditorActionHelpers::OnSelectPawnClassPicked, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings );
@@ -607,7 +607,7 @@ namespace LevelEditorActionHelpers
 		LevelEditorActionHelpers::FBlueprintMenuSettings HUDMenuSettings;
 		HUDMenuSettings.EditCommand = 
 			FUIAction(
-				FExecuteAction::CreateStatic< TWeakPtr< SLevelEditor > >( &OpenHUDBlueprint, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings )
+				FExecuteAction::CreateStatic( &OpenHUDBlueprint, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings )
 			);
 		HUDMenuSettings.OnCreateClassPicked = FOnClassPicked::CreateStatic( &LevelEditorActionHelpers::OnCreateHUDClassPicked, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings );
 		HUDMenuSettings.OnSelectClassPicked = FOnClassPicked::CreateStatic( &LevelEditorActionHelpers::OnSelectHUDClassPicked, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings );
@@ -625,7 +625,7 @@ namespace LevelEditorActionHelpers
 		LevelEditorActionHelpers::FBlueprintMenuSettings PlayerControllerMenuSettings;
 		PlayerControllerMenuSettings.EditCommand = 
 			FUIAction(
-				FExecuteAction::CreateStatic< TWeakPtr< SLevelEditor > >( &OpenPlayerControllerBlueprint, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings )
+				FExecuteAction::CreateStatic( &OpenPlayerControllerBlueprint, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings )
 			);
 		PlayerControllerMenuSettings.OnCreateClassPicked = FOnClassPicked::CreateStatic( &LevelEditorActionHelpers::OnCreatePlayerControllerClassPicked, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings );
 		PlayerControllerMenuSettings.OnSelectClassPicked = FOnClassPicked::CreateStatic( &LevelEditorActionHelpers::OnSelectPlayerControllerClassPicked, InSettingsData.LevelEditor, InSettingsData.bIsProjectSettings );

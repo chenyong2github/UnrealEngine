@@ -45,8 +45,8 @@ private:
 
 	void AddRayTracingDebugVisualizationCommandsToMenu(FMenuBuilder& menu) const;
 
-	static void ChangeRayTracingDebugVisualizationMode(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
-	static bool IsRayTracingDebugVisualizationModeSelected(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
+	static void ChangeRayTracingDebugVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
+	static bool IsRayTracingDebugVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
 
 	TArray<FRayTracingDebugVisualizationRecord> RayTracingDebugVisualizationCommands;
 

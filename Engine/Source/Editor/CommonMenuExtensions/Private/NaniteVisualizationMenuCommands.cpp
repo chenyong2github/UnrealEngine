@@ -143,23 +143,29 @@ void FNaniteVisualizationMenuCommands::BindCommands(FUICommandList& CommandList,
 		const FNaniteVisualizationMenuCommands::FNaniteVisualizationRecord& Record = It.Value();
 		CommandList.MapAction(
 			Record.Command,
-			FExecuteAction::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FNaniteVisualizationMenuCommands::ChangeNaniteVisualizationMode, Client, Record.Name),
+			FExecuteAction::CreateStatic(&FNaniteVisualizationMenuCommands::ChangeNaniteVisualizationMode, Client.ToWeakPtr(), Record.Name),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FNaniteVisualizationMenuCommands::IsNaniteVisualizationModeSelected, Client, Record.Name)
+			FIsActionChecked::CreateStatic(&FNaniteVisualizationMenuCommands::IsNaniteVisualizationModeSelected, Client.ToWeakPtr(), Record.Name)
 		);
 	}
 }
 
-void FNaniteVisualizationMenuCommands::ChangeNaniteVisualizationMode(const TSharedPtr<FEditorViewportClient>& Client, FName InName)
+void FNaniteVisualizationMenuCommands::ChangeNaniteVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName)
 {
-	check(Client.IsValid());
-	Client->ChangeNaniteVisualizationMode(InName);
+	if (TSharedPtr<FEditorViewportClient> Client = WeakClient.Pin())
+	{
+		Client->ChangeNaniteVisualizationMode(InName);
+	}
 }
 
-bool FNaniteVisualizationMenuCommands::IsNaniteVisualizationModeSelected(const TSharedPtr<FEditorViewportClient>& Client, FName InName)
+bool FNaniteVisualizationMenuCommands::IsNaniteVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName)
 {
-	check(Client.IsValid());
-	return Client->IsNaniteVisualizationModeSelected(InName);
+	if (TSharedPtr<FEditorViewportClient> Client = WeakClient.Pin())
+	{
+		return Client->IsNaniteVisualizationModeSelected(InName);
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -243,11 +243,11 @@ class FConsoleVariablesAvailableVisitor
 public:
 	// @param Name must not be 0
 	// @param CVar must not be 0
-	static void OnConsoleVariable(const TCHAR *Name, IConsoleObject* CVar, TArray<TSharedPtr<FString>>& Sink)
+	static void OnConsoleVariable(const TCHAR *Name, IConsoleObject* CVar, TArray<TSharedPtr<FString>>* Sink)
 	{
 		if(CVar->AsVariable())
 		{
-			Sink.Add(MakeShareable(new FString(Name)));
+			Sink->Add(MakeShareable(new FString(Name)));
 		}
 
 	}
@@ -332,9 +332,9 @@ void SCVarSelectionPanel::Construct(const FArguments& InArgs, const FString& CVa
 	TArray<TSharedPtr<FString>> UnprocessedCVars;
 
 	IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(
-		FConsoleObjectVisitor::CreateStatic< TArray<TSharedPtr<FString>>& >(
+		FConsoleObjectVisitor::CreateStatic(
 		&FConsoleVariablesAvailableVisitor::OnConsoleVariable,
-		UnprocessedCVars), *CVarPrefix);
+		&UnprocessedCVars), *CVarPrefix);
 
 	if (DeviceProfileCVarFormatHelper::CategoryEnumFromPrefix(CVarPrefix) == DeviceProfileCVarFormatHelper::CVG_Uncategorized)
 	{

@@ -111,25 +111,29 @@ void FGPUSkinCacheVisualizationMenuCommands::BindCommands(FUICommandList& Comman
 		const FGPUSkinCacheVisualizationMenuCommands::FGPUSkinCacheVisualizationRecord& Record = It.Value();
 		CommandList.MapAction(
 			Record.Command,
-			FExecuteAction::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FGPUSkinCacheVisualizationMenuCommands::ChangeGPUSkinCacheVisualizationMode, Client, Record.Name),
+			FExecuteAction::CreateStatic(&FGPUSkinCacheVisualizationMenuCommands::ChangeGPUSkinCacheVisualizationMode, Client.ToWeakPtr(), Record.Name),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FGPUSkinCacheVisualizationMenuCommands::IsGPUSkinCacheVisualizationModeSelected, Client, Record.Name)
+			FIsActionChecked::CreateStatic(&FGPUSkinCacheVisualizationMenuCommands::IsGPUSkinCacheVisualizationModeSelected, Client.ToWeakPtr(), Record.Name)
 		);
 	}
 }
 
-void FGPUSkinCacheVisualizationMenuCommands::ChangeGPUSkinCacheVisualizationMode(const TSharedPtr<FEditorViewportClient>& Client, FName InName)
+void FGPUSkinCacheVisualizationMenuCommands::ChangeGPUSkinCacheVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName)
 {
-	check(Client.IsValid());
-
-	Client->ChangeGPUSkinCacheVisualizationMode(InName);
+	if (TSharedPtr<FEditorViewportClient> Client = WeakClient.Pin())
+	{
+		Client->ChangeGPUSkinCacheVisualizationMode(InName);
+	}
 }
 
-bool FGPUSkinCacheVisualizationMenuCommands::IsGPUSkinCacheVisualizationModeSelected(const TSharedPtr<FEditorViewportClient>& Client, FName InName)
+bool FGPUSkinCacheVisualizationMenuCommands::IsGPUSkinCacheVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName)
 {
-	check(Client.IsValid());
+	if (TSharedPtr<FEditorViewportClient> Client = WeakClient.Pin())
+	{
+		return Client->IsGPUSkinCacheVisualizationModeSelected(InName);
+	}
 
-	return Client->IsGPUSkinCacheVisualizationModeSelected(InName);
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

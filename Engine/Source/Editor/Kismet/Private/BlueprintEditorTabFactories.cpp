@@ -142,7 +142,7 @@ void FTimelineEditorSummoner::SaveState(TSharedPtr<SDockTab> Tab, TSharedPtr<FTa
 
 TAttribute<FText> FTimelineEditorSummoner::ConstructTabNameForObject(UTimelineTemplate* DocumentID) const
 {
-	return TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic<UObject*>(&FLocalKismetCallbacks::GetObjectName, DocumentID));
+	return TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic(&FLocalKismetCallbacks::GetObjectName, (UObject*)DocumentID));
 }
 
 FDefaultsEditorSummoner::FDefaultsEditorSummoner(TSharedPtr<FBlueprintEditor> InHostingApp)

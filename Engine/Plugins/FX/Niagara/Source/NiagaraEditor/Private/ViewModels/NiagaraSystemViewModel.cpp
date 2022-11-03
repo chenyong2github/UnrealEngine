@@ -2226,7 +2226,7 @@ void FNiagaraSystemViewModel::ScriptCompiled(UNiagaraScript*, const FGuid&)
 	//ReInitializeSystemInstances();
 }
 
-void FNiagaraSystemViewModel::SystemParameterStoreChanged(const FNiagaraParameterStore& ChangedParameterStore, const UNiagaraScript* OwningScript)
+void FNiagaraSystemViewModel::SystemParameterStoreChanged(const FNiagaraParameterStore* ChangedParameterStore, const UNiagaraScript* OwningScript)
 {
 	UpdateSimulationFromParameterChange();
 }
@@ -2751,15 +2751,15 @@ void FNiagaraSystemViewModel::AddSystemEventHandlers()
 			if (Script != nullptr)
 			{
 				FDelegateHandle OnParameterStoreChangedHandle = Script->RapidIterationParameters.AddOnChangedHandler(
-					FNiagaraParameterStore::FOnChanged::FDelegate::CreateThreadSafeSP<FNiagaraSystemViewModel, const FNiagaraParameterStore&, const UNiagaraScript*>(
-						this->AsShared(), &FNiagaraSystemViewModel::SystemParameterStoreChanged, Script->RapidIterationParameters, Script));
+					FNiagaraParameterStore::FOnChanged::FDelegate::CreateThreadSafeSP(
+						this->AsShared(), &FNiagaraSystemViewModel::SystemParameterStoreChanged, (const FNiagaraParameterStore*)&Script->RapidIterationParameters, (const UNiagaraScript*)Script));
 				ScriptToOnParameterStoreChangedHandleMap.Add(FObjectKey(Script), OnParameterStoreChangedHandle);
 			}
 		}
 
 		UserParameterStoreChangedHandle = System->GetExposedParameters().AddOnChangedHandler(
-			FNiagaraParameterStore::FOnChanged::FDelegate::CreateThreadSafeSP<FNiagaraSystemViewModel, const FNiagaraParameterStore&, const UNiagaraScript*>(
-				this->AsShared(), &FNiagaraSystemViewModel::SystemParameterStoreChanged, System->GetExposedParameters(), nullptr));
+			FNiagaraParameterStore::FOnChanged::FDelegate::CreateThreadSafeSP(
+				this->AsShared(), &FNiagaraSystemViewModel::SystemParameterStoreChanged, (const FNiagaraParameterStore*)&System->GetExposedParameters(), (const UNiagaraScript*)nullptr));
 
 		SystemScriptGraphChangedHandle = SystemScriptViewModel->GetGraphViewModel()->GetGraph()->AddOnGraphChangedHandler(
 			FOnGraphChanged::FDelegate::CreateSP(this->AsShared(), &FNiagaraSystemViewModel::SystemScriptGraphChanged));

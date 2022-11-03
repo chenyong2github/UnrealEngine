@@ -52,8 +52,8 @@ private:
 	void AddOverviewCommandToMenu(FMenuBuilder& Menu) const;
 	void AddVisualizationCommandsToMenu(FMenuBuilder& menu) const;
 
-	static void ChangeBufferVisualizationMode(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
-	static bool IsBufferVisualizationModeSelected(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
+	static void ChangeBufferVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
+	static bool IsBufferVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
 
 	TBufferVisualizationModeCommandMap CommandMap;
 };

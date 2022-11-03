@@ -184,7 +184,7 @@ void SOptimusGraphTitleBar::BuildBreadcrumbTrail(UOptimusNodeGraph* InGraph)
  		BuildBreadcrumbTrail(InGraph->GetParentGraph());
  	}
  		
-	const auto CrumbName = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic<const UOptimusNodeGraph*>(&SOptimusGraphTitleBar::GetGraphTitle, InGraph));
+	const auto CrumbName = TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic(&SOptimusGraphTitleBar::GetGraphTitle, (const UOptimusNodeGraph*)InGraph));
 	BreadcrumbTrail->PushCrumb(CrumbName, InGraph);
 }
 

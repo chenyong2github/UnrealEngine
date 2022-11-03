@@ -504,7 +504,7 @@ private:
 	 * @param ChangedParameterStore The parameter store that changed.
 	 * @param OwningScript The script that owns the parameter store, if there is one.
 	 */
-	void SystemParameterStoreChanged(const FNiagaraParameterStore& ChangedParameterStore, const UNiagaraScript* OwningScript);
+	void SystemParameterStoreChanged(const FNiagaraParameterStore* ChangedParameterStore, const UNiagaraScript* OwningScript);
 
 	/** Called whenever an emitter's script graph changes. */
 	void EmitterScriptGraphChanged(const FEdGraphEditAction& InAction, const UNiagaraScript& OwningScript, FGuid OwningEmitterHandleId);

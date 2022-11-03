@@ -5018,7 +5018,7 @@ class FConsoleVariableAutoCompleteVisitor
 public:
 	// @param Name must not be 0
 	// @param CVar must not be 0
-	static void OnConsoleVariable(const TCHAR *Name, IConsoleObject* CObj, uint32& Crc)
+	static void OnConsoleVariable(const TCHAR *Name, IConsoleObject* CObj, uint32* Crc)
 	{
 		IConsoleVariable* CVar = CObj->AsVariable();
 		if(CVar)
@@ -5027,7 +5027,7 @@ public:
 			{
 				// float should work on int32 as well
 				float Value = CVar->GetFloat();
-				Crc = FCrc::MemCrc32(&Value, sizeof(Value), Crc);
+				*Crc = FCrc::MemCrc32(&Value, sizeof(Value), *Crc);
 			}
 		}
 	}
@@ -5036,7 +5036,7 @@ static uint32 ComputeScalabilityCVarHash()
 {
 	uint32 Ret = 0;
 
-	IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(FConsoleObjectVisitor::CreateStatic< uint32& >(&FConsoleVariableAutoCompleteVisitor::OnConsoleVariable, Ret));
+	IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(FConsoleObjectVisitor::CreateStatic(&FConsoleVariableAutoCompleteVisitor::OnConsoleVariable, &Ret));
 
 	return Ret;
 }

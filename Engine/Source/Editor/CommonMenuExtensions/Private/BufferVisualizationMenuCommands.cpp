@@ -165,24 +165,28 @@ void FBufferVisualizationMenuCommands::BindCommands(FUICommandList& CommandList,
 		const FBufferVisualizationMenuCommands::FBufferVisualizationRecord& Record = It.Value();
 		CommandList.MapAction(
 			Record.Command,
-			FExecuteAction::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FBufferVisualizationMenuCommands::ChangeBufferVisualizationMode, Client, Record.Name ),
+			FExecuteAction::CreateStatic(&FBufferVisualizationMenuCommands::ChangeBufferVisualizationMode, Client.ToWeakPtr(), Record.Name ),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FBufferVisualizationMenuCommands::IsBufferVisualizationModeSelected, Client, Record.Name ) );
+			FIsActionChecked::CreateStatic(&FBufferVisualizationMenuCommands::IsBufferVisualizationModeSelected, Client.ToWeakPtr(), Record.Name ) );
 	}
 }
 
-void FBufferVisualizationMenuCommands::ChangeBufferVisualizationMode(const TSharedPtr<FEditorViewportClient>& Client, FName InName)
+void FBufferVisualizationMenuCommands::ChangeBufferVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName)
 {
-	check(Client.IsValid());
-
-	Client->ChangeBufferVisualizationMode(InName);
+	if (TSharedPtr<FEditorViewportClient> Client = WeakClient.Pin())
+	{
+		Client->ChangeBufferVisualizationMode(InName);
+	}
 }
 
-bool FBufferVisualizationMenuCommands::IsBufferVisualizationModeSelected(const TSharedPtr<FEditorViewportClient>& Client, FName InName)
+bool FBufferVisualizationMenuCommands::IsBufferVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName)
 {
-	check(Client.IsValid());
+	if (TSharedPtr<FEditorViewportClient> Client = WeakClient.Pin())
+	{
+		return Client->IsBufferVisualizationModeSelected(InName);
+	}
 
-	return Client->IsBufferVisualizationModeSelected(InName);
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

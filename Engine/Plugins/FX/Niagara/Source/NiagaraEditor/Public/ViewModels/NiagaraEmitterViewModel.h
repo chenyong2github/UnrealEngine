@@ -143,9 +143,9 @@ private:
 
 	void RemoveScriptEventHandlers();
 
-	void ScriptGraphChanged(const FEdGraphEditAction& InAction, const UNiagaraScript& OwningScript);
+	void ScriptGraphChanged(const FEdGraphEditAction& InAction, const UNiagaraScript* OwningScript);
 
-	void ScriptParameterStoreChanged(const FNiagaraParameterStore& ChangedParameterStore, const UNiagaraScript& OwningScript);
+	void ScriptParameterStoreChanged(const FNiagaraParameterStore* ChangedParameterStore, const UNiagaraScript* OwningScript);
 
 	void OnEmitterPropertiesChanged();
 

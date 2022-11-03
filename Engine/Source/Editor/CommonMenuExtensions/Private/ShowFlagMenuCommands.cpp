@@ -230,24 +230,28 @@ void FShowFlagMenuCommands::BindCommands(FUICommandList& CommandList, const TSha
 		const FShowFlagCommand& ShowFlagCommand = ShowFlagCommands[ArrayIndex];
 
 		CommandList.MapAction(ShowFlagCommand.ShowMenuItem,
-							  FExecuteAction::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FShowFlagMenuCommands::ToggleShowFlag, Client, ShowFlagCommand.FlagIndex),
+							  FExecuteAction::CreateStatic(&FShowFlagMenuCommands::ToggleShowFlag, Client.ToWeakPtr(), ShowFlagCommand.FlagIndex),
 							  FCanExecuteAction::CreateStatic(&FEngineShowFlags::IsForceFlagSet, static_cast<uint32>(ShowFlagCommand.FlagIndex)),
-							  FIsActionChecked::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FShowFlagMenuCommands::IsShowFlagEnabled, Client, ShowFlagCommand.FlagIndex));
+							  FIsActionChecked::CreateStatic(&FShowFlagMenuCommands::IsShowFlagEnabled, Client.ToWeakPtr(), ShowFlagCommand.FlagIndex));
 	}
 }
 
-void FShowFlagMenuCommands::ToggleShowFlag(const TSharedPtr<FEditorViewportClient>& Client, FEngineShowFlags::EShowFlag EngineShowFlagIndex)
+void FShowFlagMenuCommands::ToggleShowFlag(TWeakPtr<FEditorViewportClient> WeakClient, FEngineShowFlags::EShowFlag EngineShowFlagIndex)
 {
-	check(Client.IsValid());
-
-	Client->HandleToggleShowFlag(EngineShowFlagIndex);
+	if (TSharedPtr<FEditorViewportClient> Client = WeakClient.Pin())
+	{
+		Client->HandleToggleShowFlag(EngineShowFlagIndex);
+	}
 }
 
-bool FShowFlagMenuCommands::IsShowFlagEnabled(const TSharedPtr<FEditorViewportClient>& Client, FEngineShowFlags::EShowFlag EngineShowFlagIndex)
+bool FShowFlagMenuCommands::IsShowFlagEnabled(TWeakPtr<FEditorViewportClient> WeakClient, FEngineShowFlags::EShowFlag EngineShowFlagIndex)
 {
-	check(Client.IsValid());
+	if (TSharedPtr<FEditorViewportClient> Client = WeakClient.Pin())
+	{
+		return Client->HandleIsShowFlagEnabled(EngineShowFlagIndex);
+	}
 
-	return Client->HandleIsShowFlagEnabled(EngineShowFlagIndex);
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

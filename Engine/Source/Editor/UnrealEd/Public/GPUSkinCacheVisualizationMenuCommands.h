@@ -57,8 +57,8 @@ private:
 	void BuildCommandMap();
 	bool AddCommandTypeToMenu(FMenuBuilder& Menu, const FGPUSkinCacheVisualizationType Type, bool bSeparatorBefore = false) const;
 
-	static void ChangeGPUSkinCacheVisualizationMode(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
-	static bool IsGPUSkinCacheVisualizationModeSelected(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
+	static void ChangeGPUSkinCacheVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
+	static bool IsGPUSkinCacheVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
 
 	TGPUSkinCacheVisualizationModeCommandMap CommandMap;
 };

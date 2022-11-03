@@ -894,7 +894,7 @@ void FMaterialStats::BuildViewShaderCodeMenus()
 				const FString MaterialQualityName = FMaterialStatsUtils::MaterialQualityToString(QualityLevel);
 				const FName TabName = MakeTabName(PlatformType, PlatformID, QualityLevel);
 
-				TabManager->RegisterTabSpawner(TabName, FOnSpawnTab::CreateSP<FMaterialStats, EShaderPlatform, EMaterialQualityLevel::Type>(this, &FMaterialStats::SpawnTab_ShaderCode, PlatformID, QualityLevel))
+				TabManager->RegisterTabSpawner(TabName, FOnSpawnTab::CreateSP(this, &FMaterialStats::SpawnTab_ShaderCode, PlatformID, QualityLevel))
 					.SetGroup(ShaderPlatformMenuItem.ToSharedRef())
 					.SetDisplayName(FText::FromString(MaterialQualityName));
 
