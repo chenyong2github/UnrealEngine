@@ -14,7 +14,7 @@
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/MemoryBase.h"
-#include "IO/IoDispatcher.h"
+#include "IO/IoDispatcherPriority.h"
 #include "IO/PackageId.h"
 #include "Math/NumericLimits.h"
 #include "Misc/AssertionMacros.h"
@@ -27,10 +27,17 @@
 #include "Serialization/FileRegions.h"
 #include "Templates/Function.h"
 #include "Templates/IsPODType.h"
+#include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/PimplPtr.h"
 #include "UObject/NameTypes.h"
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "IO/IoDispatcher.h"
+#endif
+
+class FIoBuffer;
+class FIoChunkId;
 class FLinkerLoad;
 class FOutputDevice;
 class IAsyncReadFileHandle;

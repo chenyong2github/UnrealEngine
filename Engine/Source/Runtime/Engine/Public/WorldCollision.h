@@ -5,15 +5,20 @@
 
 #pragma once 
 
+#include "Async/TaskGraphFwd.h"
 #include "CoreMinimal.h"
-#include "Async/TaskGraphInterfaces.h"
 #include "CollisionQueryParams.h"
 #include "CollisionShape.h"
 #include "Engine/OverlapResult.h"
 #include "Engine/HitResult.h"
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Async/TaskGraphInterfaces.h"
+#endif
+
 struct FOverlapDatum;
 struct FTraceDatum;
+typedef TArray<FGraphEventRef, TInlineAllocator<4> > FGraphEventArray;
 
 /** Trace Data Structs that are used for Async Trace */
 
@@ -289,12 +294,8 @@ struct AsyncTraceData : FNoncopyable
 	/**  Thread completion event for batch **/
 	FGraphEventArray		AsyncTraceCompletionEvent;
 
-	AsyncTraceData() 
-		: NumQueuedTraceData(0)
-		, NumQueuedOverlapData(0)
-		, bAsyncAllowed(false)
-		, bAsyncTasksCompleted(false)
-	{}
+	ENGINE_API AsyncTraceData();
+	ENGINE_API ~AsyncTraceData();
 };
 
 

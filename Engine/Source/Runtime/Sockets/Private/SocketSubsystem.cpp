@@ -6,9 +6,9 @@
 #include "Misc/CoreMisc.h"
 #include "SocketSubsystemModule.h"
 #include "Modules/ModuleManager.h"
-#include "Async/AsyncWork.h"
 #include "SocketTypes.h"
 #include "IPAddress.h"
+#include "IPAddressAsyncResolve.h"
 #include "Sockets.h"
 #include "Templates/UniquePtr.h"
 

@@ -2,6 +2,7 @@
 
 #include "Misc/SecureHash.h"
 
+#include "Async/AsyncWork.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/StringBuilder.h"
@@ -1509,3 +1510,16 @@ void appOnFailSHAVerification(const TCHAR* FailedPathname, bool bFailedDueToMiss
 #endif
 }
 
+bool FBufferReaderWithSHA::Close()
+{
+	// don't redo if we were already closed
+	if (ReaderData)
+	{
+		// kick off an SHA verification task to verify. this will handle any errors we get
+		(new FAutoDeleteAsyncTask<FAsyncSHAVerify>(ReaderData, ReaderSize, bFreeOnClose, *SourcePathname, bIsUnfoundHashAnError))->StartBackgroundTask();
+		ReaderData = NULL;
+	}
+
+	// note that we don't allow the base class CLose to happen, as the FAsyncSHAVerify will free the buffer if needed
+	return !IsError();
+}

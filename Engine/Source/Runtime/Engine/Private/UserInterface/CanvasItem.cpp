@@ -10,6 +10,7 @@
 #include "EngineGlobals.h"
 #include "HitProxies.h"
 #include "Materials/Material.h"
+#include "CanvasRendererItem.h"
 #include "CanvasTypes.h"
 #include "Engine/Canvas.h"
 #include "Engine/Texture.h"

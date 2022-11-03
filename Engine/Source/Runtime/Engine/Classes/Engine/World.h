@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Online/CoreOnlineFwd.h"
+#include "RHIDefinitions.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
@@ -16,19 +18,19 @@
 #include "GameTime.h"
 #include "CollisionQueryParams.h"
 #include "WorldCollision.h"
-#include "GameFramework/Pawn.h"
 #include "GameFramework/UpdateLevelVisibilityLevelInfo.h"
 #include "EngineDefines.h"
-#include "Engine/Blueprint.h"
 #include "Engine/PendingNetGame.h"
 #include "Engine/LatentActionManager.h"
-#include "Engine/GameInstance.h"
 #include "Physics/PhysicsInterfaceDeclares.h"
 #include "Particles/WorldPSCPool.h"
 #include "Containers/SortedMap.h"
 #include "AudioDeviceHandle.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "AudioDeviceManager.h"
+#include "Engine/Blueprint.h"
+#include "Engine/GameInstance.h"
+#include "GameFramework/Pawn.h"
 #endif
 #include "Subsystems/WorldSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
@@ -44,9 +46,12 @@ class AGameStateBase;
 class APhysicsVolume;
 class APlayerController;
 class AServerStreamingLevelsVisibility;
+class AWorldDataLayers;
 class AWorldSettings;
 class UWorldPartition;
 class Error;
+class FConstPawnIterator;
+class FRegisterComponentContext;
 class FTimerManager;
 class FWorldInGamePerformanceTrackers;
 class IInterface_PostProcessVolume;
@@ -83,67 +88,6 @@ typedef TArray<TWeakObjectPtr<APlayerController> >::TConstIterator FConstPlayerC
 typedef TArray<TWeakObjectPtr<ACameraActor> >::TConstIterator FConstCameraActorIterator;
 typedef TArray<ULevel*>::TConstIterator FConstLevelIterator;
 typedef TArray<TWeakObjectPtr<APhysicsVolume> >::TConstIterator FConstPhysicsVolumeIterator;
-
-/** Wrapper object that tries to imitate the TWeakObjectPtr interface for the objects previously in the PawnList and iterated by FConstPawnIterator. */
-struct ENGINE_API FPawnIteratorObject
-{
-	APawn* operator->() const { return Pawn; }
-	APawn& operator*() const { return *Pawn; }
-	APawn* Get() const { return Pawn; }
-
-	bool operator==(const UObject* Other) const { return Pawn == Other; }
-	bool operator!=(const UObject* Other) const { return Pawn != Other; }
-
-private:
-	FPawnIteratorObject()
-		: Pawn(nullptr)
-	{
-	}
-
-	FPawnIteratorObject(APawn* InPawn)
-		: Pawn(InPawn)
-	{
-	}
-
-	APawn* Pawn;
-
-	friend class FConstPawnIterator;
-};
-
-template< class T > FORCEINLINE T* Cast(const FPawnIteratorObject& Src) { return Cast<T>(Src.Get()); }
-
-/** 
- * Imitation iterator class that attempts to provide the basic interface that FConstPawnIterator previously did when a typedef of TArray<TWeakObjectPtr<APawn>>::Iterator.
- * In general you should prefer not to use this iterator and instead use TActorIterator<APawn> or TActorRange<APawn> (or the desired more derived type).
- * This iterator will likely be deprecated in a future release.
- */
-class ENGINE_API FConstPawnIterator
-{
-private:
-	FConstPawnIterator(UWorld* World);
-
-public:
-	~FConstPawnIterator();
-
-	FConstPawnIterator(FConstPawnIterator&&);
-	FConstPawnIterator& operator=(FConstPawnIterator&&);
-
-	explicit operator bool() const;
-	FPawnIteratorObject operator*() const;
-	TUniquePtr<FPawnIteratorObject> operator->() const;
-
-	FConstPawnIterator& operator++();
-	FConstPawnIterator& operator++(int);
-	UE_DEPRECATED(4.23, "Decrement operator no longer means anything on a pawn iterator")
-	FConstPawnIterator& operator--() { return *this; }
-	UE_DEPRECATED(4.23, "Decrement operator no longer means anything on a pawn iterator")
-	FConstPawnIterator& operator--(int) { return *this; }
-
-private:
-	TUniquePtr<TActorIterator<APawn>> Iterator;
-
-	friend UWorld;
-};
 
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogSpawn, Warning, All);
 
@@ -2398,19 +2342,7 @@ public:
 	bool IsTraceHandleValid(const FTraceHandle& Handle, bool bOverlapTrace);
 
 private:
-	static void GetCollisionProfileChannelAndResponseParams(FName ProfileName, ECollisionChannel& CollisionChannel, FCollisionResponseParams& ResponseParams)
-	{
-		if (UCollisionProfile::GetChannelAndResponseParams(ProfileName, CollisionChannel, ResponseParams))
-		{
-			return;
-		}
-
-		// No profile found
-		UE_LOG(LogPhysics, Warning, TEXT("COLLISION PROFILE [%s] is not found"), *ProfileName.ToString());
-
-		CollisionChannel = ECC_WorldStatic;
-		ResponseParams = FCollisionResponseParams::DefaultResponseParam;
-	}
+	static void GetCollisionProfileChannelAndResponseParams(FName ProfileName, ECollisionChannel& CollisionChannel, FCollisionResponseParams& ResponseParams);
 
 public:
 
@@ -3898,10 +3830,7 @@ public:
 	void SetMapNeedsLightingFullyRebuilt(int32 InNumLightingUnbuiltObjects, int32 InNumUnbuiltReflectionCaptures);
 
 	/** Returns TimerManager instance for this world. */
-	inline FTimerManager& GetTimerManager() const
-	{
-		return (OwningGameInstance ? OwningGameInstance->GetTimerManager() : *TimerManager);
-	}
+	FTimerManager& GetTimerManager() const;
 
 	/**
 	 * Returns LatentActionManager instance, preferring the one allocated by the game instance if a game instance is associated with this.
@@ -3910,10 +3839,7 @@ public:
  	 * to not worry about replacing features from GameInstance. Alternatively we could mandate that they implement a game instance
 	 * for their scene.
 	 */
-	inline FLatentActionManager& GetLatentActionManager()
-	{
-		return (OwningGameInstance ? OwningGameInstance->GetLatentActionManager() : LatentActionManager);
-	}
+	FLatentActionManager& GetLatentActionManager();
 
 	/**
 	 * Get a Subsystem of specified type

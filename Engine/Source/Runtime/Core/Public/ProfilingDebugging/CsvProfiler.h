@@ -8,7 +8,7 @@
 #pragma once
 
 #include "Async/Future.h"
-#include "Async/TaskGraphInterfaces.h"
+#include "Async/TaskGraphFwd.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/Queue.h"
@@ -27,10 +27,16 @@
 #include "Templates/AndOrNot.h"
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
 #include "Templates/IsValidVariadicFunctionArg.h"
+#include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
 #include "UObject/NameTypes.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Async/TaskGraphInterfaces.h"
+#endif
+
 
 #include <atomic>
 

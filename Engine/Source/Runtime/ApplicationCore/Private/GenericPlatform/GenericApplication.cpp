@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GenericPlatform/GenericApplication.h"
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/CommandLine.h"
@@ -198,3 +199,26 @@ void FDisplayMetrics::PrintToLog() const
 		UE_LOG(LogInit, Log, TEXT("      bIsPrimary: %s"), Info.bIsPrimary ? TEXT("true") : TEXT("false"));
 	}
 }
+
+GenericApplication::GenericApplication(const TSharedPtr< ICursor >& InCursor)
+	: Cursor(InCursor)
+	, MessageHandler(MakeShareable(new FGenericApplicationMessageHandler()))
+#if WITH_ACCESSIBILITY
+	, AccessibleMessageHandler(MakeShareable(new FGenericAccessibleMessageHandler()))
+#endif
+{
+
+}
+GenericApplication::~GenericApplication() = default;
+
+#if WITH_ACCESSIBILITY
+void GenericApplication::SetAccessibleMessageHandler(const TSharedRef<FGenericAccessibleMessageHandler>& InAccessibleMessageHandler)
+{
+	AccessibleMessageHandler = InAccessibleMessageHandler;
+}
+
+TSharedRef<FGenericAccessibleMessageHandler> GenericApplication::GetAccessibleMessageHandler() const
+{
+	return AccessibleMessageHandler;
+}
+#endif

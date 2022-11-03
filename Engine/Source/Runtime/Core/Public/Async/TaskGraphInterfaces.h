@@ -28,6 +28,7 @@
 
 #include "Async/Fundamental/Task.h"
 
+#include "Async/TaskGraphFwd.h"
 #include "Async/TaskTrace.h"
 #include "Tasks/TaskPrivate.h"
 #include "Async/InheritedContext.h"
@@ -38,22 +39,6 @@
 
 // what level of checking to perform...normally checkSlow but could be ensure or check
 #define checkThreadGraph checkSlow
-
-#if TASKGRAPH_NEW_FRONTEND
-
-class FBaseGraphTask;
-
-using FGraphEvent = FBaseGraphTask;
-using FGraphEventRef = TRefCountPtr<FBaseGraphTask>;
-
-#else
-
-/** Convenience typedef for a reference counted pointer to a graph event **/
-typedef TRefCountPtr<class FGraphEvent> FGraphEventRef;
-
-#endif
-
-
 
 //#define checkThreadGraph(x) ((x)||((*(char*)3) = 0))
 

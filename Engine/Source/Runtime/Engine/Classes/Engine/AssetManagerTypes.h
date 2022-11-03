@@ -4,10 +4,14 @@
 
 #include "CoreMinimal.h"
 #include "UObject/PrimaryAssetId.h"
-#include "AssetRegistry/AssetData.h"
-#include "AssetRegistry/AssetBundleData.h"
+#include "AssetRegistry/AssetIdentifier.h"
 #include "EngineTypes.h"
 #include "AssetManagerTypes.generated.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetBundleData.h"
+#endif
 
 /** Rule about when to cook/ship a primary asset */
 UENUM()

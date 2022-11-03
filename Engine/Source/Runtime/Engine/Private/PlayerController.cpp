@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/PlayerController.h"
+#include "Engine/GameInstance.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/PackageName.h"
 #include "UObject/LinkerLoad.h"
 #include "EngineGlobals.h"
@@ -130,6 +132,22 @@ const float RetryServerCheckSpectatorThrottleTime = 0.25f;
 // Note: This value should be sufficiently small such that it is considered to be in the past before RetryClientRestartThrottleTime and RetryServerAcknowledgeThrottleTime.
 const float ForceRetryClientRestartTime = -100.0f;
 
+//////////////////////////////////////////////////////////////////////////
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+/** Used to display the force feedback history of what was played most recently. */
+struct FForceFeedbackEffectHistoryEntry
+{
+	FActiveForceFeedbackEffect LastActiveForceFeedbackEffect;
+	float TimeShown;
+
+	FForceFeedbackEffectHistoryEntry(FActiveForceFeedbackEffect LastActiveFFE, float Time)
+	{
+		LastActiveForceFeedbackEffect = LastActiveFFE;
+		TimeShown = Time;
+	}
+};
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 // APlayerController

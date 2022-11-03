@@ -8,8 +8,11 @@
 
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
-#include "UObject/Package.h"
 #include "UObject/GCObject.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "UObject/Package.h"
+#endif
 
 namespace ConstructorHelpersInternal
 {
@@ -42,29 +45,7 @@ namespace ConstructorHelpersInternal
 	}
 
 	template<>
-	inline UPackage* FindOrLoadObject<UPackage>( FString& PathName, uint32 LoadFlags)
-	{
-		// If there is a dot, remove it.
-		int32 PackageDelimPos = INDEX_NONE;
-		PathName.FindChar( TCHAR('.'), PackageDelimPos );
-		if( PackageDelimPos != INDEX_NONE )
-		{
-			PathName.RemoveAt(PackageDelimPos,1,false);
-		}
-
-		// Find the package in memory. 
-		UPackage* PackagePtr = FindPackage( nullptr, *PathName );
-		if( !PackagePtr )
-		{
-			// If it is not in memory, try to load it.
-			PackagePtr = LoadPackage( nullptr, *PathName, LoadFlags);
-		}
-		if (PackagePtr)
-		{
-			PackagePtr->AddToRoot();
-		}
-		return PackagePtr;
-	}
+	COREUOBJECT_API UPackage* FindOrLoadObject<UPackage>(FString& PathName, uint32 LoadFlags);
 
 	inline UClass* FindOrLoadClass(FString& PathName, UClass* BaseClass)
 	{

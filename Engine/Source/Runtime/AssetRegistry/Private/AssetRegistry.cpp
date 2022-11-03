@@ -22,6 +22,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Optional.h"
 #include "Misc/PackageAccessTracking.h"
+#include "Misc/PackageAccessTrackingOps.h"
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
 #include "Misc/RedirectCollector.h"
@@ -37,6 +38,7 @@
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(IAssetRegistry)
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AssetRegistry)
 
 #if WITH_EDITOR
@@ -643,6 +645,19 @@ const TCHAR* GetDevelopmentAssetRegistryFilename()
 {
 	return TEXT("DevelopmentAssetRegistry.bin");
 }
+
+FAssetData IAssetRegistry::K2_GetAssetByObjectPath(const FSoftObjectPath& ObjectPath, bool bIncludeOnlyOnDiskAssets) const
+{
+	return GetAssetByObjectPath(ObjectPath, bIncludeOnlyOnDiskAssets);
+}
+
+IAssetRegistry::FLoadPackageRegistryData::FLoadPackageRegistryData(bool bInGetDependencies)
+	: bGetDependencies(bInGetDependencies)
+{
+}
+
+IAssetRegistry::FLoadPackageRegistryData::~FLoadPackageRegistryData() = default;
+
 
 UAssetRegistry::UAssetRegistry(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

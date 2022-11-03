@@ -9,8 +9,11 @@
 
 #include "CoreMinimal.h"
 #include "PixelFormat.h"
-#include "HAL/IConsoleManager.h"
 #include "Serialization/MemoryLayout.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "HAL/IConsoleManager.h"
+#endif
 
 #ifndef USE_STATIC_SHADER_PLATFORM_ENUMS
 #define USE_STATIC_SHADER_PLATFORM_ENUMS 0
@@ -242,7 +245,7 @@ private:
  */
 namespace ERHIFeatureLevel
 {
-	enum Type
+	enum Type : int
 	{
 		/** Feature level defined by the core capabilities of OpenGL ES2. Deprecated */
 		ES2_REMOVED,

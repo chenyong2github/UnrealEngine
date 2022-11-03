@@ -7,14 +7,18 @@
  *  The typical use case is for structs used in the renderer and also in script code.
  */
 
+#include "Async/TaskGraphFwd.h"
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Misc/CoreMisc.h"
-#include "Async/TaskGraphInterfaces.h"
 #include "Net/Core/Connection/NetEnums.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Async/TaskGraphInterfaces.h"
+#endif
 
 #include "EngineBaseTypes.generated.h"
 

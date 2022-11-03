@@ -434,3 +434,11 @@ public:
 
 #endif // ENABLE_COLLISION_ANALYZER
 
+AsyncTraceData::AsyncTraceData()
+	: NumQueuedTraceData(0)
+	, NumQueuedOverlapData(0)
+	, bAsyncAllowed(false)
+	, bAsyncTasksCompleted(false)
+{}
+
+AsyncTraceData::~AsyncTraceData() = default;

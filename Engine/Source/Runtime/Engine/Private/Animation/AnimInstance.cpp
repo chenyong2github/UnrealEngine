@@ -5,6 +5,7 @@
 =============================================================================*/ 
 
 #include "Animation/AnimInstance.h"
+#include "GameFramework/Pawn.h"
 #include "UObject/Package.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
@@ -14,6 +15,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimClassInterface.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Animation/AnimMontageEvaluationState.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "DisplayDebugHelpers.h"
 #include "Animation/BlendSpace.h"
@@ -1358,7 +1360,7 @@ void UAnimInstance::AddCurveValue(const FSmartNameMapping& Mapping, const FName&
 	GetProxyOnAnyThread<FAnimInstanceProxy>().AddCurveValue(Mapping, CurveName, Value);
 }
 
-void UAnimInstance::AddCurveValue(const USkeleton::AnimCurveUID Uid, float Value)
+void UAnimInstance::AddCurveValue(const SmartName::UID_Type Uid, float Value)
 {
 	FName CurrentCurveName;
 	// Grab the smartname mapping from our current skeleton and resolve the curve name. We cannot cache

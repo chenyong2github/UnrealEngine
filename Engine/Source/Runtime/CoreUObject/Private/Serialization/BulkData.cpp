@@ -2,6 +2,7 @@
 #include "Serialization/BulkData.h"
 #include "Async/MappedFileHandle.h"
 #include "HAL/IConsoleManager.h"
+#include "IO/IoDispatcher.h"
 #include "Misc/ConfigCacheIni.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Serialization/LargeMemoryWriter.h"

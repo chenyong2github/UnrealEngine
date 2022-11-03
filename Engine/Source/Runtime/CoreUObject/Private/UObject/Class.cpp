@@ -10,6 +10,7 @@
 #include "Misc/OutputDeviceHelper.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/OutputDeviceConsole.h"
+#include "Misc/PackageAccessTrackingOps.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/StringBuilder.h"
@@ -2154,6 +2155,13 @@ EExprToken UStruct::SerializeExpr( int32& iCode, FArchive& Ar )
 #undef SERIALIZEEXPR_AUTO_UNDEF_XFER_MACROS
 }
 
+FTopLevelAssetPath UStruct::GetStructPathName() const
+{
+	// Some day this check may actually be relevant
+	checkf(GetOuter() == GetPackage(), TEXT("Only top level objects are supported by FTopLevelAssetPath. This object is a subobject: \"%s\""), *GetPathName());
+	return FTopLevelAssetPath(GetOuter()->GetFName(), GetFName());
+}
+
 void UStruct::InstanceSubobjectTemplates( void* Data, void const* DefaultData, UStruct* DefaultStruct, UObject* Owner, FObjectInstancingGraph* InstanceGraph )
 {
 	checkSlow(Data);
@@ -2543,6 +2551,11 @@ UScriptStruct::ICppStructOps* UScriptStruct::FindDeferredCppStructOps(FTopLevelA
 	return GetDeferredCppStructOps().FindRef(StructName);
 }
 #endif
+
+FTopLevelAssetPath UScriptStruct::GetFlattenedStructPathName() const
+{
+	return FTopLevelAssetPath(GetPackage()->GetFName(), GetFName());
+}
 
 /** Look for the CppStructOps if we don't already have it and set the property size **/
 void UScriptStruct::PrepareCppStructOps()
@@ -4817,6 +4830,12 @@ void UClass::ValidateRuntimeReplicationData()
 
 		CheckStructRecursive(CheckStructRecursive, BaseProp, ECheckStructType::TopLevel);
 	}
+}
+
+void UClass::InternalCreateDefaultObjectWrapper() const
+{
+	UE_TRACK_REFERENCING_PACKAGE_SCOPED(this, PackageAccessTrackingOps::NAME_CreateDefaultObject);
+	const_cast<UClass*>(this)->CreateDefaultObject();
 }
 
 /**

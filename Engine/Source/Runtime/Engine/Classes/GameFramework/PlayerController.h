@@ -17,10 +17,9 @@
 #include "SceneTypes.h"
 #include "GameFramework/Controller.h"
 #include "UObject/TextProperty.h"
-#include "GameFramework/OnlineReplStructs.h"
 #include "GameFramework/PlayerMuteList.h"
 #include "Camera/PlayerCameraManager.h"
-#include "GameFramework/ForceFeedbackEffect.h"
+#include "GameFramework/ForceFeedbackParameters.h"
 #include "GameFramework/UpdateLevelVisibilityLevelInfo.h"
 #include "GenericPlatform/ICursor.h"
 #include "GenericPlatform/IInputInterface.h"
@@ -30,6 +29,8 @@
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Widgets/SWidget.h"
 #include "Components/InputComponent.h"
+#include "GameFramework/ForceFeedbackParameters.h"
+#include "GameFramework/OnlineReplStructs.h"
 #include "GameFramework/PlayerInput.h"
 #endif
 
@@ -38,7 +39,6 @@
 class ACameraActor;
 class AHUD;
 class APawn;
-class APlayerCameraManager;
 class ASpectatorPawn;
 class FDebugDisplayInfo;
 class SWidget;
@@ -52,8 +52,10 @@ class UPlayer;
 class UPlayerInput;
 class UPrimitiveComponent;
 namespace EControllerAnalogStick { enum Type : int; }
+struct FActiveForceFeedbackEffect;
 struct FActiveHapticFeedbackEffect;
 struct FCollisionQueryParams;
+struct FForceFeedbackEffectHistoryEntry;
 struct FInputKeyParams;
 struct FPlatformUserId;
 class UAsyncPhysicsInputComponent;
@@ -99,21 +101,6 @@ struct FDynamicForceFeedbackDetails
 
 	void Update(FForceFeedbackValues& Values) const;
 };
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-/** Used to display the force feedback history of what was played most recently. */
-struct FForceFeedbackEffectHistoryEntry
-{
-	FActiveForceFeedbackEffect LastActiveForceFeedbackEffect;
-	float TimeShown;
-
-	FForceFeedbackEffectHistoryEntry(FActiveForceFeedbackEffect LastActiveFFE, float Time)
-	{
-		LastActiveForceFeedbackEffect = LastActiveFFE;
-		TimeShown = Time;
-	}
-};
-#endif
 
 /** Abstract base class for Input Mode structures */
 struct ENGINE_API FInputModeDataBase

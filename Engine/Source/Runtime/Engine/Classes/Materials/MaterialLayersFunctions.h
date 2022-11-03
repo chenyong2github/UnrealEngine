@@ -3,8 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AssetRegistry/AssetData.h"
 #include "MaterialTypes.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AssetRegistry/AssetData.h"
+#endif
+
 #include "MaterialLayersFunctions.generated.h"
 
 #define LOCTEXT_NAMESPACE "MaterialLayersFunctions"

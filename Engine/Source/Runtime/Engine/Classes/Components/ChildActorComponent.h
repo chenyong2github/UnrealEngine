@@ -6,8 +6,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Templates/SubclassOf.h"
-#include "UObject/CoreNet.h"
 #include "Components/SceneComponent.h"
+
 #include "ChildActorComponent.generated.h"
 
 class AActor;

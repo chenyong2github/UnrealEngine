@@ -7,12 +7,12 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 #include "Templates/SubclassOf.h"
-#include "UObject/CoreNet.h"
 #include "Engine/EngineTypes.h"
 #include "Engine/EngineBaseTypes.h"
 #include "UObject/ScriptMacros.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "EdGraph/EdGraphPin.h"
+#include "UObject/CoreNet.h"
 #endif
 #include "Interfaces/Interface_AssetUserData.h"
 #include "UObject/StructOnScope.h"
@@ -23,6 +23,7 @@
 struct FTypedElementHandle;
 
 class AActor;
+class IRepChangedPropertyTracker;
 class UActorComponent;
 class UAssetUserData;
 class ULevel;

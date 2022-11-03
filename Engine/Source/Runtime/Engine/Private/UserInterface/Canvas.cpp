@@ -6,6 +6,7 @@
 
 #include "Engine/Canvas.h"
 #include "CanvasBatchedElementRenderItem.h"
+#include "UnrealEngine.h"
 #include "UObject/Package.h"
 #include "UObject/ConstructorHelpers.h"
 #include "EngineStats.h"
@@ -30,6 +31,7 @@
 #include "Fonts/FontMeasure.h"
 #include "EngineModule.h"
 #include "CanvasRender.h"
+#include "CanvasRendererItem.h"
 #include "RenderGraphUtils.h"
 #include "TextureResource.h"
 #include "UnrealClient.h"
@@ -2002,6 +2004,17 @@ void FCanvas::DrawItem(FCanvasItem& Item, float X, float Y)
 	{
 		Flush_GameThread();
 	}
+}
+
+EShaderPlatform FCanvas::GetShaderPlatform() const
+{
+	return GShaderPlatformForFeatureLevel[FeatureLevel];
+}
+
+void FScreenMessageWriter::DrawLine(const FText& Message, int32 X, const FLinearColor& Color)
+{
+	Canvas.DrawShadowedText((float)X, (float)Y, Message, GetStatsFont(), Color);
+	EmptyLine();
 }
 
 void UCanvas::SetView(FSceneView* InView)

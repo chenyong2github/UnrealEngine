@@ -6,6 +6,20 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 
+int32 GetMobilePlanarReflectionMode()
+{
+	static const auto MobilePlanarReflectionModeCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.PlanarReflectionMode"));
+
+	return MobilePlanarReflectionModeCVar->GetValueOnAnyThread();
+}
+
+int32 GetMobilePixelProjectedReflectionQuality()
+{
+	static const auto MobilePixelProjectedReflectionQualityCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.PixelProjectedReflectionQuality"));
+
+	return MobilePixelProjectedReflectionQualityCVar->GetValueOnAnyThread();
+}
+
 void FColorGradingSettings::ExportToPostProcessSettings(FPostProcessSettings* OutPostProcessSettings) const
 {
 	OutPostProcessSettings->bOverride_ColorSaturation = true;

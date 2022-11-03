@@ -5,12 +5,16 @@
 #include "CoreMinimal.h"
 
 #include "AssetRegistry/ARFilter.h"
-#include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/AssetIdentifier.h"
 #include "Containers/BitArray.h"
 #include "Containers/StringFwd.h"
 #include "Misc/AssetRegistryInterface.h"
 #include "Misc/Optional.h"
 #include "UObject/Interface.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "AssetRegistry/AssetData.h"
+#endif
 
 #include "IAssetRegistry.generated.h"
 
@@ -228,10 +232,7 @@ public:
 	 * @return the assets data;Will be invalid if object could not be found
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category = "AssetRegistry", DisplayName="Get Asset By Object Path")
-	virtual FAssetData K2_GetAssetByObjectPath(const FSoftObjectPath& ObjectPath, bool bIncludeOnlyOnDiskAssets = false) const
-	{
-		return GetAssetByObjectPath(ObjectPath, bIncludeOnlyOnDiskAssets);
-	}
+	ASSETREGISTRY_API virtual FAssetData K2_GetAssetByObjectPath(const FSoftObjectPath& ObjectPath, bool bIncludeOnlyOnDiskAssets = false) const;
 
 	/**
 	 * Gets the asset data for the specified object path
@@ -678,10 +679,8 @@ public:
 
 	struct FLoadPackageRegistryData
 	{
-		FLoadPackageRegistryData(bool bInGetDependencies = false)
-			: bGetDependencies(bInGetDependencies)
-		{
-		}
+		ASSETREGISTRY_API FLoadPackageRegistryData(bool bInGetDependencies = false);
+		ASSETREGISTRY_API ~FLoadPackageRegistryData();
 
 		TArray<FAssetData> Data;
 		TArray<FName> DataDependencies;

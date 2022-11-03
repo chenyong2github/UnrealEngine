@@ -5,6 +5,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Curves/CurveFloat.h"
+#include "ForceFeedbackParameters.h"
 #include "ForceFeedbackEffect.generated.h"
 
 class UForceFeedbackEffect;
@@ -38,31 +39,6 @@ struct FForceFeedbackChannelDetails
 		, bAffectsRightSmall(true)
 	{
 	}
-};
-
-/** This structure is used to pass arguments to ClientPlayForceFeedback() client RPC function */
-USTRUCT()
-struct FForceFeedbackParameters
-{
-	GENERATED_BODY()
-
-		FForceFeedbackParameters()
-		: bLooping(false)
-		, bIgnoreTimeDilation(false)
-		, bPlayWhilePaused(false)
-	{}
-
-	UPROPERTY()
-	FName Tag;
-
-	UPROPERTY()
-	bool bLooping;
-
-	UPROPERTY()
-	bool bIgnoreTimeDilation;
-
-	UPROPERTY()
-	bool bPlayWhilePaused;
 };
 
 USTRUCT()

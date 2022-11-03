@@ -39,8 +39,6 @@
 #include "Misc/FallbackStruct.h"
 #include "Misc/Guid.h"
 #include "Misc/Optional.h"
-#include "Misc/PackageAccessTracking.h"
-#include "Misc/PackageAccessTrackingOps.h"
 #include "Misc/ScopeRWLock.h"
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/StructuredArchiveAdapters.h"
@@ -65,13 +63,18 @@
 #include "UObject/NameTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "UObject/Package.h"
 #include "UObject/PropertyTag.h"
 #include "UObject/ReflectedTypeAccessors.h"
 #include "UObject/Script.h"
 #include "UObject/TopLevelAssetPath.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealNames.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Misc/PackageAccessTracking.h"
+#include "Misc/PackageAccessTrackingOps.h"
+#include "UObject/Package.h"
+#endif
 
 class FArchive;
 class FEditPropertyChain;
@@ -446,12 +449,7 @@ public:
 	/**
 	 * Returns struct path name as a package + struct FName pair
 	 */
-	FORCEINLINE FTopLevelAssetPath GetStructPathName() const
-	{
-		// Some day this check may actually be relevant
-		checkf(GetOuter() == GetOutermost(), TEXT("Only top level objects are supported by FTopLevelAssetPath. This object is a subobject: \"%s\""), *GetPathName());
-		return FTopLevelAssetPath(GetOuter()->GetFName(), GetFName());
-	}
+	FTopLevelAssetPath GetStructPathName() const;
 
 	/** Searches property link chain for a property with the specified name */
 	FProperty* FindPropertyByName(FName InName) const;
@@ -1502,10 +1500,7 @@ protected:
 	* so a struct path name /Package/Name.Object:Struct will be flattened to /Package/Name.Struct.
 	* This function is used only for generating keys for DeferredCppStructOps
 	*/
-	FTopLevelAssetPath GetFlattenedStructPathName() const
-	{
-		return FTopLevelAssetPath(GetOutermost()->GetFName(), GetFName());
-	}
+	COREUOBJECT_API FTopLevelAssetPath GetFlattenedStructPathName() const;
 
 public:
 
@@ -3054,8 +3049,7 @@ public:
 	{
 		if (ClassDefaultObject == nullptr && bCreateIfNeeded)
 		{
-			UE_TRACK_REFERENCING_PACKAGE_SCOPED(this, PackageAccessTrackingOps::NAME_CreateDefaultObject);
-			const_cast<UClass*>(this)->CreateDefaultObject();
+			InternalCreateDefaultObjectWrapper();
 		}
 
 		return ClassDefaultObject;
@@ -3427,7 +3421,7 @@ private:
 	 * Tests if all properties tagged with Replicate were registered in GetLifetimeReplicatedProps
 	 */
 	void ValidateRuntimeReplicationData();
-
+	void InternalCreateDefaultObjectWrapper() const;
 protected:
 	/**
 	 * Get the default object from the class, creating it if missing, if requested or under a few other circumstances

@@ -10,6 +10,9 @@
 #include "Serialization/Archive.h"
 #include "Trace/Detail/Channel.h"
 
+/** CVar specifying the maximum serialization size for strings sent/received by the netcode */
+extern CORE_API TAutoConsoleVariable<int32> CVarMaxNetStringSize;
+
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 
 extern const uint8 GShift[8];

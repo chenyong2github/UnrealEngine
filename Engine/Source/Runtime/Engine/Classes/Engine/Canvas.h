@@ -13,6 +13,7 @@
 class UMaterialInterface;
 class UReporterGraph;
 class UTexture;
+class FSceneView;
 
 /**
  * Holds texture information with UV coordinates as well.

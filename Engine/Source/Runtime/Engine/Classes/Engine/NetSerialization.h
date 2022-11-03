@@ -15,7 +15,10 @@
 #include "UObject/CoreNet.h"
 #include "EngineLogs.h"
 #include "Net/Core/Serialization/QuantizedVectorSerialization.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Net/Serialization/FastArraySerializer.h"
+#endif
 
 #include "NetSerialization.generated.h"
 

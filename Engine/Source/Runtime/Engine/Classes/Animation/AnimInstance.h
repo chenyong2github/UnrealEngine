@@ -6,13 +6,13 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Animation/AnimTypes.h"
-#include "Animation/AttributesRuntime.h"
-#include "Animation/Skeleton.h"
 #include "Animation/AnimationAsset.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimMontage.h"
+#include "Animation/AttributesRuntime.h"
+#include "Animation/Skeleton.h"
 #include "BonePose.h"
-#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Components/SkeletalMeshComponent.h"
 #endif
 #include "Animation/AnimNotifyQueue.h"
@@ -29,15 +29,23 @@ class IAnimClassInterface;
 class UAnimInstance;
 class UCanvas;
 class USkeletalMeshComponent;
+class USkeleton;
+struct FAlphaBlend;
+struct FAlphaBlendArgs;
 struct FAnimInstanceProxy;
+struct FAnimMontageInstance;
 struct FAnimationEvaluationContext;
 struct FAnimNode_AssetPlayerBase;
 struct FAnimNode_AssetPlayerRelevancyBase;
 struct FAnimNode_StateMachine;
 struct FAnimNode_LinkedInputPose;
 struct FBakedAnimationStateMachine;
+struct FCompactPose;
+struct FCurveEvaluationOption;
 class FCompilerResultsLog;
+struct FBlendedHeapCurve;
 struct FBoneContainer;
+struct FSmartNameMapping;
 struct FAnimNode_LinkedAnimLayer;
 enum class ETransitionRequestQueueMode : uint8;
 enum class ETransitionRequestOverwriteMode : uint8;
@@ -46,6 +54,7 @@ typedef TArray<FTransform> FTransformArrayA2;
 
 namespace UE::Anim
 {
+	struct FHeapAttributeContainer;
 	using FSlotInertializationRequest = TPair<float, const UBlendProfile*>;
 }	// namespace UE::Anim
 
@@ -174,53 +183,6 @@ private:
 	friend class FAnimationRuntime;
 };
 
-
-
-/** Helper struct for Slot node pose evaluation. */
-USTRUCT()
-struct FSlotEvaluationPose
-{
-	GENERATED_USTRUCT_BODY()
-
-	/** Type of additive for pose */
-	UPROPERTY()
-	TEnumAsByte<EAdditiveAnimationType> AdditiveType;
-
-	/** Weight of pose */
-	UPROPERTY()
-	float Weight;
-
-	/*** ATTENTION *****/
-	/* These Pose/Curve is stack allocator. You should not use it outside of stack. */
-	FCompactPose Pose;
-	FBlendedCurve Curve;
-	UE::Anim::FStackAttributeContainer Attributes;
-
-	FSlotEvaluationPose()
-		: AdditiveType(AAT_None)
-		, Weight(0.0f)
-	{
-	}
-
-	FSlotEvaluationPose(float InWeight, EAdditiveAnimationType InAdditiveType)
-		: AdditiveType(InAdditiveType)
-		, Weight(InWeight)
-	{
-	}
-
-	FSlotEvaluationPose(FSlotEvaluationPose&& InEvaluationPose)
-		: AdditiveType(InEvaluationPose.AdditiveType)
-		, Weight(InEvaluationPose.Weight)
-	{
-		Pose.MoveBonesFrom(InEvaluationPose.Pose);
-		Curve.MoveFrom(InEvaluationPose.Curve);
-		Attributes.MoveFrom(InEvaluationPose.Attributes);
-	}
-
-	FSlotEvaluationPose(const FSlotEvaluationPose& InEvaluationPose) = default;
-	FSlotEvaluationPose& operator=(const FSlotEvaluationPose& InEvaluationPose) = default;
-};
-
 /** Helper struct to store a Queued Montage BlendingOut event. */
 struct FQueuedMontageBlendingOutEvent
 {
@@ -343,45 +305,6 @@ struct FMontageActiveSlotTracker
 		, bIsRelevantThisTick(false)
 		, bWasRelevantOnPreviousTick(false) 
 	{}
-};
-
-struct FMontageEvaluationState
-{
-	FMontageEvaluationState(UAnimMontage* InMontage, float InPosition, FDeltaTimeRecord InDeltaTimeRecord, bool bInIsPlaying, bool bInIsActive, const FAlphaBlend& InBlendInfo, const UBlendProfile* InActiveBlendProfile, float InBlendStartAlpha)
-		: Montage(InMontage)
-		, BlendInfo(InBlendInfo)
-		, ActiveBlendProfile(InActiveBlendProfile)
-		, MontagePosition(InPosition)
-		, DeltaTimeRecord(InDeltaTimeRecord)
-		, BlendStartAlpha(InBlendStartAlpha)
-		, bIsPlaying(bInIsPlaying)
-		, bIsActive(bInIsActive)
-	{
-	}
-
-	// The montage to evaluate
-	TWeakObjectPtr<UAnimMontage> Montage;
-
-	// The current blend information.
-	FAlphaBlend BlendInfo;
-
-	// The active blend profile. Montages have a profile for blending in and blending out.
-	const UBlendProfile* ActiveBlendProfile;
-
-	// The position to evaluate this montage at
-	float MontagePosition;
-	
-	// The previous MontagePosition and delta leading into current
-	FDeltaTimeRecord DeltaTimeRecord;
-
-	// The linear alpha value where to start blending from. So not the blended value that already has been curve sampled.
-	float BlendStartAlpha;
-
-	// Whether this montage is playing
-	bool bIsPlaying;
-
-	// Whether this montage is valid and not stopped
-	bool bIsActive;
 };
 
 UCLASS(transient, Blueprintable, hideCategories=AnimInstance, BlueprintType, Within=SkeletalMeshComponent)
@@ -1476,7 +1399,7 @@ public:
 	void EndNotifyStates();
 
 	/** Add curve float data using a curve Uid, the name of the curve will be resolved from the skeleton **/
-	void AddCurveValue(const USkeleton::AnimCurveUID Uid, float Value);
+	void AddCurveValue(const SmartName::UID_Type Uid, float Value);
 
 	/** Add curve float data using a curve Uid, the name of the curve will be resolved from the skeleton. This uses an already-resolved proxy and mapping table for efficency **/
 	void AddCurveValue(const FSmartNameMapping& Mapping, const FName& CurveName, float Value);

@@ -13,6 +13,7 @@
 #include "LocalVertexFactory.h"
 #include "SceneView.h"
 #include "CanvasRender.h"
+#include "CanvasRendererItem.h"
 #include "MeshBatch.h"
 #include "RHIStaticStates.h"
 #include "RendererInterface.h"

@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Async/AsyncWork.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/StringConv.h"
@@ -23,6 +22,11 @@
 #include "String/BytesToHex.h"
 #include "String/HexToBytes.h"
 #include "Templates/UnrealTemplate.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Async/AsyncWork.h"
+#endif
+
 
 class FCbFieldView;
 class FCbWriter;
@@ -521,19 +525,8 @@ public:
 		Close();
 	}
 
-	bool Close() override
-	{
-		// don't redo if we were already closed
-		if (ReaderData)
-		{
-			// kick off an SHA verification task to verify. this will handle any errors we get
-			(new FAutoDeleteAsyncTask<FAsyncSHAVerify>(ReaderData, ReaderSize, bFreeOnClose, *SourcePathname, bIsUnfoundHashAnError))->StartBackgroundTask();
-			ReaderData = NULL;
-		}
-		
-		// note that we don't allow the base class CLose to happen, as the FAsyncSHAVerify will free the buffer if needed
-		return !IsError();
-	}
+	CORE_API bool Close() override;
+
 	/**
   	 * Returns the name of the Archive.  Useful for getting the name of the package a struct or object
 	 * is in when a loading error occurs.

@@ -4,6 +4,7 @@
 
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
+#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeExit.h"
 #include "SourceControlInitSettings.h"

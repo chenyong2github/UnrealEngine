@@ -4,6 +4,7 @@
 
 #include "Async/Fundamental/Scheduler.h"
 #include "Async/Fundamental/Task.h"
+#include "Async/TaskGraphFwd.h"
 #include "Async/TaskTrace.h"
 #include "Containers/Array.h"
 #include "Containers/LockFreeFixedSizeAllocator.h"
@@ -34,10 +35,6 @@
 
 #include <atomic>
 #include <type_traits>
-
-#if !defined(TASKGRAPH_NEW_FRONTEND)
-#define TASKGRAPH_NEW_FRONTEND 0
-#endif
 
 namespace UE::Tasks
 {

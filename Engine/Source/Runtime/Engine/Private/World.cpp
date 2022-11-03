@@ -6,6 +6,8 @@
 
 #include "Engine/World.h"
 
+#include "Engine/GameInstance.h"
+#include "Engine/PawnIterator.h"
 #include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
@@ -1497,6 +1499,20 @@ UCanvas* UWorld::GetCanvasForDrawMaterialToRenderTarget()
 	}
 
 	return CanvasForDrawMaterialToRenderTarget;
+}
+
+void UWorld::GetCollisionProfileChannelAndResponseParams(FName ProfileName, ECollisionChannel& CollisionChannel, FCollisionResponseParams& ResponseParams)
+{
+	if (UCollisionProfile::GetChannelAndResponseParams(ProfileName, CollisionChannel, ResponseParams))
+	{
+		return;
+	}
+
+	// No profile found
+	UE_LOG(LogPhysics, Warning, TEXT("COLLISION PROFILE [%s] is not found"), *ProfileName.ToString());
+
+	CollisionChannel = ECC_WorldStatic;
+	ResponseParams = FCollisionResponseParams::DefaultResponseParam;
 }
 
 UAISystemBase* UWorld::CreateAISystem()
@@ -6466,6 +6482,16 @@ void UWorld::CommitMapChange()
 	{
 		UE_LOG(LogWorld, Log, TEXT("AWorldSettings::CommitMapChange being called without a pending map change!"));
 	}
+}
+
+FTimerManager& UWorld::GetTimerManager() const
+{
+	return (OwningGameInstance ? OwningGameInstance->GetTimerManager() : *TimerManager);
+}
+
+FLatentActionManager& UWorld::GetLatentActionManager()
+{
+	return (OwningGameInstance ? OwningGameInstance->GetLatentActionManager() : LatentActionManager);
 }
 
 void UWorld::RequestNewWorldOrigin(FIntVector InNewOriginLocation)

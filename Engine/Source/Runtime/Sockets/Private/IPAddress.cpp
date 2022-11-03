@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IPAddress.h"
+#include "IPAddressAsyncResolve.h"
 #include "SocketSubsystem.h"
 #include "AddressInfoTypes.h"
 

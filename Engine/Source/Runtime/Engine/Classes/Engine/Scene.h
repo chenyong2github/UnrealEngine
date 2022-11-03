@@ -136,19 +136,8 @@ namespace EMobilePixelProjectedReflectionQuality
 	};
 }
 
-FORCEINLINE int32 GetMobilePlanarReflectionMode()
-{
-	static const auto MobilePlanarReflectionModeCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.PlanarReflectionMode"));
-
-	return MobilePlanarReflectionModeCVar->GetValueOnAnyThread();
-}
-
-FORCEINLINE int32 GetMobilePixelProjectedReflectionQuality()
-{
-	static const auto MobilePixelProjectedReflectionQualityCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.PixelProjectedReflectionQuality"));
-
-	return MobilePixelProjectedReflectionQualityCVar->GetValueOnAnyThread();
-}
+ENGINE_API int32 GetMobilePlanarReflectionMode();
+ENGINE_API int32 GetMobilePixelProjectedReflectionQuality();
 
 FORCEINLINE bool IsMobilePixelProjectedReflectionEnabled(EShaderPlatform ShaderPlatform)
 {
