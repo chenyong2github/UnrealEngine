@@ -1,5 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "Scene/SceneCapturePhotoSet.h"
 #include "Sampling/MeshBakerCommon.h"
 #include "Image/ImageInfilling.h"
