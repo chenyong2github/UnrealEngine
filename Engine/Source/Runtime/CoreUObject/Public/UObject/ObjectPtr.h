@@ -166,7 +166,8 @@ public:
 #else
 	FString GetPathName() const
 	{
-		return Get()->GetPathName();
+		const UObject* ResolvedObject = Get();
+		return ResolvedObject ? ResolvedObject->GetPathName() : TEXT("None");
 	}
 
 	FName GetFName() const

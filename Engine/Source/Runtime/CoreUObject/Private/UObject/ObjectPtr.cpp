@@ -6,7 +6,7 @@
 
 FString FObjectPtr::GetPathName() const
 {
-	if (IsResolved())
+	if (IsResolved() && !IsObjectHandleNull(Handle))
 	{
 		return Get()->GetPathName();
 	}
