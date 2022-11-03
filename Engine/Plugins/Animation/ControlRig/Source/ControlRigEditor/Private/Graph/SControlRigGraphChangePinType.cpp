@@ -2,6 +2,7 @@
 
 
 #include "Graph/SControlRigGraphChangePinType.h"
+#include "Features/IModularFeatures.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"

@@ -2,6 +2,7 @@
 
 #include "Views/MainPanel/SObjectMixerEditorMainPanel.h"
 
+#include "Engine/Blueprint.h"
 #include "ObjectMixerEditorLog.h"
 #include "ObjectMixerEditorModule.h"
 #include "ObjectMixerEditorSettings.h"

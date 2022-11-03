@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/GameEngine.h"
+#include "Engine/GameInstance.h"
 #include "Framework/Docking/TabManager.h"
 #include "GenericPlatform/GenericPlatformSurvey.h"
 #include "Misc/CommandLine.h"

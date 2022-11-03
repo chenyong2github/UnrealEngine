@@ -2,6 +2,8 @@
 
 #include "Customizations/UMGDetailCustomizations.h"
 #include "Components/StaticMeshComponent.h"
+#include "Features/IModularFeatures.h"
+#include "GameFramework/Pawn.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"

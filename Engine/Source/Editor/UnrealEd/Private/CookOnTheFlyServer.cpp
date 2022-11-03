@@ -126,6 +126,7 @@
 #include "UObject/Class.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/GarbageCollection.h"
+#include "UObject/LinkerLoad.h"
 #include "UObject/LinkerLoadImportBehavior.h"
 #include "UObject/MetaData.h"
 #include "UObject/ObjectSaveContext.h"

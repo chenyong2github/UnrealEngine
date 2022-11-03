@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "TimerManager.h"
+#include "Engine/GameInstance.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CoreDelegates.h"
 #include "Engine/World.h"

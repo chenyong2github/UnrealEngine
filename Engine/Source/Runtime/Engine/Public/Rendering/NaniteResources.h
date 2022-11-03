@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "GrowOnlySpanAllocator.h"
+#include "IO/IoHash.h"
 #include "UnifiedBuffer.h"
 #include "RenderGraphDefinitions.h"
 #include "SceneManagement.h"

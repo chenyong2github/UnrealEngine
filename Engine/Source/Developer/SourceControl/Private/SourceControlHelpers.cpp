@@ -2,6 +2,7 @@
 
 #include "SourceControlHelpers.h"
 #include "Algo/Transform.h"
+#include "AssetRegistry/AssetData.h"
 #include "ISourceControlState.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
@@ -11,6 +12,7 @@
 #include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlLabel.h"
+#include "UObject/Linker.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"
 #include "Logging/MessageLog.h"

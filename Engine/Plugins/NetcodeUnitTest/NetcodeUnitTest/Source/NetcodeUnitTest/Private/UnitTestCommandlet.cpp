@@ -3,6 +3,7 @@
 #include "UnitTestCommandlet.h"
 
 #include "Containers/Ticker.h"
+#include "Engine/GameInstance.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"

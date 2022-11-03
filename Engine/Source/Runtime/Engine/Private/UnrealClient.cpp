@@ -2,6 +2,7 @@
 
 
 #include "UnrealClient.h"
+#include "BatchedElements.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/App.h"
@@ -20,6 +21,7 @@
 #include "GameFramework/GameUserSettings.h"
 #include "HModel.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "ViewportClient.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Engine/PostProcessVolume.h"
 #include "RendererInterface.h"

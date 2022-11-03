@@ -18,6 +18,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/BulkData.h"
 #include "TextureResource.h"
+#include "UObject/Package.h"
 #include "UObject/PhysicsObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "NiagaraSystem.h"

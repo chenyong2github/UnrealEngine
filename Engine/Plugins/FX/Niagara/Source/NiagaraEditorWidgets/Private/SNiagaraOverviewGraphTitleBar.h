@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AssetRegistry/AssetData.h"
 #include "CoreMinimal.h"
 #include "NiagaraSystem.h"
 #include "ViewModels/NiagaraSystemScalabilityViewModel.h"
@@ -10,6 +11,7 @@
 
 class SNiagaraOverviewGraph;
 class SVerticalBox;
+struct FAssetData;
 
 class SNiagaraOverviewGraphTitleBar : public SCompoundWidget
 {

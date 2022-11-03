@@ -2,6 +2,7 @@
 
 #include "SInterchangeResultsBrowserWindow.h"
 
+#include "Misc/PackageName.h"
 #include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IDocumentation.h"

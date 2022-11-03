@@ -3,6 +3,7 @@
 #include "Stats.h"
 #include "Async/Async.h"
 #include "CanvasTypes.h"
+#include "Engine/GameViewportClient.h"
 #include "PixelStreamingDelegates.h"
 #include "Settings.h"
 #include "Engine/Console.h"

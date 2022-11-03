@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AITestsCommon.h"
+#include "Engine/GameInstance.h"
 #include "Managers/MLAdapterManager.h"
 #include "Sessions/MLAdapterSession.h"
 #include "Agents/MLAdapterAgent.h"

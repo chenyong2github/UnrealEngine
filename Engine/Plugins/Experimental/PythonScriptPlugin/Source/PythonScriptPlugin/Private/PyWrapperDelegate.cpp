@@ -9,6 +9,7 @@
 #include "PyConversion.h"
 #include "PyReferenceCollector.h"
 #include "UObject/Class.h"
+#include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "UObject/StructOnScope.h"
 #include "Templates/Casts.h"

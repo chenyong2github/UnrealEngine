@@ -16,6 +16,7 @@
 #include "LensDistortionModelHandlerBase.h"
 #include "Modules/ModuleManager.h"
 #include "Slate/SceneViewport.h"
+#include "UObject/Package.h"
 
 UComposureBlueprintLibrary::UComposureBlueprintLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

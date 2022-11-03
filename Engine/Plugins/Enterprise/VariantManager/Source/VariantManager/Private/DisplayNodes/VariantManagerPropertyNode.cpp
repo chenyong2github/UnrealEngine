@@ -6,6 +6,7 @@
 #include "PropertyValue.h"
 #include "PropertyValueSoftObject.h"
 #include "SVariantManager.h"
+#include "UObject/Package.h"
 #include "VariantManager.h"
 #include "VariantManagerDragDropOp.h"
 #include "VariantManagerEditorCommands.h"

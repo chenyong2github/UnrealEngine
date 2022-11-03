@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AbcFile.h"
+#include "AssetRegistry/AssetData.h"
 #include "Materials/Material.h"
 #include "Misc/App.h"
 #include "Misc/ScopeLock.h"

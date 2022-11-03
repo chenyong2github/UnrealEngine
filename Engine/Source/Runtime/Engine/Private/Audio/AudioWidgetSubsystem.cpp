@@ -5,6 +5,7 @@
 #include "Audio/SoundEffectPresetWidgetInterface.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "Blueprint/UserWidget.h"
+#include "Engine/Blueprint.h"
 #include "Engine/World.h"
 #include "Interfaces/IPluginManager.h"
 #include "Internationalization/Text.h"

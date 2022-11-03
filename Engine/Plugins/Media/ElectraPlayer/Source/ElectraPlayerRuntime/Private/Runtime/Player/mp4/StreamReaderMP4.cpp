@@ -4,6 +4,7 @@
 #include "Player/Manifest.h"
 #include "HTTP/HTTPManager.h"
 #include "Demuxer/ParserISO14496-12.h"
+#include "Stats/Stats.h"
 #include "SynchronizedClock.h"
 #include "PlaylistReaderMP4.h"
 #include "Utilities/TimeUtilities.h"

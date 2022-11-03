@@ -17,6 +17,7 @@
 #include "Misc/ArchiveMD5.h"
 #include "Misc/Paths.h"
 #include "PackageTools.h"
+#include "UObject/Package.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCacheAbcFile, Log, All);

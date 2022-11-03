@@ -8,6 +8,7 @@
 #include "Algo/Transform.h"
 #include "Containers/Set.h"
 #include "HAL/FileManager.h"
+#include "HAL/IConsoleManager.h"
 #include "IAudioParameterTransmitter.h"
 #include "Interfaces/MetasoundFrontendInterface.h"
 #include "Internationalization/Text.h"

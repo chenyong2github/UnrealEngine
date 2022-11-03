@@ -2,6 +2,7 @@
 
 
 #include "AnimPreviewInstance.h"
+#include "Animation/AnimMontage.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimationSettings.h"

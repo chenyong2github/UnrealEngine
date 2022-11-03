@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequenceRecorder.h"
+#include "GameFramework/Pawn.h"
 #include "GameFramework/WorldSettings.h"
 #include "ISequenceAudioRecorder.h"
 #include "Misc/ScopedSlowTask.h"

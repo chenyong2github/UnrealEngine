@@ -9,6 +9,7 @@
 #include "Misc/PackageName.h"
 #include "GameFramework/WorldSettings.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "UObject/Linker.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelInstanceLevelStreaming)
 

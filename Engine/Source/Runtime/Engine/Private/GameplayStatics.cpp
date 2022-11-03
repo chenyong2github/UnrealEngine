@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet/GameplayStatics.h"
+#include "Engine/Blueprint.h"
+#include "Engine/GameInstance.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/CustomVersion.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"

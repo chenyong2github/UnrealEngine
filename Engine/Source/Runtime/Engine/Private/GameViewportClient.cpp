@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/GameViewportClient.h"
+#include "Engine/GameInstance.h"
+#include "GameFramework/Pawn.h"
 #include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"

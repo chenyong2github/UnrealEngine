@@ -3,6 +3,7 @@
 #include "Perception/AIPerceptionSystem.h"
 #include "EngineGlobals.h"
 #include "EngineUtils.h"
+#include "GameFramework/Pawn.h"
 #include "TimerManager.h"
 #include "Engine/Engine.h"
 #include "AISystem.h"

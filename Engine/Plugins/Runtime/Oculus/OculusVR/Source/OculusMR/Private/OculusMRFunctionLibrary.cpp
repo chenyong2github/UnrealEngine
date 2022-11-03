@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OculusMRFunctionLibrary.h"
+#include "GameFramework/Pawn.h"
 #include "OculusMRPrivate.h"
 #include "OculusMRModule.h"
 #include "OculusMR_CastingCameraActor.h"

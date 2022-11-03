@@ -2,6 +2,7 @@
 
 #include "Sensors/MLAdapterSensor.h"
 #include "Agents/MLAdapterAgent.h"
+#include "GameFramework/Pawn.h"
 #include "MLAdapterTypes.h"
 #include "Managers/MLAdapterManager.h"
 

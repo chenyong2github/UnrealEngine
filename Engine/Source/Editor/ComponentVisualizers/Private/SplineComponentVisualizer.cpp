@@ -17,6 +17,7 @@
 #include "Components/SplineComponent.h"
 #include "ScopedTransaction.h"
 #include "ActorEditorUtils.h"
+#include "UObject/UObjectIterator.h"
 #include "WorldCollision.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Settings/LevelEditorViewportSettings.h"

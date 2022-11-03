@@ -4,6 +4,7 @@
 
 #include "Engine/Texture.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "UObject/Package.h"
 #include "UObject/StrongObjectPtr.h"
 
 namespace DatasmithMaterialInstanceTemplateImpl

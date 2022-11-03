@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
+#include "EdGraph/EdGraphNode.h"
 #include "GenericPlatform/GenericPlatformStackWalk.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"

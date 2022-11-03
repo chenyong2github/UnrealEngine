@@ -13,6 +13,7 @@
 #include "Containers/Ticker.h"
 #include "NiagaraSimCache.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
+#include "UObject/Package.h"
 
 #if WITH_NIAGARA_DEBUGGER
 

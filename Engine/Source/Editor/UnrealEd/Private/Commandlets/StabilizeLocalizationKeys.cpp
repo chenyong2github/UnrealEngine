@@ -4,6 +4,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
 #include "Serialization/ArchiveUObject.h"
 #include "Internationalization/TextNamespaceUtil.h"

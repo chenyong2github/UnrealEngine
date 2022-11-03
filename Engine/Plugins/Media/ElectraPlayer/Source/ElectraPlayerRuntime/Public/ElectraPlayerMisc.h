@@ -4,6 +4,7 @@
 
 #include "Logging/LogMacros.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Stats/Stats2.h"
 
 /** Log category for the ElectraPlayer module. */
 DECLARE_LOG_CATEGORY_EXTERN(LogElectraPlayer, Log, All);

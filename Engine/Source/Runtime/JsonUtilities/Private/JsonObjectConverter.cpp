@@ -2,6 +2,7 @@
 
 #include "JsonObjectConverter.h"
 #include "Internationalization/Culture.h"
+#include "Misc/PackageName.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 #include "UObject/UnrealType.h"

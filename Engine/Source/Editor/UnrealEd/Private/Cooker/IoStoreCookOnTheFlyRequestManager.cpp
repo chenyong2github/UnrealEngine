@@ -2,6 +2,7 @@
 
 #include "IoStoreCookOnTheFlyRequestManager.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Async/Async.h"
 #include "Cooker/ExternalCookOnTheFlyServer.h"

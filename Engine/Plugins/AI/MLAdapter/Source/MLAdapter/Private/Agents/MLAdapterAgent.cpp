@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Agents/MLAdapterAgent.h"
+#include "Engine/GameInstance.h"
 #include "Sensors/MLAdapterSensor.h"
 #include "Sessions/MLAdapterSession.h"
 #include "MLAdapterSpace.h"

@@ -25,6 +25,7 @@
 #include "Misc/DefaultValueHelper.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "HAL/FileManager.h"
+#include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/TextProperty.h"

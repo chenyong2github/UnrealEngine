@@ -3,6 +3,7 @@
 #include "VirtualizationSourceControlBackend.h"
 
 #include "Containers/Ticker.h"
+#include "HAL/Event.h"
 #include "HAL/FileManager.h"
 #include "IO/IoHash.h"
 #include "ISourceControlModule.h"

@@ -237,7 +237,7 @@ enum EMaterialProperty
 };
 
 /** Blend modes supported for simple element rendering */
-enum ESimpleElementBlendMode
+enum ESimpleElementBlendMode : int
 {
 	SE_BLEND_Opaque = 0,
 	SE_BLEND_Masked,

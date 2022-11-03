@@ -35,6 +35,7 @@
 #include "Logging/MessageLog.h"
 #include "Misc/EngineBuildSettings.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "UObject/Linker.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Interfaces/IPluginManager.h"
 #include "Subsystems/AssetEditorSubsystem.h"

@@ -5,8 +5,10 @@
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "HAL/PlatformFileManager.h"
+#include "Misc/PackageName.h"
 #include "PackageSourceControlHelper.h"
 #include "SourceControlHelpers.h"
+#include "UObject/Package.h"
 #include "UObject/SavePackage.h"
 
 namespace WorldPartitionCommandletHelpers

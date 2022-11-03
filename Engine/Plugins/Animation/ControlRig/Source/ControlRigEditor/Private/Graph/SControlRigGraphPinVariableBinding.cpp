@@ -2,6 +2,7 @@
 
 
 #include "Graph/SControlRigGraphPinVariableBinding.h"
+#include "Features/IModularFeatures.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Images/SImage.h"

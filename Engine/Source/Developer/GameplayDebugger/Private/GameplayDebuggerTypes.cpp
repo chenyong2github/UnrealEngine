@@ -2,6 +2,7 @@
 
 #include "GameplayDebuggerTypes.h"
 #include "InputCoreTypes.h"
+#include "SceneView.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "GameplayDebuggerConfig.h"

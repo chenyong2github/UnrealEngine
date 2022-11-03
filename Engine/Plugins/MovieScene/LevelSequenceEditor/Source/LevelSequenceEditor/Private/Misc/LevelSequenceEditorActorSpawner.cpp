@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequenceEditorActorSpawner.h"
+#include "Engine/Blueprint.h"
 #include "MovieScene.h"
 #include "ActorFactories/ActorFactory.h"
 #include "AssetSelection.h"

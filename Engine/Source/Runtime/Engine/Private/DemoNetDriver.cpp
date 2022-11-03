@@ -10,6 +10,8 @@
 
 
 #include "Engine/DemoNetDriver.h"
+#include "Async/TaskGraphInterfaces.h"
+#include "Engine/GameInstance.h"
 #include "EngineGlobals.h"
 #include "Engine/World.h"
 #include "UObject/Package.h"

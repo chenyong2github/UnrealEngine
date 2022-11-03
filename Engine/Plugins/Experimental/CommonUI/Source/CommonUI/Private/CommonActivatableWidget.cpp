@@ -2,6 +2,7 @@
 
 #include "CommonActivatableWidget.h"
 #include "CommonUIPrivate.h"
+#include "Engine/GameInstance.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "Input/CommonUIInputTypes.h"
 #include "Input/UIActionBinding.h"

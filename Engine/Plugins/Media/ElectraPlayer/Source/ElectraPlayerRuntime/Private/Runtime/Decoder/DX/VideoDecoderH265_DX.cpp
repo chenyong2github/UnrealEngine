@@ -12,6 +12,7 @@
 #include "Renderer/RendererBase.h"
 #include "Renderer/RendererVideo.h"
 #include "Player/PlayerSessionServices.h"
+#include "Stats/Stats.h"
 #include "Utilities/Utilities.h"
 #include "Utilities/StringHelpers.h"
 #include "Utilities/UtilsMPEGVideo.h"

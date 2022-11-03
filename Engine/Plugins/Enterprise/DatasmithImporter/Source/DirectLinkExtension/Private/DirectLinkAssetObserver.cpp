@@ -2,6 +2,7 @@
 
 #include "DirectLinkAssetObserver.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "DirectLinkManager.h"
 #include "DirectLinkUriResolver.h"
 

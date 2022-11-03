@@ -7,6 +7,7 @@
 #include "ContentStreaming.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ADPCMAudioInfo.h"
+#include "Misc/CoreStats.h"
 
 IStreamedCompressedInfo::IStreamedCompressedInfo()
 	: bIsStreaming(false)

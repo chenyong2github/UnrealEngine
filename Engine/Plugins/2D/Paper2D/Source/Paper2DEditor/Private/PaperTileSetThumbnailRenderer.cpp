@@ -5,6 +5,7 @@
 #include "CanvasTypes.h"
 #include "IntMargin.h"
 #include "PaperTileSet.h"
+#include "RenderUtils.h"
 #include "TextureResource.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PaperTileSetThumbnailRenderer)

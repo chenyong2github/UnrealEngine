@@ -2,7 +2,9 @@
 
 #include "VirtualTexturePhysicalSpace.h"
 
+#include "BatchedElements.h"
 #include "Engine/Canvas.h"
+#include "Engine/Engine.h"
 #include "RenderTargetPool.h"
 #include "VisualizeTexture.h"
 #include "VT/VirtualTexturePoolConfig.h"

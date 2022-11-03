@@ -34,6 +34,7 @@
 #include "PropertyEditorModule.h"
 #include "SGraphActionMenu.h"
 #include "SNiagaraScriptVersionWidget.h"
+#include "UObject/Linker.h"
 #include "UObject/Package.h"
 #include "ViewModels/NiagaraParameterDefinitionsPanelViewModel.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"

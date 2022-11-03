@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Evaluation/MovieSceneFadeTemplate.h"
+#include "Engine/GameInstance.h"
 #include "Tracks/MovieSceneFadeTrack.h"
 #include "MovieSceneSequence.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"

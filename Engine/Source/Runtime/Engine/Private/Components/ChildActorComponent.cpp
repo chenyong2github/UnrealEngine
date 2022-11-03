@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/ChildActorComponent.h"
+#include "Blueprint/BlueprintSupport.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "UObject/UObjectHash.h"

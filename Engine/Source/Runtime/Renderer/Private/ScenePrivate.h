@@ -9,6 +9,7 @@
 // Dependencies.
 
 #include "CoreMinimal.h"
+#include "IO/IoDispatcher.h"
 #include "Misc/Guid.h"
 #include "Math/RandomStream.h"
 #include "Engine/EngineTypes.h"

@@ -2,6 +2,7 @@
 
 #include "FavoriteFilterContainer.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "LevelSnapshotFilters.h"
 #include "UClassMetaDataDefinitions.h"
 #include "AssetRegistry/AssetRegistryModule.h"

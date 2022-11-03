@@ -2,6 +2,7 @@
 
 #include "UnitTestManager.h"
 
+#include "Engine/GameInstance.h"
 #include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"

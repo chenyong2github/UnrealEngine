@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "GameFramework/GameMode.h"
+#include "Engine/GameInstance.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "GameFramework/WorldSettings.h"

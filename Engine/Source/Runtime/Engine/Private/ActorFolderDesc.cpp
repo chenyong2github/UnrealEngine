@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActorFolderDesc.h"
+#include "AssetRegistry/AssetData.h"
 #include "Misc/Paths.h"
 #include "Misc/PackagePath.h"
 #include "AssetRegistry/AssetRegistryModule.h"

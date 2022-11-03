@@ -4,10 +4,12 @@
 
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
+#include "ConvexVolume.h"
 #include "LidarPointCloudEditorHelper.h"
 #include "LidarPointCloudShared.h"
 #include "BaseBehaviors/ClickDragBehavior.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
+#include "SceneManagement.h"
 
 #define LOCTEXT_NAMESPACE "LidarPointCloudEditorTool"
 

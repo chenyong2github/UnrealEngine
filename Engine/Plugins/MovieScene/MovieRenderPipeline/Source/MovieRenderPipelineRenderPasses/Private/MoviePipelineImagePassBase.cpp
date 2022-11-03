@@ -19,12 +19,14 @@
 #include "Engine/RendererSettings.h"
 #include "MovieRenderOverlappedImage.h"
 #include "ImageUtils.h"
+#include "SceneManagement.h"
 #include "TextureResource.h"
 
 // For Cine Camera Variables in Metadata
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
 #include "MoviePipelineUtils.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineImagePassBase)
 

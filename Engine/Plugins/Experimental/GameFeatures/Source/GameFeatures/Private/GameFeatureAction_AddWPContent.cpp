@@ -2,6 +2,8 @@
 
 #include "GameFeatureAction_AddWPContent.h"
 
+#include "Misc/PackageName.h"
+#include "UObject/Package.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "WorldPartition/ContentBundle/ContentBundleClient.h"
 #include "GameFeatureData.h"

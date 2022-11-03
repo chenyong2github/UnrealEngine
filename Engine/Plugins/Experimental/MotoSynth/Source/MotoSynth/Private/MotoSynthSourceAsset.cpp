@@ -4,6 +4,7 @@
 
 #include "MotoSynthModule.h"
 #include "MotoSynthDataManager.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 #include "AudioDeviceManager.h"

@@ -12,6 +12,7 @@ class IAssetTypeActions;
 class FLevelEditorViewportClient;
 class FSlateStyleSet;
 class FViewport;
+class UToolMenu;
 struct FOpenColorIODisplayConfiguration;
 
 /**

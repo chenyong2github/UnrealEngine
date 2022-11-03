@@ -5,6 +5,7 @@
 #include "LevelEditorActions.h"
 #include "ObjectMixerEditorSerializedData.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "UObject/Package.h"
 #include "Views/List/ObjectMixerEditorList.h"
 #include "Views/MainPanel/SObjectMixerEditorMainPanel.h"
 

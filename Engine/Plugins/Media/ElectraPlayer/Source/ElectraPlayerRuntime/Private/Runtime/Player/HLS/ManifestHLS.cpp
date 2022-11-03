@@ -6,6 +6,7 @@
 #include "ManifestBuilderHLS.h"
 #include "PlaylistReaderHLS.h"
 #include "InitSegmentCacheHLS.h"
+#include "Stats/Stats.h"
 #include "StreamReaderHLSfmp4.h"
 #include "Player/PlayerSessionServices.h"
 #include "Player/AdaptivePlayerOptionKeynames.h"

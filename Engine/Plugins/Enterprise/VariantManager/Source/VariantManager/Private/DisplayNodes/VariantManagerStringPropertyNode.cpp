@@ -7,6 +7,7 @@
 #include "PropertyTemplateObject.h"
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/Package.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SButton.h"
 #include "ScopedTransaction.h"

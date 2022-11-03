@@ -5,6 +5,7 @@
 =============================================================================*/ 
 
 #include "AnimEncoding_PerTrackCompression.h"
+#include "HAL/IConsoleManager.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Animation/AnimEncodingHeapAllocator.h"

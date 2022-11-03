@@ -6,6 +6,7 @@
 
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "Misc/PackageName.h"
 #include "UObject/SoftObjectPath.h"
 #include "Templates/Casts.h"
 

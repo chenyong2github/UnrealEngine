@@ -11,6 +11,7 @@
 #include "Misc/MessageDialog.h"
 #include "ScopedTransaction.h"
 #include "SImageCenterToolPanel.h"
+#include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "ImageCenterTool"
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
+#include "GameFramework/Pawn.h"
 #include "UObject/CoreNet.h"
 #include "EngineGlobals.h"
 #include "Engine/EngineTypes.h"

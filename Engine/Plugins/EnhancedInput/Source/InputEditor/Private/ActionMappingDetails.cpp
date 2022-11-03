@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ActionMappingDetails.h"
+#include "AssetRegistry/AssetData.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "EnhancedActionKeyMapping.h"

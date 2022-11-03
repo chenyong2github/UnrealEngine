@@ -17,6 +17,7 @@
 #include "Tracks/MovieScene3DTransformTrack.h"
 
 #include "GameFramework/Actor.h"
+#include "UObject/Package.h"
 
 
 namespace UE

@@ -6,6 +6,7 @@
 #include "Json/GLTFJsonEnums.h"
 #include "MaterialTypes.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/Package.h"
 
 class UMaterial;
 class UMaterialInterface;

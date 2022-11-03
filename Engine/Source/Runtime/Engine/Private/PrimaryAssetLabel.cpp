@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/PrimaryAssetLabel.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/DataAsset.h"
 #include "Misc/PackageName.h"
 #include "UObject/Package.h"

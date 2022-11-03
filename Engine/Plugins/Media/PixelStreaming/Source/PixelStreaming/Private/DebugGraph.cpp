@@ -2,6 +2,7 @@
 
 #include "DebugGraph.h"
 #include "Engine/Canvas.h"
+#include "Engine/Engine.h"
 
 namespace UE::PixelStreaming
 {

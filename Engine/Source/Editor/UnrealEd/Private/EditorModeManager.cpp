@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorModeManager.h"
+#include "Components/StaticMeshComponent.h"
 #include "Engine/Selection.h"
 #include "Misc/MessageDialog.h"
 #include "Editor/EditorPerProjectUserSettings.h"
@@ -11,6 +12,8 @@
 #include "EditorModes.h"
 #include "EditorSupportDelegates.h"
 #include "EdMode.h"
+#include "Rendering/PositionVertexBuffer.h"
+#include "StaticMeshResources.h"
 #include "Toolkits/IToolkitHost.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Notifications/NotificationManager.h"

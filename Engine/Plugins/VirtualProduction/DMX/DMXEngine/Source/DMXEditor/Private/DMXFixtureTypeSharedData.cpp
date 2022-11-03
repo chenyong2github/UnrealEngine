@@ -8,6 +8,7 @@
 #include "Library/DMXEntityFixtureType.h"
 
 #include "ScopedTransaction.h"
+#include "UObject/Package.h"
 
 
 #define LOCTEXT_NAMESPACE "DMXFixtureTypeSharedData"

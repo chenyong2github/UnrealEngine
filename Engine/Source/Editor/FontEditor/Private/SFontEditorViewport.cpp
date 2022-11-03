@@ -49,6 +49,7 @@
 #include "UObject/ObjectPtr.h"
 #include "UnrealClient.h"
 #include "UnrealEdGlobals.h"
+#include "ViewportClient.h"
 #include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SViewport.h"

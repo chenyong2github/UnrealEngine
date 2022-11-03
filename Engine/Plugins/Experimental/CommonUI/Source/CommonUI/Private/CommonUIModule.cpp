@@ -8,6 +8,7 @@
 #include "Misc/CoreDelegates.h"
 
 #include "Input/CommonUIInputSettings.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 #include "ISettingsModule.h"

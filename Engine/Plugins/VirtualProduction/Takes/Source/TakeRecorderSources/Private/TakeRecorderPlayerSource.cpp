@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TakeRecorderPlayerSource.h"
+#include "GameFramework/Pawn.h"
 #include "TakesUtils.h"
 
 #include "TakeRecorderSources.h"

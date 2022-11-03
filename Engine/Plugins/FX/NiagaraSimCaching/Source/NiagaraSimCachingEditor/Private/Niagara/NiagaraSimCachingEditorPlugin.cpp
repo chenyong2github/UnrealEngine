@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Niagara/NiagaraSimCachingEditorPlugin.h"
+#include "Features/IModularFeatures.h"
 #include "Sequencer/TakeRecorderNiagaraCacheSource.h"
 #include "CoreMinimal.h"
 #include "Engine/Selection.h"

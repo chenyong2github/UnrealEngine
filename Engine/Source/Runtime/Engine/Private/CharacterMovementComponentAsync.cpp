@@ -2,6 +2,7 @@
 
 #include "CharacterMovementComponentAsync.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Pawn.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Chaos/SpatialAccelerationCollection.h"
 #include "Components/PrimitiveComponent.h"

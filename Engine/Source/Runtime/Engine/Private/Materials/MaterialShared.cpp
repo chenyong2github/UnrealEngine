@@ -8,6 +8,7 @@
 #include "Stats/StatsMisc.h"
 #include "UObject/CoreObjectVersion.h"
 #include "UObject/FrameworkObjectVersion.h"
+#include "UObject/Package.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "Misc/App.h"
 #include "UObject/UObjectHash.h"

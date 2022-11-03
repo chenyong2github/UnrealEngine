@@ -16,6 +16,8 @@
 #include "LicenseKeyCacheHLS.h"
 #include "OptionalValue.h"
 
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
 #include "Tags.h"
 #include "LHLSTags.h"
 #include "EpicTags.h"
@@ -418,7 +420,8 @@ FErrorDetail FManifestBuilderHLS::SetupRenditions(FManifestHLSInternal* Manifest
 
 	return FErrorDetail();
 }
-
+
+
 
 FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, const HLSPlaylistParser::FPlaylist& Playlist)
 {

@@ -12,6 +12,7 @@
 #include "NDisplaySlaveVirtualSubject.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "UObject/Package.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogNDisplayLiveLinkSubjectReplicator, Log, All);

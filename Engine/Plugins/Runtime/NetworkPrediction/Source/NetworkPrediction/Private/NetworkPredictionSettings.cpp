@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPredictionSettings.h"
+#include "Engine/Engine.h"
 #include "NetworkPredictionWorldManager.h"
 #include "UObject/UObjectIterator.h"
 #include "GameFramework/HUD.h"

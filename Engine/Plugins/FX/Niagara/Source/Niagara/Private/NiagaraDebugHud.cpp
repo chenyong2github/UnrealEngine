@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDebugHud.h"
+#include "Engine/Engine.h"
+#include "GameFramework/Pawn.h"
 #include "NiagaraComponent.h"
 #include "NiagaraDataSetReadback.h"
 #include "NiagaraFunctionLibrary.h"

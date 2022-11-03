@@ -12,6 +12,7 @@
 #include "Engine/World.h"
 #include "Engine/GameViewportClient.h"
 #include "Misc/ConfigCacheIni.h"
+#include "UObject/Package.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 namespace TextureShareWorldSubsystemHelpers

@@ -4,6 +4,7 @@
 #include "CoreGlobals.h"
 #include "Engine/DemoNetDriver.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneRootInstantiatorSystem.h"

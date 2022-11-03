@@ -3,6 +3,7 @@
 #include "PlayerCore.h"
 #include "ElectraPlayerPrivate.h"
 #include "ElectraPlayerPrivate_Platform.h"
+#include "HAL/IConsoleManager.h"
 #include "StreamAccessUnitBuffer.h"
 #include "Decoder/VideoDecoderH264.h"
 #include "Renderer/RendererBase.h"

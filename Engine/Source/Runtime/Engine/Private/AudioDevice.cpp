@@ -24,6 +24,7 @@
 #include "IAudioParameterTransmitter.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/App.h"
+#include "Misc/CoreStats.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"
 #include "Misc/Paths.h"
 #include "PhysicsEngine/BodyInstance.h"

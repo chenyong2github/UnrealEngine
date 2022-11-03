@@ -12,6 +12,7 @@
 #include "LevelInstance/LevelInstanceSubsystem.h"
 
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Engine/Blueprint.h"
 #include "Engine/SimpleConstructionScript.h"
 #include "Engine/SCS_Node.h"
 

@@ -3,6 +3,7 @@
 #include "PlayerCore.h"
 #include "Player/Manifest.h"
 #include "HTTP/HTTPManager.h"
+#include "Stats/Stats.h"
 #include "SynchronizedClock.h"
 #include "PlaylistReaderDASH.h"
 #include "PlaylistReaderDASH_Internal.h"

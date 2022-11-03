@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsAssetRenderUtils.h"
+#include "AssetRegistry/AssetData.h"
+#include "Features/IModularFeatures.h"
 #include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/SkeletalMeshComponent.h"

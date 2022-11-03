@@ -4,6 +4,7 @@
 	WorldComposition.cpp: UWorldComposition implementation
 =============================================================================*/
 #include "Engine/WorldComposition.h"
+#include "AssetRegistry/AssetData.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/Paths.h"

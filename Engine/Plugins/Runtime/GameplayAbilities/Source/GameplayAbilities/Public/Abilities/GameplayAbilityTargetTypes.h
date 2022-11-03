@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/HitResult.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 #include "Engine/NetSerialization.h"

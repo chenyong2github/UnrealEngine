@@ -8,6 +8,7 @@
 #include "DatasmithImportOptions.h"
 #include "DatasmithMaterialExpressions.h"
 #include "DatasmithSceneFactory.h"
+#include "Engine/Blueprint.h"
 #include "Utility/DatasmithImporterUtils.h"
 
 #include "ObjectTemplates/DatasmithAreaLightActorTemplate.h"

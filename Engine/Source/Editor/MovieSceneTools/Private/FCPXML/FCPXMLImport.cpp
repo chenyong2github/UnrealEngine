@@ -10,6 +10,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "UObject/MetaData.h"
 #include "Sound/SoundWave.h"
+#include "UObject/Package.h"
 
 /**
  METADATA NOTES:

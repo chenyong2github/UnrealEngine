@@ -8,6 +8,7 @@ SkeletalMeshUpdate.h: Helpers to stream in and out skeletal mesh LODs.
 
 #include "CoreMinimal.h"
 #include "Engine/SkeletalMesh.h"
+#include "IO/IoDispatcher.h"
 #include "RenderAssetUpdate.h"
 #include "Rendering/SkinWeightVertexBuffer.h"
 #include "Serialization/BulkData.h"

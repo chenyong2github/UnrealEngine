@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet/KismetSystemLibrary.h"
+#include "Blueprint/BlueprintSupport.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/FileManager.h"
 #include "GenericPlatform/GenericApplication.h"
 #include "Misc/CommandLine.h"
 #include "Misc/App.h"
 #include "Misc/EngineVersion.h"
+#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Misc/RuntimeErrors.h"
 #include "UObject/GCObject.h"
@@ -15,6 +17,7 @@
 #include "TimerManager.h"
 #include "GameFramework/Actor.h"
 #include "CollisionQueryParams.h"
+#include "UObject/Package.h"
 #include "WorldCollision.h"
 #include "Components/PrimitiveComponent.h"
 #include "Engine/CollisionProfile.h"

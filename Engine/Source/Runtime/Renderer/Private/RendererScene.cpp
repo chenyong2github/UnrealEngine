@@ -11,6 +11,7 @@
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/App.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 #include "Misc/PackageName.h"
 #include "EngineDefines.h"

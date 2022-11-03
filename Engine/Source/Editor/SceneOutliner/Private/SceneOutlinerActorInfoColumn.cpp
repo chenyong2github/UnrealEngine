@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SceneOutlinerActorInfoColumn.h"
+#include "Engine/Blueprint.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/Package.h"
 #include "Misc/PackageName.h"

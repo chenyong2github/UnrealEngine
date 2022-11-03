@@ -3,6 +3,7 @@
 #include "USDGeomMeshTranslator.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
+#include "UObject/Package.h"
 
 #if USE_USD_SDK
 

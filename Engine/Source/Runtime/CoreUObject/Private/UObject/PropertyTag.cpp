@@ -4,6 +4,7 @@
 #include "UObject/DebugSerializationFlags.h"
 #include "Serialization/SerializedPropertyScope.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
+#include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/BlueprintsObjectVersion.h"

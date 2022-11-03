@@ -16,6 +16,7 @@
 #include "HairStrandsImporter.h"
 #include "HairStrandsTranslator.h"
 #include "Logging/LogMacros.h"
+#include "Misc/PackageName.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/Package.h"
 

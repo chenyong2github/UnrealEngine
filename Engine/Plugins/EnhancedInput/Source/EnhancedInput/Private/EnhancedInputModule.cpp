@@ -2,7 +2,9 @@
 
 #include "EnhancedInputModule.h"
 
+#include "DrawDebugHelpers.h"
 #include "Engine/Canvas.h"
+#include "Engine/Engine.h"
 #include "Engine/LocalPlayer.h"
 #include "Engine/World.h"
 #include "EnhancedInputLibrary.h"
@@ -10,12 +12,14 @@
 #include "EnhancedPlayerInput.h"
 #include "GameFramework/HUD.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "InputCoreTypes.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Tickable.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "EnhancedInput"

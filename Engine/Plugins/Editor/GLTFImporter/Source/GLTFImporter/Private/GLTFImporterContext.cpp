@@ -8,6 +8,7 @@
 #include "Materials/Material.h"
 #include "Misc/Paths.h"
 #include "PackageTools.h"
+#include "UObject/Package.h"
 
 class FGLTFMaterialElementFactory : public GLTF::IMaterialElementFactory
 {

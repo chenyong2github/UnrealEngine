@@ -6,6 +6,7 @@ GPUSkinCache.cpp: Performs skinning on a compute shader into a buffer to avoid v
 =============================================================================*/
 
 #include "GPUSkinCache.h"
+#include "Engine/Engine.h"
 #include "RawIndexBuffer.h"
 #include "Shader.h"
 #include "SceneUtils.h"

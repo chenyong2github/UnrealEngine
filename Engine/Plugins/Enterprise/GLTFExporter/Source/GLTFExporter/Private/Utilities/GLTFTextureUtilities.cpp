@@ -6,6 +6,7 @@
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
 #include "TextureResource.h"
+#include "UObject/Package.h"
 
 UTextureRenderTarget2D* FGLTFTextureUtilities::CombineBaseColorAndOpacity(const UTexture* BaseColorTexture, const UTexture* OpacityTexture)
 {

@@ -4,6 +4,7 @@
 #include "BaseBehaviors/ClickDragBehavior.h"
 #include "CanvasTypes.h"
 #include "CanvasItem.h"
+#include "ConvexVolume.h"
 #include "ToolSceneQueriesUtil.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 

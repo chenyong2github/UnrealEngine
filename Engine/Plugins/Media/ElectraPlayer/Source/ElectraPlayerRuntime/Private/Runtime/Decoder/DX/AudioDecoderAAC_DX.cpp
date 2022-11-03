@@ -11,6 +11,7 @@
 #include "Decoder/AudioDecoderAAC.h"
 #include "Renderer/RendererBase.h"
 #include "Player/PlayerSessionServices.h"
+#include "Stats/Stats.h"
 #include "Utilities/Utilities.h"
 #include "Utilities/UtilsMPEG.h"
 #include "Utilities/UtilsMPEGAudio.h"

@@ -5,6 +5,7 @@
 #include "Modules/ModuleManager.h"
 #include "UIFPlayerComponent.h"
 #include "UIFWidget.h"
+#include "UObject/Package.h"
 
 UUIFrameworkWidget* FUIFrameworkModule::AuthorityAttachWidget(UUIFrameworkPlayerComponent* ReplicationOwner, FUIFrameworkParentWidget Parent, UUIFrameworkWidget* Child)
 {

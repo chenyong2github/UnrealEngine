@@ -8,6 +8,7 @@
 #include "Engine/Texture.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstance.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "DataprepSelectionTransforms"

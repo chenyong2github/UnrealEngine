@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Actuators/MLAdapterActuator_Camera.h"
+#include "HAL/IConsoleManager.h"
 #include "MLAdapterTypes.h"
 #include "MLAdapterSpace.h"
 #include "MLAdapterInputHelper.h"

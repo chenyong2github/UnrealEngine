@@ -4,9 +4,11 @@
 
 #if WITH_EOS_RTC
 
+#include "HAL/IConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h" 
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Stats/Stats.h"
 
 #include "EOSShared.h"
 #include "EOSSharedTypes.h"

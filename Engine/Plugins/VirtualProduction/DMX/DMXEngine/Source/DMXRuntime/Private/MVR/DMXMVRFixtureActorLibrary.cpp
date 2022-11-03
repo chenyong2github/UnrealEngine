@@ -2,8 +2,10 @@
 
 #include "MVR/DMXMVRFixtureActorLibrary.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "DMXMVRFixtureActorInterface.h"
 #include "DMXRuntimeLog.h"
+#include "Engine/Blueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Library/DMXEntityFixturePatch.h"
 

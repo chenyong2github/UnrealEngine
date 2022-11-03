@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CompositePlanePlacement.h"
+#include "AssetRegistry/AssetData.h"
+#include "Engine/Blueprint.h"
 #include "IPlacementModeModule.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
 

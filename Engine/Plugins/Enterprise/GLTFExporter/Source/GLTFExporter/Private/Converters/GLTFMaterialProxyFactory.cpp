@@ -9,6 +9,7 @@
 #include "Materials/GLTFProxyMaterialInfo.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceConstant.h"
+#include "Misc/PackageName.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "HAL/FileManager.h"
 #include "ImageUtils.h"

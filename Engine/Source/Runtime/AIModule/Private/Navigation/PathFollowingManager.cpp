@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Navigation/PathFollowingManager.h"
+#include "GameFramework/Pawn.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "VisualLogger/VisualLogger.h"
 #include "GameFramework/Controller.h"

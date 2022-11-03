@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MoviePipelineBlueprintLibrary.h"
+#include "Misc/PackageName.h"
 #include "MoviePipeline.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "MovieScene.h"
@@ -9,6 +10,7 @@
 #include "MovieScenePossessable.h"
 #include "MovieSceneBinding.h"
 #include "LevelSequence.h"
+#include "UObject/Package.h"
 #include "UObject/SoftObjectPath.h"
 #include "MoviePipelineQueue.h"
 #include "MovieRenderPipelineCoreModule.h"

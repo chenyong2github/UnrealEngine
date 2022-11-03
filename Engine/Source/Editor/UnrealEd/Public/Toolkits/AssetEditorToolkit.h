@@ -24,6 +24,7 @@ struct FToolMenuSection;
 class SBorder;
 class SStandaloneAssetEditorToolkitHost;
 class FWorkspaceItem;
+class UToolMenu;
 
 DECLARE_DELEGATE_RetVal( bool, FRequestAssetEditorClose );
 DECLARE_DELEGATE_RetVal( void, FAssetEditorClosing);

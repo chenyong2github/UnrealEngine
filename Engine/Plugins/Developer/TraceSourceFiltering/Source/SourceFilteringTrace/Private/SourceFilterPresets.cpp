@@ -2,6 +2,7 @@
 
 #include "SourceFilterPresets.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "HAL/IConsoleManager.h"
 #include "Internationalization/Text.h"
 #include "Logging/LogMacros.h"

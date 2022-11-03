@@ -5,6 +5,7 @@
 =============================================================================*/ 
 
 #include "Animation/Skeleton.h"
+#include "UObject/LinkerLoad.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/UObjectGlobals.h"

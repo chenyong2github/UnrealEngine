@@ -2,6 +2,7 @@
 
 #include "RetargetEditor/IKRetargetPoseExporter.h"
 
+#include "Animation/AnimMontage.h"
 #include "AnimPose.h"
 #include "AssetToolsModule.h"
 #include "ContentBrowserModule.h"

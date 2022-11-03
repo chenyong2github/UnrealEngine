@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/AutomationTest.h"
+#include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "Engine/EngineBaseTypes.h"
 #include "Engine/DataTable.h"

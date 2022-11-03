@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimSingleNodeInstanceProxy.h"
+#include "Animation/AnimMontage.h"
+#include "Animation/AnimMontageEvaluationState.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimComposite.h"
 #include "Animation/BlendSpace.h"

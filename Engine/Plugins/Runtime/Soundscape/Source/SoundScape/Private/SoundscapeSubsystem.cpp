@@ -3,6 +3,7 @@
 
 #include "SoundscapeSubsystem.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/GameInstance.h"
 #include "SoundscapeSettings.h"
 #include "SoundScapePalette.h"
 #include "AudioDevice.h"

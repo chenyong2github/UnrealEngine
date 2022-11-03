@@ -33,6 +33,7 @@ class SFindInMaterial;
 class SGraphEditor;
 class SMaterialPalette;
 class UEdGraph;
+class UEdGraphPin;
 class UFactory;
 class UMaterialEditorOptions;
 class UMaterialExpressionComment;

@@ -2,6 +2,7 @@
 
 #include "DisplayClusterLightCardEditorHelper.h"
 
+#include "Engine/Blueprint.h"
 #include "IDisplayClusterScenePreview.h"
 
 #include "DisplayClusterConfigurationTypes.h"

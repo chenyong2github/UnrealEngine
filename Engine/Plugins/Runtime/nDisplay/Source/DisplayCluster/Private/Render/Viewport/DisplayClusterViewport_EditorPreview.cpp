@@ -12,6 +12,7 @@
 #include "EngineModule.h"
 #include "CanvasTypes.h"
 #include "LegacyScreenPercentageDriver.h"
+#include "SceneManagement.h"
 #include "SceneView.h"
 #include "SceneViewExtension.h"
 

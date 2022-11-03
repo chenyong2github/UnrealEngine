@@ -9,6 +9,7 @@
 #include "NiagaraSettings.h"
 #include "NiagaraDataInterfaceCurlNoise.h"
 #include "UObject/Class.h"
+#include "UObject/ObjectRedirector.h"
 #include "UObject/Package.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraRenderViewDataManager.h"

@@ -3,6 +3,7 @@
 #include "MoviePipelineDeferredPasses.h"
 #include "MoviePipelineOutputBase.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "SceneManagement.h"
 #include "SceneView.h"
 #include "MovieRenderPipelineDataTypes.h"
 #include "GameFramework/PlayerController.h"

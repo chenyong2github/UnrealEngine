@@ -2,6 +2,7 @@
 
 #include "StateTreeReferenceDetails.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "StateTree.h"
 #include "StateTreeDelegates.h"
 #include "PropertyHandle.h"

@@ -2,6 +2,7 @@
 
 #include "NiagaraParameterDefinitionsSubscriber.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Modules/ModuleManager.h"
 #include "NiagaraCommon.h"

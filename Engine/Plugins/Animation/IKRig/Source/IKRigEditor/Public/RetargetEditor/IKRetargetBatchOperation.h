@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -6,6 +6,7 @@
 #include "EditorAnimUtils.h"
 
 class UIKRetargeter;
+struct FScopedSlowTask;
 
 //** Data needed to run a batch "duplicate and retarget" operation on a set of animation assets */
 struct FIKRetargetBatchOperationContext

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OnlineBeaconClient.h"
+#include "Engine/GameInstance.h"
 #include "TimerManager.h"
 #include "GameFramework/OnlineReplStructs.h"
 #include "OnlineBeaconHostObject.h"

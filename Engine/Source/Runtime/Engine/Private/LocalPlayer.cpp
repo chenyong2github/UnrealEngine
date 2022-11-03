@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/LocalPlayer.h"
+#include "Engine/GameInstance.h"
 #include "Misc/FileHelper.h"
 #include "EngineDefines.h"
 #include "EngineGlobals.h"

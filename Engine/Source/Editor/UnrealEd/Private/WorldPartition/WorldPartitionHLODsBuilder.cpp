@@ -6,6 +6,7 @@
 #include "HAL/FileManager.h"
 #include "Logging/LogMacros.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/EngineVersion.h"
 #include "Misc/FileHelper.h"
 #include "Algo/ForEach.h"
 #include "UObject/SavePackage.h"

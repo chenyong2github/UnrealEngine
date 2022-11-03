@@ -4,6 +4,7 @@
 
 #include "Async/Async.h"
 #include "CoreGlobals.h"
+#include "Engine/Blueprint.h"
 #include "Engine/Engine.h"
 #include "HAL/PlatformTime.h"
 #include "IMediaModule.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ZoneGraphCrowdLaneAnnotations.h"
+#include "Engine/Engine.h"
 #include "ZoneGraphAnnotationSubsystem.h"
 #include "ZoneGraphRenderingUtilities.h"
 #include "ZoneGraphSubsystem.h"

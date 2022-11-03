@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AssetRegistry/AssetData.h"
 #include "DataRegistry.h"
 #include "DataRegistrySource.generated.h"
 

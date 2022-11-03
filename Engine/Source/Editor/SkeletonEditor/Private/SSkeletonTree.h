@@ -37,6 +37,7 @@ class IPersonaPreviewScene;
 class SBlendProfilePicker;
 class SComboButton;
 class UBlendProfile;
+class UToolMenu;
 struct FNotificationInfo;
 class IPinnedCommandList;
 class FPackageReloadedEvent;

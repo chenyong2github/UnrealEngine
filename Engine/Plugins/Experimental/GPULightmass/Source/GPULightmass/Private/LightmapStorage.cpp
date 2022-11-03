@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LightmapStorage.h"
+#include "UObject/Package.h"
 #include "VT/VirtualTexture.h"
 #include "GPULightmassCommon.h"
 #include "EngineModule.h"

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayDebuggerCategory_Abilities.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
 
 #if WITH_GAMEPLAY_DEBUGGER
 

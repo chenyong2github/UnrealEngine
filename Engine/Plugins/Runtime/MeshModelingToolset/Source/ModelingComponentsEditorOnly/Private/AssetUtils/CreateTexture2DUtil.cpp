@@ -3,6 +3,8 @@
 #include "AssetUtils/CreateTexture2DUtil.h"
 #include "AssetUtils/Texture2DBuilder.h"
 #include "AssetUtils/Texture2DUtil.h"
+#include "Misc/PackageName.h"
+#include "UObject/Package.h"
 
 UE::AssetUtils::ECreateTexture2DResult UE::AssetUtils::SaveGeneratedTexture2DAsset(
 	UTexture2D* GeneratedTexture,

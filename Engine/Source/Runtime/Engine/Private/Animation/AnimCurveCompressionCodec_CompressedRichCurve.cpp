@@ -2,6 +2,7 @@
 
 #include "Animation/AnimCurveCompressionCodec_CompressedRichCurve.h"
 #include "Animation/AnimSequence.h"
+#include "HAL/IConsoleManager.h"
 #include "Serialization/MemoryWriter.h"
 #include "AnimationCompression.h"
 

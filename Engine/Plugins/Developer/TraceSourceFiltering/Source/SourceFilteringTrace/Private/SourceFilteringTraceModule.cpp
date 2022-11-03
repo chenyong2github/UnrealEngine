@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SourceFilteringTraceModule.h"
+#include "AssetRegistry/AssetData.h"
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleInterface.h"
 #include "Trace/Trace.inl"

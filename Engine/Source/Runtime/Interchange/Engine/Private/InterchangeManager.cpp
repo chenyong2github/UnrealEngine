@@ -2,6 +2,7 @@
 
 #include "InterchangeManager.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetDataTagMap.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Async/Async.h"

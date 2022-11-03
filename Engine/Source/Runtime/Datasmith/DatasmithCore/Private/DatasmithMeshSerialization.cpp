@@ -9,6 +9,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
+#include "UObject/Package.h"
 
 FArchive& operator<<(FArchive& Ar, FDatasmithMeshModels& Models)
 {

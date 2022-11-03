@@ -14,6 +14,7 @@
 #include "Logging/LogMacros.h"
 #include "Misc/Paths.h"
 #include "SocketSubsystem.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 
 

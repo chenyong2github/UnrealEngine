@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MoviePipelineInProcessExecutor.h"
+#include "Engine/GameInstance.h"
 #include "MoviePipeline.h"
 #include "Engine/World.h"
 #include "MoviePipelineQueue.h"

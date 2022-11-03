@@ -2,6 +2,7 @@
 
 #include "MetasoundParameterTransmitter.h"
 
+#include "HAL/IConsoleManager.h"
 #include "IAudioParameterInterfaceRegistry.h"
 #include "Interfaces/MetasoundFrontendSourceInterface.h"
 #include "MetasoundLog.h"

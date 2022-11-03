@@ -3,6 +3,7 @@
 #include "ConcertClientPresenceMode.h"
 #include "ConcertClientPresenceManager.h"
 #include "CoreMinimal.h"
+#include "GameFramework/Pawn.h"
 #include "IConcertSession.h"
 #include "IConcertSessionHandler.h"
 #include "ConcertClientPresenceActor.h"

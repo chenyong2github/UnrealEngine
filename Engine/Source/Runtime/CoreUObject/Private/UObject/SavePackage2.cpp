@@ -2,6 +2,7 @@
 
 
 #include "UObject/SavePackage.h"
+#include "UObject/LinkerLoad.h"
 
 #if UE_WITH_SAVEPACKAGE
 #include "AssetRegistry/AssetData.h"

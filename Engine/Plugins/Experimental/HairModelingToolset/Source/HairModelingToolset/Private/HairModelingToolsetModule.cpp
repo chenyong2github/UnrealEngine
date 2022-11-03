@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HairModelingToolsetModule.h"
+#include "Features/IModularFeatures.h"
 #include "HairModelingToolsStyle.h"
 #include "HairModelingToolCommands.h"
 

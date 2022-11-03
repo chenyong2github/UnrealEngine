@@ -6,6 +6,7 @@
 #include "OptimusComponentSource.h"
 #include "OptimusDeformer.h"
 
+#include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h" 
 
 

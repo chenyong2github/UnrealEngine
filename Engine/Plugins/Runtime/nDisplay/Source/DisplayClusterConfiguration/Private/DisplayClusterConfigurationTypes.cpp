@@ -12,6 +12,7 @@
 #include "DisplayClusterProjectionStrings.h"
 
 #include "Engine/StaticMesh.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 #include "Kismet2/CompilerResultsLog.h"

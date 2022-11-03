@@ -2,6 +2,7 @@
 
 #include "StreamingPauseRendering.h"
 #include "Layout/Margin.h"
+#include "ViewportClient.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "RenderingThread.h"
 #include "Modules/ModuleManager.h"

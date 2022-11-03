@@ -12,6 +12,8 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "PlatformInfo.h"
+#include "Serialization/MemoryReader.h"
+#include "UObject/Package.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"

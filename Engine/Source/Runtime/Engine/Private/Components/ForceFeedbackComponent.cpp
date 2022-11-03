@@ -2,6 +2,7 @@
 
 #include "Components/ForceFeedbackComponent.h"
 #include "Components/BillboardComponent.h"
+#include "Engine/World.h"
 #include "GameFramework/ForceFeedbackEffect.h"
 #include "Engine/Canvas.h"
 #include "GenericPlatform/IInputInterface.h"

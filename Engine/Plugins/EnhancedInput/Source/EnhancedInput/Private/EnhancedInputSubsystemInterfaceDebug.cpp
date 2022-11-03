@@ -16,6 +16,7 @@
 #include "EnhancedInputPlatformSettings.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
+#include "UObject/Package.h"
 
 /* Shared input subsystem debug functionality.
  * See EnhancedInputSubsystemInterface.cpp for main functionality.

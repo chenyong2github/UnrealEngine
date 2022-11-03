@@ -4,8 +4,10 @@
 
 #if WITH_EDITOR
 
+#include "UObject/LinkerLoad.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectThreadContext.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Misc/ArchiveMD5.h"
 #include "Misc/PackageName.h"

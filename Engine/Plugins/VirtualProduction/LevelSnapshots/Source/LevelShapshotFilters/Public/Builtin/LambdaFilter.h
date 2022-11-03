@@ -6,6 +6,7 @@
 #include "LevelSnapshotFilters.h"
 #include "LevelSnapshotFilterParams.h"
 #include "Templates/Function.h"
+#include "UObject/Package.h"
 #include "LambdaFilter.generated.h"
 
 /**

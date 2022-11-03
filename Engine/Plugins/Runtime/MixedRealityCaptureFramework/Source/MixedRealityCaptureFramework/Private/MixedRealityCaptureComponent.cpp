@@ -23,6 +23,7 @@
 #include "MrcFrameworkSettings.h"
 #include "Engine/Engine.h" // for UEngine::XRSystem, DisplayGamma, etc.
 #include "IXRTrackingSystem.h" // for GetTrackingOrigin()
+#include "UObject/Package.h"
 #include "XRTrackingSystemBase.h" // for OnXRTrackingOriginChanged
 #include "UObject/SoftObjectPath.h"
 #include "HAL/IConsoleManager.h"

@@ -2,6 +2,7 @@
 
 #include "ContextualAnimSceneActorComponent.h"
 #include "Animation/AnimInstance.h"
+#include "Animation/AnimMontage.h"
 #include "GameFramework/Character.h"
 #include "ContextualAnimSelectionCriterion.h"
 #include "Components/SkeletalMeshComponent.h"

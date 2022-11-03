@@ -2,6 +2,7 @@
 
 #include "GameplayTask_SuddenTurnTransition.h"
 #include "AISystem.h"
+#include "GameFramework/Pawn.h"
 #include "VisualLogger/VisualLogger.h"
 #include "AIResources.h"
 #include "GameplayTasksComponent.h"

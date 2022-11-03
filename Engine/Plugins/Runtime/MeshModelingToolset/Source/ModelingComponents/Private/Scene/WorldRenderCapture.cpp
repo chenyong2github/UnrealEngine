@@ -3,6 +3,7 @@
 #include "Scene/WorldRenderCapture.h"
 #include "AssetUtils/Texture2DUtil.h"
 
+#include "Components/PrimitiveComponent.h"
 #include "Engine/Canvas.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Materials/Material.h"

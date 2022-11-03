@@ -2,6 +2,7 @@
 
 #include "GameFeatureAction_AddComponents.h"
 #include "Components/GameFrameworkComponentManager.h"
+#include "Engine/GameInstance.h"
 #include "GameFeaturesSubsystemSettings.h"
 #include "Engine/AssetManager.h"
 

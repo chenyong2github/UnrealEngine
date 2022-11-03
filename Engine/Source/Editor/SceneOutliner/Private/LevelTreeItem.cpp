@@ -3,11 +3,13 @@
 #include "LevelTreeItem.h"
 #include "Engine/Level.h"
 #include "LevelUtils.h"
+#include "Misc/PackageName.h"
 #include "ToolMenus.h"
 #include "ISceneOutliner.h"
 #include "SSceneOutliner.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "Styling/SlateIconFinder.h"
+#include "UObject/Package.h"
 #include "Widgets/Images/SImage.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_LevelTreeItem"

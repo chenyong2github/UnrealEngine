@@ -11,6 +11,7 @@
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "GroomAsset.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 

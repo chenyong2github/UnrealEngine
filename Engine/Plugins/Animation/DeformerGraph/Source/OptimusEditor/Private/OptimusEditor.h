@@ -19,6 +19,7 @@ class SOptimusEditorViewport;
 class SOptimusGraphTitleBar;
 class SOptimusNodePalette;
 class UDebugSkelMeshComponent;
+class UEdGraph;
 class UOptimusActionStack;
 class UOptimusDeformer;
 class UOptimusEditorGraph;

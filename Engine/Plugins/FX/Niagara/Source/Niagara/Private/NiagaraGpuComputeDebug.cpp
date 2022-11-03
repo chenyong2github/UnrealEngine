@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraGpuComputeDebug.h"
+#include "Engine/Engine.h"
 #include "NiagaraDebugShaders.h"
 
 #include "CanvasTypes.h"

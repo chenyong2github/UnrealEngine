@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Async/Future.h"
 #include "CoreMinimal.h"
 #include "Animation/InterchangeAnimationPayload.h"
 #include "Misc/FrameRate.h"

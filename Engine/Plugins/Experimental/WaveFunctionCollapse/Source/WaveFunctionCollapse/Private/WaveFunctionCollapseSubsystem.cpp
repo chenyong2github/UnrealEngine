@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WaveFunctionCollapseSubsystem.h"
+#include "Engine/Blueprint.h"
 #include "WaveFunctionCollapseBPLibrary.h"
 #include "Math/UnrealMathUtility.h"
 #include "Math/NumericLimits.h"

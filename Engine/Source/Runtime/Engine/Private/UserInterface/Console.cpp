@@ -5,6 +5,8 @@
 =============================================================================*/
 
 #include "Engine/Console.h"
+#include "AssetRegistry/AssetData.h"
+#include "Engine/GameInstance.h"
 #include "Misc/Paths.h"
 #include "GenericPlatform/GenericApplication.h"
 #include "UObject/UnrealType.h"

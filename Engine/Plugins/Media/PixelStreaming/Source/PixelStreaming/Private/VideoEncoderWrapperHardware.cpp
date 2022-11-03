@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VideoEncoderWrapperHardware.h"
+#include "RHI.h"
 #include "Stats.h"
 #include "VideoEncoderFactory.h"
 #include "VideoEncoderFactorySingleLayer.h"

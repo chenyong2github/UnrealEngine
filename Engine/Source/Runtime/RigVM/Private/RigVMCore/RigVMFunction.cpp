@@ -4,6 +4,7 @@
 #include "RigVMCore/RigVMTemplate.h"
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigVMCore/RigVMExternalVariable.h"
+#include "UObject/Package.h"
 
 FString FRigVMFunction::GetName() const
 {

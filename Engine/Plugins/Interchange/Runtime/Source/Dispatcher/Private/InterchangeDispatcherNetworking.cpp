@@ -3,6 +3,8 @@
 #include "InterchangeDispatcherNetworking.h"
 
 #include "CoreMinimal.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/PlatformTime.h"
 #include "InterchangeDispatcherLog.h"
 #include "Misc/ScopeLock.h"
 #include "SocketSubsystem.h"

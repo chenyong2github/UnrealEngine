@@ -17,6 +17,7 @@
 #include "GameFramework/Actor.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "ShaderParameterMetadataBuilder.h"
+#include "UObject/Package.h"
 
 UComputeGraph::UComputeGraph() = default;
 

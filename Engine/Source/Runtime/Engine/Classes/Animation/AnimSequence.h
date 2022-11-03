@@ -13,7 +13,6 @@
 #include "Misc/Guid.h"
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimationAsset.h"
-#include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimSequenceBase.h"
 #include "Animation/AnimCompressionTypes.h"
 #include "CustomAttributes.h"

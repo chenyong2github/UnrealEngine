@@ -6,6 +6,7 @@
 
 #include "Engine/SkeletalMesh.h"
 
+#include "Engine/Blueprint.h"
 #include "Serialization/CustomVersion.h"
 #include "Misc/App.h"
 #include "Misc/PackageSegment.h"
@@ -32,6 +33,7 @@
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/NiagaraObjectVersion.h"
 #include "UObject/ObjectSaveContext.h"
+#include "UObject/Package.h"
 #include "UObject/PackageResourceManager.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/RenderingObjectVersion.h"

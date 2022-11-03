@@ -10,6 +10,7 @@
 #include "Misc/Paths.h"
 #include "StaticMeshAttributes.h"
 #include "PackageTools.h"
+#include "UObject/Package.h"
 
 namespace GLTF
 {

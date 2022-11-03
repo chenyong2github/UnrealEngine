@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequencePlayer.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/Actor.h"
 #include "MovieScene.h"
 #include "Misc/CoreDelegates.h"

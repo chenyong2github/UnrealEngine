@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/PackageName.h"
 #include "UObject/Object.h"
 #include "ControlRig.h"
 #include "Tools/ControlRigPoseProjectSettings.h"

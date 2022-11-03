@@ -13,6 +13,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UObject/MetaData.h"
+#include "UObject/PackageFileSummary.h"
 #include "UObject/UObjectIterator.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SWindow.h"

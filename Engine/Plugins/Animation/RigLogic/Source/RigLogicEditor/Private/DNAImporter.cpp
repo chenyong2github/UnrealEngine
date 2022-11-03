@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "DNAImporter.h"
+#include "AssetRegistry/AssetData.h"
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #include "AssetRegistry/AssetRegistryModule.h"

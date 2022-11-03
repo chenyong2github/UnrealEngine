@@ -2,6 +2,8 @@
 
 #include "DatasmithVREDImporter.h"
 
+#include "Async/AsyncWork.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "DatasmithFBXFileImporter.h"
 #include "DatasmithFBXImportOptions.h"
 #include "DatasmithFBXScene.h"

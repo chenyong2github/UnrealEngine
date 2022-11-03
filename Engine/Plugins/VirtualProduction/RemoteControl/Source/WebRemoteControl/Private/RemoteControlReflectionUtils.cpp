@@ -4,6 +4,7 @@
 
 #include "Engine/Engine.h"
 #include "IRemoteControlModule.h"
+#include "UObject/Package.h"
 #include "UObject/StructOnScope.h"
 
 UScriptStruct* UWebRCStructRegistry::GenerateStruct(FName StructureName, const FWebRCGenerateStructArgs& Args)

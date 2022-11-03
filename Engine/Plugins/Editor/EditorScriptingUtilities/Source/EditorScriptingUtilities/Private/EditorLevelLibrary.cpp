@@ -10,6 +10,7 @@
 #include "ContentBrowserModule.h"
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
+#include "Engine/Blueprint.h"
 #include "EngineUtils.h"
 #include "Engine/Brush.h"
 #include "Engine/MapBuildDataRegistry.h"

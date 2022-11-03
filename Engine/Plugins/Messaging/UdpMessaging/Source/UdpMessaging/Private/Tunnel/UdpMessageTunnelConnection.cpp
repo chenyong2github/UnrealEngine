@@ -2,6 +2,7 @@
 
 #include "Tunnel/UdpMessageTunnelConnection.h"
 
+#include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
 #include "Serialization/ArrayReader.h"
 #include "Serialization/ArrayWriter.h"

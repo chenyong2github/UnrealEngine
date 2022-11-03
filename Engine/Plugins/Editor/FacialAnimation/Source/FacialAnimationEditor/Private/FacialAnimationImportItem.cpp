@@ -11,6 +11,7 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "UObject/Package.h"
 #include "Utils.h"
 #include "Logging/MessageLog.h"
 

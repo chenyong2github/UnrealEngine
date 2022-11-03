@@ -4,6 +4,7 @@
 
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterRootActor.h"
+#include "Features/IModularFeatures.h"
 #include "IDisplayClusterLightCardActorExtender.h"
 
 #include "Components/DisplayClusterLabelComponent.h"

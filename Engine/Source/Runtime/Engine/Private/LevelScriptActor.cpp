@@ -8,6 +8,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Engine/InputDelegateBinding.h"
 #include "Engine/LevelScriptBlueprint.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LevelScriptActor)

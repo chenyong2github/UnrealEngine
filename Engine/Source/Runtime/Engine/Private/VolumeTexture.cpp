@@ -19,6 +19,7 @@
 #include "Streaming/VolumeTextureStreaming.h"
 #include "TextureCompiler.h"
 #include "TextureResource.h"
+#include "UObject/Package.h"
 #include "UObject/StrongObjectPtr.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(VolumeTexture)

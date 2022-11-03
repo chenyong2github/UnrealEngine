@@ -5,6 +5,7 @@
 ==============================================================================*/
 
 #include "CoreMinimal.h"
+#include "Engine/World.h"
 #include "Misc/ScopeLock.h"
 #include "Math/RandomStream.h"
 #include "Stats/Stats.h"

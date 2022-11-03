@@ -6,6 +6,7 @@
 #include "Kismet/KismetRenderingLibrary.h" // for ReleaseRenderTarget2D()
 #include "ComposureInternals.h" // for the 'Composure' log category
 #include "HAL/IConsoleManager.h"
+#include "UObject/Package.h"
 
 namespace ElementRenderTargetPool_Impl
 {

@@ -5,6 +5,8 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 =============================================================================*/
 
 #include "UnrealEngine.h"
+#include "Engine/Blueprint.h"
+#include "Engine/GameInstance.h"
 #include "UObject/GCObject.h"
 #include "Misc/IQueuedWork.h"
 #include "HAL/RunnableThread.h"

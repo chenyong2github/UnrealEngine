@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFramework/GameModeBase.h"
+#include "Blueprint/BlueprintSupport.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/GameNetworkManager.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/LevelScriptActor.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Rigs/RigHierarchyController.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"

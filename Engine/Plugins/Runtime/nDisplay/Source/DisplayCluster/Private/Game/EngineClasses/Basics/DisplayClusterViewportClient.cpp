@@ -2,6 +2,7 @@
 
 #include "DisplayClusterViewportClient.h"
 
+#include "SceneManagement.h"
 #include "SceneView.h"
 #include "Engine/Canvas.h"
 #include "SceneViewExtension.h"
@@ -47,6 +48,7 @@
 #include "Render/Viewport/IDisplayClusterViewport.h"
 
 #include "Config/DisplayClusterConfigManager.h"
+#include "UObject/Package.h"
 
 
 // Debug feature to synchronize and force all external resources to be transferred cross GPU at the end of graph execution.

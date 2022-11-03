@@ -9,6 +9,7 @@
 #include "Materials/Material.h"
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/ObjectSaveContext.h"
+#include "UObject/Package.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/FortniteNCBranchObjectVersion.h"
 #include "GameFramework/WorldSettings.h"

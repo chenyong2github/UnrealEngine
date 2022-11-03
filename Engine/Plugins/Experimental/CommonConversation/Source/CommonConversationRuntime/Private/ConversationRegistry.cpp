@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConversationRegistry.h"
+#include "AssetRegistry/AssetData.h"
 #include "CommonConversationRuntimeLogging.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Engine/AssetManager.h"

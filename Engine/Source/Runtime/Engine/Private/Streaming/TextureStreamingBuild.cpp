@@ -21,6 +21,7 @@ TextureStreamingBuild.cpp : Contains definitions to build texture streaming data
 #include "Engine/StaticMesh.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "Streaming/ActorTextureStreamingBuildDataComponent.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 #include "Logging/MessageLog.h"
 #include "Misc/UObjectToken.h"

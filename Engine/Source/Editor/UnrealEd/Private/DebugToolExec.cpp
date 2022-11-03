@@ -2,10 +2,14 @@
 
 
 #include "DebugToolExec.h"
+#include "CollisionQueryParams.h"
+#include "Engine/GameInstance.h"
+#include "GameFramework/Pawn.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SBoxPanel.h"

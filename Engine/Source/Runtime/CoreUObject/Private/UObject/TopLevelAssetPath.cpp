@@ -6,9 +6,11 @@
 
 #include "Misc/AsciiSet.h"
 #include "Misc/Optional.h"
+#include "Misc/PackageName.h"
 #include "Misc/RedirectCollector.h"
 #include "UObject/CoreRedirects.h"
 #include "UObject/ObjectRedirector.h"
+#include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectThreadContext.h"
 

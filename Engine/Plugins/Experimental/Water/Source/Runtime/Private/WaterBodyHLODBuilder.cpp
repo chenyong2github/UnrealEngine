@@ -6,6 +6,7 @@
 
 #if WITH_EDITOR
 
+#include "UObject/Package.h"
 #include "WaterBodyComponent.h"
 #include "WaterZoneActor.h"
 #include "WaterMeshComponent.h"

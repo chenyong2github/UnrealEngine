@@ -7,6 +7,7 @@
 #include "EngineModule.h"
 #include "BatchedElements.h"
 #include "Engine/Font.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/LinkerLoad.h"

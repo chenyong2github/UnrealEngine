@@ -7,6 +7,7 @@
 #include "Components/MeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Controller/RCController.h"
+#include "Engine/Blueprint.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
 #include "Engine/Texture2DDynamic.h"

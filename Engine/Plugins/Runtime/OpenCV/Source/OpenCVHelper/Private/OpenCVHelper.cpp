@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/Texture2D.h"
 #include "TextureResource.h"
+#include "UObject/Package.h"
 
 #if WITH_OPENCV
 

@@ -2,7 +2,9 @@
 
 #include "GameplayProvider.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Misc/PackageName.h"
 #include "Model/AsyncEnumerateTask.h"
 
 FName FGameplayProvider::ProviderName("GameplayProvider");

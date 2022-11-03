@@ -7,6 +7,7 @@
 #include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubjectSettings.h"
 #include "LiveLinkVirtualSource.h"
+#include "UObject/Package.h"
 
 /**
  * Default VirtualSubject Source.

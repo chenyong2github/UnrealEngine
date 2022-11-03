@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Queue.h"
+#include "HAL/Event.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/SingleThreadRunnable.h"

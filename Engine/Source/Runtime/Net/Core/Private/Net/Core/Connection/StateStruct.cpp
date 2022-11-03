@@ -4,6 +4,7 @@
 #include "Net/Core/Connection/StateStruct.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Net/Core/Misc/NetCoreLog.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(StateStruct)
 

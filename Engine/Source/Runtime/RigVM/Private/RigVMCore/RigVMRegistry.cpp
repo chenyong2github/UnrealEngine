@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMCore/RigVMRegistry.h"
+#include "AssetRegistry/AssetData.h"
 #include "RigVMCore/RigVMStruct.h"
 #include "RigVMTypeUtils.h"
 #include "RigVMModule.h"

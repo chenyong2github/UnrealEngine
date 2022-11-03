@@ -6,8 +6,10 @@
 =============================================================================*/
 
 #include "Commandlets/ReplaceAssetsCommandlet.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "HAL/FileManager.h"
+#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "AssetRegistry/ARFilter.h"
 #include "Engine/World.h"

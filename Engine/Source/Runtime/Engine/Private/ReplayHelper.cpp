@@ -20,6 +20,7 @@
 #include "EngineUtils.h"
 #include "ReplayNetConnection.h"
 #include "Engine/DemoNetDriver.h"
+#include "UObject/Package.h"
 
 extern TAutoConsoleVariable<int32> CVarWithLevelStreamingFixes;
 extern TAutoConsoleVariable<int32> CVarWithDeltaCheckpoints;

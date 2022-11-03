@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayTask_StandAt.h"
+#include "GameFramework/Pawn.h"
 #include "TimerManager.h"
 #include "AISystem.h"
 #include "VisualLogger/VisualLogger.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimationAsset.h"
+#include "Animation/AnimMontage.h"
 #include "Engine/AssetUserData.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AssetMappingTable.h"

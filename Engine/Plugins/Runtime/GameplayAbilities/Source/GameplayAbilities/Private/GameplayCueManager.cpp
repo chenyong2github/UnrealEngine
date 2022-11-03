@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayCueManager.h"
+#include "Engine/Blueprint.h"
 #include "Engine/ObjectLibrary.h"
 #include "GameplayCueNotify_Actor.h"
 #include "Misc/MessageDialog.h"
@@ -23,6 +24,7 @@
 #include "Net/UnrealNetwork.h"
 #include "Misc/CoreDelegates.h"
 #include "AbilitySystemReplicationProxyInterface.h"
+#include "UObject/LinkerLoad.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameplayCueManager)
 

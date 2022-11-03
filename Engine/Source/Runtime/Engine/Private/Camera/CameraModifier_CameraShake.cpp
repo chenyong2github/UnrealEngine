@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Camera/CameraModifier_CameraShake.h"
+#include "BatchedElements.h"
 #include "Camera/CameraShakeBase.h"
 #include "Camera/CameraShakeSourceComponent.h"
 #include "Camera/PlayerCameraManager.h"

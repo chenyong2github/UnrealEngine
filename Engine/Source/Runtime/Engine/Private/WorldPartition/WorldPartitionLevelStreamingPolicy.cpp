@@ -5,6 +5,7 @@
  */
 
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
+#include "Engine/Engine.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionRuntimeLevelStreamingCell.h"

@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Perception/AIPerceptionComponent.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "GameFramework/Controller.h"
 #include "AIController.h"
 #include "Perception/AISenseConfig.h"
+#include "Stats/Stats2.h"
 #include "VisualLogger/VisualLogger.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AIPerceptionComponent)

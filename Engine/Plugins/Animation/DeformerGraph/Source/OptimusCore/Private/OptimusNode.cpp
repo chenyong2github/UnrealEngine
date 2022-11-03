@@ -16,6 +16,7 @@
 #include "Actions/OptimusNodeGraphActions.h"
 
 #include "Algo/Reverse.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/UObjectGlobals.h"
 

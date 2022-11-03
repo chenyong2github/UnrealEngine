@@ -10,10 +10,12 @@
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "EngineUtils.h"
 #include "ImageUtils.h"
+#include "Misc/CoreStats.h"
 #include "Misc/ScopedSlowTask.h"
 #include "RenderUtils.h"
 #include "TextureCompiler.h"
 #include "TextureResource.h"
+#include "UObject/Package.h"
 #include "UObject/StrongObjectPtr.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TextureCubeArray)

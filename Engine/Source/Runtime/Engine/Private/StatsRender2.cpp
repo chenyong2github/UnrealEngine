@@ -7,6 +7,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/CoreMisc.h"
+#include "RenderUtils.h"
 #include "Stats/Stats.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
@@ -14,6 +15,7 @@
 #include "Engine/Canvas.h"
 #include "Engine/Texture2D.h"
 #include "TextureResource.h"
+#include "ViewportClient.h"
 
 #if STATS
 

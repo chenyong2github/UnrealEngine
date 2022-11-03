@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "STextPropertyEditableTextBox.h"
+#include "AssetRegistry/AssetData.h"
 #include "Internationalization/TextNamespaceUtil.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"

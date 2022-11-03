@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PyWrapperTypeRegistry.h"
+#include "Misc/PackageName.h"
 #include "PyWrapperOwnerContext.h"
 #include "PyWrapperObject.h"
 #include "PyWrapperStruct.h"

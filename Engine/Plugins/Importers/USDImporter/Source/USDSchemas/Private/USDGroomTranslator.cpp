@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "USDGroomTranslator.h"
+#include "UObject/Package.h"
 
 #if USE_USD_SDK && WITH_EDITOR
 

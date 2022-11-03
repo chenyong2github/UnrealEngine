@@ -2,6 +2,7 @@
 
 #include "Sessions/MLAdapterLocalDataCollectionSession.h"
 #include "Agents/MLAdapterAgent.h"
+#include "Engine/GameInstance.h"
 #include "MLAdapterTypes.h"
 #include "Misc/FileHelper.h"
 #include "HAL/FileManager.h"

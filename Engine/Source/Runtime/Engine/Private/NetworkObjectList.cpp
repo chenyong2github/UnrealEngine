@@ -6,6 +6,7 @@
 #include "EngineUtils.h"
 #include "Serialization/Archive.h"
 #include "Net/NetworkGranularMemoryLogging.h"
+#include "UObject/Package.h"
 
 namespace UE::Net::Private
 {

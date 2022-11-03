@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VideoEncoderSingleLayerH264.h"
+#include "RHI.h"
 #include "VideoEncoderFactorySingleLayer.h"
 #include "VideoEncoderFactory.h"
 #include "FrameBufferMultiFormat.h"

@@ -17,6 +17,7 @@
 #include "ManifestParserDASH.h"
 #include "MPDElementsDASH.h"
 
+#include "Stats/Stats.h"
 #include "Utilities/StringHelpers.h"
 #include "SynchronizedClock.h"
 #include "StreamTypes.h"

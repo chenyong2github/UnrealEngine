@@ -6,6 +6,7 @@
 =============================================================================*/ 
 
 #include "Animation/AnimSingleNodeInstance.h"
+#include "Animation/AnimMontage.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/AnimSingleNodeInstanceProxy.h"

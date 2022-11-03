@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayDebugger/GameplayDebuggerCategory_EQS.h"
+#include "GameFramework/Pawn.h"
 
 #if WITH_GAMEPLAY_DEBUGGER
 

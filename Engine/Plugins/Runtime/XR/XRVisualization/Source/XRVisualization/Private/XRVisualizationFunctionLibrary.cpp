@@ -6,6 +6,7 @@
 #include "Engine/Engine.h"
 #include "Features/IModularFeatures.h"
 #include "Materials/MaterialInterface.h"
+#include "UObject/Package.h"
 #include "XRVisualizationModule.h"
 #include "Components/StaticMeshComponent.h"
 #include "DrawDebugHelpers.h"

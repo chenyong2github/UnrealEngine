@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/DebugCameraHUD.h"
+#include "Engine/GameViewportClient.h"
 #include "EngineGlobals.h"
 #include "CollisionQueryParams.h"
 #include "Components/MeshComponent.h"
@@ -15,6 +16,7 @@
 #include "GameFramework/LightWeightInstanceSubsystem.h"
 #include "Engine/Canvas.h"
 #include "Engine/DebugCameraController.h"
+#include "Materials/MaterialInterface.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DebugCameraHUD)

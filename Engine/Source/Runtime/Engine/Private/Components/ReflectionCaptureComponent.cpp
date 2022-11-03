@@ -6,6 +6,7 @@
 
 #include "Components/ReflectionCaptureComponent.h"
 #include "Serialization/MemoryWriter.h"
+#include "UObject/Package.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/ReflectionCaptureObjectVersion.h"
 #include "UObject/ConstructorHelpers.h"

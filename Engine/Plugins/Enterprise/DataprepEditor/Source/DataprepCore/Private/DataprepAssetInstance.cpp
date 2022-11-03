@@ -8,6 +8,7 @@
 #include "DataprepCoreLogCategory.h"
 #include "Shared/DataprepCorePrivateUtils.h"
 #include "Parameterization/DataprepParameterization.h"
+#include "UObject/Package.h"
 
 void UDataprepAssetInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {

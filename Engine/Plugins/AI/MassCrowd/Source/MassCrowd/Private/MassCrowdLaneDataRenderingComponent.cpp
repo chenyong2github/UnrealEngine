@@ -2,6 +2,7 @@
 
 #include "MassCrowdLaneDataRenderingComponent.h"
 
+#include "Engine/Engine.h"
 #include "PrimitiveSceneProxy.h"
 #include "MassCrowdSettings.h"
 #include "MassCrowdSubsystem.h"

@@ -2,6 +2,7 @@
 
 #include "Kismet/KismetRenderingLibrary.h"
 #include "HAL/FileManager.h"
+#include "Materials/MaterialInterface.h"
 #include "Misc/Paths.h"
 #include "Serialization/BufferArchive.h"
 #include "EngineGlobals.h"

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Async/Future.h"
 #include "CoreMinimal.h"
 #include "EditorReimportHandler.h"
 #include "Factories/Factory.h"

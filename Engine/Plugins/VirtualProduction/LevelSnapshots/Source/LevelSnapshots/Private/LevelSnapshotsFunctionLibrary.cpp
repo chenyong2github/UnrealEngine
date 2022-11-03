@@ -9,6 +9,7 @@
 #include "EngineUtils.h"
 #include "LevelSnapshotsFilteringLibrary.h"
 #include "CustomSerialization/CustomObjectSerializationWrapper.h"
+#include "UObject/Package.h"
 
 ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(const UObject* WorldContextObject, const FName NewSnapshotName, const FString Description)
 {

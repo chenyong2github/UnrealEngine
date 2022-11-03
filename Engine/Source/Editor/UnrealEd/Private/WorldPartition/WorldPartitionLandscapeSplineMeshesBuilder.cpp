@@ -5,6 +5,7 @@
 #include "PackageSourceControlHelper.h"
 #include "SourceControlHelpers.h"
 #include "HAL/PlatformFileManager.h"
+#include "UObject/Linker.h"
 #include "UObject/SavePackage.h"
 #include "UObject/ScriptInterface.h"
 #include "UObject/GCObjectScopeGuard.h"

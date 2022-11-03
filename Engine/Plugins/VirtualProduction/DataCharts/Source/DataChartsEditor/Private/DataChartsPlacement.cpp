@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataChartsPlacement.h"
+#include "AssetRegistry/AssetData.h"
+#include "Engine/Blueprint.h"
 #include "IPlacementModeModule.h"
 #include "DataChartsStyle.h"
 

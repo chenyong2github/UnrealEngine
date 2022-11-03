@@ -2,6 +2,7 @@
 
 #include "SDisplayClusterOperatorToolbar.h"
 
+#include "Engine/Blueprint.h"
 #include "IDisplayClusterOperator.h"
 #include "IDisplayClusterOperatorViewModel.h"
 #include "DisplayClusterRootActor.h"

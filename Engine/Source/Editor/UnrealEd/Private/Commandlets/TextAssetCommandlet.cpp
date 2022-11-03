@@ -11,6 +11,7 @@
 #include "Logging/LogMacros.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "UObject/Linker.h"
 #include "UObject/UObjectIterator.h"
 #include "Stats/StatsMisc.h"
 #include "Misc/FileHelper.h"

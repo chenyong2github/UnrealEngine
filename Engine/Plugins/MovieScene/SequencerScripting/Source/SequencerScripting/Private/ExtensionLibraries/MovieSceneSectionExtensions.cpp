@@ -18,6 +18,7 @@
 #include "KeysAndChannels/MovieSceneScriptingActorReference.h"
 #include "KeysAndChannels/MovieSceneScriptingObjectPath.h"
 #include "Sections/MovieSceneSubSection.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSectionExtensions)
 

@@ -4,6 +4,7 @@
 #include "RCPropertyContainer.h"
 #include "Camera/CameraComponent.h"
 #include "Misc/AutomationTest.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 #include "RCPropertyContainerTestData.h"

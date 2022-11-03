@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OpenXRHMDModule.h"
+#include "Misc/EngineVersion.h"
 #include "OpenXRHMD.h"
 #include "OpenXRHMD_RenderBridge.h"
 #include "OpenXRCore.h"

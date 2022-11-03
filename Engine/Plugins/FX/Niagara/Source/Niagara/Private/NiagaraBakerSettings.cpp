@@ -7,6 +7,7 @@
 #include "NiagaraSystem.h"
 #include "Engine/Texture2D.h"
 #include "Misc/PathViews.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraBakerSettings)
 

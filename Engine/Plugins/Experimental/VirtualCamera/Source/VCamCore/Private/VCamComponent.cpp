@@ -3,6 +3,7 @@
 #include "VCamComponent.h"
 
 #include "CineCameraComponent.h"
+#include "Features/IModularFeatures.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ILiveLinkClient.h"
 #include "VCamModifier.h"

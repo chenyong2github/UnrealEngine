@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "ShowFlags.h"
+#include "CanvasRendererItem.h"
 #include "RHI.h"
 #include "RenderResource.h"
 #include "RenderingThread.h"

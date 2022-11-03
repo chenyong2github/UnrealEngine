@@ -16,6 +16,7 @@
 #include "GameFramework/Actor.h"
 #include "GameFramework/PlayerController.h"
 #include "Net/UnrealNetwork.h"
+#include "UObject/Package.h"
 
 
 /**

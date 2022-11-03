@@ -24,6 +24,7 @@
 #include "Serialization/JsonWriter.h"
 #include "Serialization/JsonSerializer.h"
 #include "SNodalOffsetToolPanel.h"
+#include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "NodalOffsetTool"
 

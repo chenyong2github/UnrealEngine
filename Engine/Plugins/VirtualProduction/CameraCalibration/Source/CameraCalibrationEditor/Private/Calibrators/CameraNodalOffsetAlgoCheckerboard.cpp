@@ -3,6 +3,7 @@
 #include "CameraNodalOffsetAlgoCheckerboard.h"
 #include "AssetEditor/CameraCalibrationStepsController.h"
 #include "AssetEditor/NodalOffsetTool.h"
+#include "AssetRegistry/AssetData.h"
 #include "CameraCalibrationCheckerboard.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "EngineUtils.h"

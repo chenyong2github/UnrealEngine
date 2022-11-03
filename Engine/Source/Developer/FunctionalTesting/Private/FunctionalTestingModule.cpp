@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FunctionalTestingModule.h"
+#include "AssetRegistry/AssetData.h"
 #include "FunctionalTestingManager.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/ConfigCacheIni.h"

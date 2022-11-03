@@ -4,6 +4,7 @@
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimCurveTypes.h"
+#include "Animation/AnimSlotEvaluationPose.h"
 #include "Animation/AttributesRuntime.h"
 
 #include "BonePose.h"

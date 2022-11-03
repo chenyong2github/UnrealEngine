@@ -13,6 +13,7 @@
 #include "Engine/World.h"
 #include "EditorActorFolders.h"
 #include "ExternalPackageHelper.h"
+#include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "ActorFolderDesc.h"

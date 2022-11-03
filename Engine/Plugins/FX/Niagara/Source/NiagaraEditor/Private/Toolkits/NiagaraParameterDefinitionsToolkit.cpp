@@ -14,6 +14,7 @@
 #include "NiagaraObjectSelection.h"
 #include "NiagaraParameterDefinitions.h"
 #include "PropertyEditorModule.h"
+#include "UObject/Linker.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/SNiagaraParameterPanel.h"
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"

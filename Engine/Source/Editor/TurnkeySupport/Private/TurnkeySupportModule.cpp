@@ -4,6 +4,7 @@
 #include "TurnkeySupport.h"
 
 #include "SlateOptMacros.h"
+#include "UObject/Package.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"

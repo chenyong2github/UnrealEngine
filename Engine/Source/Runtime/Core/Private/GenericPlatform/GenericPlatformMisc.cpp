@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GenericPlatform/GenericPlatformMisc.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/AssertionMacros.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/CriticalSection.h"

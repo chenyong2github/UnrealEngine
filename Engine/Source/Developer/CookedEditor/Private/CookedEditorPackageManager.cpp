@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CookedEditorPackageManager.h"
+#include "AssetRegistry/AssetData.h"
 #include "CoreMinimal.h"
 #include "Logging/LogMacros.h"
 #include "AssetRegistry/AssetRegistryModule.h"

@@ -8,6 +8,7 @@
 #include "NeuralTensor.h"
 #include "OperatorTester.h"
 #include "Math/RandomStream.h"
+#include "UObject/Package.h"
 
 
 

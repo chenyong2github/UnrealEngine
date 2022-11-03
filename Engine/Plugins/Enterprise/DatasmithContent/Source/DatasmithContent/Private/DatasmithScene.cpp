@@ -9,6 +9,7 @@
 #include "EngineUtils.h"
 #include "LevelSequence.h"
 #include "UObject/EnterpriseObjectVersion.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITORONLY_DATA
 

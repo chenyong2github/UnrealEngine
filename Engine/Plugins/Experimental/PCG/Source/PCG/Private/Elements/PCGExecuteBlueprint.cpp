@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGExecuteBlueprint.h"
+#include "Engine/Blueprint.h"
 #include "PCGComponent.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
@@ -9,6 +10,7 @@
 #include "Helpers/PCGSettingsHelpers.h"
 
 #include "Engine/World.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 namespace PCGBlueprintHelper

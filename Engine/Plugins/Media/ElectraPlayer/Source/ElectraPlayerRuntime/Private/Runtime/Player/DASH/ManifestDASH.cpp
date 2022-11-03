@@ -5,6 +5,7 @@
 #include "ManifestDASH.h"
 #include "ManifestBuilderDASH.h"
 #include "PlaylistReaderDASH.h"
+#include "Stats/Stats.h"
 #include "StreamReaderFMP4DASH.h"
 #include "Demuxer/ParserISO14496-12.h"
 #include "Demuxer/ParserISO14496-12_Utils.h"

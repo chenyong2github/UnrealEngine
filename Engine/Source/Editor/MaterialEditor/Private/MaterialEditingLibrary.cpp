@@ -34,6 +34,8 @@
 #include "ShaderCompiler.h"
 #include "UObject/UObjectIterator.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(MaterialEditingLibrary)
+
 DEFINE_LOG_CATEGORY_STATIC(LogMaterialEditingLibrary, Warning, All);
 
 /** Util to find expression  */

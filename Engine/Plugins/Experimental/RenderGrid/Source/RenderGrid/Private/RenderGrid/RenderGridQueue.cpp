@@ -6,6 +6,7 @@
 #include "RenderGrid/RenderGrid.h"
 #include "RenderGrid/RenderGridManager.h"
 #include "RenderGridUtils.h"
+#include "UObject/Package.h"
 #include "Utils/RenderGridGenericExecutionQueue.h"
 
 #include "LevelSequence.h"

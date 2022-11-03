@@ -5,10 +5,12 @@
 #include "Engine/StaticMesh.h"
 #include "Engine/StaticMeshActor.h"
 
+#include "Misc/PackageName.h"
 #include "PhysicsEngine/BodySetup.h"
 
 #include "MeshDescription.h"
 #include "DynamicMeshToMeshDescription.h"
+#include "UObject/Package.h"
 
 using namespace UE::AssetUtils;
 

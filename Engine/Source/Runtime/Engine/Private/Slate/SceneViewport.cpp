@@ -2,6 +2,7 @@
 
 
 #include "Slate/SceneViewport.h"
+#include "Engine/GameInstance.h"
 #include "Rendering/DrawElements.h"
 #include "Widgets/SViewport.h"
 #include "Misc/App.h"

@@ -6,6 +6,7 @@
 
 #include "Net/RepLayout.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/MemStack.h"
 #include "Net/Serialization/FastArraySerializer.h"
 #include "UObject/UnrealType.h"
 #include "EngineStats.h"

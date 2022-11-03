@@ -4,6 +4,7 @@
 
 #include "Algo/ForEach.h"
 #include "Algo/Transform.h"
+#include "UObject/Package.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 

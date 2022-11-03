@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioModulationSystem.h"
+#include "UObject/Package.h"
 
 #if WITH_AUDIOMODULATION
 

@@ -4,6 +4,7 @@
 #include "AnimationRuntime.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "ClothCollisionSource.h"
+#include "GameFramework/Pawn.h"
 #include "HAL/Event.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "PhysicsEngine/BodySetup.h"

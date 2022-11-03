@@ -18,6 +18,7 @@
 #include "PaperFlipbook.h"
 #include "Paper2DModule.h"
 #include "Paper2DPrivate.h"
+#include "UObject/LinkerLoad.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(PaperSprite)
 

@@ -7,6 +7,7 @@
 #include "Physics/ImmediatePhysics/ImmediatePhysicsDeclares.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsProxy/PerSolverFieldSystem.h"
+#include "Tasks/Task.h"
 #include "AnimNode_RigidBody.generated.h"
 
 struct FBodyInstance;

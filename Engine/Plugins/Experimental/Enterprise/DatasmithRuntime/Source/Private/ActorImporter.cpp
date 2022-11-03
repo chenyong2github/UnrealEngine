@@ -17,6 +17,7 @@
 #include "GameFramework/Actor.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "RenderingThread.h"
+#include "UObject/Package.h"
 
 namespace DatasmithRuntime
 {

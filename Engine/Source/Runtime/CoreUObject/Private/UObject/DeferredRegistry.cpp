@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/DeferredRegistry.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
 #include "Templates/Casts.h"
 

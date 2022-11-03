@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DataRegistrySource.h"
+#include "AssetRegistry/AssetData.h"
 #include "DataRegistrySubsystem.h"
 #include "DataRegistryTypesPrivate.h"
 #include "Interfaces/ITargetPlatform.h"

@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "GameFramework/Character.h"
+#include "Engine/World.h"
 #include "GameFramework/DamageType.h"
 #include "GameFramework/Controller.h"
 #include "Components/SkinnedMeshComponent.h"

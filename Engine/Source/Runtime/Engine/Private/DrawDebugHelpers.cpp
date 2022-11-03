@@ -5,6 +5,8 @@
  */
 
 #include "DrawDebugHelpers.h"
+#include "Engine/GameInstance.h"
+#include "Engine/GameViewportClient.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
 #include "CanvasItem.h"

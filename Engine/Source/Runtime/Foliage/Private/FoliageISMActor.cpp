@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FoliageISMActor.h"
+#include "Engine/Blueprint.h"
 #include "InstancedFoliageActor.h"
 #include "FoliageType.h"
 #include "FoliageType_Actor.h"

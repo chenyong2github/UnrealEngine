@@ -7,6 +7,7 @@
 #include "GroomComponent.h"
 #include "GroomPluginSettings.h"
 #include "Misc/ScopeLock.h"
+#include "Serialization/MemoryReader.h"
 
 DEFINE_LOG_CATEGORY(LogGroomCacheStreaming);
 

@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSnapshotsEditorSettings.h"
+#include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 
 #include "Application/SlateApplicationBase.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "UObject/Package.h"
 
 ULevelSnapshotsEditorSettings* ULevelSnapshotsEditorSettings::Get()
 {

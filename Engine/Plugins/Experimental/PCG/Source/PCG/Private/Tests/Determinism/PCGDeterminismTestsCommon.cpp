@@ -23,6 +23,7 @@
 #include "Components/SplineComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/Actor.h"
+#include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "PCGDeterminism"
 

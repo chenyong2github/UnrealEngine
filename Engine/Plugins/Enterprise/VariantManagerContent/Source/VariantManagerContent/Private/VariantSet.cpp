@@ -4,6 +4,7 @@
 
 #include "LevelVariantSets.h"
 #include "ThumbnailGenerator.h"
+#include "UObject/Package.h"
 #include "Variant.h"
 #include "VariantManagerObjectVersion.h"
 

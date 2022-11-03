@@ -11,6 +11,8 @@
 #include "LevelSequence.h"
 #include "LevelVariantSets.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(DataprepContentProducer)
+
 const FString DefaultNamespace( TEXT("void") );
 
 FString UDataprepContentProducer::GetNamespace() const

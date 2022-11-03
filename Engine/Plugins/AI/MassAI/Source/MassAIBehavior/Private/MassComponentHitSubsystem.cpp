@@ -2,6 +2,7 @@
 
 #include "MassComponentHitSubsystem.h"
 
+#include "GameFramework/Pawn.h"
 #include "MassAgentComponent.h"
 #include "MassAgentSubsystem.h"
 #include "MassSignalSubsystem.h"

@@ -5,6 +5,8 @@
 #include "Engine/SkinnedAssetCommon.h"
 #include "EngineAnalytics.h"
 #include "MaterialExporterUSD.h"
+#include "Misc/EngineVersion.h"
+#include "Misc/PackageName.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "SkeletalMeshExporterUSDOptions.h"
 #include "USDClassesModule.h"

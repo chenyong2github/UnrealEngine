@@ -2,6 +2,8 @@
 
 #include "UnrealEdMisc.h"
 
+#include "Engine/Blueprint.h"
+#include "GameFramework/Pawn.h"
 #include "Model.h"
 #include "TickableEditorObject.h"
 #include "Components/PrimitiveComponent.h"

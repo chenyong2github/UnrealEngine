@@ -2,6 +2,7 @@
 
 #include "DataRegistrySource_DataTable.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "DataRegistryTypesPrivate.h"
 #include "DataRegistrySettings.h"
 #include "Interfaces/ITargetPlatform.h"

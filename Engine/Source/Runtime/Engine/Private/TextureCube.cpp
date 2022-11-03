@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/TextureCube.h"
+#include "Misc/CoreStats.h"
 #include "RenderUtils.h"
 #include "TextureResource.h"
 #include "EngineUtils.h"
@@ -13,6 +14,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "TextureCompiler.h"
 #include "Misc/ScopedSlowTask.h"
+#include "UObject/Package.h"
 #include "UObject/StrongObjectPtr.h"
 #include "ImageUtils.h"
 #include "UObject/ReleaseObjectVersion.h"

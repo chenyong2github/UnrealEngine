@@ -3,6 +3,7 @@
 #include "CommonInputPrivate.h"
 #include "ICommonInputModule.h"
 #include "Engine/AssetManager.h"
+#include "UObject/Package.h"
 #if WITH_EDITOR
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "EdGraph/EdGraphPin.h"
 #include "MuCO/UnrealPortabilityHelpers.h"
 
 #include "MuCO/ICustomizableObjectModule.h"

@@ -38,6 +38,7 @@
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "CommonRenderResources.h"
+#include "UObject/Package.h"
 
 #define CAMERA_MESSAGE_ADDRESS TEXT("/ARCamera")
 

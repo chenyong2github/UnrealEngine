@@ -11,6 +11,7 @@
 #include "UObject/MetaData.h"
 #include "Logging/TokenizedMessage.h"
 #include "Sound/SoundWave.h"
+#include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "FCPXMLExporter"
 

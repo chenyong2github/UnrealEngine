@@ -6,6 +6,7 @@
 #include "Animation/BlendSpace.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/BoneSocketReference.h"
+#include "Features/IModularFeatures.h"
 
 #define LOCTEXT_NAMESPACE "BlendSpaceAnalysis"
 

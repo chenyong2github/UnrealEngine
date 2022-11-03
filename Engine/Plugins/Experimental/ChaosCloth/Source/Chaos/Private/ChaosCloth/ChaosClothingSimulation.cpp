@@ -15,6 +15,7 @@
 #include "PhysicsProxy/PerSolverFieldSystem.h"
 
 #include "HAL/IConsoleManager.h"
+#include "SceneManagement.h"
 
 #if !UE_BUILD_SHIPPING
 #include "FramePro/FramePro.h"

@@ -7,7 +7,9 @@
 #include "OptimusNodePin.h"
 #include "OptimusShaderText.h"
 #include "OptimusBindingTypes.h"
+#include "UObject/Package.h"
 
+#include UE_INLINE_GENERATED_CPP_BY_NAME(OptimusNode_ComputeKernelFunction)
 
 UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 	UObject* InPackage,

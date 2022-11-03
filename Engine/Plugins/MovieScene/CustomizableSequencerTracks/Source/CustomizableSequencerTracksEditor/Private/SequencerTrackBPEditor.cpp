@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerTrackBPEditor.h"
+#include "AssetRegistry/AssetData.h"
 #include "SequencerTrackBP.h"
 #include "SequencerSectionBP.h"
 #include "SequencerSectionPainter.h"

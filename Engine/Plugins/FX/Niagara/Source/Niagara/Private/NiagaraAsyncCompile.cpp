@@ -9,6 +9,7 @@
 #include "NiagaraPrecompileContainer.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraStats.h"
+#include "UObject/Package.h"
 #include "VectorVM.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraAsyncCompile)

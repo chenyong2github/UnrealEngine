@@ -14,6 +14,7 @@
 #include "Misc/App.h"
 #include "Misc/FileHelper.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/Linker.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "ProfilingDebugging/ScopedTimers.h"

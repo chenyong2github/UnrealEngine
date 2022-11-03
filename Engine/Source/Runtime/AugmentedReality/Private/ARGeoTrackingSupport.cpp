@@ -2,6 +2,7 @@
 
 #include "ARGeoTrackingSupport.h"
 #include "ARBlueprintLibrary.h"
+#include "Features/IModularFeatures.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ARGeoTrackingSupport)
 

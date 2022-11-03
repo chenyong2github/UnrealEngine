@@ -2,6 +2,7 @@
 
 #include "AnimGraphNode_RigidBody.h"
 #include "AnimNodeEditModes.h"
+#include "Features/IModularFeatures.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "BoneControllers/AnimNode_RigidBody.h"
 #include "EditorModeManager.h"

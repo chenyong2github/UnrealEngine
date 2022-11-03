@@ -28,6 +28,7 @@
 #include "IImageWrapper.h"
 #include "ImageWrapperHelper.h"
 #include "LegacyScreenPercentageDriver.h"
+#include "UObject/Package.h"
 #include "VolumeCache.h"
 #include "TextureResource.h"
 

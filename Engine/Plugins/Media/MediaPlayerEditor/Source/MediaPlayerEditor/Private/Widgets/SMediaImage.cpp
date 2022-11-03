@@ -5,6 +5,7 @@
 #include "Styling/AppStyle.h"
 #include "Materials/Material.h"
 #include "Styling/SlateBrush.h"
+#include "UObject/Package.h"
 #include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"

@@ -10,7 +10,7 @@
 UENUM(BlueprintType)
 namespace ENetworkFailure
 {
-	enum Type
+	enum Type : int
 	{
 		/** A relevant net driver has already been created for this service */
 		NetDriverAlreadyExists,

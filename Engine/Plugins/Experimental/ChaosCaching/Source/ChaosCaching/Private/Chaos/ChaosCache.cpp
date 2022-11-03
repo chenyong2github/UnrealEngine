@@ -3,6 +3,7 @@
 #include "Chaos/ChaosCache.h"
 #include "Chaos/ChaosCachingPlugin.h"
 #include "Components/PrimitiveComponent.h"
+#include "UObject/Package.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionObject.h"

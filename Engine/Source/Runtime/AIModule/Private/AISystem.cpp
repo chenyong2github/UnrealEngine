@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AISystem.h"
+#include "Engine/GameInstance.h"
 #include "Modules/ModuleManager.h"
 #include "AIController.h"
 #include "Perception/AIPerceptionSystem.h"

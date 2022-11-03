@@ -4,6 +4,7 @@
 
 #include "Async/ParallelFor.h"
 #include "PackageHelperFunctions.h"
+#include "Tasks/Task.h"
 #include "UObject/PackageTrailer.h"
 #include "Virtualization/VirtualizationSystem.h"
 

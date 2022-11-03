@@ -3,10 +3,13 @@
 #include "ScriptBlueprintGeneratedClass.h"
 #include "ScriptPluginLog.h"
 #include "UObject/CoreObjectVersion.h"
+#include "UObject/Package.h"
 #include "UObject/UnrealTypePrivate.h"
 #if WITH_LUA
 #include "LuaIntegration.h"
 #endif
+
+#include UE_INLINE_GENERATED_CPP_BY_NAME(ScriptBlueprintGeneratedClass)
 
 /////////////////////////////////////////////////////
 // UScriptBlueprintGeneratedClass

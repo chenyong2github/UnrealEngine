@@ -44,6 +44,7 @@ struct FAnimNode_StateMachine;
 struct FAnimTickRecord;
 struct FBakedAnimationStateMachine;
 struct FCompactPose;
+struct FMontageEvaluationState;
 struct FNodeDebugData;
 struct FPoseContext;
 struct FPoseSnapshot;

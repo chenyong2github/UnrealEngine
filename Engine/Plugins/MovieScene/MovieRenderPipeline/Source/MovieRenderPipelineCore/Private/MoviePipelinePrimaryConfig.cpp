@@ -11,6 +11,7 @@
 #include "MoviePipelineSetting.h"
 #include "MovieRenderPipelineCoreModule.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelinePrimaryConfig)
 

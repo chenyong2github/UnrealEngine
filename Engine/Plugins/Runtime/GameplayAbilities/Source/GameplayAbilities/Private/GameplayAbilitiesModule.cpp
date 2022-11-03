@@ -2,6 +2,7 @@
 
 #include "GameplayAbilitiesModule.h"
 #include "UObject/Object.h"
+#include "UObject/Package.h"
 #include "UObject/SoftObjectPath.h"
 #include "GameFramework/HUD.h"
 #include "AbilitySystemGlobals.h"

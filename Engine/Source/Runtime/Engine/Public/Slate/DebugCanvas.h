@@ -10,6 +10,8 @@
 #include "Widgets/SLeafWidget.h"
 
 class FRHICommandListImmediate;
+class FSceneViewport;
+class FViewportClient;
 
 typedef TSharedPtr<FCanvas, ESPMode::ThreadSafe> FCanvasPtr;
 

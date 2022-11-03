@@ -6,6 +6,7 @@
 #include "IRemoteControlProtocolModule.h"
 #include "OSCManager.h"
 #include "RemoteControlProtocolOSC.h" 
+#include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 
 void FRemoteControlOSCServerSettings::InitOSCServer()

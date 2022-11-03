@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Annotations/ZoneGraphDisturbanceAnnotation.h"
+#include "Engine/Engine.h"
 #include "ZoneGraphAnnotationSubsystem.h"
 #include "ZoneGraphAnnotationTypes.h"
 #include "ZoneGraphAnnotationTestingActor.h"

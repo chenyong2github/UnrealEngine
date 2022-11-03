@@ -12,6 +12,7 @@
 #include "Components/AudioComponent.h"
 #include "DSP/Dsp.h"
 #include "Audio.h"
+#include "UObject/Package.h"
 
 DEFINE_LOG_CATEGORY(LogMicManager);
 

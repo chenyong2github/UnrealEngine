@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VisualGraphObjectUtils.h"
+#include "Misc/PackageName.h"
+#include "UObject/Package.h"
 #include "VisualGraphUtilsModule.h"
 #include "Elements/Framework/TypedElementListObjectUtil.h"
 #include "Serialization/ArchiveUObject.h"

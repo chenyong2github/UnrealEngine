@@ -11,6 +11,7 @@
 #include "EditorActorFolders.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceInterface.h"
+#include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "UnrealEd.WorldFolders"
 

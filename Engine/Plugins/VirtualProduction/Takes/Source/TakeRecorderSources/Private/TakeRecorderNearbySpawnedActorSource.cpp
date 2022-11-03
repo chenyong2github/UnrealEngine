@@ -2,6 +2,7 @@
 
 #include "TakeRecorderNearbySpawnedActorSource.h"
 
+#include "GameFramework/Pawn.h"
 #include "TakeRecorderSources.h"
 #include "TakeRecorderSource.h"
 #include "TakeRecorderActorSource.h"

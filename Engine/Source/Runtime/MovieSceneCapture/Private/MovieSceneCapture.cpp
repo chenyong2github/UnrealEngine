@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneCapture.h"
+#include "AssetRegistry/AssetData.h"
 #include "Dom/JsonValue.h"
 #include "Dom/JsonObject.h"
 #include "HAL/PlatformFileManager.h"

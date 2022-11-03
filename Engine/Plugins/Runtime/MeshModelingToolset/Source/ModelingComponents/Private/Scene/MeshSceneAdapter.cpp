@@ -28,6 +28,7 @@
 #include "Materials/Material.h"
 
 #include "Async/ParallelFor.h"
+#include "UObject/Package.h"
 
 using namespace UE::Geometry;
 

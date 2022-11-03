@@ -2,6 +2,7 @@
 
 #include "Materials/MaterialExpressionLandscapePhysicalMaterialOutput.h"
 
+#include "EdGraph/EdGraphNode.h"
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
 #include "MaterialCompiler.h"

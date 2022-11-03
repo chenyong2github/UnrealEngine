@@ -15,6 +15,7 @@
 #include "Components/SceneCaptureComponent2D.h"
 #include "BufferVisualizationData.h"
 
+#include "UObject/Package.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Algo/Find.h"
 #include "Async/Async.h"

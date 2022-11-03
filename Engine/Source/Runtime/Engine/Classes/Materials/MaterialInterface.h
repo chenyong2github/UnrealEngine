@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
 #include "MaterialTypes.h"
 #include "Containers/ArrayView.h"

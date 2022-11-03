@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/PlatformProcess.h"
 #include "HAL/Runnable.h"
 #include "IPAddress.h"
 #include "SocketSubsystem.h"

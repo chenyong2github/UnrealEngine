@@ -10,6 +10,7 @@
 #include "HAL/LowLevelMemTracker.h"
 
 #include "TraceSourceFilteringProjectSettings.h"
+#include "UObject/Package.h"
 
 FTraceSourceFiltering::FTraceSourceFiltering()
 {

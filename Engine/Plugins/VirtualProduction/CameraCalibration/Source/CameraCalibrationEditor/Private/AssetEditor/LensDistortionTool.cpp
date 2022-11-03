@@ -23,6 +23,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "SLensDistortionToolPanel.h"
 #include "UObject/Class.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "LensDistortionTool"

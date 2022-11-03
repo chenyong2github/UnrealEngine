@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioModulationDebugger.h"
+#include "ViewportClient.h"
 
 #if WITH_AUDIOMODULATION
 #if !UE_BUILD_SHIPPING

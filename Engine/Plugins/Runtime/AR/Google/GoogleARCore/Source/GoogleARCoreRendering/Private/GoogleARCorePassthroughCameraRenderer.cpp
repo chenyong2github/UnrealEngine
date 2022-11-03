@@ -19,6 +19,7 @@
 #include "CommonRenderResources.h"
 #include "ARUtilitiesFunctionLibrary.h"
 #include "HAL/IConsoleManager.h"
+#include "UObject/Package.h"
 
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

@@ -11,6 +11,7 @@
 #include "LensFile.h"
 #include "Misc/AutomationTest.h"
 #include "SphericalLensDistortionModelHandler.h"
+#include "UObject/Package.h"
 #include "UObject/StrongObjectPtr.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTestCameraCalibrationCore, "Plugin.CameraCalibrationCore", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)

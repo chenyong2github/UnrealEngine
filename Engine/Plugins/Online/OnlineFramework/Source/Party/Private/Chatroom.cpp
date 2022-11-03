@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Chatroom.h"
+#include "Engine/GameInstance.h"
 #include "GameFramework/OnlineReplStructs.h"
 #include "TimerManager.h"
 #include "Engine/LocalPlayer.h"

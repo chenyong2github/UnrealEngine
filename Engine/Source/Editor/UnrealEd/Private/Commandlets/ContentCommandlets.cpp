@@ -12,6 +12,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/Class.h"
+#include "UObject/LinkerLoad.h"
 #include "UObject/MetaData.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"

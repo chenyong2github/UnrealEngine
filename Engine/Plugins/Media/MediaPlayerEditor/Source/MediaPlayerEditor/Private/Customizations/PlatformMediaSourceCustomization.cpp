@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Customizations/PlatformMediaSourceCustomization.h"
+#include "AssetRegistry/AssetData.h"
 #include "MediaSource.h"
 #include "PlatformMediaSource.h"
 #include "Styling/SlateColor.h"

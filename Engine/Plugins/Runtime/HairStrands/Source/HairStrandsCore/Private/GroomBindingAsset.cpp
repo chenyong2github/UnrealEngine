@@ -8,6 +8,7 @@
 #include "GroomAsset.h"
 #include "GroomBindingBuilder.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Serialization/MemoryReader.h"
 #include "UObject/AnimObjectVersion.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/DevObjectVersion.h"

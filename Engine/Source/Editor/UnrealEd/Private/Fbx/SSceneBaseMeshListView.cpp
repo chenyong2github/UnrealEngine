@@ -11,6 +11,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SFbxSceneOptionWindow.h"
 #include "FbxImporter.h"
+#include "UObject/Package.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Input/STextEntryPopup.h"
 #include "Factories/FbxSceneImportData.h"

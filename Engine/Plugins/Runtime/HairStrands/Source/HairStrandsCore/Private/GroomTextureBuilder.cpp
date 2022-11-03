@@ -17,6 +17,7 @@
 #include "HairStrandsMeshProjection.h"
 #include "Engine/StaticMesh.h"
 #include "TextureResource.h"
+#include "UObject/Package.h"
 
 static int32 GHairStrandsTextureDilationPassCount = 8;
 static FAutoConsoleVariableRef CVarHairStrandsTextureDilationPassCount(TEXT("r.HairStrands.Textures.DilationCount"), GHairStrandsTextureDilationPassCount, TEXT("Number of dilation pass run onto the generated hair strands textures (Default:8)."));

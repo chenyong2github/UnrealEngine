@@ -4,6 +4,7 @@
 #include "Units/Control/RigUnit_Control.h"
 #include "ControlRigObjectVersion.h"
 #include "ControlRig.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRigBlueprintGeneratedClass)
 

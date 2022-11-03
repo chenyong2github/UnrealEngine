@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/PendingNetGame.h"
+#include "Engine/GameInstance.h"
 #include "Misc/NetworkGuid.h"
 #include "EngineGlobals.h"
 #include "GameFramework/OnlineReplStructs.h"

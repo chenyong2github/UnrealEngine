@@ -2,6 +2,7 @@
 
 
 #include "SoundscapeColor.h"
+#include "Engine/GameInstance.h"
 #include "UObject/WeakObjectPtr.h"
 #include "Components/AudioComponent.h"
 #include "AudioDevice.h"

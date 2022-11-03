@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "CoreMinimal.h"
+#include "Engine/GameInstance.h"
 #include "Misc/CommandLine.h"
 #include "Stats/Stats.h"
 #include "HAL/IConsoleManager.h"

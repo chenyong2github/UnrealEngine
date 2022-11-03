@@ -5,6 +5,7 @@
 #include "Math/Color.h"
 #include "CanvasTypes.h"
 #include "CanvasItem.h"
+#include "SceneView.h"
 
 #define LOCTEXT_NAMESPACE "SplineComponentVisualizer"
 

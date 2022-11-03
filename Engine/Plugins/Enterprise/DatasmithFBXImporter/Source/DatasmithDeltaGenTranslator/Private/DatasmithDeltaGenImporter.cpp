@@ -2,6 +2,7 @@
 
 #include "DatasmithDeltaGenImporter.h"
 
+#include "Async/AsyncWork.h"
 #include "DatasmithDeltaGenAnimationInterpolator.h"
 #include "DatasmithDeltaGenImportData.h"
 #include "DatasmithDeltaGenImportOptions.h"

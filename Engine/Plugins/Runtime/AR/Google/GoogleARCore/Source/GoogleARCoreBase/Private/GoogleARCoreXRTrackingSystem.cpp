@@ -2,6 +2,7 @@
 
 #include "GoogleARCoreXRTrackingSystem.h"
 #include "Engine/Engine.h"
+#include "Misc/EngineVersion.h"
 #include "RHIDefinitions.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/WorldSettings.h"

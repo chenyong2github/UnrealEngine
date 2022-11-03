@@ -2,6 +2,7 @@
 
 #include "Blueprint/UserWidget.h"
 
+#include "Engine/GameInstance.h"
 #include "Rendering/DrawElements.h"
 #include "Sound/SoundBase.h"
 #include "Sound/SlateSound.h"

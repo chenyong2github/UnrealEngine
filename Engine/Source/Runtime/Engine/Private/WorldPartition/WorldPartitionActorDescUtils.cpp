@@ -2,6 +2,7 @@
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionActorDescUtils.h"
+#include "AssetRegistry/AssetData.h"
 #include "WorldPartition/WorldPartitionLog.h"
 #include "Engine/Level.h"
 #include "GameFramework/Actor.h"

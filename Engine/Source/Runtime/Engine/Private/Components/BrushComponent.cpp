@@ -10,6 +10,7 @@
 #include "RHI.h"
 #include "RenderingThread.h"
 #include "RenderResource.h"
+#include "UObject/Package.h"
 #include "VertexFactory.h"
 #include "PackedNormal.h"
 #include "LocalVertexFactory.h"

@@ -4,6 +4,7 @@
 #include "DatasmithAssetUserData.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "UObject/Object.h"
+#include "UObject/Package.h"
 #include "UObject/StrongObjectPtr.h"
 #include "GameFramework/Actor.h"
 

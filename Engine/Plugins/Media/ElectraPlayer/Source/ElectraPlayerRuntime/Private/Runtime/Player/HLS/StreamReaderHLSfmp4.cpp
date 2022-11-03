@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HTTP/HTTPManager.h"
+#include "Stats/Stats.h"
 #include "StreamReaderHLSfmp4.h"
 #include "Demuxer/ParserISO14496-12.h"
 #include "StreamAccessUnitBuffer.h"

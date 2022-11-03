@@ -7,6 +7,7 @@
 #include "Landscape.h"
 #include "LandscapePatchLogging.h"
 #include "LandscapePatchManager.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(LandscapePatchComponent)
 

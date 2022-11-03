@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Serialization/AsyncLoading2.h"
+#include "IO/IoDispatcher.h"
 #include "Serialization/AsyncPackageLoader.h"
 #include "IO/PackageStore.h"
 #include "HAL/PlatformFileManager.h"

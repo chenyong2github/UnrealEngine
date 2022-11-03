@@ -3,6 +3,7 @@
 #include "SDisplayClusterColorGradingDrawer.h"
 
 #include "DisplayClusterColorGradingStyle.h"
+#include "Engine/Blueprint.h"
 #include "IDisplayClusterColorGrading.h"
 #include "IDisplayClusterColorGradingDrawerSingleton.h"
 #include "SDisplayClusterColorGradingObjectList.h"

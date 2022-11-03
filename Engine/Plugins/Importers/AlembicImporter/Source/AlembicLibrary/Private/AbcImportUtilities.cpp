@@ -10,6 +10,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Containers/ArrayView.h"
 #include "Materials/Material.h"
+#include "UObject/Package.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"

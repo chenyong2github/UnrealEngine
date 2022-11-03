@@ -4,6 +4,7 @@
 #include "NiagaraDebugger.h"
 #include "NiagaraEditorCommon.h"
 #include "NiagaraSimCache.h"
+#include "Serialization/MemoryReader.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraOutliner)

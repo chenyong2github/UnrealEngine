@@ -15,6 +15,7 @@
 #include "ISpectatorScreenController.h"
 #include "IHeadMountedDisplay.h"
 #include "RenderTargetPool.h"
+#include "ViewportClient.h"
 
 /**
  * Simple representation of the backbuffer that the debug canvas renders to

@@ -2,6 +2,7 @@
 
 #include "Animation/AnimNode_SequencePlayer.h"
 
+#include "Animation/AnimMontage.h"
 #include "AnimEncoding.h"
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimTrace.h"

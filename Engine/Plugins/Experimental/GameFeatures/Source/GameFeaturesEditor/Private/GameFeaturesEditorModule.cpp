@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
+#include "Features/IModularFeatures.h"
 #include "Modules/ModuleManager.h"
 
 #include "GameFeatureData.h"

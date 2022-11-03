@@ -4,6 +4,7 @@
 
 #include "CineCameraComponent.h"
 #include "Components/SceneCaptureComponent2D.h"
+#include "Engine/Blueprint.h"
 #include "Engine/Engine.h"
 #include "Engine/GameEngine.h"
 #include "Engine/GameInstance.h"

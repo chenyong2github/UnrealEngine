@@ -3,6 +3,7 @@
 #include "EnvironmentQuery/Generators/EnvQueryGenerator_PerceivedActors.h"
 #include "EnvironmentQuery/Contexts/EnvQueryContext_Querier.h"
 #include "EnvironmentQuery/Items/EnvQueryItemType_Actor.h"
+#include "GameFramework/Pawn.h"
 #include "Perception/AIPerceptionListenerInterface.h"
 #include "Perception/AIPerceptionComponent.h"
 #include "VisualLogger/VisualLogger.h"

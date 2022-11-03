@@ -2,6 +2,7 @@
 
 #include "USDStageActor.h"
 
+#include "Engine/Blueprint.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "UnrealUSDWrapper.h"
 #include "USDAssetCache.h"

@@ -8,6 +8,7 @@
 #include "ConcertWorkspaceData.h"
 
 #include "UObject/Class.h"
+#include "UObject/LinkerLoad.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/Package.h"
 #include "UObject/PropertyPortFlags.h"

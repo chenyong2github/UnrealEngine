@@ -12,6 +12,7 @@
 
 #include "Interfaces/IPluginManager.h"
 #include "LevelEditor.h"
+#include "UObject/Linker.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

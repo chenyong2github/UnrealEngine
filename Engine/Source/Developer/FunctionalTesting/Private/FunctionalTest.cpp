@@ -2,6 +2,7 @@
 
 #include "FunctionalTest.h"
 #include "FunctionalTestingModule.h"
+#include "GameFramework/Pawn.h"
 #include "Misc/Paths.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/LatentActionManager.h"

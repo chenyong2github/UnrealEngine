@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "Engine/TextureDefines.h"
 #include "Materials/MaterialInterface.h"
+#include "UObject/Package.h"
 #include "UObject/WeakObjectPtr.h"
 
 #include "UsdWrappers/SdfLayer.h"

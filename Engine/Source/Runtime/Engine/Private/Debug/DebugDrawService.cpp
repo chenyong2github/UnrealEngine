@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Debug/DebugDrawService.h"
+#include "SceneView.h"
 #include "UObject/Package.h"
 #include "Engine/Canvas.h"
 

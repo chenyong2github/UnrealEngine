@@ -9,6 +9,7 @@
 #include "Engine/StaticMesh.h"
 #include "GroomAsset.h"
 #include "GroomCreateBindingOptions.h"
+#include "UObject/Package.h"
 
 IMPLEMENT_MODULE(FHairStrandsCore, HairStrandsCore);
 DEFINE_LOG_CATEGORY(LogHairStrands);

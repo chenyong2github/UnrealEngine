@@ -2,6 +2,7 @@
 
 #include "OptimusDataTypeRegistry.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "OptimusCoreModule.h"
 #include "OptimusHelpers.h"
 #include "OptimusComponentSource.h"

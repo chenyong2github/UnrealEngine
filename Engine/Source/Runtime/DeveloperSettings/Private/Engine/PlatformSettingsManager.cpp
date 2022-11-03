@@ -3,6 +3,7 @@
 #include "Engine/PlatformSettingsManager.h"
 #include "Engine/PlatformSettings.h"
 #include "HAL/IConsoleManager.h"
+#include "UObject/Package.h"
 #include "UObject/UnrealType.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/PropertyPortFlags.h"

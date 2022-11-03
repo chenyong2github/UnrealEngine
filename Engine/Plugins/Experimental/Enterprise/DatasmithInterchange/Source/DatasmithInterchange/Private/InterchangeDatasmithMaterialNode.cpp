@@ -27,6 +27,7 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/PackageName.h"
+#include "UObject/ObjectRedirector.h"
 
 const FName UInterchangeDatasmithMaterialNode::MaterialTypeAttrName(TEXT("Datasmith:ReferenceMaterial:MaterialType"));
 const FName UInterchangeDatasmithMaterialNode::MaterialQualityAttrName(TEXT("Datasmith:ReferenceMaterial:MaterialQuality"));

@@ -4,6 +4,7 @@
 #include "SequencerPlaylist.h"
 #include "SequencerPlaylistPlayer.h"
 #include "SequencerPlaylistsLog.h"
+#include "UObject/Package.h"
 
 
 void USequencerPlaylistsSubsystem::Initialize(FSubsystemCollectionBase& Collection)

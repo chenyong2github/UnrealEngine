@@ -2,6 +2,7 @@
 
 #include "SDisplayClusterLightCardTemplateList.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "DisplayClusterLightCardTemplateDragDropOp.h"
 #include "DisplayClusterLightCardTemplateHelpers.h"
 #include "DisplayClusterLightCardEditor.h"

@@ -2,6 +2,7 @@
 
 #include "AnimNodes/AnimNode_Slot.h"
 #include "Animation/AnimInstanceProxy.h"
+#include "Animation/AnimMontage.h"
 #include "Animation/AnimTrace.h"
 #include "Animation/AnimNode_Inertialization.h"
 

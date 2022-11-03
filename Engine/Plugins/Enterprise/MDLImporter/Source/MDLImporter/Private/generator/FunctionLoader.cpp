@@ -12,6 +12,7 @@
 #include "MaterialEditorUtilities.h"
 #include "Materials/MaterialExpressionFunctionOutput.h"
 #include "PackageTools.h"
+#include "UObject/Package.h"
 
 namespace Generator
 {

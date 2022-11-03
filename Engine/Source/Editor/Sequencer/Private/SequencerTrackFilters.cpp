@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerTrackFilters.h"
+#include "Misc/PackageName.h"
 #include "Styling/AppStyle.h"
 #include "Engine/Level.h"
 #include "Engine/World.h"
 #include "Framework/Commands/Commands.h"
 #include "ISequencer.h"
+#include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 

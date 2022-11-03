@@ -36,6 +36,7 @@
 #include "AnimPreviewInstance.h"
 #include "ContextualAnimSelectionCriterion.h"
 #include "ScopedTransaction.h"
+#include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "ContextualAnimViewModel"
 

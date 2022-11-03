@@ -7,6 +7,7 @@
 #include "EnhancedInputPlatformSettings.h"
 #include "EnhancedPlayerInput.h"
 #include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"

@@ -4,6 +4,7 @@
 #include "Scene/Lights.h"
 #include "Engine/StaticMesh.h"
 #include "LightmapGBuffer.h"
+#include "StaticMeshResources.h"
 
 namespace GPULightmass
 {

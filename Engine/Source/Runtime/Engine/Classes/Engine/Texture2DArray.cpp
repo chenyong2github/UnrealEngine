@@ -22,6 +22,7 @@
 #include "Streaming/TextureStreamOut.h"
 #include "TextureCompiler.h"
 #include "TextureResource.h"
+#include "UObject/Package.h"
 #include "UObject/StrongObjectPtr.h"
 #include "ImageCoreUtils.h"
 

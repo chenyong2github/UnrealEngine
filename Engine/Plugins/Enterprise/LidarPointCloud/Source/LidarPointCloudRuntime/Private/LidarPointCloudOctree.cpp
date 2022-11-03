@@ -9,6 +9,7 @@
 #include "Async/Async.h"
 #include "Misc/FileHelper.h"
 #include "Rendering/LidarPointCloudRenderBuffers.h"
+#include "UObject/Package.h"
 
 int32 FLidarPointCloudOctree::MaxNodeDepth = (1 << (sizeof(FLidarPointCloudOctreeNode::Depth) * 8)) - 1;
 int32 FLidarPointCloudOctree::MaxBucketSize = 200;

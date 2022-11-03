@@ -2,6 +2,7 @@
 
 #include "DisplayClusterLightCardEditorUtils.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "DisplayClusterLightCardActor.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"

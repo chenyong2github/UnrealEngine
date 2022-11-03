@@ -24,6 +24,7 @@
 #include "PostProcess/PostProcessMaterial.h"
 #include "CommonRenderResources.h"
 #include "ARUtilitiesFunctionLibrary.h"
+#include "UObject/Package.h"
 
 #if SUPPORTS_ARKIT_1_0
 	#include "IOSAppDelegate.h"

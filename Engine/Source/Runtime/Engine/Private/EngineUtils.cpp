@@ -3,6 +3,8 @@
 /*=============================================================================
 =============================================================================*/
 #include "EngineUtils.h"
+#include "AssetRegistry/AssetData.h"
+#include "GameFramework/Pawn.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
 #include "UObject/UObjectIterator.h"

@@ -9,6 +9,7 @@ StaticMeshUpdate.h: Helpers to stream in and out static mesh LODs.
 #include "CoreMinimal.h"
 #include "Engine/StaticMesh.h"
 #include "Async/AsyncFileHandle.h"
+#include "IO/IoDispatcher.h"
 #include "RenderAssetUpdate.h"
 #include "RenderResource.h"
 

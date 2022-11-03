@@ -15,6 +15,7 @@
 #include "StageMonitoringSettings.h"
 #include "StageMonitorUtils.h"
 #include "Stats/StatsData.h"
+#include "UObject/Package.h"
 #include "UObject/PackageReload.h"
 #include "VPSettings.h"
 

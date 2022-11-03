@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Templates/WidgetTemplateClass.h"
+#include "Engine/Blueprint.h"
 
 #if WITH_EDITOR
 	#include "Editor.h"
