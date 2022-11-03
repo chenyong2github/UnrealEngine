@@ -67,7 +67,7 @@ EStateTreeRunStatus FGameplayInteractionSyncSlotTagTransitionTask::EnterState(FS
 		EventQueue.SendEvent(Context.GetOwner(), TransitionEventTag);
 		InstanceData.State = EGameplayInteractionSyncSlotTransitionState::Completed;
 
-		UE_VLOG_UELOG(Context.GetOwner(), LogStateTree, Error, TEXT("[GameplayInteractionSyncSlotTagTransitionTask] Sync transition (initial): (%s) WaitingForToTag match [%s] -> Event %s"),
+		UE_VLOG_UELOG(Context.GetOwner(), LogStateTree, VeryVerbose, TEXT("[GameplayInteractionSyncSlotTagTransitionTask] Sync transition (initial): (%s) WaitingForToTag match [%s] -> Event %s"),
 			*LexToString(InstanceData.TargetSlot), *TransitionToTag.ToString(), *TransitionEventTag.ToString());
 	}
 	else if (SlotView.GetTags().HasTag(TransitionFromTag))
@@ -76,7 +76,7 @@ EStateTreeRunStatus FGameplayInteractionSyncSlotTagTransitionTask::EnterState(FS
 		SmartObjectSubsystem.SendSlotEvent(InstanceData.TargetSlot, TransitionEventTag);
 		InstanceData.State = EGameplayInteractionSyncSlotTransitionState::WaitingForToTag;
 
-		UE_VLOG_UELOG(Context.GetOwner(), LogStateTree, Error, TEXT("[GameplayInteractionSyncSlotTagTransitionTask] Sync transition (initial): (%s) WaitingForFromTag match [%s] -> SOEvent %s"),
+		UE_VLOG_UELOG(Context.GetOwner(), LogStateTree, VeryVerbose, TEXT("[GameplayInteractionSyncSlotTagTransitionTask] Sync transition (initial): (%s) WaitingForFromTag match [%s] -> SOEvent %s"),
 			*LexToString(InstanceData.TargetSlot), *TransitionFromTag.ToString(), *TransitionEventTag.ToString());
 	}
 
@@ -92,7 +92,7 @@ EStateTreeRunStatus FGameplayInteractionSyncSlotTagTransitionTask::EnterState(FS
 					check(InstanceDataRef.IsValid());
 					FInstanceDataType& InstanceData = *InstanceDataRef;
 
-					UE_VLOG_UELOG(Owner, LogStateTree, Error, TEXT("[GameplayInteractionSyncSlotTagTransitionTask] Sync transition: (%s) Tag %s added"),
+					UE_VLOG_UELOG(Owner, LogStateTree, VeryVerbose, TEXT("[GameplayInteractionSyncSlotTagTransitionTask] Sync transition: (%s) Tag %s added"),
 						*LexToString(InstanceData.TargetSlot), *Data.Tag.ToString());
 
 					if (InstanceData.State == EGameplayInteractionSyncSlotTransitionState::WaitingForFromTag)
@@ -102,7 +102,7 @@ EStateTreeRunStatus FGameplayInteractionSyncSlotTagTransitionTask::EnterState(FS
 							SmartObjectSubsystem->SendSlotEvent(InstanceData.TargetSlot, TransitionEventTag);
 							InstanceData.State = EGameplayInteractionSyncSlotTransitionState::WaitingForToTag;
 
-							UE_VLOG_UELOG(Owner, LogStateTree, Error, TEXT("[GameplayInteractionSyncSlotTagTransitionTask] Sync transition: (%s) WaitingForFromTag match [%s] -> SOEvent %s"),
+							UE_VLOG_UELOG(Owner, LogStateTree, VeryVerbose, TEXT("[GameplayInteractionSyncSlotTagTransitionTask] Sync transition: (%s) WaitingForFromTag match [%s] -> SOEvent %s"),
 								*LexToString(InstanceData.TargetSlot), *TransitionFromTag.ToString(), *TransitionEventTag.ToString());
 						}
 					}
@@ -113,7 +113,7 @@ EStateTreeRunStatus FGameplayInteractionSyncSlotTagTransitionTask::EnterState(FS
 							EventQueue.SendEvent(Owner, TransitionEventTag);
 							InstanceData.State = EGameplayInteractionSyncSlotTransitionState::Completed;
 
-							UE_VLOG_UELOG(Owner, LogStateTree, Error, TEXT("[GameplayInteractionSyncSlotTagTransitionTask] Sync transition: (%s) WaitingForToTag match [%s] -> Event %s"),
+							UE_VLOG_UELOG(Owner, LogStateTree, VeryVerbose, TEXT("[GameplayInteractionSyncSlotTagTransitionTask] Sync transition: (%s) WaitingForToTag match [%s] -> Event %s"),
 								*LexToString(InstanceData.TargetSlot), *TransitionToTag.ToString(), *TransitionEventTag.ToString());
 						}
 					}
