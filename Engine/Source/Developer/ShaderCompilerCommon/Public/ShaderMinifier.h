@@ -13,9 +13,18 @@ namespace UE::ShaderMinifier
 enum EMinifyShaderFlags
 {
 	None = 0,
-	OutputReasons = 1 << 1,
-	OutputStats   = 1 << 2,
-	OutputLines   = 1 << 3,
+
+	/** Add `// REASON: foo` comments next to emitted code blocks to identify which other block uses it or other reason why it was included */
+	OutputReasons  = 1 << 1,
+
+	/** Add a comment describing how many functions, structs, etc. were emitted */
+	OutputStats    = 1 << 2,
+
+	/** Add `#line <line> <filename>` directives for each emitted code block */
+	OutputLines    = 1 << 3,
+
+	/** Keep original global scope comment lines, such as `// #define FOO 123` that were added by UE shader preprocessor */
+	OutputCommentLines = 1 << 4,
 };
 ENUM_CLASS_FLAGS(EMinifyShaderFlags)
 

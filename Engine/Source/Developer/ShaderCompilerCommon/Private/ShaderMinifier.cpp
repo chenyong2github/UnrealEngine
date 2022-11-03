@@ -258,6 +258,7 @@ enum class ECodeChunkType {
 	Enum,
 	Define,
 	Pragma,
+	CommentLine, // Single line comment
 };
 
 struct FCodeChunk
@@ -495,7 +496,24 @@ static FParsedShader ParseShader(FStringView InSource, FDiagnostics& Output)
 			break;
 		}
 
-		if (Source.StartsWith(TEXT("//")) || Source.StartsWith(TEXT("#line")))
+		if (Source.StartsWith(TEXT("//")))
+		{
+			FStringView Remainder = SkipUntilNextLine(Source);
+
+			// Save comment lines that are outside of blocks
+			if (PendingBlocks.IsEmpty())
+			{
+				FStringView Block = SubStrView(Source, 0, Source.Len() - Remainder.Len());
+				AddBlock(EBlockType::Unknown, Block);
+				ChunkType = ECodeChunkType::CommentLine;
+				FinalizeChunk();
+			}
+
+			Source = Remainder;
+
+			continue;
+		}
+		else if (Source.StartsWith(TEXT("#line")))
 		{
 			Source = SkipUntilNextLine(Source);
 			continue;
@@ -900,7 +918,8 @@ static void OutputChunk(const FCodeChunk& Chunk, FStringBuilderBase& OutputStrea
 	if (Chunk.Type != ECodeChunkType::Function
 		&& Chunk.Type != ECodeChunkType::CBuffer
 		&& Chunk.Type != ECodeChunkType::Pragma
-		&& Chunk.Type != ECodeChunkType::Define)
+		&& Chunk.Type != ECodeChunkType::Define
+		&& Chunk.Type != ECodeChunkType::CommentLine)
 	{
 		OutputStream << ";";
 	}
@@ -1320,9 +1339,29 @@ static FString MinifyShader(const FParsedShader& Parsed, FStringView SemicolonSe
 
 	for (const FCodeChunk& Chunk : Parsed.Chunks)
 	{
-		if (Chunk.Type != ECodeChunkType::Pragma      // Pragmas and defines that remain after preprocessing
-			&& Chunk.Type != ECodeChunkType::Define   // must be preserved as they may control important compiler behaviors.
-			&& RelevantChunks.Find(&Chunk) == nullptr)
+		auto ShouldSkipChunk = [&RelevantChunks, &Chunk, Flags]()
+		{
+			// Pragmas and defines that remain after preprocessing must be preserved as they may control important compiler behaviors.
+			if (Chunk.Type == ECodeChunkType::Pragma || Chunk.Type == ECodeChunkType::Define)
+			{
+				return false;
+			}
+
+			// The preprocessed shader may have auto-generated comments such as `// #define FOO 123` that may be useful to keep for debugging.
+			if (Chunk.Type == ECodeChunkType::CommentLine && EnumHasAnyFlags(Flags, EMinifyShaderFlags::OutputCommentLines))
+			{
+				return false;
+			}
+
+			if (RelevantChunks.Find(&Chunk))
+			{
+				return false;
+			}
+
+			return true;
+		};
+
+		if (ShouldSkipChunk())
 		{
 			continue;
 		}

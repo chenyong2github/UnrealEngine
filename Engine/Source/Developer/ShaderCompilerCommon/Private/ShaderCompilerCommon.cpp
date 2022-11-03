@@ -692,6 +692,7 @@ bool UE::ShaderCompilerCommon::RemoveDeadCode(FString& InOutPreprocessedShaderSo
 
 	UE::ShaderMinifier::FMinifiedShader Minified  = UE::ShaderMinifier::Minify(InOutPreprocessedShaderSource, EntryMain, 
 		UE::ShaderMinifier::EMinifyShaderFlags::OutputReasons
+		| UE::ShaderMinifier::EMinifyShaderFlags::OutputCommentLines
 		| UE::ShaderMinifier::EMinifyShaderFlags::OutputStats
 		| UE::ShaderMinifier::EMinifyShaderFlags::OutputLines);
 
