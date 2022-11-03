@@ -402,7 +402,7 @@ namespace EpicGames.UHT.Types
 		IsRigVMArray = 1 << 14,
 		
 		/// <summary>
-		/// True if the property should codegen as an array
+		/// True if the property should codegen as a byte enumeration
 		/// </summary>
 		IsRigVMEnumAsByte = 1 << 15,
 	}

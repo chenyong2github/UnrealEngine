@@ -52,14 +52,14 @@ namespace EpicGames.UHT.Types
 		IsEnum = 0x00010000,
 		
 		/// <summary>
-		/// Set if the property is an enum as byte
-		/// </summary>
-		IsEnumAsByte = 0x00010004,
-
-		/// <summary>
 		/// Set if the property is an array
 		/// </summary>
 		IsArray = 0x00020000,
+
+		/// <summary>
+		/// Set if the property is an enum as byte
+		/// </summary>
+		IsEnumAsByte = 0x00040000,
 	}
 
 	/// <summary>

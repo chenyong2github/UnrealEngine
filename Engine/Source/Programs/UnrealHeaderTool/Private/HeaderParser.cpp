@@ -6658,6 +6658,7 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 
 		if (ExtendedCPPType.IsEmpty() && MemberCPPType.StartsWith(TEnumAsByteText))
 		{
+			Parameter.CastType = MemberCPPType;
 			MemberCPPType = MemberCPPType.LeftChop(1).RightChop(12);
 			Parameter.bIsEnumAsByte = true;
 		}
