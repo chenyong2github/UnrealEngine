@@ -63,8 +63,8 @@ FDebugDraw ReadDebugDraw_{DataInterfaceName}()
 	DebugDraw.Context.StartPos = 0;
 	DebugDraw.Context.Pos = 0;
 	DebugDraw.Context.Config.Resolution = {DataInterfaceName}_Resolution;
-	DebugDraw.Context.CursorCoord = 0;
-	DebugDraw.Context.TranslatedWorldOffset = 0;
+	DebugDraw.Context.Config.CursorCoord = 0;
+	DebugDraw.Context.Config.TranslatedWorldOffset = 0;
 	DebugDraw.Context.Config.FontSize = {DataInterfaceName}_FontSize;
 	DebugDraw.Context.Config.FontSpacing = {DataInterfaceName}_FontSpacing;
 	DebugDraw.Context.Config.MaxValueCount = {DataInterfaceName}_MaxValueCount;
