@@ -604,10 +604,24 @@ bool UTexture2D::IsReadyForAsyncPostLoad() const
 	return !PrivatePlatformData || PrivatePlatformData->IsReadyForAsyncPostLoad();
 }
 
+#if WITH_EDITOR
+FIntPoint UTexture2D::GetImportedSize() const
+{
+	if (!GetPackage()->HasAnyPackageFlags(PKG_Cooked))
+	{
+		return Source.GetLogicalSize();
+	}
+	return ImportedSize;
+}
+#endif // #if WITH_EDITOR
+
 void UTexture2D::PostLoad()
 {
 #if WITH_EDITOR
-	ImportedSize = Source.GetLogicalSize();
+	if (!GetPackage()->HasAnyPackageFlags(PKG_Cooked))
+	{
+		ImportedSize = Source.GetLogicalSize();
+	}
 
 	if (FApp::CanEverRender())
 	{
@@ -657,10 +671,7 @@ void UTexture2D::PreSave(FObjectPreSaveContext ObjectSaveContext)
 
 void UTexture2D::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
-	FIntPoint SourceSize(0, 0);
-#if WITH_EDITOR
-	SourceSize = Source.GetLogicalSize();
-#endif
+	FIntPoint SourceSize = GetImportedSize();
 
 	const FString DimensionsStr = FString::Printf(TEXT("%dx%d"), SourceSize.X, SourceSize.Y);
 	OutTags.Add( FAssetRegistryTag("Dimensions", DimensionsStr, FAssetRegistryTag::TT_Dimensional) );

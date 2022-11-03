@@ -33,14 +33,14 @@ public:
 	/**
 	 * Retrieves the size of the source image from which the texture was created.
 	 */
+#if WITH_EDITOR
+	ENGINE_API FIntPoint GetImportedSize() const;
+#else // #if WITH_EDITOR
 	FORCEINLINE FIntPoint GetImportedSize() const
 	{
-#if WITH_EDITOR
-		return Source.GetLogicalSize();
-#else // #if WITH_EDITOR
 		return ImportedSize;
-#endif // #if WITH_EDITOR
 	}
+#endif // #if WITH_EDITOR
 
 private:
 	/** True if streaming is temporarily disabled so we can update subregions of this texture's resource 
