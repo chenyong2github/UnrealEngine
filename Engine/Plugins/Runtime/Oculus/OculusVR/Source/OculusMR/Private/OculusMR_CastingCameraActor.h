@@ -15,6 +15,7 @@
 
 class UOculusMR_PlaneMeshComponent;
 class UMaterial;
+class UTexture2D;
 class AOculusMR_BoundaryActor;
 class UTextureRenderTarget2D;
 class UDEPRECATED_UOculusMR_Settings;

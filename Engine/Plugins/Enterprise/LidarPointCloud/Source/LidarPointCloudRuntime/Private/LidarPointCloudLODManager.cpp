@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LidarPointCloudLODManager.h"
+#include "Components/Viewport.h"
 #include "LidarPointCloud.h"
 #include "LidarPointCloudComponent.h"
 #include "LidarPointCloudOctree.h"
