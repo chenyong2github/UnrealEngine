@@ -238,7 +238,7 @@ void FEntityLedger::TagGarbage(UMovieSceneEntitySystemLinker* Linker)
 
 	for (auto It = ImportedEntities.CreateIterator(); It; ++It)
 	{
-		if (It.Key().EntityOwner == nullptr)
+		if (!It.Key().EntityOwner.IsValid())
 		{
 			if (It.Value().EntityID)
 			{

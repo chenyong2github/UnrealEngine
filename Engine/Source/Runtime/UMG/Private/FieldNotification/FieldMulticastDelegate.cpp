@@ -233,7 +233,7 @@ FFieldMulticastDelegate::FRemoveFromResult FFieldMulticastDelegate::RemoveFrom(c
 			bRemoved = true;
 			return !bFieldPresent;
 		}
-		if (Element.Key.Object == InObject && Element.Delegate.IsBound())
+		if (Element.Key.Object.Get() == InObject && Element.Delegate.IsBound())
 		{
 			bFieldPresent = true;
 			return !bRemoved;
@@ -280,7 +280,7 @@ FFieldMulticastDelegate::FRemoveFromResult FFieldMulticastDelegate::RemoveFrom(c
 				}
 			}
 		}
-		if (Element.Key.Object == InObject && Element.Delegate.IsBound())
+		if (Element.Key.Object.Get() == InObject && Element.Delegate.IsBound())
 		{
 			bFieldPresent = true;
 			return !bRemoved;
@@ -310,7 +310,7 @@ FFieldMulticastDelegate::FRemoveAllResult FFieldMulticastDelegate::RemoveAll(con
 		{
 			if (const IDelegateInstance* DelegateInstance = GetDelegateInstance(Element.Delegate))
 			{
-				if (Element.Key.Object == InObject)
+				if (Element.Key.Object.Get() == InObject)
 				{
 					if (DelegateInstance->HasSameObject(InUserObject))
 					{
@@ -336,7 +336,7 @@ FFieldMulticastDelegate::FRemoveAllResult FFieldMulticastDelegate::RemoveAll(con
 			{
 				Delegates.RemoveAt(Index);
 			}
-			else if (Element.Key.Object == InObject)
+			else if (Element.Key.Object.Get() == InObject)
 			{
 				if (DelegateInstance->HasSameObject(InUserObject))
 				{
@@ -372,7 +372,7 @@ FFieldMulticastDelegate::FRemoveAllResult FFieldMulticastDelegate::RemoveAll(con
 		{
 			if (const IDelegateInstance* DelegateInstance = GetDelegateInstance(Element.Delegate))
 			{
-				if (Element.Key.Id == InFieldId && Element.Key.Object == InObject)
+				if (Element.Key.Id == InFieldId && Element.Key.Object.Get() == InObject)
 				{
 					if (DelegateInstance->HasSameObject(InUserObject))
 					{
@@ -398,7 +398,7 @@ FFieldMulticastDelegate::FRemoveAllResult FFieldMulticastDelegate::RemoveAll(con
 			{
 				Delegates.RemoveAt(Index);
 			}
-			else if (Element.Key.Id == InFieldId && Element.Key.Object == InObject)
+			else if (Element.Key.Id == InFieldId && Element.Key.Object.Get() == InObject)
 			{
 				if (DelegateInstance->HasSameObject(InUserObject))
 				{
@@ -433,7 +433,7 @@ void FFieldMulticastDelegate::Broadcast(UObject* InObject, UE::FieldNotification
 			{
 				break;
 			}
-			if (Element.Key.Object == InObject)
+			if (Element.Key.Object.Get() == InObject)
 			{
 				Element.Delegate.ExecuteIfBound(InObject, InFieldId);
 			}
@@ -444,7 +444,7 @@ void FFieldMulticastDelegate::Broadcast(UObject* InObject, UE::FieldNotification
 	for (int32 Index = Delegates.Num() - 1; Index >= AddedEmplaceAt; --Index)
 	{
 		FInvocationElement& Element = Delegates[Index];
-		if (Element.Key.Id == InFieldId && Element.Key.Object == InObject)
+		if (Element.Key.Id == InFieldId && Element.Key.Object.Get() == InObject)
 		{
 			Element.Delegate.ExecuteIfBound(InObject, InFieldId);
 		}

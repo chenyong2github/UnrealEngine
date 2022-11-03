@@ -273,7 +273,7 @@ void FInterrogationChannels::QueryWorldSpaceTransforms(UMovieSceneEntitySystemLi
 		int32 NumChildren = 0;
 
 		FInterrogationChannel Channel = FInterrogationChannel::FromIndex(ChannelBit.GetIndex());
-		if (ActiveChannelBits[Channel.AsIndex()] == false && SparseChannelInfo.FindObject(Channel) == nullptr)
+		if ((bool)ActiveChannelBits[Channel.AsIndex()] == false && SparseChannelInfo.FindObject(Channel) == nullptr)
 		{
 			continue;
 		}
@@ -500,7 +500,7 @@ void FInterrogationChannels::QueryLocalSpaceTransforms(UMovieSceneEntitySystemLi
 	for (TConstSetBitIterator<> ChannelBit(ChannelsToQuery); ChannelBit; ++ChannelBit)
 	{
 		FInterrogationChannel Channel = FInterrogationChannel::FromIndex(ChannelBit.GetIndex());
-		if (ActiveChannelBits[Channel.AsIndex()] == false && SparseChannelInfo.FindObject(Channel) == nullptr)
+		if ((bool)ActiveChannelBits[Channel.AsIndex()] == false && SparseChannelInfo.FindObject(Channel) == nullptr)
 		{
 			continue;
 		}
