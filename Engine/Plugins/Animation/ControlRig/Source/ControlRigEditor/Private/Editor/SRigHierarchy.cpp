@@ -229,7 +229,6 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 				[
 					SAssignNew(TreeView, SRigHierarchyTreeView)
 					.RigTreeDelegates(Delegates)
-					.AutoScrollEnabled(true)
 				]
 			]
 		]

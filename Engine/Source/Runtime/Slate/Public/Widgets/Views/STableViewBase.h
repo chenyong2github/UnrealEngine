@@ -353,6 +353,9 @@ protected:
 
 	EVisibility GetPinnedItemsVisiblity() const;
 
+	/** returns the item widget at a given screen space position (or an invalid ptr) */
+	TSharedPtr<SWidget> FindItemWidgetAtPosition(const FVector2D& InScreenSpacePosition) const; 
+
 	enum class EScrollIntoViewResult
 	{
 		/** The function scrolled an item (if set) into view (or the item was already in view) */

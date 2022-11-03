@@ -1129,6 +1129,21 @@ EVisibility STableViewBase::GetPinnedItemsVisiblity() const
 	return PinnedItemsPanel->GetChildren()->Num() != 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
+TSharedPtr<SWidget> STableViewBase::FindItemWidgetAtPosition(const FVector2D& InScreenSpacePosition) const
+{
+	const FGeometry MyGeometry = ItemsPanel->GetCachedGeometry();
+	FArrangedChildren ArrangedChildren(EVisibility::Visible);
+	ItemsPanel->ArrangeChildren(MyGeometry, ArrangedChildren, true);
+
+	const int32 Index = ItemsPanel->FindChildUnderPosition(ArrangedChildren, InScreenSpacePosition); 
+	if(ArrangedChildren.IsValidIndex(Index))
+	{
+		return ArrangedChildren[Index].Widget->AsShared();
+	}
+
+	return TSharedPtr<SWidget>();
+}
+
 static const TBitArray<> EmptyBitArray = TBitArray<>();
 
 const TBitArray<>& TableViewHelpers::GetEmptyBitArray()

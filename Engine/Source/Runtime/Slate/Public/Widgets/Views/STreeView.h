@@ -606,6 +606,23 @@ public:
 		// This may be due to TreeView requesting a refresh or because new items became visible due to resizing or scrolling.
 		SListView< ItemType >::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 	}
+	
+	virtual void HandleMouseMoveDuringDragDrop(const double InCurrentTime, const float InDeltaTime) override
+	{
+		SListView< ItemType >::HandleMouseMoveDuringDragDrop(InCurrentTime, InDeltaTime);
+		
+		if(bEnableAutoExpand && this->DurationAtMousePositionDuringDragDrop > AutoExpandStartDuration)
+		{
+			if(const ItemType* ItemPtr = this->ItemAtScreenSpacePosition(FVector2D(this->LastMousePositionDuringDragDrop)))
+			{
+				const ItemType& Item = *ItemPtr;
+				if(!this->IsItemExpanded(Item))
+				{
+					this->SetItemExpansion(Item, true);
+				}
+			}
+		}
+	}
 		
 	/** 
 	 * Given: an array of items (ItemsSource) each of which potentially has a child.
@@ -970,6 +987,12 @@ protected:
 
 	/** Style resource for the tree */
 	const FTableViewStyle* Style;
+
+	/** If enabled the view will auto expand items if the mouse is steady over an item during drag & drop */
+	static constexpr bool bEnableAutoExpand = true;
+
+	/** The duration in seconds it takes for auto expand to run */
+	static constexpr double AutoExpandStartDuration = 0.5;
 
 private:		
 
