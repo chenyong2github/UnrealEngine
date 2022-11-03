@@ -79,10 +79,10 @@ void FDefaultWorkingColorSpaceUniformBuffer::Update(const UE::Color::FColorSpace
 	Parameters.ToXYZ = Transpose<float>(InColorSpace.GetRgbToXYZ());
 	Parameters.FromXYZ = Transpose<float>(InColorSpace.GetXYZToRgb());
 
-	Parameters.ToAP1 = Transpose<float>(FColorSpaceTransform(InColorSpace, FColorSpace(EColorSpace::ACESAP1), EChromaticAdaptationMethod::Bradford));
+	Parameters.ToAP1 = Transpose<float>(FColorSpaceTransform(InColorSpace, FColorSpace(EColorSpace::ACESAP1)));
 	Parameters.FromAP1 = Parameters.ToAP1.Inverse();
 	
-	Parameters.ToAP0 = Transpose<float>(FColorSpaceTransform(InColorSpace, FColorSpace(EColorSpace::ACESAP0), EChromaticAdaptationMethod::Bradford));
+	Parameters.ToAP0 = Transpose<float>(FColorSpaceTransform(InColorSpace, FColorSpace(EColorSpace::ACESAP0)));
 
 	Parameters.bIsSRGB = InColorSpace.IsSRGB();
 

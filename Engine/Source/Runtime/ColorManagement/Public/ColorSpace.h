@@ -303,7 +303,7 @@ struct FColorSpaceTransform : FMatrix44d
 	* @param Target Target color space.
 	* @param Method Chromatic adapation method.
 	*/
-	COLORMANAGEMENT_API explicit FColorSpaceTransform(const FColorSpace& Src, const FColorSpace& Dst, EChromaticAdaptationMethod Method);
+	COLORMANAGEMENT_API explicit FColorSpaceTransform(const FColorSpace& Src, const FColorSpace& Dst, EChromaticAdaptationMethod Method = EChromaticAdaptationMethod::Bradford);
 
 	/**
 	* Constructor: create a color space transformation matrix from a raw matrix.
@@ -326,7 +326,7 @@ struct FColorSpaceTransform : FMatrix44d
 	* @param TargetXYZ Target color in XYZ space.
 	* @param Method Adaptation method (None, Bradford, CAT02).
 	*/
-	COLORMANAGEMENT_API static FMatrix44d CalcChromaticAdaptionMatrix(FVector3d SourceXYZ, FVector3d TargetXYZ, EChromaticAdaptationMethod Method);
+	COLORMANAGEMENT_API static FMatrix44d CalcChromaticAdaptionMatrix(FVector3d SourceXYZ, FVector3d TargetXYZ, EChromaticAdaptationMethod Method = EChromaticAdaptationMethod::Bradford);
 };
 
 } }  // end namespace UE::Color
