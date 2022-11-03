@@ -123,6 +123,7 @@ Texture2D DiffuseIndirect_Textures_3;
 RWTexture2D<float4> PassDebugOutput;
 
 uint bLumenSupportBackfaceDiffuse;
+uint bLumenReflectionInputIsSSR;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Helper functions
@@ -158,28 +159,33 @@ FShadingOcclusion GetShadingOcclusion(uint2 InPixelPos, float3 V, float3 N, floa
 	return Out;
 }
 
-float3 MixSpecularAndRoughReflections(float InRoughness, bool bIsFoliage, float3 SpecularReflections, float3 RoughReflections)
+float3 MixSpecularAndRoughReflections(float InRoughness, bool bIsFoliage, float4 SpecularReflections, float3 RoughReflections)
 {
 	const float FadeAlpha = LumenCombineReflectionsAlpha(InRoughness, bIsFoliage);
 
 	// (1 - FadeAlpha) applied during Lumen integration to allow direct lighting specular which shouldn't be lerped out
 	float3 Lighting = RoughReflections;
 
+	if (bLumenReflectionInputIsSSR > 0)
+	{
+		Lighting += SpecularReflections * SpecularReflections.a;
+	}
 	// Must branch as SpecularReflections can be uninitialized where not needed and contain NaN
-	if (FadeAlpha > 0.0f)
+	else if (FadeAlpha > 0.0f)
 	{
 		Lighting += SpecularReflections * FadeAlpha;
 	}
+	
 	return Lighting;
 }
 
-float3 CombineRoughSpecular(FGBufferData GBuffer, bool bIsFoliage, float NoV, float3 RayTracedReflections, float3 RoughReflections, float3 SpecularColor)
+float3 CombineRoughSpecular(FGBufferData GBuffer, bool bIsFoliage, float NoV, float4 RayTracedReflections, float3 RoughReflections, float3 SpecularColor)
 {
 	float3 Lighting;
 	
 	if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 	{
-		Lighting = ClearCoatLayerCombine(GBuffer, NoV, RayTracedReflections, RoughReflections, SpecularColor);
+		Lighting = ClearCoatLayerCombine(GBuffer, NoV, RayTracedReflections.xyz, RoughReflections, SpecularColor);
 	}
 	else
 	{
@@ -214,7 +220,7 @@ FStrataDeferredLighting StrataIndirectLighting(
 	in float3 V,
 	in float  InAO,
 	in float3 InputDiffuseLighting,
-	in float3 InputSpecularLighting)
+	in float4 InputSpecularLighting)
 {
 	FStrataDeferredLighting Out = GetInitialisedStrataDeferredLighting();
 	const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth);
@@ -234,11 +240,11 @@ FStrataDeferredLighting StrataIndirectLighting(
 
 		const float3 InDiffuseLighting			= DiffuseIndirect_Textures_0.Load(uint3(InCoord, 0)).rgb;
 		const float3 InRoughSpecularLighting	= DiffuseIndirect_Textures_2.Load(uint3(InCoord, 0)).rgb;
-		const float3 InSpecularLighting			= DiffuseIndirect_Textures_3.Load(uint3(InCoord, 0)).rgb;
+		const float4 InSpecularLighting			= DiffuseIndirect_Textures_3.Load(uint3(InCoord, 0)).rgba;
 	#else
 		const float3 InDiffuseLighting			= InputDiffuseLighting;
-		const float3 InRoughSpecularLighting	= InputSpecularLighting;
-		const float3 InSpecularLighting			= InputSpecularLighting;
+		const float3 InRoughSpecularLighting	= InputSpecularLighting.xyz;
+		const float4 InSpecularLighting			= InputSpecularLighting;
 	#endif
 
 		// STRATA_TODO: Override the BSDF F0/DiffuseColor when bVisualizeDiffuseIndirect is set
@@ -323,12 +329,12 @@ void MainPS(
 		{
 			float3 DiffuseIndirectLighting = 0;
 			float3 RoughSpecularIndirectLighting = 0;
-			float3 SpecularIndirectLighting = 0;
+			float4 SpecularIndirectLighting = 0;
 
 			#if DIM_APPLY_DIFFUSE_INDIRECT == DIM_APPLY_DIFFUSE_INDIRECT_SCREEN_PROBE_GATHER
 				DiffuseIndirectLighting = DiffuseIndirect_Textures_0.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
 				RoughSpecularIndirectLighting = DiffuseIndirect_Textures_2.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
-				SpecularIndirectLighting = DiffuseIndirect_Textures_3.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
+				SpecularIndirectLighting = DiffuseIndirect_Textures_3.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgba;
 			#else
 			{
 				// Sample the output of the denoiser.
@@ -500,7 +506,7 @@ void MainPS(
 					RoughSpecularIndirectLighting *= Occlusion.SpecularOcclusion;
 					IndirectLighting.Specular = CombineRoughSpecular(GBuffer, IsFoliage(Material), NoV, SpecularIndirectLighting, RoughSpecularIndirectLighting, SpecularColor);
 				#else
-					IndirectLighting.Specular = SpecularIndirectLighting * EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
+					IndirectLighting.Specular = SpecularIndirectLighting.xyz * EnvBRDF(SpecularColor, GBuffer.Roughness, NoV);
 				#endif
 			}
 			}
