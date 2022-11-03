@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/PostProcessEyeAdaptation.h"
+
+#include "SceneTextureParameters.h"
+#include "SystemTextures.h"
+
 #include "RHIGPUReadback.h"
 #include "RendererUtils.h"
 #include "ScenePrivate.h"
@@ -86,6 +90,12 @@ namespace
 		TEXT(""),
 		ECVF_RenderThreadSafe);
 
+	TAutoConsoleVariable<bool> CVarAutoExposureIgnoreMaterialsUsePrecalculatedIlluminance(
+		TEXT("r.AutoExposure.IgnoreMaterials.UsePrecalculatedIlluminance"),
+		true,
+		TEXT(""),
+		ECVF_Scalability | ECVF_RenderThreadSafe);
+
 	TAutoConsoleVariable<bool> CVarAutoExposureIgnoreMaterialsDebug(
 		TEXT("r.AutoExposure.IgnoreMaterials.Debug"),
 		false,
@@ -117,6 +127,11 @@ bool IsExtendLuminanceRangeEnabled()
 	static const auto VarDefaultAutoExposureExtendDefaultLuminanceRange = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"));
 
 	return VarDefaultAutoExposureExtendDefaultLuminanceRange->GetValueOnRenderThread() == 1;
+}
+
+bool IsAutoExposureUsingIlluminanceEnabled(const FViewInfo& View)
+{
+	return CVarAutoExposureIgnoreMaterials.GetValueOnRenderThread() && GetAutoExposureMethod(View) == AEM_Histogram;
 }
 
 static EAutoExposureMethod ApplyEyeAdaptationQuality(EAutoExposureMethod AutoExposureMethod)
@@ -486,6 +501,148 @@ float GetEyeAdaptationFixedExposure(const FViewInfo& View)
 
 	// We're ignoring any curve influence
 	return ExposureScale * Parameters.ExposureCompensationSettings;
+}
+
+//////////////////////////////////////////////////////////////////////////
+//! Setup
+//////////////////////////////////////////////////////////////////////////
+
+class FSetupExposureIlluminanceCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FSetupExposureIlluminanceCS);
+	SHADER_USE_PARAMETER_STRUCT(FSetupExposureIlluminanceCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWIlluminanceTexture)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FSetupExposureIlluminanceCS, "/Engine/Private/PostProcessEyeAdaptation.usf", "SetupExposureIlluminance", SF_Compute);
+
+FRDGTextureRef AddSetupExposureIlluminancePass(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<const FViewInfo> Views,
+	const FSceneTextures& SceneTextures)
+{
+	const uint32 ViewCount = Views.Num();
+
+	bool bAnyViewEnabled = false;
+
+	for (uint32 ViewIndex = 0; ViewIndex < ViewCount; ++ViewIndex)
+	{
+		bAnyViewEnabled |= IsAutoExposureUsingIlluminanceEnabled(Views[ViewIndex]) && CVarAutoExposureIgnoreMaterialsUsePrecalculatedIlluminance.GetValueOnRenderThread();
+	}
+
+	if (!bAnyViewEnabled)
+	{
+		return nullptr;
+	}
+
+	const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_R16F, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource);
+	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("EyeAdaptation_Illuminance"));
+
+	for (uint32 ViewIndex = 0; ViewIndex < ViewCount; ++ViewIndex)
+	{
+		const FViewInfo& View = Views[ViewIndex];
+
+		if (IsAutoExposureUsingIlluminanceEnabled(View) && CVarAutoExposureIgnoreMaterialsUsePrecalculatedIlluminance.GetValueOnRenderThread())
+		{
+			auto* PassParameters = GraphBuilder.AllocParameters<FSetupExposureIlluminanceCS::FParameters>();
+			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures);
+			PassParameters->ColorTexture = SceneTextures.Color.Resolve;
+			PassParameters->RWIlluminanceTexture = GraphBuilder.CreateUAV(OutputTexture);
+
+			auto ComputeShader = View.ShaderMap->GetShader<FSetupExposureIlluminanceCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("SetupExposureIlluminance (ViewId=%d)", ViewIndex),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FIntPoint(8, 8)));
+		}
+	}
+
+	return OutputTexture;
+}
+
+class FCalculateExposureIlluminanceCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FCalculateExposureIlluminanceCS);
+	SHADER_USE_PARAMETER_STRUCT(FCalculateExposureIlluminanceCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWIlluminanceTexture)
+
+		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
+
+		SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
+		SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FCalculateExposureIlluminanceCS, "/Engine/Private/PostProcessEyeAdaptation.usf", "CalculateExposureIlluminance", SF_Compute);
+
+FRDGTextureRef AddCalculateExposureIlluminancePass(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<const FViewInfo> Views,
+	const FSceneTextures& SceneTextures,
+	FRDGTextureRef ExposureIlluminanceSetup)
+{
+	if (!ExposureIlluminanceSetup)
+	{
+		return nullptr;
+	}
+
+	const uint32 ViewCount = Views.Num();
+
+	for (uint32 ViewIndex = 0; ViewIndex < ViewCount; ++ViewIndex)
+	{
+		const FViewInfo& View = Views[ViewIndex];
+
+		if (IsAutoExposureUsingIlluminanceEnabled(View))
+		{
+			check(CVarAutoExposureIgnoreMaterialsUsePrecalculatedIlluminance.GetValueOnRenderThread());
+
+			auto* PassParameters = GraphBuilder.AllocParameters<FCalculateExposureIlluminanceCS::FParameters>();
+			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures);
+			PassParameters->ColorTexture = SceneTextures.Color.Resolve;
+			PassParameters->RWIlluminanceTexture = GraphBuilder.CreateUAV(ExposureIlluminanceSetup);
+			PassParameters->EyeAdaptation = GetEyeAdaptationParameters(View, ERHIFeatureLevel::SM5);
+
+			PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
+			PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+			auto ComputeShader = View.ShaderMap->GetShader<FCalculateExposureIlluminanceCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("CalculateExposureIlluminance (ViewId=%d)", ViewIndex),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FIntPoint(8, 8)));
+		}
+	}
+
+	return ExposureIlluminanceSetup;
 }
 
 //////////////////////////////////////////////////////////////////////////

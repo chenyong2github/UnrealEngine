@@ -316,12 +316,15 @@ void MainAtomicCS(
 			const float2 InvViewSize = Input_ViewportSizeInverse.xy;
 			const float2 ScreenUV = (TexelPos.xy - Input_ViewportMin + 0.5f) * InvViewSize;
 
-			float4 SceneColor = InputTexture.Load(int3(TexelPos, 0));
+			float3 SceneColor = InputTexture.Load(int3(TexelPos, 0)).rgb;
 			SceneColor *= View.OneOverPreExposure;
 
-			float LuminanceVal = CalculateEyeAdaptationLuminance(SceneColor.rgb);
+			float LuminanceVal = CalculateEyeAdaptationLuminance(SceneColor);
 
 #if USE_APPROX_ILLUMINANCE
+#	if USE_PRECALCULATED_ILLUMINANCE
+			LuminanceVal = SceneColor.r;
+#	else
 			const uint2 GBufferTexelPos = View.ViewRectMinAndSize.xy + ScreenUV * View.ViewRectMinAndSize.zw;
 			const float2 GBufferUV = (GBufferTexelPos + 0.5f) * View.BufferSizeAndInvSize.zw;
 
@@ -357,6 +360,7 @@ void MainAtomicCS(
 				LuminanceVal /= max(BaseColorLuminanceVal, EyeAdaptation_IgnoreMaterialsMinBaseColorLuminance);
 				LuminanceVal *= lerp(EyeAdaptation_IgnoreMaterialsLuminanceScale, 1.0f, EyeAdaptation_IgnoreMaterialsMinBaseColorLuminance);
 			}
+#	endif
 #endif
 
 #if USE_APPROX_ILLUMINANCE_DEBUG

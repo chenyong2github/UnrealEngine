@@ -149,8 +149,9 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FUseApproxIlluminanceDim : SHADER_PERMUTATION_BOOL("USE_APPROX_ILLUMINANCE");
+	class FUsePrecalculatedIlluminanceDim : SHADER_PERMUTATION_BOOL("USE_PRECALCULATED_ILLUMINANCE");
 	class FUseApproxIlluminanceDebugDim : SHADER_PERMUTATION_BOOL("USE_APPROX_ILLUMINANCE_DEBUG");
-	using FPermutationDomain = TShaderPermutationDomain<FUseApproxIlluminanceDim, FUseApproxIlluminanceDebugDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FUseApproxIlluminanceDim, FUsePrecalculatedIlluminanceDim, FUseApproxIlluminanceDebugDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -363,9 +364,11 @@ static FRDGTextureRef AddHistogramAtomicPass(
 
 		static const auto CVarIgnoreMaterials = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("r.AutoExposure.IgnoreMaterials"));
 		static const auto CVarIgnoreMaterialsDebug = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("r.AutoExposure.IgnoreMaterials.Debug"));
+		static const auto CVarUsePrecalculatedIlluminance = IConsoleManager::Get().FindTConsoleVariableDataBool(TEXT("r.AutoExposure.IgnoreMaterials.UsePrecalculatedIlluminance"));
 
 		FHistogramAtomicCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FHistogramAtomicCS::FUseApproxIlluminanceDim>(CVarIgnoreMaterials->GetValueOnRenderThread());
+		PermutationVector.Set<FHistogramAtomicCS::FUsePrecalculatedIlluminanceDim>(CVarUsePrecalculatedIlluminance->GetValueOnRenderThread());
 		PermutationVector.Set<FHistogramAtomicCS::FUseApproxIlluminanceDebugDim>(CVarIgnoreMaterialsDebug->GetValueOnRenderThread());
 
 		auto ComputeShader = View.ShaderMap->GetShader<FHistogramAtomicCS>(PermutationVector);

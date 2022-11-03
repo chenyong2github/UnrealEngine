@@ -49,6 +49,8 @@ float GetAutoExposureCompensationFromSettings(const FViewInfo& View);
 
 bool IsExtendLuminanceRangeEnabled();
 
+bool IsAutoExposureUsingIlluminanceEnabled(const FViewInfo& View);
+
 // Returns the auto exposure method enabled by the view (including CVar override).
 EAutoExposureMethod GetAutoExposureMethod(const FViewInfo& View);
 
@@ -88,6 +90,17 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& ViewInfo, E
 
 // Computes the a fixed exposure to be used to replace the dynamic exposure when it's not supported (< SM5).
 float GetEyeAdaptationFixedExposure(const FViewInfo& View);
+
+FRDGTextureRef AddSetupExposureIlluminancePass(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<const FViewInfo> Views,
+	const FSceneTextures& SceneTextures);
+
+FRDGTextureRef AddCalculateExposureIlluminancePass(
+	FRDGBuilder& GraphBuilder,
+	TArrayView<const FViewInfo> Views,
+	const FSceneTextures& SceneTextures,
+	FRDGTextureRef ExposureIlluminanceSetup);
 
 // Returns the updated 1x1 eye adaptation texture.
 FRDGTextureRef AddHistogramEyeAdaptationPass(
