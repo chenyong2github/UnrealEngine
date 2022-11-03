@@ -795,7 +795,7 @@ static void PrimitiveCullTask(FThreadSafeCounter& NumCulledPrimitives, const FSc
 						if (Flags.bUseCustomCulling &&
 							((Scene->PrimitiveOcclusionFlags[Index] & CustomVisibilityFlags) == CustomVisibilityFlags))
 						{
-							VisibilityId = Scene->PrimitiveVisibilityIds[Index].ByteIndex;
+							VisibilityId = Scene->Primitives[Index]->Proxy->GetVisibilityId();
 						}
 
 						bIsVisible = !bPartiallyOutside || IsPrimitiveVisible(View, PermutedPlanePtr, Bounds, VisibilityId, Flags);
