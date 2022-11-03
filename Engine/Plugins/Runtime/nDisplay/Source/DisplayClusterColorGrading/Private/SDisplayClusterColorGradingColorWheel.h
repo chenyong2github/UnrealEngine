@@ -66,6 +66,7 @@ private:
 
 	bool GetColor(FVector4& OutCurrentColor);
 	void CommitColor(FVector4& NewValue, bool bShouldCommitValueChanges);
+	void TransactColorValue();
 
 	void BeginUsingColorPickerSlider();
 	void EndUsingColorPickerSlider();
@@ -119,7 +120,7 @@ private:
 	TAttribute<EColorDisplayMode> ColorDisplayMode;
 
 	/** The orientation of the color wheel, which determines whether the color component sliders are next to or above the color picker */
-	EOrientation Orientation;
+	EOrientation Orientation = Orient_Vertical;
 
 	/** Stored current min value of the color component numeric sliders */
 	TOptional<float> ComponentSliderDynamicMinValue;

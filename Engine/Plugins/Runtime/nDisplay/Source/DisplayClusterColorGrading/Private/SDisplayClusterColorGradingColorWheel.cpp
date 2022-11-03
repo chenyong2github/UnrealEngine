@@ -368,6 +368,27 @@ void SDisplayClusterColorGradingColorWheel::CommitColor(FVector4& NewValue, bool
 		{
 			ColorPropertyHandle.Pin()->SetValue(NewValue, EPropertyValueSetFlags::DefaultFlags);
 		}
+
+		TransactColorValue();
+	}
+}
+
+void SDisplayClusterColorGradingColorWheel::TransactColorValue()
+{
+	if (ColorPropertyHandle.IsValid())
+	{
+		TArray<UObject*> OuterObjects;
+		ColorPropertyHandle.Pin()->GetOuterObjects(OuterObjects);
+		for (UObject* Object : OuterObjects)
+		{
+			if (!Object->HasAnyFlags(RF_Transactional))
+			{
+				Object->SetFlags(RF_Transactional);
+			}
+
+			SaveToTransactionBuffer(Object, false);
+			SnapshotTransactionBuffer(Object);
+		}
 	}
 }
 
@@ -476,6 +497,7 @@ void SDisplayClusterColorGradingColorWheel::SetComponentValue(float NewValue, ui
 			}
 
 			ColorPropertyHandle.Pin()->SetValue(NewColorValue, bIsUsingComponentSlider ? EPropertyValueSetFlags::InteractiveChange : EPropertyValueSetFlags::DefaultFlags);
+			TransactColorValue();
 		}
 	}
 }
