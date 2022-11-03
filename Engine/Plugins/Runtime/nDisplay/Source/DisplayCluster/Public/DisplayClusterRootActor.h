@@ -471,6 +471,7 @@ protected:
 	void ImplRenderPreviewFrustums_Editor();
 	void ImplRenderPreviewViewportFrustum_Editor(const FMatrix ProjectionMatrix, const FMatrix ViewMatrix, const FVector ViewOrigin);
 
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChainEvent) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditMove(bool bFinished) override;
 
@@ -478,8 +479,12 @@ protected:
 	void HandleAssetReload(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
 	
 private:
+
+	/** Flag to indicate if the user is currently interacting with a subobject of CurrentConfigData. */
+	bool bIsInteractiveEditingSubobject = false;
+
 	bool bIsSelectedInEditor = false;
-	
+
 	/** When the preview render should be directed to the post process render target. */
 	bool bOutputFrameToPostProcessRenderTarget;
 
