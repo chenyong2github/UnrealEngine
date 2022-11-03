@@ -530,7 +530,6 @@ bool FManagedArrayCollection::IsConnected(FName StartingNode, FName TargetNode)
 	return false;
 }
 
-
 #include <sstream> 
 #include <string>
 FString FManagedArrayCollection::ToString() const
