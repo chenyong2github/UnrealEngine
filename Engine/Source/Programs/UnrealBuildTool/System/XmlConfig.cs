@@ -92,7 +92,7 @@ namespace UnrealBuildTool
 				CacheFile = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "XmlConfigCache.bin");
 				if(Unreal.IsEngineInstalled())
 				{
-					DirectoryReference? UserSettingsDir = Utils.GetUserSettingDirectory();
+					DirectoryReference? UserSettingsDir = Unreal.UserSettingDirectory;
 					if(UserSettingsDir != null)
 					{
 						CacheFile = FileReference.Combine(UserSettingsDir, "UnrealEngine", String.Format("XmlConfigCache-{0}.bin", Unreal.RootDirectory.FullName.Replace(":", "").Replace(Path.DirectorySeparatorChar, '+')));

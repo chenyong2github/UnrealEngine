@@ -933,7 +933,7 @@ namespace UnrealBuildTool.Modes
 				{
 					if (Unreal.IsEngineInstalled())
 					{
-						CachedEngineProgramSavedDirectory = Utils.GetUserSettingDirectory() ?? DirectoryReference.Combine(Unreal.EngineDirectory, "Programs");
+						CachedEngineProgramSavedDirectory = Unreal.UserSettingDirectory ?? DirectoryReference.Combine(Unreal.EngineDirectory, "Programs");
 					}
 					else
 					{

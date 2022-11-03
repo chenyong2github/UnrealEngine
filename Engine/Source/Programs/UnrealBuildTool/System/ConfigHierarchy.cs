@@ -983,7 +983,7 @@ namespace UnrealBuildTool
 		{
 			string OutString = InString.Replace("{TYPE}", BaseIniName);
 
-			DirectoryReference? UserSettingsDir = Utils.GetUserSettingDirectory();
+			DirectoryReference? UserSettingsDir = Unreal.UserSettingDirectory;
 			if (UserSettingsDir != null)
 			{
 				OutString = OutString.Replace("{USERSETTINGS}", UserSettingsDir.FullName);
@@ -1178,7 +1178,7 @@ namespace UnrealBuildTool
 		{
 			if(Unreal.IsEngineInstalled())
 			{
-				DirectoryReference? UserSettingDir = Utils.GetUserSettingDirectory();
+				DirectoryReference? UserSettingDir = Unreal.UserSettingDirectory;
 				if (UserSettingDir != null)
 				{
 					return DirectoryReference.Combine(UserSettingDir, "UnrealEngine", String.Format("{0}.{1}", ReadOnlyBuildVersion.Current.MajorVersion, ReadOnlyBuildVersion.Current.MinorVersion), "Saved");

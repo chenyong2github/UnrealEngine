@@ -121,7 +121,7 @@ namespace UnrealBuildTool
 			// Fixup the log path if it wasn't overridden by a config file
 			if (BaseLogFileName == null)
 			{
-				BaseLogFileName = FileReference.Combine(UnrealBuildTool.EngineProgramSavedDirectory, "UnrealBuildTool", "Log.txt").FullName;
+				BaseLogFileName = FileReference.Combine(Unreal.EngineProgramSavedDirectory, "UnrealBuildTool", "Log.txt").FullName;
 			}
 
 			// Create the log file, and flush the startup listener to it
@@ -777,6 +777,7 @@ namespace UnrealBuildTool
 				// Save the makefile for next time
 				if(MakefileLocation != null)
 				{
+					Debugger.Launch();
 					using (GlobalTracer.Instance.BuildSpan("TargetMakefile.Save()").StartActive())
 					{
 						Makefile.Save(MakefileLocation);

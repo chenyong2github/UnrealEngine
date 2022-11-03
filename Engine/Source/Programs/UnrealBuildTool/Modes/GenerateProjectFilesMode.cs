@@ -70,7 +70,7 @@ namespace UnrealBuildTool
 			XmlConfig.ApplyTo(this);
 
 			// set up logging (taken from BuildMode)
-			FileReference LogFile = FileReference.Combine(UnrealBuildTool.EngineProgramSavedDirectory, "UnrealBuildTool", "Log_GPF.txt");
+			FileReference LogFile = FileReference.Combine(Unreal.EngineProgramSavedDirectory, "UnrealBuildTool", "Log_GPF.txt");
 			Log.AddFileWriter("DefaultLogTraceListener", LogFile);
 
 			// Parse rocket-specific arguments.

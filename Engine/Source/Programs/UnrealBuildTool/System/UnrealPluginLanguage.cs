@@ -3498,7 +3498,7 @@ namespace UnrealBuildTool
 				yield return FileReference.Combine(ProjectDirectory, "Config", PlatformName, PlatformName + BaseIniName + ".ini");
 			}
 
-			DirectoryReference UserSettingsFolder = Utils.GetUserSettingDirectory(); // Match FPlatformProcess::UserSettingsDir()
+			DirectoryReference? UserSettingsFolder = Unreal.UserSettingDirectory; // Match FPlatformProcess::UserSettingsDir()
 			DirectoryReference? PersonalFolder = null; // Match FPlatformProcess::UserDir()
 			if (RuntimePlatform.IsMac || RuntimePlatform.IsLinux)
 			{

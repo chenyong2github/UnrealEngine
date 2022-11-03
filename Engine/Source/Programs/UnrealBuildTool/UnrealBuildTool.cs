@@ -41,20 +41,10 @@ namespace UnrealBuildTool
 		static FileReference? InstalledProjectFile;
 
 		/// <summary>
-		/// Directory for saved application settings (typically Engine/Programs)
-		/// </summary>
-		static DirectoryReference? CachedEngineProgramSavedDirectory;
-
-		/// <summary>
 		/// The full name of the Engine/Source directory
 		/// </summary>
 		[Obsolete("Replace with Unreal.EngineSourceDirectory")]
-		public static readonly DirectoryReference EngineSourceDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Source");
-
-		/// <summary>
-		/// Cached copy of the writable engine directory
-		/// </summary>
-		static DirectoryReference? CachedWritableEngineDirectory;
+		public static readonly DirectoryReference EngineSourceDirectory = Unreal.EngineSourceDirectory;
 
 		/// <summary>
 		/// Cached copy of the source root directory that was used to compile the installed engine
@@ -65,51 +55,14 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Writable engine directory. Uses the user's settings folder for installed builds.
 		/// </summary>
-		public static DirectoryReference WritableEngineDirectory
-		{
-			get
-			{
-				if (CachedWritableEngineDirectory == null)
-				{
-					DirectoryReference? UserDir = null;
-					if (Unreal.IsEngineInstalled())
-					{
-						UserDir = Utils.GetUserSettingDirectory();
-					}
-					if (UserDir == null)
-					{
-						CachedWritableEngineDirectory = Unreal.EngineDirectory;
-					}
-					else
-					{
-						CachedWritableEngineDirectory = DirectoryReference.Combine(UserDir, "UnrealEngine");
-					}
-				}
-				return CachedWritableEngineDirectory;
-			}
-		}
+		[Obsolete("Replace with Unreal.WritableEngineDirectory")]
+		public static DirectoryReference WritableEngineDirectory = Unreal.WritableEngineDirectory;
 
 		/// <summary>
 		/// The engine programs directory
 		/// </summary>
-		public static DirectoryReference EngineProgramSavedDirectory
-		{
-			get
-			{
-				if (CachedEngineProgramSavedDirectory == null)
-				{
-					if (Unreal.IsEngineInstalled())
-					{
-						CachedEngineProgramSavedDirectory = Utils.GetUserSettingDirectory() ?? DirectoryReference.Combine(Unreal.EngineDirectory, "Programs");
-					}
-					else
-					{
-						CachedEngineProgramSavedDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Programs");
-					}
-				}
-				return CachedEngineProgramSavedDirectory;
-			}
-		}
+		[Obsolete("Replace with Unreal.EngineProgramSavedDirectory")]
+		public static DirectoryReference EngineProgramSavedDirectory = Unreal.EngineProgramSavedDirectory;
 
 		/// <summary>
 		/// The original root directory that was used to compile the installed engine
@@ -227,10 +180,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <returns>A string containing the path to the UBT assembly.</returns>
 		[Obsolete("Deprecated in UE5.1 - use UnrealBuildTool.DotnetPath Unreal.UnrealBuildToolDllPath")]
-		static public FileReference GetUBTPath()
-		{
-			return Unreal.UnrealBuildToolPath;
-		}
+		static public FileReference GetUBTPath() => Unreal.UnrealBuildToolPath;
 
 		/// <summary>
 		/// The Unreal remote tool ini directory.  This should be valid if compiling using a remote server

@@ -136,6 +136,16 @@ namespace UnrealBuildBase
 		public static readonly DirectoryReference EngineSourceDirectory = DirectoryReference.Combine(EngineDirectory, "Source");
 
 		/// <summary>
+		/// Writable engine directory. Uses the user's settings folder for installed builds.
+		/// </summary>
+		public static readonly DirectoryReference WritableEngineDirectory = IsEngineInstalled() && UserSettingDirectory != null ? DirectoryReference.Combine(UserSettingDirectory, "UnrealEngine") : EngineDirectory;
+
+		/// <summary>
+		/// The engine saved programs directory
+		/// </summary>
+		public static readonly DirectoryReference EngineProgramSavedDirectory = IsEngineInstalled() && UserSettingDirectory != null ? UserSettingDirectory : DirectoryReference.Combine(EngineDirectory, "Programs");
+
+		/// <summary>
 		/// The path to UBT
 		/// </summary>
 		[Obsolete("Deprecated in UE5.1; to launch UnrealBuildTool, use this dll as the first argument with DonetPath")]
@@ -155,6 +165,13 @@ namespace UnrealBuildBase
 		/// The path of the bundled dotnet executable
 		/// </summary>
 		static public readonly FileReference DotnetPath = FileReference.Combine(DotnetDirectory, "dotnet" + RuntimePlatform.ExeExtension);
+
+		/// <summary>
+		/// Returns the User Settings Directory path. This matches FPlatformProcess::UserSettingsDir().
+		/// NOTE: This function may return null. Some accounts (eg. the SYSTEM account on Windows) do not have a personal folder, and Jenkins
+		/// runs using this account by default.
+		/// </summary>
+		static public readonly DirectoryReference? UserSettingDirectory = GetUserSettingDirectory();
 
 		/// <summary>
 		/// Whether we're running with engine installed
@@ -313,6 +330,36 @@ namespace UnrealBuildBase
 		public static List<DirectoryReference> GetExtensionDirs(DirectoryReference BaseDir, string SubDir, bool bIncludePlatformDirectories = true, bool bIncludeRestrictedDirectories = true, bool bIncludeBaseDirectory = true)
 		{
 			return GetExtensionDirs(BaseDir, bIncludePlatformDirectories, bIncludeRestrictedDirectories, bIncludeBaseDirectory).Select(x => DirectoryReference.Combine(x, SubDir)).Where(x => DirectoryReference.Exists(x)).ToList();
+		}
+
+		/// <summary>
+		/// Returns the User Settings Directory path. This matches FPlatformProcess::UserSettingsDir().
+		/// NOTE: This function may return null. Some accounts (eg. the SYSTEM account on Windows) do not have a personal folder, and Jenkins
+		/// runs using this account by default.
+		/// </summary>
+		private static DirectoryReference? GetUserSettingDirectory()
+		{
+			if (RuntimePlatform.IsMac)
+			{
+				return new DirectoryReference(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Library", "Application Support", "Epic"));
+			}
+			else if (RuntimePlatform.IsLinux)
+			{
+				return new DirectoryReference(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Epic"));
+			}
+			else
+			{
+				// Not all user accounts have a local application data directory (eg. SYSTEM, used by Jenkins for builds).
+				string DirectoryName = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+				if (String.IsNullOrEmpty(DirectoryName))
+				{
+					return DirectoryReference.Combine(EngineDirectory, "Saved");
+				}
+				else
+				{
+					return new DirectoryReference(DirectoryName);
+				}
+			}
 		}
 	}
 }
