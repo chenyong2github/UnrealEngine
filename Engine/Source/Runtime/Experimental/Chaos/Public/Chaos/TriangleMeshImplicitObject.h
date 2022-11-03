@@ -701,6 +701,7 @@ namespace Chaos
 
 		/**
 		 * @brief Generate the triangle at the specified index with the specified transform (including scale)
+		 * @note does not correct winding for negative scales
 		*/
 		void GetTransformedTriangle(const int32 TriangleIndex, const FRigidTransform3& Transform, FTriangle& OutTriangle, int32& OutVertexIndex0, int32& OutVertexIndex1, int32& OutVertexIndex2) const
 		{
@@ -735,12 +736,21 @@ namespace Chaos
 			TArray<int32> OverlapIndices;
 			FindOverlappingTriangles(QueryBounds, OverlapIndices);
 
+			const bool bStandardWinding = ((QueryTransform.GetScale3D().X * QueryTransform.GetScale3D().Y * QueryTransform.GetScale3D().Z) >= FReal(0));
+
 			for (int32 OverlapIndex = 0; OverlapIndex < OverlapIndices.Num(); ++OverlapIndex)
 			{
 				const int32 TriangleIndex = OverlapIndices[OverlapIndex];
 				FTriangle Triangle;
 				int32 VertexIndex0, VertexIndex1, VertexIndex2;
 				GetTransformedTriangle(TriangleIndex, QueryTransform, Triangle, VertexIndex0, VertexIndex1, VertexIndex2);
+
+				if (!bStandardWinding)
+				{
+					Triangle.ReverseWinding();
+					Swap(VertexIndex1, VertexIndex2);
+				}
+
 				Visitor(Triangle, TriangleIndex, VertexIndex0, VertexIndex1, VertexIndex2);
 			}
 		}

@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Chaos/Core.h"
 #include "Chaos/Plane.h"
-#include "Chaos/Vector.h"
-#include "Chaos/Transform.h"
+#include "Chaos/Utilities.h"
 
 namespace Chaos
 {
@@ -71,8 +69,8 @@ namespace Chaos
 
 	// Check whether the two edges of two convex shapes contribute to the Minkowski sum.
 	// A and B are the face normals for the faces of the edge convex 1
-	// C and D are the face normals for the faces of the edge convex 2
-	bool IsMinkowskiSumFace(const FVec3& A, const FVec3& B, const FVec3& C, const FVec3& D)
+	// C and D are the negated face normals for the faces of the edge convex 2
+	inline bool IsMinkowskiSumFace(const FVec3& A, const FVec3& B, const FVec3& C, const FVec3& D)
 	{
 		const FVec3 BA = FVec3::CrossProduct(B, A);
 		const FVec3 DC = FVec3::CrossProduct(D, C);
@@ -198,6 +196,7 @@ namespace Chaos
 				}
 
 				// Separating normal (always points away from convex 2)
+				// @todo(chaos): we can perform the distance culling with a non-normalized axis and defer the sqrt
 				FVec3 EdgeNormal = FVec3::CrossProduct(EdgeVertex1B - EdgeVertex1A, EdgeVertex2BIn1 - EdgeVertex2AIn1);
 				if (!Utilities::NormalizeSafe(EdgeNormal))
 				{

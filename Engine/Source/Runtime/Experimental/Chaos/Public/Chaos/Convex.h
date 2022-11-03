@@ -407,47 +407,84 @@ namespace Chaos
 		int32 GetVertexPlanes3(int32 VertexIndex, int32& PlaneIndex0, int32& PlaneIndex1, int32& PlaneIndex2) const;
 
 		// The number of vertices that make up the corners of the specified face
-		int32 NumPlaneVertices(int32 PlaneIndex) const;
+		inline int32 NumPlaneVertices(int32 PlaneIndex) const
+		{
+			if (StructureData.IsValid())
+			{
+				return StructureData.NumPlaneVertices(PlaneIndex);
+			}
+			return 0;
+		}
 
 		// Get the vertex index of one of the vertices making up the corners of the specified face
-		int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const;
+		inline int32 GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
+		{
+			if (StructureData.IsValid())
+			{
+				return StructureData.GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
+			}
+			return INDEX_NONE;
+		}
 
-		int32 GetEdgeVertex(int32 EdgeIndex, int32 EdgeVertexIndex) const;
+		// Get the vertex index of one of the two vertices in an edge
+		inline int32 GetEdgeVertex(int32 EdgeIndex, int32 EdgeVertexIndex) const
+		{
+			if (StructureData.IsValid())
+			{
+				return StructureData.GetEdgeVertex(EdgeIndex, EdgeVertexIndex);
+			}
+			return INDEX_NONE;
+		}
 
-		int32 GetEdgePlane(int32 EdgeIndex, int32 EdgePlaneIndex) const;
+		// Get the plane index of one of the two planes using an edge
+		inline int32 GetEdgePlane(int32 EdgeIndex, int32 EdgePlaneIndex) const
+		{
+			if (StructureData.IsValid())
+			{
+				return StructureData.GetEdgePlane(EdgeIndex, EdgePlaneIndex);
+			}
+			return INDEX_NONE;
+		}
 
-		int32 NumPlanes() const
+		inline int32 NumPlanes() const
 		{
 			return Planes.Num();
 		}
 
-		int32 NumEdges() const;
+		inline int32 NumEdges() const
+		{
+			if (StructureData.IsValid())
+			{
+				return StructureData.NumEdges();
+			}
+			return 0;
+		}
 
-		int32 NumVertices() const
+		inline int32 NumVertices() const
 		{
 			return (int32)Vertices.Num();
 		}
 
 		// Get the plane at the specified index (e.g., indices from FindVertexPlanes)
-		const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
+		inline const TPlaneConcrete<FReal, 3> GetPlane(int32 FaceIndex) const
 		{
 			// @todo(chaos) this is needed because this API is shared with BOx implicit - we shoudl eventually only need local space planes and be able to use single precision
 			return TPlaneConcrete<FReal, 3>::MakeFrom(Planes[FaceIndex]);
 		}
 
-		void GetPlaneNX(const int32 FaceIndex, FVec3& OutN, FVec3& OutX) const
+		inline void GetPlaneNX(const int32 FaceIndex, FVec3& OutN, FVec3& OutX) const
 		{
 			OutN = FVec3(Planes[FaceIndex].Normal());
 			OutX = FVec3(Planes[FaceIndex].X());
 		}
 
-		const FPlaneType& GetPlaneRaw(int32 FaceIndex) const
+		inline const FPlaneType& GetPlaneRaw(int32 FaceIndex) const
 		{
 			return Planes[FaceIndex];
 		}
 
 		// Get the vertex at the specified index (e.g., indices from GetPlaneVertexs)
-		const FVec3Type& GetVertex(int32 VertexIndex) const
+		inline const FVec3Type& GetVertex(int32 VertexIndex) const
 		{
 			return Vertices[VertexIndex];
 		}

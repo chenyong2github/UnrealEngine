@@ -192,7 +192,14 @@ namespace Chaos
 			return 3;
 		}
 
-		// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales (See ImplicitObjectScaled)
+		// Change the winding order of this triangle by flipping the last two vertices
+		FTriangle& ReverseWinding()
+		{
+			Swap(ABC[1], ABC[2]);
+			return *this;
+		}
+
+		// Triangle winding order is always 1.0. When we reverse the winding of a triangle we flip the verts. @see ReverseWinding
 		// Used for manifold generation
 		FORCEINLINE T GetWindingOrder() const
 		{

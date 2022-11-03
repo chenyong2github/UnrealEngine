@@ -8,6 +8,7 @@
 #include "Chaos/Collision/CapsuleTriangleContactPoint.h"
 #include "Chaos/Collision/ContactPointsMiscShapes.h"
 #include "Chaos/Collision/ContactTriangles.h"
+#include "Chaos/Collision/ConvexTriangleContactPoint.h"
 #include "Chaos/Collision/SphereConvexContactPoint.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/Convex.h"
@@ -41,6 +42,7 @@ namespace Chaos
 	extern bool bChaos_Collision_OneSidedHeightField;
 
 	extern bool bChaos_Collision_UseCapsuleTriMesh2;
+	extern bool bChaos_Collision_UseConvexTriMesh2;
 
 	namespace Collisions
 	{
@@ -621,7 +623,14 @@ namespace Chaos
 		template<typename ConvexType>
 		void GenerateConvexTriangleOneShotManifold(const ConvexType& Convex, const FTriangle& Triangle, const FReal CullDistance, TCArray<FContactPoint, 4>& OutContactPoints)
 		{
-			ConstructPlanarConvexTriangleOneShotManifold(Convex, Triangle, CullDistance, OutContactPoints);
+			if (bChaos_Collision_UseConvexTriMesh2)
+			{
+				ConstructConvexTriangleOneShotManifold2(Convex, Triangle, CullDistance, OutContactPoints);
+			}
+			else
+			{
+				ConstructPlanarConvexTriangleOneShotManifold(Convex, Triangle, CullDistance, OutContactPoints);
+			}
 		}
 
 		template<>

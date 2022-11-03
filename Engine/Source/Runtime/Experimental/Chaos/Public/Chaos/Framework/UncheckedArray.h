@@ -33,6 +33,16 @@ namespace Chaos
 		static const int32 MaxElements = N;
 		using ElementType = T;
 
+		static TCArray<T, N> MakeFull()
+		{
+			return TCArray<T, N>(N);
+		}
+
+		static TCArray<T, N> MakeEmpty()
+		{
+			return TCArray<T, N>(0);
+		}
+
 		inline TCArray() : NumElements(0) {}
 
 		inline int32 Num() const { return NumElements; }
@@ -145,6 +155,16 @@ namespace Chaos
 			--NumElements;
 		}
 
+		inline ElementType* GetData()
+		{
+			return &Elements[0];
+		}
+
+		inline const ElementType* GetData() const
+		{
+			return &Elements[0];
+		}
+
 		inline ElementType* begin()
 		{
 			return &Elements[0];
@@ -166,6 +186,12 @@ namespace Chaos
 		}
 
 	private:
+		explicit TCArray(int32 InNumElements)
+		: NumElements(InNumElements)
+		{
+			check(Num() <= Max());
+		}
+
 		// Element count before array for better cache behaviour
 		int32 NumElements;
 		ElementType Elements[MaxElements];
@@ -217,4 +243,9 @@ struct TAllocatorTraits<Chaos::FUncheckedHeapAllocator> : TAllocatorTraits<FHeap
 {
 };
 
+template <typename T, int N>
+struct TIsContiguousContainer<Chaos::TCArray<T, N>>
+{
+	enum { Value = true };
+};
 

@@ -302,51 +302,6 @@ namespace Chaos
 		return 0;
 	}
 
-	int32 FConvex::NumPlaneVertices(int32 PlaneIndex) const
-	{
-		if (StructureData.IsValid())
-		{
-			return StructureData.NumPlaneVertices(PlaneIndex);
-		}
-		return 0;
-	}
-
-	int32 FConvex::GetPlaneVertex(int32 PlaneIndex, int32 PlaneVertexIndex) const
-	{
-		if (StructureData.IsValid())
-		{
-			return StructureData.GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
-		}
-		return INDEX_NONE;
-	}
-
-	int32 FConvex::GetEdgeVertex(int32 EdgeIndex, int32 EdgeVertexIndex) const
-	{
-		if (StructureData.IsValid())
-		{
-			return StructureData.GetEdgeVertex(EdgeIndex, EdgeVertexIndex);
-		}
-		return INDEX_NONE;
-	}
-
-	int32 FConvex::GetEdgePlane(int32 EdgeIndex, int32 EdgePlaneIndex) const
-	{
-		if (StructureData.IsValid())
-		{
-			return StructureData.GetEdgePlane(EdgeIndex, EdgePlaneIndex);
-		}
-		return INDEX_NONE;
-	}
-
-	int32 FConvex::NumEdges() const
-	{
-		if (StructureData.IsValid())
-		{
-			return StructureData.NumEdges();
-		}
-		return 0;
-	}
-
 	// Store the structure data with the convex. This is used by manifold generation, for example
 	void FConvex::CreateStructureData(TArray<TArray<int32>>&& PlaneVertexIndices)
 	{

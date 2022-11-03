@@ -1807,6 +1807,21 @@ namespace Chaos
 
 		GetGridIntersections(FlatQueryBounds, Intersections);
 
+		// Forward winding point indices for each triangle
+		int32 Indices[2][3] =
+		{
+			{0, 1, 3},
+			{0, 3, 2}
+		};
+
+		// Swap indices if reverse winding
+		const bool bStandardWinding = ((GeomData.Scale.X * GeomData.Scale.Y * GeomData.Scale.Z) >= FReal(0));
+		if (!bStandardWinding)
+		{
+			Swap(Indices[0][1], Indices[0][2]);
+			Swap(Indices[1][1], Indices[1][2]);
+		}
+
 		FReal LocalContactPhi = FLT_MAX;
 		FVec3 LocalContactLocation, LocalContactNormal;
 		for (const TVec2<int32>& Cell : Intersections)
@@ -1823,7 +1838,7 @@ namespace Chaos
 			// The triangle is solid so proceed to test it
 			GeomData.GetPointsScaled(SingleIndex, Points);
 
-			if (OverlapTriangle(Points[0], Points[1], Points[3], LocalContactLocation, LocalContactNormal, LocalContactPhi))
+			if (OverlapTriangle(Points[Indices[0][0]], Points[Indices[0][1]], Points[Indices[0][2]], LocalContactLocation, LocalContactNormal, LocalContactPhi))
 			{
 				if (LocalContactPhi < ContactPhi)
 				{
@@ -1834,7 +1849,7 @@ namespace Chaos
 				}
 			}
 
-			if (OverlapTriangle(Points[0], Points[3], Points[2], LocalContactLocation, LocalContactNormal, LocalContactPhi))
+			if (OverlapTriangle(Points[Indices[1][0]], Points[Indices[1][1]], Points[Indices[1][2]], LocalContactLocation, LocalContactNormal, LocalContactPhi))
 			{
 				if (LocalContactPhi < ContactPhi)
 				{
