@@ -510,6 +510,7 @@ class FTranslucencyVolumeIntegrateCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, RWTranslucencyGINewHistory1)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenTranslucencyLightingVolumeParameters, VolumeParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FOctahedralSolidAngleParameters, OctahedralSolidAngleParameters)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VolumeTraceRadiance)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VolumeTraceHitDistance)
 		SHADER_PARAMETER(float, HistoryWeight)
@@ -844,6 +845,10 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 				PassParameters->VolumeTraceRadiance = VolumeTraceRadiance;
 				PassParameters->VolumeTraceHitDistance = VolumeTraceHitDistance;
 				PassParameters->VolumeParameters = VolumeParameters;
+
+				extern int32 GLumenOctahedralSolidAngleTextureSize;
+				PassParameters->OctahedralSolidAngleParameters.OctahedralSolidAngleTextureResolutionSq = GLumenOctahedralSolidAngleTextureSize * GLumenOctahedralSolidAngleTextureSize;
+				PassParameters->OctahedralSolidAngleParameters.OctahedralSolidAngleTexture = InitializeOctahedralSolidAngleTexture(GraphBuilder, View.ShaderMap, GLumenOctahedralSolidAngleTextureSize, View.ViewState->Lumen.ScreenProbeGatherState.OctahedralSolidAngleTextureRT);
 
 				const bool bUseTemporalReprojection =
 					GTranslucencyVolumeTemporalReprojection

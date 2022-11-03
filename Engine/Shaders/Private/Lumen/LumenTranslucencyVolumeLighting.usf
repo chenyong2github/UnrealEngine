@@ -13,6 +13,7 @@
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenRadianceCacheMarkCommon.ush"
 #include "LumenTranslucencyVolumeLightingShared.ush"
+#include "LumenScreenProbeCommon.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
@@ -268,7 +269,7 @@ void TranslucencyVolumeIntegrateCS(
 					float2 ProbeUV = (float2(X, Y) + ProbeTexelCenter) * InvTracingOctahedronResolution;
 					float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 
-					float SolidAngle = OctahedralSolidAngle(ProbeUV, InvTracingOctahedronResolution);
+					float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, TranslucencyVolumeTracingOctahedronResolution);
 					Lighting = AddSH(Lighting, MulSH(SHBasisFunction(WorldConeDirection), TraceRadiance * SolidAngle));
 					TotalWeight += SolidAngle;
 				}
