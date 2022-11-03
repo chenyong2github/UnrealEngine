@@ -154,7 +154,7 @@ UE::Widget::EWidgetMode FSmartObjectAssetEditorViewportClient::GetWidgetMode() c
 	bool bIsWidgetValid = false;
 
 	const USmartObjectDefinition* Definition = SmartObjectDefinition.Get();
-	if (Definition == nullptr)
+	if (Definition != nullptr)
 	{
 		const FTransform OwnerLocalToWorld = FTransform::Identity;
 		const TConstArrayView<FSmartObjectSlotDefinition> Slots = Definition->GetSlots();
