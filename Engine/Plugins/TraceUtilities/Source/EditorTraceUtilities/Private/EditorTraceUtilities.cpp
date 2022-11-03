@@ -9,6 +9,11 @@ DEFINE_LOG_CATEGORY(LogTraceUtilities)
 
 #define LOCTEXT_NAMESPACE "FEditorTraceUtilitiesModule"
 
+/**
+  * This function will add the SInsightsStatusBarWidget to the Editor's status bar at the bottom ("LevelEditor.StatusBar.ToolBar").
+  */
+void RegisterInsightsStatusWidgetWithToolMenu();
+
 void FEditorTraceUtilitiesModule::StartupModule()
 {
 	LLM_SCOPE_BYNAME(TEXT("Insights"));
@@ -16,6 +21,8 @@ void FEditorTraceUtilitiesModule::StartupModule()
 		FSimpleMulticastDelegate::FDelegate::CreateSP(
 			FUnrealInsightsLauncher::Get().ToSharedRef(),
 			&FUnrealInsightsLauncher::RegisterMenus));
+
+	RegisterInsightsStatusWidgetWithToolMenu();
 }
 
 void FEditorTraceUtilitiesModule::ShutdownModule()

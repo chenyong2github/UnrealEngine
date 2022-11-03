@@ -130,7 +130,7 @@ private:
 	ChannelSet				CommandlineChannels;
 	FString					TraceDest;
 	FTraceAuxiliary::EConnectionType TraceType = FTraceAuxiliary::EConnectionType::None;
-	EState					State = EState::Stopped;
+	std::atomic<EState>		State = EState::Stopped;
 	bool					bTruncateFile = false;
 	bool					bWorkerThreadStarted = false;
 	FString					PausedPreset;
@@ -248,7 +248,7 @@ void FTraceAuxiliaryImpl::AddChannel(const TCHAR* Name)
 	FChannelEntry& Value = CommandlineChannels.Add(Hash, {});
 	Value.Name = Name;
 
-	if (State >= EState::Tracing && !Value.bActive)
+	if (State.load() >= EState::Tracing && !Value.bActive)
 	{
 		Value.bActive = EnableChannel(*Value.Name);
 	}
@@ -265,7 +265,7 @@ void FTraceAuxiliaryImpl::RemoveChannel(const TCHAR* Name)
 		return;
 	}
 
-	if (State >= EState::Tracing && Channel.bActive)
+	if (State.load() >= EState::Tracing && Channel.bActive)
 	{
 		DisableChannel(*Channel.Name);
 		Channel.bActive = false;
@@ -320,7 +320,7 @@ bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter
 		return false;
 	}
 
-	State = EState::Tracing;
+	State.store(EState::Tracing);
 	return true;
 }
 
@@ -339,7 +339,7 @@ bool FTraceAuxiliaryImpl::Stop()
 
 	FTraceAuxiliary::OnTraceStopped.Broadcast(TraceType, TraceDest);
 
-	State = EState::Stopped;
+	State.store(EState::Stopped);
 	TraceType = FTraceAuxiliary::EConnectionType::None;
 	TraceDest.Reset();
 	return true;
@@ -583,7 +583,7 @@ const TCHAR* FTraceAuxiliaryImpl::GetDest() const
 ////////////////////////////////////////////////////////////////////////////////
 bool FTraceAuxiliaryImpl::IsConnected() const
 {
-	return State == EState::Tracing;
+	return State.load() == EState::Tracing;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
