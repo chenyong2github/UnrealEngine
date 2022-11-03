@@ -37,7 +37,7 @@ bool FLandscapeNotification::operator < (const FLandscapeNotification& Other) co
 
 bool FLandscapeNotification::ShouldShowNotification() const 
 {
-	return ConditionCallback() && (FSlateApplicationBase::Get().GetCurrentTime() >= NotificationStartTime || NotificationStartTime < 0.0);
+	return ConditionCallback() && FSlateApplicationBase::IsInitialized() && (FSlateApplicationBase::Get().GetCurrentTime() >= NotificationStartTime || NotificationStartTime < 0.0);
 }
 
 void FLandscapeNotification::SetNotificationText()

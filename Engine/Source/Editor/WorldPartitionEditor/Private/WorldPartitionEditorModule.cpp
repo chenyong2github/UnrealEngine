@@ -410,10 +410,23 @@ void FWorldPartitionEditorModule::RunCommandletAsExternalProcess(const FString& 
 		FPlatformProcess::Sleep(0.1);
 	}
 
+
+	FPlatformProcess::GetProcReturnCode(ProcessHandle, &OutResult);
+
 	UE_LOG(LogWorldPartitionEditor, Display, TEXT("#### Begin commandlet output ####\n%s"), *OutCommandletOutput);
-	UE_LOG(LogWorldPartitionEditor, Display, TEXT("#### End commandlet output ####"));
 
 	FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
+
+	if (OutResult == 0)
+	{
+		UE_LOG(LogWorldPartitionEditor, Display, TEXT("#### Commandlet Succeeded ####"));
+	}
+	else
+	{
+		UE_LOG(LogWorldPartitionEditor, Error, TEXT("#### Commandlet Failed ####"));
+		UE_LOG(LogWorldPartitionEditor, Error, TEXT("%s %s"), *CurrentExecutableName, *Arguments);
+		UE_LOG(LogWorldPartitionEditor, Error, TEXT("Return Code: %i"), OutResult);
+	}
 }
 
 bool FWorldPartitionEditorModule::ConvertMap(const FString& InLongPackageName)

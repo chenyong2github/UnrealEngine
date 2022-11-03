@@ -1109,70 +1109,72 @@ void AWaterBrushManager::SetMPCParams()
 		FVector RTWorldLocation, RTWorldSizeVector;
 		ComputeWaterLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
 
-		UMaterialParameterCollection* LandscapeCollection = GEditor->GetEditorSubsystem<UWaterEditorSubsystem>()->GetLandscapeMaterialParameterCollection();
+		UWaterEditorSubsystem* WaterEditorSubsystem = GEditor->GetEditorSubsystem<UWaterEditorSubsystem>();
+		check(WaterEditorSubsystem);
+		UMaterialParameterCollection* LandscapeCollection =  WaterEditorSubsystem->GetLandscapeMaterialParameterCollection();
 		if (LandscapeCollection == nullptr)
+        {
+            UE_LOG(LogWaterEditor, Error, TEXT("No Landscape MaterialParameterCollection Assigned"));
+			return;
+        }
+        
+		UMaterialParameterCollectionInstance* LandscapeCollectionInstance = World->GetParameterCollectionInstance(CastChecked<UMaterialParameterCollection>(LandscapeCollection));
+		check(LandscapeCollectionInstance != nullptr);
+
+		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("RTResX")), (float)LandscapeRTRes.X))
 		{
-			UE_LOG(LogWaterEditor, Error, TEXT("No Landscape MaterialParameterCollection Assigned"));
+			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"RTResX\" on Landscape MaterialParameterCollection"));
 		}
-		else
+
+		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("RTResY")), (float)LandscapeRTRes.Y))
 		{
-			UMaterialParameterCollectionInstance* LandscapeCollectionInstance = World->GetParameterCollectionInstance(CastChecked<UMaterialParameterCollection>(LandscapeCollection));
-			check(LandscapeCollectionInstance != nullptr);
-
-			if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("RTResX")), (float)LandscapeRTRes.X))
-			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"RTResX\" on Landscape MaterialParameterCollection"));
-			}
-
-			if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("RTResY")), (float)LandscapeRTRes.Y))
-			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"RTResY\" on Landscape MaterialParameterCollection"));
-			}
-
-			if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("LSQuadsX")), (float)LandscapeQuads.X))
-			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LSQuadsX\" on Landscape MaterialParameterCollection"));
-			}
-			if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("LSQuadsY")), (float)LandscapeQuads.Y))
-			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LSQuadsY\" on Landscape MaterialParameterCollection"));
-			}
-
-			if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("WorldSizeX")), WorldSize.X))
-			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"WorldSizeX\" on Landscape MaterialParameterCollection"));
-			}
-			if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("WorldSizeY")), WorldSize.Y))
-			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"WorldSizeY\" on Landscape MaterialParameterCollection"));
-			}
-
-			if (!LandscapeCollectionInstance->SetVectorParameterValue(FName(TEXT("LandscapeLocation")), FLinearColor(LandscapeTransform.GetLocation())))
-			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LandscapeLocation\" on Landscape MaterialParameterCollection"));
-			}
-			if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("LandscapeZLocation")), LandscapeTransform.GetLocation().Z))
-			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LandscapeZLocation\" on Landscape MaterialParameterCollection"));
-			}
-			// TODO [jonathan.bard] : find out what this 128.0f corresponds to and put in a constant : ZSCALE in LandscapeLayersPS.usf maybe ??
-			if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("LandscapeZScale")), LandscapeTransform.GetScale3D().Z / 128.0f))
-			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LandscapeZScale\" on Landscape MaterialParameterCollection"));
-			}
-			if (!LandscapeCollectionInstance->SetVectorParameterValue(FName(TEXT("RTWorldSize")), FLinearColor(RTWorldSizeVector)))
-			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"RTWorldSize\" on Landscape MaterialParameterCollection"));
-			}
-			if (!LandscapeCollectionInstance->SetVectorParameterValue(FName(TEXT("RTWorldLocation")), FLinearColor(RTWorldLocation)))
-			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"RTWorldLocation\" on Landscape MaterialParameterCollection"));
-			}
-			if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("WaterClearHeight")), WaterClearHeight))
-			{
-				UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"WaterClearHeight\" on Landscape MaterialParameterCollection"));
-			}
+			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"RTResY\" on Landscape MaterialParameterCollection"));
 		}
+
+		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("LSQuadsX")), (float)LandscapeQuads.X))
+		{
+			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LSQuadsX\" on Landscape MaterialParameterCollection"));
+		}
+		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("LSQuadsY")), (float)LandscapeQuads.Y))
+		{
+			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LSQuadsY\" on Landscape MaterialParameterCollection"));
+		}
+
+		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("WorldSizeX")), WorldSize.X))
+		{
+			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"WorldSizeX\" on Landscape MaterialParameterCollection"));
+		}
+		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("WorldSizeY")), WorldSize.Y))
+		{
+			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"WorldSizeY\" on Landscape MaterialParameterCollection"));
+		}
+
+		if (!LandscapeCollectionInstance->SetVectorParameterValue(FName(TEXT("LandscapeLocation")), FLinearColor(LandscapeTransform.GetLocation())))
+		{
+			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LandscapeLocation\" on Landscape MaterialParameterCollection"));
+		}
+		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("LandscapeZLocation")), LandscapeTransform.GetLocation().Z))
+		{
+			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LandscapeZLocation\" on Landscape MaterialParameterCollection"));
+		}
+		// TODO [jonathan.bard] : find out what this 128.0f corresponds to and put in a constant : ZSCALE in LandscapeLayersPS.usf maybe ??
+		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("LandscapeZScale")), LandscapeTransform.GetScale3D().Z / 128.0f))
+		{
+			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"LandscapeZScale\" on Landscape MaterialParameterCollection"));
+		}
+		if (!LandscapeCollectionInstance->SetVectorParameterValue(FName(TEXT("RTWorldSize")), FLinearColor(RTWorldSizeVector)))
+		{
+			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"RTWorldSize\" on Landscape MaterialParameterCollection"));
+		}
+		if (!LandscapeCollectionInstance->SetVectorParameterValue(FName(TEXT("RTWorldLocation")), FLinearColor(RTWorldLocation)))
+		{
+			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"RTWorldLocation\" on Landscape MaterialParameterCollection"));
+		}
+		if (!LandscapeCollectionInstance->SetScalarParameterValue(FName(TEXT("WaterClearHeight")), WaterClearHeight))
+		{
+			UE_LOG(LogWaterEditor, Error, TEXT("Failed to set \"WaterClearHeight\" on Landscape MaterialParameterCollection"));
+		}
+		
 	}
 }
 

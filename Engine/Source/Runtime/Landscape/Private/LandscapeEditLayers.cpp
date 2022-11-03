@@ -7883,6 +7883,11 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 	{
 		return;
 	}
+
+	auto GetCurrentTime = []()
+	{
+		return FSlateApplicationBase::IsInitialized() ? FSlateApplicationBase::Get().GetCurrentTime() : 0.0f;
+	};
 	
 	// The Edit layers shaders only work on SM5 : cancel any update that might happen when SM5+ shading model is not active :
 	if (World->FeatureLevel < ERHIFeatureLevel::SM5)
@@ -7908,7 +7913,7 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 	bResourcesReady &= PrepareLayersTextureResources(bInWaitForStreaming);
 	if (!bResourcesReady)
 	{
-		WaitingForLandscapeTextureResourcesStartTime = FSlateApplicationBase::Get().GetCurrentTime();
+		WaitingForLandscapeTextureResourcesStartTime = GetCurrentTime(); 
 		if (!WaitingForTexturesNotification.IsValid())
 		{
 			WaitingForTexturesNotification = MakeShared<FLandscapeNotification>(this, FLandscapeNotification::EType::LandscapeTextureResourcesNotReady);
@@ -7928,7 +7933,7 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 	bResourcesReady &= PrepareLayersBrushResources(World->FeatureLevel, bInWaitForStreaming);
 	if (!bResourcesReady)
 	{
-		WaitingForLandscapeBrushResourcesStartTime = FSlateApplicationBase::Get().GetCurrentTime();
+		WaitingForLandscapeBrushResourcesStartTime = GetCurrentTime();
 		if (!WaitingForBrushesNotification.IsValid())
 		{
 			WaitingForBrushesNotification = MakeShared<FLandscapeNotification>(this, FLandscapeNotification::EType::LandscapeBrushResourcesNotReady);
