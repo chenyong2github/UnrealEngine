@@ -27,9 +27,9 @@ FSourceControlFileStatusMonitor::~FSourceControlFileStatusMonitor()
 	FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
 }
 
-TSharedPtr<FSourceControlFileStatusMonitor::FSourceControlFileStatus> FSourceControlFileStatusMonitor::FindFileStatus(const FString& Pathname) const
+TSharedPtr<FSourceControlFileStatusMonitor::FSourceControlFileStatus> FSourceControlFileStatusMonitor::FindFileStatus(const FString& AbsPathname) const
 {
-	if (const TSharedPtr<FSourceControlFileStatus>* FileStatus = MonitoredFiles.Find(Pathname))
+	if (const TSharedPtr<FSourceControlFileStatus>* FileStatus = MonitoredFiles.Find(AbsPathname))
 	{
 		return *FileStatus;
 	}
@@ -59,12 +59,12 @@ void FSourceControlFileStatusMonitor::OnSourceControlProviderChanged(ISourceCont
 	OldestFileStatusTimeSecs = 0.0;
 }
 
-void FSourceControlFileStatusMonitor::StartMonitoringFile(uintptr_t OwnerId, const FString& Pathname, FOnSourceControlFileStatus OnSourceControlFileStatus)
+void FSourceControlFileStatusMonitor::StartMonitoringFile(uintptr_t OwnerId, const FString& AbsPathname, FOnSourceControlFileStatus OnSourceControlFileStatus)
 {
 	ensure(IsInGameThread()); // Concurrency issues if invoked from a background thread.
 
 	// If the file is already monitored.
-	if (TSharedPtr<FSourceControlFileStatus> FileStatus = FindFileStatus(Pathname))
+	if (TSharedPtr<FSourceControlFileStatus> FileStatus = FindFileStatus(AbsPathname))
 	{
 		// Another 'client' is looking at this file (if the client already exit, override the callback with the new one).
 		FOnSourceControlFileStatus& OnSourceControlFileStatusDelegate = FileStatus->OwnerDelegateMap.FindOrAdd(OwnerId);
@@ -73,12 +73,12 @@ void FSourceControlFileStatusMonitor::StartMonitoringFile(uintptr_t OwnerId, con
 		// The monitor already knows the status.
 		if (FileStatus->FileState)
 		{
-			OnSourceControlFileStatusDelegate.ExecuteIfBound(Pathname, FileStatus->FileState.Get());
+			OnSourceControlFileStatusDelegate.ExecuteIfBound(AbsPathname, FileStatus->FileState.Get());
 		}
 	}
 	else
 	{
-		MonitoredFiles.Emplace(Pathname, MakeShared<FSourceControlFileStatus>(OwnerId, MoveTemp(OnSourceControlFileStatus)));
+		MonitoredFiles.Emplace(AbsPathname, MakeShared<FSourceControlFileStatus>(OwnerId, MoveTemp(OnSourceControlFileStatus)));
 		LastAddedFileTimeSecs = FPlatformTime::Seconds();
 		++NewAddedFileCount;
 	}
@@ -90,49 +90,48 @@ void FSourceControlFileStatusMonitor::StartMonitoringFile(uintptr_t OwnerId, con
 	}
 }
 
-void FSourceControlFileStatusMonitor::StartMonitoringFiles(uintptr_t OwnerId, const TArray<FString>& Pathnames, FOnSourceControlFileStatus OnSourceControlledFileStatus)
+void FSourceControlFileStatusMonitor::StartMonitoringFiles(uintptr_t OwnerId, const TArray<FString>& AbsPathnames, FOnSourceControlFileStatus OnSourceControlledFileStatus)
 {
-	for (const FString& Pathname : Pathnames)
+	for (const FString& AbsPathname : AbsPathnames)
 	{
-		StartMonitoringFile(OwnerId, Pathname, OnSourceControlledFileStatus);
+		StartMonitoringFile(OwnerId, AbsPathname, OnSourceControlledFileStatus);
 	}
 }
 
-void FSourceControlFileStatusMonitor::StartMonitoringFiles(uintptr_t OwnerId, const TSet<FString>& Pathnames, FOnSourceControlFileStatus OnSourceControlledFileStatus)
+void FSourceControlFileStatusMonitor::StartMonitoringFiles(uintptr_t OwnerId, const TSet<FString>& AbsPathnames, FOnSourceControlFileStatus OnSourceControlledFileStatus)
 {
-	for (const FString& Pathname : Pathnames)
+	for (const FString& AbsPathname : AbsPathnames)
 	{
-		StartMonitoringFile(OwnerId, Pathname, OnSourceControlledFileStatus);
+		StartMonitoringFile(OwnerId, AbsPathname, OnSourceControlledFileStatus);
 	}
 }
 
-
-void FSourceControlFileStatusMonitor::StopMonitoringFile(uintptr_t OwnerId, const FString& Pathname)
+void FSourceControlFileStatusMonitor::StopMonitoringFile(uintptr_t OwnerId, const FString& AbsPathname)
 {
 	ensure(IsInGameThread()); // Concurrency issues if the callback in invoked from a background thread.
 
-	if (TSharedPtr<FSourceControlFileStatus> FileStatus = FindFileStatus(Pathname))
+	if (TSharedPtr<FSourceControlFileStatus> FileStatus = FindFileStatus(AbsPathname))
 	{
 		if (FileStatus->OwnerDelegateMap.Remove(OwnerId) > 0 && FileStatus->OwnerDelegateMap.IsEmpty())
 		{
-			MonitoredFiles.Remove(Pathname);
+			MonitoredFiles.Remove(AbsPathname);
 		}
 	}
 }
 
-void FSourceControlFileStatusMonitor::StopMonitoringFiles(uintptr_t OwnerId, const TArray<FString>& Pathnames)
+void FSourceControlFileStatusMonitor::StopMonitoringFiles(uintptr_t OwnerId, const TArray<FString>& AbsPathnames)
 {
-	for (const FString& Pathname : Pathnames)
+	for (const FString& AbsPathname : AbsPathnames)
 	{
-		StopMonitoringFile(OwnerId, Pathname);
+		StopMonitoringFile(OwnerId, AbsPathname);
 	}
 }
 
-void FSourceControlFileStatusMonitor::StopMonitoringFiles(uintptr_t OwnerId, const TSet<FString>& Pathnames)
+void FSourceControlFileStatusMonitor::StopMonitoringFiles(uintptr_t OwnerId, const TSet<FString>& AbsPathnames)
 {
-	for (const FString& Pathname : Pathnames)
+	for (const FString& AbsPathname : AbsPathnames)
 	{
-		StopMonitoringFile(OwnerId, Pathname);
+		StopMonitoringFile(OwnerId, AbsPathname);
 	}
 }
 
@@ -149,6 +148,59 @@ void FSourceControlFileStatusMonitor::StopMonitoringFiles(uintptr_t OwnerId)
 	}
 }
 
+void FSourceControlFileStatusMonitor::SetMonitoringFiles(uintptr_t OwnerId, TSet<FString>&& AbsPathnames, FOnSourceControlFileStatus OnSourceControlledFileStatus)
+{
+	for (auto It = MonitoredFiles.CreateIterator(); It; ++It)
+	{
+		const FString& MonitoredAbsPathname = It->Key;
+		TSharedPtr<FSourceControlFileStatus>& MonitoredFileInfo = It->Value;
+		FOnSourceControlFileStatus* OwnerCallbackDelegate = MonitoredFileInfo->OwnerDelegateMap.Find(OwnerId);
+
+		// If the caller wants to monitor that file.
+		if (AbsPathnames.Contains(MonitoredAbsPathname))
+		{
+			// If the caller was already monitoring the file.
+			if (OwnerCallbackDelegate)
+			{
+				// Replace the delegate with the new one.
+				*OwnerCallbackDelegate = OnSourceControlledFileStatus;
+			}
+			else // The file was monitored, but not by this caller. Add this caller.
+			{
+				MonitoredFileInfo->OwnerDelegateMap.Add(OwnerId, OnSourceControlledFileStatus);
+
+				// If the status is already known.
+				if (MonitoredFileInfo->FileState)
+				{
+					OnSourceControlledFileStatus.ExecuteIfBound(MonitoredAbsPathname, MonitoredFileInfo->FileState.Get());
+				}
+			}
+
+			// That file was resolved, remove it from the set.
+			AbsPathnames.Remove(MonitoredAbsPathname);
+		}
+		else if (OwnerCallbackDelegate) // The caller used to monitor this file but doesn't want to monitor it anymore
+		{
+			if (MonitoredFileInfo->OwnerDelegateMap.Num() > 1)
+			{
+				// Just remove the caller, leaving the others.
+				MonitoredFileInfo->OwnerDelegateMap.Remove(OwnerId);
+			}
+			else
+			{
+				// Remove the caller and the files since nobody else monitor the file.
+				It.RemoveCurrent();
+			}
+		}
+	}
+
+	// What remains in the set are the files that weren't monitored yet, start monitoring them.
+	for (const FString& AbsPathname : AbsPathnames)
+	{
+		StartMonitoringFile(OwnerId, AbsPathname, OnSourceControlledFileStatus);
+	}
+}
+
 TSet<FString> FSourceControlFileStatusMonitor::GetMonitoredFiles(uintptr_t OwnerId)
 {
 	TSet<FString> Pathnames;
@@ -162,10 +214,10 @@ TSet<FString> FSourceControlFileStatusMonitor::GetMonitoredFiles(uintptr_t Owner
 	return Pathnames;
 }
 
-TOptional<FTimespan> FSourceControlFileStatusMonitor::GetStatusAge(const FString& Pathname) const
+TOptional<FTimespan> FSourceControlFileStatusMonitor::GetStatusAge(const FString& AbsPathname) const
 {
 	TOptional<FTimespan> Age;
-	if (TSharedPtr<FSourceControlFileStatus> FileStatus = FindFileStatus(Pathname))
+	if (TSharedPtr<FSourceControlFileStatus> FileStatus = FindFileStatus(AbsPathname))
 	{
 		Age.Emplace(FTimespan::FromSeconds(FileStatus->FileState ? FPlatformTime::Seconds() - FileStatus->LastStatusCheckTimestampSecs : 0.0));
 	}
@@ -292,19 +344,19 @@ void FSourceControlFileStatusMonitor::OnSourceControlStatusUpdate(const TSharedR
 		return;
 	}
 
-	for (const FString& Pathname : RequestedStatusFiles)
+	for (const FString& AbsPathname : RequestedStatusFiles)
 	{
 		// NOTE: The file and its status can be removed while exeucting OnFileStatusUpdateDelegate. Keep the shared pointer to avoid early destruction.
-		if (TSharedPtr<FSourceControlFileStatus> FileStatus = FindFileStatus(Pathname))
+		if (TSharedPtr<FSourceControlFileStatus> FileStatus = FindFileStatus(AbsPathname))
 		{
-			if (TSharedPtr<ISourceControlState> FileState = ISourceControlModule::Get().GetProvider().GetState(Pathname, EStateCacheUsage::Use))
+			if (TSharedPtr<ISourceControlState> FileState = ISourceControlModule::Get().GetProvider().GetState(AbsPathname, EStateCacheUsage::Use))
 			{
 				FileStatus->FileState = MoveTemp(FileState);
 				FileStatus->LastStatusCheckTimestampSecs = NowSecs;
 
 				for (TPair<uintptr_t, FOnSourceControlFileStatus>& OwnerDelegatePair : FileStatus->OwnerDelegateMap)
 				{
-					OwnerDelegatePair.Value.ExecuteIfBound(Pathname, FileStatus->FileState.Get());
+					OwnerDelegatePair.Value.ExecuteIfBound(AbsPathname, FileStatus->FileState.Get());
 				}
 			}
 		}

@@ -658,12 +658,13 @@ void SSourceControlChangelistsWidget::Tick(const FGeometry& AllottedGeometry, co
 				// Minimize the list of file status monitored to only include those in view. The ones outside of the visible area don't need
 				// to be monitored unless the user sorts.
 				int32 ItemStart = static_cast<int32>(FileListView->GetScrollOffset()); // This give the offset in item count.
+				int32 ItemEnd = ItemStart + ItemCount;
 				TSet<FString> MonitoredFiles;
-				for (int32 Index = ItemStart; Index < ItemCount; ++Index)
+				for (int32 Index = ItemStart; Index < ItemEnd; ++Index)
 				{
 					MonitoredFiles.Emplace(StaticCastSharedPtr<IFileViewTreeItem>(FileListNodes[Index])->GetFullPathname());
 				}
-				RequestFileStatusRefresh(MonitoredFiles);
+				RequestFileStatusRefresh(MoveTemp(MonitoredFiles));
 				bUpdateMonitoredFileStatusList = false;
 			}
 		}
@@ -781,11 +782,11 @@ void SSourceControlChangelistsWidget::RequestFileStatusRefresh(const IChangelist
 	if (!Pathnames.IsEmpty())
 	{
 		// Fire an async task to get the latest files status from source control to get the 'Checked Out By' status.
-		RequestFileStatusRefresh(Pathnames);
+		RequestFileStatusRefresh(MoveTemp(Pathnames));
 	}
 }
 
-void SSourceControlChangelistsWidget::RequestFileStatusRefresh(const TSet<FString>& PathnamesToMonitor)
+void SSourceControlChangelistsWidget::RequestFileStatusRefresh(TSet<FString>&& PathnamesToMonitor)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(SSourceControlChangelistsWidget::RequestFileStatusRefresh);
 
@@ -801,12 +802,7 @@ void SSourceControlChangelistsWidget::RequestFileStatusRefresh(const TSet<FStrin
 	if (!PathnamesToMonitor.IsEmpty())
 	{
 		// Request an update only for the files that changed.
-		TSet<FString> MonitoredPathnames = ISourceControlModule::Get().GetSourceControlFileStatusMonitor().GetMonitoredFiles(reinterpret_cast<uintptr_t>(this));
-		TSet<FString> StopMonitoringPathnames = MonitoredPathnames.Difference(PathnamesToMonitor);
-		TSet<FString> StartMonitoringPathnames = PathnamesToMonitor.Difference(MonitoredPathnames);
-
-		ISourceControlModule::Get().GetSourceControlFileStatusMonitor().StopMonitoringFiles(reinterpret_cast<uintptr_t>(this), StopMonitoringPathnames);
-		ISourceControlModule::Get().GetSourceControlFileStatusMonitor().StartMonitoringFiles(reinterpret_cast<uintptr_t>(this), StartMonitoringPathnames, FSourceControlFileStatusMonitor::FOnSourceControlFileStatus());
+		ISourceControlModule::Get().GetSourceControlFileStatusMonitor().SetMonitoringFiles(reinterpret_cast<uintptr_t>(this), MoveTemp(PathnamesToMonitor), FSourceControlFileStatusMonitor::FOnSourceControlFileStatus());
 		// NOTE: The updated status are expected to come from OnSourceControlStateChanged() that is invoked when the source control internal state changes.
 	}
 	else

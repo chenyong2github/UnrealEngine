@@ -23,7 +23,7 @@ class SOURCECONTROL_API FSourceControlFileStatusMonitor : public TSharedFromThis
 {
 public:
 	/** Invoked when the status of a source controlled files is updated. The state can be null when the source control provider is changed. */
-	DECLARE_DELEGATE_TwoParams(FOnSourceControlFileStatus, const FString& /*Pathname*/, const ISourceControlState* /*State*/);
+	DECLARE_DELEGATE_TwoParams(FOnSourceControlFileStatus, const FString& /*AbsPathname*/, const ISourceControlState* /*State*/);
 
 public:
 	FSourceControlFileStatusMonitor();
@@ -39,7 +39,7 @@ public:
 	 * within the callback OnSourceControlledFileStatus().
 	 *
 	 * @param Owner The unique Id of the caller, typically the caller memory address.
-	 * @param Pathname The absolute path and filname of the file to monitor.
+	 * @param AbsPathname The absolute path and filname of the file to monitor.
 	 * @param OnSourceControlledFileStatus Delegate invoked whe the status of the file is updated.
 	 *
 	 * @see SetNewRequestProbationPeriod()
@@ -47,27 +47,37 @@ public:
 	 * @see SetSuspendMonitoringPolicy()
 	 * @see GetStatusAge()
 	 */
-	void StartMonitoringFile(uintptr_t OwnerId, const FString& Pathname, FOnSourceControlFileStatus OnSourceControlledFileStatus);
-	void StartMonitoringFiles(uintptr_t OwnerId, const TArray<FString>& Pathnames, FOnSourceControlFileStatus OnSourceControlledFileStatus);
-	void StartMonitoringFiles(uintptr_t OwnerId, const TSet<FString>& Pathnames, FOnSourceControlFileStatus OnSourceControlledFileStatus);
+	void StartMonitoringFile(uintptr_t OwnerId, const FString& AbsPathname, FOnSourceControlFileStatus OnSourceControlledFileStatus);
+	void StartMonitoringFiles(uintptr_t OwnerId, const TArray<FString>& AbsPathnames, FOnSourceControlFileStatus OnSourceControlledFileStatus);
+	void StartMonitoringFiles(uintptr_t OwnerId, const TSet<FString>& AbsPathnames, FOnSourceControlFileStatus OnSourceControlledFileStatus);
 
 	/**
 	 * Stops monitoring the source control status of the specified file. If the specified file is not monitored, the function
 	 * returns successfully.
 	 *
 	 * @param OwnerId The unique Id of the caller, typically the caller memory address.
-	 * @param Pathname The absolute path and filname of the file to stop monitoring.
+	 * @param AbsPathname The absolute path and filname of the file to stop monitoring.
 	 *
 	 * @note This can be called fron the FOnSourceControlFileStatus callback passed to StartMonitoringFile().
 	 */
-	void StopMonitoringFile(uintptr_t OwnerId, const FString& Pathname);
-	void StopMonitoringFiles(uintptr_t OwnerId, const TArray<FString>& Pathnames);
-	void StopMonitoringFiles(uintptr_t OwnerId, const TSet<FString>& Pathnames);
+	void StopMonitoringFile(uintptr_t OwnerId, const FString& AbsPathname);
+	void StopMonitoringFiles(uintptr_t OwnerId, const TArray<FString>& AbsPathnames);
+	void StopMonitoringFiles(uintptr_t OwnerId, const TSet<FString>& AbsPathnames);
 
 	/**
 	 * Stops monitoring all the files that were registered by the specified owner Id.
 	 */
 	void StopMonitoringFiles(uintptr_t OwnerId);
+
+	/**
+	 * Starts monitoring files that weren't monitored yet by the specified owner, stops monitoring those that were monitored by the owner but are not in the
+	 * updated list and keep monitoring files that were monitored before and still in the updated list.
+	 *
+	 * @param OwnerId The unique Id of the caller, typically the caller memory address.
+	 * @param AbsPathnames The list of absolute file pathnames that must be monitored. (The set is modified during the operation)
+	 * @param OnSourceControlledFileStatus Delegate invoked whe the status of the file is updated.
+	 */
+	void SetMonitoringFiles(uintptr_t OwnerId, TSet<FString>&& AbsPathnames, FOnSourceControlFileStatus OnSourceControlledFileStatus);
 
 	/**
 	 * Returns the set of files being monitored by the specifed owner.
@@ -79,7 +89,7 @@ public:
 	 * monitored. If the initial status request hasn't been received yet, returns
 	 * zero.
 	 */
-	TOptional<FTimespan> GetStatusAge(const FString& Pathname) const;
+	TOptional<FTimespan> GetStatusAge(const FString& AbsPathname) const;
 
 	/**
 	 * Set the times waited before a newly added file status request is sent to the source control provider. This is used batch several
@@ -154,7 +164,7 @@ private:
 	bool HasOngoingRequest() const { return RequestedStatusFiles.Num() > 0; }
 
 private:
-	/** The files currently monitored. */
+	/** The files currently monitored, mapping absolute file pathname to the monitored information. */
 	TMap<FString, TSharedPtr<FSourceControlFileStatus>> MonitoredFiles;
 
 	/** The list of files for which a request to the source control provider is currently in-flight/ongoing. */

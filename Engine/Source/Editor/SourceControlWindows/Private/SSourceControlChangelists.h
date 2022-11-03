@@ -85,7 +85,7 @@ private:
 
 	void RequestChangelistsRefresh();
 	void RequestFileStatusRefresh(const IChangelistTreeItem& Changelist);
-	void RequestFileStatusRefresh(const TSet<FString>& Pathnames);
+	void RequestFileStatusRefresh(TSet<FString>&& Pathnames);
 	void OnRefreshUI(ERefreshFlags RefreshFlags);
 	void OnRefreshSourceControlWidgets(int64 CurreUpdateNum, const TFunction<void(TSharedPtr<IFileViewTreeItem>&)>& AddItemToFileView);
 	void OnRefreshUncontrolledChangelistWidgets(int64 CurreUpdateNum, const TFunction<void(TSharedPtr<IFileViewTreeItem>&)>& AddItemToFileView);
