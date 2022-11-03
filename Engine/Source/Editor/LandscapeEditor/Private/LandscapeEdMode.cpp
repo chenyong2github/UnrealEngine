@@ -479,8 +479,8 @@ void FEdModeLandscape::Enter()
 	UpdateLandscapeList();
 	UpdateBrushList();
 
-	OnWorldChangeDelegateHandle                 = FEditorSupportDelegates::WorldChange.AddRaw(this, &FEdModeLandscape::HandleLevelsChanged, true);
-	OnLevelsChangedDelegateHandle				= GetWorld()->OnLevelsChanged().AddRaw(this, &FEdModeLandscape::HandleLevelsChanged, true);
+	OnWorldChangeDelegateHandle                 = FEditorSupportDelegates::WorldChange.AddRaw(this, &FEdModeLandscape::HandleLevelsChanged);
+	OnLevelsChangedDelegateHandle				= GetWorld()->OnLevelsChanged().AddRaw(this, &FEdModeLandscape::HandleLevelsChanged);
 	OnMaterialCompilationFinishedDelegateHandle = UMaterial::OnMaterialCompilationFinished().AddRaw(this, &FEdModeLandscape::OnMaterialCompilationFinished);
 
 	if (CurrentToolTarget.LandscapeInfo.IsValid())
@@ -2786,16 +2786,15 @@ void FEdModeLandscape::MoveTargetLayerDisplayOrder(int32 IndexToMove, int32 Inde
 
 FEdModeLandscape::FTargetsListUpdated FEdModeLandscape::TargetsListUpdated;
 
-void FEdModeLandscape::HandleLevelsChanged(bool ShouldExitMode)
+void FEdModeLandscape::HandleLevelsChanged()
 {
-	bool bHadLandscape = (NewLandscapePreviewMode == ENewLandscapePreviewMode::None);
-
 	UpdateLandscapeList();
 	UpdateTargetList();
 	UpdateBrushList();
 
 	// if the Landscape is deleted then close the landscape editor
-	if (ShouldExitMode && bHadLandscape && CurrentToolTarget.LandscapeInfo == nullptr)
+	const bool bHadLandscape = (NewLandscapePreviewMode == ENewLandscapePreviewMode::None);
+	if (bHadLandscape && CurrentToolTarget.LandscapeInfo == nullptr)
 	{
 		RequestDeletion();
 	}
@@ -3031,7 +3030,9 @@ void FEdModeLandscape::ActorMoveNotify()
 
 void FEdModeLandscape::PostUndo()
 {
-	HandleLevelsChanged(false);
+	UpdateLandscapeList();
+	UpdateTargetList();
+	UpdateBrushList();
 }
 
 /** Forces all level editor viewports to realtime mode */

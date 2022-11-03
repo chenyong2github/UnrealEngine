@@ -589,7 +589,7 @@ public:
 	void OnPreSaveWorld(class UWorld* InWorld, FObjectPreSaveContext ObjectSaveContext);
 
 	/** Handle notification that visible levels may have changed and we should update the editable landscapes list */
-	void HandleLevelsChanged(bool ShouldExitMode);
+	void HandleLevelsChanged();
 
 	void OnMaterialCompilationFinished(UMaterialInterface* MaterialInterface);
 
