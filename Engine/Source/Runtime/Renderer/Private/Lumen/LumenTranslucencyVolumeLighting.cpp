@@ -846,9 +846,11 @@ void FDeferredShadingSceneRenderer::ComputeLumenTranslucencyGIVolume(
 				PassParameters->VolumeTraceHitDistance = VolumeTraceHitDistance;
 				PassParameters->VolumeParameters = VolumeParameters;
 
+				TRefCountPtr<IPooledRenderTarget> LocalOctahedralSolidAngleTextureRT;
+				TRefCountPtr<IPooledRenderTarget>& OctahedralSolidAngleTextureRT = View.ViewState ? View.ViewState->Lumen.ScreenProbeGatherState.OctahedralSolidAngleTextureRT : LocalOctahedralSolidAngleTextureRT;
 				extern int32 GLumenOctahedralSolidAngleTextureSize;
 				PassParameters->OctahedralSolidAngleParameters.OctahedralSolidAngleTextureResolutionSq = GLumenOctahedralSolidAngleTextureSize * GLumenOctahedralSolidAngleTextureSize;
-				PassParameters->OctahedralSolidAngleParameters.OctahedralSolidAngleTexture = InitializeOctahedralSolidAngleTexture(GraphBuilder, View.ShaderMap, GLumenOctahedralSolidAngleTextureSize, View.ViewState->Lumen.ScreenProbeGatherState.OctahedralSolidAngleTextureRT);
+				PassParameters->OctahedralSolidAngleParameters.OctahedralSolidAngleTexture = InitializeOctahedralSolidAngleTexture(GraphBuilder, View.ShaderMap, GLumenOctahedralSolidAngleTextureSize, OctahedralSolidAngleTextureRT);
 
 				const bool bUseTemporalReprojection =
 					GTranslucencyVolumeTemporalReprojection
