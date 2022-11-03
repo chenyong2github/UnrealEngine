@@ -907,6 +907,11 @@ struct FEntityDataLocation
 {
 	FEntityAllocation* Allocation;
 	int32 ComponentOffset;
+
+	FEntityRange AsRange() const
+	{
+		return FEntityRange{ Allocation, ComponentOffset, 1 };
+	}
 };
 
 struct FEntityInfo

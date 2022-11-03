@@ -12,6 +12,9 @@ UMovieScenePrimitiveMaterialTrack::UMovieScenePrimitiveMaterialTrack(const FObje
 	: Super(ObjInit)
 {
 	MaterialIndex = 0;
+	SupportedBlendTypes.Add(EMovieSceneBlendType::Absolute);
+	SupportedBlendTypes.Add(EMovieSceneBlendType::Additive);
+
 #if WITH_EDITORONLY_DATA
 	TrackTint = FColor(64,192,64,75);
 #endif

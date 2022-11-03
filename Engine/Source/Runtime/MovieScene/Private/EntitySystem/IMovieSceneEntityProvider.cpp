@@ -30,6 +30,8 @@ FMovieSceneEntityID FImportedEntity::Manufacture(const FEntityImportParams& Para
 	auto BaseBuilder = FEntityBuilder()
 	.AddTag(Components->Tags.NeedsLink)
 	.AddTag(Components->Tags.ImportedEntity)
+	.AddTagConditional(Components->Tags.AlwaysCacheInitialValue, Params.Sequence.bDynamicWeighting)
+	.AddConditional(Components->SequenceID, Params.Sequence.SequenceID, Params.Sequence.SequenceID != MovieSceneSequenceID::Root)
 	.AddConditional(Components->RootInstanceHandle, Params.Sequence.RootInstanceHandle, Params.Sequence.RootInstanceHandle.IsValid())
 	.AddConditional(Components->InstanceHandle, Params.Sequence.InstanceHandle, Params.Sequence.InstanceHandle.IsValid());
 

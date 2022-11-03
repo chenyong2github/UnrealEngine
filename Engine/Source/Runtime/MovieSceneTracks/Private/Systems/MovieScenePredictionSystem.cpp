@@ -310,8 +310,7 @@ int32 UMovieSceneAsyncAction_SequencePrediction::ImportTransformEntities(UObject
 								const FMovieSceneEntityComponentField* ComponentField = CompiledDataManager->FindEntityComponentField(SubDataID);
 								if (ComponentField)
 								{
-									ImportParams.HierarchicalBias       = SubData->HierarchicalBias;
-									ImportParams.bHasHierarchicalEasing = SubData->bHasHierarchicalEasing;
+									ImportParams.HierarchicalBias = SubData->HierarchicalBias;
 
 									FFrameTime SubPredictedTime = RootPredictedTime * SubData->RootToSequenceTransform;
 									TotalNumEntities += ImportTransformEntities(Linker, ImportParams, FoundID, SubPredictedTime, ComponentField, InterrogationKey);

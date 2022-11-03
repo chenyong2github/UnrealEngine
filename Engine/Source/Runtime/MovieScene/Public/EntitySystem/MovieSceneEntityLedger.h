@@ -22,6 +22,7 @@ namespace UE
 namespace MovieScene
 {
 struct FEntityImportSequenceParams;
+struct IMovieScenePerEntityMutation;
 
 
 /**
@@ -100,6 +101,17 @@ public:
 	 * @return A mask representing the changes made to the environment
 	 */
 	void UnlinkOneShots(UMovieSceneEntitySystemLinker* Linker);
+
+
+	/**
+	 * Check whether any of the entities in this ledger or their children match the specified filter
+	 */
+	bool Contains(UMovieSceneEntitySystemLinker* Linker, const FEntityComponentFilter& Filter) const;
+
+	/**
+	 * Mutate all the entities within this ledger by using the specified filter
+	 */
+	void MutateAll(UMovieSceneEntitySystemLinker* Linker, const FEntityComponentFilter& Filter, const IMovieScenePerEntityMutation& Mutation) const;
 
 public:
 

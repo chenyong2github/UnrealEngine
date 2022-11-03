@@ -29,6 +29,8 @@ UMovieSceneSubSection::UMovieSceneSubSection(const FObjectInitializer& ObjInitia
 	, PrerollTime_DEPRECATED(DeprecatedMagicNumber)
 {
 	NetworkMask = (uint8)(EMovieSceneServerClientMask::Server | EMovieSceneServerClientMask::Client);
+
+	SetBlendType(EMovieSceneBlendType::Absolute);
 }
 
 FMovieSceneSequenceTransform UMovieSceneSubSection::OuterToInnerTransform() const
@@ -182,6 +184,25 @@ void UMovieSceneSubSection::PostLoad()
 	}
 
 	Super::PostLoad();
+}
+
+bool UMovieSceneSubSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
+{
+	const int32 EntityIndex   = OutFieldBuilder->FindOrAddEntity(this, 0);
+	const int32 MetaDataIndex = OutFieldBuilder->AddMetaData(InMetaData);
+	OutFieldBuilder->AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
+
+	return true;
+}
+
+void UMovieSceneSubSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	OutImportedEntity->AddBuilder(
+		FEntityBuilder().AddTag(FBuiltInComponentTypes::Get()->Tags.Root)
+	);
+	BuildDefaultSubSectionComponents(EntityLinker, Params, OutImportedEntity);
 }
 
 void UMovieSceneSubSection::SetSequence(UMovieSceneSequence* Sequence)

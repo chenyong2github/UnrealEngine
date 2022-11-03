@@ -53,7 +53,6 @@ struct FTemplateSectionPropertyScale
 UCLASS()
 class TEMPLATESEQUENCE_API UTemplateSequenceSection 
 	: public UMovieSceneSubSection
-	, public IMovieSceneEntityProvider
 {
 public:
 
@@ -73,7 +72,7 @@ protected:
 	virtual EMovieSceneChannelProxyType CacheChannelProxy() override;
 
 	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
-	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) override;
 
 public:
 

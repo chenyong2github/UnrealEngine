@@ -543,6 +543,11 @@ void UMovieScenePropertyInstantiatorSystem::InitializeFastPath(const FPropertyPa
 		break;
 	}
 
+	if (Linker->EntityManager.HasComponent(SoleContributor, BuiltInComponents->Tags.AlwaysCacheInitialValue))
+	{
+		Linker->EntityManager.AddComponent(SoleContributor, Params.PropertyDefinition->InitialValueType);
+	}
+
 	if (Params.PropertyDefinition->MetaDataTypes.Num() > 0)
 	{
 		InitializePropertyMetaDataTasks.PadToNum(Params.PropertyInfo->PropertyDefinitionIndex+1, false);

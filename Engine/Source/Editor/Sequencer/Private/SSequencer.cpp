@@ -2425,6 +2425,7 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 		}
 
 		MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleAsyncEvaluation );
+		MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleDynamicWeighting );
 	}
 	MenuBuilder.EndSection();
 

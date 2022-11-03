@@ -25,6 +25,8 @@ UMovieSceneSubTrack::UMovieSceneSubTrack( const FObjectInitializer& ObjectInitia
 #endif
 
 	BuiltInTreePopulationMode = ETreePopulationMode::Blended;
+
+	SupportedBlendTypes.Add(EMovieSceneBlendType::Absolute);
 }
 
 UMovieSceneSubSection* UMovieSceneSubTrack::AddSequenceOnRow(UMovieSceneSequence* Sequence, FFrameNumber StartTime, int32 Duration, int32 RowIndex)

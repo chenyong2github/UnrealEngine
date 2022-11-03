@@ -244,6 +244,8 @@ public:
 
 	TComponentTypeID<FRootInstanceHandle> RootInstanceHandle;
 
+	TComponentTypeID<FMovieSceneSequenceID> SequenceID;
+
 	TComponentTypeID<FFrameTime>          EvalTime;
 
 public:
@@ -318,6 +320,7 @@ public:
 
 	// A float representing the evaluated output of a weight channel
 	TComponentTypeID<double> WeightResult;
+	TComponentTypeID<double> EasingResult;
 
 	// The result of an evaluated FMovieSceneObjectPathChannel
 	TComponentTypeID<UObject*> ObjectResult;
@@ -390,6 +393,8 @@ public:
 		FComponentTypeID Finished;
 
 		FComponentTypeID Ignored;
+
+		FComponentTypeID AlwaysCacheInitialValue;
 
 	} Tags;
 

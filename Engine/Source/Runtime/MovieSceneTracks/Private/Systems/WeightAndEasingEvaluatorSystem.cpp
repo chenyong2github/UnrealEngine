@@ -7,9 +7,14 @@
 #include "EntitySystem/EntityAllocationIterator.h"
 #include "EntitySystem/MovieSceneEntitySystemTask.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneEntityMutations.h"
+#include "EntitySystem/MovieSceneRootInstantiatorSystem.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "Systems/MovieScenePropertyInstantiator.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogatedPropertyInstantiator.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "Systems/FloatChannelEvaluatorSystem.h"
+#include "Systems/DoubleChannelEvaluatorSystem.h"
 #include "IMovieScenePlayer.h"
 #include "MovieSceneSection.h"
 
@@ -20,225 +25,227 @@
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WeightAndEasingEvaluatorSystem)
 
 DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate easing"), MovieSceneEval_EvaluateEasingTask, STATGROUP_MovieSceneECS);
+DECLARE_CYCLE_STAT(TEXT("MovieScene: Harvest easing"), MovieSceneEval_HarvestEasingTask, STATGROUP_MovieSceneECS);
 
-UMovieSceneHierarchicalEasingInstantiatorSystem::UMovieSceneHierarchicalEasingInstantiatorSystem(const FObjectInitializer& ObjInit)
-	: Super(ObjInit)
+
+namespace UE::MovieScene
 {
-	using namespace UE::MovieScene;
 
-	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
-	RelevantComponent = BuiltInComponents->HierarchicalEasingProvider;
-	SystemCategories = EEntitySystemCategory::Core;
-}
+static constexpr uint16 INVALID_EASING_CHANNEL = uint16(-1);
 
-void UMovieSceneHierarchicalEasingInstantiatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+struct FAddEasingChannelToProviderMutation : IMovieSceneEntityMutation
 {
-	using namespace UE::MovieScene;
+	FAddEasingChannelToProviderMutation(UMovieSceneHierarchicalEasingInstantiatorSystem* InSystem)
+		: System(InSystem)
+		, BuiltInComponents(FBuiltInComponentTypes::Get())
+		, InstanceRegistry(InSystem->GetLinker()->GetInstanceRegistry())
+	{}
 
-	static constexpr uint16 INVALID_EASING_CHANNEL = uint16(-1);
+private:
 
-	const FBuiltInComponentTypes* const BuiltInComponents = FBuiltInComponentTypes::Get();
-	const FInstanceRegistry* const InstanceRegistry = Linker->GetInstanceRegistry();
-	UWeightAndEasingEvaluatorSystem* const EvaluatorSystem = Linker->LinkSystem<UWeightAndEasingEvaluatorSystem>();
-
-	// Step 1: Visit any new hierarchical easing providers (i.e. entities created by sub-sections with easing on them)
-	//
-	// We allocate the hierarchical easing channel for their sub-sequence.
-	//
-	auto VisitNewEasingProviders = [this, InstanceRegistry, EvaluatorSystem](const FEntityAllocation* Allocation, const FInstanceHandle* InstanceHandles, const FMovieSceneSequenceID* HierarchicalEasingProviders)
+	void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const override
 	{
+		InOutEntityComponentTypes->Set(BuiltInComponents->HierarchicalEasingChannel);
+	}
+
+	void InitializeAllocation(FEntityAllocation* Allocation, const FComponentMask& AllocationType) const override
+	{
+		AllocateEasingChannelsForAllocation(Allocation);
+	}
+
+	void InitializeUnmodifiedAllocation(FEntityAllocation* Allocation, const FComponentMask& AllocationType) const override
+	{
+		AllocateEasingChannelsForAllocation(Allocation);
+	}
+
+	void AllocateEasingChannelsForAllocation(FEntityAllocation* Allocation) const
+	{
+		FEntityAllocationWriteContext NewAllocation = FEntityAllocationWriteContext::NewAllocation();
+
+		TComponentLock<TWrite<uint16>>               EasingChannels      = Allocation->WriteComponents(BuiltInComponents->HierarchicalEasingChannel, NewAllocation);
+		TComponentLock<TRead<FRootInstanceHandle>>   RootInstanceHandles = Allocation->ReadComponents(BuiltInComponents->RootInstanceHandle);
+		TComponentLock<TRead<FMovieSceneSequenceID>> SubSequenceIDs      = Allocation->ReadComponents(BuiltInComponents->HierarchicalEasingProvider);
+		
 		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
-			const FMovieSceneSequenceID SequenceID = HierarchicalEasingProviders[Index];
-			const FInstanceHandle SubSequenceHandle = InstanceRegistry->FindRelatedInstanceHandle(InstanceHandles[Index], SequenceID);
-
-			// We use instance handles here because sequence IDs by themselves are only unique to a single hierarchy 
-			// of sequences. If a root sequence is playing twice at the same time, there will be 2 sequence instances
-			// for the same ID...
-			// 
-			// We allocate a new easing channel on the evaluator system, add this sub-section (provider) to the list of
-			// contributors to that channel, and add the channel ID to our own map for step 2 below (this is all done
-			// inside AllocateEasingChannel).
-			//
-			// It could happen that we already had an easing channel for this sub-sequence. This can happen in editor when
-			// the user forces a re-import of the sub-section (by resizing it or whatever).
-			uint16& EasingChannel = InstanceHandleToEasingChannel.FindOrAdd(SubSequenceHandle, INVALID_EASING_CHANNEL);
-			if (EasingChannel == INVALID_EASING_CHANNEL)
-			{
-				EasingChannel = EvaluatorSystem->AllocateEasingChannel(SubSequenceHandle);
-			}
-			else
-			{
-			}
+			EasingChannels[Index] = System->AllocateEasingChannel(InstanceRegistry, RootInstanceHandles[Index], SubSequenceIDs[Index]).EasingChannelID;
 		}
-	};
+	}
+private:
 
-	FEntityTaskBuilder()
-		.Read(BuiltInComponents->InstanceHandle)
-		.Read(BuiltInComponents->HierarchicalEasingProvider)
-		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
-		.Iterate_PerAllocation(&Linker->EntityManager, VisitNewEasingProviders);
+	UMovieSceneHierarchicalEasingInstantiatorSystem* System;
+	FBuiltInComponentTypes* BuiltInComponents;
+	FInstanceRegistry* InstanceRegistry;
+};
 
-	// Step 2: Visit any new entities that are inside an eased-in/out sub-sequence.
-	//
-	// We need to assign them to the appropriate hierarchical easing channel that we created in step 1.
-	//
-	auto VisitNewEasings = [this, InstanceRegistry](const FEntityAllocation* Allocation, const FInstanceHandle* InstanceHandles, uint16* HierarchicalEasings)
-	{
-		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
-		{
-			const FInstanceHandle& InstanceHandle = InstanceHandles[Index];
-			const uint16* EasingChannel = InstanceHandleToEasingChannel.Find(InstanceHandle);
-			if (ensure(EasingChannel))
-			{
-				HierarchicalEasings[Index] = *EasingChannel;
-			}
-		}
-	};
 
-	FEntityTaskBuilder()
-		.Read(BuiltInComponents->InstanceHandle)
-		.Write(BuiltInComponents->HierarchicalEasingChannel)
-		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
-		.Iterate_PerAllocation(&Linker->EntityManager, VisitNewEasings);
 
-	// Step 3: Visit removed hierarchical easing providers, so we can free up our channels.
-	//
-	auto VisitRemovedEasingProviders = [this, InstanceRegistry, EvaluatorSystem](const FEntityAllocation* Allocation, const FInstanceHandle* InstanceHandles, const FMovieSceneSequenceID* HierarchicalEasingProviders)
-	{
-		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
-		{
-			const FSequenceInstance* RootInstance = &InstanceRegistry->GetInstance(InstanceHandles[Index]);
-			if (!RootInstance->IsRootSequence())
-			{
-				RootInstance = &InstanceRegistry->GetInstance(RootInstance->GetRootInstanceHandle());
-			}
-
-			const FMovieSceneSequenceID SubSequenceID = HierarchicalEasingProviders[Index];
-			const FInstanceHandle SubSequenceHandle = RootInstance->FindSubInstance(SubSequenceID);
-
-			uint16 OutEasingChannel;
-			const bool bRemoved = InstanceHandleToEasingChannel.RemoveAndCopyValue(SubSequenceHandle, OutEasingChannel);
-			if (ensure(bRemoved))
-			{
-				EvaluatorSystem->ReleaseEasingChannel(OutEasingChannel);
-			}
-		}
-	};
-
-	FEntityTaskBuilder()
-		.Read(BuiltInComponents->InstanceHandle)
-		.Read(BuiltInComponents->HierarchicalEasingProvider)
-		.FilterAll({ BuiltInComponents->Tags.NeedsUnlink })
-		.FilterNone({ BuiltInComponents->ParentEntity })
-		.Iterate_PerAllocation(&Linker->EntityManager, VisitRemovedEasingProviders);
-
-}
-
-namespace UE
+struct FAddEasingChannelToConsumerMutation : IMovieSceneConditionalEntityMutation
 {
-namespace MovieScene
+	FEntityManager* EntityManager;
+	FAddEasingChannelToConsumerMutation(UMovieSceneHierarchicalEasingInstantiatorSystem* InSystem)
+		: System(InSystem)
+		, BuiltInComponents(FBuiltInComponentTypes::Get())
+		, InstanceRegistry(InSystem->GetLinker()->GetInstanceRegistry())
+	{
+		EntityManager = &InSystem->GetLinker()->EntityManager;
+	}
+
+private:
+
+	void MarkAllocation(FEntityAllocation* Allocation, TBitArray<>& OutEntitiesToMutate) const override
+	{
+		TComponentReader<FRootInstanceHandle> RootInstanceHandles = Allocation->ReadComponents(BuiltInComponents->RootInstanceHandle);
+		TOptionalComponentReader<FMovieSceneSequenceID> SubSequenceIDs = Allocation->TryReadComponents(BuiltInComponents->SequenceID);
+
+		if (SubSequenceIDs)
+		{
+			for (int32 Index = 0; Index < Allocation->Num(); ++Index)
+			{
+				const uint16 EasingChannel = System->LocateEasingChannel(RootInstanceHandles[Index], SubSequenceIDs[Index]);
+				if (EasingChannel != uint16(-1))
+				{
+					OutEntitiesToMutate.Insert(true, Index);
+				}
+			}
+		}
+		else
+		{
+			for (int32 Index = 0; Index < Allocation->Num(); ++Index)
+			{
+				const uint16 EasingChannel = System->LocateEasingChannel(RootInstanceHandles[Index], MovieSceneSequenceID::Root);
+				if (EasingChannel != uint16(-1))
+				{
+					OutEntitiesToMutate.Insert(true, Index);
+				}
+			}
+		}
+	}
+
+	void CreateMutation(FEntityManager* InEntityManager, FComponentMask* InOutEntityComponentTypes) const override
+	{
+		InOutEntityComponentTypes->Set(BuiltInComponents->HierarchicalEasingChannel);
+
+		InEntityManager->GetComponents()->Factories.ComputeMutuallyInclusiveComponents(*InOutEntityComponentTypes);
+
+		InOutEntityComponentTypes->Set(BuiltInComponents->Tags.NeedsLink);
+	}
+
+	void InitializeEntities(const FEntityRange& EntityRange, const FComponentMask& AllocationType) const override
+	{
+		FEntityAllocationWriteContext NewAllocation = FEntityAllocationWriteContext::NewAllocation();
+
+		EntityManager->GetComponents()->Factories.RunInitializers(AllocationType, EntityRange);
+
+		TComponentWriter<uint16>                        EasingChannels      = EntityRange.Allocation->WriteComponents(BuiltInComponents->HierarchicalEasingChannel, NewAllocation);
+		TComponentReader<FRootInstanceHandle>           RootInstanceHandles = EntityRange.Allocation->ReadComponents(BuiltInComponents->RootInstanceHandle);
+		TOptionalComponentReader<FMovieSceneSequenceID> OptSequenceIDs      = EntityRange.Allocation->TryReadComponents(BuiltInComponents->SequenceID);
+
+		for (int32 Index = 0; Index < EntityRange.Num; ++Index)
+		{
+			const int32 Offset = EntityRange.ComponentStartOffset + Index;
+
+			FMovieSceneSequenceID SequenceID = OptSequenceIDs ? OptSequenceIDs[Offset] : MovieSceneSequenceID::Root;
+			const uint16 EasingChannel = System->LocateEasingChannel(RootInstanceHandles[Offset], SequenceID);
+			check(EasingChannel != uint16(-1));
+			EasingChannels[Offset] = EasingChannel;
+		}
+	}
+private:
+
+	UMovieSceneHierarchicalEasingInstantiatorSystem* System;
+	FBuiltInComponentTypes* BuiltInComponents;
+	FInstanceRegistry* InstanceRegistry;
+};
+
+
+struct FResetFinalWeightResults
 {
+
+	static void ForEachEntity(double& Result)
+	{
+		Result = 1.f;
+	}
+};
 
 struct FEvaluateEasings
 {
-	UWeightAndEasingEvaluatorSystem* EvaluatorSystem;
-
-	FEvaluateEasings(UWeightAndEasingEvaluatorSystem* InEvaluatorSystem)
-		: EvaluatorSystem(InEvaluatorSystem)
+	static void ForEachEntity(FFrameTime EvalTime, const FEasingComponentData& Easing, double& Result)
 	{
-		check(EvaluatorSystem);
+		const double EasingWeight = Easing.Section->EvaluateEasing(EvalTime);
+		Result = FMath::Max(EasingWeight, 0.f);
 	}
+};
 
-	void ForEachAllocation(
-			const FEntityAllocation* InAllocation, 
-			TRead<FFrameTime> Times,
-			TReadOptional<FEasingComponentData> OptEasing,
-			TReadOptional<double> OptManualWeights,
-			TReadOptional<FInstanceHandle> OptInstanceHandles,
-			TReadOptional<FMovieSceneSequenceID> OptHierarchicalEasingProviders,
-			TWrite<double> Results)
+struct FAccumulateManualWeights
+{
+	static void ForEachAllocation(const FEntityAllocation* Allocation, const TReadOneOrMoreOf<double, double>& Results, double* OutAccumulatedResults)
 	{
-		const int32 Num = InAllocation->Num();
+		using NumericType = TDecay<decltype(OutAccumulatedResults)>::Type;
+		
+		const int32 Num = Allocation->Num();
 
-		// Initialize our result array.
-		for (int32 Idx = 0; Idx < Num; ++Idx)
-		{
-			Results[Idx] = 1.f;
-		}
+		const double* WeightResults = Results.Get<0>();
+		const double* EasingResults = Results.Get<1>();
 
-		// Compute and add easing weight.
-		if (OptEasing)
+		check(WeightResults || EasingResults);
+
+		// Have to do math
+		if (WeightResults && EasingResults)
 		{
-			for (int32 Idx = 0; Idx < Num; ++Idx)
+			for (int32 Index = 0; Index < Num; ++Index)
 			{
-				const double EasingWeight = OptEasing[Idx].Section->EvaluateEasing(Times[Idx]);
-				Results[Idx] *= FMath::Max(EasingWeight, 0.f);
+				OutAccumulatedResults[Index] = WeightResults[Index] * EasingResults[Index];
 			}
 		}
-
-		// Manual weight has already been computed by the float channel evaluator system, so we
-		// just need to pick up the result and combine it.
-		if (OptManualWeights)
+		else
 		{
-			for (int32 Idx = 0; Idx < Num; ++Idx)
-			{
-				Results[Idx] *= FMath::Max(OptManualWeights[Idx], 0.f);
-			}
-		}
-
-		// If this is an allocation for sub-sections that provide some ease-in/out to their child sub-sequence,
-		// we store the resulting weight/easing results in the corresponding hierarhical easing channel data.
-		// This will let us later apply those values onto all entities in the hierarchy below.
-		// Sadly, this goes into random data access.
-		//
-		// Note that we need to check for instance handles because in interrogation evaluations, there are no
-		// instance handles.
-		//
-		if (OptInstanceHandles && OptHierarchicalEasingProviders)
-		{
-			const FInstanceRegistry* InstanceRegistry = EvaluatorSystem->GetLinker()->GetInstanceRegistry();
-
-			for (int32 Idx = 0; Idx < Num; ++Idx)
-			{
-				const FSequenceInstance* RootInstance = &InstanceRegistry->GetInstance(OptInstanceHandles[Idx]);
-				if (!RootInstance->IsRootSequence())
-				{
-					RootInstance = &InstanceRegistry->GetInstance(RootInstance->GetRootInstanceHandle());
-				}
-
-				const FInstanceHandle SubSequenceHandle = RootInstance->FindSubInstance(OptHierarchicalEasingProviders[Idx]);
-				EvaluatorSystem->SetSubSequenceEasing(SubSequenceHandle, Results[Idx]);
-			}
+			FMemory::Memcpy(OutAccumulatedResults, WeightResults ? WeightResults : EasingResults, Num * sizeof(NumericType));
 		}
 	}
 };
 
-struct FAccumulateHierarchicalEasings
+
+struct FHarvestHierarchicalEasings
 {
-	TSparseArray<FHierarchicalEasingChannelData>* EasingChannels;
-	
-	FAccumulateHierarchicalEasings(TSparseArray<FHierarchicalEasingChannelData>* InEasingChannels)
-		: EasingChannels(InEasingChannels)
-	{}
+	TSparseArray<int32>* EasingChannelToIndex;
+	TArrayView<FHierarchicalEasingChannelData> ComputationData;
 
-	FORCEINLINE TStatId           GetStatId() const    { return GET_STATID(MovieSceneEval_EvaluateEasingTask); }
-	static ENamedThreads::Type    GetDesiredThread()   { return ENamedThreads::AnyThread; }
-	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
-
-	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	FHarvestHierarchicalEasings(TSparseArray<int32>* InEasingChannelToIndex, TArray<FHierarchicalEasingChannelData>* InComputationData)
+		: EasingChannelToIndex(InEasingChannelToIndex)
+		, ComputationData(*InComputationData)
 	{
-		Run();
+		check(InComputationData);
 	}
 
-	void Run()
+	// Before the task runs, initialize the results array
+	void PreTask()
 	{
-		for (FHierarchicalEasingChannelData& EasingChannel : *EasingChannels)
+		for (FHierarchicalEasingChannelData& Data : ComputationData)
 		{
-			EasingChannel.FinalEasingResult = 1.f;
-			for (FHierarchicalEasingChannelContributorData& EasingChannelContributor : EasingChannel.Contributors)
+			Data.FinalResult = 1.0;
+		}
+	}
+
+	// Accumulate all entities that contribute to the channel
+	void ForEachEntity(double Result, uint16 EasingChannel)
+	{
+		const int32 ResultIndex = (*EasingChannelToIndex)[EasingChannel];
+		ComputationData[ResultIndex].FinalResult *= Result;
+	}
+
+	// Multiply hierarchical weights with sub sequences
+	void PostTask()
+	{
+		// Move forward through the results array, multiplying with parents
+		// This is possible because the results array is already sorted by depth
+		for (int32 Index = 0; Index < ComputationData.Num(); ++Index)
+		{
+			FHierarchicalEasingChannelData ChannelData = ComputationData[Index];
+			if (ChannelData.ParentEasingIndex != uint16(-1))
 			{
-				EasingChannel.FinalEasingResult *= EasingChannelContributor.EasingResult;
+				// The parent result has already been multiplied by all its parent weights by this point
+				ComputationData[Index].FinalResult *= ComputationData[ChannelData.ParentEasingIndex].FinalResult;
 			}
 		}
 	}
@@ -246,11 +253,27 @@ struct FAccumulateHierarchicalEasings
 
 struct FPropagateHierarchicalEasings
 {
-	TSparseArray<FHierarchicalEasingChannelData>* EasingChannels;
+	TArrayView<const FHierarchicalEasingChannelData> ComputationData;
 
-	FPropagateHierarchicalEasings(TSparseArray<FHierarchicalEasingChannelData>* InEasingChannels)
-		: EasingChannels(InEasingChannels)
+	TArray<double> HierarchicalResultsByChannelID;
+	int32 MaxChannelNum;
+
+	FPropagateHierarchicalEasings(TArrayView<const FHierarchicalEasingChannelData> InComputationData, const int32 InMaxChannelNum)
+		: ComputationData(InComputationData)
+		, MaxChannelNum(InMaxChannelNum)
 	{}
+
+	// Before the task runs, initialize the results array to avoid a double indirection during the expansion in the actual task
+	void PreTask()
+	{
+		HierarchicalResultsByChannelID.SetNumZeroed(MaxChannelNum);
+
+		for (int32 Index = 0; Index < ComputationData.Num(); ++Index)
+		{
+			const int32 ChannelIdAsIndex = ComputationData[Index].ChannelID;
+			HierarchicalResultsByChannelID[ChannelIdAsIndex] = ComputationData[Index].FinalResult;
+		}
+	}
 
 	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<uint16> HierarchicalEasingChannels, TWrite<double> WeightAndEasingResults)
 	{
@@ -259,27 +282,231 @@ struct FPropagateHierarchicalEasings
 		{
 			const uint16 HierarchicalEasingChannel = HierarchicalEasingChannels[Index];
 
-			if (ensure(EasingChannels->IsValidIndex(HierarchicalEasingChannel)))
+			if (HierarchicalEasingChannel != INVALID_EASING_CHANNEL && ensure(HierarchicalResultsByChannelID.IsValidIndex(HierarchicalEasingChannel)))
 			{
-				const FHierarchicalEasingChannelData& EasingChannel = (*EasingChannels)[HierarchicalEasingChannel];
-				WeightAndEasingResults[Index] *= EasingChannel.FinalEasingResult;
+				WeightAndEasingResults[Index] *= HierarchicalResultsByChannelID[HierarchicalEasingChannel];
 			}
 		}
 	}
 };
 
-} // namespace MovieScene
-} // namespace UE
+
+} // namespace UE::MovieScene
+
+
+UMovieSceneHierarchicalEasingInstantiatorSystem::UMovieSceneHierarchicalEasingInstantiatorSystem(const FObjectInitializer& ObjInit)
+	: Super(ObjInit)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	SystemCategories = EEntitySystemCategory::Core;
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		DefineImplicitPrerequisite(UMovieSceneRootInstantiatorSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(GetClass(), UMovieScenePropertyInstantiatorSystem::StaticClass());
+		DefineImplicitPrerequisite(GetClass(), UMovieSceneInterrogatedPropertyInstantiatorSystem::StaticClass());
+		DefineComponentConsumer(GetClass(), BuiltInComponents->BoundObject);
+	}
+}
+
+bool UMovieSceneHierarchicalEasingInstantiatorSystem::IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const
+{
+	using namespace UE::MovieScene;
+
+	return PersistentHandleToEasingChannel.Num() || InLinker->EntityManager.ContainsComponent(FBuiltInComponentTypes::Get()->HierarchicalEasingProvider);
+}
+
+void UMovieSceneHierarchicalEasingInstantiatorSystem::OnLink()
+{
+	EvaluatorSystem = Linker->LinkSystem<UWeightAndEasingEvaluatorSystem>();
+	// Keep the evaluator system alive as long as we are alive
+	Linker->SystemGraph.AddReference(this, EvaluatorSystem);
+}
+
+void UMovieSceneHierarchicalEasingInstantiatorSystem::OnUnlink()
+{
+	PersistentHandleToEasingChannel.Empty();
+}
+
+void UMovieSceneHierarchicalEasingInstantiatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+{
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* const BuiltInComponents = FBuiltInComponentTypes::Get();
+	const FInstanceRegistry* const InstanceRegistry = Linker->GetInstanceRegistry();
+
+	// Step 1: Create easing channels for newly created easing providers, and add a channel ID component
+	{
+		FEntityComponentFilter Filter;
+		Filter.All({ BuiltInComponents->RootInstanceHandle, BuiltInComponents->HierarchicalEasingProvider, BuiltInComponents->Tags.NeedsLink });
+		Filter.Deny({ BuiltInComponents->Tags.ImportedEntity });
+		Linker->EntityManager.MutateAll(Filter, FAddEasingChannelToProviderMutation(this));
+	}
+
+	FAddEasingChannelToConsumerMutation AddEasingChannelMutation(this);
+
+	// Step 2: Add easing ID components to any new entities that exist within a blended sequence
+	{
+		FEntityComponentFilter Filter;
+		Filter.All({ BuiltInComponents->InstanceHandle, BuiltInComponents->Tags.NeedsLink });
+		Filter.None({ BuiltInComponents->HierarchicalEasingChannel, BuiltInComponents->Tags.NeedsUnlink, BuiltInComponents->Tags.ImportedEntity });
+
+		Linker->EntityManager.MutateConditional(Filter, AddEasingChannelMutation);
+	}
+
+	// Step 3: Add easing ID components to any pre-existing entities that exist within a sequence that just had a channel allocated
+	for (const FHierarchicalKey& Key : NewEasingChannelKeys)
+	{
+		const FSequenceInstance& RootInstance = InstanceRegistry->GetInstance(Key.RootInstanceHandle);
+
+		const FSequenceInstance* InstanceToCheck = nullptr;
+		if (Key.SequenceID == MovieSceneSequenceID::Root)
+		{
+			InstanceToCheck = &RootInstance;
+		}
+		else
+		{
+			FInstanceHandle SubInstanceHandle = RootInstance.FindSubInstance(Key.SequenceID);
+			if (SubInstanceHandle.IsValid())
+			{
+				InstanceToCheck = &InstanceRegistry->GetInstance(SubInstanceHandle);
+			}
+		}
+
+		if (InstanceToCheck)
+		{
+			// Find any entities that have already been linked and add the easing channel to them
+			FEntityComponentFilter Filter;
+			Filter.None({ BuiltInComponents->Tags.NeedsLink, BuiltInComponents->Tags.NeedsUnlink, BuiltInComponents->HierarchicalEasingChannel, BuiltInComponents->Tags.ImportedEntity });
+
+			InstanceToCheck->Ledger.MutateAll(Linker, Filter, AddEasingChannelMutation);
+		}
+	}
+
+	NewEasingChannelKeys.Empty();
+
+
+	RemoveUnlinkedHierarchicalEasingChannels(InPrerequisites, Subsequents);
+}
+
+void UMovieSceneHierarchicalEasingInstantiatorSystem::RemoveUnlinkedHierarchicalEasingChannels(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+{
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* const BuiltInComponents = FBuiltInComponentTypes::Get();
+	const FInstanceRegistry* const InstanceRegistry = Linker->GetInstanceRegistry();
+
+	// Step 3: Visit removed hierarchical easing providers, so we can free up our channels.
+	//         @todo: There is a risk here that the easing provider is removed before the instance has been finished.
+	//                leaving some entities hanging around that still have this channel ID assigned. This would casue an ensure in the evaluator system.
+	//                This currently can't happen though because sub-sequence easing always lasts the duration of the sub-section, and dynamic weights
+	//                are never removed once they are created (until the root sequence ends)
+	auto VisitRemovedEasingProviders = [this, InstanceRegistry](const FEntityAllocation* Allocation, const FRootInstanceHandle* RootInstanceHandles, const FMovieSceneSequenceID* SubSequenceIDs)
+	{
+		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
+		{
+			FHierarchicalKey Key { RootInstanceHandles[Index], SubSequenceIDs[Index] };
+
+			if (FHierarchicalInstanceData* InstanceData = this->PersistentHandleToEasingChannel.Find(Key))
+			{
+				if (--InstanceData->RefCount == 0)
+				{
+					this->EvaluatorSystem->ReleaseEasingChannel(InstanceData->EasingChannelID);
+					this->PersistentHandleToEasingChannel.Remove(Key);
+				}
+			}
+		}
+	};
+
+	FEntityTaskBuilder()
+	.Read(BuiltInComponents->RootInstanceHandle)
+	.Read(BuiltInComponents->HierarchicalEasingProvider)
+	.FilterAll({ BuiltInComponents->Tags.NeedsUnlink })
+	.FilterNone({ BuiltInComponents->ParentEntity })
+	.Iterate_PerAllocation(&Linker->EntityManager, VisitRemovedEasingProviders);
+}
+
+UMovieSceneHierarchicalEasingInstantiatorSystem::FHierarchicalInstanceData UMovieSceneHierarchicalEasingInstantiatorSystem::AllocateEasingChannel(const UE::MovieScene::FInstanceRegistry* InstanceRegistry, UE::MovieScene::FRootInstanceHandle RootInstanceHandle, FMovieSceneSequenceID SequenceID)
+{
+	using namespace UE::MovieScene;
+
+	const FMovieSceneSequenceHierarchy* RootHierarchy = (SequenceID != MovieSceneSequenceID::Root)
+		? InstanceRegistry->GetInstance(RootInstanceHandle).GetPlayer()->GetEvaluationTemplate().GetHierarchy()
+		: nullptr;
+
+	return AllocateEasingChannelImpl(RootInstanceHandle, SequenceID, RootHierarchy);
+}
+
+UMovieSceneHierarchicalEasingInstantiatorSystem::FHierarchicalInstanceData UMovieSceneHierarchicalEasingInstantiatorSystem::AllocateEasingChannelImpl(UE::MovieScene::FRootInstanceHandle RootInstanceHandle, FMovieSceneSequenceID SequenceID, const FMovieSceneSequenceHierarchy* Hierarchy)
+{
+	using namespace UE::MovieScene;
+
+	FHierarchicalKey Key{ RootInstanceHandle, SequenceID };
+
+	FHierarchicalInstanceData* ExistingInstanceData = PersistentHandleToEasingChannel.Find(Key);
+	if (ExistingInstanceData != nullptr)
+	{
+		++ExistingInstanceData->RefCount;
+		return *ExistingInstanceData;
+	}
+
+	FHierarchicalInstanceData ParentInstanceData;
+
+	if (SequenceID != MovieSceneSequenceID::Root)
+	{
+		const FMovieSceneSequenceHierarchyNode* Node = Hierarchy->FindNode(SequenceID);
+		check(Node);
+		ParentInstanceData = AllocateEasingChannelImpl(RootInstanceHandle, Node->ParentID, Hierarchy);
+	}
+
+	FHierarchicalInstanceData NewInstanceData;
+	NewInstanceData.RefCount = 1;
+	NewInstanceData.HierarchicalDepth = ParentInstanceData.HierarchicalDepth + 1;
+	NewInstanceData.EasingChannelID = EvaluatorSystem->AllocateEasingChannel(ParentInstanceData.EasingChannelID, NewInstanceData.HierarchicalDepth);
+
+	PersistentHandleToEasingChannel.Add(Key, NewInstanceData);
+	NewEasingChannelKeys.Add(Key);
+
+	return NewInstanceData;
+}
+
+uint16 UMovieSceneHierarchicalEasingInstantiatorSystem::LocateEasingChannel(UE::MovieScene::FRootInstanceHandle RootInstanceHandle, FMovieSceneSequenceID SequenceID) const
+{
+	if (const FHierarchicalInstanceData* ExistingInstanceData = PersistentHandleToEasingChannel.Find(FHierarchicalKey{ RootInstanceHandle, SequenceID }))
+	{
+		return ExistingInstanceData->EasingChannelID;
+	}
+	return uint16(-1);
+}
+
+void UMovieSceneHierarchicalEasingInstantiatorSystem::ReleaseEasingChannel(UE::MovieScene::FRootInstanceHandle RootInstanceHandle, FMovieSceneSequenceID SequenceID)
+{
+	FHierarchicalKey Key{ RootInstanceHandle, SequenceID };
+
+	const FHierarchicalInstanceData* ExistingInstanceData = PersistentHandleToEasingChannel.Find(Key);
+	if (ExistingInstanceData != nullptr)
+	{
+		EvaluatorSystem->ReleaseEasingChannel(ExistingInstanceData->EasingChannelID);
+
+		PersistentHandleToEasingChannel.Remove(Key);
+	}
+}
+
 
 UWeightAndEasingEvaluatorSystem::UWeightAndEasingEvaluatorSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
 	SystemCategories = UE::MovieScene::EEntitySystemCategory::ChannelEvaluators;
 
+	bResultsNeedResort = false;
+
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		DefineImplicitPrerequisite(UMovieSceneEvalTimeSystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(UFloatChannelEvaluatorSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UDoubleChannelEvaluatorSystem::StaticClass(), GetClass());
 	}
 }
 
@@ -288,63 +515,62 @@ bool UWeightAndEasingEvaluatorSystem::IsRelevantImpl(UMovieSceneEntitySystemLink
 	using namespace UE::MovieScene;
 
 	FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
-	return InLinker->EntityManager.ContainsAnyComponent({ Components->Easing, Components->WeightResult });
+	return InLinker->EntityManager.ContainsAnyComponent({ Components->WeightAndEasingResult });
+}
+
+void UWeightAndEasingEvaluatorSystem::OnLink()
+{
+	// Sometimes there can be easing channels left open
+	// For instance if a sub sequence caused its parent to have a
+	// hierarchical channel allocated even though it wasn't explicitly weighted.
+	// Since there are no entities left that need the channels, we can just remove them now
+	EasingChannelToIndex.Empty();
+	PreAllocatedComputationData.Empty();
 }
 
 void UWeightAndEasingEvaluatorSystem::OnUnlink()
 {
-	if (!ensure(EasingChannels.Num() == 0))
-	{
-		EasingChannels.Reset();
-	}
+	// Sometimes there can be easing channels left open
+	// For instance if a sub sequence caused its parent to have a
+	// hierarchical channel allocated even though it wasn't explicitly weighted.
+	// Since there are no entities left that need the channels, we can just remove them now
+	EasingChannelToIndex.Empty();
+	PreAllocatedComputationData.Empty();
 }
 
-uint16 UWeightAndEasingEvaluatorSystem::AllocateEasingChannel(UE::MovieScene::FInstanceHandle SubSequenceHandle)
+uint16 UWeightAndEasingEvaluatorSystem::AllocateEasingChannel(const uint16 ParentEasingChannel, const uint16 HierarchicaDepth)
 {
 	using namespace UE::MovieScene;
 
-	// Create a new data for the new channel.
-	FHierarchicalEasingChannelData NewEasingChannelData;
-	NewEasingChannelData.Contributors.Add({ SubSequenceHandle, 1.f });
+	bResultsNeedResort = true;
 
-	const FSequenceInstance& SubSequenceInstance = Linker->GetInstanceRegistry()->GetInstance(SubSequenceHandle);
-	const FMovieSceneRootEvaluationTemplateInstance& RootEvalTemplate = SubSequenceInstance.GetPlayer()->GetEvaluationTemplate();
-	TArray<FInstanceHandle> SubSequenceParentage;
-	RootEvalTemplate.GetSequenceParentage(SubSequenceHandle, SubSequenceParentage);
-	for (const FInstanceHandle& ParentHandle : SubSequenceParentage)
+	// Allocate the result for this channel
+	const int32 ResultIndex = PreAllocatedComputationData.Num();
+	const int32 EasingChannelID = EasingChannelToIndex.Add(ResultIndex);
+
+	check(EasingChannelID >= 0 && EasingChannelID < uint16(-1));
+
+	FHierarchicalEasingChannelData Channel;
+	Channel.HierarchicalDepth = HierarchicaDepth;
+	Channel.ChannelID = EasingChannelID;
+	if (ParentEasingChannel != INVALID_EASING_CHANNEL)
 	{
-		NewEasingChannelData.Contributors.Add({ ParentHandle, 1.f });
+		Channel.ParentEasingIndex = EasingChannelToIndex[ParentEasingChannel];
 	}
 
-	return EasingChannels.Add(NewEasingChannelData);
+	PreAllocatedComputationData.Add(Channel);
+	return static_cast<uint16>(EasingChannelID);
 }
 
 void UWeightAndEasingEvaluatorSystem::ReleaseEasingChannel(uint16 EasingChannelID)
 {
-	if (ensure(EasingChannels.IsValidIndex(EasingChannelID)))
-	{
-		EasingChannels.RemoveAt(EasingChannelID);
-	}
-}
+	const int32 ComputationDataIndex = EasingChannelToIndex[EasingChannelID];
 
-void UWeightAndEasingEvaluatorSystem::SetSubSequenceEasing(UE::MovieScene::FInstanceHandle SubSequenceHandle, double EasingResult)
-{
-	using namespace UE::MovieScene;
+	// Mark the channel ID as invalid, and give it the largest hierarchical depth so it gets sorted to the end
+	PreAllocatedComputationData[ComputationDataIndex].HierarchicalDepth = uint16(-1);
+	EasingChannelToIndex.RemoveAt(EasingChannelID);
 
-	// The given sub-sequence has been assigned the given easing value. We can copy that value everywhere this
-	// sub-sequence is used in a channel, i.e. for the channel of the sub-sequence itself, but also for the channels
-	// of any children sub-sequences under that sub-sequence.
-	for (FHierarchicalEasingChannelData& EasingChannel : EasingChannels)
-	{
-		for (FHierarchicalEasingChannelContributorData& EasingChannelContributor : EasingChannel.Contributors)
-		{
-			if (EasingChannelContributor.SubSequenceHandle == SubSequenceHandle)
-			{
-				EasingChannelContributor.EasingResult = EasingResult;
-				break;
-			}
-		}
-	}
+	bResultsNeedResort = true;
 }
 
 void UWeightAndEasingEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
@@ -354,56 +580,100 @@ void UWeightAndEasingEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequi
 	FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
 	FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
 
-	// Step 1: Compute all the easings and weights of all entities that have any.
+	// No hierarchical weighting, just reset everything to 1.0
+	FGraphEventRef ResetWeights = FEntityTaskBuilder()
+	.Write(Components->WeightAndEasingResult)
+	.SetStat(GET_STATID(MovieSceneEval_EvaluateEasingTask))
+	.Dispatch_PerEntity<FResetFinalWeightResults>(&Linker->EntityManager, InPrerequisites, &Subsequents);
+
+	FSystemTaskPrerequisites ResetWeightsDependencies {InPrerequisites};
+	ResetWeightsDependencies.AddComponentTask(Components->WeightAndEasingResult, ResetWeights);
+
+	// Step 1: Evaluate section easing and manual weights in parallel
 	//
-	FGraphEventRef EvalTask = FEntityTaskBuilder()
-		// We need the eval time to evaluate easing curves.
-		.Read(Components->EvalTime)
-		.ReadOptional(Components->Easing)
-		// We may need to multiply easing and manual weight together.
-		.ReadOptional(Components->WeightResult)
-		// For hierarchical easing we need the following 2 components... InstanceHandle is optional
-		// because in interrogation evaluations, there are not instance handles.
-		.ReadOptional(Components->InstanceHandle)
-		.ReadOptional(Components->HierarchicalEasingProvider)
-		// We will write the result to a separate component.
-		.Write(Components->WeightAndEasingResult)
-		.SetStat(GET_STATID(MovieSceneEval_EvaluateEasingTask))
-		.Dispatch_PerAllocation<FEvaluateEasings>(&Linker->EntityManager, InPrerequisites, &Subsequents, this);
+	FGraphEventRef EvaluateEasing = FEntityTaskBuilder()
+	.Read(Components->EvalTime)
+	.Read(Components->Easing)
+	.Write(Components->EasingResult)
+	.SetStat(GET_STATID(MovieSceneEval_EvaluateEasingTask))
+	.Dispatch_PerEntity<FEvaluateEasings>(&Linker->EntityManager, ResetWeightsDependencies, &Subsequents);
 
-	// If we have no hierarchical easing, there's only one step... otherwise, we have more work to do.
-	
-	if (EasingChannels.Num() > 0)
+	FGraphEventRef AccumulateManualWeights = FEntityTaskBuilder()
+	.ReadOneOrMoreOf(Components->WeightResult, Components->EasingResult)
+	.Write(Components->WeightAndEasingResult)
+	.SetStat(GET_STATID(MovieSceneEval_EvaluateEasingTask))
+	.Dispatch_PerAllocation<FAccumulateManualWeights>(&Linker->EntityManager, ResetWeightsDependencies, &Subsequents);
+
+	// If we have hierarchical easing, we initialize all the weights to their hierarchical defaults
+	if (PreAllocatedComputationData.Num() > 0)
 	{
-		// Step 2: Gather and compute sub-sequences' hierarchical easing results.
-		//
-		// Now, some of the entities we processed above happen to be representing sub-sections which contain entire sub-sequences.
-		// We need to take their weight/easing result and propagate it to all the entities in these sub-sequences, and keep
-		// propagating that down the hierarchy.
-		//
-		FSystemTaskPrerequisites PropagatePrereqs;
+		ResortComputationBuffer();
 
-		if (Linker->EntityManager.GetThreadingModel() == EEntityThreadingModel::NoThreading)
-		{
-			FAccumulateHierarchicalEasings(&EasingChannels).Run();
-		}
-		else
-		{
-			FGraphEventArray AccumulatePrereqs { EvalTask };
-			FGraphEventRef AccumulateTask = TGraphTask<FAccumulateHierarchicalEasings>::CreateTask(&AccumulatePrereqs, Linker->EntityManager.GetDispatchThread())
-				.ConstructAndDispatchWhenReady(&EasingChannels);
+		FSystemTaskPrerequisites HarvestPrereqs {InPrerequisites};
+		HarvestPrereqs.AddComponentTask(Components->WeightAndEasingResult, EvaluateEasing);
+		HarvestPrereqs.AddComponentTask(Components->WeightAndEasingResult, AccumulateManualWeights);
 
-			PropagatePrereqs.AddRootTask(AccumulateTask);
-		}
+		// Step 2: Harvest any hierarchical results from providers
+		//
+		FGraphEventRef HarvestTask = FEntityTaskBuilder()
+		.Read(Components->WeightAndEasingResult)
+		.Read(Components->HierarchicalEasingChannel)
+		.FilterAll({ Components->HierarchicalEasingProvider })  // Only harvest results from entities that are providing results
+		.SetStat(GET_STATID(MovieSceneEval_HarvestEasingTask))
+		.Dispatch_PerEntity<FHarvestHierarchicalEasings>(&Linker->EntityManager, HarvestPrereqs, nullptr, &EasingChannelToIndex, &PreAllocatedComputationData);
+
+		FSystemTaskPrerequisites PropagatePrereqs {InPrerequisites};
+		PropagatePrereqs.AddRootTask(HarvestTask);
 
 		// Step 3: Apply hierarchical easing results to all entities inside affected sub-sequences.
 		//
 		FEntityTaskBuilder()
-			.Read(Components->HierarchicalEasingChannel)
-			.Write(Components->WeightAndEasingResult)
-			.SetStat(GET_STATID(MovieSceneEval_EvaluateEasingTask))
-			.Dispatch_PerAllocation<FPropagateHierarchicalEasings>(&Linker->EntityManager, PropagatePrereqs, &Subsequents, &EasingChannels);
+		.Read(Components->HierarchicalEasingChannel)
+		.Write(Components->WeightAndEasingResult)
+		.FilterNone({ Components->HierarchicalEasingProvider }) // Do not propagate hierarchical weights onto providers!
+		.SetStat(GET_STATID(MovieSceneEval_EvaluateEasingTask))
+		.Dispatch_PerAllocation<FPropagateHierarchicalEasings>(&Linker->EntityManager, PropagatePrereqs, &Subsequents,
+			PreAllocatedComputationData, EasingChannelToIndex.GetMaxIndex());
 	}
 }
 
+void UWeightAndEasingEvaluatorSystem::ResortComputationBuffer()
+{
+	using namespace UE::MovieScene;
+
+	if (!bResultsNeedResort)
+	{
+		return;
+	}
+
+	bResultsNeedResort = false;
+
+	TSparseArray<int32> OldToNewIndex;
+
+	// Resort the results array by depth if it has been modified
+	Algo::SortBy(PreAllocatedComputationData, &FHierarchicalEasingChannelData::HierarchicalDepth);
+
+	for (int32 Index = 0; Index < PreAllocatedComputationData.Num(); ++Index)
+	{
+		FHierarchicalEasingChannelData& ComputationData = PreAllocatedComputationData[Index];
+
+		// As soon as we find an invalid hierarchical depth, everything proceeding this index is garbage
+		if (ComputationData.HierarchicalDepth == uint16(-1))
+		{
+			PreAllocatedComputationData.RemoveAt(Index, PreAllocatedComputationData.Num() - Index);
+			break;
+		}
+
+		// Reassign the channel ID to index mapping
+		int32& ChannelIndex = EasingChannelToIndex[ComputationData.ChannelID];
+		OldToNewIndex.Insert(ChannelIndex, Index);
+		ChannelIndex = Index;
+		
+		if (ComputationData.ParentEasingIndex != uint16(-1))
+		{
+			// Parent Index must have been added to the OldToNewIndex map by now because the results are always sorted
+			ComputationData.ParentEasingIndex = OldToNewIndex[ComputationData.ParentEasingIndex];
+		}
+	}
+}
 

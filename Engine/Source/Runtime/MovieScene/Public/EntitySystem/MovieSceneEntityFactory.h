@@ -173,7 +173,8 @@ struct FEntityFactories
 	 */
 	MOVIESCENE_API int32 ComputeMutuallyInclusiveComponents(FComponentMask& ComponentMask);
 
-	void RunInitializers(const FComponentMask& ParentType, const FComponentMask& ChildType, const FEntityAllocation* ParentAllocation, TArrayView<const int32> ParentAllocationOffsets, const FEntityRange& InChildEntityRange);
+	MOVIESCENE_API void RunInitializers(const FComponentMask& Type, const FEntityRange& InEntityRange);
+	MOVIESCENE_API void RunInitializers(const FComponentMask& ParentType, const FComponentMask& ChildType, const FEntityAllocation* ParentAllocation, TArrayView<const int32> ParentAllocationOffsets, const FEntityRange& InChildEntityRange);
 
 	TArray<TInlineValue<FChildEntityInitializer>> ChildInitializers;
 	TArray<TInlineValue<FMutualEntityInitializer>> MutualInitializers;

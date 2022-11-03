@@ -375,6 +375,17 @@ int32 FEntityFactories::ComputeMutuallyInclusiveComponents(FComponentMask& Compo
 	return NumNewComponents;
 }
 
+void FEntityFactories::RunInitializers(const FComponentMask& Type, const FEntityRange& InEntityRange)
+{
+	for (TInlineValue<FMutualEntityInitializer>& MutualInit : MutualInitializers)
+	{
+		if (MutualInit->IsRelevant(Type))
+		{
+			MutualInit->Run(InEntityRange);
+		}
+	}
+}
+
 void FEntityFactories::RunInitializers(const FComponentMask& ParentType, const FComponentMask& ChildType, const FEntityAllocation* ParentAllocation, TArrayView<const int32> ParentAllocationOffsets, const FEntityRange& InChildEntityRange)
 {
 	// First off, run child initializers
@@ -386,14 +397,8 @@ void FEntityFactories::RunInitializers(const FComponentMask& ParentType, const F
 		}
 	}
 
-	// First off, run child initializers
-	for (TInlineValue<FMutualEntityInitializer>& MutualInit : MutualInitializers)
-	{
-		if (MutualInit->IsRelevant(ChildType))
-		{
-			MutualInit->Run(InChildEntityRange);
-		}
-	}
+	// Run generic initializers
+	RunInitializers(ChildType, InChildEntityRange);
 }
 
 }	// using namespace MovieScene

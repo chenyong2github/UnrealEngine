@@ -190,6 +190,9 @@ MOVIESCENETRACKS_API FIntermediate3DTransform GetComponentTransform(const UObjec
 MOVIESCENETRACKS_API void SetComponentTransform(USceneComponent* SceneComponent, const FIntermediate3DTransform& InTransform);
 MOVIESCENETRACKS_API void SetComponentTransformAndVelocity(UObject* Object, const FIntermediate3DTransform& InTransform);
 
+MOVIESCENETRACKS_API void ConvertOperationalProperty(float In, double& Out);
+MOVIESCENETRACKS_API void ConvertOperationalProperty(double In, float& Out);
+
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FIntermediate3DTransform& In, FEulerTransform& Out);
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FEulerTransform& In, FIntermediate3DTransform& Out);
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FIntermediate3DTransform& In, FTransform& Out);

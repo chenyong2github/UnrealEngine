@@ -7,6 +7,8 @@
 #include "MovieSceneSequence.h"
 #include "MovieSceneSequenceTickManager.h"
 #include "Engine/Engine.h"
+#include "UObject/Stack.h"
+#include "Internationalization/Text.h"
 #include "GameFramework/WorldSettings.h"
 #include "Misc/RuntimeErrors.h"
 #include "Net/UnrealNetwork.h"
@@ -14,9 +16,12 @@
 #include "Engine/NetConnection.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneEntitySystemRunner.h"
+#include "Compilation/MovieSceneCompiledDataManager.h"
+#include "Evaluation/MovieSceneSequenceWeights.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/PlayerState.h"
 #include "Algo/BinarySearch.h"
+
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MovieSceneSequencePlayer)
 
@@ -889,6 +894,16 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence)
 	check(RunnerToUse);
 	RootTemplateInstance.Initialize(*Sequence, *this, nullptr, RunnerToUse);
 
+	if (!PlaybackSettings.bDynamicWeighting)
+	{
+		UMovieSceneCompiledDataManager* CompiledDataManager = RootTemplateInstance.GetCompiledDataManager();
+		FMovieSceneCompiledDataID       CompiledDataID      = RootTemplateInstance.GetCompiledDataID();
+		if (CompiledDataManager && CompiledDataID.IsValid())
+		{
+			PlaybackSettings.bDynamicWeighting = EnumHasAnyFlags(CompiledDataManager->GetEntryRef(CompiledDataID).AccumulatedFlags, EMovieSceneSequenceFlags::DynamicWeighting);
+		}
+	}
+
 	LatentActionManager.ClearLatentActions();
 
 	// Set up playback position (with offset) after Stop(), which will reset the starting time to StartTime
@@ -1221,6 +1236,11 @@ bool UMovieSceneSequencePlayer::IsDisablingEventTriggers(FFrameTime& DisabledUnt
 		return true;
 	}
 	return false;
+}
+
+bool UMovieSceneSequencePlayer::HasDynamicWeighting() const
+{
+	return PlaybackSettings.bDynamicWeighting;
 }
 
 void UMovieSceneSequencePlayer::PreEvaluation(const FMovieSceneContext& Context)
@@ -1795,4 +1815,27 @@ void UMovieSceneSequencePlayer::RunLatentActions()
 	}
 }
 
+void UMovieSceneSequencePlayer::SetWeight(double InWeight)
+{
+	SetWeight(InWeight, MovieSceneSequenceID::Root);
+}
 
+void UMovieSceneSequencePlayer::SetWeight(double InWeight, FMovieSceneSequenceID SequenceID)
+{
+	UMovieSceneEntitySystemLinker* Linker = RootTemplateInstance.GetEntitySystemLinker();
+	if (Linker)
+	{
+		if (!SequenceWeights)
+		{
+			SequenceWeights = MakeUnique<UE::MovieScene::FSequenceWeights>(Linker, RootTemplateInstance.GetRootInstanceHandle());
+
+			if (!PlaybackSettings.bDynamicWeighting && Sequence)
+			{
+				FText Text = NSLOCTEXT("UMovieSceneSequencePlayer", "SetWeightWarning", "Attempting to set a weight on sequence {0} with PlaybackSettings.bDynamicWeighting disabled. This may lead to undesireable blending artifacts or broken in/out blends.");
+				FFrame::KismetExecutionMessage(*FText::Format(Text, FText::FromString(Sequence->GetName())).ToString(), ELogVerbosity::Warning);
+			}
+		}
+
+		SequenceWeights->SetWeight(SequenceID, InWeight);
+	}
+}

@@ -68,26 +68,15 @@ FRootInstanceHandle FInstanceRegistry::AllocateRootInstance(IMovieScenePlayer* P
 	return InstanceHandle;
 }
 
-FInstanceHandle FInstanceRegistry::AllocateSubInstance(IMovieScenePlayer* Player, FMovieSceneSequenceID SequenceID, FRootInstanceHandle RootInstanceHandle)
+FInstanceHandle FInstanceRegistry::AllocateSubInstance(IMovieScenePlayer* Player, FMovieSceneSequenceID SequenceID, FRootInstanceHandle RootInstanceHandle, FInstanceHandle ParentInstanceHandle)
 {
-	check(Instances.Num() < 65535 && SequenceID != MovieSceneSequenceID::Root);
-
-	const FMovieSceneRootEvaluationTemplateInstance& Template = Player->GetEvaluationTemplate();
-	const FMovieSceneSequenceHierarchy*              Hierarchy = Template.GetCompiledDataManager()->FindHierarchy(Template.GetCompiledDataID());
-
-	checkf(Hierarchy, TEXT("Attempting to construct a new sub sequence instance without a hierarchy"));
-
-	const FMovieSceneSubSequenceData* SubData = Hierarchy->FindSubData(SequenceID);
-	checkf(SubData, TEXT("Attempting to construct a new sub sequence instance with a sub sequence ID that does not exist in the hierarchy"));
-
-	FMovieSceneCompiledDataID CompiledDataID = Template.GetCompiledDataManager()->GetDataID(SubData->GetSequence());
-
+	check(Instances.Num() < 65535 && SequenceID != MovieSceneSequenceID::Root && ParentInstanceHandle.IsValid());
 
 	const uint16 InstanceSerial = InstanceSerialNumber++;
 	FSparseArrayAllocationInfo NewAllocation = Instances.AddUninitialized();
 	FInstanceHandle InstanceHandle { (uint16)NewAllocation.Index, InstanceSerial };
 
-	new (NewAllocation) FSequenceInstance(Linker, Player, InstanceHandle, RootInstanceHandle, SequenceID, CompiledDataID);
+	new (NewAllocation) FSequenceInstance(Linker, Player, InstanceHandle, ParentInstanceHandle, RootInstanceHandle, SequenceID);
 
 	return InstanceHandle;
 }

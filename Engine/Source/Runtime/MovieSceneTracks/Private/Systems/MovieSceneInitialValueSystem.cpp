@@ -120,6 +120,13 @@ void UMovieSceneInitialValueSystem::OnRun(FSystemTaskPrerequisites& InPrerequisi
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
 	FInitialValueMutation Mutation(Linker);
+
+	// If we don't have any initial value processors, we've no work to do
+	if (Mutation.AnyInitialValue.NumComponents() == 0)
+	{
+		return;
+	}
+
 	if (Mutation.IsCached() && Linker->FindExtension<IInterrogationExtension>() == nullptr)
 	{
 		// When there is an initial value cache extension, we mutate anything with an initial value component on it by

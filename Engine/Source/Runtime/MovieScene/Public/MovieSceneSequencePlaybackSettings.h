@@ -52,6 +52,7 @@ struct FMovieSceneSequencePlaybackSettings
 		, bDisableCameraCuts(false)
 		, bPauseAtEnd(false)
 		, bInheritTickIntervalFromOwner(true)
+		, bDynamicWeighting(false)
 	{ }
 
 	GENERATED_BODY()
@@ -111,6 +112,10 @@ struct FMovieSceneSequencePlaybackSettings
 	/** When checked, a custom tick interval can be provided to define how often to update this sequence */
 	UPROPERTY(EditAnywhere, Category="Playback", meta=(InlineEditConditionToggle))
 	uint32 bInheritTickIntervalFromOwner : 1;
+
+	/** Whether to enable dynamic weighting on this player or not */
+	UPROPERTY(EditAnywhere, Category="Playback")
+	uint32 bDynamicWeighting : 1;
 
 	MOVIESCENE_API bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 };

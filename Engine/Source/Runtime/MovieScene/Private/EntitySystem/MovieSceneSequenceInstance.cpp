@@ -85,20 +85,18 @@ FSequenceInstance::FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMov
 	RootSequenceName = RootSequence->GetPathName();
 #endif
 
-	CompiledDataID = Player->GetEvaluationTemplate().GetCompiledDataID();
-
 	FMovieSceneObjectCache& ObjectCache = Player->State.GetObjectCache(SequenceID);
 	OnInvalidateObjectBindingHandle = ObjectCache.OnBindingInvalidated.AddUObject(Linker, &UMovieSceneEntitySystemLinker::InvalidateObjectBinding, InstanceHandle);
 
 	InvalidateCachedData(Linker);
 }
 
-FSequenceInstance::FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FInstanceHandle InInstanceHandle, FRootInstanceHandle InRootInstanceHandle, FMovieSceneSequenceID InSequenceID, FMovieSceneCompiledDataID InCompiledDataID)
-	: CompiledDataID(InCompiledDataID)
-	, SequenceID(InSequenceID)
+FSequenceInstance::FSequenceInstance(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* Player, FInstanceHandle InInstanceHandle, FInstanceHandle InParentInstanceHandle, FRootInstanceHandle InRootInstanceHandle, FMovieSceneSequenceID InSequenceID)
+	: SequenceID(InSequenceID)
 	, RootOverrideSequenceID(MovieSceneSequenceID::Invalid)
 	, PlayerIndex(Player->GetUniqueIndex())
 	, InstanceHandle(InInstanceHandle)
+	, ParentInstanceHandle(InParentInstanceHandle)
 	, RootInstanceHandle(InRootInstanceHandle)
 {
 	// Sub Sequence instances always start in a non-finished state because they will only ever
@@ -129,14 +127,15 @@ void FSequenceInstance::InitializeLegacyEvaluator(UMovieSceneEntitySystemLinker*
 	IMovieScenePlayer* Player = GetPlayer();
 	check(Player);
 
-	UMovieSceneCompiledDataManager*     CompiledDataManager = Player->GetEvaluationTemplate().GetCompiledDataManager();
-	const FMovieSceneCompiledDataEntry& CompiledEntry       = CompiledDataManager->GetEntryRef(CompiledDataID);
+	FMovieSceneRootEvaluationTemplateInstance& RootTemplate        = Player->GetEvaluationTemplate();
+	UMovieSceneCompiledDataManager*            CompiledDataManager = RootTemplate.GetCompiledDataManager();
+	const FMovieSceneCompiledDataEntry&        CompiledEntry       = CompiledDataManager->GetEntryRef(RootTemplate.GetCompiledDataID());
 
 	if (EnumHasAnyFlags(CompiledEntry.AccumulatedMask, EMovieSceneSequenceCompilerMask::EvaluationTemplate))
 	{
 		if (!LegacyEvaluator)
 		{
-			LegacyEvaluator = MakeUnique<FMovieSceneTrackEvaluator>(CompiledEntry.GetSequence(), CompiledDataID, CompiledDataManager);
+			LegacyEvaluator = MakeUnique<FMovieSceneTrackEvaluator>(CompiledEntry.GetSequence(), RootTemplate.GetCompiledDataID(), CompiledDataManager);
 		}
 	}
 	else if (LegacyEvaluator)
@@ -153,24 +152,25 @@ void FSequenceInstance::InvalidateCachedData(UMovieSceneEntitySystemLinker* Link
 	IMovieScenePlayer* Player = GetPlayer();
 	check(Player);
 
-	UMovieSceneCompiledDataManager* CompiledDataManager = Player->GetEvaluationTemplate().GetCompiledDataManager();
-
-	UMovieSceneSequence* Sequence = CompiledDataManager->GetEntryRef(CompiledDataID).GetSequence();
-	Player->State.AssignSequence(SequenceID, *Sequence, *Player);
+	FMovieSceneRootEvaluationTemplateInstance& RootTemplate        = Player->GetEvaluationTemplate();
+	UMovieSceneCompiledDataManager*            CompiledDataManager = RootTemplate.GetCompiledDataManager();
+	FMovieSceneCompiledDataID                  RootCompiledDataID  = RootTemplate.GetCompiledDataID();
 
 	if (SequenceID == MovieSceneSequenceID::Root)
 	{
+		Player->State.AssignSequence(SequenceID, *RootTemplate.GetRootSequence(), *Player);
+
 		// Try and recreate the volatility manager if this sequence is now volatile
 		if (!VolatilityManager)
 		{
-			VolatilityManager = FCompiledDataVolatilityManager::Construct(*Player, CompiledDataID, CompiledDataManager);
+			VolatilityManager = FCompiledDataVolatilityManager::Construct(*Player, RootCompiledDataID, CompiledDataManager);
 			if (VolatilityManager)
 			{
-				VolatilityManager->ConditionalRecompile(*Player, CompiledDataID, CompiledDataManager);
+				VolatilityManager->ConditionalRecompile(*Player, RootCompiledDataID, CompiledDataManager);
 			}
 		}
 
-		ISequenceUpdater::FactoryInstance(SequenceUpdater, CompiledDataManager, CompiledDataID);
+		ISequenceUpdater::FactoryInstance(SequenceUpdater, CompiledDataManager, RootCompiledDataID);
 
 		SequenceUpdater->InvalidateCachedData(Linker);
 
@@ -181,19 +181,25 @@ void FSequenceInstance::InvalidateCachedData(UMovieSceneEntitySystemLinker* Link
 
 		InitializeLegacyEvaluator(Linker);
 	}
+	else if (UMovieSceneSequence* SubSequence = RootTemplate.GetSequence(SequenceID))
+	{
+		Player->State.AssignSequence(SequenceID, *SubSequence, *Player);
+	}
 }
 
 void FSequenceInstance::DissectContext(UMovieSceneEntitySystemLinker* Linker, const FMovieSceneContext& InContext, TArray<TRange<FFrameTime>>& OutDissections)
 {
 	check(SequenceID == MovieSceneSequenceID::Root);
 
-
 	IMovieScenePlayer* Player = GetPlayer();
 
 	if (VolatilityManager)
 	{
-		UMovieSceneCompiledDataManager* CompiledDataManager = Player->GetEvaluationTemplate().GetCompiledDataManager();
-		if (VolatilityManager->ConditionalRecompile(*Player, CompiledDataID, CompiledDataManager))
+		FMovieSceneRootEvaluationTemplateInstance& RootTemplate        = Player->GetEvaluationTemplate();
+		UMovieSceneCompiledDataManager*            CompiledDataManager = RootTemplate.GetCompiledDataManager();
+		FMovieSceneCompiledDataID                  RootCompiledDataID  = RootTemplate.GetCompiledDataID();
+
+		if (VolatilityManager->ConditionalRecompile(*Player, RootCompiledDataID, CompiledDataManager))
 		{
 			InvalidateCachedData(Linker);
 		}
@@ -333,7 +339,7 @@ void FSequenceInstance::PostEvaluation(UMovieSceneEntitySystemLinker* Linker)
 			const bool bShouldPurgeTemplates = VolatilityManager && LegacyEvaluator;
 
 			UMovieSceneCompiledDataManager* LocalCompiledDataManager = bShouldPurgeTemplates ? Player->GetEvaluationTemplate().GetCompiledDataManager() : nullptr;
-			FMovieSceneCompiledDataID       LocalCompiledDataID      = CompiledDataID;
+			FMovieSceneCompiledDataID       LocalCompiledDataID      = bShouldPurgeTemplates ? Player->GetEvaluationTemplate().GetCompiledDataID()      : FMovieSceneCompiledDataID();
 
 			Player->PostEvaluation(Context);
 

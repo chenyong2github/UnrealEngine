@@ -98,6 +98,11 @@ enum class EMovieSceneSequenceFlags : uint8
 	 */
 	BlockingEvaluation = 1 << 1,
 
+	/**
+	 * Indicates that a sequence will utilize dynamic weighting when it is played back. Setting this flag ensures that initial values are cached correctly so the sequence can be blended into and out of
+	 */
+	DynamicWeighting = 1 << 2,
+
 	/** Symbolic entry for all flags that should be inherited by parent sequences when present on a sub sequence */
 	InheritedFlags = Volatile UMETA(Hidden),
 };

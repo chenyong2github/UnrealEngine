@@ -142,6 +142,9 @@ public:
 	/** When enabled, enables a single asynchronous evaluation once per-frame. When disabled, forces a full blocking evaluation every time this sequence is evaluated (should be avoided for real-time content). */
 	TSharedPtr< FUICommandInfo > ToggleAsyncEvaluation;
 
+	/** When enabled, all blendable tracks will always cache their initial values to ensure that they are able to correctly blend in/out when dynamic weights are being used. */
+	TSharedPtr< FUICommandInfo > ToggleDynamicWeighting;
+
 	/** Toggle constraining the time cursor to the playback range while scrubbing */
 	TSharedPtr< FUICommandInfo > ToggleKeepCursorInPlaybackRangeWhileScrubbing;
 

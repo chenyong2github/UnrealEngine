@@ -26,6 +26,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	FComponentRegistry* ComponentRegistry = UMovieSceneEntitySystemLinker::GetComponents();
 
 	ComponentRegistry->NewComponentType(&ParentEntity,          TEXT("Parent Entity"));
+	ComponentRegistry->NewComponentType(&SequenceID,            TEXT("Sequence ID"));
 	ComponentRegistry->NewComponentType(&InstanceHandle,        TEXT("Instance Handle"));
 	ComponentRegistry->NewComponentType(&RootInstanceHandle,    TEXT("Root Instance Handle"));
 
@@ -83,6 +84,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&WeightChannelFlags,      TEXT("Weight Channel Flags"));
 
 	ComponentRegistry->NewComponentType(&Easing,                  TEXT("Easing"));
+	ComponentRegistry->NewComponentType(&EasingResult,            TEXT("Easing Result"));
 	ComponentRegistry->NewComponentType(&HierarchicalEasingChannel, TEXT("Hierarchical Easing Channel"));
 	ComponentRegistry->NewComponentType(&HierarchicalEasingProvider, TEXT("Hierarchical Easing Provider"));
 
@@ -151,6 +153,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	Tags.FixedTime               = ComponentRegistry->NewTag(TEXT("Fixed Time"));
 	Tags.PreRoll                 = ComponentRegistry->NewTag(TEXT("Pre Roll"));
 	Tags.SectionPreRoll          = ComponentRegistry->NewTag(TEXT("Section Pre Roll"));
+	Tags.AlwaysCacheInitialValue = ComponentRegistry->NewTag(TEXT("Always Cache Initial Value"));
 
 	SymbolicTags.CreatesEntities = ComponentRegistry->NewTag(TEXT("~~ SYMBOLIC ~~ Creates Entities"));
 
@@ -168,12 +171,14 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->Factories.DefineChildComponent(Tags.FixedTime,     Tags.FixedTime);
 	ComponentRegistry->Factories.DefineChildComponent(Tags.PreRoll,       Tags.PreRoll);
 	ComponentRegistry->Factories.DefineChildComponent(Tags.SectionPreRoll,Tags.SectionPreRoll);
+	ComponentRegistry->Factories.DefineChildComponent(Tags.AlwaysCacheInitialValue,Tags.AlwaysCacheInitialValue);
 
 	ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(Tags.SectionPreRoll,Tags.PreRoll);
 
 	ComponentRegistry->Factories.DuplicateChildComponent(EvalTime);
 	ComponentRegistry->Factories.DuplicateChildComponent(BaseValueEvalTime);
 
+	ComponentRegistry->Factories.DuplicateChildComponent(SequenceID);
 	ComponentRegistry->Factories.DuplicateChildComponent(InstanceHandle);
 	ComponentRegistry->Factories.DuplicateChildComponent(RootInstanceHandle);
 	ComponentRegistry->Factories.DuplicateChildComponent(PropertyBinding);
@@ -283,6 +288,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 
 		// Easing needs a time to evaluate
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(Easing, EvalTime);
+		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(Easing, EasingResult);
 	}
 
 	// Weight channel relationships
@@ -299,8 +305,8 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 
 	// Weight and easing result component relationship
 	{
-		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(Easing, WeightAndEasingResult);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(HierarchicalEasingChannel, WeightAndEasingResult);
+		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(EasingResult, WeightAndEasingResult);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightResult, WeightAndEasingResult);
 	}
 

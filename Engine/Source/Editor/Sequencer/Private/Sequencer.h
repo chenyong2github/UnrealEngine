@@ -1106,6 +1106,9 @@ private:
 	void ToggleAsyncEvaluation();
 	bool UsesAsyncEvaluation();
 
+	void ToggleDynamicWeighting();
+	bool UsesDynamicWeighting();
+
 	void UpdateCachedPlaybackContextAndClient();
 
 	void UpdateCachedCameraActors();

@@ -27,6 +27,11 @@
 
 class UMovieSceneSequenceTickManager;
 
+namespace UE::MovieScene
+{
+	class FSequenceWeights;
+}
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnMovieSceneSequencePlayerEvent);
 
 /**
@@ -247,6 +252,25 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
 	FQualifiedFrameTime GetEndTime() const { return FQualifiedFrameTime(StartTime + DurationFrames, PlayPosition.GetInputRate()); }
+
+	/**
+	 * Set a manual weight to be multiplied with all blendable elements within this sequence
+	 * @note: It is recommended that a weight between 0 and 1 is supplied, though this is not enforced
+	 * @note: It is recommended that either FMovieSceneSequencePlaybackSettings::DynamicWeighting should be true for this player or the asset it's playing back should be set to enable dynamic weight to avoid undesirable behavior
+	 *
+	 * @param InWeight    The weight to suuply to all elements in this sequence
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
+	void SetWeight(double InWeight);
+
+	/**
+	 * Set a manual weight to be multiplied with all blendable elements within the specified sequence
+	 * @note: It is recommended that a weight between 0 and 1 is supplied, though this is not enforced
+	 * @note: It is recommended that either FMovieSceneSequencePlaybackSettings::DynamicWeighting should be true for this player or the asset it's playing back should be set to enable dynamic weight to avoid undesirable behavior
+	 *
+	 * @param InWeight    The weight to suuply to all elements in this sequence
+	 */
+	void SetWeight(double InWeight, FMovieSceneSequenceID SequenceID);
 
 public:
 
@@ -515,6 +539,7 @@ protected:
 	virtual void ResolveBoundObjects(const FGuid& InBindingId, FMovieSceneSequenceID SequenceID, UMovieSceneSequence& Sequence, UObject* ResolutionContext, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const override;
 	virtual IMovieScenePlaybackClient* GetPlaybackClient() override { return PlaybackClient ? &*PlaybackClient : nullptr; }
 	virtual bool IsDisablingEventTriggers(FFrameTime& DisabledUntilTime) const override;
+	virtual bool HasDynamicWeighting() const override;
 	virtual void PreEvaluation(const FMovieSceneContext& Context) override;
 	virtual void PostEvaluation(const FMovieSceneContext& Context) override;
 
@@ -642,6 +667,9 @@ protected:
 
 	/** Spawn register */
 	TSharedPtr<FMovieSceneSpawnRegister> SpawnRegister;
+
+	/** Sequence Weights */
+	TUniquePtr<UE::MovieScene::FSequenceWeights> SequenceWeights;
 
 	struct FServerTimeSample
 	{

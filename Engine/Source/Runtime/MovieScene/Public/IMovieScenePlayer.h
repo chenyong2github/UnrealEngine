@@ -218,6 +218,11 @@ public:
 	virtual bool IsPreview() const { return false; }
 
 	/**
+	 * Whether this player utilizes dynamic weighting
+	 */
+	virtual bool HasDynamicWeighting() const { return false; }
+
+	/**
 	 * Called by the evaluation system when evaluation has just started.
 	 **/
 	virtual void PreEvaluation(const FMovieSceneContext& Context) {}

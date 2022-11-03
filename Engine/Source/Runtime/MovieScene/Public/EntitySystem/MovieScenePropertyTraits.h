@@ -3,6 +3,7 @@
 #pragma once
 
 #include "EntitySystem/MovieScenePropertySystemTypes.h"
+#include "EntitySystem/MovieSceneOperationalTypeConversions.h"
 #include "MovieSceneCommonHelpers.h"
 
 

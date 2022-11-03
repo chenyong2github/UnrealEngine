@@ -15,7 +15,6 @@
 FMovieSceneSubSequenceData::FMovieSceneSubSequenceData()
 	: Sequence(nullptr)
 	, HierarchicalBias(0)
-	, bHasHierarchicalEasing(false)
 {}
 
 FMovieSceneSubSequenceData::FMovieSceneSubSequenceData(const UMovieSceneSubSection& InSubSection)
@@ -27,7 +26,6 @@ FMovieSceneSubSequenceData::FMovieSceneSubSequenceData(const UMovieSceneSubSecti
 	, ParentFirstLoopStartFrameOffset(InSubSection.Parameters.FirstLoopStartFrameOffset)
 	, bCanLoop(InSubSection.Parameters.bCanLoop)
 	, HierarchicalBias(InSubSection.Parameters.HierarchicalBias)
-	, bHasHierarchicalEasing(false)
 #if WITH_EDITORONLY_DATA
 	, SectionPath(*InSubSection.GetPathNameInMovieScene())
 #endif
@@ -77,10 +75,6 @@ FMovieSceneSubSequenceData::FMovieSceneSubSequenceData(const UMovieSceneSubSecti
 	{
 		PostRollRange = UE::MovieScene::MakeDiscreteRangeFromLower( TRangeBound<FFrameNumber>::FlipInclusion(SubSectionRange.GetUpperBound()), InSubSection.GetPostRollFrames() ) * RootToSequenceTransform.LinearTransform;
 	}
-
-	const bool bHasSubSectionEaseIn  = (InSubSection.Easing.GetEaseInDuration() > 0);
-	const bool bHasSubSectionEaseOut = (InSubSection.Easing.GetEaseOutDuration() > 0);
-	bHasHierarchicalEasing = (bHasSubSectionEaseIn || bHasSubSectionEaseOut);
 }
 
 UMovieSceneSequence* FMovieSceneSubSequenceData::GetSequence() const
@@ -246,10 +240,9 @@ void FMovieSceneSequenceHierarchy::LogHierarchy() const
 
 			FString Indent;
 			Indent.Append(TEXT(" "), CurDepth * 2);
-			UE_LOG(LogMovieScene, Log, TEXT("%s%s Loop=%s HEasing=%s HBias=%d UnwarpedRange=%s Transform=%s"), 
+			UE_LOG(LogMovieScene, Log, TEXT("%s%s Loop=%s HBias=%d UnwarpedRange=%s Transform=%s"), 
 					*Indent, *CurData->GetSequence()->GetName(),
 					*LexToString(CurData->bCanLoop),
-					*LexToString(CurData->bHasHierarchicalEasing),
 					CurData->HierarchicalBias,
 					*LexToString(CurData->UnwarpedPlayRange.Value),
 					*LexToString(CurData->RootToSequenceTransform));

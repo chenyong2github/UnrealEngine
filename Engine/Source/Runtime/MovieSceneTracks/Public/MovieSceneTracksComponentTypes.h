@@ -397,6 +397,8 @@ using FTransformPropertyTraits          = TIndirectPropertyTraits<FTransform, FI
 using FEulerTransformPropertyTraits     = TIndirectPropertyTraits<FEulerTransform, FIntermediate3DTransform>;
 using FComponentTransformPropertyTraits = TDirectPropertyTraits<FIntermediate3DTransform>;
 
+using FFloatParameterTraits             = TIndirectPropertyTraits<float, double>;
+using FColorParameterTraits             = TIndirectPropertyTraits<FLinearColor, FIntermediateColor>;
 
 struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 {
@@ -414,6 +416,10 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 	TPropertyComponents<FTransformPropertyTraits> Transform;
 	TPropertyComponents<FEulerTransformPropertyTraits> EulerTransform;
 	TPropertyComponents<FComponentTransformPropertyTraits> ComponentTransform;
+
+	TPropertyComponents<FFloatParameterTraits> FloatParameter;
+	TPropertyComponents<FColorParameterTraits> ColorParameter;
+
 	TComponentTypeID<FSourceDoubleChannel> QuaternionRotationChannel[3];
 
 	TComponentTypeID<FConstraintComponentData> ConstraintChannel;

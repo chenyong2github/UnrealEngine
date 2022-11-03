@@ -11046,6 +11046,12 @@ void FSequencer::BindCommands()
 		FIsActionChecked::CreateLambda( [this]{ return this->UsesAsyncEvaluation(); } ) );
 
 	SequencerCommandBindings->MapAction(
+		Commands.ToggleDynamicWeighting,
+		FExecuteAction::CreateLambda( [this]{ this->ToggleDynamicWeighting(); } ),
+		FCanExecuteAction::CreateLambda( []{ return true; } ),
+		FIsActionChecked::CreateLambda( [this]{ return this->UsesDynamicWeighting(); } ) );
+
+	SequencerCommandBindings->MapAction(
 		Commands.ToggleKeepCursorInPlaybackRangeWhileScrubbing,
 		FExecuteAction::CreateLambda([this] { Settings->SetKeepCursorInPlayRangeWhileScrubbing(!Settings->ShouldKeepCursorInPlayRangeWhileScrubbing()); }),
 		FCanExecuteAction::CreateLambda([] { return true; }),
@@ -11743,6 +11749,24 @@ void FSequencer::ToggleAsyncEvaluation()
 bool FSequencer::UsesAsyncEvaluation()
 {
 	return !EnumHasAnyFlags(GetRootMovieSceneSequence()->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation);
+}
+
+void FSequencer::ToggleDynamicWeighting()
+{
+	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
+
+	EMovieSceneSequenceFlags NewFlags = Sequence->GetFlags();
+	NewFlags ^= EMovieSceneSequenceFlags::DynamicWeighting;
+
+	FScopedTransaction Transaction(EnumHasAnyFlags(NewFlags, EMovieSceneSequenceFlags::DynamicWeighting) ? LOCTEXT("DisableDynamicWeighting", "Disable Dynamic Weighting") : LOCTEXT("EnableDynamicWeighting", "Enable Dynamic Weighting"));
+
+	Sequence->Modify();
+	Sequence->SetSequenceFlags(NewFlags);
+}
+
+bool FSequencer::UsesDynamicWeighting()
+{
+	return EnumHasAnyFlags(GetFocusedMovieSceneSequence()->GetFlags(), EMovieSceneSequenceFlags::DynamicWeighting);
 }
 
 #undef LOCTEXT_NAMESPACE

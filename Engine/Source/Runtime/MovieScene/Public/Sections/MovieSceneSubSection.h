@@ -12,6 +12,7 @@
 #include "Evaluation/MovieSceneSectionParameters.h"
 #include "Evaluation/MovieSceneSequenceHierarchy.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "GameFramework/Actor.h"
 #include "HAL/Platform.h"
 #include "HAL/PlatformCrt.h"
@@ -61,6 +62,7 @@ struct FSubSequenceInstanceDataParams
 UCLASS(BlueprintType, config = EditorPerProjectUserSettings)
 class MOVIESCENE_API UMovieSceneSubSection
 	: public UMovieSceneSection
+	, public IMovieSceneEntityProvider
 {
 	GENERATED_BODY()
 
@@ -154,6 +156,9 @@ public:
 protected:
 
 	void BuildDefaultSubSectionComponents(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) const;
+
+	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
+	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
 
 public:
 

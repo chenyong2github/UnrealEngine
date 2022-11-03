@@ -4,6 +4,7 @@
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/MovieSceneEntityMutations.h"
 
 #include "Evaluation/MovieSceneEvaluationField.h"
 
@@ -246,6 +247,73 @@ void FEntityLedger::TagGarbage(UMovieSceneEntitySystemLinker* Linker)
 			}
 			It.RemoveCurrent();
 		}
+	}
+}
+
+bool FEntityLedger::Contains(UMovieSceneEntitySystemLinker* Linker, const FEntityComponentFilter& Filter) const
+{
+	bool bResult = false;
+
+	auto Visit = [&Filter, &bResult, Linker](FMovieSceneEntityID EntityID)
+	{
+		bResult = Filter.Match(Linker->EntityManager.GetEntityType(EntityID));
+	};
+
+	for (FMovieSceneEntityID EntityID : OneShotEntities)
+	{
+		Visit(EntityID);
+		Linker->EntityManager.IterateChildren_ParentFirst(EntityID, Visit);
+
+		if (bResult)
+		{
+			return true;
+		}
+	}
+
+	for (const TPair<FMovieSceneEvaluationFieldEntityKey, FImportedEntityData>& Pair : ImportedEntities)
+	{
+		Visit(Pair.Value.EntityID);
+		Linker->EntityManager.IterateChildren_ParentFirst(Pair.Value.EntityID, Visit);
+
+		if (bResult)
+		{
+			return true;
+		}
+	}
+
+	return bResult;
+}
+
+void FEntityLedger::MutateAll(UMovieSceneEntitySystemLinker* Linker, const FEntityComponentFilter& Filter, const IMovieScenePerEntityMutation& Mutation) const
+{
+	auto Visit = [&Filter, &Mutation, Linker](FMovieSceneEntityID EntityID)
+	{
+		const FComponentMask& ExistingType = Linker->EntityManager.GetEntityType(EntityID);
+		if (Filter.Match(ExistingType))
+		{
+			FComponentMask NewType = ExistingType;
+			Mutation.CreateMutation(&Linker->EntityManager, &NewType);
+
+			if (!NewType.CompareSetBits(ExistingType))
+			{
+				Linker->EntityManager.ChangeEntityType(EntityID, NewType);
+
+				FEntityInfo EntityInfo = Linker->EntityManager.GetEntity(EntityID);
+				Mutation.InitializeEntities(EntityInfo.Data.AsRange(), NewType);
+			}
+		}
+	};
+
+	for (FMovieSceneEntityID EntityID : OneShotEntities)
+	{
+		Visit(EntityID);
+		Linker->EntityManager.IterateChildren_ParentFirst(EntityID, Visit);
+	}
+
+	for (const TPair<FMovieSceneEvaluationFieldEntityKey, FImportedEntityData>& Pair : ImportedEntities)
+	{
+		Visit(Pair.Value.EntityID);
+		Linker->EntityManager.IterateChildren_ParentFirst(Pair.Value.EntityID, Visit);
 	}
 }
 
