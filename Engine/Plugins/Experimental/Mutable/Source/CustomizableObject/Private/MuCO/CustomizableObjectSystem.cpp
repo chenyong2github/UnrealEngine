@@ -744,7 +744,7 @@ void UpdateSkeletalMesh(UCustomizableObjectInstance* CustomizableObjectInstance)
 		{
 			MUTABLE_CPUPROFILER_SCOPE(UpdateSkeletalMesh_UpdatedDelegate);
 
-			CustomizableObjectInstance->Updated(EUpdateResult::Success);
+			CustomizableObjectInstance->Updated(CustomizableObjectInstance->SkeletalMeshStatus == ESkeletalMeshState::Correct ? EUpdateResult::Success : EUpdateResult::Error);
 
 #if WITH_EDITOR
 			CustomizableObjectInstance->InstanceUpdated = true;
@@ -776,76 +776,59 @@ void UpdateSkeletalMesh(UCustomizableObjectInstance* CustomizableObjectInstance)
 }
 
 
-void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjectInstance* Public, FMutableQueueElem::EQueuePriorityType Priority)
+void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjectInstance& Instance, FMutableQueueElem::EQueuePriorityType Priority)
 {
 	MUTABLE_CPUPROFILER_SCOPE(FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh);
 
 	check(IsInGameThread());
+	
+	const FString CurrentState = Instance.GetCurrentState();
+	const FParameterUIData* State = Instance.GetCustomizableObject()->StateUIDataMap.Find(CurrentState);
+	const bool bNeverStream = State ? State->bDontCompressRuntimeTextures : false;
+	const bool bUseMipmapStreaming = !bNeverStream;
+	int32 MipsToSkip = 0; // 0 means all mips
 
-	if (!Public ||
-		!Public->IsValidLowLevel())
+	if (bUseMipmapStreaming && EnableMutableProgressiveMipStreaming)
 	{
-		Public->Updated(EUpdateResult::Error);
-		return;
+		MipsToSkip = 255; // This means skip all possible mips until only UTexture::GetStaticMinTextureResidentMipCount() are left
 	}
 	
-	if (UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
-		CustomizableObject &&
-		!CustomizableObject->IsLocked())
+	const TSharedPtr<FMutableOperation> Operation = MakeShared<FMutableOperation>(FMutableOperation::CreateInstanceUpdate(&Instance, bNeverStream, MipsToSkip));
+
+	Instance.GetPrivate()->SaveMinMaxLODToLoad(&Instance);
+
+	const FDescriptorRuntimeHash UpdateDescriptorHash = Instance.GetUpdateDescriptorRuntimeHash();
+
+	if (const FMutableQueueElem* QueueElem = MutableOperationQueue.Get(&Instance))
 	{
-		FString CurrentState = Public->GetCurrentState();
-		FParameterUIData* State = CustomizableObject->StateUIDataMap.Find(CurrentState);
-		bool bNeverStream = State ? State->bDontCompressRuntimeTextures : false;
-		const bool bUseMipmapStreaming = !bNeverStream;
-		int32 MipsToSkip = 0; // 0 means all mips
-
-		if (bUseMipmapStreaming && EnableMutableProgressiveMipStreaming)
+		if (const TSharedPtr<FMutableOperation>& QueuedOperation = QueueElem->Operation;
+			QueuedOperation &&
+			QueuedOperation->Type == FMutableOperation::EOperationType::Update &&
+			UpdateDescriptorHash.IsSubset(QueuedOperation->InstanceDescriptorRuntimeHash))
 		{
-			MipsToSkip = 255; // This means skip all possible mips until only UTexture::GetStaticMinTextureResidentMipCount() are left
+			return; // The the requested update is equal to the last enqueued update.
 		}
-		
-		const TSharedPtr<FMutableOperation> Operation = MakeShared<FMutableOperation>(FMutableOperation::CreateInstanceUpdate(Public, bNeverStream, MipsToSkip));
+	}
 
-		Public->GetPrivate()->SaveMinMaxLODToLoad(Public);
+	if (CurrentMutableOperation &&
+		CurrentMutableOperation->Type == FMutableOperation::EOperationType::Update &&
+		UpdateDescriptorHash.IsSubset(CurrentMutableOperation->InstanceDescriptorRuntimeHash))
+	{
+		return; // The the requested update is equal to the running update.
+	}
 
-		// Skip the update if the Instance has the same descriptor (pending or applied).
-		// If there is a hash collision, at worse, we would add an unnecessary update.
-		{
-			const FDescriptorRuntimeHash UpdateDescriptorHash = Public->GetUpdateDescriptorRuntimeHash();
+	// These delegates must be called at the end of the begin update.
+	Instance.BeginUpdateDelegate.Broadcast(&Instance);
+	Instance.BeginUpdateNativeDelegate.Broadcast(&Instance);
 
-			if (const FMutableQueueElem* QueueElem = MutableOperationQueue.Get(Public))
-			{
-				if (const TSharedPtr<FMutableOperation>& QueuedOperation = QueueElem->Operation;
-					QueuedOperation &&
-					QueuedOperation->Type == FMutableOperation::EOperationType::Update &&
-					UpdateDescriptorHash.IsSubset(QueuedOperation->InstanceDescriptorRuntimeHash))
-				{
-					return;
-				}
-			}
-		
-			if (CurrentMutableOperation &&
-				CurrentMutableOperation->Type == FMutableOperation::EOperationType::Update &&
-				UpdateDescriptorHash.IsSubset(CurrentMutableOperation->InstanceDescriptorRuntimeHash))
-			{
-				return;
-			}
-			
-			if (UpdateDescriptorHash.IsSubset(Public->GetDescriptorRuntimeHash()))
-			{
-				UpdateSkeletalMesh(Public);
-				return;
-			}
-		}
-
-		MutableOperationQueue.Enqueue(FMutableQueueElem::Create(Operation, Priority, Public->GetPrivate()->MinSquareDistFromComponentToPlayer));
-
-		Public->BeginUpdateDelegate.Broadcast(Public);
-		Public->BeginUpdateNativeDelegate.Broadcast(Public);
+	if (UpdateDescriptorHash.IsSubset(Instance.GetDescriptorRuntimeHash()))
+	{
+		Instance.SkeletalMeshStatus = ESkeletalMeshState::Correct; // TODO GMT MTBL-1033 should not be here. Move to UCustomizableObjectInstance::Updated
+		UpdateSkeletalMesh(&Instance);
 	}
 	else
 	{
-		Public->Updated(EUpdateResult::Error);
+		MutableOperationQueue.Enqueue(FMutableQueueElem::Create(Operation, Priority, Instance.GetPrivate()->MinSquareDistFromComponentToPlayer));
 	}
 }
 
@@ -2328,11 +2311,11 @@ bool UCustomizableObjectSystem::Tick(float DeltaTime)
 		{
 			if (CustomizableObjectInstance->GetPrivate()->HasCOInstanceFlags(UsedByComponentInPlay))
 			{
-				CustomizableObjectInstance->GetPrivate()->TickUpdateCloseCustomizableObjects(*CustomizableObjectInstance);
+				CustomizableObjectInstance->GetPrivate()->TickUpdateCloseCustomizableObjects(**CustomizableObjectInstance);
 			}
 			else if (CustomizableObjectInstance->GetPrivate()->HasCOInstanceFlags(UsedByComponent))
 			{
-				CustomizableObjectInstance->GetPrivate()->UpdateInstanceIfNotGenerated(*CustomizableObjectInstance, true);
+				CustomizableObjectInstance->GetPrivate()->UpdateInstanceIfNotGenerated(**CustomizableObjectInstance);
 			}
 
 			CustomizableObjectInstance->GetPrivate()->ClearCOInstanceFlags((ECOInstanceFlags)(UsedByComponent | UsedByComponentInPlay));

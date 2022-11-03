@@ -25,7 +25,7 @@ class FMutableOperation
 {
 	/** Instance parameters at the time of the operation request. */
 	mu::ParametersPtr Parameters; 
-
+	
 	bool bBuildParameterDecorations = false;
 	bool bMeshNeedsUpdate = false;
 
@@ -70,6 +70,9 @@ public:
 	//! This is used to calculate stats.
 	double StartUpdateTime = 0.0;
 
+	/** Instance optimization state. */
+	int32 State;
+	
 	//!
 	bool IsBuildParameterDecorations() const
 	{
@@ -678,7 +681,7 @@ public:
 
 
 	// Init the async Skeletal Mesh creation/update
-	void InitUpdateSkeletalMesh(UCustomizableObjectInstance* Public, FMutableQueueElem::EQueuePriorityType Priority);
+	void InitUpdateSkeletalMesh(UCustomizableObjectInstance& Public, FMutableQueueElem::EQueuePriorityType Priority);
 		
 	// Init an async and safe release of the UE4 and Mutable resources used by the instance without actually destroying the instance, for example if it's very far away
 	void InitDiscardResourcesSkeletalMesh(UCustomizableObjectInstance* InCustomizableObjectInstance);

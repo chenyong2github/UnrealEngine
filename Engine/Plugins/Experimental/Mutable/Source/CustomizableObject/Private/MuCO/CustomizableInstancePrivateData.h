@@ -200,8 +200,8 @@ public:
 	/** See FCustomizableObjectInstanceDescriptor::ReloadParameters(...). */
 	void ReloadParameters(UCustomizableObjectInstance* Public);
 
-	void TickUpdateCloseCustomizableObjects(UCustomizableObjectInstance* Public);
-	void UpdateInstanceIfNotGenerated(UCustomizableObjectInstance* Public, bool bAsync);
+	void TickUpdateCloseCustomizableObjects(UCustomizableObjectInstance& Public);
+	void UpdateInstanceIfNotGenerated(UCustomizableObjectInstance& Public);
 
 	// Returns true if success (?)
 	bool UpdateSkeletalMesh_PostBeginUpdate0(UCustomizableObjectInstance* Public, const TSharedPtr<FMutableOperationData>& OperationData);
@@ -230,8 +230,7 @@ public:
 	// The following method is basically copied from PostEditChangeProperty and/or SkeletalMesh.cpp to be able to replicate PostEditChangeProperty without the editor
 	void PostEditChangePropertyWithoutEditor(USkeletalMesh* SkeletalMesh);
 	
-	void DoUpdateSkeletalMeshAsync(UCustomizableObjectInstance* Instance, FMutableQueueElem::EQueuePriorityType Priority = FMutableQueueElem::EQueuePriorityType::Low);
-	void DoUpdateSkeletalMesh(UCustomizableObjectInstance* Instance, bool bAsync, bool bIsCloseDistTick=false, bool bOnlyUpdateIfNotGenerated=false, bool bIgnoreCloseDist=false, bool bForceHighPriority = false);
+	void DoUpdateSkeletalMesh(UCustomizableObjectInstance& Instance, bool bIsCloseDistTick=false, bool bOnlyUpdateIfNotGenerated=false, bool bIgnoreCloseDist=false, bool bForceHighPriority = false);
 
 	void DiscardResourcesAndSetReferenceSkeletalMesh(UCustomizableObjectInstance* Public);
 

@@ -398,7 +398,7 @@ void FCustomizableObjectInstanceEditor::UpdatePreviewVisibility()
 {
 	for (UDebugSkelMeshComponent* PreviewSkeletalMeshComponent : PreviewSkeletalMeshComponents)
 	{
-		if (CustomizableObjectInstance->SkeletalMeshStatus != ESkeletalMeshState::UpdateError)
+		if (CustomizableObjectInstance->SkeletalMeshStatus == ESkeletalMeshState::Correct)
 		{
 			PreviewSkeletalMeshComponent->SetVisibility(true, true);
 		}
