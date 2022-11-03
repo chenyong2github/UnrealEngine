@@ -2260,6 +2260,11 @@ bool FActorBrowsingMode::CompareItemWithClassName(SceneOutliner::FilterBarType I
 	{
 		AActor* Actor = ActorItem->Actor.Get();
 
+		if(!Actor)
+		{
+			return false;
+		}
+
 		FTopLevelAssetPath AssetClassPath = Actor->GetClass()->GetClassPathName();
 
 		// For Blueprints, we check both the parent type (e.g Pawn/Actor etc) and the Blueprint class itself
