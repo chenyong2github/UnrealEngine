@@ -24,6 +24,15 @@ void MainVS(
 
 	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
 
+#if VF_PER_PIXEL_HEIGHTMAP
+	if (HasVertexFactoryPerPixelHeight())
+	{
+		// Special case PerPixel Height for Landscape.
+		// Remove PerVertex Height and apply in Pixel Shader.
+		VFIntermediates.LocalPosition.z = 0;
+	}
+#endif
+
 	float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
 	float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);	
 	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
@@ -66,6 +75,17 @@ void FPixelShaderInOut_MainPS(
 
 	float4 ScreenPosition = SvPositionToResolvedScreenPosition(In.SvPosition);
 	float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(In.SvPosition);
+
+#if VF_PER_PIXEL_HEIGHTMAP
+	if (HasVertexFactoryPerPixelHeight())
+	{
+		// Special case PerPixel Height for Landscape.
+		// Assumes Heightmap is camera aligned.
+		float3 LocalPositionDelta = float3(0, 0, GetVertexFactoryPerPixelHeight(Interpolants));
+		TranslatedWorldPosition += TransformLocalVectorToWorld(MaterialParameters, LocalPositionDelta);
+	}
+#endif
+
 	CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, In.SvPosition, ScreenPosition, In.bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
 
 #if VIRTUAL_TEXTURE_OUTPUT

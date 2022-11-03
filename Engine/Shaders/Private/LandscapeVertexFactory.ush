@@ -370,6 +370,21 @@ float3x3 VertexFactoryGetPerPixelTangentBasis(FVertexFactoryInterpolantsVSToPS I
 	return Result;
 }
 
+/** Lookup per-pixel height from heightmap texture */
+#define VF_PER_PIXEL_HEIGHTMAP 1
+
+bool HasVertexFactoryPerPixelHeight()
+{
+	return LandscapeParameters.VirtualTexturePerPixelHeight != 0;
+}
+
+float GetVertexFactoryPerPixelHeight(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	// Use NormalmapTextureSampler for bilinear (HeightmapTextureSampler is usually point).
+	float4 SampleValue = LandscapeParameters.HeightmapTexture.Sample(LandscapeParameters.NormalmapTextureSampler, Interpolants.WeightHeightMapTexCoord.zw);
+	return DecodePackedHeight(SampleValue.xy);
+}
+
 /** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
 FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVSToPS Interpolants, float4 SvPosition)
 {
