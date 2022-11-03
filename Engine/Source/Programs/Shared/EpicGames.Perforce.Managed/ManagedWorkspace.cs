@@ -826,7 +826,65 @@ namespace EpicGames.Perforce.Managed
 					contents = await TryLoadClientContentsAsync(cacheFile, streamName, cancellationToken);
 					if (contents == null)
 					{
-						contents = await FindAndSaveClientContentsAsync(perforce, streamName, changeNumber, cacheFile, cancellationToken);
+						contents = await FindAndSaveClientContentsAsync(perforce, streamName, changeNumber, cacheFile, true, cancellationToken);
+					}
+				}
+
+				// Sync all the appropriate files
+				await RemoveFilesFromWorkspaceAsync(contents, cancellationToken);
+				await AddFilesToWorkspaceAsync(perforce, contents, fakeSync, cancellationToken);
+			}
+
+			_logger.LogInformation("Completed in {ElapsedTime}s", $"{timer.Elapsed.TotalSeconds:0.0}");
+		}
+		
+		/// <summary>
+		/// Switches to the given stream
+		/// </summary>
+		/// <param name="perforce">The perforce connection</param>
+		/// <param name="streamName">Name of the stream to sync</param>
+		/// <param name="changeNumber">Changelist number to sync. -1 to sync to latest.</param>
+		/// <param name="view">View of the workspace</param>
+		/// <param name="removeUntracked">Whether to remove untracked files from the workspace</param>
+		/// <param name="fakeSync">Whether to simulate the syncing operation rather than actually getting files from the server</param>
+		/// <param name="cacheFile">If set, uses the given file to cache the contents of the workspace. This can improve sync times when multiple machines sync the same workspace.</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		public async Task SyncWithoutHaveTableAsync(IPerforceConnection perforce, string streamName, int changeNumber, IReadOnlyList<string> view, bool removeUntracked, bool fakeSync, FileReference? cacheFile, CancellationToken cancellationToken)
+		{
+			Stopwatch timer = Stopwatch.StartNew();
+			if (changeNumber == -1)
+			{
+				_logger.LogInformation("Syncing without have-table to {StreamName} at latest", streamName);
+			}
+			else
+			{
+				_logger.LogInformation("Syncing without have-table to {StreamName} at CL {CL}", streamName, changeNumber);
+			}
+
+			using (_logger.WithProperty("useHaveTable", true).BeginScope())
+			using (_logger.BeginIndentScope("  "))
+			{
+				// Update the client to the current stream
+				await UpdateClientAsync(perforce, streamName, cancellationToken);
+
+				// Get the latest change number
+				if (changeNumber == -1)
+				{
+					changeNumber = await GetLatestClientChangeAsync(perforce, cancellationToken);
+				}
+
+				// Update the state of the current stream, if necessary
+				StreamSnapshot? contents;
+				if (cacheFile == null)
+				{
+					contents = await FindClientContentsWithoutHaveTableAsync(perforce, changeNumber, cancellationToken);
+				}
+				else
+				{
+					contents = await TryLoadClientContentsAsync(cacheFile, streamName, cancellationToken);
+					if (contents == null)
+					{
+						contents = await FindAndSaveClientContentsAsync(perforce, streamName, changeNumber, cacheFile, false, cancellationToken);
 					}
 				}
 
@@ -1457,11 +1515,11 @@ namespace EpicGames.Perforce.Managed
 
 				// Create the workspace, and add records for all the files. Exclude deleted files with digest = null.
 				List<string> arguments = new List<string>();
-				arguments.Add("-Ol");
-				arguments.Add("-Op");
-				arguments.Add("-Os");
-				arguments.Add("-Rh");
-				arguments.Add("-T");
+				arguments.Add("-Ol"); // Output fileSize and digest field
+				arguments.Add("-Op"); // Output clientFile field in both server and local path syntax
+				arguments.Add("-Os"); // Shorten output by excluding client workspace data (for instance, the clientFile field).
+				arguments.Add("-Rh"); // Limit output to files on your have list;
+				arguments.Add("-T"); // Include only the fields listed below
 				arguments.Add(String.Join(",", FStatIndexedRecord.FieldNames));
 				arguments.Add($"//{perforceClient.Settings.ClientName}/...@{changeNumber}");
 				await perforceClient.RecordCommandAsync("fstat", arguments, null, HandleRecord, cancellationToken);
@@ -1470,6 +1528,73 @@ namespace EpicGames.Perforce.Managed
 				scope.Progress = $"({timer.Elapsed.TotalSeconds:0.0}s)";
 			}
 
+			return new StreamSnapshotFromMemory(builder);
+		}
+		
+		class FStatRecordWithoutHaveTable
+		{
+			// Note: This enum is used for indexing an array of fields, and member names much match P4 field names (including case).
+			enum Field
+			{
+				code,
+				depotFile,
+				headType,
+				headRev,
+				fileSize,
+				digest
+			}
+
+			public static readonly string[] FieldNames = Enum.GetNames(typeof(Field));
+			public static readonly Utf8String[] Utf8FieldNames = Array.ConvertAll(FieldNames, x => new Utf8String(x));
+
+			public PerforceValue[] Values { get; } = new PerforceValue[FieldNames.Length];
+
+			public Utf8String DepotFile => Values[(int)Field.depotFile].GetString();
+
+			public Utf8String HeadType => Values[(int)Field.headType].GetString();
+
+			public int HeadRev => Values[(int)Field.headRev].AsInteger();
+
+			public long FileSize => Values[(int)Field.fileSize].AsLong();
+
+			public Utf8String Digest => Values[(int)Field.digest].GetString();
+		}
+		
+		/// <summary>
+		/// Get the contents of the client without using the have table
+		/// </summary>
+		/// <param name="perforceClient">The client connection</param>
+		/// <param name="changeNumber">The change number being synced. This must be specified in order to get the digest at the correct revision.</param>
+		/// <param name="cancellationToken">Cancellation token</param>
+		public async Task<StreamSnapshotFromMemory> FindClientContentsWithoutHaveTableAsync(IPerforceConnection perforceClient, int changeNumber, CancellationToken cancellationToken)
+		{
+			DepotStreamTreeBuilder builder = new ($"//{perforceClient.Settings.ClientName}/");
+			
+			// Re-use a single class instance as there can be millions of records
+			FStatRecordWithoutHaveTable record = new ();
+			void HandleRecord(PerforceRecord rawRecord)
+			{
+				// Copy into the values array
+				rawRecord.CopyInto(FStatRecordWithoutHaveTable.Utf8FieldNames, record.Values);
+				if (record.Digest.IsEmpty) { return; }
+				
+				Md5Hash md5Hash = Md5Hash.Parse(record.Digest);
+				FileContentId fileContentId = new (md5Hash, record.HeadType);
+				builder.AddDepotFile(new StreamFile(record.DepotFile, record.FileSize, fileContentId, record.HeadRev));
+			}
+
+			string fileSpec = $"//{perforceClient.Settings.ClientName}/...@{changeNumber}";
+			List<string> arguments = new ();
+			arguments.Add("-Ol"); // Output fileSize and digest field
+			arguments.Add("-Os"); // Shorten output by excluding client workspace data (for instance, the clientFile field).
+			arguments.Add("-F"); // Filter any files not existing at current revision (filter below)
+			arguments.Add("^headAction=delete&^headAction=move/delete&^headAction=purge");
+			arguments.Add("-T"); // Include only the fields listed below
+			arguments.Add(String.Join(",", FStatRecordWithoutHaveTable.FieldNames));
+			arguments.Add(fileSpec);
+
+			await perforceClient.RecordCommandAsync("fstat", arguments, null, HandleRecord, cancellationToken);
+			
 			return new StreamSnapshotFromMemory(builder);
 		}
 
@@ -1503,11 +1628,14 @@ namespace EpicGames.Perforce.Managed
 		/// <param name="basePath">Base path for the stream</param>
 		/// <param name="changeNumber">The change number being synced. This must be specified in order to get the digest at the correct revision.</param>
 		/// <param name="cacheFile">Location of the file to save the cached contents</param>
+		/// <param name="useHaveTable">Use client's have table when resolving contents</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Contents of the workspace</returns>
-		private async Task<StreamSnapshotFromMemory> FindAndSaveClientContentsAsync(IPerforceConnection perforceClient, Utf8String basePath, int changeNumber, FileReference cacheFile, CancellationToken cancellationToken)
+		private async Task<StreamSnapshotFromMemory> FindAndSaveClientContentsAsync(IPerforceConnection perforceClient, Utf8String basePath, int changeNumber, FileReference cacheFile, bool useHaveTable, CancellationToken cancellationToken)
 		{
-			StreamSnapshotFromMemory contents = await FindClientContentsAsync(perforceClient, changeNumber, cancellationToken);
+			StreamSnapshotFromMemory contents = useHaveTable
+				? await FindClientContentsAsync(perforceClient, changeNumber, cancellationToken)
+				: await FindClientContentsWithoutHaveTableAsync(perforceClient, changeNumber, cancellationToken);
 
 			using (Trace("WriteMetadata"))
 			using (ILoggerProgress scope = _logger.BeginProgressScope($"Saving metadata to {cacheFile}..."))

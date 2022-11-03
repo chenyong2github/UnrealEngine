@@ -82,6 +82,12 @@ namespace EpicGames.Perforce.Managed
 			writer.WriteUtf8String(s_typeField, ContentId.Type);
 			writer.WriteInteger(s_revisionField, Revision);
 		}
+
+		/// <inheritdoc/>
+		public override string ToString()
+		{
+			return $"StreamFile({Path}#{Revision} Len={Length} Digest={ContentId.Digest} Type={ContentId.Type})";
+		}
 	}
 
 	/// <summary>

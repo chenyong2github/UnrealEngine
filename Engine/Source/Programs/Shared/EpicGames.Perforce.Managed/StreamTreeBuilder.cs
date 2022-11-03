@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using EpicGames.Core;
 
 namespace EpicGames.Perforce.Managed
@@ -119,6 +120,99 @@ namespace EpicGames.Perforce.Managed
 				basePathToCount.TryGetValue(basePath, out int count);
 				basePathToCount[basePath] = count + 1;
 			}
+		}
+	}
+
+	/// <summary>
+	/// Variant of StreamTreeBuilder which caches path fragments lookups for faster building
+	/// when there's lots of files.
+	/// </summary>
+	public class DepotStreamTreeBuilder : StreamTreeBuilder
+	{
+		/// <summary>
+		/// List of the last path fragments
+		/// Since file records that are returned are typically sorted by their position in the tree,
+		/// we can save quite a lot of processing by reusing as many fragments as possible
+		/// </summary>
+		private readonly List<(Utf8String, StreamTreeBuilder)> _fragments = new ();
+
+		private readonly Utf8String _expectedPathPrefix;
+
+		public DepotStreamTreeBuilder(string expectedPathPrefix)
+		{
+			if (expectedPathPrefix[^1] != '/')
+			{
+				throw new ArgumentException("Prefix must end with a slash");
+			}
+			_expectedPathPrefix = expectedPathPrefix;
+		}
+
+		public void AddDepotFile(StreamFile file)
+		{
+			if (!file.Path.StartsWith(_expectedPathPrefix))
+			{
+				throw new InvalidDataException($"File path ('{file.Path}') does not begin with prefix ('{_expectedPathPrefix}')");
+			}
+
+			ReadOnlySpan<byte> pathSpan = file.Path.Span;
+
+			// Parse out the data
+			StreamTreeBuilder lastStreamDirectory = this;
+
+			// Try to match up as many fragments from the last file.
+			int fragmentMinIdx = _expectedPathPrefix.Length;
+			for (int fragmentIdx = 0; ; fragmentIdx++)
+			{
+				// Find the next directory separator
+				int fragmentMaxIdx = fragmentMinIdx;
+				while (fragmentMaxIdx < pathSpan.Length && pathSpan[fragmentMaxIdx] != '/')
+				{
+					fragmentMaxIdx++;
+				}
+				if (fragmentMaxIdx == pathSpan.Length)
+				{
+					_fragments.RemoveRange(fragmentIdx, _fragments.Count - fragmentIdx);
+					break;
+				}
+
+				// Get the fragment text
+				Utf8String fragment = new (file.Path.Memory.Slice(fragmentMinIdx, fragmentMaxIdx - fragmentMinIdx));
+
+				// If this fragment matches the same fragment from the previous iteration, take the last stream directory straight away
+				if (fragmentIdx < _fragments.Count)
+				{
+					if (_fragments[fragmentIdx].Item1 == fragment)
+					{
+						lastStreamDirectory = _fragments[fragmentIdx].Item2;
+					}
+					else
+					{
+						_fragments.RemoveRange(fragmentIdx, _fragments.Count - fragmentIdx);
+					}
+				}
+
+				// Otherwise, find or add a directory for this fragment into the last directory
+				if (fragmentIdx >= _fragments.Count)
+				{
+					Utf8String unescapedFragment = PerforceUtils.UnescapePath(fragment);
+
+					StreamTreeBuilder? nextStreamDirectory;
+					if (!lastStreamDirectory.NameToTreeBuilder.TryGetValue(unescapedFragment, out nextStreamDirectory))
+					{
+						nextStreamDirectory = new StreamTreeBuilder();
+						lastStreamDirectory.NameToTreeBuilder.Add(unescapedFragment, nextStreamDirectory);
+					}
+					lastStreamDirectory = nextStreamDirectory;
+
+					_fragments.Add((fragment, lastStreamDirectory));
+				}
+
+				// Move to the next fragment
+				fragmentMinIdx = fragmentMaxIdx + 1;
+			}
+			
+			Utf8String fileName = PerforceUtils.UnescapePath(file.Path.Slice(fragmentMinIdx));
+			lastStreamDirectory.NameToFile.Add(fileName, file);
 		}
 	}
 }
