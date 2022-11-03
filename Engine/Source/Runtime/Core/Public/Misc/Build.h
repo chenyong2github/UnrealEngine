@@ -39,30 +39,6 @@
 	#define UE_SERVER					0
 #endif
 
-/**
- *   Whether compiling for a trusted dedicated server or not.
- */
-#ifndef UE_SERVER_TRUSTED
-	#define UE_SERVER_TRUSTED			0
-#endif
-
-/**
- *   Whether compiling for an untrusted dedicated server or not.
- */
-#ifndef UE_SERVER_UNTRUSTED
-	#define UE_SERVER_UNTRUSTED			0
-#endif
-
-#if UE_SERVER
-	#if UE_SERVER_TRUSTED + UE_SERVER_UNTRUSTED != 1
-		#error Exactly one of [UE_SERVER_TRUSTED UE_SERVER_UNTRUSTED] should be defined to be 1 when UE_SERVER=1
-	#endif
-#else
-	#if UE_SERVER_TRUSTED || UE_SERVER_UNTRUSTED
-		#error All of [UE_SERVER_TRUSTED UE_SERVER_UNTRUSTED] should be defined to be 0 when UE_SERVER=0
-	#endif
-#endif
-
 // Ensure that we have one, and only one build config coming from UBT
 #if UE_BUILD_DEBUG + UE_BUILD_DEVELOPMENT + UE_BUILD_TEST + UE_BUILD_SHIPPING != 1
 	#error Exactly one of [UE_BUILD_DEBUG UE_BUILD_DEVELOPMENT UE_BUILD_TEST UE_BUILD_SHIPPING] should be defined to be 1
