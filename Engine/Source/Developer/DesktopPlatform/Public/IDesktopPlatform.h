@@ -469,7 +469,7 @@ public:
 	* @param OutTokenExpiresAt	When the token expires
 	* @return true if the task completed successfully.
 	*/
-	virtual bool GetOidcAccessToken(const FString& RootDir, const FString& ProjectFileName, const FString& ProviderIdentifier, bool Unattended, FFeedbackContext* Warn, FString& OutToken, FDateTime& OutTokenExpiresAt) = 0;
+	virtual bool GetOidcAccessToken(const FString& RootDir, const FString& ProjectFileName, const FString& ProviderIdentifier, bool Unattended, FFeedbackContext* Warn, FString& OutToken, FDateTime& OutTokenExpiresAt, bool& WasInteractiveLogin) = 0;
 
 	/**
 	* Get the status of a access token for use by OIDC compliant Identity Providers
