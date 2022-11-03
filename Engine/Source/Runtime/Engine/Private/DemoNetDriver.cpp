@@ -5117,6 +5117,8 @@ void UDemoNetDriver::NotifyActorTornOff(AActor* Actor)
 {
 	if (IsRecording() && IsValid(Actor))
 	{
+		ForcePropertyCompare(Actor);
+
 		// Replicate one last time to the replay stream
 		ReplayHelper.ReplicateActor(Actor, ClientConnections[0], true);
 
