@@ -2722,6 +2722,25 @@ void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* 
 	}
 }
 
+FString UGeometryCollectionComponent::GetDebugInfo()
+{
+	// print the game thread side of things
+	FString DebugInfo;
+	DebugInfo += FString("RestCollection - ") + (RestCollection? RestCollection->GetName() : FString("None"));
+	DebugInfo += "\n";
+	if (RestCollection && RestCollection->GetGeometryCollection())
+	{
+		DebugInfo += RestCollection->GetGeometryCollection()->ToString();
+	}
+	DebugInfo += FString("DynamicCollection - ") + FString(DynamicCollection ? "Yes": "No");
+	DebugInfo += "\n";
+	if (DynamicCollection)
+	{
+		DebugInfo += DynamicCollection->ToString();
+	}
+	return DebugInfo;
+}
+
 FGeometryCollectionEdit::FGeometryCollectionEdit(UGeometryCollectionComponent* InComponent, GeometryCollection::EEditUpdate InEditUpdate, bool bShapeIsUnchanged)
 	: Component(InComponent)
 	, EditUpdate(InEditUpdate)
@@ -4232,19 +4251,19 @@ void UGeometryCollectionComponent::CrumbleActiveClusters()
 	}
 }
 
-void UGeometryCollectionComponent::SetAnchoredByIndex(int32 Index)
+void UGeometryCollectionComponent::SetAnchoredByIndex(int32 Index, bool bAnchored)
 {
 	if (PhysicsProxy)
 	{
-		PhysicsProxy->SetAnchored_External(Index);
+		PhysicsProxy->SetAnchoredByIndex_External(Index, bAnchored);
 	}
 }
 
-void UGeometryCollectionComponent::SetAnchoredByBox(FBox WorldSpaceBox)
+void UGeometryCollectionComponent::SetAnchoredByBox(FBox WorldSpaceBox, bool bAnchored)
 {
 	if (PhysicsProxy)
 	{
-		PhysicsProxy->SetAnchored_External(WorldSpaceBox);
+		PhysicsProxy->SetAnchoredByBox_External(WorldSpaceBox, bAnchored);
 	}
 }
 

@@ -533,6 +533,11 @@ public:
 	*/
 	FString ToString() const;
 
+	/**
+	* Get allocated memory size 
+	*/
+	SIZE_T GetAllocatedSize() const;
+
 private:
 
 	/****

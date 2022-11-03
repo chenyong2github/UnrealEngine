@@ -168,6 +168,11 @@ namespace Chaos
 			return OutHash;
 		}
 
+		SIZE_T GetAllocatedSize() const
+		{
+			return MX.GetAllocatedSize();
+		}
+
 #if PARTICLE_ITERATOR_RANGED_FOR_CHECK
 		int32 DirtyValidationCount() const { return MDirtyValidationCount; }
 #endif

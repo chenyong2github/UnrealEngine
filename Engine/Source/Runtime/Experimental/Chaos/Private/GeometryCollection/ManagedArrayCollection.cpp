@@ -535,7 +535,11 @@ bool FManagedArrayCollection::IsConnected(FName StartingNode, FName TargetNode)
 #include <string>
 FString FManagedArrayCollection::ToString() const
 {
-	FString Buffer("");
+	FString Buffer("Group : Attribute [Ptr] [AllocatedSize]\n");
+
+	const TArray<FStringFormatArg> CollectionInfos = { FString::FormatAsNumber((int32)GetAllocatedSize()) };
+	Buffer += FString::Format(TEXT("*:* [n/a] [{0}]\n"), CollectionInfos);
+
 	for (FName GroupName : GroupNames())
 	{
 		Buffer += GroupName.ToString() + "\n";
@@ -544,14 +548,27 @@ FString FManagedArrayCollection::ToString() const
 			FKeyType Key = FManagedArrayCollection::MakeMapKey(AttributeName, GroupName);
 			const FValueType& Value = Map[Key];
 
-			const void* PointerAddress = static_cast<const void*>(Value.Value);
-			std::stringstream AddressStream;
-			AddressStream << PointerAddress;
+			const SIZE_T AttributeAllocatedSize = Value.Value? Value.Value->GetAllocatedSize() : 0;
+			const FString AttributeAllocatedSizeStr = FString::FormatAsNumber((int32)AttributeAllocatedSize);
 
-			Buffer += GroupName.ToString() + ":" + AttributeName.ToString() + " [" + FString(AddressStream.str().c_str()) + "]\n";
+			const TArray<FStringFormatArg> AttributeInfos = { GroupName.ToString(), AttributeName.ToString(), (uint64)Value.Value, AttributeAllocatedSizeStr };
+			Buffer += FString::Format(TEXT("{0}:{1} [{2}] [{3}]\n"), AttributeInfos);
 		}
 	}
 	return Buffer;
+}
+
+SIZE_T FManagedArrayCollection::GetAllocatedSize() const
+{
+	SIZE_T AllocatedSize = Map.GetAllocatedSize();
+	for (const TTuple<FKeyType, FValueType>& Entry : Map)
+	{
+		if (Entry.Value.Value)
+		{
+			AllocatedSize += Entry.Value.Value->GetAllocatedSize();
+		}
+	}
+	return AllocatedSize;
 }
 
 static const FName GuidName("GUID");

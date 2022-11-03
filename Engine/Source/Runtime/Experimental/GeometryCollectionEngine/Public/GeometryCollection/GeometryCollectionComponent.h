@@ -515,6 +515,12 @@ public:
 	TObjectPtr<AChaosSolverActor> ChaosSolverActor;
 
 	/**
+	* Get local bounds of the geometry collection
+	*/
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	FBox GetLocalBounds() const { return LocalBounds; }
+
+	/**
 	 * Apply an external strain to specific piece of the geometry collection
 	 * @param ItemIndex item index ( from HitResult) of the piece to apply strain on
 	 * @param Location world location of where to apply the strain
@@ -553,19 +559,19 @@ public:
 	void CrumbleActiveClusters();
 
 	/**
-	* Set a fragment or cluster to be anchored
+	* Set a piece or cluster to be anchored or not 
 	*/
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetAnchoredByIndex(int32 Index);
+	void SetAnchoredByIndex(int32 Index, bool bAnchored);
 
 	/**
-	* Set all fragments within a world bounding box to be anchored
+	* Set all pieces within a world bounding space box to be anchored or not 
 	*/
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void SetAnchoredByBox(FBox WorldSpaceBox);
+	void SetAnchoredByBox(FBox WorldSpaceBox, bool bAnchored);
 
 	/**
-	* this will remove anchors on all the pieces ( inlcuding the static and kinematic initial states ones ) of the geometry colection
+	* this will remove anchors on all the pieces ( including the static and kinematic initial states ones ) of the geometry colection
 	*/
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	void RemoveAllAnchors();
@@ -629,6 +635,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	void SetRestCollection(const UGeometryCollection * RestCollectionIn);
 
+	/** RestCollection */
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	FString GetDebugInfo();
 
 	FORCEINLINE const UGeometryCollection* GetRestCollection() const { return RestCollection; }
 

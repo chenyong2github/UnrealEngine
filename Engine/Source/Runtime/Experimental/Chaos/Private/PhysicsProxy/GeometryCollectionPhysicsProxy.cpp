@@ -1727,48 +1727,58 @@ void FGeometryCollectionPhysicsProxy::BreakActiveClusters_External()
 	}
 }
 
-void FGeometryCollectionPhysicsProxy::SetAnchored_External(int32 Index)
+static void SetParticleAnchored(Chaos::FPBDRigidsEvolution* Evolution, Chaos::FPBDRigidClusteredParticleHandle* ParticleHandle, bool bAnchored)
+{
+	if (ParticleHandle)
+	{
+		ParticleHandle->SetIsAnchored(bAnchored);
+		if (!bAnchored)
+		{
+			if (Evolution && !ParticleHandle->IsDynamic())
+			{
+				Chaos::FKinematicTarget NoKinematicTarget;
+				Evolution->SetParticleObjectState(ParticleHandle, Chaos::EObjectStateType::Dynamic);
+				Evolution->SetParticleKinematicTarget(ParticleHandle, NoKinematicTarget);
+			}
+		}
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::SetAnchoredByIndex_External(int32 Index, bool bAnchored)
 {
 	check(IsInGameThread());
 	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
 	{
-		RBDSolver->EnqueueCommandImmediate([this, Index, RBDSolver]()
+		RBDSolver->EnqueueCommandImmediate([this, Index, bAnchored, RBDSolver]()
 			{
 				Chaos::FPBDRigidsEvolution* Evolution = RBDSolver->GetEvolution();
 				if (SolverParticleHandles.IsValidIndex(Index))
 				{
-					if (FClusterHandle* ParticleHandle = SolverParticleHandles[Index])
-					{
-						ParticleHandle->SetIsAnchored(true);
-					}
+					SetParticleAnchored(Evolution, SolverParticleHandles[Index], bAnchored);
 				}
 			});
 	}
 }
 
-void FGeometryCollectionPhysicsProxy::SetAnchored_External(const FBox& WorldSpaceBox)
+void FGeometryCollectionPhysicsProxy::SetAnchoredByBox_External(const FBox& WorldSpaceBox, bool bAnchored)
 {
 	check(IsInGameThread());
 	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
 	{
 		Chaos::FAABB3 BoundsToCheck(WorldSpaceBox.Min, WorldSpaceBox.Max);
-		RBDSolver->EnqueueCommandImmediate([this, BoundsToCheck, RBDSolver]()
+		RBDSolver->EnqueueCommandImmediate([this, BoundsToCheck, bAnchored, RBDSolver]()
 			{
 				Chaos::FPBDRigidsEvolution* Evolution = RBDSolver->GetEvolution();
 				for (FClusterHandle* ParticleHandle : GetSolverParticleHandles())
 				{
-					if (ParticleHandle)
+					if (ParticleHandle && BoundsToCheck.Contains(ParticleHandle->X()))
 					{
-						if (BoundsToCheck.Contains(ParticleHandle->X()))
-						{
-							ParticleHandle->SetIsAnchored(true);
-						}
+						SetParticleAnchored(Evolution, ParticleHandle, bAnchored);
 					}
 				}
 			});
 	}
 }
-
 void FGeometryCollectionPhysicsProxy::RemoveAllAnchors_External()
 {
 	check(IsInGameThread());
@@ -1778,20 +1788,9 @@ void FGeometryCollectionPhysicsProxy::RemoveAllAnchors_External()
 		RBDSolver->EnqueueCommandImmediate([this, RBDSolver]()
 			{
 				Chaos::FPBDRigidsEvolution* Evolution = RBDSolver->GetEvolution();
-
-				// disable anchoring where relevant and collect the nodes to update
-				Chaos::FKinematicTarget NoKinematicTarget;
 				for (FClusterHandle* ParticleHandle : GetSolverParticleHandles())
 				{
-					if (ParticleHandle)
-					{
-						ParticleHandle->SetIsAnchored(false);
-						if (!ParticleHandle->IsDynamic())
-						{
-							Evolution->SetParticleObjectState(ParticleHandle, Chaos::EObjectStateType::Dynamic);
-							Evolution->SetParticleKinematicTarget(ParticleHandle, NoKinematicTarget);
-						}
-					}
+					SetParticleAnchored(Evolution, ParticleHandle, false);
 				}
 			});
 	}
