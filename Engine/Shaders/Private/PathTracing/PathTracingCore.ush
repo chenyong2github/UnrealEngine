@@ -386,6 +386,9 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			}
 		}
 #endif
+		// account for Beer's law through the currently active medium
+		// TODO: merge this with the volume raymarching?
+		PathState.PathThroughput *= select(PathState.SigmaT > 0.0, exp(-PathState.SigmaT * (HitPayload.HitT - PathState.Ray.TMin)), 1.0);
 
 		if (HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_ADDITIVE ||
 			HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT)
@@ -405,11 +408,11 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			AccumulateRadiance(PathState.Radiance, PathState.PathThroughput * HitPayload.Radiance, bIsCameraRay);
 		}
 
-		float3 Transparency = GetMaterialTransparency(HitPayload, PathState.Ray.Direction);
-
-		// account for Beer's law through the currently active medium
-		// TODO: merge this with the volume raymarching?
-		PathState.PathThroughput *= exp(-PathState.SigmaT * (HitPayload.HitT - PathState.Ray.TMin));
+		if (HitPayload.HitT == POSITIVE_INFINITY)
+		{
+			// if our hit was against an infinite light, exit now
+			break;
+		}
 
 		if (!bLastBounce)
 		{
@@ -427,14 +430,8 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			}
 		}
 
-		if (HitPayload.HitT == POSITIVE_INFINITY)
-		{
-			// if our hit was against an infinite light, exit now
-			break;
-		}
-
 		// account for local transparency change
-		PathState.PathThroughput *= Transparency;
+		PathState.PathThroughput *= GetMaterialTransparency(HitPayload, PathState.Ray.Direction);;
 
 		// prepare next step around the loop
 		// retrace the exact same ray with TMin one ulp past the hit we just found
