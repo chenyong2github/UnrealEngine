@@ -21,9 +21,12 @@ public:
 	float		Magnitude;
 	float		Center;
 
+	TextureAddress	AddressX;
+	TextureAddress	AddressY;
+
 public:
 	NANITEUTILITIES_API				FDisplacementMap();
-	NANITEUTILITIES_API				FDisplacementMap( FTextureSource& TextureSource, float InMagnitude, float InCenter );
+	NANITEUTILITIES_API				FDisplacementMap( FTextureSource& TextureSource, float InMagnitude, float InCenter, TextureAddress InAddressX, TextureAddress InAddressY );
 
 									// Bilinear filtered
 	NANITEUTILITIES_API float		Sample( FVector2f UV ) const;
@@ -39,19 +42,13 @@ private:
 	TArray64< uint8 >	SourceData;
 	TArray< FVector2f >	MipData[12];
 	
-	FORCEINLINE void Wrap( int32& x, int32& y ) const
-	{
-		x = x % SizeX;
-		y = y % SizeY;
-		x += x < 0 ? SizeX : 0;
-		y += y < 0 ? SizeY : 0;
-	}
+	void		Address( int32& x, int32& y ) const;
 };
 
 
 FORCEINLINE float FDisplacementMap::Sample( int32 x, int32 y ) const
 {
-	Wrap(x,y);
+	Address(x,y);
 
 	float Displacement = Load(x,y);
 	Displacement -= Center;
@@ -62,7 +59,7 @@ FORCEINLINE float FDisplacementMap::Sample( int32 x, int32 y ) const
 
 FORCEINLINE FVector2f FDisplacementMap::Sample( int32 x, int32 y, uint32 Level ) const
 {
-	Wrap(x,y);
+	Address(x,y);
 
 	x >>= Level;
 	y >>= Level;
@@ -119,6 +116,25 @@ FORCEINLINE FVector2f FDisplacementMap::Load( int32 x, int32 y, uint32 Level ) c
 	uint32 MipSizeY = ( ( SizeY - 1 ) >> Level ) + 1;
 
 	return MipData[ Level - 1 ][ x + y * MipSizeX ];
+}
+
+FORCEINLINE void FDisplacementMap::Address( int32& x, int32& y ) const
+{
+	if( AddressX == TA_Clamp )
+		x = FMath::Clamp( x, 0, SizeX );
+	else
+	{
+		x  = x % SizeX;
+		x += x < 0 ? SizeX : 0;
+	}
+
+	if( AddressY == TA_Clamp )
+		y = FMath::Clamp( y, 0, SizeY );
+	else
+	{
+		y  = y % SizeY;
+		y += y < 0 ? SizeY : 0;
+	}
 }
 
 } // namespace Nanite

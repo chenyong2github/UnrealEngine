@@ -675,7 +675,7 @@ FIoHash UNaniteDisplacedMesh::CreateDerivedDataKeyHash(const ITargetPlatform* Ta
 
 	FMemoryHasherBlake3 Writer;
 
-	FGuid DisplacedMeshVersionGuid(0x5E7DB989, 0x619E4CCA, 0x88D133BE, 0x2B847F10);
+	FGuid DisplacedMeshVersionGuid(0x5E01B289, 0xE19EACCA, 0x883133BE, 0x2B899C10);
 	Writer << DisplacedMeshVersionGuid;
 
 	FGuid NaniteVersionGuid = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().NANITE_DERIVEDDATA_VER);
@@ -698,6 +698,8 @@ FIoHash UNaniteDisplacedMesh::CreateDerivedDataKeyHash(const ITargetPlatform* Ta
 		{
 			FGuid TextureId = DisplacementMap.Texture->Source.GetId();
 			Writer << TextureId;
+			Writer << DisplacementMap.Texture->AddressX;
+			Writer << DisplacementMap.Texture->AddressY;
 		}
 
 		Writer << DisplacementMap.Magnitude;

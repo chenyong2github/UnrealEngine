@@ -204,6 +204,13 @@ FORCEINLINE TAffine< float, Num > Clamp( const TAffine< float, Num >& x, float M
 	float FuncMin = FMath::Clamp( xMin, Min, Max );
 	float FuncMax = FMath::Clamp( xMax, Min, Max );
 
+	if( Min <= xMin && xMax <= Max )
+		return x;
+	if( xMax <= Min )
+		return TAffine< float, Num >( Min );
+	if( xMin >= Max )
+		return TAffine< float, Num >( Max );
+
 	float Alpha = ( FuncMax - FuncMin ) / ( xMax - xMin );
 	float Gamma = 0.5f * ( 1.0f - Alpha ) * ( FuncMax + FuncMin );
 	float Delta = ( 1.0f - Alpha ) * FuncMax - Gamma;
@@ -221,8 +228,8 @@ template< uint32 Num >
 FORCEINLINE TAffine< float, Num > InvSqrt( const TAffine< float, Num >& x )
 {
 	// Using min range approximation
-	float xMin = x.GetMin();
-	float xMax = x.GetMax();
+	float xMin = FMath::Max( 1e-4f, x.GetMin() );
+	float xMax = FMath::Max( 1e-4f, x.GetMax() );
 	float FuncMin = FMath::InvSqrt( xMin );
 	float FuncMax = FMath::InvSqrt( xMax );
 
@@ -242,5 +249,5 @@ FORCEINLINE TAffine< float, Num > InvSqrt( const TAffine< float, Num >& x )
 template< typename T, uint32 Num >
 FORCEINLINE TAffine< T, Num > Normalize( const TAffine< T, Num >& x )
 {
-	return x * InvSqrt( x.SizeSquared() );
+	return x * InvSqrt( Clamp( x.SizeSquared(), 1e-4, 1.0f ) );
 }

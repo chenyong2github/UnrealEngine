@@ -13,14 +13,18 @@ FDisplacementMap::FDisplacementMap()
 	, NumLevels(1)
 	, Magnitude( 0.0f )
 	, Center( 0.0f )
+	, AddressX( TA_Wrap )
+	, AddressY( TA_Wrap )
 {
 	SourceData.Add(0);
 }
 
-FDisplacementMap::FDisplacementMap( FTextureSource& TextureSource, float InMagnitude, float InCenter )
+FDisplacementMap::FDisplacementMap( FTextureSource& TextureSource, float InMagnitude, float InCenter, TextureAddress InAddressX, TextureAddress InAddressY )
 	: NumLevels(1)
 	, Magnitude( InMagnitude )
 	, Center( InCenter )
+	, AddressX( InAddressX )
+	, AddressY( InAddressY )
 {
 	TextureSource.GetMipData( SourceData, 0 );
 

@@ -282,6 +282,8 @@ FGuid GetAggregatedId(const FNaniteDisplacedMeshParams& DisplacedMeshParams)
 		if (IsValid(DisplacementMap.Texture))
 		{
 			IdBuilder << DisplacementMap.Texture->GetPackage()->GetPersistentGuid();
+			IdBuilder << DisplacementMap.Texture->AddressX;
+			IdBuilder << DisplacementMap.Texture->AddressY;
 		}
 
 		IdBuilder << DisplacementMap.Magnitude;
