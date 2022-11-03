@@ -73,6 +73,15 @@ private:
 	/** Callback for when a user wants to jump to a certain transaction. */ 
 	void HandleGoToTransaction(const FGuid& TargetTransactionId);
 
+	/** Callback for checking if the given index is the current undo barrier index. */
+	bool HandleIsCurrentUndoBarrier(int32 InQueueIndex) const;
+
+	/** Callback for checking if the given index is the last active transaction. */
+	bool HandleIsLastTransactionIndex(int32 InQueueIndex) const;
+
+	/** Callback for when a user clicks to add or remove an undo barrier. */
+	void HandleUndoBarrierButtonClicked(int32 InQueueIndex);
+
 	/** Callback for checking whether the specified undo list row transaction is applied. */
 	bool HandleUndoListRowIsApplied( int32 QueueIndex ) const;
 

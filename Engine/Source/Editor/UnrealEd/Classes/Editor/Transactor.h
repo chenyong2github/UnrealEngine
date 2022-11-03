@@ -589,6 +589,11 @@ class UNREALED_API UTransactor : public UObject
 	virtual void ClearUndoBarriers() PURE_VIRTUAL(UTransactor::ClearUndoBarriers, );
 
 	/**
+	 * Gets the current undo barrier's position in transaction queue
+	 */
+	 virtual int32 GetCurrentUndoBarrier() const PURE_VIRTUAL(UTransactor::GetCurrentUndoBarrier(), { return INDEX_NONE; });
+
+	/**
 	 * Executes an undo transaction, undoing all actions contained by that transaction.
 	 * 
 	 * @param	bCanRedo	If false indicates that the undone transaction (and any transactions that came after it) cannot be redone

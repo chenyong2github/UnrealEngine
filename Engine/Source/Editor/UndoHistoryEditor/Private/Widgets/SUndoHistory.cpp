@@ -94,6 +94,9 @@ void SUndoHistory::Construct( const FArguments& InArgs )
 													+ SHeaderRow::Column("Title")
 														.FillWidth(80.0f)
 
+													+ SHeaderRow::Column("UndoBarrierButton")
+														.FixedWidth(50.0f)
+
 													+ SHeaderRow::Column("JumpToButton")
 														.FixedWidth(50.0f)
 												)
@@ -323,7 +326,10 @@ TSharedRef<ITableRow> SUndoHistory::HandleUndoListGenerateRow(TSharedPtr<FTransa
 {
 	return SNew(SUndoHistoryTableRow, OwnerTable)
 		.OnGotoTransactionClicked(this, &SUndoHistory::HandleGoToTransaction)
+		.OnUndoBarrierButtonClicked(this, &SUndoHistory::HandleUndoBarrierButtonClicked)
 		.IsApplied(this, &SUndoHistory::HandleUndoListRowIsApplied, TransactionInfo->QueueIndex)
+		.IsCurrentUndoBarrier(this, &SUndoHistory::HandleIsCurrentUndoBarrier, TransactionInfo->QueueIndex)
+		.IsLastTransactionIndex(this, &SUndoHistory::HandleIsLastTransactionIndex, TransactionInfo->QueueIndex)
 		.QueueIndex(TransactionInfo->QueueIndex)
 		.Transaction(TransactionInfo->GetTransaction());
 }
@@ -342,6 +348,38 @@ void SUndoHistory::HandleGoToTransaction(const FGuid& TargetTransactionId)
 	if (Transaction != nullptr)
 	{
 		HandleUndoListJumpToTransaction(*Transaction);
+	}
+}
+
+bool SUndoHistory::HandleIsCurrentUndoBarrier(int32 InQueueIndex) const
+{
+	if ((GEditor == nullptr) || (GEditor->Trans == nullptr))
+	{
+		return false;
+	}
+
+	return InQueueIndex == GEditor->Trans->GetCurrentUndoBarrier() - 1;
+}
+
+bool SUndoHistory::HandleIsLastTransactionIndex(int32 InQueueIndex) const
+{
+	if ((GEditor == nullptr) || (GEditor->Trans == nullptr))
+	{
+		return false;
+	}
+
+	return InQueueIndex == (GEditor->Trans->GetQueueLength() - GEditor->Trans->GetUndoCount() - 1);
+}
+
+void SUndoHistory::HandleUndoBarrierButtonClicked(int32 InQueueIndex)
+{
+	if (HandleIsCurrentUndoBarrier(InQueueIndex))
+	{
+		GEditor->Trans->RemoveUndoBarrier();
+	}
+	else if (HandleIsLastTransactionIndex(InQueueIndex))
+	{
+		GEditor->Trans->SetUndoBarrier();
 	}
 }
 

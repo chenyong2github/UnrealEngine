@@ -1150,6 +1150,7 @@ void UTransBuffer::Reset( const FText& Reason )
 		ResetReason = Reason;
 		ActiveCount = 0;
 		ActiveRecordCounts.Empty();
+		ClearUndoBarriers();
 		UndoBufferChangedDelegate.Broadcast();
 
 		CheckState();
@@ -1348,6 +1349,16 @@ void UTransBuffer::RemoveUndoBarrier()
 void UTransBuffer::ClearUndoBarriers()
 {
 	UndoBarrierStack.Empty();
+}
+
+int32 UTransBuffer::GetCurrentUndoBarrier() const
+{
+	if (UndoBarrierStack.Num() > 0)
+	{
+		return UndoBarrierStack.Last();
+	}
+
+	return INDEX_NONE;
 }
 
 
