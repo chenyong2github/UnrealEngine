@@ -12,6 +12,7 @@
 
 #include "PreviewScene.h"
 #include "SceneInterface.h"
+#include "UObject/Package.h"
 
 /** Console variable used to control the size of the UV light card map texture */
 static TAutoConsoleVariable<int32> CVarUVLightCardTextureSize(

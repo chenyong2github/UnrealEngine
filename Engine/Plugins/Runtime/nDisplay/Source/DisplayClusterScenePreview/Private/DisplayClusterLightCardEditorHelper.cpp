@@ -21,6 +21,7 @@
 #include "Containers/ArrayView.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
 #if WITH_EDITOR

@@ -2,6 +2,7 @@
 
 #include "RenderDocPluginModule.h"
 #include "Framework/Application/SlateApplication.h"
+#include "UnrealClient.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"

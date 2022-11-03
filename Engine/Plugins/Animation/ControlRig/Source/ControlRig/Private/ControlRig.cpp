@@ -18,6 +18,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimationPoseData.h"
 #include "Internationalization/TextKey.h"
+#include "UObject/Package.h"
 #if WITH_EDITOR
 #include "ControlRigModule.h"
 #include "Modules/ModuleManager.h"

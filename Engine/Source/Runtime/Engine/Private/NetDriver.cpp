@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/NetDriver.h"
+#include "Engine/GameInstance.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/CommandLine.h"
 #include "Misc/NetworkGuid.h"

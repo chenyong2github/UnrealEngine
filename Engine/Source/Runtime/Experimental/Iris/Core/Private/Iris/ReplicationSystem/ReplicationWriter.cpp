@@ -5,6 +5,7 @@
 #include "Iris/IrisConfigInternal.h"
 #include "Iris/Core/IrisLog.h"
 #include "Iris/Core/IrisProfiler.h"
+#include "Misc/ScopeExit.h"
 #include "Net/Core/Trace/NetTrace.h"
 #include "Net/Core/Trace/NetDebugName.h"
 #include "Iris/PacketControl/PacketNotification.h"

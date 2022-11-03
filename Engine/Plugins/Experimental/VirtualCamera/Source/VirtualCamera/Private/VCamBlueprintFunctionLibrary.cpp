@@ -4,6 +4,7 @@
 
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
+#include "Engine/GameInstance.h"
 #include "LevelSequence.h"
 #include "VirtualCameraClipsMetaData.h"
 #include "Components/SceneCaptureComponent2D.h"

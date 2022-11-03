@@ -3,6 +3,7 @@
 #include "Engine/AssetManager.h"
 #include "Engine/AssetManagerSettings.h"
 #include "Engine/BlueprintCore.h"
+#include "Engine/GameInstance.h"
 #include "Engine/PrimaryAssetLabel.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/ARFilter.h"

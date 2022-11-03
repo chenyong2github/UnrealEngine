@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSequenceActorSpawner.h"
+#include "Misc/PackageName.h"
 #include "MovieSceneSpawnable.h"
 #include "IMovieScenePlayer.h"
 #include "GameFramework/Actor.h"
