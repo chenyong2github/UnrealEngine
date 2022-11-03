@@ -14,6 +14,7 @@
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/MemoryBase.h"
+#include "IO/IoChunkId.h"
 #include "IO/IoDispatcherPriority.h"
 #include "IO/PackageId.h"
 #include "Math/NumericLimits.h"
