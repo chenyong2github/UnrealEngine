@@ -71,9 +71,6 @@ namespace UE::ChooserEditor
 		virtual void NotifyPreChange( FProperty* PropertyAboutToChange ) override;
 		virtual void NotifyPostChange( const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 
-		/** FAssetEditorToolkit interface */
-		virtual void PostRegenerateMenusAndToolbars() override;
-
 		UChooserTable* GetChooser() { return Cast<UChooserTable>(EditingObjects[0]); }
 	
 		/** Used to show or hide certain properties */
@@ -100,9 +97,6 @@ namespace UE::ChooserEditor
 		TSharedRef<SDockTab> SpawnTableTab( const FSpawnTabArgs& Args );
 	
 		TSharedRef<ITableRow> GenerateTableRow(TSharedPtr<FChooserTableRow> InItem, const TSharedRef<STableViewBase>& OwnerTable);
-
-		/** Handles when an asset is imported */
-		void HandleAssetPostImport(class UFactory* InFactory, UObject* InObject);
 
 		/** Called when objects need to be swapped out for new versions, like after a blueprint recompile. */
 		void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);

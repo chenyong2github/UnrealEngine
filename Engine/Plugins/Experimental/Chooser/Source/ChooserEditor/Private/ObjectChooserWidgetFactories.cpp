@@ -15,7 +15,7 @@
 namespace UE::ChooserEditor
 {
 
-void ConvertToText(UObject* Object, FText& OutText)
+void FObjectChooserWidgetFactories::ConvertToText(UObject* Object, FText& OutText)
 {
 	UClass* Class = Object->GetClass();
 	while (Class)

@@ -20,6 +20,7 @@ namespace UE::ChooserEditor
 
 		static TSharedPtr<SWidget> CreateWidget(UObject* Value, UClass* ContextClass);
 		static TSharedPtr<SWidget> CreateWidget(UClass* InterfaceType, UObject* Value, UClass* ContextClass, const FOnClassPicked& CreateClassCallback, TSharedPtr<SBorder>* InnerWidget = nullptr);
+		static void ConvertToText(UObject* Object, FText& OutText);
 		
 		static void RegisterWidgets();
 	};

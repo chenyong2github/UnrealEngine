@@ -11,13 +11,11 @@ namespace UE::ChooserEditor
 class FInterfacePropertyTypeCustomization : public IPropertyTypeCustomization
 {
 public:
-	FInterfacePropertyTypeCustomization(UClass* Interface) : InterfaceType(Interface) {}
+	FInterfacePropertyTypeCustomization(){}
 private:
 	// IPropertyTypeCustomization interface
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
-
-	UClass* InterfaceType;
 };
 
 class FPropertyTypeIdentifier : public IPropertyTypeIdentifier

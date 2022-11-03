@@ -2,14 +2,12 @@
 
 #include "ChooserTableEditor.h"
 
-#include "ContextPropertyWidget.h"
 #include "Framework/Docking/TabManager.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
-#include "Editor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -39,29 +37,13 @@
 namespace UE::ChooserEditor
 {
 
-const FName FChooserTableEditor::ToolkitFName( TEXT( "GenericAssetEditor" ) );
+const FName FChooserTableEditor::ToolkitFName( TEXT( "ChooserTableEditor" ) );
 const FName FChooserTableEditor::PropertiesTabId( TEXT( "ChooserEditor_Properties" ) );
 const FName FChooserTableEditor::TableTabId( TEXT( "ChooserEditor_Table" ) );
 
-
-void ConvertObjectToText(UObject* Object, FText& OutText)
-{
-	UClass* Class = Object->GetClass();
-	while (Class)
-	{
-		if (auto TextConverter = FObjectChooserWidgetFactories::ChooserTextConverter.Find(Class))
-		{
-			(*TextConverter)(Object, OutText);
-			break;
-		}
-		Class = Class->GetSuperClass();
-	}
-}
-
-
 void FChooserTableEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
-	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_GenericAssetEditor", "Asset Editor"));
+	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_ChooserTableEditor", "Chooser Table Editor"));
 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
@@ -80,6 +62,7 @@ void FChooserTableEditor::UnregisterTabSpawners(const TSharedRef<class FTabManag
 {
 	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
 
+	InTabManager->UnregisterTabSpawner( TableTabId );
 	InTabManager->UnregisterTabSpawner( PropertiesTabId );
 }
 
@@ -87,7 +70,6 @@ const FName FChooserTableEditor::ChooserEditorAppIdentifier( TEXT( "ChooserEdito
 
 FChooserTableEditor::~FChooserTableEditor()
 {
-	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.RemoveAll(this);
 	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 	
 	DetailsView.Reset();
@@ -97,7 +79,6 @@ FChooserTableEditor::~FChooserTableEditor()
 void FChooserTableEditor::InitEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, const TArray<UObject*>& ObjectsToEdit, FGetDetailsViewObjects GetDetailsViewObjects )
 {
 	EditingObjects = ObjectsToEdit;
-	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.AddSP(this, &FChooserTableEditor::HandleAssetPostImport);
 	FCoreUObjectDelegates::OnObjectsReplaced.AddSP(this, &FChooserTableEditor::OnObjectsReplaced);
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>( "PropertyEditor" );
@@ -133,8 +114,6 @@ void FChooserTableEditor::InitEditor( const EToolkitMode::Type Mode, const TShar
 
 	RegenerateMenusAndToolbars();
 
-	UChooserTable* Chooser = Cast<UChooserTable>(EditingObjects[0]);
-	
 	SelectRootProperties();
 }
 
@@ -328,7 +307,7 @@ public:
 		Operation->ChooserEditor = InEditor;
 		Operation->RowIndex = InRowIndex;
 		Operation->DefaultHoverText = LOCTEXT("Chooser Row", "Chooser Row");
-		ConvertObjectToText(InEditor->GetChooser()->Results[InRowIndex].GetObject(), Operation->DefaultHoverText);
+		FObjectChooserWidgetFactories::ConvertToText(InEditor->GetChooser()->Results[InRowIndex].GetObject(), Operation->DefaultHoverText);
 		Operation->CurrentHoverText = Operation->DefaultHoverText;
 			
 		Operation->Construct();
@@ -741,7 +720,6 @@ TSharedRef<SDockTab> FChooserTableEditor::SpawnTableTab( const FSpawnTabArgs& Ar
 					if (SelectedItem)
 					{
 						SelectedRows.SetNum(0);
-						// hack test details
 						UChooserTable* Chooser = Cast<UChooserTable>(EditingObjects[0]);
 						// Get the list of objects to edit the details of
 						TObjectPtr<UChooserRowDetails> Selection = NewObject<UChooserRowDetails>();
@@ -805,15 +783,6 @@ void FChooserTableEditor::UpdateTableRows()
 	}
 }
 
-void FChooserTableEditor::HandleAssetPostImport(UFactory* InFactory, UObject* InObject)
-{
-	if (EditingObjects.Contains(InObject))
-	{
-		// The details panel likely needs to be refreshed if an asset was imported again
-		DetailsView->SetObjects(EditingObjects);
-	}
-}
-
 void FChooserTableEditor::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
 {
 	bool bChangedAny = false;
@@ -839,7 +808,7 @@ void FChooserTableEditor::OnObjectsReplaced(const TMap<UObject*, UObject*>& Repl
 
 FString FChooserTableEditor::GetWorldCentricTabPrefix() const
 {
-	return LOCTEXT("WorldCentricTabPrefix", "Generic Asset ").ToString();
+	return LOCTEXT("WorldCentricTabPrefix", "Chooser Table Asset ").ToString();
 }
 
 TSharedRef<FChooserTableEditor> FChooserTableEditor::CreateEditor( const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, UObject* ObjectToEdit, FGetDetailsViewObjects GetDetailsViewObjects )
@@ -860,62 +829,6 @@ TSharedRef<FChooserTableEditor> FChooserTableEditor::CreateEditor( const EToolki
 	return NewEditor;
 }
 
-void FChooserTableEditor::PostRegenerateMenusAndToolbars()
-{
-	// Find the common denominator class of the assets we're editing
-	TArray<UClass*> ClassList;
-	for (UObject* Obj : EditingObjects)
-	{
-		check(Obj);
-		ClassList.Add(Obj->GetClass());
-	}
-
-	UClass* CommonDenominatorClass = UClass::FindCommonBase(ClassList);
-	const bool bNotAllSame = (EditingObjects.Num() > 0) && (EditingObjects[0]->GetClass() != CommonDenominatorClass);
-
-	// Provide a hyperlink to view that native class
-	if (CommonDenominatorClass)
-	{
-		TWeakObjectPtr<UClass> WeakClassPtr(CommonDenominatorClass);
-		auto OnNavigateToClassCode = [WeakClassPtr]()
-		{
-			if (UClass* StrongClassPtr = WeakClassPtr.Get())
-			{
-				if (FSourceCodeNavigation::CanNavigateToClass(StrongClassPtr))
-				{
-					FSourceCodeNavigation::NavigateToClass(StrongClassPtr);
-				}
-			}
-		};
-
-		// build and attach the menu overlay
-		TSharedRef<SHorizontalBox> MenuOverlayBox = SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				SNew(STextBlock)
-				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
-				.ShadowOffset(FVector2D::UnitVector)
-				.Text(bNotAllSame ? LOCTEXT("ChooserTableEditor_AssetType_Varied", "Common Asset Type: ") : LOCTEXT("ChooserTableEditor_AssetType", "Asset Type: "))
-			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(0.0f, 0.0f, 8.0f, 0.0f)
-			[
-				SNew(SHyperlink)
-				.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
-				.OnNavigate_Lambda(OnNavigateToClassCode)
-				.Text(FText::FromName(CommonDenominatorClass->GetFName()))
-				.ToolTipText(FText::Format(LOCTEXT("GoToCode_ToolTip", "Click to open this source file in {0}"), FSourceCodeNavigation::GetSelectedSourceCodeIDE()))
-			];
-	
-		SetMenuOverlay(MenuOverlayBox);
-	}
-}
-
-	
 void FChooserTableEditor::SelectColumn(int Index)
 {
 	UChooserTable* Chooser = GetChooser();
@@ -950,7 +863,7 @@ TSharedRef<SWidget> CreateAssetWidget(UObject* Object, UClass* ContextClass)
 	UChooserTable* Chooser = Object->GetTypedOuter<UChooserTable>();
 	
 	return SNew(SObjectPropertyEntryBox)
-		.AllowedClass(Chooser->OutputObjectType!=nullptr ? Chooser->OutputObjectType.Get() : UObject::StaticClass())
+		.AllowedClass((Chooser!=nullptr && Chooser->OutputObjectType!=nullptr) ? Chooser->OutputObjectType.Get() : UObject::StaticClass())
 		.ObjectPath_Lambda([DIAsset](){ return DIAsset->Asset ? DIAsset->Asset.GetPath() : "";})
 		.OnObjectChanged_Lambda([DIAsset](const FAssetData& AssetData)
 		{
@@ -999,102 +912,11 @@ void ConvertToText_EvaluateChooser(const UObject* Object, FText& OutText)
 TSharedRef<SWidget> CreateObjectWidget(UObject* Object, UClass* ContextClass)
 {
 	FText ObjectText = FText::FromString(Object->GetName());
-	ConvertObjectToText(Object, ObjectText);
+	FObjectChooserWidgetFactories::ConvertToText(Object, ObjectText);
 	
 	return SNew (STextBlock).Text(ObjectText); // could make this use Text_Lambda, to have it update correctly?
 }
 
-TSharedRef<SWidget> CreateBoolColumnWidget(UObject* Column, int Row)
-{
-	UChooserColumnBool* BoolColumn = Cast<UChooserColumnBool>(Column);
-
-	return SNew (SCheckBox)
-	.OnCheckStateChanged_Lambda([BoolColumn,Row](ECheckBoxState State)
-	{
-		if (Row < BoolColumn->RowValues.Num())
-		{
-			const FScopedTransaction Transaction(LOCTEXT("Change Bool Value", "Change Bool Value"));
-			BoolColumn->Modify(true);
-			BoolColumn->RowValues[Row] = (State == ECheckBoxState::Checked);
-		}
-	})
-	.IsChecked_Lambda([BoolColumn, Row]()
-	{
-		const bool value = (Row < BoolColumn->RowValues.Num()) ? BoolColumn->RowValues[Row] : false;
-		return value ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-	});
-}
-	
-TSharedRef<SWidget> CreateBoolPropertyWidget(UObject* Object, UClass* ContextClass)
-{
-	return CreatePropertyWidget<UChooserParameterBool_ContextProperty>(Object, ContextClass, GetDefault<UGraphEditorSettings>()->BooleanPinTypeColor);
-}
-	
-TSharedRef<SWidget> CreateFloatPropertyWidget(UObject* Object, UClass* ContextClass)
-{
-	return CreatePropertyWidget<UChooserParameterFloat_ContextProperty>(Object, ContextClass, GetDefault<UGraphEditorSettings>()->FloatPinTypeColor);
-}
-	
-TSharedRef<SWidget> CreateFloatRangeColumnWidget(UObject* Column, int Row)
-{
-	UChooserColumnFloatRange* FloatRangeColumn = Cast<UChooserColumnFloatRange>(Column);
-
-	return SNew(SHorizontalBox)
-	+ SHorizontalBox::Slot().MaxWidth(10)
-	[
-		SNew(STextBlock).Text(LOCTEXT("FloatRangeLeft", "("))
-	]
-	+ SHorizontalBox::Slot().FillWidth(1.0)
-	[
-		SNew(SNumericEntryBox<float>)
-		.MaxValue_Lambda([FloatRangeColumn, Row]()
-		{
-			return (Row < FloatRangeColumn->RowValues.Num()) ? FloatRangeColumn->RowValues[Row].Max : 0;
-		})
-		.Value_Lambda([FloatRangeColumn, Row]()
-		{
-			return (Row < FloatRangeColumn->RowValues.Num()) ? FloatRangeColumn->RowValues[Row].Min : 0;
-		})
-		.OnValueCommitted_Lambda([FloatRangeColumn, Row](float NewValue, ETextCommit::Type CommitType)
-		{
-			if (Row < FloatRangeColumn->RowValues.Num())
-			{
-				const FScopedTransaction Transaction(LOCTEXT("Edit Min Value", "Edit Min Value"));
-				FloatRangeColumn->Modify(true);
-				FloatRangeColumn->RowValues[Row].Min = NewValue;
-			}
-		})
-	]
-	+ SHorizontalBox::Slot().MaxWidth(10)
-	[
-		SNew(STextBlock).Text(LOCTEXT("FloatRangeComma", " ,"))
-	]
-	+ SHorizontalBox::Slot().FillWidth(1.0)
-	[
-		SNew(SNumericEntryBox<float>)
-		.MinValue_Lambda([FloatRangeColumn, Row]()
-		{
-			return (Row < FloatRangeColumn->RowValues.Num()) ? FloatRangeColumn->RowValues[Row].Min : 0;
-		})
-		.Value_Lambda([FloatRangeColumn, Row]()
-		{
-			return (Row < FloatRangeColumn->RowValues.Num()) ? FloatRangeColumn->RowValues[Row].Max : 0;
-		})
-		.OnValueCommitted_Lambda([FloatRangeColumn, Row](float NewValue, ETextCommit::Type CommitType)
-		{
-			if (Row < FloatRangeColumn->RowValues.Num())
-			{
-				const FScopedTransaction Transaction(LOCTEXT("Edit Max", "Edit Max Value"));
-				FloatRangeColumn->Modify(true);
-				FloatRangeColumn->RowValues[Row].Max = NewValue;
-			}
-		})
-	]
-	+ SHorizontalBox::Slot().MaxWidth(10)
-	[
-		SNew(STextBlock).Text(LOCTEXT("FloatRangeRight", " )"))
-	];
-}
 
 class FChooserRowDetails : public IDetailCustomization
 {
@@ -1150,7 +972,7 @@ void FChooserRowDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 				FText DisplayName = LOCTEXT("No Input Value", "No Input Value");
 				if (UObject* InputValue = Column.GetInterface()->GetInputValue())
 				{
-					ConvertObjectToText(InputValue, DisplayName);
+					FObjectChooserWidgetFactories::ConvertToText(InputValue, DisplayName);
 				}
 				NewColumnProperty.DisplayName(DisplayName);
 				NewColumnProperty.ShowPropertyButtons(false); // hide array add button
@@ -1169,13 +991,6 @@ void FChooserTableEditor::RegisterWidgets()
 	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UObjectChooser_Asset::StaticClass(), CreateAssetWidget);
 	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UObjectChooser_EvaluateChooser::StaticClass(), CreateEvaluateChooserWidget);
 	
-	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UChooserParameterBool_ContextProperty::StaticClass(), CreateBoolPropertyWidget);
-	FObjectChooserWidgetFactories::ChooserWidgetCreators.Add(UChooserParameterFloat_ContextProperty::StaticClass(), CreateFloatPropertyWidget);
-	FObjectChooserWidgetFactories::ChooserTextConverter.Add(UChooserParameterBool_ContextProperty::StaticClass(), ConvertToText_ContextProperty<UChooserParameterBool_ContextProperty>);
-	FObjectChooserWidgetFactories::ChooserTextConverter.Add(UChooserParameterFloat_ContextProperty::StaticClass(), ConvertToText_ContextProperty<UChooserParameterFloat_ContextProperty>);
-
-	ColumnWidgetCreators.Add(UChooserColumnBool::StaticClass(), CreateBoolColumnWidget);
-	ColumnWidgetCreators.Add(UChooserColumnFloatRange::StaticClass(), CreateFloatRangeColumnWidget);
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout("ChooserRowDetails", FOnGetDetailCustomizationInstance::CreateStatic(&FChooserRowDetails::MakeInstance));	

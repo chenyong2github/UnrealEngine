@@ -41,7 +41,7 @@ void FInterfacePropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 		}
 	}
 	
-	TSharedPtr<SWidget> Widget = FObjectChooserWidgetFactories::CreateWidget(InterfaceType, PropertyValue->GetObject(), ContextClass,
+	TSharedPtr<SWidget> Widget = FObjectChooserWidgetFactories::CreateWidget(IntProperty->InterfaceClass, PropertyValue->GetObject(), ContextClass,
 			FOnClassPicked::CreateLambda([this, PropertyHandle](UClass* ChosenClass)
 			{
 				TArray<void*> RawData;

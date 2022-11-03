@@ -4,6 +4,8 @@
 #include "IAssetTools.h"
 #include "AssetTypeActions_Chooser.h"
 #include "ChooserTableEditor.h"
+#include "BoolColumnEditor.h"
+#include "FloatRangeColumnEditor.h"
 #include "GameplayTagColumnEditor.h"
 
 #define LOCTEXT_NAMESPACE "ChooserEditorModule"
@@ -18,6 +20,8 @@ void FModule::StartupModule()
 	AssetTools.RegisterAssetTypeActions(AssetTypeActions_ChooserTable.ToSharedRef());
 	FChooserTableEditor::RegisterWidgets();
 	RegisterGameplayTagWidgets();
+	RegisterFloatRangeWidgets();
+	RegisterBoolWidgets();
 	
 	InterfacePropertyTypeIdentifier = MakeShared<UE::ChooserEditor::FPropertyTypeIdentifier>();
 	
@@ -25,7 +29,7 @@ void FModule::StartupModule()
 	
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FInterfaceProperty::StaticClass()->GetFName(),
-		FOnGetPropertyTypeCustomizationInstance::CreateLambda([] { return MakeShared<UE::ChooserEditor::FInterfacePropertyTypeCustomization>(UChooserParameterBool::StaticClass()); }),
+		FOnGetPropertyTypeCustomizationInstance::CreateLambda([] { return MakeShared<UE::ChooserEditor::FInterfacePropertyTypeCustomization>(); }),
 		InterfacePropertyTypeIdentifier);
 }
 		 
