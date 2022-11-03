@@ -1897,7 +1897,7 @@ FKBoxElem FKBoxElem::GetFinalScaled(const FVector& Scale3D, const FTransform& Re
 	ScaledBox.Z *= Scale3DAbs.Z;
 
 	FTransform ScaleTransform(FQuat::Identity, FVector::ZeroVector, Scale3D); 
-	FTransform BoxTransform = GetTransform() * ScaleTransform * RelativeTM;
+	FTransform BoxTransform = GetTransform() * RelativeTM * ScaleTransform;
 	ScaledBox.SetTransform(BoxTransform);
 
 	return ScaledBox;
