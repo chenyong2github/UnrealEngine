@@ -343,10 +343,10 @@ TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel
 		for (const FName& DetailsTabIdentifier : DetailsTabIdentifiers)
 		{
 			SharedDetailsPanel = PropertyEditor.FindDetailView(DetailsTabIdentifier);
-			SharedDetailsPanel->SetRightColumnMinWidth(50);
 			
 			if (SharedDetailsPanel.IsValid())
 			{
+				SharedDetailsPanel->SetRightColumnMinWidth(50);
 				break;
 			}
 		}
