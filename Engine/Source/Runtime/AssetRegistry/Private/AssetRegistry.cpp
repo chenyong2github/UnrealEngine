@@ -837,26 +837,42 @@ void FAssetRegistryImpl::Initialize(Impl::FInitializeContext& Context)
 	InitRedirectors(Context.Events, Context.InheritanceContext, Context.bRedirectorsNeedSubscribe);
 
 #if WITH_EDITOR
-	if (!UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer::IsEmpty())
-	{
-		TArray<UObject*> Classes;
-		GetObjectsOfClass(UClass::StaticClass(), Classes);
-
-		/** Per Class dependency gatherers */
-		UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer::ForEach([&](UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer* RegisteredAssetDependencyGatherer)
-		{
-			UClass* AssetClass = RegisteredAssetDependencyGatherer->GetAssetClass();
-			for(UObject* ClassObject : Classes)
-			{
-				if (UClass* Class = Cast<UClass>(ClassObject); Class && Class->IsChildOf(AssetClass) && !Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
-				{
-					RegisteredDependencyGathererClasses.Add(Class, RegisteredAssetDependencyGatherer);
-				}
-			}
-		});
-	}
+	// Makae sure first call to LoadCalculatedDependencies builds the Gatherer list. At that point Classes should be loaded.
+	bRegisteredDependencyGathererClassesDirty = true;
 #endif
 }
+
+#if WITH_EDITOR
+
+void FAssetRegistryImpl::RebuildAssetDependencyGathererMapIfNeeded()
+{
+	if (!bRegisteredDependencyGathererClassesDirty)
+	{
+		return;
+	}
+
+	RegisteredDependencyGathererClasses.Reset();
+
+	TArray<UObject*> Classes;
+	GetObjectsOfClass(UClass::StaticClass(), Classes);
+
+	/** Per Class dependency gatherers */
+	UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer::ForEach([&](UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer* RegisteredAssetDependencyGatherer)
+	{
+		UClass* AssetClass = RegisteredAssetDependencyGatherer->GetAssetClass();
+		for (UObject* ClassObject : Classes)
+		{
+			if (UClass* Class = Cast<UClass>(ClassObject); Class && Class->IsChildOf(AssetClass) && !Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
+			{
+				RegisteredDependencyGathererClasses.Add(Class, RegisteredAssetDependencyGatherer);
+			}
+		}
+	});
+
+	bRegisteredDependencyGathererClassesDirty = false;
+}
+
+#endif
 
 }
 
@@ -920,6 +936,8 @@ void UAssetRegistryImpl::InitializeEvents(UE::AssetRegistry::Impl::FInitializeCo
 	{
 		FCoreDelegates::OnFEngineLoopInitComplete.AddUObject(this, &UAssetRegistryImpl::OnFEngineLoopInitCompleteSearchAllAssets);
 	}
+
+	UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer::OnAssetDependencyGathererRegistered.AddUObject(this, &UAssetRegistryImpl::OnAssetDependencyGathererRegistered);
 #endif // WITH_EDITOR
 
 	FCoreDelegates::OnEnginePreExit.AddUObject(this, &UAssetRegistryImpl::OnEnginePreExit);
@@ -1369,6 +1387,12 @@ void UAssetRegistryImpl::OnFEngineLoopInitCompleteSearchAllAssets()
 {
 	SearchAllAssets(true);
 }
+
+void UAssetRegistryImpl::OnAssetDependencyGathererRegistered()
+{
+	FWriteScopeLock InterfaceScopeLock(InterfaceLock);
+	GuardedData.OnAssetDependencyGathererRegistered();
+}
 #endif
 
 void UAssetRegistryImpl::OnEnginePreExit()
@@ -1423,6 +1447,7 @@ void UAssetRegistryImpl::FinishDestroy()
 		}
 		FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
 
+		UE::AssetDependencyGatherer::Private::FRegisteredAssetDependencyGatherer::OnAssetDependencyGathererRegistered.RemoveAll(this);
 #endif // WITH_EDITOR
 
 		if (HasAnyFlags(RF_ClassDefaultObject))
@@ -3946,6 +3971,8 @@ void FAssetRegistryImpl::LoadCalculatedDependencies(TArray<FName>* AssetPackageN
 		return false;
 	};
 
+	RebuildAssetDependencyGathererMapIfNeeded();
+
 	if (AssetPackageNamesToCalculate)
 	{
 		for (FName PackageName : *AssetPackageNamesToCalculate)
@@ -6215,6 +6242,12 @@ void FAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 #endif
 										](FDependsNode* ReferencingNode, FDependsNode* TargetNode, EDependencyCategory DependencyType, EDependencyProperty DependencyProperties)
 			{
+				if (SourceNode->GetPackageName() == "/Game/__ExternalActors__/Athena/Asteria/Maps/Asteria_Terrain/A/QR/6H7UW5BIERI1NOCMWXXDZ2" ||
+					(ReferencingNode && ReferencingNode->GetPackageName() == "/Game/__ExternalActors__/Athena/Asteria/Maps/Asteria_Terrain/A/QR/6H7UW5BIERI1NOCMWXXDZ2"))
+				{
+					UE_LOG(LogAssetRegistry, Log, TEXT("Blablabla"));
+				}
+
 				// Only recurse if we haven't already visited, and this node passes recursion test
 				if (!Visited.Contains(TargetNode))
 				{
@@ -6256,7 +6289,7 @@ void FAssetRegistryImpl::SetManageReferences(const TMultiMap<FAssetIdentifier, F
 				{
 					// Pull off end of array, order doesn't matter
 					SourceNode = NodesToRecurse.Pop();
-
+										
 					Visited.Add(SourceNode);
 
 					SourceNode->IterateOverDependencies([&IterateFunction, SourceNode](FDependsNode* TargetNode, EDependencyCategory DependencyCategory, EDependencyProperty DependencyProperties, bool bDuplicate)

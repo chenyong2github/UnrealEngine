@@ -8,11 +8,13 @@ namespace UE::AssetDependencyGatherer::Private
 {
 
 static TLinkedList<FRegisteredAssetDependencyGatherer*>* GRegisteredAssetDependencyGathererList = nullptr;
+FRegisteredAssetDependencyGatherer::FOnAssetDependencyGathererRegistered FRegisteredAssetDependencyGatherer::OnAssetDependencyGathererRegistered;
 
 FRegisteredAssetDependencyGatherer::FRegisteredAssetDependencyGatherer()
 	: GlobalListLink(this)
 {
 	GlobalListLink.LinkHead(GetRegisteredList());
+	OnAssetDependencyGathererRegistered.Broadcast();
 }
 
 FRegisteredAssetDependencyGatherer::~FRegisteredAssetDependencyGatherer()

@@ -54,6 +54,9 @@ namespace UE::AssetDependencyGatherer::Private
 	class ASSETREGISTRY_API FRegisteredAssetDependencyGatherer
 	{
 	public:
+		DECLARE_MULTICAST_DELEGATE(FOnAssetDependencyGathererRegistered);
+		static FOnAssetDependencyGathererRegistered OnAssetDependencyGathererRegistered;
+
 		FRegisteredAssetDependencyGatherer();
 		virtual ~FRegisteredAssetDependencyGatherer();
 

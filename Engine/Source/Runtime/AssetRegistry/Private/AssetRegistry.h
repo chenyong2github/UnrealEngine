@@ -187,6 +187,8 @@ private:
 	void OnEnginePreExit();
 #if WITH_EDITOR
 	void OnFEngineLoopInitCompleteSearchAllAssets();
+	/** Called when new gatherer is registered. Requires subsequent call to RebuildAssetDependencyGathererMapIfNeeded */
+	void OnAssetDependencyGathererRegistered();
 #endif
 	void InitializeEvents(UE::AssetRegistry::Impl::FInitializeContext& Context);
 	void Broadcast(UE::AssetRegistry::Impl::FEventContext& EventContext);
