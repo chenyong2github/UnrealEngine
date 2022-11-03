@@ -5,6 +5,7 @@
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "Containers/StringFwd.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "MovieSceneSection.h"
@@ -13,9 +14,25 @@
 
 #include "MovieSceneCVarSection.generated.h"
 
+class IMovieSceneConsoleVariableTrackInterface;
 class UMovieSceneEntitySystemLinker;
 class UObject;
 struct FFrame;
+
+
+USTRUCT()
+struct FMovieSceneConsoleVariableCollection
+{
+	GENERATED_BODY()
+
+	/** Array of console variable preset assets that this track should operate on */
+	UPROPERTY(EditAnywhere, DisplayName="Collection Asset", Category="Collection")
+	TScriptInterface<IMovieSceneConsoleVariableTrackInterface> Interface;
+
+	/** Whether to include checked consolve variables or not */
+	UPROPERTY(EditAnywhere, Category="Collection")
+	bool bOnlyIncludeChecked = false;
+};
 
 USTRUCT()
 struct FMovieSceneCVarOverrides
@@ -24,6 +41,7 @@ struct FMovieSceneCVarOverrides
 
 	MOVIESCENETRACKS_API void SetFromString(const FString& InString);
 
+	MOVIESCENETRACKS_API void GetString(TStringBuilder<256>& OutBuilder) const;
 	MOVIESCENETRACKS_API FString GetString() const;
 
 	/** The name of the console variable and the value, separated by ' ' or '=', ie: "foo.bar=1" or "foo.bar 1". */
@@ -57,9 +75,11 @@ private:
 
 public:
 
-	/** The name of the console variable and the value, separated by ' ' or '=', ie: "foo.bar=1" or "foo.bar 1". */
-	UPROPERTY(EditAnywhere,  meta=(MultiLine=true), Category="Console Variables")
-	FMovieSceneCVarOverrides ConsoleVariables;
+	/** Array of console variable preset assets that this track should operate on */
+	UPROPERTY(EditAnywhere, Category="Console Variable Collections")
+	TArray<FMovieSceneConsoleVariableCollection> ConsoleVariableCollections;
 
-	friend class UMovieSceneCVarTrackInstance;
+	/** The name of the console variable and the value, separated by ' ' or '=', ie: "foo.bar=1" or "foo.bar 1". */
+	UPROPERTY(EditAnywhere, Category="Console Variables")
+	FMovieSceneCVarOverrides ConsoleVariables;
 };

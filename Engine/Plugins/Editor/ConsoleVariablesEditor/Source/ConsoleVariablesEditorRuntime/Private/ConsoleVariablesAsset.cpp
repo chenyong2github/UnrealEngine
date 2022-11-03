@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ConsoleVariablesAsset.h"
+#include "Templates/Tuple.h"
 
 #include "ConsoleVariablesEditorRuntimeLog.h"
 #include "Engine/Engine.h"
@@ -34,6 +35,19 @@ TArray<FString> UConsoleVariablesAsset::GetSavedCommandsAsStringArray(bool bOnly
 FString UConsoleVariablesAsset::GetSavedCommandsAsCommaSeparatedString(bool bOnlyIncludeChecked) const
 {
 	return FString::Join(GetSavedCommandsAsStringArray(bOnlyIncludeChecked), TEXT(","));
+}
+
+void UConsoleVariablesAsset::GetConsoleVariablesForTrack(bool bOnlyIncludeChecked, TArray<TTuple<FString, FString>>& OutVariables)
+{
+	for (const FConsoleVariablesEditorAssetSaveData& Command : SavedCommands)
+	{
+		if (bOnlyIncludeChecked && Command.CheckedState != ECheckBoxState::Checked)
+		{
+			continue;
+		}
+		
+		OutVariables.Add(MakeTuple(Command.CommandName, Command.CommandValueAsString));
+	}
 }
 
 void UConsoleVariablesAsset::ExecuteSavedCommands(UObject* WorldContextObject, bool bOnlyIncludeChecked) const

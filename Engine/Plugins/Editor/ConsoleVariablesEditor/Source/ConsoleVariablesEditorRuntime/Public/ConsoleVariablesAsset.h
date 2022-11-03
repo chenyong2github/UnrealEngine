@@ -4,6 +4,7 @@
 
 #include "Containers/UnrealString.h"
 #include "Styling/SlateTypes.h"
+#include "Sections/MovieSceneConsoleVariableTrackInterface.h"
 
 #include "ConsoleVariablesAsset.generated.h"
 
@@ -31,7 +32,7 @@ struct FConsoleVariablesEditorAssetSaveData
 
 /** An asset used to track collections of console variables that can be recalled and edited using the Console Variables Editor. */
 UCLASS(BlueprintType)
-class CONSOLEVARIABLESEDITORRUNTIME_API UConsoleVariablesAsset : public UObject
+class CONSOLEVARIABLESEDITORRUNTIME_API UConsoleVariablesAsset : public UObject, public IMovieSceneConsoleVariableTrackInterface
 {
 	GENERATED_BODY()
 public:
@@ -100,7 +101,12 @@ public:
 	void CopyFrom(const UConsoleVariablesAsset* InAssetToCopy);
 	
 private:
-	
+
+	//~ IMovieSceneConsoleVariableTrackInterface overrides
+	virtual void GetConsoleVariablesForTrack(bool bOnlyIncludeChecked, TArray<TPair<FString, FString>>& OutVariables) override;
+
+private:
+
 	/* User defined description of the variable collection */
 	UPROPERTY(AssetRegistrySearchable, BlueprintGetter = "GetVariableCollectionDescription", EditAnywhere, Category = "Console Variables Editor")
 	FString VariableCollectionDescription;

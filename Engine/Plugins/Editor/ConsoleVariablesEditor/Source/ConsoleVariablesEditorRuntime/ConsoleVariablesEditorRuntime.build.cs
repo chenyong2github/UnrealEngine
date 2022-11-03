@@ -13,7 +13,8 @@ public class ConsoleVariablesEditorRuntime : ModuleRules
 			new string[]
 			{
 				"Core",
-				"Engine"
+				"Engine",
+				"MovieSceneTracks",
 			}
 		);
 			

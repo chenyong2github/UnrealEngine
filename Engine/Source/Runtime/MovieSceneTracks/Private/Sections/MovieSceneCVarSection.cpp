@@ -44,20 +44,25 @@ void FMovieSceneCVarOverrides::SetFromString(const FString& InString)
 	}
 }
 
+void FMovieSceneCVarOverrides::GetString(TStringBuilder<256>& OutBuilder) const
+{
+	for (const TPair<FString, FString>& Pair : ValuesByCVar)
+	{
+		if (OutBuilder.Len() != 0)
+		{
+			OutBuilder += TEXT(", ");
+		}
+
+		OutBuilder += Pair.Key;
+		OutBuilder += TEXT(" ");
+		OutBuilder += Pair.Value;
+	}
+}
+
 FString FMovieSceneCVarOverrides::GetString() const
 {
 	TStringBuilder<256> CVarString;
-	for (const TPair<FString, FString>& Pair : ValuesByCVar)
-	{
-		if (CVarString.Len() != 0)
-		{
-			CVarString += TEXT(", ");
-		}
-
-		CVarString += Pair.Key;
-		CVarString += TEXT(" ");
-		CVarString += Pair.Value;
-	}
+	GetString(CVarString);
 	return CVarString.ToString();
 }
 
@@ -89,6 +94,21 @@ void UMovieSceneCVarSection::SetFromString(const FString& InString)
 
 FString UMovieSceneCVarSection::GetString() const
 {
-	return ConsoleVariables.GetString();
+	TStringBuilder<256> ResultBuilder;
+
+	for (const FMovieSceneConsoleVariableCollection& Collection : ConsoleVariableCollections)
+	{
+		if (UObject* Object = Collection.Interface.GetObject())
+		{
+			if (ResultBuilder.Len() != 0)
+			{
+				ResultBuilder += TEXT(", ");
+			}
+			ResultBuilder += Object->GetName();
+		}
+	}
+
+	ConsoleVariables.GetString(ResultBuilder);
+	return ResultBuilder.ToString();
 }
 
