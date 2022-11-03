@@ -465,6 +465,26 @@ public:
 	}
 
 	/**
+	 * Converts a shared reference to a shared pointer.
+	 *
+	 * @return  Shared pointer to the object
+	 */
+	[[nodiscard]] FORCEINLINE TSharedPtr<ObjectType, Mode> ToSharedPtr() const
+	{
+		return TSharedPtr<ObjectType, Mode>(*this);
+	}
+
+	/**
+	 * Converts a shared reference to a weak ptr.
+	 *
+	 * @return  Weak pointer to the object
+	 */
+	[[nodiscard]] FORCEINLINE TWeakPtr<ObjectType, Mode> ToWeakPtr() const
+	{
+		return TWeakPtr<ObjectType, Mode>(*this);
+	}
+
+	/**
 	 * Returns a C++ reference to the object this shared reference is referencing
 	 *
 	 * @return  The object owned by this shared reference
@@ -1056,6 +1076,16 @@ public:
 		// Shared references are never allowed to be null.  Consider using TSharedPtr instead.
 		check( IsValid() );
 		return TSharedRef< ObjectType, Mode >( MoveTemp( *this ) );
+	}
+
+	/**
+	 * Converts a shared pointer to a weak ptr.
+	 *
+	 * @return  Weak pointer to the object
+	 */
+	[[nodiscard]] FORCEINLINE TWeakPtr<ObjectType, Mode> ToWeakPtr() const
+	{
+		return TWeakPtr<ObjectType, Mode>(*this);
 	}
 
 	/**
