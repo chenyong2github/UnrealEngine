@@ -8,6 +8,8 @@
 #include "Misc/ConfigContext.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/CoreRedirects.h"
+#include "GameFeatureAction_AddWPContent.h"
+#include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameFeatureData)
 
@@ -207,6 +209,56 @@ void UGameFeatureData::ReloadConfigs(FConfigFile& PluginConfig) const
 		}
 	}
 }
+
+#if WITH_EDITOR
+FName UGameFeatureData::GetContentBundleGuidsAssetRegistryTag()
+{
+	static const FName ContentBundlesTag("ContentBundleGuids");
+	return ContentBundlesTag;
+}
+
+void UGameFeatureData::GetContentBundleGuidsFromAsset(const FAssetData& Asset, TArray<FGuid>& OutContentBundleGuids)
+{
+	FString ContentBundleGuidsStr;
+	if (Asset.GetTagValue(GetContentBundleGuidsAssetRegistryTag(), ContentBundleGuidsStr))
+	{
+		TArray<FString> ContentBundleGuidsStrArray;
+		ContentBundleGuidsStr.ParseIntoArray(ContentBundleGuidsStrArray, TEXT(","));
+		for (const FString& GuidStr : ContentBundleGuidsStrArray)
+		{
+			FGuid ContentBundleGuid;
+			if (FGuid::Parse(GuidStr, ContentBundleGuid))
+			{
+				OutContentBundleGuids.Add(ContentBundleGuid);
+			}
+		}
+	}
+}
+
+void UGameFeatureData::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	Super::GetAssetRegistryTags(OutTags);
+
+	TArray<FGuid> ContentBundleGuids;
+
+	for (UGameFeatureAction* Action : Actions)
+	{
+		if (UGameFeatureAction_AddWPContent* WPAction = Cast<UGameFeatureAction_AddWPContent>(Action))
+		{
+			if (const UContentBundleDescriptor* ContentBundleDescriptor = WPAction->GetContentBundleDescriptor())
+			{
+				ContentBundleGuids.Add(ContentBundleDescriptor->GetGuid());
+			}
+		}
+	}
+
+	if (ContentBundleGuids.Num() > 0)
+	{
+		FString ContentBundleGuidsStr = FString::JoinBy(ContentBundleGuids, TEXT(","), [&](const FGuid& Guid) { return Guid.ToString(); });
+		OutTags.Add(FAssetRegistryTag(GetContentBundleGuidsAssetRegistryTag(), ContentBundleGuidsStr, FAssetRegistryTag::TT_Hidden));
+	}
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE
 

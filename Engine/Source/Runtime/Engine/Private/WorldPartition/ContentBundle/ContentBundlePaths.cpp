@@ -122,9 +122,29 @@ FStringView ContentBundlePaths::GetActorPathRelativeToExternalActors(FStringView
 	return FStringView();
 }
 
-bool ContentBundlePaths::BuildActorDescContainerPackgePath(const FString& InContenBundleMountPoint, const FGuid& InContentBundleGuid, const FString& InLevelPackagePath, FString& OutContainerPackagePath)
+bool ContentBundlePaths::BuildContentBundleRootPath(const FString& InContenBundleMountPoint, const FGuid& InContentBundleGuid, FString& OutContentBundleRootPath)
 {
 	if (InContenBundleMountPoint.IsEmpty() || !InContentBundleGuid.IsValid())
+	{
+		return false;
+	}
+
+	TStringBuilderWithBuffer<TCHAR, NAME_SIZE> ContentBundleRootPathBuilder;
+	ContentBundleRootPathBuilder += TEXT("/");
+	ContentBundleRootPathBuilder += InContenBundleMountPoint;
+	ContentBundleRootPathBuilder += GetContentBundleFolder();
+	ContentBundleRootPathBuilder += InContentBundleGuid.ToString();
+	ContentBundleRootPathBuilder += TEXT("/");
+	
+	OutContentBundleRootPath = *ContentBundleRootPathBuilder;
+
+	return true;
+}
+
+bool ContentBundlePaths::BuildActorDescContainerPackgePath(const FString& InContenBundleMountPoint, const FGuid& InContentBundleGuid, const FString& InLevelPackagePath, FString& OutContainerPackagePath)
+{
+	FString ContentBundleRootPath;
+	if (!BuildContentBundleRootPath(InContenBundleMountPoint, InContentBundleGuid, ContentBundleRootPath))
 	{
 		return false;
 	}
@@ -133,11 +153,7 @@ bool ContentBundlePaths::BuildActorDescContainerPackgePath(const FString& InCont
 	if (FPackageName::SplitLongPackageName(InLevelPackagePath, LevelRoot, LevelPackagePath, LevelName))
 	{
 		TStringBuilderWithBuffer<TCHAR, NAME_SIZE> ContentBundleActorDescContainerPackage;
-		ContentBundleActorDescContainerPackage += TEXT("/");
-		ContentBundleActorDescContainerPackage += InContenBundleMountPoint;
-		ContentBundleActorDescContainerPackage += GetContentBundleFolder();
-		ContentBundleActorDescContainerPackage += InContentBundleGuid.ToString();
-		ContentBundleActorDescContainerPackage += TEXT("/");
+		ContentBundleActorDescContainerPackage += ContentBundleRootPath;
 		ContentBundleActorDescContainerPackage += LevelPackagePath;
 		ContentBundleActorDescContainerPackage += LevelName;
 

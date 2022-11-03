@@ -6,8 +6,11 @@
 #include "Engine/DataAsset.h"
 #include "Engine/AssetManagerTypes.h"
 #include "GameFeatureAction.h"
+#include "Misc/Guid.h"
 
 #include "GameFeatureData.generated.h"
+
+struct FAssetData;
 
 /** Data related to a game feature, a collection of code and content that adds a separable discrete feature to the game */
 UCLASS()
@@ -28,6 +31,12 @@ public:
 
 	/** Method to process ini files for the plugin during activation */
 	void InitializeHierarchicalPluginIniFiles(const FString& PluginInstalledFilename) const;
+
+#if WITH_EDITOR
+	static FName GetContentBundleGuidsAssetRegistryTag();
+	static void GetContentBundleGuidsFromAsset(const FAssetData& Asset, TArray<FGuid>& OutContentBundleGuids);
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
+#endif
 
 public:
 	//~UPrimaryDataAsset interface
