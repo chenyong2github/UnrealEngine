@@ -1867,7 +1867,7 @@ public:
 	ENGINE_API FString GetUniqueAssetName(EShaderPlatform Platform) const;
 #else
 	/** GetUniqueAssetName just returns GetAssetName in non-editor builds */
-	FString GetUniqueAssetName() const { return GetAssetName(); }
+	FString GetUniqueAssetName(EShaderPlatform Platform) const { return GetAssetName(); }
 #endif
 	virtual bool HasVertexPositionOffsetConnected() const { return false; }
 	virtual bool HasPixelDepthOffsetConnected() const { return false; }

@@ -2681,6 +2681,9 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 #if WITH_EDITOR
 FString FMaterial::GetUniqueAssetName(EShaderPlatform Platform) const
 {
+	// Temporary disabled due to UE-169098:
+	// This funciton may be called from worker threads, but GetStaticParameterSet() requires game thread.
+#if 0 
 	TArray<uint8> Buf;
 	FString PathStr = GetAssetPath().GetPlainNameString();
 	FMemoryWriter BufWriter(Buf);
@@ -2690,8 +2693,11 @@ FString FMaterial::GetUniqueAssetName(EShaderPlatform Platform) const
 	FStaticParameterSet::StaticStruct()->SerializeBin(BufWriter, &StaticParams);
 	uint64 Hash = CityHash64((const char*)Buf.GetData(), Buf.Num());
 	return FString::Printf(TEXT("%s_%llu"), *GetAssetName(), Hash);
-}
+#else
+	return GetAssetName();
 #endif
+}
+#endif // WITH_EDITOR
 
 /**
  * Helper task used to release the strong object reference to the material interface on the game thread
