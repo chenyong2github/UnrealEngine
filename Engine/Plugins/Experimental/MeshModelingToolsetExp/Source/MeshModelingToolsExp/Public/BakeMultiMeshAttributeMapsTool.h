@@ -12,6 +12,7 @@
 #include "Scene/MeshSceneAdapter.h"
 #include "ModelingOperators.h"
 #include "PreviewMesh.h"
+#include "Baking/BakingTypes.h"
 #include "BakeMeshAttributeMapsToolBase.h"
 #include "BakeMultiMeshAttributeMapsTool.generated.h"
 

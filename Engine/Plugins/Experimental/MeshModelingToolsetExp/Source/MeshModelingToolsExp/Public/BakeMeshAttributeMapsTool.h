@@ -11,6 +11,7 @@
 #include "ModelingOperators.h"
 #include "PreviewMesh.h"
 #include "ModelingToolTargetUtil.h"
+#include "Baking/BakingTypes.h"
 #include "BakeMeshAttributeMapsToolBase.h"
 #include "BakeMeshAttributeMapsTool.generated.h"
 

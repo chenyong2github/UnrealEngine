@@ -17,11 +17,10 @@
 
 #include "EngineAnalytics.h"
 
+#include "Baking/RenderCaptureFunctions.h"
+#include "Baking/BakingTypes.h"
 #include "Sampling/MeshImageBakingCache.h"
 #include "Sampling/MeshMapBaker.h"
-#include "Sampling/RenderCaptureMapEvaluator.h"
-#include "Image/ImageInfilling.h"
-#include "Algo/NoneOf.h"
 #include "Misc/ScopedSlowTask.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BakeRenderCaptureTool)
@@ -30,81 +29,6 @@
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UBakeRenderCaptureTool"
-
-//
-// Implementation details
-//
-
-
-
-class FSceneCapturePhotoSetSampler : public FMeshBakerDynamicMeshSampler
-{
-public:
-	FSceneCapturePhotoSetSampler(
-		FSceneCapturePhotoSet* SceneCapture,
-		float ValidSampleDepthThreshold,
-		TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction,
-		const FDynamicMesh3* Mesh,
-		const FDynamicMeshAABBTree3* Spatial,
-		const FMeshTangentsd* Tangents)
-	:
-		FMeshBakerDynamicMeshSampler(Mesh, Spatial, Tangents),
-		SceneCapture(SceneCapture),
-		ValidSampleDepthThreshold(ValidSampleDepthThreshold),
-		VisibilityFunction(VisibilityFunction)
-	{
-		check(SceneCapture != nullptr);
-		check(Mesh != nullptr);
-		check(Spatial != nullptr);
-		check(Tangents != nullptr);
-
-		bool bHasDepth = SceneCapture->GetCaptureTypeEnabled(ERenderCaptureType::DeviceDepth);
-		if (bHasDepth)
-		{
-			ensure(ValidSampleDepthThreshold > 0); // We only need the depth capture if this threshold is positive
-		}
-	}
-
-	virtual bool SupportsCustomCorrespondence() const override
-	{
-		return true;
-	}
-
-	// Warning: Expects that Sample.BaseSample.SurfacePoint and Sample.BaseNormal are set when the function is called
-	virtual void* ComputeCustomCorrespondence(const FMeshUVSampleInfo& SampleInfo, FMeshMapEvaluator::FCorrespondenceSample& Sample) const override
-	{
-		// Perform a ray-cast to determine which photo/coordinate, if any, should be sampled
-		int PhotoIndex;
-		FVector2d PhotoCoords;
-		SceneCapture->ComputeSampleLocation(
-			Sample.BaseSample.SurfacePoint,
-			Sample.BaseNormal,
-			ValidSampleDepthThreshold,
-			VisibilityFunction,
-			PhotoIndex,
-			PhotoCoords);
-
-		// Store the photo coordinates and index in the correspondence sample
-		Sample.DetailMesh = SceneCapture;
-		Sample.DetailTriID = PhotoIndex;
-		Sample.DetailBaryCoords.X = PhotoCoords.X;
-		Sample.DetailBaryCoords.Y = PhotoCoords.Y;
-
-		// This will be set to Sample.DetailMesh but we can already do that internally so it's kindof redundant
-		return SceneCapture;
-	}
-
-	virtual bool IsValidCorrespondence(const FMeshMapEvaluator::FCorrespondenceSample& Sample) const override
-	{
-		return Sample.DetailTriID != IndexConstants::InvalidID;
-	}
-
-public:
-	FSceneCapturePhotoSet* SceneCapture = nullptr;
-	float ValidSampleDepthThreshold = 0;
-	TFunctionRef<bool(const FVector3d&, const FVector3d&)> VisibilityFunction;
-};
-
 
 
 static FString BaseColorTexParamName = TEXT("BaseColor");
@@ -115,199 +39,40 @@ static FString EmissiveTexParamName = TEXT("Emissive");
 static FString NormalTexParamName = TEXT("NormalMap");
 static FString PackedMRSTexParamName = TEXT("PackedMRS");
 
-class FRenderCaptureSettings
+
+FRenderCaptureOptions
+MakeRenderCaptureOptions(
+	const URenderCaptureProperties& RenderCaptureProperties,
+	const UBakeRenderCaptureToolProperties& ToolProperties,
+	const UBakeRenderCaptureInputToolProperties& InputMeshSettings)
 {
-public:
-	enum class ETextureSizePolicy : uint8
-	{
-		TextureSize = 0,
-		TexelDensity = 1
-	};
+	FRenderCaptureOptions Options;
 
-	/**
-	 * Input options to Actor Approximation process
-	 */
-	struct FOptions
-	{
-		//
-		// Material approximation settings
-		//
-		int32 RenderCaptureImageSize = 1024;
-		bool bAntiAliasing = false;
+	Options.TargetUVLayer = InputMeshSettings.GetTargetUVLayerIndex();
 
-		// render capture parameters
-		double FieldOfViewDegrees = 45.0;
-		double NearPlaneDist = 1.0;
-		double ValidSampleDepthThreshold = 0;
+	Options.RenderCaptureImageSize = static_cast<int32>(RenderCaptureProperties.Resolution);
+	Options.ValidSampleDepthThreshold = ToolProperties.ValidSampleDepthThreshold;
 
-		//
-		// Material output settings
-		//
+	Options.bBakeBaseColor = RenderCaptureProperties.bBaseColorMap;
+	Options.bBakeNormalMap = RenderCaptureProperties.bNormalMap;
+	Options.bBakeEmissive =  RenderCaptureProperties.bEmissiveMap;
+	Options.bBakeDeviceDepth = RenderCaptureProperties.bDeviceDepthMap;
+	
+	// Enforce the PackedMRS precondition here so we don't have to check it at each usage site.  Note: We don't
+	// apply this precondition on the RenderCaptureProperties because we don't want the user to have to re-enable
+	// options which enabling PackedMRS disabled.
+	Options.bUsePackedMRS =  RenderCaptureProperties.bPackedMRSMap;
+	Options.bBakeMetallic =  RenderCaptureProperties.bPackedMRSMap ? false : RenderCaptureProperties.bMetallicMap;
+	Options.bBakeRoughness = RenderCaptureProperties.bPackedMRSMap ? false : RenderCaptureProperties.bRoughnessMap;
+	Options.bBakeSpecular =  RenderCaptureProperties.bPackedMRSMap ? false : RenderCaptureProperties.bSpecularMap;
 
-		// A new MIC derived from this material will be created and assigned to the generated mesh
-		UMaterialInterface* BakeMaterial = nullptr;		// if null, will use /MeshModelingToolsetExp/Materials/FullMaterialBakePreviewMaterial_PackedMRS instead
-		bool bBakeBaseColor = true;
-		bool bBakeRoughness = true;
-		bool bBakeMetallic = true;
-		bool bBakeSpecular = true;
-		bool bBakeEmissive = true;
-		bool bBakeNormalMap = true;
-		bool bBakeDeviceDepth = true;
-		
-		bool bUsePackedMRS = true;
+	Options.bAntiAliasing = RenderCaptureProperties.bAntiAliasing;
+	Options.FieldOfViewDegrees = RenderCaptureProperties.CaptureFieldOfView;
+	Options.NearPlaneDist = RenderCaptureProperties.NearPlaneDist;
 
-		//
-		// Mesh settings
-		//
-
-		//  Which UV layer of the Target mesh (the one we're baking to) should be used
-		int32 TargetUVLayer = 0;
-	};
-
-	/**
-	 * Construct an FOptions from the provided FMeshApproximationSettings.
-	 */
-	static FOptions ConstructOptions(
-		const URenderCaptureProperties& RenderCaptureProperties,
-		const UBakeRenderCaptureToolProperties& ToolProperties,
-		const UBakeRenderCaptureInputToolProperties& InputMeshSettings)
-	{
-		//
-		// Construct options for ApproximateActors operation
-		//
-		FOptions Options;
-
-		Options.TargetUVLayer = InputMeshSettings.GetTargetUVLayerIndex();
-
-		Options.RenderCaptureImageSize = static_cast<int32>(RenderCaptureProperties.Resolution);
-		Options.ValidSampleDepthThreshold = ToolProperties.ValidSampleDepthThreshold;
-
-		Options.bBakeBaseColor = RenderCaptureProperties.bBaseColorMap;
-		Options.bBakeNormalMap = RenderCaptureProperties.bNormalMap;
-		Options.bBakeEmissive =  RenderCaptureProperties.bEmissiveMap;
-		Options.bBakeDeviceDepth = RenderCaptureProperties.bDeviceDepthMap;
-		
-		// Enforce the PackedMRS precondition here so we don't have to check it at each usage site.  Note: We don't
-		// apply this precondition on the RenderCaptureProperties because we don't want the user to have to re-enable
-		// options which enabling PackedMRS disabled.
-		Options.bUsePackedMRS =  RenderCaptureProperties.bPackedMRSMap;
-		Options.bBakeMetallic =  RenderCaptureProperties.bPackedMRSMap ? false : RenderCaptureProperties.bMetallicMap;
-		Options.bBakeRoughness = RenderCaptureProperties.bPackedMRSMap ? false : RenderCaptureProperties.bRoughnessMap;
-		Options.bBakeSpecular =  RenderCaptureProperties.bPackedMRSMap ? false : RenderCaptureProperties.bSpecularMap;
-
-		Options.bAntiAliasing = RenderCaptureProperties.bAntiAliasing;
-		Options.FieldOfViewDegrees = RenderCaptureProperties.CaptureFieldOfView;
-		Options.NearPlaneDist = RenderCaptureProperties.NearPlaneDist;
-
-		return Options;
-	}
-};
-
-static TUniquePtr<FSceneCapturePhotoSet> CapturePhotoSet(
-	const TArray<TObjectPtr<AActor>>& Actors,
-	const FRenderCaptureSettings::FOptions& Options,
-	bool bAllowCancel
-)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(CapturePhotoSet);
-
-	FScopedSlowTask Progress(1.f, LOCTEXT("CapturingScene", "Capturing Scene..."));
-	Progress.EnterProgressFrame(1.f);
-	Progress.MakeDialog(bAllowCancel);
-
-	double FieldOfView = Options.FieldOfViewDegrees;
-	double NearPlaneDist = Options.NearPlaneDist;
-
-	FImageDimensions CaptureDimensions(Options.RenderCaptureImageSize, Options.RenderCaptureImageSize);
-
-	TUniquePtr<FSceneCapturePhotoSet> SceneCapture = MakeUnique<FSceneCapturePhotoSet>();
-	SceneCapture->SetAllowCancel(bAllowCancel);
-
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::DeviceDepth, Options.bBakeDeviceDepth);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::BaseColor,   Options.bBakeBaseColor);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::WorldNormal, Options.bBakeNormalMap);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Emissive,    Options.bBakeEmissive);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::CombinedMRS, Options.bUsePackedMRS);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Metallic,    Options.bBakeMetallic);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Roughness,   Options.bBakeRoughness);
-	SceneCapture->SetCaptureTypeEnabled(ERenderCaptureType::Specular,    Options.bBakeSpecular);
-
-	FRenderCaptureConfig Config;
-	Config.bAntiAliasing = Options.bAntiAliasing;
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::BaseColor,   Config);
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::WorldNormal, Config);
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::CombinedMRS, Config);
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::Metallic,    Config);
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::Roughness,   Config);
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::Specular,    Config);
-	SceneCapture->SetCaptureConfig(ERenderCaptureType::Emissive,    Config);
-
-	SceneCapture->SetCaptureSceneActors(Actors[0]->GetWorld(), Actors);
-
-	// SceneCapture->SetEnableWriteDebugImages(true);
-
-	SceneCapture->AddStandardExteriorCapturesFromBoundingBox(
-		CaptureDimensions, FieldOfView, NearPlaneDist,
-		true, true, true, true, true);
-
-	return SceneCapture;
+	return Options;
 }
 
-template <ERenderCaptureType CaptureType>
-TSharedPtr<FRenderCaptureMapEvaluator<FVector4f>>
-MakeColorEvaluator(
-	const FSceneCapturePhotoSet::FSceneSample& DefaultSample,
-	const FSceneCapturePhotoSet* SceneCapture,
-	const FImageDimensions& CaptureDimensions)
-{
-	TSharedPtr<FRenderCaptureMapEvaluator<FVector4f>> Evaluator = MakeShared<FRenderCaptureMapEvaluator<FVector4f>>();
-
-	switch (CaptureType) {
-	case ERenderCaptureType::BaseColor:
-		Evaluator->Channel = ERenderCaptureChannel::BaseColor;
-		break;
-	case ERenderCaptureType::Roughness:
-		Evaluator->Channel = ERenderCaptureChannel::Roughness;
-		break;
-	case ERenderCaptureType::Metallic:
-		Evaluator->Channel = ERenderCaptureChannel::Metallic;
-		break;
-	case ERenderCaptureType::Specular:
-		Evaluator->Channel = ERenderCaptureChannel::Specular;
-		break;
-	case ERenderCaptureType::Emissive:
-		Evaluator->Channel = ERenderCaptureChannel::Emissive;
-		break;
-	case ERenderCaptureType::WorldNormal:
-		Evaluator->Channel = ERenderCaptureChannel::WorldNormal;
-		break;
-	case ERenderCaptureType::CombinedMRS:
-		Evaluator->Channel = ERenderCaptureChannel::CombinedMRS;
-		break;
-	case ERenderCaptureType::DeviceDepth:
-		Evaluator->Channel = ERenderCaptureChannel::DeviceDepth;
-		break;
-	}
-
-	Evaluator->DefaultResult = DefaultSample.GetValue4f(CaptureType);
-
-	Evaluator->EvaluateSampleCallback = [&DefaultSample, SceneCapture, &CaptureDimensions](const FMeshMapEvaluator::FCorrespondenceSample& Sample)
-	{
-		const int PhotoIndex = Sample.DetailTriID;
-		const FVector2d PhotoCoords(Sample.DetailBaryCoords.X, Sample.DetailBaryCoords.Y);
-		const FVector4f SampleColor = SceneCapture->ComputeSampleNearest<CaptureType>(PhotoIndex, PhotoCoords, DefaultSample);
-		return SampleColor;
-	};
-
-	Evaluator->EvaluateColorCallback = [](const int DataIdx, float*& In)
-	{
-		const FVector4f Out(In[0], In[1], In[2], In[3]);
-		In += 4;
-		return Out;
-	};
-
-	return Evaluator;
-}
 
 //
 // Tool Operator
@@ -318,8 +83,8 @@ class FRenderCaptureMapBakerOp : public TGenericDataOperator<FMeshMapBaker>
 public:
 	UE::Geometry::FDynamicMesh3* BaseMesh = nullptr;
 	TSharedPtr<UE::Geometry::FMeshTangentsd, ESPMode::ThreadSafe> BaseMeshTangents;
-	FRenderCaptureSettings::FOptions Options;
-	int32 TextureImageSize;
+	FRenderCaptureOptions Options;
+	EBakeTextureResolution TextureImageSize;
 	EBakeTextureSamplesPerPixel SamplesPerPixel;
 	FSceneCapturePhotoSet* SceneCapture = nullptr;
 
@@ -331,250 +96,30 @@ public:
 // Bake textures onto the base/target mesh by projecting/sampling the set of captured photos
 void FRenderCaptureMapBakerOp::CalculateResult(FProgressCancel*)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FRenderCaptureMapBakerOp_CalculateResult);
+	const FDynamicMeshAABBTree3 BaseMeshSpatial(BaseMesh);
 
-	check(BaseMesh != nullptr);
-	check(BaseMeshTangents.IsValid());
-	check(SceneCapture != nullptr);
+	FSceneCapturePhotoSetSampler Sampler(
+		SceneCapture,
+		Options.ValidSampleDepthThreshold,
+		BaseMesh,
+		&BaseMeshSpatial,
+		BaseMeshTangents.Get());
 
-	FDynamicMeshAABBTree3 BaseMeshSpatial(BaseMesh, true);
+	const FImageDimensions TextureDimensions(
+		static_cast<int32>(TextureImageSize),
+		static_cast<int32>(TextureImageSize));
 
-	// Compute an offset shift surface positions toward the render camera position so we don't immediately self intersect
-	// The Max expression ensures the code works when the base mesh is 2D along one coordinate direction
-	const double RayOffsetHackDist = (double)(100.0 * FMathf::ZeroTolerance * FMath::Max(BaseMesh->GetBounds().MinDim(), 0.01));
+	FRenderCaptureOcclusionHandler OcclusionHandler(TextureDimensions);
 
-	auto VisibilityFunction = [&BaseMeshSpatial, RayOffsetHackDist](const FVector3d& SurfPos, const FVector3d& ViewPos)
-	{
-		FVector3d RayDir = ViewPos - SurfPos;
-		double Dist = Normalize(RayDir);
-		FVector3d RayOrigin = SurfPos + RayOffsetHackDist * RayDir;
-		int32 HitTID = BaseMeshSpatial.FindNearestHitTriangle(FRay3d(RayOrigin, RayDir), IMeshSpatial::FQueryOptions(Dist));
-		return (HitTID == IndexConstants::InvalidID);
-	};
-
-	struct FInfillData
-	{
-		struct FSampleStats {
-			uint16 NumValid = 0;
-			uint16 NumInvalid = 0;
-
-			// The ==, !=, += operators and the Zero() function are required by the TMarchingPixelInfill implementation
-
-			bool operator==(const FSampleStats& Other) const
-			{
-				return (NumValid == Other.NumValid) && (NumInvalid == Other.NumInvalid);
-			}
-
-			bool operator!=(const FSampleStats& Other) const
-			{
-				return !(*this == Other);
-			}
-
-			FSampleStats& operator+=(const FSampleStats& Other)
-			{
-				NumValid += Other.NumValid;
-				NumInvalid += Other.NumInvalid;
-				return *this;
-			}
-
-			static FSampleStats Zero()
-			{
-				return FSampleStats{0, 0};
-			}
-		};
-
-		// Collect some sample stats per pixel, used to determine if a pixel requires infill or not
-		TImageBuilder<FSampleStats> SampleStats;
-
-		// The i-th element of this array indicates if the i-th evaluator needs infill
-		TArray<bool> EvaluatorNeedsInfill;
-	} InfillData;
-
-	InfillData.SampleStats.SetDimensions(FImageDimensions(TextureImageSize, TextureImageSize));
-	InfillData.SampleStats.Clear(FInfillData::FSampleStats{});
-
-	auto RegisterSampleStats = [&InfillData](bool bSampleValid, const FMeshMapEvaluator::FCorrespondenceSample& Sample, const FVector2d& UVPosition, const FVector2i& ImageCoords)
-	{
-		checkSlow(InfillData.SampleStats.GetDimensions().IsValidCoords(ImageCoords));
-		if (bSampleValid)
-		{
-			InfillData.SampleStats.GetPixel(ImageCoords).NumValid += 1;
-		}
-		else
-		{
-			InfillData.SampleStats.GetPixel(ImageCoords).NumInvalid += 1;
-		}
-	};
-
-	auto ComputeAndApplyInfill = [&InfillData](TArray<TUniquePtr<TImageBuilder<FVector4f>>>& BakeResults)
-	{
-		check(BakeResults.Num() == InfillData.EvaluatorNeedsInfill.Num());
-
-		if (BakeResults.IsEmpty() || Algo::NoneOf(InfillData.EvaluatorNeedsInfill))
-		{
-			return;
-		}
-
-		// Find pixels that need infill
-		TArray<FVector2i> MissingPixels;
-		FCriticalSection MissingPixelsLock;
-		ParallelFor(InfillData.SampleStats.GetDimensions().GetHeight(), [&MissingPixels, &MissingPixelsLock, &InfillData](int32 Y)
-		{
-			for (int32 X = 0; X < InfillData.SampleStats.GetDimensions().GetWidth(); X++)
-			{
-				const FInfillData::FSampleStats& Stats = InfillData.SampleStats.GetPixel(X, Y);
-				// TODO experiment with other classifications
-				if (Stats.NumInvalid > 0 && Stats.NumValid == 0)
-				{
-					MissingPixelsLock.Lock();
-					MissingPixels.Add(FVector2i(X, Y));
-					MissingPixelsLock.Unlock();
-				}
-			}
-		});
-
-		auto NormalizeFunc = [](FVector4f SumValue, int32 Count)
-		{
-			float InvSum = (Count == 0) ? 1.0f : (1.0f / Count);
-			return FVector4f(SumValue.X * InvSum, SumValue.Y * InvSum, SumValue.Z * InvSum, 1.0f);
-		};
-		
-		auto DummyNormalizeStatsFunc = [](FInfillData::FSampleStats SumValue, int32 Count)
-		{
-			// The return value must be different from MissingValue below so that ComputeInfill works correctly
-			return FInfillData::FSampleStats{TNumericLimits<uint16>::Max(), TNumericLimits<uint16>::Max()};
-		};
-
-		TMarchingPixelInfill<FInfillData::FSampleStats> Infill;
-		// This must be the same as the value of exterior pixels, otherwise infill will spread the exterior values into the texture
-		FInfillData::FSampleStats MissingValue{0, 0};
-		Infill.ComputeInfill(InfillData.SampleStats, MissingPixels, MissingValue, DummyNormalizeStatsFunc);
-		for (int EvaluatorIndex = 0; EvaluatorIndex < BakeResults.Num(); EvaluatorIndex++)
-		{
-			if (InfillData.EvaluatorNeedsInfill[EvaluatorIndex])
-			{
-				Infill.ApplyInfill<FVector4f>(*BakeResults[EvaluatorIndex], NormalizeFunc);
-			}
-		}
-	};
-
-	Result->SetTargetMesh(BaseMesh);
-	Result->SetTargetMeshTangents(BaseMeshTangents);
-	Result->SetDimensions(FImageDimensions(TextureImageSize, TextureImageSize));
-	Result->SetSamplesPerPixel(static_cast<int32>(SamplesPerPixel));
-	Result->SetFilter(FMeshMapBaker::EBakeFilterType::BSpline);
-	Result->SetTargetMeshUVLayer(Options.TargetUVLayer);
-	Result->InteriorSampleCallback = RegisterSampleStats;
-	Result->PostWriteToImageCallback = ComputeAndApplyInfill;
-
-	FSceneCapturePhotoSetSampler Sampler(SceneCapture, Options.ValidSampleDepthThreshold, VisibilityFunction, BaseMesh, &BaseMeshSpatial, BaseMeshTangents.Get());
-	Result->SetDetailSampler(&Sampler);
-	Result->SetCorrespondenceStrategy(FMeshMapBaker::ECorrespondenceStrategy::Custom);
-
-	// Pixels in the output textures which don't map onto the mesh have a light grey color (except the normal map which
-	// will show a color corresponding to a unit z tangent space normal)
-	const FVector4f InvalidColor(.42, .42, .42, 1);
-	const FVector3f DefaultNormal = FVector3f::UnitZ();
-
-	FSceneCapturePhotoSet::FSceneSample DefaultColorSample;
-	DefaultColorSample.BaseColor = FVector3f(InvalidColor.X, InvalidColor.Y, InvalidColor.Z);
-	DefaultColorSample.Roughness = InvalidColor.X;
-	DefaultColorSample.Specular = InvalidColor.X;
-	DefaultColorSample.Metallic = InvalidColor.X;
-	DefaultColorSample.Emissive = FVector3f(InvalidColor.X, InvalidColor.Y, InvalidColor.Z);
-	DefaultColorSample.WorldNormal = FVector4f((DefaultNormal + FVector3f::One()) * .5f, InvalidColor.W);
-	
-	// We use 0 here since this corresponds to the infinite far plane value. Also, we don't preview the depth texture
-	DefaultColorSample.DeviceDepth = 0;
-
-	auto AddColorEvaluator = [this, &InfillData] (const TSharedPtr<FRenderCaptureMapEvaluator<FVector4f>>& Evaluator)
-	{
-		Result->AddEvaluator(Evaluator);
-		InfillData.EvaluatorNeedsInfill.Add(true);
-	};
-	
-	const FImageDimensions CaptureDimensions(Options.RenderCaptureImageSize, Options.RenderCaptureImageSize);
-
-	if (Options.bBakeDeviceDepth)
-	{
-		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::DeviceDepth>(DefaultColorSample, SceneCapture, CaptureDimensions));
-	}
-	if (Options.bBakeBaseColor)
-	{
-		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::BaseColor>(DefaultColorSample, SceneCapture, CaptureDimensions));
-	}
-	if (Options.bUsePackedMRS)
-	{
-		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::CombinedMRS>(DefaultColorSample, SceneCapture, CaptureDimensions));
-	}
-	if (Options.bBakeRoughness)
-	{
-		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Roughness>(DefaultColorSample, SceneCapture, CaptureDimensions));
-	}
-	if (Options.bBakeMetallic)
-	{
-		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Metallic>(DefaultColorSample, SceneCapture, CaptureDimensions));
-	}
-	if (Options.bBakeSpecular)
-	{
-		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Specular>(DefaultColorSample, SceneCapture, CaptureDimensions));
-	}
-	if (Options.bBakeEmissive)
-	{
-		AddColorEvaluator(MakeColorEvaluator<ERenderCaptureType::Emissive>(DefaultColorSample, SceneCapture, CaptureDimensions));
-	}
-	if (Options.bBakeNormalMap)
-	{
-		TSharedPtr<FRenderCaptureMapEvaluator<FVector3f>> Evaluator = MakeShared<FRenderCaptureMapEvaluator<FVector3f>>();
-
-		Evaluator->Channel = ERenderCaptureChannel::WorldNormal;
-
-		Evaluator->DefaultResult = DefaultNormal;
-
-		Evaluator->EvaluateSampleCallback = [this, &DefaultColorSample, &CaptureDimensions](const FMeshMapEvaluator::FCorrespondenceSample& Sample)
-		{
-			const int32 TriangleID = Sample.BaseSample.TriangleIndex;
-			const FVector3d BaryCoords = Sample.BaseSample.BaryCoords;
-			const int PhotoIndex = Sample.DetailTriID;
-			const FVector2d PhotoCoords(Sample.DetailBaryCoords.X, Sample.DetailBaryCoords.Y);
-
-			const FVector4f NormalColor = SceneCapture->ComputeSampleNearest<ERenderCaptureType::WorldNormal>(PhotoIndex, PhotoCoords, DefaultColorSample);
-
-			// Map from color components [0,1] to normal components [-1,1]
-			const FVector3f WorldSpaceNormal(
-				(NormalColor.X - 0.5f) * 2.0f,
-				(NormalColor.Y - 0.5f) * 2.0f,
-				(NormalColor.Z - 0.5f) * 2.0f);
-
-			// Get tangents on base mesh
-			FVector3d BaseTangentX, BaseTangentY;
-			BaseMeshTangents->GetInterpolatedTriangleTangent(TriangleID, BaryCoords, BaseTangentX, BaseTangentY);
-
-			// Compute normal in tangent space
-			const FVector3f TangentSpaceNormal(
-					(float)WorldSpaceNormal.Dot(FVector3f(BaseTangentX)),
-					(float)WorldSpaceNormal.Dot(FVector3f(BaseTangentY)),
-					(float)WorldSpaceNormal.Dot(FVector3f(Sample.BaseNormal)));
-
-			return TangentSpaceNormal;
-		};
-
-		Evaluator->EvaluateColorCallback = [](const int DataIdx, float*& In)
-		{
-			// Map normal space [-1,1] to color space [0,1]
-			const FVector3f Normal(In[0], In[1], In[2]);
-			const FVector3f Color = (Normal + FVector3f::One()) * 0.5f;
-			const FVector4f Out(Color.X, Color.Y, Color.Z, 1.0f);
-			In += 3;
-			return Out;
-		};
-
-		Result->AddEvaluator(Evaluator);
-
-		// Note: No infill on normal map for now, doesn't make sense to do after mapping to tangent space!
-		//  (should we build baked normal map in world space, and then resample to tangent space??)
-		InfillData.EvaluatorNeedsInfill.Add(false);
-	}
+	Result = MakeRenderCaptureBaker(
+		BaseMesh,
+		BaseMeshTangents,
+		SceneCapture,
+		&Sampler,
+		Options,
+		TextureImageSize,
+		SamplesPerPixel,
+		&OcclusionHandler);
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FRenderCaptureMapBakerOp_CalculateResult_Bake);
@@ -586,7 +131,6 @@ void FRenderCaptureMapBakerOp::CalculateResult(FProgressCancel*)
 //
 // Tool Builder
 //
-
 
 
 const FToolTargetTypeRequirements& UBakeRenderCaptureToolBuilder::GetTargetRequirements() const
@@ -616,6 +160,7 @@ UMultiSelectionMeshEditingTool* UBakeRenderCaptureToolBuilder::CreateNewTool(con
 //
 // Tool
 //
+
 
 
 
@@ -931,8 +476,8 @@ TUniquePtr<TGenericDataOperator<FMeshMapBaker>> UBakeRenderCaptureTool::MakeNewO
 	TUniquePtr<FRenderCaptureMapBakerOp> Op = MakeUnique<FRenderCaptureMapBakerOp>();
 	Op->BaseMesh = &TargetMesh;
 	Op->BaseMeshTangents = TargetMeshTangents;
-	Op->Options = FRenderCaptureSettings::ConstructOptions(*RenderCaptureProperties, *Settings, *InputMeshSettings);
-	Op->TextureImageSize = static_cast<int32>(Settings->TextureSize);
+	Op->Options = MakeRenderCaptureOptions(*RenderCaptureProperties, *Settings, *InputMeshSettings);
+	Op->TextureImageSize = Settings->TextureSize;
 	Op->SamplesPerPixel = Settings->SamplesPerPixel;
 	Op->SceneCapture = SceneCapture.Get();
 	return Op;
@@ -942,118 +487,19 @@ TUniquePtr<TGenericDataOperator<FMeshMapBaker>> UBakeRenderCaptureTool::MakeNewO
 
 void UBakeRenderCaptureTool::OnMapsUpdatedRC(const TUniquePtr<FMeshMapBaker>& NewResult)
 {
-	// We do this to defer work I guess, it was like this in the original ApproximateActors implementation :DeferredPopulateSourceData 
-	constexpr bool bPopulateSourceData = false;
-
 	TRACE_CPUPROFILER_EVENT_SCOPE(BakeRenderCaptureTool_Textures_BuildTextures);
 
-	const int32 NumEval = NewResult->NumEvaluators();
-	for (int32 EvalIdx = 0; EvalIdx < NumEval; ++EvalIdx)
-	{
-		FMeshMapEvaluator* BaseEval = NewResult->GetEvaluator(EvalIdx);
+	FRenderCaptureTextures TexturesOut;
+	GetTexturesFromRenderCaptureBaker(NewResult, TexturesOut);
 
-		check(BaseEval->DataLayout().Num() == 1);
-
-		switch (BaseEval->DataLayout()[0])
-		{
-		case FMeshMapEvaluator::EComponents::Float4:
-
-			{
-				FRenderCaptureMapEvaluator<FVector4f>* Eval = static_cast<FRenderCaptureMapEvaluator<FVector4f>*>(BaseEval);
-				TUniquePtr<TImageBuilder<FVector4f>> ImageBuilder = MoveTemp(NewResult->GetBakeResults(EvalIdx)[0]);
-				
-				if (ensure(ImageBuilder.IsValid()) == false) return;
-
-				switch (Eval->Channel)
-				{
-				case ERenderCaptureChannel::BaseColor:
-
-					ResultSettings->BaseColorMap = FTexture2DBuilder::BuildTextureFromImage(
-						*ImageBuilder,
-						FTexture2DBuilder::ETextureType::Color,
-						true,
-						bPopulateSourceData);
-					break;
-
-				case ERenderCaptureChannel::Roughness:
-
-					ResultSettings->RoughnessMap = FTexture2DBuilder::BuildTextureFromImage(
-						*ImageBuilder,
-						FTexture2DBuilder::ETextureType::Roughness,
-						false,
-						bPopulateSourceData);
-					break;
-
-				case ERenderCaptureChannel::Metallic:
-
-					ResultSettings->MetallicMap = FTexture2DBuilder::BuildTextureFromImage(
-						*ImageBuilder,
-						FTexture2DBuilder::ETextureType::Metallic,
-						false,
-						bPopulateSourceData);
-					break;
-
-				case ERenderCaptureChannel::Specular:
-
-					ResultSettings->SpecularMap = FTexture2DBuilder::BuildTextureFromImage(
-						*ImageBuilder,
-						FTexture2DBuilder::ETextureType::Specular,
-						false,
-						bPopulateSourceData);
-					break;
-
-				case ERenderCaptureChannel::Emissive:
-
-					ResultSettings->EmissiveMap = FTexture2DBuilder::BuildTextureFromImage(
-						*ImageBuilder,
-						FTexture2DBuilder::ETextureType::EmissiveHDR,
-						false,
-						bPopulateSourceData);
-					ResultSettings->EmissiveMap->CompressionSettings = TC_HDR_Compressed;
-					break;
-
-				case ERenderCaptureChannel::CombinedMRS:
-
-					ResultSettings->PackedMRSMap = FTexture2DBuilder::BuildTextureFromImage(
-						*ImageBuilder,
-						FTexture2DBuilder::ETextureType::ColorLinear,
-						false,
-						bPopulateSourceData);
-					break;
-
-				case ERenderCaptureChannel::DeviceDepth:
-					// Do nothing, the depth capture is used internally and not presented to the user
-					break;
-
-				default:
-					ensure(false);
-					return;
-				}
-
-			} break; // Float4
-
-		case FMeshMapEvaluator::EComponents::Float3:
-
-			{
-				FRenderCaptureMapEvaluator<FVector3f>* Eval = static_cast<FRenderCaptureMapEvaluator<FVector3f>*>(BaseEval);
-				TUniquePtr<TImageBuilder<FVector4f>> ImageBuilder = MoveTemp(NewResult->GetBakeResults(EvalIdx)[0]);
-				
-				if (ensure(ImageBuilder.IsValid()) == false) return;
-				if (ensure(Eval->Channel == ERenderCaptureChannel::WorldNormal) == false) return;
-
-				ResultSettings->NormalMap = FTexture2DBuilder::BuildTextureFromImage(
-					*ImageBuilder,
-					FTexture2DBuilder::ETextureType::NormalMap,
-					false,
-					bPopulateSourceData);
-
-			} break; // Float3
-			
-		default:
-			ensure(false);
-			return;
-		}
-	}
+	// Unpack TexturesOut to store in ResultSettings
+	ResultSettings->BaseColorMap = TexturesOut.BaseColorMap;
+	ResultSettings->NormalMap = TexturesOut.NormalMap;
+	ResultSettings->PackedMRSMap = TexturesOut.PackedMRSMap;
+	ResultSettings->MetallicMap = TexturesOut.MetallicMap;
+	ResultSettings->RoughnessMap = TexturesOut.RoughnessMap;
+	ResultSettings->SpecularMap = TexturesOut.SpecularMap;
+	ResultSettings->EmissiveMap = TexturesOut.EmissiveMap;
 
 	GatherAnalytics(*NewResult);
 	UpdateVisualization();
@@ -1157,7 +603,7 @@ void UBakeRenderCaptureTool::UpdateResult()
 
 	//
 	// create a set of spatially located render captures of the scene ("photo set"). We need to recompute this if the
-	// render capture properties changed. Note we only compare the URenderCaptureProperties only, and not the
+	// render capture properties changed. Note we only compare the URenderCaptureProperties, and not the
 	// ValidSampleDepthThreshold, this is intentional so that we only trigger a scene capture recompute when we go from
 	// a zero to a positive threshold (we need to compute the depth capture), or a positive to a zero threshold (we can
 	// save memory and not compute the depth capture), we don't need to recompute the scene capture when the user is
@@ -1174,8 +620,13 @@ void UBakeRenderCaptureTool::UpdateResult()
 		const bool bAllowCancel = (bFirstEverSceneCapture == false);
 
 		SceneCapture.Reset();
-		FRenderCaptureSettings::FOptions Options = FRenderCaptureSettings::ConstructOptions(*RenderCaptureProperties, *Settings, *InputMeshSettings);
-		SceneCapture = CapturePhotoSet(Actors, Options, bAllowCancel);
+		FRenderCaptureOptions Options = MakeRenderCaptureOptions(*RenderCaptureProperties, *Settings, *InputMeshSettings);
+		{
+			FScopedSlowTask Progress(1.f, LOCTEXT("CapturingScene", "Capturing Scene..."));
+			Progress.EnterProgressFrame(1.f);
+			Progress.MakeDialog(bAllowCancel);
+			SceneCapture = CapturePhotoSet(Actors, Options, bAllowCancel);
+		}
 
 		for (int Idx = 1; Idx < Targets.Num(); ++Idx)
 		{

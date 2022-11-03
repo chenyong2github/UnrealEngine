@@ -3,9 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
 #include "BaseTools/MultiSelectionMeshEditingTool.h"
+#include "Baking/BakingTypes.h"
 #include "BakeMeshAttributeMapsToolBase.h"
 
 // Render Capture algorithm includes
@@ -14,6 +14,16 @@
 #include "BakeRenderCaptureTool.generated.h"
 
 class UTexture2D;
+
+namespace UE
+{
+namespace Geometry
+{
+
+class FSceneCapturePhotoSet;
+
+}
+}
 
 //
 // Tool Result
@@ -132,7 +142,6 @@ public:
 
 	bool operator==(const URenderCaptureProperties& Other) const
 	{
-		// Intentionally omitted TransientToolProperty
 		return Resolution == Other.Resolution
 			&& bBaseColorMap == Other.bBaseColorMap
 			&& bNormalMap == Other.bNormalMap

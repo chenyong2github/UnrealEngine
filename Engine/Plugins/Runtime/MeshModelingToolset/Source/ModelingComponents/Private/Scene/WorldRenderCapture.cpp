@@ -183,6 +183,7 @@ void FWorldRenderCapture::SetVisibleActors(const TArray<AActor*>& Actors)
 
 	// Find all components that need to be included in rendering.
 	// This also descends into any ChildActorComponents
+	// TODO Consider using Actor->GetActorBounds() or ForEachComponent here
 	TArray<UActorComponent*> ComponentQueue;
 	for (AActor* Actor : Actors)
 	{
