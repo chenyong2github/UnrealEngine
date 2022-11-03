@@ -4,6 +4,7 @@
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Curves/CurveLinearColor.h"
+#include "Curves/CurveFloat.h"
 
 ///////////////////////////////////////////////////////////////////////
 // UInputDeviceProperty
@@ -38,26 +39,21 @@ void UInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUse
 // UColorInputDeviceProperty
 
 UColorInputDeviceProperty::UColorInputDeviceProperty()
-: UInputDeviceProperty()
+	: UInputDeviceProperty()
 {
 	PropertyName = FInputDeviceLightColorProperty::PropertyName();
-	float MinTime, MaxTime;
-	if (DeviceColorCurve)
-	{
-		DeviceColorCurve->GetTimeRange(MinTime, MaxTime);	
-	}
-	else
-	{
-		PropertyDuration = 1.0f;	
-	}
+	GetDuration();
 }
 
 void UColorInputDeviceProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
 {
 	InternalProperty.bEnable = bEnable;
-	
-	FLinearColor CurveColor = DeviceColorCurve->GetLinearColorValue(Duration);
-	InternalProperty.Color = CurveColor.ToFColorSRGB();
+
+	if (ensure(DeviceColorCurve))
+	{
+		FLinearColor CurveColor = DeviceColorCurve->GetLinearColorValue(Duration);
+		InternalProperty.Color = CurveColor.ToFColorSRGB();
+	}
 }
 
 void UColorInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser)
@@ -70,4 +66,18 @@ void UColorInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatfo
 FInputDeviceProperty* UColorInputDeviceProperty::GetInternalDeviceProperty()
 {
 	return &InternalProperty;
+}
+
+float UColorInputDeviceProperty::GetDuration()
+{
+	float MinTime, MaxTime;
+	if (DeviceColorCurve)
+	{
+		DeviceColorCurve->GetTimeRange(MinTime, MaxTime);
+	}
+	else
+	{
+		PropertyDuration = 1.0f;
+	}
+	return PropertyDuration;
 }
