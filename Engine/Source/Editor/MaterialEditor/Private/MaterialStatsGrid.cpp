@@ -166,6 +166,7 @@ FStatsGridRow_Shaders::EShaderClass FStatsGridRow_Shaders::GetShaderClass(const 
 		case ERepresentativeShader::StationarySurfaceNPointLights:
 		case ERepresentativeShader::DynamicallyLitObject:
 		case ERepresentativeShader::UIDefaultFragmentShader:
+		case ERepresentativeShader::RuntimeVirtualTextureOutput:
 			return EShaderClass::FragmentShader;
 		break;
 

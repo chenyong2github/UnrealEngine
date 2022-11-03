@@ -23,6 +23,9 @@ public:
 	 */
 	virtual bool IsPersistent() const override { return false; }
 
+	/** Use preview settings when compiling material. Used to avoid culling nodes behind landscape weights. */
+	virtual bool IsPreview() const override { return true; }
+
 	/** Material resource stats never requires a synchronous compilation, otherwise opening up empty (newly created) material instance will block compiling default mat's shaders. */
 	virtual bool RequiresSynchronousCompilation() const override { return false; }
 
@@ -49,6 +52,7 @@ enum class ERepresentativeShader
 	StationarySurfaceCSM,
 	StationarySurfaceNPointLights,
 	DynamicallyLitObject,
+	RuntimeVirtualTextureOutput,
 	UIDefaultFragmentShader,
 	LastFragmentShader = UIDefaultFragmentShader,
 

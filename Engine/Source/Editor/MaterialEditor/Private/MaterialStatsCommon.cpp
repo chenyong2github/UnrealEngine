@@ -201,6 +201,10 @@ FString FMaterialStatsUtils::RepresentativeShaderTypeToString(const ERepresentat
 			return TEXT("UI Instanced Vertex Shader");
 		break;
 
+		case ERepresentativeShader::RuntimeVirtualTextureOutput:
+			return TEXT("Runtime Virtual Texture Output");
+			break;
+
 		default:
 			return TEXT("Unknown shader name");
 		break;
@@ -342,6 +346,16 @@ void FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(TMap<FName
 		// This is ad-hoc, and ideally we have a better way for finding this shader type in the future.
 		ShaderTypeNamesAndDescriptions.FindOrAdd(FLocalVertexFactoryName)
 			.Add(FRepresentativeShaderInfo(ERepresentativeShader::StationarySurface, FName(TEXT("TBasePassPSFCachedVolumeIndirectLightingPolicy")), TEXT("MaxSampler")));
+
+		// For materials that write to a runtime virtual texture add a pixel shader stat.
+		if (TargetMaterial->HasRuntimeVirtualTextureOutput())
+		{
+			static const FName LandscapeFactoryName = TEXT("FLandscapeVertexFactory");
+			static const FName RuntimeVirtualTexturePSName = TEXT("TVirtualTexturePSBaseColorNormalSpecular");
+
+			ShaderTypeNamesAndDescriptions.FindOrAdd(LandscapeFactoryName)
+				.Add(FRepresentativeShaderInfo(ERepresentativeShader::RuntimeVirtualTextureOutput, FName(RuntimeVirtualTexturePSName), TEXT("Runtime Virtual Texture Output")));
+		}
 	}
 	else
 	{
