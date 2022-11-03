@@ -1801,17 +1801,16 @@ void UMovieSceneSequencePlayer::RunLatentActions()
 		return;
 	}
 
-	if (ensure(TickManager) && !EnumHasAnyFlags(Sequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation))
+	if (SynchronousRunner)
 	{
-		TickManager->RunLatentActions();
-	}
-	else
-	{
-		check(SynchronousRunner);
 		LatentActionManager.RunLatentActions([this]
 		{
 			this->SynchronousRunner->Flush();
 		});
+	}
+	else if (ensure(TickManager) && !EnumHasAnyFlags(Sequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation))
+	{
+		TickManager->RunLatentActions();
 	}
 }
 
