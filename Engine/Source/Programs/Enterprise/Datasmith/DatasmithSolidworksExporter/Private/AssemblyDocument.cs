@@ -386,6 +386,12 @@ namespace DatasmithSolidworks
 					OutMeshesToExportMap.Add(InComponent, ActorExportInfo.Name);
 				}
 
+				if (ActorExportInfo.Type == EActorType.MeshActor )
+				{
+					// todo: deduplicate mesh name calculation
+					ActorExportInfo.MeshName = FDatasmithExporter.SanitizeName($"{ActorExportInfo.Name}_Mesh");
+				}
+
 				Exporter.ExportOrUpdateActor(ActorExportInfo);
 
 				SyncState.CleanComponents.Add(ComponentName);
