@@ -34,48 +34,6 @@ int64 UNearestNeighborModelInstance::SetBoneTransforms(float* OutputBuffer, int6
 	return EndIndex;
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FCopyBufferParameters, )
-    RDG_BUFFER_ACCESS(Source,  ERHIAccess::CopySrc)
-END_SHADER_PARAMETER_STRUCT()
-
-template<class T, class TRDGBuffer>
-void AddCopyToCPUPass(FRDGBuilder& GraphBuilder, TRDGBuffer RDGBuffer, TArray<T>& Array)
-{
-    FCopyBufferParameters* Parameters = GraphBuilder.AllocParameters<FCopyBufferParameters>();
-    Parameters->Source = RDGBuffer;
-	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("CopyToCPU"),
-        Parameters,
-        ERDGPassFlags::Readback,
-		[RDGBuffer, &Array](FRHICommandListImmediate& CmdList)
-		{
-			const int32 VolumeInBytes = Array.Num() * sizeof(T);
-			FRHIBuffer* RHIBuffer = RDGBuffer->GetRHI();
-			const void* const BufferData = CmdList.LockBuffer(RHIBuffer, 0, VolumeInBytes, RLM_ReadOnly);
-			FMemory::Memcpy((void*)Array.GetData(), BufferData, VolumeInBytes);
-			CmdList.UnlockBuffer(RHIBuffer);
-		});
-}
-
-template<class T, class TRDGBuffer>
-void AddCopyToCPUPass(FRDGBuilder& GraphBuilder, TRDGBuffer RDGBuffer, T* Ptr, int NumElements)
-{
-    FCopyBufferParameters* Parameters = GraphBuilder.AllocParameters<FCopyBufferParameters>();
-    Parameters->Source = RDGBuffer;
-    GraphBuilder.AddPass(
-        RDG_EVENT_NAME("CopyToCPU"),
-        Parameters,
-        ERDGPassFlags::Readback,
-        [RDGBuffer, Ptr, NumElements](FRHICommandListImmediate& CmdList)
-        {
-            const int32 VolumeInBytes = NumElements * sizeof(T);
-            FRHIBuffer* RHIBuffer = RDGBuffer->GetRHI();
-            const void* const BufferData = CmdList.LockBuffer(RHIBuffer, 0, VolumeInBytes, RLM_ReadOnly);
-            FMemory::Memcpy((void*)Ptr, BufferData, VolumeInBytes);
-            CmdList.UnlockBuffer(RHIBuffer);
-        });
-}
-
 bool UNearestNeighborModelInstance::SetupInputs()
 {
     const bool bSuccess = Super::SetupInputs();
@@ -95,6 +53,12 @@ bool UNearestNeighborModelInstance::SetupInputs()
     }
 
     return false;
+}
+
+void UNearestNeighborModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)
+{
+	UMLDeformerMorphModelInstance::Init(SkelMeshComponent);
+	InitPreviousWeights();
 }
 
 void UNearestNeighborModelInstance::Execute(float ModelWeight)
@@ -185,10 +149,10 @@ void UNearestNeighborModelInstance::UpdateWeight(TArray<float>& MorphWeights, in
 {
 	UNearestNeighborModel* NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
 	const float DecayFactor = NearestNeighborModel->GetDecayFactor();
-	const float PreviousW = NearestNeighborModel->PreviousWeights[Index];
+	const float PreviousW = PreviousWeights[Index];
 	const float NewW = (1 - DecayFactor) * W + DecayFactor * PreviousW;
 	MorphWeights[Index] = NewW;
-	NearestNeighborModel->PreviousWeights[Index] = NewW; 
+	PreviousWeights[Index] = NewW; 
 }
 
 int32 UNearestNeighborModelInstance::FindNearestNeighbor(const FNeuralTensor& PCACoeffTensor, int32 PartId)
@@ -217,4 +181,14 @@ int32 UNearestNeighborModelInstance::FindNearestNeighbor(const FNeuralTensor& PC
 		}
 	}
 	return MinId;
+}
+
+void UNearestNeighborModelInstance::InitPreviousWeights()
+{
+	const UNearestNeighborModel* NearestNeighborModel = Cast<UNearestNeighborModel>(Model);
+	if (NearestNeighborModel && NearestNeighborModel->GetMorphTargetSet())
+	{
+		const int32 NumWeights = NearestNeighborModel->GetMorphTargetSet()->MorphBuffers.GetNumMorphs();
+		PreviousWeights.SetNumZeroed(NumWeights);
+	}
 }

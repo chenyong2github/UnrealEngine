@@ -9,6 +9,7 @@
 class UMLDeformerAsset;
 class USkeletalMesh;
 class UGeometryCache;
+class UMLDeformerComponent;
 class UNearestNeighborModel;
 class UNearestNeighborModelVizSettings;
 
@@ -68,6 +69,8 @@ namespace UE::NearestNeighborModel
 
 		void OnMorphTargetUpdate();
 		uint8 GetMorphTargetUpdateResult() { return MorphTargetUpdateResult; }
+		UMLDeformerComponent* GetTestMLDeformerComponent();
+		void InitTestMLDeformerPreviousWeights();
 
 
 	protected:

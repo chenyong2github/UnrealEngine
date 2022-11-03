@@ -75,7 +75,7 @@ namespace UE::NearestNeighborModel
 		FMLDeformerMorphModelEditorModel::OnPostTraining(TrainingResult, bUsePartiallyTrainedWhenAborted);
 		if (TrainingResult == ETrainingResult::Success || (TrainingResult == ETrainingResult::Aborted && bUsePartiallyTrainedWhenAborted))
 		{
-			GetNearestNeighborModel()->InitPreviousWeights();
+			InitTestMLDeformerPreviousWeights();
 		}
 	}
 
@@ -135,17 +135,6 @@ namespace UE::NearestNeighborModel
 			NearestNeighborActors.Reset();
 		}
 		NearestNeighborActors.SetNumZeroed(NumParts);
-
-		UMLDeformerComponent* MLDeformerComponent = nullptr;
-		FMLDeformerEditorActor* TestActor = FindEditorActor(ActorID_Test_MLDeformed);
-		if (TestActor)
-		{
-			AActor* Actor = TestActor->GetActor();
-			if (Actor)
-			{
-				MLDeformerComponent = Actor->FindComponentByClass<UMLDeformerComponent>();
-			}
-		}
 		
 		for(int32 PartId = StartIndex; PartId < NumParts; PartId++)
 		{
@@ -162,7 +151,7 @@ namespace UE::NearestNeighborModel
 				LOCTEXT("TestNearestNeighborLabelText", "Nearest Neigbors"),
 				false);
 			FNearestNeighborEditorModelActor* NearestNeighborActor = static_cast<FNearestNeighborEditorModelActor*>(EditorActors.Last());
-
+			UMLDeformerComponent* MLDeformerComponent = GetTestMLDeformerComponent();
 			NearestNeighborActor->InitNearestNeighborActor(PartId, MLDeformerComponent);
 			NearestNeighborActor->SetMeshOffsetFactor(2.0f);
 			NearestNeighborActors[PartId] = NearestNeighborActor;
@@ -514,6 +503,34 @@ namespace UE::NearestNeighborModel
 				BeginInitResource(&MorphBuffers);
 			}
 			SkelMeshComponent->RefreshExternalMorphTargetWeights();
+		}
+	}
+
+	UMLDeformerComponent* FNearestNeighborEditorModel::GetTestMLDeformerComponent()
+	{
+		UMLDeformerComponent* MLDeformerComponent = nullptr;
+		FMLDeformerEditorActor* TestActor = FindEditorActor(ActorID_Test_MLDeformed);
+		if (TestActor)
+		{
+			AActor* Actor = TestActor->GetActor();
+			if (Actor)
+			{
+				MLDeformerComponent = Actor->FindComponentByClass<UMLDeformerComponent>();
+			}
+		}
+		return MLDeformerComponent;
+	}
+
+	void FNearestNeighborEditorModel::InitTestMLDeformerPreviousWeights()
+	{
+		UMLDeformerComponent* MLDeformerComponent = GetTestMLDeformerComponent();
+		if (MLDeformerComponent)
+		{
+			UNearestNeighborModelInstance* ModelInstance = static_cast<UNearestNeighborModelInstance*>(MLDeformerComponent->GetModelInstance());
+			if (ModelInstance)
+			{
+				ModelInstance->InitPreviousWeights();
+			}
 		}
 	}
 }	// namespace UE::NearestNeighborModel

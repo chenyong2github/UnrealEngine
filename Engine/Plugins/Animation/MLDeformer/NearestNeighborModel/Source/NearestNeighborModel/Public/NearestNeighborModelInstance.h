@@ -13,6 +13,7 @@ class NEARESTNEIGHBORMODEL_API UNearestNeighborModelInstance
 
 public:
 	// UMLDeformerModelInstance overrides
+    virtual void Init(USkeletalMeshComponent* SkelMeshComponent) override;
     virtual void Execute(float ModelWeight) override;
     virtual bool SetupInputs() override;
 
@@ -20,6 +21,8 @@ public:
     uint32 NearestNeighborId(int32 PartId) const { return NearestNeighborIds[PartId]; }
     int32 NeighborIdNum() const { return NearestNeighborIds.Num(); }
 #endif
+
+    void InitPreviousWeights();
 
 protected:
     virtual int64 SetBoneTransforms(float* OutputBuffer, int64 OutputBufferSize, int64 StartIndex) override;
@@ -33,4 +36,6 @@ private:
 #if WITH_EDITORONLY_DATA
     TArray<uint32> NearestNeighborIds;
 #endif
+
+    TArray<float> PreviousWeights;
 };

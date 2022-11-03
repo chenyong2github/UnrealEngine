@@ -172,7 +172,7 @@ namespace UE::NearestNeighborModel
 				.OnClicked_Lambda([this]
 				{
 					NearestNeighborEditorModel->OnMorphTargetUpdate();
-					NearestNeighborModel->InitPreviousWeights();
+					NearestNeighborEditorModel->InitTestMLDeformerPreviousWeights();
 					return FReply::Handled();
 				})
 			];

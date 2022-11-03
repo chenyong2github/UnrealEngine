@@ -55,7 +55,6 @@ void UNearestNeighborModel::PostLoad()
 	Super::PostLoad();
 
 	InitInputInfo();
-	InitPreviousWeights();
 
 #if WITH_EDITORONLY_DATA
 	UpdateNetworkInputDim();
@@ -296,12 +295,5 @@ bool UNearestNeighborModel::CheckPCAData(int32 PartId) const
 {
 	const FClothPartData& Data = ClothPartData[PartId];
 	return Data.VertexMap.Num() > 0 && Data.PCABasis.Num() == Data.VertexMap.Num() * 3 * Data.PCACoeffNum;
-}
-
-
-void UNearestNeighborModel::InitPreviousWeights()
-{
-	const int32 NumWeights = GetMorphTargetSet()->MorphBuffers.GetNumMorphs();
-	PreviousWeights.SetNumZeroed(NumWeights);
 }
 #undef LOCTEXT_NAMESPACE

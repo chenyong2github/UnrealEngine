@@ -145,8 +145,8 @@ public:
 	virtual void PostLoad() override;
 
 	// UMLDeformerModel overrides.
-	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component);
-	virtual UMLDeformerInputInfo* CreateInputInfo();
+	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;
+	virtual UMLDeformerInputInfo* CreateInputInfo() override;
 	virtual FString GetDisplayName() const override { return "Nearest Neighbor Model"; }
 	// ~END UMLDeformerModel overrides.
 
@@ -213,7 +213,6 @@ public:
 	bool CheckPCAData(int32 PartId) const;
 
 	void InitInputInfo();
-	void InitPreviousWeights();
 
 	void ResetMorphBuffers();
 
@@ -367,6 +366,4 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nearest Neighbors", META = (ClampMin = "0", ClampMax = "1"))
 	float NearestNeighborOffsetWeight = 1.0f;
-
-	TArray<float> PreviousWeights; 
 };
