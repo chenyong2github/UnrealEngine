@@ -5771,13 +5771,13 @@ private:
 		if (TFHDBox == nullptr)
 		{
 			// Not fragmented.
-			if (MDHDBox)
-			{
-				return FTimeFraction((int64)MDHDBox->GetDuration(), MDHDBox->GetTimescale());
-			}
-			else if (TKHDBox && MVHDBox)
+			if (TKHDBox && MVHDBox)
 			{
 				return FTimeFraction(TKHDBox->GetDuration(), MVHDBox->GetTimescale());
+			}
+			else if (MDHDBox)
+			{
+				return FTimeFraction((int64)MDHDBox->GetDuration(), MDHDBox->GetTimescale());
 			}
 		}
 		return FTimeFraction();

@@ -642,6 +642,7 @@ FErrorDetail FManifestMP4Internal::FTimelineAssetMP4::Build(IPlayerSessionServic
 	PlayerSessionServices = InPlayerSessionServices;
 	MediaURL = URL;
 	// Go over the supported tracks and create an internal manifest-like structure for the player to work with.
+	LongestTrackDuration = FTimeValue::GetZero();
 	for(int32 nTrack=0,nMaxTrack=MP4Parser->GetNumberOfTracks(); nTrack < nMaxTrack; ++nTrack)
 	{
 		const IParserISO14496_12::ITrack* Track = MP4Parser->GetTrackByIndex(nTrack);
@@ -669,6 +670,12 @@ FErrorDetail FManifestMP4Internal::FTimelineAssetMP4::Build(IPlayerSessionServic
 						break;
 					default:
 						break;
+				}
+				FTimeValue TrkDur;
+				TrkDur.SetFromTimeFraction(Track->GetDuration());
+				if (TrkDur > LongestTrackDuration)
+				{
+					LongestTrackDuration = TrkDur;
 				}
 			}
 			else
@@ -798,7 +805,9 @@ void FManifestMP4Internal::FTimelineAssetMP4::UpdatePlayRangeEndInfo(const FTime
 							bFirst = false;
 							TrackLocalTime = PlayRangeEndInfo.Time.GetAsTimebase(TrkIt->GetTimescale());
 						}
-						if (TrkIt->GetPTS() >= TrackLocalTime)
+						// Look at the DTS, not the PTS since a frame with a larger PTS may still be referenced
+						// by earlier frames (B frame reordering).
+						if (TrkIt->GetDTS() >= TrackLocalTime)
 						{
 							TrackEndBytePos = TrkIt->GetSampleFileOffset();
 							if (TrackEndBytePos > PlayRangeEndInfo.TotalFileEndOffset)
@@ -827,6 +836,10 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 	bool bFrameAccurateSearch = AtAbsoluteFilePos < 0 ? StartPosition.Options.bFrameAccuracy : false;
 	FTimeValue PlayRangeEnd = StartPosition.Options.PlaybackRange.End;
 	check(PlayRangeEnd.IsValid());
+	if (PlayRangeEnd > LongestTrackDuration)
+	{
+		PlayRangeEnd = LongestTrackDuration;
+	}
 	UpdatePlayRangeEndInfo(PlayRangeEnd);
 
 	// Look at the actual tracks. If there is video search there first for a keyframe/IDR frame.

@@ -149,17 +149,7 @@ public:
 
 		virtual FTimeValue GetDuration() const override
 		{
-			if (MoovBoxParser.IsValid())
-			{
-				TMediaOptionalValue<FTimeFraction> movieDuration = MoovBoxParser->GetMovieDuration();
-				if (movieDuration.IsSet())
-				{
-					FTimeValue dur;
-					dur.SetFromTimeFraction(movieDuration.Value());
-					return dur;
-				}
-			}
-			return FTimeValue();
+			return LongestTrackDuration;
 		}
 
 		virtual FString GetAssetIdentifier() const override
@@ -263,6 +253,7 @@ public:
 		void LogMessage(IInfoLog::ELevel Level, const FString& Message);
 		IPlayerSessionServices* 						PlayerSessionServices;
 		FString											MediaURL;
+		FTimeValue										LongestTrackDuration;
 		TSharedPtrTS<IParserISO14496_12>				MoovBoxParser;
 		TArray<TSharedPtrTS<FAdaptationSetMP4>>			VideoAdaptationSets;
 		TArray<TSharedPtrTS<FAdaptationSetMP4>>			AudioAdaptationSets;
