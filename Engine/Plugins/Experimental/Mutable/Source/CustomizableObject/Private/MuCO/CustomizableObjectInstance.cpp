@@ -215,7 +215,7 @@ const FCustomizableObjectInstanceDescriptor& UCustomizableObjectInstance::GetDes
 void UCustomizableObjectInstance::SetDescriptor(const FCustomizableObjectInstanceDescriptor& InDescriptor)
 {
 	Descriptor = InDescriptor;
-	PrivateData->ReloadParametersFromObject(this, true);
+	PrivateData->ReloadParameters(this);
 }
 
 
@@ -502,7 +502,7 @@ void UCustomizableObjectInstance::PostLoad()
 
 	Super::PostLoad();
 
-	Descriptor.CreateParametersLookupTable();
+	Descriptor.ReloadParameters();
 }
 
 
@@ -567,7 +567,26 @@ FCustomizableObjectProjector UCustomizableObjectInstance::GetProjectorDefaultVal
 }
 
 
-mu::ParametersPtr UCustomizableInstancePrivateData::ReloadParametersFromObject(UCustomizableObjectInstance* Public, bool ClearLastMeshIds)
+void UCustomizableInstancePrivateData::InstanceUpdateFlags(const UCustomizableObjectInstance& Public)
+{
+	const UCustomizableObject* CustomizableObject = Public.GetCustomizableObject();
+	
+	FirstLODAvailable = CustomizableObject->LODSettings.FirstLODAvailable;
+
+	if (CustomizableObject->LODSettings.bLODStreamingEnabled || !UCustomizableObjectSystem::GetInstance()->IsProgressiveMipStreamingEnabled())
+	{
+		SetCOInstanceFlags(LODsStreamingEnabled);
+		NumMaxLODsToStream = CustomizableObject->LODSettings.NumLODsToStream;
+	}
+	else
+	{
+		ClearCOInstanceFlags(LODsStreamingEnabled);
+		NumMaxLODsToStream = 0;
+	}
+}
+
+
+mu::ParametersPtr UCustomizableInstancePrivateData::GetParameters(UCustomizableObjectInstance* Public) 
 {
 	const UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
 	if (!CustomizableObject)
@@ -581,19 +600,28 @@ mu::ParametersPtr UCustomizableInstancePrivateData::ReloadParametersFromObject(U
 		return nullptr;
 	}
 
-	FirstLODAvailable = CustomizableObject->LODSettings.FirstLODAvailable;
+	InstanceUpdateFlags(*Public); // TODO Move somewhere else.
+		
+	return Public->GetDescriptor().GetParameters();
+}
 
-	if (CustomizableObject->LODSettings.bLODStreamingEnabled || !UCustomizableObjectSystem::GetInstance()->IsProgressiveMipStreamingEnabled())
+
+void UCustomizableInstancePrivateData::ReloadParameters(UCustomizableObjectInstance* Public)
+{
+	const UCustomizableObject* CustomizableObject = Public->GetCustomizableObject();
+	if (!CustomizableObject)
 	{
-		SetCOInstanceFlags(LODsStreamingEnabled);
-		NumMaxLODsToStream = CustomizableObject->LODSettings.NumLODsToStream;
+		// May happen when deleting assets in editor, while they are still open.
+		return;
 	}
-	else
-	{
-		ClearCOInstanceFlags(LODsStreamingEnabled);
-		NumMaxLODsToStream = 0;
+
+	if (!CustomizableObject->IsCompiled())
+	{	
+		return;
 	}
-	
+
+	InstanceUpdateFlags(*Public); // TODO Move somewhere else.
+
 #if WITH_EDITOR
 	if(!Public->ProjectorAlphaChange)
 #endif
@@ -601,19 +629,16 @@ mu::ParametersPtr UCustomizableInstancePrivateData::ReloadParametersFromObject(U
 		ProjectorStates.Reset();
 	}
 	
-	if (ClearLastMeshIds)
-	{
-		ClearAllLastMeshIds();
-	}
+	ClearAllLastMeshIds();
 	
-	return Public->GetDescriptor().ReloadParametersFromObject();
+	Public->GetDescriptor().ReloadParameters();
 }
 
 
 void UCustomizableObjectInstance::SetObject(UCustomizableObject* InObject)
 {
-	Descriptor.SetCustomizableObject(InObject);
-	PrivateData->ReloadParametersFromObject(this, true);
+	Descriptor.SetCustomizableObject(*InObject);
+	PrivateData->ReloadParameters(this);
 }
 
 
@@ -659,13 +684,13 @@ void UCustomizableObjectInstance::SetState(const int32 InState)
 
 FString UCustomizableObjectInstance::GetCurrentState() const
 {
-	return GetCustomizableObject()->GetStateName(GetState());
+	return Descriptor.GetCurrentState();
 }
 
 
 void UCustomizableObjectInstance::SetCurrentState(const FString& StateName)
 {
-	SetState(GetCustomizableObject()->FindState(StateName));
+	Descriptor.SetCurrentState(StateName);
 }
 
 

@@ -190,8 +190,15 @@ public:
 	// Return an event that will be fired when the assets  have been loaded. It returns null if no asset needs loading.
 	FGraphEventRef LoadAdditionalAssetsAsync(const TSharedPtr<FMutableOperationData>& OperationData, UCustomizableObjectInstance* Public, struct FStreamableManager &StreamableManager);
 	void AdditionalAssetsAsyncLoaded(UCustomizableObjectInstance* Public);
-	
-	mu::ParametersPtr ReloadParametersFromObject(UCustomizableObjectInstance* Public, bool ClearLastMeshIds = false);
+
+	/** Temporal function. Used by GetParameters and ReloadParameters but its body should be moved somewhere else (probably on some other Instance update function). */
+	void InstanceUpdateFlags(const UCustomizableObjectInstance& Public);
+
+	/** See FCustomizableObjectInstanceDescriptor::GetParameters(...). */
+	mu::ParametersPtr GetParameters(UCustomizableObjectInstance* Public);
+
+	/** See FCustomizableObjectInstanceDescriptor::ReloadParameters(...). */
+	void ReloadParameters(UCustomizableObjectInstance* Public);
 
 	void TickUpdateCloseCustomizableObjects(UCustomizableObjectInstance* Public);
 	void UpdateInstanceIfNotGenerated(UCustomizableObjectInstance* Public, bool bAsync);

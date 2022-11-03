@@ -44,10 +44,10 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 
 	FCustomizableObjectInstanceDescriptor(const FCustomizableObjectInstanceDescriptor& Other) = default;
 
-	/** Serialize this object. */
+	/** Serialize this object. Does not support Multilayer Projectors! */
 	void SaveDescriptor(FArchive &Ar);
 
-	/** Deserialize this object. */
+	/** Deserialize this object. Does not support Multilayer Projectors! */
 	void LoadDescriptor(FArchive &Ar);
 
 	UCustomizableObject* GetCustomizableObject() const;
@@ -56,9 +56,10 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 	
 	void SetBuildParameterDecorations(bool Value);
 	
-	void SetCustomizableObject(UCustomizableObject* InCustomizableObject);
+	void SetCustomizableObject(UCustomizableObject& InCustomizableObject);
 
-	mu::Ptr<mu::Parameters> ReloadParametersFromObject(); // TODO Split function in 2: 1. Load parameters from model, 2. Get mu::ParametersPtr
+	/** Update all parameters to be up to date with the Mutable Core parameters. */
+	void ReloadParameters();
     
 	// ------------------------------------------------------------
 	// Parameters
@@ -168,6 +169,9 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 
 	/** Finds in FloatParameters a parameter with name ParamName, returns the index if found, -1 otherwise. */
 	int32 FindFloatParameterNameIndex(const FString& ParamName) const;
+
+	/** Finds in TextureParameters a parameter with name ParamName, returns the index if found, -1 otherwise. */
+	int32 FindTextureParameterNameIndex(const FString& ParamName) const;
 
 	/** Finds in BoolParameters a parameter with name ParamName, returns the index if found, -1 otherwise. */
 	int32 FindBoolParameterNameIndex(const FString& ParamName) const;
@@ -331,8 +335,9 @@ private:
 	/** Multilayer Projector helpers. See FMultilayerProjector.*/
 	UPROPERTY()
 	TMap<FName, FMultilayerProjector> MultilayerProjectors;
-	
-	void Init();
+
+	/** Return a Mutable Core object containing all parameters. */
+	mu::Ptr<mu::Parameters> GetParameters() const;
 
 	void CreateParametersLookupTable();
 	
