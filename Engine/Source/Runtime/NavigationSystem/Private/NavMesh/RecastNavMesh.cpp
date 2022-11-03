@@ -292,6 +292,13 @@ uint32 FRecastDebugGeometry::GetAllocatedSize() const
 		Size += AreaIndices[i].GetAllocatedSize();
 	}
 
+#if RECAST_INTERNAL_DEBUG_DATA
+	for (int i = 0; i < BuildTimeBucketsCount; ++i)
+	{
+		Size += TileBuildTimesIndices[i].GetAllocatedSize();
+	}
+#endif // RECAST_INTERNAL_DEBUG_DATA
+
 #if WITH_NAVMESH_CLUSTER_LINKS
 	Size += Clusters.GetAllocatedSize()	+ ClusterLinks.GetAllocatedSize();
 
@@ -3277,12 +3284,14 @@ bool ARecastNavMesh::HasCompleteDataInRadius(const FVector& TestLocation, FVecto
 //----------------------------------------------------------------------//
 void ARecastNavMesh::UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& InvokerLocations)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ARecastNavMesh::UpdateActiveTiles);
+	
 	if (HasValidNavmesh() == false)
 	{
 		return;
 	}
 
-	FRecastNavMeshGenerator* MyGenerator = static_cast<FRecastNavMeshGenerator*>(GetGenerator());
+	const FRecastNavMeshGenerator* MyGenerator = static_cast<FRecastNavMeshGenerator*>(GetGenerator());
 	if (MyGenerator == nullptr)
 	{
 		return;
@@ -3302,14 +3311,11 @@ void ARecastNavMesh::UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& Invo
 	TilesInMaxDistance.Reserve(ActiveTiles.Num());
 	ActiveTiles.Reset();
 
-	//const int32 TileRadius = FMath::CeilToInt(Radius / TileDim);
-	static const FVector::FReal SqareRootOf2 = FMath::Sqrt(2.f);
-
 	for (const FNavigationInvokerRaw& Invoker : InvokerLocations)
 	{
 		const FVector InvokerRelativeLocation = (NavmeshOrigin - Invoker.Location);
-		const  FVector::FReal TileCenterDistanceToRemoveSq = FMath::Square(TileDim * SqareRootOf2 / 2 + Invoker.RadiusMax);
-		const  FVector::FReal TileCenterDistanceToAddSq = FMath::Square(TileDim * SqareRootOf2 / 2 + Invoker.RadiusMin);
+		const  FVector::FReal TileCenterDistanceToRemoveSq = FMath::Square(TileDim * UE_SQRT_2 / 2 + Invoker.RadiusMax);
+		const  FVector::FReal TileCenterDistanceToAddSq = FMath::Square(TileDim * UE_SQRT_2 / 2 + Invoker.RadiusMin);
 
 		const int32 MinTileX = FMath::FloorToInt((InvokerRelativeLocation.X - Invoker.RadiusMax) / TileDim);
 		const int32 MaxTileX = FMath::CeilToInt((InvokerRelativeLocation.X + Invoker.RadiusMax) / TileDim);
@@ -3340,14 +3346,15 @@ void ARecastNavMesh::UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& Invo
 	TilesToRemove.Reserve(OldActiveSet.Num());
 	for (int32 Index = OldActiveSet.Num() - 1; Index >= 0; --Index)
 	{
-		if (TilesInMaxDistance.Find(OldActiveSet[Index]) == INDEX_NONE)
+		const FIntPoint& Tile = OldActiveSet[Index];
+		if (TilesInMaxDistance.Find(Tile) == INDEX_NONE)
 		{
-			TilesToRemove.Add(OldActiveSet[Index]);
+			TilesToRemove.Add(Tile);
 			OldActiveSet.RemoveAtSwap(Index, 1, /*bAllowShrinking=*/false);
 		}
 		else
 		{
-			ActiveTiles.AddUnique(OldActiveSet[Index]);
+			ActiveTiles.AddUnique(Tile);
 		}
 	}
 
@@ -3356,9 +3363,10 @@ void ARecastNavMesh::UpdateActiveTiles(const TArray<FNavigationInvokerRaw>& Invo
 	for (int32 Index = TilesInMinDistance.Num() - 1; Index >= 0; --Index)
 	{
 		// check if it's a new tile
-		if (OldActiveSet.Find(TilesInMinDistance[Index]) == INDEX_NONE)
+		const FIntPoint& Tile = TilesInMinDistance[Index];
+		if (OldActiveSet.Find(Tile) == INDEX_NONE)
 		{
-			TilesToUpdate.Add(TilesInMinDistance[Index]);
+			TilesToUpdate.Add(Tile);
 		}
 	}
 
@@ -3417,7 +3425,7 @@ void ARecastNavMesh::DirtyTilesInBounds(const FBox& Bounds)
 	for (int32 TileIndex = 0; TileIndex < TileCount; ++TileIndex)
 	{
 		const dtMeshTile* Tile = DetourNavMesh->getTile(TileIndex);
-		dtMeshHeader* Header = Tile != nullptr ? Tile->header : nullptr;
+		const dtMeshHeader* Header = Tile != nullptr ? Tile->header : nullptr;
 		if (Header)
 		{
 			TilesToRemove.Add(FIntPoint(Header->x, Header->y));

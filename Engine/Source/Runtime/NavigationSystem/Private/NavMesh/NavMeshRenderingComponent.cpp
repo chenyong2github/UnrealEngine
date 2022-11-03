@@ -229,7 +229,7 @@ namespace FNavMeshRenderingHelpers
 		MeshData.Indices.Add(V2);
 	}
 
-	void AddArea(TArray<FNavMeshSceneProxyData::FDebugMeshData>& MeshBuilders, const TArray<int32>& MeshIndices, const TArray<FVector>& MeshVerts, const FColor Color, const FVector DrawOffset)
+	void AddCluster(TArray<FNavMeshSceneProxyData::FDebugMeshData>& MeshBuilders, const TArray<int32>& MeshIndices, const TArray<FVector>& MeshVerts, const FColor Color, const FVector DrawOffset)
 	{
 		if (MeshIndices.Num() == 0)
 		{
@@ -292,7 +292,9 @@ namespace FNavMeshRenderingHelpers
 			(NavMesh->bDrawClusters ? (1 << static_cast<int32>(ENavMeshDetailFlags::Clusters)) : 0) |
 			(NavMesh->bDrawOctree ? (1 << static_cast<int32>(ENavMeshDetailFlags::NavOctree)) : 0) |
 			(NavMesh->bDrawOctreeDetails ? (1 << static_cast<int32>(ENavMeshDetailFlags::NavOctreeDetails)) : 0) |
-			(NavMesh->bDrawMarkedForbiddenPolys ? (1 << static_cast<int32>(ENavMeshDetailFlags::MarkForbiddenPolys)) : 0);
+			(NavMesh->bDrawMarkedForbiddenPolys ? (1 << static_cast<int32>(ENavMeshDetailFlags::MarkForbiddenPolys)) : 0) |
+			(NavMesh->bDrawTileBuildTimes ? (1 << static_cast<int32>(ENavMeshDetailFlags::TileBuildTimes)) : 0) |
+			(NavMesh->bDrawTileBuildTimesHeatMap ? (1 << static_cast<int32>(ENavMeshDetailFlags::TileBuildTimesHeatMap)) : 0);
 	}
 #endif // WITH_RECAST
 
@@ -492,11 +494,87 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 
 		NavMeshDrawOffset.Z = NavMesh->DrawOffset;
 
+		{
+			// On screen information
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_2DLabels);
+			
+			// Navmesh
+			const ERuntimeGenerationType Mode = NavMesh->GetRuntimeGenerationMode();
+			const FString GenerationMode = Mode == ERuntimeGenerationType::Static ? TEXT("Static") :
+				(Mode == ERuntimeGenerationType::Dynamic ? TEXT("Dynamic") : (Mode == ERuntimeGenerationType::DynamicModifiersOnly ? TEXT("DynamicModifersOnly") : TEXT("Unknown")));
+			DebugLabels.Add(FDebugText(FString::Printf(TEXT("%s (%s%s)"), *NavMesh->GetName(), NavMesh->bIsWorldPartitioned ? TEXT("WP ") : TEXT(""), *GenerationMode)));
+			DebugLabels.Add(FDebugText(FString::Printf(TEXT("AgentRadius %0.1f, AgentHeight %0.1f, CellSize %0.1f, CellHeight %0.1f"), NavMesh->AgentRadius, NavMesh->AgentHeight, NavMesh->CellSize, NavMesh->CellHeight)));
+			DebugLabels.Add(FDebugText(TEXT(" "))); // empty line
+
+			if (NavMesh->GetActiveTiles().Num() != 0)
+			{
+				DebugLabels.Add(FDebugText(FString::Printf(TEXT("Active tiles: %i"), NavMesh->GetActiveTiles().Num())));	
+			}	
+			
+			DebugLabels.Add(FDebugText(TEXT(" "))); // empty line
+			
+			// Navigation system
+			if (const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(NavMesh->GetWorld()))
+			{
+				DebugLabels.Add(FDebugText(FString::Printf(TEXT("MainNavData: %s"), NavSys->MainNavData ? *NavSys->MainNavData->GetName() : TEXT("none"))));
+
+				if (NavSys->IsActiveTilesGenerationEnabled()) // Checks bGenerateNavigationOnlyAroundNavigationInvokers
+				{
+					DebugLabels.Add(FDebugText(FString::Printf(TEXT("Invoker Locations: %i"), NavSys->GetInvokerLocations().Num())));	
+				}
+				
+				const int32 Running = NavSys->GetNumRunningBuildTasks();
+				const int32 Remaining = NavSys->GetNumRemainingBuildTasks(); 
+				if (Running || Remaining)
+				{
+					DebugLabels.Add(FDebugText(FString::Printf(TEXT("Tile jobs running/remaining: %6d / %6d"), Running, Remaining)));	
+				}
+			}
+		}
+
 		FRecastDebugGeometry NavMeshGeometry;
 		NavMeshGeometry.bGatherPolyEdges = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::PolyEdges);
 		NavMeshGeometry.bGatherNavMeshEdges = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::BoundaryEdges);
 		NavMeshGeometry.bMarkForbiddenPolys = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::MarkForbiddenPolys);
+		NavMeshGeometry.bGatherTileBuildTimesHeatMap = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::TileBuildTimesHeatMap);
 
+#if RECAST_INTERNAL_DEBUG_DATA
+		// Colors for tile build times heat map
+		auto LerpColor = [](FColor A, FColor B, float T) -> FColor
+		{
+			return FColor(
+				FMath::RoundToInt(float(A.R) * (1.f - T) + float(B.R) * T),
+				FMath::RoundToInt(float(A.G) * (1.f - T) + float(B.G) * T),
+				FMath::RoundToInt(float(A.B) * (1.f - T) + float(B.B) * T),
+				FMath::RoundToInt(float(A.A) * (1.f - T) + float(B.A) * T));
+		};
+
+		TArray<FColor> TileBuildTimeColors;
+		const TMap<FIntPoint, FRecastInternalDebugData>* DebugDataMap = NavMesh->GetDebugDataMap();
+		
+		if (NavMeshGeometry.bGatherTileBuildTimesHeatMap)
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_MaxTileBuildTime);
+			
+			// Find MaxTileBuildTime 
+			NavMeshGeometry.MaxTileBuildTime = 0;
+			if (DebugDataMap)
+			{
+				for(const TPair<FIntPoint, FRecastInternalDebugData>& Pair : *DebugDataMap)
+				{
+					NavMeshGeometry.MaxTileBuildTime = FMath::Max(NavMeshGeometry.MaxTileBuildTime, Pair.Value.BuildTime);
+				}
+			}
+
+			TileBuildTimeColors.AddDefaulted(FRecastDebugGeometry::BuildTimeBucketsCount);
+			for (int32 Index = 0; Index < FRecastDebugGeometry::BuildTimeBucketsCount; Index++)
+			{
+				const float LerpValue = (float)Index / (FRecastDebugGeometry::BuildTimeBucketsCount-1);
+				TileBuildTimeColors[Index] = LerpColor(FColor::Cyan.WithAlpha(128), FColor::Red.WithAlpha(128), LerpValue);
+			}
+		}
+#endif // RECAST_INTERNAL_DEBUG_DATA
+		
 		const FNavDataConfig& NavConfig = NavMesh->GetConfig();
 		TArray<FColor> NavMeshColors;
 		NavMeshColors.AddDefaulted(RECAST_MAX_AREAS);
@@ -507,8 +585,12 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		}
 		NavMeshColors[RECAST_DEFAULT_AREA] = NavConfig.Color.DWColor() > 0 ? NavConfig.Color : NavMeshRenderColor_RecastMesh;
 
-		// just a little trick to make sure navmeshes with different sized are not drawn with same offset
-		NavMeshDrawOffset.Z += NavMesh->GetConfig().AgentRadius / 10.f;
+		// Just a little trick to make sure navmeshes with different sized are not drawn with same offset.
+		// When DrawOffset is 0, don't add any offset (usually used to debug navmesh height).
+		if(NavMesh->DrawOffset != 0.f)
+		{
+			NavMeshDrawOffset.Z += NavMesh->GetConfig().AgentRadius / 10.f;
+		}
 
 		NavMesh->BeginBatchQuery();
 		if (TileSet.Num() > 0)
@@ -530,6 +612,8 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		const bool bGatherTriEdges = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::TriangleEdges);
 		if (bGatherTriEdges)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_GatherTriEdges);
+			
 			for (int32 AreaIdx = 0; AreaIdx < RECAST_MAX_AREAS; ++AreaIdx)
 			{
 				const TArray<int32>& MeshIndices = NavMeshGeometry.AreaIndices[AreaIdx];
@@ -546,6 +630,8 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		const bool bGatherPolyEdges = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::PolyEdges);
 		if (bGatherPolyEdges)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_GatherPolyEdges);
+			
 			const TArray<FVector>& TileEdgeVerts = NavMeshGeometry.PolyEdges;
 			for (int32 Idx = 0; Idx < TileEdgeVerts.Num(); Idx += 2)
 			{
@@ -557,6 +643,8 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		const bool bGatherBoundaryEdges = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::BoundaryEdges);
 		if (bGatherBoundaryEdges)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_GatherBoundaryEdges);
+			
 			const FColor EdgesColor = FNavMeshRenderingHelpers::DarkenColor(NavMeshColors[RECAST_DEFAULT_AREA]);
 			const TArray<FVector>& NavMeshEdgeVerts = NavMeshGeometry.NavMeshEdges;
 			for (int32 Idx = 0; Idx < NavMeshEdgeVerts.Num(); Idx += 2)
@@ -574,6 +662,8 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		if (bGatherClusters == false)
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_OffMeshLinks);
+			
 			for (int32 OffMeshLineIndex = 0; OffMeshLineIndex < NavMeshGeometry.OffMeshLinks.Num(); ++OffMeshLineIndex)
 			{
 				FRecastDebugGeometry::FOffMeshLink& Link = NavMeshGeometry.OffMeshLinks[OffMeshLineIndex];
@@ -602,8 +692,11 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 					}
 				}
 			}
+			
 			if (NavMeshGeometry.bMarkForbiddenPolys)
 			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_MarkForbiddenPolys);
+				
 				for (int32 OffMeshLineIndex = 0; OffMeshLineIndex < NavMeshGeometry.ForbiddenLinks.Num(); ++OffMeshLineIndex)
 				{
 					FRecastDebugGeometry::FOffMeshLink& Link = NavMeshGeometry.ForbiddenLinks[OffMeshLineIndex];
@@ -622,9 +715,13 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		const bool bGatherPolygonLabels = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::PolygonLabels);
 		const bool bGatherPolygonCost = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::PolygonCost);
 		const bool bGatherPolygonFlags = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::PolygonFlags);
+		const bool bGatherTileBuildTimes = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::TileBuildTimes);
+		const bool bGatherTileBuildHeatMap = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::TileBuildTimesHeatMap);
 
-		if (bGatherTileLabels || bGatherTileBounds || bGatherPolygonLabels || bGatherPolygonCost || bGatherPolygonFlags)
+		if (bGatherTileLabels || bGatherTileBounds || bGatherPolygonLabels || bGatherPolygonCost || bGatherPolygonFlags || bGatherTileBuildTimes)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_TileIterations);
+			
 			TArray<int32> UseTileIndices;
 			if (TileSet.Num() > 0)
 			{
@@ -639,6 +736,8 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 				}
 			}
 
+			TMap<FIntPoint, FVector> TileBuildTimeLabelLocations;
+			
 			// calculate appropriate points for displaying debug labels
 			DebugLabels.Reserve(UseTileIndices.Num());
 			for (int32 TileSetIdx = 0; TileSetIdx < UseTileIndices.Num(); TileSetIdx++)
@@ -662,6 +761,21 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 						DebugLabels.Add(FDebugText(NavLocation.Location + NavMeshDrawOffset, FString::Printf(TEXT("(%d,%d:%d)"), X, Y, Layer)));
 					}
 
+					if (bGatherTileBuildTimes)
+					{
+						// Just keep the highest layer location
+						const FIntPoint Coord(X, Y);
+						FVector* Location = TileBuildTimeLabelLocations.Find(Coord);
+						if (!Location)
+						{
+							TileBuildTimeLabelLocations.Add(Coord, NavLocation.Location);
+						}
+						else if(NavLocation.Location.Z > Location->Z)
+						{
+							*Location = NavLocation;
+						}
+					}	
+					
 					if (bGatherPolygonLabels || bGatherPolygonCost || bGatherPolygonFlags)
 					{
 						TArray<FNavPoly> Polys;
@@ -736,19 +850,41 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 					}
 				}
 			}
+
+#if RECAST_INTERNAL_DEBUG_DATA
+			if (bGatherTileBuildTimes)
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_TileBuildTimes);
+				for(const TPair<FIntPoint, FVector>& Pair : TileBuildTimeLabelLocations)
+				{
+					if (const FRecastInternalDebugData* DebugData = DebugDataMap->Find(Pair.Key))
+					{
+						constexpr double SecToMs = 1000.;
+						const double BuildTimeMs = DebugData->BuildTime * SecToMs;
+						const double CompressedLayerTimeMs = DebugData->BuildCompressedLayerTime * SecToMs;
+						const double NavigationDataTimeMs = DebugData->BuildNavigationDataTime * SecToMs;
+						DebugLabels.Add(FDebugText(Pair.Value + NavMeshDrawOffset, FString::Printf(TEXT("%.2f ms\n%.2f + %.2f"), BuildTimeMs, CompressedLayerTimeMs, NavigationDataTimeMs)));
+					}
+				}
+			}
+#endif // RECAST_INTERNAL_DEBUG_DATA
 		}
 
 #if RECAST_INTERNAL_DEBUG_DATA
-		// Display internal debug data
-		for (const FIntPoint& point : NavMeshGeometry.TilesToDisplayInternalData)
 		{
-			if (NavMesh->GetDebugDataMap())
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_DisplayInternalData);
+
+			// Display internal debug data
+			for (const FIntPoint& point : NavMeshGeometry.TilesToDisplayInternalData)
 			{
-				const FRecastInternalDebugData& DebugData = NavMesh->GetDebugDataMap()->FindRef(point);
-				AddMeshForInternalData(DebugData);
+				if (NavMesh->GetDebugDataMap())
+				{
+					const FRecastInternalDebugData& DebugData = NavMesh->GetDebugDataMap()->FindRef(point);
+					AddMeshForInternalData(DebugData);
+				}
 			}
 		}
-#endif
+#endif // RECAST_INTERNAL_DEBUG_DATA
 
 		NavMesh->FinishBatchQuery();
 
@@ -756,6 +892,8 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		const bool bGatherFilledPolys = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::FilledPolys);
 		if (bGatherFilledPolys)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_GatherFilledPolys);
+			
 #if WITH_NAVMESH_CLUSTER_LINKS
 			if (bGatherClusters)
 			{
@@ -786,17 +924,31 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 			{
 				for (int32 AreaType = 0; AreaType < RECAST_MAX_AREAS; ++AreaType)
 				{
-					FNavMeshRenderingHelpers::AddArea(MeshBuilders, NavMeshGeometry.AreaIndices[AreaType], NavMeshGeometry.MeshVerts, NavMeshColors[AreaType], NavMeshDrawOffset);
+					FNavMeshRenderingHelpers::AddCluster(MeshBuilders, NavMeshGeometry.AreaIndices[AreaType], NavMeshGeometry.MeshVerts, NavMeshColors[AreaType], NavMeshDrawOffset);
 				}
-				FNavMeshRenderingHelpers::AddArea(MeshBuilders, NavMeshGeometry.ForbiddenIndices, NavMeshGeometry.MeshVerts, NavMeshRenderColor_PolyForbidden, NavMeshDrawOffset);
+				FNavMeshRenderingHelpers::AddCluster(MeshBuilders, NavMeshGeometry.ForbiddenIndices, NavMeshGeometry.MeshVerts, NavMeshRenderColor_PolyForbidden, NavMeshDrawOffset);
 			}
 		}
+
+#if RECAST_INTERNAL_DEBUG_DATA		
+		if (bGatherTileBuildHeatMap)
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_GatherTileBuildHeatMap);
+			
+			for (int32 Index = 0; Index < FRecastDebugGeometry::BuildTimeBucketsCount; ++Index)
+			{
+				FNavMeshRenderingHelpers::AddCluster(MeshBuilders, NavMeshGeometry.TileBuildTimesIndices[Index], NavMeshGeometry.MeshVerts, TileBuildTimeColors[Index], NavMeshDrawOffset);
+			}
+		}
+#endif // RECAST_INTERNAL_DEBUG_DATA
 
 		const bool bGatherOctree = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::NavOctree);
 		const bool bGatherOctreeDetails = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::NavOctreeDetails);
 		const bool bGatherPathCollidingGeometry = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::PathCollidingGeometry);
 		if (bGatherOctree || bGatherPathCollidingGeometry)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_Octree);
+			
 			const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(NavMesh->GetWorld());
 			const FNavigationOctree* NavOctree = NavSys ? NavSys->GetNavOctree() : nullptr;
 			if (NavOctree)
@@ -864,6 +1016,8 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 
 		if (NavMeshGeometry.BuiltMeshIndices.Num() > 0)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_BuiltMeshIndices);
+			
 			FDebugMeshData DebugMeshData;
 			for (int32 VertIdx = 0; VertIdx < MeshVerts.Num(); ++VertIdx)
 			{
@@ -877,6 +1031,8 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 #if WITH_NAVMESH_CLUSTER_LINKS
 		if (bGatherClusters)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_GatherClusters);
+			
 			for (int32 Idx = 0; Idx < NavMeshGeometry.ClusterLinks.Num(); Idx++)
 			{
 				const FRecastDebugGeometry::FClusterLink& CLink = NavMeshGeometry.ClusterLinks[Idx];
@@ -894,6 +1050,8 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		// cache segment links
 		if (bGatherNavLinks)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_NavLinks);
+			
 			for (int32 AreaIdx = 0; AreaIdx < RECAST_MAX_AREAS; AreaIdx++)
 			{
 				const TArray<int32>& Indices = NavMeshGeometry.OffMeshSegmentAreas[AreaIdx];
@@ -1343,12 +1501,22 @@ void FNavMeshDebugDrawDelegateHelper::DrawDebugLabels(UCanvas* Canvas, APlayerCo
 	const FSceneView* View = Canvas->SceneView;
 	const UFont* Font = GEngine->GetSmallFont();
 	const FNavMeshSceneProxyData::FDebugText* DebugText = DebugLabels.GetData();
+	float ScreenY = 40.f;
 	for (int32 Idx = 0; Idx < DebugLabels.Num(); ++Idx, ++DebugText)
 	{
-		if (View->ViewFrustum.IntersectSphere(DebugText->Location, 1.0f))
+		if (DebugText->Location == FNavigationSystem::InvalidLocation)
 		{
-			const FVector ScreenLoc = Canvas->Project(DebugText->Location);
-			Canvas->DrawText(Font, DebugText->Text, ScreenLoc.X, ScreenLoc.Y);
+			constexpr float ScreenX = 10.f;
+			Canvas->DrawText(Font, DebugText->Text, ScreenX, ScreenY);
+			ScreenY += Font->GetStringHeightSize(*DebugText->Text);
+		}
+		else
+		{
+			if (FNavMeshRenderingHelpers::PointInView(DebugText->Location, View))
+			{
+				const FVector ScreenLoc = Canvas->Project(DebugText->Location);
+				Canvas->DrawText(Font, DebugText->Text, ScreenLoc.X, ScreenLoc.Y);
+			}
 		}
 	}
 
@@ -1514,7 +1682,7 @@ void UNavMeshRenderingComponent::GatherData(const ARecastNavMesh& NavMesh, FNavM
 }
 
 #if UE_ENABLE_DEBUG_DRAWING
-  FDebugRenderSceneProxy* UNavMeshRenderingComponent::CreateDebugSceneProxy()
+FDebugRenderSceneProxy* UNavMeshRenderingComponent::CreateDebugSceneProxy()
 {
 #if WITH_RECAST
 	FNavMeshSceneProxy* NavMeshSceneProxy = nullptr;
@@ -1533,6 +1701,10 @@ void UNavMeshRenderingComponent::GatherData(const ARecastNavMesh& NavMesh, FNavM
 
 			NavMeshSceneProxy = new FNavMeshSceneProxy(this, &ProxyData);
 			NavMeshDebugDrawDelegateManager.SetupFromProxy(NavMeshSceneProxy);
+		}
+		else
+		{
+			NavMeshDebugDrawDelegateManager.Reset();
 		}
 	}
 

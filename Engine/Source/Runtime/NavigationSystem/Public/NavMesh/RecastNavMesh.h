@@ -213,10 +213,15 @@ struct FRecastDebugGeometry
 	};
 #endif // WITH_NAVMESH_SEGMENT_LINKS
 
+	static constexpr int32 BuildTimeBucketsCount = 5;
+	
 	TArray<FVector> MeshVerts;
+	
 	TArray<int32> AreaIndices[RECAST_MAX_AREAS];
 	TArray<int32> ForbiddenIndices;
 	TArray<int32> BuiltMeshIndices;
+	TArray<int32> TileBuildTimesIndices[BuildTimeBucketsCount];
+	
 	TArray<FVector> PolyEdges;
 	TArray<FVector> NavMeshEdges;
 	TArray<FOffMeshLink> OffMeshLinks;
@@ -239,8 +244,11 @@ struct FRecastDebugGeometry
 	int32 bGatherPolyEdges : 1;
 	int32 bGatherNavMeshEdges : 1;
 	int32 bMarkForbiddenPolys : 1;
+	int32 bGatherTileBuildTimesHeatMap : 1;
+
+	double MaxTileBuildTime = 0;
 	
-	FRecastDebugGeometry() : bGatherPolyEdges(false), bGatherNavMeshEdges(false), bMarkForbiddenPolys(false)
+	FRecastDebugGeometry() : bGatherPolyEdges(false), bGatherNavMeshEdges(false), bMarkForbiddenPolys(false), bGatherTileBuildTimesHeatMap(false)
 	{}
 
 	uint32 NAVIGATIONSYSTEM_API GetAllocatedSize() const;
@@ -609,6 +617,12 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	UPROPERTY(EditAnywhere, Category=Display)
 	uint32 bDrawTileLabels:1;
 
+	UPROPERTY(EditAnywhere, Category=Display)
+	uint32 bDrawTileBuildTimes:1;
+
+	UPROPERTY(EditAnywhere, Category=Display)
+	uint32 bDrawTileBuildTimesHeatMap:1;
+	
 	/** Draw a label for every poly that indicates its poly and tile indices */
 	UPROPERTY(EditAnywhere, Category=Display, meta = (DisplayName = "Draw Polygon Indices"))
 	uint32 bDrawPolygonLabels:1;

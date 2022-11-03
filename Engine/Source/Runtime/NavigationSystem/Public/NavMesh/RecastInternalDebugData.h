@@ -24,6 +24,10 @@ struct FRecastInternalDebugData : public duDebugDraw
 	TArray<FVector> PointVertices;
 	TArray<FColor>  PointColors;
 
+	double BuildTime = 0.;
+	double BuildCompressedLayerTime = 0.;
+	double BuildNavigationDataTime = 0.;
+
 	FRecastInternalDebugData() {}
 	virtual ~FRecastInternalDebugData() override {}
 

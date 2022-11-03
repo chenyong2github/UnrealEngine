@@ -2631,6 +2631,8 @@ uint8 GetValidEnds(const dtNavMesh& NavMesh, const dtMeshTile& Tile, const dtPol
 
 bool FPImplRecastNavMesh::GetDebugGeometryForTile(FRecastDebugGeometry& OutGeometry, int32 TileIndex) const
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPImplRecastNavMesh_GetDebugGeometryForTile);
+	
 	bool bDone = false;
 	if (DetourNavMesh == nullptr || TileIndex >= DetourNavMesh->getMaxTiles())
 	{
@@ -2683,6 +2685,10 @@ bool FPImplRecastNavMesh::GetDebugGeometryForTile(FRecastDebugGeometry& OutGeome
 		OutGeometry.MeshVerts.Reserve(OutGeometry.MeshVerts.Num() + NumVertsToReserve);
 		OutGeometry.AreaIndices[0].Reserve(OutGeometry.AreaIndices[0].Num() + NumIndicesToReserve);
 		OutGeometry.BuiltMeshIndices.Reserve(OutGeometry.BuiltMeshIndices.Num() + NumIndicesToReserve);
+		for (int32 Index = 0; Index < FRecastDebugGeometry::BuildTimeBucketsCount; Index++)
+		{
+			OutGeometry.TileBuildTimesIndices[Index].Reserve(OutGeometry.TileBuildTimesIndices[Index].Num() + NumIndicesToReserve);	
+		}
 
 		uint32 VertBase = OutGeometry.MeshVerts.Num();
 		for (const FIntPoint& TileLocation : ActiveTiles)
@@ -2723,6 +2729,10 @@ bool FPImplRecastNavMesh::GetDebugGeometryForTile(FRecastDebugGeometry& OutGeome
 		OutGeometry.MeshVerts.Reserve(OutGeometry.MeshVerts.Num() + NumVertsToReserve);
 		OutGeometry.AreaIndices[0].Reserve(OutGeometry.AreaIndices[0].Num() + NumIndicesToReserve);
 		OutGeometry.BuiltMeshIndices.Reserve(OutGeometry.BuiltMeshIndices.Num() + NumIndicesToReserve);
+		for (int32 Index = 0; Index < FRecastDebugGeometry::BuildTimeBucketsCount; Index++)
+		{
+			OutGeometry.TileBuildTimesIndices[Index].Reserve(OutGeometry.TileBuildTimesIndices[Index].Num() + NumIndicesToReserve);	
+		}
 
 		uint32 VertBase = OutGeometry.MeshVerts.Num();
 		for (int32 TileIdx = StartingTile; TileIdx < NumTiles; ++TileIdx)
@@ -2788,6 +2798,11 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 		F += 3;
 	}
 
+#if RECAST_INTERNAL_DEBUG_DATA	
+	const FIntPoint TileCoord(Header->x, Header->y);
+	const FRecastInternalDebugData* DebugData = DebugDataMap.Find(TileCoord);
+#endif // RECAST_INTERNAL_DEBUG_DATA	
+	
 	// add all the indices
 	for (int32 PolyIdx = 0; PolyIdx < Header->polyCount; ++PolyIdx)
 	{
@@ -2797,10 +2812,27 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 		{
 			dtPolyDetail const* const DetailPoly = &Tile.detailMeshes[PolyIdx];
 
-			TArray<int32>* Indices = bIsBeingBuilt ? &OutGeometry.BuiltMeshIndices 
-				: ((Poly->flags & ForbiddenFlags) != 0
-					? &OutGeometry.ForbiddenIndices
-					: &OutGeometry.AreaIndices[Poly->getArea()]);
+			TArray<int32>* Indices = nullptr;
+			if (bIsBeingBuilt)
+			{
+				Indices = &OutGeometry.BuiltMeshIndices;
+			}
+			else if ((Poly->flags & ForbiddenFlags) != 0)
+			{
+				Indices = &OutGeometry.ForbiddenIndices;
+			}
+#if RECAST_INTERNAL_DEBUG_DATA			
+			else if (OutGeometry.bGatherTileBuildTimesHeatMap && DebugData)
+			{
+				int32 Rank = (FRecastDebugGeometry::BuildTimeBucketsCount-1) * (DebugData->BuildTime / OutGeometry.MaxTileBuildTime);
+				Rank = FMath::Clamp(Rank, 0, FRecastDebugGeometry::BuildTimeBucketsCount-1);
+				Indices = &OutGeometry.TileBuildTimesIndices[Rank];
+			}
+#endif // RECAST_INTERNAL_DEBUG_DATA
+			else
+			{
+				Indices = &OutGeometry.AreaIndices[Poly->getArea()];
+			}
 
 			// one triangle at a time
 			for (int32 TriIdx = 0; TriIdx < DetailPoly->triCount; ++TriIdx)

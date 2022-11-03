@@ -73,6 +73,12 @@ static FAutoConsoleVariableRef NavmeshVarDebugTileY(TEXT("n.GNavmeshDebugTileY")
 static bool GNavmeshUseOodleCompression = true;
 static FAutoConsoleVariableRef NavmeshVarOodleCompression(TEXT("n.NavmeshUseOodleCompression"), GNavmeshUseOodleCompression, TEXT("Use Oodle for run-time tile cache compression/decompression. Optimized for size in editor, optimized for speed in standalone."), ECVF_Default);
 
+namespace UE::NavMesh::Private
+{
+	static float RecentlyBuildTileDisplayTime = 0.2f;
+	static FAutoConsoleVariableRef CVarRecentlyBuildTileDisplayTime(TEXT("n.RecentlyBuildTileDisplayTime"), RecentlyBuildTileDisplayTime, TEXT("Time (in seconds) to display tiles that have recently been built."), ECVF_Default);
+}
+
 #if	WITH_EDITOR	
 static FOodleDataCompression::ECompressor GNavmeshTileCacheCompressor = FOodleDataCompression::ECompressor::Kraken;
 static FOodleDataCompression::ECompressionLevel GNavmeshTileCacheCompressionLevel = FOodleDataCompression::ECompressionLevel::Optimal1;
@@ -2433,6 +2439,11 @@ ETimeSliceWorkResult FRecastTileGenerator::GenerateTileTimeSliced()
 
 bool FRecastTileGenerator::GenerateTile()
 {
+#if RECAST_INTERNAL_DEBUG_DATA
+	const double StartStamp = FPlatformTime::Seconds();
+	double PostCompressLayerStamp = StartStamp;
+#endif // RECAST_INTERNAL_DEBUG_DATA
+	
 	FNavMeshBuildContext BuildContext(*this);
 	bool bSuccess = true;
 
@@ -2441,6 +2452,10 @@ bool FRecastTileGenerator::GenerateTile()
 		CompressedLayers.Reset();
 
 		bSuccess = GenerateCompressedLayers(BuildContext);
+
+#if RECAST_INTERNAL_DEBUG_DATA
+		PostCompressLayerStamp = FPlatformTime::Seconds();
+#endif // RECAST_INTERNAL_DEBUG_DATA
 
 		if (bSuccess)
 		{
@@ -2454,6 +2469,13 @@ bool FRecastTileGenerator::GenerateTile()
 		bSuccess = GenerateNavigationData(BuildContext);
 	}
 
+#if RECAST_INTERNAL_DEBUG_DATA	
+	const double EndStamp = FPlatformTime::Seconds();
+	BuildContext.InternalDebugData.BuildTime = EndStamp - StartStamp;
+	BuildContext.InternalDebugData.BuildCompressedLayerTime = PostCompressLayerStamp - StartStamp;
+	BuildContext.InternalDebugData.BuildNavigationDataTime = EndStamp - PostCompressLayerStamp;
+#endif // RECAST_INTERNAL_DEBUG_DATA
+	
 	// it's possible to have valid generation with empty resulting tile (no navigable geometry in tile)
 	return bSuccess;
 }
@@ -4831,7 +4853,7 @@ void FRecastNavMeshGenerator::TickAsyncBuild(float DeltaSeconds)
 		const double Timestamp = FPlatformTime::Seconds();
 		const int32 NumPreRemove = RecentlyBuiltTiles.Num();
 		
-		RecentlyBuiltTiles.RemoveAllSwap([&](const FTileTimestamp& Tile) { return (Timestamp - Tile.Timestamp) > 0.5; });
+		RecentlyBuiltTiles.RemoveAllSwap([&](const FTileTimestamp& Tile) { return (Timestamp - Tile.Timestamp) > UE::NavMesh::Private::RecentlyBuildTileDisplayTime; });
 
 		const int32 NumPostRemove = RecentlyBuiltTiles.Num();
 		bRequestDrawingUpdate = (NumPreRemove != NumPostRemove);
