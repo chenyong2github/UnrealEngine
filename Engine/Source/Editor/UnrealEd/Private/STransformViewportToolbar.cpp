@@ -581,7 +581,10 @@ FText STransformViewportToolBar::GetCameraSpeedLabel() const
 	auto ViewportPin = Viewport.Pin();
 	if (ViewportPin.IsValid() && ViewportPin->GetViewportClient().IsValid())
 	{
-		return FText::AsNumber( ViewportPin->GetViewportClient()->GetCameraSpeedSetting() );
+		float CameraSpeed = ViewportPin->GetViewportClient()->GetCameraSpeed();
+		FNumberFormattingOptions FormattingOptions = FNumberFormattingOptions::DefaultNoGrouping();
+		FormattingOptions.MaximumFractionalDigits = CameraSpeed > 1 ? 1 : 3;
+		return FText::AsNumber(CameraSpeed, &FormattingOptions);
 	}
 
 	return FText();
