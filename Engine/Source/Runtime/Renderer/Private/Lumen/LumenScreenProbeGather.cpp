@@ -1168,6 +1168,7 @@ void InterpolateAndIntegrate(
 	FScreenProbeGatherParameters GatherParameters,
 	FLumenScreenSpaceBentNormalParameters ScreenSpaceBentNormalParameters,
 	bool bRenderDirectLighting,
+	bool bSSREnabled,
 	FRDGTextureRef DiffuseIndirect,
 	FRDGTextureRef BackfaceDiffuseIndirect,
 	FRDGTextureRef RoughSpecularIndirect,
@@ -1176,6 +1177,15 @@ void InterpolateAndIntegrate(
 	const bool bApplyScreenBentNormal = ScreenSpaceBentNormalParameters.UseScreenBentNormal != 0 && LumenScreenProbeGather::ApplyScreenBentNormalDuringIntegration();
 	const bool bUseTileClassification = GLumenScreenProbeIntegrationTileClassification != 0 && LumenScreenProbeGather::GetDiffuseIntegralMethod() != 2;
 	const bool bSupportBackfaceDiffuse = BackfaceDiffuseIndirect != nullptr;
+
+	LumenReflections::FCompositeParameters ReflectionsCompositeParameters;
+	LumenReflections::SetupCompositeParameters(ReflectionsCompositeParameters);
+
+	if (bSSREnabled)
+	{
+		// SSR may not have a hit for any pixel, we need to have rough reflections to fall back to
+		ReflectionsCompositeParameters.MaxRoughnessToTrace = -.1f;
+	}
 
 	if (bUseTileClassification)
 	{
@@ -1221,7 +1231,7 @@ void InterpolateAndIntegrate(
 				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 				PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 				PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
-				LumenReflections::SetupCompositeParameters(PassParameters->ReflectionsCompositeParameters);
+				PassParameters->ReflectionsCompositeParameters = ReflectionsCompositeParameters;
 				PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
 
 				FScreenProbeTileClassificationMarkCS::FPermutationDomain PermutationVector;
@@ -1329,7 +1339,7 @@ void InterpolateAndIntegrate(
 				PassParameters->View = View.ViewUniformBuffer;
 				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 				PassParameters->FullResolutionJitterWidth = LumenScreenProbeGather::GetScreenProbeFullResolutionJitterWidth(View);
-				LumenReflections::SetupCompositeParameters(PassParameters->ReflectionsCompositeParameters);
+				PassParameters->ReflectionsCompositeParameters = ReflectionsCompositeParameters;
 				PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
 				PassParameters->ApplyMaterialAO = GLumenScreenProbeMaterialAO;
 				PassParameters->ScreenSpaceBentNormalParameters = ScreenSpaceBentNormalParameters;
@@ -1390,7 +1400,7 @@ void InterpolateAndIntegrate(
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 		PassParameters->FullResolutionJitterWidth = LumenScreenProbeGather::GetScreenProbeFullResolutionJitterWidth(View);
-		LumenReflections::SetupCompositeParameters(PassParameters->ReflectionsCompositeParameters);
+		PassParameters->ReflectionsCompositeParameters = ReflectionsCompositeParameters;
 		PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
 		PassParameters->ApplyMaterialAO = GLumenScreenProbeMaterialAO;
 		PassParameters->ScreenSpaceBentNormalParameters = ScreenSpaceBentNormalParameters;
@@ -2214,6 +2224,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FRDGTextureDesc RoughSpecularIndirectDesc = FRDGTextureDesc::Create2D(EffectiveResolution, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef RoughSpecularIndirect = GraphBuilder.CreateTexture(RoughSpecularIndirectDesc, TEXT("Lumen.ScreenProbeGather.RoughSpecularIndirect"));
 
+	const bool bSSREnabled = GetViewPipelineState(View).ReflectionsMethod == EReflectionsMethod::SSR;
+
 	InterpolateAndIntegrate(
 		GraphBuilder,
 		SceneTextures,
@@ -2222,6 +2234,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		GatherParameters,
 		ScreenSpaceBentNormalParameters,
 		bRenderDirectLighting,
+		bSSREnabled,
 		DiffuseIndirect,
 		BackfaceDiffuseIndirect,
 		RoughSpecularIndirect,
