@@ -817,6 +817,8 @@ void ScalabilityCVarsSinkCallback()
 	{
 		bool bRecreateRenderstate = false;
 		bool bCacheResourceShaders = false;
+		// Don't cache _all_ shaders explicitly and let On Demand Shader Compilation (ODSC) handle compiling the shaders visible.
+		const bool bCacheAllRemainingShaders = false;
 
 		if (LocalScalabilityCVars.DetailMode != GCachedScalabilityCVars.DetailMode)
 		{
@@ -825,6 +827,8 @@ void ScalabilityCVarsSinkCallback()
 
 		if (LocalScalabilityCVars.MaterialQualityLevel != GCachedScalabilityCVars.MaterialQualityLevel)
 		{
+			// If the material quality level changes we need to potentially create new FMaterialRenderResources
+			// for the new quality level.
 			bCacheResourceShaders = true;
 		}
 
@@ -841,8 +845,8 @@ void ScalabilityCVarsSinkCallback()
 			if (bCacheResourceShaders)
 			{
 				// For all materials, UMaterial::CacheResourceShadersForRendering
-				UMaterial::AllMaterialsCacheResourceShadersForRendering();
-				UMaterialInstance::AllMaterialsCacheResourceShadersForRendering(true);
+				UMaterial::AllMaterialsCacheResourceShadersForRendering(false, bCacheAllRemainingShaders);
+				UMaterialInstance::AllMaterialsCacheResourceShadersForRendering(true, bCacheAllRemainingShaders);
 			}
 		}
 		else
