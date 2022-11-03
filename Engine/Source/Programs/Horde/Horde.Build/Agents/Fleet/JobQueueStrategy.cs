@@ -13,6 +13,8 @@ using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using HordeCommon;
 using Microsoft.Extensions.Caching.Memory;
+using OpenTracing;
+using OpenTracing.Util;
 
 namespace Horde.Build.Agents.Fleet
 {
@@ -168,6 +170,8 @@ namespace Horde.Build.Agents.Fleet
 
 		internal async Task<Dictionary<PoolId, int>> GetPoolQueueSizesAsync(DateTimeOffset jobsCreatedAfter)
 		{
+			using IScope scope = GlobalTracer.Instance.BuildSpan("JobQueueStrategy.GetPoolQueueSizes").StartActive();
+			
 			List<IStream> streamsList = await _streamService.GetStreamsAsync();
 			Dictionary<StreamId, IStream> streams = streamsList.ToDictionary(x => x.Id, x => x);
 			List<IJob> recentJobs = await _jobs.FindAsync(minCreateTime: jobsCreatedAfter);
@@ -179,12 +183,20 @@ namespace Horde.Build.Agents.Fleet
 			}
 
 			List<(PoolId PoolId, int QueueSize)> poolsWithQueueSize = jobBatches.GroupBy(t => t.PoolId).Select(t => (t.Key, t.Count())).ToList();
+
+			scope.Span.SetTag("NumPools", poolsWithQueueSize.Count);
 			return poolsWithQueueSize.ToDictionary(x => x.PoolId, x => x.QueueSize);
 		}
 
 		/// <inheritdoc/>
 		public async Task<PoolSizeResult> CalculatePoolSizeAsync(IPool pool, List<IAgent> agents)
 		{
+			using IScope scope = GlobalTracer.Instance
+				.BuildSpan("JobQueueStrategy.CalculatePoolSize")
+				.WithTag(Datadog.Trace.OpenTracing.DatadogTags.ResourceName, pool.Id.ToString())
+				.WithTag("CurrentAgentCount", agents.Count)
+				.StartActive();
+			
 			DateTimeOffset minCreateTime = _clock.UtcNow - TimeSpan.FromMinutes(Settings.SamplePeriodMin);
 
 			// Cache pool queue sizes for a short while for faster runs when many pools are scaled

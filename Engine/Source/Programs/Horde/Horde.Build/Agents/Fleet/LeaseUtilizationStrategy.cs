@@ -154,7 +154,7 @@ namespace Horde.Build.Agents.Fleet
 
 		private async Task<Dictionary<AgentId, AgentData>> GetAgentDataAsync()
 		{
-			using IScope _ = GlobalTracer.Instance.BuildSpan("GetAgentDataAsync").StartActive();
+			using IScope scope = GlobalTracer.Instance.BuildSpan("LeaseUtilizationStrategy.GetAgentDataAsync").StartActive();
 			
 			// Find all the current agents
 			List<IAgent> agents = await _agentCollection.FindAsync(status: AgentStatus.Ok);
@@ -197,12 +197,13 @@ namespace Horde.Build.Agents.Fleet
 				}
 			}
 
+			scope.Span.SetTag("AgentDataCount", agentIdToData.Count);
 			return agentIdToData;
 		}
 		
 		private async Task<Dictionary<PoolId, PoolData>> GetPoolDataAsync()
 		{
-			using IScope _ = GlobalTracer.Instance.BuildSpan("GetPoolDataAsync").StartActive();
+			using IScope scope = GlobalTracer.Instance.BuildSpan("LeaseUtilizationStrategy.GetPoolDataAsync").StartActive();
 
 			Dictionary<AgentId, AgentData> agentIdToData = await GetAgentDataAsync();
 			
@@ -223,6 +224,7 @@ namespace Horde.Build.Agents.Fleet
 				}
 			}
 
+			scope.Span.SetTag("PoolDataCount", agentIdToData.Count);
 			return poolToData;
 		}
 
@@ -232,6 +234,12 @@ namespace Horde.Build.Agents.Fleet
 		/// <inheritdoc/>
 		public async Task<PoolSizeResult> CalculatePoolSizeAsync(IPool pool, List<IAgent> agents)
 		{
+			using IScope scope = GlobalTracer.Instance
+				.BuildSpan("LeaseUtilizationStrategy.CalculatePoolSize")
+				.WithTag(Datadog.Trace.OpenTracing.DatadogTags.ResourceName, pool.Id.ToString())
+				.WithTag("CurrentAgentCount", agents.Count)
+				.StartActive();
+			
 			Dictionary<PoolId, PoolData> poolToData;
 			
 			// Cache pool data for a short while for faster runs when many pools are scaled

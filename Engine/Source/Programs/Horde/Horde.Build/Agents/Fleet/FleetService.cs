@@ -82,7 +82,7 @@ namespace Horde.Build.Agents.Fleet
 			_clock = clock;
 			_cache = cache;
 			_logger = logger;
-			_ticker = clock.AddSharedTicker<FleetService>(TimeSpan.FromMinutes(5.0), TickLeaderAsync, _logger);
+			_ticker = clock.AddSharedTicker<FleetService>(TimeSpan.FromMinutes(3.0), TickLeaderAsync, _logger);
 			_tickerHighFrequency = clock.AddSharedTicker("FleetService.TickHighFrequency", TimeSpan.FromSeconds(30), TickHighFrequencyAsync, _logger);
 			_settings = settings;
 			_defaultScaleOutCooldown = TimeSpan.FromSeconds(settings.Value.AgentPoolScaleOutCooldownSeconds);
@@ -140,23 +140,30 @@ namespace Horde.Build.Agents.Fleet
 
 		internal async Task<List<PoolSizeResult>> CalculatePoolSizesAsync(List<PoolSizeResult> poolSizeDatas, CancellationToken cancellationToken)
 		{
-			using IScope _ = GlobalTracer.Instance.BuildSpan("FleetService.CalculatePoolSizes").StartActive();
+			ISpan span = GlobalTracer.Instance.BuildSpan("FleetService.CalculatePoolSizes").WithTag("MaxParallelTasks", MaxParallelTasks).Start();
 			ConcurrentQueue<PoolSizeResult> results = new ();
-			ParallelOptions options = new () { MaxDegreeOfParallelism = MaxParallelTasks, CancellationToken = cancellationToken };
-
-			await Parallel.ForEachAsync(poolSizeDatas, options, async (input, innerCt) =>
+			
+			try
 			{
-				try
+				ParallelOptions options = new () { MaxDegreeOfParallelism = MaxParallelTasks, CancellationToken = cancellationToken };
+				await Parallel.ForEachAsync(poolSizeDatas, options, async (input, innerCt) =>
 				{
-					IPoolSizeStrategy sizeStrategy = CreatePoolSizeStrategy(input.Pool);
-					PoolSizeResult output = await sizeStrategy.CalculatePoolSizeAsync(input.Pool, input.Agents);
-					results.Enqueue(output);
-				}
-				catch (Exception e)
-				{
-					_logger.LogError(e, "Failed calculating pool size for pool {PoolId}", input.Pool?.Id);
-				}
-			});
+					try
+					{
+						IPoolSizeStrategy sizeStrategy = CreatePoolSizeStrategy(input.Pool);
+						PoolSizeResult output = await sizeStrategy.CalculatePoolSizeAsync(input.Pool, input.Agents);
+						results.Enqueue(output);
+					}
+					catch (Exception e)
+					{
+						_logger.LogError(e, "Failed calculating pool size for pool {PoolId}", input.Pool?.Id);
+					}
+				});
+			}
+			finally
+			{
+				span.Finish();
+			}
 
 			return results.ToList();
 		}
