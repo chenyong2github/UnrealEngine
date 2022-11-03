@@ -735,7 +735,9 @@ public:
 				{
 					bUsingSharedDDC |= bShared;
 					DataCache = MakeTuple(InnerFileSystem, Flags);
-					UE_LOG(LogDerivedDataCache, Log, TEXT("Using %s data cache path %s: %s"), NodeName, *Path, !EnumHasAnyFlags(Flags, ECacheStoreFlags::Store) ? TEXT("ReadOnly") : TEXT("Writable"));
+					UE_LOG(LogDerivedDataCache, Log, TEXT("Using %s data cache path %s: %s"), NodeName, *Path,
+						EnumHasAnyFlags(Flags, ECacheStoreFlags::Store) ? TEXT("Writable") :
+						EnumHasAnyFlags(Flags, ECacheStoreFlags::Query) ? TEXT("ReadOnly") : TEXT("DeleteOnly"));
 					Directories.AddUnique(Path);
 				}
 				else
