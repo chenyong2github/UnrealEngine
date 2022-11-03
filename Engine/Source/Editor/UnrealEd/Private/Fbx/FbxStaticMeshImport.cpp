@@ -1710,6 +1710,10 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 
 		// Free any RHI resources for existing mesh before we re-create in place.
 		ExistingMesh->PreEditChange(NULL);
+
+		//When we do a reimport the nanite static mesh import setting should not affect the asset since its a "reimportrestrict" option
+		//In that case we override the import setting
+		ImportOptions->bBuildNanite = ExistingMesh->NaniteSettings.bEnabled;
 	}
 	else if (ExistingObject)
 	{

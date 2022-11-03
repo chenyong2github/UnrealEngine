@@ -38,7 +38,7 @@ class UFbxStaticMeshImportData : public UFbxMeshImportData
 	uint32 bBuildReversedIndexBuffer:1;
 
 	/** For static meshes, enabling this option will allow you to use Nanite rendering at runtime. Can only be used with simple opaque materials. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh, meta = (ToolTip = "If enabled, allows to render objects with Nanite", ImportType = "StaticMesh"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Mesh, meta = (ToolTip = "If enabled, allows to render objects with Nanite", ReimportRestrict = "true", ImportType = "StaticMesh"))
 	uint32 bBuildNanite : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, AdvancedDisplay, Category= Mesh, meta=(ImportType="StaticMesh", ReimportRestrict = "true"))

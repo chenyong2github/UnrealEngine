@@ -182,6 +182,12 @@ void FStaticMeshDetails::OnInstancedFbxStaticMeshImportDataPropertyIteration(IDe
 {
 	IDetailPropertyRow* Row = nullptr;
 
+	if (Property->GetBoolMetaData(TEXT("ReimportRestrict")))
+	{
+		//Dont create a row for reimport restricted property, we do not want to show them
+		return;
+	}
+
 	if (PropertyGroup)
 	{
 		Row = &PropertyGroup->AddPropertyRow(Property);
@@ -5707,7 +5713,9 @@ FReply FNaniteSettingsLayout::OnImportHiRes()
 	{
 		StaticMesh->GetHiResSourceModel().SourceImportFilename = FString();
 		FbxMeshUtils::ImportStaticMeshHiResSourceModelDialog(StaticMesh);
-		StaticMeshEditor.RefreshTool();
+		//If we import a hires we should enable nanite
+		NaniteSettings.bEnabled = true;
+		ApplyChanges();
 	}
 	return FReply::Handled();
 }
