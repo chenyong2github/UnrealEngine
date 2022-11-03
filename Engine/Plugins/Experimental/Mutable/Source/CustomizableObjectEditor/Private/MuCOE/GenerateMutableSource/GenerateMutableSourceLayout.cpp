@@ -77,7 +77,7 @@ mu::NodeLayoutPtr GenerateMutableSourceLayout(const UEdGraphPin * Pin, FMutableG
 
 		LayoutNode->SetGridSize(TypedNodeBlocks->Layout->GetGridSize().X, TypedNodeBlocks->Layout->GetGridSize().Y);
 		LayoutNode->SetMaxGridSize(TypedNodeBlocks->Layout->GetMaxGridSize().X, TypedNodeBlocks->Layout->GetMaxGridSize().Y);
-		LayoutNode->SetBlockCount(TypedNodeBlocks->Layout->Blocks.Num());
+		LayoutNode->SetBlockCount(TypedNodeBlocks->Layout->Blocks.Num() ? TypedNodeBlocks->Layout->Blocks.Num() : 1);
 
 		mu::EPackStrategy strategy = mu::EPackStrategy::RESIZABLE_LAYOUT;
 
@@ -95,15 +95,26 @@ mu::NodeLayoutPtr GenerateMutableSourceLayout(const UEdGraphPin * Pin, FMutableG
 
 		LayoutNode->SetLayoutPackingStrategy(strategy);
 
-		for (int BlockIndex = 0; BlockIndex < TypedNodeBlocks->Layout->Blocks.Num(); ++BlockIndex)
+		if (TypedNodeBlocks->Layout->Blocks.Num())
 		{
-			LayoutNode->SetBlock(BlockIndex,
-				TypedNodeBlocks->Layout->Blocks[BlockIndex].Min.X,
-				TypedNodeBlocks->Layout->Blocks[BlockIndex].Min.Y,
-				TypedNodeBlocks->Layout->Blocks[BlockIndex].Max.X - TypedNodeBlocks->Layout->Blocks[BlockIndex].Min.X,
-				TypedNodeBlocks->Layout->Blocks[BlockIndex].Max.Y - TypedNodeBlocks->Layout->Blocks[BlockIndex].Min.Y);
+			for (int BlockIndex = 0; BlockIndex < TypedNodeBlocks->Layout->Blocks.Num(); ++BlockIndex)
+			{
+				LayoutNode->SetBlock(BlockIndex,
+					TypedNodeBlocks->Layout->Blocks[BlockIndex].Min.X,
+					TypedNodeBlocks->Layout->Blocks[BlockIndex].Min.Y,
+					TypedNodeBlocks->Layout->Blocks[BlockIndex].Max.X - TypedNodeBlocks->Layout->Blocks[BlockIndex].Min.X,
+					TypedNodeBlocks->Layout->Blocks[BlockIndex].Max.Y - TypedNodeBlocks->Layout->Blocks[BlockIndex].Min.Y);
 
-			LayoutNode->SetBlockPriority(BlockIndex, TypedNodeBlocks->Layout->Blocks[BlockIndex].Priority);
+				LayoutNode->SetBlockPriority(BlockIndex, TypedNodeBlocks->Layout->Blocks[BlockIndex].Priority);
+			}
+		}
+		else
+		{
+			FString msg = "Layout without any block found. A grid sized block will be used instead.";
+			GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node, EMessageSeverity::Warning);
+
+			LayoutNode->SetBlock(0, 0, 0, TypedNodeBlocks->Layout->GetGridSize().X, TypedNodeBlocks->Layout->GetGridSize().Y);
+			LayoutNode->SetBlockPriority(0, 0);
 		}
 	}
 	

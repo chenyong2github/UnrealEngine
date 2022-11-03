@@ -3326,7 +3326,7 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 
 					LayoutNode->SetGridSize(Layouts[i]->GetGridSize().X, Layouts[i]->GetGridSize().Y);
 					LayoutNode->SetMaxGridSize(Layouts[i]->GetMaxGridSize().X, Layouts[i]->GetMaxGridSize().Y);
-					LayoutNode->SetBlockCount(Layouts[i]->Blocks.Num());
+					LayoutNode->SetBlockCount(Layouts[i]->Blocks.Num() ? Layouts[i]->Blocks.Num() : 1);
 
 					mu::EPackStrategy strategy = mu::EPackStrategy::RESIZABLE_LAYOUT;
 
@@ -3359,7 +3359,11 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 					}
 					else
 					{
+						FString msg = "Mesh Column [" + ColumnName + "] Layout doesn't has any block. A grid sized block will be used instead.";
+						GenerationContext.Compiler->CompilerLog(FText::FromString(msg), Node, EMessageSeverity::Warning);
+
 						LayoutNode->SetBlock(0, 0, 0, Layouts[i]->GetGridSize().X, Layouts[i]->GetGridSize().Y);
+						LayoutNode->SetBlockPriority(0, 0);
 					}
 
 					MeshTableNode->SetLayout(i, LayoutNode);
