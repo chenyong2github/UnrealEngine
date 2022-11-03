@@ -188,7 +188,7 @@ namespace UnrealBuildTool
 
 			if (LogDirectory == null)
 			{
-				LogDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineProgramSavedDirectory, "UnrealBuildTool");
+				LogDirectory = DirectoryReference.Combine(Unreal.EngineProgramSavedDirectory, "UnrealBuildTool");
 			}
 
 			FileReference LogFile = FileReference.Combine(LogDirectory, "Log_Server.txt");
