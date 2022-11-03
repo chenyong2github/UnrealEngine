@@ -777,7 +777,6 @@ namespace UnrealBuildTool
 				// Save the makefile for next time
 				if(MakefileLocation != null)
 				{
-					Debugger.Launch();
 					using (GlobalTracer.Instance.BuildSpan("TargetMakefile.Save()").StartActive())
 					{
 						Makefile.Save(MakefileLocation);
