@@ -337,11 +337,11 @@ class StatelessConnectHandlerComponent;
 class UNetConnection;
 class UReplicationDriver;
 struct FNetworkObjectInfo;
-struct FReplicatedStaticActorDestructionInfo;
 class UChannel;
 class IAnalyticsProvider;
 class FNetAnalyticsAggregator;
 class UNetDriver;
+class UActorChannel;
 class PacketHandler;
 struct FReplicatedStaticActorDestructionInfo;
 
@@ -596,7 +596,7 @@ struct FActorPriority
 	int32						Priority;	// Update priority, higher = more important.
 	
 	FNetworkObjectInfo*			ActorInfo;	// Actor info.
-	class UActorChannel*		Channel;	// Actor channel.
+	UActorChannel*		        Channel;	// Actor channel.
 
 	FActorDestructionInfo *	DestructionInfo;	// Destroy an actor
 
@@ -604,7 +604,7 @@ struct FActorPriority
 		Priority(0), ActorInfo(NULL), Channel(NULL), DestructionInfo(NULL)
 	{}
 
-	FActorPriority(class UNetConnection* InConnection, class UActorChannel* InChannel, FNetworkObjectInfo* InActorInfo, const TArray<struct FNetViewer>& Viewers, bool bLowBandwidth);
+	FActorPriority(class UNetConnection* InConnection, UActorChannel* InChannel, FNetworkObjectInfo* InActorInfo, const TArray<struct FNetViewer>& Viewers, bool bLowBandwidth);
 	FActorPriority(class UNetConnection* InConnection, FActorDestructionInfo * DestructInfo, const TArray<struct FNetViewer>& Viewers );
 };
 
@@ -1542,6 +1542,12 @@ public:
 	ENGINE_API virtual void NotifyActorRenamed(AActor* Actor, FName PreviousName);
 
 	ENGINE_API void RemoveNetworkActor(AActor* Actor);
+
+	/** Called when an authoritative actor wants to delete a replicated subobject on the clients it was already replicated to */
+	void DeleteSubObjectOnClients(AActor* Actor, UObject* SubObject);
+
+	/** Called when an authoritative actor wants to tear off a subobject on the clients it was already replicated to */
+	void TearOffSubObjectOnClients(AActor* Actor, UObject* SubObject);
 
 	ENGINE_API virtual void NotifyActorLevelUnloaded( AActor* Actor );
 

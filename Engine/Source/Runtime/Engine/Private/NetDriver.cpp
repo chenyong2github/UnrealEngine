@@ -3367,6 +3367,20 @@ void UNetDriver::RemoveNetworkActor(AActor* Actor)
 	}
 }
 
+void UNetDriver::DeleteSubObjectOnClients(AActor* Actor, UObject* SubObject)
+{
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+	NetworkObjects->SetSubObjectForDeletion(Actor, SubObject);
+#endif
+}
+
+void UNetDriver::TearOffSubObjectOnClients(AActor* Actor, UObject* SubObject)
+{
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+	NetworkObjects->SetSubObjectForTearOff(Actor, SubObject);
+#endif
+}
+
 void UNetDriver::NotifyActorRenamed(AActor* ThisActor, FName PreviousName)
 {
 	LLM_SCOPE_BYTAG(NetDriver);

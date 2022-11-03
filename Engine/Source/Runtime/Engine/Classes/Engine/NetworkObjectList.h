@@ -8,6 +8,25 @@
 class AActor;
 class FArchive;
 
+#ifndef UE_REPLICATED_OBJECT_REFCOUNTING
+	// Allows every network actor to keep track of the number of channels an individual subobject was replicated. 
+	// Not needed on clients so its compiled out to reduce memory usage.
+	#define UE_REPLICATED_OBJECT_REFCOUNTING WITH_SERVER_CODE
+#endif
+
+#ifndef DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
+	// Run additional code to validate any errors in the SubObject channel refcounting at the cost of extra memory usage and cpu overhead.
+	#define DO_REPLICATED_OBJECT_CHANNELREF_CHECKS (UE_REPLICATED_OBJECT_REFCOUNTING && WITH_SERVER_CODE && !UE_BUILD_SHIPPING) // will be disabled in Test builds after a few days.
+#endif
+
+/** Indicates the status of a replicated subobject replicated by actor channels. */
+enum class ENetSubObjectStatus : uint8
+{
+	Active,  // The subobject is active and replicated
+	TearOff, // The subobject should be torn off on the clients
+	Delete,  // The subobject should be deleted on the clients
+};
+
 /**
  * Struct to store an actor pointer and any internal metadata for that actor used
  * internally by a UNetDriver.
@@ -41,6 +60,80 @@ struct FNetworkObjectInfo
 	*  (this list will be very transient, with connections being moved off the DormantConnections list, onto this list, and then off once the actor has a channel again)
 	*/
 	TSet<TWeakObjectPtr<UNetConnection>> RecentlyDormantConnections;
+
+	/** 
+	* Keeps track of the number of channels that have replicated a subobject.
+	* When the status changes from Active its expected of existing references to be gradually removed as the actor replicates itself to each connection.
+	*/
+	struct FSubObjectChannelReference
+	{
+		/** The replicated subobject */
+		TWeakObjectPtr<UObject> SubObjectPtr;
+		
+		/** Number of channels that replicated the subobject */
+		uint16 ChannelRefCount = 0;
+
+		/** Current status of the subobject */
+		ENetSubObjectStatus Status = ENetSubObjectStatus::Active;
+
+#if DO_REPLICATED_OBJECT_CHANNELREF_CHECKS
+		/** Debug array to keep track of every individual channel */
+		TArray<UObject*> RegisteredChannels;
+#endif
+		inline bool operator==(const FSubObjectChannelReference& rhs) const { return SubObjectPtr.HasSameIndexAndSerialNumber(rhs.SubObjectPtr); }
+		inline bool operator==(const TWeakObjectPtr<UObject>& rhs) const { return SubObjectPtr.HasSameIndexAndSerialNumber(rhs); }
+
+		friend uint32 GetTypeHash(const FSubObjectChannelReference& SubObjChannelRef)
+		{
+			return GetTypeHash(SubObjChannelRef.SubObjectPtr);
+		}
+
+		inline bool IsTearOff() const { return Status == ENetSubObjectStatus::TearOff; }
+		inline bool IsDelete() const  { return Status == ENetSubObjectStatus::Delete; }
+		inline bool IsActive() const  { return Status == ENetSubObjectStatus::Active; }
+
+		FSubObjectChannelReference() = default;
+		explicit FSubObjectChannelReference(const TWeakObjectPtr<UObject>& InSubObject)
+			: SubObjectPtr(InSubObject)
+			, ChannelRefCount(1)
+			, Status(ENetSubObjectStatus::Active)
+		{
+		}
+	};
+
+	struct FSubObjectChannelRefKeyFuncs : BaseKeyFuncs<FSubObjectChannelReference, const TWeakObjectPtr<UObject>&, false>
+	{
+		static KeyInitType GetSetKey(ElementInitType Element)
+		{
+			return Element.SubObjectPtr;
+		}
+
+		static bool Matches(KeyInitType A, KeyInitType B)
+		{
+			return A.HasSameIndexAndSerialNumber(B);
+		}
+
+		static uint32 GetKeyHash(KeyInitType Key)
+		{
+			// Probably should use a better has like FObjectKey but can't access the internals of the WeakPtr.
+			return GetTypeHash(Key);
+		}
+	};
+
+
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+	/** The set of active replicated subobjects for an actor */
+	TSet<FSubObjectChannelReference, FSubObjectChannelRefKeyFuncs> ActiveSubObjectChannelReferences;
+
+	/** The list of replicated subobjects that need to be torn off or deleted by the channels still referencing it */
+	TArray<FSubObjectChannelReference> InvalidSubObjectChannelReferences;
+#endif
+
+	/** 
+	* This variable gets increased when a replicated subobject gets added to the invalid list.
+	* Actor channels will test against this count and when it differs will check if they have any replicated subobjects to remove.
+	*/
+	uint16 InvalidSubObjectDirtyCount = 0;
 
 	/** Is this object still pending a full net update due to clients that weren't able to replicate the actor at the time of LastNetUpdateTime */
 	uint8 bPendingNetUpdate : 1;
@@ -192,8 +285,38 @@ public:
 	/** Marks any actors in the given package/level active if they were fully dormant or dormant for the passed in connection */
 	void FlushDormantActors(UNetConnection* const Connection, const FName& PackageName);
 
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+	/** Set the subobject to be flagged for deletion */
+	void SetSubObjectForDeletion(AActor* Actor, UObject* SubObject);
+
+	/** Set the subobject to be flagged for tear off */
+	void SetSubObjectForTearOff(AActor* Actor, UObject* SubObject);
+
+	/**
+	* Called when a channel starts replicating a subobject for the first time.
+	* Used to keep track of the number of channels having an active reference to a specific subobject
+	*/
+	void AddSubObjectChannelReference(AActor* OwnerActor, UObject* ReplicatedSubObject, UActorChannel* ReferencingChannel);
+
+	/** Called when a channel stops replicating a subobject. */
+	void RemoveSubObjectChannelReference(AActor* OwnerActor, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UActorChannel* ReferencingChannel);
+
+	/** Called when multiple subobjects that were flagged torn off or delete have removed their channel reference */
+	void RemoveMultipleInvalidSubObjectChannelReference(FNetworkObjectInfo* ActorNetInfo, const TArray< TWeakObjectPtr<UObject>, TInlineAllocator<16> >& SubObjectsToRemove, UActorChannel* ReferencingChannel);
+
+	/** Called when multiple subobjects that were still considered active have removed their channel reference */
+	void RemoveMultipleActiveSubObjectChannelReference(FNetworkObjectInfo* ActorNetInfo, const TArray< TWeakObjectPtr<UObject>, TInlineAllocator<16> >& SubObjectsToRemove, UActorChannel* ReferencingChannel);
+#endif //#if UE_REPLICATED_OBJECT_REFCOUNTING
+
 private:
 	bool MarkActiveInternal(const TSharedPtr<FNetworkObjectInfo>& ObjectInfo, UNetConnection* const Connection, UNetDriver* NetDriver);
+
+#if UE_REPLICATED_OBJECT_REFCOUNTING
+	void InvalidateSubObject(AActor* Actor, UObject* SubObject, ENetSubObjectStatus InvalidStatus);
+
+	bool HandleRemoveActiveSubObjectRef(FNetworkObjectInfo* ActorNetInfo, AActor* OwnerActor, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UActorChannel* ReferencingChannel);
+	bool HandleRemoveInvalidSubObjectRef(FNetworkObjectInfo* ActorNetInfo, AActor* OwnerActor, const TWeakObjectPtr<UObject>& ReplicatedSubObject, UActorChannel* ReferencingChannel);
+#endif
 
 	FNetworkObjectSet AllNetworkObjects;
 	FNetworkObjectSet ActiveNetworkObjects;

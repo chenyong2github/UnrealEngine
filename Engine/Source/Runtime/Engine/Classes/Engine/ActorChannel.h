@@ -112,6 +112,8 @@ private:
 	/** Set to true if SerializeActor is called due to an RPC forcing the channel open */
 	uint32 bIsForcedSerializeFromRPC:1;
 
+    uint16 ChannelSubObjectDirtyCount = 0;
+
 public:
 	bool GetSkipRoleSwap() const { return !!bSkipRoleSwap; }
 	void SetSkipRoleSwap(const bool bShouldSkip) { bSkipRoleSwap = bShouldSkip; }
@@ -219,7 +221,8 @@ public:
 	void WriteContentBlockHeader( UObject* Obj, FNetBitWriter &Bunch, const bool bHasRepLayout );
 
 	/** Writes the header for a content block specifically for deleting sub-objects */
-	void WriteContentBlockForSubObjectDelete( FOutBunch & Bunch, FNetworkGUID & GuidToDelete );
+	UE_DEPRECATED(5.2, "This function will be made private in the future." )
+	void WriteContentBlockForSubObjectDelete( FOutBunch & Bunch, FNetworkGUID & GuidToDelete);
 
 	/** Writes header and payload of content block */
 	int32 WriteContentBlockPayload( UObject* Obj, FNetBitWriter &Bunch, const bool bHasRepLayout, FNetBitWriter& Payload );
@@ -406,6 +409,18 @@ protected:
 	/** Handle the replication of subobjects for this actor. Returns true if data was written into the Bunch. */
 	bool DoSubObjectReplication(FOutBunch& Bunch, FReplicationFlags& OutRepFlags);
 
+	enum class ESubObjectDeleteFlag : uint8
+	{
+		Destroyed, // Delete operation that occurs when we detect that the original object on the authority became invalid.
+		TearOff,      // The client's actor channel will remove references to this subobject
+		ForceDelete,  // The subobject needs to be deleted on the client even if the original on the authority was not.
+	};
+
+	/** Writes the header for a content block specifically for deleting sub-objects */
+	void WriteContentBlockForSubObjectDelete(FOutBunch& Bunch, FNetworkGUID& GuidToDelete, ESubObjectDeleteFlag DeleteFlag);
+
+	const TCHAR* ToString(UActorChannel::ESubObjectDeleteFlag DeleteFlag);
+
 private:
 
 	/** Replicate Subobjects using the actor's registered list and its replicated actor component list */
@@ -426,6 +441,8 @@ private:
 
 	void TestLegacyReplicateSubObjects(UActorComponent* ReplicatedComponent, FOutBunch& Bunch, FReplicationFlags RepFlags);
 	void TestLegacyReplicateSubObjects(FOutBunch& Bunch, FReplicationFlags RepFlags);
+
+	bool UpdateDeletedSubObjects(FOutBunch& Bunch);
 
 	inline TArray< TObjectPtr<UObject> >& GetCreatedSubObjects()
 	{
