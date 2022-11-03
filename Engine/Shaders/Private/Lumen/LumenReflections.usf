@@ -16,6 +16,8 @@
 #define THREADGROUP_SIZE 1
 #endif
 
+#define FLOAT3_11_11_10_MAX float3(65024.0f, 65024.0f, 64512.0f)
+
 RWBuffer<uint> RWReflectionResolveTileIndirectArgs;
 RWBuffer<uint> RWReflectionTracingTileIndirectArgs;
 RWTexture2D<float> RWDownsampledDepth;
@@ -406,14 +408,13 @@ void ReflectionGenerateRaysCS(
 }
 
 
-RWTexture2D<float4> RWSpecularIndirect;
+RWTexture2D<float3> RWSpecularIndirect;
+RWTexture2D<float> RWSpecularIndirectDepth;
 RWTexture2D<float> RWResolveVariance;
 
 uint NumSpatialReconstructionSamples;
 float SpatialReconstructionKernelRadius;
 float SpatialReconstructionRoughnessScale;
-
-uint ResolveIsFinalOutput;
 
 float Luma(float3 Color) 
 {
@@ -649,10 +650,8 @@ void ReflectionResolveCS(
 		}
 	}
 
-	// SingleLayerWaterComposite expects opacity in alpha
-	//@todo - hit depth in separate render target so neighborhood lookup doesn't read it
-	float Alpha = ResolveIsFinalOutput ? 1.0f : ConvertToDeviceZ(DepthForReprojection);
-	RWSpecularIndirect[Coord.SvPositionFlatten] = float4(ReflectionLighting, Alpha);
+	RWSpecularIndirect[Coord.SvPositionFlatten] = ReflectionLighting;
+	RWSpecularIndirectDepth[Coord.SvPositionFlatten] = ConvertToDeviceZ(DepthForReprojection);
 
 	#if USE_BILATERAL_FILTER
 		RWResolveVariance[Coord.SvPositionFlatten] = ResolveVariance;
@@ -686,9 +685,9 @@ void ReflectionResolveCS(
 		{
 			if (!ResolveTileUsed[(NeighborSvPosition - View.ViewRectMinAndSize.xy) / REFLECTION_THREADGROUP_SIZE_2D])
 			{
-				// Write invalid alpha for GetNeighborStatistics
-				float InvalidAlpha = 0.0f;
-				RWSpecularIndirect[NeighborSvPosition] = float4(0.0f, 0.0f, 0.0f, InvalidAlpha);
+				// Mark invalid values with FLOAT3_11_11_10_MAX for GetNeighborStatistics
+				RWSpecularIndirect[NeighborSvPosition] = FLOAT3_11_11_10_MAX;
+				RWSpecularIndirectDepth[NeighborSvPosition] = 0.0f;
 			}
 		}
 	}
@@ -698,6 +697,7 @@ void ReflectionResolveCS(
 RWTexture2D<UNORM float> RWNumHistoryFramesAccumulated;
 Texture2D HistoryNumFramesAccumulated;
 Texture2D ResolvedReflections;
+Texture2D ResolvedReflectionsDepth;
 Texture2D SpecularIndirectHistory;
 Texture2D DepthHistory;
 Texture2D<uint> BSDFTileHistory;
@@ -792,21 +792,21 @@ FNeighborStatistics GetNeighborStatistics(
 		NeighborScreenCoord = clamp(NeighborScreenCoord, MinScreenCoord, MaxScreenCoord);
 		NeighborScreenCoord = GetNeighborFlattenCoord(NeighborScreenCoord, InBSDFIndex);
 
-		float4 Sample = ResolvedReflections[NeighborScreenCoord];
+		float3 Sample = ResolvedReflections[NeighborScreenCoord].xyz;
 
-		// ReflectionResolveCS writes 0 to alpha for neighbors which are outside of any valid resolve tile
-		if (Sample.w > 0)
+		// ReflectionResolveCS writes FLOAT3_11_11_10_MAX for neighbors which are outside of any valid resolve tile
+		if (all(Sample.xyz != FLOAT3_11_11_10_MAX))
 		{
-			Result.Min = min(Result.Min, Sample.xyz);
-			Result.Max = max(Result.Max, Sample.xyz);
+			Result.Min = min(Result.Min, Sample);
+			Result.Max = max(Result.Max, Sample);
 
 			// Welford's online algorithm for variance.
 			// More numerically stable than accumulating squares.
 			// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
 			Count += 1;
-			float3 Delta1 = Sample.xyz - M1;
+			float3 Delta1 = Sample - M1;
 			M1 += Delta1 / Count;
-			float3 Delta2 = Sample.xyz - M1;
+			float3 Delta2 = Sample - M1;
 			M2 += Delta1 * Delta2;
 		}
 	}
@@ -900,9 +900,9 @@ void ReflectionTemporalReprojectionCS(
 	float2 ScreenUV = (Coord.SvPosition + .5f) * View.BufferSizeAndInvSize.zw;
 	float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
-	float4 NewSpecularAndDepth = ResolvedReflections[Coord.SvPositionFlatten];
+	float3 NewSpecular = ResolvedReflections[Coord.SvPositionFlatten].xyz;
+	float ReflectionHitDeviceZ = ResolvedReflectionsDepth[Coord.SvPositionFlatten].x;
 
-	float ReflectionHitDeviceZ = NewSpecularAndDepth.w;
 	float DeviceZ = SceneTexturesStruct.SceneDepthTexture[Coord.SvPosition].x;
 	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
@@ -974,7 +974,7 @@ void ReflectionTemporalReprojectionCS(
 
 	uint2 MinScreenCoord = View.ViewRectMinAndSize.xy;
 	uint2 MaxScreenCoord = View.ViewRectMinAndSize.xy + View.ViewRectMinAndSize.zw - 1;
-	FNeighborStatistics Neighborhood = GetNeighborStatistics(Coord.SvPosition, MinScreenCoord, MaxScreenCoord, NewSpecularAndDepth.xyz, Coord.TileBSDFIndex);
+	FNeighborStatistics Neighborhood = GetNeighborStatistics(Coord.SvPosition, MinScreenCoord, MaxScreenCoord, NewSpecular, Coord.TileBSDFIndex);
 
 	const float InvalidHistoryErrorThreshold = 1e6;
 	float ErrorFromReflectionHit = IsValidHistoryUV(HistoryScreenUVFromReflectionHit) ? abs(Luma(HistorySpecularIndirectFromReflectionHit) - Luma(Neighborhood.Mean)) : InvalidHistoryErrorThreshold;
@@ -1006,9 +1006,9 @@ void ReflectionTemporalReprojectionCS(
 	NewNumFramesAccumulated = bHistoryWasOnscreen ? NewNumFramesAccumulated : 0;
 
 	float Alpha = 1.0f / (1.0f + NewNumFramesAccumulated);
-	float3 OutReflections = lerp(HistorySpecularIndirect, NewSpecularAndDepth.rgb, Alpha);
+	float3 OutReflections = lerp(HistorySpecularIndirect, NewSpecular, Alpha);
 
-	OutReflections = -min(-OutReflections, 0.0f);
+	OutReflections = MakeFinite(OutReflections);
 
 	RWSpecularIndirect[Coord.SvPositionFlatten] = float4(OutReflections, 0);
 	RWNumHistoryFramesAccumulated[Coord.SvPositionFlatten] = NewNumFramesAccumulated / MaxFramesAccumulated;
@@ -1141,7 +1141,7 @@ void ReflectionBilateralFilterCS(
 		}
 	}
 
-	RWSpecularIndirect[Coord.SvPositionFlatten] = float4(OutReflections, 0);
+	RWSpecularIndirect[Coord.SvPositionFlatten] = OutReflections;
 }
 
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
@@ -1154,9 +1154,9 @@ void ReflectionPassthroughCopyCS(
 	bool bIsOverflow = false;
 	const FLumenMaterialCoord Coord = GetLumenMaterialCoordForReflections(ReflectionScreenCoord, bIsOverflow);
 
-	float4 NewSpecularAndDepth = ResolvedReflections.Load(uint3(ReflectionScreenCoord, 0));
+	float3 NewSpecular = ResolvedReflections[ReflectionScreenCoord].xyz;
+	RWSpecularIndirect[Coord.SvPositionFlatten] = NewSpecular;
 
-	RWSpecularIndirect[Coord.SvPositionFlatten] = float4(NewSpecularAndDepth.xyz, 0);
 	RWNumHistoryFramesAccumulated[Coord.SvPositionFlatten] = 0.0f;
 
 #if USE_BILATERAL_FILTER

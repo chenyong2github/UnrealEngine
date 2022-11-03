@@ -421,12 +421,12 @@ class FReflectionResolveCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWSpecularIndirect)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWSpecularIndirectDepth)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWResolveVariance)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
 		SHADER_PARAMETER(uint32, NumSpatialReconstructionSamples)
 		SHADER_PARAMETER(float, SpatialReconstructionKernelRadius)
 		SHADER_PARAMETER(float, SpatialReconstructionRoughnessScale)
-		SHADER_PARAMETER(uint32, ResolveIsFinalOutput)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -477,6 +477,7 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, VelocityTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTextureSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolvedReflections)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolvedReflectionsDepth)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenReflections::FCompositeParameters, ReflectionsCompositeParameters)
 	END_SHADER_PARAMETER_STRUCT()
@@ -541,6 +542,7 @@ class FReflectionPassthroughCopyCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolveVariance)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolvedReflections)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolvedReflectionsDepth)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 	END_SHADER_PARAMETER_STRUCT()
@@ -777,6 +779,7 @@ void UpdateHistoryReflections(
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
 	bool bUseBilaterialFilter,
 	FRDGTextureRef ResolvedReflections,
+	FRDGTextureRef ResolvedReflectionsDepth,
 	FRDGTextureRef ResolveVariance,
 	FRDGTextureRef FinalSpecularIndirect,
 	FRDGTextureRef AccumulatedResolveVariance,
@@ -845,6 +848,7 @@ void UpdateHistoryReflections(
 			PassParameters->VelocityTexture = VelocityTexture;
 			PassParameters->VelocityTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 			PassParameters->ResolvedReflections = ResolvedReflections;
+			PassParameters->ResolvedReflectionsDepth = ResolvedReflectionsDepth;
 			PassParameters->ResolveVariance = ResolveVariance;
 			PassParameters->ResolveVarianceHistory = ResolveVarianceHistory;
 			PassParameters->ReflectionTileParameters = ReflectionTileParameters;
@@ -872,6 +876,7 @@ void UpdateHistoryReflections(
 		PassParameters->RWResolveVariance = GraphBuilder.CreateUAV(AccumulatedResolveVariance);
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->ResolvedReflections = ResolvedReflections;
+		PassParameters->ResolvedReflectionsDepth = ResolvedReflectionsDepth;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
 		PassParameters->ResolveVariance = ResolveVariance;
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
@@ -1081,8 +1086,13 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 
 	const FIntPoint EffectiveTextureResolution = (bFrontLayer || bSingleLayerWater) ? SceneTextures.Config.Extent : Strata::GetStrataTextureResolution(View, SceneTextures.Config.Extent);
 
-	FRDGTextureDesc SpecularIndirectDesc = FRDGTextureDesc::Create2D(EffectiveTextureResolution, PF_FloatRGBA, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_UAV);
-	FRDGTextureRef ResolvedSpecularIndirect = GraphBuilder.CreateTexture(SpecularIndirectDesc, TEXT("Lumen.Reflections.ResolvedSpecularIndirect"));
+	FRDGTextureRef ResolvedSpecularIndirect = GraphBuilder.CreateTexture(
+			FRDGTextureDesc::Create2D(EffectiveTextureResolution, PF_FloatRGB, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_UAV),
+			TEXT("Lumen.Reflections.ResolvedSpecularIndirect"));
+
+	FRDGTextureRef ResolvedSpecularIndirectDepth = GraphBuilder.CreateTexture(
+			FRDGTextureDesc::Create2D(EffectiveTextureResolution, PF_R16F, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_UAV),
+			TEXT("Lumen.Reflections.ResolvedSpecularIndirectDepth"));
 
 	FRDGTextureDesc ResolveVarianceDesc = FRDGTextureDesc::Create2D(EffectiveTextureResolution, PF_R16F, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_UAV);
 	FRDGTextureRef ResolveVariance = GraphBuilder.CreateTexture(ResolveVarianceDesc, TEXT("Lumen.Reflections.ResolveVariance"));
@@ -1094,12 +1104,12 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	{
 		FReflectionResolveCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionResolveCS::FParameters>();
 		PassParameters->RWSpecularIndirect = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ResolvedSpecularIndirect));
+		PassParameters->RWSpecularIndirectDepth = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ResolvedSpecularIndirectDepth));
 		PassParameters->RWResolveVariance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ResolveVariance));
 		PassParameters->ReflectionsCompositeParameters = ReflectionsCompositeParameters;
 		PassParameters->NumSpatialReconstructionSamples = NumReconstructionSamples;
 		PassParameters->SpatialReconstructionKernelRadius = GLumenReflectionScreenSpaceReconstructionKernelRadius;
 		PassParameters->SpatialReconstructionRoughnessScale = GLumenReflectionScreenSpaceReconstructionRoughnessScale;
-		PassParameters->ResolveIsFinalOutput = bDenoise ? 0 : 1;
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
@@ -1135,8 +1145,10 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 
 	if (bDenoise)
 	{
-		EnumAddFlags(SpecularIndirectDesc.Flags, TexCreate_RenderTargetable);
-		SpecularIndirect = GraphBuilder.CreateTexture(SpecularIndirectDesc, TEXT("Lumen.Reflections.SpecularIndirect"));
+		// Slowly accumulated specular history, must be in at least Float16 precision
+		SpecularIndirect = GraphBuilder.CreateTexture(
+			FRDGTextureDesc::Create2D(EffectiveTextureResolution, PF_FloatRGBA, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable),
+			TEXT("Lumen.Reflections.SpecularIndirect"));
 		EnumAddFlags(ResolveVarianceDesc.Flags, TexCreate_RenderTargetable);
 		FRDGTextureRef AccumulatedResolveVariance = GraphBuilder.CreateTexture(ResolveVarianceDesc, TEXT("Lumen.Reflections.AccumulatedResolveVariance"));
 
@@ -1150,6 +1162,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 			ReflectionTileParameters,
 			bUseBilaterialFilter,
 			ResolvedSpecularIndirect,
+			ResolvedSpecularIndirectDepth,
 			ResolveVariance,
 			SpecularIndirect,
 			AccumulatedResolveVariance,
