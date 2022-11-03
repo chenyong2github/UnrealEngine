@@ -1,26 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
-public class LiveLinkXR : ModuleRules
+public class LiveLinkXROpenXRExt : ModuleRules
 {
-	public LiveLinkXR(ReadOnlyTargetRules Target) : base(Target)
+	public LiveLinkXROpenXRExt(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
+		var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 		PrivateIncludePaths.AddRange(
-			new string[]
-			{
-				"LiveLinkXR/Private",
-				"LiveLinkXROpenXRExt/Private",
-			}
+            new string[] {
+                EngineDir + "/Plugins/Runtime/OpenXR/Source/OpenXRHMD/Private",
+            }
 		);
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
-				"LiveLinkInterface",
+				"Core"
 			}
 		);
 
@@ -30,10 +29,8 @@ public class LiveLinkXR : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"HeadMountedDisplay",
-				"Slate",
-				"SlateCore",
+				"InputCore",
 				"OpenXRHMD",
-				"LiveLinkXROpenXRExt",
 			}
 		);
 	}

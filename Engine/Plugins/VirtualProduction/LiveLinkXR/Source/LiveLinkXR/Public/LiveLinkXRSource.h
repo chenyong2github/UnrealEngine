@@ -3,27 +3,24 @@
 #pragma once
 
 #include "ILiveLinkSource.h"
-#include "LiveLinkXRConnectionSettings.h"
-#include "LiveLinkXRSourceSettings.h"
-#include "Roles/LiveLinkTransformTypes.h"
-
-#include "Delegates/IDelegateInstance.h"
-#include "MessageEndpoint.h"
-#include "IMessageContext.h"
-#include "HAL/ThreadSafeBool.h"
 #include "HAL/Runnable.h"
+#include "IXRTrackingSystem.h" // for EXRTrackedDeviceType; no longer used but pending deprecation
+#include "LiveLinkXRConnectionSettings.h"
 
-#include "IXRTrackingSystem.h"		// for GEngine->XRSystem and EXRTrackedDeviceType
+#include <atomic>
 
-struct ULiveLinkXRSettings;
 
 class ILiveLinkClient;
+class ULiveLinkXRSourceSettings;
 
-class LIVELINKXR_API FLiveLinkXRSource : public ILiveLinkSource, public FRunnable, public TSharedFromThis<FLiveLinkXRSource>
+
+class LIVELINKXR_API FLiveLinkXRSource
+	: public ILiveLinkSource
+	, public FRunnable
+	, public TSharedFromThis<FLiveLinkXRSource>
 {
 public:
-
-	FLiveLinkXRSource(const FLiveLinkXRConnectionSettings& ConnectionSettings);
+	FLiveLinkXRSource(const FLiveLinkXRConnectionSettings& InConnectionSettings);
 
 	virtual ~FLiveLinkXRSource();
 
@@ -41,8 +38,7 @@ public:
 	virtual FText GetSourceMachineName() const override { return SourceMachineName; }
 	virtual FText GetSourceStatus() const override { return SourceStatus; }
 
-	virtual TSubclassOf<ULiveLinkSourceSettings> GetSettingsClass() const override { return ULiveLinkXRSourceSettings::StaticClass(); }
-	virtual void OnSettingsChanged(ULiveLinkSourceSettings* Settings, const FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual TSubclassOf<ULiveLinkSourceSettings> GetSettingsClass() const override;
 
 	// End ILiveLinkSource Interface
 
@@ -57,34 +53,31 @@ public:
 	// End FRunnable Interface
 
 	void Send(FLiveLinkFrameDataStruct* FrameDataToSend, FName SubjectName);
+
+	UE_DEPRECATED(5.1, "LiveLinkXR no longer uses EXRTrackedDeviceType.")
 	const FString GetDeviceTypeName(EXRTrackedDeviceType DeviceType);
 
 private:
-	// Enumerate and save all connected and trackable XR devices
-	void EnumerateTrackedDevices();
-
 	// Callback when the a livelink subject has been added
 	void OnLiveLinkSubjectAdded(FLiveLinkSubjectKey InSubjectKey);
 
 private:
-	ILiveLinkClient* Client;
+	ILiveLinkClient* Client = nullptr;
 
 	// Our identifier in LiveLink
 	FGuid SourceGuid;
-
-	FMessageAddress ConnectionAddress;
 
 	FText SourceType;
 	FText SourceMachineName;
 	FText SourceStatus;
 	
-	// Threadsafe Bool for terminating the main thread loop
-	FThreadSafeBool Stopping;
+	// Threadsafe flag for terminating the main thread loop
+	std::atomic<bool> bStopping = false;
 	
-	// Thread to run socket operations on
-	FRunnableThread* Thread;
+	// Thread to update poses from
+	FRunnableThread* Thread = nullptr;
 	
-	// Name of the sockets thread
+	// Name of the update thread
 	FString ThreadName;
 	
 	// List of subjects we've already encountered
@@ -99,45 +92,15 @@ private:
 	// frame counter for data
 	int32 FrameCounter = 0;
 
-	// Track all SteamVR tracker "pucks"
-	bool bTrackTrackers = true;
-
-	// Track all controllers
-	bool bTrackControllers = false;
-
-	// Track all HMDs
-	bool bTrackHMDs = false;
-
 	// Update rate (in Hz) at which to read the tracking data for each device
-	uint32 LocalUpdateRateInHz;
-
-	struct FTrackedDeviceInfo
-	{
-		FTrackedDeviceInfo(int32 InDeviceId, EXRTrackedDeviceType InType, FName InName)
-			: DeviceId(InDeviceId)
-			, DeviceType(InType)
-			, SubjectName(InName)
-		{}
-
-		// Device Id for local SteamVR
-		int32 DeviceId = INDEX_NONE;
-
-		// Device type
-		EXRTrackedDeviceType DeviceType = EXRTrackedDeviceType::Invalid;
-		
-		// Subject name of this device
-		FName SubjectName;
-	};
-
-	// Array of found devices
-	TArray<FTrackedDeviceInfo> TrackedDevices;
+	std::atomic<uint32> LocalUpdateRateInHz;
 
 	// Critical section protection tracked devices
 	FCriticalSection TrackedDeviceCriticalSection;
-	
-	// Timestamp when we last enumerated devices
-	double LastEnumerationTimestamp = 0.0;
 
 	// Delegate for when the LiveLink client has ticked
 	FDelegateHandle OnSubjectAddedDelegate;
+
+	const FLiveLinkXRConnectionSettings ConnectionSettings;
+	ULiveLinkXRSourceSettings* SavedSourceSettings = nullptr;
 };
