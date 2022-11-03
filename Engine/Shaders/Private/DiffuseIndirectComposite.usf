@@ -124,6 +124,7 @@ RWTexture2D<float4> PassDebugOutput;
 
 uint bLumenSupportBackfaceDiffuse;
 uint bLumenReflectionInputIsSSR;
+float LumenFoliageOcclusionStrength;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Helper functions
@@ -452,7 +453,12 @@ void MainPS(
 				RemapClearCoatDiffuseAndSpecularColor(GBuffer, NoV, DiffuseColor, SpecularColor);
 			#endif
 
-			const FShadingOcclusion Occlusion = GetShadingOcclusion(PixelPos, V, N, GBuffer.Roughness, GBuffer.BaseColor, DynamicAmbientOcclusion);
+			FShadingOcclusion Occlusion = GetShadingOcclusion(PixelPos, V, N, GBuffer.Roughness, GBuffer.BaseColor, DynamicAmbientOcclusion);
+
+			if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE || GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE)
+			{
+				Occlusion.DiffuseOcclusion = lerp(1, Occlusion.DiffuseOcclusion, LumenFoliageOcclusionStrength);
+			}
 
 			if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 			{

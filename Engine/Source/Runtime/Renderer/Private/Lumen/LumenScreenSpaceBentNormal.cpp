@@ -20,6 +20,14 @@ FAutoConsoleVariableRef CVarLumenScreenBentNormalSlopeCompareToleranceScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+float GLumenScreenBentNormalFoliageOcclusionStrength = .7f;
+FAutoConsoleVariableRef CVarLumenScreenBentNormalFoliageOcclusionStrength(
+	TEXT("r.Lumen.ScreenProbeGather.ScreenSpaceBentNormal.FoliageOcclusionStrength"),
+	GLumenScreenBentNormalFoliageOcclusionStrength,
+	TEXT("Maximum strength of ScreenSpaceBentNormal occlusion on foliage and subsurface pixels.  Useful for reducing max occlusion to simulate subsurface scattering."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 class FScreenSpaceBentNormalCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FScreenSpaceBentNormalCS)
