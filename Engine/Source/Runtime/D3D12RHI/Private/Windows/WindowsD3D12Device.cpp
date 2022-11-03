@@ -428,31 +428,29 @@ inline bool ShouldCheckBindlessSupport(EShaderPlatform ShaderPlatform)
 		|| RHIGetBindlessSamplersConfiguration(ShaderPlatform) != ERHIBindlessConfiguration::Disabled;
 }
 
-inline ERHIFeatureLevel::Type FindMaxRHIFeatureLevel(IDXGIAdapter* Adapter, ID3D12Device* Device, D3D_FEATURE_LEVEL InMaxFeatureLevel, D3D_SHADER_MODEL InMaxShaderModel, D3D12_RESOURCE_BINDING_TIER ResourceBindingTier)
+inline ERHIFeatureLevel::Type FindMaxRHIFeatureLevel(D3D_FEATURE_LEVEL InMaxFeatureLevel, D3D_SHADER_MODEL InMaxShaderModel, D3D12_RESOURCE_BINDING_TIER ResourceBindingTier, bool bSupportsWaveOps, bool bSupportsAtomic64)
 {
 	ERHIFeatureLevel::Type MaxRHIFeatureLevel = ERHIFeatureLevel::Num;
 
 	if (InMaxFeatureLevel >= D3D_FEATURE_LEVEL_12_0 && InMaxShaderModel >= D3D_SHADER_MODEL_6_6)
 	{
-		D3D12_FEATURE_DATA_D3D12_OPTIONS1 D3D12Caps1{};
-		Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &D3D12Caps1, sizeof(D3D12Caps1));
-
-		D3D12_FEATURE_DATA_D3D12_OPTIONS9 D3D12Caps9{};
-		Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS9, &D3D12Caps9, sizeof(D3D12Caps9));
-
 		bool bHighEnoughBindingTier = true;
 		if (ShouldCheckBindlessSupport(SP_PCD3D_SM6))
 		{
 			bHighEnoughBindingTier = ResourceBindingTier >= D3D12_RESOURCE_BINDING_TIER_3;
 		}
 
-		if (D3D12Caps1.WaveOps && bHighEnoughBindingTier)
+		if (bSupportsWaveOps && bHighEnoughBindingTier && bSupportsAtomic64)
 		{
-			if (D3D12Caps9.AtomicInt64OnTypedResourceSupported || CheckDeviceForEmulatedAtomic64Support(Adapter, Device))
-		{
-			MaxRHIFeatureLevel = ERHIFeatureLevel::SM6;
+			if (FParse::Param(FCommandLine::Get(), TEXT("ForceDisableSM6")))
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("ERHIFeatureLevel::SM6 disabled via -ForceDisableSM6"));
+			}
+			else
+			{
+				MaxRHIFeatureLevel = ERHIFeatureLevel::SM6;
+			}
 		}
-	}
 	}
 
 	if (MaxRHIFeatureLevel == ERHIFeatureLevel::Num && InMaxFeatureLevel >= D3D_FEATURE_LEVEL_11_0)
@@ -472,6 +470,22 @@ inline void GetResourceTiers(ID3D12Device* Device, D3D12_RESOURCE_BINDING_TIER& 
 	OutResourceHeapTier = D3D12Caps.ResourceHeapTier;
 }
 
+inline bool GetSupportsWaveOps(ID3D12Device* Device)
+{
+	D3D12_FEATURE_DATA_D3D12_OPTIONS1 D3D12Caps1{};
+	Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS1, &D3D12Caps1, sizeof(D3D12Caps1));
+
+	return D3D12Caps1.WaveOps;
+}
+
+inline bool GetSupportsAtomic64(IDXGIAdapter* Adapter, ID3D12Device* Device)
+{
+	D3D12_FEATURE_DATA_D3D12_OPTIONS9 D3D12Caps9{};
+	Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS9, &D3D12Caps9, sizeof(D3D12Caps9));
+
+	return (CheckDeviceForEmulatedAtomic64Support(Adapter, Device) || D3D12Caps9.AtomicInt64OnTypedResourceSupported);
+}
+
 /**
  * Attempts to create a D3D12 device for the adapter using at minimum MinFeatureLevel.
  * If creation is successful, true is returned and the max supported feature level is set in OutMaxFeatureLevel.
@@ -488,7 +502,11 @@ static bool SafeTestD3D12CreateDevice(IDXGIAdapter* Adapter, D3D_FEATURE_LEVEL M
 			OutInfo.MaxShaderModel = FindHighestShaderModel(Device);
 			GetResourceTiers(Device, OutInfo.ResourceBindingTier, OutInfo.ResourceHeapTier);
 			OutInfo.NumDeviceNodes = Device->GetNodeCount();
-			OutInfo.MaxRHIFeatureLevel = FindMaxRHIFeatureLevel(Adapter, Device, OutInfo.MaxFeatureLevel, OutInfo.MaxShaderModel, OutInfo.ResourceBindingTier);
+
+			OutInfo.bSupportsWaveOps = GetSupportsWaveOps(Device);
+			OutInfo.bSupportsAtomic64 = GetSupportsAtomic64(Adapter, Device);
+
+			OutInfo.MaxRHIFeatureLevel = FindMaxRHIFeatureLevel(OutInfo.MaxFeatureLevel, OutInfo.MaxShaderModel, OutInfo.ResourceBindingTier, OutInfo.bSupportsWaveOps, OutInfo.bSupportsAtomic64);
 
 			Device->Release();
 			return true;
@@ -612,7 +630,7 @@ void FD3D12DynamicRHI::RHIHandleDisplayChange()
 }
 #endif
 
-static bool IsAdapterBlocked(FD3D12Adapter* InAdapter)
+static bool IsAdapterBlocked(const FD3D12Adapter* InAdapter)
 {
 #if !UE_BUILD_SHIPPING
 	if (InAdapter)
@@ -638,17 +656,30 @@ static bool IsAdapterBlocked(FD3D12Adapter* InAdapter)
 	return false;
 }
 
-static bool IsAdapterSupported(FD3D12Adapter* InAdapter, ERHIFeatureLevel::Type InRequestedFeatureLevel)
+inline ERHIFeatureLevel::Type GetAdapterMaxFeatureLevel(const FD3D12Adapter* InAdapter)
 {
 	if (InAdapter)
 	{
 		if (const FD3D12AdapterDesc& Desc = InAdapter->GetDesc(); Desc.IsValid())
 		{
-			return Desc.MaxRHIFeatureLevel != ERHIFeatureLevel::Num && Desc.MaxRHIFeatureLevel >= InRequestedFeatureLevel;
+			return Desc.MaxRHIFeatureLevel;
 		}
 	}
 
-	return false;
+	return ERHIFeatureLevel::Num;
+}
+
+static bool IsAdapterSupported(const FD3D12Adapter* InAdapter, ERHIFeatureLevel::Type InRequestedFeatureLevel)
+{
+	const ERHIFeatureLevel::Type AdapterMaxFeatureLevel = GetAdapterMaxFeatureLevel(InAdapter);
+	return AdapterMaxFeatureLevel != ERHIFeatureLevel::Num && AdapterMaxFeatureLevel >= InRequestedFeatureLevel;
+}
+
+static bool CheckIfAgilitySDKLoaded()
+{
+	const TCHAR* AgilitySDKDllName = TEXT("D3D12Core.dll");
+	HMODULE AgilitySDKDllHandle = ::GetModuleHandle(AgilitySDKDllName);
+	return AgilitySDKDllHandle != NULL;
 }
 
 bool FD3D12DynamicRHIModule::IsSupported(ERHIFeatureLevel::Type RequestedFeatureLevel)
@@ -669,9 +700,47 @@ bool FD3D12DynamicRHIModule::IsSupported(ERHIFeatureLevel::Type RequestedFeature
 		FindAdapter();
 	}
 
-	return ChosenAdapters.Num() > 0
-		&& !IsAdapterBlocked(ChosenAdapters[0].Get())
-		&& IsAdapterSupported(ChosenAdapters[0].Get(), RequestedFeatureLevel);
+	if (ChosenAdapters.Num() == 0)
+	{
+		UE_LOG(LogD3D12RHI, Log, TEXT("No adapters were found."));
+		return false;
+	}
+
+	const FD3D12Adapter* Adapter = ChosenAdapters[0].Get();
+	if (!Adapter || !Adapter->GetDesc().IsValid())
+	{
+		UE_LOG(LogD3D12RHI, Log, TEXT("Adapter was not found"));
+		return false;
+	}
+
+	if (IsAdapterBlocked(Adapter))
+	{
+		UE_LOG(LogD3D12RHI, Log, TEXT("Adapter was blocked by RHI.BlockIHVD3D12"));
+		return false;
+	}
+
+	if (!IsAdapterSupported(Adapter, RequestedFeatureLevel))
+	{
+		auto GetFeatureLevelNameInline = [](ERHIFeatureLevel::Type InFeatureLevel)
+		{
+			FString FeatureLevelName;
+			::GetFeatureLevelName(InFeatureLevel, FeatureLevelName);
+			return FeatureLevelName;
+		};
+
+		const FString SupportedFeatureLevelName = GetFeatureLevelNameInline(GetAdapterMaxFeatureLevel(Adapter));
+		const FString RequestedFeatureLevelName = GetFeatureLevelNameInline(RequestedFeatureLevel);
+
+		UE_LOG(LogD3D12RHI, Log,
+			TEXT("Adapter only supports up to Feature Level '%s', requested Feature Level was '%s'"),
+			*SupportedFeatureLevelName,
+			*RequestedFeatureLevelName
+		);
+
+		return false;
+	}
+
+	return true;
 }
 
 namespace D3D12RHI
@@ -712,6 +781,23 @@ static uint32 CountAdapterOutputs(TRefCountPtr<IDXGIAdapter>& Adapter)
 	}
 
 	return OutputCount;
+}
+
+inline bool IsAdapterIntegrated(IDXGIAdapter* InAdapter)
+{
+	TRefCountPtr<IDXGIAdapter3> Adapter3;
+	InAdapter->QueryInterface(IID_PPV_ARGS(Adapter3.GetInitReference()));
+
+	// Simple heuristic but without profiling it's hard to do better
+	DXGI_QUERY_VIDEO_MEMORY_INFO NonLocalVideoMemoryInfo{};
+	if (Adapter3 && SUCCEEDED(Adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &NonLocalVideoMemoryInfo)))
+	{
+		return NonLocalVideoMemoryInfo.Budget == 0;
+	}
+
+	// TODO: Using GPUDetect for Intel GPUs to check for integrated vs discrete status, pending GPUDetect update
+
+	return true;
 }
 
 void FD3D12DynamicRHIModule::FindAdapter()
@@ -793,54 +879,56 @@ void FD3D12DynamicRHIModule::FindAdapter()
 			if (SafeTestD3D12CreateDevice(TempAdapter, MinRequiredFeatureLevel, DeviceInfo))
 			{
 				check(DeviceInfo.NumDeviceNodes > 0);
+
 				// Log some information about the available D3D12 adapters.
-				DXGI_ADAPTER_DESC AdapterDesc;
+				DXGI_ADAPTER_DESC AdapterDesc{};
 				VERIFYD3D12RESULT(TempAdapter->GetDesc(&AdapterDesc));
-				uint32 OutputCount = CountAdapterOutputs(TempAdapter);
+
+				const uint32 OutputCount = CountAdapterOutputs(TempAdapter);
 
 				UE_LOG(LogD3D12RHI, Log,
-					TEXT("Found D3D12 adapter %u: %s (Max supported Feature Level %s, shader model %d.%d)"),
+					TEXT("Found D3D12 adapter %u: %s (VendorId: %04x, DeviceId: %04x, SubSysId: %04x, Revision: %04x"),
 					AdapterIndex,
 					AdapterDesc.Description,
-					GetFeatureLevelString(DeviceInfo.MaxFeatureLevel),
-					(DeviceInfo.MaxShaderModel >> 4), (DeviceInfo.MaxShaderModel & 0xF)
+					AdapterDesc.VendorId, AdapterDesc.DeviceId, AdapterDesc.SubSysId, AdapterDesc.Revision
 				);
 				UE_LOG(LogD3D12RHI, Log,
-					TEXT("Adapter has %uMB of dedicated video memory, %uMB of dedicated system memory, and %uMB of shared system memory, %d output[s]"),
+					TEXT("  Max supported Feature Level %s, shader model %d.%d, binding tier %d, wave ops %s, atomic64 %s"),
+					GetFeatureLevelString(DeviceInfo.MaxFeatureLevel),
+					(DeviceInfo.MaxShaderModel >> 4), (DeviceInfo.MaxShaderModel & 0xF),
+					DeviceInfo.ResourceBindingTier,
+					DeviceInfo.bSupportsWaveOps ? TEXT("supported") : TEXT("unsupported"),
+					DeviceInfo.bSupportsAtomic64 ? TEXT("supported") : TEXT("unsupported")
+				);
+
+				UE_LOG(LogD3D12RHI, Log,
+					TEXT("  Adapter has %uMB of dedicated video memory, %uMB of dedicated system memory, and %uMB of shared system memory, %d output[s]"),
 					(uint32)(AdapterDesc.DedicatedVideoMemory / (1024 * 1024)),
 					(uint32)(AdapterDesc.DedicatedSystemMemory / (1024 * 1024)),
 					(uint32)(AdapterDesc.SharedSystemMemory / (1024 * 1024)),
 					OutputCount
 				);
 
-				bool bIsAMD = AdapterDesc.VendorId == 0x1002;
-				bool bIsIntel = AdapterDesc.VendorId == 0x8086;
-				bool bIsNVIDIA = AdapterDesc.VendorId == 0x10DE;
-				bool bIsWARP = AdapterDesc.VendorId == 0x1414;
+				const bool bIsWARP = AdapterDesc.VendorId == 0x1414;
 
-				// Simple heuristic but without profiling it's hard to do better
-				bool bIsNonLocalMemoryPresent = false;
-				TRefCountPtr<IDXGIAdapter3> TempDxgiAdapter3;
-				DXGI_QUERY_VIDEO_MEMORY_INFO NonLocalVideoMemoryInfo;
-				if (SUCCEEDED(TempAdapter->QueryInterface(_uuidof(IDXGIAdapter3), (void**)TempDxgiAdapter3.GetInitReference())) &&
-					TempDxgiAdapter3.IsValid() && SUCCEEDED(TempDxgiAdapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &NonLocalVideoMemoryInfo)))
+				if (!bIsWARP)
 				{
-					bIsNonLocalMemoryPresent = NonLocalVideoMemoryInfo.Budget != 0;
+					const FGPUDriverInfo GPUDriverInfo = FPlatformMisc::GetGPUDriverInfo(AdapterDesc.Description, false);
+					UE_LOG(LogD3D12RHI, Log, TEXT("  Driver Version: %s (internal:%s, unified:%s)"), *GPUDriverInfo.UserDriverVersion, *GPUDriverInfo.InternalDriverVersion, *GPUDriverInfo.GetUnifiedDriverVersion());
+					UE_LOG(LogD3D12RHI, Log, TEXT("     Driver Date: %s"), *GPUDriverInfo.DriverDate);
 				}
-				// TODO: Using GPUDetect for Intel GPUs to check for integrated vs discrete status, pending GPUDetect update
-				const bool bIsIntegrated = !bIsNonLocalMemoryPresent;
-
-				// PerfHUD is for performance profiling
-				const bool bIsPerfHUD = !FCString::Stricmp(AdapterDesc.Description, TEXT("NVIDIA PerfHUD"));
 
 				FD3D12AdapterDesc CurrentAdapter(AdapterDesc, AdapterIndex, DeviceInfo);
 
 				CurrentAdapter.NumDeviceNodes = DeviceInfo.NumDeviceNodes;
 				CurrentAdapter.GpuPreference = GpuPreference;
-				CurrentAdapter.bIsIntegrated = bIsIntegrated;
+				CurrentAdapter.bIsIntegrated = IsAdapterIntegrated(TempAdapter);
 
 				// If requested WARP, then reject all other adapters. If WARP not requested, then reject the WARP device if software rendering support is disallowed
 				const bool bSkipWARP = (bRequestedWARP && !bIsWARP) || (!bRequestedWARP && bIsWARP && !bAllowSoftwareRendering);
+
+				// PerfHUD is for performance profiling
+				const bool bIsPerfHUD = !FCString::Stricmp(AdapterDesc.Description, TEXT("NVIDIA PerfHUD"));
 
 				// we don't allow the PerfHUD adapter
 				const bool bSkipPerfHUDAdapter = bIsPerfHUD && !bAllowPerfHUD;
@@ -851,11 +939,11 @@ void FD3D12DynamicRHIModule::FindAdapter()
 				// the user wants a specific adapter, not this one
 				const bool bSkipExplicitAdapter = CVarExplicitAdapterValue >= 0 && AdapterIndex != CVarExplicitAdapterValue;
 
-				const bool bSkipAdapter = bSkipWARP || bSkipPerfHUDAdapter || bSkipHmdGraphicsAdapter || bSkipExplicitAdapter;
+				const bool bSkipAdapter = bSkipWARP || bSkipPerfHUDAdapter || bSkipHmdGraphicsAdapter || bSkipExplicitAdapter || FParse::Param(FCommandLine::Get(), TEXT("ForceZeroAdapters"));
 
 				if (!bSkipAdapter)
 				{
-					if (!bIsWARP && !bIsIntegrated && !FirstDiscreteAdapter.IsValid())
+					if (!bIsWARP && !CurrentAdapter.bIsIntegrated && !FirstDiscreteAdapter.IsValid())
 					{
 						FirstDiscreteAdapter = CurrentAdapter;
 					}
@@ -897,6 +985,8 @@ void FD3D12DynamicRHIModule::FindAdapter()
 		NewAdapter = TSharedPtr<FD3D12Adapter>(new FWindowsD3D12Adapter(FirstAdapter));
 		ChosenAdapters.Add(NewAdapter);
 	}
+
+	UE_LOG(LogD3D12RHI, Log, TEXT("DirectX Agility SDK runtime %s."), CheckIfAgilitySDKLoaded() ? TEXT("found") : TEXT("not found"));
 
 	if (ChosenAdapters.Num() > 0 && ChosenAdapters[0]->GetDesc().IsValid())
 	{

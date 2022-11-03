@@ -679,7 +679,9 @@ static bool HandleUnsupportedFeatureLevel(EWindowsRHI& WindowsRHI, ERHIFeatureLe
 	{
 		if (WindowsRHI == EWindowsRHI::D3D12 && FeatureLevel == ERHIFeatureLevel::SM6)
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX12SM6", "DX12 SM6 is not supported on your system. Try running without the -sm6 command line argument."));
+			UE_LOG(LogRHI, Log, TEXT("RHI %s with Feature Level %s is not supported on your system."), ModuleNameFromWindowsRHI(WindowsRHI), *LexToString(FeatureLevel));
+
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX12SM6", "DirectX 12 with Feature Level SM6 is not supported on your system. Try running without the -sm6 command line argument."));
 			FPlatformMisc::RequestExit(1);
 		}
 
@@ -693,8 +695,6 @@ static bool HandleUnsupportedFeatureLevel(EWindowsRHI& WindowsRHI, ERHIFeatureLe
 
 	if (TOptional<ERHIFeatureLevel::Type> FallbackFeatureLevel = Config.GetNextHighestTargetedFeatureLevel(WindowsRHI, FeatureLevel))
 	{
-		UE_LOG(LogRHI, Log, TEXT("RHI %s with Feature Level %s not supported, falling back to Feature Level %s"), ModuleNameFromWindowsRHI(WindowsRHI), *LexToString(FeatureLevel), *LexToString(FallbackFeatureLevel.GetValue()));
-
 		FeatureLevel = FallbackFeatureLevel.GetValue();
 		return true;
 	}
@@ -708,8 +708,11 @@ static bool HandleUnsupportedRHI(EWindowsRHI& WindowsRHI, ERHIFeatureLevel::Type
 	{
 		if (ForcedRHI == EWindowsRHI::D3D12)
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX12", "DX12 is not supported on your system. Try running without the -dx12 or -d3d12 command line argument."));
+			UE_LOG(LogRHI, Log, TEXT("RHI %s with Feature Level %s is not supported on your system."), ModuleNameFromWindowsRHI(WindowsRHI), *LexToString(FeatureLevel));
+
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX12", "DirectX 12 is not supported on your system. Try running without the -dx12 or -d3d12 command line argument."));
 			FPlatformMisc::RequestExit(1);
+			return false;
 		}
 	}
 
@@ -717,14 +720,17 @@ static bool HandleUnsupportedRHI(EWindowsRHI& WindowsRHI, ERHIFeatureLevel::Type
 	{
 		if (TOptional<ERHIFeatureLevel::Type> D3D11FeatureLevel = Config.GetHighestSupportedFeatureLevel(EWindowsRHI::D3D11))
 		{
-			UE_LOG(LogRHI, Log, TEXT("D3D12 is not supported, falling back to D3D11 with Feature Level %s"), *LexToString(D3D11FeatureLevel.GetValue()));
-
 			WindowsRHI = EWindowsRHI::D3D11;
 			FeatureLevel = D3D11FeatureLevel.GetValue();
 			return true;
 		}
+	}
 
-		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX12", "DX12 is not supported on your system. Try running without the -dx12 or -d3d12 command line argument."));
+	UE_LOG(LogRHI, Log, TEXT("RHI %s is not supported on your system."), ModuleNameFromWindowsRHI(WindowsRHI));
+
+	if (WindowsRHI == EWindowsRHI::D3D12)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX12", "DirectX 12 is not supported on your system. Try running without the -dx12 or -d3d12 command line argument."));
 		FPlatformMisc::RequestExit(1);
 	}
 
@@ -794,13 +800,23 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 		FApp::SetGraphicsRHI(RHIName);
 
 		const TCHAR* ModuleName = ModuleNameFromWindowsRHI(ChosenRHI);
+
+		UE_LOG(LogRHI, Log, TEXT("Loading RHI %s"), ModuleName);
+
 		IDynamicRHIModule* DynamicRHIModule = FModuleManager::LoadModulePtr<IDynamicRHIModule>(ModuleName);
+
+		UE_LOG(LogRHI, Log, TEXT("Checking if RHI %s with Feature Level %s is supported by your system."), ModuleName, *LexToString(DesiredFeatureLevel));
 
 		if (DynamicRHIModule && DynamicRHIModule->IsSupported(DesiredFeatureLevel))
 		{
+			UE_LOG(LogRHI, Log, TEXT("RHI %s with Feature Level %s is supported and will be used."), ModuleName, *LexToString(DesiredFeatureLevel));
+
 			LoadedRHIModuleName = ModuleName;
 			return DynamicRHIModule;
 		}
+
+		const EWindowsRHI PreviousRHI = ChosenRHI;
+		const ERHIFeatureLevel::Type PreviousFeatureLevel = DesiredFeatureLevel;
 
 		bTryWithNewConfig = HandleUnsupportedFeatureLevel(ChosenRHI, DesiredFeatureLevel, ForcedFeatureLevel, Config);
 
@@ -809,7 +825,15 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			bTryWithNewConfig = HandleUnsupportedRHI(ChosenRHI, DesiredFeatureLevel, ForcedRHI, Config);
 		}
 
+		if (bTryWithNewConfig)
+		{
+			UE_LOG(LogRHI, Log, TEXT("RHI %s with Feature Level %s is not supported on your system, attempting to fall back to RHI %s with Feature Level %s"),
+				ModuleNameFromWindowsRHI(PreviousRHI), *LexToString(PreviousFeatureLevel),
+				ModuleNameFromWindowsRHI(ChosenRHI), *LexToString(DesiredFeatureLevel));
+		}
 	} while (bTryWithNewConfig);
+
+	UE_LOG(LogRHI, Log, TEXT("RHI %s with Feature Level %s is not supported on your system. No RHI was supported, failing initialization."), ModuleNameFromWindowsRHI(ChosenRHI), *LexToString(DesiredFeatureLevel));
 
 	return nullptr;
 }

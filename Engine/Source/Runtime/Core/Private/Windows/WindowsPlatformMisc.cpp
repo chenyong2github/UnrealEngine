@@ -2486,7 +2486,7 @@ FString FWindowsPlatformMisc::GetPrimaryGPUBrand()
 #undef USE_SP_BACKUP_QUEUE_PARAMS_V1
 #undef USE_SP_INF_SIGNER_INFO_V1
 
-static void GetVideoDriverDetailsFromSetup(const FString& DeviceName, FGPUDriverInfo& Out)
+static void GetVideoDriverDetailsFromSetup(const FString& DeviceName, bool bVerbose, FGPUDriverInfo& Out)
 {
 	
 	HDEVINFO hDevInfo = SetupDiGetClassDevs(&GUID_DEVCLASS_DISPLAY, NULL, NULL, DIGCF_PRESENT);
@@ -2525,7 +2525,7 @@ static void GetVideoDriverDetailsFromSetup(const FString& DeviceName, FGPUDriver
 					}
 					else
 					{
-						UE_LOG(LogWindows, Log, TEXT("Failed to retrieve driver registry key for device %d"), Idx);
+						UE_CLOG(bVerbose, LogWindows, Log, TEXT("Failed to retrieve driver registry key for device %d"), Idx);
 					}
 					
 					break;
@@ -2534,7 +2534,7 @@ static void GetVideoDriverDetailsFromSetup(const FString& DeviceName, FGPUDriver
 			}
 			else
 			{
-				UE_LOG(LogWindows, Log, TEXT("Failed to retrieve driver description for device %d"), Idx);
+				UE_CLOG(bVerbose, LogWindows, Log, TEXT("Failed to retrieve driver description for device %d"), Idx);
 			}
 		}
 
@@ -2549,7 +2549,7 @@ static void GetVideoDriverDetailsFromSetup(const FString& DeviceName, FGPUDriver
 			}
 			else
 			{
-				UE_LOG(LogWindows, Log, TEXT("Failed to find provider name"));
+				UE_CLOG(bVerbose, LogWindows, Log, TEXT("Failed to find provider name"));
 			}
 			// Get the internal driver version
 			if (SetupDiGetDeviceProperty(hDevInfo, &DeviceInfoData, &DEVPKEY_Device_DriverVersion, &DataType,
@@ -2560,7 +2560,7 @@ static void GetVideoDriverDetailsFromSetup(const FString& DeviceName, FGPUDriver
 			}
 			else
 			{
-				UE_LOG(LogWindows, Log, TEXT("Failed to find internal driver version"));
+				UE_CLOG(bVerbose, LogWindows, Log, TEXT("Failed to find internal driver version"));
 			}
 			// Get the driver date
 			FILETIME FileTime;
@@ -2573,19 +2573,19 @@ static void GetVideoDriverDetailsFromSetup(const FString& DeviceName, FGPUDriver
 			}
 			else
 			{
-				UE_LOG(LogWindows, Log, TEXT("Failed to find driver date"));
+				UE_CLOG(bVerbose, LogWindows, Log, TEXT("Failed to find driver date"));
 			}
 		}
 		else
 		{
-			UE_LOG(LogWindows, Log, TEXT("Unable to find requested device '%s' using Setup API."), *DeviceName);
+			UE_CLOG(bVerbose, LogWindows, Log, TEXT("Unable to find requested device '%s' using Setup API."), *DeviceName);
 		}
 		
 		SetupDiDestroyDeviceInfoList(hDevInfo);
 	}
 	else
 	{
-		UE_LOG(LogWindows, Log, TEXT("Failed to initialize Setup API"));
+		UE_CLOG(bVerbose, LogWindows, Log, TEXT("Failed to initialize Setup API"));
 	}
 
 	if (!Out.ProviderName.IsEmpty())
@@ -2740,13 +2740,16 @@ static BOOL CALLBACK MonitorEnumProc(HMONITOR Monitor, HDC MonitorDC, LPRECT Rec
 	return TRUE;
 }
 
-FGPUDriverInfo FWindowsPlatformMisc::GetGPUDriverInfo(const FString& DeviceDescription)
+FGPUDriverInfo FWindowsPlatformMisc::GetGPUDriverInfo(const FString& DeviceDescription, bool bVerbose)
 {
-	// Also report monitor information here, for lack of a better place.
-	UE_LOG(LogWindows, Log, TEXT("Attached monitors:"));
-	int NumMonitors = 0;
-	EnumDisplayMonitors(nullptr, nullptr, MonitorEnumProc, (LPARAM)&NumMonitors);
-	UE_LOG(LogWindows, Log, TEXT("Found %d attached monitors."), NumMonitors);
+	if (bVerbose)
+	{
+		// Also report monitor information here, for lack of a better place.
+		UE_LOG(LogWindows, Log, TEXT("Attached monitors:"));
+		int NumMonitors = 0;
+		EnumDisplayMonitors(nullptr, nullptr, MonitorEnumProc, (LPARAM)&NumMonitors);
+		UE_LOG(LogWindows, Log, TEXT("Found %d attached monitors."), NumMonitors);
+	}
 
 	// to distinguish failed GetGPUDriverInfo() from call to GetGPUDriverInfo()
 	FGPUDriverInfo Ret;
@@ -2764,22 +2767,22 @@ FGPUDriverInfo FWindowsPlatformMisc::GetGPUDriverInfo(const FString& DeviceDescr
 
 	if (Method == 5)
 	{
-		UE_LOG(LogWindows, Log, TEXT("Gathering driver information using Windows Setup API"));
+		UE_CLOG(bVerbose, LogWindows, Log, TEXT("Gathering driver information using Windows Setup API"));
 		FGPUDriverInfo Local;
-		GetVideoDriverDetailsFromSetup(DeviceDescription, Local);
+		GetVideoDriverDetailsFromSetup(DeviceDescription, bVerbose, Local);
 
 		if(Local.IsValid() && Local.DeviceDescription == DeviceDescription)
 		{
 			return Local;
 		}
 
-		UE_LOG(LogWindows, Log, TEXT("Failed to get driver data for device '%s' using Setup API. Switching to fallback method."), *DeviceDescription);
+		UE_CLOG(bVerbose, LogWindows, Log, TEXT("Failed to get driver data for device '%s' using Setup API. Switching to fallback method."), *DeviceDescription);
 		Method = 4; // Switch to method 4 as a fallback if method 5 fails
 	}
 	
 	if(Method == 3 || Method == 4)
 	{
-		UE_LOG(LogWindows, Log, TEXT("EnumDisplayDevices:"));
+		UE_CLOG(bVerbose, LogWindows, Log, TEXT("EnumDisplayDevices:"));
 
 		for(uint32 i = 0; i < 256; ++i)
 		{
@@ -2795,7 +2798,7 @@ FGPUDriverInfo FWindowsPlatformMisc::GetGPUDriverInfo(const FString& DeviceDescr
 				break;
 			}
 
-			UE_LOG(LogWindows, Log, TEXT("   %d. '%s' (P:%d D:%d), name: '%s'"),
+			UE_CLOG(bVerbose, LogWindows, Log, TEXT("   %d. '%s' (P:%d D:%d), name: '%s'"),
 				i,
 				Device.DeviceString,
 				(Device.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE) != 0,
@@ -2859,7 +2862,7 @@ FGPUDriverInfo FWindowsPlatformMisc::GetGPUDriverInfo(const FString& DeviceDescr
 
 		if(!DebugString.IsEmpty())
 		{
-			UE_LOG(LogWindows, Log, TEXT("DebugString: %s"), *DebugString);
+			UE_CLOG(bVerbose, LogWindows, Log, TEXT("DebugString: %s"), *DebugString);
 		}
 
 		return Ret;
@@ -2956,7 +2959,7 @@ FGPUDriverInfo FWindowsPlatformMisc::GetGPUDriverInfo(const FString& DeviceDescr
 
 	if(!DebugString.IsEmpty())
 	{
-		UE_LOG(LogWindows, Log, TEXT("DebugString: %s"), *DebugString);
+		UE_CLOG(bVerbose, LogWindows, Log, TEXT("DebugString: %s"), *DebugString);
 	}
 
 	return Ret;

@@ -211,6 +211,8 @@ FD3D12AdapterDesc::FD3D12AdapterDesc(const DXGI_ADAPTER_DESC& InDesc, int32 InAd
 	, ResourceBindingTier(DeviceInfo.ResourceBindingTier)
 	, ResourceHeapTier(DeviceInfo.ResourceHeapTier)
 	, MaxRHIFeatureLevel(DeviceInfo.MaxRHIFeatureLevel)
+	, bSupportsWaveOps(DeviceInfo.bSupportsWaveOps)
+	, bSupportsAtomic64(DeviceInfo.bSupportsAtomic64)
 {
 }
 

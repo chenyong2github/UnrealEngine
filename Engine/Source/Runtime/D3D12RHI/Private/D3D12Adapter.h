@@ -40,6 +40,8 @@ struct FD3D12DeviceBasicInfo
 	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier;
 	D3D12_RESOURCE_HEAP_TIER    ResourceHeapTier;
 	uint32                      NumDeviceNodes;
+	bool                        bSupportsWaveOps;
+	bool                        bSupportsAtomic64;
 
 	ERHIFeatureLevel::Type      MaxRHIFeatureLevel;
 };
@@ -78,6 +80,12 @@ struct FD3D12AdapterDesc
 
 	/** Whether the GPU is integrated or discrete. */
 	bool bIsIntegrated = false;
+
+	/** Whether SM6.0 wave ops are supported */
+	bool bSupportsWaveOps = false;
+
+	/** Whether SM6.6 atomic64 wave ops are supported */
+	bool bSupportsAtomic64 = false;
 
 #if DXGI_MAX_FACTORY_INTERFACE >= 6
 	DXGI_GPU_PREFERENCE GpuPreference = DXGI_GPU_PREFERENCE_UNSPECIFIED;
