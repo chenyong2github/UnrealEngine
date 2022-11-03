@@ -908,7 +908,7 @@ namespace Electra
 				// Get an sample block from the pool.
 				while(!TerminateThreadEvent.IsSignaled())
 				{
-					if (FlushDecoderEvent.IsSignaled() && !bFlush)
+					if (FlushDecoderEvent.IsSignaled())
 					{
 						break;
 					}
