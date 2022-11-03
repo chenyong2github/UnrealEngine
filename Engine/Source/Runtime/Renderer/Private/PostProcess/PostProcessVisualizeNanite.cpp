@@ -138,10 +138,14 @@ void AddVisualizeNanitePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FS
 
 			AddDrawCanvasPass(GraphBuilder, RDG_EVENT_NAME("Labels"), View, OutputTarget, [LocalTileLabels = MoveTemp(TileLabels)](FCanvas& Canvas)
 			{
+				const float DPIScale = Canvas.GetDPIScale();
+				Canvas.SetBaseTransform(FMatrix(FScaleMatrix(DPIScale)* Canvas.CalcBaseTransform2D(Canvas.GetViewRect().Width(), Canvas.GetViewRect().Height())));
+
 				const FLinearColor LabelColor(1, 1, 0);
 				for (const FTileLabel& TileLabel : LocalTileLabels)
 				{
-					Canvas.DrawShadowedString(TileLabel.Location.X, TileLabel.Location.Y, *TileLabel.Label, GetStatsFont(), LabelColor);
+					FIntPoint ScreenPos(TileLabel.Location.X, TileLabel.Location.Y);
+					Canvas.DrawShadowedString(ScreenPos.X / DPIScale, ScreenPos.Y / DPIScale, *TileLabel.Label, GetStatsFont(), LabelColor);
 				}
 			});
 		}
