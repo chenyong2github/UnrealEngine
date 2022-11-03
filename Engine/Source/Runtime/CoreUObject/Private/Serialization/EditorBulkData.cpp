@@ -823,18 +823,19 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 			// in memory or some other caching system.
 			// Serializing full 8k texture payloads to memory on each metadata change will empty
 			// the undo stack very quickly.
-			
-			// Note that we will only serialize the payload if it is in memory. Otherwise we can
-			// continue to load the payload as needed from disk or pull from the virtualization system
-			bool bPayloadInArchive = Ar.IsSaving() ? !Payload.IsNull() : false;
-			Ar << bPayloadInArchive;
 
 			if (Ar.IsSaving())
 			{
-				if (bPayloadInArchive)
+				if (Payload.IsNull())
 				{
-					Ar << Payload;
+					// We need to serialize in FSharedBuffer form, or otherwise we'd need to support
+					// multiple code paths here. Technically a bit wasteful but for general use it 
+					// shouldn't be noticable. This will make it easier to do the real perf wins
+					// in the future.
+					Payload = GetDataInternal().Decompress();
 				}
+
+				Ar << Payload;
 			}
 			else
 			{
@@ -845,17 +846,17 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 					BulkDataId = FGuid::NewGuid();
 				}
 
-				if (bPayloadInArchive)
-				{
-					Ar << Payload;
-				}
-				else
-				{
-					UnloadData();
-				}
+				Ar << Payload;
 
 				Register(Owner, TEXT("Serialize/Transacting"), false /* bAllowUpdateId */);
 			}
+
+			// Try to unload the payload if possible, usually because we loaded it during the transaction in the
+			// first place and we don't want to keep it in memory anymore.
+			// This does mean if the owning asset is frequently edited we will be reloading the payload off disk
+			// a lot. But in practice this didn't show up as too much of a problem. If someone has found this to 
+			// be a perf issue, then remove the call to ::UnloadData and trade memory cost for perf gain.
+			UnloadData();
 		}
 	}
 	else if (Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && !Ar.ShouldSkipBulkData())
