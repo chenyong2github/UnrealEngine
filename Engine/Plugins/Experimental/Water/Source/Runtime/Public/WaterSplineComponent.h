@@ -17,6 +17,9 @@ struct FOnWaterSplineDataChangedParams
 
 	/** Provides some additional context about how the water brush actor data has changed (property, type of change...) */
 	FPropertyChangedEvent PropertyChangedEvent;
+
+	/** Indicates user initiated change*/
+	bool bUserTriggered = false;
 };
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnWaterSplineDataChanged, const FOnWaterSplineDataChangedParams&);
 #endif // WITH_EDITOR

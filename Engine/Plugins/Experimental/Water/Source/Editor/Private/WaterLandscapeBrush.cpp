@@ -26,6 +26,7 @@
 #include "Components/BillboardComponent.h"
 #include "Modules/ModuleManager.h"
 #include "WaterModule.h"
+#include "WaterEditorModule.h"
 #include "WaterEditorSettings.h"
 #include "LandscapeModule.h"
 #include "LandscapeEditorServices.h"
@@ -205,10 +206,10 @@ void AWaterLandscapeBrush::OnWaterBrushActorChanged(const IWaterBrushActorInterf
 	const UWaterEditorSettings* WaterEditorSettings = GetDefault<UWaterEditorSettings>();
 	check(WaterEditorSettings != nullptr);
 
-	bool bAllowLandscapeUpdate = (InParams.PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive) || WaterEditorSettings->GetUpdateLandscapeDuringInteractiveChanges();
+	const bool bAllowLandscapeUpdate = (InParams.PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive) || WaterEditorSettings->GetUpdateLandscapeDuringInteractiveChanges();
 	if (bForceUpdateBrush || (bAffectsLandscape && bAllowLandscapeUpdate))
 	{
-		RequestLandscapeUpdate();
+		RequestLandscapeUpdate(/* bInUserTriggered = */ InParams.bUserTriggered);
 	}
 
 	bool bAllowWaterMeshUpdate = (InParams.PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive) || WaterEditorSettings->GetUpdateWaterMeshDuringInteractiveChanges();

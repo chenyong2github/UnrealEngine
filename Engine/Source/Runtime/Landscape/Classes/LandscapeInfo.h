@@ -51,6 +51,7 @@ struct FLandscapeDirtyOnlyInModeScope
 {
 	FLandscapeDirtyOnlyInModeScope() = delete;
 	FLandscapeDirtyOnlyInModeScope(ULandscapeInfo* InLandscapeInfo);
+	FLandscapeDirtyOnlyInModeScope(ULandscapeInfo* InLandscapeInfo, bool bInOverrideDirtyMode); /* Override the dirtying in Landscape mode behaviour*/
 	~FLandscapeDirtyOnlyInModeScope();
 
 private:

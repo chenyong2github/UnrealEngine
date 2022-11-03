@@ -9,6 +9,14 @@
 class UMaterialInterface;
 class ULandscapeLayerInfoObject;
 
+UENUM()
+enum class ELandscapeDirtyingMode : uint8
+{
+	Auto,
+	InLandscapeModeOnly,
+	InLandscapeModeAndUserTriggeredChanges
+};
+
 UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Landscape"))
 class LANDSCAPE_API ULandscapeSettings : public UDeveloperSettings
 {
@@ -38,6 +46,9 @@ public:
 public:
 	UPROPERTY(config, EditAnywhere, Category = "Layers", meta=(UIMin = "1", UIMax = "32", ClampMin = "1", ClampMax = "32", ToolTip = "This option controls the maximum editing layers that can be added to a Landscape"))
 	int32 MaxNumberOfLayers = 8;
+
+	UPROPERTY(Config, Category = "Configuration", EditAnywhere)
+	ELandscapeDirtyingMode LandscapeDirtyingMode;
 
 protected:
 	UPROPERTY(config)

@@ -132,6 +132,7 @@ void AWaterBody::PostEditMove(bool bFinished)
 	FOnWaterBodyChangedParams Params;
 	Params.PropertyChangedEvent.ChangeType = bFinished ? EPropertyChangeType::ValueSet : EPropertyChangeType::Interactive;
 	Params.bShapeOrPositionChanged = true;
+	Params.bUserTriggered = true;
 	WaterBodyComponent->OnWaterBodyChanged(Params);
 }
 

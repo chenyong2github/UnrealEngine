@@ -5219,9 +5219,24 @@ bool ALandscape::ResolveLayersTexture(
 		InCPUReadback->Tick();
 	}
 
+	const int32 CompletedReadbackNum = InCPUReadback->GetCompletedResultNum();
+
+	bool bUserTriggered = false;
+
+	if (TArray<ULandscapeComponent*> const * Components = bIsWeightmap ? MapHelper.WeightmapToComponents.Find(InOutputTexture) : MapHelper.HeightmapToComponents.Find(InOutputTexture))
+	{
+		for (ULandscapeComponent* Component : *Components)
+		{
+			if (Component->GetUserTriggeredChangeRequested())
+			{
+				bUserTriggered = true;
+				break;
+			}
+		}
+	}
+	
 	bool bChanged = false;
 
-	const int32 CompletedReadbackNum = InCPUReadback->GetCompletedResultNum();
 	if (CompletedReadbackNum > 0)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_PerformReadbacks);
@@ -5257,7 +5272,16 @@ bool ALandscape::ResolveLayersTexture(
 						bChanged = true;
 
 						// We're about to modify the texture's source data, the texture needs to know so that it can handle properly update cached platform data (additionally, the package needs to be dirtied) :
-						GetLandscapeInfo()->ModifyObject(InOutputTexture);
+						if (GetDefault<ULandscapeSettings>()->LandscapeDirtyingMode == ELandscapeDirtyingMode::InLandscapeModeAndUserTriggeredChanges)
+						{
+							FLandscapeDirtyOnlyInModeScope Scope(GetLandscapeInfo(), !bUserTriggered);
+							GetLandscapeInfo()->ModifyObject(InOutputTexture);	
+						}
+						else
+						{
+							GetLandscapeInfo()->ModifyObject(InOutputTexture);
+						}
+							
 					}
 				}
 
@@ -7487,7 +7511,7 @@ void ALandscape::RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMo
 	LayerContentUpdateModes |= InUpdateMode;
 }
 
-void ALandscape::RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InModeMask)
+void ALandscape::RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InModeMask, bool bInUserTriggered)
 {
 	// Ignore Update requests while in PostLoad (to avoid dirtying package on load)
 	if (FUObjectThreadContext::Get().IsRoutingPostLoad)
@@ -7509,7 +7533,7 @@ void ALandscape::RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode In
 	const bool bUpdateClientUdpateEditing = (InModeMask & ELandscapeLayerUpdateMode::Update_Client_Editing) != 0;
 	if (ULandscapeInfo* LandscapeInfo = GetLandscapeInfo())
 	{
-		LandscapeInfo->ForAllLandscapeProxies([bUpdateHeightmap, bUpdateWeightmap, bUpdateAllHeightmap, bUpdateAllWeightmap, bUpdateHeightCollision, bUpdateWeightCollision, bUpdateClientUdpateEditing](ALandscapeProxy* Proxy)
+		LandscapeInfo->ForAllLandscapeProxies([bUpdateHeightmap, bUpdateWeightmap, bUpdateAllHeightmap, bUpdateAllWeightmap, bUpdateHeightCollision, bUpdateWeightCollision, bUpdateClientUdpateEditing, bInUserTriggered](ALandscapeProxy* Proxy)
 		{
 			if (Proxy)
 			{
@@ -7517,17 +7541,17 @@ void ALandscape::RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode In
 				{
 					if (bUpdateHeightmap)
 					{
-						Component->RequestHeightmapUpdate(bUpdateAllHeightmap, bUpdateHeightCollision);
+						Component->RequestHeightmapUpdate(bUpdateAllHeightmap, bUpdateHeightCollision, bInUserTriggered);
 					}
 
 					if (bUpdateWeightmap)
 					{
-						Component->RequestWeightmapUpdate(bUpdateAllWeightmap, bUpdateWeightCollision);
+						Component->RequestWeightmapUpdate(bUpdateAllWeightmap, bUpdateWeightCollision, bInUserTriggered);
 					}
 
 					if (bUpdateClientUdpateEditing)
 					{
-						Component->RequestEditingClientUpdate();
+						Component->RequestEditingClientUpdate(bInUserTriggered);
 					}
 				}
 			}
@@ -7615,8 +7639,10 @@ void ULandscapeComponent::RequestDeferredClientUpdate()
 	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Update_Client_Deferred;
 }
 
-void ULandscapeComponent::RequestEditingClientUpdate()
+void ULandscapeComponent::RequestEditingClientUpdate(bool bInUserTriggered)
 {
+	bUserTriggeredChangeRequested = bInUserTriggered; 
+	
 	LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Update_Client_Editing;
 	if (ALandscape* LandscapeActor = GetLandscapeActor())
 	{
@@ -7624,8 +7650,9 @@ void ULandscapeComponent::RequestEditingClientUpdate()
 	}
 }
 
-void ULandscapeComponent::RequestHeightmapUpdate(bool bUpdateAll, bool bUpdateCollision)
+void ULandscapeComponent::RequestHeightmapUpdate(bool bUpdateAll, bool bUpdateCollision, bool bInUserTriggered)
 {
+	bUserTriggeredChangeRequested = bInUserTriggered;
 	if (bUpdateAll || bUpdateCollision)
 	{
 		LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Update_Heightmap_Editing;
@@ -7645,8 +7672,10 @@ void ULandscapeComponent::RequestHeightmapUpdate(bool bUpdateAll, bool bUpdateCo
 	}
 }
 
-void ULandscapeComponent::RequestWeightmapUpdate(bool bUpdateAll, bool bUpdateCollision)
+void ULandscapeComponent::RequestWeightmapUpdate(bool bUpdateAll, bool bUpdateCollision, bool bInUserTriggered)
 {
+	bUserTriggeredChangeRequested = bInUserTriggered;
+	
 	if (bUpdateAll || bUpdateCollision)
 	{
 		LayerUpdateFlagPerMode |= ELandscapeLayerUpdateMode::Update_Weightmap_Editing;
@@ -7879,6 +7908,21 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 	const bool bProcessReadbacks = FLandscapeEditLayerReadback::HasWork();
 	const bool bForceRender = CVarForceLayersUpdate.GetValueOnAnyThread() != 0;
 
+	// User triggered change has been completely processed, resetting user triggered flag on all components.
+	if (!bProcessReadbacks && (LayerContentUpdateModes == 0))
+	{
+		GetLandscapeInfo()->ForAllLandscapeComponents(
+			[this](ULandscapeComponent* Component) -> void
+			{
+				if (Component->GetUserTriggeredChangeRequested())
+				{
+					check(Component->GetLayerUpdateFlagPerMode() == 0);
+					Component->SetUserTriggeredChangeRequested(/* bInUserTriggered = */false);	
+				}
+			}
+		);	
+	}
+	
 	if (LayerContentUpdateModes == 0 && !bForceRender && !bProcessReadbacks)
 	{
 		return;
@@ -8008,7 +8052,6 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 	// Apply post resolve updates
 	const uint32 ToProcessModes = UpdateAfterReadbackResolves(UpdateLayersContentContext.AllLandscapeComponentReadbackResults);
 	LayerContentUpdateModes |= ToProcessModes;
-
 	if (LandscapeEdMode)
 	{
 		LandscapeEdMode->PostUpdateLayerContent();
@@ -8060,11 +8103,13 @@ uint32 ALandscape::UpdateCollisionAndClients(const TArrayView<FLandscapeEditLaye
 
 	for (const FLandscapeEditLayerComponentReadbackResult& ComponentReadbackResult : InComponentReadbackResults)
 	{
+		ULandscapeComponent* LandscapeComponent = ComponentReadbackResult.LandscapeComponent;
+		
 		bool bDeferClientUpdateForComponent = false;
 		bool bDoUpdateClient = true;
 		if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Recreate_Collision, ComponentReadbackResult.UpdateModes))
 		{
-			if (ULandscapeHeightfieldCollisionComponent* CollisionComp = ComponentReadbackResult.LandscapeComponent->CollisionComponent.Get())
+			if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->CollisionComponent.Get())
 			{
 				FEnableCollisionHashOptimScope Scope(CollisionComp);
 				bDoUpdateClient = CollisionComp->RecreateCollision();
@@ -8075,7 +8120,7 @@ uint32 ALandscape::UpdateCollisionAndClients(const TArrayView<FLandscapeEditLaye
 		{
 			if (!GUndo)
 			{
-				if (ULandscapeHeightfieldCollisionComponent* CollisionComp = ComponentReadbackResult.LandscapeComponent->CollisionComponent.Get())
+				if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->CollisionComponent.Get())
 				{
 					FNavigationSystem::UpdateComponentData(*CollisionComp);
 					CollisionComp->SnapFoliageInstances();
@@ -8092,7 +8137,7 @@ uint32 ALandscape::UpdateCollisionAndClients(const TArrayView<FLandscapeEditLaye
 		{
 			if (LandscapeEdModeInfo.ViewMode == ELandscapeViewMode::LayerContribution)
 			{
-				check(ComponentSizeQuads == ComponentReadbackResult.LandscapeComponent->ComponentSizeQuads);
+				check(ComponentSizeQuads == LandscapeComponent->ComponentSizeQuads);
 				const int32 Stride = (1 + ComponentSizeQuads);
 				const int32 ArraySize = Stride * Stride;
 				if (LayerContributionMaskData.Num() != ArraySize)
@@ -8100,13 +8145,13 @@ uint32 ALandscape::UpdateCollisionAndClients(const TArrayView<FLandscapeEditLaye
 					LayerContributionMaskData.AddZeroed(ArraySize);
 				}
 				uint8* LayerContributionMaskDataPtr = LayerContributionMaskData.GetData();
-				const int32 X1 = ComponentReadbackResult.LandscapeComponent->GetSectionBase().X;
+				const int32 X1 = LandscapeComponent->GetSectionBase().X;
 				const int32 X2 = X1 + ComponentSizeQuads;
-				const int32 Y1 = ComponentReadbackResult.LandscapeComponent->GetSectionBase().Y;
+				const int32 Y1 = LandscapeComponent->GetSectionBase().Y;
 				const int32 Y2 = Y1 + ComponentSizeQuads;
 				bool bLayerContributionWrittenData = false;
 
-				ULandscapeInfo* Info = ComponentReadbackResult.LandscapeComponent->GetLandscapeInfo();
+				ULandscapeInfo* Info = LandscapeComponent->GetLandscapeInfo();
 				check(Info);
 				FLandscapeEditDataInterface LandscapeEdit(Info);
 
@@ -8146,7 +8191,7 @@ uint32 ALandscape::UpdateCollisionAndClients(const TArrayView<FLandscapeEditLaye
 
 		if (bDeferClientUpdateForComponent)
 		{
-			ComponentReadbackResult.LandscapeComponent->RequestDeferredClientUpdate();
+			LandscapeComponent->RequestDeferredClientUpdate();
 		}
 	}
 

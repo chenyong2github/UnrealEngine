@@ -33,6 +33,9 @@ struct FOnWaterBodyIslandChangedParams
 
 	/** Indicates that a property affecting the terrain weightmaps has changed */
 	bool bWeightmapSettingsChanged = false;
+
+	/** Indicates user initiated change*/
+	bool bUserTriggered = false;
 };
 
 

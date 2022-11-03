@@ -10,6 +10,7 @@
 #include "PerPlatformProperties.h"
 #include "Serialization/BulkData.h"
 #include "LandscapePhysicalMaterial.h"
+#include "LandscapeInfo.h"
 #include "LandscapeWeightmapUsage.h"
 #include "Containers/ArrayView.h"
 #include "Engine/StreamableRenderAsset.h"
@@ -455,6 +456,11 @@ class ULandscapeComponent : public UPrimitiveComponent
 	TLazyObjectPtr<ULandscapeHeightfieldCollisionComponent> CollisionComponent;
 
 private:
+
+	/** Store  */ 
+	UPROPERTY(Transient)
+	bool bUserTriggeredChangeRequested = false;
+	
 	UPROPERTY(Transient)
 	bool bNaniteActive;
 
@@ -1045,9 +1051,9 @@ public:
 	LANDSCAPE_API FIntRect GetComponentExtent() const;
 
 	LANDSCAPE_API void ClearUpdateFlagsForModes(uint32 InModeMask);
-	LANDSCAPE_API void RequestWeightmapUpdate(bool bUpdateAll = false, bool bUpdateCollision = true);
-	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false, bool bUpdateCollision = true);
-	LANDSCAPE_API void RequestEditingClientUpdate();
+	LANDSCAPE_API void RequestWeightmapUpdate(bool bUpdateAll = false, bool bUpdateCollision = true, bool bInUserTriggered = false);
+	LANDSCAPE_API void RequestHeightmapUpdate(bool bUpdateAll = false, bool bUpdateCollision = true, bool bInUserTriggered = false);
+	LANDSCAPE_API void RequestEditingClientUpdate(bool bInUserTriggered = false);
 	LANDSCAPE_API void RequestDeferredClientUpdate();
 	LANDSCAPE_API uint32 GetLayerUpdateFlagPerMode() const { return LayerUpdateFlagPerMode; }
 	LANDSCAPE_API uint32 ComputeWeightmapsHash();
@@ -1084,6 +1090,16 @@ public:
 	inline bool IsNaniteActive() const
 	{
 		return bNaniteActive;
+	}
+
+	void SetUserTriggeredChangeRequested(bool bInUserTriggeredChangeRequested)
+	{
+		bUserTriggeredChangeRequested = bInUserTriggeredChangeRequested;
+	}
+
+	bool GetUserTriggeredChangeRequested() const
+	{
+		return bUserTriggeredChangeRequested;
 	}
 
 protected:

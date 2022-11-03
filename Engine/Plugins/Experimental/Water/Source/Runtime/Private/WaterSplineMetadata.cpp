@@ -38,8 +38,12 @@ bool UWaterSplineMetadata::CanEditVelocity() const
 void UWaterSplineMetadata::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	OnChangeData.Broadcast(this, PropertyChangedEvent);
+	
+	FOnWaterSplineMetadataChangedParams WaterSplineMetadataChangedParams(PropertyChangedEvent);
+	WaterSplineMetadataChangedParams.WaterSplineMetadata = this;
+	WaterSplineMetadataChangedParams.bUserTriggered = true;
+	
+	OnChangeMetadata.Broadcast(WaterSplineMetadataChangedParams);
 }
 #endif // WITH_EDITOR
 

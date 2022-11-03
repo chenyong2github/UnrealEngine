@@ -100,6 +100,9 @@ class WATER_API IWaterBrushActorInterface
 
 		/** Indicates that a property affecting the terrain weightmaps has changed */
 		bool bWeightmapSettingsChanged = false;
+
+		/** Indicates user initiated Parameter change */
+		bool bUserTriggered = false;
 	};
 
 	/** 

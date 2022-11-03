@@ -1030,6 +1030,7 @@ void UWaterBodyComponent::PostEditImport()
 	FOnWaterBodyChangedParams Params;
 	Params.bShapeOrPositionChanged = true;
 	Params.bWeightmapSettingsChanged = true;
+	Params.bUserTriggered = true;
 	OnWaterBodyChanged(Params);
 
 	RequestGPUWaveDataUpdate();
@@ -1113,6 +1114,7 @@ void UWaterBodyComponent::CheckForErrors()
 void UWaterBodyComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FOnWaterBodyChangedParams Params(PropertyChangedEvent);
+	Params.bUserTriggered = true;
 	OnPostEditChangeProperty(Params);
 	
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -1128,6 +1130,7 @@ void UWaterBodyComponent::OnWaterSplineDataChanged(const FOnWaterSplineDataChang
 	// Transfer the FOnWaterSplineDataChangedParams parameters to FOnWaterBodyChangedParams :
 	FOnWaterBodyChangedParams Params(InParams.PropertyChangedEvent);
 	Params.bShapeOrPositionChanged = true;
+	Params.bUserTriggered = InParams.bUserTriggered;
 	OnWaterBodyChanged(Params);
 }
 
@@ -1154,14 +1157,15 @@ void UWaterBodyComponent::OnWavesDataUpdated(UWaterWavesBase* InWaterWaves, EPro
 	// Waves data affect the navigation :
 	Params.PropertyChangedEvent.ChangeType = InChangeType;
 	Params.bShapeOrPositionChanged = true;
+	Params.bUserTriggered = true;
 	OnWaterBodyChanged(Params);
 }
 
-void UWaterBodyComponent::OnWaterSplineMetadataChanged(UWaterSplineMetadata* InWaterSplineMetadata, FPropertyChangedEvent& PropertyChangedEvent)
+void UWaterBodyComponent::OnWaterSplineMetadataChanged(const FOnWaterSplineMetadataChangedParams& InParams)
 {
 	bool bShapeOrPositionChanged = false;
 
-	FName ChangedProperty = PropertyChangedEvent.GetPropertyName();
+	FName ChangedProperty = InParams.PropertyChangedEvent.GetPropertyName();
 	if ((ChangedProperty == NAME_None)
 		|| (ChangedProperty == GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, Depth))
 		|| (ChangedProperty == GET_MEMBER_NAME_CHECKED(UWaterSplineMetadata, RiverWidth))
@@ -1178,8 +1182,12 @@ void UWaterBodyComponent::OnWaterSplineMetadataChanged(UWaterSplineMetadata* InW
 		GetWaterSpline()->SynchronizeWaterProperties();
 	}
 
-	// Waves data affect the navigation : 
-	OnWaterBodyChanged(bShapeOrPositionChanged);
+	// Waves data affect the navigation :
+	FOnWaterBodyChangedParams Params;
+	Params.bShapeOrPositionChanged = bShapeOrPositionChanged;
+	Params.bWeightmapSettingsChanged = false;
+	Params.bUserTriggered = InParams.bUserTriggered;
+	OnWaterBodyChanged(Params); 
 }
 
 void UWaterBodyComponent::RegisterOnChangeWaterSplineData(bool bRegister)
@@ -1200,11 +1208,11 @@ void UWaterBodyComponent::RegisterOnChangeWaterSplineData(bool bRegister)
 	{
 		if (bRegister)
 		{
-			WaterSplineMetadata->OnChangeData.AddUObject(this, &UWaterBodyComponent::OnWaterSplineMetadataChanged);
+			WaterSplineMetadata->OnChangeMetadata.AddUObject(this, &UWaterBodyComponent::OnWaterSplineMetadataChanged);
 		}
 		else
 		{
-			WaterSplineMetadata->OnChangeData.RemoveAll(this);
+			WaterSplineMetadata->OnChangeMetadata.RemoveAll(this);
 		}
 	}
 }
@@ -1395,6 +1403,7 @@ void UWaterBodyComponent::OnWaterBodyChanged(const FOnWaterBodyChangedParams& In
 	AWaterBody* const WaterBodyActor = GetWaterBodyActor();
 	// Transfer the FOnWaterBodyChangedParams parameters to FWaterBrushActorChangedEventParams :
 	IWaterBrushActorInterface::FWaterBrushActorChangedEventParams Params(WaterBodyActor, InParams.PropertyChangedEvent);
+	Params.bUserTriggered = InParams.bUserTriggered;
 	Params.bShapeOrPositionChanged = InParams.bShapeOrPositionChanged;
 	Params.bWeightmapSettingsChanged = InParams.bWeightmapSettingsChanged;
 	WaterBodyActor->BroadcastWaterBrushActorChangedEvent(Params);

@@ -154,7 +154,10 @@ void UWaterSplineComponent::PostEditChangeProperty(FPropertyChangedEvent& Proper
 
 	SynchronizeWaterProperties();
 
-	WaterSplineDataChangedEvent.Broadcast(FOnWaterSplineDataChangedParams(PropertyChangedEvent));
+	FOnWaterSplineDataChangedParams OnWaterSplineDataChangedParams(PropertyChangedEvent);
+	OnWaterSplineDataChangedParams.bUserTriggered = true;
+	
+	WaterSplineDataChangedEvent.Broadcast(OnWaterSplineDataChangedParams);
 }
 
 void UWaterSplineComponent::PostEditImport()

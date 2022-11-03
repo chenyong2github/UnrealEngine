@@ -49,7 +49,7 @@ public:
 	void Initialize(const FTransform& InLandscapeTransform, const FIntPoint& InLandscapeSize, const FIntPoint& InLandscapeRenderTargetSize);
 
 	UFUNCTION(BlueprintCallable, Category = "Landscape")
-	void RequestLandscapeUpdate();
+	void RequestLandscapeUpdate(bool bInUserTriggered = false);
 
 	UFUNCTION(BlueprintImplementableEvent, CallInEditor)
 	void GetBlueprintRenderDependencies(TArray<UObject*>& OutStreamableAssets);

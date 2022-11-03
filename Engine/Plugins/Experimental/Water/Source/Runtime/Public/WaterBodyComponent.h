@@ -122,6 +122,9 @@ struct FOnWaterBodyChangedParams
 
 	/** Indicates that a property affecting the terrain weightmaps has changed */
 	bool bWeightmapSettingsChanged = false;
+
+	/** Indicates user initiated Parameter change */
+	bool bUserTriggered = false;
 };
 
 
@@ -326,7 +329,8 @@ public:
 	virtual void OnUnregister() override;
 	virtual void PostDuplicate(bool bDuplicateForPie) override;
 
-	UFUNCTION(BlueprintCallable, Category=Water)
+	UE_DEPRECATED(5.2, "Use version which takes FOnWaterBodyChangedParams")
+	UFUNCTION(BlueprintCallable, Category=Water, meta=(Deprecated = "5.2"))
 	void OnWaterBodyChanged(bool bShapeOrPositionChanged, bool bWeightmapSettingsChanged = false);
 
 	/** Fills wave-related information at the given world position and for this water depth.
@@ -511,7 +515,7 @@ protected:
 	void OnWaterSplineDataChanged(const FOnWaterSplineDataChangedParams& InParams);
 	void RegisterOnUpdateWavesData(UWaterWavesBase* InWaterWaves, bool bRegister);
 	void OnWavesDataUpdated(UWaterWavesBase* InWaterWaves, EPropertyChangeType::Type InChangeType);
-	void OnWaterSplineMetadataChanged(UWaterSplineMetadata* InWaterSplineMetadata, FPropertyChangedEvent& PropertyChangedEvent);
+	void OnWaterSplineMetadataChanged(const FOnWaterSplineMetadataChangedParams& InParams);
 	void RegisterOnChangeWaterSplineData(bool bRegister);
 
 	void CreateWaterSpriteComponent();

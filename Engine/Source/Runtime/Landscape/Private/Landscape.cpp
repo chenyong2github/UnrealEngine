@@ -69,6 +69,7 @@ Landscape.cpp: Terrain rendering
 #include "Rendering/Texture2DResource.h"
 #include "RenderCaptureInterface.h"
 #include "VisualLogger/VisualLogger.h"
+#include "LandscapeSettings.h"
 
 #if WITH_EDITOR
 #include "LandscapeEdit.h"
@@ -3732,7 +3733,8 @@ void ALandscape::PreSave(FObjectPreSaveContext ObjectSaveContext)
 
 bool ULandscapeInfo::IsDirtyOnlyInModeEnabled()
 {
-	return GLandscapeDirtyOnlyInModeEnabled > 0;
+	const ULandscapeSettings* Settings = GetDefault<ULandscapeSettings>();
+	return Settings->LandscapeDirtyingMode == ELandscapeDirtyingMode::InLandscapeModeOnly || Settings->LandscapeDirtyingMode == ELandscapeDirtyingMode::InLandscapeModeAndUserTriggeredChanges;
 }
 
 FLandscapeDirtyOnlyInModeScope::FLandscapeDirtyOnlyInModeScope(ULandscapeInfo* InLandscapeInfo)
@@ -3740,6 +3742,14 @@ FLandscapeDirtyOnlyInModeScope::FLandscapeDirtyOnlyInModeScope(ULandscapeInfo* I
 	, bDirtyOnlyInModePrevious(InLandscapeInfo->bDirtyOnlyInMode)
 {
 	LandscapeInfo->bDirtyOnlyInMode = ULandscapeInfo::IsDirtyOnlyInModeEnabled();
+}
+
+
+FLandscapeDirtyOnlyInModeScope::FLandscapeDirtyOnlyInModeScope(ULandscapeInfo* InLandscapeInfo, bool bInOverrideDirtyMode)
+	: LandscapeInfo(InLandscapeInfo)
+	, bDirtyOnlyInModePrevious(InLandscapeInfo->bDirtyOnlyInMode)
+{
+	LandscapeInfo->bDirtyOnlyInMode = bInOverrideDirtyMode;
 }
 
 FLandscapeDirtyOnlyInModeScope::~FLandscapeDirtyOnlyInModeScope()
@@ -3837,7 +3847,7 @@ void ULandscapeInfo::ModifyObject(UObject* InObject, bool bAlwaysMarkDirty)
 		{
 			InObject->Modify(true);
 		}
-		else
+		else 
 		{
 			InObject->Modify(false);
 			ModifiedPackages.Add(InObject->GetPackage());
@@ -3857,7 +3867,7 @@ ALandscapeProxy* ULandscapeInfo::GetLandscapeProxyForLevel(ULevel* Level) const
 	});
 	return LandscapeProxy;
 }
-
+      
 #endif // WITH_EDITOR
 
 ALandscapeProxy* ULandscapeInfo::GetCurrentLevelLandscapeProxy(bool bRegistered) const

@@ -175,7 +175,13 @@ public:
 
 	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
 	UFUNCTION(BlueprintCallable, Category=Water, meta = (DeprecatedFunction))
-	void OnWaterBodyChanged(bool bShapeOrPositionChanged, bool bWeightmapSettingsChanged = false) { return WaterBodyComponent->OnWaterBodyChanged(bShapeOrPositionChanged, bWeightmapSettingsChanged); }
+	void OnWaterBodyChanged(bool bShapeOrPositionChanged, bool bWeightmapSettingsChanged = false)
+	{ 
+		FOnWaterBodyChangedParams Params;
+		Params.bShapeOrPositionChanged = bShapeOrPositionChanged;
+		Params.bWeightmapSettingsChanged = bWeightmapSettingsChanged;
+		return WaterBodyComponent->OnWaterBodyChanged(Params);
+	}
 
 #if WITH_EDITOR
 	UE_DEPRECATED(5.1, "Moved to WaterBodyComponent")

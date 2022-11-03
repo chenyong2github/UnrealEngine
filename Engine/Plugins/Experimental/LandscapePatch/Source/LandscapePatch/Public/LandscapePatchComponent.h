@@ -36,7 +36,7 @@ public:
 	virtual bool IsAffectingWeightmapLayer(const FName& InLayerName) const { return false; }
 
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
-	void RequestLandscapeUpdate();
+	void RequestLandscapeUpdate(bool bInUserTriggeredUpdate = false);
 
 	/**
 	 * Allows the patch to be disabled, so that it no longer affects the landscape. This can be useful

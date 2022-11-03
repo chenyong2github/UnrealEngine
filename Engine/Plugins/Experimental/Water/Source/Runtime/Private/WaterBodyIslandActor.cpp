@@ -238,6 +238,7 @@ void AWaterBodyIsland::PostEditMove(bool bFinished)
 	FOnWaterBodyIslandChangedParams Params;
 	Params.PropertyChangedEvent.ChangeType = bFinished ? EPropertyChangeType::ValueSet : EPropertyChangeType::Interactive;
 	Params.bShapeOrPositionChanged = true;
+	Params.bUserTriggered = true;
 	UpdateAll(Params);
 }
 
@@ -258,6 +259,7 @@ void AWaterBodyIsland::PostEditImport()
 	FOnWaterBodyIslandChangedParams Params;
 	Params.bShapeOrPositionChanged = true;
 	Params.bWeightmapSettingsChanged = true;
+	Params.bUserTriggered = true;
 	UpdateAll(Params);
 }
 
@@ -298,6 +300,7 @@ void AWaterBodyIsland::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	FOnWaterBodyIslandChangedParams Params(PropertyChangedEvent);
+	Params.bUserTriggered = true;
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, LayerWeightmapSettings))
 	{
 		Params.bWeightmapSettingsChanged = true;
@@ -315,6 +318,7 @@ void AWaterBodyIsland::OnWaterSplineDataChanged(const FOnWaterSplineDataChangedP
 	// Transfer the FOnWaterSplineDataChangedParams parameters to FOnWaterBodyIslandChangedParams :
 	FOnWaterBodyIslandChangedParams Params(InParams.PropertyChangedEvent);
 	Params.bShapeOrPositionChanged = true;
+	Params.bUserTriggered = true;
 	OnWaterBodyIslandChanged(Params);
 }
 
@@ -325,6 +329,7 @@ void AWaterBodyIsland::OnWaterBodyIslandChanged(const FOnWaterBodyIslandChangedP
 	FWaterBrushActorChangedEventParams Params(this, InParams.PropertyChangedEvent);
 	Params.bShapeOrPositionChanged = InParams.bShapeOrPositionChanged;
 	Params.bWeightmapSettingsChanged = InParams.bWeightmapSettingsChanged;
+	Params.bUserTriggered = InParams.bUserTriggered;
 	BroadcastWaterBrushActorChangedEvent(Params);
 #endif
 }

@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "LandscapeProxy.h"
 #include "Landscape.h"
+#include "LandscapeInfo.h"
 #include "LandscapePrivate.h"
 #include "Misc/MapErrors.h"
 #include "Misc/UObjectToken.h"
@@ -59,7 +60,7 @@ void ALandscapeBlueprintBrushBase::Initialize_Implementation(const FTransform& I
 	Initialize_Native(InLandscapeTransform, InLandscapeSize, InLandscapeRenderTargetSize);
 }
 
-void ALandscapeBlueprintBrushBase::RequestLandscapeUpdate()
+void ALandscapeBlueprintBrushBase::RequestLandscapeUpdate(bool bInUserTriggered)
 {
 #if WITH_EDITORONLY_DATA
 	UE_LOG(LogLandscape, Verbose, TEXT("ALandscapeBlueprintBrushBase::RequestLandscapeUpdate"));
@@ -76,7 +77,7 @@ void ALandscapeBlueprintBrushBase::RequestLandscapeUpdate()
 		}
 		if (ModeMask)
 		{
-			OwningLandscape->RequestLayersContentUpdateForceAll((ELandscapeLayerUpdateMode)ModeMask);
+			OwningLandscape->RequestLayersContentUpdateForceAll((ELandscapeLayerUpdateMode)ModeMask, bInUserTriggered);
 			// Just in case differentiate between 0 (default value and frame number)
 			LastRequestLayersContentUpdateFrameNumber = GFrameNumber == InvalidLastRequestLayersContentUpdateFrameNumber ? GFrameNumber + 1 : GFrameNumber;
 		}
