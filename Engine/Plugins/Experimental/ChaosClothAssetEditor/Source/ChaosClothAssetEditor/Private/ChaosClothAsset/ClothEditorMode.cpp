@@ -648,6 +648,36 @@ void UChaosClothAssetEditorMode::ApplyChanges()
 	GetToolManager()->EndUndoTransaction();
 }
 
+
+void UChaosClothAssetEditorMode::SoftResetSimulation()
+{
+	bShouldResetSimulation = true;
+	bShouldClearTeleportFlag = false;
+	bHardReset = false;
+}
+
+void UChaosClothAssetEditorMode::HardResetSimulation()
+{
+	bShouldResetSimulation = true;
+	bShouldClearTeleportFlag = false;
+	bHardReset = true;
+}
+
+void UChaosClothAssetEditorMode::SuspendSimulation()
+{
+	bIsSimulationSuspended = true;
+}
+
+void UChaosClothAssetEditorMode::ResumeSimulation()
+{
+	bIsSimulationSuspended = false;
+}
+
+bool UChaosClothAssetEditorMode::IsSimulationSuspended() const
+{
+	return bIsSimulationSuspended;
+}
+
 void UChaosClothAssetEditorMode::ModeTick(float DeltaTime)
 {
 	Super::ModeTick(DeltaTime);
@@ -675,11 +705,35 @@ void UChaosClothAssetEditorMode::ModeTick(float DeltaTime)
 		}
 	}
 
-	// TODO: Uncomment this to enable simulation stepping
-	//if (PreviewWorld)
-	//{
-	//	PreviewWorld->Tick(ELevelTick::LEVELTICK_All, DeltaTime);
-	//}
+
+	bool bShouldTickPreviewWorld = !bIsSimulationSuspended;
+
+	if (bShouldClearTeleportFlag)
+	{
+		ClothComponent->ResetClothTeleportMode();
+		bShouldClearTeleportFlag = false;
+	}
+
+	if (bShouldResetSimulation)
+	{
+		if (bHardReset)
+		{
+			const FComponentReregisterContext Context(ClothComponent);
+		}
+		else
+		{
+			ClothComponent->ForceClothNextUpdateTeleportAndReset();
+		}
+
+		bShouldResetSimulation = false;
+		bShouldClearTeleportFlag = true;		// clear the flag next tick
+		bShouldTickPreviewWorld = true;
+	}
+
+	if (PreviewWorld && bShouldTickPreviewWorld)
+	{
+		PreviewWorld->Tick(ELevelTick::LEVELTICK_All, DeltaTime);
+	}
 }
 
 

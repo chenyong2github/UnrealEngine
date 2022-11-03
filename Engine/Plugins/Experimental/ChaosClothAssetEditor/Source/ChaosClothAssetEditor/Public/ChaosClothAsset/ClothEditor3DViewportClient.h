@@ -5,7 +5,9 @@
 #include "CoreMinimal.h"
 #include "EditorViewportClient.h"
 
-class USkeletalMeshComponent;
+class UChaosClothComponent;
+class UChaosClothAssetEditorMode;
+
 /**
  * Viewport client for the 3d sim preview in the cloth editor. Currently same as editor viewport
  * client but doesn't allow editor gizmos/widgets.
@@ -29,17 +31,27 @@ public:
 	void EnableRenderMeshWireframe(bool bEnable);
 	bool RenderMeshWireframeEnabled() const { return bRenderMeshWireframe; }
 
-	void SetSkeletalMeshComponents(const TArray<TObjectPtr<USkeletalMeshComponent>>& NewSkMeshComponents)
-	{
-		SkeletalMeshComponents = NewSkMeshComponents;
-	}
+	void SetClothComponent(TObjectPtr<UChaosClothComponent> ClothComponent);
+	void SetClothEdMode(TObjectPtr<UChaosClothAssetEditorMode> ClothEdMode);
 
-protected:
+	void SoftResetSimulation();
+	void HardResetSimulation();
+	void SuspendSimulation();
+	void ResumeSimulation();
+	bool IsSimulationSuspended() const;
 
-	TArray<TObjectPtr<USkeletalMeshComponent>> SkeletalMeshComponents;
+
+private:
+
+	TObjectPtr<UChaosClothComponent> ClothComponent;
+
+	TObjectPtr<UChaosClothAssetEditorMode> ClothEdMode;
 
 	// Debug draw of simulation meshes
 	virtual void Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI) override;
+
+	UChaosClothAssetEditorMode* GetClothEdMode();
+	const UChaosClothAssetEditorMode* GetClothEdMode() const;
 
 	bool bSimMeshWireframe = true;
 	bool bRenderMeshWireframe = false;

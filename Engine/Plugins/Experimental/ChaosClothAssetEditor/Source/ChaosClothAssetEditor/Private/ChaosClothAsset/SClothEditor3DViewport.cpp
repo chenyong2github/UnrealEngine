@@ -33,6 +33,47 @@ void SChaosClothAssetEditor3DViewport::BindCommands()
 		}),
 		FCanExecuteAction::CreateLambda([this]() { return true; }),
 		FIsActionChecked::CreateLambda([this]() { return StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client)->RenderMeshWireframeEnabled(); }));
+
+	CommandList->MapAction(
+		CommandInfos.SoftResetSimulation,
+		FExecuteAction::CreateLambda([this]()
+		{
+			TSharedPtr<FChaosClothAssetEditor3DViewportClient> ClothViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client);
+			ClothViewportClient->SoftResetSimulation();
+		}),
+		FCanExecuteAction::CreateLambda([this]() { return true; }),
+		FIsActionChecked::CreateLambda([this]() { return false; }));
+
+	CommandList->MapAction(
+		CommandInfos.HardResetSimulation,
+		FExecuteAction::CreateLambda([this]()
+		{
+			TSharedPtr<FChaosClothAssetEditor3DViewportClient> ClothViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client);
+			ClothViewportClient->HardResetSimulation();
+		}),
+		FCanExecuteAction::CreateLambda([this]() { return true; }),
+		FIsActionChecked::CreateLambda([this]() { return false; }));
+
+
+	CommandList->MapAction(
+		CommandInfos.ToggleSimulationSuspended,
+		FExecuteAction::CreateLambda([this]()
+		{
+			TSharedPtr<FChaosClothAssetEditor3DViewportClient> ClothViewportClient = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client);
+
+			const bool bIsSuspended = ClothViewportClient->IsSimulationSuspended();
+			if (bIsSuspended)
+			{
+				ClothViewportClient->ResumeSimulation();
+			}
+			else
+			{
+				ClothViewportClient->SuspendSimulation();
+			}
+		}),
+		FCanExecuteAction::CreateLambda([this]() { return true; }),
+		FIsActionChecked::CreateLambda([this]() { return StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client)->IsSimulationSuspended(); }) );
+
 }
 
 TSharedPtr<SWidget> SChaosClothAssetEditor3DViewport::MakeViewportToolbar()

@@ -3,7 +3,7 @@
 #include "ChaosClothAsset/ClothEditor3DViewportClient.h"
 #include "ChaosClothAsset/ClothEditorMode.h"
 #include "EditorModeManager.h"
-#include "Components/SkeletalMeshComponent.h"
+#include "ChaosClothAsset/ClothComponent.h"
 
 FChaosClothAssetEditor3DViewportClient::FChaosClothAssetEditor3DViewportClient(FEditorModeTools* InModeTools,
 	FPreviewScene* InPreviewScene, 
@@ -22,13 +22,62 @@ void FChaosClothAssetEditor3DViewportClient::EnableRenderMeshWireframe(bool bEna
 {
 	bRenderMeshWireframe = bEnable;
 
-	for (TObjectPtr<USkeletalMeshComponent> SkeletalMeshComponent : SkeletalMeshComponents)
+	if (ClothComponent)
 	{
-		if (SkeletalMeshComponent)
-		{
-			SkeletalMeshComponent->SetForceWireframe(bRenderMeshWireframe);
-		}
+		ClothComponent->SetForceWireframe(bRenderMeshWireframe);
 	}
+}
+
+void FChaosClothAssetEditor3DViewportClient::SetClothComponent(TObjectPtr<UChaosClothComponent> InClothComponent)
+{
+	ClothComponent = InClothComponent;
+}
+
+void FChaosClothAssetEditor3DViewportClient::SetClothEdMode(TObjectPtr<UChaosClothAssetEditorMode> InClothEdMode)
+{
+	ClothEdMode = InClothEdMode;
+}
+
+void FChaosClothAssetEditor3DViewportClient::SoftResetSimulation()
+{
+	if (ClothEdMode)
+	{
+		ClothEdMode->SoftResetSimulation();
+	}
+}
+
+void FChaosClothAssetEditor3DViewportClient::HardResetSimulation()
+{
+	if (ClothEdMode)
+	{
+		ClothEdMode->HardResetSimulation();
+	}
+}
+
+void FChaosClothAssetEditor3DViewportClient::SuspendSimulation()
+{
+	if (ClothEdMode)
+	{
+		ClothEdMode->SuspendSimulation();
+	}
+}
+
+void FChaosClothAssetEditor3DViewportClient::ResumeSimulation()
+{
+	if (ClothEdMode)
+	{
+		ClothEdMode->ResumeSimulation();
+	}
+}
+
+bool FChaosClothAssetEditor3DViewportClient::IsSimulationSuspended() const
+{
+	if (ClothEdMode)
+	{
+		return ClothEdMode->IsSimulationSuspended();
+	}
+
+	return false;
 }
 
 void FChaosClothAssetEditor3DViewportClient::Draw(const FSceneView* View, FPrimitiveDrawInterface* PDI)

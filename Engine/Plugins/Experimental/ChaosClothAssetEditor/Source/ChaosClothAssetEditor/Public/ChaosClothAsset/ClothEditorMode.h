@@ -85,6 +85,13 @@ public:
 	void TogglePatternMode();
 	bool CanTogglePatternMode() const;
 
+	// Simulation controls
+	void SoftResetSimulation();
+	void HardResetSimulation();
+	void SuspendSimulation();
+	void ResumeSimulation();
+	bool IsSimulationSuspended() const;
+
 private:
 
 	friend class FChaosClothAssetEditorToolkit;
@@ -164,5 +171,9 @@ private:
 	// Set up the preview simulation mesh from the given rest-space mesh
 	void UpdateSimulationMeshes();
 
+	bool bIsSimulationSuspended = false;
+	bool bShouldResetSimulation = false;
+	bool bHardReset = false;
+	bool bShouldClearTeleportFlag = false;
 };
 

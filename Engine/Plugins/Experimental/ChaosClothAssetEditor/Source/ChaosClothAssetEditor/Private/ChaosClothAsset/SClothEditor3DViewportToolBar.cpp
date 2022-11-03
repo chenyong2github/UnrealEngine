@@ -3,6 +3,7 @@
 #include "ChaosClothAsset/SClothEditor3DViewportToolBar.h"
 #include "ChaosClothAsset/SClothEditor3DViewport.h"
 #include "ChaosClothAsset/ClothEditorCommands.h"
+#include "ChaosClothAsset/ClothEditorStyle.h"
 #include "EditorViewportCommands.h"
 #include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -73,19 +74,52 @@ TSharedRef<SWidget> SChaosClothAssetEditor3DViewportToolBar::MakeToolBar(const T
 	ToolbarBuilder.SetStyle(&FAppStyle::Get(), ToolBarStyle);
 	ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
 
-	ToolbarBuilder.BeginSection("SimControls");
+	FString PropertyNameString;
+
+	ToolbarBuilder.BeginSection("Visualization");
+	ToolbarBuilder.BeginBlockGroup();
 	{
-		ToolbarBuilder.BeginBlockGroup();
-	    
-		static FName ToggleSimMeshWireframeName = FName(TEXT("SimMeshWireframe"));
-		ToolbarBuilder.AddToolBarButton(FChaosClothAssetEditorCommands::Get().ToggleSimMeshWireframe);
+		// TODO: Add button to toggle between sim and render meshes
 
-		static FName ToggleRenderMeshWireframeName = FName(TEXT("RenderMeshWireframe"));
-		ToolbarBuilder.AddToolBarButton(FChaosClothAssetEditorCommands::Get().ToggleRenderMeshWireframe);
-
-		ToolbarBuilder.EndBlockGroup();
+		PropertyNameString = "ChaosClothAssetEditor." + FChaosClothAssetEditorCommands::ToggleRenderMeshWireframeIdentifier;
+		ToolbarBuilder.AddToolBarButton(FChaosClothAssetEditorCommands::Get().ToggleRenderMeshWireframe,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			TAttribute<FSlateIcon>(),
+			TEXT("ToggleRenderMeshWireframe"));
 	}
+	ToolbarBuilder.EndBlockGroup();
+	ToolbarBuilder.EndSection();
 
+	ToolbarBuilder.BeginSection("Sim Controls");
+	ToolbarBuilder.BeginBlockGroup();
+	{
+		PropertyNameString = "ChaosClothAssetEditor." + FChaosClothAssetEditorCommands::HardResetSimulationIdentifier;
+		ToolbarBuilder.AddToolBarButton(FChaosClothAssetEditorCommands::Get().HardResetSimulation,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			TAttribute<FSlateIcon>(),
+			FName(*FChaosClothAssetEditorCommands::HardResetSimulationIdentifier));
+
+		PropertyNameString = "ChaosClothAssetEditor." + FChaosClothAssetEditorCommands::SoftResetSimulationIdentifier;
+		ToolbarBuilder.AddToolBarButton(FChaosClothAssetEditorCommands::Get().SoftResetSimulation,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			TAttribute<FSlateIcon>(),
+			FName(FChaosClothAssetEditorCommands::SoftResetSimulationIdentifier));
+
+		PropertyNameString = "ChaosClothAssetEditor." + FChaosClothAssetEditorCommands::ToggleSimulationSuspendedIdentifier;
+		ToolbarBuilder.AddToolBarButton(FChaosClothAssetEditorCommands::Get().ToggleSimulationSuspended,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			TAttribute<FSlateIcon>(),
+			FName(FChaosClothAssetEditorCommands::ToggleSimulationSuspendedIdentifier));
+	}
+	ToolbarBuilder.EndBlockGroup();
 	ToolbarBuilder.EndSection();
 
 	return ToolbarBuilder.MakeWidget();

@@ -50,4 +50,14 @@ public:
 	const static FString ToggleRenderMeshWireframeIdentifier;
 	TSharedPtr<FUICommandInfo> ToggleRenderMeshWireframe;
 
+
+	const static FString SoftResetSimulationIdentifier;
+	TSharedPtr<FUICommandInfo> SoftResetSimulation;
+
+	const static FString HardResetSimulationIdentifier;
+	TSharedPtr<FUICommandInfo> HardResetSimulation;
+
+	const static FString ToggleSimulationSuspendedIdentifier;
+	TSharedPtr<FUICommandInfo> ToggleSimulationSuspended;
+
 };
