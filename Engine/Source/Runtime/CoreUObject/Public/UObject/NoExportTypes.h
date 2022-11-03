@@ -55,6 +55,7 @@
 #include "AssetRegistry/AssetData.h"
 
 #include "../../../ApplicationCore/Public/GenericPlatform/ICursor.h"
+#include "../../../ApplicationCore/Public/GenericPlatform/IInputInterface.h"
 
 #endif
 
@@ -2429,6 +2430,20 @@ enum class EInputDeviceConnectionState : uint8
 
 	/** Definitely connected and powered on */
 	Connected
+};
+
+/**
+ * Represents input device triggers that are available
+ *
+ * NOTE: Make sure to keep this type in sync with the reflected version in IInputInterface.h!
+ */
+UENUM(BlueprintType)
+enum class EInputDeviceTriggerMask : uint8
+{
+	None		= 0x00,
+	Left		= 0x01,
+	Right		= 0x02,
+	All			= Left | Right
 };
 
 /**

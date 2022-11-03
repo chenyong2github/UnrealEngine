@@ -89,6 +89,20 @@ struct FHapticFeedbackValues
 	}
 };
 
+/**
+ * Represents input device triggers that are available
+ *
+ * NOTE: Make sure to keep this type in sync with the reflected version in NoExportTypes.h!
+ */
+enum class EInputDeviceTriggerMask : uint8
+{
+	None		= 0x00,
+	Left		= 0x01,
+	Right		= 0x02,
+	All			= Left | Right
+};
+ENUM_CLASS_FLAGS(EInputDeviceTriggerMask)
+
 struct FInputDeviceProperty
 {
 	FInputDeviceProperty(FName InName)
