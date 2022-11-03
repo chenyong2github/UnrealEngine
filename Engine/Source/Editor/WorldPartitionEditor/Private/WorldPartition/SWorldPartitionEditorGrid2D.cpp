@@ -22,6 +22,7 @@
 #include "TextureResource.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "WorldBrowserModule.h"
 #include "WorldPartition/LoaderAdapter/LoaderAdapterShape.h"
 #include "WorldPartition/WorldPartition.h"
@@ -161,7 +162,7 @@ static bool HitTestZFromLocation(UWorld* World, const FVector2D& WorldLocation, 
 	const FVector TraceStart(WorldLocation.X, WorldLocation.Y, HALF_WORLD_MAX);
 	const FVector TraceEnd(WorldLocation.X, WorldLocation.Y, -HALF_WORLD_MAX);
 	const FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(SWorldPartitionEditorGrid2D_HitTestZFromLocation), true);
-	return World->LineTraceSingleByChannel(OutResult, TraceStart, TraceEnd, ECC_WorldStatic, TraceParams);
+	return World->LineTraceSingleByChannel(OutResult, TraceStart, TraceEnd, ECC_Camera, TraceParams);
 }
 
 template <class T>
@@ -250,9 +251,9 @@ void SWorldPartitionEditorGrid2D::FEditorCommands::RegisterCommands()
 	UI_COMMAND(UnloadSelectedRegions, "Unload Selected Regions", "Unload the selected regions.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ConvertSelectedRegionsToActors, "Convert Selected Regions To Actors", "Convert the selected regions to actors.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(MoveCameraHere, "Move Camera Here", "Move the camera to the selected location.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(BugItHere, "Bug It", "Log BugItGo command of the selected location to console (also adds it to clipboard).", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(PlayFromHere, "Play From Here", "Play from here.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(LoadFromHere, "Load From Here", "Load from here.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(BugItHere, "Bug It Here", "Log BugItGo command of the selected location to console (also adds it to clipboard).", EUserInterfaceActionType::Button, FInputChord());
 }
 
 SWorldPartitionEditorGrid2D::SWorldPartitionEditorGrid2D()
@@ -265,6 +266,7 @@ SWorldPartitionEditorGrid2D::SWorldPartitionEditorGrid2D()
 	, bIsPanning(false)
 	, bIsMeasuring(false)
 	, bShowActors(false)
+	, bShowGrid(true)
 	, bFollowPlayerInPIE(false)
 	, SelectBox(ForceInit)
 	, SelectBoxGridSnapped(ForceInit)
@@ -296,6 +298,115 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 	Scale = 0.00133333332;
 	TotalMouseDelta = 0;
 
+	auto MakeToolBarWidget = [this]()
+	{
+		FSlimHorizontalToolBarBuilder ToolbarBuilder(CommandList, FMultiBoxCustomization::None);
+
+		FName ToolBarStyle = "EditorViewportToolBar";
+		ToolbarBuilder.SetStyle(&FAppStyle::Get(), ToolBarStyle);
+		ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
+
+		const FEditableTextBoxStyle& TextBoxStyle = FCoreStyle::Get().GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox");
+
+		ToolbarBuilder.BeginSection("Toggles");
+		{
+			ToolbarBuilder.AddWidget(SNew(SCheckBox)
+				.ForegroundColor(FSlateColor::UseForeground())
+				.BorderBackgroundColor(TextBoxStyle.BackgroundColor)
+				.IsChecked(bShowActors ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+				.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState State) { bShowActors = !bShowActors; }))
+				[
+					SNew(SBox)
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.Padding(FMargin(4.0f, 2.0f))
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("ShowActors", "Show Actors"))
+					]
+				]);
+
+			ToolbarBuilder.AddWidget(SNew(SCheckBox)
+				.ForegroundColor(FSlateColor::UseForeground())
+				.BorderBackgroundColor(TextBoxStyle.BackgroundColor)
+				.IsChecked(bShowGrid ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+				.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState State) { bShowGrid = !bShowGrid; }))
+				[
+					SNew(SBox)
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.Padding(FMargin(4.0f, 2.0f))
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("ShowGrid", "Show Grid"))
+					]
+				]);
+
+			ToolbarBuilder.AddWidget(SNew(SCheckBox)
+				.ForegroundColor(FSlateColor::UseForeground())
+				.IsChecked(bFollowPlayerInPIE ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+				.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisablePIE ? EVisibility::Hidden : EVisibility::Visible; })
+				.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState State) { bFollowPlayerInPIE = !bFollowPlayerInPIE; }))
+				[
+					SNew(SBox)
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.Padding(FMargin(4.0f, 2.0f))
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("FollowPlayerInPIE", "Follow Player in PIE"))
+					]
+				]);
+
+			ToolbarBuilder.AddWidget(SNew(SCheckBox)
+				.ForegroundColor(FSlateColor::UseForeground())
+				.IsChecked(GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetBugItGoLoadRegion() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+				.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor ? EVisibility::Hidden : EVisibility::Visible; })
+				.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState State) { GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetBugItGoLoadRegion(State == ECheckBoxState::Checked); }))
+				[
+					SNew(SBox)
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.Padding(FMargin(4.0f, 2.0f))
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("BugItGoLoadRegion", "BugItGo Load Region"))
+					]
+				]);
+
+			ToolbarBuilder.AddWidget(SNew(SCheckBox)
+				.ForegroundColor(FSlateColor::UseForeground())
+				.IsChecked(GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetShowCellCoords() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+				.Visibility_Lambda([this]() { return WorldPartition->IsStreamingEnabled() ? EVisibility::Visible : EVisibility::Hidden; })
+				.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState State) { GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetShowCellCoords(State == ECheckBoxState::Checked); }))
+				[
+					SNew(SBox)
+					.VAlign(VAlign_Center)
+					.HAlign(HAlign_Center)
+					.Padding(FMargin(4.0f, 2.0f))
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("ShowCellCoords", "Show Cell Coords"))
+					]
+				]);
+
+			ToolbarBuilder.AddWidget(SNew(SButton)
+				.ForegroundColor(FSlateColor::UseForeground())
+				.Text_Lambda([this]() { return GEditor->GetSelectedActors()->Num() ? LOCTEXT("FocusSelection", "Focus Selection") : LOCTEXT("FocusWorld", "Focus World"); })
+				.OnClicked(this, &SWorldPartitionEditorGrid2D::FocusSelection)
+				.IsEnabled_Lambda([this]() { return IsInteractive(); }));
+
+			ToolbarBuilder.AddWidget(SNew(SButton)
+				.ForegroundColor(FSlateColor::UseForeground())
+				.Text(LOCTEXT("FocusLoadedRegions", "Focus Loaded Regions"))
+				.OnClicked(this, &SWorldPartitionEditorGrid2D::FocusLoadedRegions)
+				.IsEnabled_Lambda([this]() { return IsInteractive() && WorldPartition && WorldPartition->HasLoadedUserCreatedRegions(); })
+				.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor ? EVisibility::Hidden : EVisibility::Visible; }));
+		}
+
+		return ToolbarBuilder.MakeWidget();
+	};
+
 	// UI
 	ChildSlot
 	[
@@ -305,109 +416,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 		+SOverlay::Slot()
 		.VAlign(VAlign_Top)
 		[
-			SNew(SBorder)
-			.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
-			[
-				SNew(SVerticalBox)
-
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SNew(SHorizontalBox)
-
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SCheckBox)
-						.IsChecked(bShowActors ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
-						.IsEnabled(true)
-						.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState State) { bShowActors = !bShowActors; }))
-					]
-					+SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.AutoWrapText(true)
-						.IsEnabled(true)
-						.Text(LOCTEXT("ShowActors", "Show Actors"))
-					]
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SCheckBox)
-						.IsChecked(bFollowPlayerInPIE ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
-						.IsEnabled(true)
-						.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisablePIE ? EVisibility::Hidden : EVisibility::Visible; })
-						.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState State) { bFollowPlayerInPIE = !bFollowPlayerInPIE; }))
-					]
-					+SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.AutoWrapText(true)
-						.IsEnabled(true)
-						.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisablePIE ? EVisibility::Hidden : EVisibility::Visible; })
-						.Text(LOCTEXT("FollowPlayerInPIE", "Follow Player in PIE"))
-					]
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SCheckBox)
-						.IsChecked(GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetBugItGoLoadRegion() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
-						.IsEnabled(true)
-						.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor ? EVisibility::Hidden : EVisibility::Visible; })
-						.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState State) { GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetBugItGoLoadRegion(State == ECheckBoxState::Checked); }))
-					]
-					+SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.AutoWrapText(true)
-						.IsEnabled(true)
-						.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor ? EVisibility::Hidden : EVisibility::Visible; })
-						.Text(LOCTEXT("BugItGoLoadRegion", "BugItGo Load Region"))
-					]
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SCheckBox)
-						.IsChecked(GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetShowCellCoords() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
-						.IsEnabled(true)
-						.Visibility_Lambda([this]() { return WorldPartition->IsStreamingEnabled() ? EVisibility::Visible : EVisibility::Hidden; })
-						.OnCheckStateChanged(FOnCheckStateChanged::CreateLambda([=](ECheckBoxState State) { GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetShowCellCoords(State == ECheckBoxState::Checked); }))
-					]
-					+SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.AutoWrapText(true)
-						.IsEnabled(true)
-						.Visibility_Lambda([this]() { return WorldPartition->IsStreamingEnabled() ? EVisibility::Visible : EVisibility::Hidden; })
-						.Text(LOCTEXT("ShowCellCoords", "Show Cell Coords"))
-					]
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SButton)
-						.Text_Lambda([this]() { return GEditor->GetSelectedActors()->Num() ? LOCTEXT("FocusSelection", "Focus Selection") : LOCTEXT("FocusWorld", "Focus World"); })
-						.OnClicked(this, &SWorldPartitionEditorGrid2D::FocusSelection)
-						.IsEnabled_Lambda([this]() { return IsInteractive(); })
-					]
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						SNew(SButton)
-						.Text(LOCTEXT("FocusLoadedRegions", "Focus Loaded Regions"))
-						.OnClicked(this, &SWorldPartitionEditorGrid2D::FocusLoadedRegions)
-						.IsEnabled_Lambda([this]() { return IsInteractive() && WorldPartition && WorldPartition->HasLoadedUserCreatedRegions(); })
-						.Visibility_Lambda([this]() { return GetDefault<UWorldPartitionEditorSettings>()->bDisableLoadingInEditor ? EVisibility::Hidden : EVisibility::Visible; })
-					]
-				]
-			]
+			MakeToolBarWidget()
 		]
 		+SOverlay::Slot()
 		.VAlign(VAlign_Bottom)
@@ -467,9 +476,9 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 	ActionList.MapAction(Commands.UnloadSelectedRegions, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::UnloadSelectedRegions), FCanExecuteAction::CreateLambda(CanUnloadSelectedRegions));
 	ActionList.MapAction(Commands.ConvertSelectedRegionsToActors, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::ConvertSelectedRegionsToActors), FCanExecuteAction::CreateLambda(CanConvertSelectedRegionsToActors));
 	ActionList.MapAction(Commands.MoveCameraHere, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::MoveCameraHere));
-	ActionList.MapAction(Commands.BugItHere, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::BugItHere));
 	ActionList.MapAction(Commands.PlayFromHere, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::PlayFromHere));
 	ActionList.MapAction(Commands.LoadFromHere, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::LoadFromHere));
+	ActionList.MapAction(Commands.BugItHere, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::BugItHere));
 }
 
 void SWorldPartitionEditorGrid2D::UpdateWorldMiniMapDetails()
@@ -582,24 +591,6 @@ void SWorldPartitionEditorGrid2D::ConvertSelectedRegionsToActors()
 	Refresh();
 }
 
-void SWorldPartitionEditorGrid2D::BugItHere()
-{
-	FVector WorldLocation = FVector(MouseCursorPosWorld, 0);
-
-	FHitResult HitResult;
-	const bool bHitResultValid = HitTestZFromLocation(World, MouseCursorPosWorld, HitResult);
-
-	if (bHitResultValid && GCurrentLevelEditingViewportClient)
-	{
-		const FRotator ViewRotation = GCurrentLevelEditingViewportClient->GetViewRotation();
-		const FString GoString = FString::Printf(TEXT("BugItGo %f %f %f %f %f %f"), MouseCursorPosWorld.X, MouseCursorPosWorld.Y, HitResult.Location.Z + 1000.0f, ViewRotation.Pitch, ViewRotation.Yaw, ViewRotation.Roll);
-		
-		UE_LOG(LogWorldPartition, Log, TEXT("%s"), *GoString);
-
-		FPlatformApplicationMisc::ClipboardCopy(*GoString);
-	}
-}
-
 void SWorldPartitionEditorGrid2D::MoveCameraHere()
 {
 	FVector WorldLocation = FVector(MouseCursorPosWorld, 0);
@@ -663,6 +654,24 @@ void SWorldPartitionEditorGrid2D::LoadFromHere()
 	// Load box
 	UWorldPartitionEditorLoaderAdapter* EditorLoaderAdapter = WorldPartition->CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, LoadCellsBox, TEXT("Loaded Region"));
 	EditorLoaderAdapter->GetLoaderAdapter()->Load();
+}
+
+void SWorldPartitionEditorGrid2D::BugItHere()
+{
+	FVector WorldLocation = FVector(MouseCursorPosWorld, 0);
+
+	FHitResult HitResult;
+	const bool bHitResultValid = HitTestZFromLocation(World, MouseCursorPosWorld, HitResult);
+
+	if (bHitResultValid && GCurrentLevelEditingViewportClient)
+	{
+		const FRotator ViewRotation = GCurrentLevelEditingViewportClient->GetViewRotation();
+		const FString GoString = FString::Printf(TEXT("BugItGo %f %f %f %f %f %f"), MouseCursorPosWorld.X, MouseCursorPosWorld.Y, HitResult.Location.Z + 1000.0f, ViewRotation.Pitch, ViewRotation.Yaw, ViewRotation.Roll);
+		
+		UE_LOG(LogWorldPartition, Log, TEXT("%s"), *GoString);
+
+		FPlatformApplicationMisc::ClipboardCopy(*GoString);
+	}
 }
 
 bool SWorldPartitionEditorGrid2D::IsFollowPlayerInPIE() const

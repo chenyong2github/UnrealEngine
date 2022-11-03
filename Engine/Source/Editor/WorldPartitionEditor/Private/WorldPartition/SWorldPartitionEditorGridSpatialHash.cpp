@@ -178,9 +178,12 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 			PaintGridLines(VisibleGridRectWorld, EffectiveCellSize / Granularity, Thickness, FLinearColor(0.1f, 0.1f, 0.1f, Alpha * 0.25f));
 		};
 
-		PaintGridLinesFaded(4, 1.0f);
-		PaintGridLinesFaded(2, 1.0f);
-		PaintGridLinesFaded(1, 2.0f);
+		if (bShowGrid)
+		{
+			PaintGridLinesFaded(4, 1.0f);
+			PaintGridLinesFaded(2, 1.0f);
+			PaintGridLinesFaded(1, 2.0f);
+		}
 
 		// Draw coordinates
 		if ((EffectiveCellSize == EditorSpatialHash->CellSize) && GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetShowCellCoords())

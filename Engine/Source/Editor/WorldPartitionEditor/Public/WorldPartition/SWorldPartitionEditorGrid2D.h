@@ -25,9 +25,9 @@ protected:
 		TSharedPtr<FUICommandInfo> UnloadHoveredRegion;
 		TSharedPtr<FUICommandInfo> ConvertSelectedRegionsToActors;
 		TSharedPtr<FUICommandInfo> MoveCameraHere;
-		TSharedPtr<FUICommandInfo> BugItHere;
 		TSharedPtr<FUICommandInfo> PlayFromHere;
 		TSharedPtr<FUICommandInfo> LoadFromHere;
+		TSharedPtr<FUICommandInfo> BugItHere;
 
 		/**
 		 * Initialize commands
@@ -46,10 +46,11 @@ protected:
 	void LoadSelectedRegions();
 	void UnloadSelectedRegions();
 	void ConvertSelectedRegionsToActors();
-	void BugItHere();
+	
 	void MoveCameraHere();
 	void PlayFromHere();
 	void LoadFromHere();
+	void BugItHere();
 
 	bool IsFollowPlayerInPIE() const;
 	bool IsInteractive() const;
@@ -110,6 +111,7 @@ protected:
 	bool bIsPanning;
 	bool bIsMeasuring;
 	bool bShowActors;
+	bool bShowGrid;
 	bool bFollowPlayerInPIE;
 	FVector2D MouseCursorPos;
 	FVector2D MouseCursorPosWorld;
