@@ -13,12 +13,27 @@ namespace MovieScene
 {
 class FEntityManager;
 struct FEntityAllocation;
+struct FEntityDataLocation;
 
 struct IMovieSceneEntityMutation
 {
 	virtual ~IMovieSceneEntityMutation() {}
 	virtual void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const = 0;
 	virtual void InitializeAllocation(FEntityAllocation* Allocation, const FComponentMask& AllocationType) const {}
+	virtual void InitializeUnmodifiedAllocation(FEntityAllocation* Allocation, const FComponentMask& AllocationType) const {}
+};
+
+struct IMovieScenePerEntityMutation
+{
+	virtual ~IMovieScenePerEntityMutation() {}
+
+	virtual void CreateMutation(FEntityManager* EntityManager, FComponentMask* InOutEntityComponentTypes) const = 0;
+	virtual void InitializeEntities(const FEntityRange& EntityRange, const FComponentMask& AllocationType) const {}
+};
+
+struct IMovieSceneConditionalEntityMutation : IMovieScenePerEntityMutation
+{
+	virtual void MarkAllocation(FEntityAllocation* Allocation, TBitArray<>& OutEntitiesToMutate) const = 0;
 };
 
 struct FAddSingleMutation : IMovieSceneEntityMutation

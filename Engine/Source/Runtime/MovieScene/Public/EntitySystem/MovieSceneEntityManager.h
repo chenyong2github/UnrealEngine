@@ -52,6 +52,7 @@ struct IComponentTypeHandler;
 struct IMovieSceneEntityMutation;
 template <typename T> struct TReadOptional;
 template <typename T> struct TWriteOptional;
+struct IMovieSceneConditionalEntityMutation;
 
 
 enum class EEntityRecursion : uint8
@@ -324,7 +325,7 @@ public:
 	 * @param InEntity  The ID of the entity
 	 * @return The type mask for this entity, or an empty mask if it has no components
 	 */
-	FComponentMask GetEntityType(FMovieSceneEntityID InEntity) const;
+	const FComponentMask& GetEntityType(FMovieSceneEntityID InEntity) const;
 
 
 	/**
@@ -435,7 +436,7 @@ public:
 		}
 
 		FEntityLocation Location = EntityLocations[Entity.AsIndex()];
-		if (!Location.IsValid())
+		if (!Location.IsValid() || !EntityAllocationMasks[Location.GetAllocationIndex()].Contains(ComponentTypeID))
 		{
 			return TComponentLock<TReadOptional<T>>();
 		}
@@ -491,7 +492,7 @@ public:
 		}
 
 		FEntityLocation Location = EntityLocations[Entity.AsIndex()];
-		if (!Location.IsValid())
+		if (!Location.IsValid() || !EntityAllocationMasks[Location.GetAllocationIndex()].Contains(ComponentTypeID))
 		{
 			return TComponentLock<TWriteOptional<T>>();
 		}
@@ -563,6 +564,16 @@ public:
 	 * @return The number of entities that were mutated, or 0 if none were matched
 	 */
 	int32 MutateAll(const FEntityComponentFilter& Filter, const IMovieSceneEntityMutation& Mutation);
+
+
+	/**
+	 * Efficiently mutate all entities that match a filter. Mutations can add or remove components from batches of entity data.
+	 *
+	 * @param Filter      The filter to match entity allocations against. Only entities that match the filter will be mutated
+	 * @param Mutation    Implementation that defines how to mutate the entities that match the filter
+	 * @return The number of entities that were mutated, or 0 if none were matched
+	 */
+	int32 MutateConditional(const FEntityComponentFilter& Filter, const IMovieSceneConditionalEntityMutation& Mutation);
 
 
 	/**
@@ -872,6 +883,7 @@ private:
 	int32 CreateEntityAllocationEntry(const FComponentMask& EntityComponentMask, uint16 InitialCapacity, uint16 MaxCapacity);
 
 	int32 GetOrCreateAllocationWithSlack(const FComponentMask& EntityComponentMask, int32* InOutDesiredSlack = nullptr);
+	int32 CreateAllocationWithSlack(const FComponentMask& EntityComponentMask, int32* InOutDesiredSlack = nullptr);
 	int32 MigrateEntity(int32 DestIndex, int32 SourceIndex, int32 SourceEntryIndexWithinAllocation);
 
 	void CopyComponents(int32 DestAllocationIndex, int32 DestEntityIndex, int32 SourceAllocationIndex, int32 SourceEntityIndex, const FComponentMask* OptionalMask = nullptr);
