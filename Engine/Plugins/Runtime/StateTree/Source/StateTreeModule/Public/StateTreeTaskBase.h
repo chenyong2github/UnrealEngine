@@ -78,9 +78,9 @@ struct STATETREEMODULE_API FStateTreeTaskBase : public FStateTreeNodeBase
 	 * Default value is true. */
 	uint8 bShouldStateChangeOnReselect : 1;
 
-	/** If set to true, Tick() is called. Default true. */
+	/** If set to true, Tick() is called. Not ticking implies no property copy. Default true. */
 	uint8 bShouldCallTick : 1;
-	/** If set to true, Tick() is called only when there are events. No effect if bShouldCallTickState is true. Default false. */
+	/** If set to true, Tick() is called only when there are events. No effect if bShouldCallTickState is true. Not ticking implies no property copy. Default false. */
 	uint8 bShouldCallTickOnlyOnEvents : 1;
 
 	/** If set to true, copy the values of bound properties before calling Tick(). Default true. */

@@ -141,7 +141,7 @@ public:
 	TArray<FName> GetActiveStateNames() const;
 
 	/** Sends event for the StateTree. */
-	// @todo: remove temporarily - UE_DEPRECATED(5.2, "Use AddEvent() with individual parameters instead.")
+	UE_DEPRECATED(5.2, "Use AddEvent() with individual parameters instead.")
 	void SendEvent(const FStateTreeEvent& Event) const;
 
 	/** Sends event for the StateTree. */
@@ -364,7 +364,7 @@ protected:
 	FString GetSafeStateName(const FStateTreeStateHandle State) const;
 
 	/** @return String describing full path of an activate state for logging and debug. */
-	FString DebugGetStatePath(const FStateTreeActiveStates& ActiveStates, int32 ActiveStateIndex) const;
+	FString DebugGetStatePath(const FStateTreeActiveStates& ActiveStates, const int32 ActiveStateIndex = INDEX_NONE) const;
 
 	/** @return String describing all events that are currently being processed  for logging and debug. */
 	FString DebugGetEventsAsString() const;
