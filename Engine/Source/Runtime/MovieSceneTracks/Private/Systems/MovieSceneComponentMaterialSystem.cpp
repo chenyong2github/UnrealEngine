@@ -30,6 +30,11 @@ FComponentMaterialAccessor::FComponentMaterialAccessor(UObject* InObject, int32 
 	, MaterialIndex(InMaterialIndex)
 {}
 
+FComponentMaterialAccessor::operator bool() const
+{
+	return Object != nullptr;
+}
+
 FString FComponentMaterialAccessor::ToString() const
 {
 	return FString::Printf(TEXT("object %s (element %d)"), *Object->GetPathName(), MaterialIndex);

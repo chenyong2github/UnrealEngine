@@ -151,6 +151,11 @@ struct TInitializeBoundMaterials
 	static bool InitializeBoundMaterial(typename TCallTraits<RequiredComponents>::ParamType... Inputs, UObject*& OutDynamicMaterial)
 	{
 		AccessorType Accessor(Inputs...);
+		if (!Accessor)
+		{
+			OutDynamicMaterial = nullptr;
+			return false;
+		}
 
 		UMaterialInterface* ExistingMaterial = Accessor.GetMaterial();
 

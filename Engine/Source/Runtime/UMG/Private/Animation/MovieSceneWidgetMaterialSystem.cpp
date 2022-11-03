@@ -13,6 +13,7 @@
 
 #include "Materials/MaterialInstanceDynamic.h"
 
+#include "UMGPrivate.h"
 #include "Components/Widget.h"
 
 #include "String/Join.h"
@@ -32,7 +33,17 @@ FWidgetMaterialAccessor::FWidgetMaterialAccessor(UObject* InObject, FWidgetMater
 	, WidgetMaterialPath(MoveTemp(InWidgetMaterialPath))
 {
 	// Object must be a widget
-	check(!InObject || Widget);
+	if (InObject && !Widget)
+	{
+		UE_LOG(LogUMG, Warning, TEXT("Cannot animate widget material on object %s of type %s"),
+			*InObject->GetName(), *InObject->GetClass()->GetName()
+		);
+	}
+}
+
+FWidgetMaterialAccessor::operator bool() const
+{
+	return Widget != nullptr;
 }
 
 FString FWidgetMaterialAccessor::ToString() const

@@ -40,6 +40,8 @@ struct FComponentMaterialAccessor
 	FComponentMaterialAccessor(const FComponentMaterialKey& InKey);
 	FComponentMaterialAccessor(UObject* InObject, int32 InMaterialIndex);
 
+	explicit operator bool() const;
+
 	UMaterialInterface* GetMaterial() const;
 	void SetMaterial(UMaterialInterface* InMaterial) const;
 	UMaterialInstanceDynamic* CreateDynamicMaterial(UMaterialInterface* InMaterial);

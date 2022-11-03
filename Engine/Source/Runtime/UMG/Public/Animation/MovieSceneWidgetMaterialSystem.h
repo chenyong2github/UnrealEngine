@@ -46,6 +46,8 @@ struct FWidgetMaterialAccessor
 	FWidgetMaterialAccessor(const FWidgetMaterialKey& InKey);
 	FWidgetMaterialAccessor(UObject* InObject, FWidgetMaterialPath InWidgetMaterialPath);
 
+	explicit operator bool() const;
+
 	UMaterialInterface* GetMaterial() const;
 	void SetMaterial(UMaterialInterface* InMaterial) const;
 	UMaterialInstanceDynamic* CreateDynamicMaterial(UMaterialInterface* InMaterial);
