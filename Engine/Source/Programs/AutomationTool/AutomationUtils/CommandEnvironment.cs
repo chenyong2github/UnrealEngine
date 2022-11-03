@@ -209,8 +209,8 @@ namespace AutomationTool
 			}
 			catch (Exception Ex)
 			{
-				Log.WriteLine(LogEventType.Warning, Ex.Message);
-				Log.WriteLine(LogEventType.Warning, "Assuming no compilation capability for NET Framework projects.");
+				Log.WriteLine(LogEventType.Log, Ex.Message);
+				Log.WriteLine(LogEventType.Log, "Assuming no compilation capability for NET Framework projects.");
 				HasCapabilityToCompile = false;
 				FrameworkMsbuildPath = "";
 			}
