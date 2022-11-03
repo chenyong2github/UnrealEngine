@@ -805,7 +805,7 @@ bool FDesktopPlatformBase::IsUnrealBuildToolRunning()
 	return bIsRunning;
 }
 
-bool FDesktopPlatformBase::GetOidcAccessToken(const FString& RootDir, const FString& ProjectFileName, const FString& ProviderIdentifier, bool Unattended, FFeedbackContext* Warn, FString& OutToken, FDateTime& OutTokenExpiresAt, bool& WasInteractiveLogin )
+bool FDesktopPlatformBase::GetOidcAccessToken(const FString& RootDir, const FString& ProjectFileName, const FString& ProviderIdentifier, bool bUnattended, FFeedbackContext* Warn, FString& OutToken, FDateTime& OutTokenExpiresAt, bool& bOutWasInteractiveLogin)
 {
 	FString ResultFilePath = FPaths::CreateTempFilename(*FPaths::ProjectIntermediateDir(), TEXT("oidcToken.json"));
 
@@ -822,15 +822,15 @@ bool FDesktopPlatformBase::GetOidcAccessToken(const FString& RootDir, const FStr
 	FString ProcessStdout;
 	bRes = InvokeOidcTokenToolSync(LOCTEXT("GetOidcAccessToken", "Fetching OIDC Access Token..."), RootDir, UnattendedArguments, Warn, ExitCode, ProcessStdout);
 
-	WasInteractiveLogin = false;
+	bOutWasInteractiveLogin = false;
 
 	if (ExitCode == 10)
 	{
-		if (!Unattended)
+		if (!bUnattended)
 		{
 			bRes = GetOidcAccessTokenInteractive(RootDir, Arguments, Warn, ExitCode);
 
-			WasInteractiveLogin = true;
+			bOutWasInteractiveLogin = true;
 
 			if (!bRes)
 			{

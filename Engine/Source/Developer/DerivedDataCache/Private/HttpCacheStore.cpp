@@ -1600,39 +1600,14 @@ FHttpCacheStore::FHttpCacheStore(const FHttpCacheStoreParams& Params)
 void FHttpCacheStore::OnAnalyticsEvent(TArray<FAnalyticsEventAttribute>& Attributes)
 {
 #if ENABLE_COOK_STATS
+	const FString BaseName(TEXTVIEW("CloudDDC."));
 
-	FString BaseName = TEXT("CloudDDC.");
-
-	{
-		FString AttrName = BaseName + TEXT(".Domain");
-		Attributes.Emplace(MoveTemp(AttrName), Domain);
-	}
-
-	{
-		FString AttrName = BaseName + TEXT(".EffectiveDomain");
-		Attributes.Emplace(MoveTemp(AttrName), EffectiveDomain.ToString() );
-	}
-
-	{
-		FString AttrName = BaseName + TEXT(".Namespace");
-		Attributes.Emplace(MoveTemp(AttrName), Namespace);
-	}
-
-	{
-		FString AttrName = BaseName + TEXT(".LoginAttempts");
-		Attributes.Emplace(MoveTemp(AttrName), LoginAttempts);
-	}
-
-	{
-		FString AttrName = BaseName + TEXT(".LoginAttempts");
-		Attributes.Emplace(MoveTemp(AttrName), InteractiveLoginAttempts );
-	}
-
-
-	{
-		FString AttrName = BaseName + TEXT(".FailedLoginAttempts");
-		Attributes.Emplace(MoveTemp(AttrName), FailedLoginAttempts);
-	}
+	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("Domain"))), Domain);
+	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("EffectiveDomain"))), *EffectiveDomain);
+	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("Namespace"))), Namespace);
+	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("LoginAttempts"))), LoginAttempts);
+	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("InteractiveLoginAttempts"))), InteractiveLoginAttempts);
+	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("FailedLoginAttempts"))), FailedLoginAttempts);
 
 	const int64 GetHits = UsageStats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
 	const int64 GetMisses = UsageStats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Miss, FCookStats::CallStats::EStatType::Counter);
@@ -1641,36 +1616,12 @@ void FHttpCacheStore::OnAnalyticsEvent(TArray<FAnalyticsEventAttribute>& Attribu
 	const int64 TotalGets = GetHits + GetMisses;
 	const int64 TotalPuts = PutHits + PutMisses;
 
-	{
-		FString AttrName = BaseName + TEXT(".GetHits");
-		Attributes.Emplace(MoveTemp(AttrName), GetHits);
-	}
-
-	{
-		FString AttrName = BaseName + TEXT(".GetMisses");
-		Attributes.Emplace(MoveTemp(AttrName), GetMisses);
-	}
-
-	{
-		FString AttrName = BaseName + TEXT(".TotalGets");
-		Attributes.Emplace(MoveTemp(AttrName), TotalGets);
-	}
-
-	{
-		FString AttrName = BaseName + TEXT(".PutHits");
-		Attributes.Emplace(MoveTemp(AttrName), PutHits);
-	}
-
-	{
-		FString AttrName = BaseName + TEXT(".PutMisses");
-		Attributes.Emplace(MoveTemp(AttrName), TotalPuts);
-	}
-
-	{
-		FString AttrName = BaseName + TEXT(".TotalGets");
-		Attributes.Emplace(MoveTemp(AttrName), TotalPuts);
-	}
-
+	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("GetHits"))), GetHits);
+	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("GetMisses"))), GetMisses);
+	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("TotalGets"))), TotalGets);
+	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("PutHits"))), PutHits);
+	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("PutMisses"))), TotalPuts);
+	Attributes.Emplace(FString(WriteToString<64>(BaseName, TEXTVIEW("TotalGets"))), TotalPuts);
 #endif
 }
 
@@ -1809,11 +1760,11 @@ bool FHttpCacheStore::AcquireAccessToken(IHttpClient* Client)
 	{
 		FString AccessTokenString;
 		FDateTime TokenExpiresAt;
-		bool WasInteractiveLogin;
+		bool bWasInteractiveLogin;
 
-		if (FDesktopPlatformModule::Get()->GetOidcAccessToken(FPaths::RootDir(), FPaths::GetProjectFilePath(), OAuthProviderIdentifier, FApp::IsUnattended(), GWarn, AccessTokenString, TokenExpiresAt, WasInteractiveLogin))
+		if (FDesktopPlatformModule::Get()->GetOidcAccessToken(FPaths::RootDir(), FPaths::GetProjectFilePath(), OAuthProviderIdentifier, FApp::IsUnattended(), GWarn, AccessTokenString, TokenExpiresAt, bWasInteractiveLogin))
 		{
-			if (WasInteractiveLogin)
+			if (bWasInteractiveLogin)
 			{
 				InteractiveLoginAttempts++;
 			}

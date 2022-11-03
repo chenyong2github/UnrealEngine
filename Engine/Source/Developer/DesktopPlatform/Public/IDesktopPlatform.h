@@ -463,13 +463,14 @@ public:
 	* @param RootDir			Engine root directory for the project to use.
 	* @param ProjectFileName	Filename of the current project
 	* @param ProviderIdentifier	The identifier for the provider as configured in oidc-token.json
-	* @param Unattended			True to indicate that no user interaction should be assumed
+	* @param bUnattended		True to indicate that no user interaction should be assumed
 	* @param Warn				Feedback context to use for progress updates
 	* @param OutToken			The allocated access token
 	* @param OutTokenExpiresAt	When the token expires
+	* @param bOutWasInteractiveLogin	True if the interactive login flow was used
 	* @return true if the task completed successfully.
 	*/
-	virtual bool GetOidcAccessToken(const FString& RootDir, const FString& ProjectFileName, const FString& ProviderIdentifier, bool Unattended, FFeedbackContext* Warn, FString& OutToken, FDateTime& OutTokenExpiresAt, bool& WasInteractiveLogin) = 0;
+	virtual bool GetOidcAccessToken(const FString& RootDir, const FString& ProjectFileName, const FString& ProviderIdentifier, bool bUnattended, FFeedbackContext* Warn, FString& OutToken, FDateTime& OutTokenExpiresAt, bool& bOutWasInteractiveLogin) = 0;
 
 	/**
 	* Get the status of a access token for use by OIDC compliant Identity Providers
