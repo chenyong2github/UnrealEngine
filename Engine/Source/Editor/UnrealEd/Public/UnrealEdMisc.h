@@ -126,6 +126,7 @@ public:
 	void ClearPendingProjectName( )
 	{
 		PendingProjectName.Empty();
+		PendingCommandLine.Reset();
 	}
 
 	/**
@@ -190,10 +191,10 @@ public:
 	}
 
 	/** Opens the specified project file or game. Restarts the editor */
-	void SwitchProject(const FString& GameOrProjectFileName, bool bWarn = true);
+	void SwitchProject(const FString& GameOrProjectFileName, bool bWarn = true, const TOptional<FString>& NewCommandLine = TOptional<FString>());
 
 	/** Restarts the editor, reopening the current project, if any */
-	void RestartEditor(bool bWarn = true);
+	void RestartEditor(bool bWarn = true, const TOptional<FString>& NewCommandLine = TOptional<FString>());
 
 	/** Ticks the performance analytics used by the analytics heartbeat */
 	void TickPerformanceAnalytics();
@@ -326,6 +327,9 @@ private:
 
 	/** The name of a pending project.  When the editor shuts down it will switch to this project if not empty */ 
 	FString PendingProjectName;
+
+	/** Optional alt command-line to use when the editor shuts down and switches projects (if unset, the restart will use the same command-line as the current process). */
+	TOptional<FString> PendingCommandLine;
 
 	/** Map of config->backup filenames to restore on shutdown of the editor */
 	TMap<FString, FString> RestoreConfigFiles;

@@ -525,7 +525,7 @@ void FUnrealEdMisc::OnInit()
 
 	// Give the settings editor a way to restart the editor when it needs to
 	ISettingsEditorModule& SettingsEditorModule = FModuleManager::GetModuleChecked<ISettingsEditorModule>("SettingsEditor");
-	SettingsEditorModule.SetRestartApplicationCallback(FSimpleDelegate::CreateRaw(this, &FUnrealEdMisc::RestartEditor, false));
+	SettingsEditorModule.SetRestartApplicationCallback(FSimpleDelegate::CreateLambda([this]() { RestartEditor(/*bWarn =*/false); }));
 
 	// add handler to notify about navmesh building process
 	NavigationBuildingNotificationHandler = MakeShareable(new FNavigationBuildingNotificationImpl());
@@ -1082,7 +1082,7 @@ void FUnrealEdMisc::OnExit()
 	if( PendingProjName.Len() > 0 )
 	{
 		// If there is a pending project switch, spawn that process now and use the same command line parameters that were used for this editor instance.
-		FString Cmd = FString::Printf(TEXT("%s %s"), *PendingProjName, FCommandLine::Get());
+		FString Cmd = FString::Printf(TEXT("%s %s"), *PendingProjName, *PendingCommandLine.Get(FCommandLine::Get()));
 
 		FString ExeFilename = CreateProjectPath();
 		FProcHandle Handle = FPlatformProcess::CreateProc( *ExeFilename, *Cmd, true, false, false, NULL, 0, NULL, NULL );
@@ -1686,7 +1686,7 @@ void FUnrealEdMisc::LogAssetUpdate(UObject* UpdatedAsset, FObjectPreSaveContext 
 	}
 }
 
-void FUnrealEdMisc::SwitchProject(const FString& GameOrProjectFileName, bool bWarn)
+void FUnrealEdMisc::SwitchProject(const FString& GameOrProjectFileName, bool bWarn, const TOptional<FString>& NewCommandLine)
 {
 	if (GUnrealEd->WarnIfLightingBuildIsCurrentlyRunning())
 	{
@@ -1740,6 +1740,7 @@ void FUnrealEdMisc::SwitchProject(const FString& GameOrProjectFileName, bool bWa
 		}
 
 		SetPendingProjectName( PendingProjName );
+		PendingCommandLine = NewCommandLine;
 
 		// Close the editor.  This will prompt the user to save changes.  If they hit cancel, we abort the project switch
 		GEngine->DeferredCommands.Add( TEXT("CLOSE_SLATE_MAINFRAME"));
@@ -1750,7 +1751,7 @@ void FUnrealEdMisc::SwitchProject(const FString& GameOrProjectFileName, bool bWa
 	}
 }
 
-void FUnrealEdMisc::RestartEditor(bool bWarn)
+void FUnrealEdMisc::RestartEditor(bool bWarn, const TOptional<FString>& NewCommandLine)
 {
 	if (GUnrealEd->WarnIfLightingBuildIsCurrentlyRunning())
 	{
@@ -1759,15 +1760,15 @@ void FUnrealEdMisc::RestartEditor(bool bWarn)
 
 	if( FPaths::IsProjectFilePathSet() )
 	{
-		SwitchProject(FPaths::GetProjectFilePath(), bWarn);
+		SwitchProject(FPaths::GetProjectFilePath(), bWarn, NewCommandLine);
 	}
 	else if(FApp::HasProjectName())
 	{
-		SwitchProject(FApp::GetProjectName(), bWarn);
+		SwitchProject(FApp::GetProjectName(), bWarn, NewCommandLine);
 	}
 	else
 	{
-		SwitchProject(TEXT(""), bWarn);
+		SwitchProject(TEXT(""), bWarn, NewCommandLine);
 	}
 }
 
