@@ -2671,6 +2671,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_BOOL_HELPER(bSupportsIntrinsicWaveOnce);
 	GET_SECTION_BOOL_HELPER(bSupportsConservativeRasterization);
 	GET_SECTION_SUPPORT_HELPER(bSupportsWaveOperations);
+	GET_SECTION_BOOL_HELPER(bSupportsWavePermute);
 	GET_SECTION_INT_HELPER(MinimumWaveSize);
 	GET_SECTION_INT_HELPER(MaximumWaveSize);
 	GET_SECTION_BOOL_HELPER(bRequiresExplicit128bitRT);

@@ -986,6 +986,8 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
 		FNaniteMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 1);
@@ -993,6 +995,12 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 
 		// Get data from GPUSceneParameters rather than View.
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+
+		if (FDataDrivenShaderPlatformInfo::GetSupportsWavePermute(Parameters.Platform) && PermutationVector.Get<FPixelProgrammableDim>())
+		{
+			OutEnvironment.SetDefine(TEXT("NANITE_VERT_REUSE_BATCH"), 1);
+			OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+		}
 
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 	}
@@ -1087,6 +1095,12 @@ class FHWRasterizeVS : public FNaniteMaterialShader
 		if (bIsPrimitiveShader)
 		{
 			OutEnvironment.CompilerFlags.Add(CFLAG_VertexToPrimitiveShader);
+
+			if (FDataDrivenShaderPlatformInfo::GetSupportsWavePermute(Parameters.Platform) && PermutationVector.Get<FVertexProgrammableDim>())
+			{
+				OutEnvironment.SetDefine(TEXT("NANITE_VERT_REUSE_BATCH"), 1);
+				OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+			}
 		}
 		else if (PermutationVector.Get<FAutoShaderCullDim>())
 		{
@@ -1167,6 +1181,8 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
 		FNaniteMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
@@ -1176,7 +1192,17 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 
 		const uint32 MSThreadGroupSize = FDataDrivenShaderPlatformInfo::GetMaxMeshShaderThreadGroupSize(Parameters.Platform);
 		check(MSThreadGroupSize == 128 || MSThreadGroupSize == 256);
-		OutEnvironment.SetDefine(TEXT("NANITE_MESH_SHADER_TG_SIZE"), MSThreadGroupSize);
+
+		if (FDataDrivenShaderPlatformInfo::GetSupportsWavePermute(Parameters.Platform) && PermutationVector.Get<FVertexProgrammableDim>())
+		{
+			OutEnvironment.SetDefine(TEXT("NANITE_VERT_REUSE_BATCH"), 1);
+			OutEnvironment.SetDefine(TEXT("NANITE_MESH_SHADER_TG_SIZE"), 32);
+			OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+		}
+		else
+		{
+			OutEnvironment.SetDefine(TEXT("NANITE_MESH_SHADER_TG_SIZE"), MSThreadGroupSize);
+		}
 
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 	}
@@ -1294,6 +1320,11 @@ public:
 		OutEnvironment.SetRenderTargetOutputFormat(0, EPixelFormat::PF_R32_UINT);
 		OutEnvironment.SetDefine(TEXT("SOFTWARE_RASTER"), 0);
 		OutEnvironment.SetDefine(TEXT("USE_ANALYTIC_DERIVATIVES"), 0);
+
+		if (FDataDrivenShaderPlatformInfo::GetSupportsWavePermute(Parameters.Platform) && PermutationVector.Get<FVertexProgrammableDim>() && (PermutationVector.Get<FMeshShaderDim>() || PermutationVector.Get<FPrimShaderDim>()))
+		{
+			OutEnvironment.SetDefine(TEXT("NANITE_VERT_REUSE_BATCH"), 1);
+		}
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FMaterial& Material)
@@ -2142,7 +2173,7 @@ static void AddPass_Binning(
 	PassParameters->RenderFlags = RenderFlags;
 	PassParameters->MaxVisibleClusters = MaxVisibleClusters;
 	PassParameters->RegularMaterialRasterSlotCount = Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetRegularBinCount();
-	PassParameters->bEnableVertReuseBatch = bEnableVertReuseBatch;
+	PassParameters->bEnableVertReuseBatch = bEnableVertReuseBatch && FDataDrivenShaderPlatformInfo::GetSupportsWavePermute(Scene.GetShaderPlatform());
 
 	// Classify SW & HW Clusters
 	{
@@ -2280,7 +2311,7 @@ FBinningData AddPass_Rasterize(
 		GPUSceneParameters,
 		bMainPass,
 		VirtualShadowMapArray != nullptr,
-		bUsePrimitiveShader,
+		bUsePrimitiveShader || bUseMeshShader,
 		BinningData
 	);
 

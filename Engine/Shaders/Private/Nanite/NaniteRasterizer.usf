@@ -24,17 +24,15 @@ ALLOW_NO_PS_EXPORT
 #define NANITE_PRIM_SHADER 0
 #endif
 
-#define NANITE_VERT_REUSE_BATCH (COMPILER_SUPPORTS_WAVE_PERMUTE && ((NANITE_PRIM_SHADER && NANITE_VERTEX_PROGRAMMABLE) || (COMPUTESHADER && NANITE_PIXEL_PROGRAMMABLE)))
+#ifndef NANITE_VERT_REUSE_BATCH
+#define NANITE_VERT_REUSE_BATCH 0
+#endif
 
 #ifndef NANITE_TWO_SIDED
 #define NANITE_TWO_SIDED 0
 #endif
 
 #if NANITE_VERT_REUSE_BATCH
-// HWRasterizePS doesn't seem to work well in wave32 mode
-#if !PIXELSHADER
-	COMPILER_FORCE_WAVE32_MODE
-#endif
 	#define SWRASTER_NUM_THREADS 32
 #elif NANITE_PIXEL_PROGRAMMABLE
 	// Use a larger thread group when programmable, as it seems to provide the best occupancy
@@ -1802,9 +1800,15 @@ MESH_SHADER_TRIANGLE_ATTRIBUTES(NANITE_MESH_SHADER_TG_SIZE)
 void HWRasterizeMS(
 	uint GroupThreadID : SV_GroupThreadID,
 	uint GroupID : SV_GroupID,
+#if NANITE_VERT_REUSE_BATCH
+	MESH_SHADER_VERTEX_EXPORT(VSOut, 32),
+	MESH_SHADER_TRIANGLE_EXPORT(32),
+	MESH_SHADER_PRIMITIVE_EXPORT(PrimitiveAttributes, 32)
+#else
 	MESH_SHADER_VERTEX_EXPORT(VSOut, 256),
 	MESH_SHADER_TRIANGLE_EXPORT(128),
 	MESH_SHADER_PRIMITIVE_EXPORT(PrimitiveAttributes, 128)
+#endif
 )
 {
 	uint VisibleIndex = GroupID;
@@ -1847,44 +1851,57 @@ void HWRasterizeMS(
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 	FTriRange TriRange = GetTriangleRange(Cluster, bHasRasterBin, RasterBin);
 
-	SetMeshOutputCounts(Cluster.NumVerts, TriRange.Num);
+	const uint TriangleIndex = TriRange.Start + GroupThreadID;
+	uint3 TriangleIndices;
+	uint MyVertIndex;
+	uint NumUniqueVerts;
 
-	BRANCH
+#if NANITE_VERT_REUSE_BATCH	
+	NumUniqueVerts = DeduplicateVertIndices(InstanceData, Cluster, TriRange.Start, TriRange.Num, TriangleIndex, GroupThreadID, MyVertIndex, TriangleIndices);
+#else
 	if (GroupThreadID < TriRange.Num)
 	{
-		uint TriangleIndex = TriRange.Start + GroupThreadID;
-
-		uint3 TriangleIndices = ReadTriangleIndices(Cluster, TriangleIndex);
+		TriangleIndices = ReadTriangleIndices(Cluster, TriangleIndex);
 		if (ReverseWindingOrder(InstanceData))
 		{
 			TriangleIndices = TriangleIndices.xzy;
 		}
+	}
 
-		MESH_SHADER_WRITE_TRIANGLE(GroupThreadID, TriangleIndices);
+	MyVertIndex = GroupThreadID;
+	NumUniqueVerts = Cluster.NumVerts;
+#endif
+	
+	SetMeshOutputCounts(NumUniqueVerts, TriRange.Num);
+
+	uint PrimExportIndex = GroupThreadID;
+	if (PrimExportIndex < TriRange.Num)
+	{
+		MESH_SHADER_WRITE_TRIANGLE(PrimExportIndex, TriangleIndices);
 
 		PrimitiveAttributes Attributes;
 		Attributes.PackedData.x = VisibleIndex;
 		Attributes.PackedData.y = TriangleIndex;
 		Attributes.PackedData.z = asuint(NaniteView.ViewSizeAndInvSize.x);
 		Attributes.PackedData.w = asuint(NaniteView.ViewSizeAndInvSize.y);
-		MESH_SHADER_WRITE_PRIMITIVE(GroupThreadID, Attributes);
+		MESH_SHADER_WRITE_PRIMITIVE(PrimExportIndex, Attributes);
 	}
 
-	const uint Vertex0 = GroupThreadID + 0;
-	if (Vertex0 < Cluster.NumVerts)
+	uint VertExportIndex = GroupThreadID;
+	if (VertExportIndex < Cluster.NumVerts)
 	{
 		const uint PixelValue = 0;
-		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex0, PixelValue);
-		MESH_SHADER_WRITE_VERTEX(Vertex0, VertexOutput);
+		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, MyVertIndex, PixelValue);
+		MESH_SHADER_WRITE_VERTEX(VertExportIndex, VertexOutput);
 	}
 
 #if NANITE_MESH_SHADER_TG_SIZE == 128
-	const uint Vertex1 = GroupThreadID + 128;
-	if (Vertex1 < Cluster.NumVerts)
+	VertExportIndex += 128;
+	if (VertExportIndex < Cluster.NumVerts)
 	{
 		const uint PixelValue = 0;
-		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, Vertex1, PixelValue);
-		MESH_SHADER_WRITE_VERTEX(Vertex1, VertexOutput);
+		VSOut VertexOutput = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, MyVertIndex + 128, PixelValue);
+		MESH_SHADER_WRITE_VERTEX(VertExportIndex, VertexOutput);
 	}
 #endif
 }

@@ -20,8 +20,6 @@
 	#define RASTER_BIN_RESERVE	1
 #endif
 
-#define NANITE_VERT_REUSE_BATCH COMPILER_SUPPORTS_WAVE_PERMUTE
-
 #define SCALARIZE_ATOMICS 1
 
 // .x = count of SW clusters in bin
@@ -212,7 +210,7 @@ uint AllocateRasterizerBinCluster(uint BinIndex, bool bSoftware, uint BatchCount
 
 void ExportRasterizerBin(uint RasterizerBin, uint ClusterIndex, uint RangeStart, uint RangeEnd, uint BatchCount, uint BatchInfoOffset, FCluster Cluster, bool bBatchInfoInlined, bool bSoftware)
 {
-	const bool bUseBatch = NANITE_VERT_REUSE_BATCH && bEnableVertReuseBatch && (!bSoftware || RasterizerBin >= RegularMaterialRasterSlotCount);
+	const bool bUseBatch = bEnableVertReuseBatch && (!bSoftware || RasterizerBin >= RegularMaterialRasterSlotCount);
 	BatchCount = CondMask(bUseBatch, BatchCount, 1u);
 #if RASTER_BIN_CLASSIFY
 	IncrementRasterizerBinCount(RasterizerBin, bSoftware, BatchCount);
