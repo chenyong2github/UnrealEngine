@@ -232,7 +232,7 @@ public:
 private:
 	TSoftObjectPtr<UObject> ResolveForCurrentWorld() const;
 
-	void InitializeBindingContext(UObject* InObject) const;
+	void UpdateBindingContext(UObject* InObject) const;
 
 
 private:
