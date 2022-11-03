@@ -22,8 +22,8 @@
 #include "Framework/Layout/Overscroll.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/SOverlay.h"
-#if WITH_ACCESSIBILITY
 #include "Application/SlateApplicationBase.h"
+#if WITH_ACCESSIBILITY
 #include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 #include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
 #include "Widgets/Accessibility/SlateAccessibleWidgetCache.h"
