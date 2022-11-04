@@ -169,6 +169,7 @@ bool FDisplayClusterScenePreviewModule::ClearRendererScene(int32 RendererId)
 	{
 		Config->Renderer->ClearScene();
 		Config->AddedActors.Empty();
+		Config->AutoActors.Empty();
 		return true;
 	}
 
@@ -437,6 +438,8 @@ void FDisplayClusterScenePreviewModule::RegisterRootActorEvents(ADisplayClusterR
 void FDisplayClusterScenePreviewModule::AutoPopulateScene(FRendererConfig& RendererConfig)
 {
 	RendererConfig.Renderer->ClearScene();
+	RendererConfig.AddedActors.Empty();
+	RendererConfig.AutoActors.Empty();
 
 	if (ADisplayClusterRootActor* RootActor = InternalGetRendererRootActor(RendererConfig))
 	{
@@ -482,6 +485,11 @@ void FDisplayClusterScenePreviewModule::AutoPopulateScene(FRendererConfig& Rende
 
 			for (AActor* Actor : Actors)
 			{
+				if (RendererConfig.AddedActors.Contains(Actor))
+				{
+					continue;
+				}
+
 				RendererConfig.Renderer->AddActor(Actor);
 				RendererConfig.AddedActors.Add(Actor);
 				RendererConfig.AutoActors.Add(Actor);
@@ -626,7 +634,7 @@ void FDisplayClusterScenePreviewModule::OnLevelActorDeleted(AActor* Actor)
 
 void FDisplayClusterScenePreviewModule::OnLevelActorAdded(AActor* Actor)
 {
-	if (Cast<ADisplayClusterLightCardActor>(Actor) == nullptr)
+	if (!Actor || !Actor->Implements<UDisplayClusterStageActor>())
 	{
 		return;
 	}

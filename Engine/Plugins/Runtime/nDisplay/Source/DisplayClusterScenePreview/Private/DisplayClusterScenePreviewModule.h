@@ -62,7 +62,7 @@ private:
 		/** Actors that have been automatically added to the scene. */
 		TArray<TWeakObjectPtr<AActor>> AutoActors;
 
-		/** If true, automatically update the renderer with lightcards belonging to the root actor. */
+		/** If true, automatically update the renderer with stage actors belonging to the root actor. */
 		bool bAutoUpdateLightcards = false;
 
 		/** If true, the scene needs to be updated before the next render. This is only relevant if bAutoUpdateLightcards is true. */
