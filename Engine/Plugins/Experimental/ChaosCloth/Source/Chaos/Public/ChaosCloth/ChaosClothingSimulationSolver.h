@@ -152,9 +152,17 @@ namespace Chaos
 		Softs::FSolverVec3* GetOldAnimationPositions(int32 Offset) { return OldAnimationPositions.GetData() + Offset; }
 		const Softs::FSolverVec3* GetAnimationPositions(int32 Offset) const { return AnimationPositions.GetData() + Offset; }
 		Softs::FSolverVec3* GetAnimationPositions(int32 Offset) { return AnimationPositions.GetData() + Offset; }
+		const Softs::FSolverVec3* GetInterpolatedAnimationPositions(int32 Offset) const { return InterpolatedAnimationPositions.GetData() + Offset; }
+		Softs::FSolverVec3* GetInterpolatedAnimationPositions(int32 Offset) { return InterpolatedAnimationPositions.GetData() + Offset; }
+		const Softs::FSolverVec3* GetOldAnimationNormals(int32 Offset) const { return OldAnimationNormals.GetData() + Offset; }
+		Softs::FSolverVec3* GetOldAnimationNormals(int32 Offset) { return OldAnimationNormals.GetData() + Offset; }
 		const Softs::FSolverVec3* GetAnimationNormals(int32 Offset) const { return AnimationNormals.GetData() + Offset; }
 		Softs::FSolverVec3* GetAnimationNormals(int32 Offset) { return AnimationNormals.GetData() + Offset; }
+		const Softs::FSolverVec3* GetInterpolatedAnimationNormals(int32 Offset) const { return InterpolatedAnimationNormals.GetData() + Offset; }
+		Softs::FSolverVec3* GetInterpolatedAnimationNormals(int32 Offset) { return InterpolatedAnimationNormals.GetData() + Offset; }
 		const Softs::FSolverVec3* GetNormals(int32 Offset) const { return Normals.GetData() + Offset; }
+		const Softs::FSolverVec3* GetAnimationVelocities(int32 Offset) const { return AnimationVelocities.GetData() + Offset; }
+		Softs::FSolverVec3* GetAnimationVelocities(int32 Offset) { return AnimationVelocities.GetData() + Offset; }
 		Softs::FSolverVec3* GetNormals(int32 Offset) { return Normals.GetData() + Offset; }
 		const Softs::FPAndInvM* GetParticlePandInvMs(int32 Offset) const;
 		Softs::FPAndInvM* GetParticlePandInvMs(int32 Offset);
@@ -202,6 +210,7 @@ namespace Chaos
 		void ResetParticles();
 		void ResetCollisionParticles(int32 InCollisionParticlesOffset = 0);
 		void ApplyPreSimulationTransforms();
+		void PreSubstep(const Softs::FSolverReal InterpolationAlpha);
 		Softs::FSolverReal SetParticleMassPerArea(int32 Offset, int32 Size, const FTriangleMesh& Mesh);
 		void ParticleMassUpdateDensity(const FTriangleMesh& Mesh, Softs::FSolverReal Density);
 		void ParticleMassClampAndKinematicStateUpdate(int32 Offset, int32 Size, Softs::FSolverReal MinPerParticleMass, const TFunctionRef<bool(int32)>& KinematicPredicate);
@@ -224,7 +233,11 @@ namespace Chaos
 		TArrayCollectionArray<Softs::FSolverVec3> Normals;
 		TArrayCollectionArray<Softs::FSolverVec3> OldAnimationPositions;
 		TArrayCollectionArray<Softs::FSolverVec3> AnimationPositions;
+		TArrayCollectionArray<Softs::FSolverVec3> InterpolatedAnimationPositions;
+		TArrayCollectionArray<Softs::FSolverVec3> OldAnimationNormals;
 		TArrayCollectionArray<Softs::FSolverVec3> AnimationNormals;
+		TArrayCollectionArray<Softs::FSolverVec3> InterpolatedAnimationNormals;
+		TArrayCollectionArray<Softs::FSolverVec3> AnimationVelocities;
 
 		// Collision particle attributes
 		TArrayCollectionArray<int32> CollisionBoneIndices;
@@ -275,11 +288,17 @@ namespace Chaos
 #define CHAOS_PRE_SIMULATION_TRANSFORMS_ISPC_ENABLED_DEFAULT 1
 #endif
 
+#if !defined(CHAOS_PRE_SUBSTEP_INTERPOLATION_ISPC_ENABLED_DEFAULT)
+#define CHAOS_PRE_SUBSTEP_INTERPOLATION_ISPC_ENABLED_DEFAULT 1
+#endif
+
 // Support run-time toggling on supported platforms in non-shipping configurations
 #if !INTEL_ISPC || UE_BUILD_SHIPPING
 static constexpr bool bChaos_CalculateBounds_ISPC_Enabled = INTEL_ISPC && CHAOS_CALCULATE_BOUNDS_ISPC_ENABLED_DEFAULT;
 static constexpr bool bChaos_PreSimulationTransforms_ISPC_Enabled = INTEL_ISPC && CHAOS_PRE_SIMULATION_TRANSFORMS_ISPC_ENABLED_DEFAULT;
+static constexpr bool bChaos_PreSubstepInterpolation_ISPC_Enabled = INTEL_ISPC && CHAOS_PRE_SUBSTEP_INTERPOLATION_ISPC_ENABLED_DEFAULT;
 #else
 extern bool bChaos_PreSimulationTransforms_ISPC_Enabled;
 extern bool bChaos_CalculateBounds_ISPC_Enabled;
+extern bool bChaos_PreSubstepInterpolation_ISPC_Enabled;
 #endif

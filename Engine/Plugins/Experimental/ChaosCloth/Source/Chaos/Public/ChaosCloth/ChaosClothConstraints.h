@@ -19,11 +19,20 @@ namespace Chaos
 		~FClothConstraints();
 
 		// ---- Solver interface ----
+		UE_DEPRECATED(5.2, "Use the other Initialize supplying AnimationVelocities for correct AnimDrive behavior")
 		void Initialize(
 			Softs::FPBDEvolution* InEvolution,
 			const TArray<Softs::FSolverVec3>& InAnimationPositions,
 			const TArray<Softs::FSolverVec3>& InOldAnimationPositions,
 			const TArray<Softs::FSolverVec3>& InAnimationNormals,
+			int32 InParticleOffset,
+			int32 InNumParticles);
+		void Initialize(
+			Softs::FPBDEvolution* InEvolution,
+			const TArray<Softs::FSolverVec3>& InInterpolatedAnimationPositions,
+			const TArray<Softs::FSolverVec3>& /*InOldAnimationPositions*/, // deprecated
+			const TArray<Softs::FSolverVec3>& InInterpolatedAnimationNormals,
+			const TArray<Softs::FSolverVec3>& InAnimationVelocities,
 			int32 InParticleOffset,
 			int32 InNumParticles);
 		// ---- End of Solver interface ----
@@ -126,8 +135,9 @@ namespace Chaos
 		
 		Softs::FPBDEvolution* Evolution;
 		const TArray<Softs::FSolverVec3>* AnimationPositions;
-		const TArray<Softs::FSolverVec3>* OldAnimationPositions;
+		const TArray<Softs::FSolverVec3>* OldAnimationPositions_deprecated;
 		const TArray<Softs::FSolverVec3>* AnimationNormals;
+		const TArray<Softs::FSolverVec3>* AnimationVelocities;
 
 		int32 ParticleOffset;
 		int32 NumParticles;

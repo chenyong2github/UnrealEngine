@@ -9,10 +9,13 @@ export void ApplyPreSimulationTransforms(uniform FVector4f ParticlesPandInvM[],
 										uniform FVector3f ParticlesV[],
 										uniform FVector3f ParticlesX[],
 										uniform FVector3f OldAnimationPositions[],
+										uniform FVector3f AnimationVelocities[],
 										const uniform float InvM[],
+										const uniform FVector3f AnimationPositions[],
 										const uniform uint32 ParticleGroupIds[],
 										const uniform FTransform3f PreSimulationTransforms[],
 										const uniform FVector3f &DeltaLocalSpaceLocation,
+										const uniform float DeltaTime,
 										const uniform int32 Offset,
 										const uniform int32 Range)
 {
@@ -36,7 +39,38 @@ export void ApplyPreSimulationTransforms(uniform FVector4f ParticlesPandInvM[],
 
 		const varying FVector3f OldAnimationPosition = VectorLoad(&OldAnimationPositions[Index]);
 		const varying FVector3f AP = TransformPosition(GroupSpaceTransform, OldAnimationPosition) - DeltaLocalSpaceLocation;
+
 		VectorStore(&OldAnimationPositions[Index], AP);
+
+		const varying FVector3f AnimationPosition = VectorLoad(&AnimationPositions[Index]);
+		const varying FVector3f AV = (AnimationPosition - AP) / DeltaTime;
+
+		VectorStore(&AnimationVelocities[Index], AV);
+	}
+}
+
+export void PreSubstepInterpolation( uniform FVector3f InterpolatedPositions[],
+									uniform FVector3f InterpolatedNormals[],
+									const uniform FVector3f AnimationPositions[],
+									const uniform FVector3f OldAnimationPositions[],
+									const uniform FVector3f AnimationNormals[],
+									const uniform FVector3f OldAnimationNormals[],
+									const uniform float InterpolationAlpha,
+									const uniform int32 Offset,
+									const uniform int32 Range)
+{
+	foreach(i=Offset ... Range)
+	{
+		const uniform int32 Index = extract(i, 0);
+		const varying FVector3f Position = VectorLoad(&AnimationPositions[Index]);
+		const varying FVector3f OldPosition = VectorLoad(&OldAnimationPositions[Index]);
+		varying FVector3f InterpPosition = InterpolationAlpha * Position + ((uniform float)1.f - InterpolationAlpha) * OldPosition;
+		VectorStore(&InterpolatedPositions[Index], InterpPosition);
+
+		const varying FVector3f Normal = VectorLoad(&AnimationNormals[Index]);
+		const varying FVector3f OldNormal = VectorLoad(&OldAnimationNormals[Index]);
+		varying FVector3f InterpNormal = VectorGetSafeNormal(InterpolationAlpha * Normal + ((uniform float)1.f - InterpolationAlpha) * OldNormal);
+		VectorStore(&InterpolatedNormals[Index], InterpNormal);
 	}
 }
 

@@ -14,6 +14,7 @@ namespace Chaos::Softs
 	class FPBDAnimDriveConstraint final
 	{
 	public:
+		UE_DEPRECATED(5.2, "Use the other constructor supplying AnimationVelocities for correct subframe and damping behavior")
 		FPBDAnimDriveConstraint(
 			const int32 InParticleOffset,
 			const int32 InParticleCount,
@@ -23,9 +24,31 @@ namespace Chaos::Softs
 			const TConstArrayView<FRealSingle>& DampingMultipliers  // Use local indexation
 		)
 			: AnimationPositions(InAnimationPositions)
-			, OldAnimationPositions(InOldAnimationPositions)
+			, OldAnimationPositions_deprecated(InOldAnimationPositions)
+			, AnimationVelocities(InOldAnimationPositions) // Unused when using deprecated apply
 			, ParticleOffset(InParticleOffset)
 			, ParticleCount(InParticleCount)
+			, UseDeprecatedApply(true)
+			, Stiffness(FSolverVec2::UnitVector, StiffnessMultipliers, InParticleCount)
+			, Damping(FSolverVec2::UnitVector, DampingMultipliers, InParticleCount)
+		{
+		}
+
+		FPBDAnimDriveConstraint(
+			const int32 InParticleOffset,
+			const int32 InParticleCount,
+			const TArray<FSolverVec3>& InAnimationPositions,  // Use global indexation (will need adding ParticleOffset)
+			const TArray<FSolverVec3>& /*InOldAnimationPositions*/,  // deprecated
+			const TArray<FSolverVec3>& InAnimationVelocities,  // Use global indexation (will need adding ParticleOffset)
+			const TConstArrayView<FRealSingle>& StiffnessMultipliers,  // Use local indexation
+			const TConstArrayView<FRealSingle>& DampingMultipliers  // Use local indexation
+		)
+			: AnimationPositions(InAnimationPositions)
+			, OldAnimationPositions_deprecated(InAnimationVelocities) // Unused when not using apply
+			, AnimationVelocities(InAnimationVelocities)
+			, ParticleOffset(InParticleOffset)
+			, ParticleCount(InParticleCount)
+			, UseDeprecatedApply(false)
 			, Stiffness(FSolverVec2::UnitVector, StiffnessMultipliers, InParticleCount)
 			, Damping(FSolverVec2::UnitVector, DampingMultipliers, InParticleCount)
 		{
@@ -60,21 +83,46 @@ namespace Chaos::Softs
 			{
 				if (Damping.HasWeightMap())
 				{
-					PhysicsParallelFor(ParticleCount, [this, &InParticles, &Dt](int32 Index)  // TODO: profile needed for these parallel loop based on particle count
+					if (UseDeprecatedApply)
 					{
-						const FSolverReal ParticleStiffness = Stiffness[Index];
-						const FSolverReal ParticleDamping = Damping[Index];
-						ApplyHelper(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
-					});
+						PhysicsParallelFor(ParticleCount, [this, &InParticles, &Dt](int32 Index)  // TODO: profile needed for these parallel loop based on particle count
+							{
+								const FSolverReal ParticleStiffness = Stiffness[Index];
+								const FSolverReal ParticleDamping = Damping[Index];
+								ApplyHelper_Deprecated(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
+							});
+
+					}
+					else
+					{
+						PhysicsParallelFor(ParticleCount, [this, &InParticles, &Dt](int32 Index)  // TODO: profile needed for these parallel loop based on particle count
+							{
+								const FSolverReal ParticleStiffness = Stiffness[Index];
+								const FSolverReal ParticleDamping = Damping[Index];
+								ApplyHelper(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
+							});
+					}
 				}
 				else
 				{
 					const FSolverReal ParticleDamping = (FSolverReal)Damping;
-					PhysicsParallelFor(ParticleCount, [this, &InParticles, ParticleDamping, &Dt](int32 Index)
+					if (UseDeprecatedApply)
 					{
-						const FSolverReal ParticleStiffness = Stiffness[Index];
-						ApplyHelper(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
-					});
+						PhysicsParallelFor(ParticleCount, [this, &InParticles, ParticleDamping, &Dt](int32 Index)
+							{
+								const FSolverReal ParticleStiffness = Stiffness[Index];
+								ApplyHelper_Deprecated(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
+							});
+
+					}
+					else
+					{
+						PhysicsParallelFor(ParticleCount, [this, &InParticles, ParticleDamping, &Dt](int32 Index)
+							{
+								const FSolverReal ParticleStiffness = Stiffness[Index];
+								ApplyHelper(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
+							});
+					}
 				}
 			}
 			else
@@ -82,19 +130,40 @@ namespace Chaos::Softs
 				const FSolverReal ParticleStiffness = (FSolverReal)Stiffness;
 				if (Damping.HasWeightMap())
 				{
-					PhysicsParallelFor(ParticleCount, [this, &InParticles, &ParticleStiffness, &Dt](int32 Index)
+					if (UseDeprecatedApply)
 					{
-						const FSolverReal ParticleDamping = Damping[Index];
-						ApplyHelper(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
-					});
+						PhysicsParallelFor(ParticleCount, [this, &InParticles, &ParticleStiffness, &Dt](int32 Index)
+							{
+								const FSolverReal ParticleDamping = Damping[Index];
+								ApplyHelper_Deprecated(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
+							});
+					}
+					else
+					{
+						PhysicsParallelFor(ParticleCount, [this, &InParticles, &ParticleStiffness, &Dt](int32 Index)
+							{
+								const FSolverReal ParticleDamping = Damping[Index];
+								ApplyHelper(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
+							});
+					}
 				}
 				else
 				{
 					const FSolverReal ParticleDamping = (FSolverReal)Damping;
-					PhysicsParallelFor(ParticleCount, [this, &InParticles, &ParticleStiffness, &ParticleDamping, &Dt](int32 Index)
+					if (UseDeprecatedApply)
 					{
-						ApplyHelper(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
-					});
+						PhysicsParallelFor(ParticleCount, [this, &InParticles, &ParticleStiffness, &ParticleDamping, &Dt](int32 Index)
+							{
+								ApplyHelper_Deprecated(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
+							});
+					}
+					else
+					{
+						PhysicsParallelFor(ParticleCount, [this, &InParticles, &ParticleStiffness, &ParticleDamping, &Dt](int32 Index)
+							{
+								ApplyHelper(InParticles, ParticleStiffness, ParticleDamping, Dt, Index);
+							});
+					}
 				}
 			}
 		}
@@ -109,8 +178,28 @@ namespace Chaos::Softs
 			}
 
 			FSolverVec3& ParticlePosition = Particles.P(ParticleIndex);
+
+			ParticlePosition -= InStiffness * (ParticlePosition - AnimationPositions[ParticleIndex]);
+
+			const FSolverVec3 ParticleDisplacement = ParticlePosition - Particles.X(ParticleIndex);
+			const FSolverVec3 AnimationDisplacement = (AnimationVelocities[ParticleIndex]) * Dt;
+			const FSolverVec3 RelativeDisplacement = ParticleDisplacement - AnimationDisplacement;
+
+			ParticlePosition -= InDamping * RelativeDisplacement;
+		}
+
+		// This method does not have the correct substepping or damping behavior, but retaining for backwards compatibility until deprecated constructor can be removed
+		inline void ApplyHelper_Deprecated(FSolverParticles& Particles, const FSolverReal InStiffness, const FSolverReal InDamping, const FSolverReal Dt, const int32 Index) const
+		{
+			const int32 ParticleIndex = ParticleOffset + Index;
+			if (Particles.InvM(ParticleIndex) == (FSolverReal)0.)
+			{
+				return;
+			}
+
+			FSolverVec3& ParticlePosition = Particles.P(ParticleIndex);
 			const FSolverVec3& AnimationPosition = AnimationPositions[ParticleIndex];
-			const FSolverVec3& OldAnimationPosition = OldAnimationPositions[ParticleIndex];
+			const FSolverVec3& OldAnimationPosition = OldAnimationPositions_deprecated[ParticleIndex];
 
 			const FSolverVec3 ParticleDisplacement = ParticlePosition - Particles.X(ParticleIndex);
 			const FSolverVec3 AnimationDisplacement = OldAnimationPosition - AnimationPosition;
@@ -121,9 +210,11 @@ namespace Chaos::Softs
 
 	private:
 		const TArray<FSolverVec3>& AnimationPositions;  // Use global index (needs adding ParticleOffset)
-		const TArray<FSolverVec3>& OldAnimationPositions;  // Use global index (needs adding ParticleOffset)
+		const TArray<FSolverVec3>& OldAnimationPositions_deprecated;  // Use global index (needs adding ParticleOffset). Only used by ApplyHelper_Deprecated until old constructor can be removed.
+		const TArray<FSolverVec3>& AnimationVelocities;  // Use global index (needs adding ParticleOffset).
 		const int32 ParticleOffset;
 		const int32 ParticleCount;
+		const bool UseDeprecatedApply;
 
 		FPBDStiffness Stiffness;
 		FPBDStiffness Damping;

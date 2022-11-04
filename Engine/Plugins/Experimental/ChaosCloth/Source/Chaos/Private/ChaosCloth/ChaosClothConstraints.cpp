@@ -21,8 +21,9 @@ namespace Chaos {
 FClothConstraints::FClothConstraints()
 	: Evolution(nullptr)
 	, AnimationPositions(nullptr)
-	, OldAnimationPositions(nullptr)
+	, OldAnimationPositions_deprecated(nullptr)
 	, AnimationNormals(nullptr)
+	, AnimationVelocities(nullptr)
 	, ParticleOffset(0)
 	, NumParticles(0)
 	, ConstraintInitOffset(INDEX_NONE)
@@ -50,8 +51,27 @@ void FClothConstraints::Initialize(
 {
 	Evolution = InEvolution;
 	AnimationPositions = &InAnimationPositions;
-	OldAnimationPositions = &InOldAnimationPositions;
+	OldAnimationPositions_deprecated = &InOldAnimationPositions;
 	AnimationNormals = &InAnimationNormals;
+	AnimationVelocities = nullptr;
+	ParticleOffset = InParticleOffset;
+	NumParticles = InNumParticles;
+}
+
+void FClothConstraints::Initialize(
+	Softs::FPBDEvolution* InEvolution,
+	const TArray<Softs::FSolverVec3>& InInterpolatedAnimationPositions,
+	const TArray<Softs::FSolverVec3>& /*InOldAnimationPositions*/, // deprecated
+	const TArray<Softs::FSolverVec3>& InInterpolatedAnimationNormals,
+	const TArray<Softs::FSolverVec3>& InAnimationVelocities,
+	int32 InParticleOffset,
+	int32 InNumParticles)
+{
+	Evolution = InEvolution;
+	AnimationPositions = &InInterpolatedAnimationPositions;
+	OldAnimationPositions_deprecated = nullptr;
+	AnimationNormals = &InInterpolatedAnimationNormals;
+	AnimationVelocities = &InAnimationVelocities;
 	ParticleOffset = InParticleOffset;
 	NumParticles = InNumParticles;
 }
@@ -546,13 +566,30 @@ void FClothConstraints::SetBackstopConstraints(const TConstArrayView<FRealSingle
 
 void FClothConstraints::SetAnimDriveConstraints(const TConstArrayView<FRealSingle>& AnimDriveStiffnessMultipliers, const TConstArrayView<FRealSingle>& AnimDriveDampingMultipliers)
 {
-	AnimDriveConstraints = MakeShared<Softs::FPBDAnimDriveConstraint>(
-		ParticleOffset,
-		NumParticles,
-		*AnimationPositions,
-		*OldAnimationPositions,
-		AnimDriveStiffnessMultipliers,
-		AnimDriveDampingMultipliers);
+	if (AnimationVelocities)
+	{
+		AnimDriveConstraints = MakeShared<Softs::FPBDAnimDriveConstraint>(
+			ParticleOffset,
+			NumParticles,
+			*AnimationPositions,
+			TArray<Softs::FSolverVec3>(),
+			*AnimationVelocities,
+			AnimDriveStiffnessMultipliers,
+			AnimDriveDampingMultipliers);
+	}
+	else
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		// Deprecated behavior until old Initialize can be removed
+		AnimDriveConstraints = MakeShareable( new Softs::FPBDAnimDriveConstraint(
+			ParticleOffset,
+			NumParticles,
+			*AnimationPositions,
+			*OldAnimationPositions_deprecated,
+			AnimDriveStiffnessMultipliers,
+			AnimDriveDampingMultipliers));
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 	++NumConstraintInits;  // Uses init to update the property tables
 	++NumConstraintRules;
 }
