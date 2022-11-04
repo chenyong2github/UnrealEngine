@@ -11,6 +11,7 @@
 #include "UIFPlayerComponent.generated.h"
 
 class UUIFrameworkPlayerComponent;
+class UUIFrameworkPresenter;
 class UUIFrameworkWidget;
 class UWidget;
 struct FStreamableHandle;
@@ -26,6 +27,18 @@ enum class EUIFrameworkGameLayerType : uint8
 	PlayerScreen,
 };
 
+/**
+ *
+ */
+UENUM(BlueprintType)
+enum class EUIFrameworkInputMode : uint8
+{
+	// Input is received by the UI.
+	UI,
+	// Input is received by the Game.
+	Game,
+};
+
 
 /**
  *
@@ -39,6 +52,9 @@ struct FUIFrameworkGameLayerSlot : public FUIFrameworkSlotBase
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI Framework")
 	int32 ZOrder = 0;
+	
+	UPROPERTY(BlueprintReadWrite, Category = "UI Framework")
+	EUIFrameworkInputMode InputMode = EUIFrameworkInputMode::Game;
 
 	UPROPERTY(BlueprintReadWrite, Category = "UI Framework")
 	EUIFrameworkGameLayerType Type = EUIFrameworkGameLayerType::Viewport;
@@ -129,6 +145,7 @@ public:
 	}
 
 	//~ Begin UActorComponent
+	virtual void InitializeComponent() override;
 	virtual void UninitializeComponent() override;
 	virtual bool ReplicateSubobjects(class UActorChannel* Channel, class FOutBunch* Bunch, FReplicationFlags* RepFlags) override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
@@ -149,6 +166,9 @@ private:
 
 	UPROPERTY(Replicated)
 	FUIFrameworkWidgetTree WidgetTree;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UUIFrameworkPresenter> Presenter;
 
 	//~ Widget can be net replicated but not constructed yet.
 	UPROPERTY(Transient)

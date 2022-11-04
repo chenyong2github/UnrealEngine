@@ -6,8 +6,9 @@
 #include "Modules/ModuleInterface.h"
 #include "Types/UIFParentWidget.h"
 
-class UUIFrameworkWidget;
 class UUIFrameworkPlayerComponent;
+class UUIFrameworkPresenter;
+class UUIFrameworkWidget;
 
 /**
  * 
@@ -27,10 +28,10 @@ public:
 	 * Will remove the widget from the tree and the replication owner.
 	 */
 	static void AuthorityDetachWidgetFromParent(UUIFrameworkWidget* Child);
-	
-	using FOldWidgetToNewWidgetMap = TMap<UUIFrameworkWidget*, UUIFrameworkWidget*>;
-	DECLARE_DELEGATE_OneParam(FOnReattachWidgets, FOldWidgetToNewWidgetMap);
-	FOnReattachWidgets AuthorityOnReattachWidgets;
+
+	//~ this should be a project setting
+	static void SetPresenterClass(TSubclassOf<UUIFrameworkPresenter> Director);
+	static TSubclassOf<UUIFrameworkPresenter> GetPresenterClass();
 
 private:
 	static void AuthoritySetParentReplicationOwnerRecursive(UUIFrameworkWidget* Widget);

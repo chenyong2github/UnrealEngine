@@ -4,8 +4,14 @@
 
 #include "Modules/ModuleManager.h"
 #include "UIFPlayerComponent.h"
+#include "UIFPresenter.h"
 #include "UIFWidget.h"
 #include "UObject/Package.h"
+
+namespace UE::UIFramework::Private
+{
+	static TSubclassOf<UUIFrameworkPresenter> Director;
+}
 
 UUIFrameworkWidget* FUIFrameworkModule::AuthorityAttachWidget(UUIFrameworkPlayerComponent* ReplicationOwner, FUIFrameworkParentWidget Parent, UUIFrameworkWidget* Child)
 {
@@ -91,6 +97,16 @@ void FUIFrameworkModule::AuthorityDetachWidgetFromParent(UUIFrameworkWidget* Chi
 			Child->AuthorityGetParent().AsPlayerComponent()->AuthorityRemoveChild(Child);
 		}
 	}
+}
+
+void FUIFrameworkModule::SetPresenterClass(TSubclassOf<UUIFrameworkPresenter> InDirector)
+{
+	UE::UIFramework::Private::Director = InDirector;
+}
+
+TSubclassOf<UUIFrameworkPresenter> FUIFrameworkModule::GetPresenterClass()
+{
+	return UE::UIFramework::Private::Director.Get() ? UE::UIFramework::Private::Director : TSubclassOf<UUIFrameworkPresenter>(UUIFrameworkGameViewportPresenter::StaticClass());
 }
 
 IMPLEMENT_MODULE(FUIFrameworkModule, UIFramework)

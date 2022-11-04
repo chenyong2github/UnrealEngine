@@ -259,7 +259,34 @@ bool FUIFrameworkWidgetTree::AuthorityRemoveChildRecursiveInternal(UUIFrameworkW
 		return true;
 	}
 	return false;
+}
 
+void FUIFrameworkWidgetTree::AuthorityAddAllWidgetsFromActorChannel()
+{
+	if (ensure(ReplicatedOwner) && ReplicatedOwner->IsUsingRegisteredSubObjectList())
+	{
+		for (const FUIFrameworkWidgetTreeEntry& Entry : Entries)
+		{
+			if (Entry.Child)
+			{
+				ReplicatedOwner->AddReplicatedSubObject(Entry.Child);
+			}
+		}
+	}
+}
+
+void FUIFrameworkWidgetTree::AuthorityRemoveAllWidgetsFromActorChannel()
+{
+	if (ensure(ReplicatedOwner) && ReplicatedOwner->IsUsingRegisteredSubObjectList())
+	{
+		for (const FUIFrameworkWidgetTreeEntry& Entry : Entries)
+		{
+			if (Entry.Child && ReplicatedOwner->IsReplicatedSubObjectRegistered(Entry.Child))
+			{
+				ReplicatedOwner->RemoveReplicatedSubObject(Entry.Child);
+			}
+		}
+	}
 }
 
 FUIFrameworkWidgetTreeEntry* FUIFrameworkWidgetTree::LocalGetEntryByReplicationId(int32 ReplicationId)

@@ -107,6 +107,12 @@ public:
 	UUIFrameworkWidget* FindWidgetById(FUIFrameworkWidgetId WidgetId);
 	const UUIFrameworkWidget* FindWidgetById(FUIFrameworkWidgetId WidgetId) const;
 
+	/** Add all widgets in the tree to the ActorChannel replicated list */
+	void AuthorityAddAllWidgetsFromActorChannel();
+
+	/** Removes all widgets added to the ActorChannel replicated list */
+	void AuthorityRemoveAllWidgetsFromActorChannel();
+
 #if UE_UIFRAMEWORK_WITH_DEBUG
 	void AuthorityTest() const;
 #endif
