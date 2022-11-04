@@ -81,6 +81,17 @@ DECLARE_CYCLE_STAT(TEXT("Niagara - HlslTranslator - GenerateFunctionSignature_Fi
 // because editor tickables aren't ticked during cooking
 void FNiagaraShaderQueueTickable::ProcessQueue()
 {
+	static bool bReentrantProcessingGuard = false;
+
+	// The current implementation of the compilation queue will drain the contents during one invocation of ProcessQueue.  If processing
+	// the results of one of the shader script indirectly results in another invocation of ProcessQueue we'll run into trouble because
+	// the contents of the queue will be double processed.  While we could move the queue to a local variable to process to prevent this
+	// double processing we'll still run into trouble because the second scope could be expecting a result, which won't be available till
+	// the earlier scope is complete.  Needs a better system...
+	checkf(bReentrantProcessingGuard == false, TEXT("FNiagaraShaderQueueTickable::ProcessQueue() is not re-entrant!  Only a single scope can process results!"));
+
+	TGuardValue<bool> GuardProcessQueue(bReentrantProcessingGuard, true);
+
 	check(IsInGameThread());
 
 	for (FNiagaraCompilationQueue::NiagaraCompilationQueueItem &Item : FNiagaraCompilationQueue::Get()->GetQueue())

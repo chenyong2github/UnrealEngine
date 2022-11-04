@@ -182,7 +182,9 @@ void FNiagaraSystemUpdateContext::Add(const FVersionedNiagaraEmitter& Emitter, b
 		UNiagaraComponent* Comp = *It;
 		check(Comp);
 		UNiagaraSystem* System = Comp->GetAsset();
-		if (System && System->UsesEmitter(Emitter))
+
+		// only worry about systems that are fully loaded (and don't force it to be fully loaded just because it shows up in the iterator
+		if (System && System->bFullyLoaded && System->UsesEmitter(Emitter))
 		{
 			bool bAllowDestroySystemSim = true;
 			AddInternal(Comp, bReInit, bAllowDestroySystemSim);
@@ -196,8 +198,10 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraScript* Script, bool bReInit
 	{
 		UNiagaraComponent* Comp = *It;
 		check(Comp);
+
+		// only worry about systems that are fully loaded (and don't force it to be fully loaded just because it shows up in the iterator
 		UNiagaraSystem* System = Comp->GetAsset();
-		if (System && System->UsesScript(Script))
+		if (System && System->bFullyLoaded && System->UsesScript(Script))
 		{
 			bool bAllowDestroySystemSim = true;
 			AddInternal(Comp, bReInit, bAllowDestroySystemSim);
@@ -212,7 +216,9 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 		UNiagaraComponent* Comp = *It;
 		check(Comp);
 		UNiagaraSystem* System = Comp->GetAsset();
-		if (System && System->UsesCollection(Collection))
+
+		// only worry about systems that are fully loaded (and don't force it to be fully loaded just because it shows up in the iterator
+		if (System && System->bFullyLoaded && System->UsesCollection(Collection))
 		{
 			bool bAllowDestroySystemSim = true;
 			AddInternal(Comp, bReInit, bAllowDestroySystemSim);
