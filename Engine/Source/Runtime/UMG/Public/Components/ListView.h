@@ -12,6 +12,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnListEntryInitializedDynamic, UOb
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnListItemSelectionChangedDynamic, UObject*, Item, bool, bIsSelected);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnItemIsHoveredChangedDynamic, UObject*, Item, bool, bIsHovered);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnListItemScrolledIntoViewDynamic, UObject*, Item, UUserWidget*, Widget);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnListViewScrolledDynamic, float, ItemOffset, float, DistanceRemaining);
 
 /**
  * A virtualized list that allows up to thousands of items to be displayed.
@@ -145,6 +146,7 @@ protected:
 	virtual void OnItemDoubleClickedInternal(UObject* Item) override;
 	virtual void OnSelectionChangedInternal(UObject* FirstSelectedItem) override;
 	virtual void OnItemScrolledIntoViewInternal(UObject* Item, UUserWidget& EntryWidget) override;
+	virtual void OnListViewScrolledInternal(float ItemOffset, float DistanceRemaining) override;
 
 	void HandleOnEntryInitializedInternal(UObject* Item, const TSharedRef<ITableRow>& TableRow);
 
@@ -272,4 +274,7 @@ private:
 
 	UPROPERTY(BlueprintAssignable, Category = Events, meta = (DisplayName = "On Item Scrolled Into View"))
 	FOnListItemScrolledIntoViewDynamic BP_OnItemScrolledIntoView;
+	
+	UPROPERTY(BlueprintAssignable, Category = Events, meta = (DisplayName = "On List View Scrolled"))
+	FOnListViewScrolledDynamic BP_OnListViewScrolled;	
 };

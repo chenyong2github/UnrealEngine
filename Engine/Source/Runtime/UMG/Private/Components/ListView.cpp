@@ -349,22 +349,32 @@ UUserWidget& UListView::OnGenerateEntryWidgetInternal(UObject* Item, TSubclassOf
 
 void UListView::OnItemClickedInternal(UObject* ListItem)
 {
+	ITypedUMGListView::OnItemClickedInternal(ListItem);
 	BP_OnItemClicked.Broadcast(ListItem);
 }
 
 void UListView::OnItemDoubleClickedInternal(UObject* ListItem)
 {
+	ITypedUMGListView::OnItemDoubleClickedInternal(ListItem);
 	BP_OnItemDoubleClicked.Broadcast(ListItem);
 }
 
 void UListView::OnSelectionChangedInternal(UObject* FirstSelectedItem)
 {
+	ITypedUMGListView::OnSelectionChangedInternal(FirstSelectedItem);
 	BP_OnItemSelectionChanged.Broadcast(FirstSelectedItem, FirstSelectedItem != nullptr);
 }
 
 void UListView::OnItemScrolledIntoViewInternal(UObject* ListItem, UUserWidget& EntryWidget)
 {
+	ITypedUMGListView::OnItemScrolledIntoViewInternal(ListItem, EntryWidget);
 	BP_OnItemScrolledIntoView.Broadcast(ListItem, &EntryWidget);
+}
+
+void UListView::OnListViewScrolledInternal(float ItemOffset, float DistanceRemaining)
+{
+	ITypedUMGListView::OnListViewScrolledInternal(ItemOffset, DistanceRemaining);
+	BP_OnListViewScrolled.Broadcast(ItemOffset, DistanceRemaining);
 }
 
 /////////////////////////////////////////////////////
