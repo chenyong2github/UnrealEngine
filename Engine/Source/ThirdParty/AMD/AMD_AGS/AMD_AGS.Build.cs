@@ -15,7 +15,10 @@ public class AMD_AGS : ModuleRules
 		{
 			string AmdApiLibPath = AmdAgsPath + "lib/VS2017";
 
-			string LibraryName = "amd_ags_x64_2017_MD.lib";
+			string LibraryName = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
+				? "amd_ags_x64_2017_MDd.lib"
+				: "amd_ags_x64_2017_MD.lib";
+
 			PublicAdditionalLibraries.Add(Path.Combine(AmdApiLibPath, LibraryName));
 		}
 	}
