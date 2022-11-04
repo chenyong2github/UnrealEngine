@@ -54,6 +54,9 @@ public:
 	/** Evaluation function called by derived classes to process the targeting request */
 	virtual void Execute(const FTargetingRequestHandle& TargetingHandle) const;
 
+	/** Lifecycle function called when the task was cancelled while in the Executing Async state */
+	virtual void CancelAsync() const;
+
 protected:
 	/** Helper method to check if this task is running in an async targeting request */
 	bool IsAsyncTargetingRequest(const FTargetingRequestHandle& TargetingHandle) const;

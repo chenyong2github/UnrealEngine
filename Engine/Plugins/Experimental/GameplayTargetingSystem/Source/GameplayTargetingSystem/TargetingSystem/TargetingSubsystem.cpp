@@ -360,16 +360,21 @@ void UTargetingSubsystem::RemoveAsyncTargetingRequestWithHandle(FTargetingReques
 {
 	if (TargetingHandle.IsValid())
 	{
+		if (UTargetingTask* ExecutingTask = FindCurrentExecutingTask(TargetingHandle))
+		{
+			ExecutingTask->CancelAsync();
+		}
+
 		AsyncTargetingRequests.RemoveAll([TargetingHandle](const FTargetingRequestHandle& Handle)
-			{
-				return (TargetingHandle == Handle);
-			});
+		{
+			return (TargetingHandle == Handle);
+		});
 
 		UTargetingSubsystem::ReleaseTargetRequestHandle(TargetingHandle);
 	}
 }
 
-void UTargetingSubsystem::StartAsyncTargetingRequest(const UTargetingPreset* TargetingPreset, const FTargetingSourceContext& SourceContext, FTargetingRequestDynamicDelegate CompletionDynamicDelegate)
+FTargetingRequestHandle UTargetingSubsystem::StartAsyncTargetingRequest(const UTargetingPreset* TargetingPreset, const FTargetingSourceContext& SourceContext, FTargetingRequestDynamicDelegate CompletionDynamicDelegate)
 {
 	FTargetingRequestHandle RequestHandle;
 	if (ensure(TargetingPreset))
@@ -389,6 +394,8 @@ void UTargetingSubsystem::StartAsyncTargetingRequest(const UTargetingPreset* Tar
 		FTargetingRequestDelegate CompletionDelegate;
 		StartAsyncTargetingRequestWithHandleInternal(RequestHandle, CompletionDelegate, CompletionDynamicDelegate);
 	}
+	
+	return RequestHandle;
 }
 
 void UTargetingSubsystem::ExecuteTargetingRequestWithHandleInternal(FTargetingRequestHandle TargetingHandle, FTargetingRequestDelegate CompletionDelegate, FTargetingRequestDynamicDelegate CompletionDynamicDelegate) const
@@ -623,6 +630,33 @@ void UTargetingSubsystem::OnShowDebugInfo(AHUD* HUD, UCanvas* Canvas, const FDeb
 			}
 		}
 	}
+}
+
+UTargetingTask* UTargetingSubsystem::FindCurrentExecutingTask(FTargetingRequestHandle Handle) const
+{
+	if (Handle.IsValid())
+	{
+		if (FTargetingAsyncTaskData* TaskData = FTargetingAsyncTaskData::Find(Handle))
+		{
+			const int32 CurrentTaskIndex = TaskData->CurrentAsyncTaskIndex;
+
+			if (TaskData->CurrentAsyncTaskState == ETargetingTaskAsyncState::Executing)
+			{
+				if (const FTargetingTaskSet** PtrToTaskSet = FTargetingTaskSet::Find(Handle))
+				{
+					if (const FTargetingTaskSet* TaskSet = (*PtrToTaskSet))
+					{
+						if (ensure(TaskSet->Tasks.IsValidIndex(CurrentTaskIndex)))
+						{
+							return TaskSet->Tasks[CurrentTaskIndex];
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return nullptr;
 }
 
 void UTargetingSubsystem::DisplayDebug(class UCanvas* Canvas, const class FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)

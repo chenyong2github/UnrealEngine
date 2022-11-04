@@ -19,6 +19,10 @@ void UTargetingTask::Execute(const FTargetingRequestHandle& TargetingHandle) con
 {
 }
 
+void UTargetingTask::CancelAsync() const
+{
+}
+
 bool UTargetingTask::IsAsyncTargetingRequest(const FTargetingRequestHandle& TargetingHandle) const
 {
 	if (FTargetingAsyncTaskData* AsyncStateData = FTargetingAsyncTaskData::Find(TargetingHandle))

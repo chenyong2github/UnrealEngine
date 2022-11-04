@@ -140,11 +140,12 @@ public:
 	TARGETINGSYSTEM_API void StartAsyncTargetingRequestWithHandle(FTargetingRequestHandle TargetingHandle, FTargetingRequestDelegate CompletionDelegate);
 
 	/** Method to remove an async targeting request with a given targeting handle */
+	UFUNCTION(BlueprintCallable, Category = "Gameplay Targeting | Async Request")
 	TARGETINGSYSTEM_API void RemoveAsyncTargetingRequestWithHandle(FTargetingRequestHandle& TargetingHandle);
 
 	/** Method to queue an async targeting request based on a gameplay targeting preset. */
-	UFUNCTION(BlueprintCallable, BlueprintPure = false, Category = "Gameplay Targeting | Async Request ")
-	void StartAsyncTargetingRequest(const UTargetingPreset* TargetingPreset, const FTargetingSourceContext& InSourceContext, FTargetingRequestDynamicDelegate CompletionDynamicDelegate);
+	UFUNCTION(BlueprintCallable, Category = "Gameplay Targeting | Async Request")
+	FTargetingRequestHandle StartAsyncTargetingRequest(const UTargetingPreset* TargetingPreset, const FTargetingSourceContext& InSourceContext, FTargetingRequestDynamicDelegate CompletionDynamicDelegate);
 
 private:
 	/** Internal method to handle running an immediate targeting request */
@@ -160,6 +161,7 @@ private:
 	UPROPERTY(Transient)
 	TArray<FTargetingRequestHandle> AsyncTargetingRequests;
 
+	UTargetingTask* FindCurrentExecutingTask(FTargetingRequestHandle Handle) const;
 	/** ~Targeting Request Methods */
 
 	/** Blueprint Helper Methods */
