@@ -938,7 +938,13 @@ FAssetThumbnailPool::FAssetThumbnailPool( uint32 InNumInPool, double InMaxFrameT
 
 FAssetThumbnailPool::~FAssetThumbnailPool()
 {
-	UThumbnailManager::Get().GetOnThumbnailDirtied().RemoveAll(this);
+	UThumbnailManager* ThumbnailManager = UThumbnailManager::TryGet();
+	if ( IsValid( ThumbnailManager ) &&
+		 !ThumbnailManager->HasAnyFlags( RF_BeginDestroyed | RF_FinishDestroyed ) )
+	{
+		ThumbnailManager->GetOnThumbnailDirtied().RemoveAll(this);
+	}
+
 	FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
 
 	// Release all the texture resources

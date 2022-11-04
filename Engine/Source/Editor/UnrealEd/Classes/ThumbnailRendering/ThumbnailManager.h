@@ -211,6 +211,9 @@ public:
 	/** Returns the thumbnail manager and creates it if missing */
 	UNREALED_API static UThumbnailManager& Get();
 
+	/** Returns the thumbnail manager if it exists */
+	UNREALED_API static UThumbnailManager* TryGet();
+
 	/** Writes out a png of what is currently in the specified viewport, scaled appropriately */
 	UNREALED_API static bool CaptureProjectThumbnail(FViewport* Viewport, const FString& OutputFilename, bool bUseSCCIfPossible);
 

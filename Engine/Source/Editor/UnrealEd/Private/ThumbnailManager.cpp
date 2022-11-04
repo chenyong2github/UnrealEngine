@@ -270,6 +270,11 @@ UThumbnailManager& UThumbnailManager::Get()
 	return *ThumbnailManagerSingleton;
 }
 
+UThumbnailManager* UThumbnailManager::TryGet()
+{
+	return ThumbnailManagerSingleton;
+}
+
 void UThumbnailManager::SetupCheckerboardTexture()
 {
 	if (CheckerboardTexture)
