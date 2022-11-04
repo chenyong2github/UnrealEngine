@@ -877,7 +877,7 @@ namespace EpicGames.Perforce.Managed
 				StreamSnapshot? contents;
 				if (cacheFile == null)
 				{
-					contents = await FindClientContentsWithoutHaveTableAsync(perforce, changeNumber, cancellationToken);
+					contents = await FindClientContentsWithoutHaveTableAsync(perforce, streamName, changeNumber, cancellationToken);
 				}
 				else
 				{
@@ -1564,11 +1564,15 @@ namespace EpicGames.Perforce.Managed
 		/// Get the contents of the client without using the have table
 		/// </summary>
 		/// <param name="perforceClient">The client connection</param>
+		/// <param name="streamName">Name of stream</param>
 		/// <param name="changeNumber">The change number being synced. This must be specified in order to get the digest at the correct revision.</param>
 		/// <param name="cancellationToken">Cancellation token</param>
-		public async Task<StreamSnapshotFromMemory> FindClientContentsWithoutHaveTableAsync(IPerforceConnection perforceClient, int changeNumber, CancellationToken cancellationToken)
+		public async Task<StreamSnapshotFromMemory> FindClientContentsWithoutHaveTableAsync(IPerforceConnection perforceClient, string streamName, int changeNumber, CancellationToken cancellationToken)
 		{
-			DepotStreamTreeBuilder builder = new ($"//{perforceClient.Settings.ClientName}/");
+			DepotStreamTreeBuilder builder = new ();
+			
+			StreamRecord streamRecord = await perforceClient.GetStreamAsync(streamName, true, cancellationToken);
+			PerforceViewMap viewMap = PerforceViewMap.Parse(streamRecord.View);
 			
 			// Re-use a single class instance as there can be millions of records
 			FStatRecordWithoutHaveTable record = new ();
@@ -1578,9 +1582,16 @@ namespace EpicGames.Perforce.Managed
 				rawRecord.CopyInto(FStatRecordWithoutHaveTable.Utf8FieldNames, record.Values);
 				if (record.Digest.IsEmpty) { return; }
 				
-				Md5Hash md5Hash = Md5Hash.Parse(record.Digest);
-				FileContentId fileContentId = new (md5Hash, record.HeadType);
-				builder.AddDepotFile(new StreamFile(record.DepotFile, record.FileSize, fileContentId, record.HeadRev));
+				if (viewMap.TryMapFile(record.DepotFile.ToString(), StringComparison.Ordinal, out string clientFile))
+				{
+					Md5Hash md5Hash = Md5Hash.Parse(record.Digest);
+					FileContentId fileContentId = new (md5Hash, record.HeadType);
+					builder.AddFile(clientFile, new StreamFile(record.DepotFile, record.FileSize, fileContentId, record.HeadRev));					
+				}
+				else
+				{
+					_logger.LogError("Failed to view map depot file {DepotFile}", record.DepotFile.ToString());
+				}
 			}
 
 			string fileSpec = $"//{perforceClient.Settings.ClientName}/...@{changeNumber}";
@@ -1635,7 +1646,7 @@ namespace EpicGames.Perforce.Managed
 		{
 			StreamSnapshotFromMemory contents = useHaveTable
 				? await FindClientContentsAsync(perforceClient, changeNumber, cancellationToken)
-				: await FindClientContentsWithoutHaveTableAsync(perforceClient, changeNumber, cancellationToken);
+				: await FindClientContentsWithoutHaveTableAsync(perforceClient, basePath.ToString(), changeNumber, cancellationToken);
 
 			using (Trace("WriteMetadata"))
 			using (ILoggerProgress scope = _logger.BeginProgressScope($"Saving metadata to {cacheFile}..."))
