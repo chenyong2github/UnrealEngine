@@ -1624,41 +1624,8 @@ enum EPrimitiveType
 	// Supported only if GRHISupportsRectTopology == true.
 	PT_RectList,
 
-	// Tesselation patch list. Supported only if tesselation is supported.
-	PT_1_ControlPointPatchList,
-	PT_2_ControlPointPatchList,
-	PT_3_ControlPointPatchList,
-	PT_4_ControlPointPatchList,
-	PT_5_ControlPointPatchList,
-	PT_6_ControlPointPatchList,
-	PT_7_ControlPointPatchList,
-	PT_8_ControlPointPatchList,
-	PT_9_ControlPointPatchList,
-	PT_10_ControlPointPatchList,
-	PT_11_ControlPointPatchList,
-	PT_12_ControlPointPatchList,
-	PT_13_ControlPointPatchList,
-	PT_14_ControlPointPatchList,
-	PT_15_ControlPointPatchList,
-	PT_16_ControlPointPatchList,
-	PT_17_ControlPointPatchList,
-	PT_18_ControlPointPatchList,
-	PT_19_ControlPointPatchList,
-	PT_20_ControlPointPatchList,
-	PT_21_ControlPointPatchList,
-	PT_22_ControlPointPatchList,
-	PT_23_ControlPointPatchList,
-	PT_24_ControlPointPatchList,
-	PT_25_ControlPointPatchList,
-	PT_26_ControlPointPatchList,
-	PT_27_ControlPointPatchList,
-	PT_28_ControlPointPatchList,
-	PT_29_ControlPointPatchList,
-	PT_30_ControlPointPatchList,
-	PT_31_ControlPointPatchList,
-	PT_32_ControlPointPatchList,
 	PT_Num,
-	PT_NumBits = 6
+	PT_NumBits = 3
 };
 static_assert(PT_Num <= (1 << 8), "EPrimitiveType doesn't fit in a byte");
 static_assert(PT_Num <= (1 << PT_NumBits), "PT_NumBits is too small");

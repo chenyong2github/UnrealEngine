@@ -2285,8 +2285,7 @@ void FOpenGLDynamicRHI::RHIDrawPrimitive(uint32 BaseVertexIndex,uint32 NumPrimit
 
 	GLenum DrawMode = GL_TRIANGLES;
 	GLsizei NumElements = 0;
-	GLint PatchSize = 0;
-	FindPrimitiveType(PrimitiveType, NumPrimitives, DrawMode, NumElements, PatchSize);
+	FindPrimitiveType(PrimitiveType, NumPrimitives, DrawMode, NumElements);
 
 	GPUProfilingData.RegisterGPUWork(NumPrimitives * NumInstances, VertexCount * NumInstances);
 	if (NumInstances == 1)
@@ -2331,8 +2330,7 @@ void FOpenGLDynamicRHI::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRHI, 
 
 		GLenum DrawMode = GL_TRIANGLES;
 		GLsizei NumElements = 0;
-		GLint PatchSize = 0;
-		FindPrimitiveType(PrimitiveType, 0, DrawMode, NumElements, PatchSize);
+		FindPrimitiveType(PrimitiveType, 0, DrawMode, NumElements);
 
 		FOpenGLBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
 
@@ -2384,8 +2382,7 @@ void FOpenGLDynamicRHI::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FRHIB
 
 		GLenum DrawMode = GL_TRIANGLES;
 		GLsizei NumElements = 0;
-		GLint PatchSize = 0;
-		FindPrimitiveType(PrimitiveType, 0, DrawMode, NumElements, PatchSize);
+		FindPrimitiveType(PrimitiveType, 0, DrawMode, NumElements);
 
 		GLenum IndexType = IndexBuffer->GetStride() == sizeof(uint32) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT;
 
@@ -2472,8 +2469,7 @@ void FOpenGLDynamicRHI::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, int3
 
 	GLenum DrawMode = GL_TRIANGLES;
 	GLsizei NumElements = 0;
-	GLint PatchSize = 0;
-	FindPrimitiveType(PrimitiveType, NumPrimitives, DrawMode, NumElements, PatchSize);
+	FindPrimitiveType(PrimitiveType, NumPrimitives, DrawMode, NumElements);
 
 	GLenum IndexType = IndexBuffer->GetStride() == sizeof(uint32) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT;
 	StartIndex *= IndexBuffer->GetStride() == sizeof(uint32) ? sizeof(uint32) : sizeof(uint16);
@@ -2531,8 +2527,7 @@ void FOpenGLDynamicRHI::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBufferR
 
 		GLenum DrawMode = GL_TRIANGLES;
 		GLsizei NumElements = 0;
-		GLint PatchSize = 0;
-		FindPrimitiveType(PrimitiveType, 0, DrawMode, NumElements, PatchSize);
+		FindPrimitiveType(PrimitiveType, 0, DrawMode, NumElements);
 
 		GLenum IndexType = IndexBuffer->GetStride() == sizeof(uint32) ? GL_UNSIGNED_INT : GL_UNSIGNED_SHORT;
 

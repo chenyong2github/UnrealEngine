@@ -952,12 +952,6 @@ bool FPipelineCacheFileFormatPSO::Verify() const
 		}
 #endif
 		
-		if(GraphicsDesc.PrimitiveType >= PT_1_ControlPointPatchList && GraphicsDesc.PrimitiveType <= PT_32_ControlPointPatchList)
-		{
-			// Define says we don't support tessellation - can't draw patches - not a valid PSO for target platform
-			return false;
-		}
-
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		// Is there anything to actually test here?
 #endif
