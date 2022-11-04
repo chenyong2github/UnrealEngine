@@ -2416,9 +2416,6 @@ void FScene::UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive)
 
 void FScene::UpdateCustomPrimitiveData(UPrimitiveComponent* Primitive)
 {
-	SCOPE_CYCLE_COUNTER(STAT_UpdateCustomPrimitiveDataGT);
-	SCOPED_NAMED_EVENT(FScene_UpdateCustomPrimitiveData, FColor::Yellow);
-
 	// This path updates the primitive data directly in the GPUScene. 
 	if(Primitive->SceneProxy) 
 	{
