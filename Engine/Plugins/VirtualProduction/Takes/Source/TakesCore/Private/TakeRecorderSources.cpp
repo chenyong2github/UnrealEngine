@@ -19,6 +19,7 @@
 #include "Engine/TimecodeProvider.h"
 #include "Misc/App.h"
 #include "Editor.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(TakeRecorderSources)
 

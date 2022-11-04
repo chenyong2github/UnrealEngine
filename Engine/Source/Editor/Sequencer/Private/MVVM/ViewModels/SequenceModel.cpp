@@ -74,7 +74,7 @@ UMovieScene* FSequenceModel::GetMovieScene() const
 
 void FSequenceModel::SetSequence(UMovieSceneSequence* InSequence, FMovieSceneSequenceID InSequenceID)
 {
-	if (WeakSequence != InSequence || SequenceID != InSequenceID)
+	if (WeakSequence.Get() != InSequence || SequenceID != InSequenceID)
 	{
 		FViewModelHierarchyOperation HierarchyOperation(GetSharedData());
 

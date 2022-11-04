@@ -43,6 +43,7 @@
 #include "Game/EngineClasses/Scene/DisplayClusterRootActorInitializer.h"
 
 #include "Algo/MaxElement.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 #include "IConcertSyncClientModule.h"
