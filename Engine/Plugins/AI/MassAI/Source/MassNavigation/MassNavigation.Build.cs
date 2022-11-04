@@ -8,13 +8,6 @@ namespace UnrealBuildTool.Rules
 		{
 			PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-			PublicIncludePaths.AddRange(
-				new string[] {
-				"Runtime/AIModule/Public",
-				ModuleDirectory + "/Public",
-				}
-			);
-
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
 					"AIModule",
@@ -33,7 +26,7 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			if (Target.bBuildEditor == true)
+			if (Target.bCompileAgainstEditor)
 			{
 				PrivateDependencyModuleNames.Add("EditorFramework");
 				PrivateDependencyModuleNames.Add("UnrealEd");
