@@ -433,6 +433,7 @@ private:
 
 	uint64 AllocCount = 0;
 	uint64 FreeCount = 0;
+	uint64 HeapCount = 0;
 
 	uint64 MiscErrors = 0;
 	uint64 HeapErrors = 0;

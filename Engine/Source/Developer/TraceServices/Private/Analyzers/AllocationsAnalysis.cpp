@@ -319,7 +319,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 #endif
 				}
 			}
-			else // EStyle::LeaveScope
+			else if (ensure(Style == EStyle::LeaveScope))
 			{
 				if (RouteId == RouteId_MemScopeTag) // "MemoryScope"
 				{
