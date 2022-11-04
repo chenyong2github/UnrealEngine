@@ -161,7 +161,7 @@ private:
 	* @param Menu			The parent context menu
 	* @param ContextPin		The pin to convert
 	*/
-	void CreateConversionSubMenu(UToolMenu* Menu, UEdGraphPin* ContextPin) const;
+	void CreateConversionMenu(struct FToolMenuSection& ConversionSection, UEdGraphPin* ContextPin) const;
 
 	/** The name that this operation uses ("Add", "Multiply", etc) */
 	FName OperationName;
