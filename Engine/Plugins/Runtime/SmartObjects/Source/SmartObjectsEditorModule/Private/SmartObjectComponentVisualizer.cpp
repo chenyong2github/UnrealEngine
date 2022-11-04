@@ -44,7 +44,7 @@ void Draw(const USmartObjectDefinition& Definition, TConstArrayView<FGuid> Selec
 		}
 		bIsSelected = false;
 #if WITH_EDITORONLY_DATA
-		Color = Slot.DEBUG_DrawColor;
+		Color = Slot.bEnabled ? Slot.DEBUG_DrawColor : FColor::Silver;
 		SlotID = Slot.ID;
 
 		if (Selection.Contains(Slot.ID))
@@ -106,7 +106,7 @@ void DrawCanvas(const USmartObjectDefinition& Definition, TConstArrayView<FGuid>
 
 		bIsSelected = false;
 #if WITH_EDITORONLY_DATA
-		Color = Slot.DEBUG_DrawColor;
+		Color = Slot.bEnabled ? Slot.DEBUG_DrawColor : FColor::Silver;
 
 		if (Selection.Contains(Slot.ID))
 		{

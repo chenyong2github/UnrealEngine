@@ -505,9 +505,10 @@ public:
 	 * Enables or disables the smart object slot represented by the provided handle.
 	 * @param SlotHandle Handle to the smart object slot.
 	 * @param bEnabled If true enables the slot, if false, disables the slot.
+	 * @return Previous enabled state. 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "SmartObject")
-	void SetSlotEnabled(const FSmartObjectSlotHandle SlotHandle, const bool bEnabled);
+	bool SetSlotEnabled(const FSmartObjectSlotHandle SlotHandle, const bool bEnabled);
 
 	/**
 	 * Sends event to a Smart Object slot.

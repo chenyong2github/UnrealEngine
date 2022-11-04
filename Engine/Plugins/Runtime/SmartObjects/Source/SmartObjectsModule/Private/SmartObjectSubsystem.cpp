@@ -894,10 +894,14 @@ bool USmartObjectSubsystem::RemoveTagFromSlot(const FSmartObjectSlotHandle SlotH
 	return false;
 }
 
-void USmartObjectSubsystem::SetSlotEnabled(const FSmartObjectSlotHandle SlotHandle, const bool bEnabled)
+bool USmartObjectSubsystem::SetSlotEnabled(const FSmartObjectSlotHandle SlotHandle, const bool bEnabled)
 {
+	bool bPreviousValue = false;
+	
 	if (FSmartObjectRuntimeSlot* Slot = GetMutableSlotVerbose(SlotHandle, ANSI_TO_TCHAR(__FUNCTION__)))
 	{
+		bPreviousValue = Slot->bEnabled;
+		
 		if (Slot->bEnabled != bEnabled)
 		{
 			Slot->bEnabled = bEnabled;
@@ -907,6 +911,8 @@ void USmartObjectSubsystem::SetSlotEnabled(const FSmartObjectSlotHandle SlotHand
 			}
 		}
 	}
+
+	return bPreviousValue;
 }
 
 bool USmartObjectSubsystem::SendSlotEvent(const FSmartObjectSlotHandle SlotHandle, const FGameplayTag EventTag, const FConstStructView Payload)
