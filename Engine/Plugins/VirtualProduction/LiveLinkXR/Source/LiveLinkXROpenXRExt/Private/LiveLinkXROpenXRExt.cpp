@@ -224,3 +224,5 @@ bool FLiveLinkXROpenXRExtension::LocateSpace(XrSpace InSpace, XrSpace InRefSpace
 	}
 	return false;
 }
+
+#undef LOCTEXT_NAMESPACE
