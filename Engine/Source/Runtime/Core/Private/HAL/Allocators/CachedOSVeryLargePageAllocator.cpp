@@ -73,7 +73,9 @@ void FCachedOSVeryLargePageAllocator::Init()
 		EmptyButAvailableLargePagesHead[i] = nullptr;
 		EmptyBackStoreCount[i] = 0;
 		
+#if CSV_PROFILER
 		GLargePageAllocatorLargePageCount[i] = 0;
+#endif
 	}
 
 #if UE_VERYLARGEPAGEALLOCATOR_TAKEONALL64KBALLOCATIONS
