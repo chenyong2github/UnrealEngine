@@ -39,6 +39,9 @@ struct FChaosClothSimulationLodModel
 	/** Skinning weights. */
 	UPROPERTY()
 	TArray<FClothVertBoneData> BoneData;
+
+	UPROPERTY()
+	TArray<float> MaxDistance;
 };
 
 /**

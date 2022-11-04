@@ -389,6 +389,13 @@ void UChaosClothAssetEditorMode::UpdateSimulationMeshes()
 	const TSet<FName> WeightMapsToRemove = ClothAssetWeightMapNames.Difference(CommonDynamicMeshWeightMapNames);
 	ChaosClothAssetEditorModeHelpers::RemoveClothWeightMaps(ClothAdapter, WeightMapsToRemove.Array());
 
+	ChaosClothAsset->Build();
+
+	// Reset cloth component
+	{
+		const FComponentReregisterContext Context(ClothComponent);
+	}
+
 	GetToolManager()->EndUndoTransaction();
 }
 

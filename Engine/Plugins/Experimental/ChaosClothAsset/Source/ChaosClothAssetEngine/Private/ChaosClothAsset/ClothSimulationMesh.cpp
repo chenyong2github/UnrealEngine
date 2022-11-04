@@ -60,8 +60,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TArray<TConstArrayView<::Chaos::FRealSingle>> FClothSimulationMesh::GetWeightMaps(int32 LODIndex) const
 	{
 		constexpr int32 MaxNumWeightMaps = 15; // TODO: Refactor how weight maps are used in base simulation classes
-		static const TConstArrayView<::Chaos::FRealSingle> WeightMaps[MaxNumWeightMaps];
-		return TArray<TConstArrayView<::Chaos::FRealSingle>>(&WeightMaps[0], MaxNumWeightMaps);
+
+		TArray<TConstArrayView<::Chaos::FRealSingle>> WeightMaps;
+		WeightMaps.SetNum(MaxNumWeightMaps);
+
+		// Set max distance weight map
+		constexpr int32 MaxDistanceWeightMapTarget = 1;		// EWeightMapTargetCommon::MaxDistance
+		WeightMaps[MaxDistanceWeightMapTarget] = TConstArrayView<::Chaos::FRealSingle>(ClothSimulationModel.ClothSimulationLodModels[LODIndex].MaxDistance);
+
+		return WeightMaps;
 	}
 
 	TArray<TConstArrayView<TTuple<int32, int32, float>>> FClothSimulationMesh::GetTethers(int32 LODIndex, bool bUseGeodesicTethers) const

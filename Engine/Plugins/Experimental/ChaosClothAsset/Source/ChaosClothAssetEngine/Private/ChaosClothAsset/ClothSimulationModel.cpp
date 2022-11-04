@@ -122,6 +122,16 @@ FChaosClothSimulationModel::FChaosClothSimulationModel(const TSharedPtr<const UE
 		const FClothLodConstAdapter ClothLod = Cloth.GetLod(LodIndex);
 		ClothLod.BuildSimulationMesh(LodModel.Positions, LodModel.Normals, LodModel.Indices);
 
+		const TManagedArray<float>* const MaxDistanceValues = ClothCollection->FindAttributeTyped<float>("MaxDistance", FClothCollection::SimVerticesGroup);
+		if (MaxDistanceValues)
+		{
+			LodModel.MaxDistance = MaxDistanceValues->GetConstArray();
+		}
+		else
+		{
+			LodModel.MaxDistance.Init(1.0, LodModel.Positions.Num());
+		}
+
 		const int32 NumSimVertices = LodModel.Positions.Num();
 		LodModel.BoneData.SetNum(NumSimVertices);
 		for (int32 VertexIndex = 0; VertexIndex < NumSimVertices; ++VertexIndex)

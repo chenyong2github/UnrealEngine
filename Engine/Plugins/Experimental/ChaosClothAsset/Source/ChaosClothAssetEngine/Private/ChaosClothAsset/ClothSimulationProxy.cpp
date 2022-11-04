@@ -234,7 +234,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
 		{
 			// Update Cloth animatable parameters while in the cloth loop
-			//Cloth->SetMaxDistancesMultiplier(Context->MaxDistanceScale);
+			Cloth->SetMaxDistancesMultiplier(1000.0);
 
 			if (bNeedsReset)
 			{
