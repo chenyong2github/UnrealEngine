@@ -22,7 +22,7 @@
 class UObject;
 
 static bool GShowBothPerQualityAndPerPlaformProperties = false;
-static FAutoConsoleVariableRef CVarMinFramesToKeepGrass(
+static FAutoConsoleVariableRef CVarShowBothPerQualityAndPerPlaform(
 	TEXT("r.grass.ShowBothPerQualityAndPerPlaformProperties"),
 	GShowBothPerQualityAndPerPlaformProperties,
 	TEXT("Show both per platform and per quality properties in the editor."));
