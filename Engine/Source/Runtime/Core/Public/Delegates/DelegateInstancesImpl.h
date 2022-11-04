@@ -33,8 +33,9 @@ template <typename FuncType, typename UserPolicy, typename... VarTypes>
 class TCommonDelegateInstanceState : IBaseDelegateInstance<FuncType, UserPolicy>
 {
 public:
-	explicit TCommonDelegateInstanceState(VarTypes... Vars)
-		: Payload(Vars...)
+	template <typename... InVarTypes>
+	explicit TCommonDelegateInstanceState(InVarTypes&&... Vars)
+		: Payload(Forward<InVarTypes>(Vars)...)
 		, Handle (FDelegateHandle::GenerateNewHandle)
 	{
 	}
@@ -70,8 +71,9 @@ private:
 	static_assert(UE::Delegates::Private::IsUObjectPtr((UserClass*)nullptr), "You cannot use UFunction delegates with non UObject classes.");
 
 public:
-	TBaseUFunctionDelegateInstance(UserClass* InUserObject, const FName& InFunctionName, VarTypes... Vars)
-		: Super        (Vars...)
+	template <typename... InVarTypes>
+	explicit TBaseUFunctionDelegateInstance(UserClass* InUserObject, const FName& InFunctionName, InVarTypes&&... Vars)
+		: Super        (Forward<InVarTypes>(Vars)...)
 		, FunctionName (InFunctionName)
 		, UserObjectPtr(InUserObject)
 	{
@@ -129,7 +131,7 @@ public:
 
 	// IBaseDelegateInstance interface
 
-	void CreateCopy(DelegateBaseType& Base) final
+	void CreateCopy(DelegateBaseType& Base) const final
 	{
 		new (Base) TBaseUFunctionDelegateInstance(*this);
 	}
@@ -159,20 +161,6 @@ public:
 		}
 
 		return false;
-	}
-
-public:
-
-	/**
-	 * Creates a new UFunction delegate binding for the given user object and function name.
-	 *
-	 * @param InObject The user object to call the function on.
-	 * @param InFunctionName The name of the function call.
-	 * @return The new delegate.
-	 */
-	FORCEINLINE static void Create(DelegateBaseType& Base, UserClass* InUserObject, const FName& InFunctionName, VarTypes... Vars)
-	{
-		new (Base) TBaseUFunctionDelegateInstance(InUserObject, InFunctionName, Vars...);
 	}
 
 public:
@@ -207,8 +195,9 @@ private:
 public:
 	using FMethodPtr = typename TMemFunPtrType<bConst, UserClass, RetValType(ParamTypes..., VarTypes...)>::Type;
 
-	TBaseSPMethodDelegateInstance(const TSharedPtr<UserClass, SPMode>& InUserObject, FMethodPtr InMethodPtr, VarTypes... Vars)
-		: Super     (Vars...)
+	template <typename... InVarTypes>
+	explicit TBaseSPMethodDelegateInstance(const TSharedPtr<UserClass, SPMode>& InUserObject, FMethodPtr InMethodPtr, InVarTypes&&... Vars)
+		: Super     (Forward<InVarTypes>(Vars)...)
 		, UserObject(InUserObject)
 		, MethodPtr (InMethodPtr)
 	{
@@ -262,7 +251,7 @@ public:
 
 	// IBaseDelegateInstance interface
 
-	void CreateCopy(DelegateBaseType& Base) final
+	void CreateCopy(DelegateBaseType& Base) const final
 	{
 		new (Base) TBaseSPMethodDelegateInstance(*this);
 	}
@@ -307,36 +296,6 @@ public:
 		return false;
 	}
 
-public:
-
-	/**
-	 * Creates a new shared pointer delegate binding for the given user object and method pointer.
-	 *
-	 * @param InUserObjectRef Shared reference to the user's object that contains the class method.
-	 * @param InFunc Member function pointer to your class method.
-	 * @return The new delegate.
-	 */
-	FORCEINLINE static void Create(DelegateBaseType& Base, const TSharedPtr<UserClass, SPMode>& InUserObjectRef, FMethodPtr InFunc, VarTypes... Vars)
-	{
-		new (Base) TBaseSPMethodDelegateInstance(InUserObjectRef, InFunc, Vars...);
-	}
-
-	/**
-	 * Creates a new shared pointer delegate binding for the given user object and method pointer.
-	 *
-	 * This overload requires that the supplied object derives from TSharedFromThis.
-	 *
-	 * @param InUserObject  The user's object that contains the class method.  Must derive from TSharedFromThis.
-	 * @param InFunc  Member function pointer to your class method.
-	 * @return The new delegate.
-	 */
-	FORCEINLINE static void Create(DelegateBaseType& Base, UserClass* InUserObject, FMethodPtr InFunc, VarTypes... Vars)
-	{
-		// We expect the incoming InUserObject to derived from TSharedFromThis.
-		TSharedRef<UserClass, SPMode> UserObjectRef = StaticCastSharedRef<UserClass>(InUserObject->AsShared());
-		Create(Base, UserObjectRef, InFunc, Vars...);
-	}
-
 protected:
 
 	// Weak reference to an instance of the user's class which contains a method we would like to call.
@@ -371,8 +330,9 @@ public:
 	 * @param InUserObject An arbitrary object (templated) that hosts the member function.
 	 * @param InMethodPtr C++ member function pointer for the method to bind.
 	 */
-	TBaseRawMethodDelegateInstance(UserClass* InUserObject, FMethodPtr InMethodPtr, VarTypes... Vars)
-		: Super     (Vars...)
+	template <typename... InVarTypes>
+	explicit TBaseRawMethodDelegateInstance(UserClass* InUserObject, FMethodPtr InMethodPtr, InVarTypes&&... Vars)
+		: Super     (Forward<InVarTypes>(Vars)...)
 		, UserObject(InUserObject)
 		, MethodPtr (InMethodPtr)
 	{
@@ -427,7 +387,7 @@ public:
 
 	// IBaseDelegateInstance interface
 
-	void CreateCopy(DelegateBaseType& Base) final
+	void CreateCopy(DelegateBaseType& Base) const final
 	{
 		new (Base) TBaseRawMethodDelegateInstance(*this);
 	}
@@ -463,20 +423,6 @@ public:
 		return true;
 	}
 
-public:
-
-	/**
-	 * Creates a new raw method delegate binding for the given user object and function pointer.
-	 *
-	 * @param InUserObject User's object that contains the class method.
-	 * @param InFunc Member function pointer to your class method.
-	 * @return The new delegate.
-	 */
-	FORCEINLINE static void Create(DelegateBaseType& Base, UserClass* InUserObject, FMethodPtr InFunc, VarTypes... Vars)
-	{
-		new (Base) TBaseRawMethodDelegateInstance(InUserObject, InFunc, Vars...);
-	}
-
 protected:
 
 	// Pointer to the user's class which contains a method we would like to call.
@@ -504,8 +450,9 @@ private:
 public:
 	using FMethodPtr = typename TMemFunPtrType<bConst, UserClass, RetValType(ParamTypes..., VarTypes...)>::Type;
 
-	TBaseUObjectMethodDelegateInstance(UserClass* InUserObject, FMethodPtr InMethodPtr, VarTypes... Vars)
-		: Super     (Vars...)
+	template <typename... InVarTypes>
+	explicit TBaseUObjectMethodDelegateInstance(UserClass* InUserObject, FMethodPtr InMethodPtr, InVarTypes&&... Vars)
+		: Super     (Forward<InVarTypes>(Vars)...)
 		, UserObject(InUserObject)
 		, MethodPtr (InMethodPtr)
 	{
@@ -564,7 +511,7 @@ public:
 
 	// IBaseDelegateInstance interface
 
-	void CreateCopy(DelegateBaseType& Base) final
+	void CreateCopy(DelegateBaseType& Base) const final
 	{
 		new (Base) TBaseUObjectMethodDelegateInstance(*this);
 	}
@@ -606,20 +553,6 @@ public:
 		return false;
 	}
 
-public:
-
-	/**
-	 * Creates a new UObject delegate binding for the given user object and method pointer.
-	 *
-	 * @param InUserObject User's object that contains the class method.
-	 * @param InFunc Member function pointer to your class method.
-	 * @return The new delegate.
-	 */
-	FORCEINLINE static void Create(DelegateBaseType& Base, UserClass* InUserObject, FMethodPtr InFunc, VarTypes... Vars)
-	{
-		new (Base) TBaseUObjectMethodDelegateInstance(InUserObject, InFunc, Vars...);
-	}
-
 protected:
 
 	// Pointer to the user's class which contains a method we would like to call.
@@ -646,8 +579,9 @@ private:
 public:
 	using FFuncPtr = RetValType(*)(ParamTypes..., VarTypes...);
 
-	TBaseStaticDelegateInstance(FFuncPtr InStaticFuncPtr, VarTypes... Vars)
-		: Super        (Vars...)
+	template <typename... InVarTypes>
+	explicit TBaseStaticDelegateInstance(FFuncPtr InStaticFuncPtr, InVarTypes&&... Vars)
+		: Super        (Forward<InVarTypes>(Vars)...)
 		, StaticFuncPtr(InStaticFuncPtr)
 	{
 		check(StaticFuncPtr != nullptr);
@@ -700,7 +634,7 @@ public:
 
 	// IBaseDelegateInstance interface
 
-	void CreateCopy(DelegateBaseType& Base) final
+	void CreateCopy(DelegateBaseType& Base) const final
 	{
 		new (Base) TBaseStaticDelegateInstance(*this);
 	}
@@ -721,19 +655,6 @@ public:
 		(void)this->Payload.ApplyAfter(StaticFuncPtr, Params...);
 
 		return true;
-	}
-
-public:
-
-	/**
-	 * Creates a new static function delegate binding for the given function pointer.
-	 *
-	 * @param InFunc Static function pointer.
-	 * @return The new delegate.
-	 */
-	FORCEINLINE static void Create(DelegateBaseType& Base, FFuncPtr InFunc, VarTypes... Vars)
-	{
-		new (Base) TBaseStaticDelegateInstance(InFunc, Vars...);
 	}
 
 private:
@@ -758,15 +679,10 @@ private:
 	using DelegateBaseType = typename UserPolicy::FDelegateExtras;
 
 public:
-	TBaseFunctorDelegateInstance(const FunctorType& InFunctor, VarTypes... Vars)
-		: Super  (Vars...)
-		, Functor(InFunctor)
-	{
-	}
-
-	TBaseFunctorDelegateInstance(FunctorType&& InFunctor, VarTypes... Vars)
-		: Super  (Vars...)
-		, Functor(MoveTemp(InFunctor))
+	template <typename InFunctorType, typename... InVarTypes>
+	explicit TBaseFunctorDelegateInstance(InFunctorType&& InFunctor, InVarTypes&&... Vars)
+		: Super  (Forward<InVarTypes>(Vars)...)
+		, Functor(Forward<InFunctorType>(InFunctor))
 	{
 	}
 
@@ -811,7 +727,7 @@ public:
 
 public:
 	// IBaseDelegateInstance interface
-	void CreateCopy(DelegateBaseType& Base) final
+	void CreateCopy(DelegateBaseType& Base) const final
 	{
 		new (Base) TBaseFunctorDelegateInstance(*this);
 	}
@@ -827,22 +743,6 @@ public:
 		(void)this->Payload.ApplyAfter(Functor, Params...);
 
 		return true;
-	}
-
-public:
-	/**
-	 * Creates a new static function delegate binding for the given function pointer.
-	 *
-	 * @param InFunctor C++ functor
-	 * @return The new delegate.
-	 */
-	FORCEINLINE static void Create(DelegateBaseType& Base, const FunctorType& InFunctor, VarTypes... Vars)
-	{
-		new (Base) TBaseFunctorDelegateInstance(InFunctor, Vars...);
-	}
-	FORCEINLINE static void Create(DelegateBaseType& Base, FunctorType&& InFunctor, VarTypes... Vars)
-	{
-		new (Base) TBaseFunctorDelegateInstance(MoveTemp(InFunctor), Vars...);
 	}
 
 private:
@@ -869,17 +769,11 @@ private:
 	using DelegateBaseType = typename UserPolicy::FDelegateExtras;
 
 public:
-	TWeakBaseFunctorDelegateInstance(UserClass* InContextObject, const FunctorType& InFunctor, VarTypes... Vars)
-		: Super        (Vars...)
+	template <typename InFunctorType, typename... InVarTypes>
+	explicit TWeakBaseFunctorDelegateInstance(UserClass* InContextObject, InFunctorType&& InFunctor, InVarTypes&&... Vars)
+		: Super        (Forward<InVarTypes>(Vars)...)
 		, ContextObject(InContextObject)
-		, Functor      (InFunctor)
-	{
-	}
-
-	TWeakBaseFunctorDelegateInstance(UserClass* InContextObject, FunctorType&& InFunctor, VarTypes... Vars)
-		: Super        (Vars...)
-		, ContextObject(InContextObject)
-		, Functor      (MoveTemp(InFunctor))
+		, Functor      (Forward< InFunctorType>(InFunctor))
 	{
 	}
 
@@ -927,7 +821,7 @@ public:
 
 public:
 	// IBaseDelegateInstance interface
-	void CreateCopy(DelegateBaseType& Base) final
+	void CreateCopy(DelegateBaseType& Base) const final
 	{
 		new (Base) TWeakBaseFunctorDelegateInstance(*this);
 	}
@@ -946,22 +840,6 @@ public:
 		}
 
 		return false;
-	}
-
-public:
-	/**
-	 * Creates a new static function delegate binding for the given function pointer.
-	 *
-	 * @param InFunctor C++ functor
-	 * @return The new delegate.
-	 */
-	FORCEINLINE static void Create(DelegateBaseType& Base, UserClass* InContextObject, const FunctorType& InFunctor, VarTypes... Vars)
-	{
-		new (Base) TWeakBaseFunctorDelegateInstance(InContextObject, InFunctor, Vars...);
-	}
-	FORCEINLINE static void Create(DelegateBaseType& Base, UserClass* InContextObject, FunctorType&& InFunctor, VarTypes... Vars)
-	{
-		new (Base) TWeakBaseFunctorDelegateInstance(InContextObject, MoveTemp(InFunctor), Vars...);
 	}
 
 private:

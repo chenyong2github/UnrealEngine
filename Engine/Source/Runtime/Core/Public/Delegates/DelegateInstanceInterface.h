@@ -18,7 +18,7 @@ struct IBaseDelegateInstance<RetType(ArgTypes...), UserPolicy> : public UserPoli
 	/**
 	 * Emplaces a copy of the delegate instance into the given base delegate.
 	 */
-	virtual void CreateCopy(typename UserPolicy::FDelegateExtras& Base) = 0;
+	virtual void CreateCopy(typename UserPolicy::FDelegateExtras& Base) const = 0;
 
 	/**
 	 * Execute the delegate.  If the function pointer is not valid, an error will occur.
