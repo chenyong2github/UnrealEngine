@@ -662,6 +662,31 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	bSupportsDistanceFieldRepresentation = CombinedMaterialRelevance.bOpaque;
 
 #if RHI_RAYTRACING
+	RayTracingMaterialProxiesPerLOD.SetNumZeroed(RenderData->LODResources.Num());
+	for (int32 LODIndex = 0; LODIndex < RenderData->LODResources.Num(); LODIndex++)
+	{
+		const FStaticMeshLODResources& LOD = RenderData->LODResources[LODIndex];
+		const FStaticMeshSectionArray& LODMeshSections = LOD.Sections;
+
+		RayTracingMaterialProxiesPerLOD[LODIndex].SetNumZeroed(LODMeshSections.Num());
+
+		TArray<FMaterialRenderProxy*>& RayTracingMaterialProxies = RayTracingMaterialProxiesPerLOD[LODIndex];
+		
+		for (int32 SectionIndex = 0; SectionIndex < LODMeshSections.Num(); ++SectionIndex)
+		{
+			const FStaticMeshSection& MeshSection = LODMeshSections[SectionIndex];
+			
+			UMaterialInterface* ShadingMaterial = MaterialAudit.GetMaterial(MeshSection.MaterialIndex);
+
+			if (ShadingMaterial == nullptr)
+			{
+				ShadingMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
+			}
+
+			RayTracingMaterialProxies[SectionIndex] = ShadingMaterial->GetRenderProxy();
+		}
+	}
+
 	int32 ValidLODIndex = GetFirstValidRaytracingGeometryLODIndex();
 	if (ValidLODIndex != INDEX_NONE && RenderData->LODResources[ValidLODIndex].RayTracingGeometry.Initializer.GeometryType == RTGT_Procedural)
 	{
@@ -1622,10 +1647,10 @@ int32 FSceneProxy::GetFirstValidRaytracingGeometryLODIndex() const
 
 void FSceneProxy::SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& Materials, bool bUseNaniteVertexFactory) const
 {
-	check(Materials.Num() <= MaterialSections.Num());
+	check(Materials.Num() <= RayTracingMaterialProxiesPerLOD[LODIndex].Num());
 	for (int32 SectionIndex = 0; SectionIndex < Materials.Num(); ++SectionIndex)
 	{
-		const FMaterialSection& MaterialSection = MaterialSections[SectionIndex];
+		const FMaterialRenderProxy* MaterialProxy = RayTracingMaterialProxiesPerLOD[LODIndex][SectionIndex];
 		FMeshBatch& MeshBatch = Materials[SectionIndex];
 		if (bUseNaniteVertexFactory)
 		{
@@ -1635,7 +1660,7 @@ void FSceneProxy::SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& M
 		{
 			MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
 		}
-		MeshBatch.MaterialRenderProxy = MaterialSection.ShadingMaterialProxy;
+		MeshBatch.MaterialRenderProxy = MaterialProxy;
 		MeshBatch.bWireframe = false;
 		MeshBatch.SegmentIndex = SectionIndex;
 		MeshBatch.LODIndex = 0;
@@ -1683,12 +1708,23 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 	// Transforms are persistently allocated, so we can just return them by pointer.
 	RayTracingInstance.InstanceTransformsView = CachedRayTracingInstanceTransforms;
 	RayTracingInstance.NumTransforms = CachedRayTracingInstanceTransforms.Num();
+	
+	// When we are running with NaniteRT we need to force materials to come from LOD0.
+	// TODO: Figure out a better place to do it.
+	const int32 ValidLODIndexForMaterials = GetRayTracingMode() != ERayTracingMode::Fallback ? 0 : ValidLODIndex;
+	
+	// Currently we only support 1 material when using procedural ray tracing primitive
+	const bool bProcedural = RayTracingInstance.Geometry->Initializer.GeometryType == RTGT_Procedural;
+	const int32 NumRayTracingMaterialEntries = bProcedural ? 1 : RenderData->LODResources[ValidLODIndexForMaterials].Sections.Num();
 
 	// Setup the cached materials again when the LOD changes
-	if (ValidLODIndex != CachedRayTracingMaterialsLODIndex)
+	if (NumRayTracingMaterialEntries != CachedRayTracingMaterials.Num() || ValidLODIndex != CachedRayTracingMaterialsLODIndex)
 	{
+		CachedRayTracingMaterials.Reset();
+		CachedRayTracingMaterials.SetNum(NumRayTracingMaterialEntries);
+
 		const bool bUseNaniteVertexFactory = GetRayTracingMode() != ERayTracingMode::Fallback;
-		SetupRayTracingMaterials(ValidLODIndex, CachedRayTracingMaterials, bUseNaniteVertexFactory);
+		SetupRayTracingMaterials(ValidLODIndexForMaterials, CachedRayTracingMaterials, bUseNaniteVertexFactory);
 		CachedRayTracingMaterialsLODIndex = ValidLODIndex;
 
 		// Request rebuild
@@ -1749,6 +1785,9 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 	RayTracingInstance.NumTransforms = InstanceSceneData.Num();
 	// When ERayTracingPrimitiveFlags::CacheInstances is used, instance transforms are copied from GPUScene while building ray tracing instance buffer.
 
+	// When we are running with NaniteRT we need to force materials to come from LOD0.
+	// TODO: Figure out a better place to do it.
+	int32 ValidLODIndexForMaterials = GetRayTracingMode() != ERayTracingMode::Fallback ? 0 : ValidLODIndex;
 	if (RayTracingInstance.Geometry->Initializer.GeometryType == RTGT_Procedural)
 	{
 		// Currently we only support 1 material when using procedural ray tracing primitive
@@ -1756,11 +1795,11 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 	}
 	else
 	{
-		RayTracingInstance.Materials.SetNum(MaterialSections.Num());
+		RayTracingInstance.Materials.SetNum(RayTracingMaterialProxiesPerLOD[ValidLODIndexForMaterials].Num());
 	}
 
 	const bool bUseNaniteVertexFactory = GetRayTracingMode() != ERayTracingMode::Fallback;
-	SetupRayTracingMaterials(ValidLODIndex, RayTracingInstance.Materials, bUseNaniteVertexFactory);
+	SetupRayTracingMaterials(ValidLODIndexForMaterials, RayTracingInstance.Materials, bUseNaniteVertexFactory);
 
 	const bool bIsRayTracingFarField = IsRayTracingFarField();
 

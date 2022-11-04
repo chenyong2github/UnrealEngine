@@ -224,6 +224,11 @@ protected:
 
 protected:
 	TArray<FMaterialSection> MaterialSections;
+
+#if RHI_RAYTRACING
+	TArray<TArray<FMaterialRenderProxy*>> RayTracingMaterialProxiesPerLOD;
+#endif
+
 #if WITH_EDITOR
 	TArray<FHitProxyId> HitProxyIds;
 	EHitProxyMode HitProxyMode = EHitProxyMode::MaterialSection;
