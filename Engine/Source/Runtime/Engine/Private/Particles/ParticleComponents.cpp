@@ -4382,6 +4382,10 @@ FParticleDynamicData* UParticleSystemComponent::CreateDynamicData(ERHIFeatureLev
 		ParticleDynamicData->SystemRadiusForMacroUVs = Template->MacroUVRadius;
 	}
 
+#if WITH_PARTICLE_PERF_STATS
+	ParticleDynamicData->PerfStatContext = GetPerfStatsContext();
+#endif
+
 	if( ReplayState == PRS_Replaying )
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_CreateDynamicData_Replay);

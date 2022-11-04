@@ -2353,6 +2353,10 @@ public:
 
 	/** World space radius that UVs generated with the ParticleMacroUV material node will tile based on. */
 	float SystemRadiusForMacroUVs;
+
+#if WITH_PARTICLE_PERF_STATS
+	FParticlePerfStatsContext PerfStatContext;
+#endif
 };
 
 //
