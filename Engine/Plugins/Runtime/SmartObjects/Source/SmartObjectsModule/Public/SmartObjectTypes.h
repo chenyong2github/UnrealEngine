@@ -328,7 +328,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectEventData
 
 	/** Change reason. */
 	UPROPERTY(Transient)
-	ESmartObjectChangeReason Reason;
+	ESmartObjectChangeReason Reason = ESmartObjectChangeReason::None;
 
 	/** Added/Removed tag, or event tag, depending on Reason. */
 	UPROPERTY(Transient)
