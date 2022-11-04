@@ -273,7 +273,10 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::PostLoadedStateChanged
 		GEngine->BroadcastLevelActorListChanged();
 		GEditor->NoteSelectionChange();
 
-		GEditor->ResetTransaction(LOCTEXT("LoadingEditorActorResetTrans", "Editor Actors Loading State Changed"));
+		if (!GIsTransacting)
+		{
+			GEditor->ResetTransaction(LOCTEXT("LoadingEditorActorResetTrans", "Editor Actors Loading State Changed"));
+		}
 
 		if (NumUnloads)
 		{
