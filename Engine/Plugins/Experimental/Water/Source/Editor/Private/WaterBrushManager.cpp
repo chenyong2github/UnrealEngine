@@ -1109,6 +1109,12 @@ void AWaterBrushManager::SetMPCParams()
 		FVector RTWorldLocation, RTWorldSizeVector;
 		ComputeWaterLandscapeInfo(RTWorldLocation, RTWorldSizeVector);
 
+		if (GEditor == nullptr)
+		{
+			UE_LOG(LogWaterEditor, Error, TEXT("GEditor is null for AWaterBrushManager::SetMPCParams(): %s"), *GetFullName());
+			return;
+		}
+
 		UWaterEditorSubsystem* WaterEditorSubsystem = GEditor->GetEditorSubsystem<UWaterEditorSubsystem>();
 		check(WaterEditorSubsystem);
 		UMaterialParameterCollection* LandscapeCollection =  WaterEditorSubsystem->GetLandscapeMaterialParameterCollection();
