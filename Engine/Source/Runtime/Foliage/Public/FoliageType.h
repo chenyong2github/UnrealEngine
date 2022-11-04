@@ -581,6 +581,12 @@ public:
 	UPROPERTY(EditAnywhere, Category=Scalability)
 	uint32 bEnableDiscardOnLoad:1;
 
+	/*
+	 * Whether this foliage type should be affected by the Engine's "foliage.CullDistanceScale" setting 
+	 */
+	UPROPERTY(EditAnywhere, Category = Scalability)
+	uint32 bEnableCullDistanceScaling : 1;
+
 public:
 	// VIRTUAL TEXTURE
 
