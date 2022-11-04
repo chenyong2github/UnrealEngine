@@ -23,6 +23,9 @@
 #include "Serialization/MemoryLayout.h"
 #include "Templates/AlignmentTemplates.h"
 #include "UObject/NameTypes.h"
+#include "Templates/SharedPointer.h"
+
+using FThreadSafeSharedStringPtr = TSharedPtr<FString, ESPMode::ThreadSafe>;
 
 namespace EShaderPrecisionModifier
 {
@@ -269,7 +272,9 @@ public:
 
 	void GetNestedStructs(TArray<const FShaderParametersMetadata*>& OutNestedStructs) const;
 
+#if WITH_EDITOR
 	void AddResourceTableEntries(TMap<FString, FResourceTableEntry>& ResourceTableMap, TMap<FString, FUniformBufferEntry>& UniformBufferMap) const;
+#endif
 
 	const TCHAR* GetStructTypeName() const { return StructTypeName; }
 	const TCHAR* GetShaderVariableName() const { return ShaderVariableName; }
@@ -310,6 +315,12 @@ public:
 		return Layout;
 	}
 	const TArray<FMember>& GetMembers() const { return Members; }
+
+#if WITH_EDITOR
+	inline bool IsUniformBufferDeclarationInitialized() const { return UniformBufferDeclaration.IsValid(); }
+	FThreadSafeSharedStringPtr GetUniformBufferDeclarationPtr() const { return UniformBufferDeclaration; }
+	const FString& GetUniformBufferDeclaration() const { return *UniformBufferDeclaration; }
+#endif // WITH_EDITOR
 
 	/** Find a member for a given offset. */
 	void FindMemberFromOffset(
@@ -388,6 +399,11 @@ private:
 	/** List of all members. */
 	TArray<FMember> Members;
 
+#if WITH_EDITOR
+	/** Uniform buffer declaration, created once */
+	FThreadSafeSharedStringPtr UniformBufferDeclaration;
+#endif
+
 	/** Shackle elements in global link list of globally named shader parameters. */
 	TLinkedList<FShaderParametersMetadata*> GlobalListLink;
 
@@ -399,5 +415,7 @@ private:
 
 	void InitializeLayout(FRHIUniformBufferLayoutInitializer* OutLayoutInitializer = nullptr);
 
-	void AddResourceTableEntriesRecursive(const TCHAR* UniformBufferName, const TCHAR* Prefix, uint16& ResourceIndex, TMap<FString, FResourceTableEntry>& ResourceTableMap) const;
+#if WITH_EDITOR
+	void InitializeUniformBufferDeclaration();
+#endif
 };

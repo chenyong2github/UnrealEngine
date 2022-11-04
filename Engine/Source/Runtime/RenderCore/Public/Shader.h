@@ -1413,13 +1413,16 @@ public:
 	}
 
 #if WITH_EDITOR
-	inline const TMap<const TCHAR*, FCachedUniformBufferDeclaration>& GetReferencedUniformBufferStructsCache() const
-	{
-		return ReferencedUniformBufferStructsCache;
-	}
+	inline const TSet<const TCHAR*>& GetReferencedUniformBufferNames() const { return ReferencedUniformBufferNames; };
 
-	/** Adds include statements for uniform buffers that this shader type references, and builds a prefix for the shader file with the include statements. */
-	void AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const;
+	/** Adds include statements for uniform buffers that this shader type references. */
+	void AddUniformBufferIncludesToEnvironment(FShaderCompilerEnvironment& OutEnvironment, EShaderPlatform Platform) const;
+
+	UE_DEPRECATED(5.2, "AddReferencedUniformBufferIncludes has moved to AddUniformBufferIncludesToEnvironment and no longer takes a prefix argument.")
+	inline void AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const
+	{
+		AddUniformBufferIncludesToEnvironment(OutEnvironment, Platform);
+	}
 
 	void FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables);
 
@@ -1460,15 +1463,15 @@ private:
 
 #if WITH_EDITOR
 protected:
-	/** Tracks what platforms ReferencedUniformBufferStructsCache has had declarations cached for. */
+	/** Tracks the last platform ReferencedUniformBufferNames was read from in AddUniformBufferIncludesToEnvironment. */
 	mutable std::atomic<EShaderPlatform> CachedUniformBufferPlatform{ SP_NumPlatforms };
 
 	/**
 	* Cache of referenced uniform buffer includes.
 	* These are derived from source files so they need to be flushed when editing and recompiling shaders on the fly.
-	* FShaderType::Initialize will add an entry for each referenced uniform buffer, but the declarations are added on demand as shaders are compiled.
+	* FShaderType::Initialize will add the referenced uniform buffers, but this set may be updated by FlushShaderFileCache.
 	*/
-	mutable TMap<const TCHAR*, FCachedUniformBufferDeclaration> ReferencedUniformBufferStructsCache;
+	TSet<const TCHAR*> ReferencedUniformBufferNames;
 #endif // WITH_EDITOR
 };
 

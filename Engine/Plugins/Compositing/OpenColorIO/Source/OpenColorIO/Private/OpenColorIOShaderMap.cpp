@@ -169,7 +169,7 @@ void FOpenColorIOShaderType::BeginCompileShader(
 	NewJob->Input.EntryPointName = TEXT("MainPS");
 	NewJob->Input.Environment.IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/OpenColorIOTransformShader.ush"), InColorTransform->ShaderCode);
 
-	AddReferencedUniformBufferIncludes(NewJob->Input.Environment, NewJob->Input.SourceFilePrefix, InPlatform);
+	AddUniformBufferIncludesToEnvironment(NewJob->Input.Environment, InPlatform);
 
 	FShaderCompilerEnvironment& ShaderEnvironment = NewJob->Input.Environment;
 

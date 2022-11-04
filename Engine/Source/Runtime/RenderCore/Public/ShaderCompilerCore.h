@@ -185,7 +185,6 @@ struct FShaderCompilerInput
 	FName CompressionFormat;
 	FName ShaderPlatformName;
 	
-	FString SourceFilePrefix;
 	FString VirtualSourceFilePath;
 	FString EntryPointName;
 	FString ShaderName;

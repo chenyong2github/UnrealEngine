@@ -1573,23 +1573,22 @@ void FlushShaderFileCache()
 }
 
 #if WITH_EDITOR
-void GenerateReferencedUniformBuffers(
-	const TCHAR* SourceFilename, 
-	const TCHAR* ShaderTypeName, 
+void GenerateReferencedUniformBufferNames(
+	const TCHAR* SourceFilename,
+	const TCHAR* ShaderTypeName,
 	const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables,
-	TMap<const TCHAR*,FCachedUniformBufferDeclaration>& UniformBufferEntries)
+	TSet<const TCHAR*>& UniformBufferNames)
 {
 	TArray<FString> FilesToSearch;
 	GetShaderIncludes(SourceFilename, SourceFilename, FilesToSearch, GMaxRHIShaderPlatform);
-	FilesToSearch.Add(SourceFilename);
+	FilesToSearch.Emplace(SourceFilename);
 
-	for (int32 FileIndex = 0; FileIndex < FilesToSearch.Num(); FileIndex++)
+	for (const FString& FileToSearch : FilesToSearch)
 	{
-		const TArray<const TCHAR*>& FoundUniformBufferVariables = ShaderFileToUniformBufferVariables.FindChecked(FilesToSearch[FileIndex]);
-
-		for (int32 VariableIndex = 0; VariableIndex < FoundUniformBufferVariables.Num(); VariableIndex++)
+		const TArray<const TCHAR*>& FoundUniformBufferVariables = ShaderFileToUniformBufferVariables.FindChecked(FileToSearch);
+		for (const TCHAR* UniformBufferName : FoundUniformBufferVariables)
 		{
-			UniformBufferEntries.Add(FoundUniformBufferVariables[VariableIndex], FCachedUniformBufferDeclaration());
+			UniformBufferNames.Emplace(UniformBufferName);
 		}
 	}
 }
@@ -1701,18 +1700,18 @@ static FFShaderParameterPointerLookupCache GShaderParameterMemberLookupCache;
 
 
 // This copy is only used internally once - it could be inlined once the public API version is removed
-void SerializeUniformBufferInfo_Internal(FShaderSaveArchive& Ar, const TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder>& UniformBufferEntries)
+void SerializeUniformBufferInfo_Internal(FShaderSaveArchive& Ar, const TArray<const TCHAR*>& UniformBufferNames)
 {
-	if (UniformBufferEntries.IsEmpty())
+	if (UniformBufferNames.IsEmpty())
 	{
 		return;
 	}
 
 	TSharedPtr<const FShaderParameterMemberLookup> ShaderParameterMembers = GShaderParameterMemberLookupCache.Get();
 
-	for (const TPair<const TCHAR*, FCachedUniformBufferDeclaration>& Entry : UniformBufferEntries)
+	for (const TCHAR* UniformBufferName : UniformBufferNames)
 	{
-		if (const TConstArrayView<FShaderParametersMetadata::FMember>* Members = ShaderParameterMembers->FindMembersByPointer(Entry.Key))
+		if (const TConstArrayView<FShaderParametersMetadata::FMember>* Members = ShaderParameterMembers->FindMembersByPointer(UniformBufferName))
 		{
 			// Serialize information about the struct layout so we can detect when it changes
 			int32 NumMembers = Members->Num();
@@ -1761,7 +1760,7 @@ void AppendKeyStringShaderDependencies(
 	FPlatformTypeLayoutParameters LayoutParams,
 	FString& OutKeyString)
 {
-	FSortedMapUniformBufferDeclaration ReferencedUniformBuffers;
+	TSet<const TCHAR*> ReferencedUniformBufferNames;
 
 	for (const FShaderTypeDependency& ShaderTypeDependency : ShaderTypeDependencies)
 	{
@@ -1785,9 +1784,9 @@ void AppendKeyStringShaderDependencies(
 		const FSHAHash LayoutHash = GetShaderTypeLayoutHash(ShaderType->GetLayout(), LayoutParams);
 		LayoutHash.AppendString(OutKeyString);
 
-		for (const auto& Entry : ShaderType->GetReferencedUniformBufferStructsCache())
+		for (const TCHAR* UniformBufferName : ShaderType->GetReferencedUniformBufferNames())
 		{
-			ReferencedUniformBuffers.Add(Entry.Key, Entry.Value);
+			ReferencedUniformBufferNames.Add(UniformBufferName);
 		}
 	}
 
@@ -1808,9 +1807,9 @@ void AppendKeyStringShaderDependencies(
 				OutKeyString.Appendf(TEXT("%08x"), ParameterStructMetadata->GetLayoutHash());
 			}
 
-			for (const auto& Entry : ShaderType->GetReferencedUniformBufferStructsCache())
+			for (const TCHAR* UniformBufferName : ShaderType->GetReferencedUniformBufferNames())
 			{
-				ReferencedUniformBuffers.Add(Entry.Key, Entry.Value);
+				ReferencedUniformBufferNames.Add(UniformBufferName);
 			}
 		}
 	}
@@ -1834,9 +1833,9 @@ void AppendKeyStringShaderDependencies(
 			}
 		}
 
-		for (const auto& Entry : VertexFactoryType->GetReferencedUniformBufferStructsCache())
+		for (const TCHAR* UniformBufferName : VertexFactoryType->GetReferencedUniformBufferNames())
 		{
-			ReferencedUniformBuffers.Add(Entry.Key, Entry.Value);
+			ReferencedUniformBufferNames.Add(UniformBufferName);
 		}
 	}
 
@@ -1846,8 +1845,11 @@ void AppendKeyStringShaderDependencies(
 		FMemoryWriter Ar(TempData, true);
 		FShaderSaveArchive SaveArchive(Ar, SerializationHistory);
 
+		TArray<const TCHAR*> SortedUniformBufferNames = ReferencedUniformBufferNames.Array();
+		Algo::Sort(SortedUniformBufferNames, FUniformBufferNameSortOrder());
+
 		// Save uniform buffer member info so we can detect when layout has changed
-		SerializeUniformBufferInfo_Internal(SaveArchive, ReferencedUniformBuffers);
+		SerializeUniformBufferInfo_Internal(SaveArchive, SortedUniformBufferNames);
 
 		SerializationHistory.AppendKeyString(OutKeyString);
 	}
@@ -1855,7 +1857,14 @@ void AppendKeyStringShaderDependencies(
 
 void SerializeUniformBufferInfo(FShaderSaveArchive& Ar, const TSortedMap<const TCHAR*, FCachedUniformBufferDeclaration, FDefaultAllocator, FUniformBufferNameSortOrder>& UniformBufferEntries)
 {
-	SerializeUniformBufferInfo_Internal(Ar, UniformBufferEntries);
+	TArray<const TCHAR*> UniformBufferNames;
+	for (const TPair<const TCHAR*, FCachedUniformBufferDeclaration>& Entry : UniformBufferEntries)
+	{
+		UniformBufferNames.Emplace(Entry.Key);
+	}
+	Algo::Sort(UniformBufferNames, FUniformBufferNameSortOrder());
+
+	SerializeUniformBufferInfo_Internal(Ar, UniformBufferNames);
 }
 
 #endif // WITH_EDITOR
@@ -2112,7 +2121,6 @@ FArchive& operator<<(FArchive& Ar, FShaderCompilerInput& Input)
 		Ar << ShaderPlatformNameString;
 		Input.ShaderPlatformName = FName(*ShaderPlatformNameString);
 	}
-	Ar << Input.SourceFilePrefix;
 	Ar << Input.VirtualSourceFilePath;
 	Ar << Input.EntryPointName;
 	Ar << Input.ShaderName;

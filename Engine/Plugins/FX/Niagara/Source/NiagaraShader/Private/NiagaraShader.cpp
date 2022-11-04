@@ -360,7 +360,7 @@ void FNiagaraShaderType::BeginCompileShader(
 
 	Script->ModifyCompilationEnvironment(Platform, NewJob->Input.Environment);
 
-	AddReferencedUniformBufferIncludes(NewJob->Input.Environment, NewJob->Input.SourceFilePrefix, (EShaderPlatform)Target.Platform);
+	AddUniformBufferIncludesToEnvironment(NewJob->Input.Environment, Platform);
 	
 	FShaderCompilerEnvironment& ShaderEnvironment = NewJob->Input.Environment;
 
@@ -390,56 +390,17 @@ void FNiagaraShaderType::BeginCompileShader(
 
 void FNiagaraShaderType::CacheUniformBufferIncludes(TMap<const TCHAR*, FCachedUniformBufferDeclaration>& Cache, EShaderPlatform Platform) const
 {
-	for (TMap<const TCHAR*, FCachedUniformBufferDeclaration>::TIterator It(Cache); It; ++It)
-	{
-		FCachedUniformBufferDeclaration& BufferDeclaration = It.Value();
-
-		for (TLinkedList<FShaderParametersMetadata*>::TIterator StructIt(FShaderParametersMetadata::GetStructList()); StructIt; StructIt.Next())
-		{
-			if (It.Key() == StructIt->GetShaderVariableName())
-			{
-				BufferDeclaration.Declaration = MakeShared<FString, ESPMode::ThreadSafe>();
-				CreateUniformBufferShaderDeclaration(StructIt->GetShaderVariableName(), **StructIt, Platform, *BufferDeclaration.Declaration.Get());
-				break;
-			}
-		}
-	}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	::CacheUniformBufferIncludes(Cache, Platform);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
-void FNiagaraShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvironment& OutEnvironment, FString& OutSourceFilePrefix, EShaderPlatform Platform) const
+void FNiagaraShaderType::AddUniformBufferIncludesToEnvironment(FShaderCompilerEnvironment& OutEnvironment, EShaderPlatform Platform) const
 {
-	// Cache uniform buffer struct declarations referenced by this shader type's files
-	if (CachedUniformBufferPlatform != Platform)
-	{
-		CacheUniformBufferIncludes(ReferencedUniformBufferStructsCache, Platform);
-		CachedUniformBufferPlatform = Platform;
-	}
+	CachedUniformBufferPlatform = Platform;
 
-	FString UniformBufferIncludes;
-
-	for (TMap<const TCHAR*, FCachedUniformBufferDeclaration>::TConstIterator It(ReferencedUniformBufferStructsCache); It; ++It)
-	{
-		check(It.Value().Declaration.IsValid());
-		UniformBufferIncludes += FString::Printf(TEXT("#include \"/Engine/Generated/UniformBuffers/%s.ush\"") LINE_TERMINATOR, It.Key());
-		FString* Declaration = It.Value().Declaration.Get();
-		check(Declaration);
-		OutEnvironment.IncludeVirtualPathToContentsMap.Add(
-			*FString::Printf(TEXT("/Engine/Generated/UniformBuffers/%s.ush"), It.Key()), *Declaration
-		);
-
-		for (TLinkedList<FShaderParametersMetadata*>::TIterator StructIt(FShaderParametersMetadata::GetStructList()); StructIt; StructIt.Next())
-		{
-			if (It.Key() == StructIt->GetShaderVariableName())
-			{
-				StructIt->AddResourceTableEntries(OutEnvironment.ResourceTableMap, OutEnvironment.UniformBufferMap);
-			}
-		}
-	}
-
-	FString& GeneratedUniformBuffersInclude = OutEnvironment.IncludeVirtualPathToContentsMap.FindOrAdd("/Engine/Generated/GeneratedUniformBuffers.ush");
-	GeneratedUniformBuffersInclude.Append(UniformBufferIncludes);
+	UE::ShaderParameters::AddUniformBufferIncludesToEnvironment(OutEnvironment, ReferencedUniformBufferNames);
 }
-
 
 /**
  * Either creates a new instance of this type or returns an equivalent existing shader.

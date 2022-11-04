@@ -1096,12 +1096,12 @@ struct FCachedUniformBufferDeclaration
 	FThreadSafeSharedStringPtr Declaration;
 };
 
-/** Parses the given source file and its includes for references of uniform buffers, which are then stored in UniformBufferEntries. */
-extern void GenerateReferencedUniformBuffers(
+/** Parses the given source file and its includes for references of uniform buffers. */
+extern void GenerateReferencedUniformBufferNames(
 	const TCHAR* SourceFilename,
 	const TCHAR* ShaderTypeName,
 	const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables,
-	TMap<const TCHAR*,FCachedUniformBufferDeclaration>& UniformBufferEntries);
+	TSet<const TCHAR*>& UniformBufferNames);
 
 struct FUniformBufferNameSortOrder
 {

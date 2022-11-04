@@ -7,6 +7,7 @@
 #include "ShaderParameterMetadata.h"
 #include "RenderCore.h"
 #include "ShaderCore.h"
+#include "ShaderParameters.h"
 
 FUniformBufferStaticSlotRegistrar::FUniformBufferStaticSlotRegistrar(const TCHAR* InName)
 {
@@ -374,6 +375,10 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 	}
 	else
 	{
+#if WITH_EDITOR
+		InitializeUniformBufferDeclaration();
+#endif
+
 		// We cannot initialize the layout during global initialization, since we have to walk nested struct members.
 		// Structs created during global initialization will have bRegisterForAutoBinding==false, and are initialized during startup.
 		// Structs created at runtime with bRegisterForAutoBinding==true can be initialized now.
@@ -410,6 +415,13 @@ void FShaderParametersMetadata::InitializeAllUniformBufferStructs()
 {
 	for (TLinkedList<FShaderParametersMetadata*>::TIterator StructIt(FShaderParametersMetadata::GetStructList()); StructIt; StructIt.Next())
 	{
+#if WITH_EDITOR
+		if (!StructIt->IsUniformBufferDeclarationInitialized())
+		{
+			StructIt->InitializeUniformBufferDeclaration();
+		}
+#endif // WITH_EDITOR
+
 		if (!StructIt->IsLayoutInitialized())
 		{
 			StructIt->InitializeLayout();
@@ -772,6 +784,19 @@ void FShaderParametersMetadata::InitializeLayout(FRHIUniformBufferLayoutInitiali
 	Layout = RHICreateUniformBufferLayout(LayoutInitializer);
 }
 
+#if WITH_EDITOR
+void FShaderParametersMetadata::InitializeUniformBufferDeclaration()
+{
+	if (UseCase != EUseCase::ShaderParameterStruct)
+	{
+		FString* NewDeclaration = new FString(UE::ShaderParameters::CreateUniformBufferShaderDeclaration(ShaderVariableName, *this));
+		check(!NewDeclaration->IsEmpty());
+
+		UniformBufferDeclaration = MakeShareable(NewDeclaration);
+	}
+}
+#endif // WITH_EDITOR
+
 void FShaderParametersMetadata::GetNestedStructs(TArray<const FShaderParametersMetadata*>& OutNestedStructs) const
 {
 	for (int32 i = 0; i < Members.Num(); ++i)
@@ -788,11 +813,54 @@ void FShaderParametersMetadata::GetNestedStructs(TArray<const FShaderParametersM
 	}
 }
 
+#if WITH_EDITOR
+
+static void AddResourceTableEntriesRecursive(const TArray<FShaderParametersMetadata::FMember>& Members, const TCHAR* UniformBufferName, const TCHAR* Prefix, uint16& ResourceIndex, TMap<FString, FResourceTableEntry>& ResourceTableMap)
+{
+	for (const FShaderParametersMetadata::FMember& Member : Members)
+	{
+		const EUniformBufferBaseType BaseType = Member.GetBaseType();
+		const uint32 NumElements = Member.GetNumElements();
+
+		if (IsShaderParameterTypeForUniformBufferLayout(BaseType))
+		{
+			FResourceTableEntry& Entry = ResourceTableMap.FindOrAdd(FString::Printf(TEXT("%s%s"), Prefix, Member.GetName()));
+			if (Entry.UniformBufferName.IsEmpty())
+			{
+				Entry.UniformBufferName = UniformBufferName;
+				Entry.Type = BaseType;
+				Entry.ResourceIndex = ResourceIndex++;
+			}
+		}
+		else if (BaseType == UBMT_NESTED_STRUCT && NumElements == 0)
+		{
+			check(Member.GetStructMetadata());
+			FString MemberPrefix = FString::Printf(TEXT("%s%s_"), Prefix, Member.GetName());
+			AddResourceTableEntriesRecursive(Member.GetStructMetadata()->GetMembers(), UniformBufferName, *MemberPrefix, ResourceIndex, ResourceTableMap);
+		}
+		else if (BaseType == UBMT_NESTED_STRUCT && NumElements > 0)
+		{
+			for (uint32 ArrayElementId = 0; ArrayElementId < NumElements; ArrayElementId++)
+			{
+				check(Member.GetStructMetadata());
+				FString MemberPrefix = FString::Printf(TEXT("%s%s_%u_"), Prefix, Member.GetName(), ArrayElementId);
+				AddResourceTableEntriesRecursive(Member.GetStructMetadata()->GetMembers(), UniformBufferName, *MemberPrefix, ResourceIndex, ResourceTableMap);
+			}
+		}
+		else if (BaseType == UBMT_INCLUDED_STRUCT)
+		{
+			check(Member.GetStructMetadata());
+			check(NumElements == 0);
+			AddResourceTableEntriesRecursive(Member.GetStructMetadata()->GetMembers(), UniformBufferName, Prefix, ResourceIndex, ResourceTableMap);
+		}
+	}
+}
+
 void FShaderParametersMetadata::AddResourceTableEntries(TMap<FString, FResourceTableEntry>& ResourceTableMap, TMap<FString, FUniformBufferEntry>& UniformBufferMap) const
 {
 	uint16 ResourceIndex = 0;
-	FString Prefix = FString::Printf(TEXT("%s_"), ShaderVariableName);
-	AddResourceTableEntriesRecursive(ShaderVariableName, *Prefix, ResourceIndex, ResourceTableMap);
+	const FString Prefix = FString::Printf(TEXT("%s_"), ShaderVariableName);
+	AddResourceTableEntriesRecursive(GetMembers(), ShaderVariableName, *Prefix, ResourceIndex, ResourceTableMap);
 	
 	FUniformBufferEntry UniformBufferEntry;
 	UniformBufferEntry.StaticSlotName = StaticSlotName;
@@ -802,46 +870,7 @@ void FShaderParametersMetadata::AddResourceTableEntries(TMap<FString, FResourceT
 	UniformBufferMap.Add(ShaderVariableName, UniformBufferEntry);
 }
 
-void FShaderParametersMetadata::AddResourceTableEntriesRecursive(const TCHAR* UniformBufferName, const TCHAR* Prefix, uint16& ResourceIndex, TMap<FString, FResourceTableEntry>& ResourceTableMap) const
-{
-	for (int32 MemberIndex = 0; MemberIndex < Members.Num(); ++MemberIndex)
-	{
-		const FMember& Member = Members[MemberIndex];
-		uint32 NumElements = Member.GetNumElements();
-
-		if (IsShaderParameterTypeForUniformBufferLayout(Member.GetBaseType()))
-		{
-			FResourceTableEntry& Entry = ResourceTableMap.FindOrAdd(FString::Printf(TEXT("%s%s"), Prefix, Member.GetName()));
-			if (Entry.UniformBufferName.IsEmpty())
-			{
-				Entry.UniformBufferName = UniformBufferName;
-				Entry.Type = Member.GetBaseType();
-				Entry.ResourceIndex = ResourceIndex++;
-			}
-		}
-		else if (Member.GetBaseType() == UBMT_NESTED_STRUCT && NumElements == 0)
-		{
-			check(Member.GetStructMetadata());
-			FString MemberPrefix = FString::Printf(TEXT("%s%s_"), Prefix, Member.GetName());
-			Member.GetStructMetadata()->AddResourceTableEntriesRecursive(UniformBufferName, *MemberPrefix, ResourceIndex, ResourceTableMap);
-		}
-		else if (Member.GetBaseType() == UBMT_NESTED_STRUCT && NumElements > 0)
-		{
-			for (uint32 ArrayElementId = 0; ArrayElementId < NumElements; ArrayElementId++)
-			{
-				check(Member.GetStructMetadata());
-				FString MemberPrefix = FString::Printf(TEXT("%s%s_%u_"), Prefix, Member.GetName(), ArrayElementId);
-				Member.GetStructMetadata()->AddResourceTableEntriesRecursive(UniformBufferName, *MemberPrefix, ResourceIndex, ResourceTableMap);
-			}
-		}
-		else if (Member.GetBaseType() == UBMT_INCLUDED_STRUCT)
-		{
-			check(Member.GetStructMetadata());
-			check(NumElements == 0);
-			Member.GetStructMetadata()->AddResourceTableEntriesRecursive(UniformBufferName, Prefix, ResourceIndex, ResourceTableMap);
-		}
-	}
-}
+#endif // WITH_EDITOR
 
 void FShaderParametersMetadata::FindMemberFromOffset(uint16 MemberOffset, const FShaderParametersMetadata** OutContainingStruct, const FShaderParametersMetadata::FMember** OutMember, int32* ArrayElementId, FString* NamePrefix) const
 {
