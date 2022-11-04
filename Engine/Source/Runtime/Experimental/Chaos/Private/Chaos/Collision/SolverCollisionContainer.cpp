@@ -37,6 +37,25 @@ namespace Chaos
 		// Collision solver regularization (experimental, disabled by default)
 		FRealSingle Chaos_PBDCollisionSolver_Regularization = 0;
 		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverRegularization(TEXT("p.Chaos.PBDCollisionSolver.Regularization"), Chaos_PBDCollisionSolver_Regularization, TEXT(""));
+
+		// Whether to use the Jacobi collision pair solver
+		bool bChaos_PBDCollisionSolver_UseJacobiPairSolver = false;
+		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverUseJacobiPairSolver(TEXT("p.Chaos.PBDCollisionSolver.UseJacobi"), bChaos_PBDCollisionSolver_UseJacobiPairSolver, TEXT(""));
+
+		// Jacobi solver stiffness
+		// @todo(chaos): to be tuned
+		FRealSingle Chaos_PBDCollisionSolver_JacobiStiffness = 0.5f;
+		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverJacobiStiffness(TEXT("p.Chaos.PBDCollisionSolver.JacobiStiffness"), Chaos_PBDCollisionSolver_JacobiStiffness, TEXT(""));
+
+		// Jacobi position tolerance. Position corrections below this are zeroed.
+		// @todo(chaos): to be tuned
+		FRealSingle Chaos_PBDCollisionSolver_JacobiPositionTolerance = 1.e-6f;
+		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverJacobiPositionTolerance(TEXT("p.Chaos.PBDCollisionSolver.JacobiPositionTolerance"), Chaos_PBDCollisionSolver_JacobiPositionTolerance, TEXT(""));
+		
+		// Jacobi rotation tolerance. Rotation corrections below this are zeroed.
+		// @todo(chaos): to be tuned
+		FRealSingle Chaos_PBDCollisionSolver_JacobiRotationTolerance = 1.e-8f;
+		FAutoConsoleVariableRef CVarChaosPBDCollisionSolverJacobiRotationTolerance(TEXT("p.Chaos.PBDCollisionSolver.JacobiRotationTolerance"), Chaos_PBDCollisionSolver_JacobiRotationTolerance, TEXT(""));
 	}
 	using namespace CVars;
 
@@ -619,9 +638,19 @@ namespace Chaos
 		const FSolverReal Dt = FSolverReal(InDt);
 		const FSolverReal MaxPushOut = FSolverReal(InMaxPushOut);
 
-		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
+		if (!CVars::bChaos_PBDCollisionSolver_UseJacobiPairSolver)
 		{
-			CollisionSolvers[SolverIndex].GetSolver().SolvePositionWithFriction(Dt, MaxPushOut);
+			for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
+			{
+				CollisionSolvers[SolverIndex].GetSolver().SolvePositionWithFriction(Dt, MaxPushOut);
+			}
+		}
+		else
+		{
+			for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
+			{
+				CollisionSolvers[SolverIndex].GetSolver().SolvePositionWithFrictionJacobi(Dt, MaxPushOut);
+			}
 		}
 
 		return true;
@@ -637,9 +666,19 @@ namespace Chaos
 		const FSolverReal Dt = FSolverReal(InDt);
 		const FSolverReal MaxPushOut = FSolverReal(InMaxPushOut);
 
-		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
+		if (!CVars::bChaos_PBDCollisionSolver_UseJacobiPairSolver)
 		{
-			CollisionSolvers[SolverIndex].GetSolver().SolvePositionNoFriction(Dt, MaxPushOut);
+			for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
+			{
+				CollisionSolvers[SolverIndex].GetSolver().SolvePositionNoFriction(Dt, MaxPushOut);
+			}
+		}
+		else
+		{
+			for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
+			{
+				CollisionSolvers[SolverIndex].GetSolver().SolvePositionNoFrictionJacobi(Dt, MaxPushOut);
+			}
 		}
 
 		return true;
@@ -661,11 +700,19 @@ namespace Chaos
 		// Apply the velocity correction
 		// @todo(chaos): parallel version of SolveVelocity
 		bool bNeedsAnotherIteration = false;
-		for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
+		if (!CVars::bChaos_PBDCollisionSolver_UseJacobiPairSolver)
 		{
-			FPBDCollisionSolverAdapter& CollisionSolver = CollisionSolvers[SolverIndex];
-
-			bNeedsAnotherIteration |= CollisionSolver.GetSolver().SolveVelocity(Dt, bApplyDynamicFriction);
+			for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
+			{
+				bNeedsAnotherIteration |= CollisionSolvers[SolverIndex].GetSolver().SolveVelocity(Dt, bApplyDynamicFriction);
+			}
+		}
+		else
+		{
+			for (int32 SolverIndex = BeginIndex; SolverIndex < EndIndex; ++SolverIndex)
+			{
+				bNeedsAnotherIteration |= CollisionSolvers[SolverIndex].GetSolver().SolveVelocityJacobi(Dt, bApplyDynamicFriction);
+			}
 		}
 
 		return bNeedsAnotherIteration;
