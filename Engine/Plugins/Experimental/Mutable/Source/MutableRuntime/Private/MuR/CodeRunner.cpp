@@ -2324,9 +2324,9 @@ namespace mu
                         AddOp( SCHEDULED_OP( item.at, item, 1),
                                SCHEDULED_OP( args.mesh, item),
                                SCHEDULED_OP( args.projector, item));
-                    }
-                    else
-                    {
+                }
+                else
+                {
                     GetMemory().SetMesh( item, nullptr );
                 }
                 break;

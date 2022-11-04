@@ -1446,6 +1446,8 @@ namespace mu
         // Mesh
         if ( node.m_pMesh )
         {
+			// TODO: This will probably result in a duplicated mesh subgraph, with the original mesh but new layout block ids.
+			// See if it can be optimized and try to reuse the existing layout block ids instead of generating new ones.
             FMeshGenerationResult MeshResult;
 			FMeshGenerationOptions MeshOptions;
 			MeshOptions.State = m_currentStateIndex;
@@ -1603,7 +1605,6 @@ namespace mu
         rasterop->op.args.ImageRasterMesh.blockIndex = op->op.args.ImageRasterMesh.blockIndex;
         rasterop->op.args.ImageRasterMesh.sizeX = op->op.args.ImageRasterMesh.sizeX;
         rasterop->op.args.ImageRasterMesh.sizeY = op->op.args.ImageRasterMesh.sizeY;
-//        rasterop->op.args.ImageRasterMesh.growBorder = 0;
 
         Ptr<ASTOpFixed> mapop = new ASTOpFixed();
         mapop->op.type = OP_TYPE::IM_MAKEGROWMAP;
@@ -1626,7 +1627,7 @@ namespace mu
 
 		MUTABLE_CPUPROFILER_SCOPE(NodeImageMipmap);
 
-        Ptr<ASTOp> res = 0;
+        Ptr<ASTOp> res;
 
         Ptr<ASTOpImageMipmap> op = new ASTOpImageMipmap();
 
@@ -1635,7 +1636,7 @@ namespace mu
         op->Levels = 0;
 
         // Source image
-        Ptr<ASTOp> base = 0;
+        Ptr<ASTOp> base;
         if ( Node* pSource = node.m_pSource.get() )
         {
             MUTABLE_CPUPROFILER_SCOPE(Base);
@@ -1651,8 +1652,8 @@ namespace mu
 
         // The number of tail mipmaps depends on the cell size. We need to know it for some code
         // optimisation operations. Scan the source image code looking for this info
-        int blockX = 0;
-        int blockY = 0;
+        int32 blockX = 0;
+        int32 blockY = 0;
         if ( m_compilerOptions->m_textureLayoutStrategy
              !=
              CompilerOptions::TextureLayoutStrategy::None )
@@ -1663,9 +1664,9 @@ namespace mu
 
         if ( blockX && blockY )
         {
-            int mipsX = (int)ceilf( logf( (float)blockX )/logf(2.0f) );
-            int mipsY = (int)ceilf( logf( (float)blockY )/logf(2.0f) );
-            op->BlockLevels = (uint8_t)FMath::Max( mipsX, mipsY );
+            int32 mipsX = (int)ceilf( logf( (float)blockX )/logf(2.0f) );
+            int32 mipsY = (int)ceilf( logf( (float)blockY )/logf(2.0f) );
+            op->BlockLevels = (uint8)FMath::Max( mipsX, mipsY );
         }
         else
         {

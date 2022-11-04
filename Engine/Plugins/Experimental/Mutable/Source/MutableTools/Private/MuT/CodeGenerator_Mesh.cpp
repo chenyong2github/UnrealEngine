@@ -382,21 +382,14 @@ class Node;
 			FMeshGenerationOptions TargetOptions = InOptions;
 			TargetOptions.bUniqueVertexIDs = false;
 			TargetOptions.bLayouts = false;
-			TargetOptions.OverrideLayouts.Empty();
+			// We need to override the layouts with the layouts that were generated for the base to make
+			// sure that we get the correct mesh when generating the target
+			TargetOptions.OverrideLayouts = BaseResult.GeneratedLayouts;
 			TargetOptions.ActiveTags.Empty();
             GenerateMesh(TargetOptions, TargetResult, node.m_morphs[t]);
 
             // TODO: Make sure that the target is a mesh with the morph format
             Ptr<ASTOp> target = TargetResult.meshOp;
-
-            // If the vertex indices are supposed to be relative in the targets, adjust them
-            //if (node.m_vertexIndicesAreRelative)
-            //{
-            //    Ptr<ASTOpMeshRemapIndices> remapIndices = new ASTOpMeshRemapIndices;
-            //    remapIndices->source = target;
-            //    remapIndices->reference = baseResult.baseMeshOp;
-            //    target = remapIndices;
-            //}
 
             OpMorph->AddTarget( target );
         }
@@ -910,7 +903,7 @@ class Node;
 
 				// If it is similar and we are overriding the layouts, we must compare the layouts of the candidate with the ones
 				// we are using to override.
-				if (InOptions.bLayouts && bIsOverridingLayouts)
+				if (bIsOverridingLayouts)
 				{
 					if (Candidate->GetLayoutCount() != InOptions.OverrideLayouts.Num())
 					{

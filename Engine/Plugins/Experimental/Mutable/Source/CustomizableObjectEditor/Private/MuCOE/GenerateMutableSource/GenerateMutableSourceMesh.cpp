@@ -2395,11 +2395,8 @@ mu::NodeMeshPtr GenerateMorphMesh(const UEdGraphPin* Pin,
 			MorphedSourceMeshNodeTable->SetParameterName(TCHAR_TO_ANSI(*TypedNodeTable->ParameterName));
 			MorphedSourceMeshNodeTable->SetMessageContext(MorphNode);
 
-			mu::NodeMeshMakeMorphPtr IdentityMorph = new mu::NodeMeshMakeMorph;
-			IdentityMorph->SetBase(BaseSourceMesh.get());
-			IdentityMorph->SetTarget(BaseSourceMesh.get());
-			IdentityMorph->SetMessageContext(MorphNode);
-
+			// A null target will leave the base unchanged
+			mu::NodeMeshPtr IdentityMorph = nullptr;
 			Result->SetMorph(0, IdentityMorph);
 
 			mu::NodeMeshMakeMorphPtr Morph = new mu::NodeMeshMakeMorph;
@@ -2508,11 +2505,8 @@ void GenerateMorphTarget(const UCustomizableObjectNode* Node, const UEdGraphPin*
 		MorphedSourceMeshNode->SetValue(MorphedSourceMesh);
 		MorphedSourceMeshNode->SetMessageContext(Node);
 
-		mu::NodeMeshMakeMorphPtr IdentityMorph = new mu::NodeMeshMakeMorph;
-		IdentityMorph->SetBase(BaseSourceMesh.get());
-		IdentityMorph->SetTarget(BaseSourceMesh.get());
-		IdentityMorph->SetMessageContext(Node);
-
+		// A null target will leave the base unchanged
+		mu::NodeMeshPtr IdentityMorph = nullptr;
 		MeshNode->SetMorph(0, IdentityMorph);
 
 		mu::NodeMeshMakeMorphPtr Morph = new mu::NodeMeshMakeMorph;
