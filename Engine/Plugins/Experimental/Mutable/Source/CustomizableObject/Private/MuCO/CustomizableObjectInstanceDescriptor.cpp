@@ -10,6 +10,7 @@
 #include "MuCO/CustomizableObject.h"
 #include "MuCO/CustomizableObjectPrivate.h"
 #include "MuCO/CustomizableObjectSystem.h"
+#include "MuCO/DefaultImageProvider.h"
 #include "MuR/Model.h"
 #include "MuR/Parameters.h"
 #include "MuR/RefCounted.h"
@@ -190,15 +191,19 @@ void FCustomizableObjectInstanceDescriptor::SaveDescriptor(FArchive& Ar)
 		case EMutableParameterType::Texture:
 		{
 			uint64 Value = 0;
+			TArray<uint64> RangeValues;
+
 			for (const FCustomizableObjectTextureParameterValue& P : TextureParameters)
 			{
 				if (P.ParameterName == Name)
 				{
 					Value = P.ParameterValue;
+					RangeValues = P.ParameterRangeValues;
 					break;
 				}
 			}
 			Ar << Value;
+			Ar << RangeValues;
 
 			break;
 		}
@@ -384,12 +389,16 @@ void FCustomizableObjectInstanceDescriptor::LoadDescriptor(FArchive& Ar)
 		case EMutableParameterType::Texture:
 		{
 			uint64 Value = 0;
+			TArray<uint64> RangeValues;
 			Ar << Value;
+			Ar << RangeValues;
+
 			for (FCustomizableObjectTextureParameterValue& P : TextureParameters)
 			{
 				if (P.ParameterName == Name)
 				{
 					P.ParameterValue = Value;
+					P.ParameterRangeValues = RangeValues;
 					break;
 				}
 			}
@@ -632,10 +641,21 @@ mu::ParametersPtr FCustomizableObjectInstanceDescriptor::GetParameters() const
 			{
 				if (TextureParameter.ParameterName == Name || (!Uid.IsEmpty() && TextureParameter.Uid == Uid))
 				{
-					MutableParameters->SetImageValue(ParamIndex, TextureParameter.ParameterValue);
+					if (mu::RangeIndexPtr RangeIdxPtr = MutableParameters->NewRangeIndex(ParamIndex))
+					{
+						for (int RangeIndex = 0; RangeIndex < TextureParameter.ParameterRangeValues.Num(); ++RangeIndex)
+						{
+							RangeIdxPtr->SetPosition(0, RangeIndex);
+							MutableParameters->SetImageValue(ParamIndex, TextureParameter.ParameterRangeValues[RangeIndex], RangeIdxPtr);
+						}
+					}
+					else
+					{
+						MutableParameters->SetImageValue(ParamIndex, TextureParameter.ParameterValue);
+					}
+
+					break;
 				}
-	
-				break;
 			}
 
 			break;
@@ -813,8 +833,7 @@ void FCustomizableObjectInstanceDescriptor::ReloadParameters()
 							Param.ParameterRangeValues.AddDefaulted(ValueIndex + 1 - Param.ParameterRangeValues.Num());
 						}
 
-						float Value = MutableParameters->GetFloatValue(ParamIndex, RangeValueIdxPtr);
-						Param.ParameterRangeValues[RangeIndex] = Value;
+						Param.ParameterRangeValues[RangeIndex] = MutableParameters->GetFloatValue(ParamIndex, RangeValueIdxPtr);
 					}
 				}
 				else
@@ -950,14 +969,41 @@ void FCustomizableObjectInstanceDescriptor::ReloadParameters()
 			{
 				return P.ParameterName == Name || (!Uid.IsEmpty() && P.Uid == Uid);
 			};
-
+			
 			if (FCustomizableObjectTextureParameterValue* Result = OldTextureParameters.FindByPredicate(FindByNameAndUid))
-			{
-				Param.ParameterValue = Result->ParameterValue;
-			}
+			{	
+				if (mu::RangeIndexPtr RangeIdxPtr = MutableParameters->NewRangeIndex(ParamIndex))
+				{
+					Param.ParameterRangeValues = Result->ParameterRangeValues;
+				}
+				else
+				{
+					Param.ParameterValue = Result->ParameterValue;
+				}
+			} 
 			else // Not found in Instance Parameters. Use Mutable Parameters.
 			{
-				Param.ParameterValue = MutableParameters->GetImageValue(ParamIndex);
+				if (mu::RangeIndexPtr RangeIdxPtr = MutableParameters->NewRangeIndex(ParamIndex))
+				{
+					const int32 ValueCount = MutableParameters->GetValueCount(ParamIndex);
+
+					for (int ValueIndex = 0; ValueIndex < ValueCount; ++ValueIndex)
+					{	
+						mu::RangeIndexPtr RangeValueIdxPtr = MutableParameters->GetValueIndex(ParamIndex, ValueIndex);
+						int32 RangeIndex = RangeValueIdxPtr->GetPosition(0);
+
+						if (!Param.ParameterRangeValues.IsValidIndex(ValueIndex))
+						{
+							Param.ParameterRangeValues.AddDefaulted(ValueIndex + 1 - Param.ParameterRangeValues.Num());
+						}
+
+						Param.ParameterRangeValues[RangeIndex] = MutableParameters->GetImageValue(ParamIndex, RangeValueIdxPtr);
+					}
+				}
+				else
+				{
+					Param.ParameterValue = MutableParameters->GetImageValue(ParamIndex);
+				}
 			}
 
 			TextureParameters.Add(Param);
@@ -1202,6 +1248,87 @@ void FCustomizableObjectInstanceDescriptor::SetFloatParameterSelectedOption(cons
 			FloatParameters[FloatParamIndex].ParameterRangeValues[RangeIndex] = FloatValue;
 		}
 	}
+}
+
+
+uint64 FCustomizableObjectInstanceDescriptor::GetTextureParameterSelectedOption(const FString& TextureParamName, const int32 RangeIndex) const
+{
+	check(CustomizableObject);
+
+	const int32 ParameterIndexInObject = CustomizableObject->FindParameter(TextureParamName);
+
+	const int32 TextureParamIndex = FindTextureParameterNameIndex(TextureParamName);
+
+	if (ParameterIndexInObject >= 0 && TextureParamIndex >= 0)
+	{
+		if (RangeIndex == -1)
+		{
+			check(!IsParamMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
+			return TextureParameters[TextureParamIndex].ParameterValue;
+		}
+		else
+		{
+			check(IsParamMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
+
+			if (TextureParameters[TextureParamIndex].ParameterRangeValues.IsValidIndex(RangeIndex))
+			{
+				return TextureParameters[TextureParamIndex].ParameterRangeValues[RangeIndex];
+			}
+		}
+	}
+
+	return -1; 
+}
+
+
+UTexture2D* FCustomizableObjectInstanceDescriptor::GetTextureParameterSelectedOptionT(const FString& TextureParamName, const int32 RangeIndex) const
+{
+	UDefaultImageProvider& ImageProvider = UCustomizableObjectSystem::GetInstance()->GetDefaultImageProvider();
+
+	const uint64 TextureValue = GetTextureParameterSelectedOption(TextureParamName, RangeIndex);
+	return ImageProvider.Get(TextureValue);
+}
+
+
+void FCustomizableObjectInstanceDescriptor::SetTextureParameterSelectedOption(const FString& TextureParamName, const uint64 TextureValue, const int32 RangeIndex)
+{
+	check(CustomizableObject);
+
+	const int32 ParameterIndexInObject = CustomizableObject->FindParameter(TextureParamName);
+
+	const int32 TextureParamIndex = FindTextureParameterNameIndex(TextureParamName);
+
+	if (ParameterIndexInObject >= 0 && TextureParamIndex >= 0)
+	{
+		if (RangeIndex == -1)
+		{
+			check(!IsParamMultidimensional(ParameterIndexInObject)); // This param is multidimensional, it must have a RangeIndex of 0 or more
+			TextureParameters[TextureParamIndex].ParameterValue = TextureValue;
+		}
+		else
+		{
+			check(IsParamMultidimensional(ParameterIndexInObject)); // This param is not multidimensional, it must have a RangeIndex of -1
+
+			if (!TextureParameters[TextureParamIndex].ParameterRangeValues.IsValidIndex(RangeIndex))
+			{
+				const int32 InsertionIndex = TextureParameters[TextureParamIndex].ParameterRangeValues.Num();
+				const int32 NumInsertedElements = RangeIndex + 1 - TextureParameters[TextureParamIndex].ParameterRangeValues.Num();
+				TextureParameters[TextureParamIndex].ParameterRangeValues.InsertDefaulted(InsertionIndex, NumInsertedElements);
+			}
+
+			check(TextureParameters[TextureParamIndex].ParameterRangeValues.IsValidIndex(RangeIndex));
+			TextureParameters[TextureParamIndex].ParameterRangeValues[RangeIndex] = TextureValue;
+		}
+	}
+}
+
+
+void FCustomizableObjectInstanceDescriptor::SetTextureParameterSelectedOptionT(const FString& TextureParamName, UTexture2D* TextureValue, const int32 RangeIndex)
+{
+	UDefaultImageProvider& ImageProvider = UCustomizableObjectSystem::GetInstance()->GetDefaultImageProvider();
+
+	const uint64 NewUid = ImageProvider.GetOrAdd(TextureValue);
+	SetTextureParameterSelectedOption(TextureParamName, NewUid, RangeIndex);
 }
 
 
@@ -1831,6 +1958,38 @@ int32 FCustomizableObjectInstanceDescriptor::RemoveValueFromFloatRange(const FSt
 		{
 			FloatParameter.ParameterRangeValues.RemoveAt(RangeIndex);
 			return FloatParameter.ParameterRangeValues.Num() - 1;
+		}
+	}
+	return -1;
+}
+
+
+int32 FCustomizableObjectInstanceDescriptor::RemoveValueFromTextureRange(const FString& ParamName)
+{
+	const int32 TextureParameterIndex = FindTextureParameterNameIndex(ParamName);
+	if (TextureParameterIndex != -1)
+	{
+		FCustomizableObjectTextureParameterValue& TextureParameter = TextureParameters[TextureParameterIndex];
+		if (TextureParameter.ParameterRangeValues.Num() > 0)
+		{
+			TextureParameter.ParameterRangeValues.Pop();
+			return TextureParameter.ParameterRangeValues.Num() - 1;
+		}
+	}
+	return -1;
+}
+
+
+int32 FCustomizableObjectInstanceDescriptor::RemoveValueFromTextureRange(const FString& ParamName, const int32 RangeIndex)
+{
+	const int32 TextureParameterIndex = FindTextureParameterNameIndex(ParamName);
+	if (TextureParameterIndex != -1)
+	{
+		FCustomizableObjectTextureParameterValue& TextureParameter = TextureParameters[TextureParameterIndex];
+		if (TextureParameter.ParameterRangeValues.Num() > 0)
+		{
+			TextureParameter.ParameterRangeValues.RemoveAt(RangeIndex);
+			return TextureParameter.ParameterRangeValues.Num() - 1;
 		}
 	}
 	return -1;

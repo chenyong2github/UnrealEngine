@@ -62,6 +62,7 @@
 #include "MuCO/CustomizableObjectSystem.h"
 #include "MuCO/CustomizableObjectSystemPrivate.h"
 #include "MuCO/CustomizableSkeletalComponent.h"
+#include "MuCO/DefaultImageProvider.h"
 #include "MuCO/MultilayerProjector.h"
 #include "MuCO/UnrealConversionUtils.h"
 #include "MuR/MeshBufferSet.h"
@@ -326,11 +327,51 @@ void UCustomizableInstancePrivateData::PrepareForUpdate(const TSharedPtr<FMutabl
 
 #if WITH_EDITOR
 
+void UCustomizableObjectInstance::PreEditChange(FProperty* PropertyAboutToChange)
+{
+	UObject::PreEditChange(PropertyAboutToChange);
+	
+	const FName PropertyName = PropertyAboutToChange ? PropertyAboutToChange->GetFName() : NAME_None;
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UCustomizableObjectInstance, TextureParameterDeclarations))
+	{
+		UDefaultImageProvider& DefaultImageProvider = UCustomizableObjectSystem::GetInstance()->GetDefaultImageProvider();
+		
+		for (TObjectPtr<UTexture2D> Texture : TextureParameterDeclarations)
+		{
+			if (Texture)
+			{
+				const int32 TextureId = DefaultImageProvider.Get(Texture);
+				DefaultImageProvider.Keep(TextureId, false);
+			}
+		}
+	}
+}
+
+
 void UCustomizableObjectInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 	bEditorPropertyChanged = true;
 
-	Super::PostEditChangeProperty(PropertyChangedEvent);
+	const FName PropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UCustomizableObjectInstance, TextureParameterDeclarations))
+	{
+		UDefaultImageProvider& DefaultImageProvider = UCustomizableObjectSystem::GetInstance()->GetDefaultImageProvider();
+		
+		for (TObjectPtr<UTexture2D> Texture : TextureParameterDeclarations)
+		{
+			if (Texture)
+			{
+				const int32 TextureId = DefaultImageProvider.GetOrAdd(Texture);
+				DefaultImageProvider.Keep(TextureId, true);
+			}
+		}
+
+		UpdateSkeletalMeshAsync(true, true);
+	}
 }
 
 
@@ -1936,6 +1977,30 @@ float UCustomizableObjectInstance::GetFloatParameterSelectedOption(const FString
 void UCustomizableObjectInstance::SetFloatParameterSelectedOption(const FString& FloatParamName, const float FloatValue, const int32 RangeIndex)
 {
 	return Descriptor.SetFloatParameterSelectedOption(FloatParamName, FloatValue, RangeIndex);
+}
+
+
+uint64 UCustomizableObjectInstance::GetTextureParameterSelectedOption(const FString& TextureParamName, const int32 RangeIndex) const
+{
+	return Descriptor.GetTextureParameterSelectedOption(TextureParamName, RangeIndex);
+}
+
+
+UTexture2D* UCustomizableObjectInstance::GetTextureParameterSelectedOptionT(const FString& TextureParamName, const int32 RangeIndex) const
+{
+	return Descriptor.GetTextureParameterSelectedOptionT(TextureParamName, RangeIndex);
+}
+
+
+void UCustomizableObjectInstance::SetTextureParameterSelectedOption(const FString& TextureParamName, const uint64 TextureValue, const int32 RangeIndex)
+{
+	Descriptor.SetTextureParameterSelectedOption(TextureParamName, TextureValue, RangeIndex);
+}
+
+
+void UCustomizableObjectInstance::SetTextureParameterSelectedOptionT(const FString& TextureParamName, UTexture2D* TextureValue, const int32 RangeIndex)
+{
+	Descriptor.SetTextureParameterSelectedOptionT(TextureParamName, TextureValue, RangeIndex);
 }
 
 

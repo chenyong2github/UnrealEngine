@@ -25,7 +25,8 @@ public:
 
 	/** Customize details here. */
 	virtual void CustomizeDetails(const TSharedPtr<IDetailLayoutBuilder>& DetailBuilder) override;
-
+	
+	// Own interface	
 	/** Refresh the custom details. */
 	void Refresh() const;
 
@@ -33,9 +34,7 @@ private:
 	TWeakObjectPtr<UCustomizableObjectInstance> CustomInstance;
 	TWeakObjectPtr<UCustomizableSkeletalComponent> CustomizableSkeletalComponent;
 	TSharedPtr<SCustomizableInstanceProperties> InstancePropertiesWidget;
-
-	TWeakPtr<IDetailLayoutBuilder> LayoutBuilder;
 	
-	void UpdateInstance() const;
+	TWeakPtr<IDetailLayoutBuilder> LayoutBuilder;
 };
 

@@ -107,6 +107,18 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 	/** Sets the float value "FloatValue" of a float parameter with index "FloatParamIndex". */
 	void SetFloatParameterSelectedOption(const FString& FloatParamName, float FloatValue, int32 RangeIndex = -1);
 
+	/** Gets the value of a texture parameter with name "TextureParamName". */
+	uint64 GetTextureParameterSelectedOption(const FString& TextureParamName, int32 RangeIndex) const;
+
+	/** Gets the texture of a texture parameter with name "TextureParamName". */
+	UTexture2D* GetTextureParameterSelectedOptionT(const FString& TextureParamName, int32 RangeIndex) const;
+
+	/** Sets the texture value "TextureValue" of a texture parameter with index "TextureParamIndex". */
+	void SetTextureParameterSelectedOption(const FString& TextureParamName, uint64 TextureValue, int32 RangeIndex);
+
+	/** Sets the texture "Texture" of a texture parameter with index "TextureParamIndex". */
+	void SetTextureParameterSelectedOptionT(const FString& TextureParamName, UTexture2D* TextureValue, int32 RangeIndex);
+
 	/** Gets the value of a color parameter with name "ColorParamName". */
 	FLinearColor GetColorParameterSelectedOption(const FString& ColorParamName) const;
 
@@ -200,6 +212,10 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 	 * The added value is initialized with 0.5f and is the last one of the range. */
 	int32 AddValueToFloatRange(const FString& ParamName);
 
+	/** Increases the range of values of the float with ParamName, returns the index of the new float value, -1 otherwise. 
+	 * The added value is not initialized. */
+	int32 AddValueToTextureRange(const FString& ParamName);
+
 	/** Increases the range of values of the projector with ParamName, returns the index of the new projector value, -1 otherwise.
 	 * The added value is initialized with the default projector as set up in the editor and is the last one of the range. */
 	int32 AddValueToProjectorRange(const FString& ParamName);
@@ -215,6 +231,12 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectInstanceDescriptor
 
 	/** Remove the RangeIndex element of the float range of values from the parameter ParamName, returns the index of the last valid float, -1 if no values left. */
 	int32 RemoveValueFromFloatRange(const FString& ParamName, int32 RangeIndex);
+
+	/** Remove the last of the texture range of values from the parameter ParamName, returns the index of the last valid float, -1 if no values left. */
+	int32 RemoveValueFromTextureRange(const FString& ParamName);
+
+	/** Remove the RangeIndex element of the texture range of values from the parameter ParamName, returns the index of the last valid float, -1 if no values left. */
+	int32 RemoveValueFromTextureRange(const FString& ParamName, int32 RangeIndex);
 
 	/** Remove the last of the projector range of values from the parameter ParamName, returns the index of the last valid projector, -1 if no values left. */
 	int32 RemoveValueFromProjectorRange(const FString& ParamName);

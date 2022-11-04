@@ -47,25 +47,6 @@ void FCustomizableInstanceDetails::CustomizeDetails(const TSharedPtr<IDetailLayo
 			.CustomInstance(CustomInstance)
 			.InstanceDetails(SharedThis(this))
 	];
-
-	
-	// If the current instance has texture parameters, show the user interface to set the possible preview
-	// values for those parameters, in case no provider is registered.
-	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
-
-	if (CustomInstance->GetTextureParameters().Num())
-	{
-		if (UCustomizableObjectImageProviderArray* ImageProvider = System->GetEditorExternalImageProvider())
-		{
-			ImageProvider->TexturesChangeDelegate.AddSP(this, &FCustomizableInstanceDetails::UpdateInstance);
-
-			IDetailCategoryBuilder& PreviewCategory = DetailBuilder->EditCategory("Preview Texture Parameter Options");
-
-			TArray<UObject*> Objs;
-			Objs.Add(ImageProvider);
-			PreviewCategory.AddExternalObjectProperty(Objs, FName("Textures"));
-		}
-	}
 }
 
 
@@ -75,15 +56,6 @@ void FCustomizableInstanceDetails::Refresh() const
 	{
 		Layout->ForceRefreshDetails();
 	}
-}
-
-
-void FCustomizableInstanceDetails::UpdateInstance() const
-{
-	UCustomizableObjectSystem* System = UCustomizableObjectSystem::GetInstance();
-	System->CacheAllImagesInAllProviders(true);
-
-	CustomInstance->UpdateSkeletalMeshAsync(true, true);
 }
 
 

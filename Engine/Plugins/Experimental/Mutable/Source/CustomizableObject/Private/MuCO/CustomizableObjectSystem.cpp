@@ -52,6 +52,7 @@
 #include "MuCO/CustomizableObjectParameterTypeDefinitions.h"
 #include "MuCO/CustomizableObjectPrivate.h"
 #include "MuCO/CustomizableObjectSystemPrivate.h"
+#include "MuCO/DefaultImageProvider.h"
 #include "MuCO/CustomizableObjectUIData.h"
 #include "MuCO/CustomizableSkeletalComponent.h"
 #include "MuCO/ICustomizableObjectModule.h"
@@ -375,15 +376,10 @@ void UCustomizableObjectSystem::InitSystem()
 	Private->MutableSystem->SetImageParameterGenerator(Provider);
 
 #if WITH_EDITOR
-	// Register an example provider of texture parameters, used by editor preview.
-	PreviewExternalImageProvider = NewObject<UCustomizableObjectImageProviderArray>();
-	RegisterImageProvider(PreviewExternalImageProvider);
-
 	if (!IsRunningGame())
 	{
 		FEditorDelegates::PreBeginPIE.AddUObject(this, &UCustomizableObjectSystem::OnPreBeginPIE);
 	}
-
 #endif
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("MutablePortableSerialization")))
@@ -817,6 +813,11 @@ void FCustomizableObjectSystemPrivate::InitUpdateSkeletalMesh(UCustomizableObjec
 		return; // The the requested update is equal to the running update.
 	}
 
+	if (const TObjectPtr<UDefaultImageProvider> DefaultImageProvider = UCustomizableObjectSystem::GetInstance()->DefaultImageProvider)
+	{
+		DefaultImageProvider->CacheTextures(Instance);
+	}
+	
 	// These delegates must be called at the end of the begin update.
 	Instance.BeginUpdateDelegate.Broadcast(&Instance);
 	Instance.BeginUpdateNativeDelegate.Broadcast(&Instance);
@@ -2389,12 +2390,17 @@ void UCustomizableObjectSystem::UnregisterImageProvider(UCustomizableSystemImage
 	Private->ImageProvider->ImageProviders.Remove(Provider);
 }
 
-#if WITH_EDITOR
-UCustomizableObjectImageProviderArray* UCustomizableObjectSystem::GetEditorExternalImageProvider()
-{ 
-	return PreviewExternalImageProvider; 
+
+UDefaultImageProvider& UCustomizableObjectSystem::GetDefaultImageProvider()
+{
+	if (!DefaultImageProvider)
+	{
+		DefaultImageProvider = NewObject<UDefaultImageProvider>();
+		RegisterImageProvider(DefaultImageProvider);
+	}
+
+	return *DefaultImageProvider;
 }
-#endif
 
 
 FMutableOperation FMutableOperation::CreateInstanceUpdate(UCustomizableObjectInstance* InCustomizableObjectInstance, bool bInNeverStream, int32 InMipsToSkip)
@@ -2461,57 +2467,6 @@ void FMutableOperation::MutableIsDisabledCase()
 	CustomizableObjectInstance->InstanceUpdated = true;
 #endif
 }
-
-
-UCustomizableSystemImageProvider::ValueType UCustomizableObjectImageProviderArray::HasTextureParameterValue(int64 ID)
-{
-	if (ID >= FirstId && ID < FirstId + Textures.Num())
-	{
-		return UCustomizableSystemImageProvider::ValueType::Unreal;
-	}
-
-	return UCustomizableSystemImageProvider::ValueType::None;
-}
-
-
-UTexture2D* UCustomizableObjectImageProviderArray::GetTextureParameterValue(int64 ID)
-{
-	if (ID >= FirstId && ID < FirstId + Textures.Num())
-	{
-		return Textures[ID - FirstId];
-	}
-
-	return nullptr;
-}
-
-
-void UCustomizableObjectImageProviderArray::GetTextureParameterValues(TArray<FCustomizableObjectExternalTexture>& OutValues)
-{
-	for (int i = 0; i < Textures.Num(); ++i)
-	{
-		if (Textures[i])
-		{
-			FCustomizableObjectExternalTexture Data;
-			Data.Name = Textures[i]->GetName();
-			Data.Value = FirstId + i;
-			OutValues.Add(Data);
-		}
-	}
-}
-
-
-void UCustomizableObjectImageProviderArray::InvalidateIds()
-{
-	FirstId += Textures.Num();
-}
-
-
-#if WITH_EDITOR
-void UCustomizableObjectImageProviderArray::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
-{
-	TexturesChangeDelegate.Broadcast();
-}
-#endif
 
 
 int32 UCustomizableObjectSystem::GetNumInstances() const
@@ -2802,40 +2757,32 @@ uint64 UCustomizableObjectSystem::GetMaxChunkSizeForPlatform(const ITargetPlatfo
 	return MaxChunkSize;
 }
 
+#endif // WITH_EDITOR
+
 
 void UCustomizableObjectSystem::CacheImage(uint64 ImageId)
 {
-	if (GetPrivate()->ImageProvider)
-	{
-		GetPrivate()->ImageProvider->CacheImage(ImageId);
-	}
+	check(GetPrivate()->ImageProvider);
+	GetPrivate()->ImageProvider->CacheImage(ImageId);
 }
 
 
 void UCustomizableObjectSystem::UnCacheImage(uint64 ImageId)
 {
-	if (GetPrivate()->ImageProvider)
-	{
-		GetPrivate()->ImageProvider->UnCacheImage(ImageId);
-	}
+	check(GetPrivate()->ImageProvider);
+	GetPrivate()->ImageProvider->UnCacheImage(ImageId);
 }
 
 
 void UCustomizableObjectSystem::CacheAllImagesInAllProviders(bool bClearPreviousCacheImages)
 {
-	if (GetPrivate()->ImageProvider)
-	{
-		GetPrivate()->ImageProvider->CacheAllImagesInAllProviders(bClearPreviousCacheImages);
-	}
+	check(GetPrivate()->ImageProvider);
+	GetPrivate()->ImageProvider->CacheAllImagesInAllProviders(bClearPreviousCacheImages);
 }
 
 
 void UCustomizableObjectSystem::ClearImageCache()
 {
-	if (GetPrivate()->ImageProvider)
-	{
-		GetPrivate()->ImageProvider->ClearCache();
-	}
+	check(GetPrivate()->ImageProvider);
+	GetPrivate()->ImageProvider->ClearCache();
 }
-
-#endif // WITH_EDITOR

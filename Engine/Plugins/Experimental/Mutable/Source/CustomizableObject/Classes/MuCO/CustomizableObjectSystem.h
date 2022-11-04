@@ -28,6 +28,7 @@ class FCustomizableObjectCompilerBase;
 class ITargetPlatform;
 class SNotificationItem;
 class UCustomizableObject;
+class UDefaultImageProvider;
 class USkeletalMesh;
 class UTexture2D;
 struct FFrame;
@@ -175,7 +176,10 @@ public:
 		Unreal,
 
 		// Data will be provided from an unreal texture, and will only be loaded when actually needed in the Mutable thread
-		Unreal_Deferred
+		Unreal_Deferred,
+
+		// Number of elements of this enum.
+		Count
 	};
 
 	// Query that Mutable will run to find out if a texture will be provided as an Unreal UTexture2D,
@@ -195,40 +199,6 @@ public:
 	// Used in the editor to show the list of available options.
 	// Only necessary if the images are required in editor previews.
 	virtual void GetTextureParameterValues(TArray<FCustomizableObjectExternalTexture>& OutValues) {};
-};
-
-
-// Example implementation of a ICustomizableSystemImageProvider that just uses a predefined array of textures.
-// It is also used by editors to set some preview images.
-UCLASS()
-class CUSTOMIZABLEOBJECT_API UCustomizableObjectImageProviderArray : public UCustomizableSystemImageProvider
-{
-public:
-	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere, Category = Preview)
-	TArray< TObjectPtr<UTexture2D> > Textures;
-
-	// UObject interface
-#if WITH_EDITOR
-	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
-
-	// UCustomizableSystemImageProvider interface
-	ValueType HasTextureParameterValue(int64 ID) override;
-	UTexture2D* GetTextureParameterValue(int64 ID) override;
-	void GetTextureParameterValues(TArray<FCustomizableObjectExternalTexture>& OutValues) override;
-
-	// Own interface
-	void InvalidateIds();
-
-	DECLARE_MULTICAST_DELEGATE(FOnTexturesChanged);
-	FOnTexturesChanged TexturesChangeDelegate;
-
-private:
-
-	// The preview texture values will start at this ID, to avoid clashing with other game-specific custom providers.
-	int FirstId = 100000;
 };
 
 
@@ -333,21 +303,12 @@ public:
 	/** [Texture Parameters] Remove all images from the cache. */
 	void ClearImageCache();
 
-
-#if WITH_EDITOR
-	/** [Texture Parameters] Get the editor-side preview external texture provider. 
-	 * \TODO: Move to the editor? 
-	 */
-	UCustomizableObjectImageProviderArray* GetEditorExternalImageProvider();
-#endif
+	UDefaultImageProvider& GetDefaultImageProvider();
 
 private:
-
-	/** [Texture Parameters] If in editor, this will hold a reference to the image provider used to give examples of external images to preview in the customizable objects that use this functionality.
-	 * \TODO : Move to the editor ?
-	 */
+	
 	UPROPERTY()
-	TObjectPtr<UCustomizableObjectImageProviderArray> PreviewExternalImageProvider = nullptr;
+	TObjectPtr<UDefaultImageProvider> DefaultImageProvider = nullptr;
 
 public:
     
@@ -467,5 +428,8 @@ private:
 	TMap<FString, int64> PlatformMaxChunkSize;
 	
 #endif
+
+	// Friends
+	friend class FCustomizableObjectSystemPrivate;
 };
 

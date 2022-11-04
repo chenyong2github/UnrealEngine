@@ -159,6 +159,9 @@ struct FCustomizableObjectTextureParameterValue
 
 	UPROPERTY(Category = CustomizableObjectTextureParameterValue, VisibleAnywhere)
 	FString Uid;
+
+	UPROPERTY(Category = CustomizableObjectTextureParameterValue, VisibleAnywhere)
+	TArray<uint64> ParameterRangeValues;
 };
 
 
@@ -166,6 +169,11 @@ inline uint32 GetTypeHash(const FCustomizableObjectTextureParameterValue& Key)
 {
 	uint32 Hash = GetTypeHash(Key.ParameterName);
 	Hash = HashCombine(Hash, GetTypeHash(Key.ParameterValue));
+
+	for (const uint64 Value : Key.ParameterRangeValues)
+    {
+    	Hash = HashCombine(Hash, GetTypeHash(Value));
+    }
 
 	return Hash;
 }

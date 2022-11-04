@@ -187,6 +187,7 @@ public:
 
 	// UObject interface.
 #if WITH_EDITOR
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange( const FProperty* InProperty ) const override;
 	bool InstanceUpdated; // Flag for the editor, to know when the instance's skeletal mesh has been updated
@@ -350,7 +351,21 @@ public:
 	// Sets the float value "FloatValue" of a float parameter with index "FloatParamIndex"
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	void SetFloatParameterSelectedOption(const FString& FloatParamName, float FloatValue, int32 RangeIndex = -1);
+	
+	/** Gets the value of a texture parameter with name "TextureParamName". */
+	uint64 GetTextureParameterSelectedOption(const FString& TextureParamName, int32 RangeIndex) const;
 
+	/** Gets the texture of a texture parameter with name "TextureParamName". */
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	UTexture2D* GetTextureParameterSelectedOptionT(const FString& TextureParamName, int32 RangeIndex) const;
+
+	/** Sets the texture value "TextureValue" of a texture parameter with index "TextureParamIndex". */
+	void SetTextureParameterSelectedOption(const FString& TextureParamName, uint64 TextureValue, int32 RangeIndex);
+
+	/** Sets the texture "Texture" of a texture parameter with index "TextureParamIndex". */
+	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
+	void SetTextureParameterSelectedOptionT(const FString& TextureParamName, UTexture2D* TextureValue, int32 RangeIndex);
+	
 	// Gets the value of a color parameter with name "ColorParamName"
 	UFUNCTION(BlueprintCallable, Category = CustomizableObjectInstance)
 	FLinearColor GetColorParameterSelectedOption(const FString& ColorParamName) const;
@@ -673,6 +688,12 @@ private:
 	/** Hash of the UCustomizableObjectInstance::Descriptor on the last successful update. */
 	FDescriptorRuntimeHash DescriptorRuntimeHash;
 
+#if WITH_EDITORONLY_DATA
+	/** Textures used in the Texture Parameters. */
+	UPROPERTY(EditAnywhere, Category = TextureParameter)
+	TArray<TObjectPtr<UTexture2D>> TextureParameterDeclarations;
+#endif
+	
 	// Deprecated properties
 	
 	UPROPERTY()
