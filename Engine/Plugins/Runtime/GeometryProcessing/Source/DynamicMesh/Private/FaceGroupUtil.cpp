@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FaceGroupUtil.h"
+#include "Selections/MeshConnectedComponents.h"
+#include "Async/ParallelFor.h"
 
 using namespace UE::Geometry;
 
@@ -201,4 +203,89 @@ void FaceGroupUtil::SeparateMeshByGroups(FDynamicMesh3& Mesh, TArray<FDynamicMes
 		check(M.TriangleCount() > 0); // SplitMesh should never add an empty mesh
 		GroupIDs.Add(M.GetTriangleGroup(0));
 	}
+}
+
+
+
+void FGroupVisualizationCache::UpdateGroupInfo_ConnectedComponents(
+	const FDynamicMesh3& SourceMesh,
+	const FPolygroupSet& GroupSet,
+	bool bParallel)
+{
+	
+	// find connected group components
+	FMeshConnectedComponents Components(&SourceMesh);
+	Components.FindConnectedTriangles([&](int32 t1, int32 t2) { return GroupSet.GetGroup(t1) == GroupSet.GetGroup(t2); });
+
+	GroupInfo.SetNum(Components.Num());
+
+	EParallelForFlags UseParallelFlags = (bParallel) ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread;
+	ParallelFor(Components.Num(), [&](int32 ci) {
+		const FMeshConnectedComponents::FComponent& Component = Components[ci];
+		GroupInfo[ci].GroupID = GroupSet.GetGroup(Component.Indices[0]);
+
+		// compute bounds
+		GroupInfo[ci].Bounds = FAxisAlignedBox3d::Empty();
+		for (int32 tid : Component.Indices)
+		{
+			GroupInfo[ci].Bounds.Contain(SourceMesh.GetTriBounds(tid));
+		}
+
+		if (Component.Indices.Num() == 1)
+		{
+			GroupInfo[ci].Center = SourceMesh.GetTriCentroid(Component.Indices[0]);
+			GroupInfo[ci].CenterTris = FIndex2i(Component.Indices[0], Component.Indices[0]);
+		}
+		else if (Component.Indices.Num() == 2 &&
+			SourceMesh.GetTriNeighbourTris(Component.Indices[0]).Contains(Component.Indices[1]))
+		{
+			int32 eid = SourceMesh.FindEdgeFromTriPair(Component.Indices[0], Component.Indices[1]);
+			if (eid != IndexConstants::InvalidID)
+			{
+				GroupInfo[ci].Center = SourceMesh.GetEdgePoint(eid, 0.5);
+				GroupInfo[ci].CenterTris = SourceMesh.GetEdgeT(eid);
+			}
+			else
+			{
+				GroupInfo[ci].Center = SourceMesh.GetTriCentroid(Component.Indices[0]);
+				GroupInfo[ci].CenterTris = FIndex2i(Component.Indices[0], Component.Indices[0]);
+			}
+		}
+		else
+		{
+			int32 CenterTriID = -1;
+			TSet<int32> TrisInGroup(Component.Indices);
+			TArray<int32> BorderTris;
+			while (CenterTriID == -1)
+			{
+				BorderTris.Reset();
+				for (int32 tid : TrisInGroup)
+				{
+					FIndex3i NbrTris = SourceMesh.GetTriNeighbourTris(tid);
+					bool bIsBorder = (TrisInGroup.Contains(NbrTris.A) == false || TrisInGroup.Contains(NbrTris.B) == false || TrisInGroup.Contains(NbrTris.C) == false);
+					if (bIsBorder)
+					{
+						BorderTris.Add(tid);
+					}
+				}
+				for (int32 tid : BorderTris)
+				{
+					TrisInGroup.Remove(tid);
+					if (TrisInGroup.Num() == 1)
+					{
+						CenterTriID = *TrisInGroup.begin();
+						break;
+					}
+				}
+			}
+			GroupInfo[ci].Center = SourceMesh.GetTriCentroid(CenterTriID);
+			GroupInfo[ci].CenterTris = FIndex2i(CenterTriID, CenterTriID);
+		}
+
+		if (bStorePerGroupTriangleIDs)
+		{
+			GroupInfo[ci].TriangleIDs = MoveTemp(Components[ci].Indices);
+		}
+
+	}, UseParallelFlags);
 }

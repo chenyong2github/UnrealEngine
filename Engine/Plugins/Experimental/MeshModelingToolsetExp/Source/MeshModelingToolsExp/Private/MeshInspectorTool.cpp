@@ -9,6 +9,7 @@
 #include "DynamicMesh/MeshNormals.h"
 
 #include "Components/DynamicMeshComponent.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
 #include "Properties/MeshStatisticsProperties.h"
@@ -16,6 +17,8 @@
 
 #include "Drawing/LineSetComponent.h"
 #include "ToolDataVisualizer.h"
+#include "Polygroups/PolygroupUtil.h"
+#include "Util/ColorConstants.h"
 
 #include "SceneManagement.h" // for FPrimitiveDrawInterface
 
@@ -23,11 +26,135 @@
 #include "AssetUtils/MeshDescriptionUtil.h"
 #include "ModelingToolTargetUtil.h"
 
+#include "CanvasTypes.h"
+#include "CanvasItem.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshInspectorTool)
 
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshInspectorTool"
+
+
+
+
+
+void UMeshInspectorMaterialProperties::UpdateUVChannels(int32 UVChannelIndex, const TArray<FString>& UVChannelNames, bool bUpdateSelection)
+{
+	UVChannelNamesList = UVChannelNames;
+	if (bUpdateSelection)
+	{
+		UVChannel = 0 <= UVChannelIndex && UVChannelIndex < UVChannelNames.Num() ? UVChannelNames[UVChannelIndex] : TEXT("");
+	}
+}
+
+
+const TArray<FString>& UMeshInspectorMaterialProperties::GetUVChannelNamesFunc() const
+{
+	return UVChannelNamesList;
+}
+
+void UMeshInspectorMaterialProperties::RestoreProperties(UInteractiveTool* RestoreToTool, const FString& CacheIdentifier)
+{
+	Super::RestoreProperties(RestoreToTool, CacheIdentifier);
+	Setup();
+}
+
+void UMeshInspectorMaterialProperties::Setup()
+{
+	UMaterial* CheckerMaterialBase = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolsetExp/Materials/CheckerMaterial"));
+	if (CheckerMaterialBase != nullptr)
+	{
+		CheckerMaterial = UMaterialInstanceDynamic::Create(CheckerMaterialBase, this);
+		if (CheckerMaterial != nullptr)
+		{
+			CheckerMaterial->SetScalarParameterValue("Density", CheckerDensity);
+			CheckerMaterial->SetScalarParameterValue("UVChannel", static_cast<float>(UVChannelNamesList.IndexOfByKey(UVChannel)));
+		}
+	}
+}
+
+void UMeshInspectorMaterialProperties::UpdateMaterials()
+{
+	if (MaterialMode == EMeshInspectorMaterialMode::Checkerboard)
+	{
+		if (CheckerMaterial != nullptr)
+		{
+			CheckerMaterial->SetScalarParameterValue("Density", CheckerDensity);
+			CheckerMaterial->SetScalarParameterValue("UVChannel", static_cast<float>(UVChannelNamesList.IndexOfByKey(UVChannel)));
+		}
+	}
+	else if (MaterialMode == EMeshInspectorMaterialMode::FlatShaded)
+	{
+		ActiveCustomMaterial = UMaterialInstanceDynamic::Create(ToolSetupUtil::GetDefaultSculptMaterial(nullptr), this);
+		ActiveCustomMaterial->SetScalarParameterValue(TEXT("FlatShading"), 1.0f);
+	}
+	else if (MaterialMode == EMeshInspectorMaterialMode::Grey)
+	{
+		ActiveCustomMaterial = UMaterialInstanceDynamic::Create(ToolSetupUtil::GetImageBasedSculptMaterial(nullptr, ToolSetupUtil::ImageMaterialType::DefaultBasic), this);
+		ActiveCustomMaterial->SetScalarParameterValue(TEXT("FlatShading"), 0.0f);
+	}
+	else if (MaterialMode == EMeshInspectorMaterialMode::Transparent)
+	{
+		ActiveCustomMaterial = ToolSetupUtil::GetTransparentSculptMaterial(nullptr, TransparentMaterialColor, Opacity, bTwoSided);
+		ActiveCustomMaterial->SetVectorParameterValue(TEXT("Color"), Color);
+		ActiveCustomMaterial->SetScalarParameterValue(TEXT("Opacity"), Opacity);
+	}
+	else if (MaterialMode == EMeshInspectorMaterialMode::VertexColor)
+	{
+		ActiveCustomMaterial = ToolSetupUtil::GetVertexColorMaterial(nullptr);
+		ActiveCustomMaterial->SetScalarParameterValue(TEXT("FlatShading"), (bFlatShading) ? 1.0f : 0.0f);
+	}
+	else if (MaterialMode == EMeshInspectorMaterialMode::TangentNormal)
+	{
+		ActiveCustomMaterial = UMaterialInstanceDynamic::Create(ToolSetupUtil::GetImageBasedSculptMaterial(nullptr, ToolSetupUtil::ImageMaterialType::TangentNormalFromView), this);
+	}
+	else if (MaterialMode == EMeshInspectorMaterialMode::GroupColor)
+	{
+		ActiveCustomMaterial = ToolSetupUtil::GetVertexColorMaterial(nullptr);
+		ActiveCustomMaterial->SetScalarParameterValue(TEXT("FlatShading"), (bFlatShading) ? 1.0f : 0.0f);
+	}
+}
+
+
+UMaterialInterface* UMeshInspectorMaterialProperties::GetActiveOverrideMaterial() const
+{
+	if (MaterialMode == EMeshInspectorMaterialMode::Checkerboard)
+	{
+		return CheckerMaterial;
+	}
+	else if (MaterialMode == EMeshInspectorMaterialMode::Override)
+	{
+		return OverrideMaterial;
+	}
+	else if (MaterialMode == EMeshInspectorMaterialMode::FlatShaded)
+	{
+		return ActiveCustomMaterial;
+	} 
+	else if (MaterialMode == EMeshInspectorMaterialMode::Grey)
+	{
+		return ActiveCustomMaterial;
+	}
+	else if (MaterialMode == EMeshInspectorMaterialMode::Transparent)
+	{
+		return ActiveCustomMaterial;
+	}
+	else if (MaterialMode == EMeshInspectorMaterialMode::VertexColor)
+	{
+		return ActiveCustomMaterial;
+	}
+	else if (MaterialMode == EMeshInspectorMaterialMode::TangentNormal)
+	{
+		return ActiveCustomMaterial;
+	}
+	else if (MaterialMode == EMeshInspectorMaterialMode::GroupColor)
+	{
+		return ActiveCustomMaterial;
+	}
+
+	return nullptr;
+}
+
 
 /*
  * ToolBuilder
@@ -54,7 +181,8 @@ void UMeshInspectorTool::Setup()
 	PreviewMesh->bBuildSpatialDataStructure = false;
 	PreviewMesh->CreateInWorld(GetTargetWorld(), FTransform::Identity);
 	ToolSetupUtil::ApplyRenderingConfigurationToPreview(PreviewMesh, Target);
-	PreviewMesh->SetTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
+	LocalToWorldTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
+	PreviewMesh->SetTransform(LocalToWorldTransform);
 
 	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 	PreviewMesh->SetMaterials(MaterialSet.Materials);
@@ -80,7 +208,15 @@ void UMeshInspectorTool::Setup()
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
 
-	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
+	PolygroupLayerProperties = NewObject<UPolygroupLayersProperties>(this);
+	PolygroupLayerProperties->RestoreProperties(this, TEXT("MeshGroupPaintTool"));
+	PolygroupLayerProperties->InitializeGroupLayers(PreviewMesh->GetMesh());
+	PolygroupLayerProperties->WatchProperty(PolygroupLayerProperties->ActiveGroupLayer, [&](FName) { OnSelectedGroupLayerChanged(); });
+	UpdateActiveGroupLayer();
+	AddToolPropertySource(PolygroupLayerProperties);
+
+
+	MaterialSettings = NewObject<UMeshInspectorMaterialProperties>(this);
 	const FDynamicMesh3* TargetMesh = PreviewMesh->GetPreviewDynamicMesh();
 	TArray<FString> UVChannelNamesList;
 	for (int32 k = 0; k < TargetMesh->Attributes()->NumUVLayers(); ++k)
@@ -107,6 +243,16 @@ void UMeshInspectorTool::Setup()
 	GetToolManager()->DisplayMessage(
 		LOCTEXT("OnStartTool", "Visualize various geometric properties and attributes of the Mesh"),
 		EToolMessageLevel::UserNotification);
+}
+
+
+UE::Geometry::FDynamicMeshAABBTree3* UMeshInspectorTool::GetSpatial()
+{
+	if (MeshAABBTree.IsValid() == false)
+	{
+		MeshAABBTree = MakeUnique<FDynamicMeshAABBTree3>(PreviewMesh->GetMesh(), true);
+	}
+	return MeshAABBTree.Get();
 }
 
 
@@ -224,6 +370,145 @@ void UMeshInspectorTool::Render(IToolsContextRenderAPI* RenderAPI)
 }
 
 
+void UMeshInspectorTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
+{
+	float DPIScale = Canvas->GetDPIScale();
+	UFont* UseFont = GEngine->GetSmallFont();
+	FViewCameraState CamState = RenderAPI->GetCameraState();
+	const FSceneView* SceneView = RenderAPI->GetSceneView();
+	FVector3d LocalEyePosition(LocalToWorldTransform.InverseTransformPosition((FVector3d)CamState.Position));
+	FVector3d LocalEyeDirection(LocalToWorldTransform.InverseTransformVectorNoScale((FVector3d)CamState.Forward()));
+
+	const FDynamicMesh3* Mesh = PreviewMesh->GetMesh();
+	FDynamicMeshAABBTree3* Spatial = GetSpatial();
+
+	// Code below draws the different type of mesh indices. The maximum number of labels to draw is
+	// capped. Points are clipped against the view frustum, so that only visible labels are drawn.
+	// In addition raycasts are used to check that the label target point is visible.
+	// This is all a bit expensive, it would be nice to do this in parallel and/or cache 
+	// the result for the current view
+
+	// config settings for drawing numbers
+	int32 DrawMaxNumbers = 500;
+	bool bCanShowAllValues = false;
+	switch (Settings->ShowIndices)
+	{
+	case EMeshInspectorToolDrawIndexMode::TriangleID: bCanShowAllValues = (Mesh->TriangleCount() < DrawMaxNumbers); break;
+	case EMeshInspectorToolDrawIndexMode::VertexID: bCanShowAllValues = (Mesh->VertexCount() < DrawMaxNumbers); break;
+	case EMeshInspectorToolDrawIndexMode::EdgeID: bCanShowAllValues = (Mesh->EdgeCount() < DrawMaxNumbers); break;
+	case EMeshInspectorToolDrawIndexMode::GroupID: bCanShowAllValues = true; break;
+	}
+
+	// figure out 2D pixel-space rectangle to use for clipping
+	FIntRect ViewRect = SceneView->UnconstrainedViewRect;
+	ViewRect.InflateRect( (bCanShowAllValues) ? 0 : -100 );
+	FAxisAlignedBox2d ViewRectBox(
+		FVector2d((double)ViewRect.Min.X, (double)ViewRect.Min.Y),
+		FVector2d((double)ViewRect.Max.X, (double)ViewRect.Max.Y));
+
+	// IsVisibleFunc checks if the camera projection of a 3D world-space point is considered "visible"
+	auto IsVisibleFunc = [SceneView, ViewRectBox](const FVector3d WorldPosition)
+	{
+		FVector2D PixelLocation;
+		if (SceneView->WorldToPixel(WorldPosition, PixelLocation) )
+		{
+			return ViewRectBox.Contains(PixelLocation);
+		}
+		return false;
+	};
+
+	int32 NumbersDrawnCount = 0;
+
+	// DrawNumberIfVisible draws the given number at the given 3D position, projected into the 2D canvas, if it is visible
+	// PositionHitTestFunc argument is called after raycast checks w/ the hit triangle, ray-distance, and local-space hit position, 
+	// to determine if visible point along the eye ray is suitable to draw the number at (ie if it is visible, etc)
+	auto DrawNumberIfVisible = [Mesh, Spatial, DPIScale, UseFont, this, LocalEyePosition, LocalEyeDirection, SceneView, Canvas, &NumbersDrawnCount, DrawMaxNumbers, &IsVisibleFunc]
+	(int32 Number, FVector3d LocalPosition, TFunctionRef<bool(int32, double, FVector3d)> PositionHitTestFunc)
+	{
+		FVector3d WorldPosition = LocalToWorldTransform.TransformPosition(LocalPosition);
+		if (NumbersDrawnCount >= DrawMaxNumbers || IsVisibleFunc(WorldPosition) == false )
+		{
+			return;
+		}
+		FRay3d LocalEyeRay;
+		LocalEyeRay.Origin = LocalEyePosition;
+		LocalEyeRay.Direction = Normalized(LocalPosition - LocalEyePosition);
+		if (LocalEyeRay.Direction.Dot(LocalEyeDirection) < 0)
+		{
+			return;		// ray to Position is pointing away from the camera
+		}
+		double LocalRayHitT;
+		int HitTID;
+		FVector3d HitBaryCoords;
+		if (Spatial->FindNearestHitTriangle(LocalEyeRay, LocalRayHitT, HitTID, HitBaryCoords))
+		{
+			FVector3d LocalHitPos = LocalEyeRay.PointAt(LocalRayHitT);
+			if (PositionHitTestFunc(HitTID, LocalRayHitT, LocalHitPos))
+			{
+				FVector2D PixelPos;
+				SceneView->WorldToPixel(WorldPosition, PixelPos);
+				FString String = FString::Printf(TEXT("%d"), Number);
+				Canvas->DrawShadowedString(PixelPos.X / (double)DPIScale, PixelPos.Y / (double)DPIScale, *String, UseFont, FLinearColor::White);
+				NumbersDrawnCount++;
+			}
+		}
+		else
+		{
+			// if we did not hit the mesh then this item must be at a grazing angle in which case it should be considered visible
+			FVector2D PixelPos;
+			SceneView->WorldToPixel(WorldPosition, PixelPos);
+			FString String = FString::Printf(TEXT("%d"), Number);
+			Canvas->DrawShadowedString(PixelPos.X / (double)DPIScale, PixelPos.Y / (double)DPIScale, *String, UseFont, FLinearColor::White);
+			NumbersDrawnCount++;
+		}
+	};
+
+
+	if (Settings->ShowIndices == EMeshInspectorToolDrawIndexMode::TriangleID)
+	{
+		for (int32 tid : Mesh->TriangleIndicesItr())
+		{
+			DrawNumberIfVisible(tid, Mesh->GetTriCentroid(tid),
+				[&](int32 HitTID, double, FVector3d) { return HitTID == tid; });
+		}
+	}
+	else if (Settings->ShowIndices == EMeshInspectorToolDrawIndexMode::VertexID)
+	{
+		FRandomStream TargetJitter(31337);
+		for (int32 vid : Mesh->VertexIndicesItr())
+		{
+			// slightly jitter the position here to avoid issues w/ rays that directly pass through vertices 'missing' due to precision limitations
+			FVector3d Position = Mesh->GetVertex(vid) + 0.0001 * TargetJitter.GetUnitVector();
+			DrawNumberIfVisible(vid, Position, [&](int32 HitTID, double LocalRayHitT, FVector3d LocalHitPos) { return Distance(LocalHitPos, Position) < 0.001; });
+		}
+	}
+	else if (Settings->ShowIndices == EMeshInspectorToolDrawIndexMode::EdgeID)
+	{
+		FRandomStream TargetJitter(31337);
+		for (int32 eid : Mesh->EdgeIndicesItr())
+		{
+			FVector3d Position = Mesh->GetEdgePoint(eid, 0.5) + 0.0001 * TargetJitter.GetUnitVector();
+			FIndex2i EdgeT = Mesh->GetEdgeT(eid);
+			DrawNumberIfVisible(eid, Position,
+				[&](int32 HitTID, double RayHitT, FVector3d) { return EdgeT.Contains(HitTID); });
+		}
+	}
+	else if (Settings->ShowIndices == EMeshInspectorToolDrawIndexMode::GroupID)
+	{
+		if (bDrawGroupsDataValid == false)
+		{
+			GroupVisualizationCache.UpdateGroupInfo_ConnectedComponents(*Mesh, *ActiveGroupSet);
+			bDrawGroupsDataValid = true;
+		}
+		for (const FGroupVisualizationCache::FGroupInfo& GroupInfo : GroupVisualizationCache)
+		{
+			DrawNumberIfVisible(GroupInfo.GroupID, GroupInfo.Center,
+				[&](int32 HitTID, double, FVector3d) { return HitTID == GroupInfo.CenterTris.A || HitTID == GroupInfo.CenterTris.B; });
+		}
+	}
+}
+
+
 void UMeshInspectorTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
 	GetToolManager()->PostInvalidation();
@@ -232,9 +517,26 @@ void UMeshInspectorTool::OnPropertyModified(UObject* PropertySet, FProperty* Pro
 
 void UMeshInspectorTool::UpdateVisualization()
 {
+	if (!MaterialSettings) return;
+
 	PreviewMesh->EnableWireframe(Settings->bWireframe);
 
+	// determine custom material
 	MaterialSettings->UpdateMaterials();
+
+	// if override color function was set, clear it
+	if (MaterialSettings->MaterialMode != EMeshInspectorMaterialMode::GroupColor)
+	{
+		PreviewMesh->ClearTriangleColorFunction(UPreviewMesh::ERenderUpdateMode::FastUpdate);
+	}
+	else
+	{
+		PreviewMesh->SetTriangleColorFunction([this](const FDynamicMesh3* Mesh, int TriangleID)
+		{
+			return LinearColors::SelectFColor(ActiveGroupSet->GetTriangleGroup(TriangleID));
+		}, UPreviewMesh::ERenderUpdateMode::FastUpdate);
+	}
+
 	UMaterialInterface* OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
 	if (OverrideMaterial == nullptr)
 	{
@@ -414,6 +716,32 @@ void UMeshInspectorTool::DecreaseLineWidthAction()
 {
 	LineWidthMultiplier = LineWidthMultiplier * (1.0f / 1.25f);
 	GetToolManager()->PostInvalidation();
+}
+
+
+
+void UMeshInspectorTool::OnSelectedGroupLayerChanged()
+{
+	UpdateActiveGroupLayer();
+}
+
+void UMeshInspectorTool::UpdateActiveGroupLayer()
+{
+	if (PolygroupLayerProperties->HasSelectedPolygroup() == false)
+	{
+		ActiveGroupSet = MakeUnique<UE::Geometry::FPolygroupSet>(PreviewMesh->GetMesh());
+	}
+	else
+	{
+		FName SelectedName = PolygroupLayerProperties->ActiveGroupLayer;
+		const FDynamicMeshPolygroupAttribute* FoundAttrib = UE::Geometry::FindPolygroupLayerByName(*PreviewMesh->GetMesh(), SelectedName);
+		ensureMsgf(FoundAttrib, TEXT("Selected Attribute Not Found! Falling back to Default group layer."));
+		ActiveGroupSet = MakeUnique<UE::Geometry::FPolygroupSet>(PreviewMesh->GetMesh(), FoundAttrib);
+	}
+	bDrawGroupsDataValid = false;
+
+	// force visualization update
+	UpdateVisualization();
 }
 
 

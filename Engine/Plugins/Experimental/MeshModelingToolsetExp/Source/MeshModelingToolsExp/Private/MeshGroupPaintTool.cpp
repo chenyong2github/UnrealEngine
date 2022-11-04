@@ -100,7 +100,7 @@ void UMeshGroupPaintTool::Setup()
 	}
 
 	DynamicMeshComponent->SetInvalidateProxyOnChangeEnabled(false);
-	OnDynamicMeshComponentChangedHandle = DynamicMeshComponent->OnMeshVerticesChanged.AddUObject(this, &UMeshGroupPaintTool::OnDynamicMeshComponentChanged);
+	OnDynamicMeshComponentChangedHandle = DynamicMeshComponent->OnMeshChanged.AddUObject(this, &UMeshGroupPaintTool::OnDynamicMeshComponentChanged);
 
 	FDynamicMesh3* Mesh = GetSculptMesh();
 	Mesh->EnableVertexColors(FVector3f::One());
@@ -637,6 +637,7 @@ bool UMeshGroupPaintTool::SyncMeshWithGroupBuffer(FDynamicMesh3* Mesh)
 			NumModified++;
 		}
 	}
+
 	return (NumModified > 0);
 }
 
@@ -1071,7 +1072,6 @@ bool UMeshGroupPaintTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	return true;
 }
 
-
 void UMeshGroupPaintTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
 {
 	if (PolyLassoMechanic)
@@ -1080,6 +1080,54 @@ void UMeshGroupPaintTool::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* Rende
 		PolyLassoMechanic->LineColor = GetInEraseStroke() ? FLinearColor::Red : FLinearColor::Green;
 		PolyLassoMechanic->DrawHUD(Canvas, RenderAPI);
 	}
+
+
+	float DPIScale = Canvas->GetDPIScale();
+	UFont* UseFont = GEngine->GetSmallFont();
+	FViewCameraState CamState = RenderAPI->GetCameraState();
+	const FSceneView* SceneView = RenderAPI->GetSceneView();
+	FVector3d LocalEyePosition(CurTargetTransform.InverseTransformPosition((FVector3d)CamState.Position));
+
+	FDynamicMesh3* Mesh = GetSculptMesh();
+
+	// draw the group number for the group under the cursor
+	if (FilterProperties->bShowHitGroup)
+	{
+		int CursorHitTID = Octree.FindNearestHitObject(FRay3d(LocalEyePosition, Normalized(HoverStamp.LocalFrame.Origin - LocalEyePosition)));
+		if (Mesh->IsTriangle(CursorHitTID))
+		{
+			int32 GroupID = ActiveGroupSet->GetTriangleGroup(CursorHitTID);
+			FVector2D CursorPixelPos;
+			SceneView->WorldToPixel(HoverStamp.WorldFrame.Origin, CursorPixelPos);
+			FString CursorString = FString::Printf(TEXT("%d"), GroupID);
+			Canvas->DrawShadowedString(CursorPixelPos.X / (double)DPIScale, CursorPixelPos.Y / (double)DPIScale, *CursorString, UseFont, FLinearColor::White);
+		}
+	}
+
+	// draw the group number for all groups
+	if (FilterProperties->bShowAllGroups)
+	{
+		if (bDrawGroupsDataValid == false)
+		{
+			GroupVisualizationCache.UpdateGroupInfo_ConnectedComponents(*Mesh, *ActiveGroupSet);
+			bDrawGroupsDataValid = true;
+		}
+		for (const FGroupVisualizationCache::FGroupInfo& GroupInfo : GroupVisualizationCache)
+		{
+			FRay3d EyeRay;
+			EyeRay.Origin = LocalEyePosition;
+			EyeRay.Direction = Normalized(GroupInfo.Center - LocalEyePosition);
+			int HitTID = Octree.FindNearestHitObject(EyeRay);
+			if (HitTID == GroupInfo.CenterTris.A || HitTID == GroupInfo.CenterTris.B)
+			{
+				FVector2D PixelPos;
+				SceneView->WorldToPixel(CurTargetTransform.TransformPosition(GroupInfo.Center), PixelPos);
+				FString String = FString::Printf(TEXT("%d"), GroupInfo.GroupID);
+				Canvas->DrawShadowedString(PixelPos.X / (double)DPIScale, PixelPos.Y / (double)DPIScale, *String, UseFont, FLinearColor::White);
+			}
+		}
+	}
+
 }
 
 
@@ -1112,6 +1160,7 @@ void UMeshGroupPaintTool::OnTick(float DeltaTime)
 		// post rendering update
 		DynamicMeshComponent->FastNotifyTriangleVerticesUpdated(AccumulatedTriangleROI, EMeshRenderAttributeFlags::VertexColors);
 		GetToolManager()->PostInvalidation();
+		bDrawGroupsDataValid = false;
 
 		// ignore stamp and wait for next tick to do anything else
 		bUndoUpdatePending = false;
@@ -1182,9 +1231,6 @@ void UMeshGroupPaintTool::OnTick(float DeltaTime)
 	}
 
 }
-
-
-
 
 
 
@@ -1457,6 +1503,9 @@ void UMeshGroupPaintTool::EndChange()
 	};
 
 	GetToolManager()->EmitObjectChange(DynamicMeshComponent, MoveTemp(NewChange), LOCTEXT("GroupPaintChange", "Group Stroke"));
+
+	// debug groups are invalid now
+	bDrawGroupsDataValid = false;
 }
 
 
@@ -1468,7 +1517,7 @@ void UMeshGroupPaintTool::WaitForPendingUndoRedo()
 	}
 }
 
-void UMeshGroupPaintTool::OnDynamicMeshComponentChanged(UDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert)
+void UMeshGroupPaintTool::OnDynamicMeshComponentChanged()
 {
 	// update octree
 	FDynamicMesh3* Mesh = GetSculptMesh();
@@ -1479,13 +1528,13 @@ void UMeshGroupPaintTool::OnDynamicMeshComponentChanged(UDynamicMeshComponent* C
 		// we should never hit this anymore, because of pre-change calling WaitForPendingUndoRedo()
 		WaitForPendingUndoRedo();
 
-		// this is not right because now we are going to do extra recomputation, but it's very messy otherwise...
-		UE::Geometry::VertexToTriangleOneRing(Mesh, Change->Vertices, AccumulatedTriangleROI);
+		// TODO: do we need to read from mesh change here??
+		//UE::Geometry::VertexToTriangleOneRing(Mesh, Change->Vertices, AccumulatedTriangleROI);
 	}
 	else
 	{
-		AccumulatedTriangleROI.Reset();
-		UE::Geometry::VertexToTriangleOneRing(Mesh, Change->Vertices, AccumulatedTriangleROI);
+		// TODO: do we need to read from mesh change here??
+		//UE::Geometry::VertexToTriangleOneRing(Mesh, Change->Vertices, AccumulatedTriangleROI);
 	}
 
 	// note that we have a pending update

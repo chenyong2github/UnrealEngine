@@ -20,6 +20,7 @@
 #include "TransformTypes.h"
 #include "Changes/MeshPolygroupChange.h"
 #include "Polygroups/PolygroupSet.h"
+#include "FaceGroupUtil.h"
 
 #include "MeshGroupPaintTool.generated.h"
 
@@ -176,6 +177,15 @@ public:
 	/** Number of vertices in a triangle the Lasso must hit to be counted as "inside" */
 	UPROPERTY(EditAnywhere, Category = Filters, AdvancedDisplay, meta = (UIMin = 1, UIMax = 3, EditCondition = "SubToolType == EMeshGroupPaintInteractionType::PolyLasso"))
 	int MinTriVertCount = 1;
+
+
+	/** Display the Group ID of the last triangle under the cursor */
+	UPROPERTY(EditAnywhere, Category = Visualization)
+	bool bShowHitGroup = false;
+
+	/** Display the Group ID for all visible groups in the mesh */
+	UPROPERTY(EditAnywhere, Category = Visualization)
+	bool bShowAllGroups = false;
 };
 
 
@@ -288,9 +298,9 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual void OnTick(float DeltaTime) override;
+	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
@@ -404,7 +414,7 @@ protected:
 	TObjectPtr<UMeshElementsVisualizer> MeshElementsDisplay;
 
 	// realtime visualization
-	void OnDynamicMeshComponentChanged(UDynamicMeshComponent* Component, const FMeshVertexChange* Change, bool bRevert);
+	void OnDynamicMeshComponentChanged();
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
 
 	TUniquePtr<UE::Geometry::FPolygroupSet> ActiveGroupSet;
@@ -469,10 +479,11 @@ protected:
 	void PrecomputeFilterData();
 
 
+	bool bDrawGroupsDataValid = false;
+	UE::Geometry::FGroupVisualizationCache GroupVisualizationCache;
+
 protected:
 	virtual bool ShowWorkPlane() const override { return false; }
-
-
 };
 
 

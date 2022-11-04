@@ -12,6 +12,9 @@
 #include "Properties/MeshMaterialProperties.h"
 #include "PreviewMesh.h"
 #include "BaseTools/SingleSelectionMeshEditingTool.h"
+#include "PropertySets/PolygroupLayersProperties.h"
+#include "Polygroups/PolygroupSet.h"
+#include "FaceGroupUtil.h"
 #include "MeshInspectorTool.generated.h"
 
 
@@ -31,6 +34,16 @@ public:
 	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
+
+UENUM()
+enum class EMeshInspectorToolDrawIndexMode : uint8
+{
+	None,
+	VertexID,
+	TriangleID,
+	GroupID,
+	EdgeID
+};
 
 
 UCLASS()
@@ -80,15 +93,124 @@ public:
 	bool bTangentVectors = false;
 
 	/** Length of line segments representing normal vectors */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bNormalVectors", 
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay, meta = (EditCondition = "bNormalVectors",
 		UIMin="0", UIMax="400", ClampMin = "0", ClampMax = "1000000000.0"))
 	float NormalLength = 5.0f;
 
 	/** Length of line segments representing tangent vectors */
-	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "bTangentVectors", 
+	UPROPERTY(EditAnywhere, Category = Options, AdvancedDisplay, meta = (EditCondition = "bTangentVectors",
 		UIMin = "0", UIMax = "400", ClampMin = "0", ClampMax = "1000000000.0"))
 	float TangentLength = 5.0f;
+
+	/** Draw the mesh indices of the selected type. A maximum of 500 visible indices will be rendered. */
+	UPROPERTY(EditAnywhere, Category=Options)
+	EMeshInspectorToolDrawIndexMode ShowIndices = EMeshInspectorToolDrawIndexMode::None;
 };
+
+
+
+
+/** Material Modes for Mesh Inspector Tool */
+UENUM()
+enum class EMeshInspectorMaterialMode : uint8
+{
+	/** Input material */
+	Original,
+	/** Flat Shaded Material, ie with per-triangle normals */
+	FlatShaded,
+	/** Grey material */
+	Grey,
+	/** Transparent material, with opacity/color controls */
+	Transparent,
+	/** Tangent/Normal material */
+	TangentNormal,
+	/** Vertex Color material */
+	VertexColor,
+	/** Polygroup Color material */
+	GroupColor,
+	/** Checkerboard material */
+	Checkerboard,
+	/** Override material */
+	Override
+};
+
+
+// material settings for mesh inspector tool
+UCLASS()
+class MESHMODELINGTOOLSEXP_API UMeshInspectorMaterialProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+
+	/** Material that will be used to render the mesh */
+	UPROPERTY(EditAnywhere, Category = PreviewMaterial)
+	EMeshInspectorMaterialMode MaterialMode = EMeshInspectorMaterialMode::Original;
+
+	/** Number of checkerboard tiles within the 0 to 1 range; only available when Checkerboard is selected as material mode */
+	UPROPERTY(EditAnywhere, Category = PreviewMaterial,
+		meta = (UIMin = "10.0", UIMax = "100.0", ClampMin = "0.01", ClampMax = "10000.0", EditConditionHides, EditCondition = "MaterialMode == EMeshInspectorMaterialMode::Checkerboard"))
+	float CheckerDensity = 50.0f;
+
+	/** Material to use instead of the original material; only available when Override is selected as material mode */
+	UPROPERTY(EditAnywhere, Category = PreviewMaterial, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshInspectorMaterialMode::Override"))
+	TObjectPtr<UMaterialInterface> OverrideMaterial = nullptr;
+
+	/** Which UV channel to use for visualizing the checkerboard material on the mesh; note that this does not affect the preview layout */
+	UPROPERTY(EditAnywhere, Category = PreviewMaterial,
+		meta = (DisplayName = "Preview UV Channel", GetOptions = GetUVChannelNamesFunc, EditConditionHides, EditCondition =
+			"MaterialMode == EMeshInspectorMaterialMode::Checkerboard", NoResetToDefault))
+	FString UVChannel;
+
+	UPROPERTY(meta = (TransientToolProperty))
+	TArray<FString> UVChannelNamesList;
+
+	UFUNCTION()
+	const TArray<FString>& GetUVChannelNamesFunc() const;
+
+
+	/** Toggle flat shading on/off */
+	UPROPERTY(EditAnywhere, Category = PreviewMaterial, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshInspectorMaterialMode::VertexColor || MaterialMode == EMeshInspectorMaterialMode::GroupColor") )
+	bool bFlatShading = false;
+
+	/** Main Color of Material */
+	UPROPERTY(EditAnywhere, Category = PreviewMaterial, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshInspectorMaterialMode::Diffuse"))
+	FLinearColor Color = FLinearColor(0.4f, 0.4f, 0.4f);
+
+	/** Opacity of transparent material */
+	UPROPERTY(EditAnywhere, Category = PreviewMaterial, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshInspectorMaterialMode::Transparent", ClampMin = "0", ClampMax = "1.0"))
+	double Opacity = 0.65;
+
+	//~ Could have used the same property as Color, above, but the user may want different saved values for the two
+	UPROPERTY(EditAnywhere, Category = PreviewMaterial, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshInspectorMaterialMode::Transparent", DisplayName = "Color"))
+	FLinearColor TransparentMaterialColor = FLinearColor(0.0606, 0.309, 0.842);
+
+	/** Although a two-sided transparent material causes rendering issues with overlapping faces, it is still frequently useful to see the shape when sculpting around other objects. */
+	UPROPERTY(EditAnywhere, Category = PreviewMaterial, meta = (EditConditionHides, EditCondition = "MaterialMode == EMeshInspectorMaterialMode::Transparent"))
+	bool bTwoSided = true;
+
+	UPROPERTY(meta = (TransientToolProperty))
+	TObjectPtr<UMaterialInstanceDynamic> CheckerMaterial = nullptr;
+
+	UPROPERTY(meta = (TransientToolProperty))
+	TObjectPtr<UMaterialInstanceDynamic> ActiveCustomMaterial = nullptr;
+
+	// Needs custom restore in order to call setup
+	virtual void RestoreProperties(UInteractiveTool* RestoreToTool, const FString& CacheIdentifier = TEXT("")) override;
+
+	void Setup();
+
+	void UpdateMaterials();
+	UMaterialInterface* GetActiveOverrideMaterial() const;
+	
+	void UpdateUVChannels(int32 UVChannelIndex, const TArray<FString>& UVChannelNames, bool bUpdateSelection = true);
+};
+
+
+
+
+
+
+
 
 /**
  * Mesh Inspector Tool for visualizing mesh information
@@ -107,6 +229,7 @@ public:
 	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
+	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual bool HasCancel() const override { return false; }
 	virtual bool HasAccept() const override;
@@ -125,8 +248,10 @@ protected:
 	TObjectPtr<UMeshInspectorProperties> Settings = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<UExistingMeshMaterialProperties> MaterialSettings = nullptr;
+	TObjectPtr<UPolygroupLayersProperties> PolygroupLayerProperties = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<UMeshInspectorMaterialProperties> MaterialSettings = nullptr;
 
 	float LineWidthMultiplier = 1.0f;
 
@@ -150,4 +275,17 @@ protected:
 
 	void UpdateVisualization();
 	void Precompute();
+
+	FViewCameraState CameraState;
+	FTransform LocalToWorldTransform;
+
+	TUniquePtr<UE::Geometry::FDynamicMeshAABBTree3> MeshAABBTree;
+	UE::Geometry::FDynamicMeshAABBTree3* GetSpatial();
+
+	TUniquePtr<UE::Geometry::FPolygroupSet> ActiveGroupSet;
+	void OnSelectedGroupLayerChanged();
+	void UpdateActiveGroupLayer();
+
+	bool bDrawGroupsDataValid = false;
+	UE::Geometry::FGroupVisualizationCache GroupVisualizationCache;
 };
