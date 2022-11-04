@@ -22,12 +22,12 @@ namespace UE::Chaos::ClothAsset
 		constexpr float MaxDeltaTimeTeleportMultiplierDefault = 1.5f;
 		const float MaxDeltaTimeTeleportMultiplier = CVarMaxDeltaTimeTeleportMultiplier ? CVarMaxDeltaTimeTeleportMultiplier->GetFloat() : MaxDeltaTimeTeleportMultiplierDefault;
 
-		TeleportMode = (DeltaTime > MaxDeltaTime * MaxDeltaTimeTeleportMultiplier) ?
-			EClothingTeleportMode::Teleport :
-			ClothComponent.GetClothTeleportMode();
+		bTeleport = (DeltaTime > MaxDeltaTime * MaxDeltaTimeTeleportMultiplier) ? true : ClothComponent.NeedsTeleport();
+		bReset = ClothComponent.NeedsReset();
 
-		VelocityScale = (TeleportMode == EClothingTeleportMode::None) ?
-			FMath::Min(InDeltaTime, MaxDeltaTime) / InDeltaTime : 1.f;
+		VelocityScale = (!bTeleport && !bReset && InDeltaTime > 0.f) ?
+			FMath::Min(InDeltaTime, MaxDeltaTime) / InDeltaTime :
+			bReset ? 1.f : 0.f;  // Set to 0 when teleporting and 1 when resetting to match the internal solver's behavior
 
 		// Copy component transform
 		ComponentTransform = ClothComponent.GetComponentTransform();

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Components/SkinnedMeshComponent.h"
-#include "ClothingSystemRuntimeTypes.h"
 
 #include "ClothComponent.generated.h"
 
@@ -27,33 +26,42 @@ public:
 	~UChaosClothComponent();
 
 	/** Set the cloth asset used by this component. */
-	UFUNCTION(BlueprintCallable, Category = "Components|ClothAsset")
+	UFUNCTION(BlueprintCallable, Category = "Components|ClothAsset", Meta = (Keywords = "Chaos Cloth Asset"))
 	void SetClothAsset(UChaosClothAsset* InClothAsset);
 
 	/** Get the cloth asset used by this component. */
-	UFUNCTION(BlueprintPure, Category = "Components|ClothAsset")
+	UFUNCTION(BlueprintPure, Category = "Components|ClothAsset", Meta = (Keywords = "Chaos Cloth Asset"))
 	UChaosClothAsset* GetClothAsset() const;
 
 	/** Reset the teleport mode. */
-	UFUNCTION(BlueprintCallable, Category = "Components|ClothAsset|Teleport")
-	void ResetClothTeleportMode() { ClothTeleportMode = EClothingTeleportMode::None; }
+	UFUNCTION(BlueprintCallable, Category = "Components|Teleport", Meta = (Keywords = "Chaos Cloth Teleport"))
+	void ResetTeleportMode() { bTeleport = bReset = false; }
 
-	/**
-	 * Used to indicate we should force 'teleport' during the next call to UpdateClothState,
-	 * This will transform positions and velocities and thus keep the simulation state, just translate it to a new pose.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Components|ClothAsset|Teleport")
-	void ForceClothNextUpdateTeleport() { ClothTeleportMode = EClothingTeleportMode::Teleport; }
+	/** Teleport the cloth particles to the new reference bone location keeping pose and velocities prior to advancing the simulation. */
+	UFUNCTION(BlueprintCallable, Category = "Components||Teleport", Meta = (Keywords = "Chaos Cloth Teleport"))
+	void ForceNextUpdateTeleport() { bTeleport = true; bReset = false; }
 
-	/**
-	 * Used to indicate we should force 'teleport and reset' during the next call to UpdateClothState.
-	 * This can be used to reset it from a bad state or by a teleport where the old state is not important anymore.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Components|ClothAsset|Teleport")
-	void ForceClothNextUpdateTeleportAndReset() { ClothTeleportMode = EClothingTeleportMode::TeleportAndReset; }
+	/** Teleport the cloth particles to the new reference bone location while reseting the pose and velocities prior to advancing the simulation. */
+	UFUNCTION(BlueprintCallable, Category = "Components|Simulation", Meta = (Keywords = "Chaos Cloth Teleport Reset"))
+	void ForceNextUpdateTeleportAndReset() { bTeleport = bReset = true; }
 
-	/** Return the current teleport mode currently requested if any. */
-	EClothingTeleportMode GetClothTeleportMode() const { return ClothTeleportMode; }
+	/** Return whether teleport is currently requested. */
+	bool NeedsTeleport() const { return bTeleport; }
+
+	/** Return whether reseting the pose is currently requested. */
+	bool NeedsReset() const { return bReset; }
+
+	/** Stop the simulation, and keep the cloth in its last pose. */
+	UFUNCTION(BlueprintCallable, Category = "Components|Simulation", Meta = (UnsafeDuringActorConstruction, Keywords = "Chaos Cloth Simulation Suspend"))
+	void SuspendSimulation() { bSuspendSimulation = true; }
+
+	/** Resume a previously suspended simulation. */
+	UFUNCTION(BlueprintCallable, Category = "Components|Simulation", Meta = (UnsafeDuringActorConstruction, Keywords = "Chaos Cloth Simulation Resume"))
+	void ResumeSimulation() { bSuspendSimulation = false; }
+
+	/** Return whether or not the simulation is currently suspended. */
+	UFUNCTION(BlueprintCallable, Category = "Components|Simulation", Meta = (Keywords = "Chaos Cloth Simulation Suspend"))
+	bool IsSimulationSuspended() const;
 
 protected:
 	//~ Begin UObject Interface
@@ -66,6 +74,7 @@ protected:
 	//~ Begin UActorComponent Interface
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
+	virtual bool IsComponentTickEnabled() const override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	virtual bool RequiresPreEndOfFrameSync() const override;
 	virtual void OnPreEndOfFrameSync() override;
@@ -77,14 +86,13 @@ protected:
 
 	//~ Begin USkinnedMeshComponent Interface
 	virtual void RefreshBoneTransforms(FActorComponentTickFunction* TickFunction = nullptr) override;
-	virtual void GetUpdateClothSimulationData_AnyThread(TMap<int32, FClothSimulData>& OutClothSimulData, FMatrix& OutLocalToWorld, float& OutClothBlendWeight) override;
+	virtual void GetUpdateClothSimulationData_AnyThread(TMap<int32, FClothSimulData>& OutClothSimulData, FMatrix& OutLocalToWorld, float& OutBlendWeight) override;
 	//~ End USkinnedMeshComponent Interface
 
 private:
 	void StartNewParallelSimulation(float DeltaTime);
 	void HandleExistingParallelSimulation();
-	bool ShouldWaitForClothInTickFunction() const;
-	bool IsSimulationSuspended() const;
+	bool ShouldWaitForParallelSimulationInTickFunction() const;
 
 #if WITH_EDITORONLY_DATA
 	/** Cloth asset used by this component. */
@@ -93,22 +101,33 @@ private:
 	TObjectPtr<UChaosClothAsset> ClothAsset;
 #endif
 
+	/** Whether to disable the simulation and use the skinned pose instead. */
 	UPROPERTY()
-	uint8 bDisableClothSimulation : 1;
+	uint8 bDisableSimulation : 1;
 
+	/** Whether to suspend the simulation and use the last simulated pose. */
 	UPROPERTY()
 	uint8 bSuspendSimulation : 1;
 
+	/** Whether to wait for the cloth simulation to end in the TickComponent instead of in the EndOfFrameUpdates. */
 	UPROPERTY()
-	uint8 bWaitForParallelClothTask : 1;
+	uint8 bWaitForParallelTask : 1;
 
+	/** Whether to use the leader component pose. */
 	UPROPERTY()
-	uint8 bBindClothToLeaderComponent : 1;
+	uint8 bBindToLeaderComponent : 1;
 
+	/** Whether to teleport the cloth prior to advancing the simulation. */
 	UPROPERTY()
-	float ClothBlendWeight = 1.f;
+	uint8 bTeleport : 1;
 
-	EClothingTeleportMode ClothTeleportMode = EClothingTeleportMode::None;
+	/** Whether to reset the pose, bTeleport must be true. */
+	UPROPERTY()
+	uint8 bReset : 1;
+
+	/** Blend amount between the skinned (=0) and the simulated pose (=1). */
+	UPROPERTY()
+	float BlendWeight = 1.f;
 
 	TUniquePtr<UE::Chaos::ClothAsset::FClothSimulationProxy> ClothSimulationProxy;
 };

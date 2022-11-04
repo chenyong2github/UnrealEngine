@@ -188,13 +188,18 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ClothSimulationProxy_TickGame);
 
-		if (DeltaTime > 0.f)
-		{
-			// Fill a new context
-			ClothSimulationContext.Fill(ClothComponent, DeltaTime, MaxDeltaTime);
+		// Fill a new context, note the context is also needed when the simulation is suspended
+		ClothSimulationContext.Fill(ClothComponent, DeltaTime, MaxDeltaTime);
 
+		if (DeltaTime > 0.f && !ClothComponent.IsSimulationSuspended())
+		{
 			// Start the the cloth simulation thread
 			ParallelTask = TGraphTask<FClothSimulationProxyParallelTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(*this);
+		}
+		else
+		{
+			// It still needs to write back to the GT cache as the context has changed
+			WriteSimulationData_GameThread();
 		}
 	}
 
@@ -212,8 +217,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		const double StartTime = FPlatformTime::Seconds();
 		const float PrevSimulationTime = SimulationTime;  // Copy the atomic to prevent a re-read
 
-		const bool bNeedsReset = (ClothSimulationContext.TeleportMode == EClothingTeleportMode::TeleportAndReset || PrevSimulationTime == 0.f);
-		const bool bNeedsTeleport = (ClothSimulationContext.TeleportMode > EClothingTeleportMode::None);
+		const bool bNeedsReset = (ClothSimulationContext.bReset || PrevSimulationTime == 0.f);  // Reset on the first frame too since the simulation is created in bind pose, and not in start pose
+		const bool bNeedsTeleport = ClothSimulationContext.bTeleport;
 		bIsTeleported = bNeedsTeleport;
 
 		// Update Solver animatable parameters

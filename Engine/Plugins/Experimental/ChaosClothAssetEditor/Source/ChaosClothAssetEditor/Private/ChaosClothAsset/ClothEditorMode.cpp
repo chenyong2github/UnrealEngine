@@ -710,7 +710,7 @@ void UChaosClothAssetEditorMode::ModeTick(float DeltaTime)
 
 	if (bShouldClearTeleportFlag)
 	{
-		ClothComponent->ResetClothTeleportMode();
+		ClothComponent->ResetTeleportMode();
 		bShouldClearTeleportFlag = false;
 	}
 
@@ -722,7 +722,7 @@ void UChaosClothAssetEditorMode::ModeTick(float DeltaTime)
 		}
 		else
 		{
-			ClothComponent->ForceClothNextUpdateTeleportAndReset();
+			ClothComponent->ForceNextUpdateTeleportAndReset();
 		}
 
 		bShouldResetSimulation = false;

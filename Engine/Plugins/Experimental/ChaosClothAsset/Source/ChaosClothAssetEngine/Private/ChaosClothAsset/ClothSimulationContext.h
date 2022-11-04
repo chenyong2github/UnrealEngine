@@ -4,7 +4,6 @@
 
 #include "Containers/Array.h"
 #include "Math/Transform.h"
-#include "ClothingSystemRuntimeTypes.h"
 
 class UChaosClothComponent;
 
@@ -33,8 +32,11 @@ namespace UE::Chaos::ClothAsset
 		/** Bone matrices used for skinning. */
 		TArray<FMatrix44f> RefToLocalMatrices;
 
-		/** Teleport mode. */
-		EClothingTeleportMode TeleportMode = EClothingTeleportMode::None;
+		/** Teleport. */
+		bool bTeleport = false;
+
+		/** Reset. */
+		bool bReset = false;
 
 		/** Velocity scale to compensate for time differences when the MaxPhysicsDeltaTime kicks in. */
 		float VelocityScale;

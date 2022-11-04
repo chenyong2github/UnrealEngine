@@ -43,6 +43,7 @@ namespace UE::Chaos::ClothAsset
 
 		void Tick_GameThread(float DeltaTime);
 
+		/** Wait for the parallel task to complete if one was running, and update the simulation data. */
 		void CompleteParallelSimulation_GameThread();
 
 		/**
