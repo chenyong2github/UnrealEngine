@@ -42,9 +42,12 @@ void ALocationVolume::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
 
-	if (!GetWorld()->IsGameWorld() && GetWorld()->IsPartitionedWorld() && !WorldPartitionActorLoader)
+	if (!GetWorld()->IsGameWorld() && GetWorld()->IsPartitionedWorld())
 	{
-		WorldPartitionActorLoader = new FLoaderAdapterLocationVolumeActor(this);
+		if (!WorldPartitionActorLoader)
+		{
+			WorldPartitionActorLoader = new FLoaderAdapterLocationVolumeActor(this);
+		}
 
 		if (bIsAutoLoad)
 		{
@@ -58,8 +61,9 @@ void ALocationVolume::UnregisterAllComponents(bool bForReregister)
 {
 	Super::UnregisterAllComponents(bForReregister);
 
-	if (!bForReregister && WorldPartitionActorLoader)
+	if (HasActorRegisteredAllComponents() && !bForReregister && WorldPartitionActorLoader)
 	{
+		bIsAutoLoad = WorldPartitionActorLoader->IsLoaded();
 		WorldPartitionActorLoader->Unload();
 	}
 }
