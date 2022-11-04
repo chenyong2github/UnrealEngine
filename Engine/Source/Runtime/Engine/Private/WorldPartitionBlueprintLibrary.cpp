@@ -207,15 +207,35 @@ void UWorldPartitionBlueprintLibrary::LoadActors(const TArray<FGuid>& InActorsTo
 #endif
 }
 
-void UWorldPartitionBlueprintLibrary::UnloadActors(const TArray<FGuid>& InActorsToLoad)
+void UWorldPartitionBlueprintLibrary::UnloadActors(const TArray<FGuid>& InActorsToUnload)
 {
 #if WITH_EDITOR
 	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
 		if (TUniquePtr<FLoaderAdapterActorList>* LoaderAdapterActorList = LoaderAdapterActorListMap.Find(WorldPartition))
 		{
-			(*LoaderAdapterActorList)->RemoveActors(InActorsToLoad);
+			(*LoaderAdapterActorList)->RemoveActors(InActorsToUnload);
 		}
+	}
+#endif
+}
+
+void UWorldPartitionBlueprintLibrary::PinActors(const TArray<FGuid>& InActorsToPin)
+{
+#if WITH_EDITOR
+	if (UWorldPartition* WorldPartition = GetWorldPartition())
+	{
+		WorldPartition->PinActors(InActorsToPin);
+	}
+#endif
+}
+
+void UWorldPartitionBlueprintLibrary::UnpinActors(const TArray<FGuid>& InActorsToUnpin)
+{
+#if WITH_EDITOR
+	if (UWorldPartition* WorldPartition = GetWorldPartition())
+	{
+		WorldPartition->UnpinActors(InActorsToUnpin);
 	}
 #endif
 }
