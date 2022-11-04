@@ -1341,8 +1341,12 @@ void UWorldPartition::Tick(float DeltaSeconds)
 #endif
 }
 
+DECLARE_CYCLE_STAT(TEXT("World Partition Update Streaming"), STAT_WorldPartitionUpdateStreaming, STATGROUP_Engine);
+
 void UWorldPartition::UpdateStreamingState()
 {
+	SCOPE_CYCLE_COUNTER(STAT_WorldPartitionUpdateStreaming);
+
 	if (GetWorld()->IsGameWorld())
 	{
 		StreamingPolicy->UpdateStreamingState();

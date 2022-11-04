@@ -77,13 +77,13 @@ public:
 	EWorldPartitionStreamingPerformance GetStreamingPerformance() const { return StreamingPerformance; }
 
 protected:
-	virtual void SetCellsStateToLoaded(const TArray<const UWorldPartitionRuntimeCell*>& ToLoadCells);
-	virtual void SetCellsStateToActivated(const TArray<const UWorldPartitionRuntimeCell*>& ToActivateCells);
+	virtual int32 SetCellsStateToLoaded(const TArray<const UWorldPartitionRuntimeCell*>& ToLoadCells);
+	virtual int32 SetCellsStateToActivated(const TArray<const UWorldPartitionRuntimeCell*>& ToActivateCells);
 	virtual void SetCellsStateToUnloaded(const TArray<const UWorldPartitionRuntimeCell*>& ToUnloadCells);
 	virtual int32 GetCellLoadingCount() const { return 0; }
 	virtual int32 GetMaxCellsToLoad() const;
 	virtual void UpdateStreamingSources();
-	void UpdateStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& CellsToActivate);
+	void UpdateStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& InCells);
 	bool ShouldSkipCellForPerformance(const UWorldPartitionRuntimeCell* Cell) const;
 	bool IsInBlockTillLevelStreamingCompleted(bool bIsCausedByBadStreamingPerformance = false) const;
 
@@ -117,12 +117,32 @@ protected:
 	TSet<const UWorldPartitionRuntimeCell*> FrameActivateCells;
 	TSet<const UWorldPartitionRuntimeCell*> FrameLoadCells;
 	
+private:
+	// Update optimization
+	uint32 ComputeUpdateStreamingHash() const;
+	uint32 ComputeStreamingSourceHash(const FWorldPartitionStreamingSource& Source) const;
+	int32 ComputeServerStreamingEnabledEpoch() const;
+
+	static bool IsUpdateStreamingOptimEnabled();
+
+	// CVars to control update optimization
+	static bool IsUpdateOptimEnabled;
+	static int32 LocationQuantization;
+	static int32 RotationQuantization;
+	static int32 ForceUpdateFrameCount;
+	static FAutoConsoleVariableRef CVarUpdateOptimEnabled;
+	static FAutoConsoleVariableRef CVarLocationQuantization;
+	static FAutoConsoleVariableRef CVarRotationQuantization;
+	static FAutoConsoleVariableRef CVarForceUpdateFrameCount;
+
+	bool bLastUpdateCompletedLoadingAndActivation;
 	bool bCriticalPerformanceRequestedBlockTillOnWorld;
 	int32 CriticalPerformanceBlockTillLevelStreamingCompletedEpoch;
-
 	int32 DataLayersStatesServerEpoch;
 	int32 ContentBundleServerEpoch;
 	int32 ServerStreamingEnabledEpoch;
+	uint32 UpdateStreamingHash;
+	uint32 UpdateStreamingStateCalls;
 
 	EWorldPartitionStreamingPerformance StreamingPerformance;
 #if !UE_BUILD_SHIPPING

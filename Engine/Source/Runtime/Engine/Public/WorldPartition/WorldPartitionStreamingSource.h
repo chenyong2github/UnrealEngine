@@ -124,6 +124,20 @@ struct FStreamingSourceShape
 	/* Streaming source shape rotation (local to streaming source). */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Streaming)
 	FRotator Rotation;
+
+	friend uint32 GetTypeHash(const FStreamingSourceShape& InShape)
+	{
+		uint32 Hash = GetTypeHash(InShape.bUseGridLoadingRange);
+		Hash = HashCombine(Hash, GetTypeHash(InShape.LoadingRangeScale));
+		Hash = HashCombine(Hash, GetTypeHash(InShape.Radius));
+		Hash = HashCombine(Hash, GetTypeHash(InShape.bIsSector));
+		Hash = HashCombine(Hash, GetTypeHash(InShape.SectorAngle));
+		Hash = HashCombine(Hash, GetTypeHash(InShape.Location));
+		Hash = HashCombine(Hash, GetTypeHash(InShape.Rotation.Pitch));
+		Hash = HashCombine(Hash, GetTypeHash(InShape.Rotation.Yaw));
+		Hash = HashCombine(Hash, GetTypeHash(InShape.Rotation.Roll));
+		return Hash;
+	}
 };
 
 UENUM(BlueprintType)
