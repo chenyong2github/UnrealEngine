@@ -1011,226 +1011,536 @@ void FWindowsPlatformMisc::CreateGuid(FGuid& Result)
 	verify( CoCreateGuid( (GUID*)&Result )==S_OK );
 }
 
-
-#define HOTKEY_YES			100
-#define HOTKEY_NO			101
-#define HOTKEY_CANCEL		102
-
-/**
- * Helper global variables, used in MessageBoxDlgProc for set message text.
- */
-static TCHAR* GMessageBoxText = NULL;
-static TCHAR* GMessageBoxCaption = NULL;
-/**
- * Used by MessageBoxDlgProc to indicate whether a 'Cancel' button is present and
- * thus 'Esc should be accepted as a hotkey.
- */
-static bool GCancelButtonEnabled = false;
-
-/**
- * Calculates button position and size, localize button text.
- * @param HandleWnd handle to dialog window
- * @param Text button text to localize
- * @param DlgItemId dialog item id
- * @param PositionX current button position (x coord)
- * @param PositionY current button position (y coord)
- * @return true if succeeded
- */
-static bool SetDlgItem( HWND HandleWnd, const TCHAR* Text, int32 DlgItemId, int32* PositionX, int32* PositionY )
+class FWindowsDialog
 {
-	SIZE SizeButton;
-		
-	HDC DC = CreateCompatibleDC( NULL );
-	GetTextExtentPoint32( DC, Text, wcslen(Text), &SizeButton );
-	DeleteDC(DC);
-	DC = NULL;
-
-	SizeButton.cx += 14;
-	SizeButton.cy += 8;
-
-	HWND Handle = GetDlgItem( HandleWnd, DlgItemId );
-	if( Handle )
+private:
+	/**
+	 * Calculates button position and size, localize button text.
+	 * @param HandleWnd handle to dialog window
+	 * @param Text button text to localize
+	 * @param DlgItemId dialog item id
+	 * @param PositionX current button position (x coord)
+	 * @param PositionY current button position (y coord)
+	 * @return true if succeeded
+	 */
+	static bool SetDlgItem(HWND HandleWnd, const TCHAR* Text, int32 DlgItemId, float DPIScale, int32* PositionX, int32* PositionY)
 	{
-		*PositionX -= ( SizeButton.cx + 5 );
-		SetWindowPos( Handle, HWND_TOP, *PositionX, *PositionY - SizeButton.cy, SizeButton.cx, SizeButton.cy, 0 );
-		SetDlgItemText( HandleWnd, DlgItemId, Text );
-		
+		SIZE SizeButton;
+
+		HDC DC = CreateCompatibleDC(NULL);
+		GetTextExtentPoint32(DC, Text, wcslen(Text), &SizeButton);
+		DeleteDC(DC);
+		DC = NULL;
+
+		SizeButton.cx += (int)(14 * DPIScale);
+		SizeButton.cy += (int)(8 * DPIScale);
+		SizeButton.cx = FMath::Max((int)(73 * DPIScale), (int)SizeButton.cx);
+		SizeButton.cy = FMath::Max((int)(21 * DPIScale), (int)SizeButton.cy);
+
+		HWND Handle = GetDlgItem(HandleWnd, DlgItemId);
+		if (Handle)
+		{
+			*PositionX -= (SizeButton.cx + (int)(7 * DPIScale));
+			SetWindowPos(Handle, HWND_TOP, *PositionX, *PositionY - SizeButton.cy, SizeButton.cx, SizeButton.cy, 0);
+			SetDlgItemText(HandleWnd, DlgItemId, Text);
+
+			return true;
+		}
+
+		return false;
+	}
+
+	static float MessageBoxDlgGetDPI(HWND HandleWnd)
+	{
+		float DPIScale = 1.0f;
+
+		typedef UINT(WINAPI* LPGetDpiForWindow)(HWND Hwnd);
+		LPGetDpiForWindow GetDpiForWindow = (LPGetDpiForWindow)(void*)GetProcAddress(GetModuleHandle(L"user32.dll"), "GetDpiForWindow");
+		if (GetDpiForWindow)
+		{
+			DPIScale = GetDpiForWindow(HandleWnd) / 96.0f;
+		}
+
+		return DPIScale;
+	}
+
+	static void SetWindowStyleFlags(HWND HandleWnd, LONG Flags, bool bEnabled)
+	{
+		LONG Style = GetWindowLong(HandleWnd, GWL_STYLE);
+		if (bEnabled)
+		{
+			Style |= Flags;
+		}
+		else
+		{
+			Style &= ~Flags;
+		}
+		SetWindowLong(HandleWnd, GWL_STYLE, Style);
+	}
+
+	static SIZE MeasureText(HWND HandleWnd, LPCWSTR Text, int TextLength)
+	{
+		HDC DC = CreateCompatibleDC(NULL);
+		HFONT Font = (HFONT)SendMessageW(HandleWnd, WM_GETFONT, 0, 0);
+		SelectObject(DC, Font);
+		RECT TextRect{};
+		DrawTextW(DC, Text, TextLength, &TextRect, DT_CALCRECT | DT_EDITCONTROL | DT_LEFT | DT_EXPANDTABS);
+		DeleteDC(DC);
+
+		SIZE TextSize;
+		TextSize.cx = TextRect.right - TextRect.left;
+		TextSize.cy = TextRect.bottom - TextRect.top;
+		return TextSize;
+	}
+
+	void UpdateEditTextScrollbar(HWND HandleWnd, float DPIScale)
+	{
+		RECT MessageRect;
+		GetWindowRect(HandleWnd, &MessageRect);
+		SIZE MessageSize;
+		MessageSize.cx = MessageRect.right - MessageRect.left - (int)(20 * DPIScale);
+		MessageSize.cy = MessageRect.bottom - MessageRect.top - (int)(16 * DPIScale);
+
+		SIZE TextSize = MeasureText(HandleWnd, *Text, Text.Len());
+
+		bool bNeedsHScroll = TextSize.cx > MessageSize.cx;
+		SetWindowStyleFlags(HandleWnd, WS_HSCROLL, bNeedsHScroll);
+		bool bNeedsVScroll = TextSize.cy > MessageSize.cy;
+		SetWindowStyleFlags(HandleWnd, WS_VSCROLL, bNeedsVScroll);
+	}
+
+	void Close(EAppReturnType::Type NewResult)
+	{
+		WasClosed = true;
+		Result = NewResult;
+		DestroyWindow(DialogHwnd);
+	}
+
+	bool OnInitDialog()
+	{
+		// Sets most bottom and most right position to begin button placement
+		POINT Point;
+
+		GetWindowRect(DialogHwnd, &DefaultWindowRect);
+		GetClientRect(DialogHwnd, &ClientRect);
+		WasClosed = false;
+
+		Point.x = ClientRect.right;
+		Point.y = ClientRect.bottom;
+
+		float DPIScale = MessageBoxDlgGetDPI(DialogHwnd);
+
+		int32 PositionX = Point.x - (int)(5 * DPIScale);
+		int32 PositionY = Point.y - (int)(10 * DPIScale);
+
+		// Localize dialog buttons, sets position and size.
+		FString CancelString;
+		FString RetryString;
+		FString ContinueString;
+		FString NoToAllString;
+		FString NoString;
+		FString YesToAllString;
+		FString YesString;
+		FString OKString;
+
+		// The Localize* functions will return the Key if a dialog is presented before the config system is initialized.
+		// Instead, we use hard-coded strings if config is not yet initialized.
+		if (!GConfig)
+		{
+			CancelString = TEXT("Cancel");
+			RetryString = TEXT("Retry");
+			ContinueString = TEXT("Continue");
+			NoToAllString = TEXT("No to All");
+			NoString = TEXT("No");
+			YesToAllString = TEXT("Yes to All");
+			YesString = TEXT("Yes");
+			OKString = TEXT("OK");
+		}
+		else
+		{
+			CancelString = NSLOCTEXT("UnrealEd", "Cancel", "Cancel").ToString();
+			RetryString = NSLOCTEXT("UnrealEd", "Retry", "Retry").ToString();
+			ContinueString = NSLOCTEXT("UnrealEd", "Continue", "Continue").ToString();
+			NoToAllString = NSLOCTEXT("UnrealEd", "NoToAll", "No to All").ToString();
+			NoString = NSLOCTEXT("UnrealEd", "No", "No").ToString();
+			YesToAllString = NSLOCTEXT("UnrealEd", "YesToAll", "Yes to All").ToString();
+			YesString = NSLOCTEXT("UnrealEd", "Yes", "Yes").ToString();
+			OKString = NSLOCTEXT("UnrealEd", "OK", "OK").ToString();
+		}
+		SetDlgItem(DialogHwnd, *ContinueString, IDC_CONTINUE, DPIScale, &PositionX, &PositionY);
+		SetDlgItem(DialogHwnd, *RetryString, IDC_RETRY, DPIScale, &PositionX, &PositionY);
+		SetDlgItem(DialogHwnd, *CancelString, IDC_CANCEL, DPIScale, &PositionX, &PositionY);
+		SetDlgItem(DialogHwnd, *NoToAllString, IDC_NOTOALL, DPIScale, &PositionX, &PositionY);
+		SetDlgItem(DialogHwnd, *NoString, IDC_NO_B, DPIScale, &PositionX, &PositionY);
+		SetDlgItem(DialogHwnd, *YesToAllString, IDC_YESTOALL, DPIScale, &PositionX, &PositionY);
+		SetDlgItem(DialogHwnd, *YesString, IDC_YES, DPIScale, &PositionX, &PositionY);
+		SetDlgItem(DialogHwnd, *OKString, IDC_OK, DPIScale, &PositionX, &PositionY);
+
+		SetDlgItemText(DialogHwnd, IDC_MESSAGE, *Text);
+		SetWindowText(DialogHwnd, *Caption);
+
+		HWND MessageHandle = GetDlgItem(DialogHwnd, IDC_MESSAGE);
+		UpdateEditTextScrollbar(MessageHandle, DPIScale);
+
+		// If parent window exist, get it handle and make it foreground.
+		HWND ParentWindow = GetTopWindow(DialogHwnd);
+		if (ParentWindow)
+		{
+			SetWindowPos(ParentWindow, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+		}
+
+		SetForegroundWindow(DialogHwnd);
+		SetWindowPos(DialogHwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+
+
+		// Windows are foreground, make them not top most.
+		SetWindowPos(DialogHwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+		if (ParentWindow)
+		{
+			SetWindowPos(ParentWindow, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+		}
+
+		// Resize to fit text
+		int Width = DefaultWindowRect.right - DefaultWindowRect.left;
+		int Height = DefaultWindowRect.bottom - DefaultWindowRect.top;
+		SIZE TextSize = MeasureText(MessageHandle, *Text, Text.Len());
+
+		HMONITOR Monitor = MonitorFromWindow(DialogHwnd, MONITOR_DEFAULTTONEAREST);
+		MONITORINFO MonInfo;
+		MonInfo.cbSize = sizeof(MONITORINFO);
+		GetMonitorInfo(Monitor, &MonInfo);
+		int MonitorWidth = MonInfo.rcMonitor.right - MonInfo.rcMonitor.left;
+		int MonitorHeight = MonInfo.rcMonitor.bottom - MonInfo.rcMonitor.top;
+
+		int NewWidth = FMath::Clamp((int)(TextSize.cx + 100 * DPIScale), Width, (int)(MonitorWidth * 0.8f));
+		int NewHeight = FMath::Clamp((int)(TextSize.cy + 165 * DPIScale), Height, (int)(MonitorHeight * 0.8f));
+		int NewLeft = DefaultWindowRect.left - (NewWidth - Width) / 2;
+		int NewTop = DefaultWindowRect.top - (NewHeight - Height) / 2;
+		SetWindowPos(DialogHwnd, HWND_NOTOPMOST, NewLeft, NewTop, NewWidth, NewHeight, SWP_NOZORDER);
+
 		return true;
 	}
 
-	return false;
-}
-
-/**
- * Callback for MessageBoxExt dialog (allowing for Yes to all / No to all )
- * @return		One of EAppReturnType::Yes, EAppReturnType::YesAll, EAppReturnType::No, EAppReturnType::NoAll, EAppReturnType::Cancel.
- */
-PTRINT CALLBACK MessageBoxDlgProc( HWND HandleWnd, uint32 Message, WPARAM WParam, LPARAM LParam )
-{
-	switch(Message)
+	/**
+	 * Callback for MessageBoxExt dialog (allowing for Yes to all / No to all )
+	 * @return		One of EAppReturnType::Yes, EAppReturnType::YesAll, EAppReturnType::No, EAppReturnType::NoAll, EAppReturnType::Cancel.
+	 */
+	PTRINT MessageBoxDlgProc(HWND HandleWnd, uint32 Message, WPARAM WParam, LPARAM LParam)
 	{
-		case WM_INITDIALOG:
+		switch (Message)
+		{
+			case WM_INITDIALOG:
 			{
-				// Sets most bottom and most right position to begin button placement
-				RECT Rect;
-				POINT Point;
-				
-				GetWindowRect( HandleWnd, &Rect );
-				Point.x = Rect.right;
-				Point.y = Rect.bottom;
-				ScreenToClient( HandleWnd, &Point );
-				
-				int32 PositionX = Point.x - 8;
-				int32 PositionY = Point.y - 10;
-
-				// Localize dialog buttons, sets position and size.
-				FString CancelString;
-				FString NoToAllString;
-				FString NoString;
-				FString YesToAllString;
-				FString YesString;
-
-				// The Localize* functions will return the Key if a dialog is presented before the config system is initialized.
-				// Instead, we use hard-coded strings if config is not yet initialized.
-				if( !GConfig )
+				return OnInitDialog();
+			}
+			case WM_DESTROY:
+			{
+				return true;
+			}
+			case WM_CLOSE:
+			{
+				Close(Result);
+				return true;
+			}
+			case WM_COMMAND:
+			{
+				switch (LOWORD(WParam))
 				{
-					CancelString = TEXT("Cancel");
-					NoToAllString = TEXT("No to All");
-					NoString = TEXT("No");
-					YesToAllString = TEXT("Yes to All");
-					YesString = TEXT("Yes");
+					case IDC_OK:
+						Close(EAppReturnType::Ok);
+						break;
+					case IDC_YES:
+						Close(EAppReturnType::Yes);
+						break;
+					case IDC_YESTOALL:
+						Close(EAppReturnType::YesAll);
+						break;
+					case IDC_NO_B:
+						Close(EAppReturnType::No);
+						break;
+					case IDC_NOTOALL:
+						Close(EAppReturnType::NoAll);
+						break;
+					case IDC_RETRY:
+						Close(EAppReturnType::Retry);
+						break;
+					case IDC_CONTINUE:
+						Close(EAppReturnType::Continue);
+						break;
+					case IDC_CANCEL:
+						if (CancelButtonEnabled)
+						{
+							Close(EAppReturnType::Cancel);
+							break;
+						}
+						break;
+					case IDC_COPY:
+					{
+						size_t TextByteCount = Text.GetAllocatedSize();
+						HGLOBAL StrClipboardMemory = GlobalAlloc(GMEM_MOVEABLE, TextByteCount);
+
+						void* StrTarget = GlobalLock(StrClipboardMemory);
+						memcpy(StrTarget, *Text, TextByteCount);
+						((char*)StrTarget)[TextByteCount] = 0;
+						GlobalUnlock(StrClipboardMemory);
+
+						OpenClipboard(HandleWnd);
+						EmptyClipboard();
+						SetClipboardData(CF_UNICODETEXT, StrClipboardMemory);
+						CloseClipboard();
+					}
+					break;
+					default:
+						return false;
+				}
+				return true;
+			}
+			case WM_CTLCOLORSTATIC:
+			{
+				if ((HWND)LParam == GetDlgItem(HandleWnd, IDC_MESSAGE))
+				{
+					SetBkMode((HDC)WParam, TRANSPARENT);
+					return (LRESULT)(GetSysColorBrush(COLOR_WINDOW));
 				}
 				else
 				{
-					CancelString = NSLOCTEXT("UnrealEd", "Cancel", "Cancel").ToString();
-					NoToAllString = NSLOCTEXT("UnrealEd", "NoToAll", "No to All").ToString();
-					NoString = NSLOCTEXT("UnrealEd", "No", "No").ToString();
-					YesToAllString = NSLOCTEXT("UnrealEd", "YesToAll", "Yes to All").ToString();
-					YesString = NSLOCTEXT("UnrealEd", "Yes", "Yes").ToString();
+					return false;
 				}
-				SetDlgItem( HandleWnd, *CancelString, IDC_CANCEL, &PositionX, &PositionY );
-				SetDlgItem( HandleWnd, *NoToAllString, IDC_NOTOALL, &PositionX, &PositionY );
-				SetDlgItem( HandleWnd, *NoString, IDC_NO_B, &PositionX, &PositionY );
-				SetDlgItem( HandleWnd, *YesToAllString, IDC_YESTOALL, &PositionX, &PositionY );
-				SetDlgItem( HandleWnd, *YesString, IDC_YES, &PositionX, &PositionY );
-
-				SetDlgItemText( HandleWnd, IDC_MESSAGE, GMessageBoxText );
-				SetWindowText( HandleWnd, GMessageBoxCaption );
-
-				// If parent window exist, get it handle and make it foreground.
-				HWND ParentWindow = GetTopWindow( HandleWnd );
-				if( ParentWindow )
-				{
-					SetWindowPos( ParentWindow, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE );
-				}
-
-				SetForegroundWindow( HandleWnd );
-				SetWindowPos( HandleWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE );
-
-				RegisterHotKey( HandleWnd, HOTKEY_YES, 0, 'Y' );
-				RegisterHotKey( HandleWnd, HOTKEY_NO, 0, 'N' );
-				if ( GCancelButtonEnabled )
-				{
-					RegisterHotKey( HandleWnd, HOTKEY_CANCEL, 0, VK_ESCAPE );
-				}
-
-				// Windows are foreground, make them not top most.
-				SetWindowPos( HandleWnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE );
-				if( ParentWindow )
-				{
-					SetWindowPos( ParentWindow, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE );
-				}
-
-				return true;
-			}
-		case WM_DESTROY:
-			{
-				UnregisterHotKey( HandleWnd, HOTKEY_YES );
-				UnregisterHotKey( HandleWnd, HOTKEY_NO );
-				if ( GCancelButtonEnabled )
-				{
-					UnregisterHotKey( HandleWnd, HOTKEY_CANCEL );
-				}
-				return true;
-			}
-		case WM_COMMAND:
-			switch( LOWORD( WParam ) )
-			{
-				case IDC_YES:
-					EndDialog( HandleWnd, EAppReturnType::Yes );
-					break;
-				case IDC_YESTOALL:
-					EndDialog( HandleWnd, EAppReturnType::YesAll );
-					break;
-				case IDC_NO_B:
-					EndDialog( HandleWnd, EAppReturnType::No );
-					break;
-				case IDC_NOTOALL:
-					EndDialog( HandleWnd, EAppReturnType::NoAll );
-					break;
-				case IDC_CANCEL:
-					if ( GCancelButtonEnabled )
-					{
-						EndDialog( HandleWnd, EAppReturnType::Cancel );
-					}
-					break;
 			}
 			break;
-		case WM_HOTKEY:
-			switch( WParam )
+			case WM_PAINT:
 			{
-			case HOTKEY_YES:
-				EndDialog( HandleWnd, EAppReturnType::Yes );
-				break;
-			case HOTKEY_NO:
-				EndDialog( HandleWnd, EAppReturnType::No );
-				break;
-			case HOTKEY_CANCEL:
-				if ( GCancelButtonEnabled )
-				{
-					EndDialog( HandleWnd, EAppReturnType::Cancel );
-				}
-				break;
+				PAINTSTRUCT Paint;
+				HDC Hdc = BeginPaint(HandleWnd, &Paint);
+
+				float DPIScale = MessageBoxDlgGetDPI(HandleWnd);
+
+				RECT MainAreaRect;
+				MainAreaRect = ClientRect;
+				const int ActionBarHeight = (int)(45 * DPIScale);
+				MainAreaRect.bottom -= ActionBarHeight;
+				FillRect(Hdc, &MainAreaRect, GetSysColorBrush(COLOR_WINDOW));
+
+				/*HWND MessageHandle = GetDlgItem(HandleWnd, IDC_MESSAGE);
+				RECT MessageRect;
+				GetWindowRect(MessageHandle, &MessageRect);
+				MessageRect.right = MessageRect.right - MessageRect.left;
+				MessageRect.bottom = MessageRect.bottom - MessageRect.top;
+				MessageRect.left = MessageRect.top = 15;
+				HFONT Font = (HFONT)SendMessageW(MessageHandle, WM_GETFONT, 0, 0);
+				SelectObject(Hdc, Font);
+				DrawTextW(Hdc, GDialogState.Text, wcslen(GDialogState.Text), &MainAreaRect, DT_EDITCONTROL | DT_LEFT | DT_EXPANDTABS);*/
+
+				EndPaint(HandleWnd, &Paint);
+				return false;
 			}
-			break;
-		default:
-			return false;
+			case WM_SIZE:
+			{
+				RECT PrevDialogRect = ClientRect;
+				GetClientRect(HandleWnd, &ClientRect);
+
+				int ControlsStretch[] =
+				{
+					IDC_MESSAGE
+				};
+
+				for (const int ControlId : ControlsStretch)
+				{
+					HWND ControlHandle = GetDlgItem(HandleWnd, ControlId);
+					if (ControlHandle == nullptr) { continue; }
+
+					RECT PrevMessageRect;
+					GetWindowRect(ControlHandle, &PrevMessageRect);
+					ScreenToClient(HandleWnd, (POINT*)&PrevMessageRect.left);
+					ScreenToClient(HandleWnd, (POINT*)&PrevMessageRect.right);
+
+					SetWindowPos(ControlHandle, 0,
+						PrevMessageRect.left,
+						PrevMessageRect.top,
+						(PrevMessageRect.right - PrevMessageRect.left) + (ClientRect.right - PrevDialogRect.right),
+						(PrevMessageRect.bottom - PrevMessageRect.top) + (ClientRect.bottom - PrevDialogRect.bottom), SWP_NOZORDER);
+				}
+
+				int ControlsBottomRight[] =
+				{
+					IDC_OK, IDC_YES, IDC_YESTOALL, IDC_NO_B, IDC_NOTOALL, IDC_CANCEL, IDC_RETRY, IDC_CONTINUE
+				};
+
+				for (const int ControlId : ControlsBottomRight)
+				{
+					HWND ControlHandle = GetDlgItem(HandleWnd, ControlId);
+					if (ControlHandle == nullptr) { continue; }
+
+					RECT PrevMessageRect;
+					GetWindowRect(ControlHandle, &PrevMessageRect);
+					ScreenToClient(HandleWnd, (POINT*)&PrevMessageRect.left);
+					ScreenToClient(HandleWnd, (POINT*)&PrevMessageRect.right);
+
+					SetWindowPos(ControlHandle, 0,
+						PrevMessageRect.left + (ClientRect.right - PrevDialogRect.right),
+						PrevMessageRect.top + (ClientRect.bottom - PrevDialogRect.bottom),
+						(PrevMessageRect.right - PrevMessageRect.left),
+						(PrevMessageRect.bottom - PrevMessageRect.top), SWP_NOZORDER);
+				}
+
+				float DPIScale = MessageBoxDlgGetDPI(HandleWnd);
+
+				HWND MessageHandle = GetDlgItem(HandleWnd, IDC_MESSAGE);
+				UpdateEditTextScrollbar(MessageHandle, DPIScale);
+
+				InvalidateRect(HandleWnd, nullptr, true);
+			}
+			return true;
+			case WM_GETMINMAXINFO:
+			{
+				MINMAXINFO* Info = (MINMAXINFO*)LParam;
+
+				Info->ptMinTrackSize.x = DefaultWindowRect.right - DefaultWindowRect.left;
+				Info->ptMinTrackSize.y = DefaultWindowRect.bottom - DefaultWindowRect.top;
+			}
+			return true;
+			case WM_DPICHANGED:
+				/*{
+					float NewScale = LOWORD(WParam) / 96.0f;
+					RECT* SuggestedRect = (RECT*)LParam;
+					SetWindowPos(HandleWnd,
+						HWND_NOTOPMOST,
+						SuggestedRect->left,
+						SuggestedRect->top,
+						SuggestedRect->right - SuggestedRect->left,
+						SuggestedRect->bottom - SuggestedRect->top,
+						SWP_NOZORDER);
+
+					//https://github.com/microsoft/Windows-classic-samples/blob/main/Samples/DPIAwarenessPerWindow/client/DpiAwarenessContext.cpp
+
+				}*/
+				return true;
+			default:
+				return false;
+		}
 	}
-	return true;
-}
 
-/**
- * Displays extended message box allowing for YesAll/NoAll
- * @return 3 - YesAll, 4 - NoAll, -1 for Fail
- */
-int MessageBoxExtInternal( EAppMsgType::Type MsgType, HWND HandleWnd, const TCHAR* Text, const TCHAR* Caption )
-{
-	GMessageBoxText = (TCHAR *) Text;
-	GMessageBoxCaption = (TCHAR *) Caption;
+	FWindowsDialog() {}
 
-	switch (MsgType)
+
+	FString Text;
+	FString Caption;
+
+	/**
+	 * Used to indicate whether a 'Cancel' button is present and
+	 * thus 'Esc should be accepted as a hotkey.
+	 */
+	bool CancelButtonEnabled = false;
+
+
+	HWND DialogHwnd = NULL;
+	RECT ClientRect = {};
+	RECT DefaultWindowRect = {};
+	bool WasClosed = false;
+	EAppReturnType::Type Result = EAppReturnType::Cancel;
+
+	EAppReturnType::Type Show(HWND ParentWindowHandle, int Template)
 	{
-		case EAppMsgType::YesNoYesAllNoAll:
+		HACCEL AcceleratorHandle = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDR_ACCEL1));
+
+		DialogHwnd = CreateDialogParam(GetModuleHandle(NULL), MAKEINTRESOURCE(Template), ParentWindowHandle, 
+			[](HWND HandleWnd, uint32 Message, WPARAM WParam, LPARAM LParam) {
+				FWindowsDialog* Instance;
+				if (Message == WM_INITDIALOG)
+				{
+					Instance = (FWindowsDialog*)LParam;
+					Instance->DialogHwnd = HandleWnd;
+					SetWindowLongPtr(HandleWnd, DWLP_USER, (LPARAM)Instance);
+				}
+				else
+				{
+					Instance = (FWindowsDialog*)GetWindowLongPtr(HandleWnd, DWLP_USER);
+				}
+
+				return Instance->MessageBoxDlgProc(HandleWnd, Message, WParam, LParam);
+			}, (LPARAM)this);
+
+		ShowWindow(DialogHwnd, SW_SHOW);
+		MSG Msg;
+		while (!WasClosed && GetMessageW(&Msg, NULL, 0, 0))
 		{
-			GCancelButtonEnabled = false;
-			return (int)DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_YESNO2ALL), HandleWnd, MessageBoxDlgProc);
+			bool bIsTextEditMsg = Msg.hwnd == GetDlgItem(DialogHwnd, IDC_MESSAGE);
+			bool bCheckAccelerators = DialogHwnd == Msg.hwnd || (IsChild(DialogHwnd, Msg.hwnd) && !bIsTextEditMsg);
+			if (!(bCheckAccelerators && TranslateAccelerator(DialogHwnd, AcceleratorHandle, &Msg)) &&
+				!IsDialogMessage(DialogHwnd, &Msg))
+			{
+				TranslateMessage(&Msg);
+				DispatchMessage(&Msg);
+			}
 		}
-		case EAppMsgType::YesNoYesAllNoAllCancel:
-		{
-			GCancelButtonEnabled = true;
-			return (int)DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_YESNO2ALLCANCEL), HandleWnd, MessageBoxDlgProc);
-		}
-		case EAppMsgType::YesNoYesAll:
-		{
-			GCancelButtonEnabled = false;
-			return (int)DialogBox(GetModuleHandle(NULL), MAKEINTRESOURCE(IDD_YESNOYESTOALL), HandleWnd, MessageBoxDlgProc);
-		}
+
+		DestroyAcceleratorTable(AcceleratorHandle);
+
+		return Result;
 	}
 
-	return -1;
-}
+public:
+	static EAppReturnType::Type Show(HWND ParentWindowHandle, EAppMsgType::Type MsgType, const FString& Text, const FString& Caption)
+	{
+		FWindowsDialog Instance {};
+		Instance.Text = Text;
+		Instance.Caption = Caption;
 
-
+		switch (MsgType)
+		{
+			case EAppMsgType::Ok:
+			{
+				Instance.CancelButtonEnabled = false;
+				Instance.Result = EAppReturnType::Ok; // default option used when dialog is closed
+				return Instance.Show(ParentWindowHandle, IDD_OK);
+			}
+			case EAppMsgType::YesNo:
+			{
+				Instance.CancelButtonEnabled = false;
+				Instance.Result = EAppReturnType::No;
+				return Instance.Show(ParentWindowHandle, IDD_YESNO);
+			}
+			case EAppMsgType::OkCancel:
+			{
+				Instance.CancelButtonEnabled = true;
+				Instance.Result = EAppReturnType::Cancel;
+				return Instance.Show(ParentWindowHandle, IDD_OKCANCEL);
+			}
+			case EAppMsgType::YesNoCancel:
+			{
+				Instance.CancelButtonEnabled = true;
+				Instance.Result = EAppReturnType::Cancel;
+				return Instance.Show(ParentWindowHandle, IDD_YESNOCANCEL);
+			}
+			case EAppMsgType::CancelRetryContinue:
+			{
+				Instance.CancelButtonEnabled = true;
+				Instance.Result = EAppReturnType::Cancel;
+				return Instance.Show(ParentWindowHandle, IDD_CANCELRETRYCONTINUE);
+			}
+			case EAppMsgType::YesNoYesAllNoAll:
+			{
+				Instance.CancelButtonEnabled = false;
+				Instance.Result = EAppReturnType::No;
+				return Instance.Show(ParentWindowHandle, IDD_YESNO2ALL);
+			}
+			case EAppMsgType::YesNoYesAllNoAllCancel:
+			{
+				Instance.CancelButtonEnabled = true;
+				Instance.Result = EAppReturnType::Cancel;
+				return Instance.Show(ParentWindowHandle, IDD_YESNO2ALLCANCEL);
+			}
+			case EAppMsgType::YesNoYesAll:
+			{
+				Instance.CancelButtonEnabled = false;
+				Instance.Result = EAppReturnType::No;
+				return Instance.Show(ParentWindowHandle, IDD_YESNOYESTOALL);
+			}
+			default:
+				return EAppReturnType::Cancel;
+		}
+	}
+};
 
 
 EAppReturnType::Type FWindowsPlatformMisc::MessageBoxExt( EAppMsgType::Type MsgType, const TCHAR* Text, const TCHAR* Caption )
@@ -1238,55 +1548,12 @@ EAppReturnType::Type FWindowsPlatformMisc::MessageBoxExt( EAppMsgType::Type MsgT
 	FSlowHeartBeatScope SuspendHeartBeat;
 
 	HWND ParentWindow = (HWND)NULL;
-	switch( MsgType )
-	{
-	case EAppMsgType::Ok:
-		{
-			MessageBox(ParentWindow, Text, Caption, MB_OK|MB_SYSTEMMODAL);
-			return EAppReturnType::Ok;
-		}
-	case EAppMsgType::YesNo:
-		{
-			int32 Return = MessageBox( ParentWindow, Text, Caption, MB_YESNO|MB_SYSTEMMODAL );
-			return Return == IDYES ? EAppReturnType::Yes : EAppReturnType::No;
-		}
-	case EAppMsgType::OkCancel:
-		{
-			int32 Return = MessageBox( ParentWindow, Text, Caption, MB_OKCANCEL|MB_SYSTEMMODAL );
-			return Return == IDOK ? EAppReturnType::Ok : EAppReturnType::Cancel;
-		}
-	case EAppMsgType::YesNoCancel:
-		{
-			int32 Return = MessageBox(ParentWindow, Text, Caption, MB_YESNOCANCEL | MB_ICONQUESTION | MB_SYSTEMMODAL);
-			return Return == IDYES ? EAppReturnType::Yes : (Return == IDNO ? EAppReturnType::No : EAppReturnType::Cancel);
-		}
-	case EAppMsgType::CancelRetryContinue:
-		{
-			int32 Return = MessageBox(ParentWindow, Text, Caption, MB_CANCELTRYCONTINUE | MB_ICONQUESTION | MB_DEFBUTTON2 | MB_SYSTEMMODAL);
-			return Return == IDCANCEL ? EAppReturnType::Cancel : (Return == IDTRYAGAIN ? EAppReturnType::Retry : EAppReturnType::Continue);
-		}
-		break;
-	case EAppMsgType::YesNoYesAllNoAll:
-		return (EAppReturnType::Type)MessageBoxExtInternal( EAppMsgType::YesNoYesAllNoAll, ParentWindow, Text, Caption );
-		//These return codes just happen to match up with ours.
-		// return 0 for No, 1 for Yes, 2 for YesToAll, 3 for NoToAll
-		break;
-	case EAppMsgType::YesNoYesAllNoAllCancel:
-		return (EAppReturnType::Type)MessageBoxExtInternal( EAppMsgType::YesNoYesAllNoAllCancel, ParentWindow, Text, Caption );
-		//These return codes just happen to match up with ours.
-		// return 0 for No, 1 for Yes, 2 for YesToAll, 3 for NoToAll, 4 for Cancel
-		break;
+	
+	FString PlatformText = FString(Text);
+	PlatformText.ReplaceInline(TEXT("\r"), TEXT(""));
+	PlatformText.ReplaceInline(TEXT("\n"), TEXT("\r\n"));
 
-	case EAppMsgType::YesNoYesAll:
-		return (EAppReturnType::Type)MessageBoxExtInternal(EAppMsgType::YesNoYesAll, ParentWindow, Text, Caption);
-		//These return codes just happen to match up with ours.
-		// return 0 for No, 1 for Yes, 2 for YesToAll
-		break;
-
-	default:
-		break;
-	}
-	return EAppReturnType::Cancel;
+	return FWindowsDialog::Show(ParentWindow, MsgType, PlatformText, FString(Caption));
 }
 
 static bool HandleGameExplorerIntegration()
