@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TakeRecorderMicrophoneAudioSource.h"
+#include "AssetRegistry/AssetData.h"
 #include "TakeRecorderSources.h"
 #include "TakeRecorderSettings.h"
 #include "TakesUtils.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TakeRecorderLevelVisibilitySource.h"
+#include "AssetRegistry/AssetData.h"
 #include "TakesUtils.h"
 
 #include "TakeRecorderSources.h"

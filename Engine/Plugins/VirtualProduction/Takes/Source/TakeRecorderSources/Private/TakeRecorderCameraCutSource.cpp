@@ -2,6 +2,7 @@
 
 #include "TakeRecorderCameraCutSource.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "TakeRecorderSources.h"
 #include "TakeRecorderSource.h"
 #include "TakeRecorderActorSource.h"

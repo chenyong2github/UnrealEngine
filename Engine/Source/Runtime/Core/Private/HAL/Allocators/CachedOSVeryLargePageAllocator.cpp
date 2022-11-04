@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "HAL/Allocators/CachedOSVeryLargePageAllocator.h"
+#include "HAL/IConsoleManager.h"
 #include "HAL/UnrealMemory.h"
 #include "Logging/LogMacros.h"
 #include "CoreGlobals.h"

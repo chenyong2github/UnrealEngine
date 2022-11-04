@@ -5,6 +5,7 @@ Texture2DStreamIn.cpp: Stream in helper for 2D textures using texture streaming 
 =============================================================================*/
 
 #include "Streaming/Texture2DStreamIn_IO.h"
+#include "EngineLogs.h"
 #include "RenderUtils.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"

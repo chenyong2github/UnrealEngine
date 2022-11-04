@@ -2,6 +2,7 @@
 
 #include "TakeRecorderWorldSource.h"
 
+#include "AssetRegistry/AssetData.h"
 #include "TakeRecorderSources.h"
 #include "TakeRecorderActorSource.h"
 #include "TakeRecorderSourcesUtils.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Android/AndroidStats.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
 #include "Android/AndroidPlatformMisc.h"
 #include "Stats/Stats.h"
