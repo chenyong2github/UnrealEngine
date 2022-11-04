@@ -19,6 +19,7 @@
 				"Android",
 				"IOS",
 				"Linux",
+				"LinuxArm64",
 				"Mac",
 				"Win64"
 			]
