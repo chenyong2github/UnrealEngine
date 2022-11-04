@@ -1657,6 +1657,14 @@ FVector FDisplayClusterLightCardEditorHelper::TraceScreenRay(const FVector& Orth
 				Direction = (ClosestPoint - ViewOrigin).GetSafeNormal();
 			}
 		}
+
+		ADisplayClusterRootActor* RootActor = UpdateRootActor();
+		if (RootActor)
+		{
+			// Rotate direction back into local space
+			const FQuat RootRotation = RootActor->GetTransform().GetRotation().Inverse();
+			Direction = RootRotation.RotateVector(Direction);
+		}
 	}
 
 	return Direction;
