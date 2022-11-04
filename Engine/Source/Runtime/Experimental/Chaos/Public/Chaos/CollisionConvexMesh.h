@@ -574,6 +574,104 @@ namespace Chaos
 			RemoveInvalidFaces(InOutPlanes, InOutFaceVertexIndices);
 		}
 
+		// Find edge pairs that are colinear and remove the unnecessary vertex to make a single edge.
+		// If we are left with an invalid face (2 verts or less), remove it.
+		// NOTE: a vertex in the middle of two colinear edges on one face may still be required by some other face, 
+		// although technically those faces could (and should) have been merged.
+		static void MergeColinearEdges(TArray<FPlaneType>& InOutPlanes, TArray<TArray<int32>>& InOutFaceVertexIndices, TArray<FVec3Type>& InOutVertices, FRealType AngleToleranceRad)
+		{
+			check(InOutPlanes.Num() == InOutFaceVertexIndices.Num());
+
+			// This array maps from the input vertex to the output vertex array. INDEX_NONE means removed.
+			TArray<int32> VertexIndexMap;
+			VertexIndexMap.SetNum(InOutVertices.Num());
+			for (int32& VertexIndex : VertexIndexMap)
+			{
+				VertexIndex = INDEX_NONE;
+			}
+
+			// See if we have any co-linear edges in any faces, where the center vertex
+			// is not required by some other face. Assume we already removed coincident vertices.
+			// NOTE: after this loop the vertex index map contains INDEX_NONE for items to remove
+			// and other vertex has its original index. We pack and re-index later.
+			for (int32 PlaneIndex0 = 0; PlaneIndex0 < InOutFaceVertexIndices.Num(); ++PlaneIndex0)
+			{
+				TArray<int32>& FaceVertexIndices = InOutFaceVertexIndices[PlaneIndex0];
+				if (FaceVertexIndices.Num() > 2)
+				{
+					// Visit all set of 3-vertex chains in the face
+					int32 VertexIndex0 = FaceVertexIndices[FaceVertexIndices.Num() - 2];
+					int32 VertexIndex1 = FaceVertexIndices[FaceVertexIndices.Num() - 1];
+					for (int32 FaceVertexIndex = 0; FaceVertexIndex < FaceVertexIndices.Num(); ++FaceVertexIndex)
+					{
+						int32 VertexIndex2 = FaceVertexIndices[FaceVertexIndex];
+
+						// Calculate the sine of the angle between the two edges formed by the 3 vertices
+						const FVec3 Edge0 = (InOutVertices[VertexIndex1] - InOutVertices[VertexIndex0]).GetSafeNormal();
+						const FVec3 Edge1 = (InOutVertices[VertexIndex2] - InOutVertices[VertexIndex1]).GetSafeNormal();
+						const FReal CosAngle = FVec3::DotProduct(Edge0, Edge1);
+
+						// See if we need the vertex.
+						if (CosAngle < (FReal(1) - AngleToleranceRad))
+						{
+							VertexIndexMap[VertexIndex1] = VertexIndex1;
+						}
+
+						// Move to next edge pair
+						VertexIndex0 = VertexIndex1;
+						VertexIndex1 = VertexIndex2;
+					}
+				}
+			}
+
+			// Remove unused vertices from all faces and update the index map to account for removals
+			int32 NumVerticesRemoved = 0;
+			for (int32 VertexIndex = 0; VertexIndex < InOutVertices.Num(); ++VertexIndex)
+			{
+				if (VertexIndexMap[VertexIndex] == INDEX_NONE)
+				{
+					// Remove vertices we don't need from faces that use them
+					// If we end up with less than 3 verts, remove the face
+					for (int32 PlaneIndex0 = InOutFaceVertexIndices.Num() - 1; PlaneIndex0 >= 0; --PlaneIndex0)
+					{
+						InOutFaceVertexIndices[PlaneIndex0].Remove(VertexIndex);
+						if (InOutFaceVertexIndices[PlaneIndex0].Num() < 3)
+						{
+							InOutFaceVertexIndices.RemoveAt(PlaneIndex0);
+							InOutPlanes.RemoveAt(PlaneIndex0);
+						}
+					}
+					++NumVerticesRemoved;
+				}
+				else
+				{
+					VertexIndexMap[VertexIndex] = VertexIndex - NumVerticesRemoved;
+				}
+			}
+
+			if (NumVerticesRemoved > 0)
+			{
+				// Remove unused verts from the array
+				for (int32 VertexIndex = InOutVertices.Num() - 1; VertexIndex >= 0; --VertexIndex)
+				{
+					if (VertexIndexMap[VertexIndex] == INDEX_NONE)
+					{
+						InOutVertices.RemoveAt(VertexIndex);
+					}
+				}
+
+				// Remap vertex indices in all faces
+				for (int32 PlaneIndex0 = 0; PlaneIndex0 < InOutFaceVertexIndices.Num(); ++PlaneIndex0)
+				{
+					TArray<int32>& FaceVertexIndices = InOutFaceVertexIndices[PlaneIndex0];
+					for (int32 FaceVertexIndex = FaceVertexIndices.Num() - 1; FaceVertexIndex >= 0; --FaceVertexIndex)
+					{
+						FaceVertexIndices[FaceVertexIndex] = VertexIndexMap[FaceVertexIndices[FaceVertexIndex]];
+					}
+				}
+			}
+		}
+
 		// IMPORTANT : vertices are assumed to be sorted CCW
 		static void RemoveInsideFaceVertices(const FPlaneType& Face, TArray<int32>& InOutFaceVertexIndices, const TArray<FVec3Type>& Vertices, const FVec3Type& Centroid)
 		{

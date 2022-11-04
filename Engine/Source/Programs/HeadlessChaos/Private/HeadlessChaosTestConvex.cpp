@@ -445,4 +445,105 @@ namespace ChaosTest
 			EXPECT_EQ(VertexIndex, StructureData.GetHalfEdgeVertex(VertexHalfEdgeIndex));
 		}
 	}
+
+	// The set of vertices generated from a unit box when creating a GeometryCollection from the default box in the editor.
+	// The default cube is tesselated. It has 26 vertices which include the 8 corners, plus mid-points along each edge and in the middle of each face.
+	// 
+	// This was causing the convex builder to produce a denegerate triangle (3 points in a row) leading to a zero normal and a crash in the solver.
+	//
+	// The fix was to modify TConvexHull3 to produce convex faces rather than triangles (one of which could be nearly degenerate), 
+	// and a post process on its results to eliminate colinear edges (within some tolerance)
+	//
+	GTEST_TEST(ConvexBuilderTests, TestDefaultStaticMeshBox)
+	{
+		FConvexBuilder::EBuildMethod BuildMethod = FConvexBuilder::EBuildMethod::Default;
+		const FReal Margin = 9.9999997473787516e-05;
+		TArray<FVec3f> BoxVerts =
+		{
+			{-50.0000000f, 50.0000000f, -50.0000000f},
+			{50.0000000f, 50.0000000f, -50.0000000f},
+			{50.0000000f, -50.0000000f, -50.0000000f},
+			{50.0000000f, -50.0000000f, 50.0000000f},
+			{50.0000000f, 50.0000000f, 50.0000000f},
+			{-50.0000000f, -50.0000000f, 50.0000000f},
+			{-50.0000000f, 50.0000000f, 50.0000000f},
+			{-50.0000000f, -50.0000000f, -50.0000000f},
+			{0.00000000f, 50.0000000f, -50.0000000f},
+			{50.0000000f, 0.00000000f, -50.0000000f},
+			{0.00000000f, 50.0000000f, 50.0000000f},
+			{-50.0000000f, -50.0000000f, 3.06161689e-15f},
+			{-50.0000000f, 50.0000000f, -3.06161689e-15f},
+			{-50.0000000f, 0.00000000f, -50.0000000f},
+			{50.0000000f, -50.0000000f, 3.06161689e-15f},
+			{0.00000000f, -50.0000000f, -50.0000000f},
+			{50.0000000f, 1.22464676e-14f, 50.0000000f},
+			{0.00000000f, -50.0000000f, 50.0000000f},
+			{-50.0000000f, 1.22464676e-14f, 50.0000000f},
+			{50.0000000f, 50.0000000f, -3.06161689e-15f},
+			{0.00000000f, 50.0000000f, -3.06161689e-15f},
+			{0.00000000f, 0.00000000f, -50.0000000f},
+			{0.00000000f, 1.22464676e-14f, 50.0000000f},
+			{0.00000000f, -50.0000000f, 3.06161689e-15f},
+			{50.0000000f, 6.12323379e-15f, -1.87469967e-31f},
+			{-50.0000000f, 6.12323379e-15f, -1.87469967e-31f},
+		};
+
+		FImplicitConvex3 Convex(BoxVerts, Margin, BuildMethod);
+
+		// The convex should be a box
+		EXPECT_EQ(Convex.NumVertices(), 8);
+		EXPECT_EQ(Convex.NumEdges(), 12);
+		EXPECT_EQ(Convex.NumPlanes(), 6);
+
+		// All planes normals should be...normalized
+		const FReal NormalTolerance = 1.e-4;
+		for (int32 PlaneIndex = 0; PlaneIndex < Convex.NumPlanes(); ++PlaneIndex)
+		{
+			const FVec3 PlaneN = Convex.GetPlane(PlaneIndex).Normal();
+			EXPECT_NEAR(PlaneN.Size(), FReal(1), NormalTolerance);
+		}
+
+	}
+
+	// Create a tet with an extra degenerate triangle in it. Verify that MergeColinearEdges handles this case
+	// and does not leave an invalid 2-vertex face behind.
+	// NOTE: We should not be able to create a FImplicitConvex3 that calls MergeColinearEdges in this condition
+	// but better safe than sorry.
+	GTEST_TEST(ConvexBuilderTests, TestColinearEdgeInTriangle)
+	{
+		// A right angled tet with an extra degenerate triangular face in there
+		TArray<FVec3f> TetVerts =
+		{
+			{0.0000000f, 0.0000000f, 50.0000000f},		// Top
+			{0.0000000f, 0.0000000f, 0.0000000f},		// Base0
+			{50.0000000f, 0.0000000f, 0.0000000f},		// Base1
+			{0.0000000f, 50.0000000f, 0.0000000f},		// Base2
+			{-1.e-15f, -1.e-14f, 25.0000000f},			// Extra vert along the vertical edge
+		};
+		TArray<TArray<int32>> TetFaces = 
+		{
+			{ 1, 2, 3 },								// Base
+			{ 0, 2, 1 },								// Side0
+			{ 0, 3, 2 },								// Side1
+			{ 0, 1, 3 },								// Side2
+			{ 0, 1, 4 },								// Extra degenerate face
+		};
+		TArray<TPlaneConcrete<FRealSingle>> TetPlanes =
+		{
+			// Values don't matter for this test
+			TPlaneConcrete<FRealSingle>(FVec3(0), FVec3(0,0,1)),
+			TPlaneConcrete<FRealSingle>(FVec3(0), FVec3(0,0,1)),
+			TPlaneConcrete<FRealSingle>(FVec3(0), FVec3(0,0,1)),
+			TPlaneConcrete<FRealSingle>(FVec3(0), FVec3(0,0,1)),
+			TPlaneConcrete<FRealSingle>(FVec3(0), FVec3(0,0,1)),
+		};
+
+		const FRealSingle AngleTolerance = 1.e-6f;
+		FConvexBuilder::MergeColinearEdges(TetPlanes, TetFaces, TetVerts, AngleTolerance);
+
+		// The invalid face and its vertex should have been stripped
+		EXPECT_EQ(TetVerts.Num(), 4);
+		EXPECT_EQ(TetFaces.Num(), 4);
+		EXPECT_EQ(TetPlanes.Num(), 4);
+	}
 }
