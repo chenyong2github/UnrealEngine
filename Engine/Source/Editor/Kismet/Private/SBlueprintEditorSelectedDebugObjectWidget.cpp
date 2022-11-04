@@ -74,7 +74,8 @@ void SBlueprintEditorSelectedDebugObjectWidget::Construct(const FArguments& InAr
 		.InitiallySelectedItem(GetDebugWorldName())
 		.Visibility(this, &SBlueprintEditorSelectedDebugObjectWidget::IsDebugWorldComboVisible)
 		.OnComboBoxOpening(this, &SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugWorldNames, true)
-		.OnSelectionChanged(this, &SBlueprintEditorSelectedDebugObjectWidget::DebugWorldSelectionChanged);
+		.OnSelectionChanged(this, &SBlueprintEditorSelectedDebugObjectWidget::DebugWorldSelectionChanged)
+		.ContentPadding(FMargin(0.f, 4.f));
 
 	DebugObjectsComboBox = SNew(SComboBox<TSharedPtr<FBlueprintDebugObjectInstance>>)
 		.ToolTip(IDocumentation::Get()->CreateToolTip(
@@ -87,6 +88,7 @@ void SBlueprintEditorSelectedDebugObjectWidget::Construct(const FArguments& InAr
 		.OnComboBoxOpening(this, &SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugObjectInstances, true)
 		.OnSelectionChanged(this, &SBlueprintEditorSelectedDebugObjectWidget::DebugObjectSelectionChanged)
 		.OnGenerateWidget(this, &SBlueprintEditorSelectedDebugObjectWidget::CreateDebugObjectItemWidget)
+		.ContentPadding(FMargin(0.f, 4.f))
 		.AddMetaData<FTagMetaData>(TEXT("SelectDebugObjectCobmo"))
 		[
 			SNew(STextBlock)
@@ -146,9 +148,10 @@ TSharedRef<SWidget> SBlueprintEditorSelectedDebugObjectWidget::OnGetActiveDetail
 {
 	const TSharedRef<SWidget> BrowseButton = PropertyCustomizationHelpers::MakeBrowseButton(
 		FSimpleDelegate::CreateSP(this, &SBlueprintEditorSelectedDebugObjectWidget::SelectedDebugObject_OnClicked),
-		LOCTEXT("DebugSelectActor", "Select this Actor in level")
+		LOCTEXT("DebugSelectActor", "Select and frame the debug actor in the Level Editor."),
+		TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SBlueprintEditorSelectedDebugObjectWidget::IsDebugObjectSelected))
 	);
-	BrowseButton->SetVisibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &SBlueprintEditorSelectedDebugObjectWidget::IsSelectDebugObjectButtonVisible)));
+
 
 	TSharedRef<SWidget> DebugObjectSelectionWidget =
 		SNew(SHorizontalBox)
@@ -589,17 +592,17 @@ void SBlueprintEditorSelectedDebugObjectWidget::DebugObjectSelectionChanged(TSha
 	}
 }
 
-EVisibility SBlueprintEditorSelectedDebugObjectWidget::IsSelectDebugObjectButtonVisible() const
+bool SBlueprintEditorSelectedDebugObjectWidget::IsDebugObjectSelected() const
 {
 	check(GetBlueprintObj());
 	if (UObject* DebugObj = GetBlueprintObj()->GetObjectBeingDebugged())
 	{
 		if (AActor* Actor = Cast<AActor>(DebugObj))
 		{
-			return EVisibility::Visible;
+			return true;
 		}
 	}
-	return EVisibility::Collapsed;
+	return false;
 }
 
 void SBlueprintEditorSelectedDebugObjectWidget::SelectedDebugObject_OnClicked()

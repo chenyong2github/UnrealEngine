@@ -112,7 +112,7 @@ private:
 	void SelectedDebugObject_OnClicked();
 
 	/** Returns true if a debug actor is currently selected */
-	EVisibility IsSelectDebugObjectButtonVisible() const;
+	bool IsDebugObjectSelected() const;
 
 	EVisibility IsDebugWorldComboVisible() const;
 
