@@ -105,6 +105,7 @@ namespace Chaos
 		// Visualization material
 		const UMaterial* ClothMaterial;
 		const UMaterial* ClothMaterialVertex;
+		const UMaterial* CollisionMaterial;
 #endif  // #if WITH_EDITOR
 #endif  // #if CHAOS_DEBUG_DRAW
 	};

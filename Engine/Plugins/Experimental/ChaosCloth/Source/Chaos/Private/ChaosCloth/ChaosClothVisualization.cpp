@@ -9,6 +9,7 @@
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Convex.h"
+#include "Chaos/Levelset.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCapsule.h"
 #include "Chaos/TaperedCylinder.h"
@@ -40,6 +41,7 @@ namespace Chaos
 #if WITH_EDITOR
 		ClothMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/Cloth/CameraLitDoubleSided.CameraLitDoubleSided"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
 		ClothMaterialVertex = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/WidgetVertexColorMaterial"), nullptr, LOAD_None, nullptr);  // LOAD_EditorOnly
+		CollisionMaterial = LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorMaterials/PhAT_UnselectedMaterial"), nullptr, LOAD_None, nullptr);
 #endif  // #if WITH_EDITOR
 	}
 
@@ -55,6 +57,7 @@ namespace Chaos
 	{
 		Collector.AddReferencedObject(ClothMaterial);
 		Collector.AddReferencedObject(ClothMaterialVertex);
+		Collector.AddReferencedObject(CollisionMaterial);
 	}
 
 	void FClothVisualization::DrawPhysMeshShaded(FPrimitiveDrawInterface* PDI) const
@@ -428,6 +431,34 @@ namespace Chaos
 		DrawLine(PDI, Position, Position + X, FLinearColor::Red);
 		DrawLine(PDI, Position, Position + Y, FLinearColor::Green);
 		DrawLine(PDI, Position, Position + Z, FLinearColor::Blue);
+	}
+
+	static void DrawLevelSet(FPrimitiveDrawInterface* PDI, const FTransform& Transform, const FMaterialRenderProxy* MaterialRenderProxy, const FLevelSet& LevelSet)
+	{
+#if WITH_EDITOR
+		if (PDI && MaterialRenderProxy)
+		{
+			TArray<FVector3f> Vertices;
+			TArray<FIntVector> Tris;
+			LevelSet.GetZeroIsosurfaceGridCellFaces(Vertices, Tris);
+
+			FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
+			for (const FVector3f& V : Vertices)
+			{
+				MeshBuilder.AddVertex(FDynamicMeshVertex(V));
+			}
+			for (const FIntVector& T : Tris)
+			{
+				MeshBuilder.AddTriangle(T[0], T[1], T[2]);
+			}
+
+			MeshBuilder.Draw(PDI, Transform.ToMatrixWithScale(), MaterialRenderProxy, SDPG_World, false, false);
+		}
+		else
+#endif
+		{
+			DrawCoordinateSystem(PDI, Transform.GetRotation(), Transform.GetTranslation());
+		}
 	}
 
 	void FClothVisualization::DrawBounds(FPrimitiveDrawInterface* PDI) const
@@ -824,6 +855,22 @@ namespace Chaos
 
 						case ImplicitObjectType::Convex:
 							DrawConvex(PDI, Object->GetObjectChecked<FConvex>(), Rotation, Position, Color);
+							break;
+
+						case ImplicitObjectType::Transformed: // Transformed only used for levelsets
+							if (Object->GetObjectChecked<TImplicitObjectTransformed<FReal, 3>>().Object()->GetType() == ImplicitObjectType::LevelSet)
+							{
+								const TRigidTransform<FReal, 3>& Transform = Object->GetObjectChecked<TImplicitObjectTransformed<FReal, 3>>().GetTransform();
+								const FTransform CombinedTransform = Transform * FTransform(Rotation, Position);
+								const FLevelSet& LevelSet = Object->GetObjectChecked<TImplicitObjectTransformed<FReal, 3>>().Object()->GetObjectChecked<FLevelSet>();
+								const FMaterialRenderProxy* MaterialRenderProxy =
+#if WITH_EDITOR
+									CollisionMaterial->GetRenderProxy();
+#else
+									nullptr;
+#endif
+								DrawLevelSet(PDI, CombinedTransform, MaterialRenderProxy, LevelSet);
+							}
 							break;
 
 						default:

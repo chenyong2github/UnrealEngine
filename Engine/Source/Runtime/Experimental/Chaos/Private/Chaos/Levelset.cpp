@@ -614,6 +614,86 @@ bool FLevelSet::CheckData(FErrorReporter& ErrorReporter, const FParticles& InPar
 	return true;
 }
 
+void FLevelSet::GetZeroIsosurfaceGridCellFaces(TArray<FVector3f>& Vertices, TArray<FIntVector>& Tris) const
+{
+	const TVector<int32, 3> Cells = MGrid.Counts();
+	const FVector3d Dx(MGrid.Dx());
+
+	for (int i = 0; i < Cells.X - 1; ++i)
+	{
+		for (int j = 0; j < Cells.Y - 1; ++j)
+		{
+			for (int k = 0; k < Cells.Z - 1; ++k)
+			{
+				const double Sign = FMath::Sign(MPhi(i, j, k));
+				const double SignNextI = FMath::Sign(MPhi(i + 1, j, k));
+				const double SignNextJ = FMath::Sign(MPhi(i, j + 1, k));
+				const double SignNextK = FMath::Sign(MPhi(i, j, k + 1));
+
+				const FVector3d CellMin = MGrid.MinCorner() + Dx * FVector3d(i, j, k);
+
+				if (Sign > SignNextI)
+				{
+					const int32 V0 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 0, 0));
+					const int32 V1 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 1, 0));
+					const int32 V2 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 1, 1));
+					const int32 V3 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 0, 1));
+					Tris.Emplace(FIntVector(V0, V1, V2));
+					Tris.Emplace(FIntVector(V2, V3, V0));
+				}
+				else if (Sign < SignNextI)
+				{
+					const int32 V0 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 0, 0));
+					const int32 V1 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 1, 0));
+					const int32 V2 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 1, 1));
+					const int32 V3 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 0, 1));
+					Tris.Emplace(FIntVector(V0, V2, V1));
+					Tris.Emplace(FIntVector(V2, V0, V3));
+				}
+
+
+				if (Sign > SignNextJ)
+				{
+					const int32 V0 = Vertices.Emplace(CellMin + Dx * FVector3d(0, 1, 0));
+					const int32 V1 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 1, 0));
+					const int32 V2 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 1, 1));
+					const int32 V3 = Vertices.Emplace(CellMin + Dx * FVector3d(0, 1, 1));
+					Tris.Emplace(FIntVector(V0, V2, V1));
+					Tris.Emplace(FIntVector(V2, V0, V3));
+				}
+				else if (Sign < SignNextJ)
+				{
+					const int32 V0 = Vertices.Emplace(CellMin + Dx * FVector3d(0, 1, 0));
+					const int32 V1 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 1, 0));
+					const int32 V2 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 1, 1));
+					const int32 V3 = Vertices.Emplace(CellMin + Dx * FVector3d(0, 1, 1));
+					Tris.Emplace(FIntVector(V0, V1, V2));
+					Tris.Emplace(FIntVector(V2, V3, V0));
+				}
+
+				if (Sign > SignNextK)
+				{
+					const int32 V0 = Vertices.Emplace(CellMin + Dx * FVector3d(0, 0, 1));
+					const int32 V1 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 0, 1));
+					const int32 V2 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 1, 1));
+					const int32 V3 = Vertices.Emplace(CellMin + Dx * FVector3d(0, 1, 1));
+					Tris.Emplace(FIntVector(V0, V1, V2));
+					Tris.Emplace(FIntVector(V2, V3, V0));
+				}
+				else if (Sign < SignNextK)
+				{
+					const int32 V0 = Vertices.Emplace(CellMin + Dx * FVector3d(0, 0, 1));
+					const int32 V1 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 0, 1));
+					const int32 V2 = Vertices.Emplace(CellMin + Dx * FVector3d(1, 1, 1));
+					const int32 V3 = Vertices.Emplace(CellMin + Dx * FVector3d(0, 1, 1));
+					Tris.Emplace(FIntVector(V0, V2, V1));
+					Tris.Emplace(FIntVector(V2, V0, V3));
+				}
+			}
+		}
+	}
+}
+
 void FLevelSet::ComputeConvexity(const TArray<TVec3<int32>>& InterfaceIndices)
 {
 	this->bIsConvex = true;

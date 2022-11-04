@@ -138,6 +138,9 @@ class CHAOS_API FLevelSet final : public FImplicitObject
 
 	bool CheckData(FErrorReporter& ErrorReporter, const FParticles& InParticles, const FTriangleMesh& Mesh, const TArray<FVec3> &Normals);
 
+	// Used to generate a simple debug surface
+	void GetZeroIsosurfaceGridCellFaces(TArray<FVector3f>& Vertices, TArray<FIntVector>& Tris) const;
+
 	virtual uint32 GetTypeHash() const override
 	{
 		uint32 Result = 0;
