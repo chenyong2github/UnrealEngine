@@ -896,7 +896,8 @@ public:
 		bool bInIsForceChanged = false,
 		bool bInIsFirstMove = false,
 		const FModifierKeysState& InModifierKeys = FModifierKeysState(),
-		uint32 InTouchpadIndex=0
+		uint32 InTouchpadIndex=0,
+		const TOptional<int32> InOptionalSlateUserIndex = TOptional<int32>()
 	)
 	: FInputEvent(InModifierKeys, InDeviceId, false)
 		, ScreenSpacePosition(InScreenSpacePosition)
@@ -913,7 +914,12 @@ public:
 		, bIsDirectionInvertedFromDevice(false)
 		, bIsTouchForceChanged(bInIsForceChanged)
 		, bIsTouchFirstMove(bInIsFirstMove)
-	{ }
+	{
+		if (InOptionalSlateUserIndex.IsSet())
+		{
+			UserIndex = InOptionalSlateUserIndex.GetValue();
+		}
+	}
 
 	/** A constructor for gesture events */
 	FPointerEvent(
