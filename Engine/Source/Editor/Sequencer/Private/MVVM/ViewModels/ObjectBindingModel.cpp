@@ -541,7 +541,7 @@ TSharedRef<SWidget> FObjectBindingModel::GetAddTrackMenuContent()
 			const FGuid Guid = ObjectBindingNode->GetObjectGuid();
 			for (auto RuntimeObject : Sequencer->FindBoundObjects(Guid, OwnerModel->GetSequenceID()))
 			{
-				if (RuntimeObject != nullptr)
+				if (RuntimeObject.Get() != nullptr)
 				{
 					ObjectBindings.AddUnique(Guid);
 					ObjectClasses.Add(RuntimeObject->GetClass());
