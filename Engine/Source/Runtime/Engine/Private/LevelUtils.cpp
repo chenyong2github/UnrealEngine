@@ -3,6 +3,7 @@
 
 #include "LevelUtils.h"
 #include "Engine/Engine.h"
+#include "Engine/Level.h"
 #include "Engine/LevelStreaming.h"
 #include "HAL/FileManager.h"
 #include "UObject/Package.h"

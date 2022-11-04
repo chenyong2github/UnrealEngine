@@ -3,6 +3,7 @@
 #include "SNewSystemDialog.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraEditorStyle.h"
+#include "NiagaraEmitter.h"
 #include "NiagaraSystem.h"
 #include "SNiagaraAssetPickerList.h"
 

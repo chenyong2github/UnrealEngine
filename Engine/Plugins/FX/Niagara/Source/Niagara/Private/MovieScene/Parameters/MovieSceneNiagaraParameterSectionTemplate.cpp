@@ -2,6 +2,7 @@
 
 #include "MovieSceneNiagaraParameterSectionTemplate.h"
 #include "NiagaraComponent.h"
+#include "NiagaraEffectType.h"
 #include "NiagaraSystem.h"
 #include "NiagaraTypes.h"
 #include "IMovieScenePlayer.h"

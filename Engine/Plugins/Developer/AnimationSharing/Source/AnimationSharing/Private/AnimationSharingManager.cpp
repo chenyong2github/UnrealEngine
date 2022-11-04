@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationSharingManager.h"
+#include "Animation/Skeleton.h"
 #include "AnimationSharingModule.h"
 #include "Stats/Stats.h"
 #include "Components/SkinnedMeshComponent.h"

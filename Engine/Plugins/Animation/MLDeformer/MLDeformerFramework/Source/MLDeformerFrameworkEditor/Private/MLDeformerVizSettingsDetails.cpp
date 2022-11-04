@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MLDeformerVizSettingsDetails.h"
+#include "Animation/Skeleton.h"
 #include "MLDeformerModule.h"
 #include "MLDeformerModel.h"
 #include "MLDeformerEditorModel.h"

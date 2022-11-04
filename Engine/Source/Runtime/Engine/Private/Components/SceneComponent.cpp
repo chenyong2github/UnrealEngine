@@ -6,6 +6,7 @@
 
 
 #include "Components/SceneComponent.h"
+#include "Engine/Level.h"
 #include "EngineStats.h"
 #include "Engine/Blueprint.h"
 #include "GameFramework/Actor.h"

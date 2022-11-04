@@ -2,6 +2,7 @@
 
 #include "AI/NavigationSystemBase.h"
 #include "Engine/Engine.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
 #include "AI/Navigation/NavigationTypes.h"

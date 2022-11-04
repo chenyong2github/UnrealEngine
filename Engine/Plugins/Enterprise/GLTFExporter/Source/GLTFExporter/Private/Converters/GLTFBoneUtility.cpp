@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Converters/GLTFBoneUtility.h"
+#include "BonePose.h"
 #include "Sections/MovieScene3DTransformSection.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AnimSequence.h"

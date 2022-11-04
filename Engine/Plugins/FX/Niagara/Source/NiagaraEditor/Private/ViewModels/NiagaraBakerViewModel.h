@@ -11,6 +11,7 @@
 #include "NiagaraBakerSettings.h"
 
 class UNiagaraBakerSettings;
+struct FSlateIcon;
 
 enum class ENiagaraBakerColorChannel : uint8
 {

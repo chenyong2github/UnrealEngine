@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieScene3DTransformSectionRecorder.h"
+#include "Animation/Skeleton.h"
 #include "Misc/ScopedSlowTask.h"
 #include "GameFramework/Character.h"
 #include "KeyParams.h"

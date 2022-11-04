@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "NiagaraDataInterfaceGrid3DCollection.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraConstants.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraSimStageData.h"

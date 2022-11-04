@@ -2,6 +2,7 @@
 
 #include "Engine/HLODProxy.h"
 
+#include "Engine/Level.h"
 #include "Engine/LODActor.h"
 #include "GameFramework/WorldSettings.h"
 #include "Materials/Material.h"

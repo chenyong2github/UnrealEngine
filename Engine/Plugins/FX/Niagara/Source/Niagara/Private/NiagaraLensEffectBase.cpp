@@ -3,6 +3,7 @@
 #include "NiagaraLensEffectBase.h"
 
 #include "NiagaraComponent.h"
+#include "NiagaraEffectType.h"
 #include "NiagaraSystem.h"
 #include "Camera/PlayerCameraManager.h"
 

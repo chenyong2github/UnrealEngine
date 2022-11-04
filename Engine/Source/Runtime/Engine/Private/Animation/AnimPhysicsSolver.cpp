@@ -29,6 +29,7 @@ SOFTWARE.
 */
 
 #include "Animation/AnimPhysicsSolver.h"
+#include "HAL/IConsoleManager.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 
 DEFINE_STAT(STAT_AnimDynamicsUpdate);

@@ -17,6 +17,7 @@ class UIKRetargetProcessor;
 class SIKRetargetChainMapList;
 class UIKRetargetAnimInstance;
 class FIKRetargetEditor;
+class FPrimitiveDrawInterface;
 class UDebugSkelMeshComponent;
 class UIKRigDefinition;
 class UIKRetargeterController;

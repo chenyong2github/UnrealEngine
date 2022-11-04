@@ -6,6 +6,7 @@
 
 #include "Animation/EditorAnimCompositeSegment.h"
 #include "Animation/AnimComposite.h"
+#include "Animation/Skeleton.h"
 
 
 

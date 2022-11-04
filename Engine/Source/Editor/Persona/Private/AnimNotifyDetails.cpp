@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimNotifyDetails.h"
+#include "Animation/Skeleton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimationAsset.h"

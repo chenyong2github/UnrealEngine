@@ -2,6 +2,7 @@
 
 #include "NiagaraAsyncGpuTraceHelper.h"
 
+#include "Components/PrimitiveComponent.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraStats.h"
 

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "OculusHandTracking.h"
+#include "Animation/Skeleton.h"
 #include "OculusHMD.h"
 #include "Misc/CoreDelegates.h"
 #include "IOculusInputModule.h"

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Async/ParallelFor.h"
+#include "BonePose.h"
 #include "CoreMinimal.h"
 #include "Containers/RingBuffer.h"
 #include "Engine/DataAsset.h"

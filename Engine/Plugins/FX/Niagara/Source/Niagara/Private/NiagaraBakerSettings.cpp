@@ -4,6 +4,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "NiagaraBakerOutputTexture2D.h"
 #include "NiagaraCustomVersion.h"
+#include "NiagaraEffectType.h"
 #include "NiagaraSystem.h"
 #include "Engine/Texture2D.h"
 #include "Misc/PathViews.h"

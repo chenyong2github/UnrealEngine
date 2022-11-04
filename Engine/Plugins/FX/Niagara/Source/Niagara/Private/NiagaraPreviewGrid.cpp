@@ -5,6 +5,7 @@
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Engine/Texture2D.h"
 #include "NiagaraComponent.h"
+#include "NiagaraEffectType.h"
 #include "NiagaraSystem.h"
 
 #include "Components/TextRenderComponent.h"

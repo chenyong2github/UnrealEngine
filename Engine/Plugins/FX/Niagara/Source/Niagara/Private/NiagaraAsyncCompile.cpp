@@ -4,6 +4,7 @@
 #include "NiagaraAsyncCompile.h"
 
 #include "Modules/ModuleManager.h"
+#include "NiagaraEmitter.h"
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraModule.h"
 #include "NiagaraPrecompileContainer.h"

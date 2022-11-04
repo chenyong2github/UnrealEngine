@@ -8,6 +8,7 @@
 #include "Factories/Texture2dFactoryNew.h"
 #include "CanvasTypes.h"
 #include "CanvasItem.h"
+#include "NiagaraBakerSettings.h"
 #include "TextureResource.h"
 
 TArray<FNiagaraBakerOutputBinding> FNiagaraBakerRendererOutputTexture2D::GetRendererBindings(UNiagaraBakerOutput* InBakerOutput) const

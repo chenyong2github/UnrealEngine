@@ -3,6 +3,7 @@
 #include "NiagaraBakerRendererOutputVolumeTexture.h"
 #include "NiagaraBakerOutputVolumeTexture.h"
 
+#include "NiagaraBakerSettings.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSystemInstanceController.h"

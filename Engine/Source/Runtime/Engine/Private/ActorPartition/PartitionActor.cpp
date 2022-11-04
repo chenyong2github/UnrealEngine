@@ -6,6 +6,7 @@
 
 #if WITH_EDITOR
 #include "Components/BoxComponent.h"
+#include "Engine/Level.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/ActorPartition/PartitionActorDesc.h"
 #include "GameFramework/WorldSettings.h"

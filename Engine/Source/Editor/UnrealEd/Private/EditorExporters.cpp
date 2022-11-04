@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "CoreMinimal.h"
+#include "Animation/Skeleton.h"
 #include "Audio.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"

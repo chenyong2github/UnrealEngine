@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "Model.h"
 

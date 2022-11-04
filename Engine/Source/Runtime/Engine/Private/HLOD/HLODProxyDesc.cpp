@@ -8,6 +8,7 @@
 #if WITH_EDITOR
 #include "Engine/LODActor.h"
 #include "Algo/Transform.h"
+#include "Engine/Level.h"
 #include "GameFramework/WorldSettings.h"
 #include "LevelUtils.h"
 #include "Engine/LevelStreaming.h"

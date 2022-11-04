@@ -2,6 +2,7 @@
 
 #include "Animation/MirrorDataTable.h"
 #include "Animation/AnimationSettings.h"
+#include "Animation/Skeleton.h"
 #include "Internationalization/Regex.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MirrorDataTable)

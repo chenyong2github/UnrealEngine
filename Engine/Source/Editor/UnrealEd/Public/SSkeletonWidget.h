@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Animation/Skeleton.h"
 #include "CoreMinimal.h"
 #include "IContentBrowserSingleton.h"
 #include "Input/Reply.h"

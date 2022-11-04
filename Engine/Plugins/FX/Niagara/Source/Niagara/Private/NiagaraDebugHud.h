@@ -8,6 +8,7 @@ Class used help debugging Niagara simulations
 #include "CoreMinimal.h"
 #include "NiagaraCommon.h"
 #include "NiagaraTypes.h"
+#include "RHI.h"
 #include "RHICommandList.h"
 #include "NiagaraDebuggerCommon.h"
 #include "NiagaraGPUProfilerInterface.h"

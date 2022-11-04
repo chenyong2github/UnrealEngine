@@ -2,6 +2,7 @@
 
 #include "GeometryActors/GeneratedDynamicMeshActor.h"
 #include "Components/StaticMeshComponent.h"
+#include "Engine/Level.h"
 #include "GeometryActors/EditorGeometryGenerationSubsystem.h"
 
 #include "Editor/EditorEngine.h" // for CopyPropertiesForUnrelatedObjects

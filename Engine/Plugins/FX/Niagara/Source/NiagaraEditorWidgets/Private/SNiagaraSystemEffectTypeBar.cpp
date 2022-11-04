@@ -6,6 +6,7 @@
 #include "NiagaraEditorWidgetsStyle.h"
 #include "Delegates/DelegateInstanceInterface.h"
 #include "Modules/ModuleManager.h"
+#include "NiagaraEffectType.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"

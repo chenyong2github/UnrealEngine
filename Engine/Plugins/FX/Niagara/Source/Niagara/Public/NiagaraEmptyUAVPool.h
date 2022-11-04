@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraCommon.h"
+#include "RHI.h"
 
 // Scoped access for UAVs this is not required when running inside the main dispatch loop
 // but is required for external usage that is outside, i.e. if you are doing some custom dispatch setup

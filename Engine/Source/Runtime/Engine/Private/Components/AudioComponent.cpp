@@ -11,6 +11,7 @@
 #include "Engine/Texture2D.h"
 #include "Kismet/GameplayStatics.h"
 #include "Misc/App.h"
+#include "Quartz/AudioMixerClockHandle.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundNodeAttenuation.h"
 #include "UObject/FrameworkObjectVersion.h"

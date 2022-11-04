@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "LightMap.h"
+#include "Engine/Level.h"
 #include "ShadowMap.h"
 #include "Engine/ShadowMapTexture2D.h"
 #include "UnrealEngine.h"

@@ -2,6 +2,7 @@
 
 
 #include "LevelEditorViewport.h"
+#include "Animation/Skeleton.h"
 #include "Materials/MaterialInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/PackageName.h"

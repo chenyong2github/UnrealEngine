@@ -6,6 +6,7 @@
 
 #include "Animation/EditorAnimSegment.h"
 #include "Animation/AnimMontage.h"
+#include "Animation/Skeleton.h"
 
 
 

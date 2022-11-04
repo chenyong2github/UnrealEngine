@@ -3,6 +3,7 @@
 #include "NiagaraPerfBaseline.h"
 #include "Engine/Engine.h"
 #include "NiagaraComponent.h"
+#include "NiagaraEffectType.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Components/TextRenderComponent.h"
 #include "Misc/OutputDeviceArchiveWrapper.h"

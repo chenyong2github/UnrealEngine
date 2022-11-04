@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraVariant.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraDataInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraVariant)

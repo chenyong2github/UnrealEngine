@@ -6,6 +6,7 @@
 #include "Containers/Queue.h"
 #include "NiagaraCommon.h"
 #include "RenderGraphResources.h"
+#include "RHI.h"
 #include "RHICommandList.h"
 
 class FRDGBuilder;

@@ -2,6 +2,7 @@
 
 
 #include "AnimCustomInstanceHelper.h"
+#include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
 
 /////////////////////////////////////////////////////

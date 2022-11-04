@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimToTextureBPLibrary.h"
+#include "Animation/Skeleton.h"
 #include "AnimToTexture.h"
 #include "AnimToTextureUtils.h"
 #include "AnimToTextureSkeletalMesh.h"

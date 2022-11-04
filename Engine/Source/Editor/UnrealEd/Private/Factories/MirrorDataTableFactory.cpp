@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/MirrorDataTableFactory.h"
+#include "Animation/Skeleton.h"
 #include "DataTableEditorUtils.h"
 #include "Animation/MirrorDataTable.h"
 #include "Animation/AnimationSettings.h"

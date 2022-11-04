@@ -4,6 +4,7 @@
 #include "AI/Navigation/NavRelevantInterface.h"
 #include "AI/NavigationSystemBase.h"
 #include "AI/Navigation/NavQueryFilter.h"
+#include "Engine/Level.h"
 #include "EngineStats.h"
 #include "Components/ShapeComponent.h"
 #include "AI/Navigation/NavAreaBase.h"

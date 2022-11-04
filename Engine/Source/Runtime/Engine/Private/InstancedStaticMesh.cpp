@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Engine/InstancedStaticMesh.h"
+#include "Engine/Level.h"
 #include "InstancedStaticMeshDelegates.h"
 #include "AI/NavigationSystemBase.h"
 #include "Engine/MapBuildDataRegistry.h"

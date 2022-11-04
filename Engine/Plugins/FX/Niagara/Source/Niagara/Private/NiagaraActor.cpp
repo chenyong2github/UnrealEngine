@@ -8,6 +8,7 @@
 #include "Components/BillboardComponent.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystem.h"
+#include "NiagaraEffectType.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraActor)
 

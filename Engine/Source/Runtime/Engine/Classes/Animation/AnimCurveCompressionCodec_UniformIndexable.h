@@ -6,6 +6,7 @@
 * Stores the raw rich curves as FCompressedRichCurve internally with optional key reduction and key time quantization.
 */
 
+#include "Animation/Skeleton.h"
 #include "CoreMinimal.h"
 #include "Animation/AnimCurveCompressionCodec.h"
 #include "AnimCurveCompressionCodec_UniformIndexable.generated.h"

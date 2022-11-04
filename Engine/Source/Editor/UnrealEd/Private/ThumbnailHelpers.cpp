@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ThumbnailHelpers.h"
+#include "Engine/Level.h"
 #include "FinalPostProcessSettings.h"
 #include "SceneView.h"
 #include "Components/PrimitiveComponent.h"

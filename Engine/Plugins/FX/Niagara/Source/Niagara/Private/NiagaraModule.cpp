@@ -3,6 +3,7 @@
 #include "NiagaraModule.h"
 #include "Misc/LazySingleton.h"
 #include "Modules/ModuleManager.h"
+#include "NiagaraCompileHashVisitor.h"
 #include "NiagaraTypes.h"
 #include "NiagaraDebugVis.h"
 #include "NiagaraEvents.h"

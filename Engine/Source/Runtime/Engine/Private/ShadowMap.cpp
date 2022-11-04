@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ShadowMap.h"
+#include "Engine/Level.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Components/LightComponent.h"
 

@@ -14,6 +14,8 @@ class UAnimSequenceBase;
 class UCharacterMovementComponent;
 class UMotionWarpingComponent;
 class UAnimNotifyState_MotionWarping;
+struct FCompactPose;
+template<class PoseType> struct FCSPose;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMotionWarping, Log, All);
 

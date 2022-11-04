@@ -2,6 +2,7 @@
 #include "InterchangeGenericMeshPipeline.h"
 
 #include "Animation/AnimSequence.h"
+#include "Animation/Skeleton.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/StaticMesh.h"
 #include "InterchangeGenericAssetsPipeline.h"

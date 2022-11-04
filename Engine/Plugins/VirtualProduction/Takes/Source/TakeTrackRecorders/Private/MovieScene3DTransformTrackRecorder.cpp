@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackRecorders/MovieScene3DTransformTrackRecorder.h"
+#include "Animation/Skeleton.h"
 #include "TrackRecorders/MovieSceneAnimationTrackRecorder.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Sections/MovieScene3DTransformSection.h"

@@ -7,6 +7,7 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Animation/PoseAsset.h"
 #include "Animation/AnimSingleNodeInstance.h"
+#include "Animation/Skeleton.h"
 #include "AssetViewerSettings.h"
 #include "BatchedElements.h"
 #include "CanvasTypes.h"

@@ -3,6 +3,7 @@
 #include "NiagaraBakerRendererOutputSimCache.h"
 #include "NiagaraBakerOutputSimCache.h"
 
+#include "NiagaraBakerSettings.h"
 #include "NiagaraComponent.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraSimCacheFactoryNew.h"

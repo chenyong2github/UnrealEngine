@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "BonePose.h"
 #include "CoreMinimal.h"
 #include "RootMotionModifier.h"
 #include "RootMotionModifier_AdjustmentBlendWarp.generated.h"

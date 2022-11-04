@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "Components/ModelComponent.h"
+#include "Engine/Level.h"
 #include "Engine/MapBuildDataRegistry.h"
 #include "Materials/Material.h"
 #include "Engine/CollisionProfile.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimDataController.h"
+#include "Animation/Skeleton.h"
 #include "AnimDataControllerActions.h"
 #include "MovieSceneTimeHelpers.h"
 

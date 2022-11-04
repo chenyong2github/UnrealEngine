@@ -2,6 +2,7 @@
 
 
 #include "SAnimSegmentsPanel.h"
+#include "Animation/Skeleton.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"

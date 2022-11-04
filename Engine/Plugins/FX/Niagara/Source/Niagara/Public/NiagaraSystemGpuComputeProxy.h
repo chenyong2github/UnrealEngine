@@ -3,6 +3,7 @@
 #pragma once
 
 #include "NiagaraCommon.h"
+#include "RHI.h"
 
 class FNiagaraSystemInstance;
 class FNiagaraGpuComputeDispatchInterface;

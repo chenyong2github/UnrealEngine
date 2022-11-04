@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Helpers/PCGBlueprintHelpers.h"
+#include "LandscapeComponent.h"
 #include "PCGComponent.h"
 #include "PCGHelpers.h"
 #include "PCGSettings.h"

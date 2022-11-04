@@ -3,6 +3,7 @@
 #include "AlembicImportFactory.h"
 #include "AssetImportTask.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Engine/AssetUserData.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Editor.h"
@@ -20,6 +21,7 @@
 #include "AbcAssetImportData.h"
 
 #include "GeometryCache.h"
+#include "RenderingThread.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
 #include "AI/Navigation/NavCollisionBase.h"

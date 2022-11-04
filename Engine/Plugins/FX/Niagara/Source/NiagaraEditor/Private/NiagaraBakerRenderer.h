@@ -3,8 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/GCObject.h"
+#include "Engine/EngineTypes.h"
+#include "NiagaraBakerOutput.h"
 #include "NiagaraSystem.h"
+#include "UObject/GCObject.h"
 
 class FNiagaraBakerRenderer;
 class UNiagaraComponent;
