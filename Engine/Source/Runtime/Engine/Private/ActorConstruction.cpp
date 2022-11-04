@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Math/RandomStream.h"
 #include "Stats/Stats.h"
+#include "UObject/Package.h"
 #include "UObject/Script.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"

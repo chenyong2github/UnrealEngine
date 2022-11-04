@@ -13,6 +13,7 @@
 #include "MoviePipelineQueue.h"
 #include "Misc/PackageName.h"
 #include "Misc/FileHelper.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
 #include "MoviePipelinePythonHostExecutor.h"
 #include "MoviePipelineUtils.h"

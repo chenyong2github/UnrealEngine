@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "TargetingSubsystem.h"
 
+#include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameplayTargetingSystem/Types/TargetingSystemLogs.h"
 #include "GameplayTargetingSystem/Types/TargetingSystemTypes.h"

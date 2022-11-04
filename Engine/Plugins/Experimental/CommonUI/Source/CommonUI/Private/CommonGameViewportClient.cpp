@@ -3,6 +3,7 @@
 #include "CommonGameViewportClient.h"
 #include "Engine/Console.h"
 #include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
 #include "Engine/LocalPlayer.h"
 #include "GameFramework/GameUserSettings.h"
 #include "GameFramework/PlayerController.h"
