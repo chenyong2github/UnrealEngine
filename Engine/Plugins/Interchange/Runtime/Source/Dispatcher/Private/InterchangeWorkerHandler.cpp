@@ -213,7 +213,7 @@ namespace UE
 			WorkerState = EWorkerState::Uninitialized;
 			RunInternal();
 			WorkerState = EWorkerState::Terminated;
-			UE_CLOG(ErrorState != EWorkerErrorState::Ok, LogInterchangeDispatcher, Display, TEXT("Handler ended with error: %s"), EWorkerErrorStateAsString(ErrorState));
+			UE_CLOG(ErrorState != EWorkerErrorState::Ok, LogInterchangeDispatcher, Display, TEXT("Handler ended with fault: %s"), EWorkerErrorStateAsString(ErrorState));
 		}
 
 		void FInterchangeWorkerHandler::KillAllCurrentTasks()
