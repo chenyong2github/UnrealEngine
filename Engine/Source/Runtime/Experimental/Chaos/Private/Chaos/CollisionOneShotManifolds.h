@@ -40,20 +40,20 @@ namespace Chaos
 			const ConvexType& Convex,
 			const FRigidTransform3& ConvexTransform,
 			const FReal CullDistance,
-			TCArray<FContactPoint, 4>& OutContactPoints);
+			FContactPointManifold& OutContactPoints);
 
 		void ConstructCapsuleTriangleOneShotManifold(
 			const FImplicitCapsule3& Capsule,
 			const FTriangle& Triangle,
 			const FReal CullDistance,
-			TCArray<FContactPoint, 4>& OutContactPoints);
+			FContactPointManifold& OutContactPoints);
 
 		template <typename ConvexType>
 		void ConstructPlanarConvexTriangleOneShotManifold(
 			const ConvexType& Convex, 
 			const FTriangle& Triangle, 
 			const FReal CullDistance, 
-			TCArray<FContactPoint, 4>& OutContactPoints);
+			FContactPointManifold& OutContactPoints);
 	}
 }
 

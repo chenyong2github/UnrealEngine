@@ -80,20 +80,5 @@ namespace Chaos
 		{ 
 			return (Phi != InvalidPhi<FRealType>());
 		}
-
-		// Switch the shape indices. For use when calling a collision detection method which takes shape types in the opposite order to what you want.
-		// WARNING: this function is not "general purporse" and only works when ShapeContactPoints are both in the smae space, because
-		// the normal is in the space of the second body and negating it does not otherwise transform it to be relative to the other body. 
-		// However, it is useful in the cases where we perform collision detection in the space of one of the bodies before transforming into 
-		// shape space, whcih is actually most of the time.
-		//TContactPoint<FRealType>& SwapShapes()
-		//{
-		//	if (IsSet())
-		//	{
-		//		Swap(ShapeContactPoints[0], ShapeContactPoints[1]);
-		//		ShapeContactNormal = -ShapeContactNormal;
-		//	}
-		//	return *this;
-		//}
 	};
 }

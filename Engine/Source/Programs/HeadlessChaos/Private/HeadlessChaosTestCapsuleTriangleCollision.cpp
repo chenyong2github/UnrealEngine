@@ -9,7 +9,7 @@ namespace ChaosTest
 {
 	using namespace Chaos;
 
-	bool ManifoldContainsPoint(const TCArray<FContactPoint, 4>& ContactPoints, const int32 BodyIndex, const FVec3& Point, const FReal Tolerance)
+	bool ManifoldContainsPoint(const FContactPointManifold& ContactPoints, const int32 BodyIndex, const FVec3& Point, const FReal Tolerance)
 	{
 		for (FContactPoint ContactPoint : ContactPoints)
 		{
@@ -53,7 +53,7 @@ namespace ChaosTest
 		FTriangle Triangle(FVec3(0,0,0), FVec3(100, -100, 0), FVec3(100, 0, 0));
 		FImplicitCapsule3 Capsule(FVec3(30, -10, 10), FVec3(90, -10, 10), FReal(20));
 
-		TCArray<FContactPoint, 4> ContactPoints;
+		FContactPointManifold ContactPoints;
 		ConstructCapsuleTriangleOneShotManifold2(Capsule, Triangle, CullDistance, ContactPoints);
 
 		EXPECT_EQ(ContactPoints.Num(), 2);
@@ -75,7 +75,7 @@ namespace ChaosTest
 		FTriangle Triangle(FVec3(0, 0, 0), FVec3(100, -100, 0), FVec3(100, 0, 0));
 		FImplicitCapsule3 Capsule(FVec3(30, -10, -1), FVec3(90, -10, -1), FReal(20));
 
-		TCArray<FContactPoint, 4> ContactPoints;
+		FContactPointManifold ContactPoints;
 		ConstructCapsuleTriangleOneShotManifold2(Capsule, Triangle, CullDistance, ContactPoints);
 
 		EXPECT_EQ(ContactPoints.Num(), 0);
@@ -92,7 +92,7 @@ namespace ChaosTest
 		FTriangle Triangle(FVec3(0, 0, 0), FVec3(100, -100, 0), FVec3(100, 0, 0));
 		FImplicitCapsule3 Capsule(FVec3(30, -10, 0), FVec3(90, -10, 0), FReal(20));
 
-		TCArray<FContactPoint, 4> ContactPoints;
+		FContactPointManifold ContactPoints;
 		ConstructCapsuleTriangleOneShotManifold2(Capsule, Triangle, CullDistance, ContactPoints);
 
 		EXPECT_EQ(ContactPoints.Num(), 2);
@@ -125,7 +125,7 @@ namespace ChaosTest
 		FTriangle Triangle(FVec3(0, 0, 0), FVec3(100, -100, 0), FVec3(100, 0, 0));
 		FImplicitCapsule3 Capsule(FVec3(50, -10, 10), FVec3(120, -10, 10), FReal(20));
 
-		TCArray<FContactPoint, 4> ContactPoints;
+		FContactPointManifold ContactPoints;
 		ConstructCapsuleTriangleOneShotManifold2(Capsule, Triangle, CullDistance, ContactPoints);
 
 		EXPECT_EQ(ContactPoints.Num(), 2);
@@ -161,7 +161,7 @@ namespace ChaosTest
 		const FTriangle Triangle(FVec3(0, 0, 0), FVec3(100, -100, 0), FVec3(100, 0, 0));
 		const FImplicitCapsule3 Capsule(FVec3(50, -10, 10 + 50 * Sin10), FVec3(150, -10, 10 - 50 * Sin10), FReal(20));
 
-		TCArray<FContactPoint, 4> ContactPoints;
+		FContactPointManifold ContactPoints;
 		ConstructCapsuleTriangleOneShotManifold2(Capsule, Triangle, CullDistance, ContactPoints);
 
 		EXPECT_EQ(ContactPoints.Num(), 2);
@@ -197,7 +197,7 @@ namespace ChaosTest
 		FTriangle Triangle(FVec3(0, 0, 0), FVec3(100, -100, 0), FVec3(100, 0, 0));
 		FImplicitCapsule3 Capsule(FVec3(50, -10, 50), FVec3(150, -10, -50), FReal(10));
 
-		TCArray<FContactPoint, 4> ContactPoints;
+		FContactPointManifold ContactPoints;
 		ConstructCapsuleTriangleOneShotManifold2(Capsule, Triangle, CullDistance, ContactPoints);
 
 		EXPECT_EQ(ContactPoints.Num(), 1);
@@ -210,7 +210,7 @@ namespace ChaosTest
 
 	// Capsule at a 45 degree angle to the triangle, and the capsule axis passes right through an edge.
 	// This time we have an end cap within the edge planes, so we should get a face contact at that location.
-	// The edge contact will be ignored because it would generate an inward dacing normal, and we are
+	// The edge contact will be ignored because it would generate an inward-facing normal, and we are
 	// above the face angle threshold.
 	// 
 	//         / /
@@ -228,7 +228,7 @@ namespace ChaosTest
 		FTriangle Triangle(FVec3(0, 0, 0), FVec3(100, -100, 0), FVec3(100, 0, 0));
 		FImplicitCapsule3 Capsule(FVec3(50, -10, -50), FVec3(150, -10, 50), FReal(10));
 
-		TCArray<FContactPoint, 4> ContactPoints;
+		FContactPointManifold ContactPoints;
 		ConstructCapsuleTriangleOneShotManifold2(Capsule, Triangle, CullDistance, ContactPoints);
 
 		EXPECT_EQ(ContactPoints.Num(), 1);

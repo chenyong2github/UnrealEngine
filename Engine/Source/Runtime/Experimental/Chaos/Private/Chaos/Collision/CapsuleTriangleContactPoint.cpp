@@ -14,7 +14,7 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarUseGenericSweptConvexConstraints(TEXT("p.Chaos.Collision.CapsuleTriMeshSATCull"), bChaosCollisionCapsuleTriMeshSATCull, TEXT("Enable the SAT cull check in capsule-triangle [default: false]."));
 	}
 
-	void AddCapsuleTriangleParallelEdgeManifoldContacts(const FVec3& P0, const FVec3& P1, const FVec3& EdgeP0, const FVec3& EdgeP1, const FReal R, const FReal RejectDistanceSq, const FReal NormalToleranceSq, TCArray<FContactPoint, 4>& OutContactPoints);
+	void AddCapsuleTriangleParallelEdgeManifoldContacts(const FVec3& P0, const FVec3& P1, const FVec3& EdgeP0, const FVec3& EdgeP1, const FReal R, const FReal RejectDistanceSq, const FReal NormalToleranceSq, FContactPointManifold& OutContactPoints);
 
 	// Return true if the value V is in the closed/inclusive range [RangeMin, RangeMax]
 	// @todo(chaos): move to Utilities.h
@@ -50,7 +50,7 @@ namespace Chaos
 	//		- Add edge contact where the segment is closest to the edge
 	//		- When the angle between segment and face is small, create a face contact instead
 	//
-	void ConstructCapsuleTriangleOneShotManifold2(const FImplicitCapsule3& Capsule, const FTriangle& Triangle, const FReal CullDistance, TCArray<FContactPoint, 4>& OutContactPoints)
+	void ConstructCapsuleTriangleOneShotManifold2(const FImplicitCapsule3& Capsule, const FTriangle& Triangle, const FReal CullDistance, FContactPointManifold& OutContactPoints)
 	{
 		//
 		// @todo(chaos): this function is a good SIMD candidate
@@ -456,10 +456,10 @@ namespace Chaos
 	// Utility for ConstructCapsuleTriangleOneShotManifold2 to handle the rare case when a capsule is perfectly aligned with an edge of a triangle.
 	// In this case we project the segment onto the edge and, depending on whether there is any overlap, use either the closest point or the
 	// two clipped points as contacts.
-	void AddCapsuleTriangleParallelEdgeManifoldContacts(const FVec3& P0, const FVec3& P1, const FVec3& EdgeP0, const FVec3& EdgeP1, const FReal R, const FReal RejectDistanceSq, const FReal NormalToleranceSq, TCArray<FContactPoint, 4>& OutContactPoints)
+	void AddCapsuleTriangleParallelEdgeManifoldContacts(const FVec3& P0, const FVec3& P1, const FVec3& EdgeP0, const FVec3& EdgeP1, const FReal R, const FReal RejectDistanceSq, const FReal NormalToleranceSq, FContactPointManifold& OutContactPoints)
 	{
 		// Utility to add a contact to the array if it is within cull distance
-		const auto& AddContact = [](const FVec3& SegmentEdgeC, const FVec3& SegmentEdgeDelta, const FReal R, const FReal RejectDistanceSq, const FReal NormalToleranceSq, TCArray<FContactPoint, 4>& OutContactPoints) -> void
+		const auto& AddContact = [](const FVec3& SegmentEdgeC, const FVec3& SegmentEdgeDelta, const FReal R, const FReal RejectDistanceSq, const FReal NormalToleranceSq, FContactPointManifold& OutContactPoints) -> void
 		{
 			const FReal SegmentEdgeDistSq = SegmentEdgeDelta.SizeSquared();
 			if ((SegmentEdgeDistSq < RejectDistanceSq) && (SegmentEdgeDistSq > NormalToleranceSq))

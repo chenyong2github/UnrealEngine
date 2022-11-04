@@ -128,7 +128,7 @@ namespace Chaos
 
 	// Triangle is in (possibly scaled) Convex space
 	template <typename ConvexType>
-	void ConstructConvexTriangleOneShotManifold2(const ConvexType& Convex, const FTriangle& Triangle, const FReal CullDistance, TCArray<FContactPoint, 4>& OutContactPoints)
+	void ConstructConvexTriangleOneShotManifold2(const ConvexType& Convex, const FTriangle& Triangle, const FReal CullDistance, FContactPointManifold& OutContactPoints)
 	{
 		const FReal NormalTolerance = FReal(1.e-8);
 		const FReal NormalToleranceSq = NormalTolerance * NormalTolerance;
@@ -493,40 +493,40 @@ namespace Chaos
 		const FImplicitConvex3& Convex, 
 		const FTriangle& Triangle,
 		const FReal CullDistance, 
-		TCArray<FContactPoint, 4>& OutContactPoints);
+		FContactPointManifold& OutContactPoints);
 
 	template
 	void ConstructConvexTriangleOneShotManifold2(
 		const TImplicitObjectInstanced<FImplicitConvex3>& Convex,
 		const FTriangle& Triangle,
 		const FReal CullDistance,
-		TCArray<FContactPoint, 4>& OutContactPoints);
+		FContactPointManifold& OutContactPoints);
 
 	template
 	void ConstructConvexTriangleOneShotManifold2(
 		const TImplicitObjectScaled<FImplicitConvex3>& Convex,
 		const FTriangle& Triangle,
 		const FReal CullDistance,
-		TCArray<FContactPoint, 4>& OutContactPoints);
+		FContactPointManifold& OutContactPoints);
 
 	template
 	void ConstructConvexTriangleOneShotManifold2(
 		const FImplicitBox3& Convex,
 		const FTriangle& Triangle,
 		const FReal CullDistance,
-		TCArray<FContactPoint, 4>& OutContactPoints);
+		FContactPointManifold& OutContactPoints);
 
 	template
 	void ConstructConvexTriangleOneShotManifold2(
 		const TImplicitObjectScaled<FImplicitBox3>& Convex,
 		const FTriangle& Triangle,
 		const FReal CullDistance,
-		TCArray<FContactPoint, 4>& OutContactPoints);
+		FContactPointManifold& OutContactPoints);
 
 	template
 	void ConstructConvexTriangleOneShotManifold2(
 		const TImplicitObjectInstanced<FImplicitBox3>& Convex,
 		const FTriangle& Triangle,
 		const FReal CullDistance,
-		TCArray<FContactPoint, 4>& OutContactPoints);
+		FContactPointManifold& OutContactPoints);
 }
