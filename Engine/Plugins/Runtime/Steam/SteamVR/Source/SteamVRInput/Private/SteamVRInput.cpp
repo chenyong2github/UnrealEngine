@@ -30,7 +30,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "SteamVRInput.h"
 #include "CoreMinimal.h"
-#include "Runtime/Core/Public/Misc/Paths.h"
+#include "Misc/Paths.h"
 #include "openvr.h"
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IPluginManager.h"

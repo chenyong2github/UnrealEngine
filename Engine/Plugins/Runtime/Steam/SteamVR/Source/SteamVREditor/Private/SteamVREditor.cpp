@@ -42,8 +42,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "DetailLayoutBuilder.h"
 #include "Widgets/Input/SButton.h"
 #include "DetailWidgetRow.h"
-#include "Runtime/Core/Public/CoreGlobals.h"
-#include "Runtime/Core/Public/Misc/ConfigCacheIni.h"
+#include "CoreGlobals.h"
+#include "Misc/ConfigCacheIni.h"
 #include "ToolMenus.h"
 
 static const FName SteamVREditorTabName("SteamVREditor");

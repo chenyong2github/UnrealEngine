@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WindowsPlatformInstallation.h"
-#include "Runtime/Core/Public/Misc/EngineVersion.h"
+#include "Misc/EngineVersion.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include "DesktopPlatformModule.h"
 #include "Misc/Paths.h"

@@ -3,7 +3,7 @@
 #include "OculusBuildAnalytics.h"
 #include "GameProjectGenerationModule.h"
 #include "OculusHMDModule.h"
-#include "Runtime/Core/Public/HAL/FileManager.h"
+#include "HAL/FileManager.h"
 
 FOculusBuildAnalytics* FOculusBuildAnalytics::instance = 0;
 

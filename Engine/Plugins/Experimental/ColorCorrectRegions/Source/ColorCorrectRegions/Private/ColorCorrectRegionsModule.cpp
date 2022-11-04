@@ -6,6 +6,7 @@
 #include "ShaderCore.h"
 
 
+
 #define LOCTEXT_NAMESPACE "FColorCorrectRegionsModule"
 
 void FColorCorrectRegionsModule::StartupModule()

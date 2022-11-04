@@ -7,7 +7,7 @@
 #include "CPUSolver.h"
 #include "UnitTest.h"
 #include "LightmassSwarm.h"
-#include "Runtime/Core/Public/HAL/ExceptionHandling.h"
+#include "HAL/ExceptionHandling.h"
 #include "RequiredProgramMainCPPInclude.h"
 #include "LMDebug.h"
 #include "LMHelpers.h"

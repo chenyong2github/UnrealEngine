@@ -23,17 +23,11 @@ public class Core : ModuleRules
 		PrivateDependencyModuleNames.Add("OodleDataCompression");
 
 		PublicDependencyModuleNames.Add("TraceLog");
-		PublicIncludePaths.Add("Runtime/TraceLog/Public");
-
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"Runtime/SynthBenchmark/Public",
-				"Runtime/Engine/Public",
-			}
-			);
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
+				"SynthBenchmark",
+				"Engine",
 				"TargetPlatform",
 				"DerivedDataCache",
 				"InputDevice",

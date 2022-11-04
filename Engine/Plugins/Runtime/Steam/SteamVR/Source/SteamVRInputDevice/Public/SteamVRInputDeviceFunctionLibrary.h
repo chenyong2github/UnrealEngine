@@ -36,7 +36,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Features/IModularFeatures.h"
-#include "Runtime/Core/Public/GenericPlatform/GenericPlatformProcess.h"
+#include "GenericPlatform/GenericPlatformProcess.h"
 #include "IMotionController.h"
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"

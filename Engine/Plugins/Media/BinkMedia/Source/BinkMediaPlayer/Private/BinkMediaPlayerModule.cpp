@@ -5,7 +5,7 @@
 #include "BinkMediaPlayerPrivate.h"
 #include "Engine/GameViewportClient.h"
 #include "Internationalization/Internationalization.h"
-#include "Runtime/Core/Public/Misc/Paths.h"
+#include "Misc/Paths.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/CoreDelegates.h"
 #include "UObject/UObjectIterator.h"

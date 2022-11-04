@@ -6,7 +6,7 @@
 #include "MacGraphicsSwitchingSettingsDetails.h"
 #include "MacGraphicsSwitchingStyle.h"
 #include "MacGraphicsSwitchingWidget.h"
-#include "Runtime/Core/Public/Features/IModularFeatures.h"
+#include "Features/IModularFeatures.h"
 #include "Runtime/SlateCore/Public/Rendering/SlateRenderer.h"
 #include "Editor/MainFrame/Public/Interfaces/IMainFrameModule.h"
 #include "ISettingsModule.h"
