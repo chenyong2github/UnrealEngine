@@ -2,6 +2,7 @@
 
 #include "TrackRecorders/MovieSceneAnimationTrackRecorder.h"
 #include "Animation/Skeleton.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/SkeletalMesh.h"
 #include "TrackRecorders/MovieSceneAnimationTrackRecorderSettings.h"
 #include "TakesUtils.h"

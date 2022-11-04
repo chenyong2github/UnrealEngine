@@ -5,6 +5,7 @@
 #include "AppleARKitSystem.h"
 #include "AppleARKitModule.h"
 #include "AppleARKitFrame.h"
+#include "RenderingThread.h"
 
 #if SUPPORTS_ARKIT_1_0
 

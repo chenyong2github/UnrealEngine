@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TakesUtils.h"
+#include "AssetRegistry/AssetData.h"
 #include "TakesCoreLog.h"
 
 #include "Engine/Engine.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TakeRecorderSources.h"
+#include "AssetRegistry/AssetData.h"
 #include "TakeRecorderSource.h"
 #include "TakesCoreLog.h"
 #include "LevelSequence.h"
