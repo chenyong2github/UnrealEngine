@@ -1,0 +1,137 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+
+#include "ChaosFlesh/FleshCollection.h"
+#include "UObject/ObjectMacros.h"
+#include "Dataflow/DataflowNodeParameters.h"
+
+#include "FleshAsset.generated.h"
+
+class UFleshAsset;
+class UDataflow;
+class USkeletalMesh;
+
+namespace Dataflow
+{
+	class CHAOSFLESHENGINE_API FFleshContext : public FContext
+	{
+	public:
+		UFleshAsset* Asset;
+
+		FFleshContext(UFleshAsset* InAsset, FTimestamp InTimestamp)
+			: FContext( InTimestamp )
+			, Asset(InAsset)
+		{}
+
+	};
+}
+
+
+/**
+*	FFleshAssetEdit
+*     Structured RestCollection access where the scope
+*     of the object controls serialization back into the
+*     dynamic collection
+*
+*/
+class CHAOSFLESHENGINE_API FFleshAssetEdit
+{
+public:
+	typedef TFunctionRef<void()> FPostEditFunctionCallback;
+	friend UFleshAsset;
+
+	/**
+	 * @param UFleshAsset				The FAsset to edit
+	 */
+	FFleshAssetEdit(UFleshAsset* InAsset, FPostEditFunctionCallback InCallable);
+	~FFleshAssetEdit();
+
+	FFleshCollection* GetFleshCollection();
+
+private:
+	FPostEditFunctionCallback PostEditCallback;
+	UFleshAsset* Asset;
+};
+
+/**
+* UFleshAsset (UObject)
+*
+* UObject wrapper for the FFleshAsset
+*
+*/
+UCLASS(customconstructor)
+class CHAOSFLESHENGINE_API UFleshAsset : public UObject
+{
+	GENERATED_UCLASS_BODY()
+	friend class FFleshAssetEdit;
+
+	//
+	// FleshCollection
+	// 
+	// The FleshCollection stores all the user per-particle properties 
+	// for the asset. This is used for simulation and artists 
+	// configuration. Only edit the FleshCollection using its Edit
+	// object. For example;
+	// 
+	// {
+	//		FFleshAssetEdit EditObject = UFleshAsset->EditCollection();
+	//		if( TSharedPtr<FFleshCollection> FleshCollection = EditObject.GetFleshCollection() )
+	//      {
+	//		}
+	//		// the destructor of the edit object will perform invalidation. 
+	// }
+	//
+	TSharedPtr<FFleshCollection, ESPMode::ThreadSafe> FleshCollection;
+
+	void PostEditCallback();
+
+public:
+
+	UFleshAsset(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
+
+
+	/**Editing the collection should only be through the edit object.*/
+	void SetCollection(FFleshCollection* InCollection);
+	const FFleshCollection* GetCollection() const { return FleshCollection.Get(); }
+	FFleshCollection* GetCollection() { return FleshCollection.Get(); }
+
+	FFleshAssetEdit EditCollection() const {
+		UFleshAsset* ThisNC = const_cast<UFleshAsset*>(this); 
+		return FFleshAssetEdit(ThisNC, [ThisNC]() {ThisNC->PostEditCallback(); });
+	}
+
+	void Serialize(FArchive& Ar);
+
+
+	UPROPERTY(EditAnywhere, Category = "Physics")
+	int32 Substeps=1;
+
+	//
+	// Dataflow
+	//
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	TObjectPtr<UDataflow> Dataflow;
+
+	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	FString Terminal;
+
+	//
+	// SkeletalMesh
+	//
+	UPROPERTY(EditAnywhere, Category = "Animation")
+	TObjectPtr<USkeletalMesh> SkeletalMesh;
+
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = "Render")
+	bool bRenderInEditor = true;
+
+	/** Information for thumbnail rendering */
+	UPROPERTY()
+	TObjectPtr<class UThumbnailInfo> ThumbnailInfo;
+#endif // WITH_EDITORONLY_DATA
+
+};
