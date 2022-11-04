@@ -719,6 +719,9 @@ void FDeferredShadingSceneRenderer::RenderDistortion(
 	}
 
 	FRDGTextureDesc DistortedSceneColorDesc = SceneColorTexture->Desc;
+	//Remove fast clear flag on the DistoredSceneColor which is used in the Apply and Merge passes. 
+	// This can save the Fast clear eliminate in the Merge pass when the RTV is transient allocated.
+	EnumAddFlags(DistortedSceneColorDesc.Flags, TexCreate_NoFastClear);
 	EnumRemoveFlags(DistortedSceneColorDesc.Flags, TexCreate_FastVRAM);
 
 	FRDGTextureRef DistortionSceneColorTexture = GraphBuilder.CreateTexture(DistortedSceneColorDesc, TEXT("DistortedSceneColor"));
