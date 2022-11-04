@@ -47,17 +47,11 @@ void USmartObjectComponent::RegisterToSubsystem()
 		return;
 	}
 
-	/** Do not register components that don't have a valid definition */
-	if (!IsValid(DefinitionAsset))
-	{
-		return;
-	}
-
 	// Note: we don't report error or ensure on missing subsystem since it might happen
 	// in various scenarios (e.g. inactive world)
 	if (USmartObjectSubsystem* Subsystem = USmartObjectSubsystem::GetCurrent(World))
 	{
-		Subsystem->RegisterSmartObjectInternal(*this);
+		Subsystem->RegisterSmartObject(*this);
 	}
 }
 

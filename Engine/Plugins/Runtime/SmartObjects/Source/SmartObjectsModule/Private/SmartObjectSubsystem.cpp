@@ -342,6 +342,13 @@ bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObje
 		return false;
 	}
 
+	if (!SmartObjectComponent.GetDefinition()->IsValid())
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Attempting to register %s while its DefinitionAsset fails validation test. Bailing out."),
+			*GetFullNameSafe(&SmartObjectComponent));
+		return false;
+	}
+
 	if (!RegisteredSOComponents.Contains(&SmartObjectComponent))
 	{
 		return RegisterSmartObjectInternal(SmartObjectComponent);
