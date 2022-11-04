@@ -128,7 +128,7 @@ void FPackageTable::AddDefaultColumns()
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(100.0f);
+		Column.SetInitialWidth(80.0f);
 
 		Column.SetDataType(ETableCellDataType::Int64);
 
@@ -240,7 +240,7 @@ void FPackageTable::AddDefaultColumns()
 		Column.SetAggregation(ETableColumnAggregation::Sum);
 
 		AddColumn(ColumnRef);
-	}	
+	}
 	//////////////////////////////////////////////////
 	// BeginCacheForCookedPlatformData Time Column
 	{
@@ -288,7 +288,7 @@ void FPackageTable::AddDefaultColumns()
 		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(100.0f);
+		Column.SetInitialWidth(200.0f);
 
 		Column.SetDataType(ETableCellDataType::CString);
 
@@ -306,7 +306,7 @@ void FPackageTable::AddDefaultColumns()
 		AddColumn(ColumnRef);
 	}
 	//////////////////////////////////////////////////
-	// Package name Column
+	// Package Name Column
 	{
 		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FPackageTableColumns::NameColumnId);
 		FTableColumn& Column = *ColumnRef;
@@ -314,13 +314,13 @@ void FPackageTable::AddDefaultColumns()
 		Column.SetIndex(ColumnIndex++);
 
 		Column.SetShortName(LOCTEXT("PackageNameColumnName", "Package Name"));
-		Column.SetTitleName(LOCTEXT("PackageNameTitle", "PackageName"));
+		Column.SetTitleName(LOCTEXT("PackageNameTitle", "Package Name"));
 		Column.SetDescription(LOCTEXT("PackageNameColumnDesc", "The name of the package."));
 
 		Column.SetFlags(ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
 
 		Column.SetHorizontalAlignment(HAlign_Left);
-		Column.SetInitialWidth(100.0f);
+		Column.SetInitialWidth(400.0f);
 
 		Column.SetDataType(ETableCellDataType::CString);
 
