@@ -51,8 +51,10 @@ namespace UE
 		FSdfLayerBase& operator=( const FSdfLayerWeak& Other );
 		FSdfLayerBase& operator=( FSdfLayerWeak&& Other );
 
-		bool operator==( const FSdfLayerBase& Other ) const;
-		bool operator!=( const FSdfLayerBase& Other ) const;
+		template<typename OtherPtrType>
+		bool operator==( const FSdfLayerBase<OtherPtrType>& Other ) const;
+		template<typename OtherPtrType>
+		bool operator!=( const FSdfLayerBase<OtherPtrType>& Other ) const;
 
 		explicit operator bool() const;
 
