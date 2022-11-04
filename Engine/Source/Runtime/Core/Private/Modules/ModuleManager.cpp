@@ -1,21 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Modules/ModuleManager.h"
-#include "Misc/DateTime.h"
+
 #include "HAL/FileManager.h"
+#include "Internationalization/StringTableCore.h"
+#include "Misc/App.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Misc/DateTime.h"
+#include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
-#include "Stats/Stats.h"
-#include "Misc/App.h"
 #include "Misc/ScopeExit.h"
-#include "Modules/ModuleManifest.h"
 #include "Misc/ScopeLock.h"
-#include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Modules/ModuleManifest.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Serialization/LoadTimeTrace.h"
-#include "Internationalization/StringTableCore.h"
-#include "Misc/FileHelper.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Stats/Stats.h"
 #include "Trace/Trace.h"
 #include "Trace/Trace.inl"
 
@@ -397,6 +399,8 @@ IModuleInterface& FModuleManager::LoadModuleChecked( const FName InModuleName )
 	return *Module;
 }
 
+#if CPUPROFILERTRACE_ENABLED
+
 UE_TRACE_EVENT_BEGIN(Cpu, LoadModule, NoSync)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
 UE_TRACE_EVENT_END()
@@ -408,6 +412,8 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(Cpu, StartupModule, NoSync)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
 UE_TRACE_EVENT_END()
+
+#endif // CPUPROFILERTRACE_ENABLED
 
 IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModuleName, EModuleLoadResult& OutFailureReason, ELoadModuleFlags InLoadModuleFlags)
 {
@@ -445,8 +451,10 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 	UE_SCOPED_ENGINE_ACTIVITY(TEXT("Loading Module %s"), *InModuleName.ToString());
 	FScopedBootTiming BootTimingScope("LoadModule");
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Module Load"), STAT_ModuleLoad, STATGROUP_LoadTime);
+#if CPUPROFILERTRACE_ENABLED
 	UE_TRACE_LOG_SCOPED_T(Cpu, LoadModule, CpuChannel)
 		<< LoadModule.Name(*InModuleName.ToString());
+#endif // CPUPROFILERTRACE_ENABLED
 
 #if	STATS
 	// This is fine here, we only load a handful of modules.
@@ -509,8 +517,10 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 
 			// Startup the module
 			{
+#if CPUPROFILERTRACE_ENABLED
 				UE_TRACE_LOG_SCOPED_T(Cpu, StartupModule, CpuChannel)
 					<< StartupModule.Name(*InModuleName.ToString());
+#endif // CPUPROFILERTRACE_ENABLED
 				ModuleInfo->Module->StartupModule();
 			}
 
@@ -590,8 +600,10 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 		if (FPaths::FileExists(ModuleFileToLoad))
 		{
 			{
+#if CPUPROFILERTRACE_ENABLED
 				UE_TRACE_LOG_SCOPED_T(Cpu, FPlatformProcess_GetDllHandle, CpuChannel)
 					<< FPlatformProcess_GetDllHandle.Name(*ModuleFileToLoad);
+#endif // CPUPROFILERTRACE_ENABLED
 				ModuleInfo->Handle = FPlatformProcess::GetDllHandle(*ModuleFileToLoad);
 			}
 			
@@ -631,8 +643,10 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 						{
 							// Startup the module
 							{
+#if CPUPROFILERTRACE_ENABLED
 								UE_TRACE_LOG_SCOPED_T(Cpu, StartupModule, CpuChannel)
 									<< StartupModule.Name(*InModuleName.ToString());
+#endif // CPUPROFILERTRACE_ENABLED
 								ModuleInfo->Module->StartupModule();
 							}
 

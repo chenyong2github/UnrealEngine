@@ -1,33 +1,35 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Windows/WindowsPlatformProcess.h"
-#include "HAL/PlatformMisc.h"
-#include "Misc/AssertionMacros.h"
-#include "Logging/LogMacros.h"
-#include "HAL/PlatformAffinity.h"
-#include "HAL/UnrealMemory.h"
-#include "Templates/UnrealTemplate.h"
-#include "CoreGlobals.h"
-#include "HAL/FileManager.h"
-#include "Misc/Parse.h"
+
+#include "Containers/Set.h"
 #include "Containers/StringConv.h"
 #include "Containers/UnrealString.h"
-#include "Containers/Set.h"
-#include "Misc/SingleThreadEvent.h"
-#include "Misc/CommandLine.h"
-#include "Misc/Paths.h"
-#include "Misc/TrackedActivity.h"
-#include "Internationalization/Internationalization.h"
 #include "CoreGlobals.h"
-#include "Stats/Stats.h"
-#include "Misc/CoreStats.h"
-#include "Windows/WindowsHWrapper.h"
+#include "CoreGlobals.h"
+#include "HAL/FileManager.h"
+#include "HAL/PlatformAffinity.h"
+#include "HAL/PlatformMisc.h"
+#include "HAL/UnrealMemory.h"
+#include "Internationalization/Internationalization.h"
+#include "Logging/LogMacros.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/CoreStats.h"
 #include "Misc/Fork.h"
+#include "Misc/Parse.h"
+#include "Misc/Paths.h"
+#include "Misc/SingleThreadEvent.h"
+#include "Misc/TrackedActivity.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Stats/Stats.h"
+#include "Templates/UnrealTemplate.h"
 #include "Trace/Trace.h"
 #include "Trace/Trace.inl"
+#include "Windows/WindowsHWrapper.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 	#include <shellapi.h>
@@ -1916,9 +1918,13 @@ static bool ResolveImport(const FString& Name, const TArray<FString>& SearchPath
 	return false;
 }
 
+#if CPUPROFILERTRACE_ENABLED
+
 UE_TRACE_EVENT_BEGIN(Cpu, ResolveMissingImports, NoSync)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
 UE_TRACE_EVENT_END()
+
+#endif // CPUPROFILERTRACE_ENABLED
 
 /**
  * Resolve all the imports for the given library, searching through a set of directories.
@@ -1930,8 +1936,10 @@ UE_TRACE_EVENT_END()
  */
 static void ResolveMissingImportsRecursive(const FString& FileName, const TArray<FString>& SearchPaths, TArray<FString>& ImportFileNames, TSet<FString>& VisitedImportNames)
 {
+#if CPUPROFILERTRACE_ENABLED
 	UE_TRACE_LOG_SCOPED_T(Cpu, ResolveMissingImports, CpuChannel)
 		<< ResolveMissingImports.Name(*FileName);
+#endif // CPUPROFILERTRACE_ENABLED
 
 	// Read the imports for this library
 	TArray<FString> ImportNames;
@@ -1991,9 +1999,13 @@ static void LogImportDiagnostics(const FString& FileName, const TArray<FString>&
 	}
 }
 
+#if CPUPROFILERTRACE_ENABLED
+
 UE_TRACE_EVENT_BEGIN(Cpu, Windows_LoadLibrary, NoSync)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
 UE_TRACE_EVENT_END()
+
+#endif // CPUPROFILERTRACE_ENABLED
 
 void *FWindowsPlatformProcess::LoadLibraryWithSearchPaths(const FString& FileName, const TArray<FString>& SearchPaths)
 {
@@ -2023,8 +2035,10 @@ void *FWindowsPlatformProcess::LoadLibraryWithSearchPaths(const FString& FileNam
 			{
 				const void* DependencyHandle = [&ImportFileName]() 
 				{
+#if CPUPROFILERTRACE_ENABLED
 					UE_TRACE_LOG_SCOPED_T(Cpu, Windows_LoadLibrary, CpuChannel)
 						<< Windows_LoadLibrary.Name(*ImportFileName);
+#endif // CPUPROFILERTRACE_ENABLED
 					return LoadLibrary(*ImportFileName);
 				}();
 				
@@ -2044,8 +2058,10 @@ void *FWindowsPlatformProcess::LoadLibraryWithSearchPaths(const FString& FileNam
 	// Try to load the actual library
 	void* Handle = [FullFileName]() 
 	{
+#if CPUPROFILERTRACE_ENABLED
 		UE_TRACE_LOG_SCOPED_T(Cpu, Windows_LoadLibrary, CpuChannel)
 			<< Windows_LoadLibrary.Name(*FullFileName);
+#endif // CPUPROFILERTRACE_ENABLED
 		return LoadLibrary(*FullFileName);
 	}();
 	
