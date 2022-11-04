@@ -44,6 +44,10 @@ uint32 UHLODBuilderMeshMergeSettings::GetCRC() const
 
 	FArchiveCrc32 Ar;
 
+	// Base mesh merge key, changing this will force a rebuild of all HLODs from this builder
+	FString HLODBaseKey = "89D89284DD3847FA90C5998E06DD8FEC";
+	Ar << HLODBaseKey;
+
 	Ar << This.MeshMergeSettings;
 	UE_LOG(LogHLODBuilder, VeryVerbose, TEXT(" - MeshMergeSettings = %d"), Ar.GetCrc());
 
