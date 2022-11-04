@@ -614,7 +614,7 @@ FReply SObjectMixerEditorListRow::HandleAcceptDrop(const FDragDropEvent& DragDro
 			{
 				if (const TSharedPtr<SObjectMixerEditorList> PinnedList = DraggedItem->GetListViewPtr().Pin())
 				{
-					PinnedList->OnRequestMoveFolder(DraggedItem->GetFolder(), TargetItem->GetFolder());
+						PinnedList->OnRequestMoveFolder(DraggedItem->GetFolder(), TargetItem->GetFolder());
 				}
 			}
 		}
@@ -624,6 +624,19 @@ FReply SObjectMixerEditorListRow::HandleAcceptDrop(const FDragDropEvent& DragDro
 			{
 				ObjectAsActor->Modify();
 				ObjectAsActor->SetFolderPath(TargetItem->GetFolderPath());
+
+				if (AActor* AttachParent = ObjectAsActor->GetAttachParentActor())
+				{
+					if (const FObjectMixerEditorListRowPtr ParentRow = DraggedItem->GetDirectParentRow().Pin(); ParentRow.IsValid())
+					{
+						if (!Operation->DraggedItems.Contains(ParentRow))
+						{
+							AttachParent->Modify();
+							FDetachmentTransformRules DetachmentRules(EDetachmentRule::KeepWorld, false);
+							ObjectAsActor->DetachFromActor(DetachmentRules);
+						}
+					}
+				}
 			}
 			else if (AActor* DropOnObjectAsActor = Cast<AActor>(DropOnObject))
 			{
