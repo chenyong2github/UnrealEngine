@@ -37,7 +37,7 @@ class FTimingProfilerManager : public TSharedFromThis<FTimingProfilerManager>, p
 	friend class FTimingProfilerActionManager;
 
 public:
-	static const uint32 UnlimitedEventDepth = 1000;
+	inline static constexpr uint32 UnlimitedEventDepth = 1000;
 
 public:
 	/** Creates the Timing Profiler manager, only one instance can exist. */

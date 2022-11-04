@@ -29,10 +29,10 @@ public:
 private:
 
 	// Special indices for the combo selection.
-	static const int ComboNotSet = -1;
-	static const int ComboSucceeded = -2;
-	static const int ComboFailed = -3;
-	static const int ComboNextState = -4;
+	inline static constexpr int ComboNotSet = -1;
+	inline static constexpr int ComboSucceeded = -2;
+	inline static constexpr int ComboFailed = -3;
+	inline static constexpr int ComboNextState = -4;
 
 	void CacheStates();
 	void CacheStates(const UStateTreeState* State);
