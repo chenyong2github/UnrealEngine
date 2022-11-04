@@ -51,6 +51,7 @@ Landscape.cpp: Terrain rendering
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "ILandscapeSplineInterface.h"
+#include "LandscapeGrassType.h"
 #include "LandscapeSplineActor.h"
 #include "LandscapeSplinesComponent.h"
 #include "EngineGlobals.h"
@@ -1219,6 +1220,14 @@ void ULandscapeComponent::DeclareConstructClasses(TArray<FTopLevelAssetPath>& Ou
 	OutConstructClasses.Add(FTopLevelAssetPath(ULandscapeMaterialInstanceConstant::StaticClass()));
 }
 #endif
+
+void ULandscapeComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	Super::AddReferencedObjects(InThis, Collector);
+
+	ThisClass* const TypedThis = Cast<ThisClass>(InThis);
+	Collector.AddReferencedObjects(TypedThis->GrassData->WeightOffsets, TypedThis);
+}
 
 #if WITH_EDITORONLY_DATA
 TArray<ALandscapeProxy*> ALandscapeProxy::LandscapeProxies;

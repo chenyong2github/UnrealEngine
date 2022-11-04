@@ -651,6 +651,8 @@ public:
 	static void DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutConstructClasses, const UClass* SpecificSubclass);
 #endif
 
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+
 #if WITH_EDITOR
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	virtual void PreEditUndo() override;
