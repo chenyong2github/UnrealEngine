@@ -982,11 +982,10 @@ void FSceneProxy::OnEvaluateWorldPositionOffsetChanged_RenderThread()
 		bHasProgrammableRaster |= bProgrammableRasterMaterial;
 	}
 
-	// Mark that we need to re-cache the nanite commands for this primitive
 	FPrimitiveSceneInfo* Info = GetPrimitiveSceneInfo();
-	checkSlow(Info && Info->Scene && Info->IsIndexValid());
-	if (Info->Scene->PrimitivesNeedingStaticMeshUpdate.IsValidIndex(Info->GetIndex()))
+	if (Info && Info->Scene && Info->IsIndexValid())
 	{
+		// Mark that we need to re-cache the Nanite commands for this primitive
 		Info->Scene->PrimitivesNeedingStaticMeshUpdate[Info->GetIndex()] = true;
 	}
 }
