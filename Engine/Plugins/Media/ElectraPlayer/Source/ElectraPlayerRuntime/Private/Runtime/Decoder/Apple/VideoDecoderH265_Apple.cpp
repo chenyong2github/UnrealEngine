@@ -7,6 +7,7 @@
 #include "PlayerCore.h"
 #include "PlayerRuntimeGlobal.h"
 
+#include "Stats/Stats.h"
 #include "StreamAccessUnitBuffer.h"
 #include "Decoder/VideoDecoderH265.h"
 #include "Renderer/RendererBase.h"

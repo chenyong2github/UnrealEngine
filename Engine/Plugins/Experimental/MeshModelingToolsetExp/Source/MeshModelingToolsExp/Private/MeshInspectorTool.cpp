@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshInspectorTool.h"
+#include "Engine/Engine.h"
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 

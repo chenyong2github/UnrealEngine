@@ -10,6 +10,7 @@
 #include "Misc/Paths.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
+#include "UnrealClient.h"
 
 @implementation ReplayKitRecorder
 

@@ -4,6 +4,7 @@
 #include "GameDelegates.h"
 #include "IOS/IOSApplication.h"
 #include "IOS/IOSPlatformApplicationMisc.h"
+#include "TextureResource.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogIOSGamepadUtils, Log, All);
 
