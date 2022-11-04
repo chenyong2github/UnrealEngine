@@ -1852,8 +1852,6 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 {
 	using namespace Chaos;
 
-	SCOPE_CYCLE_COUNTER(STAT_BodyInstanceUpdateBodyScale);
-
 	if (!IsValidBodyInstance())
 	{
 		//UE_LOG(LogPhysics, Log, TEXT("Body hasn't been initialized. Call InitBody to initialize."));
@@ -1865,6 +1863,8 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 	{
 		return false;
 	}
+
+	SCOPE_CYCLE_COUNTER(STAT_BodyInstanceUpdateBodyScale);
 
 	bool bSuccess = false;
 
