@@ -84,6 +84,7 @@ private:
 
 	ULiveCodingSettings* Settings;
 	TSharedPtr<ISettingsSection> SettingsSection;
+	bool bSettingsEnabledLastTick = false;
 	bool bEnableReinstancingLastTick = false;
 	std::atomic<EState> State = EState::NotRunning;
 	bool bUpdateModulesInTick = false;
