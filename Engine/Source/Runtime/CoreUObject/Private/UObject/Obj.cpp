@@ -2883,7 +2883,7 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 	// only write out the config file if this is GConfig
 	if (Config == GConfig)
 	{
-		Config->Flush( 0 );
+		Config->Flush( 0, Filename );
 	}
 }
 
