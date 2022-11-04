@@ -77,6 +77,8 @@ public:
 
 	virtual ~SObjectMixerEditorList() override;
 
+	UWorld* GetWorld() const;
+
 	TWeakPtr<FObjectMixerEditorList> GetListModelPtr()
 	{
 		return ListModelPtr;
@@ -103,12 +105,18 @@ public:
 
 	[[nodiscard]] TArray<FObjectMixerEditorListRowPtr> GetSelectedTreeViewItems() const;
 	int32 GetSelectedTreeViewItemCount() const;
+
+	void SetTreeViewItemSelected(FObjectMixerEditorListRowPtr Item, const bool bNewSelected);
 	
 	void RequestSyncEditorSelectionToListSelection()
 	{
 		bIsEditorToListSelectionSyncRequested = true;
 	}
 	void SyncEditorSelectionToListSelection();
+
+	void OnRequestNewFolder(TOptional<FFolder> ExplicitParentFolder = TOptional<FFolder>());
+
+	void OnRequestMoveFolder(const FFolder& FolderToMove, const FFolder& TargetNewParentFolder);
 
 	void SetSelectedTreeViewItemActorsEditorVisible(const bool bNewIsVisible, const bool bIsRecursive = false);
 
@@ -190,6 +198,7 @@ public:
 
 protected:
 
+	virtual void ExecuteRenameOnPending();
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	void OnActorSpawnedOrDestroyed(AActor* Object)
@@ -247,10 +256,49 @@ protected:
 
 	TSharedPtr<STreeView<FObjectMixerEditorListRowPtr>> TreeViewPtr;
 
+	struct FTreeItemUniqueIdentifier
+	{
+		FTreeItemUniqueIdentifier() = default;
+		
+		FTreeItemUniqueIdentifier(FObjectMixerEditorListRowPtr InTreeViewItem)
+		{
+			const UObject* RowObject = InTreeViewItem->GetObject();
+			
+			UniqueIdNumber = RowObject ? RowObject->GetUniqueID() : -1;
+			
+			RowName =
+				InTreeViewItem->GetRowType() == FObjectMixerEditorListRow::Folder ?
+					InTreeViewItem->GetFolderPath().ToString() : InTreeViewItem->GetDisplayName().ToString();
+		}
+
+		bool operator==(const FTreeItemUniqueIdentifier& Other) const
+		{
+			if (Other.UniqueIdNumber != -1)
+			{
+				return Other.UniqueIdNumber == UniqueIdNumber;
+			}
+
+			return Other.RowName.Equals(RowName);
+		}
+
+		bool IdentifiesAnyRow() const
+		{
+			return UniqueIdNumber != 1 || !RowName.IsEmpty();
+		}
+
+		void Reset()
+		{
+			UniqueIdNumber = -1;
+			RowName = "";
+		}
+		
+		uint32 UniqueIdNumber = -1;
+		FString RowName = "";
+	};
+
 	struct FTreeItemStateCache
 	{
-		uint32 UniqueId = -1;
-		FString RowName = "";
+		FTreeItemUniqueIdentifier UniqueIdentifier;
 		bool bIsExpanded = false;
 		bool bIsSelected = false;
 		FObjectMixerEditorListRow::FTransientEditorVisibilityRules VisibilityRules;
@@ -263,6 +311,8 @@ protected:
 	};
 
 	TArray<FFilterComboToStateCaches> FilterComboToStateCaches;
+	
+	FTreeItemUniqueIdentifier PendingRenameItem;
 	
 	TMap<UObject*, FObjectMixerEditorListRowPtr> ObjectsToRowsCreated;
 

@@ -103,6 +103,22 @@ void FObjectMixerEditorList::RequestSyncEditorSelectionToListSelection() const
 	}
 }
 
+void FObjectMixerEditorList::OnRequestNewFolder(TOptional<FFolder> ExplicitParentFolder)
+{
+	if (ListWidget.IsValid())
+	{
+		ListWidget->OnRequestNewFolder(ExplicitParentFolder);
+	}
+}
+
+void FObjectMixerEditorList::OnRequestMoveFolder(const FFolder& FolderToMove, const FFolder& TargetNewParentFolder)
+{
+	if (ListWidget.IsValid())
+	{
+		ListWidget->OnRequestMoveFolder(FolderToMove, TargetNewParentFolder);
+	}
+}
+
 void FObjectMixerEditorList::ExecuteListViewSearchOnAllRows(const FString& SearchString,
                                                             const bool bShouldRefreshAfterward)
 {

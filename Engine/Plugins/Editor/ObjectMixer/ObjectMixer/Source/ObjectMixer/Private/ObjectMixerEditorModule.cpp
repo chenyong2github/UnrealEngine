@@ -45,6 +45,12 @@ void FObjectMixerEditorModule::ShutdownModule()
 	Teardown();
 }
 
+UWorld* FObjectMixerEditorModule::GetWorld()
+{
+	check(GEditor);
+	return GEditor->GetEditorWorldContext().World();
+}
+
 void FObjectMixerEditorModule::Initialize()
 {
 	BindDelegates();

@@ -18,11 +18,13 @@
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "Editor.h"
 #include "Editor/UnrealEdEngine.h"
+#include "EditorActorFolders.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IPlacementModeModule.h"
 #include "LevelEditor.h"
 #include "LevelEditorMenuContext.h"
 #include "LevelEditorViewport.h"
+#include "ObjectMixerEditorModule.h"
 #include "ObjectMixerEditorSerializedData.h"
 #include "ScopedTransaction.h"
 #include "Selection.h"
@@ -108,14 +110,7 @@ void SObjectMixerEditorList::Construct(const FArguments& InArgs, TSharedRef<FObj
 					{
 						if (GCurrentLevelEditingViewportClient)
 						{
-							AActor* Actor = Cast<AActor>(Row->GetObject());
-
-							if (!Actor)
-							{
-								Actor = Row->GetObject()->GetTypedOuter<AActor>();
-							}
-
-							if (Actor)
+							if (const AActor* Actor = Row->GetSelfOrOuterAsActor())
 							{
 								FVector Origin;
 								FVector Extents;
@@ -170,6 +165,11 @@ SObjectMixerEditorList::~SObjectMixerEditorList()
 	TreeViewPtr.Reset();
 }
 
+UWorld* SObjectMixerEditorList::GetWorld() const
+{
+	return FObjectMixerEditorModule::Get().GetWorld();
+}
+
 void SObjectMixerEditorList::RebuildList()
 {
 	bIsRebuildRequested = false;
@@ -204,7 +204,9 @@ void SObjectMixerEditorList::OnRenameCommand()
 {
 	if (GetSelectedTreeViewItemCount() == 1)
 	{
-		GetSelectedTreeViewItems()[0]->CallOnRenameCommandDelegate();
+		const FObjectMixerEditorListRowPtr TreeViewItem = GetSelectedTreeViewItems()[0];
+
+		PendingRenameItem = FTreeItemUniqueIdentifier(TreeViewItem);
 	}
 }
 
@@ -216,6 +218,11 @@ TArray<FObjectMixerEditorListRowPtr> SObjectMixerEditorList::GetSelectedTreeView
 int32 SObjectMixerEditorList::GetSelectedTreeViewItemCount() const
 {
 	return TreeViewPtr->GetSelectedItems().Num();
+}
+
+void SObjectMixerEditorList::SetTreeViewItemSelected(FObjectMixerEditorListRowPtr Item, const bool bNewSelected)
+{
+	TreeViewPtr->SetItemSelection(Item, bNewSelected);
 }
 
 void SObjectMixerEditorList::SyncEditorSelectionToListSelection()
@@ -249,6 +256,67 @@ void SObjectMixerEditorList::SyncEditorSelectionToListSelection()
 				TreeViewPtr->RequestScrollIntoView(*ListRowPtr);
 			}
 		}
+	}
+}
+
+void SObjectMixerEditorList::OnRequestNewFolder(TOptional<FFolder> ExplicitParentFolder)
+{
+	const FScopedTransaction Transaction(LOCTEXT("UndoAction_CreateFolder", "Create Folder"));
+
+	UWorld* World = GetWorld();
+	FFolder NewFolderPath;
+	if (ExplicitParentFolder.IsSet())
+	{
+		NewFolderPath =
+			FActorFolders::Get().GetDefaultFolderName(*World, ExplicitParentFolder.GetValue());
+	}
+	else
+	{
+		NewFolderPath = FActorFolders::Get().GetDefaultFolderForSelection(*World);
+	}
+
+	if (FActorFolders::Get().CreateFolder(*World, NewFolderPath))
+	{
+		const TArray<FObjectMixerEditorListRowPtr>& SelectedTreeItems = TreeViewPtr->GetSelectedItems();
+
+		if (SelectedTreeItems.Num())
+		{
+			TArray<AActor*> ActorsToMoveToFolder;
+			for (const FObjectMixerEditorListRowPtr& SelectedRow : SelectedTreeItems)
+			{
+				if (SelectedRow->GetRowType() == FObjectMixerEditorListRow::MatchingObject ||
+					SelectedRow->GetRowType() == FObjectMixerEditorListRow::ContainerObject)
+				{
+					if (AActor* Actor = SelectedRow->GetSelfOrOuterAsActor())
+					{
+						ActorsToMoveToFolder.Add(Actor);
+					}
+				}
+			}
+
+			if (ActorsToMoveToFolder.Num())
+			{				
+				for (AActor* Actor : ActorsToMoveToFolder)
+				{
+					Actor->Modify();
+					Actor->SetFolderPath_Recursively(NewFolderPath.GetPath());
+				}
+			}
+		}
+
+		// Set new folder row to be renamed on next frame
+		PendingRenameItem.RowName = NewFolderPath.GetPath().ToString();
+	}
+}
+
+void SObjectMixerEditorList::OnRequestMoveFolder(const FFolder& FolderToMove, const FFolder& TargetNewParentFolder)
+{
+	if (UWorld* EditorWorld = GetWorld())
+	{
+		check(TargetNewParentFolder.GetRootObject() == FolderToMove.GetRootObject());
+		// Get unique name
+		const FFolder NewPath = FActorFolders::Get().GetFolderName(*EditorWorld, TargetNewParentFolder, FolderToMove.GetLeafName());
+		FActorFolders::Get().RenameFolderInWorld(*EditorWorld, FolderToMove, NewPath);
 	}
 }
 
@@ -606,6 +674,41 @@ FListViewColumnInfo* SObjectMixerEditorList::GetColumnInfoByPropertyName(const F
 		});
 }
 
+void SObjectMixerEditorList::ExecuteRenameOnPending()
+{
+	using LambdaType = const FObjectMixerEditorListRowPtr*(*)(const TArray<FObjectMixerEditorListRowPtr>&, const FTreeItemUniqueIdentifier&);
+		
+	static LambdaType RecursivelyFindByUniqueIdentifier = [](
+		const TArray<FObjectMixerEditorListRowPtr>& InObjects, const FTreeItemUniqueIdentifier& InUniqueIdentifier)
+	{
+		for (const FObjectMixerEditorListRowPtr& TreeViewItem : InObjects)
+		{
+			FTreeItemUniqueIdentifier TreeItemUniqueIdentifier(TreeViewItem);
+
+			if (InUniqueIdentifier == TreeItemUniqueIdentifier)
+			{
+				return &TreeViewItem;
+			}
+
+			if (const FObjectMixerEditorListRowPtr* FoundItem = RecursivelyFindByUniqueIdentifier(
+				TreeViewItem->GetChildRows(), InUniqueIdentifier))
+			{
+				return FoundItem;
+			}
+		}
+
+		const FObjectMixerEditorListRowPtr* Nulled = nullptr;
+		return Nulled;
+	};
+
+	if (const FObjectMixerEditorListRowPtr* FoundItem = RecursivelyFindByUniqueIdentifier(TreeViewRootObjects, PendingRenameItem))
+	{
+		(*FoundItem)->CallOnRenameCommandDelegate();
+	}
+
+	PendingRenameItem.Reset();
+}
+
 void SObjectMixerEditorList::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime,
 	const float InDeltaTime)
 {
@@ -614,6 +717,9 @@ void SObjectMixerEditorList::Tick(const FGeometry& AllottedGeometry, const doubl
 	if (bIsRebuildRequested)
 	{
 		RebuildList();
+		
+		// Early out so we have widgets to act upon next frame
+		return;
 	}
 
 	if (bIsEditorToListSelectionSyncRequested)
@@ -625,6 +731,11 @@ void SObjectMixerEditorList::Tick(const FGeometry& AllottedGeometry, const doubl
 	{
 		bShouldPauseSyncSelection = false;
 		bIsEditorToListSelectionSyncRequested = false;
+	}
+
+	if (PendingRenameItem.IdentifiesAnyRow())
+	{
+		ExecuteRenameOnPending();
 	}
 }
 
@@ -998,17 +1109,13 @@ void SObjectMixerEditorList::CacheTreeState(const TArray<TWeakPtr<IObjectMixerEd
 	{
 		for (const FObjectMixerEditorListRowPtr& TreeViewItem : InObjects)
 		{
-			UObject* RowObject = TreeViewItem->GetObject();
-			const FString RowName =
-				TreeViewItem->GetRowType() == FObjectMixerEditorListRow::Folder ?
-					TreeViewItem->GetFolderPath().ToString() : TreeViewItem->GetDisplayName().ToString();
+			FTreeItemUniqueIdentifier UniqueIdentifier(TreeViewItem);
 
-			if (!RowName.IsEmpty())
+			if (!UniqueIdentifier.RowName.IsEmpty())
 			{
 				TreeItemStateCache->Add(
 					{
-						RowObject ? RowObject->GetUniqueID() : -1,
-						RowName,
+						UniqueIdentifier,
 						InTreeViewPtr->IsItemExpanded(TreeViewItem),
 						InTreeViewPtr->IsItemSelected(TreeViewItem),
 						TreeViewItem->GetVisibilityRules()
@@ -1055,23 +1162,14 @@ void SObjectMixerEditorList::RestoreTreeState(const TArray<TWeakPtr<IObjectMixer
 	{
 		for (const FObjectMixerEditorListRowPtr& TreeViewItem : InObjects)
 		{
+			const FTreeItemUniqueIdentifier TreeItemUniqueIdentifier(TreeViewItem);
+			
 			if (const FTreeItemStateCache* StateCachePtr = Algo::FindByPredicate(
 				*TreeItemStateCache,
-				[TreeViewItem](const FTreeItemStateCache& Other)
+				[&TreeItemUniqueIdentifier](const FTreeItemStateCache& Other)
 				{
-					if (Other.UniqueId != -1)
-					{
-						if (const UObject* RowObject = TreeViewItem->GetObject())
-						{
-							return Other.UniqueId == RowObject->GetUniqueID();
-						}
-					}
-
-					const FString RowName =
-						TreeViewItem->GetRowType() == FObjectMixerEditorListRow::Folder ?
-							TreeViewItem->GetFolderPath().ToString() : TreeViewItem->GetDisplayName().ToString();
-
-					return Other.RowName.Equals(RowName);
+					
+					return Other.UniqueIdentifier == TreeItemUniqueIdentifier;
 				}
 			))
 			{
@@ -1343,8 +1441,7 @@ void SObjectMixerEditorList::GenerateTreeView()
 
 	BuildPerformanceCacheAndGenerateHeaderIfNeeded();
 
-	check(GEditor);
-	const UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
+	const UWorld* EditorWorld = GetWorld();
 	
 	TSet<UObject*> AllMatchingObjects;
 
@@ -1420,7 +1517,6 @@ void SObjectMixerEditorList::SelectedTreeItemsToSelectedInLevelEditor()
 	if (GEditor && !bShouldPauseSyncSelection)
 	{
 		bShouldPauseSyncSelection = true;
-		TArray<AActor*> ActorsToSelect;
 		const TArray<FObjectMixerEditorListRowPtr>& SelectedTreeItems = TreeViewPtr->GetSelectedItems();
 		
 		if (SelectedTreeItems.Num() == 0)
@@ -1429,19 +1525,13 @@ void SObjectMixerEditorList::SelectedTreeItemsToSelectedInLevelEditor()
 		}
 		else
 		{
+			TArray<AActor*> ActorsToSelect;
 			for (const FObjectMixerEditorListRowPtr& SelectedRow : SelectedTreeItems)
 			{
 				if (SelectedRow->GetRowType() == FObjectMixerEditorListRow::MatchingObject ||
 					SelectedRow->GetRowType() == FObjectMixerEditorListRow::ContainerObject)
 				{
-					AActor* Actor = Cast<AActor>(SelectedRow->GetObject());
-
-					if (!Actor)
-					{
-						Actor = SelectedRow->GetObject()->GetTypedOuter<AActor>();
-					}
-
-					if (Actor)
+					if (AActor* Actor = SelectedRow->GetSelfOrOuterAsActor())
 					{
 						ActorsToSelect.Add(Actor);
 					}

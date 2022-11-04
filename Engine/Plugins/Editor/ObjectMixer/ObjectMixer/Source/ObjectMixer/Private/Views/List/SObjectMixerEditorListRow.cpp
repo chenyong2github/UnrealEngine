@@ -548,10 +548,6 @@ TOptional<EItemDropZone> SObjectMixerEditorListRow::HandleCanAcceptDrop(
 			Operation->DraggedItems.Num() == 1 &&
 			Operation->DraggedItems[0]->GetObject() &&
 			Operation->DraggedItems[0]->GetObject()->IsA(UActorComponent::StaticClass())
-		) ||
-		(
-			Operation->DraggedItems.Num() == 1 &&
-			Operation->DraggedItems[0]->GetRowType() == FObjectMixerEditorListRow::Folder
 		)
 	;
 
@@ -612,7 +608,17 @@ FReply SObjectMixerEditorListRow::HandleAcceptDrop(const FDragDropEvent& DragDro
 
 	for (const FObjectMixerEditorListRowPtr& DraggedItem : Operation->DraggedItems)
 	{
-		if (AActor* ObjectAsActor = Cast<AActor>(DraggedItem->GetObject()))
+		if (DraggedItem->GetRowType() == FObjectMixerEditorListRow::Folder)
+		{
+			if (bIsDroppingOnFolderRow)
+			{
+				if (const TSharedPtr<SObjectMixerEditorList> PinnedList = DraggedItem->GetListViewPtr().Pin())
+				{
+					PinnedList->OnRequestMoveFolder(DraggedItem->GetFolder(), TargetItem->GetFolder());
+				}
+			}
+		}
+		else if (AActor* ObjectAsActor = Cast<AActor>(DraggedItem->GetObject()))
 		{
 			if (bIsDroppingOnFolderRow)
 			{

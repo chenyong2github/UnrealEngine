@@ -8,6 +8,8 @@
 #include "Containers/UnrealString.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Folder.h"
+#include "GameFramework/Actor.h"
+#include "ISceneOutlinerTreeItem.h"
 #include "Layout/Visibility.h"
 #include "PropertyHandle.h"
 #include "Templates/SharedPointer.h"
@@ -110,6 +112,23 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 		return nullptr;
 	}
 
+	[[nodiscard]] AActor* GetSelfOrOuterAsActor() const
+	{
+		if (UObject* Object = GetObject())
+		{
+			AActor* Actor = Cast<AActor>(Object);
+
+			if (!Actor)
+			{
+				Actor = Object->GetTypedOuter<AActor>();
+			}
+
+			return Actor;
+		}
+
+		return nullptr;
+	}
+
 	[[nodiscard]] const FFolder& GetFolder() const
 	{
 		return FolderRef;
@@ -146,6 +165,8 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 	void AddToChildRows(const FObjectMixerEditorListRowPtr& InRow);
 	void InsertChildRowAtIndex(const FObjectMixerEditorListRowPtr& InRow, const int32 AtIndex = 0);
 
+	void SetChildRowsSelected(const bool bNewSelected, const bool bRecursive, const bool bSelectOnlyVisible = true);
+
 	[[nodiscard]] bool GetIsTreeViewItemExpanded();
 	void SetIsTreeViewItemExpanded(const bool bNewExpanded);
 
@@ -167,6 +188,7 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 	void SetDoesRowPassFilters(const bool bPass);
 
 	[[nodiscard]] bool GetIsSelected();
+	void SetIsSelected(const bool bNewSelected);
 
 	[[nodiscard]] bool ShouldRowWidgetBeVisible() const;
 	[[nodiscard]] EVisibility GetDesiredRowWidgetVisibility() const;
@@ -222,7 +244,7 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 
 	void CallOnRenameCommandDelegate()
 	{
-		OnRenameCommandDelegate.Execute();
+		OnRenameCommandDelegate.ExecuteIfBound();
 	}
 	
 	TMap<FName, TWeakPtr<IPropertyHandle>> PropertyNamesToHandles;
@@ -230,7 +252,7 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 private:
 
 	FObjectMixerEditorListRowPtr GetAsShared();
-
+	
 	TWeakObjectPtr<UObject> ObjectRef;
 	FFolder FolderRef;
 	EObjectMixerEditorListRowType RowType = MatchingObject;

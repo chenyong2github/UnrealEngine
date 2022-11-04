@@ -4,17 +4,19 @@
 
 #include "ObjectFilter/ObjectMixerEditorObjectFilter.h"
 
+#include "Folder.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/SWidget.h"
 
-class FUICommandList;
-class FObjectMixerEditorListFilter_Collection;
-class UObjectMixerEditorSerializedData;
-struct FObjectMixerEditorListRow;
-class IObjectMixerEditorListFilter;
-class UObjectMixerObjectFilter;
 class FObjectMixerEditorList;
+class FObjectMixerEditorListFilter_Collection;
+class FUICommandList;
+class IObjectMixerEditorListFilter;
 class SObjectMixerEditorMainPanel;
+class UObjectMixerEditorSerializedData;
+class UObjectMixerObjectFilter;
+
+struct FObjectMixerEditorListRow;
 
 DECLARE_MULTICAST_DELEGATE(FOnPreFilterChange)
 DECLARE_MULTICAST_DELEGATE(FOnPostFilterChange)
@@ -49,6 +51,10 @@ public:
 
 	/** Called when the Rename command is executed from the UI or hotkey. */
 	void OnRenameCommand();
+
+	void OnRequestNewFolder(TOptional<FFolder> ExplicitParentFolder = TOptional<FFolder>());
+
+	void OnRequestMoveFolder(const FFolder& FolderToMove, const FFolder& TargetNewParentFolder);
 
 	void RequestSyncEditorSelectionToListSelection() const;
 
@@ -162,7 +168,8 @@ public:
 	FOnPreFilterChange OnPreFilterChange;
 	FOnPostFilterChange OnPostFilterChange;
 
-	TSharedPtr<FUICommandList> ObjectMixerCommands;
+	TSharedPtr<FUICommandList> ObjectMixerElementEditCommands;
+	TSharedPtr<FUICommandList> ObjectMixerFolderEditCommands;
 
 private:
 

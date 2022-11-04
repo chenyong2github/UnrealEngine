@@ -9,6 +9,8 @@
 
 class SObjectMixerEditorList;
 
+struct FFolder;
+
 class OBJECTMIXEREDITOR_API FObjectMixerEditorList : public TSharedFromThis<FObjectMixerEditorList>
 {
 public:
@@ -41,6 +43,10 @@ public:
 	void OnRenameCommand();
 
 	void RequestSyncEditorSelectionToListSelection() const;
+
+	void OnRequestNewFolder(TOptional<FFolder> ExplicitParentFolder = TOptional<FFolder>());
+
+	void OnRequestMoveFolder(const FFolder& FolderToMove, const FFolder& TargetNewParentFolder);
 
 	void ExecuteListViewSearchOnAllRows(const FString& SearchString, const bool bShouldRefreshAfterward = true);
 

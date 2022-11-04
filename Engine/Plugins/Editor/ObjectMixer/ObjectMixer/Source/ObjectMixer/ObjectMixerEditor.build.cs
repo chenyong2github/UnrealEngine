@@ -14,7 +14,8 @@ public class ObjectMixerEditor : ModuleRules
 			{
 				"Core",
 				"OutputLog",
-				"PropertyEditor"
+				"PropertyEditor", 
+				"SceneOutliner"
 			}
 		);
 

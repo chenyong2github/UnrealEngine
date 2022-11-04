@@ -17,6 +17,8 @@ public:
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface
 
+	virtual UWorld* GetWorld();
+
 	virtual void Initialize();
 	virtual void Teardown();
 

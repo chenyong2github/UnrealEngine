@@ -17,29 +17,55 @@ void FObjectMixerEditorMainPanel::Init()
 
 void FObjectMixerEditorMainPanel::RegisterAndMapContextMenuCommands()
 {
-	ObjectMixerCommands = MakeShared<FUICommandList>();
+	ObjectMixerElementEditCommands = MakeShared<FUICommandList>();
 
-	ObjectMixerCommands->MapAction(FGenericCommands::Get().Cut,
+	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Cut,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("EDIT CUT") ) ),
 		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Cut_CanExecute )
 	);
-	ObjectMixerCommands->MapAction(FGenericCommands::Get().Copy,
+	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Copy,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("EDIT COPY") ) ),
 		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Copy_CanExecute )
 	);
-	ObjectMixerCommands->MapAction(FGenericCommands::Get().Paste,
+	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Paste,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("EDIT PASTE") ) ),
 		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Paste_CanExecute )
 	);
-	ObjectMixerCommands->MapAction(FGenericCommands::Get().Duplicate,
+	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Duplicate,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("DUPLICATE") ) ),
 		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Duplicate_CanExecute )
 	);
-	ObjectMixerCommands->MapAction(FGenericCommands::Get().Delete,
+	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Delete,
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("DELETE") ) ),
 		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Delete_CanExecute )
 	);
-	ObjectMixerCommands->MapAction(FGenericCommands::Get().Rename,
+	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Rename,
+		FUIAction(FExecuteAction::CreateRaw(this, &FObjectMixerEditorMainPanel::OnRenameCommand))
+	);
+
+	ObjectMixerFolderEditCommands = MakeShared<FUICommandList>();
+
+	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Cut,
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("EDIT CUT") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Cut_CanExecute )
+	);
+	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Copy,
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("EDIT COPY") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Copy_CanExecute )
+	);
+	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Paste,
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("EDIT PASTE") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Paste_CanExecute )
+	);
+	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Duplicate,
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("DUPLICATE") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Duplicate_CanExecute )
+	);
+	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Delete,
+		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::ExecuteExecCommand, FString( TEXT("DELETE") ) ),
+		FCanExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::Delete_CanExecute )
+	);
+	ObjectMixerElementEditCommands->MapAction(FGenericCommands::Get().Rename,
 		FUIAction(FExecuteAction::CreateRaw(this, &FObjectMixerEditorMainPanel::OnRenameCommand))
 	);
 }
@@ -82,6 +108,22 @@ void FObjectMixerEditorMainPanel::OnRenameCommand()
 	if (EditorListModel.IsValid())
 	{
 		EditorListModel->OnRenameCommand();
+	}
+}
+
+void FObjectMixerEditorMainPanel::OnRequestNewFolder(TOptional<FFolder> ExplicitParentFolder)
+{
+	if (EditorListModel.IsValid())
+	{
+		EditorListModel->OnRequestNewFolder(ExplicitParentFolder);
+	}
+}
+
+void FObjectMixerEditorMainPanel::OnRequestMoveFolder(const FFolder& FolderToMove, const FFolder& TargetNewParentFolder)
+{
+	if (EditorListModel.IsValid())
+	{
+		EditorListModel->OnRequestMoveFolder(FolderToMove, TargetNewParentFolder);
 	}
 }
 

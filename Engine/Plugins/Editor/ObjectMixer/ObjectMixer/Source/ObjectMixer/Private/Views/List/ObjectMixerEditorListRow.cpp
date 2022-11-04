@@ -183,7 +183,7 @@ void FObjectMixerEditorListRow::SetChildRows(const TArray<FObjectMixerEditorList
 
 void FObjectMixerEditorListRow::AddToChildRows(const FObjectMixerEditorListRowPtr& InRow)
 {
-	InRow->SetDirectParentRow(SharedThis(this));
+	InRow->SetDirectParentRow(GetAsShared());
 	ChildRows.AddUnique(InRow);
 	ChildRows.StableSort(SObjectMixerEditorList::SortByTypeThenName);
 }
@@ -192,6 +192,30 @@ void FObjectMixerEditorListRow::InsertChildRowAtIndex(const FObjectMixerEditorLi
                                                            const int32 AtIndex)
 {
 	ChildRows.Insert(InRow, AtIndex);
+}
+
+void FObjectMixerEditorListRow::SetChildRowsSelected(const bool bNewSelected, const bool bRecursive,
+	const bool bSelectOnlyVisible)
+{
+	for (const FObjectMixerEditorListRowPtr& ChildRow : GetChildRows())
+	{
+		if (ChildRow.IsValid())
+		{
+			// Recurse even if not visible
+			if (bRecursive)
+			{
+				ChildRow->SetChildRowsSelected(bNewSelected, bRecursive, bSelectOnlyVisible);
+			}
+
+			// Skip setting selection if not visible and bSelectOnlyVisible == true
+			if (bSelectOnlyVisible && !ChildRow->ShouldRowWidgetBeVisible())
+			{
+				continue;
+			}
+		
+			ChildRow->SetIsSelected(bNewSelected);
+		}
+	}
 }
 
 bool FObjectMixerEditorListRow::GetIsTreeViewItemExpanded()
@@ -312,7 +336,14 @@ bool FObjectMixerEditorListRow::GetIsSelected()
 {
 	check (ListViewPtr.IsValid());
 
-	return ListViewPtr.Pin()->IsTreeViewItemSelected(SharedThis(this));
+	return ListViewPtr.Pin()->IsTreeViewItemSelected(GetAsShared().ToSharedRef());
+}
+
+void FObjectMixerEditorListRow::SetIsSelected(const bool bNewSelected)
+{
+	check (ListViewPtr.IsValid());
+
+	return ListViewPtr.Pin()->SetTreeViewItemSelected(SharedThis(this), bNewSelected);
 }
 
 bool FObjectMixerEditorListRow::ShouldRowWidgetBeVisible() const
