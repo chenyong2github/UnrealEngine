@@ -7,6 +7,7 @@
 #include "NNXRuntime.h"
 #include "NNXInferenceModel.h"
 #include "NNIProfilingStatistics.h"
+#include "NNXModelOptimizerInterface.h"
 
 #include "NNXThirdPartyWarningDisabler.h"
 NNX_THIRD_PARTY_INCLUDES_START

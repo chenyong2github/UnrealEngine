@@ -3,6 +3,7 @@
 #include "NNIRuntimeRDGGather.h"
 #include "NNXRuntimeHLSLHelper.h"
 #include "NNIHlslShadersGatherCS.h"
+#include "NNECoreAttributeMap.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
@@ -28,7 +29,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const FMLAttributeMap& Attributes) override
+		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			using namespace UE::NNIHlslShaders::Internal;
 
@@ -39,7 +40,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			check(InputTensors[1].Shape.Num() > 0)
 			check(InputTensors[0].Shape.Num() + (InputTensors[1].Shape.Num() - 1) <= FGatherConstants::MAX_NUM_DIMENSIONS)
 
-			Axis = Attributes.GetOptionalFloat(TEXT("axis"), Axis);
+			Axis = Attributes.GetValueOrDefault(TEXT("axis"), Axis);
 			check(Axis < InputTensors[0].Shape.Num())
 			check(Axis >= -InputTensors[0].Shape.Num())
 			Axis = Axis >= 0 ? Axis : InputTensors[0].Shape.Num() + Axis;

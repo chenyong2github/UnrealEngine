@@ -16,7 +16,7 @@ namespace NNX
 //
 //
 bool AlwaysValidValidationFunction(
-	const FMLAttributeMap& AttributeMap, 
+	const UE::NNECore::FAttributeMap& AttributeMap, 
 	TConstArrayView<EMLTensorDataType> InputTensorTypes,
 	TConstArrayView<const FSymbolicTensorShape> InputShapes)
 {
@@ -90,28 +90,28 @@ void FInputValidator::AddRequired(int32 TemplateIdx)
 //
 //
 //
-void FAttributeValidator::AddOptional(const FString& Name, EMLAttributeDataType Type)
+void FAttributeValidator::AddOptional(const FString& Name, ENNEAttributeDataType Type)
 {
 	checkf(nullptr == OptionalAttributes.FindByPredicate([Name](const FEntry& Other) { return Other.Name == Name; }), TEXT("Attribute name should be unique"));
 	checkf(nullptr == RequiredAttributes.FindByPredicate([Name](const FEntry& Other) { return Other.Name == Name; }), TEXT("Attribute name should be unique"));
 	OptionalAttributes.Emplace(Name, Type);
 }
 
-void FAttributeValidator::AddRequired(const FString& Name, EMLAttributeDataType Type)
+void FAttributeValidator::AddRequired(const FString& Name, ENNEAttributeDataType Type)
 {
 	checkf(nullptr == OptionalAttributes.FindByPredicate([Name](const FEntry& Other) { return Other.Name == Name; }), TEXT("Attribute name should be unique"));
 	checkf(nullptr == RequiredAttributes.FindByPredicate([Name](const FEntry& Other) { return Other.Name == Name; }), TEXT("Attribute name should be unique"));
 	RequiredAttributes.Emplace(Name, Type);
 }
 
-bool FAttributeValidator::Validate(const FMLAttributeMap& AttributesToValidate)
+bool FAttributeValidator::Validate(const UE::NNECore::FAttributeMap& AttributesToValidate)
 {
 	bool bAreAttributesValid = true;
 
 	//Verify all required attribute are matching specifications
 	for (int32 Idx = 0; Idx < RequiredAttributes.Num(); ++Idx)
 	{
-		const FMLAttributeValue* FoundAttribute = AttributesToValidate.GetAttributeValue(RequiredAttributes[Idx].Name);
+		const FNNEAttributeValue* FoundAttribute = AttributesToValidate.GetAttributeValue(RequiredAttributes[Idx].Name);
 		
 		if (FoundAttribute == nullptr)
 		{
@@ -132,7 +132,7 @@ bool FAttributeValidator::Validate(const FMLAttributeMap& AttributesToValidate)
 	//Verify all optional attribute are matching specifications
 	for (int32 Idx = 0; Idx < OptionalAttributes.Num(); ++Idx)
 	{
-		const FMLAttributeValue* FoundAttribute = AttributesToValidate.GetAttributeValue(OptionalAttributes[Idx].Name);
+		const FNNEAttributeValue* FoundAttribute = AttributesToValidate.GetAttributeValue(OptionalAttributes[Idx].Name);
 		
 		if ((FoundAttribute != nullptr) && (OptionalAttributes[Idx].Type != FoundAttribute->GetType()))
 		{

@@ -2,11 +2,14 @@
 #pragma once
 
 #include "NNXRuntimeFormat.h"
-#include "NNXModelOptimizerInterface.h"
+
+namespace UE::NNECore { class FAttributeMap; }
 
 namespace NNX
 {
+
 class IModelOptimizer;
+using FOptimizerOptionsMap = UE::NNECore::FAttributeMap;
 	
 /** Create a model optimizer */
 NNXUTILS_API TUniquePtr<IModelOptimizer> CreateModelOptimizer(ENNXInferenceFormat InputFormat, ENNXInferenceFormat OutputFormat);
@@ -27,6 +30,6 @@ inline TUniquePtr<IModelOptimizer> CreateONNXToONNXModelOptimizer()
 }
 
 /** Helper to create an optimized model for a given runtime from ONNX */
-NNXUTILS_API bool CreateRuntimeModelFromONNX(FNNIModelRaw& OutputModel, const FNNIModelRaw& ONNXModel, FString RuntimeName, const FOptimizerOptionsMap& Options);
+NNXUTILS_API bool CreateRuntimeModelFromONNX(FNNIModelRaw& OutputModel, const FNNIModelRaw& ONNXModel, const FString& RuntimeName, const FOptimizerOptionsMap& Options);
 
 } // NNX

@@ -2,6 +2,7 @@
 
 #include "NNIRuntimeRDGConv.h"
 #include "NNIHlslShadersConvCS.h"
+#include "NNECoreAttributeMap.h"
 #include "NNXRuntimeHLSLHelper.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
@@ -45,7 +46,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const FMLAttributeMap& Attributes) override
+		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
 			check(OutputTensors.Num() == 1);

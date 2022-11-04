@@ -6,6 +6,7 @@
 #include "NNXCore.h"
 #include "NNXRuntime.h"
 #include "NNXInferenceModel.h"
+#include "NNXModelOptimizerInterface.h"
 #include "NNIProfilingStatistics.h"
 #include "NNXThirdPartyWarningDisabler.h"
 

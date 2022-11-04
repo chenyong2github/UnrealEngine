@@ -65,7 +65,7 @@ namespace Json
 	struct FTestAttribute : FJsonSerializable
 	{
 		FString Name;
-		FMLAttributeValue Value;
+		FNNEAttributeValue Value;
 
 		BEGIN_JSON_SERIALIZER
 			JSON_SERIALIZE("name", Name);
@@ -77,28 +77,28 @@ namespace Json
 			FString TypeStr;
 			Serializer.Serialize(TEXT("type"), TypeStr);
 
-			EMLAttributeDataType Type = EMLAttributeDataType::Float;
+			ENNEAttributeDataType Type = ENNEAttributeDataType::Float;
 			if (!TypeStr.IsEmpty()) LexFromString(Type, *TypeStr);
 
 			switch (Type)
 			{
-				case EMLAttributeDataType::Float:
+				case ENNEAttributeDataType::Float:
 				{
 					float TmpValue;
 					JSON_SERIALIZE("value", TmpValue);
-					Value = FMLAttributeValue(TmpValue);
+					Value = FNNEAttributeValue(TmpValue);
 					break;
 				}
 
-				case EMLAttributeDataType::Int32:
+				case ENNEAttributeDataType::Int32:
 				{
 					int TmpValue;
 					JSON_SERIALIZE("value", TmpValue);
-					Value = FMLAttributeValue(TmpValue);
+					Value = FNNEAttributeValue(TmpValue);
 					break;
 				}
 				default:
-					check(Type == EMLAttributeDataType::None);
+					check(Type == ENNEAttributeDataType::None);
 			}
 		END_JSON_SERIALIZER
 	};

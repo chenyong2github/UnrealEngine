@@ -3,6 +3,7 @@
 #include "NNIRuntimeRDGGemm.h"
 #include "NNIHlslShadersGemmCS.h"
 #include "NNXRuntimeHLSLHelper.h"
+#include "NNECoreAttributeMap.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
@@ -40,7 +41,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const FMLAttributeMap& Attributes) override
+		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
 			check(OutputTensors.Num() == 1);
@@ -61,10 +62,10 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			// CScalar = C != nullptr ? C[0] : (InElementType)0;
 			bNoBias = InputTensors.Num() != 3 /*|| InputC.Sizes[0] * InputC.Sizes[1] < 1*/;
 
-			InputAlpha = Attributes.GetOptionalFloat(TEXT("alpha"), InputAlpha);
-			InputBeta = Attributes.GetOptionalFloat(TEXT("beta"), InputBeta);
-			InputTransA = Attributes.GetOptionalInt32(TEXT("transA"), InputTransA);
-			InputTransB = Attributes.GetOptionalInt32(TEXT("transB"), InputTransB);
+			InputAlpha = Attributes.GetValueOrDefault(TEXT("alpha"), InputAlpha);
+			InputBeta = Attributes.GetValueOrDefault(TEXT("beta"), InputBeta);
+			InputTransA = Attributes.GetValueOrDefault(TEXT("transA"), InputTransA);
+			InputTransB = Attributes.GetValueOrDefault(TEXT("transB"), InputTransB);
 
 			return true;
 		}
@@ -108,15 +109,15 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateGemmOperator(const FMLAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<const NNX::FSymbolicTensorShape> InputShapes)
+	bool ValidateGemmOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<const NNX::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 
 		NNX::FAttributeValidator AttributeValidator;
-		AttributeValidator.AddOptional(TEXT("alpha"), EMLAttributeDataType::Float);
-		AttributeValidator.AddOptional(TEXT("beta"), EMLAttributeDataType::Float);
-		AttributeValidator.AddOptional(TEXT("transA"), EMLAttributeDataType::Int32);
-		AttributeValidator.AddOptional(TEXT("transB"), EMLAttributeDataType::Int32);
+		AttributeValidator.AddOptional(TEXT("alpha"), ENNEAttributeDataType::Float);
+		AttributeValidator.AddOptional(TEXT("beta"), ENNEAttributeDataType::Float);
+		AttributeValidator.AddOptional(TEXT("transA"), ENNEAttributeDataType::Int32);
+		AttributeValidator.AddOptional(TEXT("transB"), ENNEAttributeDataType::Int32);
 		bIsValid &= AttributeValidator.Validate(AttributeMap);
 
 		NNX::FInputValidator InputValidator;

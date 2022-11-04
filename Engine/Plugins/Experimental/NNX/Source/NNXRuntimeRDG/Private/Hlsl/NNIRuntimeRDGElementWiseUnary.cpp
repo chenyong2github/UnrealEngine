@@ -3,6 +3,7 @@
 #include "NNIRuntimeRDGElementWiseUnary.h"
 #include "NNIHlslShadersElementWiseUnaryCS.h"
 #include "NNXRuntimeHLSLHelper.h"
+#include "NNECoreAttributeMap.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
@@ -32,7 +33,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const FMLAttributeMap& Attributes) override
+		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			check(InputTensors.Num() == 1);
 			check(OutputTensors.Num() == 1);
@@ -40,9 +41,9 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			Input = InputTensors[0];
 			Output = OutputTensors[0];
 
-			Alpha = Attributes.GetOptionalFloat(TEXT("alpha"), Alpha);
-			Beta = Attributes.GetOptionalFloat(TEXT("beta"), Beta);
-			Gamma = Attributes.GetOptionalFloat(TEXT("gamma"), Gamma);
+			Alpha = Attributes.GetValueOrDefault(TEXT("alpha"), Alpha);
+			Beta = Attributes.GetValueOrDefault(TEXT("beta"), Beta);
+			Gamma = Attributes.GetValueOrDefault(TEXT("gamma"), Gamma);
 
 			return true;
 		}

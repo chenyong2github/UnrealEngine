@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UObject/Object.h"
+#include "NNECoreAttributeValue.h"
 #include "NNXTypes.h"
 #include "NNXRuntime.h"
 #include "NNXRuntimeFormat.generated.h"
@@ -48,7 +49,7 @@ struct FMLFormatAttributeDesc
 	FString Name;
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	FMLAttributeValue Value;
+	FNNEAttributeValue Value;
 };
 
 USTRUCT()

@@ -2,8 +2,9 @@
 #pragma once
 
 #include "NNXTypes.h"
-#include "Containers/Array.h"
 
+namespace UE::NNECore { class FAttributeMap; }
+struct FNNEAttributeValue;
 struct FNNIModelRaw;
 
 namespace NNX
@@ -66,7 +67,7 @@ public:
 	virtual bool AddOperatorInput(HOperator Op, HTensor Tensor) = 0;
 
 	/** Add operator attribute */
-	virtual bool AddOperatorAttribute(HOperator Op, const FString& Name, const FMLAttributeValue& Value) = 0;
+	virtual bool AddOperatorAttribute(HOperator Op, const FString& Name, const FNNEAttributeValue& Value) = 0;
 	
 	/** Add operator output */
 	virtual bool AddOperatorOutput(HOperator Op, HTensor Tensor) = 0;
@@ -87,7 +88,7 @@ NNXUTILS_API IMLModelBuilder* CreateONNXModelBuilder(int64 IrVersion = OnnxIrVer
  * Utility functions to create single layer NN for operator testing with optional attributes
  */
 NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<const FMLTensorDesc> InInputTensors, TConstArrayView<const FMLTensorDesc> InOutputTensors, FNNIModelRaw& ModelData);
-NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<const FMLTensorDesc> InInputTensors, TConstArrayView<const FMLTensorDesc> InOutputTensors, const FMLAttributeMap& Attributes, FNNIModelRaw& ModelData);
+NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<const FMLTensorDesc> InInputTensors, TConstArrayView<const FMLTensorDesc> InOutputTensors, const UE::NNECore::FAttributeMap& Attributes, FNNIModelRaw& ModelData);
 
 /**
  * Create an instance of NNX model builder that creates NNX model/format in memory

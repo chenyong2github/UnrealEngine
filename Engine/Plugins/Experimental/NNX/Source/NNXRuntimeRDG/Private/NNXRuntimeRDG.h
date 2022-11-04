@@ -2,12 +2,15 @@
 
 #pragma once
 
+#include "NNECoreAttributeMap.h"
+#include "NNECoreAttributeValue.h"
 #include "NNXCore.h"
+#include "NNXModelOptimizerInterface.h"
 #include "NNXRuntime.h"
-#include "NNXModelOptimizer.h"
-#include "ShaderParameterUtils.h"
+#include "NNXRuntimeFormat.h"
 #include "RHIGPUReadback.h"
 #include "Serialization/MemoryReader.h"
+#include "ShaderParameterUtils.h"
 
 #include "Containers/Map.h"
 
@@ -82,7 +85,7 @@ protected:
 
 //TODO jira 167585 remove default validation and declare contract in all HLSL operator (see HLSL Gemm for current example)
 //TODO jira 167584 remove default validation and declare contract in all DML operator (see HLSL Gemm for current example)
-bool AlwaysValidValidationFunction(const FMLAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<const FSymbolicTensorShape> InputShapes);
+bool AlwaysValidValidationFunction(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<const FSymbolicTensorShape> InputShapes);
 
 class FInputValidator
 {
@@ -104,14 +107,14 @@ private:
 class FAttributeValidator
 {
 public:
-	void AddOptional(const FString& Name, EMLAttributeDataType Type);
-	void AddRequired(const FString& Name, EMLAttributeDataType Type);
-	bool Validate(const FMLAttributeMap& AttributesToValidate);
+	void AddOptional(const FString& Name, ENNEAttributeDataType Type);
+	void AddRequired(const FString& Name, ENNEAttributeDataType Type);
+	bool Validate(const UE::NNECore::FAttributeMap& AttributesToValidate);
 
 private:
 	struct FEntry
 	{
-		FEntry(const FString& InName, EMLAttributeDataType InType)
+		FEntry(const FString& InName, ENNEAttributeDataType InType)
 			: Name(InName), Type(InType)
 		{
 		}
@@ -121,7 +124,7 @@ private:
 		//In the same direction we might only support a range of value for a float (for example
 		//we only support integer but the type is float, or only positive values for an int32)
 		FString Name;
-		EMLAttributeDataType Type;
+		ENNEAttributeDataType Type;
 	};
 
 	TArray<FEntry> RequiredAttributes;
@@ -137,7 +140,7 @@ class TOperatorRegistryRDG
 public:
 
 	typedef TOperatorType* (*OperatorCreateFunc)();
-	typedef bool (*OperatorValidateFunc)(const FMLAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<const FSymbolicTensorShape> InputShapes);
+	typedef bool (*OperatorValidateFunc)(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<const FSymbolicTensorShape> InputShapes);
 
 	static TOperatorRegistryRDG* Get()
 	{
@@ -224,7 +227,7 @@ public:
 		{
 			TArray<EMLTensorDataType> InputTensorTypes;
 			TArray<FSymbolicTensorShape> InputTensorShapes;
-			FMLAttributeMap AttributeMap;
+			UE::NNECore::FAttributeMap AttributeMap;
 			
 			for (int32 InputTensorIndex: Format.Operators[Idx].InTensors)
 			{

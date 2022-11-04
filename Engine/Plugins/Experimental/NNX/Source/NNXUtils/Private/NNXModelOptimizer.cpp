@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNXModelOptimizer.h"
+#include "NNXModelOptimizerInterface.h"
 #include "NNXCore.h"
 #include "NNXRuntimeFormat.h"
 #include "NNXModelBuilder.h"
@@ -543,11 +544,11 @@ private:
 
 				if (AttrInfo.type == Ort::GraphAttributeType::kFloat)
 				{
-					Builder->AddOperatorAttribute(Op, AttrInfo.name, FMLAttributeValue(AttrValue.f));
+					Builder->AddOperatorAttribute(Op, AttrInfo.name, FNNEAttributeValue(AttrValue.f));
 				}
 				else if (AttrInfo.type == Ort::GraphAttributeType::kInt)
 				{
-					Builder->AddOperatorAttribute(Op, AttrInfo.name, FMLAttributeValue((int)AttrValue.i));
+					Builder->AddOperatorAttribute(Op, AttrInfo.name, FNNEAttributeValue((int)AttrValue.i));
 				}
 				else
 				{
@@ -638,7 +639,7 @@ NNXUTILS_API TUniquePtr<IModelOptimizer> CreateModelOptimizer(ENNXInferenceForma
 }
 
 /** Helper to create an optimized model for a given runtime from ONNX */
-NNXUTILS_API bool CreateRuntimeModelFromONNX(const FNNIModelRaw& ONNXModel, FNNIModelRaw& OptimizedModel, FString RuntimeName, const FOptimizerOptionsMap& Options)
+NNXUTILS_API bool CreateRuntimeModelFromONNX(const FNNIModelRaw& ONNXModel, FNNIModelRaw& OptimizedModel, const FString& RuntimeName, const FOptimizerOptionsMap& Options)
 {
 	OptimizedModel = FNNIModelRaw{};
 	

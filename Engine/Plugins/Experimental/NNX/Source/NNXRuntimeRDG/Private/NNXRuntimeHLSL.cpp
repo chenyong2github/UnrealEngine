@@ -3,6 +3,7 @@
 #include "NNXInferenceModel.h"
 #include "NNXRuntimeFormat.h"
 #include "NNXModelOptimizer.h"
+#include "NNECoreAttributeMap.h"
 #include "Hlsl/NNIRuntimeRDGConv.h"
 #include "Hlsl/NNIRuntimeRDGElementWiseBinary.h"
 #include "Hlsl/NNIRuntimeRDGElementWiseUnary.h"
@@ -37,7 +38,7 @@ protected:
 
 private:
 
-	FMLOperatorHlsl* OpCreate(const FString& Name, TArrayView<const FMLTensorDesc> InputTensorDesc, TArrayView<const FMLTensorDesc> OutputTensorDescs, const FMLAttributeMap& Attributes);
+	FMLOperatorHlsl* OpCreate(const FString& Name, TArrayView<const FMLTensorDesc> InputTensorDesc, TArrayView<const FMLTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes);
 
 	TArray<FMLOperatorHlsl*>	Operators;
 };
@@ -78,7 +79,7 @@ bool FMLInferenceModelHlsl::Init(UMLInferenceModel* InModel)
 
 		TArray<FMLTensorDesc> OpInputTensors;
 		TArray<FMLTensorDesc> OpOutputTensors;
-		FMLAttributeMap AttributeMap;
+		UE::NNECore::FAttributeMap AttributeMap;
 
 		for (int32 InputTensorIndex : Format.Operators[Idx].InTensors)
 		{
@@ -86,7 +87,7 @@ bool FMLInferenceModelHlsl::Init(UMLInferenceModel* InModel)
 		}
 		for (int32 OutputTensorIndex : Format.Operators[Idx].OutTensors)
 		{
-			OpInputTensors.Emplace(AllTensors[OutputTensorIndex]);
+			OpOutputTensors.Emplace(AllTensors[OutputTensorIndex]);
 		}
 		for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 		{
@@ -112,7 +113,7 @@ bool FMLInferenceModelHlsl::Init(UMLInferenceModel* InModel)
 //
 //
 //
-FMLOperatorHlsl* FMLInferenceModelHlsl::OpCreate(const FString& OpName, TArrayView<const FMLTensorDesc> InputTensorDescs, TArrayView<const FMLTensorDesc> OutputTensorDescs, const FMLAttributeMap& AttributeMap)
+FMLOperatorHlsl* FMLInferenceModelHlsl::OpCreate(const FString& OpName, TArrayView<const FMLTensorDesc> InputTensorDescs, TArrayView<const FMLTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& AttributeMap)
 {
 	FMLOperatorRegistryHlsl::OperatorCreateFunc CreateFn = FMLOperatorRegistryHlsl::Get()->OpFind(OpName);
 

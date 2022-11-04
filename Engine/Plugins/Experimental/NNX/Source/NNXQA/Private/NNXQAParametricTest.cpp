@@ -6,6 +6,7 @@
 #include "NNXCore.h"
 #include "NNXTypes.h"
 #include "NNXRuntimeFormat.h"
+#include "NNECoreAttributeMap.h"
 #include "NNXQAUtils.h"
 #include "NNXQAJsonUtils.h"
 #include "NNXModelBuilder.h"
@@ -205,13 +206,13 @@ namespace Test
 		{
 			if (AttributeMap.Attributes.IsEmpty()) return TEXT("");
 
-			auto AttributeToString = [] (const FMLAttributeValue &Value) -> FString {
-				EMLAttributeDataType Type = Value.GetType();
+			auto AttributeToString = [] (const FNNEAttributeValue &Value) -> FString {
+				ENNEAttributeDataType Type = Value.GetType();
 				
 				switch(Type)
 				{
-					case EMLAttributeDataType::Float: return FString::SanitizeFloat(Value.AsFloat());
-					case EMLAttributeDataType::Int32: return FString::FromInt(Value.AsInt32());
+					case ENNEAttributeDataType::Float: return FString::SanitizeFloat(Value.GetValue<float>());
+					case ENNEAttributeDataType::Int32: return FString::FromInt(Value.GetValue<int32>());
 				}
 				return TEXT("-");
 			};

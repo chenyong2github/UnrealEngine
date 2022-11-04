@@ -6,6 +6,8 @@
 #include "NNXModelOptimizer.h"
 #include "NNXOperator.h"
 
+#include "NNECoreAttributeMap.h"
+
 #include "HAL/FileManager.h"
 
 #include "RenderGraphBuilder.h"
@@ -325,7 +327,7 @@ class FMLOperatorDml : public FMLOperatorRDG
 {
 public:
 
-	virtual bool Initialize(FDeviceContextDml* DevCtx, TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const FMLAttributeMap& Attributes) = 0;
+	virtual bool Initialize(FDeviceContextDml* DevCtx, TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) = 0;
 
 	virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings) = 0;
 
@@ -547,7 +549,7 @@ public:
 	//
 	//
 	//
-	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const FMLAttributeMap& Attributes) override
+	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 	{
 		// TODO: Setup attributes
 		Num = InputTensors[0].Num();
@@ -557,9 +559,9 @@ public:
 		const FMLTensorDesc& InputTensorDesc = InputTensors[0];
 		const FMLTensorDesc& OutputTensorDesc = OutputTensors[0];
 
-		Alpha = Attributes.GetOptionalFloat(TEXT("alpha"), Alpha);
-		Beta = Attributes.GetOptionalFloat(TEXT("beta"), Beta);
-		Gamma = Attributes.GetOptionalFloat(TEXT("gamma"), Gamma);
+		Alpha = Attributes.GetValueOrDefault(TEXT("alpha"), Alpha);
+		Beta = Attributes.GetValueOrDefault(TEXT("beta"), Beta);
+		Gamma = Attributes.GetValueOrDefault(TEXT("gamma"), Gamma);
 
 		// Initialize tensor descriptor (it's same for both input and output)
 		DmlUtil::FTensorDesc	DmlTensorDesc{};
@@ -797,7 +799,7 @@ public:
 	//
 	//
 	//
-	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const FMLAttributeMap& Attributes) override
+	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 	{
 		// TODO: Setup attributes
 		Num = OutputTensors[0].Num();
@@ -982,7 +984,7 @@ protected:
 
 private:
 
-	FMLOperatorDml* OpCreate(const FString& Name, TArrayView<const FMLTensorDesc> InputTensorDesc, TArrayView<const FMLTensorDesc> OutputTensorDescs, const FMLAttributeMap& Attributes);
+	FMLOperatorDml* OpCreate(const FString& Name, TArrayView<const FMLTensorDesc> InputTensorDesc, TArrayView<const FMLTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes);
 	
 	TArray<FMLOperatorDml*>		Operators;
 	FDeviceContextDml*			DevCtx;
@@ -1280,7 +1282,7 @@ bool FMLInferenceModelDml::Init(UMLInferenceModel* InModel, FDeviceContextDml* I
 		
 		TArray<FMLTensorDesc> OpInputTensors;
 		TArray<FMLTensorDesc> OpOutputTensors;
-		FMLAttributeMap AttributeMap;
+		UE::NNECore::FAttributeMap AttributeMap;
 
 		for (int32 InputTensorIndex : Format.Operators[Idx].InTensors)
 		{
@@ -1288,7 +1290,7 @@ bool FMLInferenceModelDml::Init(UMLInferenceModel* InModel, FDeviceContextDml* I
 		}
 		for (int32 OutputTensorIndex : Format.Operators[Idx].OutTensors)
 		{
-			OpInputTensors.Emplace(AllTensors[OutputTensorIndex]);
+			OpOutputTensors.Emplace(AllTensors[OutputTensorIndex]);
 		}
 		for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 		{
@@ -1328,7 +1330,7 @@ void FMLInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder
 //
 // Create operator
 //
-FMLOperatorDml* FMLInferenceModelDml::OpCreate(const FString& OpName, TArrayView<const FMLTensorDesc> InputTensorDescs, TArrayView<const FMLTensorDesc> OutputTensorDescs, const FMLAttributeMap& Attributes)
+FMLOperatorDml* FMLInferenceModelDml::OpCreate(const FString& OpName, TArrayView<const FMLTensorDesc> InputTensorDescs, TArrayView<const FMLTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes)
 {
 	// TODO: Check if D3D12 device is valid
 

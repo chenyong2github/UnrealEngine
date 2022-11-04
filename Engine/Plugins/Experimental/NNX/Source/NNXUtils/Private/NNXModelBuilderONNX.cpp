@@ -3,6 +3,7 @@
 #include "NNXCore.h"
 #include "NNXModelBuilder.h"
 #include "NNXRuntimeFormat.h"
+#include "NNECoreAttributeMap.h"
 
 #include "NNXThirdPartyWarningDisabler.h"
 NNX_THIRD_PARTY_INCLUDES_START
@@ -201,21 +202,21 @@ public:
 	}
 
 	/** Add operator attribute */
-	virtual bool AddOperatorAttribute(HOperator Op, const FString& Name, const FMLAttributeValue& Value) override
+	virtual bool AddOperatorAttribute(HOperator Op, const FString& Name, const FNNEAttributeValue& Value) override
 	{
 		auto NodeOp = OnnxOperatorCast(Op);
 		onnx::AttributeProto* Attribute = NodeOp->mutable_attribute()->Add();
 
 		Attribute->set_name(TCHAR_TO_ANSI(*Name));
-		if (Value.GetType() == EMLAttributeDataType::Float)
+		if (Value.GetType() == ENNEAttributeDataType::Float)
 		{
 			Attribute->set_type(onnx::AttributeProto::FLOAT);
-			Attribute->set_f(Value.AsFloat());
+			Attribute->set_f(Value.GetValue<float>());
 		}
-		else if (Value.GetType() == EMLAttributeDataType::Int32)
+		else if (Value.GetType() == ENNEAttributeDataType::Int32)
 		{
 			Attribute->set_type(onnx::AttributeProto::INT);
-			Attribute->set_i(Value.AsInt32());
+			Attribute->set_i(Value.GetValue<int32>());
 		}
 		else
 		{
@@ -277,14 +278,14 @@ private:
 //
 NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, FNNIModelRaw& Model)
 {
-	FMLAttributeMap EmptyAttributeMap;
+	UE::NNECore::FAttributeMap EmptyAttributeMap;
 	return CreateONNXModelForOperator(OperatorName, InInputTensors, InOutputTensors, EmptyAttributeMap, Model);
 }
 
 //
 //
 //
-NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, const FMLAttributeMap& Attributes, FNNIModelRaw& Model)
+NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, const UE::NNECore::FAttributeMap& Attributes, FNNIModelRaw& Model)
 {
 	Model = FNNIModelRaw{};
 	

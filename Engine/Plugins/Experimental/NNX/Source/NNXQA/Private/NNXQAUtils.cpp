@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNXQAUtils.h"
-#include "NNXCore.h"
-#include "NNXInferenceModel.h"
-#include "NNXModelOptimizer.h"
 #include "HAL/UnrealMemory.h"
 #include "Kismet/GameplayStatics.h"
+#include "NNECoreAttributeMap.h"
+#include "NNXCore.h"
+#include "NNXInferenceModel.h"
+#include "NNXModelOptimizerInterface.h"
 
 #include <functional>
 

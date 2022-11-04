@@ -1,14 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "NNXRuntimeFormat.h"
+struct FNNIModelRaw;
+namespace UE::NNECore { class FAttributeMap; }
 
 namespace NNX
 {
 	
-//TODO create a dedicated FOptimizerOptionsMap when function diverge with FMLAttributeMap
+//TODO create a dedicated FOptimizerOptionsMap when function diverge with FAttributeMap
 //example introduction of sparse tensor to FMLAttribute witch make no sense as an optimizer attribute
-using FOptimizerOptionsMap = FMLAttributeMap;
+using FOptimizerOptionsMap = UE::NNECore::FAttributeMap;
 
 /** Interface class for NNX model validator */
 class IModelValidator

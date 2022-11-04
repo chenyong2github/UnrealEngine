@@ -4,6 +4,7 @@
 
 #include "Containers/UnrealString.h"
 #include "NNXRuntime.h"
+#include "NNECoreAttributeMap.h"
 
 struct FNNIModelRaw;
 
@@ -35,7 +36,7 @@ namespace Test
 			TMap<FString, float> RelativeErrorPercentForRuntime;
 			TArray<FMLTensorDesc> Inputs;
 			TArray<FMLTensorDesc> Outputs;
-			FMLAttributeMap AttributeMap;
+			UE::NNECore::FAttributeMap AttributeMap;
 			TArray<FString> Tags;
 			TArray<FString> AutomationExcludedRuntime;
 			TArray<FString> AutomationExcludedPlatform;

@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Modules/ModuleManager.h"
 
+#include "NNECoreAttributeMap.h"
 #include "NNXCore.h"
-#include "NNXModelOptimizer.h"
 #include "NNXModelBuilder.h"
+#include "NNXModelOptimizer.h"
+#include "NNXModelOptimizerInterface.h"
+#include "NNXRuntimeFormat.h"
 
 #include "CoreMinimal.h"
 #include "Containers/Array.h"

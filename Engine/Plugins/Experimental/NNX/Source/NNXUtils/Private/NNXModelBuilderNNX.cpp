@@ -3,6 +3,7 @@
 #include "NNXModelBuilder.h"
 #include "NNXRuntimeFormat.h"
 #include "NNXCore.h"
+#include "NNECoreAttributeMap.h"
 
 #include "Misc/StringBuilder.h"
 #include "Serialization/MemoryWriter.h"
@@ -218,7 +219,7 @@ public:
 	}
 
 	/** Add operator attribute */
-	virtual bool AddOperatorAttribute(HOperator Op, const FString& Name, const FMLAttributeValue& Value) override
+	virtual bool AddOperatorAttribute(HOperator Op, const FString& Name, const FNNEAttributeValue& Value) override
 	{
 		int OpIdx = NNXOperatorCast(Op);
 
