@@ -128,7 +128,7 @@ protected:
 		FObjectRecord& operator=( const FObjectRecord& ) = delete;
 
 	public:
-		UE::Transaction::FDiffableObject GetDiffableObject(TArrayView<const FProperty*> PropertiesToSerialize = TArrayView<const FProperty*>()) const;
+		UE::Transaction::FDiffableObject GetDiffableObject(TArrayView<const FProperty*> PropertiesToSerialize = TArrayView<const FProperty*>(), UE::Transaction::DiffUtil::EGetDiffableObjectMode ObjectSerializationMode = UE::Transaction::DiffUtil::EGetDiffableObjectMode::SerializeObject) const;
 
 		// Functions.
 		void SerializeContents( FArchive& Ar, int32 InOper ) const;
