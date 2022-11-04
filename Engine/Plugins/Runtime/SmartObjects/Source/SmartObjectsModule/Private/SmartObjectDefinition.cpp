@@ -189,6 +189,8 @@ void USmartObjectDefinition::PostEditChangeChainProperty(FPropertyChangedChainEv
 	{
 		UpdateSlotReferences();
 	}
+
+	Validate();
 }
 
 void USmartObjectDefinition::PostLoad()
@@ -205,6 +207,8 @@ void USmartObjectDefinition::PostLoad()
 	}
 	
 	UpdateSlotReferences();
+
+	Validate();
 }
 
 void USmartObjectDefinition::PreSave(FObjectPreSaveContext SaveContext)

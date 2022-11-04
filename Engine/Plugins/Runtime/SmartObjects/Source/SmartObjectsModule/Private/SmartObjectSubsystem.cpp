@@ -342,7 +342,15 @@ bool USmartObjectSubsystem::RegisterSmartObject(USmartObjectComponent& SmartObje
 		return false;
 	}
 
-	if (!SmartObjectComponent.GetDefinition()->IsValid())
+	TOptional<bool> bIsValid = SmartObjectComponent.GetDefinition()->IsValid();
+	if (bIsValid.IsSet() == false)
+	{
+		UE_VLOG_UELOG(this, LogSmartObject, Log, TEXT("Attempting to register %s while its DefinitionAsset has not been Validated. Validating now."),
+			*GetFullNameSafe(&SmartObjectComponent));
+		bIsValid = SmartObjectComponent.GetDefinition()->Validate();
+	}
+	
+	if (bIsValid.Get(false) == false)
 	{
 		UE_VLOG_UELOG(this, LogSmartObject, Warning, TEXT("Attempting to register %s while its DefinitionAsset fails validation test. Bailing out."),
 			*GetFullNameSafe(&SmartObjectComponent));
