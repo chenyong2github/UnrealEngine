@@ -22,6 +22,6 @@ using FGraphEventRef = TRefCountPtr<FBaseGraphTask>;
 #else
 
 /** Convenience typedef for a reference counted pointer to a graph event **/
-typedef TRefCountPtr<class FGraphEvent> FGraphEventRef;
+using FGraphEventRef = TRefCountPtr<class FGraphEvent>;
 
 #endif
