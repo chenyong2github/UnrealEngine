@@ -63,7 +63,7 @@ struct FListViewColumnInfo
 	float FillWidth = 1.0f;
 };
 
-class OBJECTMIXEREDITOR_API SObjectMixerEditorList final : public SCompoundWidget
+class OBJECTMIXEREDITOR_API SObjectMixerEditorList : public SCompoundWidget
 {
 
 public:

@@ -37,7 +37,7 @@ public:
 	static TSharedRef<FObjectMixerListRowDragDropOp> New(const TArray<FObjectMixerEditorListRowPtr>& InItems);
 };
 
-struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<FObjectMixerEditorListRow>
+struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow : TSharedFromThis<FObjectMixerEditorListRow>
 {
 	enum EObjectMixerEditorListRowType : uint8
 	{
@@ -46,7 +46,7 @@ struct OBJECTMIXEREDITOR_API FObjectMixerEditorListRow final : TSharedFromThis<F
 		ContainerObject, // Usually an actor that contains a matching subobject or is the attach parent of a matching actor
 		MatchingContainerObject, // An Actor that is a matching object and contains matching subobjects 
 		MatchingObject // The object that has the properties we wish to affect
-	};
+	};	
 
 	struct FTransientEditorVisibilityRules
 	{
