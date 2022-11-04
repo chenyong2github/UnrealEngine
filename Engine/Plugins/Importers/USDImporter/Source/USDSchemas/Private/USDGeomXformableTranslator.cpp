@@ -413,12 +413,6 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 			}
 #endif // WITH_EDITOR
 
-			// Hack to show transient actors in world outliner
-			if (SpawnedActor->HasAnyFlags(EObjectFlags::RF_Transient))
-			{
-				SpawnedActor->Tags.AddUnique( TEXT("SequencerActor") );
-			}
-
 			SceneComponent = SpawnedActor->GetRootComponent();
 
 			ComponentOuter = SpawnedActor;

@@ -288,6 +288,20 @@ TSet<AActor*> UUsdConversionBlueprintLibrary::GetActorsToConvert( UWorld* World 
 	}
 
 	Result.Remove( nullptr );
+
+	// Remove transient actors here because it is not possible to do this via Python
+	TSet<AActor*> ActorsToRemove;
+	ActorsToRemove.Reserve( Result.Num() );
+	for ( AActor* Actor : Result )
+	{
+		// Actors marked with this tag are transient because they're spawnables: We still want to export those, in case
+		// we're exporting a level for a LevelSequence export with spawnables.
+		if ( Actor->HasAnyFlags( EObjectFlags::RF_Transient ) && !Actor->Tags.Contains( TEXT( "SequencerActor" ) ) )
+		{
+			ActorsToRemove.Add( Actor );
+		}
+	}
+	Result = Result.Difference( ActorsToRemove );
 	return Result;
 }
 
