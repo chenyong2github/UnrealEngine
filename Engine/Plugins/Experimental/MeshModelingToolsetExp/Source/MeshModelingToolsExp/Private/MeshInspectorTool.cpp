@@ -29,6 +29,7 @@
 
 #include "CanvasTypes.h"
 #include "CanvasItem.h"
+#include "Engine/Engine.h"  // for GEngine->GetSmallFont()
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MeshInspectorTool)
 
