@@ -113,6 +113,7 @@ public:
 
 	void VMGetNumCells(FVectorVMExternalFunctionContext& Context);
 	void VMSetNumCells(FVectorVMExternalFunctionContext& Context);
+	void VMSetNumAttributes(FVectorVMExternalFunctionContext& Context);
 	void VMSetFloatResetValue(FVectorVMExternalFunctionContext& Context);
 
 protected:
