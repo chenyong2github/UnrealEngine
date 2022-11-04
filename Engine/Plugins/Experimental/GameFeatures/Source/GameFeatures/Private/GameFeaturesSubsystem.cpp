@@ -1316,10 +1316,13 @@ UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginSta
 
 UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginStateMachine(const FString& PluginURL) const
 {
-	TObjectPtr<UGameFeaturePluginStateMachine> const* ExistingStateMachine = GameFeaturePluginStateMachines.Find(PluginURL);
-	if (ExistingStateMachine)
+	if (!PluginURL.IsEmpty())
 	{
-		return *ExistingStateMachine;
+		TObjectPtr<UGameFeaturePluginStateMachine> const* ExistingStateMachine = GameFeaturePluginStateMachines.Find(PluginURL);
+		if (ExistingStateMachine)
+		{
+			return *ExistingStateMachine;
+		}
 	}
 
 	return nullptr;
