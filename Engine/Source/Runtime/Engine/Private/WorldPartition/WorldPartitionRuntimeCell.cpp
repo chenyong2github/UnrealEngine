@@ -8,6 +8,7 @@
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/DataLayersID.h"
+#include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
 #include "Engine/World.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(WorldPartitionRuntimeCell)
@@ -84,7 +85,7 @@ void UWorldPartitionRuntimeCell::UpdateDebugName()
 
 	if (ContentBundleID.IsValid())
 	{
-		Builder += FString::Printf(TEXT(" CB[%X]"), GetTypeHash(ContentBundleID));
+		Builder += FString::Printf(TEXT(" CB[%s]"), *UContentBundleDescriptor::GetContentBundleCompactString(ContentBundleID));
 	}
 
 	DebugInfo.Name = Builder.ToString();

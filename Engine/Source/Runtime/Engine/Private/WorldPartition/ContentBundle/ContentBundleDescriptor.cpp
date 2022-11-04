@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"
+#include "WorldPartition/ContentBundle/ContentBundleLog.h"
 #include "Math/Color.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ContentBundleDescriptor)
@@ -14,6 +15,12 @@ bool UContentBundleDescriptor::IsValid() const
 	return Guid.IsValid()
 		&& !DisplayName.IsEmpty()
 		&& !PackageRoot.IsEmpty();
+}
+
+FString UContentBundleDescriptor::GetContentBundleCompactString(const FGuid& InContentBundleID)
+{
+	UE_CLOG(!InContentBundleID.IsValid(), LogContentBundle, Log, TEXT("Called UContentBundleDescriptor::GetContentBundleCompactString with an invalid Content Bundle guid."))
+	return FString::Printf(TEXT("%X"), GetTypeHash(InContentBundleID));
 }
 
 #if WITH_EDITOR

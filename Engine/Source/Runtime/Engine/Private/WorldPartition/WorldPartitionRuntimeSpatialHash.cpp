@@ -1297,7 +1297,7 @@ FString UWorldPartitionRuntimeSpatialHash::GetCellNameString(FName InGridName, c
 
 	if (InContentBundleID.IsValid())
 	{
-		CellName += FString::Printf(TEXT("CB%X"), GetTypeHash(InContentBundleID));
+		CellName += FString::Printf(TEXT("CB%s"), *UContentBundleDescriptor::GetContentBundleCompactString(InContentBundleID));
 	}
 
 	return CellName;

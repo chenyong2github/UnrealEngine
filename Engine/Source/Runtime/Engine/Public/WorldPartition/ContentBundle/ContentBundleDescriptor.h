@@ -35,6 +35,9 @@ public:
 
 	bool IsValid() const;
 
+	// Helper method that returns a compact string for a given content bundle ID
+	static FString GetContentBundleCompactString(const FGuid& InContentBundleID);
+
 private:
 	void InitDebugColor();
 
