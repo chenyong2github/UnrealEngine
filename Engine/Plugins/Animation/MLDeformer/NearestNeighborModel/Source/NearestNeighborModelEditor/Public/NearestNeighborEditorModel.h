@@ -50,10 +50,10 @@ namespace UE::NearestNeighborModel
 		UNearestNeighborModel* GetNearestNeighborModel() const { return static_cast<UNearestNeighborModel*>(Model); }
 	
 		// Recomputes nearest neighbor coeffcients and nearest neighbor vertex offsets. 
-		virtual void UpdateNearestNeighborData();
+		virtual uint8 UpdateNearestNeighborData();
 
 		// Temporarily set sampler to use part data in nearest neighbor dataset. This is useful when updating nearest neighbor data.
-		bool SetSamplerPartData(const int32 PartI);
+		uint8 SetSamplerPartData(const int32 PartI);
 
 		// Reset smapler to use the original dataset.
 		void ResetSamplerData();
@@ -71,6 +71,8 @@ namespace UE::NearestNeighborModel
 		uint8 GetMorphTargetUpdateResult() { return MorphTargetUpdateResult; }
 		UMLDeformerComponent* GetTestMLDeformerComponent();
 		void InitTestMLDeformerPreviousWeights();
+		uint8 WarnIfNetworkInvalid();
+		bool IsNeuralNetworkLoaded();
 
 
 	protected:

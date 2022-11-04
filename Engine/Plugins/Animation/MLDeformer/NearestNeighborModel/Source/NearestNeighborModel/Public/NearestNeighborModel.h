@@ -115,11 +115,14 @@ struct FClothPartData
 	TArray<float> NeighborOffsets;
 };
 
-enum EResultMessage : uint8
+namespace UE::NearestNeighborModel
 {
-	SUCCESS = 0,
-	ERROR = 1,
-	WARNING = 2
+	enum EUpdateResult : uint8
+	{
+		SUCCESS = 0,
+		ERROR = 1,
+		WARNING = 2
+	};
 };
 
 /**
@@ -165,6 +168,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Nearest Neighbor Model")
 	int32 GetNumNeighbors(int32 PartId) const { return ClothPartData[PartId].NumNeighbors; }
 
+	int32 GetTotalNumPCACoeffs() const;
 	int32 GetTotalNumNeighbors() const;
 
 	float GetDecayFactor() const { return DecayFactor; };
@@ -222,20 +226,24 @@ public:
 	TObjectPtr<UGeometryCache> GetNearestNeighborCache(int32 PartId);
 	const TObjectPtr<UGeometryCache> GetNearestNeighborCache(int32 PartId) const;
 	int32 GetNumNeighborsFromGeometryCache(int32 PartId) const;
+	int32 GetNumNeighborsFromAnimSequence(int32 PartId) const;
 
 	void UpdateNetworkInputDim();
 	void UpdateNetworkOutputDim();
-	void UpdateClothPartData();
+	UE::NearestNeighborModel::EUpdateResult UpdateClothPartData();
 	void UpdatePCACoeffNums();
 	void UpdateNetworkSize();
 	void UpdateMorphTargetSize();
 
-	void InvalidateClothPartData() { bClothPartDataValid = false; bNearestNeighborDataValid = false; }
+	void InvalidateClothPartData() { bClothPartDataValid = false; bNearestNeighborDataValid = false; bMorphTargetDataValid = false; }
 	void ValidateClothPartData() { bClothPartDataValid = true; }
-	void InvalidateNearestNeighborData() { bNearestNeighborDataValid = false; }
+	void InvalidateNearestNeighborData() { bNearestNeighborDataValid = false; bMorphTargetDataValid = false; }
 	void ValidateNearestNeighborData() {bNearestNeighborDataValid = true; }
-	bool IsClothPartDataValid() { return bClothPartDataValid; }
-	bool IsNearestNeighborDataValid() { return bNearestNeighborDataValid; }
+	void InvalidateMorphTargetData() { bMorphTargetDataValid = false; }
+	void ValidateMorphTargetData() { bMorphTargetDataValid = true;}
+	bool IsClothPartDataValid() const { return bClothPartDataValid; }
+	bool IsNearestNeighborDataValid() const { return bNearestNeighborDataValid; }
+	bool IsMorphTargetDataValid() const { return bMorphTargetDataValid; }
 #endif
 
 #if WITH_EDITOR
@@ -319,6 +327,9 @@ protected:
 
 	UPROPERTY()
 	bool bNearestNeighborDataValid = false;
+
+	UPROPERTY()
+	bool bMorphTargetDataValid = false;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Nearest Neighbors")
 	bool bUsePartOnlyMesh = true;

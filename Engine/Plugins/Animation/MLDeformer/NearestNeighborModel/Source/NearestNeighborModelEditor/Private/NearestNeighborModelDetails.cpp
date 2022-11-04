@@ -41,10 +41,12 @@ namespace UE::NearestNeighborModel
 
 	void FNearestNeighborModelDetails::CreateCategories()
 	{
-		FMLDeformerMorphModelDetails::CreateCategories();
+		FMLDeformerGeomCacheModelDetails::CreateCategories();
+
 		FileCacheCategoryBuilder = &DetailLayoutBuilder->EditCategory("File Cache", FText::GetEmpty(), ECategoryPriority::Important);
 		ClothPartCategoryBuilder = &DetailLayoutBuilder->EditCategory("Cloth Parts", FText::GetEmpty(), ECategoryPriority::Important);
 		NearestNeighborCategoryBuilder = &DetailLayoutBuilder->EditCategory("Nearest Neighbors", FText::GetEmpty(), ECategoryPriority::Important);
+		MorphTargetCategoryBuilder = &DetailLayoutBuilder->EditCategory("Morph Targets", FText::GetEmpty(), ECategoryPriority::Important);
 		KMeansCategoryBuilder = &DetailLayoutBuilder->EditCategory("KMeans Pose Generator", FText::GetEmpty(), ECategoryPriority::Important);
 
 		// Add warning in CreateCategories so that the warning appears at the top of the details panel.
@@ -64,7 +66,7 @@ namespace UE::NearestNeighborModel
 	void FNearestNeighborModelDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	{
 		// Create all the detail categories and add the properties of the base class.
-		FMLDeformerMorphModelDetails::CustomizeDetails(DetailBuilder);
+		FMLDeformerGeomCacheModelDetails::CustomizeDetails(DetailBuilder);
 
 		// Training settings.
 		TrainingSettingsCategoryBuilder->AddProperty(UNearestNeighborModel::GetInputDimPropertyName());
@@ -108,44 +110,11 @@ namespace UE::NearestNeighborModel
 				.Text(VertexCountText)
 			];
 
-
-		FText ButtonText = (NearestNeighborModel && NearestNeighborModel->IsClothPartDataValid()) ? LOCTEXT("Update", "Update") : LOCTEXT("Update *", "Update *");
-		ClothPartCategoryBuilder->AddCustomRow(FText::FromString(""))
-			.WholeRowContent()
-			[
-				SNew(SButton)
-				.Text(ButtonText)
-				.HAlign(HAlign_Center)
-				.OnClicked_Lambda([this]
-				{
-					NearestNeighborModel->UpdateClothPartData();
-					NearestNeighborEditorModel->UpdateNearestNeighborActors();
-					EditorModel->GetEditor()->GetModelDetailsView()->ForceRefresh();
-					return FReply::Handled();
-				})
-			];
-
 		// Nearest Neighbor settings
 		NearestNeighborCategoryBuilder->AddProperty(GET_MEMBER_NAME_STRING_CHECKED(UNearestNeighborModel, DecayFactor));
 		NearestNeighborCategoryBuilder->AddProperty(GET_MEMBER_NAME_STRING_CHECKED(UNearestNeighborModel, NearestNeighborOffsetWeight));
 		NearestNeighborCategoryBuilder->AddProperty(UNearestNeighborModel::GetUsePartOnlyMeshPropertyName());
 		NearestNeighborCategoryBuilder->AddProperty(UNearestNeighborModel::GetNearestNeighborDataPropertyName());
-		ButtonText = NearestNeighborModel->IsNearestNeighborDataValid() ? LOCTEXT("Update", "Update") : LOCTEXT("Update *", "Update *");
-
-		NearestNeighborCategoryBuilder->AddCustomRow(FText::FromString(""))
-			.WholeRowContent()
-			[
-				SNew(SButton)
-				.Text(ButtonText)
-				.HAlign(HAlign_Center)
-				.OnClicked_Lambda([this]
-				{
-					NearestNeighborEditorModel->UpdateNearestNeighborData();
-					NearestNeighborEditorModel->UpdateNearestNeighborActors();
-					EditorModel->GetEditor()->GetModelDetailsView()->ForceRefresh();
-					return FReply::Handled();
-				})
-			];
 
 		KMeansCategoryBuilder->AddProperty(GET_MEMBER_NAME_STRING_CHECKED(UNearestNeighborModel, SourceSkeletons));
 		KMeansCategoryBuilder->AddProperty(GET_MEMBER_NAME_STRING_CHECKED(UNearestNeighborModel, NumClusters));
@@ -162,17 +131,20 @@ namespace UE::NearestNeighborModel
 				})
 			];
 		
+		MorphTargetCategoryBuilder->AddProperty(UMLDeformerMorphModel::GetMorphTargetDeltaThresholdPropertyName(), UMLDeformerMorphModel::StaticClass());
+		MorphTargetCategoryBuilder->AddProperty(UMLDeformerMorphModel::GetMorphTargetErrorTolerancePropertyName(), UMLDeformerMorphModel::StaticClass());
+		FText ButtonText = NearestNeighborModel->IsMorphTargetDataValid() ? LOCTEXT("Update", "Update") : LOCTEXT("Update *", "Update *");
 		MorphTargetCategoryBuilder->AddProperty(UNearestNeighborModel::GetMorphDataSizePropertyName());
 		MorphTargetCategoryBuilder->AddCustomRow(FText::FromString(""))
 			.WholeRowContent()
 			[
 				SNew(SButton)
-				.Text(FText::FromString("Update"))
+				.Text(ButtonText)
 				.HAlign(HAlign_Center)
 				.OnClicked_Lambda([this]
 				{
 					NearestNeighborEditorModel->OnMorphTargetUpdate();
-					NearestNeighborEditorModel->InitTestMLDeformerPreviousWeights();
+					EditorModel->GetEditor()->GetModelDetailsView()->ForceRefresh();
 					return FReply::Handled();
 				})
 			];
@@ -182,7 +154,7 @@ namespace UE::NearestNeighborModel
 	void FNearestNeighborModelDetails::AddUpdateResultText(IDetailCategoryBuilder* CategoryBuilder, uint8 Result)
 	{
 		CategoryBuilder->AddCustomRow(FText::FromString("UpdateResultError"))
-			.Visibility((Result & ERROR) != 0 ? EVisibility::Visible : EVisibility::Collapsed)
+			.Visibility((Result & EUpdateResult::ERROR) != 0 ? EVisibility::Visible : EVisibility::Collapsed)
 			.WholeRowContent()
 			[
 				SNew(SBox)
@@ -194,7 +166,7 @@ namespace UE::NearestNeighborModel
 				]
 			];
 		CategoryBuilder->AddCustomRow(FText::FromString("UpdateResultWarning"))
-			.Visibility((Result & WARNING) != 0 ? EVisibility::Visible : EVisibility::Collapsed)
+			.Visibility((Result & EUpdateResult::WARNING) != 0 ? EVisibility::Visible : EVisibility::Collapsed)
 			.WholeRowContent()
 			[
 				SNew(SBox)
@@ -205,7 +177,7 @@ namespace UE::NearestNeighborModel
 					.Message(FText::FromString(TEXT("Update finished with warnings. Please check Output Log (LogNearestNeighborModel, LogPython) for details.")))
 				]
 			];
-		if (Result == SUCCESS)
+		if (Result == EUpdateResult::SUCCESS)
 		{
 			UE_LOG(LogNearestNeighborModel, Display, TEXT("Update succeeded."));
 		}

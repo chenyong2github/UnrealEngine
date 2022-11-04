@@ -96,6 +96,16 @@ void UNearestNeighborModel::ClipInputs(float* InputPtr, int NumInputs)
 	}	
 }
 
+int32 UNearestNeighborModel::GetTotalNumPCACoeffs() const
+{
+	int32 TotalNumPCACoeffs = 0;
+	for (int32 PartId = 0; PartId < GetNumParts(); PartId++)
+	{
+		TotalNumPCACoeffs += GetPCACoeffNum(PartId);
+	}
+	return TotalNumPCACoeffs;
+}
+
 int32 UNearestNeighborModel::GetTotalNumNeighbors() const
 {
 	int32 TotalNumNeighbors = 0;
@@ -129,7 +139,7 @@ void UNearestNeighborModel::UpdatePCACoeffNums()
 	for(int32 PartId = 0; PartId < GetNumParts(); PartId++)
 	{
 		ClothPartData[PartId].PCACoeffStart = PCACoeffStart;
-		PCACoeffStart+=ClothPartData[PartId].PCACoeffNum;
+		PCACoeffStart += ClothPartData[PartId].PCACoeffNum;
 	}
 }
 
@@ -147,11 +157,13 @@ void UNearestNeighborModel::UpdateNetworkOutputDim()
 	}
 }
 
-void UNearestNeighborModel::UpdateClothPartData()
+UE::NearestNeighborModel::EUpdateResult UNearestNeighborModel::UpdateClothPartData()
 {
-	if(ClothPartData.Num() == 0)
+	using namespace UE::NearestNeighborModel;
+	if(ClothPartEditorData.Num() == 0)
 	{
 		UE_LOG(LogNearestNeighborModel, Error, TEXT("There should be at least 1 cloth part"));
+		return EUpdateResult::ERROR;
 	}
 
 	ClothPartData.SetNum(ClothPartEditorData.Num());
@@ -169,7 +181,6 @@ void UNearestNeighborModel::UpdateClothPartData()
 				ClothPartData[PartId].VertexMean.SetNumZeroed(ClothPartData[PartId].NumVertices * 3);
 				ClothPartData[PartId].PCABasis.SetNumZeroed(ClothPartData[PartId].NumVertices * 3 * ClothPartData[PartId].PCACoeffNum);
 
-				// NumNeighbors cannot be 0 because of the NearestNeighborModel.usf shader.
 				// Init default neighbor data.
 				ClothPartData[PartId].NeighborCoeffs.SetNumZeroed(ClothPartData[PartId].PCACoeffNum);
 				ClothPartData[PartId].NeighborOffsets.SetNumZeroed(ClothPartData[PartId].NumVertices * 3);
@@ -178,8 +189,8 @@ void UNearestNeighborModel::UpdateClothPartData()
 		}
 		else
 		{
-			UE_LOG(LogNearestNeighborModel, Error, TEXT("%s does not exist"), *ClothPartEditorData[PartId].VertexMapPath);
-			return;
+			UE_LOG(LogNearestNeighborModel, Error, TEXT("Part %d txt path %s does not exist"), PartId, *ClothPartEditorData[PartId].VertexMapPath);
+			return EUpdateResult::ERROR;
 		}
 	}
 	UpdatePCACoeffNums();
@@ -188,6 +199,7 @@ void UNearestNeighborModel::UpdateClothPartData()
 	UpdateNetworkInputDim();
 	UpdateNetworkOutputDim();
 	bClothPartDataValid = true;
+	return EUpdateResult::SUCCESS;
 }
 
 TObjectPtr<UAnimSequence> UNearestNeighborModel::GetNearestNeighborSkeletons(int32 PartId)
@@ -228,12 +240,25 @@ const TObjectPtr<UGeometryCache> UNearestNeighborModel::GetNearestNeighborCache(
 
 int32 UNearestNeighborModel::GetNumNeighborsFromGeometryCache(int32 PartId) const
 {
-	const TObjectPtr<UGeometryCache> Cache = GetNearestNeighborCache(PartId);
+	const UGeometryCache* Cache = GetNearestNeighborCache(PartId);
 	if (Cache)
 	{
 		const int32 StartFrame = Cache->GetStartFrame();
 		const int32 EndFrame = Cache->GetEndFrame();
 		return EndFrame - StartFrame + 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+int32 UNearestNeighborModel::GetNumNeighborsFromAnimSequence(int32 PartId) const
+{
+	const UAnimSequence* Anim = GetNearestNeighborSkeletons(PartId);
+	if (Anim)
+	{
+		return Anim->GetDataModel()->GetNumberOfKeys();
 	}
 	else
 	{

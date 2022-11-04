@@ -17,7 +17,7 @@
 using namespace UE::MLDeformer;
 namespace UE::NearestNeighborModel
 {
-	void FNearestNeighborGeomCacheSampler::SamplePart(int32 InAnimFrameIndex, const TArray<uint32>& VertexMap)
+	uint8 FNearestNeighborGeomCacheSampler::SamplePart(int32 InAnimFrameIndex, const TArray<uint32>& VertexMap)
 	{
 		FMLDeformerSampler::Sample(InAnimFrameIndex);
 		USkeletalMesh* SkeletalMesh = SkeletalMeshComponent.Get() ? SkeletalMeshComponent->GetSkeletalMeshAsset() : nullptr;
@@ -30,7 +30,11 @@ namespace UE::NearestNeighborModel
 			const FSkeletalMeshLODModel& LODModel = ImportedModel->LODModels[LODIndex];
 			const TArray<FSkelMeshImportedMeshInfo>& SkelMeshInfos = LODModel.ImportedMeshInfos;
 
-			check(MeshMappings.Num() >= 1);
+			if (MeshMappings.IsEmpty())
+			{
+				UE_LOG(LogNearestNeighborModel, Error, TEXT("SamplePart: MeshMappings is empty."));
+				return EUpdateResult::ERROR;
+			}
 			const UE::MLDeformer::FMLDeformerGeomCacheMeshMapping& MeshMapping = MeshMappings[0]; 
 
 			check(SkelMeshInfos.Num() > MeshMapping.MeshIndex);
@@ -45,7 +49,8 @@ namespace UE::NearestNeighborModel
 
 			if (!Track->GetMeshDataAtTime(SampleTime, GeomCacheMeshData))
 			{
-				UE_LOG(LogNearestNeighborModel, Error, TEXT("FNearestNeighborGeomCacheSampler::SamplePart: Track cannot get mesh delta at frame %d"), InAnimFrameIndex);
+				UE_LOG(LogNearestNeighborModel, Error, TEXT("SamplePart: Track cannot get mesh delta at frame %d"), InAnimFrameIndex);
+				return EUpdateResult::ERROR;
 			}
 
 			// Calculate the vertex deltas.
@@ -85,6 +90,7 @@ namespace UE::NearestNeighborModel
 				}
 			}
 		}
+		return EUpdateResult::SUCCESS;
 	}
 
 	bool IsPotentialMatch(const FString& TrackName, const FString& MeshName)
@@ -92,8 +98,9 @@ namespace UE::NearestNeighborModel
 		return (TrackName.Find(MeshName) == 0);
 	}
 
-	void FNearestNeighborGeomCacheSampler::GeneratePartMeshMappings(const TArray<uint32>& VertexMap, bool bUsePartOnlyMesh)
+	uint8 FNearestNeighborGeomCacheSampler::GeneratePartMeshMappings(const TArray<uint32>& VertexMap, bool bUsePartOnlyMesh)
 	{
+		uint8 Result = EUpdateResult::SUCCESS;
 		USkeletalMesh* SkeletalMesh = SkeletalMeshComponent.Get() ? SkeletalMeshComponent->GetSkeletalMeshAsset() : nullptr;
 		UGeometryCache* GeometryCache = GeometryCacheComponent.Get() ? GeometryCacheComponent->GetGeometryCache() : nullptr;
 		// TODO: make this more general
@@ -104,18 +111,25 @@ namespace UE::NearestNeighborModel
 				TArray<FString> FailedNames;
 				TArray<FString> VertexMisMatchNames;
 				GenerateGeomCacheMeshMappings(SkeletalMesh, GeometryCache, MeshMappings, FailedNames, VertexMisMatchNames);
-				return;
+				if (!FailedNames.IsEmpty() || !VertexMisMatchNames.IsEmpty())
+				{
+					Result |= EUpdateResult::WARNING;
+				}
+				for(int32 i = 0; i < VertexMisMatchNames.Num(); i++)
+				{
+					UE_LOG(LogNearestNeighborModel, Warning, TEXT("%s is skipped because it has different vertex counts in skeletal mesh and geometry cache."), *VertexMisMatchNames[i]);
+				}
+				return Result;
 			}
 			FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
-			check(ImportedModel);
-			check(ImportedModel->LODModels[0].ImportedMeshInfos.Num() >= 1);
 
-			const TArray<FSkelMeshImportedMeshInfo>& SkelMeshInfos = ImportedModel->LODModels[0].ImportedMeshInfos;
-			if (SkelMeshInfos.IsEmpty())
+			if (!ImportedModel || ImportedModel->LODModels[0].ImportedMeshInfos.IsEmpty())
 			{
-				return;
+				UE_LOG(LogNearestNeighborModel, Error, TEXT("Unable to generate mesh mappings because SkeletalMesh has no imported model."));
+				return EUpdateResult::ERROR;
 			}
 
+			const TArray<FSkelMeshImportedMeshInfo>& SkelMeshInfos = ImportedModel->LODModels[0].ImportedMeshInfos;
 			MeshMappings.Reset();
 
 			FString SkelMeshName;
@@ -151,6 +165,7 @@ namespace UE::NearestNeighborModel
 						// Verify that we have imported vertex numbers.
 						if (GeomCacheMeshData.ImportedVertexNumbers.IsEmpty())
 						{
+							UE_LOG(LogNearestNeighborModel, Warning, TEXT("Geometry track %s is skipped because it has no imported vertex numbers."), *Track->GetName());
 							continue;
 						}
 
@@ -173,7 +188,7 @@ namespace UE::NearestNeighborModel
 							Mapping.ImportedVertexToRenderVertexMap[PartVertexIndex] = RenderVertexIndex;
 						}
 
-						// We found a match, no need to iterate over more Tracks.
+						// We found a match, no need to iterate over more MeshInfos.
 						bFoundMatch = true;
 						break;
 					} // If the track name matches the skeletal meshes internal mesh name.
@@ -181,10 +196,17 @@ namespace UE::NearestNeighborModel
 
 				if (Track && !bFoundMatch)
 				{
-					UE_LOG(LogMLDeformer, Warning, TEXT("Geometry cache '%s' cannot be matched with a mesh inside the Skeletal Mesh."), *Track->GetName());
+					Result |= EUpdateResult::WARNING;
+					UE_LOG(LogNearestNeighborModel, Warning, TEXT("Geometry cache '%s' cannot be matched with a mesh inside the Skeletal Mesh."), *Track->GetName());
 				}
 			} // For all tracks.
 		}
+		else
+		{
+			Result |= EUpdateResult::WARNING;
+			UE_LOG(LogNearestNeighborModel, Warning, TEXT("SkeletalMesh or GeometryCache is none. No mapping is generated"));
+		}
+		return Result;
 	}
 
 	void FNearestNeighborGeomCacheSampler::SampleKMeansAnim(const int32 SkeletonId)

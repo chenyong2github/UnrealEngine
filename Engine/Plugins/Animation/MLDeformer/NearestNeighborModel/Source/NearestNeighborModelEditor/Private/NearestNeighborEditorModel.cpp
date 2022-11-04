@@ -63,9 +63,15 @@ namespace UE::NearestNeighborModel
 			GetEditor()->GetModelDetailsView()->ForceRefresh();
 		}
 
-		if (Property->GetFName() == UNearestNeighborModel::GetNearestNeighborDataPropertyName())
+		if (Property->GetFName() == UNearestNeighborModel::GetNearestNeighborDataPropertyName() || (PropertyChangedEvent.MemberProperty != nullptr && PropertyChangedEvent.MemberProperty->GetFName() == UNearestNeighborModel::GetNearestNeighborDataPropertyName()) || Property->GetFName() == UNearestNeighborModel::GetUsePartOnlyMeshPropertyName())
 		{
 			GetNearestNeighborModel()->InvalidateNearestNeighborData();
+			GetEditor()->GetModelDetailsView()->ForceRefresh();
+		}
+
+		if (Property->GetFName() == UNearestNeighborModel::GetMorphTargetDeltaThresholdPropertyName() || Property->GetFName() == UNearestNeighborModel::GetMorphTargetErrorTolerancePropertyName())
+		{
+			GetNearestNeighborModel()->InvalidateMorphTargetData();
 			GetEditor()->GetModelDetailsView()->ForceRefresh();
 		}
 	}
@@ -170,12 +176,29 @@ namespace UE::NearestNeighborModel
 		NearestNeighborModel->InitInputInfo();
 	}
 
+	bool HasError(uint8 Flag)
+	{
+		return (Flag & EUpdateResult::ERROR) != 0;
+	}
+
 	ETrainingResult FNearestNeighborEditorModel::Train()
 	{
+		UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
+		MorphTargetUpdateResult = EUpdateResult::SUCCESS;
+		if (!NearestNeighborModel->IsClothPartDataValid())
+		{
+			MorphTargetUpdateResult |= NearestNeighborModel->UpdateClothPartData();
+			if (HasError(MorphTargetUpdateResult))
+			{
+				UpdateNearestNeighborActors();
+				return ETrainingResult::FailOnData;
+			}
+		}
+
 		return TrainModel<UNearestNeighborTrainingModel>(this);
 	}
 
-	bool FNearestNeighborEditorModel::SetSamplerPartData(const int32 PartId)
+	uint8 FNearestNeighborEditorModel::SetSamplerPartData(const int32 PartId)
 	{
 		FNearestNeighborGeomCacheSampler* GeomCacheSampler = static_cast<FNearestNeighborGeomCacheSampler*>(GetGeomCacheSampler());
 		UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
@@ -189,8 +212,10 @@ namespace UE::NearestNeighborModel
 
 			if (SkeletalMeshComponent && GeometryCacheComponent && AnimSequence && GeometryCache)
 			{
-				const int32 NumFrames = GeometryCache->GetEndFrame() - GeometryCache->GetStartFrame() + 1;
-				if (AnimSequence->GetDataModel()->GetNumberOfKeys() == NumFrames)
+				const int32 NumNeighborsFromGeomCache = NearestNeighborModel->GetNumNeighborsFromGeometryCache(PartId);
+				const int32 NumNeighborsFromAnimSequence = NearestNeighborModel->GetNumNeighborsFromAnimSequence(PartId);
+				const int32 NumFrames = FMath::Min(NumNeighborsFromGeomCache, NumNeighborsFromAnimSequence);
+				if (NumFrames > 0)
 				{
 					AnimSequence->bUseRawDataOnly = true;
 					AnimSequence->Interpolation = EAnimInterpolationType::Step;
@@ -209,23 +234,48 @@ namespace UE::NearestNeighborModel
 					GeometryCacheComponent->SetManualTick(true);
 					GeometryCacheComponent->SetPlaybackSpeed(1.0f);
 					GeometryCacheComponent->Play();
-					GeomCacheSampler->GeneratePartMeshMappings(GetNearestNeighborModel()->PartVertexMap(PartId), NearestNeighborModel->GetUsePartOnlyMesh());
+					uint8 ReturnCode = GeomCacheSampler->GeneratePartMeshMappings(GetNearestNeighborModel()->PartVertexMap(PartId), NearestNeighborModel->GetUsePartOnlyMesh());
+					if (HasError(ReturnCode))
+					{
+						return ReturnCode;
+					}
+
+					if (GeomCacheSampler->IsMeshMappingsEmpty())
+					{
+						UE_LOG(LogNearestNeighborModel, Error, TEXT("Failed to generate mappings between skeletal mesh and geometry cache."));
+						return EUpdateResult::ERROR;
+					}
 
 					NumTrainingFramesOverride = NumFrames;
 
-					return true;
+					if (NumNeighborsFromGeomCache == NumNeighborsFromAnimSequence)
+					{
+						return EUpdateResult::SUCCESS;
+					}
+					else
+					{
+						UE_LOG(LogNearestNeighborModel, Warning, TEXT("NearestNeighborData: part %d frame mismatch: AnimSequence has %d frames and GeometryCache has %d frames. Using %f frames only."), PartId, NumNeighborsFromAnimSequence, NumNeighborsFromGeomCache, NumFrames);
+						return EUpdateResult::WARNING;
+					}
 				}
 				else
 				{
-					UE_LOG(LogNearestNeighborModel, Error, TEXT("Part %d frame mismatch: AnimSequence has %d frames and GeometryCache has %d frames"), PartId, AnimSequence->GetDataModel()->GetNumberOfKeys(), NumFrames);
+					UE_LOG(LogNearestNeighborModel, Warning, TEXT("Part %d: AnimSequence or GeometryCache has zero frames"), PartId);
+					return EUpdateResult::WARNING;
 				}
+			}
+			else if (AnimSequence == nullptr && GeometryCache == nullptr)
+			{
+				return EUpdateResult::SUCCESS;
 			}
 			else
 			{
-				UE_LOG(LogNearestNeighborModel, Error, TEXT("Part %d: AnimSequence or GeometryCache is null"), PartId);
+				UE_LOG(LogNearestNeighborModel, Warning, TEXT("Part %d is skipped because AnimSequence or GeometryCache is None"), PartId);
+				return EUpdateResult::WARNING;
 			}
 		}
-		return false;
+		UE_LOG(LogNearestNeighborModel, Error, TEXT("SetSamplerPartData: unknown error"));
+		return EUpdateResult::ERROR;
 	}
 
 	int32 FNearestNeighborEditorModel::GetNumParts()
@@ -285,34 +335,36 @@ namespace UE::NearestNeighborModel
 			{
 				CreateNearestNeighborActors(EditorWorld, NearestNeighborActors.Num());
 			}
-		}
 
-		for (int32 PartId = 0; PartId < NearestNeighborActors.Num(); PartId++)
-		{
-			const TObjectPtr<UGeometryCache> GeometryCache = GetNearestNeighborModel()->GetNearestNeighborCache(PartId);
-			NearestNeighborActors[PartId]->GetGeometryCacheComponent()->SetGeometryCache(GeometryCache);
+			for (int32 PartId = 0; PartId < NearestNeighborActors.Num(); PartId++)
+			{
+				const TObjectPtr<UGeometryCache> GeometryCache = GetNearestNeighborModel()->GetNearestNeighborCache(PartId);
+				NearestNeighborActors[PartId]->GetGeometryCacheComponent()->SetGeometryCache(GeometryCache);
+			}
 		}
 	}
 
-	void FNearestNeighborEditorModel::UpdateNearestNeighborData()
+	uint8 FNearestNeighborEditorModel::UpdateNearestNeighborData()
 	{
 		UNearestNeighborModel *NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
 		check(NearestNeighborModel != nullptr);
+
+		if (NearestNeighborModel->GetNumParts() == 0)
+		{
+			return EUpdateResult::SUCCESS;
+		}
 
 		UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
 		if(NeuralNetwork && NeuralNetwork->IsLoaded())
 		{
 			const FString SavePath = GetTrainedNetworkOnnxFile();
-			if (!FPaths::FileExists(SavePath) || !NearestNeighborModel->GetUseFileCache())
-			{
-				UE_LOG(LogNearestNeighborModel, Display, TEXT("Saving to %s"), *SavePath);
-				NeuralNetwork->Save(SavePath);
-			}
+			UE_LOG(LogNearestNeighborModel, Display, TEXT("Saving to %s"), *SavePath);
+			NeuralNetwork->Save(SavePath);
 		}
 		else
 		{
-			UE_LOG(LogNearestNeighborModel, Warning, TEXT("Network is not available. Nothing will be done."));
-			return;
+			UE_LOG(LogNearestNeighborModel, Display, TEXT("Network not loaded. A network needs to be trained."));
+			return EUpdateResult::WARNING;
 		}
 
 		FNearestNeighborGeomCacheSampler* GeomCacheSampler = static_cast<FNearestNeighborGeomCacheSampler*>(GetGeomCacheSampler());
@@ -325,12 +377,17 @@ namespace UE::NearestNeighborModel
 			{
 				UNearestNeighborTrainingModel *TrainingModel = InitTrainingModel<UNearestNeighborTrainingModel>(this);
 				check(TrainingModel != nullptr);
-				TrainingModel->UpdateNearestNeighborData();
+				uint8 ReturnCode = TrainingModel->UpdateNearestNeighborData();
 				ResetSamplerData();
-				UpdateNearestNeighborActors();
-				NearestNeighborModel->ValidateNearestNeighborData();
+				if (HasError(ReturnCode) == 0)
+				{
+					NearestNeighborModel->ValidateNearestNeighborData();
+				}
+				return ReturnCode;
 			}
 		}
+		UE_LOG(LogNearestNeighborModel, Warning, TEXT("GeomCacheSampler is empty. Nearest neighbor data is not updated."))
+		return EUpdateResult::ERROR;
 	}
 
 	void FNearestNeighborEditorModel::KMeansClusterPoses()
@@ -386,28 +443,51 @@ namespace UE::NearestNeighborModel
 			}
 		}
 	}
-#define RETURN_ON_ERROR(Flag, Func)\
-	Flag |= Func;\
-	if ((Flag & ERROR) != 0)\
-	{\
-		GetEditor()->GetModelDetailsView()->ForceRefresh();\
-		return;\
-	}
 	
 	void FNearestNeighborEditorModel::OnMorphTargetUpdate()
 	{
-		MorphTargetUpdateResult = SUCCESS;
-		RETURN_ON_ERROR(MorphTargetUpdateResult, InitMorphTargets());
-		RefreshMorphTargets();
-		GetNearestNeighborModel()->UpdateNetworkSize();
-		GetNearestNeighborModel()->UpdateMorphTargetSize();
+		MorphTargetUpdateResult = EUpdateResult::SUCCESS;
 
-		GetEditor()->GetModelDetailsView()->ForceRefresh();
+		UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
+		if (!NearestNeighborModel->IsClothPartDataValid())
+		{
+			MorphTargetUpdateResult |= NearestNeighborModel->UpdateClothPartData();
+			if (HasError(MorphTargetUpdateResult))
+			{
+				UpdateNearestNeighborActors();
+				return;
+			}
+		}
+		MorphTargetUpdateResult |= WarnIfNetworkInvalid();
+
+		if (!NearestNeighborModel->IsNearestNeighborDataValid())
+		{
+			MorphTargetUpdateResult |= UpdateNearestNeighborData();
+			UpdateNearestNeighborActors();
+			if (HasError(MorphTargetUpdateResult))
+			{
+				return;
+			}
+		}
+
+		if (IsNeuralNetworkLoaded())
+		{
+			MorphTargetUpdateResult |= InitMorphTargets();
+			if (HasError(MorphTargetUpdateResult))
+			{
+				return;
+			}
+			RefreshMorphTargets();
+			GetNearestNeighborModel()->UpdateNetworkSize();
+			GetNearestNeighborModel()->UpdateMorphTargetSize();
+		}
+		InitTestMLDeformerPreviousWeights();
+		GetNearestNeighborModel()->ValidateMorphTargetData();
 	}
 
 	uint8 FNearestNeighborEditorModel::InitMorphTargets()
 	{
-		EResultMessage Result = SUCCESS;
+		uint8 Result = EUpdateResult::SUCCESS;
 		UNearestNeighborModel* NearestNeighborModel = GetNearestNeighborModel();
 
 		const USkeletalMesh* SkelMesh = Model->GetSkeletalMesh();
@@ -415,27 +495,27 @@ namespace UE::NearestNeighborModel
 		if (!SkelMesh || NumBaseMeshVerts == 0)
 		{
 			UE_LOG(LogNearestNeighborModel, Error, TEXT("SkeletalMesh is empty. No morph targets are generated"));
-			return ERROR;
+			return EUpdateResult::ERROR;
 		}
 
 		if (Model->GetVertexMap().IsEmpty())
 		{
 			UE_LOG(LogNearestNeighborModel, Error, TEXT("VertexMap of the skeletal mesh is empty. No morph targets are generated"));
-			return ERROR;
+			return EUpdateResult::ERROR;
 		}
 
 		const int32 NumParts = NearestNeighborModel->GetNumParts();
 		if (NumParts == 0)
 		{
 			UE_LOG(LogNearestNeighborModel, Error, TEXT("There are no cloth parts. No morph targets are generated"));
-			return ERROR;
+			return EUpdateResult::ERROR;
 		}
 
 		const int32 NumImportedModelVerts = FMath::Max(NearestNeighborModel->GetVertexMap()) + 1;
 		if (NumImportedModelVerts != NumBaseMeshVerts)
 		{
 			UE_LOG(LogNearestNeighborModel, Error, TEXT("Vertex count mismatch: imported model of SkeletalMesh has %d vertices and cached SkeletalMesh has %d vertices"), NumImportedModelVerts, NumBaseMeshVerts);
-			return ERROR;
+			return EUpdateResult::ERROR;
 		}
 
 		TArray<FVector3f> Deltas;
@@ -454,7 +534,7 @@ namespace UE::NearestNeighborModel
 			if (VertexMap.IsEmpty())
 			{
 				UE_LOG(LogNearestNeighborModel, Warning, TEXT("Cloth part %d has empty vertex map. No morph targets are generated for this part."), PartId);
-				Result = WARNING;
+				Result = EUpdateResult::WARNING;
 			}
 			AddFloatArrayToDeltaArray(NearestNeighborModel->ClothPartData[PartId].VertexMean, VertexMap, Deltas, 0);
 			AddFloatArrayToDeltaArray(NearestNeighborModel->ClothPartData[PartId].PCABasis, VertexMap, Deltas);
@@ -469,7 +549,7 @@ namespace UE::NearestNeighborModel
 		if (Deltas.Num() == 0)
 		{
 			UE_LOG(LogNearestNeighborModel, Error, TEXT("All cloth parts are empty. No morph targets are generated."));
-			return ERROR;
+			return EUpdateResult::ERROR;
 		}
 
 		const int32 LOD = 0;
@@ -482,7 +562,7 @@ namespace UE::NearestNeighborModel
 		if (MorphBuffers.GetNumBatches() <= 0)
 		{
 			UE_LOG(LogNearestNeighborModel, Warning, TEXT("Morph buffer is empty. It is possible that all deltas are zero. No morph targets are generated."));
-			Result = WARNING;
+			Result = EUpdateResult::WARNING;
 			NearestNeighborModel->ResetMorphBuffers();
 		}
 
@@ -532,6 +612,35 @@ namespace UE::NearestNeighborModel
 				ModelInstance->InitPreviousWeights();
 			}
 		}
+	}
+
+	uint8 FNearestNeighborEditorModel::WarnIfNetworkInvalid()
+	{
+		const UNearestNeighborModel *NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
+
+		const UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
+		const UMLDeformerComponent* MLDeformerComponent = GetTestMLDeformerComponent();
+		if(NeuralNetwork && NeuralNetwork->IsLoaded() && MLDeformerComponent && MLDeformerComponent->GetModelInstance())
+		{
+			const int32 NeuralNetworkInferenceHandle = MLDeformerComponent->GetModelInstance()->GetNeuralNetworkInferenceHandle();
+			const FNeuralTensor& OutputTensor = NeuralNetwork->GetOutputTensorForContext(NeuralNetworkInferenceHandle);
+			const int32 NumNetworkWeights = OutputTensor.Num();
+
+			const int32 NumPCACoeffs = NearestNeighborModel->GetTotalNumPCACoeffs();
+			if (NumNetworkWeights != NumPCACoeffs)
+			{
+				UE_LOG(LogNearestNeighborModel, Warning, TEXT("Network output dimension %d is not equal to number of morph targets %d. Network needs to be re-trained and no deformation will be applied."), NumNetworkWeights, NumPCACoeffs);
+				return EUpdateResult::WARNING;
+			}
+		}
+		return EUpdateResult::SUCCESS;
+	}
+
+	bool FNearestNeighborEditorModel::IsNeuralNetworkLoaded()
+	{
+		const UNearestNeighborModel *NearestNeighborModel = static_cast<UNearestNeighborModel*>(Model);
+		const UNeuralNetwork *NeuralNetwork = NearestNeighborModel->GetNeuralNetwork();
+		return NeuralNetwork && NeuralNetwork->IsLoaded();
 	}
 }	// namespace UE::NearestNeighborModel
 

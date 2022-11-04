@@ -33,22 +33,23 @@ const TArray<int32> UNearestNeighborTrainingModel::GetPartVertexMap(const int32 
 	return TArray<int32>((int32*)VertexMap.GetData(), VertexMap.Num());
 }
 
-void UNearestNeighborTrainingModel::SamplePart(int32 PartId, int32 Index)
+int32 UNearestNeighborTrainingModel::SamplePart(int32 PartId, int32 Index)
 {
 	FNearestNeighborGeomCacheSampler* Sampler = static_cast<FNearestNeighborGeomCacheSampler*>(EditorModel->GetSampler());
-	Sampler->SamplePart(Index, NearestNeighborModel->PartVertexMap(PartId));
+	int32 Result = Sampler->SamplePart(Index, NearestNeighborModel->PartVertexMap(PartId));
 	PartSampleDeltas = Sampler->GetPartVertexDeltas();
 	SampleBoneRotations = Sampler->GetBoneRotations();
+	return Result;
 }
 
-void UNearestNeighborTrainingModel::SetSamplerPartData(const int32 PartId)
+int32 UNearestNeighborTrainingModel::SetSamplerPartData(const int32 PartId)
 {
-	GetNearestNeighborEditorModel()->SetSamplerPartData(PartId);
+	return GetNearestNeighborEditorModel()->SetSamplerPartData(PartId);
 }
 
 int32 UNearestNeighborTrainingModel::GetPartNumNeighbors(const int32 PartId) const
 {
-	return NearestNeighborModel->GetNumNeighborsFromGeometryCache(PartId);
+	return FMath::Min(NearestNeighborModel->GetNumNeighborsFromAnimSequence(PartId), NearestNeighborModel->GetNumNeighborsFromGeometryCache(PartId));
 }
 
 void UNearestNeighborTrainingModel::SampleKmeansAnim(const int32 SkeletonId)
