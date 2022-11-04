@@ -8,6 +8,7 @@
 #include "Drawing/MeshElementsVisualizer.h"
 #include "Async/ParallelFor.h"
 #include "Async/Async.h"
+#include "SceneView.h"
 #include "ToolSetupUtil.h"
 #include "ModelingToolTargetUtil.h"
 #include "MeshWeights.h"
