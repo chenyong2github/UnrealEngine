@@ -167,6 +167,12 @@ protected:
 	virtual void Init(const FManagedArrayBase& ) {};
 
 	/**
+	* Copy a range of values from the ConstArray into this
+	*/
+	virtual void CopyRange(const FManagedArrayBase& ConstArray, int32 Start, int32 Stop, int32 Offset = 0) {};
+
+
+	/**
 	* Get allocated memory 
 	*/
 	virtual SIZE_T GetAllocatedSize() const { return 0; }
