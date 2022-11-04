@@ -428,7 +428,7 @@ struct FCompressedTransform
 		{
 			Axis[i] = In.TransformRows[i];
 			Scale[i] = Axis[i].Size();
-			Axis[i] /= Scale[i] ? Scale[i] : 1.f;
+			Axis[i] /= (Scale[i] != 0.f) ? Scale[i] : 1.f;
 		}
 
 		// Rotation
@@ -526,9 +526,9 @@ struct FCompressedTransform
 		{
 			FVector2f OctZ;
 			float Spin0;
-			OctZ.X = ( (int32)Rotation[0] - 32768 ) * (1.0f / 32767.0f);
-			OctZ.Y = ( (int32)Rotation[1] - 32768 ) * (1.0f / 32767.0f);
-			Spin0  = ( (int32)( Rotation[2] & 0x7fff ) - 16384 ) * (0.70710678f / 16383.0f);	// rsqrt(2)
+			OctZ.X = float( (int32)Rotation[0] - 32768 ) * (1.0f / 32767.0f);
+			OctZ.Y = float( (int32)Rotation[1] - 32768 ) * (1.0f / 32767.0f);
+			Spin0  = float( (int32)( Rotation[2] & 0x7fff ) - 16384 ) * (0.70710678f / 16383.0f);	// rsqrt(2)
 			bool bSpinIsX = Rotation[2] > 0x7fff;
 
 			Out.TransformRows[2] = HemiOctahedronToUnitVector( OctZ );

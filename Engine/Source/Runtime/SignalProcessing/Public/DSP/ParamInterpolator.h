@@ -30,7 +30,7 @@ namespace Audio
 			}
 			else
 			{
-				DeltaValue = (InValue - CurrentValue) / InNumInterpFrames;
+				DeltaValue = (InValue - CurrentValue) / (float)InNumInterpFrames;
 				StartingValue = CurrentValue;
 			}
 		}

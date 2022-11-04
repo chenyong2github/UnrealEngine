@@ -2645,9 +2645,9 @@ struct FSkeletalMeshBuildSettings
 		, bUseHighPrecisionSkinWeights(false)
 		, bUseFullPrecisionUVs(false)
 		, bUseBackwardsCompatibleF16TruncUVs(false)
-		, ThresholdPosition(0.00002)
-		, ThresholdTangentNormal(0.00002)
-		, ThresholdUV(0.0009765625)
+		, ThresholdPosition(0.00002f)
+		, ThresholdTangentNormal(0.00002f)
+		, ThresholdUV(0.0009765625f)
 		, MorphThresholdPosition(0.015f)
 	{}
 

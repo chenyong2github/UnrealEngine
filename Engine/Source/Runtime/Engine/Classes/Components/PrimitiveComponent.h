@@ -831,7 +831,7 @@ public:
 	 * @return Whether this actor was recently rendered.
 	 */
 	UFUNCTION(Category = "Rendering", BlueprintCallable, meta=(DisplayName="Was Component Recently Rendered", Keywords="scene visible"))
-	bool WasRecentlyRendered(float Tolerance = 0.2) const;
+	bool WasRecentlyRendered(float Tolerance = 0.2f) const;
 
 	void SetLastRenderTime(float InLastRenderTime);
 	float GetLastRenderTime() const { return LastRenderTime; }

@@ -2322,7 +2322,7 @@ protected:
 						}
 						else
 						{
-							NewScrollOffset = (int32)NewScrollOffset + ((PrecedingDistance - AbsScrollByAmount) / WidgetDimensions.ScrollAxis);
+							NewScrollOffset = float(FMath::TruncToInt32(NewScrollOffset)) + ((PrecedingDistance - AbsScrollByAmount) / WidgetDimensions.ScrollAxis);
 							break;
 						}
 					}

@@ -36,6 +36,6 @@ private:
 
 	void OnTimeFinish();
 	
-	float Time;
-	float TimeStarted;
+	double Time;
+	double TimeStarted;
 };

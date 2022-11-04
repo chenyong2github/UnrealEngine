@@ -71,7 +71,7 @@ void UGameplayTaskResource::UpdateAutoResourceID()
 
 	if (AutoResourceID == INDEX_NONE)
 	{
-		AutoResourceID = NextAutoResID++;
+		AutoResourceID = static_cast<int8>(NextAutoResID++);
 		if (AutoResourceID >= FGameplayResourceSet::MaxResources)
 		{
 			UE_LOG(LogGameplayTasks, Error, TEXT("AutoResourceID out of bounds (probably too much GameplayTaskResource classes, consider manually assigning values if you can split all classes into non-overlapping sets"));

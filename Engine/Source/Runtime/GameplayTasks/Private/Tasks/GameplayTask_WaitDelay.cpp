@@ -48,7 +48,7 @@ void UGameplayTask_WaitDelay::Activate()
 
 	// Use a dummy timer handle as we don't need to store it for later but we don't need to look for something to clear
 	FTimerHandle TimerHandle;
-	World->GetTimerManager().SetTimer(TimerHandle, this, &UGameplayTask_WaitDelay::OnTimeFinish, Time, false);
+	World->GetTimerManager().SetTimer(TimerHandle, this, &UGameplayTask_WaitDelay::OnTimeFinish, (float)Time, false);
 }
 
 void UGameplayTask_WaitDelay::OnTimeFinish()
@@ -59,7 +59,7 @@ void UGameplayTask_WaitDelay::OnTimeFinish()
 
 FString UGameplayTask_WaitDelay::GetDebugString() const
 {
-	float TimeLeft = Time - GetWorld()->TimeSince(TimeStarted);
+	double TimeLeft = Time - GetWorld()->TimeSince(TimeStarted);
 	return FString::Printf(TEXT("WaitDelay. Time: %.2f. TimeLeft: %.2f"), Time, TimeLeft);
 }
 

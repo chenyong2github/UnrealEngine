@@ -778,7 +778,7 @@ struct FMeshApproximationSettings
 
 	/** Approximation Accuracy in Meters, will determine (eg) voxel resolution */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Approximation Accuracy (meters)", ClampMin = "0.001"))
-	float ApproximationAccuracy = 1.0;
+	float ApproximationAccuracy = 1.0f;
 
 	/** Maximum allowable voxel count along main directions. This is a limit on ApproximationAccuracy. Max of 1290 (1290^3 is the last integer < 2^31, using a bigger number results in failures in TArray code & probably elsewhere) */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = ShapeSettings, meta = (ClampMin = "64", ClampMax = "1290"))
@@ -790,7 +790,7 @@ struct FMeshApproximationSettings
 
 	/** Multiplier on Approximation Accuracy used for auto-thickening */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (ClampMin = "0.001", EditCondition = "bAttemptAutoThickening"))
-	float TargetMinThicknessMultiplier = 1.5;
+	float TargetMinThicknessMultiplier = 1.5f;
 
 	/** If enabled, tiny parts will be excluded from the mesh merging, which can improve performance */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings)
@@ -798,7 +798,7 @@ struct FMeshApproximationSettings
 
 	/** Multiplier on Approximation Accuracy used to define tiny-part threshold, using maximum bounding-box dimension */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (ClampMin = "0.001", EditCondition = "bIgnoreTinyParts"))
-	float TinyPartSizeMultiplier = 0.05;
+	float TinyPartSizeMultiplier = 0.05f;
 
 
 	/** Optional methods to attempt to close off the bottom of open meshes */
@@ -808,7 +808,7 @@ struct FMeshApproximationSettings
 
 	/** Winding Threshold controls hole filling at open mesh borders. Smaller value means "more/rounder" filling */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, AdvancedDisplay, Category = ShapeSettings, meta = (ClampMin = "0.01", ClampMax = "0.99"))
-	float WindingThreshold = 0.5;
+	float WindingThreshold = 0.5f;
 
 	/** If true, topological expand/contract is used to try to fill small gaps between objects. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings)
@@ -816,7 +816,7 @@ struct FMeshApproximationSettings
 
 	/** Distance in Meters to expand/contract to fill gaps */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = ShapeSettings, meta = (DisplayName = "Gap Filling Distance (meters)", ClampMin = "0.001", EditCondition = "bFillGaps"))
-	float GapDistance = 0.1;
+	float GapDistance = 0.1f;
 
 
 	//

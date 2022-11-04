@@ -928,12 +928,13 @@ FString FGameplayResourceSet::GetDebugDescription() const
 	int32 FlagIndex = 0;
 
 #if WITH_GAMEPLAYTASK_DEBUG
+	static_assert(FlagsCount < TNumericLimits<uint8>::Max());
 	FString Description;
 	for (; FlagIndex < FlagsCount && FlagsCopy != 0; ++FlagIndex)
 	{
 		if (FlagsCopy & (1 << FlagIndex))
 		{
-			Description += UGameplayTaskResource::GetDebugDescription(FlagIndex);
+			Description += UGameplayTaskResource::GetDebugDescription( IntCastChecked<uint8>(FlagIndex) );
 			Description += TEXT(' ');
 		}
 

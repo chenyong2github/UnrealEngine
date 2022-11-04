@@ -1026,7 +1026,7 @@ public:
 	 */
 	inline FVector2D GetViewportSize() const
 	{
-		return (ViewportSize.X) ? ViewportSize : Size;
+		return (ViewportSize.X != 0) ? ViewportSize : Size;
 	}
 	
 	/**

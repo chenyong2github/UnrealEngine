@@ -420,7 +420,7 @@ void FGameplayMediaEncoder::FloatToPCM16(float const* floatSamples, int32 numSam
 	float const* ptr = floatSamples;
 	for(auto&& sample : out)
 	{
-		int32 N = *ptr >= 0 ? *ptr * int32(MAX_int16) : *ptr * (int32(MAX_int16) + 1);
+		int32 N = *ptr >= 0 ? FMath::TruncToInt32(*ptr * int32(MAX_int16)) : FMath::TruncToInt32(*ptr * (int32(MAX_int16) + 1));
 		sample = static_cast<int16>(FMath::Clamp(N, int32(MIN_int16), int32(MAX_int16)));
 		ptr++;
 	}
@@ -703,7 +703,7 @@ void FGameplayMediaEncoder::CopyTexture(const FTexture2DRHIRef& SourceTexture, F
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("CopyBackbuffer"));
 
 		{
-			RHICmdList.SetViewport(0, 0, 0.0f, DestinationTexture->GetSizeX(), DestinationTexture->GetSizeY(), 1.0f);
+			RHICmdList.SetViewport(0, 0, 0.0f, (float)DestinationTexture->GetSizeX(), (float)DestinationTexture->GetSizeY(), 1.0f);
 
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
 			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -734,8 +734,8 @@ void FGameplayMediaEncoder::CopyTexture(const FTexture2DRHIRef& SourceTexture, F
 			}
 
 			RendererModule->DrawRectangle(RHICmdList, 0, 0,                // Dest X, Y
-			                              DestinationTexture->GetSizeX(),  // Dest Width
-			                              DestinationTexture->GetSizeY(),  // Dest Height
+			                              (float)DestinationTexture->GetSizeX(),  // Dest Width
+			                              (float)DestinationTexture->GetSizeY(),  // Dest Height
 			                              0, 0,                            // Source U, V
 			                              1, 1,                            // Source USize, VSize
 			                              DestinationTexture->GetSizeXY(), // Target buffer size

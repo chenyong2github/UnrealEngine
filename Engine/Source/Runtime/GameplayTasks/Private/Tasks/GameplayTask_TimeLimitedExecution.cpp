@@ -50,7 +50,7 @@ void UGameplayTask_TimeLimitedExecution::Activate()
 
 	// Use a dummy timer handle as we don't need to store it for later but we don't need to look for something to clear
 	FTimerHandle TimerHandle;
-	World->GetTimerManager().SetTimer(TimerHandle, this, &UGameplayTask_TimeLimitedExecution::OnTimer, Time, false);
+	World->GetTimerManager().SetTimer(TimerHandle, this, &UGameplayTask_TimeLimitedExecution::OnTimer, (float)Time, false);
 	UE_VLOG(GetGameplayTasksComponent(), LogGameplayTasks, Verbose, TEXT("%s> started timeout: %.2fs for task:%s"), *GetName(), Time, *ChildTask->GetName());
 
 	if (!ChildTask->IsActive())
@@ -97,7 +97,7 @@ void UGameplayTask_TimeLimitedExecution::OnTimer()
 
 FString UGameplayTask_TimeLimitedExecution::GetDebugString() const
 {
-	const float TimeLeft = Time - GetWorld()->TimeSince(TimeStarted);
+	const double TimeLeft = Time - GetWorld()->TimeSince(TimeStarted);
 	return FString::Printf(TEXT("TimeLimit for %s. Time: %.2f. TimeLeft: %.2f"), *GetNameSafe(GetChildTask()), Time, TimeLeft);
 }
 

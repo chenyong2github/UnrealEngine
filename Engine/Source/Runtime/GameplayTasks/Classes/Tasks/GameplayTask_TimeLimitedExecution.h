@@ -45,8 +45,8 @@ private:
 
 	void OnTimer();
 	
-	float Time;
-	float TimeStarted;
+	double Time;
+	double TimeStarted;
 
 	uint32 bTimeExpired : 1;
 	uint32 bChildTaskFinished : 1;
