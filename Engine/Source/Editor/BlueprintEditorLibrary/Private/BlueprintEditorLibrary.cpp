@@ -2,6 +2,8 @@
 
 #include "BlueprintEditorLibrary.h"
 
+#include "BlueprintEditorModule.h"
+#include "BlueprintEditor.h"
 #include "AnimGraphNode_Base.h"
 #include "BlueprintFunctionNodeSpawner.h"
 #include "BlueprintNodeBinder.h"
@@ -503,6 +505,31 @@ void UBlueprintEditorLibrary::RenameGraph(UEdGraph* Graph, const FString& NewNam
 UBlueprint* UBlueprintEditorLibrary::GetBlueprintAsset(UObject* Object)
 {
 	return Cast<UBlueprint>(Object);
+}
+
+void UBlueprintEditorLibrary::RefreshOpenEditorsForBlueprint(const UBlueprint* BP)
+{
+	// Get any open blueprint editors for this asset and refresh them if they match the given blueprint
+	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
+	for (TSharedRef<IBlueprintEditor>& Editor : BlueprintEditorModule.GetBlueprintEditors())
+	{
+		if (TSharedPtr<FBlueprintEditor> BPEditor = StaticCastSharedPtr<FBlueprintEditor>(Editor.ToSharedPtr()))
+		{
+			if (BPEditor->GetBlueprintObj() == BP)
+			{
+				BPEditor->RefreshEditors();
+			}
+		}
+	}
+}
+
+void UBlueprintEditorLibrary::RefreshAllOpenBlueprintEditors()
+{
+	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
+	for (TSharedRef<IBlueprintEditor>& Editor : BlueprintEditorModule.GetBlueprintEditors())
+	{
+		Editor->RefreshEditors();
+	}
 }
 
 void UBlueprintEditorLibrary::ReparentBlueprint(UBlueprint* Blueprint, UClass* NewParentClass)

@@ -137,6 +137,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Blueprint Upgrade Tools")
 	static UBlueprint* GetBlueprintAsset(UObject* Object);
 
+	/** Attempt to refresh any open blueprint editors for the given asset */
+	UFUNCTION(BlueprintCallable, Category = "Blueprint Editor")
+	static void RefreshOpenEditorsForBlueprint(const UBlueprint* BP);
+
+	/** Refresh any open blueprint editors */
+	UFUNCTION(BlueprintCallable, Category = "Blueprint Editor")
+	static void RefreshAllOpenBlueprintEditors();
+
 	/**
 	* Attempts to reparent the given blueprint to the new chosen parent class. 
 	*
