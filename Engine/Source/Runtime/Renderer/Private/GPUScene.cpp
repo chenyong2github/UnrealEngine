@@ -788,7 +788,7 @@ void FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FScene& Scene, cons
 	BufferState.LightMapDataBufferSize = LightMapDataBufferSize;
 	
 	const uint32 LightDataBufferSize = FMath::RoundUpToPowerOfTwo(FMath::Max(Scene.Lights.Num(), InitialBufferSize));
-	BufferState.LightDataBuffer = ResizeStructuredBufferIfNeeded(GraphBuilder, LightDataBuffer, LightDataBufferSize * sizeof(FLightSceneData), TEXT("GPUScene.LightData"));
+	BufferState.LightDataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FLightSceneData), Scene.Lights.Num()), TEXT("GPUScene.LightData"));
 
 	ShaderParameters.GPUSceneInstanceSceneData = GraphBuilder.CreateSRV(BufferState.InstanceSceneDataBuffer);
 	ShaderParameters.GPUSceneInstancePayloadData = GraphBuilder.CreateSRV(BufferState.InstancePayloadDataBuffer);

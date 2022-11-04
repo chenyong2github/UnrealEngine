@@ -348,9 +348,6 @@ public:
 	TRefCountPtr<FRDGPooledBuffer> LightmapDataBuffer;
 	FRDGAsyncScatterUploadBuffer        LightmapUploadBuffer;
 
-	/** View-independent GPU light data */
-	TRefCountPtr<FRDGPooledBuffer> LightDataBuffer;
-
 	struct FInstanceRange
 	{
 		uint32 InstanceSceneDataOffset;
