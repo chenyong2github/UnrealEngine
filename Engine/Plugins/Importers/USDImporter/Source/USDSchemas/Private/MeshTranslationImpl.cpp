@@ -2,6 +2,7 @@
 
 #include "MeshTranslationImpl.h"
 
+#include "UObject/Package.h"
 #include "USDAssetCache.h"
 #include "USDAssetImportData.h"
 #include "USDGeomMeshConversion.h"

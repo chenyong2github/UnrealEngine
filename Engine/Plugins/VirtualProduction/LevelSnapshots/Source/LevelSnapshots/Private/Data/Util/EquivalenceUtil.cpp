@@ -18,6 +18,7 @@
 #include "EngineUtils.h"
 #include "LevelSnapshot.h"
 #include "GameFramework/Actor.h"
+#include "UObject/Package.h"
 #include "UObject/TextProperty.h"
 #include "UObject/UnrealType.h"
 #include "WorldData/WorldDataUtil.h"

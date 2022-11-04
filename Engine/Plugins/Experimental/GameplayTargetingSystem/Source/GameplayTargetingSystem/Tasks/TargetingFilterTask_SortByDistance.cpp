@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "TargetingFilterTask_SortByDistance.h"
 
+#include "GameFramework/Actor.h"
 #include "GameplayTargetingSystem/TargetingSystem/TargetingSubsystem.h"
 
 #if ENABLE_DRAW_DEBUG

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "TargetingSelectionTask_SourceActor.h"
 
+#include "GameFramework/Actor.h"
 #include "GameplayTargetingSystem/TargetingSystem/TargetingSubsystem.h"
 
 #if ENABLE_DRAW_DEBUG

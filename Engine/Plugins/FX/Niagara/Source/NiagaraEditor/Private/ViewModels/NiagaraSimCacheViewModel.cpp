@@ -7,6 +7,8 @@
 #include "NiagaraDebuggerCommon.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
+#include "UObject/Package.h"
+#include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSimCacheViewModel"
 

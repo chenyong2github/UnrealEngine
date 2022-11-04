@@ -2,6 +2,7 @@
 
 #include "Iris/ReplicationSystem/ObjectReplicationBridge.h"
 
+#include "HAL/IConsoleManager.h"
 #include "Iris/IrisConfigInternal.h"
 
 #include "Iris/Core/IrisLog.h"

@@ -2,6 +2,7 @@
 
 #include "AnimationDataModule.h"
 #include "AnimSequencerDataModel.h"
+#include "Features/IModularFeatures.h"
 #include "ISequencerModule.h"
 #include "Modules/ModuleManager.h"
 

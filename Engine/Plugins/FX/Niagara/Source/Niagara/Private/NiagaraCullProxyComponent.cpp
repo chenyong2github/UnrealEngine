@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraCullProxyComponent.h"
+#include "NiagaraEffectType.h"
 #include "NiagaraSystem.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraCullProxyComponent)

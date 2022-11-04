@@ -11,6 +11,7 @@
 #include "Trace/Trace.inl"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectAnnotation.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "UObject/WeakObjectPtr.h"

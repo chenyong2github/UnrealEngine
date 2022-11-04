@@ -30,6 +30,7 @@
 #include "Net/Core/Misc/NetSubObjectRegistry.h"
 #include "Net/NetSubObjectRegistryGetter.h"
 #include "Templates/Casts.h"
+#include "UObject/Package.h"
 #include <limits>
 
 #if UE_NET_ALLOW_MULTIPLE_REPLICATION_SYSTEMS

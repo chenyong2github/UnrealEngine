@@ -5,6 +5,7 @@
  */
 
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
+#include "Algo/Find.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameFeatureData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/AssetManager.h"
 #include "GameFeaturesSubsystem.h"
 #include "GameFeaturesSubsystemSettings.h"

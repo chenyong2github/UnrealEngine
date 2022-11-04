@@ -10,6 +10,7 @@
 
 #include "ObjectTrace.h"
 #include "SourceFilterManager.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 #include "Editor.h"

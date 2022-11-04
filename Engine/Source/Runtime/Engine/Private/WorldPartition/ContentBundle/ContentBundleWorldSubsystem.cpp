@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "WorldPartition/ContentBundle/ContentBundleWorldSubsystem.h"
 
+#include "Engine/Engine.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/ContentBundle/ContentBundle.h"
 #include "WorldPartition/ContentBundle/ContentBundleDescriptor.h"

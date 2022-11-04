@@ -4,6 +4,7 @@
 #include "Engine/World.h"
 #include "GameplayTargetingSystem/Types/TargetingSystemLogs.h"
 #include "GameplayTargetingSystem/Types/TargetingSystemTypes.h"
+#include "HAL/IConsoleManager.h"
 #include "Kismet/KismetStringLibrary.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Stats/Stats2.h"

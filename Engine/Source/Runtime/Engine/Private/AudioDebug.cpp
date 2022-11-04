@@ -12,6 +12,7 @@
 #include "DrawDebugHelpers.h"
 #include "DSP/Dsp.h"
 #include "Engine/Font.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "GameFramework/GameUserSettings.h"
 #include "HAL/IConsoleManager.h"

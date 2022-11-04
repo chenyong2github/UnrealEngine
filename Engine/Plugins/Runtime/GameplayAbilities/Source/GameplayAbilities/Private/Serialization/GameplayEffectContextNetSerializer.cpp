@@ -5,6 +5,7 @@
 
 #if UE_WITH_IRIS
 
+#include "Engine/HitResult.h"
 #include "GameplayEffectTypes.h"
 #include "Net/Core/NetBitArray.h"
 #include "Net/Core/Trace/NetTrace.h"

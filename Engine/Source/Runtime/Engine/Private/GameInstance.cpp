@@ -34,6 +34,7 @@
 #include "ReplaySubsystem.h"
 #include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(GameInstance)
 

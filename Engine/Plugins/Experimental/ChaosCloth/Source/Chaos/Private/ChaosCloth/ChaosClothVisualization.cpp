@@ -26,6 +26,7 @@
 #include "Chaos/XPBDSpringConstraints.h"
 #include "DynamicMeshBuilder.h"
 #include "Engine/EngineTypes.h"
+#include "SceneManagement.h"
 #if WITH_EDITOR
 #include "Materials/Material.h"
 #include "Engine/Canvas.h"  // For draw text

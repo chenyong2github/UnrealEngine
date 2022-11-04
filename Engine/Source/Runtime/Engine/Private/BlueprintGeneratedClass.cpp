@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/BlueprintGeneratedClass.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/CoreMisc.h"
 #include "Stats/StatsMisc.h"
 #include "UObject/UObjectHash.h"

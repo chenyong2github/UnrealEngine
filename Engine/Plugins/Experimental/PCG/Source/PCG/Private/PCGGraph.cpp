@@ -5,6 +5,7 @@
 #include "PCGInputOutputSettings.h"
 #include "PCGSubgraph.h"
 #include "PCGSubsystem.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
 #include "Editor.h"

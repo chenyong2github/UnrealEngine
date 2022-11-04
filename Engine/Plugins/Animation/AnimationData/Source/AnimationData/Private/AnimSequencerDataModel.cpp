@@ -14,6 +14,7 @@
 #include "Rigs/FKControlRig.h"
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
+#include "UObject/LinkerLoad.h"
 #include "UObject/ObjectSaveContext.h"
 #include "Animation/AnimData/AnimDataNotifications.h"
 

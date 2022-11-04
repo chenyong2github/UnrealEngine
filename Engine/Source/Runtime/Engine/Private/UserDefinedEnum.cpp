@@ -4,6 +4,7 @@
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/ObjectSaveContext.h"
 #include "CookedMetaData.h"
+#include "UObject/Package.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(UserDefinedEnum)
 
