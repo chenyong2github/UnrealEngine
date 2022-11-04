@@ -960,7 +960,10 @@ void FSceneProxy::OnEvaluateWorldPositionOffsetChanged_RenderThread()
 	// Mark that we need to re-cache the nanite commands for this primitive
 	FPrimitiveSceneInfo* Info = GetPrimitiveSceneInfo();
 	checkSlow(Info && Info->Scene && Info->IsIndexValid());
-	Info->Scene->PrimitivesNeedingStaticMeshUpdate[Info->GetIndex()] = true;
+	if (Info->Scene->PrimitivesNeedingStaticMeshUpdate.IsValidIndex(Info->GetIndex()))
+	{
+		Info->Scene->PrimitivesNeedingStaticMeshUpdate[Info->GetIndex()] = true;
+	}
 }
 
 SIZE_T FSceneProxy::GetTypeHash() const
