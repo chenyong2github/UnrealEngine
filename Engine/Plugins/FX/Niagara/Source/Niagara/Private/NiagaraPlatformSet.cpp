@@ -1242,23 +1242,23 @@ FNiagaraPlatformSet::FPlatformIniSettings& FNiagaraPlatformSet::GetPlatformIniSe
 	}
 
 	//Load config files in which we can reasonable expect to find fx.Niagara.QualityLevel and may be set.
-	FConfigFile EngineSettings;
-	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *PlatformName);//Should use BaseProfileName? Are either of these ensured to be correct? I worry this is brittle.
+	FConfigFile LocalEngineIni;
+	FConfigFile* LoadedEngineIni = FConfigCacheIni::FindOrLoadPlatformConfig(LocalEngineIni, TEXT("Engine"), *PlatformName); //Should use BaseProfileName? Are either of these ensured to be correct? I worry this is brittle.
 
-	FConfigFile GameSettings;
-	FConfigCacheIni::LoadLocalIniFile(GameSettings, TEXT("Game"), true, *PlatformName);//Should use BaseProfileName? Are either of these ensured to be correct? I worry this is brittle.
-
-	FConfigFile ScalabilitySettings;
-	FConfigCacheIni::LoadLocalIniFile(ScalabilitySettings, TEXT("Scalability"), true, *PlatformName);//Should use BaseProfileName? Are either of these ensured to be correct? I worry this is brittle.
+	FConfigFile LocalGameIni;
+	FConfigFile* LoadedGameIni = FConfigCacheIni::FindOrLoadPlatformConfig(LocalGameIni, TEXT("Game"), *PlatformName); //Should use BaseProfileName? Are either of these ensured to be correct? I worry this is brittle.
+	
+	FConfigFile LocalScalabilityIni;
+	FConfigFile* LoadedScalabilityIni = FConfigCacheIni::FindOrLoadPlatformConfig(LocalScalabilityIni, TEXT("Scalability"), *PlatformName); //Should use BaseProfileName? Are either of these ensured to be correct? I worry this is brittle.
 
 	auto FindCVarValue = [&](const TCHAR* Section, const TCHAR* CVarName, int32& OutVal)
 	{
 		bool bFound = true;
-		if (!ScalabilitySettings.GetInt(Section, CVarName, OutVal))
+		if (!LoadedScalabilityIni->GetInt(Section, CVarName, OutVal))
 		{
-			if (!GameSettings.GetInt(Section, CVarName, OutVal))
+			if (!LoadedGameIni->GetInt(Section, CVarName, OutVal))
 			{
-				if (!EngineSettings.GetInt(Section, CVarName, OutVal))
+				if (!LoadedEngineIni->GetInt(Section, CVarName, OutVal))
 				{
 					bFound = false;
 				}
@@ -1302,7 +1302,7 @@ FNiagaraPlatformSet::FPlatformIniSettings& FNiagaraPlatformSet::GetPlatformIniSe
 	{
 		FString SectionName = Scalability::GetScalabilitySectionString(TEXT("EffectsQuality"), EQ, NumEffectsQualities);
 		int32 NiagaraQualityLevelForEQ = DefaultQualityLevel;
-		ScalabilitySettings.GetInt(*SectionName, NiagaraQualityLevelName, NiagaraQualityLevelForEQ);
+		LoadedScalabilityIni->GetInt(*SectionName, NiagaraQualityLevelName, NiagaraQualityLevelForEQ);
 		NewSetting.QualityLevelsPerEffectsQuality.Add(NiagaraQualityLevelForEQ);
 		EQStr += FString::Printf(TEXT("EQ:%d = NQL:%d\n"), EQ, NiagaraQualityLevelForEQ);
 	}

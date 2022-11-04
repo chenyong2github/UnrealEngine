@@ -634,7 +634,7 @@ UDeviceProfile* UDeviceProfileManager::CreateProfile(const FString& ProfileName,
 		// @todo config: we could likely cache local ini files to speed this up,
 		// along with the ones we load in LoadConfig
 		// NOTE: This happens at runtime, so maybe only do this if !RequiresCookedData()?
-		FConfigFile* PlatformConfigFile;
+		const FConfigFile* PlatformConfigFile = nullptr;
 		FConfigFile LocalConfigFile;
 		if (FPlatformProperties::RequiresCookedData())
 		{
@@ -642,8 +642,7 @@ UDeviceProfile* UDeviceProfileManager::CreateProfile(const FString& ProfileName,
 		}
 		else
 		{
-			FConfigCacheIni::LoadLocalIniFile(LocalConfigFile, TEXT("DeviceProfiles"), true, ConfigPlatform);
-			PlatformConfigFile = &LocalConfigFile;
+			PlatformConfigFile = FConfigCacheIni::FindOrLoadPlatformConfig(LocalConfigFile, TEXT("DeviceProfiles"), ConfigPlatform);
 		}
 
 		// Build Parent objects first. Important for setup
@@ -812,13 +811,12 @@ void UDeviceProfileManager::LoadProfiles()
 			FString ConfigLoadPlatform = PlatformIndex == 0 ? FString(FPlatformProperties::IniPlatformName()) : ConfidentialPlatforms[PlatformIndex - 1].ToString();
 
 			// load the DP.ini files (from current platform and then by the extra confidential platforms)
-			FConfigFile PlatformConfigFile;
-			FConfigCacheIni::LoadLocalIniFile(PlatformConfigFile, TEXT("DeviceProfiles"), true, *ConfigLoadPlatform);
+			FConfigFile LocalPlatformConfigFile;
+			const FConfigFile* PlatformConfigFile = FConfigCacheIni::FindOrLoadPlatformConfig(LocalPlatformConfigFile, TEXT("DeviceProfiles"), *ConfigLoadPlatform);
 
 			// load all of the DeviceProfiles
 			TArray<FString> ProfileDescriptions;
-			PlatformConfigFile.GetArray(TEXT("DeviceProfiles"), TEXT("DeviceProfileNameAndTypes"), ProfileDescriptions);
-
+			PlatformConfigFile->GetArray(TEXT("DeviceProfiles"), TEXT("DeviceProfileNameAndTypes"), ProfileDescriptions);
 
 			// add them to our collection of profiles by platform
 			for (const FString& Desc : ProfileDescriptions)
@@ -1044,9 +1042,9 @@ void UDeviceProfileManager::HandleDeviceProfileOverrideChange()
 		FString PlatformName = ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName());
 		
 		TArray<FString> DeviceProfileNameAndTypes;
-		FConfigFile PlatformConfigFile;
-		FConfigCacheIni::LoadLocalIniFile(PlatformConfigFile, TEXT("DeviceProfiles"), true, *PlatformName);
-		PlatformConfigFile.GetArray(TEXT("DeviceProfiles"), TEXT("DeviceProfileNameAndTypes"), DeviceProfileNameAndTypes);
+		FConfigFile LocalConfigFile;
+		const FConfigFile* PlatformConfigFile = FConfigCacheIni::FindOrLoadPlatformConfig(LocalConfigFile, TEXT("DeviceProfiles"), *PlatformName);
+		PlatformConfigFile->GetArray(TEXT("DeviceProfiles"), TEXT("DeviceProfileNameAndTypes"), DeviceProfileNameAndTypes);
 			
 		bool bCreateIfMissing = false;
 		for (const FString& Desc: DeviceProfileNameAndTypes)

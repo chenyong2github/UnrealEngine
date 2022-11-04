@@ -3926,6 +3926,38 @@ bool FConfigCacheIni::LoadExternalIniFile(FConfigFile & ConfigFile, const TCHAR 
 	return Context.Load(IniName);
 }
 
+FConfigFile* FConfigCacheIni::FindPlatformConfig(const TCHAR* IniName, const TCHAR* Platform)
+{
+	if (Platform != nullptr && FCString::Stricmp(Platform, ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName())) != 0)
+	{
+#if ALLOW_OTHER_PLATFORM_CONFIG
+		return FConfigCacheIni::ForPlatform(Platform)->FindConfigFile(IniName);
+#else
+		return nullptr;
+#endif
+	}
+
+	if (GConfig != nullptr)
+	{
+		return GConfig->FindConfigFile(IniName);
+	}
+
+	return nullptr;
+}
+
+FConfigFile* FConfigCacheIni::FindOrLoadPlatformConfig(FConfigFile& LocalFile, const TCHAR* IniName, const TCHAR* Platform)
+{
+	FConfigFile* File = FindPlatformConfig(IniName, Platform);
+	if (File == nullptr)
+	{
+		FConfigContext Context = FConfigContext::ReadIntoLocalFile(LocalFile, Platform);
+		Context.Load(IniName);
+		File = &LocalFile;
+	}
+
+	return File;
+}
+
 void FConfigCacheIni::LoadConsoleVariablesFromINI()
 {
 	FString ConsoleVariablesPath = FPaths::EngineDir() + TEXT("Config/ConsoleVariables.ini");
@@ -4370,7 +4402,7 @@ void FConfigCacheIni::AsyncInitializeConfigForPlatforms()
 FConfigCacheIni* FConfigCacheIni::ForPlatform(FName PlatformName)
 {
 #if ALLOW_OTHER_PLATFORM_CONFIG
-	check(GConfig->bIsReadyForUse);
+	check(GConfig != nullptr && GConfig->bIsReadyForUse);
 
 	// use GConfig when no platform is specified
 	if (PlatformName == NAME_None)

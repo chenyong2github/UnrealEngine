@@ -1180,16 +1180,9 @@ static TSet<FName> MakeNameSet(const TArray<FString>& Strings)
 
 void InitializeSerializationOptionsFromIni(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName, UE::AssetRegistry::ESerializationTarget Target)
 {
-	FConfigFile* EngineIni = nullptr;
-#if WITH_EDITOR
 	// Use passed in platform, or current platform if empty
-	FConfigFile PlatformEngineIni;
-	FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, (!PlatformIniName.IsEmpty() ? *PlatformIniName : ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName())));
-	EngineIni = &PlatformEngineIni;
-#else
-	// In cooked builds, always use the normal engine INI
-	EngineIni = GConfig->FindConfigFile(GEngineIni);
-#endif
+	FConfigFile LocalEngineIni;
+	FConfigFile* EngineIni = FConfigCacheIni::FindOrLoadPlatformConfig(LocalEngineIni, TEXT("Engine"), (!PlatformIniName.IsEmpty() ? *PlatformIniName : ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName())));
 
 	Options = FAssetRegistrySerializationOptions(Target);
 	// For DevelopmentAssetRegistry, all non-tag options are overridden in the constructor

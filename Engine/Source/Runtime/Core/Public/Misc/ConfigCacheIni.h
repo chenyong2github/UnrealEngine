@@ -1206,6 +1206,26 @@ public:
 	 *	@return A normalized version of the path (may be the same as the input).
 	 */
 	static FString NormalizeConfigIniPath(const FString& NonNormalizedPath);
+
+	/**
+	 * This helper function searches the cache before trying to load the ini file using LoadLocalIniFile. 
+	 * Note that the returned FConfigFile pointer must have the same lifetime as the passed in LocalFile.
+	 *
+	 * @param LocalFile The output object to fill. If the FConfigFile is found in the cache, this won't be used.
+	 * @param IniName Either a Base ini name (Engine) or a full ini name (WrangleContent). NO PATH OR EXTENSION SHOULD BE USED!
+	 * @param Platform The platform to use for Base ini names, NULL means to use the current platform
+	 * @return FConfigFile Found or loaded FConfigFile
+	 */
+	static FConfigFile* FindOrLoadPlatformConfig(FConfigFile& LocalFile, const TCHAR* IniName, const TCHAR* Platform = NULL);
+
+	/**
+	 * Attempts to find the platform config in the cache.
+	 *
+	 * @param IniName Either a Base ini name (Engine) or a full ini name (WrangleContent). NO PATH OR EXTENSION SHOULD BE USED!
+	 * @param Platform The platform to use for Base ini names, NULL means to use the current platform
+	 * @return FConfigFile Found FConfigFile
+	 */
+	static FConfigFile* FindPlatformConfig(const TCHAR* IniName, const TCHAR* Platform);
 	
 	/**
 	 * Save the current config cache state into a file for bootstrapping other processes.

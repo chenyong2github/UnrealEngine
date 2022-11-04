@@ -2476,13 +2476,12 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 	// and if the name isn't the current running platform (no need to load extra files if already in GConfig)
 	bool bUseConfigOverride = InFilename == nullptr && GetConfigOverridePlatform() != nullptr &&
 		FCString::Stricmp(GetConfigOverridePlatform(), ANSI_TO_TCHAR(FPlatformProperties::IniPlatformName())) != 0;
-	FConfigFile OverrideConfig;
+	FConfigFile* OverrideConfigFile = nullptr;
+	FConfigFile LocalOverrideConfig;
 	if (bUseConfigOverride)
 	{
-		// load into a local ini file
-		FConfigCacheIni::LoadLocalIniFile(OverrideConfig, *GetClass()->ClassConfigName.ToString(), true, GetConfigOverridePlatform());
+		OverrideConfigFile = FConfigCacheIni::FindOrLoadPlatformConfig(LocalOverrideConfig, *GetClass()->ClassConfigName.ToString(), GetConfigOverridePlatform());
 	}
-
 
 	FString ClassSection;
 	FString ClassPathSection;
@@ -2535,11 +2534,11 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 		UE_LOG(LogConfig, Verbose, TEXT("(%s) '%s' loading configuration for property %s from %s"), *ConfigClass->GetName(), *GetName(), *PropertyToLoad->GetName(), *Filename);
 	}
 
-	auto GetConfigValue = [&OverrideConfig, &bUseConfigOverride](const TCHAR* ClassSection, const TCHAR* Key, const TCHAR* ConfigName, FString& OutValue)
+	auto GetConfigValue = [&OverrideConfigFile, &bUseConfigOverride](const TCHAR* ClassSection, const TCHAR* Key, const TCHAR* ConfigName, FString& OutValue)
 	{
 		if (bUseConfigOverride)
 		{
-			return OverrideConfig.GetString(ClassSection, Key, OutValue);
+			return OverrideConfigFile->GetString(ClassSection, Key, OutValue);
 		}
 		else
 		{
@@ -2547,11 +2546,11 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 		}
 	};
 
-	auto GetConfigSection = [&bUseConfigOverride, &OverrideConfig](const TCHAR* SectionName, const TCHAR* ConfigFilename)
+	auto GetConfigSection = [&OverrideConfigFile, &bUseConfigOverride](const TCHAR* SectionName, const TCHAR* ConfigFilename)
 	{
 		if (bUseConfigOverride)
 		{
-			return OverrideConfig.Find(SectionName);
+			return OverrideConfigFile->Find(SectionName);
 		}
 		else
 		{
