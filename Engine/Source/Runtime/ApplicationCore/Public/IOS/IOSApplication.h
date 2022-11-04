@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 #include "GenericPlatform/GenericApplication.h"
 
 class FIOSWindow;

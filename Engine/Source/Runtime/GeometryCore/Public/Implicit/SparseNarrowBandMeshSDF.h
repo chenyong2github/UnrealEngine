@@ -988,7 +988,7 @@ private:
 							if (IsInBlock(LocalCoords))
 							{
 								const int32 local_index = FloatBlockData3Type::ToLinear(LocalCoords.X, LocalCoords.Y, LocalCoords.Z);
-								if (VistedBlock.BitArray[local_index] == false)
+								if ((bool)VistedBlock.BitArray[local_index] == false)
 								{
 									VistedBlock.BitArray[local_index] = true;
 

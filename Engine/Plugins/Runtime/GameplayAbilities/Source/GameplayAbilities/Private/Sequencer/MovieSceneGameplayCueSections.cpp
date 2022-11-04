@@ -131,7 +131,7 @@ void ExecuteGameplayCueEvent(IMovieScenePlayer* Player, const UE::MovieScene::FE
 
 			if (GameplayCueKey.bAttachToBinding)
 			{
-				if (CueParameters.TargetAttachComponent != nullptr)
+				if (CueParameters.TargetAttachComponent.Get() != nullptr)
 				{
 					FTransform Transform = FTransform::Identity;
 
