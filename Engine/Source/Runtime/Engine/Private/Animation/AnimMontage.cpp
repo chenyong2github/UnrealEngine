@@ -2360,6 +2360,12 @@ void FAnimMontageInstance::Advance(float DeltaTime, struct FRootMotionMovementPa
 				MontageSubStepper.AddEvaluationTime(DeltaTime);
 			}
 
+			// Gather active anim state notifies if DeltaTime == 0 (happens when TimeDilation is 0.f), so these are not prematurely ended
+			if (DeltaTime == 0.f)
+			{
+				HandleEvents(Position, Position, nullptr);
+			}
+
 			while (bPlaying && MontageSubStepper.HasTimeRemaining() && (++NumIterations < MaxIterations))
 			{
 				SCOPE_CYCLE_COUNTER(STAT_AnimMontageInstance_Advance_Iteration);
@@ -2558,7 +2564,6 @@ void FAnimMontageInstance::HandleEvents(float PreviousTrackPos, float CurrentTra
 	// now get active Notifies based on how it advanced
 	if (AnimInstance.IsValid())
 	{
-		TMap<FName, TArray<FAnimNotifyEventReference>> NotifyMap;
 		FAnimTickRecord TickRecord;
 
 		// Add instance ID to context to differentiate notifies between different instances of the same montage
@@ -2575,15 +2580,11 @@ void FAnimMontageInstance::HandleEvents(float PreviousTrackPos, float CurrentTra
 		// we'll do this for all slots for now
 		for (auto SlotTrack = Montage->SlotAnimTracks.CreateIterator(); SlotTrack; ++SlotTrack)
 		{
-			TArray<FAnimNotifyEventReference>& MapNotifies = NotifyMap.FindOrAdd(SlotTrack->SlotName);
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			SlotTrack->AnimTrack.GetAnimNotifiesFromTrackPositions(PreviousTrackPos, CurrentTrackPos, MapNotifies);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			SlotTrack->AnimTrack.GetAnimNotifiesFromTrackPositions(PreviousTrackPos, CurrentTrackPos, NotifyContext);
 		}
 
 		// Queue all these notifies.
 		AnimInstance->NotifyQueue.AddAnimNotifies(NotifyContext.ActiveNotifies, NotifyWeight);
-		AnimInstance->NotifyQueue.AddAnimNotifies(NotifyMap, NotifyWeight);
 	}
 
 	// Update active state branching points, before we handle the immediate tick marker.

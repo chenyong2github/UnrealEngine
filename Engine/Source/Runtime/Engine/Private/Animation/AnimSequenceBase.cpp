@@ -381,11 +381,6 @@ void UAnimSequenceBase::GetAnimNotifies(const float& StartTime, const float& Del
 
 void UAnimSequenceBase::GetAnimNotifies(const float& StartTime, const float& DeltaTime, FAnimNotifyContext& NotifyContext) const
 {
-	if(DeltaTime == 0.f)
-	{
-		return;
-	}
-
 	// Early out if we have no notifies
 	if (!IsNotifyAvailable())
 	{
@@ -452,7 +447,7 @@ void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousP
 void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousPosition, const float& CurrentPosition,  FAnimNotifyContext& NotifyContext) const
 {
 	// Early out if we have no notifies
-	if( (Notifies.Num() == 0) || (PreviousPosition == CurrentPosition) )
+	if (Notifies.Num() == 0)
 	{
 		return;
 	}
@@ -496,6 +491,7 @@ void UAnimSequenceBase::GetAnimNotifiesFromDeltaPositions(const float& PreviousP
 			const float NotifyStartTime = AnimNotifyEvent.GetTriggerTime();
 			const float NotifyEndTime = AnimNotifyEvent.GetEndTriggerTime();
 
+			// Note that if you arrive with zero delta time (CurrentPosition == PreviousPosition), only Notify States will be extracted
 			if( (NotifyStartTime <= CurrentPosition) && (NotifyEndTime > PreviousPosition) )
 			{
 				if (NotifyContext.TickRecord)

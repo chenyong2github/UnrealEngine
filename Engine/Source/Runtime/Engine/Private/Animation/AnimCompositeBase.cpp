@@ -102,14 +102,10 @@ void FAnimSegment::GetAnimNotifiesFromTrackPositions(const float& PreviousTrackP
 
 void FAnimSegment::GetAnimNotifiesFromTrackPositions(const float& PreviousTrackPosition, const float& CurrentTrackPosition, FAnimNotifyContext& NotifyContext) const
 {
-	if( PreviousTrackPosition == CurrentTrackPosition )
-	{
-		return;
-	}
-
 	const bool bTrackPlayingBackwards = (PreviousTrackPosition > CurrentTrackPosition);
 	const float SegmentStartPos = StartPos;
 	const float SegmentEndPos = StartPos + GetLength();
+	const bool bZeroTrackPositionDelta = CurrentTrackPosition == PreviousTrackPosition;
 
 	// if track range overlaps segment
 	if( bTrackPlayingBackwards 
@@ -139,12 +135,13 @@ void FAnimSegment::GetAnimNotifiesFromTrackPositions(const float& PreviousTrackP
 			// Abstract out end point since animation can be playing forward or backward.
 			const float AnimEndPoint = bAnimPlayingBackwards ? AnimStartTime : AnimEndTime;
 
-			for(int32 IterationsLeft=FMath::Max(LoopingCount, 1); ((IterationsLeft > 0) && (TrackTimeToGo > 0.f)); --IterationsLeft)
+			for(int32 IterationsLeft=FMath::Max(LoopingCount, 1); ((IterationsLeft > 0) && (TrackTimeToGo > 0.f || bZeroTrackPositionDelta)); --IterationsLeft)
 			{
 				// Track time left to reach end point of animation.
 				const float TrackTimeToAnimEndPoint = (AnimEndPoint - AnimStartPosition) / AbsValidPlayRate;
 
 				// If our time left is shorter than time to end point, no problem. End there.
+				// This will also run if we arrive with bZeroTrackPositionDelta == true, as TrackTimeToGo == 0.f
 				if( FMath::Abs(TrackTimeToGo) < FMath::Abs(TrackTimeToAnimEndPoint) )
 				{
 					const float PlayRate = ValidPlayRate * (bTrackPlayingBackwards ? -1.f : 1.f);
