@@ -11,9 +11,6 @@ public class TextureShare : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				Path.Combine(EngineDirectory,"Source/Runtime/Renderer/Private"),
-				Path.Combine(EngineDirectory,"Source/Runtime/Windows/D3D11RHI/Private"),
-				Path.Combine(EngineDirectory,"Source/Runtime/Windows/D3D11RHI/Private/Windows"),
-				Path.Combine(EngineDirectory,"Source/Runtime/D3D12RHI/Private"),
 				Path.Combine(EngineDirectory,"Plugins/VirtualProduction/TextureShare/Source/TextureShareCore/Private"),
 			}
 		);
@@ -33,7 +30,6 @@ public class TextureShare : ModuleRules
 				"Core",
 				"Engine",
 				"RHI",
-				"RHICore",
 				"Renderer",
 				"RenderCore",
 				"Slate",
@@ -60,20 +56,10 @@ public class TextureShare : ModuleRules
 			PublicDefinitions.Add("TEXTURESHARE_VULKAN=1");
 
 			// Support Vulkan device
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 			PrivateDependencyModuleNames.AddRange(new string[] { "VulkanRHI" });
 			PrivateIncludePathModuleNames.Add("VulkanRHI");
-			PrivateIncludePaths.Add(Path.Combine(EngineDirectory, "Source/Runtime/VulkanRHI/Private"));
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 
-			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
-			{
-				PrivateIncludePaths.Add(Path.Combine(EngineDirectory, "Source/Runtime/VulkanRHI/Private/Windows"));
-			}
-			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
-			{
-				PrivateIncludePaths.Add(Path.Combine(EngineDirectory, "Source/Runtime/VulkanRHI/Private/Linux"));
-			}
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
 		}
 		else
 		{

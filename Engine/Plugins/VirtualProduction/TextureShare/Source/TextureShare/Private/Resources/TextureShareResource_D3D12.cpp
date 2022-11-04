@@ -8,15 +8,7 @@
 #include "ITextureShareCoreObject.h"
 #include "ITextureShareCoreD3D12ResourcesCache.h"
 
-#include "RHI.h"
-#include "RenderResource.h"
-
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include "d3d12.h"
-#include "Windows/HideWindowsPlatformTypes.h"
-
-#include "D3D12RHIPrivate.h"
-#include "D3D12Util.h"
+#include "ID3D12DynamicRHI.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 namespace TextureShareResourceHelpers
@@ -35,22 +27,23 @@ using namespace TextureShareResourceHelpers;
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FTextureShareResource::D3D12RegisterResourceHandle(const FTextureShareCoreResourceRequest& InResourceRequest)
 {
-	if (GDynamicRHI && TextureRHI.IsValid())
+	if (IsRHID3D12() && TextureRHI.IsValid())
 	{
-		if (ID3D12Device* D3D12DevicePtr = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice()))
+		TSharedPtr<ITextureShareCoreD3D12ResourcesCache, ESPMode::ThreadSafe> D3D12ResourcesCache = GetD3D12ResourcesCache();
+		if (D3D12ResourcesCache.IsValid())
 		{
-			if (ID3D12Resource* D3D12ResourcePtr = (ID3D12Resource*)(TextureRHI->GetNativeResource()))
-			{
-				TSharedPtr<ITextureShareCoreD3D12ResourcesCache, ESPMode::ThreadSafe> D3D12ResourcesCache = GetD3D12ResourcesCache();
-				if (D3D12ResourcesCache.IsValid())
-				{
-					FTextureShareCoreResourceHandle ResourceHandle;
-					if (D3D12ResourcesCache->CreateSharedResource(CoreObject->GetObjectDesc(), D3D12DevicePtr, D3D12ResourcePtr, ResourceDesc, ResourceHandle))
-					{
-						CoreObject->GetProxyData_RenderThread().ResourceHandles.Add(ResourceHandle);
+			ID3D12DynamicRHI* D3D12RHI = GetID3D12DynamicRHI();
+			ID3D12Device* D3D12DevicePtr = D3D12RHI->RHIGetDevice(0);
+			ID3D12Resource* D3D12ResourcePtr = (ID3D12Resource*)D3D12RHI->RHIGetResource(TextureRHI);
 
-						return true;
-					}
+			if (D3D12DevicePtr && D3D12ResourcePtr)
+			{
+				FTextureShareCoreResourceHandle ResourceHandle;
+				if (D3D12ResourcesCache->CreateSharedResource(CoreObject->GetObjectDesc(), D3D12DevicePtr, D3D12ResourcePtr, ResourceDesc, ResourceHandle))
+				{
+					CoreObject->GetProxyData_RenderThread().ResourceHandles.Add(ResourceHandle);
+
+					return true;
 				}
 			}
 		}
@@ -61,17 +54,18 @@ bool FTextureShareResource::D3D12RegisterResourceHandle(const FTextureShareCoreR
 
 bool FTextureShareResource::D3D12ReleaseTextureShareHandle()
 {
-	if (GDynamicRHI && TextureRHI.IsValid())
+	if (IsRHID3D12() && TextureRHI.IsValid())
 	{
-		if (ID3D12Device* D3D12DevicePtr = static_cast<ID3D12Device*>(GDynamicRHI->RHIGetNativeDevice()))
+		ID3D12DynamicRHI* D3D12RHI = GetID3D12DynamicRHI();
+		ID3D12Device* D3D12DevicePtr = D3D12RHI->RHIGetDevice(0);
+		ID3D12Resource* D3D12ResourcePtr = (ID3D12Resource*)D3D12RHI->RHIGetResource(TextureRHI);
+
+		if (D3D12DevicePtr && D3D12ResourcePtr)
 		{
-			if (ID3D12Resource* D3D12ResourcePtr = (ID3D12Resource*)(TextureRHI->GetNativeResource()))
+			TSharedPtr<ITextureShareCoreD3D12ResourcesCache, ESPMode::ThreadSafe> D3D12ResourcesCache = GetD3D12ResourcesCache();
+			if (D3D12ResourcesCache.IsValid())
 			{
-				TSharedPtr<ITextureShareCoreD3D12ResourcesCache, ESPMode::ThreadSafe> D3D12ResourcesCache = GetD3D12ResourcesCache();
-				if (D3D12ResourcesCache.IsValid())
-				{
-					return D3D12ResourcesCache->RemoveSharedResource(CoreObject->GetObjectDesc(), D3D12ResourcePtr);
-				}
+				return D3D12ResourcesCache->RemoveSharedResource(CoreObject->GetObjectDesc(), D3D12ResourcePtr);
 			}
 		}
 	}

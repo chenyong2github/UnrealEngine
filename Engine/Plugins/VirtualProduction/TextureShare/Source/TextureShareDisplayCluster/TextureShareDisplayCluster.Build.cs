@@ -33,7 +33,6 @@ public class TextureShareDisplayCluster : ModuleRules
 			{
 				"Engine",
 				"RHI",
-				"RHICore",
 				"Renderer",
 				"RenderCore",
 				"TextureShare",
