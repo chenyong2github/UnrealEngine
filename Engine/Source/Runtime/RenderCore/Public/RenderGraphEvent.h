@@ -527,7 +527,7 @@ public:
 	{
 		if (IsEnabled())
 		{
-			FRDGEventScopeOpArray Array = ScopeStack.EndCompile();
+			FRDGEventScopeOpArray Array(ScopeStack.EndCompile(), bRDGEvents);
 			if (Array.Ops.Num())
 			{
 				FRHICommandListScopedPipeline Scope(RHICmdList, Pipeline);
