@@ -119,23 +119,29 @@ void FStrataVisualizationMenuCommands::BindCommands(FUICommandList& CommandList,
 		const FStrataVisualizationMenuCommands::FStrataVisualizationRecord& Record = It.Value();
 		CommandList.MapAction(
 			Record.Command,
-			FExecuteAction::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FStrataVisualizationMenuCommands::ChangeStrataVisualizationMode, Client, Record.Name),
+			FExecuteAction::CreateStatic(&FStrataVisualizationMenuCommands::ChangeStrataVisualizationMode, Client.ToWeakPtr(), Record.Name),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateStatic<const TSharedPtr<FEditorViewportClient>&>(&FStrataVisualizationMenuCommands::IsStrataVisualizationModeSelected, Client, Record.Name)
+			FIsActionChecked::CreateStatic(&FStrataVisualizationMenuCommands::IsStrataVisualizationModeSelected, Client.ToWeakPtr(), Record.Name)
 		);
 	}
 }
 
-void FStrataVisualizationMenuCommands::ChangeStrataVisualizationMode(const TSharedPtr<FEditorViewportClient>& Client, FName InName)
+void FStrataVisualizationMenuCommands::ChangeStrataVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName)
 {
-	check(Client.IsValid());
-	Client->ChangeStrataVisualizationMode(InName);
+	if (TSharedPtr<FEditorViewportClient> Client = WeakClient.Pin())
+	{
+		Client->ChangeStrataVisualizationMode(InName);
+	}
 }
 
-bool FStrataVisualizationMenuCommands::IsStrataVisualizationModeSelected(const TSharedPtr<FEditorViewportClient>& Client, FName InName)
+bool FStrataVisualizationMenuCommands::IsStrataVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName)
 {
-	check(Client.IsValid());
-	return Client->IsStrataVisualizationModeSelected(InName);
+	if (TSharedPtr<FEditorViewportClient> Client = WeakClient.Pin())
+	{
+		return Client->IsStrataVisualizationModeSelected(InName);
+	}
+	
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

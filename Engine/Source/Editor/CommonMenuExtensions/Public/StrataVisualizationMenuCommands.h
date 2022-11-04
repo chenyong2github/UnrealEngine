@@ -54,8 +54,8 @@ private:
 	void BuildCommandMap();
 	bool AddCommandTypeToMenu(FMenuBuilder& Menu, const FStrataVisualizationType Type) const;
 
-	static void ChangeStrataVisualizationMode(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
-	static bool IsStrataVisualizationModeSelected(const TSharedPtr<FEditorViewportClient>& Client, FName InName);
+	static void ChangeStrataVisualizationMode(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
+	static bool IsStrataVisualizationModeSelected(TWeakPtr<FEditorViewportClient> WeakClient, FName InName);
 
 private:
 	TStrataVisualizationModeCommandMap CommandMap;
