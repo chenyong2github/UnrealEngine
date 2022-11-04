@@ -5313,6 +5313,7 @@ void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComp
 
 void ALandscapeProxy::UpdateRenderingMethod()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(ALandscapeProxy::UpdateRenderingMethod);
 	if (LandscapeComponents.Num() == 0)
 	{
 		return;
