@@ -17,7 +17,7 @@ FPCGElementPtr UPCGTextureSamplerSettings::CreateElement() const
 TArray<FPCGPinProperties> UPCGTextureSamplerSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param);
+	PinProperties.Emplace(PCGPinConstants::DefaultParamsLabel, EPCGDataType::Param, /*bInAllowMultipleConnections=*/false);
 
 	return PinProperties;
 }

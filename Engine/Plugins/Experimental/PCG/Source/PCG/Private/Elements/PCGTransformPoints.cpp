@@ -13,7 +13,7 @@ UPCGTransformPointsSettings::UPCGTransformPointsSettings()
 TArray<FPCGPinProperties> UPCGTransformPointsSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(TEXT("Params"), EPCGDataType::Param);
+	PinProperties.Emplace(TEXT("Params"), EPCGDataType::Param, /*bInAllowMultipleConnections=*/false);
 	PinProperties.Emplace(PCGPinConstants::DefaultInputLabel, EPCGDataType::Spatial);
 
 	return PinProperties;

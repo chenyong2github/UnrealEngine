@@ -11,7 +11,7 @@
 TArray<FPCGPinProperties> UPCGCopyPointsSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
-	PinProperties.Emplace(PCGCopyPointsConstants::ParamsLabel, EPCGDataType::Param);
+	PinProperties.Emplace(PCGCopyPointsConstants::ParamsLabel, EPCGDataType::Param, /*bAllowMultipleConnections=*/false);
 	PinProperties.Emplace(PCGCopyPointsConstants::SourcePointsLabel, EPCGDataType::Spatial, /*bAllowMultipleConnections=*/false);
 	PinProperties.Emplace(PCGCopyPointsConstants::TargetPointsLabel, EPCGDataType::Spatial, /*bAllowMultipleConnections=*/false);
 
