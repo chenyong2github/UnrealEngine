@@ -3215,7 +3215,7 @@ bool UNiagaraDataInterfaceGrid3DCollection::InitPerInstanceData(void* PerInstanc
 	InstanceData->TotalNumNamedAttributes = NumNamedAttribChannelsFound;
 
 	// give an error if there are any unnamed attributes
-	if (NumAttribChannelsFound - NumNamedAttribChannelsFound > 0)
+	if (NumAttributes > 0 && NumNamedAttribChannelsFound > 0)
 	{
 		UE_LOG(LogNiagara, Warning, TEXT("%s: Unnamed attributes should not be used with named.  This is a deprecated workflow"), *Proxy->SourceDIName.ToString());
 	}
