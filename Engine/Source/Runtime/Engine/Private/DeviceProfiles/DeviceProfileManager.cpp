@@ -527,6 +527,8 @@ void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSett
 		ActiveProfileName = GetPlatformDeviceProfileName();
 	}
 
+	UE_LOG(LogInit, Log, TEXT("Selected Device Profile: [%s]"), *ActiveProfileName);
+
 	SetDeviceProfileCVars(ActiveProfileName);
 }
 

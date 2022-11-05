@@ -45,6 +45,5 @@ const FString FWindowsDeviceProfileSelectorModule::GetRuntimeDeviceProfileName()
 		}
 	}
 
-	UE_LOG(LogInit, Log, TEXT("Selected Device Profile: [%s]"), *ProfileName);
 	return ProfileName;
 }
