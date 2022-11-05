@@ -70,7 +70,8 @@ struct DATAFLOWCORE_API FDataflowNode
 	void SetName(FName InName) { Name = InName; }
 	Dataflow::FTimestamp GetTimestamp() const { return LastModifiedTimestamp;  }
 
-	virtual FName GetType() const { check(true); return FName("invalid"); }
+	static FName StaticType() { return FName("FDataflowNode"); }
+	virtual FName GetType() const { return StaticType(); }
 	virtual FName GetDisplayName() const { return ""; }
 	virtual FName GetCategory() const { return ""; }
 	virtual FString GetTags() const { return ""; }
@@ -182,6 +183,18 @@ struct DATAFLOWCORE_API FDataflowNode
 
 	bool IsValid() const { return bValid; }
 
+	virtual bool IsA(FName InType) const { return InType==StaticType(); }
+
+	template<class T>
+	const T* AsType() const
+	{
+		if (IsA(T::StaticType()))
+		{
+			return (T*)this;
+		}
+		return nullptr;
+	}
+
 
 private:
 	virtual TArray<Dataflow::FRenderingParameter> GetRenderParametersImpl() const { return TArray<Dataflow::FRenderingParameter>(); }
@@ -219,6 +232,8 @@ public:																				\
 	static FString StaticTags() {return TAGS;}										\
 	static FString StaticToolTip() {return FString("Create a dataflow node.");}		\
 	virtual FName GetType() const { return #TYPE; }									\
+	virtual bool IsA(FName InType) const override									\
+		{ return InType==StaticType() || Super::IsA(InType); }						\
 	virtual FStructOnScope* NewStructOnScope() override {							\
 	   return new FStructOnScope(TYPE::StaticStruct(), (uint8*)this);}				\
 	virtual void SerializeInternal(FArchive& Ar) override {							\

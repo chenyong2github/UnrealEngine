@@ -102,11 +102,11 @@ namespace Dataflow
 		
 		FTimestamp Timestamp = FTimestamp::Invalid;
 
-		static FString StaticType() { return "FContext"; }
+		static FName StaticType() { return FName("FContext"); }
 
-		virtual bool IsA(FString InType) const { return InType.Equals(StaticType()); }
+		virtual bool IsA(FName InType) const { return InType==StaticType(); }
 
-		virtual FString GetType() const { return FContext::StaticType(); }
+		virtual FName GetType() const { return FContext::StaticType(); }
 
 		template<class T>
 		const T* AsType() const
@@ -173,11 +173,11 @@ namespace Dataflow
 		virtual bool Evaluate(const FDataflowOutput& Connection) = 0;
 	};
 
-#define DATAFLOW_CONTEXT_INTERNAL(PARENTTYPE, TYPENAME)															\
-	typedef PARENTTYPE Super;																					\
-	static FString StaticType() { return #TYPENAME; }															\
-	virtual bool IsA(FString InType) const override { return InType.Equals(StaticType()) || Super::IsA(InType); }	\
-	virtual FString GetType() const override { return StaticType(); }
+#define DATAFLOW_CONTEXT_INTERNAL(PARENTTYPE, TYPENAME)														\
+	typedef PARENTTYPE Super;																				\
+	static FName StaticType() { return FName(#TYPENAME); }													\
+	virtual bool IsA(FName InType) const override { return InType==StaticType() || Super::IsA(InType); }	\
+	virtual FName GetType() const override { return StaticType(); }
 
 	class DATAFLOWCORE_API FContextSingle : public FContext
 	{
