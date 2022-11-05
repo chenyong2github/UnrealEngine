@@ -6,13 +6,6 @@ public class BackChannel : ModuleRules
 {
 	public BackChannel( ReadOnlyTargetRules Target ) : base( Target )
 	{
-		PublicIncludePaths.AddRange(
-			new string[] {
-				System.IO.Path.Combine(ModuleDirectory, ".."),
-				System.IO.Path.Combine(ModuleDirectory, "Public")
-			}
-		);
-
 		PrivateDependencyModuleNames.AddRange
 			(
 			new string[] {
