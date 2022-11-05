@@ -4,6 +4,8 @@
 
 #include <limits>
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 namespace CurveExpression::Evaluator
 {
 
@@ -126,14 +128,19 @@ FEngine::FEngine(
 
 
 void FEngine::UpdateConstantValues(
-	const TMap<FName, float>& InConstants
+	const TMap<FName, float>& InConstants,
+	EUpdateConstantsMethod InUpdateMethod
 	)
 {
-	for (const TTuple<FName, float>& NewConstantItem: InConstants)
+	for (TTuple<FName, float>& OldConstantItem: Constants)
 	{
-		if (float* OldConstant = Constants.Find(NewConstantItem.Key))
+		if (const float* NewConstant = InConstants.Find(OldConstantItem.Key))
 		{
-			*OldConstant = NewConstantItem.Value; 
+			OldConstantItem.Value = *NewConstant;
+		}
+		else if (InUpdateMethod == EUpdateConstantsMethod::ZeroMissing)
+		{
+			OldConstantItem.Value = 0.0f;
 		}
 	}
 }
@@ -906,3 +913,5 @@ TOptional<FParseError> FEngine::Verify(
 }
 
 }
+
+PRAGMA_ENABLE_OPTIMIZATION
