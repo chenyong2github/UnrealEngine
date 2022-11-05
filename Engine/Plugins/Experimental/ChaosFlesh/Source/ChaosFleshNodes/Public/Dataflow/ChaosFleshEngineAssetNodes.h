@@ -62,7 +62,7 @@ public:
 
 
 USTRUCT()
-struct FSetFleshAssetDataflowNode : public FDataflowNode
+struct FSetFleshAssetDataflowNode : public FDataflowTerminalNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FSetFleshAssetDataflowNode, "SetFleshAsset", "Flesh", "")
@@ -73,7 +73,7 @@ public:
 	FManagedArrayCollection Input;
 
 	FSetFleshAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
+	: FDataflowTerminalNode(InParam, InGuid)
 	{
 		RegisterInputConnection(&Input);
 	}

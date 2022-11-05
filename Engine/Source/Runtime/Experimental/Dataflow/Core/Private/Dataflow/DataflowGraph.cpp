@@ -49,6 +49,10 @@ namespace Dataflow
 			}
 		}
 		Nodes.Remove(Node);
+		if (Node->IsA(FDataflowTerminalNode::StaticType()))
+		{
+			TerminalNodes.Remove(Node);
+		}
 	}
 
 	void FGraph::ClearConnections(FDataflowConnection* Connection)

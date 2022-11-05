@@ -22,13 +22,13 @@ namespace Dataflow
 // ===========================================================================================================================
 
 FSetGeometryCollectionAssetDataflowNode::FSetGeometryCollectionAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
-	: FFinalDataflowNode(InParam, InGuid)
+	: FDataflowTerminalNode(InParam, InGuid)
 {
 	RegisterInputConnection(&Collection);
 	RegisterInputConnection(&Materials);
 }
 
-void FSetGeometryCollectionAssetDataflowNode::EvaluateFinal(Dataflow::FContext& Context) const
+void FSetGeometryCollectionAssetDataflowNode::Evaluate(Dataflow::FContext& Context) const
 {
 	using FGeometryCollectionPtr = TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe>;
 	using FMaterialArray = TArray<TObjectPtr<UMaterial>>;

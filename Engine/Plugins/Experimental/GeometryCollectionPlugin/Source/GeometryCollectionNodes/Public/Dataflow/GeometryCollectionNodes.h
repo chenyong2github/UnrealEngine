@@ -64,7 +64,7 @@ public:
 };
 
 USTRUCT()
-struct FSetCollectionAssetDataflowNode : public FDataflowNode
+struct FSetCollectionAssetDataflowNode : public FDataflowTerminalNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FSetCollectionAssetDataflowNode, "SetCollectionAsset", "GeometryCollection", "")
@@ -76,7 +76,7 @@ public:
 	FManagedArrayCollection Collection;
 
 	FSetCollectionAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
+		: FDataflowTerminalNode(InParam, InGuid)
 	{
 		RegisterInputConnection(&Collection);
 	}

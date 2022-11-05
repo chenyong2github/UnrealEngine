@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Chaos/ChaosArchive.h"
 #include "Dataflow/DataflowNode.h"
+#include "Dataflow/DataflowTerminalNode.h"
 #include "Serialization/Archive.h"
 
 struct FDataflowConnection;
@@ -49,13 +50,15 @@ namespace Dataflow
 
 		FGuid  Guid;
 		TArray< TSharedPtr<FDataflowNode> > Nodes;
+		TArray< TSharedPtr<FDataflowNode> > TerminalNodes;
 		TArray< FLink > Connections;
 		TSet< FName > DisabledNodes;
 	public:
 		FGraph(FGuid InGuid = FGuid::NewGuid());
 		virtual ~FGraph() {}
 
-		const TArray< TSharedPtr<FDataflowNode> >& GetNodes() const {return Nodes;}
+		const TArray< TSharedPtr<FDataflowNode> >& GetTerminalNodes() const { return TerminalNodes; }
+		const TArray< TSharedPtr<FDataflowNode> >& GetNodes() const { return Nodes; }
 		TArray< TSharedPtr<FDataflowNode> >& GetNodes() { return Nodes; }
 		int NumNodes() { return Nodes.Num(); }
 
@@ -63,6 +66,10 @@ namespace Dataflow
 		{
 			TSharedPtr<T> NewNode(InNode);
 			Nodes.AddUnique(NewNode);
+			if (NewNode->IsA(FDataflowTerminalNode::StaticType()))
+			{
+				TerminalNodes.AddUnique(NewNode);
+			}
 			return NewNode;
 		}
 
@@ -70,6 +77,10 @@ namespace Dataflow
 		{
 			TSharedPtr<T> NewNode(InNode.Release());
 			Nodes.AddUnique(NewNode);
+			if (NewNode->IsA(FDataflowTerminalNode::StaticType()))
+			{
+				TerminalNodes.AddUnique(NewNode);
+			}
 			return NewNode;
 		}
 

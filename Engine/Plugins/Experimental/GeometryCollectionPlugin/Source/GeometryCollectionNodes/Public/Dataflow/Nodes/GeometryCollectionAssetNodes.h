@@ -12,48 +12,20 @@
 class UGeometryCollection;
 
 /**
- * This node is a final node with no output  
- * it is the only one that can have the right to wroite to the asset 
- */
-USTRUCT()
-struct FFinalDataflowNode : public FDataflowNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FFinalDataflowNode, "FinalDataflowNode", "DataFlow", "")
-	
-public:
-	FFinalDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
-	{
-	}
-
-protected:
-	/** No output evaluation - secific to this type of node */
-	virtual void EvaluateFinal(Dataflow::FContext& Context) const { ensure(false); }
-	
-private:
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override
-	{
-		EvaluateFinal(Context);
-	};
-};
-
-
-/**
  * Set the geometry collection asset   
  * inputs:
  *	- Collection : collection attributes that compose the asset
  *	- Materials : array of materials for the geometry
  */
 USTRUCT()
-struct FSetGeometryCollectionAssetDataflowNode : public FFinalDataflowNode
+struct FSetGeometryCollectionAssetDataflowNode : public FDataflowTerminalNode
 {
 	GENERATED_USTRUCT_BODY()
 	DATAFLOW_NODE_DEFINE_INTERNAL(FSetGeometryCollectionAssetDataflowNode, "SetGeometryCollectionAsset", "GeometryCollection", "")
 
 public:
 	FSetGeometryCollectionAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
-	virtual void EvaluateFinal(Dataflow::FContext& Context) const override;
+	virtual void Evaluate(Dataflow::FContext& Context) const override;
 
 	/** Attribute collection to reset the asset with */ 
 	UPROPERTY(meta = (DataflowInput, DisplayName = "Collection"))

@@ -85,7 +85,7 @@ struct DATAFLOWCORE_API FDataflowNode
 	TArray<Dataflow::FPin> GetPins() const;
 
 
-	void AddInput(FDataflowInput* InPtr);
+	virtual void AddInput(FDataflowInput* InPtr);
 	TArray< FDataflowInput* > GetInputs() const;
 	void ClearInputs();
 
@@ -94,7 +94,7 @@ struct DATAFLOWCORE_API FDataflowNode
 	const FDataflowInput* FindInput(const void* Reference) const;
 
 
-	void AddOutput(FDataflowOutput* InPtr);
+	virtual void AddOutput(FDataflowOutput* InPtr);
 	int NumOutputs() const;
 	TArray< FDataflowOutput* > GetOutputs() const;
 	void ClearOutputs();
@@ -115,8 +115,8 @@ struct DATAFLOWCORE_API FDataflowNode
 	virtual const UScriptStruct* TypedScriptStruct() const { return nullptr; }
 
 	/** Register the Input and Outputs after the creation in the factory */
-	void RegisterInputConnection(const void* Property);
-	void RegisterOutputConnection(const void* Property, const void* Passthrough = nullptr);
+	virtual void RegisterInputConnection(const void* Property);
+	virtual void RegisterOutputConnection(const void* Property, const void* Passthrough = nullptr);
 
 	//
 	// Evaluation
