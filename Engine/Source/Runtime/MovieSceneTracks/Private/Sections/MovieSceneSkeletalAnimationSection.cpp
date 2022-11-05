@@ -472,15 +472,7 @@ int32 UMovieSceneSkeletalAnimationSection::SetBoneIndexForRootMotionCalculations
 				const int32 BoneTreeIndex = AnimationTrack.BoneTreeIndex;
 				if (BoneTreeIndex != INDEX_NONE)
 				{
-
-					int32 ParentIndex = AnimSequence->GetSkeleton()->GetReferenceSkeleton().GetParentIndex(BoneTreeIndex);
-					if (ParentIndex == INDEX_NONE)
-					{
-						RootIndex = TrackIndex;
-					}
-					//if we are parent of the root and we have animation
-					else if (ParentIndex == RootIndex)
-					{
+	
 						const FRawAnimSequenceTrack& InternalTrackData = AnimationTrack.InternalTrackData;
 						const TArray<FVector3f>& TrackPosKeys = InternalTrackData.PosKeys;
 						for (const FVector3f& Vector : TrackPosKeys)
@@ -491,23 +483,10 @@ int32 UMovieSceneSkeletalAnimationSection::SetBoneIndexForRootMotionCalculations
 								break;
 							}
 						}
-						if (TempRootBoneIndex.IsSet() == false)
-						{
-							const TArray<FQuat4f>& TrackRotKeys = InternalTrackData.RotKeys;
-							for (const FQuat4f& Quat : TrackRotKeys)
-							{
-								if (Quat.IsIdentity() == false)
-								{
-									TempRootBoneIndex = BoneTreeIndex;
-									break;
-								}
-							}
-						}
 						if (TempRootBoneIndex.IsSet())
 						{
 							break;
-						}
-					}
+						}				
 
 				}
 			}
@@ -557,8 +536,19 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 		}
 	}
-	return TempRootBoneIndex.GetValue();
+	return TempRootBoneIndex.IsSet() ? TempRootBoneIndex.GetValue() : 0;
 }
+
+FTransform UMovieSceneSkeletalAnimationSection::GetRootMotionStartOffset() const
+{
+	UAnimSequence* AnimSequence = Cast<UAnimSequence>(Params.Animation);
+	if (AnimSequence && TempRootBoneIndex.IsSet() && TempRootBoneIndex.GetValue() != 0)
+	{
+		return AnimSequence->ExtractRootTrackTransform(0, nullptr);
+	}
+	return FTransform::Identity;;
+}
+
 
 bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FAnimationPoseData& AnimationPoseData,FRootMotionTransformParam& InOutParams) const
 {
@@ -577,7 +567,9 @@ bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FAnimationPoseD
 
 		InOutParams.bOutIsAdditive = AnimSequence->GetAdditiveAnimType() != EAdditiveAnimationType::AAT_None;
 		FTransform StartBoneTransform;
-		if (TempRootBoneIndex.IsSet())
+		InOutParams.OutRootStartTransform = GetRootMotionStartOffset();
+
+		if (TempRootBoneIndex.IsSet() && TempRootBoneIndex.GetValue() != 0)
 		{
 			//get the start pose first since we pass out the pose and need the current
 			FCompactPoseBoneIndex PoseIndex = AnimationPoseData.GetPose().GetBoneContainer().GetCompactPoseIndexFromSkeletonIndex(TempRootBoneIndex.GetValue());
@@ -588,19 +580,17 @@ bool UMovieSceneSkeletalAnimationSection::GetRootMotionTransform(FAnimationPoseD
 			ExtractionContext.CurrentTime = CurrentTimeSeconds;
 			AnimSequence->GetAnimationPose(AnimationPoseData, ExtractionContext);
 			InOutParams.OutPoseTransform = AnimationPoseData.GetPose()[FCompactPoseBoneIndex(PoseIndex)];
-
 		}
 		else //not set then just use root.
 		{
 			StartBoneTransform = AnimSequence->ExtractRootTrackTransform(StartSeconds, nullptr);
 			InOutParams.OutPoseTransform = AnimSequence->ExtractRootTrackTransform(CurrentTimeSeconds, nullptr);
-
 		}
 		//note though we don't support mesh space addtive just local additive it will still work the same here for the root so 
 		if (!InOutParams.bOutIsAdditive)
 		{
 			const bool bStartTransformOffsetInBoneSpace = CVarStartTransformOffsetInBoneSpace.GetValueOnGameThread();
-			if (bStartTransformOffsetInBoneSpace)
+			if (TempRootBoneIndex.IsSet() && TempRootBoneIndex.GetValue() != 0 && bStartTransformOffsetInBoneSpace)
 			{
 				FTransform StartMatchedInRoot = StartBoneTransform * MatchedTransform;
 				FTransform LocalToRoot = (InOutParams.OutPoseTransform * StartBoneTransform.Inverse());

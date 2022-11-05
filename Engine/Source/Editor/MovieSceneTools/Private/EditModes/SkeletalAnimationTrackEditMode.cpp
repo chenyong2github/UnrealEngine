@@ -217,18 +217,20 @@ static void RenderTrail(UObject* BoundObject, UMovieSceneSkeletalAnimationTrack*
 	const FLinearColor RootMotionColor(0.75, 0.75, 0.75, 1.0f);
 	TOptional<FVector> OldKeyPos_G;
 
-	FTransform SkelMeshTransform  = SkelMeshComp->GetSocketTransform(NAME_None);
 	int32 Index = 0;
-
-	for (const FTransform& Transform : SkelAnimTrack->RootMotionParams.RootTransforms)
+	if (SkelAnimTrack->GetAllSections().Num() > 0)
 	{
-		FVector NewKeyPos = Transform.GetLocation();
-		FVector NewKeyPos_G = SkelMeshTransform.TransformPosition(NewKeyPos);
-		if (OldKeyPos_G.IsSet())
+		const FTransform SkelMeshTransform = SkelAnimTrack->RootMotionParams.RootMotionStartOffset * SkelMeshComp->GetSocketTransform(NAME_None);
+		for (const FTransform& Transform : SkelAnimTrack->RootMotionParams.RootTransforms)
 		{
-			PDI->DrawLine(OldKeyPos_G.GetValue(), NewKeyPos_G, RootMotionColor, SDPG_Foreground);
+			FVector NewKeyPos = Transform.GetLocation();
+			FVector NewKeyPos_G = SkelMeshTransform.TransformPosition(NewKeyPos);
+			if (OldKeyPos_G.IsSet())
+			{
+				PDI->DrawLine(OldKeyPos_G.GetValue(), NewKeyPos_G, RootMotionColor, SDPG_Foreground);
+			}
+			OldKeyPos_G = NewKeyPos_G;
 		}
-		OldKeyPos_G = NewKeyPos_G;
 	}
 }
 
@@ -278,9 +280,7 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 								//show root motions
 								if (SkelAnimTrack->bShowRootMotionTrail)
 								{
-									RenderTrail(BoundObject, SkelAnimTrack, InterrogationLinker, SkelMeshComp, Sequencer, PDI);
-									break;
-								
+									RenderTrail(BoundObject, SkelAnimTrack, InterrogationLinker, SkelMeshComp, Sequencer, PDI);								
 								}
 								//show skeletons
 
@@ -367,9 +367,9 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 	}
 }
 
-bool FSkeletalAnimationTrackEditMode::IsRootSelected(UMovieSceneSkeletalAnimationSection* AnimSection)
+bool FSkeletalAnimationTrackEditMode::IsRootSelected(UMovieSceneSkeletalAnimationSection* AnimSection) const
 {
-	for (FSelectedRootData& RootData : SelectedRootData)
+	for (const FSelectedRootData& RootData : SelectedRootData)
 	{
 		if (RootData.SelectedSection.Get() == AnimSection)
 		{
@@ -432,22 +432,17 @@ FVector FSkeletalAnimationTrackEditMode::GetWidgetLocation() const
 	if (IsSomethingSelected() && WeakSequencer.IsValid())
 	{
 		FQualifiedFrameTime CurrentTime = WeakSequencer.Pin()->GetLocalTime();
-		int32 NumSelected = 0;
+		bool  bSelectionValid = false;
 		for (FSelectedRootData Data : SelectedRootData)
 		{
 			if (Data.SelectedMeshComp.IsValid() && Data.SelectedSection.IsValid() && Data.SelectedSection->GetRange().Contains(CurrentTime.Time.GetFrame()))
 			{
-				FTransform ComponentTransform = Data.SelectedMeshComp->GetComponentTransform();
-				FTransform PivotTransform, PivotParentTransform;
-				Data.CalcTransform(CurrentTime.Time,PivotTransform,PivotParentTransform);
-				PivotLocation += ComponentTransform.TransformPosition(PivotTransform.GetLocation());
-				++NumSelected;
+				bSelectionValid = true;
 			}
 		}
-		if (NumSelected > 0)
+		if (bSelectionValid)
 		{
-			PivotLocation /= (NumSelected);
-			PivotLocation.Z = RootTransform.GetLocation().Z;
+			PivotLocation = RootTransform.GetLocation();
 			return PivotLocation;
 		}
 	}
@@ -464,7 +459,7 @@ bool FSkeletalAnimationTrackEditMode::GetPivotForOrbit(FVector& OutPivot) const
 	return FEdMode::GetPivotForOrbit(OutPivot);
 }
 
-bool FSkeletalAnimationTrackEditMode::GetCurrentTransform(FTransform& OutTransform, FTransform& OutParentTransform) const
+bool FSkeletalAnimationTrackEditMode::GetTransformAtFirstSectionStart(FTransform& OutTransform, FTransform& OutParentTransform) const
 { 
 	if (IsSomethingSelected() && WeakSequencer.IsValid())
 	{
@@ -476,7 +471,8 @@ bool FSkeletalAnimationTrackEditMode::GetCurrentTransform(FTransform& OutTransfo
 			{
 				FTransform ComponentTransform = Data.SelectedMeshComp->GetComponentTransform();
 				FTransform PivotTransform, PivotParentTransform;
-				Data.CalcTransform(CurrentTime.Time, PivotTransform, PivotParentTransform);
+				//we want the transform at the start!
+				Data.CalcTransform(Data.SelectedSection->GetRange().GetLowerBoundValue(), PivotTransform, PivotParentTransform);
 				OutTransform = PivotTransform * ComponentTransform;
 				OutParentTransform = PivotParentTransform * ComponentTransform;
 				return true;
@@ -488,8 +484,9 @@ bool FSkeletalAnimationTrackEditMode::GetCurrentTransform(FTransform& OutTransfo
 
 bool FSkeletalAnimationTrackEditMode::GetCustomDrawingCoordinateSystem(FMatrix& OutMatrix, void* InData)
 {
+	//Get transform at the START of the section since that's the value we will manipulate
 	FTransform Transform, ParentTransform;
-	if (GetCurrentTransform(Transform, ParentTransform))
+	if (GetTransformAtFirstSectionStart(Transform, ParentTransform))
 	{
 		OutMatrix = Transform.ToMatrixNoScale().RemoveTranslation();
 		return true;
@@ -555,8 +552,9 @@ void FSelectedRootData::CalcTransform(const FFrameTime& FrameTime, FTransform& O
 			Param.FrameRate = MovieScene->GetTickResolution();
 			Param.CurrentTime = FrameTime;
 			Section->GetRootMotionTransform(AnimationPoseData, Param);
-			OutTransform = Param.OutTransform * Section->PreviousTransform;
-			OutParentTransform = Param.OutParentTransform * Section->PreviousTransform;
+			OutTransform = Param.OutTransform * Param.OutRootStartTransform * Section->PreviousTransform;
+			OutParentTransform = Param.OutParentTransform * Param.OutRootStartTransform * Section->PreviousTransform;
+
 		}
 	}
 }
@@ -614,23 +612,24 @@ bool FSkeletalAnimationTrackEditMode::InputDelta(FEditorViewportClient* InViewpo
 		const bool bDoTranslation = !Drag.IsZero() && (WidgetMode == UE::Widget::WM_Translate || WidgetMode == UE::Widget::WM_TranslateRotateZ);
 
 		FTransform CurrentTransform,ParentTransform;
-		if ((bDoRotation || bDoTranslation) && GetCurrentTransform(CurrentTransform,ParentTransform))
+		if ((bDoRotation || bDoTranslation) && GetTransformAtFirstSectionStart(CurrentTransform,ParentTransform))
 		{
-			if (bDoRotation)
+			for (const FSelectedRootData Data : SelectedRootData)
 			{
-				FQuat CurrentRotation = CurrentTransform.GetRotation();
-				CurrentRotation = (InRot.Quaternion() * CurrentRotation);
-				CurrentTransform.SetRotation(CurrentRotation);
-			}
+				if (bDoRotation)
+				{
+					FQuat CurrentRotation = CurrentTransform.GetRotation();
+					CurrentRotation = (InRot.Quaternion() * CurrentRotation);
+					CurrentTransform.SetRotation(CurrentRotation);
+				}
 
-			if (bDoTranslation)
-			{
-				FVector CurrentLocation = CurrentTransform.GetLocation();
-				CurrentLocation = CurrentLocation + InDrag;
-				CurrentTransform.SetLocation(CurrentLocation);
-			}
-			for (FSelectedRootData Data : SelectedRootData)
-			{
+				if (bDoTranslation)
+				{
+					FVector CurrentLocation = CurrentTransform.GetLocation();
+					CurrentLocation = CurrentLocation + InDrag;
+					CurrentTransform.SetLocation(CurrentLocation);
+				}
+
 				if (bManipulatorMadeChange == false)
 				{
 					bManipulatorMadeChange = true;
@@ -639,13 +638,13 @@ bool FSkeletalAnimationTrackEditMode::InputDelta(FEditorViewportClient* InViewpo
 				if (Data.SelectedSection.IsValid() && Data.SelectedMeshComp.IsValid())
 				{
 					CurrentTransform = CurrentTransform.GetRelativeTransform(ParentTransform);
-
+					
 					if (bDoRotation)
 					{
 						UMovieSceneSkeletalAnimationTrack* Track = Data.SelectedSection.Get()->GetTypedOuter<UMovieSceneSkeletalAnimationTrack>();
 						Track->Modify();
 						Data.SelectedSection.Get()->Modify();
-						Data.SelectedSection.Get()->StartRotationOffset = CurrentTransform.GetRotation().Rotator(); //(Rot)+Data.SelectedSection.Get()->StartRotationOffset;
+						Data.SelectedSection.Get()->StartRotationOffset = CurrentTransform.GetRotation().Rotator(); 
 						Data.SelectedSection.Get()->GetRootMotionParams()->bRootMotionsDirty = true;
 						TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 						if (Sequencer.IsValid())
@@ -658,8 +657,7 @@ bool FSkeletalAnimationTrackEditMode::InputDelta(FEditorViewportClient* InViewpo
 						UMovieSceneSkeletalAnimationTrack* Track = Data.SelectedSection.Get()->GetTypedOuter<UMovieSceneSkeletalAnimationTrack>();
 						Track->Modify();
 						Data.SelectedSection.Get()->Modify();
-						Data.SelectedSection.Get()->StartLocationOffset = CurrentTransform.GetLocation(); 
-						
+						Data.SelectedSection.Get()->StartLocationOffset = CurrentTransform.GetLocation();
 						Data.SelectedSection.Get()->GetRootMotionParams()->bRootMotionsDirty = true;
 						TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 						if (Sequencer.IsValid())

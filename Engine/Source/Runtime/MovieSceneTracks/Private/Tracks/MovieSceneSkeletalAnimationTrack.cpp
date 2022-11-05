@@ -490,6 +490,7 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 						if (AnimSection->StartLocationOffset.IsNearlyZero() == false || AnimSection->StartRotationOffset.IsNearlyZero() == false ||
 							AnimSection->MatchedLocationOffset.IsNearlyZero() == false || AnimSection->MatchedRotationOffset.IsNearlyZero() == false)
 						{ 
+							RootMotionParams.RootMotionStartOffset = AnimSection->GetRootMotionStartOffset();
 							bAnySectionsHaveOffset = true;
 							FMemMark Mark(FMemStack::Get());
 							FCompactPose OutPose;
@@ -664,10 +665,11 @@ static int32 GetAnimationTrackIndex(const int32 BoneIndex, const UAnimSequence* 
 	return INDEX_NONE;
 }
 
-static FTransform GetWorldTransformForBone(UAnimSequence* AnimSequence, USkeletalMeshComponent* MeshComponent, const FName& InBoneName, double Seconds)
+static FTransform GetTransformForBoneRelativeToIndex(UAnimSequence* AnimSequence, USkeletalMeshComponent* MeshComponent, const FName& InBoneName,
+	const FCompactPoseBoneIndex& ParentCPIndex, double Seconds)
 {
-	FTransform  WorldTransform = FTransform::Identity;
 
+	FTransform  WorldTransform = FTransform::Identity;
 	//AnimSequence->GetBoneTransform doesn't seem to be as accurate as GetAnimationPose
 	FMemMark Mark(FMemStack::Get());
 	FCompactPose OutPose;
@@ -678,6 +680,7 @@ static FTransform GetWorldTransformForBone(UAnimSequence* AnimSequence, USkeleta
 	{
 		RequiredBoneIndexArray[BoneIndex] = BoneIndex;
 	}
+
 	FBoneContainer BoneContainer(RequiredBoneIndexArray, CurveEvalOption, *AnimSequence->GetSkeleton());
 	OutPose.ResetToRefPose(BoneContainer);
 	FBlendedCurve OutCurve;
@@ -690,7 +693,7 @@ static FTransform GetWorldTransformForBone(UAnimSequence* AnimSequence, USkeleta
 	if (MeshIndex != INDEX_NONE)
 	{
 		FCompactPoseBoneIndex CPIndex = AnimationPoseData.GetPose().GetBoneContainer().MakeCompactPoseIndex(FMeshPoseBoneIndex(MeshIndex));
-		if (CPIndex != INDEX_NONE)
+		if (CPIndex != INDEX_NONE )
 		{
 			FTransform BoneTransform = FTransform::Identity;
 			WorldTransform *= BoneTransform;
@@ -698,7 +701,14 @@ static FTransform GetWorldTransformForBone(UAnimSequence* AnimSequence, USkeleta
 			{
 				BoneTransform = AnimationPoseData.GetPose()[CPIndex];
 				WorldTransform *= BoneTransform;
-				CPIndex = AnimationPoseData.GetPose().GetBoneContainer().GetParentBoneIndex(CPIndex);
+				if (CPIndex == ParentCPIndex)  //if we are the parent then we stop
+				{
+					CPIndex = FCompactPoseBoneIndex(INDEX_NONE);
+				}
+				else
+				{
+					CPIndex = AnimationPoseData.GetPose().GetBoneContainer().GetParentBoneIndex(CPIndex);
+				}
 			} while (CPIndex.IsValid());
 		}
 	}
@@ -961,10 +971,13 @@ void UMovieSceneSkeletalAnimationTrack::MatchSectionByBoneTransform(bool bMatchW
 		if (FirstAnimSequence && SecondAnimSequence)
 		{
 			double FirstSectionTime = FirstSection->MapTimeToAnimation(CurrentFrame, FrameRate);
-			FTransform  FirstTransform = GetWorldTransformForBone(FirstAnimSequence, SkelMeshComp, BoneName, FirstSectionTime);
+			//use same index for all
+			int32 Index = CurrentSection->SetBoneIndexForRootMotionCalculations(bBlendFirstChildOfRoot);
+			FCompactPoseBoneIndex ParentIndex(Index);
+			
+			FTransform  FirstTransform = GetTransformForBoneRelativeToIndex(FirstAnimSequence, SkelMeshComp, BoneName, ParentIndex, FirstSectionTime);
 			double SecondSectionTime = CurrentSection->MapTimeToAnimation(CurrentFrame, FrameRate);
-			FTransform  SecondTransform = GetWorldTransformForBone(SecondAnimSequence, SkelMeshComp, BoneName, SecondSectionTime);
-
+			FTransform  SecondTransform = GetTransformForBoneRelativeToIndex(SecondAnimSequence, SkelMeshComp, BoneName, ParentIndex,SecondSectionTime);
 			//Need to match the translations and rotations here 
 			//First need to get the correct rotation order based upon what's matching, otherwise if not all are matched 
 			//and one rotation is set last we will get errors.
@@ -1024,10 +1037,13 @@ void UMovieSceneSkeletalAnimationTrack::MatchSectionByBoneTransform(bool bMatchW
 
 		if (FirstAnimSequence && SecondAnimSequence)
 		{
+			//use same index for all
+			int32 Index = CurrentSection->SetBoneIndexForRootMotionCalculations(bBlendFirstChildOfRoot);
+			FCompactPoseBoneIndex ParentIndex(Index);
 			float FirstSectionTime = static_cast<float>(CurrentSection->MapTimeToAnimation(CurrentFrame, FrameRate));
-			FTransform  FirstTransform = GetWorldTransformForBone(FirstAnimSequence, SkelMeshComp, BoneName, FirstSectionTime);
+			FTransform  FirstTransform = GetTransformForBoneRelativeToIndex(FirstAnimSequence, SkelMeshComp, BoneName,ParentIndex, FirstSectionTime);
 			float SecondSectionTime = static_cast<float>(SecondSection->MapTimeToAnimation(CurrentFrame, FrameRate));
-			FTransform  SecondTransform = GetWorldTransformForBone(SecondAnimSequence, SkelMeshComp, BoneName, SecondSectionTime);
+			FTransform  SecondTransform = GetTransformForBoneRelativeToIndex(SecondAnimSequence, SkelMeshComp, BoneName,ParentIndex, SecondSectionTime);
 
 			//Need to match the translations and rotations here 
 			//First need to get the correct rotation order based upon what's matching, otherwise if not all are matched 

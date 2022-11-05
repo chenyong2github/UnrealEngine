@@ -24,7 +24,7 @@ struct FMovieSceneSkeletalAnimRootMotionTrackParams
 	FFrameTime EndFrame;
 	bool bRootMotionsDirty;
 	TArray<FTransform> RootTransforms;
-
+	FTransform RootMotionStartOffset; // root motion may not be in Mesh Space if we are putting values on a bone that is a child of a root with an offset
 	/** Get the Root Motion transform at the specified time.*/
 	MOVIESCENETRACKS_API TOptional<FTransform>  GetRootMotion(FFrameTime CurrentTime) const;
 	FMovieSceneSkeletalAnimRootMotionTrackParams() : bRootMotionsDirty(true) {}

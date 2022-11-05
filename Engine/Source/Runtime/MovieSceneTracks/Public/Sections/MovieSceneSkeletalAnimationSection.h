@@ -224,6 +224,7 @@ public:
 		FTransform OutTransform; //total transform including current pose plus offset
 		FTransform OutParentTransform; //offset transform not including original bone transform
 		FTransform OutPoseTransform; //original bone transform
+		FTransform OutRootStartTransform;//start of the root
 		float OutWeight; //weight at specified time
 	};
 
@@ -254,8 +255,9 @@ public:
 	MOVIESCENETRACKS_API void ToggleShowSkeleton();
 #endif
 
+	MOVIESCENETRACKS_API FTransform GetRootMotionStartOffset() const;
+
 private:
 	void MultiplyOutInverseOnNextClips(FVector PreviousMatchedLocationOffset, FRotator PreviousMatchedRotationOffset);
-
 
 };
