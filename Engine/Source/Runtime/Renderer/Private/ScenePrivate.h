@@ -3386,7 +3386,28 @@ public:
 
 	virtual bool IsEditorScene() const override { return bIsEditorScene; }
 
-	bool ShouldRenderSkylightInBasePass(EBlendMode BlendMode) const;
+	bool ShouldRenderSkylightInBasePass(EBlendMode BlendMode) const
+	{
+		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting && !(ShouldRenderRayTracingSkyLight(SkyLight) && !IsForwardShadingEnabled(GetShaderPlatform()));
+
+		if (IsTranslucentBlendMode(BlendMode))
+		{
+			// Both stationary and movable skylights are applied in base pass for translucent materials
+			bRenderSkyLight = bRenderSkyLight
+				&& (ReadOnlyCVARCache.bEnableStationarySkylight || !SkyLight->bWantsStaticShadowing);
+		}
+		else
+		{
+			// For opaque materials, stationary skylight is applied in base pass but movable skylight
+			// is applied in a separate render pass (bWantssStaticShadowing means stationary skylight)
+			bRenderSkyLight = bRenderSkyLight
+				&& ((ReadOnlyCVARCache.bEnableStationarySkylight && SkyLight->bWantsStaticShadowing)
+					|| (!SkyLight->bWantsStaticShadowing
+						&& (IsForwardShadingEnabled(GetShaderPlatform()) || IsMobilePlatform(GetShaderPlatform()))));
+		}
+
+		return bRenderSkyLight;
+	}
 
 	virtual TArray<FPrimitiveComponentId> GetScenePrimitiveComponentIds() const override
 	{
