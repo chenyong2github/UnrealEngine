@@ -1722,6 +1722,8 @@ public:
 		, Initializer(InInitializer)
 		, bBackgroundTask(bInBackgroundTask)
 	{
+		Initializer.bBackgroundCompilation = bBackgroundTask;
+
 		// Copy all referenced shaders and AddRef them while the task is alive
 
 		RayGenTable   = CopyShaderTable(InInitializer.GetRayGenTable());
@@ -1887,7 +1889,7 @@ FRayTracingPipelineState* PipelineStateCache::GetAndOrCreateRayTracingPipelineSt
 	}
 	else
 	{
-		FPipelineFileCacheManager::CacheRayTracingPSO(InInitializer);
+		FPipelineFileCacheManager::CacheRayTracingPSO(InInitializer, Flags);
 
 		// Copy the initializer as we may want to patch it below
 		FRayTracingPipelineStateInitializer Initializer = InInitializer;

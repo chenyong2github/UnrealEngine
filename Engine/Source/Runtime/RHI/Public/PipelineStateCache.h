@@ -24,7 +24,7 @@ enum class EApplyRendertargetOption : int
 
 ENUM_CLASS_FLAGS(EApplyRendertargetOption);
 
-enum class ERayTracingPipelineCacheFlags : int
+enum class ERayTracingPipelineCacheFlags : uint8
 {
 	// Query the pipeline cache, create pipeline if necessary.
 	// Compilation may happen on a task, but RHIThread will block on it before translating the RHICmdList.

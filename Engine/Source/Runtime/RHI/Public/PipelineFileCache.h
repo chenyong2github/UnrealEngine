@@ -82,6 +82,7 @@ struct RHI_API FPipelineFileCacheRasterizerState
 
 class FRayTracingPipelineStateInitializer;
 class FRHIRayTracingShader;
+enum class ERayTracingPipelineCacheFlags : uint8;
 
 /**
  * Tracks stats for the current session between opening & closing the file-cache.
@@ -356,7 +357,7 @@ public:
 
 	static void CacheGraphicsPSO(uint32 RunTimeHash, FGraphicsPipelineStateInitializer const& Initializer);
 	static void CacheComputePSO(uint32 RunTimeHash, FRHIComputeShader const* Initializer);
-	static void CacheRayTracingPSO(const FRayTracingPipelineStateInitializer& Initializer);
+	static void CacheRayTracingPSO(const FRayTracingPipelineStateInitializer& Initializer, ERayTracingPipelineCacheFlags Flags);
 
 	// true if the named PSOFC is currently open.
 	static bool HasPipelineFileCache(const FString& PSOCacheKey);

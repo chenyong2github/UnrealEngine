@@ -3495,7 +3495,7 @@ void FPipelineFileCacheManager::CacheComputePSO(uint32 RunTimeHash, FRHIComputeS
 	}
 }
 
-void FPipelineFileCacheManager::CacheRayTracingPSO(const FRayTracingPipelineStateInitializer& Initializer)
+void FPipelineFileCacheManager::CacheRayTracingPSO(const FRayTracingPipelineStateInitializer& Initializer, ERayTracingPipelineCacheFlags Flags)
 {
 	if (!IsPipelineFileCacheEnabled() || !(LogPSOtoFileCache() || ReportNewPSOs()))
 	{
@@ -3509,6 +3509,9 @@ void FPipelineFileCacheManager::CacheRayTracingPSO(const FRayTracingPipelineStat
 		Initializer.GetHitGroupTable(),
 		Initializer.GetCallableTable()
 	};
+
+	// When non-blocking creation is used, encountering a non-cached RTPSO is not likely to cause a hitch and so the logging is not useful/actionable.
+	const bool bShouldReportNewRTPSOToLog = !EnumHasAnyFlags(Flags, ERayTracingPipelineCacheFlags::NonBlocking);
 
 	FRWScopeLock Lock(FileCacheLock, SLT_ReadOnly);
 
@@ -3536,11 +3539,15 @@ void FPipelineFileCacheManager::CacheRayTracingPSO(const FRayTracingPipelineStat
 					if (!FPipelineFileCacheManager::IsPSOEntryCached(NewEntry, &CurrentUsageData))
 					{
 						//CSV_EVENT(PSO, TEXT("Encountered new ray tracing PSO"));
-						UE_LOG(LogRHI, Display, TEXT("Encountered a new ray tracing PSO: %u"), PSOHash);
-						if (GPSOFileCachePrintNewPSODescriptors > 0)
+						if (bShouldReportNewRTPSOToLog)
 						{
-							UE_LOG(LogRHI, Display, TEXT("New ray tracing PSO (%u) Description: %s"), PSOHash, *NewEntry.RayTracingDesc.ToString());
+							UE_LOG(LogRHI, Display, TEXT("Encountered a new ray tracing PSO: %u"), PSOHash);
+							if (GPSOFileCachePrintNewPSODescriptors > 0)
+							{
+								UE_LOG(LogRHI, Display, TEXT("New ray tracing PSO (%u) Description: %s"), PSOHash, *NewEntry.RayTracingDesc.ToString());
+							}
 						}
+
 						if (LogPSOtoFileCache())
 						{
 							NewPSOs.Add(NewEntry);

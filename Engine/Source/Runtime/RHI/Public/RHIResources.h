@@ -3486,6 +3486,12 @@ public:
 	// at least one shader must be present in total (completely empty pipelines are not allowed).
 	bool bPartial = false;
 
+	// Hints to the RHI that this PSO is being compiled by a background task and will not be needed immediately for rendering.
+	// Speculative PSO pre-caching or non-blocking PSO creation should set this flag.
+	// This may be used by the RHI to decide if a hitch warning should be reported, change priority of any internally dispatched tasks, etc.
+	// Does not affect the creation of the PSO itself.
+	bool bBackgroundCompilation = false;
+
 	// Ray tracing pipeline may be created by deriving from the existing base.
 	// Base pipeline will be extended by adding new shaders into it, potentially saving substantial amount of CPU time.
 	// Depends on GRHISupportsRayTracingPSOAdditions support at runtime (base pipeline is simply ignored if it is unsupported).
