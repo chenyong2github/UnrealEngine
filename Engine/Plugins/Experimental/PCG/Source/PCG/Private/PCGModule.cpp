@@ -69,4 +69,4 @@ void FPCGModule::DeregisterNativeElementDeterminismTests()
 
 IMPLEMENT_MODULE(FPCGModule, PCG);
 
-DEFINE_LOG_CATEGORY(LogPCG);
+PCG_API DEFINE_LOG_CATEGORY(LogPCG);

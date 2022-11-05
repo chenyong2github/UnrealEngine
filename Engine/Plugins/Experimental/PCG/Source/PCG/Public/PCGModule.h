@@ -7,7 +7,7 @@
 #include "Stats/Stats.h"
 
 // Logs
-DECLARE_LOG_CATEGORY_EXTERN(LogPCG, Log, All);
+PCG_API DECLARE_LOG_CATEGORY_EXTERN(LogPCG, Log, All);
 
 // Stats
 DECLARE_STATS_GROUP(TEXT("PCG"), STATGROUP_PCG, STATCAT_Advanced)
