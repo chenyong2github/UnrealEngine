@@ -3,6 +3,7 @@
 #include "Materials/MaterialOverrideNanite.h"
 
 #include "Interfaces/ITargetPlatform.h"
+#include "MaterialShared.h"
 #include "Materials/MaterialInterface.h"
 #include "RenderUtils.h"
 #include "UObject/UObjectThreadContext.h"
