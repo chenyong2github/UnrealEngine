@@ -9,7 +9,7 @@
 #include "Chaos/Vector.h"
 #include "Chaos/Triangle.h"
 
-#include "ChaosFlesh/FleshCollectionUtility.h"
+//#include "ChaosFlesh/FleshCollectionUtility.h"
 #include "Math/NumericLimits.h"
 #include "Templates/IsIntegral.h"
 #include "Chaos/Plane.h"
