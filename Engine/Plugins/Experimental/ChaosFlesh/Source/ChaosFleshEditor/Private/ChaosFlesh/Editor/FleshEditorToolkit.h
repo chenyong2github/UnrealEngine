@@ -19,6 +19,19 @@ class UFleshAsset;
 class UDataflow;
 class USkeletalMesh;
 
+namespace Dataflow
+{
+	class FFleshContext : public TEngineContext<FContextSingle>
+	{
+	public:
+		DATAFLOW_CONTEXT_INTERNAL(TEngineContext<FContextSingle>, FFleshContext);
+
+		FFleshContext(UObject* InOwner, UDataflow* InGraph, FTimestamp InTimestamp)
+			: Super(InOwner, InGraph, InTimestamp)
+		{}
+	};
+}
+
 class FFleshEditorToolkit : public FAssetEditorToolkit, public FTickableEditorObject, public FNotifyHook, public FGCObject
 {
 public:

@@ -54,7 +54,7 @@ void FGeometryCollectionEditorToolkit::InitGeometryCollectionAssetEditor(const E
 		AssetDetailsEditor = CreateAssetDetailsEditorWidget(GeometryCollection);
 		GraphEditor = CreateGraphEditorWidget(Dataflow, NodeDetailsEditor);
 
-		Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FEngineContext(GeometryCollection, Dataflow, FPlatformTime::Cycles64(), FString("UFleshAsset")));
+		Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FCollectionContext(GeometryCollection, Dataflow, FPlatformTime::Cycles64()));
 		LastNodeTimestamp = Context->GetTimestamp();
 
 		const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("GeometryCollectionDataflowEditor_Layout.V1")
@@ -108,7 +108,7 @@ void FGeometryCollectionEditorToolkit::Tick(float DeltaTime)
 		{
 			if (!Context)
 			{
-				Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FEngineContext(GeometryCollection, Dataflow, Dataflow::FTimestamp::Invalid, FString("UGeometryCollection")));
+				Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FCollectionContext(GeometryCollection, Dataflow, Dataflow::FTimestamp::Invalid));
 				LastNodeTimestamp = Dataflow::FTimestamp::Invalid;
 			}
 
@@ -134,7 +134,7 @@ TSharedRef<SGraphEditor> FGeometryCollectionEditorToolkit::CreateGraphEditorWidg
 		{
 			if (!Context)
 			{
-				Context = TSharedPtr< Dataflow::FEngineContext>(new FEngineContext(GeometryCollection, Dataflow, Dataflow::FTimestamp::Invalid, FString("UGeometryCollection")));
+				Context = TSharedPtr< Dataflow::FEngineContext>(new FCollectionContext(GeometryCollection, Dataflow, Dataflow::FTimestamp::Invalid));
 				LastNodeTimestamp = Dataflow::FTimestamp::Invalid;
 			}
 

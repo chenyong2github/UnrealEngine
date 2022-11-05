@@ -94,21 +94,24 @@ namespace Dataflow
 
 
 	public:
-		FContext(FTimestamp InTimestamp, FString InType = FString(""))
+		FContext(FTimestamp InTimestamp)
 			: Timestamp(InTimestamp)
-			, Type(StaticType().Append(InType))
 		{}
 
 		virtual ~FContext() {}
 		
 		FTimestamp Timestamp = FTimestamp::Invalid;
-		FString Type;
+
 		static FString StaticType() { return "FContext"; }
+
+		virtual bool IsA(FString InType) const { return InType.Equals(StaticType()); }
+
+		virtual FString GetType() const { return FContext::StaticType(); }
 
 		template<class T>
 		const T* AsType() const
 		{
-			if (Type.Contains(T::StaticType()))
+			if (IsA(T::StaticType()))
 			{
 				return (T*)this;
 			}
@@ -170,14 +173,21 @@ namespace Dataflow
 		virtual bool Evaluate(const FDataflowOutput& Connection) = 0;
 	};
 
+#define DATAFLOW_CONTEXT_INTERNAL(PARENTTYPE, TYPENAME)															\
+	typedef PARENTTYPE Super;																					\
+	static FString StaticType() { return #TYPENAME; }															\
+	virtual bool IsA(FString InType) const override { return InType.Equals(StaticType()) || Super::IsA(InType); }	\
+	virtual FString GetType() const override { return StaticType(); }
+
 	class DATAFLOWCORE_API FContextSingle : public FContext
 	{
 		FContextCache DataStore;
 
 	public:
+		DATAFLOW_CONTEXT_INTERNAL(FContext, FContextSingle);
 
-		FContextSingle(FTimestamp InTime, FString InType = FString(""))
-			: FContext(InTime, InType)
+		FContextSingle(FTimestamp InTime)
+			: FContext(InTime)
 		{}
 
 		virtual void SetDataImpl(int64 Key, TUniquePtr<FContextCacheElementBase>&& DataStoreEntry) override
@@ -210,9 +220,11 @@ namespace Dataflow
 		TSharedPtr<FCriticalSection> CacheLock;
 
 	public:
+		DATAFLOW_CONTEXT_INTERNAL(FContext, FContextThreaded);
 
-		FContextThreaded(FTimestamp InTime, FString InType = FString(""))
-			: FContext(InTime, InType)
+
+		FContextThreaded(FTimestamp InTime)
+			: FContext(InTime)
 		{
 			CacheLock = MakeShared<FCriticalSection>();
 		}

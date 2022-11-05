@@ -64,7 +64,7 @@ void FFleshEditorToolkit::InitFleshAssetEditor(const EToolkitMode::Type Mode, co
 		GraphEditor = CreateGraphEditorWidget(FleshAsset->Dataflow, NodeDetailsEditor);
 		SkeletalEditor = CreateSkeletalEditorWidget(FleshAsset->SkeletalMesh);
 
-		Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FEngineContext(FleshAsset, Dataflow, FPlatformTime::Cycles64(), FString("UFleshAsset")));
+		Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FFleshContext(FleshAsset, Dataflow, FPlatformTime::Cycles64()));
 		LastNodeTimestamp = Context->GetTimestamp();
 
 		const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("FleshAsset_Layout.V1")
@@ -129,7 +129,7 @@ void FFleshEditorToolkit::Tick(float DeltaTime)
 		{
 			if (!Context)
 			{
-				Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FEngineContext(FleshAsset, Dataflow, Dataflow::FTimestamp::Invalid, FString("UFleshAsset")));
+				Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FFleshContext(FleshAsset, Dataflow, Dataflow::FTimestamp::Invalid));
 				LastNodeTimestamp = Dataflow::FTimestamp::Invalid;
 			}
 
@@ -155,7 +155,7 @@ TSharedRef<SGraphEditor> FFleshEditorToolkit::CreateGraphEditorWidget(UDataflow*
 		{
 			if (!Context)
 			{
-				Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FEngineContext(FleshAsset, Dataflow, Dataflow::FTimestamp::Invalid, FString("UFleshAsset")));
+				Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FFleshContext(FleshAsset, Dataflow, Dataflow::FTimestamp::Invalid));
 			}
 			LastNodeTimestamp = Dataflow::FTimestamp::Invalid;
 

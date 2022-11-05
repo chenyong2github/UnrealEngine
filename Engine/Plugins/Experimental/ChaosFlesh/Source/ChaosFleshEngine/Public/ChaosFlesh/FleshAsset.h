@@ -14,21 +14,6 @@ class UFleshAsset;
 class UDataflow;
 class USkeletalMesh;
 
-namespace Dataflow
-{
-	class CHAOSFLESHENGINE_API FFleshContext : public FContext
-	{
-	public:
-		UFleshAsset* Asset;
-
-		FFleshContext(UFleshAsset* InAsset, FTimestamp InTimestamp)
-			: FContext( InTimestamp )
-			, Asset(InAsset)
-		{}
-
-	};
-}
-
 
 /**
 *	FFleshAssetEdit

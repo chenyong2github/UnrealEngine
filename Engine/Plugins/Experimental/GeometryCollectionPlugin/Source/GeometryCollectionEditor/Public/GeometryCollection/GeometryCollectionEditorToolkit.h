@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Dataflow/DataflowNodeParameters.h"
 #include "Dataflow/DataflowGraphEditor.h"
+#include "Dataflow/DataflowObjectInterface.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GraphEditor.h"
 #include "Misc/NotifyHook.h"
@@ -18,6 +19,18 @@ class FTabManager;
 class IToolkitHost;
 class UDataflow;
 
+namespace Dataflow
+{
+	class FCollectionContext : public TEngineContext<FContextSingle>
+	{
+	public:
+		DATAFLOW_CONTEXT_INTERNAL(TEngineContext<FContextSingle>, FCollectionContext);
+
+		FCollectionContext(UObject* InOwner, UDataflow* InGraph, FTimestamp InTimestamp)
+			: Super(InOwner, InGraph, InTimestamp)
+		{}
+	};
+}
 
 class FGeometryCollectionEditorToolkit : public FAssetEditorToolkit, public FTickableEditorObject, public FNotifyHook, public FGCObject
 {
