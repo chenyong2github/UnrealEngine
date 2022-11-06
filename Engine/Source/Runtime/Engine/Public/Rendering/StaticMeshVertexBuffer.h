@@ -11,6 +11,8 @@
 
 class FVertexFactory;
 class FStaticMeshVertexDataInterface;
+class FVertexFactory;
+struct FStaticMeshDataType;
 
 template<typename TangentTypeT>
 struct TStaticMeshVertexTangentDatum
