@@ -2,6 +2,7 @@
 
 
 #include "CoreMinimal.h"
+#include "Animation/Skeleton.h"
 #include "Preferences/CascadeOptions.h"
 #include "Preferences/CurveEdOptions.h"
 #include "Preferences/MaterialEditorOptions.h"
