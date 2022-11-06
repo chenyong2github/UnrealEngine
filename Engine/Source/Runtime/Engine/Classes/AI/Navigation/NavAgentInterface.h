@@ -72,3 +72,4 @@ class INavAgentInterface
 		GetMoveGoalReachTest((const AActor*)MovingActor, MoveOffset, GoalOffset, GoalRadius, GoalHalfHeight);
 	}
 };
+
