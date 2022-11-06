@@ -4,6 +4,12 @@
 
 #include "Common.ush"
 
+#ifndef PLATFORM_SUPPORTS_HTILE_LOOKUP
+#define PLATFORM_SUPPORTS_HTILE_LOOKUP 0
+#endif
+
+#if PLATFORM_SUPPORTS_HTILE_LOOKUP
+
 #ifdef OVERRIDE_HTILELOOKUP_USH
 
 	#include "/Platform/Private/HTileLookup.ush"
@@ -15,10 +21,6 @@
 		return 0;
 	}
 
-#endif
-
-#ifndef PLATFORM_SUPPORTS_HTILE_LOOKUP
-#define PLATFORM_SUPPORTS_HTILE_LOOKUP 0
 #endif
 
 // Optimized version for no hi-stencil, just min and max depth.
@@ -466,3 +468,5 @@ uint2 SwizzleThreadIndex(uint ThreadIndex)
 
 	return LookupTable[ThreadIndex];
 }
+
+#endif // PLATFORM_SUPPORTS_HTILE_LOOKUP
