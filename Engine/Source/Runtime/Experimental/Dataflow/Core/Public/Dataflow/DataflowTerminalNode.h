@@ -44,11 +44,13 @@ struct DATAFLOWCORE_API FDataflowTerminalNode : public FDataflowNode
 	virtual void AddOutput(FDataflowOutput* InPtr) override { ensure(false); }
 
 	//
-	//  Struct Support
+	// Error Checking
 	//
+	virtual bool ValidateConnections() override ;
 
-	virtual void RegisterOutputConnection(const void* Property, const void* Passthrough = nullptr) { ensure(false); }
-
+	//
+	// Evaluate
+	//
 
 	virtual void Evaluate(Dataflow::FContext& Context) const { ensure(false); }
 

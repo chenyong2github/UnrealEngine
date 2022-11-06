@@ -115,8 +115,8 @@ struct DATAFLOWCORE_API FDataflowNode
 	virtual const UScriptStruct* TypedScriptStruct() const { return nullptr; }
 
 	/** Register the Input and Outputs after the creation in the factory */
-	virtual void RegisterInputConnection(const void* Property);
-	virtual void RegisterOutputConnection(const void* Property, const void* Passthrough = nullptr);
+	void RegisterInputConnection(const void* Property);
+	void RegisterOutputConnection(const void* Property, const void* Passthrough = nullptr);
 
 	//
 	// Evaluation
@@ -179,7 +179,7 @@ struct DATAFLOWCORE_API FDataflowNode
 
 	void Invalidate();
 
-	bool ValidateConnections();
+	virtual bool ValidateConnections();
 
 	bool IsValid() const { return bValid; }
 
