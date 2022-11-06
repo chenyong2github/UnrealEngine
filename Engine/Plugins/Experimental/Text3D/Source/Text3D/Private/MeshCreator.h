@@ -7,6 +7,7 @@
 #include "Mesh.h"
 #include "ContourNode.h"
 
+class UStaticMesh;
 
 /** Makes actual bevel. */
 class FMeshCreator final

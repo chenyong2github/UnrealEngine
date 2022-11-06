@@ -5,6 +5,7 @@
 #include "InputCoreTypes.h"
 #include "Framework/Commands/InputChord.h"
 #include "Components/InputComponent.h"
+#include "Misc/App.h"
 #include "SceneView.h"
 #include "TimerManager.h"
 #include "GameFramework/Pawn.h"

@@ -13,6 +13,7 @@
 
 #include "Async/Async.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Misc/Paths.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "RenderingThread.h"
 #include "Misc/Paths.h"

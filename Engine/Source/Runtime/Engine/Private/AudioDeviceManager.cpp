@@ -8,6 +8,7 @@
 #include "AudioDevice.h"
 #include "AudioMixerDevice.h"
 #include "Engine/World.h"
+#include "Misc/App.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundWave.h"
 #include "GameFramework/GameUserSettings.h"

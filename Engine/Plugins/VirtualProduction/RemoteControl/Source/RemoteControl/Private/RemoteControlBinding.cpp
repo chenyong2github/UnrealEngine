@@ -6,6 +6,7 @@
 #include "Engine/Brush.h"
 #include "Engine/Engine.h"
 #include "Engine/EngineTypes.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "IRemoteControlModule.h"

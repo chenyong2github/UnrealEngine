@@ -3,6 +3,7 @@
 #include "ChaosFlesh/FleshComponent.h"
 
 #include "Animation/SkeletalMeshActor.h"
+#include "Animation/Skeleton.h"
 #include "Chaos/Deformable/ChaosDeformableSolverProxy.h"
 #include "ChaosFlesh/FleshCollectionUtility.h"
 #include "ChaosFlesh/ChaosDeformableSolverActor.h"

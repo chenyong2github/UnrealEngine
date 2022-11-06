@@ -2,6 +2,7 @@
 
 #include "CommonInputSubsystem.h"
 #include "CommonInputPrivate.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Misc/ConfigCacheIni.h"
 
 #include "Framework/Application/IInputProcessor.h"

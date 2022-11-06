@@ -11,6 +11,7 @@
 #include "Engine/Level.h"
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"

@@ -3,6 +3,7 @@
 #include "ThumbnailGenerator.h"
 
 #include "Engine/World.h"
+#include "Engine/World.h"
 #include "VariantManagerContentLog.h"
 
 #include "CanvasTypes.h"

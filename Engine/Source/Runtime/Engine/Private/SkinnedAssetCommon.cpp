@@ -8,6 +8,7 @@
 #include "UObject/CoreObjectVersion.h"
 #include "UObject/EditorObjectVersion.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "UObject/RenderingObjectVersion.h"
 
 /*-----------------------------------------------------------------------------
 	FSkeletalMeshLODInfo

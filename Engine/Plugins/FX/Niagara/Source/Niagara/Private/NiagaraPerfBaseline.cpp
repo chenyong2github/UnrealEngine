@@ -2,6 +2,7 @@
 
 #include "NiagaraPerfBaseline.h"
 #include "Engine/Engine.h"
+#include "Misc/Paths.h"
 #include "NiagaraComponent.h"
 #include "NiagaraEffectType.h"
 #include "NiagaraFunctionLibrary.h"

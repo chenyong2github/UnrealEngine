@@ -6,6 +6,8 @@
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
 
+class UStaticMesh;
+
 struct FText3DPolygonGroup
 {
 	int32 FirstVertex;
