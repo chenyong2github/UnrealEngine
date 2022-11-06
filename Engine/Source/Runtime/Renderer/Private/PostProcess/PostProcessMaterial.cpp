@@ -478,7 +478,7 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	PostProcessMaterialParameters->View = View.ViewUniformBuffer;
 	if (bMobilePlatform)
 	{
-		PostProcessMaterialParameters->EyeAdaptationBuffer = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View), PF_A32B32G32R32F);
+		PostProcessMaterialParameters->EyeAdaptationBuffer = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View));
 	}
 	else
 	{

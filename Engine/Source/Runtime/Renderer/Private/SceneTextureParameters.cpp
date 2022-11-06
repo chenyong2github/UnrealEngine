@@ -92,6 +92,6 @@ FRDGBufferRef GetEyeAdaptationBuffer(FRDGBuilder& GraphBuilder, const FSceneView
 	}
 	else
 	{
-		return GraphBuilder.RegisterExternalBuffer(GWhiteVertexBufferWithRDG->Buffer);
+		return GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVector4f), FVector4f::One());
 	}
 }

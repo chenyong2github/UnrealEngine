@@ -7,7 +7,7 @@
 #if !EYE_ADAPTATION_DISABLED
 
 Texture2D EyeAdaptationTexture;
-Buffer<float4> EyeAdaptationBuffer;
+StructuredBuffer<float4> EyeAdaptationBuffer;
 
 #if SHADING_PATH_DEFERRED
 float4 EyeAdaptationLookupTexture2D(Texture2D InEyeAdaptation)
@@ -15,7 +15,7 @@ float4 EyeAdaptationLookupTexture2D(Texture2D InEyeAdaptation)
 	return InEyeAdaptation.Load(int3(0, 0, 0));
 }
 #elif SHADING_PATH_MOBILE
-float4 EyeAdaptationLookupBuffer(Buffer<float4> InEyeAdaptation)
+float4 EyeAdaptationLookupBuffer(StructuredBuffer<float4> InEyeAdaptation)
 {
 	return InEyeAdaptation[0];
 }

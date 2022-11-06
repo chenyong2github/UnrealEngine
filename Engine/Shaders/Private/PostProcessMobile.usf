@@ -1122,7 +1122,7 @@ void SunMergePS_Mobile(
 
 // EyeAdaptation
 
-Buffer<float4> EyeAdaptationBuffer;
+StructuredBuffer<float4> EyeAdaptationBuffer;
 
 static const float FLOAT_PRECISION = 1e+5;
 
@@ -1272,7 +1272,7 @@ float4 BasicEyeAdaptation_Mobile()
 }
 
 #if BASIC_EYEADAPTATION_COMPUTE_SHADER
-RWBuffer<float4> OutputBuffer;
+RWStructuredBuffer<float4> OutputBuffer;
 
 [numthreads(1, 1, 1)]
 void BasicEyeAdaptationCS_Mobile()
@@ -1490,7 +1490,7 @@ float ComputeEyeAdaptationExposure_Mobile()
 	return LumAve;
 }
 
-RWBuffer<float4> OutputBuffer;
+RWStructuredBuffer<float4> OutputBuffer;
 
 [numthreads(1, 1, 1)]
 void HistogramEyeAdaptationCS(uint2 DispatchThreadId : SV_DispatchThreadID)
