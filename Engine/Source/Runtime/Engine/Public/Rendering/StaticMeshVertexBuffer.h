@@ -9,6 +9,7 @@
 #include "Components.h"
 #include "Math/Vector2DHalf.h"
 
+class FVertexFactory;
 class FStaticMeshVertexDataInterface;
 
 template<typename TangentTypeT>
