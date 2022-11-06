@@ -51,6 +51,53 @@ half ComputeLightFunctionMultiplier(float3 TranslatedWorldPosition)
 #endif
 }
 
+half3 SkyLightDiffuseMobile(FGBufferData GBuffer, half3 DiffuseColor, half3 V, inout half IndirectIrradiance)
+{
+	half3 Lighting = 0;
+	half3 SkyDiffuseLookUpNormal = GBuffer.WorldNormal;
+
+	if (GBuffer.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+	{
+		half3 SubsurfaceLookup = GetSkySHDiffuseSimple(-GBuffer.WorldNormal) * View.SkyLightColor.rgb;
+		half3 SubsurfaceColor = ExtractSubsurfaceColor(GBuffer);
+		Lighting += SubsurfaceLookup * SubsurfaceColor;
+	}
+
+	if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE || GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
+	{
+		half3 SubsurfaceColor = ExtractSubsurfaceColor(GBuffer);
+		// Add subsurface energy to diffuse
+		DiffuseColor += SubsurfaceColor;
+	}
+
+	if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
+	{
+		half3 N = GBuffer.WorldNormal;
+		half3 L = normalize(V - N * dot(V, N));
+		SkyDiffuseLookUpNormal = L;
+		FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
+		DiffuseColor = 2 * PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0));
+	}
+
+	if (GBuffer.ShadingModelID == SHADINGMODELID_CLOTH)
+	{
+		half3 ClothFuzz = ExtractSubsurfaceColor(GBuffer);
+		DiffuseColor += ClothFuzz * GBuffer.CustomData.a;
+	}
+
+	// Compute the preconvolved incoming lighting with the bent normal direction
+	half3 DiffuseLookup = GetSkySHDiffuseSimple(SkyDiffuseLookUpNormal) * View.SkyLightColor.rgb;
+
+	// And accumulate the lighting
+	Lighting += DiffuseLookup  * DiffuseColor;
+
+#if ALLOW_STATIC_LIGHTING
+	IndirectIrradiance += Luminance(DiffuseLookup);
+#endif
+
+	return Lighting;
+}
+
 void ReflectionEnvironmentSkyLighting(
 	FGBufferData GBuffer,
 	half3 CameraVector,
@@ -59,12 +106,30 @@ void ReflectionEnvironmentSkyLighting(
 	uint GridIndex,
 	inout FLightAccumulator DirectLighting)
 {
+	half IndirectIrradiance = GBuffer.IndirectIrradiance;
+
+#if ENABLE_DYNAMIC_SKY_LIGHT
+
+	half3 N = GBuffer.WorldNormal;
+	half3 V = -CameraVector;
+	half NoV = saturate(abs(dot(N, V)) + 1e-5);
+
+	half3 DiffuseColor = GBuffer.DiffuseColor;
+	half3 SpecularColor = GBuffer.SpecularColor;
+	RemapClearCoatDiffuseAndSpecularColor(GBuffer, NoV, DiffuseColor, SpecularColor);
+
+	half3 SkyLighting = SkyLightDiffuseMobile(GBuffer, DiffuseColor, V, IndirectIrradiance);
+
+	const bool bNeedsSeparateSubsurfaceLightAccumulation = UseSubsurfaceProfile(GBuffer.ShadingModelID);
+	LightAccumulator_Add(DirectLighting, SkyLighting, SkyLighting, 1.0f, bNeedsSeparateSubsurfaceLightAccumulation);
+#endif // ENABLE_DYNAMIC_SKY_LIGHT 
+
 	// IBL
 	AccumulateReflection(GBuffer
 		, CameraVector
 		, TranslatedWorldPosition
 		, ReflectionVector
-		, GBuffer.IndirectIrradiance
+		, IndirectIrradiance
 		, GridIndex
 		, DirectLighting);
 }

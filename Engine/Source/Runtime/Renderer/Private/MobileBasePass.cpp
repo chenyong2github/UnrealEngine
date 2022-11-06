@@ -669,7 +669,8 @@ bool FMobileBasePassMeshProcessor::Process(
 	
 	if (Scene && Scene->SkyLight)
 	{
-		bEnableSkyLight = ShadingModels.IsLit() && Scene->ShouldRenderSkylightInBasePass(BlendMode);
+		// Uses bTranslucentBasePass instead of BlendMode to handle single layer water meshes.
+		bEnableSkyLight = ShadingModels.IsLit() && Scene->ShouldRenderSkylightInBasePass(bTranslucentBasePass ? BLEND_Translucent : BLEND_Opaque);
 	}
 
 	bool bEnableLocalLights = false;

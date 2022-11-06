@@ -6092,6 +6092,42 @@ bool FScene::IsPrimitiveBeingRemoved(FPrimitiveSceneInfo* PrimitiveSceneInfo) co
 	return RemovedPrimitiveSceneInfos.Find(PrimitiveSceneInfo) != nullptr;
 }
 
+bool FScene::ShouldRenderSkylightInBasePass(EBlendMode BlendMode) const
+{
+	if (IsMobilePlatform(GetShaderPlatform()))
+	{
+		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting;
+		const bool bIsForwardShading = IsTranslucentBlendMode(BlendMode) || !IsMobileDeferredShadingEnabled(GetShaderPlatform());
+		const bool bIsDynamicLighting = !ReadOnlyCVARCache.bAllowStaticLighting || GetForceNoPrecomputedLighting();
+
+		// Both stationary and movable skylights are applied in base pass for forward shading
+		// Only stationary skylights are applied in base pass for deferred with static lighting enabled
+		return bRenderSkyLight && (bIsForwardShading || (!bIsDynamicLighting && SkyLight->bWantsStaticShadowing));
+	}
+	else
+	{
+		bool bRenderSkyLight = SkyLight && !SkyLight->bHasStaticLighting && !(ShouldRenderRayTracingSkyLight(SkyLight) && !IsForwardShadingEnabled(GetShaderPlatform()));
+
+		if (IsTranslucentBlendMode(BlendMode))
+		{
+			// Both stationary and movable skylights are applied in base pass for translucent materials
+			bRenderSkyLight = bRenderSkyLight
+				&& (ReadOnlyCVARCache.bEnableStationarySkylight || !SkyLight->bWantsStaticShadowing);
+		}
+		else
+		{
+			// For opaque materials, stationary skylight is applied in base pass but movable skylight
+			// is applied in a separate render pass (bWantssStaticShadowing means stationary skylight)
+			bRenderSkyLight = bRenderSkyLight
+				&& ((ReadOnlyCVARCache.bEnableStationarySkylight && SkyLight->bWantsStaticShadowing)
+					|| (!SkyLight->bWantsStaticShadowing
+						&& IsForwardShadingEnabled(GetShaderPlatform())));
+		}
+
+		return bRenderSkyLight;
+	}
+}
+
 /**
  * Dummy NULL scene interface used by dedicated servers.
  */

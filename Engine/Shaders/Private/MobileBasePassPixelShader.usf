@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	MobileBasePassPixelShader.usf: Base pass pixel shader used with forward shading
+	MobileBasePassPixelShader.usf: Base pass pixel shader used with forward shading 
 =============================================================================*/
 
 #include "Common.ush"
@@ -130,16 +130,13 @@ void ApplyPixelDepthOffsetForMobileBasePass(inout FMaterialPixelParameters Mater
 	#define PIXELSHADER_EARLYDEPTHSTENCIL 	
 #endif
 
-void GetSkyLighting(bool bApplySkyLighting, half3 SkyLightColor, half3 WorldNormal, bool bEvaluateBackface, inout half IndirectIrradiance, out half3 OutSkyDiffuseLighting, out half3 OutSkySubsurfaceLighting, out half3 OutWaterDiffuseIndirectLuminance)
+void GetSkyLighting(half3 SkyLightColor, half3 WorldNormal, bool bEvaluateBackface, inout half IndirectIrradiance, out half3 OutSkyDiffuseLighting, out half3 OutSkySubsurfaceLighting, out half3 OutWaterDiffuseIndirectLuminance)
 {
 	OutSkyDiffuseLighting = 0;
 	OutSkySubsurfaceLighting = 0;
 	OutWaterDiffuseIndirectLuminance = 0;
 
 #if ENABLE_SKY_LIGHT
-	//@mw todo
-	// TODO: Also need to do specular.
-	if (bApplySkyLighting)
 	{
 		half3 SkyDiffuse = GetSkySHDiffuseSimple(WorldNormal);
 		OutSkyDiffuseLighting = SkyDiffuse * SkyLightColor;
@@ -159,7 +156,7 @@ void GetSkyLighting(bool bApplySkyLighting, half3 SkyLightColor, half3 WorldNorm
 #endif
 }
 
-void GetPrecomputedIndirectLightingAndSkyLight(VTPageTableResult LightmapVTPageTableResult, FVertexFactoryInterpolantsVSToPS Interpolants, bool bEvaluateBackface, half3 DiffuseDir, bool bApplySkyLighting, half3 SkyLightColor, out half3 OutDiffuseIndirectLighting, out half3 OutSubsurfaceIndirectLighting, out half OutIndirectIrradiance, out half3 OutWaterDiffuseIndirectLuminance)
+void GetPrecomputedIndirectLightingAndSkyLight(VTPageTableResult LightmapVTPageTableResult, FVertexFactoryInterpolantsVSToPS Interpolants, bool bEvaluateBackface, half3 DiffuseDir, half3 SkyLightColor, out half3 OutDiffuseIndirectLighting, out half3 OutSubsurfaceIndirectLighting, out half OutIndirectIrradiance, out half3 OutWaterDiffuseIndirectLuminance)
 {
 	//To keep IndirectLightingCache conherence with PC, initialize the OutIndirectIrradiance to zero.
 	OutIndirectIrradiance = 0;
@@ -220,7 +217,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(VTPageTableResult LightmapVTPageT
 
 	half3 SkyDiffuseLighting;
 	half3 SkySubsurfaceLighting;
-	GetSkyLighting(bApplySkyLighting, SkyLightColor, DiffuseDir, bEvaluateBackface, OutIndirectIrradiance, SkyDiffuseLighting, SkySubsurfaceLighting, OutWaterDiffuseIndirectLuminance);
+	GetSkyLighting(SkyLightColor, DiffuseDir, bEvaluateBackface, OutIndirectIrradiance, SkyDiffuseLighting, SkySubsurfaceLighting, OutWaterDiffuseIndirectLuminance);
 
 	OutDiffuseIndirectLighting += SkyDiffuseLighting;
 	OutSubsurfaceIndirectLighting += SkySubsurfaceLighting;
@@ -529,11 +526,10 @@ void Main(
 #endif
 
 	half NoL = max(0, dot(GBuffer.WorldNormal, MobileDirectionalLight.DirectionalLightDirectionAndShadowTransition.xyz));
-	bool bApplySkyLighting = !(MATERIAL_TWOSIDED && LQ_TEXTURE_LIGHTMAP) || NoL == 0;
 
 	const bool bEvaluateBackface = GetShadingModelRequiresBackfaceLighting(GBuffer.ShadingModelID);
 
-	GetPrecomputedIndirectLightingAndSkyLight(LightmapVTPageTableResult, Interpolants, bEvaluateBackface, DiffuseDir, bApplySkyLighting, ResolvedView.SkyLightColor.rgb, DiffuseIndirectLighting, SubsurfaceIndirectLighting, IndirectIrradiance, WaterDiffuseIndirectLuminance);
+	GetPrecomputedIndirectLightingAndSkyLight(LightmapVTPageTableResult, Interpolants, bEvaluateBackface, DiffuseDir, ResolvedView.SkyLightColor.rgb, DiffuseIndirectLighting, SubsurfaceIndirectLighting, IndirectIrradiance, WaterDiffuseIndirectLuminance);
 
 	// Apply MaterialAO since we don't have the DiffuseIndirectComposite pass on mobile deferred.
 	IndirectIrradiance *= GBuffer.GBufferAO;
