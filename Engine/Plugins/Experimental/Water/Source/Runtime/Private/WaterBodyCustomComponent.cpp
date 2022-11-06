@@ -72,6 +72,7 @@ void UWaterBodyCustomComponent::OnUpdateBody(bool bWithExclusionVolumes)
 		MeshComp = NewObject<UStaticMeshComponent>(OwnerActor, TEXT("CustomMeshComponent"), RF_Transactional);
 		MeshComp->SetNetAddressable(); // it's deterministically named so it's addressable over network (needed for collision)
 		MeshComp->SetupAttachment(this);
+		MeshComp->bEnableAutoLODGeneration = false; // The water body component is already responsible for generating HLOD of the WaterBody actor.
 
 		if(IsRegistered())
 		{
@@ -161,6 +162,19 @@ const TCHAR* UWaterBodyCustomComponent::GetWaterSpriteTextureName() const
 bool UWaterBodyCustomComponent::IsIconVisible() const
 {
 	return (GetWaterMeshOverride() == nullptr);
+}
+
+void UWaterBodyCustomComponent::PostLoad()
+{
+	Super::PostLoad();
+
+	// Make sure the custom mesh component is not HLOD relevant
+	// The water body component is already responsible for generating 
+	// the HLOD of the WaterBody actor.
+	if (MeshComp && MeshComp->IsHLODRelevant())
+	{
+		MeshComp->bEnableAutoLODGeneration = false;
+	}
 }
 #endif // WITH_EDITOR
 
