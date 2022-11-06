@@ -2084,7 +2084,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 						}
 
 						const nagMessage: SlackMessage = {
-							text: `${triager} RoboMerge blocked for more than ${timeDesc}`,
+							text: `${triager ? triager + ' ' : ''}RoboMerge blocked for more than ${timeDesc}`,
 							style: SlackMessageStyles.DANGER,
 							channel: this.branchGraph.config.slackChannel,
 							mrkdwn: true
