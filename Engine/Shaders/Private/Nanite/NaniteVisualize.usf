@@ -12,12 +12,18 @@
 #include "NaniteAttributeDecode.ush"
 
 RWTexture2D<float4>		DebugOutput;
+
 Texture2D<UlongType>	VisBuffer64;
 Texture2D<UlongType>	DbgBuffer64;
 Texture2D<uint>			DbgBuffer32;
 Texture2D<float>		SceneDepth;
+Texture2D<float>		SceneZDecoded;
+Texture2D<uint4>		SceneZLayout;
+Texture2D<float>		MaterialZDecoded;
+Texture2D<uint4>		MaterialZLayout;
 Texture2D<uint>			MaterialResolve;
 Texture2D<uint>			MaterialComplexity;
+
 ByteAddressBuffer		MaterialSlotTable;
 ByteAddressBuffer		MaterialDepthTable;
 ByteAddressBuffer		MaterialHitProxyTable;
@@ -276,6 +282,66 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 			const float ComplexityColor = 1.0f - exp2(-ComplexityCount * ComplexityScale);
 			Result = ColorMapTurbo(ComplexityColor);
 		}
+		else if (VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MIN || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MAX || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_DELTA)// || VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MASK)
+		{
+			const uint4 ZLayout = SceneZLayout[PixelPos];
+			float2 MinMax = float2(f16tof32(ZLayout.y), f16tof32(ZLayout.y >> 16u));
+
+			if (VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MIN)
+			{
+				Result = float3(pow(MinMax.x, 0.11f), 0.0f, 0.0f);
+			}
+			else if (VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MAX)
+			{
+				Result = float3(pow(MinMax.y, 0.11f), 0.0f, 0.0f);
+			}
+			else if (VisualizeMode == NANITE_VISUALIZE_SCENE_Z_DELTA)
+			{
+				Result = float3(pow(MinMax.y - MinMax.x, 0.11f), 0.0f, 0.0f);
+			}
+			//else if (VisualizeMode == NANITE_VISUALIZE_SCENE_Z_MASK)
+			//{
+			//	Result = IntToColor((uint)ZLayout.z);
+			//}
+
+			bApplySobel = false;
+		}
+		else if (VisualizeMode == NANITE_VISUALIZE_SCENE_Z_DECODED)
+		{
+			const float ZDecoded = SceneZDecoded[PixelPos];
+			Result = float3(pow(ZDecoded, 0.11f), 0.0f, 0.0f);
+			bApplySobel = false;
+		}
+		else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_Z_MIN || VisualizeMode == NANITE_VISUALIZE_MATERIAL_Z_MAX || VisualizeMode == NANITE_VISUALIZE_MATERIAL_Z_DELTA)// || VisualizeMode == NANITE_VISUALIZE_MATERIAL_Z_MASK)
+		{
+			const uint4 ZLayout = MaterialZLayout[PixelPos];
+			float2 MinMax = float2(f16tof32(ZLayout.y), f16tof32(ZLayout.y >> 16u));
+
+			if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_Z_MIN)
+			{
+				Result = float3(pow(MinMax.x, 0.11f), 0.0f, 0.0f);
+			}
+			else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_Z_MAX)
+			{
+				Result = float3(pow(MinMax.y, 0.11f), 0.0f, 0.0f);
+			}
+			else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_Z_DELTA)
+			{
+				Result = float3(pow(MinMax.y - MinMax.x, 0.11f), 0.0f, 0.0f);
+			}
+			//else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_Z_MASK)
+			//{
+			//	Result = IntToColor((uint)ZLayout.z);
+			//}
+
+			bApplySobel = false;
+		}
+		else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_Z_DECODED)
+		{
+			const float ZDecoded = MaterialZDecoded[PixelPos];
+			Result = float3(pow(ZDecoded, 0.11f), 0.0f, 0.0f);
+			bApplySobel = false;
+		}
 	#if USE_EDITOR_SHADERS
 		else if (VisualizeMode == NANITE_VISUALIZE_HIT_PROXY_DEPTH)
 		{
@@ -497,7 +563,7 @@ void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 	}
 	else
 	{
-		FeedbackResults.PrimitiveId			= INVALID_PRIMITIVE_ID;
+		FeedbackResults.PrimitiveId = INVALID_PRIMITIVE_ID;
 	}
 
 	FeedbackBuffer[0] = FeedbackResults;

@@ -359,7 +359,7 @@ class FRasterClearCS : public FNaniteGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterParameters, RasterParameters)
-		SHADER_PARAMETER(FIntVector4, ClearRect)
+		SHADER_PARAMETER(FUint32Vector4, ClearRect)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FRasterClearCS, "/Engine/Private/Nanite/NaniteRasterClear.usf", "RasterClear", SF_Compute);
@@ -2799,7 +2799,7 @@ void AddClearVisBufferPass(
 		const bool bTiled = (GNaniteFastVisBufferClear == 2);
 
 		FRasterClearCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRasterClearCS::FParameters>();
-		PassParameters->ClearRect = FIntVector4(TextureRect.Min.X, TextureRect.Min.Y, TextureRect.Max.X, TextureRect.Max.Y);
+		PassParameters->ClearRect = FUint32Vector4((uint32)TextureRect.Min.X, (uint32)TextureRect.Min.Y, (uint32)TextureRect.Max.X, (uint32)TextureRect.Max.Y);
 		PassParameters->RasterParameters = RasterContext.Parameters;
 
 		FRasterClearCS::FPermutationDomain PermutationVectorCS;
