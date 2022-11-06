@@ -21,6 +21,11 @@ UNavAgentInterface::UNavAgentInterface(const FObjectInitializer& ObjectInitializ
 {
 }
 
+const FNavAgentProperties& INavAgentInterface::GetNavAgentPropertiesRef() const
+{
+	return FNavAgentProperties::DefaultProperties;
+}
+
 UNavRelevantInterface::UNavRelevantInterface(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

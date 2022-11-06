@@ -257,15 +257,7 @@ public:
 
 	// return true if anim notify is available 
 	virtual bool IsNotifyAvailable() const;
-protected:
-	template <typename DataType>
-	void VerifyCurveNames(USkeleton& Skeleton, const FName& NameContainer, TArray<DataType>& CurveList)
-	{
-		for (DataType& Curve : CurveList)
-		{
-			Skeleton.VerifySmartName(NameContainer, Curve.Name);
-		}
-	}
+
 #if WITH_EDITOR
 	void OnEndLoadPackage(const FEndLoadPackageContext& Context);
 	virtual void OnAnimModelLoaded();

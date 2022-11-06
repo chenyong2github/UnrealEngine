@@ -12,9 +12,11 @@
 #include "Styling/SlateBrush.h"
 #include "Components/SlateWrapperTypes.h"
 #include "Blueprint/DragDropOperation.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Blueprint/UserWidget.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
 #include "Slate/SGameLayerManager.h"
+#endif
+#include "Kismet/BlueprintFunctionLibrary.h"
 #include "WidgetBlueprintLibrary.generated.h"
 
 class UFont;
@@ -22,6 +24,7 @@ class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class USlateBrushAsset;
 class UTexture2D;
+class UUserWidget;
 
 UCLASS(meta=(ScriptName="WidgetLibrary"))
 class UMG_API UWidgetBlueprintLibrary : public UBlueprintFunctionLibrary

@@ -7,7 +7,6 @@
 #include "Engine/EngineTypes.h"
 #include "IAudioParameterTransmitter.h"
 #include "Math/RandomStream.h"
-#include "Quartz/AudioMixerClockHandle.h"
 #include "Quartz/AudioMixerQuantizedCommands.h"
 #include "Sound/QuartzQuantizationUtilities.h"
 #include "Sound/QuartzSubscription.h"
@@ -15,6 +14,7 @@
 #include "Sound/SoundModulationDestination.h"
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Sound/SoundWave.h"
+#include "Quartz/AudioMixerClockHandle.h"
 #endif
 #include "UObject/ObjectMacros.h"
 

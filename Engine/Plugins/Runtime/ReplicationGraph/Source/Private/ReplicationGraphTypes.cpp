@@ -7,6 +7,7 @@
 
 #include "EngineUtils.h"
 #include "Engine/Engine.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Net/DataReplication.h"
 #include "Engine/ActorChannel.h"
 #include "Engine/NetworkObjectList.h"
@@ -312,6 +313,17 @@ void ForEachClientPIEWorld(TFunction<void(UWorld*)> Func)
 }
 #endif
 
+FReplicationGraphCSVTracker::FReplicationGraphCSVTracker()
+	: EverythingElse(TEXT("Other"))
+	, EverythingElse_FastPath(TEXT("OtherFastPath"))
+	, ActorDiscovery(TEXT("ActorDiscovery"))
+{
+	ResetTrackedClasses();
+
+	GConfig->GetBool(TEXT("ReplicationGraphCSVTracker"), TEXT("bReportUntrackedClasses"), bReportUntrackedClasses, GEngineIni);
+}
+
+
 void LogListDetails(FActorRepList& RepList, FOutputDevice& Ar)
 {
 	FString ListContentString;
@@ -487,6 +499,18 @@ void FGlobalActorReplicationInfoMap::AddDependentActor(AActor* Parent, AActor* C
 			UE_LOG(LogReplicationGraph, Warning, TEXT("FGlobalActorReplicationInfoMap::AddDependentActor child %s already dependant of parent %s"), *GetNameSafe(Child), *GetNameSafe(Parent));
 		}
 	}
+}
+
+FName FNewReplicatedActorInfo::GetStreamingLevelNameOfActor(const AActor* Actor)
+{
+	ULevel* Level = Actor ? Cast<ULevel>(Actor->GetOuter()) : nullptr;
+	return (Level && Level->IsPersistentLevel() == false) ? Level->GetOutermost()->GetFName() : NAME_None;
+}
+
+FActorConnectionPair::FActorConnectionPair(AActor* InActor, UNetConnection* InConnection)
+	: Actor(InActor)
+	, Connection(InConnection)
+{
 }
 
 bool FActorRepListStatCollector::WasNodeVisited(const UReplicationGraphNode* NodeToVisit)

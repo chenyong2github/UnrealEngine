@@ -11,13 +11,16 @@
 #include "Async/AsyncWork.h"
 #include "Engine/Texture.h"
 #include "PerPlatformProperties.h"
-#include "LandscapeComponent.h"
 #include "LandscapeNaniteComponent.h"
 #include "LandscapeWeightmapUsage.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
 #include "ActorPartition/PartitionActor.h"
 #include "ILandscapeSplineInterface.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "LandscapeComponent.h"
+#endif
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionHandle.h"
@@ -42,8 +45,10 @@ class UPhysicalMaterial;
 class USplineComponent;
 class UTexture2D;
 class FLandscapeEditLayerReadback;
+class FMaterialUpdateContext;
 struct FAsyncGrassBuilder;
 struct FLandscapeInfoLayerSettings;
+struct FLandscapePerLODMaterialOverride;
 class FLandscapeProxyComponentDataChangedParams;
 struct FMeshDescription;
 enum class ENavDataGatheringMode : uint8;
@@ -845,7 +850,7 @@ public:
 	virtual const ALandscape* GetLandscapeActor() const PURE_VIRTUAL(GetLandscapeActor, return nullptr;)
 
 	const TArray<FLandscapePerLODMaterialOverride>& GetPerLODOverrideMaterials() const { return PerLODOverrideMaterials; }
-	void SetPerLODOverrideMaterials(const TArray<FLandscapePerLODMaterialOverride>& InValue) { PerLODOverrideMaterials = InValue; }
+	LANDSCAPE_API void SetPerLODOverrideMaterials(const TArray<FLandscapePerLODMaterialOverride>& InValue);
 
 	static void SetGrassUpdateInterval(int32 Interval) { GrassUpdateInterval = Interval; }
 

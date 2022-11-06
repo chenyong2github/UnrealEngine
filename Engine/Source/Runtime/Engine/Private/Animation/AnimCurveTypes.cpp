@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/AnimCurveTypes.h"
+#include "Animation/Skeleton.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/AnimObjectVersion.h"
 #include "Math/RandomStream.h"
@@ -370,7 +371,7 @@ float FCachedFloatCurve::GetValueAtPosition(const UAnimSequenceBase* InAnimSeque
 	return InAnimSequence->EvaluateCurveData(GetAnimCurveUID(InAnimSequence), InPosition);
 }
 
-USkeleton::AnimCurveUID FCachedFloatCurve::GetAnimCurveUID(const UAnimSequenceBase* InAnimSequence) const
+SkeletonAnimCurveUID FCachedFloatCurve::GetAnimCurveUID(const UAnimSequenceBase* InAnimSequence) const
 {
 	if (CurveName != CachedCurveName && InAnimSequence)
 	{
@@ -392,7 +393,7 @@ const FFloatCurve* FCachedFloatCurve::GetFloatCurve(const UAnimSequenceBase* InA
 {
 	if (InAnimSequence)
 	{
-		USkeleton::AnimCurveUID DistanceCurveUID = GetAnimCurveUID(InAnimSequence);
+		SkeletonAnimCurveUID DistanceCurveUID = GetAnimCurveUID(InAnimSequence);
 		if (DistanceCurveUID != SmartName::MaxUID)
 		{
 			const FAnimationCurveIdentifier CurveId(DistanceCurveUID, ERawCurveTrackTypes::RCT_Float);
@@ -452,7 +453,7 @@ void FRawCurveTracks::EvaluateTransformCurveData(USkeleton * Skeleton, TMap<FNam
 	}
 }
 #endif
-FAnimCurveBase * FRawCurveTracks::GetCurveData(USkeleton::AnimCurveUID Uid, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/)
+FAnimCurveBase * FRawCurveTracks::GetCurveData(SkeletonAnimCurveUID Uid, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/)
 {
 	switch (SupportedCurveType)
 	{
@@ -468,7 +469,7 @@ FAnimCurveBase * FRawCurveTracks::GetCurveData(USkeleton::AnimCurveUID Uid, ERaw
 	}
 }
 
-const FAnimCurveBase * FRawCurveTracks::GetCurveData(USkeleton::AnimCurveUID Uid, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/) const
+const FAnimCurveBase * FRawCurveTracks::GetCurveData(SkeletonAnimCurveUID Uid, ERawCurveTrackTypes SupportedCurveType /*= FloatType*/) const
 {
 	switch (SupportedCurveType)
 	{
@@ -650,7 +651,7 @@ bool FRawCurveTracks::DuplicateCurveData(const FSmartName& CurveToCopy, const FS
 // but this has to be refactored once we'd like to move onto serialize
 ///////////////////////////////////
 template <typename DataType>
-DataType * FRawCurveTracks::GetCurveDataImpl(TArray<DataType> & Curves, USkeleton::AnimCurveUID Uid)
+DataType * FRawCurveTracks::GetCurveDataImpl(TArray<DataType> & Curves, SkeletonAnimCurveUID Uid)
 {
 	for(DataType& Curve : Curves)
 	{
@@ -664,7 +665,7 @@ DataType * FRawCurveTracks::GetCurveDataImpl(TArray<DataType> & Curves, USkeleto
 }
 
 template <typename DataType>
-const DataType * FRawCurveTracks::GetCurveDataImpl(const TArray<DataType> & Curves, USkeleton::AnimCurveUID Uid) const
+const DataType * FRawCurveTracks::GetCurveDataImpl(const TArray<DataType> & Curves, SkeletonAnimCurveUID Uid) const
 {
 	for (const DataType& Curve : Curves)
 	{

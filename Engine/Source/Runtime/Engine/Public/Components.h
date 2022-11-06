@@ -5,12 +5,19 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "MeshUVChannelInfo.h"
+#include "VertexStreamComponent.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "RenderResource.h"
 #include "VertexFactory.h"
+#endif
 
 /*=============================================================================
 	Components.h: Forward declarations of object components of actors
 =============================================================================*/
+
+class FRHIShaderResourceView;
+
 
 // Constants.
 enum { MAX_STATIC_TEXCOORDS = 8 };

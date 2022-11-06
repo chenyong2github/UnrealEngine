@@ -19,10 +19,9 @@
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "DynamicMeshBuilder.h"
-#endif
-
 #if WITH_EDITOR
 #include "MeshDescription.h"
+#endif
 #endif
 
 #include "WaterBodyComponent.generated.h"
@@ -37,6 +36,7 @@ class UMaterialInstanceDynamic;
 class FTokenizedMessage;
 namespace UE::Geometry { class FDynamicMesh3; }
 struct FDynamicMeshVertex;
+struct FMeshDescription;
 
 // ----------------------------------------------------------------------------------
 

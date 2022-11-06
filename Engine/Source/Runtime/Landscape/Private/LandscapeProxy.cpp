@@ -26,3 +26,7 @@ LANDSCAPE_API FLandscapeImportLayerInfo::FLandscapeImportLayerInfo(const FLandsc
 
 #endif // WITH_EDITOR
 
+void ALandscapeProxy::SetPerLODOverrideMaterials(const TArray<FLandscapePerLODMaterialOverride>& InValue)
+{
+	PerLODOverrideMaterials = InValue;
+}

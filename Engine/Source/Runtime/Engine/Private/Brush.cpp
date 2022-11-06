@@ -8,6 +8,7 @@
 #include "EngineGlobals.h"
 #include "Engine/Polys.h"
 #include "Engine/Engine.h"
+#include "Engine/Level.h"
 #include "Model.h"
 #include "Materials/Material.h"
 #include "Engine/BrushBuilder.h"
@@ -141,6 +142,26 @@ void ABrush::CopyPosRotScaleFrom( ABrush* Other )
 	}
 
 	ReregisterAllComponents();
+}
+
+bool ABrush::NeedsRebuild(TArray< TWeakObjectPtr< ULevel > >* OutLevels)
+{
+	LevelsToRebuild.RemoveAllSwap([](const TWeakObjectPtr<ULevel>& Level) { return !Level.IsValid(); });
+
+	if (OutLevels)
+	{
+		*OutLevels = LevelsToRebuild;
+	}
+
+	return(LevelsToRebuild.Num() > 0);
+}
+
+void ABrush::SetNeedRebuild(ULevel* InLevel)
+{
+	if (InLevel)
+	{
+		LevelsToRebuild.AddUnique(InLevel);
+	}
 }
 
 void ABrush::InitPosRotScale()

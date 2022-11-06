@@ -6,7 +6,9 @@
 #include "UObject/ObjectMacros.h"
 #include "Misc/Guid.h"
 #include "Misc/MemStack.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "BonePose.h"
+#endif
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimCurveTypes.h"
 #include "Animation/AnimationAsset.h"
@@ -45,6 +47,7 @@ class UAnimCurveCompressionSettings;
 class UAnimBoneCompressionSettings;
 class UAnimBoneCompressionCodec;
 class USkeleton;
+struct FCompactPose;
 
 template<typename ArrayClass>
 struct ENGINE_API FCompressedOffsetDataBase

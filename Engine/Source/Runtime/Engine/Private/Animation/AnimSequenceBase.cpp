@@ -84,6 +84,15 @@ void UAnimSequenceBase::DeclareConstructClasses(TArray<FTopLevelAssetPath>& OutC
 }
 #endif
 
+template <typename DataType>
+void VerifyCurveNames(USkeleton& Skeleton, const FName& NameContainer, TArray<DataType>& CurveList)
+{
+	for (DataType& Curve : CurveList)
+	{
+		Skeleton.VerifySmartName(NameContainer, Curve.Name);
+	}
+}
+
 void UAnimSequenceBase::PostLoad()
 {
 #if WITH_EDITORONLY_DATA

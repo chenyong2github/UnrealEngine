@@ -3,24 +3,28 @@
 #pragma once
 
 #include "Containers/StaticArray.h"
-#include "GameFramework/WorldSettings.h"
-#include "UObject/Package.h"
 #include "EngineGlobals.h"
-#include "Engine/ActorChannel.h"
-#include "Engine/LocalPlayer.h"
 #include "GameFramework/Actor.h"
-#include "Misc/ConfigCacheIni.h"
+#include "GameFramework/WorldSettings.h"
 #include "Misc/EnumClassFlags.h"
 #include "Net/DataBunch.h"
 #include "UObject/ObjectKey.h"
 #include "UObject/UObjectHash.h"
 #include "ProfilingDebugging/CsvProfiler.h"
-#include "Engine/NetConnection.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "UObject/Package.h"
 #include "ReplicationGraphTypes.generated.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Engine/ActorChannel.h"
+#include "Engine/LocalPlayer.h"
+#include "Engine/NetConnection.h"
+#include "Misc/ConfigCacheIni.h"
+#endif
 
 class AActor;
 class AController;
+class UActorChannel;
 class UNetConnection;
 class UNetReplicationGraphConnection;
 class UReplicationGraph;
@@ -1352,12 +1356,7 @@ struct FNewReplicatedActorInfo
 
 	AActor* GetActor() const { return Actor; }
 
-	static FORCEINLINE FName GetStreamingLevelNameOfActor(const AActor* Actor)
-	{
-		ULevel* Level = Actor ? Cast<ULevel>(Actor->GetOuter()) : nullptr;
-		return (Level && Level->IsPersistentLevel() == false) ? Level->GetOutermost()->GetFName() : NAME_None;
-	}
-
+	REPLICATIONGRAPH_API static FName GetStreamingLevelNameOfActor(const AActor* Actor);
 
 	FActorRepListType Actor;
 	FName StreamingLevelName;
@@ -1496,15 +1495,7 @@ struct FReplicationGraphCSVTracker
 
 	FRIEND_ENUM_CLASS_FLAGS(EActorFlags)
 
-	FReplicationGraphCSVTracker()
-		: EverythingElse(TEXT("Other"))
-		, EverythingElse_FastPath(TEXT("OtherFastPath"))
-		, ActorDiscovery(TEXT("ActorDiscovery"))
-	{
-		ResetTrackedClasses();
-
-		GConfig->GetBool(TEXT("ReplicationGraphCSVTracker"), TEXT("bReportUntrackedClasses"), bReportUntrackedClasses, GEngineIni);
-	}
+	REPLICATIONGRAPH_API FReplicationGraphCSVTracker();
 
 	void TearDown()
 	{
@@ -1909,7 +1900,7 @@ ENUM_CLASS_FLAGS(FReplicationGraphCSVTracker::EActorFlags);
 struct FActorConnectionPair
 {
 	FActorConnectionPair() { }
-	FActorConnectionPair(AActor* InActor, UNetConnection* InConnection) : Actor(InActor), Connection(InConnection) { }
+	FActorConnectionPair(AActor* InActor, UNetConnection* InConnection);
 
 	TWeakObjectPtr<AActor> Actor;
 	TWeakObjectPtr<UNetConnection> Connection;

@@ -2,6 +2,7 @@
 
 #include "AudioCompressionSettingsUtils.h"
 #include "AudioCompressionSettings.h"
+#include "AudioStreamingCache.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "HAL/PlatformMisc.h"
 

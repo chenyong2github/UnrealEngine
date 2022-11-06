@@ -5,7 +5,12 @@
 #include "IAudioExtensionPlugin.h"
 #include "AudioPluginUtilities.h"
 #include "AudioCompressionSettings.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "AudioStreamingCache.h"
+#endif
+
+struct FCachedAudioStreamingManagerParams;
 
 class ENGINE_API FPlatformCompressionUtilities
 {
