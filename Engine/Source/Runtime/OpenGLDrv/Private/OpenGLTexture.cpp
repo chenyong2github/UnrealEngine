@@ -1832,9 +1832,8 @@ void FOpenGLDynamicRHI::RHIUnlockTexture2DArray(FRHITexture2DArray* TextureRHI, 
 	GetOpenGLTextureFromRHITexture(TextureRHI)->Unlock(MipIndex, TextureIndex);
 }
 
-void FOpenGLDynamicRHI::RHIUpdateTexture2D(FRHITexture2D* TextureRHI, uint32 MipIndex, const FUpdateTextureRegion2D& UpdateRegionIn, uint32 SourcePitch, const uint8* SourceDataIn)
+void FOpenGLDynamicRHI::RHIUpdateTexture2D(FRHICommandListBase& RHICmdList, FRHITexture2D* TextureRHI, uint32 MipIndex, const FUpdateTextureRegion2D& UpdateRegionIn, uint32 SourcePitch, const uint8* SourceDataIn)
 {
-	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	const FUpdateTextureRegion2D UpdateRegion = UpdateRegionIn;
 
 	uint8* RHITSourceData = nullptr;
@@ -1847,7 +1846,7 @@ void FOpenGLDynamicRHI::RHIUpdateTexture2D(FRHITexture2D* TextureRHI, uint32 Mip
 		FMemory::Memcpy(RHITSourceData, SourceDataIn, DataSize);
 	}
 	const uint8* SourceData = RHITSourceData ? RHITSourceData : SourceDataIn;
-	RunOnGLRenderContextThread([=]()
+	RHICmdList.EnqueueLambda([this, TextureRHI, MipIndex, UpdateRegion, SourcePitch, SourceData, RHITSourceData](FRHICommandListBase&)
 	{
 		VERIFY_GL_SCOPE();
 
@@ -1886,59 +1885,76 @@ void FOpenGLDynamicRHI::RHIUpdateTexture2D(FRHITexture2D* TextureRHI, uint32 Mip
 	});
 }
 
-void FOpenGLDynamicRHI::RHIUpdateTexture3D(FRHITexture3D* TextureRHI, uint32 MipIndex, const FUpdateTextureRegion3D& UpdateRegion, uint32 SourceRowPitch, uint32 SourceDepthPitch, const uint8* SourceData)
+void FOpenGLDynamicRHI::RHIUpdateTexture3D(FRHICommandListBase& RHICmdList, FRHITexture3D* TextureRHI, uint32 MipIndex, const FUpdateTextureRegion3D& UpdateRegion, uint32 SourceRowPitch, uint32 SourceDepthPitch, const uint8* SourceData)
 {
-	VERIFY_GL_SCOPE();
-	check( FOpenGL::SupportsTexture3D() );
-	FOpenGLTexture* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
-
-	// Use a texture stage that's not likely to be used for draws, to avoid waiting
-	FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
-	CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Texture->Target, Texture->GetResource(), 0, Texture->GetNumMips());
-	CachedBindPixelUnpackBuffer(ContextState, 0);
-
-	EPixelFormat PixelFormat = Texture->GetFormat();
-	const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[PixelFormat];
-	const FPixelFormatInfo& FormatInfo = GPixelFormats[PixelFormat];
-	const uint32 FormatBPP = FormatInfo.BlockBytes;
-
-	check( FOpenGL::SupportsTexture3D() );
-	// TO DO - add appropriate offsets to source data when necessary
-	check(UpdateRegion.SrcX == 0);
-	check(UpdateRegion.SrcY == 0);
-	check(UpdateRegion.SrcZ == 0);
-	
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-	const bool bSRGB = EnumHasAnyFlags(Texture->GetFlags(), TexCreate_SRGB);
-
-	if (GLFormat.bCompressed)
+	uint8* RHITSourceData = nullptr;
+	if (!ShouldRunGLRenderContextOpOnThisThread(RHICmdList))
 	{
-		FOpenGL::CompressedTexSubImage3D(
-			Texture->Target,
-			MipIndex,
-			UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.DestZ,
-			UpdateRegion.Width, UpdateRegion.Height, UpdateRegion.Depth,
-			GLFormat.InternalFormat[bSRGB],
-			SourceDepthPitch * UpdateRegion.Depth,
-			SourceData);
-	}
-	else
-	{
-		glPixelStorei(GL_UNPACK_ROW_LENGTH, UpdateRegion.Width / FormatInfo.BlockSizeX);
-		glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, UpdateRegion.Height / FormatInfo.BlockSizeY);
-
-		FOpenGL::TexSubImage3D(Texture->Target, MipIndex, UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.DestZ, UpdateRegion.Width, UpdateRegion.Height, UpdateRegion.Depth, GLFormat.Format, GLFormat.Type, SourceData);
+		uint32 DataSize = SourceDepthPitch * UpdateRegion.Depth;
+		RHITSourceData = (uint8*)FMemory::Malloc(DataSize, 16);
+		FMemory::Memcpy(RHITSourceData, SourceData, DataSize);
+		SourceData = RHITSourceData;
 	}
 
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
-	glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	RHICmdList.EnqueueLambda([this, TextureRHI, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData, RHITSourceData](FRHICommandListBase&)
+	{
+		VERIFY_GL_SCOPE();
+		check(FOpenGL::SupportsTexture3D());
+		FOpenGLTexture* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
 
+		// Use a texture stage that's not likely to be used for draws, to avoid waiting
+		FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
+		CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Texture->Target, Texture->GetResource(), 0, Texture->GetNumMips());
+		CachedBindPixelUnpackBuffer(ContextState, 0);
 
-	// No need to restore texture stage; leave it like this,
-	// and the next draw will take care of cleaning it up; or
-	// next operation that needs the stage will switch something else in on it.
+		EPixelFormat PixelFormat = Texture->GetFormat();
+		const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[PixelFormat];
+		const FPixelFormatInfo& FormatInfo = GPixelFormats[PixelFormat];
+		const uint32 FormatBPP = FormatInfo.BlockBytes;
+
+		check(FOpenGL::SupportsTexture3D());
+		// TO DO - add appropriate offsets to source data when necessary
+		check(UpdateRegion.SrcX == 0);
+		check(UpdateRegion.SrcY == 0);
+		check(UpdateRegion.SrcZ == 0);
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+		const bool bSRGB = EnumHasAnyFlags(Texture->GetFlags(), TexCreate_SRGB);
+
+		if (GLFormat.bCompressed)
+		{
+			FOpenGL::CompressedTexSubImage3D(
+				Texture->Target,
+				MipIndex,
+				UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.DestZ,
+				UpdateRegion.Width, UpdateRegion.Height, UpdateRegion.Depth,
+				GLFormat.InternalFormat[bSRGB],
+				SourceDepthPitch * UpdateRegion.Depth,
+				SourceData);
+		}
+		else
+		{
+			glPixelStorei(GL_UNPACK_ROW_LENGTH, UpdateRegion.Width / FormatInfo.BlockSizeX);
+			glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, UpdateRegion.Height / FormatInfo.BlockSizeY);
+
+			FOpenGL::TexSubImage3D(Texture->Target, MipIndex, UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.DestZ, UpdateRegion.Width, UpdateRegion.Height, UpdateRegion.Depth, GLFormat.Format, GLFormat.Type, SourceData);
+		}
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+		glPixelStorei(GL_UNPACK_IMAGE_HEIGHT, 0);
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+
+		// free source data if we're on RHIT
+		if (RHITSourceData)
+		{
+			FMemory::Free(RHITSourceData);
+		}
+
+		// No need to restore texture stage; leave it like this,
+		// and the next draw will take care of cleaning it up; or
+		// next operation that needs the stage will switch something else in on it.
+	});
 }
 
 void FOpenGLDynamicRHI::InvalidateTextureResourceInCache(GLuint Resource)

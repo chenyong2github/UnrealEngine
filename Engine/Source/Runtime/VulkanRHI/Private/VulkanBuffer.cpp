@@ -559,11 +559,5 @@ void FVulkanDynamicRHI::RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuff
 void FVulkanDynamicRHI::RHIUnlockBuffer(FRHICommandListBase& RHICmdList, FRHIBuffer* BufferRHI)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_UnlockBuffer_RenderThread);
-
-	// We might need to queue a copy, make sure we have an active pipeline
-	if (RHICmdList.IsTopOfPipe() && (RHICmdList.GetPipeline() == ERHIPipeline::None))
-	{
-		RHICmdList.SwitchPipeline(ERHIPipeline::Graphics);
-	}
 	FDynamicRHI::RHIUnlockBuffer(RHICmdList, BufferRHI);
 }

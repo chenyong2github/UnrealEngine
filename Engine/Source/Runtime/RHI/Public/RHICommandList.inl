@@ -145,3 +145,20 @@ private:
 #endif
 };
 
+inline FRHICommandListScopedPipelineGuard::FRHICommandListScopedPipelineGuard(FRHICommandListBase& RHICmdList)
+	: RHICmdList(RHICmdList)
+{
+	if (RHICmdList.GetPipeline() == ERHIPipeline::None)
+	{
+		RHICmdList.SwitchPipeline(ERHIPipeline::Graphics);
+		bPipelineSet = true;
+	}
+}
+
+inline FRHICommandListScopedPipelineGuard::~FRHICommandListScopedPipelineGuard()
+{
+	if (bPipelineSet)
+	{
+		RHICmdList.SwitchPipeline(ERHIPipeline::None);
+	}
+}

@@ -1233,7 +1233,7 @@ void FVulkanDynamicRHI::RHIUnlockTexture2DArray(FRHITexture2DArray* TextureRHI, 
 	}
 }
 
-void FVulkanDynamicRHI::InternalUpdateTexture2D(bool bFromRenderingThread, FRHITexture2D* TextureRHI, uint32 MipIndex, const struct FUpdateTextureRegion2D& UpdateRegion, uint32 SourceRowPitch, const uint8* SourceData)
+void FVulkanDynamicRHI::InternalUpdateTexture2D(FRHICommandListBase& RHICmdList, FRHITexture2D* TextureRHI, uint32 MipIndex, const struct FUpdateTextureRegion2D& UpdateRegion, uint32 SourceRowPitch, const uint8* SourceData)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanTextures);
 	FVulkanTexture* Texture = FVulkanTexture::Cast(TextureRHI);
@@ -1247,7 +1247,6 @@ void FVulkanDynamicRHI::InternalUpdateTexture2D(bool bFromRenderingThread, FRHIT
 
 	ensure(BlockSizeZ == 1);
 
-	FVulkanCommandListContext& Context = Device->GetImmediateContext();
 	const VkPhysicalDeviceLimits& Limits = Device->GetLimits();
 
 	VkBufferImageCopy Region;
@@ -1288,19 +1287,17 @@ void FVulkanDynamicRHI::InternalUpdateTexture2D(bool bFromRenderingThread, FRHIT
 	Region.imageExtent.height = UpdateRegion.Height;
 	Region.imageExtent.depth = 1;
 
-	FRHICommandList& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	if (!bFromRenderingThread || (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread()))
+	if (RHICmdList.IsBottomOfPipe())
 	{
-		FVulkanTexture::InternalLockWrite(Device->GetImmediateContext(), Texture, Region, StagingBuffer);
+		FVulkanTexture::InternalLockWrite(FVulkanCommandListContext::GetVulkanContext(RHICmdList.GetContext()), Texture, Region, StagingBuffer);
 	}
 	else
 	{
-		check(IsInRenderingThread());
 		ALLOC_COMMAND_CL(RHICmdList, FRHICommandLockWriteTexture)(Texture, Region, StagingBuffer);
 	}
 }
 
-FUpdateTexture3DData FVulkanDynamicRHI::BeginUpdateTexture3D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture3D* Texture, uint32 MipIndex, const struct FUpdateTextureRegion3D& UpdateRegion)
+FUpdateTexture3DData FVulkanDynamicRHI::RHIBeginUpdateTexture3D(FRHICommandListBase& RHICmdList, FRHITexture3D* Texture, uint32 MipIndex, const struct FUpdateTextureRegion3D& UpdateRegion)
 {
 	const int32 FormatSize = PixelFormatBlockBytes[Texture->GetFormat()];
 	const int32 RowPitch = UpdateRegion.Width * FormatSize;
@@ -1312,18 +1309,18 @@ FUpdateTexture3DData FVulkanDynamicRHI::BeginUpdateTexture3D_RenderThread(class 
 	return FUpdateTexture3DData(Texture, MipIndex, UpdateRegion, RowPitch, DepthPitch, Data, MemorySize, GFrameNumberRenderThread);
 }
 
-void FVulkanDynamicRHI::EndUpdateTexture3D_RenderThread(class FRHICommandListImmediate& RHICmdList, FUpdateTexture3DData& UpdateData)
+void FVulkanDynamicRHI::RHIEndUpdateTexture3D(FRHICommandListBase& RHICmdList, FUpdateTexture3DData& UpdateData)
 {
-	check(IsInRenderingThread());
+	check(IsInParallelRenderingThread());
 	check(GFrameNumberRenderThread == UpdateData.FrameNumber);
 
-	InternalUpdateTexture3D(true, UpdateData.Texture, UpdateData.MipIndex, UpdateData.UpdateRegion, UpdateData.RowPitch, UpdateData.DepthPitch, UpdateData.Data);
+	InternalUpdateTexture3D(RHICmdList, UpdateData.Texture, UpdateData.MipIndex, UpdateData.UpdateRegion, UpdateData.RowPitch, UpdateData.DepthPitch, UpdateData.Data);
 	
 	FMemory::Free(UpdateData.Data);
 	UpdateData.Data = nullptr;
 }
 
-void FVulkanDynamicRHI::InternalUpdateTexture3D(bool bFromRenderingThread, FRHITexture3D* TextureRHI, uint32 MipIndex, const FUpdateTextureRegion3D& UpdateRegion, uint32 SourceRowPitch, uint32 SourceDepthPitch, const uint8* SourceData)
+void FVulkanDynamicRHI::InternalUpdateTexture3D(FRHICommandListBase& RHICmdList, FRHITexture3D* TextureRHI, uint32 MipIndex, const FUpdateTextureRegion3D& UpdateRegion, uint32 SourceRowPitch, uint32 SourceDepthPitch, const uint8* SourceData)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanTextures);
 	FVulkanTexture* Texture = FVulkanTexture::Cast(TextureRHI);
@@ -1337,7 +1334,6 @@ void FVulkanDynamicRHI::InternalUpdateTexture3D(bool bFromRenderingThread, FRHIT
 
 	ensure(BlockSizeZ == 1);
 
-	FVulkanCommandListContext& Context = Device->GetImmediateContext();
 	const VkPhysicalDeviceLimits& Limits = Device->GetLimits();
 
 	VkBufferImageCopy Region;
@@ -1388,14 +1384,12 @@ void FVulkanDynamicRHI::InternalUpdateTexture3D(bool bFromRenderingThread, FRHIT
 	Region.imageExtent.height = (uint32)FMath::Min((int32)(TextureSizeY-UpdateRegion.DestY), (int32)UpdateRegion.Height);
 	Region.imageExtent.depth = (uint32)FMath::Min((int32)(TextureSizeZ-UpdateRegion.DestZ), (int32)UpdateRegion.Depth);
 
-	FRHICommandList& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-	if (!bFromRenderingThread || (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread()))
+	if (RHICmdList.IsBottomOfPipe())
 	{
-		FVulkanTexture::InternalLockWrite(Device->GetImmediateContext(), Texture, Region, StagingBuffer);
+		FVulkanTexture::InternalLockWrite(FVulkanCommandListContext::GetVulkanContext(RHICmdList.GetContext()), Texture, Region, StagingBuffer);
 	}
 	else
 	{
-		check(IsInRenderingThread());
 		ALLOC_COMMAND_CL(RHICmdList, FRHICommandLockWriteTexture)(Texture, Region, StagingBuffer);
 	}
 }

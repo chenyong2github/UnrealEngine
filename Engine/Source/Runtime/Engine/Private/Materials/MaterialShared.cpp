@@ -3914,6 +3914,7 @@ public:
 			TRACE_CPUPROFILER_EVENT_SCOPE(FUniformExpressionCacheAsyncUpdater::Update);
 			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 			FMemMark Mark(FMemStack::Get());
+			RHICmdList->SwitchPipeline(ERHIPipeline::Graphics);
 
 			for (const FItem& Item : Items)
 			{

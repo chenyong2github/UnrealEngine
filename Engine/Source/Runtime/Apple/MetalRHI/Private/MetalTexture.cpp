@@ -1798,78 +1798,18 @@ static void InternalUpdateTexture2D(FMetalContext& Context, FRHITexture2D* Textu
 	FPlatformAtomics::InterlockedExchange(&Texture->Written, 1);
 }
 
-struct FMetalRHICommandUpdateTexture2D final : public FRHICommand<FMetalRHICommandUpdateTexture2D>
-{
-	FMetalContext& Context;
-	FRHITexture2D* Texture;
-	uint32 MipIndex;
-	FUpdateTextureRegion2D UpdateRegion;
-	uint32 SourcePitch;
-	FMetalBuffer SourceBuffer;
-
-	FORCEINLINE_DEBUGGABLE FMetalRHICommandUpdateTexture2D(FMetalContext& InContext, FRHITexture2D* InTexture, uint32 InMipIndex, FUpdateTextureRegion2D InUpdateRegion, uint32 InSourcePitch, const uint8* SourceData)
-	: Context(InContext)
-	, Texture(InTexture)
-	, MipIndex(InMipIndex)
-	, UpdateRegion(InUpdateRegion)
-	, SourcePitch(InSourcePitch)
-	{
-		SourceBuffer = Internal_CreateBufferAndCopyTexture2DUpdateRegionData(Texture, UpdateRegion, SourcePitch, SourceData);
-	}
-	
-	void Execute(FRHICommandListBase& CmdList)
-	{		
-		InternalUpdateTexture2D(Context, Texture, MipIndex, UpdateRegion, SourcePitch, SourceBuffer);
-		GetMetalDeviceContext().ReleaseBuffer(SourceBuffer);
-		INC_DWORD_STAT_BY(STAT_MetalTextureMemUpdate, UpdateRegion.Height * SourcePitch);
-	}
-};
-
-void FMetalDynamicRHI::UpdateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* Texture, uint32 MipIndex, const struct FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, const uint8* SourceData)
-{
-	@autoreleasepool {
-		if (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
-		{
-			this->RHIUpdateTexture2D(Texture, MipIndex, UpdateRegion, SourcePitch, SourceData);
-		}
-		else
-		{
-			new (RHICmdList.AllocCommand<FMetalRHICommandUpdateTexture2D>()) FMetalRHICommandUpdateTexture2D(ImmediateContext.GetInternalContext(), Texture, MipIndex, UpdateRegion, SourcePitch, SourceData);
-		}
-	}
-}
-
-void FMetalDynamicRHI::RHIUpdateTexture2D(FRHITexture2D* TextureRHI, uint32 MipIndex, const struct FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, const uint8* SourceData)
+void FMetalDynamicRHI::RHIUpdateTexture2D(FRHICommandListBase& RHICmdList, FRHITexture2D* TextureRHI, uint32 MipIndex, const struct FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, const uint8* SourceData)
 {
 	@autoreleasepool 
 	{
-		FMetalSurface* Texture = ResourceCast(TextureRHI);
-		FMetalTexture Tex = Texture->Texture;
-		
-		if(Tex.GetStorageMode() == mtlpp::StorageMode::Private)
-		{
-			FMetalBuffer Buffer = Internal_CreateBufferAndCopyTexture2DUpdateRegionData(TextureRHI, UpdateRegion, SourcePitch, SourceData);
-			InternalUpdateTexture2D(ImmediateContext.GetInternalContext(), TextureRHI, MipIndex, UpdateRegion, SourcePitch, Buffer);
-			GetMetalDeviceContext().ReleaseBuffer(Buffer);
-		}
-		else
-		{
-#if PLATFORM_MAC
-			// Expand R8_sRGB into RGBA8_sRGB for non Apple Silicon Mac.
-			TArray<uint32> ExpandedData;
-			if(Texture->GetFormat() == PF_G8 && EnumHasAnyFlags(Texture->GetFlags(), TexCreate_SRGB) && Tex.GetPixelFormat() == mtlpp::PixelFormat::RGBA8Unorm_sRGB)
-			{
-				ExpandedData.AddZeroed(UpdateRegion.Height * UpdateRegion.Width);
-				InternalExpandR8ToStandardRGBA((uint32*)ExpandedData.GetData(), UpdateRegion, SourcePitch, SourceData);
-				SourceData = (uint8*)ExpandedData.GetData();
-			}
-#endif
-			mtlpp::Region Region = mtlpp::Region(UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.Width, UpdateRegion.Height);
-			MTLPP_VALIDATE(mtlpp::Texture, Tex, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, Replace(Region, MipIndex, 0, SourceData, SourcePitch, 0));
+		FMetalBuffer Buffer = Internal_CreateBufferAndCopyTexture2DUpdateRegionData(TextureRHI, UpdateRegion, SourcePitch, SourceData);
 
-			FPlatformAtomics::InterlockedExchange(&Texture->Written, 1);
-		}
-		
+		RHICmdList.EnqueueLambda([TextureRHI, MipIndex, UpdateRegion, SourcePitch, Buffer](FRHICommandListBase& InRHICmdList) mutable
+		{
+			InternalUpdateTexture2D(static_cast<FMetalRHICommandContext&>(InRHICmdList.GetContext()).GetInternalContext(), TextureRHI, MipIndex, UpdateRegion, SourcePitch, Buffer);
+			GetMetalDeviceContext().ReleaseBuffer(Buffer);
+		});
+
 		INC_DWORD_STAT_BY(STAT_MetalTextureMemUpdate, UpdateRegion.Height*SourcePitch);
 	}
 }
@@ -1941,51 +1881,8 @@ static void InternalUpdateTexture3D(FMetalContext& Context, FRHITexture3D* Textu
 	FPlatformAtomics::InterlockedExchange(&Texture->Written, 1);
 }
 
-struct FMetalDynamicRHIUpdateTexture3DCommand final : public FRHICommand<FMetalDynamicRHIUpdateTexture3DCommand>
+FUpdateTexture3DData FMetalDynamicRHI::RHIBeginUpdateTexture3D(FRHICommandListBase& RHICmdList, FRHITexture3D* Texture, uint32 MipIndex, const struct FUpdateTextureRegion3D& UpdateRegion)
 {
-	FMetalContext& Context;
-	FRHITexture3D* DestinationTexture;
-	uint32 MipIndex;
-	FUpdateTextureRegion3D UpdateRegion;
-	uint32 SourceRowPitch;
-	uint32 SourceDepthPitch;
-	FMetalBuffer Buffer;
-	
-	FORCEINLINE_DEBUGGABLE FMetalDynamicRHIUpdateTexture3DCommand(FMetalContext& InContext, FRHITexture3D* TextureRHI, uint32 InMipIndex, const struct FUpdateTextureRegion3D& InUpdateRegion, uint32 InSourceRowPitch, uint32 InSourceDepthPitch, const uint8* SourceData)
-	: Context(InContext)
-	, DestinationTexture(TextureRHI)
-	, MipIndex(InMipIndex)
-	, UpdateRegion(InUpdateRegion)
-	, SourceRowPitch(InSourceRowPitch)
-	, SourceDepthPitch(InSourceDepthPitch)
-	{
-		Buffer = Internal_CreateBufferAndCopyTexture3DUpdateRegionData(TextureRHI, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData);
-	}
-	
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		InternalUpdateTexture3D(Context, DestinationTexture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, Buffer);
-		GetMetalDeviceContext().ReleaseBuffer(Buffer);
-		INC_DWORD_STAT_BY(STAT_MetalTextureMemUpdate, UpdateRegion.Height * UpdateRegion.Width * SourceDepthPitch);
-	}
-};
-
-void FMetalDynamicRHI::UpdateTexture3D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture3D* Texture, uint32 MipIndex, const struct FUpdateTextureRegion3D& UpdateRegion, uint32 SourceRowPitch, uint32 SourceDepthPitch, const uint8* SourceData)
-{
-	if (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
-	{
-		RHIUpdateTexture3D(Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData);
-	}
-	else
-	{
-		new (RHICmdList.AllocCommand<FMetalDynamicRHIUpdateTexture3DCommand>()) FMetalDynamicRHIUpdateTexture3DCommand(ImmediateContext.GetInternalContext(), Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData);
-	}
-}
-
-FUpdateTexture3DData FMetalDynamicRHI::BeginUpdateTexture3D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture3D* Texture, uint32 MipIndex, const struct FUpdateTextureRegion3D& UpdateRegion)
-{
-	check(IsInRenderingThread());
-	
 	const int32 FormatSize = PixelFormatBlockBytes[Texture->GetFormat()];
 	const int32 RowPitch = UpdateRegion.Width * FormatSize;
 	const int32 DepthPitch = UpdateRegion.Width * UpdateRegion.Height * FormatSize;
@@ -1996,49 +1893,27 @@ FUpdateTexture3DData FMetalDynamicRHI::BeginUpdateTexture3D_RenderThread(class F
 	return FUpdateTexture3DData(Texture, MipIndex, UpdateRegion, RowPitch, DepthPitch, Data, MemorySize, GFrameNumberRenderThread);
 }
 
-void FMetalDynamicRHI::EndUpdateTexture3D_RenderThread(class FRHICommandListImmediate& RHICmdList, FUpdateTexture3DData& UpdateData)
+void FMetalDynamicRHI::RHIEndUpdateTexture3D(FRHICommandListBase& RHICmdList, FUpdateTexture3DData& UpdateData)
 {
-	check(IsInRenderingThread());
+	check(IsInParallelRenderingThread());
 	check(GFrameNumberRenderThread == UpdateData.FrameNumber);
-	
-	if (RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
-	{
-		GDynamicRHI->RHIUpdateTexture3D(UpdateData.Texture, UpdateData.MipIndex, UpdateData.UpdateRegion, UpdateData.RowPitch, UpdateData.DepthPitch, UpdateData.Data);
-	}
-	else
-	{
-		new (RHICmdList.AllocCommand<FMetalDynamicRHIUpdateTexture3DCommand>()) FMetalDynamicRHIUpdateTexture3DCommand(ImmediateContext.GetInternalContext(), UpdateData.Texture, UpdateData.MipIndex, UpdateData.UpdateRegion, UpdateData.RowPitch, UpdateData.DepthPitch, UpdateData.Data);
-	}
-	
+	GDynamicRHI->RHIUpdateTexture3D(RHICmdList, UpdateData.Texture, UpdateData.MipIndex, UpdateData.UpdateRegion, UpdateData.RowPitch, UpdateData.DepthPitch, UpdateData.Data);
 	FMemory::Free(UpdateData.Data);
 	UpdateData.Data = nullptr;
 }
 
-void FMetalDynamicRHI::RHIUpdateTexture3D(FRHITexture3D* TextureRHI,uint32 MipIndex,const FUpdateTextureRegion3D& UpdateRegion,uint32 SourceRowPitch,uint32 SourceDepthPitch, const uint8* SourceData)
+void FMetalDynamicRHI::RHIUpdateTexture3D(FRHICommandListBase& RHICmdList, FRHITexture3D* TextureRHI,uint32 MipIndex,const FUpdateTextureRegion3D& UpdateRegion,uint32 SourceRowPitch,uint32 SourceDepthPitch, const uint8* SourceData)
 {
-	@autoreleasepool {
-	
-		FMetalSurface* Texture = ResourceCast(TextureRHI);
-		FMetalTexture Tex = Texture->Texture;
-		
-#if PLATFORM_MAC
-		checkf(!(Texture->GetFormat() == PF_G8 && EnumHasAnyFlags(Texture->GetFlags(), TexCreate_SRGB) && Tex.GetPixelFormat() == mtlpp::PixelFormat::RGBA8Unorm_sRGB), TEXT("MetalRHI on non Apple Silicon does not support PF_G8_sRGB on 3D, array or cube textures as it requires manual, CPU-side expansion to RGBA8_sRGB which is expensive!"));
-#endif
-		if(Tex.GetStorageMode() == mtlpp::StorageMode::Private)
-		{
-			SCOPED_AUTORELEASE_POOL;
+	@autoreleasepool
+	{
+		FMetalBuffer Buffer = Internal_CreateBufferAndCopyTexture3DUpdateRegionData(TextureRHI, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData);
 
-			FMetalBuffer IntermediateBuffer = Internal_CreateBufferAndCopyTexture3DUpdateRegionData(TextureRHI, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData);
-			InternalUpdateTexture3D(ImmediateContext.GetInternalContext(), TextureRHI, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, IntermediateBuffer);
-			GetMetalDeviceContext().ReleaseBuffer(IntermediateBuffer);
-		}
-		else
+		RHICmdList.EnqueueLambda([TextureRHI, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, Buffer](FRHICommandListBase& InRHICmdList) mutable
 		{
-			mtlpp::Region Region = mtlpp::Region(UpdateRegion.DestX, UpdateRegion.DestY, UpdateRegion.DestZ, UpdateRegion.Width, UpdateRegion.Height, UpdateRegion.Depth);
-			MTLPP_VALIDATE(mtlpp::Texture, Tex, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, Replace(Region, MipIndex, 0, SourceData, SourceRowPitch, SourceDepthPitch));
-			FPlatformAtomics::InterlockedExchange(&Texture->Written, 1);
-		}
-		
+			InternalUpdateTexture3D(static_cast<FMetalRHICommandContext&>(InRHICmdList.GetContext()).GetInternalContext(), TextureRHI, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, Buffer);
+			GetMetalDeviceContext().ReleaseBuffer(Buffer);
+		});
+
 		INC_DWORD_STAT_BY(STAT_MetalTextureMemUpdate, UpdateRegion.Height * UpdateRegion.Width * SourceDepthPitch);
 	}
 }

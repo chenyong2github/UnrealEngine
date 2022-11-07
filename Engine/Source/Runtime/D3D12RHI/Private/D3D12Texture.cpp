@@ -2013,7 +2013,7 @@ void FD3D12Texture::UnlockInternal(class FRHICommandListImmediate* RHICmdList, F
 	}
 }
 
-void FD3D12Texture::UpdateTexture2D(class FRHICommandListImmediate* RHICmdList, uint32 MipIndex, const FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, const uint8* SourceData)
+void FD3D12Texture::UpdateTexture2D(FRHICommandListBase& RHICmdList, uint32 MipIndex, const FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, const uint8* SourceData)
 {
 	const FPixelFormatInfo& FormatInfo = GPixelFormats[this->GetFormat()];
 	check(UpdateRegion.Width  %	FormatInfo.BlockSizeX == 0);
@@ -2061,9 +2061,9 @@ void FD3D12Texture::UpdateTexture2D(class FRHICommandListImmediate* RHICmdList, 
 		CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(UploadHeapResourceLocation.GetResource()->GetResource(), PlacedTexture2D);
 
 		// If we are on the render thread, queue up the copy on the RHIThread so it happens at the correct time.
-		if (ShouldDeferCmdListOperation(RHICmdList))
+		if (RHICmdList.IsTopOfPipe())
 		{
-			ALLOC_COMMAND_CL(*RHICmdList, FRHICommandUpdateTexture)(&Texture, MipIndex, UpdateRegion.DestX, UpdateRegion.DestY, 0, SourceCopyLocation, &UploadHeapResourceLocation);
+			ALLOC_COMMAND_CL(RHICmdList, FRHICommandUpdateTexture)(&Texture, MipIndex, UpdateRegion.DestX, UpdateRegion.DestY, 0, SourceCopyLocation, &UploadHeapResourceLocation);
 		}
 		else
 		{
@@ -2186,36 +2186,21 @@ void FD3D12DynamicRHI::RHIUnlockTexture2DArray(FRHITexture2DArray* TextureRHI, u
 	Texture->Unlock(nullptr, MipIndex, TextureIndex);
 }
 
-void FD3D12DynamicRHI::UpdateTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* TextureRHI, uint32 MipIndex, const struct FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, const uint8* SourceData)
+void FD3D12DynamicRHI::RHIUpdateTexture2D(FRHICommandListBase& RHICmdList, FRHITexture2D* TextureRHI, uint32 MipIndex, const FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, const uint8* SourceData)
 {
 	check(TextureRHI);
 	FD3D12Texture* Texture = FD3D12DynamicRHI::ResourceCast(TextureRHI);
-	Texture->UpdateTexture2D(&RHICmdList, MipIndex, UpdateRegion, SourcePitch, SourceData);
+	Texture->UpdateTexture2D(RHICmdList, MipIndex, UpdateRegion, SourcePitch, SourceData);
 }
 
-void FD3D12DynamicRHI::RHIUpdateTexture2D(FRHITexture2D* TextureRHI, uint32 MipIndex, const FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, const uint8* SourceData)
+FUpdateTexture3DData FD3D12DynamicRHI::RHIBeginUpdateTexture3D(FRHICommandListBase& RHICmdList, FRHITexture3D* Texture, uint32 MipIndex, const struct FUpdateTextureRegion3D& UpdateRegion)
 {
-	check(TextureRHI);
-	FD3D12Texture* Texture = FD3D12DynamicRHI::ResourceCast(TextureRHI);
-	Texture->UpdateTexture2D(nullptr, MipIndex, UpdateRegion, SourcePitch, SourceData);
-}
-
-FUpdateTexture3DData FD3D12DynamicRHI::BeginUpdateTexture3D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture3D* Texture, uint32 MipIndex, const struct FUpdateTextureRegion3D& UpdateRegion)
-{
-	check(IsInRenderingThread());
-	// This stall could potentially be removed, provided the fast allocator is thread-safe. However we 
-	// currently need to stall in the End method anyway (see below)
-	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 	return BeginUpdateTexture3D_Internal(Texture, MipIndex, UpdateRegion);
 }
 
-void FD3D12DynamicRHI::EndUpdateTexture3D_RenderThread(class FRHICommandListImmediate& RHICmdList, FUpdateTexture3DData& UpdateData)
+void FD3D12DynamicRHI::RHIEndUpdateTexture3D(FRHICommandListBase& RHICmdList, FUpdateTexture3DData& UpdateData)
 {
-	check(IsInRenderingThread());
-	// TODO: move this command entirely to the RHI thread so we can remove these stalls
-	// and fix potential ordering issue with non-compute-shader version
-	RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-	EndUpdateTexture3D_Internal(UpdateData);
+	EndUpdateTexture3D_Internal(RHICmdList, UpdateData);
 }
 
 struct FD3D12RHICmdEndMultiUpdateTexture3DString
@@ -2335,9 +2320,9 @@ private:
 };
 
 // Single pair of transition barriers instead of one pair for each update
-void FD3D12DynamicRHI::EndMultiUpdateTexture3D_RenderThread(class FRHICommandListImmediate& RHICmdList, TArray<FUpdateTexture3DData>& UpdateDataArray)
+void FD3D12DynamicRHI::RHIEndMultiUpdateTexture3D(FRHICommandListBase& RHICmdList, TArray<FUpdateTexture3DData>& UpdateDataArray)
 {
-	check(IsInRenderingThread());
+	check(IsInParallelRenderingThread());
 	check(UpdateDataArray.Num() > 0);
 	check(GFrameNumberRenderThread == UpdateDataArray[0].FrameNumber);
 #if DO_CHECK
@@ -2364,12 +2349,12 @@ void FD3D12DynamicRHI::EndMultiUpdateTexture3D_RenderThread(class FRHICommandLis
 			FUpdateTexture3DData& UpdateData = UpdateDataArray[Idx];
 			FD3D12UpdateTexture3DData* UpdateDataD3D12 =
 				reinterpret_cast<FD3D12UpdateTexture3DData*>(&UpdateData.PlatformData[0]);
-			EndUpdateTexture3D_ComputeShader(UpdateData, UpdateDataD3D12);
+			EndUpdateTexture3D_ComputeShader(RHICmdList, UpdateData, UpdateDataD3D12);
 		}
 	}
 	else
 	{
-		if (RHICmdList.Bypass())
+		if (RHICmdList.IsBottomOfPipe())
 		{
 			FD3D12RHICmdEndMultiUpdateTexture3D RHICmd(UpdateDataArray);
 			RHICmd.Execute(RHICmdList);
@@ -2381,24 +2366,29 @@ void FD3D12DynamicRHI::EndMultiUpdateTexture3D_RenderThread(class FRHICommandLis
 	}
 }
 
-void FD3D12DynamicRHI::RHIUpdateTexture3D(FRHITexture3D* TextureRHI, uint32 MipIndex, const FUpdateTextureRegion3D& InUpdateRegion, uint32 SourceRowPitch, uint32 SourceDepthPitch, const uint8* SourceData)
+void FD3D12DynamicRHI::RHIUpdateTexture3D(FRHICommandListBase& RHICmdList, FRHITexture3D* TextureRHI, uint32 MipIndex, const FUpdateTextureRegion3D& InUpdateRegion, uint32 SourceRowPitch, uint32 SourceDepthPitch, const uint8* SourceData)
 {
-	check(IsInRenderingThread());
-
 	FD3D12Texture* Texture = FD3D12DynamicRHI::ResourceCast(TextureRHI);
 	const FPixelFormatInfo& FormatInfo = GPixelFormats[Texture->GetFormat()];
 
 	// Need to round up the height and with by block size.
 	FUpdateTextureRegion3D UpdateRegion = InUpdateRegion;
-	UpdateRegion.Width = FMath::DivideAndRoundUp<int32>(UpdateRegion.Width, FormatInfo.BlockSizeX) * FormatInfo.BlockSizeX;
-	UpdateRegion.Height = FMath::DivideAndRoundUp<int32>(UpdateRegion.Height, FormatInfo.BlockSizeY) * FormatInfo.BlockSizeY;
+
+	const uint32 NumBlockX = (uint32)FMath::DivideAndRoundUp<int32>(UpdateRegion.Width, FormatInfo.BlockSizeX);
+	const uint32 NumBlockY = (uint32)FMath::DivideAndRoundUp<int32>(UpdateRegion.Height, FormatInfo.BlockSizeY);
+
+	UpdateRegion.Width  = NumBlockX * FormatInfo.BlockSizeX;
+	UpdateRegion.Height = NumBlockY * FormatInfo.BlockSizeY;
 
 	FUpdateTexture3DData UpdateData = BeginUpdateTexture3D_Internal(TextureRHI, MipIndex, UpdateRegion);
 
+	const uint32 UpdateBytesRow = NumBlockX * FormatInfo.BlockBytes;
+	const uint32 UpdateBytesDepth = NumBlockY * UpdateBytesRow;
+
 	// Copy the data into the UpdateData destination buffer
 	check(nullptr != UpdateData.Data);
-	check(SourceRowPitch <= UpdateData.RowPitch);
-	check(SourceDepthPitch <= UpdateData.DepthPitch);
+	check(SourceRowPitch >= UpdateBytesRow);
+	check(SourceDepthPitch >= UpdateBytesDepth);
 
 	const uint32 NumRows = UpdateRegion.Height / (uint32)FormatInfo.BlockSizeY;
 
@@ -2409,19 +2399,19 @@ void FD3D12DynamicRHI::RHIUpdateTexture3D(FRHITexture3D* TextureRHI, uint32 MipI
 
 		for (uint32 j = 0; j < NumRows; j++)
 		{
-			FMemory::Memcpy(DestRowData, SourceRowData, SourceRowPitch);
+			FMemory::Memcpy(DestRowData, SourceRowData, UpdateBytesRow);
 			SourceRowData += SourceRowPitch;
 			DestRowData += UpdateData.RowPitch;
 		}
 	}
 
-	EndUpdateTexture3D_Internal(UpdateData);
+	EndUpdateTexture3D_Internal(RHICmdList, UpdateData);
 }
 
 
 FUpdateTexture3DData FD3D12DynamicRHI::BeginUpdateTexture3D_Internal(FRHITexture3D* TextureRHI, uint32 MipIndex, const struct FUpdateTextureRegion3D& UpdateRegion)
 {
-	check(IsInRenderingThread());
+	check(IsInParallelRenderingThread());
 	FUpdateTexture3DData UpdateData(TextureRHI, MipIndex, UpdateRegion, 0, 0, nullptr, 0, GFrameNumberRenderThread);
 		
 	// Initialize the platform data
@@ -2560,9 +2550,8 @@ private:
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT PlacedSubresourceFootprint;
 };
 
-void FD3D12DynamicRHI::EndUpdateTexture3D_Internal(FUpdateTexture3DData& UpdateData)
+void FD3D12DynamicRHI::EndUpdateTexture3D_Internal(FRHICommandListBase& RHICmdList, FUpdateTexture3DData& UpdateData)
 {
-	check(IsInRenderingThread());
 	check(GFrameNumberRenderThread == UpdateData.FrameNumber);
 
 	FD3D12UpdateTexture3DData* UpdateDataD3D12 = reinterpret_cast<FD3D12UpdateTexture3DData*>(&UpdateData.PlatformData[0]);
@@ -2570,12 +2559,11 @@ void FD3D12DynamicRHI::EndUpdateTexture3D_Internal(FUpdateTexture3DData& UpdateD
 
 	if (UpdateDataD3D12->bComputeShaderCopy)
 	{
-		EndUpdateTexture3D_ComputeShader(UpdateData, UpdateDataD3D12);
+		EndUpdateTexture3D_ComputeShader(RHICmdList, UpdateData, UpdateDataD3D12);
 	}
 	else
 	{
-		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		if (RHICmdList.Bypass())
+		if (RHICmdList.IsBottomOfPipe())
 		{
 			FD3D12RHICmdEndUpdateTexture3D RHICmd(UpdateData);
 			RHICmd.Execute(RHICmdList);

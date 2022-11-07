@@ -427,10 +427,9 @@ void FRDGBuilder::AddCommandListSetupTask(TaskLambda&& Task)
 		ParallelSetupEvents.Emplace(UE::Tasks::Launch(TEXT("FRDGBuilder::AddCommandListSetupTask"), [Task = MoveTemp(Task), RHICmdListTask]
 		{
 			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+			RHICmdListTask->SwitchPipeline(ERHIPipeline::Graphics);
 			Task(*RHICmdListTask);
-
 			RHICmdListTask->FinishRecording();
-
 		}));
 
 		RHICmdList.QueueAsyncCommandListSubmit(RHICmdListTask);

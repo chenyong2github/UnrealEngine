@@ -2470,6 +2470,7 @@ UE::Tasks::FTask FRDGBuilder::SubmitBufferUploads()
 		{
 			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 			RHICmdListBufferUploads = new FRHICommandList(FRHIGPUMask::All());
+			RHICmdListBufferUploads->SwitchPipeline(ERHIPipeline::Graphics);
 			SubmitUploadsLambda(*RHICmdListBufferUploads);
 			RHICmdListBufferUploads->FinishRecording();
 

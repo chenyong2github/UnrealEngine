@@ -1514,125 +1514,81 @@ void FD3D11DynamicRHI::RHIUnlockTexture2DArray(FRHITexture2DArray* TextureRHI, u
 	Texture->Unlock(this, MipIndex, TextureIndex);
 }
 
-void FD3D11DynamicRHI::RHIUpdateTexture2D(FRHITexture2D* TextureRHI, uint32 MipIndex, const FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, const uint8* SourceData)
+void FD3D11DynamicRHI::RHIUpdateTexture2D(FRHICommandListBase& RHICmdList, FRHITexture2D* TextureRHI, uint32 MipIndex, const FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, const uint8* SourceData)
 {
-	FD3D11Texture* Texture = ResourceCast(TextureRHI);
+	bool bFreeMemory = !(RHICmdList.Bypass() || !IsRunningRHIInSeparateThread());
 
-	D3D11_BOX DestBox =
+	if (bFreeMemory)
 	{
-		UpdateRegion.DestX,                      UpdateRegion.DestY,                       0,
-		UpdateRegion.DestX + UpdateRegion.Width, UpdateRegion.DestY + UpdateRegion.Height, 1
-	};
-
-	check(UpdateRegion.Width % GPixelFormats[Texture->GetFormat()].BlockSizeX == 0);
-	check(UpdateRegion.Height % GPixelFormats[Texture->GetFormat()].BlockSizeY == 0);
-	check(UpdateRegion.DestX % GPixelFormats[Texture->GetFormat()].BlockSizeX == 0);
-	check(UpdateRegion.DestY % GPixelFormats[Texture->GetFormat()].BlockSizeY == 0);
-	check(UpdateRegion.SrcX % GPixelFormats[Texture->GetFormat()].BlockSizeX == 0);
-	check(UpdateRegion.SrcY % GPixelFormats[Texture->GetFormat()].BlockSizeY == 0);
-
-	Direct3DDeviceIMContext->UpdateSubresource(Texture->GetResource(), MipIndex, &DestBox, SourceData, SourcePitch, 0);
-}
-
-void FD3D11DynamicRHI::UpdateTexture2D_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	FRHITexture2D* Texture,
-	uint32 MipIndex,
-	const struct FUpdateTextureRegion2D& UpdateRegion,
-	uint32 SourcePitch,
-	const uint8* SourceData)
-{
-	if (ShouldNotEnqueueRHICommand())
-	{
-		RHIUpdateTexture2D(Texture, MipIndex, UpdateRegion, SourcePitch, SourceData);
-	}
-	else
-	{
-		const FPixelFormatInfo& FormatInfo = GPixelFormats[Texture->GetFormat()];
+		const FPixelFormatInfo& FormatInfo = GPixelFormats[TextureRHI->GetFormat()];
 		const size_t UpdateHeightInTiles = FMath::DivideAndRoundUp(UpdateRegion.Height, (uint32)FormatInfo.BlockSizeY);
 		const size_t SourceDataSize = static_cast<size_t>(SourcePitch) * UpdateHeightInTiles;
 		uint8* SourceDataCopy = (uint8*)FMemory::Malloc(SourceDataSize);
 		FMemory::Memcpy(SourceDataCopy, SourceData, SourceDataSize);
-		RunOnRHIThread([this, Texture, MipIndex, UpdateRegion, SourcePitch, SourceDataCopy]()
+		SourceData = SourceDataCopy;
+	}
+
+	RHICmdList.EnqueueLambda([this, TextureRHI, MipIndex, UpdateRegion, SourcePitch, SourceData, bFreeMemory] (FRHICommandListBase&)
+	{
+		FD3D11Texture* Texture = ResourceCast(TextureRHI);
+
+		D3D11_BOX DestBox =
 		{
-			RHIUpdateTexture2D(Texture, MipIndex, UpdateRegion, SourcePitch, SourceDataCopy);
-			FMemory::Free(SourceDataCopy);
-		});
-	}
+			UpdateRegion.DestX,                      UpdateRegion.DestY,                       0,
+			UpdateRegion.DestX + UpdateRegion.Width, UpdateRegion.DestY + UpdateRegion.Height, 1
+		};
+
+		check(UpdateRegion.Width % GPixelFormats[Texture->GetFormat()].BlockSizeX == 0);
+		check(UpdateRegion.Height % GPixelFormats[Texture->GetFormat()].BlockSizeY == 0);
+		check(UpdateRegion.DestX % GPixelFormats[Texture->GetFormat()].BlockSizeX == 0);
+		check(UpdateRegion.DestY % GPixelFormats[Texture->GetFormat()].BlockSizeY == 0);
+		check(UpdateRegion.SrcX % GPixelFormats[Texture->GetFormat()].BlockSizeX == 0);
+		check(UpdateRegion.SrcY % GPixelFormats[Texture->GetFormat()].BlockSizeY == 0);
+
+		Direct3DDeviceIMContext->UpdateSubresource(Texture->GetResource(), MipIndex, &DestBox, SourceData, SourcePitch, 0);
+
+		if (bFreeMemory) { FMemory::Free((void*)SourceData); }
+	});
 }
 
-void FD3D11DynamicRHI::RHIUpdateTexture3D(FRHITexture3D* TextureRHI,uint32 MipIndex,const FUpdateTextureRegion3D& UpdateRegion,uint32 SourceRowPitch,uint32 SourceDepthPitch,const uint8* SourceData)
+void FD3D11DynamicRHI::RHIUpdateTexture3D(FRHICommandListBase& RHICmdList, FRHITexture3D* TextureRHI,uint32 MipIndex,const FUpdateTextureRegion3D& UpdateRegion,uint32 SourceRowPitch,uint32 SourceDepthPitch,const uint8* SourceData)
 {
-	FD3D11Texture* Texture = ResourceCast(TextureRHI);
-
-	// The engine calls this with the texture size in the region. 
-	// Some platforms like D3D11 needs that to be rounded up to the block size.
-	const FPixelFormatInfo& Format = GPixelFormats[Texture->GetFormat()];
-	const int32 NumBlockX = FMath::DivideAndRoundUp<int32>(UpdateRegion.Width, Format.BlockSizeX);
-	const int32 NumBlockY = FMath::DivideAndRoundUp<int32>(UpdateRegion.Height, Format.BlockSizeY);
-
-	D3D11_BOX DestBox =
-	{
-		UpdateRegion.DestX,                                 UpdateRegion.DestY,                                 UpdateRegion.DestZ,
-		UpdateRegion.DestX + NumBlockX * Format.BlockSizeX, UpdateRegion.DestY + NumBlockY * Format.BlockSizeY, UpdateRegion.DestZ + UpdateRegion.Depth
-	};
-
-	Direct3DDeviceIMContext->UpdateSubresource(Texture->GetResource(), MipIndex, &DestBox, SourceData, SourceRowPitch, SourceDepthPitch);
-}
-
-void FD3D11DynamicRHI::EndUpdateTexture3D_RenderThread(class FRHICommandListImmediate& RHICmdList, FUpdateTexture3DData& UpdateData)
-{
-	if (RHICmdList.Bypass())
-	{
-		RHIUpdateTexture3D(UpdateData.Texture, UpdateData.MipIndex, UpdateData.UpdateRegion, UpdateData.RowPitch, UpdateData.DepthPitch, UpdateData.Data);
-		FMemory::Free(UpdateData.Data);
-	}
-	else
-	{
-		UpdateData.Texture->AddRef();
-		RunOnRHIThread(
-			[UpdateData]()
-		{
-			GD3D11RHI->RHIUpdateTexture3D(
-				UpdateData.Texture,
-				UpdateData.MipIndex,
-				UpdateData.UpdateRegion,
-				UpdateData.RowPitch,
-				UpdateData.DepthPitch,
-				UpdateData.Data);
-			UpdateData.Texture->Release();
-			FMemory::Free(UpdateData.Data);
-		});
-		RHICmdList.RHIThreadFence(true);
-	}
-
-	UpdateData.Data = nullptr;
-}
-
-void FD3D11DynamicRHI::UpdateTexture3D_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	FRHITexture3D* Texture,
-	uint32 MipIndex,
-	const struct FUpdateTextureRegion3D& UpdateRegion,
-	uint32 SourceRowPitch,
-	uint32 SourceDepthPitch,
-	const uint8* SourceData)
-{
-	if (ShouldNotEnqueueRHICommand())
-	{
-		RHIUpdateTexture3D(Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData);
-	}
-	else
+	bool bFreeMemory = !(RHICmdList.Bypass() || !IsRunningRHIInSeparateThread());
+	if (bFreeMemory)
 	{
 		const SIZE_T SourceDataSize = static_cast<SIZE_T>(SourceDepthPitch) * UpdateRegion.Depth;
 		uint8* SourceDataCopy = (uint8*)FMemory::Malloc(SourceDataSize);
 		FMemory::Memcpy(SourceDataCopy, SourceData, SourceDataSize);
-		RunOnRHIThread([this, Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceDataCopy]()
-		{
-			RHIUpdateTexture3D(Texture, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceDataCopy);
-			FMemory::Free(SourceDataCopy);
-		});
+		SourceData = SourceDataCopy;
 	}
+
+	RHICmdList.EnqueueLambda([this, TextureRHI, MipIndex, UpdateRegion, SourceRowPitch, SourceDepthPitch, SourceData, bFreeMemory] (FRHICommandListBase&)
+	{
+		FD3D11Texture* Texture = ResourceCast(TextureRHI);
+
+		// The engine calls this with the texture size in the region. 
+		// Some platforms like D3D11 needs that to be rounded up to the block size.
+		const FPixelFormatInfo& Format = GPixelFormats[Texture->GetFormat()];
+		const int32 NumBlockX = FMath::DivideAndRoundUp<int32>(UpdateRegion.Width, Format.BlockSizeX);
+		const int32 NumBlockY = FMath::DivideAndRoundUp<int32>(UpdateRegion.Height, Format.BlockSizeY);
+
+		D3D11_BOX DestBox =
+		{
+			UpdateRegion.DestX,                                 UpdateRegion.DestY,                                 UpdateRegion.DestZ,
+			UpdateRegion.DestX + NumBlockX * Format.BlockSizeX, UpdateRegion.DestY + NumBlockY * Format.BlockSizeY, UpdateRegion.DestZ + UpdateRegion.Depth
+		};
+
+		Direct3DDeviceIMContext->UpdateSubresource(Texture->GetResource(), MipIndex, &DestBox, SourceData, SourceRowPitch, SourceDepthPitch);
+
+		if (bFreeMemory) { FMemory::Free((void*)SourceData); }
+	});
+}
+
+void FD3D11DynamicRHI::RHIEndUpdateTexture3D(FRHICommandListBase& RHICmdList, FUpdateTexture3DData& UpdateData)
+{
+	RHIUpdateTexture3D(RHICmdList, UpdateData.Texture, UpdateData.MipIndex, UpdateData.UpdateRegion, UpdateData.RowPitch, UpdateData.DepthPitch, UpdateData.Data);
+	FMemory::Free(UpdateData.Data);
+	UpdateData.Data = nullptr;
 }
 
 /*-----------------------------------------------------------------------------

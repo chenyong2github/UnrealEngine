@@ -432,8 +432,29 @@ public:
 	typedef FDataSource< uint64,		1, false >	FDataSource64x1UInt;
 	typedef FDataSource< FFloat3Packed,	1, true >	FDataSource11_11_10F;
 
+	enum class ETextureUpdateType
+	{
+		Texture2D,
+		TextureFromBuffer,
+		Texture3D
+	};
+
+	static const TCHAR* GetName(ETextureUpdateType UpdateType)
+	{
+		switch (UpdateType)
+		{
+		case ETextureUpdateType::Texture2D:
+			return TEXT("Texture2D");
+		case ETextureUpdateType::TextureFromBuffer:
+			return TEXT("TextureFromBuffer");
+		case ETextureUpdateType::Texture3D:
+			return TEXT("Texture3D");
+		}
+		return TEXT("");
+	}
+
 	template <typename SourceType>
-	static bool Test_UpdateTexture2D_Impl(FRHICommandListImmediate& RHICmdList, FString TestName, FRHITexture2D* Texture, const FUpdateTextureRegion2D& Region, uint32 SourcePitch, const uint8* SourceData, const uint8* ZeroData)
+	static bool Test_UpdateTexture_Impl(FRHICommandListImmediate& RHICmdList, FString TestName, FRHITexture* Texture, const FUpdateTextureRegion2D& Region, uint32 SourcePitch, const uint8* SourceData, const uint8* ZeroData, ETextureUpdateType UpdateType)
 	{
 		bool bResult = true;
 		
@@ -470,24 +491,62 @@ public:
 			return true;
 		};
 
-		// clear to zero
 		RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
-		FUpdateTextureRegion2D ZeroRegion = { 0, 0, 0, 0, Texture->GetSizeX(), Texture->GetSizeY() };
-		RHICmdList.UpdateTexture2D(Texture, 0, ZeroRegion, SourcePitch, ZeroData);
+
+		// clear to zero
+		if (UpdateType == ETextureUpdateType::Texture3D)
+		{
+			for (uint32 DepthSlice = 0; DepthSlice < Texture->GetSizeZ(); ++DepthSlice)
+			{
+				FUpdateTextureRegion3D ZeroRegion = { 0, 0, DepthSlice, 0, 0, 0, Texture->GetSizeX(), Texture->GetSizeY(), 1 };
+				RHICmdList.UpdateTexture3D(Texture, 0, ZeroRegion, SourcePitch, SourcePitch * ZeroRegion.Height, ZeroData);
+			}
+		}
+		else
+		{
+			FUpdateTextureRegion2D ZeroRegion = { 0, 0, 0, 0, Texture->GetSizeX(), Texture->GetSizeY() };
+			RHICmdList.UpdateTexture2D(Texture, 0, ZeroRegion, SourcePitch, ZeroData);
+		}
+
 		RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::UAVCompute, ERHIAccess::CopySrc));
+
 		bResult &= VerifyTextureContents(*FString::Printf(TEXT("%s - clear whole resource to zero"), *TestName), RHICmdList, Texture,
-		[&](void* Ptr, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32 CurrentMipIndex, uint32 CurrentSliceIndex)
+			[&](void* Ptr, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32 CurrentMipIndex, uint32 CurrentSliceIndex)
 		{
 			return VerifyMip(Ptr, MipWidth, MipHeight, Width, Height, CurrentMipIndex, CurrentSliceIndex, true);
 		});
-		RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::CopySrc, ERHIAccess::UAVCompute));
 
-		// update the texture
-		RHICmdList.UpdateTexture2D(Texture, 0, Region, SourcePitch, SourceData);
+		if (UpdateType == ETextureUpdateType::Texture2D)
+		{
+			RHICmdList.UpdateTexture2D(Texture, 0, Region, SourcePitch, SourceData);
+		}
+		else if (UpdateType == ETextureUpdateType::TextureFromBuffer)
+		{
+			const int32 BufferSize = Region.Width * Region.Height;
+
+			FRHIResourceCreateInfo CreateInfo(TEXT("SourceUpdateBuffer"));
+			TRefCountPtr<FRHIBuffer> Buffer = RHICmdList.CreateBuffer(BufferSize, EBufferUsageFlags::ShaderResource | EBufferUsageFlags::Static | EBufferUsageFlags::KeepCPUAccessible, SourceType::ElementSize, ERHIAccess::SRVCompute, CreateInfo);
+			void* Data = RHICmdList.LockBuffer(Buffer, 0, BufferSize, RLM_WriteOnly);
+			FMemory::Memcpy(Data, SourceData, BufferSize);
+			RHICmdList.UnlockBuffer(Buffer);
+
+			RHICmdList.UpdateFromBufferTexture2D(Texture, 0, Region, SourcePitch, Buffer, 0);
+		}
+		else
+		{
+			check(UpdateType == ETextureUpdateType::Texture3D);
+
+			for (uint32 DepthSlice = 0; DepthSlice < Texture->GetSizeZ(); ++DepthSlice)
+			{
+				FUpdateTextureRegion3D Region3D = { Region.DestX, Region.DestY, DepthSlice, Region.SrcX, Region.SrcY, 0, Region.Width, Region.Height, 1 };
+				RHICmdList.UpdateTexture3D(Texture, 0, Region3D, SourcePitch, SourcePitch * Texture->GetSizeY(), SourceData);
+			}
+		}
+
 		RHICmdList.Transition(FRHITransitionInfo(Texture, ERHIAccess::UAVCompute, ERHIAccess::CopySrc));
 
 		bResult &= VerifyTextureContents(*FString::Printf(TEXT("%s - update (%d,%d -> %d,%d)"), *TestName, Region.SrcX, Region.SrcY, Region.DestX, Region.DestY), RHICmdList, Texture,
-		[&](void* Ptr, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32 CurrentMipIndex, uint32 CurrentSliceIndex)
+			[&](void* Ptr, uint32 MipWidth, uint32 MipHeight, uint32 Width, uint32 Height, uint32 CurrentMipIndex, uint32 CurrentSliceIndex)
 		{
 			return VerifyMip(Ptr, MipWidth, MipHeight, Width, Height, CurrentMipIndex, CurrentSliceIndex, false);
 		});
@@ -498,7 +557,7 @@ public:
 	}
 
 	template <typename SourceType>
-	static bool Test_UpdateTexture2D_Impl(FRHICommandListImmediate& RHICmdList, EPixelFormat Format)
+	static bool Test_UpdateTexture_Impl(FRHICommandListImmediate& RHICmdList, EPixelFormat Format, ETextureUpdateType UpdateType)
 	{
 		const uint32 TextureWidth = 128;
 		const uint32 TextureHeight = 128;
@@ -518,22 +577,39 @@ public:
 		FMemory::Memset(ZeroData, 0, SrcDataSize);
 
 		bool bResult = true;
-		FString TestName = FString::Printf(TEXT("Test_UpdateTexture2D (%s)"), GPixelFormats[Format].Name);
+		FString TestName = FString::Printf(TEXT("Test_UpdateTexture (%s) (%s)"), GPixelFormats[Format].Name, GetName(UpdateType));
 		{
 			if (!GPixelFormats[Format].Supported)
 			{
 				UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test skipped (format not supported). \"%s\""), *TestName);
 				return true;
 			}
-			if (!UE::PixelFormat::HasCapabilities(Format, EPixelFormatCapabilities::Texture2D))
+			FRHITextureCreateDesc Desc;
+			
+			if (UpdateType == ETextureUpdateType::Texture3D)
 			{
-				UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test skipped (format not supported as Texture2D). \"%s\""), *TestName);
-				return true;
+				const int32 TextureDepth = 4;
+
+				if (!UE::PixelFormat::HasCapabilities(Format, EPixelFormatCapabilities::Texture3D))
+				{
+					UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test skipped (format not supported as Texture3D). \"%s\""), *TestName);
+					return true;
+				}
+
+				Desc = FRHITextureCreateDesc::Create3D(*TestName, FIntVector(TextureWidth, TextureHeight, TextureDepth), Format);
+			}
+			else
+			{
+				if (!UE::PixelFormat::HasCapabilities(Format, EPixelFormatCapabilities::Texture2D))
+				{
+					UE_LOG(LogRHIUnitTestCommandlet, Display, TEXT("Test skipped (format not supported as Texture2D). \"%s\""), *TestName);
+					return true;
+				}
+
+				Desc = FRHITextureCreateDesc::Create2D(*TestName, TextureWidth, TextureHeight, Format);
 			}
 
-			const FRHITextureCreateDesc Desc =
-				FRHITextureCreateDesc::Create2D(*TestName, TextureWidth, TextureHeight, Format)
-				.SetFlags(ETextureCreateFlags::ShaderResource);
+			Desc.SetFlags(ETextureCreateFlags::ShaderResource);
 
 			FTexture2DRHIRef Texture = RHICreateTexture(Desc);
 			if (Texture == nullptr)
@@ -561,7 +637,7 @@ public:
 				for (uint32 DestColumn = 0; DestColumn < 3; DestColumn++)
 				{
 					Region.DestX = AxisSlotToCoord(DestColumn, TextureWidth, UpdateWidth);
-					bResult &= Test_UpdateTexture2D_Impl<SourceType>(RHICmdList, TestName, Texture, Region, UpdateDataPitch, UpdateData, ZeroData);
+					bResult &= Test_UpdateTexture_Impl<SourceType>(RHICmdList, TestName, Texture, Region, UpdateDataPitch, UpdateData, ZeroData, UpdateType);
 				}
 			}
 
@@ -573,7 +649,7 @@ public:
 				for (uint32 SrcColumn = 0; SrcColumn < 3; SrcColumn++)
 				{
 					Region.SrcX = AxisSlotToCoord(SrcColumn, SrcDataWidth, UpdateWidth);
-					bResult &= Test_UpdateTexture2D_Impl<SourceType>(RHICmdList, TestName, Texture, Region, UpdateDataPitch, UpdateData, ZeroData);
+					bResult &= Test_UpdateTexture_Impl<SourceType>(RHICmdList, TestName, Texture, Region, UpdateDataPitch, UpdateData, ZeroData, UpdateType);
 				}
 			}
 #endif
@@ -582,7 +658,7 @@ public:
 		return bResult;
 	}
 
-	static bool Test_UpdateTexture2D(FRHICommandListImmediate& RHICmdList)
+	static bool Test_UpdateTexture_Impl(FRHICommandListImmediate& RHICmdList, ETextureUpdateType UpdateType)
 	{
 		bool bResult = true;
 		auto RunTestOnFormat = [&](EPixelFormat Format)
@@ -640,98 +716,114 @@ public:
 			case PF_A8:
 			case PF_L8:
 			case PF_R8:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource8x1>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource8x1>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_R8_UINT:
 			case PF_R8_SINT:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource8x1UInt>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource8x1UInt>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_V8U8:
 			case PF_R8G8:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource8x2>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource8x2>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_R8G8_UINT:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource8x2UInt>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource8x2UInt>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_B8G8R8A8:
 			case PF_R8G8B8A8:
 			case PF_A8R8G8B8:
 			case PF_R8G8B8A8_SNORM:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource8x4>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource8x4>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_R8G8B8A8_UINT:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource8x4UInt>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource8x4UInt>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_G16:
 			case PF_R5G6B5_UNORM:	// only for the 16-bit pixel data
 			case PF_B5G5R5A1_UNORM:	// only for the 16-bit pixel data
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource16x1>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource16x1>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_R16_UINT:
 			case PF_R16_SINT:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource16x1UInt>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource16x1UInt>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_R16F:
 			case PF_R16F_FILTER:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource16x1F>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource16x1F>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_G16R16:
 			case PF_G16R16_SNORM:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource16x2>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource16x2>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_R16G16_UINT:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource16x2UInt>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource16x2UInt>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_G16R16F:
 			case PF_G16R16F_FILTER:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource16x2F>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource16x2F>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_A16B16G16R16:
 			case PF_R16G16B16A16_UNORM:
 			case PF_R16G16B16A16_SNORM:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource16x4>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource16x4>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_R16G16B16A16_SINT:
 			case PF_R16G16B16A16_UINT:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource16x4UInt>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource16x4UInt>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_R32_SINT:
 			case PF_R32_UINT:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource32x1UInt>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource32x1UInt>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_R32_FLOAT:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource32x1F>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource32x1F>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_G32R32F:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource32x2F>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource32x2F>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_R32G32_UINT:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource32x2UInt>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource32x2UInt>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_A32B32G32R32F:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource32x4F>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource32x4F>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_R32G32B32A32_UINT:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource32x4UInt>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource32x4UInt>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_R64_UINT:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource64x1UInt>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource64x1UInt>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_FloatRGB:
 			case PF_FloatR11G11B10:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource11_11_10F>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource11_11_10F>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_A2B10G10R10:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource8x4>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource8x4>(RHICmdList, Format, UpdateType));
 				break;
 			case PF_FloatRGBA:
-				RUN_TEST(Test_UpdateTexture2D_Impl<FDataSource16x4F>(RHICmdList, Format));
+				RUN_TEST(Test_UpdateTexture_Impl<FDataSource16x4F>(RHICmdList, Format, UpdateType));
 				break;
 			}
 		};
 #define RUN_TEST_ON_FORMAT(Format) RunTestOnFormat(Format);
 		FOREACH_ENUM_EPIXELFORMAT(RUN_TEST_ON_FORMAT);
 #undef RUN_TEST_ON_FORMAT
+
+		return bResult;
+	}
+
+	static bool Test_UpdateTexture(FRHICommandListImmediate& RHICmdList)
+	{
+		bool bResult = true;
+
+		bResult &= Test_UpdateTexture_Impl(RHICmdList, ETextureUpdateType::Texture2D);
+
+		if (GRHISupportsUpdateFromBufferTexture)
+		{
+			bResult &= Test_UpdateTexture_Impl(RHICmdList, ETextureUpdateType::TextureFromBuffer);
+		}
+
+		bResult &= Test_UpdateTexture_Impl(RHICmdList, ETextureUpdateType::Texture3D);
 
 		return bResult;
 	}
