@@ -143,8 +143,19 @@ struct CbAttachmentEntry
 	{
 		IsCompressed = (1u << 0),	// Is marshaled using compressed buffer storage format
 		IsObject = (1u << 1),		// Is compact binary object
+		kIsError = (1u << 2),	    // Is error (compact binary formatted) object
+		kIsLocalRef = (1u << 3),	// Is "local reference"
 	};
 
+};
+
+struct CbAttachmentReferenceHeader
+{
+	uint64_t PayloadByteOffset = 0;
+	uint64_t PayloadByteSize = ~0u;
+	uint16_t AbsolutePathLength = 0;
+
+	// This header will be followed by UTF8 encoded absolute path to backing file
 };
 
 void SaveCbPackage(const FCbPackage& Package, FArchive& Ar)
@@ -263,7 +274,42 @@ bool TryLoadCbPackage(FCbPackage& Package, FArchive& Ar, FCbBufferAllocator Allo
 		FUniqueBuffer AttachmentData = FUniqueBuffer::Alloc(Entry.AttachmentSize);
 		Ar.Serialize(AttachmentData.GetData(), AttachmentData.GetSize());
 
-		if (Entry.Flags & CbAttachmentEntry::IsCompressed)
+		if (Entry.Flags & CbAttachmentEntry::kIsLocalRef)
+		{
+			// Marshal local reference - a "pointer" to the chunk backing file
+
+			check(AttachmentData.GetSize() >= sizeof(CbAttachmentReferenceHeader));
+
+			if (!(Entry.Flags & CbAttachmentEntry::IsCompressed))
+			{
+				Ar.SetError();
+				return false;
+			}
+
+			const CbAttachmentReferenceHeader* AttachRefHdr = reinterpret_cast<CbAttachmentReferenceHeader*>(AttachmentData.GetData());
+			const UTF8CHAR* PathPointer = reinterpret_cast<const UTF8CHAR*>(AttachRefHdr + 1);
+
+			check(AttachmentData.GetSize() >= (sizeof(CbAttachmentReferenceHeader) + AttachRefHdr->AbsolutePathLength));
+
+			FString Path(FUtf8StringView(PathPointer, static_cast<uint32_t>(AttachRefHdr->AbsolutePathLength)));
+			TUniquePtr<FArchive> ChunkReader(IFileManager::Get().CreateFileReader(*Path, FILEREAD_Silent));
+			if (!ChunkReader)
+			{
+				// File does not exist on disk - treat it as missing
+				++Index;
+				continue;
+			}
+			FCompressedBuffer CompBuf = FCompressedBuffer::Load(*ChunkReader);
+			if (!CompBuf)
+			{
+				// File has wrong format - treat it as an error
+				Ar.SetError();
+				return false;
+			}
+			FCbAttachment Attachment(MoveTemp(CompBuf));
+			Package.AddAttachment(Attachment);
+		}
+		else if (Entry.Flags & CbAttachmentEntry::IsCompressed)
 		{
 			FCompressedBuffer CompBuf(FCompressedBuffer::FromCompressed(AttachmentData.MoveToShared()));
 

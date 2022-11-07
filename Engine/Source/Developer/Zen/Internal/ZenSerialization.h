@@ -28,6 +28,12 @@ namespace Http
 {
 static const uint32 kCbPkgMagic = 0xaa77aacc;
 	
+enum class RpcAcceptOptions : uint32_t
+{
+	kNone = 0,
+	kAllowLocalReferences = (1u << 0),
+};
+
 ZEN_API void SaveCbPackage(const FCbPackage& Package, FArchive& Ar);
 ZEN_API bool TryLoadCbPackage(FCbPackage& Package, FArchive& Ar, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc);
 }

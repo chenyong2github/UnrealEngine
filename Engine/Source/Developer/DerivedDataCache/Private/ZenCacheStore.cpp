@@ -151,6 +151,7 @@ private:
 	THttpUniquePtr<IHttpConnectionPool> ConnectionPool;
 	FHttpRequestQueue RequestQueue;
 	bool bIsUsable = false;
+	bool bIsLocalConnection = false;
 	int32 BatchPutMaxBytes = 1024*1024;
 	int32 CacheRecordBatchSize = 8;
 	int32 CacheChunksBatchSize = 8;
@@ -334,6 +335,10 @@ public:
 				{
 					BatchRequest << ANSITEXTVIEW("Method") << ANSITEXTVIEW("GetCacheRecords");
 					BatchRequest.AddInteger(ANSITEXTVIEW("Accept"), Zen::Http::kCbPkgMagic);
+					if (CacheStore.bIsLocalConnection)
+					{
+						BatchRequest.AddInteger(ANSITEXTVIEW("AcceptFlags"), static_cast<uint32_t>(Zen::Http::RpcAcceptOptions::kAllowLocalReferences));
+					}
 
 					BatchRequest.BeginObject(ANSITEXTVIEW("Params"));
 					{
@@ -608,6 +613,10 @@ public:
 			{
 				BatchRequest << ANSITEXTVIEW("Method") << ANSITEXTVIEW("GetCacheValues");
 				BatchRequest.AddInteger(ANSITEXTVIEW("Accept"), Zen::Http::kCbPkgMagic);
+				if (CacheStore.bIsLocalConnection)
+				{
+					BatchRequest.AddInteger(ANSITEXTVIEW("AcceptFlags"), static_cast<uint32_t>(Zen::Http::RpcAcceptOptions::kAllowLocalReferences));
+				}
 
 				BatchRequest.BeginObject(ANSITEXTVIEW("Params"));
 				{
@@ -757,6 +766,10 @@ public:
 			{
 				BatchRequest << ANSITEXTVIEW("Method") << "GetCacheChunks";
 				BatchRequest.AddInteger(ANSITEXTVIEW("Accept"), Zen::Http::kCbPkgMagic);
+				if (CacheStore.bIsLocalConnection)
+				{
+					BatchRequest.AddInteger(ANSITEXTVIEW("AcceptFlags"), static_cast<uint32_t>(Zen::Http::RpcAcceptOptions::kAllowLocalReferences));
+				}
 
 				BatchRequest.BeginObject(ANSITEXTVIEW("Params"));
 				{
@@ -1018,6 +1031,7 @@ FZenCacheStore::FZenCacheStore(
 		RequestQueue = FHttpRequestQueue(*ConnectionPool, ClientParams);
 
 		bIsUsable = true;
+		bIsLocalConnection = ZenService.GetInstance().IsServiceRunningLocally();
 
 		// Issue a request for stats as it will be fetched asynchronously and issuing now makes them available sooner for future callers.
 		Zen::FZenStats ZenStats;
