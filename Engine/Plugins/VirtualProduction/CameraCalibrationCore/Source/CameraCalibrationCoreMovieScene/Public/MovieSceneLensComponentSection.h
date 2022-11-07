@@ -41,9 +41,17 @@ public:
 	/** Record the current value of each distortion state property to its appropriate track */
 	void RecordFrame(FFrameNumber FrameNumber);
 
+	//~ Begin UObject interface
+	virtual void PostEditImport() override;
+	virtual void PostLoad() override;
+	//~ End UObject interface
+
 private:
 	/** Create the channels in which distortion state values will be recorded */
 	void CreateChannelProxy();
+
+	/** Add the distortion state channels to the channel proxy */
+	void UpdateChannelProxy();
 
 #if WITH_EDITOR
 	void AddChannelWithEditor(FMovieSceneChannelProxyData& ChannelProxyData, FMovieSceneFloatChannel& Channel, FText GroupName, FText ChannelName, int32 SortOrder);
@@ -74,6 +82,10 @@ private:
 	/** Channels to store Image Center values */
 	UPROPERTY()
 	TArray<FMovieSceneFloatChannel> ImageCenterChannels;
+
+	/** The Lens Model used by the recorded LensComponent */
+	UPROPERTY()
+	TSubclassOf<ULensModel> LensModelClass;
 
 private:
 	TWeakObjectPtr<ULensComponent> RecordedComponent;
