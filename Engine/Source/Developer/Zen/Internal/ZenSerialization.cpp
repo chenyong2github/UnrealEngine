@@ -2,6 +2,7 @@
 
 #include "ZenSerialization.h"
 #include "Compression/OodleDataCompression.h"
+#include "HAL/FileManager.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinarySerialization.h"
