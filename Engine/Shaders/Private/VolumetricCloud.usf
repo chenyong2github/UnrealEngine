@@ -1548,13 +1548,13 @@ void MainCommon(in FMaterialPixelParameters MaterialParameters, in float4 SvPosi
 void MainPS(
 	in float4 SvPosition : SV_Position
 	, out float4 OutColor0 : SV_Target0
-	, out float2 OutDepth : SV_Target1)
+	, out float4 OutDepth : SV_Target1)
 {
 	FMaterialPixelParameters MaterialParameters = MakeInitializedMaterialPixelParameters();
 	
 	float4 OutDepth4 = 0;
 	MainCommon(MaterialParameters, SvPosition, OutColor0, OutDepth4);
-	OutDepth = OutDepth4.xy;
+	OutDepth = float4(OutDepth4.xy, 0.0f, 0.0f);	// PS path never writes min and max tracing depth in zw.
 }
 
 #endif // SHADER_RENDERVIEW_PS
