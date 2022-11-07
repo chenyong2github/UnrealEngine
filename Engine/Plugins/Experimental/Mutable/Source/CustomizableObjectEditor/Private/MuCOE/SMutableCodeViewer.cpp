@@ -132,6 +132,14 @@ public:
 
 			// Prepare the text shown on the UI side of the operation tree
 			FString MainLabel = FString::Printf(TEXT("%s (%d) : %s"), *RowItem->Caption, int32(RowItem->MutableOperation), OpName);
+
+#if UE_BUILD_DEBUG
+			FString IndexOnTree = FString::FromInt(RowItem->IndexOnTree);
+			IndexOnTree.Append(TEXT("- "));
+			MainLabel.InsertAt(0,IndexOnTree);
+#endif
+
+			
 			if (RowItem->DuplicatedOf)
 			{
 				MainLabel.Append(TEXT(" (duplicated)"));
@@ -348,18 +356,9 @@ void SMutableCodeViewer::Construct(const FArguments& InArgs, const mu::ModelPtr&
 	// create & initialize tab manager
 	//TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab.ToSharedRef());
 
-	const mu::Model::Private* ModelPrivate = MutableModel->GetPrivate();
-	const int32 StateCount = ModelPrivate->m_program.m_states.Num();
-	for ( int32 StateIndex=0; StateIndex<StateCount; ++StateIndex )
-	{
-		const mu::FProgram::FState& State = ModelPrivate->m_program.m_states[StateIndex];
-		FString Caption = FString::Printf( TEXT("state [%s]"), ANSI_TO_TCHAR(State.m_name.c_str()) );
-
-		const FSlateColor LabelColor = ColorPerComputationalCost[StaticCast<uint8>(GetOperationTypeComputationalCost(
-			ModelPrivate->m_program.GetOpType(State.m_root)))];
-		RootNodes.Add(MakeShareable(new FMutableCodeTreeElement(MutableModel, State.m_root, Caption,LabelColor)));
-	}
-
+	// Generate all elements before starting the tree UI so we have a deterministic set of unique and duplicated elements
+	GenerateAllTreeElements();
+	
 	// Setup Navigation system
 	{
 		// Store the addresses of the root nodes for later search operations
@@ -627,7 +626,7 @@ void SMutableCodeViewer::Construct(const FArguments& InArgs, const mu::ModelPtr&
 					[
 						// Generate a new Constants panel to show the data stored on the current mutable program
 						SAssignNew(ConstantsWidget, SMutableConstantsWidget,
-							&(ModelPrivate->m_program),
+							&(MutableModel->GetPrivate()->m_program),
 							SharedThis(this))
 					]
 
@@ -733,22 +732,16 @@ void SMutableCodeViewer::OnNavigationSelectedOperationChanged(
 	// Only do the internal work if the type is one that makes sense searching
 	if (OperationTypeToSearch != mu::OP_TYPE::NONE)
 	{
-		// Reset the navigation element
-		SetCurrentNavigationElement(nullptr);
-		
 		// Locate all operations on the mutable operations tree (not the visual one) that do share the same operation type
 		// as the one selected. This will fill the array with the elements we should be looking for during the navigation operation
-		CacheAddressesOfOperationsOfType(OperationTypeToSearch);
-		
-		// Experimental
-		TreeView->ScrollToTop();
+		CacheAddressesOfOperationsOfType();
 	}
 	// None can be set by the user or be an indication that we are navigating over constant related operations
 	// todo: Separate both operations in some way on the UI to avoid complications in the code and in the UI's UX
 	else
 	{
 		// Clear all the elements on the navigation addresses 
-		NavigationOPAddresses.Empty();
+		NavigationElements.Empty();
 	}
 	
 }
@@ -785,74 +778,85 @@ void SMutableCodeViewer::OnSelectedOperationTypeFromTree()
 	
 	// Set the type operation type to be looking for -> Will invoke OnOptionTypeSelectionChanged
 	TargetedTypeSelector->SetSelectedItem(FoundModelOperationTypeElements[OperationIndex]);
+	
+	// Reset the navigation index so it starts from scratch
+	NavigationIndex = -1;
 }
 
 
-void SMutableCodeViewer::CacheAddressesOfOperationsOfType(mu::OP_TYPE TargetedOperationType)
+
+void SMutableCodeViewer::SortNavigationElements()
+{
+	// Sort the array from lower index to bigger index (0 , 1 , 2 ...)
+	NavigationElements.Sort([](const TSharedPtr<FMutableCodeTreeElement> A , const TSharedPtr<FMutableCodeTreeElement> B)
+	{
+		return A->IndexOnTree < B->IndexOnTree;
+	});
+}
+
+
+void SMutableCodeViewer::CacheAddressesOfOperationsOfType()
 {
 	// Clear previous data
-	NavigationOPAddresses.Empty();
-	
-	// Locate all addresses of operations of the provided operation type
-	TSet<mu::OP::ADDRESS> ProcessedAddresses;
-	TSet<mu::OP::ADDRESS> OperationsWithTargetedType;
+	NavigationElements.Empty();
+	check(RootNodeAddresses.Num());
 
+	// Object containing all data required by the search operation to be able to be called recursively
+	FElementsSearchCache SearchPayload;
+	// Initialize the Search Payload with the root node addresses. This way the search will use them as the root nodes where
+	// to start searching
+	SearchPayload.SetupRootBatch(RootNodeAddresses);
+	
 	// Main update procedure run for the targeted state and the targeted parameter values
 	const mu::FProgram& Program = MutableModel->GetPrivate()->m_program;
-	GetOperationsOfType(TargetedOperationType,RootNodeAddresses,Program,OperationsWithTargetedType,ProcessedAddresses);
+	GetOperationsOfType(OperationTypeToSearch,SearchPayload, Program);
 	
-	if (!OperationsWithTargetedType.IsEmpty())
+	if (!SearchPayload.FoundElements.IsEmpty())
 	{
 		// Cache the navigation addresses so we are able to navigate over them
-		NavigationOPAddresses = OperationsWithTargetedType.Array();
-
-		// Tell the system changes have been made over Navigation Addresses
-		bUpdatedNavigationAddresses = true;
-	}
-
-}
-
-void SMutableCodeViewer::GetOperationsOfType ( const mu::OP_TYPE& TargetOperationType,const TArray<mu::OP::ADDRESS>& InParentAddresses,const mu::FProgram& InProgram,
-	TSet<mu::OP::ADDRESS>& OutAddressesOfType,
-	TSet<mu::OP::ADDRESS>& AlreadyProcessedAddresses)
-{
-	TArray<mu::OP::ADDRESS> NextBatch;
-	
-	for (const mu::OP::ADDRESS& ParentAddress : InParentAddresses)
-	{
-		// Process parent
-		if (!AlreadyProcessedAddresses.Contains(ParentAddress))
-		{
-			// Cache if same data type and we share the same address (means this op is pointing at the provided resource)
-			if (InProgram.GetOpType(ParentAddress) == TargetOperationType)
-			{
-				OutAddressesOfType.Add(ParentAddress);
-			}
+		NavigationElements = MoveTemp(SearchPayload.FoundElements);
+		SortNavigationElements();
 		
-			// Cache to avoid processing it again later
-			AlreadyProcessedAddresses.Add(ParentAddress);
-
-			// Generic case for unnamed children traversal.
-			mu::ForEachReference(InProgram, ParentAddress, [this,&NextBatch]( mu::OP::ADDRESS ChildAddress)
-			{
-				// If the parent does have a child then process it 
-				if (ChildAddress)
-				{
-					// Add for expansion and search
-					NextBatch.Add(ChildAddress);
-				}
-			});
-		}
+		// Reset the navigation index
+		NavigationIndex = -1;
 	}
-
-	if (NextBatch.Num())
-	{
-		// Process the children of this object
-		GetOperationsOfType(TargetOperationType,NextBatch,InProgram,OutAddressesOfType,AlreadyProcessedAddresses);
-	}
-
 }
 
+void SMutableCodeViewer::GetOperationsOfType(const mu::OP_TYPE& TargetOperationType,
+                                             FElementsSearchCache& InSearchPayload,
+                                             const mu::FProgram& InProgram)
+{
+	// next batch of addresses to be explored 
+	TArray<FItemCacheKey> NextBatchAddressesData;
+	
+	// uint32 CurrentParentBeingScanned = 0;
+	for	(int32 ParentIndex = 0 ; ParentIndex < InSearchPayload.BatchData.Num(); ParentIndex++)
+	{
+		// Get one of the previous run "children" and treat as a parent to get it's children and process them
+		const mu::OP::ADDRESS& CurrentAddress = InSearchPayload.BatchData[ParentIndex].Child;
+		
+		// Cache if same data type and we share the same address (means this op is pointing at the provided resource)
+		// It will cache duplicated entries
+		if ( InProgram.GetOpType(CurrentAddress) == TargetOperationType)
+		{
+			// Since this element is of the type we are looking for then cache it on InSearchPayload.FoundElements
+			InSearchPayload.AddToFoundElements(CurrentAddress,ParentIndex,ItemCache);
+		}
+		
+		// Get all NON PROCESSED the children of this operation to later be able to process them (on next recursive call)
+		InSearchPayload.CacheChildrenOfAddressIfNotProcessed(CurrentAddress, InProgram, NextBatchAddressesData);
+	}
+
+	// Explore children if found 
+	if (NextBatchAddressesData.Num())
+	{
+		// Cache next batch data so the next invocations are able to locate the provided addresses on the itemsCache
+		InSearchPayload.BatchData = MoveTemp(NextBatchAddressesData);
+		
+		// Process the children of this object
+		GetOperationsOfType(TargetOperationType, InSearchPayload, InProgram);
+	}
+}
 
 
 void SMutableCodeViewer::CacheOperationTypesPresentOnModel()
@@ -901,7 +905,6 @@ void SMutableCodeViewer::CacheOperationTypesPresentOnModel()
 	// ModelOperationTypes is now an array starting with None and all the types found on the operations tree in alphabetical order
 }
 
-
 void SMutableCodeViewer::GetOperationTypesPresentOnModel(
 	const TArray< mu::OP::ADDRESS>& InParentAddresses, const mu::FProgram& InProgram, TSet<mu::OP_TYPE>& OutLocatedOperations,
 	TSet<mu::OP::ADDRESS>& AlreadyProcessedAddresses)
@@ -920,7 +923,7 @@ void SMutableCodeViewer::GetOperationTypesPresentOnModel(
 			AlreadyProcessedAddresses.Add(ParentAddress);
 
 			// Generic case for unnamed children traversal.
-			mu::ForEachReference(InProgram, ParentAddress, [this, &InProgram, &NextBatch, &OutLocatedOperations, &AlreadyProcessedAddresses]( mu::OP::ADDRESS ChildAddress)
+			mu::ForEachReference(InProgram, ParentAddress, [this, &NextBatch]( mu::OP::ADDRESS ChildAddress)
 			{
 				// Avoid processing items more than once
 				if (ChildAddress)
@@ -941,421 +944,183 @@ void SMutableCodeViewer::GetOperationTypesPresentOnModel(
 }
 
 
-
-void SMutableCodeViewer::LocateNavigationElementsOnTree()
-{
-	NavigationFoundElements.Empty();
-	NavigationFoundElements.Reserve(TreeElements.Num());
-	
-	for (TSharedPtr<FMutableCodeTreeElement> TreeElement : TreeElements)
-	{
-		// Consider that you have found elements if their address corresponds to the address on our cached navigation items
-		const bool bIsNavigableElement = NavigationOPAddresses.Contains(TreeElement->MutableOperation);
-		if (bIsNavigableElement && !TreeElement->DuplicatedOf)
-		{
-			// Add the element to our list of elements we want to navigate over
-			NavigationFoundElements.Add(TreeElement);
-		}
-	}
-	
-	NavigationFoundElements.Shrink();
-
-#if UE_BUILD_DEBUG
-	UE_LOG(LogTemp, Log, TEXT("Located %d elements of %d for the current operation type"), NavigationFoundElements.Num(),TreeElements.Num());
-#endif
-
-	if (NavigationFoundElements.IsEmpty())
-	{
-		// No elements have been found for the newly selected type, set the selected element to be null.
-		SetCurrentNavigationElement(nullptr);
-	}
-}
-
 FText SMutableCodeViewer::OnPrintNavigableObjectAddressesCount() const
 {
-	// Depending on the amount of navigable objects (addresses, not actual elements) display the amount there are
-	return FText::AsNumber(NavigationOPAddresses.Num());
-}
-
-void SMutableCodeViewer::SetCurrentNavigationElement(TSharedPtr<FMutableCodeTreeElement> NewelyFoundElement)
-{
-	if (CurrentNavigationElement && NewelyFoundElement)
+	FString OutputString = "";
+	if (const int32 NavigationElementsCount = NavigationElements.Num())
 	{
-		// Avoid operating if the new selected element is the same than before
-		if (CurrentNavigationElement->MutableOperation == NewelyFoundElement->MutableOperation)
+		// Show the index if the index showing adds information
+		if (NavigationIndex >= 0)
 		{
-#if UE_BUILD_DEBUG
-			UE_LOG(LogTemp,Warning,TEXT("Skipping CurrentSelectedElement update since it is the same as previously set."));
-#endif
-			return;
+			OutputString.Append( FString::FromInt( NavigationIndex+1));
+			OutputString.Append(" / ");
 		}
-	}
-
-	// Internally change the selected element for the navigation system to use as starting point for the next movement
-	// operation
-	CurrentNavigationElement = NewelyFoundElement;
-	
-	// Clear the selection and select the new object
-	// TreeView->ClearSelection();
-	if (CurrentNavigationElement)
-	{
-		// Perform the UI selection operation so the viewer gets triggered as if the user did select it manually
-		TreeView->SetSelection(CurrentNavigationElement);
-
-#if UE_BUILD_DEBUG 
-		// Report currently selected one (not actually selected in UI, only internally at the moment)
-		const int32 SelectedOperationIndex = NavigationFoundElements.IndexOfByKey(CurrentNavigationElement);
-		UE_LOG(LogTemp,Log,TEXT("\tSelected element %d of %d"),SelectedOperationIndex +1,NavigationFoundElements.Num());
-#endif
-
-		// TODO: Mind making the system automatically focus on the selected object. Currently is not always on the view
-		// and that could be improved. Scrolling over the tree may require a tree refresh, this means you may need to
-		// wait until that refresh is performed.
 		
+		OutputString.Append( FString::FromInt(NavigationElementsCount));
+
+		// Format -> 1 / 12 or 12
 	}
-#if UE_BUILD_DEBUG 
-	else
-	{
-		UE_LOG(LogTemp,Log,TEXT("\tNo selected element has been found"));
-	}
-#endif
 	
+	// Depending on the amount of navigable objects (addresses, not actual elements) display the amount there are
+	return FText::FromString(OutputString);
 }
 
 
 bool SMutableCodeViewer::CanInteractWithPreviousOperationButton() const
 {
 	// Only navigable if there are more than 0 elements to traverse and we are not scrolling
-	return !bIsScrolling && NavigationOPAddresses.Num() > 0;
+	return NavigationElements.Num() > 0 && NavigationIndex > 0 && (!bWasScrollToTargetRequested && !bWasUniqueExpansionInvokedForNavigation);
 }
 
 bool SMutableCodeViewer::CanInteractWithNextOperationButton() const
 {
 	// Only navigable if there are more than 0 elements to traverse and we are not scrolling
-	return !bIsScrolling && NavigationOPAddresses.Num() > 0;
-}
-
-
-void SMutableCodeViewer::SortNavigationElementsArray()
-{
-	// Do not waste time sorting an empty array of elements
-	// If only one element is present there is no reason for performing a sort operation
-	if (NavigationFoundElements.Num() < 2)
-	{
-		return;
-	}
-
-	// Cache the position on the tree for each of the navigation elements on view
-	TMap<int32,TSharedPtr<FMutableCodeTreeElement>> PositionPerElement;
-	PositionPerElement.Reserve(NavigationFoundElements.Num());
-	for	(int32 i = 0; i < NavigationFoundElements.Num(); i++)
-	{
-		const int32 PositionOnTree = TreeView->WidgetFromItem(NavigationFoundElements[i])->GetIndexInList();
-		PositionPerElement.Add(PositionOnTree, NavigationFoundElements[i]);
-	}
-
-	// By working with a TMap we can ensure the indices provided get automatically sorted on Addition.
-	
-	// Grab the values as an array to be later be used as the new array for NavigationElements
-	TArray<TSharedPtr< FMutableCodeTreeElement>> SortedNavigationElements;
-	PositionPerElement.GenerateValueArray(SortedNavigationElements);
-
-	// Make the targeted elements of type the new array with the correct values but sorted out
-	NavigationFoundElements = MoveTemp(SortedNavigationElements);
+	return NavigationElements.Num() > 0 && NavigationIndex < NavigationElements.Num() -1 && (!bWasScrollToTargetRequested && !bWasUniqueExpansionInvokedForNavigation);
 }
 
 
 FReply SMutableCodeViewer::OnGoToPreviousOperationButtonPressed()
 {
-	// Filter out not valid type
-	if (NavigationOPAddresses.IsEmpty())
-	{
-		return FReply::Handled();
-	}
-
-	// Sort the array of navigation elements just in case the order of the elements on the view changed
-	// This can happen if the user scrolls the view and new elements of the targeted type come to view
-	SortNavigationElementsArray();
+	// Focus on previous target
+	NavigationIndex = NavigationIndex<=0 ? 0 : NavigationIndex - 1;
+	FocusViewOnNavigationTarget();
 	
-	// Make a copy of the array to later be able to compare it to look for new elements of the targeted type
-	NavigationPreviouslyFoundElements = NavigationFoundElements;
-
-	// Fully expand tree if required to uncover all possible elements of the targeted type.
-	// The expansion does not discern between element types, all non duplicated elements will be expanded
-	if (bTreeWasExpanded == false && !bIsScrolling)
-	{
-		// Expand all the elements by calling the standard expansion operation (ignoring duplicates of course)
-		TreeExpandElements(RootNodes,false);
-
-		// Notify the navigation system that we just expanded the tree
-		bTreeWasExpanded = true;
-
-		// It will trigger an automatic scroll operation if possible depending on the tree
-		bIsSearchingForPreviousElement = true;
-			
-		return FReply::Handled();
-	}
-
-	// At this point we know the tree has been fully expanded and we should be able to traverse it without the
-	// need of expanding it again unless we get to another object of the targeted type with should, if used as
-	// start for another search, perform another cautionary tree expansion.
-	
-	// Get the index of the currently selected element on the array of operations of the current type
-	// If it is < 0 means that the current object is not part of the actual elements of the targeted type
-	int32 SelectedOperationIndex = NavigationFoundElements.IndexOfByKey(CurrentNavigationElement);
-
-	if ( CurrentNavigationElement )
-	{
-		// A current element is selected and is not the first one. Select the previous element
-		if ( SelectedOperationIndex > 0)
-		{
-			// Get the previous element on the array (the one on top of the current one on the tree structure)
-			SetCurrentNavigationElement(NavigationFoundElements[SelectedOperationIndex - 1]);
-			return FReply::Handled();
-		}
-	}
-	// No current element is currently selected
-	else
-	{
-		// We have no current element selected but there are elements there to be used. Select the last one
-		if ( !NavigationFoundElements.IsEmpty() )
-		{
-			// Get the last object and use it as the current object
-			SelectedOperationIndex = NavigationFoundElements.Num() -1;
-			SetCurrentNavigationElement(NavigationFoundElements[SelectedOperationIndex]);
-			return FReply::Handled();
-		}
-	}
-
-	// If no other element of the type we want is found it means we should look for other elements by
-	// scrolling the view up to the top or until we find another element
-	{
-		// It will trigger an automatic scroll operation if possible depending on the tree.
-		bIsSearchingForPreviousElement = true;
-	}
-
 	return FReply::Handled();
 }
-
-void SMutableCodeViewer::GoToPreviousOperationAfterRefresh()
-{
-	// Is mandatory for this system to be stable to operate after the tree refresh
-	check(TreeView->IsPendingRefresh() == false);
-	
-	// Required for all the possible contexts where this method could  partake
-	check(bIsSearchingForPreviousElement);
-	
-	// Check that we did change the amount of elements of our current targeted type.
-	// If the tree was fully expanded on the previous update then check the changes by entering the if block
-	const bool bNewElementFound = HaveNewElementsBeenFound();
-	if ( bNewElementFound || bTreeWasExpanded)
-	{
-		// Reset the flag since we are already being run after the tree refresh
-		bIsSearchingForPreviousElement = false;
-		
-		// Continue the operation now that the tree view has been refreshes and the new rows are there to be used
-		OnGoToPreviousOperationButtonPressed();
-		
-		// Reset the just expanded flag if found to be true
-		bTreeWasExpanded = false;
-		
-		// Reset the scrolling flag in case it was active
-		bIsScrolling = false;
-		return;
-	}
-
-	// We do know that no element of the targeted type has been found. So, we should start searching
-	
-	// If scrollable try to scroll over the tree to locate new elements
-	if (TreeView->IsScrollbarNeeded() &&
-		TreeView->GetScrollOffset() > 0 )
-	{
-		// Flag the system so it is able to tell if the scrolling is being performed or not
-		bIsScrolling = true;
-
-		// Add the max possible offset to be fast but secure on the translation process over the graph
-		ComputedMaxViewScrollStep = FMath::Max( TreeElements.Num() - 1,MinTreeScrollStep);
-		TreeView->AddScrollOffset(-ComputedMaxViewScrollStep,true);
-
-		// Check to avoid children drawing crash when having negative offset values
-		if (TreeView->GetScrollOffset() < 0)
-		{
-			TreeView->ScrollToTop();
-		}
-			
-		return;
-	}
-
-	// If not scrollable then just ignore this operation since it means no new elements have been added and
-	// no targeted elements can be retrieved from the graph
-	bIsSearchingForPreviousElement = false;
-	bIsScrolling = false;
-}
-
 
 FReply SMutableCodeViewer::OnGoToNextOperationButtonPressed()
 {
-	// Go forward one index on the array TargetedElementsOfType.
-	// If in last index try to expand other rows
-	
-	// Filter out not valid type
-	if (NavigationOPAddresses.IsEmpty())
-	{
-		return FReply::Handled();
-	}
-
-	// Sort the array of navigation elements just in case the order of the elements on the view changed
-	// This can happen if the user scrolls the view and new elements of the targeted type come to view
-	SortNavigationElementsArray();
-
-	// Make a copy of the array to be able to later compare it to the tree with the element expanded
-	NavigationPreviouslyFoundElements = NavigationFoundElements;
-
-	// Fully expand tree if required to uncover all possible elements of the targeted type.
-	// The expansion does not discern between element types, all non duplicated elements will be expanded
-	if (bTreeWasExpanded == false && !bIsScrolling)
-	{
-		// Expand all elements to avoid leaving any of them behind when searching for the next element
-		TreeExpandElements(RootNodes,false);
-
-		// Tell the system to continue operating after the tree refresh
-		bIsSearchingForNextElement = true;
-
-		// Save a flag to avoid redoing this again later (only required once per selected object)
-		bTreeWasExpanded = true;
-			
-		return FReply::Handled();
-	}
-
-	// At this point we know the tree has been fully expanded and we should be able to traverse it without the
-	// need of expanding it again unless we get to another object of the targeted type with should, if used as
-	// start for another search, perform another cautionary tree expansion.
-	
-	// Get the index of the currently selected element on the array of operations of the current type
-	// If it is < 0 means that the current object is not part of the actual elements of the targeted type
-	int32 SelectedOperationIndex = NavigationFoundElements.IndexOfByKey(CurrentNavigationElement);
-	
-	// If we have an element already set then use it to compute the values
-	if (CurrentNavigationElement)
-	{
-		// If we are not the last element of the array then move on to the next one normally
-		// Since we have expanded the current element we should be able to access contents inside of it (children of it)
-		if (SelectedOperationIndex < NavigationFoundElements.Num() - 1)
-		{
-			// Select the new element
-			SetCurrentNavigationElement(NavigationFoundElements[SelectedOperationIndex + 1]);
-			return FReply::Handled();
-		}
-	}
-	// We do not have a current element to use as starting point for our search.
-	else
-	{
-		// Since we are moving downwards, grab the first element visible to make it be the current object.
-		if (NavigationFoundElements.Num() > 0)
-		{
-			// Get the first object and store its direction
-			SelectedOperationIndex = 0;
-			SetCurrentNavigationElement(NavigationFoundElements[SelectedOperationIndex]);
-			return FReply::Handled();
-		}
-	}
-
-	// At this point we are not able to reach any other element of the current type. We must then
-	// start scrolling down in order to get to the next element or the end of the tree view.
-	{
-		// Enable this flag to make the system search for new elements on the tree on the next tick
-		bIsSearchingForNextElement = true;
-	}
+	// Focus on next target
+	NavigationIndex = NavigationIndex>=NavigationElements.Num() -1 ? NavigationElements.Num() -1 : NavigationIndex + 1;
+	FocusViewOnNavigationTarget();
 	
 	return FReply::Handled();
 }
 
-
-void SMutableCodeViewer::GoToNextOperationAfterRefresh()
+void SMutableCodeViewer::FocusViewOnNavigationTarget()
 {
-	// Is mandatory for this system to be stable to operate after the tree refresh
-	check(TreeView->IsPendingRefresh() == false);
-	
-	// Required for all the possible contexts where this method could  partake
-	check(bIsSearchingForNextElement);
-	
-	// Check if the new CurrentArray does have elements not already set on the previous array
-	// and also check if we expanded the tree on the previous tick. If so, enter the if block
-	const bool bNewElementFound = HaveNewElementsBeenFound();
-	if (bNewElementFound || bTreeWasExpanded)
+	// Stage 1 : Expand all tree so all navigable elements get to be reachable
+	if (!bWasUniqueExpansionInvokedForNavigation && !bWasScrollToTargetRequested)
 	{
-		// Reset the flag since we are already being run after the tree refresh
-		bIsSearchingForNextElement = false;
+		TreeExpandUnique();
+		bWasUniqueExpansionInvokedForNavigation = true;
+		// Early exit, this method will get called again later after tree update
+		return;		
+	}
+	
+	// Stage 2 : Try to get to the targeted element. if not visible scroll into view
+	
+	// Locate the element on our map of elements
+	const TSharedPtr<FMutableCodeTreeElement> TargetElement = NavigationElements[NavigationIndex];
+	check (TargetElement.IsValid());
+	
+	// If required scroll to the area where we know the element is going to be in view
+	// a way to ensure this happens is by calling 
+	if (TreeView->IsItemVisible(TargetElement))
+	{
+		// Stage 3-b : Select the element we have provided since now is sure to be in view
 		
-		// Recreate the button press to move to the next element after expanding the tree
-		OnGoToNextOperationButtonPressed();
+		// This line selects the element with at the same time updates the UI to show the row representing this element selected
+		TreeView->SetSelection(TargetElement);
+	
+		// Done!
+		// We have the element in view and we have selected it!
+	}
+	else
+	{
+		// Stage 3-a (optional) : Ask for the provided element to be scrolled into view.
 		
-		// Reset the just expanded flag
-		// Setting this to false makes the system able to fully expand the tree later when we start searching again
-		bTreeWasExpanded = false;
+		// Failing this check would mean we have performed a scroll but we are still not able to view the element
+		check (!bWasScrollToTargetRequested);
 		
-		// Reset the scrolling flag in case it was active
-		bIsScrolling = false;
+		// Amount of elements that can be shown by the UI at any given time (search for better way of knowing this)
+		TreeView->RequestScrollIntoView(TargetElement);
+		
+		// Read this variable after the update and then select the object (easy at this point)
+		// You may want to just call again this method after refresh since the element will be on view
+		bWasScrollToTargetRequested = true;
+
+		// Early exit, this method will get called again later after tree update once the scroll has been completed
 		return;
 	}
 
-	// We do know that no element of the targeted type has been found. So, we should start searching
-	
-	// If scrollable try to scroll over the tree to locate new elements
-	if (TreeView->IsScrollbarNeeded()
-		&& TreeView->GetScrollDistanceRemaining().Y > 0)
-	{
-		// Flag the system so it is able to tell if the scrolling is being performed or not
-		bIsScrolling = true;
-			
-		// Add a bit of scroll
-		ComputedMaxViewScrollStep = FMath::Max( TreeElements.Num() - 1,MinTreeScrollStep);
-		TreeView->AddScrollOffset(ComputedMaxViewScrollStep,true);
-
-		// Do not trust the tree to be able to handle this kind of artificial scrolling and avoid surpassing the end
-		if (TreeView->GetScrollDistanceRemaining().Y < 0 )
-		{
-			TreeView->ScrollToBottom();
-		}
-			
-		return;
-	}
-
-	// If not scrollable then just ignore this operation since it means no new elements have been added and
-	// no targeted elements can be retrieved from the graph
-	bIsSearchingForNextElement = false;
-	bIsScrolling = false;
+	// Reset the control flag so we do not expand all tree again if not required
+	bWasUniqueExpansionInvokedForNavigation = false;
+	bWasScrollToTargetRequested = false;
 }
-
-bool SMutableCodeViewer::HaveNewElementsBeenFound() const
-{
-	// Check if the new CurrentArray does have elements not already set on the previous array
-	bool NewElementAdded = false;
-
-	// If the current array does have data and the old not then we directly know that new elements have been added.
-	if (NavigationFoundElements.Num() && NavigationPreviouslyFoundElements.IsEmpty())
-	{
-		return true;
-	}
-	
-	// Iterate the current array to 
-	for (int32 CurrentArrayIndex = 0; CurrentArrayIndex < NavigationFoundElements.Num(); CurrentArrayIndex++)
-	{
-		// If the element is not found on the previous array it means it is new, and therefore a valid element to select
-		if (!NavigationPreviouslyFoundElements.Contains(NavigationFoundElements[CurrentArrayIndex]))
-		{
-			NewElementAdded = true;
-			break; 
-		}
-	}
-
-	return NewElementAdded;
-}
-
 
 #pragma endregion 
 
 #pragma region Operation Cost Color Hints
+
+void SMutableCodeViewer::GenerateAllTreeElements()
+{
+	// By generating all tree elements prior to usage we are able to :
+	//	- Compute the index of each one to aidd on navigation
+	//	- Remove indeterministic assignation of the "Duplicated" state of elements. It was due to user interaction with the tree
+	//	Only unique elements, their children and duplicated elements will be generated. Children of duplicates will
+	// 	be ignored due to how we handle them when expanding and contracting elements (OnExpansionChanged)
+
+	// Generate all root nodes
+	const mu::Model::Private* ModelPrivate = MutableModel->GetPrivate();
+	const mu::FProgram& Program = ModelPrivate->m_program;
+	const uint32 StateCount = ModelPrivate->m_program.m_states.Num();
+	for ( uint32 StateIndex=0; StateIndex<StateCount; ++StateIndex )
+	{
+		const mu::FProgram::FState& State = ModelPrivate->m_program.m_states[StateIndex];
+		FString Caption = FString::Printf( TEXT("state [%s]"), ANSI_TO_TCHAR(State.m_name.c_str()) );
+
+		const FSlateColor LabelColor = ColorPerComputationalCost[StaticCast<uint8>(GetOperationTypeComputationalCost(
+			ModelPrivate->m_program.GetOpType(State.m_root)))];
+		
+		RootNodes.Add(MakeShareable(new FMutableCodeTreeElement(ItemCache.Num(),MutableModel, State.m_root, Caption,LabelColor)));
+
+		// Iterate over each root node and generate all the elements in a human readable pattern (Z Pattern)
+
+		constexpr  mu::OP::ADDRESS CommonParent = 0;
+		const FItemCacheKey Key = { CommonParent, State.m_root, StateIndex };
+
+		// Add the element to the cache so we keep the indices straight.
+		ItemCache.Add(Key, RootNodes.Last());
+		GenerateElementRecursive(State.m_root,Program);
+	}
+	
+}
+
+void SMutableCodeViewer::GenerateElementRecursive(mu::OP::ADDRESS InParentAddress,  const mu::FProgram& InProgram)
+{
+	// Find children of the provided element
+	uint32 ChildIndex = 0;
+	mu::ForEachReference(InProgram, InParentAddress, [this, InParentAddress, &ChildIndex, &InProgram](mu::OP::ADDRESS ChildAddress)
+	{
+		if (ChildAddress)
+		{
+			const FItemCacheKey Key = { InParentAddress, ChildAddress, ChildIndex };
+			const TSharedPtr<FMutableCodeTreeElement>* CachedItem = ItemCache.Find(Key);
+
+			if (!CachedItem)
+			{
+				// Locate the "original" tree element
+				const TSharedPtr<FMutableCodeTreeElement>* MainItemPtr = MainItemPerOp.Find(ChildAddress);
+
+				const FSlateColor LabelColor = ColorPerComputationalCost[ StaticCast<uint8> (GetOperationTypeComputationalCost(InProgram.GetOpType(ChildAddress))) ];
+				const TSharedPtr<FMutableCodeTreeElement> Item = MakeShareable(new FMutableCodeTreeElement(ItemCache.Num(),MutableModel, ChildAddress, TEXT(""),LabelColor, MainItemPtr));
+
+				// Cache this element for later access
+				ItemCache.Add(Key, Item);
+				
+				// It is not a duplicated of another one, then we can continue searching
+				if (!MainItemPtr)
+				{
+					MainItemPerOp.Add(ChildAddress, Item);
+					
+					GenerateElementRecursive(ChildAddress,InProgram);
+				}
+			}
+		}
+		++ChildIndex;
+	});
+}
 
 SMutableCodeViewer::EOperationComputationalCost SMutableCodeViewer::GetOperationTypeComputationalCost(mu::OP_TYPE OperationType) const
 {
@@ -1387,16 +1152,6 @@ TSharedRef<ITableRow> SMutableCodeViewer::GenerateRowForNodeTree(TSharedPtr<FMut
 	
 	// Generate a row element
 	TSharedRef<SMutableCodeTreeRow> Row = SNew(SMutableCodeTreeRow, InOwnerTable, InTreeNode);
-	
-	// Only add it to our collection of navigation elements if we know it has an address we want to be able to navigate to
-	if (NavigationOPAddresses.Contains(InTreeNode->MutableOperation))
-	{
-		// Ignore duplicates
-		if (!InTreeNode->DuplicatedOf)
-		{
-			NavigationFoundElements.Add(InTreeNode);
-		}
-	}
 	
 	// Determine if a row should be painted as highlighted based on the selected item
 	if (TreeView->GetNumItemsSelected())
@@ -1431,7 +1186,7 @@ void SMutableCodeViewer::GetChildrenForInfo(TSharedPtr<FMutableCodeTreeElement> 
 
 	// Generic case for unnamed children traversal.
 	uint32 ChildIndex = 0;
-	mu::ForEachReference(Program, InInfo->MutableOperation, [this, ParentAddress, &ChildIndex, &OutChildren, &Program](mu::OP::ADDRESS ChildAddress)
+	mu::ForEachReference(Program, InInfo->MutableOperation, [this, ParentAddress, &ChildIndex, &OutChildren](mu::OP::ADDRESS ChildAddress)
 	{
 		if (ChildAddress)
 		{
@@ -1444,19 +1199,8 @@ void SMutableCodeViewer::GetChildrenForInfo(TSharedPtr<FMutableCodeTreeElement> 
 			}
 			else
 			{
-				const TSharedPtr<FMutableCodeTreeElement>* MainItemPtr = MainItemPerOp.Find(ChildAddress);
-
-				const FSlateColor LabelColor = ColorPerComputationalCost[ StaticCast<uint8> (GetOperationTypeComputationalCost(Program.GetOpType(ChildAddress))) ];
-				
-				const TSharedPtr<FMutableCodeTreeElement> Item = MakeShareable(new FMutableCodeTreeElement(MutableModel, ChildAddress, TEXT(""),LabelColor, MainItemPtr));
-				
-				OutChildren.Add(Item);
-				ItemCache.Add(Key, Item);
-
-				if (!MainItemPtr)
-				{
-					MainItemPerOp.Add(ChildAddress, Item);
-				}
+				// if all elements have been already cached this should never happen
+				checkNoEntry();
 			}
 		}
 		++ChildIndex;
@@ -1475,13 +1219,16 @@ void SMutableCodeViewer::OnExpansionChanged(TSharedPtr<FMutableCodeTreeElement> 
 			TreeView->SetItemExpansion(*ExpandedElement, false);
 		}
 		
+		// Cache this element as one currently expanded
 		ExpandedElements.Add(MutableOperation, InItem);
 	}
 	else
 	{
+		// Remove this element from the cache of expanded elements
 		ExpandedElements.Remove(InItem->MutableOperation);
 	}
 }
+
 
 
 void SMutableCodeViewer::OnSelectionChanged(TSharedPtr<FMutableCodeTreeElement> InNode, ESelectInfo::Type InSelectInfo)
@@ -1675,16 +1422,6 @@ void SMutableCodeViewer::OnRowReleased(const TSharedRef<ITableRow>& InTreeRow)
 	SMutableCodeTreeRow* CastedTableRow = static_cast<SMutableCodeTreeRow*>(&InTreeRow.Get());
 	const TSharedPtr<FMutableCodeTreeElement>& RowElement = CastedTableRow->GetItem();
 	TreeElements.Remove(RowElement);
-	
-	// Remove the element from the array of elements of the current type
-	if (NavigationFoundElements.Contains(RowElement))
-	{
-		NavigationFoundElements.Remove(RowElement);
-		if (CurrentNavigationElement == RowElement)
-		{
-			SetCurrentNavigationElement(nullptr);
-		}
-	}
 }
 #pragma endregion
 
@@ -1909,6 +1646,7 @@ void SMutableCodeViewer::TreeExpandInstance()
 	// Expand only the items that match the datatype provided
 	TreeExpandElements(RootNodes,false, mu::DT_INSTANCE);
 }
+
 #pragma endregion
 
 #pragma region Caching of operations related to constant resource
@@ -1935,78 +1673,83 @@ void SMutableCodeViewer::CacheRootNodeAddresses()
 	const int32 IndexOnConstantsArray)
 {
 	check(MutableModel);
+	check(RootNodeAddresses.Num());
+
 	if (IndexOnConstantsArray < 0)
 	{
 		// Not valid index.
 		UE_LOG(LogTemp,Error,TEXT("The provided index [%d] is not valid."),IndexOnConstantsArray );
 		return;
 	}
-	
-	// Iterate over all the operations found on this model. For that use as start the root elements of this graph and 
-	// move deeper in it
-	
-	TSet<mu::OP::ADDRESS> ProcessedAddresses;
-	TSet<mu::OP::ADDRESS> ConstantResourcesAddresses; 
 
+	// Object containing all data required by the search operation to be able to be called recursively
+	FElementsSearchCache SearchPayload;
+	// Initialize the Search Payload with the root node addresses. This way the search will use them as the root nodes where
+	// to start searching
+	SearchPayload.SetupRootBatch(RootNodeAddresses);
+	
 	// Main update procedure run for the targeted state and the targeted parameter values
-	const mu::FProgram& Program = MutableModel->GetPrivate()->m_program;
-	for (const mu::OP::ADDRESS& RootOperationAddress : RootNodeAddresses)
-	{
-		GetOperationsReferencingConstantResource(ConstantDataType, IndexOnConstantsArray,Program, RootOperationAddress,
-											 ConstantResourcesAddresses,ProcessedAddresses);
-	}
+	const mu::FProgram& Program = MutableModel->GetPrivate()->m_program; 
+	GetOperationsReferencingConstantResource(ConstantDataType,IndexOnConstantsArray,SearchPayload, Program);
 	
 	// At this point we did get all the addresses of operations that do involve the usage of our resource
-	if (ConstantResourcesAddresses.Num() > 0)
+	if (SearchPayload.FoundElements.Num() > 0)
 	{
-		// Managed by TargetedTypeSelector->SetSelectedItem callback method
-		// SetCurrentNavigationElement(nullptr);
-		
 		// Reset operation selection object to show no element to navigate to since we are not navigating over op types
 		// Set the type operation type to NONE (we know it is always the first one)
 		TargetedTypeSelector->SetSelectedItem(FoundModelOperationTypeElements[0]);
 
 		// Dump the located resources array onto the navigation array since we have content to navigate over
-		NavigationOPAddresses = ConstantResourcesAddresses.Array();
-
-		// Move the view to the top if possible
-		// this will take some time to finish -> wait until update end
-		TreeView->ScrollToTop();
+		NavigationElements = MoveTemp(SearchPayload.FoundElements);
+		SortNavigationElements();
 		
-		// Tell the system changes have been made over Navigation Addresses
-		bUpdatedNavigationAddresses = true;
+		// Reset the navigation index
+		NavigationIndex = -1;
 	}
 	else
 	{
 		UE_LOG(LogTemp,Error,TEXT("The provided constant index does not seem to be used anywere : Make sure the index is valid and that IsConstantResourceUsedByOperation() switch is up to date"));
 	}
-
 }
 
-void SMutableCodeViewer::GetOperationsReferencingConstantResource(const mu::DATATYPE ConstantDataType, const int32 IndexOnConstantsArray, const mu::FProgram& InProgram,
-	const mu::OP::ADDRESS& InParentAddress,
-	TSet<mu::OP::ADDRESS>& OutAddressesWithPresence,
-	TSet<mu::OP::ADDRESS>& AlreadyProcessedAddresses)
+
+void SMutableCodeViewer::GetOperationsReferencingConstantResource(
+	const mu::DATATYPE ConstantDataType,
+	const int32 IndexOnConstantsArray,
+	FElementsSearchCache& InSearchPayload,
+	const mu::FProgram& InProgram)
 {
-	// Generic case for unnamed children traversal.
-	mu::ForEachReference(InProgram, InParentAddress, [this, &OutAddressesWithPresence, &ConstantDataType, &IndexOnConstantsArray, &AlreadyProcessedAddresses, &InProgram]( mu::OP::ADDRESS ChildAddress)
+	// next batch of addresses to be explored 
+	TArray<FItemCacheKey> NextBatchAddressesData;
+	
+	for	(int32 ParentIndex = 0 ; ParentIndex < InSearchPayload.BatchData.Num(); ParentIndex++)
 	{
-		// If the parent does have a child then process it 
-		if (ChildAddress && !AlreadyProcessedAddresses.Contains(ChildAddress))
+		// Get one of the previous run "children" and treat as a parent to get it's children and process them
+		const mu::OP::ADDRESS& ParentAddress = InSearchPayload.BatchData[ParentIndex].Child;
+		
+		// Cache if same data type and we share the same address (means this op is pointing at the provided resource)
+		// It will cache duplicated entries
+		if (IsConstantResourceUsedByOperation(IndexOnConstantsArray, ConstantDataType, ParentAddress,InProgram))
 		{
-			// Cache if same data type and we share the same address (means this op is pointing at the provided resource)
-			if (IsConstantResourceUsedByOperation(IndexOnConstantsArray,ConstantDataType,ChildAddress,InProgram))
-			{
-				OutAddressesWithPresence.Add(ChildAddress);
-			}
-		
-			// Cache to avoid processing it again later
-			AlreadyProcessedAddresses.Add(ChildAddress);
-		
-			// Process the children of this object
-			GetOperationsReferencingConstantResource(ConstantDataType,IndexOnConstantsArray,InProgram,ChildAddress,OutAddressesWithPresence,AlreadyProcessedAddresses);
+			// Since this element is related with the provided constant resource cache it on InSearchPayload.FoundElements
+			InSearchPayload.AddToFoundElements(ParentAddress,ParentIndex,ItemCache);
 		}
-	});
+		
+		// Get all NON PROCESSED the children of this operation to later be able to process them (on next recursive call)
+		InSearchPayload.CacheChildrenOfAddressIfNotProcessed(ParentAddress, InProgram, NextBatchAddressesData);
+	}
+
+	// At this point all the addresses to be computed on the next batch have already been set and will be computed on
+	// the next recursive call
+	
+	// Explore children if found 
+	if (NextBatchAddressesData.Num())
+	{
+		// Cache next batch data so the next invocations is able to locate the provided addresses on the itemsCache
+		InSearchPayload.BatchData = MoveTemp(NextBatchAddressesData);
+		
+		GetOperationsReferencingConstantResource(ConstantDataType, IndexOnConstantsArray, InSearchPayload, InProgram);
+	}
 }
 
 bool SMutableCodeViewer::IsConstantResourceUsedByOperation(const int32 IndexOnConstantsArray,
@@ -2215,39 +1958,10 @@ void SMutableCodeViewer::Tick(const FGeometry& AllottedGeometry, const double In
 	// there to be selected or inspected.
 	if (!TreeView->IsPendingRefresh())
 	{
-		// If the addresses set have changed then start looking for the first element that matches the first element on
-		// the addresses array
-		if ( bUpdatedNavigationAddresses)
+		/** If we have expanded the tree elements in order to reach one of them then continue the operation */
+		if (bWasUniqueExpansionInvokedForNavigation || bWasScrollToTargetRequested)
 		{
-			// Reset the flag
-			bUpdatedNavigationAddresses = false;
-
-			// Locate the elements that can be currently navigated over.
-			LocateNavigationElementsOnTree();
-
-			// Simulate a button press to go to the next operation. At this point we should have no operation set so it
-			// will find and select the first one
-			// Commented out to avoid the jumping around behaviour of the tree view when selecting a constant resource.
-			// It also avoids situations where we select one constant that invokes a viewer (of type StringViewport for example) and close after, due
-			// to the operation that hosts that resource being selected automatically its that operation previewer witch gets open therefore
-			// clouding the initial viewport we were using.
-			// OnGoToNextOperationButtonPressed();
-
-			return;
-		}
-
-		// Are we searching upwards?
-		if (bIsSearchingForPreviousElement)
-		{
-			GoToPreviousOperationAfterRefresh();
-			return;
-		}
-
-		// Are we searching downwards?
-		if (bIsSearchingForNextElement)
-		{
-			GoToNextOperationAfterRefresh();
-			return;
+			FocusViewOnNavigationTarget();
 		}
 	}
 	
@@ -2511,4 +2225,4 @@ void SMutableCodeViewer::PreviewMutableShape(const mu::FShape* Shape)
 	UE_LOG(LogMutable,Warning,TEXT("Previewer for Mutable Shapes not yet implemented"))
 }
 
-#undef LOCTEXT_NAMESPACE 
+#undef LOCTEXT_NAMESPACE
