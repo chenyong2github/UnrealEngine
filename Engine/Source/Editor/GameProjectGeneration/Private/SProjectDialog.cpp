@@ -160,8 +160,11 @@ public:
 		check(InArgs._Item.IsValid())
 		Item = InArgs._Item;
 
+		STableRow::FArguments TableRowArguments;
+		TableRowArguments._SignalSelectionMode = ETableRowSignalSelectionMode::Instantaneous;
+
 		STableRow::Construct(
-			STableRow::FArguments()
+			TableRowArguments
 			.Style(FAppStyle::Get(), "ProjectBrowser.TableRow")
 			.Padding(2.0f)
 			.Content()
