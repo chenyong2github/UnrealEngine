@@ -1,0 +1,392 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using Horde.Build.Streams;
+using Horde.Build.Utilities;
+using MongoDB.Bson.Serialization;
+
+namespace Horde.Build.Jobs.TestData
+{
+	using StreamId = StringId<IStream>;
+	using TestId = ObjectId<ITest>;
+
+	/// <summary>
+	/// Response object describing test data to store
+	/// </summary>
+	public class CreateTestDataRequest
+	{
+		/// <summary>
+		/// The job which produced the data
+		/// </summary>
+		[Required]
+		public string JobId { get; set; } = String.Empty;
+
+		/// <summary>
+		/// The step that ran
+		/// </summary>
+		[Required]
+		public string StepId { get; set; } = String.Empty;
+
+		/// <summary>
+		/// Key used to identify the particular data
+		/// </summary>
+		public string Key { get; set; } = String.Empty;
+
+		/// <summary>
+		/// The data stored for this test
+		/// </summary>
+		[Required]
+		public Dictionary<string, object> Data { get; set; } = new Dictionary<string, object>();
+	}
+
+	/// <summary>
+	/// Response object describing the created document
+	/// </summary>
+	public class CreateTestDataResponse
+	{
+		/// <summary>
+		/// The id for the new document
+		/// </summary>
+		public string Id { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="id">Id of the new document</param>
+		public CreateTestDataResponse(string id)
+		{
+			Id = id;
+		}
+	}
+
+	/// <summary>
+	/// Response object describing test results
+	/// </summary>
+	public class GetTestDataResponse
+	{
+		/// <summary>
+		/// Unique id of the test data
+		/// </summary>
+		public string Id { get; set; }
+
+		/// <summary>
+		/// Stream that generated the test data
+		/// </summary>
+		public string StreamId { get; set; }
+
+		/// <summary>
+		/// The template reference id
+		/// </summary>
+		public string TemplateRefId { get; set; }
+
+		/// <summary>
+		/// The job which produced the data
+		/// </summary>
+		public string JobId { get; set; }
+
+		/// <summary>
+		/// The step that ran
+		/// </summary>
+		public string StepId { get; set; }
+
+		/// <summary>
+		/// The changelist number that contained the data
+		/// </summary>
+		public int Change { get; set; }
+
+		/// <summary>
+		/// Key used to identify the particular data
+		/// </summary>
+		public string Key { get; set; }
+
+		/// <summary>
+		/// The data stored for this test
+		/// </summary>
+		public Dictionary<string, object> Data { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="testData">Test data to construct from</param>
+		internal GetTestDataResponse(ITestData testData)
+		{
+			Id = testData.Id.ToString();
+			StreamId = testData.StreamId.ToString();
+			TemplateRefId = testData.TemplateRefId.ToString();
+			JobId = testData.JobId.ToString();
+			StepId = testData.StepId.ToString();
+			Change = testData.Change;
+			Key = testData.Key;
+			Data = BsonSerializer.Deserialize<Dictionary<string, object>>(testData.Data);
+		}
+	}
+
+	/// <summary>
+	/// A test emvironment running in a stream
+	/// </summary>
+	public class GetTestMetaResponse
+	{
+		/// <summary>
+		/// Meta unique id for environment 
+		/// </summary>
+		public string Id { get; set; }
+
+		/// <summary>
+		/// The platforms in the environment
+		/// </summary>
+		public List<string> Platforms { get; set; }
+
+		/// <summary>
+		/// The build configurations being tested
+		/// </summary>
+		public List<string> Configurations { get; set; }
+
+		/// <summary>
+		/// The build targets being tested
+		/// </summary>
+		public List<string> BuildTargets { get; set; }
+
+		/// <summary>
+		/// The test project name
+		/// </summary>
+		public string ProjectName { get; set; }
+
+		/// <summary>
+		/// The rendering hardware interface being used with the test
+		/// </summary>
+		public string RHI { get; set; }
+
+		internal GetTestMetaResponse(ITestMeta meta)
+		{
+			Id = meta.Id.ToString();
+			Platforms = meta.Platforms.Select(p => p).ToList();
+			Configurations = meta.Configurations.Select(p => p).ToList();
+			BuildTargets = meta.BuildTargets.Select(p => p).ToList();
+			ProjectName = meta.ProjectName;
+			RHI = meta.RHI;	
+		}
+	}
+
+	/// <summary>
+	/// A test that runs in a stream
+	/// </summary>
+	public class GetTestResponse
+	{
+		/// <summary>
+		/// The name of the test 
+		/// </summary>
+		public string Name { get; set; }
+
+		/// <summary>
+		/// The name of the test 
+		/// </summary>
+		public string? DisplayName { get; set; }
+
+		/// <summary>
+		/// The name of the test 
+		/// </summary>
+		public string StreamId { get; set; }
+
+		/// <summary>
+		/// The platforms the test runs on
+		/// </summary>
+		public List<string> Metadata { get; set; }
+
+		internal GetTestResponse(ITest test)
+		{
+			Name = test.Name;
+			DisplayName = test.DisplayName;
+			StreamId = test.StreamId.ToString();
+			Metadata = test.Metadata.Select(x => x.ToString()).ToList();
+		}
+	}
+
+	/// <summary>
+	/// A test suite that runs in a stream, contain subtests
+	/// </summary>
+	public class GetTestSuiteResponse
+	{
+		/// <summary>
+		/// The name of the test suite
+		/// </summary>
+		public string Name { get; set; }
+
+		/// <summary>
+		/// The name of the test 
+		/// </summary>
+		public string StreamId { get; set; }
+
+		/// <summary>
+		/// The tests in the suite
+		/// </summary>
+		public List<TestId> Tests { get; set; }
+
+		internal GetTestSuiteResponse(ITestSuite suite)
+		{
+			Name = suite.Name;
+			StreamId = suite.StreamId.ToString();
+			Tests = suite.Tests.ToList();
+		}
+	}
+
+	/// <summary>
+	/// Response object describing test results
+	/// </summary>
+	public class GetTestStreamResponse
+	{
+		/// <summary>
+		/// The stream id
+		/// </summary>
+		public string StreamId { get; set; }
+
+		/// <summary>
+		/// Individual tests which run in the stream
+		/// </summary>
+		public List<GetTestResponse> Tests { get; set; }
+
+		/// <summary>
+		/// Test suites that run in the stream
+		/// </summary>
+		public List<GetTestSuiteResponse> TestSuites { get; set; }
+
+		/// <summary>
+		/// Test suites that run in the stream
+		/// </summary>
+		public List<GetTestMetaResponse> TestMetadata { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="streamId"></param>
+		/// <param name="tests"></param>
+		/// <param name="suites"></param>
+		/// <param name="metaData"></param>
+		internal GetTestStreamResponse(StreamId streamId, List<ITest> tests, List<ITestSuite> suites, List<ITestMeta> metaData)
+		{
+			StreamId = streamId.ToString();
+
+			Tests = tests.Select(t => new GetTestResponse(t)).ToList();
+			TestSuites = suites.Select(t => new GetTestSuiteResponse(t)).ToList();
+			TestMetadata = metaData.Select(m => new GetTestMetaResponse(m)).ToList();
+		}
+
+	}
+
+	/// <summary>
+	/// Suite test data
+	/// </summary>
+	public class GetSuiteTestDataResponse
+	{
+		/// <summary>
+		/// The test id
+		/// </summary>
+		public string Id { get; set; }
+
+		/// <summary>
+		/// The ourcome of the suite test
+		/// </summary>
+		public TestOutcome Outcome { get; set; }
+
+		/// <summary>
+		/// How long the suite test ran
+		/// </summary>
+		public TimeSpan Duration { get; set; }
+
+		/// <summary>
+		/// Test UID for looking up in test details
+		/// </summary>
+		public string UID { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="data"></param>
+		public GetSuiteTestDataResponse(ISuiteTestData data)
+		{
+			Id = data.Id.ToString();
+			Outcome = data.Outcome;
+			Duration = data.Duration;
+			UID =data.UID;
+		}
+	}
+
+
+	/// <summary>
+	/// Data ref 
+	/// </summary>
+	public class GetTestDataRefResponse
+	{
+		/// <summary>
+		/// The associated stream
+		/// </summary>
+		public string StreamId { get; set; }
+
+		/// <summary>
+		/// The full details test data for this ref
+		/// </summary>
+		public string TestDataId { get; set; }
+
+		/// <summary>
+		/// How long the test ran
+		/// </summary>
+		public TimeSpan Duration { get; set; }
+
+		/// <summary>
+		/// The build changelist upon which the test ran, may not correspond to the job changelist
+		/// </summary>
+		public int BuildChangeList { get; set; }
+
+		/// <summary>
+		/// The platform the test ran on 
+		/// </summary>
+		public string MetaId { get; set; }
+
+		/// <summary>
+		/// The test id in stream
+		/// </summary>
+		public string? TestId { get; set; }
+
+		/// <summary>
+		/// The outcome of the test
+		/// </summary>
+		public TestOutcome? Outcome { get; set; }
+
+		/// <summary>
+		/// The if of the stream test suite
+		/// </summary>
+		public string? SuiteId { get; set; }
+
+		/// <summary>
+		/// The suite tests
+		/// </summary>
+		public List<GetSuiteTestDataResponse>? SuiteTests { get; set; }
+
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="testData"></param>
+		public GetTestDataRefResponse(ITestDataRef testData)
+		{
+			StreamId = testData.StreamId.ToString();
+			TestDataId = testData.TestDataId.ToString();
+			Duration = testData.Duration;
+			BuildChangeList = testData.BuildChangeList;
+			MetaId = testData.Metadata.ToString();
+			TestId = testData.TestId?.ToString();
+			Outcome = testData.Outcome;
+			SuiteId = testData.SuiteId?.ToString();
+			if (testData.SuiteTests != null)
+			{
+				SuiteTests = new List<GetSuiteTestDataResponse>();
+				foreach (ISuiteTestData test in testData.SuiteTests)
+				{
+					SuiteTests.Add(new GetSuiteTestDataResponse(test));
+				}
+			}			
+		}
+	}
+}

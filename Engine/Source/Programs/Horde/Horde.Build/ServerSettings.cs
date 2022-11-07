@@ -179,6 +179,12 @@ namespace Horde.Build
 		/// Limit concurrent log chunk writes and await them to reduce mem and I/O usage
 		/// </summary>
 		public bool LimitConcurrentLogChunkWriting { get; set; } = false;
+
+		/// <summary>
+		/// Enable new test data collections and service, feature flag added 22/11/7
+		/// </summary>
+		public bool EnableTestDataV2 { get; set; } = false;
+
 	}
 
 	/// <summary>

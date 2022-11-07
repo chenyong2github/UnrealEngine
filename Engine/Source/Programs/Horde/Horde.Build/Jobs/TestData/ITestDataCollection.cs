@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Streams;
@@ -7,15 +8,39 @@ using Horde.Build.Utilities;
 using MongoDB.Bson;
 
 namespace Horde.Build.Jobs.TestData
-{
+{	
 	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;
+	using TestId = ObjectId<ITest>;
+	using TestSuiteId = ObjectId<ITestSuite>;
+	using TestMetaId = ObjectId<ITestMeta>;
 
 	/// <summary>
 	/// Collection of test data documents
 	/// </summary>
 	public interface ITestDataCollection
 	{
+		/// <summary>
+		/// Gets the tests running in provided streams
+		/// </summary>
+		/// <param name="streamIds"></param>
+		/// <returns></returns>
+		Task<List<TestStream>> FindTestStreams(StreamId[] streamIds);
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="streamIds"></param>
+		/// <param name="metaIds"></param>
+		/// <param name="testIds"></param>
+		/// <param name="suiteIds"></param>
+		/// <param name="minCreateTime"></param>
+		/// <param name="maxCreateTime"></param>
+		/// <param name="minChange"></param>
+		/// <param name="maxChange"></param>
+		/// <returns></returns>
+		Task<List<ITestDataRef>> FindTestRefs(StreamId[] streamIds, TestMetaId[]? metaIds = null, TestId[]? testIds = null, TestSuiteId[]? suiteIds = null, DateTime? minCreateTime = null, DateTime? maxCreateTime = null, int? minChange = null, int? maxChange = null);
+
 		/// <summary>
 		/// Creates a new test data document
 		/// </summary>

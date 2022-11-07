@@ -425,6 +425,7 @@ namespace Horde.Build
 			services.AddSingleton<DeviceService>();						
 			services.AddSingleton<NoticeService>();
 			services.AddSingleton<StorageService>();
+			services.AddSingleton<TestDataService>();
 
 			if (settings.JiraUrl != null)
 			{
@@ -620,7 +621,7 @@ namespace Horde.Build
 				services.AddHostedService(provider => provider.GetRequiredService<SlackNotificationSink>());
 				services.AddHostedService<ConfigUpdateService>();
 				services.AddHostedService<TelemetryService>();
-				services.AddHostedService(provider => provider.GetRequiredService<DeviceService>());
+				services.AddHostedService(provider => provider.GetRequiredService<DeviceService>());				
 			}
 
 			services.AddHostedService(provider => provider.GetRequiredService<IExternalIssueService>());

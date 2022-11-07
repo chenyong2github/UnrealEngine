@@ -124,6 +124,7 @@ namespace Horde.Build.Tests
 		public ScheduleService ScheduleService => ServiceProvider.GetRequiredService<ScheduleService>();
 		public DeviceService DeviceService => ServiceProvider.GetRequiredService<DeviceService>();
 		public StorageService StorageService => ServiceProvider.GetRequiredService<StorageService>();
+		public TestDataService TestDataService => ServiceProvider.GetRequiredService<TestDataService>();
 
 		public ServerSettings ServerSettings => ServiceProvider.GetRequiredService<IOptions<ServerSettings>>().Value;
 		public IOptionsMonitor<ServerSettings> ServerSettingsMon => ServiceProvider.GetRequiredService<IOptionsMonitor<ServerSettings>>();
@@ -133,6 +134,7 @@ namespace Horde.Build.Tests
 		public PoolsController PoolsController => GetPoolsController();
 		public LeasesController LeasesController => GetLeasesController();
 		public DevicesController DevicesController => GetDevicesController();
+		public TestDataController TestDataController => GetTestDataController();
 
 		private static bool s_datadogWriterPatched;
 
@@ -238,6 +240,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<ScheduleService>();
 			services.AddSingleton<StreamService>();
 			services.AddSingleton<DeviceService>();
+			services.AddSingleton<TestDataService>();
 
 			services.AddSingleton<ConformTaskSource>();
 			services.AddSingleton<ICommitService, CommitService>();
@@ -289,6 +292,13 @@ namespace Horde.Build.Tests
 			DevicesController devicesCtrl = new DevicesController(DeviceService, AclService, UserCollection, logger);
 			devicesCtrl.ControllerContext = GetControllerContext();
 			return devicesCtrl;
+		}
+
+		private TestDataController GetTestDataController()
+		{
+			TestDataController dataCtrl = new TestDataController(TestDataService, StreamService, JobService, TestDataCollection);
+			dataCtrl.ControllerContext = GetControllerContext();
+			return dataCtrl;
 		}
 
 		private AgentsController GetAgentsController()

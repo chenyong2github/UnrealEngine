@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Horde.Build.Acls;
 using Horde.Build.Streams;
@@ -11,8 +13,12 @@ using MongoDB.Bson;
 
 namespace Horde.Build.Jobs.TestData
 {
+	
 	using JobId = ObjectId<IJob>;
 	using StreamId = StringId<IStream>;
+	using TestId = ObjectId<ITest>;
+	using TestSuiteId = ObjectId<ITestSuite>;
+	using TestMetaId = ObjectId<ITestMeta>;
 
 	/// <summary>
 	/// Controller for the /api/v1/testdata endpoint
@@ -32,16 +38,119 @@ namespace Horde.Build.Jobs.TestData
 		/// </summary>
 		private readonly ITestDataCollection _testDataCollection;
 
+		readonly TestDataService _testDataService;
+
+		readonly StreamService _streamService;
+
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="jobService">The job service singleton</param>
-		/// <param name="testDataCollection">Collection of test data documents</param>
-		public TestDataController(JobService jobService, ITestDataCollection testDataCollection)
+		/// <param name="testDataService"></param>
+		/// <param name="streamService"></param>
+		/// <param name="jobService"></param>
+		/// <param name="testDataCollection"></param>
+		public TestDataController(TestDataService testDataService, StreamService streamService, JobService jobService, ITestDataCollection testDataCollection)
 		{
 			_jobService = jobService;
 			_testDataCollection = testDataCollection;
+			_testDataService = testDataService;
+			_streamService = streamService;
 		}
+
+		/// <summary>
+		/// Get stream test data for the provided ids
+		/// </summary>
+		/// <param name="streamIds"></param>
+		/// <returns></returns>
+		[HttpGet]
+		[Route("/api/v2/testdata/streams")]
+		[ProducesResponseType(typeof(List<GetTestStreamResponse>), 200)]
+		public async Task<ActionResult<List<GetTestStreamResponse>>> GetTestStreamsAsync([FromQuery(Name = "Id")] string[] streamIds)
+		{
+			StreamId[] streamIdValues = Array.ConvertAll(streamIds, x => new StreamId(x));
+
+			List<StreamId> queryStreams = new List<StreamId>();
+			List<GetTestStreamResponse> responses = new List<GetTestStreamResponse>();
+
+			// authorize streams
+			foreach (StreamId streamId in streamIdValues)
+			{
+				IStream? stream = await _streamService.GetCachedStream(streamId);
+				if (stream != null)
+				{
+					if (await _streamService.AuthorizeAsync(stream, AclAction.ViewJob, User, null))
+					{
+						queryStreams.Add(stream.Id);
+					}
+				}
+			}
+
+			if (queryStreams.Count == 0)
+			{
+				return responses;
+			}
+
+			List<TestStream> streams = await _testDataService.FindTestStreams(queryStreams.ToArray());
+			streams.ForEach(s => responses.Add(new GetTestStreamResponse(s.StreamId, s.Tests, s.TestSuites, s.TestMeta)));
+			return responses;
+		}
+
+		/// <summary>
+		/// Gets test data refs 
+		/// </summary>
+		/// <param name="streamIds"></param>
+		/// <param name="testIds"></param>
+		/// <param name="suiteIds"></param>
+		/// <param name="platformIds"></param>
+		/// <param name="minCreateTime"></param>
+		/// <param name="maxCreateTime"></param>
+		/// <param name="minChange"></param>
+		/// <param name="maxChange"></param>
+		/// <returns></returns>
+		[HttpGet]
+		[Route("/api/v2/testdata/refs")]
+		[ProducesResponseType(typeof(List<GetTestDataRefResponse>), 200)]
+		public async Task<ActionResult<List<GetTestDataRefResponse>>> GetTestDataRefAsync(
+			[FromQuery(Name = "Id")] string[] streamIds,
+			[FromQuery(Name = "Tid")] string[]? testIds = null,
+			[FromQuery(Name = "Sid")] string[]? suiteIds = null,
+			[FromQuery(Name = "Pid")] string[]? platformIds = null,
+			[FromQuery] DateTimeOffset? minCreateTime = null,
+			[FromQuery] DateTimeOffset? maxCreateTime = null,
+			[FromQuery] int? minChange = null, 
+			[FromQuery] int? maxChange = null)
+		{
+			StreamId[] streamIdValues = Array.ConvertAll(streamIds, x => new StreamId(x));
+
+			List<StreamId> queryStreams = new List<StreamId>();
+			List<GetTestDataRefResponse> responses = new List<GetTestDataRefResponse>();
+
+			// authorize streams
+			foreach (StreamId streamId in streamIdValues)
+			{
+				IStream? stream = await _streamService.GetCachedStream(streamId);
+				if (stream != null)
+				{
+					if (await _streamService.AuthorizeAsync(stream, AclAction.ViewJob, User, null))
+					{
+						queryStreams.Add(stream.Id);
+					}
+				}
+			}
+
+			if (queryStreams.Count == 0)
+			{
+				return responses;
+			}
+
+			List<ITestDataRef> dataRefs = await _testDataService.FindTestRefs(queryStreams.ToArray(), platformIds, testIds, suiteIds, minCreateTime?.UtcDateTime, maxCreateTime?.UtcDateTime, minChange, maxChange);
+
+			dataRefs.ForEach(d => responses.Add(new GetTestDataRefResponse(d)));
+
+			return responses;
+		}
+
 
 		/// <summary>
 		/// Creates a new TestData document

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.Collections.Generic;
+using System;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
 using MongoDB.Bson;
@@ -10,6 +12,192 @@ namespace Horde.Build.Jobs.TestData
 	using StreamId = StringId<IStream>;
 	using TemplateId = StringId<ITemplateRef>;
 
+	using TestId = ObjectId<ITest>;
+	using TestSuiteId = ObjectId<ITestSuite>;
+	using TestMetaId = ObjectId<ITestMeta>;
+
+	/// <summary>
+	/// Test outcome
+	/// </summary>
+	public enum TestOutcome
+	{
+		/// <summary>
+		/// The test was successful
+		/// </summary>
+		Success,
+		/// <summary>
+		/// The test failed
+		/// </summary>
+		Failure,
+		/// <summary>
+		/// The test was skipped
+		/// </summary>
+		Skipped,
+		/// <summary>
+		/// The test had an unspecified result
+		/// </summary>
+		Unspecified
+	}
+
+	/// <summary>
+	/// Defines a testing environment based on platforms, configurations, targets, etc.
+	/// </summary>
+	public interface ITestMeta
+	{
+		/// <summary>
+		/// The test meta id
+		/// </summary>
+		TestMetaId Id { get; }
+		/// <summary>
+		/// The name of the test platform
+		/// </summary>
+		IReadOnlyList<string> Platforms { get; }
+
+		/// <summary>
+		/// The configuration the test was run on
+		/// </summary>
+		IReadOnlyList<string> Configurations { get; }
+
+		/// <summary>
+		/// The build target, editor, server, client, etc
+		/// </summary>
+		IReadOnlyList<string> BuildTargets { get; }
+
+		/// <summary>
+		/// The uproject name associated with this test, note: may not be directly related to Horde project
+		/// </summary>
+		string ProjectName { get; }
+
+		/// <summary>
+		/// The rendering hardware interface used for the test
+		/// </summary>
+		string RHI { get; }
+	}
+
+	/// <summary>
+	/// A test that runs in a stream
+	/// </summary>
+	public interface ITest
+	{
+		/// <summary>
+		/// The associated stream
+		/// </summary>
+		StreamId StreamId { get; }
+
+		/// <summary>
+		/// The fully qualified name of the test 
+		/// </summary>
+		string Name { get; }
+
+		/// <summary>
+		/// The display name of the test 
+		/// </summary>
+		string? DisplayName { get; }
+
+		/// <summary>
+		/// The meta data for the test 
+		/// </summary>
+		IReadOnlyList<TestMetaId> Metadata { get; }
+	}
+
+	/// <summary>
+	/// A test suite that runs in a stream
+	/// </summary>
+	public interface ITestSuite
+	{
+		/// <summary>
+		/// The associated stream
+		/// </summary>
+		StreamId StreamId { get; }
+
+		/// <summary>
+		/// The name of the test suite
+		/// </summary>
+		string Name { get; }
+
+		/// <summary>
+		/// The tests that compose the suite
+		/// </summary>
+		IReadOnlyList<TestId> Tests { get; }
+	}
+
+	/// <summary>
+	/// Suite test data
+	/// </summary>
+	public interface ISuiteTestData
+	{
+		/// <summary>
+		/// The test id
+		/// </summary>
+		TestId Id { get; }
+
+		/// <summary>
+		/// The ourcome of the suite test
+		/// </summary>
+		TestOutcome Outcome { get; }
+
+		/// <summary>
+		/// How long the suite test ran
+		/// </summary>
+		TimeSpan Duration { get; }
+
+		/// <summary>
+		/// Test UID for looking up in test details
+		/// </summary>
+		string UID { get; }
+	}
+
+	/// <summary>
+	/// Data ref 
+	/// </summary>
+	public interface ITestDataRef
+	{
+		/// <summary>
+		/// The associated stream
+		/// </summary>
+		StreamId StreamId { get; }
+
+		/// <summary>
+		/// The full details test data for this ref
+		/// </summary>
+		ObjectId TestDataId { get; }
+
+		/// <summary>
+		/// How long the test ran
+		/// </summary>
+		TimeSpan Duration { get; }
+
+		/// <summary>
+		/// The build changelist upon which the test ran, may not correspond to the job changelist
+		/// </summary>
+		int BuildChangeList { get; }
+
+		/// <summary>
+		/// The environment the test ran in
+		/// </summary>
+		TestMetaId Metadata { get; }
+
+		/// <summary>
+		/// The ITest in stream
+		/// </summary>
+		TestId? TestId { get; }
+
+		/// <summary>
+		/// The outcome of the test
+		/// </summary>
+		TestOutcome? Outcome { get; }
+
+		/// <summary>
+		/// The ITestSuite in stream
+		/// </summary>
+		TestSuiteId? SuiteId { get; }
+
+		/// <summary>
+		/// List for suite test data
+		/// </summary>
+		IReadOnlyList<ISuiteTestData>? SuiteTests { get; }
+	}
+	
 	/// <summary>
 	/// Stores information about the results of a test
 	/// </summary>
