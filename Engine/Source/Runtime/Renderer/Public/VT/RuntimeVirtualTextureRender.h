@@ -13,6 +13,7 @@ class FRDGTexture;
 class FRDGTextureUAV;
 class FScene;
 class FSceneInterface;
+struct IPooledRenderTarget;
 class URuntimeVirtualTextureComponent;
 
 namespace RuntimeVirtualTexture
@@ -38,7 +39,7 @@ namespace RuntimeVirtualTexture
 		UE_DEPRECATED(5.1, "UAV is deprecated. Register the pooled render target with RDG instead.")
 		FRHIUnorderedAccessView* UAV = nullptr;
 
-		struct IPooledRenderTarget* PooledRenderTarget = nullptr;
+		IPooledRenderTarget* PooledRenderTarget = nullptr;
 	};
 
 	/** A single page description. Multiple of these can be placed in a single FRenderPageBatchDesc batch description. */
@@ -94,7 +95,4 @@ namespace RuntimeVirtualTexture
 	 * Performs the required scene rendering setup such that it can be called from a render thread task.
 	 */
 	RENDERER_API void RenderPagesStandAlone(FRDGBuilder& GraphBuilder, FRenderPageBatchDesc const& InDesc);
-
-	UE_DEPRECATED(5.0, "This method has been refactored to use an FRDGBuilder instead.")
-	RENDERER_API void RenderPages(FRHICommandListImmediate& RHICmdList, FRenderPageBatchDesc const& InDesc);
 }

@@ -15,18 +15,39 @@
 #define ETC_PROFILE 0
 #endif
 
-uint4 DestRect;
+#ifndef PACK_RG32_RGBA16
+#define PACK_RG32_RGBA16 0
+#endif
+
+#if PACK_RG32_RGBA16
+#define TYPE_64BIT uint4
+#else
+#define TYPE_64BIT uint2
+#endif
+
+uint4 SourceRect;
+uint2 DestPos0;
+uint2 DestPos1;
+uint2 DestPos2;
+
 Texture2D<float4> RenderTexture0;
 SamplerState TextureSampler0;
 Texture2D<float4> RenderTexture1;
 SamplerState TextureSampler1;
 Texture2D<float4> RenderTexture2;
 SamplerState TextureSampler2;
-RWTexture2D<uint4> OutCompressTexture0;
-RWTexture2D<uint4> OutCompressTexture1;
-RWTexture2D<uint4> OutCompressTexture2;
 
-/** Pack ETC RG32 to RGBA16 for output. */
+// Outputs can be 64bit or 128 bit depending on formats.
+// The 64 bit type can be uint2 or uint4 depending on platform support.
+RWTexture2D<TYPE_64BIT> OutCompressTexture0_64bit;
+RWTexture2D<TYPE_64BIT> OutCompressTexture1_64bit;
+RWTexture2D<TYPE_64BIT> OutCompressTexture2_64bit;
+RWTexture2D<uint4> OutCompressTexture0_128bit;
+RWTexture2D<uint4> OutCompressTexture1_128bit;
+RWTexture2D<uint4> OutCompressTexture2_128bit;
+
+#if PACK_RG32_RGBA16
+/** Pack RG32 to RGBA16 for output. */
 uint4 PackRG32(in uint2 u2)
 {
 	uint x0 = (u2.x >> 16) & 0x0000ffff;
@@ -35,6 +56,12 @@ uint4 PackRG32(in uint2 u2)
 	uint y1 = (u2.y) & 0x0000ffff;
 	return uint4(x1,x0,y1,y0);
 }
+#else
+uint2 PackRG32(in uint2 u2)
+{
+	return u2;
+}
+#endif // PACK_RG32_RGBA16
 
 /** Trivial vertex shader for copy shaders. */
 void CopyVS(in uint VertexId : SV_VertexID, out float4 OutPosition : SV_POSITION, out float2 OutTexCoord : TEXCOORD0)
@@ -47,22 +74,23 @@ void CopyVS(in uint VertexId : SV_VertexID, out float4 OutPosition : SV_POSITION
 /** Compress base color to a single BC1 target. */
 [numthreads(8,8,1)]
 void CompressBaseColorCS(
-	uint3 ThreadId : SV_DispatchThreadID 
-	)
+	uint3 ThreadId : SV_DispatchThreadID)
 {
-	uint2 SamplePos = ThreadId.xy * 4;
-	if (any(ThreadId.xy >= DestRect.zw))
+	if (any(ThreadId.xy * 4 >= SourceRect.zw))
+	{
 		return;
+	}
 
-	float2 TexelUVSize = 1.f / float2(DestRect.zw);
+	uint2 SamplePos = SourceRect.xy + ThreadId.xy * 4;
+	float2 TexelUVSize = 1.f / float2(SourceRect.zw);
 	float2 SampleUV = (float2(SamplePos) + 0.5f) * TexelUVSize;
 
 	float3 BlockBaseColor[16];
 	ReadBlockRGB(RenderTexture0, TextureSampler0, SampleUV, TexelUVSize, BlockBaseColor);
 #if ETC_PROFILE
-	OutCompressTexture0[ThreadId.xy + DestRect.xy] = PackRG32(CompressBlock_ETC2_SRGB(BlockBaseColor));
+	OutCompressTexture0_64bit[ThreadId.xy + DestPos0] = PackRG32(CompressBlock_ETC2_SRGB(BlockBaseColor));
 #else
-	OutCompressTexture0[ThreadId.xy + DestRect.xy] = CompressBC1Block_SRGB(BlockBaseColor);
+	OutCompressTexture0_64bit[ThreadId.xy + DestPos0] = PackRG32(CompressBC1Block_SRGB(BlockBaseColor));
 #endif
 
 }
@@ -80,14 +108,15 @@ void CopyBaseColorPS(
 /** Compress base color, normal, roughness and specular to BC3 target pair. */
 [numthreads(8,8,1)]
 void CompressBaseColorNormalSpecularCS(
-	uint3 ThreadId : SV_DispatchThreadID 
-	)
+	uint3 ThreadId : SV_DispatchThreadID)
 {
-	uint2 SamplePos = ThreadId.xy * 4;
-	if (any(SamplePos >= DestRect.zw))
+	if (any(ThreadId.xy * 4 >= SourceRect.zw))
+	{
 		return;
+	}
 
-	float2 TexelUVSize = 1.f / float2(DestRect.zw);
+	uint2 SamplePos = SourceRect.xy + ThreadId.xy * 4;
+	float2 TexelUVSize = 1.f / float2(SourceRect.zw);
 	float2 SampleUV = (float2(SamplePos) + 0.5f) * TexelUVSize;
 
 	float3 BlockBaseColor[16];
@@ -105,11 +134,11 @@ void CompressBaseColorNormalSpecularCS(
 		BlockSpecular[i].z = round(BlockSpecular[i].z);
 	}
 #if ETC_PROFILE
-	OutCompressTexture0[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_RGBA(BlockBaseColor, BlockNormalX);
-	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_RGBA(BlockSpecular, BlockNormalY);
+	OutCompressTexture0_128bit[ThreadId.xy + DestPos0] = CompressBlock_ETC2_RGBA(BlockBaseColor, BlockNormalX);
+	OutCompressTexture1_128bit[ThreadId.xy + DestPos1] = CompressBlock_ETC2_RGBA(BlockSpecular, BlockNormalY);
 #else
-	OutCompressTexture0[ThreadId.xy + DestRect.xy] = CompressBC3Block_SRGB(BlockBaseColor, BlockNormalX);
-	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC3Block(BlockSpecular, BlockNormalY);
+	OutCompressTexture0_128bit[ThreadId.xy + DestPos0] = CompressBC3Block_SRGB(BlockBaseColor, BlockNormalX);
+	OutCompressTexture1_128bit[ThreadId.xy + DestPos1] = CompressBC3Block(BlockSpecular, BlockNormalY);
 #endif
 
 }
@@ -117,14 +146,15 @@ void CompressBaseColorNormalSpecularCS(
 /** Compress base color, normal, roughness to BC1 & BC3. */
 [numthreads(8, 8, 1)]
 void CompressBaseColorNormalRoughnessCS(
-	uint3 ThreadId : SV_DispatchThreadID
-)
+	uint3 ThreadId : SV_DispatchThreadID)
 {
-	uint2 SamplePos = ThreadId.xy * 4;
-	if (any(SamplePos >= DestRect.zw))
+	if (any(ThreadId.xy * 4 >= SourceRect.zw))
+	{
 		return;
+	}
 
-	float2 TexelUVSize = 1.f / float2(DestRect.zw);
+	uint2 SamplePos = SourceRect.xy + ThreadId.xy * 4;
+	float2 TexelUVSize = 1.f / float2(SourceRect.zw);
 	float2 SampleUV = (float2(SamplePos) + 0.5f) * TexelUVSize;
 
 	float3 BlockBaseColor[16];
@@ -135,11 +165,11 @@ void CompressBaseColorNormalRoughnessCS(
 								   1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 	ReadBlockRGB(RenderTexture1, TextureSampler2, SampleUV, TexelUVSize, BlockNormalXRougnnessY);
 #if ETC_PROFILE
-	OutCompressTexture0[ThreadId.xy + DestRect.xy] = PackRG32(CompressBlock_ETC2_RGB(BlockBaseColor));
-	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_RGBA(BlockNormalXRougnnessY, BlockNormalZ);
+	OutCompressTexture0_64bit[ThreadId.xy + DestPos0] = PackRG32(CompressBlock_ETC2_RGB(BlockBaseColor));
+	OutCompressTexture1_128bit[ThreadId.xy + DestPos1] = CompressBlock_ETC2_RGBA(BlockNormalXRougnnessY, BlockNormalZ);
 #else
-	OutCompressTexture0[ThreadId.xy + DestRect.xy] = CompressBC1Block_SRGB(BlockBaseColor);
-	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC3Block(BlockNormalXRougnnessY, BlockNormalZ);
+	OutCompressTexture0_64bit[ThreadId.xy + DestPos0] = PackRG32(CompressBC1Block_SRGB(BlockBaseColor));
+	OutCompressTexture1_128bit[ThreadId.xy + DestPos1] = CompressBC3Block(BlockNormalXRougnnessY, BlockNormalZ);
 #endif
 
 }
@@ -164,14 +194,15 @@ void CopyBaseColorNormalSpecularPS(
 /** Compress base color, normal, roughness and specular to BC3, BC5, BC1 target set. */
 [numthreads(8,8,1)]
 void CompressBaseColorNormalSpecularYCoCgCS(
-	uint3 ThreadId : SV_DispatchThreadID 
-	)
+	uint3 ThreadId : SV_DispatchThreadID)
 {
-	uint2 SamplePos = ThreadId.xy * 4;
-	if (any(SamplePos >= DestRect.zw))
+	if (any(ThreadId.xy * 4 >= SourceRect.zw))
+	{
 		return;
+	}
 
-	float2 TexelUVSize = 1.f / float2(DestRect.zw);
+	uint2 SamplePos = SourceRect.xy + ThreadId.xy * 4;
+	float2 TexelUVSize = 1.f / float2(SourceRect.zw);
 	float2 SampleUV = (float2(SamplePos) + 0.5f) * TexelUVSize;
 
 	float3 BlockBaseColor[16];
@@ -190,13 +221,13 @@ void CompressBaseColorNormalSpecularYCoCgCS(
 	}
 
 #if ETC_PROFILE
-	OutCompressTexture0[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_YCoCg(BlockBaseColor);
-	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_RG(BlockNormalX, BlockNormalY);
-	OutCompressTexture2[ThreadId.xy + DestRect.xy] = PackRG32(CompressBlock_ETC2_RGB(BlockSpecular));
+	OutCompressTexture0_128bit[ThreadId.xy + DestPos0] = CompressBlock_ETC2_YCoCg(BlockBaseColor);
+	OutCompressTexture1_128bit[ThreadId.xy + DestPos1] = CompressBlock_ETC2_RG(BlockNormalX, BlockNormalY);
+	OutCompressTexture2_64bit[ThreadId.xy + DestPos2] = PackRG32(CompressBlock_ETC2_RGB(BlockSpecular));
 #else
-	OutCompressTexture0[ThreadId.xy + DestRect.xy] = CompressBC3BlockYCoCg(BlockBaseColor);
-	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC5Block(BlockNormalX, BlockNormalY);
-	OutCompressTexture2[ThreadId.xy + DestRect.xy] = CompressBC1Block(BlockSpecular);
+	OutCompressTexture0_128bit[ThreadId.xy + DestPos0] = CompressBC3BlockYCoCg(BlockBaseColor);
+	OutCompressTexture1_128bit[ThreadId.xy + DestPos1] = CompressBC5Block(BlockNormalX, BlockNormalY);
+	OutCompressTexture2_64bit[ThreadId.xy + DestPos2] = PackRG32(CompressBC1Block(BlockSpecular));
 #endif
 }
 
@@ -222,14 +253,13 @@ void CopyBaseColorNormalSpecularYCoCgPS(
 /** Compress base color, normal, roughness, specular and mask to BC3, BC5, BC3 target set. */
 [numthreads(8,8,1)]
 void CompressBaseColorNormalSpecularMaskYCoCgCS(
-	uint3 ThreadId : SV_DispatchThreadID 
-	)
+	uint3 ThreadId : SV_DispatchThreadID)
 {
-	uint2 SamplePos = ThreadId.xy * 4;
-	if (any(SamplePos >= DestRect.zw))
+	if (any(ThreadId.xy * 4 >= SourceRect.zw))
 		return;
 
-	float2 TexelUVSize = 1.f / float2(DestRect.zw);
+	uint2 SamplePos = SourceRect.xy + ThreadId.xy * 4;
+	float2 TexelUVSize = 1.f / float2(SourceRect.zw);
 	float2 SampleUV = (float2(SamplePos) + 0.5f) * TexelUVSize;
 
 	float3 BlockBaseColor[16];
@@ -249,13 +279,13 @@ void CompressBaseColorNormalSpecularMaskYCoCgCS(
 	}
 
 #if ETC_PROFILE
-	OutCompressTexture0[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_YCoCg(BlockBaseColor);
-	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_RG(BlockNormalX, BlockNormalY);
-	OutCompressTexture2[ThreadId.xy + DestRect.xy] = CompressBlock_ETC2_RGBA(BlockSpecular, BlockMask);
+	OutCompressTexture0_128bit[ThreadId.xy + DestPos0] = CompressBlock_ETC2_YCoCg(BlockBaseColor);
+	OutCompressTexture1_128bit[ThreadId.xy + DestPos1] = CompressBlock_ETC2_RG(BlockNormalX, BlockNormalY);
+	OutCompressTexture2_128bit[ThreadId.xy + DestPos2] = CompressBlock_ETC2_RGBA(BlockSpecular, BlockMask);
 #else
-	OutCompressTexture0[ThreadId.xy + DestRect.xy] = CompressBC3BlockYCoCg(BlockBaseColor);
-	OutCompressTexture1[ThreadId.xy + DestRect.xy] = CompressBC5Block(BlockNormalX, BlockNormalY);
-	OutCompressTexture2[ThreadId.xy + DestRect.xy] = CompressBC3Block(BlockSpecular, BlockMask);
+	OutCompressTexture0_128bit[ThreadId.xy + DestPos0] = CompressBC3BlockYCoCg(BlockBaseColor);
+	OutCompressTexture1_128bit[ThreadId.xy + DestPos1] = CompressBC5Block(BlockNormalX, BlockNormalY);
+	OutCompressTexture2_128bit[ThreadId.xy + DestPos2] = CompressBC3Block(BlockSpecular, BlockMask);
 #endif
 }
 
