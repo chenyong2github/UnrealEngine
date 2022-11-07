@@ -132,6 +132,18 @@ namespace Dataflow
 			return TSharedPtr<const FDataflowNode>(nullptr);
 		}
 
+		TSharedPtr<FDataflowNode> FindTerminalNode(FName InName)
+		{
+			for (TSharedPtr<FDataflowNode> Node : TerminalNodes)
+			{
+				if (Node->GetName().IsEqual(InName))
+				{
+					return Node;
+				}
+			}
+			return TSharedPtr<FDataflowNode>(nullptr);
+		}
+
 		void RemoveNode(TSharedPtr<FDataflowNode> Node);
 
 		void ClearConnections(FDataflowConnection* ConnectionBase);

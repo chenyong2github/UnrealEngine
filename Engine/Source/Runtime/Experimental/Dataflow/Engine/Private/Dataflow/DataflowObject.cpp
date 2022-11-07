@@ -4,11 +4,14 @@
 #include "Dataflow/DataflowCore.h"
 #include "Dataflow/DataflowEdNode.h"
 #include "Dataflow/DataflowNodeParameters.h"
+#include "Dataflow/DataflowObjectInterface.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(DataflowObject)
 
 
 #define LOCTEXT_NAMESPACE "UDataflow"
+
+DEFINE_LOG_CATEGORY_STATIC(DATAFLOWOBJECT_LOG, Error, All);
 
 FDataflowAssetEdit::FDataflowAssetEdit(UDataflow* InAsset, FPostEditFunctionCallback InCallback)
 	: PostEditCallback(InCallback)
@@ -35,6 +38,24 @@ UDataflow::UDataflow(const FObjectInitializer& ObjectInitializer)
 	, Dataflow(new Dataflow::FGraph())
 {}
 
+void UDataflow::EvaluateTerminalNodeByName(FName NodeName, UObject* Asset)
+{
+	if (Dataflow)
+	{
+		TSharedPtr<FDataflowNode> TerminalNode = Dataflow->FindTerminalNode(NodeName);
+		if (TerminalNode)
+		{
+			const float EvalTime = FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds();
+			Dataflow::FEngineContext Context(Asset, this, EvalTime);
+			// Todo , we should be able to cast to a final node type and call EvaluateFinal
+			TerminalNode->Evaluate(Context, nullptr);
+		}
+		else
+		{
+			UE_LOG(DATAFLOWOBJECT_LOG, Warning, TEXT("UDataflow::EvaluateTerminalNodeByName() : Could no find terminal node %s"), *NodeName.ToString());
+		}
+	}
+}
 
 void UDataflow::PostEditCallback()
 {

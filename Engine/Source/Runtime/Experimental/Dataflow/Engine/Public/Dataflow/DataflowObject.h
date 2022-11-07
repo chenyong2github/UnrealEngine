@@ -66,12 +66,20 @@ class DATAFLOWENGINE_API UDataflow : public UEdGraph
 public:
 	UDataflow(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	/** 
+	* Find all the node of a speific type and evaluate them using a specific UObject
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Graph")
+	void EvaluateTerminalNodeByName(FName NodeName, UObject* Asset);
+
+public:
 	UPROPERTY(EditAnywhere, Category = "Evaluation")
 	bool bActive = true;
 
 	UPROPERTY(EditAnywhere, Category = "Evaluation", AdvancedDisplay )
 	TArray<TObjectPtr<UObject>> Targets;
 
+public:
 	/** UObject Interface */
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

@@ -13,10 +13,7 @@ class UGeometryCollection;
 
 /**
  * Set the geometry collection asset   
- * inputs:
- *	- Collection : collection attributes that compose the asset
- *	- Materials : array of materials for the geometry
- */
+  */
 USTRUCT()
 struct FSetGeometryCollectionAssetDataflowNode : public FDataflowTerminalNode
 {
@@ -27,19 +24,18 @@ public:
 	FSetGeometryCollectionAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
 	virtual void Evaluate(Dataflow::FContext& Context) const override;
 
-	/** Attribute collection to reset the asset with */ 
+	/** Attribute collection to use for this asset */ 
 	UPROPERTY(meta = (DataflowInput, DisplayName = "Collection"))
 	FManagedArrayCollection Collection;
 
-	/** Materials array to rest the asset with */
+	/** Materials array to use for this asset */
 	UPROPERTY(meta = (DataflowInput, DisplayName = "Materials"))
 	TArray<TObjectPtr<UMaterial>> Materials;
 };
 
 /**
- * Get Current asset    
- * outputs:
- *	- GeometrySources : array of geometry source ( Asset, transform and material )
+ * Get Current geometry collection asset 
+ * Note : Use with caution as this may get replaced in a near future for a more generic getAsset node
  */
 USTRUCT()
 struct FGetGeometryCollectionAssetDataflowNode : public FDataflowNode
@@ -57,9 +53,8 @@ public:
 };
 
 /**
- * Get geometry source    
- * outputs:
- *	- GeometrySources : array of geometry source ( Asset, transform and material )
+ * Get the list of the original mesh information used to create a specific geometryc collection asset
+ * each entry contains a mesh, a transform and a list of override materials
  */
 USTRUCT()
 struct FGetGeometryCollectionSourcesDataflowNode : public FDataflowNode
@@ -82,11 +77,6 @@ public:
 
 /**
  * create a geometry collection from a set of geometry sources    
- * inputs:
- *	- GeometrySources : array of geometry source ( Asset, transform and material )
- *	outputs:
- *	- Collection : Geometry collection newly created
- *	- Materials : Array of materials used by the geometry collection 
  */
 USTRUCT()
 struct FCreateGeometryCollectionFromSourcesDataflowNode : public FDataflowNode
