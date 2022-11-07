@@ -77,6 +77,9 @@ private:
 
 	bool bRequestDetailsRefresh;
 
+	// Let the customization access these so we can get the options for auto-complete.
+	friend class FOutputFormatDetailsCustomization; 
+
 	// Edited Pipeline
 	TAttribute<UMoviePipelineConfigBase*> PipelineConfigAttribute;
 	TWeakObjectPtr<UMoviePipelineConfigBase> CachedPipelineConfig;
