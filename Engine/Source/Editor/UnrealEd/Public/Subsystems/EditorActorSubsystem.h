@@ -9,6 +9,12 @@
 
 #include "EditorActorSubsystem.generated.h"
 
+class AActor;
+
+/** delegate type for triggering when new actors are dropped on to the viewport via drag and drop */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEditNewActorsDropped, const TArray<UObject*>&, DroppedObjects, const TArray<AActor*>&, DroppedActors);
+/** delegate type for triggering when new actors are placed on to the viewport. Triggers before NewActorsDropped if placement is caused by a drop action */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnEditNewActorsPlaced, UObject*, ObjToUse, const TArray<AActor*>&, PlacedActors);
 /** delegate type for before edit cut actors is handled */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEditCutActorsBegin);
 /** delegate type for after edit cut actors is handled */
@@ -16,7 +22,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEditCutActorsEnd);
 /** delegate type for before edit copy actors is handled */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEditCopyActorsBegin);
 /** delegate type for after edit copy actors is handled */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEditCopyActorsEnd);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEditCopyActorsEnd); 
 /** delegate type for before edit paste actors is handled */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnEditPasteActorsBegin);
 /** delegate type for after edit paste actors is handled */
@@ -43,6 +49,12 @@ public:
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
+
+	UPROPERTY(BlueprintAssignable, Category = "Editor Scripting | Level Utility")
+	FOnEditNewActorsDropped OnNewActorsDropped;
+
+	UPROPERTY(BlueprintAssignable, Category = "Editor Scripting | Level Utility")
+	FOnEditNewActorsPlaced OnNewActorsPlaced;
 
 	UPROPERTY(BlueprintAssignable, Category = "Editor Scripting | Level Utility")
 	FOnEditCutActorsBegin OnEditCutActorsBegin;
@@ -239,6 +251,12 @@ public:
 	bool SetComponentTransform(USceneComponent* InSceneComponent, const FTransform& InWorldTransform);
 
 private:
+
+	/** To fire before an Actor is Dropped */
+	void BroadcastEditNewActorsDropped(const TArray<UObject*>& DroppedObjects, const TArray<AActor*>& DroppedActors);
+
+	/** To fire before an Actor is Placed */
+	void BroadcastEditNewActorsPlaced(UObject* ObjToUse, const TArray<AActor*>& PlacedActors);
 
 	/** To fire before an Actor is Cut */
 	void BroadcastEditCutActorsBegin();

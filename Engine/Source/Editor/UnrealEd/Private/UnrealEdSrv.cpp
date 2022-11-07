@@ -2583,7 +2583,9 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 					}
 					else
 					{
+						FEditorDelegates::OnDeleteActorsBegin.Broadcast();
 						CommonActions->DeleteSelectedElements(SelectionSet, InWorld, FTypedElementDeletionOptions());
+						FEditorDelegates::OnDeleteActorsEnd.Broadcast();
 					}
 				}
 			}

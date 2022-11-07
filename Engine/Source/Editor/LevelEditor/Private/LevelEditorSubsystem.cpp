@@ -67,6 +67,14 @@ void ULevelEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	FWorldDelegates::LevelAddedToWorld.AddUObject(this, &ULevelEditorSubsystem::OnLevelAddedOrRemoved);
 	FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &ULevelEditorSubsystem::OnLevelAddedOrRemoved);
 	FWorldDelegates::OnCurrentLevelChanged.AddUObject(this, &ULevelEditorSubsystem::OnCurrentLevelChanged);
+
+	FEditorDelegates::PreSaveWorldWithContext.AddUObject(this, &ULevelEditorSubsystem::HandleOnPreSaveWorldWithContext);
+	FEditorDelegates::PostSaveWorldWithContext.AddUObject(this, &ULevelEditorSubsystem::HandleOnPostSaveWorldWithContext);
+
+	FEditorDelegates::OnEditorCameraMoved.AddUObject(this, &ULevelEditorSubsystem::HandleOnEditorCameraMoved);
+
+	FEditorDelegates::MapChange.AddUObject(this, &ULevelEditorSubsystem::HandleOnMapChanged);
+	FEditorDelegates::OnMapOpened.AddUObject(this, &ULevelEditorSubsystem::HandleOnMapOpened);
 }
 
 void ULevelEditorSubsystem::Deinitialize()
@@ -77,6 +85,14 @@ void ULevelEditorSubsystem::Deinitialize()
 	FWorldDelegates::OnCurrentLevelChanged.RemoveAll(this);
 	UToolMenus::UnRegisterStartupCallback(this);
 	UToolMenus::UnregisterOwner(this);
+
+	FEditorDelegates::PreSaveWorldWithContext.RemoveAll(this);
+	FEditorDelegates::PostSaveWorldWithContext.RemoveAll(this);
+
+	FEditorDelegates::OnEditorCameraMoved.RemoveAll(this);
+
+	FEditorDelegates::MapChange.RemoveAll(this);
+	FEditorDelegates::OnMapOpened.RemoveAll(this);
 }
 
 void ULevelEditorSubsystem::ExtendQuickActionMenu()
@@ -899,6 +915,31 @@ void ULevelEditorSubsystem::OnLevelAddedOrRemoved(ULevel* InLevel, UWorld* InWor
 void ULevelEditorSubsystem::OnCurrentLevelChanged(ULevel* InNewLevel, ULevel* InOldLevel, UWorld* InWorld)
 {
 	ActorEditorContextClientChanged.Broadcast(this);
+}
+
+void ULevelEditorSubsystem::HandleOnPreSaveWorldWithContext(class UWorld* World, FObjectPreSaveContext ObjectSaveContext)
+{
+	OnPreSaveWorld.Broadcast(ObjectSaveContext.GetSaveFlags(), World);
+}
+
+void ULevelEditorSubsystem::HandleOnPostSaveWorldWithContext(class UWorld* World, FObjectPostSaveContext ObjectSaveContext)
+{
+	OnPostSaveWorld.Broadcast(ObjectSaveContext.GetSaveFlags(), World, ObjectSaveContext.SaveSucceeded());
+}
+
+void ULevelEditorSubsystem::HandleOnEditorCameraMoved(const FVector& Location, const FRotator& Rotation, ELevelViewportType ViewportType, int32 ViewIndex)
+{
+	OnEditorCameraMoved.Broadcast(Location, Rotation, ViewportType, ViewIndex);
+}
+
+void ULevelEditorSubsystem::HandleOnMapChanged(uint32 MapChangeFlags)
+{
+	OnMapChanged.Broadcast(MapChangeFlags);
+}
+
+void ULevelEditorSubsystem::HandleOnMapOpened(const FString& Filename, bool bAsTemplate)
+{
+	OnMapOpened.Broadcast(Filename, bAsTemplate);
 }
 
 TSharedRef<SWidget> ULevelEditorSubsystem::GetActorEditorContextWidget(UWorld* InWorld) const

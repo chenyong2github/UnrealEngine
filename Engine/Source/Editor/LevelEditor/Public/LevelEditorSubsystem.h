@@ -4,14 +4,29 @@
 
 #include "CoreMinimal.h"
 #include "EditorSubsystem.h"
-#include "IActorEditorContextClient.h"
+#include "Editor/UnrealEdTypes.h"
 #include "Engine/EngineTypes.h"
+#include "IActorEditorContextClient.h"
+#include "UObject/ObjectSaveContext.h"
 
 #include "LevelEditorSubsystem.generated.h"
 
 class UTypedElementSelectionSet;
 struct FToolMenuContext;
 class FEditorModeTools;
+
+/** Delegate type for pre save world events ( uint32 SaveFlags, UWorld* World ) */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLevelEditorPreSaveWorld, int32, SaveFlags, class UWorld*, World);
+/** Delegate type for post save world events ( uint32 SaveFlags, UWorld* World, bool bSuccess ) */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnLevelEditorPostSaveWorld, int32, SaveFlags, class UWorld*, World, bool, bSuccess);
+
+/** Delegate type for editor camera movement */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnLevelEditorEditorCameraMoved, const FVector&, Location, const FRotator&, Rotation, ELevelViewportType, ViewportType, int32, ViewIndex);
+
+/** Delegate type for map change events ( Params: uint32 MapChangeFlags (MapChangeEventFlags) ) */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnLevelEditorMapChanged, int32, MapChangeEventFlags);
+/** Delegate type for triggering when a map is opened */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnLevelEditorMapOpened, const FString&, Filename, bool, bAsTemplate);
 
 /**
 * ULevelEditorSubsystem
@@ -127,7 +142,8 @@ public:
 	ULevel* GetCurrentLevel();
 
 	/**
-	 * Get the level Editor typed element selection set for the current world
+	 * Get the selection set for the current world, you can use this to track
+	 * and create changes to the level editor's selection
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	UTypedElementSelectionSet* GetSelectionSet();
@@ -155,6 +171,24 @@ public:
 	virtual FOnActorEditorContextClientChanged& GetOnActorEditorContextClientChanged() override { return ActorEditorContextClientChanged; }
 	//~ End IActorEditorContextClient interface
 
+	/** Expose PreSaveWorld to blueprints */
+	UPROPERTY(BlueprintAssignable, Category = "Editor Scripting | Level Utility")
+	FOnLevelEditorPreSaveWorld OnPreSaveWorld;
+	/** Expose PostSaveWorld to blueprints */
+	UPROPERTY(BlueprintAssignable, Category = "Editor Scripting | Level Utility")
+	FOnLevelEditorPostSaveWorld OnPostSaveWorld;
+
+	/** Expose EditorCameraMoved to blueprints */
+	UPROPERTY(BlueprintAssignable, Category = "Editor Scripting | Level Utility")
+	FOnLevelEditorEditorCameraMoved OnEditorCameraMoved;
+
+	/** Expose MapChanged to blueprints. Note: This executes too early for some editor scripting, consider using OnMapOpened if this doesn't work for you. */
+	UPROPERTY(BlueprintAssignable, Category = "Editor Scripting | Level Utility")
+	FOnLevelEditorMapChanged OnMapChanged;
+	/** Expose MapOpened to blueprints */
+	UPROPERTY(BlueprintAssignable, Category = "Editor Scripting | Level Utility")
+	FOnLevelEditorMapOpened OnMapOpened;
+
 private:
 
 	/** Called when a Level is added to a world or remove from a world */
@@ -165,4 +199,17 @@ private:
 
 	/** Delegate used to notify changes to ActorEditorContextSubsystem */
 	FOnActorEditorContextClientChanged ActorEditorContextClientChanged;
+
+	/** Called Pre SaveWorld */
+	void HandleOnPreSaveWorldWithContext(class UWorld* World, FObjectPreSaveContext ObjectSaveContext);
+	/** Called Post SaveWorld */
+	void HandleOnPostSaveWorldWithContext(class UWorld* World, FObjectPostSaveContext ObjectSaveContext);
+
+	/** Called on Camera Movement*/
+	void HandleOnEditorCameraMoved(const FVector& Location, const FRotator& Rotation, ELevelViewportType ViewportType, int32 ViewIndex);
+
+	/** Called on Map Change */
+	void HandleOnMapChanged(uint32 MapChangeFlags);
+	/** Called on Map Open */
+	void HandleOnMapOpened(const FString& Filename, bool bAsTemplate);
 };
