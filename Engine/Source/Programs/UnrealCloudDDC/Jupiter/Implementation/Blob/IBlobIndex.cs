@@ -3,7 +3,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
-using Jupiter.Implementation;
 
 namespace Jupiter.Implementation.Blob
 {
@@ -32,5 +31,6 @@ namespace Jupiter.Implementation.Blob
         Task<bool> BlobExistsInRegion(NamespaceId ns, BlobIdentifier blobIdentifier);
         Task AddRefToBlobs(NamespaceId ns, BucketId bucket, IoHashKey key, BlobIdentifier[] blobs);
         IAsyncEnumerable<BlobInfo> GetAllBlobs();
+        Task RemoveReferences(NamespaceId ns, BlobIdentifier id, List<(BucketId,IoHashKey)> references);
     }
 }

@@ -4,8 +4,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
-using Jupiter;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 
 namespace Jupiter.Implementation.Blob;
@@ -111,6 +109,21 @@ public class MemoryBlobIndex : IBlobIndex
                 yield return blobInfo;
             }
         }
+    }
+
+    public Task RemoveReferences(NamespaceId ns, BlobIdentifier id, List<(BucketId,IoHashKey)> references)
+    {
+        ConcurrentDictionary<BlobIdentifier, MemoryBlobInfo> index = GetNamespaceContainer(ns);
+
+        if (index.TryGetValue(id, out MemoryBlobInfo? blobInfo))
+        {
+            foreach ((BucketId bucketId, IoHashKey key) in references)
+            {
+                blobInfo.References?.Remove((bucketId, key));   
+            }
+        }
+
+        return Task.CompletedTask;
     }
 
     private static MemoryBlobInfo NewBlobInfo(NamespaceId ns, BlobIdentifier blob, string region)

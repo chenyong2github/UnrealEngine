@@ -197,6 +197,42 @@ public class ScyllaBlobIndex : IBlobIndex
             }
         }
     }
+
+    public async Task RemoveReferences(NamespaceId ns, BlobIdentifier id, List<(BucketId,IoHashKey)> references)
+    {
+        using IScope scope = Tracer.Instance.StartActive("scylla.remove_ref_blobs");
+        ScyllaUtils.SetupScyllaScope(scope);
+
+        string nsAsString = ns.ToString();
+        (BucketId, IoHashKey)[] blobs = references.ToArray();
+        Task[] refUpdateTasks = new Task[blobs.Length];
+        for (int i = 0; i < blobs.Length; i++)
+        {
+            (BucketId bucket, IoHashKey key) = blobs[i];
+            ScyllaObjectReference reference = new ScyllaObjectReference(bucket, key);
+            Task updateTask;
+            if (_scyllaSessionManager.IsScylla)
+            {
+                updateTask = _mapper.UpdateAsync<ScyllaBlobIndexTable>(
+                    "SET references = references - ? WHERE namespace = ? AND blob_id = ?",
+                    new[] { reference },
+                    nsAsString,
+                    new ScyllaBlobIdentifier(id));
+            }
+            else
+            {
+                updateTask = _mapper.UpdateAsync<CassandraBlobIndexTable>(
+                    "SET references = references - ? WHERE namespace = ? AND blob_id = ?",
+                    new[] { reference },
+                    nsAsString,
+                    id.HashData);
+            }
+
+            refUpdateTasks[i] = updateTask;
+        }
+
+        await Task.WhenAll(refUpdateTasks);
+    }
 }
 
 [Cassandra.Mapping.Attributes.Table("blob_index")]

@@ -4,8 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
-using Jupiter;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 
 namespace Jupiter.Implementation.Blob;
@@ -70,5 +68,11 @@ public class CachedBlobIndex : IBlobIndex
     public IAsyncEnumerable<BlobInfo> GetAllBlobs()
     {
         throw new NotImplementedException();
+    }
+
+    public Task RemoveReferences(NamespaceId ns, BlobIdentifier id, List<(BucketId, IoHashKey)> references)
+    {
+        // We do not actually track any blob information when running in cached mode
+        return Task.CompletedTask;
     }
 }

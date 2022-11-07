@@ -9,9 +9,7 @@ using Dasync.Collections;
 using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using Jupiter.Implementation.Blob;
-using Jupiter;
 using Jupiter.Common;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using Serilog;
 
@@ -140,6 +138,8 @@ namespace Jupiter.Implementation
                     continue;
                 }
 
+                List<(BucketId, IoHashKey)> oldReferences = new List<(BucketId, IoHashKey)>();
+
                 foreach ((BucketId, IoHashKey) tuple in blobIndex.References!)
                 {
                     try
@@ -152,7 +152,14 @@ namespace Jupiter.Implementation
                     catch (ObjectNotFoundException)
                     {
                         // this is not a valid reference so we should delete
+                        oldReferences.Add(tuple);
                     }
+                }
+
+                if (found)
+                {
+                    // if the object is still alive but had old references we remove the old references to keep the size of the references array more reasonable
+                    await _blobIndex.RemoveReferences(blobNamespace, blob, oldReferences);
                 }
             }
 

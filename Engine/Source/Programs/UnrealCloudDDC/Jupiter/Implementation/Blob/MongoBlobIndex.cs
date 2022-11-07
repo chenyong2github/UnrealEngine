@@ -4,8 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using EpicGames.Horde.Storage;
-using Jupiter;
-using Jupiter.Implementation;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization.Options;
@@ -130,6 +128,18 @@ public class MongoBlobIndex : MongoStore, IBlobIndex
                 yield return model.ToBlobInfo();
             }
         }
+    }
+
+    public async Task RemoveReferences(NamespaceId ns, BlobIdentifier id, List<(BucketId,IoHashKey)> references)
+    {
+        IMongoCollection<MongoBlobIndexModelV0> collection = GetCollection<MongoBlobIndexModelV0>();
+
+        string nsAsString = ns.ToString();
+        List<Dictionary<string, string>> refs = references.Select(tuple => new Dictionary<string, string>() { {tuple.Item1.ToString(), tuple.Item2.ToString()}}).ToList();
+        UpdateDefinition<MongoBlobIndexModelV0> update = Builders<MongoBlobIndexModelV0>.Update.PullAll(m => m.References, refs);
+        FilterDefinition<MongoBlobIndexModelV0> filter = Builders<MongoBlobIndexModelV0>.Filter.Where(m => m.Ns == nsAsString && m.BlobId == id.ToString());
+
+        await collection.FindOneAndUpdateAsync(filter, update);
     }
 }
 
