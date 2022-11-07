@@ -573,9 +573,10 @@ protected:
 
 	/** Creates all runtime data using main collection */
 	void InitializeRuntime();
+	void InitializeRuntime(const TSharedPtr<FMassEntityManager>& InEntityManager);
 
 	/** Removes all runtime data */
-	void CleanupRuntime();
+	virtual void CleanupRuntime();
 
 	/** Returns the runtime instance associated to the provided handle */
 	FSmartObjectRuntime* GetRuntimeInstance(const FSmartObjectHandle SmartObjectHandle) { return RuntimeSmartObjects.Find(SmartObjectHandle); }
@@ -719,7 +720,7 @@ protected:
 #if WITH_EDITOR
 	friend class ASmartObjectCollection;
 	void RebuildCollection(ASmartObjectCollection& InCollection);
-	void SpawnMissingCollection() const;
+	virtual void SpawnMissingCollection();
 
 	/**
 	 * Compute bounds from given world and store result in provided collection

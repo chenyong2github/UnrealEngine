@@ -71,6 +71,10 @@ public:
 	bool IsBuildingForWorldPartition() const { return bBuildingForWorldPartition;	}
 	void SetBuildingForWorldPartition(const bool bValue) { bBuildingForWorldPartition = bValue;	}
 	void ResetCollection(const int32 ExpectedNumElements = 0);
+	
+	bool GetShouldIgnoreLevelTesting() const { return bIgnoreLevelTesting; }
+#else
+	bool GetShouldIgnoreLevelTesting() const { return false; }
 #endif
 
 	void ValidateDefinitions();
@@ -106,8 +110,8 @@ protected:
 	void SetBounds(const FBox InBounds) { Bounds = InBounds; }
 #endif // WITH_EDITOR
 
-	bool RegisterWithSubsystem(const FString& Context);
-	bool UnregisterWithSubsystem(const FString& Context);
+	virtual bool RegisterWithSubsystem(const FString& Context);
+	virtual bool UnregisterWithSubsystem(const FString& Context);
 
 	void OnRegistered();
 	bool IsRegistered() const { return bRegistered; }
@@ -144,6 +148,9 @@ private:
 	bool bBuildOnDemand_DEPRECATED = true;
 
 protected:
+	/** if set to true will result in letting the level-less SmartObjects to register. Required for smart object unit testing. */
+	bool bIgnoreLevelTesting = false;
+
 	UPROPERTY(EditAnywhere, Category = SmartObject, AdvancedDisplay)
 	bool bBuildCollectionAutomatically = false;
 

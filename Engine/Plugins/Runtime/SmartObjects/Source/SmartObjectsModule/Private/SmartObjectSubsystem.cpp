@@ -1368,7 +1368,17 @@ void USmartObjectSubsystem::InitializeRuntime()
 	{
 		return;
 	}
-	EntityManager = EntitySubsystem->GetMutableEntityManager().AsShared();
+	
+	InitializeRuntime(EntitySubsystem->GetMutableEntityManager().AsShared());
+}
+
+void USmartObjectSubsystem::InitializeRuntime(const TSharedPtr<FMassEntityManager>& InEntityManager)
+{
+	check(InEntityManager);
+
+	const UWorld& World = GetWorldRef();
+		
+	EntityManager = InEntityManager;
 
 	if (UE::SmartObject::bDisableRuntime)
 	{
@@ -1539,7 +1549,7 @@ void USmartObjectSubsystem::RebuildCollection(ASmartObjectCollection& InCollecti
 	InCollection.RebuildCollection(RegisteredSOComponents);
 }
 
-void USmartObjectSubsystem::SpawnMissingCollection() const
+void USmartObjectSubsystem::SpawnMissingCollection()
 {
 	if (IsValid(MainCollection))
 	{
@@ -1608,15 +1618,15 @@ void USmartObjectSubsystem::DebugInitializeRuntime()
 	InitializeRuntime();
 }
 
-#if WITH_EDITOR
 void USmartObjectSubsystem::DebugRebuildCollection()
 {
+#if WITH_EDITOR
 	if (MainCollection != nullptr)
 	{
 		RebuildCollection(*MainCollection);
 	}
-}
 #endif // WITH_EDITOR
+}
 
 void USmartObjectSubsystem::DebugCleanupRuntime()
 {

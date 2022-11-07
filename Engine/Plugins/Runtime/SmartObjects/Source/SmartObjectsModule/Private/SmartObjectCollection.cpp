@@ -369,7 +369,9 @@ void ASmartObjectCollection::RebuildCollection(const TConstArrayView<USmartObjec
 			ULevel* OwnerLevel = Component->GetComponentLevel();
 			const bool bValid = (OwnerLevel == PreviousLevel) ? bPreviousLevelValid : LevelTester(OwnerLevel);
 
-			if (bValid)
+			// @todo the GetShouldIgnoreLevelTesting is a temporary mean to support SmartObject unit testing. 
+			// The whole RebuildCollection mechanic is scheduled for rewrite. 
+			if (bValid || GetShouldIgnoreLevelTesting())
 			{	
 				AddSmartObject(*Component, bAlreadyInCollection);
 			}
