@@ -238,7 +238,8 @@ public:
 	virtual void ReleaseRHI() override;
 
 	// FShaderMapResource interface
-	virtual TRefCountPtr<FRHIShader> CreateRHIShader(int32 ShaderIndex) override;
+	virtual FRHIShader* CreateRHIShaderOrCrash(int32 ShaderIndex) override;
+	virtual void ReleasePreloadedShaderCode(int32 ShaderIndex) override;
 	virtual bool TryRelease() override;
 	virtual uint32 GetSizeBytes() const override { return sizeof(*this) + GetAllocatedSize(); }
 
@@ -1041,7 +1042,15 @@ public:
 			Shader = Library->CreateShader(ShaderIndex);
 
 			FRWScopeLock Locker(ShaderLocks[BucketIndex], SLT_Write);
-			RHIShaders[BucketIndex].Add(ShaderIndex, Shader);
+			TRefCountPtr<FRHIShader>* ShaderPtr = RHIShaders[BucketIndex].Find(ShaderIndex);
+			if (LIKELY(ShaderPtr == nullptr))
+			{
+				RHIShaders[BucketIndex].Add(ShaderIndex, Shader);
+			}
+			else
+			{
+				Shader = *ShaderPtr;
+			}
 		}
 		return Shader;
 	}
@@ -1155,18 +1164,43 @@ FShaderMapResource_SharedCode::~FShaderMapResource_SharedCode()
 	
 }
 
-TRefCountPtr<FRHIShader> FShaderMapResource_SharedCode::CreateRHIShader(int32 ShaderIndex)
+FRHIShader* FShaderMapResource_SharedCode::CreateRHIShaderOrCrash(int32 ShaderIndex)
 {
 	SCOPED_LOADTIMER(FShaderMapResource_SharedCode_InitRHI);
+#if STATS
+	double TimeFunctionEntered = FPlatformTime::Seconds();
+	ON_SCOPE_EXIT
+	{
+		if (IsInRenderingThread())
+		{
+			double ShaderCreationTime = FPlatformTime::Seconds() - TimeFunctionEntered;
+			INC_FLOAT_STAT_BY(STAT_Shaders_TotalRTShaderInitForRenderingTime, ShaderCreationTime);
+		}
+	};
+#endif
 
 	const int32 LibraryShaderIndex = LibraryInstance->Library->GetShaderIndex(ShaderMapIndex, ShaderIndex);
-	TRefCountPtr<FRHIShader> ShaderRHI = LibraryInstance->GetOrCreateShader(LibraryShaderIndex);
-	if (bShaderMapPreloaded && ShaderRHI)
+	FRHIShader* CreatedShader = LibraryInstance->GetOrCreateShader(LibraryShaderIndex);
+	if (UNLIKELY(CreatedShader == nullptr))
 	{
-		// Release our preload, once we've created the shader
+		UE_LOG(LogShaders, Fatal, TEXT("FShaderMapResource_SharedCode::InitRHI is unable to create a shader"));
+		// unreachable
+		return nullptr;
+	}
+
+	CreatedShader->AddRef();
+	return CreatedShader;
+}
+
+void FShaderMapResource_SharedCode::ReleasePreloadedShaderCode(int32 ShaderIndex)
+{
+	SCOPED_LOADTIMER(FShaderMapResource_SharedCode_InitRHI);	// part of shader initialization in a way
+
+	if (bShaderMapPreloaded)
+	{
+		const int32 LibraryShaderIndex = LibraryInstance->Library->GetShaderIndex(ShaderMapIndex, ShaderIndex);
 		LibraryInstance->Library->ReleasePreloadedShader(LibraryShaderIndex);
 	}
-	return ShaderRHI;
 }
 
 void FShaderMapResource_SharedCode::ReleaseRHI()

@@ -626,6 +626,14 @@ private:
 		return Ptr;
 	}
 
+	/** Finds existing preload info for a shader group. Assumes lock guarding access to the info is taken */
+	inline FShaderGroupPreloadEntry* FindExistingPreloadEntry(int32 ShaderGroupIndex)
+	{
+		FShaderGroupPreloadEntry** PtrPtr = PreloadedShaderGroups.Find(ShaderGroupIndex);
+		checkf(PtrPtr != nullptr, TEXT("The preload entry for a shader group we assumed to exist does not exist!"));
+		return *PtrPtr;
+	}
+
 	/** Returns true if the group contains only RTX shaders. We can avoid preloading it when running with RTX off. */
 	bool GroupOnlyContainsRaytracingShaders(int32 ShaderGroupIndex);
 

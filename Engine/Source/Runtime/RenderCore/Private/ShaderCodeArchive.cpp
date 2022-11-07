@@ -1200,43 +1200,25 @@ TRefCountPtr<FRHIShader> FShaderCodeArchive::CreateShader(int32 Index)
 	FShaderPreloadEntry& ShaderPreloadEntry = ShaderPreloads[Index];
 	checkf(!ShaderPreloadEntry.bNeverToBePreloaded, TEXT("We are creating a shader that shouldn't be preloaded in this run (e.g. raytracing shader on D3D11)."));
 
-	void* PreloadedShaderCode = nullptr;
+	FGraphEventArray ReadCompleteEvents;
+	PreloadShader(Index, ReadCompleteEvents);
+
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(BlockingShaderLoad);
+		double TimeStarted = FPlatformTime::Seconds();
 		const bool bNeededToWait = WaitForPreload(ShaderPreloadEntry);
 		if (bNeededToWait)
 		{
-			UE_LOG(LogShaderLibrary, Warning, TEXT("Blocking wait for shader preload, NumRefs: %d, FramePreloadStarted: %d"), ShaderPreloadEntry.NumRefs, ShaderPreloadEntry.FramePreloadStarted);
-		}
-
-		FWriteScopeLock Lock(ShaderPreloadLock);
-		if (ShaderPreloadEntry.NumRefs > 0u)
-		{
-			check(!ShaderPreloadEntry.PreloadEvent || ShaderPreloadEntry.PreloadEvent->IsComplete());
-			ShaderPreloadEntry.PreloadEvent.SafeRelease();
-
-			ShaderPreloadEntry.NumRefs++; // Hold a reference to code while we're using it to create shader
-			PreloadedShaderCode = ShaderPreloadEntry.Code;
-			check(PreloadedShaderCode);
+			double WaitDuration = FPlatformTime::Seconds() - TimeStarted;
+			// only complain if we spent more than 1ms waiting
+			if (TimeStarted > 0.001)
+			{
+				UE_LOG(LogShaderLibrary, Warning, TEXT("Spent %.2f ms in a blocking wait for shader preload, NumRefs: %d, FramePreloadStarted: %d, CurrentFrame: %d"), WaitDuration * 1000.0, ShaderPreloadEntry.NumRefs, ShaderPreloadEntry.FramePreloadStarted, GFrameNumber);
+			}
 		}
 	}
 
-	const uint8* ShaderCode = (uint8*)PreloadedShaderCode;
-	if (!ShaderCode)
-	{
-		UE_LOG(LogShaderLibrary, Warning, TEXT("Blocking shader load, NumRefs: %d, FramePreloadStarted: %d"), ShaderPreloadEntry.NumRefs, ShaderPreloadEntry.FramePreloadStarted);
-
-		FGraphEventArray ReadCompleteEvents;
-		EAsyncIOPriorityAndFlags DontCache = GShaderCodeLibraryAsyncLoadingAllowDontCache ? AIOP_FLAG_DONTCACHE : AIOP_MIN;
-		IMemoryReadStreamRef LoadedCode = FileCacheHandle->ReadData(ReadCompleteEvents, LibraryCodeOffset + ShaderEntry.Offset, ShaderEntry.Size, AIOP_CriticalPath | DontCache);
-		if (ReadCompleteEvents.Num() > 0)
-		{
-			FTaskGraphInterface::Get().WaitUntilTasksComplete(ReadCompleteEvents);
-		}
-		void* LoadedShaderCode = MemStack.Alloc(ShaderEntry.Size, 16);
-		LoadedCode->CopyTo(LoadedShaderCode, 0, ShaderEntry.Size);
-		ShaderCode = (uint8*)LoadedShaderCode;
-	}
-
+	const uint8* ShaderCode = (uint8*)ShaderPreloadEntry.Code;
 	if (ShaderEntry.UncompressedSize != ShaderEntry.Size)
 	{
 		uint8* UncompressedCode = reinterpret_cast<uint8*>(MemStack.Alloc(ShaderEntry.UncompressedSize, 16));
@@ -1270,14 +1252,8 @@ TRefCountPtr<FRHIShader> FShaderCodeArchive::CreateShader(int32 Index)
 	}
 	DebugVisualizer.MarkCreatedForVisualization(Index);
 
-	// Release the refernece we were holding
-	if (PreloadedShaderCode)
-	{
-		FWriteScopeLock Lock(ShaderPreloadLock);
-		check(ShaderPreloadEntry.NumRefs > 1u); // we shouldn't be holding the last ref here
-		--ShaderPreloadEntry.NumRefs;
-		PreloadedShaderCode = nullptr;
-	}
+	// Release the reference we were holding
+	ReleasePreloadedShader(Index);
 
 	if (Shader)
 	{
@@ -2011,44 +1987,23 @@ TRefCountPtr<FRHIShader> FIoStoreShaderCodeArchive::CreateShader(int32 ShaderInd
 
 	const FIoStoreShaderCodeEntry& ShaderEntry = Header.ShaderEntries[ShaderIndex];
 	int32 GroupIndex = GetGroupIndexForShader(ShaderIndex);
-	FShaderGroupPreloadEntry* PreloadEntryPtr = nullptr;
-	bool bShaderWasNotPreloaded = false;
 
-	FGraphEventRef Event;
+	// Preload shader group if it wasn't yet. This will also addref it so we can be sure it will exist.
+	FGraphEventArray Dummy;
+	PreloadShaderGroup(GroupIndex, Dummy);
+
+	FShaderGroupPreloadEntry* PreloadEntryPtr;
 	{
-		{
-			// preloading a shader group (write lock because we will need to adjust its refcount)
-			FWriteScopeLock Lock(PreloadedShaderGroupsLock);
-			FShaderGroupPreloadEntry** ExistingEntry = PreloadedShaderGroups.Find(GroupIndex);
-			PreloadEntryPtr = ExistingEntry ? *ExistingEntry : PreloadEntryPtr;
-			// if we have an entry, addref it so it doesn't go away
-			if (PreloadEntryPtr)
-			{
-				checkf(PreloadEntryPtr->NumRefs > 0, TEXT("Existing preload entry is not referenced! (NumRefs=%d)"), PreloadEntryPtr->NumRefs);
-				++PreloadEntryPtr->NumRefs;
-			}
-		}
-
-		// the shader we're attempting to create could have not been preloaded
-		if (PreloadEntryPtr == nullptr)
-		{
-			bShaderWasNotPreloaded = true;
-			FGraphEventArray Dummy;
-			PreloadShaderGroup(GroupIndex, Dummy);
-
-			// preloading a shader group should have created (and AddRef'd) the entry, so we can get and keep the pointer
-			FReadScopeLock Lock(PreloadedShaderGroupsLock);
-			PreloadEntryPtr = FindOrAddPreloadEntry(GroupIndex);
-		}
-		check(PreloadEntryPtr);
-		
-		// raise the prio if still ongoing
-		if (!PreloadEntryPtr->IoRequest.Status().IsCompleted())
-		{
-			PreloadEntryPtr->IoRequest.UpdatePriority(IoDispatcherPriority_Max);
-		}
-		Event = PreloadEntryPtr->PreloadEvent;
+		FReadScopeLock Lock(PreloadedShaderGroupsLock);
+		PreloadEntryPtr = FindExistingPreloadEntry(GroupIndex);
 	}
+
+	// raise the prio if still ongoing
+	if (!PreloadEntryPtr->IoRequest.Status().IsCompleted())
+	{
+		PreloadEntryPtr->IoRequest.UpdatePriority(IoDispatcherPriority_Max);
+	}
+	FGraphEventRef Event = PreloadEntryPtr->PreloadEvent;
 
 	const bool bNeededToWait = Event.IsValid() && !Event->IsComplete();
 	if (bNeededToWait)
@@ -2112,18 +2067,8 @@ TRefCountPtr<FRHIShader> FIoStoreShaderCodeArchive::CreateShader(int32 ShaderInd
 	}
 	DebugVisualizer.MarkCreatedForVisualization(ShaderIndex);
 
-	if (bShaderWasNotPreloaded)
-	{
-		ReleasePreloadEntry(GroupIndex);
-	}
-	else
-	{
-		FWriteScopeLock Lock(PreloadedShaderGroupsLock);
-		// if the entry existed before Create was called, it will be released by the higher level resource after the creation.
-		checkf(PreloadEntryPtr->NumRefs > 1, TEXT("We shouldn't be releasing the last preload entry here (NumRefs=%d)"), PreloadEntryPtr->NumRefs);
-		--PreloadEntryPtr->NumRefs;
-	}
 	PreloadEntryPtr = nullptr;
+	ReleasePreloadEntry(GroupIndex);
 
 	if (Shader)
 	{

@@ -25,6 +25,7 @@
 #include "Misc/MemStack.h"
 #include "ShaderCompilerCore.h"
 #include "Compression/OodleDataCompression.h"
+#include "RHIResources.h"	// Access to FRHIRayTracingShader::RayTracingPayloadType requires this
 
 #if WITH_EDITORONLY_DATA
 #include "Interfaces/IShaderFormat.h"
@@ -589,45 +590,69 @@ void FShaderMapResource::BeginCreateAllShaders()
 	});
 }
 
-FRHIShader* FShaderMapResource::CreateShader(int32 ShaderIndex)
-{	
-	check(!RHIShaders[ShaderIndex].load(std::memory_order_acquire));
+FRHIShader* FShaderMapResource::CreateShaderOrCrash(int32 ShaderIndex)
+{
+	FRHIShader* Shader = nullptr;
+	// create before taking the lock. This may cause multiple creations, but it's better
+	// than a potential oversubscription deadlock, since CreateShader can spawn async tasks
+	FRHIShader* CreatedShader = CreateRHIShaderOrCrash(ShaderIndex);	// guaranteed to return non-null
 
-	TRefCountPtr<FRHIShader> RHIShader = CreateRHIShader(ShaderIndex);
-#if RHI_RAYTRACING
-	if (GRHISupportsRayTracing && GRHISupportsRayTracingShaders && RHIShader.IsValid())
 	{
-		switch (RHIShader->GetFrequency())
+		// Most shadermaps have <100 shaders, and less than a half of them can be created. 
+		// However, if this path is often contended, you can slice this lock
+		FScopeLock ScopeLock(&RHIShadersCreationGuard);
+
+		Shader = RHIShaders[ShaderIndex].load(std::memory_order_relaxed);
+		if (UNLIKELY(Shader == nullptr))
 		{
-		case SF_RayHitGroup:
-			RayTracingLibraryIndices[ShaderIndex] = GlobalRayTracingHitGroupLibrary.AddShader(static_cast<FRHIRayTracingShader*>(RHIShader.GetReference()));
-			break;
-		case SF_RayCallable:
-			RayTracingLibraryIndices[ShaderIndex] = GlobalRayTracingCallableShaderLibrary.AddShader(static_cast<FRHIRayTracingShader*>(RHIShader.GetReference()));
-			break;
-		case SF_RayMiss:
-			RayTracingLibraryIndices[ShaderIndex] = GlobalRayTracingMissShaderLibrary.AddShader(static_cast<FRHIRayTracingShader*>(RHIShader.GetReference()));
-			break;
-		case SF_RayGen:
-			// NOTE: we do not maintain a library for raygen shaders since the list of rayshaders we care about is usually small and consistent
-			break;
-		default:
-			break;
-		}
-	}
+			Shader = CreatedShader;
+			CreatedShader = nullptr;
+			RHIShaders[ShaderIndex].store(Shader, std::memory_order_release);
+
+#if RHI_RAYTRACING
+			// Registers RT shaders in global "libraries" that track all shaders potentially usable in a scene for adding to RTPSO
+			EShaderFrequency Frequency = Shader->GetFrequency();
+			if (LIKELY(GRHISupportsRayTracing && GRHISupportsRayTracingShaders))
+			{
+				switch (Frequency)
+				{
+					case SF_RayHitGroup:
+						RayTracingLibraryIndices[ShaderIndex] = GlobalRayTracingHitGroupLibrary.AddShader(static_cast<FRHIRayTracingShader*>(Shader));
+						break;
+					case SF_RayCallable:
+						RayTracingLibraryIndices[ShaderIndex] = GlobalRayTracingCallableShaderLibrary.AddShader(static_cast<FRHIRayTracingShader*>(Shader));
+						break;
+					case SF_RayMiss:
+						RayTracingLibraryIndices[ShaderIndex] = GlobalRayTracingMissShaderLibrary.AddShader(static_cast<FRHIRayTracingShader*>(Shader));
+						break;
+					case SF_RayGen:
+						// NOTE: we do not maintain a library for raygen shaders since the list of rayshaders we care about is usually small and consistent
+						break;
+					default:
+						break;
+				}
+			}
 #endif // RHI_RAYTRACING
 
-	// keep the reference alive (the caller will release)
-	if (RHIShader.IsValid())
-	{
-		RHIShader->AddRef();
+			// When using shader library, shader code is usually preloaded during the material load. Release it
+			// since we won't need it anymore for this shader.
+			ReleasePreloadedShaderCode(ShaderIndex);
+		}
 	}
-	return RHIShader.GetReference();
+
+	if (LIKELY(CreatedShader))
+	{
+		// free redundantly created shader
+		checkSlow(Shader != nullptr);
+		CreatedShader->Release();
+	}
+
+	return Shader;
 }
 
-TRefCountPtr<FRHIShader> FShaderMapResource_InlineCode::CreateRHIShader(int32 ShaderIndex)
+FRHIShader* FShaderMapResource_InlineCode::CreateRHIShaderOrCrash(int32 ShaderIndex)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderMapResource_InlineCode::CreateRHIShader);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderMapResource_InlineCode::CreateRHIShaderOrCrash);
 #if STATS
 	double TimeFunctionEntered = FPlatformTime::Seconds();
 	ON_SCOPE_EXIT
@@ -643,12 +668,10 @@ TRefCountPtr<FRHIShader> FShaderMapResource_InlineCode::CreateRHIShader(int32 Sh
 	// we can't have this called on the wrong platform's shaders
 	if (!ArePlatformsCompatible(GMaxRHIShaderPlatform, GetPlatform()))
 	{
-		if (FPlatformProperties::RequiresCookedData())
-		{
-			UE_LOG(LogShaders, Fatal, TEXT("FShaderMapResource_InlineCode::InitRHI got platform %s but it is not compatible with %s"),
-				*LegacyShaderPlatformToShaderFormat(GetPlatform()).ToString(), *LegacyShaderPlatformToShaderFormat(GMaxRHIShaderPlatform).ToString());
-		}
-		return TRefCountPtr<FRHIShader>();
+		UE_LOG(LogShaders, Fatal, TEXT("FShaderMapResource_InlineCode::InitRHI got platform %s but it is not compatible with %s"),
+			*LegacyShaderPlatformToShaderFormat(GetPlatform()).ToString(), *LegacyShaderPlatformToShaderFormat(GMaxRHIShaderPlatform).ToString());
+		// unreachable
+		return nullptr;
 	}
 
 	FMemStackBase& MemStack = FMemStack::Get();
@@ -668,7 +691,7 @@ TRefCountPtr<FRHIShader> FShaderMapResource_InlineCode::CreateRHIShader(int32 Sh
 	const FSHAHash& ShaderHash = Code->ShaderHashes[ShaderIndex];
 	const EShaderFrequency Frequency = ShaderEntry.Frequency;
 
-	TRefCountPtr<FRHIShader> RHIShader;
+	FRHIShader* RHIShader = nullptr;
 	switch (Frequency)
 	{
 	case SF_Vertex: RHIShader = RHICreateVertexShader(ShaderCodeView, ShaderHash); break;
@@ -689,11 +712,17 @@ TRefCountPtr<FRHIShader> FShaderMapResource_InlineCode::CreateRHIShader(int32 Sh
 		checkNoEntry();
 		break;
 	}
-
-	if (RHIShader)
+	if (UNLIKELY(RHIShader == nullptr))
 	{
-		INC_DWORD_STAT(STAT_Shaders_NumShadersUsedForRendering);
-		RHIShader->SetHash(ShaderHash);
+		UE_LOG(LogShaders, Fatal, TEXT("FShaderMapResource_InlineCode::InitRHI is unable to create a shader (frequency %d)"), static_cast<int32>(Frequency));
+		// unreachable
+		return nullptr;
 	}
+
+	INC_DWORD_STAT(STAT_Shaders_NumShadersUsedForRendering);
+	RHIShader->SetHash(ShaderHash);
+
+	// contract of this function is to return a shader with an already held reference
+	RHIShader->AddRef();
 	return RHIShader;
 }

@@ -341,21 +341,10 @@ public:
 		// synchronizing two threads: one that takes a lock and another that doesn't.
 		// Without fences, there is a race between storing the shader pointer and accessing it
 		// on the other (lockless) thread.
-
 		FRHIShader* Shader = RHIShaders[ShaderIndex].load(std::memory_order_acquire);
-		if (Shader == nullptr)
+		if (UNLIKELY(Shader == nullptr))
 		{
-			// most shadermaps have <100 shaders, and less than a half of them can be created. One lock
-			// for all creation seems sufficient, but if this function is often contended, per-shader
-			// locks are easily possible.
-			FScopeLock ScopeLock(&RHIShadersCreationGuard);
-
-			Shader = RHIShaders[ShaderIndex].load(std::memory_order_relaxed);
-			if (Shader == nullptr)
-			{
-				Shader = CreateShader(ShaderIndex);
-				RHIShaders[ShaderIndex].store(Shader, std::memory_order_release);
-			}
+			Shader = CreateShaderOrCrash(ShaderIndex);
 		}
 		return Shader;
 	}
@@ -417,15 +406,20 @@ protected:
 		return Size;
 	}
 
-	/** Addrefs the reference, passing the responsibility to the caller to Release() it. */
-	FRHIShader* CreateShader(int32 ShaderIndex);
+	/** Creates RHI shader, with a reference (so the caller can release). Never returns nullptr (inability to create is Fatal) */
+	virtual FRHIShader*	CreateRHIShaderOrCrash(int32 ShaderIndex) = 0;
 
-	virtual TRefCountPtr<FRHIShader> CreateRHIShader(int32 ShaderIndex) = 0;
+	/** Signal the shader library that it can release compressed shader code for a shader that it keeps preloaded in memory. */
+	virtual void ReleasePreloadedShaderCode(int32 ShaderIndex) { /* no-op when not using shader library */ };
+
 	virtual bool TryRelease() { return true; }
 
 	void ReleaseShaders();
 
 private:
+
+	/** Creates an entry in RHIShaders array and registers it among the raytracing libs if needed. Created shader is returned. */
+	FRHIShader* CreateShaderOrCrash(int32 ShaderIndex);
 
 	/** This lock is to prevent two threads creating the same RHIShaders element. It is only taken if the element is to be created. */
 	FCriticalSection RHIShadersCreationGuard;
@@ -433,7 +427,7 @@ private:
 	/** An array of shader pointers (refcount is managed manually). */
 	TUniquePtr<std::atomic<FRHIShader*>[]> RHIShaders;
 
-	/** Since the shaders are no longer a TArray, this is their count (the size of the RHIShadersArray). */
+	/** Since the shaders are no longer a TArray, this is their count (the size of the RHIShaders array). */
 	int32 NumRHIShaders;
 
 #if RHI_RAYTRACING
@@ -530,7 +524,7 @@ public:
 	{}
 
 	// FShaderMapResource interface
-	virtual TRefCountPtr<FRHIShader> CreateRHIShader(int32 ShaderIndex) override;
+	virtual FRHIShader* CreateRHIShaderOrCrash(int32 ShaderIndex) override;
 	virtual uint32 GetSizeBytes() const override { return sizeof(*this) + GetAllocatedSize(); }
 
 	TRefCountPtr<FShaderMapResourceCode> Code;
