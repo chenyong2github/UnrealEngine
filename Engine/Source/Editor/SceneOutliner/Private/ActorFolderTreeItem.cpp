@@ -306,6 +306,12 @@ void FActorFolderTreeItem::Delete(const FFolder& InNewParentFolder)
 	}
 
 	FActorFolders::Get().DeleteFolder(*World, GetFolder());
+
+	// Remove this folder from parent otherwise when parent folder and child folder deleted together, parent will call MoveTo on deleted child folder leading to crash
+	if (FSceneOutlinerTreeItemPtr ParentPtr = GetParent())
+	{
+		ParentPtr->RemoveChild(SharedThis(this));
+	}
 }
 
 void FActorFolderTreeItem::MoveTo(const FFolder& InNewParentFolder)
