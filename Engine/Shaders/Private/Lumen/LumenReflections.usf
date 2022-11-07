@@ -240,7 +240,7 @@ void ReflectionTileClassificationBuildListsCS(
 				if (bTileUsed)
 				{
 					uint TileOffset = SharedNumTiles;
-					// Note: Must match encoding in WaterTileCatergorisationCS
+					// Note: Must match encoding in WaterTileCatergorisationBuildListsCS
 					uint PackedTileData = TileCoordinate.x | (TileCoordinate.y << 16);
 					SharedTileData[TileOffset] = PackedTileData;
 					SharedNumTiles = TileOffset + 1;
@@ -251,7 +251,7 @@ void ReflectionTileClassificationBuildListsCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-	if (ThreadIndex == 0)
+	if (ThreadIndex == 0 && SharedNumTiles > 0)
 	{
 		InterlockedAdd(RWReflectionTileIndirectArgs[0], SharedNumTiles, SharedGlobalTileOffset);
 	}

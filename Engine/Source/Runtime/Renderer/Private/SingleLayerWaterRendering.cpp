@@ -176,7 +176,7 @@ bool ShouldUseBilinearSamplerForDepthWithoutSingleLayerWater(EPixelFormat DepthT
 bool UseSingleLayerWaterIndirectDraw(EShaderPlatform ShaderPlatform)
 {
 	return IsFeatureLevelSupported(ShaderPlatform, ERHIFeatureLevel::SM5)
-		// Vulkan gives error with WaterTileCatergorisationCS usage of atomic, and Metal does not play nice, either.
+		// Vulkan gives error with WaterTileCatergorisationMarkCS usage of atomic, and Metal does not play nice, either.
 		&& !IsVulkanMobilePlatform(ShaderPlatform)
 		&& FDataDrivenShaderPlatformInfo::GetSupportsWaterIndirectDraw(ShaderPlatform);
 }
@@ -253,10 +253,10 @@ class FSingleLayerWaterCompositePS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FSingleLayerWaterCompositePS, "/Engine/Private/SingleLayerWaterComposite.usf", "SingleLayerWaterCompositePS", SF_Pixel);
 
-class FWaterTileCategorisationCS : public FGlobalShader
+class FWaterTileCategorisationMarkCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FWaterTileCategorisationCS);
-	SHADER_USE_PARAMETER_STRUCT(FWaterTileCategorisationCS, FGlobalShader)
+	DECLARE_GLOBAL_SHADER(FWaterTileCategorisationMarkCS);
+	SHADER_USE_PARAMETER_STRUCT(FWaterTileCategorisationMarkCS, FGlobalShader)
 
 	class FUsePrepassStencil : SHADER_PERMUTATION_BOOL("USE_WATER_PRE_PASS_STENCIL");
 	using FPermutationDomain = TShaderPermutationDomain<FUsePrepassStencil>;
@@ -266,11 +266,7 @@ class FWaterTileCategorisationCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, WaterDepthStencilTexture)
-		SHADER_PARAMETER(uint32, VertexCountPerInstanceIndirect)
 		SHADER_PARAMETER(FIntPoint, TiledViewRes)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawIndirectDataUAV)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DispatchIndirectDataUAV)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, WaterTileListDataUAV)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, TileMaskBufferOut)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -286,12 +282,47 @@ class FWaterTileCategorisationCS : public FGlobalShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		OutEnvironment.SetDefine(TEXT("TILE_CATERGORISATION_SHADER"), 1.0f);
+		OutEnvironment.SetDefine(TEXT("TILE_CATERGORISATION_SHADER"), 1);
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FWaterTileCategorisationCS, "/Engine/Private/SingleLayerWaterComposite.usf", "WaterTileCatergorisationCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FWaterTileCategorisationMarkCS, "/Engine/Private/SingleLayerWaterComposite.usf", "WaterTileCatergorisationMarkCS", SF_Compute);
+
+class FWaterTileClassificationBuildListsCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FWaterTileClassificationBuildListsCS);
+	SHADER_USE_PARAMETER_STRUCT(FWaterTileClassificationBuildListsCS, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
+		SHADER_PARAMETER(uint32, VertexCountPerInstanceIndirect)
+		SHADER_PARAMETER(FIntPoint, TiledViewRes)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawIndirectDataUAV)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DispatchIndirectDataUAV)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, WaterTileListDataUAV)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, TileMaskBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return UseSingleLayerWaterIndirectDraw(Parameters.Platform);
+	}
+
+	static int32 GetGroupSize()
+	{
+		return 8;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("TILE_CATERGORISATION_SHADER"), 1);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FWaterTileClassificationBuildListsCS, "/Engine/Private/SingleLayerWaterComposite.usf", "WaterTileClassificationBuildListsCS", SF_Compute);
 
 bool FWaterTileVS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -376,7 +407,10 @@ static FSingleLayerWaterDepthPassParameters* GetSingleLayerWaterDepthPassParamet
 	return PassParameters;
 }
 
-
+/**
+ * Build lists of 8x8 tiles used by water pixels
+ * Mark and build list steps are separated in order to build a more coherent list (z-ordered over a larger region), which is important for the performance of future passes like ray traced Lumen reflections
+ */
 static FSingleLayerWaterTileClassification ClassifyTiles(FRDGBuilder& GraphBuilder, const FViewInfo &View, const FSceneTextures& SceneTextures, const FRDGTextureRef& DepthPrepassTexture)
 {
 	FSingleLayerWaterTileClassification Result;
@@ -404,29 +438,51 @@ static FSingleLayerWaterTileClassification ClassifyTiles(FRDGBuilder& GraphBuild
 		AddClearUAVPass(GraphBuilder, DrawIndirectParametersBufferUAV, 0);
 		AddClearUAVPass(GraphBuilder, DispatchIndirectParametersBufferUAV, 0);
 
-		// Categorization based on SHADING_MODEL_ID
+		// Mark used tiles based on SHADING_MODEL_ID
 		{
-			FWaterTileCategorisationCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FWaterTileCategorisationCS::FUsePrepassStencil>(DepthPrepassTexture != nullptr);
-			TShaderMapRef<FWaterTileCategorisationCS> ComputeShader(View.ShaderMap, PermutationVector);
+			FWaterTileCategorisationMarkCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FWaterTileCategorisationMarkCS::FUsePrepassStencil>(DepthPrepassTexture != nullptr);
+			TShaderMapRef<FWaterTileCategorisationMarkCS> ComputeShader(View.ShaderMap, PermutationVector);
 
-			FWaterTileCategorisationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FWaterTileCategorisationCS::FParameters>();
+			FWaterTileCategorisationMarkCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FWaterTileCategorisationMarkCS::FParameters>();
 
 			PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 			PassParameters->View = View.GetShaderParameters();
 			PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 			PassParameters->TiledViewRes = Result.TiledViewRes;
+			PassParameters->WaterDepthStencilTexture = DepthPrepassTexture ? GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(DepthPrepassTexture, PF_X24_G8)) : nullptr;
+			PassParameters->TileMaskBufferOut = TileMaskBufferUAV;
 
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("SLW::TileCategorisationMarkTiles"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(Result.TiledViewRes.X, Result.TiledViewRes.Y, 1)
+			);
+		}
+
+		// Build compacted and coherent light tiles from bit-marked tiles
+		{
+			TShaderMapRef<FWaterTileClassificationBuildListsCS> ComputeShader(View.ShaderMap);
+
+			FWaterTileClassificationBuildListsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FWaterTileClassificationBuildListsCS::FParameters>();
+
+			PassParameters->View = View.GetShaderParameters();
+			PassParameters->TiledViewRes = Result.TiledViewRes;
 			PassParameters->VertexCountPerInstanceIndirect = GRHISupportsRectTopology ? 3 : 6;
 			PassParameters->DrawIndirectDataUAV = DrawIndirectParametersBufferUAV;
 			PassParameters->DispatchIndirectDataUAV = DispatchIndirectParametersBufferUAV;
 			PassParameters->WaterTileListDataUAV = GraphBuilder.CreateUAV(TileListDataBuffer, PF_R32_UINT);
+			PassParameters->TileMaskBuffer = GraphBuilder.CreateSRV(Result.TileMaskBuffer);
 
-			PassParameters->WaterDepthStencilTexture = DepthPrepassTexture ? GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(DepthPrepassTexture, PF_X24_G8)) : nullptr;
-
-			PassParameters->TileMaskBufferOut = TileMaskBufferUAV;
-
-			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("SLW::TileCategorisation"), ComputeShader, PassParameters, FIntVector(Result.TiledViewRes.X, Result.TiledViewRes.Y, 1));
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("SLW::TileCategorisationBuildList"),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(Result.TiledViewRes, FWaterTileClassificationBuildListsCS::GetGroupSize())
+			);
 		}
 	}
 	return Result;
