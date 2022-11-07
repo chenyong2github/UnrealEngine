@@ -32,6 +32,7 @@ UCircularThrobber::UCircularThrobber(const FObjectInitializer& ObjectInitializer
 		DefaultCircularThrobberBrushStyle->UnlinkColors();
 	}
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Image = *DefaultCircularThrobberBrushStyle;
 
 #if WITH_EDITOR 
@@ -55,6 +56,7 @@ UCircularThrobber::UCircularThrobber(const FObjectInitializer& ObjectInitializer
 	NumberOfPieces = 6;
 	Period = 0.75f;
 	Radius = 16.f;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void UCircularThrobber::ReleaseSlateResources(bool bReleaseChildren)
@@ -66,11 +68,13 @@ void UCircularThrobber::ReleaseSlateResources(bool bReleaseChildren)
 
 TSharedRef<SWidget> UCircularThrobber::RebuildWidget()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyCircularThrobber = SNew(SCircularThrobber)
 		.PieceImage(&Image)
 		.NumPieces(FMath::Clamp(NumberOfPieces, 1, 25))
 		.Period(FMath::Max(Period, SCircularThrobber::MinimumPeriodValue))
 		.Radius(Radius);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	return MyCircularThrobber.ToSharedRef();
 }
@@ -79,9 +83,13 @@ void UCircularThrobber::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyCircularThrobber->SetNumPieces(FMath::Clamp(NumberOfPieces, 1, 25));
 	MyCircularThrobber->SetPeriod(FMath::Max(Period, SCircularThrobber::MinimumPeriodValue));
 	MyCircularThrobber->SetRadius(Radius);
+	MyCircularThrobber->SetPieceImage(&Image);
+	MyCircularThrobber->InvalidatePieceImage();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// If widget is child of Canvas Panel and 'Size to Content' is enabled, we allow user to modify radius.
 	bEnableRadius = true;
@@ -94,6 +102,7 @@ void UCircularThrobber::SynchronizeProperties()
 	}
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UCircularThrobber::SetNumberOfPieces(int32 InNumberOfPieces)
 {
 	NumberOfPieces = InNumberOfPieces;
@@ -101,6 +110,11 @@ void UCircularThrobber::SetNumberOfPieces(int32 InNumberOfPieces)
 	{
 		MyCircularThrobber->SetNumPieces(FMath::Clamp(NumberOfPieces, 1, 25));
 	}
+}
+
+int32 UCircularThrobber::GetNumberOfPieces() const
+{
+	return NumberOfPieces;
 }
 
 void UCircularThrobber::SetPeriod(float InPeriod)
@@ -112,6 +126,11 @@ void UCircularThrobber::SetPeriod(float InPeriod)
 	}
 }
 
+float UCircularThrobber::GetPeriod() const
+{
+	return Period;
+}
+
 void UCircularThrobber::SetRadius(float InRadius)
 {
 	Radius = InRadius;
@@ -120,6 +139,26 @@ void UCircularThrobber::SetRadius(float InRadius)
 		MyCircularThrobber->SetRadius(InRadius);
 	}
 }
+
+float UCircularThrobber::GetRadius() const
+{
+	return Radius;
+}
+
+void UCircularThrobber::SetImage(const FSlateBrush& InImage)
+{
+	Image = InImage;
+	if (MyCircularThrobber.IsValid())
+	{
+		MyCircularThrobber->InvalidatePieceImage();
+	}
+}
+
+const FSlateBrush& UCircularThrobber::GetImage() const
+{
+	return Image;
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR
 

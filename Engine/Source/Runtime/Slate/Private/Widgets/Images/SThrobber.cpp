@@ -69,6 +69,11 @@ void SThrobber::SetPieceImage(const FSlateBrush* InPieceImage)
 	}
 }
 
+void SThrobber::InvalidatePieceImage()
+{
+	Invalidate(EInvalidateWidgetReason::Paint);
+}
+
 void SThrobber::SetNumPieces(int InNumPieces)
 {
 	if (NumPieces != InNumPieces)
@@ -150,6 +155,11 @@ void SCircularThrobber::SetPieceImage(const FSlateBrush* InPieceImage)
 		PieceImage = InPieceImage;
 		Invalidate(EInvalidateWidgetReason::Paint);
 	}
+}
+
+void SCircularThrobber::InvalidatePieceImage()
+{
+	Invalidate(EInvalidateWidgetReason::Paint);
 }
 
 void SCircularThrobber::SetNumPieces(const int32 InNumPieces)

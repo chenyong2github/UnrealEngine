@@ -26,18 +26,23 @@ class UMG_API UCircularThrobber : public UWidget
 public:
 
 	/** How many pieces there are */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, meta=( ClampMin="1", ClampMax="25", UIMin="1", UIMax="25" ))
+	UE_DEPRECATED(5.2, "Direct access to NumberOfPieces is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetNumberOfPieces", Category = Appearance, meta = (ClampMin = "1", ClampMax = "25", UIMin = "1", UIMax = "25"))
 	int32 NumberOfPieces;
 
 	/** The amount of time for a full circle (in seconds) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, meta=( ClampMin="0", UIMin="0" ))
+	UE_DEPRECATED(5.2, "Direct access to Period is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetPeriod", Category=Appearance, meta=( ClampMin="0", UIMin="0" ))
 	float Period;
 
 	/** The radius of the circle. If the throbber is a child of Canvas Panel, the 'Size to Content' option must be enabled in order to set Radius. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, meta=(EditCondition="bEnableRadius"))
+	UE_DEPRECATED(5.2, "Direct access to Radius is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter="SetRadius", Category=Appearance, meta=(EditCondition="bEnableRadius"))
 	float Radius;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance)
+	/** The throbber image. */
+	UE_DEPRECATED(5.2, "Direct access to Image is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category=Appearance)
 	FSlateBrush Image;
 
 public:
@@ -45,34 +50,36 @@ public:
 	/** Sets how many pieces there are. */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	void SetNumberOfPieces(int32 InNumberOfPieces);
+	int32 GetNumberOfPieces() const;
 
 	/** Sets the amount of time for a full circle (in seconds). */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	void SetPeriod(float InPeriod);
+	float GetPeriod() const;
 
 	/** Sets the radius of the circle. */
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	void SetRadius(float InRadius);
+	float GetRadius() const;
+
+	/** Sets the throbber image. */
+	void SetImage(const FSlateBrush& InRadius);
+	const FSlateBrush& GetImage() const;
 
 	//~ Begin UWidget Interface
+public:
 	virtual void SynchronizeProperties() override;
-	//~ End UWidget Interface
-
-	//~ Begin UVisual Interface
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
-	//~ End UVisual Interface
 
 #if WITH_EDITOR
 	virtual const FText GetPaletteCategory() override;
 #endif
 
 protected:
-	//~ Begin UWidget Interface
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	//~ End UWidget Interface
 
 private:
-
 	UPROPERTY(Transient, EditAnywhere, Category="Appearance", meta=(InlineEditConditionToggle))
 	bool bEnableRadius;
 

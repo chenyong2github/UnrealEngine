@@ -83,6 +83,7 @@ void UThrobber::SynchronizeProperties()
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	MyThrobber->SetPieceImage(&Image);
+	MyThrobber->InvalidatePieceImage();
 	MyThrobber->SetNumPieces(FMath::Clamp(NumberOfPieces, 1, 25));
 	MyThrobber->SetAnimate(GetAnimation());
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
@@ -165,9 +166,7 @@ void UThrobber::SetImage(const FSlateBrush& Brush)
 	Image = Brush;
 	if (MyThrobber.IsValid())
 	{
-		// to force a new invalidation
-		MyThrobber->SetPieceImage(nullptr);
-		MyThrobber->SetPieceImage(&Image);
+		MyThrobber->InvalidatePieceImage();
 	}
 }
 

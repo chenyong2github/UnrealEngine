@@ -54,6 +54,12 @@ public:
 	/** Sets what each segment of the throbber looks like. */
 	void SetPieceImage(const FSlateBrush* InPieceImage);
 
+	/**
+	 * Invalidate the SCircularThrobber with the correct reason.
+	 * You should invalidate when you are changing a property of SlateBrush after the SlateBrush was set to the SCircularThrobber.
+	 */
+	void InvalidatePieceImage();
+
 	/** Sets how many pieces there are */
 	void SetNumPieces(int InNumPieces);
 
@@ -132,6 +138,12 @@ public:
 
 	/** Sets what each segment of the throbber looks like */
 	void SetPieceImage(const FSlateBrush* InPieceImage);
+
+	/**
+	 * Invalidate the SCircularThrobber with the correct reason. 
+	 * You should invalidate when you are changing a property of SlateBrush after the SlateBrush was set to the SCircularThrobber.
+	 */
+	void InvalidatePieceImage();
 
 	/** Sets how many pieces there are */
 	void SetNumPieces(int32 InNumPieces);
