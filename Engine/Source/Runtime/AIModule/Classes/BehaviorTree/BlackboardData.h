@@ -126,7 +126,7 @@ public:
 		}
 		else if (KeyID != FBlackboard::InvalidKey && Parent != NULL)
 		{
-			const FBlackboard::FKey KeyIndex = KeyID - FirstKeyID;
+			const FBlackboard::FKey KeyIndex = (int32)KeyID - (int32)FirstKeyID;
 			Keys.RemoveAt(KeyIndex);
 			MarkPackageDirty();
 			PropagateKeyChangesToDerivedBlackboardAssets();

@@ -155,7 +155,7 @@ bool UBlackboardComponent::InitializeBlackboard(UBlackboardData& NewAsset)
 					KeyType->PreInitialize(*this);
 
 					const uint16 KeyMemory = KeyType->GetValueSize() + (KeyType->HasInstance() ? sizeof(FBlackboardInstancedKeyMemory) : 0);
-					const int32 OffsetKey = KeyIndex + It->GetFirstKeyID();
+					const int32 OffsetKey = KeyIndex + (int32)It->GetFirstKeyID();
 					check(OffsetKey != FBlackboard::InvalidKey);
 
 					InitList.Add(FBlackboardInitializationData(IntCastChecked<FBlackboard::FKey>(OffsetKey), KeyMemory));
@@ -211,7 +211,7 @@ void UBlackboardComponent::DestroyValues()
 			UBlackboardKeyType* KeyType = It->Keys[KeyIndex].KeyType;
 			if (KeyType)
 			{
-				const int32 OffsetKey = KeyIndex + It->GetFirstKeyID();
+				const int32 OffsetKey = KeyIndex + (int32)It->GetFirstKeyID();
 				check(OffsetKey != FBlackboard::InvalidKey);
 
 				uint8* KeyMemory = GetKeyRawData(IntCastChecked<FBlackboard::FKey>(OffsetKey));
@@ -616,7 +616,7 @@ void UBlackboardComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const
 			{
 				const FBlackboardEntry& Key = It->Keys[KeyIndex];
 
-				const int32 OffsetKey = It->GetFirstKeyID() + KeyIndex;
+				const int32 OffsetKey = (int32)It->GetFirstKeyID() + KeyIndex;
 				check(OffsetKey != FBlackboard::InvalidKey);
 
 				const uint8* ValueData = GetKeyRawData(IntCastChecked<FBlackboard::FKey>(OffsetKey));
