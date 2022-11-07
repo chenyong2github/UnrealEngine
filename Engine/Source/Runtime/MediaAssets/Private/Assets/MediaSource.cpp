@@ -6,6 +6,11 @@
 #include "Misc/Paths.h"
 #include "StreamMediaSource.h"
 
+#if WITH_EDITOR
+#include "Misc/MediaSourceRenderer.h"
+#include "UObject/Package.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MediaSource)
 
 void UMediaSource::SetCacheSettings(const FMediaSourceCacheSettings& Settings)
@@ -13,6 +18,20 @@ void UMediaSource::SetCacheSettings(const FMediaSourceCacheSettings& Settings)
 	SetMediaOptionBool(TEXT("ImgMediaSmartCacheEnabled"), Settings.bOverride);
 	SetMediaOptionFloat(TEXT("ImgMediaSmartCacheTimeToLookAhead"), Settings.TimeToLookAhead);
 }
+
+#if WITH_EDITOR
+
+void UMediaSource::GenerateThumbnail()
+{
+	if (MediaSourceRenderer == nullptr)
+	{
+		MediaSourceRenderer = NewObject<UMediaSourceRenderer>(GetTransientPackage());
+	}
+
+	ThumbnailImage = MediaSourceRenderer->Open(this);
+}
+
+#endif // WITH_EDITOR
 
 void UMediaSource::RegisterSpawnFromFileExtension(const FString& Extension,
 	FMediaSourceSpawnDelegate InDelegate)
@@ -73,6 +92,15 @@ TMap<FString, FMediaSourceSpawnDelegate>& UMediaSource::GetSpawnFromFileExtensio
 {
 	static TMap<FString, FMediaSourceSpawnDelegate> Delegates;
 	return Delegates;
+}
+
+void UMediaSource::BeginDestroy()
+{
+#if WITH_EDITOR
+	MediaSourceRenderer = nullptr;
+#endif // WITH_EDITOR
+
+	Super::BeginDestroy();
 }
 
 /* IMediaOptions interface

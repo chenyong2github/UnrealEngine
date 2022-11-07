@@ -221,6 +221,10 @@ void UImgMediaSource::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 			GlobalCache->EmptyCache();
 		}
 	}
+	else if (PropertyChangedEvent.GetMemberPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, SequencePath))
+	{
+		GenerateThumbnail();
+	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }

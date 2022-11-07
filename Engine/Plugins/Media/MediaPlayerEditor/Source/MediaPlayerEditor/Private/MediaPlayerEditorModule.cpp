@@ -38,6 +38,7 @@
 
 #include "Models/MediaPlayerEditorCommands.h"
 #include "Shared/MediaPlayerEditorStyle.h"
+#include "Shared/MediaSourceThumbnailRenderer.h"
 #include "Visualizers/MediaSoundComponentVisualizer.h"
 #include "ToolMenus.h"
 #include "Widgets/SMediaPlayerEditorMedia.h"
@@ -224,6 +225,7 @@ protected:
 	void RegisterThumbnailRenderers()
 	{
 		UThumbnailManager::Get().RegisterCustomRenderer(UMediaTexture::StaticClass(), UTextureThumbnailRenderer::StaticClass());
+		UThumbnailManager::Get().RegisterCustomRenderer(UMediaSource::StaticClass(), UMediaSourceThumbnailRenderer::StaticClass());
 	}
 
 	/** Unregisters all asset thumbnail renderers. */
@@ -231,6 +233,7 @@ protected:
 	{
 		if (UObjectInitialized())
 		{
+			UThumbnailManager::Get().UnregisterCustomRenderer(UMediaSource::StaticClass());
 			UThumbnailManager::Get().UnregisterCustomRenderer(UMediaTexture::StaticClass());
 		}
 	}

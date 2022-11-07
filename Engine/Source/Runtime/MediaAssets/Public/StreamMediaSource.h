@@ -30,4 +30,9 @@ public:
 
 	virtual FString GetUrl() const override;
 	virtual bool Validate() const override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 };

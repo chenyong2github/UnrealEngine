@@ -54,6 +54,7 @@ void UFileMediaSource::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UFileMediaSource, FilePath))
 	{
 		ClearResolvedFullPath();
+		GenerateThumbnail();
 	}
 }
 #endif
