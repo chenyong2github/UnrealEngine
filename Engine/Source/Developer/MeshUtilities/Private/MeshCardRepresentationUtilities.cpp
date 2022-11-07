@@ -1032,6 +1032,7 @@ void BuildMeshCards(const FBox& MeshBounds, const FGenerateCardMeshContext& Cont
 	BuildSurfelClusters(MeshBounds, Context, SurfelScene, ClusteringParams, MeshCards);
 
 	OutData.MeshCardsBuildData.Bounds = MeshCardsBounds;
+	OutData.MeshCardsBuildData.bMostlyTwoSided = Context.EmbreeScene.bMostlyTwoSided;
 	OutData.MeshCardsBuildData.CardBuildData.Reset();
 
 	SerializeLOD(Context, ClusteringParams, SurfelScene, MeshCards, MeshCardsBounds, OutData.MeshCardsBuildData);

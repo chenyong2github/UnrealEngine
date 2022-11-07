@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenMeshCards.h
-=============================================================================*/
-
 #pragma once
 
 #include "TextureLayout3d.h"
@@ -12,6 +8,7 @@
 #include "LumenSparseSpanArray.h"
 
 class FLumenCard;
+class FLumenPrimitiveGroup;
 class FPrimitiveSceneInfo;
 struct FLumenSceneFrameTemporaries;
 
@@ -27,25 +24,12 @@ class FLumenMeshCards
 {
 public:
 	void Initialize(
-		const FMatrix& InLocalToWorld, 
-		const FBox& InLocalBounds,
+		const FMatrix& InLocalToWorld,
 		int32 InPrimitiveGroupIndex,
 		uint32 InFirstCardIndex,
 		uint32 InNumCards,
-		bool InFarField,
-		bool InHeightfield,
-		bool InEmissiveLightSource)
-	{
-		PrimitiveGroupIndex = InPrimitiveGroupIndex;
-
-		LocalBounds = InLocalBounds;
-		SetTransform(InLocalToWorld);
-		FirstCardIndex = InFirstCardIndex;
-		NumCards = InNumCards;
-		bFarField = InFarField;
-		bHeightfield = InHeightfield;
-		bEmissiveLightSource = InEmissiveLightSource;
-	}
+		const FMeshCardsBuildData& MeshCardsBuildData,
+		const FLumenPrimitiveGroup& PrimitiveGroup);
 
 	void UpdateLookup(const TSparseSpanArray<FLumenCard>& Cards);
 
@@ -57,14 +41,15 @@ public:
 		return WorldSpaceBounds;
 	}
 
-	FMatrix LocalToWorld;
+	FMatrix LocalToWorld = FMatrix::Identity;
 	FVector3f LocalToWorldScale;
 	FMatrix WorldToLocalRotation;
-	FBox LocalBounds;
+	FBox LocalBounds = FBox(FVector(-1.0f), FVector(-1.0f));
 
 	int32 PrimitiveGroupIndex = -1;
 	bool bFarField = false;
 	bool bHeightfield = false;
+	bool bMostlyTwoSided = false;
 	bool bEmissiveLightSource = false;
 
 	uint32 FirstCardIndex = 0;

@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	LumenCardCommon.ush
-=============================================================================*/
-
 #pragma once
 
 #include "../OctahedralCommon.ush"
@@ -204,6 +200,7 @@ struct FLumenMeshCardsData
 	uint CardOffset;
 
 	bool bHeightfield;
+	bool bMostlyTwoSided;
 
 	uint CardLookup[6];
 };
@@ -230,6 +227,7 @@ FLumenMeshCardsData GetLumenMeshCardsData(uint MeshCardsId)
 	MeshCardsData.CardOffset = V3.x;
 	MeshCardsData.NumCards = V3.y & 0xFFFF;
 	MeshCardsData.bHeightfield = V3.y & 0x10000 ? true : false;
+	MeshCardsData.bMostlyTwoSided = V3.y & 0x20000 ? true : false;
 	MeshCardsData.CardLookup[0] = V3.z;
 	MeshCardsData.CardLookup[1] = V3.w;
 	MeshCardsData.CardLookup[2] = V4.x;

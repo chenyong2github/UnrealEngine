@@ -241,6 +241,7 @@ void FLumenMeshCardsGPUData::FillData(const FLumenMeshCards& RESTRICT MeshCards,
 	PackedData[0] = MeshCards.FirstCardIndex;
 	PackedData[1] = MeshCards.NumCards & 0xFFFF;
 	PackedData[1] |= MeshCards.bHeightfield ? 0x10000 : 0;
+	PackedData[1] |= MeshCards.bMostlyTwoSided ? 0x20000 : 0;
 	PackedData[2] = MeshCards.CardLookup[0];
 	PackedData[3] = MeshCards.CardLookup[1];
 	OutData[3] = *(FVector4f*)&PackedData;
@@ -380,8 +381,6 @@ void UpdateLumenMeshCards(FRDGBuilder& GraphBuilder, const FScene& Scene, const 
 		if (NumMeshCardsUploads > 0)
 		{
 			FLumenMeshCards NullMeshCards;
-			NullMeshCards.Initialize(FMatrix::Identity, FBox(FVector(-1.0f), FVector(-1.0f)), -1, 0, 0, false, false, false);
-
 			LumenSceneData.MeshCardsUploadBuffer.Init(GraphBuilder, NumMeshCardsUploads, FLumenMeshCardsGPUData::DataStrideInBytes, true, TEXT("Lumen.MeshCardsUpload"));
 
 			for (int32 Index : LumenSceneData.MeshCardsIndicesToUpdateInBuffer)
@@ -811,13 +810,11 @@ void FLumenSceneData::AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const
 			FLumenMeshCards& MeshCardsInstance = MeshCards[MeshCardsIndex];
 			MeshCardsInstance.Initialize(
 				LocalToWorld,
-				MeshCardsBuildData.Bounds,
 				PrimitiveGroupIndex,
 				FirstCardIndex,
 				NumCards,
-				PrimitiveGroup.bFarField,
-				PrimitiveGroup.bHeightfield,
-				PrimitiveGroup.bEmissiveLightSource);
+				MeshCardsBuildData,
+				PrimitiveGroup);
 
 			MeshCardsIndicesToUpdateInBuffer.Add(MeshCardsIndex);
 
@@ -1117,6 +1114,29 @@ void FLumenCard::GetSurfaceStats(const TSparseSpanArray<FLumenPageTableEntry>& P
 			Stats.DroppedResLevels += DesiredLockedResLevel - MinAllocatedResLevel;
 		}
 	}
+}
+
+void FLumenMeshCards::Initialize(
+	const FMatrix& InLocalToWorld,
+	int32 InPrimitiveGroupIndex,
+	uint32 InFirstCardIndex,
+	uint32 InNumCards,
+	const FMeshCardsBuildData& MeshCardsBuildData,
+	const FLumenPrimitiveGroup& PrimitiveGroup)
+{
+	PrimitiveGroupIndex = InPrimitiveGroupIndex;
+
+	LocalBounds = MeshCardsBuildData.Bounds;
+	bMostlyTwoSided = MeshCardsBuildData.bMostlyTwoSided;
+
+	FirstCardIndex = InFirstCardIndex;
+	NumCards = InNumCards;
+
+	bFarField = PrimitiveGroup.bFarField;
+	bHeightfield = PrimitiveGroup.bHeightfield;
+	bEmissiveLightSource = PrimitiveGroup.bEmissiveLightSource;
+
+	SetTransform(InLocalToWorld);
 }
 
 void FLumenMeshCards::UpdateLookup(const TSparseSpanArray<FLumenCard>& Cards)

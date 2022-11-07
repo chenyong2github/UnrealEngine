@@ -461,6 +461,11 @@ FSurfaceCacheSample SampleLumenMeshCards(
 	if (MeshCardsIndex < LumenCardScene.NumMeshCards)
 	{
 		FLumenMeshCardsData MeshCardsData = GetLumenMeshCardsData(MeshCardsIndex);
+		if (MeshCardsData.bMostlyTwoSided)
+		{
+			// Bump bias on bMostlyTwoSided (foliage), where hits aren't very reliable
+			SurfaceCacheBias += 50.0f;
+		}
 
 		float3 MeshCardsSpacePosition = mul(WorldSpacePosition - MeshCardsData.WorldOrigin, MeshCardsData.WorldToLocalRotation);
 		float3 MeshCardsSpaceNormal = mul(WorldSpaceNormal, MeshCardsData.WorldToLocalRotation);
