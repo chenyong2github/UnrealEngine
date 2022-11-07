@@ -1999,22 +1999,25 @@ namespace UnrealGameSync
 
 		private string? GetArchiveKeyForChangeNumber(IArchiveInfo archive, int changeNumber)
 		{
-			string? archivePath;
-
 			Dictionary<int, string?>? changeNumberToArchivePath;
 			if (!_archiveToChangeNumberToArchiveKey.TryGetValue(archive.Name, out changeNumberToArchivePath))
 			{
 				changeNumberToArchivePath = new Dictionary<int, string?>();
 				_archiveToChangeNumberToArchiveKey[archive.Name] = changeNumberToArchivePath;
 			}
+			return GetArchiveKeyForChangeNumber(archive, changeNumber, changeNumber, changeNumberToArchivePath);
+		}
 
+		private string? GetArchiveKeyForChangeNumber(IArchiveInfo archive, int changeNumber, int maxChangeNumber, Dictionary<int, string?> changeNumberToArchivePath)
+		{
+			string? archivePath;
 			if (!changeNumberToArchivePath.TryGetValue(changeNumber, out archivePath))
 			{
 				PerforceChangeDetails? details;
 				if (_perforceMonitor.TryGetChangeDetails(changeNumber, out details))
 				{
 					// Try to get the archive for this CL
-					if (!archive.TryGetArchiveKeyForChangeNumber(changeNumber, out archivePath) && !details.ContainsCode)
+					if (!archive.TryGetArchiveKeyForChangeNumber(changeNumber, maxChangeNumber, out archivePath) && !details.ContainsCode)
 					{
 						// Otherwise if it's a content-only change, find the previous build any use the archive path from that
 						int index = _sortedChangeNumbers.BinarySearch(changeNumber);

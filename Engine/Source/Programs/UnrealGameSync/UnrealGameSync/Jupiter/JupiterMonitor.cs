@@ -223,7 +223,7 @@ namespace UnrealGameSync
 				return _changeToKey.Count > 0;
 			}
 
-			public bool TryGetArchiveKeyForChangeNumber(int changeNumber, out string archiveKey)
+			public bool TryGetArchiveKeyForChangeNumber(int changeNumber, int maxChangeNumber, out string archiveKey)
 			{
 				return _changeToKey.TryGetValue(changeNumber, out archiveKey);
 			}

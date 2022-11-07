@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using EpicGames.Perforce;
+using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -24,7 +25,7 @@ namespace UnrealGameSync
 		string? Target { get; }
 
 		bool Exists();
-		bool TryGetArchiveKeyForChangeNumber(int changeNumber, [NotNullWhen(true)] out string? archiveKey);
+		bool TryGetArchiveKeyForChangeNumber(int changeNumber, int maxChangeNumber, [NotNullWhen(true)] out string? archiveKey);
 		Task<bool> DownloadArchive(IPerforceConnection perforce, string archiveKey, DirectoryReference localRootPath, FileReference manifestFileName, ILogger logger, ProgressValue progress, CancellationToken cancellationToken);
 	}
 
@@ -93,9 +94,24 @@ namespace UnrealGameSync
 			return true;
 		}
 
-		public bool TryGetArchiveKeyForChangeNumber(int changeNumber, [NotNullWhen(true)] out string? archiveKey)
+		public bool TryGetArchiveKeyForChangeNumber(int changeNumber, int maxChangeNumber, [NotNullWhen(true)] out string? archiveKey)
 		{
-			return ChangeNumberToFileRevision.TryGetValue(changeNumber, out archiveKey);
+			int idx = ChangeNumberToFileRevision.Keys.BinarySearch(changeNumber);
+			if (idx >= 0)
+			{
+				archiveKey = ChangeNumberToFileRevision.Values[idx];
+				return true;
+			}
+
+			int nextIdx = ~idx;
+			if (nextIdx < ChangeNumberToFileRevision.Count && ChangeNumberToFileRevision.Keys[nextIdx] <= maxChangeNumber)
+			{
+				archiveKey = ChangeNumberToFileRevision.Values[nextIdx];
+				return true;
+			}
+
+			archiveKey = null;
+			return false;
 		}
 
 		public async Task<bool> DownloadArchive(IPerforceConnection perforce, string archiveKey, DirectoryReference localRootPath, FileReference manifestFileName, ILogger logger, ProgressValue progress, CancellationToken cancellationToken)
