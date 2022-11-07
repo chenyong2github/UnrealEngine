@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNIRuntimeRDGElementWiseVariadic.h"
-#include "NNIHlslShadersElementWiseVariadicCS.h"
+#include "NNEHlslShadersElementWiseVariadicCS.h"
 #include "NNXRuntimeHLSLHelper.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
 	DECLARE_GPU_STAT_NAMED(FNNIOperatorElementWiseVariadic, TEXT("NNI.Operator.Hlsl.ElementWise.Variadic"));
 
-	using TElementWiseVariadicCS = typename UE::NNIHlslShaders::Internal::TElementWiseVariadicCS;
-	using FElementWiseVariadicConstants = UE::NNIHlslShaders::Internal::FElementWiseVariadicConstants;
+	using TElementWiseVariadicCS = typename UE::NNEHlslShaders::Internal::TElementWiseVariadicCS;
+	using FElementWiseVariadicConstants = UE::NNEHlslShaders::Internal::FElementWiseVariadicConstants;
 
 	void AddOneVariadicOpPass(FRDGBuilder& GraphBuilder, 
 		TArrayView<const NNX::FMLTensorBinding> InputBindings,

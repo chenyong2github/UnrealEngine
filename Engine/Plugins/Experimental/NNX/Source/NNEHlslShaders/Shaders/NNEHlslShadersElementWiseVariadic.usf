@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "/Engine/Public/Platform.ush"
-#include "NNIHlslShadersBroadcastHelper.ush"
+#include "NNEHlslShadersBroadcastHelper.ush"
 
 #define BUFFER_TYPE float
 
@@ -41,7 +41,7 @@ void ElementWiseVariadic(in const uint3 DispatchThreadID : SV_DispatchThreadID)
 
 		BUFFER_TYPE Result = Input0[Input0Index];
 
-		 // Must correspond to EVariadicNumInput defined in NNIElementWiseVariadicCS.h
+		 // Must correspond to EVariadicNumInput defined in NNEElementWiseVariadicCS.h
 		#if NUMINPUT >= 2
 			Result  = ELEMENTWISE_OP(Result, Input1[Input1Index]);
 		#endif

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNIHlslShadersConvCS.h"
+#include "NNEHlslShadersConvCS.h"
 #include "NNXCore.h"
 
-namespace UE::NNIHlslShaders::Internal
+namespace UE::NNEHlslShaders::Internal
 {
 	namespace
 	{
@@ -288,5 +288,5 @@ namespace UE::NNIHlslShaders::Internal
 		return EConvGroupSize::MAX;
 	}
 
-	IMPLEMENT_GLOBAL_SHADER(FConvCS, "/NNI/NNIHlslShadersConv.usf", "Conv", SF_Compute);
-} // UE::NNIHlslShaders::Internal
+	IMPLEMENT_GLOBAL_SHADER(FConvCS, "/NNE/NNEHlslShadersConv.usf", "Conv", SF_Compute);
+} // UE::NNEHlslShaders::Internal

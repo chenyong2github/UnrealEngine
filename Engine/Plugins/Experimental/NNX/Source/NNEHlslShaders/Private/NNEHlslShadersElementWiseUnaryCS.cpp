@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNIHlslShadersElementWiseUnaryCS.h"
+#include "NNEHlslShadersElementWiseUnaryCS.h"
 #include "NNXCore.h"
 
-namespace UE::NNIHlslShaders::Internal
+namespace UE::NNEHlslShaders::Internal
 {
 	void TElementWiseUnaryCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -78,5 +78,5 @@ namespace UE::NNIHlslShaders::Internal
 		return OpFunc;
 	}
 
-	IMPLEMENT_GLOBAL_SHADER(TElementWiseUnaryCS, "/NNI/NNIHlslShadersElementWiseUnary.usf", "ElementWiseUnary", SF_Compute);
-} // UE::NNIHlslShaders::Internal
+	IMPLEMENT_GLOBAL_SHADER(TElementWiseUnaryCS, "/NNE/NNEHlslShadersElementWiseUnary.usf", "ElementWiseUnary", SF_Compute);
+} // UE::NNEHlslShaders::Internal

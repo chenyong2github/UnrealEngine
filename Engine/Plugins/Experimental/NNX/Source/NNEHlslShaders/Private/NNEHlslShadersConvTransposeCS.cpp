@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNIHlslShadersConvTransposeCS.h"
+#include "NNEHlslShadersConvTransposeCS.h"
 
-namespace UE::NNIHlslShaders::Internal
+namespace UE::NNEHlslShaders::Internal
 {
 	void FConvTransposeCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -281,5 +281,5 @@ namespace UE::NNIHlslShaders::Internal
 		return Result;
 	}
 
-	IMPLEMENT_GLOBAL_SHADER(FConvTransposeCS, "/NNI/NNIHlslShadersConvTranspose.usf", "ConvTranspose", SF_Compute);
-} // UE::NNIHlslShaders::Internal
+	IMPLEMENT_GLOBAL_SHADER(FConvTransposeCS, "/NNE/NNEHlslShadersConvTranspose.usf", "ConvTranspose", SF_Compute);
+} // UE::NNEHlslShaders::Internal

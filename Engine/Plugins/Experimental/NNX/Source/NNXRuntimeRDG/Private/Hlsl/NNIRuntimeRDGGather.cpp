@@ -2,7 +2,7 @@
 
 #include "NNIRuntimeRDGGather.h"
 #include "NNXRuntimeHLSLHelper.h"
-#include "NNIHlslShadersGatherCS.h"
+#include "NNEHlslShadersGatherCS.h"
 #include "NNECoreAttributeMap.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
@@ -31,7 +31,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 		{
-			using namespace UE::NNIHlslShaders::Internal;
+			using namespace UE::NNEHlslShaders::Internal;
 
 			check(InputTensors.Num() == 2)
 			check(OutputTensors.Num() == 1)
@@ -54,7 +54,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const NNX::FMLTensorBinding> InInputBindings, TArrayView<const NNX::FMLTensorBinding> OutOutputBindings) override
 		{
-			using namespace UE::NNIHlslShaders::Internal;
+			using namespace UE::NNEHlslShaders::Internal;
 
 			// Set parameters
 			TGatherCS::FParameters* Parameters = GraphBuilder.AllocParameters<TGatherCS::FParameters>();

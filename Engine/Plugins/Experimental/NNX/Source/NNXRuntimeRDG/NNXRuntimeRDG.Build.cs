@@ -14,17 +14,14 @@ public class NNXRuntimeRDG : ModuleRules
 			"CoreUObject", 
 			"Engine", 
 			"InputCore",
-			"RenderCore",
-
-//			"NNXCore",
-//			"NNXHlslShaders"
+			"RenderCore"
 		});
 
         PrivateDependencyModuleNames.AddRange(new string[]
         {
             "NNXCore",
 			"NNXUtils",
-			"NNIHlslShaders",
+			"NNEHlslShaders",
             "RHI"
         });
 

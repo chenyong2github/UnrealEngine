@@ -35,7 +35,7 @@ uint4 StackShapeA_StackShapeB_StackStrideA_StackStrideB[MAX_NUM_STACK_DIMENSIONS
 
 uint3 GetMatrixStackOffsets(const uint3 GroupID)
 {
-// Must correspond to FGemmNumDimensions defined in NNIHlslShadersGemmCS.h
+// Must correspond to FGemmNumDimensions defined in NNEHlslShadersGemmCS.h
 #if NUM_STACK_DIMENSIONS == 0
 	return uint3(0, 0, 0);
 #else
@@ -77,7 +77,7 @@ uint3 GetMatrixStackOffsets(const uint3 GroupID)
 
 WORK_TYPE GetBetaTimesC(const uint3 DispatchThreadID)
 {
-// Must correspond to EGemmCScalar defined in NNIHlslShadersGemmCS.h
+// Must correspond to EGemmCScalar defined in NNEHlslShadersGemmCS.h
 #if C_SCALAR == 0
 	return Beta * READ(C[(DispatchThreadID.y % CHeight) * N + (DispatchThreadID.x % CWidth)]);
 #elif C_SCALAR == 1
@@ -87,7 +87,7 @@ WORK_TYPE GetBetaTimesC(const uint3 DispatchThreadID)
 #endif
 }
 
-// Must correspond to EGemmAlgorithm defined in NNIHlslShadersGemmCS.h
+// Must correspond to EGemmAlgorithm defined in NNEHlslShadersGemmCS.h
 #if ALGORITHM < 4
 
 #if ALGORITHM == 0

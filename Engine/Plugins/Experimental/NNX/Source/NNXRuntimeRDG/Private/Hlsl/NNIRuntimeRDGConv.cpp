@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNIRuntimeRDGConv.h"
-#include "NNIHlslShadersConvCS.h"
+#include "NNEHlslShadersConvCS.h"
 #include "NNECoreAttributeMap.h"
 #include "NNXRuntimeHLSLHelper.h"
 
@@ -9,7 +9,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
 	DECLARE_GPU_STAT_NAMED(FNNIOperatorConv, TEXT("NNI.Operator.Hlsl.Conv"));
 
-	using EConvAutoPad = UE::NNIHlslShaders::Internal::EConvAutoPad;
+	using EConvAutoPad = UE::NNEHlslShaders::Internal::EConvAutoPad;
 
 	/**
 	 * Convolution operator implementation
@@ -74,7 +74,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const NNX::FMLTensorBinding> InInputBindings, TArrayView<const NNX::FMLTensorBinding> OutOutputBindings) override
 		{
-			using namespace UE::NNIHlslShaders::Internal;
+			using namespace UE::NNEHlslShaders::Internal;
 
 			constexpr EConvAlgorithm Algorithm = EConvAlgorithm::SharedMemory;
 			constexpr EConvGroupSize GroupSize = EConvGroupSize::Size256;

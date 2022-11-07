@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNIRuntimeRDGMatMul.h"
-#include "NNIHlslShadersGemmCS.h"
+#include "NNEHlslShadersGemmCS.h"
 #include "NNXRuntimeHLSLHelper.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
@@ -40,7 +40,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 		virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const NNX::FMLTensorBinding> InInputBindings, TArrayView<const NNX::FMLTensorBinding> OutOutputBindings) override
 		{
-			using namespace UE::NNIHlslShaders::Internal;
+			using namespace UE::NNEHlslShaders::Internal;
 
 			const EGemmAlgorithm Algorithm = EGemmAlgorithm::Simple32x32;
 

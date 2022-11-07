@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNIHlslShadersElementWiseBinaryCS.h"
+#include "NNEHlslShadersElementWiseBinaryCS.h"
 #include "NNXCore.h"
 
-namespace UE::NNIHlslShaders::Internal
+namespace UE::NNEHlslShaders::Internal
 {
 	void TElementWiseBinaryCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& InParameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -55,5 +55,5 @@ namespace UE::NNIHlslShaders::Internal
 		return OpFunc;
 	}
 
-	IMPLEMENT_GLOBAL_SHADER(TElementWiseBinaryCS, "/NNI/NNIHlslShadersElementWiseBinary.usf", "ElementWiseBinary", SF_Compute);
-} // UE::NNIHlslShaders::Internal
+	IMPLEMENT_GLOBAL_SHADER(TElementWiseBinaryCS, "/NNE/NNEHlslShadersElementWiseBinary.usf", "ElementWiseBinary", SF_Compute);
+} // UE::NNEHlslShaders::Internal

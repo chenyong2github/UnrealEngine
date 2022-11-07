@@ -7,7 +7,7 @@
 #include "RenderGraphUtils.h"
 #include "NNXOperator.h"
 
-namespace UE::NNIHlslShaders::Internal
+namespace UE::NNEHlslShaders::Internal
 {
 	class FElementWiseVariadicConstants
 	{
@@ -18,7 +18,7 @@ namespace UE::NNIHlslShaders::Internal
 		static const uint32 MAX_NUM_INPUT{ 4 };
 	};
 
-	class NNIHLSLSHADERS_API TElementWiseVariadicCS : public FGlobalShader
+	class NNEHLSLSHADERS_API TElementWiseVariadicCS : public FGlobalShader
 	{
 		DECLARE_GLOBAL_SHADER(TElementWiseVariadicCS);
 		SHADER_USE_PARAMETER_STRUCT(TElementWiseVariadicCS, FGlobalShader)
@@ -51,4 +51,4 @@ namespace UE::NNIHlslShaders::Internal
 
 		static const FString GetOpFunc(EMLElementWiseVariadicOperatorType OpType);
 	};
-} // UE::NNIHlslShaders::Internal
+} // UE::NNEHlslShaders::Internal

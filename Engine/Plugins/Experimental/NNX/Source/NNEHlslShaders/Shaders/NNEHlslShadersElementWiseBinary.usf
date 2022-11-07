@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "/Engine/Public/Platform.ush"
-#include "NNIHlslShadersBroadcastHelper.ush"
+#include "NNEHlslShadersBroadcastHelper.ush"
 
 Buffer<float> LHSInput;
 Buffer<float> RHSInput;

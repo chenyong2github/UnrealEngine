@@ -8,7 +8,7 @@
 #include "Misc/Paths.h"
 #include "ShaderCore.h"
 
-class FNNIHlslShadersModule : public IModuleInterface
+class FNNEHlslShadersModule : public IModuleInterface
 {
 public:
 	// Begin IModuleInterface
@@ -20,16 +20,16 @@ public:
 		
 		if (Plugin.IsValid())
 		{
-			BaseDir = Plugin->GetBaseDir() + TEXT("/Source/NNIHlslShaders");
+			BaseDir = Plugin->GetBaseDir() + TEXT("/Source/NNEHlslShaders");
 		}
 		else
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Shaders directory not added. Failed to find NNI plugin"));
+			UE_LOG(LogNNX, Warning, TEXT("Shaders directory not added. Failed to find NNE plugin"));
 		}
 
 		FString ModuleShaderDir = FPaths::Combine(BaseDir, TEXT("Shaders"));
 		
-		AddShaderSourceDirectoryMapping(TEXT("/NNI"), ModuleShaderDir);
+		AddShaderSourceDirectoryMapping(TEXT("/NNE"), ModuleShaderDir);
 	}
 
 	virtual void ShutdownModule() override
@@ -38,4 +38,4 @@ public:
 	}
 };
 
-IMPLEMENT_MODULE(FNNIHlslShadersModule, NNIHlslShaders);
+IMPLEMENT_MODULE(FNNEHlslShadersModule, NNEHlslShaders);

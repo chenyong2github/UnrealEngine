@@ -7,7 +7,7 @@
 #include "RenderGraphUtils.h"
 #include "NNXOperator.h"
 
-namespace UE::NNIHlslShaders::Internal
+namespace UE::NNEHlslShaders::Internal
 {
 	class FElementWiseBinaryConstants
 	{
@@ -17,7 +17,7 @@ namespace UE::NNIHlslShaders::Internal
 		static const int32 NUM_GROUP_THREADS{ 256 };
 	};
 
-	class NNIHLSLSHADERS_API TElementWiseBinaryCS : public FGlobalShader
+	class NNEHLSLSHADERS_API TElementWiseBinaryCS : public FGlobalShader
 	{
 		DECLARE_GLOBAL_SHADER(TElementWiseBinaryCS);
 		SHADER_USE_PARAMETER_STRUCT(TElementWiseBinaryCS, FGlobalShader)
@@ -43,4 +43,4 @@ namespace UE::NNIHlslShaders::Internal
 
 		static const FString GetOpFunc(EMLElementWiseBinaryOperatorType OpType);
 	};
-} // UE::NNIHlslShaders::Internal
+} // UE::NNEHlslShaders::Internal

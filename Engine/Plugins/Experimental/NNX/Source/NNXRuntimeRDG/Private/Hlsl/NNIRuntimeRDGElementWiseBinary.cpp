@@ -1,15 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNIRuntimeRDGElementWiseBinary.h"
-#include "NNIHlslShadersElementWiseBinaryCS.h"
+#include "NNEHlslShadersElementWiseBinaryCS.h"
 #include "NNXRuntimeHLSLHelper.h"
 
 namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
 	DECLARE_GPU_STAT_NAMED(FNNIOperatorElementWiseBinary, TEXT("NNI.Operator.Hlsl.ElementWise.Binary"));
 
-	using TElementWiseBinaryCS = typename UE::NNIHlslShaders::Internal::TElementWiseBinaryCS;
-	using FElementWiseBinaryConstants = UE::NNIHlslShaders::Internal::FElementWiseBinaryConstants;
+	using TElementWiseBinaryCS = typename UE::NNEHlslShaders::Internal::TElementWiseBinaryCS;
+	using FElementWiseBinaryConstants = UE::NNEHlslShaders::Internal::FElementWiseBinaryConstants;
 
 	/**
 	 * Binary element-wise operator implementation

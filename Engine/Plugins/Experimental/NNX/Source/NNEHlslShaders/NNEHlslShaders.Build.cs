@@ -2,11 +2,11 @@
 
 using UnrealBuildTool;
 
-public class NNIHlslShaders : ModuleRules
+public class NNEHlslShaders : ModuleRules
 {
-	public NNIHlslShaders( ReadOnlyTargetRules Target ) : base( Target )
+	public NNEHlslShaders( ReadOnlyTargetRules Target ) : base( Target )
 	{
-        PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+        PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {

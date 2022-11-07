@@ -7,7 +7,7 @@
 #include "RenderGraphUtils.h"
 #include "NNXTypes.h"
 
-namespace UE::NNIHlslShaders::Internal
+namespace UE::NNEHlslShaders::Internal
 {
 	enum class EGemmCScalar : uint8
 	{
@@ -44,7 +44,7 @@ namespace UE::NNIHlslShaders::Internal
 		static const int32 MAX_NUM_STACK_DIMENSIONS{8};
 	};
 
-	class NNIHLSLSHADERS_API TGemmCS : public FGlobalShader
+	class NNEHLSLSHADERS_API TGemmCS : public FGlobalShader
 	{
 		DECLARE_GLOBAL_SHADER(TGemmCS);
 		SHADER_USE_PARAMETER_STRUCT(TGemmCS, FGlobalShader)
@@ -86,4 +86,4 @@ namespace UE::NNIHlslShaders::Internal
 		static FIntVector GetGroupCount(const FParameters& Parameters, EGemmAlgorithm Algorithm, int32 NumStackDimensions);
 		static EGemmAlgorithm GetAlgorithm(const FParameters& Parameters);
 	};
-} // UE::NNIHlslShaders::Internal
+} // UE::NNEHlslShaders::Internal

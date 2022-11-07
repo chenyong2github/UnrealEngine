@@ -7,7 +7,7 @@
 #define BUFFER_TO_WORK_TYPE(x) x
 #define WORK_TO_BUFFER_TYPE(x) x
 
-// Must correspond to EConvGroupSize defined in NNIHlslShadersConvCS.h
+// Must correspond to EConvGroupSize defined in NNEHlslShadersConvCS.h
 #if GROUP_SIZE == 0
 #define NUM_GROUP_THREADS 128
 #elif GROUP_SIZE == 1
@@ -69,7 +69,7 @@ float GroupsDivM; // The number of groups divided by the number of output kernel
 groupshared WORK_TYPE SharedMemoryX[NUM_GROUP_THREADS<<NUM_READS_PER_THREAD_POW2];
 groupshared WORK_TYPE SharedMemoryW[NUM_GROUP_THREADS];
 
-// Must correspond to EConvAlgorithm defined in NNIHlslShadersConvCS.h
+// Must correspond to EConvAlgorithm defined in NNEHlslShadersConvCS.h
 #if ALGORITHM < 1
 
 [numthreads(NUM_GROUP_THREADS, 1, 1)]

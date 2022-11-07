@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNIHlslShadersGemmCS.h"
+#include "NNEHlslShadersGemmCS.h"
 #include "NNXCore.h"
 #include "Algo/Accumulate.h"
 
-namespace UE::NNIHlslShaders::Internal
+namespace UE::NNEHlslShaders::Internal
 {
 	struct GemmMatrixParameters
 	{
@@ -186,5 +186,5 @@ namespace UE::NNIHlslShaders::Internal
 		return EGemmAlgorithm::MultiWrite1x32;
 	}
 
-	IMPLEMENT_GLOBAL_SHADER(TGemmCS, "/NNI/NNIHlslShadersGemm.usf", "Gemm", SF_Compute);
-} // UE::NNIHlslShaders::Internal
+	IMPLEMENT_GLOBAL_SHADER(TGemmCS, "/NNE/NNEHlslShadersGemm.usf", "Gemm", SF_Compute);
+} // UE::NNEHlslShaders::Internal

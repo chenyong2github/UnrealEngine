@@ -7,7 +7,7 @@
 #include "RenderGraphUtils.h"
 #include "NNXTypes.h"
 
-namespace UE::NNIHlslShaders::Internal
+namespace UE::NNEHlslShaders::Internal
 {
 	enum class EConvTransposeAlgorithm : uint8
 	{
@@ -41,7 +41,7 @@ namespace UE::NNIHlslShaders::Internal
 		static const int32 MAX_NUM_READS_PER_THREAD_POW2{3};
 	};
 
-	class NNIHLSLSHADERS_API FConvTransposeCS : public FGlobalShader
+	class NNEHLSLSHADERS_API FConvTransposeCS : public FGlobalShader
 	{
 		DECLARE_GLOBAL_SHADER(FConvTransposeCS);
 		SHADER_USE_PARAMETER_STRUCT(FConvTransposeCS, FGlobalShader);
@@ -105,4 +105,4 @@ namespace UE::NNIHlslShaders::Internal
 
 		static TArray<int32> GetGridShape(TArrayView<const int32> YShape, TArrayView<const int32> GroupShape);
 	};
-} // UE::NNIHlslShaders::Internal
+} // UE::NNEHlslShaders::Internal

@@ -7,7 +7,7 @@
 #include "RenderGraphUtils.h"
 #include "NNXOperator.h"
 
-namespace UE::NNIHlslShaders::Internal
+namespace UE::NNEHlslShaders::Internal
 {
 	class FElementWiseUnaryConstants
 	{
@@ -16,7 +16,7 @@ namespace UE::NNIHlslShaders::Internal
 		static const int32 NUM_GROUP_THREADS{ 256 };
 	};
 
-	class NNIHLSLSHADERS_API TElementWiseUnaryCS : public FGlobalShader
+	class NNEHLSLSHADERS_API TElementWiseUnaryCS : public FGlobalShader
 	{
 		DECLARE_GLOBAL_SHADER(TElementWiseUnaryCS);
 		SHADER_USE_PARAMETER_STRUCT(TElementWiseUnaryCS, FGlobalShader)
@@ -42,4 +42,4 @@ namespace UE::NNIHlslShaders::Internal
 
 		static const FString GetOpFunc(EMLElementWiseUnaryOperatorType OpType);
 	};
-} // UE::NNIHlslShaders::Internal
+} // UE::NNEHlslShaders::Internal

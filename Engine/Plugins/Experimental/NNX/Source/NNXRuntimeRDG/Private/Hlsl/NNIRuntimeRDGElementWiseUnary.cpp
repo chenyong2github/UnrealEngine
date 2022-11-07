@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NNIRuntimeRDGElementWiseUnary.h"
-#include "NNIHlslShadersElementWiseUnaryCS.h"
+#include "NNEHlslShadersElementWiseUnaryCS.h"
 #include "NNXRuntimeHLSLHelper.h"
 #include "NNECoreAttributeMap.h"
 
@@ -9,8 +9,8 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 {
 	DECLARE_GPU_STAT_NAMED(FNNIOperatorElementWiseUnary, TEXT("NNI.Operator.Hlsl.ElementWise.Unary"));
 
-	using TElementWiseUnaryCS = typename UE::NNIHlslShaders::Internal::TElementWiseUnaryCS;
-	using FElementWiseUnaryConstants = UE::NNIHlslShaders::Internal::FElementWiseUnaryConstants;
+	using TElementWiseUnaryCS = typename UE::NNEHlslShaders::Internal::TElementWiseUnaryCS;
+	using FElementWiseUnaryConstants = UE::NNEHlslShaders::Internal::FElementWiseUnaryConstants;
 
 	/**
 	 * Unary element-wise operator implementation

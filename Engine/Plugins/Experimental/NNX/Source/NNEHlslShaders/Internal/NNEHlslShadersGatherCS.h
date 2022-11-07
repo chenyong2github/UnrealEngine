@@ -7,7 +7,7 @@
 #include "RenderGraphUtils.h"
 #include "NNXTypes.h"
 
-namespace UE::NNIHlslShaders::Internal
+namespace UE::NNEHlslShaders::Internal
 {
 	class FGatherConstants
 	{
@@ -18,7 +18,7 @@ namespace UE::NNIHlslShaders::Internal
 	};
 
 	// template <typename DataElementType, typename IndicesElementType>
-	class NNIHLSLSHADERS_API TGatherCS : public FGlobalShader
+	class NNEHLSLSHADERS_API TGatherCS : public FGlobalShader
 	{
 		DECLARE_GLOBAL_SHADER(TGatherCS);
 		SHADER_USE_PARAMETER_STRUCT(TGatherCS, FGlobalShader)
@@ -46,4 +46,4 @@ namespace UE::NNIHlslShaders::Internal
 
 		static FIntVector GetGroupCount(const FParameters& Parameters);
 	};
-} // UE::NNIHlslShaders::Internal
+} // UE::NNEHlslShaders::Internal
