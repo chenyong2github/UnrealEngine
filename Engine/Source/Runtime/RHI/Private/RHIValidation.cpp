@@ -186,8 +186,9 @@ IRHIPlatformCommandList* FValidationRHI::RHIFinalizeContext(IRHIComputeContext* 
 
 	FValidationCommandList* OuterCommandList = new FValidationCommandList();
 
-	OuterCommandList->InnerCommandList = RHI->RHIFinalizeContext(&InnerContext);
+	// RHIFinalizeContext makes the context available to other threads, so finalize the tracker beforehand.
 	OuterCommandList->CompletedOpList = InnerContext.Tracker->Finalize();
+	OuterCommandList->InnerCommandList = RHI->RHIFinalizeContext(&InnerContext);
 	OuterCommandList->Pipeline = OuterContext->GetPipeline();
 
 	switch (OuterCommandList->Pipeline)
