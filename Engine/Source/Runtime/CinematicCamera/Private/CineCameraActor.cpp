@@ -20,6 +20,10 @@ ACineCameraActor::ACineCameraActor(const FObjectInitializer& ObjectInitializer)
 
 	PrimaryActorTick.bCanEverTick = true;
 	SetActorTickEnabled(true);
+
+#if WITH_EDITORONLY_DATA
+	bIsSpatiallyLoaded = false;
+#endif
 }
 
 void ACineCameraActor::PostInitializeComponents()
