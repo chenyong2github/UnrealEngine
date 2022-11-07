@@ -1744,8 +1744,8 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(
 	const FVector3f ViewOrigin = (FVector3f)ViewMatrices.GetViewOrigin();
 	const FVector3f PlanetCenter = (FVector3f)Atmosphere.PlanetCenterKm * KM_TO_CM;	// LWC_TODO: Precision Loss
 	const float TopOfAtmosphere = Atmosphere.TopRadiusKm * KM_TO_CM;
-	const float PlanetRadiusTraceSafeEdgeCm = 1000.0f;	// 10 meters, must match PLANET_RADIUS_SAFE_TRACE_EDGE
-	const bool ForceRayMarching = SkyRC.bForceRayMarching || (FVector3f::Distance(ViewOrigin, PlanetCenter) - TopOfAtmosphere - PlanetRadiusTraceSafeEdgeCm) > 0.0f;
+	const float PLANET_RADIUS_RATIO_SAFE_EDGE = 1.00000155763f; // must match PLANET_RADIUS_SAFE_TRACE_EDGE
+	const bool ForceRayMarching = SkyRC.bForceRayMarching || (FVector3f::Distance(ViewOrigin, PlanetCenter) >= (TopOfAtmosphere * PLANET_RADIUS_RATIO_SAFE_EDGE));
 	const bool bDisableBlending = SkyRC.bDisableBlending;
 
 	// We only support MSAA up to 8 sample and in forward

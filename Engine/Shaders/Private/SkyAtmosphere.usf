@@ -883,7 +883,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 
 	float ViewHeight = length(WorldPos);
 #if FASTSKY_ENABLED && RENDERSKY_ENABLED
-	if (ViewHeight < (Atmosphere.TopRadiusKm + PLANET_RADIUS_SAFE_TRACE_EDGE) && DeviceZ == FarDepthValue)
+	if (ViewHeight < (Atmosphere.TopRadiusKm * PLANET_RADIUS_RATIO_SAFE_EDGE) && DeviceZ == FarDepthValue)
 	{
 		float2 UV;
 
