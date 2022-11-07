@@ -437,14 +437,14 @@ namespace PropertyCustomizationHelpers
 		TArray<UFactory*> FilteredFactories;
 
 		for (UFactory* Factory : AllFactories)
-				{
-					UClass* SupportedClass = Factory->GetSupportedClass();
+		{
+			UClass* SupportedClass = Factory->GetSupportedClass();
 			auto IsChildOfLambda = [SupportedClass](const UClass* InClass) { return SupportedClass->IsChildOf(InClass); };
 
-					if (SupportedClass != nullptr 
+			if (SupportedClass != nullptr 
 				&& Classes.ContainsByPredicate(IsChildOfLambda)
 				&& !DisallowedClasses.ContainsByPredicate(IsChildOfLambda))
-					{
+			{
 				FilteredFactories.Add(Factory);
 			}
 		}
