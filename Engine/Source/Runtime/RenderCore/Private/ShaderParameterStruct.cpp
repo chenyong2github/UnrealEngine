@@ -493,7 +493,7 @@ struct FShaderParameterReader
 
 #if DO_CHECK
 
-void ValidateShaderParameters(const TShaderRef<FShader>& Shader, const FShaderParametersMetadata* ParametersMetadata, const void* ParametersData, uint64 ParametersSize)
+void ValidateShaderParameters(const TShaderRef<FShader>& Shader, const FShaderParametersMetadata* ParametersMetadata, const void* ParametersData)
 {
 	const FShaderParameterBindings& Bindings = Shader->Bindings;
 
@@ -502,7 +502,7 @@ void ValidateShaderParameters(const TShaderRef<FShader>& Shader, const FShaderPa
 		TEXT("Shader %s's parameter structure has changed without recompilation of the shader"),
 		Shader.GetType()->GetName());
 
-	const FShaderParameterReader Reader(ParametersData, ParametersSize);
+	const FShaderParameterReader Reader(ParametersData, ParametersMetadata->GetSize());
 
 	const TCHAR* ShaderClassName = Shader.GetType()->GetName();
 	const TCHAR* ShaderParameterStructName = ParametersMetadata->GetStructTypeName();
@@ -715,11 +715,12 @@ inline void SetShaderParametersInternal(
 	TRHICmdList& RHICmdList,
 	TShaderRHI* ShaderRHI,
 	const FShaderParameterBindings& Bindings,
-	const void* ParametersData, uint64 ParametersSize)
+	const FShaderParametersMetadata* ParametersMetadata,
+	const void* ParametersData)
 {
 	checkf(Bindings.RootParameterBufferIndex == FShaderParameterBindings::kInvalidBufferIndex, TEXT("Can't use SetShaderParameters() for root parameter buffer index."));
 
-	FShaderParameterReader Reader(ParametersData, ParametersSize);
+	FShaderParameterReader Reader(ParametersData, ParametersMetadata->GetSize());
 
 	// Parameters
 	for (const FShaderParameterBindings::FParameter& Parameter : Bindings.Parameters)
@@ -831,37 +832,40 @@ void SetShaderParameters(
 	FRHIComputeCommandList& RHICmdList,
 	FRHIComputeShader* ShaderRHI,
 	const FShaderParameterBindings& Bindings,
-	const void* ParametersData, uint64 ParametersSize)
+	const FShaderParametersMetadata* ParametersMetadata,
+	const void* ParametersData)
 {
-	SetShaderParametersInternal(RHICmdList, ShaderRHI, Bindings, ParametersData, ParametersSize);
+	SetShaderParametersInternal(RHICmdList, ShaderRHI, Bindings, ParametersMetadata, ParametersData);
 }
 
 void SetShaderParameters(
 	FRHICommandList& RHICmdList,
 	FRHIGraphicsShader* ShaderRHI,
 	const FShaderParameterBindings& Bindings,
-	const void* ParametersData, uint64 ParametersSize)
+	const FShaderParametersMetadata* ParametersMetadata,
+	const void* ParametersData)
 {
-	SetShaderParametersInternal(RHICmdList, ShaderRHI, Bindings, ParametersData, ParametersSize);
+	SetShaderParametersInternal(RHICmdList, ShaderRHI, Bindings, ParametersMetadata, ParametersData);
 }
 
 void SetShaderParameters(
 	FRHICommandList& RHICmdList,
 	FRHIComputeShader* ShaderRHI,
 	const FShaderParameterBindings& Bindings,
-	const void* ParametersData, uint64 ParametersSize)
+	const FShaderParametersMetadata* ParametersMetadata,
+	const void* ParametersData)
 {
-	SetShaderParametersInternal(RHICmdList, ShaderRHI, Bindings, ParametersData, ParametersSize);
+	SetShaderParametersInternal(RHICmdList, ShaderRHI, Bindings, ParametersMetadata, ParametersData);
 }
 
 #if RHI_RAYTRACING
 void SetShaderParameters(
 	FRayTracingShaderBindingsWriter& RTBindingsWriter,
 	const FShaderParameterBindings& Bindings,
-	const FRHIUniformBufferLayout* RootUniformBufferLayout,
-	const void* ParametersData, uint64 ParametersSize)
+	const FShaderParametersMetadata* ParametersMetadata,
+	const void* ParametersData)
 {
-	const FShaderParameterReader Reader(ParametersData, ParametersSize);
+	const FShaderParameterReader Reader(ParametersData, ParametersMetadata->GetSize());
 
 	for (const FShaderParameterBindings::FResourceParameter& Parameter : Bindings.ResourceParameters)
 	{
@@ -947,7 +951,7 @@ void SetShaderParameters(
 		// Do not do any validation at some resources may have been removed from the structure because known to not be used by the shader.
 		EUniformBufferValidation Validation = EUniformBufferValidation::None;
 
-		RTBindingsWriter.RootUniformBuffer = RHICreateUniformBuffer(ParametersData, RootUniformBufferLayout, UniformBuffer_SingleDraw, Validation);
+		RTBindingsWriter.RootUniformBuffer = RHICreateUniformBuffer(ParametersData, ParametersMetadata->GetLayoutPtr(), UniformBuffer_SingleDraw, Validation);
 		RTBindingsWriter.SetUniformBuffer(Bindings.RootParameterBufferIndex, RTBindingsWriter.RootUniformBuffer);
 	}
 }

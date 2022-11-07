@@ -210,7 +210,7 @@ void ClearUnusedGraphResources(
 	// Verify the shader have all the parameters it needs. This is done before the
 	// ClearUnusedGraphResourcesImpl() to not mislead user on why some resource are missing
 	// when debugging a validation failure.
-	ValidateShaderParameters(Shader, ParametersMetadata, InoutParameters, sizeof(*InoutParameters));
+	ValidateShaderParameters(Shader, ParametersMetadata, InoutParameters);
 
 	// Clear the resources the shader won't need.
 	return ClearUnusedGraphResourcesImpl(Shader->Bindings, ParametersMetadata, InoutParameters, ExcludeList);
@@ -240,8 +240,8 @@ void ClearUnusedGraphResources(
 	// Verify the shader have all the parameters it needs. This is done before the
 	// ClearUnusedGraphResourcesImpl() to not mislead user on why some resource are missing
 	// when debugging a validation failure.
-	ValidateShaderParameters(ShaderA, ParametersMetadata, InoutParameters, sizeof(*InoutParameters));
-	ValidateShaderParameters(ShaderB, ParametersMetadata, InoutParameters, sizeof(*InoutParameters));
+	ValidateShaderParameters(ShaderA, ParametersMetadata, InoutParameters);
+	ValidateShaderParameters(ShaderB, ParametersMetadata, InoutParameters);
 
 	// Clear the resources the shader won't need.
 	const FShaderParameterBindings* ShaderBindings[] = { &ShaderA->Bindings, &ShaderB->Bindings };
