@@ -25,6 +25,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STreeView.h"
+#include "StringPrefixTree.h"
 
 class FAssetThumbnailPool;
 class FDetailCategoryImpl;
@@ -374,7 +375,7 @@ protected:
 	/** Map of nodes that are requesting an automatic expansion/collapse due to being filtered */
 	TMap< TWeakPtr<FDetailTreeNode>, bool > FilteredNodesRequestingExpansionState;
 	/** Current set of expanded detail nodes (by path) that should be saved when the details panel closes */
-	TSet<FString> ExpandedDetailNodes;
+	FStringPrefixTree ExpandedDetailNodes;
 	/** Tree view */
 	TSharedPtr<SDetailTree> DetailTree;
 	/** Root tree nodes visible in the tree */
@@ -427,8 +428,8 @@ protected:
 	/** Timer for that current node's widget animation duration. */
 	FTimerHandle AnimateNodeTimer;
 
-	TSet<FString> PreSearchExpandedItems;
-	TSet<FString> PreSearchExpandedCategories;
+	FStringPrefixTree PreSearchExpandedItems;
+	FStringPrefixTree PreSearchExpandedCategories;
 
 	/** Executed when the tree is refreshed */
 	FOnDisplayedPropertiesChanged OnDisplayedPropertiesChangedDelegate;

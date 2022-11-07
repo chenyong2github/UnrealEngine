@@ -216,7 +216,7 @@ void SStructureDetailsView::SetStructureData(TSharedPtr<FStructOnScope> InStruct
 	RootNodesPendingKill.Add(RootNode);
 
 	RootNodes.Empty(1);
-	ExpandedDetailNodes.Empty();
+	ExpandedDetailNodes.Clear();
 
 	RootNode = MakeShareable(new FStructurePropertyNode);
 	RootNodes.Add(RootNode);

@@ -896,7 +896,7 @@ void SDetailsView::PreSetObject(int32 InNewNumObjects)
 	}
 
 	RootPropertyNodes.Empty(InNewNumObjects);
-	ExpandedDetailNodes.Empty();
+	ExpandedDetailNodes.Clear();
 
 	for (int32 NewRootIndex = 0; NewRootIndex < InNewNumObjects; ++NewRootIndex)
 	{
