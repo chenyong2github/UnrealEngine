@@ -29,11 +29,11 @@ POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "ISteamVRInputDeviceModule.h"
-#include "IInputDevice.h"
-#include "Runtime/Projects/Public/Interfaces/IPluginManager.h"
-#include "SteamVRInputDevice.h"
 #include "Engine/Engine.h"
+#include "IInputDevice.h"
 #include "IXRTrackingSystem.h"
+#include "Interfaces/IPluginManager.h"
+#include "SteamVRInputDevice.h"
 
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"

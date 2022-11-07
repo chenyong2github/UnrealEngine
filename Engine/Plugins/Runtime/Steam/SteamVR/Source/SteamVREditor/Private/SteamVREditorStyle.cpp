@@ -29,8 +29,8 @@ POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "SteamVREditorStyle.h"
+#include "Interfaces/IPluginManager.h"
 #include "SteamVREditor.h"
-#include "Runtime/Projects/Public/Interfaces/IPluginManager.h"
 
 TSharedPtr< FSlateStyleSet > FSteamVREditorStyle::StyleInstance = NULL;
 

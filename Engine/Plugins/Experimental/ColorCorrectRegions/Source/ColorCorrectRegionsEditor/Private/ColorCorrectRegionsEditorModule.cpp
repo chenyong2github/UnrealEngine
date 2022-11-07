@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ColorCorrectRegionsEditorModule.h"
-#include "Editor/PlacementMode/Public/IPlacementModeModule.h"
-#include "ColorCorrectRegion.h"
-#include "ColorCorrectWindow.h"
-#include "ColorCorrectRegionsStyle.h"
-#include "ColorCorrectRegionCustomization.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
+#include "ColorCorrectRegion.h"
+#include "ColorCorrectRegionCustomization.h"
+#include "ColorCorrectRegionsStyle.h"
+#include "ColorCorrectWindow.h"
+#include "IPlacementModeModule.h"
 
 #define LOCTEXT_NAMESPACE "FColorCorrectRegionsModule"
 

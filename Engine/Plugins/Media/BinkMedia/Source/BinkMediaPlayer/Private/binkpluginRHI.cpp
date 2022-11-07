@@ -8,17 +8,16 @@
 #include "binkplugin.h"
 
 #include "CoreMinimal.h"
-#include "UObject/ConstructorHelpers.h"
-#include "RHI.h"
+#include "MaterialShader.h"
+#include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
-#include "Materials/Material.h"
-#include "Runtime/RHI/Public/RHIStaticStates.h"
-#include "Runtime/RenderCore/Public/ShaderParameterUtils.h"
-#include "Runtime/RenderCore/Public/RenderResource.h"
-#include "Runtime/Renderer/Public/MaterialShader.h"
-#include "Runtime/RenderCore/Public/RenderGraphResources.h"
-#include "Runtime/RenderCore/Public/RenderGraphResources.h"
+#include "RHI.h"
+#include "RHIStaticStates.h"
+#include "RenderGraphResources.h"
+#include "RenderResource.h"
+#include "ShaderParameterUtils.h"
+#include "UObject/ConstructorHelpers.h"
 
 static BINKSHADERS * shaders;
 

@@ -9,10 +9,10 @@
 #include "DataprepEditorModule.h"
 #include "DataprepFactories.h"
 
-#include "Developer/AssetTools/Public/IAssetTools.h"
-#include "Developer/AssetTools/Public/AssetToolsModule.h"
-#include "IContentBrowserSingleton.h"
+#include "AssetToolsModule.h"
 #include "ContentBrowserModule.h"
+#include "IAssetTools.h"
+#include "IContentBrowserSingleton.h"
 
 // UI
 #include "Framework/MultiBox/MultiBoxBuilder.h"

@@ -18,22 +18,22 @@ TArray< FTexture2DRHIRef > BinkActiveTextureRefs;
 
 #if BINKPLUGIN_UE4_EDITOR
 class UFactory;
-#include "ISettingsModule.h"
-#include "PropertyEditorModule.h"
-#include "PropertyCustomizationHelpers.h"
+#include "DesktopPlatformModule.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
-#include "IDetailPropertyRow.h"
-#include "DesktopPlatformModule.h"
+#include "Editor.h"
 #include "EditorDirectories.h"
-#include "SourceControlHelpers.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "Widgets/Notifications/SNotificationList.h"
-#include "Widgets/Input/SFilePathPicker.h"
-#include "Editor/MainFrame/Public/Interfaces/IMainFrameModule.h"
-#include "Editor/UnrealEd/Public/Editor.h"
-#include "IDetailCustomization.h"
 #include "IDetailChildrenBuilder.h"
+#include "IDetailCustomization.h"
+#include "IDetailPropertyRow.h"
+#include "ISettingsModule.h"
+#include "Interfaces/IMainFrameModule.h"
+#include "PropertyCustomizationHelpers.h"
+#include "PropertyEditorModule.h"
+#include "SourceControlHelpers.h"
+#include "Widgets/Input/SFilePathPicker.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 #include "BinkMediaPlayer.h"
 

@@ -9,11 +9,11 @@
 #include "DatasmithSceneActorDetailsPanel.h"
 #include "DatasmithSceneDetails.h"
 
+#include "AssetToolsModule.h"
 #include "DatasmithAssetImportData.h"
 #include "DatasmithScene.h"
-#include "Developer/AssetTools/Public/IAssetTools.h"
-#include "Developer/AssetTools/Public/AssetToolsModule.h"
 #include "Engine/Blueprint.h"
+#include "IAssetTools.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 

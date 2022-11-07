@@ -17,13 +17,13 @@
 #include "IHeadMountedDisplayVulkanExtensions.h"
 
 #include "EngineAnalytics.h"
-#include "Runtime/Analytics/Analytics/Public/Interfaces/IAnalyticsProvider.h"
+#include "Interfaces/IAnalyticsProvider.h"
 
 #include "Engine/Canvas.h"
 #include "CanvasItem.h"
 
 #if WITH_EDITOR
-#include "Editor/UnrealEd/Classes/Editor/EditorEngine.h"
+#include "Editor/EditorEngine.h"
 #endif
 
 #ifndef ARRAYSIZE

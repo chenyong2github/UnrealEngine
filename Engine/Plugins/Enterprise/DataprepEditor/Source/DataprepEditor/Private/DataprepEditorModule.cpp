@@ -13,8 +13,8 @@
 #include "Widgets/SDataprepEditorViewport.h"
 #include "Widgets/SDataprepProducersWidget.h"
 
-#include "Developer/AssetTools/Public/IAssetTools.h"
-#include "Developer/AssetTools/Public/AssetToolsModule.h"
+#include "AssetToolsModule.h"
+#include "IAssetTools.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/PackageName.h"
 #include "Modules/ModuleManager.h"

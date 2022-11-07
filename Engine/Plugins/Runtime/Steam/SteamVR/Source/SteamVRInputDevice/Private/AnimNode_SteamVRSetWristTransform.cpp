@@ -29,9 +29,9 @@ POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "AnimNode_SteamVRSetWristTransform.h"
-#include "ISteamVRInputDeviceModule.h"
+#include "Animation/AnimInstanceProxy.h"
 #include "AnimationRuntime.h"
-#include "Runtime/Engine/Public/Animation/AnimInstanceProxy.h"
+#include "ISteamVRInputDeviceModule.h"
 #include "SteamVRInputDevice.h"
 #include "UE4HandSkeletonDefinition.h"
 

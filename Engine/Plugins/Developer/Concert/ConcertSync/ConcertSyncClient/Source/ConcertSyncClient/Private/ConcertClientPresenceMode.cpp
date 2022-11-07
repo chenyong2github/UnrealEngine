@@ -24,13 +24,13 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "EditorWorldExtension.h"
-#include "LevelEditor.h"
 #include "IAssetViewport.h"
-#include "SLevelViewport.h"
 #include "IVREditorModule.h"
-#include "VREditorMode.h"
+#include "LevelEditor.h"
+#include "SLevelViewport.h"
+#include "Teleporter/VREditorTeleporter.h"
 #include "VREditorInteractor.h"
-#include "Editor/VREditor/Teleporter/VREditorTeleporter.h"
+#include "VREditorMode.h"
 #include "ViewportWorldInteraction.h"
 #endif
 
