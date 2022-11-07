@@ -358,6 +358,9 @@ void FChaosClothAssetEditorToolkit::PostInitAssetEditor()
 		// toward camera for z ordering because non-translucent materials start occluding themselves (once
 		// the component bounds are behind the displaced geometry).
 		Client->EngineShowFlags.SetDisableOcclusionQueries(true);
+
+		// Default FOV of 90 degrees causes a fair bit of lens distortion, especially noticeable with smaller viewports
+		Client->ViewFOV = 45.0;
 	};
 
 	{
