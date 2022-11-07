@@ -2483,13 +2483,23 @@ void FMediaPlayerFacade::ProcessAudioSamples(IMediaSamples& Samples, TRange<FTim
 			// Do we have video playback?
 			if (HaveVideoPlayback())
 			{
+				TRange<FMediaTimeStamp> TempRange;
 				// We got video and audio, but no audio sink - throw away anything up to video playback time...
 				// (rough estimate, as this is off-gamethread; but better than throwing things out with no throttling at all)
 				{
+					bool bReverse = (CurrentRate < 0.0f);
 					FScopeLock Lock(&LastTimeValuesCS);
-					TimeRange.SetUpperBound(TRangeBound<FTimespan>(CurrentFrameVideoTimeStamp.Time));
+					if (!bReverse)
+					{
+						TempRange.SetUpperBound(CurrentFrameVideoTimeStamp);
+					}
+					else
+					{
+						TempRange.SetLowerBound(CurrentFrameVideoTimeStamp);
+					}
+
 				}
-				while (Samples.FetchAudio(TimeRange, Sample))
+				while (Samples.FetchAudio(TempRange, Sample))
 					;
 			}
 			else

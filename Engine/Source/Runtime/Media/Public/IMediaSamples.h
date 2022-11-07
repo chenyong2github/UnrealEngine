@@ -37,6 +37,10 @@ public:
 	{
 		return false; // override in child classes, if supported
 	}
+	virtual bool FetchAudio(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaAudioSample, ESPMode::ThreadSafe>& OutSample)
+	{
+		return false; // override in child classes, if supported
+	}
 
 	/**
 	 * Fetch the next caption sample.

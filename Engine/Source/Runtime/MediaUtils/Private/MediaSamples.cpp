@@ -92,6 +92,11 @@ bool FMediaSamples::FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaTex
 	return FetchSample(VideoSampleQueue, TimeRange, OutSample);
 }
 
+bool FMediaSamples::FetchAudio(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaAudioSample, ESPMode::ThreadSafe>& OutSample)
+{
+	return FetchSample(AudioSampleQueue, TimeRange, OutSample);
+}
+
 bool FMediaSamples::FetchCaption(TRange<FMediaTimeStamp> TimeRange, TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe>& OutSample)
 {
 	return FetchSample(CaptionSampleQueue, TimeRange, OutSample);
