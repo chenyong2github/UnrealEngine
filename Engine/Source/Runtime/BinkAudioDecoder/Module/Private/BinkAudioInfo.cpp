@@ -9,7 +9,7 @@
 #include "binka_ue_decode.h"
 
 #if !defined(PLATFORM_LITTLE_ENDIAN) || !PLATFORM_LITTLE_ENDIAN
-#error Bink Audio hasn't been updated for big endian.
+#error "Bink Audio hasn't been updated for big endian."
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogBinkAudioDecoder, Log, All);
