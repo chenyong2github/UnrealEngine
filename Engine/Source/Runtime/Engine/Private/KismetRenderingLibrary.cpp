@@ -14,6 +14,7 @@
 #include "TextureResource.h"
 #include "SceneUtils.h"
 #include "Logging/MessageLog.h"
+#include "Engine/GameViewportClient.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/TextureRenderTarget2DArray.h"
 #include "Engine/TextureRenderTargetVolume.h"
@@ -883,6 +884,18 @@ void UKismetRenderingLibrary::SetCastInsetShadowForAllAttachments(UPrimitiveComp
 ENGINE_API FMatrix UKismetRenderingLibrary::CalculateProjectionMatrix(const FMinimalViewInfo& MinimalViewInfo)
 {
 	return MinimalViewInfo.CalculateProjectionMatrix();
+}
+
+ENGINE_API void UKismetRenderingLibrary::EnablePathTracing(bool bEnablePathTracer)
+{
+	if (GEngine != nullptr && GEngine->GameViewport != nullptr)
+	{
+		FEngineShowFlags* EngineShowFlags = GEngine->GameViewport->GetEngineShowFlags();
+		if (EngineShowFlags != nullptr)
+		{
+			EngineShowFlags->SetPathTracing(bEnablePathTracer);
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

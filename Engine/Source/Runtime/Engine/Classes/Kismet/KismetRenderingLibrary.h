@@ -205,4 +205,10 @@ class UKismetRenderingLibrary : public UBlueprintFunctionLibrary
 	/** Calculates the projection matrix using this view info's aspect ratio (regardless of bConstrainAspectRatio) */
 	UFUNCTION(BlueprintPure, Category="Rendering", meta = (DisplayName = "Calculate Projection Matrix (Minimal View Info)", ScriptMethod = "CalculateProjectionMatrix"))
 	static ENGINE_API FMatrix CalculateProjectionMatrix(const FMinimalViewInfo& MinimalViewInfo);
+
+	/** Enables or disables the path tracer for all viewports simulatenously.
+	 * This command is equivalent to setting ShowFlag.PathTracing, but is accessible even from shipping builds.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Rendering", meta = (Keywords="EnablePathTracing"))
+	static ENGINE_API void EnablePathTracing(bool bEnablePathTracer);
 };
