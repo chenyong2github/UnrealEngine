@@ -423,7 +423,7 @@ namespace EpicGames.Core
 		/// <param name="dictionary">The dictionary to write</param>
 		/// <param name="writeKey">Delegate to write an individual key</param>
 		/// <param name="writeValue">Delegate to write an individual value</param>
-		public static void WriteDictionary<TKey, TValue>(this IMemoryWriter writer, IReadOnlyDictionary<TKey, TValue> dictionary, Action<TKey> writeKey, Action<TValue> writeValue)
+		public static void WriteDictionary<TKey, TValue>(this IMemoryWriter writer, IReadOnlyDictionary<TKey, TValue> dictionary, Action<TKey> writeKey, Action<TValue> writeValue) where TKey : notnull
 		{
 			writer.WriteUnsignedVarInt(dictionary.Count);
 			foreach (KeyValuePair<TKey, TValue> kvp in dictionary)
