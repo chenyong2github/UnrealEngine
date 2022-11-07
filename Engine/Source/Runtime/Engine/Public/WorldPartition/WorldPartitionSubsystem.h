@@ -7,6 +7,7 @@
 #include "WorldPartitionSubsystem.generated.h"
 
 class UWorldPartition;
+class FWorldPartitionActorDesc;
 
 enum class EWorldPartitionRuntimeCellState : uint8;
 
