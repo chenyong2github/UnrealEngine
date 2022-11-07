@@ -531,6 +531,10 @@ struct NIAGARA_API FNiagaraDebugHUDSettingsData
 	UPROPERTY(Config, EditAnywhere, Category = "Debug System")
 	bool bSystemShowBounds = false;
 
+	/** When bounds display is enabled allows you to draw a solid box if alpha is > 0. */
+	UPROPERTY(Config, EditAnywhere, Category = "Debug System", meta = (EditCondition = "bSystemShowBounds"))
+	float SystemBoundsSolidBoxAlpha = 0.0f;
+
 	/** When disabled in world rendering will show systems deactivated by scalability. */
 	UPROPERTY(Config, EditAnywhere, Category = "Debug System", meta = (EditCondition = "SystemDebugVerbosity != ENiagaraDebugHudVerbosity::None"))
 	bool bSystemShowActiveOnlyInWorld = true;
