@@ -91,3 +91,12 @@ void FChaosClothAssetEditor3DViewportClient::Draw(const FSceneView* View, FPrimi
 
 }
 
+FBox FChaosClothAssetEditor3DViewportClient::PreviewBoundingBox() const
+{
+	if (ClothEdMode)
+	{
+		return ClothEdMode->PreviewBoundingBox();
+	}
+
+	return FBox(ForceInitToZero);
+}

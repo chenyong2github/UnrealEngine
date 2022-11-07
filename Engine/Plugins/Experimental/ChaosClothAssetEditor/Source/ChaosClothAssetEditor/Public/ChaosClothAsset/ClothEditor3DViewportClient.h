@@ -40,6 +40,7 @@ public:
 	void ResumeSimulation();
 	bool IsSimulationSuspended() const;
 
+	FBox PreviewBoundingBox() const;
 
 private:
 

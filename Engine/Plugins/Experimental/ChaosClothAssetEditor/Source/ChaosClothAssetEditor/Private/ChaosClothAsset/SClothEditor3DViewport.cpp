@@ -82,4 +82,10 @@ TSharedPtr<SWidget> SChaosClothAssetEditor3DViewport::MakeViewportToolbar()
 		.CommandList(CommandList);
 }
 
+void SChaosClothAssetEditor3DViewport::OnFocusViewportToSelection()
+{
+	const FBox PreviewBoundingBox = StaticCastSharedPtr<FChaosClothAssetEditor3DViewportClient>(Client)->PreviewBoundingBox();
+	Client->FocusViewportOnBox(PreviewBoundingBox);
+}
+
 #undef LOCTEXT_NAMESPACE

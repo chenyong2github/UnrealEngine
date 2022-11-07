@@ -15,5 +15,5 @@ public:
 	// SAssetEditorViewport
 	virtual void BindCommands() override;
 	virtual TSharedPtr<SWidget> MakeViewportToolbar() override;
-
+	virtual void OnFocusViewportToSelection() override;
 };

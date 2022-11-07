@@ -66,22 +66,6 @@ namespace ChaosClothAssetEditorModeLocals
 		// TODO: use a non-temp category
 		UE_LOG(LogTemp, Warning, TEXT("%s"), *Error.ToString());
 	}
-
-	FBoxSphereBounds RenderMeshBounds(const UE::Chaos::ClothAsset::FClothPatternConstAdapter& ClothPatternAdapter)
-	{
-		const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothPatternAdapter.GetClothCollection();
-		const int32 PatternElementIndex = ClothPatternAdapter.GetElementIndex();
-
-		const int32 RenderVerticesStart = ClothCollection->RenderVerticesStart[PatternElementIndex];
-		const int32 RenderVerticesEnd = ClothCollection->RenderVerticesEnd[PatternElementIndex];
-
-		const FVector3f* RawArray = &ClothCollection->RenderPosition[0] + RenderVerticesStart;
-		const int32 NumPoints = RenderVerticesEnd - RenderVerticesStart;
-		const FBoxSphereBounds3f Bounds(RawArray, NumPoints);
-
-		return FBoxSphereBounds(Bounds);
-	}
-
 }		// namespace ChaosClothAssetEditorModeLocals
 
 const FToolTargetTypeRequirements& UChaosClothAssetEditorMode::GetToolTargetRequirements()
@@ -832,37 +816,13 @@ FBox UChaosClothAssetEditorMode::SelectionBoundingBox() const
 
 FBox UChaosClothAssetEditorMode::PreviewBoundingBox() const
 {
-	FBoxSphereBounds TotalBounds(ForceInit);
-
-	bool bAnyValid = false;
-
-	if (ClothComponent && ClothComponent->GetClothAsset())
+	if (ClothComponent)
 	{
-		const UChaosClothAsset* ChaosClothAsset = ClothComponent->GetClothAsset();
-		const UE::Chaos::ClothAsset::FClothConstAdapter ClothAdapter(ChaosClothAsset->GetClothCollection());
-
-		for (int32 LodIndex = 0; LodIndex < ClothAdapter.GetNumLods(); ++LodIndex)
-		{
-			const UE::Chaos::ClothAsset::FClothLodConstAdapter ClothLodAdapter = ClothAdapter.GetLod(LodIndex);
-
-			for (int32 PatternIndex = 0; PatternIndex < ClothLodAdapter.GetNumPatterns(); ++PatternIndex)
-			{
-				const UE::Chaos::ClothAsset::FClothPatternConstAdapter ClothPatternAdapter = ClothLodAdapter.GetPattern(PatternIndex);
-				FBoxSphereBounds BoxSphere = ChaosClothAssetEditorModeLocals::RenderMeshBounds(ClothPatternAdapter);
-				TotalBounds = TotalBounds + BoxSphere;
-				bAnyValid = true;
-			}
-		}
+		FBoxSphereBounds Bounds = ClothComponent->Bounds;
+		return Bounds.GetBox();
 	}
 
-	if (bAnyValid)
-	{
-		return TotalBounds.GetBox();
-	}
-	else
-	{
-		return FBox(ForceInitToZero);
-	}
+	return FBox(ForceInitToZero);
 }
 
 bool UChaosClothAssetEditorMode::IsPattern2DModeActive() const
