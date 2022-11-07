@@ -53,6 +53,9 @@ public:
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual bool IsHidingPinWidgets() const override { return UseLowDetailNodeContent(); }
 	virtual bool UseLowDetailPinNames() const override;
+	virtual void UpdateGraphNode() override;
+	void UpdateStandardNode();
+	void UpdateCompactNode();
 
 	void CreateAggregateAddPinButton();
 

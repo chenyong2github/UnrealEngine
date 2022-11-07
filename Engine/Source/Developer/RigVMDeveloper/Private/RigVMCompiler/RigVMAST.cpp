@@ -3594,6 +3594,7 @@ FString FRigVMParserAST::GetLinkAsString(const FRigVMASTLinkDescription& InLink)
 	static const FString EmptyString;
 	static const FString PeriodString = TEXT(".");
 
-	return FString::Printf(TEXT("%s -> %s%s%s"), *SourcePin->GetPinPath(), *TargetPin->GetPinPath(),
-		*(InLink.SegmentPath.IsEmpty() ? EmptyString : PeriodString), *InLink.SegmentPath);
+	return URigVMLink::GetPinPathRepresentation(SourcePin->GetPinPath(), 
+		 FString::Printf(TEXT("%s%s%s"), *TargetPin->GetPinPath(),
+			*(InLink.SegmentPath.IsEmpty() ? EmptyString : PeriodString), *InLink.SegmentPath));
 }

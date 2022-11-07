@@ -57,6 +57,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMLink)
 	FString GetPinPathRepresentation();
 
+	// Returns a string representation of the Link given the two pin paths
+	// for example: "NodeA.Color.R -> NodeB.Translation.X"
+	// note: can be split again using SplitPinPathRepresentation
+	static FString GetPinPathRepresentation(const FString& InSourcePinPath, const FString& InTargetPinPath);
+
 	// Splits a pin path represenation of a link
 	// for example: "NodeA.Color.R -> NodeB.Translation.X"
 	// into its two pin paths

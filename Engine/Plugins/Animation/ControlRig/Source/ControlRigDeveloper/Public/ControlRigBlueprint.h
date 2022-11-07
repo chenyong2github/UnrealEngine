@@ -605,6 +605,7 @@ private:
 	void PatchPropagateToChildren();
 	void PatchParameterNodesOnLoad();
 	void PatchTemplateNodesWithPreferredPermutation();
+	void PatchLinksWithCast();
 
 	TMap<FName, int32> AddedMemberVariableMap;
 	TArray<FBPVariableDescription> LastNewVariables;

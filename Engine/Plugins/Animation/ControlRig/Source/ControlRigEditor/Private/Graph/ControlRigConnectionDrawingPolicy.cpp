@@ -112,45 +112,7 @@ void FControlRigConnectionDrawingPolicy::DrawPinGeometries(TMap<TSharedRef<SWidg
 					}
 					else
 					{
-						const float StartFudgeX = 4.0f;
-						const float EndFudgeX = 4.0f;
-						FVector2D StartPoint = FGeometryHelper::VerticalMiddleRightOf(LinkStartWidgetGeometry->Geometry) - FVector2D(StartFudgeX, 0.0f);
-						FVector2D EndPoint = FGeometryHelper::VerticalMiddleLeftOf(LinkEndWidgetGeometry->Geometry) - FVector2D(ArrowRadius.X - EndFudgeX, 0);
-
-						if(Params.bUserFlag1) // indicate a cast using a mid point image
-						{
-							FConnectionParams OtherParams;
-							DetermineWiringStyle(TargetPin, ThePin, OtherParams);
-
-							if(!OtherParams.WireColor.Equals(Params.WireColor, 0.001f))
-							{
-								const FVector2D MidPoint = (StartPoint + EndPoint) * 0.5;
-								const FVector2D OriginalSplineTangent = FVector2D(100.f, 0);
-								const FVector2D InnerStartPoint = StartPoint + OriginalSplineTangent;
-								const FVector2D InnerEndPoint = EndPoint - OriginalSplineTangent;
-
-								const FVector2D DeltaPos = InnerEndPoint - InnerStartPoint;
-								const double TangentLength = FMath::Min<float>(FMath::Abs<float>(DeltaPos.X), Settings->ForwardSplineHorizontalDeltaRange);
-								OtherParams.StartTangent = DeltaPos.GetSafeNormal() * TangentLength;
-
-								DrawSplineWithArrow(MidPoint, EndPoint, OtherParams);
-
-								EndPoint = MidPoint;
-								Params.EndTangent = OtherParams.StartTangent;
-
-								// Draw the icon
-								FSlateDrawElement::MakeBox(
-									DrawElementsList,
-									ArrowLayerID,
-									FPaintGeometry(MidPoint - ArrowRadius, CastImage->ImageSize * ZoomFactor, ZoomFactor),
-									CastImage,
-									ESlateDrawEffect::None,
-									OtherParams.WireColor
-								);
-							}
-						}
-						
-						DrawSplineWithArrow(StartPoint, EndPoint, Params);
+						DrawSplineWithArrow(LinkStartWidgetGeometry->Geometry, LinkEndWidgetGeometry->Geometry, Params);
 					}
 				}
 			}
@@ -369,8 +331,6 @@ void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Outpu
 				}
 			}
 
-			Params.bUserFlag1 = false;
-
 			if (bVisited)
 			{
 				//Params.bDrawBubbles = true;
@@ -379,17 +339,6 @@ void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Outpu
 			else
 			{
 				Params.WireColor = Params.WireColor * 0.5f;
-			}
-
-			if(!UseLowDetailConnections() && !bInjectionIsSelected)
-			{
-				const TRigVMTypeIndex OutputTypeIndex = OutputModelPin->GetTypeIndex();
-				const TRigVMTypeIndex InputTypeIndex = InputModelPin->GetTypeIndex();
-				if(OutputTypeIndex != InputTypeIndex
-					&& !FRigVMRegistry::Get().CanMatchTypes(OutputTypeIndex, InputTypeIndex, true))
-				{
-					Params.bUserFlag1 = true;
-				}
 			}
 		}
 	}

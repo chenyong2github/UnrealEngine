@@ -2473,7 +2473,7 @@ void URigVMCompiler::AddCopyOperator(const FRigVMCopyOp& InOp, const FRigVMAssig
 			if(CastFunction == nullptr)
 			{
 				const FRigVMRegistry& Registry = FRigVMRegistry::Get();
-				static constexpr TCHAR MissingCastMessage[] = TEXT("Cast (%s -> %s) for Node @@ not found.");
+				static constexpr TCHAR MissingCastMessage[] = TEXT("Cast (%s to %s) for Node @@ not found.");
 				const FString& SourceCPPType = Registry.GetType(SourceTypeIndex).CPPType.ToString();
 				const FString& TargetCPPType = Registry.GetType(TargetTypeIndex).CPPType.ToString();
 				Settings.Report(EMessageSeverity::Error, InAssignExpr->GetTargetPin()->GetNode(),

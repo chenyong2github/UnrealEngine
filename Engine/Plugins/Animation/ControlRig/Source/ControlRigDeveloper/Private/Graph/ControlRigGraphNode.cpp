@@ -41,6 +41,8 @@
 
 #define LOCTEXT_NAMESPACE "ControlRigGraphNode"
 
+TAutoConsoleVariable<bool> CVarControlRigDisableCompactNodes(TEXT("ControlRig.Graph.DisableCompactNodes"), false, TEXT("When true all nodes are going to be drawn as full nodes."));
+
 UControlRigGraphNode::UControlRigGraphNode()
 : Dimensions(0.0f, 0.0f)
 , NodeTitle(FText::GetEmpty())
@@ -258,6 +260,8 @@ void UControlRigGraphNode::ReconstructNode_Internal(bool bForce)
 	}
 	
 	RewireOldPinsToNewPins(OldPins, Pins);
+
+	DrawAsCompactNodeCache.Reset();
 
 	// Let subclasses do any additional work
 	PostReconstructNode();
@@ -897,6 +901,15 @@ bool UControlRigGraphNode::ModelPinAdded_Internal(const URigVMPin* InModelPin)
 {
 	bool bResult = false;
 
+	// conversion nodes don't show sub pins
+	if(!InModelPin->IsRootPin())
+	{
+		if(DrawAsCompactNode())
+		{
+			return false;
+		}
+	}
+
 	UEdGraphPin* InputParentPin = FindGraphPinFromModelPin(InModelPin->GetParentPin(), true);
 	UEdGraphPin* OutputParentPin = FindGraphPinFromModelPin(InModelPin->GetParentPin(), false);
 		
@@ -937,6 +950,60 @@ bool UControlRigGraphNode::ModelPinRemoved(const URigVMPin* InModelPin)
 		OnNodePinsChanged().Broadcast();
 	}
 	return bResult;
+}
+
+bool UControlRigGraphNode::DrawAsCompactNode() const
+{
+	if(CVarControlRigDisableCompactNodes.GetValueOnAnyThread())
+	{
+		return false;
+	}
+	
+	if(!DrawAsCompactNodeCache.IsSet())
+	{
+		DrawAsCompactNodeCache = false;
+		if(const URigVMTemplateNode* TemplateModelNode = Cast<URigVMTemplateNode>(GetModelNode()))
+		{
+			if(TemplateModelNode->GetNotation() == RigVMTypeUtils::GetCastTemplateNotation())
+			{
+				DrawAsCompactNodeCache = true;
+				
+				// if the node has links on any subpin - we can't draw it as a compact node.
+				const TArray<URigVMLink*> Links = TemplateModelNode->GetLinks();
+				if(Links.ContainsByPredicate([TemplateModelNode](const URigVMLink* Link)
+				{
+					if(const URigVMPin* SourcePin = Link->GetSourcePin())
+					{
+						if(SourcePin->GetNode() == TemplateModelNode)
+						{
+							return !SourcePin->IsRootPin();
+						}
+					}
+					if(const URigVMPin* TargetPin = Link->GetTargetPin())
+					{
+						if(TargetPin->GetNode() == TemplateModelNode)
+						{
+							return !TargetPin->IsRootPin();
+						}
+					}
+					return false;
+				}))
+				{
+					DrawAsCompactNodeCache = false;
+				}
+
+				// if the node has any injected nodes - we can't draw it as compact
+				if(TemplateModelNode->GetPins().ContainsByPredicate([](const URigVMPin* Pin)
+				{
+					return Pin->HasInjectedNodes();
+				}))
+				{
+					DrawAsCompactNodeCache = false;
+				}
+			}
+		}
+	}
+	return DrawAsCompactNodeCache.GetValue();
 }
 
 bool UControlRigGraphNode::ModelPinRemoved_Internal(const URigVMPin* InModelPin)

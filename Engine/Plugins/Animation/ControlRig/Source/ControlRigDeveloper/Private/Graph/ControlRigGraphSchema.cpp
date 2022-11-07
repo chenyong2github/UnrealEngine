@@ -714,7 +714,8 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 			}
 #endif
 
-			return Controller->AddLink(PinA->GetName(), PinB->GetName(), true, true, UserLinkDirection);
+			const bool bCreateCastNode = !FSlateApplication::Get().GetModifierKeys().IsAltDown();
+			return Controller->AddLink(PinA->GetName(), PinB->GetName(), true, true, UserLinkDirection, bCreateCastNode);
 		}
 	}
 	return false;
@@ -795,8 +796,9 @@ const FPinConnectionResponse UControlRigGraphSchema::CanCreateConnection(const U
 
 		const FRigVMByteCode* ByteCode = RigNodeA->GetController()->GetCurrentByteCode();
 
+		const bool bEnableTypeCasting = !FSlateApplication::Get().GetModifierKeys().IsAltDown();
 		FString FailureReason;
-		bool bResult = RigNodeA->GetModel()->CanLink(PinA, PinB, &FailureReason, ByteCode, UserLinkDirection);
+		bool bResult = RigNodeA->GetModel()->CanLink(PinA, PinB, &FailureReason, ByteCode, UserLinkDirection, bEnableTypeCasting);
 		if (!bResult)
 		{
 			return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, FText::FromString(FailureReason));
@@ -1170,7 +1172,20 @@ FConnectionDrawingPolicy* UControlRigGraphSchema::CreateConnectionDrawingPolicy(
 bool UControlRigGraphSchema::ShouldHidePinDefaultValue(UEdGraphPin* Pin) const
 {
 	// we should hide default values if any of our parents are connected
-	return HasParentConnection_Recursive(Pin);
+	if(HasParentConnection_Recursive(Pin))
+	{
+		return true;
+	}
+
+	if(UControlRigGraphNode* RigGraphNode = Cast<UControlRigGraphNode>(Pin->GetOwningNode()))
+	{
+		if(RigGraphNode->DrawAsCompactNode())
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool UControlRigGraphSchema::IsPinBeingWatched(UEdGraphPin const* Pin) const

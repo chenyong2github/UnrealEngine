@@ -85,12 +85,19 @@ URigVMPin* URigVMLink::GetOppositePin(const URigVMPin* InPin) const
 
 FString URigVMLink::GetPinPathRepresentation()
 {
-	return FString::Printf(TEXT("%s -> %s"), *GetSourcePin()->GetPinPath(), *GetTargetPin()->GetPinPath());
+	return GetPinPathRepresentation(GetSourcePin()->GetPinPath(), GetTargetPin()->GetPinPath());
+}
+
+FString URigVMLink::GetPinPathRepresentation(const FString& InSourcePinPath, const FString& InTargetPinPath)
+{
+	static constexpr TCHAR Format[] = TEXT("%s -> %s"); 
+	return FString::Printf(Format, *InSourcePinPath, *InTargetPinPath);
 }
 
 bool URigVMLink::SplitPinPathRepresentation(const FString& InString, FString& OutSource, FString& OutTarget)
 {
-	return InString.Split(TEXT(" -> "), &OutSource, &OutTarget);
+	static constexpr TCHAR Format[] = TEXT(" -> "); 
+	return InString.Split(Format, &OutSource, &OutTarget);
 }
 
 void URigVMLink::PrepareForCopy()

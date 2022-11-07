@@ -62,5 +62,11 @@ namespace RigVMTypeUtils
 	
 	RIGVMDEVELOPER_API const FRigVMFunction* GetCastForTypeIndices(const TRigVMTypeIndex& InSourceTypeIndex, const TRigVMTypeIndex& InTargetTypeIndex);
 
+	RIGVMDEVELOPER_API const FName& GetCastTemplateValueName();
+
+	RIGVMDEVELOPER_API const FName& GetCastTemplateResultName();
+
+	RIGVMDEVELOPER_API const FName& GetCastTemplateNotation();
+
 #endif
 }

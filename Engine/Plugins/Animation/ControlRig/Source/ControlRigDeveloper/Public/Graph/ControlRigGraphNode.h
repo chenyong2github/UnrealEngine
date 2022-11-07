@@ -200,6 +200,9 @@ public:
 	/** Called when a model pin is being removed */
 	bool ModelPinRemoved(const URigVMPin* InModelPin);
 
+	/** Returns true if this node is relying on the cast template */
+	bool DrawAsCompactNode() const;
+
 protected:
 
 	FLinearColor GetNodeProfilingColor() const;
@@ -266,6 +269,7 @@ private:
 	FNodePinExpansionChanged NodePinExpansionChanged;
 
 	mutable const FRigVMTemplate* CachedTemplate;
+	mutable TOptional<bool> DrawAsCompactNodeCache;
 
 	friend class SControlRigGraphNode;
 	friend class FControlRigArgumentLayout;

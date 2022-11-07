@@ -867,4 +867,19 @@ const FRigVMFunction* RigVMTypeUtils::GetCastForTypeIndices(const TRigVMTypeInde
 	return nullptr;
 }
 
+const FName& RigVMTypeUtils::GetCastTemplateValueName()
+{
+	return CastTemplateValueName;
+}
+
+const FName& RigVMTypeUtils::GetCastTemplateResultName()
+{
+	return CastTemplateResultName;
+}
+
+const FName& RigVMTypeUtils::GetCastTemplateNotation()
+{
+	return CastTemplateNotation;
+}
+
 #endif

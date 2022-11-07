@@ -3730,7 +3730,7 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 				}
 			}
 
-			ReportErrorf(TEXT("Cannot import link '%s -> %s'."), *CreatedLink->SourcePinPath, *CreatedLink->TargetPinPath);
+			ReportErrorf(TEXT("Cannot import link '%s'."), *URigVMLink::GetPinPathRepresentation(CreatedLink->SourcePinPath, CreatedLink->TargetPinPath));
 			DestroyObject(CreatedLink);
 		}
 
@@ -9104,7 +9104,7 @@ bool URigVMController::PromotePinToVariable(URigVMPin* InPin, bool bCreateVariab
 }
 
 bool URigVMController::AddLink(const FString& InOutputPinPath, const FString& InInputPinPath, bool bSetupUndoRedo,
-	bool bPrintPythonCommand, ERigVMPinDirection InUserDirection)
+	bool bPrintPythonCommand, ERigVMPinDirection InUserDirection, bool bCreateCastNode)
 {
 	if(!IsValidGraph())
 	{
@@ -9148,7 +9148,7 @@ bool URigVMController::AddLink(const FString& InOutputPinPath, const FString& In
 	}
 	InputPin = InputPin->GetPinForLink();
 
-	const bool bSuccess = AddLink(OutputPin, InputPin, bSetupUndoRedo, InUserDirection);
+	const bool bSuccess = AddLink(OutputPin, InputPin, bSetupUndoRedo, InUserDirection, bCreateCastNode);
 	if (bSuccess && bPrintPythonCommand)
 	{
 		const FString GraphName = GetSanitizedGraphName(GetGraph()->GetGraphName());
@@ -9166,7 +9166,7 @@ bool URigVMController::AddLink(const FString& InOutputPinPath, const FString& In
 	return bSuccess;
 }
 
-bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bSetupUndoRedo, ERigVMPinDirection InUserDirection)
+bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool bSetupUndoRedo, ERigVMPinDirection InUserDirection, bool bCreateCastNode)
 {
 	if (!bIsTransacting && !IsGraphEditable())
 	{
@@ -9205,7 +9205,7 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	if (!bIsTransacting)
 	{
 		FString FailureReason;
-		if (!Graph->CanLink(OutputPin, InputPin, &FailureReason, GetCurrentByteCode(), UserLinkDirection))
+		if (!Graph->CanLink(OutputPin, InputPin, &FailureReason, GetCurrentByteCode(), UserLinkDirection, bCreateCastNode))
 		{
 			if(OutputPin->IsExecuteContext() && InputPin->IsExecuteContext())
 			{
@@ -9227,8 +9227,183 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	FRigVMBaseAction Action;
 	if (bSetupUndoRedo)
 	{
-		Action.Title = FString::Printf(TEXT("Add Link"));
+		Action.Title = TEXT("Add Link");
 		ActionStack->BeginAction(Action);
+	}
+
+	// check if we need to inject cast node
+	if(bCreateCastNode &&
+		bEnableTypeCasting &&
+		OutputPin->GetTypeIndex() != InputPin->GetTypeIndex() &&
+		!OutputPin->IsWildCard() &&
+		!InputPin->IsWildCard())
+	{
+		if(!FRigVMRegistry::Get().CanMatchTypes(OutputPin->GetTypeIndex(), InputPin->GetTypeIndex(), true))
+		{
+			// returns true if this template node can resolve to the type without breaking any links
+			auto CanTemplateResolveToType = [](const TRigVMTypeIndex& InTypeIndex, URigVMPin* InPin) -> bool
+			{
+				if(const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPin->GetNode()))
+				{
+					if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
+					{
+						if(!InPin->IsRootPin())
+						{
+							return false;
+						}
+						
+						if(const FRigVMTemplateArgument* Argument = Template->FindArgument(InPin->GetFName()))
+						{
+							if(!Argument->SupportsTypeIndex(InTypeIndex))
+							{
+								return false;
+							}
+						}
+						
+						// we only rely on the cast if the number of links on non-singleton arguments is > 0
+						const TArray<URigVMLink*> Links = InPin->GetNode()->GetLinks();
+						int32 NumLinksRemaining = Links.Num();
+						for(const URigVMLink* Link : Links)
+						{
+							const URigVMPin* SourcePin = Link->GetSourcePin();
+							const URigVMPin* TargetPin = Link->GetTargetPin();
+
+							if(SourcePin && TargetPin)
+							{
+								const URigVMPin* PinOnTemplateNode = SourcePin->GetNode() == TemplateNode ? SourcePin : TargetPin;
+								if(PinOnTemplateNode->IsRootPin() && PinOnTemplateNode != InPin)
+								{
+									const FName ArgumentName = PinOnTemplateNode->GetFName();
+									if(const FRigVMTemplateArgument* Argument = Template->FindArgument(ArgumentName))
+									{
+										if(Argument->IsSingleton())
+										{
+											NumLinksRemaining--;
+										}
+									}
+								}
+								else
+								{
+									NumLinksRemaining--;
+								}
+							}
+						}
+						
+						return NumLinksRemaining == 0;
+					}
+				}
+				
+				return false;
+			};
+
+			if(bCreateCastNode)
+			{
+				// todo: this should take into account links which have been detached
+				// during load we don't filter out the links and assume the template node can cast
+				// correctly to each type. we need to look at the links and their map rather then
+				// URigVMPin::GetLinks
+				if(CanTemplateResolveToType(InputPin->GetTypeIndex(), OutputPin) || 
+					CanTemplateResolveToType(OutputPin->GetTypeIndex(), InputPin))
+				{
+					bCreateCastNode = false;
+				}
+			}
+			
+			if(bCreateCastNode)
+			{
+				const FRigVMFunction* CastFunction = RigVMTypeUtils::GetCastForTypeIndices(OutputPin->GetTypeIndex(), InputPin->GetTypeIndex());
+
+				if(CastFunction == nullptr)
+				{
+					// this is potentially a template node which has more types available.
+					// look through the filtered types and find a matching cast.
+				}
+
+				if(CastFunction == nullptr)
+				{
+					if (bSetupUndoRedo)
+					{
+						ActionStack->CancelAction(Action, this);
+					}
+					return false;
+				}
+
+				const FVector2D OutputPinPosition = OutputPin->GetNode()->GetPosition() + FVector2D(150, 40.f) + FVector2D(0, 16) * OutputPin->GetRootPin()->GetPinIndex();
+				const FVector2D InputPinPosition = InputPin->GetNode()->GetPosition() + FVector2D(-75, 40.f) + FVector2D(0, 16) * InputPin->GetRootPin()->GetPinIndex();
+				const FVector2D CastPosition = (OutputPinPosition + InputPinPosition) * 0.5; 
+
+				const URigVMNode* CastNode = nullptr;
+
+				// try to find an existing cast node
+				if(CastNode == nullptr)
+				{
+					for(URigVMLink* ExistingLink : OutputPin->GetLinks())
+					{
+						if(ExistingLink->GetSourcePin() == OutputPin)
+						{
+							if(URigVMUnitNode* ExistingCastNode = Cast<URigVMUnitNode>(ExistingLink->GetTargetPin()->GetNode()))
+							{
+								if(ExistingCastNode->GetScriptStruct() == CastFunction->Struct)
+								{
+									CastNode = ExistingCastNode;
+									break;
+								}
+							}
+						}
+					}
+				}
+
+				if(CastNode == nullptr)
+				{
+					CastNode = AddUnitNode(CastFunction->Struct, CastFunction->GetMethodName(), CastPosition, FString(), bSetupUndoRedo, false);
+				}
+				
+				if(CastNode == nullptr)
+				{
+					if (bSetupUndoRedo)
+					{
+						ActionStack->CancelAction(Action, this);
+					}
+					return false;
+				}
+
+				static const FString CastTemplateValueName = RigVMTypeUtils::GetCastTemplateValueName().ToString();
+				static const FString CastTemplateResultName = RigVMTypeUtils::GetCastTemplateResultName().ToString();
+				URigVMPin* ValuePin = CastNode->FindPin(CastTemplateValueName);
+				URigVMPin* ResultPin = CastNode->FindPin(CastTemplateResultName);
+
+				if(!OutputPin->IsLinkedTo(ValuePin))
+				{
+					if(!AddLink(OutputPin, ValuePin, bSetupUndoRedo))
+					{
+						if (bSetupUndoRedo)
+						{
+							ActionStack->CancelAction(Action, this);
+						}
+						return false;
+					}
+				}
+
+				if(!ResultPin->IsLinkedTo(InputPin))
+				{
+					if(!AddLink(ResultPin, InputPin, bSetupUndoRedo))
+					{
+						if (bSetupUndoRedo)
+						{
+							ActionStack->CancelAction(Action, this);
+						}
+						return false;
+					}
+				}
+
+				if(bSetupUndoRedo)
+				{
+					Action.Title = TEXT("Add Link with Cast");
+					ActionStack->EndAction(Action);
+				}
+				return true;
+			}
+		}
 	}
 
 	if (OutputPin->IsExecuteContext())
@@ -9312,82 +9487,10 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 		ExpandPinRecursively(InputPin->GetParentPin(), bSetupUndoRedo);
 	}
 
-	// check if there's a cast available for this type combination
-	bool bIsUsingCast = false;
-	if(bEnableTypeCasting && RigVMTypeUtils::CanCastTypes(OutputPin->GetTypeIndex(), InputPin->GetTypeIndex()))
-	{
-		auto ShouldRelyOnCast = [](const TRigVMTypeIndex& InTypeIndex, URigVMPin* InPin) -> bool
-		{
-			if(InPin->IsRootPin())
-			{
-				if(const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPin->GetNode()))
-				{
-					if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
-					{
-						if(const FRigVMTemplateArgument* Argument = Template->FindArgument(InPin->GetFName()))
-						{
-							if(!Argument->SupportsTypeIndex(InTypeIndex))
-							{
-								return true;
-							}
-						}
-					}
-				}
-			}
-
-			// we only rely on the cast if the number of links on non-singleton arguments is > 0
-			const TArray<URigVMLink*> Links = InPin->GetNode()->GetLinks();
-			int32 NumLinksRemaining = Links.Num();
-			if(const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPin->GetNode()))
-			{
-				if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
-				{
-					for(const URigVMLink* Link : Links)
-					{
-						const URigVMPin* SourcePin = Link->GetSourcePin();
-						const URigVMPin* TargetPin = Link->GetTargetPin();
-
-						if(SourcePin && TargetPin)
-						{
-							const URigVMPin* PinOnTemplateNode = SourcePin->GetNode() == TemplateNode ? SourcePin : TargetPin;
-							if(PinOnTemplateNode->IsRootPin())
-							{
-								const FName ArgumentName = PinOnTemplateNode->GetFName();
-								if(const FRigVMTemplateArgument* Argument = Template->FindArgument(ArgumentName))
-								{
-									if(Argument->IsSingleton())
-									{
-										NumLinksRemaining--;
-									}
-								}
-							}
-							else
-							{
-								NumLinksRemaining--;
-							}
-						}
-					}
-				}
-			}
-
-			return NumLinksRemaining > 0;
-		};
-		
-		// only rely on a cast if there's already a link
-		if(InUserDirection == ERigVMPinDirection::Input)
-		{
-			bIsUsingCast = ShouldRelyOnCast(InputPin->GetTypeIndex(), OutputPin);
-		}
-		else
-		{
-			bIsUsingCast = ShouldRelyOnCast(OutputPin->GetTypeIndex(), InputPin);
-		}
-	}
-
 	// Before adding the link, let's resolve input and ouput pin types
 	// If templates, we will filter the permutations that support this link
 	// If any links need to be broken before perfoming this connection, try to find them and break them
-	if (!bIsTransacting && !bIsUsingCast)
+	if (!bIsTransacting)
 	{
 		URigVMPin* FirstToResolve = (InUserDirection == ERigVMPinDirection::Input) ? OutputPin : InputPin;
 		URigVMPin* SecondToResolve = (FirstToResolve == OutputPin) ? InputPin : OutputPin;
@@ -9422,19 +9525,16 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	Notify(ERigVMGraphNotifType::LinkAdded, Link);
 
 	// Remove any temporary preferred type that was added
-	if(!bIsUsingCast)
+	for (int32 i=0; i<2; ++i)
 	{
-		for (int32 i=0; i<2; ++i)
+		URigVMPin* EdgePin = (i==0) ? OutputPin : InputPin;
+		bool& bAddedTemporaryPreferredType = (i==0) ? bAddedTemporaryOutputPreferredType : bAddedTemporaryInputPreferredType;
+		if (bAddedTemporaryPreferredType)
 		{
-			URigVMPin* EdgePin = (i==0) ? OutputPin : InputPin;
-			bool& bAddedTemporaryPreferredType = (i==0) ? bAddedTemporaryOutputPreferredType : bAddedTemporaryInputPreferredType;
-			if (bAddedTemporaryPreferredType)
+			if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(EdgePin->GetNode()))
 			{
-				if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(EdgePin->GetNode()))
-				{
-					URigVMPin* RootPin = EdgePin->GetRootPin();
-					RemovePreferredType(TemplateNode, RootPin->GetFName(), bSetupUndoRedo);				
-				}
+				URigVMPin* RootPin = EdgePin->GetRootPin();
+				RemovePreferredType(TemplateNode, RootPin->GetFName(), bSetupUndoRedo);				
 			}
 		}
 	}
@@ -9517,11 +9617,8 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 			}
 		};
 
-		if(!bIsUsingCast)
-		{
-			ResolveTemplateNodeToCommonTypes(OutputPin);
-			ResolveTemplateNodeToCommonTypes(InputPin);
-		}
+		ResolveTemplateNodeToCommonTypes(OutputPin);
+		ResolveTemplateNodeToCommonTypes(InputPin);
 #endif
 		
 		ActionStack->EndAction(Action);
@@ -14468,7 +14565,7 @@ int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, c
 				}
 				else
 				{
-					ReportWarningf(TEXT("Unable to re-create link %s -> %s"), *Link->SourcePinPath, *Link->TargetPinPath);
+					ReportWarningf(TEXT("Unable to re-create link %s"), *URigVMLink::GetPinPathRepresentation(Link->SourcePinPath, Link->TargetPinPath));
 					TargetPin->Links.Remove(Link);
 					SourcePin->Links.Remove(Link);
 					continue;
@@ -14521,7 +14618,7 @@ int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, c
 		
 		if (SourcePin == nullptr)
 		{
-			ReportWarningf(TEXT("Unable to re-create link %s -> %s"), *Link->SourcePinPath, *Link->TargetPinPath);
+			ReportWarningf(TEXT("Unable to re-create link %s"), *URigVMLink::GetPinPathRepresentation(Link->SourcePinPath, Link->TargetPinPath));
 			if (TargetPin != nullptr)
 			{
 				TargetPin->Links.Remove(Link);
@@ -14530,7 +14627,7 @@ int32 URigVMController::ReattachLinksToPinObjects(bool bFollowCoreRedirectors, c
 		}
 		if (TargetPin == nullptr)
 		{
-			ReportWarningf(TEXT("Unable to re-create link %s -> %s"), *Link->SourcePinPath, *Link->TargetPinPath);
+			ReportWarningf(TEXT("Unable to re-create link %s"), *URigVMLink::GetPinPathRepresentation(Link->SourcePinPath, Link->TargetPinPath));
 			if (SourcePin != nullptr)
 			{
 				SourcePin->Links.Remove(Link);
@@ -16176,6 +16273,16 @@ bool URigVMController::PrepareTemplatePinForType(URigVMPin* InPin, const TArray<
 
 	FRigVMRegistry& Registry = FRigVMRegistry::Get();
 
+	/*
+	if (InTypeIndices.Num() == 1)
+	{
+		if(Registry.CanMatchTypes(InPin->GetTypeIndex(), InTypeIndices[0], true))
+		{
+			return true;
+		}
+	}
+	*/
+
 	// It might be a subpin of a struct, in that case we just want to make sure
 	// the type required matches the one in the pin
 	if (InPin->IsStructMember())
@@ -16307,7 +16414,7 @@ bool URigVMController::PrepareTemplatePinForType(URigVMPin* InPin, const TArray<
 		for (int32 i=0; i<InconsistentLinks.Num(); ++i)
 		{
 			TSoftObjectPtr<URigVMGraph> GraphPtr(InconsistentLinksGraph[i]);
-			LinksToBreak.AddUnique(GraphPtr.Get()->FindLink(FString::Printf(TEXT("%s -> %s"), *InconsistentLinks[i].Key, *InconsistentLinks[i].Value)));
+			LinksToBreak.AddUnique(GraphPtr.Get()->FindLink(URigVMLink::GetPinPathRepresentation(InconsistentLinks[i].Key, InconsistentLinks[i].Value)));
 		}
 		
 		// Warn the user the links that would be broken
@@ -16397,7 +16504,7 @@ bool URigVMController::PrepareTemplatePinForType(URigVMPin* InPin, const TArray<
 
 			for (TPair<FString, FString>& Pair : InconsistentLinks)
 			{
-				LinksToBreak.AddUnique(GetGraph()->FindLink(FString::Printf(TEXT("%s -> %s"), *Pair.Key, *Pair.Value)));
+				LinksToBreak.AddUnique(GetGraph()->FindLink(URigVMLink::GetPinPathRepresentation(Pair.Key, Pair.Value)));
 			}
 		}
 
@@ -17258,12 +17365,6 @@ bool URigVMController::PropagateTemplateFilteredTypes(URigVMTemplateNode* InNode
 		const TArray<URigVMLink*>& Links = Pin->GetLinks();
 		for (URigVMLink* Link : Links)
 		{
-			// skip links which contain a cast
-			if(LinksWithCast.Contains(Link->GetPinPathRepresentation()))
-			{
-				continue;
-			}
-			
 			URigVMPin* OtherPin = Link->GetSourcePin() == Pin ? Link->GetTargetPin() : Link->GetSourcePin();
 			bool bPropagate = false;
 			bool bIsTemplate = false;
@@ -17296,12 +17397,9 @@ bool URigVMController::PropagateTemplateFilteredTypes(URigVMTemplateNode* InNode
 						}
 						else
 						{
-							if(!bEnableTypeCasting || !RigVMTypeUtils::CanCastTypes(Link->GetSourcePin()->GetTypeIndex(), Link->GetTargetPin()->GetTypeIndex()))
-							{
-								ensureMsgf(!ActionStack->BracketActions.IsEmpty(), TEXT("Unexpected link broken %s in package %s"), *Link->GetPinPathRepresentation(), *GetPackage()->GetPathName());
-								BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), bSetupUndoRedo);
-								return false;
-							}
+							ensureMsgf(!ActionStack->BracketActions.IsEmpty(), TEXT("Unexpected link broken %s in package %s"), *Link->GetPinPathRepresentation(), *GetPackage()->GetPathName());
+							BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), bSetupUndoRedo);
+							return false;
 						}
 					}
 				}								
@@ -17311,12 +17409,9 @@ bool URigVMController::PropagateTemplateFilteredTypes(URigVMTemplateNode* InNode
 			{
 				if (!InNode->FilteredSupportsType(Pin, OtherPin->GetTypeIndex()))
 				{
-					if(!bEnableTypeCasting || !RigVMTypeUtils::CanCastTypes(Link->GetSourcePin()->GetTypeIndex(), Link->GetTargetPin()->GetTypeIndex()))
-					{
-						ensureMsgf(!ActionStack->BracketActions.IsEmpty(), TEXT("Unexpected link broken %s in package %s"), *Link->GetPinPathRepresentation(), *GetPackage()->GetPathName());
-						BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), bSetupUndoRedo);
-						return false;
-					}
+					ensureMsgf(!ActionStack->BracketActions.IsEmpty(), TEXT("Unexpected link broken %s in package %s"), *Link->GetPinPathRepresentation(), *GetPackage()->GetPathName());
+					BreakLink(Link->GetSourcePin(), Link->GetTargetPin(), bSetupUndoRedo);
+					return false;
 				}
 			}
 		}
@@ -17872,41 +17967,6 @@ bool URigVMController::RecomputeAllTemplateFilteredPermutations(bool bSetupUndoR
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
-	// update the transient list of links containing a cast
-	if(bEnableTypeCasting)
-	{
-		LinksWithCast.Reset();
-		for(URigVMLink* Link : Graph->GetLinks())
-		{
-			const URigVMPin* SourcePin = Link->GetSourcePin();
-			const URigVMPin* TargetPin = Link->GetTargetPin();
-
-			if(SourcePin && TargetPin)
-			{
-				const TRigVMTypeIndex SourceTypeIndex = SourcePin->GetTypeIndex();
-				const TRigVMTypeIndex TargetTypeIndex = TargetPin->GetTypeIndex();
-
-				if(SourceTypeIndex != TargetTypeIndex &&
-					RigVMTypeUtils::TypeIndex::WildCard != SourceTypeIndex &&
-					RigVMTypeUtils::TypeIndex::WildCardArray != SourceTypeIndex &&
-					RigVMTypeUtils::TypeIndex::WildCard != TargetTypeIndex &&
-					RigVMTypeUtils::TypeIndex::WildCardArray != TargetTypeIndex &&
-					!FRigVMRegistry::Get().CanMatchTypes(SourceTypeIndex, TargetTypeIndex, true))
-				{
-					ensureMsgf(RigVMTypeUtils::CanCastTypes(SourceTypeIndex, TargetTypeIndex),
-						TEXT("Incompatible types for link %s (%s) -> %s (%s) in %s.")
-						, *SourcePin->GetPinPath(true)
-						, *SourcePin->GetCPPType()
-						, *TargetPin->GetPinPath(true)
-						, *TargetPin->GetCPPType()
-						, *GetPackage()->GetPathName());
-
-					LinksWithCast.Add(Link->GetPinPathRepresentation());
-				}
-			}	
-		}
-	}
-
 	// Save all template pin types, in case we need them after initializing
 	TMap<URigVMPin*, TRigVMTypeIndex> TypesBeforeRecomputing;
 	for (URigVMNode* Node : Graph->GetNodes())
@@ -17948,18 +18008,7 @@ bool URigVMController::RecomputeAllTemplateFilteredPermutations(bool bSetupUndoR
 		TArray<URigVMLink*> SortedLinks = Graph->GetLinks().FilterByPredicate([this](URigVMLink* Link)
 		{
 			// Filter out detached links
-			if(!Link->GetSourcePin()->IsLinkedTo(Link->GetTargetPin()))
-			{
-				return false;
-			}
-
-			// filter out links with casts
-			if(LinksWithCast.Contains(Link->GetPinPathRepresentation()))
-			{
-				return false;
-			}
-
-			return true;
+			return Link->GetSourcePin()->IsLinkedTo(Link->GetTargetPin());
 		});
 
 		// Solve for unit nodes first, other templates are more expensive to solve. This way we are avoiding solving
@@ -18075,7 +18124,7 @@ bool URigVMController::RecomputeAllTemplateFilteredPermutations(bool bSetupUndoR
 					Notify(ERigVMGraphNotifType::LinkAdded, Link);
 				}
 			}
-			else if(!bEnableTypeCasting || !RigVMTypeUtils::CanCastTypes(OutputPin->GetTypeIndex(), InputPin->GetTypeIndex()))
+			else
 			{
 				LinksToRemove.Add(Link);
 			}
