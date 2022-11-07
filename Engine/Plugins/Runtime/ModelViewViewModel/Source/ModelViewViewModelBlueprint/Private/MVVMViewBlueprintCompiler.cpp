@@ -422,7 +422,7 @@ void FMVVMViewBlueprintCompiler::CreateSourceLists(const FWidgetBlueprintCompile
 					FCompilerSourceContext SourceVariable;
 					SourceVariable.Class = Widget->GetClass();
 					SourceVariable.PropertyName = PropertyPath.GetWidgetName();
-					SourceVariable.DisplayName = FText::FromString(Widget->GetDisplayLabel());
+					SourceVariable.DisplayName = Widget->GetLabelText();
 					SourceVariable.CategoryName = !Widget->GetCategoryName().IsEmpty() ? Widget->GetCategoryName() : DefaultWidgetCategory.ToString();
 					Self->CompilerSourceContexts.Emplace(MoveTemp(SourceVariable));
 				}
