@@ -1003,7 +1003,8 @@ public:
 		return true;
 	}
 
-	virtual bool CompressImage(FImage& InImage, const FTextureBuildSettings& InBuildSettings, FStringView DebugTexturePathName, const bool bInHasAlpha, FCompressedImage2D& OutImage) const override
+	virtual bool CompressImage(FImage& InImage, const FTextureBuildSettings& InBuildSettings, const FIntVector3& InMip0Dimensions,
+		int32 InMip0NumSlicesNoDepth, FStringView DebugTexturePathName, const bool bInHasAlpha, FCompressedImage2D& OutImage) const override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_CompressImage);
 

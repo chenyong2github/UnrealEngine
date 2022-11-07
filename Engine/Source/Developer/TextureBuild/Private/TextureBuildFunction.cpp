@@ -136,9 +136,6 @@ static FTextureBuildSettings ReadBuildSettingsFromCompactBinary(const FCbObjectV
 	ReadCbField(Object["CompositePower"], BuildSettings.CompositePower);
 	ReadCbField(Object["LODBias"], BuildSettings.LODBias);
 	ReadCbField(Object["LODBiasWithCinematicMips"], BuildSettings.LODBiasWithCinematicMips);
-	ReadCbField(Object["TopMipSize"], BuildSettings.TopMipSize);
-	ReadCbField(Object["VolumeSizeZ"], BuildSettings.VolumeSizeZ);
-	ReadCbField(Object["ArraySlices"], BuildSettings.ArraySlices);
 	BuildSettings.bStreamable_Unused = Object["bStreamable"].AsBool(BuildSettings.bStreamable_Unused);
 	BuildSettings.bVirtualStreamable = Object["bVirtualStreamable"].AsBool(BuildSettings.bVirtualStreamable);
 	BuildSettings.bChromaKeyTexture = Object["bChromaKeyTexture"].AsBool(BuildSettings.bChromaKeyTexture);

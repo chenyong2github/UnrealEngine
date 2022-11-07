@@ -164,12 +164,6 @@ struct FTextureBuildSettings
 	uint32 LODBias;
 	/** The source texture's final LOD bias (i.e. includes LODGroup based biases). This allows cinematic mips as well. */
 	uint32 LODBiasWithCinematicMips;
-	/** The texture's top mip size without LODBias applied, should be moved into a separate struct together with bImageHasAlphaChannel */
-	mutable FIntPoint TopMipSize;
-	/** The volume texture's top mip size Z without LODBias applied */
-	mutable int32 VolumeSizeZ;
-	/** The array texture's top mip size Z without LODBias applied */
-	mutable int32 ArraySlices;
 	/** Can the texture be streamed. This is deprecated because it was used in a single place in a single 
 	*	platform for something that handled an edge case that never happened. That code is removes so this is
 	*	never touched other than saving it, and it'll be removed soon.
@@ -276,9 +270,6 @@ struct FTextureBuildSettings
 		, CompositePower(1.0f)
 		, LODBias(0)
 		, LODBiasWithCinematicMips(0)
-		, TopMipSize(0, 0)
-		, VolumeSizeZ(0)
-		, ArraySlices(0)
 		, bStreamable_Unused(false)
 		, bVirtualStreamable(false)
 		, bChromaKeyTexture(false)

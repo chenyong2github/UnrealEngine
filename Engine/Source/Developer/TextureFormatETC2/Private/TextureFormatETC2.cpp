@@ -215,6 +215,8 @@ public:
 	virtual bool CompressImage(
 		FImage& InImage,
 		const struct FTextureBuildSettings& BuildSettings,
+		const FIntVector3& InMip0Dimensions,
+		int32 InMip0NumSlicesNoDepth,
 		FStringView DebugTexturePathName,
 		bool bImageHasAlphaChannel,
 		FCompressedImage2D& OutCompressedImage

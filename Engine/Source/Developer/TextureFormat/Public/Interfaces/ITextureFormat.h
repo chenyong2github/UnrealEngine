@@ -188,6 +188,7 @@ struct FEncodedTextureDescription
 		return Slices;
 	}
 
+	// Returns the size of the mip at the given index. Z is 1 unless it's a volume texture.
 	FIntVector3 GetMipDimensions(int32 InMipIndex) const
 	{
 		FIntVector3 Results;
@@ -423,6 +424,8 @@ public:
 	 *
 	 * @param Image The input image.  Image.RawData may be freed or modified by CompressImage; do not use after calling this.
 	 * @param BuildSettings Build settings.
+ 	 * @param InMip0Dimensions X/Y = Width/Height; Z = 1 unless volume texture, then its depth
+	 * @param InMip0NumSlicesNoDepth see FEncodedTextureDescription::NumSlices_NoDepth()
 	 * @param DebugTexturePathName The path name of the texture we are building, for debug logging/filtering/dumping.
 	 * @param bImageHasAlphaChannel true if the image has a non-white alpha channel.
 	 * @param OutCompressedMip The compressed image.
@@ -431,6 +434,8 @@ public:
 	virtual bool CompressImage(
 		FImage& Image,
 		const FTextureBuildSettings& BuildSettings,
+		const FIntVector3& InMip0Dimensions,
+		int32 InMip0NumSlicesNoDepth,
 		FStringView DebugTexturePathName,
 		bool bImageHasAlphaChannel,
 		struct FCompressedImage2D& OutCompressedImage
@@ -442,6 +447,8 @@ public:
 	 * @param Images The input image(s).  Image.RawData may be freed or modified by CompressImage; do not use after calling this.
 	 * @param NumImages The number of images (for a miptail, this number should match what was returned in GetExtendedDataForTexture, mostly used for verification)
 	 * @param BuildSettings Build settings.
+	 * @param InMip0Dimensions X/Y = Width/Height; Z = 1 unless volume texture, then its depth
+	 * @param InMip0NumSlicesNoDepth see FEncodedTextureDescription::NumSlices_NoDepth()
 	 * @param DebugTexturePathName The path name of the texture we are building, for debug logging/filtering/dumping.
 	 * @param bImageHasAlphaChannel true if the image has a non-white alpha channel.
 	 * @param ExtData Extra data that the format may want to have passed back in to each compress call (makes the format class be stateless)
@@ -452,6 +459,8 @@ public:
 		FImage* Images,
 		const uint32 NumImages,
 		const FTextureBuildSettings& BuildSettings,
+		const FIntVector3& InMip0Dimensions,
+		int32 InMip0NumSlicesNoDepth,
 		FStringView DebugTexturePathName,
 		bool bImageHasAlphaChannel,
 		uint32 ExtData,
@@ -463,11 +472,12 @@ public:
 			return false;
 		}
 		
-		return CompressImage(*Images, BuildSettings, DebugTexturePathName, bImageHasAlphaChannel, OutCompressedImage);
+		return CompressImage(*Images, BuildSettings, InMip0Dimensions, InMip0NumSlicesNoDepth, DebugTexturePathName, bImageHasAlphaChannel, OutCompressedImage);
 	}
 
 	/**
 	 * An object produced by PrepareTiling and used by SetTiling and CompressImageTiled.
+	 * This is used as an inheritance base for tiling formats to add their own information.
 	 */
 	struct FTilerSettings
 	{

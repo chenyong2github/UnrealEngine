@@ -579,11 +579,11 @@ public:
 	virtual void GetShaderFormatModuleHints(TArray<FName>& OutModuleNames) const = 0;
 
 	/**
-	 * Gets the format to use for a particular texture.
-	 *
-	 * @param Texture The texture to get the format for.
-	 * @param LayerIndex Index of layer within Texture to get the format for
-	 * @param OutFormats Will contain the list of supported formats.
+	 * Gets the texture format to use for each layer in the given texture, for each of the platform's formats.
+	 * _Most_ platforms only supply one format for a given texture, so OutFormats.Num() is usually 1. The exception is Android_Multi,
+	 * where you can get several formats due to targeting different devices.
+	 * OutFormats.Num() == NumberOfPlatformFormats
+	 * OutFormats[0...N].Num() == Texture->Source.GetNumLayers().
 	 */
 	virtual void GetTextureFormats( const class UTexture* Texture, TArray< TArray<FName> >& OutFormats ) const = 0;
 

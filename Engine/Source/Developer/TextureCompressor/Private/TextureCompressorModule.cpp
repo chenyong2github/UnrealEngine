@@ -3140,8 +3140,11 @@ static bool CompressMipChain(
 	OutMips.Empty(MipCount);
 	OutMips.AddDefaulted(MipCount);
 
+	FIntVector3 Mip0Dimensions = TextureDescription.GetMipDimensions(0);
+	int32 Mip0NumSlicesNoDepth = TextureDescription.GetNumSlices_NoDepth();
+
 	auto ProcessMips =
-		[&TextureFormat, &MipChain, &OutMips, FirstMipTailIndex, MipTailCount, ExtData = ExtendedData.ExtData, &Settings, &DebugTexturePathName, bImageHasAlphaChannel](int32 MipBegin, int32 MipEnd)
+		[&TextureFormat, &MipChain, &OutMips, &Mip0Dimensions, Mip0NumSlicesNoDepth, FirstMipTailIndex, MipTailCount, ExtData = ExtendedData.ExtData, &Settings, &DebugTexturePathName, bImageHasAlphaChannel](int32 MipBegin, int32 MipEnd)
 	{
 		bool bSuccess = true;
 
@@ -3161,6 +3164,8 @@ static bool CompressMipChain(
 				&MipChain[MipIndex],
 				MipsToCompress,
 				Settings,
+				Mip0Dimensions,
+				Mip0NumSlicesNoDepth,
 				DebugTexturePathName,
 				bImageHasAlphaChannel,
 				ExtData,
@@ -3545,27 +3550,6 @@ public:
 		//	BuildSettings could have programatically introduced alpha that was not in the source
 		// note the order of operations in bForceAlphaChannel and bForceNoAlphaChannel ( ForceNo takes precedence )
 		const bool bImageHasAlphaChannel = !BuildSettings.bForceNoAlphaChannel  && (BuildSettings.bForceAlphaChannel || FImageCore::DetectAlphaChannel(IntermediateMipChain[0]));
-	
-		// Set the correct biased texture size so that the compressor understands the original source image size
-		// This is requires for platforms that may need to tile based on the original source texture size
-		BuildSettings.TopMipSize.X = IntermediateMipChain[0].SizeX;
-		BuildSettings.TopMipSize.Y = IntermediateMipChain[0].SizeY;
-		BuildSettings.VolumeSizeZ = BuildSettings.bVolume ? IntermediateMipChain[0].NumSlices : 1;
-		if (BuildSettings.bTextureArray)
-		{
-			if (BuildSettings.bCubemap)
-			{
-				BuildSettings.ArraySlices = IntermediateMipChain[0].NumSlices / 6;
-			}
-			else
-			{
-				BuildSettings.ArraySlices = IntermediateMipChain[0].NumSlices;
-			}
-		}
-		else
-		{
-			BuildSettings.ArraySlices = 1;
-		}
 
 		if (bOutImageHasAlpha)
 		{
