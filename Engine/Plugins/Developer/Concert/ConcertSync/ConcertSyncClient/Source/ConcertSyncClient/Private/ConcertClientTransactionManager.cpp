@@ -266,7 +266,8 @@ void FConcertClientTransactionManager::HandleTransactionRejectedEvent(const FCon
 
 bool FConcertClientTransactionManager::CanProcessTransactionEvent() const
 {
-	return TransactionBridge->CanApplyRemoteTransaction() && !LiveSession->GetSession().IsSuspended();
+	const bool bIsSuspended = LiveSession->GetSession().GetSendReceiveState() == EConcertSendReceiveState::SendOnly;
+	return TransactionBridge->CanApplyRemoteTransaction() && !bIsSuspended;
 }
 
 void FConcertClientTransactionManager::ProcessTransactionEvent(const FPendingTransactionToProcessContext& InContext, const FStructOnScope& InEvent)

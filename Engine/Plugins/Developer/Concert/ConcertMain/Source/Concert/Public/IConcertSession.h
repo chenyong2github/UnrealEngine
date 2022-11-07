@@ -289,13 +289,31 @@ public:
 	virtual void Disconnect() = 0;
 
 	/** Resume live-updates for this session (must be paired with a call to Suspend) */
-	virtual void Resume() = 0;
+	UE_DEPRECATED(5.2,"Use SetSendReceiveState to change live update status.")
+	virtual void Resume()
+	{
+		SetSendReceiveState(EConcertSendReceiveState::Default);
+	};
 
 	/** Suspend live-updates for this session */
-	virtual void Suspend() = 0;
+	UE_DEPRECATED(5.2,"Use SetSendReceiveState to change live update status.")
+	virtual void Suspend()
+	{
+		SetSendReceiveState(EConcertSendReceiveState::SendOnly);
+	}
 
 	/** Does this session currently have live-updates suspended? */
-	virtual bool IsSuspended() const = 0;
+	UE_DEPRECATED(5.2,"Use GetSendReceiveState to query the live update status.")
+	virtual bool IsSuspended() const
+	{
+		return GetSendReceiveState() == EConcertSendReceiveState::SendOnly;
+	}
+
+	/** Get the send/receive state for this session. */
+	virtual EConcertSendReceiveState GetSendReceiveState() const = 0;
+
+	/** Set the send/receive state for this session. */
+	virtual void SetSendReceiveState(EConcertSendReceiveState InSendReceiveState) = 0;
 
 	/** Callback when a connected client session gets ticked */
 	virtual FOnConcertClientSessionTick& OnTick() = 0;

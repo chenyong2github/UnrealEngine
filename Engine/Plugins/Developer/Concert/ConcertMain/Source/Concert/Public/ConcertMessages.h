@@ -50,6 +50,19 @@ enum class EConcertClientStatus : uint8
 	Updated,
 };
 
+UENUM()
+enum class EConcertSendReceiveState : uint8
+{
+	/** Full send / receive */
+	Default,
+
+	/** Sender only. Local transaction events will be sent to server but receiving data from clients has been suspended */
+	SendOnly,
+
+	/** Receive only. Updates will be received from clients but local transaction events will be deferred until state has been set to default or send. */
+	ReceiveOnly
+};
+
 /** Response codes for a session custom request */
 UENUM()
 enum class EConcertSessionResponseCode : uint8

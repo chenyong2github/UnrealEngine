@@ -84,9 +84,10 @@ public:
 
 	virtual void Connect() override;
 	virtual void Disconnect() override;
-	virtual void Resume() override;
-	virtual void Suspend() override;
-	virtual bool IsSuspended() const override;
+
+	virtual EConcertSendReceiveState GetSendReceiveState() const override;
+	virtual void SetSendReceiveState(EConcertSendReceiveState InSendReceiveState) override;
+
 	virtual FOnConcertClientSessionTick& OnTick() override;
 	virtual FOnConcertClientSessionConnectionChanged& OnConnectionChanged() override;
 	virtual FOnConcertClientSessionClientChanged& OnSessionClientChanged() override;
@@ -115,7 +116,7 @@ protected:
 	}
 
 	virtual void InternalSendCustomEvent(const UScriptStruct* EventType, const void* EventData, const TArray<FGuid>& DestinationEndpointIds, EConcertMessageFlags Flags) override;
-	
+
 	virtual void InternalRegisterCustomRequestHandler(const FName& RequestMessageType, const TSharedRef<IConcertSessionCustomRequestHandler>& Handler) override
 	{
 		CommonRegisterCustomRequestHandler(RequestMessageType, Handler);
@@ -134,7 +135,7 @@ private:
 
 	/**  */
 	void HandleJoinSessionResultEvent(const FConcertMessageContext& Context);
-	
+
 	/**  */
 	void HandleClientListUpdatedEvent(const FConcertMessageContext& Context);
 
@@ -168,8 +169,8 @@ private:
 	/** This session endpoint where message are sent and received from. */
 	IConcertLocalEndpointPtr ClientSessionEndpoint;
 
-	/** Count of the number of times this session has been suspended */
-	uint8 SuspendedCount;
+	/** State of the connection */
+	EConcertSendReceiveState SendReceiveState = EConcertSendReceiveState::Default;
 
 	/** Ticker for the session */
 	FTSTicker::FDelegateHandle SessionTick;

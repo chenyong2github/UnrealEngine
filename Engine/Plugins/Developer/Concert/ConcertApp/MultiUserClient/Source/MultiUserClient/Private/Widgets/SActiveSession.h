@@ -7,6 +7,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
+#include "Widgets/Input/SComboBox.h"
 #include "ConcertMessages.h"
 
 class IConcertClientSession;
@@ -23,6 +24,16 @@ class SExpandableArea;
 class SActiveSession : public SCompoundWidget
 {
 public:
+	/** Struct to store the current send / receive state. */
+	struct FSendReceiveComboItem
+	{
+		FSendReceiveComboItem(FText InName, FText InToolTip, EConcertSendReceiveState InState) :
+			Name(MoveTemp(InName)), ToolTip(MoveTemp(InToolTip)), State(InState) {};
+
+		FText Name;
+		FText ToolTip;
+		EConcertSendReceiveState State;
+	};
 
 	SLATE_BEGIN_ARGS(SActiveSession) { }
 	SLATE_END_ARGS();
@@ -59,19 +70,15 @@ private:
 
 	/** Find a client with its endpoint id */
 	TSharedPtr<FConcertSessionClientInfo> FindAvailableClient(const FGuid& InClientEndpointId) const;
-	
+
 	/** Handling for the status icon and text */
 	const FButtonStyle& GetConnectionIconStyle() const;
 	FSlateColor GetConnectionIconColor() const;
 	FSlateFontInfo GetConnectionIconFontInfo() const;
 	FText GetConnectionStatusText() const;
 
-	/** Handling for the suspend, resume and leave session buttons */
-	bool IsStatusBarSuspendSessionVisible() const;
-	bool IsStatusBarResumeSessionVisible() const;
+	/** Handling for leave session button */
 	bool IsStatusBarLeaveSessionVisible() const;
-	FReply OnClickSuspendSession();
-	FReply OnClickResumeSession();
 	FReply OnClickLeaveSession();
 
 	/** Handles how much space the 'Clients' area uses with respect to its expansion state. */
@@ -83,7 +90,16 @@ private:
 	void OnHistoryAreaExpansionChanged(bool bExpanded) { bHistoryAreaExpanded = bExpanded; }
 
 private:
-	
+
+	/** Get the text object for the send/receive combo box. */
+	FText GetRequestedSendReceiveComboText() const;
+
+	/** Generate the SWidget for the given item. */
+	TSharedRef<SWidget> GenerateSendReceiveComboItem(TSharedPtr<FSendReceiveComboItem> InItem);
+
+	/** Handle a send receiver state change from the combo box. */
+	void HandleSendReceiveChanged(TSharedPtr<FSendReceiveComboItem> Item, ESelectInfo::Type SelectInfo);
+
 	/** Pointer on the client sync. */
 	TWeakPtr<IConcertSyncClient> WeakConcertSyncClient;
 
@@ -107,6 +123,12 @@ private:
 
 	/** The 'History' expandable area. */
 	TSharedPtr<SExpandableArea> HistoryArea;
+
+	/** Holds a pointer to the preset combo box widget. */
+	TSharedPtr< SComboBox< TSharedPtr<FSendReceiveComboItem> > > SendReceiveComboBox;
+
+	/** Available states for the SendReceiveComboBox */
+	TArray< TSharedPtr< FSendReceiveComboItem > > SendReceiveComboList;
 
 	/** Keeps the status of 'Clients' area expansion. */
 	bool bClientAreaExpanded = true;

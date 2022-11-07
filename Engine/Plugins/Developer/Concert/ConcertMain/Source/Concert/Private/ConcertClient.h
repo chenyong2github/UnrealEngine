@@ -86,9 +86,10 @@ public:
 	virtual TFuture<EConcertResponseCode> DeleteSession(const FGuid& ServerAdminEndpointId, const FGuid& SessionId) override;
 	virtual TFuture<FConcertAdmin_BatchDeleteSessionResponse> BatchDeleteSessions(const FGuid& ServerAdminEndpointId, const FConcertBatchDeleteSessionsArgs& BatchDeletionArgs) override;
 	virtual void DisconnectSession() override;
-	virtual void ResumeSession() override;
-	virtual void SuspendSession() override;
-	virtual bool IsSessionSuspended() const override;
+
+	virtual EConcertSendReceiveState GetSendReceiveState() const override;
+	virtual void SetSendReceiveState(EConcertSendReceiveState InSendReceiveState) override;
+
 	virtual bool IsOwnerOf(const FConcertSessionInfo& InSessionInfo) const override;
 	virtual TSharedPtr<IConcertClientSession> GetCurrentSession() const override;
 

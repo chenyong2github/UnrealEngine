@@ -2,6 +2,7 @@
 
 #include "ConcertClientSession.h"
 #include "ConcertLogGlobal.h"
+#include "ConcertMessages.h"
 #include "IConcertEndpoint.h"
 #include "Scratchpad/ConcertScratchpad.h"
 
@@ -17,7 +18,6 @@ FConcertClientSession::FConcertClientSession(const FConcertSessionInfo& InSessio
 	, ClientInfo(InClientInfo)
 	, ConnectionStatus(EConcertConnectionStatus::Disconnected)
 	, ClientSessionEndpoint(MoveTemp(InClientSessionEndpoint))
-	, SuspendedCount(0)
 	, LastConnectionTick(0)
 	, SessionTickFrequency(0, 0, InSettings.SessionTickFrequencySeconds)
 	, SessionDirectory(InSessionDirectory)
@@ -120,24 +120,39 @@ void FConcertClientSession::Disconnect()
 	}
 }
 
-void FConcertClientSession::Resume()
+EConcertSendReceiveState FConcertClientSession::GetSendReceiveState() const
 {
-	check(IsSuspended());
-	--SuspendedCount;
-
-	UE_LOG(LogConcert, Display, TEXT("Resumed Concert session '%s' (Id: %s, Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.SessionId.ToString(), *SessionInfo.OwnerUserName);
+	return SendReceiveState;
 }
 
-void FConcertClientSession::Suspend()
+void LogSendReceiveStateChange(
+	FConcertSessionInfo SessionInfo,
+	EConcertSendReceiveState InState)
 {
-	++SuspendedCount;
-
-	UE_LOG(LogConcert, Display, TEXT("Suspended Concert session '%s' (Id: %s, Owner: %s)."), *SessionInfo.SessionName, *SessionInfo.SessionId.ToString(), *SessionInfo.OwnerUserName);
+	FString State = [InState]()
+	{
+		if (InState == EConcertSendReceiveState::Default)
+		{
+			return FString("Resumed");
+		}
+		else if (InState == EConcertSendReceiveState::SendOnly)
+		{
+			return FString("SendOnly");
+		}
+		return FString("ReceiveOnly");
+	}();
+	UE_LOG(LogConcert, Display,
+		   TEXT("%s Concert session '%s' (Id: %s, Owner: %s)."),
+		   *State,
+		   *SessionInfo.SessionName,
+		   *SessionInfo.SessionId.ToString(),
+		   *SessionInfo.OwnerUserName);
 }
 
-bool FConcertClientSession::IsSuspended() const
+void FConcertClientSession::SetSendReceiveState(EConcertSendReceiveState InSendReceiveState)
 {
-	return ConnectionStatus == EConcertConnectionStatus::Connected && SuspendedCount > 0;
+	SendReceiveState = InSendReceiveState;
+	LogSendReceiveStateChange(SessionInfo, SendReceiveState);
 }
 
 FOnConcertClientSessionTick& FConcertClientSession::OnTick()

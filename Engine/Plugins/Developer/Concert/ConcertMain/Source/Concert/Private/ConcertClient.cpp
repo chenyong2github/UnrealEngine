@@ -3,6 +3,7 @@
 #include "ConcertClient.h"
 
 #include "ConcertClientSession.h"
+#include "ConcertMessages.h"
 #include "ConcertUtil.h"
 #include "ConcertLogger.h"
 #include "ConcertLogGlobal.h"
@@ -1077,25 +1078,21 @@ void FConcertClient::DisconnectSession()
 	PendingConnection.Reset();
 }
 
-void FConcertClient::ResumeSession()
+EConcertSendReceiveState FConcertClient::GetSendReceiveState() const
 {
 	if (ClientSession.IsValid())
 	{
-		ClientSession->Resume();
+		ClientSession->GetSendReceiveState();
 	}
+	return EConcertSendReceiveState::Default;
 }
 
-void FConcertClient::SuspendSession()
+void FConcertClient::SetSendReceiveState(EConcertSendReceiveState InSendReceiveState)
 {
 	if (ClientSession.IsValid())
 	{
-		ClientSession->Suspend();
+		ClientSession->SetSendReceiveState(InSendReceiveState);
 	}
-}
-
-bool FConcertClient::IsSessionSuspended() const
-{
-	return ClientSession.IsValid() && ClientSession->IsSuspended();
 }
 
 bool FConcertClient::IsOwnerOf(const FConcertSessionInfo& InSessionInfo) const

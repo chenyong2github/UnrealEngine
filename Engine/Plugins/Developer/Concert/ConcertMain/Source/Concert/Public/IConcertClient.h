@@ -357,20 +357,29 @@ public:
 	 */
 	virtual void DisconnectSession() = 0;
 
-	/**
-	 * Resume live-updates for the current session (must be paired with a call to SuspendSession).
-	 */
-	virtual void ResumeSession() = 0;
+	UE_DEPRECATED(5.2,"Use SetSendReceiveState to change live update status.")
+	virtual void ResumeSession()
+	{
+		SetSendReceiveState(EConcertSendReceiveState::Default);
+	}
 
-	/**
-	 * Suspend live-updates for the current session.
-	 */
-	virtual void SuspendSession() = 0;
+	UE_DEPRECATED(5.2,"Use SetSendReceiveState to change live update status.")
+	virtual void SuspendSession()
+	{
+		SetSendReceiveState(EConcertSendReceiveState::SendOnly);
+	}
 
-	/**
-	 * Does the current session have live-updates suspended?
-	 */
-	virtual bool IsSessionSuspended() const = 0;
+	UE_DEPRECATED(5.2,"Use GetSendReceiveState to query the live update status.")
+	virtual bool IsSessionSuspended() const
+	{
+		return GetSendReceiveState() == EConcertSendReceiveState::SendOnly;
+	}
+
+	/** Get the send/receive state for this session. */
+	virtual EConcertSendReceiveState GetSendReceiveState() const = 0;
+
+	/** Set the send/receive state for this session. */
+	virtual void SetSendReceiveState(EConcertSendReceiveState InSendReceiveState) = 0;
 
 	/**
 	 * Does the client think it is the owner of the session?
