@@ -2,7 +2,7 @@
 #include "NNXRuntimeCPU.h"
 #include "NNXRuntimeCPUUtils.h"
 #include "NNXModelOptimizer.h"
-#include "NNIProfilingTimer.h"
+#include "NNEProfilingTimer.h"
 #include "RedirectCoutAndCerrToUeLog.h"
 
 using namespace NNX;
@@ -228,7 +228,7 @@ int FMLInferenceModelCPU::Run(TArrayView<const NNX::FMLTensorBinding> InInputBin
 		return -1;
 	}
 
-	UE::NNIProfiling::Internal::FTimer RunTimer;
+	UE::NNEProfiling::Internal::FTimer RunTimer;
 	RunTimer.Tic();
 
 	if (!bHasRun)
@@ -268,12 +268,12 @@ float FMLInferenceModelCPU::GetLastRunTimeMSec() const
 	return RunStatisticsEstimator.GetLastSample();
 }
 
-UE::NNIProfiling::Internal::FStatistics FMLInferenceModelCPU::GetRunStatistics() const
+UE::NNEProfiling::Internal::FStatistics FMLInferenceModelCPU::GetRunStatistics() const
 {
 	return RunStatisticsEstimator.GetStats();
 }
 
-UE::NNIProfiling::Internal::FStatistics FMLInferenceModelCPU::GetInputMemoryTransferStats() const
+UE::NNEProfiling::Internal::FStatistics FMLInferenceModelCPU::GetInputMemoryTransferStats() const
 {
 	return InputTransferStatisticsEstimator.GetStats();
 }

@@ -22,7 +22,7 @@ public class NNXRuntimeORT : ModuleRules
 				"Core",
 				"Engine",
 				"NNXCore",
-				"NNIProfiling",
+				"NNEProfiling",
 			}
 		);
 

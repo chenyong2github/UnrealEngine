@@ -6,7 +6,7 @@
 #include "NNXCore.h"
 #include "NNXRuntime.h"
 #include "NNXInferenceModel.h"
-#include "NNIProfilingStatistics.h"
+#include "NNEProfilingStatistics.h"
 #include "NNXModelOptimizerInterface.h"
 
 #include "NNXThirdPartyWarningDisabler.h"
@@ -87,8 +87,8 @@ namespace NNX
 		virtual int Run(TArrayView<const NNX::FMLTensorBinding> InInputBindingTensors, TArrayView<const NNX::FMLTensorBinding> OutOutputBindingTensors);
 
 		float GetLastRunTimeMSec() const;
-		UE::NNIProfiling::Internal::FStatistics GetRunStatistics() const;
-		UE::NNIProfiling::Internal::FStatistics GetInputMemoryTransferStats() const;
+		UE::NNEProfiling::Internal::FStatistics GetRunStatistics() const;
+		UE::NNEProfiling::Internal::FStatistics GetInputMemoryTransferStats() const;
 		void ResetStats();
 
 	protected:
@@ -119,8 +119,8 @@ namespace NNX
 		/**
 		 * Statistics-related members used for GetLastRunTimeMSec(), GetRunStatistics(), GetInputMemoryTransferStats(), ResetStats().
 		 */
-		UE::NNIProfiling::Internal::FStatisticsEstimator RunStatisticsEstimator;
-		UE::NNIProfiling::Internal::FStatisticsEstimator InputTransferStatisticsEstimator;
+		UE::NNEProfiling::Internal::FStatisticsEstimator RunStatisticsEstimator;
+		UE::NNEProfiling::Internal::FStatisticsEstimator InputTransferStatisticsEstimator;
 
 	};
 }

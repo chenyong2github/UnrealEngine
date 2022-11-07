@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "Containers/CircularBuffer.h"
 
-namespace UE::NNIProfiling::Internal
+namespace UE::NNEProfiling::Internal
 {
-	struct NNIPROFILING_API FStatistics
+	struct NNEPROFILING_API FStatistics
 	{
 		const uint32 NumberSamples;
 		const float Average;
@@ -18,7 +18,7 @@ namespace UE::NNIProfiling::Internal
 		FStatistics(const int InNumberSamples, const float InAverage, const float InStdDev, const float InMin, const float InMax);
 	};
 
-	class NNIPROFILING_API FStatisticsEstimator
+	class NNEPROFILING_API FStatisticsEstimator
 	{
 	public:
 
@@ -41,4 +41,4 @@ namespace UE::NNIProfiling::Internal
 		float CalculateMean() const;
 		float CalculateStdDev(const float InMean) const;
 	};
-} // UE::NNIProfiling::Internal
+} // UE::NNEProfiling::Internal

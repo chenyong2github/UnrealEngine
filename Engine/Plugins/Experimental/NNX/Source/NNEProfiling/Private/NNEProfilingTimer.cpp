@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNIProfilingTimer.h"
+#include "NNEProfilingTimer.h"
 #include "HAL/PlatformTime.h"
 
-namespace UE::NNIProfiling::Internal
+namespace UE::NNEProfiling::Internal
 {
 	void FTimer::Tic()
 	{
@@ -14,4 +14,4 @@ namespace UE::NNIProfiling::Internal
 	{
 		return (FPlatformTime::Seconds() - TimeStart) * 1e3;
 	}
-} // UE::NNIProfiling::Internal
+} // UE::NNEProfiling::Internal

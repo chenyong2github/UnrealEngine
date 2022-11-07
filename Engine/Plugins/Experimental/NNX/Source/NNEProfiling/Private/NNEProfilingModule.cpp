@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-class FNNIProfilingModule : public IModuleInterface
+class FNNEProfilingModule : public IModuleInterface
 {
 public:
 
@@ -18,4 +18,4 @@ public:
 	}
 };
 
-IMPLEMENT_MODULE(FNNIProfilingModule, NNIProfiling);
+IMPLEMENT_MODULE(FNNEProfilingModule, NNEProfiling);

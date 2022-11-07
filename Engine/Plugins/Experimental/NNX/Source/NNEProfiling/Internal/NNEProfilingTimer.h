@@ -4,9 +4,9 @@
 
 #include "CoreMinimal.h"
 
-namespace UE::NNIProfiling::Internal
+namespace UE::NNEProfiling::Internal
 {
-	class NNIPROFILING_API FTimer
+	class NNEPROFILING_API FTimer
 	{
 	public:
 
@@ -21,4 +21,4 @@ namespace UE::NNIProfiling::Internal
 
 		double TimeStart;
 	};
-} // UE::NNIProfiling::Internal
+} // UE::NNEProfiling::Internal

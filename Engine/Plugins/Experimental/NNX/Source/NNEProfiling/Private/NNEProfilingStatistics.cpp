@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NNIProfilingStatistics.h"
+#include "NNEProfilingStatistics.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 
-namespace UE::NNIProfiling::Internal
+namespace UE::NNEProfiling::Internal
 {
 	void FStatisticsEstimator_CalculateMinMax(float& OutMin, float& OutMax, const TCircularBuffer<float>& InDataBuffer, const bool bInIsBufferFull, const uint32 InBufferIdx)
 	{
@@ -109,4 +109,4 @@ namespace UE::NNIProfiling::Internal
 		// Return std deviation
 		return FMath::Sqrt(AccumulatorStdDev / (static_cast<float>(PtrEnd) + EpsilonFloat));
 	}
-} // UE::NNIProfiling::Internal
+} // UE::NNEProfiling::Internal

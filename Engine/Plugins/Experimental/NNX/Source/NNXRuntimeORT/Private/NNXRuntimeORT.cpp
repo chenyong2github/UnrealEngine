@@ -4,7 +4,7 @@
 #include "CoreGlobals.h"
 #include "Misc/ConfigCacheIni.h"
 
-#include "NNIProfilingTimer.h"
+#include "NNEProfilingTimer.h"
 #include "NNXRuntimeORTUtils.h"
 #include "NNXModelOptimizer.h"
 #include "RedirectCoutAndCerrToUeLog.h"
@@ -301,7 +301,7 @@ int FMLInferenceModelORT::Run(TArrayView<const NNX::FMLTensorBinding> InInputBin
 		return -1;
 	}
 
-	UE::NNIProfiling::Internal::FTimer RunTimer;
+	UE::NNEProfiling::Internal::FTimer RunTimer;
 	RunTimer.Tic();
 
 	if (!bHasRun)
@@ -340,12 +340,12 @@ float FMLInferenceModelORT::GetLastRunTimeMSec() const
 	return RunStatisticsEstimator.GetLastSample();
 }
 
-UE::NNIProfiling::Internal::FStatistics FMLInferenceModelORT::GetRunStatistics() const
+UE::NNEProfiling::Internal::FStatistics FMLInferenceModelORT::GetRunStatistics() const
 {
 	return RunStatisticsEstimator.GetStats();
 }
 
-UE::NNIProfiling::Internal::FStatistics FMLInferenceModelORT::GetInputMemoryTransferStats() const
+UE::NNEProfiling::Internal::FStatistics FMLInferenceModelORT::GetInputMemoryTransferStats() const
 {
 	return InputTransferStatisticsEstimator.GetStats();
 }

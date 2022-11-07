@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class NNIProfiling : ModuleRules
+public class NNEProfiling : ModuleRules
 {
-	public NNIProfiling(ReadOnlyTargetRules Target) : base(Target)
+	public NNEProfiling(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
@@ -15,7 +15,5 @@ public class NNIProfiling : ModuleRules
 				"Engine",
 			}
 		);
-
-		PublicDefinitions.Add("WITH_NNI_STATS");
 	}
 }
