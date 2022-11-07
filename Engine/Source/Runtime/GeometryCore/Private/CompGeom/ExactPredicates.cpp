@@ -65,6 +65,17 @@ double InCircle(double* PA, double* PB, double* PC, double* PD)
 	return ShewchukExactPredicates::incircle(PA, PB, PC, PD);
 }
 
+double InSphereInexact(double* PA, double* PB, double* PC, double* PD, double* PE)
+{
+	checkSlow(ShewchukExactPredicates::IsExactPredicateDataInitialized());
+	return ShewchukExactPredicates::inspherefast(PA, PB, PC, PD, PE);
+}
+double InSphere(double* PA, double* PB, double* PC, double* PD, double* PE)
+{
+	checkSlow(ShewchukExactPredicates::IsExactPredicateDataInitialized());
+	return ShewchukExactPredicates::insphere(PA, PB, PC, PD, PE);
+}
+
 float Orient2DInexact(float* pa, float* pb, float* pc)
 {
 	return ShewchukExactPredicatesFloat::orient2dfast(pa, pb, pc);

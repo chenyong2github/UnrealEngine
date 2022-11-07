@@ -35,8 +35,11 @@ double GEOMETRYCORE_API Facing2D(double* PA, double* PB, double* Direction);
 double GEOMETRYCORE_API InCircleInexact(double* PA, double* PB, double* PC, double* PD);
 double GEOMETRYCORE_API InCircle(double* PA, double* PB, double* PC, double* PD);
 
+double GEOMETRYCORE_API InSphereInexact(double* PA, double* PB, double* PC, double* PD, double* PE);
+double GEOMETRYCORE_API InSphere(double* PA, double* PB, double* PC, double* PD, double* PE);
+
 // Note: The float versions of these functions can be marginally faster in some cases,
-// but also are often orders of magnitude slower, and can fail to underflow at much larger values.
+// but also are often orders of magnitude slower, and are more likely to fail due to underflow or overflow
 // Consider calling the double versions even for float inputs.
 float GEOMETRYCORE_API Orient2DInexact(float* PA, float* PB, float* PC);
 float GEOMETRYCORE_API Orient2D(float* PA, float* PB, float* PC);
@@ -49,6 +52,8 @@ float GEOMETRYCORE_API Facing2D(float* PA, float* PB, float* PC);
 
 float GEOMETRYCORE_API InCircleInexact(float* PA, float* PB, float* PC, float* PD);
 float GEOMETRYCORE_API InCircle(float* PA, float* PB, float* PC, float* PD);
+
+// Note: float version of InSphere is not exposed here; instead, convert to and use the double version
 
 /**
  * Fully generic version; always computes in double precision
@@ -182,7 +187,31 @@ RealType InCircle2(const TVector2<RealType>& A, const TVector2<RealType>& B, con
 	}
 }
 
+/**
+ * TVector-only version that can run in float or double
+ * @return value indicating whether point E is inside, outside, or exactly on the sphere passing through ABCD
+ * Note: Sign of the result depends on the orientation of tetrahedron ABCD
+ */
+template<typename RealType>
+RealType InSphere3(const TVector<RealType>& A, const TVector<RealType>& B, const TVector<RealType>& C, const TVector<RealType>& D, const TVector<RealType>& E)
+{
+	// Note: Though we could compute exact predicates in float precision directly, in practice
+	// it is more reliable and often faster to compute in double precision
+	double PA[3]{ (double)A.X, (double)A.Y, (double)A.Z };
+	double PB[3]{ (double)B.X, (double)B.Y, (double)B.Z };
+	double PC[3]{ (double)C.X, (double)C.Y, (double)C.Z };
+	double PD[3]{ (double)D.X, (double)D.Y, (double)D.Z };
+	double PE[3]{ (double)E.X, (double)E.Y, (double)E.Z };
+	if constexpr (TIsSame<RealType, double>::Value)
+	{
+		return InSphere(PA, PB, PC, PD, PE);
+	}
+	else
+	{
+		// make sure the sign is not lost in casting
+		return (RealType)FMath::Sign(InSphere(PA, PB, PC, PD, PE));
+	}
+}
 
-// TODO: insphere predicates (currently disabled because they have a huge stack allocation that scares static analysis)
 
 }}} // namespace UE::Geometry::ExactPredicates
