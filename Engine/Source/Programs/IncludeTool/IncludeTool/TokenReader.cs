@@ -38,10 +38,31 @@ namespace IncludeTool
 	}
 
 	/// <summary>
+	/// Exception thrown when an invalid token is encountered
+	/// </summary>
+	class TokenException : Exception
+	{
+		public string FileName { get; }
+		public TextLocation Location { get; }
+		public string Description { get; }
+
+		public TokenException(string FileName, TextLocation Location, string Description)
+			: base($"{FileName}({Location.LineIdx + 1}): error: {Description}")
+		{
+			this.Description = Description;
+		}
+	}
+
+	/// <summary>
 	/// Tokenizer for C++ source files. Provides functions for navigating a source file skipping whitespace, comments, and so on when required.
 	/// </summary>
 	class TokenReader : IEnumerator<Token>
 	{
+		/// <summary>
+		/// The current file
+		/// </summary>
+		public string FileName { get; }
+
 		/// <summary>
 		/// The current text buffer being read from
 		/// </summary>
@@ -61,8 +82,8 @@ namespace IncludeTool
 		/// Constructor
 		/// </summary>
 		/// <param name="Text">The text to tokenize</param>
-		public TokenReader(string Text)
-			: this(TextBuffer.FromString(Text), TextLocation.Origin)
+		public TokenReader(string FileName, string Text)
+			: this(FileName, TextBuffer.FromString(Text), TextLocation.Origin)
 		{
 		}
 
@@ -71,8 +92,8 @@ namespace IncludeTool
 		/// </summary>
 		/// <param name="Text">The text buffer to tokenize</param>
 		/// <param name="Location">Initial location to start reading from</param>
-		public TokenReader(TextBuffer Text, TextLocation Location)
-			: this(Text, Location, Text.End)
+		public TokenReader(string FileName, TextBuffer Text, TextLocation Location)
+			: this(FileName, Text, Location, Text.End)
 		{
 		}
 
@@ -82,8 +103,9 @@ namespace IncludeTool
 		/// <param name="Text">The text buffer to tokenize</param>
 		/// <param name="Location">Initial location to start reading from</param>
 		/// <param name="EndLocation">The end location to read from</param>
-		public TokenReader(TextBuffer Text, TextLocation Location, TextLocation EndLocation)
+		public TokenReader(string FileName, TextBuffer Text, TextLocation Location, TextLocation EndLocation)
 		{
+			this.FileName = FileName;
 			this.Text = Text;
 			this.TokenWhitespaceLocation = Location;
 			this.TokenLocation = Location;
@@ -203,7 +225,7 @@ namespace IncludeTool
 
 			// Read the token
 			TokenLocation = new TextLocation(LineIdx, ColumnIdx);
-			bool bResult = ReadToken(Text, ref LineIdx, ref ColumnIdx, bHasWhitespace? TokenFlags.HasLeadingSpace : TokenFlags.None, Context, out CurrentToken);
+			bool bResult = ReadToken(FileName, Text, ref LineIdx, ref ColumnIdx, bHasWhitespace? TokenFlags.HasLeadingSpace : TokenFlags.None, Context, out CurrentToken);
 			TokenEndLocation = new TextLocation(LineIdx, ColumnIdx);
 			return bResult;
 		}
@@ -315,12 +337,13 @@ namespace IncludeTool
 		/// <summary>
 		/// Reads a single token from a text buffer
 		/// </summary>
+		/// <param name="FileName">File being parsed</param>
 		/// <param name="Text">The text buffer to read from</param>
 		/// <param name="LineIdx">The current line index</param>
 		/// <param name="ColumnIdx">The current column index</param>
 		/// <param name="Flags">Flags for the new token</param>
 		/// <returns>The next token, or null at the end of the file</returns>
-		static bool ReadToken(TextBuffer Text, ref int LineIdx, ref int ColumnIdx, TokenFlags Flags, TokenReaderContext Context, out Token Result)
+		static bool ReadToken(string FileName, TextBuffer Text, ref int LineIdx, ref int ColumnIdx, TokenFlags Flags, TokenReaderContext Context, out Token Result)
 		{
 			int StartLineIdx = LineIdx;
 			int StartColumnIdx = ColumnIdx;
@@ -346,7 +369,7 @@ namespace IncludeTool
 					for(;;)
 					{
 						Character = Text[LineIdx, ColumnIdx];
-						if(Character == '\n')
+						if(Character == '\n' && Builder[^1] != '\\')
 						{
 							break;
 						}
@@ -363,21 +386,24 @@ namespace IncludeTool
 			else if(Character == '\'')
 			{
 				// Character literal
-				SkipTextLiteral(Text, ref LineIdx, ref ColumnIdx, '\'');
+				SkipTextLiteral(FileName, Text, ref LineIdx, ref ColumnIdx, '\'');
 				Result = new Token(Text.ExtractString(StartLineIdx, StartColumnIdx, LineIdx, ColumnIdx), TokenType.CharacterLiteral, Flags);
 				return true;
 			}
 			else if(Character == '\"')
 			{
 				// String literal
-				SkipTextLiteral(Text, ref LineIdx, ref ColumnIdx, '\"');
+				SkipTextLiteral(FileName, Text, ref LineIdx, ref ColumnIdx, '\"');
 				Result = new Token(Text.ExtractString(StartLineIdx, StartColumnIdx, LineIdx, ColumnIdx), TokenType.StringLiteral, Flags);
 				return true;
 			}
 			else if ((Character >= 'a' && Character <= 'z') || (Character >= 'A' && Character <= 'Z') || Character == '_')
 			{
+				char FirstCharacter = Character;
+
 				// Identifier (or text literal with prefix)
-				for(;;)
+				int PrefixLength = 1;
+				for (;; PrefixLength++)
 				{
 					Character = Text[LineIdx, ColumnIdx];
 					if((Character < 'a' || Character > 'z') && (Character < 'A' || Character > 'Z') && (Character < '0' || Character > '9') && Character != '_' && Character != '$')
@@ -388,17 +414,23 @@ namespace IncludeTool
 				}
 
 				// Check if it's a prefixed text literal
-				if(Character == '\'')
+				if (Character == '\'')
 				{
 					Text.MoveNext(ref LineIdx, ref ColumnIdx);
-					SkipTextLiteral(Text, ref LineIdx, ref ColumnIdx, '\'');
+					SkipTextLiteral(FileName, Text, ref LineIdx, ref ColumnIdx, '\'');
 					Result = new Token(Text.ExtractString(StartLineIdx, StartColumnIdx, LineIdx, ColumnIdx), TokenType.CharacterLiteral, Flags);
 					return true;
 				}
-				else if(Character == '\"')
+				else if (Character == '\"' && PrefixLength == 1 && FirstCharacter == 'R')
+				{
+					SkipRawStringLiteral(FileName, Text, ref LineIdx, ref ColumnIdx);
+					Result = new Token(Text.ExtractString(StartLineIdx, StartColumnIdx, LineIdx, ColumnIdx), TokenType.StringLiteral, Flags);
+					return true;
+				}
+				else if (Character == '\"')
 				{
 					Text.MoveNext(ref LineIdx, ref ColumnIdx);
-					SkipTextLiteral(Text, ref LineIdx, ref ColumnIdx, '\"');
+					SkipTextLiteral(FileName, Text, ref LineIdx, ref ColumnIdx, '\"');
 					Result = new Token(Text.ExtractString(StartLineIdx, StartColumnIdx, LineIdx, ColumnIdx), TokenType.StringLiteral, Flags);
 					return true;
 				}
@@ -483,28 +515,77 @@ namespace IncludeTool
 		/// <summary>
 		/// Skip past a text literal (a quoted character literal or string literal)
 		/// </summary>
+		/// <param name="FileName">The file being parsed</param>
 		/// <param name="Text">The text buffer to read from</param>
 		/// <param name="LineIdx">The current line index</param>
 		/// <param name="ColumnIdx">The current column index</param>
 		/// <param name="LastCharacter">The terminating character to look for, ignoring escape sequences</param>
-		static void SkipTextLiteral(TextBuffer Text, ref int LineIdx, ref int ColumnIdx, char LastCharacter)
+		static void SkipTextLiteral(string FileName, TextBuffer Text, ref int LineIdx, ref int ColumnIdx, char LastCharacter)
 		{
 			for(;;)
 			{
 				char Character = Text.ReadCharacter(ref LineIdx, ref ColumnIdx);
-				if(Character == '\0')
+				if (Character == '\0')
 				{
-					throw new Exception("Unexpected end of file in text literal");
+					throw new TokenException(FileName, new TextLocation(LineIdx, ColumnIdx), "Unexpected end of file in text literal");
 				}
-				else if(Character == '\\')
+				else if (Character == '\\')
 				{
 					Text.MoveNext(ref LineIdx, ref ColumnIdx);
 				}
-				else if(Character == LastCharacter)
+				else if (Character == LastCharacter)
+				{
+					break;
+				}
+				else if (Character == '\n')
+				{
+					throw new TokenException(FileName, new TextLocation(LineIdx, ColumnIdx), "Unexpected newline in text literal");
+				}
+			}
+		}
+
+		/// <summary>
+		/// Skip past a text literal (a quoted character literal or string literal)
+		/// </summary>
+		/// <param name="FileName">The file being parsed</param>
+		/// <param name="Text">The text buffer to read from</param>
+		/// <param name="LineIdx">The current line index</param>
+		/// <param name="ColumnIdx">The current column index</param>
+		static void SkipRawStringLiteral(string FileName, TextBuffer Text, ref int LineIdx, ref int ColumnIdx)
+		{
+			int StartColumnIdx = ColumnIdx;
+
+			ReadOnlySpan<char> Line = Text[LineIdx].AsSpan();
+			for (; ; ColumnIdx++)
+			{
+				if (ColumnIdx == Line.Length)
+				{
+					throw new TokenException(FileName, new TextLocation(LineIdx, ColumnIdx), "End of line when looking for raw text delimiter");
+				}
+				else if (Line[ColumnIdx] == '(')
 				{
 					break;
 				}
 			}
+
+			ReadOnlySpan<char> Delim = Line.Slice(StartColumnIdx + 1, ColumnIdx - (StartColumnIdx + 1));
+			while(LineIdx < Text.Lines.Length)
+			{
+				Line = Text[LineIdx].AsSpan();
+
+				for (; ColumnIdx < Line.Length; ColumnIdx++)
+				{
+					if (Line[ColumnIdx] == ')' && Line.Length >= ColumnIdx + 2 + Delim.Length && Line[ColumnIdx + 1 + Delim.Length] == '\"' && Line.Slice(ColumnIdx + 1).StartsWith(Delim))
+					{
+						ColumnIdx += Delim.Length + 2;
+						return;
+					}
+				}
+
+				(LineIdx, ColumnIdx) = (LineIdx + 1, 0);
+			}
+
+			throw new TokenException(FileName, new TextLocation(LineIdx, ColumnIdx), "End of file while looking for end of raw string delimiter");
 		}
 	}
 }

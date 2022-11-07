@@ -252,9 +252,9 @@ namespace IncludeTool
 		/// </summary>
 		/// <param name="Reader">Reader for token objects</param>
 		/// <returns>Array of markup objects which split up the given text buffer</returns>
-		public static PreprocessorMarkup[] ParseArray(TextBuffer Text)
+		public static PreprocessorMarkup[] ParseArray(string FileName, TextBuffer Text)
 		{
-			TokenReader Reader = new TokenReader(Text, TextLocation.Origin);
+			TokenReader Reader = new TokenReader(FileName, Text, TextLocation.Origin);
 
 			List<PreprocessorMarkup> Markup = new List<PreprocessorMarkup>();
 			if(Reader.MoveNext())
@@ -358,7 +358,7 @@ namespace IncludeTool
 						}
 
 						// Create the new fragment
-						PreprocessorMarkupType Type = IsIncludeMarkup(Text, StartLocation, Reader.TokenLocation)? PreprocessorMarkupType.IncludeMarkup : PreprocessorMarkupType.Text;
+						PreprocessorMarkupType Type = IsIncludeMarkup(FileName, Text, StartLocation, Reader.TokenLocation)? PreprocessorMarkupType.IncludeMarkup : PreprocessorMarkupType.Text;
 						Markup.Add(new PreprocessorMarkup(Type, StartLocation, Reader.TokenLocation, null));
 					}
 					else
@@ -374,13 +374,14 @@ namespace IncludeTool
 		/// <summary>
 		/// Checks whether the given block of text is an include decoration
 		/// </summary>
+		/// <param name="FileName">Name of the file being parsed</param>
 		/// <param name="Text">The text buffer to read from</param>
 		/// <param name="StartLocation">Start of the block of text to check</param>
 		/// <param name="EndLocation">End of the block of text to check</param>
 		/// <returns>True if the region just consists of #include markup macros</returns>
-		public static bool IsIncludeMarkup(TextBuffer Text, TextLocation StartLocation, TextLocation EndLocation)
+		public static bool IsIncludeMarkup(string FileName, TextBuffer Text, TextLocation StartLocation, TextLocation EndLocation)
 		{
-			TokenReader Reader = new TokenReader(Text, StartLocation, EndLocation);
+			TokenReader Reader = new TokenReader(FileName, Text, StartLocation, EndLocation);
 			while(Reader.MoveNext(TokenReaderContext.IgnoreNewlines))
 			{
 				if(Reader.Current.Text == "MONOLITHIC_HEADER_BOILERPLATE" && Reader.MoveNext() && Reader.Current.Text == "(" && Reader.MoveNext() && Reader.Current.Text == ")")

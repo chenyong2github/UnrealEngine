@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -157,7 +157,7 @@ namespace IncludeTool
 		{
 			string Text = FirstToken.Text + SecondToken.Text;
 
-			TokenReader Reader = new TokenReader(Text);
+			TokenReader Reader = new TokenReader("concatenated", Text);
 			if(Reader.MoveNext())
 			{
 				TokenType Type = Reader.Current.Type;

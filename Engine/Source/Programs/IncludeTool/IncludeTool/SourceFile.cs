@@ -234,7 +234,7 @@ namespace IncludeTool
 			}
 			else
 			{
-				Markup = PreprocessorMarkup.ParseArray(Text);
+				Markup = PreprocessorMarkup.ParseArray(Location?.FullName ?? "unknown", Text);
 			}
 
 			// Find the markup range which excludes header guards
@@ -492,7 +492,7 @@ namespace IncludeTool
 						if(TrimLine.Length > 0 && !TrimLine.Equals("// Forward declarations", StringComparison.OrdinalIgnoreCase) && !TrimLine.Equals("// Forward declarations.", StringComparison.OrdinalIgnoreCase))
 						{
 							// Create a token reader for the current line
-							TokenReader Reader = new TokenReader(Text, new TextLocation(NewLastLocation.LineIdx, 0), new TextLocation(NewLastLocation.LineIdx, Text.Lines[NewLastLocation.LineIdx].Length));
+							TokenReader Reader = new TokenReader(Location.FullName, Text, new TextLocation(NewLastLocation.LineIdx, 0), new TextLocation(NewLastLocation.LineIdx, Text.Lines[NewLastLocation.LineIdx].Length));
 
 							// Read it into a buffer
 							List<Token> Tokens = new List<Token>();
@@ -646,12 +646,13 @@ namespace IncludeTool
 		/// <summary>
 		/// Split the given line into tokens
 		/// </summary>
+		/// <param name="FileName">File being parsed</param>
 		/// <param name="Text">Buffer to read from</param>
 		/// <param name="LineIdx">Index of the line to tokenize</param>
 		/// <returns>Sequence of tokens</returns>
-		static IEnumerable<Token> TokenizeLine(TextBuffer Text, int LineIdx)
+		static IEnumerable<Token> TokenizeLine(string FileName, TextBuffer Text, int LineIdx)
 		{
-			TokenReader Reader = new TokenReader(Text, new TextLocation(LineIdx, 0), new TextLocation(LineIdx, Text.Lines[LineIdx].Length));
+			TokenReader Reader = new TokenReader(FileName, Text, new TextLocation(LineIdx, 0), new TextLocation(LineIdx, Text.Lines[LineIdx].Length));
 			while(Reader.MoveNext())
 			{
 				yield return Reader.Current;

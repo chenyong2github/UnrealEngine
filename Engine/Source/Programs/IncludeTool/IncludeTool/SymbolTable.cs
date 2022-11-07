@@ -294,7 +294,7 @@ namespace IncludeTool
 		/// <param name="Scope">The scope depth; the number of unmatched opening brace tokens</param>
 		void ParseDeclarations(SourceFile File, SourceFragment Fragment, PreprocessorMarkup Markup, ref int Scope)
 		{
-			TokenReader Reader = new TokenReader(File.Text, Markup.Location, Markup.EndLocation);
+			TokenReader Reader = new TokenReader(File.Location.FullName, File.Text, Markup.Location, Markup.EndLocation);
 			if(Reader.MoveNext())
 			{
 				for(;;)
@@ -723,7 +723,7 @@ namespace IncludeTool
 		{
 			foreach (PreprocessorMarkup Markup in HeaderFile.Markup.Where(x => x.Type == PreprocessorMarkupType.Text))
 			{
-				TokenReader Reader = new TokenReader(HeaderFile.Text, Markup.Location, Markup.EndLocation);
+				TokenReader Reader = new TokenReader(HeaderFile.Location.FullName, HeaderFile.Text, Markup.Location, Markup.EndLocation);
 				while(Reader.MoveNext(TokenReaderContext.IgnoreNewlines))
 				{
 					if(!ReadClassOrStructForwardDeclaration(Reader, HeaderFile, SymbolToHeader, Log) 
@@ -994,7 +994,7 @@ namespace IncludeTool
 			TextBuffer Text = Fragment.File.Text;
 			if(Text != null && Fragment.MarkupMax > Fragment.MarkupMin)
 			{
-				TokenReader Reader = new TokenReader(Fragment.File.Text, Fragment.MinLocation, Fragment.MaxLocation);
+				TokenReader Reader = new TokenReader(Fragment.File.Location.FullName, Fragment.File.Text, Fragment.MinLocation, Fragment.MaxLocation);
 				for(bool bMoveNext = Reader.MoveNext(TokenReaderContext.IgnoreNewlines); bMoveNext; )
 				{
 					// Read the current token, and immediately move to the next so that we can lookahead if we need to

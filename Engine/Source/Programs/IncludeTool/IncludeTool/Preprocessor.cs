@@ -301,7 +301,7 @@ namespace IncludeTool
 			if(PreludeFile != null)
 			{
 				TextBuffer PreludeText = TextBuffer.FromFile(PreludeFile.FullName);
-				PreprocessorMarkup[] PreludeMarkup = PreprocessorMarkup.ParseArray(PreludeText);
+				PreprocessorMarkup[] PreludeMarkup = PreprocessorMarkup.ParseArray("prelude", PreludeText);
 				foreach(PreprocessorMarkup Markup in PreludeMarkup)
 				{
 					ParseMarkup(Markup.Type, Markup.Tokens, Markup.Location.LineIdx);
@@ -311,7 +311,7 @@ namespace IncludeTool
 			foreach(string Definition in Definitions)
 			{
 				// Create a token reader for this definition
-				TokenReader Reader = new TokenReader(TextBuffer.FromString(Definition), TextLocation.Origin);
+				TokenReader Reader = new TokenReader($"(predefined value for {Definition})", TextBuffer.FromString(Definition), TextLocation.Origin);
 
 				// Read it into a buffer
 				List<Token> Tokens = new List<Token>();
@@ -1511,7 +1511,7 @@ namespace IncludeTool
 						// Write the expanded macro tokens if the current block is active, or blank lines if not
 						if (IsBranchActive())
 						{
-							WriteExpandedText(SourceFile.Text, Location, Markup.EndLocation, Writer);
+							WriteExpandedText(SourceFile.Location.FullName, SourceFile.Text, Location, Markup.EndLocation, Writer);
 						}
 						else
 						{
@@ -1711,16 +1711,17 @@ namespace IncludeTool
 		/// <summary>
 		/// Write a portion of the given file to the output stream, expanding macros in it
 		/// </summary>
+		/// <param name="FileName">The file being parsed</param>
 		/// <param name="Text">The text buffer for the current file</param>
 		/// <param name="Location">Start of the region to copy to the output stream</param>
 		/// <param name="EndLocation">End of the region to copy to the output stream</param>
 		/// <param name="Writer">Writer for the output text</param>
-		void WriteExpandedText(TextBuffer Text, TextLocation Location, TextLocation EndLocation, TextWriter Writer)
+		void WriteExpandedText(string FileName, TextBuffer Text, TextLocation Location, TextLocation EndLocation, TextWriter Writer)
 		{
 			int ExpectedLineIdx = Location.LineIdx;
 
 			// Expand any macros in this block of tokens
-			TokenReader Reader = new TokenReader(Text, Location);
+			TokenReader Reader = new TokenReader(FileName, Text, Location);
 			for(bool bMoveNext = Reader.MoveNext(); bMoveNext; )
 			{
 				// Write the whitespace to the output stream
@@ -1756,7 +1757,7 @@ namespace IncludeTool
 					// If we expanded a macro, insert all the comment tokens
 					if(Reader.TokenWhitespaceLocation > FirstArgumentLocation)
 					{
-						TokenReader CommentReader = new TokenReader(Text, FirstArgumentLocation);
+						TokenReader CommentReader = new TokenReader(FileName, Text, FirstArgumentLocation);
 						while(CommentReader.MoveNext() && CommentReader.TokenLocation < Reader.TokenWhitespaceLocation)
 						{
 							string[] Comments = Text.Extract(CommentReader.TokenWhitespaceLocation, CommentReader.TokenLocation).Select(x => x.EndsWith("\\")? x.Substring(0, x.Length - 1) : x).ToArray();
@@ -1973,7 +1974,7 @@ namespace IncludeTool
 						{
 							List<Token> Tokens = new List<Token>();
 
-							TokenReader Reader = new TokenReader(File.Text, Markup.Location);
+							TokenReader Reader = new TokenReader("", File.Text, Markup.Location);
 							while(Reader.MoveNext() && Reader.TokenLocation < Markup.EndLocation)
 							{
 								Tokens.Add(Reader.Current);

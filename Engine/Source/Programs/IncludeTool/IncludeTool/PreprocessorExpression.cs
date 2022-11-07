@@ -591,7 +591,7 @@ namespace IncludeTool
 		/// <param name="ExpectedResult">The expected value of the expression</param>
         static void RunTest(string Expression, long? ExpectedResult)
         {
-			TokenReader Reader = new TokenReader(Expression);
+			TokenReader Reader = new TokenReader("", Expression);
 
 			List<Token> Tokens = new List<Token>();
 			while (Reader.MoveNext() && Reader.Current.Text != "\n")
