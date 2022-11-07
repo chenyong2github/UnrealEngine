@@ -816,6 +816,10 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				{
 					bool bIsVirtualTexture = false;
 
+					// check if texture is using BC4 compression and set shader to render grayscale
+					bool bUseTextureGrayscale = false;
+
+
 					if ((ShaderResource != nullptr) && (ResourceType == ESlateShaderResource::TextureObject))
 					{
 						FSlateBaseUTextureResource* TextureObjectResource = const_cast<FSlateBaseUTextureResource*>(static_cast<const FSlateBaseUTextureResource*>(ShaderResource));
@@ -823,10 +827,15 @@ void FSlateRHIRenderingPolicy::DrawElements(
 						if (UTexture* TextureObj = TextureObjectResource->GetTextureObject())
 						{
 							bIsVirtualTexture = TextureObj->IsCurrentlyVirtualTextured();
+
+							if (TextureObj->CompressionSettings == TC_Alpha)
+							{
+								bUseTextureGrayscale = true;
+							}
 						}
 					}
 
-					PixelShader = GetTexturePixelShader(ShaderMap, ShaderType, DrawEffects, bIsVirtualTexture);
+					PixelShader = GetTexturePixelShader(ShaderMap, ShaderType, DrawEffects, bUseTextureGrayscale, bIsVirtualTexture);
 				}
 
 #if WITH_SLATE_VISUALIZERS
@@ -1341,7 +1350,7 @@ ETextureSamplerFilter FSlateRHIRenderingPolicy::GetSamplerFilter(const UTexture*
 	return Filter;
 }
 
-TShaderRef<FSlateElementPS> FSlateRHIRenderingPolicy::GetTexturePixelShader( FGlobalShaderMap* ShaderMap, ESlateShader ShaderType, ESlateDrawEffect DrawEffects, bool bIsVirtualTexture )
+TShaderRef<FSlateElementPS> FSlateRHIRenderingPolicy::GetTexturePixelShader(FGlobalShaderMap* ShaderMap, ESlateShader ShaderType, ESlateDrawEffect DrawEffects, bool bUseTextureGrayscale, bool bIsVirtualTexture)
 {
 	TShaderRef<FSlateElementPS> PixelShader;
 
@@ -1366,22 +1375,50 @@ TShaderRef<FSlateElementPS> FSlateRHIRenderingPolicy::GetTexturePixelShader( FGl
 			{
 				if ( bIsVirtualTexture )
 				{
-					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, true, true> >(ShaderMap);
+					if (bUseTextureGrayscale)
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, true, true, true> >(ShaderMap);
+					}
+					else
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, true, false, true> >(ShaderMap);
+					}
 				}
 				else
 				{
-					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, true, false> >(ShaderMap);
+					if (bUseTextureGrayscale)
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, true, true, false> >(ShaderMap);
+					}
+					else
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, true, false, false> >(ShaderMap);
+					}
 				}
 			}
 			else
 			{
 				if ( bIsVirtualTexture )
 				{
-					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, false, true> >(ShaderMap);
+					if (bUseTextureGrayscale)
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, false, true, true> >(ShaderMap);
+					}
+					else
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, false, false, true> >(ShaderMap);
+					}
 				}
 				else
 				{
-					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, false, false> >(ShaderMap);
+					if (bUseTextureGrayscale)
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, false, true, false> >(ShaderMap);
+					}
+					else
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, true, false, false, false> >(ShaderMap);
+					}
 				}
 			}
 			break;
@@ -1419,22 +1456,50 @@ TShaderRef<FSlateElementPS> FSlateRHIRenderingPolicy::GetTexturePixelShader( FGl
 			{
 				if ( bIsVirtualTexture )
 				{
-					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, true, true> >(ShaderMap);
+					if (bUseTextureGrayscale)
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, true, true, true> >(ShaderMap);
+					}
+					else
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, true, false, true> >(ShaderMap);
+					}
 				}
 				else
 				{
-					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, true, false> >(ShaderMap);
+					if (bUseTextureGrayscale)
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, true, true, false> >(ShaderMap);
+					}
+					else
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, true, false, false> >(ShaderMap);
+					}
 				}
 			}
 			else
 			{
 				if ( bIsVirtualTexture )
 				{
-					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, false, true> >(ShaderMap);
+					if (bUseTextureGrayscale)
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, false, true, true> >(ShaderMap);
+					}
+					else
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, false, false, true> >(ShaderMap);
+					}
 				}
 				else
 				{
-					PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, false, false> >(ShaderMap);
+					if (bUseTextureGrayscale)
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, false, true, false> >(ShaderMap);
+					}
+					else
+					{
+						PixelShader = TShaderMapRef<TSlateElementPS<ESlateShader::Default, false, false, false, false> >(ShaderMap);
+					}
 				}
 			}
 			break;

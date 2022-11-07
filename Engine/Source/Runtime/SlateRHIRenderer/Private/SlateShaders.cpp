@@ -28,9 +28,9 @@ IMPLEMENT_SHADER_TYPE(, FSlateMaskingPS, TEXT("/Engine/Private/SlateMaskingShade
 
 IMPLEMENT_SHADER_TYPE(, FSlateDebugBatchingPS, TEXT("/Engine/Private/SlateElementPixelShader.usf"), TEXT("DebugBatchingMain"), SF_Pixel );
 
-#define IMPLEMENT_SLATE_PIXELSHADER_TYPE(ShaderType, bDrawDisabledEffect, bUseTextureAlpha, bIsVirtualTexture) \
-	typedef TSlateElementPS<ESlateShader::ShaderType,bDrawDisabledEffect,bUseTextureAlpha,bIsVirtualTexture> TSlateElementPS##ShaderType##bDrawDisabledEffect##bUseTextureAlpha##bIsVirtualTexture##A; \
-	IMPLEMENT_SHADER_TYPE(template<>,TSlateElementPS##ShaderType##bDrawDisabledEffect##bUseTextureAlpha##bIsVirtualTexture##A,TEXT("/Engine/Private/SlateElementPixelShader.usf"),TEXT("Main"),SF_Pixel);
+#define IMPLEMENT_SLATE_PIXELSHADER_TYPE(ShaderType, bDrawDisabledEffect, bUseTextureAlpha, bUseTextureGrayscale, bIsVirtualTexture) \
+	typedef TSlateElementPS<ESlateShader::ShaderType,bDrawDisabledEffect,bUseTextureAlpha, bUseTextureGrayscale, bIsVirtualTexture> TSlateElementPS##ShaderType##bDrawDisabledEffect##bUseTextureAlpha##bUseTextureGrayscale##bIsVirtualTexture##A; \
+	IMPLEMENT_SHADER_TYPE(template<>,TSlateElementPS##ShaderType##bDrawDisabledEffect##bUseTextureAlpha##bUseTextureGrayscale##bIsVirtualTexture##A,TEXT("/Engine/Private/SlateElementPixelShader.usf"),TEXT("Main"),SF_Pixel);
 
 #if WITH_EDITOR
 IMPLEMENT_SHADER_TYPE(, FHDREditorConvertPS, TEXT("/Engine/Private/CompositeUIPixelShader.usf"), TEXT("HDREditorConvert"), SF_Pixel);
@@ -38,30 +38,40 @@ IMPLEMENT_SHADER_TYPE(, FHDREditorConvertPS, TEXT("/Engine/Private/CompositeUIPi
 /**
 * All the different permutations of shaders used by slate. Uses #defines to avoid dynamic branches
 */
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, false, true, false);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, false, true, true);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Border, false, true, false);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, true, true, false);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, true, true, true);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Border, true, true, false);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, false, false, false);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, false, false, true);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Border, false, false, false);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, true, false, false);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, true, false, true);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(Border, true, false, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, false, true, true, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, false, true, true, true);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Border, false, true, false, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, true, true, true, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, true, true, true, true);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Border, true, true, false, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, false, false, true, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, false, false, true, true);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Border, false, false, false, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, true, false, true, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, true, false, true, true);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Border, true, false, false, false);
 
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(GrayscaleFont, false, true, false);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(GrayscaleFont, true, true, false);
 
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(ColorFont, false, true, false);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(ColorFont, true, true, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, true, true, false, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, true, true, false, true);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, true, false, false, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, true, false, false, true);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, false, true, false, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, false, true, false, true);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, false, false, false, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(Default, false, false, false, true);
 
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(LineSegment, false, true, false);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(LineSegment, true, true, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(GrayscaleFont, false, true, false, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(GrayscaleFont, true, true, false, false);
 
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(RoundedBox, false, true, false);
-IMPLEMENT_SLATE_PIXELSHADER_TYPE(RoundedBox, true, true, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(ColorFont, false, true, false, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(ColorFont, true, true, false, false);
+
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(LineSegment, false, true, false, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(LineSegment, true, true, false, false);
+
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(RoundedBox, false, true, false, false);
+IMPLEMENT_SLATE_PIXELSHADER_TYPE(RoundedBox, true, true, false, false);
 
 /** The Slate vertex declaration. */
 TGlobalResource<FSlateVertexDeclaration> GSlateVertexDeclaration;

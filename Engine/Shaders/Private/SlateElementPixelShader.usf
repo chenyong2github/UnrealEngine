@@ -150,16 +150,28 @@ half4 GetTextureColor( VertexToPixelInterpolants InVertex, float2 UV )
 {
 	half4 BaseColor;
 
-#if SAMPLE_VIRTUAL_TEXTURE
-		VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(InPageTableTexture, VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]), UV, VTADDRESSMODE_WRAP, VTADDRESSMODE_WRAP, VTShaderParams.x); 
-		BaseColor = TextureVirtualSampleLevel(ElementTexture, ElementTextureSampler, PageTableResult, (uint)VTShaderParams.y, VTUniform_Unpack(VTPackedUniform));
-#else
-	BaseColor = Texture2DSample(ElementTexture, ElementTextureSampler, UV );
-#endif
+	#if SAMPLE_VIRTUAL_TEXTURE
+			VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(InPageTableTexture, VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]), UV, VTADDRESSMODE_WRAP, VTADDRESSMODE_WRAP, VTShaderParams.x); 
+			BaseColor = TextureVirtualSampleLevel(ElementTexture, ElementTextureSampler, PageTableResult, (uint)VTShaderParams.y, VTUniform_Unpack(VTPackedUniform));
+	#else
 
-#if !USE_TEXTURE_ALPHA
-	BaseColor.a = 1.0f;
-#endif
+		BaseColor = Texture2DSample(ElementTexture, ElementTextureSampler, UV );
+
+		#if USE_TEXTURE_GRAYSCALE
+			#if !USE_TEXTURE_ALPHA
+				BaseColor.rgb = BaseColor.rrr;
+				BaseColor.a = 1;
+			#else
+				BaseColor.a = BaseColor.r;
+				BaseColor.rgb = half3(1,1,1);
+			#endif
+		#endif
+
+	#endif
+
+	#if !USE_TEXTURE_ALPHA
+		BaseColor.a = 1.0f;
+	#endif
 
 	return BaseColor;
 }
