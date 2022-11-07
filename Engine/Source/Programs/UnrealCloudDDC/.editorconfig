@@ -1109,3 +1109,4 @@ dotnet_diagnostic.ca5351.severity = none
 # CA1716: Identifiers should not match keywords
 # Reason: We frequently use verbs as method names, like GET as well as terms like namespace which collide with built in keywords
 dotnet_diagnostic.CA1716.severity = none
+indent_style=space
