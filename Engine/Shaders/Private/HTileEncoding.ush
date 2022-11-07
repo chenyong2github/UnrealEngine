@@ -4,12 +4,6 @@
 
 #include "Common.ush"
 
-#ifndef PLATFORM_SUPPORTS_HTILE_LOOKUP
-#define PLATFORM_SUPPORTS_HTILE_LOOKUP 0
-#endif
-
-#if PLATFORM_SUPPORTS_HTILE_LOOKUP
-
 #ifdef OVERRIDE_HTILELOOKUP_USH
 
 	#include "/Platform/Private/HTileLookup.ush"
@@ -22,6 +16,12 @@
 	}
 
 #endif
+
+#ifndef PLATFORM_SUPPORTS_HTILE_LOOKUP
+#define PLATFORM_SUPPORTS_HTILE_LOOKUP 0
+#endif
+
+#if PLATFORM_SUPPORTS_HTILE_LOOKUP
 
 // Optimized version for no hi-stencil, just min and max depth.
 uint EncodeTileMinMaxDepth(float MinDepth, float MaxDepth)
