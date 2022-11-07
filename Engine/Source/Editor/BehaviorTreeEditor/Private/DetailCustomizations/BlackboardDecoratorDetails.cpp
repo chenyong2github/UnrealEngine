@@ -138,7 +138,7 @@ void FBlackboardDecoratorDetails::OnKeyIDChanged()
 		return;
 	}
 
-	uint8 KeyID;
+	int32 KeyID;
 	FPropertyAccess::Result Result = KeyIDProperty->GetValue(KeyID);
 	if (Result == FPropertyAccess::Success)
 	{
