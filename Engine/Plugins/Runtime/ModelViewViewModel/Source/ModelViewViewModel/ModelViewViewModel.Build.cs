@@ -19,7 +19,6 @@ public class ModelViewViewModel : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"NetCore",
 				"SlateCore",
 				"Slate",
 				"UMG",

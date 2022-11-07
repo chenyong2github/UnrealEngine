@@ -70,7 +70,7 @@ void UMVVMView::Destruct()
 }
 
 
-bool UMVVMView::SetViewModel(FName ViewModelName, UMVVMViewModelBase* NewValue)
+bool UMVVMView::SetViewModel(FName ViewModelName, TScriptInterface<INotifyFieldValueChanged> NewValue)
 {
 	if (!ViewModelName.IsNone() && ClassExtension != nullptr)
 	{
@@ -89,7 +89,7 @@ bool UMVVMView::SetViewModel(FName ViewModelName, UMVVMViewModelBase* NewValue)
 				if (Item.GetSourcePropertyName() == ViewModelName)
 				{
 					bFound = true;
-					if (NewValue && !NewValue->GetClass()->IsChildOf(Item.GetSourceClass()))
+					if (NewValue.GetObject() && !NewValue.GetObject()->GetClass()->IsChildOf(Item.GetSourceClass()))
 					{
 						UE::MVVM::FMessageLog Log(GetUserWidget());
 						Log.Error(LOCTEXT("SetViewModelInvalidValueType", "The new viewmodel is not of the expected type."));
@@ -109,7 +109,7 @@ bool UMVVMView::SetViewModel(FName ViewModelName, UMVVMViewModelBase* NewValue)
 
 
 		UObject* PreviousValue = FoundObjectProperty->GetObjectPropertyValue_InContainer(GetUserWidget());
-		if (PreviousValue != NewValue)
+		if (PreviousValue != NewValue.GetObject())
 		{
 			FMemMark Mark(FMemStack::Get());
 			TArray<int32, TMemStackAllocator<>> BindingToReenabled;
@@ -131,9 +131,9 @@ bool UMVVMView::SetViewModel(FName ViewModelName, UMVVMViewModelBase* NewValue)
 				}
 			}
 
-			FoundObjectProperty->SetObjectPropertyValue_InContainer(GetUserWidget(), NewValue);
+			FoundObjectProperty->SetObjectPropertyValue_InContainer(GetUserWidget(), NewValue.GetObject());
 
-			if (NewValue)
+			if (NewValue.GetObject())
 			{
 				// Register back any binding that was previously enabled
 				if (PreviousValue)

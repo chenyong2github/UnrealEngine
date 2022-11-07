@@ -9,28 +9,19 @@
 #include "FieldNotification/FieldNotificationDeclaration.h"
 #include "FieldNotification/FieldMulticastDelegate.h"
 #include "FieldNotification/IFieldValueChanged.h"
-#include "Net/Core/PushModel/PushModel.h"
 #include "Types/MVVMAvailableBinding.h"
 #include "Types/MVVMBindingName.h"
+#include "ViewModel/MVVMFieldNotificationDelegates.h"
 
 #include "MVVMViewModelBase.generated.h"
 
-/** After a field value changed. Broadcast the event (doesn't execute the replication code). */
+/** After a field value changed. Broadcast the event. */
 #define UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED(MemberName) \
-	BroadcastFieldValueChanged(ThisClass::FFieldNotificationClassDescriptor::MemberName)
-
-/** After a field value changed. Replicate and broadcast the event. */
-#define UE_MVVM_BROADCAST_FIELD_VALUE_CHANGED_WITH_REP(MemberName ) \
-	MARK_PROPERTY_DIRTY_FROM_NAME(ThisClass, this, MemberName); \
 	BroadcastFieldValueChanged(ThisClass::FFieldNotificationClassDescriptor::MemberName)
 
 /** If the property value changed then set the new value and notify. */
 #define UE_MVVM_SET_PROPERTY_VALUE(MemberName, NewValue) \
 	SetPropertyValue(MemberName, NewValue, ThisClass::FFieldNotificationClassDescriptor::MemberName)
-	
-/** If the property value changed then set the new value, replicate and notify. */
-#define UE_MVVM_SET_PROPERTY_VALUE_WITH_REP(MemberName, NewValue) \
-	SetPropertyValue(MemberName, NewValue, ThisClass::FFieldNotificationClassDescriptor::MemberName, ThisClass::ENetFields_Private::MemberName)
 
 
 /** Base class for MVVM viewmodel. */
@@ -61,13 +52,7 @@ public:
 	void K2_RemoveFieldValueChangedDelegate(FFieldNotificationId FieldId, FFieldValueChangedDynamicDelegate Delegate);
 
 protected:
-	/** Execute the replication code. */
-	void MarkRepDirty(FProperty* InProperty);
-private:
-	void MarkRepDirty(int32 InRepIndex);
-
-protected:
-	UFUNCTION(BlueprintCallable, Category="FieldNotify", meta=(DisplayName="Broadcast Field Value Changed", ScriptName="BroadcastFieldValueChanged", BlueprintInternalUseOnly="true"))
+	UFUNCTION(BlueprintCallable, Category="FieldNotify", meta=(DisplayName="Broadcast Field Value Changed", ScriptName="BroadcastFieldValueChanged"))
 	void K2_BroadcastFieldValueChanged(FFieldNotificationId FieldId);
 
 	/** Broadcast the event (doesn't execute the replication code). */
@@ -91,25 +76,9 @@ protected:
 		return true;
 	}
 
-	/** Set the new value and notify if the property value changed. */
-	template<typename T, typename U, typename NetFieldsEnum>
-	bool SetPropertyValue(T& Value, const U& NewValue, UE::FieldNotification::FFieldId FieldId, NetFieldsEnum InRepIndex)
-	{
-		if (Value == NewValue)
-		{
-			return false;
-		}
-
-		Value = NewValue;
-		MarkRepDirty((int32)InRepIndex);
-		BroadcastFieldValueChanged(FieldId);
-		return true;
-	}
-
 private:
 	DECLARE_FUNCTION(execK2_SetPropertyValue);
 
 private:
-	UE::FieldNotification::FFieldMulticastDelegate Delegates;
-	TBitArray<> EnabledFieldNotifications;
+	UE::MVVM::FMVVMFieldNotificationDelegates NotificationDelegates;
 };
