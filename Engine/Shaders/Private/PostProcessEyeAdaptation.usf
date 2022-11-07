@@ -11,6 +11,7 @@
 #include "DeferredShadingCommon.ush"
 #include "BRDF.ush"
 #include "PositionReconstructionCommon.ush"
+#include "/Engine/Private/ScreenPass.ush"
 
 Texture2D EyeAdaptationTexture;
 
@@ -270,6 +271,8 @@ void BasicEyeAdaptationPS(in float4 UVAndScreenPos : TEXCOORD0, out float4 OutCo
 #if COMPUTESHADER
 
 RWTexture2D<float> RWIlluminanceTexture;
+SCREEN_PASS_TEXTURE_VIEWPORT(Illuminance)
+uint IllumiananceDownscaleFactor;
 
 // same weights as CalculateEyeAdaptationLuminance
 // but skip the min since we apply EyeAdaptation_IgnoreMaterialsMinBaseColorLuminance here
@@ -281,25 +284,19 @@ float CalculateEyeAdaptationLuminanceWithoutMin(float3 Color)
 [numthreads(8, 8, 1)]
 void SetupExposureIlluminance(uint2 ThreadId : SV_DispatchThreadID)
 {
-	const uint2 TexelPos = ThreadId + View.ViewRectMinAndSize.xy;
+	const uint2 OutputTexelPos = ThreadId + Illuminance_ViewportMin;
+	const uint2 TexelPos = ThreadId * IllumiananceDownscaleFactor + View.ViewRectMinAndSize.xy;
 
-	float3 Emissive = 0.0f;
+	const float3 Emissive = ColorTexture.Load(int3(TexelPos, 0)).rgb;
 
-	const float2 GBufferUV = (TexelPos + 0.5f) * View.BufferSizeAndInvSize.zw;
-	const FGBufferData GBufferData = GetGBufferDataFromSceneTextures(GBufferUV);
-
-	if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
-	{
-		Emissive = ColorTexture.Load(int3(TexelPos, 0)).rgb;
-	}
-
-	RWIlluminanceTexture[TexelPos] = CalculateEyeAdaptationLuminanceWithoutMin(Emissive);
+	RWIlluminanceTexture[OutputTexelPos] = CalculateEyeAdaptationLuminanceWithoutMin(Emissive);
 }
 
 [numthreads(8, 8, 1)]
 void CalculateExposureIlluminance(uint2 ThreadId : SV_DispatchThreadID)
 {
-	const uint2 TexelPos = ThreadId + View.ViewRectMinAndSize.xy;
+	const uint2 OutputTexelPos = ThreadId + Illuminance_ViewportMin;
+	const uint2 TexelPos = ThreadId * IllumiananceDownscaleFactor + View.ViewRectMinAndSize.xy;
 
 	const float3 SceneColor = ColorTexture.Load(int3(TexelPos, 0)).rgb * View.OneOverPreExposure;
 
@@ -310,7 +307,7 @@ void CalculateExposureIlluminance(uint2 ThreadId : SV_DispatchThreadID)
 
 	if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
 	{
-		const float Emissive = RWIlluminanceTexture[TexelPos] * View.OneOverPreExposure;
+		const float Emissive = RWIlluminanceTexture[OutputTexelPos] * View.OneOverPreExposure;
 
 		float3 Denominator = 0.0f;
 
@@ -350,7 +347,7 @@ void CalculateExposureIlluminance(uint2 ThreadId : SV_DispatchThreadID)
 		Illuminance *= lerp(EyeAdaptation_IgnoreMaterialsLuminanceScale, 1.0f, EyeAdaptation_IgnoreMaterialsMinBaseColorLuminance);
 	}
 	
-	RWIlluminanceTexture[TexelPos] = Illuminance * View.PreExposure;
+	RWIlluminanceTexture[OutputTexelPos] = Illuminance * View.PreExposure;
 }
 
 #endif // COMPUTESHADER

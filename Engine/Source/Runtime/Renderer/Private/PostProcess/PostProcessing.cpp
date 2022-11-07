@@ -809,7 +809,9 @@ void AddPostProcessingPasses(
 			{
 				if (Inputs.ExposureIlluminance)
 				{
-					HistogramSceneColor = FScreenPassTexture(Inputs.ExposureIlluminance, PrimaryViewRect);
+					const FIntRect IlluminanceRect = GetDownscaledRect(PrimaryViewRect, GetAutoExposureIlluminanceDownscaleFactor());
+
+					HistogramSceneColor = FScreenPassTexture(Inputs.ExposureIlluminance, IlluminanceRect);
 				}
 				else
 				{

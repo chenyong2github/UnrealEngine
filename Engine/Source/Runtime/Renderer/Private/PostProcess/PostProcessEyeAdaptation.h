@@ -50,6 +50,7 @@ float GetAutoExposureCompensationFromSettings(const FViewInfo& View);
 bool IsExtendLuminanceRangeEnabled();
 
 bool IsAutoExposureUsingIlluminanceEnabled(const FViewInfo& View);
+int32 GetAutoExposureIlluminanceDownscaleFactor();
 
 // Returns the auto exposure method enabled by the view (including CVar override).
 EAutoExposureMethod GetAutoExposureMethod(const FViewInfo& View);

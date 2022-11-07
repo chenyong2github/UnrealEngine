@@ -96,6 +96,12 @@ namespace
 		TEXT(""),
 		ECVF_Scalability | ECVF_RenderThreadSafe);
 
+	TAutoConsoleVariable<int32> CVarAutoExposureIgnoreMaterialsDownscaleFactor(
+		TEXT("r.AutoExposure.IgnoreMaterials.DownscaleFactor"),
+		2,
+		TEXT(""),
+		ECVF_Scalability | ECVF_RenderThreadSafe);
+
 	TAutoConsoleVariable<bool> CVarAutoExposureIgnoreMaterialsDebug(
 		TEXT("r.AutoExposure.IgnoreMaterials.Debug"),
 		false,
@@ -132,6 +138,13 @@ bool IsExtendLuminanceRangeEnabled()
 bool IsAutoExposureUsingIlluminanceEnabled(const FViewInfo& View)
 {
 	return CVarAutoExposureIgnoreMaterials.GetValueOnRenderThread() && GetAutoExposureMethod(View) == AEM_Histogram;
+}
+
+int32 GetAutoExposureIlluminanceDownscaleFactor()
+{
+	int32 DownscaleFactor = CVarAutoExposureIgnoreMaterialsDownscaleFactor.GetValueOnRenderThread();
+
+	return FMath::Clamp(DownscaleFactor, 1, 16);
 }
 
 static EAutoExposureMethod ApplyEyeAdaptationQuality(EAutoExposureMethod AutoExposureMethod)
@@ -517,6 +530,8 @@ class FSetupExposureIlluminanceCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWIlluminanceTexture)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Illuminance)
+		SHADER_PARAMETER(uint32, IllumiananceDownscaleFactor)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -546,7 +561,9 @@ FRDGTextureRef AddSetupExposureIlluminancePass(
 		return nullptr;
 	}
 
-	const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(SceneTextures.Config.Extent, PF_R16F, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource);
+	const FIntPoint OutputExtent = GetDownscaledExtent(SceneTextures.Config.Extent, GetAutoExposureIlluminanceDownscaleFactor());
+
+	const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(OutputExtent, PF_R16F, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource);
 	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("EyeAdaptation_Illuminance"));
 
 	for (uint32 ViewIndex = 0; ViewIndex < ViewCount; ++ViewIndex)
@@ -555,11 +572,16 @@ FRDGTextureRef AddSetupExposureIlluminancePass(
 
 		if (IsAutoExposureUsingIlluminanceEnabled(View) && CVarAutoExposureIgnoreMaterialsUsePrecalculatedIlluminance.GetValueOnRenderThread())
 		{
+			const FScreenPassTextureViewport SceneViewport(SceneTextures.Config.Extent, View.ViewRect);
+			const FScreenPassTextureViewport OutputViewport(GetDownscaledViewport(SceneViewport, GetAutoExposureIlluminanceDownscaleFactor()));
+
 			auto* PassParameters = GraphBuilder.AllocParameters<FSetupExposureIlluminanceCS::FParameters>();
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 			PassParameters->ColorTexture = SceneTextures.Color.Resolve;
 			PassParameters->RWIlluminanceTexture = GraphBuilder.CreateUAV(OutputTexture);
+			PassParameters->Illuminance = GetScreenPassTextureViewportParameters(OutputViewport);
+			PassParameters->IllumiananceDownscaleFactor = GetAutoExposureIlluminanceDownscaleFactor();
 
 			auto ComputeShader = View.ShaderMap->GetShader<FSetupExposureIlluminanceCS>();
 
@@ -568,7 +590,7 @@ FRDGTextureRef AddSetupExposureIlluminancePass(
 				RDG_EVENT_NAME("SetupExposureIlluminance (ViewId=%d)", ViewIndex),
 				ComputeShader,
 				PassParameters,
-				FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FIntPoint(8, 8)));
+				FComputeShaderUtils::GetGroupCount(OutputViewport.Rect.Size(), FIntPoint(8, 8)));
 		}
 	}
 
@@ -585,6 +607,8 @@ class FCalculateExposureIlluminanceCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWIlluminanceTexture)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Illuminance)
+		SHADER_PARAMETER(uint32, IllumiananceDownscaleFactor)
 
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
 
@@ -621,11 +645,16 @@ FRDGTextureRef AddCalculateExposureIlluminancePass(
 		{
 			check(CVarAutoExposureIgnoreMaterialsUsePrecalculatedIlluminance.GetValueOnRenderThread());
 
+			const FScreenPassTextureViewport SceneViewport(SceneTextures.Config.Extent, View.ViewRect);
+			const FScreenPassTextureViewport OutputViewport(GetDownscaledViewport(SceneViewport, GetAutoExposureIlluminanceDownscaleFactor()));
+
 			auto* PassParameters = GraphBuilder.AllocParameters<FCalculateExposureIlluminanceCS::FParameters>();
 			PassParameters->View = View.ViewUniformBuffer;
 			PassParameters->SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 			PassParameters->ColorTexture = SceneTextures.Color.Resolve;
 			PassParameters->RWIlluminanceTexture = GraphBuilder.CreateUAV(ExposureIlluminanceSetup);
+			PassParameters->Illuminance = GetScreenPassTextureViewportParameters(OutputViewport);
+			PassParameters->IllumiananceDownscaleFactor = GetAutoExposureIlluminanceDownscaleFactor();
 			PassParameters->EyeAdaptation = GetEyeAdaptationParameters(View, ERHIFeatureLevel::SM5);
 
 			PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
@@ -638,7 +667,7 @@ FRDGTextureRef AddCalculateExposureIlluminancePass(
 				RDG_EVENT_NAME("CalculateExposureIlluminance (ViewId=%d)", ViewIndex),
 				ComputeShader,
 				PassParameters,
-				FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), FIntPoint(8, 8)));
+				FComputeShaderUtils::GetGroupCount(OutputViewport.Rect.Size(), FIntPoint(8, 8)));
 		}
 	}
 
