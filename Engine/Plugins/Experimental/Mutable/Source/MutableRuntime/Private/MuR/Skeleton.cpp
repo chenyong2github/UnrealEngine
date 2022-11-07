@@ -34,7 +34,6 @@ namespace mu
 
 		pResult->m_bones = m_bones;
 		pResult->m_boneParents = m_boneParents;
-		pResult->m_boneIds = m_boneIds;
 
 		return pResult;
 	}
@@ -52,7 +51,6 @@ namespace mu
 	{
 		m_bones.SetNum(b);
 		m_boneParents.Init(INDEX_NONE, b);
-		m_boneIds.Init(INDEX_NONE, b);
 	}
 
 
@@ -103,35 +101,5 @@ namespace mu
 		}
 	}
 
-
-	//-------------------------------------------------------------------------------------------------
-	int32 Skeleton::GetBoneId(int32 boneIndex) const
-	{
-		if (boneIndex >= 0 && boneIndex < m_boneIds.Num())
-		{
-			return int(m_boneIds[boneIndex]);
-		}
-
-		return 0;
-	}
-
-
-	//-------------------------------------------------------------------------------------------------
-	void Skeleton::SetBoneId(int32 boneIndex, int32 id)
-	{
-		int boneCount = GetBoneCount();
-		check(boneIndex >= 0 && boneIndex < boneCount);
-		if (boneIndex >= 0 && boneIndex < boneCount)
-		{
-			// Enlarge the id buffer if necessary, but enlarge it to the total number of bones to avoid
-			// repetitive allocation.
-			if (boneIndex >= m_boneIds.Num())
-			{
-				m_boneIds.SetNumZeroed(boneCount);
-			}
-
-			m_boneIds[boneIndex] = id;
-		}
-	}
 
 }

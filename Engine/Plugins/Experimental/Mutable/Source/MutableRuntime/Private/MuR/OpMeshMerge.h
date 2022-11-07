@@ -437,6 +437,14 @@ namespace mu
 		// Skeleton
 		//---------------------------
 
+		// Add SkeletonIDs
+		pResult->SkeletonIDs = pFirst->SkeletonIDs;
+
+		for (const int32 SkeletonID : pSecond->SkeletonIDs)
+		{
+			pResult->SkeletonIDs.AddUnique(SkeletonID);
+		}
+
         // Do they have the same skeleton?
         bool remapNeeded = pFirst->GetSkeleton() != pSecond->GetSkeleton();
 
@@ -485,7 +493,6 @@ namespace mu
                 {
                     tb = pResultSkeleton->m_bones.Num();
                     pResultSkeleton->m_bones.Add( pSecondSkeleton->m_bones[ob] );
-					pResultSkeleton->m_boneIds.Add(pSecondSkeleton->m_boneIds[ob]);
 					
 					// Add an incorrect index, to be fixed below in case the parent index is later in the bone array.
 					pResultSkeleton->m_boneParents.Add(pSecondSkeleton->m_boneParents[ob]);
@@ -1018,9 +1025,6 @@ namespace mu
 
                 // Will be remapped below
                 pBase->m_boneParents.Add(pOther->m_boneParents[b] );
-
-                // Copy the external bone id
-				pBase->m_boneIds.Add(pOther->m_boneIds[b]);
             }
             else
             {

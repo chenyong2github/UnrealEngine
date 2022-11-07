@@ -125,7 +125,8 @@ namespace mu
 		WithFaceBuffers       = 1 << 9,
 		WithAdditionalBuffers = 1 << 10,
 		WithLayouts           = 1 << 11,
-		WithPoses			  = 1 << 12
+		WithPoses			  = 1 << 12,
+		WithSkeletonIDs		  = 1 << 13
 	};
 	
 	ENUM_CLASS_FLAGS(EMeshCloneFlags);
@@ -289,6 +290,15 @@ namespace mu
 		//! Return a matrix stored per bone. It is a set of 16-float values.
 		void GetBoneTransform(int32 BoneIndex, FTransform3f& Transform) const;
 
+		//!
+		int32 GetSkeletonIDsCount() const;
+
+		//!
+		int32 GetSkeletonID(int32 SkeletonIndex) const;
+
+		//!
+		void AddSkeletonID(int32 SkeletonID);
+
         //! \}
 
 
@@ -327,6 +337,9 @@ namespace mu
 		mutable uint32 m_staticFormatFlags = 0;
 
 		TArray<MESH_SURFACE> m_surfaces;
+
+		// Externally provided SkeletonIDs of the skeletons required by this mesh.
+		TArray<uint32> SkeletonIDs;
 
 		//! This skeleton and physics body are not owned and may be used by other meshes, so it cannot be modified
 		//! once the mesh has been fully created.
@@ -427,7 +440,7 @@ namespace mu
 		//!
 		inline void Serialise(OutputArchive& arch) const
 		{
-			uint32 ver = 13;
+			uint32 ver = 14;
 			arch << ver;
 
 			arch << m_IndexBuffers;
@@ -435,6 +448,8 @@ namespace mu
 			arch << m_FaceBuffers;
 			arch << m_AdditionalBuffers;
 			arch << m_layouts;
+
+			arch << SkeletonIDs;
 
 			arch << m_pSkeleton;
 			arch << m_pPhysicsBody;
@@ -453,13 +468,18 @@ namespace mu
 		{
 			uint32 ver;
 			arch >> ver;
-			check(ver <= 13);
+			check(ver <= 14);
 
 			arch >> m_IndexBuffers;
 			arch >> m_VertexBuffers;
 			arch >> m_FaceBuffers;
 			arch >> m_AdditionalBuffers;
 			arch >> m_layouts;
+
+			if (ver >= 14)
+			{
+				arch >> SkeletonIDs;
+			}
 
 			arch >> m_pSkeleton;
 			if (ver >= 12)
@@ -519,6 +539,7 @@ namespace mu
 			if (equal) equal = (m_surfaces == o.m_surfaces);
 			if (equal) equal = (m_faceGroups == o.m_faceGroups);
 			if (equal) equal = (m_tags == o.m_tags);
+			if (equal) equal = (SkeletonIDs == o.SkeletonIDs);
 
 			for (int32 i = 0; equal && i < m_layouts.Num(); ++i)
 			{

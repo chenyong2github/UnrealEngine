@@ -61,12 +61,6 @@ namespace mu
         int32 GetBoneParent(int32 boneIndex) const;
         void SetBoneParent(int32 boneIndex, int32 parentBoneIndex);
 
-        //! Get and set an optional external Id for each bone that can be retrieved from generated
-        //! skeletons. This data is opaque to mutable, so it is copied around and merged as
-        //! necessary, but never changed. By default all indices are 0.
-        int32 GetBoneId(int32 boneIndex) const;
-        void SetBoneId(int32 boneIndex, int32 boneId);
-
 	protected:
 
 		//! Forbidden. Manage with the Ptr<> template.
@@ -82,20 +76,15 @@ namespace mu
 		//! This array must have the same size than the m_bones array.
 		TArray<int16> m_boneParents;
 
-		//! For each bone, an externally provided optional id. This vector can be empty or smaller
-		//! Than the number of bones, and missing bones are considered to have id 0.
-		TArray<int32> m_boneIds;
-
 
 		//!
 		inline void Serialise(OutputArchive& arch) const
 		{
-			uint32 ver = 4;
+			uint32 ver = 5;
 			arch << ver;
 
 			arch << m_bones;
 			arch << m_boneParents;
-			arch << m_boneIds;
 		}
 
 		//!
@@ -113,13 +102,15 @@ namespace mu
 			}
 
 			arch >> m_boneParents;
-			arch >> m_boneIds;
+
+			if (ver <= 4)
+			{
+				TArray<int32> boneIds;
+				arch >> boneIds;
+			}
 
 			if (ver == 3)
 			{
-				// ensure m_boneIds' size is equal to the number of bones
-				m_boneIds.SetNum(m_bones.Num());
-
 				bool bBoneTransformModified;
 				arch >> bBoneTransformModified;
 			}
@@ -129,9 +120,8 @@ namespace mu
 		//!
 		inline bool operator==(const Skeleton& o) const
 		{
-			return m_bones == o.m_bones 
-				&& m_boneParents == o.m_boneParents
-				&& m_boneIds == o.m_boneIds;
+			return m_bones == o.m_bones
+				&& m_boneParents == o.m_boneParents;
 		}
 
 

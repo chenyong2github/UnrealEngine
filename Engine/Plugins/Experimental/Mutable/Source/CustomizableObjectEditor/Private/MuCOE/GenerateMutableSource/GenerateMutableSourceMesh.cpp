@@ -533,15 +533,16 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 		return nullptr;
 	}
 
-	// Use this to set bone IDs in Mutable to specify to which skeleton they belong
-	int32 SkeletonID = 0;
-
 	// This map will be used to find and replace vertex influences.
 	TMap<int32, int32> InfluencesToReplaceMap;
 
 	// Check for a matching skeleton to the reference mesh
 	if (!bIgnoreSkeleton)
 	{
+		// Add the RefSkeleton ID to the mesh.
+		const int32 RefSkeletonID = GenerationContext.ReferencedSkeletons.Find(ComponentRefSkeleton);
+		MutableMesh->AddSkeletonID(RefSkeletonID);
+
 		if (InSkeleton != ComponentRefSkeleton)
 		{
 			bool* SkeletonCompatibility = MutComponentInfo.SkeletonCompatibility.Find(InSkeleton);
@@ -600,14 +601,10 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 				// Incompatible skeleton 
 				return nullptr;
 			}
-			
-			// Is it a skeleton that we have already used?
-			SkeletonID = GenerationContext.ReferencedSkeletons.AddUnique(InSkeleton);
-		}
-		else
-		{
-			// Since we could have multiple reference skeletons, we can't assume its index is 0 
-			SkeletonID = GenerationContext.ReferencedSkeletons.Find(InSkeleton);
+
+			// Add the skeleton to the list of referenced skeletons and add its index to the mesh
+			const int32 SkeletonID = GenerationContext.ReferencedSkeletons.AddUnique(InSkeleton);
+			MutableMesh->AddSkeletonID(SkeletonID);
 		}
 
 		{
@@ -1336,12 +1333,12 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 	if (!bIgnoreSkeleton)
 	{
 		// Skeleton
-		int32 NumBonesInMesh = ImportedModel->LODModels[LOD].Sections[MaterialIndex].BoneMap.Num();
-
 
 		// Add the bones in the order they are used in the mesh
 		TMap<int32, int32> InverseBoneMap; // Inverse of ImportedModel->LODModels[LOD].Chunks[MaterialIndex].BoneMap for the chunk's bone indices
 		TQueue<int32> SkippedBoneMapIndices; // The order and index of the bones in the BoneMap must remain the same even if some bones are removed
+
+		const int32 NumBonesInMesh = ImportedModel->LODModels[LOD].Sections[MaterialIndex].BoneMap.Num();
 		for (int32 BoneMapIndex = 0; BoneMapIndex < NumBonesInMesh; ++BoneMapIndex)
 		{
 			if (InfluencesToReplaceMap.Find(BoneMapIndex))
@@ -1398,7 +1395,6 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 			int32 ParentRefSkeletonIndex = SkeletalMesh->GetRefSkeleton().GetParentIndex(RefSkelIndex);
 			int ParentBoneMapIndex = ParentRefSkeletonIndex >= 0 ? InverseBoneMap[ParentRefSkeletonIndex] : -1;
 			MutableSkeleton->SetBoneParent(BoneMapIndex, ParentBoneMapIndex);
-			MutableSkeleton->SetBoneId(BoneMapIndex,SkeletonID);
 
 			FMatrix44f BaseInvMatrix = SkeletalMesh->GetRefBasesInvMatrix()[RefSkelIndex];
 			FTransform3f BaseInvTransform;

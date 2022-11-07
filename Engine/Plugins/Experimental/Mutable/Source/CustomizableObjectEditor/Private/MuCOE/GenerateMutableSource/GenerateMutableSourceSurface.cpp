@@ -759,7 +759,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 					if (bShareProjectionTexturesBetweenLODs && bIsGroupProjectorImage)
 					{
 						// Add to the GroupProjectorLODCache to potentially reuse this projection texture in higher LODs
-						ensure(LOD == 0);
+						ensure(LOD == GenerationContext.FirstLODAvailable);
 						float* AlternateProjectionResFactor = TextureNameToProjectionResFactor.Find(ImageName);
 						GenerationContext.GroupProjectorLODCache.Add(MaterialImageId,
 							FGroupProjectorImageInfo(ImageNodePtr, ImageName, ImageName, TypedNodeMat,
@@ -769,7 +769,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 			}
 			else
 			{
-				ensure(LOD > 0);
+				ensure(LOD > GenerationContext.FirstLODAvailable);
 				check(ProjectorInfo->SurfNode->GetImage(ImageIndex) == ProjectorInfo->ImageNode);
 				SurfNode->SetImage(ImageIndex, ProjectorInfo->ImageNode);
 				SurfNode->SetImageName(ImageIndex, TCHAR_TO_ANSI(*ProjectorInfo->TextureName));
@@ -933,14 +933,14 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 
 						if (ProjectorInfo)
 						{
-							ensure(LOD == 0);
+							ensure(LOD == GenerationContext.FirstLODAvailable);
 							ProjectorInfo->ImageResizeNode = NodeImageResize;
 							ProjectorInfo->bIsAlternateResolutionResized = true;
 						}
 					}
 					else
 					{
-						ensure(LOD > 0);
+						ensure(LOD > GenerationContext.FirstLODAvailable);
 						check(ProjectorInfo->bIsAlternateResolutionResized);
 						SurfNode2->SetImage(ImageIndex, ProjectorInfo->ImageResizeNode);
 					}
@@ -1052,7 +1052,7 @@ mu::NodeSurfacePtr GenerateMutableSourceSurface(const UEdGraphPin * Pin, FMutabl
 
 					if (ProjectorInfo)
 					{
-						ensure(LOD > 0);
+						ensure(LOD > GenerationContext.FirstLODAvailable);
 						check(ProjectorInfo->SurfNode->GetImage(ImageIndex) == ProjectorInfo->ImageNode);
 						ImageNode = ProjectorInfo->ImageNode;
 

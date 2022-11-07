@@ -1384,6 +1384,13 @@ namespace impl
 					continue;
 				}
 
+				// Add SkeletonIds 
+				const int32 SkeletonIDsCount = Mesh->GetSkeletonIDsCount();
+				for (int32 SkeletonIndex = 0; SkeletonIndex < SkeletonIDsCount; ++SkeletonIndex)
+				{
+					SkeletonIds.AddUnique(Mesh->GetSkeletonID(SkeletonIndex));
+				}
+
 				const mu::Skeleton* Skeleton = Mesh->GetSkeleton().get();
 				const int32 BoneCount = Skeleton->GetBoneCount();
 
@@ -1518,9 +1525,6 @@ namespace impl
 							{
 								// Add bone even if it doesn't have weights
 								AddBone(BoneName);
-
-								// Add SkeletonId 
-								SkeletonIds.AddUnique(Skeleton->GetBoneId(BoneIndex));
 							}
 
 							// Add root as a placeholder
@@ -1553,9 +1557,6 @@ namespace impl
 									ParentChain[ParentChainCount] = ParentName;
 									++ParentChainCount;
 
-									// Add SkeletonId 
-									SkeletonIds.AddUnique(Skeleton->GetBoneId(NextMutParentIndex));
-
 									NextMutParentIndex = Skeleton->GetBoneParent(NextMutParentIndex);
 								}
 
@@ -1570,9 +1571,6 @@ namespace impl
 							// Add the used bone to the hierarchy
 							const int16 NewBoneIndex = AddBone(BoneName);
 							ComponentBoneMap.Add(NewBoneIndex);
-
-							// Add SkeletonId 
-							SkeletonIds.AddUnique(Skeleton->GetBoneId(BoneIndex));
 						}
 						else
 						{
@@ -2088,6 +2086,12 @@ namespace impl
 
 		// Prepare streaming for the current customizable object
 		System->GetPrivate()->Streamer->PrepareStreamingForObject(CustomizableObject);
+
+		// Ensure we're not requesting invalid LODs
+		PrivateInstance->LastUpdateMinLOD = FMath::Max(PrivateInstance->LastUpdateMinLOD, (int32)PrivateInstance->FirstLODAvailable);
+		PrivateInstance->LastUpdateMinLOD = FMath::Min(PrivateInstance->LastUpdateMinLOD, PrivateInstance->FirstLODAvailable + PrivateInstance->NumMaxLODsToStream);
+
+		PrivateInstance->LastUpdateMaxLOD = FMath::Max(PrivateInstance->LastUpdateMaxLOD, PrivateInstance->LastUpdateMinLOD);
 
 
 		// Task: Mutable Update and GetMesh

@@ -73,6 +73,9 @@ MeshPtr Mesh::Clone() const
 	// Clone bone poses
 	pResult->BonePoses = BonePoses;
 
+	// Clone SkeletonIDs
+	pResult->SkeletonIDs = SkeletonIDs;
+
     return pResult;
 }
 
@@ -147,6 +150,12 @@ MeshPtr Mesh::Clone(EMeshCloneFlags Flags) const
 	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithPoses))
 	{
 		pResult->BonePoses = BonePoses;
+	}
+
+	// Clone SkeletonIDs
+	if (EnumHasAnyFlags(Flags, EMeshCloneFlags::WithSkeletonIDs))
+	{
+		pResult->SkeletonIDs = SkeletonIDs;
 	}
 
     return pResult;
@@ -511,6 +520,28 @@ void mu::Mesh::GetBoneTransform(int32 BoneIndex, FTransform3f& Transform) const
 {
 	check(BoneIndex >= 0 && BoneIndex < BonePoses.Num());
 	Transform = BoneIndex > INDEX_NONE ? BonePoses[BoneIndex].BoneTransform : FTransform3f::Identity;
+}
+
+
+//---------------------------------------------------------------------------------------------
+int32 Mesh::GetSkeletonIDsCount() const
+{
+    return SkeletonIDs.Num();
+}
+
+
+//---------------------------------------------------------------------------------------------
+int32 Mesh::GetSkeletonID(int32 SkeletonIndex) const
+{
+	return SkeletonIDs.IsValidIndex(SkeletonIndex) ? SkeletonIDs[SkeletonIndex] : INDEX_NONE;
+}
+
+
+//---------------------------------------------------------------------------------------------
+void Mesh::AddSkeletonID(int32 SkeletonID)
+{
+	check(SkeletonID != INDEX_NONE);
+	SkeletonIDs.AddUnique(SkeletonID);
 }
 
 

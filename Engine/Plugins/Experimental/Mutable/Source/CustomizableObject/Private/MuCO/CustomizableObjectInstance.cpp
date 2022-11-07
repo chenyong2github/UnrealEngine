@@ -2937,14 +2937,21 @@ bool UCustomizableInstancePrivateData::BuildSkeletalMeshSkeletonData(const TShar
 			FName BoneName = MutSkeletonData.BoneNames[BoneIndex];
 			check(BoneName != NAME_None);
 
-			const int32 SourceBoneIndex = ReferenceSkeleton.FindRawBoneIndex(BoneName);
+			int32 SourceBoneIndex = ReferenceSkeleton.FindRawBoneIndex(BoneName);
+			
 			if (SourceBoneIndex == INDEX_NONE)
 			{
-				// Merged skeleton is missing some bones! This happens if one of the skeletons involved in the merge is discarded due to being incompatible with the rest
-				// or if the source mesh is not in sync with the skeleton. 
-				UE_LOG(LogMutable, Warning, TEXT("Building instance: generated mesh has a bone [%s] not present in the reference mesh [%s]. Failing to generate mesh. "),
-					*BoneName.ToString(), *SkeletalMesh->GetName());
-				return false;
+				if (MutSkeletonData.BoneMatricesWithScale.Find(BoneName))
+				{
+					// Merged skeleton is missing some bones! This happens if one of the skeletons involved in the merge is discarded due to being incompatible with the rest
+					// or if the source mesh is not in sync with the skeleton. 
+					UE_LOG(LogMutable, Warning, TEXT("Building instance: generated mesh has a bone [%s] not present in the reference mesh [%s]. Failing to generate mesh. "),
+						*BoneName.ToString(), *SkeletalMesh->GetName());
+					return false;
+				}
+
+				// The bone is missing but it's not required. Fix the SourceBoneIndex and continue.
+				SourceBoneIndex = 0;
 			}
 
 			BoneToFinalBoneIndexMap.Add(BoneName, SourceBoneIndex);
@@ -2967,10 +2974,13 @@ bool UCustomizableInstancePrivateData::BuildSkeletalMeshSkeletonData(const TShar
 				BoneIndex = BoneToFinalBoneIndexMap[MutSkeletonData.BoneNames[BoneIndex]];
 			}
 
-			for (uint16& BoneIndex : Component.ActiveBones)
+			TArray<uint16> UniqueActiveBones;
+			for (const uint16 BoneIndex : Component.ActiveBones)
 			{
-				BoneIndex = BoneToFinalBoneIndexMap[MutSkeletonData.BoneNames[BoneIndex]];
+				UniqueActiveBones.AddUnique(BoneToFinalBoneIndexMap[MutSkeletonData.BoneNames[BoneIndex]]);
 			}
+
+			Exchange(Component.ActiveBones, UniqueActiveBones);
 			Component.ActiveBones.Sort();
 		}
 	}

@@ -678,6 +678,8 @@ namespace mu
 
 		pResult->BonePoses = pSource->BonePoses;
 
+		pResult->SkeletonIDs = pSource->SkeletonIDs;
+
 		return pResult;
 
 	}
