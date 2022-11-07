@@ -1941,6 +1941,9 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ILevelInstanceInterface*
 		// Only support one level of recursion to commit current edit
 		check(!bRecursive);
 		FLevelInstanceID PendingEditId = LevelInstance->GetLevelInstanceID();
+
+		// Make sure to keep the top level instance actor loaded when we commit the current one
+		FWorldPartitionReference CurrentEditLevelInstanceActorRef = CurrentEditLevelInstanceActor;
 		
 		check(!IsLevelInstanceEditDirty(LevelInstanceEdit.Get()));
 		CommitLevelInstanceInternal(LevelInstanceEdit);
@@ -2005,6 +2008,21 @@ bool ULevelInstanceSubsystem::EditLevelInstanceInternal(ILevelInstanceInterface*
 	UActorEditorContextSubsystem::Get()->PushContext();
 
 	ResetLoadersForWorldAsset(LevelInstance->GetWorldAsset().GetLongPackageName());
+
+	if (UWorldPartition* WorldPartition = LevelInstanceActor->GetWorld()->GetWorldPartition(); WorldPartition && WorldPartition->IsMainWorldPartition())
+	{
+		AActor* TopLevelInstanceActor = LevelInstanceActor;
+		while (AActor* CurrentTopLevelInstanceActor = Cast<AActor>(GetParentLevelInstance(TopLevelInstanceActor)))
+		{
+			TopLevelInstanceActor = CurrentTopLevelInstanceActor;
+		}
+
+		if (FWorldPartitionActorDesc* TopLevelInstanceActorActorDesc = WorldPartition->GetActorDesc(TopLevelInstanceActor->GetActorGuid()))
+		{
+			check(!CurrentEditLevelInstanceActor.IsValid());
+			CurrentEditLevelInstanceActor = FWorldPartitionReference(TopLevelInstanceActorActorDesc->GetContainer(), TopLevelInstanceActorActorDesc->GetGuid());
+		}
+	}
 
 	return true;
 }
@@ -2183,6 +2201,8 @@ bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInsta
 	{
 		OnCommitChild(AncestorID, bChangesCommitted);
 	}
+
+	CurrentEditLevelInstanceActor.Reset();
 		
 	if (ILevelInstanceInterface* LevelInstanceToSelect = GetLevelInstance(LevelInstanceToSelectID))
 	{

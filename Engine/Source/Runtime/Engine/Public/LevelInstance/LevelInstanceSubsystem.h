@@ -8,6 +8,7 @@
 #include "UObject/GCObject.h"
 #include "Folder.h"
 #include "LevelInstance/LevelInstanceTypes.h"
+#include "WorldPartition/WorldPartitionHandle.h"
 
 #include "LevelInstanceSubsystem.generated.h"
 
@@ -257,5 +258,7 @@ private:
 	TMap<FLevelInstanceID, int32> ChildEdits;
 
 	FActorDescContainerInstanceManager ActorDescContainerInstanceManager;
+
+	FWorldPartitionReference CurrentEditLevelInstanceActor;
 #endif
 };
