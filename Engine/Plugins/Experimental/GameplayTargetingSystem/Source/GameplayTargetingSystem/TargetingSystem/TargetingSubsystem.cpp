@@ -607,31 +607,6 @@ void UTargetingSubsystem::GetTargetingResults(FTargetingRequestHandle TargetingH
 	}
 }
 
-#if ENABLE_DRAW_DEBUG
-
-bool UTargetingSubsystem::IsTargetingDebugEnabled()
-{
-	return TargetingSystemCVars::bEnableTargetingDebugging;
-}
-
-/* static */
-void UTargetingSubsystem::OnShowDebugInfo(AHUD* HUD, UCanvas* Canvas, const FDebugDisplayInfo& DisplayInfo, float& YL, float& YPos)
-{
-	if (IsTargetingDebugEnabled())
-	{
-		if (DisplayInfo.IsDisplayOn(TEXT("TargetingSystem")))
-		{
-			if (UWorld* World = HUD->GetWorld())
-			{
-				if (UTargetingSubsystem* TargetingSubsystem = UGameInstance::GetSubsystem<UTargetingSubsystem>(World->GetGameInstance()))
-				{
-					TargetingSubsystem->DisplayDebug(Canvas, DisplayInfo, YL, YPos);
-				}
-			}
-		}
-	}
-}
-
 UTargetingTask* UTargetingSubsystem::FindCurrentExecutingTask(FTargetingRequestHandle Handle) const
 {
 	if (Handle.IsValid())
@@ -658,6 +633,33 @@ UTargetingTask* UTargetingSubsystem::FindCurrentExecutingTask(FTargetingRequestH
 
 	return nullptr;
 }
+
+
+#if ENABLE_DRAW_DEBUG
+
+bool UTargetingSubsystem::IsTargetingDebugEnabled()
+{
+	return TargetingSystemCVars::bEnableTargetingDebugging;
+}
+
+/* static */
+void UTargetingSubsystem::OnShowDebugInfo(AHUD* HUD, UCanvas* Canvas, const FDebugDisplayInfo& DisplayInfo, float& YL, float& YPos)
+{
+	if (IsTargetingDebugEnabled())
+	{
+		if (DisplayInfo.IsDisplayOn(TEXT("TargetingSystem")))
+		{
+			if (UWorld* World = HUD->GetWorld())
+			{
+				if (UTargetingSubsystem* TargetingSubsystem = UGameInstance::GetSubsystem<UTargetingSubsystem>(World->GetGameInstance()))
+				{
+					TargetingSubsystem->DisplayDebug(Canvas, DisplayInfo, YL, YPos);
+				}
+			}
+		}
+	}
+}
+
 
 void UTargetingSubsystem::DisplayDebug(class UCanvas* Canvas, const class FDebugDisplayInfo& DebugDisplay, float& YL, float& YPos)
 {
