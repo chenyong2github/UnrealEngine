@@ -72,14 +72,15 @@ namespace FBlackboard
 	constexpr FKey InvalidKey = FKey();
 
 	inline uint32 GetTypeHash(const FKey& Key) { return ::GetTypeHash(Key.Key);}
-
-	template <>
-	struct TIsValidVariadicFunctionArg<FKey>
-	{
-		enum { Value = true };
-	};
 #endif
 }
+
+#ifndef AI_BLACKBOARD_KEY_SIZE_8
+template <> struct TIsValidVariadicFunctionArg<FBlackboard::FKey>
+{
+	enum { Value = true };
+};
+#endif
 
 enum class EBlackboardNotificationResult : uint8
 {
