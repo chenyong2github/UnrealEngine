@@ -271,6 +271,11 @@ public:
 
 	FORCEINLINE void Reset()
 	{
+		if (IsValid())
+		{
+			DecRefCount();
+		}
+
 		Container = nullptr;
 		ActorDesc = nullptr;
 	}
