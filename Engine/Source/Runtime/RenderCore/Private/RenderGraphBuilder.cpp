@@ -918,20 +918,62 @@ void FRDGBuilder::AddCullingDependency(FRDGProducerStatesByPipeline& LastProduce
 	{
 		FRDGProducerState& LastProducer = LastProducers[LastPipeline];
 
-		if (LastProducer.Access == ERHIAccess::Unknown)
+		if (LastProducer.Access != ERHIAccess::Unknown)
 		{
-			continue;
-		}
+			FRDGPass* LastProducerPass = LastProducer.Pass;
 
-		if (FRDGProducerState::IsDependencyRequired(LastProducer, LastPipeline, NextState, NextPipeline))
-		{
-			AddPassDependency(LastProducer.Pass, NextState.Pass);
+			if (LastPipeline != NextPipeline)
+			{
+				// Only certain platforms allow multi-pipe UAV access.
+				const ERHIAccess MultiPipelineUAVMask = ERHIAccess::UAVMask & GRHIMultiPipelineMergeableAccessMask;
+
+				// If skipping a UAV barrier across pipelines, use the producer pass that will emit the correct async fence.
+				if (EnumHasAnyFlags(NextState.Access, MultiPipelineUAVMask) && SkipUAVBarrier(LastProducer.NoUAVBarrierHandle, NextState.NoUAVBarrierHandle))
+				{
+					LastProducerPass = LastProducer.PassIfSkipUAVBarrier;
+				}
+			}
+
+			if (LastProducerPass)
+			{
+				AddPassDependency(LastProducerPass, NextState.Pass);
+			}
 		}
 	}
 
 	if (IsWritableAccess(NextState.Access))
 	{
-		LastProducers[NextPipeline] = NextState;
+		FRDGProducerState& LastProducer = LastProducers[NextPipeline];
+
+		// A separate producer pass is tracked for UAV -> UAV dependencies that are skipped. Consider the following scenario:
+		//
+		//     Graphics:       A   ->    B         ->         D      ->     E       ->        G         ->            I
+		//                   (UAV)   (SkipUAV0)           (SkipUAV1)    (SkipUAV1)          (SRV)                   (UAV2)
+		//
+		// Async Compute:                           C                ->               F       ->         H
+		//                                      (SkipUAV0)                        (SkipUAV1)           (SRV)
+		//
+		// Expected Cross Pipe Dependencies: [A -> C], C -> D, [B -> F], F -> G, E -> H, F -> I. The dependencies wrapped in
+		// braces are only introduced properly by tracking a different producer for cross-pipeline skip UAV dependencies, which
+		// is only updated if skip UAV is inactive, or if transitioning from one skip UAV set to another (or another writable resource).
+
+		if (LastProducer.NoUAVBarrierHandle.IsNull())
+		{
+			if (NextState.NoUAVBarrierHandle.IsNull())
+			{
+				// Assigns the next producer when no skip UAV sets are active.
+				LastProducer.PassIfSkipUAVBarrier = NextState.Pass;
+			}
+		}
+		else if (LastProducer.NoUAVBarrierHandle != NextState.NoUAVBarrierHandle)
+		{
+			// Assigns the last producer in the prior skip UAV barrier set when moving out of a skip UAV barrier set.
+			LastProducer.PassIfSkipUAVBarrier = LastProducer.Pass;
+		}
+
+		LastProducer.Access             = NextState.Access;
+		LastProducer.Pass               = NextState.Pass;
+		LastProducer.NoUAVBarrierHandle = NextState.NoUAVBarrierHandle;
 	}
 }
 
@@ -963,19 +1005,6 @@ void FRDGBuilder::CompilePassBarriers()
 		{
 			if (!ResourceMergeState || !FRDGSubresourceState::IsMergeAllowed(ResourceType, *ResourceMergeState, PassState))
 			{
-				// Cross-pipeline, non-mergable state changes require a new pass dependency for fencing purposes.
-				if (ResourceMergeState)
-				{
-					for (ERHIPipeline Pipeline : GetRHIPipelines())
-					{
-						if (Pipeline != PassPipeline && ResourceMergeState->LastPass[Pipeline].IsValid())
-						{
-							// Add a dependency from the other pipe to this pass to join back.
-							AddPassDependency(ResourceMergeState->LastPass[Pipeline], PassHandle);
-						}
-					}
-				}
-
 				// Allocate a new pending merge state and assign it to the pass state.
 				ResourceMergeState = AllocSubresource(PassState);
 			}
@@ -1068,17 +1097,17 @@ void FRDGBuilder::Compile()
 		SetupPassQueue.Flush(TEXT("FRDGBuilder::SetupPassResources"), [this](FRDGPass* Pass) { SetupPassResources(Pass); });
 	}
 
+	if (bCullPasses)
+	{
+		CullPassStack.Reserve(CompilePassCount);
+	}
+
 	if (bCullPasses || AsyncComputePassCount > 0)
 	{
 		SCOPED_NAMED_EVENT(PassDependencies, FColor::Emerald);
 
 		if (!bParallelSetupEnabled)
 		{
-			if (bCullPasses)
-			{
-				CullPassStack.Reserve(CompilePassCount);
-			}
-
 			for (FRDGPassHandle PassHandle = ProloguePassHandle + 1; PassHandle < EpiloguePassHandle; ++PassHandle)
 			{
 				SetupPassDependencies(Passes[PassHandle]);

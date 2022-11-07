@@ -5,20 +5,9 @@
 #include "RenderGraphPrivate.h"
 #include "RenderGraphResourcePool.h"
 
-inline bool NeedsUAVBarrier(FRDGViewHandle PreviousHandle, FRDGViewHandle NextHandle)
+inline bool SkipUAVBarrier(const FRDGSubresourceState& Previous, const FRDGSubresourceState& Next)
 {
-	// Barrier if previous / next don't have a matching valid skip-barrier UAV handle.
-	if (GRDGOverlapUAVs != 0 && NextHandle.IsValid() && PreviousHandle == NextHandle)
-	{
-		return false;
-	}
-
-	return true;
-}
-
-inline bool NeedsUAVBarrier(const FRDGSubresourceState& Previous, const FRDGSubresourceState& Next)
-{
-	return NeedsUAVBarrier(Previous.NoUAVBarrierFilter.GetUniqueHandle(), Next.NoUAVBarrierFilter.GetUniqueHandle());
+	return SkipUAVBarrier(Previous.NoUAVBarrierFilter.GetUniqueHandle(), Next.NoUAVBarrierFilter.GetUniqueHandle());
 }
 
 FRDGViewableResource::FRDGViewableResource(const TCHAR* InName, const ERDGViewableResourceType InType, bool bSkipTracking, bool bImmediateFirstBarrier)
@@ -46,40 +35,6 @@ FRDGViewableResource::FRDGViewableResource(const TCHAR* InName, const ERDGViewab
 	{
 		FirstBarrier = EFirstBarrier::ImmediateRequested;
 	}
-}
-
-bool FRDGProducerState::IsDependencyRequired(FRDGProducerState LastProducer, ERHIPipeline LastPipeline, FRDGProducerState NextState, ERHIPipeline NextPipeline)
-{
-	/** This function determines whether a producer-consumer relationship exists in the graph, which is used for culling and
-	 *  async-compute fence derivation. Producers are tracked per-pipeline, so it's safe to elide a cross-pipeline producer
-	 *  for the purposes of overlapping producers, as long as a dependency exists on the same pipeline. Eliding both will
-	 *  split the producer / consumer graph into two and break culling. The only current use case this is allowing multiple
-	 *  pipes to write UAVs.
-	 *
-	 *  Producer / consumer dependencies take place independent of resource state merging / transitions, so the logic must
-	 *  be carefully aligned so that cross-pipe dependencies align with transitions.
-	 */
-
-	// The first needs to be known producers.
-	check(IsWritableAccess(LastProducer.Access));
-
-	// A dependency is always applied on the same pipe to ensure that connectivity is preserved for culling purposes.
-	if (LastPipeline == NextPipeline)
-	{
-		return true;
-	}
-
-	// Only certain platforms allow multi-pipe UAV access.
-	const ERHIAccess MultiPipelineUAVMask = ERHIAccess::UAVMask & GRHIMultiPipelineMergeableAccessMask;
-
-	// Skip the dependency if the states are used as UAV on different pipes and a UAV barrier can be skipped. This elides the async fence.
-	if (EnumHasAnyFlags(NextState.Access, MultiPipelineUAVMask) && !NeedsUAVBarrier(LastProducer.NoUAVBarrierHandle, NextState.NoUAVBarrierHandle))
-	{
-		return false;
-	}
-
-	// Everything else requires a dependency.
-	return true;
 }
 
 bool FRDGSubresourceState::IsMergeAllowed(ERDGViewableResourceType ResourceType, const FRDGSubresourceState& Previous, const FRDGSubresourceState& Next)
@@ -128,7 +83,7 @@ bool FRDGSubresourceState::IsMergeAllowed(ERDGViewableResourceType ResourceType,
 	}
 
 	// Not allowed if the resource is being used as a UAV and needs a barrier.
-	if (EnumHasAnyFlags(Next.Access, ERHIAccess::UAVMask) && NeedsUAVBarrier(Previous, Next))
+	if (EnumHasAnyFlags(Next.Access, ERHIAccess::UAVMask) && !SkipUAVBarrier(Previous, Next))
 	{
 		return false;
 	}
@@ -159,7 +114,7 @@ bool FRDGSubresourceState::IsTransitionRequired(const FRDGSubresourceState& Prev
 	}
 
 	// UAV is a special case as a barrier may still be required even if the states match.
-	if (EnumHasAnyFlags(Next.Access, ERHIAccess::UAVMask) && NeedsUAVBarrier(Previous, Next))
+	if (EnumHasAnyFlags(Next.Access, ERHIAccess::UAVMask) && !SkipUAVBarrier(Previous, Next))
 	{
 		return true;
 	}

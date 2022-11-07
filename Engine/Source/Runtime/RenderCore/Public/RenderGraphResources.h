@@ -45,12 +45,10 @@ struct FRDGViewableResourceDebugData;
 /** Used for tracking pass producer / consumer edges in the graph for culling and pipe fencing. */
 struct FRDGProducerState
 {
-	/** Returns whether the next state is dependent on the last producer in the producer graph. */
-	static bool IsDependencyRequired(FRDGProducerState LastProducer, ERHIPipeline LastPipeline, FRDGProducerState NextState, ERHIPipeline NextPipeline);
-
 	FRDGProducerState() = default;
 
 	FRDGPass* Pass = nullptr;
+	FRDGPass* PassIfSkipUAVBarrier = nullptr;
 	ERHIAccess Access = ERHIAccess::Unknown;
 	FRDGViewHandle NoUAVBarrierHandle;
 };

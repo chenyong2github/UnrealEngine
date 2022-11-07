@@ -205,6 +205,17 @@ inline const TCHAR* GetEpilogueBarriersToBeginDebugName(ERHIPipeline Pipelines)
 	return TEXT("");
 }
 
+inline bool SkipUAVBarrier(FRDGViewHandle PreviousHandle, FRDGViewHandle NextHandle)
+{
+	// Barrier if previous / next don't have a matching valid skip-barrier UAV handle.
+	if (GRDGOverlapUAVs != 0 && NextHandle.IsValid() && PreviousHandle == NextHandle)
+	{
+		return true;
+	}
+
+	return false;
+}
+
 FORCEINLINE bool IsImmediateMode()
 {
 	return GRDGImmediateMode != 0;
