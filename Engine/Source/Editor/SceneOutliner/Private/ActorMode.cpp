@@ -84,6 +84,23 @@ namespace SceneOutliner
 
 		return false;
 	}
+
+	bool FActorDescSelector::operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, FWorldPartitionActorDesc*& ActorDescPtrOut) const
+	{
+		if (TSharedPtr<ISceneOutlinerTreeItem> ItemPtr = Item.Pin())
+		{
+			if (FActorDescTreeItem* ActorDescItem = ItemPtr->CastTo<FActorDescTreeItem>())
+			{
+				if (FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get())
+				{
+					ActorDescPtrOut = ActorDesc;
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
 }
 
 FActorMode::FActorMode(const FActorModeParams& Params)

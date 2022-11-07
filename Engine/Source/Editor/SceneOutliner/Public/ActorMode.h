@@ -17,6 +17,12 @@ namespace SceneOutliner
 	{
 		bool operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, AActor*& ActorPtrOut) const;
 	};
+
+	/** Functor which can be used to get actor descriptors from a selection  */
+	struct FActorDescSelector
+	{
+		bool operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, FWorldPartitionActorDesc*& ActorDescPtrOut) const;
+	};
 }
 
 struct SCENEOUTLINER_API FActorModeParams

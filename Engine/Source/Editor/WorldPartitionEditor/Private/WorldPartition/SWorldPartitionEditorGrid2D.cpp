@@ -37,6 +37,7 @@
 #include "WorldPartition/WorldPartitionMiniMap.h"
 #include "WorldPartition/WorldPartitionMiniMapHelper.h"
 #include "WorldPartition/WorldPartitionMiniMapVolume.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "HAL/PlatformApplicationMisc.h"
 
 #include "IAssetViewport.h"
@@ -392,7 +393,11 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 
 			ToolbarBuilder.AddWidget(SNew(SButton)
 				.ForegroundColor(FSlateColor::UseForeground())
-				.Text_Lambda([this]() { return GEditor->GetSelectedActors()->Num() ? LOCTEXT("FocusSelection", "Focus Selection") : LOCTEXT("FocusWorld", "Focus World"); })
+				.Text_Lambda([this]()
+				{
+					UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(World);
+					return (GEditor->GetSelectedActors()->Num() || WorldPartitionSubsystem->SelectedActorDescs.Num()) ? LOCTEXT("FocusSelection", "Focus Selection") : LOCTEXT("FocusWorld", "Focus World");
+				})
 				.OnClicked(this, &SWorldPartitionEditorGrid2D::FocusSelection)
 				.IsEnabled_Lambda([this]() { return IsInteractive(); }));
 
@@ -1065,23 +1070,17 @@ void SWorldPartitionEditorGrid2D::Tick(const FGeometry& AllottedGeometry, const 
 
 	// Also include transient actor loader adapters that might have been spawned by blutilities, etc. Since these actors can't be saved because they are transient,
 	// they will never get an actor descriptor so they will never appear in the world partition editor. Also include unsaved, newly created actors for convenience.
-	for (TActorIterator<AActor> ActorIt(World); ActorIt; ++ActorIt)
+	for (auto& [Reference, Actor] : WorldPartition->GetDirtyActors())
 	{
-		if (AActor* Actor = *ActorIt)
+		if (!WorldPartition->GetActorDesc(Actor->GetActorGuid()) && Actor->Implements<UWorldPartitionActorLoaderInterface>())
 		{
-			if (!WorldPartition->GetActorDesc(Actor->GetActorGuid()) && Actor->Implements<UWorldPartitionActorLoaderInterface>())
+			if (IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = Cast<IWorldPartitionActorLoaderInterface>(Actor)->GetLoaderAdapter())
 			{
-				if (IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = Cast<IWorldPartitionActorLoaderInterface>(Actor)->GetLoaderAdapter())
-				{
-					ShownLoaderInterfaces.Add(Actor);
-				}
-			}
-
-			if(Actor->IsSelected() || Actor->GetPackage()->IsDirty())
-			{
-				DirtyActorGuids.Add(Actor->GetActorGuid());
+				ShownLoaderInterfaces.Add(Actor);
 			}
 		}
+
+		DirtyActorGuids.Add(Actor->GetActorGuid());
 	}
 
 	FLoaderInterfaceSet LastHoveredLoaderInterfaces = MoveTemp(HoveredLoaderInterfaces);
@@ -1152,6 +1151,13 @@ void SWorldPartitionEditorGrid2D::Tick(const FGeometry& AllottedGeometry, const 
 			ShownActorGuids.Add(Actor->GetActorGuid());
 		}
 	}
+
+	// Include selected actor descriptors
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(World);
+	for (FWorldPartitionActorDesc* SelectedActorDesc : WorldPartitionSubsystem->SelectedActorDescs)
+	{
+		ShownActorGuids.Add(SelectedActorDesc->GetGuid());
+	}
 }
 
 uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, uint32 LayerId) const
@@ -1159,6 +1165,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 	const FBox2D ViewRect(FVector2D(ForceInitToZero), AllottedGeometry.GetLocalSize());
 	const FBox2D WorldViewRect(ScreenToWorld.TransformPoint(ViewRect.Min), ScreenToWorld.TransformPoint(ViewRect.Max));
 	const FBox ViewRectWorld(FVector(WorldViewRect.Min.X, WorldViewRect.Min.Y, -HALF_WORLD_MAX), FVector(WorldViewRect.Max.X, WorldViewRect.Max.Y, HALF_WORLD_MAX));
+	const UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(World);
 
 	TArray<FWorldPartitionActorDescViewBoundsProxy> ActorDescList;
 	ActorDescList.Reserve(ShownActorGuids.Num());
@@ -1189,7 +1196,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 			if (bShowBackground)
 			{
 				const FSlateColorBrush BackgroundBrush(FLinearColor::Black);
-				const FLinearColor LabelBackgroundColor(0, 0, 0, 0.1f);
+				const FLinearColor LabelBackgroundColor = FLinearColor::Black.CopyWithNewOpacity(Color.A * 0.1f);
 
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,
@@ -1201,12 +1208,15 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 				);
 			}
 
-			const float LabelColorGradient = bShowBackground ? 1.0f : FMath::Clamp(Geometry.GetLocalSize().X / LabelTextSize.X - 1.0f, 0.0f, 1.0f);
-
-			if (LabelColorGradient > 0.0f)
-			{
-				LayerId = DrawTextLabel(OutDrawElements, LayerId, AllottedGeometry, Label, Pos, Color.CopyWithNewOpacity(Color.A * LabelColorGradient), Font);
-			}
+			LayerId = DrawTextLabel(
+				OutDrawElements, 
+				++LayerId, 
+				AllottedGeometry, 
+				Label, 
+				Pos, 
+				Color, 
+				Font
+			);
 		}
 	};
 
@@ -1346,7 +1356,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 						// Label
 						{
 							const FString ActorLabel = *LoaderAdapter->GetLabel();
-							const FLinearColor LabelColor(1.0f, 1.0f, 1.0f, LoaderColorGradient * FullScreenColorGradient);
+							const FLinearColor LabelColor = FLinearColor::White.CopyWithNewOpacity(LoaderColorGradient * FullScreenColorGradient);
 							DrawActorLabel(ActorLabel, ActorViewBox.GetCenter(), ActorGeometry, LabelColor, SmallLayoutFont, false);
 						}
 					}
@@ -1401,7 +1411,8 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 					{
 						if (!ActorLabel.IsNone())
 						{
-							DrawActorLabel(ActorLabel.ToString(), bIsBoundsEdgeHovered ? MouseCursorPos : ActorViewBox.GetCenter(), ActorGeometry, FLinearColor::Yellow, SmallLayoutFont, true);
+							const FLinearColor LabelColor = FLinearColor::Yellow.CopyWithNewOpacity(ActorColorGradient);
+							DrawActorLabel(ActorLabel.ToString(), !bIsSelected ? MouseCursorPos : ActorViewBox.GetCenter(), ActorGeometry, LabelColor, SmallLayoutFont, true);
 						}
 
 						ActorColor = FLinearColor::Yellow.CopyWithNewOpacity(ActorColor.A);
@@ -1433,7 +1444,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 
 			const FBox ActorBounds = ActorDescView.GetBounds();
 			const AActor* Actor = ActorDescView.GetActor();
-			const bool bIsSelected = Actor ? Actor->IsSelected() : false;
+			const bool bIsSelected = Actor ? Actor->IsSelected() : WorldPartitionSubsystem->SelectedActorDescs.Contains(ActorDescView.GetActorDesc());
 			const bool bIsSpatiallyLoaded = ActorDescView.GetIsSpatiallyLoaded();
 			const FName ActorLabel = ActorDescView.GetActorLabel();
 
@@ -1916,8 +1927,8 @@ int32 SWorldPartitionEditorGrid2D::DrawTextLabel(FSlateWindowElementList& OutDra
 	if (LabelTextSize.X > 0)
 	{
 		const FVector2D LabelTextPos = Pos - LabelTextSize * 0.5f;
-		const FLinearColor LabelForegroundColor(1.0f, 1.0f, 1.0f, Color.A);
-		const FLinearColor LabelShadowColor(0, 0, 0, Color.A);
+		const FLinearColor LabelForegroundColor = FLinearColor::White.CopyWithNewOpacity(Color.A);
+		const FLinearColor LabelShadowColor = FLinearColor::Black.CopyWithNewOpacity(Color.A);
 
 		FSlateDrawElement::MakeText(
 			OutDrawElements,
@@ -1947,19 +1958,21 @@ FReply SWorldPartitionEditorGrid2D::FocusSelection()
 {
 	FBox SelectionBox(ForceInit);
 
-	USelection* SelectedActors = GEditor->GetSelectedActors();
-
-	if (SelectedActors->Num())
+	for (FSelectionIterator It(*GEditor->GetSelectedActors()); It; ++It)
 	{
-		for (FSelectionIterator It(*SelectedActors); It; ++It)
+		if (AActor* Actor = Cast<AActor>(*It))
 		{
-			if (AActor* Actor = Cast<AActor>(*It))
-			{
-				SelectionBox += Actor->GetStreamingBounds();
-			}
+			SelectionBox += Actor->GetStreamingBounds();
 		}
 	}
-	else
+
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(World);
+	for (FWorldPartitionActorDesc* SelectedActorDesc : WorldPartitionSubsystem->SelectedActorDescs)
+	{
+		SelectionBox += SelectedActorDesc->GetBounds();
+	}
+
+	if (!SelectionBox.IsValid)
 	{
 		// Override the minimap bounds if world partition minimap volumes exists
 		for (TActorIterator<AWorldPartitionMiniMapVolume> It(World); It; ++It)

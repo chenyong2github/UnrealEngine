@@ -57,6 +57,8 @@ public:
 	virtual void UnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) override;
 	virtual void PinSelectedItems() override;
 	virtual void UnpinSelectedItems() override;
+	virtual void SynchronizeSelection() override;
+
 	/* End ISceneOutlinerMode Interface */
 public:
 	/* External events this mode must respond to */
@@ -113,6 +115,8 @@ private:
 
 	bool GetFolderNamesFromPayload(const FSceneOutlinerDragDropPayload& InPayload, TArray<FName>& OutFolders, FFolder::FRootObject& OutCommonRootObject) const;
 	FFolder GetWorldDefaultRootFolder() const;
+
+	void SynchronizeSelectedActorDescs();
 
 	/** Filter factories */
 	static TSharedRef<FSceneOutlinerFilter> CreateShowOnlySelectedActorsFilter();

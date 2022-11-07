@@ -61,6 +61,8 @@ public:
 	void ForEachWorldPartition(TFunctionRef<bool(UWorldPartition*)> Func);
 
 	static bool IsRunningConvertWorldPartitionCommandlet();
+
+	TSet<FWorldPartitionActorDesc*> SelectedActorDescs;
 #endif
 
 private:

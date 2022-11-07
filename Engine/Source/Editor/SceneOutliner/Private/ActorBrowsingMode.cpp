@@ -12,6 +12,7 @@
 #include "UnrealEdGlobals.h"
 #include "ToolMenus.h"
 #include "Engine/Selection.h"
+#include "Engine/World.h"
 #include "Editor/UnrealEdEngine.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "HAL/FileManager.h"
@@ -37,6 +38,7 @@
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
 #include "ISourceControlModule.h"
 #include "ISourceControlProvider.h"
 #include "SourceControlOperations.h"
@@ -807,11 +809,13 @@ void FActorBrowsingMode::OnItemSelectionChanged(FSceneOutlinerTreeItemPtr TreeIt
 {
 	TArray<AActor*> SelectedActors = Selection.GetData<AActor*>(SceneOutliner::FActorSelector());
 
+	SynchronizeSelectedActorDescs();
+
 	bool bChanged = false;
 	bool bAnyInPIE = false;
 	for (auto* Actor : SelectedActors)
 	{
-		if (!bAnyInPIE && Actor && Actor->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))
+		if (!bAnyInPIE && Actor && Actor->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
 		{
 			bAnyInPIE = true;
 		}
@@ -825,7 +829,7 @@ void FActorBrowsingMode::OnItemSelectionChanged(FSceneOutlinerTreeItemPtr TreeIt
 	for (FSelectionIterator SelectionIt(*GEditor->GetSelectedActors()); SelectionIt && !bChanged; ++SelectionIt)
 	{
 		const AActor* Actor = CastChecked< AActor >(*SelectionIt);
-		if (!bAnyInPIE && Actor->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))
+		if (!bAnyInPIE && Actor->GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
 		{
 			bAnyInPIE = true;
 		}
@@ -1276,6 +1280,21 @@ bool FActorBrowsingMode::ParseDragDrop(FSceneOutlinerDragDropPayload& OutPayload
 FFolder FActorBrowsingMode::GetWorldDefaultRootFolder() const
 {
 	return FFolder::GetWorldRootFolder(RepresentingWorld.Get());
+}
+
+void FActorBrowsingMode::SynchronizeSelectedActorDescs()
+{
+	if (UWorldPartitionSubsystem* WorldPartitionSubsystem = UWorld::GetSubsystem<UWorldPartitionSubsystem>(RepresentingWorld.Get()))
+	{
+		const FSceneOutlinerItemSelection Selection = SceneOutliner->GetSelection();
+		TArray<FWorldPartitionActorDesc*> SelectedActorDescs = Selection.GetData<FWorldPartitionActorDesc*>(SceneOutliner::FActorDescSelector());
+
+		WorldPartitionSubsystem->SelectedActorDescs.Empty();
+		for (FWorldPartitionActorDesc* SelectedActorDesc : SelectedActorDescs)
+		{
+			WorldPartitionSubsystem->SelectedActorDescs.Add(SelectedActorDesc);
+		}
+	}
 }
 
 FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOutlinerTreeItem& DropTarget, const FSceneOutlinerDragDropPayload& Payload) const
@@ -2119,6 +2138,12 @@ void FActorBrowsingMode::UnpinSelectedItems()
 		});
 		UnpinItems(ItemsToUnpin);
 	}
+}
+
+void FActorBrowsingMode::SynchronizeSelection()
+{
+	FActorModeInteractive::SynchronizeSelection();
+	SynchronizeSelectedActorDescs();
 }
 
 FCreateSceneOutlinerMode FActorBrowsingMode::CreateFolderPickerMode(const FFolder::FRootObject& InRootObject) const
