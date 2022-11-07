@@ -2918,8 +2918,8 @@ bool UNiagaraDataInterfaceDebugDraw::AppendCompileHash(FNiagaraCompileHashVisito
 	if (!Super::AppendCompileHash(InVisitor))
 		return false;
 
-	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceDebugDrawHLSLSource"), GetShaderFileHash(NDIDebugDrawLocal::CommonShaderFile, EShaderPlatform::SP_PCD3D_SM5).ToString());
-	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceDebugDrawTemplateHLSLSource"), GetShaderFileHash(NDIDebugDrawLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	InVisitor->UpdateShaderFile(NDIDebugDrawLocal::CommonShaderFile);
+	InVisitor->UpdateShaderFile(NDIDebugDrawLocal::TemplateShaderFile);
 
 	InVisitor->UpdatePOD<int32>(TEXT("NiagaraDataInterfaceDebugDrawVersion"), FNiagaraDebugDrawDIFunctionVersion::LatestVersion);	
 	InVisitor->UpdateShaderParameters<FNDIDebugDrawShaderParameters>();
@@ -2935,14 +2935,11 @@ void UNiagaraDataInterfaceDebugDraw::GetCommonHLSL(FString& OutHLSL)
 
 void UNiagaraDataInterfaceDebugDraw::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	TMap<FString, FStringFormatArg> TemplateArgs =
+	const TMap<FString, FStringFormatArg> TemplateArgs =
 	{
 		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
 	};
-
-	FString TemplateFile;
-	LoadShaderSourceFile(NDIDebugDrawLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
-	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
+	AppendTemplateHLSL(OutHLSL, NDIDebugDrawLocal::TemplateShaderFile, TemplateArgs);
 }
 
 bool UNiagaraDataInterfaceDebugDraw::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)

@@ -1264,8 +1264,7 @@ bool UNiagaraDataInterfaceLandscape::AppendCompileHash(FNiagaraCompileHashVisito
 		return false;
 	}
 
-	FSHAHash Hash = GetShaderFileHash(NiagaraDataInterfaceLandscape::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5);
-	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceLandscapeHLSLSource"), Hash.ToString());
+	InVisitor->UpdateShaderFile(NiagaraDataInterfaceLandscape::TemplateShaderFile);
 	InVisitor->UpdateShaderParameters<NiagaraDataInterfaceLandscape::FShaderParameters>();
 
 	return true;
@@ -1276,14 +1275,11 @@ void UNiagaraDataInterfaceLandscape::GetParameterDefinitionHLSL(const FNiagaraDa
 {
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
 
-	TMap<FString, FStringFormatArg> TemplateArgs =
+	const TMap<FString, FStringFormatArg> TemplateArgs =
 	{
 		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
 	};
-
-	FString TemplateFile;
-	LoadShaderSourceFile(NiagaraDataInterfaceLandscape::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
-	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
+	AppendTemplateHLSL(OutHLSL, NiagaraDataInterfaceLandscape::TemplateShaderFile, TemplateArgs);
 }
 
 bool UNiagaraDataInterfaceLandscape::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)

@@ -291,8 +291,8 @@ bool UNiagaraDataInterfaceVirtualTexture::AppendCompileHash(FNiagaraCompileHashV
 	using namespace NDIVirtualTextureLocal;
 
 	bool bSuccess = Super::AppendCompileHash(InVisitor);
-	InVisitor->UpdateString(TEXT("UNiagaraDataInterfaceVirtualTextureHLSLSource"), GetShaderFileHash(CommonShaderFilePath, EShaderPlatform::SP_PCD3D_SM5).ToString());
-	InVisitor->UpdateString(TEXT("UNiagaraDataInterfaceVirtualTextureHLSLSource"), GetShaderFileHash(TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	InVisitor->UpdateShaderFile(CommonShaderFilePath);
+	InVisitor->UpdateShaderFile(TemplateShaderFilePath);
 	bSuccess &= InVisitor->UpdateShaderParameters<FShaderParameters>();
 	return bSuccess;
 }
@@ -306,15 +306,11 @@ void UNiagaraDataInterfaceVirtualTexture::GetCommonHLSL(FString& OutHlsl)
 
 void UNiagaraDataInterfaceVirtualTexture::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	using namespace NDIVirtualTextureLocal;
-	TMap<FString, FStringFormatArg> TemplateArgs =
+	const TMap<FString, FStringFormatArg> TemplateArgs =
 	{
 		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
 	};
-
-	FString TemplateFile;
-	LoadShaderSourceFile(TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
-	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
+	AppendTemplateHLSL(OutHLSL, NDIVirtualTextureLocal::TemplateShaderFilePath, TemplateArgs);
 }
 
 bool UNiagaraDataInterfaceVirtualTexture::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)

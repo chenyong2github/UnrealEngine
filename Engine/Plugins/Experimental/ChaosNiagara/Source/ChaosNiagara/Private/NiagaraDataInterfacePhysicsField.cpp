@@ -651,7 +651,7 @@ bool UNiagaraDataInterfacePhysicsField::UpgradeFunctionCall(FNiagaraFunctionSign
 bool UNiagaraDataInterfacePhysicsField::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	bool bSuccess = Super::AppendCompileHash(InVisitor);
-	bSuccess &= InVisitor->UpdateString(TEXT("UNiagaraDataInterfacePhysicsFieldTemplateHLSLSource"), GetShaderFileHash(NDIPhysicsFieldLocal::TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	bSuccess &= InVisitor->UpdateShaderFile(NDIPhysicsFieldLocal::TemplateShaderFilePath);
 	bSuccess &= InVisitor->UpdateShaderParameters<NDIPhysicsFieldLocal::FShaderInstanceParameters>();
 	bSuccess &= InVisitor->UpdateShaderParameters<NDIPhysicsFieldLocal::FShaderGlobalParameters>();
 	return bSuccess;
@@ -659,14 +659,11 @@ bool UNiagaraDataInterfacePhysicsField::AppendCompileHash(FNiagaraCompileHashVis
 
 void UNiagaraDataInterfacePhysicsField::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	TMap<FString, FStringFormatArg> TemplateArgs =
+	const TMap<FString, FStringFormatArg> TemplateArgs =
 	{
 		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
 	};
-
-	FString TemplateFile;
-	LoadShaderSourceFile(NDIPhysicsFieldLocal::TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
-	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
+	AppendTemplateHLSL(OutHLSL, NDIPhysicsFieldLocal::TemplateShaderFilePath, TemplateArgs);
 }
 #endif
 

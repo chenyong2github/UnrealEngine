@@ -143,6 +143,16 @@ bool UNiagaraDataInterface::IsDataInterfaceType(const FNiagaraTypeDefinition& Ty
 	return false;
 }
 
+#if WITH_EDITORONLY_DATA
+void UNiagaraDataInterface::AppendTemplateHLSL(FString& OutHLSL, const TCHAR* TemplateShaderFile, const TMap<FString, FStringFormatArg>& TemplateArgs) const
+{
+	FString TemplateFile;
+	LoadShaderSourceFile(TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL.Append(FString::Format(*TemplateFile, TemplateArgs));
+	OutHLSL.AppendChar('\n');
+}
+#endif
+
 bool UNiagaraDataInterface::CopyToInternal(UNiagaraDataInterface* Destination) const
 {
 	if (Destination == nullptr || Destination->GetClass() != GetClass())

@@ -396,13 +396,11 @@ void UNiagaraDataInterfaceSpline::GetCommonHLSL(FString& OutHLSL)
 
 void UNiagaraDataInterfaceSpline::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	const TMap<FString, FStringFormatArg> TemplateArgs = {
+	const TMap<FString, FStringFormatArg> TemplateArgs =
+	{
 		{TEXT("ParameterName"), ParamInfo.DataInterfaceHLSLSymbol},
 	};
-	
-	FString TemplateFile;
-	LoadShaderSourceFile(NDISplineLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
-	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);	
+	AppendTemplateHLSL(OutHLSL, NDISplineLocal::TemplateShaderFile, TemplateArgs);
 }
 
 bool UNiagaraDataInterfaceSpline::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
@@ -434,8 +432,7 @@ bool UNiagaraDataInterfaceSpline::GetFunctionHLSL(const FNiagaraDataInterfaceGPU
 bool UNiagaraDataInterfaceSpline::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	bool bSuccess = Super::AppendCompileHash(InVisitor);
-	FSHAHash Hash = GetShaderFileHash(NDISplineLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5);
-	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceExportTemplateHLSLSource"), Hash.ToString());
+	InVisitor->UpdateShaderFile(NDISplineLocal::TemplateShaderFile);
 	InVisitor->UpdateShaderParameters<NDISplineLocal::FShaderParameters>();
 	return bSuccess;
 }

@@ -345,8 +345,7 @@ void UNiagaraDataInterfaceCurveBase::SetShaderParameters(const FNiagaraDataInter
 bool UNiagaraDataInterfaceCurveBase::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	bool bSuccess = Super::AppendCompileHash(InVisitor);
-	FSHAHash Hash = GetShaderFileHash(NDICurve_TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5);
-	InVisitor->UpdateString(TEXT("UNiagaraDataInterfaceCurveTemplateHLSLSource"), Hash.ToString());
+	InVisitor->UpdateShaderFile(NDICurve_TemplateShaderFile);
 	InVisitor->UpdateShaderParameters<FNiagaraDataInterfaceCurveParameters>();
 	return bSuccess;
 }
@@ -356,17 +355,14 @@ void UNiagaraDataInterfaceCurveBase::GetParameterDefinitionHLSL(const FNiagaraDa
 	const int32 NumElements = GetCurveNumElems();
 	check(NumElements > 0 && NumElements <= 4);
 
-	TMap<FString, FStringFormatArg> TemplateArgs =
+	const TMap<FString, FStringFormatArg> TemplateArgs =
 	{
 		{TEXT("ParameterName"),				ParamInfo.DataInterfaceHLSLSymbol},
 		{TEXT("UseStaticBuffer"),			ParamInfo.IsUserParameter() ? TEXT("1") : TEXT("0")},
 		{TEXT("NumElements"),				FString::FromInt(NumElements)},
 		{TEXT("CurveSampleFunctionName"),	GetCurveSampleFunctionName().ToString()},
 	};
-
-	FString TemplateFile;
-	LoadShaderSourceFile(NDICurve_TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
-	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
+	AppendTemplateHLSL(OutHLSL, NDICurve_TemplateShaderFile, TemplateArgs);
 }
 #endif
 

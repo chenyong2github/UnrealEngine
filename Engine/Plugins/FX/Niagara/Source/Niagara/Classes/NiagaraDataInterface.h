@@ -633,6 +633,9 @@ public:
 	{
 		return false;
 	}
+
+	/** Formats and appends a template file onto the output HLSL */
+	void AppendTemplateHLSL(FString& OutHLSL, const TCHAR* TemplateShaderFile, const TMap<FString, FStringFormatArg>& TemplateArgs) const;
 #endif
 
 	virtual void PostExecute() {}

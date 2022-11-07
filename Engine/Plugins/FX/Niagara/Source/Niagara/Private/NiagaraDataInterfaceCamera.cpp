@@ -381,21 +381,18 @@ bool UNiagaraDataInterfaceCamera::AppendCompileHash(FNiagaraCompileHashVisitor* 
 	{
 		return false;
 	}
-	InVisitor->UpdateString(TEXT("UNiagaraDataInterfaceCameraHLSLSource"), GetShaderFileHash(TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	InVisitor->UpdateShaderFile(TemplateShaderFilePath);
 	InVisitor->UpdateShaderParameters<FShaderParameters>();
 	return true;
 }
 
 void UNiagaraDataInterfaceCamera::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	TMap<FString, FStringFormatArg> TemplateArgs =
+	const TMap<FString, FStringFormatArg> TemplateArgs =
 	{
 		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
 	};
-
-	FString TemplateFile;
-	LoadShaderSourceFile(TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
-	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
+	AppendTemplateHLSL(OutHLSL, TemplateShaderFilePath, TemplateArgs);
 }
 #endif
 

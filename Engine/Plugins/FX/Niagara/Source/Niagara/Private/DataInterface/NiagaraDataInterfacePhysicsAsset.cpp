@@ -1129,7 +1129,7 @@ bool UNiagaraDataInterfacePhysicsAsset::AppendCompileHash(FNiagaraCompileHashVis
 		return false;
 	}
 
-	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceRigidMeshCollisionQueryHLSLSource"), GetShaderFileHash(NDIPhysicsAssetLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	InVisitor->UpdateShaderFile(NDIPhysicsAssetLocal::TemplateShaderFile);
 	InVisitor->UpdateShaderParameters<NDIPhysicsAssetLocal::FShaderParameters>();
 
 	return true;
@@ -1144,14 +1144,11 @@ void UNiagaraDataInterfacePhysicsAsset::GetParameterDefinitionHLSL(const FNiagar
 {
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
 
-	TMap<FString, FStringFormatArg> TemplateArgs =
+	const TMap<FString, FStringFormatArg> TemplateArgs =
 	{
 		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
 	};
-
-	FString TemplateFile;
-	LoadShaderSourceFile(NDIPhysicsAssetLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
-	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
+	AppendTemplateHLSL(OutHLSL, NDIPhysicsAssetLocal::TemplateShaderFile, TemplateArgs);
 }
 #endif
 

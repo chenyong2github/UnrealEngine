@@ -18,7 +18,7 @@ struct FNDIRenderTargetVolumeSimCacheFrame
 
 	uint8* GetPixelData()
 	{
-		if (PixelData == nullptr && CompressedSize > 0)
+		if (PixelData == nullptr && UncompressedSize > 0)
 		{
 			BulkData.GetCopy(reinterpret_cast<void**>(&PixelData), true);
 		}

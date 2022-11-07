@@ -122,7 +122,7 @@ bool UNiagaraDataInterfaceOcclusion::AppendCompileHash(FNiagaraCompileHashVisito
 	if (!Super::AppendCompileHash(InVisitor))
 		return false;
 
-	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceOcclusionHLSLSource"), GetShaderFileHash(TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	InVisitor->UpdateShaderFile(TemplateShaderFilePath);
 	InVisitor->UpdateShaderParameters<FShaderParameters>();
 	return true;
 }
@@ -166,14 +166,11 @@ void UNiagaraDataInterfaceOcclusion::GetParameterDefinitionHLSL(const FNiagaraDa
 {
 	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
 
-	TMap<FString, FStringFormatArg> TemplateArgs =
+	const TMap<FString, FStringFormatArg> TemplateArgs =
 	{
 		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
 	};
-
-	FString TemplateFile;
-	LoadShaderSourceFile(TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
-	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
+	AppendTemplateHLSL(OutHLSL, TemplateShaderFilePath, TemplateArgs);
 }
 #endif
 

@@ -144,19 +144,10 @@ public:
 		return UpdatePOD(ShaderParametersMetadata->GetStructTypeName(), ShaderParametersMetadata->GetLayoutHash());
 	}
 
+	bool UpdateShaderFile(const TCHAR* ShaderFilePath);
+
 	/**
 	Adds an string value to the hash.
 	*/
-	bool UpdateString(const TCHAR* InDebugName, FStringView InData)
-	{
-		HashState.Update((const uint8 *)InData.GetData(), sizeof(TCHAR)*InData.Len());
-#if WITH_EDITORONLY_DATA
-		if (LogCompileIdGeneration != 0)
-		{
-			Values.Top().PropertyKeys.Push(InDebugName);
-			Values.Top().PropertyValues.Push(FString(InData));
-		}
-#endif
-		return true;
-	}
+	bool UpdateString(const TCHAR* InDebugName, FStringView InData);
 };

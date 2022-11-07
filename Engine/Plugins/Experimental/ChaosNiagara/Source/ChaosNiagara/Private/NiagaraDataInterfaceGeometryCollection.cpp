@@ -447,7 +447,7 @@ bool UNiagaraDataInterfaceGeometryCollection::GetFunctionHLSL(const FNiagaraData
 bool UNiagaraDataInterfaceGeometryCollection::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
 {
 	bool bSuccess = Super::AppendCompileHash(InVisitor);
-	bSuccess &= InVisitor->UpdateString(TEXT("UNiagaraDataInterfaceGeometryCollectionSource"), GetShaderFileHash(NDIGeometryCollectionLocal::TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	bSuccess &= InVisitor->UpdateShaderFile(NDIGeometryCollectionLocal::TemplateShaderFilePath);
 	bSuccess &= InVisitor->UpdateShaderParameters<FShaderParameters>();
 	return bSuccess;
 }
@@ -455,10 +455,7 @@ bool UNiagaraDataInterfaceGeometryCollection::AppendCompileHash(FNiagaraCompileH
 void UNiagaraDataInterfaceGeometryCollection::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	const TMap<FString, FStringFormatArg> TemplateArgs = { {TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol}, };
-
-	FString TemplateFile;
-	LoadShaderSourceFile(NDIGeometryCollectionLocal::TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
-	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
+	AppendTemplateHLSL(OutHLSL, NDIGeometryCollectionLocal::TemplateShaderFilePath, TemplateArgs);
 }
 #endif
 
