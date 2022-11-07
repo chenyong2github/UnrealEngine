@@ -114,15 +114,18 @@ int32 FObjectMixerEditorListRow::GetOrFindHybridRowIndex()
 		
 				if (ChildRow->GetRowType() == FObjectMixerEditorListRow::MatchingObject)
 				{
-					if (const UObject* ChildObject = ChildRow->GetObject(); ChildObject->GetOuter() == ThisObject)
+					if (const UObject* ChildObject = ChildRow->GetObject())
 					{
-						HybridCandidates.Add(ChildItr);
-
-						if (HybridCandidates.Num() > 1)
+						if (ChildObject->GetOuter() == ThisObject)
 						{
-							// There can only be one row to hybrid with.
-							// If there's more than one candidate, don't hybrid.
-							break;
+							HybridCandidates.Add(ChildItr);
+
+							if (HybridCandidates.Num() > 1)
+							{
+								// There can only be one row to hybrid with.
+								// If there's more than one candidate, don't hybrid.
+								break;
+							}
 						}
 					}
 				}

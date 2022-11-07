@@ -25,8 +25,9 @@
 #include "ToolMenuEntry.h"
 #include "ToolMenuSection.h"
 #include "Framework/Commands/GenericCommands.h"
-#include "Widgets/Layout/SBox.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "ObjectMixerEditorListMenuContext"
 
@@ -287,6 +288,34 @@ void UObjectMixerEditorListMenuContext::RegisterObjectMixerActorContextMenuExten
 	}
 }
 
+void UObjectMixerEditorListMenuContext::AddCollectionWidget(const FName& Key, const FObjectMixerEditorListMenuContextData& ContextData, UToolMenu* Menu)
+{
+	const FText KeyText = FText::FromName(Key);
+
+	TSharedRef<SHorizontalBox> Widget = SNew(SHorizontalBox);
+
+	Widget->AddSlot()
+	.Padding(FMargin(8, 0))
+	.AutoWidth()
+	[
+		SNew(SCheckBox)
+		.OnCheckStateChanged_Lambda([Key, ContextData](ECheckBoxState)
+		{
+			OnClickCollectionMenuEntry(Key, ContextData);
+		})
+		.IsChecked_Static(&UObjectMixerEditorListMenuContext::GetCheckStateForCollection, Key, ContextData)
+	];
+
+	Widget->AddSlot()
+	.AutoWidth()
+	[
+		SNew(STextBlock)
+		.Text(KeyText)
+	];
+								
+	Menu->AddMenuEntry(Key, FToolMenuEntry::InitWidget(Key, Widget, FText(), true));
+}
+
 void UObjectMixerEditorListMenuContext::CreateSelectCollectionsSubMenu(UToolMenu* Menu, FObjectMixerEditorListMenuContextData ContextData)
 {
 	FToolMenuEntry Args;
@@ -313,7 +342,8 @@ void UObjectMixerEditorListMenuContext::CreateSelectCollectionsSubMenu(UToolMenu
 		if (TArray<FName> Collections = MainPanel->GetAllCollectionNames(); Collections.Num() > 0)
 		{
 			FToolMenuSection& Section = Menu->FindOrAddSection("Collections");
-			Section.Label = LOCTEXT("CollectionsSectionName", "Collections");
+			FToolMenuEntry& Separator = Section.AddSeparator("CollectionsSeparator");
+			Separator.Label = LOCTEXT("CollectionsSeparatorLabel", "Collections");
 
 			Collections.StableSort([](const FName& A, const FName B)
 			{
@@ -322,20 +352,7 @@ void UObjectMixerEditorListMenuContext::CreateSelectCollectionsSubMenu(UToolMenu
 							
 			for (const FName& Key : Collections)
 			{
-				const FText KeyText = FText::FromName(Key);
-								
-				Section.AddMenuEntry(
-					Key,
-					KeyText,
-					FText::Format(LOCTEXT("AddObjectsToCollectionTooltipFormat", "Add selected to collection '{0}'"), KeyText),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateStatic(&UObjectMixerEditorListMenuContext::OnClickCollectionMenuEntry, Key, ContextData),
-						FCanExecuteAction(),
-						FIsActionChecked::CreateStatic(&UObjectMixerEditorListMenuContext::AreAllObjectsInCollection, Key, ContextData)
-					),
-					EUserInterfaceActionType::ToggleButton
-				);
+				AddCollectionWidget(Key, ContextData, Menu);
 			}
 		}
 	}
@@ -585,6 +602,45 @@ bool UObjectMixerEditorListMenuContext::AreAllObjectsInCollection(const FName Ke
 	}
 
 	return bAreAllSelectedObjectsInCollection;
+}
+
+ECheckBoxState UObjectMixerEditorListMenuContext::GetCheckStateForCollection(const FName Key,
+	const FObjectMixerEditorListMenuContextData ContextData)
+{
+	const int32 ItemCount = ContextData.SelectedItems.Num();
+	int32 ItemsInCollection = 0;
+	int32 ItemsNotInCollection = 0;
+
+	if (const TSharedPtr<FObjectMixerEditorMainPanel> MainPanel = ContextData.MainPanelPtr.Pin())
+	{
+		for (const TSharedPtr<FObjectMixerEditorListRow>& Item : ContextData.SelectedItems)
+		{
+			if (const UObject* Object = Item->GetObject())
+			{
+				if (MainPanel->IsObjectInCollection(Key, Object))
+				{
+					ItemsInCollection++;
+				}
+				else
+				{
+					ItemsNotInCollection++;
+				}
+			}
+		}
+	}
+
+	ECheckBoxState ReturnValue = ECheckBoxState::Undetermined;
+
+	if (ItemsInCollection == ItemCount)
+	{
+		ReturnValue = ECheckBoxState::Checked;
+	}
+	else if (ItemsNotInCollection == ItemCount)
+	{
+		ReturnValue = ECheckBoxState::Unchecked;
+	}
+
+	return ReturnValue;
 }
 
 FToolMenuEntry UObjectMixerEditorListMenuContext::MakeCustomEditMenu(const FObjectMixerEditorListMenuContextData& ContextData)

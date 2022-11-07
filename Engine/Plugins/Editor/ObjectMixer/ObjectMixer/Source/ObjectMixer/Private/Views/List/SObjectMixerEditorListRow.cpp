@@ -27,7 +27,6 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "ObjectMixerEditor"
 
@@ -66,7 +65,7 @@ public:
 		const bool bRowObjectIsValid = IsValid(RowObject);
 
 		if (bRowObjectIsValid)
-		{
+		{	
 			if (const UClass* ActorClass = RowObject->GetClass())
 			{
 				if (UBlueprint* AsBlueprint = UBlueprint::GetBlueprintFromClass(ActorClass))
@@ -76,13 +75,14 @@ public:
 					HBox->AddSlot()
 					.Padding(FMargin(10.0, 0, 0, 0))
 					[
-						SNew(SHyperlinkWithTextHighlight)
-						.Style(FAppStyle::Get(), "Common.GotoBlueprintHyperlink")
+						SAssignNew(HyperlinkTextBlock, SHyperlinkWithTextHighlight)
 						.Visibility(EVisibility::Visible)
 						.Text(DisplayName)
 						.ToolTipText(LOCTEXT("ClickToEditBlueprint", "Click to edit Blueprint"))
 						.OnNavigate(this, &SInlineEditableRowNameCellWidget::OnClickBlueprintLink, AsBlueprint, RowObject.Get())
 						.HighlightText(this, &SInlineEditableRowNameCellWidget::GetHighlightText)
+						.IsSelected_Raw(this, &SInlineEditableRowNameCellWidget::GetIsSelectedExclusively)
+						.OnTextCommitted(this, &SInlineEditableRowNameCellWidget::OnTextCommitted)
 					];
 				}
 			}
@@ -143,7 +143,14 @@ public:
 
 	void EnterEditingMode() const
 	{
-		EditableTextBlock->EnterEditingMode();
+		if (EditableTextBlock.IsValid())
+		{
+			EditableTextBlock->EnterEditingMode();
+		}
+		else if (HyperlinkTextBlock.IsValid() && HyperlinkTextBlock->EditableTextBlock.IsValid())
+		{
+			HyperlinkTextBlock->EditableTextBlock->EnterEditingMode();
+		}
 	}
 
 private:
@@ -411,6 +418,7 @@ private:
 	TWeakPtr<FObjectMixerEditorListRow> HybridChild;
 
 	TSharedPtr<SInlineEditableTextBlock> EditableTextBlock;
+	TSharedPtr<SHyperlinkWithTextHighlight> HyperlinkTextBlock;
 
 	/** The offset applied to text widgets so that the text aligns with the column header text */
 	float TextBlockLeftPadding = 3.0f;
@@ -945,13 +953,13 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 						RowPtr->PropertyNamesToHandles.Add(PropertyName, Handle);
 						
 						// Simultaneously edit all selected rows with a similar property
-						FSimpleDelegate OnPropertyValueChanged =
-							FSimpleDelegate::CreateRaw(
+						const TDelegate<void(const FPropertyChangedEvent&)> OnPropertyValueChanged =
+							TDelegate<void(const FPropertyChangedEvent&)>::CreateRaw(
 								this,
 								&SObjectMixerEditorListRow::OnPropertyChanged, PropertyName);
 					
-						Handle->SetOnPropertyValueChanged(OnPropertyValueChanged);
-						Handle->SetOnChildPropertyValueChanged(OnPropertyValueChanged);
+						Handle->SetOnPropertyValueChangedWithData(OnPropertyValueChanged);
+						Handle->SetOnChildPropertyValueChangedWithData(OnPropertyValueChanged);
 
 						return SNew(SBox)
 								.Visibility(EVisibility::SelfHitTestInvisible)
@@ -969,13 +977,14 @@ TSharedPtr<SWidget> SObjectMixerEditorListRow::GenerateCells(
 	return nullptr;
 }
 
-void SObjectMixerEditorListRow::OnPropertyChanged(const FName PropertyName) const
+void SObjectMixerEditorListRow::OnPropertyChanged(const FPropertyChangedEvent& Event, const FName PropertyName) const
 {
 	check(Item.IsValid());
 	
 	auto SetValueOnSelectedItems = [](
 		const FString& ValueAsString, const TArray<FObjectMixerEditorListRowPtr>& OtherSelectedItems,
-		const FName& PropertyName, const FObjectMixerEditorListRowPtr PinnedItem)
+		const FName& PropertyName, const FObjectMixerEditorListRowPtr PinnedItem,
+		const EPropertyValueSetFlags::Type Flags)
 	{
 		if (!ValueAsString.IsEmpty())
 		{
@@ -997,8 +1006,8 @@ void SObjectMixerEditorListRow::OnPropertyChanged(const FName PropertyName) cons
 							{
 								ObjectToModify->Modify();
 							}
-									
-							SelectedHandlePtr->Pin()->SetValueFromFormattedString(ValueAsString);
+							
+							SelectedHandlePtr->Pin()->SetValueFromFormattedString(ValueAsString, Flags);
 						}
 					}
 				}
@@ -1020,7 +1029,17 @@ void SObjectMixerEditorListRow::OnPropertyChanged(const FName PropertyName) cons
 						if (TSharedPtr<IPropertyHandle> PinnedHandle = HandlePtr->Pin())
 						{
 							PinnedHandle->GetValueAsFormattedString(ValueAsString);
-							SetValueOnSelectedItems(ValueAsString, OtherSelectedItems, PropertyName, PinnedItem);
+
+							const bool bIsInteractiveChange = Event.ChangeType == EPropertyChangeType::Interactive;
+							const EPropertyValueSetFlags::Type Flags =
+								 bIsInteractiveChange ? EPropertyValueSetFlags::InteractiveChange : EPropertyValueSetFlags::DefaultFlags;
+							
+							SetValueOnSelectedItems(ValueAsString, OtherSelectedItems, PropertyName, PinnedItem, Flags);
+
+							if (!bIsInteractiveChange)
+							{
+								PinnedItem->GetListViewPtr().Pin()->RequestRebuildList();
+							}
 						}
 					}
 				}

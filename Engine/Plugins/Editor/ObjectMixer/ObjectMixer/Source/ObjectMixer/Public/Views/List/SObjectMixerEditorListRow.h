@@ -56,7 +56,7 @@ private:
 
 	TSharedPtr<SWidget> GenerateCells(const FName& InColumnName, const TSharedPtr<FObjectMixerEditorListRow> RowPtr);
 
-	void OnPropertyChanged(const FName PropertyName) const;
+	void OnPropertyChanged(const FPropertyChangedEvent& Event, const FName PropertyName) const;
 
 	void OnClickBlueprintLink(UBlueprint* AsBlueprint, UObject* Object = nullptr);
 	FText GetHighlightText() const;

@@ -11,6 +11,7 @@
 #include "Styling/SlateTypes.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
 
 #if WITH_ACCESSIBILITY
@@ -29,31 +30,27 @@ public:
 	SLATE_BEGIN_ARGS(SHyperlinkWithTextHighlight)
 		: _Text()
 		, _Style(&FAppStyle::Get().GetWidgetStyle< FHyperlinkStyle >("Hyperlink"))
-		, _TextStyle(nullptr)
 		, _UnderlineStyle(nullptr)
 		, _Padding()
 		, _OnNavigate()
 		, _TextShapingMethod()
 		, _TextFlowDirection()
-		, _HighlightColor()
-		, _HighlightShape()
 		, _HighlightText()
 		{}
 
 		SLATE_ATTRIBUTE( FText, Text )
 		SLATE_STYLE_ARGUMENT( FHyperlinkStyle, Style )
-		SLATE_STYLE_ARGUMENT( FTextBlockStyle, TextStyle )
 		SLATE_STYLE_ARGUMENT( FButtonStyle, UnderlineStyle )
 		SLATE_ATTRIBUTE( FMargin, Padding )
 		SLATE_EVENT( FSimpleDelegate, OnNavigate )
 		SLATE_ARGUMENT( TOptional<ETextShapingMethod>, TextShapingMethod )
 		SLATE_ARGUMENT( TOptional<ETextFlowDirection>, TextFlowDirection )
 
-		/** The color used to highlight the specified text */
-		SLATE_ATTRIBUTE( FLinearColor, HighlightColor )
+		/** Callback to check if the widget is selected, should only be hooked up if parent widget is handling selection or focus. */
+		SLATE_EVENT( FIsSelected, IsSelected )
 
-		/** The brush used to highlight the specified text */
-		SLATE_ATTRIBUTE( const FSlateBrush*, HighlightShape )
+		/** Callback when the text is committed. */
+		SLATE_EVENT( FOnTextCommitted, OnTextCommitted )
 
 		/** Highlight this text in the text block */
 		SLATE_ATTRIBUTE( FText, HighlightText )
@@ -70,8 +67,10 @@ public:
 
 		check (InArgs._Style);
 		const FButtonStyle* UnderlineStyle = InArgs._UnderlineStyle != nullptr ? InArgs._UnderlineStyle : &InArgs._Style->UnderlineStyle;
-		const FTextBlockStyle* TextStyle = InArgs._TextStyle != nullptr ? InArgs._TextStyle : &InArgs._Style->TextStyle;
 		TAttribute<FMargin> Padding = InArgs._Padding.IsSet() ? InArgs._Padding : InArgs._Style->Padding;
+		
+		EditableTextBlockStyle = FAppStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockStyle");
+		EditableTextBlockStyle.TextStyle = InArgs._Style->TextStyle;
 
 		SButton::Construct(
 			SButton::FArguments()
@@ -82,12 +81,12 @@ public:
 			.TextShapingMethod(InArgs._TextShapingMethod)
 			.TextFlowDirection(InArgs._TextFlowDirection)
 			[
-				SNew(STextBlock)
-				.TextStyle(TextStyle)
+				SAssignNew(EditableTextBlock, SInlineEditableTextBlock)
+				.Style(&EditableTextBlockStyle)
 				.Text(InArgs._Text)
-				.HighlightColor(InArgs._HighlightColor)
-				.HighlightShape(InArgs._HighlightShape)
 				.HighlightText(InArgs._HighlightText)
+				.OnTextCommitted(InArgs._OnTextCommitted)
+				.IsSelected(InArgs._IsSelected)
 			]
 		);
 	}
@@ -107,6 +106,8 @@ public:
 	}
 #endif
 
+	TSharedPtr<SInlineEditableTextBlock> EditableTextBlock;
+
 protected:
 
 	/** Invoke the OnNavigate method */
@@ -119,4 +120,6 @@ protected:
 
 	/** The delegate to invoke when someone clicks the hyperlink */
 	FSimpleDelegate OnNavigate;
+
+	FInlineEditableTextBlockStyle EditableTextBlockStyle;
 };

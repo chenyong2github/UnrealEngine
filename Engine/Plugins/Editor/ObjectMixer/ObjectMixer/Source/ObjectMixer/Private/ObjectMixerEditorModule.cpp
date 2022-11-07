@@ -353,7 +353,7 @@ void FObjectMixerEditorModule::BindDelegates()
 
 	DelegateHandles.Add(FCoreUObjectDelegates::OnObjectTransacted.AddLambda([this](UObject*, const FTransactionObjectEvent& Event)
 	{
-		if (Event.GetEventType() == ETransactionObjectEventType::Finalized && Event.HasPropertyChanges())
+		if (Event.GetEventType() == ETransactionObjectEventType::Finalized && Event.HasNameChange())
 		{
 			RequestRebuildList();
 		}
