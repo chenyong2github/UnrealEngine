@@ -42,6 +42,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = InsertEdge)
 	EGroupEdgeInsertionMode InsertionMode = EGroupEdgeInsertionMode::PlaneCut;
 
+	/** If true, edge insertions are chained together so that each end point becomes the new start point */
+	UPROPERTY(EditAnywhere, Category = InsertEdge)
+	bool bContinuousInsertion = true;
+	
 	/** How close a new loop edge needs to pass next to an existing vertex to use that vertex rather than creating a new one (used for plane cut). */
 	UPROPERTY(EditAnywhere, Category = InsertEdge, AdvancedDisplay, meta = (UIMin = "0", UIMax = "0.01", ClampMin = "0", ClampMax = "10"))
 	double VertexTolerance = 0.001;
@@ -131,6 +135,7 @@ protected:
 	int32 CommonGroupID = FDynamicMesh3::InvalidID;
 	int32 CommonBoundaryIndex = FDynamicMesh3::InvalidID;
 
+	FRay LastEndPointWorldRay;
 
 	// State control:
 	EState ToolState = EState::GettingStart;
