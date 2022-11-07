@@ -81,6 +81,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint64 HasEXTTextureCompressionASTCHDR : 1;
 			uint64 HasKHRMaintenance4 : 1;
 			uint64 HasKHRSynchronization2 : 1;
+			uint64 HasEXTSubgroupSizeControl : 1;
 		};
 		uint64 Packed;
 	};

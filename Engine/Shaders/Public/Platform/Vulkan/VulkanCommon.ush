@@ -5,7 +5,7 @@
 =============================================================================*/
 
 // Update this GUID to improve shader recompilation for Vulkan only shaders
-// GUID = 494E180E-0471-4013-8210-B52A0B05805F
+// GUID = 1084d248-f5cb-41ba-8ff7-3ee0752a4295
 
 #pragma once
 
@@ -49,4 +49,13 @@ void ImageInterlockedMaxUInt64(RWTexture2D<UlongType> Dest, uint2 Coord, UlongTy
 	SamplerState VULKAN_SAMPLER_HEAP(SamplerState)[] : register(s0, space1000);
 	SamplerComparisonState VULKAN_SAMPLER_HEAP(SamplerComparisonState)[] : register(s0, space1000);
 	COMPILER_DEFINE GetSamplerFromHeap(Type, Index) VULKAN_SAMPLER_HEAP(Type)[Index]
+#endif
+
+#if VULKAN_SUPPORTS_SUBGROUP_SIZE_CONTROL
+	#define COMPILER_SUPPORTS_WAVE_SIZE 1
+
+	// NOTE: Wave size in Vulkan is supported at shader stage in the pipeline creation.
+	// Create something unique we can read back from the shader, but that goes away on the rewrite
+	COMPILER_DEFINE VULKAN_WAVESIZE(N)
+	#define WAVESIZE(N) VULKAN_WAVESIZE(N)
 #endif

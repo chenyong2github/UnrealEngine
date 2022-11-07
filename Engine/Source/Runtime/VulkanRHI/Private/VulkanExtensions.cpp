@@ -978,6 +978,7 @@ public:
 	virtual void PostPhysicalDeviceFeatures(FOptionalVulkanDeviceExtensions& ExtensionFlags) override final
 	{
  		bSupportsSubgroupSizeControl = (SubgroupSizeControlFeatures.subgroupSizeControl == VK_TRUE);
+		ExtensionFlags.HasEXTSubgroupSizeControl = bSupportsSubgroupSizeControl ? 1 : 0;
 	}
 
 	virtual void PrePhysicalDeviceProperties(VkPhysicalDeviceProperties2KHR& PhysicalDeviceProperties2) override final
@@ -995,6 +996,8 @@ public:
 		{
 			GRHIMinimumWaveSize = SubgroupSizeControlProperties.minSubgroupSize;
 			GRHIMaximumWaveSize = SubgroupSizeControlProperties.maxSubgroupSize;
+
+			AddToPNext(DeviceCreateInfo, SubgroupSizeControlFeatures);
 		}
 	}
 
