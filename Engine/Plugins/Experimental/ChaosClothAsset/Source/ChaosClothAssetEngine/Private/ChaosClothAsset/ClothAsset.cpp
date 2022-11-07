@@ -310,12 +310,6 @@ void UChaosClothAsset::CalculateBounds()
 
 void UChaosClothAsset::UpdateSkeleton(bool bRebuildClothSimulationModel)
 {
-	// Rebuild Skeleton
-	RefSkeleton = Skeleton->GetReferenceSkeleton();  // TODO: Does a copy work? Try to see what's exactly needed here...
-
-	constexpr bool bRebuildNameMap = false;
-	RefSkeleton.RebuildRefSkeleton(Skeleton, bRebuildNameMap);
-
 	CalculateInvRefMatrices();
 
 	if (bRebuildClothSimulationModel)

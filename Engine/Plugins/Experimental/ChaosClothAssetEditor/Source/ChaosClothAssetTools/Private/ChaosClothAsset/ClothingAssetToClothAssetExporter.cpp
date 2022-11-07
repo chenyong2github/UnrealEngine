@@ -56,11 +56,9 @@ void UClothingAssetToChaosClothAssetExporter::Export(const UClothingAssetBase* C
 	// Set the skeleton from the skeletal mesh, or create a default skeleton if it can't find one
 	USkeletalMesh* const SkeletalMesh = Cast<USkeletalMesh>(ClothingAssetCommon->GetOuter());
 
-	USkeleton* const Skeleton = SkeletalMesh ?
-		SkeletalMesh->GetSkeleton() :
-		LoadObject<USkeleton>(nullptr, TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton"), nullptr, LOAD_None, nullptr);
-
-	ClothAsset->SetSkeleton(Skeleton);
+	ClothAsset->SetReferenceSkeleton(SkeletalMesh ?
+		SkeletalMesh->GetRefSkeleton() :
+		LoadObject<USkeleton>(nullptr, TEXT("/Engine/EditorMeshes/SkeletalMesh/DefaultSkeletalMesh_Skeleton.DefaultSkeletalMesh_Skeleton"), nullptr, LOAD_None, nullptr)->GetReferenceSkeleton());
 
 	// Set the render mesh to duplicate the sim mesh
 	ClothAsset->CopySimMeshToRenderMesh(MaterialId);

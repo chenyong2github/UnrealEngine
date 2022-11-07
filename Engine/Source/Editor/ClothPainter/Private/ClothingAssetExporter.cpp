@@ -7,6 +7,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "ContentBrowserModule.h"
+#include "Engine/SkinnedAsset.h"
 #include "Features/IModularFeatures.h"
 #include "FileHelpers.h"
 #include "HAL/PlatformMisc.h"
@@ -22,6 +23,7 @@
 #include "UObject/Class.h"
 #include "UObject/Package.h"
 #include "UObject/TopLevelAssetPath.h"
+#include "SkinnedAssetCompiler.h"
 
 #define LOCTEXT_NAMESPACE "ClothingAssetExporter"
 
@@ -81,7 +83,14 @@ void ExportClothingAsset(const UClothingAssetBase* ClothingAsset, UClass* Export
 	}
 
 	// Try loading the package, when overwriting an existing asset it needs to be loaded first
-	LoadPackage(nullptr, *NewPackageName, LOAD_Quiet | LOAD_EditorOnly);
+	if (UPackage* const Package = LoadPackage(nullptr, *NewPackageName, LOAD_Quiet | LOAD_EditorOnly))
+	{
+		if (USkinnedAsset* const SkinnedAsset = Cast<USkinnedAsset>(Package->FindAssetInPackage()))
+		{
+			// Finish compilation now otherwise the asset might be deleted and replaced before it ends
+			FSkinnedAssetCompilingManager::Get().FinishCompilation({ SkinnedAsset });
+		}
+	}
 
 	// Find a matching exporter
 	UClothingAssetExporter* ClothingAssetExporter = nullptr;

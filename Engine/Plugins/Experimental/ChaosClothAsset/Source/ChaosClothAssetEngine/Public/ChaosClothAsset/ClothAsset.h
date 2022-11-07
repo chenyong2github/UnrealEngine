@@ -72,9 +72,9 @@ public:
 	virtual TArray<class USkeletalMeshSocket*> GetActiveSocketList() const override { static TArray<class USkeletalMeshSocket*> Dummy; return Dummy; }
 	virtual USkeletalMeshSocket* FindSocket(FName InSocketName) const override	{ return nullptr; }
 	virtual USkeletalMeshSocket* FindSocketInfo(FName InSocketName, FTransform& OutTransform, int32& OutBoneIndex, int32& OutIndex) const override { return nullptr; }
-	virtual USkeleton* GetSkeleton() override									{ return Skeleton; }
-	virtual const USkeleton* GetSkeleton() const override						{ return Skeleton; }
-	virtual void SetSkeleton(USkeleton* InSkeleton) override					{ Skeleton = InSkeleton; UpdateSkeleton(); }
+	virtual USkeleton* GetSkeleton() override									{ return nullptr; }
+	virtual const USkeleton* GetSkeleton() const override						{ return nullptr; }
+	virtual void SetSkeleton(USkeleton* InSkeleton) override					{}
 	virtual UMeshDeformer* GetDefaultMeshDeformer() const override				{ return nullptr; }
 	virtual bool IsValidLODIndex(int32 Index) const override					{ return LODInfo.IsValidIndex(Index); }
 	virtual int32 GetMinLodIdx(bool bForceLowestLODIdx = false) const override	{ return 0; }
@@ -116,6 +116,9 @@ public:
 
 	/** Set the physics asset for this cloth. */
 	void SetPhysicsAsset(UPhysicsAsset* InPhysicsAsset) { PhysicsAsset = InPhysicsAsset; }
+
+	/** Set the bone hierachy to use for this cloth. */
+	void SetReferenceSkeleton(const FReferenceSkeleton& InReferenceSkeleton, bool bRebuildClothSimulationModel = true) { RefSkeleton = InReferenceSkeleton; UpdateSkeleton(bRebuildClothSimulationModel); }
 
 private:
 	//~ Begin USkinnedAsset interface
@@ -184,10 +187,6 @@ private:
 	/** Physics asset used for collision. */
 	UPROPERTY(EditAnywhere, Category = Collision)
 	TObjectPtr<UPhysicsAsset> PhysicsAsset;
-
-	/** Skeleton. */
-	UPROPERTY(EditAnywhere, AssetRegistrySearchable, Category = Skeleton)
-	TObjectPtr<USkeleton> Skeleton;
 
 	/** Struct containing information for each LOD level, such as materials to use, and when use the LOD. */
 	UPROPERTY(EditAnywhere, EditFixedSize, Category = LevelOfDetails)
