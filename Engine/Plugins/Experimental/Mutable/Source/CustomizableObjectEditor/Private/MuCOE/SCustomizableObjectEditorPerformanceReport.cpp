@@ -248,6 +248,8 @@ void SCustomizableObjecEditorPerformanceReport::Construct(const FArguments& InAr
 
 SCustomizableObjecEditorPerformanceReport::~SCustomizableObjecEditorPerformanceReport()
 {
+	StopTests();
+	
 	if (CurrentReportWorstCase && CurrentReportWorstCase->WorstCaseInstance)
 	{
 		CurrentReportWorstCase->WorstCaseInstance->UpdatedDelegate.RemoveDynamic(HelperCallback, &UPerformanceReportHelper::DelegatedCallback);
@@ -410,7 +412,7 @@ FReply SCustomizableObjecEditorPerformanceReport::RunPerformanceReport(UCustomiz
 	}
 
 	if (ReportSubject)
-	{
+	{	
 		StopTests();
 
 		if (CurrentReportInstance || CurrentReportWorstCase)
