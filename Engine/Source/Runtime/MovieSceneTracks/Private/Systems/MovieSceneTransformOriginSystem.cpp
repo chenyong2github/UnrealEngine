@@ -2,6 +2,8 @@
 
 #include "Systems/MovieSceneTransformOriginSystem.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
+#include "EntitySystem/MovieSceneEntitySystemRunner.h"
+#include "EntitySystem/MovieSceneEntityMutations.h"
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "Tracks/IMovieSceneTransformOrigin.h"
@@ -27,18 +29,14 @@ struct FAssignTransformOrigin
 
 	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FInstanceHandle> Instances, TRead<UObject*> BoundObjects,
 		TWriteOptional<double> LocationX, TWriteOptional<double> LocationY, TWriteOptional<double> LocationZ,
-		TWriteOptional<double> RotationX, TWriteOptional<double> RotationY, TWriteOptional<double> RotationZ,
-		TWriteOptional<FSourceDoubleChannelFlags> FlagsLocationX, TWriteOptional<FSourceDoubleChannelFlags> FlagsLocationY, TWriteOptional<FSourceDoubleChannelFlags> FlagsLocationZ,
-		TWriteOptional<FSourceDoubleChannelFlags> FlagsRotationX, TWriteOptional<FSourceDoubleChannelFlags> FlagsRotationY, TWriteOptional<FSourceDoubleChannelFlags> FlagsRotationZ)
+		TWriteOptional<double> RotationX, TWriteOptional<double> RotationY, TWriteOptional<double> RotationZ)
 	{
-		TransformLocation(Instances, BoundObjects, LocationX, LocationY, LocationZ, RotationX, RotationY, RotationZ, FlagsLocationX, FlagsLocationY, FlagsLocationZ, FlagsRotationX, FlagsRotationY, FlagsRotationZ, Allocation->Num());
+		TransformLocation(Instances, BoundObjects, LocationX, LocationY, LocationZ, RotationX, RotationY, RotationZ, Allocation->Num());
 	}
 
 	void TransformLocation(const FInstanceHandle* Instances, const UObject* const * BoundObjects,
 		double* OutLocationX, double* OutLocationY, double* OutLocationZ,
 		double* OutRotationX, double* OutRotationY, double* OutRotationZ,
-		FSourceDoubleChannelFlags* OutFlagsLocationX, FSourceDoubleChannelFlags* OutFlagsLocationY, FSourceDoubleChannelFlags* OutFlagsLocationZ,
-		FSourceDoubleChannelFlags* OutFlagsRotationX, FSourceDoubleChannelFlags* OutFlagsRotationY, FSourceDoubleChannelFlags* OutFlagsRotationZ,
 		int32 Num)
 	{
 		for (int32 Index = 0; Index < Num; ++Index)
@@ -73,14 +71,6 @@ struct FAssignTransformOrigin
 			if (OutRotationX) { OutRotationX[Index] = NewRotation.Roll; }
 			if (OutRotationY) { OutRotationY[Index] = NewRotation.Pitch; }
 			if (OutRotationZ) { OutRotationZ[Index] = NewRotation.Yaw; }
-
-			if (OutFlagsLocationX) { OutFlagsLocationX[Index].bNeedsEvaluate = true; }
-			if (OutFlagsLocationY) { OutFlagsLocationY[Index].bNeedsEvaluate = true; }
-			if (OutFlagsLocationZ) { OutFlagsLocationZ[Index].bNeedsEvaluate = true; }
-
-			if (OutFlagsRotationX) { OutFlagsRotationX[Index].bNeedsEvaluate = true; }
-			if (OutFlagsRotationY) { OutFlagsRotationY[Index].bNeedsEvaluate = true; }
-			if (OutFlagsRotationZ) { OutFlagsRotationZ[Index].bNeedsEvaluate = true; }
 		}
 	}
 };
@@ -88,6 +78,47 @@ struct FAssignTransformOrigin
 } // namespace MovieScene
 } // namespace UE
 
+
+UMovieSceneTransformOriginInstantiatorSystem::UMovieSceneTransformOriginInstantiatorSystem(const FObjectInitializer& ObjInit)
+	: Super(ObjInit)
+{
+	using namespace UE::MovieScene;
+
+	Phase = ESystemPhase::Instantiation;
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->SymbolicTags.CreatesEntities);
+
+		// This must be run before the double channel evaluator
+		DefineImplicitPrerequisite(GetClass(), UDoubleChannelEvaluatorSystem::StaticClass());
+	}
+}
+
+
+void UMovieSceneTransformOriginInstantiatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes*          BuiltInComponents = FBuiltInComponentTypes::Get();
+	FMovieSceneTracksComponentTypes* TracksComponents  = FMovieSceneTracksComponentTypes::Get();
+
+	FEntityComponentFilter Filter;
+	Filter.All({ TracksComponents->ComponentTransform.PropertyTag, BuiltInComponents->Tags.AbsoluteBlend, BuiltInComponents->Tags.NeedsLink });
+	Filter.None({ BuiltInComponents->BlendChannelOutput });
+	Filter.Any({
+		BuiltInComponents->DoubleResult[0],
+		BuiltInComponents->DoubleResult[1],
+		BuiltInComponents->DoubleResult[2],
+		BuiltInComponents->DoubleResult[3],
+		BuiltInComponents->DoubleResult[4],
+		BuiltInComponents->DoubleResult[5]
+	});
+
+	// Stop constant values for transforms from being optimized - we need them to be re-evaluated every frame
+	// since this system will trample them all
+	Linker->EntityManager.MutateAll(Filter, FAddSingleMutation(BuiltInComponents->Tags.DontOptimizeConstants));
+}
 
 UMovieSceneTransformOriginSystem::UMovieSceneTransformOriginSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -106,13 +137,6 @@ UMovieSceneTransformOriginSystem::UMovieSceneTransformOriginSystem(const FObject
 		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleResult[3]);
 		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleResult[4]);
 		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleResult[5]);
-
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleChannelFlags[0]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleChannelFlags[1]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleChannelFlags[2]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleChannelFlags[3]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleChannelFlags[4]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleChannelFlags[5]);
 	}
 }
 
@@ -133,6 +157,13 @@ bool UMovieSceneTransformOriginSystem::IsRelevantImpl(UMovieSceneEntitySystemLin
 	}
 
 	return false;
+}
+
+void UMovieSceneTransformOriginSystem::OnLink()
+{
+	UMovieSceneTransformOriginInstantiatorSystem* Instantiator = Linker->LinkSystem<UMovieSceneTransformOriginInstantiatorSystem>();
+	// This system keeps the instantiator around
+	Linker->SystemGraph.AddReference(this, Instantiator);
 }
 
 void UMovieSceneTransformOriginSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
@@ -185,12 +216,6 @@ void UMovieSceneTransformOriginSystem::OnRun(FSystemTaskPrerequisites& InPrerequ
 		.WriteOptional(BuiltInComponents->DoubleResult[3])
 		.WriteOptional(BuiltInComponents->DoubleResult[4])
 		.WriteOptional(BuiltInComponents->DoubleResult[5])
-		.WriteOptional(BuiltInComponents->DoubleChannelFlags[0])
-		.WriteOptional(BuiltInComponents->DoubleChannelFlags[1])
-		.WriteOptional(BuiltInComponents->DoubleChannelFlags[2])
-		.WriteOptional(BuiltInComponents->DoubleChannelFlags[3])
-		.WriteOptional(BuiltInComponents->DoubleChannelFlags[4])
-		.WriteOptional(BuiltInComponents->DoubleChannelFlags[5])
 		.CombineFilter(Filter)
 		// Must contain at least one double result
 		.FilterAny({ BuiltInComponents->DoubleResult[0], BuiltInComponents->DoubleResult[1], BuiltInComponents->DoubleResult[2],

@@ -34,6 +34,10 @@ struct FPropertyTag;
 template<typename> struct TMovieSceneCurveChannelImpl;
 template <typename T> struct TIsPODType;
 
+namespace UE::MovieScene::Interpolation
+{
+	struct FCachedInterpolation;
+}
 
 USTRUCT()
 struct FMovieSceneFloatValue
@@ -163,6 +167,11 @@ struct MOVIESCENE_API FMovieSceneFloatChannel : public FMovieSceneChannel
 	* @return true if the channel was evaluated successfully, false otherwise
 	*/
 	bool Evaluate(FFrameTime InTime, float& OutValue) const;
+
+	/**
+	 * Retrieve a cached interpolation from this channel for the specified time
+	 */
+	UE::MovieScene::Interpolation::FCachedInterpolation GetInterpolationForTime(FFrameTime InTime) const;
 
 	/**
 	 * Set the channel's times and values to the requested values

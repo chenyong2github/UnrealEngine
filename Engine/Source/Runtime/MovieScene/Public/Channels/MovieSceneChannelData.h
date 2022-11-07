@@ -72,7 +72,7 @@ namespace MovieScene
 	 * @param OutIndex2      OutIndex1 + 1 if it is a valid index in the array, INDEX_NONE otherwise
 	 * @param OutInterp      A value from 0.0 -> 1.0 specifying how a linear interpolation value from index 1 to index 2
 	 */
-	MOVIESCENE_API void EvaluateTime(TArrayView<const FFrameNumber> InTimes, FFrameTime InTime, int32& OutIndex1, int32& OutIndex2, float& OutInterp);
+	MOVIESCENE_API void EvaluateTime(TArrayView<const FFrameNumber> InTimes, FFrameTime InTime, int32& OutIndex1, int32& OutIndex2, double& OutInterp);
 
 
 	/**

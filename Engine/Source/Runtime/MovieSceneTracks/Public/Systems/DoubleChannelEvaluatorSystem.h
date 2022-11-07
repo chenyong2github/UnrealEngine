@@ -16,16 +16,15 @@
 class UMovieSceneEntitySystemLinker;
 class UObject;
 
-namespace UE
+namespace UE::MovieScene
 {
-namespace MovieScene
-{
-
 	struct FSourceDoubleChannel;
-	struct FSourceDoubleChannelFlags;
 
-} // namespace MovieScene
-} // namespace UE
+	namespace Interpolation
+	{
+		struct FCachedInterpolation;
+	}
+} // namespace UE::MovieScene
 
 /**
  * System that is responsible for evaluating double channels.
@@ -43,16 +42,5 @@ public:
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
 
-	static void RegisterChannelType(TComponentTypeID<UE::MovieScene::FSourceDoubleChannel> SourceChannelType, TComponentTypeID<UE::MovieScene::FSourceDoubleChannelFlags> ChannelFlagsType, TComponentTypeID<double> ResultType);
-
-private:
-
-	struct FChannelType
-	{
-		TComponentTypeID<UE::MovieScene::FSourceDoubleChannel> ChannelType;
-		TComponentTypeID<UE::MovieScene::FSourceDoubleChannelFlags> ChannelFlagsType;
-		TComponentTypeID<double> ResultType;
-	};
-
-	static TArray<FChannelType, TInlineAllocator<4>> StaticChannelTypes;
+	static void RegisterChannelType(TComponentTypeID<UE::MovieScene::FSourceDoubleChannel> SourceChannelType, TComponentTypeID<UE::MovieScene::Interpolation::FCachedInterpolation> CachedInterpolationType, TComponentTypeID<double> ResultType);
 };

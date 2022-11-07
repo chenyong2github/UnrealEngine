@@ -16,24 +16,24 @@
 class UMovieSceneEntitySystemLinker;
 class UObject;
 
-namespace UE
+namespace UE::MovieScene
 {
-namespace MovieScene
-{
-
 	struct FSourceFloatChannel;
-	struct FSourceFloatChannelFlags;
 
-} // namespace MovieScene
-} // namespace UE
+	namespace Interpolation
+	{
+		struct FCachedInterpolation;
+	}
+} // namespace UE::MovieScene
 
 /**
- * System that is responsible for evaluating float channels.
+ * System that is responsible for evaluating double channels.
  */
 UCLASS()
 class MOVIESCENETRACKS_API UFloatChannelEvaluatorSystem : public UMovieSceneEntitySystem
 {
 public:
+
 
 	GENERATED_BODY()
 
@@ -42,16 +42,5 @@ public:
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
 
-	static void RegisterChannelType(TComponentTypeID<UE::MovieScene::FSourceFloatChannel> SourceChannelType, TComponentTypeID<UE::MovieScene::FSourceFloatChannelFlags> ChannelFlagsType, TComponentTypeID<double> ResultType);
-
-private:
-
-	struct FChannelType
-	{
-		TComponentTypeID<UE::MovieScene::FSourceFloatChannel> ChannelType;
-		TComponentTypeID<UE::MovieScene::FSourceFloatChannelFlags> ChannelFlagsType;
-		TComponentTypeID<double> ResultType;
-	};
-
-	static TArray<FChannelType, TInlineAllocator<16>> StaticChannelTypes;
+	static void RegisterChannelType(TComponentTypeID<UE::MovieScene::FSourceFloatChannel> SourceChannelType, TComponentTypeID<UE::MovieScene::Interpolation::FCachedInterpolation> CachedInterpolationType, TComponentTypeID<double> ResultType);
 };

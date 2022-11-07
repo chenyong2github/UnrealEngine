@@ -13,6 +13,12 @@
 #include "MovieSceneFwd.h"
 
 
+namespace UE::MovieScene::Interpolation
+{
+	struct FCachedInterpolation;
+}
+
+
 /** Utility class for curve channels */
 template<typename ChannelType>
 struct MOVIESCENE_API TMovieSceneCurveChannelImpl
@@ -27,6 +33,11 @@ struct MOVIESCENE_API TMovieSceneCurveChannelImpl
 
 	/** Evaluate this channel with the frame resolution */
 	static bool Evaluate(const ChannelType* InChannel, FFrameTime InTime, CurveValueType& OutValue);
+
+	/**
+	 * Evaluate this channel by returning a cachable interpolation structure
+	 */
+	static UE::MovieScene::Interpolation::FCachedInterpolation GetInterpolationForTime(const ChannelType* InChannel, FFrameTime InTime);
 
 	/** Structure used to store the result of UE::MovieScene::EvaluateTime for a given channel/key distribution*/
 	struct FTimeEvaluationCache
@@ -125,6 +136,15 @@ private:
 	 * @return true if the time was evaluated with extrapolation, false otherwise
 	 */
 	static bool EvaluateExtrapolation(const ChannelType* InChannel, FFrameTime InTime, CurveValueType& OutValue);
+
+	/**
+	 * Evaluate this channel's extrapolation by populating a cachable structure. Assumes more than 1 key is present.
+	 *
+	 * @param InTime     The time to evaluate at
+	 * @param OutValue   A value to receive the result
+	 * @return true if the time was evaluated with extrapolation, false otherwise
+	 */
+	static bool CacheExtrapolation(const ChannelType* InChannel, FFrameTime InTime, UE::MovieScene::Interpolation::FCachedInterpolation& OutValue);
 
 	/**
 	 * Adds median points between each of the supplied points if their evaluated value is significantly different than the linear interpolation of those points

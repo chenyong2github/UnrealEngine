@@ -18,7 +18,7 @@ namespace MovieScene
 		OutIndex2 = Index2 < InTimes.Num() ? Index2 : INDEX_NONE;
 	}
 
-	void EvaluateTime(TArrayView<const FFrameNumber> InTimes, FFrameTime InTime, int32& OutIndex1, int32& OutIndex2, float& OutInterp)
+	void EvaluateTime(TArrayView<const FFrameNumber> InTimes, FFrameTime InTime, int32& OutIndex1, int32& OutIndex2, double& OutInterp)
 	{
 		const int32 Index2 = Algo::UpperBound(InTimes, InTime.FrameNumber);
 		const int32 Index1 = Index2 - 1;
@@ -32,7 +32,7 @@ namespace MovieScene
 			const int32 Time1 = InTimes[Index1].Value, Time2 = InTimes[Index2].Value;
 			const int32 Difference = Time2 - Time1;
 
-			OutInterp = (InTime.FrameNumber.Value - Time1) / float(Difference) + InTime.GetSubFrame() / Difference;
+			OutInterp = (InTime.AsDecimal() - Time1) / double(Difference);
 		}
 		else
 		{

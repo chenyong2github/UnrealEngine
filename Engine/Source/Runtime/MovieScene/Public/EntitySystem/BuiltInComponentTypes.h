@@ -23,11 +23,20 @@
 #include "BuiltInComponentTypes.generated.h"
 
 class IMovieSceneEvaluationHook;
-namespace UE { namespace MovieScene { struct FCustomPropertyIndex; } }
-namespace UE { namespace MovieScene { struct FInitialValueIndex; } }
-namespace UE { namespace MovieScene { struct FInstanceHandle; } }
-namespace UE { namespace MovieScene { struct FInterrogationKey; } }
-namespace UE { namespace MovieScene { struct FRootInstanceHandle; } }
+
+namespace UE::MovieScene
+{
+	struct FCustomPropertyIndex;
+	struct FInitialValueIndex;
+	struct FInstanceHandle;
+	struct FInterrogationKey;
+	struct FRootInstanceHandle;
+	namespace Interpolation
+	{
+		struct FCachedInterpolation;
+	}
+}
+
 struct FFrameTime;
 struct FMovieSceneBlendChannelID;
 struct FMovieSceneSequenceID;
@@ -172,11 +181,6 @@ struct FSourceFloatChannel
 	const FMovieSceneFloatChannel* Source;
 };
 
-struct FSourceFloatChannelFlags
-{
-	bool bNeedsEvaluate = true;
-};
-
 /**
  * The component data for evaluation a double channel
  */
@@ -191,11 +195,6 @@ struct FSourceDoubleChannel
 	{}
 
 	const FMovieSceneDoubleChannel* Source;
-};
-
-struct FSourceDoubleChannelFlags
-{
-	bool bNeedsEvaluate = true;
 };
 
 struct FEvaluationHookFlags
@@ -296,15 +295,16 @@ public:
 
 	// An FMovieSceneFloatChannel considered to be at index N within the source structure (ie 0 = Location.X, Vector.X, Color.R; 1 = Location.Y, Vector.Y, Color.G)
 	TComponentTypeID<FSourceFloatChannel> FloatChannel[9];
-	TComponentTypeID<FSourceFloatChannelFlags> FloatChannelFlags[9];
 
 	// An FMovieSceneDoubleChannel considered to be at index N within the source structure (ie 0 = Location.X, Vector.X; 1 = Location.Y, Vector.Y)
 	TComponentTypeID<FSourceDoubleChannel> DoubleChannel[9];
-	TComponentTypeID<FSourceDoubleChannelFlags> DoubleChannelFlags[9];
+
+	// A cached interpolation structure relating to either float channels or double channels
+	TComponentTypeID<Interpolation::FCachedInterpolation> CachedInterpolation[9];
 
 	// An FMovieSceneFloatChannel that represents an arbitrary weight
 	TComponentTypeID<FSourceFloatChannel> WeightChannel;
-	TComponentTypeID<FSourceFloatChannelFlags> WeightChannelFlags;
+	TComponentTypeID<Interpolation::FCachedInterpolation> CachedWeightChannelInterpolation;
 
 	// FMovieSceneObjectPathChannel that represents a changing object path over time
 	TComponentTypeID<FSourceObjectPathChannel> ObjectPathChannel;
@@ -395,6 +395,8 @@ public:
 		FComponentTypeID Ignored;
 
 		FComponentTypeID AlwaysCacheInitialValue;
+
+		FComponentTypeID DontOptimizeConstants;
 
 	} Tags;
 

@@ -8,6 +8,7 @@
 #include "EntitySystem/MovieSceneComponentRegistry.h"
 #include "EntitySystem/MovieScenePropertyBinding.h"
 #include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
+#include "Channels/MovieSceneInterpolation.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(BuiltInComponentTypes)
 
@@ -63,25 +64,16 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&WeightChannel,           TEXT("Weight Channel"));
 	ComponentRegistry->NewComponentType(&ObjectPathChannel,       TEXT("Object Path Channel"));
 
-	ComponentRegistry->NewComponentType(&FloatChannelFlags[0],    TEXT("Float Channel 0 Flags"));
-	ComponentRegistry->NewComponentType(&FloatChannelFlags[1],    TEXT("Float Channel 1 Flags"));
-	ComponentRegistry->NewComponentType(&FloatChannelFlags[2],    TEXT("Float Channel 2 Flags"));
-	ComponentRegistry->NewComponentType(&FloatChannelFlags[3],    TEXT("Float Channel 3 Flags"));
-	ComponentRegistry->NewComponentType(&FloatChannelFlags[4],    TEXT("Float Channel 4 Flags"));
-	ComponentRegistry->NewComponentType(&FloatChannelFlags[5],    TEXT("Float Channel 5 Flags"));
-	ComponentRegistry->NewComponentType(&FloatChannelFlags[6],    TEXT("Float Channel 6 Flags"));
-	ComponentRegistry->NewComponentType(&FloatChannelFlags[7],    TEXT("Float Channel 7 Flags"));
-	ComponentRegistry->NewComponentType(&FloatChannelFlags[8],    TEXT("Float Channel 8 Flags"));
-	ComponentRegistry->NewComponentType(&DoubleChannelFlags[0],   TEXT("Double Channel 0 Flags"));
-	ComponentRegistry->NewComponentType(&DoubleChannelFlags[1],   TEXT("Double Channel 1 Flags"));
-	ComponentRegistry->NewComponentType(&DoubleChannelFlags[2],   TEXT("Double Channel 2 Flags"));
-	ComponentRegistry->NewComponentType(&DoubleChannelFlags[3],   TEXT("Double Channel 3 Flags"));
-	ComponentRegistry->NewComponentType(&DoubleChannelFlags[4],   TEXT("Double Channel 4 Flags"));
-	ComponentRegistry->NewComponentType(&DoubleChannelFlags[5],   TEXT("Double Channel 5 Flags"));
-	ComponentRegistry->NewComponentType(&DoubleChannelFlags[6],   TEXT("Double Channel 6 Flags"));
-	ComponentRegistry->NewComponentType(&DoubleChannelFlags[7],   TEXT("Double Channel 7 Flags"));
-	ComponentRegistry->NewComponentType(&DoubleChannelFlags[8],   TEXT("Double Channel 8 Flags"));
-	ComponentRegistry->NewComponentType(&WeightChannelFlags,      TEXT("Weight Channel Flags"));
+	ComponentRegistry->NewComponentType(&CachedInterpolation[0],   TEXT("Cached Interpolation [0]"));
+	ComponentRegistry->NewComponentType(&CachedInterpolation[1],   TEXT("Cached Interpolation [1]"));
+	ComponentRegistry->NewComponentType(&CachedInterpolation[2],   TEXT("Cached Interpolation [2]"));
+	ComponentRegistry->NewComponentType(&CachedInterpolation[3],   TEXT("Cached Interpolation [3]"));
+	ComponentRegistry->NewComponentType(&CachedInterpolation[4],   TEXT("Cached Interpolation [4]"));
+	ComponentRegistry->NewComponentType(&CachedInterpolation[5],   TEXT("Cached Interpolation [5]"));
+	ComponentRegistry->NewComponentType(&CachedInterpolation[6],   TEXT("Cached Interpolation [6]"));
+	ComponentRegistry->NewComponentType(&CachedInterpolation[7],   TEXT("Cached Interpolation [7]"));
+	ComponentRegistry->NewComponentType(&CachedInterpolation[8],   TEXT("Cached Interpolation [8]"));
+	ComponentRegistry->NewComponentType(&CachedWeightChannelInterpolation, TEXT("Cached Weight Channel Interpolation"));
 
 	ComponentRegistry->NewComponentType(&Easing,                  TEXT("Easing"));
 	ComponentRegistry->NewComponentType(&EasingResult,            TEXT("Easing Result"));
@@ -150,6 +142,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	Tags.ImportedEntity          = ComponentRegistry->NewTag(TEXT("Imported Entity"));
 	Tags.Finished                = ComponentRegistry->NewTag(TEXT("Finished Evaluating"));
 	Tags.Ignored                 = ComponentRegistry->NewTag(TEXT("Ignored"));
+	Tags.DontOptimizeConstants   = ComponentRegistry->NewTag(TEXT("Don't Optimize Constants"));
 	Tags.FixedTime               = ComponentRegistry->NewTag(TEXT("Fixed Time"));
 	Tags.PreRoll                 = ComponentRegistry->NewTag(TEXT("Pre Roll"));
 	Tags.SectionPreRoll          = ComponentRegistry->NewTag(TEXT("Section Pre Roll"));
@@ -223,7 +216,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 				UE_ARRAY_COUNT(FloatChannel) == UE_ARRAY_COUNT(BaseDouble), 
 				"Base floats and float results should have the same size.");
 		static_assert(
-				UE_ARRAY_COUNT(FloatChannel) == UE_ARRAY_COUNT(FloatChannelFlags),
+				UE_ARRAY_COUNT(FloatChannel) == UE_ARRAY_COUNT(CachedInterpolation),
 				"Float channel flags and flor channels should have the same size.");
 
 		// Duplicate float channels
@@ -232,7 +225,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 			ComponentRegistry->Factories.DuplicateChildComponent(FloatChannel[Index]);
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], DoubleResult[Index]);
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], EvalTime);
-			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], FloatChannelFlags[Index]);
+			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(FloatChannel[Index], CachedInterpolation[Index]);
 		}
 
 		// Create base float components for float channels that are meant to be additive from base.
@@ -250,7 +243,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 				UE_ARRAY_COUNT(DoubleChannel) == UE_ARRAY_COUNT(BaseDouble), 
 				"Base doubles and double results should have the same size.");
 		static_assert(
-				UE_ARRAY_COUNT(DoubleChannel) == UE_ARRAY_COUNT(DoubleChannelFlags),
+				UE_ARRAY_COUNT(DoubleChannel) == UE_ARRAY_COUNT(CachedInterpolation),
 				"Double channel flags and flor channels should have the same size.");
 
 		// Duplicate double channels
@@ -260,7 +253,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 			ComponentRegistry->Factories.DuplicateChildComponent(DoubleResult[Index]);
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(DoubleChannel[Index], DoubleResult[Index]);
 			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(DoubleChannel[Index], EvalTime);
-			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(DoubleChannel[Index], DoubleChannelFlags[Index]);
+			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(DoubleChannel[Index], CachedInterpolation[Index]);
 		}
 
 		// Create base double components for double channels that are meant to be additive from base.
@@ -300,7 +293,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 		// Weight channel components need a time and result to evaluate
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightChannel, EvalTime);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightChannel, WeightResult);
-		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightResult, WeightChannelFlags);
+		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightResult, CachedWeightChannelInterpolation);
 	}
 
 	// Weight and easing result component relationship

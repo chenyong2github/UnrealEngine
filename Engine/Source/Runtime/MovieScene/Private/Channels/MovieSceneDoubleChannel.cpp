@@ -4,6 +4,7 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneCurveChannelImpl.h"
 #include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneInterpolation.h"
 #include "HAL/Platform.h"
 #include "MovieSceneFrameMigration.h"
 #include "MovieSceneFwd.h"
@@ -58,6 +59,11 @@ bool FMovieSceneDoubleChannel::Evaluate(FFrameTime InTime, float& OutValue) cons
 	const bool bResult = Evaluate(InTime, Temp);
 	OutValue = (float)Temp;
 	return bResult;
+}
+
+UE::MovieScene::Interpolation::FCachedInterpolation FMovieSceneDoubleChannel::GetInterpolationForTime(FFrameTime InTime) const
+{
+	return FMovieSceneDoubleChannelImpl::GetInterpolationForTime(this, InTime);
 }
 
 void FMovieSceneDoubleChannel::Set(TArray<FFrameNumber> InTimes, TArray<FMovieSceneDoubleValue> InValues)

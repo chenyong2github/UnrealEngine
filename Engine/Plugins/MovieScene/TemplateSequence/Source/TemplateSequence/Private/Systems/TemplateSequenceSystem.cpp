@@ -248,8 +248,11 @@ void UTemplateSequencePropertyScalingInstantiatorSystem::OnRun(FSystemTaskPrereq
 	// belong to an active template sub-sequence that has at least some properties scaled.
 	for (const TTuple<FMovieSceneEntityID, FGuid>& Pair : PropertyScaledEntities)
 	{
-		Linker->EntityManager.AddComponent(
-				Pair.Get<0>(), TemplateSequenceComponents->PropertyScaleReverseBindingLookup, Pair.Get<1>());
+		FEntityBuilder()
+		.Add(TemplateSequenceComponents->PropertyScaleReverseBindingLookup, Pair.Get<1>())
+		// Stop constants from being optimized since we need them to be re-computed every frame to remove the scale
+		.AddTag(BuiltInComponents->Tags.DontOptimizeConstants)
+		.MutateExisting(&Linker->EntityManager, Pair.Get<0>());
 	}
 }
 
@@ -375,12 +378,12 @@ struct FScaleTransformProperties
 			TRead<FGuid> ReverseBindingLookups,
 			TReadOptional<double> BaseLocationXs, TReadOptional<double> BaseLocationYs, TReadOptional<double> BaseLocationZs,
 			TReadOptional<double> BaseRotationXs, TReadOptional<double> BaseRotationYs, TReadOptional<double> BaseRotationZs,
-			TWriteOptional<double> LocationXs, TWriteOptional<FSourceDoubleChannelFlags> LocationXFlags,
-			TWriteOptional<double> LocationYs, TWriteOptional<FSourceDoubleChannelFlags> LocationYFlags,
-			TWriteOptional<double> LocationZs, TWriteOptional<FSourceDoubleChannelFlags> LocationZFlags,
-			TWriteOptional<double> RotationXs, TWriteOptional<FSourceDoubleChannelFlags> RotationXFlags,
-			TWriteOptional<double> RotationYs, TWriteOptional<FSourceDoubleChannelFlags> RotationYFlags,
-			TWriteOptional<double> RotationZs, TWriteOptional<FSourceDoubleChannelFlags> RotationZFlags)
+			TWriteOptional<double> LocationXs,
+			TWriteOptional<double> LocationYs,
+			TWriteOptional<double> LocationZs,
+			TWriteOptional<double> RotationXs,
+			TWriteOptional<double> RotationYs,
+			TWriteOptional<double> RotationZs)
 	{
 		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
@@ -403,23 +406,12 @@ struct FScaleTransformProperties
 						ScalePropertyValue(ScaleFactor, BaseLocationXs, LocationXs, Index);
 						ScalePropertyValue(ScaleFactor, BaseLocationYs, LocationYs, Index);
 						ScalePropertyValue(ScaleFactor, BaseLocationZs, LocationZs, Index);
-
-						// We set the source channel to force re-evaluating next frame because we want it to be
-						// reset to its unscaled value... otherwise we will start accumulating multipliers quickly!
-						if (LocationXFlags) LocationXFlags[Index].bNeedsEvaluate = true;
-						if (LocationYFlags) LocationYFlags[Index].bNeedsEvaluate = true;
-						if (LocationZFlags) LocationZFlags[Index].bNeedsEvaluate = true;
 						break;
 
 					case ETemplateSectionPropertyScaleType::TransformPropertyRotationOnly:
 						ScalePropertyValue(ScaleFactor, BaseRotationXs, RotationXs, Index);
 						ScalePropertyValue(ScaleFactor, BaseRotationYs, RotationYs, Index);
 						ScalePropertyValue(ScaleFactor, BaseRotationZs, RotationZs, Index);
-
-						// See comment above.
-						if (RotationXFlags) RotationXFlags[Index].bNeedsEvaluate = true;
-						if (RotationYFlags) RotationYFlags[Index].bNeedsEvaluate = true;
-						if (RotationZFlags) RotationZFlags[Index].bNeedsEvaluate = true;
 						break;
 
 					default:
@@ -449,8 +441,7 @@ struct FScaleFloatProperties
 			TRead<FMovieScenePropertyBinding> PropertyBindings,
 			TRead<FGuid> ReverseBindingLookups,
 			TReadOptional<double> BasePropertyValues,
-			TWrite<double> PropertyValues,
-			TWrite<FSourceFloatChannelFlags> PropertyFlags)
+			TWrite<double> PropertyValues)
 	{
 		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
@@ -470,8 +461,6 @@ struct FScaleFloatProperties
 				{
 					case ETemplateSectionPropertyScaleType::FloatProperty:
 						ScalePropertyValue(ScaleFactor, BasePropertyValues, PropertyValues, Index);
-						// See comment for the similar code in FScaleTransformProperties.
-						PropertyFlags[Index].bNeedsEvaluate = true;
 						break;
 					default:
 						ensureMsgf(false, TEXT("Unsupported or invalid float property scale type."));
@@ -529,17 +518,11 @@ void UTemplateSequencePropertyScalingEvaluatorSystem::OnRun(FSystemTaskPrerequis
 			.ReadOptional(BuiltInComponents->BaseDouble[4])
 			.ReadOptional(BuiltInComponents->BaseDouble[5])
 			.WriteOptional(BuiltInComponents->DoubleResult[0])
-			.WriteOptional(BuiltInComponents->DoubleChannelFlags[0])
 			.WriteOptional(BuiltInComponents->DoubleResult[1])
-			.WriteOptional(BuiltInComponents->DoubleChannelFlags[1])
 			.WriteOptional(BuiltInComponents->DoubleResult[2])
-			.WriteOptional(BuiltInComponents->DoubleChannelFlags[2])
 			.WriteOptional(BuiltInComponents->DoubleResult[3])
-			.WriteOptional(BuiltInComponents->DoubleChannelFlags[3])
 			.WriteOptional(BuiltInComponents->DoubleResult[4])
-			.WriteOptional(BuiltInComponents->DoubleChannelFlags[4])
 			.WriteOptional(BuiltInComponents->DoubleResult[5])
-			.WriteOptional(BuiltInComponents->DoubleChannelFlags[5])
 			.FilterAny({ TrackComponents->ComponentTransform.PropertyTag, TrackComponents->Transform.PropertyTag })
 			.Dispatch_PerAllocation<FScaleTransformProperties>(&Linker->EntityManager, InPrerequisites, &Subsequents, this);
 	}
@@ -553,7 +536,6 @@ void UTemplateSequencePropertyScalingEvaluatorSystem::OnRun(FSystemTaskPrerequis
 			.Read(TemplateSequenceComponents->PropertyScaleReverseBindingLookup)
 			.ReadOptional(BuiltInComponents->BaseDouble[0])
 			.Write(BuiltInComponents->DoubleResult[0])
-			.Write(BuiltInComponents->FloatChannelFlags[0])
 			.FilterAll({ TrackComponents->Float.PropertyTag })
 			.Dispatch_PerAllocation<FScaleFloatProperties>(&Linker->EntityManager, InPrerequisites, &Subsequents, this);
 	}

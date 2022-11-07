@@ -3,6 +3,7 @@
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Channels/MovieSceneCurveChannelImpl.h"
+#include "Channels/MovieSceneInterpolation.h"
 #include "MovieSceneFrameMigration.h"
 #include "MovieSceneFwd.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
@@ -48,6 +49,11 @@ int32 FMovieSceneFloatChannel::AddCubicKey(FFrameNumber InTime, float InValue, E
 bool FMovieSceneFloatChannel::Evaluate(FFrameTime InTime,  float& OutValue) const
 {
 	return FMovieSceneFloatChannelImpl::Evaluate(this, InTime, OutValue);
+}
+
+UE::MovieScene::Interpolation::FCachedInterpolation FMovieSceneFloatChannel::GetInterpolationForTime(FFrameTime InTime) const
+{
+	return FMovieSceneFloatChannelImpl::GetInterpolationForTime(this, InTime);
 }
 
 void FMovieSceneFloatChannel::Set(TArray<FFrameNumber> InTimes, TArray<FMovieSceneFloatValue> InValues)
