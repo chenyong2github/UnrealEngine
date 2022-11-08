@@ -595,7 +595,7 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	const FShaderParameterParser& ShaderParameterParser,
 	FString& EntryPointName,
 	const TCHAR* ShaderProfile, ELanguage Language, bool bProcessingSecondTime,
-	TArray<FString>& FilteredErrors, FShaderCompilerOutput& Output)
+	FShaderCompilerOutput& Output)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CompileAndProcessD3DShaderDXC);
 
@@ -701,6 +701,7 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 
 	const HRESULT D3DCompileToDxilResult = D3DCompileToDxil(AnsiSourceFile.Get(), Args, ShaderBlob, ReflectionBlob, DxcErrorBlob);
 
+	TArray<FString> FilteredErrors;
 	if (DxcErrorBlob && DxcErrorBlob->GetBufferSize())
 	{
 		FString ErrorString = DxcBlobEncodingToFString(DxcErrorBlob);
@@ -1012,6 +1013,9 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 
 		FilteredErrors.Add(ErrorString);
 	}
+
+	// Move intermediate filtered errors into compiler context for unification.
+	CrossCompiler::FShaderConductorContext::ConvertCompileErrors(MoveTemp(FilteredErrors), Output.Errors);
 
 	return Output.bSucceeded;
 }
