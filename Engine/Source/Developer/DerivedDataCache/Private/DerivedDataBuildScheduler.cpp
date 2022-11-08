@@ -1,193 +1,232 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DerivedDataBuildScheduler.h"
-#include "Containers/RingBuffer.h"
 #include "DerivedDataBuildFunction.h"
 #include "DerivedDataBuildFunctionFactory.h"
 #include "DerivedDataBuildFunctionRegistry.h"
+#include "DerivedDataBuildPrivate.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
 #include "Experimental/Async/LazyEvent.h"
-#include "Misc/Guid.h"
-#include "Misc/ScopeLock.h"
+#include "Experimental/DerivedDataBuildSchedulerThreadPoolProvider.h"
+#include "Experimental/Misc/ExecutionResource.h"
+#include "HAL/CriticalSection.h"
+#include "Misc/IQueuedWork.h"
+#include "Misc/QueuedThreadPool.h"
+#include "Misc/ScopeRWLock.h"
 
 namespace UE::DerivedData::Private
 {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static void ScheduleAsyncStep(IBuildJob& Job, IRequestOwner& Owner, const TCHAR* DebugName)
+class FBuildSchedulerMemoryQueue
 {
-	Owner.LaunchTask(DebugName, [&Job] { Job.StepExecution(); });
-}
+public:
+	FBuildSchedulerMemoryQueue();
+	~FBuildSchedulerMemoryQueue();
+
+	void WaitForMemory(
+		const FUtf8SharedString& TypeName,
+		uint64 MemoryEstimate,
+		IRequestOwner& Owner,
+		TUniqueFunction<void ()>&& OnComplete);
+
+private:
+	void OnModularFeatureRegistered(const FName& Type, IModularFeature* ModularFeature);
+	void OnModularFeatureUnregistered(const FName& Type, IModularFeature* ModularFeature);
+
+	void AddProviderNoLock(IBuildSchedulerThreadPoolProvider* Provider);
+	void RemoveProvider(IBuildSchedulerThreadPoolProvider* Provider);
+
+	FQueuedThreadPool* FindThreadPool(const FUtf8SharedString& TypeName) const;
+
+	class FRequest;
+
+private:
+	mutable FRWLock Lock;
+	TMap<FUtf8SharedString, IBuildSchedulerThreadPoolProvider*> Providers;
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-/** Limits simultaneous build jobs to reduce peak memory usage */
-class FMemoryScheduler
+class FBuildSchedulerMemoryQueue::FRequest final : public FRequestBase, public IQueuedWork
 {
 public:
-	FMemoryScheduler();
-	~FMemoryScheduler();
-
-	void RegisterRunningJob(uint64 MemoryEstimate);
-	void StepAsyncOrQueue(uint64 MemoryEstimate, IBuildJob& Job, IRequestOwner& Owner, const TCHAR* DebugName);
-	void RegisterEndedJob(uint64 MemoryEstimate);
+	FRequest(
+		uint64 MemoryEstimate,
+		IRequestOwner& Owner,
+		FQueuedThreadPool& ThreadPool,
+		TUniqueFunction<void ()>&& OnComplete);
+	~FRequest();
 
 private:
-	/** Handles waiting and cancellation while a job is queued up */
-	class FRequest final : public FRequestBase
-	{
-	public:
-		FRequest(FMemoryScheduler& InScheduler, IBuildJob& InJob, IRequestOwner& InOwner, uint64 InMemoryEstimate);
-		~FRequest() { ensure(!TryClaimEnd()); }
+	TRefCountPtr<IRequest> TryEnd();
+	void Execute();
 
-		void SetPriority(EPriority Priority) final {}
-		void Wait() final { Event.Wait(); }
-		void Cancel() final;
+	void SetPriority(EPriority Priority) final;
+	void Wait() final;
+	void Cancel() final { Wait(); }
 
-		uint64 GetMemoryEstimate() const { return MemoryEstimate; }
-		bool TryClaimEnd() { return !bClaimed.test_and_set(); }
-		void End(const TCHAR* DebugName);
+	void DoThreadedWork() final { Execute(); }
+	void Abandon() final { Execute(); }
+	int64 GetRequiredMemory() const final { return int64(MemoryEstimate); }
 
-	private:
-		FMemoryScheduler& Scheduler;
-		IBuildJob& Job;
-		IRequestOwner& Owner;
-		const uint64 MemoryEstimate;
-		UE::FLazyEvent Event{EEventMode::ManualReset};
-		std::atomic_flag bClaimed = ATOMIC_FLAG_INIT;
-	};
-
-	const uint64 TotalPhysical;
-	const uint64 AvailablePhysicalAtStartup;
-	const uint64 MaxMemoryUsage;
-
-	FCriticalSection CriticalSection;
-	TRingBuffer<TRefCountPtr<FRequest>> Queue;
-	uint64 TotalScheduledMemory = 0;
-	uint64 TotalScheduledWatermark = 0;
-
-	// @pre CriticalSection locked
-	bool CanRunNow(uint64 MemoryEstimate) const
-	{
-		return TotalScheduledMemory == 0 || TotalScheduledMemory + MemoryEstimate < MaxMemoryUsage;
-	}
+private:
+	uint64 MemoryEstimate;
+	IRequestOwner& Owner;
+	FQueuedThreadPool& ThreadPool;
+	TUniqueFunction<void ()> OnComplete;
+	UE::FLazyEvent Event{EEventMode::ManualReset};
+	std::atomic<bool> bClaimed = false;
 };
 
-FMemoryScheduler::FRequest::FRequest(
-	FMemoryScheduler& InScheduler,
-	IBuildJob& InJob,
+FBuildSchedulerMemoryQueue::FRequest::FRequest(
+	const uint64 InMemoryEstimate,
 	IRequestOwner& InOwner,
-	uint64 InMemoryEstimate)
-	: Scheduler(InScheduler)
-	, Job(InJob)
+	FQueuedThreadPool& InThreadPool,
+	TUniqueFunction<void ()>&& InOnComplete)
+	: MemoryEstimate(InMemoryEstimate)
 	, Owner(InOwner)
-	, MemoryEstimate(InMemoryEstimate)
+	, ThreadPool(InThreadPool)
+	, OnComplete(MoveTemp(InOnComplete))
 {
+	AddRef(); // Released in Execute() or Cancel()
 	Owner.Begin(this);
+	ThreadPool.AddQueuedWork(this, ConvertToQueuedWorkPriority(Owner.GetPriority()));
 }
 
-void FMemoryScheduler::FRequest::End(const TCHAR* DebugName)
+FBuildSchedulerMemoryQueue::FRequest::~FRequest()
 {
-	Owner.End(this, [this, DebugName]
-	{ 
-		ScheduleAsyncStep(Job, Owner, DebugName);
+	check(bClaimed.load(std::memory_order_relaxed));
+}
+
+TRefCountPtr<IRequest> FBuildSchedulerMemoryQueue::FRequest::TryEnd()
+{
+	return bClaimed.exchange(true) ? nullptr : Owner.End(this, [this]
+	{
+		Invoke(OnComplete);
 		Event.Trigger();
 	});
 }
 
-void FMemoryScheduler::FRequest::Cancel()
+void FBuildSchedulerMemoryQueue::FRequest::Execute()
 {
-	if (TryClaimEnd())
+	TryEnd();
+	Release();
+}
+
+void FBuildSchedulerMemoryQueue::FRequest::SetPriority(EPriority Priority)
+{
+	if (ThreadPool.RetractQueuedWork(this))
 	{
-		// Add estimated memory to simplify implementation, even though memory won't be allocated.
-		// FBuildJobSchedule::EndJob() will restore the scheduler's available memory.
-		// Might require optimization if lots of queued jobs are cancelled at the same time.
-		Scheduler.RegisterRunningJob(MemoryEstimate);
-		End(TEXT("MemoryQueueCancel"));
+		ThreadPool.AddQueuedWork(this, ConvertToQueuedWorkPriority(Priority));
 	}
 }
 
-FMemoryScheduler::FMemoryScheduler()
-	: TotalPhysical(FPlatformMemory::GetStats().TotalPhysical)
-	, AvailablePhysicalAtStartup(FPlatformMemory::GetStats().AvailablePhysical)
-	, MaxMemoryUsage(TotalPhysical / 8 + AvailablePhysicalAtStartup / 2)
+void FBuildSchedulerMemoryQueue::FRequest::Wait()
 {
-	Queue.Reserve(128);
+	if (TRefCountPtr<IRequest> Self = TryEnd())
+	{
+		if (ThreadPool.RetractQueuedWork(this))
+		{
+			Release();
+		}
+	}
+	else
+	{
+		Event.Wait();
+	}
 }
 
-FMemoryScheduler::~FMemoryScheduler()
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FBuildSchedulerMemoryQueue::FBuildSchedulerMemoryQueue()
 {
-	ensure(Queue.IsEmpty());
-	ensure(TotalScheduledMemory == 0);
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+	for (IBuildSchedulerThreadPoolProvider* Provider : ModularFeatures.GetModularFeatureImplementations<IBuildSchedulerThreadPoolProvider>(IBuildSchedulerThreadPoolProvider::FeatureName))
+	{
+		AddProviderNoLock(Provider);
+	}
+	ModularFeatures.OnModularFeatureRegistered().AddRaw(this, &FBuildSchedulerMemoryQueue::OnModularFeatureRegistered);
+	ModularFeatures.OnModularFeatureUnregistered().AddRaw(this, &FBuildSchedulerMemoryQueue::OnModularFeatureUnregistered);
 }
 
-void FMemoryScheduler::RegisterRunningJob(uint64 MemoryEstimate)
+FBuildSchedulerMemoryQueue::~FBuildSchedulerMemoryQueue()
 {
-	check(MemoryEstimate);
-
-	FScopeLock Lock(&CriticalSection);
-	TotalScheduledMemory += MemoryEstimate;
-	TotalScheduledWatermark = FMath::Max(TotalScheduledWatermark, TotalScheduledMemory);
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+	ModularFeatures.OnModularFeatureUnregistered().RemoveAll(this);
+	ModularFeatures.OnModularFeatureRegistered().RemoveAll(this);
 }
 
-void FMemoryScheduler::StepAsyncOrQueue(
-	uint64 MemoryEstimate,
-	IBuildJob& Job,
+void FBuildSchedulerMemoryQueue::OnModularFeatureRegistered(const FName& Type, IModularFeature* ModularFeature)
+{
+	if (Type == IBuildSchedulerThreadPoolProvider::FeatureName)
+	{
+		FWriteScopeLock WriteLock(Lock);
+		AddProviderNoLock(static_cast<IBuildSchedulerThreadPoolProvider*>(ModularFeature));
+	}
+}
+
+void FBuildSchedulerMemoryQueue::OnModularFeatureUnregistered(const FName& Type, IModularFeature* ModularFeature)
+{
+	if (Type == IBuildSchedulerThreadPoolProvider::FeatureName)
+	{
+		RemoveProvider(static_cast<IBuildSchedulerThreadPoolProvider*>(ModularFeature));
+	}
+}
+
+void FBuildSchedulerMemoryQueue::AddProviderNoLock(IBuildSchedulerThreadPoolProvider* Provider)
+{
+	
+	const FUtf8SharedString& TypeName = Provider->GetTypeName();
+	const uint32 TypeNameHash = GetTypeHash(TypeName);
+	if (TypeName.IsEmpty())
+	{
+		UE_LOG(LogDerivedDataBuild, Error,
+			TEXT("An empty type name is not allowed in a build scheduler thread pool provider."));
+	}
+	else if (Providers.FindByHash(TypeNameHash, TypeName))
+	{
+		UE_LOG(LogDerivedDataBuild, Error,
+			TEXT("More than one build scheduler thread pool provider has been registered with the type name %s."),
+			*WriteToString<64>(TypeName));
+	}
+	else
+	{
+		Providers.EmplaceByHash(TypeNameHash, TypeName, Provider);
+	}
+}
+
+void FBuildSchedulerMemoryQueue::RemoveProvider(IBuildSchedulerThreadPoolProvider* Provider)
+{
+	const FUtf8SharedString& TypeName = Provider->GetTypeName();
+	const uint32 TypeNameHash = GetTypeHash(TypeName);
+	FWriteScopeLock WriteLock(Lock);
+	Providers.RemoveByHash(TypeNameHash, TypeName);
+}
+
+FQueuedThreadPool* FBuildSchedulerMemoryQueue::FindThreadPool(const FUtf8SharedString& TypeName) const
+{
+	const uint32 TypeNameHash = GetTypeHash(TypeName);
+	FReadScopeLock ReadLock(Lock);
+	IBuildSchedulerThreadPoolProvider* const* Provider = Providers.FindByHash(TypeNameHash, TypeName);
+	return Provider ? (*Provider)->GetThreadPool() : nullptr;
+}
+
+void FBuildSchedulerMemoryQueue::WaitForMemory(
+	const FUtf8SharedString& TypeName,
+	const uint64 MemoryEstimate,
 	IRequestOwner& Owner,
-	const TCHAR* DebugName)
+	TUniqueFunction<void ()>&& OnComplete)
 {
-	check(MemoryEstimate);
+	if (FQueuedThreadPool* ThreadPool = FindThreadPool(TypeName))
 	{
-		FScopeLock Lock(&CriticalSection);
-
-		if (!CanRunNow(MemoryEstimate))
-		{
-			Queue.Emplace(new FRequest(*this, Job, Owner, MemoryEstimate));
-			return;
-		}
-
-		TotalScheduledMemory += MemoryEstimate;
-		TotalScheduledWatermark = FMath::Max(TotalScheduledWatermark, TotalScheduledMemory);
+		new FRequest(MemoryEstimate, Owner, *ThreadPool, MoveTemp(OnComplete));
 	}
-
-	ScheduleAsyncStep(Job, Owner, DebugName);
-}
-
-void FMemoryScheduler::RegisterEndedJob(uint64 DoneEstimate)
-{
-	if (DoneEstimate)
+	else
 	{
-		TArray<TRefCountPtr<FRequest>, TInlineAllocator<16>> Continuations;
-
-		{
-			FScopeLock Lock(&CriticalSection);
-
-			TotalScheduledMemory -= DoneEstimate;
-
-			if (Queue.IsEmpty())
-			{
-				return;
-			}
-
-			while (Queue.Num() && CanRunNow(Queue.First()->GetMemoryEstimate()))
-			{
-				if (Queue.First()->TryClaimEnd())
-				{
-					TotalScheduledMemory += Queue.First()->GetMemoryEstimate();
-					Continuations.Add(Queue.First());
-				}
-				Queue.PopFront();
-			}
-
-			TotalScheduledWatermark = FMath::Max(TotalScheduledWatermark, TotalScheduledMemory);
-		}
-
-		for (const TRefCountPtr<FRequest>& Request : Continuations)
-		{
-			Request->End(TEXT("MemoryQueueContinue"));
-		}
+		Invoke(OnComplete);
 	}
 }
 
@@ -196,10 +235,10 @@ void FMemoryScheduler::RegisterEndedJob(uint64 DoneEstimate)
 class FBuildJobSchedule final : public IBuildJobSchedule
 {
 public:
-	FBuildJobSchedule(IBuildJob& InJob, IRequestOwner& InOwner, FMemoryScheduler& InMemoryLimiter)
+	FBuildJobSchedule(IBuildJob& InJob, IRequestOwner& InOwner, FBuildSchedulerMemoryQueue& InMemoryQueue)
 		: Job(InJob)
 		, Owner(InOwner)
-		, MemoryLimiter(InMemoryLimiter)
+		, MemoryQueue(InMemoryQueue)
 	{
 	}
 
@@ -209,11 +248,24 @@ public:
 	void ScheduleCacheStore() final       { StepSync(); }
 	void ScheduleResolveKey() final       { StepAsync(TEXT("ResolveKey")); }
 	void ScheduleResolveInputMeta() final { StepAsync(TEXT("ResolveInputMeta")); }
-	void ScheduleResolveInputData() final { StepAsyncOrQueue(TEXT("ResolveInputData")); }
-	void ScheduleExecuteRemote() final    { StepAsyncOrQueue(TEXT("ExecuteRemote")); }
+	void ScheduleResolveInputData() final
+	{
+		if (Params.MissingRemoteInputsSize)
+		{
+			StepAsync(TEXT("ResolveInputData"));
+		}
+		else
+		{
+			StepAsyncOrQueue(TEXT("ResolveInputData"));
+		}
+	}
+	void ScheduleExecuteRemote() final    { StepAsync(TEXT("ExecuteRemote")); }
 	void ScheduleExecuteLocal() final     { StepAsyncOrQueue(TEXT("ExecuteLocal")); }
 
-	void EndJob() final { MemoryLimiter.RegisterEndedJob(ScheduledMemoryEstimate); }
+	void EndJob() final
+	{
+		ExecutionResources = nullptr;
+	}
 
 private:
 	void StepSync()
@@ -229,7 +281,7 @@ private:
 		}
 		else
 		{
-			ScheduleAsyncStep(Job, Owner, DebugName);
+			Owner.LaunchTask(DebugName, [this] { Job.StepExecution(); });
 		}
 	}
 
@@ -238,33 +290,30 @@ private:
 		check(Params.TotalRequiredMemory >= Params.ResolvedInputsSize);
 		const uint64 CurrentMemoryEstimate = Params.TotalRequiredMemory - Params.ResolvedInputsSize;
 
-		// Only queue for memory once
-		if (ScheduledMemoryEstimate || CurrentMemoryEstimate == 0)
+		// Queue for memory only once, the first time it is needed for local execution.
+		// This will occur either when resolving input data for local execution or before beginning local execution.
+		// NOTE: No attempt is made to reserve memory prior to remote execution, which may become a problem if remote
+		//       execution frequently requires input data to be loaded.
+		if (QueuedMemoryEstimate || CurrentMemoryEstimate == 0)
 		{
-			StepAsync(DebugName);
+			return StepAsync(DebugName);
 		}
-		else
-		{
-			ScheduledMemoryEstimate = CurrentMemoryEstimate;
 
-			if (Owner.GetPriority() == EPriority::Blocking)
-			{
-				MemoryLimiter.RegisterRunningJob(ScheduledMemoryEstimate);
-				StepSync();
-			}
-			else
-			{
-				MemoryLimiter.StepAsyncOrQueue(ScheduledMemoryEstimate, Job, Owner, DebugName);
-			}
-		}
+		QueuedMemoryEstimate = CurrentMemoryEstimate;
+		MemoryQueue.WaitForMemory(Params.TypeName, CurrentMemoryEstimate, Owner, [this, DebugName]
+		{
+			ExecutionResources = FExecutionResourceContext::Get();
+			StepAsync(DebugName);
+		});
 	}
 
 private:
 	IBuildJob& Job;
 	IRequestOwner& Owner;
 	FBuildSchedulerParams Params;
-	FMemoryScheduler& MemoryLimiter;
-	uint64 ScheduledMemoryEstimate = 0;
+	FBuildSchedulerMemoryQueue& MemoryQueue;
+	TRefCountPtr<IExecutionResource> ExecutionResources;
+	uint64 QueuedMemoryEstimate = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -273,10 +322,10 @@ class FBuildScheduler final : public IBuildScheduler
 {
 	TUniquePtr<IBuildJobSchedule> BeginJob(IBuildJob& Job, IRequestOwner& Owner) final
 	{
-		return MakeUnique<FBuildJobSchedule>(Job, Owner, MemoryLimiter);
+		return MakeUnique<FBuildJobSchedule>(Job, Owner, MemoryQueue);
 	}
 
-	FMemoryScheduler MemoryLimiter;
+	FBuildSchedulerMemoryQueue MemoryQueue;
 };
 
 IBuildScheduler* CreateBuildScheduler()

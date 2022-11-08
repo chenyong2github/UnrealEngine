@@ -441,6 +441,7 @@ void FBuildJob::CreateContext()
 
 	// Populate the scheduler params with the information that is available now.
 	FBuildSchedulerParams& SchedulerParams = Schedule->EditParameters();
+	SchedulerParams.TypeName = Context->GetTypeName();
 	SchedulerParams.Key = Action.Get().GetKey();
 	Action.Get().IterateConstants([&SchedulerParams](FUtf8StringView Key, FCbObject&& Value)
 	{

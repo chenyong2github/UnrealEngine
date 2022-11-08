@@ -153,6 +153,9 @@ public:
 	/** Adds the message to the build output. Must be deterministic and based only on inputs. */
 	virtual void AddMessage(FStringView Message) = 0;
 
+	/** Overrides the name of the type for the build. Defaults to the function name. */
+	virtual void SetTypeName(const FUtf8SharedString& TypeName) = 0;
+
 	/** Overrides the cache bucket used when reading or writing this build in the cache. */
 	virtual void SetCacheBucket(FCacheBucket Bucket) = 0;
 

@@ -5,6 +5,7 @@
 #include "DerivedDataBuildJob.h"
 #include "DerivedDataBuildKey.h"
 #include "DerivedDataRequest.h"
+#include "DerivedDataSharedString.h"
 #include "HAL/Platform.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
@@ -36,6 +37,10 @@ public:
 /** Parameters that describe a build job to the build scheduler. */
 struct FBuildSchedulerParams
 {
+	/** Type name from the build function for the job. Available from the CacheQuery state onward. */
+	FUtf8SharedString TypeName;
+
+	/** Available from the CacheQuery state onward. */
 	FBuildActionKey Key;
 
 	/** Total size of constants and inputs, whether resolved or not. */

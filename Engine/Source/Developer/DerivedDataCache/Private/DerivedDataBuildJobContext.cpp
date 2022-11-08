@@ -24,6 +24,7 @@ FBuildJobContext::FBuildJobContext(
 	FBuildOutputBuilder& InOutputBuilder)
 	: Job(InJob)
 	, CacheKey(InCacheKey)
+	, TypeName(InFunction.GetName())
 	, Function(InFunction)
 	, OutputBuilder(InOutputBuilder)
 	, CachePolicyMask(~ECachePolicy::None)
@@ -159,6 +160,13 @@ void FBuildJobContext::EndAsyncBuild()
 		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
 	bIsAsyncBuildComplete = true;
 	Owner->End(this, [this] { EndBuild(); });
+}
+
+void FBuildJobContext::SetTypeName(const FUtf8SharedString& InTypeName)
+{
+	checkf(!TypeName.IsEmpty(), TEXT("Empty type name not allowed for build of '%s' by %s."),
+		*Job.GetName(), *WriteToString<32>(Job.GetFunction()));
+	TypeName = InTypeName;
 }
 
 void FBuildJobContext::SetCacheBucket(FCacheBucket Bucket)

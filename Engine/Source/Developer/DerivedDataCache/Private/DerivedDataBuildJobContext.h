@@ -37,6 +37,8 @@ public:
 
 	const FSharedString& GetName() const final;
 
+	inline const FUtf8SharedString& GetTypeName() const { return TypeName; }
+
 	inline const FCacheKey& GetCacheKey() const { return CacheKey; }
 
 	inline ECachePolicy GetCachePolicyMask() const final { return CachePolicyMask; }
@@ -67,6 +69,7 @@ private:
 	void BeginAsyncBuild() final;
 	void EndAsyncBuild() final;
 
+	void SetTypeName(const FUtf8SharedString& TypeName) final;
 	void SetCacheBucket(FCacheBucket Bucket) final;
 	void SetCachePolicyMask(ECachePolicy Policy) final;
 	void SetBuildPolicyMask(EBuildPolicy Policy) final;
@@ -80,6 +83,7 @@ private:
 private:
 	IBuildJob& Job;
 	FCacheKey CacheKey;
+	FUtf8SharedString TypeName;
 	const IBuildFunction& Function;
 	FBuildOutputBuilder& OutputBuilder;
 	TMap<FUtf8SharedString, FCbObject> Constants;
