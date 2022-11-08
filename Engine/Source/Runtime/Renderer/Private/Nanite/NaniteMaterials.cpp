@@ -90,6 +90,13 @@ static FAutoConsoleVariableRef CVarNaniteClassifyWithResolve(
 	TEXT("")
 );
 
+int32 GNaniteDecompressDepth = 0;
+static FAutoConsoleVariableRef CVarNaniteDecompressDepth(
+	TEXT("r.Nanite.DecompressDepth"),
+	GNaniteDecompressDepth,
+	TEXT("")
+);
+
 #if WITH_EDITORONLY_DATA
 extern int32 GNaniteIsolateInvalidCoarseMesh;
 #endif
@@ -267,7 +274,7 @@ class FDepthExportCS : public FNaniteGlobalShader
 		SHADER_PARAMETER(FIntVector4, PageConstants)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, ClusterPageData)
 		SHADER_PARAMETER(FIntVector4, DepthExportConfig)
-		SHADER_PARAMETER(FIntVector4, ViewRectMax)
+		SHADER_PARAMETER(FUint32Vector4, ViewRect)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, Velocity)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, MaterialResolve)
@@ -802,14 +809,15 @@ void EmitDepthTargets(
 	{
 		// Emit depth, stencil, mask and velocity
 
+		if (GNaniteDecompressDepth != 0)
 		{
-			// HACK: Dummy pass to force depth decompression. Depth export shader needs to be refactored to handle already-compressed surfaces.
-			FDummyDepthDecompressParameters* DummyParams = GraphBuilder.AllocParameters<FDummyDepthDecompressParameters>();
-			DummyParams->SceneDepth = SceneDepth;
+			// Force depth decompression so the depth shader only processes decompressed surfaces
+			FDummyDepthDecompressParameters* DecompressParams = GraphBuilder.AllocParameters<FDummyDepthDecompressParameters>();
+			DecompressParams->SceneDepth = SceneDepth;
 
 			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("DummyDepthDecompress"),
-				DummyParams,
+				RDG_EVENT_NAME("NaniteDepthDecompress"),
+				DecompressParams,
 				ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
 				[](FRHICommandList&) {}
 			);
@@ -837,7 +845,7 @@ void EmitDepthTargets(
 		PassParameters->PageConstants			= PageConstants;
 		PassParameters->ClusterPageData			= Nanite::GStreamingManager.GetClusterPageDataSRV(GraphBuilder);
 		PassParameters->DepthExportConfig		= FIntVector4(PlatformConfig, SceneTexturesExtent.X, StencilDecalMask, Nanite::FGlobalResources::GetMaxVisibleClusters());
-		PassParameters->ViewRectMax				= FIntVector4(View.ViewRect.Max.X, View.ViewRect.Max.Y, 0, 0);
+		PassParameters->ViewRect				= FUint32Vector4((uint32)View.ViewRect.Min.X, (uint32)View.ViewRect.Min.Y, (uint32)View.ViewRect.Max.X, (uint32)View.ViewRect.Max.Y);
 		PassParameters->VisBuffer64				= VisBuffer64;
 		PassParameters->Velocity				= VelocityUAV;
 		PassParameters->MaterialResolve			= MaterialResolveUAV;
