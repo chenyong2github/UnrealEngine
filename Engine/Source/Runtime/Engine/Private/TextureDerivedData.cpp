@@ -2526,7 +2526,7 @@ static void SerializePlatformData(
 		if (bIsVirtual)
 		{
 			FVirtualTextureBuiltData* VTData = PlatformData->VTData;
-			CookTags->Add(Texture, "Size", FString::Printf(TEXT("%dx%d"), VTData->Width, VTData->Height));
+			CookTags->Add(Texture, "Size", FString::Printf(TEXT("%dx%d"), FMath::Max(VTData->Width >> FirstMipToSerialize, 1U), FMath::Max(VTData->Height >> FirstMipToSerialize, 1U)));
 		}
 		else if (PlatformData->Mips.Num() > 0) // PlatformData->Mips is empty if BuildTexture failed
 		{
