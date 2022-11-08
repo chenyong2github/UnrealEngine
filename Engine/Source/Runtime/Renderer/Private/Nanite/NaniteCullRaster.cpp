@@ -2647,7 +2647,7 @@ FBinningData AddPass_Rasterize(
 		RasterPassParameters->VirtualShadowMap = VirtualTargetParameters;
 	}
 
-	GraphBuilder.AddPass(
+	FRDGPass* SWPass = GraphBuilder.AddPass(
 		RDG_EVENT_NAME("HW Rasterize"),
 		RasterPassParameters,
 		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
@@ -2730,9 +2730,11 @@ FBinningData AddPass_Rasterize(
 		RHICmdList.EndRenderPass();
 	});
 
+	GraphBuilder.SetPassWorkload(SWPass, RasterizerPasses.Num());
+
 	if (Scheduling != ERasterScheduling::HardwareOnly)
 	{
-		GraphBuilder.AddPass(
+		FRDGPass* HWPass = GraphBuilder.AddPass(
 			RDG_EVENT_NAME("SW Rasterize"),
 			RasterPassParameters,
 			ComputePassFlags,
@@ -2768,6 +2770,8 @@ FBinningData AddPass_Rasterize(
 				UnsetShaderUAVs(RHICmdList, RasterizerPass.RasterComputeShader, ShaderRHI);
 			}
 		});
+
+		GraphBuilder.SetPassWorkload(HWPass, RasterizerPasses.Num());
 	}
 
 	return BinningData;

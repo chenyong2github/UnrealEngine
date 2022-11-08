@@ -2520,7 +2520,7 @@ void FRDGBuilder::SetupParallelExecute()
 	FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 
 	TArray<FRDGPass*, TInlineAllocator<64, FRDGArrayAllocator>> ParallelPassCandidates;
-	int32 MergedRenderPassCandidates = 0;
+	uint32 ParallelPassCandidatesWorkload = 0;
 	bool bDispatchAfterExecute = false;
 
 	const auto FlushParallelPassCandidates = [&]()
@@ -2588,7 +2588,7 @@ void FRDGBuilder::SetupParallelExecute()
 		}
 
 		ParallelPassCandidates.Reset();
-		MergedRenderPassCandidates = 0;
+		ParallelPassCandidatesWorkload = 0;
 		bDispatchAfterExecute = false;
 	};
 
@@ -2612,15 +2612,12 @@ void FRDGBuilder::SetupParallelExecute()
 			continue;
 		}
 
-		ParallelPassCandidates.Emplace(Pass);
 		bDispatchAfterExecute |= Pass->bDispatchAfterExecute;
 
-		// Don't count merged render passes for the maximum pass threshold. This avoids the case where
-		// a large merged render pass span could end up forcing it back onto the render thread, since
-		// it's not possible to launch a task for a subset of passes within a merged render pass.
-		MergedRenderPassCandidates += Pass->bSkipRenderPassBegin | Pass->bSkipRenderPassEnd;
+		ParallelPassCandidates.Emplace(Pass);
+		ParallelPassCandidatesWorkload += Pass->Workload;
 
-		if (ParallelPassCandidates.Num() - MergedRenderPassCandidates >= GRDGParallelExecutePassMax)
+		if (ParallelPassCandidatesWorkload >= (uint32)GRDGParallelExecutePassMax)
 		{
 			FlushParallelPassCandidates();
 		}
@@ -2673,18 +2670,17 @@ void FRDGBuilder::DispatchParallelExecute()
 
 	for (FParallelPassSet& ParallelPassSet : ParallelPassSets)
 	{
-		ParallelExecuteEvents.Emplace(UE::Tasks::Launch(TEXT("FRDGBuilder::ParallelExecute"), [this, &ParallelPassSet]
+		FRHICommandList* RHICmdListPass = new FRHICommandList(FRHIGPUMask::All());
+		ParallelPassSet.CmdList = RHICmdListPass;
+		IF_RHI_WANT_BREADCRUMB_EVENTS(RHICmdListPass->ImportBreadcrumbState(*ParallelPassSet.BreadcrumbStateBegin));
+
+		// Mark this set as initialized so that it can be submitted.
+		FPlatformAtomics::AtomicStore(&ParallelPassSet.bInitialized, 1);
+
+		ParallelExecuteEvents.Emplace(UE::Tasks::Launch(TEXT("FRDGBuilder::ParallelExecute"), [this, &ParallelPassSet, RHICmdListPass]
 		{
 			SCOPED_NAMED_EVENT(ParallelExecute, FColor::Emerald);
 			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-
-			FRHICommandList* RHICmdListPass = new FRHICommandList(FRHIGPUMask::All());
-			ParallelPassSet.CmdList = RHICmdListPass;
-
-			// Mark this set as initialized so that it can be submitted.
-			FPlatformAtomics::AtomicStore(&ParallelPassSet.bInitialized, 1);
-
-			IF_RHI_WANT_BREADCRUMB_EVENTS(RHICmdListPass->ImportBreadcrumbState(*ParallelPassSet.BreadcrumbStateBegin));
 
 			for (FRDGPass* Pass : ParallelPassSet.Passes)
 			{

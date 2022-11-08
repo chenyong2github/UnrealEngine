@@ -218,6 +218,11 @@ public:
 		return Handle;
 	}
 
+	FORCEINLINE uint32 GetWorkload() const
+	{
+		return Workload;
+	}
+
 	bool IsParallelExecuteAllowed() const
 	{
 		return bParallelExecuteAllowed;
@@ -364,6 +369,7 @@ protected:
 	const ERDGPassFlags Flags;
 	const ERHIPipeline Pipeline;
 	FRDGPassHandle Handle;
+	uint32 Workload = 1;
 
 	union
 	{

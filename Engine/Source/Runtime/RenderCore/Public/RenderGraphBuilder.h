@@ -201,6 +201,15 @@ public:
 	template <typename ExecuteLambdaType>
 	FRDGPassRef AddPass(FRDGEventName&& Name, ERDGPassFlags Flags, ExecuteLambdaType&& ExecuteLambda);
 
+	/** Sets the expected workload of the pass execution lambda. The default workload is 1 and is more or less the 'average cost' of a pass.
+	 *  Recommended usage is to set a workload equal to the number of complex draw / dispatch calls (each with its own parameters, etc), and
+	 *  only as a performance tweak if a particular pass is very expensive relative to other passes.
+	 */
+	void SetPassWorkload(FRDGPass* Pass, uint32 Workload);
+
+	/** Adds a user-defined dependency between two passes. This can be used to fine-tune async compute overlap by forcing a sync point. */
+	void AddPassDependency(FRDGPass* Producer, FRDGPass* Consumer);
+
 #if WITH_MGPU
 	void SetNameForTemporalEffect(FName InNameForTemporalEffect)
 	{
@@ -843,7 +852,6 @@ private:
 	UE::Tasks::FTask CreateUniformBuffers();
 
 	void AddPassDependency(FRDGPassHandle ProducerHandle, FRDGPassHandle ConsumerHandle);
-	void AddPassDependency(FRDGPass* Producer, FRDGPass* Consumer);
 	void AddCullingDependency(FRDGProducerStatesByPipeline& LastProducers, const FRDGProducerState& NextState, ERHIPipeline NextPipeline);
 
 	void AddEpilogueTransition(FRDGTextureRef Texture);

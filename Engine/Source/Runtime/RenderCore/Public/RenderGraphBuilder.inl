@@ -290,6 +290,11 @@ FRDGPassRef FRDGBuilder::AddPass(
 	return AddPassInternal(Forward<FRDGEventName>(Name), ParameterStructType::FTypeInfo::GetStructMetadata(), ParameterStruct, Flags, Forward<ExecuteLambdaType>(ExecuteLambda));
 }
 
+inline void FRDGBuilder::SetPassWorkload(FRDGPass* Pass, uint32 Workload)
+{
+	Pass->Workload = Workload;
+}
+
 inline void FRDGBuilder::QueueBufferUpload(FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize, ERDGInitialDataFlags InitialDataFlags)
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateUploadBuffer(Buffer, InitialData, InitialDataSize));
