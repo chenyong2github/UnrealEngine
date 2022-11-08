@@ -249,6 +249,11 @@ public:
 	/** Sets the loop mode. */
 	void SetLoopMode(ESequencerLoopMode InLoopMode);
 
+	/** @return true if the cursor reset when navigating in and out of subsequences, false otherwise */
+	bool ShouldResetPlayheadWhenNavigating() const;
+	/** Set whether or not the cursor should be reset when navigating in and out of subsequences */
+	void SetResetPlayheadWhenNavigating(bool bInResetPlayheadWhenNavigating);
+
 	/** @return true if the cursor should be kept within the playback range while scrubbing in sequencer, false otherwise */
 	bool ShouldKeepCursorInPlayRangeWhileScrubbing() const;
 	/** Set whether or not the cursor should be kept within the playback range while scrubbing in sequencer */
@@ -529,6 +534,10 @@ protected:
 	/** The loop mode of the playback in timeline. */
 	UPROPERTY( config )
 	TEnumAsByte<ESequencerLoopMode> LoopMode;
+
+	/** Enable or disable resetting the playhead when navigating in and out of subsequences. */
+	UPROPERTY(config, EditAnywhere, Category = Timeline, meta = (DisplayName = "Reset Playhead When Navigating"))
+	bool bResetPlayheadWhenNavigating;
 
 	/** Enable or disable keeping the playhead in the current playback range while scrubbing. */
 	UPROPERTY(config, EditAnywhere, Category = Timeline, meta = (DisplayName = "Keep Playhead in Play Range While Scrubbing"))

@@ -38,6 +38,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bIsolateCurveEditorToSelection = true;
 	LoopMode = ESequencerLoopMode::SLM_NoLoop;
 	bSnapKeysAndSectionsToPlayRange = false;
+	bResetPlayheadWhenNavigating = false;
 	bKeepCursorInPlayRangeWhileScrubbing = false;
 	bKeepPlayRangeInSectionBounds = true;
 	bCompileDirectorOnEvaluate = true;
@@ -449,6 +450,20 @@ void USequencerSettings::SetLoopMode(ESequencerLoopMode InLoopMode)
 	{
 		LoopMode = InLoopMode;
 		OnLoopStateChangedEvent.Broadcast();
+		SaveConfig();
+	}
+}
+
+bool USequencerSettings::ShouldResetPlayheadWhenNavigating() const
+{
+	return bResetPlayheadWhenNavigating;
+}
+
+void USequencerSettings::SetResetPlayheadWhenNavigating(bool bInResetPlayheadWhenNavigating)
+{
+	if (bResetPlayheadWhenNavigating != bInResetPlayheadWhenNavigating)
+	{
+		bResetPlayheadWhenNavigating = bInResetPlayheadWhenNavigating;
 		SaveConfig();
 	}
 }

@@ -145,6 +145,9 @@ public:
 	/** When enabled, all blendable tracks will always cache their initial values to ensure that they are able to correctly blend in/out when dynamic weights are being used. */
 	TSharedPtr< FUICommandInfo > ToggleDynamicWeighting;
 
+	/** Toggle resetting the playhead when navigating in and out of subsequences */
+	TSharedPtr< FUICommandInfo > ToggleResetPlayheadWhenNavigating;
+
 	/** Toggle constraining the time cursor to the playback range while scrubbing */
 	TSharedPtr< FUICommandInfo > ToggleKeepCursorInPlaybackRangeWhileScrubbing;
 

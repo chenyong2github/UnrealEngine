@@ -1128,6 +1128,15 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 
 	AddNodeGroupsCollectionChangedDelegate();
 
+	if (Settings->ShouldResetPlayheadWhenNavigating())
+	{
+		FQualifiedFrameTime CurrentTime = GetLocalTime();
+		if (!SubSequenceRange.Contains(CurrentTime.Time.FloorToFrame()))
+		{
+			SetLocalTime(SubSequenceRange.GetLowerBoundValue(), ESnapTimeMode::STM_None);
+		}
+	}
+
 	bNeedsEvaluate = true;
 	bGlobalMarkedFramesCached = false;
 }
@@ -11100,10 +11109,16 @@ void FSequencer::BindCommands()
 		FIsActionChecked::CreateLambda([this] { return Settings->ShouldKeepCursorInPlayRangeWhileScrubbing(); }));
 
 	SequencerCommandBindings->MapAction(
+		Commands.ToggleResetPlayheadWhenNavigating,
+		FExecuteAction::CreateLambda([this] { Settings->SetResetPlayheadWhenNavigating(!Settings->ShouldResetPlayheadWhenNavigating()); }),
+		FCanExecuteAction::CreateLambda([] { return true; }),
+		FIsActionChecked::CreateLambda([this] { return Settings->ShouldResetPlayheadWhenNavigating(); }));
+
+	SequencerCommandBindings->MapAction(
 		Commands.ToggleKeepPlaybackRangeInSectionBounds,
-		FExecuteAction::CreateLambda( [this]{ Settings->SetKeepPlayRangeInSectionBounds( !Settings->ShouldKeepPlayRangeInSectionBounds() ); NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::TrackValueChanged ); } ),
-		FCanExecuteAction::CreateLambda( []{ return true; } ),
-		FIsActionChecked::CreateLambda( [this]{ return Settings->ShouldKeepPlayRangeInSectionBounds(); } ) );
+		FExecuteAction::CreateLambda([this] { Settings->SetKeepPlayRangeInSectionBounds(!Settings->ShouldKeepPlayRangeInSectionBounds()); NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged); }),
+		FCanExecuteAction::CreateLambda([] { return true; }),
+		FIsActionChecked::CreateLambda([this] { return Settings->ShouldKeepPlayRangeInSectionBounds(); }));
 
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleEvaluateSubSequencesInIsolation,
