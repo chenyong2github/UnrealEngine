@@ -46,23 +46,23 @@ private:
 
 	FCriticalSection TextureMapCS;
 
-	class FTexureDetails
+	class FTextureDetails
 	{
 	public:
-		FTexureDetails() = default;
-		FTexureDetails(FRHITexture* Texture, size_t InSize, uint32 InAlign, size_t InAllocationWaste);
-		~FTexureDetails();
+		FTextureDetails() = default;
+		FTextureDetails(FRHITexture* Texture, size_t InSize, uint32 InAlign, size_t InAllocationWaste);
+		~FTextureDetails();
 		
 		void SetName(FName InTextureName);
 
 		void ResetPeakSize();
-		void SetValues(const FTexureDetails& Values);
+		void SetValues(const FTextureDetails& Values);
 		FName GetTextureName() const { return TextureName; }
 		const char* GetTextureNameString() const { check(TextureNameString != nullptr);  return TextureNameString; }
 
-		FTexureDetails& operator+=(const FTexureDetails& Other);
-		FTexureDetails& operator-=(const FTexureDetails& Other);
-		FTexureDetails& operator=(const FTexureDetails& Other) = default;
+		FTextureDetails& operator+=(const FTextureDetails& Other);
+		FTextureDetails& operator-=(const FTextureDetails& Other);
+		FTextureDetails& operator=(const FTextureDetails& Other) = default;
 
 		size_t Size = 0;
 		size_t PeakSize = 0;
@@ -80,13 +80,13 @@ private:
 
 	// Allocated so that a reference to the string can be stored in FTextureDetails
 	TMap<FName, const char*> TextureNameStrings;
-	TMap<void*, FTexureDetails> TexturesMap;
+	TMap<void*, FTextureDetails> TexturesMap;
 
 	// Keep track of the totals separately to reduce the cost of rounding error for sizes
-	FTexureDetails TotalTextureSize;
-	FTexureDetails TotalRenderTargetSize;
-	TMap<FName, FTexureDetails> CombinedTextureSizes;
-	TMap<FName, FTexureDetails> CombinedRenderTargetSizes;
-	friend class FTexureDetails;
+	FTextureDetails TotalTextureSize;
+	FTextureDetails TotalRenderTargetSize;
+	TMap<FName, FTextureDetails> CombinedTextureSizes;
+	TMap<FName, FTextureDetails> CombinedRenderTargetSizes;
+	friend class FTextureDetails;
 };
 #endif //TEXTURE_PROFILER_ENABLED
