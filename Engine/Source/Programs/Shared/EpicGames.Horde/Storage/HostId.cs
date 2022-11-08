@@ -87,7 +87,7 @@ namespace EpicGames.Horde.Storage
 		{
 			if (text.Length == 0)
 			{
-				throw new ArgumentException("Host identifiers cannot be empty", name);
+				return;
 			}
 			if (text[^1] == ':')
 			{

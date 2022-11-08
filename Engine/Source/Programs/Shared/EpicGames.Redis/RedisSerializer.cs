@@ -108,6 +108,7 @@ namespace EpicGames.Redis
 		{
 			KeyValuePair<Type, object>[] converters =
 			{
+				CreateNativeConverter<RedisValue>(x => x, x => x),
 				CreateNativeConverter(x => (bool)x, x => x),
 				CreateNativeConverter(x => (int)x, x => x),
 				CreateNativeConverter(x => (int?)x, x => x),

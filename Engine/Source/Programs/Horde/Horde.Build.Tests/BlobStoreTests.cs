@@ -140,7 +140,9 @@ namespace Horde.Build.Tests
 		public async Task RefExpiryTest()
 		{
 			IStorageClient store = await CreateStorageClientAsync();
-			NodeLocator target = new NodeLocator(new BlobLocator(HostId.Empty, new BlobId("test")), 123);
+
+			BlobLocator locator1 = await store.WriteBundleAsync(CreateTestBundle(new byte[] { 1, 2, 3 }, Array.Empty<BlobLocator>()));
+			NodeLocator target = new NodeLocator(locator1, 0);
 
 			await store.WriteRefTargetAsync("test-ref-1", target);
 			await store.WriteRefTargetAsync("test-ref-2", target, new RefOptions { Lifetime = TimeSpan.FromMinutes(30.0), Extend = true });
