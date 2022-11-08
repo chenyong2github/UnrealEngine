@@ -31,20 +31,6 @@ typedef uint32 TriangleIndex[3];
 
 namespace CADLibrary
 {
-class FMeshConversionContext
-{
-public:
-	const FImportParameters& ImportParams;
-	const FMeshParameters& MeshParameters;
-	TArray<int32> VertexIds;
-	TArray<int32> SymmetricVertexIds;
-
-	FMeshConversionContext(const FImportParameters& InImportParams, const FMeshParameters& InMeshParameters)
-		: ImportParams(InImportParams)
-		, MeshParameters(InMeshParameters)
-	{
-	}
-};
 
 static void FillVertexPosition(FMeshConversionContext& Context, const TSharedRef<UE::CADKernel::FModelMesh>& ModelMesh, FMeshDescription& MeshDescription)
 {
@@ -70,7 +56,7 @@ static void FillVertexPosition(FMeshConversionContext& Context, const TSharedRef
 		VertexIndex++;
 
 		FVertexID VertexID = MeshDescription.CreateVertex();
-		VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem)Context.ImportParams.GetModelCoordSys(), Vertex);
+		VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem)Context.ImportParameters.GetModelCoordSys(), Vertex);
 		Context.VertexIds[VertexIndex] = VertexID;
 	}
 
@@ -85,7 +71,7 @@ static void FillVertexPosition(FMeshConversionContext& Context, const TSharedRef
 		for (const FVector3f& Vertex : VertexArray)
 		{
 			FVertexID VertexID = MeshDescription.CreateVertex();
-			VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem)Context.ImportParams.GetModelCoordSys(), Vertex);
+			VertexPositions[VertexID] = FDatasmithUtils::ConvertVector((FDatasmithUtils::EModelCoordSystem)Context.ImportParameters.GetModelCoordSys(), Vertex);
 			VertexPositions[VertexID] = SymmetricMatrix.TransformPosition(VertexPositions[VertexID]);
 			Context.SymmetricVertexIds[VertexIndex++] = VertexID;
 		}
@@ -150,8 +136,7 @@ bool FillMesh(FMeshConversionContext& Context, const TSharedRef<UE::CADKernel::F
 
 	int32 FaceIndex = 0;
 
-	TSet<int32> PatchIdSet;
-	GetExistingPatches(MeshDescription, PatchIdSet);
+	const TSet<int32>& PatchIdSet = Context.PatchesToMesh;
 	bool bImportOnlyAlreadyPresent = (bool)PatchIdSet.Num();
 
 	TPolygonAttributesRef<int32> PatchGroups = EnableCADPatchGroups(MeshDescription);
@@ -226,7 +211,7 @@ bool FillMesh(FMeshConversionContext& Context, const TSharedRef<UE::CADKernel::F
 
 			if (!Step)
 			{
-				FDatasmithUtils::ConvertVectorArray(Context.ImportParams.GetModelCoordSys(), FaceMesh->Normals);
+				FDatasmithUtils::ConvertVectorArray(Context.ImportParameters.GetModelCoordSys(), FaceMesh->Normals);
 				for (FVector3f& Normal : FaceMesh->Normals)
 				{
 					Normal = Normal.GetSafeNormal();
@@ -278,7 +263,7 @@ static bool ConvertModelMeshToMeshDescription(FMeshConversionContext& Context, c
 	return MeshDescription.Polygons().Num() > 0;
 }
 
-bool FCADKernelTools::Tessellate(UE::CADKernel::FTopologicalShapeEntity& CADTopologicalEntity, const FImportParameters& ImportParameters, const FMeshParameters& MeshParameters, FMeshDescription& OutMeshDescription)
+bool FCADKernelTools::Tessellate(UE::CADKernel::FTopologicalShapeEntity& CADTopologicalEntity, FMeshConversionContext& TessellationContext, FMeshDescription& OutMeshDescription)
 {
 	using namespace UE::CADKernel;
 
@@ -287,12 +272,10 @@ bool FCADKernelTools::Tessellate(UE::CADKernel::FTopologicalShapeEntity& CADTopo
 	FParametricMesher Mesher(*CADKernelModelMesh);
 
 	constexpr double GeometricTolerance = 0.01;
-	DefineMeshCriteria(*CADKernelModelMesh, ImportParameters, GeometricTolerance);
+	DefineMeshCriteria(*CADKernelModelMesh, TessellationContext.ImportParameters, GeometricTolerance);
 	Mesher.MeshEntity(CADTopologicalEntity);
 
-	FMeshConversionContext Context(ImportParameters, MeshParameters);
-
-	return ConvertModelMeshToMeshDescription(Context, CADKernelModelMesh, OutMeshDescription);
+	return ConvertModelMeshToMeshDescription(TessellationContext, CADKernelModelMesh, OutMeshDescription);
 }
 
 uint32 FCADKernelTools::GetFaceTessellation(UE::CADKernel::FFaceMesh& FaceMesh, FBodyMesh& OutBodyMesh, FObjectDisplayDataId FaceMaterial)

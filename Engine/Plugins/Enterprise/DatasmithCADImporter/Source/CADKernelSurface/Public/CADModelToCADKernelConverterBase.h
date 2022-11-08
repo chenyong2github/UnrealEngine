@@ -9,6 +9,7 @@
 #include "CADModelConverter.h"
 #include "CADOptions.h"
 #include "IDatasmithSceneElements.h"
+#include "MeshDescriptionHelper.h"
 
 #include "CADKernel/Core/Session.h"
 #include "CADKernel/Topo/Model.h"
@@ -64,7 +65,10 @@ public:
 	virtual bool Tessellate(const CADLibrary::FMeshParameters& InMeshParameters, FMeshDescription& OutMeshDescription) override
 	{
 		UE::CADKernel::FModel& Model = CADKernelSession.GetModel();
-		return CADLibrary::FCADKernelTools::Tessellate(Model, ImportParameters, InMeshParameters, OutMeshDescription);
+		
+		CADLibrary::FMeshConversionContext Context(ImportParameters, InMeshParameters);
+
+		return CADLibrary::FCADKernelTools::Tessellate(Model, Context, OutMeshDescription);
 	}
 
 	virtual void SetImportParameters(double ChordTolerance, double MaxEdgeLength, double NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique) override

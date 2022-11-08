@@ -162,7 +162,7 @@ void TraverseAttribute(const A3DMiscAttributeData& AttributeData, TMap<FString, 
 			{
 				AttributeName += TEXT(" ") + AttributeTitle;
 			}
-			else if (Index > 0)
+			else if(Index > 0)
 			{
 				AttributeName += TEXT(" ") + FString::FromInt((int32)Index);
 			}
@@ -331,7 +331,7 @@ ECADParsingResult FTechSoftFileParser::Process()
 		return ECADParsingResult::FileNotFound;
 	}
 
-	A3DImport Import(TCHAR_TO_UTF8(*File.GetPathOfFileToLoad()));
+	A3DImport Import(TCHAR_TO_UTF8(*File.GetPathOfFileToLoad())); 
 
 	TechSoftFileParserImpl::SetIOOption(Import);
 
@@ -439,7 +439,7 @@ void FTechSoftFileParser::SewModel()
 {
 	CADLibrary::TUniqueTSObj<A3DSewOptionsData> SewData;
 	SewData->m_bComputePreferredOpenShellOrientation = false;
-
+	
 	TechSoftInterface::SewModel(ModelFile.Get(), CADLibrary::FImportParameters::GStitchingTolerance, SewData.GetPtr());
 }
 
@@ -457,7 +457,6 @@ void FTechSoftFileParser::GenerateBodyMeshes()
 void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representation, FArchiveBody& Body)
 {
 	FBodyMesh& BodyMesh = CADFileData.AddBodyMesh(Body.Id, Body);
-	BodyMesh.AddGraphicPropertiesFrom(Body);
 
 	uint32 NewBRepCount = 0;
 	A3DRiBrepModel** NewBReps = nullptr;
@@ -480,7 +479,7 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 		{
 			TechSoftUtils::FillBodyMesh(NewBReps[Index], CADFileData.GetImportParameters(), Body.Unit, BodyMesh);
 		}
-	}
+	} 
 	else
 	{
 		TechSoftUtils::FillBodyMesh(Representation, CADFileData.GetImportParameters(), Body.Unit, BodyMesh);
@@ -495,6 +494,12 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 	// Convert material
 	for (FTessellationData& Tessellation : BodyMesh.Faces)
 	{
+		// Don't add material of empty face (i.e. face with empty tessellation
+		if (Tessellation.VertexIndices.Num() == 0)
+		{
+			continue;
+		}
+
 		// Extract proper color or material based on style index
 		FMaterialUId CachedStyleIndex = Tessellation.MaterialUId;
 		Tessellation.MaterialUId = 0;
@@ -536,11 +541,11 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 			// This will be used when the file is reloaded
 			JsonObject->SetNumberField(JSON_ENTRY_BODY_UNIT, Body.Unit);
 
-			if (Body.ColorUId)
+			if(Body.ColorUId)
 			{
 				JsonObject->SetNumberField(JSON_ENTRY_COLOR_NAME, Body.ColorUId);
 			}
-			if (Body.MaterialUId)
+			if(Body.MaterialUId)
 			{
 				JsonObject->SetNumberField(JSON_ENTRY_MATERIAL_NAME, Body.MaterialUId);
 			}
@@ -605,7 +610,7 @@ ECADParsingResult FTechSoftFileParser::TraverseModel()
 	ExtractSpecificMetaData(ModelFile.Get(), Reference);
 	Reference.Unit = FileUnit;
 
-	if (ModelFileData->m_uiPOccurrencesSize == 0)
+	if(ModelFileData->m_uiPOccurrencesSize == 0)
 	{
 		CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s is empty."), *CADFileData.GetCADFileDescription().GetFileName()));
 		return ECADParsingResult::ProcessFailed;
@@ -785,7 +790,7 @@ void FTechSoftFileParser::TraverseReference(const A3DAsmProductOccurrence* A3DRe
 	FMatrix ReferenceMatrix = FMatrix::Identity;
 	A3DMiscTransformation* Transform = ReferenceData->m_pLocation;
 	ExtractTransformation(Transform, Reference);
-
+	
 	Reference.TransformMatrix = Reference.TransformMatrix * ReferenceMatrix;
 
 	FArchiveInstance EmptyInstance;
@@ -848,11 +853,11 @@ void FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* Occu
 	BuildInstanceName(Instance, ParentReference);
 
 	A3DMiscTransformation* Transform = OccurrenceData->m_pLocation;
-
+	
 	A3DAsmProductOccurrence* ReferencePtr = ProductOccurrence::GetReference(*OccurrenceData);
 
 	// Is the Reference already processed ?
-	if (ReferencePtr)
+	if(ReferencePtr)
 	{
 		FCadId* ReferenceId = ReferenceCache.Find(ReferencePtr);
 		if (ReferenceId != nullptr)
@@ -921,7 +926,7 @@ void FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* Occu
 		ProcessReference(OccurrencePtr, Instance, NewReference);
 	}
 
-	if (ReferencePtr)
+	if(ReferencePtr)
 	{
 		ReferenceCache.Add(ReferencePtr, Instance.ReferenceNodeId);
 	}
@@ -944,7 +949,7 @@ void FTechSoftFileParser::ProcessReference(const A3DAsmProductOccurrence* Occurr
 		OccurrenceData.FillFrom(CachedOccurrencePtr);
 	}
 
-	if (ProductOccurrence::HasNoPartNoChild(*OccurrenceData))
+	if(ProductOccurrence::HasNoPartNoChild(*OccurrenceData))
 	{
 		return;
 	}
@@ -985,7 +990,7 @@ void FTechSoftFileParser::CountUnderOccurrence(const A3DAsmProductOccurrence* Oc
 		A3DAsmProductOccurrence* ReferencePtr = ProductOccurrence::GetReference(*OccurrenceData);
 
 		// Is the Reference already processed ?
-		if (ReferencePtr)
+		if(ReferencePtr)
 		{
 			FCadId* ReferenceId = ReferenceCache.Find(ReferencePtr);
 			if (ReferenceId != nullptr)
@@ -1069,8 +1074,8 @@ void FTechSoftFileParser::ProcessPrototype(const A3DAsmProductOccurrence* InProt
 				}
 			}
 		}
-
-		if (ProductOccurrence::HasPartOrChild(*PrototypeData))
+		
+		if (ProductOccurrence::HasPartOrChild(*PrototypeData) )
 		{
 			OutReference.bIsUnloaded = false;
 			PrototypePtr = nullptr;
@@ -1100,7 +1105,7 @@ void FTechSoftFileParser::ProcessPrototype(const A3DAsmProductOccurrence* InProt
 
 	if (OutReference.bIsUnloaded)
 	{
-		if (OutReference.Label.IsEmpty())
+		if(OutReference.Label.IsEmpty())
 		{
 			OutReference.Label = OutReference.ExternalFile.GetFileName();
 		}
@@ -1303,7 +1308,7 @@ void FTechSoftFileParser::ExtractMetaData(const A3DEntity* Entity, FArchiveCADOb
 		if (OutObject.Label.IsEmpty() && MetaData->m_pcName && MetaData->m_pcName[0] != '\0')
 		{
 			FString Name = UTF8_TO_TCHAR(MetaData->m_pcName);
-			if (Name != TEXT("unnamed"))  // "unnamed" is create by Techsoft. This name is ignored 
+			if(Name != TEXT("unnamed"))  // "unnamed" is create by Techsoft. This name is ignored 
 			{
 				Name = TechSoftUtils::CleanLabel(Name);
 				OutObject.Label = Name;
@@ -1388,7 +1393,7 @@ void FTechSoftFileParser::BuildInstanceName(FArchiveInstance& InstanceData, cons
 		case ECADFormat::CATIA:
 			InstanceData.Label = TechSoftUtils::CleanCatiaInstanceLabel(InstanceData.Label);
 			break;
-
+		
 		case ECADFormat::CATIA_3DXML:
 			InstanceData.Label = TechSoftUtils::Clean3dxmlInstanceLabel(InstanceData.Label);
 			break;
@@ -1424,14 +1429,14 @@ void FTechSoftFileParser::BuildBodyName(FArchiveBody& Body, const FArchiveRefere
 		Body.Label = TechSoftUtils::CleanCreoLabel(Body.Label);
 	}
 
-	if (Body.IsNameDefined())
+	if(Body.IsNameDefined())
 	{
 		return;
 	}
 
 	if (Format == ECADFormat::CATIA)
 	{
-		if (Body.SetNameWithAttributeValue(TEXT("BodyID")))
+		if(Body.SetNameWithAttributeValue(TEXT("BodyID")))
 		{
 			return;
 		}
@@ -1543,7 +1548,7 @@ void FTechSoftFileParser::ExtractSpecificMetaData(const A3DAsmProductOccurrence*
 				A3DElementsByRefsetUg Refset = UnigraphicsSpecificData->m_asChildrenByRefsets[Index];
 			}
 
-			if (UnigraphicsSpecificData->m_uiSolidsByRefsetsSize)
+			if(UnigraphicsSpecificData->m_uiSolidsByRefsetsSize)
 			{
 				for (uint32 Index = 0; Index < UnigraphicsSpecificData->m_uiSolidsByRefsetsSize; ++Index)
 				{
@@ -1601,7 +1606,7 @@ FArchiveColor& FTechSoftFileParser::FindOrAddColor(uint32 ColorIndex, uint8 Alph
 	FArchiveColor& NewColor = CADFileData.AddColor(ColorHId);
 	NewColor.Color = TechSoftUtils::GetColorAt(ColorIndex);
 	NewColor.Color.A = Alpha;
-
+	
 	NewColor.UEMaterialUId = BuildColorUId(NewColor.Color);
 	return NewColor;
 }
@@ -1612,15 +1617,15 @@ FArchiveMaterial& FTechSoftFileParser::AddMaterialAt(uint32 MaterialIndexToSave,
 	FCADMaterial& Material = NewMaterial.Material;
 
 	TUniqueTSObjFromIndex<A3DGraphMaterialData> MaterialData(MaterialIndexToSave);
-	if (MaterialData.IsValid())
+	if(MaterialData.IsValid())
 	{
 		Material.Diffuse = TechSoftUtils::GetColorAt(MaterialData->m_uiDiffuse);
 		Material.Ambient = TechSoftUtils::GetColorAt(MaterialData->m_uiAmbient);
 		Material.Specular = TechSoftUtils::GetColorAt(MaterialData->m_uiSpecular);
 		Material.Shininess = MaterialData->m_dShininess;
-		if (GraphStyleData.m_bIsTransparencyDefined)
+		if(GraphStyleData.m_bIsTransparencyDefined)
 		{
-			Material.Transparency = 1. - GraphStyleData.m_ucTransparency / 255.;
+			Material.Transparency = 1. - GraphStyleData.m_ucTransparency/255.;
 		}
 		// todo: find how to convert Emissive color into ? reflexion coef...
 		// Material.Emissive = GetColor(MaterialData->m_uiEmissive);
@@ -1647,7 +1652,7 @@ FArchiveMaterial& FTechSoftFileParser::FindOrAddMaterial(FMaterialUId MaterialIn
 		if (TextureData.IsValid())
 		{
 			return AddMaterialAt(TextureData->m_uiMaterialIndex, MaterialIndex, GraphStyleData);
-
+			
 #ifdef NOTYETDEFINE
 			TUniqueTSObj<A3DGraphTextureDefinitionData> TextureDefinitionData(TextureData->m_uiTextureDefinitionIndex);
 			if (TextureDefinitionData.IsValid())
@@ -1788,17 +1793,17 @@ void FTechSoftFileParser::ExtractGeneralTransformation(const A3DMiscTransformati
 		}
 		else
 		{
-			FVector3d Translation = Transform.GetTranslation();
-			Translation *= FImportParameters::GUnitScale;
+		FVector3d Translation = Transform.GetTranslation();
+		Translation *= FImportParameters::GUnitScale;
 
-			double UniformScale = TechSoftFileParserImpl::ExtractUniformScale(Scale);
+		double UniformScale = TechSoftFileParserImpl::ExtractUniformScale(Scale);
 			Component.Unit *= UniformScale;
 
-			FQuat4d Rotation = Transform.GetRotation();
+		FQuat4d Rotation = Transform.GetRotation();
 
-			FTransform3d NewTransform;
-			NewTransform.SetScale3D(Scale);
-			NewTransform.SetRotation(Rotation);
+		FTransform3d NewTransform;
+		NewTransform.SetScale3D(Scale);
+		NewTransform.SetRotation(Rotation);
 
 			Component.TransformMatrix = NewTransform.ToMatrixWithScale();
 			Component.TransformMatrix.SetOrigin(Translation);
