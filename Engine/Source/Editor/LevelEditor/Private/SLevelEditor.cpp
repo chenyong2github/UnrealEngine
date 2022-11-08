@@ -1034,6 +1034,19 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 	}
 	else if( TabIdentifier == TEXT("Sequencer") )
 	{
+		// If the Sequencer tab already exists, draw attention to it and return
+		TSharedPtr<FTabManager> LevelEditorTabManager = GetTabManager();
+		if (LevelEditorTabManager.IsValid())
+		{
+			TSharedPtr<SDockTab> Tab = LevelEditorTabManager->FindExistingLiveTab(LevelEditorTabIds::Sequencer);
+			if (Tab.IsValid())
+			{
+				LevelEditorTabManager->DrawAttention(Tab.ToSharedRef());
+				return Tab.ToSharedRef();
+			}
+		}
+		
+		// Otherwise, open a null sequencer widget
 		if (FSlateStyleRegistry::FindSlateStyle("LevelSequenceEditorStyle"))
 		{
 			// @todo sequencer: remove when world-centric mode is added
@@ -1100,11 +1113,6 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 
 bool SLevelEditor::CanSpawnLevelEditorTab(const FSpawnTabArgs& Args, FName TabIdentifier)
 {
-	if (TabIdentifier == LevelEditorTabIds::Sequencer && !IsModeActive("EM_SequencerMode"))
-	{
-		return false;
-	}
-
 	// HLOD Outliner not yet supported with World Partition
 	if (TabIdentifier == LevelEditorTabIds::LevelEditorHierarchicalLODOutliner && ensure(World) && World->IsPartitionedWorld())
 	{
