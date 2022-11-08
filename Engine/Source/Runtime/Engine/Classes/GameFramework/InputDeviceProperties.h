@@ -11,6 +11,10 @@
 class UCurveLinearColor;
 class UCurveFloat;
 
+#if WITH_EDITOR
+	struct FPropertyChangedChainEvent;
+#endif	// WITH_EDITOR
+
 /**
 * Base class that represents a single Input Device Property. An Input Device Property
 * represents a feature that can be set on an input device. Things like what color a
@@ -28,6 +32,8 @@ class ENGINE_API UInputDeviceProperty : public UObject
 {
 	GENERATED_BODY()
 public:
+
+	UInputDeviceProperty();
 
 	/**
 	* Evaluate this device property for a given duration. 
@@ -82,17 +88,20 @@ public:
 	* The duration that this device property should last. Override this if your property has any dynamic curves 
 	* to be the max time range.
 	*/
-	virtual float GetDuration() { return PropertyDuration; }
+	float GetDuration() const;
+	
+	/**
+	 * Recalculates this device property's duration. This should be called whenever there are changes made
+	 * to things like curves, or other time sensative properties.
+	 */
+	virtual float RecalculateDuration();
+
+	// Post edit change property to update the duration if there are any dynamic options like for curves
+#if WITH_EDITOR
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+#endif	// WITH_EDITOR
 
 protected:
-
-	/** 
-	* The name of this unique device property. 
-	* This is used internally by the platform to determine which device property this represents. 
-	* This needs to correspond to a FInputDeviceProperty name!
-	*/
-	UPROPERTY(VisibleAnywhere, Category = "Info")
-	FName PropertyName;
 
 	/**
 	* The duration that this device property should last. Override this if your property has any dynamic curves 
@@ -115,12 +124,10 @@ class UColorInputDeviceProperty : public UInputDeviceProperty
 
 public:
 
-	UColorInputDeviceProperty();
-
 	virtual void EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration) override;
 	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser) override;
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
-	virtual float GetDuration() override;
+	virtual float RecalculateDuration() override;
 
 protected:
 

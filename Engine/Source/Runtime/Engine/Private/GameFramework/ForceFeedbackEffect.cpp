@@ -55,7 +55,7 @@ float UForceFeedbackEffect::GetTotalDevicePropertyDuration()
 	{
 		if (DeviceProperty)
 		{
-			const float PropertyDuration = DeviceProperty->GetDuration();
+			const float PropertyDuration = DeviceProperty->RecalculateDuration();
 			if (PropertyDuration > LongestDuration)
 			{
 				LongestDuration = PropertyDuration;

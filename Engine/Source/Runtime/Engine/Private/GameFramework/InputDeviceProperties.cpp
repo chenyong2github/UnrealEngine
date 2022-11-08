@@ -9,6 +9,11 @@
 ///////////////////////////////////////////////////////////////////////
 // UInputDeviceProperty
 
+UInputDeviceProperty::UInputDeviceProperty()
+{
+	RecalculateDuration();
+}
+
 void UInputDeviceProperty::ApplyDeviceProperty(const FPlatformUserId UserId)
 {
 	if (FInputDeviceProperty* RawProp = GetInternalDeviceProperty())
@@ -25,6 +30,24 @@ void UInputDeviceProperty::ApplyDeviceProperty(const FPlatformUserId UserId)
 	}
 }
 
+float UInputDeviceProperty::GetDuration() const
+{
+	return PropertyDuration;
+}
+
+float UInputDeviceProperty::RecalculateDuration()
+{
+	return PropertyDuration;
+}
+
+#if WITH_EDITOR
+void UInputDeviceProperty::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+	RecalculateDuration();
+}
+#endif	// WITH_EDITOR
+
 void UInputDeviceProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
 {
 
@@ -37,13 +60,6 @@ void UInputDeviceProperty::ResetDeviceProperty_Implementation(const FPlatformUse
 
 ///////////////////////////////////////////////////////////////////////
 // UColorInputDeviceProperty
-
-UColorInputDeviceProperty::UColorInputDeviceProperty()
-	: UInputDeviceProperty()
-{
-	PropertyName = FInputDeviceLightColorProperty::PropertyName();
-	GetDuration();
-}
 
 void UColorInputDeviceProperty::EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration)
 {
@@ -68,12 +84,13 @@ FInputDeviceProperty* UColorInputDeviceProperty::GetInternalDeviceProperty()
 	return &InternalProperty;
 }
 
-float UColorInputDeviceProperty::GetDuration()
+float UColorInputDeviceProperty::RecalculateDuration()
 {
 	float MinTime, MaxTime;
 	if (DeviceColorCurve)
 	{
 		DeviceColorCurve->GetTimeRange(MinTime, MaxTime);
+		PropertyDuration = MaxTime;
 	}
 	else
 	{
