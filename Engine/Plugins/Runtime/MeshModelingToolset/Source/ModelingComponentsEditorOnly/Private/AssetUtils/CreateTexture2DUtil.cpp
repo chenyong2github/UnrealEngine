@@ -48,7 +48,7 @@ UE::AssetUtils::ECreateTexture2DResult UE::AssetUtils::SaveGeneratedTexture2DAss
 		if (ExistingTexture2D && Options.bOverwriteIfExists)
 		{
 			// TODO: Direct copy between UTexture2D
-			UE::Geometry::TImageBuilder<FVector4f> TexImage;
+			UE::Geometry::TImageBuilder<FVector4f> TexImage; // This will contain FLinearColor data
 			if (!UE::AssetUtils::ReadTexture(GeneratedTexture, TexImage))
 			{
 				return ECreateTexture2DResult::InvalidInputTexture;
@@ -56,7 +56,7 @@ UE::AssetUtils::ECreateTexture2DResult UE::AssetUtils::SaveGeneratedTexture2DAss
 			
 			UE::Geometry::FTexture2DBuilder Builder;
 			Builder.InitializeAndReplaceExistingTexture(ExistingTexture2D, GeneratedTexture);
-			Builder.Copy(TexImage);
+			Builder.Copy(TexImage, GeneratedTexture->SRGB);
 			Builder.Commit(true);
 			GeneratedTexture = Builder.GetTexture2D();
 		}

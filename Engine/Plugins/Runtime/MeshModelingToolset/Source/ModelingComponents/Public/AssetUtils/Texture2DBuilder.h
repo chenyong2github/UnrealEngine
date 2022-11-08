@@ -17,7 +17,7 @@ namespace Geometry
  * Use Initialize() functions to configure, can either generate a new UTexture2D (in the Transient package) or modify an existing UTexture2D.
  *
  * Currently the generated UTexture2D will only have Mip 0, and only Mip 0 can be edited.
- * The generated UTexture2D has format PF_B8G8R8A8.
+ * The generated UTexture2D has format PF_B8G8R8A8 or PF_FloatRGBA.
  *
  * Use Commit() to lock and update the texture after editing is complete. LockForEditing() can be used to re-open.
  * By default textures are locked for editing on Initialize()
