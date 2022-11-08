@@ -963,6 +963,7 @@ class FScreenProbeIntegrateCS : public FGlobalShader
 		SHADER_PARAMETER(float, FullResolutionJitterWidth)
 		SHADER_PARAMETER(float, MaxRoughnessToEvaluateRoughSpecular)
 		SHADER_PARAMETER(uint32, ApplyMaterialAO)
+		SHADER_PARAMETER(uint32, LumenReflectionInputIsSSR)
 		SHADER_PARAMETER(uint32, DefaultDiffuseIntegrationMethod)
 		SHADER_PARAMETER(FIntPoint, ViewportTileDimensions)
 		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
@@ -1342,6 +1343,7 @@ void InterpolateAndIntegrate(
 				PassParameters->ReflectionsCompositeParameters = ReflectionsCompositeParameters;
 				PassParameters->MaxRoughnessToEvaluateRoughSpecular = GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular;
 				PassParameters->ApplyMaterialAO = GLumenScreenProbeMaterialAO;
+				PassParameters->LumenReflectionInputIsSSR = bSSREnabled ? 1 : 0;
 				PassParameters->ScreenSpaceBentNormalParameters = ScreenSpaceBentNormalParameters;
 				PassParameters->DefaultDiffuseIntegrationMethod = (uint32)LumenScreenProbeGather::GetDiffuseIntegralMethod();
 				PassParameters->ViewportTileDimensions = ViewportIntegrateTileDimensions;

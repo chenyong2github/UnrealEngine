@@ -169,7 +169,8 @@ float3 MixSpecularAndRoughReflections(float InRoughness, bool bIsFoliage, float4
 
 	if (bLumenReflectionInputIsSSR > 0)
 	{
-		Lighting += SpecularReflections.rgb * SpecularReflections.a;
+		// #lumen_todo: this incorrectly blends over ScreenProbeGather direct specular
+		Lighting = lerp(Lighting, SpecularReflections.rgb, SpecularReflections.a);
 	}
 	// Must branch as SpecularReflections can be uninitialized where not needed and contain NaN
 	else if (FadeAlpha > 0.0f)
