@@ -2184,12 +2184,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder, true);
 
-	// GetBinIndexTranslator cannot be called before UpdateAllPrimitiveSceneInfos which can change the number of raster bins
-	FNaniteScopedVisibilityFrame NaniteVisibility(
-		bNaniteEnabled,
-		Scene->NaniteVisibility[ENaniteMeshPass::BasePass],
-		Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetBinIndexTranslator());
-
 #if RHI_RAYTRACING
 	// Initialize ray tracing flags, in case they weren't initialized in the CreateSceneRenderers code path
 	InitializeRayTracingFlags_RenderThread();
@@ -2306,28 +2300,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		return;
 	}
 
-	FNaniteVisibilityQuery* NaniteVisibilityQuery = nullptr;
-	if (bNaniteEnabled)
-	{
-		if (Views.Num() > 0)
-		{
-			TArray<FConvexVolume, TInlineAllocator<2>> NaniteCullingViews;
-
-			// For now we'll share the same visibility results across all views
-			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-			{
-				FViewInfo& View = Views[ViewIndex];
-				NaniteCullingViews.Add(View.ViewFrustum);
-			}
-
-			NaniteVisibilityQuery = NaniteVisibility.Get().BeginVisibilityQuery(
-				NaniteCullingViews,
-				&Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
-				&Scene->NaniteMaterials[ENaniteMeshPass::BasePass]
-			);
-		}
-	}
-
 	RDG_EVENT_SCOPE(GraphBuilder, "Scene");
 	RDG_GPU_STAT_SCOPE_VERBOSE(GraphBuilder, Unaccounted, *ViewFamily.ProfileDescription);
 	
@@ -2399,6 +2371,34 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, VisibilityCommands);
 		InitViews(GraphBuilder, SceneTexturesConfig, BasePassDepthStencilAccess, ILCTaskData, InstanceCullingManager);
+	}
+
+	// GetBinIndexTranslator cannot be called before UpdateAllPrimitiveSceneInfos which can change the number of raster bins
+	FNaniteScopedVisibilityFrame NaniteVisibility(
+		bNaniteEnabled,
+		Scene->NaniteVisibility[ENaniteMeshPass::BasePass],
+		Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass].GetBinIndexTranslator());
+
+	FNaniteVisibilityQuery* NaniteVisibilityQuery = nullptr;
+	if (bNaniteEnabled)
+	{
+		if (Views.Num() > 0)
+		{
+			TArray<FConvexVolume, TInlineAllocator<2>> NaniteCullingViews;
+
+			// For now we'll share the same visibility results across all views
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+			{
+				FViewInfo& View = Views[ViewIndex];
+				NaniteCullingViews.Add(View.ViewFrustum);
+			}
+
+			NaniteVisibilityQuery = NaniteVisibility.Get().BeginVisibilityQuery(
+				NaniteCullingViews,
+				&Scene->NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+				&Scene->NaniteMaterials[ENaniteMeshPass::BasePass]
+			);
+		}
 	}
 
 	// Compute & commit the final state of the entire dependency topology of the renderer.
