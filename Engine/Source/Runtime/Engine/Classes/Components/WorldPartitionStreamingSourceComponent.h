@@ -37,6 +37,7 @@ class ENGINE_API UWorldPartitionStreamingSourceComponent : public UActorComponen
 
 	// IWorldPartitionStreamingSourceProvider interface
 	virtual bool GetStreamingSource(FWorldPartitionStreamingSource& OutStreamingSource) const override;
+	virtual const UObject* GetStreamingSourceOwner() const override { return this; }
 
 	/** Returns true if streaming is completed for this streaming source component. */
 	UFUNCTION(BlueprintCallable, Category = "Streaming")

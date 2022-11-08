@@ -551,4 +551,6 @@ struct ENGINE_API IWorldPartitionStreamingSourceProvider
 		}
 		return false;
 	}
+
+	virtual const UObject* GetStreamingSourceOwner() const { return nullptr; }
 };

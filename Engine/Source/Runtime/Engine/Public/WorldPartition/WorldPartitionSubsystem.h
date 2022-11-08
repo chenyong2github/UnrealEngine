@@ -54,9 +54,12 @@ public:
 
 	void DumpStreamingSources(FOutputDevice& OutputDevice) const;
 
-	TSet<IWorldPartitionStreamingSourceProvider*> GetStreamingSourceProviders() const { return StreamingSourceProviders; }
+	TSet<IWorldPartitionStreamingSourceProvider*> GetStreamingSourceProviders() const;
 	void RegisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
 	bool UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource);
+
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FWorldPartitionStreamingSourceProviderFilter, const IWorldPartitionStreamingSourceProvider*);
+	FWorldPartitionStreamingSourceProviderFilter& OnIsStreamingSourceProviderFiltered() { return IsStreamingSourceProviderFiltered; }
 
 #if WITH_EDITOR
 	void ForEachWorldPartition(TFunctionRef<bool(UWorldPartition*)> Func);
@@ -79,6 +82,8 @@ private:
 	TArray<TObjectPtr<UWorldPartition>> RegisteredWorldPartitions;
 
 	TSet<IWorldPartitionStreamingSourceProvider*> StreamingSourceProviders;
+
+	FWorldPartitionStreamingSourceProviderFilter IsStreamingSourceProviderFiltered;
 
 	FDelegateHandle	DrawHandle;
 

@@ -232,6 +232,21 @@ bool UWorldPartitionSubsystem::UnregisterStreamingSourceProvider(IWorldPartition
 	return !!StreamingSourceProviders.Remove(StreamingSource);
 }
 
+TSet<IWorldPartitionStreamingSourceProvider*> UWorldPartitionSubsystem::GetStreamingSourceProviders() const
+{
+	TSet<IWorldPartitionStreamingSourceProvider*> Result = StreamingSourceProviders;
+	if (!Result.IsEmpty() && IsStreamingSourceProviderFiltered.IsBound())
+	{
+		for (auto It = Result.CreateIterator(); It; ++It)
+		{
+			if (IsStreamingSourceProviderFiltered.Execute(*It))
+			{
+				It.RemoveCurrent();
+			}
+		}
+	}
+	return Result;
+}
 
 void UWorldPartitionSubsystem::Tick(float DeltaSeconds)
 {
