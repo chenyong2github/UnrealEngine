@@ -77,7 +77,7 @@ public:
 private:
 
 	/** Special handlers for ndisplay root actor and its details customizations */
-	bool IsNDisplayObject(UObject* InObject, const FString& InField, ERCFindNodeMethod InFindMethod);
+	bool IsNDisplayObject(UObject* InObject, const FString& InField = FString(), ERCFindNodeMethod InFindMethod = ERCFindNodeMethod::Path);
 	TSharedPtr<IDetailTreeNode> FindNDisplayTreeNode(UObject* InObject, const FString& InField, ERCFindNodeMethod InFindMethod);
 	void OnRowsRefreshed(TSharedPtr<IPropertyRowGenerator> Generator);
 	/** Create a property row generator */

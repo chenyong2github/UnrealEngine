@@ -24,6 +24,7 @@
 #include "Styling/RemoteControlStyles.h"
 #include "UObject/Object.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Masks/SRCProtocolMask.h"
 #include "Widgets/Layout/SBorder.h"
@@ -35,7 +36,7 @@
 
 namespace ExposedFieldUtils
 {
-	TSharedRef<SWidget> CreateNodeValueWidget(const TSharedPtr<IDetailTreeNode>& Node)
+	void CreateWidgets(const TSharedPtr<IDetailTreeNode>& Node, TSharedPtr<SWidget>& OutValueWidget, TSharedPtr<SWidget>& OutEditConditionWidget)
 	{
 		FNodeWidgets NodeWidgets = Node->CreateNodeWidgets();
 
@@ -59,7 +60,8 @@ namespace ExposedFieldUtils
 				];
 		}
 
-		return FieldWidget;
+		OutValueWidget = FieldWidget;
+		OutEditConditionWidget = NodeWidgets.EditConditionWidget;
 	}
 }
 
@@ -70,6 +72,9 @@ TSharedPtr<SRCPanelTreeNode> SRCPanelExposedField::MakeInstance(const FGenerateW
 
 void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> InField, FRCColumnSizeData InColumnSizeData, TWeakPtr<FRCPanelWidgetRegistry> InWidgetRegistry)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SRCPanelExposedField::Construct);
+
+
 	WeakField = MoveTemp(InField);
 
 	ColumnSizeData = MoveTemp(InColumnSizeData);
@@ -318,15 +323,19 @@ void SRCPanelExposedField::GetBoundObjects(TSet<UObject*>& OutBoundObjects) cons
 
 TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SRCPanelExposedField::ConstructWidget);
+
 	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
 	{
 		// For the moment, just use the first object.
-		TArray<UObject*> Objects = Field->GetBoundObjects();
-		if (GetFieldType() == EExposedFieldType::Property && Objects.Num() > 0)
+		UObject* Object = Field->GetBoundObject();
+		if (Object && GetFieldType() == EExposedFieldType::Property)
 		{
 			if (TSharedPtr<FRCPanelWidgetRegistry> Registry = WidgetRegistry.Pin())
 			{
-				if (TSharedPtr<IDetailTreeNode> Node = Registry->GetObjectTreeNode(Objects[0], Field->FieldPathInfo.ToPathPropertyString(), ERCFindNodeMethod::Path))
+				TRACE_CPUPROFILER_EVENT_SCOPE(SRCPanelExposedField::BeforeGetObjectTreeNode);
+
+				if (TSharedPtr<IDetailTreeNode> Node = Registry->GetObjectTreeNode(Object, Field->FieldPathInfo.ToPathPropertyString(), ERCFindNodeMethod::Path))
 				{
 					TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
 					Node->GetChildren(ChildNodes);
@@ -338,9 +347,14 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 					}
 
 					TSharedPtr<SHorizontalBox> FieldWidget = SNew(SHorizontalBox);
+					TSharedPtr<SWidget> ValueWidget = SNullWidget::NullWidget;
+					TSharedPtr<SWidget> EditConditionWidget = SNullWidget::NullWidget;
+
+					ExposedFieldUtils::CreateWidgets(Node, ValueWidget, EditConditionWidget);
+
 					FieldWidget->AddSlot()
 					[
-						ExposedFieldUtils::CreateNodeValueWidget(MoveTemp(Node))
+						ValueWidget.ToSharedRef()
 					];
 
 					TSharedPtr<IPropertyHandle> PropertyHandle = Node->CreatePropertyHandle();
@@ -408,7 +422,41 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 							];
 					}
 
-					return MakeFieldWidget(FieldWidget.ToSharedRef());
+					return MakeFieldWidget(FieldWidget.ToSharedRef(), EditConditionWidget.ToSharedRef());
+				}
+				else
+				{
+					FString PropertyName = Field->FieldPathInfo.ToPathPropertyString();
+					FString TargetName = Object->GetName();
+
+					FRCFieldPathInfo& FieldPath = Field->FieldPathInfo;
+
+					if (FieldPath.Resolve(Object))
+					{
+						FRCFieldResolvedData ResolvedData = FieldPath.GetResolvedData();
+						const FRCFieldPathSegment& LastSegment = FieldPath.GetFieldSegment(FieldPath.GetSegmentCount() - 1);
+						if (LastSegment.ArrayIndex != INDEX_NONE)
+						{
+							if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ResolvedData.Field))
+							{
+								FScriptArrayHelper_InContainer Helper(ArrayProperty, ResolvedData.ContainerAddress);
+								int32 ArrayNum = Helper.Num();
+								if (!Helper.IsValidIndex(LastSegment.ArrayIndex))
+								{
+									PropertyName = LastSegment.ToString();
+
+									if (FieldPath.GetSegmentCount() > 1)
+									{
+										TargetName = Object->GetName() + TEXT(".") + FieldPath.ToString(FieldPath.GetSegmentCount() - 1);
+									}
+								}
+							}
+						}
+					}
+
+					FText ErrorText = FText::Format(LOCTEXT("ExposedPropertyInvalidErrorMessage", "Could not find property {0} on object {1}"), FText::FromString(PropertyName), FText::FromString(TargetName));
+					
+					return MakeFieldWidget(CreateInvalidWidget(ErrorText));
 				}
 			} 
 		}
@@ -419,8 +467,10 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 	return MakeFieldWidget(SNullWidget::NullWidget);
 }
 
-TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidget>& InWidget)
+TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidget>& InWidget, const TSharedRef<SWidget>& EditConditionWidget)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SRCPanelExposedField::MakeFieldWidget);
+
 	FText WarningMessage;
 
 	if (GetDefault<URemoteControlSettings>()->bDisplayInEditorOnlyWarnings)
@@ -461,7 +511,7 @@ TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidg
 		WarningMessage = Builder.ToText();
 	}
 	
-	return CreateEntityWidget(InWidget, ResetButtonWidget.ToSharedRef(), WarningMessage);
+	return CreateEntityWidget(InWidget, ResetButtonWidget.ToSharedRef(), WarningMessage, EditConditionWidget);
 }
 
 void SRCPanelExposedField::ConstructPropertyWidget()
@@ -575,8 +625,8 @@ void SRCPanelFieldChildNode::Construct(const FArguments& InArgs, const TSharedRe
 	FNodeWidgets Widgets = InNode->CreateNodeWidgets();
 	FMakeNodeWidgetArgs Args;
 	Args.NameWidget = Widgets.NameWidget;
-	Args.ValueWidget = ExposedFieldUtils::CreateNodeValueWidget(InNode);
-
+	TSharedPtr<SWidget> EditConditionWidget;
+	ExposedFieldUtils::CreateWidgets(InNode, Args.ValueWidget, EditConditionWidget);
 	ChildSlot
 	[
 		MakeNodeWidget(Args)

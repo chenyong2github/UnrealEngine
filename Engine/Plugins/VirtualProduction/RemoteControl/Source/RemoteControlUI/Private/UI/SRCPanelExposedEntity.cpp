@@ -34,9 +34,11 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/Notifications/SPopUpErrorText.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
 
@@ -154,6 +156,11 @@ void SRCPanelExposedEntity::Initialize(const FGuid& InEntityId, URemoteControlPr
 			const FString BindingPath = RCEntity->GetLastBindingPath().ToString();
 			CachedLabel = RCEntity->GetLabel();
 			CachedBindingPath = *BindingPath;
+
+			if (RCEntity->GetStruct() == FRemoteControlProperty::StaticStruct())
+			{
+				CachedFieldPath = StaticCastSharedPtr<FRemoteControlProperty>(RCEntity)->FieldPathInfo.ToString();
+			}
 
 			FName OwnerFName;
 			// If the binding is valid, display the actor label if possible
@@ -313,9 +320,25 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateRebindAllPropertiesForActorMenu
 		];
 }
 
-TSharedRef<SWidget> SRCPanelExposedEntity::CreateInvalidWidget()
+TSharedRef<SWidget> SRCPanelExposedEntity::CreateInvalidWidget(const FText& InErrorText)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SRCPanelExposedEntity::CreateInvalidWidget);
+
+	TSharedRef<SPopupErrorText> ErrorText = SNew(SPopupErrorText)
+		.Visibility(InErrorText.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible);
+
+	ErrorText->SetError(InErrorText);
+
 	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SBox)
+			.WidthOverride(20.0)
+			[
+				ErrorText
+			]
+		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		[
@@ -325,15 +348,15 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateInvalidWidget()
 				SNew(STextBlock)
 				.Text(LOCTEXT("RebindLabel", "Rebind"))
 			]
-			.MenuContent()
-			[
-				SNew(SBox)
+			.OnGetMenuContent_Lambda([this]() 
+			{ 
+				return SNew(SBox)
 				.MaxDesiredHeight(400.0f)
 				.WidthOverride(300.0f)
 				[
 					CreateRebindMenuContent()
-				]
-			]
+				];
+			})
 		];
 }
 
@@ -344,6 +367,8 @@ EVisibility SRCPanelExposedEntity::GetVisibilityAccordingToLiveMode(EVisibility 
 
 TSharedRef<SWidget> SRCPanelExposedEntity::CreateRebindMenuContent()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SRCPanelExposedEntity::CreateRebindMenuContent);
+
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
 	FSceneOutlinerInitializationOptions Options;
 	Options.Filters = MakeShared<FSceneOutlinerFilters>();
@@ -431,7 +456,7 @@ bool SRCPanelExposedEntity::IsActorSelectable(const AActor* Actor) const
 	return false;
 }
 
-TSharedRef<SWidget> SRCPanelExposedEntity::CreateEntityWidget(TSharedPtr<SWidget> ValueWidget, TSharedPtr<SWidget> ResetWidget, const FText& OptionalWarningMessage)
+TSharedRef<SWidget> SRCPanelExposedEntity::CreateEntityWidget(TSharedPtr<SWidget> ValueWidget, TSharedPtr<SWidget> ResetWidget, const FText& OptionalWarningMessage, TSharedRef<SWidget> EditConditionWidget)
 {
 	FMakeNodeWidgetArgs Args;
 
@@ -495,11 +520,17 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateEntityWidget(TSharedPtr<SWidget
             .Text(FEditorFontGlyphs::Exclamation_Triangle)
 		]
 		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			EditConditionWidget
+		]
+		+ SHorizontalBox::Slot()
 		.Padding(4.f, 0.f, 2.0f, 0.f)
 		.AutoWidth()
 		[
 			SAssignNew(NameTextBox, SInlineEditableTextBlock)
 			.Text(FText::FromName(CachedLabel))
+			.ToolTipText(FText::FromString(CachedFieldPath))
 			.OnTextCommitted(this, &SRCPanelExposedEntity::OnLabelCommitted)
 			.OnVerifyTextChanged(this, &SRCPanelExposedEntity::OnVerifyItemLabelChanged)
 			.IsReadOnly_Lambda([this]() { return bLiveMode.Get(); })

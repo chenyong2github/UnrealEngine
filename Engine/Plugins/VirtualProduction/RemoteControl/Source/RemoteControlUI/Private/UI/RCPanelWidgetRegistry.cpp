@@ -71,6 +71,8 @@ namespace WidgetRegistryUtils
 	/** Find a node by its name in a detail tree node hierarchy. */
 	TSharedPtr<IDetailTreeNode> FindNode(const TArray<TSharedRef<IDetailTreeNode>>& RootNodes, const FString& QualifiedPropertyName, ERCFindNodeMethod FindMethod)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FRCPanelWidgetRegistry::FindNode);
+
 		for (const TSharedRef<IDetailTreeNode>& CategoryNode : RootNodes)
 		{
 			TSharedPtr<IDetailTreeNode> FoundNode = FindTreeNodeRecursive(CategoryNode, QualifiedPropertyName, FindMethod);
@@ -107,6 +109,8 @@ FRCPanelWidgetRegistry::~FRCPanelWidgetRegistry()
 
 TSharedPtr<IDetailTreeNode> FRCPanelWidgetRegistry::GetObjectTreeNode(UObject* InObject, const FString& InField, ERCFindNodeMethod InFindMethod)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRCPanelWidgetRegistry::GetObjectTreeNode);
+
 	const TPair<TWeakObjectPtr<UObject>, FString> CacheKey{InObject, InField};
 	if (TWeakPtr<IDetailTreeNode>* Node = TreeNodeCache.Find(CacheKey))
 	{
@@ -178,6 +182,13 @@ void FRCPanelWidgetRegistry::Refresh(UObject* InObject)
 	if (TSharedPtr<IPropertyRowGenerator>* Generator = ObjectToRowGenerator.Find({InObject}))
 	{
 		(*Generator)->SetObjects({InObject});
+	}
+	else if (IsNDisplayObject(InObject))
+	{
+		if (TSharedPtr<IPropertyRowGenerator>* GeneratorFromParent = ObjectToRowGenerator.Find({ InObject->GetTypedOuter<AActor>() }))
+		{
+			(*GeneratorFromParent)->SetObjects({ InObject->GetTypedOuter<AActor>() });
+		}
 	}
 }
 
@@ -275,6 +286,8 @@ void FRCPanelWidgetRegistry::OnRowsRefreshed(TSharedPtr<IPropertyRowGenerator> G
 
 TSharedPtr<IPropertyRowGenerator> FRCPanelWidgetRegistry::CreateGenerator(UObject* InObject)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRCPanelWidgetRegistry::CreateGenerator);
+
 	// Since we must keep many PRG objects alive in order to access the handle data, validating the nodes each tick is very taxing.
 	// We can override the validation with a lambda since the validation function in PRG is not necessary for our implementation
 	auto ValidationLambda = ([](const FRootPropertyNodeList& PropertyNodeList) { return true; });
