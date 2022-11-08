@@ -638,7 +638,6 @@ public:
 template <typename BlockAllocationTag>
 struct TAllocatorTraits<TConcurrentLinearArrayAllocator<BlockAllocationTag>> : TAllocatorTraitsBase<TConcurrentLinearArrayAllocator<BlockAllocationTag>>
 {
-	enum { SupportsMove = true };
 	enum { IsZeroConstruct = true };
 };
 

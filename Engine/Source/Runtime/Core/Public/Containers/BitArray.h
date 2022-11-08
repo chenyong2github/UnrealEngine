@@ -1754,8 +1754,7 @@ FORCEINLINE uint32 GetTypeHash(const TBitArray<Allocator>& BitArray)
 template<typename Allocator>
 struct TContainerTraits<TBitArray<Allocator> > : public TContainerTraitsBase<TBitArray<Allocator> >
 {
-	static_assert(TAllocatorTraits<Allocator>::SupportsMove, "TBitArray no longer supports move-unaware allocators");
-	enum { MoveWillEmptyContainer = TAllocatorTraits<Allocator>::SupportsMove };
+	enum { MoveWillEmptyContainer = true };
 };
 
 

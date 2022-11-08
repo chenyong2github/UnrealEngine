@@ -235,7 +235,6 @@ public:
 template <uint32 Alignment>
 struct TAllocatorTraits<TRDGArrayAllocator<Alignment>> : TAllocatorTraitsBase<TRDGArrayAllocator<Alignment>>
 {
-	enum { SupportsMove = true };
 	enum { IsZeroConstruct = true };
 };
 

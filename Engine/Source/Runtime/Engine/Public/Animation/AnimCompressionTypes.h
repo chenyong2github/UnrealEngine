@@ -695,12 +695,6 @@ public:
 	}
 };
 
-template <uint32 Alignment>
-struct TAllocatorTraits<TMaybeMappedAllocator<Alignment>> : TAllocatorTraitsBase<TMaybeMappedAllocator<Alignment>>
-{
-	enum { SupportsMove = true };
-};
-
 template<typename T, uint32 Alignment>
 struct TIsContiguousContainer<TMaybeMappedArray<T, Alignment>>
 {

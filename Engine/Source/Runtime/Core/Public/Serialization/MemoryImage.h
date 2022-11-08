@@ -710,7 +710,6 @@ public:
 template <uint32 Alignment>
 struct TAllocatorTraits<TMemoryImageAllocator<Alignment>> : TAllocatorTraitsBase<TMemoryImageAllocator<Alignment>>
 {
-	enum { SupportsMove = true };
 	enum { IsZeroConstruct = true };
 	enum { SupportsFreezeMemoryImage = true };
 	enum { SupportsElementAlignment = true };

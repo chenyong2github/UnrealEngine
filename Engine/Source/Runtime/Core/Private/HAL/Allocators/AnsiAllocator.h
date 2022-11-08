@@ -132,7 +132,6 @@ public:
 template <>
 struct TAllocatorTraits<FAnsiAllocator> : TAllocatorTraitsBase<FAnsiAllocator>
 {
-	enum { SupportsMove = true };
 	enum { IsZeroConstruct = true };
 };
 

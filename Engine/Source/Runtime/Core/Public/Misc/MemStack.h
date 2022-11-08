@@ -456,7 +456,6 @@ public:
 template <uint32 Alignment>
 struct TAllocatorTraits<TMemStackAllocator<Alignment>> : TAllocatorTraitsBase<TMemStackAllocator<Alignment>>
 {
-	enum { SupportsMove    = true };
 	enum { IsZeroConstruct = true };
 };
 

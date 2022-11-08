@@ -144,7 +144,6 @@ struct FScriptContainerElement
 template <typename AllocatorType>
 struct TAllocatorTraitsBase
 {
-	enum { SupportsMove              = false };
 	enum { IsZeroConstruct           = false };
 	enum { SupportsFreezeMemoryImage = false };
 	enum { SupportsElementAlignment  = false };
@@ -453,7 +452,6 @@ public:
 template <uint32 Alignment>
 struct TAllocatorTraits<TAlignedHeapAllocator<Alignment>> : TAllocatorTraitsBase<TAlignedHeapAllocator<Alignment>>
 {
-	enum { SupportsMove    = true };
 	enum { IsZeroConstruct = true };
 };
 
@@ -620,7 +618,6 @@ public:
 template <uint8 IndexSize>
 struct TAllocatorTraits<TSizedHeapAllocator<IndexSize>> : TAllocatorTraitsBase<TSizedHeapAllocator<IndexSize>>
 {
-	enum { SupportsMove             = true };
 	enum { IsZeroConstruct          = true };
 	enum { SupportsElementAlignment = true };
 };
@@ -782,12 +779,6 @@ public:
 	typedef void ForAnyElementType;
 };
 
-template <uint32 NumInlineElements, int IndexSize, typename SecondaryAllocator>
-struct TAllocatorTraits<TSizedInlineAllocator<NumInlineElements, IndexSize, SecondaryAllocator>> : TAllocatorTraitsBase<TSizedInlineAllocator<NumInlineElements, IndexSize, SecondaryAllocator>>
-{
-	enum { SupportsMove = TAllocatorTraits<SecondaryAllocator>::SupportsMove };
-};
-
 template <uint32 NumInlineElements, typename SecondaryAllocator = FDefaultAllocator>
 using TInlineAllocator = TSizedInlineAllocator<NumInlineElements, 32, SecondaryAllocator>;
 
@@ -943,12 +934,6 @@ public:
 	typedef void ForAnyElementType;
 };
 
-template <uint32 NumInlineElements>
-struct TAllocatorTraits<TNonRelocatableInlineAllocator<NumInlineElements>> : TAllocatorTraitsBase<TNonRelocatableInlineAllocator<NumInlineElements>>
-{
-	enum { SupportsMove = true };
-};
-
 /**
  * The fixed allocation policy allocates up to a specified number of elements in the same allocation as the container.
  * It's like the inline allocator, except it doesn't provide secondary storage when the inline storage has been filled.
@@ -1046,12 +1031,6 @@ public:
 	};
 
 	typedef void ForAnyElementType;
-};
-
-template <uint32 NumInlineElements>
-struct TAllocatorTraits<TFixedAllocator<NumInlineElements>> : TAllocatorTraitsBase<TFixedAllocator<NumInlineElements>>
-{
-	enum { SupportsMove = true };
 };
 
 // We want these to be correctly typed as int32, but we don't want them to have linkage, so we make them macros

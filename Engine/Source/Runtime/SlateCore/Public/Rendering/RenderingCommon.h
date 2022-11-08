@@ -470,7 +470,6 @@ public:
 template <typename T>
 struct TAllocatorTraits<FSlateStatTrackingMemoryAllocator<T>> : TAllocatorTraitsBase<FSlateStatTrackingMemoryAllocator<T>>
 {
-	enum { SupportsMove = TAllocatorTraits<FDefaultAllocator>::SupportsMove };
 	enum { IsZeroConstruct = TAllocatorTraits<FDefaultAllocator>::IsZeroConstruct };
 };
 
