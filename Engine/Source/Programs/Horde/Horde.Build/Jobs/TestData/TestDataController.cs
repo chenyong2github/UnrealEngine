@@ -175,9 +175,9 @@ namespace Horde.Build.Jobs.TestData
 			{
 				return NotFound();
 			}
-
-			ITestData testData = await _testDataCollection.AddAsync(job, jobStep, request.Key, new BsonDocument(request.Data));
-			return new CreateTestDataResponse(testData.Id.ToString());
+			
+			List<ITestData> testData = await _testDataCollection.AddAsync(job, jobStep, new (string key, BsonDocument value)[] { (request.Key, new BsonDocument(request.Data))});
+			return new CreateTestDataResponse(testData[0].Id.ToString());
 		}
 
 		/// <summary>

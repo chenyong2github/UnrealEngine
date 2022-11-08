@@ -327,7 +327,7 @@ namespace Horde.Build.Jobs.TestData
 		/// <summary>
 		/// The full details test data for this ref
 		/// </summary>
-		public string TestDataId { get; set; }
+		public List<string> TestDataIds { get; set; }
 
 		/// <summary>
 		/// How long the test ran
@@ -372,7 +372,7 @@ namespace Horde.Build.Jobs.TestData
 		public GetTestDataRefResponse(ITestDataRef testData)
 		{
 			StreamId = testData.StreamId.ToString();
-			TestDataId = testData.TestDataId.ToString();
+			TestDataIds = testData.TestDataIds.Select(x => x.ToString()).ToList();
 			Duration = testData.Duration;
 			BuildChangeList = testData.BuildChangeList;
 			MetaId = testData.Metadata.ToString();

@@ -160,7 +160,7 @@ namespace Horde.Build.Jobs.TestData
 		/// <summary>
 		/// The full details test data for this ref
 		/// </summary>
-		ObjectId TestDataId { get; }
+		IReadOnlyList<ObjectId> TestDataIds { get; }
 
 		/// <summary>
 		/// How long the test ran

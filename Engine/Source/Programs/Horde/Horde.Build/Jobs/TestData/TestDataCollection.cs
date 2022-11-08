@@ -221,7 +221,8 @@ namespace Horde.Build.Jobs.TestData
 			public int BuildChangeList { get; set; }
 
 			[BsonRequired, BsonElement("tdid")]
-			public ObjectId TestDataId { get; set; }
+			public List<ObjectId> TestDataIds { get; set; } = new List<ObjectId>();
+			IReadOnlyList<ObjectId> ITestDataRef.TestDataIds => TestDataIds;
 
 			[BsonRequired, BsonElement("d")]
 			public TimeSpan Duration { get; set; }
@@ -237,7 +238,6 @@ namespace Horde.Build.Jobs.TestData
 
 			[BsonIgnoreIfNull, BsonElement("sts")]
 			public List<SuiteTestData>? SuiteTests { get; set; }
-
 			IReadOnlyList<ISuiteTestData>? ITestDataRef.SuiteTests => SuiteTests;
 
 			private TestDataRefDocument()
@@ -424,18 +424,25 @@ namespace Horde.Build.Jobs.TestData
 		}
 
 		/// <inheritdoc/>
-		public async Task<ITestData> AddAsync(IJob job, IJobStep step, string key, BsonDocument value)
+		public async Task<List<ITestData>> AddAsync(IJob job, IJobStep step, (string key, BsonDocument value)[] data)
 		{
 			// detailed test data
-			TestDataDocument newTestData = new TestDataDocument(job, step, key, value);
-			await _testDataDocuments.InsertOneAsync(newTestData);
+			List<TestDataDocument> documents = new List<TestDataDocument>();
+			for (int i = 0; i < data.Length; i++)
+			{
+				(string key, BsonDocument document) = data[i];
+				documents.Add(new TestDataDocument(job, step, key, document));
+				
+			}
+
+			await _testDataDocuments.InsertManyAsync(documents);
 
 			try
 			{
 				if (_settings.CurrentValue.FeatureFlags.EnableTestDataV2)
 				{
 					_logger.LogInformation("Attempting to add test report data");
-					await AddTestReportData(job, step, value, newTestData.Id);
+					await AddTestReportData(job, step, documents);
 				}									
 				else
 				{
@@ -447,7 +454,7 @@ namespace Horde.Build.Jobs.TestData
 				_logger.LogWarning(ex, "Exception while adding test data  report, jobId: {JobId} stepId: {StepId}", job.Id, step.Id);
 			}
 
-			return newTestData;
+			return documents.ConvertAll<ITestData>(x => x); ;
 		}
 
 		/// <inheritdoc/>
@@ -672,20 +679,14 @@ namespace Horde.Build.Jobs.TestData
 			return suite;
 		}
 
-		async Task AddTestReportData(IJob job, IJobStep step, BsonDocument rootDoc, ObjectId testDataId)
+		async Task AddTestReportData(IJob job, IJobStep step, List<TestDataDocument> documents)
 		{
 			List<AutomatedTestSessionData> sessions = new List<AutomatedTestSessionData>();
 			List<UnrealAutomatedTestData> tests = new List<UnrealAutomatedTestData>();
 
-			BsonArray items = rootDoc.GetValue("Items").AsBsonArray;
-			foreach (BsonValue item in items.ToList())
+			foreach (TestDataDocument item in documents)
 			{
-				if (!item.IsBsonDocument)
-				{
-					continue;
-				}
-
-				BsonDocument testData = item.AsBsonDocument;
+				BsonDocument testData = item.Data;
 
 				int version = testData.GetValue("Version", new BsonInt32(0)).AsInt32;
 				if (version < 1)
@@ -695,34 +696,33 @@ namespace Horde.Build.Jobs.TestData
 				}
 
 				BsonValue? value;
-				if (!testData.TryGetPropertyValue("Data.Type", BsonType.String, out value))
+				if (!testData.TryGetPropertyValue("Type", BsonType.String, out value))
 				{
 					continue;
 				}
 
-				string type = value.AsString;
-				BsonDocument data = testData.GetValue("Data").AsBsonDocument;
+				string type = value.AsString;				
 
 				if (type == "Simple Report")
 				{
-					await AddSimpleReportData(job, step, testDataId, data);
+					await AddSimpleReportData(job, step, item.Id, testData);
 					continue;
 				}
 
 				if (type == "Automated Test Session")
 				{
-					sessions.Add(BsonSerializer.Deserialize<AutomatedTestSessionData>(data));
+					sessions.Add(BsonSerializer.Deserialize<AutomatedTestSessionData>(testData));
 				}
 
 				if (type == "Unreal Automated Tests")
 				{
-					tests.Add(BsonSerializer.Deserialize<UnrealAutomatedTestData>(data));
+					tests.Add(BsonSerializer.Deserialize<UnrealAutomatedTestData>(testData));
 				}
 			}
 
 			if (sessions.Count > 0)
 			{
-				await AddTestSessionReportData(job, step, testDataId, sessions, tests);
+				await AddTestSessionReportData(job, step, documents, sessions, tests);
 			}
 		}
 
@@ -830,7 +830,7 @@ namespace Horde.Build.Jobs.TestData
 				testRef.BuildChangeList = testData.BuildChangeList;
 				testRef.Duration = TimeSpan.FromSeconds(testData.TotalDurationSeconds);
 				testRef.TestId = test.Id;
-				testRef.TestDataId = testDataId;
+				testRef.TestDataIds.Add(testDataId);
 				testRef.Outcome = TestOutcome.Unspecified;
 
 				switch (testData.TestResult)
@@ -854,7 +854,7 @@ namespace Horde.Build.Jobs.TestData
 			}
 		}
 
-		async Task AddTestSessionReportData(IJob job, IJobStep step, ObjectId testDataId, List<AutomatedTestSessionData> sessions, List<UnrealAutomatedTestData> tests)
+		async Task AddTestSessionReportData(IJob job, IJobStep step, List<TestDataDocument> documents, List<AutomatedTestSessionData> sessions, List<UnrealAutomatedTestData> tests)
 		{
 			HashSet<string> suites = new HashSet<string>();
 
@@ -960,7 +960,7 @@ namespace Horde.Build.Jobs.TestData
 						testRef.Metadata = metaId.Value;
 						testRef.BuildChangeList = job.Change;
 						testRef.Duration = TimeSpan.FromSeconds(session.TestSessionInfo!.TimeElapseSec);
-						testRef.TestDataId = testDataId;
+						testRef.TestDataIds = documents.Select(x => x.Id).ToList();
 						testRef.Outcome = TestOutcome.Unspecified;
 						testRef.SuiteId = testSuite.Id;
 						testRef.SuiteTests = new List<SuiteTestData>();

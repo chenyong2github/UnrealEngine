@@ -1053,33 +1053,53 @@ namespace Horde.Build.Server
 			IJob? job = null;
 			IJobStep? jobStep = null;
 
+			List<(string key, BsonDocument document)> data = new List<(string key, BsonDocument document)>();
+
 			while (await reader.MoveNext())
 			{
 				UploadTestDataRequest request = reader.Current;
 
 				JobId jobId = new JobId(request.JobId);
-				if (job == null || jobId != job.Id)
-				{
+				if (job == null)
+				{					
 					job = await _jobService.GetJobAsync(jobId);
 					if (job == null)
 					{
 						throw new StructuredRpcException(StatusCode.NotFound, "Unable to find job {JobId}", jobId);
 					}
-					jobStep = null;
+				}
+				else if (jobId != job.Id)
+				{
+					throw new StructuredRpcException(StatusCode.InvalidArgument, "Job {JobId} does not match previous Job {JobId} in request", jobId, job.Id);
 				}
 
+
 				SubResourceId jobStepId = request.JobStepId.ToSubResourceId();
-				if (jobStep == null || jobStepId != jobStep.Id)
+
+				if (jobStep == null)
 				{
 					if (!job.TryGetStep(jobStepId, out jobStep))
 					{
 						throw new StructuredRpcException(StatusCode.NotFound, "Unable to find step {JobStepId} on job {JobId}", jobStepId, jobId);
 					}
 				}
-
+				else if (jobStep.Id != jobStepId)
+				{
+					throw new StructuredRpcException(StatusCode.InvalidArgument, "Job step {JobStepId} does not match previous Job step {JobStepId} in request", jobStepId, jobStep.Id);
+				}
+				
 				string text = Encoding.UTF8.GetString(request.Value.ToArray());
 				BsonDocument document = BsonSerializer.Deserialize<BsonDocument>(text);
-				await _testData.AddAsync(job, jobStep, request.Key, document);
+				data.Add((request.Key, document));
+			}
+
+			if (job != null && jobStep != null)
+			{
+				await _testData.AddAsync(job, jobStep, data.ToArray());
+			}			
+			else
+			{
+				throw new StructuredRpcException(StatusCode.NotFound, "Unable to get job or step for test data upload" );
 			}
 
 			return new UploadTestDataResponse();

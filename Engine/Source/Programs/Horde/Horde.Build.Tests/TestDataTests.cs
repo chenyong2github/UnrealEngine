@@ -3,23 +3,19 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using EpicGames.Core;
 using Horde.Build.Jobs.Graphs;
 using Horde.Build.Projects;
 using Horde.Build.Jobs;
 using Horde.Build.Users;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
-using HordeCommon;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MongoDB.Bson;
 using Moq;
-using Horde.Build.Jobs.Templates;
 using Horde.Build.Jobs.TestData;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using EpicGames.BuildGraph.Expressions;
 using Horde.Build.Logs;
 
 namespace Horde.Build.Tests
@@ -176,9 +172,16 @@ namespace Horde.Build.Tests
 
 				BsonDocument testData = BsonDocument.Parse(String.Join('\n', _simpleTestDataLines));
 
-				await TestDataCollection.AddAsync(job, step, "Simple Report Key", testData);
-				await TestDataCollection.AddAsync(job2, step2, "Simple Report Key", testData);
+				List<(string key, BsonDocument)> data = new List<(string key, BsonDocument)>();
+				BsonArray items = testData.GetValue("Items").AsBsonArray;
+				foreach (BsonValue item in items.ToList())
+				{
+					BsonDocument value = item.AsBsonDocument.GetValue("Data").AsBsonDocument;
+					data.Add(("Simple Report Key", value));
+				}
 
+				await TestDataCollection.AddAsync(job, step, data.ToArray());
+				await TestDataCollection.AddAsync(job2, step2, data.ToArray());
 
 				ActionResult<List<GetTestStreamResponse>> streamResult = await TestDataController.GetTestStreamsAsync(streamIds);
 				Assert.IsNotNull(streamResult);
@@ -201,6 +204,9 @@ namespace Horde.Build.Tests
 				List<GetTestDataRefResponse> refs = refResult.Value;
 
 				Assert.AreEqual(2, refs.Count);
+
+				Assert.AreEqual(1, refs[0].TestDataIds.Count);
+				Assert.AreEqual(1, refs[1].TestDataIds.Count);
 			}
 		}
 
@@ -218,8 +224,16 @@ namespace Horde.Build.Tests
 
 				BsonDocument testData = BsonDocument.Parse(String.Join('\n', _testSessionDataLines));
 
-				await TestDataCollection.AddAsync(job, step, "Session Report Key", testData);
-				await TestDataCollection.AddAsync(job2, step2, "Session Report Key", testData);
+				List<(string key, BsonDocument)> data = new List<(string key, BsonDocument)>();
+				BsonArray items = testData.GetValue("Items").AsBsonArray;
+				foreach (BsonValue item in items.ToList())
+				{
+					BsonDocument value = item.AsBsonDocument.GetValue("Data").AsBsonDocument;
+					data.Add(("Session Report Key", value));
+				}
+
+				await TestDataCollection.AddAsync(job, step, data.ToArray());
+				await TestDataCollection.AddAsync(job2, step2, data.ToArray());
 
 				ActionResult<List<GetTestStreamResponse>> streamResult = await TestDataController.GetTestStreamsAsync(streamIds);
 				Assert.IsNotNull(streamResult);
@@ -246,8 +260,12 @@ namespace Horde.Build.Tests
 				List<GetTestDataRefResponse> refs = refResult.Value;
 
 				Assert.AreEqual(2, refs.Count);
+
+				Assert.AreEqual(3, refs[0].TestDataIds.Count);
+				Assert.AreEqual(3, refs[1].TestDataIds.Count);
+
 			}
-			
+
 		}
 
 		private readonly string[] _simpleTestDataLines =
@@ -255,9 +273,9 @@ namespace Horde.Build.Tests
 			@"{",
 			@"  ""Items"": [",
 			@"    {",
-			@"      ""Key"": ""Simple Report::UE.BootTest EngineTest Editor Win64"",",
-			@"		""Version"" : 1,",
-			@"      ""Data"": {",			
+			@"      ""Key"": ""Simple Report::UE.BootTest EngineTest Editor Win64"",",			
+			@"      ""Data"": {",
+			@"  	  ""Version"" : 1,",
 			@"        ""Type"": ""Simple Report"",",
 			@"        ""TestName"": ""EditorBootTest"",",
 			@"        ""Description"": ""Win64 Development EditorGame"",",
@@ -300,9 +318,9 @@ namespace Horde.Build.Tests
 			@"{",			
 			@"    ""Items"": [	",
 			@"        {",
-			@"            ""Key"": ""Automated Test Session"",",
-			@"		      ""Version"" : 1,",
+			@"            ""Key"": ""Automated Test Session"",",			
 			@"            ""Data"": {",
+			@"  	          ""Version"" : 1,",
 			@"                ""Type"": ""Automated Test Session"",",
 			@"                ""Name"": ""UE.Automation(Group:UI) EngineTest"",",
 			@"                ""PreFlightChange"": """",",
@@ -398,9 +416,9 @@ namespace Horde.Build.Tests
 			@"        },",
 			@"        {",
 			@"            ""Key"": ""Unreal Automated Tests::UE.TargetAutomation(RunTest=UI) Win64"",",
-			@"		      ""Version"" : 1,",
 			@"            ""Data"": {",
 			@"                ""Type"": ""Unreal Automated Tests"",",
+			@"   		      ""Version"" : 1,",
 			@"                ""Devices"": [",
 			@"                    {",
 			@"                        ""DeviceName"": ""RDU-WIN64-12"",",
@@ -470,9 +488,9 @@ namespace Horde.Build.Tests
 			@"            }",
 			@"        },",
 			@"        {",
-			@"            ""Key"": ""Automated Test Session Result Details::b420bdde-c030-4add-81d2-3a8404ab3e45"",",
-			@"	          ""Version"" : 1,",
+			@"            ""Key"": ""Automated Test Session Result Details::b420bdde-c030-4add-81d2-3a8404ab3e45"",",			
 			@"            ""Data"": {",
+			@"	              ""Version"" : 1,",
 			@"                ""cbdb55ea"": {",
 			@"                    ""Events"": [",
 			@"                        {",
