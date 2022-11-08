@@ -25,16 +25,16 @@ uint8* UControlRigBlueprintGeneratedClass::GetPersistentUberGraphFrame(UObject* 
 
 void UControlRigBlueprintGeneratedClass::PostInitInstance(UObject* InObj, FObjectInstancingGraph* InstanceGraph)
 {
-	UControlRig* ControlRig = Cast<UControlRig>(InObj);
-	check(ControlRig);
-
-	UControlRig* CDO = nullptr;
-	if(!ControlRig->HasAnyFlags(RF_ClassDefaultObject))
+	if (UControlRig* ControlRig = Cast<UControlRig>(InObj))
 	{
-		CDO = Cast<UControlRig>(GetDefaultObject());;
-	}
+		UControlRig* CDO = nullptr;
+		if (!ControlRig->HasAnyFlags(RF_ClassDefaultObject))
+		{
+			CDO = Cast<UControlRig>(GetDefaultObject());;
+		}
 
-	ControlRig->PostInitInstance(CDO);
+		ControlRig->PostInitInstance(CDO);
+	}
 }
 
 void UControlRigBlueprintGeneratedClass::Serialize(FArchive& Ar)

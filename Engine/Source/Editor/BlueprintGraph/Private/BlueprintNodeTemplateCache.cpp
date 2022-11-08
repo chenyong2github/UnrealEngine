@@ -394,7 +394,8 @@ UEdGraphNode* FBlueprintNodeTemplateCache::GetNodeTemplate(UBlueprintNodeSpawner
 						GeneratedClassType = TargetBlueprint->GeneratedClass->GetClass();
 					}
 
-					CompatibleBlueprint = MakeCompatibleBlueprint(BlueprintClass, TargetBlueprint->ParentClass, GeneratedClassType);
+					UClass* ParentClass = TargetBlueprint->ParentClass != nullptr ? TargetBlueprint->ParentClass.Get() : UObject::StaticClass();
+					CompatibleBlueprint = MakeCompatibleBlueprint(BlueprintClass, ParentClass, GeneratedClassType);
 					if (!CacheBlueprintOuter(CompatibleBlueprint))
 					{
 						LogCacheFullMsg();
