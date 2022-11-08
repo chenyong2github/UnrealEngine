@@ -10,7 +10,7 @@ TArray<FPrimitiveComponentId> FSceneInterface::GetScenePrimitiveComponentIds() c
 
 void FSceneInterface::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, bool bAsyncCreateLPIs)
 {
-	FRDGBuilder GraphBuilder(RHICmdList);
+	FRDGBuilder GraphBuilder(RHICmdList, FRDGEventName(TEXT("UpdateAllPrimitiveSceneInfos")));
 	UpdateAllPrimitiveSceneInfos(GraphBuilder, bAsyncCreateLPIs);
 	GraphBuilder.Execute();
 }
