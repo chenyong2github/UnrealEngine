@@ -78,6 +78,9 @@ struct FPooledVirtualMemoryAllocator
 	/** Returns free memory in the pools */
 	uint64 GetCachedFreeTotal();
 
+	/** Refresh allocator if needed. (does nothing in that implementation) */
+	void Refresh() {}
+
 	/** Update memory stats (does nothing in that implementation) */
 	void UpdateStats() {}
 

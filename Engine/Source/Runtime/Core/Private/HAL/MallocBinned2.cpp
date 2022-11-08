@@ -798,7 +798,7 @@ FMallocBinned2::~FMallocBinned2()
 {
 }
 
-void FMallocBinned2::OnMallocInitialized() 
+void FMallocBinned2::OnMallocInitialized()
 {
 #if UE_USE_VERYLARGEPAGEALLOCATOR
 	FCoreDelegates::GetLowLevelAllocatorMemoryTrimDelegate().AddLambda([this]()
@@ -807,6 +807,14 @@ void FMallocBinned2::OnMallocInitialized()
 			CachedOSPageAllocator.FreeAll(&Mutex);
 		}
 	);
+
+	FCoreDelegates::GetRefreshLowLevelAllocatorDelegate().AddLambda([this]()
+		{
+			FScopeLock Lock(&Mutex);
+			CachedOSPageAllocator.Refresh();
+		}
+	);
+
 #endif
 }
 

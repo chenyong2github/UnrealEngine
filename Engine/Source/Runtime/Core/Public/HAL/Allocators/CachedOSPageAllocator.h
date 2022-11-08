@@ -53,6 +53,11 @@ struct TCachedOSPageAllocator : private FCachedOSPageAllocator
 	{
 		return FreeAllImpl(FreedPageBlocks, FreedPageBlocksNum, CachedTotal, Mutex);
 	}
+	// Refresh cached os allocator if needed. Does nothing for this implementation
+	void Refresh()
+	{
+
+	}
 	void UpdateStats()
 	{
 

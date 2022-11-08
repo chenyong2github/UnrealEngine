@@ -70,6 +70,9 @@ public:
 
 	void FreeAll(FCriticalSection* Mutex = nullptr);
 
+	// Refresh cached os allocator if needed. Will preallocate / reduce backstore if preallocation is enabled
+	void Refresh();
+
 	void UpdateStats();
 
 	uint64 GetCachedFreeTotal()
@@ -89,6 +92,7 @@ public:
 private:
 
 	void Init();
+	void ShrinkEmptyBackStore(int32 NewEmptyBackStoreSize, FMemory::AllocationHints AllocationHint);
 
 	bool bEnabled;
 	uintptr_t	AddressSpaceReserved;
@@ -96,6 +100,7 @@ private:
 	uintptr_t	AddressSpaceReservedEnd;
 	uint64		CachedFree;
 	int32		EmptyBackStoreCount[FMemory::AllocationHints::Max];
+	int32		CommitedLargePagesCount[FMemory::AllocationHints::Max];
 
 	FPlatformMemory::FPlatformVirtualMemoryBlock Block;
 

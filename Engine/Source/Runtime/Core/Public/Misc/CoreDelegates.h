@@ -464,6 +464,9 @@ public:
 	// Called to request that low level allocator free whatever memory they are able to. 
 	static FSimpleMulticastDelegate& GetLowLevelAllocatorMemoryTrimDelegate();
 
+	// Called to request that low level allocator must refreshed
+	static FSimpleMulticastDelegate& GetRefreshLowLevelAllocatorDelegate();
+
 	// Called when OOM event occurs, after backup memory has been freed, so there's some hope of being effective
 	static FSimpleMulticastDelegate& GetOutOfMemoryDelegate();
 

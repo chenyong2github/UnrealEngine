@@ -291,6 +291,12 @@ FSimpleMulticastDelegate& FCoreDelegates::GetLowLevelAllocatorMemoryTrimDelegate
 	return OnLowLevelAllocatorMemoryTrim;
 }
 
+FSimpleMulticastDelegate& FCoreDelegates::GetRefreshLowLevelAllocatorDelegate()
+{
+	static FSimpleMulticastDelegate OnRefreshLowLevelAllocator;
+	return OnRefreshLowLevelAllocator;
+}
+
 /**	 Implemented as a function to address global ctor issues */
 FSimpleMulticastDelegate& FCoreDelegates::GetOutOfMemoryDelegate()
 {
