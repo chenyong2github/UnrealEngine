@@ -4,6 +4,7 @@
 #include "NiagaraCommon.h"
 #include "NiagaraShared.h"
 #include "NiagaraDataInterface.h"
+#include "NiagaraParameterStore.h"
 #include "Sound/SoundAttenuation.h"
 
 #include "NiagaraDataInterfaceAudioPlayer.generated.h"
@@ -30,6 +31,27 @@ struct FPersistentAudioParticleData
 	TFunction<void(struct FAudioPlayerInterface_InstanceData*,UAudioComponent*,FNiagaraSystemInstance*)> UpdateCallback;
 };
 
+UCLASS(EditInlineNew, Category = "Audio", meta = (DisplayName = "Niagara Audio Player Settings"), Blueprintable, BlueprintType)
+class NIAGARA_API UNiagaraDataInterfaceAudioPlayerSettings : public UObject
+{
+public:
+	GENERATED_BODY()
+
+	UNiagaraDataInterfaceAudioPlayerSettings();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio", meta=(InlineEditConditionToggle))
+	bool bOverrideConcurrency = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio", meta=(EditCondition="bOverrideConcurrency"))
+	TObjectPtr<USoundConcurrency> Concurrency;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
+	bool bOverrideAttenuationSettings = true;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio", meta=(EditCondition="bOverrideAttenuationSettings"))
+	FSoundAttenuationSettings AttenuationSettings;
+};
+
 struct FAudioPlayerInterface_InstanceData
 {
 	/** We use a lock-free queue here because multiple threads might try to push data to it at the same time. */
@@ -42,6 +64,7 @@ struct FAudioPlayerInterface_InstanceData
 	TWeakObjectPtr<USoundBase> SoundToPlay;
 	TWeakObjectPtr<USoundAttenuation> Attenuation;
 	TWeakObjectPtr<USoundConcurrency> Concurrency;
+	TWeakObjectPtr<UNiagaraDataInterfaceAudioPlayerSettings> CachedUserParam;
 	TArray<FName> ParameterNames;
 
 	FNiagaraLWCConverter LWCConverter;
@@ -51,6 +74,9 @@ struct FAudioPlayerInterface_InstanceData
 #if WITH_EDITORONLY_DATA
 	bool bOnlyActiveDuringGameplay = false;
 #endif
+
+	/** A binding to the user ptr we're reading from (if we are). */
+	FNiagaraParameterDirectBinding<UObject*> UserParamBinding;
 };
 
 /** This Data Interface can be used to play one-shot audio effects driven by particle data. */
@@ -75,6 +101,11 @@ public:
 	/** A set of parameter names that can be referenced via index when setting sound cue parameters on persistent audio */
 	UPROPERTY(EditAnywhere, Category = "Parameters")
 	TArray<FName> ParameterNames;
+
+	/** If bound to a valid user parameter object of type UNiagaraDataInterfaceAudioPlayerSettings, then configured settings like sound attenuation are set via the user parameter. This allows the sound settings to be dynamically changed via blueprint or C++.
+	 *  Only used by persistent audio, one-shot audio ignores this option. */
+	UPROPERTY(EditAnywhere, Category = "Parameters")
+	FNiagaraUserParameterBinding ConfigurationUserParameter;
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Audio", meta = (InlineEditConditionToggle))
     bool bLimitPlaysPerTick;
