@@ -58,13 +58,15 @@ namespace
 
 		FLocalizedCulturesFlyweight()
 		{
+			constexpr bool bIncludeDerivedCultures = false;
+
 			{
 				const TArray<FString> LocalizedCultureNames = FTextLocalizationManager::Get().GetLocalizedCultureNames(ELocalizationLoadFlags::Editor);
-				LocalizedCulturesForEditor = FInternationalization::Get().GetAvailableCultures(LocalizedCultureNames, true);
+				LocalizedCulturesForEditor = FInternationalization::Get().GetAvailableCultures(LocalizedCultureNames, bIncludeDerivedCultures);
 			}
 			{
 				const TArray<FString> LocalizedCultureNames = FTextLocalizationManager::Get().GetLocalizedCultureNames(ELocalizationLoadFlags::Game);
-				LocalizedCulturesForGame = FInternationalization::Get().GetAvailableCultures(LocalizedCultureNames, true);
+				LocalizedCulturesForGame = FInternationalization::Get().GetAvailableCultures(LocalizedCultureNames, bIncludeDerivedCultures);
 			}
 		}
 	};
@@ -170,7 +172,7 @@ namespace
 				.DisplayNameFormat(SCulturePicker::ECultureDisplayFormat::ActiveAndNativeCultureDisplayName);
 
 			return SNew(SBox)
-				.MaxDesiredHeight(300.0f)
+				.MaxDesiredHeight(500.0f)
 				.WidthOverride(300.0f)
 				[
 					CulturePicker
@@ -358,7 +360,7 @@ namespace
 				return false;
 			};
 			return SNew(SBox)
-				.MaxDesiredHeight(300.0f)
+				.MaxDesiredHeight(500.0f)
 				.WidthOverride(300.0f)
 				[
 					SNew(SCulturePicker)

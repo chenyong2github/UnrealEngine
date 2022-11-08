@@ -59,17 +59,13 @@ void SCulturePicker::Construct( const FArguments& InArgs )
 		];
 
 
-	const auto& IsInitialSelection = [&](const TSharedPtr<FCultureEntry>& Entry) -> bool
-	{
-		return Entry->Culture == InArgs._InitialSelection;
-	};
-
-	const TSharedPtr<FCultureEntry>* InitialSelection = RootEntries.FindByPredicate(IsInitialSelection);
-	if (InitialSelection)
+	if (TSharedPtr<FCultureEntry> InitialSelection = FindEntryForCulture(InArgs._InitialSelection))
 	{
 		TGuardValue<bool> SuppressSelectionGuard(SuppressSelectionCallback, true);
-		TreeView->SetSelection(*InitialSelection);
+		TreeView->SetSelection(InitialSelection);
 	}
+
+	AutoExpandEntries();
 }
 
 void SCulturePicker::RequestTreeRefresh()
@@ -78,6 +74,53 @@ void SCulturePicker::RequestTreeRefresh()
 	if (TreeView.IsValid())
 	{
 		TreeView->RequestTreeRefresh();
+	}
+	AutoExpandEntries();
+}
+
+TSharedPtr<FCultureEntry> SCulturePicker::FindEntryForCulture(FCulturePtr Culture) const
+{
+	return FindEntryForCultureImpl(Culture, RootEntries);
+}
+
+TSharedPtr<FCultureEntry> SCulturePicker::FindEntryForCultureImpl(FCulturePtr Culture, const TArray<TSharedPtr<FCultureEntry>>& Entries) const
+{
+	for (const TSharedPtr<FCultureEntry>& Entry : Entries)
+	{
+		if (Entry->Culture == Culture)
+		{
+			return Entry;
+		}
+		if (TSharedPtr<FCultureEntry> ChildEntry = FindEntryForCultureImpl(Culture, Entry->Children))
+		{
+			return ChildEntry;
+		}
+	}
+	return nullptr;
+}
+
+void SCulturePicker::AutoExpandEntries()
+{
+	return AutoExpandEntriesImpl(RootEntries);
+}
+
+void SCulturePicker::AutoExpandEntriesImpl(const TArray<TSharedPtr<FCultureEntry>>& Entries)
+{
+	if (TreeView)
+	{
+		for (const TSharedPtr<FCultureEntry>& Entry : Entries)
+		{
+			if (Entry->AutoExpand)
+			{
+				TreeView->SetItemExpansion(Entry, true);
+				
+				// Only recurse when actually filtering
+				if (!FilterString.IsEmpty())
+				{
+					AutoExpandEntriesImpl(Entry->Children);
+				}
+			}
+		}
 	}
 }
 
@@ -199,6 +242,7 @@ void SCulturePicker::RebuildEntries()
 			// If has children, must be added. If it is not filtered and it is pickable, should be added.
 			if ( OutEntry->Children.Num() != 0 || (!IsFilteredOut && IsPickable) )
 			{
+				OutEntry->AutoExpand = (!IsPickable || IsFilteredOut) && OutEntry->Children.Num() > 0;
 				OutEntries.Add(OutEntry);
 			}
 		}	

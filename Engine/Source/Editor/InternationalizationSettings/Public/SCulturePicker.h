@@ -32,6 +32,7 @@ struct FCultureEntry
 	FCulturePtr Culture;
 	TArray< TSharedPtr<FCultureEntry> > Children;
 	bool IsSelectable;
+	bool AutoExpand = false;
 
 	FCultureEntry(const FCulturePtr& InCulture, const bool InIsSelectable = true)
 		: Culture(InCulture)
@@ -92,6 +93,12 @@ public:
 	void RequestTreeRefresh();
 
 private:
+	TSharedPtr<FCultureEntry> FindEntryForCulture(FCulturePtr Culture) const;
+	TSharedPtr<FCultureEntry> FindEntryForCultureImpl(FCulturePtr Culture, const TArray<TSharedPtr<FCultureEntry>>& Entries) const;
+
+	void AutoExpandEntries();
+	void AutoExpandEntriesImpl(const TArray<TSharedPtr<FCultureEntry>>& Entries);
+
 	void BuildStockEntries();
 	void RebuildEntries();
 
