@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if WITH_EOS_SDK
+
 #include "EOSShared.h"
 #include "EOSSharedTypes.h"
 
@@ -273,3 +275,5 @@ bool LexFromString(EOS_ELoginCredentialType& OutEnum, const TCHAR* InString)
 	}
 	return true;
 }
+
+#endif // WITH_EOS_SDK
