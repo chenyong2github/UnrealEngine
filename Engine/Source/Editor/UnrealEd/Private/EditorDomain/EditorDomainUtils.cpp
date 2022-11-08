@@ -201,7 +201,7 @@ FBlake3Hash GGlobalConstructClassesHash;
 int64 GMaxBulkDataSize = -1;
 
 // Change to a new guid when EditorDomain needs to be invalidated
-const TCHAR* EditorDomainVersion = TEXT("D0A87D5986BD47479D64C08F70CE9BB2");
+const TCHAR* EditorDomainVersion = TEXT("2A2A362225084BE8B1FCD539E21BDE28");
 
 // Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
