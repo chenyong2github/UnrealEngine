@@ -163,8 +163,8 @@ namespace DmlUtil
 	{
 		DML_BUFFER_TENSOR_DESC												BuffDesc;
 		DML_TENSOR_DESC														Desc;
-		TArray<uint32, TInlineAllocator<FMLTensorDesc::MaxTensorDimension>>	Sizes;
-		TArray<uint32, TInlineAllocator<FMLTensorDesc::MaxTensorDimension>>	Strides;
+		TArray<uint32, TInlineAllocator<FTensorShape::MaxRank>>		Sizes;
+		TArray<uint32, TInlineAllocator<FTensorShape::MaxRank>>		Strides;
 	};
 
 	void SetTensorStrides(FTensorDesc& TensorDesc, const FMLTensorDesc& InputDesc)
@@ -182,7 +182,7 @@ namespace DmlUtil
 
 	void SetTensorSizesAndStridesForBroadcast(FTensorDesc& TensorDesc, const FMLTensorDesc& InputDesc, const FMLTensorDesc& TargetDesc)
 	{
-		static_assert(FMLTensorDesc::MaxTensorDimension <= 8);
+		static_assert(FTensorShape::MaxRank <= 8);
 		
 		const uint32 TargetDimension = TargetDesc.Shape.Num() != -1 ? TargetDesc.Shape.Num() : InputDesc.Shape.Num();
 		checkf(TargetDesc.Shape.Num() >= InputDesc.Shape.Num(), TEXT("Can't broadcast tensor from rank %d to rank %d, should be inferior or equal."), InputDesc.Shape.Num(), TargetDimension);
@@ -552,7 +552,7 @@ public:
 	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 	{
 		// TODO: Setup attributes
-		Num = InputTensors[0].Num();
+		Num = InputTensors[0].Volume;
 
 		DevCtx = InDevCtx;
 
@@ -802,7 +802,7 @@ public:
 	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 	{
 		// TODO: Setup attributes
-		Num = OutputTensors[0].Num();
+		Num = OutputTensors[0].Volume;
 
 		DevCtx = InDevCtx;
 
@@ -980,7 +980,7 @@ public:
 
 protected:
 
-	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings) override;
+	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) override;
 
 private:
 
@@ -1267,30 +1267,28 @@ bool FMLInferenceModelDml::Init(UMLInferenceModel* InModel, FDeviceContextDml* I
 		return false;
 	}
 
-	if (Format.Operators.Num() > 1)
-	{
-		UE_LOG(LogNNX, Warning, TEXT("Failed to create inference model, currently on single layer models are supported"));
-		return false;
-	}
-
 	DevCtx = InDevCtx;
 
 	// Loop over all operators in the model and create them
 	for (int32 Idx = 0; Idx < Format.Operators.Num(); ++Idx)
 	{
 		const FString TypeName = Format.Operators[Idx].TypeName;
-		
+
 		TArray<FMLTensorDesc> OpInputTensors;
 		TArray<FMLTensorDesc> OpOutputTensors;
 		UE::NNECore::FAttributeMap AttributeMap;
 
 		for (int32 InputTensorIndex : Format.Operators[Idx].InTensors)
 		{
-			OpInputTensors.Emplace(AllTensors[InputTensorIndex]);
+			FSymbolicTensorDesc SymbolicTensorDesc = AllSymbolicTensors[InputTensorIndex];
+			//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
+			OpInputTensors.Emplace(FMLTensorDesc::MakeFromSymbolic(SymbolicTensorDesc));
 		}
 		for (int32 OutputTensorIndex : Format.Operators[Idx].OutTensors)
 		{
-			OpOutputTensors.Emplace(AllTensors[OutputTensorIndex]);
+			FSymbolicTensorDesc SymbolicTensorDesc = AllSymbolicTensors[OutputTensorIndex];
+			//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
+			OpOutputTensors.Emplace(FMLTensorDesc::MakeFromSymbolic(SymbolicTensorDesc));
 		}
 		for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 		{
@@ -1299,7 +1297,7 @@ bool FMLInferenceModelDml::Init(UMLInferenceModel* InModel, FDeviceContextDml* I
 
 		FMLOperatorDml* Op = OpCreate(TypeName, OpInputTensors, OpOutputTensors, AttributeMap);
 
-		if (!Op)
+		if (!Op) //Op.Shader.IsNull())
 		{
 			UE_LOG(LogNNX, Warning, TEXT("Failed to create operator:%s"), *TypeName);
 
@@ -1316,14 +1314,40 @@ bool FMLInferenceModelDml::Init(UMLInferenceModel* InModel, FDeviceContextDml* I
 //
 //
 //
-void FMLInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings)
+void FMLInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 {
+	check(AllTensorBindings.Num() == AllTensors.Num());
+	checkCode(
+		for (int32 i = 0; i < AllTensorBindings.Num(); ++i)
+		{
+			check(AllTensors[i].DataSize == AllTensorBindings[i].SizeInBytes);
+		}
+	);
+
+	static constexpr int32 MaxExpectedInput = 10;
+	TArray<FMLTensorBinding, TInlineAllocator<MaxExpectedInput>> InputBindings;
+	
+	static constexpr int32 MaxExpectedOutput = 2;
+	TArray<FMLTensorBinding, TInlineAllocator<MaxExpectedOutput>> OutputBindings;
+	
 	// Add passes for all operators
 	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)
 	{
+		InputBindings.Empty();
+		for (int32 i : OperatorInputTensorIndices[Idx])
+		{
+			InputBindings.Emplace(AllTensorBindings[i]);
+		}
+		OutputBindings.Empty();
+		for (int32 i : OperatorOutputTensorIndices[Idx])
+		{
+			OutputBindings.Emplace(AllTensorBindings[i]);
+		}
+
 		FMLOperatorDml* Op = Operators[Idx];
 
-		Op->Dispatch(GraphBuilder, InInputBindings, OutOutputBindings);
+		//TODO jira 169354 pass shape information to Op.Dispatch probably via an object containing both mem info and shape (from AllTensors).
+		Op->Dispatch(GraphBuilder, InputBindings, OutputBindings);
 	}
 }
 

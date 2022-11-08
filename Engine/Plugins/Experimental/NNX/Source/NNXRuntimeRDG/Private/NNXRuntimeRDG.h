@@ -63,8 +63,9 @@ public:
 
 	~FMLInferenceModelRDG();
 
-	virtual int Run(TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings) override;
-	virtual int EnqueueRDG(FRDGBuilder& Builder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings) override;
+	virtual int SetInputShapes(TConstArrayView<const FTensorShape> InputShapes) override;
+	virtual int Run(TConstArrayView<const FMLTensorBinding> InputBindings, TConstArrayView<const FTensorShape> InputShapes, TConstArrayView<const FMLTensorBinding> OutputBindings) override;
+	virtual int EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<const FMLTensorBinding> InputBindings, TConstArrayView<const FTensorShape> InputShapes, TConstArrayView<const FMLTensorBinding> OutputBindings) override;
 
 protected:
 
@@ -72,15 +73,32 @@ protected:
 
 	bool LoadModel(const FNNIModelRaw& InModel, FMLRuntimeFormat& Format);
 
+	int CreateIntermediateTensors(FRDGBuilder& GraphBuilder, FMLTensorBindingArray& OutBindings, TConstArrayView<const FMLTensorDesc> InTensors);
 	int SetTensors(FRDGBuilder& GraphBuilder, FMLTensorBindingArray& OutRDGBindings, FMLIntArray& OutIndices, TArrayView<const FMLTensorBinding> InBindings, TArrayView<const FMLTensorDesc> InTensors);
 
-	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings) = 0;
+	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) = 0;
 
 	virtual void AddTensorUploads_RenderThread(FRDGBuilder& GraphBuilder, TArrayView<const int32> InUploadIndices, TArrayView<FMLTensorBinding> InRDGBindings, TArrayView<const FMLTensorBinding> InBindings);
 	virtual void AddTensorReadbacks_RenderThread(FRDGBuilder& GraphBuilder, TArrayView<const int32> InReadbackIndices, TArrayView<const FMLTensorBinding> InRDGBindings, TArrayView<const FMLTensorBinding> InBindings);
 
-	FReadbackEntry	Readback;
-	bool			bUseManualTransitions;
+	//Tensors
+	TArray<FMLTensorDesc>		AllTensors;
+	TArray<FSymbolicTensorDesc>	AllSymbolicTensors;
+	TArray<FMLTensorDesc>		InputTensors;
+	TArray<FMLTensorDesc>		OutputTensors;
+
+	//Tensor indices for models
+	TArray<int32>				IntermediateTensorIndices;
+	TArray<int32>				InputTensorIndices;
+	TArray<int32>				OutputTensorIndices;
+	
+	//Tensor indices by operator
+	TArray<TArray<uint32>>		OperatorInputTensorIndices;
+	TArray<TArray<uint32>>		OperatorOutputTensorIndices;
+	
+	FMLTensorBindingArray       AllTensorBindings;
+	FReadbackEntry				Readback;
+	bool						bUseManualTransitions;
 };
 
 //TODO jira 167585 remove default validation and declare contract in all HLSL operator (see HLSL Gemm for current example)

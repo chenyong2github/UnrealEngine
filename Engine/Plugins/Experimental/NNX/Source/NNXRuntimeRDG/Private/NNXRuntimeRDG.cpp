@@ -193,36 +193,49 @@ bool FMLInferenceModelRDG::LoadModel(const FNNIModelRaw& InModel, FMLRuntimeForm
 
 	FMLRuntimeFormat::StaticStruct()->SerializeBin(Reader, &Format);
 
+	// Data for base class
+	InputSymbolicTensors.Empty();
+	OutputSymbolicTensors.Empty();
+	
+	// Data for RDG
+	AllSymbolicTensors.Empty();
+	IntermediateTensorIndices.Empty();
+	InputTensorIndices.Empty();
+	OutputTensorIndices.Empty();
+	OperatorInputTensorIndices.Empty();
+	OperatorOutputTensorIndices.Empty();
+
 	// Add tensors
 	for (int32 Idx = 0; Idx < Format.Tensors.Num(); ++Idx)
 	{
 		const FMLFormatTensorDesc& FormatTensorDesc = Format.Tensors[Idx];
 
-		// When handling dynamic input shape FMLTensorDesc should then contain a FSymbolicTensorShape
-        // while actual inference work on FConcreteTensorShape resolved by shape inference.
 		FSymbolicTensorShape SymbolicShape = FSymbolicTensorShape::Make(FormatTensorDesc.Shape);
-		check(SymbolicShape.IsConcrete());
-		FConcreteTensorShape ConcreteShape = FConcreteTensorShape::Make(SymbolicShape);
+		FSymbolicTensorDesc SymbolicTensor = FSymbolicTensorDesc::Make(FormatTensorDesc.Name, SymbolicShape, FormatTensorDesc.DataType);
+		AllSymbolicTensors.Emplace(SymbolicTensor);
 		
-		FMLTensorDesc Tensor = FMLTensorDesc::Make(FormatTensorDesc.Name, ConcreteShape, FormatTensorDesc.DataType);
-		
-		Tensor.DataSize = Tensor.GetElemByteSize() * Tensor.Volume();
-
 		if (FormatTensorDesc.Type == EMLFormatTensorType::Input)
 		{
-			InputTensors.Add(Tensor);
-			AllTensors.Add(Tensor);
+			InputTensorIndices.Emplace(Idx);
+			InputSymbolicTensors.Emplace(SymbolicTensor);
 		}
 		else if (FormatTensorDesc.Type == EMLFormatTensorType::Output)
 		{
-			OutputTensors.Add(Tensor);
-			AllTensors.Add(Tensor);
+			OutputTensorIndices.Emplace(Idx);
+			OutputSymbolicTensors.Emplace(SymbolicTensor);
 		}
 		else if (FormatTensorDesc.Type == EMLFormatTensorType::Intermediate)
 		{
-			AllTensors.Add(Tensor);
+			IntermediateTensorIndices.Emplace(Idx);
 		}
 		checkf(FormatTensorDesc.Type != EMLFormatTensorType::None, TEXT("Unsupported tensor type None"));
+	}
+
+	// Loop over all operators in the model and store tensor indices for input/output
+	for (int32 Idx = 0; Idx < Format.Operators.Num(); ++Idx)
+	{
+		OperatorInputTensorIndices.Emplace(Format.Operators[Idx].InTensors);
+		OperatorOutputTensorIndices.Emplace(Format.Operators[Idx].OutTensors);
 	}
 
 	return true;
@@ -231,14 +244,21 @@ bool FMLInferenceModelRDG::LoadModel(const FNNIModelRaw& InModel, FMLRuntimeForm
 /**
  * Run the inference model (synchronous version)
  */
-int FMLInferenceModelRDG::Run(TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings)
+int FMLInferenceModelRDG::Run(TConstArrayView<const FMLTensorBinding> InInputBindings, TConstArrayView<const FTensorShape> InInputShapes, TConstArrayView<const FMLTensorBinding> InOutputBindings)
 {
+	// Prepare the model for the concrete input shapes
+	int Res = SetInputShapes(InInputShapes);
+	if (Res != 0)
+	{
+		UE_LOG(LogNNX, Warning, TEXT("Model preparation failed with error code:%d"), Res);
+		return -1;
+	}
+	
 	FEvent* Signal = FGenericPlatformProcess::GetSynchEventFromPool(false);
-	int		Res = 0;
 
 	ENQUEUE_RENDER_COMMAND(FMLInferenceModel_Run)
 	(
-		[&Signal, &Res, this, InInputBindings, OutOutputBindings](FRHICommandListImmediate& RHICmdList)
+		[&Signal, &Res, this, InInputBindings, InInputShapes, InOutputBindings](FRHICommandListImmediate& RHICmdList)
 		{
 			TOptional<ERHIPipeline>		Pipeline = RHICmdList.GetPipeline();
 
@@ -247,12 +267,12 @@ int FMLInferenceModelRDG::Run(TArrayView<const FMLTensorBinding> InInputBindings
 				RHICmdList.SwitchPipeline(ERHIPipeline::Graphics);
 			}
 
-			FRDGBuilder	GraphBuilder(RHICmdList);
+			FRDGBuilder	RDGBuilder(RHICmdList);
 
-			Res = EnqueueRDG(GraphBuilder, InInputBindings, OutOutputBindings);
+			Res = EnqueueRDG(RDGBuilder, InInputBindings, InInputShapes, InOutputBindings);
 			if (Res == 0)
 			{
-				GraphBuilder.Execute();
+				RDGBuilder.Execute();
 
 				// FIXME: Using BlockUntilGPUIdle() prevents hang on Linux
 				RHICmdList.BlockUntilGPUIdle();
@@ -285,20 +305,72 @@ int FMLInferenceModelRDG::Run(TArrayView<const FMLTensorBinding> InInputBindings
 	return Res;
 }
 
+int FMLInferenceModelRDG::SetInputShapes(TConstArrayView<const FTensorShape> InInputShapes)
+{
+	//Verify input shape are valid for the model
+	if (FMLInferenceModel::SetInputShapes(InInputShapes) != 0)
+	{
+		return -1;
+	}
+
+	//Run shape inference
+	AllTensors.Empty();
+	for (FSymbolicTensorDesc SymbolicTensorDesc : AllSymbolicTensors)
+	{
+		//Fake shape inference for now
+		check(SymbolicTensorDesc.IsConcrete());
+		FMLTensorDesc TensorDesc = FMLTensorDesc::MakeFromSymbolic(SymbolicTensorDesc);
+		AllTensors.Emplace(TensorDesc);
+	}
+
+	//Build concrete input and output tensor descriptions
+	InputTensors.Empty();
+	for (int32 InputIndices : InputTensorIndices)
+	{
+		InputTensors.Emplace(AllTensors[InputIndices]);
+	}
+	OutputTensors.Empty();
+	for (int32 OutputIndices : OutputTensorIndices)
+	{
+		OutputTensors.Emplace(AllTensors[OutputIndices]);
+	}
+	check(InputTensorIndices.Num() + OutputTensorIndices.Num() + IntermediateTensorIndices.Num() == AllTensors.Num());
+	check(InputTensors.Num() + OutputTensors.Num() + IntermediateTensorIndices.Num() == AllSymbolicTensors.Num());
+	
+	return 0;
+}
+
+FRDGBufferDesc CreateRDGBufferDescFromTensorDesc(const FMLTensorDesc& TensorDesc)
+{
+	// FIXME: CreateStructuredDesc() creates a crash on VulkanRHI
+	//FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(TensorDesc.GetElemByteSize(), TensorDesc.Volume);
+	FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(TensorDesc.GetElemByteSize(), TensorDesc.Volume);
+
+	return Desc;
+}
+
 /**
  * Enqueue operators to RDG, the caller will run the GraphBuilder.Execute()
  */
-int FMLInferenceModelRDG::EnqueueRDG(FRDGBuilder& GraphBuilder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> InOutputBindings)
+int FMLInferenceModelRDG::EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<const FMLTensorBinding> InInputBindings, TConstArrayView<const FTensorShape> InInputShapes, TConstArrayView<const FMLTensorBinding> InOutputBindings)
 {
 	check(IsInRenderingThread());
 
 	int Res;
 
+	// Prepare the model for the concrete input shapes
+	Res = SetInputShapes(InInputShapes);
+	if (Res != 0)
+	{
+		UE_LOG(LogNNX, Warning, TEXT("Model preparation failed with error code:%d"), Res);
+		return -1;
+	}
+
 	// Process input tensors, and if required, allocate RDG buffers
 	FMLTensorBindingArray	RDGInputBindings;
 	FMLIntArray				RDGUploadIndices;
 
-	Res = SetTensors(GraphBuilder, RDGInputBindings, RDGUploadIndices, InInputBindings, InputTensors);
+	Res = SetTensors(RDGBuilder, RDGInputBindings, RDGUploadIndices, InInputBindings, InputTensors);
 	if (Res != 0)
 	{
 		UE_LOG(LogNNX, Warning, TEXT("Invalid input tensor binding type for tensor index:%d"), Res);
@@ -309,7 +381,7 @@ int FMLInferenceModelRDG::EnqueueRDG(FRDGBuilder& GraphBuilder, TArrayView<const
 	FMLTensorBindingArray	RDGOutputBindings;
 	FMLIntArray				RDGReadbackIndices;
 
-	Res = SetTensors(GraphBuilder, RDGOutputBindings, RDGReadbackIndices, InOutputBindings, OutputTensors);
+	Res = SetTensors(RDGBuilder, RDGOutputBindings, RDGReadbackIndices, InOutputBindings, OutputTensors);
 	if (Res != 0)
 	{
 		UE_LOG(LogNNX, Warning, TEXT("Invalid output tensor binding type for tensor index:%d"), Res);
@@ -319,16 +391,53 @@ int FMLInferenceModelRDG::EnqueueRDG(FRDGBuilder& GraphBuilder, TArrayView<const
 	// If required, upload input tensors to GPU
 	if (!RDGUploadIndices.IsEmpty())
 	{
-		AddTensorUploads_RenderThread(GraphBuilder, RDGUploadIndices, RDGInputBindings, InInputBindings);
+		AddTensorUploads_RenderThread(RDGBuilder, RDGUploadIndices, RDGInputBindings, InInputBindings);
 	}
 
+	AllTensorBindings.Empty();
+	AllTensorBindings.SetNumUninitialized(AllTensors.Num());
+	checkCode(
+		for (int32 i = 0; i < AllTensorBindings.Num(); ++i)
+		{
+			AllTensorBindings[i].SizeInBytes = 0;
+		}
+	);
+	
+	//Create intermediate tensors bindings
+	for (int32 Idx : IntermediateTensorIndices)
+	{
+		const FMLTensorDesc& TensorDesc = AllTensors[Idx];
+		FRDGBufferDesc Desc = CreateRDGBufferDescFromTensorDesc(TensorDesc);
+		FRDGBufferRef TensorBuffer = RDGBuilder.CreateBuffer(Desc, *TensorDesc.Name, ERDGBufferFlags::None);
+		AllTensorBindings[Idx] = FMLTensorBinding::FromRDG(TensorBuffer, TensorDesc.DataSize);
+	}
+
+	//Insert input tensors bindings
+	for (int32 i = 0; i < InputTensorIndices.Num(); ++i)
+	{
+		AllTensorBindings[InputTensorIndices[i]] = RDGInputBindings[i];
+	}
+
+	//Insert output tensors bindings
+	for (int32 i = 0; i < OutputTensorIndices.Num(); ++i)
+	{
+		AllTensorBindings[OutputTensorIndices[i]] = RDGOutputBindings[i];
+	}
+
+	checkCode(
+		for (int32 i = 0; i < AllTensorBindings.Num(); ++i)
+		{
+			check(AllTensorBindings[i].SizeInBytes != 0);
+		}
+	);
+	
 	// We can now dispatch operators
-	AddDispatchOps_RenderThread(GraphBuilder, RDGInputBindings, RDGOutputBindings);
+	AddDispatchOps_RenderThread(RDGBuilder);
 
 	// If required, readback the output tensors to CPU
 	if (!RDGReadbackIndices.IsEmpty())
 	{
-		AddTensorReadbacks_RenderThread(GraphBuilder, RDGReadbackIndices, RDGOutputBindings, InOutputBindings);		
+		AddTensorReadbacks_RenderThread(RDGBuilder, RDGReadbackIndices, RDGOutputBindings, InOutputBindings);
 	}
 
 	return 0;
@@ -347,9 +456,7 @@ int FMLInferenceModelRDG::SetTensors(FRDGBuilder& GraphBuilder, FMLTensorBinding
 
 		if (Binding.BindingType == EMLTensorBindingDataType::CPUMemory)
 		{
-			// FIXME: CreateStructuredDesc() creates a crash on VulkanRHI
-			//FRDGBufferDesc Desc = FRDGBufferDesc::CreateStructuredDesc(TensorDesc.GetElemByteSize(), TensorDesc.Num());
-			FRDGBufferDesc Desc = FRDGBufferDesc::CreateBufferDesc(TensorDesc.GetElemByteSize(), TensorDesc.Num());
+			FRDGBufferDesc Desc = CreateRDGBufferDescFromTensorDesc(InTensors[Idx]);
 
 			// FIXME: We should use BUF_SourceCopy for only output buffers (GPU readback)
 			Desc.Usage = EBufferUsageFlags(Desc.Usage | BUF_SourceCopy);

@@ -163,19 +163,18 @@ bool FMLInferenceModelCPU::ConfigureTensors(const bool InIsInput)
 
 	const uint32 NumberTensors = bIsInput ? Session->GetInputCount() : Session->GetOutputCount();
 
-	TArray<NNX::FMLTensorDesc>& TensorsDescriptors = bIsInput ? InputTensors : OutputTensors;
+	TArray<FSymbolicTensorDesc>& SymbolicTensorDescs = bIsInput ? InputSymbolicTensors : OutputSymbolicTensors;
 	TArray<ONNXTensorElementDataType>& TensorsORTType = bIsInput ? InputTensorsORTType : OutputTensorsORTType;
 	TArray<const char*>& TensorNames = bIsInput ? InputTensorNames : OutputTensorNames;
 
 	for (uint32 TensorIndex = 0; TensorIndex < NumberTensors; ++TensorIndex)
 	{
-		NNX::FMLTensorDesc CurrentTensorDescriptor;
+		FSymbolicTensorDesc SymbolicTensorDesc;
 
 		// Get Tensor name
 		const char* CurTensorName = bIsInput ? Session->GetInputName(TensorIndex, *Allocator) : Session->GetOutputName(TensorIndex, *Allocator);
 		TensorNames.Emplace(CurTensorName);
-		CurrentTensorDescriptor.Name = FString(CurTensorName);
-		
+		SymbolicTensorDesc.Name = FString(CurTensorName);
 
 		// Get node type
 		Ort::TypeInfo CurrentTypeInfo = bIsInput ? Session->GetInputTypeInfo(TensorIndex) : Session->GetOutputTypeInfo(TensorIndex);
@@ -186,38 +185,55 @@ bool FMLInferenceModelCPU::ConfigureTensors(const bool InIsInput)
 		TensorsORTType.Emplace(ONNXTensorElementDataTypeEnum);
 
 		std::pair<EMLTensorDataType, uint64> TypeAndSize = TranslateTensorTypeORTToNNI(ONNXTensorElementDataTypeEnum);
-		CurrentTensorDescriptor.DataType = TypeAndSize.first;
+		SymbolicTensorDesc.DataType = TypeAndSize.first;
 
-		CurrentTensorDescriptor.Shape.Data.SetNumUninitialized(CurrentTensorInfo.GetShape().size());
-		uint8 Index = 0;
-		uint64 TensorNumberElements = 1;
+		SymbolicTensorDesc.Shape.Data.Reserve(CurrentTensorInfo.GetShape().size());
 		for (const int64_t CurrentTensorSize : CurrentTensorInfo.GetShape())
 		{
-			// Negative (variable) dimensions not implemented yet
-			if (CurrentTensorSize < 0)
+			SymbolicTensorDesc.Shape.Data.Add((int32)CurrentTensorSize);
+		}
+
+		if (!SymbolicTensorDesc.IsConcrete())
 			{
-				CurrentTensorDescriptor.Shape.Data[Index] = 1;
 				UE_LOG(LogNNX, Display,
 					TEXT("Negative (i.e., variable) dimensions not allowed yet, hard-coded to 1. Let us know if you really need variable dimensions."
 						" Keep in mind that fixed sizes might allow additional optimizations and speedup of the network during Run()."));
 			}
-			else
-			{
-				CurrentTensorDescriptor.Shape.Data[Index] = CurrentTensorSize;
-				TensorNumberElements *= CurrentTensorSize;
-			}
-			++Index;
-		}
 
-		CurrentTensorDescriptor.DataSize = TensorNumberElements * TypeAndSize.second;
-		TensorsDescriptors.Emplace(CurrentTensorDescriptor);
-
+		check(SymbolicTensorDesc.GetElemByteSize() == TypeAndSize.second);
+		SymbolicTensorDescs.Emplace(SymbolicTensorDesc);
 	}
+
 	return true;
 }
 
+int FMLInferenceModelCPU::SetInputShapes(TConstArrayView<const FTensorShape> InInputShapes)
+			{
+	//Verify input shape are valid for the model
+	if (FMLInferenceModel::SetInputShapes(InInputShapes) != 0)
+	{
+		return -1;
+		}
 
-int FMLInferenceModelCPU::Run(TArrayView<const NNX::FMLTensorBinding> InInputBindingTensors, TArrayView<const NNX::FMLTensorBinding> OutOutputBindingTensors)
+	//Run shape inference
+	//TODO jira 168972: handle dynamic input shape
+
+	//Build concrete input and output tensor descriptions
+	InputTensors.Empty();
+	for (FSymbolicTensorDesc SymbolicTensorDesc : InputSymbolicTensors)
+	{
+		InputTensors.Emplace(FMLTensorDesc::MakeFromSymbolic(SymbolicTensorDesc));
+	}
+	OutputTensors.Empty();
+	for (FSymbolicTensorDesc SymbolicTensorDesc : OutputSymbolicTensors)
+	{
+		OutputTensors.Emplace(FMLTensorDesc::MakeFromSymbolic(SymbolicTensorDesc));
+}
+
+	return 0;
+}
+
+int FMLInferenceModelCPU::Run(TConstArrayView<const FMLTensorBinding> InInputBindings, TConstArrayView<const FTensorShape> InInputShapes, TConstArrayView<const FMLTensorBinding> InOutputBindings)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FMLInferenceModelCPU_Run"), STAT_FMLInferenceModelCPU_Run, STATGROUP_MachineLearning);
 
@@ -225,6 +241,14 @@ int FMLInferenceModelCPU::Run(TArrayView<const NNX::FMLTensorBinding> InInputBin
 	if (!bIsLoaded)
 	{
 		UE_LOG(LogNNX, Warning, TEXT("FMLInferenceModelCPU::Run(): Call FMLInferenceModelCPU::Load() to load a model first."));
+		return -1;
+	}
+
+	// Prepare the model for the concrete input shapes
+	int Res = SetInputShapes(InInputShapes);
+	if (Res != 0)
+	{
+		UE_LOG(LogNNX, Warning, TEXT("Model preparation failed with error code:%d"), Res);
 		return -1;
 	}
 
@@ -241,10 +265,10 @@ int FMLInferenceModelCPU::Run(TArrayView<const NNX::FMLTensorBinding> InInputBin
 #endif //WITH_EDITOR
 	{
 		TArray<Ort::Value> InputOrtTensors;
-		BindTensorsToORT(InInputBindingTensors, InputTensors, InputTensorsORTType, AllocatorInfo.Get(), InputOrtTensors);
+		BindTensorsToORT(InInputBindings, InputTensors, InputTensorsORTType, AllocatorInfo.Get(), InputOrtTensors);
 
 		TArray<Ort::Value> OutputOrtTensors;
-		BindTensorsToORT(OutOutputBindingTensors, OutputTensors, OutputTensorsORTType, AllocatorInfo.Get(), OutputOrtTensors);
+		BindTensorsToORT(InOutputBindings, OutputTensors, OutputTensorsORTType, AllocatorInfo.Get(), OutputOrtTensors);
 
 		Session->Run(Ort::RunOptions{ nullptr },
 			InputTensorNames.GetData(), &InputOrtTensors[0], InputTensorNames.Num(),

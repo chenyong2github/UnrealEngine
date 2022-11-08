@@ -35,7 +35,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 
 		// Set parameters
-		FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(OutputDesc.Num(), FElementWiseVariadicConstants::NUM_GROUP_THREADS);
+		FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(OutputDesc.Volume, FElementWiseVariadicConstants::NUM_GROUP_THREADS);
 		TElementWiseVariadicCS::FParameters* Params = GraphBuilder.AllocParameters<TElementWiseVariadicCS::FParameters>();
 
 		Params->Input0 = InputsSRV[0];
@@ -57,7 +57,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			FillTensorStrideForBroadcastShaderParameters(InputDesc[3], OutputDesc.Shape.Num(), Params->InputTensorInfo, 3);
 		}
 		FillTensorStrideShaderParameters(OutputDesc, Params->OutputTensorInfo, 0);
-		Params->Num = OutputDesc.Num();
+		Params->Num = OutputDesc.Volume;
 		Params->ThreadCountX = ThreadGroupCount.X * FElementWiseVariadicConstants::NUM_GROUP_THREADS;
 		Params->Scale = Scale;
 

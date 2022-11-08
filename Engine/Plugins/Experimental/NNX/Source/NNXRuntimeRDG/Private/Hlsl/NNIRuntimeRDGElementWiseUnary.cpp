@@ -78,7 +78,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			FRDGBufferSRVRef InputSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[0].Buffer, PF_R32_FLOAT));
 			FRDGBufferUAVRef OutputUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutOutputBindings[0].Buffer, PF_R32_FLOAT));
 		
-			FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(Output.Num(), FElementWiseUnaryConstants::NUM_GROUP_THREADS);
+			FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(Output.Volume, FElementWiseUnaryConstants::NUM_GROUP_THREADS);
 
 			// Set parameters
 			TElementWiseUnaryCS::FParameters* Params = GraphBuilder.AllocParameters<TElementWiseUnaryCS::FParameters>();
@@ -87,7 +87,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			Params->Alpha = Alpha;
 			Params->Beta = Beta;
 			Params->Gamma = Gamma;
-			Params->Num = Output.Num();
+			Params->Num = Output.Volume;
 			Params->ThreadCountX = ThreadGroupCount.X * FElementWiseUnaryConstants::NUM_GROUP_THREADS;
 
 			TElementWiseUnaryCS::FPermutationDomain PermutationVector;

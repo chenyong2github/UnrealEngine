@@ -76,10 +76,7 @@
 				},
 				{
 					"target": "TwoLayersNoWeight",
-					"runtimes": [
-						{ "name": "NNXRuntimeHlsl",	"skip": true, "comment": "Model with multiple layer not yet implemented."	},
-						{ "name": "NNXRuntimeDml",  "skip": true, "comment": "Model with multiple layer not yet implemented." }
-					]
+					"tags": [ "SmokeTest" ]
 				}
 			]
 		}

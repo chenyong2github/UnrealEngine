@@ -31,32 +31,35 @@ enum class EMLTensorDataType : uint8
 
 namespace NNX
 {
-
-struct FSymbolicTensorShape
+	
+template <typename DimType, class FinalType> struct TTensorShapeBase
 {
 	constexpr static int32	MaxRank = 8;
-	TArray<int32, TInlineAllocator<MaxRank>> Data;
+	TArray<DimType, TInlineAllocator<MaxRank>> Data;
 
 	int32 Num() const
 	{
 		return Data.Num();
 	}
 
-	static FSymbolicTensorShape Make(TConstArrayView<const int32> Data)
+	static FinalType Make(TConstArrayView<const DimType> Data)
 	{
 		if (Data.Num() > MaxRank)
 		{
-			//UE_LOG(LogNNX, Warning, TEXT("Cannot create symbolic tensor shape, input is rank %d while max rank is %d"), Data.Num(), MaxRank);
+			//UE_LOG(LogNNX, Warning, TEXT("Cannot create tensor shape, input is rank %d while max rank is %d"), Data.Num(), MaxRank);
 			return {};
 		}
 
-		FSymbolicTensorShape Shape;
-		
+		FinalType Shape;
 		Shape.Data.Append(Data);
 		return Shape;
 	}
-	
-	bool IsConcrete()
+};
+
+
+struct FSymbolicTensorShape : TTensorShapeBase<int32, FSymbolicTensorShape>
+{
+	bool IsConcrete() const
 	{
 		for (int32 i = 0; i < Data.Num(); ++i)
 		{
@@ -69,18 +72,39 @@ struct FSymbolicTensorShape
 	}
 };
 
-struct FConcreteTensorShape
+struct FTensorShape : TTensorShapeBase<uint32, FTensorShape>
 {
-	TArray<uint32, TInlineAllocator<FSymbolicTensorShape::MaxRank>> Data;
-
-	int32 Num() const
+	uint64 Volume() const
 	{
-		return Data.Num();
+		uint64 Result = 1;
+
+		for (int32 Idx = 0; Idx < Data.Num(); ++Idx)
+		{
+			Result *= Data[Idx];
+		}
+		
+		return Result;
 	}
 	
-	static FConcreteTensorShape Make(const FSymbolicTensorShape& SymbolicShape)
+	bool IsCompatibleWith(FSymbolicTensorShape SymbolicShape) const
 	{
-		FConcreteTensorShape ConcreteShape;
+		if (Num() != SymbolicShape.Num())
+		{
+			return false;
+		}
+		for (int32 i = 0; i < Num(); ++i)
+		{
+			if (SymbolicShape.Data[i] >= 0 && SymbolicShape.Data[i] != Data[i])
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	static FTensorShape MakeFromSymbolic(const FSymbolicTensorShape& SymbolicShape)
+	{
+		FTensorShape ConcreteShape;
 		for (int32 i = 0; i < SymbolicShape.Data.Num(); ++i)
 		{
 			int32 Dim = SymbolicShape.Data[i];
@@ -88,51 +112,6 @@ struct FConcreteTensorShape
 		}
 		return ConcreteShape;
 	}
-
-	static FConcreteTensorShape Make(TConstArrayView<const uint32> Data)
-	{
-		if (Data.Num() > FSymbolicTensorShape::MaxRank)
-		{
-			//UE_LOG(LogNNX, Warning, TEXT("Cannot create concrete tensor shape, input is rank %d while max rank is %d"), Data.Num(), MaxRank);
-			return {};
-		}
-
-		FConcreteTensorShape Shape;
-
-		Shape.Data.Append(Data);
-		return Shape;
-	}
-};
-
-/**
- *  Tensor descriptor
- */
-struct FMLTensorDesc
-{
-	constexpr static int32	MaxTensorDimension = 5;
-
-	FString					Name;
-	FConcreteTensorShape	Shape;
-	uint64					DataSize;//!< Size of data in bytes
-	EMLTensorDataType		DataType;
-
-	/** Make tensor descriptor */
-	static FMLTensorDesc Make(const FString& Name, const FConcreteTensorShape& Shape, EMLTensorDataType DataType, uint64 DataSize = 0)
-	{
-		return {Name, Shape, DataSize, DataType};
-	}
-
-	/** Check if descriptor is valid */
-	bool IsValid() const;
-
-	/** Return size of one element in bytes */
-	int32 GetElemByteSize() const;
-
-	/** Return Volume, i.e. number of elements */
-	int32 Volume() const;
-
-	/** Return number of elements, same as Volume() */
-	int32 Num() const;
 };
 
 /** Return data size in bytes for tensor data type */
@@ -140,67 +119,91 @@ inline size_t GetTensorDataTypeSizeInBytes(EMLTensorDataType InType)
 {
 	switch (InType)
 	{
-		case EMLTensorDataType::Complex128:
-			return 16;
+	case EMLTensorDataType::Complex128:
+		return 16;
 
-		case EMLTensorDataType::Complex64:
-			return 8;
+	case EMLTensorDataType::Complex64:
+		return 8;
 
-		case EMLTensorDataType::Double:
-		case EMLTensorDataType::Int64:
-		case EMLTensorDataType::UInt64:
-			return 8;
+	case EMLTensorDataType::Double:
+	case EMLTensorDataType::Int64:
+	case EMLTensorDataType::UInt64:
+		return 8;
 
-		case EMLTensorDataType::Float:
-		case EMLTensorDataType::Int32:
-		case EMLTensorDataType::UInt32:
-			return 4;
+	case EMLTensorDataType::Float:
+	case EMLTensorDataType::Int32:
+	case EMLTensorDataType::UInt32:
+		return 4;
 
-		case EMLTensorDataType::Half:
-		case EMLTensorDataType::BFloat16:
-		case EMLTensorDataType::Int16:
-		case EMLTensorDataType::UInt16:
-			return 2;
+	case EMLTensorDataType::Half:
+	case EMLTensorDataType::BFloat16:
+	case EMLTensorDataType::Int16:
+	case EMLTensorDataType::UInt16:
+		return 2;
 
-		case EMLTensorDataType::Int8:
-		case EMLTensorDataType::UInt8:
-		case EMLTensorDataType::Char:
-		case EMLTensorDataType::Boolean:
-			return 1;
+	case EMLTensorDataType::Int8:
+	case EMLTensorDataType::UInt8:
+	case EMLTensorDataType::Char:
+	case EMLTensorDataType::Boolean:
+		return 1;
 	}
 
 	return 0;
 }
 
-/** Check if descriptor is valid */
-inline bool FMLTensorDesc::IsValid() const
+struct FTensorDescBase
 {
-	return DataType != EMLTensorDataType::None && Shape.Data.Num() > 0 && Shape.Data.Num() <= MaxTensorDimension; //&& Volume() >= 1;
-}
+	FString					Name;
+	EMLTensorDataType		DataType;
 
-/** Return size of one element in bytes */
-inline int32 FMLTensorDesc::GetElemByteSize() const
-{
-	return GetTensorDataTypeSizeInBytes(DataType);
-}
-
-/** Return Volume, i.e. number of elements */
-inline int32 FMLTensorDesc::Volume() const
-{
-	int32 Result = 1;
-
-	for (int32 Idx = 0; Idx < Shape.Data.Num(); ++Idx)
+	/** Return size of one element in bytes */
+	uint32 GetElemByteSize() const
 	{
-		Result *= Shape.Data[Idx];
+		return GetTensorDataTypeSizeInBytes(DataType);
+	}
+	
+	bool IsValid() const
+	{
+		return DataType != EMLTensorDataType::None;
+	}
+};
+
+/** Symbolic tensor descriptor */
+struct FSymbolicTensorDesc : FTensorDescBase
+{
+	FSymbolicTensorShape	Shape;
+
+	static FSymbolicTensorDesc Make(const FString& Name, const FSymbolicTensorShape& Shape, EMLTensorDataType DataType)
+	{
+		return { {Name, DataType} , Shape };
 	}
 
-	return Result;
-}
+	bool IsConcrete() const
+	{
+		return Shape.IsConcrete();
+	}
+};
 
-/** Return number of elements */
-inline int32 FMLTensorDesc::Num() const
+/** Concrete tensor descriptor */
+ struct FMLTensorDesc : FTensorDescBase
 {
-	return Volume();
-}
+	FTensorShape Shape;
+	uint32 Volume;
+	uint64 DataSize;
+
+	static FMLTensorDesc Make(const FString& Name, const FTensorShape& Shape, EMLTensorDataType DataType)
+	{
+		uint64 Volume = Shape.Volume();
+		uint64 DataSize = (uint64)GetTensorDataTypeSizeInBytes(DataType) * Volume;
+		
+		check(Volume <= TNumericLimits<uint32>::Max());
+		return { {Name, DataType}, Shape, (uint32)Volume, DataSize };
+	}
+
+	static FMLTensorDesc MakeFromSymbolic(const FSymbolicTensorDesc& TensorDesc)
+	{
+		return Make(TensorDesc.Name, FTensorShape::MakeFromSymbolic(TensorDesc.Shape), TensorDesc.DataType);
+	}
+};
 
 } // namespace NNX

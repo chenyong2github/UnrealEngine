@@ -129,7 +129,7 @@ public:
 		
 		if (Format.Tensors[Idx].Type != EMLFormatTensorType::None)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to add input tensor, tensor usage already setupped"));
+			UE_LOG(LogNNX, Warning, TEXT("Failed to add input tensor, tensor usage already set up"));
 			return false;
 		}
 		
@@ -151,7 +151,7 @@ public:
 
 		if (Format.Tensors[Idx].Type != EMLFormatTensorType::None)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to add output tensor, tensor usage already setupped"));
+			UE_LOG(LogNNX, Warning, TEXT("Failed to add output tensor, tensor usage already set up"));
 			return false;
 		}
 
@@ -204,7 +204,7 @@ public:
 
 		if (Format.Tensors[TensorIdx].Type == EMLFormatTensorType::Input)
 		{
-			UE_LOG(LogNNX, Warning, TEXT("Failed to add output tensor, tensor usage already setupped to input"));
+			UE_LOG(LogNNX, Warning, TEXT("Failed to add output tensor, tensor usage already set up to input"));
 			return false;
 		}
 

@@ -49,7 +49,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			FRDGBufferSRVRef RHSInputSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[1].Buffer, PF_R32_FLOAT));
 			FRDGBufferUAVRef OutputUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutOutputBindings[0].Buffer, PF_R32_FLOAT));
 
-			FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(Output.Num(), FElementWiseBinaryConstants::NUM_GROUP_THREADS);
+			FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(Output.Volume, FElementWiseBinaryConstants::NUM_GROUP_THREADS);
 
 			// Set parameters
 			TElementWiseBinaryCS::FParameters* Params = GraphBuilder.AllocParameters<TElementWiseBinaryCS::FParameters>();
@@ -59,7 +59,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			FillTensorStrideForBroadcastShaderParameters(LHSInput, Output.Shape.Num(), Params->TensorInfo, 0);
 			FillTensorStrideForBroadcastShaderParameters(RHSInput, Output.Shape.Num(), Params->TensorInfo, 1);
 			FillTensorStrideShaderParameters(Output, Params->TensorInfo, 2);
-			Params->Num = Output.Num();
+			Params->Num = Output.Volume;
 			Params->ThreadCountX = ThreadGroupCount.X * FElementWiseBinaryConstants::NUM_GROUP_THREADS;
 
 			TElementWiseBinaryCS::FPermutationDomain PermutationVector;

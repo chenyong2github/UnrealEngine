@@ -3,9 +3,7 @@
 #pragma once
 
 #include "NNXTypes.h"
-
 #include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
 
 class FRDGBuffer;
 
@@ -65,7 +63,7 @@ enum class EMLTensorBindingDataType : uint8
 };
 
 /** Tensor binding */
-struct FMLTensorBinding
+struct NNXCORE_API FMLTensorBinding
 {
 	union
 	{
@@ -80,50 +78,9 @@ struct FMLTensorBinding
 	uint64						OffsetInBytes;						//!< Offset in bytes from the start of data
 	EMLTensorBindingDataType	BindingType;
 
-	/**
-	 * Initialize binding from CPU memory
-	 */
-	static FMLTensorBinding FromCPU(void* CpuMemory, uint64 InSize, uint64 InOffset = 0)
-	{
-		FMLTensorBinding	Binding;
-
-		Binding.BindingType = EMLTensorBindingDataType::CPUMemory;
-		Binding.CpuMemory = CpuMemory;
-		Binding.SizeInBytes = InSize;
-		Binding.OffsetInBytes = InOffset;
-
-		return Binding;
-	}
-
-	/**
-	 * Initialize binding from GPU memory
-	 */
-	static FMLTensorBinding FromGPU(uint64 GpuMemory, uint64 InSize, uint64 InOffset = 0)
-	{
-		FMLTensorBinding	Binding;
-
-		Binding.BindingType = EMLTensorBindingDataType::GPUMemory;
-		Binding.GpuMemory = GpuMemory;
-		Binding.SizeInBytes = InSize;
-		Binding.OffsetInBytes = InOffset;
-
-		return Binding;
-	}
-
-	/**
-	 * Initialize binding from RDG allocated buffer memory
-	 */
-	static FMLTensorBinding FromRDG(FRDGBuffer* BufferRef, uint64 InSize, uint64 InOffset = 0)
-	{
-		FMLTensorBinding	Binding;
-
-		Binding.BindingType = EMLTensorBindingDataType::RDGBuffer;
-		Binding.Buffer = BufferRef;
-		Binding.SizeInBytes = InSize;
-		Binding.OffsetInBytes = InOffset;
-
-		return Binding;
-	}
+	static FMLTensorBinding FromCPU(void* CpuMemory, uint64 InSize, uint64 InOffset = 0);
+	static FMLTensorBinding FromGPU(uint64 GpuMemory, uint64 InSize, uint64 InOffset = 0);
+	static FMLTensorBinding FromRDG(FRDGBuffer* BufferRef, uint64 InSize, uint64 InOffset = 0);
 };
 
 enum class EMLInferenceModelType : uint8
@@ -134,7 +91,7 @@ enum class EMLInferenceModelType : uint8
 };
 
 /** Runtime Inference model is used to execute / run model inference */
-class FMLInferenceModel
+class NNXCORE_API FMLInferenceModel
 {
 public:
 
@@ -145,22 +102,30 @@ public:
 		return Type;
 	}
 
-	int32 InputTensorNum() const;
-	const FMLTensorDesc& GetInputTensor(int32 Index) const;
-	TArrayView<const FMLTensorDesc> GetInputTensors() const;
+	/** Getters for tensor description as defined by the model potentially with variable dimensions() */
+	TConstArrayView<const FSymbolicTensorDesc> GetInputTensorDescs() const;
+	TConstArrayView<const FSymbolicTensorDesc> GetOutputTensorDescs() const;
 
-	int32 OutputTensorNum() const;
-	const FMLTensorDesc& GetOutputTensor(int32 Index) const;
-	TArrayView<const FMLTensorDesc> GetOutputTensors() const;
+	/** Getters for input/output shapes if they were set already. Empty list otherwise. See SetInputShapes() */
+	TConstArrayView<const FTensorShape> GetInputTensorShapes() const;
+	TConstArrayView<const FTensorShape> GetOutputTensorShapes() const;
+	
+	/** This call will prepare the model to be run with the given input shape, it is an optional call.
+	 * Run() and EnqueueRDG() will call it internally if it was not call explicitely.
+	 * It is recommended to call this function ahead of time to avoid overhead during the first model execution. */
+	virtual int SetInputShapes(TConstArrayView<const FTensorShape> InInputShapes);
 
-	/** This call is synchronous on all Inference model types(CPU, RDG, GPU), i.e.the calling thread will be blocked
-	 * until inference is not finished
-	 */
-	virtual int Run(TArrayView<const FMLTensorBinding> InInputTensors, TArrayView<const FMLTensorBinding> OutOutputTensors) = 0;
+	/** This call is synchronous on all engine types(CPU, RDG, GPU), i.e.the calling thread will be blocked.
+	 * until execution is finished */
+	virtual int Run(TConstArrayView<const FMLTensorBinding> InInputTensors,
+		            TConstArrayView<const FTensorShape> InInputShapes,
+					TConstArrayView<const FMLTensorBinding> InOutputTensors) = 0;
 
-	/** Enqueue the inference operators on the Render graph render thread. It's caller's responsibility to actually run the graph.
-	 */
-	virtual int EnqueueRDG(FRDGBuilder& GraphBuilder, TArrayView<const FMLTensorBinding> InInputTensors, TArrayView<const FMLTensorBinding> OutOutputTensors)
+	/** Enqueue the execution on the Render graph render thread. It's caller's responsibility to actually run the graph. */
+	virtual int EnqueueRDG(FRDGBuilder& RDGBuilder, 
+		TConstArrayView<const FMLTensorBinding> InInputTensors, 
+		TConstArrayView<const FTensorShape> InInputShapes,
+		TConstArrayView<const FMLTensorBinding> InOutputTensors)
 	{
 		return -1;
 	}
@@ -171,9 +136,10 @@ protected:
 		: Type(InType)
 	{}
 
-	TArray<FMLTensorDesc>	InputTensors;
-	TArray<FMLTensorDesc>	OutputTensors;
-	TArray<FMLTensorDesc>	AllTensors;
+	TArray<FTensorShape>		InputTensorShapes;
+	TArray<FTensorShape>		OutputTensorShapes;
+	TArray<FSymbolicTensorDesc>	InputSymbolicTensors;
+	TArray<FSymbolicTensorDesc>	OutputSymbolicTensors;
 	EMLInferenceModelType	Type;
 };
 
@@ -182,36 +148,24 @@ protected:
 // IMPLEMENTATION
 //-----------------------------------------------------------------------------
 
-inline int32 FMLInferenceModel::InputTensorNum() const
+inline TConstArrayView<const FSymbolicTensorDesc> FMLInferenceModel::GetInputTensorDescs() const
 {
-	return InputTensors.Num();
+	return InputSymbolicTensors;
 }
 
-inline const FMLTensorDesc& FMLInferenceModel::GetInputTensor(int32 Index) const
+inline TConstArrayView<const FSymbolicTensorDesc> FMLInferenceModel::GetOutputTensorDescs() const
 {
-	checkf(Index < InputTensors.Num(), TEXT("Invalid tensor index"));
-	return InputTensors[Index];
+	return OutputSymbolicTensors;
 }
 
-inline TArrayView<const FMLTensorDesc> FMLInferenceModel::GetInputTensors() const
+inline TConstArrayView<const FTensorShape> FMLInferenceModel::GetInputTensorShapes() const
 {
-	return InputTensors;
+	return InputTensorShapes;
 }
 
-inline int32 FMLInferenceModel::OutputTensorNum() const
+inline TConstArrayView<const FTensorShape> FMLInferenceModel::GetOutputTensorShapes() const
 {
-	return OutputTensors.Num();
-}
-
-inline const FMLTensorDesc& FMLInferenceModel::GetOutputTensor(int32 Index) const
-{
-	checkf(Index < OutputTensors.Num(), TEXT("Invalid tensor index"));
-	return OutputTensors[Index];
-}
-
-inline TArrayView<const FMLTensorDesc> FMLInferenceModel::GetOutputTensors() const
-{
-	return OutputTensors;
+	return OutputTensorShapes;
 }
 
 //struct FMLOperatorDomain

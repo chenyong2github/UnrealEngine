@@ -34,7 +34,7 @@ public:
 
 protected:
 
-	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings) override;
+	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) override;
 
 private:
 
@@ -83,11 +83,15 @@ bool FMLInferenceModelHlsl::Init(UMLInferenceModel* InModel)
 
 		for (int32 InputTensorIndex : Format.Operators[Idx].InTensors)
 		{
-			OpInputTensors.Emplace(AllTensors[InputTensorIndex]);
+			FSymbolicTensorDesc SymbolicTensorDesc = AllSymbolicTensors[InputTensorIndex];
+			//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
+			OpInputTensors.Emplace(FMLTensorDesc::MakeFromSymbolic(SymbolicTensorDesc));
 		}
 		for (int32 OutputTensorIndex : Format.Operators[Idx].OutTensors)
 		{
-			OpOutputTensors.Emplace(AllTensors[OutputTensorIndex]);
+			FSymbolicTensorDesc SymbolicTensorDesc = AllSymbolicTensors[OutputTensorIndex];
+			//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
+			OpOutputTensors.Emplace(FMLTensorDesc::MakeFromSymbolic(SymbolicTensorDesc));
 		}
 		for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 		{
@@ -133,14 +137,40 @@ FMLOperatorHlsl* FMLInferenceModelHlsl::OpCreate(const FString& OpName, TArrayVi
 //
 //
 //
-void FMLInferenceModelHlsl::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings)
+void FMLInferenceModelHlsl::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder)
 {
+	check(AllTensorBindings.Num() == AllTensors.Num());
+	checkCode(
+		for (int32 i = 0; i < AllTensorBindings.Num(); ++i)
+		{
+			check(AllTensors[i].DataSize == AllTensorBindings[i].SizeInBytes);
+		}
+	);
+
+	static constexpr int32 MaxExpectedInput = 10;
+	TArray<FMLTensorBinding, TInlineAllocator<MaxExpectedInput>> InputBindings;
+
+	static constexpr int32 MaxExpectedOutput = 2;
+	TArray<FMLTensorBinding, TInlineAllocator<MaxExpectedOutput>> OutputBindings;
+
 	// Add passes for all operators
 	for (int32 Idx = 0; Idx < Operators.Num(); ++Idx)
 	{
+		InputBindings.Empty();
+		for (int32 i : OperatorInputTensorIndices[Idx])
+		{
+			InputBindings.Emplace(AllTensorBindings[i]);
+		}
+		OutputBindings.Empty();
+		for (int32 i : OperatorOutputTensorIndices[Idx])
+		{
+			OutputBindings.Emplace(AllTensorBindings[i]);
+		}
+
 		FMLOperatorHlsl* Op = Operators[Idx];
 
-		Op->Dispatch(GraphBuilder, InInputBindings, OutOutputBindings);
+		//TODO jira 169354 pass shape information to Op.Dispatch probably via an object containing both mem info and shape (from AllTensors).
+		Op->Dispatch(GraphBuilder, InputBindings, OutputBindings);
 	}
 }
 

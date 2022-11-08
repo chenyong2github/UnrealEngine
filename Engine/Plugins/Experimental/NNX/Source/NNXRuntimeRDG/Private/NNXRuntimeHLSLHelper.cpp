@@ -15,7 +15,7 @@ namespace NNX
 		checkf(TargetNumdimensionForBroadcast >= TensorDesc.Shape.Num(), TEXT("Can't broadcast tensor from rank %d to rank %d, should be inferior or equal."), TensorDesc.Shape.Num(), TargetNumdimensionForBroadcast);
 		int32 Offset = TargetNumdimensionForBroadcast - TensorDesc.Shape.Num();
 
-		static_assert(FMLTensorDesc::MaxTensorDimension <= NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS);
+		static_assert(FTensorShape::MaxRank <= NXRT_TENSORSTRIDEINFO_MAX_NUM_DIMENSIONS);
 		for (int32 i = 7; i >= 0; --i)
 		{
 			if (i >= TargetNumdimensionForBroadcast || i < Offset)
