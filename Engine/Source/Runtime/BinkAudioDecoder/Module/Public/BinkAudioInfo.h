@@ -21,6 +21,7 @@ public:
 	virtual uint32 GetMaxFrameSizeSamples() const override;
 	virtual bool CreateDecoder() override;
 	virtual void SeekToTime(const float SeekToTimeSeconds) override;
+	virtual void PrepareToLoop() override;
 	virtual FDecodeResult Decode(const uint8* CompressedData, const int32 CompressedDataSize, uint8* OutPCMData, const int32 OutputPCMDataSize) override;
 	virtual bool HasError() const override;
 	//~ End IStreamedCompressedInfo Interface

@@ -98,6 +98,20 @@ FBinkAudioInfo::~FBinkAudioInfo()
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+void FBinkAudioInfo::PrepareToLoop()
+{
+#if WITH_BINK_AUDIO
+	UEBinkAudioDecodeInterface* BinkInterface = UnrealBinkAudioDecodeInterface();
+	void** Streams = Decoder->Decoders();
+	for (uint8 i = 0; i < Decoder->StreamCount; i++)
+	{
+		BinkInterface->ResetStartFn(Streams[i]);
+	}
+#endif // WITH_BINK_AUDIO
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 void FBinkAudioInfo::SeekToTime(const float SeekTimeSeconds)
 {
 	if (Decoder->SeekTableCount == 0)
