@@ -447,8 +447,6 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 
 	const int w = hf.width;
 	const int h = hf.height;
-	const rcReal by = bmax[1] - bmin[1];
-	const int projectTriToBottom = rasterizationFlags & RC_PROJECT_TO_BOTTOM; //UE
 
 	int intverts[3][2];
 
@@ -467,6 +465,9 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 	if (x1 < 0 || x0 >= w || y1 < 0 || y0 >= h)
 		return;
 
+	const rcReal by = bmax[1] - bmin[1];
+	const int projectTriToBottom = rasterizationFlags & RC_PROJECT_TO_BOTTOM; //UE
+	
 	// Calculate min and max of the triangle
 
 	rcReal triangle_smin = rcMin(rcMin(v0[1], v1[1]), v2[1]);

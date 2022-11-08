@@ -494,49 +494,12 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 
 		NavMeshDrawOffset.Z = NavMesh->DrawOffset;
 
-		{
-			// On screen information
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_2DLabels);
-			
-			// Navmesh
-			const ERuntimeGenerationType Mode = NavMesh->GetRuntimeGenerationMode();
-			const FString GenerationMode = Mode == ERuntimeGenerationType::Static ? TEXT("Static") :
-				(Mode == ERuntimeGenerationType::Dynamic ? TEXT("Dynamic") : (Mode == ERuntimeGenerationType::DynamicModifiersOnly ? TEXT("DynamicModifersOnly") : TEXT("Unknown")));
-			DebugLabels.Add(FDebugText(FString::Printf(TEXT("%s (%s%s)"), *NavMesh->GetName(), NavMesh->bIsWorldPartitioned ? TEXT("WP ") : TEXT(""), *GenerationMode)));
-			DebugLabels.Add(FDebugText(FString::Printf(TEXT("AgentRadius %0.1f, AgentHeight %0.1f, CellSize %0.1f, CellHeight %0.1f"), NavMesh->AgentRadius, NavMesh->AgentHeight, NavMesh->CellSize, NavMesh->CellHeight)));
-			DebugLabels.Add(FDebugText(TEXT(" "))); // empty line
-
-			if (NavMesh->GetActiveTiles().Num() != 0)
-			{
-				DebugLabels.Add(FDebugText(FString::Printf(TEXT("Active tiles: %i"), NavMesh->GetActiveTiles().Num())));	
-			}	
-			
-			DebugLabels.Add(FDebugText(TEXT(" "))); // empty line
-			
-			// Navigation system
-			if (const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(NavMesh->GetWorld()))
-			{
-				DebugLabels.Add(FDebugText(FString::Printf(TEXT("MainNavData: %s"), NavSys->MainNavData ? *NavSys->MainNavData->GetName() : TEXT("none"))));
-
-				if (NavSys->IsActiveTilesGenerationEnabled()) // Checks bGenerateNavigationOnlyAroundNavigationInvokers
-				{
-					DebugLabels.Add(FDebugText(FString::Printf(TEXT("Invoker Locations: %i"), NavSys->GetInvokerLocations().Num())));	
-				}
-				
-				const int32 Running = NavSys->GetNumRunningBuildTasks();
-				const int32 Remaining = NavSys->GetNumRemainingBuildTasks(); 
-				if (Running || Remaining)
-				{
-					DebugLabels.Add(FDebugText(FString::Printf(TEXT("Tile jobs running/remaining: %6d / %6d"), Running, Remaining)));	
-				}
-			}
-		}
-
 		FRecastDebugGeometry NavMeshGeometry;
 		NavMeshGeometry.bGatherPolyEdges = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::PolyEdges);
 		NavMeshGeometry.bGatherNavMeshEdges = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::BoundaryEdges);
 		NavMeshGeometry.bMarkForbiddenPolys = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::MarkForbiddenPolys);
 		NavMeshGeometry.bGatherTileBuildTimesHeatMap = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::TileBuildTimesHeatMap);
+		const bool bGatherTileBuildTimes = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::TileBuildTimes);
 
 #if RECAST_INTERNAL_DEBUG_DATA
 		// Colors for tile build times heat map
@@ -551,29 +514,121 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 
 		TArray<FColor> TileBuildTimeColors;
 		const TMap<FIntPoint, FRecastInternalDebugData>* DebugDataMap = NavMesh->GetDebugDataMap();
-		
-		if (NavMeshGeometry.bGatherTileBuildTimesHeatMap)
+
+		double TotalTileBuildTime = 0.;
+		double AverageBuildTime = 0.;
+		double AverageCompLayersBuildTime = 0.;
+		double AverageNavLayersBuildTime = 0.;
+		if (bGatherTileBuildTimes || NavMeshGeometry.bGatherTileBuildTimesHeatMap)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_MaxTileBuildTime);
 			
-			// Find MaxTileBuildTime 
-			NavMeshGeometry.MaxTileBuildTime = 0;
+			// Find min and max tile build time
+			NavMeshGeometry.MinTileBuildTime = DBL_MAX;
+			NavMeshGeometry.MaxTileBuildTime = 0.;
 			if (DebugDataMap)
 			{
 				for(const TPair<FIntPoint, FRecastInternalDebugData>& Pair : *DebugDataMap)
 				{
 					NavMeshGeometry.MaxTileBuildTime = FMath::Max(NavMeshGeometry.MaxTileBuildTime, Pair.Value.BuildTime);
+					NavMeshGeometry.MinTileBuildTime = FMath::Min(NavMeshGeometry.MinTileBuildTime, Pair.Value.BuildTime);
+					
+					AverageBuildTime += Pair.Value.BuildTime;
+					AverageCompLayersBuildTime += Pair.Value.BuildCompressedLayerTime;
+					AverageNavLayersBuildTime += Pair.Value.BuildNavigationDataTime;
 				}
 			}
 
+			TotalTileBuildTime = AverageBuildTime;
+			AverageBuildTime /= DebugDataMap->Num();
+			AverageCompLayersBuildTime /= DebugDataMap->Num();
+			AverageNavLayersBuildTime /= DebugDataMap->Num();
+		}
+
+		if(NavMeshGeometry.bGatherTileBuildTimesHeatMap)
+		{
 			TileBuildTimeColors.AddDefaulted(FRecastDebugGeometry::BuildTimeBucketsCount);
 			for (int32 Index = 0; Index < FRecastDebugGeometry::BuildTimeBucketsCount; Index++)
 			{
 				const float LerpValue = (float)Index / (FRecastDebugGeometry::BuildTimeBucketsCount-1);
-				TileBuildTimeColors[Index] = LerpColor(FColor::Cyan.WithAlpha(128), FColor::Red.WithAlpha(128), LerpValue);
+				TileBuildTimeColors[Index] = LerpColor(FColor::Blue.WithAlpha(140), FColor::Red.WithAlpha(140), LerpValue);
 			}
 		}
 #endif // RECAST_INTERNAL_DEBUG_DATA
+
+		{
+			// On screen information
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_2DLabels);
+
+			auto GetPartitioningString = [](const ERecastPartitioning::Type Type) -> FString
+			{
+				return Type == ERecastPartitioning::Monotone ? TEXT("Monotone") :
+					Type == ERecastPartitioning::Watershed ? TEXT("Watershed") : Type == ERecastPartitioning::ChunkyMonotone ? TEXT("ChunkyMonotone") : TEXT("Unknown");
+			}; 
+			
+			// Navmesh
+			const ERuntimeGenerationType Mode = NavMesh->GetRuntimeGenerationMode();
+			const FString GenerationMode = Mode == ERuntimeGenerationType::Static ? TEXT("Static") :
+				(Mode == ERuntimeGenerationType::Dynamic ? TEXT("Dynamic") : (Mode == ERuntimeGenerationType::DynamicModifiersOnly ? TEXT("DynamicModifersOnly") : TEXT("Unknown")));
+			DebugLabels.Add(FDebugText(FString::Printf(TEXT("%s (%s%s)"), *NavMesh->GetName(), NavMesh->bIsWorldPartitioned ? TEXT("WP ") : TEXT(""), *GenerationMode)));
+			DebugLabels.Add(FDebugText(FString::Printf(TEXT("AgentRadius %0.1f, AgentHeight %0.1f, CellSize %0.1f, CellHeight %0.1f"), NavMesh->AgentRadius, NavMesh->AgentHeight, NavMesh->CellSize, NavMesh->CellHeight)));
+			DebugLabels.Add(FDebugText(FString::Printf(TEXT("Region part %s, Layer part %s"), *GetPartitioningString(NavMesh->RegionPartitioning), *GetPartitioningString(NavMesh->LayerPartitioning))));
+			DebugLabels.Add(FDebugText(TEXT(""))); // empty line
+
+			if (NavMesh->GetActiveTiles().Num() != 0)
+			{
+				DebugLabels.Add(FDebugText(FString::Printf(TEXT("Active tiles: %i"), NavMesh->GetActiveTiles().Num())));	
+			}	
+			
+			// Navigation system
+			if (const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(NavMesh->GetWorld()))
+			{
+				DebugLabels.Add(FDebugText(FString::Printf(TEXT("NavData count: %i"), NavSys->NavDataSet.Num())));
+				DebugLabels.Add(FDebugText(FString::Printf(TEXT("MainNavData: %s"), NavSys->MainNavData ? *NavSys->MainNavData->GetName() : TEXT("none"))));
+
+#if WITH_NAVMESH_CLUSTER_LINKS
+				DebugLabels.Add(FDebugText(FString::Printf(TEXT("Using cluster links"))));
+#endif // WITH_NAVMESH_CLUSTER_LINKS
+
+				if (NavSys->IsActiveTilesGenerationEnabled()) // Checks bGenerateNavigationOnlyAroundNavigationInvokers
+				{
+					DebugLabels.Add(FDebugText(FString::Printf(TEXT("Invoker Locations: %i"), NavSys->GetInvokerLocations().Num())));	
+				}
+				
+				const int32 Running = NavSys->GetNumRunningBuildTasks();
+				const int32 Remaining = NavSys->GetNumRemainingBuildTasks(); 
+				if (Running || Remaining)
+				{
+					DebugLabels.Add(FDebugText(FString::Printf(TEXT("Tile jobs running/remaining: %6d / %6d"), Running, Remaining)));	
+				}
+
+				DebugLabels.Add(FDebugText(TEXT(""))); // empty line
+			}
+
+#if RECAST_INTERNAL_DEBUG_DATA			
+			// Tile build time statistics
+			if (bGatherTileBuildTimes || NavMeshGeometry.bGatherTileBuildTimesHeatMap)
+			{
+				DebugLabels.Add(FDebugText(FString::Printf(TEXT("Tile count: %i"), DebugDataMap->Num())));
+				DebugLabels.Add(FDebugText(FString::Printf(TEXT("Avg tile build time: %0.2f ms"), AverageBuildTime*1000.)));
+				DebugLabels.Add(FDebugText(FString::Printf(TEXT("   Avg comp layers time: %0.1f ms"), AverageCompLayersBuildTime*1000.)));
+				DebugLabels.Add(FDebugText(FString::Printf(TEXT("   Avg nav layers time: %0.1f ms"), AverageNavLayersBuildTime*1000.)));
+				DebugLabels.Add(FDebugText(FString::Printf(TEXT("Min: %0.2f ms  Max: %0.2f ms"), NavMeshGeometry.MinTileBuildTime*1000., NavMeshGeometry.MaxTileBuildTime*1000.)));
+				DebugLabels.Add(FDebugText(FString::Printf(TEXT("Total: %0.3f s"), TotalTileBuildTime)));
+
+				DebugLabels.Add(FDebugText(TEXT(""))); // empty line
+				const double TileAreaM2 = FMath::Square(NavMesh->TileSizeUU) / 10000.;
+				const double TotalAreaM2 = DebugDataMap->Num() * TileAreaM2;
+				const double TimePer100M2Ms = (TotalTileBuildTime / (TotalAreaM2/100.)) * 1000.;
+				DebugLabels.Add(FDebugText(FString::Printf(TEXT("Time per 100m2: %0.2f ms"), TimePer100M2Ms)));
+
+				const double TimePerSqKmS = TotalTileBuildTime / (TotalAreaM2/1000000.);
+				DebugLabels.Add(FDebugText(FString::Printf(TEXT("Time per km2: %0.3f s"), TimePerSqKmS)));
+
+				DebugLabels.Add(FDebugText(TEXT(""))); // empty line
+			}
+#endif // RECAST_INTERNAL_DEBUG_DATA		
+		}
 		
 		const FNavDataConfig& NavConfig = NavMesh->GetConfig();
 		TArray<FColor> NavMeshColors;
@@ -715,8 +770,6 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		const bool bGatherPolygonLabels = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::PolygonLabels);
 		const bool bGatherPolygonCost = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::PolygonCost);
 		const bool bGatherPolygonFlags = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::PolygonFlags);
-		const bool bGatherTileBuildTimes = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::TileBuildTimes);
-		const bool bGatherTileBuildHeatMap = FNavMeshRenderingHelpers::HasFlag(NavDetailFlags, ENavMeshDetailFlags::TileBuildTimesHeatMap);
 
 		if (bGatherTileLabels || bGatherTileBounds || bGatherPolygonLabels || bGatherPolygonCost || bGatherPolygonFlags || bGatherTileBuildTimes)
 		{
@@ -863,7 +916,19 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 						const double BuildTimeMs = DebugData->BuildTime * SecToMs;
 						const double CompressedLayerTimeMs = DebugData->BuildCompressedLayerTime * SecToMs;
 						const double NavigationDataTimeMs = DebugData->BuildNavigationDataTime * SecToMs;
-						DebugLabels.Add(FDebugText(Pair.Value + NavMeshDrawOffset, FString::Printf(TEXT("%.2f ms\n%.2f + %.2f"), BuildTimeMs, CompressedLayerTimeMs, NavigationDataTimeMs)));
+
+						const double Range = NavMeshGeometry.MaxTileBuildTime - NavMeshGeometry.MinTileBuildTime;
+						int32 Rank = 0;
+						if (Range != 0.)
+						{
+							Rank = FRecastDebugGeometry::BuildTimeBucketsCount * ((DebugData->BuildTime - NavMeshGeometry.MinTileBuildTime) / Range);
+							Rank = FMath::Clamp(Rank, 0, FRecastDebugGeometry::BuildTimeBucketsCount-1);
+						}
+
+						DebugLabels.Add(FDebugText(Pair.Value + NavMeshDrawOffset, FString::Printf(TEXT("%.2f ms\n%.2f comp + %.2f nav\n%i tri\nrank %i"),
+							BuildTimeMs, CompressedLayerTimeMs, NavigationDataTimeMs,
+							DebugData->TriangleCount,
+							Rank)));
 					}
 				}
 			}
@@ -931,7 +996,7 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 		}
 
 #if RECAST_INTERNAL_DEBUG_DATA		
-		if (bGatherTileBuildHeatMap)
+		if (NavMeshGeometry.bGatherTileBuildTimesHeatMap)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_GatherDebugDrawing_GatherTileBuildHeatMap);
 			
@@ -1508,7 +1573,14 @@ void FNavMeshDebugDrawDelegateHelper::DrawDebugLabels(UCanvas* Canvas, APlayerCo
 		{
 			constexpr float ScreenX = 10.f;
 			Canvas->DrawText(Font, DebugText->Text, ScreenX, ScreenY);
-			ScreenY += Font->GetStringHeightSize(*DebugText->Text);
+			if (DebugText->Text.IsEmpty())
+			{
+				ScreenY += Font->GetMaxCharHeight();
+			}
+			else
+			{
+				ScreenY += Font->GetStringHeightSize(*DebugText->Text);
+			}
 		}
 		else
 		{

@@ -20,6 +20,7 @@
 //
 
 #include "CoreMinimal.h"
+#include "Stats/Stats.h"
 #define _USE_MATH_DEFINES
 #include "Recast/Recast.h"
 #include "Recast/RecastAlloc.h"
@@ -897,6 +898,8 @@ bool rcBuildHeightfieldLayersMonotone(rcContext* ctx, rcCompactHeightfield& chf,
 							  const int borderSize, const int walkableHeight,
 							  rcHeightfieldLayerSet& lset)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_Navigation_BuildHeightfieldLayersMonotone);
+	
 	rcAssert(ctx);
 	
 	ctx->startTimer(RC_TIMER_BUILD_LAYERS);
@@ -938,6 +941,8 @@ bool rcBuildHeightfieldLayersChunky(rcContext* ctx, rcCompactHeightfield& chf,
 									const int chunkSize,
 									rcHeightfieldLayerSet& lset)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_Navigation_BuildHeightfieldLayersChunky);
+	
 	rcAssert(ctx);
 
 	ctx->startTimer(RC_TIMER_BUILD_LAYERS);
@@ -1107,6 +1112,8 @@ bool rcBuildHeightfieldLayers(rcContext* ctx, rcCompactHeightfield& chf,
 	const int borderSize, const int walkableHeight,
 	rcHeightfieldLayerSet& lset)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_Navigation_BuildHeightfieldLayers);
+	
 	rcAssert(ctx);
 
 	ctx->startTimer(RC_TIMER_BUILD_LAYERS);

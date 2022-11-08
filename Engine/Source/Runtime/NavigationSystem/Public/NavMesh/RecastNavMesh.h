@@ -246,7 +246,8 @@ struct FRecastDebugGeometry
 	int32 bMarkForbiddenPolys : 1;
 	int32 bGatherTileBuildTimesHeatMap : 1;
 
-	double MaxTileBuildTime = 0;
+	double MinTileBuildTime = DBL_MAX;
+	double MaxTileBuildTime = 0.;
 	
 	FRecastDebugGeometry() : bGatherPolyEdges(false), bGatherNavMeshEdges(false), bMarkForbiddenPolys(false), bGatherTileBuildTimesHeatMap(false)
 	{}

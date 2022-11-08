@@ -2824,8 +2824,13 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 #if RECAST_INTERNAL_DEBUG_DATA			
 			else if (OutGeometry.bGatherTileBuildTimesHeatMap && DebugData)
 			{
-				int32 Rank = (FRecastDebugGeometry::BuildTimeBucketsCount-1) * (DebugData->BuildTime / OutGeometry.MaxTileBuildTime);
-				Rank = FMath::Clamp(Rank, 0, FRecastDebugGeometry::BuildTimeBucketsCount-1);
+				const double Range = OutGeometry.MaxTileBuildTime - OutGeometry.MinTileBuildTime;
+				int32 Rank = 0;
+				if (Range != 0.)
+				{
+					Rank = FRecastDebugGeometry::BuildTimeBucketsCount * ((DebugData->BuildTime - OutGeometry.MinTileBuildTime) / Range);
+					Rank = FMath::Clamp(Rank, 0, FRecastDebugGeometry::BuildTimeBucketsCount-1);
+				}
 				Indices = &OutGeometry.TileBuildTimesIndices[Rank];
 			}
 #endif // RECAST_INTERNAL_DEBUG_DATA
