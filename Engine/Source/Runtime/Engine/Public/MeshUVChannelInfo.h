@@ -57,5 +57,5 @@ struct FMeshUVChannelInfo
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Basic, meta = (EditCondition = "bOverrideDensities"))
 	float LocalUVDensities[MAX_TEXCOORDS];
 
-	friend FArchive& operator<<(FArchive& Ar, FMeshUVChannelInfo& Info);
+	friend ENGINE_API FArchive& operator<<(FArchive& Ar, FMeshUVChannelInfo& Info);
 };
