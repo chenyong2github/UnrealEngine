@@ -499,6 +499,9 @@ public:
 	bool FullScreen = false;
 
 	UPROPERTY()
+	bool TextureShare = false;
+
+	UPROPERTY()
 	FDisplayClusterConfigurationJsonRectangle_500 Window;
 
 	UPROPERTY()
