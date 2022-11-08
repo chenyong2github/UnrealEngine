@@ -316,7 +316,6 @@ public:
 #if PLATFORM_HOLOLENS
 			MaskType() 
 				: v(MakeVectorRegister(0.0f, 0.0f, 0.0f, 0.0f))
-				, i(MakeVectorRegisterInt(0, 0, 0, 0))
 				{}
 #endif
 		} Mask;
