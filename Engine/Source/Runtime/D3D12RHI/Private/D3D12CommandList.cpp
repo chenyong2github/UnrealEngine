@@ -492,7 +492,7 @@ void FD3D12ContextCommon::TransitionResource(FD3D12UnorderedAccessView* View, D3
 
 	case D3D12_UAV_DIMENSION_TEXTURE2D:
 		// Only one subresource to transition
-		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, View->GetViewSubresourceSubset());
+		TransitionResource(Resource, D3D12_RESOURCE_STATE_TBD, After, Desc.Texture2D.MipSlice);
 		break;
 
 	case D3D12_UAV_DIMENSION_TEXTURE2DARRAY:
