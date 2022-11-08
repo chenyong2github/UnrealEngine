@@ -73,9 +73,7 @@ TOptional<FMeshDescription> FDatasmithMeshBuilder::GetMeshDescription(TSharedRef
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
-	CADLibrary::FMeshConversionContext ConversionContext(ImportParameters, OutMeshParameters);
-
-	if (ConvertBodyMeshToMeshDescription(ConversionContext, Body, MeshDescription))
+	if (ConvertBodyMeshToMeshDescription(ImportParameters, OutMeshParameters, Body, MeshDescription))
 	{
 		return MoveTemp(MeshDescription);
 	}

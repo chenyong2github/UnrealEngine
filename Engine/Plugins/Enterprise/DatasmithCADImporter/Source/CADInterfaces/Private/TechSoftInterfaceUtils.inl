@@ -165,15 +165,6 @@ private:
 		for (unsigned int Index = 0; Index < A3DTessellationData->m_uiFaceTessSize; ++Index)
 		{
 			const A3DTessFaceData& FaceTessData = A3DTessellationData->m_psFaceTessData[Index];
-
-			uint32 FaceSetIndex = 0;
-			bool bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
-			// don't create empty TessellationData
-			if (!bMustProcess)
-			{
-				continue;
-			}
-
 			FTessellationData& Tessellation = Faces.Emplace_GetRef();
 
 			// there is a bijection between A3DTess3DData->m_psFaceTessData and A3DTopoShellData->m_ppFaces
@@ -200,6 +191,9 @@ private:
 
 			uint32 LastTrianguleIndex = FaceTessData.m_uiStartTriangulated;
 			LastVertexIndex = 0;
+
+			uint32 FaceSetIndex = 0;
+			bool bMustProcess = FaceTessData.m_uiSizesTriangulatedSize > FaceSetIndex;
 
 			if (bMustProcess && UsedEntitiesFlags & kA3DTessFaceDataTriangle)
 			{

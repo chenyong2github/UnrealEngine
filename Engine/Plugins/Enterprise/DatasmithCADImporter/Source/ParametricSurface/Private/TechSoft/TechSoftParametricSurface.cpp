@@ -35,33 +35,33 @@ bool UTechSoftParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const F
 	// Previous MeshDescription is get to be able to create a new one with the same order of PolygonGroup (the matching of color and partition is currently based on their order)
 	if (FMeshDescription* DestinationMeshDescription = StaticMesh.GetMeshDescription(0))
 	{
+		FMeshDescription MeshDescription;
+		FStaticMeshAttributes MeshDescriptionAttributes(MeshDescription);
+		MeshDescriptionAttributes.Register();
+
+		if (RetessellateOptions.RetessellationRule == EDatasmithCADRetessellationRule::SkipDeletedSurfaces)
+		{
+			CADLibrary::CopyPatchGroups(*DestinationMeshDescription, MeshDescription);
+		}
+
 		CADLibrary::FImportParameters ImportParameters((FDatasmithUtils::EModelCoordSystem)SceneParameters.ModelCoordSys);
 		ImportParameters.SetTesselationParameters(RetessellateOptions.ChordTolerance, RetessellateOptions.MaxEdgeLength, RetessellateOptions.NormalTolerance, (CADLibrary::EStitchingTechnique)RetessellateOptions.StitchingTechnique);
 
-		FMeshConversionContext Context(ImportParameters, MeshParameters);
-
 		CADLibrary::FTechSoftInterface& TechSoftInterface = CADLibrary::FTechSoftInterface::Get();
+
 		bSuccessfulTessellation = TechSoftInterface.InitializeKernel(*FPaths::EnginePluginsDir());
 		if (bSuccessfulTessellation)
 		{
 			CADLibrary::FBodyMesh BodyMesh;
+
 			bSuccessfulTessellation = CADLibrary::TechSoftUtils::GetBodyFromPcrFile(ResourceFile, ImportParameters, BodyMesh);
 
 			if (bSuccessfulTessellation)
 			{
-				if (RetessellateOptions.RetessellationRule == EDatasmithCADRetessellationRule::SkipDeletedSurfaces)
-				{
-					CADLibrary::GetExistingPatches(*DestinationMeshDescription, Context.PatchesToMesh);
-				}
-
-				FMeshDescription MeshDescription;
-				FStaticMeshAttributes MeshDescriptionAttributes(MeshDescription);
-				MeshDescriptionAttributes.Register();
-				bSuccessfulTessellation = CADLibrary::ConvertBodyMeshToMeshDescription(Context, BodyMesh, MeshDescription);
+				bSuccessfulTessellation = CADLibrary::ConvertBodyMeshToMeshDescription(ImportParameters, MeshParameters, BodyMesh, MeshDescription);
 
 				if (bSuccessfulTessellation)
 				{
-	
 					TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
 					FMeshSectionInfoMap& SectionInfoMap = StaticMesh.GetSectionInfoMap();
 

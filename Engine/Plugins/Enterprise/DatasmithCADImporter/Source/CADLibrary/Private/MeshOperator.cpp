@@ -366,7 +366,8 @@ void MeshOperator::ResolveTJunctions(FMeshDescription& MeshDescription, double T
 		BoundaryEdgeCount = MergeCoincidentEdges.FinalNumBoundaryEdges;
 	}
 
-	CADLibrary::FMeshDescriptionDataCache MeshDescriptionDataCache(MeshDescription);
+	// TODO: Should not be needed as soon as CopyMaterialSlotNames, and CopyPatchGroups are no more called
+	FMeshDescription NewMeshDescription(MeshDescription);
 
 	{
 		FConversionToMeshDescriptionOptions ConversionOptions;
@@ -379,8 +380,12 @@ void MeshOperator::ResolveTJunctions(FMeshDescription& MeshDescription, double T
 		ConversionOptions.bTransformVtxColorsSRGBToLinear = false;
 
 		FDynamicMeshToMeshDescription ConverterToMeshDescription(ConversionOptions);
-		ConverterToMeshDescription.Convert(&DynamicMesh, MeshDescription);
+		ConverterToMeshDescription.Convert(&DynamicMesh, NewMeshDescription);
 	}
 
-	MeshDescriptionDataCache.RestoreMaterialSlotNames(MeshDescription);
+	// Transfer material slot names and patch groups as these datum are not managed by FDynamicMesh3
+	CADLibrary::CopyMaterialSlotNames(MeshDescription, NewMeshDescription);
+	CADLibrary::CopyPatchGroups(MeshDescription, NewMeshDescription);
+
+	MeshDescription = MoveTemp(NewMeshDescription);
 }

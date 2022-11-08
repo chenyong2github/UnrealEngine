@@ -354,20 +354,16 @@ void FDatasmithActorImporter::SetupStaticMeshComponent( FDatasmithImportContext&
 
 	if ( !StaticMesh )
 	{
-		FString OwnerLabel;
+		FString OwnerName;
 
 		if ( StaticMeshComponent->GetOwner() )
 		{
-			OwnerLabel = StaticMeshComponent->GetOwner()->GetActorLabel();
-			if (OwnerLabel.IsEmpty())
-			{
-				OwnerLabel = StaticMeshComponent->GetOwner()->GetName();
-			}
+			OwnerName = StaticMeshComponent->GetOwner()->GetName();
 		}
 
 		ImportContext.LogError( FText::Format( LOCTEXT( "FindStaticMesh", "Cannot find Static Mesh {0} for Static Mesh Actor {1}."),
-			FText::FromString(MeshActorElement->GetLabel()),
-			FText::FromString(OwnerLabel + TEXT(".") + StaticMeshComponent->GetName())));
+			FText::FromString( MeshActorElement->GetStaticMeshPathName() ),
+			FText::FromString( OwnerName + TEXT(".") + StaticMeshComponent->GetName() ) ) );
 
 		return;
 	}
