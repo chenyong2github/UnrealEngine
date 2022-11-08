@@ -696,6 +696,64 @@ public:
 };
 
 USTRUCT()
+struct FClusterFlattenDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FClusterFlattenDataflowNode, "Flatten", "Fracture|Cluster", "")
+
+public:
+	// @todo(harsha) Support Selections
+
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection"))
+	FManagedArrayCollection Collection;
+
+	FClusterFlattenDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&Collection);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+USTRUCT()
+struct FRemoveOnBreakDataflowNode : public FDataflowNode
+{
+	GENERATED_USTRUCT_BODY()
+	DATAFLOW_NODE_DEFINE_INTERNAL(FRemoveOnBreakDataflowNode, "RemoveOnBreak", "Fracture|Utilities", "")
+
+public:
+	// @todo(harsha) Support Selections
+
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection"))
+	FManagedArrayCollection Collection;
+
+	UPROPERTY(meta = (DataflowInput, DisplayName = "PostBreakTimer"))
+	FVector2f PostBreakTimer{0.0, 0.0};
+
+	UPROPERTY(meta = (DataflowInput, DisplayName = "RemovalTimer"))
+	FVector2f RemovalTimer{0.0, 1.0};
+
+	UPROPERTY(meta = (DataflowInput, DisplayName = "ClusterCrumbling"))
+	bool ClusterCrumbling = false;
+
+	FRemoveOnBreakDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&Collection);
+		RegisterInputConnection(&PostBreakTimer);
+		RegisterInputConnection(&RemovalTimer);
+		RegisterInputConnection(&ClusterCrumbling);
+	}
+
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+};
+
+USTRUCT()
 struct FVoronoiFractureDataflowNode : public FDataflowNode
 {
 	GENERATED_USTRUCT_BODY()

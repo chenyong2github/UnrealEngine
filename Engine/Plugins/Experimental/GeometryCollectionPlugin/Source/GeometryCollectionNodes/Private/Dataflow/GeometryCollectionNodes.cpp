@@ -9,6 +9,7 @@
 #include "GeometryCollection/ManagedArrayCollection.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionEngineUtility.h"
+#include "GeometryCollection/GeometryCollectionEngineRemoval.h"
 #include "GeometryCollection/GeometryCollectionEngineConversion.h"
 #include "Logging/LogMacros.h"
 #include "Templates/SharedPointer.h"
@@ -500,6 +501,74 @@ float GetMaxVertexMovement(float Grout, float Amplitude, int OctaveNumber, float
 		MaxDisp += FMath::Abs(AmplitudeScaled);
 	}
 	return MaxDisp;
+}
+
+void FClusterFlattenDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		FManagedArrayCollection CollectionPtr = GetValue<FManagedArrayCollection>(Context, &Collection);
+		if (FGeometryCollection* GeomCollection = CollectionPtr.NewCopy<FGeometryCollection>())
+		{
+			FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeomCollection, -1);
+			
+			const TManagedArray<int32>& Levels = GeomCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
+
+			// Populate Selected Bones in an Array
+			// @todo(harsha) Implement with Selection
+			// For every bone in selected array: [ClusterIndex]
+			int32 ClusterIndex = 0;
+			TArray<int32> LeafBones;
+			FGeometryCollectionClusteringUtility::GetLeafBones(GeomCollection, ClusterIndex, true, LeafBones);
+			FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(GeomCollection, ClusterIndex, LeafBones);
+			FGeometryCollectionClusteringUtility::RemoveDanglingClusters(GeomCollection);
+			// End for
+
+			FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeomCollection, -1);
+			SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeomCollection), &Collection);
+		}
+	}
+}
+
+void FRemoveOnBreakDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	if (Out->IsA<FManagedArrayCollection>(&Collection))
+	{
+		FManagedArrayCollection CollectionPtr = GetValue<FManagedArrayCollection>(Context, &Collection);
+		if (FGeometryCollection* GeometryCollection = CollectionPtr.NewCopy<FGeometryCollection>())
+		{
+			if (!GeometryCollection->HasAttribute("RemoveOnBreak", FGeometryCollection::TransformGroup))
+	 		{
+	 			TManagedArray<FVector4f>& NewRemoveOnBreak = GeometryCollection->AddAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup);
+	 			NewRemoveOnBreak.Fill(FRemoveOnBreakData::DisabledPackedData);
+	 		}
+
+			TManagedArray<FVector4f>& RemoveOnBreak = GeometryCollection->ModifyAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup);
+
+			const FVector2f PostBreakTimerData = GetValue<FVector2f>(Context, &PostBreakTimer);
+			const FVector2f RemovalTimerData = GetValue<FVector2f>(Context, &RemovalTimer);
+			const bool ClusterCrumblingData = GetValue<bool>(Context, &ClusterCrumbling);
+
+			RemoveOnBreak.Fill(FVector4f{PostBreakTimerData.X, PostBreakTimerData.Y, RemovalTimerData.X, RemovalTimerData.Y});
+
+			// @todo(harsha) Implement with Selection
+	 		// const FRemoveOnBreakData RemoveOnBreakData(true, PostBreakTimerData, ClusterCrumblingData, RemovalTimerData);
+	 		// for (int32 Index : SelectedBones)
+	 		// {
+				// // if root bone, then do not set 
+				// if (GeometryCollection->Parent[Index] == INDEX_NONE)
+				// {
+				// 	RemoveOnBreak[Index] = FRemoveOnBreakData::DisabledPackedData;
+				// }
+				// else
+				// {
+				// 	RemoveOnBreak[Index] = RemoveOnBreakData.GetPackedData();
+				// }
+	 		// }
+			
+	 		SetValue<FManagedArrayCollection>(Context, (const FManagedArrayCollection&)(*GeometryCollection), &Collection);
+		}
+	}
 }
 
 void FVoronoiFractureDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
