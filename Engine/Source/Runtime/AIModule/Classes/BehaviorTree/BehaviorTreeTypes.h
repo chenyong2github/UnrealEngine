@@ -56,7 +56,7 @@ namespace FBlackboard
 	struct FKey
 	{
 		constexpr FKey() = default;
-		constexpr FKey(int32 InKey) : Key(InKey) {}
+		FKey(int32 InKey) {Key = IntCastChecked<uint16>(InKey); }
 		constexpr FKey(uint16 InKey) : Key(InKey) {}
 		constexpr FKey(uint8 InKey) = delete;
 		constexpr operator int32() const { return Key; }
