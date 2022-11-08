@@ -140,11 +140,11 @@ private:
 
 private:
 	template<typename BindingObjectClassT, typename...ArgsT>
-	void QueueStep_Internal_DeduceBindingObject(const FString& InDebugName, typename TEnableIf<TIsDerivedFrom<BindingObjectClassT, TSharedFromThis<BindingObjectClassT>>::IsDerived, BindingObjectClassT*>::Type InBindingObject, ArgsT...Params)
+	void QueueStep_Internal_DeduceBindingObject(const FString& InDebugName, typename TEnableIf<IsDerivedFromSharedFromThis<BindingObjectClassT>(), BindingObjectClassT*>::Type InBindingObject, ArgsT...Params)
 	{
-		if (static_cast<TSharedFromThis<BindingObjectClassT>*>(InBindingObject)->DoesSharedInstanceExist())
+		if (InBindingObject->DoesSharedInstanceExist())
 		{
-			QueueStep_Internal_TSharedFromThis(InDebugName, InBindingObject->AsShared(), Params...);
+			QueueStep_Internal_TSharedFromThis(InDebugName, StaticCastSharedRef<BindingObjectClassT>(InBindingObject->AsShared()), Params...);
 		}
 	}
 

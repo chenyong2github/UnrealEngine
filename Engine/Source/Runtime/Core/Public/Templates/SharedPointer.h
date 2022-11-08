@@ -1720,6 +1720,27 @@ private:
 };
 
 
+namespace UE::Core::Private
+{
+	template <typename T>
+	constexpr bool IsDerivedFromSharedFromThisImpl(const TSharedFromThis<T>*)
+	{
+		return true;
+	}
+
+	constexpr bool IsDerivedFromSharedFromThisImpl(...)
+	{
+		return false;
+	}
+}
+
+template <typename T>
+constexpr bool IsDerivedFromSharedFromThis()
+{
+	return UE::Core::Private::IsDerivedFromSharedFromThisImpl((const T*)nullptr);
+}
+
+
 /**
  * Global equality operator for TSharedRef
  *
