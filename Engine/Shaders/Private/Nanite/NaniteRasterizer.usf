@@ -978,14 +978,17 @@ groupshared uint GroupVertOwningLaneIds[NANITE_USE_CONSTRAINED_CLUSTERS ? 16 : 6
 
 uint DeduplicateVertIndices(FInstanceSceneData InstanceData, FCluster Cluster, uint FirstTriIndex, uint BatchTriCount, uint TriIndex, uint LaneIndex, out uint MyVertIndex, out uint3 SrcLaneIndices)
 {
-	if (LaneIndex < 8)
+	if (LaneIndex < (NANITE_USE_CONSTRAINED_CLUSTERS ? 2 : 8))
 	{
 		GroupUsedVertMask[LaneIndex] = 0;
 	}
 	UNROLL
-	for (uint i = 0; i < 64; i += 32)
+	for (uint i = 0; i < (NANITE_USE_CONSTRAINED_CLUSTERS ? 16 : 64); i += 32)
 	{
-		GroupVertOwningLaneIds[i + LaneIndex] = 0;
+		if (i + LaneIndex < (NANITE_USE_CONSTRAINED_CLUSTERS ? 16 : 64))
+		{
+			GroupVertOwningLaneIds[i + LaneIndex] = 0;
+		}
 	}
 
 	GroupMemoryBarrier();
