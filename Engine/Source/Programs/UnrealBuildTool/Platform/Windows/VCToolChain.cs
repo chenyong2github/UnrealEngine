@@ -435,6 +435,10 @@ namespace UnrealBuildTool
 						Arguments.Add("/Zc:lambda-");
 					}
 				}
+				else
+				{
+					Arguments.Add("/Zc:hiddenFriend");
+				}
 
 				if (Target.WindowsPlatform.bUpdatedCPPMacro)
 				{
