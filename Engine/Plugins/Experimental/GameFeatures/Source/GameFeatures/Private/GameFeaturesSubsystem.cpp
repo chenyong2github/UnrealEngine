@@ -100,16 +100,40 @@ const FString LexToString(const EGameFeatureTargetState GameFeatureTargetState)
 	static_assert((uint8)EGameFeatureTargetState::Count == 4, TEXT("Update LexToString to include new EGameFeatureTargetState"));
 }
 
-FGameFeaturePluginIdentifier::FGameFeaturePluginIdentifier(const FString& PluginURL)
+void LexFromString(EGameFeatureTargetState& ValueOut, const TCHAR* StringIn)
 {
-	FromPluginURL(PluginURL);
+	//Default value if parsing fails
+	ValueOut = EGameFeatureTargetState::Count;
+
+	if (!StringIn || StringIn[0] == '\0')
+	{
+		ensureAlwaysMsgf(false, TEXT("Invalid empty FString used for EGameFeatureTargetState LexFromString."));
+		return;
+	}
+
+	for (uint8 EnumIndex = 0; EnumIndex < static_cast<uint8>(EGameFeatureTargetState::Count); ++EnumIndex)
+	{
+		EGameFeatureTargetState StateToCheck = static_cast<EGameFeatureTargetState>(EnumIndex);
+		if (LexToString(StateToCheck).Equals(StringIn, ESearchCase::IgnoreCase))
+		{
+			ValueOut = StateToCheck;
+			return;
+		}
+	}
+
+	ensureAlwaysMsgf(false, TEXT("Invalid FString { %s } used for EGameFeatureTargetState LexFromString. Does not correspond to any EGameFeatureTargetState!"), StringIn);
 }
 
-void FGameFeaturePluginIdentifier::FromPluginURL(const FString& PluginURLIn)
+FGameFeaturePluginIdentifier::FGameFeaturePluginIdentifier(FString PluginURL)
+{
+	FromPluginURL(MoveTemp(PluginURL));
+}
+
+void FGameFeaturePluginIdentifier::FromPluginURL(FString PluginURLIn)
 {
 	//Make sure we have no stale data
 	IdentifyingURLSubset.Reset();
-	PluginURL = PluginURLIn;
+	PluginURL = MoveTemp(PluginURLIn);
 
 	PluginProtocol = UGameFeaturesSubsystem::GetPluginURLProtocol(PluginURL);
 
@@ -119,18 +143,18 @@ void FGameFeaturePluginIdentifier::FromPluginURL(const FString& PluginURLIn)
 	{
 
 		int32 PluginProtocolEndIndex = FCString::Strlen(UE::GameFeatures::GameFeaturePluginProtocolPrefix(PluginProtocol));
-		int32 FirstOptionIndex = PluginURLIn.Find(UE::GameFeatures::PluginURLStructureInfo::OptionSeperator, ESearchCase::IgnoreCase, ESearchDir::FromStart, PluginProtocolEndIndex);
+		int32 FirstOptionIndex = PluginURL.Find(UE::GameFeatures::PluginURLStructureInfo::OptionSeperator, ESearchCase::IgnoreCase, ESearchDir::FromStart, PluginProtocolEndIndex);
 		
 		//If we don't have any options, then the IdentifyingURLSubset is just our entire URL except the protocol string
 		if (FirstOptionIndex == INDEX_NONE)
 		{
-			IdentifyingURLSubset = PluginURL.RightChop(PluginProtocolEndIndex);
+			IdentifyingURLSubset = FStringView(PluginURL).RightChop(PluginProtocolEndIndex);
 		}
 		//The IdentifyingURLSubset will be the string between the end of the protocol string and before the first option
 		else
 		{
 			const int32 IdentifierCharCount = (FirstOptionIndex - PluginProtocolEndIndex);
-			IdentifyingURLSubset = PluginURL.Mid(PluginProtocolEndIndex, IdentifierCharCount);
+			IdentifyingURLSubset = FStringView(PluginURL).Mid(PluginProtocolEndIndex, IdentifierCharCount);
 		}
 	}
 }
@@ -138,7 +162,7 @@ void FGameFeaturePluginIdentifier::FromPluginURL(const FString& PluginURLIn)
 bool FGameFeaturePluginIdentifier::operator==(const FGameFeaturePluginIdentifier& Other) const
 {
 	return ((PluginProtocol == Other.PluginProtocol) &&
-			(IdentifyingURLSubset.Equals(Other.IdentifyingURLSubset, ESearchCase::IgnoreCase)));
+			(IdentifyingURLSubset.Equals(Other.IdentifyingURLSubset, ESearchCase::CaseSensitive)));
 }
 
 bool FGameFeaturePluginIdentifier::ExactMatchesURL(const FString& PluginURLIn) const
@@ -213,7 +237,7 @@ void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("LoadGameFeaturePlugin"),
-		TEXT("Loads and activates a game feature plugin by URL"),
+		TEXT("Loads and activates a game feature plugin by PluginName or URL"),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*, FOutputDevice& Ar)
 		{
 			if (Args.Num() > 0)
@@ -234,7 +258,7 @@ void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("DeactivateGameFeaturePlugin"),
-		TEXT("Deactivates a game feature plugin by URL"),
+		TEXT("Deactivates a game feature plugin by PluginName or URL"),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*, FOutputDevice& Ar)
 		{
 			if (Args.Num() > 0)
@@ -255,7 +279,7 @@ void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("UnloadGameFeaturePlugin"),
-		TEXT("Unloads a game feature plugin by URL"),
+		TEXT("Unloads a game feature plugin by PluginName or URL"),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*, FOutputDevice& Ar)
 		{
 			if (Args.Num() > 0)
@@ -276,7 +300,7 @@ void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("UnloadAndKeepRegisteredGameFeaturePlugin"),
-		TEXT("Unloads a game feature plugin by URL but keeps it registered"),
+		TEXT("Unloads a game feature plugin by PluginName or URL but keeps it registered"),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*, FOutputDevice& Ar)
 			{
 				if (Args.Num() > 0)
@@ -297,7 +321,7 @@ void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("ReleaseGameFeaturePlugin"),
-		TEXT("Releases a game feature plugin's InstallBundle data by URL"),
+		TEXT("Releases a game feature plugin's InstallBundle data by PluginName or URL"),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*, FOutputDevice& Ar)
 			{
 				if (Args.Num() > 0)
@@ -318,7 +342,7 @@ void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 	IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("CancelGameFeaturePlugin"),
-		TEXT("Cancel any state changes for a game feature plugin by URL"),
+		TEXT("Cancel any state changes for a game feature plugin by PluginName or URL"),
 		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*, FOutputDevice& Ar)
 			{
 				if (Args.Num() > 0)
@@ -329,6 +353,27 @@ void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 						PluginURL = Args[0];
 					}
 					UGameFeaturesSubsystem::Get().CancelGameFeatureStateChange(PluginURL);
+				}
+				else
+				{
+					Ar.Logf(TEXT("Expected a game feature plugin URL as an argument"));
+				}
+			}),
+		ECVF_Cheat);
+
+	IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("TerminateGameFeaturePlugin"),
+		TEXT("Terminates a game feature plugin by PluginName or URL"),
+		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*, FOutputDevice& Ar)
+			{
+				if (Args.Num() > 0)
+				{
+					FString PluginURL;
+					if (!UGameFeaturesSubsystem::Get().GetPluginURLByName(Args[0], /*out*/ PluginURL))
+					{
+						PluginURL = Args[0];
+					}
+					UGameFeaturesSubsystem::Get().TerminateGameFeaturePlugin(PluginURL);
 				}
 				else
 				{
@@ -1185,9 +1230,15 @@ void UGameFeaturesSubsystem::GetLoadedGameFeaturePluginFilenamesForCooking(TArra
 	}
 }
 
-EGameFeaturePluginState UGameFeaturesSubsystem::GetPluginState(const FString& PluginURL)
+EGameFeaturePluginState UGameFeaturesSubsystem::GetPluginState(const FString& PluginURL) const
 {
-	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
+	FGameFeaturePluginIdentifier PluginIdentifier(PluginURL);
+	return GetPluginState(PluginIdentifier);
+}
+
+EGameFeaturePluginState UGameFeaturesSubsystem::GetPluginState(FGameFeaturePluginIdentifier PluginIdentifier) const
+{
+	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginIdentifier))
 	{
 		return StateMachine->GetCurrentState();
 	}
@@ -1316,28 +1367,37 @@ UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginSta
 
 UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginStateMachine(const FString& PluginURL) const
 {
-	if (!PluginURL.IsEmpty())
+	FGameFeaturePluginIdentifier FindPluginIdentifier(PluginURL);
+	return FindGameFeaturePluginStateMachine(FindPluginIdentifier);
+}
+
+UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindGameFeaturePluginStateMachine(FGameFeaturePluginIdentifier PluginIdentifier) const
+{
+	TObjectPtr<UGameFeaturePluginStateMachine> const* ExistingStateMachine = GameFeaturePluginStateMachines.Find(PluginIdentifier);
+	if (ExistingStateMachine)
 	{
-		TObjectPtr<UGameFeaturePluginStateMachine> const* ExistingStateMachine = GameFeaturePluginStateMachines.Find(PluginURL);
-		if (ExistingStateMachine)
-		{
-			return *ExistingStateMachine;
-		}
+		UE_LOG(LogGameFeatures, VeryVerbose, TEXT("FOUND GameFeaturePlugin using PluginIdentifier:%.*s for PluginURL:%s"), PluginIdentifier.GetIdentifyingString().Len(), PluginIdentifier.GetIdentifyingString().GetData(), *PluginIdentifier.GetFullPluginURL());
+		return *ExistingStateMachine;
 	}
+	UE_LOG(LogGameFeatures, VeryVerbose, TEXT("NOT FOUND GameFeaturePlugin using PluginIdentifier:%.*s for PluginURL:%s"), PluginIdentifier.GetIdentifyingString().Len(), PluginIdentifier.GetIdentifyingString().GetData(), *PluginIdentifier.GetFullPluginURL());
 
 	return nullptr;
 }
 
 UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindOrCreateGameFeaturePluginStateMachine(const FString& PluginURL)
 {
-	if (UGameFeaturePluginStateMachine* ExistingStateMachine = FindGameFeaturePluginStateMachine(PluginURL))
+	FGameFeaturePluginIdentifier PluginIdentifier(PluginURL);
+	if (UGameFeaturePluginStateMachine* ExistingStateMachine = FindGameFeaturePluginStateMachine(PluginIdentifier))
 	{
+		UE_LOG(LogGameFeatures, VeryVerbose, TEXT("Found GameFeaturePlugin StateMachine using Identifier:%.*s from PluginURL:%s"), PluginIdentifier.GetIdentifyingString().Len(), PluginIdentifier.GetIdentifyingString().GetData(), *PluginURL);
 		return ExistingStateMachine;
 	}
 
+	UE_LOG(LogGameFeatures, Display, TEXT("Creating GameFeaturePlugin StateMachine using Identifier:%.*s from PluginURL:%s"), PluginIdentifier.GetIdentifyingString().Len(), PluginIdentifier.GetIdentifyingString().GetData(), *PluginURL);
+
 	UGameFeaturePluginStateMachine* NewStateMachine = NewObject<UGameFeaturePluginStateMachine>(this);
-	GameFeaturePluginStateMachines.Add(PluginURL, NewStateMachine);
-	NewStateMachine->InitStateMachine(PluginURL);
+	GameFeaturePluginStateMachines.Add(PluginIdentifier, NewStateMachine);
+	NewStateMachine->InitStateMachine(MoveTemp(PluginIdentifier));
 
 	return NewStateMachine;
 }
@@ -1435,12 +1495,14 @@ void UGameFeaturesSubsystem::BeginTermination(UGameFeaturePluginStateMachine* Ma
 {
 	check(IsValid(Machine));
 	check(Machine->GetCurrentState() == EGameFeaturePluginState::Terminal);
-	GameFeaturePluginStateMachines.Remove(Machine->GetPluginURL());
+	UE_LOG(LogGameFeatures, Verbose, TEXT("BeginTermination of GameFeaturePlugin. Identifier:%.*s URL:%s"), Machine->GetPluginIdentifier().GetIdentifyingString().Len(), Machine->GetPluginIdentifier().GetIdentifyingString().GetData(), *(Machine->GetPluginURL()));
+	GameFeaturePluginStateMachines.Remove(Machine->GetPluginIdentifier());
 	TerminalGameFeaturePluginStateMachines.Add(Machine);
 }
 
 void UGameFeaturesSubsystem::FinishTermination(UGameFeaturePluginStateMachine* Machine)
 {
+	UE_LOG(LogGameFeatures, Display, TEXT("FinishTermination of GameFeaturePlugin. Identifier:%.*s URL:%s"), Machine->GetPluginIdentifier().GetIdentifyingString().Len(), Machine->GetPluginIdentifier().GetIdentifyingString().GetData(), *(Machine->GetPluginURL()));
 	TerminalGameFeaturePluginStateMachines.RemoveSwap(Machine);
 }
 

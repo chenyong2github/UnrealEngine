@@ -277,7 +277,7 @@ struct FGameFeaturePluginStateMachineProperties
 
 	FGameFeaturePluginStateMachineProperties() = default;
 	FGameFeaturePluginStateMachineProperties(
-		const FString& InPluginURL,
+		FGameFeaturePluginIdentifier InPluginIdentifier,
 		const FGameFeaturePluginStateRange& DesiredDestination,
 		const FGameFeaturePluginRequestUpdateStateMachine& RequestUpdateStateMachineDelegate,
 		const FGameFeatureStateProgressUpdate& FeatureStateProgressUpdateDelegate);
@@ -419,7 +419,7 @@ public:
 	UGameFeaturePluginStateMachine(const FObjectInitializer& ObjectInitializer);
 
 	/** Initializes the state machine and assigns the URL for the plugin it manages. This sets the machine to the 'UnknownStatus' state. */
-	void InitStateMachine(const FString& InPluginURL);
+	void InitStateMachine(FGameFeaturePluginIdentifier InPluginIdentifier);
 
 	/** Asynchronously transitions the state machine to the destination state range and reports when it is done. 
 	  * DestinationState must be of type EGameFeaturePluginStateType::Destination.
@@ -445,6 +445,9 @@ public:
 
 	/** Remove any pending callback from TryCancel */
 	void RemovePendingCancelCallback(void* DelegateObject);
+
+	/** Returns the PluginIdentifier used to identify this plugin uniquely to the GameFeaturePlugin Subsystem */
+	const FGameFeaturePluginIdentifier& GetPluginIdentifier() const;
 
 	/** Returns the name of the game feature. Before StatusKnown, this returns the URL. */
 	const FString& GetGameFeatureName() const;

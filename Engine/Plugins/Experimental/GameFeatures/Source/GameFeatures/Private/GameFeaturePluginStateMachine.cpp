@@ -289,23 +289,28 @@ void FGameFeaturePluginStateStatus::SetTransitionError(EGameFeaturePluginState T
 	}
 }
 
-EGameFeatureInstallBundleProtocolOptions LexFromString(const FString& StringIn)
+void LexFromString(EGameFeatureInstallBundleProtocolOptions& ValueOut, const TCHAR* StringIn)
 {
-	if (StringIn.IsEmpty())
+	//Default value if parsing fails
+	ValueOut = EGameFeatureInstallBundleProtocolOptions::Count;
+
+	if (!StringIn || (StringIn[0] == '\0'))
 	{
-		return EGameFeatureInstallBundleProtocolOptions::Count;
+		UE_LOG(LogGameFeatures, Error, TEXT("Invalid empty string used for EGameFeatureInstallBundleProtocolOptions LexFromString!"));
+		return;
 	}
 
 	for (uint8 EnumIndex = 0; EnumIndex < static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count); ++EnumIndex)
 	{
 		EGameFeatureInstallBundleProtocolOptions GameFeatureToCheck = static_cast<EGameFeatureInstallBundleProtocolOptions>(EnumIndex);
-		if (StringIn.Equals(LexToString(GameFeatureToCheck)))
+		if (LexToString(GameFeatureToCheck).Equals(StringIn,ESearchCase::IgnoreCase))
 		{
-			return GameFeatureToCheck;
+			ValueOut = GameFeatureToCheck;
+			return;
 		}
 	}
 
-	return  EGameFeatureInstallBundleProtocolOptions::Count;
+	UE_LOG(LogGameFeatures, Error, TEXT("No valid EGameFeatureInstallBundleProtocolOptions to LexFromString from %s"), StringIn);
 }
 
 UE::GameFeatures::FResult FGameFeaturePluginState::GetErrorResult(const FString& ErrorCode, const FText OptionalErrorText/*= FText()*/) const
@@ -315,7 +320,7 @@ UE::GameFeatures::FResult FGameFeaturePluginState::GetErrorResult(const FString&
 
 UE::GameFeatures::FResult FGameFeaturePluginState::GetErrorResult(const FString& ErrorNamespaceAddition, const FString& ErrorCode, const FText OptionalErrorText/*= FText()*/) const
 {
-	const FString StateName = LexToString(UGameFeaturesSubsystem::Get().GetPluginState(StateProperties.PluginIdentifier.GetFullPluginURL()));
+	const FString StateName = LexToString(UGameFeaturesSubsystem::Get().GetPluginState(StateProperties.PluginIdentifier));
 	const FString ErrorCodeEnding = ErrorNamespaceAddition.IsEmpty() ? ErrorCode : ErrorNamespaceAddition + ErrorCode;
 	const FString CompleteErrorCode = (UE::GameFeatures::StateMachineErrorNamespace + StateName + ErrorCodeEnding);
 	return UE::GameFeatures::FResult(MakeError(CompleteErrorCode), OptionalErrorText);
@@ -2159,12 +2164,12 @@ UGameFeaturePluginStateMachine::UGameFeaturePluginStateMachine(const FObjectInit
 
 }
 
-void UGameFeaturePluginStateMachine::InitStateMachine(const FString& InPluginURL)
+void UGameFeaturePluginStateMachine::InitStateMachine(FGameFeaturePluginIdentifier InPluginIdentifier)
 {
 	check(GetCurrentState() == EGameFeaturePluginState::Uninitialized);
 	CurrentStateInfo.State = EGameFeaturePluginState::UnknownStatus;
 	StateProperties = FGameFeaturePluginStateMachineProperties(
-		InPluginURL,
+		MoveTemp(InPluginIdentifier),
 		FGameFeaturePluginStateRange(CurrentStateInfo.State),
 		FGameFeaturePluginRequestUpdateStateMachine::CreateUObject(this, &ThisClass::UpdateStateMachine),
 		FGameFeatureStateProgressUpdate::CreateUObject(this, &ThisClass::UpdateCurrentStateProgress));
@@ -2377,6 +2382,11 @@ const FString& UGameFeaturePluginStateMachine::GetGameFeatureName() const
 	{
 		return StateProperties.PluginIdentifier.GetFullPluginURL();
 	}
+}
+
+const FGameFeaturePluginIdentifier& UGameFeaturePluginStateMachine::GetPluginIdentifier() const
+{
+	return StateProperties.PluginIdentifier;
 }
 
 const FString& UGameFeaturePluginStateMachine::GetPluginURL() const
@@ -2600,11 +2610,11 @@ void UGameFeaturePluginStateMachine::UpdateCurrentStateProgress(float Progress)
 }
 
 FGameFeaturePluginStateMachineProperties::FGameFeaturePluginStateMachineProperties(
-	const FString& InPluginURL,
+	FGameFeaturePluginIdentifier InPluginIdentifier,
 	const FGameFeaturePluginStateRange& DesiredDestination,
 	const FGameFeaturePluginRequestUpdateStateMachine& RequestUpdateStateMachineDelegate,
 	const FGameFeatureStateProgressUpdate& FeatureStateProgressUpdateDelegate)
-	: PluginIdentifier(InPluginURL)
+	: PluginIdentifier(MoveTemp(InPluginIdentifier))
 	, Destination(DesiredDestination)
 	, OnRequestUpdateStateMachine(RequestUpdateStateMachineDelegate)
 	, OnFeatureStateProgressUpdate(FeatureStateProgressUpdateDelegate)
@@ -2613,15 +2623,7 @@ FGameFeaturePluginStateMachineProperties::FGameFeaturePluginStateMachineProperti
 
 EGameFeaturePluginProtocol FGameFeaturePluginStateMachineProperties::GetPluginProtocol() const
 {
-	if (PluginIdentifier.PluginProtocol != EGameFeaturePluginProtocol::Unknown)
-	{
-		return PluginIdentifier.PluginProtocol;
-	}
-	else
-	{
-		ensureAlwaysMsgf(false, TEXT("No cached valid EGameFeaturePluginProtocol in our PluginIdentifier!"));
-		return UGameFeaturesSubsystem::GetPluginURLProtocol(PluginIdentifier.GetFullPluginURL());
-	}
+	return PluginIdentifier.GetPluginProtocol();
 }
 
 FInstallBundlePluginProtocolMetaData::FInstallBundlePluginProtocolMetaData()
@@ -2636,6 +2638,9 @@ void FInstallBundlePluginProtocolMetaData::ResetToDefaults()
 	bUninstallBeforeTerminate = FDefaultValues::Default_bUninstallBeforeTerminate;
 	bUserPauseDownload = FDefaultValues::Default_bUserPauseDownload;
 	InstallBundleFlags = FDefaultValues::Default_InstallBundleFlags;
+	ReleaseInstallBundleFlags = FDefaultValues::Default_ReleaseInstallBundleFlags;
+
+	static_assert(static_cast<uint8>(EGameFeatureInstallBundleProtocolOptions::Count) == 6, "Update this function to handle the newly added EGameFeatureInstallBundleProtocolOptions value!");
 }
 
 FString FInstallBundlePluginProtocolMetaData::ToString() const
@@ -2702,7 +2707,8 @@ bool FInstallBundlePluginProtocolMetaData::FromString(const FString& URLString, 
 
 			if (OptionStrings.Num() > 0)
 			{
-				EGameFeatureInstallBundleProtocolOptions OptionEnum = LexFromString(OptionStrings[0]);
+				EGameFeatureInstallBundleProtocolOptions OptionEnum = EGameFeatureInstallBundleProtocolOptions::Count;
+				LexFromString(OptionEnum, *(OptionStrings[0]));
 
 				switch (OptionEnum)
 				{
