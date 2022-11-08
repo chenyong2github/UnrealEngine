@@ -1665,7 +1665,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	if (bHasRasterBin)
 	{
 		NumExportVertices   = Cluster.NumVerts;
-		bNeedsCompaction    = (Cluster.NumTris != Cluster.NumTris);
+		bNeedsCompaction    = (TriRange.Num != Cluster.NumTris);
 	}
 
 	uint SrcVertexIndex = GroupThreadID;
