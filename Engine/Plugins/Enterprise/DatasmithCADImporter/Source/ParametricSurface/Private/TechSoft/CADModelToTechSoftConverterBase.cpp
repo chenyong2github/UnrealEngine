@@ -89,7 +89,8 @@ bool FCADModelToTechSoftConverterBase::Tessellate(const CADLibrary::FMeshParamet
 		return false;
 	}
 
-	return CADLibrary::ConvertBodyMeshToMeshDescription(ImportParameters, InMeshParameters, BodyMesh, OutMeshDescription);
+	CADLibrary::FMeshConversionContext MeshConversionContext(ImportParameters, InMeshParameters);
+	return CADLibrary::ConvertBodyMeshToMeshDescription(MeshConversionContext, BodyMesh, OutMeshDescription);
 }
 
 void FCADModelToTechSoftConverterBase::AddSurfaceDataForMesh(const TCHAR* InFilePath, const CADLibrary::FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload) const

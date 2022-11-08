@@ -46,6 +46,8 @@ bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const 
 	CadMeshParameters.SymmetricNormal = (FVector3f) MeshParameters.SymmetricNormal;
 	CadMeshParameters.SymmetricOrigin = (FVector3f) MeshParameters.SymmetricOrigin;
 
+	CADLibrary::FMeshConversionContext MeshConversionContext(ImportParameters, CadMeshParameters);
+
 	// Previous MeshDescription is get to be able to create a new one with the same order of PolygonGroup (the matching of color and partition is currently based on their order)
 	if (FMeshDescription* DestinationMeshDescription = StaticMesh.GetMeshDescription(0))
 	{
@@ -55,7 +57,7 @@ bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const 
 
 		if (RetessellateOptions.RetessellationRule == EDatasmithCADRetessellationRule::SkipDeletedSurfaces)
 		{
-			CADLibrary::CopyPatchGroups(*DestinationMeshDescription, MeshDescription);
+			CADLibrary::GetExistingPatches(*DestinationMeshDescription, MeshConversionContext.PatchesToMesh);
 		}
 
 		const double GeometricTolerance = 0.01; // mm
@@ -69,7 +71,7 @@ bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const 
 			return bSuccessfulTessellation;
 		}
 
-		if(CADLibrary::FCADKernelTools::Tessellate(CADKernelModel, ImportParameters, CadMeshParameters, MeshDescription))
+		if(CADLibrary::FCADKernelTools::Tessellate(CADKernelModel, MeshConversionContext, MeshDescription))
 		{
 			// To update the SectionInfoMap 
 			TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();

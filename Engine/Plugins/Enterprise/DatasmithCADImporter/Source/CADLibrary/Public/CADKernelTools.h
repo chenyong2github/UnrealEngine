@@ -8,32 +8,34 @@
 
 namespace UE::CADKernel
 {
-	class FBody;
-	class FBodyMesh;
-	class FFaceMesh;
-	class FTopologicalShapeEntity;
-	class FModelMesh;
+class FBody;
+class FBodyMesh;
+class FFaceMesh;
+class FTopologicalShapeEntity;
+class FModelMesh;
 }
 
 struct FMeshDescription;
 
 namespace CADLibrary
 {
-	class FImportParameters;
-	struct FMeshParameters;
+class FImportParameters;
+struct FMeshParameters;
 
-	class CADLIBRARY_API FCADKernelTools
-	{
-	public:
-		static void DefineMeshCriteria(UE::CADKernel::FModelMesh& MeshModel, const FImportParameters& ImportParameters, double GeometricTolerance);
+struct FMeshConversionContext;
 
-		static void GetBodyTessellation(const UE::CADKernel::FModelMesh& ModelMesh, const UE::CADKernel::FBody& Body, FBodyMesh& OutBodyMesh);
+class CADLIBRARY_API FCADKernelTools
+{
+public:
+	static void DefineMeshCriteria(UE::CADKernel::FModelMesh& MeshModel, const FImportParameters& ImportParameters, double GeometricTolerance);
 
-		/**
-		 * Tessellate a CADKernel entity and update the MeshDescription
-		 */
-		static bool Tessellate(UE::CADKernel::FTopologicalShapeEntity& InCADKernelEntity, const FImportParameters& ImportParameters, const FMeshParameters& MeshParameters, FMeshDescription& OutMeshDescription);
+	static void GetBodyTessellation(const UE::CADKernel::FModelMesh& ModelMesh, const UE::CADKernel::FBody& Body, FBodyMesh& OutBodyMesh);
 
-		static uint32 GetFaceTessellation(UE::CADKernel::FFaceMesh& FaceMesh, FBodyMesh& OutBodyMesh, FObjectDisplayDataId FaceMaterial);
-	};
+	/**
+	 * Tessellate a CADKernel entity and update the MeshDescription
+	 */
+	static bool Tessellate(UE::CADKernel::FTopologicalShapeEntity& InCADKernelEntity, FMeshConversionContext& Context, FMeshDescription& OutMeshDescription);
+
+	static uint32 GetFaceTessellation(UE::CADKernel::FFaceMesh& FaceMesh, FBodyMesh& OutBodyMesh, FObjectDisplayDataId FaceMaterial);
+};
 }
