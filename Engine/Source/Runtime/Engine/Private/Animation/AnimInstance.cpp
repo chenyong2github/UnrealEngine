@@ -3076,6 +3076,17 @@ void UAnimInstance::PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance
 						else
 						{
 							LayerNode->SetLinkedLayerInstance(this, nullptr);
+							
+							if (!bInDeferSubGraphInitialization)
+							{
+								UAnimInstance* LinkedInstance = LayerNode->GetTargetInstance<UAnimInstance>();
+								if (LayerNode->LinkedRoot && LinkedInstance)
+								{
+									FAnimInstanceProxy& ThisProxy = GetProxyOnAnyThread<FAnimInstanceProxy>();
+									FAnimInstanceProxy& LinkedProxy = LinkedInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
+									InitializeAndCacheBonesForLinkedRoot(LayerNode, ThisProxy, LinkedInstance, LinkedProxy);
+								}
+							}
 						}
 					}
 				}
