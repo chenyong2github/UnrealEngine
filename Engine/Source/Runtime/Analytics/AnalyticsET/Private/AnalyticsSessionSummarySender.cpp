@@ -52,9 +52,9 @@ bool FAnalyticsSessionSummarySender::SendSessionSummary(const FString& UserId, c
 		// Reconfigure the analytics provider to sent the summary event 'as if' it was sent by the process that created it. This is required by the analytics backend.
 		FGuid SessionGuid;
 		FGuid::Parse(*SessionId, SessionGuid);
-		TempSummaryProvider->SetUserID(CopyTemp(*UserId));
-		TempSummaryProvider->SetAppID(CopyTemp(*AppId));
-		TempSummaryProvider->SetAppVersion(CopyTemp(*AppVersion));
+		TempSummaryProvider->SetUserID(*UserId);
+		TempSummaryProvider->SetAppID(*AppId);
+		TempSummaryProvider->SetAppVersion(*AppVersion);
 		TempSummaryProvider->SetSessionID(SessionGuid.ToString(EGuidFormats::DigitsWithHyphensInBraces)); // Ensure to put back the {} around the GUID.
 
 		// Send the summary.
