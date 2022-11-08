@@ -200,7 +200,7 @@ namespace mu
 
 	//-------------------------------------------------------------------------------------------------
 	void ASTOpConstantResource::GetBlockLayoutSize(int blockIndex, int* pBlockX, int* pBlockY,
-		BLOCK_LAYOUT_SIZE_CACHE*)
+		FBlockLayoutSizeCache*)
 	{
 		switch (type)
 		{

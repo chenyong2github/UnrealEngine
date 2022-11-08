@@ -179,7 +179,7 @@ namespace mu
 
 
     //! Detailed optimization flags
-    struct MODEL_OPTIMIZATION_OPTIONS
+    struct FModelOptimizationOptions
     {
         bool m_enabled = true;
         bool m_optimiseOverlappedMasks = false;
@@ -212,6 +212,24 @@ namespace mu
 	};
 
 
+	//! For each operation we sink, the map from old instructions to new instructions.
+	struct FSinkerOldToNewKey
+	{
+		Ptr<const ASTOp> Op;
+		Ptr<const ASTOp> SinkingOp;
+
+		friend inline uint32 GetTypeHash(const FSinkerOldToNewKey& Key)
+		{
+			return HashCombine(::GetTypeHash(Key.Op.get()), ::GetTypeHash(Key.SinkingOp.get()));
+		}
+
+		friend inline bool operator==(const FSinkerOldToNewKey& A, const FSinkerOldToNewKey& B)
+		{
+			return A.Op==B.Op && A.SinkingOp==B.SinkingOp;
+		}
+	};
+
+
 	class Sink_ImageCropAST
 	{
 	public:
@@ -223,12 +241,10 @@ namespace mu
 		const ASTOp* m_root = nullptr;
 		Ptr<ASTOp> m_initialSource;
 		//! For each operation we sink, the map from old instructions to new instructions.
-		TMap<Ptr<const ASTOpFixed>, std::unordered_map<Ptr<ASTOp>, Ptr<ASTOp>>> m_oldToNew;
-		TArray<Ptr<ASTOp>> m_newOps;
+		TMap<FSinkerOldToNewKey, Ptr<ASTOp>> OldToNew;
 
 		Ptr<ASTOp> Visit(Ptr<ASTOp> at, const ASTOpFixed* currentCropOp);
 	};
-
 
 	//---------------------------------------------------------------------------------------------
 	//!
@@ -243,9 +259,7 @@ namespace mu
 
 		const class ASTOpImagePixelFormat* m_root = nullptr;
 		Ptr<ASTOp> m_initialSource;
-		//! For each operation we sink, the map from old instructions to new instructions.
-		TMap<Ptr<const ASTOp>, std::unordered_map<Ptr<ASTOp>, Ptr<ASTOp>>> m_oldToNew;
-		TArray<Ptr<ASTOp>> m_newOps;
+		TMap<FSinkerOldToNewKey, Ptr<ASTOp>> OldToNew;
 
 		Ptr<ASTOp> Visit(Ptr<ASTOp> at, const class ASTOpImagePixelFormat* currentFormatOp);
 	};
@@ -259,16 +273,15 @@ namespace mu
 	public:
 
 		// \TODO This is recursive and may cause stack overflows in big models.
-		mu::Ptr<ASTOp> Apply(const ASTOp* root);
+		Ptr<ASTOp> Apply(const ASTOp* root);
 
 	protected:
 
 		const class ASTOpMeshFormat* m_root = nullptr;
-		mu::Ptr<ASTOp> m_initialSource;
-		TMap<mu::Ptr<ASTOp>, mu::Ptr<ASTOp>> m_oldToNew;
-		TArray<mu::Ptr<ASTOp>> m_newOps;
+		Ptr<ASTOp> m_initialSource;
+		TMap<FSinkerOldToNewKey, Ptr<ASTOp>> OldToNew;
 
-		mu::Ptr<ASTOp> Visit(const mu::Ptr<ASTOp>& at, const class ASTOpMeshFormat* currentFormatOp);
+		Ptr<ASTOp> Visit(const Ptr<ASTOp>& at, const class ASTOpMeshFormat* currentFormatOp);
 	};
 
 
@@ -287,14 +300,13 @@ namespace mu
 		Ptr<ASTOp> m_initialSource;
 
 		//! For each operation we sink, the map from old instructions to new instructions.
-		TMap<Ptr<ASTOp>, Ptr<ASTOp>> m_oldToNew;
-		TArray<Ptr<ASTOp>> m_newOps;
+		TMap<FSinkerOldToNewKey, Ptr<ASTOp>> OldToNew;
 
 		Ptr<ASTOp> Visit(Ptr<ASTOp> at, const class ASTOpImageMipmap* currentMipmapOp);
 
 	};
 
-	struct OPTIMIZE_SINK_CONTEXT
+	struct FOptimizeSinkContext
 	{
 		Sink_ImageCropAST ImageCropSinker;
 		Sink_ImagePixelFormatAST ImagePixelFormatSinker;
@@ -435,8 +447,8 @@ namespace mu
 
         //!
         virtual Ptr<ASTOp> OptimiseSize() const { return nullptr; }
-        virtual Ptr<ASTOp> OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS&) const { return nullptr; }
-        virtual Ptr<ASTOp> OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&, OPTIMIZE_SINK_CONTEXT& ) const { return nullptr; }
+        virtual Ptr<ASTOp> OptimiseSemantic(const FModelOptimizationOptions&) const { return nullptr; }
+        virtual Ptr<ASTOp> OptimiseSink(const FModelOptimizationOptions&, FOptimizeSinkContext& ) const { return nullptr; }
         virtual Ptr<ImageSizeExpression> GetImageSizeExpression() const
         {
             check( false );
@@ -671,13 +683,13 @@ namespace mu
         virtual FImageDesc GetImageDesc( bool returnBestOption=false, FGetImageDescContext* context=nullptr ) const;
 
         //! Optional cache struct to use int he method below.
-        using BLOCK_LAYOUT_SIZE_CACHE=TMap< const TPair<ASTOp*,int>, TPair<int,int>>;
+        using FBlockLayoutSizeCache=TMap< const TPair<ASTOp*,int>, TPair<int,int>>;
 
         //! Return the size in layout blocks of a particular block given by absolute index
         virtual void GetBlockLayoutSize( int blockIndex, int* pBlockX, int* pBlockY,
-                                         BLOCK_LAYOUT_SIZE_CACHE* cache );
+                                         FBlockLayoutSizeCache* cache );
         void GetBlockLayoutSizeCached( int blockIndex, int* pBlockX, int* pBlockY,
-                                       BLOCK_LAYOUT_SIZE_CACHE* cache );
+                                       FBlockLayoutSizeCache* cache );
 
 
         //! Return the size in pixels of the layout grid block for the image operation
@@ -970,12 +982,10 @@ namespace mu
         bool IsEqual(const ASTOp& otherUntyped) const override;
 		uint64 Hash() const override;
 		FImageDesc GetImageDesc( bool returnBestOption, FGetImageDescContext* context ) const override;
-        void GetBlockLayoutSize( int blockIndex, int* pBlockX, int* pBlockY,
-                                 BLOCK_LAYOUT_SIZE_CACHE* cache ) override;
         void GetLayoutBlockSize( int* pBlockX, int* pBlockY ) override;
         Ptr<ASTOp> OptimiseSize() const override;
-        Ptr<ASTOp> OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS&) const override;
-        Ptr<ASTOp> OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&, OPTIMIZE_SINK_CONTEXT&) const override;
+        Ptr<ASTOp> OptimiseSemantic(const FModelOptimizationOptions&) const override;
+        Ptr<ASTOp> OptimiseSink(const FModelOptimizationOptions&, FOptimizeSinkContext&) const override;
         FBoolEvalResult EvaluateBool( ASTOpList& facts, FEvaluateBoolCache* cache ) const override;
         int EvaluateInt( ASTOpList& facts, bool &unknown ) const override;
         bool IsImagePlainConstant(FVector4f& colour ) const override;
@@ -1031,15 +1041,6 @@ namespace mu
             return res;
         }
 
-        inline void GetBlockLayoutSize( int blockIndex, OP::ADDRESS at, int* pBlockX, int* pBlockY,
-                                        BLOCK_LAYOUT_SIZE_CACHE* cache )
-        {
-            if (children[at])
-            {
-                children[at]->GetBlockLayoutSizeCached(blockIndex,pBlockX,pBlockY,cache);
-            }
-        }
-
         inline void GetLayoutBlockSize( OP::ADDRESS at, int* pBlockX, int* pBlockY )
         {
             if (children[at])
@@ -1049,7 +1050,7 @@ namespace mu
         }
 
         //! \todo move to ast swizzle op class when created
-        Ptr<ASTOp> OptimiseSwizzle( const MODEL_OPTIMIZATION_OPTIONS& ) const;
+        Ptr<ASTOp> OptimiseSwizzle( const FModelOptimizationOptions& ) const;
     };
 
 

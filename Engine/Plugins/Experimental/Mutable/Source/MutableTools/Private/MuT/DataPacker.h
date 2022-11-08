@@ -21,7 +21,7 @@ namespace mu
     //! Convert constant data to different formats, based on their usage
     //---------------------------------------------------------------------------------------------
     extern void DataOptimiseAST( int imageCompressionQuality, ASTOpList& roots,
-                                 const MODEL_OPTIMIZATION_OPTIONS& );
+                                 const FModelOptimizationOptions& );
 
     //---------------------------------------------------------------------------------------------
     //! Find the given constant in a subtree

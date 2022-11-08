@@ -80,7 +80,7 @@ namespace mu
     //---------------------------------------------------------------------------------------------
     bool SemanticOptimiserAST(
             ASTOpList& roots,
-            const MODEL_OPTIMIZATION_OPTIONS& optimisationOptions
+            const FModelOptimizationOptions& optimisationOptions
             )
     {
         MUTABLE_CPUPROFILER_SCOPE(SemanticOptimiserAST);
@@ -105,7 +105,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    Ptr<ASTOp> ASTOpFixed::OptimiseSemantic( const MODEL_OPTIMIZATION_OPTIONS& options ) const
+    Ptr<ASTOp> ASTOpFixed::OptimiseSemantic( const FModelOptimizationOptions& options ) const
     {
         Ptr<ASTOp> at;
 
@@ -478,7 +478,7 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    Ptr<ASTOp> ASTOpFixed::OptimiseSwizzle( const MODEL_OPTIMIZATION_OPTIONS& options ) const
+    Ptr<ASTOp> ASTOpFixed::OptimiseSwizzle( const FModelOptimizationOptions& options ) const
     {
         MUTABLE_CPUPROFILER_SCOPE(OptimiseSwizzleAST);
 
@@ -1002,14 +1002,14 @@ namespace mu
     bool SinkOptimiserAST
     (
             ASTOpList& roots,
-            const MODEL_OPTIMIZATION_OPTIONS& optimisationOptions
+            const FModelOptimizationOptions& optimisationOptions
     )
     {
         MUTABLE_CPUPROFILER_SCOPE(SinkOptimiserAST);
 
         bool modified = false;
 
-		OPTIMIZE_SINK_CONTEXT context;
+		FOptimizeSinkContext context;
 
         ASTOp::Traverse_TopDown_Unique_Imprecise( roots, [&](Ptr<ASTOp>& n)
         {
@@ -1033,8 +1033,7 @@ namespace mu
     Ptr<ASTOp> Sink_ImageCropAST::Apply( const ASTOp* root )
     {
         m_root = root;
-        m_oldToNew.Empty();
-		m_newOps.Empty();
+        OldToNew.Empty();
 
         check(root->GetOpType()==OP_TYPE::IM_CROP);
 
@@ -1057,20 +1056,11 @@ namespace mu
     {
         if (!at) return nullptr;
 
-        // Newly created?
-        if (m_newOps.Find( at )!=INDEX_NONE)
-        {
-            return at;
-        }
-
         // Already visited?
+		const Ptr<ASTOp>* Cached = OldToNew.Find({ at, currentCropOp });
+		if (Cached)
 		{
-			auto& CurrentSet = m_oldToNew.FindOrAdd(currentCropOp);
-			auto cacheIt = CurrentSet.find(at);
-			if (cacheIt != CurrentSet.end())
-			{
-				return cacheIt->second;
-			}
+			return *Cached;
 		}
 
         bool skipSinking=false;
@@ -1300,7 +1290,7 @@ namespace mu
             newAt = newOp;
         }
 
-        m_oldToNew[currentCropOp][at] = newAt;
+		OldToNew.Add({ at, currentCropOp }, newAt);
 
         return newAt;
     }
@@ -1309,7 +1299,7 @@ namespace mu
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
 	//---------------------------------------------------------------------------------------------
-	Ptr<ASTOp> ASTOpFixed::OptimiseSink( const MODEL_OPTIMIZATION_OPTIONS& options, OPTIMIZE_SINK_CONTEXT& context ) const
+	Ptr<ASTOp> ASTOpFixed::OptimiseSink( const FModelOptimizationOptions& options, FOptimizeSinkContext& context ) const
     {
         Ptr<ASTOp> at;
 
@@ -1392,63 +1382,7 @@ namespace mu
         //-----------------------------------------------------------------------------------------
         case OP_TYPE::LA_REMOVEBLOCKS:
         {
-            auto meshAt = children[op.args.LayoutRemoveBlocks.mesh].child();
-
-            OP_TYPE meshType = meshAt->GetOpType();
-            switch ( meshType )
-            {
-
-            case OP_TYPE::ME_SWITCH:
-            {
-                // Move the remove-blocks down all the paths
-                Ptr<ASTOpSwitch> nop = mu::Clone<ASTOpSwitch>(meshAt);
-                nop->type = OP_TYPE::LA_SWITCH;
-
-                if (nop->def)
-                {
-					Ptr<ASTOpFixed> defOp = mu::Clone<ASTOpFixed>(this);
-                    defOp->SetChild( defOp->op.args.LayoutRemoveBlocks.mesh, nop->def );
-                    nop->def = defOp;
-                }
-
-                for ( auto& o: nop->cases )
-                {
-                    if ( o.branch )
-                    {
-						Ptr<ASTOpFixed> bOp = mu::Clone<ASTOpFixed>(this);
-                        bOp->SetChild( bOp->op.args.LayoutRemoveBlocks.mesh, o.branch );
-                        o.branch = bOp;
-                    }
-                }
-
-                at = nop;
-                break;
-            }
-
-            case OP_TYPE::ME_MORPH2:
-            {
-                // Move the remove-blocks down the base
-				const ASTOpMeshMorph* typedMeshAt = dynamic_cast<const ASTOpMeshMorph*>(meshAt.get());
-                Ptr<ASTOpFixed> nop = mu::Clone<ASTOpFixed>(this);
-                nop->SetChild( nop->op.args.LayoutRemoveBlocks.mesh, typedMeshAt->Base );
-                at = nop;
-                break;
-            }
-
-            case OP_TYPE::ME_INTERPOLATE:
-            {
-                // Assume that the UVs will not be interpolated across blocks!
-                auto typedMeshAt = dynamic_cast<const ASTOpFixed*>(meshAt.get());
-				Ptr<ASTOpFixed> nop = mu::Clone<ASTOpFixed>(this);
-                nop->SetChild( nop->op.args.LayoutRemoveBlocks.mesh, typedMeshAt->children[ typedMeshAt->op.args.MeshInterpolate.base] );
-                at = nop;
-                break;
-            }
-
-            default:
-                break;
-            }
-
+			check(false);
             break;
         }
 
@@ -1986,7 +1920,7 @@ namespace mu
         Ptr<ASTOp> Apply( const ASTOp* root )
         {
             m_root = root;
-            m_oldToNew.clear();
+            OldToNew.Empty();
 
             check(root->GetOpType()==OP_TYPE::IM_RESIZEREL);
 
@@ -2008,259 +1942,252 @@ namespace mu
         const ASTOp* m_root;
         Ptr<ASTOp> m_initialSource;
         //! For each operation we sink, the map from old instructions to new instructions.
-        std::unordered_map<Ptr<const ASTOpFixed>,std::unordered_map<Ptr<ASTOp>,Ptr<ASTOp>>> m_oldToNew;
-        vector<Ptr<ASTOp>> m_newOps;
+		TMap<FSinkerOldToNewKey, Ptr<ASTOp>> OldToNew;
 
-        Ptr<ASTOp> Visit( Ptr<ASTOp> at, const ASTOpFixed* currentSinkingOp )
-        {
-            if (!at) return nullptr;
+		Ptr<ASTOp> Visit(Ptr<ASTOp> at, const ASTOpFixed* currentSinkingOp)
+		{
+			if (!at) return nullptr;
 
-            // Newly created?
-            if (std::find(m_newOps.begin(), m_newOps.end(), at )!=m_newOps.end())
-            {
-                return at;
-            }
+			// Already visited?
+			const Ptr<ASTOp>* Cached = OldToNew.Find({ at,currentSinkingOp });
+			if (Cached)
+			{
+				return *Cached;
+			}
 
-            // Already visited?
-            auto cacheIt = m_oldToNew[currentSinkingOp].find(at);
-            if (cacheIt!=m_oldToNew[currentSinkingOp].end())
-            {
-                return cacheIt->second;
-            }
+			float scaleX = currentSinkingOp->op.args.ImageResizeRel.factor[0];
+			float scaleY = currentSinkingOp->op.args.ImageResizeRel.factor[1];
 
-            float scaleX = currentSinkingOp->op.args.ImageResizeRel.factor[0];
-            float scaleY = currentSinkingOp->op.args.ImageResizeRel.factor[1];
+			Ptr<ASTOp> newAt = at;
+			switch (at->GetOpType())
+			{
 
-            Ptr<ASTOp> newAt = at;
-            switch ( at->GetOpType() )
-            {
+			case OP_TYPE::IM_CONDITIONAL:
+			{
+				// We move the mask creation down the two paths
+				auto newOp = mu::Clone<ASTOpConditional>(at);
+				newOp->yes = Visit(newOp->yes.child(), currentSinkingOp);
+				newOp->no = Visit(newOp->no.child(), currentSinkingOp);
+				newAt = newOp;
+				break;
+			}
 
-            case OP_TYPE::IM_CONDITIONAL:
-            {
-                // We move the mask creation down the two paths
-                auto newOp = mu::Clone<ASTOpConditional>(at);
-                newOp->yes = Visit(newOp->yes.child(), currentSinkingOp);
-                newOp->no = Visit(newOp->no.child(), currentSinkingOp);
-                newAt = newOp;
-                break;
-            }
+			case OP_TYPE::IM_PIXELFORMAT:
+			{
+				// We move the mask creation down format.
+				// \todo: only if shrinking?
+				Ptr<ASTOpImagePixelFormat> newOp = mu::Clone<ASTOpImagePixelFormat>(at);
+				newOp->Source = Visit(newOp->Source.child(), currentSinkingOp);
+				newAt = newOp;
+				break;
+			}
 
-            case OP_TYPE::IM_PIXELFORMAT:
-            {
-                // We move the mask creation down format.
-                // \todo: only if shrinking?
-                Ptr<ASTOpImagePixelFormat> newOp = mu::Clone<ASTOpImagePixelFormat>(at);
-                newOp->Source = Visit( newOp->Source.child(), currentSinkingOp);
-                newAt = newOp;
-                break;
-            }
+			case OP_TYPE::IM_SWITCH:
+			{
+				// We move the mask creation down all the paths
+				auto newOp = mu::Clone<ASTOpSwitch>(at);
+				newOp->def = Visit(newOp->def.child(), currentSinkingOp);
+				for (auto& c : newOp->cases)
+				{
+					c.branch = Visit(c.branch.child(), currentSinkingOp);
+				}
+				newAt = newOp;
+				break;
+			}
 
-            case OP_TYPE::IM_SWITCH:
-            {
-                // We move the mask creation down all the paths
-                auto newOp = mu::Clone<ASTOpSwitch>(at);
-                newOp->def = Visit(newOp->def.child(), currentSinkingOp);
-                for( auto& c:newOp->cases )
-                {
-                    c.branch = Visit(c.branch.child(), currentSinkingOp);
-                }
-                newAt = newOp;
-                break;
-            }
+			case OP_TYPE::IM_SWIZZLE:
+			{
+				auto newOp = mu::Clone<ASTOpFixed>(at);
+				for (int s = 0; s < MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++s)
+				{
+					auto channelOp = newOp->children[newOp->op.args.ImageSwizzle.sources[s]].child();
+					if (channelOp)
+					{
+						newOp->SetChild(newOp->op.args.ImageSwizzle.sources[s], Visit(channelOp, currentSinkingOp));
+					}
+				}
+				newAt = newOp;
+				break;
+			}
 
-            case OP_TYPE::IM_SWIZZLE:
-            {
-                auto newOp = mu::Clone<ASTOpFixed>(at);
-                for( int s=0; s<MUTABLE_OP_MAX_SWIZZLE_CHANNELS; ++s )
-                {
-                    auto channelOp = newOp->children[newOp->op.args.ImageSwizzle.sources[s]].child();
-                    if (channelOp)
-                    {
-                        newOp->SetChild( newOp->op.args.ImageSwizzle.sources[s], Visit( channelOp, currentSinkingOp) );
-                    }
-                }
-                newAt = newOp;
-                break;
-            }
+			case OP_TYPE::IM_COMPOSE:
+			{
+				// We can only optimise if the layout grid blocks size in pixels is
+				// still an integer after relative scale
+				bool acceptable = false;
+				{
+					auto typedAt = dynamic_cast<const ASTOpImageCompose*>(at.get());
+					auto originalBaseOp = typedAt->Base.child();
 
-            case OP_TYPE::IM_COMPOSE:
-            {
-                // We can only optimise if the layout grid blocks size in pixels is
-                // still an integer after relative scale
-                bool acceptable = false;
-                {
-                    auto typedAt = dynamic_cast<const ASTOpImageCompose*>(at.get());
-                    auto originalBaseOp = typedAt->Base.child();
+					// \todo: recursion-proof cache?
+					int layoutBlockPixelsX = 0;
+					int layoutBlockPixelsY = 0;
+					originalBaseOp->GetLayoutBlockSize(&layoutBlockPixelsX, &layoutBlockPixelsY);
 
-                    // \todo: recursion-proof cache?
-                    int layoutBlockPixelsX = 0;
-                    int layoutBlockPixelsY = 0;
-                    originalBaseOp->GetLayoutBlockSize( &layoutBlockPixelsX, &layoutBlockPixelsY );
+					int scaledLayoutBlockPixelsX = int(layoutBlockPixelsX * scaleX);
+					int scaledLayoutBlockPixelsY = int(layoutBlockPixelsY * scaleY);
+					int unscaledLayoutBlockPixelsX = int(scaledLayoutBlockPixelsX / scaleX);
+					int unscaledLayoutBlockPixelsY = int(scaledLayoutBlockPixelsY / scaleY);
+					acceptable =
+						(layoutBlockPixelsX != 0 && layoutBlockPixelsY != 0)
+						&&
+						(layoutBlockPixelsX == unscaledLayoutBlockPixelsX)
+						&&
+						(layoutBlockPixelsY == unscaledLayoutBlockPixelsY);
+				}
 
-                    int scaledLayoutBlockPixelsX = int(layoutBlockPixelsX*scaleX);
-                    int scaledLayoutBlockPixelsY = int(layoutBlockPixelsY*scaleY);
-                    int unscaledLayoutBlockPixelsX = int(scaledLayoutBlockPixelsX/scaleX);
-                    int unscaledLayoutBlockPixelsY = int(scaledLayoutBlockPixelsY/scaleY);
-                    acceptable =
-                            ( layoutBlockPixelsX!=0 && layoutBlockPixelsY!=0 )
-                            &&
-                            ( layoutBlockPixelsX == unscaledLayoutBlockPixelsX )
-                            &&
-                            ( layoutBlockPixelsY == unscaledLayoutBlockPixelsY );
-                }
+				if (acceptable)
+				{
+					auto newOp = mu::Clone<ASTOpImageCompose>(at);
 
-                if (acceptable)
-                {
-                    auto newOp = mu::Clone<ASTOpImageCompose>(at);
+					auto baseOp = newOp->Base.child();
+					newOp->Base = Visit(baseOp, currentSinkingOp);
 
-                    auto baseOp = newOp->Base.child();
-                    newOp->Base = Visit( baseOp, currentSinkingOp);
+					auto blockOp = newOp->BlockImage.child();
+					newOp->BlockImage = Visit(blockOp, currentSinkingOp);
 
-                    auto blockOp = newOp->BlockImage.child();
-                    newOp->BlockImage = Visit( blockOp, currentSinkingOp);
+					newAt = newOp;
+				}
 
-                    newAt = newOp;
-                }
+				break;
+			}
 
-                break;
-            }
+			case OP_TYPE::IM_PATCH:
+			{
+				auto newOp = mu::Clone<ASTOpImagePatch>(at);
 
-            case OP_TYPE::IM_PATCH:
-            {
-                auto newOp = mu::Clone<ASTOpImagePatch>(at);
+				newOp->base = Visit(newOp->base.child(), currentSinkingOp);
+				newOp->patch = Visit(newOp->patch.child(), currentSinkingOp);
 
-                newOp->base = Visit( newOp->base.child(), currentSinkingOp );
-                newOp->patch = Visit( newOp->patch.child(), currentSinkingOp);
+				// todo: review if this is always correct, or we need some "divisible" check
+				newOp->location[0] = uint16(newOp->location[0] * scaleX);
+				newOp->location[1] = uint16(newOp->location[1] * scaleY);
 
-                // todo: review if this is always correct, or we need some "divisible" check
-                newOp->location[0] = uint16( newOp->location[0] *  scaleX );
-                newOp->location[1] = uint16( newOp->location[1] *  scaleY );
+				newAt = newOp;
 
-                newAt = newOp;
+				break;
+			}
 
-                break;
-            }
+			case OP_TYPE::IM_MIPMAP:
+			{
+				auto newOp = mu::Clone<ASTOpImageMipmap>(at.get());
+				auto baseOp = newOp->Source.child();
+				newOp->Source = Visit(baseOp, currentSinkingOp);
+				newAt = newOp;
+				break;
+			}
 
-            case OP_TYPE::IM_MIPMAP:
-            {
-                auto newOp = mu::Clone<ASTOpImageMipmap>(at.get());
-                auto baseOp = newOp->Source.child();
-                newOp->Source = Visit( baseOp, currentSinkingOp );
-                newAt = newOp;
-                break;
-            }
+			case OP_TYPE::IM_INTERPOLATE:
+			{
+				auto newOp = mu::Clone<ASTOpFixed>(at);
 
-            case OP_TYPE::IM_INTERPOLATE:
-            {
-                auto newOp = mu::Clone<ASTOpFixed>(at);
+				for (int v = 0; v < MUTABLE_OP_MAX_INTERPOLATE_COUNT; ++v)
+				{
+					auto child = newOp->children[newOp->op.args.ImageInterpolate.targets[v]].child();
+					auto bOp = Visit(child, currentSinkingOp);
+					newOp->SetChild(newOp->op.args.ImageInterpolate.targets[v], bOp);
+				}
 
-                for ( int v=0; v<MUTABLE_OP_MAX_INTERPOLATE_COUNT; ++v )
-                {
-                    auto child = newOp->children[ newOp->op.args.ImageInterpolate.targets[v] ].child();
-                    auto bOp = Visit( child, currentSinkingOp );
-                    newOp->SetChild( newOp->op.args.ImageInterpolate.targets[v], bOp );
-                }
-
-                newAt = newOp;
-                break;
-            }
+				newAt = newOp;
+				break;
+			}
 
 
-            case OP_TYPE::IM_INTERPOLATE3:
-            {
-                auto newOp = mu::Clone<ASTOpFixed>(at);
+			case OP_TYPE::IM_INTERPOLATE3:
+			{
+				auto newOp = mu::Clone<ASTOpFixed>(at);
 
-                auto top0 = newOp->children[ newOp->op.args.ImageInterpolate3.target0 ].child();
-                newOp->SetChild( newOp->op.args.ImageInterpolate3.target0, Visit(top0, currentSinkingOp) );
+				auto top0 = newOp->children[newOp->op.args.ImageInterpolate3.target0].child();
+				newOp->SetChild(newOp->op.args.ImageInterpolate3.target0, Visit(top0, currentSinkingOp));
 
-                auto top1 = newOp->children[ newOp->op.args.ImageInterpolate3.target1 ].child();
-                newOp->SetChild( newOp->op.args.ImageInterpolate3.target1, Visit(top1, currentSinkingOp) );
+				auto top1 = newOp->children[newOp->op.args.ImageInterpolate3.target1].child();
+				newOp->SetChild(newOp->op.args.ImageInterpolate3.target1, Visit(top1, currentSinkingOp));
 
-                auto top2 = newOp->children[ newOp->op.args.ImageInterpolate3.target2 ].child();
-                newOp->SetChild( newOp->op.args.ImageInterpolate3.target2, Visit(top2, currentSinkingOp) );
+				auto top2 = newOp->children[newOp->op.args.ImageInterpolate3.target2].child();
+				newOp->SetChild(newOp->op.args.ImageInterpolate3.target2, Visit(top2, currentSinkingOp));
 
-                newAt = newOp;
-                break;
-            }
+				newAt = newOp;
+				break;
+			}
 
-            case OP_TYPE::IM_MULTILAYER:
-            {
-                auto nop = mu::Clone<ASTOpImageMultiLayer>(at);
-                nop->base = Visit( nop->base.child(), currentSinkingOp );
-                nop->mask = Visit( nop->mask.child(), currentSinkingOp );
-                nop->blend = Visit( nop->blend.child(), currentSinkingOp );
-                newAt = nop;
-                break;
-            }
+			case OP_TYPE::IM_MULTILAYER:
+			{
+				auto nop = mu::Clone<ASTOpImageMultiLayer>(at);
+				nop->base = Visit(nop->base.child(), currentSinkingOp);
+				nop->mask = Visit(nop->mask.child(), currentSinkingOp);
+				nop->blend = Visit(nop->blend.child(), currentSinkingOp);
+				newAt = nop;
+				break;
+			}
 
-            case OP_TYPE::IM_LAYER:
-            {
-                auto nop = mu::Clone<ASTOpFixed>(at);
+			case OP_TYPE::IM_LAYER:
+			{
+				auto nop = mu::Clone<ASTOpFixed>(at);
 
-                auto aOp = nop->children[ nop->op.args.ImageLayer.base ].child();
-                nop->SetChild( nop->op.args.ImageLayer.base, Visit( aOp, currentSinkingOp ) );
+				auto aOp = nop->children[nop->op.args.ImageLayer.base].child();
+				nop->SetChild(nop->op.args.ImageLayer.base, Visit(aOp, currentSinkingOp));
 
-                auto bOp = nop->children[ nop->op.args.ImageLayer.blended ].child();
-                nop->SetChild( nop->op.args.ImageLayer.blended, Visit( bOp, currentSinkingOp ) );
+				auto bOp = nop->children[nop->op.args.ImageLayer.blended].child();
+				nop->SetChild(nop->op.args.ImageLayer.blended, Visit(bOp, currentSinkingOp));
 
-                auto mOp = nop->children[ nop->op.args.ImageLayer.mask ].child();
-                nop->SetChild( nop->op.args.ImageLayer.mask, Visit( mOp, currentSinkingOp ) );
+				auto mOp = nop->children[nop->op.args.ImageLayer.mask].child();
+				nop->SetChild(nop->op.args.ImageLayer.mask, Visit(mOp, currentSinkingOp));
 
-                newAt = nop;
-                break;
-            }
+				newAt = nop;
+				break;
+			}
 
-            case OP_TYPE::IM_LAYERCOLOUR:
-            {
-                auto nop = mu::Clone<ASTOpFixed>(at);
+			case OP_TYPE::IM_LAYERCOLOUR:
+			{
+				auto nop = mu::Clone<ASTOpFixed>(at);
 
-                auto aOp = nop->children[ nop->op.args.ImageLayerColour.base ].child();
-                nop->SetChild( nop->op.args.ImageLayerColour.base, Visit( aOp, currentSinkingOp ) );
+				auto aOp = nop->children[nop->op.args.ImageLayerColour.base].child();
+				nop->SetChild(nop->op.args.ImageLayerColour.base, Visit(aOp, currentSinkingOp));
 
-                auto mOp = nop->children[ nop->op.args.ImageLayerColour.mask ].child();
-                nop->SetChild( nop->op.args.ImageLayer.mask, Visit( mOp, currentSinkingOp ) );
+				auto mOp = nop->children[nop->op.args.ImageLayerColour.mask].child();
+				nop->SetChild(nop->op.args.ImageLayer.mask, Visit(mOp, currentSinkingOp));
 
-                newAt = nop;
-                break;
-            }
+				newAt = nop;
+				break;
+			}
 
-            case OP_TYPE::IM_DISPLACE:
-            {
-                auto nop = mu::Clone<ASTOpFixed>(at);
+			case OP_TYPE::IM_DISPLACE:
+			{
+				auto nop = mu::Clone<ASTOpFixed>(at);
 
-                auto sourceOp = nop->children[ nop->op.args.ImageDisplace.source ].child();
-                nop->SetChild( nop->op.args.ImageDisplace.source, Visit(sourceOp, currentSinkingOp ) );
+				auto sourceOp = nop->children[nop->op.args.ImageDisplace.source].child();
+				nop->SetChild(nop->op.args.ImageDisplace.source, Visit(sourceOp, currentSinkingOp));
 
-                auto mapOp = nop->children[ nop->op.args.ImageDisplace.displacementMap ].child();
-                nop->SetChild( nop->op.args.ImageDisplace.displacementMap, Visit(mapOp, currentSinkingOp ) );
+				auto mapOp = nop->children[nop->op.args.ImageDisplace.displacementMap].child();
+				nop->SetChild(nop->op.args.ImageDisplace.displacementMap, Visit(mapOp, currentSinkingOp));
 
-                // Make sure we don't scale a constant displacement map, which is very wrong.
-                if ( mapOp->GetOpType()==OP_TYPE::IM_MAKEGROWMAP )
-                {
-                    newAt = nop;
-                }
-                else
-                {
-                    // We cannot resize an already calculated displacement map.
-                }
+				// Make sure we don't scale a constant displacement map, which is very wrong.
+				if (mapOp->GetOpType() == OP_TYPE::IM_MAKEGROWMAP)
+				{
+					newAt = nop;
+				}
+				else
+				{
+					// We cannot resize an already calculated displacement map.
+				}
 
-                break;
-            }
+				break;
+			}
 
-            case OP_TYPE::IM_MAKEGROWMAP:
-            {
-                auto nop = mu::Clone<ASTOpFixed>(at);
-                auto maskOp = nop->children[ nop->op.args.ImageMakeGrowMap.mask ].child();
-                nop->SetChild( nop->op.args.ImageMakeGrowMap.mask, Visit( maskOp, currentSinkingOp ) );
-                newAt = nop;
-                break;
-            }
+			case OP_TYPE::IM_MAKEGROWMAP:
+			{
+				auto nop = mu::Clone<ASTOpFixed>(at);
+				auto maskOp = nop->children[nop->op.args.ImageMakeGrowMap.mask].child();
+				nop->SetChild(nop->op.args.ImageMakeGrowMap.mask, Visit(maskOp, currentSinkingOp));
+				newAt = nop;
+				break;
+			}
 
-            case OP_TYPE::IM_RASTERMESH:
-            {
-                auto nop = mu::Clone<ASTOpFixed>(at);
-                auto maskOp = nop->children[ nop->op.args.ImageRasterMesh.mask ].child();
-                nop->SetChild( nop->op.args.ImageRasterMesh.mask, Visit( maskOp, currentSinkingOp ) );
+			case OP_TYPE::IM_RASTERMESH:
+			{
+				auto nop = mu::Clone<ASTOpFixed>(at);
+				auto maskOp = nop->children[nop->op.args.ImageRasterMesh.mask].child();
+				nop->SetChild(nop->op.args.ImageRasterMesh.mask, Visit(maskOp, currentSinkingOp));
 
 				// Resize the image to project as well, assuming that since the target has a different resolution
 				// it make sense for the source image to have a similar resize.
@@ -2268,28 +2195,28 @@ namespace mu
 				//auto imageOp = nop->children[nop->op.args.ImageRasterMesh.image].child();
 				//nop->SetChild(nop->op.args.ImageRasterMesh.image, Visit(imageOp, currentSinkingOp));
 
-                nop->op.args.ImageRasterMesh.sizeX = uint16( nop->op.args.ImageRasterMesh.sizeX * scaleX + 0.5f );
-                nop->op.args.ImageRasterMesh.sizeY = uint16( nop->op.args.ImageRasterMesh.sizeY * scaleY + 0.5f );
-                newAt = nop;
-                break;
-            }
+				nop->op.args.ImageRasterMesh.sizeX = uint16(nop->op.args.ImageRasterMesh.sizeX * scaleX + 0.5f);
+				nop->op.args.ImageRasterMesh.sizeY = uint16(nop->op.args.ImageRasterMesh.sizeY * scaleY + 0.5f);
+				newAt = nop;
+				break;
+			}
 
-            default:
-                break;
-            }
+			default:
+				break;
+			}
 
-            // end on line, replace with sinking op
-            if (at==newAt && at!=m_initialSource)
-            {
-                Ptr<ASTOpFixed> newOp = mu::Clone<ASTOpFixed>(currentSinkingOp);
-                check(newOp->GetOpType()==OP_TYPE::IM_RESIZEREL);
+			// end on line, replace with sinking op
+			if (at == newAt && at != m_initialSource)
+			{
+				Ptr<ASTOpFixed> newOp = mu::Clone<ASTOpFixed>(currentSinkingOp);
+				check(newOp->GetOpType() == OP_TYPE::IM_RESIZEREL);
 
-                newOp->SetChild( newOp->op.args.ImageResizeRel.source,at);
+				newOp->SetChild(newOp->op.args.ImageResizeRel.source, at);
 
-                newAt = newOp;
-            }
+				newAt = newOp;
+			}
 
-            m_oldToNew[currentSinkingOp][at] = newAt;
+			OldToNew.Add({ at, currentSinkingOp }, newAt);
 
             return newAt;
         }

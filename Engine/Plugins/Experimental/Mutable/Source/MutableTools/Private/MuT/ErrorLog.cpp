@@ -314,7 +314,8 @@ namespace mu
 
 		TEXT("LA_PACK          "),
 		TEXT("LA_MERGE         "),
-        TEXT("LA_REMOVEBLOCKS  ")
+		TEXT("LA_REMOVEBLOCKS  "),
+		TEXT("LA_FROMMESH	   "),
 	};
 
     // clang-format on

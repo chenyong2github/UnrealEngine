@@ -73,7 +73,8 @@ namespace mu
         //-----------------------------------------------------------------------------------------
 
         //! Compare two scalars, return true if the first is less than the second.
-        BO_LESS,
+		//! \TODO: Deprecated?
+		BO_LESS,
 
         //! Compare an integerexpression with an integer constant
         BO_EQUAL_INT_CONST,
@@ -96,7 +97,8 @@ namespace mu
         //-----------------------------------------------------------------------------------------
 
         //! Multiply a scalar value by another onw and add a third one to the result
-        SC_MULTIPLYADD,
+		//! \TODO: Deprecated?
+		SC_MULTIPLYADD,
 
         //! Apply an arithmetic operation to two scalars
         SC_ARITHMETIC,
@@ -115,10 +117,12 @@ namespace mu
         CO_SWIZZLE,
 
         //! Make a "color" from the size of an image. Colours are used as a generic vector here.
-        CO_IMAGESIZE,
+		//! \TODO: Deprecated?
+		CO_IMAGESIZE,
 
         //! Encode a layout block transformation in a vector: position = (x,y) size = ( z, w )
-        CO_LAYOUTBLOCKTRANSFORM,
+		//! \TODO: Deprecated?
+		CO_LAYOUTBLOCKTRANSFORM,
 
         //! Compose a vector from 4 scalars
         CO_FROMSCALARS,
@@ -194,7 +198,8 @@ namespace mu
         IM_PLAINCOLOUR,
 
         //! Image resulting from a GPU program
-        IM_GPU,
+		//! \TODO: Deprecated?
+		IM_GPU,
 
         //! Cut a rect from an image
         IM_CROP,
@@ -252,7 +257,8 @@ namespace mu
         ME_MASKDIFF,
 
         //! Remove from a source mesh all the faces in common with another mesh
-        ME_SUBTRACT,
+		//! \TODO: Deprecated?
+		ME_SUBTRACT,
 
         //! Remove all the geometry selected by a mask.
         ME_REMOVEMASK,
@@ -264,7 +270,8 @@ namespace mu
         ME_EXTRACTLAYOUTBLOCK,
 
         //! Extract a fragment of a mesh containing a specific face group.
-        ME_EXTRACTFACEGROUP,
+		//! \TODO: Deprecated?
+		ME_EXTRACTFACEGROUP,
 
         //! Apply a transform in a 4x4 matrix to the geometry channels of the mesh
         ME_TRANSFORM,
@@ -291,6 +298,7 @@ namespace mu
 		ME_REMAPINDICES,
 
 		//! Apply a geometry core operation to a mesh.
+		//! \TODO: Deprecated?
 		ME_GEOMETRYOPERATION,
 
 		//! Calculate the binding of a mesh on a shape
@@ -346,6 +354,9 @@ namespace mu
         //! Remove all layout blocks not used by any vertex of the mesh.
         //! This operation is for the new way of managing layout blocks.
         LA_REMOVEBLOCKS,
+
+		//! Extract a layout from a mesh
+		LA_FROMMESH,
 
         //-----------------------------------------------------------------------------------------
         // Utility values
@@ -966,24 +977,30 @@ namespace mu
         //-------------------------------------------------------------------------------------
         struct LayoutPackArgs
         {
-            ADDRESS layout;
+            ADDRESS Source;
         };
 
         struct LayoutMergeArgs
         {
-            ADDRESS base;
-            ADDRESS added;
+            ADDRESS Base;
+            ADDRESS Added;
         };
 
-        struct LayoutRemoveBlocksArgs
-        {
-            // Layout to be processed
-            ADDRESS source;
+		struct LayoutRemoveBlocksArgs
+		{
+			/** Layout to be processedand modified. */
+			ADDRESS Source;
 
-            // Source mesh to scan for active blocks
-            ADDRESS mesh;            
-            uint8 meshLayoutIndex;
-        };
+			/** Source layout to scan for active blocks. */
+			ADDRESS ReferenceLayout;
+		};
+
+		struct LayoutFromMeshArgs
+		{
+			/** Source mesh to retrieve the layout from. */
+			ADDRESS Mesh;
+			uint8 LayoutIndex;
+		};
 
 
         //-------------------------------------------------------------------------------------
@@ -1000,7 +1017,7 @@ namespace mu
         {
             if (o.type!=type) return false;
             //if (o.flags!=flags) return false;
-            if (FMemory::Memcmp(&o.args, &args, sizeof(ARGS))) return false;
+            if (FMemory::Memcmp(&o.args, &args, sizeof(FArgs))) return false;
             return true;
         }
 
@@ -1010,7 +1027,7 @@ namespace mu
             if (o.type>type) return false;
 //            if (o.flags<flags) return true;
 //            if (o.flags>flags) return false;
-            if (FMemory::Memcmp(&o.args, &args, sizeof(ARGS))<0) return true;
+            if (FMemory::Memcmp(&o.args, &args, sizeof(FArgs))<0) return true;
             return false;
         }
 
@@ -1093,14 +1110,9 @@ namespace mu
             MeshSetSkeletonArgs MeshSetSkeleton;
 			MeshProjectArgs MeshProject;
 
-            //-------------------------------------------------------------------------------------
-            LayoutPackArgs LayoutPack;
-            LayoutMergeArgs LayoutMerge;
-            LayoutRemoveBlocksArgs LayoutRemoveBlocks;
+        } FArgs;
 
-        } ARGS;
-
-        ARGS args;
+        FArgs args;
     };
 
     typedef t_OP<uint32> OP;
@@ -1110,7 +1122,7 @@ namespace mu
     MUTABLE_DEFINE_POD_VECTOR_SERIALISABLE( OP );
     
     // Check that we didn't go out of control with the operation size
-    static_assert( sizeof(OP::ARGS)==28, "Argument union has an unexpected size." );
+    static_assert( sizeof(OP::FArgs)==28, "Argument union has an unexpected size." );
     static_assert( sizeof(OP)==32, "Operation struct has an unexpected size." );
 
 

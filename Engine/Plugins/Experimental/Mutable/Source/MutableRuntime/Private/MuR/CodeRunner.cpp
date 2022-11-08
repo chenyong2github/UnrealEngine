@@ -4883,7 +4883,7 @@ namespace mu
 
         case OP_TYPE::LA_CONSTANT:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>(item.at);
+			OP::ResourceConstantArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::ResourceConstantArgs>(item.at);
             check( args.value < (uint32)pModel->GetPrivate()->m_program.m_constantLayouts.Num() );
 
             LayoutPtrConst pResult = pModel->GetPrivate()->m_program.m_constantLayouts
@@ -4894,19 +4894,19 @@ namespace mu
 
         case OP_TYPE::LA_MERGE:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutMergeArgs>(item.at);
+			OP::LayoutMergeArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutMergeArgs>(item.at);
             switch (item.stage)
             {
             case 0:
                     AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.base, item),
-                           SCHEDULED_OP( args.added, item) );
+                           SCHEDULED_OP( args.Base, item),
+                           SCHEDULED_OP( args.Added, item) );
                 break;
 
             case 1:
             {
-                Ptr<const Layout> pA = GetMemory().GetLayout( CACHE_ADDRESS(args.base,item) );
-                Ptr<const Layout> pB = GetMemory().GetLayout( CACHE_ADDRESS(args.added,item) );
+                Ptr<const Layout> pA = GetMemory().GetLayout( CACHE_ADDRESS(args.Base,item) );
+                Ptr<const Layout> pB = GetMemory().GetLayout( CACHE_ADDRESS(args.Added,item) );
 
                 LayoutPtrConst pResult;
 
@@ -4936,17 +4936,17 @@ namespace mu
 
         case OP_TYPE::LA_PACK:
         {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutPackArgs>(item.at);
+			OP::LayoutPackArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutPackArgs>(item.at);
             switch (item.stage)
             {
             case 0:
                     AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.layout, item) );
+                           SCHEDULED_OP( args.Source, item) );
                 break;
 
             case 1:
             {
-                Ptr<const Layout> pSource = GetMemory().GetLayout( CACHE_ADDRESS(args.layout,item) );
+                Ptr<const Layout> pSource = GetMemory().GetLayout( CACHE_ADDRESS(args.Source,item) );
 
 				LayoutPtr pResult;
 
@@ -4976,39 +4976,75 @@ namespace mu
             break;
         }
 
-        case OP_TYPE::LA_REMOVEBLOCKS:
-        {
-            auto args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutRemoveBlocksArgs>(item.at);
-            switch (item.stage)
-            {
-            case 0:
-                    AddOp( SCHEDULED_OP( item.at, item, 1),
-                           SCHEDULED_OP( args.source, item),
-                           SCHEDULED_OP( args.mesh, item) );
-                break;
+		case OP_TYPE::LA_FROMMESH:
+		{
+			OP::LayoutFromMeshArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutFromMeshArgs>(item.at);
+			switch (item.stage)
+			{
+			case 0:
+				AddOp(SCHEDULED_OP(item.at, item, 1),
+					SCHEDULED_OP(args.Mesh, item));
+				break;
 
-            case 1:
-            {
-                Ptr<const Layout> pSource = GetMemory().GetLayout( CACHE_ADDRESS(args.source,item) );
-                Ptr<const Mesh> pMesh = GetMemory().GetMesh( CACHE_ADDRESS(args.mesh,item) );
+			case 1:
+			{
+				Ptr<const Mesh> Mesh = GetMemory().GetMesh(CACHE_ADDRESS(args.Mesh, item));
 
-				LayoutPtr pResult;
+				Ptr<const Layout> Result;
 
-				if (pSource && pMesh)
+				if (Mesh && Mesh->GetLayoutCount()>int32(args.LayoutIndex))
 				{
-					pResult = LayoutRemoveBlocks(pSource.get(), pMesh.get(), args.meshLayoutIndex);
+					Result = Mesh->GetLayout( args.LayoutIndex );
 				}
 
-                GetMemory().SetLayout( item, pResult );
-                break;
-            }
+				GetMemory().SetLayout(item, Result);
+				break;
+			}
 
-            default:
-                check(false);
-            }
+			default:
+				check(false);
+			}
 
-            break;
-        }
+			break;
+		}
+
+		case OP_TYPE::LA_REMOVEBLOCKS:
+		{
+			OP::LayoutRemoveBlocksArgs args = pModel->GetPrivate()->m_program.GetOpArgs<OP::LayoutRemoveBlocksArgs>(item.at);
+			switch (item.stage)
+			{
+			case 0:
+				AddOp(SCHEDULED_OP(item.at, item, 1),
+					SCHEDULED_OP(args.Source, item),
+					SCHEDULED_OP(args.ReferenceLayout, item));
+				break;
+
+			case 1:
+			{
+				Ptr<const Layout> Source = GetMemory().GetLayout(CACHE_ADDRESS(args.Source, item));
+				Ptr<const Layout> ReferenceLayout = GetMemory().GetLayout(CACHE_ADDRESS(args.ReferenceLayout, item));
+
+				Ptr<const Layout> pResult;
+
+				if (Source && ReferenceLayout)
+				{
+					pResult = LayoutRemoveBlocks(Source.get(), ReferenceLayout.get());
+				}
+				else if (Source)
+				{
+					pResult = Source;
+				}
+
+				GetMemory().SetLayout(item, pResult);
+				break;
+			}
+
+			default:
+				check(false);
+			}
+
+			break;
+		}
 
         default:
             // Operation not implemented

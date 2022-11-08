@@ -1052,7 +1052,7 @@ namespace mu
 
 
 	//---------------------------------------------------------------------------------------------
-	void SkeletonCleanerAST( TArray<mu::Ptr<ASTOp>>& roots, const MODEL_OPTIMIZATION_OPTIONS& options )
+	void SkeletonCleanerAST( TArray<mu::Ptr<ASTOp>>& roots, const FModelOptimizationOptions& options )
 	{
 		// This collects all the meshes that require a skeleton because they are used in operations
 		// that require it.

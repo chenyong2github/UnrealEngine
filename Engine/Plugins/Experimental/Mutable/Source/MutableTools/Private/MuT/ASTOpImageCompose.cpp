@@ -196,7 +196,7 @@ void ASTOpImageCompose::GetLayoutBlockSize(int* pBlockX, int* pBlockY)
 	if (Layout.child())
 	{
 		MUTABLE_CPUPROFILER_SCOPE(GetLayoutBlockSize_GetBlockLayoutSize);
-		BLOCK_LAYOUT_SIZE_CACHE cache;
+		FBlockLayoutSizeCache cache;
 		Layout->GetBlockLayoutSizeCached(BlockIndex,
 			&layoutBlocksX, &layoutBlocksY,
 			&cache);
@@ -217,7 +217,7 @@ void ASTOpImageCompose::GetLayoutBlockSize(int* pBlockX, int* pBlockY)
 }
 
 
-mu::Ptr<ASTOp> ASTOpImageCompose::OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS& options) const
+mu::Ptr<ASTOp> ASTOpImageCompose::OptimiseSemantic(const FModelOptimizationOptions& options) const
 {
 	mu::Ptr<ASTOp> at;
 

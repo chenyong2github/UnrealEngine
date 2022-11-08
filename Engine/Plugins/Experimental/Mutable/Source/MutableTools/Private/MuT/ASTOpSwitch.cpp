@@ -183,7 +183,7 @@ namespace mu
 			AppendCode(program.m_byteCode, DefAddress);
 			AppendCode(program.m_byteCode, (uint32_t)cases.Num());
 
-			for (const CASE& Case : cases)
+			for (const FCase& Case : cases)
 			{
 				OP::ADDRESS CaseBranchAddress = Case.branch ? Case.branch->linkedAddress : 0;
 				AppendCode(program.m_byteCode, Case.condition);
@@ -287,7 +287,7 @@ namespace mu
 
 	//-------------------------------------------------------------------------------------------------
 	void ASTOpSwitch::GetBlockLayoutSize(int blockIndex, int* pBlockX, int* pBlockY,
-		BLOCK_LAYOUT_SIZE_CACHE* cache)
+		FBlockLayoutSizeCache* cache)
 	{
 		switch (type)
 		{
@@ -410,7 +410,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	mu::Ptr<ASTOp> ASTOpSwitch::OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS&) const
+	mu::Ptr<ASTOp> ASTOpSwitch::OptimiseSemantic(const FModelOptimizationOptions&) const
 	{
 		// Constant condition?
 		if (variable->GetOpType() == OP_TYPE::NU_CONSTANT)

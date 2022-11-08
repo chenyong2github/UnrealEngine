@@ -122,13 +122,13 @@ namespace mu
     //! All kinds of optimisations that depend on the meaning of each operation
     //---------------------------------------------------------------------------------------------
     extern bool SemanticOptimiserAST( ASTOpList& roots,
-                                      const MODEL_OPTIMIZATION_OPTIONS& optimisationOptions );
+                                      const FModelOptimizationOptions& optimisationOptions );
 
     //---------------------------------------------------------------------------------------------
     //! Semantic operator that reorders instructions moving expensive ones down to the
     //! leaves of the expressions trying to turn them into constants.
     //---------------------------------------------------------------------------------------------
-    extern bool SinkOptimiserAST( ASTOpList& roots, const MODEL_OPTIMIZATION_OPTIONS& );
+    extern bool SinkOptimiserAST( ASTOpList& roots, const FModelOptimizationOptions& );
 
     //---------------------------------------------------------------------------------------------
     //!
@@ -245,7 +245,7 @@ namespace mu
     public:
 
         ParameterOptimiserAST( STATE_COMPILATION_DATA &s,
-                               const MODEL_OPTIMIZATION_OPTIONS& optimisationOptions );
+                               const FModelOptimizationOptions& optimisationOptions );
 
         bool Apply();
 
@@ -256,7 +256,7 @@ namespace mu
 
         bool m_modified;
 
-        MODEL_OPTIMIZATION_OPTIONS m_optimisationOptions;
+        FModelOptimizationOptions m_optimisationOptions;
 
         RuntimeParameterVisitorAST m_hasRuntimeParamVisitor;
 

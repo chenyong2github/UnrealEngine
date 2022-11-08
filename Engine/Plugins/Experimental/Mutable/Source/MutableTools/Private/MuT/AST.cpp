@@ -916,16 +916,16 @@ bool ASTOp::IsColourConstant(FVector4f&) const
 }
 
 
-void ASTOp::GetBlockLayoutSize( int, int*, int*, BLOCK_LAYOUT_SIZE_CACHE* )
+void ASTOp::GetBlockLayoutSize( int, int*, int*, FBlockLayoutSizeCache* )
 {
     check(false);
 }
 
 void ASTOp::GetBlockLayoutSizeCached( int blockIndex, int* pBlockX, int* pBlockY,
-                               BLOCK_LAYOUT_SIZE_CACHE* cache )
+                               FBlockLayoutSizeCache* cache )
 {
-	BLOCK_LAYOUT_SIZE_CACHE::KeyType key(this,blockIndex);
-	BLOCK_LAYOUT_SIZE_CACHE::ValueType* ValuePtr = cache->Find( key );
+	FBlockLayoutSizeCache::KeyType key(this,blockIndex);
+	FBlockLayoutSizeCache::ValueType* ValuePtr = cache->Find( key );
     if (ValuePtr)
     {
         *pBlockX = ValuePtr->Key;
@@ -935,7 +935,7 @@ void ASTOp::GetBlockLayoutSizeCached( int blockIndex, int* pBlockX, int* pBlockY
 
     GetBlockLayoutSize( blockIndex, pBlockX, pBlockY, cache );
 
-	cache->Add(key, BLOCK_LAYOUT_SIZE_CACHE::ValueType( *pBlockX, *pBlockY) );
+	cache->Add(key, FBlockLayoutSizeCache::ValueType( *pBlockX, *pBlockY) );
 }
 
 
@@ -1287,45 +1287,6 @@ FImageDesc ASTOpFixed::GetImageDesc( bool returnBestOption, FGetImageDescContext
     }
 
     return res;
-}
-
-
-void ASTOpFixed::GetBlockLayoutSize( int blockIndex, int* pBlockX, int* pBlockY,
-                                     BLOCK_LAYOUT_SIZE_CACHE* cache )
-{
-    switch ( op.type )
-    {
-    case OP_TYPE::LA_PACK:
-    {
-        GetBlockLayoutSize( blockIndex, op.args.LayoutPack.layout,
-                            pBlockX, pBlockY, cache );
-        break;
-    }
-
-    case OP_TYPE::LA_MERGE:
-    {
-        GetBlockLayoutSize( blockIndex, op.args.LayoutMerge.base,
-                            pBlockX, pBlockY, cache );
-
-        if (!*pBlockX)
-        {
-            GetBlockLayoutSize( blockIndex, op.args.LayoutMerge.added,
-                                pBlockX, pBlockY, cache );
-        }
-
-        break;
-    }
-
-    case OP_TYPE::LA_REMOVEBLOCKS:
-    {
-        GetBlockLayoutSize( blockIndex, op.args.LayoutRemoveBlocks.source,
-                            pBlockX, pBlockY, cache );
-        break;
-    }
-
-    default:
-        checkf( false, TEXT("Instruction not supported") );
-    }
 }
 
 

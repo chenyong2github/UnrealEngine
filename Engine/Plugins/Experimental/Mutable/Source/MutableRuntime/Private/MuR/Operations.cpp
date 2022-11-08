@@ -138,8 +138,9 @@ namespace mu
 
         { DT_LAYOUT,	true,   false,		{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// LA_PACK
         { DT_LAYOUT,	true,   false,		{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// LA_MERGE
-        { DT_LAYOUT,	true,   false,		{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// LA_REMOVEBLOCKS
-    };
+		{ DT_LAYOUT,	true,   false,		{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// LA_REMOVEBLOCKS
+		{ DT_LAYOUT,	true,   false,		{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }		},	// LA_FROMMESH
+};
 
     // clang-format on
 
@@ -421,21 +422,6 @@ namespace mu
 			f(&op.args.MeshProject.mesh);
 			f(&op.args.MeshProject.projector);
 			break;
-
-        //-------------------------------------------------------------------------------------
-        case OP_TYPE::LA_PACK:
-            f(&op.args.LayoutPack.layout );
-            break;
-
-        case OP_TYPE::LA_MERGE:
-            f(&op.args.LayoutMerge.base );
-            f(&op.args.LayoutMerge.added );
-            break;
-
-        case OP_TYPE::LA_REMOVEBLOCKS:
-            f(&op.args.LayoutRemoveBlocks.source );
-            f(&op.args.LayoutRemoveBlocks.mesh );
-            break;
 
         default:
 			check( false );
@@ -1162,25 +1148,32 @@ namespace mu
         case OP_TYPE::LA_PACK:
         {
 			OP::LayoutPackArgs args = program.GetOpArgs<OP::LayoutPackArgs>(at);
-            f(args.layout );
+            f(args.Source );
             break;
         }
 
         case OP_TYPE::LA_MERGE:
         {
 			OP::LayoutMergeArgs args = program.GetOpArgs<OP::LayoutMergeArgs>(at);
-            f(args.base );
-            f(args.added );
+            f(args.Base );
+            f(args.Added );
             break;
         }
 
-        case OP_TYPE::LA_REMOVEBLOCKS:
-        {
+		case OP_TYPE::LA_REMOVEBLOCKS:
+		{
 			OP::LayoutRemoveBlocksArgs args = program.GetOpArgs<OP::LayoutRemoveBlocksArgs>(at);
-            f(args.source );
-            f(args.mesh );
-            break;
-        }
+			f(args.Source);
+			f(args.ReferenceLayout);
+			break;
+		}
+
+		case OP_TYPE::LA_FROMMESH:
+		{
+			OP::LayoutFromMeshArgs args = program.GetOpArgs<OP::LayoutFromMeshArgs>(at);
+			f(args.Mesh);
+			break;
+		}
 
         default:
 			check( false );

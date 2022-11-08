@@ -67,7 +67,7 @@ namespace mu
     public:
 
         //! Detailed optimization options
-        MODEL_OPTIMIZATION_OPTIONS m_optimisationOptions;
+        FModelOptimizationOptions m_optimisationOptions;
 
         bool m_enablePartialOptimise = false;
 		bool m_enableConcurrency = false;

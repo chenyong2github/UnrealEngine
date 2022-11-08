@@ -188,7 +188,7 @@ namespace mu
 					// We move the mask creation down all the paths
 					Ptr<ASTOpSwitch> newOp = mu::Clone<ASTOpSwitch>(at);
 					newOp->def = Visit(newOp->def.child());
-					for (ASTOpSwitch::CASE& c : newOp->cases)
+					for (ASTOpSwitch::FCase& c : newOp->cases)
 					{
 						c.branch = Visit(c.branch.child());
 					}
@@ -263,7 +263,7 @@ namespace mu
 				if (!at) return nullptr;
 
 				// Newly created?
-				if (m_newOps.Find(at) != INDEX_NONE)
+				if (m_newOps.Contains(at))
 				{
 					return at;
 				}
@@ -297,7 +297,7 @@ namespace mu
 					// We move the mask creation down all the paths
 					Ptr<ASTOpSwitch> newOp = mu::Clone<ASTOpSwitch>(at);
 					newOp->def = Visit(newOp->def.child());
-					for (ASTOpSwitch::CASE& c : newOp->cases)
+					for (ASTOpSwitch::FCase& c : newOp->cases)
 					{
 						c.branch = Visit(c.branch.child());
 					}
@@ -330,7 +330,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	mu::Ptr<ASTOp> ASTOpMeshMaskClipMesh::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&, OPTIMIZE_SINK_CONTEXT&) const
+	mu::Ptr<ASTOp> ASTOpMeshMaskClipMesh::OptimiseSink(const FModelOptimizationOptions&, FOptimizeSinkContext&) const
 	{
 		// \TODO: Add logic state to the sinkers to avoid explosion with switches in both branches and similar cases.
 

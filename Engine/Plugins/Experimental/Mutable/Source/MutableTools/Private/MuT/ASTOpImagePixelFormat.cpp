@@ -98,7 +98,7 @@ void ASTOpImagePixelFormat::Link( FProgram& program, const FLinkerOptions* )
 }
 
 
-mu::Ptr<ASTOp> ASTOpImagePixelFormat::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS& options, OPTIMIZE_SINK_CONTEXT& context) const
+mu::Ptr<ASTOp> ASTOpImagePixelFormat::OptimiseSink(const FModelOptimizationOptions& options, FOptimizeSinkContext& context) const
 {
 	mu::Ptr<ASTOp> at;
 
@@ -278,8 +278,7 @@ mu::Ptr<ImageSizeExpression> ASTOpImagePixelFormat::GetImageSizeExpression() con
 mu::Ptr<ASTOp> Sink_ImagePixelFormatAST::Apply(const ASTOp* root)
 {
 	m_root = dynamic_cast<const ASTOpImagePixelFormat*>(root);
-	m_oldToNew.Empty();
-	m_newOps.Empty();
+	OldToNew.Empty();
 
 	check(root->GetOpType() == OP_TYPE::IM_PIXELFORMAT);
 
@@ -303,24 +302,15 @@ mu::Ptr<ASTOp> Sink_ImagePixelFormatAST::Visit(mu::Ptr<ASTOp> at, const ASTOpIma
 {
 	if (!at) return nullptr;
 
-	// Newly created?
-	if (m_newOps.Find(at)!=INDEX_NONE)
-	{
-		return at;
-	}
-
 	EImageFormat format = currentFormatOp->Format;
 	bool isCompressedFormat = IsCompressedFormat(format);
 	bool isBlockFormat = GetImageFormatData(format).m_pixelsPerBlockX != 0;
 
 	// Already visited?
+	const Ptr<ASTOp>* Cached = OldToNew.Find({ at,currentFormatOp });
+	if (Cached)
 	{
-		auto& CurrentSet = m_oldToNew.FindOrAdd(currentFormatOp);
-		auto cacheIt = CurrentSet.find(at);
-		if (cacheIt != CurrentSet.end())
-		{
-			return cacheIt->second;
-		}
+		return *Cached;
 	}
 
 	mu::Ptr<ASTOp> newAt = at;
@@ -524,7 +514,7 @@ mu::Ptr<ASTOp> Sink_ImagePixelFormatAST::Visit(mu::Ptr<ASTOp> at, const ASTOpIma
 		newAt = newOp;
 	}
 
-	m_oldToNew[currentFormatOp][at] = newAt;
+	OldToNew.Add( { at, currentFormatOp }, newAt);
 
 	return newAt;
 }

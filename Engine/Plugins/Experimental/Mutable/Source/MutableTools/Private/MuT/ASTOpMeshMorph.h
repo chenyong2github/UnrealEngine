@@ -23,7 +23,7 @@ namespace mu
 		//! Factor selecting what morphs to apply and with what weight.
 		ASTChild Factor;
 
-		//! Base mesh to remove from.
+		//! Base mesh to morph.
 		ASTChild Base;
 
 		//! Targets to apply on the base depending on the factor
@@ -42,7 +42,7 @@ namespace mu
 		bool IsEqual(const ASTOp& otherUntyped) const override;
 		Ptr<ASTOp> Clone(MapChildFuncRef mapChild) const override;
 		void Link(FProgram& program, const FLinkerOptions*) override;
-		Ptr<ASTOp> OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS&, OPTIMIZE_SINK_CONTEXT&) const override;
+		Ptr<ASTOp> OptimiseSink(const FModelOptimizationOptions&, FOptimizeSinkContext&) const override;
 
 		// Own interface
 		void AddTarget(const Ptr<ASTOp>&);

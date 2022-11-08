@@ -29,6 +29,10 @@
 #include "MuT/ASTOpMeshDifference.h"
 #include "MuT/ASTOpMeshMorph.h"
 #include "MuT/ASTOpParameter.h"
+#include "MuT/ASTOpLayoutRemoveBlocks.h"
+#include "MuT/ASTOpLayoutFromMesh.h"
+#include "MuT/ASTOpLayoutMerge.h"
+#include "MuT/ASTOpLayoutPack.h"
 #include "MuT/CodeGenerator_SecondPass.h"
 #include "MuT/CodeOptimiser.h"
 #include "MuT/CompilerPrivate.h"
@@ -1202,13 +1206,9 @@ namespace mu
                             }
 
                             // Merge operation
-                            Ptr<ASTOpFixed> mergeAd = new ASTOpFixed();
-                            {
-                                mergeAd->op.type = OP_TYPE::LA_MERGE;
-                                // A normal mesh that we merge
-                                mergeAd->SetChild(mergeAd->op.args.LayoutMerge.base, layoutOp );
-                                mergeAd->SetChild(mergeAd->op.args.LayoutMerge.added, layoutFragmentAd );
-                            }
+                            Ptr<ASTOpLayoutMerge> mergeAd = new ASTOpLayoutMerge();
+                            mergeAd->Base = layoutOp;
+	                        mergeAd->Added = layoutFragmentAd;
 
                             // Condition to apply
                             if (data.condition)
@@ -1235,17 +1235,19 @@ namespace mu
                         // Add layout packing instructions
                         {
                             // Make sure we removed unnecessary blocks
-                            Ptr<ASTOpFixed> op = new ASTOpFixed();
-                            op->op.type = OP_TYPE::LA_REMOVEBLOCKS;
-                            op->SetChild(op->op.args.LayoutRemoveBlocks.source, layoutOp );
-                            op->SetChild(op->op.args.LayoutRemoveBlocks.mesh, lastMeshOp );
-                            op->op.args.LayoutRemoveBlocks.meshLayoutIndex = uint8_t( l );
-                            layoutOp = op;
+                            Ptr<ASTOpLayoutFromMesh> ExtractOp = new ASTOpLayoutFromMesh();
+							ExtractOp->Mesh = lastMeshOp;
+							check(l<256);
+							ExtractOp->LayoutIndex = uint8( l );
+
+							Ptr<ASTOpLayoutRemoveBlocks> RemoveOp = new ASTOpLayoutRemoveBlocks();
+							RemoveOp->Source = layoutOp;
+							RemoveOp->ReferenceLayout = ExtractOp;
+							layoutOp = RemoveOp;
 
                             // Pack uv blocks
-                            op = new ASTOpFixed();
-                            op->op.type = OP_TYPE::LA_PACK;
-                            op->SetChild(op->op.args.LayoutPack.layout, layoutOp );
+                            Ptr<ASTOpLayoutPack> op = new ASTOpLayoutPack();
+                            op->Source = layoutOp;
                             layoutOp = op;
                         }
 

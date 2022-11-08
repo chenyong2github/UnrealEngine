@@ -11,62 +11,100 @@ namespace mu
 {
 
 	//---------------------------------------------------------------------------------------------
-    inline LayoutPtr LayoutRemoveBlocks( const Layout* pSource, const Mesh* pMesh, int layoutIndex )
-    {
-        // Create the list of blocks in the mesh
+	inline Ptr<Layout> LayoutRemoveBlocks_Deprecated(const Layout* pSource, const Mesh* pMesh, int layoutIndex)
+	{
+		// Create the list of blocks in the mesh
 		TArray<bool> blocksFound;
 		blocksFound.SetNumZeroed(1024);
 
-        UntypedMeshBufferIteratorConst itBlocks( pMesh->GetVertexBuffers(), MBS_LAYOUTBLOCK,
-                                                 layoutIndex );
-        if ( itBlocks.GetFormat()==MBF_UINT16 )
-        {
-            const uint16* pBlocks = reinterpret_cast<const uint16*>( itBlocks.ptr() );
-            for ( int i=0; i<pMesh->GetVertexCount(); ++i )
-            {
-                if (pBlocks[i]>=blocksFound.Num())
-                {
-                    blocksFound.SetNumZeroed(pBlocks[i]+1024);
-                }
-
-                blocksFound[ pBlocks[i] ] = true;
-            }
-        }
-        else if ( itBlocks.GetFormat()==MBF_NONE )
-        {
-            // This seems to happen.
-            // May this happen when entire meshes are removed?
-            return pSource->Clone();
-        }
-        else
-        {
-            // Format not supported yet
-            check( false );
-        }
-
-        // Remove blocks that are not in the mesh
-		LayoutPtr pResult = pSource->Clone();
-		int dest = 0;
-		for ( int32 b=0; b<pResult->m_blocks.Num(); ++b )
+		UntypedMeshBufferIteratorConst itBlocks(pMesh->GetVertexBuffers(), MBS_LAYOUTBLOCK, layoutIndex);
+		if (itBlocks.GetFormat() == MBF_UINT16)
 		{
-            int blockIndex = pResult->m_blocks[b].m_id;
-            if ( blockIndex<(int)blocksFound.Num() && blocksFound[blockIndex] )
+			const uint16* pBlocks = reinterpret_cast<const uint16*>(itBlocks.ptr());
+			for (int i = 0; i < pMesh->GetVertexCount(); ++i)
+			{
+				if (pBlocks[i] >= blocksFound.Num())
+				{
+					blocksFound.SetNumZeroed(pBlocks[i] + 1024);
+				}
+
+				blocksFound[pBlocks[i]] = true;
+			}
+		}
+		else if (itBlocks.GetFormat() == MBF_NONE)
+		{
+			// This seems to happen.
+			// May this happen when entire meshes are removed?
+			return pSource->Clone();
+		}
+		else
+		{
+			// Format not supported yet
+			check(false);
+		}
+
+		// Remove blocks that are not in the mesh
+		Ptr<Layout> pResult = pSource->Clone();
+		int dest = 0;
+		for (int32 b = 0; b < pResult->m_blocks.Num(); ++b)
+		{
+			int blockIndex = pResult->m_blocks[b].m_id;
+			if (blockIndex < (int)blocksFound.Num() && blocksFound[blockIndex])
 			{
 				// keep
 				pResult->m_blocks[dest] = pResult->m_blocks[b];
 				++dest;
 			}
 		}
-		pResult->SetBlockCount( dest );
+		pResult->SetBlockCount(dest);
 
-        return pResult;
+		return pResult;
 	}
 
 
 	//---------------------------------------------------------------------------------------------
-	inline LayoutPtr LayoutMerge(const Layout* pA, const Layout* pB )
+	inline Ptr<Layout> LayoutRemoveBlocks(const Layout* Source, const Layout* ReferenceLayout)
 	{
-		LayoutPtr pResult = pA->Clone();
+		// Create the list of blocks in the mesh
+		TArray<bool,TInlineAllocator<1024>> BlocksFound;
+		BlocksFound.SetNumZeroed(1024);
+
+		if (ReferenceLayout)
+		{
+			for (const Layout::FBlock& Block: ReferenceLayout->m_blocks)
+			{
+				if (Block.m_id >= BlocksFound.Num())
+				{
+					BlocksFound.SetNumZeroed(Block.m_id + 1024);
+				}
+
+				BlocksFound[Block.m_id] = true;
+			}
+		}
+
+		// Remove blocks that are not in the mesh
+		Ptr<Layout> pResult = Source->Clone();
+		int dest = 0;
+		for (int32 b = 0; b < pResult->m_blocks.Num(); ++b)
+		{
+			int blockIndex = pResult->m_blocks[b].m_id;
+			if (blockIndex < (int)BlocksFound.Num() && BlocksFound[blockIndex])
+			{
+				// keep
+				pResult->m_blocks[dest] = pResult->m_blocks[b];
+				++dest;
+			}
+		}
+		pResult->SetBlockCount(dest);
+
+		return pResult;
+	}
+
+
+	//---------------------------------------------------------------------------------------------
+	inline Ptr<Layout> LayoutMerge(const Layout* pA, const Layout* pB )
+	{
+		Ptr<Layout> pResult = pA->Clone();
 
 		// This is faster but fails in the rare case of a block being in both layouts, which may 
 		// happen if we merge a mesh with itself.

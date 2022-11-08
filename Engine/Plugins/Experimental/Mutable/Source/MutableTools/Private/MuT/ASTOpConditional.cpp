@@ -214,7 +214,7 @@ namespace mu
 
 	//-------------------------------------------------------------------------------------------------
 	void ASTOpConditional::GetBlockLayoutSize(int blockIndex, int* pBlockX, int* pBlockY,
-		BLOCK_LAYOUT_SIZE_CACHE* cache)
+		FBlockLayoutSizeCache* cache)
 	{
 		if (type == OP_TYPE::LA_CONDITIONAL)
 		{
@@ -282,7 +282,7 @@ namespace mu
 
 
 	//-------------------------------------------------------------------------------------------------
-	mu::Ptr<ASTOp> ASTOpConditional::OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS&) const
+	mu::Ptr<ASTOp> ASTOpConditional::OptimiseSemantic(const FModelOptimizationOptions&) const
 	{
 		if (!condition)
 		{

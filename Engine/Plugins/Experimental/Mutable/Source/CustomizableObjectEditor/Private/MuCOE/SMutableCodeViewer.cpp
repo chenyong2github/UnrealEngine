@@ -344,21 +344,25 @@ FString SMutableCodeViewer::GetReferencerName() const
 }
 
 
-void SMutableCodeViewer::Construct(const FArguments& InArgs, const mu::ModelPtr& InMutableModel/*, const TSharedPtr<SDockTab>& ConstructUnderMajorTab*/)
+void SMutableCodeViewer::SetCurrentModel(const mu::ModelPtr& InMutableModel)
 {
 	MutableModel = InMutableModel;
 	PreviewParameters = MutableModel->NewParameters();
-	
-	// Min width allowed for the column. Needed to avoid having issues with the constants space being to small
-	// and then getting too tall on the y axis crashing the drawer.
-	constexpr float MinParametersCollWidth = 400;
-	
-	// create & initialize tab manager
-	//TabManager = FGlobalTabmanager::Get()->NewTabManager(ConstructUnderMajorTab.ToSharedRef());
+
+	RootNodes.Empty();
+	RootNodeAddresses.Empty();
+	ItemCache.Empty();
+	MainItemPerOp.Empty();
+	TreeElements.Empty();
+	ExpandedElements.Empty();
+	FoundModelOperationTypeElements.Empty();
+	ModelOperationTypes.Empty();
+	ModelOperationTypeStrings.Empty();
+	NavigationElements.Empty();
 
 	// Generate all elements before starting the tree UI so we have a deterministic set of unique and duplicated elements
 	GenerateAllTreeElements();
-	
+
 	// Setup Navigation system
 	{
 		// Store the addresses of the root nodes for later search operations
@@ -369,15 +373,24 @@ void SMutableCodeViewer::Construct(const FArguments& InArgs, const mu::ModelPtr&
 
 		// Get an array of mutable types as an array of FStrings for the UI
 		GenerateNavigationOpTypeStrings();
-		
+
 		// Generate list elements for the found operation types so we are able to search over them on our type dropdown
 		GenerateNavigationDropdownElements();
 
 		// Check we did find types (witch should always happen in a normal run) and select the first option as default (NONE)
-		check (FoundModelOperationTypeElements.Num())
+		check(FoundModelOperationTypeElements.Num())
 		CurrentlySelectedOperationTypeElement = FoundModelOperationTypeElements[0];
 	}
+}
 
+
+void SMutableCodeViewer::Construct(const FArguments& InArgs, const mu::ModelPtr& InMutableModel/*, const TSharedPtr<SDockTab>& ConstructUnderMajorTab*/)
+{
+	// Min width allowed for the column. Needed to avoid having issues with the constants space being to small
+	// and then getting too tall on the y axis crashing the drawer.
+	constexpr float MinParametersCollWidth = 400;
+
+	SetCurrentModel(InMutableModel);
 	
 	FToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None, TSharedPtr<FExtender>(), true);
 	ToolbarBuilder.SetLabelVisibility(EVisibility::Visible);
@@ -2224,5 +2237,85 @@ void SMutableCodeViewer::PreviewMutableShape(const mu::FShape* Shape)
 {
 	UE_LOG(LogMutable,Warning,TEXT("Previewer for Mutable Shapes not yet implemented"))
 }
+
+
+
+FReply SMutableCodeViewer::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	if (TSharedPtr<FExternalDragOperation> DragDropOp = DragDropEvent.GetOperationAs<FExternalDragOperation>())
+	{
+		if (DragDropOp->HasFiles())
+		{
+			// For now, only allow a single file.
+			const TArray<FString>& Files = DragDropOp->GetFiles();
+			if (Files.Num() == 1)
+			{
+				const FString DraggedFileExtension = FPaths::GetExtension(Files[0], true);
+				if (DraggedFileExtension == TEXT(".mutable_compiled"))
+				{
+					// Dump source model to a file.
+					mu::InputFileStream stream(TCHAR_TO_ANSI(*Files[0]));
+
+					char MutableSourceTag[4] = {};
+					stream.Read(MutableSourceTag, 4);
+
+					if (!FMemory::Memcmp(MutableSourceTag, MUTABLE_COMPILED_MODEL_FILETAG, 4))
+					{
+						return FReply::Handled();
+					}
+
+					return FReply::Unhandled();
+				}
+			}
+		}
+	}
+
+	return FReply::Unhandled();
+}
+
+
+FReply SMutableCodeViewer::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	SCompoundWidget::OnDrop(MyGeometry, DragDropEvent);
+
+	if (TSharedPtr<FExternalDragOperation> DragDropOp = DragDropEvent.GetOperationAs<FExternalDragOperation>())
+	{
+		if (DragDropOp->HasFiles())
+		{
+			// For now, only allow a single file.
+			const TArray<FString>& Files = DragDropOp->GetFiles();
+			if (Files.Num() == 1)
+			{
+				const FString DraggedFileExtension = FPaths::GetExtension(Files[0], true);
+				if (DraggedFileExtension == TEXT(".mutable_compiled"))
+				{
+					// Dump source model to a file.
+					mu::InputFileStream stream(TCHAR_TO_ANSI(*Files[0]));
+
+					char MutableSourceTag[4] = {};
+					stream.Read(MutableSourceTag, 4);
+
+					if (!FMemory::Memcmp(MutableSourceTag, MUTABLE_COMPILED_MODEL_FILETAG, 4))
+					{
+						mu::InputArchive arch(&stream);
+						mu::ModelPtr Model = mu::Model::StaticUnserialise(arch);
+						SetCurrentModel(Model);
+
+						TreeView->RequestTreeRefresh();
+
+						return FReply::Handled();
+					}
+
+					return FReply::Unhandled();
+				}
+			}
+		}
+
+		return FReply::Unhandled();
+	}
+
+	return FReply::Unhandled();
+}
+
 
 #undef LOCTEXT_NAMESPACE

@@ -79,6 +79,8 @@ public:
 
 	// SWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 
 	// FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -191,7 +193,9 @@ private:
 	/** Array with all the elements that have been manually expanded by the user */
 	TMap< mu::OP::ADDRESS, TSharedPtr<FMutableCodeTreeElement>> ExpandedElements;
 
-	
+	/** Prepare the widget for the given model. */
+	void SetCurrentModel(const mu::ModelPtr&);
+
 	/** Before any UI operation generate all the elements that may be navigable over the tree. No children of duplicated 
 	 * addresses will be generated.
 	 */
@@ -222,12 +226,16 @@ private:
 	{
 		mu::OP_TYPE::ME_BINDSHAPE,
 		mu::OP_TYPE::ME_MASKCLIPMESH,
+		mu::OP_TYPE::ME_FORMAT,
+		mu::OP_TYPE::ME_DIFFERENCE,
+		mu::OP_TYPE::IM_MAKEGROWMAP,
 	};
 
 	/** Collection with all expensive to run operation types */
 	const TArray<mu::OP_TYPE> ExpensiveOperationTypes
 	{
-		// none
+		mu::OP_TYPE::IM_PIXELFORMAT,
+		mu::OP_TYPE::ME_PROJECT,
 	};
 	
 	/** Enum designed to be able to notify the row generation of the type of operation being generated */

@@ -484,7 +484,6 @@ void SMutableGraphViewer::TreeExpandUnique()
 }
 
 
-
 FReply SMutableGraphViewer::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
 	if (TSharedPtr<FExternalDragOperation> DragDropOp = DragDropEvent.GetOperationAs<FExternalDragOperation>())

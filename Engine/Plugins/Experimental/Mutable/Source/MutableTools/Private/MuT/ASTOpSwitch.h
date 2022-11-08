@@ -32,9 +32,9 @@ template <class SCALAR> class vec4;
 		//! Default branch in case none matches the value in the variable.
 		ASTChild def;
 
-		struct CASE
+		struct FCase
 		{
-			CASE(int32_t cond, Ptr<ASTOp> parent, Ptr<ASTOp> b)
+			FCase(int32_t cond, Ptr<ASTOp> parent, Ptr<ASTOp> b)
 				: condition(cond)
 				, branch(parent.get(), b)
 			{
@@ -44,14 +44,14 @@ template <class SCALAR> class vec4;
 			ASTChild branch;
 
 			//!
-			bool operator==(const CASE& other) const
+			bool operator==(const FCase& other) const
 			{
 				return condition == other.condition &&
 					branch == other.branch;
 			}
 		};
 
-		TArray<CASE> cases;
+		TArray<FCase> cases;
 
 	public:
 
@@ -68,9 +68,9 @@ template <class SCALAR> class vec4;
 		void Assert() override;
 		void Link(FProgram& program, const FLinkerOptions* Options) override;
 		FImageDesc GetImageDesc(bool returnBestOption, class FGetImageDescContext* context) const  override;
-		void GetBlockLayoutSize(int blockIndex, int* pBlockX, int* pBlockY, BLOCK_LAYOUT_SIZE_CACHE* cache) override;
+		void GetBlockLayoutSize(int blockIndex, int* pBlockX, int* pBlockY, FBlockLayoutSizeCache* cache) override;
 		void GetLayoutBlockSize(int* pBlockX, int* pBlockY) override;
-		Ptr<ASTOp> OptimiseSemantic(const MODEL_OPTIMIZATION_OPTIONS&) const override;
+		Ptr<ASTOp> OptimiseSemantic(const FModelOptimizationOptions&) const override;
 		bool GetNonBlackRect(FImageRect& maskUsage) const override;
 		bool IsImagePlainConstant(FVector4f& colour) const override;
 		Ptr<ImageSizeExpression> GetImageSizeExpression() const override;

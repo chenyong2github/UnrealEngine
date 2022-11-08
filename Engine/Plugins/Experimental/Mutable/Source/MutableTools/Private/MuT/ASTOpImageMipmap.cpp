@@ -113,7 +113,7 @@ void ASTOpImageMipmap::Link( FProgram& program, const FLinkerOptions* )
 }
 
 
-mu::Ptr<ASTOp> ASTOpImageMipmap::OptimiseSink(const MODEL_OPTIMIZATION_OPTIONS& options, OPTIMIZE_SINK_CONTEXT& context) const
+mu::Ptr<ASTOp> ASTOpImageMipmap::OptimiseSink(const FModelOptimizationOptions& options, FOptimizeSinkContext& context) const
 {
 	mu::Ptr<ASTOp> at;
 
@@ -257,8 +257,7 @@ mu::Ptr<ASTOp> Sink_ImageMipmapAST::Apply(const ASTOp* root)
 	check(root->GetOpType() == OP_TYPE::IM_MIPMAP);
 
 	m_root = dynamic_cast<const ASTOpImageMipmap*>(root);
-	m_oldToNew.Empty();
-	m_newOps.Empty();
+	OldToNew.Empty();
 
 	if (m_root->bOnlyTail)
 	{
@@ -317,17 +316,11 @@ mu::Ptr<ASTOp> Sink_ImageMipmapAST::Visit(mu::Ptr<ASTOp> at, const ASTOpImageMip
 {
 	if (!at) return nullptr;
 
-	// Newly created?
-	if (m_newOps.Contains(at))
-	{
-		return at;
-	}
-
 	// Already visited?
-	auto cacheIt = m_oldToNew.Find(at);
-	if (cacheIt)
+	const Ptr<ASTOp>* Cached = OldToNew.Find({ at,currentMipmapOp });
+	if (Cached)
 	{
-		return *cacheIt;
+		return *Cached;
 	}
 
 	mu::Ptr<ASTOp> newAt = at;
@@ -450,7 +443,7 @@ mu::Ptr<ASTOp> Sink_ImageMipmapAST::Visit(mu::Ptr<ASTOp> at, const ASTOpImageMip
 		newAt = newOp;
 	}
 
-	m_oldToNew.Add(at, newAt);
+	OldToNew.Add({ at,currentMipmapOp }, newAt);
 
 	return newAt;
 }

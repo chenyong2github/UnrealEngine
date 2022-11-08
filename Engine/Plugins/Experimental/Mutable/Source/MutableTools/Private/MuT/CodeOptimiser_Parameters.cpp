@@ -22,6 +22,7 @@
 #include "MuT/ASTOpImagePixelFormat.h"
 #include "MuT/ASTOpMeshMorph.h"
 #include "MuT/ASTOpInstanceAdd.h"
+#include "MuT/ASTOpLayoutFromMesh.h"
 #include "MuT/ASTOpParameter.h"
 #include "MuT/CodeOptimiser.h"
 #include "MuT/Compiler.h"
@@ -268,7 +269,7 @@ class TaskManager;
     //---------------------------------------------------------------------------------------------
     ParameterOptimiserAST::ParameterOptimiserAST(
             STATE_COMPILATION_DATA& s,
-            const MODEL_OPTIMIZATION_OPTIONS& optimisationOptions
+            const FModelOptimizationOptions& optimisationOptions
             )
             : m_stateProps(s)
             , m_modified(false)
@@ -1673,24 +1674,19 @@ class TaskManager;
                     break;
                 }
 
-                case OP_TYPE::LA_REMOVEBLOCKS:
-                {
-                    // Manually choose how to recurse this op
-                    auto pTyped = dynamic_cast<const ASTOpFixed*>( at.get() );
+				case OP_TYPE::LA_FROMMESH:
+				{
+					// Manually choose how to recurse this op
+					const ASTOpLayoutFromMesh* pTyped = dynamic_cast<const ASTOpLayoutFromMesh*>(at.get());
 
-                    if ( auto& source = pTyped->children[pTyped->op.args.LayoutRemoveBlocks.source] )
-                    {
-						pending.Add({ source.m_child, state });
-                    }
+					// For that mesh we only want to know about the layouts
+					if (const ASTChild& Mesh = pTyped->Mesh)
+					{
+						pending.Add({ Mesh.m_child, true });
+					}
 
-                    // For that mesh we only want to know about the layouts
-                    if ( auto& mesh = pTyped->children[pTyped->op.args.LayoutRemoveBlocks.mesh] )
-                    {
-						pending.Add({ mesh.m_child, true });
-                    }
-
-                    return false;
-                }
+					return false;
+				}
 
                 case OP_TYPE::ME_MORPH2:
                 {

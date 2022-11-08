@@ -7,21 +7,20 @@
 #include "MuR/RefCounted.h"
 #include "Templates/Function.h"
 
-namespace mu { class InputArchive; }
-namespace mu { class ModelStreamer; }
-namespace mu { class OutputArchive; }
-
 
 //! This version number changes whenever there is a compatibility-breaking change in the Model
 //! data structures. Compiled models are not necessarily compatible when the runtime is updated,
 //! so this version number can be used externally to verify this. It is not used internally, and
 //! serializing models from different versions than this runtime will probably result in a crash.
-#define MUTABLE_COMPILED_MODEL_CODE_VERSION		uint32( 48 )
+#define MUTABLE_COMPILED_MODEL_CODE_VERSION		uint32( 49 )
 #define MUTABLE_PARAMETERS_VERSION              uint32( 1 )
 
 
 namespace mu
 {
+	class InputArchive;
+	class ModelStreamer;
+	class OutputArchive;
 
 	typedef Ptr<Parameters> ParametersPtr;
 	typedef Ptr<const Parameters> ParametersPtrConst;

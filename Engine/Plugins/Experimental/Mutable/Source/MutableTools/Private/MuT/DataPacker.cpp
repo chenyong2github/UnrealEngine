@@ -24,6 +24,7 @@
 #include "MuT/ASTOpMeshRemoveMask.h"
 #include "MuT/ASTOpMeshDifference.h"
 #include "MuT/ASTOpMeshMorph.h"
+#include "MuT/ASTOpLayoutFromMesh.h"
 
 #include <cstdint>
 #include <memory>
@@ -625,21 +626,34 @@ namespace mu
                 break;
             }
 
-            case OP_TYPE::ME_EXTRACTFACEGROUP:
-            {
-                recurse = false;
+			case OP_TYPE::ME_EXTRACTFACEGROUP:
+			{
+				recurse = false;
 
 				const ASTOpFixed* op = dynamic_cast<const ASTOpFixed*>(node.get());
 
-                // todo: check if we really need all of them
-                uint64_t newState = currentSemantics;
-                newState |= (UINT64_C(1)<<MBS_LAYOUTBLOCK);
-                newState |= (UINT64_C(1)<<MBS_CHART);
-                newState |= (UINT64_C(1)<<MBS_VERTEXINDEX);
+				// todo: check if we really need all of them
+				uint64_t newState = currentSemantics;
+				newState |= (UINT64_C(1) << MBS_LAYOUTBLOCK);
+				newState |= (UINT64_C(1) << MBS_CHART);
+				newState |= (UINT64_C(1) << MBS_VERTEXINDEX);
 
-                RecurseWithState( op->children[op->op.args.MeshExtractFaceGroup.source].child(), newState );
-                break;
-            }
+				RecurseWithState(op->children[op->op.args.MeshExtractFaceGroup.source].child(), newState);
+				break;
+			}
+
+			case OP_TYPE::LA_FROMMESH:
+			{
+				recurse = false;
+
+				const ASTOpLayoutFromMesh* op = dynamic_cast<const ASTOpLayoutFromMesh*>(node.get());
+
+				uint64_t newState = currentSemantics;
+				newState |= (UINT64_C(1) << MBS_LAYOUTBLOCK);
+
+				RecurseWithState(op->Mesh.child(), newState);
+				break;
+			}
 
             case OP_TYPE::IN_ADDMESH:
             {
@@ -720,7 +734,7 @@ namespace mu
 
     //---------------------------------------------------------------------------------------------
     void DataOptimiseAST( int imageCompressionQuality, ASTOpList& roots,
-                          const MODEL_OPTIMIZATION_OPTIONS& options )
+                          const FModelOptimizationOptions& options )
     {
         // Images
         AccumulateImageFormatsAST accFormat;
