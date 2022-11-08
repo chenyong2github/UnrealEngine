@@ -20,18 +20,6 @@
 // This is for the fxc compiler to compile faster.
 #define STRATA_VIZ_MAX_BSDF 2
 
-void PrintBool(inout FShaderPrintContext Ctx, bool In)
-{
-	if (In)
-	{
-		Print(Ctx, TEXT("Yes  "), FontGreen);
-	}
-	else
-	{
-		Print(Ctx, TEXT("No   "), FontRed);
-	}
-}
-
 void DrawReferentialTWS(float3 P /*In Translated World Space*/, float3 X, float3 Y, float3 N, float3 InColor)
 {
 	const float Size = 10.f;

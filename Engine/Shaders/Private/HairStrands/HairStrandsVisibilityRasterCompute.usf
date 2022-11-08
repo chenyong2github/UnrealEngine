@@ -1478,17 +1478,6 @@ void RasterMultiSampleCS(uint DispatchThreadID : SV_DispatchThreadID, uint Group
 #if SHADER_RASTERCOMPUTE_DEBUG
 
 #include "../ShaderPrint.ush"
-void PrintBool(inout FShaderPrintContext Ctx, bool In)
-{
-	if (In)
-	{
-		Print(Ctx, TEXT("Yes"), FontGreen);
-	}
-	else
-	{
-		Print(Ctx, TEXT("No"), FontRed);
-	}
-}
 
 Texture2D<uint>						VisTileDepthGrid;
 Texture2DArray<uint> 				VisTileBinningGrid;

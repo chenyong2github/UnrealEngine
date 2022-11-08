@@ -503,6 +503,33 @@ SHADER_PRINT_OVERLOAD_NN(4, 3, float4x3)
 SHADER_PRINT_OVERLOAD_NN(4, 4, float4x4)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Bool printing
+
+void PrintBool(inout FShaderPrintContext Ctx, bool In)
+{
+	if (In)
+	{
+		Print(Ctx, TEXT("Yes "), FontGreen);
+	}
+	else
+	{
+		Print(Ctx, TEXT("No  "), FontRed);
+	}
+}
+
+void PrintBool(inout FShaderPrintContext Ctx, bool In, FFontColor InColor)
+{
+	if (In)
+	{
+		Print(Ctx, TEXT("Yes "), InColor);
+	}
+	else
+	{
+		Print(Ctx, TEXT("No  "), InColor);
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Widgets (experimental)
 
 uint2 GetCheckboxWidgetSize(float2 FontSpacing, int2 Resolution)

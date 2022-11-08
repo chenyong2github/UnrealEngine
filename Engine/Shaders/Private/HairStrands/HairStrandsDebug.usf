@@ -670,18 +670,6 @@ void VisualizeDomPS(
 #include "HairStrandsDeepShadowCommonStruct.ush"
 #include "HairStrandsAABBCommon.ush"
 
-void PrintBool(inout FShaderPrintContext Ctx, bool In)
-{
-	if (In)
-	{
-		Print(Ctx, TEXT("Yes  "), FontGreen);
-	}
-	else
-	{
-		Print(Ctx, TEXT("No   "), FontRed);
-	}
-}
-
 uint AllocatedSlotCount;
 uint MacroGroupCount;
 uint bViewRectOptimizeEnabled;
