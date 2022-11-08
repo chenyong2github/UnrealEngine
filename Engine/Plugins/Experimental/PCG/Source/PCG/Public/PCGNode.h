@@ -53,6 +53,11 @@ public:
 	/** Returns the node title, based either on the current node label, or defaulted to its settings */
 	FName GetNodeTitle() const;
 
+#if WITH_EDITOR
+	/** Tooltip that describes node functionality and other information. */
+	FText GetNodeTooltipText() const;
+#endif
+
 	/** Returns all the input pin properties */
 	TArray<FPCGPinProperties> InputPinProperties() const;
 

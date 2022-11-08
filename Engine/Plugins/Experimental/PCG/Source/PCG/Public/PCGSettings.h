@@ -78,6 +78,7 @@ public:
 	virtual void ApplyDeprecation(UPCGNode* InOutNode) {}
 
 	virtual FName GetDefaultNodeName() const { return NAME_None; }
+	virtual FText GetNodeTooltipText() const { return FText::GetEmpty(); }
 	virtual FLinearColor GetNodeTitleColor() const { return FLinearColor::White; }
 	virtual EPCGSettingsType GetType() const { return EPCGSettingsType::Generic; }
 	/** Derived classes must implement this to communicate dependencies on external actors */

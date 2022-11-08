@@ -220,6 +220,13 @@ FName UPCGNode::GetNodeTitle() const
 	return TEXT("Unnamed node");
 }
 
+#if WITH_EDITOR
+FText UPCGNode::GetNodeTooltipText() const
+{
+	return DefaultSettings ? DefaultSettings->GetNodeTooltipText() : FText::GetEmpty();
+}
+#endif
+
 TArray<FPCGPinProperties> UPCGNode::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;

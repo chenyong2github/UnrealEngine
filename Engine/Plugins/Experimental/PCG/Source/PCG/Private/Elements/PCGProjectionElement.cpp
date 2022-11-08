@@ -6,6 +6,8 @@
 #include "PCGEdge.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
+#define LOCTEXT_NAMESPACE "PCGProjectionElement"
+
 TArray<FPCGPinProperties> UPCGProjectionSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
@@ -15,6 +17,13 @@ TArray<FPCGPinProperties> UPCGProjectionSettings::InputPinProperties() const
 
 	return PinProperties;
 }
+
+#if WITH_EDITOR
+FText UPCGProjectionSettings::GetNodeTooltipText() const
+{
+	return LOCTEXT("ProjectionNodeTooltip", "Projects each of the inputs connected to In onto the Projection Target and concatenates all of the results to Out. Overrides to the projection settings can be specified using the Params.");
+}
+#endif
 
 FPCGElementPtr UPCGProjectionSettings::CreateElement() const
 {
@@ -131,3 +140,5 @@ void UPCGProjectionSettings::ApplyDeprecation(UPCGNode* InOutNode)
 	DataVersion = FPCGCustomVersion::LatestVersion;
 }
 #endif // WITH_EDITOR
+
+#undef LOCTEXT_NAMESPACE
