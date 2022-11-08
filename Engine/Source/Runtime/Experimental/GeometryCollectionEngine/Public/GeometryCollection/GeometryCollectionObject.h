@@ -354,6 +354,7 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 #endif
+	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
 	/** End UObject Interface */
@@ -444,6 +445,9 @@ public:
 
 	/** Produce a deep copy of GeometryCollection member, stripped of data unecessary for gameplay. */
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GenerateMinimalGeometryCollection() const;
+
+	/** copy a collection and remove geometry from it */
+	static TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> CopyCollectionAndRemoveGeometry(const TSharedPtr<const FGeometryCollection, ESPMode::ThreadSafe>& CollectionToCopy);
 
 #if WITH_EDITOR
 	/** If this flag is set, we only regenerate simulation data when requested via CreateSimulationData() */
@@ -674,6 +678,10 @@ public:
 	static const TCHAR* GetSelectedMaterialPath();
 
 #if WITH_EDITORONLY_DATA
+	/** Importing data and options used for this geometry collection */
+	UPROPERTY(EditAnywhere, Instanced, Category = ImportSettings)
+	TObjectPtr<class UAssetImportData> AssetImportData;
+
 	/** Information for thumbnail rendering */
 	UPROPERTY(VisibleAnywhere, Instanced, AdvancedDisplay, Category = GeometryCollection)
 	TObjectPtr<class UThumbnailInfo> ThumbnailInfo;
@@ -693,7 +701,7 @@ public:
 	//
 	// Dataflow
 	//
-	UPROPERTY(EditAnywhere, Category = "Dataflow")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dataflow")
 	TObjectPtr<UDataflow> Dataflow;
 
 	UPROPERTY(EditAnywhere, Category = "Dataflow")

@@ -18,7 +18,7 @@
 #include "EngineUtils.h"
 #include "Engine/StaticMesh.h"
 #include "PhysicsEngine/PhysicsSettings.h"
-
+#include "EditorFramework/AssetImportData.h"
 
 #if WITH_EDITOR
 #include "GeometryCollection/DerivedDataGeometryCollectionCooker.h"
@@ -306,6 +306,16 @@ void UGeometryCollection::UpdateConvexGeometry()
 #endif
 }
 
+void UGeometryCollection::PostInitProperties()
+{
+#if WITH_EDITORONLY_DATA
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		AssetImportData = NewObject<UAssetImportData>(this, TEXT("AssetImportData"));
+	}
+#endif
+	Super::PostInitProperties();
+}
 
 float KgCm3ToKgM3(float Density)
 {
@@ -678,10 +688,18 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 			Materials[SelectedMaterialIndex] = Materials[0];
 		}
 
-		if (bStripOnCook && EnableNanite && NaniteData)
+		if (bStripOnCook)
 		{
-			// If this is a cooked archive, we strip unnecessary data from the Geometry Collection to keep the memory footprint as small as possible.
-			ArchiveGeometryCollection = GenerateMinimalGeometryCollection();
+			if (EnableNanite && NaniteData)
+			{
+				// If this is a cooked archive, we strip unnecessary data from the Geometry Collection to keep the memory footprint as small as possible.
+				ArchiveGeometryCollection = GenerateMinimalGeometryCollection();
+			}
+			else
+			{
+				// non-nanite path where it may be necessary to remove geometry if the geometry collection is rendered using ISMPool or an external rendering system 
+				ArchiveGeometryCollection = CopyCollectionAndRemoveGeometry(GeometryCollection);
+			}
 		}
 #endif
 	}
@@ -1113,6 +1131,16 @@ TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> UGeometryCollection::Genera
 		}
 	}
 	return DuplicateGeometryCollection;
+}
+
+TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> UGeometryCollection::CopyCollectionAndRemoveGeometry(const TSharedPtr<const FGeometryCollection, ESPMode::ThreadSafe>& CollectionToCopy)
+{
+	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionToReturn(new FGeometryCollection());
+
+	const TArray<FName> GroupsToSkip{ FGeometryCollection::GeometryGroup, FGeometryCollection::VerticesGroup, FGeometryCollection::FacesGroup };
+	CollectionToCopy->CopyTo(GeometryCollectionToReturn.Get(), GroupsToSkip);
+
+	return GeometryCollectionToReturn;
 }
 
 #endif

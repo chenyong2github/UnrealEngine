@@ -158,24 +158,29 @@ public:
 		return Collection;
 	}
 
-	void CopyTo(FManagedArrayCollection* Collection) const
+	void CopyTo(FManagedArrayCollection* Collection, const TArray<FName>& GroupsToSkip = TArray<FName>()) const
 	{
 		if (!Map.IsEmpty())
 		{
 			for (const TTuple<FKeyType, FValueType>& Entry : Map)
 			{
-				if (!Collection->HasGroup(Entry.Key.Get<1>()))
+				const FName& AttributeName = Entry.Key.Get<0>();
+				const FName& GroupName = Entry.Key.Get<1>();
+				if (!GroupsToSkip.Contains(GroupName))
 				{
-					Collection->AddGroup(Entry.Key.Get<1>());
-				}
+					if (!Collection->HasGroup(GroupName))
+					{
+						Collection->AddGroup(GroupName);
+					}
 
-				if (NumElements(Entry.Key.Get<1>()) != Collection->NumElements(Entry.Key.Get<1>()))
-				{
-					ensure(!Collection->NumElements(Entry.Key.Get<1>()));
-					Collection->AddElements(NumElements(Entry.Key.Get<1>()), Entry.Key.Get<1>());
-				}
+					if (NumElements(GroupName) != Collection->NumElements(GroupName))
+					{
+						ensure(!Collection->NumElements(GroupName));
+						Collection->AddElements(NumElements(GroupName), GroupName);
+					}
 
-				Collection->CopyAttribute(*this, Entry.Key.Get<0>(), Entry.Key.Get<1>());
+					Collection->CopyAttribute(*this, AttributeName, GroupName);
+				}
 			}
 		}
 	}
