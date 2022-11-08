@@ -960,6 +960,9 @@ void FChainRetargeterIK::DecodePose(
 	// apply local static offset
 	GoalPosition += GoalRotation.RotateVector(Settings.IK.StaticLocalOffset);
 
+	// apply vertical scale
+	GoalPosition.Z *= Settings.IK.ScaleVertical;
+	
 	// apply extension
 	if (!FMath::IsNearlyEqual(Settings.IK.Extension, 1.0f))
 	{

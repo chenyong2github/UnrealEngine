@@ -31,6 +31,7 @@ bool FTargetChainIKSettings::operator==(const FTargetChainIKSettings& Other) con
 	&& StaticOffset.Equals(Other.StaticOffset)
 	&& StaticLocalOffset.Equals(Other.StaticLocalOffset)
 	&& StaticRotationOffset.Equals(Other.StaticRotationOffset)
+	&& FMath::IsNearlyEqualByULP(ScaleVertical, Other.ScaleVertical)
 	&& FMath::IsNearlyEqualByULP(Extension, Other.Extension)
 	&& bAffectedByIKWarping == Other.bAffectedByIKWarping;
 }

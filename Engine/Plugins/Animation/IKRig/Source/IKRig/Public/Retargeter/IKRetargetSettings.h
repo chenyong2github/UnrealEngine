@@ -138,6 +138,10 @@ struct IKRIG_API FTargetChainIKSettings
 	/** Default 0, 0, 0. Apply a static local-space offset to IK goal rotation. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "IK Adjustments")
 	FRotator StaticRotationOffset = FRotator::ZeroRotator;
+
+	/** Range +-Infinity. Default 1. Scales the vertical component of the IK goal's position.*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "IK Adjustments", meta = (UIMin = "0.0", UIMax = "5.0"))
+	float ScaleVertical = 1.0f;
 	
 	/** Range 0 to 5. Default 1. Brings IK goal closer (0) or further (1+) from origin of chain.
 	*  At 0 the effector is placed at the origin of the chain (ie Shoulder, Hip etc).
