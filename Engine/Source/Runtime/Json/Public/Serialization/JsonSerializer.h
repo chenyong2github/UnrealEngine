@@ -155,31 +155,35 @@ private:
 
 	struct FElement
 	{
-		FElement(const TSharedPtr<FJsonValue>& InValue)
+		FElement( const TSharedPtr<FJsonValue>& InValue )
 			: Identifier()
 			, Value(InValue)
+			, HasBeenProcessed(false)
 		{ }
 
-		FElement(const TSharedRef<FJsonObject>& Object)
+		FElement( const TSharedRef<FJsonObject>& Object )
 			: Identifier()
 			, Value(MakeShared<FJsonValueObject>(Object))
+			, HasBeenProcessed( false )
 		{ }
 
-		FElement(const TArray<TSharedPtr<FJsonValue>>& Array)
+		FElement( const TArray<TSharedPtr<FJsonValue>>& Array )
 			: Identifier()
 			, Value(MakeShared<FJsonValueArray>(Array))
+			, HasBeenProcessed(false)
 		{ }
 
-		FElement(const FString& InIdentifier, const TSharedPtr< FJsonValue >& InValue)
+		FElement( const FString& InIdentifier, const TSharedPtr< FJsonValue >& InValue )
 			: Identifier( InIdentifier )
 			, Value( InValue )
-			, bIsKeyValuePair(true)
-		{ }
+			, HasBeenProcessed( false )
+		{
+
+		}
 
 		FString Identifier;
 		TSharedPtr< FJsonValue > Value;
-		bool bHasBeenProcessed = false;
-		bool bIsKeyValuePair = false;
+		bool HasBeenProcessed;
 	};
 
 private:
@@ -315,74 +319,74 @@ private:
 			{
 			case EJson::Number:	
 				{
-					if (Element->bIsKeyValuePair)
+					if (Element->Identifier.IsEmpty())
 					{
-						Writer.WriteValue(Element->Identifier, Element->Value->AsNumber());
+						Writer.WriteValue(Element->Value->AsNumber());
 					}
 					else
 					{
-						Writer.WriteValue(Element->Value->AsNumber());
+						Writer.WriteValue(Element->Identifier, Element->Value->AsNumber());
 					}
 				}
 				break;
 
 			case EJson::Boolean:					
 				{
-					if (Element->bIsKeyValuePair)
+					if (Element->Identifier.IsEmpty())
 					{
-						Writer.WriteValue(Element->Identifier, Element->Value->AsBool());
+						Writer.WriteValue(Element->Value->AsBool());
 					}
 					else
 					{
-						Writer.WriteValue(Element->Value->AsBool());
+						Writer.WriteValue(Element->Identifier, Element->Value->AsBool());
 					}
 				}
 				break;
 
 			case EJson::String:
 				{
-					if (Element->bIsKeyValuePair)
+					if (Element->Identifier.IsEmpty())
 					{
-						Writer.WriteValue(Element->Identifier, Element->Value->AsString());
+						Writer.WriteValue(Element->Value->AsString());
 					}
 					else
 					{
-						Writer.WriteValue(Element->Value->AsString());
+						Writer.WriteValue(Element->Identifier, Element->Value->AsString());
 					}
 				}
 				break;
 
 			case EJson::Null:
 				{
-					if (Element->bIsKeyValuePair)
+					if (Element->Identifier.IsEmpty())
 					{
-						Writer.WriteNull(Element->Identifier);
+						Writer.WriteNull();
 					}
 					else
 					{
-						Writer.WriteNull();
+						Writer.WriteNull(Element->Identifier);
 					}
 				}
 				break;
 
 			case EJson::Array:
 				{
-					if (Element->bHasBeenProcessed)
+					if (Element->HasBeenProcessed)
 					{
 						Writer.WriteArrayEnd();
 					}
 					else
 					{
-						Element->bHasBeenProcessed = true;
+						Element->HasBeenProcessed = true;
 						ElementStack.Push(Element);
 
-						if (Element->bIsKeyValuePair)
+						if (Element->Identifier.IsEmpty())
 						{
-							Writer.WriteArrayStart(Element->Identifier);
+							Writer.WriteArrayStart();
 						}
 						else
 						{
-							Writer.WriteArrayStart();
+							Writer.WriteArrayStart(Element->Identifier);
 						}
 
 						TArray<TSharedPtr<FJsonValue>> Values = Element->Value->AsArray();
@@ -397,22 +401,22 @@ private:
 
 			case EJson::Object:
 				{
-					if (Element->bHasBeenProcessed)
+					if (Element->HasBeenProcessed)
 					{
 						Writer.WriteObjectEnd();
 					}
 					else
 					{
-						Element->bHasBeenProcessed = true;
+						Element->HasBeenProcessed = true;
 						ElementStack.Push(Element);
 
-						if (Element->bIsKeyValuePair)
+						if (Element->Identifier.IsEmpty())
 						{
-							Writer.WriteObjectStart(Element->Identifier);
+							Writer.WriteObjectStart();
 						}
 						else
 						{
-							Writer.WriteObjectStart();
+							Writer.WriteObjectStart(Element->Identifier);
 						}
 
 						TArray<FString> Keys; 
