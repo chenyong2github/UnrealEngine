@@ -105,6 +105,9 @@ class UForceFeedbackEffect : public UObject
 
 	float GetDuration();
 
+	/** Returns the longest duration of any active UInputDeviceProperty's that this effect has on it. */
+	float GetTotalDevicePropertyDuration();
+
 	void GetValues(const float EvalTime, FForceFeedbackValues& Values, float ValueMultiplier = 1.f) const;
 
 	void SetDeviceProperties(const FPlatformUserId PlatformUser, const float DeltaTime, const float EvalTime);
