@@ -2789,6 +2789,11 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 			ERHIFeatureLevel::Type FeatureLevel = FeatureLevelsToDisplay[i];
 			const FMaterialResource* MaterialResource = MaterialForStats->GetMaterialResource(FeatureLevel);
 
+			if (MaterialResource == nullptr)
+			{
+				continue;
+			}
+
 			if (MaterialFunction && ExpressionPreviewMaterial)
 			{
 				bool bHasValidOutput = true;
