@@ -681,15 +681,33 @@ public:
 	 * This is dedicated to skip evaluating any opacity input when a material instance toggles the translucent blend mode to opaque.
 	 */
 	virtual bool StrataSkipsOpacityEvaluation() = 0;
-	
+
+	/**
+	 * Pushes a node of the Strata tree being walked. A node is caracterised by an expression and its input path taken.
+	 */
+	virtual FGuid StrataTreeStackPush(UMaterialExpression* Expression, uint32 InputIndex) = 0;
+	/**
+	 * Returns the unique id of the strata tree path, identifying the current node we have reached. 
+	 * That is used as a unique identifier for each BSDF, recover their strata tree operator and apply some simplifications if required.
+	 */
+	virtual FGuid StrataTreeStackGetPathUniqueId() = 0;
+	/**
+	 * Returns the unique id of the strata tree path for the parent node of the current node position.
+	 */
+	virtual FGuid StrataTreeStackGetParentPathUniqueId() = 0;
+	/**
+	 * Pops a node node of the Strata tree being walked. Used when walking up the tree back to its root level.
+	 */
+	virtual void StrataTreeStackPop() = 0;
+
 	/**
 	 * Register an operator of the tree representation the Strata material and its topology.
 	 */
-	virtual FStrataOperator& StrataCompilationRegisterOperator(int32 OperatorType, UMaterialExpression* Expression, UMaterialExpression* Parent, bool bUseParameterBlending = false) = 0;
+	virtual FStrataOperator& StrataCompilationRegisterOperator(int32 OperatorType, FGuid StrataExpressionGuid, UMaterialExpression* Parent, FGuid StrataParentExpressionGuid, bool bUseParameterBlending = false) = 0;
 	/**
 	 * Return the operator information for a given expression.
 	 */
-	virtual FStrataOperator& StrataCompilationGetOperator(UMaterialExpression* Expression) = 0;
+	virtual FStrataOperator& StrataCompilationGetOperator(FGuid StrataExpressionGuid) = 0;
 	/**
 	 * Return the operator information for a given index.
 	 */
@@ -1365,14 +1383,31 @@ public:
 		return Compiler->StrataSkipsOpacityEvaluation();
 	}
 
-	virtual FStrataOperator& StrataCompilationRegisterOperator(int32 OperatorType, UMaterialExpression* Expression, UMaterialExpression* Parent, bool bUseParameterBlending = false) override
+	virtual FGuid StrataTreeStackPush(UMaterialExpression* Expression, uint32 InputIndex) override
 	{
-		return Compiler->StrataCompilationRegisterOperator(OperatorType, Expression, Parent, bUseParameterBlending);
+		return Compiler->StrataTreeStackPush(Expression, InputIndex);
+	}
+	virtual FGuid StrataTreeStackGetPathUniqueId() override
+	{
+		return Compiler->StrataTreeStackGetPathUniqueId();
+	}
+	virtual FGuid StrataTreeStackGetParentPathUniqueId() override
+	{
+		return Compiler->StrataTreeStackGetParentPathUniqueId();
+	}
+	virtual void StrataTreeStackPop() override
+	{
+		Compiler->StrataTreeStackPop();
 	}
 
-	virtual FStrataOperator& StrataCompilationGetOperator(UMaterialExpression* Expression) override
+	virtual FStrataOperator& StrataCompilationRegisterOperator(int32 OperatorType, FGuid StrataExpressionGuid, UMaterialExpression* Parent, FGuid StrataParentExpressionGuid, bool bUseParameterBlending = false) override
 	{
-		return Compiler->StrataCompilationGetOperator(Expression);
+		return Compiler->StrataCompilationRegisterOperator(OperatorType, StrataExpressionGuid, Parent, StrataParentExpressionGuid, bUseParameterBlending);
+	}
+
+	virtual FStrataOperator& StrataCompilationGetOperator(FGuid StrataExpressionGuid) override
+	{
+		return Compiler->StrataCompilationGetOperator(StrataExpressionGuid);
 	}
 
 	virtual FStrataOperator* StrataCompilationGetOperatorFromIndex(int32 OperatorIndex) override

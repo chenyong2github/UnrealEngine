@@ -431,7 +431,7 @@ protected:
 	 * A normal code chunk hash can point to multiple shared info in case it is paired with different tangents. */
 	TMultiMap<uint64, FStrataSharedLocalBasesInfo> CodeChunkToStrataSharedLocalBasis;
 
-	TMap<UMaterialExpression*, int32> StrataMaterialExpressionToOperatorIndex;
+	TMap<FGuid, int32> StrataMaterialExpressionToOperatorIndex;
 	TArray<FStrataOperator> StrataMaterialExpressionRegisteredOperators;
 	FStrataOperator* StrataMaterialRootOperator;
 	uint32 StrataMaterialBSDFCount;
@@ -441,6 +441,14 @@ protected:
 	bool bStrataMaterialIsUnlitNode;
 	bool bStrataUsesConversionFromLegacy;
 	bool bStrataOutputsOpaqueRoughRefractions;
+
+	/** Stack of unique id for each node of the strata tree 
+	* This is transient and updated on the fly in the exact same way when parsing node for 
+	*  1- StrataGenerateMaterialTopologyTree: generating a picture of the strata material tree for code generation and simplifications.
+	*  2- CompilePropertyAndSetMaterialProperty(MP_ShadingModel): compiling the code with some features enabled/disabled and accounting for tree simplification decided beforehand.
+	* It is not valid to uise that information outside of those functions.
+	*/
+	TArray<FGuid> StrataNodeIdentifierStack;
 
 	struct FStrataSimplificationStatus
 	{
@@ -1099,9 +1107,14 @@ protected:
 	virtual int32 StrataHazinessToSecondaryRoughness(int32 BaseRoughness, int32 Haziness, int32 OutputIndex) override;
 	virtual int32 StrataCompilePreview(int32 StrataDataCodeChunk) override;
 	virtual bool StrataSkipsOpacityEvaluation() override;
+
+	virtual FGuid StrataTreeStackPush(UMaterialExpression* Expression, uint32 InputIndex) override;
+	virtual FGuid StrataTreeStackGetPathUniqueId() override;
+	virtual FGuid StrataTreeStackGetParentPathUniqueId() override;
+	virtual void StrataTreeStackPop() override;
 	
-	virtual FStrataOperator& StrataCompilationRegisterOperator(int32 OperatorType, UMaterialExpression* Expression, UMaterialExpression* Parent, bool bUseParameterBlending = false) override;
-	virtual FStrataOperator& StrataCompilationGetOperator(UMaterialExpression* Expression) override;
+	virtual FStrataOperator& StrataCompilationRegisterOperator(int32 OperatorType, FGuid StrataExpressionGuid, UMaterialExpression* Parent, FGuid StrataParentExpressionGuid, bool bUseParameterBlending = false) override;
+	virtual FStrataOperator& StrataCompilationGetOperator(FGuid StrataExpressionGuid) override;
 	virtual FStrataOperator* StrataCompilationGetOperatorFromIndex(int32 OperatorIndex) override;
 
 	virtual FStrataRegisteredSharedLocalBasis StrataCompilationInfoRegisterSharedLocalBasis(int32 NormalCodeChunk) override;

@@ -5,6 +5,7 @@
 #include "HLSLMaterialTranslator.h"
 #include "VT/VirtualTextureScalability.h"
 #include "Materials/MaterialExpressionCustom.h"
+#include "Materials/MaterialExpressionStrata.h"
 #include "MaterialExpressionSettings.h"
 #include "Engine/RendererSettings.h"
 #include <functional>
@@ -73,6 +74,8 @@ static inline bool IsDebugTextureSampleEnabled()
 }
 
 bool Engine_IsStrataEnabled();
+
+#define DEBUG_STRATA_TREE_STACK 0
 
 static uint32 GetStrataBytePerPixel(EShaderPlatform InPlatform)
 {
@@ -342,6 +345,9 @@ FHLSLMaterialTranslator::FHLSLMaterialTranslator(FMaterial* InMaterial,
 	bStrataMaterialIsUnlitNode = false;
 	bStrataUsesConversionFromLegacy = false;
 	bStrataOutputsOpaqueRoughRefractions = false;
+
+	// Default value used as the root of the tree for the first path (when a node parent==nullptr).
+	StrataNodeIdentifierStack.Push(FGuid(0x7AEE, 0xBAD, 0xDEAD, 0xBEEF));
 }
 
 FHLSLMaterialTranslator::~FHLSLMaterialTranslator()
@@ -730,6 +736,9 @@ bool FHLSLMaterialTranslator::Translate()
 			TArray<FShaderCodeChunk> TempChunks;
 			AssignTempScope(TempChunks);
 
+		#if DEBUG_STRATA_TREE_STACK
+			UE_LOG(LogMaterial, Display, TEXT(" StrataTreeStack: StrataGenerateMaterialTopologyTree"));
+		#endif
 			FrontMaterialExpr->StrataGenerateMaterialTopologyTree(this, nullptr, 0);
 			if (!StrataGenerateDerivedMaterialOperatorData())
 			{
@@ -855,8 +864,12 @@ bool FHLSLMaterialTranslator::Translate()
 
 		// Make sure to compile this property before using ShadingModelsFromCompilation
 		Chunk[MP_ShadingModel]					= Material->CompilePropertyAndSetMaterialProperty(MP_ShadingModel			,this);
-			
-			Chunk[MP_FrontMaterial]					= Material->CompilePropertyAndSetMaterialProperty(MP_FrontMaterial			,this);
+		
+		
+	#if DEBUG_STRATA_TREE_STACK
+		UE_LOG(LogMaterial, Display, TEXT(" StrataTreeStack: Material->CompilePropertyAndSetMaterialProperty(MP_FrontMaterial)"));
+	#endif
+		Chunk[MP_FrontMaterial]					= Material->CompilePropertyAndSetMaterialProperty(MP_FrontMaterial			,this);
 		}
 
 		// Get shading models from compilation (or material).
@@ -3711,13 +3724,19 @@ int32 FHLSLMaterialTranslator::CallExpression(FMaterialExpressionKey ExpressionK
 		ExpressionKey.OutputIndex = INDEX_NONE;
 	}
 
+	// Strata BSDF expression should not be de-duplicated using expression output hash. 
+	// This is automatically handled via the compiler StrataTreeStack.
+	// It means that a node can be blended at multiple point of the graph (allowing acyclic graph instead of tree, e.g. a Slab can be used into multiple input).
+	// It is worth noting that only strata BSDF can be duplicated today according to StrataTreeStack.
+	const bool bExpressionIsStrataBSDF = ExpressionKey.Expression->IsA<UMaterialExpressionStrataSlabBSDF>();
+
 	// Check if this expression has already been translated.
 	check(ShaderFrequency < SF_NumFrequencies);
 	auto& CurrentFunctionStack = FunctionStacks[ShaderFrequency];
 	FMaterialFunctionCompileState* CurrentFunctionState = CurrentFunctionStack.Last();
 
 	static bool sDebugCacheDuplicateCode = true;
-	int32* ExistingCodeIndex = sDebugCacheDuplicateCode ? CurrentFunctionState->ExpressionCodeMap.Find(ExpressionKey) : nullptr;
+	int32* ExistingCodeIndex = sDebugCacheDuplicateCode && !bExpressionIsStrataBSDF ? CurrentFunctionState->ExpressionCodeMap.Find(ExpressionKey) : nullptr;
 	int32 Result = INDEX_NONE;
 	if (ExistingCodeIndex)
 	{
@@ -9747,7 +9766,7 @@ int32 FHLSLMaterialTranslator::GetLocal(const FName& LocalName)
 	return AddInlinedCodeChunk(MCT_Float1, TEXT("%s"), *Entry->Name);
 }
 
-FStrataOperator& FHLSLMaterialTranslator::StrataCompilationRegisterOperator(int32 OperatorType, UMaterialExpression* Expression, UMaterialExpression* Parent, bool bUseParameterBlending)
+FStrataOperator& FHLSLMaterialTranslator::StrataCompilationRegisterOperator(int32 OperatorType, FGuid StrataExpressionGuid, UMaterialExpression* Parent, FGuid StrataParentExpressionGuid, bool bUseParameterBlending)
 {
 	if (OperatorType == STRATA_OPERATOR_BSDF_LEGACY)
 	{
@@ -9758,10 +9777,10 @@ FStrataOperator& FHLSLMaterialTranslator::StrataCompilationRegisterOperator(int3
 
 	static FStrataOperator DefaultOperatorOnError = FStrataOperator();
 
-	if (StrataMaterialExpressionToOperatorIndex.Find(Expression))
+	if (StrataMaterialExpressionToOperatorIndex.Find(StrataExpressionGuid))
 	{
-		// It is not possible to register/use a Strata BSDF multiple times when creating a topology.
-		Errorf(TEXT("Material %s: It is not possible to uses a Strata BSDF (or any ouput of type StrataData) multiple times within a Strata material topology (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
+		// It is not possible to register/use a Strata BSDF multiple times with this same exact graph path. (that would break the strata tree code generation)
+		Errorf(TEXT("Material %s: It is not possible to uses a Strata BSDF (or any ouput of type StrataData) multiple times within a Strata material topology with the same graph path GUID (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
 		return DefaultOperatorOnError;
 	}
 
@@ -9772,14 +9791,14 @@ FStrataOperator& FHLSLMaterialTranslator::StrataCompilationRegisterOperator(int3
 		return DefaultOperatorOnError;
 	}
 
-	int32* ParentOperatorIndex = StrataMaterialExpressionToOperatorIndex.Find(Parent);
+	int32* ParentOperatorIndex = StrataMaterialExpressionToOperatorIndex.Find(StrataParentExpressionGuid);
 	if (Parent!=nullptr && ParentOperatorIndex == nullptr)
 	{
 		Errorf(TEXT("Material %s tries to register unknown operator parents (asset: %s).\r\n"), *Material->GetDebugName(), *Material->GetAssetPath().ToString());
 		return DefaultOperatorOnError;
 	}
 
-	StrataMaterialExpressionToOperatorIndex.Add(Expression, NewOperatorIndex);
+	StrataMaterialExpressionToOperatorIndex.Add(StrataExpressionGuid, NewOperatorIndex);
 
 	FStrataOperator& NewOperator = StrataMaterialExpressionRegisteredOperators.AddDefaulted_GetRef();
 
@@ -9799,9 +9818,9 @@ FStrataOperator& FHLSLMaterialTranslator::StrataCompilationRegisterOperator(int3
 	return NewOperator;
 }
 
-FStrataOperator& FHLSLMaterialTranslator::StrataCompilationGetOperator(UMaterialExpression* Expression)
+FStrataOperator& FHLSLMaterialTranslator::StrataCompilationGetOperator(FGuid StrataExpressionGuid)
 {
-	auto* OperatorIndex = StrataMaterialExpressionToOperatorIndex.Find(Expression);
+	auto* OperatorIndex = StrataMaterialExpressionToOperatorIndex.Find(StrataExpressionGuid);
 	if (!(OperatorIndex && *OperatorIndex >= 0 && *OperatorIndex < STRATA_MAX_OPERATOR_COUNT))
 	{
 		static FStrataOperator DefaultOperatorOnError = FStrataOperator();
@@ -11249,6 +11268,75 @@ bool FHLSLMaterialTranslator::StrataSkipsOpacityEvaluation()
 		&& !Material->GetShadingModels().HasShadingModel(MSM_SubsurfaceProfile)
 		&& !Material->GetShadingModels().HasShadingModel(MSM_TwoSidedFoliage)
 		&& !Material->GetShadingModels().HasShadingModel(MSM_PreintegratedSkin);
+}
+
+FGuid FHLSLMaterialTranslator::StrataTreeStackPush(UMaterialExpression* Expression, uint32 InputIndex)
+{
+	// Create an md5 hash for the parent, its input pin index and current node to represent the path.
+	uint32 IntputHashBuffer[9];
+	FGuid PreviousNodeGuid = StrataTreeStackGetPathUniqueId();
+	FGuid NodeGuid = Expression->MaterialExpressionGuid;
+	IntputHashBuffer[0] = PreviousNodeGuid.A;
+	IntputHashBuffer[1] = PreviousNodeGuid.B;
+	IntputHashBuffer[2] = PreviousNodeGuid.C;
+	IntputHashBuffer[3] = PreviousNodeGuid.D;
+	IntputHashBuffer[4] = InputIndex;
+	IntputHashBuffer[5] = NodeGuid.A;
+	IntputHashBuffer[6] = NodeGuid.B;
+	IntputHashBuffer[7] = NodeGuid.C;
+	IntputHashBuffer[8] = NodeGuid.D;
+
+	uint32 OutputHashBuffer[]{ 0, 0, 0, 0 };
+	FMD5 IdentifierStringHash;
+	IdentifierStringHash.Update((uint8*)IntputHashBuffer, sizeof(IntputHashBuffer));
+	IdentifierStringHash.Final((uint8*)&OutputHashBuffer);
+
+	StrataNodeIdentifierStack.Push(FGuid(OutputHashBuffer[0], OutputHashBuffer[1], OutputHashBuffer[2], OutputHashBuffer[3]));
+
+#if DEBUG_STRATA_TREE_STACK
+	UE_LOG(LogMaterial, Display, TEXT(" StrataTreeStack: Push (input %i of %s)"), InputIndex , *Expression->GetName());
+	TStringBuilder<2048> GuidStack;
+	for (auto& Entry : StrataNodeIdentifierStack)
+	{
+		GuidStack.Append(*Entry.ToString());
+		GuidStack.Append(TEXT("  "));
+	}
+	UE_LOG(LogMaterial, Display, TEXT(" StrataTreeStack: %s."), *GuidStack);
+#endif
+
+	return StrataNodeIdentifierStack.Top();
+}
+
+FGuid FHLSLMaterialTranslator::StrataTreeStackGetPathUniqueId()
+{
+	return StrataNodeIdentifierStack.Top();
+}
+
+FGuid FHLSLMaterialTranslator::StrataTreeStackGetParentPathUniqueId()
+{
+	if (StrataNodeIdentifierStack.Num() < 2)
+	{
+		// return some default when strata tree stack unique guid cannot be found
+		FGuid NullParent;
+		return NullParent;
+	}
+	return StrataNodeIdentifierStack.Last(1);
+}
+
+void FHLSLMaterialTranslator::StrataTreeStackPop()
+{
+	check(StrataNodeIdentifierStack.Num() >= 2);// 2 because there must always be the root remaining.
+	StrataNodeIdentifierStack.Pop();
+
+#if DEBUG_STRATA_TREE_STACK
+	TStringBuilder<2048> GuidStack;
+	for (auto& Entry : StrataNodeIdentifierStack)
+	{
+		GuidStack.Append(*Entry.ToString());
+		GuidStack.Append(TEXT("  "));
+	}
+	UE_LOG(LogMaterial, Display, TEXT(" StrataTreeStack: Pop %s."), *GuidStack);
+#endif
 }
 
 int32 FHLSLMaterialTranslator::MapARPassthroughCameraUV(int32 UV)
