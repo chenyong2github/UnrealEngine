@@ -6,6 +6,7 @@
 #include "Chaos/GeometryParticles.h"
 #include "Chaos/ImplicitFwd.h"
 #include "Chaos/ImplicitObjectScaled.h"
+#include "Chaos/OBBVectorized.h"
 #include "Chaos/SegmentMesh.h"
 #include "Chaos/Triangle.h"
 
@@ -182,6 +183,26 @@ namespace Chaos
 			VisitTree(BoundsFilter, FaceVisitor);
 		}
 
+		template <typename SQVisitor>
+		FORCEINLINE_DEBUGGABLE void OverlapOBB(const FOBBVectorized& Obb, SQVisitor& Visitor) const
+		{
+			const auto BoundsFilter = [&Obb](const FAABBVectorized& Bounds) -> EFilterResult
+			{
+				const bool bHit = Obb.IntersectAABB(Bounds);
+				return bHit ? EFilterResult::Keep : EFilterResult::Skip;
+			};
+
+			const auto FaceVisitor = [&Visitor](int32 FaceIndex)
+			{
+				const bool bContinueVisiting = Visitor.VisitOverlap(FaceIndex);
+				return bContinueVisiting ? EVisitorResult::Continue : EVisitorResult::Stop;
+			};
+
+			VisitTree(BoundsFilter, FaceVisitor);
+		}
+
+		template <typename QueryGeomType>
+		bool FindAllIntersectionsNoMTD(const FOBBVectorized& Intersection, const TRigidTransform<FReal, 3>& Transform, const QueryGeomType& QueryGeom, FReal Thickness, const FVec3& TriMeshScale, const FTriangleMeshImplicitObject* TriMesh) const;
 		template <typename QueryGeomType>
 		bool FindAllIntersectionsNoMTD(const FAABB3& Intersection, const TRigidTransform<FReal, 3>& Transform, const QueryGeomType& QueryGeom, FReal Thickness, const FVec3& TriMeshScale, const FTriangleMeshImplicitObject* TriMesh) const;
 		TArray<int32> FindAllIntersections(const FAABB3& Intersection) const;
@@ -866,7 +887,7 @@ namespace Chaos
 		template <typename QueryGeomType>
 		bool GJKContactPointImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, int32& FaceIndex, FVec3 TriMeshScale = FVec3(1.0)) const;
 
-		template<typename QueryGeomType>
+		template<bool IsSpherical, typename QueryGeomType>
 		bool OverlapGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD = nullptr, FVec3 TriMeshScale = FVec3(1.0f)) const;
 
 		template<typename QueryGeomType>
