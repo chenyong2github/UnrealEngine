@@ -40,8 +40,8 @@ public:
 protected:
 	void ResetState();
 	void ResetHoveredState();
-	float ComputeDragDelta(const FPointerEvent& MouseEvent, int32 GeometryWidth) const;
-	void ComputeHandleOffsets(float& LeftHandleOffset, float& RightHandleOffset, float&HandleOffset, int32 GeometryWidth) const;
+	double ComputeDragDelta(const FPointerEvent& MouseEvent, double GeometryWidth) const;
+	void ComputeHandleOffsets(double& LeftHandleOffset, double& RightHandleOffset, double&HandleOffset, double GeometryWidth) const;
 
 private:
 	/* The left handle is being dragged */

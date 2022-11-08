@@ -34,28 +34,28 @@ void STimeRangeSlider::Construct( const FArguments& InArgs, TSharedRef<ITimeSlid
 	ResetHoveredState();
 }
 
-float STimeRangeSlider::ComputeDragDelta(const FPointerEvent& MouseEvent, int32 GeometryWidth) const
+double STimeRangeSlider::ComputeDragDelta(const FPointerEvent& MouseEvent, double GeometryWidth) const
 {
-	float StartTime = 0;
-	float EndTime = 0;
+	double StartTime = 0;
+	double EndTime = 0;
 
 	if (TimeSliderController.IsValid())
 	{
 		StartTime = TimeSliderController->GetClampRange().GetLowerBoundValue();
 		EndTime = TimeSliderController->GetClampRange().GetUpperBoundValue();
 	}
-	float DragDistance = (MouseEvent.GetScreenSpacePosition() - MouseDownPosition).X;
+	double DragDistance = (MouseEvent.GetScreenSpacePosition() - MouseDownPosition).X;
 
-	const float PixelToUnits = (EndTime - StartTime) / (GeometryWidth - TimeRangeSliderConstants::HandleSize*2);
+	const double PixelToUnits = (EndTime - StartTime) / (GeometryWidth - TimeRangeSliderConstants::HandleSize*2);
 	return DragDistance * PixelToUnits;
 }
 
-void STimeRangeSlider::ComputeHandleOffsets(float& LeftHandleOffset, float& HandleOffset, float& RightHandleOffset, int32 GeometryWidth) const
+void STimeRangeSlider::ComputeHandleOffsets(double& LeftHandleOffset, double& HandleOffset, double& RightHandleOffset, double GeometryWidth) const
 {
-	float StartTime = 0;
-	float InTime = 0;
-	float OutTime = 0;
-	float EndTime = 0;
+	double StartTime = 0;
+	double InTime = 0;
+	double OutTime = 0;
+	double EndTime = 0;
 
 	if (TimeSliderController.IsValid())
 	{
@@ -65,18 +65,18 @@ void STimeRangeSlider::ComputeHandleOffsets(float& LeftHandleOffset, float& Hand
 		EndTime = TimeSliderController->GetClampRange().GetUpperBoundValue();
 	}
 
-	const float UnitsToPixel = float(GeometryWidth - TimeRangeSliderConstants::HandleSize*2) / (EndTime - StartTime);
+	const double UnitsToPixel = (GeometryWidth - TimeRangeSliderConstants::HandleSize*2) / (EndTime - StartTime);
 
 	LeftHandleOffset = (InTime - StartTime) * UnitsToPixel;
 	HandleOffset = LeftHandleOffset + TimeRangeSliderConstants::HandleSize;
 	RightHandleOffset = HandleOffset + (OutTime - InTime) * UnitsToPixel;
 	
-	float ScrubberWidth = RightHandleOffset-LeftHandleOffset-TimeRangeSliderConstants::HandleSize;
-	if (ScrubberWidth < (float)TimeRangeSliderConstants::MinimumScrubberWidth)
+	double ScrubberWidth = RightHandleOffset-LeftHandleOffset-TimeRangeSliderConstants::HandleSize;
+	if (ScrubberWidth < (double)TimeRangeSliderConstants::MinimumScrubberWidth)
 	{
-		HandleOffset = HandleOffset - ((float)TimeRangeSliderConstants::MinimumScrubberWidth - ScrubberWidth) / 2.f;
+		HandleOffset = HandleOffset - (TimeRangeSliderConstants::MinimumScrubberWidth - ScrubberWidth) / 2.0;
 		LeftHandleOffset = HandleOffset - TimeRangeSliderConstants::HandleSize;
-		RightHandleOffset = HandleOffset + (float)TimeRangeSliderConstants::MinimumScrubberWidth;
+		RightHandleOffset = HandleOffset + TimeRangeSliderConstants::MinimumScrubberWidth;
 	}
 }
 
@@ -97,9 +97,9 @@ int32 STimeRangeSlider::OnPaint( const FPaintArgs& Args, const FGeometry& Allott
 	static const FSlateBrush* RangeHandleRight = FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.RangeHandleRight" ) ); 
 	static const FSlateBrush* RangeHandle = FAppStyle::GetBrush( TEXT( "Sequencer.Timeline.RangeHandle" ) ); 
 
-	float LeftHandleOffset = 0.f;
-	float HandleOffset = 0.f;
-	float RightHandleOffset = 0.f;
+	double LeftHandleOffset = 0;
+	double HandleOffset = 0;
+	double RightHandleOffset = 0;
 	ComputeHandleOffsets(LeftHandleOffset, HandleOffset, RightHandleOffset, AllottedGeometry.GetLocalSize().X);
 
 	static const FName SelectionColorName("SelectionColor");
@@ -175,7 +175,7 @@ FReply STimeRangeSlider::OnMouseMove( const FGeometry& MyGeometry, const FPointe
 {
 	if (HasMouseCapture())
 	{
-		float DragDelta = ComputeDragDelta(MouseEvent, MyGeometry.GetLocalSize().X);
+		double DragDelta = ComputeDragDelta(MouseEvent, MyGeometry.GetLocalSize().X);
 
 		ITimeSliderController* TimeSliderControllerPtr = TimeSliderController.Get();
 		if (!TimeSliderControllerPtr)
@@ -204,8 +204,8 @@ FReply STimeRangeSlider::OnMouseMove( const FGeometry& MyGeometry, const FPointe
 		}
 		else if (bLeftHandleDragged || bRightHandleDragged)
 		{
-			double NewIn = 0.0f;
-			double NewOut = 0.0f;
+			double NewIn = 0;
+			double NewOut = 0;
 
 			if (bLeftHandleDragged)
 			{
@@ -244,14 +244,14 @@ FReply STimeRangeSlider::OnMouseMove( const FGeometry& MyGeometry, const FPointe
 	{
 		ResetHoveredState();
 
-		float LeftHandleOffset = 0.f;
-		float HandleOffset = 0.f;
-		float RightHandleOffset = 0.f;
+		double LeftHandleOffset = 0;
+		double HandleOffset = 0;
+		double RightHandleOffset = 0;
 		ComputeHandleOffsets(LeftHandleOffset, HandleOffset, RightHandleOffset, MyGeometry.GetLocalSize().X);
 		
-		FGeometry LeftHandleRect  = MyGeometry.MakeChild(FVector2D(LeftHandleOffset, 0.f), FVector2D(TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize));
-		FGeometry RightHandleRect = MyGeometry.MakeChild(FVector2D(RightHandleOffset, 0.f), FVector2D(TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize));
-		FGeometry HandleRect      = MyGeometry.MakeChild(FVector2D(HandleOffset, 0.0f), FVector2D(RightHandleOffset-LeftHandleOffset-TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize));
+		FGeometry LeftHandleRect  = MyGeometry.MakeChild(FVector2D(LeftHandleOffset, 0), FVector2D(TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize));
+		FGeometry RightHandleRect = MyGeometry.MakeChild(FVector2D(RightHandleOffset, 0), FVector2D(TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize));
+		FGeometry HandleRect      = MyGeometry.MakeChild(FVector2D(HandleOffset, 0), FVector2D(RightHandleOffset-LeftHandleOffset-TimeRangeSliderConstants::HandleSize, TimeRangeSliderConstants::HandleSize));
 
 		FVector2D LocalMousePosition = MouseEvent.GetScreenSpacePosition();
 

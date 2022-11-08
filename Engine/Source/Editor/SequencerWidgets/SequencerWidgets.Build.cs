@@ -6,6 +6,8 @@ public class SequencerWidgets : ModuleRules
 {
 	public SequencerWidgets(ReadOnlyTargetRules Target) : base(Target)
 	{
+		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+
 		PublicIncludePathModuleNames.AddRange(
 			new string[] {
 				"SequencerCore",

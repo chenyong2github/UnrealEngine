@@ -148,7 +148,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 		[
 			SNew(SBox)
 			.Visibility(InArgs._ShowWorkingRange ? EVisibility::Visible : EVisibility::Collapsed)
-			.MinDesiredWidth(64)
+			.MinDesiredWidth(64.f)
 			.HAlign(HAlign_Center)
 			[
 				WorkingRangeStart
@@ -161,12 +161,12 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 		.Padding(2.f)
 		[
 			SNew(SBox)
-			.MinDesiredWidth(64)
+			.MinDesiredWidth(64.f)
 			.HAlign(HAlign_Center)
 			.Visibility(InArgs._ShowPlaybackRange ? EVisibility::Visible : EVisibility::Collapsed)
 			[
 				SNew(SBorder)
-				.Padding(0)
+				.Padding(0.f)
 				.BorderImage(nullptr)
 				.ForegroundColor(FLinearColor::Green)
 				[
@@ -182,7 +182,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 		[
 			SNew(SBox)
 			.Visibility(InArgs._ShowViewRange ? EVisibility::Visible : EVisibility::Collapsed)
-			.MinDesiredWidth(64)
+			.MinDesiredWidth(64.f)
 			.HAlign(HAlign_Center)
 			[
 				ViewRangeStart
@@ -204,7 +204,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 		[
 			SNew(SBox)
 			.Visibility(InArgs._ShowViewRange ? EVisibility::Visible : EVisibility::Collapsed)
-			.MinDesiredWidth(64)
+			.MinDesiredWidth(64.f)
 			.HAlign(HAlign_Center)
 			[
 				ViewRangeEnd
@@ -217,12 +217,12 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 		.Padding(2.f)
 		[
 			SNew(SBox)
-			.MinDesiredWidth(64)
+			.MinDesiredWidth(64.f)
 			.HAlign(HAlign_Center)
 			.Visibility(InArgs._ShowPlaybackRange ? EVisibility::Visible : EVisibility::Collapsed)
 			[
 				SNew(SBorder)
-				.Padding(0)
+				.Padding(0.f)
 				.BorderImage(nullptr)
 				.ForegroundColor(FLinearColor::Red)
 				[
@@ -237,7 +237,7 @@ void STimeRange::Construct( const STimeRange::FArguments& InArgs, TSharedRef<ITi
 		.Padding(2.f)
 		[
 			SNew(SBox)
-			.MinDesiredWidth(64)
+			.MinDesiredWidth(64.f)
 			.HAlign(HAlign_Center)
 			.Visibility(InArgs._ShowWorkingRange ? EVisibility::Visible : EVisibility::Collapsed)
 			[
