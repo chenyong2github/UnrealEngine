@@ -126,16 +126,6 @@ public:
 		Super::BulkSerialize(Ar, bForcePerElementSerialization);
 	}
 
-	/**
-	* Serializer for this class
-	* @param Ar - archive to serialize to
-	* @param ResourceArray - resource array data to serialize
-	*/
-	friend FArchive& operator<<(FArchive& Ar,TResourceArray<ElementType,Alignment>& ResourceArray)
-	{
-		return Ar << *(Super*)&ResourceArray;
-	}	
-
 private:
 	/** 
 	* true if this array needs to be accessed by the CPU.  
@@ -149,3 +139,14 @@ struct TContainerTraits<TResourceArray<ElementType, Alignment>> : public TContai
 {
 	enum { MoveWillEmptyContainer = TContainerTraits<typename TResourceArray<ElementType, Alignment>::Super>::MoveWillEmptyContainer };
 };
+
+/**
+* Serializer for this class
+* @param Ar - archive to serialize to
+* @param ResourceArray - resource array data to serialize
+*/
+template<typename ElementType, uint32 Alignment>
+FArchive& operator<<(FArchive& Ar,TResourceArray<ElementType,Alignment>& ResourceArray)
+{
+	return Ar << *(typename TResourceArray<ElementType,Alignment>::Super*)&ResourceArray;
+}	

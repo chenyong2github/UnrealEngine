@@ -312,73 +312,95 @@ public:
 	}
 
 	/** Hash function. */
-	FORCEINLINE friend uint32 GetTypeHash(const TLazyObjectPtr<T>& LazyObjectPtr)
+	FORCEINLINE uint32 GetLazyObjecPtrTypeHash() const
 	{
-		return GetTypeHash(static_cast<const FLazyObjectPtr&>(LazyObjectPtr));
+		return GetTypeHash(static_cast<const FLazyObjectPtr&>(*this));
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, TLazyObjectPtr<T>& LazyObjectPtr)
+	FORCEINLINE void SerializePtr(FArchive& Ar)
 	{
-		Ar << static_cast<FLazyObjectPtr&>(LazyObjectPtr);
-		return Ar;
+		Ar << static_cast<FLazyObjectPtr&>(*this);
 	}
 
 	/** Compare with another TLazyObjectPtr of related type */
 	template<typename U, typename = decltype((T*)nullptr == (U*)nullptr)>
-	friend FORCEINLINE bool operator==(const TLazyObjectPtr<T>& Lhs, const TLazyObjectPtr<U>& Rhs)
+	FORCEINLINE bool operator==(const TLazyObjectPtr<U>& Rhs) const
 	{
-		return (const FLazyObjectPtr&)Lhs == (const FLazyObjectPtr&)Rhs;
+		return (const FLazyObjectPtr&)*this == (const FLazyObjectPtr&)Rhs;
 	}
 	template<typename U, typename = decltype((T*)nullptr != (U*)nullptr)>
-	friend FORCEINLINE bool operator!=(const TLazyObjectPtr<T>& Lhs, const TLazyObjectPtr<U>& Rhs)
+	FORCEINLINE bool operator!=(const TLazyObjectPtr<U>& Rhs) const
 	{
-		return (const FLazyObjectPtr&)Lhs != (const FLazyObjectPtr&)Rhs;
+		return (const FLazyObjectPtr&)*this != (const FLazyObjectPtr&)Rhs;
 	}
 
 	/** Compare for equality with a raw pointer **/
 	template<typename U, typename = decltype((T*)nullptr == (U*)nullptr)>
-	friend FORCEINLINE bool operator==(const TLazyObjectPtr<T>& Lhs, const U* Rhs)
+	FORCEINLINE bool operator==(const U* Rhs) const
 	{
-		return Lhs.Get() == Rhs;
-	}
-	template<typename U, typename = decltype((T*)nullptr == (U*)nullptr)>
-	friend FORCEINLINE bool operator==(const U* Lhs, const TLazyObjectPtr<T>& Rhs)
-	{
-		return Lhs == Rhs.Get();
+		return Get() == Rhs;
 	}
 
 	/** Compare to null */
-	friend FORCEINLINE bool operator==(const TLazyObjectPtr<T>& Lhs, TYPE_OF_NULLPTR)
+	FORCEINLINE bool operator==(TYPE_OF_NULLPTR) const
 	{
-		return !Lhs.IsValid();
+		return !IsValid();
 	}
-	friend FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TLazyObjectPtr<T>& Rhs)
-	{
-		return !Rhs.IsValid();
-	}
-
 	/** Compare for inequality with a raw pointer	**/
 	template<typename U, typename = decltype((T*)nullptr != (U*)nullptr)>
-	friend FORCEINLINE bool operator!=(const TLazyObjectPtr<T>& Lhs, const U* Rhs)
+	FORCEINLINE bool operator!=(const U* Rhs) const
 	{
-		return Lhs.Get() != Rhs;
-	}
-	template<typename U, typename = decltype((T*)nullptr != (U*)nullptr)>
-	friend FORCEINLINE bool operator!=(const U* Lhs, const TLazyObjectPtr<T>& Rhs)
-	{
-		return Lhs != Rhs.Get();
+		return Get() != Rhs;
 	}
 
 	/** Compare for inequality with null **/
-	friend FORCEINLINE bool operator!=(const TLazyObjectPtr<T>& Lhs, TYPE_OF_NULLPTR)
+	FORCEINLINE bool operator!=(TYPE_OF_NULLPTR) const
 	{
-		return Lhs.IsValid();
-	}
-	friend FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TLazyObjectPtr<T>& Rhs)
-	{
-		return Rhs.IsValid();
+		return IsValid();
 	}
 };
+
+/** Hash function. */
+template<typename T>
+FORCEINLINE uint32 GetTypeHash(const TLazyObjectPtr<T>& LazyObjectPtr)
+{
+	return LazyObjectPtr.GetLazyObjecPtrTypeHash();
+}
+
+template<typename T>
+FArchive& operator<<(FArchive& Ar, TLazyObjectPtr<T>& LazyObjectPtr)
+{
+	LazyObjectPtr.SerializePtr(Ar);
+	return Ar;
+}
+
+/** Compare for equality with a raw pointer **/
+template<typename T, typename U, typename = decltype((T*)nullptr == (U*)nullptr)>
+FORCEINLINE bool operator==(const U* Lhs, const TLazyObjectPtr<T>& Rhs)
+{
+	return Lhs == Rhs.Get();
+}
+
+/** Compare to null */
+template<typename T>
+FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TLazyObjectPtr<T>& Rhs)
+{
+	return !Rhs.IsValid();
+}
+
+/** Compare for inequality with a raw pointer	**/
+template<typename T, typename U, typename = decltype((T*)nullptr != (U*)nullptr)>
+FORCEINLINE bool operator!=(const U* Lhs, const TLazyObjectPtr<T>& Rhs)
+{
+	return Lhs != Rhs.Get();
+}
+
+/** Compare for inequality with null **/
+template<typename T>
+FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TLazyObjectPtr<T>& Rhs)
+{
+	return Rhs.IsValid();
+}
 
 template<class T> struct TIsPODType<TLazyObjectPtr<T> > { enum { Value = TIsPODType<FLazyObjectPtr>::Value }; };
 template<class T> struct TIsWeakPointerType<TLazyObjectPtr<T> > { enum { Value = TIsWeakPointerType<FLazyObjectPtr>::Value }; };

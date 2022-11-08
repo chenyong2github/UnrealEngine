@@ -526,16 +526,16 @@ public:
 	}
 
 	// Friend operators
-	friend bool operator==(const TPagedArray& Left, const TPagedArray& Right)
+	bool operator==(const TPagedArray& Right) const
 	{
-		if (Left.Num() != Right.Num())
+		if (Num() != Right.Num())
 		{
 			return false;
 		}
-		const SizeType MinPageCount = NumRequiredPages(Left.Count);
+		const SizeType MinPageCount = NumRequiredPages(Count);
 		for (SizeType PageIndex = 0; PageIndex < MinPageCount; ++PageIndex)
 		{
-			if (Left.Pages[PageIndex] != Right.Pages[PageIndex])
+			if (Pages[PageIndex] != Right.Pages[PageIndex])
 			{
 				return false;
 			}
@@ -543,9 +543,9 @@ public:
 		return true;
 	}
 
-	FORCEINLINE friend bool operator!=(const TPagedArray& Left, const TPagedArray& Right)
+	FORCEINLINE bool operator!=(const TPagedArray& Right) const
 	{
-		return !(Left == Right);
+		return !(*this == Right);
 	}
 
 private:

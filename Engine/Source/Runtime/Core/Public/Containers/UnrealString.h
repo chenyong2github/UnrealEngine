@@ -843,9 +843,9 @@ public:
 	 * @return true if the left string is lexicographically == the right string, otherwise false
 	 * @note case insensitive
 	 */
-	UE_NODISCARD FORCEINLINE friend bool operator==(const FString& Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE bool operator==(const FString& Rhs) const
 	{
-		return Lhs.Equals(Rhs, ESearchCase::IgnoreCase);
+		return Equals(Rhs, ESearchCase::IgnoreCase);
 	}
 
 	/**
@@ -857,9 +857,9 @@ public:
 	 * @note case insensitive
 	 */
 	template <typename CharType>
-	UE_NODISCARD FORCEINLINE friend bool operator==(const FString& Lhs, const CharType* Rhs)
+	UE_NODISCARD FORCEINLINE bool operator==(const CharType* Rhs) const
 	{
-		return FPlatformString::Stricmp(*Lhs, Rhs) == 0;
+		return FPlatformString::Stricmp(**this, Rhs) == 0;
 	}
 
 	/**
@@ -884,9 +884,9 @@ public:
 	 * @return true if the left string is lexicographically != the right string, otherwise false
 	 * @note case insensitive
 	 */
-	UE_NODISCARD FORCEINLINE friend bool operator!=(const FString& Lhs, const FString& Rhs)
+	UE_NODISCARD FORCEINLINE bool operator!=(const FString& Rhs) const
 	{
-		return !(Lhs == Rhs);
+		return !Equals(Rhs, ESearchCase::IgnoreCase);
 	}
 
 	/**
@@ -898,9 +898,9 @@ public:
 	 * @note case insensitive
 	 */
 	template <typename CharType>
-	UE_NODISCARD FORCEINLINE friend bool operator!=(const FString& Lhs, const CharType* Rhs)
+	UE_NODISCARD FORCEINLINE bool operator!=(const CharType* Rhs) const
 	{
-		return FPlatformString::Stricmp(*Lhs, Rhs) != 0;
+		return FPlatformString::Stricmp(**this, Rhs) != 0;
 	}
 
 	/**

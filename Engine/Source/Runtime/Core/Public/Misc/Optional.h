@@ -166,33 +166,32 @@ public:
 		return !(lhs == rhs);
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, TOptional& Optional)
+	void Serialize(FArchive& Ar)
 	{
-		bool bOptionalIsSet = Optional.bIsSet;
+		bool bOptionalIsSet = bIsSet;
 		Ar << bOptionalIsSet;
 		if (Ar.IsLoading())
 		{
 			if (bOptionalIsSet)
 			{
-				if (!Optional.bIsSet)
+				if (!bIsSet)
 				{
-					Optional.Emplace();
+					Emplace();
 				}
-				Ar << Optional.GetValue();
+				Ar << GetValue();
 			}
 			else
 			{
-				Optional.Reset();
+				Reset();
 			}
 		}
 		else
 		{
 			if (bOptionalIsSet)
 			{
-				Ar << Optional.GetValue();
+				Ar << GetValue();
 			}
 		}
-		return Ar;
 	}
 
 	/** @return true when the value is meaningful; false if calling GetValue() is undefined. */
@@ -220,3 +219,10 @@ private:
 	TTypeCompatibleBytes<OptionalType> Value;
 	bool bIsSet;
 };
+
+template<typename OptionalType>
+FArchive& operator<<(FArchive& Ar, TOptional<OptionalType>& Optional)
+{
+	Optional.Serialize(Ar);
+	return Ar;
+}

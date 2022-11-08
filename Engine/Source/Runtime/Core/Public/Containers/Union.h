@@ -286,41 +286,40 @@ public:
 		return false;
 	}
 
-	friend FArchive& operator<<(FArchive& Ar,TUnion& Union)
+	void Serialize(FArchive& Ar)
 	{
 		if(Ar.IsLoading())
 		{
-			Union.Reset();
+			Reset();
 
-			Ar << Union.CurrentSubtypeIndex;
+			Ar << CurrentSubtypeIndex;
 
-			switch(Union.CurrentSubtypeIndex)
+			switch(CurrentSubtypeIndex)
 			{
-			case 0: Ar << Union.InitSubtype<TypeA>(); break;
-			case 1: Ar << Union.InitSubtype<TypeB>(); break;
-			case 2: Ar << Union.InitSubtype<TypeC>(); break;
-			case 3: Ar << Union.InitSubtype<TypeD>(); break;
-			case 4: Ar << Union.InitSubtype<TypeE>(); break;
-			case 5: Ar << Union.InitSubtype<TypeF>(); break;
+			case 0: Ar << InitSubtype<TypeA>(); break;
+			case 1: Ar << InitSubtype<TypeB>(); break;
+			case 2: Ar << InitSubtype<TypeC>(); break;
+			case 3: Ar << InitSubtype<TypeD>(); break;
+			case 4: Ar << InitSubtype<TypeE>(); break;
+			case 5: Ar << InitSubtype<TypeF>(); break;
 			default: FatalErrorUndefinedSubtype(); break;
 			};
 		}
 		else
 		{
-			Ar << Union.CurrentSubtypeIndex;
+			Ar << CurrentSubtypeIndex;
 
-			switch(Union.CurrentSubtypeIndex)
+			switch(CurrentSubtypeIndex)
 			{
-			case 0: Ar << Union.GetSubtype<TypeA>(); break;
-			case 1: Ar << Union.GetSubtype<TypeB>(); break;
-			case 2: Ar << Union.GetSubtype<TypeC>(); break;
-			case 3: Ar << Union.GetSubtype<TypeD>(); break;
-			case 4: Ar << Union.GetSubtype<TypeE>(); break;
-			case 5: Ar << Union.GetSubtype<TypeF>(); break;
+			case 0: Ar << GetSubtype<TypeA>(); break;
+			case 1: Ar << GetSubtype<TypeB>(); break;
+			case 2: Ar << GetSubtype<TypeC>(); break;
+			case 3: Ar << GetSubtype<TypeD>(); break;
+			case 4: Ar << GetSubtype<TypeE>(); break;
+			case 5: Ar << GetSubtype<TypeF>(); break;
 			default: FatalErrorUndefinedSubtype(); break;
 			};
 		}
-		return Ar;
 	}
 
 private:
@@ -405,3 +404,10 @@ private:
 		UE_LOG(LogUnion, Fatal, TEXT("Unrecognized TUnion subtype"));
 	}
 };
+
+template<typename TypeA,typename TypeB,typename TypeC,typename TypeD,typename TypeE,typename TypeF>
+FArchive& operator<<(FArchive& Ar, TUnion<TypeA, TypeB, TypeC, TypeD, TypeE, TypeF>& Union)
+{
+	Union.Serialize(Ar);
+	return Ar;
+}

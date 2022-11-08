@@ -41,12 +41,11 @@ public:
 		return CurrentLink != nullptr;
 	}
 
+	FORCEINLINE bool operator==(const TLinkedListIteratorBase& Rhs) const { return CurrentLink == Rhs.CurrentLink; }
+	FORCEINLINE bool operator!=(const TLinkedListIteratorBase& Rhs) const { return CurrentLink != Rhs.CurrentLink; }
 protected:
 
 	ContainerType* CurrentLink;
-
-	FORCEINLINE friend bool operator==(const TLinkedListIteratorBase& Lhs, const TLinkedListIteratorBase& Rhs) { return Lhs.CurrentLink == Rhs.CurrentLink; }
-	FORCEINLINE friend bool operator!=(const TLinkedListIteratorBase& Lhs, const TLinkedListIteratorBase& Rhs) { return Lhs.CurrentLink != Rhs.CurrentLink; }
 };
 
 template <class ContainerType, class ElementType>
@@ -419,11 +418,11 @@ public:
 		return CurrentNode;
 	}
 
+	bool operator==(const TDoubleLinkedListIterator& Rhs) const { return CurrentNode == Rhs.CurrentNode; }
+	bool operator!=(const TDoubleLinkedListIterator& Rhs) const { return CurrentNode != Rhs.CurrentNode; }
+
 private:
 	NodeType* CurrentNode;
-
-	friend bool operator==(const TDoubleLinkedListIterator& Lhs, const TDoubleLinkedListIterator& Rhs) { return Lhs.CurrentNode == Rhs.CurrentNode; }
-	friend bool operator!=(const TDoubleLinkedListIterator& Lhs, const TDoubleLinkedListIterator& Rhs) { return Lhs.CurrentNode != Rhs.CurrentNode; }
 };
 
 

@@ -108,13 +108,13 @@ private:
 
 	/** Holds the value as a byte. **/
 	uint8 Value;
-
-
-	FORCEINLINE friend uint32 GetTypeHash(const TEnumAsByte& Enum)
-	{
-		return GetTypeHash(Enum.Value);
-	}
 };
+
+template<class T>
+FORCEINLINE uint32 GetTypeHash(const TEnumAsByte<T>& Enum)
+{
+	return GetTypeHash((uint8)Enum.GetValue());
+}
 
 
 template<class T> struct TIsPODType<TEnumAsByte<T>> { enum { Value = true }; };

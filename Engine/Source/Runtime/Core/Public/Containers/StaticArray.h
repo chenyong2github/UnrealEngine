@@ -37,16 +37,6 @@ public:
 	TStaticArray& operator=(TStaticArray&& Other) = default;
 	TStaticArray& operator=(const TStaticArray& Other) = default;
 
-	/** Serializer. */
-	friend FArchive& operator<<(FArchive& Ar,TStaticArray& StaticArray)
-	{
-		for(uint32 Index = 0;Index < NumElements;++Index)
-		{
-			Ar << StaticArray[Index];
-		}
-		return Ar;
-	}
-
 	// Accessors.
 	FORCEINLINE_DEBUGGABLE InElementType& operator[](uint32 Index)
 	{
@@ -73,11 +63,11 @@ public:
 		return true;
 	}
 
-	friend bool operator!=(const TStaticArray& A,const TStaticArray& B)
+	bool operator!=(const TStaticArray& B) const
 	{
 		for(uint32 ElementIndex = 0;ElementIndex < NumElements;++ElementIndex)
 		{
-			if(!(A[ElementIndex] == B[ElementIndex]))
+			if(!((*this)[ElementIndex] == B[ElementIndex]))
 			{
 				return true;
 			}
@@ -102,18 +92,6 @@ public:
 	/** A pointer to the first element of the array */
 	FORCEINLINE_DEBUGGABLE       InElementType* GetData()       { static_assert((alignof(ElementType) % Alignment) == 0, "GetData() cannot be called on a TStaticArray with non-standard alignment"); return &Storage.Elements[0].Element; }
 	FORCEINLINE_DEBUGGABLE const InElementType* GetData() const { static_assert((alignof(ElementType) % Alignment) == 0, "GetData() cannot be called on a TStaticArray with non-standard alignment"); return &Storage.Elements[0].Element; }
-
-	/** Hash function. */
-	friend uint32 GetTypeHash(const TStaticArray& Array)
-	{
-		uint32 Result = 0;
-		for(uint32 ElementIndex = 0;ElementIndex < NumElements;++ElementIndex)
-		{
-			Result ^= GetTypeHash(Array[ElementIndex]);
-		}
-		return Result;
-	}
-
 
 private:
 
@@ -177,9 +155,9 @@ public:
 			return *this;
 		}
 
-		friend bool operator!=(const FRangedForIterator& A, const FRangedForIterator& B)
+		bool operator!=(const FRangedForIterator& B) const
 		{
-			return A.Ptr != B.Ptr;
+			return Ptr != B.Ptr;
 		}
 
 	private:
@@ -214,3 +192,26 @@ struct TIsContiguousContainer<TStaticArray<ElementType, NumElements, Alignment>>
 {
 	enum { Value = (alignof(ElementType) % Alignment) == 0 };
 };
+
+/** Serializer. */
+template <typename ElementType, uint32 NumElements, uint32 Alignment>
+FArchive& operator<<(FArchive& Ar,TStaticArray<ElementType, NumElements, Alignment>& StaticArray)
+{
+	for(uint32 Index = 0;Index < NumElements;++Index)
+	{
+		Ar << StaticArray[Index];
+	}
+	return Ar;
+}
+
+/** Hash function. */
+template <typename ElementType, uint32 NumElements, uint32 Alignment>
+uint32 GetTypeHash(const TStaticArray<ElementType, NumElements, Alignment>& Array)
+{
+	uint32 Result = 0;
+	for(uint32 ElementIndex = 0;ElementIndex < NumElements;++ElementIndex)
+	{
+		Result ^= GetTypeHash(Array[ElementIndex]);
+	}
+	return Result;
+}

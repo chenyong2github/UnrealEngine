@@ -240,18 +240,6 @@ public:
 	TSetElement& operator=(TSetElement&&) = default;
 	TSetElement& operator=(const TSetElement&) = default;
 
-	/** Serializer. */
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar,TSetElement& Element)
-	{
-		return Ar << Element.Value;
-	}
-
-	/** Structured archive serializer. */
- 	FORCEINLINE friend void operator<<(FStructuredArchive::FSlot Slot, TSetElement& Element)
- 	{
- 		Slot << Element.Value;
- 	}
-
 	// Comparison operators
 	FORCEINLINE bool operator==(const TSetElement& Other) const
 	{
@@ -1077,41 +1065,6 @@ public:
 		Rehash();
 	}
 
-	/** Serializer. */
-	friend FArchive& operator<<(FArchive& Ar,TSet& Set)
-	{
-		// Load the set's new elements.
-		Ar << Set.Elements;
-
-		if(Ar.IsLoading())
-		{
-			// Free the old hash.
-			Set.Hash.ResizeAllocation(0,0,sizeof(FSetElementId));
-			Set.HashSize = 0;
-
-			// Hash the newly loaded elements.
-			Set.ConditionalRehash(Set.Elements.Num());
-		}
-
-		return Ar;
-	}
-
-	/** Structured archive serializer. */
- 	friend void operator<<(FStructuredArchive::FSlot Slot, TSet& Set)
- 	{
-		Slot << Set.Elements;
-
-		if (Slot.GetUnderlyingArchive().IsLoading())
-		{
-			// Free the old hash.
-			Set.Hash.ResizeAllocation(0, 0, sizeof(FSetElementId));
-			Set.HashSize = 0;
-
-			// Hash the newly loaded elements.
-			Set.ConditionalRehash(Set.Elements.Num());
-		}
- 	}
-
 	/**
 	 * Describes the set's contents through an output device.
 	 * @param Ar - The output device to describe the set's contents through.
@@ -1177,16 +1130,6 @@ public:
 				ElementId = Elements[ElementId].HashNextId;
 			}
 		}
-	}
-
-	// Legacy comparison operators.  Note that these also test whether the set's elements were added in the same order!
-	friend bool LegacyCompareEqual(const TSet& A,const TSet& B)
-	{
-		return A.Elements == B.Elements;
-	}
-	friend bool LegacyCompareNotEqual(const TSet& A,const TSet& B)
-	{
-		return A.Elements != B.Elements;
 	}
 
 	/** @return the intersection of two sets. (A AND B)*/
@@ -1630,8 +1573,8 @@ private:
 			return ElementIt->Value;
 		}
 
-		FORCEINLINE friend bool operator==(const TBaseIterator& Lhs, const TBaseIterator& Rhs) { return Lhs.ElementIt == Rhs.ElementIt; }
-		FORCEINLINE friend bool operator!=(const TBaseIterator& Lhs, const TBaseIterator& Rhs) { return Lhs.ElementIt != Rhs.ElementIt; }
+		FORCEINLINE bool operator==(const TBaseIterator& Rhs) const { return ElementIt == Rhs.ElementIt; }
+		FORCEINLINE bool operator!=(const TBaseIterator& Rhs) const { return ElementIt != Rhs.ElementIt; }
 
 		ElementItType ElementIt;
 	};
@@ -1802,6 +1745,8 @@ public:
 	{
 		return TConstIterator(*this);
 	}
+
+	friend struct TSetPrivateFriend;
 
 public:
 	/**
@@ -2198,3 +2143,90 @@ class FScriptSet : public TScriptSet<FDefaultSetAllocator, FScriptSet>
 public:
 	using Super::Super;
 };
+
+struct TSetPrivateFriend
+{
+	/** Serializer. */
+	template<typename ElementType, typename KeyFuncs,typename Allocator>
+	static FArchive& Serialize(FArchive& Ar,TSet<ElementType, KeyFuncs, Allocator>& Set)
+	{
+		// Load the set's new elements.
+		Ar << Set.Elements;
+
+		if(Ar.IsLoading())
+		{
+			// Free the old hash.
+			Set.Hash.ResizeAllocation(0,0,sizeof(FSetElementId));
+			Set.HashSize = 0;
+
+			// Hash the newly loaded elements.
+			Set.ConditionalRehash(Set.Elements.Num());
+		}
+
+		return Ar;
+	}
+
+	/** Structured archive serializer. */
+	template<typename ElementType, typename KeyFuncs,typename Allocator>
+ 	static void SerializeStructured(FStructuredArchive::FSlot Slot, TSet<ElementType, KeyFuncs, Allocator>& Set)
+ 	{
+		Slot << Set.Elements;
+
+		if (Slot.GetUnderlyingArchive().IsLoading())
+		{
+			// Free the old hash.
+			Set.Hash.ResizeAllocation(0, 0, sizeof(FSetElementId));
+			Set.HashSize = 0;
+
+			// Hash the newly loaded elements.
+			Set.ConditionalRehash(Set.Elements.Num());
+		}
+ 	}
+
+	// Legacy comparison operators.  Note that these also test whether the set's elements were added in the same order!
+	template<typename ElementType, typename KeyFuncs,typename Allocator>
+	static bool LegacyCompareEqual(const TSet<ElementType, KeyFuncs, Allocator>& A, const TSet<ElementType, KeyFuncs, Allocator>& B)
+	{
+		return A.Elements == B.Elements;
+	}
+};
+
+/** Serializer. */
+template <typename ElementType>
+FORCEINLINE FArchive& operator<<(FArchive& Ar, TSetElement<ElementType>& Element)
+{
+	return Ar << Element.Value;
+}
+
+/** Structured archive serializer. */
+template <typename ElementType>
+FORCEINLINE void operator<<(FStructuredArchive::FSlot& Ar, TSetElement<ElementType>& Element)
+{
+	Ar << Element.Value;
+}
+
+/** Serializer. */
+template<typename ElementType, typename KeyFuncs,typename Allocator>
+FArchive& operator<<(FArchive& Ar, TSet<ElementType, KeyFuncs, Allocator>& Set)
+{
+	return TSetPrivateFriend::Serialize(Ar, Set);
+}
+
+/** Structured archive serializer. */
+template<typename ElementType, typename KeyFuncs,typename Allocator>
+void operator<<(FStructuredArchive::FSlot& Ar, TSet<ElementType, KeyFuncs, Allocator>& Set)
+{
+	TSetPrivateFriend::SerializeStructured(Ar, Set);
+}
+
+// Legacy comparison operators.  Note that these also test whether the set's elements were added in the same order!
+template<typename ElementType, typename KeyFuncs,typename Allocator>
+bool LegacyCompareEqual(const TSet<ElementType, KeyFuncs, Allocator>& A,const TSet<ElementType, KeyFuncs, Allocator>& B)
+{
+	return TSetPrivateFriend::LegacyCompareEqual(A, B);
+}
+template<typename ElementType, typename KeyFuncs,typename Allocator>
+bool LegacyCompareNotEqual(const TSet<ElementType, KeyFuncs, Allocator>& A,const TSet<ElementType, KeyFuncs, Allocator>& B)
+{
+	return !TSetPrivateFriend::LegacyCompareEqual(A, B);
+}

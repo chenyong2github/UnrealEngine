@@ -212,11 +212,10 @@ public:
 		return GetTypeHash(WeakObjectPtr.Field);
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, TWeakFieldPtr& InWeakFieldPtr)
+	FORCEINLINE void Serialize(FArchive& Ar)
 	{
-		Ar << InWeakFieldPtr.Owner;
-		Ar << InWeakFieldPtr.Field;
-		return Ar;
+		Ar << Owner;
+		Ar << Field;
 	}
 
 	/**
@@ -348,3 +347,10 @@ struct TWeakFieldPtrMapKeyFuncs : public TDefaultMapKeyFuncs<KeyType, ValueType,
 		return GetTypeHash(Key);
 	}
 };
+
+template<class T>
+FArchive& operator<<(FArchive& Ar, TWeakFieldPtr<T>& WeakFieldPtr)
+{
+	WeakFieldPtr.Serialize(Ar);
+	return Ar;
+}

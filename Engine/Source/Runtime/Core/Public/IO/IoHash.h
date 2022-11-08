@@ -91,6 +91,12 @@ private:
 	{
 		return *reinterpret_cast<const uint32*>(Value.GetBytes());
 	}
+
+	friend inline FArchive& operator<<(FArchive& Ar, FIoHash& InHash)
+	{
+		Ar.Serialize(InHash.GetBytes(), sizeof(decltype(InHash.GetBytes())));
+		return Ar;
+	}
 };
 
 inline const FIoHash FIoHash::Zero;
@@ -160,12 +166,6 @@ inline FIoHash FIoHash::HashBuffer(const void* Data, uint64 Size)
 inline FIoHash FIoHash::HashBuffer(const FCompositeBuffer& Buffer)
 {
 	return FBlake3::HashBuffer(Buffer);
-}
-
-inline FArchive& operator<<(FArchive& Ar, FIoHash& Hash)
-{
-	Ar.Serialize(Hash.GetBytes(), sizeof(decltype(Hash.GetBytes())));
-	return Ar;
 }
 
 template <typename CharType>

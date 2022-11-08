@@ -498,22 +498,19 @@ public:
 
 	CORE_API static FCbObjectId NewObjectId();
 
-private:
-	alignas(uint32) ByteArray Bytes{};
-
-	friend inline bool operator==(const FCbObjectId& A, const FCbObjectId& B)
+	inline bool operator==(const FCbObjectId& B) const
 	{
-		return FMemory::Memcmp(&A, &B, sizeof(FCbObjectId)) == 0;
+		return FMemory::Memcmp(this, &B, sizeof(FCbObjectId)) == 0;
 	}
 
-	friend inline bool operator!=(const FCbObjectId& A, const FCbObjectId& B)
+	inline bool operator!=(const FCbObjectId& B) const
 	{
-		return FMemory::Memcmp(&A, &B, sizeof(FCbObjectId)) != 0;
+		return FMemory::Memcmp(this, &B, sizeof(FCbObjectId)) != 0;
 	}
 
-	friend inline bool operator<(const FCbObjectId& A, const FCbObjectId& B)
+	inline bool operator<(const FCbObjectId& B) const
 	{
-		return FMemory::Memcmp(&A, &B, sizeof(FCbObjectId)) <= 0;
+		return FMemory::Memcmp(this, &B, sizeof(FCbObjectId)) <= 0;
 	}
 
 	friend inline uint32 GetTypeHash(const FCbObjectId& Id)
@@ -528,6 +525,9 @@ private:
 		UE::String::BytesToHexLower(Id.GetBytes(), Builder);
 		return Builder;
 	}
+
+private:
+	alignas(uint32) ByteArray Bytes{};
 };
 
 inline FCbObjectId::FCbObjectId(const ByteArray& ObjectId)

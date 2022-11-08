@@ -42,21 +42,22 @@ public:
 		ID = 0;
 	}
 
-private:
-	friend bool operator==(const FDelegateHandle& Lhs, const FDelegateHandle& Rhs)
+	bool operator==(const FDelegateHandle& Rhs) const
 	{
-		return Lhs.ID == Rhs.ID;
+		return ID == Rhs.ID;
 	}
 
-	friend bool operator!=(const FDelegateHandle& Lhs, const FDelegateHandle& Rhs)
+	bool operator!=(const FDelegateHandle& Rhs) const
 	{
-		return Lhs.ID != Rhs.ID;
+		return ID != Rhs.ID;
 	}
 
 	friend FORCEINLINE uint32 GetTypeHash(const FDelegateHandle& Key)
 	{
 		return GetTypeHash(Key.ID);
 	}
+
+private:
 
 	/**
 	 * Generates a new ID for use the delegate handle.

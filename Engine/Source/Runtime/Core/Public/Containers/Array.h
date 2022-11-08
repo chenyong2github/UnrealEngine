@@ -167,8 +167,8 @@ public:
 		Index--;
 	}
 
-	FORCEINLINE friend bool operator==(const TIndexedContainerIterator& Lhs, const TIndexedContainerIterator& Rhs) { return &Lhs.Container == &Rhs.Container && Lhs.Index == Rhs.Index; }
-	FORCEINLINE friend bool operator!=(const TIndexedContainerIterator& Lhs, const TIndexedContainerIterator& Rhs) { return &Lhs.Container != &Rhs.Container || Lhs.Index != Rhs.Index; }
+	FORCEINLINE bool operator==(const TIndexedContainerIterator& Rhs) const { return &Container == &Rhs.Container && Index == Rhs.Index; }
+	FORCEINLINE bool operator!=(const TIndexedContainerIterator& Rhs) const { return &Container != &Rhs.Container || Index != Rhs.Index; }
 
 private:
 
@@ -222,21 +222,21 @@ FORCEINLINE TIndexedContainerIterator<ContainerType, ElementType, SizeType> oper
 			return *this;
 		}
 
-	private:
-		ElementType*    Ptr;
-		const SizeType& CurrentNum;
-		SizeType        InitialNum;
-
-		FORCEINLINE friend bool operator!=(const TCheckedPointerIterator& Lhs, const TCheckedPointerIterator& Rhs)
+		FORCEINLINE bool operator!=(const TCheckedPointerIterator& Rhs) const
 		{
 			// We only need to do the check in this operator, because no other operator will be
 			// called until after this one returns.
 			//
 			// Also, we should only need to check one side of this comparison - if the other iterator isn't
 			// even from the same array then the compiler has generated bad code.
-			ensureMsgf(Lhs.CurrentNum == Lhs.InitialNum, TEXT("Array has changed during ranged-for iteration!"));
-			return Lhs.Ptr != Rhs.Ptr;
+			ensureMsgf(CurrentNum == InitialNum, TEXT("Array has changed during ranged-for iteration!"));
+			return Ptr != Rhs.Ptr;
 		}
+
+	private:
+		ElementType*    Ptr;
+		const SizeType& CurrentNum;
+		SizeType        InitialNum;
 	};
 #endif
 
@@ -260,13 +260,13 @@ struct TDereferencingIterator
 		return *this;
 	}
 
+	FORCEINLINE bool operator!=(const TDereferencingIterator& Rhs) const
+	{
+		return Iter != Rhs.Iter;
+	}
+
 private:
 	IteratorType Iter;
-
-	FORCEINLINE friend bool operator!=(const TDereferencingIterator& Lhs, const TDereferencingIterator& Rhs)
-	{
-		return Lhs.Iter != Rhs.Iter;
-	}
 };
 
 namespace UE4Array_Private
@@ -1218,94 +1218,14 @@ public:
 	 * @param OtherArray Array to compare.
 	 * @returns True if this array is NOT the same as OtherArray. False otherwise.
 	 */
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
 	FORCEINLINE bool operator!=(const TArray& OtherArray) const
 	{
 		return !(*this == OtherArray);
 	}
+#endif
 
-	/**
-	 * Serialization operator.
-	 *
-	 * @param Ar Archive to serialize the array with.
-	 * @param A Array to serialize.
-	 * @returns Passing the given archive.
-	 */
-	friend FArchive& operator<<(FArchive& Ar, TArray& A)
-	{
-		A.CountBytes(Ar);
 
-		// For net archives, limit serialization to 16MB, to protect against excessive allocation
-		constexpr SizeType MaxNetArraySerialize = (16 * 1024 * 1024) / sizeof(ElementType);
-		SizeType SerializeNum = Ar.IsLoading() ? 0 : A.ArrayNum;
-
-		Ar << SerializeNum;
-
-		if (SerializeNum == 0)
-		{
-			// if we are loading, then we have to reset the size to 0, in case it isn't currently 0
-			if (Ar.IsLoading())
-			{
-				A.Empty();
-			}
-			return Ar;
-		}
-
-		check(SerializeNum >= 0);
-
-		if (!Ar.IsError() && SerializeNum > 0 && ensure(!Ar.IsNetArchive() || SerializeNum <= MaxNetArraySerialize))
-		{
-			// if we don't need to perform per-item serialization, just read it in bulk
-			if constexpr (sizeof(ElementType) == 1 || TCanBulkSerialize<ElementType>::Value)
-			{
-				A.ArrayNum = SerializeNum;
-
-				// Serialize simple bytes which require no construction or destruction.
-				if ((A.ArrayNum || A.ArrayMax) && Ar.IsLoading())
-				{
-					A.ResizeForCopy(A.ArrayNum, A.ArrayMax);
-				}
-
-				if(TIsUECoreVariant<ElementType, double>::Value && Ar.IsLoading() && Ar.UEVer() < EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
-				{
-					// Per item serialization is required for core variant types loaded from pre LWC archives, to enable conversion from float to double.
-					A.Empty(SerializeNum);
-					for (SizeType i=0; i<SerializeNum; i++)
-					{
-						Ar << *::new(A) ElementType;
-					}		
-				}
-				else
-				{
-					Ar.Serialize(A.GetData(), A.Num() * sizeof(ElementType));
-				}
-			}
-			else if (Ar.IsLoading())
-			{
-				// Required for resetting ArrayNum
-				A.Empty(SerializeNum);
-
-				for (SizeType i=0; i<SerializeNum; i++)
-				{
-					Ar << *::new(A) ElementType;
-				}
-			}
-			else
-			{
-				A.ArrayNum = SerializeNum;
-
-				for (SizeType i=0; i<A.ArrayNum; i++)
-				{
-					Ar << A[i];
-				}
-			}
-		}
-		else
-		{
-			Ar.SetError();
-		}
-
-		return Ar;
-	}
 
 	/**
 	 * Bulk serialize array as a single memory blob when loading. Uses regular serialization code for saving
@@ -3479,6 +3399,8 @@ public:
 
 	const ElementAllocatorType& GetAllocatorInstance() const { return AllocatorInstance; }
 	ElementAllocatorType& GetAllocatorInstance() { return AllocatorInstance; }
+
+	friend struct TArrayPrivateFriend;
 };
 
 
@@ -3563,4 +3485,100 @@ template <typename T,typename AllocatorType> void* operator new( size_t Size, TA
 	check(Size == sizeof(T));
 	Array.InsertUninitialized(Index);
 	return &Array[Index];
+}
+
+struct TArrayPrivateFriend
+{
+	/**
+	 * Serialization operator.
+	 *
+	 * @param Ar Archive to serialize the array with.
+	 * @param A Array to serialize.
+	 * @returns Passing the given archive.
+	 */
+	template<typename ElementType, typename AllocatorType>
+	static FArchive& Serialize(FArchive& Ar, TArray<ElementType, AllocatorType>& A)
+	{
+		A.CountBytes(Ar);
+
+		// For net archives, limit serialization to 16MB, to protect against excessive allocation
+		typedef typename AllocatorType::SizeType SizeType;
+		constexpr SizeType MaxNetArraySerialize = (16 * 1024 * 1024) / sizeof(ElementType);
+		SizeType SerializeNum = Ar.IsLoading() ? 0 : A.ArrayNum;
+
+		Ar << SerializeNum;
+
+		if (SerializeNum == 0)
+		{
+			// if we are loading, then we have to reset the size to 0, in case it isn't currently 0
+			if (Ar.IsLoading())
+			{
+				A.Empty();
+			}
+			return Ar;
+		}
+
+		check(SerializeNum >= 0);
+
+		if (!Ar.IsError() && SerializeNum > 0 && ensure(!Ar.IsNetArchive() || SerializeNum <= MaxNetArraySerialize))
+		{
+			// if we don't need to perform per-item serialization, just read it in bulk
+			if constexpr (sizeof(ElementType) == 1 || TCanBulkSerialize<ElementType>::Value)
+			{
+				A.ArrayNum = SerializeNum;
+
+				// Serialize simple bytes which require no construction or destruction.
+				if ((A.ArrayNum || A.ArrayMax) && Ar.IsLoading())
+				{
+					A.ResizeForCopy(A.ArrayNum, A.ArrayMax);
+				}
+
+				if(TIsUECoreVariant<ElementType, double>::Value && Ar.IsLoading() && Ar.UEVer() < EUnrealEngineObjectUE5Version::LARGE_WORLD_COORDINATES)
+				{
+					// Per item serialization is required for core variant types loaded from pre LWC archives, to enable conversion from float to double.
+					A.Empty(SerializeNum);
+					for (SizeType i=0; i<SerializeNum; i++)
+					{
+						Ar << *::new(A) ElementType;
+					}		
+				}
+				else
+				{
+					Ar.Serialize(A.GetData(), A.Num() * sizeof(ElementType));
+				}
+			}
+			else if (Ar.IsLoading())
+			{
+				// Required for resetting ArrayNum
+				A.Empty(SerializeNum);
+
+				for (SizeType i=0; i<SerializeNum; i++)
+				{
+					Ar << *::new(A) ElementType;
+				}
+			}
+			else
+			{
+				A.ArrayNum = SerializeNum;
+
+				for (SizeType i=0; i<A.ArrayNum; i++)
+				{
+					Ar << A[i];
+				}
+			}
+		}
+		else
+		{
+			Ar.SetError();
+		}
+
+		return Ar;
+	}
+};
+
+
+template<typename ElementType, typename AllocatorType>
+FArchive& operator<<(FArchive& Ar, TArray<ElementType, AllocatorType>& A)
+{
+	return TArrayPrivateFriend::Serialize(Ar, A);
 }

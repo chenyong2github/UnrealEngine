@@ -319,10 +319,13 @@ private:
 
 	FOwnerPtrType Owner;
 
+public:
 	friend inline uint32 GetTypeHash(const FUniqueBuffer& Buffer) { return PointerHash(ToPrivateOwnerPtr(Buffer).Get()); }
 
-	friend inline bool operator==(const FUniqueBuffer& BufferA, const FUniqueBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) == ToPrivateOwnerPtr(BufferB); }
-	friend inline bool operator!=(const FUniqueBuffer& BufferA, const FUniqueBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) != ToPrivateOwnerPtr(BufferB); }
+	inline bool operator==(const FUniqueBuffer& BufferB) const { return ToPrivateOwnerPtr(*this) == ToPrivateOwnerPtr(BufferB); }
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+	inline bool operator!=(const FUniqueBuffer& BufferB) const { return ToPrivateOwnerPtr(*this) != ToPrivateOwnerPtr(BufferB); }
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -436,14 +439,17 @@ private:
 
 	FOwnerPtrType Owner;
 
+public:
 	friend inline uint32 GetTypeHash(const FSharedBuffer& Buffer) { return PointerHash(ToPrivateOwnerPtr(Buffer).Get()); }
-	friend inline bool operator==(const FSharedBuffer& BufferA, const FSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) == ToPrivateOwnerPtr(BufferB); }
-	friend inline bool operator!=(const FSharedBuffer& BufferA, const FSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) != ToPrivateOwnerPtr(BufferB); }
-
+	inline bool operator==(const FSharedBuffer& BufferB) const { return ToPrivateOwnerPtr(*this) == ToPrivateOwnerPtr(BufferB); }
 	friend inline bool operator==(const FSharedBuffer& BufferA, const FUniqueBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) == ToPrivateOwnerPtr(BufferB); }
+
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+	inline bool operator!=(const FSharedBuffer& BufferB) const { return ToPrivateOwnerPtr(*this) != ToPrivateOwnerPtr(BufferB); }
 	friend inline bool operator!=(const FSharedBuffer& BufferA, const FUniqueBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) != ToPrivateOwnerPtr(BufferB); }
 	friend inline bool operator==(const FUniqueBuffer& BufferA, const FSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) == ToPrivateOwnerPtr(BufferB); }
 	friend inline bool operator!=(const FUniqueBuffer& BufferA, const FSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) != ToPrivateOwnerPtr(BufferB); }
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -478,20 +484,22 @@ private:
 
 	FWeakOwnerPtrType Owner;
 
+public:
 	friend inline uint32 GetTypeHash(const FWeakSharedBuffer& Buffer) { return PointerHash(ToPrivateOwnerPtr(Buffer).Get()); }
-
-	friend inline bool operator==(const FWeakSharedBuffer& BufferA, const FWeakSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) == ToPrivateOwnerPtr(BufferB); }
-	friend inline bool operator!=(const FWeakSharedBuffer& BufferA, const FWeakSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) != ToPrivateOwnerPtr(BufferB); }
-
+	inline bool operator==(const FWeakSharedBuffer& BufferB) const { return ToPrivateOwnerPtr(*this) == ToPrivateOwnerPtr(BufferB); }
 	friend inline bool operator==(const FWeakSharedBuffer& BufferA, const FUniqueBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) == ToPrivateOwnerPtr(BufferB); }
-	friend inline bool operator!=(const FWeakSharedBuffer& BufferA, const FUniqueBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) != ToPrivateOwnerPtr(BufferB); }
-	friend inline bool operator==(const FUniqueBuffer& BufferA, const FWeakSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) == ToPrivateOwnerPtr(BufferB); }
-	friend inline bool operator!=(const FUniqueBuffer& BufferA, const FWeakSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) != ToPrivateOwnerPtr(BufferB); }
-
 	friend inline bool operator==(const FWeakSharedBuffer& BufferA, const FSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) == ToPrivateOwnerPtr(BufferB); }
-	friend inline bool operator!=(const FWeakSharedBuffer& BufferA, const FSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) != ToPrivateOwnerPtr(BufferB); }
+
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+	friend inline bool operator==(const FUniqueBuffer& BufferA, const FWeakSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) == ToPrivateOwnerPtr(BufferB); }
 	friend inline bool operator==(const FSharedBuffer& BufferA, const FWeakSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) == ToPrivateOwnerPtr(BufferB); }
+
+	inline bool operator!=(const FWeakSharedBuffer& BufferB) const { return ToPrivateOwnerPtr(*this) != ToPrivateOwnerPtr(BufferB); }
+	friend inline bool operator!=(const FWeakSharedBuffer& BufferA, const FUniqueBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) != ToPrivateOwnerPtr(BufferB); }
+	friend inline bool operator!=(const FUniqueBuffer& BufferA, const FWeakSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) != ToPrivateOwnerPtr(BufferB); }
+	friend inline bool operator!=(const FWeakSharedBuffer& BufferA, const FSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) != ToPrivateOwnerPtr(BufferB); }
 	friend inline bool operator!=(const FSharedBuffer& BufferA, const FWeakSharedBuffer& BufferB) { return ToPrivateOwnerPtr(BufferA) != ToPrivateOwnerPtr(BufferB); }
+#endif
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

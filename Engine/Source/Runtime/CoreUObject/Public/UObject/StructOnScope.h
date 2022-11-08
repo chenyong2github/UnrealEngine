@@ -309,7 +309,7 @@ public:
 		return const_cast<TStructOnScope*>(this)->CastChecked<U>();
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, TStructOnScope& InStruct)
+	void Serialize(FArchive& Ar)
 	{
 		if (Ar.IsLoading())
 		{
@@ -321,30 +321,28 @@ public:
 				if (ScriptStructPtr == nullptr || !ScriptStructPtr->IsChildOf(TBaseStructure<T>::Get()))
 				{
 					Ar.SetError();
-					return Ar;
+					return;
 				}
-				InStruct.ScriptStruct = ScriptStructPtr;
-				InStruct.Initialize();
-				ScriptStructPtr->SerializeItem(Ar, InStruct.SampleStructMemory, nullptr);
+				ScriptStruct = ScriptStructPtr;
+				Initialize();
+				ScriptStructPtr->SerializeItem(Ar, SampleStructMemory, nullptr);
 			}
 		}
 		// Saving
 		else
 		{
 			FString StructPath;
-			if (UScriptStruct* ScriptStructPtr = const_cast<UScriptStruct*>(::Cast<UScriptStruct>(InStruct.ScriptStruct.Get())))
+			if (UScriptStruct* ScriptStructPtr = const_cast<UScriptStruct*>(::Cast<UScriptStruct>(ScriptStruct.Get())))
 			{
 				StructPath = ScriptStructPtr->GetPathName();
 				Ar << StructPath;
-				ScriptStructPtr->SerializeItem(Ar, InStruct.SampleStructMemory, nullptr);
+				ScriptStructPtr->SerializeItem(Ar, SampleStructMemory, nullptr);
 			}
 			else
 			{
 				Ar << StructPath;
 			}
 		}
-		
-		return Ar;
 	}
 
 private:
@@ -369,4 +367,11 @@ FORCEINLINE TStructOnScope<T> MakeStructOnScope(TArgs&&... Args)
 	TStructOnScope<T> Struct;
 	Struct.template InitializeAs<U>(Forward<TArgs>(Args)...);
 	return Struct;
+}
+
+template<typename T>
+FArchive& operator<<(FArchive& Ar, TStructOnScope<T>& Struct)
+{
+	Struct.Serialize(Ar);
+	return Ar;
 }

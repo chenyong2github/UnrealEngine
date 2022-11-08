@@ -359,8 +359,6 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FConfigSection& ConfigSection);
 };
 
-FArchive& operator<<(FArchive& Ar, FConfigSection& ConfigSection);
-
 
 #if ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
 // Options which stemmed from the commandline
@@ -622,8 +620,6 @@ private:
 	friend class FConfigCacheIni;
 	friend FConfigContext;
 };
-
-FArchive& operator<<(FArchive& Ar, FConfigFile& ConfigFile);
 
 /**
  * Declares a delegate type that's used by the config system to allow iteration of key value pairs.

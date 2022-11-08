@@ -16,13 +16,14 @@ struct TInPlaceType {};
 /**
  * A special tag that can be used as the first type in a TVariant parameter pack if none of the other types can be default-constructed.
  */
-struct FEmptyVariantState {};
-
-/** Allow FEmptyVariantState to be used with FArchive serialization */
-inline FArchive& operator<<(FArchive& Ar, FEmptyVariantState&)
+struct FEmptyVariantState
 {
-	return Ar;
-}
+	/** Allow FEmptyVariantState to be used with FArchive serialization */
+	friend inline FArchive& operator<<(FArchive& Ar, FEmptyVariantState&)
+	{
+		return Ar;
+	}
+};
 
 /**
  * A type-safe union based loosely on std::variant. This flavor of variant requires that all the types in the declaring template parameter pack be unique.

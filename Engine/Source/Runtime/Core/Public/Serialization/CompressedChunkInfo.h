@@ -19,12 +19,13 @@ struct FCompressedChunkInfo
 
 	/** Holds the data's uncompresses size. */
 	int64 UncompressedSize;
-};
 
-/**
- * Serializes an FCompressedChunkInfo value from or into an archive.
- *
- * @param Ar The archive to serialize from or to.
- * @param Value The value to serialize.
- */
-CORE_API FArchive& operator<<(FArchive& Ar, FCompressedChunkInfo& Value);
+	/**
+	 * Serializes an FCompressedChunkInfo value from or into an archive.
+	 *
+	 * @param Ar The archive to serialize from or to.
+	 * @param Value The value to serialize.
+	 */
+	friend CORE_API FArchive& operator<<(FArchive& Ar, FCompressedChunkInfo& Value);
+
+};

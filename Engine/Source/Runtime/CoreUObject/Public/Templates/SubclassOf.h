@@ -137,10 +137,9 @@ public:
 		return (TClass*)Result;
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, TSubclassOf& SubclassOf)
+	FORCEINLINE void SerializeTSubclassOf(FArchive& Ar)
 	{
-		Ar << SubclassOf.Class;
-		return Ar;
+		Ar << Class;
 	}
 
 	friend uint32 GetTypeHash(const TSubclassOf& SubclassOf)
@@ -166,3 +165,11 @@ struct TIsTSubclassOf<TSubclassOf<T>>
 {
 	enum { Value = true };
 };
+
+template <typename T>
+FArchive& operator<<(FArchive& Ar, TSubclassOf<T>& SubclassOf)
+{
+	SubclassOf.SerializeTSubclassOf(Ar);
+	return Ar;
+}
+

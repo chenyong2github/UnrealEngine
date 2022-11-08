@@ -580,15 +580,13 @@ private:
 	//---------------------------------------------------------------------------------------------------------------------
 	// TDeque comparison operators
 	//---------------------------------------------------------------------------------------------------------------------
-
-	friend inline bool operator==(
-		const TDeque<InElementType, InAllocatorType>& Left,
-		const TDeque<InElementType, InAllocatorType>& Right)
+public:
+	inline bool operator==(const TDeque& Right) const
 	{
-		if (Left.Num() == Right.Num())
+		if (Num() == Right.Num())
 		{
-			auto EndIt = Left.end();
-			auto LeftIt = Left.begin();
+			auto EndIt = end();
+			auto LeftIt = begin();
 			auto RightIt = Right.begin();
 			while (LeftIt != EndIt)
 			{
@@ -602,11 +600,10 @@ private:
 		return false;
 	}
 
-	friend inline bool operator!=(
-		const TDeque<InElementType, InAllocatorType>& Left,
-		const TDeque<InElementType, InAllocatorType>& Right)
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+	inline bool operator!=(const TDeque& Right) const
 	{
-		return !(Left == Right);
+		return !(*this == Right);
 	}
-
+#endif
 };

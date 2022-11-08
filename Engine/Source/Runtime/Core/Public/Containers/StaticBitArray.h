@@ -247,11 +247,11 @@ public:
 		Results ^= B;
 		return Results;
 	}
-	friend FORCEINLINE bool operator==(const TStaticBitArray<NumBits>& A, const TStaticBitArray<NumBits>& B)
+	FORCEINLINE bool operator==(const TStaticBitArray<NumBits>& B)
 	{
-		for(int32 Index = 0; Index < A.NumWords; ++Index)
+		for(int32 Index = 0; Index < NumWords; ++Index)
 		{
-			if(A.Words[Index] != B.Words[Index])
+			if(Words[Index] != B.Words[Index])
 			{
 				return false;
 			}
@@ -264,9 +264,9 @@ public:
 		return (UnspecifiedBoolType)A == Value;
 	}
 	/** != simple maps to == */
-	friend FORCEINLINE bool operator!=(const TStaticBitArray<NumBits>& A, const TStaticBitArray<NumBits>& B)
+	FORCEINLINE bool operator!=(const TStaticBitArray<NumBits>& B) const
 	{
-		return !(A == B);
+		return !(*this == B);
 	}
 	/** != simple maps to == */
 	friend FORCEINLINE bool operator!=(const TStaticBitArray<NumBits>& A, UnspecifiedBoolType Value)
@@ -336,24 +336,6 @@ public:
 	}
 
 	/**
-	 * Serializer.
-	 */
-	friend FArchive& operator<<(FArchive& Ar, TStaticBitArray& BitArray)
-	{
-		uint32 ArchivedNumWords = BitArray.NumWords;
-		Ar << ArchivedNumWords;
-
-		if(Ar.IsLoading())
-		{
-			FMemory::Memset(BitArray.Words, 0, sizeof(BitArray.Words));
-			ArchivedNumWords = FMath::Min(BitArray.NumWords, ArchivedNumWords);
-		}
-
-		Ar.Serialize(BitArray.Words, ArchivedNumWords * sizeof(BitArray.Words[0]));
-		return Ar;
-	}
-
-	/**
 	 * Converts the bitarray to a string representing the binary representation of the array
 	 */
 	FString ToString() const
@@ -415,3 +397,22 @@ private:
 		LowLevelFatalError(TEXT("invalid TStaticBitArray<NumBits> character"));
 	}
 };
+
+/**
+	* Serializer.
+	*/
+template<uint32 NumBits>
+FArchive& operator<<(FArchive& Ar, TStaticBitArray<NumBits>& BitArray)
+{
+	uint32 ArchivedNumWords = BitArray.NumWords;
+	Ar << ArchivedNumWords;
+
+	if(Ar.IsLoading())
+	{
+		FMemory::Memset(BitArray.Words, 0, sizeof(BitArray.Words));
+		ArchivedNumWords = FMath::Min(BitArray.NumWords, ArchivedNumWords);
+	}
+
+	Ar.Serialize(BitArray.Words, ArchivedNumWords * sizeof(BitArray.Words[0]));
+	return Ar;
+}

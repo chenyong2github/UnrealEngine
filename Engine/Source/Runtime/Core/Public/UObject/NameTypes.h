@@ -114,10 +114,10 @@ public:
 	friend inline bool operator!=(EName Ename, FNameEntryId Id) { return !(Id == Ename); }
 	friend inline bool operator!=(FNameEntryId Id, EName Ename) { return !(Id == Ename); }
 	friend CORE_API uint32 GetTypeHash(FNameEntryId Id);
-};
 
-/** Serialize as process specific unstable int */
-CORE_API FArchive& operator<<(FArchive& Ar, FNameEntryId& InId);
+	/** Serialize as process specific unstable int */
+	CORE_API friend FArchive& operator<<(FArchive& Ar, FNameEntryId& InId);
+};
 
 /**
  * Legacy typedef - this is no longer an index

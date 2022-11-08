@@ -210,14 +210,14 @@ public:
 		return InPointer;
 	}
 
-	friend bool operator==(const TOptional& lhs, const TOptional& rhs)
+	bool operator==(const TOptional& rhs) const
 	{
-		return lhs.Pointer == rhs.Pointer;
+		return Pointer == rhs.Pointer;
 	}
 
-	friend bool operator!=(const TOptional& lhs, const TOptional& rhs)
+	bool operator!=(const TOptional& rhs) const
 	{
-		return !(lhs == rhs);
+		return Pointer != rhs.Pointer;
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, TOptional& Optional)

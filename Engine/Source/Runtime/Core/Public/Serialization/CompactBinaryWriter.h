@@ -253,7 +253,6 @@ protected:
 	CORE_API explicit FCbWriter(int64 InitialSize);
 
 private:
-	friend FCbWriter& operator<<(FCbWriter& Writer, FUtf8StringView NameOrValue);
 
 	/** Begin writing a field. May be called twice for named fields. */
 	void BeginField();
@@ -292,6 +291,164 @@ private:
 	// operations only when saving to a buffer.
 	TArray64<uint8> Data;
 	TArray<FState> States;
+
+public:
+	/** Write the field name if valid in this state, otherwise write the string value. */
+	inline FCbWriter& operator<<(FUtf8StringView NameOrValue)
+	{
+		SetNameOrAddString(NameOrValue);
+		return *this;
+	}
+
+	/** Write the field name if valid in this state, otherwise write the string value. */
+	inline FCbWriter& operator<<(const ANSICHAR* NameOrValue)
+	{
+		return *this << FAnsiStringView(NameOrValue);
+	}
+
+	/** Write the field name if valid in this state, otherwise write the string value. */
+	inline FCbWriter& operator<<(const UTF8CHAR* NameOrValue)
+	{
+		return *this << FUtf8StringView(NameOrValue);
+	}
+
+	inline FCbWriter& operator<<(const FCbFieldView& Value)
+	{
+		AddField(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(const FCbField& Value)
+	{
+		AddField(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(const FCbObjectView& Value)
+	{
+		AddObject(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(const FCbObject& Value)
+	{
+		AddObject(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(const FCbArrayView& Value)
+	{
+		AddArray(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(const FCbArray& Value)
+	{
+		AddArray(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(nullptr_t)
+	{
+		AddNull();
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(FWideStringView Value)
+	{
+		AddString(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(const WIDECHAR* Value)
+	{
+		AddString(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(int32 Value)
+	{
+		AddInteger(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(int64 Value)
+	{
+		AddInteger(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(uint32 Value)
+	{
+		AddInteger(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(uint64 Value)
+	{
+		AddInteger(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(float Value)
+	{
+		AddFloat(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(double Value)
+	{
+		AddFloat(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(bool Value)
+	{
+		AddBool(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(const FCbAttachment& Attachment)
+	{
+		AddAttachment(Attachment);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(const FIoHash& Value)
+	{
+		AddHash(Value);
+		return *this;
+	}
+
+	inline FCbWriter& operator<<(const FGuid& Value)
+	{
+		AddUuid(Value);
+		return *this;
+	}
+
+	CORE_API FCbWriter& operator<<(FDateTime Value);
+	CORE_API FCbWriter& operator<<(FTimespan Value);
+
+	inline FCbWriter& operator<<(const FCbObjectId& Value)
+	{
+		AddObjectId(Value);
+		return *this;
+	}
+
+	CORE_API FCbWriter& operator<<(FName Value);
+
+	template <typename T, typename Allocator,
+		std::void_t<decltype(std::declval<FCbWriter&>() << std::declval<const T&>())>* = nullptr>
+	inline FCbWriter& operator<<(const TArray<T, Allocator>& Value)
+	{
+		BeginArray();
+		for (const T& Element : Value)
+		{
+			*this << Element;
+		}
+		EndArray();
+		return *this;
+	}
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -318,164 +475,5 @@ private:
 	// new stack overflows when this functionality is properly implemented in the future.
 	uint8 Buffer[InlineBufferSize];
 };
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/** Write the field name if valid in this state, otherwise write the string value. */
-inline FCbWriter& operator<<(FCbWriter& Writer, FUtf8StringView NameOrValue)
-{
-	Writer.SetNameOrAddString(NameOrValue);
-	return Writer;
-}
-
-/** Write the field name if valid in this state, otherwise write the string value. */
-inline FCbWriter& operator<<(FCbWriter& Writer, const ANSICHAR* NameOrValue)
-{
-	return Writer << FAnsiStringView(NameOrValue);
-}
-
-/** Write the field name if valid in this state, otherwise write the string value. */
-inline FCbWriter& operator<<(FCbWriter& Writer, const UTF8CHAR* NameOrValue)
-{
-	return Writer << FUtf8StringView(NameOrValue);
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, const FCbFieldView& Value)
-{
-	Writer.AddField(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, const FCbField& Value)
-{
-	Writer.AddField(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, const FCbObjectView& Value)
-{
-	Writer.AddObject(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, const FCbObject& Value)
-{
-	Writer.AddObject(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, const FCbArrayView& Value)
-{
-	Writer.AddArray(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, const FCbArray& Value)
-{
-	Writer.AddArray(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, nullptr_t)
-{
-	Writer.AddNull();
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, FWideStringView Value)
-{
-	Writer.AddString(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, const WIDECHAR* Value)
-{
-	Writer.AddString(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, int32 Value)
-{
-	Writer.AddInteger(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, int64 Value)
-{
-	Writer.AddInteger(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, uint32 Value)
-{
-	Writer.AddInteger(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, uint64 Value)
-{
-	Writer.AddInteger(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, float Value)
-{
-	Writer.AddFloat(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, double Value)
-{
-	Writer.AddFloat(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, bool Value)
-{
-	Writer.AddBool(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, const FCbAttachment& Attachment)
-{
-	Writer.AddAttachment(Attachment);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, const FIoHash& Value)
-{
-	Writer.AddHash(Value);
-	return Writer;
-}
-
-inline FCbWriter& operator<<(FCbWriter& Writer, const FGuid& Value)
-{
-	Writer.AddUuid(Value);
-	return Writer;
-}
-
-CORE_API FCbWriter& operator<<(FCbWriter& Writer, FDateTime Value);
-CORE_API FCbWriter& operator<<(FCbWriter& Writer, FTimespan Value);
-
-inline FCbWriter& operator<<(FCbWriter& Writer, const FCbObjectId& Value)
-{
-	Writer.AddObjectId(Value);
-	return Writer;
-}
-
-CORE_API FCbWriter& operator<<(FCbWriter& Writer, FName Value);
-
-template <typename T, typename Allocator,
-	std::void_t<decltype(std::declval<FCbWriter&>() << std::declval<const T&>())>* = nullptr>
-inline FCbWriter& operator<<(FCbWriter& Writer, const TArray<T, Allocator>& Value)
-{
-	Writer.BeginArray();
-	for (const T& Element : Value)
-	{
-		Writer << Element;
-	}
-	Writer.EndArray();
-	return Writer;
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

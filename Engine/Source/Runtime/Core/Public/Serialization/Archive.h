@@ -1334,24 +1334,6 @@ public:
 	}
 
 	/**
-	 * Serializes an enumeration value from or into an archive.
-	 *
-	 * @param Ar The archive to serialize from or to.
-	 * @param Value The value to serialize.
-	 */
-	template<class TEnum>
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, TEnumAsByte<TEnum>& Value)
-	{
-#if DEVIRTUALIZE_FLinkerLoad_Serialize
-		if (!Ar.FastPathLoad<sizeof(Value)>(&Value))
-#endif
-		{
-			Ar.Serialize(&Value, 1);
-		}
-		return Ar;
-	}
-
-	/**
 	 * Serializes a signed 8-bit integer value from or into an archive.
 	 *
 	 * @param Ar The archive to serialize from or to.
@@ -1566,21 +1548,6 @@ public:
 			Ar.ByteOrderSerialize(reinterpret_cast<uint64&>(Value));
 		}
 		return Ar;
-	}
-
-	/**
-	 * Serializes enum classes as their underlying type.
-	 *
-	 * @param Ar The archive to serialize from or to.
-	 * @param Value The value to serialize.
-	 */
-	template <
-		typename EnumType,
-		typename = typename TEnableIf<TIsEnumClass<EnumType>::Value>::Type
-	>
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, EnumType& Value)
-	{
-		return Ar << (__underlying_type(EnumType)&)Value;
 	}
 
 	/**
@@ -1955,8 +1922,8 @@ public:
 	/** Resets all of the base archive members. */
 	using FArchiveState::Reset;
 
+public:
 #if DEVIRTUALIZE_FLinkerLoad_Serialize
-private:
 	template<SIZE_T Size>
 	FORCEINLINE bool FastPathLoad(void* InDest)
 	{
@@ -1992,7 +1959,6 @@ private:
 		return false;
 	}
 
-public:
 	//@todoio FArchive is really a horrible class and the way it is proxied by FLinkerLoad is double terrible. It makes the fast path really hacky and slower than it would need to be.
 	using FArchiveState::ActiveFPLB;
 	using FArchiveState::InlineFPLB;
@@ -2205,4 +2171,37 @@ template<class T> T Arctor(FArchive& Ar)
 	Ar << Tmp;
 
 	return Tmp;
+}
+
+/**
+* Serializes an enumeration value from or into an archive.
+*
+* @param Ar The archive to serialize from or to.
+* @param Value The value to serialize.
+*/
+template<class TEnum>
+FORCEINLINE FArchive& operator<<(FArchive& Ar, TEnumAsByte<TEnum>& Value)
+{
+#if DEVIRTUALIZE_FLinkerLoad_Serialize
+	if (!Ar.FastPathLoad<sizeof(Value)>(&Value))
+#endif
+	{
+		Ar.Serialize(&Value, 1);
+	}
+	return Ar;
+}
+
+/**
+* Serializes enum classes as their underlying type.
+*
+* @param Ar The archive to serialize from or to.
+* @param Value The value to serialize.
+*/
+template <
+	typename EnumType,
+	typename = typename TEnableIf<TIsEnumClass<EnumType>::Value>::Type
+>
+FORCEINLINE FArchive& operator<<(FArchive& Ar, EnumType& Value)
+{
+	return Ar << (__underlying_type(EnumType)&)Value;
 }

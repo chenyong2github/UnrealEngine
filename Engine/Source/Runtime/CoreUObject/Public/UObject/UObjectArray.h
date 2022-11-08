@@ -1006,8 +1006,8 @@ public:
 			Advance();
 		}
 
-		friend bool operator==(const TIterator& Lhs, const TIterator& Rhs) { return Lhs.Index == Rhs.Index; }
-		friend bool operator!=(const TIterator& Lhs, const TIterator& Rhs) { return Lhs.Index != Rhs.Index; }
+		bool operator==(const TIterator& Rhs) const { return Index == Rhs.Index; }
+		bool operator!=(const TIterator& Rhs) const { return Index != Rhs.Index; }
 
 		/** Conversion to "bool" returning true if the iterator is valid. */
 		FORCEINLINE explicit operator bool() const

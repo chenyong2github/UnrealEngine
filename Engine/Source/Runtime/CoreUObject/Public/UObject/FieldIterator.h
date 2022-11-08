@@ -73,13 +73,13 @@ public:
 		return !(bool)*this;
 	}
 
-	inline friend bool operator==(const TAllFieldsIterator<T>& Lhs, const TAllFieldsIterator<T>& Rhs) 
+	inline bool operator==(const TAllFieldsIterator<T>& Rhs) const 
 	{ 
-		return *Lhs.FieldIterator == *Rhs.FieldIterator && Lhs.CurrentFieldIndex == Rhs.CurrentFieldIndex; 
+		return *FieldIterator == *Rhs.FieldIterator && CurrentFieldIndex == Rhs.CurrentFieldIndex; 
 	}
-	inline friend bool operator!=(const TAllFieldsIterator<T>& Lhs, const TAllFieldsIterator<T>& Rhs) 
+	inline bool operator!=(const TAllFieldsIterator<T>& Rhs) const
 	{ 
-		return *Lhs.FieldIterator != *Rhs.FieldIterator || Lhs.CurrentFieldIndex != Rhs.CurrentFieldIndex;
+		return *FieldIterator != *Rhs.FieldIterator || CurrentFieldIndex != Rhs.CurrentFieldIndex;
 	}
 
 	inline void operator++()

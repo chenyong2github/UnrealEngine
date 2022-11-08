@@ -326,6 +326,8 @@ namespace ObjectPtr_Private
 
 	template <typename T>
 	char (&ResolveTypeIsComplete(...))[1];
+
+	struct Friend;
 };
 
 /**
@@ -444,6 +446,24 @@ public:
 	{
 		return ObjectPtr == Other.ObjectPtr;
 	}
+
+	// Equality/Inequality comparisons against nullptr
+	FORCEINLINE bool operator==(TYPE_OF_NULLPTR) const
+	{
+		return !ObjectPtr.operator bool();
+	}
+
+	// Equality/Inequality comparisons against another type that can be implicitly converted to the pointer type kept in a TObjectPtr
+	template <
+		typename U,
+		typename = decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))
+	>
+	FORCEINLINE bool operator==(U&& Other) const
+	{
+		return ObjectPtr_Private::IsObjectPtrEqual(*this, Other);
+	}
+
+#if __cplusplus < 202002L
 	template <
 		typename U,
 		typename Base = std::decay_t<decltype(false ? std::declval<std::decay_t<T*>>() : std::declval<std::decay_t<U*>>())>
@@ -453,62 +473,20 @@ public:
 		return ObjectPtr != Other.ObjectPtr;
 	}
 
-
-	// Equality/Inequality comparisons against nullptr
-	FORCEINLINE bool operator==(TYPE_OF_NULLPTR) const
-	{
-		return !ObjectPtr.operator bool();
-	}
-
 	FORCEINLINE bool operator!=(TYPE_OF_NULLPTR) const
 	{
 		return ObjectPtr.operator bool();
 	}
 
-	friend FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TObjectPtr& Rhs)
-	{
-		return Rhs == nullptr;
-	}
-
-	friend FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TObjectPtr& Rhs)
-	{
-		return Rhs != nullptr;
-	}
-
-	// Equality/Inequality comparisons against another type that can be implicitly converted to the pointer type kept in a TObjectPtr
 	template <
 		typename U,
 		typename = decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))
 	>
-	friend FORCEINLINE bool operator==(const TObjectPtr<T>& Ptr, U&& Other)
+	FORCEINLINE bool operator!=(U&& Other) const
 	{
-		return ObjectPtr_Private::IsObjectPtrEqual(Ptr, Other);
+		return !ObjectPtr_Private::IsObjectPtrEqual(*this, Other);
 	}
-	template <
-		typename U,
-		typename = decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))
-	>
-	friend FORCEINLINE bool operator==(U&& Other, const TObjectPtr<T>& Ptr)
-	{
-		return ObjectPtr_Private::IsObjectPtrEqual(Ptr, Other);
-	}
-
-	template <
-		typename U,
-		typename = decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))
-	>
-	friend FORCEINLINE bool operator!=(const TObjectPtr<T>& Ptr, U&& Other)
-	{
-		return !ObjectPtr_Private::IsObjectPtrEqual(Ptr, Other);
-	}
-	template <
-		typename U,
-		typename = decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))
-	>
-	friend FORCEINLINE bool operator!=(U&& Other, const TObjectPtr<T>& Ptr)
-	{
-		return !ObjectPtr_Private::IsObjectPtrEqual(Ptr, Other);
-	}
+#endif
 
 	// @TODO: OBJPTR: There is a risk that the FObjectPtr is storing a reference to the wrong type.  This could
 	//			happen if data was serialized at a time when a pointer field was declared to be of type A, but then the declaration
@@ -548,22 +526,17 @@ public:
 	FORCEINLINE bool IsA(const UClass* SomeBase) const { return ObjectPtr.IsA(SomeBase); }
 	template <typename U> FORCEINLINE bool IsA() const { return ObjectPtr.IsA<U>(); }
 
-	friend FORCEINLINE uint32 GetTypeHash(const TObjectPtr<T>& InObjectPtr)
+	FORCEINLINE uint32 GetPtrTypeHash() const
 	{
-		return GetTypeHash(InObjectPtr.ObjectPtr);
+		return GetTypeHash(ObjectPtr);
 	}
 
-	friend FORCEINLINE FArchive& operator<<(FArchive& Ar, TObjectPtr<T>& InObjectPtr)
+	FORCEINLINE void SerializePtrStructured(FStructuredArchiveSlot Slot)
 	{
-		Ar << InObjectPtr.ObjectPtr;
-		return Ar;
+		Slot << ObjectPtr;
 	}
 
-	friend FORCEINLINE void operator<<(FStructuredArchiveSlot Slot, TObjectPtr<T>& InObjectPtr)
-	{
-		Slot << InObjectPtr.ObjectPtr;
-	}
-
+	friend ObjectPtr_Private::Friend;
 	friend struct FObjectPtr;
 	template <typename U> friend struct TObjectPtr;
 	template <typename U, typename V> friend bool ObjectPtr_Private::IsObjectPtrEqualToRawPtrOfRelatedType(const TObjectPtr<U>& Ptr, const V* Other);
@@ -615,7 +588,68 @@ namespace ObjectPtr_Private
 	template <typename T> struct TRawPointerType<const          TObjectPtr<T>> { using Type = T*; };
 	template <typename T> struct TRawPointerType<      volatile TObjectPtr<T>> { using Type = T*; };
 	template <typename T> struct TRawPointerType<const volatile TObjectPtr<T>> { using Type = T*; };
+	struct Friend
+	{
+		template <typename T>
+		FORCEINLINE static uint32 GetPtrTypeHash(const TObjectPtr<T>& InObjectPtr)
+		{
+			return GetTypeHash(InObjectPtr.ObjectPtr);
+		}
+
+		template <typename T>
+		FORCEINLINE static FArchive& Serialize(FArchive& Ar, TObjectPtr<T>& InObjectPtr)
+		{
+			Ar << InObjectPtr.ObjectPtr;
+			return Ar;
+		}
+
+		template <typename T>
+		FORCEINLINE static void SerializePtrStructured(FStructuredArchiveSlot Slot, TObjectPtr<T>& InObjectPtr)
+		{
+			Slot << InObjectPtr.ObjectPtr;
+		}
+	};
 }
+
+template <typename T>
+FORCEINLINE uint32 GetTypeHash(const TObjectPtr<T>& InObjectPtr)
+{
+	return ObjectPtr_Private::Friend::GetPtrTypeHash(InObjectPtr);
+}
+
+template <typename T>
+FORCEINLINE FArchive& operator<<(FArchive& Ar, TObjectPtr<T>& InObjectPtr)
+{
+	return ObjectPtr_Private::Friend::Serialize(Ar, InObjectPtr);
+}
+
+template <typename T>
+FORCEINLINE void operator<<(FStructuredArchiveSlot Slot, TObjectPtr<T>& InObjectPtr)
+{
+	ObjectPtr_Private::Friend::SerializePtrStructured(Slot, InObjectPtr);
+}
+
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+// Equality/Inequality comparisons against another type that can be implicitly converted to the pointer type kept in a TObjectPtr
+template <
+	typename T,
+	typename U,
+	decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))* = nullptr
+>
+FORCEINLINE bool operator==(U&& Other, const TObjectPtr<T>& Ptr)
+{
+	return ObjectPtr_Private::IsObjectPtrEqual(Ptr, Other);
+}
+template <
+	typename T,
+	typename U,
+	decltype(ObjectPtr_Private::IsObjectPtrEqual(std::declval<const TObjectPtr<T>&>(), std::declval<U&&>()))* = nullptr
+>
+FORCEINLINE bool operator!=(U&& Other, const TObjectPtr<T>& Ptr)
+{
+	return !ObjectPtr_Private::IsObjectPtrEqual(Ptr, Other);
+}
+#endif
 
 template <typename T>
 TPrivateObjectPtr<T> MakeObjectPtrUnsafe(const UObject* Obj);

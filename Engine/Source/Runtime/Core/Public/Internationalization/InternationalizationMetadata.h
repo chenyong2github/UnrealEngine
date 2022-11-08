@@ -165,6 +165,9 @@ public:
 
 	FString ToString() const;
 
+	CORE_API friend FArchive& operator<<(FArchive& Archive, FLocMetadataObject& Object);
+	CORE_API friend void operator<<(FStructuredArchive::FSlot Slot, FLocMetadataObject& Object);
+
 public:
 	/** Stores the name/value pairs for the metadata object */
 	TMap< FString, TSharedPtr<FLocMetadataValue> > Values;
@@ -172,9 +175,6 @@ public:
 	/** Special reserved character.  When encountered as a prefix metadata name(the key in the Values map), it will adjust the way comparisons are done. */
 	static const TCHAR* COMPARISON_MODIFIER_PREFIX;
 };
-
-CORE_API FArchive& operator<<(FArchive& Archive, FLocMetadataObject& Object);
-CORE_API void operator<<(FStructuredArchive::FSlot Slot, FLocMetadataObject& Object);
 
 /** A LocMetadata String Value. */
 class CORE_API FLocMetadataValueString : public FLocMetadataValue

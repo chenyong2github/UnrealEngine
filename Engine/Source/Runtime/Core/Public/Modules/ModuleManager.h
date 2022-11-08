@@ -663,8 +663,6 @@ private:
 	mutable FCriticalSection ModulesCriticalSection;
 };
 
-FArchive& operator<<( FArchive& Ar, FModuleManager& ModuleManager );
-
 /**
  * Utility class for registering modules that are statically linked.
  */

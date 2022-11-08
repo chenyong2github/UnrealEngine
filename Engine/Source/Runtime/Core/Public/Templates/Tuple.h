@@ -341,15 +341,14 @@ namespace UE::Core::Private::Tuple
 		template <typename FuncType, typename... ArgTypes> decltype(auto) ApplyBefore(FuncType&& Func, ArgTypes&&... Args)       volatile&& { return ::Invoke(Func, static_cast<      volatile TTupleBase&&>(*this).template Get<Indices>()..., Forward<ArgTypes>(Args)...); }
 		template <typename FuncType, typename... ArgTypes> decltype(auto) ApplyBefore(FuncType&& Func, ArgTypes&&... Args) const volatile&& { return ::Invoke(Func, static_cast<const volatile TTupleBase&&>(*this).template Get<Indices>()..., Forward<ArgTypes>(Args)...); }
 
-		FORCEINLINE friend FArchive& operator<<(FArchive& Ar, TTupleBase& Tuple)
+		FORCEINLINE static void Serialize(FArchive& Ar, TTupleBase& Tuple)
 		{
 			// This should be implemented with a fold expression when our compilers support it
 			int Temp[] = { 0, (Ar << Tuple.template Get<Indices>(), 0)... };
 			(void)Temp;
-			return Ar;
 		}
 
-		FORCEINLINE friend void operator<<(FStructuredArchive::FSlot Slot, TTupleBase& Tuple)
+		FORCEINLINE static void SerializeStructured(FStructuredArchive::FSlot Slot, TTupleBase& Tuple)
 		{
 			// This should be implemented with a fold expression when our compilers support it
 			FStructuredArchive::FStream Stream = Slot.EnterStream();
@@ -357,35 +356,35 @@ namespace UE::Core::Private::Tuple
 			(void)Temp;
 		}
 
-		FORCEINLINE friend bool operator==(const TTupleBase& Lhs, const TTupleBase& Rhs)
+		FORCEINLINE bool operator==(const TTupleBase& Rhs) const
 		{
 			// This could be implemented with a fold expression when our compilers support it
-			return FEqualityHelper<sizeof...(Types), 0>::Compare(Lhs, Rhs);
+			return FEqualityHelper<sizeof...(Types), 0>::Compare(*this, Rhs);
 		}
 
-		FORCEINLINE friend bool operator!=(const TTupleBase& Lhs, const TTupleBase& Rhs)
+		FORCEINLINE bool operator!=(const TTupleBase& Rhs) const
 		{
-			return !(Lhs == Rhs);
+			return !(*this == Rhs);
 		}
 
-		FORCEINLINE friend bool operator<(const TTupleBase& Lhs, const TTupleBase& Rhs)
+		FORCEINLINE bool operator<(const TTupleBase& Rhs) const
 		{
-			return TLessThanHelper<sizeof...(Types)>::Do(Lhs, Rhs);
+			return TLessThanHelper<sizeof...(Types)>::Do(*this, Rhs);
 		}
 
-		FORCEINLINE friend bool operator<=(const TTupleBase& Lhs, const TTupleBase& Rhs)
+		FORCEINLINE bool operator<=(const TTupleBase& Rhs) const
 		{
-			return !(Rhs < Lhs);
+			return !(Rhs < *this);
 		}
 
-		FORCEINLINE friend bool operator>(const TTupleBase& Lhs, const TTupleBase& Rhs)
+		FORCEINLINE bool operator>(const TTupleBase& Rhs) const
 		{
-			return Rhs < Lhs;
+			return Rhs < *this;
 		}
 
-		FORCEINLINE friend bool operator>=(const TTupleBase& Lhs, const TTupleBase& Rhs)
+		FORCEINLINE bool operator>=(const TTupleBase& Rhs) const
 		{
-			return !(Lhs < Rhs);
+			return !(*this < Rhs);
 		}
 	};
 
@@ -765,11 +764,18 @@ public:
 	template <int N> friend decltype(auto) get(const volatile TTuple&& val) { return static_cast<const volatile TTuple&&>(val).template Get<N>(); }
 #endif
 
-	FORCEINLINE friend uint32 GetTypeHash(const TTuple<Types...>& Tuple)
-	{
-		return UE::Core::Private::Tuple::TGetTupleHashHelper<1u, sizeof...(Types)>::Do(GetTypeHash(Tuple.template Get<0>()), Tuple);
-	}
 };
+
+template <typename... Types>
+FORCEINLINE uint32 GetTypeHash(const TTuple<Types...>& Tuple)
+{
+	return UE::Core::Private::Tuple::TGetTupleHashHelper<1u, sizeof...(Types)>::Do(GetTypeHash(Tuple.template Get<0>()), Tuple);
+}
+
+FORCEINLINE uint32 GetTypeHash(const TTuple<>& Tuple)
+{
+	return 0;
+}
 
 namespace Freeze
 {
@@ -996,3 +1002,16 @@ struct TIsTuple
 {
 	enum { Value = TIsTuple_V<T> };
 };
+
+template <typename... Types>
+FORCEINLINE FArchive& operator<<(FArchive& Ar, TTuple<Types...>& Tuple)
+{
+	TTuple<Types...>::Serialize(Ar, Tuple);
+	return Ar;
+}
+
+template <typename... Types>
+FORCEINLINE void operator<<(FStructuredArchive::FSlot Slot, TTuple<Types...>& Tuple)
+{
+	TTuple<Types...>::SerializeStructured(Slot, Tuple);
+}

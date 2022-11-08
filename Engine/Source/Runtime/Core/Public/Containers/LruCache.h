@@ -528,14 +528,14 @@ public:
 			return *this;
 		}
 
-		FORCEINLINE friend bool operator==(const TBaseIterator& Lhs, const TBaseIterator& Rhs)
+		FORCEINLINE bool operator==(const TBaseIterator& Rhs) const
 		{
-			return Lhs.CurrentEntry == Rhs.CurrentEntry;
+			return CurrentEntry == Rhs.CurrentEntry;
 		}
 
-		FORCEINLINE friend bool operator!=(const TBaseIterator& Lhs, const TBaseIterator& Rhs)
+		FORCEINLINE bool operator!=(const TBaseIterator& Rhs) const
 		{
-			return Lhs.CurrentEntry != Rhs.CurrentEntry;
+			return CurrentEntry != Rhs.CurrentEntry;
 		}
 
 		ValueType& operator->() const

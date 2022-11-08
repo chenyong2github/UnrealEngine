@@ -233,42 +233,6 @@ public:
 	}
 
 	/**
-	 * Serialization operator for TIndirectArray.
-	 *
-	 * @param Ar Archive to serialize with.
-	 * @param A Array to serialize.
-	 * @returns Passing down serializing archive.
-	 */
-	friend FArchive& operator<<(FArchive& Ar, TIndirectArray& A)
-	{
-		A.CountBytes(Ar);
-		if (Ar.IsLoading())
-		{
-			// Load array.
-			int32 NewNum;
-			Ar << NewNum;
-			A.Empty(NewNum);
-			for (int32 Index = 0; Index < NewNum; Index++)
-			{
-				T* NewElement = new T;
-				Ar << *NewElement;
-				A.Add(NewElement);
-			}
-		}
-		else
-		{
-			// Save array.
-			int32 Num = A.Num();
-			Ar << Num;
-			for (int32 Index = 0; Index < Num; Index++)
-			{
-				Ar << A[Index];
-			}
-		}
-		return Ar;
-	}
-
-	/**
 	 * Count bytes needed to serialize this array.
 	 *
 	 * @param Ar Archive to count for.
@@ -486,4 +450,41 @@ void* operator new( size_t Size, TIndirectArray<T,Allocator>& Array, int32 Index
 	check(Size == sizeof(T));
 	Array.Insert((T*)FMemory::Malloc(Size), Index);
 	return &Array[Index];
+}
+
+/**
+* Serialization operator for TIndirectArray.
+*
+* @param Ar Archive to serialize with.
+* @param A Array to serialize.
+* @returns Passing down serializing archive.
+*/
+template<typename T,typename Allocator>
+FArchive& operator<<(FArchive& Ar, TIndirectArray<T, Allocator>& A)
+{
+	A.CountBytes(Ar);
+	if (Ar.IsLoading())
+	{
+		// Load array.
+		int32 NewNum;
+		Ar << NewNum;
+		A.Empty(NewNum);
+		for (int32 Index = 0; Index < NewNum; Index++)
+		{
+			T* NewElement = new T;
+			Ar << *NewElement;
+			A.Add(NewElement);
+		}
+	}
+	else
+	{
+		// Save array.
+		int32 Num = A.Num();
+		Ar << Num;
+		for (int32 Index = 0; Index < Num; Index++)
+		{
+			Ar << A[Index];
+		}
+	}
+	return Ar;
 }

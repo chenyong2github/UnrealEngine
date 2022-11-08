@@ -157,19 +157,19 @@ struct FMemoryImageVTablePointer
 	uint32 VTableOffset;
 	uint32 Offset;
 
-	friend inline bool operator==(const FMemoryImageVTablePointer& Lhs, const FMemoryImageVTablePointer& Rhs)
+	inline bool operator==(const FMemoryImageVTablePointer& Rhs) const
 	{
-		return Lhs.TypeNameHash == Rhs.TypeNameHash && Lhs.VTableOffset == Rhs.VTableOffset && Lhs.Offset == Rhs.Offset;
+		return TypeNameHash == Rhs.TypeNameHash && VTableOffset == Rhs.VTableOffset && Offset == Rhs.Offset;
 	}
-	friend inline bool operator!=(const FMemoryImageVTablePointer& Lhs, const FMemoryImageVTablePointer& Rhs)
+	inline bool operator!=(const FMemoryImageVTablePointer& Rhs) const
 	{
-		return !operator==(Lhs, Rhs);
+		return !(*this == Rhs);
 	}
-	friend inline bool operator<(const FMemoryImageVTablePointer& Lhs, const FMemoryImageVTablePointer& Rhs)
+	inline bool operator<(const FMemoryImageVTablePointer& Rhs) const
 	{
-		if (Lhs.TypeNameHash != Rhs.TypeNameHash) return Lhs.TypeNameHash < Rhs.TypeNameHash;
-		if (Lhs.VTableOffset != Rhs.VTableOffset) return Lhs.VTableOffset < Rhs.VTableOffset;
-		return Lhs.Offset < Rhs.Offset;
+		if (TypeNameHash != Rhs.TypeNameHash) return TypeNameHash < Rhs.TypeNameHash;
+		if (VTableOffset != Rhs.VTableOffset) return VTableOffset < Rhs.VTableOffset;
+		return Offset < Rhs.Offset;
 	}
 };
 
@@ -178,21 +178,21 @@ struct FMemoryImageNamePointer
 	FName Name;
 	uint32 Offset;
 
-	friend inline bool operator==(const FMemoryImageNamePointer& Lhs, const FMemoryImageNamePointer& Rhs)
+	inline bool operator==(const FMemoryImageNamePointer& Rhs) const
 	{
-		return Lhs.Offset == Rhs.Offset && Lhs.Name.Compare(Rhs.Name) == 0;
+		return Offset == Rhs.Offset && Name.Compare(Rhs.Name) == 0;
 	}
-	friend inline bool operator!=(const FMemoryImageNamePointer& Lhs, const FMemoryImageNamePointer& Rhs)
+	inline bool operator!=(const FMemoryImageNamePointer& Rhs) const
 	{
-		return !operator==(Lhs, Rhs);
+		return !(*this == Rhs);
 	}
-	friend inline bool operator<(const FMemoryImageNamePointer& Lhs, const FMemoryImageNamePointer& Rhs)
+	inline bool operator<(const FMemoryImageNamePointer& Rhs) const
 	{
-		if (Lhs.Name != Rhs.Name)
+		if (Name != Rhs.Name)
 		{
-			return Lhs.Name.LexicalLess(Rhs.Name);
+			return Name.LexicalLess(Rhs.Name);
 		}
-		return Lhs.Offset < Rhs.Offset;
+		return Offset < Rhs.Offset;
 	}
 };
 
@@ -803,24 +803,24 @@ public:
 		return Ar;
 	}
 
-	friend inline bool operator==(const FMemoryImageString& Lhs, const FMemoryImageString& Rhs)
+	inline bool operator==(const FMemoryImageString& Rhs) const
 	{
-		return FCString::Stricmp(*Lhs, *Rhs) == 0;
+		return FCString::Stricmp(**this, *Rhs) == 0;
 	}
 
-	friend inline bool operator!=(const FMemoryImageString& Lhs, const FMemoryImageString& Rhs)
+	inline bool operator!=(const FMemoryImageString& Rhs) const
 	{
-		return !operator==(Lhs, Rhs);
+		return FCString::Stricmp(**this, *Rhs) != 0;
 	}
 
-	friend inline bool operator==(const FMemoryImageString& Lhs, const FString& Rhs)
+	inline bool operator==(const FString& Rhs) const
 	{
-		return FCString::Stricmp(*Lhs, *Rhs) == 0;
+		return FCString::Stricmp(**this, *Rhs) == 0;
 	}
 
-	friend inline bool operator!=(const FMemoryImageString& Lhs, const FString& Rhs)
+	inline bool operator!=(const FString& Rhs) const
 	{
-		return !operator==(Lhs, Rhs);
+		return FCString::Stricmp(**this, *Rhs) != 0;
 	}
 
 	inline DataType::ElementAllocatorType& GetAllocatorInstance() { return Data.GetAllocatorInstance(); }
@@ -866,11 +866,11 @@ public:
 	const FHashedNameDebugString& GetDebugString() const { return DebugString; }
 #endif
 
-	friend inline bool operator==(const FHashedName& Lhs, const FHashedName& Rhs) { return Lhs.Hash == Rhs.Hash; }
-	friend inline bool operator!=(const FHashedName& Lhs, const FHashedName& Rhs) { return Lhs.Hash != Rhs.Hash; }
+	inline bool operator==(const FHashedName& Rhs) const { return Hash == Rhs.Hash; }
+	inline bool operator!=(const FHashedName& Rhs) const { return Hash != Rhs.Hash; }
 
 	/** For sorting by name */
-	friend inline bool operator<(const FHashedName& Lhs, const FHashedName& Rhs) { return Lhs.Hash < Rhs.Hash; }
+	inline bool operator<(const FHashedName& Rhs) const { return Hash < Rhs.Hash; }
 
 	friend inline FArchive& operator<<(FArchive& Ar, FHashedName& String)
 	{

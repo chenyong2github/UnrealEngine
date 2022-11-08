@@ -113,8 +113,8 @@ public:
 		Index--;
 	}
 
-	FORCEINLINE friend bool operator==(const TRingBufferIterator& Lhs, const TRingBufferIterator& Rhs) { return &Lhs.Container == &Rhs.Container && Lhs.Index == Rhs.Index; }
-	FORCEINLINE friend bool operator!=(const TRingBufferIterator& Lhs, const TRingBufferIterator& Rhs) { return &Lhs.Container != &Rhs.Container || Lhs.Index != Rhs.Index; }
+	FORCEINLINE bool operator==(const TRingBufferIterator& Rhs) const { return &Container == &Rhs.Container && Index == Rhs.Index; }
+	FORCEINLINE bool operator!=(const TRingBufferIterator& Rhs) const { return &Container != &Rhs.Container || Index != Rhs.Index; }
 
 private:
 

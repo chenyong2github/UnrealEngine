@@ -268,11 +268,6 @@ public:
 		return Reference;
 	}
 
-	FORCEINLINE friend uint32 GetTypeHash(const TRefCountPtr& InPtr)
-	{
-		return GetTypeHash(InPtr.Reference);
-	}
-
 	FORCEINLINE ReferencedType** GetInitReference()
 	{
 		*this = nullptr;
@@ -317,15 +312,14 @@ public:
 		InPtr.Reference = OldReference;
 	}
 
-	friend FArchive& operator<<(FArchive& Ar,TRefCountPtr& Ptr)
+	void Serialize(FArchive& Ar)
 	{
-		ReferenceType PtrReference = Ptr.Reference;
+		ReferenceType PtrReference = Reference;
 		Ar << PtrReference;
 		if(Ar.IsLoading())
 		{
-			Ptr = PtrReference;
+			*this = PtrReference;
 		}
-		return Ar;
 	}
 
 private:
@@ -335,20 +329,38 @@ private:
 	template <typename OtherType>
 	friend class TRefCountPtr;
 
-	friend FORCEINLINE bool operator==(const TRefCountPtr& A, const TRefCountPtr& B)
+public:
+	FORCEINLINE bool operator==(const TRefCountPtr& B) const
 	{
-		return A.GetReference() == B.GetReference();
+		return GetReference() == B.GetReference();
 	}
 
-	friend FORCEINLINE bool operator==(const TRefCountPtr& A, ReferencedType* B)
+	FORCEINLINE bool operator==(ReferencedType* B) const
 	{
-		return A.GetReference() == B;
-	}
-
-	friend FORCEINLINE bool operator==(ReferencedType* A, const TRefCountPtr& B)
-	{
-		return A == B.GetReference();
+		return GetReference() == B;
 	}
 };
 
 ALIAS_TEMPLATE_TYPE_LAYOUT(template<typename T>, TRefCountPtr<T>, void*);
+
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+template<typename ReferencedType>
+FORCEINLINE bool operator==(ReferencedType* A, const TRefCountPtr<ReferencedType>& B)
+{
+	return A == B.GetReference();
+}
+#endif
+
+template<typename ReferencedType>
+FORCEINLINE uint32 GetTypeHash(const TRefCountPtr<ReferencedType>& InPtr)
+{
+	return GetTypeHash(InPtr.GetReference());
+}
+
+
+template<typename ReferencedType>
+FArchive& operator<<(FArchive& Ar,TRefCountPtr<ReferencedType>& Ptr)
+{
+	Ptr.Serialize(Ar);
+	return Ar;
+}

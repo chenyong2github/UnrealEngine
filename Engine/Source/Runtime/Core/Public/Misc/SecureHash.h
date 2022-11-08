@@ -274,6 +274,10 @@ public:
 
 	friend CORE_API FString LexToString(const FSHAHash&);
 	friend CORE_API void LexFromString(FSHAHash& Hash, const TCHAR*);
+	friend inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FSHAHash& InHash) { UE::String::BytesToHex(InHash.Hash, Builder); return Builder; }
+	friend inline FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FSHAHash& InHash) { UE::String::BytesToHex(InHash.Hash, Builder); return Builder; }
+	CORE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FSHAHash& Hash);
+	CORE_API friend bool LoadFromCompactBinary(FCbFieldView Field, FSHAHash& OutHash);
 };
 
 namespace Freeze
@@ -282,11 +286,6 @@ namespace Freeze
 }
 
 DECLARE_INTRINSIC_TYPE_LAYOUT(FSHAHash);
-
-inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FSHAHash& Hash) { UE::String::BytesToHex(Hash.Hash, Builder); return Builder; }
-inline FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FSHAHash& Hash) { UE::String::BytesToHex(Hash.Hash, Builder); return Builder; }
-CORE_API FCbWriter& operator<<(FCbWriter& Writer, const FSHAHash& Hash);
-CORE_API bool LoadFromCompactBinary(FCbFieldView Field, FSHAHash& OutHash);
 
 class CORE_API FSHA1
 {

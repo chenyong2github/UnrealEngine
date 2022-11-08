@@ -55,22 +55,19 @@ public:
 	/** A zero hash. */
 	static const FBlake3Hash Zero;
 
-private:
-	alignas(uint32) ByteArray Hash{};
-
-	friend inline bool operator==(const FBlake3Hash& A, const FBlake3Hash& B)
+	inline bool operator==(const FBlake3Hash& B) const
 	{
-		return FMemory::Memcmp(A.GetBytes(), B.GetBytes(), sizeof(decltype(A.GetBytes()))) == 0;
+		return FMemory::Memcmp(GetBytes(), B.GetBytes(), sizeof(decltype(GetBytes()))) == 0;
 	}
 
-	friend inline bool operator!=(const FBlake3Hash& A, const FBlake3Hash& B)
+	inline bool operator!=(const FBlake3Hash& B) const
 	{
-		return FMemory::Memcmp(A.GetBytes(), B.GetBytes(), sizeof(decltype(A.GetBytes()))) != 0;
+		return FMemory::Memcmp(GetBytes(), B.GetBytes(), sizeof(decltype(GetBytes()))) != 0;
 	}
 
-	friend inline bool operator<(const FBlake3Hash& A, const FBlake3Hash& B)
+	inline bool operator<(const FBlake3Hash& B) const
 	{
-		return FMemory::Memcmp(A.GetBytes(), B.GetBytes(), sizeof(decltype(A.GetBytes()))) < 0;
+		return FMemory::Memcmp(GetBytes(), B.GetBytes(), sizeof(decltype(GetBytes()))) < 0;
 	}
 
 	friend inline FArchive& operator<<(FArchive& Ar, FBlake3Hash& Value)
@@ -83,6 +80,9 @@ private:
 	{
 		return *reinterpret_cast<const uint32*>(Value.GetBytes());
 	}
+
+private:
+	alignas(uint32) ByteArray Hash{};
 };
 
 inline const FBlake3Hash FBlake3Hash::Zero;

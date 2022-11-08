@@ -6,11 +6,10 @@
 /** Toggle this define to enable shared pointer testing features */
 #define WITH_SHARED_POINTER_TESTS 0 && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-enum class ESPMode : uint8;
-
-template<typename KeyType,typename ValueType,typename SetAllocator ,typename KeyFuncs > class TMap;
-
 #if WITH_SHARED_POINTER_TESTS
+
+enum class ESPMode : uint8;
+template<typename KeyType,typename ValueType,typename SetAllocator ,typename KeyFuncs > class TMap;
 
 /**
  * Shared pointer testing suite

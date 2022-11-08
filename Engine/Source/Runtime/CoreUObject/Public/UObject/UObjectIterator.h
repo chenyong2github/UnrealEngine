@@ -315,8 +315,8 @@ public:
 		return (T*)GetObject();
 	}
 
-	FORCEINLINE friend bool operator==(const TObjectIterator& Lhs, const TObjectIterator& Rhs) { return Lhs.Index == Rhs.Index; }
-	FORCEINLINE friend bool operator!=(const TObjectIterator& Lhs, const TObjectIterator& Rhs) { return Lhs.Index != Rhs.Index; }
+	FORCEINLINE bool operator==(const TObjectIterator& Rhs) const { return Index == Rhs.Index; }
+	FORCEINLINE bool operator!=(const TObjectIterator& Rhs) const { return Index != Rhs.Index; }
 
 protected:
 	/**

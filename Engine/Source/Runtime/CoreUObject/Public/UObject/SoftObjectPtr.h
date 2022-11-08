@@ -223,9 +223,9 @@ public:
 	 *
 	 * @param Other soft pointer to compare to
 	 */
-	FORCEINLINE friend bool operator==(const TSoftObjectPtr& Lhs, const TSoftObjectPtr& Rhs)
+	FORCEINLINE bool operator==(const TSoftObjectPtr& Rhs) const
 	{
-		return Lhs.SoftObjectPtr == Rhs.SoftObjectPtr;
+		return SoftObjectPtr == Rhs.SoftObjectPtr;
 	}
 
 	/**
@@ -234,20 +234,21 @@ public:
 	 *
 	 * @param Other soft pointer to compare to
 	 */
-	FORCEINLINE friend bool operator==(const TSoftObjectPtr& Lhs, TYPE_OF_NULLPTR)
+	FORCEINLINE bool operator==(TYPE_OF_NULLPTR) const
 	{
-		return Lhs.SoftObjectPtr == nullptr;
+		return SoftObjectPtr == nullptr;
 	}
 
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
 	/**
-	 * Compare soft pointers for equality
+	 * Compare soft pointers for inequality
 	 * Caution: Two soft pointers might not be equal to each other, but they both might return nullptr
 	 *
 	 * @param Other soft pointer to compare to
 	 */
-	FORCEINLINE friend bool operator==(TYPE_OF_NULLPTR, const TSoftObjectPtr& Rhs)
+	FORCEINLINE bool operator!=(const TSoftObjectPtr& Rhs) const
 	{
-		return nullptr == Rhs.SoftObjectPtr;
+		return SoftObjectPtr != Rhs.SoftObjectPtr;
 	}
 
 	/**
@@ -256,32 +257,11 @@ public:
 	 *
 	 * @param Other soft pointer to compare to
 	 */
-	FORCEINLINE friend bool operator!=(const TSoftObjectPtr& Lhs, const TSoftObjectPtr& Rhs)
+	FORCEINLINE bool operator!=(TYPE_OF_NULLPTR) const
 	{
-		return Lhs.SoftObjectPtr != Rhs.SoftObjectPtr;
+		return SoftObjectPtr != nullptr;
 	}
-
-	/**
-	 * Compare soft pointers for inequality
-	 * Caution: Two soft pointers might not be equal to each other, but they both might return nullptr
-	 *
-	 * @param Other soft pointer to compare to
-	 */
-	FORCEINLINE friend bool operator!=(const TSoftObjectPtr& Lhs, TYPE_OF_NULLPTR)
-	{
-		return Lhs.SoftObjectPtr != nullptr;
-	}
-
-	/**
-	 * Compare soft pointers for inequality
-	 * Caution: Two soft pointers might not be equal to each other, but they both might return nullptr
-	 *
-	 * @param Other soft pointer to compare to
-	 */
-	FORCEINLINE friend bool operator!=(TYPE_OF_NULLPTR, const TSoftObjectPtr& Rhs)
-	{
-		return nullptr != Rhs.SoftObjectPtr;
-	}
+#endif
 
 	/**
 	 * Dereference the soft pointer.
@@ -377,20 +357,60 @@ public:
 	}
 
 	/** Hash function */
-	FORCEINLINE friend uint32 GetTypeHash(const TSoftObjectPtr<T>& Other)
+	FORCEINLINE uint32 GetPtrTypeHash() const
 	{
-		return GetTypeHash(static_cast<const TPersistentObjectPtr<FSoftObjectPath>&>(Other.SoftObjectPtr));
+		return GetTypeHash(static_cast<const TPersistentObjectPtr<FSoftObjectPath>&>(SoftObjectPtr));
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, TSoftObjectPtr<T>& Other)
+	FORCEINLINE void Serialize(FArchive& Ar)
 	{
-		Ar << Other.SoftObjectPtr;
-		return Ar;
+		Ar << SoftObjectPtr;
 	}
 
 private:
 	FSoftObjectPtr SoftObjectPtr;
 };
+
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+template<class T>
+FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TSoftObjectPtr<T>& Rhs)
+{
+	return Rhs == nullptr;
+}
+
+template<class T>
+FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TSoftObjectPtr<T>& Rhs)
+{
+	return Rhs != nullptr;
+}
+
+template<class T>
+FORCEINLINE bool operator==(const T* Lhs, const TSoftObjectPtr<T>& Rhs)
+{
+	return Rhs == Lhs;
+}
+
+template<class T>
+FORCEINLINE bool operator!=(const T* Lhs, const TSoftObjectPtr<T>& Rhs)
+{
+	return Rhs != Lhs;
+}
+#endif
+
+/** Hash function */
+template<class T>
+FORCEINLINE uint32 GetTypeHash(const TSoftObjectPtr<T>& Ptr)
+{
+	return Ptr.GetPtrTypeHash();
+}
+
+template<class T>
+FArchive& operator<<(FArchive& Ar, TSoftObjectPtr<T>& Ptr)
+{
+	Ptr.Serialize(Ar);
+	return Ar;
+}
+
 
 template<class T> struct TIsPODType<TSoftObjectPtr<T> > { enum { Value = TIsPODType<FSoftObjectPtr>::Value }; };
 template<class T> struct TIsWeakPointerType<TSoftObjectPtr<T> > { enum { Value = TIsWeakPointerType<FSoftObjectPtr>::Value }; };
@@ -475,21 +495,22 @@ public:
 	 *
 	 * @param Other soft pointer to compare to 
 	 */
-	FORCEINLINE friend bool operator==(const TSoftClassPtr& Lhs, const TSoftClassPtr& Rhs)
+	FORCEINLINE bool operator==(const TSoftClassPtr& Rhs) const
 	{
-		return Lhs.SoftObjectPtr == Rhs.SoftObjectPtr;
+		return SoftObjectPtr == Rhs.SoftObjectPtr;
 	}
-
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
 	/**  
 	 * Compare soft pointers for inequality
 	 * Caution: Two soft pointers might not be equal to each other, but they both might return nullptr
 	 *
 	 * @param Other soft pointer to compare to
 	 */
-	FORCEINLINE friend bool operator!=(const TSoftClassPtr& Lhs, const TSoftClassPtr& Rhs)
+	FORCEINLINE bool operator!=(const TSoftClassPtr& Rhs) const
 	{
-		return Lhs.SoftObjectPtr != Rhs.SoftObjectPtr;
+		return SoftObjectPtr != Rhs.SoftObjectPtr;
 	}
+#endif
 
 	/**  
 	 * Dereference the soft pointer
@@ -586,9 +607,9 @@ public:
 	}
 
 	/** Hash function */
-	FORCEINLINE friend uint32 GetTypeHash(const TSoftClassPtr<TClass>& Other)
+	FORCEINLINE uint32 GetPtrTypeHash() const
 	{
-		return GetTypeHash(static_cast<const TPersistentObjectPtr<FSoftObjectPath>&>(Other.SoftObjectPtr));
+		return GetTypeHash(static_cast<const TPersistentObjectPtr<FSoftObjectPath>&>(SoftObjectPtr));
 	}
 
 	/** Synchronously load (if necessary) and return the asset object represented by this asset ptr */
@@ -603,10 +624,9 @@ public:
 		return Class;
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, TSoftClassPtr<TClass>& Other)
+	inline void Serialize(FArchive& Ar)
 	{
-		Ar << static_cast<FSoftObjectPtr&>(Other.SoftObjectPtr);
-		return Ar;
+		Ar << static_cast<FSoftObjectPtr&>(SoftObjectPtr);
 	}
 
 private:
@@ -647,4 +667,32 @@ template<class T>
 T* TSoftObjectPtr<T>::Get() const
 {
 	return dynamic_cast<T*>(SoftObjectPtr.Get());
+}
+
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+template<class TClass>
+FORCEINLINE bool operator==(const UClass* Lhs, const TSoftClassPtr<TClass>& Rhs)
+{
+	return Rhs == Lhs;
+}
+
+template<class TClass>
+FORCEINLINE bool operator!=(const UClass* Lhs, const TSoftClassPtr<TClass>& Rhs)
+{
+	return Rhs != Lhs;
+}
+#endif
+
+/** Hash function */
+template<class TClass>
+FORCEINLINE uint32 GetTypeHash(const TSoftClassPtr<TClass>& Ptr)
+{
+	return Ptr.GetPtrTypeHash();
+}
+
+template<class TClass>
+FArchive& operator<<(FArchive& Ar, TSoftClassPtr<TClass>& Ptr)
+{
+	Ptr.Serialize(Ar);
+	return Ar;
 }

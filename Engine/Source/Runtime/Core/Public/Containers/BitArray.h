@@ -70,12 +70,6 @@ enum class EBitwiseOperatorFlags
 };
 ENUM_CLASS_FLAGS(EBitwiseOperatorFlags)
 
-/**
- * Serializer (predefined for no friend injection in gcc 411)
- */
-template<typename Allocator>
-FArchive& operator<<(FArchive& Ar, TBitArray<Allocator>& BitArray);
-
 /** Used to read/write a bit in the array as a bool. */
 class FBitReference
 {
@@ -374,10 +368,12 @@ public:
 		return false;
 	}
 
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
 	FORCEINLINE bool operator!=(const TBitArray<Allocator>& Other) const
 	{
 		return !(*this == Other);
 	}
+#endif
 
 private:
 	FORCEINLINE uint32 GetNumWords() const
@@ -472,29 +468,28 @@ public:
 	/**
 	 * Serializer
 	 */
-	friend FArchive& operator<<(FArchive& Ar, TBitArray& BitArray)
+	void Serialize(FArchive& Ar)
 	{
 		// serialize number of bits
-		Ar << BitArray.NumBits;
+		Ar << NumBits;
 
 		if (Ar.IsLoading())
 		{
 			// no need for slop when reading; set MaxBits to the smallest legal value that is >= NumBits
-			BitArray.MaxBits = NumBitsPerDWORD * FMath::Max(FBitSet::CalculateNumWords(BitArray.NumBits), (uint32)BitArray.AllocatorInstance.GetInitialCapacity());
+			MaxBits = NumBitsPerDWORD * FMath::Max(FBitSet::CalculateNumWords(NumBits), (uint32)AllocatorInstance.GetInitialCapacity());
 
 			// allocate room for new bits
-			BitArray.Realloc(0);
+			Realloc(0);
 		}
 
 		// serialize the data as one big chunk
-		Ar.Serialize(BitArray.GetData(), BitArray.GetNumWords() * sizeof(uint32));
+		Ar.Serialize(GetData(), GetNumWords() * sizeof(uint32));
 
 		if (Ar.IsLoading() && !Ar.IsObjectReferenceCollector() && !Ar.IsCountingMemory())
 		{
 			// Clear slack bits incase they were serialized non-null
-			BitArray.ClearPartialSlackBits();
+			ClearPartialSlackBits();
 		}
-		return Ar;
 	}
 
 	/**
@@ -1730,19 +1725,6 @@ public:
 		checkf(!Writer.Is32BitTarget(), TEXT("TBitArray does not currently support freezing for 32bits"));
 		TSupportsFreezeMemoryImageHelper<bSupportsFreezeMemoryImage>::WriteMemoryImage(Writer, *this);
 	}
-
-	friend FORCEINLINE uint32 GetTypeHash(const TBitArray& BitArray)
-	{
-		uint32 NumWords = FBitSet::CalculateNumWords(BitArray.Num());
-		uint32 Hash = NumWords;
-		const uint32* Data = BitArray.GetData();
-		for (uint32 i = 0; i < NumWords; i++)
-		{
-			Hash ^= Data[i];
-		}
-		return Hash;
-	}
-
 };
 
 namespace Freeze
@@ -1755,6 +1737,19 @@ namespace Freeze
 }
 
 DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT(template<typename Allocator>, TBitArray<Allocator>);
+
+template<typename Allocator>
+FORCEINLINE uint32 GetTypeHash(const TBitArray<Allocator>& BitArray)
+{
+	uint32 NumWords = FBitSet::CalculateNumWords(BitArray.Num());
+	uint32 Hash = NumWords;
+	const uint32* Data = BitArray.GetData();
+	for (uint32 i = 0; i < NumWords; i++)
+	{
+		Hash ^= Data[i];
+	}
+	return Hash;
+}
 
 template<typename Allocator>
 struct TContainerTraits<TBitArray<Allocator> > : public TContainerTraitsBase<TBitArray<Allocator> >
@@ -1797,16 +1792,18 @@ public:
 		return *this;
 	}
 
-	FORCEINLINE friend bool operator==(const TConstSetBitIterator& Lhs, const TConstSetBitIterator& Rhs) 
+	FORCEINLINE bool operator==(const TConstSetBitIterator& Rhs) const
 	{
 		// We only need to compare the bit index and the array... all the rest of the state is unobservable.
-		return Lhs.CurrentBitIndex == Rhs.CurrentBitIndex && &Lhs.Array == &Rhs.Array;
+		return CurrentBitIndex == Rhs.CurrentBitIndex && &Array == &Rhs.Array;
 	}
 
-	FORCEINLINE friend bool operator!=(const TConstSetBitIterator& Lhs, const TConstSetBitIterator& Rhs)
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+	FORCEINLINE bool operator!=(const TConstSetBitIterator& Rhs) const
 	{ 
-		return !(Lhs == Rhs);
+		return !(*this == Rhs);
 	}
+#endif
 
 	/** conversion to "bool" returning true if the iterator is valid. */
 	FORCEINLINE explicit operator bool() const
@@ -2176,3 +2173,10 @@ class FScriptBitArray : public TScriptBitArray<FDefaultBitArrayAllocator, FScrip
 public:
 	using Super::Super;
 };
+
+template<typename Allocator>
+FArchive& operator<<(FArchive& Ar, TBitArray<Allocator>& BitArray)
+{
+	BitArray.Serialize(Ar);
+	return Ar;
+}

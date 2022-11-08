@@ -621,73 +621,20 @@ public:
 		return NumFreeIndices == 0;
 	}
 
-	/** Serializer. */
-	friend FArchive& operator<<(FArchive& Ar,TSparseArray& Array)
-	{
-		Array.CountBytes(Ar);
-		if( Ar.IsLoading() )
-		{
-			// Load array.
-			int32 NewNumElements = 0;
-			Ar << NewNumElements;
-			Array.Empty( NewNumElements );
-			for(int32 ElementIndex = 0;ElementIndex < NewNumElements;ElementIndex++)
-			{
-				Ar << *::new(Array.AddUninitialized())ElementType;
-			}
-		}
-		else
-		{
-			// Save array.
-			int32 NewNumElements = Array.Num();
-			Ar << NewNumElements;
-			for(TIterator It(Array);It;++It)
-			{
-				Ar << *It;
-			}
-		}
-		return Ar;
-	}
-
-	/** Structured archive serializer. */
-	friend void operator<<(FStructuredArchive::FSlot Slot, TSparseArray& InArray)
-	{
-		int32 NumElements = InArray.Num();
-		FStructuredArchive::FArray Array = Slot.EnterArray(NumElements);
-		if (Slot.GetUnderlyingArchive().IsLoading())
-		{
-			InArray.Empty(NumElements);
-
-			for (int32 Index = 0; Index < NumElements; ++Index)
-			{
-				FStructuredArchive::FSlot ElementSlot = Array.EnterElement();
-				ElementSlot << *::new(InArray.AddUninitialized())ElementType;
-			}
-		}
-		else
-		{
-			for (TIterator It(InArray); It; ++It)
-			{
-				FStructuredArchive::FSlot ElementSlot = Array.EnterElement();
-				ElementSlot << *It;
-			}
-		}
-	}
-
 	/**
 	 * Equality comparison operator.
 	 * Checks that both arrays have the same elements and element indices; that means that unallocated elements are signifigant!
 	 */
-	friend bool operator==(const TSparseArray& A,const TSparseArray& B)
+	bool operator==(const TSparseArray& B) const
 	{
-		if(A.GetMaxIndex() != B.GetMaxIndex())
+		if(GetMaxIndex() != B.GetMaxIndex())
 		{
 			return false;
 		}
 
-		for(int32 ElementIndex = 0;ElementIndex < A.GetMaxIndex();ElementIndex++)
+		for(int32 ElementIndex = 0;ElementIndex < GetMaxIndex();ElementIndex++)
 		{
-			const bool bIsAllocatedA = A.IsAllocated(ElementIndex);
+			const bool bIsAllocatedA = IsAllocated(ElementIndex);
 			const bool bIsAllocatedB = B.IsAllocated(ElementIndex);
 			if(bIsAllocatedA != bIsAllocatedB)
 			{
@@ -695,7 +642,7 @@ public:
 			}
 			else if(bIsAllocatedA)
 			{
-				if(A[ElementIndex] != B[ElementIndex])
+				if((*this)[ElementIndex] != B[ElementIndex])
 				{
 					return false;
 				}
@@ -709,9 +656,9 @@ public:
 	 * Inequality comparison operator.
 	 * Checks that both arrays have the same elements and element indices; that means that unallocated elements are signifigant!
 	 */
-	friend bool operator!=(const TSparseArray& A,const TSparseArray& B)
+	bool operator!=(const TSparseArray& B) const
 	{
-		return !(A == B);
+		return !(*this == B);
 	}
 
 	/** Default constructor. */
@@ -889,8 +836,8 @@ private:
 
 		FORCEINLINE int32 GetIndex() const { return BitArrayIt.GetIndex(); }
 
-		FORCEINLINE friend bool operator==(const TBaseIterator& Lhs, const TBaseIterator& Rhs) { return Lhs.BitArrayIt == Rhs.BitArrayIt && &Lhs.Array == &Rhs.Array; }
-		FORCEINLINE friend bool operator!=(const TBaseIterator& Lhs, const TBaseIterator& Rhs) { return Lhs.BitArrayIt != Rhs.BitArrayIt || &Lhs.Array != &Rhs.Array; }
+		FORCEINLINE bool operator==(const TBaseIterator& Rhs) const { return BitArrayIt == Rhs.BitArrayIt && &Array == &Rhs.Array; }
+		FORCEINLINE bool operator!=(const TBaseIterator& Rhs) const { return BitArrayIt != Rhs.BitArrayIt || &Array != &Rhs.Array; }
 
 		/** conversion to "bool" returning true if the iterator is valid. */
 		FORCEINLINE explicit operator bool() const
@@ -961,19 +908,18 @@ public:
 			{
 			}
 
-		private:
-			int32 InitialNum;
-
-			friend FORCEINLINE bool operator!=(const TRangedForIterator& Lhs, const TRangedForIterator& Rhs)
+			FORCEINLINE bool operator!=(const TRangedForIterator& Rhs) const
 			{
 				// We only need to do the check in this operator, because no other operator will be
 				// called until after this one returns.
 				//
 				// Also, we should only need to check one side of this comparison - if the other iterator isn't
 				// even from the same array then the compiler has generated bad code.
-				ensureMsgf(Lhs.Array.Num() == Lhs.InitialNum, TEXT("Container has changed during ranged-for iteration!"));
-				return *(TIterator*)&Lhs != *(TIterator*)&Rhs;
+				ensureMsgf(this->Array.Num() == InitialNum, TEXT("Container has changed during ranged-for iteration!"));
+				return *(TIterator*)this != *(TIterator*)&Rhs;
 			}
+		private:
+			int32 InitialNum;
 		};
 
 		class TRangedForConstIterator : public TConstIterator
@@ -985,19 +931,18 @@ public:
 			{
 			}
 
-		private:
-			int32 InitialNum;
-
-			friend FORCEINLINE bool operator!=(const TRangedForConstIterator& Lhs, const TRangedForConstIterator& Rhs)
+			FORCEINLINE bool operator!=(const TRangedForConstIterator& Rhs) const
 			{
 				// We only need to do the check in this operator, because no other operator will be
 				// called until after this one returns.
 				//
 				// Also, we should only need to check one side of this comparison - if the other iterator isn't
 				// even from the same array then the compiler has generated bad code.
-				ensureMsgf(Lhs.Array.Num() == Lhs.InitialNum, TEXT("Container has changed during ranged-for iteration!"));
-				return *(TIterator*)&Lhs != *(TIterator*)&Rhs;
+				ensureMsgf(this->Array.Num() == InitialNum, TEXT("Container has changed during ranged-for iteration!"));
+				return *(TIterator*)this != *(TIterator*)&Rhs;
 			}
+		private:
+			int32 InitialNum;
 		};
 	#else
 		using TRangedForIterator      = TIterator;
@@ -1493,4 +1438,59 @@ inline void* operator new(size_t Size,const FSparseArrayAllocationInfo& Allocati
 {
 	UE_ASSUME(Allocation.Pointer);
 	return Allocation.Pointer;
+}
+
+/** Serializer. */
+template<typename ElementType,typename Allocator>
+FArchive& operator<<(FArchive& Ar,TSparseArray<ElementType, Allocator>& Array)
+{
+	Array.CountBytes(Ar);
+	if( Ar.IsLoading() )
+	{
+		// Load array.
+		int32 NewNumElements = 0;
+		Ar << NewNumElements;
+		Array.Empty( NewNumElements );
+		for(int32 ElementIndex = 0;ElementIndex < NewNumElements;ElementIndex++)
+		{
+			Ar << *::new(Array.AddUninitialized())ElementType;
+		}
+	}
+	else
+	{
+		// Save array.
+		int32 NewNumElements = Array.Num();
+		Ar << NewNumElements;
+		for(typename TSparseArray<ElementType, Allocator>::TIterator It(Array);It;++It)
+		{
+			Ar << *It;
+		}
+	}
+	return Ar;
+}
+
+/** Structured archive serializer. */
+template<typename ElementType,typename Allocator>
+void operator<<(FStructuredArchive::FSlot Slot, TSparseArray<ElementType, Allocator>& InArray)
+{
+	int32 NumElements = InArray.Num();
+	FStructuredArchive::FArray Array = Slot.EnterArray(NumElements);
+	if (Slot.GetUnderlyingArchive().IsLoading())
+	{
+		InArray.Empty(NumElements);
+
+		for (int32 Index = 0; Index < NumElements; ++Index)
+		{
+			FStructuredArchive::FSlot ElementSlot = Array.EnterElement();
+			ElementSlot << *::new(InArray.AddUninitialized())ElementType;
+		}
+	}
+	else
+	{
+		for (typename TSparseArray<ElementType, Allocator>::TIterator It(InArray); It; ++It)
+		{
+			FStructuredArchive::FSlot ElementSlot = Array.EnterElement();
+			ElementSlot << *It;
+		}
+	}
 }

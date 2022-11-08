@@ -36,6 +36,41 @@ struct FXxHash64
 		FMemory::Memcpy(Bytes, &HashBigEndian, sizeof(uint64));
 	}
 
+	inline bool operator==(const FXxHash64& B) const
+	{
+		return Hash == B.Hash;
+	}
+
+	inline bool operator!=(const FXxHash64& B) const
+	{
+		return Hash != B.Hash;
+	}
+
+	inline bool operator<(const FXxHash64& B) const
+	{
+		return Hash < B.Hash;
+	}
+
+	friend inline uint32 GetTypeHash(const FXxHash64& InHash)
+	{
+		return uint32(InHash.Hash);
+	}
+
+	friend inline FArchive& operator<<(FArchive& Ar, FXxHash64& InHash)
+	{
+		return Ar << InHash.Hash;
+	}
+
+	template <typename CharType>
+	friend inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FXxHash64& InHash)
+	{
+		uint8 Bytes[8];
+		InHash.ToByteArray(Bytes);
+		UE::String::BytesToHexLower(MakeArrayView(Bytes), Builder);
+		return Builder;
+	}
+
+
 	/**
 	 * The hash in its native representation.
 	 *
@@ -79,6 +114,40 @@ public:
 	 * Use the canonical representation from ToByteArray to serialize or display the hash.
 	 */
 	uint64 HashHigh{};
+
+	inline bool operator==(const FXxHash128& B) const
+	{
+		return HashLow == B.HashLow && HashHigh == B.HashHigh;
+	}
+
+	inline bool operator!=(const FXxHash128& B) const
+	{
+		return HashLow != B.HashLow || HashHigh != B.HashHigh;
+	}
+
+	inline bool operator<(const FXxHash128& B) const
+	{
+		return HashHigh != B.HashHigh ? HashHigh < B.HashHigh : HashLow < B.HashLow;
+	}
+
+	friend inline uint32 GetTypeHash(const FXxHash128& Hash)
+	{
+		return uint32(Hash.HashLow);
+	}
+
+	friend inline FArchive& operator<<(FArchive& Ar, FXxHash128& Hash)
+	{
+		return Ar << Hash.HashLow << Hash.HashHigh;
+	}
+
+	template <typename CharType>
+	friend inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FXxHash128& Hash)
+	{
+		uint8 Bytes[16];
+		Hash.ToByteArray(Bytes);
+		UE::String::BytesToHexLower(MakeArrayView(Bytes), Builder);
+		return Builder;
+	}
 };
 
 /** Calculates a 64-bit hash with XXH3. */
@@ -122,71 +191,3 @@ public:
 private:
 	alignas(64) char StateBytes[576];
 };
-
-inline bool operator==(const FXxHash64& A, const FXxHash64& B)
-{
-	return A.Hash == B.Hash;
-}
-
-inline bool operator!=(const FXxHash64& A, const FXxHash64& B)
-{
-	return A.Hash != B.Hash;
-}
-
-inline bool operator<(const FXxHash64& A, const FXxHash64& B)
-{
-	return A.Hash < B.Hash;
-}
-
-inline uint32 GetTypeHash(const FXxHash64& Hash)
-{
-	return uint32(Hash.Hash);
-}
-
-inline FArchive& operator<<(FArchive& Ar, FXxHash64& Hash)
-{
-	return Ar << Hash.Hash;
-}
-
-template <typename CharType>
-inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FXxHash64& Hash)
-{
-	uint8 Bytes[8];
-	Hash.ToByteArray(Bytes);
-	UE::String::BytesToHexLower(MakeArrayView(Bytes), Builder);
-	return Builder;
-}
-
-inline bool operator==(const FXxHash128& A, const FXxHash128& B)
-{
-	return A.HashLow == B.HashLow && A.HashHigh == B.HashHigh;
-}
-
-inline bool operator!=(const FXxHash128& A, const FXxHash128& B)
-{
-	return A.HashLow != B.HashLow || A.HashHigh != B.HashHigh;
-}
-
-inline bool operator<(const FXxHash128& A, const FXxHash128& B)
-{
-	return A.HashHigh != B.HashHigh ? A.HashHigh < B.HashHigh : A.HashLow < B.HashLow;
-}
-
-inline uint32 GetTypeHash(const FXxHash128& Hash)
-{
-	return uint32(Hash.HashLow);
-}
-
-inline FArchive& operator<<(FArchive& Ar, FXxHash128& Hash)
-{
-	return Ar << Hash.HashLow << Hash.HashHigh;
-}
-
-template <typename CharType>
-inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FXxHash128& Hash)
-{
-	uint8 Bytes[16];
-	Hash.ToByteArray(Bytes);
-	UE::String::BytesToHexLower(MakeArrayView(Bytes), Builder);
-	return Builder;
-}

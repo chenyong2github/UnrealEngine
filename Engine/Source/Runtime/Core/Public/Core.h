@@ -127,7 +127,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "Containers/Array.h"
 #include "Containers/ScriptArray.h"
 #include "Containers/MRUArray.h"
-#include "Containers/TransArray.h"
 #include "Containers/IndirectArray.h"
 #include "Misc/ITransaction.h"
 #include "Containers/ArrayBuilder.h"

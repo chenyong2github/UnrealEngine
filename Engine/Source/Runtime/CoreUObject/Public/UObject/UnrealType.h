@@ -6638,8 +6638,8 @@ public:
 		return !(bool)*this;
 	}
 
-	inline friend bool operator==(const TFieldIterator<T>& Lhs, const TFieldIterator<T>& Rhs) { return Lhs.Field == Rhs.Field; }
-	inline friend bool operator!=(const TFieldIterator<T>& Lhs, const TFieldIterator<T>& Rhs) { return Lhs.Field != Rhs.Field; }
+	inline bool operator==(const TFieldIterator<T>& Rhs) const { return Field == Rhs.Field; }
+	inline bool operator!=(const TFieldIterator<T>& Rhs) const { return Field != Rhs.Field; }
 
 	inline void operator++()
 	{
@@ -6979,14 +6979,14 @@ public:
 		return false;
 	}
 
-	FORCEINLINE friend bool operator==(const FPropertyValueIterator& Lhs, const FPropertyValueIterator& Rhs) 
+	FORCEINLINE bool operator==(const FPropertyValueIterator& Rhs) const
 	{
-		return Lhs.PropertyIteratorStack == Rhs.PropertyIteratorStack;
+		return PropertyIteratorStack == Rhs.PropertyIteratorStack;
 	}
 	
-	FORCEINLINE friend bool operator!=(const FPropertyValueIterator& Lhs, const FPropertyValueIterator& Rhs)
+	FORCEINLINE bool operator!=(const FPropertyValueIterator& Rhs) const
 	{
-		return !(Lhs.PropertyIteratorStack == Rhs.PropertyIteratorStack);
+		return !(PropertyIteratorStack == Rhs.PropertyIteratorStack);
 	}
 
 	/** Returns a TPair containing Property/Value currently being iterated */
@@ -7086,9 +7086,9 @@ private:
 			: Owner(InValue)
 		{}
 
-		FORCEINLINE friend bool operator==(const FPropertyValueStackEntry& Lhs, const FPropertyValueStackEntry& Rhs)
+		FORCEINLINE bool operator==(const FPropertyValueStackEntry& Rhs) const
 		{
-			return Lhs.Owner == Rhs.Owner && Lhs.ValueIndex == Rhs.ValueIndex;
+			return Owner == Rhs.Owner && ValueIndex == Rhs.ValueIndex;
 		}
 
 		FORCEINLINE const BasePairType& GetPropertyValue() const

@@ -438,19 +438,6 @@ public:
 	}
 
 	/**
-	* Compare weak pointers for inequality
-	* @param Other weak pointer to compare to
-	**/
-	template <typename OtherPropertyType>
-	FORCEINLINE bool operator!=(const TFieldPath<OtherPropertyType> &Other) const
-	{
-		static_assert(TPointerIsConvertibleFromTo<OtherPropertyType, const FField>::Value, "TFieldPath can only be compared with FField types");
-		static_assert(TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
-
-		return FFieldPath::operator!=(Other);
-	}
-
-	/**
 	* Compare weak pointers for equality
 	* @param Other pointer to compare to
 	**/
@@ -461,6 +448,26 @@ public:
 		static_assert(TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
 
 		return Get() == Other;
+	}
+
+	FORCENOINLINE bool operator==(TYPE_OF_NULLPTR) const
+	{
+		return !Get();
+	}
+
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+
+	/**
+	* Compare weak pointers for inequality
+	* @param Other weak pointer to compare to
+	**/
+	template <typename OtherPropertyType>
+	FORCEINLINE bool operator!=(const TFieldPath<OtherPropertyType> &Other) const
+	{
+		static_assert(TPointerIsConvertibleFromTo<OtherPropertyType, const FField>::Value, "TFieldPath can only be compared with FField types");
+		static_assert(TPointerIsConvertibleFromTo<PropertyType, OtherPropertyType>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
+
+		return FFieldPath::operator!=(Other);
 	}
 
 	/**
@@ -476,7 +483,6 @@ public:
 		return Get() != Other;
 	}
 
-
 	template <typename LhsT>
 	friend FORCENOINLINE bool operator==(const LhsT* Lhs, const TFieldPath<PropertyType>& Rhs)
 	{
@@ -486,11 +492,6 @@ public:
 		static_assert(TPointerIsConvertibleFromTo<LhsT, PropertyType>::Value || TPointerIsConvertibleFromTo<PropertyType, LhsT>::Value, "Unable to compare TFieldPath with raw pointer - types are incompatible");
 
 		return Rhs == Lhs;
-	}
-
-	friend FORCENOINLINE bool operator==(const TFieldPath<PropertyType>& Lhs, TYPE_OF_NULLPTR)
-	{
-		return !Lhs.Get();
 	}
 
 	friend FORCENOINLINE bool operator==(TYPE_OF_NULLPTR, const TFieldPath<PropertyType>& Rhs)
@@ -509,15 +510,16 @@ public:
 		return Rhs != Lhs;
 	}
 
-	friend FORCENOINLINE bool operator!=(const TFieldPath<PropertyType>& Lhs, TYPE_OF_NULLPTR)
+	FORCENOINLINE bool operator!=(TYPE_OF_NULLPTR) const
 	{
-		return !!Lhs.Get();
+		return !!Get();
 	}
 
 	friend FORCENOINLINE bool operator!=(TYPE_OF_NULLPTR, const TFieldPath<PropertyType>& Rhs)
 	{
 		return !!Rhs.Get();
 	}
+#endif
 };
 
 // Helper function which deduces the type of the initializer

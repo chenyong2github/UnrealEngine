@@ -23,10 +23,10 @@ struct FTextSourceSiteContext
 	bool IsOptional;
 	FLocMetadataObject InfoMetaData;
 	FLocMetadataObject KeyMetaData;
-};
 
-CORE_API FArchive& operator<<(FArchive& Archive, FTextSourceSiteContext& This);
-CORE_API void operator<<(FStructuredArchive::FSlot Slot, FTextSourceSiteContext& This);
+	CORE_API friend FArchive& operator<<(FArchive& Archive, FTextSourceSiteContext& This);
+	CORE_API friend void operator<<(FStructuredArchive::FSlot Slot, FTextSourceSiteContext& This);
+};
 
 struct FTextSourceData
 {
@@ -43,7 +43,7 @@ struct FGatherableTextData
 	FTextSourceData SourceData;
 
 	TArray<FTextSourceSiteContext> SourceSiteContexts;
-};
 
-CORE_API FArchive& operator<<(FArchive& Archive, FGatherableTextData& This);
-CORE_API void operator<<(FStructuredArchive::FSlot Slot, FGatherableTextData& This);
+	CORE_API friend FArchive& operator<<(FArchive& Archive, FGatherableTextData& This);
+	CORE_API friend void operator<<(FStructuredArchive::FSlot Slot, FGatherableTextData& This);
+};

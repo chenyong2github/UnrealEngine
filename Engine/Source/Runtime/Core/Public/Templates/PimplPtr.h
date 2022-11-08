@@ -233,13 +233,11 @@ public:
 		}
 	}
 
+	FORCEINLINE bool operator==(TYPE_OF_NULLPTR) { return !IsValid(); }
+	FORCEINLINE bool operator!=(TYPE_OF_NULLPTR) { return  IsValid(); }
+
 private:
 	T* Ptr = nullptr;
-
-	template <EPimplPtrMode Mode> friend FORCEINLINE bool operator==(const TPimplPtr<T, Mode>& PimplPtr, TYPE_OF_NULLPTR) { return !PimplPtr.IsValid(); }
-	template <EPimplPtrMode Mode> friend FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TPimplPtr<T, Mode>& PimplPtr) { return !PimplPtr.IsValid(); }
-	template <EPimplPtrMode Mode> friend FORCEINLINE bool operator!=(const TPimplPtr<T, Mode>& PimplPtr, TYPE_OF_NULLPTR) { return  PimplPtr.IsValid(); }
-	template <EPimplPtrMode Mode> friend FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TPimplPtr<T, Mode>& PimplPtr) { return  PimplPtr.IsValid(); }
 };
 
 template <typename T>
@@ -305,6 +303,10 @@ public:
 	using Super::Reset;
 };
 
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
+template <typename T, EPimplPtrMode Mode> FORCEINLINE bool operator==(TYPE_OF_NULLPTR, const TPimplPtr<T, Mode>& Ptr) { return !Ptr.IsValid(); }
+template <typename T, EPimplPtrMode Mode> FORCEINLINE bool operator!=(TYPE_OF_NULLPTR, const TPimplPtr<T, Mode>& Ptr) { return  Ptr.IsValid(); }
+#endif
 
 /**
  * Heap-allocates an instance of T with the given arguments and returns it as a TPimplPtr.

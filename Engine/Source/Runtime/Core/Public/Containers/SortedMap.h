@@ -375,19 +375,6 @@ public:
 		}
 	}
 
-	/** Serializer. */
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, TSortedMap& Map)
-	{
-		Ar << Map.Pairs;
-
-		if (Ar.IsLoading())
-		{
-			// We need to resort, in case the sorting is not consistent with what it was before
-			Algo::SortBy(Map.Pairs, FKeyForward(), SortPredicate());
-		}
-		return Ar;
-	}
-
 	/**
 	 * Describes the map's contents through an output device.
 	 *
@@ -556,8 +543,8 @@ private:
 			return !!PairIt; 
 		}
 
-		FORCEINLINE friend bool operator==(const TBaseIterator& Lhs, const TBaseIterator& Rhs) { return Lhs.PairIt == Rhs.PairIt; }
-		FORCEINLINE friend bool operator!=(const TBaseIterator& Lhs, const TBaseIterator& Rhs) { return Lhs.PairIt != Rhs.PairIt; }
+		FORCEINLINE bool operator==(const TBaseIterator& Rhs) const { return PairIt == Rhs.PairIt; }
+		FORCEINLINE bool operator!=(const TBaseIterator& Rhs) const { return PairIt != Rhs.PairIt; }
 
 		FORCEINLINE ItKeyType&   Key()   const { return PairIt->Key; }
 		FORCEINLINE ItValueType& Value() const { return PairIt->Value; }
@@ -603,8 +590,8 @@ private:
 			return Index != static_cast<SizeType>(-1);
 		}
 
-		FORCEINLINE friend bool operator==(const TBaseReverseIterator& Lhs, const TBaseReverseIterator& Rhs) { return Lhs.Index == Rhs.Index; }
-		FORCEINLINE friend bool operator!=(const TBaseReverseIterator& Lhs, const TBaseReverseIterator& Rhs) { return Lhs.Index != Rhs.Index; }
+		FORCEINLINE bool operator==(const TBaseReverseIterator& Rhs) const { return Index == Rhs.Index; }
+		FORCEINLINE bool operator!=(const TBaseReverseIterator& Rhs) const { return Index != Rhs.Index; }
 
 		FORCEINLINE ItKeyType& Key()   const { return Data[Index].Key; }
 		FORCEINLINE ItValueType& Value() const { return Data[Index].Value; }
@@ -779,6 +766,8 @@ public:
 	FORCEINLINE RangedForConstIteratorType	begin() const { return Pairs.begin(); }
 	FORCEINLINE RangedForIteratorType		end()         { return Pairs.end(); }
 	FORCEINLINE RangedForConstIteratorType	end() const   { return Pairs.end(); }
+
+	friend struct TSortedMapPrivateFriend;
 };
 
 DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template <typename KeyType, typename ValueType, typename ArrayAllocator, typename SortPredicate>), (TSortedMap<KeyType, ValueType, ArrayAllocator, SortPredicate>));
@@ -788,3 +777,27 @@ struct TContainerTraits<TSortedMap<KeyType, ValueType, ArrayAllocator, SortPredi
 {
 	enum { MoveWillEmptyContainer = TContainerTraits<typename TSortedMap<KeyType, ValueType, ArrayAllocator, SortPredicate>::ElementArrayType>::MoveWillEmptyContainer };
 };
+
+struct TSortedMapPrivateFriend
+{
+	template <typename KeyType, typename ValueType, typename ArrayAllocator, typename SortPredicate>
+	static void Serialize(FArchive& Ar, TSortedMap<KeyType, ValueType, ArrayAllocator, SortPredicate>& Map)
+	{
+		Ar << Map.Pairs;
+
+		if (Ar.IsLoading())
+		{
+			// We need to resort, in case the sorting is not consistent with what it was before
+			Algo::SortBy(Map.Pairs, typename TSortedMap<KeyType, ValueType, ArrayAllocator, SortPredicate>::FKeyForward(), SortPredicate());
+		}
+	}
+};
+
+/** Serializer. */
+template <typename KeyType, typename ValueType, typename ArrayAllocator, typename SortPredicate>
+FORCEINLINE FArchive& operator<<(FArchive& Ar, TSortedMap<KeyType, ValueType, ArrayAllocator, SortPredicate>& Map)
+{
+	TSortedMapPrivateFriend::Serialize(Ar, Map);
+	return Ar;
+}
+

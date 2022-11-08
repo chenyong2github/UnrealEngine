@@ -39,9 +39,9 @@ namespace UE4ChunkedArray_Private
 			}
 		}
 
-		friend bool operator!=(const TChunkedArrayIterator& Lhs, const TChunkedArrayIterator& Rhs)
+		bool operator!=(const TChunkedArrayIterator& Rhs) const
 		{
-			return Lhs.Elem != Rhs.Elem;
+			return Elem != Rhs.Elem;
 		}
 	};
 }

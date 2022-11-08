@@ -37,21 +37,21 @@ public:
 	virtual FString GetArchiveName() const { return TEXT("FArchiveCrc32"); }
 	//~ End FArchive Interface
 
-	/**
-	 * Serializes a USTRUCT value from or into an archive.
-	 *
-	 * @param Ar The archive to serialize from or to.
-	 * @param Value The value to serialize.
-	 */
-	template <typename StructType>
-	FORCEINLINE friend typename TEnableIf<TModels<CStaticStructProvider, StructType>::Value, FArchive&>::Type operator <<(FArchive& Ar, const StructType& Value)
-	{
-		StructType* MutableValue = const_cast<StructType*>(&Value);
-		StructType::StaticStruct()->SerializeItem(Ar, MutableValue, nullptr);
-		return Ar;
-	}
-
 private:
 	uint32 CRC;
 	UObject* RootObject;
 };
+
+/**
+	* Serializes a USTRUCT value from or into an archive.
+	*
+	* @param Ar The archive to serialize from or to.
+	* @param Value The value to serialize.
+	*/
+template <typename StructType>
+FORCEINLINE typename TEnableIf<TModels<CStaticStructProvider, StructType>::Value, FArchive&>::Type operator <<(FArchive& Ar, const StructType& Value)
+{
+	StructType* MutableValue = const_cast<StructType*>(&Value);
+	StructType::StaticStruct()->SerializeItem(Ar, MutableValue, nullptr);
+	return Ar;
+}

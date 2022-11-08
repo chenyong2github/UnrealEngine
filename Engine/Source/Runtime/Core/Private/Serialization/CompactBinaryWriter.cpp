@@ -617,22 +617,22 @@ void FCbWriter::AddCustom(const FUtf8StringView TypeName, const FMemoryView Valu
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCbWriter& operator<<(FCbWriter& Writer, const FDateTime Value)
+FCbWriter& FCbWriter::operator<<(const FDateTime Value)
 {
-	Writer.AddDateTime(Value);
-	return Writer;
+	AddDateTime(Value);
+	return *this;
 }
 
-FCbWriter& operator<<(FCbWriter& Writer, const FTimespan Value)
+FCbWriter& FCbWriter::operator<<(const FTimespan Value)
 {
-	Writer.AddTimeSpan(Value);
-	return Writer;
+	AddTimeSpan(Value);
+	return *this;
 }
 
-FCbWriter& operator<<(FCbWriter& Writer, FName Value)
+FCbWriter& FCbWriter::operator<<(FName Value)
 {
-	Writer << WriteToUtf8String<FName::StringBufferSize>(Value).ToView();
-	return Writer;
+	*this << WriteToUtf8String<FName::StringBufferSize>(Value).ToView();
+	return *this;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

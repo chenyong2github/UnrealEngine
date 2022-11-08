@@ -129,6 +129,7 @@ public:
 			(!IsValid() && !Other.IsValid());
 	}
 
+#if !PLATFORM_COMPILER_HAS_GENERATED_COMPARISON_OPERATORS
 	/**  
 	 * Compare weak pointers for inequality
 	 * @param Other weak pointer to compare to
@@ -139,6 +140,7 @@ public:
 			(ObjectIndex != Other.ObjectIndex || ObjectSerialNumber != Other.ObjectSerialNumber) &&
 			(IsValid() || Other.IsValid());
 	}
+#endif
 
 	/**
 	 * Returns true if two weak pointers were originally set to the same object, even if they are now stale
@@ -215,9 +217,9 @@ public:
 	}
 
 	/** Hash function. */
-	friend uint32 GetTypeHash(const FWeakObjectPtr& WeakObjectPtr)
+	FORCEINLINE uint32 GetTypeHash() const
 	{
-		return uint32(WeakObjectPtr.ObjectIndex ^ WeakObjectPtr.ObjectSerialNumber);
+		return uint32(ObjectIndex ^ ObjectSerialNumber);
 	}
 
 	/**
@@ -332,3 +334,10 @@ template<> struct TIsWeakPointerType<FWeakObjectPtr> { enum { Value = true }; };
 // Typedef script delegates for convenience.
 typedef TScriptDelegate<> FScriptDelegate;
 typedef TMulticastScriptDelegate<> FMulticastScriptDelegate;
+
+/** Hash function. */
+FORCEINLINE uint32 GetTypeHash(const FWeakObjectPtr& WeakObjectPtr)
+{
+	return WeakObjectPtr.GetTypeHash();
+}
+

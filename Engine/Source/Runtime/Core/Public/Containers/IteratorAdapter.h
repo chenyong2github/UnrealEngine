@@ -113,13 +113,14 @@ protected:
 	template <typename AnyElementType>
 	friend class TIteratorAdapter;
 
-	friend bool operator==(const TIteratorAdapter& Left, const TIteratorAdapter& Right)
+public:
+	bool operator==(const TIteratorAdapter& Right) const
 	{
-		return Left.Equals(Right);
+		return Equals(Right);
 	}
 
-	friend bool operator!=(const TIteratorAdapter& Left, const TIteratorAdapter& Right)
+	bool operator!=(const TIteratorAdapter& Right) const
 	{
-		return !(Left == Right);
+		return !Equals(Right);
 	}
 };

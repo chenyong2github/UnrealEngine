@@ -181,15 +181,6 @@ protected:
 	}
 
 public:
-	// Legacy comparison operators.  Note that these also test whether the map's key-value pairs were added in the same order!
-	friend bool LegacyCompareEqual(const TMapBase& A, const TMapBase& B)
-	{
-		return LegacyCompareEqual(A.Pairs, B.Pairs);
-	}
-	friend bool LegacyCompareNotEqual(const TMapBase& A, const TMapBase& B)
-	{
-		return LegacyCompareNotEqual(A.Pairs, B.Pairs);
-	}
 
 	/**
 	 * Compare this map with another for equality. Does not make any assumptions about Key order.
@@ -725,51 +716,6 @@ public:
 		}
 	}
 
-	/** Serializer. */
-	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, TMapBase& Map)
-	{
-		return Ar << Map.Pairs;
-	}
-
-	/** Structured archive serializer. */
-	FORCEINLINE friend void operator<<(FStructuredArchive::FSlot Slot, TMapBase& InMap)
-	{
-		/*
-		if (Slot.GetUnderlyingArchive().IsTextFormat())
-		{
-			int32 Num = InMap.Num();
-			FStructuredArchive::FMap Map = Slot.EnterMap(Num);
-
-			if (Slot.GetUnderlyingArchive().IsLoading())
-			{
-				FString KeyString;
-				KeyType Key;
-
-				for (int32 Index = 0; Index < Num; ++Index)
-				{
-					FStructuredArchive::FSlot ValueSlot = Map.EnterElement(KeyString);
-					LexFromString(Key, *KeyString);
-					ValueSlot << InMap.Add(Key);
-				}
-			}
-			else
-			{
-				FString StringK;
-				for (TMapBase::TIterator It(InMap); It; ++It)
-				{
-					StringK = LexToString(It->Key);
-					FStructuredArchive::FSlot ValueSlot = Map.EnterElement(StringK);
-					ValueSlot << It->Value;
-				}
-			}
-		}
-		else
-		*/
-		{
-			Slot << InMap.Pairs;
-		}
-	}
-
 	/**
 	 * Describes the map's contents through an output device.
 	 *
@@ -822,8 +768,8 @@ protected:
 			return !(bool)*this;
 		}
 
-		FORCEINLINE friend bool operator==(const TBaseIterator& Lhs, const TBaseIterator& Rhs) { return Lhs.PairIt == Rhs.PairIt; }
-		FORCEINLINE friend bool operator!=(const TBaseIterator& Lhs, const TBaseIterator& Rhs) { return Lhs.PairIt != Rhs.PairIt; }
+		FORCEINLINE bool operator==(const TBaseIterator& Rhs) const { return PairIt == Rhs.PairIt; }
+		FORCEINLINE bool operator!=(const TBaseIterator& Rhs) const { return PairIt != Rhs.PairIt; }
 
 		FORCEINLINE ItKeyType&   Key()   const { return PairIt->Key; }
 		FORCEINLINE ItValueType& Value() const { return PairIt->Value; }
@@ -1004,6 +950,8 @@ public:
 	{
 		return TConstKeyIterator(*this, InKey);
 	}
+
+	friend struct TMapPrivateFriend;
 
 public:
 	/**
@@ -1934,3 +1882,84 @@ struct TContainerTraits<TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>> :
 {
 	enum { MoveWillEmptyContainer = TContainerTraits<typename TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>::ElementSetType>::MoveWillEmptyContainer };
 };
+
+struct TMapPrivateFriend
+{
+	template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+	FORCEINLINE static FArchive& Serialize(FArchive& Ar, TMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>& Map)
+	{
+		Ar << Map.Pairs;
+		return Ar;
+	}
+
+	template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+	FORCEINLINE static void SerializeStructured(FStructuredArchive::FSlot Slot, TMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>& InMap)
+	{
+		/*
+		if (Slot.GetUnderlyingArchive().IsTextFormat())
+		{
+			int32 Num = InMap.Num();
+			FStructuredArchive::FMap Map = Slot.EnterMap(Num);
+
+			if (Slot.GetUnderlyingArchive().IsLoading())
+			{
+				FString KeyString;
+				KeyType Key;
+
+				for (int32 Index = 0; Index < Num; ++Index)
+				{
+					FStructuredArchive::FSlot ValueSlot = Map.EnterElement(KeyString);
+					LexFromString(Key, *KeyString);
+					ValueSlot << InMap.Add(Key);
+				}
+			}
+			else
+			{
+				FString StringK;
+				for (TMapBase::TIterator It(InMap); It; ++It)
+				{
+					StringK = LexToString(It->Key);
+					FStructuredArchive::FSlot ValueSlot = Map.EnterElement(StringK);
+					ValueSlot << It->Value;
+				}
+			}
+		}
+		else
+		*/
+		{
+			Slot << InMap.Pairs;
+		}
+	}
+
+	template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+	static bool LegacyCompareEqual(const TMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>& A, const TMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>& B)
+	{
+		return TSetPrivateFriend::LegacyCompareEqual(A.Pairs, B.Pairs);
+	}
+};
+
+/** Serializer. */
+template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+FORCEINLINE FArchive& operator<<(FArchive& Ar, TMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>& Map)
+{
+	return TMapPrivateFriend::Serialize(Ar, Map);
+}
+
+/** Structured archive serializer. */
+template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+FORCEINLINE void operator<<(FStructuredArchive::FSlot Slot, TMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>& InMap)
+{
+	TMapPrivateFriend::SerializeStructured(Slot, InMap);
+}
+
+// Legacy comparison operators.  Note that these also test whether the map's key-value pairs were added in the same order!
+template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+bool LegacyCompareEqual(const TMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>& A, const TMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>& B)
+{
+	return TMapPrivateFriend::LegacyCompareEqual(A, B);
+}
+template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
+bool LegacyCompareNotEqual(const TMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>& A, const TMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>& B)
+{
+	return !TMapPrivateFriend::LegacyCompareEqual(A, B);
+}

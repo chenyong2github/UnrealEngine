@@ -120,8 +120,8 @@ struct FPackedObjectRef
 	// The least significant bit must always be 1 in a non-null reference.
 	UPTRINT EncodedRef;
 
-	friend inline bool operator==(FPackedObjectRef LHS, FPackedObjectRef RHS) { return LHS.EncodedRef == RHS.EncodedRef; }
-	friend inline bool operator!=(FPackedObjectRef LHS, FPackedObjectRef RHS) { return LHS.EncodedRef != RHS.EncodedRef; }
+	inline bool operator==(FPackedObjectRef RHS) const { return EncodedRef == RHS.EncodedRef; }
+	inline bool operator!=(FPackedObjectRef RHS) const { return EncodedRef != RHS.EncodedRef; }
 	friend inline uint32 GetTypeHash(FPackedObjectRef ObjectRef) { return GetTypeHash(ObjectRef.EncodedRef); }
 };
 

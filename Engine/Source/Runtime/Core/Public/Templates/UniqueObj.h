@@ -58,12 +58,18 @@ public:
 	      T& operator*()       { return *Obj; }
 	const T& operator*() const { return *Obj; }
 
-	friend FArchive& operator<<(FArchive& Ar, TUniqueObj& P)
+	void Serialize(FArchive& Ar)
 	{
-		Ar << *P.Obj;
-		return Ar;
+		Ar << *Obj;
 	}
 
 private:
 	TUniquePtr<T> Obj;
 };
+
+template <typename T>
+FArchive& operator<<(FArchive& Ar, TUniqueObj<T>& P)
+{
+	P.Serialize(Ar);
+	return Ar;
+}

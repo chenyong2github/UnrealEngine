@@ -37,6 +37,14 @@ public:
 	using FArchive::operator<<;
 	FArchive& operator<<(FName& Name) final;
 
+	template <typename ArgType>
+	inline FBuildVersionBuilder& operator<<(ArgType&& Arg)
+	{
+		FArchive& Ar = *this;
+		Ar << const_cast<std::decay_t<ArgType>&>(Arg);
+		return *this;
+	}
+
 private:
 	FXxHash128Builder HashBuilder;
 };
@@ -74,14 +82,6 @@ inline FArchive& FBuildVersionBuilder::operator<<(FName& Name)
 {
 	FString NameString = Name.ToString();
 	return *this << NameString;
-}
-
-template <typename ArgType>
-inline FBuildVersionBuilder& operator<<(FBuildVersionBuilder& Builder, ArgType&& Arg)
-{
-	FArchive& Ar = Builder;
-	Ar << const_cast<std::decay_t<ArgType>&>(Arg);
-	return Builder;
 }
 
 } // UE::DerivedData
