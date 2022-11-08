@@ -159,7 +159,11 @@ void UPCGMetadata::AddAttribute(const UPCGMetadata* InOther, FName AttributeName
 	}
 
 	CopyAttribute(InOther->GetConstAttribute(AttributeName), AttributeName, /*bKeepParent=*/InOther == Parent, /*bCopyEntries=*/false, /*bCopyValues=*/false);
-	OtherParents.Add(InOther);
+
+	if (InOther != Parent)
+	{
+		OtherParents.Add(InOther);
+	}
 }
 
 void UPCGMetadata::CopyAttributes(const UPCGMetadata* InOther)
