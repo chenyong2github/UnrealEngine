@@ -169,17 +169,8 @@ ERunAttributes FSlateWidgetRun::GetRunAttributes() const
 }
 
 FSlateWidgetRun::FSlateWidgetRun(const TSharedRef<class FTextLayout>& InTextLayout, const FRunInfo& InRunInfo, const TSharedRef< const FString >& InText, const FWidgetRunInfo& InWidgetInfo)
-	: TextLayout(InTextLayout)
-	, RunInfo( InRunInfo )
-	, Text( InText )
-	, Range( 0, Text->Len() )
-	, Info( InWidgetInfo )
-	, Children()
-	, WidgetSize()
+	: FSlateWidgetRun(InTextLayout, InRunInfo, InText, InWidgetInfo, FTextRange(0, InText->Len()))
 {
-	Info.Widget->SlatePrepass();
-	WidgetSize = Info.Widget->GetDesiredSize();
-	Children.Add(Info.Widget);
 }
 
 FSlateWidgetRun::FSlateWidgetRun(const TSharedRef<class FTextLayout>& InTextLayout, const FRunInfo& InRunInfo, const TSharedRef< const FString >& InText, const FWidgetRunInfo& InWidgetInfo, const FTextRange& InRange)
@@ -191,7 +182,7 @@ FSlateWidgetRun::FSlateWidgetRun(const TSharedRef<class FTextLayout>& InTextLayo
 	, Children()
 	, WidgetSize()
 {
-	Info.Widget->SlatePrepass();
+	Info.Widget->SlatePrepass(InTextLayout.Get().GetScale());
 	WidgetSize = Info.Widget->GetDesiredSize();
 	Children.Add( Info.Widget );
 }
