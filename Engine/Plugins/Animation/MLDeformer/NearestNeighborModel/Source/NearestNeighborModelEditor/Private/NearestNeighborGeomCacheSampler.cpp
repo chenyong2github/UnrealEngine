@@ -119,6 +119,13 @@ namespace UE::NearestNeighborModel
 				{
 					UE_LOG(LogNearestNeighborModel, Warning, TEXT("%s is skipped because it has different vertex counts in skeletal mesh and geometry cache."), *VertexMisMatchNames[i]);
 				}
+				GeomCacheMeshDatas.Reset();
+				GeomCacheMeshDatas.AddDefaulted(MeshMappings.Num());
+				if(MeshMappings.IsEmpty())
+				{
+					UE_LOG(LogNearestNeighborModel, Error, TEXT("Unable to match skeletal mesh with geometry cache."));
+					Result = EUpdateResult::ERROR;
+				}
 				return Result;
 			}
 			FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
