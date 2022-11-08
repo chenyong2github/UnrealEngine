@@ -22,6 +22,12 @@ class FDragConnection : public FGraphEditorDragDropAction
 public:
 	DRAG_DROP_OPERATOR_TYPE(FDragConnection, FGraphEditorDragDropAction)
 
+	enum EDragMode : uint8
+	{
+		CreateConnection = 0,
+		RelinkConnection
+	};
+
 	typedef TArray<FGraphPinHandle> FDraggedPinTable;
 	static TSharedRef<FDragConnection> New(const TSharedRef<SGraphPanel>& InGraphPanel, const FDraggedPinTable& InStartingPins);
 
@@ -51,7 +57,11 @@ protected:
 protected:
 	TSharedPtr<SGraphPanel> GraphPanel;
 	FDraggedPinTable DraggingPins;
+	EDragMode DragMode = EDragMode::CreateConnection;
 
 	/** Offset information for the decorator widget */
 	FVector2D DecoratorAdjust;
+
+	FGraphPinHandle SourcePinHandle;
+	FGraphPinHandle TargetPinHandle;
 };

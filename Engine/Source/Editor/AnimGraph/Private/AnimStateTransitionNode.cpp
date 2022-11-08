@@ -304,6 +304,86 @@ void UAnimStateTransitionNode::CreateConnections(UAnimStateNodeBase* PreviousSta
 	Pins[1]->MakeLinkTo(NextState->GetInputPin());
 }
 
+void UAnimStateTransitionNode::RelinkHead(UAnimStateNodeBase* NewTargetState)
+{
+	UAnimStateNodeBase* SourceState = GetPreviousState();
+	UAnimStateNodeBase* TargetStateBeforeRelinking = GetNextState();
+
+	// Remove the incoming transition from the previous target state
+	TargetStateBeforeRelinking->GetInputPin()->Modify();
+	TargetStateBeforeRelinking->GetInputPin()->BreakLinkTo(SourceState->GetOutputPin());
+
+	// Add the new incoming transition to the new target state
+	NewTargetState->GetInputPin()->Modify();
+	NewTargetState->GetInputPin()->MakeLinkTo(SourceState->GetOutputPin());
+
+	// Relink the target state of the transition node
+	Pins[1]->Modify();
+	Pins[1]->BreakLinkTo(TargetStateBeforeRelinking->GetInputPin());
+	Pins[1]->MakeLinkTo(NewTargetState->GetInputPin());
+}
+
+TArray<UAnimStateTransitionNode*> UAnimStateTransitionNode::GetListTransitionNodesToRelink(UEdGraphPin* SourcePin, UEdGraphPin* OldTargetPin, const TArray<UEdGraphNode*>& InSelectedGraphNodes)
+{
+	UAnimStateNodeBase* SourceState = Cast<UAnimStateNodeBase>(SourcePin->GetOwningNode());
+	if (SourceState == nullptr || SourceState->GetInputPin() == nullptr || SourceState->GetOutputPin() == nullptr)
+	{
+		return {};
+	}
+
+	// Collect all transition nodes starting at the source state
+	TArray<UAnimStateTransitionNode*> TransitionNodeCandidates;
+	SourceState->GetTransitionList(TransitionNodeCandidates);
+
+	// Remove the transition nodes from the candidates that are linked to a different target state.
+	for (int i = TransitionNodeCandidates.Num() - 1; i >= 0; i--)
+	{
+		UAnimStateTransitionNode* CurrentTransition = TransitionNodeCandidates[i];
+
+		// Get the actual target states from the transition nodes
+		UEdGraphNode* TransitionTargetNode = CurrentTransition->GetNextState();
+		UAnimStateTransitionNode* CastedOldTarget = Cast<UAnimStateTransitionNode>(OldTargetPin->GetOwningNode());
+		UEdGraphNode* OldTargetNode = CastedOldTarget->GetNextState();
+
+		// Compare the target states rather than comparing against the transition nodes
+		if (TransitionTargetNode != OldTargetNode)
+		{
+			TransitionNodeCandidates.Remove(CurrentTransition);
+		}
+	}
+
+	// Collect the subset of selected transitions from the list of possible transitions to be relinked
+	TSet<UAnimStateTransitionNode*> SelectedTransitionNodes;
+	for (UEdGraphNode* GraphNode : InSelectedGraphNodes)
+	{
+		UAnimStateTransitionNode* TransitionNode = Cast<UAnimStateTransitionNode>(GraphNode);
+		if (!TransitionNode)
+		{
+			continue;
+		}
+
+		if (TransitionNodeCandidates.Find(TransitionNode) != INDEX_NONE)
+		{
+			SelectedTransitionNodes.Add(TransitionNode);
+		}
+	}
+
+	TArray<UAnimStateTransitionNode*> Result;
+	Result.Reserve(TransitionNodeCandidates.Num());
+	for (UAnimStateTransitionNode* TransitionNode : TransitionNodeCandidates)
+	{
+		// Only relink the selected transitions. If none are selected, relink them all.
+		if (!SelectedTransitionNodes.IsEmpty() && SelectedTransitionNodes.Find(TransitionNode) == nullptr)
+		{
+			continue;
+		}
+
+		Result.Add(TransitionNode);
+	}
+
+	return Result;
+}
+
 void UAnimStateTransitionNode::PrepareForCopying()
 {
 	Super::PrepareForCopying();

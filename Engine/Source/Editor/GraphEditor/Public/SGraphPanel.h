@@ -4,6 +4,7 @@
 
 #include "Animation/CurveSequence.h"
 #include "BlueprintUtilities.h"
+#include "ConnectionDrawingPolicy.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/Set.h"
@@ -160,6 +161,15 @@ public:
 	void OnStopMakingConnection(bool bForceStop = false);
 	void PreservePinPreviewUntilForced();
 
+	/** Indicate that the connection from the given start to the given end pins is being relinked. A preview connection is being drawn for the relinked connection. */
+	void OnBeginRelinkConnection(const FGraphPinHandle& InSourcePinHandle, const FGraphPinHandle& InTargetPinHandle);
+
+	/** The relink connection operation either got cancelled or has successfully been executed. Preview connection won't be drawn anymore. */
+	void OnEndRelinkConnection(bool bForceStop = false);
+
+	/** True in case a connection is currently being relinked, false if not. */
+	bool IsRelinkingConnection() const;
+
 	/** Update this GraphPanel to match the data that it is observing. Expected to be called during ticking. */
 	void Update();
 
@@ -239,10 +249,18 @@ public:
 	/** Get a graph node widget from the specified GUID, if it applies to any nodes in this graph */
 	TSharedPtr<SGraphNode> GetNodeWidgetFromGuid(FGuid Guid) const;
 
+	/** Get a list of selected editor graph nodes from the selection manager. */
+	TArray<UEdGraphNode*> GetSelectedGraphNodes() const;
+
+	const FGraphSplineOverlapResult& GetPreviousFrameSplineOverlap() const { return PreviousFrameSplineOverlap; }
+
 private:
 
 	/** A map of guid -> graph nodes */
 	TMap<FGuid, TWeakPtr<SGraphNode>> NodeGuidMap;
+
+	/** List of currently relinked connections. */
+	TArray<FConnectionDrawingPolicy::FRelinkConnection> RelinkConnections;
 
 protected:
 	UEdGraph* GraphObj;

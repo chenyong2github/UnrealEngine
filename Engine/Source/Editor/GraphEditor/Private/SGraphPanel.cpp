@@ -468,7 +468,6 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 
 	MaxLayerId += 1;
 
-
 	// Draw connections between pins 
 	if (Children.Num() > 0 )
 	{
@@ -494,6 +493,12 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 		ConnectionDrawingPolicy->SetHoveredPins(CurrentHoveredPins, OverridePins, TimeWhenMouseEnteredPin);
 		ConnectionDrawingPolicy->SetMarkedPin(MarkedPin);
 		ConnectionDrawingPolicy->SetMousePosition(AllottedGeometry.LocalToAbsolute(SavedMousePosForOnPaintEventLocalSpace));
+
+		if (IsRelinkingConnection())
+		{
+			ConnectionDrawingPolicy->SetRelinkConnections(RelinkConnections);
+			ConnectionDrawingPolicy->SetSelectedNodes(GetSelectedGraphNodes());
+		}
 
 		// Get the set of pins for all children and synthesize geometry for culled out pins so lines can be drawn to them.
 		TMap<TSharedRef<SWidget>, FArrangedWidget> PinGeometries;
@@ -810,8 +815,11 @@ FReply SGraphPanel::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InK
 
 FReply SGraphPanel::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	if ((MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton) && (MouseEvent.IsAltDown() || MouseEvent.IsControlDown()))
+	if ((MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton))
 	{
+		SGraphPin* BestPinFromHoveredSpline = GetBestPinFromHoveredSpline();
+		FGraphPinHandle Pin1Handle = PreviousFrameSplineOverlap.GetPin1Handle();
+
 		// Intercept alt-left clicking on the hovered spline for targeted break link
 		UEdGraphPin* Pin1;
 		UEdGraphPin* Pin2;
@@ -820,13 +828,42 @@ FReply SGraphPanel::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 			const UEdGraphSchema* Schema = GraphObj->GetSchema();
 			Schema->BreakSinglePinLink(Pin1, Pin2);
 		}
-		else if (SGraphPin* BestPinFromHoveredSpline = GetBestPinFromHoveredSpline())
+		else if (BestPinFromHoveredSpline && MouseEvent.IsControlDown())
 		{
 			return BestPinFromHoveredSpline->OnPinMouseDown(MyGeometry, MouseEvent);
+		}
+		else if (Pin1Handle.IsValid())
+		{
+			TSharedPtr<class SGraphPin> SourcePin = Pin1Handle.FindInGraphPanel(*this);
+			if (SourcePin.IsValid())
+			{
+				return SourcePin->OnPinMouseDown(MyGeometry, MouseEvent);
+			}
 		}
 	}
 
 	return SNodePanel::OnMouseButtonDown(MyGeometry, MouseEvent);
+}
+
+TArray<UEdGraphNode*> SGraphPanel::GetSelectedGraphNodes() const
+{
+	TArray<UEdGraphNode*> SelectedGraphNodes;
+	SelectedGraphNodes.Reserve(SelectionManager.SelectedNodes.Num());
+
+	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectionManager.SelectedNodes); NodeIt; ++NodeIt)
+	{
+		const TSharedRef<SNode>* SelectedNode = NodeToWidgetLookup.Find(*NodeIt);
+		if (SelectedNode)
+		{
+			UEdGraphNode* SelectedGraphNode = Cast<UEdGraphNode>(SelectedNode->Get().GetObjectBeingDisplayed());
+			if (SelectedGraphNode)
+			{
+				SelectedGraphNodes.Add(SelectedGraphNode);
+			}
+		}
+	}
+
+	return SelectedGraphNodes;
 }
 
 FReply SGraphPanel::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -1262,6 +1299,23 @@ void SGraphPanel::OnStopMakingConnection(bool bForceStop)
 		PreviewConnectorFromPins.Reset();
 		bPreservePinPreviewConnection = false;
 	}
+}
+
+void SGraphPanel::OnBeginRelinkConnection(const FGraphPinHandle& InSourcePinHandle, const FGraphPinHandle& InTargetPinHandle)
+{
+	RelinkConnections.Add({ InSourcePinHandle.GetPinObj(*this), InTargetPinHandle.GetPinObj(*this) });
+	OnBeginMakingConnection(InSourcePinHandle);
+}
+
+void SGraphPanel::OnEndRelinkConnection(bool bForceStop)
+{
+	OnStopMakingConnection(bForceStop);
+	RelinkConnections.Empty();
+}
+
+bool SGraphPanel::IsRelinkingConnection() const
+{
+	return (RelinkConnections.IsEmpty() == false);
 }
 
 void SGraphPanel::PreservePinPreviewUntilForced()

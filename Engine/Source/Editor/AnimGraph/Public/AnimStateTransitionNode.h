@@ -141,6 +141,18 @@ class UAnimStateTransitionNode : public UAnimStateNodeBase
 	ANIMGRAPH_API UAnimStateNodeBase* GetPreviousState() const;
 	ANIMGRAPH_API UAnimStateNodeBase* GetNextState() const;
 	ANIMGRAPH_API void CreateConnections(UAnimStateNodeBase* PreviousState, UAnimStateNodeBase* NextState);
+
+	/**
+	 * Relink transition head (where the arrow is of a state transition) to a new state.
+	 * @param[in] NewTargetState The new transition target.
+	 */
+	ANIMGRAPH_API void RelinkHead(UAnimStateNodeBase* NewTargetState);
+
+	/**
+	 * Helper function to gather the transition nodes to be relinked by taking the graph selection into account as well.
+	 * For example when relinking a transition holding several transition nodes but only a few are selected to be relinked.
+	 */
+	ANIMGRAPH_API static TArray<UAnimStateTransitionNode*> GetListTransitionNodesToRelink(UEdGraphPin* SourcePin, UEdGraphPin* OldTargetPin, const TArray<UEdGraphNode*>& InSelectedGraphNodes);
 	
 	ANIMGRAPH_API bool IsBoundGraphShared() const;
 

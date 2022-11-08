@@ -775,6 +775,20 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 */
 	virtual bool TryCreateConnection(UEdGraphPin* A, UEdGraphPin* B) const;
 
+	/** Is this schema supporting connection relinking for the given pin? */
+	virtual bool IsConnectionRelinkingAllowed(UEdGraphPin* InPin) const;
+
+	/**
+	 * Determine if a connection can be relinked to the given pin.
+	 * @param[in] OldSourcePin The current source pin of the connection.
+	 * @param[in] TargetPinCandidate The target pin of the relink.
+	 * @return A message describing if the operation can succeed or why the relink operation would fail.
+	 */
+	virtual const FPinConnectionResponse CanRelinkConnectionToPin(const UEdGraphPin* OldSourcePin, const UEdGraphPin* TargetPinCandidate) const;
+
+	/** Try relinking the connection starting at the old source and target pins and relink it to the new target pin. */
+	virtual bool TryRelinkConnectionTarget(UEdGraphPin* SourcePin, UEdGraphPin* OldTargetPin, UEdGraphPin* NewTargetPin, const TArray<UEdGraphNode*>& InSelectedGraphNodes) const;
+
 	/**
 	 * Try to create an automatic cast or other conversion node node to facilitate a connection between two pins.
 	 * It makes the cast node, a connection between A and the cast node, and a connection from the cast node to B.two 

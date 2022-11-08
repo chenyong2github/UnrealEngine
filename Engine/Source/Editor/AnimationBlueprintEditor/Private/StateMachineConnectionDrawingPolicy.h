@@ -29,6 +29,8 @@ protected:
 
 	TMap<UEdGraphNode*, int32> NodeWidgetMap;
 public:
+	// @Note FConnectionParams.bUserFlag2: Is used here to indicate whether the drawn arrow is a preview transition or a real one.
+
 	//
 	FStateMachineConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float ZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraphObj);
 
@@ -51,4 +53,10 @@ public:
 
 protected:
 	void Internal_DrawLineWithArrow(const FVector2D& StartAnchorPoint, const FVector2D& EndAnchorPoint, const FConnectionParams& Params);
+
+	// Draw line-based circle (no solid filling)
+	void DrawCircle(const FVector2D& Center, float Radius, const FLinearColor& Color, const int NumLineSegments);
+	TArray<FVector2D> TempPoints;
+
+	static constexpr float RelinkHandleHoverRadius = 20.0f;
 };

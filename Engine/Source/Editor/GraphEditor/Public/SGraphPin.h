@@ -58,6 +58,12 @@ struct GRAPHEDITOR_API FGraphPinHandle
 	/** The GUID of the pin we are referencing */
 	FGuid PinId;
 
+	/**
+	 * Default constructor
+	 * Will contain a invalid node and pin GUID and IsValid() will return false.
+	 */
+	FGraphPinHandle() = default;
+
 	/** Constructor */
 	FGraphPinHandle(UEdGraphPin* InPin);
 

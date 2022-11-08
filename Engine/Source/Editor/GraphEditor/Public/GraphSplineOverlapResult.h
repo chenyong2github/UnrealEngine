@@ -69,6 +69,14 @@ public:
 		return Result;
 	}
 
+	FGraphPinHandle GetBestPinHandle() const
+	{
+		return BestPinHandle;
+	}
+
+	FGraphPinHandle GetPin1Handle() const { return Pin1Handle; }
+	FGraphPinHandle GetPin2Handle() const { return Pin2Handle; }
+
 	bool GetPins(const class SGraphPanel& InGraphPanel, UEdGraphPin*& OutPin1, UEdGraphPin*& OutPin2) const;
 	void GetPinWidgets(const class SGraphPanel& InGraphPanel, TSharedPtr<class SGraphPin>& OutPin1, TSharedPtr<class SGraphPin>& OutPin2) const;
 

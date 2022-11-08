@@ -43,9 +43,10 @@ TSharedRef<FDragConnection> FDragConnection::New(const TSharedRef<SGraphPanel>& 
 	return Operation;
 }
 
-void FDragConnection::OnDrop( bool bDropWasHandled, const FPointerEvent& MouseEvent )
+void FDragConnection::OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent)
 {
 	GraphPanel->OnStopMakingConnection();
+	GraphPanel->OnEndRelinkConnection();
 
 	Super::OnDrop(bDropWasHandled, MouseEvent);
 }
@@ -77,8 +78,17 @@ void FDragConnection::HoverTargetChanged()
 				// The Graph object in which the pins reside.
 				UEdGraph* GraphObj = StartingPinObj->GetOwningNode()->GetGraph();
 
-				// Determine what the schema thinks about the wiring action
-				const FPinConnectionResponse Response = GraphObj->GetSchema()->CanCreateConnection( StartingPinObj, TargetPinObj );
+				// Determine what the schema thinks
+				FPinConnectionResponse Response;
+				switch (DragMode)
+				{
+				case EDragMode::CreateConnection:
+					Response = GraphObj->GetSchema()->CanCreateConnection( StartingPinObj, TargetPinObj );
+					break;
+				case EDragMode::RelinkConnection:
+					Response = GraphObj->GetSchema()->CanRelinkConnectionToPin(StartingPinObj, TargetPinObj);
+					break;
+				}
 
 				if (Response.Response == ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
 				{
@@ -93,7 +103,7 @@ void FDragConnection::HoverTargetChanged()
 			}
 		}
 	}
-	else if(UEdGraphNode* TargetNodeObj = GetHoveredNode())
+	else if(GetHoveredNode() && DragMode == EDragMode::CreateConnection)
 	{
 		TArray<UEdGraphPin*> ValidSourcePins;
 		ValidateGraphPinList(/*out*/ ValidSourcePins);
@@ -103,7 +113,7 @@ void FDragConnection::HoverTargetChanged()
 		{
 			FPinConnectionResponse Response;
 			FText ResponseText;
-			if (StartingPinObj->GetOwningNode() != TargetNodeObj && StartingPinObj->GetSchema()->SupportsDropPinOnNode(TargetNodeObj, StartingPinObj->PinType, StartingPinObj->Direction, ResponseText))
+			if (StartingPinObj->GetOwningNode() != GetHoveredNode() && StartingPinObj->GetSchema()->SupportsDropPinOnNode(GetHoveredNode(), StartingPinObj->PinType, StartingPinObj->Direction, ResponseText))
 			{
 				Response.Response = ECanCreateConnectionResponse::CONNECT_RESPONSE_MAKE;
 			}
@@ -120,7 +130,7 @@ void FDragConnection::HoverTargetChanged()
 			}
 		}
 	}
-	else if(UEdGraph* CurrentHoveredGraph = GetHoveredGraph())
+	else if(GetHoveredGraph() && DragMode == EDragMode::CreateConnection)
 	{
 		TArray<UEdGraphPin*> ValidSourcePins;
 		ValidateGraphPinList(/*out*/ ValidSourcePins);
@@ -128,7 +138,7 @@ void FDragConnection::HoverTargetChanged()
 		for (UEdGraphPin* StartingPinObj : ValidSourcePins)
 		{
 			// Let the schema describe the connection we might make
-			FPinConnectionResponse Response = CurrentHoveredGraph->GetSchema()->CanCreateNewNodes(StartingPinObj);
+			FPinConnectionResponse Response = GetHoveredGraph()->GetSchema()->CanCreateNewNodes(StartingPinObj);
 			if(!Response.Message.IsEmpty())
 			{
 				UniqueMessages.AddUnique(Response);
@@ -137,7 +147,7 @@ void FDragConnection::HoverTargetChanged()
 	}
 
 	// Let the user know the status of dropping now
-	if (UniqueMessages.Num() == 0)
+	if (UniqueMessages.Num() == 0 && DragMode == EDragMode::CreateConnection)
 	{
 		// Display the place a new node icon, we're not over a valid pin and have no message from the schema
 		SetSimpleFeedbackMessage(
@@ -206,64 +216,154 @@ FDragConnection::FDragConnection(const TSharedRef<SGraphPanel>& GraphPanelIn, co
 	: GraphPanel(GraphPanelIn)
 	, DraggingPins(DraggedPinsIn)
 	, DecoratorAdjust(FSlateApplication::Get().GetCursorSize())
-{	
-	if (DraggingPins.Num() > 0)
+{
+	// Handle connection relinking, if supported by the schema
+	const FGraphSplineOverlapResult& PreviousFrameSplineOverlap = GraphPanel->GetPreviousFrameSplineOverlap();
+	FGraphPinHandle Pin1Handle = PreviousFrameSplineOverlap.GetPin1Handle();
+	if (Pin1Handle.IsValid())
 	{
-		const UEdGraphPin* PinObj = FDraggedPinTable::TConstIterator(DraggedPinsIn)->GetPinObj(*GraphPanelIn);
-		if (PinObj && PinObj->Direction == EGPD_Input)
+		UEdGraphPin* SourcePin = Pin1Handle.GetPinObj(*GraphPanel.Get());
+		if (SourcePin)
 		{
-			DecoratorAdjust *= FVector2D(-1.0f, 1.0f);
+			const UEdGraphSchema* Schema = SourcePin->GetSchema();
+			if (Schema->IsConnectionRelinkingAllowed(SourcePin))
+			{
+				FGraphPinHandle Pin2Handle = PreviousFrameSplineOverlap.GetPin2Handle();
+				UEdGraphPin* TargetPin = Pin2Handle.GetPinObj(*GraphPanel.Get());
+				if (TargetPin)
+				{
+					SourcePinHandle = SourcePin;
+					TargetPinHandle = TargetPin;
+					DragMode = RelinkConnection;
+				}
+			}
 		}
 	}
 
-	for (const FGraphPinHandle& DraggedPin : DraggedPinsIn)
+	switch (DragMode)
 	{
-		GraphPanelIn->OnBeginMakingConnection(DraggedPin);
+	case EDragMode::CreateConnection:
+	{
+		if (DraggingPins.Num() > 0)
+		{
+			const UEdGraphPin* PinObj = FDraggedPinTable::TConstIterator(DraggedPinsIn)->GetPinObj(*GraphPanelIn);
+			if (PinObj && PinObj->Direction == EGPD_Input)
+			{
+				DecoratorAdjust *= FVector2D(-1.0f, 1.0f);
+			}
+		}
+
+		for (const FGraphPinHandle& DraggedPin : DraggedPinsIn)
+		{
+			GraphPanelIn->OnBeginMakingConnection(DraggedPin);
+		}
+		break;
+	}
+
+	case EDragMode::RelinkConnection:
+	{
+		if (SourcePinHandle.IsValid())
+		{
+			const UEdGraphPin* PinObj = SourcePinHandle.GetPinObj(*GraphPanel.Get());
+			if (PinObj && PinObj->Direction == EGPD_Input)
+			{
+				DecoratorAdjust *= FVector2D(-1.0f, 1.0f);
+			}
+		}
+
+		GraphPanel->OnBeginRelinkConnection(SourcePinHandle, TargetPinHandle);
+		break;
+	}
 	}
 }
 
 FReply FDragConnection::DroppedOnPin(FVector2D ScreenPosition, FVector2D GraphPosition)
 {
-	TArray<UEdGraphPin*> ValidSourcePins;
-	ValidateGraphPinList(/*out*/ ValidSourcePins);
-
-	// store the pins as pin tuples since the structure of the
-	// graph may change during the creation of a connection
-	TArray<FEdGraphPinHandle> ValidSourcePinHandles;
-	for(const UEdGraphPin* ValidSourcePin : ValidSourcePins)
-	{
-		ValidSourcePinHandles.Add(ValidSourcePin);
-	}
-
-	const FScopedTransaction Transaction( NSLOCTEXT("UnrealEd", "GraphEd_CreateConnection", "Create Pin Link") );
-
-	FEdGraphPinHandle PinB(GetHoveredPin());
 	bool bError = false;
 	TSet<FEdGraphNodeHandle> NodeList;
 
-	for (const FEdGraphPinHandle& PinA : ValidSourcePinHandles)
+	switch (DragMode)
 	{
-		if ((PinA.GetPin() != NULL) && (PinB.GetPin() != NULL))
-		{
-			const UEdGraph* MyGraphObj = PinA.GetGraph();
+	case EDragMode::CreateConnection:
+	{
+		TArray<UEdGraphPin*> ValidSourcePins;
+		ValidateGraphPinList(/*out*/ ValidSourcePins);
 
-			// the pin may change during the creation of the link
-			if (MyGraphObj->GetSchema()->TryCreateConnection(PinA.GetPin(), PinB.GetPin()))
+		// store the pins as pin tuples since the structure of the
+		// graph may change during the creation of a connection
+		TArray<FEdGraphPinHandle> ValidSourcePinHandles;
+		for (const UEdGraphPin* ValidSourcePin : ValidSourcePins)
+		{
+			ValidSourcePinHandles.Add(ValidSourcePin);
+		}
+
+		const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "GraphEd_CreateConnection", "Create Pin Link"));
+
+		FEdGraphPinHandle PinB(GetHoveredPin());
+
+		for (const FEdGraphPinHandle& PinA : ValidSourcePinHandles)
+		{
+			if ((PinA.GetPin() != NULL) && (PinB.GetPin() != NULL))
 			{
-				if (PinA.GetPin() && !PinA.GetPin()->IsPendingKill())
+				const UEdGraph* MyGraphObj = PinA.GetGraph();
+
+				// the pin may change during the creation of the link
+				if (MyGraphObj->GetSchema()->TryCreateConnection(PinA.GetPin(), PinB.GetPin()))
 				{
-					NodeList.Add(PinA.GetPin()->GetOwningNode());
+					if (PinA.GetPin() && !PinA.GetPin()->IsPendingKill())
+					{
+						NodeList.Add(PinA.GetPin()->GetOwningNode());
+					}
+					if (PinB.GetPin() && !PinB.GetPin()->IsPendingKill())
+					{
+						NodeList.Add(PinB.GetNode());
+					}
 				}
-				if (PinB.GetPin() && !PinB.GetPin()->IsPendingKill())
+			}
+			else
+			{
+				bError = true;
+			}
+		}
+		break;
+	}
+
+	case EDragMode::RelinkConnection:
+	{
+		const UEdGraphPin* SourceGraphPin = SourcePinHandle.GetPinObj(*GraphPanel);
+		FEdGraphPinHandle SourceGraphPinHandle = SourceGraphPin;
+
+		UEdGraphPin* TargetGraphPin = TargetPinHandle.GetPinObj(*GraphPanel);
+		FEdGraphPinHandle TargetGraphPinHandle = SourceGraphPin;
+
+		FEdGraphPinHandle HoveredGraphPinHandle(GetHoveredPin());
+		UEdGraphPin* HoveredGraphPin = HoveredGraphPinHandle.GetPin();
+		
+		if (SourceGraphPin && TargetGraphPin && HoveredGraphPin)
+		{
+			const UEdGraph* Graph = SourceGraphPinHandle.GetGraph();
+			if (Graph)
+			{
+				const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "GraphEd_RelinkConnection", "Relink Connection"));
+
+				const TArray<UEdGraphNode*> SelectedGraphNodes = GraphPanel->GetSelectedGraphNodes();
+				bError = !Graph->GetSchema()->TryRelinkConnectionTarget(SourceGraphPinHandle.GetPin(), TargetGraphPin, HoveredGraphPinHandle.GetPin(), SelectedGraphNodes);				if (!bError)
 				{
-					NodeList.Add(PinB.GetNode());
+					// Send all nodes that received a new pin connection a notification
+					TArray<FEdGraphPinHandle> ModifiedGraphPinHandles = { SourceGraphPinHandle, TargetGraphPinHandle, HoveredGraphPinHandle };
+					for (const FEdGraphPinHandle& PinHandle : ModifiedGraphPinHandles)
+					{
+						if (PinHandle.GetPin() && !PinHandle.GetPin()->IsPendingKill() && PinHandle.GetNode())
+						{
+							NodeList.Add(PinHandle.GetNode());
+						}
+					}
 				}
 			}
 		}
-		else
-		{
-			bError = true;
-		}
+
+		break;
+	}
 	}
 
 	// Send all nodes that received a new pin connection a notification
@@ -285,6 +385,11 @@ FReply FDragConnection::DroppedOnPin(FVector2D ScreenPosition, FVector2D GraphPo
 
 FReply FDragConnection::DroppedOnNode(FVector2D ScreenPosition, FVector2D GraphPosition)
 {
+	if (DragMode != EDragMode::CreateConnection)
+	{
+		return FReply::Unhandled();
+	}
+
 	bool bHandledPinDropOnNode = false;
 	UEdGraphNode* NodeOver = GetHoveredNode();
 
@@ -339,6 +444,11 @@ FReply FDragConnection::DroppedOnNode(FVector2D ScreenPosition, FVector2D GraphP
 
 FReply FDragConnection::DroppedOnPanel( const TSharedRef< SWidget >& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph)
 {
+	if (DragMode != EDragMode::CreateConnection)
+	{
+		return FReply::Unhandled();
+	}
+
 	// Gather any source drag pins
 	TArray<UEdGraphPin*> PinObjects;
 	ValidateGraphPinList(/*out*/ PinObjects);

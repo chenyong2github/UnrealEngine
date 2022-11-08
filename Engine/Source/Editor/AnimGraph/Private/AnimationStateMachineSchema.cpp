@@ -151,6 +151,7 @@ const FPinConnectionResponse UAnimationStateMachineSchema::CanCreateConnection(c
 	const bool bPinAIsStateNode = PinA->GetOwningNode()->IsA(UAnimStateNodeBase::StaticClass());
 	const bool bPinBIsStateNode = PinB->GetOwningNode()->IsA(UAnimStateNodeBase::StaticClass());
 
+	// Special case handling for entry states: Only allow creating connections starting at the entry state.
 	if (bPinAIsEntry || bPinBIsEntry)
 	{
 		if (bPinAIsEntry && bPinBIsStateNode)
@@ -158,14 +159,8 @@ const FPinConnectionResponse UAnimationStateMachineSchema::CanCreateConnection(c
 			return FPinConnectionResponse(CONNECT_RESPONSE_BREAK_OTHERS_A, TEXT(""));
 		}
 
-		if (bPinBIsEntry && bPinAIsStateNode)
-		{
-			return FPinConnectionResponse(CONNECT_RESPONSE_BREAK_OTHERS_B, TEXT(""));
-		}
-
 		return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, TEXT("Entry must connect to a state node"));
 	}
-
 
 	const bool bPinAIsTransition = PinA->GetOwningNode()->IsA(UAnimStateTransitionNode::StaticClass());
 	const bool bPinBIsTransition = PinB->GetOwningNode()->IsA(UAnimStateTransitionNode::StaticClass());
@@ -268,6 +263,87 @@ bool UAnimationStateMachineSchema::CreateAutomaticConversionNodeAndConnections(U
 	}
 
 	return false;
+}
+
+bool UAnimationStateMachineSchema::TryRelinkConnectionTarget(UEdGraphPin* SourcePin, UEdGraphPin* OldTargetPin, UEdGraphPin* NewTargetPin, const TArray<UEdGraphNode*>& InSelectedGraphNodes) const
+{
+	const FPinConnectionResponse Response = CanCreateConnection(SourcePin, NewTargetPin);
+	if (Response.Response == ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
+	{
+		return false;
+	}
+
+	UAnimStateNodeBase* OldTargetState = Cast<UAnimStateNodeBase>(OldTargetPin->GetOwningNode());
+	UAnimStateNodeBase* NewTargetState = Cast<UAnimStateNodeBase>(NewTargetPin->GetOwningNode());
+	if (OldTargetState == nullptr || OldTargetState->GetInputPin() == nullptr || OldTargetState->GetOutputPin() == nullptr ||
+		NewTargetState == nullptr || NewTargetState->GetInputPin() == nullptr || NewTargetState->GetOutputPin() == nullptr)
+	{
+		return false;
+	}
+
+	// In the case we are relinking the transition starting at the entry state, the SourceState is nullptr. Special case handling.
+	UAnimStateEntryNode* EntryState = Cast<UAnimStateEntryNode>(SourcePin->GetOwningNode());
+	if (EntryState)
+	{
+		// Remove the incoming transition from the previous target state
+		OldTargetPin->Modify();
+		OldTargetPin->LinkedTo.Remove(SourcePin);
+		SourcePin->Modify();
+		SourcePin->LinkedTo.Remove(OldTargetPin);
+
+		// Add the new incoming transition to the new target state
+		TryCreateConnection(SourcePin, NewTargetPin);
+
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(EntryState->GetGraph());
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+
+		return true;
+	}
+
+	// Collect all transition nodes starting at the source state, filter them by the transitions and perform the actual relink operation.
+	const TArray<UAnimStateTransitionNode*> TransitionNodes = UAnimStateTransitionNode::GetListTransitionNodesToRelink(SourcePin, OldTargetPin, InSelectedGraphNodes);
+	for (UAnimStateTransitionNode* TransitionNode : TransitionNodes)
+	{
+		TransitionNode->RelinkHead(NewTargetState);
+	}
+
+	// In case one or more transitions got relinked, inform the blueprint about the changes
+#if WITH_EDITOR
+	if (!TransitionNodes.IsEmpty())
+	{
+		//UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(OneRelinkedTransition->GetBoundGraph());
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(TransitionNodes[0]->GetBoundGraph());
+		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+
+
+		SourcePin->GetOwningNode()->PinConnectionListChanged(SourcePin);
+		OldTargetPin->GetOwningNode()->PinConnectionListChanged(OldTargetPin);
+		NewTargetPin->GetOwningNode()->PinConnectionListChanged(NewTargetPin);
+	}
+#endif//#if WITH_EDITOR
+
+	return true;
+}
+
+bool UAnimationStateMachineSchema::IsConnectionRelinkingAllowed(UEdGraphPin* InPin) const
+{
+	if (!InPin || !InPin->GetOwningNode())
+	{
+		return false;
+	}
+
+	return true;
+}
+
+const FPinConnectionResponse UAnimationStateMachineSchema::CanRelinkConnectionToPin(const UEdGraphPin* OldSourcePin, const UEdGraphPin* TargetPinCandidate) const
+{
+	FPinConnectionResponse Response = CanCreateConnection(OldSourcePin, TargetPinCandidate);
+	if (Response.Response != CONNECT_RESPONSE_DISALLOW)
+	{
+		Response.Message = FText::FromString("Relink transition");
+	}
+
+	return Response;
 }
 
 void UAnimationStateMachineSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const

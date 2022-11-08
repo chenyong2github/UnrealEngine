@@ -109,6 +109,13 @@ public:
 
 	FGraphSplineOverlapResult SplineOverlapResult;
 
+	/** Handle for a currently relinked connection. */
+	struct FRelinkConnection
+	{
+		UEdGraphPin* SourcePin;
+		UEdGraphPin* TargetPin;
+	};
+
 protected:
 	float ZoomFactor; 
 	float HoverDeemphasisDarkFraction;
@@ -119,6 +126,12 @@ protected:
 	TMap<TSharedRef<SWidget>, FArrangedWidget>* PinGeometries;
 	double LastHoverTimeEvent;
 	FVector2D LocalMousePosition;
+
+	/** List of currently relinked connections. */
+	TArray<FRelinkConnection> RelinkConnections;
+
+	/** Selected nodes in the graph panel. */
+	TArray<UEdGraphNode*> SelectedGraphNodes;
 public:
 	virtual ~FConnectionDrawingPolicy() {}
 
@@ -131,6 +144,12 @@ public:
 
 	// Update the drawing policy with the marked pin (which may not be valid)
 	void SetMarkedPin(TWeakPtr<SGraphPin> InMarkedPin);
+
+	// Set the selected nodes from the graph panel.
+	void SetSelectedNodes(const TArray<UEdGraphNode*>& InSelectedNodes) { SelectedGraphNodes = InSelectedNodes; }
+
+	// Set the list of currently relinked connections.
+	void SetRelinkConnections(const TArray<FRelinkConnection>& Connections) { RelinkConnections = Connections; }
 
 	static float MakeSplineReparamTable(const FVector2D& P0, const FVector2D& P0Tangent, const FVector2D& P1, const FVector2D& P1Tangent, FInterpCurve<float>& OutReparamTable);
 
