@@ -851,7 +851,10 @@ protected:
 	/** destructor, just checks the life stage **/
 	virtual ~FBaseGraphTask()
 	{
-		checkThreadGraph(LifeStage.Increment() == int32(LS_Deconstucted));
+#if DO_GUARD_SLOW
+		int32 Stage = LifeStage.Increment();
+		checkf(Stage == int32(LS_Deconstucted), TEXT("LifeStage was %d"), Stage);
+#endif
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
