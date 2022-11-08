@@ -6,6 +6,7 @@
 #include "MLDeformerVizSettings.h"
 #include "MLDeformerAsset.h"
 #include "MLDeformerComponent.h"
+#include "MLDeformerObjectVersion.h"
 #include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
@@ -67,7 +68,6 @@ void UMLDeformerModel::Init(UMLDeformerAsset* InDeformerAsset)
 
 void UMLDeformerModel::Serialize(FArchive& Archive)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerModel::Serialize)
 	#if WITH_EDITOR
 		if (Archive.IsSaving())
 		{
@@ -112,6 +112,13 @@ void UMLDeformerModel::PostLoad()
 
 	if (InputInfo)
 	{
+		// If we are dealing with an input info that doesn't have a skeletal mesh, then use the 
+		// currently set skeletal mesh. This is for backward compatibility, from before we put the skeletal mesh inside the input info.
+		if (InputInfo->GetSkeletalMesh() == nullptr)
+		{
+			InputInfo->SetSkeletalMesh(SkeletalMesh);
+		}
+
 		InputInfo->OnPostLoad();
 	}
 

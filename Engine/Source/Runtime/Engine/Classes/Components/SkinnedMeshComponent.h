@@ -409,6 +409,9 @@ public:
 	/** Do we have a given set of external morph targets? */
 	bool HasExternalMorphSet(int32 LOD, int32 ID) const;
 
+	/** Check whether a given LOD index is valid for the external morph sets. */
+	bool IsValidExternalMorphSetLODIndex(int32 LOD) const;
+
 	/** Get the external morph sets for a given LOD. */
 	const FExternalMorphSets& GetExternalMorphSets(int32 LOD) const { return ExternalMorphSets[LOD]; }
 

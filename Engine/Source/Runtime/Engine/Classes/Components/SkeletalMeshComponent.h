@@ -387,6 +387,9 @@ public:
 	// we want to have reference and emptied during evaluation
 	TArray<FTransform> GetBoneSpaceTransforms();
 
+	/** Get the bone space transforms as array view. */
+	TArrayView<const FTransform> GetBoneSpaceTransformsView();
+
 	/** 
 	 * Temporary array of local-space (relative to parent bone) rotation/translation for each bone. 
 	 * This property is not safe to access during evaluation, so we created wrapper.

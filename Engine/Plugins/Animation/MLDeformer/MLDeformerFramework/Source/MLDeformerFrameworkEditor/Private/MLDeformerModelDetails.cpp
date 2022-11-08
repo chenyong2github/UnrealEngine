@@ -311,9 +311,8 @@ namespace UE::MLDeformer
 
 		// Show a warning when no neural network has been set.
 		{		
-			UNeuralNetwork* NeuralNetwork = Model->GetNeuralNetwork();
 			FDetailWidgetRow& NeuralNetErrorRow = TrainingSettingsCategoryBuilder->AddCustomRow(FText::FromString("NeuralNetError"))
-				.Visibility((NeuralNetwork == nullptr) ? EVisibility::Visible : EVisibility::Collapsed)
+				.Visibility(!EditorModel->IsTrained() ? EVisibility::Visible : EVisibility::Collapsed)
 				.WholeRowContent()
 				[
 					SNew(SBox)
@@ -321,12 +320,12 @@ namespace UE::MLDeformer
 					[
 						SNew(SWarningOrErrorBox)
 						.MessageStyle(EMessageStyle::Warning)
-						.Message(FText::FromString("Model still needs to be trained."))
+						.Message(LOCTEXT("NeedsTraining", "Model still needs to be trained."))
 					]
 				];
 
 			// Check if our network is compatible with the skeletal mesh.
-			if (Model->GetSkeletalMesh() && NeuralNetwork)
+			if (Model->GetSkeletalMesh() && EditorModel->IsTrained())
 			{
 				FDetailWidgetRow& NeuralNetIncompatibleErrorRow = TrainingSettingsCategoryBuilder->AddCustomRow(FText::FromString("NeuralNetIncompatibleError"))
 					.Visibility(!Model->GetInputInfo()->IsCompatible(Model->GetSkeletalMesh()) ? EVisibility::Visible : EVisibility::Collapsed)
@@ -337,11 +336,13 @@ namespace UE::MLDeformer
 						[
 							SNew(SWarningOrErrorBox)
 							.MessageStyle(EMessageStyle::Error)
-							.Message(FText::FromString("Trained neural network is incompatible with selected SkeletalMesh."))
+							.Message(LOCTEXT("TrainingIncompatibleWithSkelMesh", "Trained neural network is incompatible with selected SkeletalMesh."))
 						]
 					];
 			}
 		}
+
+		AddTrainingSettingsErrors();
 	}
 
 	bool FMLDeformerModelDetails::FilterAnimSequences(const FAssetData& AssetData, USkeleton* Skeleton)

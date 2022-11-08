@@ -1,0 +1,120 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "NeuralMorphModelInstance.h"
+#include "NeuralMorphModel.h"
+#include "NeuralMorphNetwork.h"
+#include "MLDeformerAsset.h"
+#include "Components/ExternalMorphSet.h"
+#include "Components/SkeletalMeshComponent.h"
+
+
+void UNeuralMorphModelInstance::Init(USkeletalMeshComponent* SkelMeshComponent)
+{
+	Super::Init(SkelMeshComponent);
+
+#if !NEURALMORPHMODEL_FORCE_USE_NNI
+	UNeuralMorphModel* MorphModel = Cast<UNeuralMorphModel>(Model);
+	UNeuralMorphNetwork* MorphNetwork = MorphModel->GetNeuralMorphNetwork();
+	NetworkInstance = MorphNetwork ? MorphNetwork->CreateInstance() : nullptr;
+#endif
+}
+
+bool UNeuralMorphModelInstance::SetupInputs()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UNeuralMorphModelInstance::SetupInputs)
+
+#if NEURALMORPHMODEL_FORCE_USE_NNI
+	return Super::SetupInputs();
+#else
+	// If we have no neural morph network, fall back to the default NNI path.
+	UNeuralMorphModel* MorphModel = Cast<UNeuralMorphModel>(Model);
+	UNeuralMorphNetwork* MorphNetwork = MorphModel->GetNeuralMorphNetwork();
+	if (MorphNetwork == nullptr)
+	{		
+		return Super::SetupInputs();
+	}
+
+	// Some safety checks.
+	if (SkeletalMeshComponent == nullptr ||
+		SkeletalMeshComponent->GetSkeletalMeshAsset() == nullptr ||
+		!bIsCompatible)
+	{
+		return false;
+	}
+
+	// If the neural network expects a different number of inputs, do nothing.
+	const int64 NumNeuralNetInputs = MorphNetwork->GetNumInputs();
+	const int64 NumDeformerAssetInputs = Model->GetInputInfo()->CalcNumNeuralNetInputs();
+	if (NumNeuralNetInputs != NumDeformerAssetInputs)
+	{
+		return false;
+	}
+
+	// Update and write the input values directly into the input tensor.
+	float* InputDataPointer = NetworkInstance->GetInputs().GetData();
+	const int64 NumFloatsWritten = SetNeuralNetworkInputValues(InputDataPointer, NumNeuralNetInputs);
+	check(NumFloatsWritten == NumNeuralNetInputs);
+
+	return true;
+#endif
+}
+
+void UNeuralMorphModelInstance::Execute(float ModelWeight)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(UNeuralMorphModelInstance::Execute)
+
+#if NEURALMORPHMODEL_FORCE_USE_NNI
+	Super::Execute(ModelWeight);
+	return;
+#else
+	UNeuralMorphModel* MorphModel = Cast<UNeuralMorphModel>(Model);
+	UNeuralMorphNetwork* MorphNetwork = MorphModel->GetNeuralMorphNetwork();
+	if (MorphNetwork == nullptr)
+	{
+		Super::Execute(ModelWeight);
+		return;
+	}
+
+	// Grab the weight data for this morph set.
+	// This could potentially fail if we are applying this deformer to the wrong skeletal mesh component.
+	const int LOD = 0;	// For now we only support LOD 0, as we can't setup an ML Deformer per LOD yet.
+	FExternalMorphSetWeights* WeightData = FindWeightData(LOD);
+	if (WeightData == nullptr)
+	{
+		return;
+	}
+
+	if (!MorphNetwork->IsEmpty())
+	{
+		// Perform inference on the neural network, this updates its output values.
+		NetworkInstance->Run();
+
+		// If our model is active, we want to run the neural network and update the morph weights
+		// with the values that the neural net calculated for us.
+		// Get the network output values, read the values and use them as morph target weights inside the skeletal mesh component.
+		const TArrayView<const float> NetworkOutputs = NetworkInstance->GetOutputs();
+		const int32 NumNetworkWeights = NetworkOutputs.Num();
+		const int32 NumMorphTargets = WeightData->Weights.Num();
+
+		// If we have the expected amount of weights.
+		// +1 because we always have an extra morph target that represents the means, with fixed weight of 1.
+		// Therefore, the neural network output will contain one less float than the number of morph targets in our morph set.
+		if (NumMorphTargets == NumNetworkWeights + 1)
+		{
+			// Set the first morph target, which represents the means, to a weight of 1.0, as it always needs to be fully active.
+			WeightData->Weights[0] = 1.0f * ModelWeight;
+
+			// Update all generated morph target weights with the values calculated by our neural network.
+			for (int32 MorphIndex = 0; MorphIndex < NumNetworkWeights; ++MorphIndex)
+			{
+				const float OutputTensorValue = NetworkOutputs[MorphIndex];
+				WeightData->Weights[MorphIndex + 1] = OutputTensorValue * ModelWeight;
+			}
+			return;
+		}
+	}
+
+	// Set the weights to zero if we have no valid network.
+	WeightData->ZeroWeights();
+#endif
+}

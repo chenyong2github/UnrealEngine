@@ -9,12 +9,26 @@
 class USkeletalMesh;
 class UGeometryCache;
 class UAnimSequence;
+class UNeuralMorphNetwork;
 class UNeuralNetwork;
 class UMLDeformerAsset;
 class UMLDeformerModelInstance;
 class USkeleton;
 struct FExternalMorphSet;
 
+/** Set this to 1 if you like to force to use NNI for inference, rather than the (faster) custom inference, otherwise set to 0. */
+#define NEURALMORPHMODEL_FORCE_USE_NNI 0
+
+/** 
+ * Specify whether we want to use ISPC if available.
+ * You can comment out this line, to force disable the use of ISPC in this plugin.
+ */
+#define NEURALMORPHMODEL_USE_ISPC INTEL_ISPC
+#if !defined(NEURALMORPHMODEL_USE_ISPC)
+	#define NEURALMORPHMODEL_USE_ISPC 0
+#endif
+
+// Declare our log category.
 NEURALMORPHMODEL_API DECLARE_LOG_CATEGORY_EXTERN(LogNeuralMorphModel, Log, All);
 
 /** 
@@ -61,20 +75,28 @@ class NEURALMORPHMODEL_API UNeuralMorphModel
 public:
 	UNeuralMorphModel(const FObjectInitializer& ObjectInitializer);
 
+	// UObject overrides.
+	virtual void Serialize(FArchive& Archive) override;
+	virtual void PostLoad() override;
+	// ~END UObject overrides.
+
 	// UMLDeformerModel overrides.
-	virtual FString GetDisplayName() const override		{ return "Neural Morph Model"; }
+	virtual FString GetDisplayName() const override			{ return "Neural Morph Model"; }
+	virtual UMLDeformerModelInstance* CreateModelInstance(UMLDeformerComponent* Component) override;
 	// ~END UMLDeformerModel overrides.
 
-#if WITH_EDITORONLY_DATA
-	int32 GetLocalNumHiddenLayers() const				{ return LocalNumHiddenLayers; }
-	int32 GetLocalNumNeuronsPerLayer() const			{ return LocalNumNeuronsPerLayer; }
-	int32 GetGlobalNumHiddenLayers() const				{ return GlobalNumHiddenLayers; }
-	int32 GetGlobalNumNeuronsPerLayer() const			{ return GlobalNumNeuronsPerLayer; }
-	int32 GetNumIterations() const						{ return NumIterations; }
-	int32 GetBatchSize() const							{ return BatchSize; }
-	float GetLearningRate() const						{ return LearningRate; }
-	float GetLearningRateDecay() const					{ return LearningRateDecay; }
-	float GetRegularizationFactor() const				{ return RegularizationFactor;  }
+	UNeuralMorphNetwork* GetNeuralMorphNetwork() const		{ return NeuralMorphNetwork.Get(); }
+	void SetNeuralMorphNetwork(UNeuralMorphNetwork* Net)	{ NeuralMorphNetwork = Net; }
+	ENeuralMorphMode GetModelMode() const					{ return Mode; }
+	int32 GetLocalNumHiddenLayers() const					{ return LocalNumHiddenLayers; }
+	int32 GetLocalNumNeuronsPerLayer() const				{ return LocalNumNeuronsPerLayer; }
+	int32 GetGlobalNumHiddenLayers() const					{ return GlobalNumHiddenLayers; }
+	int32 GetGlobalNumNeuronsPerLayer() const				{ return GlobalNumNeuronsPerLayer; }
+	int32 GetNumIterations() const							{ return NumIterations; }
+	int32 GetBatchSize() const								{ return BatchSize; }
+	float GetLearningRate() const							{ return LearningRate; }
+	float GetLearningRateDecay() const						{ return LearningRateDecay; }
+	float GetRegularizationFactor() const					{ return RegularizationFactor;  }
 
 public:
 	/**
@@ -113,7 +135,7 @@ public:
 	 * Higher numbers will slow down performance but can deal with more complex deformations. 
 	 * For the local model you most likely want to stick with a value of one or two.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, DisplayName = "Num Hidden Layers", Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "5"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, DisplayName = "Num Hidden Layers", Category = "Training Settings", meta = (ClampMin = "0", ClampMax = "5"))
 	int32 LocalNumHiddenLayers = 1;
 
 	/** 
@@ -121,11 +143,11 @@ public:
 	 * Higher numbers will slow down performance but allow for more complex mesh deformations. 
 	 * For the local mode you probably want to keep this around the same value as the number of morph targets per bone.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, DisplayName = "Num Neurons Per Layer", Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "100"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, DisplayName = "Num Neurons Per Layer", Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "4096"))
 	int32 LocalNumNeuronsPerLayer = 6;
 
 	/** The number of hidden layers that the neural network model will have.\nHigher numbers will slow down performance but can deal with more complex deformations. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, DisplayName = "Num Hidden Layers", Category = "Training Settings", meta = (ClampMin = "1", ClampMax = "5"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, DisplayName = "Num Hidden Layers", Category = "Training Settings", meta = (ClampMin = "0", ClampMax = "6"))
 	int32 GlobalNumHiddenLayers = 2;
 
 	/** The number of units/neurons per hidden layer. Higher numbers will slow down performance but allow for more complex mesh deformations. */
@@ -155,5 +177,11 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Training Settings", meta = (ClampMin = "0.0", ClampMax = "10.0"))
 	float RegularizationFactor = 1.0f;
-#endif // WITH_EDITORONLY_DATA
+
+	/**
+	 * The neural morph model network.
+	 * This is a specialized network used for inference, for performance reasons.
+	 */
+	UPROPERTY()
+	TObjectPtr<UNeuralMorphNetwork> NeuralMorphNetwork;
 };

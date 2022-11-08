@@ -548,7 +548,8 @@ namespace UE::MLDeformer
 			break;
 
 			// Unhandled error codes.
-			default: check(false);
+			default:
+				checkf(false, TEXT("Unknown error code"));
 		}
 
 		// Show a message window.

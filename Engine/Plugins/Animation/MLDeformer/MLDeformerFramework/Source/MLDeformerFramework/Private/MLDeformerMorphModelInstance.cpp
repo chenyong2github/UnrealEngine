@@ -16,6 +16,11 @@ void UMLDeformerMorphModelInstance::Init(USkeletalMeshComponent* SkelMeshCompone
 	ExternalMorphSetID = NextFreeMorphSetID++;
 }
 
+bool UMLDeformerMorphModelInstance::IsValidForDataProvider() const
+{
+	return true;
+}
+
 void UMLDeformerMorphModelInstance::Release()
 {
 	// Try to unregister the morph target and morph target set.
@@ -93,20 +98,18 @@ void UMLDeformerMorphModelInstance::PostMLDeformerComponentInit()
 FExternalMorphSetWeights* UMLDeformerMorphModelInstance::FindWeightData(int32 LOD) const
 {
 	const UMLDeformerMorphModel* MorphModel = Cast<UMLDeformerMorphModel>(Model);
-	if (MorphModel == nullptr || !SkeletalMeshComponent)
-	{
-		return nullptr;
-	}
+	checkSlow(MorphModel);
 
-	// If we haven't got an external morph set registered yet, let's just return a nullptr.
-	if (!SkeletalMeshComponent->HasExternalMorphSet(LOD, ExternalMorphSetID))
+	// Check if our LOD index is valid first, as we might not have registered yet.
+	USkeletalMeshComponent* SkelMeshComponent = SkeletalMeshComponent.Get();
+	if (SkelMeshComponent == nullptr || !SkelMeshComponent->IsValidExternalMorphSetLODIndex(LOD))
 	{
 		return nullptr;
 	}
 
 	// Grab the weight data for this morph set.
 	// This could potentially fail if we are applying this deformer to the wrong skeletal mesh component.
-	return SkeletalMeshComponent->GetExternalMorphWeights(LOD).MorphSets.Find(ExternalMorphSetID);
+	return SkelMeshComponent->GetExternalMorphWeights(LOD).MorphSets.Find(ExternalMorphSetID);
 }
 
 void UMLDeformerMorphModelInstance::HandleZeroModelWeight()
@@ -124,7 +127,7 @@ void UMLDeformerMorphModelInstance::HandleZeroModelWeight()
 // Run the neural network, which calculates its outputs, which are the weights of our morph targets.
 void UMLDeformerMorphModelInstance::Execute(float ModelWeight)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UNeuralMorphModelInstance::Execute)
+	TRACE_CPUPROFILER_EVENT_SCOPE(UMLDeformerMorphModelInstance::Execute)
 
 	// Grab the weight data for this morph set.
 	// This could potentially fail if we are applying this deformer to the wrong skeletal mesh component.

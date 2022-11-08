@@ -3,6 +3,7 @@
 #include "NeuralMorphEditorModel.h"
 #include "IDetailsView.h"
 #include "NeuralMorphModel.h"
+#include "NeuralMorphNetwork.h"
 #include "MLDeformerMorphModelVizSettings.h"
 #include "NeuralMorphTrainingModel.h"
 #include "MLDeformerEditorToolkit.h"
@@ -40,9 +41,57 @@ namespace UE::NeuralMorphModel
 		}
 	}
 
+	bool FNeuralMorphEditorModel::IsTrained() const
+	{
+#if NEURALMORPHMODEL_FORCE_USE_NNI
+		return GetMorphModel()->GetNeuralNetwork() != nullptr;
+#else
+		return (GetMorphModel()->GetNeuralNetwork() != nullptr) || (GetNeuralMorphModel()->GetNeuralMorphNetwork() != nullptr);
+#endif
+	}
+
 	ETrainingResult FNeuralMorphEditorModel::Train()
 	{
 		return TrainModel<UNeuralMorphTrainingModel>(this);
+	}
+
+	bool FNeuralMorphEditorModel::LoadTrainedNetwork() const
+	{
+#if NEURALMORPHMODEL_FORCE_USE_NNI
+		const bool bSuccess = FMLDeformerMorphModelEditorModel::LoadTrainedNetwork();
+		if (bSuccess)
+		{
+			GetNeuralMorphModel()->SetNeuralMorphNetwork(nullptr);	// Force disable custom inference.
+		}
+		return bSuccess;
+#else
+		// Load the specialized neural morph model network.
+		// Base the filename on the onnx filename, and replace the file extension.
+		FString NetworkFilename = GetTrainedNetworkOnnxFile();
+		NetworkFilename.RemoveFromEnd(TEXT("onnx"));
+		NetworkFilename += TEXT("nmn");
+
+		// Load the actual network.
+		UNeuralMorphNetwork* NeuralNet = NewObject<UNeuralMorphNetwork>(Model);
+		if (!NeuralNet->Load(NetworkFilename))
+		{
+			UE_LOG(LogNeuralMorphModel, Error, TEXT("Failed to load neural morph network from file '%s'!"), *NetworkFilename);
+			NeuralNet = nullptr;
+
+			// Restore the deltas to the ones before training started.
+			GetMorphModel()->SetMorphTargetDeltas(MorphTargetDeltasBackup);
+			return false;
+		}
+
+		if (NeuralNet->IsEmpty())
+		{
+			NeuralNet = nullptr;
+		}
+
+		GetNeuralMorphModel()->SetNeuralNetwork(nullptr);			// Disable NNI inference.
+		GetNeuralMorphModel()->SetNeuralMorphNetwork(NeuralNet);	// Use our custom inference.
+#endif
+		return true;
 	}
 }	// namespace UE::NeuralMorphModel
 

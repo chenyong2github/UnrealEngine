@@ -19,6 +19,10 @@ class MLDEFORMERFRAMEWORK_API UMLDeformerAsset
 	GENERATED_BODY()
 
 public:
+	// UObject overrides.
+	virtual void Serialize(FArchive& Archive) override;
+	// ~END UObject overrides.
+
 	/**
 	 * Get the ML Deformer model that is being applied by this asset.
 	 * @return A pointer to the model.

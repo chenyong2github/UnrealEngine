@@ -4,9 +4,11 @@
 #include "MLDeformerAsset.h"
 #include "MLDeformerModelInstance.h"
 #include "MLDeformerModel.h"
+#include "MLDeformerInputInfo.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/MeshDeformer.h"
 #include "Animation/MeshDeformerInstance.h"
+#include "Engine/SkeletalMesh.h"
 
 UMLDeformerComponent::UMLDeformerComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -145,7 +147,7 @@ USkeletalMeshComponent* UMLDeformerComponent::FindSkeletalMeshComponent(UMLDefor
 		const UMLDeformerModel* Model = Asset ? Asset->GetModel() : nullptr;
 		if (Model && Model->GetSkeletalMesh())
 		{
-			const USkeletalMesh* ModelSkeletalMesh = Model->GetSkeletalMesh();
+			const FSoftObjectPath& ModelSkeletalMesh = Model->GetInputInfo()->GetSkeletalMesh();
 
 			// Get a list of all skeletal mesh components on the actor.
 			TArray<USkeletalMeshComponent*> Components;
@@ -158,7 +160,7 @@ USkeletalMeshComponent* UMLDeformerComponent::FindSkeletalMeshComponent(UMLDefor
 				for (USkeletalMeshComponent* Component : Components)
 				{
 					const USkeletalMesh* ComponentSkeletalMesh = Component->GetSkeletalMeshAsset();
-					if (ComponentSkeletalMesh == ModelSkeletalMesh)
+					if (FSoftObjectPath(ComponentSkeletalMesh) == ModelSkeletalMesh)
 					{
 						ResultingComponent = Component;
 						break;
@@ -190,7 +192,6 @@ void UMLDeformerComponent::UpdateSkeletalMeshComponent()
 void UMLDeformerComponent::Activate(bool bReset)
 {
 	UpdateSkeletalMeshComponent();
-	SetupComponent(DeformerAsset, SkelMeshComponent);
 	Super::Activate(bReset);
 }
 

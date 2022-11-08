@@ -187,12 +187,12 @@ void UMLDeformerModelInstance::UpdateBoneTransforms()
 	{
 		// Grab the transforms from our own skeletal mesh component.
 		// These are local space transforms, relative to the parent bone.
-		BoneTransforms = SkeletalMeshComponent->GetBoneSpaceTransforms();
+		const TArrayView<const FTransform> Transforms = SkeletalMeshComponent->GetBoneSpaceTransformsView();
 		const int32 NumTrainingBones = AssetBonesToSkelMeshMappings.Num();
 		for (int32 Index = 0; Index < NumTrainingBones; ++Index)
 		{
 			const int32 ComponentBoneIndex = AssetBonesToSkelMeshMappings[Index];
-			TrainingBoneTransforms[Index] = BoneTransforms[ComponentBoneIndex];
+			TrainingBoneTransforms[Index] = Transforms[ComponentBoneIndex];
 		}
 	}
 }
@@ -203,28 +203,15 @@ int64 UMLDeformerModelInstance::SetBoneTransforms(float* OutputBuffer, int64 Out
 	// These are in the space relative to their parent.
 	UpdateBoneTransforms();
 
-	// Write the transforms into the output buffer.
-	const UMLDeformerInputInfo* InputInfo = Model->GetInputInfo();
-	const int32 AssetNumBones = InputInfo->GetNumBones();
-	int64 Index = StartIndex;
+	// Make sure we don't write past the OutputBuffer. Six, because of two columns of the 3x3 rotation matrix.
+	const int32 AssetNumBones = Model->GetInputInfo()->GetNumBones();
+	checkfSlow((StartIndex + AssetNumBones * 6) <= OutputBufferSize, TEXT("Writing bones past the end of the input buffer."));
 
-	// Make sure we don't write past the OutputBuffer. (6 because of two columns of the 3x3 rotation matrix)
-	checkf((Index + AssetNumBones * 6) <= OutputBufferSize, TEXT("Writing bones past the end of the input buffer."));
+	// Write 6 floats to the buffer, for each bone.
+	UMLDeformerInputInfo::RotationToTwoVectorsAsSixFloats(TrainingBoneTransforms, OutputBuffer + StartIndex);
 
-	for (int32 BoneIndex = 0; BoneIndex < AssetNumBones; ++BoneIndex)
-	{
-		const FMatrix RotationMatrix = TrainingBoneTransforms[BoneIndex].GetRotation().ToMatrix();
-		const FVector X = RotationMatrix.GetColumn(0);
-		const FVector Y = RotationMatrix.GetColumn(1);	
-		OutputBuffer[Index++] = X.X;
-		OutputBuffer[Index++] = X.Y;
-		OutputBuffer[Index++] = X.Z;
-		OutputBuffer[Index++] = Y.X;
-		OutputBuffer[Index++] = Y.Y;
-		OutputBuffer[Index++] = Y.Z;
-	}
-
-	return Index;
+	// Return the new buffer offset, where we stopped writing.
+	return StartIndex + AssetNumBones * 6;
 }
 
 int64 UMLDeformerModelInstance::SetCurveValues(float* OutputBuffer, int64 OutputBufferSize, int64 StartIndex)
@@ -260,8 +247,6 @@ int64 UMLDeformerModelInstance::SetCurveValues(float* OutputBuffer, int64 Output
 
 int64 UMLDeformerModelInstance::SetNeuralNetworkInputValues(float* InputData, int64 NumInputFloats)
 {
-	check(SkeletalMeshComponent);
-
 	// Feed data to the network inputs.
 	int64 BufferOffset = 0;
 	if (Model->DoesSupportBones())

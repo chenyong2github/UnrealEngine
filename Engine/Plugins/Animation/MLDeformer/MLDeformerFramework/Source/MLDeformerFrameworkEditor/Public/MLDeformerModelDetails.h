@@ -68,6 +68,9 @@ namespace UE::MLDeformer
 		/** Add additional training input errors. */
 		virtual void AddTrainingInputErrors() {}
 
+		/** Add training settings errors. */
+		virtual void AddTrainingSettingsErrors() {}
+
 		/** Is the "include bones" checkbox visible? */
 		virtual bool IsBonesFlagVisible() const;
 

@@ -29,6 +29,7 @@ public:
 	virtual void Release() override;
 	virtual void Execute(float ModelWeight) override;
 	virtual void HandleZeroModelWeight() override;
+	virtual bool IsValidForDataProvider() const override;
 	// ~END UMLDeformerModelInstance overrides.
 
 	int32 GetExternalMorphSetID() const { return ExternalMorphSetID; }

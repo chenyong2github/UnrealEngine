@@ -59,8 +59,8 @@ void UNearestNeighborModelInputInfo::ExtractBoneRotations(USkeletalMeshComponent
 int32 UNearestNeighborModelInputInfo::CalcNumNeuralNetInputs() const
 {
     return 
-        BoneNameStrings.Num() * 3 + // Three floats per bone.
-        CurveNameStrings.Num();     // One float per curve.
+        BoneNames.Num() * 3 + // Three floats per bone.
+        CurveNames.Num();     // One float per curve.
 }
 
 void UNearestNeighborModelInputInfo::InitRefBoneRotations(USkeletalMesh* SkelMesh)

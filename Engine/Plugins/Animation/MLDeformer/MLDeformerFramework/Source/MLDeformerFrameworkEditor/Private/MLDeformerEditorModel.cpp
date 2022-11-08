@@ -966,14 +966,13 @@ namespace UE::MLDeformer
 	{
 		InputInfo->Reset();
 
-		TArray<FString>& BoneNameStrings = InputInfo->GetBoneNameStrings();
-		TArray<FString>& CurveNameStrings = InputInfo->GetCurveNameStrings();
 		TArray<FName>& BoneNames = InputInfo->GetBoneNames();
 		TArray<FName>& CurveNames = InputInfo->GetCurveNames();
+
 		USkeletalMesh* SkeletalMesh = Model->GetSkeletalMesh();
+		InputInfo->SetSkeletalMesh(SkeletalMesh);
 
 		BoneNames.Reset();
-		BoneNameStrings.Reset();
 		CurveNames.Reset();
 
 		InputInfo->SetNumBaseVertices(Model->GetNumBaseMeshVerts());
@@ -992,11 +991,10 @@ namespace UE::MLDeformer
 			{
 				// Grab all bone names.
 				const int32 NumBones = RefSkeleton.GetNum();
-				BoneNameStrings.Reserve(NumBones);
+				BoneNames.Reserve(NumBones);
 				for (int32 Index = 0; Index < NumBones; ++Index)
 				{
 					const FName BoneName = RefSkeleton.GetBoneName(Index);
-					BoneNameStrings.Add(BoneName.ToString());
 					BoneNames.Add(BoneName);
 				}
 			}
@@ -1013,7 +1011,6 @@ namespace UE::MLDeformer
 							continue;
 						}
 
-						BoneNameStrings.Add(BoneName.ToString());
 						BoneNames.Add(BoneName);
 					}
 				}
@@ -1031,11 +1028,6 @@ namespace UE::MLDeformer
 				if (Model->GetCurveIncludeList().IsEmpty())
 				{
 					SmartNameMapping->FillNameArray(CurveNames);
-					CurveNameStrings.Reserve(CurveNames.Num());
-					for (const FName Name : CurveNames)
-					{
-						CurveNameStrings.Add(Name.ToString());
-					}
 				}
 				else // A list of curve names was provided.
 				{
@@ -1050,13 +1042,16 @@ namespace UE::MLDeformer
 								continue;
 							}
 
-							CurveNameStrings.Add(CurveName.ToString());
 							CurveNames.Add(CurveName);
 						}
 					}
 				}
 			}
 		}
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		InputInfo->UpdateNameStrings();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	void FMLDeformerEditorModel::InitBoneIncludeListToAnimatedBonesOnly()
@@ -1616,9 +1611,9 @@ namespace UE::MLDeformer
 
 		// Initialize an engine morph target for each model morph target.
 		UE_LOG(LogMLDeformer, Display, TEXT("Initializing %d engine morph targets of %d vertices each"), NumMorphTargets, Deltas.Num() / NumMorphTargets);
-		for (int32 BlendShapeIndex = 0; BlendShapeIndex < NumMorphTargets; ++BlendShapeIndex)
+		for (int32 MorphTargetIndex = 0; MorphTargetIndex < NumMorphTargets; ++MorphTargetIndex)
 		{
-			const FName MorphName = *FString::Printf(TEXT("%s%.3d"), *NamePrefix, BlendShapeIndex);
+			const FName MorphName = *FString::Printf(TEXT("%s%.3d"), *NamePrefix, MorphTargetIndex);
 			UMorphTarget* MorphTarget = NewObject<UMorphTarget>(SkelMesh, MorphName);
 			MorphTarget->BaseSkelMesh = SkelMesh;
 			OutMorphTargets.Add(MorphTarget);
@@ -1650,7 +1645,7 @@ namespace UE::MLDeformer
 				const int32 ImportedVertexNumber = VertexMap[VertexIndex];
 				if (ImportedVertexNumber != INDEX_NONE)
 				{
-					const FVector3f Delta = Deltas[ImportedVertexNumber + BlendShapeIndex * NumBaseMeshVerts];
+					const FVector3f Delta = Deltas[ImportedVertexNumber + MorphTargetIndex * NumBaseMeshVerts];
 					if (Delta.Length() > DeltaThreshold)
 					{
 						MorphLODModel.Vertices.AddDefaulted();

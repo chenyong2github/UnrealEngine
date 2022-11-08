@@ -25,18 +25,17 @@ public:
 	virtual ~UMLDeformerInputInfo() = default;
 
 	/**
-	 * This method is executed post loading.
-	 * On default it will initialize the FNames based on the bone and curve string based names.
+	 * This method is executed post loading of the ML Deformer asset.
 	 */
 	virtual void OnPostLoad();
 
 	/**
 	 * Check whether the current inputs are compatible with a given skeletal mesh.
-	 * @param SkeletalMesh The skeletal mesh to check compatibility with. This may not be a nullptr.
+	 * @param InSkeletalMesh The skeletal mesh to check compatibility with. This may not be a nullptr.
 	 * @return Returns true when we can safely apply the ML Deformer to a character using this skeletal mesh, otherwise false is returned.
 	 * @note Use GenerateCompatibilityErrorString to get the error report.
 	 */
-	virtual bool IsCompatible(USkeletalMesh* SkeletalMesh) const;
+	virtual bool IsCompatible(USkeletalMesh* InSkeletalMesh) const;
 
 	/**
 	 * Clear all contents.
@@ -46,17 +45,11 @@ public:
 
 	/**
 	 * Get the compatibility error report.
-	 * @param SkeletalMesh The skeletal mesh to check compatibility with.
+	 * @param InSkeletalMesh The skeletal mesh to check compatibility with.
 	 * @return Returns an empty string in case there are no compatibility issues, otherwise it contains a string that describes the issue(s).
 	 *         In case a nullptr is passed as SkeletalMesh parameter, an empty string is returned.
 	 */
-	virtual FString GenerateCompatibilityErrorString(USkeletalMesh* SkeletalMesh) const;
-
-	/** 
-	 * Update the FName arrays based on the name string arrays.
-	 * This is automatically called on PostLoad of the UMLDeformerAsset.
-	 */
-	virtual void UpdateFNames();
+	virtual FString GenerateCompatibilityErrorString(USkeletalMesh* InSkeletalMesh) const;
 
 	/**
 	 * Check whether we have any training inputs or not.
@@ -79,36 +72,17 @@ public:
 	int32 GetNumBones() const;
 
 	/**
-	 * Get the bone name as a string, for a given bone we included during training.
-	 * @param Index The bone index, which is a number in range of [0..GetNumBones()-1].
-	 * @result The name of the bone.
-	 */
-	const FString& GetBoneNameString(int32 Index) const;
-
-	/**
 	 * Get the bone name as an FName, for a given bone we included during training.
 	 * @param Index The bone index, which is a number in range of [0..GetNumBones()-1].
 	 * @result The name of the bone.
 	 */
-	const FName GetBoneName(int32 Index) const;
+	FName GetBoneName(int32 Index) const;
 
 	/**
 	 * Get the number of curves that we trained on.
 	 * @return The number of curves.
 	 */
 	int32 GetNumCurves() const;
-
-	/**
-	 * Get the list of bone names that should be included as training inputs.
-	 * @return An array of strings, one for each bone name.
-	 */
-	TArray<FString>& GetBoneNameStrings();
-
-	/**
-	 * Get the list of curve names that should be included as training inputs.
-	 * @return An array of strings, one for each curve name.
-	 */
-	TArray<FString>& GetCurveNameStrings();
 
 	/**
 	 * Get the list of bone names that should be included as training inputs.
@@ -123,18 +97,25 @@ public:
 	TArray<FName>& GetCurveNames();
 
 	/**
-	 * Get the curve name as a string, for a given bone we included during training.
-	 * @param Index The curve index, which is a number in range of [0..GetNumCurves()-1].
-	 * @result The name of the curve.
-	 */
-	const FString& GetCurveNameString(int32 Index) const;
-
-	/**
 	 * Get the curve name as an FName, for a given curve we included during training.
 	 * @param Index The curve index, which is a number in range of [0..GetNumCurves()-1].
 	 * @result The name of the curve.
 	 */
-	const FName GetCurveName(int32 Index) const;
+	FName GetCurveName(int32 Index) const;
+
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.2, "Please use GetBoneNames instead.")
+	TArray<FString>& GetBoneNameStrings()						{ return BoneNameStrings_DEPRECATED; }
+
+	UE_DEPRECATED(5.2, "Please use GetCurveNames instead.")
+	TArray<FString>& GetCurveNameStrings()						{ return CurveNameStrings_DEPRECATED; }
+
+	UE_DEPRECATED(5.2, "Please use GetBoneName instead.")
+	const FString& GetBoneNameString(int32 Index) const			{ return BoneNameStrings_DEPRECATED[Index]; }
+
+	UE_DEPRECATED(5.2, "Please use GetCurveName instead.")
+	const FString& GetCurveNameString(int32 Index) const		{ return CurveNameStrings_DEPRECATED[Index]; }
+#endif
 
 	/** 
 	 * Extract the curve values for all curves we're interested in.
@@ -142,6 +123,19 @@ public:
 	 * @param OutValues The array to write the values to. This array will be reset/resized by this method.
 	 */
 	virtual void ExtractCurveValues(USkeletalMeshComponent* SkelMeshComponent, TArray<float>& OutValues) const;
+
+	/**
+	 * Batch convert a set of transform rotation quaternions into two column vectors.
+	 * 
+	 */
+	static void RotationToTwoVectorsAsSixFloats(TArrayView<FTransform> Transforms, float* OutputBuffer);
+
+	/**
+	 * Convert a rotation quaternion to two basis vectors, each represented as 3 floats, so 6 floats in total.
+	 * @param Rotation The rotation quaternion to convert into the six float values.
+	 * @param SixFloatsOutputBuffer The float buffer that we will write the 6 floats to. Make sure this buffer is at least 6 floats large.
+	 */
+	static void RotationToTwoVectorsAsSixFloats(const FQuat& Rotation, float* SixFloatsOutputBuffer);
 
 	/**
 	 * Extract bone space rotations, as a float array.
@@ -179,17 +173,47 @@ public:
 	 */
 	void SetNumTargetVertices(int32 NumVerts);
 
+	/** 
+	 * Get the path to the skeletal mesh that this deformer was trained on.
+	 * @return The path to the skeletal mesh we used during training.
+	 */
+	const FSoftObjectPath& GetSkeletalMesh() const;
+
+	/**
+	 * Set skeletal mesh that we trained on.
+	 * @param InSkeletalMesh A pointer to the skeletal mesh.
+	 */
+	void SetSkeletalMesh(USkeletalMesh* InSkeletalMesh);
+
+	UE_DEPRECATED(5.2, "This method will be removed soon. Please only use the BoneNames and CurveNames and not their string versions.")
+	void UpdateNameStrings();
+
+	UE_DEPRECATED(5.2, "This method will be removed soon. It shouldn't be needed anymore.")
+	void UpdateFNames();
+
 protected:
+	/**
+	 * The path to the skeletal mesh that this model was trained on.
+	 */
+	UPROPERTY()	
+	FSoftObjectPath SkeletalMesh;
+
+#if WITH_EDITORONLY_DATA
+	/** The list of bone names, but as string. This is deprecated since UE 5.2. */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use BoneNames instead."))
+	TArray<FString> BoneNameStrings_DEPRECATED;
+
+	/** The list of curve names, but as string. This is deprecated since UE 5.2. */
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use CurveNames instead."))
+	TArray<FString> CurveNameStrings_DEPRECATED;
+#endif
+
 	/** 
 	 * The name of each bone. The inputs to the network are in the order of this array.
 	 * So if the array contains ["Root", "Child1", "Child2"] then the first bone transforms that we 
 	 * input to the neural network is the transform for "Root", followed by "Child1", followed by "Child2".
 	 */
 	UPROPERTY()
-	TArray<FString> BoneNameStrings;
-
-	/** The same as the BoneNames member, but stored as pre-created FName objects. These are not serialized. */
-	UPROPERTY(Transient)
 	TArray<FName> BoneNames;
 
 	/**
@@ -198,10 +222,6 @@ protected:
 	 * input to the neural network is the one for "Smile", followed by "LeftEyeClosed", followed by "RightEyeClosed".
 	 */
 	UPROPERTY()
-	TArray<FString> CurveNameStrings;
-
-	/** The same as the CurveNames member, but stored as pre-created FName objects. These are not serialized. */
-	UPROPERTY(Transient)
 	TArray<FName> CurveNames;
 
 	/** Number of imported base mesh vertices, so not render vertices. */
