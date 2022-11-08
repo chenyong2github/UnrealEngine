@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "GenericTeamAgentInterface.h"
+#include "WorldCollision.h"
 #include "Misc/MTAccessDetector.h"
 #include "Perception/AISense.h"
 #include "AISense_Sight.generated.h"
@@ -81,19 +82,54 @@ struct FAISightQuery
 	/** User data that can be used inside the IAISightTargetInterface::CanBeSeenFrom method to store a persistence state */ 
 	mutable int32 UserData; 
 
-	uint64 bLastResult:1;
-	uint64 LastProcessedFrameNumber :63;
+	union
+	{
+		/**
+		 * We can share the memory for these values because they aren't used at the same time :
+		 * - The FrameInfo is used when the query is queued for an update at a later frame. It stores the last time the
+		 *   query was processed so that we can prioritize it accordingly against the other queries
+		 * - The TraceInfo is used when the query has requested a asynchronous trace and is waiting for the result.
+		 *   The engine guarantees that we'll get the info at the next frame, but since we can have multiple queries that
+		 *   are pending at the same time, we need to store some information to identify them when receiving the result callback
+		 */
+
+		struct  
+		{
+			uint64 bLastResult:1;
+			uint64 LastProcessedFrameNumber:63;
+		} FrameInfo;
+
+		/**
+		 * The 'FrameNumber' value can increase indefinitely while the 'Index' represents the number of queries that were
+		 * already requested during this frame. So it shouldn't reach high values in the allocated 32 bits.
+		 * Thanks to that we can reliable only use 31 bits for this value and thus have space to keep the bLastResult value
+		 */
+		struct
+		{
+			uint32 bLastResult:1;
+			uint32 Index:31;
+			uint32 FrameNumber;
+		} TraceInfo;
+	};
 
 	FAISightQuery(FPerceptionListenerID ListenerId = FPerceptionListenerID::InvalidID(), FAISightTarget::FTargetId Target = FAISightTarget::InvalidTargetId)
-		: ObserverId(ListenerId), TargetId(Target), Score(0), Importance(0), LastSeenLocation(FAISystem::InvalidLocation), UserData(0), bLastResult(false), LastProcessedFrameNumber(GFrameCounter)
+		: ObserverId(ListenerId), TargetId(Target), Score(0), Importance(0), LastSeenLocation(FAISystem::InvalidLocation), UserData(0)
 	{
+		FrameInfo.bLastResult = false;
+		FrameInfo.LastProcessedFrameNumber = GFrameCounter;
 	}
 
+	/**
+	 * Note: This should only be called on queries that are queued up for later processing (in SightQueriesOutOfRange or SightQueriesOutOfRange)
+	 */
 	float GetAge() const
 	{
-		return (float)(GFrameCounter - LastProcessedFrameNumber);
+		return (float)(GFrameCounter - FrameInfo.LastProcessedFrameNumber);
 	}
 
+	/**
+	 * Note: This should only be called on queries that are queued up for later processing (in SightQueriesOutOfRange or SightQueriesOutOfRange)
+	 */
 	void RecalcScore()
 	{
 		Score = GetAge() + Importance;
@@ -101,13 +137,33 @@ struct FAISightQuery
 
 	void OnProcessed()
 	{
-		LastProcessedFrameNumber = GFrameCounter;
+		FrameInfo.LastProcessedFrameNumber = GFrameCounter;
 	}
 
 	void ForgetPreviousResult()
 	{
 		LastSeenLocation = FAISystem::InvalidLocation;
-		bLastResult = false;
+		SetLastResult(false);
+	}
+
+	bool GetLastResult() const
+	{
+		return FrameInfo.bLastResult;
+	}
+
+	void SetLastResult(const bool bValue)
+	{
+		FrameInfo.bLastResult = bValue;
+	}
+
+	/**
+	* Note: This only be called for pending queries because it will erase the LastProcessedFrameNumber value
+	*/
+	void SetTraceInfo(const FTraceHandle& TraceHandle)
+	{
+		check((TraceHandle._Data.Index & (static_cast<uint32>(1) << 31)) == 0);
+		TraceInfo.Index = TraceHandle._Data.Index;
+		TraceInfo.FrameNumber = TraceHandle._Data.FrameNumber;
 	}
 
 	class FSortPredicate
@@ -213,9 +269,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "AI Perception", config)
 	float PendingQueriesBudgetReductionRatio;
 
+	/** Defines if we are allowed to use asynchronous trace queries when there is no IAISightTargetInterface for a Target */
+	UPROPERTY(EditDefaultsOnly, Category = "AI Perception", config)
+	bool bUseAsynchronousTraceForDefaultSightQueries;
+
 	ECollisionChannel DefaultSightCollisionChannel;
 
-	FOnPendingVisibilityQueryProcessedDelegate OnPendingVisibilityQueryProcessedDelegate;
+	FOnPendingVisibilityQueryProcessedDelegate OnPendingCanBeSeenQueryProcessedDelegate;
+	FTraceDelegate OnPendingTraceQueryProcessedDelegate;
 
 	UE_MT_DECLARE_RW_ACCESS_DETECTOR(QueriesListAccessDetector);
 
@@ -234,10 +295,12 @@ public:
 protected:
 	virtual float Update() override;
 
-	EVisibilityResult ComputeVisibility(const UWorld* World, FAISightQuery& SightQuery, FPerceptionListener& Listener, const AActor* ListenerActor, FAISightTarget& Target, AActor* TargetActor, const FDigestedSightProperties& PropDigest, float& OutStimulusStrength, FVector& OutSeenLocation, int32& OutNumberOfLoSChecksPerformed, int32& OutNumberOfAsyncLosCheckRequested) const;
+	EVisibilityResult ComputeVisibility(UWorld* World, FAISightQuery& SightQuery, FPerceptionListener& Listener, const AActor* ListenerActor, FAISightTarget& Target, AActor* TargetActor, const FDigestedSightProperties& PropDigest, float& OutStimulusStrength, FVector& OutSeenLocation, int32& OutNumberOfLoSChecksPerformed, int32& OutNumberOfAsyncLosCheckRequested) const;
 	virtual bool ShouldAutomaticallySeeTarget(const FDigestedSightProperties& PropDigest, FAISightQuery* SightQuery, FPerceptionListener& Listener, AActor* TargetActor, float& OutStimulusStrength) const;
 	void UpdateQueryVisibilityStatus(FAISightQuery& SightQuery, FPerceptionListener& Listener, const bool bIsVisible, const FVector& SeenLocation, const float StimulusStrength, AActor* TargetActor, const FVector& TargetLocation) const;
-	void OnPendingVisibilityQueryProcessed(const FAISightQueryID& QueryID, const bool bIsVisible, const float StimulusStrength, const FVector& SeenLocation, const TOptional<int32>& UserData);
+	void OnPendingCanBeSeenQueryProcessed(const FAISightQueryID& QueryID, const bool bIsVisible, const float StimulusStrength, const FVector& SeenLocation, const TOptional<int32>& UserData);
+	void OnPendingTraceQueryProcessed(const FTraceHandle& TraceHandle, FTraceDatum& TraceDatum);
+	void OnPendingQueryProcessed(const int32 SightQueryIndex, const bool bIsVisible, const float StimulusStrength, const FVector& SeenLocation, const TOptional<int32>& UserData, const TOptional<AActor*> InTargetActor = NullOpt);
 
 	void OnNewListenerImpl(const FPerceptionListener& NewListener);
 	void OnListenerUpdateImpl(const FPerceptionListener& UpdatedListener);
