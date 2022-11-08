@@ -60,26 +60,6 @@ TSharedPtr<const FMassEntityManager> UTypedElementDatabase::GetActiveEditorEntit
 	return ActiveEditorEntityManager;
 }
 
-FTypedElementOnDataStorageCreation& UTypedElementDatabase::OnCreation()
-{
-	return OnCreationDelegate;
-}
-
-FTypedElementOnDataStorageDestruction& UTypedElementDatabase::OnDestruction()
-{
-	return OnDestructionDelegate;
-}
-
-FTypedElementOnDataStorageUpdate& UTypedElementDatabase::OnUpdate()
-{
-	return OnUpdateDelegate;
-}
-
-bool UTypedElementDatabase::IsAvailable() const
-{
-	return ActiveEditorWorld && ActiveEditorEntityManager;
-}
-
 TypedElementTableHandle UTypedElementDatabase::RegisterTable(TConstArrayView<const UScriptStruct*> ColumnList)
 {
 	return RegisterTable(ColumnList, {});
@@ -158,14 +138,226 @@ void UTypedElementDatabase::RemoveRow(TypedElementRowHandle Row)
 	}
 }
 
-void* UTypedElementDatabase::GetColumnData(TypedElementRowHandle Row, const UScriptStruct* ColumnType)
+void UTypedElementDatabase::AddTag(TypedElementRowHandle Row, const UScriptStruct* TagType)
 {
-	check(ColumnType);
+	checkf(TagType && TagType->IsChildOf(FMassTag::StaticStruct()),
+		TEXT("Tag type '%s' is invalid as it needs to be set or derived from FMassTag."), *GetPathNameSafe(TagType));
 
 	FMassEntityHandle Entity = FMassEntityHandle::FromNumber(Row);
-	return ActiveEditorEntityManager && ActiveEditorEntityManager->IsEntityValid(Entity) ?
-		ActiveEditorEntityManager->GetFragmentDataStruct(FMassEntityHandle::FromNumber(Row), ColumnType).GetMutableMemory() :
-		nullptr;
+	if (ActiveEditorEntityManager && ActiveEditorEntityManager->IsEntityValid(Entity))
+	{
+		ActiveEditorEntityManager->AddTagToEntity(Entity, TagType);
+	}
+}
+
+void UTypedElementDatabase::AddTag(TypedElementRowHandle Row, FTopLevelAssetPath TagName)
+{
+	bool bExactMatch = true;
+	UScriptStruct* TagStructInfo = Cast<UScriptStruct>(StaticFindObject(UScriptStruct::StaticClass(), TagName, bExactMatch));
+	if (TagStructInfo)
+	{
+		AddTag(Row, TagStructInfo);
+	}
+}
+
+void* UTypedElementDatabase::AddOrGetColumnData(TypedElementRowHandle Row, const UScriptStruct* ColumnType)
+{
+	checkf(ColumnType && ColumnType->IsChildOf(FMassFragment::StaticStruct()), 
+		TEXT("Colum type '%s' is invalid as it needs to be set or derived from FMassFragment."), *GetPathNameSafe(ColumnType));
+
+	FMassEntityHandle Entity = FMassEntityHandle::FromNumber(Row);
+	if (ActiveEditorEntityManager && ActiveEditorEntityManager->IsEntityValid(Entity))
+	{
+		FStructView Column = ActiveEditorEntityManager->GetFragmentDataStruct(Entity, ColumnType);
+		if (!Column.IsValid())
+		{
+			ActiveEditorEntityManager->AddFragmentToEntity(Entity, ColumnType);
+			Column = ActiveEditorEntityManager->GetFragmentDataStruct(Entity, ColumnType);
+			checkf(Column.IsValid(), TEXT("Added a new column to the Typed Element's data storae, but it couldn't be retrieved."));
+
+		}
+		return Column.GetMutableMemory();
+	}
+	return nullptr;
+}
+
+ColumnDataResult UTypedElementDatabase::AddOrGetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName)
+{
+	constexpr bool bExactMatch = true;
+	UScriptStruct* FragmentStructInfo = Cast<UScriptStruct>(StaticFindObject(UScriptStruct::StaticClass(), ColumnName, bExactMatch));
+	return FragmentStructInfo ?
+		ColumnDataResult{ FragmentStructInfo, AddOrGetColumnData(Row, FragmentStructInfo) }:
+		ColumnDataResult{ nullptr, nullptr };
+}
+
+ColumnDataResult UTypedElementDatabase::AddOrGetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName,
+	TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments)
+{
+	ColumnDataResult Result = AddOrGetColumnData(Row, ColumnName);
+	if (Result.Description && Result.Data)
+	{
+		TypedElement::ColumnUtils::SetColumnValues(Result.Data, Result.Description, Arguments);
+		return Result;
+	}
+	else
+	{
+		return ColumnDataResult{ nullptr, nullptr };
+	}
+}
+
+void* UTypedElementDatabase::GetColumnData(TypedElementRowHandle Row, const UScriptStruct* ColumnType)
+{
+	checkf(ColumnType && ColumnType->IsChildOf(FMassFragment::StaticStruct()),
+		TEXT("Colum type '%s' is invalid as it needs to be set or derived from FMassFragment."), *GetPathNameSafe(ColumnType));
+
+	FMassEntityHandle Entity = FMassEntityHandle::FromNumber(Row);
+	if (ActiveEditorEntityManager && ActiveEditorEntityManager->IsEntityValid(Entity))
+	{
+		FStructView Column = ActiveEditorEntityManager->GetFragmentDataStruct(Entity, ColumnType);
+		if (Column.IsValid())
+		{
+			return Column.GetMutableMemory();
+		}
+	}
+	return nullptr;
+}
+
+ColumnDataResult UTypedElementDatabase::GetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName)
+{
+	FMassEntityHandle Entity = FMassEntityHandle::FromNumber(Row);
+	if (ActiveEditorEntityManager && ActiveEditorEntityManager->IsEntityValid(Entity))
+	{
+		const UScriptStruct* FragmentType = nullptr;
+		FMassArchetypeHandle Archetype = ActiveEditorEntityManager->GetArchetypeForEntityUnsafe(Entity);
+		ActiveEditorEntityManager->ForEachArchetypeFragmentType(Archetype, 
+			[ColumnName, &FragmentType](const UScriptStruct* Fragment)
+			{
+				if (Fragment->GetStructPathName() == ColumnName)
+				{
+					FragmentType = Fragment;
+				}
+			});
+
+		if (FragmentType != nullptr)
+		{
+			FStructView Column = ActiveEditorEntityManager->GetFragmentDataStruct(Entity, FragmentType);
+			if (Column.IsValid())
+			{
+				return ColumnDataResult{ FragmentType, Column.GetMutableMemory() };
+			}
+		}
+	}
+	return ColumnDataResult{ nullptr, nullptr };
+}
+
+TypedElementQueryHandle UTypedElementDatabase::RegisterQuery(const QueryDescription& Query)
+{
+	auto LocalToNativeAccess = [](QueryDescription::EAccessType Access) -> EMassFragmentAccess
+	{
+		switch (Access)
+		{
+		case QueryDescription::EAccessType::ReadOnly:
+			return EMassFragmentAccess::ReadOnly;
+		case QueryDescription::EAccessType::ReadWrite:
+			return EMassFragmentAccess::ReadWrite;
+		default:
+			checkf(false, TEXT("Invalid query access type: %i."), static_cast<uint32>(Access));
+			return EMassFragmentAccess::MAX;
+		}
+	};
+
+	QueryStore::Handle Result = Queries.Emplace();
+	FMassEntityQuery& NativeQuery = Queries.GetMutable(Result).NativeQuery;
+
+	for (const QueryDescription::AccessControlledStruct& SelectEntry : Query.Selection)
+	{
+		checkf(SelectEntry.Type, TEXT("Provided query selection type can not be null."));
+		checkf(SelectEntry.Type->IsChildOf(FMassFragment::StaticStruct()), 
+			TEXT("Provided query selection type '%s' is not based on FMassFragment."), *SelectEntry.Type->GetStructPathName().ToString());
+		NativeQuery.AddRequirement(SelectEntry.Type, LocalToNativeAccess(SelectEntry.Access));
+	}
+
+	if (Query.bSimpleQuery) // This backend currently only supports simple queries.
+	{
+		checkf(Query.ConditionTypes.Num() == Query.ConditionOperators.Num(),
+			TEXT("The types and operators for a typed element query have gone out of sync."));
+		
+		const QueryDescription::Operator* Operand = Query.ConditionOperators.GetData();
+		for (QueryDescription::OperatorType Type : Query.ConditionTypes)
+		{
+			EMassFragmentPresence Presence;
+			switch (Type)
+			{
+			case QueryDescription::OperatorType::SimpleAll:
+				Presence = EMassFragmentPresence::All;
+				break;
+			case QueryDescription::OperatorType::SimpleAny:
+				Presence = EMassFragmentPresence::Any;
+				break;
+			case QueryDescription::OperatorType::SimpleNone:
+				Presence = EMassFragmentPresence::None;
+				break;
+			default:
+				continue;
+			}
+
+			if (Operand->Type->IsChildOf(FMassTag::StaticStruct()))
+			{
+				NativeQuery.AddTagRequirement(*(Operand->Type), Presence);
+			}
+			else if (Operand->Type->IsChildOf(FMassFragment::StaticStruct()))
+			{
+				NativeQuery.AddRequirement(Operand->Type, EMassFragmentAccess::None, Presence);
+			}
+
+			++Operand;
+		}
+	}
+
+	for (const QueryDescription::AccessControlledClass& DependencyEntry : Query.Dependencies)
+	{
+		checkf(DependencyEntry.Type, TEXT("Provided query dependcy type can not be null."));
+		checkf(DependencyEntry.Type->IsChildOf<UWorldSubsystem>(),
+			TEXT("Provided query dependency type '%s' is not based on UWorldSubSystem."), *DependencyEntry.Type->GetStructPathName().ToString());
+		
+		constexpr bool bGameThreadOnly = true;
+		NativeQuery.AddSubsystemRequirement(const_cast<UClass*>(DependencyEntry.Type), LocalToNativeAccess(DependencyEntry.Access), bGameThreadOnly);
+	}
+
+	return Result.Handle;
+}
+
+void UTypedElementDatabase::UnregisterQuery(TypedElementQueryHandle Query)
+{
+	QueryStore::Handle Handle;
+	Handle.Handle = Query;
+
+	if (Queries.IsAlive(Handle))
+	{
+		Queries.Get(Handle).NativeQuery.Clear();
+	}
+
+	Queries.Remove(Handle);
+}
+
+FTypedElementOnDataStorageCreation& UTypedElementDatabase::OnCreation()
+{
+	return OnCreationDelegate;
+}
+
+FTypedElementOnDataStorageDestruction& UTypedElementDatabase::OnDestruction()
+{
+	return OnDestructionDelegate;
+}
+
+FTypedElementOnDataStorageUpdate& UTypedElementDatabase::OnUpdate()
+{
+	return OnUpdateDelegate;
+}
+
+bool UTypedElementDatabase::IsAvailable() const
+{
+	return ActiveEditorWorld && ActiveEditorEntityManager;
 }
 
 void* UTypedElementDatabase::GetExternalSystemAddress(UClass* Target)

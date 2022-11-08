@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "Containers/ContainersFwd.h"
 #include "Delegates/Delegate.h"
+#include "Elements/Framework/TypedElementColumnUtils.h"
 #include "Math/NumericLimits.h"
 #include "UObject/Interface.h"
 #include "UObject/NameTypes.h"
@@ -14,10 +16,20 @@
 class UClass;
 class UScriptStruct;
 
+struct ColumnDataResult
+{
+	/** Pointer to the structure that holds the description of the returned data. */
+	const UScriptStruct* Description;
+	/** Pointer to the column data. The type is guaranteed to match type described in Description. */
+	void* Data;
+};
+
 using TypedElementTableHandle = uint64;
 static constexpr auto TypedElementInvalidTableHandle = TNumericLimits<TypedElementTableHandle>::Max();
 using TypedElementRowHandle = uint64;
 static constexpr auto TypedElementInvalidRowHandle = TNumericLimits<TypedElementRowHandle>::Max();
+using TypedElementQueryHandle = uint64;
+static constexpr auto TypedElementInvalidQueryHandle = TNumericLimits<TypedElementQueryHandle>::Max();
 
 using FTypedElementOnDataStorageCreation = FSimpleMulticastDelegate;
 using FTypedElementOnDataStorageDestruction = FSimpleMulticastDelegate;
@@ -37,6 +49,135 @@ class TYPEDELEMENTFRAMEWORK_API ITypedElementDataStorageInterface
 
 public:
 	/**
+	 * @section Table management
+	 * 
+	 * @description
+	 * Tables are automatically created by taking an existing table and adding/removing columns. For
+	 * performance its however better to create a table before adding objects to the table. This
+	 * doesn't prevent those objects from having columns added/removed at a later time.
+	 * To make debugging and profiling easier it's also recommended to give tables a name.
+	 */
+
+	/** Creates a new table for with the provided columns. Optionally a name can be given which is useful for retrieval later. */
+	virtual TypedElementTableHandle RegisterTable(TConstArrayView<const UScriptStruct*> ColumnList) = 0;
+	virtual TypedElementTableHandle RegisterTable(TConstArrayView<const UScriptStruct*> ColumnList, const FName Name) = 0;
+
+	
+	/**
+	 * @section Row management
+	 */
+
+	/** Adds a new row to the provided table. */
+	virtual TypedElementRowHandle AddRow(TypedElementTableHandle Table) = 0;
+	virtual TypedElementRowHandle AddRow(FName TableName) = 0;
+	
+	/**
+	 * Add multiple rows at once. For each new row the OnCreated callback is called. Callers are expected to use the callback to
+	 * initialize the row if needed.
+	 */
+	virtual bool BatchAddRow(TypedElementTableHandle Table, int32 Count, TypedElementDataStorageCreationCallbackRef OnCreated) = 0;
+	virtual bool BatchAddRow(FName TableName, int32 Count, TypedElementDataStorageCreationCallbackRef OnCreated) = 0;
+	
+	/** Removes a previously added row. */
+	virtual void RemoveRow(TypedElementRowHandle Row) = 0;
+
+	
+	/**
+	 * @section Column management
+	 */
+
+	/** Adds a tag to a row or does nothing if already added. */
+	virtual void AddTag(TypedElementRowHandle Row, const UScriptStruct* TagType) = 0;
+	virtual void AddTag(TypedElementRowHandle Row, FTopLevelAssetPath TagName) = 0;
+	
+	/** Adds a new column to a row. If the column already exists it will be returned instead. */
+	virtual void* AddOrGetColumnData(TypedElementRowHandle Row, const UScriptStruct* ColumnType) = 0;
+	virtual ColumnDataResult AddOrGetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) = 0;
+	
+	/**
+	 * Sets the data of a column using the provided argument bag. This is only meant for simple initialization for 
+	 * fragments that use UPROPERTY to expose properties. For complex initialization or when the fragment type is known
+	 * it's recommende to use call that work directly on the type for better performance and a wider range of configuration options.
+	 */
+	virtual ColumnDataResult AddOrGetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName,
+		TConstArrayView<TypedElement::ColumnUtils::Argument> Arguments) = 0;
+	
+	/** Retrieves a pointer to the column of the given row or a nullptr if not found. */
+	virtual void* GetColumnData(TypedElementRowHandle Row, const UScriptStruct* ColumnType) = 0;
+	virtual ColumnDataResult GetColumnData(TypedElementRowHandle Row, FTopLevelAssetPath ColumnName) = 0;
+	
+
+	/**
+	 * @section Query
+	 * @description
+	 * Queries can be constructed using the Query Builder. Note that the Query Builder allows for the creation of queries that
+	 * are more complex than the backend may support. The backend is allowed to simplify the query, in which case the query
+	 * can be used directly in the processor to do additional filtering. This will however impact performance and it's 
+	 * therefore recommended to try to simplify the query first before relying on extended query filtering in a processor.
+	 */
+	struct QueryDescription final
+	{
+		using OperatorIndex = int32;
+		enum class OperatorType
+		{
+			SimpleAll,			// Unary: Type
+			SimpleAny,			// Unary: Type
+			SimpleNone,			// Unary: Type
+			SimpleOptional,		// Unary: Type
+			And,				// Binary: left operator index, right operator index
+			Or,					// Binary: left operator index, right operator index
+			Not,				// Unary: condition index
+			Type				// Unary: Type
+		};
+
+		struct BinaryOperator final
+		{
+			OperatorIndex Left;
+			OperatorIndex Right;
+		};
+		
+		union Operator
+		{
+			BinaryOperator Binary;
+			OperatorIndex Unary;
+			const UScriptStruct* Type;
+		};
+
+		enum class EAccessType { ReadOnly, ReadWrite };
+
+		struct AccessControlledStruct
+		{
+			AccessControlledStruct() = default;
+			inline AccessControlledStruct(const UScriptStruct* Type, EAccessType Access) : Type(Type), Access(Access) {}
+
+			const UScriptStruct* Type;
+			EAccessType Access;
+		};
+
+		struct AccessControlledClass
+		{
+			AccessControlledClass() = default;
+			inline AccessControlledClass(const UClass* Type, EAccessType Access) : Type(Type), Access(Access) {}
+
+			const UClass* Type;
+			EAccessType Access;
+		};
+
+		TArray<AccessControlledStruct, TInlineAllocator<16>> Selection;
+		TArray<OperatorType, TInlineAllocator<32>> ConditionTypes;
+		TArray<Operator, TInlineAllocator<32>> ConditionOperators;
+		TArray<AccessControlledClass, TInlineAllocator<4>> Dependencies;
+		/** If true, this query only has simple operations and is guaranteed to be executed fully and at optimal performance. */
+		bool bSimpleQuery{ false };
+	};
+	virtual TypedElementQueryHandle RegisterQuery(const QueryDescription& Query) = 0;
+	virtual void UnregisterQuery(TypedElementQueryHandle Query) = 0;
+	
+	/**
+	 * @section Misc
+	 */
+	
+	/**
 	 * Delegate that will be called when the data storage has been created. For various reasons the data storage
 	 * can be destroyed and recreated during the lifetime of the editor. This delegate allows for the opportunity
 	 * to register for this event so information such as table definitions can be registered again.
@@ -45,11 +186,13 @@ public:
 	 * delegate.
 	 */
 	virtual FTypedElementOnDataStorageCreation& OnCreation() = 0;
+	
 	/**
 	 * Delegate that will be called when the data storage is about to be destroyed. This can be use as an opportunity
 	 * to store any data in the data storage before it becomes unavailable.
 	 */
 	virtual FTypedElementOnDataStorageDestruction& OnDestruction() = 0;
+	
 	/**
 	 * Called periodically when the storage is available. This provides an opportunity to do any repeated processing
 	 * for the data storage.
@@ -62,43 +205,11 @@ public:
 	 */
 	virtual bool IsAvailable() const = 0;
 
-	/**
-	 * Tables are automatically created by taking an existing table and adding/removing columns. For
-	 * performance its however better to create a tables before hand and add objects to the table. This
-	 * doesn't prevent those objects from having columns added/removed at a later time.
-	 * To make debugging and profiling easier it's also recommended to add a name.
-	 */
-	virtual TypedElementTableHandle RegisterTable(TConstArrayView<const UScriptStruct*> ColumnList) = 0;
-	virtual TypedElementTableHandle RegisterTable(TConstArrayView<const UScriptStruct*> ColumnList, const FName Name) = 0;
-
-	/**
-	 * Adds a row to a table.
-	 */
-	virtual TypedElementRowHandle AddRow(TypedElementTableHandle Table) = 0;
-	virtual TypedElementRowHandle AddRow(FName TableName) = 0;
-	/**
-	 * Add multiple rows at once. For each new row the OnCreated callback is called. Callers are expected to use the callback to
-	 * initialize the row if needed.
-	 */
-	virtual bool BatchAddRow(TypedElementTableHandle Table, int32 Count, TypedElementDataStorageCreationCallbackRef OnCreated) = 0;
-	virtual bool BatchAddRow(FName TableName, int32 Count, TypedElementDataStorageCreationCallbackRef OnCreated) = 0;
-	
-	/**
-	 * Removes a previously added row.
-	 */
-	virtual void RemoveRow(TypedElementRowHandle Row) = 0;
-
-	/**
-	 * Retrieves a pointer to the column of the given row or a nullptr if not found.
-	 */
-	virtual void* GetColumnData(TypedElementRowHandle Row, const UScriptStruct* ColumnType) = 0;
-
-	/**
-	 * Returns a pointer to the registered external system if found, otherwise null.
-	 */
+	/** Returns a pointer to the registered external system if found, otherwise null. */
 	virtual void* GetExternalSystemAddress(UClass* Target) = 0;
 
 	
+
 	/**
 	 *
 	 * The following are utility functions that are not part of the interface but are provided in order to make using the
@@ -107,20 +218,47 @@ public:
 	 */
 	
 	
+	/** Adds a tag to a row or does nothing if already added. */
+	template<typename TagType>
+	void AddTag();
+	
 	/**
-	 * Returns a pointer to the column of the given row or a nullptr if the type couldn't be found or the row doesn't exist.
+	 * Returns a pointer to the column of the given row or creates a new one if not found. Optionally arguments can be provided
+	 * to update or initialize the column's data.
 	 */
+	template<typename ColumnType, typename... Args>
+	ColumnType* AddOrGetColumn(TypedElementRowHandle Row, Args... Arguments);
+	
+	/** Returns a pointer to the column of the given row or a nullptr if the type couldn't be found or the row doesn't exist. */
 	template<typename ColumnType>
 	ColumnType* GetColumn(TypedElementRowHandle Row);
 
-	/**
-	 * Returns a pointer to the registered external system if found, otherwise null.
-	 */
+	/** Returns a pointer to the registered external system if found, otherwise null. */
 	template<typename SystemType>
 	SystemType* GetExternalSystem();
 };
 
 // Implementations
+template<typename TagType>
+void ITypedElementDataStorageInterface::AddTag()
+{
+	AddTag(TagType::StaticStruct());
+}
+
+template<typename ColumnType, typename... Args>
+ColumnType* ITypedElementDataStorageInterface::AddOrGetColumn(TypedElementRowHandle Row, Args... Arguments)
+{
+	auto* Result = reinterpret_cast<ColumnType*>(AddOrGetColumnData(Row, ColumnType::StaticStruct()));
+	if constexpr (sizeof...(Arguments) > 0)
+	{
+		if (Result)
+		{
+			new(Result) ColumnType{ Forward<Arguments>... };
+		}
+	}
+	return Result;
+}
+
 template<typename ColumnType>
 ColumnType* ITypedElementDataStorageInterface::GetColumn(TypedElementRowHandle Row)
 {
