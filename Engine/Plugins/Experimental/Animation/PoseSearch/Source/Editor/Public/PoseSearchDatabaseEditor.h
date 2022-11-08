@@ -59,7 +59,8 @@ namespace UE::PoseSearch
 		TSharedRef<SDockTab> SpawnTab_PreviewSettings(const FSpawnTabArgs& Args);
 		TSharedRef<SDockTab> SpawnTab_AssetTreeView(const FSpawnTabArgs& Args);
 		TSharedRef<SDockTab> SpawnTab_SelectionDetails(const FSpawnTabArgs& Args);
-
+		TSharedRef<SDockTab> SpawnTab_StatisticsOverview(const FSpawnTabArgs& Args) const;
+		
 		void BindCommands();
 		void ExtendToolbar();
 		void FillToolbar(FToolBarBuilder& ToolbarBuilder);
@@ -77,6 +78,8 @@ namespace UE::PoseSearch
 
 		TArray<TSharedPtr<IDetailsView>> SelectionWidgets;
 
+		TSharedPtr<IDetailsView> StatisticsOverviewWidget;
+		
 		TSharedPtr<FDatabasePreviewScene> PreviewScene;
 
 		TSharedPtr<FDatabaseViewModel> ViewModel;

@@ -48,60 +48,58 @@ void UPoseSearchDatabaseBlendSpaceReflection::PostEditChangeProperty(
 
 #endif // WITH_EDITOR
 
-FText FPoseSearchDatabaseMemoryStats::ToMemoryBudgetText(int32 Size)
+void UPoseSearchDatabaseStatistics::Initialize(const UPoseSearchDatabase* PoseSearchDatabase)
 {
-	if (Size < 1024)
-	{
-		return FText::Format(LOCTEXT("FPoseSearchDatabaseMemoryStats_Bytes", "{0} Bytes"), Size);
-	}
-
-	if (Size < 1024 * 1024)
-	{
-		return FText::Format(LOCTEXT("FPoseSearchDatabaseMemoryStats_KiloBytes", "{0} Kb"), Size / float(1024));
-	}
-
-	return FText::Format(LOCTEXT("FPoseSearchDatabaseMemoryStats_MegaBytes", "{0} Mb"), Size / float(1024 * 1024));
-}
-
-void FPoseSearchDatabaseMemoryStats::Initialize(const UPoseSearchDatabase* PoseSearchDatabase)
-{
-	const FPoseSearchIndex* SearchIndexSafe = PoseSearchDatabase->GetSearchIndexSafe();
-	check(SearchIndexSafe);
-
-	const int32 ValuesBytesSize = SearchIndexSafe->Values.GetAllocatedSize();
-	const int32 PCAValuesBytesSize = SearchIndexSafe->PCAValues.GetAllocatedSize();
-	const int32 KDTreeBytesSize = SearchIndexSafe->KDTree.GetAllocatedSize();
-	const int32 PoseMetadataBytesSize = SearchIndexSafe->PoseMetadata.GetAllocatedSize();
-	const int32 AssetsBytesSize = SearchIndexSafe->Assets.GetAllocatedSize();
-
-	const int32 OtherBytesSize = SearchIndexSafe->PCAProjectionMatrix.GetAllocatedSize() +
-							SearchIndexSafe->Mean.GetAllocatedSize() +
-							SearchIndexSafe->WeightsSqrt.GetAllocatedSize();
+	static FText TimeFormat = LOCTEXT("TimeFormat", "{0} {0}|plural(one=Second,other=Seconds)");
 	
-	const int32 EstimatedDatabaseBytesSize = ValuesBytesSize + PCAValuesBytesSize + KDTreeBytesSize + PoseMetadataBytesSize + AssetsBytesSize + OtherBytesSize;
-
-	ValuesSize = ToMemoryBudgetText(ValuesBytesSize);
-	PCAValuesSize = ToMemoryBudgetText(PCAValuesBytesSize);
-	KDTreeSize = ToMemoryBudgetText(KDTreeBytesSize);
-	PoseMetadataSize = ToMemoryBudgetText(PoseMetadataBytesSize);
-	AssetsSize = ToMemoryBudgetText(AssetsBytesSize);
-	EstimatedDatabaseSize = ToMemoryBudgetText(EstimatedDatabaseBytesSize);
-}
-
-void UPoseSearchDatabaseReflection::Initialize(const UPoseSearchDatabase* PoseSearchDatabase)
-{
 	if (PoseSearchDatabase)
 	{
-		const FPoseSearchIndex* SearchIndexSafe = PoseSearchDatabase->GetSearchIndexSafe();
-		if (SearchIndexSafe)
+		if (const FPoseSearchIndex* SearchIndexSafe = PoseSearchDatabase->GetSearchIndexSafe())
 		{
-			SearchIndex = *SearchIndexSafe;
-			MemoryStats.Initialize(PoseSearchDatabase);
-		}
-		else
-		{
-			SearchIndex = FPoseSearchIndex();
-			MemoryStats = FPoseSearchDatabaseMemoryStats();
+			// General information
+	
+			AnimationSequences = PoseSearchDatabase->Sequences.Num();
+			
+			TotalAnimationPosesInFrames = SearchIndexSafe->NumPoses;
+			TotalAnimationPosesInTime = FText::Format(TimeFormat, static_cast<double>(SearchIndexSafe->NumPoses) / PoseSearchDatabase->Schema->SampleRate);
+			
+			{
+				uint32 NumOfSearchablePoses = 0;
+				for (const FPoseSearchPoseMetadata & PoseMetadata : SearchIndexSafe->PoseMetadata)
+				{
+					NumOfSearchablePoses += PoseMetadata.Flags != EPoseSearchPoseFlags::BlockTransition;
+				}
+				
+				SearchableFrames = NumOfSearchablePoses;
+				SearchableTime = FText::Format(TimeFormat, static_cast<double>(NumOfSearchablePoses) / PoseSearchDatabase->Schema->SampleRate);
+			}
+			
+			// Velocity information
+	
+			// TODO: Set values once they can be queried from the PoseSearchIndex.
+			
+			// Principal Component Analysis
+			
+			ExplainedVariance = SearchIndexSafe->PCAExplainedVariance;
+			
+			// Memory information
+			
+			{
+				const uint32 ValuesBytesSize = SearchIndexSafe->Values.GetAllocatedSize();
+				const uint32 PCAValuesBytesSize = SearchIndexSafe->PCAValues.GetAllocatedSize();
+				const uint32 KDTreeBytesSize = SearchIndexSafe->KDTree.GetAllocatedSize();
+				const uint32 PoseMetadataBytesSize = SearchIndexSafe->PoseMetadata.GetAllocatedSize();
+				const uint32 AssetsBytesSize = SearchIndexSafe->Assets.GetAllocatedSize();
+				const uint32 OtherBytesSize = SearchIndexSafe->PCAProjectionMatrix.GetAllocatedSize() + SearchIndexSafe->Mean.GetAllocatedSize() + SearchIndexSafe->WeightsSqrt.GetAllocatedSize();
+				const uint32 EstimatedDatabaseBytesSize = ValuesBytesSize + PCAValuesBytesSize + KDTreeBytesSize + PoseMetadataBytesSize + AssetsBytesSize + OtherBytesSize;
+				
+				ValuesSize = FText::AsMemory(ValuesBytesSize);
+				PCAValuesSize = FText::AsMemory(PCAValuesBytesSize);
+				KDTreeSize = FText::AsMemory(KDTreeBytesSize);
+				PoseMetadataSize = FText::AsMemory(PoseMetadataBytesSize);
+				AssetsSize = FText::AsMemory(AssetsBytesSize);
+				EstimatedDatabaseSize = FText::AsMemory(EstimatedDatabaseBytesSize);
+			}
 		}
 	}
 }

@@ -24,7 +24,7 @@
 namespace UE::PoseSearch
 {
 	const FName PoseSearchDatabaseEditorAppName = FName(TEXT("PoseSearchDatabaseEditorApp"));
-	constexpr int32 SelectionDetailsCount = 3; // sequence, blendspace, group
+	constexpr int32 SelectionDetailsCount = 2; // sequence, blendspace
 	constexpr double ViewRangeSlack = 0.25;
 
 	// Tab identifiers
@@ -35,6 +35,7 @@ namespace UE::PoseSearch
 		static const FName PreviewSettingsID;
 		static const FName AssetTreeViewID;
 		static const FName SelectionDetailsID;
+		static const FName StatisticsOverview;
 	};
 
 	const FName FDatabaseEditorTabs::AssetDetailsID(TEXT("PoseSearchDatabaseEditorAssetDetailsTabID"));
@@ -42,7 +43,8 @@ namespace UE::PoseSearch
 	const FName FDatabaseEditorTabs::PreviewSettingsID(TEXT("PoseSearchDatabaseEditorPreviewSettingsTabID"));
 	const FName FDatabaseEditorTabs::AssetTreeViewID(TEXT("PoseSearchDatabaseEditorAssetTreeViewTabID"));
 	const FName FDatabaseEditorTabs::SelectionDetailsID(TEXT("PoseSearchDatabaseEditorSelectionDetailsID"));
-
+	const FName FDatabaseEditorTabs::StatisticsOverview(TEXT("PoseSearchDatabaseEditorStatisticsOverviewID"));
+	
 	FDatabaseEditor::FDatabaseEditor()
 	{
 	}
@@ -135,32 +137,37 @@ namespace UE::PoseSearch
 		ViewModel->Initialize(DatabaseAsset, PreviewScene.ToSharedRef());
 
 		// Create viewport widget
-		FDatabasePreviewRequiredArgs PreviewArgs(
-			StaticCastSharedRef<FDatabaseEditor>(AsShared()),
-			PreviewScene.ToSharedRef());
-		PreviewWidget = SNew(SDatabasePreview, PreviewArgs)
-			.SliderScrubTime_Lambda([this]() { return ViewModel->GetPlayTime(); })
-			.SliderViewRange_Lambda([this]() 
-			{ 
-				return TRange<double>(-ViewRangeSlack, ViewModel->GetMaxPreviewPlayLength() + ViewRangeSlack);
-			})
-			.OnSliderScrubPositionChanged_Lambda([this](float NewScrubPosition, bool bScrubbing)
-			{
-				ViewModel->SetPlayTime(NewScrubPosition, !bScrubbing);
-			})
-			.OnBackwardEnd_Raw(this, &FDatabaseEditor::PreviewBackwardEnd)
-			.OnBackwardStep_Raw(this, &FDatabaseEditor::PreviewBackwardStep)
-			.OnBackward_Raw(this, &FDatabaseEditor::PreviewBackward)
-			.OnPause_Raw(this, &FDatabaseEditor::PreviewPause)
-			.OnForward_Raw(this, &FDatabaseEditor::PreviewForward)
-			.OnForwardStep_Raw(this, &FDatabaseEditor::PreviewForwardStep)
-			.OnForwardEnd_Raw(this, &FDatabaseEditor::PreviewForwardEnd);
+		{
+			FDatabasePreviewRequiredArgs PreviewArgs(
+				StaticCastSharedRef<FDatabaseEditor>(AsShared()),
+				PreviewScene.ToSharedRef());
+			
+			PreviewWidget = SNew(SDatabasePreview, PreviewArgs)
+				.SliderScrubTime_Lambda([this]() { return ViewModel->GetPlayTime(); })
+				.SliderViewRange_Lambda([this]() 
+				{ 
+					return TRange<double>(-ViewRangeSlack, ViewModel->GetMaxPreviewPlayLength() + ViewRangeSlack);
+				})
+				.OnSliderScrubPositionChanged_Lambda([this](float NewScrubPosition, bool bScrubbing)
+				{
+					ViewModel->SetPlayTime(NewScrubPosition, !bScrubbing);
+				})
+				.OnBackwardEnd_Raw(this, &FDatabaseEditor::PreviewBackwardEnd)
+				.OnBackwardStep_Raw(this, &FDatabaseEditor::PreviewBackwardStep)
+				.OnBackward_Raw(this, &FDatabaseEditor::PreviewBackward)
+				.OnPause_Raw(this, &FDatabaseEditor::PreviewPause)
+				.OnForward_Raw(this, &FDatabaseEditor::PreviewForward)
+				.OnForwardStep_Raw(this, &FDatabaseEditor::PreviewForwardStep)
+				.OnForwardEnd_Raw(this, &FDatabaseEditor::PreviewForwardEnd);
+		}
 
+		// Create asset tree widget
 		AssetTreeWidget = SNew(SDatabaseAssetTree, ViewModel.ToSharedRef());
 		AssetTreeWidget->RegisterOnSelectionChanged(
 			SDatabaseAssetTree::FOnSelectionChanged::CreateSP(
 				this,
 				&FDatabaseEditor::OnAssetTreeSelectionChanged));
+		
 		if (IsValid(DatabaseAsset))
 		{
 			DatabaseAsset->RegisterOnAssetChange(
@@ -172,38 +179,77 @@ namespace UE::PoseSearch
 					AssetTreeWidget.Get(),
 					&SDatabaseAssetTree::RefreshTreeView, false, false));
 		}
-
+		
 		// Create Asset Details widget
-		FPropertyEditorModule& PropertyModule = 
-			FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-		FDetailsViewArgs DatabaseDetailsArgs;
+		// Database details widget
 		{
-			DatabaseDetailsArgs.bHideSelectionTip = true;
-			DatabaseDetailsArgs.NotifyHook = this;
+			FDetailsViewArgs DatabaseDetailsArgs;
+			{
+				DatabaseDetailsArgs.bHideSelectionTip = true;
+				DatabaseDetailsArgs.NotifyHook = this;
+			}
+
+			EditingAssetWidget = PropertyModule.CreateDetailView(DatabaseDetailsArgs);
+			EditingAssetWidget->SetObject(DatabaseAsset);
+		}
+		
+		// Selection details widgets
+		{
+			FDetailsViewArgs SelectionDetailsArgs;
+			{
+				SelectionDetailsArgs.bHideSelectionTip = true;
+				SelectionDetailsArgs.NotifyHook = this;
+				SelectionDetailsArgs.bShowScrollBar = false;
+			}
+			
+			SelectionWidgets.Reset(SelectionDetailsCount);
+			for (int32 i = 0; i < SelectionDetailsCount; ++i)
+			{
+				TSharedPtr<IDetailsView>& SelectionWidget = 
+					SelectionWidgets.Add_GetRef(PropertyModule.CreateDetailView(SelectionDetailsArgs));
+				SelectionWidget->SetObject(nullptr);
+				SelectionWidget->OnFinishedChangingProperties().AddSP(
+					this,
+					&FDatabaseEditor::OnFinishedChangingSelectionProperties);
+			}
 		}
 
-		EditingAssetWidget = PropertyModule.CreateDetailView(DatabaseDetailsArgs);
-		EditingAssetWidget->SetObject(DatabaseAsset);
-
-		FDetailsViewArgs SelectionDetailsArgs;
+		// Statistics details widgets
 		{
-			SelectionDetailsArgs.bHideSelectionTip = true;
-			SelectionDetailsArgs.NotifyHook = this;
-			SelectionDetailsArgs.bShowScrollBar = false;
-		}
+			FDetailsViewArgs StatisticsOverviewDetailsArgs;
+			{
+				StatisticsOverviewDetailsArgs.bHideSelectionTip = true;
+				StatisticsOverviewDetailsArgs.NotifyHook = this;
+				StatisticsOverviewDetailsArgs.bAllowSearch = false;
+			}
+			
+			StatisticsOverviewWidget = PropertyModule.CreateDetailView(StatisticsOverviewDetailsArgs);
+			StatisticsOverviewWidget->SetObject(nullptr);
 
-		SelectionWidgets.Reset(SelectionDetailsCount);
-		for (int32 i = 0; i < SelectionDetailsCount; ++i)
-		{
-			TSharedPtr<IDetailsView>& SelectionWidget = 
-				SelectionWidgets.Add_GetRef(PropertyModule.CreateDetailView(SelectionDetailsArgs));
-			SelectionWidget->SetObject(nullptr);
-			SelectionWidget->OnFinishedChangingProperties().AddSP(
-				this,
-				&FDatabaseEditor::OnFinishedChangingSelectionProperties);
-		}
+			// Ensure statistics information get updated/populated
+			if (DatabaseAsset)
+			{
+				const auto UpdateStatisticsInformationLambda = [this]()
+				{
+					UPoseSearchDatabaseStatistics* Statistics = NewObject<UPoseSearchDatabaseStatistics>();
+					Statistics->AddToRoot();
+					Statistics->Initialize(GetPoseSearchDatabase());
+					StatisticsOverviewWidget->SetObject(Statistics);
+				};
 
+				// Init statistics
+				UpdateStatisticsInformationLambda();
+
+				// Ensure any database changes are reflected
+				DatabaseAsset->RegisterOnAssetChange(UPoseSearchDatabase::FOnAssetChange::CreateLambda(UpdateStatisticsInformationLambda));
+				DatabaseAsset->RegisterOnGroupChange(UPoseSearchDatabase::FOnGroupChange::CreateLambda(UpdateStatisticsInformationLambda));
+				DatabaseAsset->RegisterOnDerivedDataRebuild(UPoseSearchDatabase::FOnDerivedDataRebuild::CreateLambda(UpdateStatisticsInformationLambda));
+				// TODO: Register to delegate that gets triggered after the DerivedData has been rebuilt.
+			}
+		}
+		
 		// Define Editor Layout
 		const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout =
 		FTabManager::NewLayout("Standalone_PoseSearchDatabaseEditor_Layout_v0.07")
@@ -250,6 +296,12 @@ namespace UE::PoseSearch
 								->SetSizeCoefficient(0.3f)
 								->AddTab(FDatabaseEditorTabs::SelectionDetailsID, ETabState::OpenedTab)
 								->AddTab(FDatabaseEditorTabs::PreviewSettingsID, ETabState::OpenedTab)
+							)
+							->Split
+							(
+								FTabManager::NewStack()
+								->SetSizeCoefficient(0.5f)
+								->AddTab(FDatabaseEditorTabs::StatisticsOverview, ETabState::OpenedTab)
 							)
 						)
 					)
@@ -349,6 +401,13 @@ namespace UE::PoseSearch
 			.SetDisplayName(LOCTEXT("SelectionDetailsTab", "Selection Details"))
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
+
+		InTabManager->RegisterTabSpawner(
+		FDatabaseEditorTabs::StatisticsOverview,
+		FOnSpawnTab::CreateSP(this, &FDatabaseEditor::SpawnTab_StatisticsOverview))
+		.SetDisplayName(LOCTEXT("StatisticsOverviewTab", "Statistics Overview"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
 	}
 
 	void FDatabaseEditor::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -360,6 +419,7 @@ namespace UE::PoseSearch
 		InTabManager->UnregisterTabSpawner(FDatabaseEditorTabs::PreviewSettingsID);
 		InTabManager->UnregisterTabSpawner(FDatabaseEditorTabs::AssetTreeViewID);
 		InTabManager->UnregisterTabSpawner(FDatabaseEditorTabs::SelectionDetailsID);
+		InTabManager->UnregisterTabSpawner(FDatabaseEditorTabs::StatisticsOverview);
 	}
 
 	FName FDatabaseEditor::GetToolkitFName() const
@@ -470,6 +530,21 @@ namespace UE::PoseSearch
 			];
 	}
 
+	TSharedRef<SDockTab> FDatabaseEditor::SpawnTab_StatisticsOverview(const FSpawnTabArgs& Args) const
+	{
+		check(Args.GetTabId() == FDatabaseEditorTabs::StatisticsOverview);
+		
+		return SNew(SDockTab)
+		.Label(LOCTEXT("StatisticsOverview_Title", "Statistics Overview"))
+		[
+			SNew(SScrollBox)
+			+SScrollBox::Slot()
+			[
+				StatisticsOverviewWidget.ToSharedRef()
+			]
+		];
+	}
+
 	void FDatabaseEditor::OnFinishedChangingSelectionProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 	{
 		// @todo: BuildSearchIndex is already called, but it'd be better to perform it from here
@@ -484,8 +559,7 @@ namespace UE::PoseSearch
 		{
 			SequenceSelectionIndex = 0,
 			BlendSpaceSelectionIndex = 1,
-			GroupSelectionIndex = 2,
-			SelectionTypeCount = 3
+			SelectionTypeCount = 2
 		};
 
 		TArray<TArray<TWeakObjectPtr<UObject>>> SelectionReflections;
@@ -510,14 +584,6 @@ namespace UE::PoseSearch
 					NewSelectionReflection->BlendSpace = GetPoseSearchDatabase()->BlendSpaces[SelectedItem->SourceAssetIdx];
 					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
 					SelectionReflections[BlendSpaceSelectionIndex].Add(NewSelectionReflection);
-				}
-				else
-				{
-					UPoseSearchDatabaseReflection* NewSelectionReflection = NewObject<UPoseSearchDatabaseReflection>();
-					NewSelectionReflection->AddToRoot();
-					NewSelectionReflection->Initialize(GetPoseSearchDatabase());
-					NewSelectionReflection->SetSourceLink(SelectedItem, AssetTreeWidget);
-					SelectionReflections[GroupSelectionIndex].Add(NewSelectionReflection);
 				}
 			}
 		}
