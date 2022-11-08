@@ -1156,15 +1156,6 @@ private:
 	static void PrepareLumenHardwareRayTracingRadiosityLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareLumenHardwareRayTracingDirectLightingLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 
-	/** Lighting evaluation shader registration */
-	static FRHIRayTracingShader* GetRayTracingDefaultMissShader(const FViewInfo& View);
-	static FRHIRayTracingShader* GetRayTracingLightingMissShader(const FViewInfo& View);
-	static FRHIRayTracingShader* GetRayTracingDefaultOpaqueShader(const FViewInfo& View);
-	static FRHIRayTracingShader* GetRayTracingDefaultHiddenShader(const FViewInfo& View);
-	static FRHIRayTracingShader* GetPathTracingDefaultMissShader(const FViewInfo& View);
-	static FRHIRayTracingShader* GetPathTracingDefaultOpaqueHitShader(const FViewInfo& View);
-	static FRHIRayTracingShader* GetPathTracingDefaultHiddenHitShader(const FViewInfo& View);
-
 	const FRHITransition* RayTracingDynamicGeometryUpdateEndTransition = nullptr; // Signaled when all AS for this frame are built
 #endif // RHI_RAYTRACING
 

@@ -12,6 +12,7 @@
 #include "BuiltInRayTracingShaders.h"
 #include "RaytracingOptions.h"
 #include "RayTracingLighting.h"
+#include "PathTracing.h"
 
 int32 GEnableRayTracingMaterials = 1;
 static FAutoConsoleVariableRef CVarEnableRayTracingMaterials(
@@ -592,19 +593,19 @@ static bool PipelineContainsHitShaders(FRayTracingPipelineState* Pipeline, const
 	return true;
 }
 
-FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetRayTracingDefaultMissShader(const FViewInfo& View)
+FRHIRayTracingShader* GetRayTracingDefaultMissShader(const FGlobalShaderMap* ShaderMap)
 {
-	return View.ShaderMap->GetShader<FPackedMaterialClosestHitPayloadMS>().GetRayTracingShader();
+	return ShaderMap->GetShader<FPackedMaterialClosestHitPayloadMS>().GetRayTracingShader();
 }
 
-FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetRayTracingDefaultOpaqueShader(const FViewInfo& View)
+FRHIRayTracingShader* GetRayTracingDefaultOpaqueShader(const FGlobalShaderMap* ShaderMap)
 {
-	return View.ShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
+	return ShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
 }
 
-FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetRayTracingDefaultHiddenShader(const FViewInfo& View)
+FRHIRayTracingShader* GetRayTracingDefaultHiddenShader(const FGlobalShaderMap* ShaderMap)
 {
-	return View.ShaderMap->GetShader<FHiddenMaterialHitGroup>().GetRayTracingShader();
+	return ShaderMap->GetShader<FHiddenMaterialHitGroup>().GetRayTracingShader();
 }
 
 
@@ -625,7 +626,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 	Initializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE; // sizeof(FPackedMaterialClosestHitPayload)
 	Initializer.bAllowHitGroupIndexing = true;
 
-	FRHIRayTracingShader* DefaultMissShader = bIsPathTracing ? GetPathTracingDefaultMissShader(View) : GetRayTracingDefaultMissShader(View);
+	FRHIRayTracingShader* DefaultMissShader = bIsPathTracing ? GetPathTracingDefaultMissShader(View.ShaderMap) : GetRayTracingDefaultMissShader(View.ShaderMap);
 
 	TArray<FRHIRayTracingShader*> RayTracingMissShaderLibrary;
 	FShaderMapResource::GetRayTracingMissShaderLibrary(RayTracingMissShaderLibrary, DefaultMissShader);
@@ -642,8 +643,8 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 	static auto CVarEnableShadowMaterials = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Shadows.EnableMaterials"));
 	const bool bEnableShadowMaterials = bMaterialsCompiled && (CVarEnableShadowMaterials ? CVarEnableShadowMaterials->GetInt() != 0 : true);
 
-	FRHIRayTracingShader* OpaqueShadowShader   = bIsPathTracing ? GetPathTracingDefaultOpaqueHitShader(View) : GetRayTracingDefaultOpaqueShader(View);
-	FRHIRayTracingShader* HiddenMaterialShader = bIsPathTracing ? GetPathTracingDefaultHiddenHitShader(View) : GetRayTracingDefaultHiddenShader(View);
+	FRHIRayTracingShader* OpaqueShadowShader   = bIsPathTracing ? GetPathTracingDefaultOpaqueHitShader(View.ShaderMap) : GetRayTracingDefaultOpaqueShader(View.ShaderMap);
+	FRHIRayTracingShader* HiddenMaterialShader = bIsPathTracing ? GetPathTracingDefaultHiddenHitShader(View.ShaderMap) : GetRayTracingDefaultHiddenShader(View.ShaderMap);
 	
 	TArray<FRHIRayTracingShader*> RayTracingHitGroupLibrary;
 	if (bEnableMaterials)

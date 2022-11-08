@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "/Engine/Private/RayTracing/RayTracingCommon.ush"
+#include "LightmapCommon.ush"
 
 RaytracingAccelerationStructure TLAS;
 
@@ -50,11 +51,9 @@ void StaticShadowDepthMapTracingRG()
 
 	const uint RayFlags = 0;
 	
-	FMinimalPayload MinimalPayload = TraceVisibilityRay(
+	FMinimalPayload MinimalPayload = TraceLightmapVisibilityRay(
 		TLAS,
 		RayFlags,
-		RAY_TRACING_MASK_SHADOW,
-		uint2(0, 0),
 		Ray);
 
 	if (MinimalPayload.IsHit())

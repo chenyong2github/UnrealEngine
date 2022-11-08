@@ -2466,7 +2466,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		if (!ViewFamily.EngineShowFlags.PathTracing)
 		{
 			// get the default lighting miss shader (to implicitly fill in the MissShader library before the RT pipeline is created)
-			GetRayTracingLightingMissShader(ReferenceView);
+			GetRayTracingLightingMissShader(ReferenceView.ShaderMap);
 			RayTracingScene.NumMissShaderSlots++;
 		}
 

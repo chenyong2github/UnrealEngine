@@ -871,14 +871,14 @@ public:
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingDefaultMS, TEXT("/Engine/Private/PathTracing/PathTracingMissShader.usf"), TEXT("PathTracingDefaultMS"), SF_RayMiss);
 
-FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetPathTracingDefaultMissShader(const FViewInfo& View)
+FRHIRayTracingShader* GetPathTracingDefaultMissShader(const FGlobalShaderMap* ShaderMap)
 {
-	return View.ShaderMap->GetShader<FPathTracingDefaultMS>().GetRayTracingShader();
+	return ShaderMap->GetShader<FPathTracingDefaultMS>().GetRayTracingShader();
 }
 
 void FDeferredShadingSceneRenderer::SetupPathTracingDefaultMissShader(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
-	int32 MissShaderPipelineIndex = FindRayTracingMissShaderIndex(View.RayTracingMaterialPipeline, GetPathTracingDefaultMissShader(View), true);
+	int32 MissShaderPipelineIndex = FindRayTracingMissShaderIndex(View.RayTracingMaterialPipeline, GetPathTracingDefaultMissShader(View.ShaderMap), true);
 
 	RHICmdList.SetRayTracingMissShader(View.GetRayTracingSceneChecked(),
 		RAY_TRACING_MISS_SHADER_SLOT_DEFAULT,
@@ -1251,14 +1251,14 @@ class FPathTracingDefaultHiddenHitGroup : public FGlobalShader
 IMPLEMENT_SHADER_TYPE(, FPathTracingDefaultOpaqueHitGroup, TEXT("/Engine/Private/PathTracing/PathTracingDefaultHitShader.usf"), TEXT("closesthit=PathTracingDefaultOpaqueCHS"), SF_RayHitGroup);
 IMPLEMENT_SHADER_TYPE(, FPathTracingDefaultHiddenHitGroup, TEXT("/Engine/Private/PathTracing/PathTracingDefaultHitShader.usf"), TEXT("closesthit=PathTracingDefaultHiddenCHS anyhit=PathTracingDefaultHiddenAHS"), SF_RayHitGroup);
 
-FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetPathTracingDefaultOpaqueHitShader(const FViewInfo& View)
+FRHIRayTracingShader* GetPathTracingDefaultOpaqueHitShader(const FGlobalShaderMap* ShaderMap)
 {
-	return View.ShaderMap->GetShader<FPathTracingDefaultOpaqueHitGroup>().GetRayTracingShader();
+	return ShaderMap->GetShader<FPathTracingDefaultOpaqueHitGroup>().GetRayTracingShader();
 }
 
-FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetPathTracingDefaultHiddenHitShader(const FViewInfo& View)
+FRHIRayTracingShader* GetPathTracingDefaultHiddenHitShader(const FGlobalShaderMap* ShaderMap)
 {
-	return View.ShaderMap->GetShader<FPathTracingDefaultHiddenHitGroup>().GetRayTracingShader();
+	return ShaderMap->GetShader<FPathTracingDefaultHiddenHitGroup>().GetRayTracingShader();
 }
 
 bool FRayTracingMeshProcessor::ProcessPathTracing(

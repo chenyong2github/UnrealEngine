@@ -11,6 +11,9 @@
 #include "RayTracingPayloadType.h"
 
 ENGINE_API uint8 ComputeBlendModeMask(const EBlendMode BlendMode);
+FRHIRayTracingShader* GetRayTracingDefaultMissShader(const FGlobalShaderMap* ShaderMap);
+FRHIRayTracingShader* GetRayTracingDefaultOpaqueShader(const FGlobalShaderMap* ShaderMap);
+FRHIRayTracingShader* GetRayTracingDefaultHiddenShader(const FGlobalShaderMap* ShaderMap);
 
 class RENDERER_API FRayTracingMeshProcessor
 {

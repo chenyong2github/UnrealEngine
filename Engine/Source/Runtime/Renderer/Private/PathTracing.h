@@ -17,8 +17,13 @@ class FRDGBuilder;
 class FScene;
 class FViewInfo;
 class FSceneViewFamily;
+class FRHIRayTracingShader;
+class FGlobalShaderMap;
 
 bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, bool SkylightEnabled, bool UseMISCompensation, FPathTracingSkylight* SkylightParameters);
+RENDERER_API FRHIRayTracingShader* GetPathTracingDefaultMissShader(const FGlobalShaderMap* ShaderMap);
+RENDERER_API FRHIRayTracingShader* GetPathTracingDefaultOpaqueHitShader(const FGlobalShaderMap* ShaderMap);
+RENDERER_API FRHIRayTracingShader* GetPathTracingDefaultHiddenHitShader(const FGlobalShaderMap* ShaderMap);
 
 namespace PathTracing
 {

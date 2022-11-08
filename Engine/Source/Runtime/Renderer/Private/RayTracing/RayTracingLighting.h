@@ -12,6 +12,8 @@
 
 #if RHI_RAYTRACING
 
+FRHIRayTracingShader* GetRayTracingLightingMissShader(const FGlobalShaderMap* ShaderMap);
+
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRaytracingLightDataPacked, RENDERER_API)
 	SHADER_PARAMETER(uint32, Count)
 	SHADER_PARAMETER(uint32, CellCount)

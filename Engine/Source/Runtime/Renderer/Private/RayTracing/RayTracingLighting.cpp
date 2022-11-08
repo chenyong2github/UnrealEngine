@@ -7,6 +7,7 @@
 #if RHI_RAYTRACING
 
 #include "SceneRendering.h"
+#include "RayTracingMaterialHitShaders.h"
 
 static TAutoConsoleVariable<int32> CVarRayTracingLightingCells(
 	TEXT("r.RayTracing.LightCulling.Cells"),
@@ -507,9 +508,9 @@ static void BindLightFunction(
 	ShaderBindings.SetRayTracingShaderBindingsForMissShader(RHICmdList, RTScene, Pipeline, MissShaderPipelineIndex, Index);
 }
 
-FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetRayTracingLightingMissShader(const FViewInfo& View)
+FRHIRayTracingShader* GetRayTracingLightingMissShader(const FGlobalShaderMap* ShaderMap)
 {
-	return View.ShaderMap->GetShader<FRayTracingLightingMS>().GetRayTracingShader();
+	return ShaderMap->GetShader<FRayTracingLightingMS>().GetRayTracingShader();
 }
 
 void BindLightFunctionShaders(
@@ -582,7 +583,7 @@ static int32 BindParameters(const TShaderRef<ShaderClass>& Shader, typename Shad
 
 void FDeferredShadingSceneRenderer::SetupRayTracingDefaultMissShader(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
-	int32 MissShaderPipelineIndex = FindRayTracingMissShaderIndex(View.RayTracingMaterialPipeline, GetRayTracingDefaultMissShader(View), true);
+	int32 MissShaderPipelineIndex = FindRayTracingMissShaderIndex(View.RayTracingMaterialPipeline, GetRayTracingDefaultMissShader(View.ShaderMap), true);
 
 	RHICmdList.SetRayTracingMissShader(View.GetRayTracingSceneChecked(),
 		RAY_TRACING_MISS_SHADER_SLOT_DEFAULT,

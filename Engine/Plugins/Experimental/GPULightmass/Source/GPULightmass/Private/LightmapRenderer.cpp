@@ -29,6 +29,7 @@
 #include "ShaderCompiler.h"
 #include "RectLightTextureManager.h"
 #include "IESTextureManager.h"
+#include "PathTracing.h"
 
 class FCopyConvergedLightmapTilesCS : public FGlobalShader
 {
@@ -1236,13 +1237,16 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 			}
 			PSOInitializer.SetRayGenShaderTable(RayGenShaderTable);
 
-			auto DefaultClosestHitShader = GlobalShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
+			auto DefaultClosestHitShader = GetPathTracingDefaultOpaqueHitShader(GlobalShaderMap);
 			TArray<FRHIRayTracingShader*> RayTracingHitGroupLibrary;
 			FShaderMapResource::GetRayTracingHitGroupLibrary(RayTracingHitGroupLibrary, DefaultClosestHitShader);
 
 			PSOInitializer.SetHitGroupTable(RayTracingHitGroupLibrary);
-			
-			// TODO(UE-157946): This pipeline does not bind any miss shader and relies on the pipeline to do this automatically. This should be made explicit.
+
+			TArray<FRHIRayTracingShader*> RayTracingMissLibrary;
+			RayTracingMissLibrary.Add(GetPathTracingDefaultMissShader(GlobalShaderMap));
+			PSOInitializer.SetMissShaderTable(RayTracingMissLibrary);
+
 			RayTracingPipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, PSOInitializer);
 
 			TUniquePtr<FRayTracingLocalShaderBindingWriter> BindingWriter = MakeUnique<FRayTracingLocalShaderBindingWriter>();
@@ -1328,6 +1332,8 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 						NumTotalBindings, MergedBindings,
 						bCopyDataToInlineStorage);
 				}
+
+				// there is only one miss shader, so it must be at index 0 by definition
 				RHICmdList.SetRayTracingMissShader(RayTracingScene, 0, RayTracingPipelineState, 0 /* ShaderIndexInPipeline */, 0, nullptr, 0);
 
 				// Move the ray tracing binding container ownership to the command list, so that memory will be

@@ -37,6 +37,7 @@ Texture2D<float> RayGuidingCDFY;
 #include "/Engine/Private/PathTracing/Material/PathTracingMaterialSampling.ush"
 
 #include "LightmapEncoding.ush"
+#include "LightmapCommon.ush"
 
 int LastInvalidationFrame;
 int NumTotalSamples;
@@ -1400,11 +1401,9 @@ void VolumetricLightmapPathTracingMainRG()
 		{
 			uint RayFlags = RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
 	
-			FMinimalPayload MinimalPayload = TraceVisibilityRay(
+			FMinimalPayload MinimalPayload = TraceLightmapVisibilityRay(
 				TLAS,
 				RayFlags,
-				RAY_TRACING_MASK_SHADOW,
-				uint2(0, 0),
 				Ray);
 			
 			DirectionalLightShadowing[VoxelPos] += (MinimalPayload.IsMiss() ? 1 : 0) / 32.0f;
@@ -1477,11 +1476,9 @@ void StationaryLightShadowTracingMainRG()
 			{
 				uint RayFlags = RAY_FLAG_SKIP_CLOSEST_HIT_SHADER | RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH;
 
-				FMinimalPayload MinimalPayload = TraceVisibilityRay(
+				FMinimalPayload MinimalPayload = TraceLightmapVisibilityRay(
 					TLAS,
 					RayFlags,
-					RAY_TRACING_MASK_SHADOW,
-					uint2(0, 0),
 					Ray);
 				
 				uint Visibility = asuint(ShadowMask[TexelIndexInPool][ChannelIndex]);
