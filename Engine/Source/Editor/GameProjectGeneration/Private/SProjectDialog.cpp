@@ -184,11 +184,11 @@ public:
 						.VAlign(VAlign_Center)
 						[
 							SNew(SBox)
-							.WidthOverride(102)
-							.HeightOverride(102)
+							.WidthOverride(102.0f)
+							.HeightOverride(102.0f)
 							[
 								SNew(SBorder)
-								.Padding(0)
+								.Padding(0.0f)
 								.BorderImage(FAppStyle::Get().GetBrush("ProjectBrowser.ProjectTile.ThumbnailAreaBackground"))
 								.HAlign(HAlign_Center)
 								.VAlign(VAlign_Center)
@@ -397,7 +397,7 @@ public:
 				.OnClicked(InArgs._OnBrowseForFolder)
 				.ToolTipText(LOCTEXT("BrowseForFolder", "Browse for a folder"))
 				.Visibility(InArgs._IsReadOnly ? EVisibility::Hidden : EVisibility::Visible)
-				.ContentPadding(0)
+				.ContentPadding(0.0f)
 				[
 					SNew(SImage)
 					.Image(FAppStyle::Get().GetBrush("Icons.FolderClosed"))
@@ -666,7 +666,7 @@ TSharedRef<SWidget> SProjectDialog::MakeTemplateProjectView()
 		// Templates list
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
-		.Padding(0)
+		.Padding(0.0f)
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
@@ -687,7 +687,7 @@ TSharedRef<SWidget> SProjectDialog::MakeTemplateProjectView()
 			]
 			// Selected template details
 			+ SHorizontalBox::Slot()
-			.Padding(8, 0.0f)
+			.Padding(8.0f, 0.0f)
 			.AutoWidth()
 			[
 				SNew(SVerticalBox)
@@ -2117,7 +2117,7 @@ TSharedRef<ITableRow> SProjectDialog::ConstructMajorCategoryTableRow(TSharedPtr<
 		SNew(STableRow<TSharedPtr<FTemplateCategory>>, TableView)
 		.Style(FAppStyle::Get(), "ProjectBrowser.TableRow")
 		.ShowSelection(false)
-		.Padding(2);
+		.Padding(2.0f);
 	TWeakPtr<STableRow<TSharedPtr<FTemplateCategory>>> RowWeakPtr = Row;
 
 	Row->SetContent(

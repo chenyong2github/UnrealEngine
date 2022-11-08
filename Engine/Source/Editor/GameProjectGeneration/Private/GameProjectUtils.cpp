@@ -1670,7 +1670,7 @@ TOptional<FGuid> GameProjectUtils::CreateProjectFromTemplate(const FProjectInfor
 	SlowTask.EnterProgressFrame();
 	{
 		// Open a new feedback scope for the loop so we can report how far through the copy we are
-		FScopedSlowTask InnerSlowTask(FilesToCopy.Num());
+		FScopedSlowTask InnerSlowTask(static_cast<float>(FilesToCopy.Num()));
 		for ( const FString& SrcFilename : FilesToCopy )
 		{
 			// Update the progress
@@ -1759,7 +1759,7 @@ TOptional<FGuid> GameProjectUtils::CreateProjectFromTemplate(const FProjectInfor
 	SlowTask.EnterProgressFrame();
 	{
 		// Open a new feedback scope for the loop so we can report how far through the process we are
-		FScopedSlowTask InnerSlowTask(FilesThatNeedContentsReplaced.Num());
+		FScopedSlowTask InnerSlowTask(static_cast<float>(FilesThatNeedContentsReplaced.Num()));
 
 		// Open all files with the specified extensions and replace text
 		for ( const FString& FileToFix : FilesThatNeedContentsReplaced )

@@ -211,8 +211,8 @@ public:
 					.VAlign(VAlign_Center)
 					[
 						SNew(SBox)
-						.WidthOverride(102)
-						.HeightOverride(102)
+						.WidthOverride(102.0f)
+						.HeightOverride(102.0f)
 						[
 							SNew(SBorder)
 							.BorderImage(FAppStyle::Get().GetBrush("ProjectBrowser.ProjectTile.ThumbnailAreaBackground"))
@@ -554,11 +554,11 @@ TSharedRef<SToolTip> SProjectBrowser::MakeProjectToolTip( TSharedPtr<FProjectIte
 		.AutoWidth()
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
-		.Padding(FMargin(0, 0, 1, 0))
+		.Padding(FMargin(0.0f, 0.0f, 1.0f, 0.0f))
 		[
 			SNew(SBox)
-			.WidthOverride(20)
-			.HeightOverride(20)
+			.WidthOverride(20.0f)
+			.HeightOverride(20.0f)
 			[
 				SNew(SImage)
 				.Image(FAppStyle::GetBrush(PlatformInfo->GetIconStyleName(EPlatformIconSize::Normal)))
@@ -567,21 +567,21 @@ TSharedRef<SToolTip> SProjectBrowser::MakeProjectToolTip( TSharedPtr<FProjectIte
 	}
 
 	TSharedRef<SToolTip> Tooltip = SNew(SToolTip)
-	.TextMargin(1)
+	.TextMargin(1.0f)
 	.BorderImage( FAppStyle::GetBrush("ProjectBrowser.TileViewTooltip.ToolTipBorder") )
 	[
 		SNew(SBorder)
-		.Padding(6)
+		.Padding(6.0f)
 		.BorderImage( FAppStyle::GetBrush("ProjectBrowser.TileViewTooltip.NonContentBorder") )
 		[
 			SNew(SVerticalBox)
 
 			+SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(0, 0, 0, 4)
+			.Padding(0.0f, 0.0f, 0.0f, 4.0f)
 			[
 				SNew(SBorder)
-				.Padding(6)
+				.Padding(6.0f)
 				.BorderImage( FAppStyle::GetBrush("ProjectBrowser.TileViewTooltip.ContentBorder") )
 				[
 					SNew(SVerticalBox)
@@ -598,7 +598,7 @@ TSharedRef<SToolTip> SProjectBrowser::MakeProjectToolTip( TSharedPtr<FProjectIte
 					+SVerticalBox::Slot()
 					.AutoHeight()
 					.VAlign(VAlign_Center)
-					.Padding(0, 2, 0, 0)
+					.Padding(0.0f, 2.0f, 0.0f, 0.0f)
 					[
 						TargetPlatformIconsBox
 					]
@@ -609,7 +609,7 @@ TSharedRef<SToolTip> SProjectBrowser::MakeProjectToolTip( TSharedPtr<FProjectIte
 			.AutoHeight()
 			[
 				SNew(SBorder)
-				.Padding(6)
+				.Padding(6.0f)
 				.BorderImage( FAppStyle::GetBrush("ProjectBrowser.TileViewTooltip.ContentBorder") )
 				[
 					InfoBox
@@ -626,13 +626,13 @@ void SProjectBrowser::AddToToolTipInfoBox(const TSharedRef<SVerticalBox>& InfoBo
 {
 	InfoBox->AddSlot()
 	.AutoHeight()
-	.Padding(0, 1)
+	.Padding(0.0f, 1.0f)
 	[
 		SNew(SHorizontalBox)
 
 		+SHorizontalBox::Slot()
 		.AutoWidth()
-		.Padding(0, 0, 4, 0)
+		.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 		[
 			SNew(STextBlock) .Text( FText::Format(LOCTEXT("ProjectBrowserTooltipFormat", "{0}:"), Key ) )
 			.ColorAndOpacity(FSlateColor::UseSubduedForeground())
