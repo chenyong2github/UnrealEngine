@@ -6,7 +6,6 @@
 #include "HAL/PlatformOutputDevices.h"
 #include "HAL/PlatformTLS.h"
 #include "Logging/LogSuppressionInterface.h"
-#include "LowLevelTestModule.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/StringBuilder.h"
 #include "Modules/ModuleManager.h"
@@ -67,13 +66,6 @@ public:
 	bool IsDebugMode() const final { return bDebugMode; }
 
 private:
-	static TArray<FName> GetGlobalModuleNames()
-	{
-		TArray<FName> ModuleNames;
-		FModuleManager::Get().FindModules(TEXT("*GlobalLowLevelTests"), ModuleNames);
-		return ModuleNames;
-	}
-
 	TArray<const ANSICHAR*> CatchArgs;
 	FStringBuilderBase ExtraArgs;
 	FTestRunnerOutputDeviceError ErrorOutputDevice;
@@ -237,14 +229,6 @@ void FTestRunner::GlobalSetup()
 
 		FLogSuppressionInterface::Get().ProcessConfigAndCommandLine();
 	}
-
-	for (FName ModuleName : GetGlobalModuleNames())
-	{
-		if (ILowLevelTestsModule* Module = FModuleManager::LoadModulePtr<ILowLevelTestsModule>(ModuleName))
-		{
-			Module->GlobalSetup();
-		}
-	}
 }
 
 void FTestRunner::GlobalTeardown() const
@@ -258,14 +242,6 @@ void FTestRunner::GlobalTeardown() const
 	if (GError == &ErrorOutputDevice)
 	{
 		GError = ErrorOutputDevice.GetDeviceError();
-	}
-
-	for (FName ModuleName : GetGlobalModuleNames())
-	{
-		if (ILowLevelTestsModule* Module = FModuleManager::GetModulePtr<ILowLevelTestsModule>(ModuleName))
-		{
-			Module->GlobalTeardown();
-		}
 	}
 
 	CleanupPlatform();

@@ -11,10 +11,12 @@
 #include <catch2/internal/catch_source_line_info.hpp>
 #include <catch2/internal/catch_noncopyable.hpp>
 #include <catch2/interfaces/catch_interfaces_testcase.hpp>
+#include <catch2/interfaces/catch_interfaces_group.hpp>
 #include <catch2/internal/catch_stringref.hpp>
 #include <catch2/internal/catch_unique_ptr.hpp>
 #include <catch2/internal/catch_unique_name.hpp>
 #include <catch2/internal/catch_preprocessor_remove_parens.hpp>
+#include <catch2/internal/catch_constants.hpp>
 
 // GCC 5 and older do not properly handle disabling unused-variable warning
 // with a _Pragma. This means that we have to leak the suppression to the
@@ -39,6 +41,8 @@ public:
     }
 };
 
+IGroupLifecycleEventInvoker* makeGroupEventInvoker( void(*groupEventAsFunction)(), GroupLifecycleStage stage );
+
 Detail::unique_ptr<ITestInvoker> makeTestInvoker( void(*testAsFunction)() );
 
 template<typename C>
@@ -56,6 +60,8 @@ struct NameAndTags {
 
 struct AutoReg : Detail::NonCopyable {
     AutoReg( Detail::unique_ptr<ITestInvoker> invoker, SourceLineInfo const& lineInfo, StringRef classOrMethod, NameAndTags const& nameAndTags ) noexcept;
+    AutoReg( Detail::unique_ptr<ITestInvoker> invoker, SourceLineInfo const& lineInfo, StringRef group, StringRef classOrMethod, NameAndTags const& nameAndTags ) noexcept;
+    AutoReg( std::string group, GroupLifecycleStage stage, IGroupLifecycleEventInvoker* invoker) noexcept;
 };
 
 } // end namespace Catch
@@ -73,46 +79,65 @@ struct AutoReg : Detail::NonCopyable {
 #endif
 
     ///////////////////////////////////////////////////////////////////////////////
-    #define INTERNAL_CATCH_TESTCASE2( TestName, ... ) \
+   #define INTERNAL_CATCH_TESTCASE2( Group, TestName, ... ) \
         static void TestName(); \
         CATCH_INTERNAL_START_WARNINGS_SUPPRESSION \
         CATCH_INTERNAL_SUPPRESS_GLOBALS_WARNINGS \
-        namespace{ Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar )( Catch::makeTestInvoker( &TestName ), CATCH_INTERNAL_LINEINFO, Catch::StringRef(), Catch::NameAndTags{ __VA_ARGS__ } ); } /* NOLINT */ \
+        namespace{ Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar )( Catch::makeTestInvoker( &TestName ), CATCH_INTERNAL_LINEINFO, Catch::StringRef(Group), Catch::StringRef(), Catch::NameAndTags{ __VA_ARGS__ } ); } /* NOLINT */ \
         CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION \
         static void TestName()
+    #define INTERNAL_CATCH_TESTCASE_GROUP( Group, ... ) \
+        INTERNAL_CATCH_TESTCASE2( Group, INTERNAL_CATCH_UNIQUE_NAME( CATCH2_INTERNAL_TEST_ ), __VA_ARGS__ )
     #define INTERNAL_CATCH_TESTCASE( ... ) \
-        INTERNAL_CATCH_TESTCASE2( INTERNAL_CATCH_UNIQUE_NAME( CATCH2_INTERNAL_TEST_ ), __VA_ARGS__ )
-
-    ///////////////////////////////////////////////////////////////////////////////
-    #define INTERNAL_CATCH_METHOD_AS_TEST_CASE( QualifiedMethod, ... ) \
+        INTERNAL_CATCH_TESTCASE2( Catch::DefaultGroup, INTERNAL_CATCH_UNIQUE_NAME( CATCH2_INTERNAL_TEST_ ), __VA_ARGS__ )
+    #define INTERNAL_CATCH_TEST_GROUP_EVENT2( Group, Stage, EventName ) \
+        static void EventName(); \
         CATCH_INTERNAL_START_WARNINGS_SUPPRESSION \
         CATCH_INTERNAL_SUPPRESS_GLOBALS_WARNINGS \
-        namespace{ Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar )( Catch::makeTestInvoker( &QualifiedMethod ), CATCH_INTERNAL_LINEINFO, "&" #QualifiedMethod, Catch::NameAndTags{ __VA_ARGS__ } ); } /* NOLINT */ \
-        CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION
+        namespace{ Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar )( Group, Stage, Catch::makeGroupEventInvoker( &EventName, Stage ) ); } /* NOLINT */ \
+        CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION \
+        static void EventName()
+    #define INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Stage ) \
+        INTERNAL_CATCH_TEST_GROUP_EVENT2( Group, Stage, INTERNAL_CATCH_UNIQUE_NAME( CATCH2_GROUP_EVENT_ ) )
 
     ///////////////////////////////////////////////////////////////////////////////
-    #define INTERNAL_CATCH_TEST_CASE_METHOD2( TestName, ClassName, ... )\
+    #define INTERNAL_CATCH_METHOD_AS_TEST_CASE_GROUP( Group, QualifiedMethod, ... ) \
+        CATCH_INTERNAL_START_WARNINGS_SUPPRESSION \
+        CATCH_INTERNAL_SUPPRESS_GLOBALS_WARNINGS \
+        namespace{ Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar )( Catch::makeTestInvoker( &QualifiedMethod ), CATCH_INTERNAL_LINEINFO, Group, "&" #QualifiedMethod, Catch::NameAndTags{ __VA_ARGS__ } ); } /* NOLINT */ \
+        CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION
+
+	#define INTERNAL_CATCH_METHOD_AS_TEST_CASE( QualifiedMethod, ... ) INTERNAL_CATCH_METHOD_AS_TEST_CASE_GROUP( Catch::DefaultGroup, QualifiedMethod, __VA_ARGS__ )
+
+    ///////////////////////////////////////////////////////////////////////////////
+    #define INTERNAL_CATCH_TEST_CASE_METHOD2( Group, TestName, ClassName, ... )\
         CATCH_INTERNAL_START_WARNINGS_SUPPRESSION \
         CATCH_INTERNAL_SUPPRESS_GLOBALS_WARNINGS \
         namespace{ \
             struct TestName : INTERNAL_CATCH_REMOVE_PARENS(ClassName) { \
                 void test(); \
             }; \
-            Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar ) ( Catch::makeTestInvoker( &TestName::test ), CATCH_INTERNAL_LINEINFO, #ClassName, Catch::NameAndTags{ __VA_ARGS__ } ); /* NOLINT */ \
+            Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar ) ( Catch::makeTestInvoker( &TestName::test ), CATCH_INTERNAL_LINEINFO, Group, #ClassName, Catch::NameAndTags{ __VA_ARGS__ } ); /* NOLINT */ \
         } \
         CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION \
         void TestName::test()
-    #define INTERNAL_CATCH_TEST_CASE_METHOD( ClassName, ... ) \
-        INTERNAL_CATCH_TEST_CASE_METHOD2( INTERNAL_CATCH_UNIQUE_NAME( CATCH2_INTERNAL_TEST_ ), ClassName, __VA_ARGS__ )
+
+	#define INTERNAL_CATCH_TEST_CASE_METHOD_GROUP( Group, ClassName, ... ) \
+			INTERNAL_CATCH_TEST_CASE_METHOD2( Group, INTERNAL_CATCH_UNIQUE_NAME( CATCH2_INTERNAL_TEST_ ), ClassName, __VA_ARGS__ )
+
+	#define INTERNAL_CATCH_TEST_CASE_METHOD( ClassName, ... ) INTERNAL_CATCH_TEST_CASE_METHOD_GROUP( Catch::DefaultGroup, ClassName, __VA_ARGS__ )
+
 
     ///////////////////////////////////////////////////////////////////////////////
-    #define INTERNAL_CATCH_REGISTER_TESTCASE( Function, ... ) \
+    #define INTERNAL_CATCH_REGISTER_TESTCASE_GROUP( Group, Function, ... ) \
         do { \
             CATCH_INTERNAL_START_WARNINGS_SUPPRESSION \
             CATCH_INTERNAL_SUPPRESS_GLOBALS_WARNINGS \
-            Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar )( Catch::makeTestInvoker( Function ), CATCH_INTERNAL_LINEINFO, Catch::StringRef(), Catch::NameAndTags{ __VA_ARGS__ } ); /* NOLINT */ \
+            Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar )( Catch::makeTestInvoker( Function ), CATCH_INTERNAL_LINEINFO, Group, Catch::StringRef(), Catch::NameAndTags{ __VA_ARGS__ } ); /* NOLINT */ \
             CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION \
         } while(false)
+
+	#define INTERNAL_CATCH_REGISTER_TESTCASE( Function, ... ) INTERNAL_CATCH_REGISTER_TESTCASE_GROUP( Catch::DefaultGroup, Function, __VA_ARGS__ )
 
 
 #endif // CATCH_TEST_REGISTRY_HPP_INCLUDED

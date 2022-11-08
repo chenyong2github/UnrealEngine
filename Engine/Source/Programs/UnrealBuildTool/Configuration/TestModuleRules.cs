@@ -109,17 +109,6 @@ namespace UnrealBuildTool
 			bEnableObjCExceptions = false;
 			bEnableExceptions = false;
 
-			string SetupFile = Path.Combine("Private", "setup.cpp");
-			string TeardownFile = Path.Combine("Private", "teardown.cpp");
-			if (System.IO.File.Exists(Path.Combine(Directory.ToString(), SetupFile)))
-			{
-				BuildOrderSettings.AddBuildOrderOverride(SetupFile, SourceFileBuildOrder.First);
-			}
-			if (System.IO.File.Exists(Path.Combine(Directory.ToString(), TeardownFile)))
-			{
-				BuildOrderSettings.AddBuildOrderOverride(TeardownFile, SourceFileBuildOrder.Last);
-			}
-
 			SetResourcesFolder("Resources");
 
 			if (!PublicDependencyModuleNames.Contains("Catch2"))

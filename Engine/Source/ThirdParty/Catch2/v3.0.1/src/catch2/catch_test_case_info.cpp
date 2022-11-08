@@ -114,14 +114,17 @@ namespace Catch {
     Detail::unique_ptr<TestCaseInfo>
         makeTestCaseInfo(StringRef _className,
                          NameAndTags const& nameAndTags,
-                         SourceLineInfo const& _lineInfo ) {
-        return Detail::make_unique<TestCaseInfo>(_className, nameAndTags, _lineInfo);
+                         SourceLineInfo const& _lineInfo,
+                         StringRef _group ) {
+        return Detail::make_unique<TestCaseInfo>(_className, nameAndTags, _lineInfo, _group);
     }
 
     TestCaseInfo::TestCaseInfo(StringRef _className,
                                NameAndTags const& _nameAndTags,
-                               SourceLineInfo const& _lineInfo):
+                               SourceLineInfo const& _lineInfo,
+                               StringRef _group):
         name( _nameAndTags.name.empty() ? makeDefaultName() : _nameAndTags.name ),
+        group(_group),
         className( _className ),
         lineInfo( _lineInfo )
     {
@@ -227,8 +230,12 @@ namespace Catch {
 
     bool operator<( TestCaseInfo const& lhs, TestCaseInfo const& rhs ) {
         // We want to avoid redoing the string comparisons multiple times,
-        // so we store the result of a three-way comparison before using
+        // so we store the result of a 4-way comparison before using
         // it in the actual comparison logic.
+        const auto cmpGroup = lhs.group.compare( rhs.group );
+        if ( cmpGroup != 0 ) {
+            return cmpGroup < 0;
+        }
         const auto cmpName = lhs.name.compare( rhs.name );
         if ( cmpName != 0 ) {
             return cmpName < 0;
@@ -243,5 +250,4 @@ namespace Catch {
     TestCaseInfo const& TestCaseHandle::getTestCaseInfo() const {
         return *m_info;
     }
-
 } // end namespace Catch

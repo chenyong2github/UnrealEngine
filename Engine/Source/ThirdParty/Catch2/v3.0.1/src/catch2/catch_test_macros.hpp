@@ -14,6 +14,7 @@
 #include <catch2/internal/catch_section.hpp>
 #include <catch2/internal/catch_test_registry.hpp>
 #include <catch2/internal/catch_unique_name.hpp>
+#include <catch2/interfaces/catch_interfaces_group.hpp>
 
 
 // All of our user-facing macros support configuration toggle, that
@@ -39,6 +40,19 @@
   #define CATCH_CHECK_THROWS( ... )  INTERNAL_CATCH_THROWS( "CATCH_CHECK_THROWS", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
   #define CATCH_CHECK_THROWS_AS( expr, exceptionType ) INTERNAL_CATCH_THROWS_AS( "CATCH_CHECK_THROWS_AS", exceptionType, Catch::ResultDisposition::ContinueOnFailure, expr )
   #define CATCH_CHECK_NOTHROW( ... ) INTERNAL_CATCH_NO_THROW( "CATCH_CHECK_NOTHROW", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+
+  #define CATCH_GROUP_TEST_CASE( Group, ... ) INTERNAL_CATCH_TESTCASE_GROUP( Group, __VA_ARGS__ )
+  #define CATCH_GROUP_TEST_CASE( Group, ... ) INTERNAL_CATCH_TESTCASE_GROUP( Group, __VA_ARGS__ )
+  #define CATCH_GROUP_TEST_CASE_METHOD( Group, className, ... ) INTERNAL_CATCH_TEST_CASE_METHOD_GROUP( Group, className, __VA_ARGS__ )
+  #define CATCH_GROUP_METHOD_AS_TEST_CASE( Group, method, ... ) INTERNAL_CATCH_METHOD_AS_TEST_CASE_GROUP( Group, method, __VA_ARGS__ )
+  #define CATCH_GROUP_REGISTER_TEST_CASE( Group, Function, ... ) INTERNAL_CATCH_REGISTER_TESTCASE_GROUP( Group, Function, __VA_ARGS__ )
+  
+  #define CATCH_GROUP_BEFORE_ALL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::BeforeAllTests )
+  #define CATCH_GROUP_AFTER_ALL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::AfterAllTests )
+  #define CATCH_GROUP_BEFORE_EACH( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::BeforeEachTest )
+  #define CATCH_GROUP_AFTER_EACH( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::AfterEachTest )
+  #define CATCH_GROUP_BEFORE_GLOBAL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::BeforeGlobal )
+  #define CATCH_GROUP_AFTER_GLOBAL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::AfterGlobal )
 
   #define CATCH_TEST_CASE( ... ) INTERNAL_CATCH_TESTCASE( __VA_ARGS__ )
   #define CATCH_TEST_CASE_METHOD( className, ... ) INTERNAL_CATCH_TEST_CASE_METHOD( className, __VA_ARGS__ )
@@ -136,6 +150,18 @@
   #define CHECK_THROWS( ... )  INTERNAL_CATCH_THROWS( "CHECK_THROWS", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
   #define CHECK_THROWS_AS( expr, exceptionType ) INTERNAL_CATCH_THROWS_AS( "CHECK_THROWS_AS", exceptionType, Catch::ResultDisposition::ContinueOnFailure, expr )
   #define CHECK_NOTHROW( ... ) INTERNAL_CATCH_NO_THROW( "CHECK_NOTHROW", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+
+  #define GROUP_TEST_CASE( Group, ... ) INTERNAL_CATCH_TESTCASE_GROUP( Group, __VA_ARGS__ )
+  #define GROUP_TEST_CASE_METHOD( Group, className, ... ) INTERNAL_CATCH_TEST_CASE_METHOD_GROUP( Group, className, __VA_ARGS__ )
+  #define GROUP_METHOD_AS_TEST_CASE( Group, method, ... ) INTERNAL_CATCH_METHOD_AS_TEST_CASE_GROUP( Group, method, __VA_ARGS__ )
+  #define GROUP_REGISTER_TEST_CASE( Group, Function, ... ) INTERNAL_CATCH_REGISTER_TESTCASE_GROUP( Group, Function, __VA_ARGS__ )
+  
+  #define GROUP_BEFORE_ALL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::BeforeAllTests )
+  #define GROUP_AFTER_ALL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::AfterAllTests )
+  #define GROUP_BEFORE_EACH( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::BeforeEachTest )
+  #define GROUP_AFTER_EACH( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::AfterEachTest )
+  #define GROUP_BEFORE_GLOBAL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::BeforeGlobal )
+  #define GROUP_AFTER_GLOBAL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::AfterGlobal )
 
   #define TEST_CASE( ... ) INTERNAL_CATCH_TESTCASE( __VA_ARGS__ )
   #define TEST_CASE_METHOD( className, ... ) INTERNAL_CATCH_TEST_CASE_METHOD( className, __VA_ARGS__ )

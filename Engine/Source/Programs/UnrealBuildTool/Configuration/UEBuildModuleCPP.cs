@@ -11,8 +11,6 @@ using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
-	using SourceOrderOverrides = IReadOnlyDictionary<FileItem, ModuleRules.SourceFileBuildOrder>;
-
 	/// <summary>
 	/// A module that is compiled from C++ code.
 	/// </summary>
@@ -1129,16 +1127,11 @@ namespace UnrealBuildTool
 
 			if (NormalFiles.Count > 0)
 			{
-				// Optionally alter order of compilation
-				TryAlterCompilationOrder(Rules.BuildOrderSettings.Overrides, NormalFiles);
 				OutputFiles = ToolChain.CompileCPPFiles(CompileEnvironment, NormalFiles, IntermediateDirectory, Name, Graph);
 			}
 
 			if (AdaptiveFiles.Count > 0)
 			{
-				// Optionally alter order of compilation
-				TryAlterCompilationOrder(Rules.BuildOrderSettings.Overrides, AdaptiveFiles);
-
 				// Create the new compile environment. Always turn off PCH due to different compiler settings.
 				CppCompileEnvironment AdaptiveUnityEnvironment = new CppCompileEnvironment(ModuleCompileEnvironment);
 				if(Target.bAdaptiveUnityDisablesOptimizations)
@@ -1712,38 +1705,6 @@ namespace UnrealBuildTool
 			}
 
 			return InputFiles;
-		}
-
-		private void TryAlterCompilationOrder(SourceOrderOverrides OrderOverrides, List<FileItem> Files)
-		{
-			FileItem FileToAlter;
-			ModuleRules.SourceFileBuildOrder Order;
-			int FoundIndex;
-			if (OrderOverrides != null && OrderOverrides.Count > 0)
-			{
-				foreach (var FileOrder in OrderOverrides)
-				{
-					FileToAlter = FileOrder.Key;
-					Order = FileOrder.Value;
-					FoundIndex = Files.FindIndex((File) => File.Location == FileToAlter.Location);
-					if (Order == ModuleRules.SourceFileBuildOrder.First)
-					{
-						if (FoundIndex > 0)
-						{
-							Files.Insert(0, Files[FoundIndex]);
-							Files.RemoveAt(FoundIndex + 1);
-						}
-					}
-					else if (Order == ModuleRules.SourceFileBuildOrder.Last)
-					{
-						if (FoundIndex >= 0 && FoundIndex < Files.Count - 1)
-						{
-							Files.Add(Files[FoundIndex]);
-							Files.RemoveAt(FoundIndex);
-						}
-					}
-				}
-			}
 		}
 
 		/// <summary>

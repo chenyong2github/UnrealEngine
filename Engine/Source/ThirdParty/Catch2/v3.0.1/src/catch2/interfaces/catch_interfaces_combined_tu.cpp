@@ -74,6 +74,12 @@ namespace Catch {
     ITestCaseRegistry::~ITestCaseRegistry() = default;
 }
 
+#include <catch2/interfaces/catch_interfaces_group.hpp>
+
+namespace Catch {
+    IGroupLifecycleEventInvoker::~IGroupLifecycleEventInvoker() = default;
+    ITestGroupEventRegistry::~ITestGroupEventRegistry() = default;
+}
 
 #include <catch2/interfaces/catch_interfaces_reporter_registry.hpp>
 

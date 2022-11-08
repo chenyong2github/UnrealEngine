@@ -187,16 +187,33 @@ namespace LowLevelTests
 			{
 				string ReportContents = File.ReadAllText(ReportPath);
 				Log.Info(ReportContents);
-				LowLevelTestsLogParser LowLevelTestsLogParser = new LowLevelTestsLogParser(ReportContents);
-				if (LowLevelTestsLogParser.GetCatchTestResults().Passed)
+				string ReportType = Context.Options.ReportType.ToLower();
+				if (ReportType == "console")
 				{
-					LowLevelTestResult = TestResult.Passed;
-					ExitReason = "Tests passed";
-				}
-				else
+					LowLevelTestsLogParser LowLevelTestsLogParser = new LowLevelTestsLogParser(ReportContents);
+					if (LowLevelTestsLogParser.GetCatchTestResults().Passed)
+					{
+						LowLevelTestResult = TestResult.Passed;
+						ExitReason = "Tests passed";
+					}
+					else
+					{
+						LowLevelTestResult = TestResult.Failed;
+						ExitReason = "Tests failed";
+					}
+				} else if (ReportType == "xml")
 				{
-					LowLevelTestResult = TestResult.Failed;
-					ExitReason = "Tests failed";
+					LowLevelTestsReportParser LowLevelTestsReportParser = new LowLevelTestsReportParser(ReportContents);
+					if (LowLevelTestsReportParser.HasPassed())
+					{
+						LowLevelTestResult = TestResult.Passed;
+						ExitReason = "Tests passed";
+					}
+					else
+					{
+						LowLevelTestResult = TestResult.Failed;
+						ExitReason = "Tests failed";
+					}
 				}
 			}
 			Log.Info($"Low level test exited with code {TestInstance.ExitCode} and reason: {ExitReason}");

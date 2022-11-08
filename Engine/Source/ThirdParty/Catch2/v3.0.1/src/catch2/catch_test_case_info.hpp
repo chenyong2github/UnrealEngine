@@ -13,7 +13,7 @@
 #include <catch2/internal/catch_stringref.hpp>
 #include <catch2/internal/catch_test_registry.hpp>
 #include <catch2/internal/catch_unique_ptr.hpp>
-
+#include <catch2/internal/catch_constants.hpp>
 
 #include <string>
 #include <vector>
@@ -67,7 +67,8 @@ namespace Catch {
 
         TestCaseInfo(StringRef _className,
                      NameAndTags const& _tags,
-                     SourceLineInfo const& _lineInfo);
+                     SourceLineInfo const& _lineInfo,
+                     StringRef _group = DefaultGroup);
 
         bool isHidden() const;
         bool throws() const;
@@ -85,6 +86,7 @@ namespace Catch {
         std::string tagsAsString() const;
 
         std::string name;
+        StringRef group;
         StringRef className;
     private:
         std::string backingTags;
@@ -102,6 +104,8 @@ namespace Catch {
      *
      * Does not own either, and is specifically made to be cheap
      * to copy around.
+     * 
+     * Also keeps track of test group and invokes before and after each test events if they were declared for the group
      */
     class TestCaseHandle {
         TestCaseInfo* m_info;
@@ -120,7 +124,8 @@ namespace Catch {
     Detail::unique_ptr<TestCaseInfo>
     makeTestCaseInfo( StringRef className,
                       NameAndTags const& nameAndTags,
-                      SourceLineInfo const& lineInfo );
+                      SourceLineInfo const& lineInfo,
+                      StringRef group = DefaultGroup);
 }
 
 #ifdef __clang__

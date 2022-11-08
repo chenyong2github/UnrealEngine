@@ -66,6 +66,7 @@ set(INTERNAL_HEADERS
     ${SOURCES_DIR}/internal/catch_config_uncaught_exceptions.hpp
     ${SOURCES_DIR}/internal/catch_config_wchar.hpp
     ${SOURCES_DIR}/internal/catch_console_colour.hpp
+    ${SOURCES_DIR}/internal/catch_constants.hpp
     ${SOURCES_DIR}/internal/catch_context.hpp
     ${SOURCES_DIR}/internal/catch_debug_console.hpp
     ${SOURCES_DIR}/internal/catch_debugger.hpp
@@ -89,6 +90,7 @@ set(INTERNAL_HEADERS
     ${SOURCES_DIR}/interfaces/catch_interfaces_enum_values_registry.hpp
     ${SOURCES_DIR}/interfaces/catch_interfaces_exception.hpp
     ${SOURCES_DIR}/interfaces/catch_interfaces_generatortracker.hpp
+    ${SOURCES_DIR}/interfaces/catch_interfaces_group.hpp
     ${SOURCES_DIR}/interfaces/catch_interfaces_registry_hub.hpp
     ${SOURCES_DIR}/interfaces/catch_interfaces_reporter.hpp
     ${SOURCES_DIR}/interfaces/catch_interfaces_reporter_factory.hpp
@@ -138,8 +140,10 @@ set(INTERNAL_HEADERS
     ${SOURCES_DIR}/catch_tag_alias_autoregistrar.hpp
     ${SOURCES_DIR}/internal/catch_tag_alias_registry.hpp
     ${SOURCES_DIR}/catch_test_case_info.hpp
+    ${SOURCES_DIR}/catch_test_group_info.hpp
     ${SOURCES_DIR}/internal/catch_test_case_registry_impl.hpp
     ${SOURCES_DIR}/internal/catch_test_case_tracker.hpp
+    ${SOURCES_DIR}/internal/catch_test_group_event_registry_impl.hpp
     ${SOURCES_DIR}/catch_template_test_macros.hpp
     ${SOURCES_DIR}/catch_test_macros.hpp
     ${SOURCES_DIR}/internal/catch_template_test_registry.hpp
@@ -209,7 +213,9 @@ set(IMPL_SOURCES
     ${SOURCES_DIR}/internal/catch_string_manip.cpp
     ${SOURCES_DIR}/internal/catch_tag_alias_registry.cpp
     ${SOURCES_DIR}/catch_test_case_info.cpp
+	${SOURCES_DIR}/catch_test_group_info.cpp
     ${SOURCES_DIR}/internal/catch_test_case_registry_impl.cpp
+	${SOURCES_DIR}/internal/catch_test_group_event_registry_impl.cpp
     ${SOURCES_DIR}/internal/catch_test_case_tracker.cpp
     ${SOURCES_DIR}/internal/catch_test_registry.cpp
     ${SOURCES_DIR}/internal/catch_textflow.cpp

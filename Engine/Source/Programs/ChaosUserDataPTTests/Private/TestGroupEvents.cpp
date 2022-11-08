@@ -1,10 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Modules/ModuleManager.h"
 #include "TestCommon/Initialization.h"
-#include "TestHarness.h"
 
-TEST_CASE("Module setup")
+#include <catch2/catch_test_macros.hpp>
+
+GROUP_BEFORE_GLOBAL(Catch::DefaultGroup)
 {
 	InitAll(/*bAllowLogging=*/true, /*bMultithreaded=*/false);
+}
+
+GROUP_AFTER_GLOBAL(Catch::DefaultGroup)
+{
+	CleanupAll();
 }

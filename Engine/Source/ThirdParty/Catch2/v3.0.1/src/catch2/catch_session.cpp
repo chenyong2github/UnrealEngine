@@ -75,9 +75,9 @@ namespace Catch {
             return multi;
         }
 
-        class TestGroup {
+        class TestGroups {
         public:
-            explicit TestGroup(IEventListenerPtr&& reporter, Config const* config):
+            explicit TestGroups(IEventListenerPtr&& reporter, Config const* config):
                 m_reporter(reporter.get()),
                 m_config{config},
                 m_context{config, CATCH_MOVE(reporter)} {
@@ -88,6 +88,10 @@ namespace Catch {
                 auto const& allTestCases = getAllTestCasesSorted(*m_config);
                 auto const& testSpec = m_config->testSpec();
                 if ( !testSpec.hasFilters() ) {
+					auto const& allGroups = getRegistryHub().getTestCaseRegistry().getAllGroups();
+					for ( auto const& group : allGroups ) {
+						m_filtered_groups.insert( group.first );
+					}
                     for ( auto const& test : allTestCases ) {
                         if ( !test.getTestCaseInfo().isHidden() ) {
                             m_tests.emplace( &test );
@@ -99,6 +103,10 @@ namespace Catch {
                     for ( auto const& match : m_matches ) {
                         m_tests.insert( match.tests.begin(),
                                         match.tests.end() );
+						for (auto const& test : match.tests)
+						{
+							m_filtered_groups.insert( test->getTestCaseInfo().group );
+						}
                     }
                 }
 
@@ -106,6 +114,10 @@ namespace Catch {
             }
 
             Totals execute() {
+				if (!m_context.aborting()) {
+					m_context.testsStarting(m_filtered_groups);
+				}
+
                 Totals totals;
                 for (auto const& testCase : m_tests) {
                     if (!m_context.aborting())
@@ -113,6 +125,10 @@ namespace Catch {
                     else
                         m_reporter->skipTest(testCase->getTestCaseInfo());
                 }
+
+				if (!m_context.aborting()) {
+					m_context.testsFinished(m_filtered_groups);
+				}
 
                 for (auto const& match : m_matches) {
                     if (match.tests.empty()) {
@@ -134,6 +150,7 @@ namespace Catch {
             Config const* m_config;
             RunContext m_context;
             std::set<TestCaseHandle const*> m_tests;
+			std::set<StringRef> m_filtered_groups;
             TestSpec::Matches m_matches;
             bool m_unmatchedTestSpecs = false;
         };
@@ -334,7 +351,7 @@ namespace Catch {
                 return 0;
             }
 
-            TestGroup tests { CATCH_MOVE(reporter), m_config.get() };
+            TestGroups tests { CATCH_MOVE(reporter), m_config.get() };
             auto const totals = tests.execute();
 
             if ( tests.hadUnmatchedTestSpecs()

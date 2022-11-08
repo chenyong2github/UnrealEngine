@@ -9,6 +9,7 @@
 
 #include <catch2/internal/catch_context.hpp>
 #include <catch2/internal/catch_enforce.hpp>
+#include <catch2/internal/catch_test_group_event_registry_impl.hpp>
 #include <catch2/internal/catch_test_case_registry_impl.hpp>
 #include <catch2/internal/catch_reporter_registry.hpp>
 #include <catch2/internal/catch_exception_translator_registry.hpp>
@@ -18,6 +19,7 @@
 #include <catch2/internal/catch_enum_values_registry.hpp>
 #include <catch2/catch_test_case_info.hpp>
 #include <catch2/internal/catch_noncopyable.hpp>
+#include <catch2/interfaces/catch_interfaces_group.hpp>
 #include <catch2/interfaces/catch_interfaces_reporter_factory.hpp>
 #include <catch2/internal/catch_move_and_forward.hpp>
 
@@ -37,6 +39,9 @@ namespace Catch {
             ITestCaseRegistry const& getTestCaseRegistry() const override {
                 return m_testCaseRegistry;
             }
+            ITestGroupEventRegistry const& getTestGroupEventRegistry() const override {
+                return m_testGroupEventRegistry;
+            }
             IExceptionTranslatorRegistry const& getExceptionTranslatorRegistry() const override {
                 return m_exceptionTranslatorRegistry;
             }
@@ -53,6 +58,9 @@ namespace Catch {
             }
             void registerListener( Detail::unique_ptr<EventListenerFactory> factory ) override {
                 m_reporterRegistry.registerListener( CATCH_MOVE(factory) );
+            }
+            void registerTestGroupEvent( std::string const& group, GroupLifecycleStage const& stage, IGroupLifecycleEventInvoker* invoker ) override {
+                m_testGroupEventRegistry.registerTestGroupEvent( group, stage, invoker );
             }
             void registerTest( Detail::unique_ptr<TestCaseInfo>&& testInfo, Detail::unique_ptr<ITestInvoker>&& invoker ) override {
                 m_testCaseRegistry.registerTest( CATCH_MOVE(testInfo), CATCH_MOVE(invoker) );
@@ -76,6 +84,7 @@ namespace Catch {
 
         private:
             TestRegistry m_testCaseRegistry;
+            TestGroupEventRegistry m_testGroupEventRegistry;
             ReporterRegistry m_reporterRegistry;
             ExceptionTranslatorRegistry m_exceptionTranslatorRegistry;
             TagAliasRegistry m_tagAliasRegistry;

@@ -16,6 +16,10 @@ namespace Catch {
         // FNV-1a hash algorithm that is designed for uniqueness:
         const hash_t prime = 1099511628211u;
         hash_t hash = 14695981039346656037u;
+        for ( const char c : t.group ) {
+            hash ^= c;
+            hash *= prime;
+        }
         for ( const char c : t.name ) {
             hash ^= c;
             hash *= prime;

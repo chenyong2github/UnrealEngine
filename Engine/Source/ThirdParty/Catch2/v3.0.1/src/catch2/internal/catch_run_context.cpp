@@ -188,6 +188,8 @@ namespace Catch {
 
         m_activeTestCase = &testCase;
 
+		// Before / After all tests events for test groups
+		invokeGroupLevelEvents();
 
         ITracker& rootTracker = m_trackerContext.startRun();
         assert(rootTracker.isSectionTracker());
@@ -259,6 +261,7 @@ namespace Catch {
                                   redirectedCerr,
                                   aborting()));
 
+		m_previousTestCase = m_activeTestCase;
         m_activeTestCase = nullptr;
         m_testCaseTracker = nullptr;
 
@@ -446,6 +449,15 @@ namespace Catch {
         return m_totals.assertions.failed >= static_cast<std::size_t>(m_config->abortAfter());
     }
 
+	void RunContext::testsStarting(std::set<StringRef> filteredGroups) {
+		invokeAllGroupsBeforeGlobalEvents(filteredGroups);
+	}
+
+	void RunContext::testsFinished(std::set<StringRef> filteredGroups) {
+        invokeGroupLevelEvents();
+		invokeAllGroupsAfterGlobalEvents(filteredGroups);
+	}
+
     void RunContext::runCurrentTest(std::string & redirectedCout, std::string & redirectedCerr) {
         auto const& testCaseInfo = m_activeTestCase->getTestCaseInfo();
         SectionInfo testCaseSection(testCaseInfo.lineInfo, testCaseInfo.name);
@@ -495,12 +507,83 @@ namespace Catch {
         m_reporter->sectionEnded(testCaseSectionStats);
     }
 
+	void RunContext::invokeAllGroupsBeforeGlobalEvents(std::set<StringRef> filteredGroups) {
+		for (auto group : filteredGroups) {
+			TestGroupHandle* groupHandle = TestGroupHandleFactory::getMutable().getGroupHandle(group.data());
+			IGroupLifecycleEventInvoker* beforeGlobalInvoker = groupHandle->getBeforeAllGlobalInvoker();
+			if (beforeGlobalInvoker && !beforeGlobalInvoker->wasInvoked())
+			{
+				beforeGlobalInvoker->invoke();
+			}
+		}
+	}
+
+	void RunContext::invokeAllGroupsAfterGlobalEvents(std::set<StringRef> filteredGroups) {
+		for (auto group : filteredGroups) {
+			TestGroupHandle* groupHandle = TestGroupHandleFactory::getMutable().getGroupHandle(group.data());
+			IGroupLifecycleEventInvoker* afterGlobalInvoker = groupHandle->getAfterAllGlobalInvoker();
+			if (afterGlobalInvoker && !afterGlobalInvoker->wasInvoked())
+			{
+				afterGlobalInvoker->invoke();
+			}
+		}
+	}
+
+	void RunContext::invokeGroupLevelEvents() {
+        if ( m_activeTestCase ) {
+            StringRef activeGroup = m_activeTestCase->getTestCaseInfo().group;
+            // Group changed - either a new group begins or the previous finished
+            if ( !m_previousTestCase || ( m_activeTestCase && m_previousTestCase->getTestCaseInfo().group != activeGroup ) ) {
+                if ( m_previousTestCase ) {
+                    TestGroupHandle* finishedGroupHandle = TestGroupHandleFactory::getMutable()
+						.getGroupHandle( m_previousTestCase->getTestCaseInfo().group.data() );
+
+                    IGroupLifecycleEventInvoker* afterAllInvoker = finishedGroupHandle->getAfterAllTestsInvoker();
+                    if ( afterAllInvoker && !afterAllInvoker->wasInvoked() ) {
+                        afterAllInvoker->invoke();
+                    }
+                }
+
+                TestGroupHandle* nextGroupHandle = TestGroupHandleFactory::getMutable()
+					.getGroupHandle( activeGroup.data() );
+                IGroupLifecycleEventInvoker* beforeAllInvoker = nextGroupHandle->getBeforeAllTestsInvoker();
+                if ( beforeAllInvoker && !beforeAllInvoker->wasInvoked() ) {
+                    beforeAllInvoker->invoke();
+                } 
+            }
+        } else if ( m_previousTestCase ) {
+            TestGroupHandle* finishedGroupHandle = TestGroupHandleFactory::getMutable()
+				.getGroupHandle( m_previousTestCase->getTestCaseInfo().group.data() );
+
+            IGroupLifecycleEventInvoker* afterAllInvoker = finishedGroupHandle->getAfterAllTestsInvoker();
+            if ( afterAllInvoker && !afterAllInvoker->wasInvoked() ) {
+                afterAllInvoker->invoke();
+            }
+        }
+	}
+
     void RunContext::invokeActiveTestCase() {
         // We need to engage a handler for signals/structured exceptions
         // before running the tests themselves, or the binary can crash
         // without failed test being reported.
         FatalConditionHandlerGuard _(&m_fatalConditionhandler);
+
+		IGroupLifecycleEventInvoker* beforeEachInvoker =
+            TestGroupHandleFactory::getMutable()
+			.getGroupHandle( m_activeTestCase->getTestCaseInfo().group.data() )->getBeforeEachTestInvoker();
+        if ( beforeEachInvoker ) {
+            beforeEachInvoker->invoke();
+        }
+
         m_activeTestCase->invoke();
+
+		IGroupLifecycleEventInvoker* afterEachInvoker =
+			TestGroupHandleFactory::getMutable()
+			.getGroupHandle( m_activeTestCase->getTestCaseInfo().group.data() )->getAfterEachTestInvoker();
+
+		if ( afterEachInvoker ) {
+            afterEachInvoker->invoke();
+		}
     }
 
     void RunContext::handleUnfinishedSections() {

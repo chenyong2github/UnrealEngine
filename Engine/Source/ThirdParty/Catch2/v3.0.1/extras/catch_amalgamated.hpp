@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: BSL-1.0
 
 //  Catch v3.0.1
-//  Generated: 2022-05-17 22:08:46.674860
+//  Generated: 2022-11-07 17:10:14.503663
 //  ----------------------------------------------------------
 //  This file is an amalgamation of multiple different files.
 //  You probably shouldn't edit it directly.
@@ -1739,19 +1739,47 @@ namespace mpl_{
 #define CATCH_INTERFACES_REGISTRY_HUB_HPP_INCLUDED
 
 
+
+#ifndef CATCH_INTERFACES_GROUP_HPP_INCLUDED
+#define CATCH_INTERFACES_GROUP_HPP_INCLUDED
+
+namespace Catch {
+
+    enum GroupLifecycleStage {
+        BeforeAllTests, AfterAllTests, BeforeEachTest, AfterEachTest, BeforeGlobal, AfterGlobal
+    };
+
+    class IGroupLifecycleEventInvoker {
+    public:
+        virtual GroupLifecycleStage getStage() const = 0;
+        virtual void invoke () = 0;
+        virtual bool wasInvoked() const = 0;
+        virtual ~IGroupLifecycleEventInvoker(); // = default
+    };
+
+    class ITestGroupEventRegistry {
+    public:
+        virtual ~ITestGroupEventRegistry(); // = default
+    };
+}
+
+#endif // CATCH_INTERFACES_GROUP_HPP_INCLUDED
 #include <string>
 
 namespace Catch {
 
     class TestCaseHandle;
+    class TestGroupHandle;
     struct TestCaseInfo;
     class ITestCaseRegistry;
+    class ITestGroupEventRegistry;
     class IExceptionTranslatorRegistry;
     class IExceptionTranslator;
     class IReporterRegistry;
     class IReporterFactory;
     class ITagAliasRegistry;
     class ITestInvoker;
+    class IGroupLifecycleEventInvoker;
     class IMutableEnumValuesRegistry;
     struct SourceLineInfo;
 
@@ -1766,6 +1794,7 @@ namespace Catch {
 
         virtual IReporterRegistry const& getReporterRegistry() const = 0;
         virtual ITestCaseRegistry const& getTestCaseRegistry() const = 0;
+        virtual ITestGroupEventRegistry const& getTestGroupEventRegistry() const = 0;
         virtual ITagAliasRegistry const& getTagAliasRegistry() const = 0;
         virtual IExceptionTranslatorRegistry const& getExceptionTranslatorRegistry() const = 0;
 
@@ -1778,7 +1807,8 @@ namespace Catch {
         virtual ~IMutableRegistryHub(); // = default
         virtual void registerReporter( std::string const& name, IReporterFactoryPtr factory ) = 0;
         virtual void registerListener( Detail::unique_ptr<EventListenerFactory> factory ) = 0;
-        virtual void registerTest(Detail::unique_ptr<TestCaseInfo>&& testInfo, Detail::unique_ptr<ITestInvoker>&& invoker) = 0;
+        virtual void registerTest( Detail::unique_ptr<TestCaseInfo>&& testInfo, Detail::unique_ptr<ITestInvoker>&& invoker ) = 0;
+        virtual void registerTestGroupEvent( std::string const& group, GroupLifecycleStage const& stage, IGroupLifecycleEventInvoker* invoker ) = 0;
         virtual void registerTranslator( Detail::unique_ptr<IExceptionTranslator>&& translator ) = 0;
         virtual void registerTagAlias( std::string const& alias, std::string const& tag, SourceLineInfo const& lineInfo ) = 0;
         virtual void registerStartupException() noexcept = 0;
@@ -3762,6 +3792,14 @@ namespace Catch {
             bool matches( TestCaseInfo const& testCase ) const override;
         private:
             std::string m_tag;
+        };
+
+		class GroupPattern : public Pattern {
+        public:
+            explicit GroupPattern( std::string const& group, std::string const& filterString );
+            bool matches( TestCaseInfo const& testCase ) const override;
+        private:
+            WildcardPattern m_wildcardPatternGroup;
         };
 
         struct Filter {
@@ -5771,6 +5809,7 @@ namespace Catch {
 #define CATCH_INTERFACES_TESTCASE_HPP_INCLUDED
 
 #include <vector>
+#include <map>
 
 namespace Catch {
 
@@ -5786,13 +5825,16 @@ namespace Catch {
     class TestCaseHandle;
     class IConfig;
 
+	typedef std::vector<TestCaseHandle> TestCaseHandleVector; 
+
     class ITestCaseRegistry {
     public:
         virtual ~ITestCaseRegistry(); // = default
         // TODO: this exists only for adding filenames to test cases -- let's expose this in a saner way later
         virtual std::vector<TestCaseInfo* > const& getAllInfos() const = 0;
+        virtual std::map<StringRef, TestCaseHandleVector> const& getAllGroups() const = 0;
         virtual std::vector<TestCaseHandle> const& getAllTests() const = 0;
-        virtual std::vector<TestCaseHandle> const& getAllTestsSorted( IConfig const& config ) const = 0;
+        virtual std::vector<TestCaseHandle> const& getAllTestsSorted( IConfig const& config ) const = 0;    
     };
 
     bool isThrowSafe( TestCaseHandle const& testCase, IConfig const& config );
@@ -5818,6 +5860,17 @@ namespace Catch {
 
 #endif // CATCH_PREPROCESSOR_REMOVE_PARENS_HPP_INCLUDED
 
+
+#ifndef CATCH_CONSTANTS_HPP_INCLUDED
+#define CATCH_CONSTANTS_HPP_INCLUDED
+
+namespace Catch {
+    // Default test group, always first to run
+    static constexpr char const* const DefaultGroup = "";
+} // end namespace Catch
+
+#endif // CATCH_CONSTANTS_HPP_INCLUDED
+
 // GCC 5 and older do not properly handle disabling unused-variable warning
 // with a _Pragma. This means that we have to leak the suppression to the
 // user code as well :-(
@@ -5841,6 +5894,8 @@ public:
     }
 };
 
+IGroupLifecycleEventInvoker* makeGroupEventInvoker( void(*groupEventAsFunction)(), GroupLifecycleStage stage );
+
 Detail::unique_ptr<ITestInvoker> makeTestInvoker( void(*testAsFunction)() );
 
 template<typename C>
@@ -5858,6 +5913,8 @@ struct NameAndTags {
 
 struct AutoReg : Detail::NonCopyable {
     AutoReg( Detail::unique_ptr<ITestInvoker> invoker, SourceLineInfo const& lineInfo, StringRef classOrMethod, NameAndTags const& nameAndTags ) noexcept;
+    AutoReg( Detail::unique_ptr<ITestInvoker> invoker, SourceLineInfo const& lineInfo, StringRef group, StringRef classOrMethod, NameAndTags const& nameAndTags ) noexcept;
+    AutoReg( std::string group, GroupLifecycleStage stage, IGroupLifecycleEventInvoker* invoker) noexcept;
 };
 
 } // end namespace Catch
@@ -5875,46 +5932,65 @@ struct AutoReg : Detail::NonCopyable {
 #endif
 
     ///////////////////////////////////////////////////////////////////////////////
-    #define INTERNAL_CATCH_TESTCASE2( TestName, ... ) \
+   #define INTERNAL_CATCH_TESTCASE2( Group, TestName, ... ) \
         static void TestName(); \
         CATCH_INTERNAL_START_WARNINGS_SUPPRESSION \
         CATCH_INTERNAL_SUPPRESS_GLOBALS_WARNINGS \
-        namespace{ Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar )( Catch::makeTestInvoker( &TestName ), CATCH_INTERNAL_LINEINFO, Catch::StringRef(), Catch::NameAndTags{ __VA_ARGS__ } ); } /* NOLINT */ \
+        namespace{ Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar )( Catch::makeTestInvoker( &TestName ), CATCH_INTERNAL_LINEINFO, Catch::StringRef(Group), Catch::StringRef(), Catch::NameAndTags{ __VA_ARGS__ } ); } /* NOLINT */ \
         CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION \
         static void TestName()
+    #define INTERNAL_CATCH_TESTCASE_GROUP( Group, ... ) \
+        INTERNAL_CATCH_TESTCASE2( Group, INTERNAL_CATCH_UNIQUE_NAME( CATCH2_INTERNAL_TEST_ ), __VA_ARGS__ )
     #define INTERNAL_CATCH_TESTCASE( ... ) \
-        INTERNAL_CATCH_TESTCASE2( INTERNAL_CATCH_UNIQUE_NAME( CATCH2_INTERNAL_TEST_ ), __VA_ARGS__ )
-
-    ///////////////////////////////////////////////////////////////////////////////
-    #define INTERNAL_CATCH_METHOD_AS_TEST_CASE( QualifiedMethod, ... ) \
+        INTERNAL_CATCH_TESTCASE2( Catch::DefaultGroup, INTERNAL_CATCH_UNIQUE_NAME( CATCH2_INTERNAL_TEST_ ), __VA_ARGS__ )
+    #define INTERNAL_CATCH_TEST_GROUP_EVENT2( Group, Stage, EventName ) \
+        static void EventName(); \
         CATCH_INTERNAL_START_WARNINGS_SUPPRESSION \
         CATCH_INTERNAL_SUPPRESS_GLOBALS_WARNINGS \
-        namespace{ Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar )( Catch::makeTestInvoker( &QualifiedMethod ), CATCH_INTERNAL_LINEINFO, "&" #QualifiedMethod, Catch::NameAndTags{ __VA_ARGS__ } ); } /* NOLINT */ \
-        CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION
+        namespace{ Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar )( Group, Stage, Catch::makeGroupEventInvoker( &EventName, Stage ) ); } /* NOLINT */ \
+        CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION \
+        static void EventName()
+    #define INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Stage ) \
+        INTERNAL_CATCH_TEST_GROUP_EVENT2( Group, Stage, INTERNAL_CATCH_UNIQUE_NAME( CATCH2_GROUP_EVENT_ ) )
 
     ///////////////////////////////////////////////////////////////////////////////
-    #define INTERNAL_CATCH_TEST_CASE_METHOD2( TestName, ClassName, ... )\
+    #define INTERNAL_CATCH_METHOD_AS_TEST_CASE_GROUP( Group, QualifiedMethod, ... ) \
+        CATCH_INTERNAL_START_WARNINGS_SUPPRESSION \
+        CATCH_INTERNAL_SUPPRESS_GLOBALS_WARNINGS \
+        namespace{ Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar )( Catch::makeTestInvoker( &QualifiedMethod ), CATCH_INTERNAL_LINEINFO, Group, "&" #QualifiedMethod, Catch::NameAndTags{ __VA_ARGS__ } ); } /* NOLINT */ \
+        CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION
+
+	#define INTERNAL_CATCH_METHOD_AS_TEST_CASE( QualifiedMethod, ... ) INTERNAL_CATCH_METHOD_AS_TEST_CASE_GROUP( Catch::DefaultGroup, QualifiedMethod, __VA_ARGS__ )
+
+    ///////////////////////////////////////////////////////////////////////////////
+    #define INTERNAL_CATCH_TEST_CASE_METHOD2( Group, TestName, ClassName, ... )\
         CATCH_INTERNAL_START_WARNINGS_SUPPRESSION \
         CATCH_INTERNAL_SUPPRESS_GLOBALS_WARNINGS \
         namespace{ \
             struct TestName : INTERNAL_CATCH_REMOVE_PARENS(ClassName) { \
                 void test(); \
             }; \
-            Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar ) ( Catch::makeTestInvoker( &TestName::test ), CATCH_INTERNAL_LINEINFO, #ClassName, Catch::NameAndTags{ __VA_ARGS__ } ); /* NOLINT */ \
+            Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar ) ( Catch::makeTestInvoker( &TestName::test ), CATCH_INTERNAL_LINEINFO, Group, #ClassName, Catch::NameAndTags{ __VA_ARGS__ } ); /* NOLINT */ \
         } \
         CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION \
         void TestName::test()
-    #define INTERNAL_CATCH_TEST_CASE_METHOD( ClassName, ... ) \
-        INTERNAL_CATCH_TEST_CASE_METHOD2( INTERNAL_CATCH_UNIQUE_NAME( CATCH2_INTERNAL_TEST_ ), ClassName, __VA_ARGS__ )
+
+	#define INTERNAL_CATCH_TEST_CASE_METHOD_GROUP( Group, ClassName, ... ) \
+			INTERNAL_CATCH_TEST_CASE_METHOD2( Group, INTERNAL_CATCH_UNIQUE_NAME( CATCH2_INTERNAL_TEST_ ), ClassName, __VA_ARGS__ )
+
+	#define INTERNAL_CATCH_TEST_CASE_METHOD( ClassName, ... ) INTERNAL_CATCH_TEST_CASE_METHOD_GROUP( Catch::DefaultGroup, ClassName, __VA_ARGS__ )
+
 
     ///////////////////////////////////////////////////////////////////////////////
-    #define INTERNAL_CATCH_REGISTER_TESTCASE( Function, ... ) \
+    #define INTERNAL_CATCH_REGISTER_TESTCASE_GROUP( Group, Function, ... ) \
         do { \
             CATCH_INTERNAL_START_WARNINGS_SUPPRESSION \
             CATCH_INTERNAL_SUPPRESS_GLOBALS_WARNINGS \
-            Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar )( Catch::makeTestInvoker( Function ), CATCH_INTERNAL_LINEINFO, Catch::StringRef(), Catch::NameAndTags{ __VA_ARGS__ } ); /* NOLINT */ \
+            Catch::AutoReg INTERNAL_CATCH_UNIQUE_NAME( autoRegistrar )( Catch::makeTestInvoker( Function ), CATCH_INTERNAL_LINEINFO, Group, Catch::StringRef(), Catch::NameAndTags{ __VA_ARGS__ } ); /* NOLINT */ \
             CATCH_INTERNAL_STOP_WARNINGS_SUPPRESSION \
         } while(false)
+
+	#define INTERNAL_CATCH_REGISTER_TESTCASE( Function, ... ) INTERNAL_CATCH_REGISTER_TESTCASE_GROUP( Catch::DefaultGroup, Function, __VA_ARGS__ )
 
 
 #endif // CATCH_TEST_REGISTRY_HPP_INCLUDED
@@ -5943,6 +6019,19 @@ struct AutoReg : Detail::NonCopyable {
   #define CATCH_CHECK_THROWS( ... )  INTERNAL_CATCH_THROWS( "CATCH_CHECK_THROWS", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
   #define CATCH_CHECK_THROWS_AS( expr, exceptionType ) INTERNAL_CATCH_THROWS_AS( "CATCH_CHECK_THROWS_AS", exceptionType, Catch::ResultDisposition::ContinueOnFailure, expr )
   #define CATCH_CHECK_NOTHROW( ... ) INTERNAL_CATCH_NO_THROW( "CATCH_CHECK_NOTHROW", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+
+  #define CATCH_GROUP_TEST_CASE( Group, ... ) INTERNAL_CATCH_TESTCASE_GROUP( Group, __VA_ARGS__ )
+  #define CATCH_GROUP_TEST_CASE( Group, ... ) INTERNAL_CATCH_TESTCASE_GROUP( Group, __VA_ARGS__ )
+  #define CATCH_GROUP_TEST_CASE_METHOD( Group, className, ... ) INTERNAL_CATCH_TEST_CASE_METHOD_GROUP( Group, className, __VA_ARGS__ )
+  #define CATCH_GROUP_METHOD_AS_TEST_CASE( Group, method, ... ) INTERNAL_CATCH_METHOD_AS_TEST_CASE_GROUP( Group, method, __VA_ARGS__ )
+  #define CATCH_GROUP_REGISTER_TEST_CASE( Group, Function, ... ) INTERNAL_CATCH_REGISTER_TESTCASE_GROUP( Group, Function, __VA_ARGS__ )
+  
+  #define CATCH_GROUP_BEFORE_ALL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::BeforeAllTests )
+  #define CATCH_GROUP_AFTER_ALL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::AfterAllTests )
+  #define CATCH_GROUP_BEFORE_EACH( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::BeforeEachTest )
+  #define CATCH_GROUP_AFTER_EACH( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::AfterEachTest )
+  #define CATCH_GROUP_BEFORE_GLOBAL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::BeforeGlobal )
+  #define CATCH_GROUP_AFTER_GLOBAL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::AfterGlobal )
 
   #define CATCH_TEST_CASE( ... ) INTERNAL_CATCH_TESTCASE( __VA_ARGS__ )
   #define CATCH_TEST_CASE_METHOD( className, ... ) INTERNAL_CATCH_TEST_CASE_METHOD( className, __VA_ARGS__ )
@@ -6040,6 +6129,18 @@ struct AutoReg : Detail::NonCopyable {
   #define CHECK_THROWS( ... )  INTERNAL_CATCH_THROWS( "CHECK_THROWS", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
   #define CHECK_THROWS_AS( expr, exceptionType ) INTERNAL_CATCH_THROWS_AS( "CHECK_THROWS_AS", exceptionType, Catch::ResultDisposition::ContinueOnFailure, expr )
   #define CHECK_NOTHROW( ... ) INTERNAL_CATCH_NO_THROW( "CHECK_NOTHROW", Catch::ResultDisposition::ContinueOnFailure, __VA_ARGS__ )
+
+  #define GROUP_TEST_CASE( Group, ... ) INTERNAL_CATCH_TESTCASE_GROUP( Group, __VA_ARGS__ )
+  #define GROUP_TEST_CASE_METHOD( Group, className, ... ) INTERNAL_CATCH_TEST_CASE_METHOD_GROUP( Group, className, __VA_ARGS__ )
+  #define GROUP_METHOD_AS_TEST_CASE( Group, method, ... ) INTERNAL_CATCH_METHOD_AS_TEST_CASE_GROUP( Group, method, __VA_ARGS__ )
+  #define GROUP_REGISTER_TEST_CASE( Group, Function, ... ) INTERNAL_CATCH_REGISTER_TESTCASE_GROUP( Group, Function, __VA_ARGS__ )
+  
+  #define GROUP_BEFORE_ALL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::BeforeAllTests )
+  #define GROUP_AFTER_ALL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::AfterAllTests )
+  #define GROUP_BEFORE_EACH( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::BeforeEachTest )
+  #define GROUP_AFTER_EACH( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::AfterEachTest )
+  #define GROUP_BEFORE_GLOBAL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::BeforeGlobal )
+  #define GROUP_AFTER_GLOBAL( Group ) INTERNAL_CATCH_TEST_GROUP_EVENT( Group, Catch::GroupLifecycleStage::AfterGlobal )
 
   #define TEST_CASE( ... ) INTERNAL_CATCH_TESTCASE( __VA_ARGS__ )
   #define TEST_CASE_METHOD( className, ... ) INTERNAL_CATCH_TEST_CASE_METHOD( className, __VA_ARGS__ )
@@ -6292,28 +6393,28 @@ struct AutoReg : Detail::NonCopyable {
     template<typename Type>\
     void reg_test(TypeList<Type>, Catch::NameAndTags nameAndTags)\
     {\
-        Catch::AutoReg( Catch::makeTestInvoker(&TestFunc<Type>), CATCH_INTERNAL_LINEINFO, Catch::StringRef(), nameAndTags);\
+        Catch::AutoReg( Catch::makeTestInvoker(&TestFunc<Type>), CATCH_INTERNAL_LINEINFO, Catch::DefaultGroup, Catch::StringRef(), nameAndTags);\
     }
 
 #define INTERNAL_CATCH_NTTP_REGISTER(TestFunc, signature, ...)\
     template<INTERNAL_CATCH_REMOVE_PARENS(signature)>\
     void reg_test(Nttp<__VA_ARGS__>, Catch::NameAndTags nameAndTags)\
     {\
-        Catch::AutoReg( Catch::makeTestInvoker(&TestFunc<__VA_ARGS__>), CATCH_INTERNAL_LINEINFO, Catch::StringRef(), nameAndTags);\
+        Catch::AutoReg( Catch::makeTestInvoker(&TestFunc<__VA_ARGS__>), CATCH_INTERNAL_LINEINFO, Catch::DefaultGroup, Catch::StringRef(), nameAndTags);\
     }
 
 #define INTERNAL_CATCH_NTTP_REGISTER_METHOD0(TestName, signature, ...)\
     template<typename Type>\
     void reg_test(TypeList<Type>, Catch::StringRef className, Catch::NameAndTags nameAndTags)\
     {\
-        Catch::AutoReg( Catch::makeTestInvoker(&TestName<Type>::test), CATCH_INTERNAL_LINEINFO, className, nameAndTags);\
+        Catch::AutoReg( Catch::makeTestInvoker(&TestName<Type>::test), CATCH_INTERNAL_LINEINFO, Catch::DefaultGroup, className, nameAndTags);\
     }
 
 #define INTERNAL_CATCH_NTTP_REGISTER_METHOD(TestName, signature, ...)\
     template<INTERNAL_CATCH_REMOVE_PARENS(signature)>\
     void reg_test(Nttp<__VA_ARGS__>, Catch::StringRef className, Catch::NameAndTags nameAndTags)\
     {\
-        Catch::AutoReg( Catch::makeTestInvoker(&TestName<__VA_ARGS__>::test), CATCH_INTERNAL_LINEINFO, className, nameAndTags);\
+        Catch::AutoReg( Catch::makeTestInvoker(&TestName<__VA_ARGS__>::test), CATCH_INTERNAL_LINEINFO, Catch::DefaultGroup, className, nameAndTags);\
     }
 
 #define INTERNAL_CATCH_DECLARE_SIG_TEST_METHOD0(TestName, ClassName)
@@ -6480,7 +6581,7 @@ struct AutoReg : Detail::NonCopyable {
                     constexpr char const* tmpl_types[] = {CATCH_REC_LIST(INTERNAL_CATCH_STRINGIZE_WITHOUT_PARENS, INTERNAL_CATCH_REMOVE_PARENS(TmplTypes))};\
                     constexpr char const* types_list[] = {CATCH_REC_LIST(INTERNAL_CATCH_STRINGIZE_WITHOUT_PARENS, INTERNAL_CATCH_REMOVE_PARENS(TypesList))};\
                     constexpr auto num_types = sizeof(types_list) / sizeof(types_list[0]);\
-                    (void)expander{(Catch::AutoReg( Catch::makeTestInvoker( &TestFuncName<Types> ), CATCH_INTERNAL_LINEINFO, Catch::StringRef(), Catch::NameAndTags{ Name " - " + std::string(tmpl_types[index / num_types]) + '<' + std::string(types_list[index % num_types]) + '>', Tags } ), index++)... };/* NOLINT */\
+                    (void)expander{(Catch::AutoReg( Catch::makeTestInvoker( &TestFuncName<Types> ), CATCH_INTERNAL_LINEINFO, Catch::DefaultGroup, Catch::StringRef(), Catch::NameAndTags{ Name " - " + std::string(tmpl_types[index / num_types]) + '<' + std::string(types_list[index % num_types]) + '>', Tags } ), index++)... };/* NOLINT */\
                 }                                                     \
             };                                                        \
             static int INTERNAL_CATCH_UNIQUE_NAME( globalRegistrar ) = [](){ \
@@ -6525,7 +6626,7 @@ struct AutoReg : Detail::NonCopyable {
             void reg_tests() {                                          \
                 size_t index = 0;                                    \
                 using expander = size_t[];                           \
-                (void)expander{(Catch::AutoReg( Catch::makeTestInvoker( &TestFunc<Types> ), CATCH_INTERNAL_LINEINFO, Catch::StringRef(), Catch::NameAndTags{ Name " - " + std::string(INTERNAL_CATCH_STRINGIZE(TmplList)) + " - " + std::to_string(index), Tags } ), index++)... };/* NOLINT */\
+                (void)expander{(Catch::AutoReg( Catch::makeTestInvoker( &TestFunc<Types> ), CATCH_INTERNAL_LINEINFO, Catch::DefaultGroup, Catch::StringRef(), Catch::NameAndTags{ Name " - " + std::string(INTERNAL_CATCH_STRINGIZE(TmplList)) + " - " + std::to_string(index), Tags } ), index++)... };/* NOLINT */\
             }                                                     \
         };\
         static int INTERNAL_CATCH_UNIQUE_NAME( globalRegistrar ) = [](){ \
@@ -6611,7 +6712,7 @@ struct AutoReg : Detail::NonCopyable {
                     constexpr char const* tmpl_types[] = {CATCH_REC_LIST(INTERNAL_CATCH_STRINGIZE_WITHOUT_PARENS, INTERNAL_CATCH_REMOVE_PARENS(TmplTypes))};\
                     constexpr char const* types_list[] = {CATCH_REC_LIST(INTERNAL_CATCH_STRINGIZE_WITHOUT_PARENS, INTERNAL_CATCH_REMOVE_PARENS(TypesList))};\
                     constexpr auto num_types = sizeof(types_list) / sizeof(types_list[0]);\
-                    (void)expander{(Catch::AutoReg( Catch::makeTestInvoker( &TestName<Types>::test ), CATCH_INTERNAL_LINEINFO, #ClassName, Catch::NameAndTags{ Name " - " + std::string(tmpl_types[index / num_types]) + '<' + std::string(types_list[index % num_types]) + '>', Tags } ), index++)... };/* NOLINT */ \
+                    (void)expander{(Catch::AutoReg( Catch::makeTestInvoker( &TestName<Types>::test ), CATCH_INTERNAL_LINEINFO, Catch::DefaultGroup, #ClassName, Catch::NameAndTags{ Name " - " + std::string(tmpl_types[index / num_types]) + '<' + std::string(types_list[index % num_types]) + '>', Tags } ), index++)... };/* NOLINT */ \
                 }\
             };\
             static int INTERNAL_CATCH_UNIQUE_NAME( globalRegistrar ) = [](){\
@@ -6659,7 +6760,7 @@ struct AutoReg : Detail::NonCopyable {
                 void reg_tests(){\
                     size_t index = 0;\
                     using expander = size_t[];\
-                    (void)expander{(Catch::AutoReg( Catch::makeTestInvoker( &TestName<Types>::test ), CATCH_INTERNAL_LINEINFO, #ClassName, Catch::NameAndTags{ Name " - " + std::string(INTERNAL_CATCH_STRINGIZE(TmplList)) + " - " + std::to_string(index), Tags } ), index++)... };/* NOLINT */ \
+                    (void)expander{(Catch::AutoReg( Catch::makeTestInvoker( &TestName<Types>::test ), CATCH_INTERNAL_LINEINFO, Catch::DefaultGroup, #ClassName, Catch::NameAndTags{ Name " - " + std::string(INTERNAL_CATCH_STRINGIZE(TmplList)) + " - " + std::to_string(index), Tags } ), index++)... };/* NOLINT */ \
                 }\
             };\
             static int INTERNAL_CATCH_UNIQUE_NAME( globalRegistrar ) = [](){\
@@ -6786,7 +6887,6 @@ struct AutoReg : Detail::NonCopyable {
 #define CATCH_TEST_CASE_INFO_HPP_INCLUDED
 
 
-
 #include <string>
 #include <vector>
 
@@ -6839,7 +6939,8 @@ namespace Catch {
 
         TestCaseInfo(StringRef _className,
                      NameAndTags const& _tags,
-                     SourceLineInfo const& _lineInfo);
+                     SourceLineInfo const& _lineInfo,
+                     StringRef _group = DefaultGroup);
 
         bool isHidden() const;
         bool throws() const;
@@ -6857,6 +6958,7 @@ namespace Catch {
         std::string tagsAsString() const;
 
         std::string name;
+        StringRef group;
         StringRef className;
     private:
         std::string backingTags;
@@ -6874,6 +6976,8 @@ namespace Catch {
      *
      * Does not own either, and is specifically made to be cheap
      * to copy around.
+     * 
+     * Also keeps track of test group and invokes before and after each test events if they were declared for the group
      */
     class TestCaseHandle {
         TestCaseInfo* m_info;
@@ -6892,7 +6996,8 @@ namespace Catch {
     Detail::unique_ptr<TestCaseInfo>
     makeTestCaseInfo( StringRef className,
                       NameAndTags const& nameAndTags,
-                      SourceLineInfo const& lineInfo );
+                      SourceLineInfo const& lineInfo,
+                      StringRef group = DefaultGroup);
 }
 
 #ifdef __clang__
@@ -6900,6 +7005,140 @@ namespace Catch {
 #endif
 
 #endif // CATCH_TEST_CASE_INFO_HPP_INCLUDED
+
+
+#ifndef CATCH_TEST_GROUP_INFO_HPP_INCLUDED
+#define CATCH_TEST_GROUP_INFO_HPP_INCLUDED
+
+
+
+#ifndef CATCH_CASE_INSENSITIVE_COMPARISONS_HPP_INCLUDED
+#define CATCH_CASE_INSENSITIVE_COMPARISONS_HPP_INCLUDED
+
+
+namespace Catch {
+    namespace Detail {
+        //! Provides case-insensitive `op<` semantics when called
+        struct CaseInsensitiveLess {
+            bool operator()( StringRef lhs,
+                             StringRef rhs ) const;
+        };
+
+        //! Provides case-insensitive `op==` semantics when called
+        struct CaseInsensitiveEqualTo {
+            bool operator()( StringRef lhs,
+                             StringRef rhs ) const;
+        };
+
+    } // namespace Detail
+} // namespace Catch
+
+#endif // CATCH_CASE_INSENSITIVE_COMPARISONS_HPP_INCLUDED
+
+
+#ifndef CATCH_SINGLETONS_HPP_INCLUDED
+#define CATCH_SINGLETONS_HPP_INCLUDED
+
+namespace Catch {
+
+    struct ISingleton {
+        virtual ~ISingleton(); // = default
+    };
+
+
+    void addSingleton( ISingleton* singleton );
+    void cleanupSingletons();
+
+
+    template<typename SingletonImplT, typename InterfaceT = SingletonImplT, typename MutableInterfaceT = InterfaceT>
+    class Singleton : SingletonImplT, public ISingleton {
+
+        static auto getInternal() -> Singleton* {
+            static Singleton* s_instance = nullptr;
+            if( !s_instance ) {
+                s_instance = new Singleton;
+                addSingleton( s_instance );
+            }
+            return s_instance;
+        }
+
+    public:
+        static auto get() -> InterfaceT const& {
+            return *getInternal();
+        }
+        static auto getMutable() -> MutableInterfaceT& {
+            return *getInternal();
+        }
+    };
+
+} // namespace Catch
+
+#endif // CATCH_SINGLETONS_HPP_INCLUDED
+
+#include <map>
+
+namespace Catch {
+
+    class TestGroupHandle {
+        std::string m_group = DefaultGroup;
+        IGroupLifecycleEventInvoker* m_beforeAllTestsInvoker = nullptr;
+        IGroupLifecycleEventInvoker* m_afterAllTestsInvoker = nullptr;
+        IGroupLifecycleEventInvoker* m_beforeEachTestInvoker = nullptr;
+        IGroupLifecycleEventInvoker* m_afterEachTestInvoker = nullptr;
+		IGroupLifecycleEventInvoker* m_beforeAllGlobalInvoker = nullptr;
+        IGroupLifecycleEventInvoker* m_afterAllGlobalInvoker = nullptr;
+    public:
+        TestGroupHandle( std::string group ):
+            m_group( group ) {}
+
+		TestGroupHandle() {}
+
+		~TestGroupHandle() {
+			delete m_beforeAllTestsInvoker;
+			delete m_afterAllTestsInvoker;
+			delete m_beforeEachTestInvoker;
+			delete m_afterEachTestInvoker;
+			delete m_beforeAllGlobalInvoker;
+			delete m_afterAllGlobalInvoker;
+		}
+
+        void setBeforeAllTestsInvoker(IGroupLifecycleEventInvoker* beforeAllTestsInvoker);
+        void setAfterAllTestsInvoker(IGroupLifecycleEventInvoker* afterAllTestsInvoker);
+        void setBeforeEachTestInvoker(IGroupLifecycleEventInvoker* beforeEachTestInvoker);
+        void setAfterEachTestInvoker(IGroupLifecycleEventInvoker* afterEachTestInvoker);
+		void setBeforeAllGlobalInvoker(IGroupLifecycleEventInvoker* beforeAllGlobalInvoker);
+        void setAfterAllGlobalInvoker(IGroupLifecycleEventInvoker* afterAllGlobalInvoker);
+
+        IGroupLifecycleEventInvoker* getBeforeAllTestsInvoker() const;
+        IGroupLifecycleEventInvoker* getAfterAllTestsInvoker() const;
+        IGroupLifecycleEventInvoker* getBeforeEachTestInvoker() const;
+        IGroupLifecycleEventInvoker* getAfterEachTestInvoker() const;
+		IGroupLifecycleEventInvoker* getBeforeAllGlobalInvoker() const;
+        IGroupLifecycleEventInvoker* getAfterAllGlobalInvoker() const;
+
+        std::string const& getGroupName() const;
+    };
+
+	typedef Detail::unique_ptr<TestGroupHandle> TestGroupHandlePtr;
+
+    class TestGroupHandles {
+    private:
+         std::map<std::string, TestGroupHandle> m_groupHandles;
+    public:
+        TestGroupHandle* getGroupHandle( std::string group )
+        {
+            if ( m_groupHandles.find( group ) == m_groupHandles.end() ) {
+                TestGroupHandle newGroupHandle( group );
+                m_groupHandles.emplace(group, newGroupHandle);
+            }
+            return &m_groupHandles[ group ];
+        }
+    };
+
+    typedef Singleton<TestGroupHandles> TestGroupHandleFactory;
+}
+
+#endif // CATCH_TEST_GROUP_INFO_HPP_INCLUDED
 
 
 #ifndef CATCH_TRANSLATE_EXCEPTION_HPP_INCLUDED
@@ -7947,30 +8186,6 @@ namespace Catch {
 #define CATCH_INTERFACES_REPORTER_REGISTRY_HPP_INCLUDED
 
 
-
-#ifndef CATCH_CASE_INSENSITIVE_COMPARISONS_HPP_INCLUDED
-#define CATCH_CASE_INSENSITIVE_COMPARISONS_HPP_INCLUDED
-
-
-namespace Catch {
-    namespace Detail {
-        //! Provides case-insensitive `op<` semantics when called
-        struct CaseInsensitiveLess {
-            bool operator()( StringRef lhs,
-                             StringRef rhs ) const;
-        };
-
-        //! Provides case-insensitive `op==` semantics when called
-        struct CaseInsensitiveEqualTo {
-            bool operator()( StringRef lhs,
-                             StringRef rhs ) const;
-        };
-
-    } // namespace Detail
-} // namespace Catch
-
-#endif // CATCH_CASE_INSENSITIVE_COMPARISONS_HPP_INCLUDED
-
 #include <string>
 #include <vector>
 #include <map>
@@ -8964,6 +9179,7 @@ using TestCaseTracking::SectionTracker;
 #endif // CATCH_TEST_CASE_TRACKER_HPP_INCLUDED
 
 #include <string>
+#include <set>
 
 namespace Catch {
 
@@ -9040,6 +9256,9 @@ namespace Catch {
 
         void assertionPassed() override;
 
+		void testsStarting(std::set<StringRef> filteredGroups);
+		void testsFinished(std::set<StringRef> filteredGroups);
+
     public:
         // !TBD We need to do this another way!
         bool aborting() const;
@@ -9048,6 +9267,10 @@ namespace Catch {
 
         void runCurrentTest( std::string& redirectedCout, std::string& redirectedCerr );
         void invokeActiveTestCase();
+        void invokeGroupLevelEvents();
+
+		void invokeAllGroupsBeforeGlobalEvents(std::set<StringRef> filteredGroups);
+		void invokeAllGroupsAfterGlobalEvents(std::set<StringRef> filteredGroups);
 
         void resetAssertionInfo();
         bool testForMissingAssertions( Counts& assertions );
@@ -9068,6 +9291,7 @@ namespace Catch {
         TestRunInfo m_runInfo;
         IMutableContext& m_context;
         TestCaseHandle const* m_activeTestCase = nullptr;
+        TestCaseHandle const* m_previousTestCase = nullptr;
         ITracker* m_testCaseTracker = nullptr;
         Optional<AssertionResult> m_lastResult;
 
@@ -9126,46 +9350,6 @@ namespace Catch {
 }
 
 #endif // CATCH_SHARDING_HPP_INCLUDED
-
-
-#ifndef CATCH_SINGLETONS_HPP_INCLUDED
-#define CATCH_SINGLETONS_HPP_INCLUDED
-
-namespace Catch {
-
-    struct ISingleton {
-        virtual ~ISingleton(); // = default
-    };
-
-
-    void addSingleton( ISingleton* singleton );
-    void cleanupSingletons();
-
-
-    template<typename SingletonImplT, typename InterfaceT = SingletonImplT, typename MutableInterfaceT = InterfaceT>
-    class Singleton : SingletonImplT, public ISingleton {
-
-        static auto getInternal() -> Singleton* {
-            static Singleton* s_instance = nullptr;
-            if( !s_instance ) {
-                s_instance = new Singleton;
-                addSingleton( s_instance );
-            }
-            return s_instance;
-        }
-
-    public:
-        static auto get() -> InterfaceT const& {
-            return *getInternal();
-        }
-        static auto getMutable() -> MutableInterfaceT& {
-            return *getInternal();
-        }
-    };
-
-} // namespace Catch
-
-#endif // CATCH_SINGLETONS_HPP_INCLUDED
 
 
 #ifndef CATCH_STARTUP_EXCEPTION_REGISTRY_HPP_INCLUDED
@@ -9318,6 +9502,7 @@ namespace Catch {
 
 
 #include <vector>
+#include <map>
 
 namespace Catch {
 
@@ -9342,17 +9527,22 @@ namespace Catch {
         void registerTest( Detail::unique_ptr<TestCaseInfo> testInfo, Detail::unique_ptr<ITestInvoker> testInvoker );
 
         std::vector<TestCaseInfo*> const& getAllInfos() const override;
+        std::map<StringRef, TestCaseHandleVector> const& getAllGroups() const override;
         std::vector<TestCaseHandle> const& getAllTests() const override;
         std::vector<TestCaseHandle> const& getAllTestsSorted( IConfig const& config ) const override;
 
     private:
+        void updateAllTestHandles() const;
+
         std::vector<Detail::unique_ptr<TestCaseInfo>> m_owned_test_infos;
         // Keeps a materialized vector for `getAllInfos`.
         // We should get rid of that eventually (see interface note)
         std::vector<TestCaseInfo*> m_viewed_test_infos;
 
+        std::map<StringRef, TestCaseHandleVector> m_groups;
+        // all handles from all test groups
+        mutable std::vector<TestCaseHandle> m_handles;
         std::vector<Detail::unique_ptr<ITestInvoker>> m_invokers;
-        std::vector<TestCaseHandle> m_handles;
         mutable TestRunOrder m_currentSortOrder = TestRunOrder::Declared;
         mutable std::vector<TestCaseHandle> m_sortedFunctions;
     };
@@ -9378,6 +9568,59 @@ namespace Catch {
 #endif // CATCH_TEST_CASE_REGISTRY_IMPL_HPP_INCLUDED
 
 
+#ifndef CATCH_TEST_GROUP_EVENT_REGISTRY_IMPL_HPP_INCLUDED
+#define CATCH_TEST_GROUP_EVENT_REGISTRY_IMPL_HPP_INCLUDED
+
+
+#include <vector>
+#include <map>
+
+namespace Catch {
+
+    class TestGroupEventRegistry : public ITestGroupEventRegistry {
+    public:
+        ~TestGroupEventRegistry() override = default;
+
+        void registerTestGroupEvent( std::string const& group, GroupLifecycleStage const& stage, IGroupLifecycleEventInvoker* invoker );
+    };
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    class GroupLifecycleEventInvokerAsFunction final : public IGroupLifecycleEventInvoker {
+        using GroupLifecycleEventType = void(*)();
+        GroupLifecycleEventType m_groupLifecycleEventAsFunction;
+        GroupLifecycleStage m_groupLifecycleStage;
+        bool m_wasInvoked = false;
+    public:
+        GroupLifecycleEventInvokerAsFunction(GroupLifecycleEventType groupLifecycleEventAsFunction, GroupLifecycleStage groupLifecycleStage) noexcept:
+            m_groupLifecycleEventAsFunction(groupLifecycleEventAsFunction),
+            m_groupLifecycleStage(groupLifecycleStage) {}
+
+        ~GroupLifecycleEventInvokerAsFunction() override {
+		}
+
+        virtual GroupLifecycleStage getStage() const override {
+            return m_groupLifecycleStage;
+        }
+
+		virtual bool wasInvoked() const override {
+            return m_wasInvoked;
+        }
+        virtual void invoke() override {
+            m_groupLifecycleEventAsFunction();
+            m_wasInvoked = true;
+        }
+    };
+
+    ///////////////////////////////////////////////////////////////////////////
+
+
+} // end namespace Catch
+
+
+#endif // CATCH_TEST_GROUP_EVENT_REGISTRY_IMPL_HPP_INCLUDED
+
+
 #ifndef CATCH_TEST_SPEC_PARSER_HPP_INCLUDED
 #define CATCH_TEST_SPEC_PARSER_HPP_INCLUDED
 
@@ -9395,7 +9638,7 @@ namespace Catch {
     class ITagAliasRegistry;
 
     class TestSpecParser {
-        enum Mode{ None, Name, QuotedName, Tag, EscapedName };
+        enum Mode{ None, Name, QuotedName, Tag, Group, EscapedName };
         Mode m_mode = None;
         Mode lastMode = None;
         bool m_exclusion = false;
@@ -9435,6 +9678,8 @@ namespace Catch {
         void addNamePattern();
         // Adds the current pattern as a tag
         void addTagPattern();
+		// Adds the current pattern as a group
+        void addGroupPattern();
 
         inline void addCharToPattern(char c) {
             m_substring += c;

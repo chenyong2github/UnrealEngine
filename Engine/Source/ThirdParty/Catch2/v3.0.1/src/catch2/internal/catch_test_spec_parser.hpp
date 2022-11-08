@@ -23,7 +23,7 @@ namespace Catch {
     class ITagAliasRegistry;
 
     class TestSpecParser {
-        enum Mode{ None, Name, QuotedName, Tag, EscapedName };
+        enum Mode{ None, Name, QuotedName, Tag, Group, EscapedName };
         Mode m_mode = None;
         Mode lastMode = None;
         bool m_exclusion = false;
@@ -63,6 +63,8 @@ namespace Catch {
         void addNamePattern();
         // Adds the current pattern as a tag
         void addTagPattern();
+		// Adds the current pattern as a group
+        void addGroupPattern();
 
         inline void addCharToPattern(char c) {
             m_substring += c;

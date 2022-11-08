@@ -8,10 +8,14 @@
 #include <catch2/internal/catch_test_registry.hpp>
 #include <catch2/internal/catch_compiler_capabilities.hpp>
 #include <catch2/catch_test_case_info.hpp>
+#include <catch2/catch_test_group_info.hpp>
 #include <catch2/internal/catch_test_case_registry_impl.hpp>
+#include <catch2/internal/catch_test_group_event_registry_impl.hpp>
 #include <catch2/interfaces/catch_interfaces_registry_hub.hpp>
+#include <catch2/interfaces/catch_interfaces_group.hpp>
 #include <catch2/internal/catch_string_manip.hpp>
 #include <catch2/internal/catch_move_and_forward.hpp>
+#include <catch2/internal/catch_constants.hpp>
 
 #include <algorithm>
 #include <iterator>
@@ -48,19 +52,56 @@ namespace Catch {
         }
     } // namespace
 
+    IGroupLifecycleEventInvoker* makeGroupEventInvoker( void(*groupEventAsFunction)(), GroupLifecycleStage stage ) {
+        return new GroupLifecycleEventInvokerAsFunction( groupEventAsFunction, stage );
+    }
+
     Detail::unique_ptr<ITestInvoker> makeTestInvoker( void(*testAsFunction)() ) {
         return Detail::make_unique<TestInvokerAsFunction>( testAsFunction );
     }
 
-    AutoReg::AutoReg( Detail::unique_ptr<ITestInvoker> invoker, SourceLineInfo const& lineInfo, StringRef classOrMethod, NameAndTags const& nameAndTags ) noexcept {
+    AutoReg::AutoReg( Detail::unique_ptr<ITestInvoker> invoker, SourceLineInfo const& lineInfo, StringRef classOrMethod, NameAndTags const& nameAndTags ) noexcept 
+    {
+         CATCH_TRY {
+            getMutableRegistryHub()
+                    .registerTest(
+                        makeTestCaseInfo(
+                            extractClassName( classOrMethod ),
+                            nameAndTags,
+                            lineInfo,
+                            Catch::DefaultGroup),
+                        CATCH_MOVE(invoker)
+                    );
+        } CATCH_CATCH_ALL {
+            // Do not throw when constructing global objects, instead register the exception to be processed later
+            getMutableRegistryHub().registerStartupException();
+        }
+    }
+
+    AutoReg::AutoReg( Detail::unique_ptr<ITestInvoker> invoker, SourceLineInfo const& lineInfo, StringRef group, StringRef classOrMethod, NameAndTags const& nameAndTags ) noexcept {
         CATCH_TRY {
             getMutableRegistryHub()
                     .registerTest(
                         makeTestCaseInfo(
                             extractClassName( classOrMethod ),
                             nameAndTags,
-                            lineInfo),
+                            lineInfo,
+                            group),
                         CATCH_MOVE(invoker)
+                    );
+        } CATCH_CATCH_ALL {
+            // Do not throw when constructing global objects, instead register the exception to be processed later
+            getMutableRegistryHub().registerStartupException();
+        }
+    }
+
+    AutoReg::AutoReg( std::string group, GroupLifecycleStage stage, IGroupLifecycleEventInvoker* invoker) noexcept {
+        CATCH_TRY {
+            getMutableRegistryHub()
+                    .registerTestGroupEvent(
+                        group,
+                        stage,
+                        invoker
                     );
         } CATCH_CATCH_ALL {
             // Do not throw when constructing global objects, instead register the exception to be processed later

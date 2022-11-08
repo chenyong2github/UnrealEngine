@@ -61,6 +61,7 @@ namespace Catch {
             return true;
         default:
         case Tag:
+		case Group:
         case QuotedName:
             if( processOtherChar( c ) )
                 return true;
@@ -86,6 +87,9 @@ namespace Catch {
         case '[':
             startNewMode( Tag );
             return false;
+		case '<':
+            startNewMode( Group );
+            return false;
         case '"':
             startNewMode( QuotedName );
             return false;
@@ -101,6 +105,12 @@ namespace Catch {
             else
                 endMode();
             startNewMode( Tag );
+        } else if( c == '<' ) {
+            if( m_substring == "exclude:" )
+                m_exclusion = true;
+            else
+                endMode();
+            startNewMode( Group );
         }
     }
     bool TestSpecParser::processOtherChar( char c ) {
@@ -120,6 +130,8 @@ namespace Catch {
             return addNamePattern();
         case Tag:
             return addTagPattern();
+        case Group:
+            return addGroupPattern();
         case EscapedName:
             revertBackToLastMode();
             return;
@@ -147,6 +159,8 @@ namespace Catch {
                 return c == '"';
             case Tag:
                 return c == '[' || c == ']';
+			case Group:
+                return c == '<' || c == '>';
         }
     }
 
@@ -166,7 +180,7 @@ namespace Catch {
     }
 
     bool TestSpecParser::separate() {
-      if( (m_mode==QuotedName) || (m_mode==Tag) ){
+      if( (m_mode==QuotedName) || (m_mode==Tag) || (m_mode==Group) ){
          //invalid argument, signal failure to previous scope.
          m_mode = None;
          m_pos = m_arg.size();
@@ -231,6 +245,21 @@ namespace Catch {
                 m_currentFilter.m_forbidden.emplace_back(Detail::make_unique<TestSpec::TagPattern>(token, m_substring));
             } else {
                 m_currentFilter.m_required.emplace_back(Detail::make_unique<TestSpec::TagPattern>(token, m_substring));
+            }
+        }
+        m_substring.clear();
+        m_exclusion = false;
+        m_mode = None;
+    }
+
+	void TestSpecParser::addGroupPattern() {
+        auto token = preprocessPattern();
+
+        if (!token.empty()) {
+            if (m_exclusion) {
+                m_currentFilter.m_forbidden.emplace_back(Detail::make_unique<TestSpec::GroupPattern>(token, m_substring));
+            } else {
+                m_currentFilter.m_required.emplace_back(Detail::make_unique<TestSpec::GroupPattern>(token, m_substring));
             }
         }
         m_substring.clear();

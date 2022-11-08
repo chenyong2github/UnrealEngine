@@ -11,6 +11,7 @@
 #include <catch2/interfaces/catch_interfaces_reporter.hpp>
 #include <catch2/internal/catch_test_registry.hpp>
 #include <catch2/internal/catch_fatal_condition_handler.hpp>
+#include <catch2/catch_test_group_info.hpp>
 #include <catch2/catch_test_case_info.hpp>
 #include <catch2/catch_message.hpp>
 #include <catch2/catch_totals.hpp>
@@ -21,6 +22,7 @@
 #include <catch2/internal/catch_move_and_forward.hpp>
 
 #include <string>
+#include <set>
 
 namespace Catch {
 
@@ -97,6 +99,9 @@ namespace Catch {
 
         void assertionPassed() override;
 
+		void testsStarting(std::set<StringRef> filteredGroups);
+		void testsFinished(std::set<StringRef> filteredGroups);
+
     public:
         // !TBD We need to do this another way!
         bool aborting() const;
@@ -105,6 +110,10 @@ namespace Catch {
 
         void runCurrentTest( std::string& redirectedCout, std::string& redirectedCerr );
         void invokeActiveTestCase();
+        void invokeGroupLevelEvents();
+
+		void invokeAllGroupsBeforeGlobalEvents(std::set<StringRef> filteredGroups);
+		void invokeAllGroupsAfterGlobalEvents(std::set<StringRef> filteredGroups);
 
         void resetAssertionInfo();
         bool testForMissingAssertions( Counts& assertions );
@@ -125,6 +134,7 @@ namespace Catch {
         TestRunInfo m_runInfo;
         IMutableContext& m_context;
         TestCaseHandle const* m_activeTestCase = nullptr;
+        TestCaseHandle const* m_previousTestCase = nullptr;
         ITracker* m_testCaseTracker = nullptr;
         Optional<AssertionResult> m_lastResult;
 

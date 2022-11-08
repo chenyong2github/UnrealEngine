@@ -53,6 +53,14 @@ namespace Catch {
             std::string m_tag;
         };
 
+		class GroupPattern : public Pattern {
+        public:
+            explicit GroupPattern( std::string const& group, std::string const& filterString );
+            bool matches( TestCaseInfo const& testCase ) const override;
+        private:
+            WildcardPattern m_wildcardPatternGroup;
+        };
+
         struct Filter {
             std::vector<Detail::unique_ptr<Pattern>> m_required;
             std::vector<Detail::unique_ptr<Pattern>> m_forbidden;

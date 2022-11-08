@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: BSL-1.0
 
 //  Catch v3.0.1
-//  Generated: 2022-05-17 22:08:47.054486
+//  Generated: 2022-11-07 17:10:14.557663
 //  ----------------------------------------------------------
 //  This file is an amalgamation of multiple different files.
 //  You probably shouldn't edit it directly.
@@ -777,6 +777,9 @@ namespace Catch {
             ITestCaseRegistry const& getTestCaseRegistry() const override {
                 return m_testCaseRegistry;
             }
+            ITestGroupEventRegistry const& getTestGroupEventRegistry() const override {
+                return m_testGroupEventRegistry;
+            }
             IExceptionTranslatorRegistry const& getExceptionTranslatorRegistry() const override {
                 return m_exceptionTranslatorRegistry;
             }
@@ -793,6 +796,9 @@ namespace Catch {
             }
             void registerListener( Detail::unique_ptr<EventListenerFactory> factory ) override {
                 m_reporterRegistry.registerListener( CATCH_MOVE(factory) );
+            }
+            void registerTestGroupEvent( std::string const& group, GroupLifecycleStage const& stage, IGroupLifecycleEventInvoker* invoker ) override {
+                m_testGroupEventRegistry.registerTestGroupEvent( group, stage, invoker );
             }
             void registerTest( Detail::unique_ptr<TestCaseInfo>&& testInfo, Detail::unique_ptr<ITestInvoker>&& invoker ) override {
                 m_testCaseRegistry.registerTest( CATCH_MOVE(testInfo), CATCH_MOVE(invoker) );
@@ -816,6 +822,7 @@ namespace Catch {
 
         private:
             TestRegistry m_testCaseRegistry;
+            TestGroupEventRegistry m_testGroupEventRegistry;
             ReporterRegistry m_reporterRegistry;
             ExceptionTranslatorRegistry m_exceptionTranslatorRegistry;
             TagAliasRegistry m_tagAliasRegistry;
@@ -895,9 +902,9 @@ namespace Catch {
             return multi;
         }
 
-        class TestGroup {
+        class TestGroups {
         public:
-            explicit TestGroup(IEventListenerPtr&& reporter, Config const* config):
+            explicit TestGroups(IEventListenerPtr&& reporter, Config const* config):
                 m_reporter(reporter.get()),
                 m_config{config},
                 m_context{config, CATCH_MOVE(reporter)} {
@@ -908,6 +915,10 @@ namespace Catch {
                 auto const& allTestCases = getAllTestCasesSorted(*m_config);
                 auto const& testSpec = m_config->testSpec();
                 if ( !testSpec.hasFilters() ) {
+					auto const& allGroups = getRegistryHub().getTestCaseRegistry().getAllGroups();
+					for ( auto const& group : allGroups ) {
+						m_filtered_groups.insert( group.first );
+					}
                     for ( auto const& test : allTestCases ) {
                         if ( !test.getTestCaseInfo().isHidden() ) {
                             m_tests.emplace( &test );
@@ -919,6 +930,10 @@ namespace Catch {
                     for ( auto const& match : m_matches ) {
                         m_tests.insert( match.tests.begin(),
                                         match.tests.end() );
+						for (auto const& test : match.tests)
+						{
+							m_filtered_groups.insert( test->getTestCaseInfo().group );
+						}
                     }
                 }
 
@@ -926,6 +941,10 @@ namespace Catch {
             }
 
             Totals execute() {
+				if (!m_context.aborting()) {
+					m_context.testsStarting(m_filtered_groups);
+				}
+
                 Totals totals;
                 for (auto const& testCase : m_tests) {
                     if (!m_context.aborting())
@@ -933,6 +952,10 @@ namespace Catch {
                     else
                         m_reporter->skipTest(testCase->getTestCaseInfo());
                 }
+
+				if (!m_context.aborting()) {
+					m_context.testsFinished(m_filtered_groups);
+				}
 
                 for (auto const& match : m_matches) {
                     if (match.tests.empty()) {
@@ -954,6 +977,7 @@ namespace Catch {
             Config const* m_config;
             RunContext m_context;
             std::set<TestCaseHandle const*> m_tests;
+			std::set<StringRef> m_filtered_groups;
             TestSpec::Matches m_matches;
             bool m_unmatchedTestSpecs = false;
         };
@@ -1078,15 +1102,19 @@ namespace Catch {
     }
 
     int Session::run() {
+#if !defined(CATCH_NO_WAIT_KEY_INPUT)
         if( ( m_configData.waitForKeypress & WaitForKeypress::BeforeStart ) != 0 ) {
             Catch::cout() << "...waiting for enter/ return before starting\n" << std::flush;
             static_cast<void>(std::getchar());
         }
+#endif
         int exitCode = runInternal();
+#if !defined(CATCH_NO_WAIT_KEY_INPUT)
         if( ( m_configData.waitForKeypress & WaitForKeypress::BeforeExit ) != 0 ) {
             Catch::cout() << "...waiting for enter/ return before exiting, with code: " << exitCode << '\n' << std::flush;
             static_cast<void>(std::getchar());
         }
+#endif
         return exitCode;
     }
 
@@ -1150,7 +1178,7 @@ namespace Catch {
                 return 0;
             }
 
-            TestGroup tests { CATCH_MOVE(reporter), m_config.get() };
+            TestGroups tests { CATCH_MOVE(reporter), m_config.get() };
             auto const totals = tests.execute();
 
             if ( tests.hadUnmatchedTestSpecs()
@@ -1284,14 +1312,17 @@ namespace Catch {
     Detail::unique_ptr<TestCaseInfo>
         makeTestCaseInfo(StringRef _className,
                          NameAndTags const& nameAndTags,
-                         SourceLineInfo const& _lineInfo ) {
-        return Detail::make_unique<TestCaseInfo>(_className, nameAndTags, _lineInfo);
+                         SourceLineInfo const& _lineInfo,
+                         StringRef _group ) {
+        return Detail::make_unique<TestCaseInfo>(_className, nameAndTags, _lineInfo, _group);
     }
 
     TestCaseInfo::TestCaseInfo(StringRef _className,
                                NameAndTags const& _nameAndTags,
-                               SourceLineInfo const& _lineInfo):
+                               SourceLineInfo const& _lineInfo,
+                               StringRef _group):
         name( _nameAndTags.name.empty() ? makeDefaultName() : _nameAndTags.name ),
+        group(_group),
         className( _className ),
         lineInfo( _lineInfo )
     {
@@ -1397,8 +1428,12 @@ namespace Catch {
 
     bool operator<( TestCaseInfo const& lhs, TestCaseInfo const& rhs ) {
         // We want to avoid redoing the string comparisons multiple times,
-        // so we store the result of a three-way comparison before using
+        // so we store the result of a 4-way comparison before using
         // it in the actual comparison logic.
+        const auto cmpGroup = lhs.group.compare( rhs.group );
+        if ( cmpGroup != 0 ) {
+            return cmpGroup < 0;
+        }
         const auto cmpName = lhs.name.compare( rhs.name );
         if ( cmpName != 0 ) {
             return cmpName < 0;
@@ -1413,7 +1448,105 @@ namespace Catch {
     TestCaseInfo const& TestCaseHandle::getTestCaseInfo() const {
         return *m_info;
     }
+} // end namespace Catch
 
+
+
+namespace Catch {
+
+    void TestGroupHandle::setBeforeAllTestsInvoker(IGroupLifecycleEventInvoker* beforeAllTestsInvoker) {
+        if (!m_beforeAllTestsInvoker)
+        {
+            m_beforeAllTestsInvoker = beforeAllTestsInvoker;
+        }
+        else
+        {
+            CATCH_RUNTIME_ERROR("Before all tests handler already set for group " << m_group);
+        }
+    }
+
+    void TestGroupHandle::setAfterAllTestsInvoker(IGroupLifecycleEventInvoker* afterAllTestsInvoker) {
+        if (!m_afterAllTestsInvoker)
+        {
+            m_afterAllTestsInvoker = afterAllTestsInvoker;
+        }
+        else
+        {
+            CATCH_RUNTIME_ERROR("After all tests handler already set for group " << m_group);
+        }
+    }
+
+    void TestGroupHandle::setBeforeEachTestInvoker(IGroupLifecycleEventInvoker* beforeEachTestInvoker) {
+        if (!m_beforeEachTestInvoker)
+        {
+            m_beforeEachTestInvoker = beforeEachTestInvoker;
+        }
+        else
+        {
+            CATCH_RUNTIME_ERROR("Before each test handler already set for group " << m_group);
+        }
+    }
+
+    void TestGroupHandle::setAfterEachTestInvoker(IGroupLifecycleEventInvoker* afterEachTestInvoker) {
+        if (!m_afterEachTestInvoker)
+        {
+            m_afterEachTestInvoker = afterEachTestInvoker;
+        }
+        else
+        {
+            CATCH_RUNTIME_ERROR("After each test handler already set for group " << m_group);
+        }
+    }
+
+	  void TestGroupHandle::setBeforeAllGlobalInvoker(IGroupLifecycleEventInvoker* beforeAllGlobalInvoker) {
+        if (!m_beforeAllGlobalInvoker)
+        {
+            m_beforeAllGlobalInvoker = beforeAllGlobalInvoker;
+        }
+        else
+        {
+            CATCH_RUNTIME_ERROR("Before all global handler already set for group " << m_group);
+        }
+    }
+
+    void TestGroupHandle::setAfterAllGlobalInvoker(IGroupLifecycleEventInvoker* afterAllGlobalInvoker) {
+        if (!m_afterAllGlobalInvoker)
+        {
+            m_afterAllGlobalInvoker = afterAllGlobalInvoker;
+        }
+        else
+        {
+            CATCH_RUNTIME_ERROR("After all global handler already set for group " << m_group);
+        }
+    }
+
+    IGroupLifecycleEventInvoker* TestGroupHandle::getBeforeAllTestsInvoker() const {
+        return m_beforeAllTestsInvoker;
+    };
+
+    IGroupLifecycleEventInvoker* TestGroupHandle::getAfterAllTestsInvoker() const {
+		return m_afterAllTestsInvoker;
+    };
+
+    IGroupLifecycleEventInvoker* TestGroupHandle::getBeforeEachTestInvoker() const {
+        return m_beforeEachTestInvoker;
+    };
+
+    IGroupLifecycleEventInvoker* TestGroupHandle::getAfterEachTestInvoker() const {
+        return m_afterEachTestInvoker;
+    };
+
+	IGroupLifecycleEventInvoker* TestGroupHandle::getBeforeAllGlobalInvoker() const {
+        return m_beforeAllGlobalInvoker;
+    };
+
+    IGroupLifecycleEventInvoker* TestGroupHandle::getAfterAllGlobalInvoker() const {
+		return m_afterAllGlobalInvoker;
+    };
+
+    std::string const& TestGroupHandle::getGroupName() const {
+        return m_group;
+    }
 } // end namespace Catch
 
 
@@ -1455,6 +1588,16 @@ namespace Catch {
                           end( testCase.tags ),
                           Tag( m_tag ) ) != end( testCase.tags );
     }
+
+	TestSpec::GroupPattern::GroupPattern( std::string const& group, std::string const& filterString )
+    : Pattern( filterString )
+    , m_wildcardPatternGroup( toLower( group ), CaseSensitive::No )
+    {}
+
+    bool TestSpec::GroupPattern::matches( TestCaseInfo const& testCase ) const {
+        return m_wildcardPatternGroup.matches( testCase.group.data() );
+    }
+
 
     bool TestSpec::Filter::matches( TestCaseInfo const& testCase ) const {
         bool should_use = !testCase.isHidden();
@@ -2005,6 +2148,11 @@ namespace Catch {
     ITestCaseRegistry::~ITestCaseRegistry() = default;
 }
 
+
+namespace Catch {
+    IGroupLifecycleEventInvoker::~IGroupLifecycleEventInvoker() = default;
+    ITestGroupEventRegistry::~ITestGroupEventRegistry() = default;
+}
 
 
 namespace Catch {
@@ -5075,6 +5223,8 @@ namespace Catch {
 
         m_activeTestCase = &testCase;
 
+		// Before / After all tests events for test groups
+		invokeGroupLevelEvents();
 
         ITracker& rootTracker = m_trackerContext.startRun();
         assert(rootTracker.isSectionTracker());
@@ -5146,6 +5296,7 @@ namespace Catch {
                                   redirectedCerr,
                                   aborting()));
 
+		m_previousTestCase = m_activeTestCase;
         m_activeTestCase = nullptr;
         m_testCaseTracker = nullptr;
 
@@ -5333,6 +5484,15 @@ namespace Catch {
         return m_totals.assertions.failed >= static_cast<std::size_t>(m_config->abortAfter());
     }
 
+	void RunContext::testsStarting(std::set<StringRef> filteredGroups) {
+		invokeAllGroupsBeforeGlobalEvents(filteredGroups);
+	}
+
+	void RunContext::testsFinished(std::set<StringRef> filteredGroups) {
+        invokeGroupLevelEvents();
+		invokeAllGroupsAfterGlobalEvents(filteredGroups);
+	}
+
     void RunContext::runCurrentTest(std::string & redirectedCout, std::string & redirectedCerr) {
         auto const& testCaseInfo = m_activeTestCase->getTestCaseInfo();
         SectionInfo testCaseSection(testCaseInfo.lineInfo, testCaseInfo.name);
@@ -5382,12 +5542,83 @@ namespace Catch {
         m_reporter->sectionEnded(testCaseSectionStats);
     }
 
+	void RunContext::invokeAllGroupsBeforeGlobalEvents(std::set<StringRef> filteredGroups) {
+		for (auto group : filteredGroups) {
+			TestGroupHandle* groupHandle = TestGroupHandleFactory::getMutable().getGroupHandle(group.data());
+			IGroupLifecycleEventInvoker* beforeGlobalInvoker = groupHandle->getBeforeAllGlobalInvoker();
+			if (beforeGlobalInvoker && !beforeGlobalInvoker->wasInvoked())
+			{
+				beforeGlobalInvoker->invoke();
+			}
+		}
+	}
+
+	void RunContext::invokeAllGroupsAfterGlobalEvents(std::set<StringRef> filteredGroups) {
+		for (auto group : filteredGroups) {
+			TestGroupHandle* groupHandle = TestGroupHandleFactory::getMutable().getGroupHandle(group.data());
+			IGroupLifecycleEventInvoker* afterGlobalInvoker = groupHandle->getAfterAllGlobalInvoker();
+			if (afterGlobalInvoker && !afterGlobalInvoker->wasInvoked())
+			{
+				afterGlobalInvoker->invoke();
+			}
+		}
+	}
+
+	void RunContext::invokeGroupLevelEvents() {
+        if ( m_activeTestCase ) {
+            StringRef activeGroup = m_activeTestCase->getTestCaseInfo().group;
+            // Group changed - either a new group begins or the previous finished
+            if ( !m_previousTestCase || ( m_activeTestCase && m_previousTestCase->getTestCaseInfo().group != activeGroup ) ) {
+                if ( m_previousTestCase ) {
+                    TestGroupHandle* finishedGroupHandle = TestGroupHandleFactory::getMutable()
+						.getGroupHandle( m_previousTestCase->getTestCaseInfo().group.data() );
+
+                    IGroupLifecycleEventInvoker* afterAllInvoker = finishedGroupHandle->getAfterAllTestsInvoker();
+                    if ( afterAllInvoker && !afterAllInvoker->wasInvoked() ) {
+                        afterAllInvoker->invoke();
+                    }
+                }
+
+                TestGroupHandle* nextGroupHandle = TestGroupHandleFactory::getMutable()
+					.getGroupHandle( activeGroup.data() );
+                IGroupLifecycleEventInvoker* beforeAllInvoker = nextGroupHandle->getBeforeAllTestsInvoker();
+                if ( beforeAllInvoker && !beforeAllInvoker->wasInvoked() ) {
+                    beforeAllInvoker->invoke();
+                } 
+            }
+        } else if ( m_previousTestCase ) {
+            TestGroupHandle* finishedGroupHandle = TestGroupHandleFactory::getMutable()
+				.getGroupHandle( m_previousTestCase->getTestCaseInfo().group.data() );
+
+            IGroupLifecycleEventInvoker* afterAllInvoker = finishedGroupHandle->getAfterAllTestsInvoker();
+            if ( afterAllInvoker && !afterAllInvoker->wasInvoked() ) {
+                afterAllInvoker->invoke();
+            }
+        }
+	}
+
     void RunContext::invokeActiveTestCase() {
         // We need to engage a handler for signals/structured exceptions
         // before running the tests themselves, or the binary can crash
         // without failed test being reported.
         FatalConditionHandlerGuard _(&m_fatalConditionhandler);
+
+		IGroupLifecycleEventInvoker* beforeEachInvoker =
+            TestGroupHandleFactory::getMutable()
+			.getGroupHandle( m_activeTestCase->getTestCaseInfo().group.data() )->getBeforeEachTestInvoker();
+        if ( beforeEachInvoker ) {
+            beforeEachInvoker->invoke();
+        }
+
         m_activeTestCase->invoke();
+
+		IGroupLifecycleEventInvoker* afterEachInvoker =
+			TestGroupHandleFactory::getMutable()
+			.getGroupHandle( m_activeTestCase->getTestCaseInfo().group.data() )->getAfterEachTestInvoker();
+
+		if ( afterEachInvoker ) {
+            afterEachInvoker->invoke();
+		}
     }
 
     void RunContext::handleUnfinishedSections() {
@@ -5848,6 +6079,10 @@ namespace Catch {
         // FNV-1a hash algorithm that is designed for uniqueness:
         const hash_t prime = 1099511628211u;
         hash_t hash = 14695981039346656037u;
+        for ( const char c : t.group ) {
+            hash ^= c;
+            hash *= prime;
+        }
         for ( const char c : t.name ) {
             hash ^= c;
             hash *= prime;
@@ -5880,51 +6115,61 @@ namespace Catch {
 
     std::vector<TestCaseHandle> sortTests( IConfig const& config, std::vector<TestCaseHandle> const& unsortedTestCases ) {
         switch (config.runOrder()) {
-        case TestRunOrder::Declared:
-            return unsortedTestCases;
+            case TestRunOrder::Declared:
+                // by default sorted by group thanks to std::map being ordered by default
+                return unsortedTestCases;
 
-        case TestRunOrder::LexicographicallySorted: {
-            std::vector<TestCaseHandle> sorted = unsortedTestCases;
-            std::sort(
-                sorted.begin(),
-                sorted.end(),
-                []( TestCaseHandle const& lhs, TestCaseHandle const& rhs ) {
-                    return lhs.getTestCaseInfo() < rhs.getTestCaseInfo();
+            case TestRunOrder::LexicographicallySorted: {
+                std::vector<TestCaseHandle> sorted = unsortedTestCases;
+                // The "<" comparator maintains test group order
+                std::sort(
+                    sorted.begin(),
+                    sorted.end(),
+                    []( TestCaseHandle const& lhs, TestCaseHandle const& rhs ) {
+                        return lhs.getTestCaseInfo() < rhs.getTestCaseInfo();
+                    }
+                );
+                return sorted;
+            }
+            case TestRunOrder::Randomized: {
+                seedRng(config);
+                using TestWithHash = std::pair<TestCaseInfoHasher::hash_t, TestCaseHandle>;
+
+                TestCaseInfoHasher h{ config.rngSeed() };
+                std::vector<TestWithHash> indexed_tests;
+                indexed_tests.reserve(unsortedTestCases.size());
+
+                for (auto const& handle : unsortedTestCases) {
+                    indexed_tests.emplace_back(h(handle.getTestCaseInfo()), handle);
                 }
-            );
-            return sorted;
-        }
-        case TestRunOrder::Randomized: {
-            seedRng(config);
-            using TestWithHash = std::pair<TestCaseInfoHasher::hash_t, TestCaseHandle>;
 
-            TestCaseInfoHasher h{ config.rngSeed() };
-            std::vector<TestWithHash> indexed_tests;
-            indexed_tests.reserve(unsortedTestCases.size());
+                std::sort( indexed_tests.begin(),
+                        indexed_tests.end(),
+                        []( TestWithHash const& lhs, TestWithHash const& rhs ) {
+                            if ( lhs.first == rhs.first ) {
+                                return lhs.second.getTestCaseInfo() <
+                                        rhs.second.getTestCaseInfo();
+                            }
+                            return lhs.first < rhs.first;
+                        } );
 
-            for (auto const& handle : unsortedTestCases) {
-                indexed_tests.emplace_back(h(handle.getTestCaseInfo()), handle);
+                // sort again by group to maintain group order
+                std::sort( indexed_tests.begin(),
+                        indexed_tests.end(),
+                        []( TestWithHash const& lhs, TestWithHash const& rhs ) {
+                            return lhs.second.getTestCaseInfo().group <
+                                    rhs.second.getTestCaseInfo().group;
+                        } );
+
+                std::vector<TestCaseHandle> randomized;
+                randomized.reserve(indexed_tests.size());
+
+                for (auto const& indexed : indexed_tests) {
+                    randomized.push_back(indexed.second);
+                }
+
+                return randomized;
             }
-
-            std::sort( indexed_tests.begin(),
-                       indexed_tests.end(),
-                       []( TestWithHash const& lhs, TestWithHash const& rhs ) {
-                           if ( lhs.first == rhs.first ) {
-                               return lhs.second.getTestCaseInfo() <
-                                      rhs.second.getTestCaseInfo();
-                           }
-                           return lhs.first < rhs.first;
-                       } );
-
-            std::vector<TestCaseHandle> randomized;
-            randomized.reserve(indexed_tests.size());
-
-            for (auto const& indexed : indexed_tests) {
-                randomized.push_back(indexed.second);
-            }
-
-            return randomized;
-        }
         }
 
         CATCH_INTERNAL_ERROR("Unknown test order value!");
@@ -5940,11 +6185,15 @@ namespace Catch {
 
     void
     enforceNoDuplicateTestCases( std::vector<TestCaseHandle> const& tests ) {
+#if !defined(CATCH_DUPLICATE_DONT_USE_COMPARATOR)
         auto testInfoCmp = []( TestCaseInfo const* lhs,
                                TestCaseInfo const* rhs ) {
             return *lhs < *rhs;
         };
         std::set<TestCaseInfo const*, decltype(testInfoCmp)> seenTests(testInfoCmp);
+#else
+        std::set<TestCaseInfo const*> seenTests;
+#endif
         for ( auto const& test : tests ) {
             const auto infoPtr = &test.getTestCaseInfo();
             const auto prev = seenTests.insert( infoPtr );
@@ -5973,7 +6222,15 @@ namespace Catch {
     }
 
     void TestRegistry::registerTest(Detail::unique_ptr<TestCaseInfo> testInfo, Detail::unique_ptr<ITestInvoker> testInvoker) {
-        m_handles.emplace_back(testInfo.get(), testInvoker.get());
+        auto handlesForGroup = m_groups.find(testInfo.get()->group);
+        if (handlesForGroup == m_groups.end()) {
+            std::vector<TestCaseHandle> newGroupHandles;
+            newGroupHandles.emplace_back(testInfo.get(), testInvoker.get());
+            m_groups.emplace(testInfo.get()->group, newGroupHandles);
+        } else {
+            handlesForGroup->second.emplace_back(testInfo.get(), testInvoker.get());
+        }
+
         m_viewed_test_infos.push_back(testInfo.get());
         m_owned_test_infos.push_back(CATCH_MOVE(testInfo));
         m_invokers.push_back(CATCH_MOVE(testInvoker));
@@ -5983,10 +6240,24 @@ namespace Catch {
         return m_viewed_test_infos;
     }
 
+    std::map<StringRef, TestCaseHandleVector> const& TestRegistry::getAllGroups() const {
+        return m_groups;
+    }
+
+    void TestRegistry::updateAllTestHandles() const {
+        m_handles.clear();
+        for ( auto const& group : m_groups ) {
+            m_handles.insert( m_handles.end(), group.second.begin(), group.second.end() );
+        }
+    }
+
     std::vector<TestCaseHandle> const& TestRegistry::getAllTests() const {
+        updateAllTestHandles();
         return m_handles;
     }
+
     std::vector<TestCaseHandle> const& TestRegistry::getAllTestsSorted( IConfig const& config ) const {
+        updateAllTestHandles();
         if( m_sortedFunctions.empty() )
             enforceNoDuplicateTestCases( m_handles );
 
@@ -5996,8 +6267,6 @@ namespace Catch {
         }
         return m_sortedFunctions;
     }
-
-
 
     ///////////////////////////////////////////////////////////////////////////
     void TestInvokerAsFunction::invoke() const {
@@ -6249,6 +6518,37 @@ namespace TestCaseTracking {
 
 
 
+namespace Catch {
+
+   void TestGroupEventRegistry::registerTestGroupEvent( std::string const& group, GroupLifecycleStage const& stage, IGroupLifecycleEventInvoker* invoker ) {
+        TestGroupHandle* groupHandle = TestGroupHandleFactory::getMutable().getGroupHandle( group );
+        switch (stage)
+        {
+            case GroupLifecycleStage::BeforeAllTests:
+                groupHandle->setBeforeAllTestsInvoker(invoker);
+                break;
+            case GroupLifecycleStage::AfterAllTests:
+                groupHandle->setAfterAllTestsInvoker(invoker);
+                break;
+            case GroupLifecycleStage::BeforeEachTest:
+                groupHandle->setBeforeEachTestInvoker(invoker);
+                break;
+            case GroupLifecycleStage::AfterEachTest:
+                groupHandle->setAfterEachTestInvoker(invoker);
+                break;
+			case GroupLifecycleStage::BeforeGlobal:
+                groupHandle->setBeforeAllGlobalInvoker(invoker);
+                break;
+            case GroupLifecycleStage::AfterGlobal:
+                groupHandle->setAfterAllGlobalInvoker(invoker);
+                break;
+        }
+   }
+
+} // end namespace Catch
+
+
+
 #include <algorithm>
 #include <iterator>
 
@@ -6284,19 +6584,56 @@ namespace Catch {
         }
     } // namespace
 
+    IGroupLifecycleEventInvoker* makeGroupEventInvoker( void(*groupEventAsFunction)(), GroupLifecycleStage stage ) {
+        return new GroupLifecycleEventInvokerAsFunction( groupEventAsFunction, stage );
+    }
+
     Detail::unique_ptr<ITestInvoker> makeTestInvoker( void(*testAsFunction)() ) {
         return Detail::make_unique<TestInvokerAsFunction>( testAsFunction );
     }
 
-    AutoReg::AutoReg( Detail::unique_ptr<ITestInvoker> invoker, SourceLineInfo const& lineInfo, StringRef classOrMethod, NameAndTags const& nameAndTags ) noexcept {
+    AutoReg::AutoReg( Detail::unique_ptr<ITestInvoker> invoker, SourceLineInfo const& lineInfo, StringRef classOrMethod, NameAndTags const& nameAndTags ) noexcept 
+    {
+         CATCH_TRY {
+            getMutableRegistryHub()
+                    .registerTest(
+                        makeTestCaseInfo(
+                            extractClassName( classOrMethod ),
+                            nameAndTags,
+                            lineInfo,
+                            Catch::DefaultGroup),
+                        CATCH_MOVE(invoker)
+                    );
+        } CATCH_CATCH_ALL {
+            // Do not throw when constructing global objects, instead register the exception to be processed later
+            getMutableRegistryHub().registerStartupException();
+        }
+    }
+
+    AutoReg::AutoReg( Detail::unique_ptr<ITestInvoker> invoker, SourceLineInfo const& lineInfo, StringRef group, StringRef classOrMethod, NameAndTags const& nameAndTags ) noexcept {
         CATCH_TRY {
             getMutableRegistryHub()
                     .registerTest(
                         makeTestCaseInfo(
                             extractClassName( classOrMethod ),
                             nameAndTags,
-                            lineInfo),
+                            lineInfo,
+                            group),
                         CATCH_MOVE(invoker)
+                    );
+        } CATCH_CATCH_ALL {
+            // Do not throw when constructing global objects, instead register the exception to be processed later
+            getMutableRegistryHub().registerStartupException();
+        }
+    }
+
+    AutoReg::AutoReg( std::string group, GroupLifecycleStage stage, IGroupLifecycleEventInvoker* invoker) noexcept {
+        CATCH_TRY {
+            getMutableRegistryHub()
+                    .registerTestGroupEvent(
+                        group,
+                        stage,
+                        invoker
                     );
         } CATCH_CATCH_ALL {
             // Do not throw when constructing global objects, instead register the exception to be processed later
@@ -6358,6 +6695,7 @@ namespace Catch {
             return true;
         default:
         case Tag:
+		case Group:
         case QuotedName:
             if( processOtherChar( c ) )
                 return true;
@@ -6383,6 +6721,9 @@ namespace Catch {
         case '[':
             startNewMode( Tag );
             return false;
+		case '<':
+            startNewMode( Group );
+            return false;
         case '"':
             startNewMode( QuotedName );
             return false;
@@ -6398,6 +6739,12 @@ namespace Catch {
             else
                 endMode();
             startNewMode( Tag );
+        } else if( c == '<' ) {
+            if( m_substring == "exclude:" )
+                m_exclusion = true;
+            else
+                endMode();
+            startNewMode( Group );
         }
     }
     bool TestSpecParser::processOtherChar( char c ) {
@@ -6417,6 +6764,8 @@ namespace Catch {
             return addNamePattern();
         case Tag:
             return addTagPattern();
+        case Group:
+            return addGroupPattern();
         case EscapedName:
             revertBackToLastMode();
             return;
@@ -6444,6 +6793,8 @@ namespace Catch {
                 return c == '"';
             case Tag:
                 return c == '[' || c == ']';
+			case Group:
+                return c == '<' || c == '>';
         }
     }
 
@@ -6463,7 +6814,7 @@ namespace Catch {
     }
 
     bool TestSpecParser::separate() {
-      if( (m_mode==QuotedName) || (m_mode==Tag) ){
+      if( (m_mode==QuotedName) || (m_mode==Tag) || (m_mode==Group) ){
          //invalid argument, signal failure to previous scope.
          m_mode = None;
          m_pos = m_arg.size();
@@ -6528,6 +6879,21 @@ namespace Catch {
                 m_currentFilter.m_forbidden.emplace_back(Detail::make_unique<TestSpec::TagPattern>(token, m_substring));
             } else {
                 m_currentFilter.m_required.emplace_back(Detail::make_unique<TestSpec::TagPattern>(token, m_substring));
+            }
+        }
+        m_substring.clear();
+        m_exclusion = false;
+        m_mode = None;
+    }
+
+	void TestSpecParser::addGroupPattern() {
+        auto token = preprocessPattern();
+
+        if (!token.empty()) {
+            if (m_exclusion) {
+                m_currentFilter.m_forbidden.emplace_back(Detail::make_unique<TestSpec::GroupPattern>(token, m_substring));
+            } else {
+                m_currentFilter.m_required.emplace_back(Detail::make_unique<TestSpec::GroupPattern>(token, m_substring));
             }
         }
         m_substring.clear();
@@ -9131,6 +9497,8 @@ namespace Catch {
             std::tm timeInfo = {};
 #if defined (_MSC_VER) || defined (__MINGW32__)
             gmtime_s(&timeInfo, &rawtime);
+#elif defined(CATCH_INVERT_GTIMES_PARAMS)
+            gmtime_s(&rawtime, &timeInfo);
 #else
             gmtime_r(&rawtime, &timeInfo);
 #endif

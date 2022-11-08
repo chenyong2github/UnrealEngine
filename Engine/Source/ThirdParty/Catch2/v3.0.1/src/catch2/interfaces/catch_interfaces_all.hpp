@@ -27,6 +27,7 @@
 #include <catch2/interfaces/catch_interfaces_enum_values_registry.hpp>
 #include <catch2/interfaces/catch_interfaces_exception.hpp>
 #include <catch2/interfaces/catch_interfaces_generatortracker.hpp>
+#include <catch2/interfaces/catch_interfaces_group.hpp>
 #include <catch2/interfaces/catch_interfaces_registry_hub.hpp>
 #include <catch2/interfaces/catch_interfaces_reporter.hpp>
 #include <catch2/interfaces/catch_interfaces_reporter_factory.hpp>

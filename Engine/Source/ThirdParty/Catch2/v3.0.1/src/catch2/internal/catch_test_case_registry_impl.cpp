@@ -25,51 +25,61 @@ namespace Catch {
 
     std::vector<TestCaseHandle> sortTests( IConfig const& config, std::vector<TestCaseHandle> const& unsortedTestCases ) {
         switch (config.runOrder()) {
-        case TestRunOrder::Declared:
-            return unsortedTestCases;
+            case TestRunOrder::Declared:
+                // by default sorted by group thanks to std::map being ordered by default
+                return unsortedTestCases;
 
-        case TestRunOrder::LexicographicallySorted: {
-            std::vector<TestCaseHandle> sorted = unsortedTestCases;
-            std::sort(
-                sorted.begin(),
-                sorted.end(),
-                []( TestCaseHandle const& lhs, TestCaseHandle const& rhs ) {
-                    return lhs.getTestCaseInfo() < rhs.getTestCaseInfo();
+            case TestRunOrder::LexicographicallySorted: {
+                std::vector<TestCaseHandle> sorted = unsortedTestCases;
+                // The "<" comparator maintains test group order
+                std::sort(
+                    sorted.begin(),
+                    sorted.end(),
+                    []( TestCaseHandle const& lhs, TestCaseHandle const& rhs ) {
+                        return lhs.getTestCaseInfo() < rhs.getTestCaseInfo();
+                    }
+                );
+                return sorted;
+            }
+            case TestRunOrder::Randomized: {
+                seedRng(config);
+                using TestWithHash = std::pair<TestCaseInfoHasher::hash_t, TestCaseHandle>;
+
+                TestCaseInfoHasher h{ config.rngSeed() };
+                std::vector<TestWithHash> indexed_tests;
+                indexed_tests.reserve(unsortedTestCases.size());
+
+                for (auto const& handle : unsortedTestCases) {
+                    indexed_tests.emplace_back(h(handle.getTestCaseInfo()), handle);
                 }
-            );
-            return sorted;
-        }
-        case TestRunOrder::Randomized: {
-            seedRng(config);
-            using TestWithHash = std::pair<TestCaseInfoHasher::hash_t, TestCaseHandle>;
 
-            TestCaseInfoHasher h{ config.rngSeed() };
-            std::vector<TestWithHash> indexed_tests;
-            indexed_tests.reserve(unsortedTestCases.size());
+                std::sort( indexed_tests.begin(),
+                        indexed_tests.end(),
+                        []( TestWithHash const& lhs, TestWithHash const& rhs ) {
+                            if ( lhs.first == rhs.first ) {
+                                return lhs.second.getTestCaseInfo() <
+                                        rhs.second.getTestCaseInfo();
+                            }
+                            return lhs.first < rhs.first;
+                        } );
 
-            for (auto const& handle : unsortedTestCases) {
-                indexed_tests.emplace_back(h(handle.getTestCaseInfo()), handle);
+                // sort again by group to maintain group order
+                std::sort( indexed_tests.begin(),
+                        indexed_tests.end(),
+                        []( TestWithHash const& lhs, TestWithHash const& rhs ) {
+                            return lhs.second.getTestCaseInfo().group <
+                                    rhs.second.getTestCaseInfo().group;
+                        } );
+
+                std::vector<TestCaseHandle> randomized;
+                randomized.reserve(indexed_tests.size());
+
+                for (auto const& indexed : indexed_tests) {
+                    randomized.push_back(indexed.second);
+                }
+
+                return randomized;
             }
-
-            std::sort( indexed_tests.begin(),
-                       indexed_tests.end(),
-                       []( TestWithHash const& lhs, TestWithHash const& rhs ) {
-                           if ( lhs.first == rhs.first ) {
-                               return lhs.second.getTestCaseInfo() <
-                                      rhs.second.getTestCaseInfo();
-                           }
-                           return lhs.first < rhs.first;
-                       } );
-
-            std::vector<TestCaseHandle> randomized;
-            randomized.reserve(indexed_tests.size());
-
-            for (auto const& indexed : indexed_tests) {
-                randomized.push_back(indexed.second);
-            }
-
-            return randomized;
-        }
         }
 
         CATCH_INTERNAL_ERROR("Unknown test order value!");
@@ -122,7 +132,15 @@ namespace Catch {
     }
 
     void TestRegistry::registerTest(Detail::unique_ptr<TestCaseInfo> testInfo, Detail::unique_ptr<ITestInvoker> testInvoker) {
-        m_handles.emplace_back(testInfo.get(), testInvoker.get());
+        auto handlesForGroup = m_groups.find(testInfo.get()->group);
+        if (handlesForGroup == m_groups.end()) {
+            std::vector<TestCaseHandle> newGroupHandles;
+            newGroupHandles.emplace_back(testInfo.get(), testInvoker.get());
+            m_groups.emplace(testInfo.get()->group, newGroupHandles);
+        } else {
+            handlesForGroup->second.emplace_back(testInfo.get(), testInvoker.get());
+        }
+
         m_viewed_test_infos.push_back(testInfo.get());
         m_owned_test_infos.push_back(CATCH_MOVE(testInfo));
         m_invokers.push_back(CATCH_MOVE(testInvoker));
@@ -132,10 +150,24 @@ namespace Catch {
         return m_viewed_test_infos;
     }
 
+    std::map<StringRef, TestCaseHandleVector> const& TestRegistry::getAllGroups() const {
+        return m_groups;
+    }
+
+    void TestRegistry::updateAllTestHandles() const {
+        m_handles.clear();
+        for ( auto const& group : m_groups ) {
+            m_handles.insert( m_handles.end(), group.second.begin(), group.second.end() );
+        }
+    }
+
     std::vector<TestCaseHandle> const& TestRegistry::getAllTests() const {
+        updateAllTestHandles();
         return m_handles;
     }
+
     std::vector<TestCaseHandle> const& TestRegistry::getAllTestsSorted( IConfig const& config ) const {
+        updateAllTestHandles();
         if( m_sortedFunctions.empty() )
             enforceNoDuplicateTestCases( m_handles );
 
@@ -145,8 +177,6 @@ namespace Catch {
         }
         return m_sortedFunctions;
     }
-
-
 
     ///////////////////////////////////////////////////////////////////////////
     void TestInvokerAsFunction::invoke() const {

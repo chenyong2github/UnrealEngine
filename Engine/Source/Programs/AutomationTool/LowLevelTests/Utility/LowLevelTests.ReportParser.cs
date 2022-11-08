@@ -12,16 +12,16 @@ namespace LowLevelTests
 		private XDocument ReportDoc;
 		public bool IsValid { get; protected set; }
 
-		public LowLevelTestsReportParser(string InLocalReportPath)
+		public LowLevelTestsReportParser(string InContents)
 		{
 			try
 			{
-				ReportDoc = XDocument.Load(InLocalReportPath);
+				ReportDoc = XDocument.Parse(InContents);
 				IsValid = true;
 			}
-			catch (Exception LoadEx)
+			catch (Exception ParseEx)
 			{
-				Log.Error("Encountered error while loading report {0}", LoadEx.ToString());
+				Log.Error("Encountered error while parsing report {0}", ParseEx.ToString());
 				IsValid = false;
 			}
 		}

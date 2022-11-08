@@ -12,7 +12,7 @@
 #include "CoreGlobals.h"
 #include "TestHarness.h"
 
-TEST_CASE("CBor::FCbor::Smoke Test", "[CBor][Smoke]")
+GROUP_TEST_CASE("CBor", "CBor::FCbor::Smoke Test", "[Smoke]")
 {
 	// Run the test twices, once with little-endian encoding, once with big-endian encoding.
 	auto RunWithEndiannessFn = [](ECborEndianness Endianness)
@@ -324,7 +324,7 @@ TEST_CASE("CBor::FCbor::Smoke Test", "[CBor][Smoke]")
 	}
 }
 
-TEST_CASE("CBor::FCbor::ByteSwap Performance Test", "[.][CBor][Perf]")
+GROUP_TEST_CASE("CBor", "CBor::FCbor::ByteSwap Performance Test", "[.][Perf]")
 {
 	//  NOTE: The most expensive value to write in CBOR is the double as it needs to swap 8 bytes all the time. Integers can be encoded in 1, 2, 4 or 8 bytes depending on their value, but not double.
 	//        String are not considered because they are written in UTF8. The test ensure this is not significantly longer to write/read while swapping the bytes.

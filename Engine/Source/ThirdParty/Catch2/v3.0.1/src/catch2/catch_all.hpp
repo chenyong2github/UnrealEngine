@@ -34,6 +34,7 @@
 #include <catch2/catch_tag_alias_autoregistrar.hpp>
 #include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_case_info.hpp>
+#include <catch2/catch_test_group_info.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_test_spec.hpp>
 #include <catch2/catch_timer.hpp>
@@ -56,6 +57,7 @@
 #include <catch2/internal/catch_config_wchar.hpp>
 #include <catch2/internal/catch_console_colour.hpp>
 #include <catch2/internal/catch_console_width.hpp>
+#include <catch2/internal/catch_constants.hpp>
 #include <catch2/internal/catch_container_nonmembers.hpp>
 #include <catch2/internal/catch_context.hpp>
 #include <catch2/internal/catch_debug_console.hpp>
@@ -103,6 +105,7 @@
 #include <catch2/internal/catch_test_case_registry_impl.hpp>
 #include <catch2/internal/catch_test_case_tracker.hpp>
 #include <catch2/internal/catch_test_failure_exception.hpp>
+#include <catch2/internal/catch_test_group_event_registry_impl.hpp>
 #include <catch2/internal/catch_test_macro_impl.hpp>
 #include <catch2/internal/catch_test_registry.hpp>
 #include <catch2/internal/catch_test_spec_parser.hpp>

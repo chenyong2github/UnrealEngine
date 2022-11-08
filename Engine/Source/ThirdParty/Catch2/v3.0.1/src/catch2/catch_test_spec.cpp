@@ -47,6 +47,16 @@ namespace Catch {
                           Tag( m_tag ) ) != end( testCase.tags );
     }
 
+	TestSpec::GroupPattern::GroupPattern( std::string const& group, std::string const& filterString )
+    : Pattern( filterString )
+    , m_wildcardPatternGroup( toLower( group ), CaseSensitive::No )
+    {}
+
+    bool TestSpec::GroupPattern::matches( TestCaseInfo const& testCase ) const {
+        return m_wildcardPatternGroup.matches( testCase.group.data() );
+    }
+
+
     bool TestSpec::Filter::matches( TestCaseInfo const& testCase ) const {
         bool should_use = !testCase.isHidden();
         for (auto const& pattern : m_required) {
