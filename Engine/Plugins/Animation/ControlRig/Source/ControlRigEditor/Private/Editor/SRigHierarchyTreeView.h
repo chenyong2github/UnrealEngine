@@ -221,12 +221,17 @@ class SRigHierarchyTreeView : public STreeView<TSharedPtr<FRigTreeElement>>
 public:
 
 	SLATE_BEGIN_ARGS(SRigHierarchyTreeView)
+		: _AutoScrollEnabled(false)
 	{}
 		SLATE_ARGUMENT(FRigTreeDelegates, RigTreeDelegates)
+		SLATE_ARGUMENT(bool, AutoScrollEnabled)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
 	virtual ~SRigHierarchyTreeView() {}
+
+	/** Performs auto scroll */
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override
 	{
@@ -296,6 +301,10 @@ private:
 	TMap<FRigElementKey, FRigElementKey> ParentMap;
 
 	FRigTreeDelegates Delegates;
+
+	bool bAutoScrollEnabled;
+	FVector2D LastMousePosition;
+	double TimeAtMousePosition;
 
 	friend class SRigHierarchy;
 };

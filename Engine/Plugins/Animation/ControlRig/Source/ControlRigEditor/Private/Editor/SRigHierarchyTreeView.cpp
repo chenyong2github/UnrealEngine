@@ -206,6 +206,7 @@ FText SRigHierarchyItem::GetName() const
 void SRigHierarchyTreeView::Construct(const FArguments& InArgs)
 {
 	Delegates = InArgs._RigTreeDelegates;
+	bAutoScrollEnabled = InArgs._AutoScrollEnabled;
 
 	STreeView<TSharedPtr<FRigTreeElement>>::FArguments SuperArgs;
 	SuperArgs.TreeItemsSource(&RootElements);
@@ -231,6 +232,63 @@ void SRigHierarchyTreeView::Construct(const FArguments& InArgs)
 	});
 
 	STreeView<TSharedPtr<FRigTreeElement>>::Construct(SuperArgs);
+
+	LastMousePosition = FVector2D::ZeroVector;
+	TimeAtMousePosition = 0.0;
+}
+
+void SRigHierarchyTreeView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	STreeView<TSharedPtr<FRigTreeElement, ESPMode::ThreadSafe>>::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
+
+	const FGeometry PaintGeometry = GetPaintSpaceGeometry();
+	const FVector2D MousePosition = FSlateApplication::Get().GetCursorPos();
+
+	if(PaintGeometry.IsUnderLocation(MousePosition))
+	{
+		const FVector2D WidgetPosition = PaintGeometry.AbsoluteToLocal(MousePosition);
+
+		static constexpr float SteadyMousePositionTolerance = 5.f;
+
+		if(LastMousePosition.Equals(MousePosition, SteadyMousePositionTolerance))
+		{
+			TimeAtMousePosition += InDeltaTime;
+		}
+		else
+		{
+			LastMousePosition = MousePosition;
+			TimeAtMousePosition = 0.0;
+		}
+
+		static constexpr float AutoScrollStartDuration = 0.5f; // in seconds
+		static constexpr float AutoScrollDistance = 24.f; // in pixels
+		static constexpr float AutoScrollSpeed = 150.f;
+
+		if(TimeAtMousePosition > AutoScrollStartDuration && FSlateApplication::Get().IsDragDropping())
+		{
+			if((WidgetPosition.Y < AutoScrollDistance) || (WidgetPosition.Y > PaintGeometry.Size.Y - AutoScrollDistance))
+			{
+				if(bAutoScrollEnabled)
+				{
+					const bool bScrollUp = (WidgetPosition.Y < AutoScrollDistance);
+
+					const float DeltaInSlateUnits = (bScrollUp ? -InDeltaTime : InDeltaTime) * AutoScrollSpeed; 
+					ScrollBy(GetCachedGeometry(), DeltaInSlateUnits, EAllowOverscroll::No);
+				}
+			}
+			else
+			{
+				const TSharedPtr<FRigTreeElement> Item = FindItemAtPosition(MousePosition);
+				if(Item.IsValid())
+				{
+					if(!IsItemExpanded(Item))
+					{
+						SetItemExpansion(Item, true);
+					}
+				}
+			}
+		}
+	}
 }
 
 TSharedPtr<FRigTreeElement> SRigHierarchyTreeView::FindElement(const FRigElementKey& InElementKey, TSharedPtr<FRigTreeElement> CurrentItem)

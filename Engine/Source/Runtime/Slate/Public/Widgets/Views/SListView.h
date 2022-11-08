@@ -1679,27 +1679,6 @@ public:
 	}
 
 	/**
- 	 * Given a screen space position, find the corresponding data item.
- 	 * Note: This is relying on its CachedGeometry - so the result may
- 	 * be one frame behind.
- 	 * 
- 	 * @param InScreenSpacePosition The position in screen space to search at
- 	 *
- 	 * @return the data item residing at the provided screen space position (or nullptr)
- 	 */
-	const ItemType* ItemAtScreenSpacePosition( const FVector2D& InScreenSpacePosition ) const
-	{
-		const TSharedPtr<SWidget> ItemWidget = this->FindItemWidgetAtPosition(InScreenSpacePosition);
-    	if(ItemWidget.IsValid())
-    	{
-    		TSharedRef<STableRow<ItemType>> TableRow = StaticCastSharedRef<STableRow<ItemType>>(ItemWidget.ToSharedRef());
-    		return this->ItemFromWidget(&TableRow.Get());
-    	}
-
-		return nullptr;
-	}
-
-	/**
 	 * Test if the current item is selected.
 	 *
 	 * @param InItem The item to test.
@@ -2456,67 +2435,7 @@ protected:
 		}
 	}
 
-public:
-
-	virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override
-	{
-		STableViewBase::OnDragEnter(MyGeometry, DragDropEvent);
-
-		// start a timer to deal with auto scroll (and auto expand for treeviews)
-		ActiveMouseMoveDragDropTimer = RegisterActiveTimer(
-			0,
-			FWidgetActiveTimerDelegate::CreateSP(this, &SListView<ItemType>::OnMouseMoveDuringDragDropTimer)
-		);
-	}
-
-	virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override
-	{
-		STableViewBase::OnDragLeave(DragDropEvent);
-
-		if(ActiveMouseMoveDragDropTimer.IsValid())
-		{
-			UnRegisterActiveTimer(ActiveMouseMoveDragDropTimer.ToSharedRef());
-			ActiveMouseMoveDragDropTimer.Reset();
-		}
-	}
-
 protected:
-
-	EActiveTimerReturnType OnMouseMoveDuringDragDropTimer(const double InCurrentTime, const float InDeltaTime)
-	{
-		HandleMouseMoveDuringDragDrop(InCurrentTime, InDeltaTime);
-		return EActiveTimerReturnType::Continue;
-	}
-
-	virtual void HandleMouseMoveDuringDragDrop(const double InCurrentTime, const float InDeltaTime)
-	{
-		const FVector2D MousePosition = FSlateApplicationBase::Get().GetCursorPos();
-		const FVector2f MousePositionf(MousePosition);
-		
-		if(LastMousePositionDuringDragDrop.Equals(MousePositionf, MousePositionToleranceDuringDragDrop))
-		{
-			DurationAtMousePositionDuringDragDrop += InDeltaTime;
-		}
-		else
-		{
-			LastMousePositionDuringDragDrop = MousePositionf;
-			DurationAtMousePositionDuringDragDrop = 0.0;
-		}
-
-		if(bEnableAutoScroll && DurationAtMousePositionDuringDragDrop > AutoScrollStartDuration)
-		{
-			const FGeometry PaintGeometry = GetPaintSpaceGeometry();
-			const FVector2D WidgetPosition = PaintGeometry.AbsoluteToLocal(MousePosition);
-			if((WidgetPosition.Y < AutoScrollDistance) || (WidgetPosition.Y > PaintGeometry.Size.Y - AutoScrollDistance))
-			{
-				const bool bScrollUp = (WidgetPosition.Y < AutoScrollDistance);
-
-				const float DeltaInSlateUnits = (bScrollUp ? -InDeltaTime : InDeltaTime) * AutoScrollSpeed; 
-				ScrollBy(PaintGeometry, DeltaInSlateUnits, EAllowOverscroll::No);
-			}
-		}
-	}
-	
 	/** A widget generator component */
 	FWidgetGenerator WidgetGenerator;
 
@@ -2618,30 +2537,6 @@ protected:
 	
 	/** If true, number of pinned items > MaxPinnedItems so some items are collapsed in the hierarchy */
 	bool bIsHierarchyCollapsed = false;
-
-	/** If enabled the view will auto scroll if the mouse reaches the top or bottom of the view (during drag and drop only) */
-	static constexpr bool bEnableAutoScroll = true;
-
-	/** The distance from top / bottom within which auto scroll should be enabled */
-	static constexpr float AutoScrollDistance = 24.f;
-
-	/** The duration in seconds it takes for auto scroll to start */
-	static constexpr float AutoScrollStartDuration = 0.5f;
-
-	/** The speed for auto scroll when scrolling up or down */
-	static constexpr float AutoScrollSpeed = 150.f;
-
-	/** The tolerance for a drag and drop mouse move to trigger auto scroll and other actions */
-	static constexpr float MousePositionToleranceDuringDragDrop = 5.f;
-
-	/** During drag and drop we track the time at a (semi) fixed mouse position */
-	double DurationAtMousePositionDuringDragDrop = 0.0;
-
-	/** During drag and drop this stores the last known location */
-	FVector2f LastMousePositionDuringDragDrop = FVector2f::ZeroVector;
-
-	/** The timer dealing with mouse move during drag and drop */
-	TSharedPtr<FActiveTimerHandle> ActiveMouseMoveDragDropTimer;
 
 private:
 	struct FGenerationPassGuard
