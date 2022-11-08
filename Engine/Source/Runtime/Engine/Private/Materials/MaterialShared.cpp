@@ -2680,23 +2680,12 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 }
 
 #if WITH_EDITOR
-FString FMaterial::GetUniqueAssetName(EShaderPlatform Platform) const
+FString FMaterial::GetUniqueAssetName(EShaderPlatform Platform, const FMaterialShaderMapId& ShaderMapId) const
 {
-	// Temporary disabled due to UE-169098:
-	// This funciton may be called from worker threads, but GetStaticParameterSet() requires game thread.
-#if 0 
-	TArray<uint8> Buf;
-	FString PathStr = GetAssetPath().GetPlainNameString();
-	FMemoryWriter BufWriter(Buf);
-	BufWriter << PathStr;
-	FStaticParameterSet StaticParams;
-	GetStaticParameterSet(Platform, StaticParams);
-	FStaticParameterSet::StaticStruct()->SerializeBin(BufWriter, &StaticParams);
-	uint64 Hash = CityHash64((const char*)Buf.GetData(), Buf.Num());
-	return FString::Printf(TEXT("%s_%llu"), *GetAssetName(), Hash);
-#else
-	return GetAssetName();
-#endif
+	FString ToHash = GetAssetPath().GetPlainNameString();
+	ShaderMapId.AppendKeyString(ToHash);
+	uint64 Hash = CityHash64((const char*)*ToHash, ToHash.Len());
+	return FString::Printf(TEXT("%s_%llx"), *GetAssetName(), Hash);
 }
 #endif // WITH_EDITOR
 
@@ -2941,6 +2930,7 @@ void FMaterial::CacheGivenTypes(EShaderPlatform Platform, const TArray<const FVe
 					Platform,
 					GameThreadShaderMap->GetPermutationFlags(),
 					this,
+					GameThreadShaderMap->GetShaderMapId(),
 					GameThreadPendingCompilerEnvironment,
 					VFType,
 					PipelineType,
@@ -2955,6 +2945,7 @@ void FMaterial::CacheGivenTypes(EShaderPlatform Platform, const TArray<const FVe
 					GetGameThreadCompilingShaderMapId(),
 					0,
 					this,
+					GameThreadShaderMap->GetShaderMapId(),
 					GameThreadPendingCompilerEnvironment,
 					Platform,
 					GameThreadShaderMap->GetPermutationFlags(),
@@ -2971,6 +2962,7 @@ void FMaterial::CacheGivenTypes(EShaderPlatform Platform, const TArray<const FVe
 					Platform,
 					GameThreadShaderMap->GetPermutationFlags(),
 					this,
+					GameThreadShaderMap->GetShaderMapId(),
 					GameThreadPendingCompilerEnvironment,
 					VFType,
 					CompileJobs,
@@ -3362,11 +3354,35 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 						{
 							if (InVertexFactoryType)
 							{
-								FMeshMaterialShaderType::BeginCompileShaderPipeline(EShaderCompileJobPriority::ForceLocal, CompilingShaderMapId, kUniqueShaderPermutationId, ShaderPlatform, PermutationFlags, this, RenderingThreadPendingCompilerEnvironment, InVertexFactoryType, InTypes.PipelineType, CompileJobs, nullptr, nullptr);
+								FMeshMaterialShaderType::BeginCompileShaderPipeline(
+									EShaderCompileJobPriority::ForceLocal, 
+									CompilingShaderMapId, 
+									kUniqueShaderPermutationId, 
+									ShaderPlatform, 
+									PermutationFlags, 
+									this,
+									ShaderMap->GetShaderMapId(),
+									RenderingThreadPendingCompilerEnvironment, 
+									InVertexFactoryType, 
+									InTypes.PipelineType, 
+									CompileJobs, 
+									nullptr, 
+									nullptr);
 							}
 							else
 							{
-								FMaterialShaderType::BeginCompileShaderPipeline(EShaderCompileJobPriority::ForceLocal, CompilingShaderMapId, ShaderPlatform, PermutationFlags, this, RenderingThreadPendingCompilerEnvironment, InTypes.PipelineType, CompileJobs, nullptr, nullptr);
+								FMaterialShaderType::BeginCompileShaderPipeline(
+									EShaderCompileJobPriority::ForceLocal, 
+									CompilingShaderMapId, 
+									ShaderPlatform, 
+									PermutationFlags, 
+									this,
+									ShaderMap->GetShaderMapId(),
+									RenderingThreadPendingCompilerEnvironment, 
+									InTypes.PipelineType, 
+									CompileJobs, 
+									nullptr, 
+									nullptr);
 							}
 						}
 					}
@@ -3417,11 +3433,34 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 							{
 								if (InVertexFactoryType)
 								{
-									ShaderType->AsMeshMaterialShaderType()->BeginCompileShader(EShaderCompileJobPriority::ForceLocal, CompilingShaderMapId, PermutationId, ShaderPlatform, PermutationFlags, this, RenderingThreadPendingCompilerEnvironment, InVertexFactoryType, CompileJobs, nullptr, nullptr);
+									ShaderType->AsMeshMaterialShaderType()->BeginCompileShader(
+										EShaderCompileJobPriority::ForceLocal, 
+										CompilingShaderMapId, 
+										PermutationId, 
+										ShaderPlatform, 
+										PermutationFlags, 
+										this,
+										ShaderMap->GetShaderMapId(),
+										RenderingThreadPendingCompilerEnvironment, 
+										InVertexFactoryType, 
+										CompileJobs, 
+										nullptr, 
+										nullptr);
 								}
 								else
 								{
-									ShaderType->AsMaterialShaderType()->BeginCompileShader(EShaderCompileJobPriority::ForceLocal, CompilingShaderMapId, PermutationId, this, RenderingThreadPendingCompilerEnvironment, ShaderPlatform, PermutationFlags, CompileJobs, nullptr, nullptr);
+									ShaderType->AsMaterialShaderType()->BeginCompileShader(
+										EShaderCompileJobPriority::ForceLocal, 
+										CompilingShaderMapId, 
+										PermutationId, 
+										this,
+										ShaderMap->GetShaderMapId(),
+										RenderingThreadPendingCompilerEnvironment, 
+										ShaderPlatform, 
+										PermutationFlags, 
+										CompileJobs, 
+										nullptr, 
+										nullptr);
 								}
 							}
 						}

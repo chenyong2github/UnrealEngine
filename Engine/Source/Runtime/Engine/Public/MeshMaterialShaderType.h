@@ -11,6 +11,7 @@
 #include "MaterialShaderType.h"
 
 class FMaterial;
+class FMaterialShaderMapId;
 class FShaderCommonCompileJob;
 class FShaderCompileJob;
 class FUniformExpressionSet;
@@ -87,11 +88,12 @@ public:
 	 */
 	void BeginCompileShader(
 		EShaderCompileJobPriority Priority,
-		uint32 ShaderMapId,
+		uint32 ShaderMapJobId,
 		int32 PermutationId,
 		EShaderPlatform Platform,
 		EShaderPermutationFlags PermutationFlags,
 		const FMaterial* Material,
+		const FMaterialShaderMapId& ShaderMapId,
 		FSharedShaderCompilerEnvironment* MaterialEnvironment,
 		const FVertexFactoryType* VertexFactoryType,
 		TArray<TRefCountPtr<FShaderCommonCompileJob>>& NewJobs,
@@ -101,11 +103,12 @@ public:
 
 	static void BeginCompileShaderPipeline(
 		EShaderCompileJobPriority Priority,
-		uint32 ShaderMapId,
+		uint32 ShaderMapJobId,
 		int32 PermutationId,
 		EShaderPlatform Platform,
 		EShaderPermutationFlags PermutationFlags,
 		const FMaterial* Material,
+		const FMaterialShaderMapId& ShaderMapId,
 		FSharedShaderCompilerEnvironment* MaterialEnvironment,
 		const FVertexFactoryType* VertexFactoryType,
 		const FShaderPipelineType* ShaderPipeline,

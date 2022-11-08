@@ -23,6 +23,7 @@
 
 class FMaterial;
 class FMaterialShaderMap;
+class FMaterialShaderMapId;
 class FShaderCommonCompileJob;
 class FShaderCompileJob;
 class FUniformExpressionSet;
@@ -132,9 +133,10 @@ public:
 	 */
 	void BeginCompileShader(
 		EShaderCompileJobPriority Priority,
-		uint32 ShaderMapId,
+		uint32 ShaderMapJobId,
 		int32 PermutationId,
 		const FMaterial* Material,
+		const FMaterialShaderMapId& ShaderMapId,
 		FSharedShaderCompilerEnvironment* MaterialEnvironment,
 		EShaderPlatform Platform,
 		EShaderPermutationFlags PermutationFlags,
@@ -145,10 +147,11 @@ public:
 
 	static void BeginCompileShaderPipeline(
 		EShaderCompileJobPriority Priority,
-		uint32 ShaderMapId,
+		uint32 ShaderMapJobId,
 		EShaderPlatform Platform,
 		EShaderPermutationFlags PermutationFlags,
 		const FMaterial* Material,
+		const FMaterialShaderMapId& ShaderMapId,
 		FSharedShaderCompilerEnvironment* MaterialEnvironment,
 		const FShaderPipelineType* ShaderPipeline,
 		TArray<TRefCountPtr<FShaderCommonCompileJob>>& NewJobs,

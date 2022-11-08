@@ -1864,10 +1864,10 @@ public:
 #if WITH_EDITOR
 	/** Similar to GetAssetName, but appends a hash of the asset path and static switch params (if editoronly data is available)
 	to differentiate materials that would collide when considering name alone. */
-	ENGINE_API FString GetUniqueAssetName(EShaderPlatform Platform) const;
+	ENGINE_API FString GetUniqueAssetName(EShaderPlatform Platform, const FMaterialShaderMapId& ShaderMapId) const;
 #else
 	/** GetUniqueAssetName just returns GetAssetName in non-editor builds */
-	FString GetUniqueAssetName(EShaderPlatform Platform) const { return GetAssetName(); }
+	FString GetUniqueAssetName(EShaderPlatform Platform, const FMaterialShaderMapId& ShaderMapId) const { return GetAssetName(); }
 #endif
 	virtual bool HasVertexPositionOffsetConnected() const { return false; }
 	virtual bool HasPixelDepthOffsetConnected() const { return false; }
