@@ -25,6 +25,10 @@
 #include "UObject/Package.h"
 #include "UObject/UObjectAnnotation.h"
 
+#if WITH_EDITOR
+#include "Editor/EditorPerProjectUserSettings.h"
+#endif
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineObjectIdPass)
 
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateMaskSample_TT"), STAT_AccumulateMaskSample_TaskThread, STATGROUP_MoviePipeline);
@@ -182,11 +186,22 @@ void UMoviePipelineObjectIdRenderPass::SetupImpl(const MoviePipeline::FMoviePipe
 		AccelData.JsonManifest->SetStringField(TEXT("default"), FString::Printf(TEXT("%08x"), DefaultHash));
 	}
 	ManifestAnnotation.AddAnnotation(this, AccelData);
+
+#if WITH_EDITOR
+	UEditorPerProjectUserSettings* EditorSettings = GetMutableDefault<UEditorPerProjectUserSettings>();
+	bPrevAllowSelectTranslucent = EditorSettings->bAllowSelectTranslucent;
+	EditorSettings->bAllowSelectTranslucent = bIncludeTranslucentObjects;
+#endif
 }
 
 void UMoviePipelineObjectIdRenderPass::TeardownImpl()
 {
 	ManifestAnnotation.RemoveAnnotation(this);
+
+#if WITH_EDITOR
+	UEditorPerProjectUserSettings* EditorSettings = GetMutableDefault<UEditorPerProjectUserSettings>();
+	EditorSettings->bAllowSelectTranslucent = bPrevAllowSelectTranslucent;
+#endif
 
 	// Preserve our view state until the rendering thread has been flushed.
 	Super::TeardownImpl();

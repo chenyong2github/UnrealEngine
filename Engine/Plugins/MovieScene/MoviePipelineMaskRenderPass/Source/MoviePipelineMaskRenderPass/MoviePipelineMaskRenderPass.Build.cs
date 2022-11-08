@@ -25,5 +25,11 @@ public class MoviePipelineMaskRenderPass : ModuleRules
 				"OpenColorIO",
 			}
 		);
+
+		if (Target.bBuildEditor)
+		{
+			PublicDependencyModuleNames.AddRange(
+			new string[] { "UnrealEd" });
+		}
 	}
 }
