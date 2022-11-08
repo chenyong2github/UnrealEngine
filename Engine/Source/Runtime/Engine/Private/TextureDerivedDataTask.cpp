@@ -2307,10 +2307,9 @@ public:
 		const FTextureBuildSettings& InSettingsFetchOrBuild,
 		const FTexturePlatformData::FTextureEncodeResultMetadata* InFetchFirstMetadata, // can be nullptr
 		const FTexturePlatformData::FTextureEncodeResultMetadata* InFetchOrBuildMetadata, // can be nullptr
-		EQueuedWorkPriority InPriority,
+		EQueuedWorkPriority Priority,
 		ETextureCacheFlags Flags)
 		: BuildResults(InDerivedData)
-		, Priority(InPriority)
 		, InputResolver(Texture)
 	{
 		static bool bLoadedModules = LoadModules();
@@ -2328,7 +2327,7 @@ public:
 
 		using namespace UE::DerivedData;
 
-		EPriority OwnerPriority = EnumHasAnyFlags(Flags, ETextureCacheFlags::Async) ? ConvertPriority(Priority) : UE::DerivedData::EPriority::Blocking;
+		EPriority OwnerPriority = EnumHasAnyFlags(Flags, ETextureCacheFlags::Async) ? ConvertFromQueuedWorkPriority(Priority) : EPriority::Blocking;
 		Owner.Emplace(OwnerPriority);
 
 		bool bUseCompositeTexture;
@@ -2586,13 +2585,14 @@ public:
 
 	EQueuedWorkPriority GetPriority() const final
 	{
-		return Priority;
+		using namespace UE::DerivedData;
+		return ConvertToQueuedWorkPriority(Owner->GetPriority());
 	}
 
 	bool SetPriority(EQueuedWorkPriority QueuedWorkPriority) final
 	{
-		Priority = QueuedWorkPriority;
-		Owner->SetPriority(ConvertPriority(QueuedWorkPriority));
+		using namespace UE::DerivedData;
+		Owner->SetPriority(ConvertFromQueuedWorkPriority(QueuedWorkPriority));
 		return true;
 	}
 
@@ -2794,35 +2794,6 @@ public:
 		return DefinitionBuilder.Build();
 	}
 
-	static UE::DerivedData::EPriority ConvertPriority(EQueuedWorkPriority SourcePriority)
-	{
-		using namespace UE::DerivedData;
-		switch (SourcePriority)
-		{
-		case EQueuedWorkPriority::Lowest:  return EPriority::Lowest;
-		case EQueuedWorkPriority::Low:     return EPriority::Low;
-		case EQueuedWorkPriority::Normal:  return EPriority::Normal;
-		case EQueuedWorkPriority::High:    return EPriority::High;
-		case EQueuedWorkPriority::Highest: return EPriority::Highest;
-		default:                           return EPriority::Normal;
-		}
-	}
-
-	static EQueuedWorkPriority ConvertPriority(UE::DerivedData::EPriority SourcePriority)
-	{
-		using namespace UE::DerivedData;
-		switch (SourcePriority)
-		{
-		case EPriority::Lowest:   return EQueuedWorkPriority::Lowest;
-		case EPriority::Low:      return EQueuedWorkPriority::Low;
-		case EPriority::Normal:   return EQueuedWorkPriority::Normal;
-		case EPriority::High:     return EQueuedWorkPriority::High;
-		case EPriority::Highest:  return EQueuedWorkPriority::Highest;
-		case EPriority::Blocking: return EQueuedWorkPriority::Blocking;
-		default:                  return EQueuedWorkPriority::Normal;
-		}
-	}
-
 	static ITextureCompressorModule* TextureCompressorModule;
 	static bool LoadModules()
 	{
@@ -2839,7 +2810,6 @@ public:
 
 	// Build bureaucracy
 	TOptional<UE::DerivedData::FRequestOwner> Owner;
-	EQueuedWorkPriority Priority;
 
 	UE::DerivedData::FOptionalBuildSession BuildSession;
 	UE::TextureDerivedData::FTextureBuildInputResolver InputResolver;

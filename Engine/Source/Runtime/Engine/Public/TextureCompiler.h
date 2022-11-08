@@ -6,12 +6,15 @@
 #include "Containers/Set.h"
 #include "AssetCompilingManager.h"
 #include "AsyncCompilationHelpers.h"
+#include "Templates/PimplPtr.h"
 
 #if WITH_EDITOR
 
 class UTexture;
 class FQueuedThreadPool;
 enum class EQueuedWorkPriority : uint8;
+
+namespace UE::Private { class FTextureThreadPoolProvider; }
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FTexturePostCompileEvent, const TArrayView<UTexture* const>&);
 
@@ -104,6 +107,8 @@ private:
 
 	/** Event issued at the end of the compile process */
 	FTexturePostCompileEvent TexturePostCompileEvent;
+
+	TPimplPtr<UE::Private::FTextureThreadPoolProvider> ThreadPoolProvider;
 };
 
 #endif

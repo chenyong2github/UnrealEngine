@@ -296,6 +296,7 @@ FGuid FTextureBuildFunction::GetVersion() const
 
 void FTextureBuildFunction::Configure(UE::DerivedData::FBuildConfigContext& Context) const
 {
+	Context.SetTypeName(UTF8TEXTVIEW("Texture"));
 	Context.SetCacheBucket(UE::DerivedData::FCacheBucket(ANSITEXTVIEW("Texture")));
 
 	const FCbObject Settings = Context.FindConstant(UTF8TEXTVIEW("Settings"));
