@@ -77,7 +77,7 @@ private:
 	/** Construct a property widget. */
 	TSharedRef<SWidget> ConstructWidget();
 	/** Create the wrapper around the field value widget. */
-	TSharedRef<SWidget> MakeFieldWidget(const TSharedRef<SWidget>& InWidget);
+	TSharedRef<SWidget> MakeFieldWidget(const TSharedRef<SWidget>& InWidget, const TSharedRef<SWidget>& EditConditionWidget = SNullWidget::NullWidget);
 	/** Construct this field widget as a property widget. */
 	void ConstructPropertyWidget();
 	/** Construct this field widget as a function widget. */
