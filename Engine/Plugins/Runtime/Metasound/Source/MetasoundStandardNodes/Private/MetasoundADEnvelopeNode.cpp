@@ -145,15 +145,8 @@ namespace Metasound
 						float AttackFraction = (float)InState.CurrentSampleIndex++ / InState.AttackSampleCount;
 						float EnvValue = FMath::Pow(AttackFraction, InState.AttackCurveFactor);
 						float TargetEnvelopeValue = InState.StartingEnvelopeValue + (1.0f - InState.StartingEnvelopeValue) * EnvValue;
-						if (InState.bHardReset)
-						{
-							InState.CurrentEnvelopeValue = TargetEnvelopeValue;
-						}
-						else
-						{
-							InState.EnvEase.SetValue(TargetEnvelopeValue);
-							InState.CurrentEnvelopeValue = InState.EnvEase.GetNextValue();
-						}
+						InState.EnvEase.SetValue(TargetEnvelopeValue);
+						InState.CurrentEnvelopeValue = InState.EnvEase.GetNextValue();
 						OutEnvPtr[i] = InState.CurrentEnvelopeValue;
 					}
 					else 
@@ -166,15 +159,8 @@ namespace Metasound
 							int32 SampleCountInDecayState = InState.CurrentSampleIndex++ - InState.AttackSampleCount;
 							float DecayFracton = (float)SampleCountInDecayState / InState.DecaySampleCount;
 							float TargetEnvelopeValue = 1.0f - FMath::Pow(DecayFracton, InState.DecayCurveFactor);
-							if (InState.bHardReset)
-							{
-								InState.CurrentEnvelopeValue = TargetEnvelopeValue;
-							}
-							else
-							{
-								InState.EnvEase.SetValue(TargetEnvelopeValue);
-								InState.CurrentEnvelopeValue = InState.EnvEase.GetNextValue();
-							}
+							InState.EnvEase.SetValue(TargetEnvelopeValue);
+							InState.CurrentEnvelopeValue = InState.EnvEase.GetNextValue();
 							OutEnvPtr[i] = InState.CurrentEnvelopeValue;
 						}
 						// We are looping so reset the sample index
@@ -187,11 +173,11 @@ namespace Metasound
 						}
 						else
 						{
-							InState.CurrentEnvelopeValue = InState.bHardReset ? 0 : InState.EnvEase.GetNextValue();
+							InState.CurrentEnvelopeValue = InState.EnvEase.GetNextValue();
 							OutEnvPtr[i] = InState.CurrentEnvelopeValue;
 
 							// Envelope is done
-							if (InState.EnvEase.IsDone() || InState.bHardReset)
+							if (InState.EnvEase.IsDone())
 							{
 								// Zero out the rest of the envelope
 								int32 NumSamplesLeft = EndFrame - i - 1;
@@ -396,6 +382,7 @@ namespace Metasound
 					// Set the sample index to the top of the envelope
 					EnvState.CurrentSampleIndex = 0;
 					EnvState.StartingEnvelopeValue = EnvState.bHardReset ? 0 : EnvState.CurrentEnvelopeValue;
+					EnvState.EnvEase.SetValue(EnvState.StartingEnvelopeValue, true /* bInit */);
 
 					// Generate the output (this will no-op if we're block rate)
 					TArray<int32> FinishedFrames;
