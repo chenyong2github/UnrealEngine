@@ -674,13 +674,6 @@ namespace Horde.Build.Jobs.TestData
 
 		async Task AddTestReportData(IJob job, IJobStep step, BsonDocument rootDoc, ObjectId testDataId)
 		{
-			int version = rootDoc.GetValue("Version", new BsonInt32(0)).AsInt32;
-			if (version < 1)
-			{
-				_logger.LogWarning("Test data does not have version and needs to be updated in stream for job {JobId} step {StepId}", job.Id, step.Id);
-				return;
-			}
-
 			List<AutomatedTestSessionData> sessions = new List<AutomatedTestSessionData>();
 			List<UnrealAutomatedTestData> tests = new List<UnrealAutomatedTestData>();
 
@@ -693,6 +686,13 @@ namespace Horde.Build.Jobs.TestData
 				}
 
 				BsonDocument testData = item.AsBsonDocument;
+
+				int version = testData.GetValue("Version", new BsonInt32(0)).AsInt32;
+				if (version < 1)
+				{
+					_logger.LogWarning("Test data does not have version and needs to be updated in stream for job {JobId} step {StepId}", job.Id, step.Id);
+					return;
+				}
 
 				BsonValue? value;
 				if (!testData.TryGetPropertyValue("Data.Type", BsonType.String, out value))

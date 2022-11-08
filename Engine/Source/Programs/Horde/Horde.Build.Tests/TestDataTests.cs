@@ -256,8 +256,8 @@ namespace Horde.Build.Tests
 			@"  ""Items"": [",
 			@"    {",
 			@"      ""Key"": ""Simple Report::UE.BootTest EngineTest Editor Win64"",",
-			@"      ""Data"": {",
 			@"		""Version"" : 1,",
+			@"      ""Data"": {",			
 			@"        ""Type"": ""Simple Report"",",
 			@"        ""TestName"": ""EditorBootTest"",",
 			@"        ""Description"": ""Win64 Development EditorGame"",",
@@ -292,17 +292,16 @@ namespace Horde.Build.Tests
 			@"      }",
 			@"    }",
 			@"  ],",
-			@"  ""Version"": 1",
 			@"}"
 		};
 
 		private readonly string[] _testSessionDataLines =
 		{
-			@"{",
-			@"	""Version"": 1,",
+			@"{",			
 			@"    ""Items"": [	",
 			@"        {",
 			@"            ""Key"": ""Automated Test Session"",",
+			@"		      ""Version"" : 1,",
 			@"            ""Data"": {",
 			@"                ""Type"": ""Automated Test Session"",",
 			@"                ""Name"": ""UE.Automation(Group:UI) EngineTest"",",
@@ -399,6 +398,7 @@ namespace Horde.Build.Tests
 			@"        },",
 			@"        {",
 			@"            ""Key"": ""Unreal Automated Tests::UE.TargetAutomation(RunTest=UI) Win64"",",
+			@"		      ""Version"" : 1,",
 			@"            ""Data"": {",
 			@"                ""Type"": ""Unreal Automated Tests"",",
 			@"                ""Devices"": [",
@@ -471,6 +471,7 @@ namespace Horde.Build.Tests
 			@"        },",
 			@"        {",
 			@"            ""Key"": ""Automated Test Session Result Details::b420bdde-c030-4add-81d2-3a8404ab3e45"",",
+			@"	          ""Version"" : 1,",
 			@"            ""Data"": {",
 			@"                ""cbdb55ea"": {",
 			@"                    ""Events"": [",
