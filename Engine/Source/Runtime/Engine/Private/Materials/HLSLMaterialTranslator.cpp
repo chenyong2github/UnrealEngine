@@ -8545,7 +8545,7 @@ int32 FHLSLMaterialTranslator::TransformBase(EMaterialCommonBasis SourceCoordBas
 			{
 				CodeStr = LWCMultiplyMatrix(TEXT("<A>"), TEXT("GetWorldToInstance(Parameters)"), AWComponent);
 				CodeDerivStr = LWCMultiplyMatrix(TEXT("<A>"), TEXT("GetWorldToInstance(Parameters)"), 0);
-				bUsesInstanceWorldToLocalPS = ShaderFrequency == SF_Pixel;
+				bUsesInstanceWorldToLocalPS |= ShaderFrequency == SF_Pixel;
 			}
 
 			// else use MCB_TranslatedWorld as intermediary basis
@@ -8591,7 +8591,7 @@ int32 FHLSLMaterialTranslator::TransformBase(EMaterialCommonBasis SourceCoordBas
 			{
 				CodeStr = LWCMultiplyMatrix(TEXT("<A>"), TEXT("GetInstanceToWorld(Parameters)"), AWComponent);
 				CodeDerivStr = LWCMultiplyMatrix(TEXT("<A>"), TEXT("GetInstanceToWorld(Parameters)"), 0);
-				bUsesInstanceLocalToWorldPS = ShaderFrequency == SF_Pixel;
+				bUsesInstanceLocalToWorldPS |= ShaderFrequency == SF_Pixel;
 			}
 			// use World as an intermediary base
 			break;
