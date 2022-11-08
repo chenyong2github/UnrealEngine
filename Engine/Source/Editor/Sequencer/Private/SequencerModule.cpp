@@ -59,7 +59,7 @@ namespace UE
 namespace Sequencer
 {
 
-struct FDeferredSignedObjectChangeHandler : UE::MovieScene::IDeferredSignedObjectChangeHandler, FGCObject
+struct FDeferredSignedObjectChangeHandler : UE::MovieScene::IDeferredSignedObjectChangeHandler
 {
 	FDeferredSignedObjectChangeHandler()
 	{
@@ -127,17 +127,6 @@ struct FDeferredSignedObjectChangeHandler : UE::MovieScene::IDeferredSignedObjec
 		SignedObjects.Add(SignedObject);
 	}
 
-	void AddReferencedObjects( FReferenceCollector& Collector ) override
-	{
-		for (TWeakObjectPtr<UMovieSceneSignedObject> WeakObject : SignedObjects)
-		{
-			if (UMovieSceneSignedObject* Object = WeakObject.Get())
-			{
-				Collector.AddReferencedObject(Object);
-			}
-		}
-	}
-
 	bool CreateImplicitScopedModifyDefer() override
 	{
 		ensure(!DeferImplicitChanges.IsSet());
@@ -148,11 +137,6 @@ struct FDeferredSignedObjectChangeHandler : UE::MovieScene::IDeferredSignedObjec
 	void ResetImplicitScopedModifyDefer() override
 	{
 		DeferImplicitChanges.Reset();
-	}
-
-	FString GetReferencerName() const override
-	{
-		return TEXT("FDeferredSignedObjectChangeHandler");
 	}
 
 	TSet<TWeakObjectPtr<UMovieSceneSignedObject>> SignedObjects;
