@@ -538,7 +538,7 @@ private:
 				{
 					StatsText << TEXTVIEW("received ") << Stats.RecvSize << TEXTVIEW(" bytes, ");
 				}
-				StatsText.Appendf(TEXT("%.3f seconds"), Stats.TotalTime);
+				StatsText.Appendf(TEXT("%.3f seconds %.3f|%.3f|%.3f|%.3f"), Stats.TotalTime, Stats.NameResolveTime, Stats.ConnectTime, Stats.TlsConnectTime, Stats.StartTransferTime);
 			}
 
 			if (bVerbose)
