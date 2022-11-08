@@ -28,6 +28,13 @@ static TAutoConsoleVariable<int32> CVarLumenThreadGroupSize32(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenSceneSurfaceCacheAtlasSize(
+	TEXT("r.LumenScene.SurfaceCache.AtlasSize"),
+	4096,
+	TEXT("Surface cache card atlas size."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 bool Lumen::ShouldUpdateLumenSceneViewOrigin()
 {
 	return CVarLumenSceneUpdateViewOrigin.GetValueOnRenderThread() != 0;
@@ -125,8 +132,7 @@ public:
 
 static FIntPoint GetDesiredPhysicalAtlasSizeInPages(float SurfaceCacheResolution)
 {
-	extern int32 GLumenSceneSurfaceCacheAtlasSize;
-	int32 AtlasSizeInPages = FMath::DivideAndRoundUp<uint32>(GLumenSceneSurfaceCacheAtlasSize, Lumen::PhysicalPageSize);
+	int32 AtlasSizeInPages = FMath::DivideAndRoundUp<uint32>(CVarLumenSceneSurfaceCacheAtlasSize.GetValueOnRenderThread(), Lumen::PhysicalPageSize);
 	AtlasSizeInPages = AtlasSizeInPages * SurfaceCacheResolution;
 	AtlasSizeInPages = FMath::Clamp(AtlasSizeInPages, 1, 64);
 	return FIntPoint(AtlasSizeInPages, AtlasSizeInPages);
@@ -1151,8 +1157,6 @@ bool FLumenSceneData::UpdateAtlasSize()
 
 	if (PhysicalAtlasSize != GetDesiredPhysicalAtlasSize(SurfaceCacheResolution) || PhysicalAtlasCompression != NewCompression)
 	{
-		RemoveAllMeshCards();
-
 		PhysicalAtlasSize = GetDesiredPhysicalAtlasSize(SurfaceCacheResolution);
 		SurfaceCacheAllocator.Init(GetDesiredPhysicalAtlasSizeInPages(SurfaceCacheResolution));
 		UnlockedAllocationHeap.Clear();
