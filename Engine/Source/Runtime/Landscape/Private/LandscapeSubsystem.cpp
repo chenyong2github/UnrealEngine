@@ -239,7 +239,7 @@ void ULandscapeSubsystem::BuildNanite()
 
 	for (TWeakObjectPtr<ALandscapeProxy> ProxyPtr : Proxies)
 	{
-		SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("Landscape_BuildNaniteProgress", "Building Nanite Landscape Mesh {0} of {1})"), FText::AsNumber(SlowTask.CompletedWork), FText::AsNumber(SlowTask.TotalAmountOfWork)));
+		SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("Landscape_BuildNaniteProgress", "Building Nanite Landscape Mesh ({0} of {1})"), FText::AsNumber(SlowTask.CompletedWork), FText::AsNumber(SlowTask.TotalAmountOfWork)));
 		if (ALandscapeProxy* Proxy = ProxyPtr.Get())
 		{
 			Proxy->UpdateNaniteRepresentation();

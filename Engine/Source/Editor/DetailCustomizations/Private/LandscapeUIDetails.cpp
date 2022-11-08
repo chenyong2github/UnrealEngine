@@ -130,7 +130,7 @@ void FLandscapeUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 
 							for (TWeakObjectPtr<ALandscapeProxy> ProxyPtr : LandscapeInfo->StreamingProxies)
 							{
-								SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("RebuildNaniteSlowTaskProgress", "Building Nanite Landscape Mesh {0} of {1})"), FText::AsNumber(SlowTask.CompletedWork), FText::AsNumber(SlowTask.TotalAmountOfWork)));
+								SlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("RebuildNaniteSlowTaskProgress", "Building Nanite Landscape Mesh ({0} of {1})"), FText::AsNumber(SlowTask.CompletedWork), FText::AsNumber(SlowTask.TotalAmountOfWork)));
 								if (ALandscapeProxy* Proxy = ProxyPtr.Get())
 								{
 									Proxy->UpdateNaniteRepresentation();
