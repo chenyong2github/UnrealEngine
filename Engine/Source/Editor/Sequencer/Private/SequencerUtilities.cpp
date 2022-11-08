@@ -2106,51 +2106,60 @@ bool FSequencerUtilities::PasteBindings(const FString& TextToImport, TSharedRef<
 					}
 				}
 
-				TArray<AActor*> ActorsToDuplicate;
+				// Find the actors that this pasted binding should bind to
+				TArray<AActor*> ActorsToRebind;
 				for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
 				{
 					AActor* Actor = *ActorItr;
 					if (Actor && CopyableBinding->BoundObjectNames.Contains(Actor->GetName()))
 					{
-						ActorsToDuplicate.Add(Actor);
+						// If this actor is already bound and we're not duplicating actors, don't bind to anything
+						if (!PasteBindingsParams.bDuplicateExistingActors && Sequencer->FindObjectId(*Actor, Sequencer->GetFocusedTemplateID()).IsValid())
+						{
+							continue;
+						}
+
+						ActorsToRebind.Add(Actor);
 						CopyableBinding->BoundObjectNames.Remove(Actor->GetName());
 					}
 				}
 
-				TArray<AActor*> DuplicatedActors;
-				if (ActorsToDuplicate.Num() != 0)
+				if (ActorsToRebind.Num() != 0)
 				{
-					GEditor->SelectNone(false, true);
-					for (AActor* ActorToDuplicate : ActorsToDuplicate)
+					if (PasteBindingsParams.bDuplicateExistingActors)
 					{
-						GEditor->SelectActor(ActorToDuplicate, true, false, false);
-					}
-
-					// Duplicate the bound actors
-					GEditor->edactDuplicateSelected(World->GetCurrentLevel(), false);
-
-					// Duplicating the bound actor through GEditor, edits the copy/paste clipboard. This is not desired from the user's 
-					// point of view since the user didn't explicitly invoke the copy operation. Instead, restore the copied contents
-					// of the clipboard after duplicating the actor
-					FPlatformApplicationMisc::ClipboardCopy(*TextToImport);
-
-					USelection* ActorSelection = GEditor->GetSelectedActors();
-					TArray<TWeakObjectPtr<AActor> > SelectedActors;
-					for (FSelectionIterator Iter(*ActorSelection); Iter; ++Iter)
-					{
-						AActor* Actor = Cast<AActor>(*Iter);
-						if (Actor)
+						GEditor->SelectNone(false, true);
+						for (AActor* ActorToRebind : ActorsToRebind)
 						{
-							DuplicatedActors.Add(Actor);
+							GEditor->SelectActor(ActorToRebind, true, false, false);
+						}
+							
+						// Duplicate the bound actors
+						GEditor->edactDuplicateSelected(World->GetCurrentLevel(), false);
 
-							CopyableBinding->BoundObjectNames.Add(Actor->GetName());
+						// Duplicating the bound actor through GEditor, edits the copy/paste clipboard. This is not desired from the user's 
+						// point of view since the user didn't explicitly invoke the copy operation. Instead, restore the copied contents
+						// of the clipboard after duplicating the actor
+						FPlatformApplicationMisc::ClipboardCopy(*TextToImport);
+
+						ActorsToRebind.Empty();
+						USelection* ActorSelection = GEditor->GetSelectedActors();
+						for (FSelectionIterator Iter(*ActorSelection); Iter; ++Iter)
+						{
+							AActor* Actor = Cast<AActor>(*Iter);
+							if (Actor)
+							{
+								ActorsToRebind.Add(Actor);
+
+								CopyableBinding->BoundObjectNames.Add(Actor->GetName());
+							}
 						}
 					}
 
-					// Bind the duplicated actors
-					if (DuplicatedActors.Num())
+					// Bind the actors
+					if (ActorsToRebind.Num())
 					{
-						AddActorsToBinding(Sequencer, DuplicatedActors, FMovieSceneBindingProxy(NewGuid, Sequence));
+						AddActorsToBinding(Sequencer, ActorsToRebind, FMovieSceneBindingProxy(NewGuid, Sequence));
 					}
 				}
 
@@ -2359,6 +2368,27 @@ bool FSequencerUtilities::CanPasteBindings(TSharedRef<ISequencer> Sequencer, con
 {
 	FObjectBindingTextFactory ObjectBindingFactory(Sequencer.Get());
 	return ObjectBindingFactory.CanCreateObjectsFromText(TextToImport);
+}
+
+TArray<FString> FSequencerUtilities::GetPasteBindingsObjectNames(TSharedRef<ISequencer> Sequencer, const FString& TextToImport)
+{
+	TArray<FString> ObjectNames;
+
+	TArray<UMovieSceneCopyableBinding*> ImportedBindings;
+	ImportObjectBindingsFromText(Sequencer.Get(), TextToImport, ImportedBindings);
+
+	for (UMovieSceneCopyableBinding* CopyableBinding : ImportedBindings)
+	{
+		if (CopyableBinding)
+		{
+			for (const FString& BoundObjectName : CopyableBinding->BoundObjectNames)
+			{
+				ObjectNames.Add(BoundObjectName);
+			}
+		}
+	}
+
+	return ObjectNames;
 }
 
 FGuid FSequencerUtilities::CreateBinding(TSharedRef<ISequencer> Sequencer, UObject& InObject, const FString& InName)

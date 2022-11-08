@@ -97,10 +97,11 @@ struct FMovieScenePasteBindingsParams
 {
 	GENERATED_BODY()
 
-	FMovieScenePasteBindingsParams(const TArray<FMovieSceneBindingProxy>& InBindings = TArray<FMovieSceneBindingProxy>(), UMovieSceneFolder* InParentFolder = nullptr, const TArray<UMovieSceneFolder*>& InFolders = TArray<UMovieSceneFolder*>())
+	FMovieScenePasteBindingsParams(const TArray<FMovieSceneBindingProxy>& InBindings = TArray<FMovieSceneBindingProxy>(), UMovieSceneFolder* InParentFolder = nullptr, const TArray<UMovieSceneFolder*>& InFolders = TArray<UMovieSceneFolder*>(), bool bInDuplicateExistingActors = false)
 		: Bindings(InBindings)
 		, ParentFolder(InParentFolder)
-		, Folders(InFolders) {}
+		, Folders(InFolders)
+		, bDuplicateExistingActors(bInDuplicateExistingActors) {}
 
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Scene")
 	TArray<FMovieSceneBindingProxy> Bindings;
@@ -110,6 +111,9 @@ struct FMovieScenePasteBindingsParams
 
 	UPROPERTY(BlueprintReadWrite, Category = "Movie Scene")
 	TArray<TObjectPtr<UMovieSceneFolder>> Folders;
+
+	UPROPERTY(BlueprintReadWrite, Category = "Movie Scene")
+	bool bDuplicateExistingActors;
 };
 
 struct SEQUENCER_API FSequencerUtilities
@@ -172,6 +176,7 @@ struct SEQUENCER_API FSequencerUtilities
 	static void CopyBindings(TSharedRef<ISequencer> Sequencer, const TArray<FMovieSceneBindingProxy>& Bindings, const TArray<UMovieSceneFolder*>& InFolders, FString& ExportedText);
 	static bool PasteBindings(const FString& TextToImport, TSharedRef<ISequencer> Sequencer, FMovieScenePasteBindingsParams PasteBindingsParams, TArray<FMovieSceneBindingProxy>& OutBindings, TArray<FNotificationInfo>& OutErrors);
 	static bool CanPasteBindings(TSharedRef<ISequencer> Sequencer, const FString& TextToImport);
+	static TArray<FString> GetPasteBindingsObjectNames(TSharedRef<ISequencer> Sequencer, const FString& TextToImport);
 
 	/** Utility functions for managing bindings */
 	static FGuid CreateBinding(TSharedRef<ISequencer> Sequencer, UObject& InObject, const FString& InName);

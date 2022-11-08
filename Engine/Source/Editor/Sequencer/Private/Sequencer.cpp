@@ -8019,8 +8019,50 @@ bool FSequencer::PasteObjectBindings(const FString& TextToImport, UMovieSceneFol
 		}
 	}
 
+	bool bDuplicateExistingActors = false;
+	TArray<FString> ObjectNames = FSequencerUtilities::GetPasteBindingsObjectNames(AsShared(), TextToImport);
+
+	// If the current movie scene has bindings that are bound to actors with the same name of the paste buffer, prompt the user what to do
+	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
+	bool bWasPrompted = false;
+	for (int32 Index = 0; Index < MovieScene->GetPossessableCount() && !bWasPrompted; ++Index)
+	{
+		FGuid ThisGuid = MovieScene->GetPossessable(Index).GetGuid();
+
+		for (TWeakObjectPtr<> WeakObject : FindBoundObjects(ThisGuid, GetFocusedTemplateID()))
+		{
+			if (WeakObject.IsValid())
+			{
+				AActor* Actor = Cast<AActor>(WeakObject.Get());
+
+				if (Actor && ObjectNames.Contains(Actor->GetName()))
+				{
+					FText DuplicateActorsMsg = FText::Format(LOCTEXT("DuplicateActorsForPastedBinding", "Attempting to paste a binding that is already bound to {0}.\nShould the existing actor be duplicated for the pasted binding?"), FText::FromString(Actor->GetActorLabel()));
+
+					EAppReturnType::Type YesNoCancelReply = FMessageDialog::Open(EAppMsgType::YesNoCancel, DuplicateActorsMsg);
+
+					switch (YesNoCancelReply)
+					{
+					case EAppReturnType::Yes:
+						bDuplicateExistingActors = true;
+						break;
+
+					case EAppReturnType::No:
+						bDuplicateExistingActors = false;
+						break;
+
+					case EAppReturnType::Cancel:
+						return false;
+					}
+					bWasPrompted = true;				
+					break;
+				}
+			}
+		}
+	}
+
 	TArray<FMovieSceneBindingProxy> OutBindings;
-	return FSequencerUtilities::PasteBindings(TextToImport, AsShared(), FMovieScenePasteBindingsParams(TargetBindings, InParentFolder, InFolders), OutBindings, PasteErrors);
+	return FSequencerUtilities::PasteBindings(TextToImport, AsShared(), FMovieScenePasteBindingsParams(TargetBindings, InParentFolder, InFolders, bDuplicateExistingActors), OutBindings, PasteErrors);
 }
 
 bool FSequencer::PasteTracks(const FString& TextToImport, UMovieSceneFolder* InParentFolder, const TArray<UMovieSceneFolder*>& InFolders, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection)
