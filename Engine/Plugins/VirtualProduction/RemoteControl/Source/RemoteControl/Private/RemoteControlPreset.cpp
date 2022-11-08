@@ -1574,6 +1574,8 @@ void URemoteControlPreset::OnObjectPropertyChanged(UObject* Object, struct FProp
 		HandleDisplayClusterConfigChange(Object);
 		return;
 	}
+
+	TMap<URemoteControlBinding*, UObject*> BoundObjectsCache;
  
 	if (Event.Property == nullptr)
 	{
@@ -1582,9 +1584,34 @@ void URemoteControlPreset::OnObjectPropertyChanged(UObject* Object, struct FProp
 			// When no property is passed to OnObjectPropertyChanged (such as by LevelSnapshot->Restore()), let's assume they all changed since we don't have more context.
 			for (TSharedPtr<FRemoteControlProperty> Property : Registry->GetExposedEntities<FRemoteControlProperty>())
 			{
-				if (Property->GetBoundObjects().Contains(Object))
+				bool bPropertyModified = false;
+
+				for (TWeakObjectPtr<URemoteControlBinding> Binding : Property->GetBindings())
 				{
-					PerFrameModifiedProperties.Add(Property->GetId());
+					if (!Binding.IsValid())
+					{
+						continue;
+					}
+
+					if (UObject** BoundObject = BoundObjectsCache.Find(Binding.Get()))
+					{
+						if (Object == *BoundObject)
+						{
+							PerFrameModifiedProperties.Add(Property->GetId());
+							break;
+						}
+					}
+					else
+					{
+						UObject* ResolvedObject = Binding->Resolve();
+						BoundObjectsCache.Add(Binding.Get(), ResolvedObject);
+
+						if (Object == ResolvedObject)
+						{
+							PerFrameModifiedProperties.Add(Property->GetId());
+							break;
+						}
+					}
 				}
 			}
 		}

@@ -27,7 +27,7 @@
 struct FRCFunctionPickerTreeNode
 {
 	virtual ~FRCFunctionPickerTreeNode() = default;
-	virtual const FString& GetName() const = 0;
+	virtual FText GetName() const = 0;
 	virtual bool IsFunctionNode() const = 0;
 	virtual UObject* GetObject() const = 0;
 	virtual UFunction* GetFunction() const = 0;
@@ -100,61 +100,59 @@ namespace FunctionPickerUtils
 
 	struct FRCFunctionNode : public FRCFunctionPickerTreeNode
 	{
-		FRCFunctionNode(UObject* InOwner, UFunction* InFunction)
-			: Owner(InOwner)
-			, Function(InFunction)
+		FRCFunctionNode(UFunction* InFunction)
+			: Function(InFunction)
 		{
-			if (Function.IsValid())
+			if (InFunction)
 			{
-				Name = Function->GetDisplayNameText().ToString();
+				Name = Function->GetDisplayNameText();
 			}
 		}
 
 		//~ Begin FRCBlueprintPickerTreeNode interface
-		virtual const FString& GetName() const override { return Name; }
+		virtual FText GetName() const override { return Name; }
 		virtual bool IsFunctionNode() const override { return true; }
 		virtual UFunction* GetFunction() const override { return Function.Get(); }
-		virtual UObject* GetObject() const override { return Owner.Get(); }
+		virtual UObject* GetObject() const override { return nullptr; }
 		virtual void GetChildNodes(TArray<TSharedPtr<FRCFunctionPickerTreeNode>>& OutNodes) const {}
 		//~ End FRCBlueprintPickerTreeNode interface
 
 	private:
-		/** The object that owns this node's function. */
-		TWeakObjectPtr<UObject> Owner = nullptr;
 		/** This node's function. */
 		TWeakObjectPtr<UFunction> Function = nullptr;
 		/** This node's function's name. */
-		FString Name;
+		FText Name;
 	};
 
 	struct FRCObjectNode : public FRCFunctionPickerTreeNode
 	{
-		FRCObjectNode(UObject* InObject, const TArray<UFunction*>& InFunctions)
+		FRCObjectNode(UObject* InObject, const TArray<TSharedPtr<FRCFunctionPickerTreeNode>>& InFunctionNodes)
 			: WeakObject(InObject)
+			, ChildNodes(InFunctionNodes)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FRCObjectNode::FRCObjectNode());
+
 			if (ensure(InObject && InObject->GetFName().IsValid() && InObject->GetFName() != NAME_None))
 			{
+				FString NameString;
+
 				if (InObject->IsA<AActor>())
 				{
-					Name = Cast<AActor>(InObject)->GetActorLabel();
+					NameString = Cast<AActor>(InObject)->GetActorLabel();
 				}
 				else
 				{
-					Name = InObject->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || InObject->IsA<USubsystem>() ? InObject->GetClass()->GetName() : InObject->GetName();
-					Name.RemoveFromStart(DefaultPrefix, ESearchCase::CaseSensitive);
-					Name.RemoveFromEnd(CPostfix, ESearchCase::CaseSensitive);
+					NameString = InObject->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || InObject->IsA<USubsystem>() ? InObject->GetClass()->GetName() : InObject->GetName();
+					NameString.RemoveFromStart(DefaultPrefix, ESearchCase::CaseSensitive);
+					NameString.RemoveFromEnd(CPostfix, ESearchCase::CaseSensitive);
 				}
 
-				for (UFunction* Function : InFunctions)
-				{
-					TSharedPtr<FRCFunctionNode> FunctionNode = MakeShared<FRCFunctionNode>(InObject, Function);
-					ChildNodes.Add(FunctionNode);
-				}
+				Name = FText::FromString(NameString);
 			}
 		}
 
 		//~ Begin FRCBlueprintPickerTreeNode interface
-		virtual const FString& GetName() const override { return Name; }
+		virtual FText GetName() const override { return Name; }
 		virtual bool IsFunctionNode() const override { return false; }
 		virtual UObject* GetObject() const override { return WeakObject.Get(); }
 		virtual UFunction* GetFunction() const override { return nullptr; }
@@ -170,7 +168,7 @@ namespace FunctionPickerUtils
 		/** This node's child functions. */
 		mutable TArray<TSharedPtr<FRCFunctionPickerTreeNode>> ChildNodes;
 		/** This object's name. */
-		FString Name;
+		FText Name;
 	};
 }
 
@@ -192,6 +190,8 @@ void SRCPanelFunctionPicker::Construct(const FArguments& InArgs)
 	OnSelectFunction = InArgs._OnSelectFunction;
 	check(OnSelectFunction.IsBound());
 
+	static FText InvalidNameText = LOCTEXT("InvalidEntryText", "INVALID_ENTRY");
+
 	ChildSlot
 	[
 		SNew(SBox)
@@ -201,12 +201,12 @@ void SRCPanelFunctionPicker::Construct(const FArguments& InArgs)
 			SAssignNew(ObjectsTreeView, SSearchableTreeView<TSharedPtr<FRCFunctionPickerTreeNode>>)
 			.Items(&ObjectNodes)
 			.OnGetChildren_Lambda(OnGetChildren)
-			.OnGetDisplayName_Lambda([](TSharedPtr<FRCFunctionPickerTreeNode> InEntry) { return InEntry ? InEntry->GetName() : TEXT("INVALID_ENTRY"); })
+			.OnGetDisplayName_Lambda([](TSharedPtr<FRCFunctionPickerTreeNode> InEntry) { return InEntry ? InEntry->GetName() : InvalidNameText; })
 			.IsSelectable_Lambda([](TSharedPtr<FRCFunctionPickerTreeNode> TreeNode) { return TreeNode ? TreeNode->IsFunctionNode() : false; })
 			.OnItemSelected_Lambda(
-				[this] (TSharedPtr<FRCFunctionPickerTreeNode> TreeNode) 
+				[this] (TSharedPtr<FRCFunctionPickerTreeNode> TreeNode, TSharedPtr<FRCFunctionPickerTreeNode> ParentNode)
 				{
-					UObject* Owner = TreeNode->GetObject();
+					UObject* Owner = ParentNode->GetObject();
 					UFunction* Function = TreeNode->GetFunction();
 					if (Owner && Function)
 					{
@@ -267,24 +267,53 @@ void SRCPanelFunctionPicker::Refresh()
 		Class = UObject::StaticClass();
 	}
 
-	auto MakeNode = [this, Filter](UObject* Object)
+	TMap<UClass*, TArray<TSharedPtr<FRCFunctionPickerTreeNode>>> CachedNodesPerClass;
+
+	auto MakeNode = [this, Filter, &CachedNodesPerClass](UObject* Object)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SRCPanelFunctionPicker::MakeNode);
 		if (Filter(Object))
 		{
-			TArray<UFunction*> Functions = GetExposableFunctions(Object->GetClass());
-			if (Functions.Num())
+			if (TArray<TSharedPtr<FRCFunctionPickerTreeNode>>* FunctionNodes = CachedNodesPerClass.Find(Object->GetClass()))
 			{
-				ObjectNodes.Add(MakeShared<FRCObjectNode>(Object, Functions));
+				if (FunctionNodes->Num())
+				{
+					ObjectNodes.Add(MakeShared<FRCObjectNode>(Object, *FunctionNodes));
+				}
+				return;
+			}
+
+
+			TArray<UFunction*> Functions = GetExposableFunctions(Object->GetClass());
+			TArray<TSharedPtr<FRCFunctionPickerTreeNode>> FunctionNodes;
+			FunctionNodes.Reserve(FunctionNodes.Num());
+			for (UFunction* Function : Functions)
+			{
+				FunctionNodes.Add(MakeShared<FRCFunctionNode>(Function));
+			}
+
+			CachedNodesPerClass.Add(Object->GetClass(), FunctionNodes);
+
+			if (FunctionNodes.Num())
+			{
+				ObjectNodes.Add(MakeShared<FRCObjectNode>(Object, FunctionNodes));
 			}
 		}
 	};
+
 
 	// When displaying functions for actors, only display actors in the current level.
 	if (Class->IsChildOf(AActor::StaticClass()) && GEditor)
 	{
 		TArray<AActor*> ActorList;
 		constexpr bool bIgnorePIE = false;
-		UGameplayStatics::GetAllActorsOfClass(GetWorld(bIgnorePIE), Class, ActorList);
+
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(SRCPanelFunctionPicker::GetAllActorsOfClass);
+			UGameplayStatics::GetAllActorsOfClass(GetWorld(bIgnorePIE), Class, ActorList);
+		}
+
+		ObjectNodes.Reserve(ActorList.Num());
 
 		for (AActor* Actor : ActorList)
 		{

@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Engine/EngineTypes.h"
-#include "EditorUndoClient.h"
 #include "Engine/EngineTypes.h"
 #include "Filters/SFilterBar.h"
 #include "IDetailTreeNode.h"
@@ -55,7 +54,7 @@ DECLARE_DELEGATE_TwoParams(FOnLiveModeChange, TSharedPtr<SRemoteControlPanel> /*
  * UI representation of a remote control preset.
  * Allows a user to expose/unexpose properties and functions from actors and blueprint libraries.
  */
-class SRemoteControlPanel : public SCompoundWidget, public FSelfRegisteringEditorUndoClient
+class SRemoteControlPanel : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SRemoteControlPanel) {}
 		SLATE_EVENT(FOnLiveModeChange, OnLiveModeChange)
@@ -78,9 +77,9 @@ public:
 	~SRemoteControlPanel();
 	static void Shutdown();
 
-	//~ FEditorUndoClient interface
-	virtual void PostUndo(bool bSuccess) override;
-	virtual void PostRedo(bool bSuccess) override;
+	//~ Begin SWidget interface
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime);
+	//~ End SWidget interface
 
 	/**
 	 * @return The preset represented by the panel.
@@ -251,6 +250,9 @@ private:
 
 	/** Handle triggers each time when any material has been recompiled */
 	void OnMaterialCompiled(class UMaterialInterface* MaterialInterface);
+
+	/* Refreshed called at max once per frame when a material is compiled. */
+	void TriggerMaterialCompiledRefresh();
 	
 	/** Registers default tool bar */
 	static void RegisterDefaultToolBar();
@@ -348,8 +350,6 @@ private:
 	bool bIsInLiveMode = false;
 	/** Whether the logic panel is enabled or not. */
 	bool bIsLogicPanelEnabled = false;
-	/** Whether objects need to be re-resolved because PIE Started or ended. */
-	bool bTriggerRefreshForPIE = false;
 	/** Delegate called when the live mode changes. */
 	FOnLiveModeChange OnLiveModeChange;
 	/** Holds the blueprint library picker */
@@ -433,6 +433,9 @@ private:
 	* as they would have been discarded in favor of a new data set for the actively selected Controller */
 	UPROPERTY(Transient)
 	TObjectPtr<UObject> LogicClipboardItem;
+
+	/** Keeps track of whether materials were compiled from the current frame. Used to limit the number of UI refresh to once per frame. */
+	bool bMaterialsCompiledThisFrame = false;
 
 public:
 

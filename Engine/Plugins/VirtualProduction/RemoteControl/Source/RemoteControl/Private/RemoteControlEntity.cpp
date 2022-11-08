@@ -8,6 +8,7 @@
 
 TArray<UObject*> FRemoteControlEntity::GetBoundObjects() const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlEntity::GetBoundObjects);
 	TArray<UObject*> ResolvedObjects;
 	ResolvedObjects.Reserve(Bindings.Num());
 	Algo::TransformIf(Bindings, ResolvedObjects,

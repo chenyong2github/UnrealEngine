@@ -477,6 +477,12 @@ void SRCPanelExposedEntitiesList::Tick(const FGeometry& AllottedGeometry, const 
 
 		bFilterApplicationRequested = false;
 	}
+
+	if (bRefreshRequested)
+	{
+		ProcessRefresh();
+		bRefreshRequested = false;
+	}
 }
 
 TSharedPtr<SRCPanelTreeNode> SRCPanelExposedEntitiesList::GetSelectedGroup() const
@@ -672,26 +678,7 @@ void SRCPanelExposedEntitiesList::OnObjectPropertyChange(UObject* InObject, FPro
 
 void SRCPanelExposedEntitiesList::Refresh()
 {
-	GenerateListWidgets();
-
-	RefreshGroups();
-
-	if (Preset.IsValid())
-	{
-		constexpr bool bForceMouseClick = true;
-
-		if (const FRemoteControlPresetGroup* SelectedGroup = Preset->Layout.GetGroup(CurrentlySelectedGroup))
-		{
-			GenerateListWidgets(*SelectedGroup);
-			SetSelection(FindGroupById(SelectedGroup->Id), bForceMouseClick);
-		}
-		else
-		{
-			const FRemoteControlPresetGroup& DefaultGroup = Preset->Layout.GetDefaultGroup();
-			GenerateListWidgets(DefaultGroup);
-			SetSelection(FindGroupById(DefaultGroup.Id), bForceMouseClick);
-		}
-	}
+	bRefreshRequested = true;
 }
 
 void SRCPanelExposedEntitiesList::TryRefreshingSearch(const FText& InSearchText, bool bApplyFilter)
@@ -746,6 +733,8 @@ void SRCPanelExposedEntitiesList::TryRefreshingSearch(const FText& InSearchText,
 
 void SRCPanelExposedEntitiesList::GenerateListWidgets()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SRCPanelExposedEntitiesList::GenerateListWidgets);
+
 	FieldWidgetMap.Reset();
 
 	for (TWeakPtr<FRemoteControlEntity> WeakEntity : Preset->GetExposedEntities())
@@ -766,6 +755,8 @@ void SRCPanelExposedEntitiesList::GenerateListWidgets()
 
 void SRCPanelExposedEntitiesList::GenerateListWidgets(const FRemoteControlPresetGroup& FromGroup)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SRCPanelExposedEntitiesList::GenerateListWidgetsFromGroup);
+
 	FieldEntities.Reset();
 
 	if (FieldWidgetMap.IsEmpty())
@@ -924,6 +915,8 @@ void SRCPanelExposedEntitiesList::OnSelectionChanged(TSharedPtr<SRCPanelTreeNode
 			if (RCField->GetStruct() == FRemoteControlProperty::StaticStruct())
 			{
 				TSharedPtr<FRemoteControlProperty> RCProp = StaticCastSharedPtr<FRemoteControlProperty>(RCField);
+
+				// Resolve it to get the property path.
 				RCProp->FieldPathInfo.Resolve(RCProp->GetBoundObject());
 				if (RCProp->FieldPathInfo.IsResolved())
 				{
@@ -1671,6 +1664,32 @@ void SRCPanelExposedEntitiesList::OnProtocolBindingAddedOrRemoved(ERCProtocolBin
 void SRCPanelExposedEntitiesList::OnWidgetRegistryRefreshed(const TArray<UObject*>& Objects)
 {
 	Refresh();
+}
+
+void SRCPanelExposedEntitiesList::ProcessRefresh()
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(SRCPanelExposedEntitiesList::Refresh);
+
+	GenerateListWidgets();
+
+	RefreshGroups();
+
+	if (Preset.IsValid())
+	{
+		constexpr bool bForceMouseClick = true;
+
+		if (const FRemoteControlPresetGroup* SelectedGroup = Preset->Layout.GetGroup(CurrentlySelectedGroup))
+		{
+			GenerateListWidgets(*SelectedGroup);
+			SetSelection(FindGroupById(SelectedGroup->Id), bForceMouseClick);
+		}
+		else
+		{
+			const FRemoteControlPresetGroup& DefaultGroup = Preset->Layout.GetDefaultGroup();
+			GenerateListWidgets(DefaultGroup);
+			SetSelection(FindGroupById(DefaultGroup.Id), bForceMouseClick);
+		}
+	}
 }
 
 bool FGroupDragEvent::IsDraggedFromSameGroup() const

@@ -185,6 +185,8 @@ private:
 	/** Called when the widget registry is refreshed by an underlying property generator. */
 	void OnWidgetRegistryRefreshed(const TArray<UObject*>& Objects);
 
+	void ProcessRefresh();
+
 private:
 	/** Holds the Groups list view. */
 	TSharedPtr<SListView<TSharedPtr<SRCPanelTreeNode>>> GroupsListView;
@@ -236,4 +238,6 @@ private:
 	static TSet<FName> DefaultProtocolColumns;
 	/** Holds identifier of the selected group. */
 	FGuid CurrentlySelectedGroup;
+
+	bool bRefreshRequested = false;
 };

@@ -794,14 +794,13 @@ void SRemoteControlPanel::Shutdown()
 	NoneSelectedWidget.Reset();
 }
 
-void SRemoteControlPanel::PostUndo(bool bSuccess)
+void SRemoteControlPanel::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	Refresh();
-}
-
-void SRemoteControlPanel::PostRedo(bool bSuccess)
-{
-	Refresh();
+	if (bMaterialsCompiledThisFrame)
+	{
+		TriggerMaterialCompiledRefresh();
+		bMaterialsCompiledThisFrame = false;
+	}
 }
 
 bool SRemoteControlPanel::IsExposed(const FRCExposesPropertyArgs& InPropertyArgs)
@@ -1534,9 +1533,21 @@ void SRemoteControlPanel::UnregisterPanels()
 
 void SRemoteControlPanel::Refresh()
 {
-	BlueprintPicker->Refresh();
-	ActorFunctionPicker->Refresh();
-	SubsystemFunctionPicker->Refresh();
+	TRACE_CPUPROFILER_EVENT_SCOPE(SRemoteControlPanel::Refresh);
+
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SRemoteControlPanel::RefreshBlueprintPicker);
+		BlueprintPicker->Refresh();
+	}
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SRemoteControlPanel::RefreshActorFunctionPicker);
+		ActorFunctionPicker->Refresh();
+	}
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SRemoteControlPanel::RefreshSubsystemFunctionPicker);
+		SubsystemFunctionPicker->Refresh();
+	}
+
 	EntityList->Refresh();
 }
 
@@ -1845,6 +1856,11 @@ FReply SRemoteControlPanel::OnClickSettingsButton()
 
 void SRemoteControlPanel::OnMaterialCompiled(UMaterialInterface* MaterialInterface)
 {
+	bMaterialsCompiledThisFrame = true;
+}
+
+void SRemoteControlPanel::TriggerMaterialCompiledRefresh()
+{
 	bool bTriggerRefresh = true;
 
 	// Clear the widget cache on material compiled to make sure we have valid property nodes for IPropertyRowGenerator
@@ -1861,13 +1877,13 @@ void SRemoteControlPanel::OnMaterialCompiled(UMaterialInterface* MaterialInterfa
 			if (!ChildWindows[0]->GetOnWindowClosedEvent().IsBound())
 			{
 				ChildWindows[0]->GetOnWindowClosedEvent().AddLambda([WeakThis = TWeakPtr<SRemoteControlPanel>(SharedThis(this))](const TSharedRef<SWindow>&)
-				{
-					if (TSharedPtr<SRemoteControlPanel> Panel = WeakThis.Pin())
 					{
-						Panel->WidgetRegistry->Clear();
-						Panel->Refresh();
-					}
-				});
+						if (TSharedPtr<SRemoteControlPanel> Panel = WeakThis.Pin())
+						{
+							Panel->WidgetRegistry->Clear();
+							Panel->Refresh();
+						}
+					});
 			}
 		}
 	}
@@ -1878,6 +1894,7 @@ void SRemoteControlPanel::OnMaterialCompiled(UMaterialInterface* MaterialInterfa
 		Refresh();
 	}
 }
+
 
 void SRemoteControlPanel::RegisterDefaultToolBar()
 {

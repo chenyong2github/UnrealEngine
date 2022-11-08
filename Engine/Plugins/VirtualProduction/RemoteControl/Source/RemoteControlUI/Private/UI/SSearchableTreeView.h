@@ -20,8 +20,8 @@ template <typename ItemType>
 class SSearchableTreeView : public SCompoundWidget
 {
 public:
-	DECLARE_DELEGATE_OneParam(FOnItemSelected, ItemType /* Item */)
-	DECLARE_DELEGATE_RetVal_OneParam(FString, FOnGetDisplayName, ItemType /* Item */)
+	DECLARE_DELEGATE_TwoParams(FOnItemSelected, ItemType /* Item */, ItemType /* ItemParent */)
+	DECLARE_DELEGATE_RetVal_OneParam(FText, FOnGetDisplayName, ItemType /* Item */)
 	DECLARE_DELEGATE_TwoParams(FOnGetChildren, ItemType /* Item */, TArray<ItemType>& /* OutChildren */)
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FIsSelectable, ItemType /* Item */)
 	
@@ -145,7 +145,7 @@ private:
 			[
 				SNew(STextBlock)
 				.HighlightText(this, &SSearchableTreeView::GetFilterHighlightText)
-				.Text(FText::FromString(OnGetDisplayName.Execute(MoveTemp(InObject))))
+				.Text(OnGetDisplayName.Execute(MoveTemp(InObject)))
 			]
 		];
 	}
@@ -208,7 +208,7 @@ private:
 		{
 			if (IsSelectable.IsBound() && IsSelectable.Execute(SelectedObject))
 			{
-				OnItemSelected.ExecuteIfBound(SelectedObject);
+				OnItemSelected.ExecuteIfBound(SelectedObject, GetParent(SelectedObject));
 				TreeView->ClearSelection();
 			}
 			else
@@ -236,7 +236,7 @@ private:
 	/** Create the row's display name using the delegate. */
 	void TransformElementToString(ItemType InObject, TArray<FString>& OutStrings)
 	{
-		OutStrings.Add(OnGetDisplayName.Execute(InObject));
+		OutStrings.Add(OnGetDisplayName.Execute(InObject).ToString());
 	}
 
 	/** Handler for getting the rows highlight text. */
@@ -268,6 +268,28 @@ private:
 		}
 
 		return FReply::Unhandled();
+	}
+
+	ItemType GetParent(const ItemType& InItem)
+	{
+		if (Items)
+		{
+			for (const ItemType& Item : *Items)
+			{
+				TArray<ItemType> Children;
+				OnGetChildrenDelegate.ExecuteIfBound(Item, Children);
+
+				for (const ItemType& Child : Children)
+				{
+					if (Child == InItem)
+					{
+						return Item;
+					}
+				}
+			}
+		}
+
+		return ItemType();
 	}
 
 private:

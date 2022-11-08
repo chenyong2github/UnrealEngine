@@ -5,7 +5,7 @@
 #include "Algo/Transform.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/ARFilter.h"
-#include "Controller/RCController.h"
+#include "RCVirtualProperty.h"
 #include "GameFramework/Actor.h"
 #include "RemoteControlActor.h"
 #include "RemoteControlField.h"

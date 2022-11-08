@@ -1120,6 +1120,8 @@ void FRemoteControlUIModule::RefreshPanels()
 
 TSharedPtr<SRCPanelTreeNode> FRemoteControlUIModule::GenerateEntityWidget(const FGenerateWidgetArgs& Args)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FRemoteControlUIModule::GenerateEntityWidget);
+
 	if (Args.Preset && Args.Entity)
 	{
 		const UScriptStruct* EntityType = Args.Preset->GetExposedEntityType(Args.Entity->GetId());
