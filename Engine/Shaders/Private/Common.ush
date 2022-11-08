@@ -1987,6 +1987,16 @@ uint ZOrder3DEncode(uint3 Coord, const uint SizeLog2)
     return Index;
 }
 
+uint DivideAndRoundUp(uint Dividend, uint Divisor)
+{
+	return (Dividend + Divisor - 1) / Divisor;
+}
+
+// Optimised for power of two because it relies on a division done using bit shift
+uint DivideAndRoundUp(uint Dividend, uint Divisor, uint DivisorAsBitShift)
+{
+	return (Dividend + Divisor - 1) >> DivisorAsBitShift;
+}
 
 // see PixelShaderOutputCommon
 struct FPixelShaderIn

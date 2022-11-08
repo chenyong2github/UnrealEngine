@@ -239,12 +239,6 @@ static const FNiagaraID InvalidID = { INT_MIN, INT_MIN };
 
 #endif
 
-
-uint DivideAndRoundUp(uint Dividend, uint Divisor)
-{
-	return (Dividend + Divisor - 1) / Divisor;		
-}
-
 // max absolute error 9.0x10^-3
 // Eberly's polynomial degree 1 - respect bounds
 // input [-1, 1] and output [0, PI]

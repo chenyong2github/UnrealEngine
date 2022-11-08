@@ -27,11 +27,6 @@ uint ClusterCount;
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Utility functions
 
-uint DivideAndRoundUp(uint Dividend, uint Divisor)
-{
-	return (Dividend + Divisor - 1) / Divisor;
-}
-
 uint3 ComputeDispatchGroupCount2D(uint GroupCount)
 {
 	const uint DispatchCountX = int(floor(sqrt(float(GroupCount))));

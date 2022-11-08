@@ -1637,12 +1637,6 @@ struct FStrataRaytracingPayload
 ///////////////////////////////////////////////////////////////////////////////
 // Material buffer Addressing
 
-// Optimised for power of two because it relies on a division done using bit shift
-uint DivideAndRoundUp(uint Dividend, uint Divisor, uint DivisorAsBitShift)
-{
-	return (Dividend + Divisor - 1) >> DivisorAsBitShift;
-}
-
 struct FStrataAddressing
 {
 	uint  CurrentIndex;
