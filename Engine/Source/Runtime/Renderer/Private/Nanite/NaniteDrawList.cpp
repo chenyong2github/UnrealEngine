@@ -17,7 +17,7 @@ static FAutoConsoleVariableRef CVarNaniteMaterialSortMode(
 int32 GNaniteAllowWPODistanceDisable = 1;
 static FAutoConsoleVariableRef CVarNaniteAllowWPODistanceDisable(
 	TEXT("r.Nanite.AllowWPODistanceDisable"),
-	GNaniteMaterialSortMode,
+	GNaniteAllowWPODistanceDisable,
 	TEXT("Whether or not to allow disabling World Position Offset for Nanite instances at a distance from the camera."),
 	ECVF_ReadOnly
 );
