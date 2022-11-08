@@ -68,7 +68,7 @@ void FAnimGraphNode_RemapCurvesFromMeshCustomization::CustomizeDetails(
 					{
 						if (UAnimGraphNode_RemapCurvesFromMesh* RemapNode = RemapNodeWeak.Get())
 						{
-							return true;
+							return RemapNode->CanVerifyExpressions();
 						}
 					}
 					return false;

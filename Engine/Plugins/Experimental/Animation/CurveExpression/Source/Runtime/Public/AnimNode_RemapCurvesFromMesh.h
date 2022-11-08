@@ -31,8 +31,14 @@ struct CURVEEXPRESSION_API FAnimNode_RemapCurvesFromMesh :
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Expressions, meta=(NeverAsPin))
 	bool bExpressionsImmutable = true;
 
-	// Call to verify the expressions. Report any errors back.
-	void VerifyExpressions();
+	// Call to verify the expressions. Write out any warnings to the InReportingFunc function.
+	void VerifyExpressions(
+		TFunction<void(FString)> InReportingFunc
+		) const;
+	
+	// Returns true if we're able to verify expressions at all. I.e. if the expression engine has not been initialized.
+	bool CanVerifyExpressions() const;
+
 	
 	// FAnimNode_Base interface
 	virtual void Initialize_AnyThread(const FAnimationInitializeContext& Context) override;

@@ -707,6 +707,7 @@ void UAnimGraphNode_Base::Draw(FPrimitiveDrawInterface* PDI, USkeletalMeshCompon
 	}
 }
 
+PRAGMA_DISABLE_OPTIMIZATION
 FAnimNode_Base* UAnimGraphNode_Base::FindDebugAnimNode(USkeletalMeshComponent* InPreviewSkelMeshComp) const
 {
 	FAnimNode_Base* DebugNode = nullptr;
@@ -724,18 +725,15 @@ FAnimNode_Base* UAnimGraphNode_Base::FindDebugAnimNode(USkeletalMeshComponent* I
 			{
 				return nullptr;
 			}
-			
-			FAnimBlueprintDebugData& DebugData = AnimBlueprintClass->GetAnimBlueprintDebugData();
-			int32* IndexPtr = DebugData.NodePropertyToIndexMap.Find(this);
-			if (!IndexPtr)
+
+			// Search for the node by GUID, since we can have multiple instantiations of this node, and therefore
+			// different pointers from ourselves even though they represent the same node in the graph.
+			const int32 AnimNodeIndex = AnimBlueprintClass->GetNodeIndexFromGuid(NodeGuid, EPropertySearchMode::Hierarchy);
+			if (AnimNodeIndex == INDEX_NONE)
 			{
 				return nullptr;
 			}
 			
-			int32 AnimNodeIndex = *IndexPtr;
-			// reverse node index temporarily because of a bug in NodeGuidToIndexMap
-			AnimNodeIndex = AnimBlueprintClass->GetAnimNodeProperties().Num() - AnimNodeIndex - 1;
-
 			return AnimBlueprintClass->GetAnimNodeProperties()[AnimNodeIndex]->ContainerPtrToValuePtr<FAnimNode_Base>(InAnimInstance);
 		};
 	
@@ -751,6 +749,7 @@ FAnimNode_Base* UAnimGraphNode_Base::FindDebugAnimNode(USkeletalMeshComponent* I
 
 	return DebugNode;
 }
+PRAGMA_ENABLE_OPTIMIZATION
 
 EAnimAssetHandlerType UAnimGraphNode_Base::SupportsAssetClass(const UClass* AssetClass) const
 {

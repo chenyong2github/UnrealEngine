@@ -29,16 +29,34 @@ void FAnimNode_RemapCurvesFromMesh::CacheBones_AnyThread(
 }
 	
 
-void FAnimNode_RemapCurvesFromMesh::VerifyExpressions()
+void FAnimNode_RemapCurvesFromMesh::VerifyExpressions(
+	TFunction<void(FString)> InReportingFunc
+	) const
 {
 	using namespace CurveExpression::Evaluator;
 
-	if (!ExpressionEngine.IsSet() || CurveExpressions.IsEmpty())
+	auto ReportAndLog = [InReportingFunc](FString InMessage)
+	{
+		if (InReportingFunc)
+		{
+			InReportingFunc(InMessage);
+		}
+		UE_LOG(LogCurveExpression, Warning, TEXT("%s"), *InMessage);
+	};
+	
+	if (!ExpressionEngine.IsSet())
 	{
 		return;
 	}
+	
+	if (CurveExpressions.IsEmpty())
+	{
+		ReportAndLog(TEXT("No curve expressions set."));
+		return;
+	}
 
-	FEngine VerificationEngine(
+	bool bFoundError = false;
+	const FEngine VerificationEngine(
 		ExpressionEngine->GetConstantValues(),
 		EParseFlags::ValidateConstants);
 
@@ -46,15 +64,29 @@ void FAnimNode_RemapCurvesFromMesh::VerifyExpressions()
 	{
 		if (!CurveNameToUIDMap.Contains(ExpressionPair.Key))
 		{
-			UE_LOG(LogCurveExpression, Warning, TEXT("Target curve '%s' does not exist."), *ExpressionPair.Key.ToString());
+			ReportAndLog(FString::Printf(TEXT("Target curve '%s' does not exist."), *ExpressionPair.Key.ToString()));
+			bFoundError = true;
 		}
 
 		TOptional<FParseError> Error = VerificationEngine.Verify(ExpressionPair.Value);
 		if (Error.IsSet())
 		{
-			UE_LOG(LogCurveExpression, Warning, TEXT("Expression error in '%s': %s"), *ExpressionPair.Value, *Error->Message);
+			ReportAndLog(FString::Printf(TEXT("Expression error in '%s': %s"), *ExpressionPair.Value, *Error->Message));
+			bFoundError = true;
 		}
 	}
+
+	if (!bFoundError)
+	{
+		UE_LOG(LogCurveExpression, Display, TEXT("Curve expressions verified ok."))
+	}
+}
+
+
+
+bool FAnimNode_RemapCurvesFromMesh::CanVerifyExpressions() const
+{
+	return ExpressionEngine.IsSet();
 }
 
 
