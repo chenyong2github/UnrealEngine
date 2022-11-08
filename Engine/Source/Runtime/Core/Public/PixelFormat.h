@@ -17,8 +17,8 @@ enum EPixelFormat : uint8
 	PF_Unknown              =0,
 	PF_A32B32G32R32F        =1,
 	PF_B8G8R8A8             =2,
-	PF_G8                   =3,
-	PF_G16                  =4,
+	PF_G8                   =3, // G8  means Gray/Grey , not Green , typically actually uses a red format with replication of R to RGB
+	PF_G16                  =4, // G16 means Gray/Grey like G8
 	PF_DXT1                 =5,
 	PF_DXT3                 =6,
 	PF_DXT5                 =7,

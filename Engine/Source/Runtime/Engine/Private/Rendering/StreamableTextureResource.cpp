@@ -97,7 +97,7 @@ FStreamableTextureResource::FStreamableTextureResource(UTexture* InOwner, const 
 	// HDR images are stored in linear but still require gamma correction to display correctly.
 	bIgnoreGammaConversions = !InOwner->SRGB && !IsHDR(PixelFormat);
 	bSRGB = InOwner->SRGB;
-	bGreyScaleFormat = (PixelFormat == PF_G8) || (PixelFormat == PF_BC4);
+	bGreyScaleFormat = ( InOwner->CompressionSettings == TC_Grayscale || InOwner->CompressionSettings == TC_Alpha );
 
 	Filter = (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(InOwner);
 	AddressU = InOwner->GetTextureAddressX() == TA_Wrap ? AM_Wrap : (InOwner->GetTextureAddressX() == TA_Clamp ? AM_Clamp : AM_Mirror);

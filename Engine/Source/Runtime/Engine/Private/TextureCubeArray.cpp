@@ -169,8 +169,7 @@ public:
 		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
 
 		// Set the greyscale format flag appropriately.
-		EPixelFormat PixelFormat = Owner->GetPixelFormat();
-		bGreyScaleFormat = (PixelFormat == PF_G8) || (PixelFormat == PF_BC4);
+		bGreyScaleFormat = ( Owner->CompressionSettings == TC_Grayscale || Owner->CompressionSettings == TC_Alpha );
 	}
 
 	virtual void ReleaseRHI() override

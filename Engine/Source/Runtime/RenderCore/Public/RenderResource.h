@@ -420,7 +420,10 @@ public:
 	/** Base values for fading in/out mip-levels. */
 	FMipBiasFade		MipBiasFade;
 
-	/** true if the texture is in a greyscale texture format. */
+	/** bGreyScaleFormat indicates the texture is actually in R channel but should be read as Grey (replicate R to RGBA)
+	 *  this is set from CompressionSettings, not PixelFormat
+	 *  this is only used by Editor/Debug shaders, not real game materials, which use SamplerType from MaterialExpressions
+	 */
 	bool				bGreyScaleFormat;
 
 	/**

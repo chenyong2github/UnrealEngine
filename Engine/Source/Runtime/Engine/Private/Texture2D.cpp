@@ -1272,8 +1272,7 @@ FVirtualTexture2DResource::FVirtualTexture2DResource(const UTexture2D* InOwner, 
 	FirstMipToUse = FMath::Min((int32)MaxMip, InFirstMipToUse);
 
 	bSRGB = InOwner->SRGB;
-	const EPixelFormat PixelFormat = VTData->LayerTypes[0];
-	bGreyScaleFormat = (PixelFormat == PF_G8) || (PixelFormat == PF_BC4);
+	bGreyScaleFormat = ( InOwner->CompressionSettings == TC_Grayscale || InOwner->CompressionSettings == TC_Alpha );
 
 	// Initialize this resource FeatureLevel, so it gets re-created on FeatureLevel changes
 	SetFeatureLevel(GMaxRHIFeatureLevel);
