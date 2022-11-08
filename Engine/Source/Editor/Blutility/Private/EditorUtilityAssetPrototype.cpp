@@ -52,17 +52,22 @@ bool FAssetActionUtilityPrototype::AreSupportedClassesForBlueprints() const
 
 TArray<TSoftClassPtr<UObject>> FAssetActionUtilityPrototype::GetSupportedClasses() const
 {
+    TArray<TSoftClassPtr<UObject>> SupportedClasses;
+
 	FString SupportedClassPaths;
 	if (UtilityBlueprintAsset.GetTagValue(AssetActionUtilityTags::SupportedClasses, SupportedClassPaths))
 	{
 		TArray<FString> ClassPaths;
 		SupportedClassPaths.ParseIntoArray(ClassPaths, TEXT(","));
-		TArray<TSoftClassPtr<UObject>> ClassPtrs;
-		Algo::Transform(ClassPaths, ClassPtrs, [](const FString& ClassPath) { return TSoftClassPtr<UObject>(FSoftClassPath(ClassPath)); });
-		return ClassPtrs;
+		Algo::Transform(ClassPaths, SupportedClasses, [](const FString& ClassPath) { return TSoftClassPtr<UObject>(FSoftClassPath(ClassPath)); });
 	}
 
-	return TArray<TSoftClassPtr<UObject>>();
+	if (SupportedClasses.Num() == 0)
+	{
+		SupportedClasses.Add(TSoftClassPtr<UObject>(UObject::StaticClass()));
+	}
+	
+	return SupportedClasses;
 }
 
 TArray<FBlutilityFunctionData> FAssetActionUtilityPrototype::GetCallableFunctions() const
