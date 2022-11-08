@@ -251,9 +251,7 @@ namespace Horde.Build.Tests
 
 			services.AddSingleton<ILegacyStorageClient, BasicStorageClient>();
 
-			services.AddSingleton<IRefCollection, RefCollection>();
 			services.AddSingleton<StorageService>();
-			services.AddSingleton<GcService>();
 
 			services.AddSingleton<ISingletonDocument<AgentSoftwareChannels>>(new SingletonDocumentStub<AgentSoftwareChannels>());
 			services.AddSingleton<ISingletonDocument<DevicePlatformMapV1>>(new SingletonDocumentStub<DevicePlatformMapV1>());

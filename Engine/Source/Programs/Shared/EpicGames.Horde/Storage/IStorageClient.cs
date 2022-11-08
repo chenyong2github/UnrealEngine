@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Reflection;
 using System.Reflection.Metadata;
@@ -78,7 +79,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Locates a node in storage
 	/// </summary>
-	public struct NodeLocator
+	public struct NodeLocator : IEquatable<NodeLocator>
 	{
 		/// <summary>
 		/// Location of the blob containing this node
@@ -105,7 +106,22 @@ namespace EpicGames.Horde.Storage
 		public bool IsValid() => Blob.IsValid();
 
 		/// <inheritdoc/>
+		public override bool Equals([NotNullWhen(true)] object? obj) => obj is NodeLocator locator && Equals(locator);
+
+		/// <inheritdoc/>
+		public bool Equals(NodeLocator other) => Blob == other.Blob && ExportIdx == other.ExportIdx;
+
+		/// <inheritdoc/>
+		public override int GetHashCode() => HashCode.Combine(Blob, ExportIdx);
+
+		/// <inheritdoc/>
 		public override string ToString() => $"{Blob}#{ExportIdx}";
+
+		/// <inheritdoc/>
+		public static bool operator ==(NodeLocator left, NodeLocator right) => left.Equals(right);
+
+		/// <inheritdoc/>
+		public static bool operator !=(NodeLocator left, NodeLocator right) => !left.Equals(right);
 	}
 
 	/// <summary>

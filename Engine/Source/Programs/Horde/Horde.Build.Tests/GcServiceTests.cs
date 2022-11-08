@@ -11,7 +11,6 @@ using Horde.Build.Storage;
 using System.Threading;
 using Horde.Build.Server;
 using Horde.Build.Utilities;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Horde.Build.Tests
 {
@@ -32,12 +31,14 @@ namespace Horde.Build.Tests
 		[TestMethod]
 		public async Task CreateBasicTree()
 		{
+			await StorageService.StartAsync(CancellationToken.None);
+
 			BlobId.UseDeterministicIds();
 			await SetupNamespaceAsync();
 			IStorageClientImpl store = await StorageService.GetClientAsync(new NamespaceId("default"), CancellationToken.None);
 
 			Random random = new Random(0);
-			BlobLocator[] blobs = await CreateTestDataAsync(store, 2000, 4000, 2000, 10, random);
+			BlobLocator[] blobs = await CreateTestDataAsync(store, 30, 50, 30, 5, random);
 
 			HashSet<BlobLocator> roots = new HashSet<BlobLocator>();
 			for (int idx = 0; idx < 10; idx++)
@@ -52,9 +53,6 @@ namespace Horde.Build.Tests
 			HashSet<BlobLocator> nodes = await FindNodes(store, roots);
 
 			await Clock.AdvanceAsync(TimeSpan.FromDays(1.0));
-
-			GcService gc = ServiceProvider.GetRequiredService<GcService>();
-			await gc.RunAsync(new NamespaceId("default"), CancellationToken.None);
 
 			BlobLocator[] remaining = await store.Backend.EnumerateAsync().Select(x => new BlobLocator(HostId.Empty, StorageBackend.GetBlobIdFromPath(x))).ToArrayAsync();
 			Assert.AreEqual(nodes.Count, remaining.Length);
@@ -99,7 +97,7 @@ namespace Horde.Build.Tests
 				int numParents = 1 + (int)(random.NextDouble() * maxParents);
 				for (; numParents > 0; numParents--)
 				{
-					int parentIdx = (int)(random.NextDouble() * Math.Min(idx, numRoots + numInterior - 1));
+					int parentIdx = Math.Min((int)(random.NextDouble() * Math.Min(idx, numRoots + numInterior)), idx - 1);
 					children[parentIdx].Add(idx);
 				}
 			}
