@@ -14,10 +14,10 @@
 // This is not a problem, because fixed GMalloc is only used in Test/Shipping builds
 #define LLM_ENABLED_ON_PLATFORM (PLATFORM_SUPPORTS_LLM && !PLATFORM_USES_FIXED_GMalloc_CLASS)
 
-#if !defined(ENABLE_LOW_LEVEL_MEM_TRACKER) || !LLM_ENABLED_ON_PLATFORM 
-	#undef ENABLE_LOW_LEVEL_MEM_TRACKER
-	#define ENABLE_LOW_LEVEL_MEM_TRACKER (LLM_ENABLED_IN_CONFIG && LLM_ENABLED_ON_PLATFORM)
+#ifdef ENABLE_LOW_LEVEL_MEM_TRACKER
+#error ENABLE_LOW_LEVEL_MEM_TRACKER is now a derived define that should not be defined separately. Define LLM_ENABLED_IN_CONFIG (build environment only) or LLM_ENABLED_ON_PLATFORM (build environment or c++ header) instead.
 #endif
+#define ENABLE_LOW_LEVEL_MEM_TRACKER (LLM_ENABLED_IN_CONFIG && LLM_ENABLED_ON_PLATFORM)
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 

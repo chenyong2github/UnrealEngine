@@ -11,8 +11,14 @@
 	#define ALLOW_LOW_LEVEL_MEM_TRACKER_IN_TEST 0
 #endif
 
-// *** When locally instrumenting, override this definition of LLM_ENABLED_IN_CONFIG
-#define LLM_ENABLED_IN_CONFIG ( \
-	!UE_BUILD_SHIPPING && (!UE_BUILD_TEST || ALLOW_LOW_LEVEL_MEM_TRACKER_IN_TEST) && \
-	WITH_ENGINE \
-)
+// LLM_ENABLED_IN_CONFIG can be defined here or in the build environment only.
+// It cannot be defined in platform header files because it is included in c-language compilation units that
+// cannot include those headers.
+// When locally instrumenting, add your own definition of LLM_ENABLED_IN_CONFIG in build environment or this header.
+
+#ifndef LLM_ENABLED_IN_CONFIG 
+	#define LLM_ENABLED_IN_CONFIG ( \
+		!UE_BUILD_SHIPPING && (!UE_BUILD_TEST || ALLOW_LOW_LEVEL_MEM_TRACKER_IN_TEST) && \
+		WITH_ENGINE \
+	)
+#endif

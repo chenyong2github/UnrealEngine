@@ -65,7 +65,7 @@ public class ShaderCompileWorkerTarget : TargetRules
 
 		if (bShaderCompilerWorkerTrace)
         {
-			GlobalDefinitions.Add("ENABLE_LOW_LEVEL_MEM_TRACKER=1");
+			GlobalDefinitions.Add("LLM_ENABLED_IN_CONFIG=1");
 			GlobalDefinitions.Add("UE_MEMORY_TAGS_TRACE_ENABLED=1");
 			GlobalDefinitions.Add("UE_TRACE_ENABLED=1");
 		}
