@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EdGraphSchema_K2.h"
+#include "AssetBlueprintGraphActions.h"
 #include "BlueprintCompilationManager.h"
 #include "Kismet2/Breakpoint.h"
 #include "Modules/ModuleManager.h"
@@ -5765,8 +5766,23 @@ bool UEdGraphSchema_K2::IsStaticFunctionGraph( const UEdGraph* TestEdGraph ) con
 
 void UEdGraphSchema_K2::DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const 
 {
+	// only want to spawn event nodes in an event graph
+	if (FBlueprintEditorUtils::IsEventGraph(Graph))
+	{
+		const FBlueprintGraphModule& Module = FModuleManager::LoadModuleChecked<FBlueprintGraphModule>("BlueprintGraph");
+		// check all assets to see if we can get some AssetBlueprintGraphActions for it 
+		for (const FAssetData& AssetData : Assets)
+		{
+			// if we can find any actions we want to try to spawn the node - only spawning Input Action event nodes currently
+			if (const FAssetBlueprintGraphActions* GraphActions = Module.GetAssetBlueprintGraphActions(AssetData.GetClass()))
+			{
+				GraphActions->TryCreatingAssetNode(AssetData, Graph, GraphPosition, EK2NewNodeFlags::SelectNewNode);
+			}
+		}
+	}
+
 	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(Graph);
-	if ((Blueprint != NULL) && FBlueprintEditorUtils::IsActorBased(Blueprint))
+	if ((Blueprint != nullptr) && FBlueprintEditorUtils::IsActorBased(Blueprint))
 	{
 		float XOffset = 0.0f;
 		for(int32 AssetIdx=0; AssetIdx < Assets.Num(); AssetIdx++)
@@ -5878,8 +5894,32 @@ void UEdGraphSchema_K2::GetAssetsGraphHoverMessage(const TArray<FAssetData>& Ass
 	if ((Blueprint != nullptr) && FBlueprintEditorUtils::IsActorBased(Blueprint))
 	{
 		OutTooltipText = LOCTEXT("UnsupportedAssetTypeForGraphDragDrop", "Cannot create a node from this type of asset").ToString();
+		const FBlueprintGraphModule& Module = FModuleManager::LoadModuleChecked<FBlueprintGraphModule>("BlueprintGraph");
+		bool bFoundCustomText = false;
 		for (const FAssetData& AssetData : Assets)
 		{
+			// check asset to see if we can get some AssetBlueprintGraphActions for it
+			if (const FAssetBlueprintGraphActions* GraphActions = Module.GetAssetBlueprintGraphActions(AssetData.GetClass()))
+			{
+				// get the text from the module we loaded
+				FText CustomText = GraphActions->GetGraphHoverMessage(AssetData, HoverGraph);
+				if (!CustomText.IsEmpty())
+				{
+					// want to make sure the hover message properly represents that Input Action nodes can only be dragged onto event graphs
+					if (FBlueprintEditorUtils::IsEventGraph(HoverGraph))
+					{
+						OutOkIcon = true;
+						OutTooltipText = CustomText.ToString();
+					}
+					else
+					{
+						OutOkIcon = false;
+						OutTooltipText = LOCTEXT("UnsupportedAssetTypeForGraphDragDropEventGraph", "Cannot create a node from this type of asset in this graph").ToString();
+					}
+					return;
+				}
+			}
+
 			if (UObject* Asset = AssetData.GetAsset())
 			{
 				UClass* AssetClass = Asset->GetClass();

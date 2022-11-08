@@ -9,6 +9,7 @@
 
 class FBlueprintActionFilter;
 struct FBlueprintActionInfo;
+struct FAssetBlueprintGraphActions;
 
 class FBlueprintGraphModule : public IModuleInterface
 {
@@ -28,6 +29,13 @@ public:
 	BLUEPRINTGRAPH_API TArray<FActionMenuRejectionTest>& GetExtendedActionMenuFilters() { return ExtendedMenuFilters; }
 
 	virtual void ShutdownModule() override;
+	BLUEPRINTGRAPH_API void RegisterGraphAction(const UClass* AssetType, TUniquePtr<FAssetBlueprintGraphActions> Action);
+	BLUEPRINTGRAPH_API void UnregisterGraphAction(const UClass* AssetType);
+	const FAssetBlueprintGraphActions* GetAssetBlueprintGraphActions(const UClass* AssetType) const;
+
 private:
+	/** Customizations for specific assets that want to customize their interactions with the Blueprint Graph window */
+	TMap<const UClass*, TUniquePtr< FAssetBlueprintGraphActions>> AssetBlueprintGraphActions;
+
 	TArray<FActionMenuRejectionTest> ExtendedMenuFilters;
 };
