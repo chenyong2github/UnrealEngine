@@ -360,6 +360,8 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	const bool bCanDeactivateOrUnloadCells = !bIsServer || WorldPartition->IsServerStreamingOutEnabled();
 	const int32 NewServerStreamingEnabledEpoch = ComputeServerStreamingEnabledEpoch();
 
+	const bool bIsStreamingInEnabled = WorldPartition->IsStreamingInEnabled();
+
 	if (!bIsServer || bIsServerStreamingEnabled || AWorldPartitionReplay::IsPlaybackEnabled(World))
 	{
 		// When world partition can't stream, all cells must be unloaded
@@ -563,15 +565,18 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 
 	int32 ToLoadAndActivateCount = 0;
 
-	// Do Activation State first as it is higher prio than Load State (if we have a limited number of loading cells per frame)
-	if (ToActivateCells.Num() > 0)
+	if (bIsStreamingInEnabled)
 	{
-		ToLoadAndActivateCount += SetCellsStateToActivated(ToActivateCells);
-	}
+		// Do Activation State first as it is higher prio than Load State (if we have a limited number of loading cells per frame)
+		if (ToActivateCells.Num() > 0)
+		{
+			ToLoadAndActivateCount += SetCellsStateToActivated(ToActivateCells);
+		}
 
-	if (ToLoadCells.Num() > 0)
-	{
-		ToLoadAndActivateCount += SetCellsStateToLoaded(ToLoadCells);
+		if (ToLoadCells.Num() > 0)
+		{
+			ToLoadAndActivateCount += SetCellsStateToLoaded(ToLoadCells);
+		}
 	}
 
 	bLastUpdateCompletedLoadingAndActivation = (ToLoadAndActivateCount == (ToActivateCells.Num() + ToLoadCells.Num()));

@@ -256,6 +256,10 @@ public:
 
 	EWorldPartitionStreamingPerformance GetStreamingPerformance() const;
 
+	bool IsStreamingInEnabled() const;
+	void DisableStreamingIn();
+	void EnableStreamingIn();
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(DuplicateTransient)
 	TObjectPtr<UWorldPartitionEditorHash> EditorHash;
@@ -321,6 +325,9 @@ private:
 
 	EWorldPartitionInitState InitState;
 	TOptional<FTransform> InstanceTransform;
+
+	// Defaults to true, can be set to false to temporarly disable Streaming in of new cells.
+	bool bStreamingInEnabled;
 
 	mutable TOptional<bool> bCachedUseMakingInvisibleTransactionRequests;
 	mutable TOptional<bool> bCachedUseMakingVisibleTransactionRequests;

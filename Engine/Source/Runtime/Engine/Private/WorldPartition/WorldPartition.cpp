@@ -292,6 +292,7 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	, NumUserCreatedLoadedRegions(0)
 #endif
 	, InitState(EWorldPartitionInitState::Uninitialized)
+	, bStreamingInEnabled(true)
 	, StreamingPolicy(nullptr)
 	, Replay(nullptr)
 {
@@ -1455,6 +1456,23 @@ void UWorldPartition::DrawStreamingStatusLegend(class UCanvas* Canvas, FVector2D
 EWorldPartitionStreamingPerformance UWorldPartition::GetStreamingPerformance() const
 {
 	return StreamingPolicy->GetStreamingPerformance();
+}
+
+bool UWorldPartition::IsStreamingInEnabled() const
+{
+	return bStreamingInEnabled;
+}
+
+void UWorldPartition::DisableStreamingIn()
+{
+	check(bStreamingInEnabled);
+	bStreamingInEnabled = false;
+}
+
+void UWorldPartition::EnableStreamingIn()
+{
+	check(!bStreamingInEnabled);
+	bStreamingInEnabled = true;
 }
 
 #if WITH_EDITOR
