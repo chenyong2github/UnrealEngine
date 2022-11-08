@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VCamModifierFactory.h"
+#include "Factories/VCamModifierFactory.h"
 #include "VCamModifier.h"
 
 #include "AssetToolsModule.h"

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VCamObjectWithInputFactory.h"
+#include "Factories/VCamObjectWithInputFactory.h"
 
 #include "AssetThumbnail.h"
 #include "Editor.h"

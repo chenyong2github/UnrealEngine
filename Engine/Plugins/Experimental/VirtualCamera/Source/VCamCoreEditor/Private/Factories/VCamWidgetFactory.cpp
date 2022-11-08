@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VCamWidgetFactory.h"
+#include "Factories/VCamWidgetFactory.h"
 #include "UI/VCamWidget.h"
 
 #include "AssetToolsModule.h"
