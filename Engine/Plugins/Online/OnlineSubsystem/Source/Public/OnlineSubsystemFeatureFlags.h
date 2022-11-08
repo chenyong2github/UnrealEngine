@@ -46,11 +46,15 @@ namespace UE::OnlineSubsystemFeature { \
 	FOnlineSubsystemFeatureCheck FeatureRuntimeCheckDelegate_##FeatureName; \
 	bool RuntimeCheckFeature_##FeatureName() \
 	{ \
-		static const bool Runtime##FeatureName##Enabled = \
-			FeatureRuntimeCheckDelegate_##FeatureName.IsBound() ? \
-			FeatureRuntimeCheckDelegate_##FeatureName.Execute() : \
-			ONLINE_SUBSYSTEM_FEATURE_##FeatureName; \
-		return Runtime##FeatureName##Enabled; \
+		if constexpr (ONLINE_SUBSYSTEM_FEATURE_##FeatureName) \
+		{ \
+			static const bool Runtime##FeatureName##Enabled = FeatureRuntimeCheckDelegate_##FeatureName.IsBound() ? FeatureRuntimeCheckDelegate_##FeatureName.Execute() : true; \
+			return Runtime##FeatureName##Enabled; \
+		} \
+		else \
+		{ \
+			return false; \
+		} \
 	} \
 }
 
