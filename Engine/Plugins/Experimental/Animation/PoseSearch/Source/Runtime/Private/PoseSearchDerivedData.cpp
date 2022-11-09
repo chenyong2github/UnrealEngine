@@ -1,138 +1,102 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PoseSearchDerivedData.h"
-#include "PoseSearch/PoseSearchAnimNotifies.h"
+#include "PoseSearch/PoseSearchDerivedData.h"
 
-#include "Animation/AnimSequence.h"
+#if WITH_EDITOR
 #include "Animation/BlendSpace.h"
-
-#include "UObject/Class.h"
-
-#if WITH_EDITOR
-#include "Serialization/BulkDataRegistry.h"
+#include "AssetRegistry/ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "DerivedDataCache.h"
+#include "DerivedDataRequestOwner.h"
+#include "Misc/CoreDelegates.h"
 #include "PoseSearch/PoseSearchDerivedDataKey.h"
-#endif // WITH_EDITOR
-
-#if UE_BUILD_DEBUG && WITH_EDITOR
-#define UE_POSE_SEARCH_DERIVED_DATA_LOGGING 1
-#endif
-
-#ifndef UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-#define UE_POSE_SEARCH_DERIVED_DATA_LOGGING 0
-#endif
-
-
-#if WITH_EDITOR
-namespace UE::PoseSearch
-{
-	const UE::DerivedData::FValueId FPoseSearchDatabaseAsyncCacheTask::Id = UE::DerivedData::FValueId::FromName("Data");
-	const UE::DerivedData::FCacheBucket FPoseSearchDatabaseAsyncCacheTask::Bucket("PoseSearchDatabase");
-}
-#endif // WITH_EDITOR
-
-#if WITH_EDITOR
-
-void FPoseSearchDatabaseDerivedData::Cache(UPoseSearchDatabase& Database, bool bForceRebuild)
-{
-	check(IsInGameThread());
-
-	CancelCache();
-
-#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-	UE_LOG(LogPoseSearch, Log, TEXT("%s: Cache"), *LexToString(PendingDerivedDataKey));
-#endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-
-	if (Database.IsValidForIndexing())
-	{
-		CreateDatabaseBuildTask(Database, bForceRebuild);
-	}
-	else
-	{
-		SearchIndex.Reset();
-		SearchIndex.Schema = Database.Schema;
-		DerivedDataKey = { UE::DerivedData::FCacheBucket(), FIoHash::Zero };
-		PendingDerivedDataKey = FIoHash::Zero;
-	}
-}
-
-void FPoseSearchDatabaseDerivedData::CancelCache()
-{
-	check(IsInGameThread());
-
-	if (AsyncTask)
-	{
-#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-		UE_LOG(LogPoseSearch, Log, TEXT("%s: CancelCache"), *LexToString(PendingDerivedDataKey));
-#endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-
-		AsyncTask->Cancel();
-	}
-
-	FinishCache();
-}
-
-void FPoseSearchDatabaseDerivedData::FinishCache()
-{
-	check(IsInGameThread());
-
-	if (AsyncTask)
-	{
-#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-		UE_LOG(LogPoseSearch, Log, TEXT("%s: FinishCache"), *LexToString(PendingDerivedDataKey));
-#endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-
-		AsyncTask->Wait();
-		delete AsyncTask;
-		AsyncTask = nullptr;
-	}
-}
-
-void FPoseSearchDatabaseDerivedData::CreateDatabaseBuildTask(UPoseSearchDatabase& Database, bool bForceRebuild)
-{
-	check(IsInGameThread());
-
-	AsyncTask = new UE::PoseSearch::FPoseSearchDatabaseAsyncCacheTask(Database, *this, bForceRebuild);
-}
-
-#endif // WITH_EDITOR
+#include "ProfilingDebugging/CookStats.h"
+#include "Serialization/BulkDataRegistry.h"
+#include "UObject/NoExportTypes.h"
 
 namespace UE::PoseSearch
 {
+	static const UE::DerivedData::FValueId Id(UE::DerivedData::FValueId::FromName("Data"));
+	static const UE::DerivedData::FCacheBucket Bucket("PoseSearchDatabase");
 
-#if WITH_EDITOR
+#if ENABLE_COOK_STATS
+	static FCookStats::FDDCResourceUsageStats UsageStats;
+	static FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
+		{
+			UsageStats.LogStats(AddStat, TEXT("MotionMatching.Usage"), TEXT(""));
+		});
+#endif
 
-	FPoseSearchDatabaseAsyncCacheTask::FPoseSearchDatabaseAsyncCacheTask(
-		UPoseSearchDatabase& InDatabase,
-		FPoseSearchDatabaseDerivedData& InDerivedData,
-		bool bForceRebuild)
-		: Owner(UE::DerivedData::EPriority::Normal)
-		, DerivedData(InDerivedData)
-		, Database(InDatabase)
+	struct FPoseSearchDatabaseAsyncCacheTask
+	{
+		FPoseSearchDatabaseAsyncCacheTask(UPoseSearchDatabase& InDatabase);
+		~FPoseSearchDatabaseAsyncCacheTask();
+
+		void Cancel();
+		void Wait();
+		bool Poll() const;
+
+		UPoseSearchDatabase& GetDatabase() { return Database; }
+		const UPoseSearchDatabase& GetDatabase() const { return Database; }
+		static FIoHash CreateKey(UPoseSearchDatabase& Database);
+
+		void MoveSearchIndexToDatabase();
+
+	private:
+		FPoseSearchDatabaseAsyncCacheTask(const FPoseSearchDatabaseAsyncCacheTask& Other) = delete;
+		FPoseSearchDatabaseAsyncCacheTask(FPoseSearchDatabaseAsyncCacheTask&& Other) = delete;
+		FPoseSearchDatabaseAsyncCacheTask& operator=(const FPoseSearchDatabaseAsyncCacheTask& Other) = delete;
+		FPoseSearchDatabaseAsyncCacheTask& operator=(FPoseSearchDatabaseAsyncCacheTask&& Other) = delete;
+
+		void OnGetComplete(UE::DerivedData::FCacheGetResponse&& Response);
+
+		UPoseSearchDatabase& Database;
+		FPoseSearchIndex SearchIndex;
+		UE::DerivedData::FRequestOwner Owner;
+	};
+
+	class FPoseSearchDatabaseAsyncCacheTasks : public TArray<TUniquePtr<FPoseSearchDatabaseAsyncCacheTask>> {};
+
+	FPoseSearchDatabaseAsyncCacheTask::FPoseSearchDatabaseAsyncCacheTask(UPoseSearchDatabase& InDatabase)
+		: Database(InDatabase)
+		, SearchIndex()
+		, Owner(UE::DerivedData::EPriority::Normal)
 	{
 		using namespace UE::DerivedData;
-
-		FIoHash DerivedDataKey = CreateKey(Database);
-		DerivedData.PendingDerivedDataKey = DerivedDataKey;
+		const FIoHash PendingDerivedDataKey = CreateKey(InDatabase);
 
 		InDatabase.NotifyDerivedDataBuildStarted();
 
-		if (bForceRebuild)
+		UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BeginCache"), *LexToString(PendingDerivedDataKey), *Database.GetName());
+
+		TArray<FCacheGetRequest> CacheRequests;
+		const FCacheKey CacheKey{ Bucket, PendingDerivedDataKey };
+		CacheRequests.Add({ { Database.GetPathName() }, CacheKey, ECachePolicy::Default });
+		GetCache().Get(CacheRequests, Owner, [this](FCacheGetResponse&& Response)
+			{
+				OnGetComplete(MoveTemp(Response));
+			});
+	}
+
+	FPoseSearchDatabaseAsyncCacheTask::~FPoseSearchDatabaseAsyncCacheTask()
+	{
+		// @todo: add InDatabase.NotifyDerivedDataBuildEnded();
+	}
+
+	void FPoseSearchDatabaseAsyncCacheTask::MoveSearchIndexToDatabase()
+	{
+		check(IsInGameThread());
+		check(Poll());
+		if (!Owner.IsCanceled())
 		{
-			// when the build is forced, the derived data key is zeroed so the comparison with the pending key fails, 
-			// informing other systems that data is being rebuilt
-			DerivedData.DerivedDataKey.Hash = FIoHash::Zero;
-			BuildAndWrite({ Bucket, DerivedDataKey });
-		}
-		else
-		{
-			BeginCache();
+			// @todo: implement FPoseSearchIndex move ctor and assignment operator and use a MoveTemp(SearchIndex) here
+			Database.PoseSearchIndex = SearchIndex;
 		}
 	}
 
-	bool FPoseSearchDatabaseAsyncCacheTask::Cancel()
+	void FPoseSearchDatabaseAsyncCacheTask::Cancel()
 	{
 		Owner.Cancel();
-		return true;
 	}
 
 	void FPoseSearchDatabaseAsyncCacheTask::Wait()
@@ -145,172 +109,366 @@ namespace UE::PoseSearch
 		return Owner.Poll();
 	}
 
-
-	void FPoseSearchDatabaseAsyncCacheTask::BeginCache()
-	{
-		using namespace UE::DerivedData;
-
-#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-		UE_LOG(LogPoseSearch, Log, TEXT("%s: BeginCache - '%s'"), *LexToString(DerivedData.PendingDerivedDataKey), *Database.GetName());
-#endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-
-		TArray<FCacheGetRequest> CacheRequests;
-		ECachePolicy CachePolicy = ECachePolicy::Default;
-		const FCacheKey CacheKey{ Bucket, DerivedData.PendingDerivedDataKey };
-		CacheRequests.Add({ {Database.GetPathName()}, CacheKey, CachePolicy });
-		GetCache().Get(CacheRequests, Owner, [this](FCacheGetResponse&& Response)
-		{
-			OnGetComplete(MoveTemp(Response));
-		});
-	}
-
 	void FPoseSearchDatabaseAsyncCacheTask::OnGetComplete(UE::DerivedData::FCacheGetResponse&& Response)
 	{
 		using namespace UE::DerivedData;
 
+		const FCacheKey Key = Response.Record.GetKey();
 		if (Response.Status == EStatus::Ok)
 		{
-			BuildIndexFromCacheRecord(MoveTemp(Response.Record));
-			DerivedData.DerivedDataKey = Response.Record.GetKey();
+			COOK_STAT(auto Timer = UsageStats.TimeAsyncWait());
+
+			// we found the cached data associated to the PendingDerivedDataKey: we'll deserialized into SearchIndex
+			SearchIndex.Reset();
+			FSharedBuffer RawData = Response.Record.GetValue(Id).GetData().Decompress();
+			FMemoryReaderView Reader(RawData);
+			Reader << SearchIndex;
+
+			UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex From Cache"), *LexToString(Key.Hash), *Database.GetName());
+
+			COOK_STAT(Timer.AddHit(RawData.GetSize()));
 		}
 		else if (Response.Status == EStatus::Error)
 		{
-			BuildAndWrite(Response.Record.GetKey());
+			// we didn't find the cached data associated to the PendingDerivedDataKey: we'll BuildIndex to update SearchIndex and "Put" the data over the DDC
+			Owner.LaunchTask(TEXT("PoseSearchDatabaseBuild"), [this, Key]
+				{
+					COOK_STAT(auto Timer = UsageStats.TimeSyncWork());
+
+					int32 BytesProcessed = 0;
+					if (BuildIndex(Database, SearchIndex, Owner))
+					{
+						UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Succeeded"), *LexToString(Key.Hash), *Database.GetName());
+
+						TArray<uint8> RawBytes;
+						FMemoryWriter Writer(RawBytes);
+						Writer << SearchIndex;
+						FSharedBuffer RawData = MakeSharedBufferFromArray(MoveTemp(RawBytes));
+						BytesProcessed = RawData.GetSize();
+
+						FCacheRecordBuilder Builder(Key);
+						Builder.AddValue(Id, RawData);
+						GetCache().Put({ { { Database.GetPathName() }, Builder.Build() } }, Owner, [this, Key](FCachePutResponse&& Response)
+							{
+								if (Response.Status == EStatus::Error)
+								{
+									UE_LOG(LogPoseSearch, Log, TEXT("%s - %s Failed to store DDC"), *LexToString(Key.Hash), *Database.GetName());
+								}
+							});
+					}
+					else
+					{
+						if (Owner.IsCanceled())
+						{
+							UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(Key.Hash), *Database.GetName());
+						}
+						else
+						{
+							UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Failed"), *LexToString(Key.Hash), *Database.GetName());
+						}
+						SearchIndex.Reset();
+					}
+
+					COOK_STAT(Timer.AddMiss(BytesProcessed));
+				});
 		}
-	}
-
-	void FPoseSearchDatabaseAsyncCacheTask::BuildAndWrite(const UE::DerivedData::FCacheKey& NewKey)
-	{
-		GetRequestOwner().LaunchTask(TEXT("PoseSearchDatabaseBuild"), [this, NewKey]
+		else if(Response.Status == EStatus::Canceled)
 		{
-			if (!GetRequestOwner().IsCanceled())
-			{
-				DerivedData.SearchIndex.Reset();
-				DerivedData.SearchIndex.Schema = Database.Schema;
-				const bool bIndexReady = BuildIndex(&Database, DerivedData.SearchIndex);
-
-				WriteIndexToCache(NewKey);
-
-#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-				UE_LOG(LogPoseSearch, Log, TEXT("%s: BuildAndWrite"), *LexToString(DerivedData.PendingDerivedDataKey));
-#endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-			}
-		});
-	}
-
-	void FPoseSearchDatabaseAsyncCacheTask::WriteIndexToCache(const UE::DerivedData::FCacheKey& NewKey)
-	{
-		using namespace UE::DerivedData;
-
-		TArray<uint8> RawBytes;
-		FMemoryWriter Writer(RawBytes);
-		Writer << DerivedData.SearchIndex;
-		FSharedBuffer RawData = MakeSharedBufferFromArray(MoveTemp(RawBytes));
-
-		FCacheRecordBuilder Builder(NewKey);
-		Builder.AddValue(Id, RawData);
-
-		Owner.KeepAlive();
-		GetCache().Put({ { { Database.GetPathName() }, Builder.Build() } }, Owner);
-		DerivedData.DerivedDataKey = NewKey;
-	}
-
-	void FPoseSearchDatabaseAsyncCacheTask::BuildIndexFromCacheRecord(UE::DerivedData::FCacheRecord&& CacheRecord)
-	{
-		using namespace UE::DerivedData;
-
-#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-		UE_LOG(LogPoseSearch, Log, TEXT("%s: BuildIndexFromCacheRecord"), *LexToString(DerivedData.PendingDerivedDataKey));
-#endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-
-		DerivedData.SearchIndex.Reset();
-		DerivedData.SearchIndex.Schema = Database.Schema;
-
-		FSharedBuffer RawData = CacheRecord.GetValue(Id).GetData().Decompress();
-		FMemoryReaderView Reader(RawData);
-		Reader << DerivedData.SearchIndex;
+			SearchIndex.Reset();
+			UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BuildIndex Cancelled"), *LexToString(Key.Hash), *Database.GetName());
+		}
 	}
 
 	FIoHash FPoseSearchDatabaseAsyncCacheTask::CreateKey(UPoseSearchDatabase& Database)
 	{
 		using UE::PoseSearch::FDerivedDataKeyBuilder;
 
-#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-		const double StartTime = FPlatformTime::Seconds();
-#endif
 		FDerivedDataKeyBuilder KeyBuilder;
 		FGuid VersionGuid = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().POSESEARCHDB_DERIVEDDATA_VER);
 		KeyBuilder << VersionGuid;
 		Database.BuildDerivedDataKey(KeyBuilder);
-		FDerivedDataKeyBuilder::HashDigestType Hash = KeyBuilder.Finalize();
 
 		// Stores a BLAKE3-160 hash, taken from the first 20 bytes of a BLAKE3-256 hash
-		FIoHash IoHash(Hash);
-
-#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-		const double TotalTime = FPlatformTime::Seconds() - StartTime;
-		UE_LOG(LogPoseSearch, Log, TEXT("%s: CreateKey ('%s' - %.0f µs)"), *LexToString(IoHash), *LexToString(Hash), *Database.GetName(), TotalTime * 1e6);
-#endif // UE_POSE_SEARCH_DERIVED_DATA_LOGGING
-
+		FIoHash IoHash(KeyBuilder.Finalize());
 		return IoHash;
 	}
 
-#endif // WITH_EDITOR
-
-	FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)
+	//////////////////////////////////////////////////////////////////////////
+	// FAsyncPoseSearchDatabasesManagement
+	FAsyncPoseSearchDatabasesManagement& FAsyncPoseSearchDatabasesManagement::Get()
 	{
-		int32 NumValues = 0;
-		int32 NumPCAValues = 0;
-		int32 NumAssets = 0;
-
-		if (Ar.IsSaving())
-		{
-			NumValues = Index.Values.Num();
-			NumPCAValues = Index.PCAValues.Num();
-			NumAssets = Index.Assets.Num();
-		}
-
-		Ar << Index.NumPoses;
-		Ar << NumValues;
-		Ar << NumPCAValues;
-		Ar << NumAssets;
-		Ar << Index.OverallFlags;
-
-		if (Ar.IsLoading())
-		{
-			Index.Values.SetNumUninitialized(NumValues);
-			Index.PCAValues.SetNumUninitialized(NumPCAValues);
-			Index.PoseMetadata.SetNumUninitialized(Index.NumPoses);
-			Index.Assets.SetNumUninitialized(NumAssets);
-		}
-
-		if (Index.Values.Num() > 0)
-		{
-			Ar.Serialize(&Index.Values[0], Index.Values.Num() * Index.Values.GetTypeSize());
-		}
-
-		if (Index.PCAValues.Num() > 0)
-		{
-			Ar.Serialize(&Index.PCAValues[0], Index.PCAValues.Num() * Index.PCAValues.GetTypeSize());
-		}
-
-		if (Index.PoseMetadata.Num() > 0)
-		{
-			Ar.Serialize(&Index.PoseMetadata[0], Index.PoseMetadata.Num() * Index.PoseMetadata.GetTypeSize());
-		}
-
-		if (Index.Assets.Num() > 0)
-		{
-			Ar.Serialize(&Index.Assets[0], Index.Assets.Num() * Index.Assets.GetTypeSize());
-		}
-
-		Ar << Index.WeightsSqrt;
-		Ar << Index.Mean;
-		Ar << Index.PCAProjectionMatrix;
-
-		Serialize(Ar, Index.KDTree, Index.PCAValues.GetData());
-
-		return Ar;
+		static FAsyncPoseSearchDatabasesManagement SingletonInstance;
+		return SingletonInstance;
 	}
 
-}
+	FAsyncPoseSearchDatabasesManagement::FAsyncPoseSearchDatabasesManagement()
+		: Tasks(*(new FPoseSearchDatabaseAsyncCacheTasks()))
+	{
+		OnObjectPreSaveHandle = FCoreUObjectDelegates::OnObjectPreSave.AddRaw(this, &FAsyncPoseSearchDatabasesManagement::OnObjectPreSave); 
+		OnPreObjectPropertyChangedHandle = FCoreUObjectDelegates::OnPreObjectPropertyChanged.AddRaw(this, &FAsyncPoseSearchDatabasesManagement::OnPreObjectPropertyChanged);
+		OnObjectPropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FAsyncPoseSearchDatabasesManagement::OnObjectPropertyChanged);
+
+		FCoreDelegates::OnPreExit.AddRaw(this, &FAsyncPoseSearchDatabasesManagement::Shutdown);
+	}
+
+	FAsyncPoseSearchDatabasesManagement::~FAsyncPoseSearchDatabasesManagement()
+	{
+		FCoreDelegates::OnPreExit.RemoveAll(this);
+		Shutdown();
+
+		delete &Tasks;
+	}
+
+	void GetPoseSearchDatabaseAssetDataList(TArray<FAssetData>& OutPoseSearchDatabaseAssetDataList)
+	{
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		FARFilter Filter;
+		Filter.bRecursiveClasses = true;
+		Filter.ClassPaths.Add(UPoseSearchDatabase::StaticClass()->GetClassPathName());
+
+		OutPoseSearchDatabaseAssetDataList.Reset();
+		AssetRegistryModule.Get().GetAssets(Filter, OutPoseSearchDatabaseAssetDataList);
+	}
+
+	FPoseSearchDatabaseAsyncCacheTask& FAsyncPoseSearchDatabasesManagement::GetTask(int32 TaskIndex)
+	{
+		return *Tasks[TaskIndex].Get();
+	}
+
+	const FPoseSearchDatabaseAsyncCacheTask& FAsyncPoseSearchDatabasesManagement::GetTask(int32 TaskIndex) const
+	{
+		return *Tasks[TaskIndex].Get();
+	}
+
+	void FAsyncPoseSearchDatabasesManagement::RemoveTask(int32 TaskIndex)
+	{
+		GetTask(TaskIndex).MoveSearchIndexToDatabase();
+		Tasks.RemoveAtSwap(TaskIndex, 1, false);
+	}
+
+	void FAsyncPoseSearchDatabasesManagement::ForEachPoseSearchDatabase(bool bUseTasksDatabases, TFunctionRef<void(UPoseSearchDatabase&)> InFunction)
+	{
+		if (bUseTasksDatabases)
+		{
+			for (int32 TaskIndex = 0; TaskIndex < Tasks.Num(); ++TaskIndex)
+			{
+				UPoseSearchDatabase& PoseSearchDb = GetTask(TaskIndex).GetDatabase();
+				InFunction(PoseSearchDb);
+			}
+		}
+		else
+		{
+			TArray<FAssetData> PoseSearchDatabaseAssetDataList;
+			GetPoseSearchDatabaseAssetDataList(PoseSearchDatabaseAssetDataList);
+			for (const auto& PoseSearchDbAssetData : PoseSearchDatabaseAssetDataList)
+			{
+				if (UPoseSearchDatabase* PoseSearchDb = Cast<UPoseSearchDatabase>(PoseSearchDbAssetData.FastGetAsset(false)))
+				{
+					InFunction(*PoseSearchDb);
+				}
+			}
+		}
+	}
+
+	void FAsyncPoseSearchDatabasesManagement::ExecuteIfObjectIsReferencedByDatabase(UObject* Object, bool bUseTasksDatabases, TFunctionRef<void(UPoseSearchDatabase&)> InFunction)
+	{
+		if (UAnimSequence* Sequence = Cast<UAnimSequence>(Object))
+		{
+			ForEachPoseSearchDatabase(bUseTasksDatabases, [Sequence, InFunction](UPoseSearchDatabase& PoseSearchDb)
+				{
+					const bool bSequenceFound = PoseSearchDb.Sequences.ContainsByPredicate([Sequence](FPoseSearchDatabaseSequence& DbSequence)
+						{
+							return Sequence == DbSequence.Sequence || Sequence == DbSequence.LeadInSequence || Sequence == DbSequence.FollowUpSequence;
+						});
+
+					if (bSequenceFound)
+					{
+						InFunction(PoseSearchDb);
+					}
+				});
+		}
+		else if (UBlendSpace* BlendSpace = Cast<UBlendSpace>(Object))
+		{
+			ForEachPoseSearchDatabase(bUseTasksDatabases, [BlendSpace, InFunction](UPoseSearchDatabase& PoseSearchDb)
+				{
+					const bool bBlendSpaceFound = PoseSearchDb.BlendSpaces.ContainsByPredicate([BlendSpace](FPoseSearchDatabaseBlendSpace& DbBlendSpace)
+						{
+							return BlendSpace == DbBlendSpace.BlendSpace;
+						});
+
+					if (bBlendSpaceFound)
+					{
+						InFunction(PoseSearchDb);
+					}
+				});
+		}
+		else if (UPoseSearchSchema* Schema = Cast<UPoseSearchSchema>(Object))
+		{
+			ForEachPoseSearchDatabase(bUseTasksDatabases, [Schema, InFunction](UPoseSearchDatabase& PoseSearchDb)
+				{
+					if (PoseSearchDb.Schema == Schema)
+					{
+						InFunction(PoseSearchDb);
+					}
+				});
+		}
+		else if (USkeleton* Skeleton = Cast<USkeleton>(Object))
+		{
+			ForEachPoseSearchDatabase(bUseTasksDatabases, [Skeleton, InFunction](UPoseSearchDatabase& PoseSearchDb)
+				{
+					if (PoseSearchDb.Schema && PoseSearchDb.Schema->Skeleton == Skeleton)
+					{
+						InFunction(PoseSearchDb);
+					}
+				});
+		}
+		else if (UPoseSearchDatabase* PoseSearchDb = Cast<UPoseSearchDatabase>(Object))
+		{
+			InFunction(*PoseSearchDb);
+		}
+	}
+
+	// @todo: probably overkilling listening to OnObjectPreSave to RequestAsyncBuildIndex, since we already perform it during OnObjectPropertyChanged
+	void FAsyncPoseSearchDatabasesManagement::OnObjectPreSave(UObject* SavedObject, FObjectPreSaveContext SaveContext)
+	{
+		ExecuteIfObjectIsReferencedByDatabase(SavedObject, false, [this](UPoseSearchDatabase& Database)
+			{
+				RequestAsyncBuildIndex(Database, false, true);
+			});
+	}
+
+	// we're listening to OnPreObjectPropertyChanged to cancel any pending Task indexing databases to avoid multi threading issues
+	void FAsyncPoseSearchDatabasesManagement::OnPreObjectPropertyChanged(UObject* Object, const class FEditPropertyChain& PropChain)
+	{
+		ExecuteIfObjectIsReferencedByDatabase(Object, true, [this](UPoseSearchDatabase& Database)
+			{
+				// cancelling the async indexing request for Database
+				WaitOnExistingBuildIndex(Database, false);
+			});
+	}
+
+	// @todo: investigate if it's possible to move the indexing request then databases index gets accessed
+	void FAsyncPoseSearchDatabasesManagement::OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event)
+	{
+		ExecuteIfObjectIsReferencedByDatabase(Object, false, [this](UPoseSearchDatabase& Database)
+			{
+				// requesting a new async indexing for Database (it should already have been cancelled by OnPreObjectPropertyChanged)
+				RequestAsyncBuildIndex(Database, false, false);
+			});
+	}
+
+	void FAsyncPoseSearchDatabasesManagement::Shutdown()
+	{
+		check(IsInGameThread());
+
+		FCoreUObjectDelegates::OnObjectPreSave.Remove(OnObjectPreSaveHandle);
+		OnObjectPreSaveHandle.Reset();
+
+		FCoreUObjectDelegates::OnPreObjectPropertyChanged.Remove(OnPreObjectPropertyChangedHandle);
+		OnPreObjectPropertyChangedHandle.Reset();
+
+		FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(OnObjectPropertyChangedHandle);
+		OnObjectPropertyChangedHandle.Reset();
+	}
+
+	void FAsyncPoseSearchDatabasesManagement::Tick(float DeltaTime)
+	{
+		check(IsInGameThread());
+
+		const int32 NumTasks = Tasks.Num();
+		if (NumTasks > 0)
+		{
+			// iterating backwards because of the possible RemoveAtSwap 
+			for (int32 TaskIndex = NumTasks - 1; TaskIndex >= 0; --TaskIndex)
+			{
+				FPoseSearchDatabaseAsyncCacheTask& Task = GetTask(TaskIndex);
+				if (Task.Poll())
+				{
+					RemoveTask(TaskIndex);
+				}
+			}
+		}
+	}
+
+	void FAsyncPoseSearchDatabasesManagement::TickCook(float DeltaTime, bool bCookCompete)
+	{
+		Tick(DeltaTime);
+	}
+
+	TStatId FAsyncPoseSearchDatabasesManagement::GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FAsyncPoseSearchDatabasesManagement, STATGROUP_Tickables);
+	}
+
+	void FAsyncPoseSearchDatabasesManagement::AddReferencedObjects(FReferenceCollector& Collector)
+	{
+	}
+
+	void FAsyncPoseSearchDatabasesManagement::RequestAsyncBuildIndex(UPoseSearchDatabase& Database, bool bWaitForCompletion, bool bCancelPreviousTask)
+	{
+		check(IsInGameThread());
+
+		WaitOnExistingBuildIndex(Database, !bCancelPreviousTask);
+
+#if DO_CHECK
+		for (int32 TaskIndex = 0; TaskIndex < Tasks.Num(); ++TaskIndex)
+		{
+			const FPoseSearchDatabaseAsyncCacheTask& Task = GetTask(TaskIndex);
+			if (&Task.GetDatabase() == &Database)
+			{
+				// making sure we have no tasks associated to Database
+				checkNoEntry();
+			}
+		}
+
+#endif // DO_CHECK
+		Tasks.Emplace(MakeUnique<FPoseSearchDatabaseAsyncCacheTask>(Database));
+
+		if (bWaitForCompletion)
+		{
+			WaitOnExistingBuildIndex(Database, true);
+		}
+	}
+
+	void FAsyncPoseSearchDatabasesManagement::WaitOnExistingBuildIndex(const UPoseSearchDatabase& Database, bool bWantResults)
+	{
+		check(IsInGameThread());
+
+		// iterating backwards because of the possible RemoveAtSwap
+		for (int32 TaskIndex = Tasks.Num() - 1; TaskIndex >= 0; --TaskIndex)
+		{
+			FPoseSearchDatabaseAsyncCacheTask& Task = GetTask(TaskIndex);
+			if (&Task.GetDatabase() == &Database)
+			{
+				if (bWantResults)
+				{
+					Task.Wait();
+				}
+				else
+				{
+					Task.Cancel();
+				}
+
+				RemoveTask(TaskIndex);
+			}
+		}
+	}
+
+	bool FAsyncPoseSearchDatabasesManagement::IsBuildingIndex(const UPoseSearchDatabase& Database) const
+	{
+		for (int32 TaskIndex = 0; TaskIndex < Tasks.Num(); ++TaskIndex)
+		{
+			const FPoseSearchDatabaseAsyncCacheTask& Task = GetTask(TaskIndex);
+			if (&Task.GetDatabase() == &Database)
+			{
+				if (!Task.Poll())
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+} // namespace UE::PoseSearch
+#endif // WITH_EDITOR

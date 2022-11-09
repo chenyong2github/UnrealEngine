@@ -21,9 +21,6 @@ namespace UE::PoseSearch
 	{
 	public:
 
-		FDatabaseEditor();
-		virtual ~FDatabaseEditor();
-
 		void InitAssetEditor(
 			const EToolkitMode::Type Mode,
 			const TSharedPtr<IToolkitHost>& InitToolkitHost,

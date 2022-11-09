@@ -4,7 +4,7 @@
 #include "PoseSearchDatabasePreviewScene.h"
 #include "SPoseSearchDatabaseAssetList.h"
 #include "PoseSearchEditor.h"
-#include "PoseSearch/PoseSearch.h"
+#include "PoseSearch/PoseSearchDerivedData.h"
 #include "Modules/ModuleManager.h"
 #include "AnimPreviewInstance.h"
 #include "Animation/DebugSkelMeshComponent.h"
@@ -174,8 +174,7 @@ namespace UE::PoseSearch
 
 	void FDatabaseViewModel::BuildSearchIndex()
 	{
-		PoseSearchDatabase->NotifyAssetChange();
-		PoseSearchDatabase->BeginCacheDerivedData();
+		UE::PoseSearch::FAsyncPoseSearchDatabasesManagement::Get().RequestAsyncBuildIndex(*PoseSearchDatabase, false, true);
 	}
 
 	void FDatabaseViewModel::PreviewBackwardEnd()
@@ -362,6 +361,7 @@ namespace UE::PoseSearch
 	{
 		for (auto PreviewActor : PreviewActors)
 		{
+			// @todo: PreviewActor.Actor is a TWeakObjectPtr so it can be null.
 			PreviewActor.Actor->Destroy();
 		}
 		PreviewActors.Reset();

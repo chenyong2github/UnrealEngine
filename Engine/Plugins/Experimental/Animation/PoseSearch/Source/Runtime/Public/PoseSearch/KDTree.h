@@ -14,14 +14,27 @@ struct FKDTreeImplementation;
 
 struct POSESEARCH_API FKDTree
 {
-	struct DataSource
+	struct FDataSource
 	{
-		DataSource(int32 pointCount, int32 pointDim, const float* data)
+		FDataSource(int32 pointCount, int32 pointDim, const float* data)
 		: PointCount(pointDim > 0 ? pointCount : 0)
 		, PointDim(pointDim)
 		, Data(data)
 		{
 		}
+
+		~FDataSource()
+		{
+			PointCount = 0;
+			PointDim = 0;
+			Data = nullptr;
+		}
+
+		FDataSource() = default;
+		FDataSource(const FDataSource& Other) = default;
+		FDataSource(FDataSource&& Other) = default;
+		FDataSource& operator=(const FDataSource& Other) = default;
+		FDataSource& operator=(FDataSource&& Other) = default;
 
 		// Must return the number of data points
 		inline size_t kdtree_get_point_count() const { return PointCount; }
@@ -112,18 +125,19 @@ struct POSESEARCH_API FKDTree
 
 	FKDTree(int32 Count, int32 Dim, const float* Data, int32 MaxLeafSize);
 	FKDTree();
-	FKDTree(const FKDTree& r);
-	FKDTree(FKDTree&& r) = delete;
+	FKDTree(const FKDTree& Other);
+	FKDTree(FKDTree&& Other) = delete;
 	
 	~FKDTree();
 
-	FKDTree& operator=(const FKDTree& r);
+	FKDTree& operator=(const FKDTree& Other);
+	FKDTree& operator=(FKDTree&& Other) = delete;
 
 	bool FindNeighbors(KNNResultSet& Result, const float* Query) const;
 	void Construct(int32 Count, int32 Dim, const float* Data, int32 MaxLeafSize);
 	SIZE_T GetAllocatedSize() const;
 
-	DataSource DataSrc;
+	FDataSource DataSource;
 	FKDTreeImplementation* Impl = nullptr;
 };
 

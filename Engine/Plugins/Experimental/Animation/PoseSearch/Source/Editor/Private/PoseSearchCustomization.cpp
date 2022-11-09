@@ -94,8 +94,6 @@ void FPoseSearchDatabaseDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 	TArray<TSharedPtr<IPropertyHandle>> HiddenHandles;
 	HiddenHandles.Add(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, Sequences)));
 	HiddenHandles.Add(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, BlendSpaces)));
-	HiddenHandles.Add(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, SimpleSequences)));
-	HiddenHandles.Add(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, SimpleBlendSpaces)));
 
 	for (TSharedPtr<IPropertyHandle> PropertyHandle : HiddenHandles)
 	{

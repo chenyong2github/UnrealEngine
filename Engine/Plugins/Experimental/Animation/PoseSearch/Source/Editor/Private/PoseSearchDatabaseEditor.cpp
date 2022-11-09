@@ -45,20 +45,6 @@ namespace UE::PoseSearch
 	const FName FDatabaseEditorTabs::SelectionDetailsID(TEXT("PoseSearchDatabaseEditorSelectionDetailsID"));
 	const FName FDatabaseEditorTabs::StatisticsOverview(TEXT("PoseSearchDatabaseEditorStatisticsOverviewID"));
 	
-	FDatabaseEditor::FDatabaseEditor()
-	{
-	}
-
-	FDatabaseEditor::~FDatabaseEditor()
-	{
-		UPoseSearchDatabase* DatabaseAsset = ViewModel->GetPoseSearchDatabase();
-		if (IsValid(DatabaseAsset))
-		{
-			DatabaseAsset->UnregisterOnAssetChange(AssetTreeWidget.Get());
-			DatabaseAsset->UnregisterOnGroupChange(AssetTreeWidget.Get());
-		}
-	}
-
 	const UPoseSearchDatabase* FDatabaseEditor::GetPoseSearchDatabase() const
 	{
 		return ViewModel.IsValid() ? ViewModel->GetPoseSearchDatabase() : nullptr;
@@ -168,18 +154,6 @@ namespace UE::PoseSearch
 				this,
 				&FDatabaseEditor::OnAssetTreeSelectionChanged));
 		
-		if (IsValid(DatabaseAsset))
-		{
-			DatabaseAsset->RegisterOnAssetChange(
-				UPoseSearchDatabase::FOnDerivedDataRebuild::CreateSP(
-					AssetTreeWidget.Get(),
-					&SDatabaseAssetTree::RefreshTreeView, false, false));
-			DatabaseAsset->RegisterOnGroupChange(
-				UPoseSearchDatabase::FOnDerivedDataRebuild::CreateSP(
-					AssetTreeWidget.Get(),
-					&SDatabaseAssetTree::RefreshTreeView, false, false));
-		}
-		
 		// Create Asset Details widget
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
@@ -243,8 +217,6 @@ namespace UE::PoseSearch
 				UpdateStatisticsInformationLambda();
 
 				// Ensure any database changes are reflected
-				DatabaseAsset->RegisterOnAssetChange(UPoseSearchDatabase::FOnAssetChange::CreateLambda(UpdateStatisticsInformationLambda));
-				DatabaseAsset->RegisterOnGroupChange(UPoseSearchDatabase::FOnGroupChange::CreateLambda(UpdateStatisticsInformationLambda));
 				DatabaseAsset->RegisterOnDerivedDataRebuild(UPoseSearchDatabase::FOnDerivedDataRebuild::CreateLambda(UpdateStatisticsInformationLambda));
 				// TODO: Register to delegate that gets triggered after the DerivedData has been rebuilt.
 			}
@@ -547,8 +519,6 @@ namespace UE::PoseSearch
 
 	void FDatabaseEditor::OnFinishedChangingSelectionProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 	{
-		// @todo: BuildSearchIndex is already called, but it'd be better to perform it from here
-		//ViewModel->BuildSearchIndex();
 	}
 
 	void FDatabaseEditor::OnAssetTreeSelectionChanged(

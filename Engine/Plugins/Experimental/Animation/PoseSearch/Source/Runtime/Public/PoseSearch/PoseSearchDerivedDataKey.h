@@ -15,30 +15,37 @@
 namespace UE::PoseSearch
 {
 
+#ifndef UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+	#define UE_POSE_SEARCH_DERIVED_DATA_LOGGING 0
+#endif
+
 //////////////////////////////////////////////////////////////////////////
-// TObjectHasher
-template <typename HashBuilder, typename HashDigest>
-class POSESEARCH_API TObjectHasher : public FArchiveUObject
+// FDerivedDataKeyBuilder
+class POSESEARCH_API FDerivedDataKeyBuilder : public FArchiveUObject
 {
 public:
-	using HashDigestType = HashDigest;
-	using HashBuilderType = HashBuilder;
+	using Super = FArchiveUObject;
+	using HashDigestType = FBlake3Hash;
+	using HashBuilderType = FBlake3;
 
 	inline static const FName ExcludeFromHashName = FName(TEXT("ExcludeFromHash"));
 	inline static const FName NeverInHashName = FName(TEXT("NeverInHash"));
 
-	/**
-	* Default constructor.
-	*/
-	TObjectHasher()
+	FDerivedDataKeyBuilder()
 	{
 		ArIgnoreOuterRef = true;
 
-		// Set TObjectHasher to be a saving archive instead of a reference collector.
+		// Set FDerivedDataKeyBuilder to be a saving archive instead of a reference collector.
 		// Reference collection causes FSoftObjectPtrs to be serialized by their weak pointer,
 		// which doesn't give a stable hash.  Serializing these to a saving archive will
 		// use a string reference instead, which is a more meaningful hash value.
 		SetIsSaving(true);
+	}
+
+	virtual void Seek(int64 InPos) override
+	{
+		checkf(InPos == Tell(), TEXT("A hash cannot be computed when serialization relies on seeking."));
+		FArchiveUObject::Seek(InPos);
 	}
 
 	//~ Begin FArchive Interface
@@ -49,7 +56,7 @@ public:
 			return false;
 		}
 
-		if (FArchiveUObject::ShouldSkipProperty(InProperty))
+		if (Super::ShouldSkipProperty(InProperty))
 		{
 			return true;
 		}
@@ -65,48 +72,62 @@ public:
 		}
 		
 		check(!InProperty->HasMetaData(NeverInHashName));
+
+#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+		UE_LOG(LogPoseSearch, Log, TEXT("    %s"), *InProperty->GetFullName());
+#endif
 		return false;
 	}
 
 	virtual void Serialize(void* Data, int64 Length) override
 	{
-		Hasher.Update(reinterpret_cast<uint8*>(Data), Length);
+		const uint8* HasherData = reinterpret_cast<uint8*>(Data);
+
+#if UE_POSE_SEARCH_DERIVED_DATA_LOGGING
+		FString RawBytesString = BytesToString(HasherData, Length);
+		UE_LOG(LogPoseSearch, Log, TEXT("    %s"), *RawBytesString);
+#endif
+		Hasher.Update(HasherData, Length);
 	}
+
+	// @todo: do we need those Serialize(s)?
+	//virtual void SerializeBits(void* Bits, int64 LengthBits) override
+	//virtual void SerializeInt(uint32& Value, uint32 Max) override
+	//virtual void SerializeIntPacked(uint32& Value) override
+
+	using Super::IsSaving;
+	using Super::operator<<; // For visibility of the overloads we don't override
 
 	virtual FArchive& operator<<(FName& Name) override
 	{
 		// Don't include the name of the object being serialized, since that isn't technically part of the object's state
 		if (!ObjectBeingSerialized || (Name != ObjectBeingSerialized->GetFName()))
 		{
-			uint32 NameHash = GetTypeHash(Name);
-			Hasher.Update(&NameHash, sizeof(NameHash));
+			// we cannot use GetTypeHash(Name) since it's bound to be non deterministic between editor restarts, so we convert the name into an FString and let the Serialize(void* Data, int64 Length) deal with it
+			FString NameString = Name.ToString();
+			*this << NameString;
 		}
-
 		return *this;
 	}
 
 	virtual FArchive& operator<<(class UObject*& Object) override
 	{
-		FArchive& Ar = *this;
-
 		if (!RootObject || !Object || !Object->IsIn(RootObject))
 		{
 			auto UniqueName = GetPathNameSafe(Object);
-			Ar << UniqueName;
+			*this << UniqueName;
 		}
 		else
 		{
 			ObjectsToSerialize.Enqueue(Object);
 		}
-
-		return Ar;
+		return *this;
 	}
 
-	using FArchiveUObject::operator<<; // For visibility of the overloads we don't override
 
 	virtual FString GetArchiveName() const override
 	{
-		return TEXT("TObjectHasher");
+		return TEXT("FDerivedDataKeyBuilder");
 	}
 	//~ End FArchive Interface
 
@@ -131,10 +152,7 @@ public:
 				{
 					// Serialize it
 					ObjectBeingSerialized = Object;
-					if (!CustomSerialize(Object))
-					{
-						const_cast<UObject*>(Object)->Serialize(*this);
-					}
+					const_cast<UObject*>(Object)->Serialize(*this);
 					ObjectBeingSerialized = nullptr;
 				}
 			}
@@ -149,18 +167,13 @@ public:
 		Update(Object, Object);
 	}
 
-	HashDigest Finalize()
+	HashDigestType Finalize()
 	{
 		return Hasher.Finalize();
 	}
 
 protected:
-	virtual bool CustomSerialize(const UObject* Object)
-	{
-		return false;
-	}
-
-	HashBuilder Hasher;
+	HashBuilderType Hasher;
 
 	/** Queue of object references awaiting serialization */
 	TQueue<const UObject*> ObjectsToSerialize;
@@ -174,10 +187,6 @@ protected:
 	/** Root of object currently being serialized */
 	const UObject* RootObject = nullptr;
 };
-
-using FObjectHasherBlake3 = TObjectHasher<FBlake3, FBlake3Hash>;
-
-using FDerivedDataKeyBuilder = FObjectHasherBlake3;
 
 } // namespace UE::PoseSearch
 

@@ -3,8 +3,8 @@
 #include "PoseSearch/PoseSearch.h"
 #include "AssetRegistry/AssetData.h"
 #include "PoseSearch/PoseSearchAnimNotifies.h"
-
-#include "PoseSearchDerivedData.h"
+#include "PoseSearch/PoseSearchDerivedDataKey.h"
+#include "PoseSearch/PoseSearchDerivedData.h"
 #include "PoseSearchEigenHelper.h"
 
 #include "Algo/BinarySearch.h"
@@ -33,12 +33,9 @@
 #include "Animation/AnimRootMotionProvider.h"
 #include "Animation/BlendSpace1D.h"
 
-
 #if WITH_EDITOR
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetRegistry/ARFilter.h"
-#include "PoseSearch/PoseSearchDerivedDataKey.h"
-#endif // WITH_EDITOR
+#include "DerivedDataRequestOwner.h"
+#endif
 
 IMPLEMENT_ANIMGRAPH_MESSAGE(UE::PoseSearch::IPoseHistoryProvider);
 
@@ -205,7 +202,7 @@ static void PopulateNonSelectableIdx(FNonSelectableIdx& NonSelectableIdx, FSearc
 				NonSelectableIdx.Add(PoseIdx);
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
-				const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, QueryValues);
+				const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, Database->Schema->MirrorMismatchCostBias, QueryValues);
 				SearchContext.BestCandidates.Add(PoseCost, PoseIdx, Database, EPoseCandidateFlags::DiscardedBy_PoseJumpThresholdTime);
 #endif
 			}
@@ -238,7 +235,7 @@ static void PopulateNonSelectableIdx(FNonSelectableIdx& NonSelectableIdx, FSearc
 				NonSelectableIdx.Add(PoseIdx);
 
 #if UE_POSE_SEARCH_TRACE_ENABLED
-				const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, QueryValues);
+				const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, Database->Schema->MirrorMismatchCostBias, QueryValues);
 				SearchContext.BestCandidates.Add(PoseCost, PoseIdx, Database, EPoseCandidateFlags::DiscardedBy_PoseJumpThresholdTime);
 #endif
 			}
@@ -265,7 +262,7 @@ static void PopulateNonSelectableIdx(FNonSelectableIdx& NonSelectableIdx, FSearc
 				// if we're editing the database and removing assets it's possible that the PoseIndicesHistory contains invalid pose indexes
 				if (HistoricalPoseIndex.PoseIndex < SearchIndex->NumPoses)
 				{
-					const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(HistoricalPoseIndex.PoseIndex, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, QueryValues);
+					const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(HistoricalPoseIndex.PoseIndex, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, Database->Schema->MirrorMismatchCostBias, QueryValues);
 					SearchContext.BestCandidates.Add(PoseCost, HistoricalPoseIndex.PoseIndex, Database, EPoseCandidateFlags::DiscardedBy_PoseReselectHistory);
 				}
 #endif
@@ -319,12 +316,12 @@ struct FPoseFilters
 				}
 				else if (PoseFilter == &BlockTransitionPoseFilter)
 				{
-					const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, QueryValues);
+					const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, Database->Schema->MirrorMismatchCostBias, QueryValues);
 					SearchContext.BestCandidates.Add(PoseCost, PoseIdx, Database, EPoseCandidateFlags::DiscardedBy_BlockTransition);
 				}
 				else
 				{
-					const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, QueryValues);
+					const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, Database->Schema->MirrorMismatchCostBias, QueryValues);
 					SearchContext.BestCandidates.Add(PoseCost, PoseIdx, Database, EPoseCandidateFlags::DiscardedBy_PoseFilter);
 				}
 #endif
@@ -368,6 +365,51 @@ private:
 
 	TArray<const IPoseFilter*, TInlineAllocator<64>> AllPoseFilters;
 };
+
+static void FindValidSequenceIntervals(const FPoseSearchDatabaseSequence& DbSequence, const FPoseSearchExcludeFromDatabaseParameters& ExcludeFromDatabaseParameters, TArray<FFloatRange>& ValidRanges)
+{
+	const UAnimSequence* Sequence = DbSequence.Sequence;
+	check(DbSequence.Sequence);
+
+	const float SequenceLength = DbSequence.Sequence->GetPlayLength();
+
+	const FFloatInterval EffectiveSamplingInterval = UE::PoseSearch::GetEffectiveSamplingRange(DbSequence.Sequence, DbSequence.SamplingRange);
+	FFloatRange EffectiveSamplingRange = FFloatRange::Inclusive(EffectiveSamplingInterval.Min, EffectiveSamplingInterval.Max);
+	if (!DbSequence.IsLooping())
+	{
+		const FFloatRange ExcludeFromDatabaseRange(ExcludeFromDatabaseParameters.SequenceStartInterval, SequenceLength - ExcludeFromDatabaseParameters.SequenceEndInterval);
+		EffectiveSamplingRange = FFloatRange::Intersection(EffectiveSamplingRange, ExcludeFromDatabaseRange);
+	}
+
+	// start from a single interval defined by the database sequence sampling range
+	ValidRanges.Empty();
+	ValidRanges.Add(EffectiveSamplingRange);
+
+	FAnimNotifyContext NotifyContext;
+	Sequence->GetAnimNotifies(0.0f, SequenceLength, NotifyContext);
+
+	for (const FAnimNotifyEventReference& EventReference : NotifyContext.ActiveNotifies)
+	{
+		if (const FAnimNotifyEvent* NotifyEvent = EventReference.GetNotify())
+		{
+			if (const UAnimNotifyState_PoseSearchExcludeFromDatabase* ExclusionNotifyState = Cast<const UAnimNotifyState_PoseSearchExcludeFromDatabase>(NotifyEvent->NotifyStateClass))
+			{
+				FFloatRange ExclusionRange = FFloatRange::Inclusive(NotifyEvent->GetTriggerTime(), NotifyEvent->GetEndTriggerTime());
+
+				// Split every valid range based on the exclusion range just found. Because this might increase the 
+				// number of ranges in ValidRanges, the algorithm iterates from end to start.
+				for (int RangeIdx = ValidRanges.Num() - 1; RangeIdx >= 0; --RangeIdx)
+				{
+					FFloatRange EvaluatedRange = ValidRanges[RangeIdx];
+					ValidRanges.RemoveAt(RangeIdx);
+
+					TArray<FFloatRange> Diff = FFloatRange::Difference(EvaluatedRange, ExclusionRange);
+					ValidRanges.Append(Diff);
+				}
+			}
+		}
+	}
+}
 
 } // namespace UE::PoseSearch
 
@@ -539,8 +581,39 @@ bool UPoseSearchSchema::BuildQuery(UE::PoseSearch::FSearchContext& SearchContext
 }
 
 //////////////////////////////////////////////////////////////////////////
-// FPoseSearchIndexAsset
-// 
+// FPoseSearchIndex
+
+FPoseSearchIndex::FPoseSearchIndex(const FPoseSearchIndex& Other)
+	: NumPoses(Other.NumPoses)
+	, Values(Other.Values)
+	, PCAValues(Other.PCAValues)
+#if WITH_EDITORONLY_DATA
+	, PCAExplainedVariance(Other.PCAExplainedVariance)
+	, Deviation(Other.Deviation)
+#endif // WITH_EDITORONLY_DATA
+	, KDTree(Other.KDTree)
+	, PCAProjectionMatrix(Other.PCAProjectionMatrix)
+	, Mean(Other.Mean)
+	, WeightsSqrt(Other.WeightsSqrt)
+	, PoseMetadata(Other.PoseMetadata)
+	, OverallFlags(Other.OverallFlags)
+	, Assets(Other.Assets)
+	, MinCostAddend(Other.MinCostAddend)
+{
+	check(!PCAValues.IsEmpty() || KDTree.DataSource.PointCount == 0);
+	KDTree.DataSource.Data = PCAValues.IsEmpty() ? nullptr : PCAValues.GetData();
+}
+
+FPoseSearchIndex& FPoseSearchIndex::operator=(const FPoseSearchIndex& Other)
+{
+	if (this != &Other)
+	{
+		this->~FPoseSearchIndex();
+		new(this)FPoseSearchIndex(Other);
+	}
+	return *this;
+}
+
 const FPoseSearchIndexAsset& FPoseSearchIndex::GetAssetForPose(int32 PoseIdx) const
 {
 	const int32 AssetIndex = PoseMetadata[PoseIdx].AssetIndex;
@@ -560,7 +633,7 @@ const FPoseSearchIndexAsset* FPoseSearchIndex::GetAssetForPoseSafe(int32 PoseIdx
 	return nullptr;
 }
 
-float FPoseSearchIndex::GetAssetTime(int32 PoseIdx) const
+float FPoseSearchIndex::GetAssetTime(int32 PoseIdx, float SamplingInterval) const
 {
 	const FPoseSearchIndexAsset& Asset = GetAssetForPose(PoseIdx);
 
@@ -568,7 +641,7 @@ float FPoseSearchIndex::GetAssetTime(int32 PoseIdx) const
 	{
 		const FFloatInterval SamplingRange = Asset.SamplingInterval;
 
-		float AssetTime = FMath::Min(SamplingRange.Min + Schema->GetSamplingInterval() * (PoseIdx - Asset.FirstPoseIdx), SamplingRange.Max);
+		float AssetTime = FMath::Min(SamplingRange.Min + SamplingInterval * (PoseIdx - Asset.FirstPoseIdx), SamplingRange.Max);
 		return AssetTime;
 	}
 	
@@ -578,7 +651,7 @@ float FPoseSearchIndex::GetAssetTime(int32 PoseIdx) const
 
 		// For BlendSpaces the AssetTime is in the range [0, 1] while the Sampling Range
 		// is in real time (seconds)
-		float AssetTime = FMath::Min(SamplingRange.Min + Schema->GetSamplingInterval() * (PoseIdx - Asset.FirstPoseIdx), SamplingRange.Max) / (Asset.NumPoses * Schema->GetSamplingInterval());
+		float AssetTime = FMath::Min(SamplingRange.Min + SamplingInterval * (PoseIdx - Asset.FirstPoseIdx), SamplingRange.Max) / (Asset.NumPoses * SamplingInterval);
 		return AssetTime;
 	}
 	
@@ -590,14 +663,6 @@ float FPoseSearchIndex::GetAssetTime(int32 PoseIdx) const
 //////////////////////////////////////////////////////////////////////////
 // FPoseSearchIndex
 
-bool FPoseSearchIndex::IsValid() const
-{
-	const bool bSchemaValid = Schema && Schema->IsValid();
-	const bool bSearchIndexValid = bSchemaValid && (NumPoses * Schema->SchemaCardinality == Values.Num());
-
-	return bSearchIndexValid;
-}
-
 bool FPoseSearchIndex::IsEmpty() const
 {
 	const bool bEmpty = Assets.Num() == 0 || NumPoses == 0;
@@ -606,32 +671,32 @@ bool FPoseSearchIndex::IsEmpty() const
 
 TConstArrayView<float> FPoseSearchIndex::GetPoseValues(int32 PoseIdx) const
 {
-	check(PoseIdx >= 0 && PoseIdx < NumPoses && Schema && Schema->SchemaCardinality > 0);
-	const int32 ValueOffset = PoseIdx * Schema->SchemaCardinality;
-	return MakeArrayView(&Values[ValueOffset], Schema->SchemaCardinality);
+	const int32 SchemaCardinality = WeightsSqrt.Num();
+	check(PoseIdx >= 0 && PoseIdx < NumPoses && SchemaCardinality > 0);
+	const int32 ValueOffset = PoseIdx * SchemaCardinality;
+	return MakeArrayView(&Values[ValueOffset], SchemaCardinality);
 }
 
 TConstArrayView<float> FPoseSearchIndex::GetPoseValuesSafe(int32 PoseIdx) const
 {
-	if (PoseIdx >= 0 && PoseIdx < NumPoses && Schema && Schema->SchemaCardinality >= 0)
+	if (PoseIdx >= 0 && PoseIdx < NumPoses)
 	{
-		const int32 ValueOffset = PoseIdx * Schema->SchemaCardinality;
-		return MakeArrayView(&Values[ValueOffset], Schema->SchemaCardinality);
+		const int32 SchemaCardinality = WeightsSqrt.Num();
+		const int32 ValueOffset = PoseIdx * SchemaCardinality;
+		return MakeArrayView(&Values[ValueOffset], SchemaCardinality);
 	}
 	return TConstArrayView<float>();
 }
 
 void FPoseSearchIndex::Reset()
 {
-	NumPoses = 0;
-	Assets.Reset();
-	Values.Reset();
-	Schema = nullptr;
+	FPoseSearchIndex Default;
+	*this = Default;
 }
 
-FPoseSearchCost FPoseSearchIndex::ComparePoses(int32 PoseIdx, EPoseSearchBooleanRequest QueryMirrorRequest, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, TConstArrayView<float> QueryValues) const
+FPoseSearchCost FPoseSearchIndex::ComparePoses(int32 PoseIdx, EPoseSearchBooleanRequest QueryMirrorRequest, UE::PoseSearch::EPoseComparisonFlags PoseComparisonFlags, float MirrorMismatchCostBias, TConstArrayView<float> QueryValues) const
 {
-	// base dissimilarity cost representing how the assiciated PoseIdx differ, in a weighted way, from the query pose (QueryValues)
+	// base dissimilarity cost representing how the associated PoseIdx differ, in a weighted way, from the query pose (QueryValues)
 	const float DissimilarityCost = UE::PoseSearch::CompareFeatureVectors(GetPoseValues(PoseIdx), QueryValues, WeightsSqrt);
 	
 	// cost addend associated to a mismatch in mirror state between query and analyzed PoseIdx
@@ -644,8 +709,7 @@ FPoseSearchCost FPoseSearchIndex::ComparePoses(int32 PoseIdx, EPoseSearchBoolean
 			(!IndexAsset.bMirrored && QueryMirrorRequest == EPoseSearchBooleanRequest::TrueValue);
 		if (bMirroringMismatch)
 		{
-			check(Schema);
-			MirrorMismatchAddend = Schema->MirrorMismatchCostBias;
+			MirrorMismatchAddend = MirrorMismatchCostBias;
 		}
 	}
 
@@ -658,6 +722,139 @@ FPoseSearchCost FPoseSearchIndex::ComparePoses(int32 PoseIdx, EPoseSearchBoolean
 	const float ContinuingPoseCostAddend = EnumHasAnyFlags(PoseComparisonFlags, UE::PoseSearch::EPoseComparisonFlags::ContinuingPose) ? PoseIdxMetadata.ContinuingPoseCostAddend : 0.f;
 	
 	return FPoseSearchCost(DissimilarityCost, NotifyAddend, MirrorMismatchAddend, ContinuingPoseCostAddend);
+}
+
+void FPoseSearchIndex::InitSearchIndexAssets(TConstArrayView<FPoseSearchDatabaseSequence> Sequences, TConstArrayView<FPoseSearchDatabaseBlendSpace> BlendSpaces, const FPoseSearchExcludeFromDatabaseParameters& ExcludeFromDatabaseParameters)
+{
+	using namespace UE::PoseSearch;
+
+	Assets.Empty();
+
+	TArray<FFloatRange> ValidRanges;
+
+	for (int32 SequenceIdx = 0; SequenceIdx < Sequences.Num(); ++SequenceIdx)
+	{
+		const FPoseSearchDatabaseSequence& Sequence = Sequences[SequenceIdx];
+
+		if (Sequence.bEnabled)
+		{
+			const bool bAddUnmirrored = Sequence.MirrorOption == EPoseSearchMirrorOption::UnmirroredOnly || Sequence.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
+			const bool bAddMirrored = Sequence.MirrorOption == EPoseSearchMirrorOption::MirroredOnly || Sequence.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
+
+			ValidRanges.Reset();
+			FindValidSequenceIntervals(Sequence, ExcludeFromDatabaseParameters, ValidRanges);
+			for (const FFloatRange& Range : ValidRanges)
+			{
+				if (bAddUnmirrored)
+				{
+					Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::Sequence, SequenceIdx, false, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+				}
+
+				if (bAddMirrored)
+				{
+					Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::Sequence, SequenceIdx, true, FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
+				}
+			}
+		}
+	}
+
+	TArray<FBlendSampleData> BlendSamples;
+
+	for (int32 BlendSpaceIdx = 0; BlendSpaceIdx < BlendSpaces.Num(); ++BlendSpaceIdx)
+	{
+		const FPoseSearchDatabaseBlendSpace& BlendSpace = BlendSpaces[BlendSpaceIdx];
+
+		if (BlendSpace.bEnabled)
+		{
+			const bool bAddUnmirrored = BlendSpace.MirrorOption == EPoseSearchMirrorOption::UnmirroredOnly || BlendSpace.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
+			const bool bAddMirrored = BlendSpace.MirrorOption == EPoseSearchMirrorOption::MirroredOnly || BlendSpace.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
+
+			int32 HorizontalBlendNum, VerticalBlendNum;
+			BlendSpace.GetBlendSpaceParameterSampleRanges(HorizontalBlendNum, VerticalBlendNum);
+
+			const bool bWrapInputOnHorizontalAxis = BlendSpace.BlendSpace->GetBlendParameter(0).bWrapInput;
+			const bool bWrapInputOnVerticalAxis = BlendSpace.BlendSpace->GetBlendParameter(1).bWrapInput;
+			for (int32 HorizontalIndex = 0; HorizontalIndex < HorizontalBlendNum; HorizontalIndex++)
+			{
+				for (int32 VerticalIndex = 0; VerticalIndex < VerticalBlendNum; VerticalIndex++)
+				{
+					const FVector BlendParameters = BlendSpace.BlendParameterForSampleRanges(HorizontalIndex, VerticalIndex);
+
+					int32 TriangulationIndex = 0;
+					BlendSpace.BlendSpace->GetSamplesFromBlendInput(BlendParameters, BlendSamples, TriangulationIndex, true);
+
+					float PlayLength = BlendSpace.BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
+
+					if (bAddUnmirrored)
+					{
+						Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::BlendSpace, BlendSpaceIdx, false, FFloatInterval(0.0f, PlayLength), BlendParameters));
+					}
+
+					if (bAddMirrored)
+					{
+						Assets.Add(FPoseSearchIndexAsset(ESearchIndexAssetType::BlendSpace, BlendSpaceIdx, true, FFloatInterval(0.0f, PlayLength), BlendParameters));
+					}
+				}
+			}
+		}
+	}
+}
+
+
+FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)
+{
+	int32 NumValues = 0;
+	int32 NumPCAValues = 0;
+	int32 NumAssets = 0;
+
+	if (Ar.IsSaving())
+	{
+		NumValues = Index.Values.Num();
+		NumPCAValues = Index.PCAValues.Num();
+		NumAssets = Index.Assets.Num();
+	}
+
+	Ar << Index.NumPoses;
+	Ar << NumValues;
+	Ar << NumPCAValues;
+	Ar << NumAssets;
+	Ar << Index.OverallFlags;
+
+	if (Ar.IsLoading())
+	{
+		Index.Values.SetNumUninitialized(NumValues);
+		Index.PCAValues.SetNumUninitialized(NumPCAValues);
+		Index.PoseMetadata.SetNumUninitialized(Index.NumPoses);
+		Index.Assets.SetNumUninitialized(NumAssets);
+	}
+
+	if (Index.Values.Num() > 0)
+	{
+		Ar.Serialize(&Index.Values[0], Index.Values.Num() * Index.Values.GetTypeSize());
+	}
+
+	if (Index.PCAValues.Num() > 0)
+	{
+		Ar.Serialize(&Index.PCAValues[0], Index.PCAValues.Num() * Index.PCAValues.GetTypeSize());
+	}
+
+	if (Index.PoseMetadata.Num() > 0)
+	{
+		Ar.Serialize(&Index.PoseMetadata[0], Index.PoseMetadata.Num() * Index.PoseMetadata.GetTypeSize());
+	}
+
+	if (Index.Assets.Num() > 0)
+	{
+		Ar.Serialize(&Index.Assets[0], Index.Assets.Num() * Index.Assets.GetTypeSize());
+	}
+
+	Ar << Index.WeightsSqrt;
+	Ar << Index.Mean;
+	Ar << Index.PCAProjectionMatrix;
+
+	Serialize(Ar, Index.KDTree, Index.PCAValues.GetData());
+
+	return Ar;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -691,7 +888,7 @@ bool UPoseSearchSequenceMetaData::IsValidForIndexing() const
 
 bool UPoseSearchSequenceMetaData::IsValidForSearch() const
 {
-	return IsValidForIndexing() && SearchIndex.IsValid() && !SearchIndex.IsEmpty();
+	return IsValidForIndexing() && !SearchIndex.IsEmpty();
 }
 
 UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(UE::PoseSearch::FSearchContext& SearchContext) const
@@ -700,7 +897,7 @@ UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(UE::PoseSearch
 
 	FSearchResult Result;
 
-	if (!ensure(SearchIndex.IsValid() && !SearchIndex.IsEmpty()))
+	if (!ensure(Schema->IsValid() && !SearchIndex.IsEmpty()))
 	{
 		return Result;
 	}
@@ -708,7 +905,7 @@ UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(UE::PoseSearch
 	Schema->BuildQuery(SearchContext, Result.ComposedQuery);
 	TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
 
-	if (!ensure(QueryValues.Num() == SearchIndex.Schema->SchemaCardinality))
+	if (!ensure(QueryValues.Num() == Schema->SchemaCardinality))
 	{
 		return Result;
 	}
@@ -725,7 +922,7 @@ UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(UE::PoseSearch
 				continue;
 			}
 
-			const FPoseSearchCost PoseCost = SearchIndex.ComparePoses(PoseIdx, EPoseSearchBooleanRequest::Indifferent, EPoseComparisonFlags::ContinuingPose, QueryValues);
+			const FPoseSearchCost PoseCost = SearchIndex.ComparePoses(PoseIdx, EPoseSearchBooleanRequest::Indifferent, EPoseComparisonFlags::ContinuingPose, Schema->MirrorMismatchCostBias, QueryValues);
 			if (PoseCost < Result.PoseCost)
 			{
 				Result.PoseCost = PoseCost;
@@ -736,7 +933,7 @@ UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(UE::PoseSearch
 
 	if (Result.PoseIdx != INDEX_NONE)
 	{
-		Result.AssetTime = SearchIndex.GetAssetTime(Result.PoseIdx);
+		Result.AssetTime = SearchIndex.GetAssetTime(Result.PoseIdx, Schema->GetSamplingInterval());
 	}
 
 #if ENABLE_DRAW_DEBUG
@@ -754,54 +951,61 @@ UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(UE::PoseSearch
 
 UPoseSearchDatabase::~UPoseSearchDatabase()
 {
-	if (PrivateDerivedData)
-	{
 #if WITH_EDITOR
-		PrivateDerivedData->CancelCache();
+	UE::PoseSearch::FAsyncPoseSearchDatabasesManagement::Get().WaitOnExistingBuildIndex(*this, false);
 #endif
-		delete PrivateDerivedData;
-	}
 }
 
 FPoseSearchIndex* UPoseSearchDatabase::GetSearchIndex()
 {
-	if (PrivateDerivedData == nullptr)
-	{
-		return nullptr;
-	}
-
-	return &PrivateDerivedData->SearchIndex;
+	return &PoseSearchIndex;
 }
 
 const FPoseSearchIndex* UPoseSearchDatabase::GetSearchIndex() const
 {
-	return PrivateDerivedData ? &PrivateDerivedData->SearchIndex : nullptr;
+	return &PoseSearchIndex;
 }
 
 const FPoseSearchIndex* UPoseSearchDatabase::GetSearchIndexSafe(bool bVerboseLogging) const
 {
-	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
-
-	if (!SearchIndex || !SearchIndex->IsValid() || SearchIndex->IsEmpty())
+	if (!Schema)
 	{
 		if (bVerboseLogging)
 		{
-			if (!Schema)
-			{
-				UE_LOG(LogAnimation, Warning, TEXT("UPoseSearchDatabase %s failed to index. Reason: no Schema!"), *GetName());
-			}
-			else if (!Schema->IsValid())
-			{
-				UE_LOG(LogAnimation, Warning, TEXT("UPoseSearchDatabase %s failed to index. Reason: Schema %s is invalid"), *GetName(), *Schema->GetName());
-			}
-			else
-			{
-				UE_LOG(LogAnimation, Warning, TEXT("UPoseSearchDatabase %s failed to index. Reason: is there any unsaved modified asset?"), *GetName());
-			}
+			UE_LOG(LogAnimation, Warning, TEXT("UPoseSearchDatabase %s failed to index. Reason: no Schema!"), *GetName());
 		}
-		SearchIndex = nullptr;
+		return nullptr;
 	}
 
+	if (!Schema->IsValid())
+	{
+		if (bVerboseLogging)
+		{
+			UE_LOG(LogAnimation, Warning, TEXT("UPoseSearchDatabase %s failed to index. Reason: Schema %s is invalid"), *GetName(), *Schema->GetName());
+		}
+		return nullptr;
+	}
+
+	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
+	if (!SearchIndex || SearchIndex->IsEmpty())
+	{
+		if (bVerboseLogging)
+		{
+			UE_LOG(LogAnimation, Warning, TEXT("UPoseSearchDatabase %s failed to index. Reason: is there any unsaved modified asset?"), *GetName());
+		}
+		return nullptr;
+	}
+
+	// @todo: perhaps use FAsyncPoseSearchDatabasesManagement to understand if this UPoseSearchDatabase indexing task is running, instead of using this logic
+	if (!SearchIndex || SearchIndex->IsEmpty() || SearchIndex->WeightsSqrt.Num() != Schema->SchemaCardinality)
+	{
+		if (bVerboseLogging)
+		{
+			UE_LOG(LogAnimation, Warning, TEXT("UPoseSearchDatabase %s SearchIndex mismatch. Indexing..."), *GetName());
+		}
+		return nullptr;
+	}
+	
 	return SearchIndex;
 }
 
@@ -988,12 +1192,17 @@ static void AddPoseSearchNotifiesToWriter(UAnimSequence* Sequence, UE::PoseSearc
 	}
 }
 
-
-void FPoseSearchDatabaseSequence::BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
+void FPoseSearchDatabaseSequence::BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder) const
 {
-	KeyBuilder << bEnabled;
-	KeyBuilder << SamplingRange;
-	KeyBuilder << MirrorOption;
+	check(KeyBuilder.IsSaving());
+
+	bool bEnabledCopy = bEnabled;
+	FFloatInterval SamplingRangeCopy = SamplingRange;
+	EPoseSearchMirrorOption MirrorOptionCopy = MirrorOption;
+
+	KeyBuilder << bEnabledCopy;
+	KeyBuilder << SamplingRangeCopy;
+	KeyBuilder << MirrorOptionCopy;
 
 	AddRawSequenceToWriter(Sequence, KeyBuilder);
 	AddRawSequenceToWriter(LeadInSequence, KeyBuilder);
@@ -1002,13 +1211,20 @@ void FPoseSearchDatabaseSequence::BuildDerivedDataKey(UE::PoseSearch::FDerivedDa
 	AddPoseSearchNotifiesToWriter(Sequence, KeyBuilder);
 }
 
-void FPoseSearchDatabaseBlendSpace::BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
+void FPoseSearchDatabaseBlendSpace::BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder) const
 {
-	KeyBuilder << bEnabled;
-	KeyBuilder << MirrorOption;
-	KeyBuilder << bUseGridForSampling;
-	KeyBuilder << NumberOfHorizontalSamples;
-	KeyBuilder << NumberOfVerticalSamples;
+	check(KeyBuilder.IsSaving());
+	bool bEnabledCopy = bEnabled;
+	EPoseSearchMirrorOption MirrorOptionCopy = MirrorOption;
+	bool bUseGridForSamplingCopy = bUseGridForSampling;
+	int32 NumberOfHorizontalSamplesCopy = NumberOfHorizontalSamples;
+	int32 NumberOfVerticalSamplesCopy = NumberOfVerticalSamples;
+
+	KeyBuilder << bEnabledCopy;
+	KeyBuilder << MirrorOptionCopy;
+	KeyBuilder << bUseGridForSamplingCopy;
+	KeyBuilder << NumberOfHorizontalSamplesCopy;
+	KeyBuilder << NumberOfVerticalSamplesCopy;
 
 	const TArray<FBlendSample>& BlendSpaceSamples = BlendSpace->GetBlendSamples();
 	for (const FBlendSample& Sample : BlendSpaceSamples)
@@ -1023,7 +1239,7 @@ void FPoseSearchDatabaseBlendSpace::BuildDerivedDataKey(UE::PoseSearch::FDerived
 	KeyBuilder << BlendSpace->bLoop;
 }
 
-void UPoseSearchDatabase::BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder)
+void UPoseSearchDatabase::BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder) const
 {
 	KeyBuilder.Update(this);
 
@@ -1032,12 +1248,12 @@ void UPoseSearchDatabase::BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBui
 		KeyBuilder.Update(Schema.Get());
 	}
 
-	for (FPoseSearchDatabaseSequence& DbSequence : Sequences)
+	for (const FPoseSearchDatabaseSequence& DbSequence : Sequences)
 	{
 		DbSequence.BuildDerivedDataKey(KeyBuilder);
 	}
 
-	for (FPoseSearchDatabaseBlendSpace& DbBlendSpace : BlendSpaces)
+	for (const FPoseSearchDatabaseBlendSpace& DbBlendSpace : BlendSpaces)
 	{
 		DbBlendSpace.BuildDerivedDataKey(KeyBuilder);
 	}
@@ -1072,7 +1288,7 @@ bool UPoseSearchDatabase::IsValidForIndexing() const
 			const USkeleton* SeqSkeleton = DbSequence.Sequence->GetSkeleton();
 			if (!SeqSkeleton)
 			{
-				bValid = false;
+				bValid = false; 
 				break;
 			}
 		}
@@ -1099,14 +1315,13 @@ bool UPoseSearchDatabase::IsValidForIndexing() const
 
 bool UPoseSearchDatabase::IsValidForSearch() const
 {
-	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
-	bool bIsValid = IsValidForIndexing() && SearchIndex && SearchIndex->IsValid() && !SearchIndex->IsEmpty();
+	bool bIsValid = IsValidForIndexing() && GetSearchIndexSafe(false);
 
 #if WITH_EDITOR
-	const bool bIsCurrentDerivedData = 
-		PrivateDerivedData &&
-		PrivateDerivedData->PendingDerivedDataKey == PrivateDerivedData->DerivedDataKey.Hash;
-	bIsValid = bIsValid && bIsCurrentDerivedData;
+	if (bIsValid && UE::PoseSearch::FAsyncPoseSearchDatabasesManagement::Get().IsBuildingIndex(*this))
+	{
+		bIsValid = false;
+	}
 #endif // WITH_EDITOR
 
 	return bIsValid;
@@ -1116,89 +1331,6 @@ bool UPoseSearchDatabase::IsValidPoseIndex(int32 PoseIdx) const
 {
 	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
 	return SearchIndex ? SearchIndex->IsValidPoseIndex(PoseIdx) : false;
-}
-
-void UPoseSearchDatabase::CollectSimpleSequences()
-{
-	for (auto& SimpleSequence: SimpleSequences)
-	{
-		auto Predicate = [&SimpleSequence](FPoseSearchDatabaseSequence& DbSequence) -> bool
-		{
-			return DbSequence.Sequence == SimpleSequence;
-		};
-
-		if (!Sequences.ContainsByPredicate(Predicate))
-		{
-			FPoseSearchDatabaseSequence& DbSequence = Sequences.AddDefaulted_GetRef();
-			DbSequence.Sequence = SimpleSequence;
-		}
-	}
-
-	SimpleSequences.Reset();
-}
-
-void UPoseSearchDatabase::CollectSimpleBlendSpaces()
-{
-	for (auto& SimpleBlendSpace : SimpleBlendSpaces)
-	{
-		auto Predicate = [&SimpleBlendSpace](FPoseSearchDatabaseBlendSpace& DbBlendSpace) -> bool
-		{
-			return DbBlendSpace.BlendSpace == SimpleBlendSpace;
-		};
-
-		if (!BlendSpaces.ContainsByPredicate(Predicate))
-		{
-			FPoseSearchDatabaseBlendSpace& DbBlendSpace = BlendSpaces.AddDefaulted_GetRef();
-			DbBlendSpace.BlendSpace = SimpleBlendSpace;
-		}
-	}
-
-	SimpleBlendSpaces.Reset();
-}
-
-void UPoseSearchDatabase::FindValidSequenceIntervals(const FPoseSearchDatabaseSequence& DbSequence, TArray<FFloatRange>& ValidRanges) const
-{
-	const UAnimSequence* Sequence = DbSequence.Sequence;
-	check(DbSequence.Sequence);
-
-	const float SequenceLength = DbSequence.Sequence->GetPlayLength();
-
-	const FFloatInterval EffectiveSamplingInterval = UE::PoseSearch::GetEffectiveSamplingRange(DbSequence.Sequence, DbSequence.SamplingRange);
-	FFloatRange EffectiveSamplingRange = FFloatRange::Inclusive(EffectiveSamplingInterval.Min, EffectiveSamplingInterval.Max);
-	if (!DbSequence.IsLooping())
-	{
-		const FFloatRange ExcludeFromDatabaseRange(ExcludeFromDatabaseParameters.SequenceStartInterval, SequenceLength - ExcludeFromDatabaseParameters.SequenceEndInterval);
-		EffectiveSamplingRange = FFloatRange::Intersection(EffectiveSamplingRange, ExcludeFromDatabaseRange);
-	}
-
-	// start from a single interval defined by the database sequence sampling range
-	ValidRanges.Empty();
-	ValidRanges.Add(EffectiveSamplingRange);
-
-	FAnimNotifyContext NotifyContext;
-	Sequence->GetAnimNotifies(0.0f, SequenceLength, NotifyContext);
-
-	for (const FAnimNotifyEventReference& EventReference : NotifyContext.ActiveNotifies)
-	{
-		if (const FAnimNotifyEvent* NotifyEvent = EventReference.GetNotify())
-		{
-			if (const UAnimNotifyState_PoseSearchExcludeFromDatabase* ExclusionNotifyState = Cast<const UAnimNotifyState_PoseSearchExcludeFromDatabase>(NotifyEvent->NotifyStateClass))
-			{
-				FFloatRange ExclusionRange = FFloatRange::Inclusive(NotifyEvent->GetTriggerTime(), NotifyEvent->GetEndTriggerTime());
-
-				// Split every valid range based on the exclusion range just found. Because this might increase the 
-				// number of ranges in ValidRanges, the algorithm iterates from end to start.
-				for (int RangeIdx = ValidRanges.Num() - 1; RangeIdx >= 0; --RangeIdx)
-				{
-					FFloatRange EvaluatedRange = ValidRanges[RangeIdx];
-					ValidRanges.RemoveAt(RangeIdx);
-
-					TArray<FFloatRange> Diff = FFloatRange::Difference(EvaluatedRange, ExclusionRange);
-					ValidRanges.Append(Diff);
-				}
-			}
-		}
-	}
 }
 
 UAnimationAsset* FPoseSearchDatabaseBlendSpace::GetAnimationAsset() const
@@ -1261,139 +1393,10 @@ FVector FPoseSearchDatabaseBlendSpace::BlendParameterForSampleRanges(int32 Horiz
 		0.0f);
 }
 
-bool UPoseSearchDatabase::TryInitSearchIndexAssets(FPoseSearchIndex& OutSearchIndex) const
-{
-	OutSearchIndex.Assets.Empty();
-	
-	bool bAnyMirrored = false;
-	
-	TArray<FFloatRange> ValidRanges;
-
-	for (int32 SequenceIdx = 0; SequenceIdx < Sequences.Num(); ++SequenceIdx)
-	{
-		const FPoseSearchDatabaseSequence& Sequence = Sequences[SequenceIdx];
-
-		if (!Sequence.bEnabled)
-		{
-			continue;
-		}
-
-		bool bAddUnmirrored = 
-			Sequence.MirrorOption == EPoseSearchMirrorOption::UnmirroredOnly ||
-			Sequence.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
-		bool bAddMirrored =
-			Sequence.MirrorOption == EPoseSearchMirrorOption::MirroredOnly ||
-			Sequence.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
-
-		ValidRanges.Reset();
-		FindValidSequenceIntervals(Sequence, ValidRanges);
-		for (const FFloatRange& Range : ValidRanges)
-		{
-			if (bAddUnmirrored)
-			{
-				OutSearchIndex.Assets.Add(
-					FPoseSearchIndexAsset(
-						ESearchIndexAssetType::Sequence,
-						SequenceIdx,
-						false,
-						FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
-			}
-
-			if (bAddMirrored)
-			{
-				OutSearchIndex.Assets.Add(
-					FPoseSearchIndexAsset(
-						ESearchIndexAssetType::Sequence,
-						SequenceIdx,
-						true,
-						FFloatInterval(Range.GetLowerBoundValue(), Range.GetUpperBoundValue())));
-				bAnyMirrored = true;
-			}
-		}
-	}
-
-	TArray<FBlendSampleData> BlendSamples;
-
-	for (int32 BlendSpaceIdx = 0; BlendSpaceIdx < BlendSpaces.Num(); ++BlendSpaceIdx)
-	{
-		const FPoseSearchDatabaseBlendSpace& BlendSpace = BlendSpaces[BlendSpaceIdx];
-
-		if (!BlendSpace.bEnabled)
-		{
-			continue;
-		}
-
-		bool bAddUnmirrored =
-			BlendSpace.MirrorOption == EPoseSearchMirrorOption::UnmirroredOnly ||
-			BlendSpace.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
-		bool bAddMirrored =
-			BlendSpace.MirrorOption == EPoseSearchMirrorOption::MirroredOnly ||
-			BlendSpace.MirrorOption == EPoseSearchMirrorOption::UnmirroredAndMirrored;
-
-		int32 HorizontalBlendNum, VerticalBlendNum;
-		BlendSpace.GetBlendSpaceParameterSampleRanges(HorizontalBlendNum, VerticalBlendNum);
-
-		const bool bWrapInputOnHorizontalAxis = BlendSpace.BlendSpace->GetBlendParameter(0).bWrapInput;
-		const bool bWrapInputOnVerticalAxis = BlendSpace.BlendSpace->GetBlendParameter(1).bWrapInput;
-		for (int32 HorizontalIndex = 0; HorizontalIndex < HorizontalBlendNum; HorizontalIndex++)
-		{
-			for (int32 VerticalIndex = 0; VerticalIndex < VerticalBlendNum; VerticalIndex++)
-			{
-				const FVector BlendParameters = BlendSpace.BlendParameterForSampleRanges(HorizontalIndex, VerticalIndex);
-						
-				int32 TriangulationIndex = 0;
-				BlendSpace.BlendSpace->GetSamplesFromBlendInput(BlendParameters, BlendSamples, TriangulationIndex, true);
-
-				float PlayLength = BlendSpace.BlendSpace->GetAnimationLengthFromSampleData(BlendSamples);
-
-				if (bAddUnmirrored)
-				{
-					OutSearchIndex.Assets.Add(
-						FPoseSearchIndexAsset(
-							ESearchIndexAssetType::BlendSpace,
-							BlendSpaceIdx,
-							false,
-							FFloatInterval(0.0f, PlayLength),
-							BlendParameters));
-				}
-
-				if (bAddMirrored)
-				{
-					OutSearchIndex.Assets.Add(
-						FPoseSearchIndexAsset(
-							ESearchIndexAssetType::BlendSpace,
-							BlendSpaceIdx,
-							true,
-							FFloatInterval(0.0f, PlayLength),
-							BlendParameters));
-					bAnyMirrored = true;
-				}
-			}
-		}
-	}
-
-	if (bAnyMirrored && !Schema->MirrorDataTable)
-	{
-		UE_LOG(
-			LogPoseSearch, 
-			Error, 
-			TEXT("Database %s is asking for mirrored sequences but MirrorDataBase is null in %s"),
-			*GetNameSafe(this), 
-			*GetNameSafe(Schema));
-		OutSearchIndex.Assets.Empty();
-		return false;
-	}
-
-	return true;
-}
-
 void UPoseSearchDatabase::PostLoad()
 {
 #if WITH_EDITOR
-	if (!PrivateDerivedData)
-	{
-		BeginCacheDerivedData();
-	}
+	UE::PoseSearch::FAsyncPoseSearchDatabasesManagement::Get().RequestAsyncBuildIndex(*this);
 #endif
 
 	Super::PostLoad();
@@ -1409,224 +1412,59 @@ void UPoseSearchDatabase::UnregisterOnDerivedDataRebuild(void* Unregister)
 	OnDerivedDataRebuild.RemoveAll(Unregister);
 }
 
-void UPoseSearchDatabase::NotifyDerivedDataBuildStarted()
+void UPoseSearchDatabase::NotifyDerivedDataBuildStarted() const
 {
 	OnDerivedDataRebuild.Broadcast();
-}
-
-void UPoseSearchDatabase::RegisterOnAssetChange(const FOnAssetChange& Delegate)
-{
-	OnAssetChange.Add(Delegate);
-}
-
-void UPoseSearchDatabase::UnregisterOnAssetChange(void* Unregister)
-{
-	OnAssetChange.RemoveAll(Unregister);
-}
-
-void UPoseSearchDatabase::NotifyAssetChange()
-{
-	OnAssetChange.Broadcast();
-}
-
-void UPoseSearchDatabase::RegisterOnGroupChange(const FOnGroupChange& Delegate)
-{
-	OnGroupChange.Add(Delegate);
-}
-
-void UPoseSearchDatabase::UnregisterOnGroupChange(void* Unregister)
-{
-	OnGroupChange.RemoveAll(Unregister);
-}
-
-void UPoseSearchDatabase::NotifyGroupChange()
-{
-	OnGroupChange.Broadcast();
-}
-
-void UPoseSearchDatabase::BeginCacheDerivedData()
-{
-	bool bPerformCache = true;
-			
-	using namespace UE::DerivedData;
-	if (PrivateDerivedData)
-	{
-		const FIoHash ExistingDerivedDataHash = PrivateDerivedData->PendingDerivedDataKey;
-		if (!ExistingDerivedDataHash.IsZero())
-		{
-			const FIoHash CurrentHash = UE::PoseSearch::FPoseSearchDatabaseAsyncCacheTask::CreateKey(*this);
-			if (ExistingDerivedDataHash == CurrentHash)
-			{
-				bPerformCache = false;
-			}
-		}
-	}
-
-	if (bPerformCache)
-	{
-		if (!PrivateDerivedData)
-		{
-			PrivateDerivedData = new FPoseSearchDatabaseDerivedData();
-		}
-
-		PrivateDerivedData->Cache(*this, false);
-	}
-}
-
-FIoHash UPoseSearchDatabase::GetSearchIndexHash() const
-{
-	if (!PrivateDerivedData)
-	{
-		return FIoHash::Zero;
-	}
-
-	return PrivateDerivedData->DerivedDataKey.Hash;
-}
-
-bool UPoseSearchDatabase::IsDerivedDataBuildPending() const
-{
-	if (!PrivateDerivedData)
-	{
-		return true;
-	}
-
-	return PrivateDerivedData->DerivedDataKey.Hash != PrivateDerivedData->PendingDerivedDataKey;
-}
-#endif // WITH_EDITOR
-
-
-void UPoseSearchDatabase::PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext)
-{
-	Super::PostSaveRoot(ObjectSaveContext);
-
-#if WITH_EDITOR
-	if (!IsTemplate() && !ObjectSaveContext.IsProceduralSave())
-	{
-		if (IsValidForIndexing())
-		{
-			if (!PrivateDerivedData)
-			{
-				PrivateDerivedData = new FPoseSearchDatabaseDerivedData();
-			}
-
-			PrivateDerivedData->Cache(*this, true);
-		}
-	}
-#endif
-}
-
-void UPoseSearchDatabase::Serialize(FArchive& Ar)
-{
-	using namespace UE::PoseSearch;
-
- 	Super::Serialize(Ar);
-
-	if (Ar.IsFilterEditorOnly())
-	{
-		if (Ar.IsLoading())
-		{
-			if (!PrivateDerivedData)
-			{
-				PrivateDerivedData = new FPoseSearchDatabaseDerivedData();
-				PrivateDerivedData->SearchIndex.Schema = Schema;
-			}
-		}
-		
-		if (Ar.IsLoading() || (Ar.IsCooking() && IsDerivedDataValid()))
-		{
-			FPoseSearchIndex* SearchIndex = GetSearchIndex();
-			Ar << *SearchIndex;
-		}
-		else
-		{
-			UE_LOG(
-				LogPoseSearch,
-				Warning,
-				TEXT("Invalid condition in UPoseSearchDatabase::Serialize for asset %s. It might be that the asset has a missing or invalid schema. IsLoading: %d, IsCooking: %d, IsDerivedDataValid: %d"),
-				*GetNameSafe(this),
-				Ar.IsLoading(), Ar.IsCooking(), IsDerivedDataValid());
-		}
-	}
-}
-
-bool UPoseSearchDatabase::IsDerivedDataValid()
-{
-	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
-	bool bIsValid = SearchIndex && SearchIndex->IsValid();
-	return bIsValid;
-}
-
-#if WITH_EDITOR
-void UPoseSearchDatabase::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	bool bAssetChange = false;
-
-	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, SimpleSequences))
-	{
-		if (!SimpleSequences.IsEmpty())
-		{
-			CollectSimpleSequences();
-			bAssetChange = true;
-		}
-	}
-
-	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, SimpleBlendSpaces))
-	{
-		if (!SimpleBlendSpaces.IsEmpty())
-		{
-			CollectSimpleBlendSpaces();
-			bAssetChange = true;
-		}
-	}
-
-	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, Sequences) ||
-		PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UPoseSearchDatabase, BlendSpaces))
-	{
-		bAssetChange = true;
-	}
-
-	if (bAssetChange)
-	{
-		NotifyAssetChange();
-	}
-
-	BeginCacheDerivedData();
 }
 
 void UPoseSearchDatabase::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
 {
 	Super::BeginCacheForCookedPlatformData(TargetPlatform);
-
-	BeginCacheDerivedData();
+	UE::PoseSearch::FAsyncPoseSearchDatabasesManagement::Get().RequestAsyncBuildIndex(*this, false, true);
 }
 
 bool UPoseSearchDatabase::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
 {
 	check(IsInGameThread());
 
-	if (!PrivateDerivedData)
+	if (!UE::PoseSearch::FAsyncPoseSearchDatabasesManagement::Get().IsBuildingIndex(*this))
 	{
-		PrivateDerivedData = new FPoseSearchDatabaseDerivedData();
-		PrivateDerivedData->Cache(*this, true);
-		return false;
+		if (IsValidForSearch())
+		{
+			return true;
+		}
+
+		UE::PoseSearch::FAsyncPoseSearchDatabasesManagement::Get().RequestAsyncBuildIndex(*this, false, true);
 	}
 
-	if (PrivateDerivedData->AsyncTask && PrivateDerivedData->AsyncTask->Poll())
-	{
-		PrivateDerivedData->FinishCache();
-	}
+	return false;
+}
+#endif // WITH_EDITOR
 
-	if (PrivateDerivedData->AsyncTask)
+void UPoseSearchDatabase::PostSaveRoot(FObjectPostSaveRootContext ObjectSaveContext)
+{
+#if WITH_EDITOR
+	if (!IsTemplate() && !ObjectSaveContext.IsProceduralSave())
 	{
-		return false;
+		UE::PoseSearch::FAsyncPoseSearchDatabasesManagement::Get().RequestAsyncBuildIndex(*this, true, true);
 	}
+#endif
 
-	return true;
+	Super::PostSaveRoot(ObjectSaveContext);
 }
 
-#endif // WITH_EDITOR
+void UPoseSearchDatabase::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	if (Ar.IsFilterEditorOnly())
+	{
+		if (Ar.IsLoading() || Ar.IsCooking())
+		{
+			Ar << PoseSearchIndex;
+		}
+	}
+}
 
 UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(UE::PoseSearch::FSearchContext& SearchContext) const
 {
@@ -1635,7 +1473,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(UE::PoseSearch::FSearc
 	FSearchResult Result;
 
 #if WITH_EDITOR
-	if (IsDerivedDataBuildPending())
+	if (UE::PoseSearch::FAsyncPoseSearchDatabasesManagement::Get().IsBuildingIndex(*this))
 	{
 		return Result;
 	}
@@ -1739,7 +1577,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 	if (!SearchContext.bForceInterrupt && IsCurrentResultFromThisDatabase && SearchContext.bCanAdvance && !Result.ContinuingPoseCost.IsValid())
 	{
 		Result.PoseIdx = SearchContext.CurrentResult.PoseIdx;
-		Result.PoseCost = SearchIndex->ComparePoses(Result.PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::ContinuingPose, QueryValues);
+		Result.PoseCost = SearchIndex->ComparePoses(Result.PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::ContinuingPose, Schema->MirrorMismatchCostBias, QueryValues);
 		Result.ContinuingPoseCost = Result.PoseCost;
 
 		if (GetSkipSearchIfPossible())
@@ -1771,7 +1609,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 		SearchIndex->KDTree.FindNeighbors(ResultSet, ProjectedQueryValues.data());
 
 		// NonSelectableIdx are already filtered out inside the kdtree search
-		const FPoseFilters PoseFilters(SearchIndex->Schema, TConstArrayView<size_t>(), SearchIndex->OverallFlags);
+		const FPoseFilters PoseFilters(Schema, TConstArrayView<size_t>(), SearchIndex->OverallFlags);
 		for (size_t ResultIndex = 0; ResultIndex < ResultSet.Num(); ++ResultIndex)
 		{
 			const int32 PoseIdx = ResultIndexes[ResultIndex];
@@ -1781,7 +1619,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 #endif
 			))
 			{
-				const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, QueryValues);
+				const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, Schema->MirrorMismatchCostBias, QueryValues);
 				if (PoseCost < Result.PoseCost)
 				{
 					Result.PoseCost = PoseCost;
@@ -1811,11 +1649,8 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(UE::PoseSearc
 	// finalizing Result properties
 	if (Result.PoseIdx != INDEX_NONE)
 	{
-		Result.AssetTime = SearchIndex->GetAssetTime(Result.PoseIdx);
+		Result.AssetTime = SearchIndex->GetAssetTime(Result.PoseIdx, Schema->GetSamplingInterval());
 		Result.Database = this;
-#if WITH_EDITOR
-		Result.SearchIndexHash = GetSearchIndexHash();
-#endif // WITH_EDITOR
 	}
 
 	return Result;
@@ -1843,7 +1678,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 		if (SearchContext.bCanAdvance && !Result.ContinuingPoseCost.IsValid())
 		{
 			Result.PoseIdx = SearchContext.CurrentResult.PoseIdx;
-			Result.PoseCost = SearchIndex->ComparePoses(Result.PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::ContinuingPose, QueryValues);
+			Result.PoseCost = SearchIndex->ComparePoses(Result.PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::ContinuingPose, Schema->MirrorMismatchCostBias, QueryValues);
 			Result.ContinuingPoseCost = Result.PoseCost;
 
 			if (GetSkipSearchIfPossible())
@@ -1861,7 +1696,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 		PopulateNonSelectableIdx(NonSelectableIdx, SearchContext, this, QueryValues);
 		check(Algo::IsSorted(NonSelectableIdx));
 
-		const FPoseFilters PoseFilters(SearchIndex->Schema, NonSelectableIdx, SearchIndex->OverallFlags);
+		const FPoseFilters PoseFilters(Schema, NonSelectableIdx, SearchIndex->OverallFlags);
 		for (int32 PoseIdx = 0; PoseIdx < SearchIndex->NumPoses; ++PoseIdx)
 		{
 			if (PoseFilters.AreFiltersValid(SearchIndex, QueryValues, PoseIdx, SearchIndex->PoseMetadata[PoseIdx]
@@ -1870,7 +1705,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 #endif
 			))
 			{
-				const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, QueryValues);
+				const FPoseSearchCost PoseCost = SearchIndex->ComparePoses(PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::None, Schema->MirrorMismatchCostBias, QueryValues);
 				if (PoseCost < Result.PoseCost)
 				{
 					Result.PoseCost = PoseCost;
@@ -1903,11 +1738,8 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchBruteForce(UE::PoseSear
 	// finalizing Result properties
 	if (Result.PoseIdx != INDEX_NONE)
 	{
-		Result.AssetTime = SearchIndex->GetAssetTime(Result.PoseIdx);
+		Result.AssetTime = SearchIndex->GetAssetTime(Result.PoseIdx, Schema->GetSamplingInterval());
 		Result.Database = this;
-#if WITH_EDITOR
-		Result.SearchIndexHash = GetSearchIndexHash();
-#endif // WITH_EDITOR
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -1949,15 +1781,12 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(UE::PoseSearch::FSe
 			TConstArrayView<float> QueryValues = Result.ComposedQuery.GetValues();
 
 			Result.PoseIdx = SearchContext.CurrentResult.PoseIdx;
-			Result.PoseCost = SearchIndex->ComparePoses(Result.PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::ContinuingPose, QueryValues);
+			Result.PoseCost = SearchIndex->ComparePoses(Result.PoseIdx, SearchContext.QueryMirrorRequest, EPoseComparisonFlags::ContinuingPose, Database->Schema->MirrorMismatchCostBias, QueryValues);
 			Result.ContinuingPoseCost = Result.PoseCost;
 			ContinuingCost = Result.PoseCost;
 
-			Result.AssetTime = SearchIndex->GetAssetTime(Result.PoseIdx);
+			Result.AssetTime = SearchIndex->GetAssetTime(Result.PoseIdx, Database->Schema->GetSamplingInterval());
 			Result.Database = Database;
-#if WITH_EDITOR
-			Result.SearchIndexHash = Database->GetSearchIndexHash();
-#endif // WITH_EDITOR
 
 			if (Database->GetSkipSearchIfPossible())
 			{
@@ -2097,11 +1926,7 @@ FTransform FSearchContext::TryGetTransformAndCacheResults(float SampleTime, cons
 			// adding bunch of entries, without caring about adding eventual duplicates
 			for (const FBoneIndexType NewEntryBoneIndexType : Schema->BoneIndicesWithParents)
 			{
-				// @todo: maybe add them with a single allocation with CachedEntries.AddDefaulted(Schema->BoneIndicesWithParents.Num())
-				FCachedEntry& NewEntry = CachedEntries[CachedEntries.AddDefaulted()];
-				NewEntry.SampleTime = SampleTime;
-				NewEntry.BoneIndexType = NewEntryBoneIndexType;
-				NewEntry.Transform = SampledComponentPose[NewEntryBoneIndexType];
+				CachedEntries.Emplace(SampleTime, SampledComponentPose[NewEntryBoneIndexType], NewEntryBoneIndexType);
 			}
 
 			bError = false;
@@ -2615,7 +2440,7 @@ bool FDebugDrawParams::CanDraw() const
 		return false;
 	}
 
-	return SearchIndex->IsValid() && !SearchIndex->IsEmpty() && SearchIndex->Schema->SchemaCardinality > 0;
+	return true;
 #else // ENABLE_DRAW_DEBUG
 	return false;
 #endif // ENABLE_DRAW_DEBUG
@@ -2664,7 +2489,7 @@ const FPoseSearchIndex* FDebugDrawParams::GetSearchIndex() const
 {
 	if (Database)
 	{
-		return Database->GetSearchIndex();
+		return Database->GetSearchIndexSafe(false);
 	}
 
 	if (SequenceMetaData)
@@ -2745,17 +2570,7 @@ void FSearchResult::Update(float NewAssetTime)
 
 bool FSearchResult::IsValid() const
 {
-	bool bIsValid =
-		PoseIdx != INDEX_NONE &&
-		Database.IsValid();
-
-#if WITH_EDITOR
-	bIsValid = bIsValid &&
-		!Database->IsDerivedDataBuildPending() &&
-		Database->GetSearchIndexHash() == SearchIndexHash;
-#endif // WITH_EDITOR
-
-	return bIsValid;
+	return PoseIdx != INDEX_NONE && Database.IsValid();
 }
 
 void FSearchResult::Reset()
@@ -2764,10 +2579,6 @@ void FSearchResult::Reset()
 	Database = nullptr;
 	ComposedQuery.Reset();
 	AssetTime = 0.0f;
-
-#if WITH_EDITOR
-	SearchIndexHash = FIoHash::Zero;
-#endif // WITH_EDITOR
 }
 
 const FPoseSearchIndexAsset* FSearchResult::GetSearchIndexAsset(bool bMandatory) const
@@ -3574,7 +3385,8 @@ static FSamplingParam WrapOrClampSamplingParam(bool bCanWrap, float SamplingPara
 
 	Result.WrappedParam = SamplingParam;
 
-	if (bCanWrap)
+	const bool bIsSamplingParamExtentKindaSmall = SamplingParamExtent <= UE_KINDA_SMALL_NUMBER;
+	if (!bIsSamplingParamExtentKindaSmall && bCanWrap)
 	{
 		if (SamplingParam < 0.0f)
 		{
@@ -3595,14 +3407,14 @@ static FSamplingParam WrapOrClampSamplingParam(bool bCanWrap, float SamplingPara
 		}
 	}
 
-	float ParamClamped = FMath::Clamp(Result.WrappedParam, 0.0f, SamplingParamExtent);
+	const float ParamClamped = FMath::Clamp(Result.WrappedParam, 0.0f, SamplingParamExtent);
 	if (ParamClamped != Result.WrappedParam)
 	{
-		check(!bCanWrap);
+		check(bIsSamplingParamExtentKindaSmall || !bCanWrap);
 		Result.Extrapolation = Result.WrappedParam - ParamClamped;
 		Result.WrappedParam = ParamClamped;
 	}
-	
+
 	return Result;
 }
 
@@ -3818,13 +3630,10 @@ FAssetIndexer::FSampleInfo FAssetIndexer::GetSampleInfo(float SampleTime) const
 	float RootDistanceLast = 0.0f;
 	float RootDistanceInitial = 0.0f;
 
-	auto CanWrapTimeSamples = [](const IAssetSampler* Sampler) -> bool
-	{
-		return Sampler->IsLoopable();
-	};
+	check(IndexingContext.MainSampler);
 
-	float MainPlayLength = IndexingContext.MainSampler->GetPlayLength();
-	bool bMainCanWrap = CanWrapTimeSamples(IndexingContext.MainSampler);
+	const float MainPlayLength = IndexingContext.MainSampler->GetPlayLength();
+	const bool bMainCanWrap = IndexingContext.MainSampler->IsLoopable();
 
 	FSamplingParam SamplingParam;
 	if (!bMainCanWrap)
@@ -3834,8 +3643,8 @@ FAssetIndexer::FSampleInfo FAssetIndexer::GetSampleInfo(float SampleTime) const
 		{
 			const IAssetSampler* ClipSampler = IndexingContext.LeadInSampler;
 
-			bool bLeadInCanWrap = CanWrapTimeSamples(IndexingContext.LeadInSampler);
-			float LeadRelativeTime = SampleTime + ClipSampler->GetPlayLength();
+			const bool bLeadInCanWrap = IndexingContext.LeadInSampler->IsLoopable();
+			const float LeadRelativeTime = SampleTime + ClipSampler->GetPlayLength();
 			SamplingParam = WrapOrClampSamplingParam(bLeadInCanWrap, ClipSampler->GetPlayLength(), LeadRelativeTime);
 
 			Sample.Clip = IndexingContext.LeadInSampler;
@@ -3861,8 +3670,8 @@ FAssetIndexer::FSampleInfo FAssetIndexer::GetSampleInfo(float SampleTime) const
 		{
 			const IAssetSampler* ClipSampler = IndexingContext.FollowUpSampler;
 
-			bool bFollowUpCanWrap = CanWrapTimeSamples(IndexingContext.FollowUpSampler);
-			float FollowRelativeTime = SampleTime - MainPlayLength;
+			const bool bFollowUpCanWrap = IndexingContext.FollowUpSampler->IsLoopable();
+			const float FollowRelativeTime = SampleTime - MainPlayLength;
 			SamplingParam = WrapOrClampSamplingParam(bFollowUpCanWrap, ClipSampler->GetPlayLength(), FollowRelativeTime);
 
 			Sample.Clip = IndexingContext.FollowUpSampler;
@@ -4118,7 +3927,7 @@ void DrawSearchIndex(const FDebugDrawParams& DrawParams)
 #endif // ENABLE_DRAW_DEBUG
 }
 
-static Eigen::VectorXd ComputeChannelsDeviations(const FPoseSearchIndex* SearchIndex)
+static Eigen::VectorXd ComputeChannelsDeviations(const FPoseSearchIndex& SearchIndex, const UPoseSearchSchema* Schema)
 {
 	// This function performs a modified z-score normalization where features are normalized
 	// by mean absolute deviation rather than standard deviation. Both methods are preferable
@@ -4135,10 +3944,10 @@ static Eigen::VectorXd ComputeChannelsDeviations(const FPoseSearchIndex* SearchI
 
 	using namespace Eigen;
 
-	check(SearchIndex->IsValid());
+	check(Schema->IsValid());
 
-	const int32 NumPoses = SearchIndex->NumPoses;
-	const int32 NumDimensions = SearchIndex->Schema->SchemaCardinality;
+	const int32 NumPoses = SearchIndex.NumPoses;
+	const int32 NumDimensions = Schema->SchemaCardinality;
 
 	// Compute per Channel average distances
 	VectorXd MeanDeviations(NumDimensions);
@@ -4148,7 +3957,7 @@ static Eigen::VectorXd ComputeChannelsDeviations(const FPoseSearchIndex* SearchI
 	{
 		// Map input buffer
 		auto PoseMatrixSourceMap = RowMajorMatrixMapConst(
-			SearchIndex->Values.GetData(),
+			SearchIndex.Values.GetData(),
 			NumPoses,		// rows
 			NumDimensions	// cols
 		);
@@ -4164,9 +3973,9 @@ static Eigen::VectorXd ComputeChannelsDeviations(const FPoseSearchIndex* SearchI
 		VectorXd SampleMean = PoseMatrix.rowwise().mean();
 		PoseMatrix = PoseMatrix.colwise() - SampleMean;
 
-		for (int ChannelIdx = 0; ChannelIdx != SearchIndex->Schema->Channels.Num(); ++ChannelIdx)
+		for (int ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
 		{
-			const UPoseSearchFeatureChannel* Channel = SearchIndex->Schema->Channels[ChannelIdx].Get();
+			const UPoseSearchFeatureChannel* Channel = Schema->Channels[ChannelIdx].Get();
 			Channel->ComputeMeanDeviations(PoseMatrix, MeanDeviations);
 		}
 	}
@@ -4174,18 +3983,18 @@ static Eigen::VectorXd ComputeChannelsDeviations(const FPoseSearchIndex* SearchI
 	return MeanDeviations;
 }
 
-static void PreprocessSearchIndexWeights(FPoseSearchIndex& SearchIndex, const UPoseSearchDatabase* Database)
+static void PreprocessSearchIndexWeights(FPoseSearchIndex& SearchIndex, const UPoseSearchSchema* Schema)
 {
-	const int32 NumDimensions = Database->Schema->SchemaCardinality;
+	const int32 NumDimensions = Schema->SchemaCardinality;
 	SearchIndex.WeightsSqrt.Init(1.f, NumDimensions);
 
-	for (int ChannelIdx = 0; ChannelIdx != Database->Schema->Channels.Num(); ++ChannelIdx)
+	for (int ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
 	{
-		const UPoseSearchFeatureChannel* Channel = Database->Schema->Channels[ChannelIdx].Get();
+		const UPoseSearchFeatureChannel* Channel = Schema->Channels[ChannelIdx].Get();
 		Channel->FillWeights(SearchIndex.WeightsSqrt);
 	}
 
-	Eigen::VectorXd ChannelsMeanDeviations = ComputeChannelsDeviations(Database->GetSearchIndex());
+	Eigen::VectorXd ChannelsMeanDeviations = ComputeChannelsDeviations(SearchIndex, Schema);
 	TArray<float> Deviation;
 	Deviation.Init(1.f, NumDimensions);
 	for (int32 Dimension = 0; Dimension != NumDimensions; ++Dimension)
@@ -4194,7 +4003,7 @@ static void PreprocessSearchIndexWeights(FPoseSearchIndex& SearchIndex, const UP
 		Deviation[Dimension] = ChannelsMeanDeviation;
 	}
 
-	EPoseSearchDataPreprocessor DataPreprocessor = Database->GetSearchIndex()->Schema->DataPreprocessor;
+	EPoseSearchDataPreprocessor DataPreprocessor = Schema->DataPreprocessor;
 
 	if (DataPreprocessor == EPoseSearchDataPreprocessor::Normalize)
 	{
@@ -4228,13 +4037,10 @@ static void PreprocessSearchIndexWeights(FPoseSearchIndex& SearchIndex, const UP
 }
 
 // it calculates Mean, PCAValues, and PCAProjectionMatrix
-static void PreprocessSearchIndexPCAData(FPoseSearchIndex& SearchIndex, const UPoseSearchDatabase* Database)
+static void PreprocessSearchIndexPCAData(FPoseSearchIndex& SearchIndex, int32 NumDimensions, uint32 NumberOfPrincipalComponents, EPoseSearchMode PoseSearchMode)
 {
 	// binding SearchIndex.Values and SearchIndex.PCAValues Eigen row major matrix maps
-	check(Database && Database->Schema);
 	const int32 NumPoses = SearchIndex.NumPoses;
-	const uint32 NumberOfPrincipalComponents = Database->GetNumberOfPrincipalComponents();
-	const int32 NumDimensions = Database->Schema->SchemaCardinality;
 
 	SearchIndex.PCAValues.Reset();
 	SearchIndex.Mean.Reset();
@@ -4273,7 +4079,7 @@ static void PreprocessSearchIndexPCAData(FPoseSearchIndex& SearchIndex, const UP
 		// validating EigenSolver results
 		const ColMajorMatrix EigenVectors = EigenSolver.eigenvectors().real();
 
-		if (Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate && NumberOfPrincipalComponents == NumDimensions)
+		if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate && NumberOfPrincipalComponents == NumDimensions)
 		{
 			const RowMajorVector ReciprocalWeightsSqrt = MapWeightsSqrt.cwiseInverse();
 			const RowMajorMatrix ProjectedValues = CenteredValues * EigenVectors;
@@ -4317,7 +4123,7 @@ static void PreprocessSearchIndexPCAData(FPoseSearchIndex& SearchIndex, const UP
 
 		MapPCAValues = CenteredValues * PCAProjectionMatrix;
 
-		if (Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate && NumberOfPrincipalComponents == NumDimensions)
+		if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate && NumberOfPrincipalComponents == NumDimensions)
 		{
 			const RowMajorVector ReciprocalWeightsSqrt = MapWeightsSqrt.cwiseInverse();
 			for (Eigen::Index RowIndex = 0; RowIndex < MapValues.rows(); ++RowIndex)
@@ -4331,13 +4137,12 @@ static void PreprocessSearchIndexPCAData(FPoseSearchIndex& SearchIndex, const UP
 	}
 }
 
-static void PreprocessSearchIndexKDTree(FPoseSearchIndex& SearchIndex, const UPoseSearchDatabase* Database)
+static void PreprocessSearchIndexKDTree(FPoseSearchIndex& SearchIndex, int32 NumDimensions, uint32 NumberOfPrincipalComponents, EPoseSearchMode PoseSearchMode, int32 KDTreeMaxLeafSize, int32 KDTreeQueryNumNeighbors)
 {
 	const int32 NumPoses = SearchIndex.NumPoses;
-	const uint32 NumberOfPrincipalComponents = Database->GetNumberOfPrincipalComponents();
-	SearchIndex.KDTree.Construct(NumPoses, NumberOfPrincipalComponents, SearchIndex.PCAValues.GetData(), Database->KDTreeMaxLeafSize);
+	SearchIndex.KDTree.Construct(NumPoses, NumberOfPrincipalComponents, SearchIndex.PCAValues.GetData(), KDTreeMaxLeafSize);
 
-	if (Database->PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate)
+	if (PoseSearchMode == EPoseSearchMode::PCAKDTree_Validate)
 	{
 		// testing the KDTree is returning the proper searches for all the points in pca space
 		int32 NumberOfFailingPoints = 0;
@@ -4345,9 +4150,9 @@ static void PreprocessSearchIndexKDTree(FPoseSearchIndex& SearchIndex, const UPo
 		{
 			TArray<size_t> ResultIndexes;
 			TArray<float> ResultDistanceSqr;
-			ResultIndexes.SetNum(Database->KDTreeQueryNumNeighbors + 1);
-			ResultDistanceSqr.SetNum(Database->KDTreeQueryNumNeighbors + 1);
-			FKDTree::KNNResultSet ResultSet(Database->KDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
+			ResultIndexes.SetNum(KDTreeQueryNumNeighbors + 1);
+			ResultDistanceSqr.SetNum(KDTreeQueryNumNeighbors + 1);
+			FKDTree::KNNResultSet ResultSet(KDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
 			SearchIndex.KDTree.FindNeighbors(ResultSet, &SearchIndex.PCAValues[PointIndex * NumberOfPrincipalComponents]);
 
 			size_t ResultIndex = 0;
@@ -4369,14 +4174,13 @@ static void PreprocessSearchIndexKDTree(FPoseSearchIndex& SearchIndex, const UPo
 
 		// testing the KDTree is returning the proper searches for all the original points transformed in pca space
 		NumberOfFailingPoints = 0;
-		const int32 NumDimensions = Database->Schema->SchemaCardinality;
 		for (size_t PointIndex = 0; PointIndex < NumPoses; ++PointIndex)
 		{
 			TArray<size_t> ResultIndexes;
 			TArray<float> ResultDistanceSqr;
-			ResultIndexes.SetNum(Database->KDTreeQueryNumNeighbors + 1);
-			ResultDistanceSqr.SetNum(Database->KDTreeQueryNumNeighbors + 1);
-			FKDTree::KNNResultSet ResultSet(Database->KDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
+			ResultIndexes.SetNum(KDTreeQueryNumNeighbors + 1);
+			ResultDistanceSqr.SetNum(KDTreeQueryNumNeighbors + 1);
+			FKDTree::KNNResultSet ResultSet(KDTreeQueryNumNeighbors, ResultIndexes, ResultDistanceSqr);
 
 			const RowMajorVectorMapConst MapValues(&SearchIndex.Values[PointIndex * NumDimensions], 1, NumDimensions);
 			const RowMajorVectorMapConst MapWeightsSqrt(SearchIndex.WeightsSqrt.GetData(), 1, NumDimensions);
@@ -4408,11 +4212,11 @@ static void PreprocessSearchIndexKDTree(FPoseSearchIndex& SearchIndex, const UPo
 	}
 }
 
-static void PreprocessSearchIndex(FPoseSearchIndex& SearchIndex, const UPoseSearchDatabase* Database)
+static void PreprocessSearchIndex(FPoseSearchIndex& SearchIndex, const UPoseSearchSchema* Schema, uint32 NumberOfPrincipalComponents, EPoseSearchMode PoseSearchMode, int32 KDTreeMaxLeafSize, int32 KDTreeQueryNumNeighbors)
 {
-	PreprocessSearchIndexWeights(SearchIndex, Database);
-	PreprocessSearchIndexPCAData(SearchIndex, Database);
-	PreprocessSearchIndexKDTree(SearchIndex, Database);
+	PreprocessSearchIndexWeights(SearchIndex, Schema);
+	PreprocessSearchIndexPCAData(SearchIndex, Schema->SchemaCardinality, NumberOfPrincipalComponents, PoseSearchMode);
+	PreprocessSearchIndexKDTree(SearchIndex, Schema->SchemaCardinality, NumberOfPrincipalComponents, PoseSearchMode, KDTreeMaxLeafSize, KDTreeQueryNumNeighbors);
 }
 
 bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* SequenceMetaData)
@@ -4465,7 +4269,6 @@ bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* Sequ
 
 	SequenceMetaData->SearchIndex.Values = Indexer.Output.FeatureVectorTable;
 	SequenceMetaData->SearchIndex.NumPoses = Indexer.Output.NumIndexedPoses;
-	SequenceMetaData->SearchIndex.Schema = SequenceMetaData->Schema;
 	SequenceMetaData->SearchIndex.Assets.Add(SearchIndexAsset);
 	SequenceMetaData->SearchIndex.PoseMetadata = Indexer.Output.PoseMetadata;
 
@@ -4482,63 +4285,56 @@ bool BuildIndex(const UAnimSequence* Sequence, UPoseSearchSequenceMetaData* Sequ
 
 struct FDatabaseIndexingContext
 {
-	const UPoseSearchDatabase* Database = nullptr;
 	FPoseSearchIndex* SearchIndex = nullptr;
 
 	FAssetSamplingContext SamplingContext;
 	TArray<FSequenceSampler> SequenceSamplers;
-	TMap<const UAnimSequence*, int32> SequenceSamplerMap;
 	TArray<FBlendSpaceSampler> BlendSpaceSamplers;
-	TMap<TPair<const UBlendSpace*, FVector>, int32> BlendSpaceSamplerMap;
 
 	TArray<FAssetIndexer> Indexers;
 
-	void PrepareSamplers(const FBoneContainer& BoneContainer);
-	void PrepareIndexers(const FBoneContainer& BoneContainer);
+	void Prepare(const UPoseSearchSchema* Schema, const FPoseSearchExtrapolationParameters& ExtrapolationParameters, TConstArrayView<FPoseSearchDatabaseSequence> Sequences, TConstArrayView<FPoseSearchDatabaseBlendSpace> BlendSpaces);
 	bool IndexAssets();
 	void JoinIndex();
 	float CalculateMinCostAddend() const;
 };
 
-void FDatabaseIndexingContext::PrepareSamplers(const FBoneContainer& BoneContainer)
+void FDatabaseIndexingContext::Prepare(const UPoseSearchSchema* Schema, const FPoseSearchExtrapolationParameters& ExtrapolationParameters, TConstArrayView<FPoseSearchDatabaseSequence> Sequences, TConstArrayView<FPoseSearchDatabaseBlendSpace> BlendSpaces)
 {
-	SamplingContext.Init(Database->Schema->MirrorDataTable, BoneContainer);
+	check(Schema);
+
+	FBoneContainer BoneContainer;
+	BoneContainer.InitializeTo(Schema->BoneIndicesWithParents, FCurveEvaluationOption(false), *Schema->Skeleton);
+
+	TMap<const UAnimSequence*, int32> SequenceSamplerMap;
+	TMap<TPair<const UBlendSpace*, FVector>, int32> BlendSpaceSamplerMap;
+
+	SamplingContext.Init(Schema->MirrorDataTable, BoneContainer);
 
 	// Prepare samplers for all sequences
-	auto AddSequenceSampler = [&](const UAnimSequence* Sequence, bool bLoopable)
+	auto AddSequenceSampler = [&](const UAnimSequence* Sequence)
 	{
-		if (!SequenceSamplerMap.Contains(Sequence))
+		if (Sequence && !SequenceSamplerMap.Contains(Sequence))
 		{
 			int32 SequenceSamplerIdx = SequenceSamplers.AddDefaulted();
 			SequenceSamplerMap.Add(Sequence, SequenceSamplerIdx);
 
 			FSequenceSampler::FInput Input;
-			Input.ExtrapolationParameters = Database->ExtrapolationParameters;
+			Input.ExtrapolationParameters = ExtrapolationParameters;
 			Input.Sequence = Sequence;
 			SequenceSamplers[SequenceSamplerIdx].Init(Input);
 		}
 	};
 
-	for (const FPoseSearchDatabaseSequence& DbSequence : Database->Sequences)
+	for (const FPoseSearchDatabaseSequence& DbSequence : Sequences)
 	{
-		if (DbSequence.Sequence)
-		{
-			AddSequenceSampler(DbSequence.Sequence, DbSequence.Sequence->bLoop);
-		}
-
-		if (DbSequence.LeadInSequence)
-		{
-			AddSequenceSampler(DbSequence.LeadInSequence, DbSequence.LeadInSequence->bLoop);
-		}
-
-		if (DbSequence.FollowUpSequence)
-		{
-			AddSequenceSampler(DbSequence.FollowUpSequence, DbSequence.FollowUpSequence->bLoop);
-		}
+		AddSequenceSampler(DbSequence.Sequence);
+		AddSequenceSampler(DbSequence.LeadInSequence);
+		AddSequenceSampler(DbSequence.FollowUpSequence);
 	}
 		
 	// Prepare samplers for all blend spaces
-	for (const FPoseSearchDatabaseBlendSpace& DbBlendSpace : Database->BlendSpaces)
+	for (const FPoseSearchDatabaseBlendSpace& DbBlendSpace : BlendSpaces)
 	{
 		if (DbBlendSpace.BlendSpace)
 		{
@@ -4558,7 +4354,7 @@ void FDatabaseIndexingContext::PrepareSamplers(const FBoneContainer& BoneContain
 
 						FBlendSpaceSampler::FInput Input;
 						Input.BoneContainer = BoneContainer;
-						Input.ExtrapolationParameters = Database->ExtrapolationParameters;
+						Input.ExtrapolationParameters = ExtrapolationParameters;
 						Input.BlendSpace = DbBlendSpace.BlendSpace;
 						Input.BlendParameters = BlendParameters;
 
@@ -4582,11 +4378,9 @@ void FDatabaseIndexingContext::PrepareSamplers(const FBoneContainer& BoneContain
 	}
 
 	ParallelFor(AssetSampler.Num(), [AssetSampler](int32 SamplerIdx) { AssetSampler[SamplerIdx]->Process(); }, ParallelForFlags);
-}
 
-void FDatabaseIndexingContext::PrepareIndexers(const FBoneContainer& BoneContainer)
-{
-	Indexers.Reserve(Database->GetSearchIndex()->Assets.Num());
+	// prepare indexers
+	Indexers.Reserve(SearchIndex->Assets.Num());
 
 	auto GetSequenceSampler = [&](const UAnimSequence* Sequence) -> const FSequenceSampler*
 	{
@@ -4598,7 +4392,7 @@ void FDatabaseIndexingContext::PrepareIndexers(const FBoneContainer& BoneContain
 		return BlendSpace ? &BlendSpaceSamplers[BlendSpaceSamplerMap[{BlendSpace, BlendParameters}]] : nullptr;
 	};
 
-	Indexers.Reserve(Database->GetSearchIndex()->Assets.Num());
+	Indexers.Reserve(SearchIndex->Assets.Num());
 
 	for (int32 AssetIdx = 0; AssetIdx != SearchIndex->Assets.Num(); ++AssetIdx)
 	{
@@ -4606,13 +4400,13 @@ void FDatabaseIndexingContext::PrepareIndexers(const FBoneContainer& BoneContain
 
 		FAssetIndexingContext IndexerContext;
 		IndexerContext.SamplingContext = &SamplingContext;
-		IndexerContext.Schema = Database->Schema;
+		IndexerContext.Schema = Schema;
 		IndexerContext.RequestedSamplingRange = SearchIndexAsset.SamplingInterval;
 		IndexerContext.bMirrored = SearchIndexAsset.bMirrored;
 
 		if (SearchIndexAsset.Type == ESearchIndexAssetType::Sequence)
 		{
-			const FPoseSearchDatabaseSequence& DbSequence = Database->GetSequenceSourceAsset(SearchIndexAsset);
+			const FPoseSearchDatabaseSequence& DbSequence = Sequences[SearchIndexAsset.SourceAssetIdx];
 			const float SequenceLength = DbSequence.Sequence->GetPlayLength();
 			IndexerContext.MainSampler = GetSequenceSampler(DbSequence.Sequence);
 			IndexerContext.LeadInSampler = SearchIndexAsset.SamplingInterval.Min == 0.0f ? GetSequenceSampler(DbSequence.LeadInSequence) : nullptr;
@@ -4620,7 +4414,7 @@ void FDatabaseIndexingContext::PrepareIndexers(const FBoneContainer& BoneContain
 		}
 		else if (SearchIndexAsset.Type == ESearchIndexAssetType::BlendSpace)
 		{
-			const FPoseSearchDatabaseBlendSpace& DbBlendSpace = Database->GetBlendSpaceSourceAsset(SearchIndexAsset);
+			const FPoseSearchDatabaseBlendSpace& DbBlendSpace = BlendSpaces[SearchIndexAsset.SourceAssetIdx];
 			IndexerContext.MainSampler = GetBlendSpaceSampler(DbBlendSpace.BlendSpace, SearchIndexAsset.BlendParameters);
 		}
 		else
@@ -4698,47 +4492,73 @@ void FDatabaseIndexingContext::JoinIndex()
 	}
 	
 	SearchIndex->NumPoses = TotalPoses;
-	SearchIndex->Schema = Database->Schema;
 	SearchIndex->MinCostAddend = CalculateMinCostAddend();
-
-	check(TotalFloats == TotalPoses * Database->Schema->SchemaCardinality);
 }
 
-bool BuildIndex(const UPoseSearchDatabase* Database, FPoseSearchIndex& OutSearchIndex)
+bool BuildIndex(const UPoseSearchDatabase& Database, FPoseSearchIndex& OutSearchIndex
+#if WITH_EDITOR
+	, UE::DerivedData::IRequestOwner& Owner
+#endif
+)
 {
-	check(Database);
-
-	bool bSuccess = true;
-
-	if (!Database->IsValidForIndexing())
+	if (!Database.IsValidForIndexing())
 	{
-		UE_LOG(LogPoseSearch, Warning, TEXT("Database '%f' is invalid for indexing"), *Database->GetName());
+		OutSearchIndex.Reset();
 		return false;
 	}
 
-	UE_LOG(LogPoseSearch, Log, TEXT("Building PoseSearch index for database %s"), *GetNameSafe(Database));
-
-	OutSearchIndex.Schema = Database->Schema;
-
-	if (!Database->TryInitSearchIndexAssets(OutSearchIndex))
+#if WITH_EDITOR
+	if (Owner.IsCanceled())
 	{
+		OutSearchIndex.Reset();
 		return false;
 	}
+#endif
+
+	OutSearchIndex.InitSearchIndexAssets(Database.Sequences, Database.BlendSpaces, Database.ExcludeFromDatabaseParameters);
 
 	FDatabaseIndexingContext DbIndexingContext;
-	DbIndexingContext.Database = Database;
 	DbIndexingContext.SearchIndex = &OutSearchIndex;
+	DbIndexingContext.Prepare(Database.Schema, Database.ExtrapolationParameters, Database.Sequences, Database.BlendSpaces);
+	
+#if WITH_EDITOR
+	if (Owner.IsCanceled())
+	{
+		OutSearchIndex.Reset();
+		return false;
+	}
+#endif
 
-	FBoneContainer BoneContainer;
-	BoneContainer.InitializeTo(Database->Schema->BoneIndicesWithParents, FCurveEvaluationOption(false), *Database->Schema->Skeleton);
+	const bool bSuccess = DbIndexingContext.IndexAssets();
 
-	DbIndexingContext.PrepareSamplers(BoneContainer);
-	DbIndexingContext.PrepareIndexers(BoneContainer);
-	bSuccess &= DbIndexingContext.IndexAssets();
+#if WITH_EDITOR
+	if (Owner.IsCanceled())
+	{
+		OutSearchIndex.Reset();
+		return false;
+	}
+#endif
+
 	DbIndexingContext.JoinIndex();
 
-	PreprocessSearchIndex(OutSearchIndex, Database);
-	
+#if WITH_EDITOR
+	if (Owner.IsCanceled())
+	{
+		OutSearchIndex.Reset();
+		return false;
+	}
+#endif
+
+	PreprocessSearchIndex(OutSearchIndex, Database.Schema, Database.GetNumberOfPrincipalComponents(), Database.PoseSearchMode, Database.KDTreeMaxLeafSize, Database.KDTreeQueryNumNeighbors);
+
+#if WITH_EDITOR
+	if (Owner.IsCanceled())
+	{
+		OutSearchIndex.Reset();
+		return false;
+	}
+#endif
+
 	return bSuccess;
 }
 
@@ -4753,20 +4573,11 @@ public: // IModuleInterface
 
 public: // IPoseSearchProvider
 	virtual UE::Anim::IPoseSearchProvider::FSearchResult Search(const FAnimationBaseContext& GraphContext, const UAnimSequenceBase* Sequence) override;
-
-private:
-#if WITH_EDITOR
-	void OnObjectSaved(UObject* SavedObject, FObjectPreSaveContext SaveContext);
-#endif // WITH_EDITOR
 };
 
 void FModule::StartupModule()
 {
 	IModularFeatures::Get().RegisterModularFeature(UE::Anim::IPoseSearchProvider::ModularFeatureName, this);
-
-#if WITH_EDITOR
-	FCoreUObjectDelegates::OnObjectPreSave.AddRaw(this, &FModule::OnObjectSaved);
-#endif // WITH_EDITOR
 }
 
 void FModule::ShutdownModule()
@@ -4806,95 +4617,6 @@ UE::Anim::IPoseSearchProvider::FSearchResult FModule::Search(const FAnimationBas
 	ProviderResult.TimeOffsetSeconds = Result.AssetTime;
 	return ProviderResult;
 }
-
-#if WITH_EDITOR
-
-void GetPoseSearchDatabaseAssetDataList(TArray<FAssetData>& OutPoseSearchDatabaseAssetDataList)
-{
-	FAssetRegistryModule& AssetRegistryModule =
-		FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-	FARFilter Filter;
-	Filter.bRecursiveClasses = true;
-	Filter.ClassPaths.Add(UPoseSearchDatabase::StaticClass()->GetClassPathName());
-
-	OutPoseSearchDatabaseAssetDataList.Reset();
-	AssetRegistryModule.Get().GetAssets(Filter, OutPoseSearchDatabaseAssetDataList);
-}
-
-void ForEachPoseSearchDatabase(bool bLoadAssets, TFunctionRef<void(UPoseSearchDatabase&)> InFunction)
-{
-	TArray<FAssetData> PoseSearchDatabaseAssetDataList;
-	GetPoseSearchDatabaseAssetDataList(PoseSearchDatabaseAssetDataList);
-	for (const auto& PoseSearchDbAssetData : PoseSearchDatabaseAssetDataList)
-	{
-		if (UPoseSearchDatabase* PoseSearchDb = 
-			Cast<UPoseSearchDatabase>(PoseSearchDbAssetData.FastGetAsset(bLoadAssets)))
-		{
-			InFunction(*PoseSearchDb);
-		}
-	}
-}
-
-void FModule::OnObjectSaved(UObject* SavedObject, FObjectPreSaveContext SaveContext)
-{
-	if (UAnimSequence* SavedSequence = Cast<UAnimSequence>(SavedObject))
-	{
-		ForEachPoseSearchDatabase(false, [SavedSequence](UPoseSearchDatabase& PoseSearchDb)
-		{
-			bool bSequenceFound =
-				PoseSearchDb.Sequences.ContainsByPredicate([SavedSequence](FPoseSearchDatabaseSequence& DbSequence)
-			{
-				bool bIsMatch =
-					SavedSequence == DbSequence.Sequence ||
-					SavedSequence == DbSequence.LeadInSequence ||
-					SavedSequence == DbSequence.FollowUpSequence;
-				return bIsMatch;
-			});
-
-			if (bSequenceFound)
-			{
-				PoseSearchDb.BeginCacheDerivedData();
-			}
-		});
-	}
-	else if (UBlendSpace* SavedBlendSpace = Cast<UBlendSpace>(SavedObject))
-	{
-		ForEachPoseSearchDatabase(false, [SavedBlendSpace](UPoseSearchDatabase& PoseSearchDb)
-		{
-			bool bBlendSpaceFound = PoseSearchDb.BlendSpaces.ContainsByPredicate(
-					[SavedBlendSpace](FPoseSearchDatabaseBlendSpace& DbBlendSpace)
-			{
-				return SavedBlendSpace == DbBlendSpace.BlendSpace;
-			});
-
-			if (bBlendSpaceFound)
-			{
-				PoseSearchDb.BeginCacheDerivedData();
-			}
-		});
-	}
-	else if (UPoseSearchSchema* SavedSchema = Cast<UPoseSearchSchema>(SavedObject))
-	{
-		ForEachPoseSearchDatabase(false, [SavedSchema](UPoseSearchDatabase& PoseSearchDb)
-		{
-			if (PoseSearchDb.Schema == SavedSchema)
-			{
-				PoseSearchDb.BeginCacheDerivedData();
-			}
-		});
-	}
-	else if (USkeleton* SavedSkeleton = Cast<USkeleton>(SavedObject))
-	{
-		ForEachPoseSearchDatabase(false, [SavedSkeleton](UPoseSearchDatabase& PoseSearchDb)
-		{
-			if (PoseSearchDb.Schema && PoseSearchDb.Schema->Skeleton == SavedSkeleton)
-			{
-				PoseSearchDb.BeginCacheDerivedData();
-			}
-		});
-	}
-}
-#endif // WITH_EDITOR
 
 } // namespace UE::PoseSearch
 

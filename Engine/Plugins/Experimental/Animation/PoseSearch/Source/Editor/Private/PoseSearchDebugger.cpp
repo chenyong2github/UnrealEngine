@@ -899,8 +899,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 		const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
 		if (Database)
 		{
-			const FPoseSearchIndex* SearchIndex = Database->GetSearchIndex();
-			if (SearchIndex && SearchIndex->IsValid())
+			if (const FPoseSearchIndex* SearchIndex = Database->GetSearchIndexSafe(false))
 			{
 				for (const FTraceMotionMatchingStatePoseEntry& PoseEntry : DbEntry.PoseEntries)
 				{
@@ -908,7 +907,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 					{
 						TSharedRef<FDebuggerDatabaseRowData>& Row = UnfilteredDatabaseRows.Add_GetRef(MakeShared<FDebuggerDatabaseRowData>());
 
-						const float Time = SearchIndex->GetAssetTime(PoseEntry.DbPoseIdx);
+						const float Time = SearchIndex->GetAssetTime(PoseEntry.DbPoseIdx, Database->Schema->GetSamplingInterval());
 
 						Row->PoseIdx = PoseEntry.DbPoseIdx;
 						Row->SourceDatabase = Database;
@@ -964,8 +963,7 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 			const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
 			if (Database)
 			{
-				const FPoseSearchIndex* SearchIndex = Database->GetSearchIndex();
-				if (SearchIndex && SearchIndex->IsValid())
+				if (Database->GetSearchIndexSafe(false))
 				{
 					Database->Schema->ComputeCostBreakdowns(CostBreakDownData);
 				}
@@ -1029,10 +1027,8 @@ void SDebuggerDatabaseView::Update(const FTraceMotionMatchingStateMessage& State
 		OldLabels = CostBreakDownData.GetLabels();
 
 		// recreating and binding the columns
-
 		Columns.Reset();
 
-		// @TODO: Support runtime reordering of these indices
 		// Construct all column types
 		int32 ColumnIdx = 0;
 		AddColumn(MakeShared<FDatabaseName>(ColumnIdx++));
@@ -1600,8 +1596,7 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 		const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
 		if (Database && Database == CurrentDatabase)
 		{
-			const FPoseSearchIndex* SearchIndex = Database->GetSearchIndex();
-			if (SearchIndex && SearchIndex->IsValid())
+			if (Database->GetSearchIndexSafe(false))
 			{
 				Reflection->QueryPoseVector = DbEntry.QueryVector;
 				break;
@@ -1875,8 +1870,7 @@ void SDebuggerView::DrawFeatures(
 				const UPoseSearchDatabase* Database = FTraceMotionMatchingState::GetObjectFromId<UPoseSearchDatabase>(DbEntry.DatabaseId);
 				if (Database && Database == CurrentDatabase)
 				{
-					const FPoseSearchIndex* SearchIndex = Database->GetSearchIndex();
-					if (SearchIndex && SearchIndex->IsValid() && DbEntry.QueryVector.Num() == Database->Schema->SchemaCardinality)
+					if (Database->GetSearchIndexSafe(false) && DbEntry.QueryVector.Num() == Database->Schema->SchemaCardinality)
 					{
 						// Set shared state
 						FDebugDrawParams DrawParams;

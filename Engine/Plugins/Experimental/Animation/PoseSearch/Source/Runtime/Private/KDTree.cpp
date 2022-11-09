@@ -16,7 +16,7 @@ namespace UE::PoseSearch
 {
 
 #if UE_POSE_SEARCH_USE_NANOFLANN
-using FKDTreeImplementationBase = nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<float, FKDTree::DataSource>, FKDTree::DataSource>;
+using FKDTreeImplementationBase = nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<float, FKDTree::FDataSource>, FKDTree::FDataSource>;
 struct FKDTreeImplementation : FKDTreeImplementationBase
 {
 	using FKDTreeImplementationBase::FKDTreeImplementationBase;
@@ -24,20 +24,20 @@ struct FKDTreeImplementation : FKDTreeImplementationBase
 #endif
 
 FKDTree::FKDTree(int32 Count, int32 Dim, const float* Data, int32 MaxLeafSize)
-: DataSrc(Count, Dim, Data)
+: DataSource(Count, Dim, Data)
 , Impl(nullptr)
 {
 #if UE_POSE_SEARCH_USE_NANOFLANN
-	Impl = new FKDTreeImplementation(Dim, DataSrc, nanoflann::KDTreeSingleIndexAdaptorParams(MaxLeafSize));
+	Impl = new FKDTreeImplementation(Dim, DataSource, nanoflann::KDTreeSingleIndexAdaptorParams(MaxLeafSize));
 #endif
 }
 
 FKDTree::FKDTree()
-: DataSrc(0, 0, nullptr)
+: DataSource(0, 0, nullptr)
 , Impl(nullptr)
 {
 #if UE_POSE_SEARCH_USE_NANOFLANN
-	Impl = new FKDTreeImplementation(0, DataSrc, nanoflann::KDTreeSingleIndexAdaptorParams(0));
+	Impl = new FKDTreeImplementation(0, DataSource, nanoflann::KDTreeSingleIndexAdaptorParams(0));
 #endif
 }
 
@@ -45,23 +45,93 @@ FKDTree::~FKDTree()
 {
 #if UE_POSE_SEARCH_USE_NANOFLANN
 	delete Impl;
+	Impl = nullptr;
 #endif
+	DataSource = FDataSource();
 }
 
-FKDTree::FKDTree(const FKDTree& r)
-: DataSrc(r.DataSrc.PointCount, r.DataSrc.PointDim, r.DataSrc.Data)
-, Impl(nullptr)
+#if UE_POSE_SEARCH_USE_NANOFLANN
+void CopySubTree(FKDTree& KDTree, FKDTreeImplementation::NodePtr& ThisNode, const FKDTreeImplementation::NodePtr& OtherNode)
+{
+	check(KDTree.Impl);
+
+	ThisNode = KDTree.Impl->pool.template allocate<FKDTreeImplementation::Node>();
+
+	ThisNode->node_type = OtherNode->node_type;
+
+	if (OtherNode->child1 != nullptr)
+	{
+		CopySubTree(KDTree, ThisNode->child1, OtherNode->child1);
+	}
+	else
+	{
+		ThisNode->child1 = nullptr;
+	}
+
+	if (OtherNode->child2 != nullptr)
+	{
+		CopySubTree(KDTree, ThisNode->child2, OtherNode->child2);
+	}
+	else
+	{
+		ThisNode->child2 = nullptr;
+	}
+}
+
+#endif
+
+FKDTree::FKDTree(const FKDTree& Other)
 {
 #if UE_POSE_SEARCH_USE_NANOFLANN
-	check(r.Impl);
-	Impl = new FKDTreeImplementation(r.DataSrc.PointDim, DataSrc, nanoflann::KDTreeSingleIndexAdaptorParams(r.Impl->m_leaf_max_size));
+	if (this != &Other)
+	{
+		check(Other.Impl);
+		Impl = new FKDTreeImplementation(0, DataSource, nanoflann::KDTreeSingleIndexAdaptorParams(0));
+
+		DataSource = Other.DataSource;
+
+		check(Other.Impl->m_size < UINT_MAX);
+		Impl->m_size = Other.Impl->m_size;
+
+		if (Impl->m_size > 0)
+		{
+			Impl->dim = Other.Impl->dim;
+
+			const uint32 root_bbox_size = Other.Impl->root_bbox.size();
+			check(root_bbox_size < UINT_MAX);
+			Impl->root_bbox.resize(root_bbox_size);
+
+			for (uint32 i = 0; i < root_bbox_size; ++i)
+			{
+				Impl->root_bbox[i] = Other.Impl->root_bbox[i];
+			}
+
+			check(Other.Impl->m_leaf_max_size < UINT_MAX);
+			const uint32 KDTreeLeafMaxSize = Other.Impl->m_leaf_max_size;
+			Impl->m_leaf_max_size = KDTreeLeafMaxSize;
+
+			const uint32 VAccSize = Other.Impl->vAcc.size();
+			check(VAccSize < UINT_MAX);
+			Impl->vAcc.resize(VAccSize);
+			
+			for (uint32 i = 0; i < VAccSize; ++i)
+			{
+				Impl->vAcc[i] = Other.Impl->vAcc[i];
+			}
+			
+			CopySubTree(*this, Impl->root_node, Other.Impl->root_node);
+		}
+	}
 #endif
 }
 
-FKDTree& FKDTree::operator=(const FKDTree& r)
+FKDTree& FKDTree::operator=(const FKDTree& Other)
 {
-	this->~FKDTree();
-	new(this)FKDTree(r);
+	if (this != &Other)
+	{
+		this->~FKDTree();
+		new(this)FKDTree(Other);
+	}
 	return *this;
 }
 
@@ -161,9 +231,9 @@ FArchive& Serialize(FArchive& Ar, FKDTree& KDTree, const float* KDTreeData)
 
 		if (Ar.IsLoading())
 		{
-			KDTree.DataSrc.Data = KDTreeData;
-			KDTree.DataSrc.PointDim = KDTree.Impl->dim;
-			KDTree.DataSrc.PointCount = KDTree.Impl->m_size;
+			KDTree.DataSource.Data = KDTreeData;
+			KDTree.DataSource.PointDim = KDTree.Impl->dim;
+			KDTree.DataSource.PointCount = KDTree.Impl->m_size;
 
 			KDTree.Impl->root_bbox.resize(root_bbox_size);
 		}

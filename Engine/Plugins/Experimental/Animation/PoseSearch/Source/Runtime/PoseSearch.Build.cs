@@ -40,7 +40,8 @@ public class PoseSearch : ModuleRules
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
-					"DerivedDataCache"
+					"DerivedDataCache",
+					"UnrealEd"
 				}
 			);
 		}
