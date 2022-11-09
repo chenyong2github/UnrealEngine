@@ -129,6 +129,9 @@ namespace UnrealIdentifiers
 	const TfToken Fallback = TfToken("fallback");
 	const TfToken R = TfToken("r");
 	const TfToken RGB = TfToken("rgb");
+	const TfToken RawColorSpaceToken = TfToken{ "raw" };
+	const TfToken SRGBColorSpaceToken = TfToken{ "sRGB" };
+	const TfToken SourceColorSpaceToken = TfToken{ "sourceColorSpace" };
 
 	const TfToken UsdPreviewSurface = TfToken( "UsdPreviewSurface" );
 	const TfToken UsdPrimvarReader_float2 = TfToken( "UsdPrimvarReader_float2" );

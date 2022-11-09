@@ -438,6 +438,9 @@ namespace UnrealIdentifiers
 	extern UNREALUSDWRAPPER_API const pxr::TfToken Fallback;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken R;
 	extern UNREALUSDWRAPPER_API const pxr::TfToken RGB;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken RawColorSpaceToken;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken SRGBColorSpaceToken;
+	extern UNREALUSDWRAPPER_API const pxr::TfToken SourceColorSpaceToken;
 
 	// Tokens copied from usdImaging, because at the moment it's all we need from it
 	extern UNREALUSDWRAPPER_API const pxr::TfToken UsdPreviewSurface;
