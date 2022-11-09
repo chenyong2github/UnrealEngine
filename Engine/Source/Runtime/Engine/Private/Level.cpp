@@ -993,12 +993,14 @@ void ULevel::RemoveLoadedActors(const TArray<AActor*>& ActorList, const FTransfo
 		});
 
 		int32 ActorIndex;
-		verify(Actors.Find(Actor, ActorIndex));
+		// temporarily downgraded to ensure while an issue is fixed
+		if (ensure(Actors.Find(Actor, ActorIndex))) 
+		{
+			Actors[ActorIndex] = nullptr;
+			ActorsForGC.Remove(Actor);
 
-		Actors[ActorIndex] = nullptr;
-		ActorsForGC.Remove(Actor);
-
-		ActorsQueue.Add(Actor);
+			ActorsQueue.Add(Actor);
+		}
 	};
 
 	for (AActor* Actor : ActorList)
