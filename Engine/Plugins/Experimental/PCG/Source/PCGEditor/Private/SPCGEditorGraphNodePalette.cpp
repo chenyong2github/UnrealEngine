@@ -8,8 +8,8 @@
 #include "PCGGraph.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
-#include "EditorWidgets/Public/SEnumCombo.h"
 #include "Modules/ModuleManager.h"
+#include "SEnumCombo.h"
 #include "SGraphActionMenu.h"
 
 #define LOCTEXT_NAMESPACE "SPCGEditorGraphNodePalette"

@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 
-#include "AssetTools/Public/AssetTypeCategories.h"
-#include "AssetTools/Public/AssetToolsModule.h"
+#include "AssetToolsModule.h"
+#include "AssetTypeCategories.h"
 
 #include "Filters/SBasicFilterBar.h"
 

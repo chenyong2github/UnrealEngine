@@ -19,17 +19,17 @@
 #include "EditorAssetLibrary.h"
 #include "ITakeRecorderModule.h"
 #include "LevelEditor.h"
+#include "LevelEditorSubsystem.h"
 #include "LevelEditorViewport.h"
-#include "SceneView.h"
-#include "SLevelViewport.h"
 #include "LevelSequenceEditorBlueprintLibrary.h"
-#include "TakePreset.h"
-#include "VPUtilitiesEditor/Public/VPUtilitiesEditorBlueprintLibrary.h"
-#include "Subsystems/UnrealEditorSubsystem.h"
-#include "LevelEditor/Public/LevelEditorSubsystem.h"
 #include "Modules/ModuleManager.h"
 #include "Recorder/TakeRecorderBlueprintLibrary.h"
 #include "Recorder/TakeRecorderPanel.h"
+#include "SLevelViewport.h"
+#include "SceneView.h"
+#include "Subsystems/UnrealEditorSubsystem.h"
+#include "TakePreset.h"
+#include "VPUtilitiesEditorBlueprintLibrary.h"
 #endif
 
 bool UVCamBlueprintFunctionLibrary::IsGameRunning()

@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Components/PoseableMeshComponent.h"
+#include "CoreMinimal.h"
 #include "CustomBoneIndexArray.h"
-#include "RewindDebuggerInterface/Public/IRewindDebuggerExtension.h"
-#include "RewindDebuggerInterface/Public/IRewindDebuggerView.h"
-#include "RewindDebuggerInterface/Public/IRewindDebuggerViewCreator.h"
-#include "Widgets/Views/SHeaderRow.h"
+#include "IRewindDebuggerExtension.h"
+#include "IRewindDebuggerView.h"
+#include "IRewindDebuggerViewCreator.h"
 #include "PoseSearch/PoseSearch.h"
+#include "Widgets/Views/SHeaderRow.h"
 #include "PoseSearchDebugger.generated.h"
 
 struct FPoseSearchDatabaseSequence;

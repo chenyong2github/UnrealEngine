@@ -4,8 +4,8 @@
 
 #include "Engine/Engine.h"
 #include "StageMonitoringSettings.h"
+#include "VPRolesSubsystem.h"
 #include "VPSettings.h"
-#include "VPRoles/Public/VPRolesSubsystem.h"
 
 
 namespace StageMonitorUtils

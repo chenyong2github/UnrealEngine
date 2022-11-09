@@ -31,10 +31,10 @@
 #include "LevelEditor.h"
 #include "Misc/ConfigCacheIni.h"
  
-#include "ToolMenus.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
-#include "ConsoleVariablesEditorRuntime/Public/ConsoleVariablesAsset.h"
+#include "ConsoleVariablesAsset.h"
 #include "Interfaces/IPluginManager.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "FDisplayClusterLaunchEditorModule"
 

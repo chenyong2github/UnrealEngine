@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "ConcertTakeRecorderMessages.h"
 #include "ConcertMessages.h"
+#include "ConcertTakeRecorderMessages.h"
 #include "Delegates/IDelegateInstance.h"
 #include "HAL/Platform.h"
+#include "IConcertClientTransactionBridge.h"
 #include "Misc/FrameNumber.h"
-#include "UObject/StrongObjectPtr.h"
 #include "TakePreset.h"
-#include "ConcertSyncClient/Public/IConcertClientTransactionBridge.h"
+#include "UObject/StrongObjectPtr.h"
 
 #include "ConcertTakeRecorderClientSessionCustomization.h"
 

@@ -9,10 +9,10 @@
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
 #include "StageDataProviderModule.h"
-#include "StageMonitoringSettings.h"
 #include "StageMonitorUtils.h"
+#include "StageMonitoringSettings.h"
+#include "VPRolesSubsystem.h"
 #include "VPSettings.h"
-#include "VPRoles/Public/VPRolesSubsystem.h"
 
 
 namespace StageDataProviderUtils

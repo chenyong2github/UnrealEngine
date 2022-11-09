@@ -12,8 +12,8 @@
 #include "StageMonitoringSettings.h"
 #include "TakeRecorderStateProvider.h"
 #include "TimecodeProviderWatchdog.h"
+#include "VPRolesSubsystem.h"
 #include "VPSettings.h"
-#include "VPRoles/Public/VPRolesSubsystem.h"
 
 
 const FName IStageDataProviderModule::ModuleName = TEXT("StageDataProvider");

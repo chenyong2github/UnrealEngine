@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "EditorViewportClient.h"
+#include "SCommonEditorViewportToolbarBase.h"
 #include "SEditorViewport.h"
-#include "Editor/UnrealEd/Public/SCommonEditorViewportToolbarBase.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FActorPaletteViewportClient;
 class SActorPaletteViewportToolbar;

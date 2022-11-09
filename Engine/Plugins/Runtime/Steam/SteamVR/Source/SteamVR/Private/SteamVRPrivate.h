@@ -10,7 +10,7 @@
 #include "Engine/Engine.h"
 
 #include "IHeadMountedDisplay.h"
-#include "Runtime/Engine/Public/ScreenRendering.h"
+#include "ScreenRendering.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsHWrapper.h"

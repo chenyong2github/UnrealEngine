@@ -2,9 +2,9 @@
 
 #include "WaveformEditorRenderData.h"
 
-#include "AudioExtensions/Public/IWaveformTransformation.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/FloatArrayMath.h"
+#include "IWaveformTransformation.h"
 #include "Sound/SoundWave.h"
 
 TArrayView<const int16> FWaveformEditorRenderData::GetSampleData() const
