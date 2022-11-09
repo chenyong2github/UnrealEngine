@@ -3348,7 +3348,7 @@ public:
 			bHasFragmentDensityAttachment != rhs.bHasFragmentDensityAttachment ||
 			RenderTargetsEnabled != rhs.RenderTargetsEnabled ||
 			RenderTargetFormats != rhs.RenderTargetFormats || 
-			RenderTargetFlags != rhs.RenderTargetFlags || 
+			!RelevantRenderTargetFlagsEqual(RenderTargetFlags, rhs.RenderTargetFlags) || 
 			DepthStencilTargetFormat != rhs.DepthStencilTargetFormat || 
 			DepthStencilTargetFlag != rhs.DepthStencilTargetFlag ||
 			DepthTargetLoadAction != rhs.DepthTargetLoadAction ||
@@ -3364,6 +3364,24 @@ public:
 			return false;
 		}
 
+		return true;
+	}
+
+	// We care about flags that influence RT formats (which is the only thing the underlying API cares about).
+	// In most RHIs, the format is only influenced by TexCreate_SRGB. D3D12 additionally uses TexCreate_Shared in its format selection logic.
+	static constexpr ETextureCreateFlags RelevantRenderTargetFlagMask = ETextureCreateFlags::SRGB | ETextureCreateFlags::Shared;
+
+	static bool RelevantRenderTargetFlagsEqual(const TRenderTargetFlags& A, const TRenderTargetFlags& B)
+	{
+		for (int32 Index = 0; Index < A.Num(); ++Index)
+		{
+			ETextureCreateFlags FlagsA = A[Index] & RelevantRenderTargetFlagMask;
+			ETextureCreateFlags FlagsB = B[Index] & RelevantRenderTargetFlagMask;
+			if (FlagsA != FlagsB)
+			{
+				return false;
+			}
+		}
 		return true;
 	}
 

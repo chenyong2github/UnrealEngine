@@ -758,7 +758,7 @@ ETextureCreateFlags FPipelineCacheFileFormatPSO::GraphicsDescriptor::ReduceRTFla
 {
 	// We care about flags that influence RT formats (which is the only thing the underlying API cares about).
 	// In most RHIs, the format is only influenced by TexCreate_SRGB. D3D12 additionally uses TexCreate_Shared in its format selection logic.
-	return (InFlags & (TexCreate_SRGB | TexCreate_Shared));
+	return (InFlags & FGraphicsPipelineStateInitializer::RelevantRenderTargetFlagMask);
 }
 
 FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateHeaderLine()

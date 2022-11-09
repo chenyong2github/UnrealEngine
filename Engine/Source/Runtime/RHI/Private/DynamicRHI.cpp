@@ -599,6 +599,11 @@ uint64 FDynamicRHI::RHIComputePrecachePSOHash(const FGraphicsPipelineStateInitia
 	HashKey.bHasFragmentDensityAttachment = Initializer.bHasFragmentDensityAttachment;
 	HashKey.ShadingRate					= Initializer.ShadingRate;
 
+	for (ETextureCreateFlags& Flags : HashKey.RenderTargetFlags)
+	{
+		Flags = Flags & FGraphicsPipelineStateInitializer::RelevantRenderTargetFlagMask;
+	}
+
 	return CityHash64((const char*)&HashKey, sizeof(FNonStateHashKey));
 }
 
@@ -613,7 +618,7 @@ bool FDynamicRHI::RHIMatchPrecachePSOInitializers(const FGraphicsPipelineStateIn
 		LHS.bHasFragmentDensityAttachment != RHS.bHasFragmentDensityAttachment ||
 		LHS.RenderTargetsEnabled != RHS.RenderTargetsEnabled ||
 		LHS.RenderTargetFormats != RHS.RenderTargetFormats ||
-		LHS.RenderTargetFlags != RHS.RenderTargetFlags ||
+		!FGraphicsPipelineStateInitializer::RelevantRenderTargetFlagsEqual(LHS.RenderTargetFlags, RHS.RenderTargetFlags) ||
 		LHS.DepthStencilTargetFormat != RHS.DepthStencilTargetFormat ||
 		LHS.DepthStencilTargetFlag != RHS.DepthStencilTargetFlag ||
 		LHS.DepthTargetLoadAction != RHS.DepthTargetLoadAction ||
