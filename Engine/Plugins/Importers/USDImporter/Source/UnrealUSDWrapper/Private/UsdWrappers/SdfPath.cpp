@@ -143,12 +143,14 @@ namespace UE
 
 	FSdfPath& FSdfPath::operator=(  const pxr::SdfPath& InSdfPath )
 	{
+		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique< Internal::FSdfPathImpl >( InSdfPath );
 		return *this;
 	}
 
 	FSdfPath& FSdfPath::operator=( pxr::SdfPath&& InSdfPath )
 	{
+		FScopedUnrealAllocs UnrealAllocs;
 		Impl = MakeUnique< Internal::FSdfPathImpl >( MoveTemp( InSdfPath ) );
 		return *this;
 	}
