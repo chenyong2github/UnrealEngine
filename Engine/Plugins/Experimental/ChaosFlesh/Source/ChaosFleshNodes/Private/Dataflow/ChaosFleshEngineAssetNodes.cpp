@@ -19,8 +19,7 @@ namespace Dataflow
 	void RegisterChaosFleshEngineAssetNodes()
 	{
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetFleshAssetDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FExampleFleshEditDataflowNode);
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetFleshAssetDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FFleshAssetTerminalDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FImportFleshDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FConstructTetGridNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FComputeFleshMassNode);
@@ -45,38 +44,19 @@ void FGetFleshAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDa
 	}
 }
 
-void FExampleFleshEditDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const 
+void FFleshAssetTerminalDataflowNode::SetAssetValue(TObjectPtr<UObject> Asset, Dataflow::FContext& Context) const
 {
-	if (Out->IsA<FManagedArrayCollection>(&Collection))
+	if (UFleshAsset* FleshAsset = Cast<UFleshAsset>(Asset.Get()))
 	{
-		FManagedArrayCollection InputCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-
-		if (TManagedArray<FVector3f>* Vertex = InputCollection.FindAttribute<FVector3f>("Vertex", "Vertices"))
-		{
-			for (int i = 0; i < Vertex->Num(); i++)
-			{
-				(*Vertex)[i][1] *= Scale;
-			}
-		}
-
-		SetValue<FManagedArrayCollection>(Context, InputCollection, &Collection);
+		const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+		FleshAsset->SetCollection(InCollection.NewCopy<FFleshCollection>());
 	}
 }
 
-void FSetFleshAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+void FFleshAssetTerminalDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	if (Out == nullptr)
-	{
-		const FManagedArrayCollection& Collection = GetValue<FManagedArrayCollection>(Context, &Input);
-
-		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
-		{
-			if (UFleshAsset* FleshAsset = Cast<UFleshAsset>(EngineContext->Owner))
-			{
-				FleshAsset->SetCollection(Collection.NewCopy<FFleshCollection>());
-			}
-		}
-	}
+	const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+	SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
 }
 
 void FImportFleshDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const

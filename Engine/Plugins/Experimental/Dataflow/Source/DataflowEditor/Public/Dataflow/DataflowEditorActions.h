@@ -65,7 +65,11 @@ public:
 	*/
 	static void EvaluateNode(Dataflow::FContext& Context, Dataflow::FTimestamp& OutLastNodeTimestamp,
 		const UDataflow* Dataflow, const FDataflowNode* Node = nullptr, const FDataflowOutput* Out = nullptr, 
-		FString NodeName = FString());
+		FString NodeName = FString()); // @todo(Dataflow) deprecate  
+
+	static void EvaluateTerminalNode(Dataflow::FContext& Context, Dataflow::FTimestamp& OutLastNodeTimestamp,
+		const UDataflow* Dataflow, const FDataflowNode* Node = nullptr, const FDataflowOutput* Out = nullptr,
+		UObject* InAsset = nullptr, FString NodeName = FString());
 
 	/*
 	*  DeleteNodes

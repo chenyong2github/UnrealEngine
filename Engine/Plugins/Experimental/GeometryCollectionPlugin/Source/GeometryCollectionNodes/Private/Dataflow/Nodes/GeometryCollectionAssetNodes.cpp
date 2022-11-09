@@ -11,7 +11,7 @@ namespace Dataflow
 {
 	void GeometryCollectionEngineAssetNodes()
 	{
-		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FSetGeometryCollectionAssetDataflowNode);
+		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGeometryCollectionTerminalDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetGeometryCollectionAssetDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FGetGeometryCollectionSourcesDataflowNode);
 		DATAFLOW_NODE_REGISTER_CREATION_FACTORY(FCreateGeometryCollectionFromSourcesDataflowNode);
@@ -21,32 +21,31 @@ namespace Dataflow
 
 // ===========================================================================================================================
 
-FSetGeometryCollectionAssetDataflowNode::FSetGeometryCollectionAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid)
-	: FDataflowTerminalNode(InParam, InGuid)
-{
-	RegisterInputConnection(&Collection);
-	RegisterInputConnection(&Materials);
-}
-
-void FSetGeometryCollectionAssetDataflowNode::Evaluate(Dataflow::FContext& Context) const
+void FGeometryCollectionTerminalDataflowNode::SetAssetValue(TObjectPtr<UObject> Asset, Dataflow::FContext& Context) const
 {
 	using FGeometryCollectionPtr = TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe>;
 	using FMaterialArray = TArray<TObjectPtr<UMaterial>>;
 
-	// todo(chaos) : should certainly have some form of errors handling  
-	if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
+	if (UGeometryCollection* CollectionAsset = Cast<UGeometryCollection>(Asset.Get()))
 	{
-		if (UGeometryCollection* CollectionAsset = Cast<UGeometryCollection>(EngineContext->Owner))
+		if (FGeometryCollectionPtr GeometryCollection = CollectionAsset->GetGeometryCollection())
 		{
-			if (FGeometryCollectionPtr GeometryCollection = CollectionAsset->GetGeometryCollection())
-			{
-				const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
-				const FMaterialArray& InMaterials = GetValue<FMaterialArray>(Context, &Materials);
-
-				CollectionAsset->ResetFrom(InCollection, InMaterials);
-			}
+			const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+			const FMaterialArray& InMaterials = GetValue<FMaterialArray>(Context, &Materials);
+			CollectionAsset->ResetFrom(InCollection, InMaterials);
 		}
 	}
+}
+
+void FGeometryCollectionTerminalDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+{
+	using FMaterialArray = TArray<TObjectPtr<UMaterial>>;
+
+	const FManagedArrayCollection& InCollection = GetValue<FManagedArrayCollection>(Context, &Collection);
+	const FMaterialArray& InMaterials = GetValue<FMaterialArray>(Context, &Materials);
+
+	SetValue<FManagedArrayCollection>(Context, InCollection, &Collection);
+	SetValue<FMaterialArray>(Context, InMaterials, &Materials);
 }
 
 // ===========================================================================================================================

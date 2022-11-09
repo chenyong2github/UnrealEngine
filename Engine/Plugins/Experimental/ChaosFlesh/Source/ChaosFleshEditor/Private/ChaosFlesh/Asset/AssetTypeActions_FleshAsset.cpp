@@ -3,7 +3,8 @@
 #include "ChaosFlesh/Asset/AssetTypeActions_FleshAsset.h"
 
 #include "ChaosFlesh/FleshAsset.h"
-#include "ChaosFlesh/ChaosFleshEditorPlugin.h"
+#include "Dataflow/DataflowEditorPlugin.h"
+#include "Dataflow/DataflowEditorToolkit.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "ToolMenus.h"
 
@@ -34,14 +35,23 @@ void FAssetTypeActions_FleshAsset::GetActions(const TArray<UObject*>& InObjects,
 
 void FAssetTypeActions_FleshAsset::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor)
 {
+	bool bNeedsBaseEditor = true;
 	EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
 	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
 	{
 		if (auto Object = Cast<UFleshAsset>(*ObjIt))
 		{
-			IChaosFleshEditorPlugin* FleshEditorModule = &FModuleManager::LoadModuleChecked<IChaosFleshEditorPlugin>("ChaosFleshEditor");
-			FleshEditorModule->CreateFleshAssetEditor(Mode, EditWithinLevelEditor, Object);
+			if (FDataflowEditorToolkit::CanOpenDataflowEditor(Object))
+			{
+				bNeedsBaseEditor = false;
+				IDataflowEditorPlugin* DataflowEditorPlugin = &FModuleManager::LoadModuleChecked<IDataflowEditorPlugin>("DataflowEditor");
+				DataflowEditorPlugin->CreateDataflowAssetEditor(Mode, EditWithinLevelEditor, Object);
+			}
 		}
+	}
+	if (bNeedsBaseEditor)
+	{
+		FAssetTypeActions_Base::OpenAssetEditor(InObjects, EditWithinLevelEditor);
 	}
 }
 

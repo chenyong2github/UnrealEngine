@@ -2,15 +2,11 @@
 
 #include "GeometryCollection/AssetTypeActions_GeometryCollection.h"
 
-#include "GeometryCollection/GeometryCollectionEditorToolkit.h"
-#include "GeometryCollection/GeometryCollectionEditorPlugin.h"
+#include "Dataflow/DataflowEditorPlugin.h"
+#include "Dataflow/DataflowEditorToolkit.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "ToolMenus.h"
-
-bool bGeometryCollectionDataflowEditor = false;
-FAutoConsoleVariableRef CVarGeometryCollectionDataflowEditor(TEXT("p.Chaos.GeometryCollection.DataflowEditor"), bGeometryCollectionDataflowEditor, TEXT("Enable dataflow asset editor on geometry collection assets(Curently Dev-Only)"));
-
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -34,21 +30,25 @@ UThumbnailInfo* FAssetTypeActions_GeometryCollection::GetThumbnailInfo(UObject* 
 
 void FAssetTypeActions_GeometryCollection::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor)
 {
-	if (bGeometryCollectionDataflowEditor)
+	bool bNeedsBaseEditor = true;
+
+	EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
+	for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
 	{
-		EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
-		for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
+		if (auto Object = Cast<UGeometryCollection>(*ObjIt))
 		{
-			if (auto Object = Cast<UGeometryCollection>(*ObjIt))
+			if (FDataflowEditorToolkit::CanOpenDataflowEditor(Object))
 			{
-				IGeometryCollectionEditorPlugin* EditorModule = &FModuleManager::LoadModuleChecked<IGeometryCollectionEditorPlugin>("GeometryCollectionEditor");
-				EditorModule->CreateGeometryCollectionAssetEditor(Mode, EditWithinLevelEditor, Object);
+				bNeedsBaseEditor = false;
+				IDataflowEditorPlugin* DataflowEditorPlugin = &FModuleManager::LoadModuleChecked<IDataflowEditorPlugin>("DataflowEditor");
+				DataflowEditorPlugin->CreateDataflowAssetEditor(Mode, EditWithinLevelEditor, Object);
 			}
 		}
 	}
-	else
-	{ 
-		FAssetTypeActions_Base::OpenAssetEditor(InObjects,EditWithinLevelEditor);
+
+	if (bNeedsBaseEditor)
+	{
+		FAssetTypeActions_Base::OpenAssetEditor(InObjects, EditWithinLevelEditor);
 	}
 }
 

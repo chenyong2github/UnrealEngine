@@ -11,27 +11,35 @@
 
 class UGeometryCollection;
 
-/**
- * Set the geometry collection asset   
-  */
 USTRUCT()
-struct FSetGeometryCollectionAssetDataflowNode : public FDataflowTerminalNode
+struct FGeometryCollectionTerminalDataflowNode : public FDataflowTerminalNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FSetGeometryCollectionAssetDataflowNode, "SetGeometryCollectionAsset", "GeometryCollection", "")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FGeometryCollectionTerminalDataflowNode, "GeometryCollectionTerminal", "GeometryCollection", "")
 
 public:
-	FSetGeometryCollectionAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid());
-	virtual void Evaluate(Dataflow::FContext& Context) const override;
 
-	/** Attribute collection to use for this asset */ 
-	UPROPERTY(meta = (DataflowInput, DisplayName = "Collection"))
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, Passthrough = "Collection", DisplayName = "Collection"))
 	FManagedArrayCollection Collection;
 
 	/** Materials array to use for this asset */
-	UPROPERTY(meta = (DataflowInput, DisplayName = "Materials"))
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, Passthrough = "Materials", DisplayName = "Materials"))
 	TArray<TObjectPtr<UMaterial>> Materials;
+
+	FGeometryCollectionTerminalDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+		: FDataflowTerminalNode(InParam, InGuid)
+	{
+		RegisterInputConnection(&Collection);
+		RegisterOutputConnection(&Collection, &Collection);
+		RegisterInputConnection(&Materials);
+		RegisterOutputConnection(&Materials, &Materials);
+	}
+
+	virtual void SetAssetValue(TObjectPtr<UObject> Asset, Dataflow::FContext& Context) const override;
+	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
+
+
 
 /**
  * Get Current geometry collection asset 

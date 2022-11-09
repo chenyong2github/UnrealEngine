@@ -13,6 +13,7 @@
 #include "ChaosFlesh/Asset/FleshAssetThumbnailRenderer.h"
 #include "ChaosFlesh/Editor/FleshEditorToolkit.h"
 #include "CoreMinimal.h"
+#include "Dataflow/DataflowEditorToolkit.h"
 #include "Features/IModularFeatures.h"
 #include "HAL/ConsoleManager.h"
 #include "LevelEditor.h"
@@ -68,9 +69,9 @@ void IChaosFleshEditorPlugin::ShutdownModule()
 
 TSharedRef<FAssetEditorToolkit> IChaosFleshEditorPlugin::CreateFleshAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* FleshAsset)
 {
-	TSharedPtr<FFleshEditorToolkit> NewFleshAssetEditor = MakeShared<FFleshEditorToolkit>();
-	NewFleshAssetEditor->InitFleshAssetEditor(Mode, InitToolkitHost, FleshAsset);
-	return StaticCastSharedPtr<FAssetEditorToolkit>(NewFleshAssetEditor).ToSharedRef();
+	TSharedPtr<FDataflowEditorToolkit> NewAssetEditor = MakeShared<FDataflowEditorToolkit>();
+	NewAssetEditor->InitDataflowEditor(Mode, InitToolkitHost, FleshAsset);
+	return StaticCastSharedPtr<FAssetEditorToolkit>(NewAssetEditor).ToSharedRef();
 }
 
 IMPLEMENT_MODULE(IChaosFleshEditorPlugin, FleshAssetEditor)

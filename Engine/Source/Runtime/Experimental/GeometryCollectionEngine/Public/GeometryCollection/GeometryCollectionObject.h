@@ -702,10 +702,10 @@ public:
 	// Dataflow
 	//
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dataflow")
-	TObjectPtr<UDataflow> Dataflow;
+	TObjectPtr<UDataflow> DataflowAsset;
 
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
-	FString Terminal;
+	FString DataflowTerminal = "GeometryCollectionTerminal";
 
 
 private:

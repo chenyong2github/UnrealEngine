@@ -8,6 +8,7 @@
 #include "ChaosLog.h"
 #include "ChaosFlesh/TetrahedralCollection.h"
 #include "Dataflow/DataflowEngine.h"
+#include "ChaosFlesh/FleshAsset.h"
 
 #include "ChaosFleshEngineAssetNodes.generated.h"
 
@@ -33,51 +34,26 @@ public:
 };
 
 
-
-
 USTRUCT()
-struct FExampleFleshEditDataflowNode : public FDataflowNode
+struct FFleshAssetTerminalDataflowNode : public FDataflowTerminalNode
 {
 	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FExampleFleshEditDataflowNode, "ExampleFleshEdit", "Flesh", "")
-	DATAFLOW_NODE_RENDER_TYPE(FGeometryCollection::StaticType(), "Collection")
+	DATAFLOW_NODE_DEFINE_INTERNAL(FFleshAssetTerminalDataflowNode, "FleshAssetTerminal", "Flesh", "")
 
 public:
 
-	UPROPERTY(EditAnywhere, Category = "Dataflow")
-	float Scale = 10.0;
-
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", Passthrough = "Collection"))
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, Passthrough = "Collection", DisplayName = "Collection"))
 	FManagedArrayCollection Collection;
 
-	FExampleFleshEditDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-		: FDataflowNode(InParam, InGuid)
+
+	FFleshAssetTerminalDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
+	: FDataflowTerminalNode(InParam, InGuid)
 	{
 		RegisterInputConnection(&Collection);
 		RegisterOutputConnection(&Collection, &Collection);
 	}
 
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
-};
-
-
-USTRUCT()
-struct FSetFleshAssetDataflowNode : public FDataflowTerminalNode
-{
-	GENERATED_USTRUCT_BODY()
-	DATAFLOW_NODE_DEFINE_INTERNAL(FSetFleshAssetDataflowNode, "SetFleshAsset", "Flesh", "")
-
-public:
-
-	UPROPERTY(meta = (DataflowInput, DisplayName = "Collection"))
-	FManagedArrayCollection Input;
-
-	FSetFleshAssetDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
-	: FDataflowTerminalNode(InParam, InGuid)
-	{
-		RegisterInputConnection(&Input);
-	}
-
+	virtual void SetAssetValue(TObjectPtr<UObject> Asset, Dataflow::FContext& Context) const override;
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 

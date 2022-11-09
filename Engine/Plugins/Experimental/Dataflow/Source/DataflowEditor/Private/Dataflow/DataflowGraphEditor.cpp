@@ -2,7 +2,7 @@
 
 #include "Dataflow/DataflowGraphEditor.h"
 
-#include "DataflowEditorToolkit.h"
+#include "Dataflow/DataflowEditorToolkit.h"
 #include "Dataflow/DataflowEngine.h"
 #include "Dataflow/DataflowSNodeFactories.h"
 #include "BoneDragDropOp.h"

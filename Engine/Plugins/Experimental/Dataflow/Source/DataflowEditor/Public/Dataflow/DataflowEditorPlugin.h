@@ -16,7 +16,7 @@ class FDataflowAssetActions;
 /**
  * The public interface to this module
  */
-class IDataflowEditorPlugin : public IModuleInterface
+class DATAFLOWEDITOR_API IDataflowEditorPlugin : public IModuleInterface
 {
 public:
 	virtual void StartupModule();

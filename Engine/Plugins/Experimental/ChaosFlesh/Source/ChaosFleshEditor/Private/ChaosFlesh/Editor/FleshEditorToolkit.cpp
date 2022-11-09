@@ -51,17 +51,17 @@ void FFleshEditorToolkit::InitFleshAssetEditor(const EToolkitMode::Type Mode, co
 	FleshAsset = CastChecked<UFleshAsset>(ObjectToEdit);
 	if (FleshAsset != nullptr)
 	{
-		if (FleshAsset->Dataflow == nullptr)
+		if (FleshAsset->DataflowAsset == nullptr)
 		{
 			const FName NodeName = MakeUniqueObjectName(FleshAsset, UDataflow::StaticClass(), FName("DataflowFleshAsset"));
-			FleshAsset->Dataflow = NewObject<UDataflow>(FleshAsset, NodeName);
+			FleshAsset->DataflowAsset = NewObject<UDataflow>(FleshAsset, NodeName);
 		}
-		FleshAsset->Dataflow->Schema = UDataflowSchema::StaticClass();
-		Dataflow = FleshAsset->Dataflow;
+		FleshAsset->DataflowAsset->Schema = UDataflowSchema::StaticClass();
+		Dataflow = FleshAsset->DataflowAsset;
 
 		NodeDetailsEditor = CreateNodeDetailsEditorWidget(ObjectToEdit);
 		AssetDetailsEditor = CreateAssetDetailsEditorWidget(FleshAsset);
-		GraphEditor = CreateGraphEditorWidget(FleshAsset->Dataflow, NodeDetailsEditor);
+		GraphEditor = CreateGraphEditorWidget(FleshAsset->DataflowAsset, NodeDetailsEditor);
 		SkeletalEditor = CreateSkeletalEditorWidget(FleshAsset->SkeletalMesh);
 
 		Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FFleshContext(FleshAsset, Dataflow, FPlatformTime::Cycles64()));
@@ -133,7 +133,7 @@ void FFleshEditorToolkit::Tick(float DeltaTime)
 				LastNodeTimestamp = Dataflow::FTimestamp::Invalid;
 			}
 
-			FDataflowEditorCommands::EvaluateNode(*Context.Get(), LastNodeTimestamp, Dataflow, nullptr, nullptr, FleshAsset->Terminal);
+			FDataflowEditorCommands::EvaluateNode(*Context.Get(), LastNodeTimestamp, Dataflow, nullptr, nullptr, FleshAsset->DataflowTerminal);
 		}
 	}
 }

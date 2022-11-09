@@ -121,6 +121,52 @@ void FDataflowEditorCommands::EvaluateNode(Dataflow::FContext& Context, Dataflow
 	}
 }
 
+void FDataflowEditorCommands::EvaluateTerminalNode(Dataflow::FContext& Context, Dataflow::FTimestamp& OutLastNodeTimestamp,
+	const UDataflow* Dataflow, const FDataflowNode* InNode, const FDataflowOutput* Output, UObject* InAsset, FString NodeName)
+{
+	if (Dataflow)
+	{
+		const FDataflowNode* Node = InNode;
+		if (Node == nullptr)
+		{
+			if (const TSharedPtr<Dataflow::FGraph> Graph = Dataflow->GetDataflow())
+			{
+				if (TSharedPtr<const FDataflowNode> GraphNode = Graph->FindBaseNode(FName(NodeName)))
+				{
+					Node = GraphNode.Get();
+				}
+			}
+		}
+
+		if (Node != nullptr)
+		{
+			if (Output == nullptr)
+			{
+				if (Node->GetTimestamp() >= OutLastNodeTimestamp)
+				{
+					Context.Evaluate(Node, nullptr);
+					OutLastNodeTimestamp = Context.GetTimestamp();
+
+					if (const FDataflowTerminalNode* TerminalNode = Node->AsType<const FDataflowTerminalNode>())
+					{
+						if (InAsset)
+						{
+							TerminalNode->SetAssetValue(InAsset, Context);
+						}
+					}
+				}
+			}
+			else // Output != nullptr
+			{
+				if (!Context.HasData(Output->CacheKey(), Context.GetTimestamp()))
+				{
+					Context.Evaluate(Node, Output);
+				}
+			}
+		}
+	}
+}
+
 
 bool FDataflowEditorCommands::OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* GraphNode, FText& OutErrorMessage)
 {
@@ -181,7 +227,7 @@ void FDataflowEditorCommands::OnPropertyValueChanged(UDataflow* OutDataflow, TSh
 		TSharedPtr<const FDataflowNode> UpdatedNode = nullptr;
 		if (OutDataflow && InPropertyChangedEvent.Property && InPropertyChangedEvent.Property->GetOwnerUObject())
 		{
-			OutDataflow->Modify(true);
+			OutDataflow->MarkPackageDirty();
 
 			FString Name = InPropertyChangedEvent.Property->GetOwnerUObject()->GetName();
 			Name = Name.Left(Name.Len() - FString("DataflowNode").Len());

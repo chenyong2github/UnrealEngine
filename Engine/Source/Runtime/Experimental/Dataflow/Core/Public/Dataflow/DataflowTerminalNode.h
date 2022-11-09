@@ -38,15 +38,9 @@ struct DATAFLOWCORE_API FDataflowTerminalNode : public FDataflowNode
 	virtual ~FDataflowTerminalNode() { }
 
 	//
-	// Connections
-	//
-
-	virtual void AddOutput(FDataflowOutput* InPtr) override { ensure(false); }
-
-	//
 	// Error Checking
 	//
-	virtual bool ValidateConnections() override ;
+	virtual void SetAssetValue(TObjectPtr<UObject> Asset, Dataflow::FContext& Context) const { ensure(false); }
 
 	//
 	// Evaluate

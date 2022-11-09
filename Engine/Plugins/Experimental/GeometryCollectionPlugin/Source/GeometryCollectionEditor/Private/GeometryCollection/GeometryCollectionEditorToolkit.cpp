@@ -42,13 +42,13 @@ void FGeometryCollectionEditorToolkit::InitGeometryCollectionAssetEditor(const E
 
 	if (GeometryCollection != nullptr)
 	{
-		if (GeometryCollection->Dataflow == nullptr)
+		if (GeometryCollection->DataflowAsset == nullptr)
 		{
 			const FName NodeName = MakeUniqueObjectName(GeometryCollection, UDataflow::StaticClass(), FName("GeometryCollectionDataflowAsset"));
-			GeometryCollection->Dataflow = NewObject<UDataflow>(GeometryCollection, NodeName);
+			GeometryCollection->DataflowAsset = NewObject<UDataflow>(GeometryCollection, NodeName);
 		}
-		Dataflow = GeometryCollection->Dataflow;
-		GeometryCollection->Dataflow->Schema = UDataflowSchema::StaticClass();
+		Dataflow = GeometryCollection->DataflowAsset;
+		GeometryCollection->DataflowAsset->Schema = UDataflowSchema::StaticClass();
 
 		NodeDetailsEditor = CreateNodeDetailsEditorWidget(ObjectToEdit);
 		AssetDetailsEditor = CreateAssetDetailsEditorWidget(GeometryCollection);
@@ -112,7 +112,7 @@ void FGeometryCollectionEditorToolkit::Tick(float DeltaTime)
 				LastNodeTimestamp = Dataflow::FTimestamp::Invalid;
 			}
 
-			FDataflowEditorCommands::EvaluateNode(*Context.Get(), LastNodeTimestamp, Dataflow, nullptr, nullptr, GeometryCollection->Terminal);
+			FDataflowEditorCommands::EvaluateNode(*Context.Get(), LastNodeTimestamp, Dataflow, nullptr, nullptr, GeometryCollection->DataflowTerminal);
 		}
 	}
 }

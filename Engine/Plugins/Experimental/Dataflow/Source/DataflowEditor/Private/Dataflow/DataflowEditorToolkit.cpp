@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DataflowEditorToolkit.h"
+#include "Dataflow/DataflowEditorToolkit.h"
 
 #include "Dataflow/DataflowEditorActions.h"
 #include "Dataflow/DataflowGraphEditor.h"
@@ -29,9 +29,55 @@ const FName FDataflowEditorToolkit::AssetDetailsTabId(TEXT("DataflowEditor_Asset
 const FName FDataflowEditorToolkit::NodeDetailsTabId(TEXT("DataflowEditor_NodeDetails"));
 
 
+UDataflow* GetDataflowFrom(UObject* InObject)
+{
+	if (UClass* Class = InObject->GetClass())
+	{
+		if (FProperty* Property = Class->FindPropertyByName(FName("DataflowAsset")))
+		{
+			return *Property->ContainerPtrToValuePtr<UDataflow*>(InObject);
+		}
+	}
+	return nullptr;
+
+}
+
+FString GetDataflowTerminalFrom(UObject* InObject)
+{
+	if (UClass* Class = InObject->GetClass())
+	{
+		if (FProperty* Property = Class->FindPropertyByName(FName("DataflowTerminal")))
+		{
+			return *Property->ContainerPtrToValuePtr<FString>(InObject);
+		}
+	}
+	return FString();
+}
+
+bool FDataflowEditorToolkit::CanOpenDataflowEditor(UObject* ObjectToEdit)
+{
+	UDataflow* Dataflow = Cast<UDataflow>(ObjectToEdit);
+	if (Dataflow == nullptr)
+	{
+		Dataflow = GetDataflowFrom(ObjectToEdit);
+	}
+	return Dataflow != nullptr;
+}
+
 void FDataflowEditorToolkit::InitDataflowEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit)
 {
-	Dataflow = CastChecked<UDataflow>(ObjectToEdit);
+	Asset = nullptr;
+	Dataflow = Cast<UDataflow>(ObjectToEdit);
+	if (Dataflow == nullptr)
+	{
+		Dataflow = GetDataflowFrom(ObjectToEdit);
+		if (Dataflow)
+		{
+			Asset = ObjectToEdit;
+			TerminalPath = GetDataflowTerminalFrom(ObjectToEdit);
+		}
+	}
+
 	if (Dataflow != nullptr)
 	{
 		Dataflow->Schema = UDataflowSchema::StaticClass();
@@ -39,6 +85,9 @@ void FDataflowEditorToolkit::InitDataflowEditor(const EToolkitMode::Type Mode, c
 		NodeDetailsEditor = CreateNodeDetailsEditorWidget(ObjectToEdit);
 		AssetDetailsEditor = CreateAssetDetailsEditorWidget(ObjectToEdit);
 		GraphEditor = CreateGraphEditorWidget(Dataflow, NodeDetailsEditor);
+
+		Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FAssetContext(Asset, Dataflow, FPlatformTime::Cycles64()));
+		LastNodeTimestamp = Context->GetTimestamp();
 
 		const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Dataflow_Layout.V1")
 			->AddArea
@@ -75,10 +124,39 @@ void FDataflowEditorToolkit::InitDataflowEditor(const EToolkitMode::Type Mode, c
 		const bool bCreateDefaultStandaloneMenu = true;
 		const bool bCreateDefaultToolbar = true;
 		FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, FName(TEXT("DataflowEditorApp")), StandaloneDefaultLayout, bCreateDefaultToolbar, bCreateDefaultStandaloneMenu, ObjectToEdit);
+
+
+		AddEditingObject(Dataflow);
+		if (Asset) 
+		{
+			AddEditingObject(Asset);
+		}
 	}
 }
 
+void FDataflowEditorToolkit::OnPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent)
+{
+	FDataflowEditorCommands::OnPropertyValueChanged(this->GetDataflow(), Context, LastNodeTimestamp, PropertyChangedEvent);
+}
 
+void FDataflowEditorToolkit::Tick(float DeltaTime)
+{
+	if (Dataflow && Asset)
+	{
+		if (!Context)
+		{
+			Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FAssetContext(Asset, Dataflow, Dataflow::FTimestamp::Invalid));
+			LastNodeTimestamp = Dataflow::FTimestamp::Invalid;
+		}
+		TerminalPath = GetDataflowTerminalFrom(Asset);
+		FDataflowEditorCommands::EvaluateTerminalNode(*Context.Get(), LastNodeTimestamp, Dataflow, nullptr, nullptr, Asset, TerminalPath);
+	}
+}
+
+TStatId FDataflowEditorToolkit::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(FFleshEditorToolkit, STATGROUP_Tickables);
+}
 
 TSharedRef<SGraphEditor> FDataflowEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit, TSharedPtr<IStructureDetailsView> InNodeDetailsEditor)
 {
@@ -89,8 +167,13 @@ TSharedRef<SGraphEditor> FDataflowEditorToolkit::CreateGraphEditorWidget(UDatafl
 	{
 		if (DataflowToEdit)
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("Dataflow", "UnknownEvaluationContext_Dataflow", 
-				"Unsupported dataflow evaluation.\nEvaluate the dataflow graph through its associated asset editor."));
+			if (!Context)
+			{
+				Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FAssetContext(Asset, Dataflow, Dataflow::FTimestamp::Invalid));
+			}
+			LastNodeTimestamp = Dataflow::FTimestamp::Invalid;
+
+			FDataflowEditorCommands::EvaluateTerminalNode(*Context.Get(), LastNodeTimestamp, Dataflow, Node, Out, Asset, TerminalPath);
 		}
 	};
 
@@ -133,16 +216,9 @@ TSharedPtr<IStructureDetailsView> FDataflowEditorToolkit::CreateNodeDetailsEdito
 	}
 	TSharedPtr<IStructureDetailsView> DetailsView = PropertyEditorModule.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, nullptr);
 	DetailsView->GetDetailsView()->SetObject(ObjectToEdit);
-	DetailsView->GetOnFinishedChangingPropertiesDelegate().AddLambda([this](const FPropertyChangedEvent& PropertyChangedEvent) 
-	{
-			if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet)
-			{
-			}
-	});
-
+	DetailsView->GetOnFinishedChangingPropertiesDelegate().AddSP(this, &FDataflowEditorToolkit::OnPropertyValueChanged);
 
 	return DetailsView;
-
 }
 
 TSharedPtr<IDetailsView> FDataflowEditorToolkit::CreateAssetDetailsEditorWidget(UObject* ObjectToEdit)
@@ -232,15 +308,32 @@ void FDataflowEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 }
 
-
 FName FDataflowEditorToolkit::GetToolkitFName() const
 {
 	return FName("DataflowEditor");
 }
 
+FText FDataflowEditorToolkit::GetToolkitName() const
+{
+	if (Asset)
+	{
+		return  GetLabelForObject(Asset);
+	}
+	if (Dataflow)
+	{
+		return  GetLabelForObject(Dataflow);
+	}
+	return  LOCTEXT("ToolkitName", "Empty Dataflow Editor");
+}
+
 FText FDataflowEditorToolkit::GetBaseToolkitName() const
 {
 	return LOCTEXT("AppLabel", "Dataflow Editor");
+}
+
+FText FDataflowEditorToolkit::GetToolkitToolTipText() const
+{
+	return  LOCTEXT("ToolkitToolTipText", "Dataflow Editor");
 }
 
 FString FDataflowEditorToolkit::GetWorldCentricTabPrefix() const
