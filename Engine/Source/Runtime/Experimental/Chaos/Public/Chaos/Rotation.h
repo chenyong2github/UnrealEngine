@@ -5,12 +5,12 @@
 #include "Chaos/Vector.h"
 #include "Chaos/Matrix.h"
 
-#include <cmath>
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 #include "Math/Quat.h"
 #include "Math/RotationMatrix.h"
 #else
 #include <array>
+#include <cmath>
 
 struct _FQuat
 {

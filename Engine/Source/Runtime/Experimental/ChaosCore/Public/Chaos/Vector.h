@@ -5,11 +5,18 @@
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
 #include "Math/Vector4.h"
-#include <cmath>
 #else
+#include <cmath>
 #include <iostream>
 #include <utility>
 #include <limits>
+namespace FMath
+{
+	float Sqrt(float v) { return sqrt(v); }
+	double Sqrt(double v) { return sqrt(v); }
+	float Atan2(float x, float y) { return atan2(x, y); }
+	double Atan2(double x, double y) { return atan2(x, y); }
+}
 #endif
 
 #include "Chaos/Real.h"
@@ -195,7 +202,7 @@ namespace Chaos
 //			{
 //				SquaredSum += ((*this)[i] * (*this)[i]);
 //			}
-//			return sqrt(SquaredSum);
+//			return FMath::Sqrt(SquaredSum);
 //		}
 //		T Product() const
 //		{
@@ -229,7 +236,7 @@ namespace Chaos
 //			T SizeSqr = SizeSquared();
 //			if (SizeSqr <= TNumericLimits<T>::Min())
 //				return AxisVector(0);
-//			return (*this) / sqrt(SizeSqr);
+//			return (*this) / FMath::Sqrt(SizeSqr);
 //		}
 //		T SafeNormalize()
 //		{
@@ -239,7 +246,7 @@ namespace Chaos
 //				*this = AxisVector(0);
 //				return (T)0.;
 //			}
-//			Size = sqrt(Size);
+//			Size = FMath::Sqrt(Size);
 //			*this = (*this) / Size;
 //			return Size;
 //		}
@@ -557,7 +564,7 @@ namespace Chaos
 				*this = AxisVector(0);
 				return 0.f;
 			}
-			Size = sqrt(Size);
+			Size = FMath::Sqrt(Size);
 			*this = (*this) / Size;
 			return Size;
 		}
@@ -581,7 +588,7 @@ namespace Chaos
 		{
 			FRealSingle s = CrossProduct(V1, V2).Size();
 			FRealSingle c = DotProduct(V1, V2);
-			return atan2(s, c);
+			return FMath::Atan2(s, c);
 		}
 		/** Calculate the velocity to move from P0 to P1 in time Dt. Exists just for symmetry with TRotation::CalculateAngularVelocity! */
 		static TVector<FRealSingle, 3> CalculateVelocity(const TVector<FRealSingle, 3>& P0, const TVector<FRealSingle, 3>& P1, const FRealSingle Dt)
@@ -762,7 +769,7 @@ namespace Chaos
 				*this = AxisVector(0);
 				return 0.f;
 			}
-			Size = sqrt(Size);
+			Size = FMath::Sqrt(Size);
 			*this = (*this) / Size;
 			return Size;
 		}
@@ -786,7 +793,7 @@ namespace Chaos
 		{
 			FRealDouble s = CrossProduct(V1, V2).Size();
 			FRealDouble c = DotProduct(V1, V2);
-			return atan2(s, c);
+			return FMath::Atan2(s, c);
 		}
 		/** Calculate the velocity to move from P0 to P1 in time Dt. Exists just for symmetry with TRotation::CalculateAngularVelocity! */
 		static TVector<FRealDouble, 3> CalculateVelocity(const TVector<FRealDouble, 3>& P0, const TVector<FRealDouble, 3>& P1, const FRealDouble Dt)
@@ -1030,7 +1037,7 @@ namespace Chaos
 		FORCEINLINE T Size() const
 		{
 			const T SquaredSum = X * X + Y * Y + Z * Z;
-			return sqrt(SquaredSum);
+			return FMath::Sqrt(SquaredSum);
 		}
 		FORCEINLINE T Product() const { return X * Y * Z; }
 		FORCEINLINE static TVector<T, 3> AxisVector(const int32 Axis)
@@ -1061,7 +1068,7 @@ namespace Chaos
 			T SizeSqr = SizeSquared();
 			if (SizeSqr <= TNumericLimits<T>::Min())
 				return AxisVector(0);
-			return (*this) / sqrt(SizeSqr);
+			return (*this) / FMath::Sqrt(SizeSqr);
 		}
 		FORCEINLINE T SafeNormalize()
 		{
@@ -1071,7 +1078,7 @@ namespace Chaos
 				*this = AxisVector(0);
 				return (T)0.;
 			}
-			Size = sqrt(Size);
+			Size = FMath::Sqrt(Size);
 			*this = (*this) / Size;
 			return Size;
 		}

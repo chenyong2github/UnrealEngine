@@ -576,15 +576,15 @@ namespace Chaos
 			FRealDouble c2 = m20 + m21 + M[2][2] * M[2][2];
 			if (c0 > c1 && c0 > c2)
 			{
-				return TVector<FRealDouble, 3>(M[0][0], M[1][0], M[2][0]) / sqrt(c0);
+				return TVector<FRealDouble, 3>(M[0][0], M[1][0], M[2][0]) / FMath::Sqrt(c0);
 			}
 			if (c1 > c2)
 			{
-				return TVector<FRealDouble, 3>(M[1][0], M[1][1], M[2][1]) / sqrt(c1);
+				return TVector<FRealDouble, 3>(M[1][0], M[1][1], M[2][1]) / FMath::Sqrt(c1);
 			}
 			if (c2 > 0)
 			{
-				return TVector<FRealDouble, 3>(M[2][0], M[2][1], M[2][2]) / sqrt(c2);
+				return TVector<FRealDouble, 3>(M[2][0], M[2][1], M[2][2]) / FMath::Sqrt(c2);
 			}
 			return TVector<FRealDouble, 3>(1, 0, 0);
 		}
@@ -1003,15 +1003,15 @@ namespace Chaos
 			FRealSingle c2 = m20 + m21 + M[2][2] * M[2][2];
 			if (c0 > c1 && c0 > c2)
 			{
-				return TVector<FRealSingle, 3>(M[0][0], M[1][0], M[2][0]) / sqrt(c0);
+				return TVector<FRealSingle, 3>(M[0][0], M[1][0], M[2][0]) / FMath::Sqrt(c0);
 			}
 			if (c1 > c2)
 			{
-				return TVector<FRealSingle, 3>(M[1][0], M[1][1], M[2][1]) / sqrt(c1);
+				return TVector<FRealSingle, 3>(M[1][0], M[1][1], M[2][1]) / FMath::Sqrt(c1);
 			}
 			if (c2 > 0)
 			{
-				return TVector<FRealSingle, 3>(M[2][0], M[2][1], M[2][2]) / sqrt(c2);
+				return TVector<FRealSingle, 3>(M[2][0], M[2][1], M[2][2]) / FMath::Sqrt(c2);
 			}
 			return TVector<FRealSingle, 3>(1, 0, 0);
 		}

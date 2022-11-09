@@ -85,7 +85,7 @@ private:
 			static const FSolverReal DeadZoneSquareRadius = UE_SMALL_NUMBER; // We will not push the particle away in the dead zone
 			if (DistanceSquared > FMath::Square(Radius) + DeadZoneSquareRadius)
 			{
-				const FSolverReal Distance = sqrt(DistanceSquared);
+				const FSolverReal Distance = FMath::Sqrt(DistanceSquared);
 				const FSolverVec3 PositionOnSphere = (Radius / Distance) * CenterToParticle;
 				Particles.P(ParticleIndex) = Center + PositionOnSphere;
 			}

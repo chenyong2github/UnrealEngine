@@ -333,7 +333,7 @@ namespace Chaos
 				{
 					return ChosenPt;
 				}
-				const TVector<T, d> Normalized = Direction / sqrt(SizeSqr);
+				const TVector<T, d> Normalized = Direction / FMath::Sqrt(SizeSqr);
 
 				const TVector<T, d> InflatedPt = ChosenPt + Normalized.GetSafeNormal() * Thickness;
 				return InflatedPt;
