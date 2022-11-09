@@ -501,12 +501,14 @@ TFuture<TOnlineResult<FFindSessions>> FSessionsOSSAdapter::FindSessionsImpl(cons
 	const FUniqueNetIdRef LocalAccountId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalAccountId).ToSharedRef();
 	if (!LocalAccountId->IsValid())
 	{
+		UE_LOG(LogTemp, Verbose, TEXT("[FSessionsOSSAdapter::FindSessionsImpl] UniqueId not found for LocalAccountId %s"), *ToLogString(Params.LocalAccountId));
 		Promise.EmplaceValue(Errors::InvalidUser());
 		return Future;
 	}
 
 	if (PendingV1SessionSearchesPerUser.Contains(Params.LocalAccountId))
 	{
+		UE_LOG(LogTemp, Verbose, TEXT("[FSessionsOSSAdapter::FindSessionsImpl] Session search already in progress for LocalAccountId %s"), *ToLogString(Params.LocalAccountId));
 		Promise.EmplaceValue(Errors::AlreadyPending());
 		return Future;
 	}
@@ -575,6 +577,7 @@ TFuture<TOnlineResult<FFindSessions>> FSessionsOSSAdapter::FindSessionsImpl(cons
 		}
 		else
 		{
+			UE_LOG(LogTemp, Verbose, TEXT("[FSessionsOSSAdapter::FindSessionsImpl] UniqueNetId could not be found for SessionId %s"), *ToLogString(*Params.SessionId));
 			Promise.EmplaceValue(Errors::InvalidParams());
 			return Future;
 		}
@@ -706,6 +709,7 @@ TFuture<TOnlineResult<FJoinSession>> FSessionsOSSAdapter::JoinSessionImpl(const 
 	const FUniqueNetIdRef LocalAccountId = Services.Get<FAuthOSSAdapter>()->GetUniqueNetId(Params.LocalAccountId).ToSharedRef();
 	if (!LocalAccountId->IsValid())
 	{
+		UE_LOG(LogTemp, Verbose, TEXT("[FSessionsOSSAdapter::JoinSessionImpl] UniqueId not found for LocalAccountId %s"), *ToLogString(Params.LocalAccountId));
 		Promise.EmplaceValue(Errors::InvalidUser());
 		return Future;
 	}
@@ -841,6 +845,7 @@ TFuture<TOnlineResult<FSendSessionInvite>> FSessionsOSSAdapter::SendSessionInvit
 	const FUniqueNetIdRef LocalAccountId = Auth->GetUniqueNetId(Params.LocalAccountId).ToSharedRef();
 	if (!LocalAccountId->IsValid())
 	{
+		UE_LOG(LogTemp, Verbose, TEXT("[FSessionsOSSAdapter::SendSessionInviteImpl] UniqueId not found for LocalAccountId %s"), *ToLogString(Params.LocalAccountId));
 		Promise.EmplaceValue(Errors::InvalidUser());
 		return Future;
 	}
@@ -891,6 +896,7 @@ TOnlineResult<FGetResolvedConnectString> FSessionsOSSAdapter::GetResolvedConnect
 	else
 	{
 		// No valid session id set
+		UE_LOG(LogTemp, Verbose, TEXT("[FSessionsOSSAdapter::GetResolvedConnectString] Invalid SessionId %s"), *ToLogString(Params.SessionId));
 		return TOnlineResult<FGetResolvedConnectString>(Errors::InvalidParams());
 	}
 }

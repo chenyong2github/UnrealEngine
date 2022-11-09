@@ -943,6 +943,7 @@ TFuture<TOnlineResult<FLeaveSession>> FSessionsEOSGS::LeaveSessionImpl(const FLe
 		{
 			if (Result->ResultCode != EOS_EResult::EOS_Success)
 			{
+				UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_DestroySession failed with result [%s]"), *LexToString(Result->ResultCode));
 				Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 				return;
 			}
@@ -1115,6 +1116,7 @@ TFuture<TOnlineResult<FFindSessions>> FSessionsEOSGS::FindSessionsImpl(const FFi
 
 			if (FindCallbackInfoResult->ResultCode != EOS_EResult::EOS_Success)
 			{
+				UE_LOG(LogTemp, Warning, TEXT("EOS_SessionSearch_Find failed with result [%s]"), *LexToString(FindCallbackInfoResult->ResultCode));
 				Promise.EmplaceValue(Errors::FromEOSResult(FindCallbackInfoResult->ResultCode));
 				return;
 			}
@@ -1251,6 +1253,7 @@ TFuture<TOnlineResult<FJoinSession>> FSessionsEOSGS::JoinSessionImpl(const FJoin
 		{
 			if (Result->ResultCode != EOS_EResult::EOS_Success)
 			{
+				UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_JoinSession failed with result [%s]"), *LexToString(Result->ResultCode));
 				Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 				return;
 			}
@@ -1495,6 +1498,7 @@ TFuture<TOnlineResult<FRejectSessionInvite>> FSessionsEOSGS::RejectSessionInvite
 		{
 			if (Result->ResultCode != EOS_EResult::EOS_Success)
 			{
+				UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_RejectInvite failed with result [%s]"), *LexToString(Result->ResultCode));
 				Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 				return;
 			}
@@ -1546,6 +1550,7 @@ TFuture<TOnlineResult<FAddSessionMember>> FSessionsEOSGS::AddSessionMemberImpl(c
 						{
 							if (Result->ResultCode != EOS_EResult::EOS_Success)
 							{
+								UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_RegisterPlayers failed with result [%s]"), *LexToString(Result->ResultCode));
 								Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 								return;
 							}
@@ -1598,6 +1603,7 @@ TFuture<TOnlineResult<FRemoveSessionMember>> FSessionsEOSGS::RemoveSessionMember
 						{
 							if (Result->ResultCode != EOS_EResult::EOS_Success)
 							{
+								UE_LOG(LogTemp, Warning, TEXT("EOS_Sessions_UnregisterPlayers failed with result [%s]"), *LexToString(Result->ResultCode));
 								Promise.EmplaceValue(Errors::FromEOSResult(Result->ResultCode));
 								return;
 							}
