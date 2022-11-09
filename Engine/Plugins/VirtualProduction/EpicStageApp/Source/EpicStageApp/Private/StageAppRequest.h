@@ -392,3 +392,34 @@ struct FRCWebSocketNDisplayPreviewActorCreateBody : public FRCRequest
 	int32 RequestId = -1;
 };
 
+/**
+ * Holds a request made via websocket to duplicate one or more actors.
+ */
+USTRUCT()
+struct FRCWebSocketNDisplayActorDuplicateBody : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCWebSocketNDisplayActorDuplicateBody()
+	{
+		AddStructParameter(ParametersFieldLabel());
+	}
+
+	/**
+	 * Get the label for the property value struct.
+	 */
+	static FString ParametersFieldLabel() { return TEXT("Parameters"); }
+
+	/**
+	 * The list of paths of actors to duplicate.
+	 */
+	UPROPERTY()
+	TArray<FString> Actors;
+
+	/**
+	 * An optional number that will be passed back in the RequestedActorsCreated response to tell apart
+	 * the results of multiple requests.
+	 */
+	UPROPERTY()
+	int32 RequestId = -1;
+};
