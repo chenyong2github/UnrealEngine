@@ -26,6 +26,9 @@ enum class ECollapsingType
  */
 struct USDSCHEMAS_API FUsdInfoCache
 {
+	FUsdInfoCache();
+	virtual ~FUsdInfoCache();
+
 	bool Serialize( FArchive& Ar );
 
 	// Returns whether we contain any info about prim at 'Path' at all
@@ -49,13 +52,7 @@ struct USDSCHEMAS_API FUsdInfoCache
 	void Clear();
 	bool IsEmpty();
 
+	struct FUsdInfoCacheImpl;
 private:
-	mutable FRWLock Lock;
-
-	// TODO: Maybe use an impl class instead so that we can also clean up some of the parameters of the implementations
-	// TODO: Combine these maps into a single map to a struct with all this info
-	TMap< UE::FSdfPath, UE::FSdfPath > AssetPathsToCollapsedRoot;
-	TMap< UE::FSdfPath, UE::FSdfPath > ComponentPathsToCollapsedRoot;
-	TMap< UE::FSdfPath, uint64 > ExpectedVertexCountPerSubtree;
-	TMap< UE::FSdfPath, uint64 > ExpectedMaterialSlotCountPerSubtree;
+	TUniquePtr<FUsdInfoCacheImpl> Impl;
 };
