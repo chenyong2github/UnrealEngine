@@ -20,8 +20,4 @@ struct FGLTFBoneUtility
 	static void GetBoneIndices(const USkeleton* Skeleton, TArray<FBoneIndexType>& OutBoneIndices);
 
 	static void GetBoneTransformsByFrame(const UAnimSequence* AnimSequence, const TArray<float>& FrameTimestamps, const TArray<FBoneIndexType>& BoneIndices, TArray<TArray<FTransform>>& OutBoneTransformsByFrame);
-
-	static const FMovieSceneDoubleChannel* GetTranslationChannels(const UMovieScene3DTransformSection* TransformSection);
-	static const FMovieSceneDoubleChannel* GetRotationChannels(const UMovieScene3DTransformSection* TransformSection);
-	static const FMovieSceneDoubleChannel* GetScaleChannels(const UMovieScene3DTransformSection* TransformSection);
 };

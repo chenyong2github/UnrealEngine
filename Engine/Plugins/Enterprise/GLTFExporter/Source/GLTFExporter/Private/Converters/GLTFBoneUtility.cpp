@@ -89,24 +89,3 @@ void FGLTFBoneUtility::GetBoneTransformsByFrame(const UAnimSequence* AnimSequenc
 	Curve.Empty();
 	Attributes.Empty();
 }
-
-const FMovieSceneDoubleChannel* FGLTFBoneUtility::GetTranslationChannels(const UMovieScene3DTransformSection* TransformSection)
-{
-	// TODO: fix ugly workaround hack in engine api to access channels without GetChannelProxy (which doesn't work properly in UE5)
-	static const FProperty* Property = UMovieScene3DTransformSection::StaticClass()->FindPropertyByName(TEXT("Translation"));
-	return Property->ContainerPtrToValuePtr<FMovieSceneDoubleChannel>(TransformSection);
-}
-
-const FMovieSceneDoubleChannel* FGLTFBoneUtility::GetRotationChannels(const UMovieScene3DTransformSection* TransformSection)
-{
-	// TODO: fix ugly workaround hack in engine api to access channels without GetChannelProxy (which doesn't work properly in UE5)
-	static const FProperty* Property = UMovieScene3DTransformSection::StaticClass()->FindPropertyByName(TEXT("Rotation"));
-	return Property->ContainerPtrToValuePtr<FMovieSceneDoubleChannel>(TransformSection);
-}
-
-const FMovieSceneDoubleChannel* FGLTFBoneUtility::GetScaleChannels(const UMovieScene3DTransformSection* TransformSection)
-{
-	// TODO: fix ugly workaround hack in engine api to access channels without GetChannelProxy (which doesn't work properly in UE5)
-	static const FProperty* Property = UMovieScene3DTransformSection::StaticClass()->FindPropertyByName(TEXT("Scale"));
-	return Property->ContainerPtrToValuePtr<FMovieSceneDoubleChannel>(TransformSection);
-}

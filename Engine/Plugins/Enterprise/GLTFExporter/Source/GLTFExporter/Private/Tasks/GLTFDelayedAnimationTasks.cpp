@@ -243,14 +243,18 @@ void FGLTFDelayedLevelSequenceTask::Process()
 
 					// TODO: do we need to account for TransformSection->GetOffsetTime() ?
 
+					TArrayView<FMovieSceneDoubleChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 					const EMovieSceneTransformChannel ChannelMask = TransformSection->GetMask().GetChannels();
 
 					if (EnumHasAnyFlags(ChannelMask, EMovieSceneTransformChannel::Translation))
 					{
-						const FMovieSceneDoubleChannel* Channels = FGLTFBoneUtility::GetTranslationChannels(TransformSection);
-						const bool MaskX = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::TranslationX);
-						const bool MaskY = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::TranslationY);
-						const bool MaskZ = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::TranslationZ);
+						constexpr int32 IndexX = 0;
+						constexpr int32 IndexY = 1;
+						constexpr int32 IndexZ = 2;
+
+						const bool MaskX = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::TranslationX) && Channels.IsValidIndex(IndexX);
+						const bool MaskY = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::TranslationY) && Channels.IsValidIndex(IndexY);
+						const bool MaskZ = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::TranslationZ) && Channels.IsValidIndex(IndexZ);
 
 						TArray<FGLTFVector3> Translations;
 						Translations.AddUninitialized(FrameCount);
@@ -260,9 +264,9 @@ void FGLTFDelayedLevelSequenceTask::Process()
 							const FFrameTime& FrameTime = FrameTimes[Frame];
 
 							FVector3f Translation = DefaultTranslation;
-							if (MaskX) Channels[0].Evaluate(FrameTime, Translation.X);
-							if (MaskY) Channels[1].Evaluate(FrameTime, Translation.Y);
-							if (MaskZ) Channels[2].Evaluate(FrameTime, Translation.Z);
+							if (MaskX) Channels[IndexX]->Evaluate(FrameTime, Translation.X);
+							if (MaskY) Channels[IndexY]->Evaluate(FrameTime, Translation.Y);
+							if (MaskZ) Channels[IndexZ]->Evaluate(FrameTime, Translation.Z);
 
 							Translations[Frame] = FGLTFCoreUtilities::ConvertPosition(Translation, Builder.ExportOptions->ExportUniformScale);
 						}
@@ -287,10 +291,13 @@ void FGLTFDelayedLevelSequenceTask::Process()
 
 					if (EnumHasAnyFlags(ChannelMask, EMovieSceneTransformChannel::Rotation))
 					{
-						const FMovieSceneDoubleChannel* Channels = FGLTFBoneUtility::GetRotationChannels(TransformSection);
-						const bool MaskX = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::RotationX);
-						const bool MaskY = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::RotationY);
-						const bool MaskZ = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::RotationZ);
+						constexpr int32 IndexX = 3;
+						constexpr int32 IndexY = 4;
+						constexpr int32 IndexZ = 5;
+
+						const bool MaskX = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::RotationX) && Channels.IsValidIndex(IndexX);
+						const bool MaskY = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::RotationY) && Channels.IsValidIndex(IndexY);
+						const bool MaskZ = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::RotationZ) && Channels.IsValidIndex(IndexZ);
 
 						TArray<FGLTFQuaternion> Rotations;
 						Rotations.AddUninitialized(FrameCount);
@@ -300,9 +307,9 @@ void FGLTFDelayedLevelSequenceTask::Process()
 							const FFrameTime& FrameTime = FrameTimes[Frame];
 
 							FRotator3f Rotator = DefaultRotator;
-							if (MaskX) Channels[0].Evaluate(FrameTime, Rotator.Roll);
-							if (MaskY) Channels[1].Evaluate(FrameTime, Rotator.Pitch);
-							if (MaskZ) Channels[2].Evaluate(FrameTime, Rotator.Yaw);
+							if (MaskX) Channels[IndexX]->Evaluate(FrameTime, Rotator.Roll);
+							if (MaskY) Channels[IndexY]->Evaluate(FrameTime, Rotator.Pitch);
+							if (MaskZ) Channels[IndexZ]->Evaluate(FrameTime, Rotator.Yaw);
 
 							Rotations[Frame] = FGLTFCoreUtilities::ConvertRotation(Rotator.Quaternion());
 						}
@@ -327,10 +334,13 @@ void FGLTFDelayedLevelSequenceTask::Process()
 
 					if (EnumHasAnyFlags(ChannelMask, EMovieSceneTransformChannel::Scale))
 					{
-						const FMovieSceneDoubleChannel* Channels = FGLTFBoneUtility::GetScaleChannels(TransformSection);
-						const bool MaskX = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::ScaleX);
-						const bool MaskY = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::ScaleY);
-						const bool MaskZ = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::ScaleZ);
+						constexpr int32 IndexX = 6;
+						constexpr int32 IndexY = 7;
+						constexpr int32 IndexZ = 8;
+
+						const bool MaskX = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::ScaleX) && Channels.IsValidIndex(IndexX);
+						const bool MaskY = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::ScaleY) && Channels.IsValidIndex(IndexY);
+						const bool MaskZ = EnumHasAllFlags(ChannelMask, EMovieSceneTransformChannel::ScaleZ) && Channels.IsValidIndex(IndexZ);
 
 						TArray<FGLTFVector3> Scales;
 						Scales.AddUninitialized(FrameCount);
@@ -340,9 +350,9 @@ void FGLTFDelayedLevelSequenceTask::Process()
 							const FFrameTime& FrameTime = FrameTimes[Frame];
 
 							FVector3f Scale = DefaultScale;
-							if (MaskX) Channels[0].Evaluate(FrameTime, Scale.X);
-							if (MaskY) Channels[1].Evaluate(FrameTime, Scale.Y);
-							if (MaskZ) Channels[2].Evaluate(FrameTime, Scale.Z);
+							if (MaskX) Channels[IndexX]->Evaluate(FrameTime, Scale.X);
+							if (MaskY) Channels[IndexY]->Evaluate(FrameTime, Scale.Y);
+							if (MaskZ) Channels[IndexZ]->Evaluate(FrameTime, Scale.Z);
 
 							Scales[Frame] = FGLTFCoreUtilities::ConvertScale(Scale);
 						}
