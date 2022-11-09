@@ -563,7 +563,7 @@ float MaxRoughnessToEvaluateRoughSpecular;
 // 1 = fully diffuse
 float GetDiffuseLerp(float Roughness)
 {
-	float FadeLength = .3f;
+	float FadeLength = 0.2f;
 	return saturate((Roughness - MaxRoughnessToEvaluateRoughSpecular + FadeLength) / FadeLength);
 }
 
@@ -672,8 +672,7 @@ void ScreenProbeTileClassificationMarkCS(
 
 				const float DiffuseLerp = GetDiffuseLerp(Material.Roughness);
 				const float LumenSpecularRayAlpha = LumenCombineReflectionsAlpha(Material.Roughness, IsFoliage(Material));
-				const float RoughReflectionFadeAlpha = 1.0f - LumenSpecularRayAlpha;
-				if ((DiffuseLerp < 1.0f && RoughReflectionFadeAlpha > 0.0f) || IsClearCoat(Material))
+				if ((DiffuseLerp < 1.0f && LumenSpecularRayAlpha < 1.0f) || IsClearCoat(Material))
 				{
 					TileClassification = TILE_CLASSIFICATION_SUPPORT_IMPORTANCE_SAMPLE_BRDF;
 				}
@@ -1478,22 +1477,19 @@ void ScreenProbeIntegrateCS(
 			float3 SpecularLighting = DiffuseLighting / PI;
 			const float DiffuseLerp = GetDiffuseLerp(Material.Roughness);
 
+			// Prevent NaNs from ImportanceSampleVisibleGGX
+			Material.Roughness = max(Material.Roughness, 0.01f);
+			const float LumenSpecularRayAlpha = LumenCombineReflectionsAlpha(Material.Roughness, IsFoliage(Material));
+
 			// Rough-Specular
 		#if INTEGRATE_TILE_CLASSIFICATION_MODE != TILE_CLASSIFICATION_SIMPLE_DIFFUSE
 
 			uint NumSpecularSamples = 4;
-
-			// Prevent NaNs from ImportanceSampleVisibleGGX
-			Material.Roughness = max(Material.Roughness, .01f);
-
-			const float LumenSpecularRayAlpha = LumenCombineReflectionsAlpha(Material.Roughness, IsFoliage(Material));
-			const float RoughReflectionFadeAlpha = 1.0f - LumenSpecularRayAlpha;
-			if ((DiffuseLerp < 1.0f && RoughReflectionFadeAlpha > 0.0f) || IsClearCoat(Material))
+			if ((DiffuseLerp < 1.0f && LumenSpecularRayAlpha < 1.0f) || IsClearCoat(Material))
 			{
-				// Must match MixSpecularAndRoughReflections in DiffuseIndirectComposite.usf
-
 				// Prevent low roughness values that we can't support through screen probes with acceptable quality, eg clearcoat with bottom layer roughness 0
-				Material.Roughness = max(Material.Roughness, MaxRoughnessToTrace);
+				// Clamp to ~2x2 fooprint in a 16x16 probe
+				Material.Roughness = max(Material.Roughness, 0.2f);
 
 			#if STRATA_ENABLED
 				// STRATA_TODO: Abstract this more
@@ -1560,15 +1556,15 @@ void ScreenProbeIntegrateCS(
 				RoughSpecularLighting = InverseTonemapLighting(RoughSpecularLighting / (float)NumSpecularSamples);
 
 				SpecularLighting = lerp(RoughSpecularLighting, SpecularLighting, DiffuseLerp);
-
-				// Premultiply FadeAlpha for blending in MixSpecularAndRoughReflections
-				if (!IsClearCoat(Material) && LumenReflectionInputIsSSR == 0)
-				{
-					SpecularLighting *= RoughReflectionFadeAlpha;
-				}
 			}
 
 		#endif // Rough-Specular
+
+			// Premultiply FadeAlpha for blending in MixSpecularAndRoughReflections
+			if (!IsClearCoat(Material) && LumenReflectionInputIsSSR == 0)
+			{
+				SpecularLighting *= (1.0f - LumenSpecularRayAlpha);
+			}
 
 			#if DEBUG_VISUALIZE_TILE_CLASSIFICATION
 				SpecularLighting = TileClassificationColoring;
