@@ -1325,7 +1325,15 @@ namespace Gauntlet
 			{
 				GetCachedConfiguration().HordeTestDataKey = Name + " " + Context.ToString();
 			}
-			HordeReport.SimpleTestReport HordeTestReport = new HordeReport.SimpleTestReport();
+
+			string TestName = Name;
+			if (TestName.Split('.').Length > 1)
+			{
+				TestName = TestName.Split('.').Last();
+			}
+
+			HordeReport.SimpleTestReport HordeTestReport = new HordeReport.SimpleTestReport(UnrealTestResult, Context, GetCachedConfiguration());
+			HordeTestReport.TestName = TestName;
 			HordeTestReport.ReportCreatedOn = DateTime.Now.ToString();
 			HordeTestReport.TotalDurationSeconds = (float) (DateTime.Now - SessionStartTime).TotalSeconds;
 			HordeTestReport.Description = Context.ToString();
@@ -1447,23 +1455,31 @@ namespace Gauntlet
 			}
 		}
 
+		void SubmitToHorde(ITestReport Report)
+		{
+			if (!GetCachedConfiguration().WriteTestResultsForHorde)
+			{
+				return;
+			}
+
+			// write test data collection for Horde
+			string HordeTestDataFilePath = Path.Combine(
+				string.IsNullOrEmpty(GetCachedConfiguration().HordeTestDataPath) ? HordeReport.DefaultTestDataDir : GetCachedConfiguration().HordeTestDataPath,
+				FileUtils.SanitizeFilename(Name) + ".TestData.json"
+			);
+			HordeReport.TestDataCollection HordeTestDataCollection = new HordeReport.TestDataCollection();
+			HordeTestDataCollection.AddNewTestReport(Report, GetCachedConfiguration().HordeTestDataKey);
+			HordeTestDataCollection.WriteToJson(HordeTestDataFilePath, true);
+		}
+
 		/// <summary>
 		/// Optional function that is called on test completion and gives an opportunity to submit a report to a Dashboard
 		/// </summary>
 		/// <param name="Report"></param>
 		public virtual void SubmitToDashboard(ITestReport Report)
 		{
-			if (GetCachedConfiguration().WriteTestResultsForHorde)
-			{
-				// write test data collection for Horde
-				string HordeTestDataFilePath = Path.Combine(
-					string.IsNullOrEmpty(GetCachedConfiguration().HordeTestDataPath) ? HordeReport.DefaultTestDataDir : GetCachedConfiguration().HordeTestDataPath,
-					FileUtils.SanitizeFilename(Name) + ".TestData.json"
-				);
-				HordeReport.TestDataCollection HordeTestDataCollection = new HordeReport.TestDataCollection();
-				HordeTestDataCollection.AddNewTestReport(Report, GetCachedConfiguration().HordeTestDataKey);
-				HordeTestDataCollection.WriteToJson(HordeTestDataFilePath, true);
-			}
+			SubmitToHorde(Report);
+
 			if (!string.IsNullOrEmpty(GetCachedConfiguration().PublishTelemetryTo) && Report is ITelemetryReport Telemetry)
 			{
 				IEnumerable<TelemetryData> DataRows = Telemetry.GetAllTelemetryData();
