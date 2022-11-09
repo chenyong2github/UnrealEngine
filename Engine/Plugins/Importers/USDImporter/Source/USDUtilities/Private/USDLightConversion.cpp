@@ -87,41 +87,6 @@ namespace LightConversionImpl
 	}
 }
 
-bool UsdToUnreal::ConvertLight( const pxr::UsdLuxLightAPI& LightAPI, ULightComponentBase& LightComponentBase, double TimeCode )
-{
-	return UsdToUnreal::ConvertLight( LightAPI.GetPrim(), LightComponentBase, TimeCode );
-}
-
-bool UsdToUnreal::ConvertDistantLight( const pxr::UsdLuxDistantLight& DistantLight, UDirectionalLightComponent& LightComponent, double TimeCode )
-{
-	return UsdToUnreal::ConvertDistantLight( DistantLight.GetPrim(), LightComponent, TimeCode );
-}
-
-bool UsdToUnreal::ConvertRectLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxRectLight& RectLight, URectLightComponent& LightComponent, double TimeCode )
-{
-	return UsdToUnreal::ConvertRectLight( RectLight.GetPrim(), LightComponent, TimeCode );
-}
-
-bool UsdToUnreal::ConvertDiskLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxDiskLight& DiskLight, URectLightComponent& LightComponent, double TimeCode )
-{
-	return UsdToUnreal::ConvertDiskLight( DiskLight.GetPrim(), LightComponent, TimeCode );
-}
-
-bool UsdToUnreal::ConvertSphereLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxSphereLight& SphereLight, UPointLightComponent& LightComponent, double TimeCode )
-{
-	return UsdToUnreal::ConvertSphereLight( SphereLight.GetPrim(), LightComponent, TimeCode );
-}
-
-bool UsdToUnreal::ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxDomeLight& DomeLight, USkyLightComponent& LightComponent, UUsdAssetCache* TexturesCache, double TimeCode )
-{
-	return UsdToUnreal::ConvertDomeLight( DomeLight.GetPrim(), LightComponent, TexturesCache );
-}
-
-bool UsdToUnreal::ConvertLuxShapingAPI( const FUsdStageInfo& StageInfo, const pxr::UsdLuxShapingAPI& ShapingAPI, USpotLightComponent& LightComponent, double TimeCode )
-{
-	return UsdToUnreal::ConvertLuxShapingAPI( ShapingAPI.GetPrim(), LightComponent, TimeCode );
-}
-
 bool UsdToUnreal::ConvertLight( const pxr::UsdPrim& Prim, ULightComponentBase& LightComponentBase, double UsdTimeCode )
 {
 	FScopedUsdAllocs Allocs;

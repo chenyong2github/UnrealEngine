@@ -54,21 +54,6 @@ struct FUsdStageInfo;
  */
 namespace UsdToUnreal
 {
-	UE_DEPRECATED( 5.0, "Prefer the overload that receives a pxr::UsdPrim" )
-	USDUTILITIES_API bool ConvertLight( const pxr::UsdLuxLightAPI& LightAPI, ULightComponentBase& LightComponentBase, double TimeCode );
-	UE_DEPRECATED( 5.0, "Prefer the overload that receives a pxr::UsdPrim" )
-	USDUTILITIES_API bool ConvertDistantLight( const pxr::UsdLuxDistantLight& DistantLight, UDirectionalLightComponent& LightComponent, double TimeCode );
-	UE_DEPRECATED( 5.0, "Prefer the overload that receives a pxr::UsdPrim" )
-	USDUTILITIES_API bool ConvertRectLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxRectLight& RectLight, URectLightComponent& LightComponent, double TimeCode );
-	UE_DEPRECATED( 5.0, "Prefer the overload that receives a pxr::UsdPrim" )
-	USDUTILITIES_API bool ConvertDiskLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxDiskLight& DiskLight, URectLightComponent& LightComponent, double TimeCode );
-	UE_DEPRECATED( 5.0, "Prefer the overload that receives a pxr::UsdPrim" )
-	USDUTILITIES_API bool ConvertSphereLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxSphereLight& SphereLight, UPointLightComponent& LightComponent, double TimeCode );
-	UE_DEPRECATED( 5.0, "Prefer the overload that receives a pxr::UsdPrim" )
-	USDUTILITIES_API bool ConvertDomeLight( const FUsdStageInfo& StageInfo, const pxr::UsdLuxDomeLight& DomeLight, USkyLightComponent& LightComponent, UUsdAssetCache* TexturesCache, double TimeCode );
-	UE_DEPRECATED( 5.0, "Prefer the overload that receives a pxr::UsdPrim" )
-	USDUTILITIES_API bool ConvertLuxShapingAPI( const FUsdStageInfo& StageInfo, const pxr::UsdLuxShapingAPI& ShapingAPI, USpotLightComponent& LightComponent, double TimeCode );
-
 	USDUTILITIES_API bool ConvertLight( const pxr::UsdPrim& Prim, ULightComponentBase& LightComponent, double UsdTimeCode = UsdUtils::GetDefaultTimeCode() );
 	USDUTILITIES_API bool ConvertDistantLight( const pxr::UsdPrim& Prim, UDirectionalLightComponent& LightComponent, double UsdTimeCode = UsdUtils::GetDefaultTimeCode() );
 	USDUTILITIES_API bool ConvertRectLight( const pxr::UsdPrim& Prim, URectLightComponent& LightComponent, double UsdTimeCode = UsdUtils::GetDefaultTimeCode() );

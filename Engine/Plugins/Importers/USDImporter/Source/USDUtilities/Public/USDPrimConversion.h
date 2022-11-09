@@ -52,15 +52,6 @@ namespace UE
 namespace UsdToUnreal
 {
 	/**
-	 * Converts a time varying UsdGeomXformable to a UMovieScene3DTransformTrack.
-	 * @param Schema               The Xformable to read from
-	 * @param MovieSceneTrack      The track to add the time sampled transform to
-	 * @param SequenceTransform    The time transform to apply to the track keys to get them from Usd Stage time to track time (in other words: from main sequence to subsequence)
-	 */
-	UE_DEPRECATED( 5.0, "Use CreatePropertyTrackReader and ConvertTransformTimeSamples (c.f. FUsdLevelSequenceHelperImpl::AddCommonTracks)" )
-	USDUTILITIES_API bool ConvertXformable( const pxr::UsdTyped& Schema, UMovieScene3DTransformTrack& MovieSceneTrack, const FMovieSceneSequenceTransform& SequenceTransform );
-
-	/**
 	 * Converts a pxr::UsdGeomXformable's attribute values into an USceneComponent's property values
 	 * @param Stage - Stage that contains the prim to convert
 	 * @param Schema - Prim to convert
@@ -81,9 +72,6 @@ namespace UsdToUnreal
 	 * @return Whether the conversion was successful or not.
 	 */
 	USDUTILITIES_API bool ConvertXformable( const pxr::UsdStageRefPtr& Stage, const pxr::UsdTyped& Schema, FTransform& OutTransform, double EvalTime, bool* bOutResetTransformStack = nullptr );
-
-	UE_DEPRECATED( 5.0, "Prefer the overload that receives an UE::FUsdPrim" )
-	USDUTILITIES_API bool ConvertGeomCamera( const pxr::UsdStageRefPtr& Stage, const pxr::UsdGeomCamera& GeomCamera, UCineCameraComponent& CameraComponent, double EvalTime );
 
 	USDUTILITIES_API bool ConvertGeomCamera( const UE::FUsdPrim& Prim, UCineCameraComponent& CameraComponent, double UsdTimeCode = UsdUtils::GetDefaultTimeCode() );
 
@@ -121,9 +109,6 @@ namespace UsdToUnreal
 
 namespace UnrealToUsd
 {
-	UE_DEPRECATED( 5.0, "Prefer the overload that receives a pxr::UsdPrim" )
-	USDUTILITIES_API bool ConvertCameraComponent( const pxr::UsdStageRefPtr& Stage, const UCineCameraComponent* CameraComponent, pxr::UsdPrim& UsdPrim, double TimeCode = UsdUtils::GetDefaultTimeCode() );
-
 	USDUTILITIES_API bool ConvertCameraComponent( const UCineCameraComponent& CameraComponent, pxr::UsdPrim& Prim, double UsdTimeCode = UsdUtils::GetDefaultTimeCode() );
 
 	/**
