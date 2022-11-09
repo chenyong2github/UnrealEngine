@@ -36,7 +36,7 @@ namespace UE::DerivedData::Private
 DECLARE_LOG_CATEGORY_EXTERN(LogDerivedDataBuild, Log, All);
 
 // Implemented in DerivedDataBuild.cpp
-IBuild* CreateBuild(ICache& Cache);
+IBuild* CreateBuild(ICache* Cache);
 
 // Implemented in DerivedDataBuildFunctionRegistry.cpp
 IBuildFunctionRegistry* CreateBuildFunctionRegistry();
@@ -65,7 +65,7 @@ FValueId GetBuildOutputValueId();
 // Implemented in DerivedDataBuildSession.cpp
 FBuildSession CreateBuildSession(
 	const FSharedString& Name,
-	ICache& Cache,
+	ICache* Cache,
 	IBuild& BuildSystem,
 	IBuildScheduler& Scheduler,
 	IBuildInputResolver* InputResolver);
@@ -73,7 +73,7 @@ FBuildSession CreateBuildSession(
 // Implemented in DerivedDataBuildJob.cpp
 struct FBuildJobCreateParams
 {
-	ICache& Cache;
+	ICache* Cache{};
 	IBuild& BuildSystem;
 	IBuildScheduler& Scheduler;
 	IBuildInputResolver* InputResolver{};

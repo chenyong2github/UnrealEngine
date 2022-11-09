@@ -40,7 +40,7 @@ public:
 	virtual const FUtf8SharedString& GetFunction() const = 0;
 
 	/** Returns the cache associated with this job. */
-	virtual ICache& GetCache() const = 0;
+	virtual ICache* GetCache() const = 0;
 	/** Returns the build system associated with this job. */
 	virtual IBuild& GetBuild() const = 0;
 

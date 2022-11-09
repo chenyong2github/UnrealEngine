@@ -18,7 +18,7 @@ class FBuildSessionInternal final : public IBuildSessionInternal
 public:
 	FBuildSessionInternal(
 		const FSharedString& InName,
-		ICache& InCache,
+		ICache* InCache,
 		IBuild& InBuildSystem,
 		IBuildScheduler& InScheduler,
 		IBuildInputResolver* InInputResolver)
@@ -53,7 +53,7 @@ public:
 		FOnBuildComplete&& OnComplete) final;
 
 	FSharedString Name;
-	ICache& Cache;
+	ICache* Cache;
 	IBuild& BuildSystem;
 	IBuildScheduler& Scheduler;
 	IBuildInputResolver* InputResolver;
@@ -102,7 +102,7 @@ FBuildSession CreateBuildSession(IBuildSessionInternal* Session)
 
 FBuildSession CreateBuildSession(
 	const FSharedString& Name,
-	ICache& Cache,
+	ICache* Cache,
 	IBuild& BuildSystem,
 	IBuildScheduler& Scheduler,
 	IBuildInputResolver* InputResolver)

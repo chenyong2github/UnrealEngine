@@ -124,7 +124,7 @@ public:
 	inline const FSharedString& GetName() const final { return Name; }
 	inline const FUtf8SharedString& GetFunction() const final { return FunctionName; }
 
-	inline ICache& GetCache() const final { return Cache; }
+	inline ICache* GetCache() const final { return Cache; }
 	inline IBuild& GetBuild() const final { return BuildSystem; }
 
 	void StepExecution() final;
@@ -248,7 +248,7 @@ private:
 	/** Keys for missing inputs. */
 	TArray<FUtf8StringView> MissingInputs;
 
-	ICache& Cache;
+	ICache* Cache{};
 	IBuild& BuildSystem;
 
 	/** True if AdvanceToState is executing. */
@@ -514,7 +514,7 @@ static FCacheRecordPolicy MakeCacheRecordQueryPolicy(const FBuildPolicy& BuildPo
 
 void FBuildJob::EnterCacheQuery()
 {
-	if (!Context ||
+	if (!Cache || !Context ||
 		!EnumHasAnyFlags(Context->GetCachePolicyMask(), ECachePolicy::Query) ||
 		!EnumHasAnyFlags(Context->GetBuildPolicyMask() & BuildPolicy.GetCombinedPolicy(), EBuildPolicy::CacheQuery))
 	{
@@ -526,7 +526,7 @@ void FBuildJob::BeginCacheQuery()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FBuildJob::CacheQuery);
 	EnumAddFlags(BuildStatus, EBuildStatus::CacheQuery);
-	Cache.Get({{Name, Context->GetCacheKey(), MakeCacheRecordQueryPolicy(BuildPolicy, *Context)}}, Owner,
+	Cache->Get({{Name, Context->GetCacheKey(), MakeCacheRecordQueryPolicy(BuildPolicy, *Context)}}, Owner,
 		[this](FCacheGetResponse&& Response) { EndCacheQuery(MoveTemp(Response)); });
 }
 
@@ -575,7 +575,7 @@ static ECachePolicy MakeCacheStorePolicy(EBuildPolicy BuildPolicy, const FBuildJ
 
 void FBuildJob::EnterCacheStore()
 {
-	if (!Context ||
+	if (!Cache || !Context ||
 		!EnumHasAnyFlags(Context->GetCachePolicyMask(), ECachePolicy::Store) ||
 		!EnumHasAnyFlags(Context->GetBuildPolicyMask() & BuildPolicy.GetCombinedPolicy(), EBuildPolicy::CacheStoreOnBuild) ||
 		EnumHasAnyFlags(BuildStatus, EBuildStatus::CacheQueryHit) ||
@@ -592,7 +592,7 @@ void FBuildJob::BeginCacheStore()
 	EnumAddFlags(BuildStatus, EBuildStatus::CacheStore);
 	FCacheRecordBuilder RecordBuilder(Context->GetCacheKey());
 	Output.Get().Save(RecordBuilder);
-	Cache.Put({{Name, RecordBuilder.Build(), MakeCacheStorePolicy(BuildPolicy.GetCombinedPolicy(), *Context)}}, Owner,
+	Cache->Put({{Name, RecordBuilder.Build(), MakeCacheStorePolicy(BuildPolicy.GetCombinedPolicy(), *Context)}}, Owner,
 		[this](FCachePutResponse&& Response) { EndCacheStore(MoveTemp(Response)); });
 }
 

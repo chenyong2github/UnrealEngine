@@ -72,7 +72,7 @@ DEFINE_LOG_CATEGORY(LogDerivedDataBuild);
 class FBuild final : public IBuild
 {
 public:
-	explicit FBuild(ICache& InCache)
+	explicit FBuild(ICache* InCache)
 		: Cache(InCache)
 	{
 	}
@@ -118,7 +118,7 @@ public:
 	}
 
 private:
-	ICache& Cache;
+	ICache* Cache;
 	TUniquePtr<IBuildFunctionRegistry> FunctionRegistry{CreateBuildFunctionRegistry()};
 	TUniquePtr<IBuildWorkerRegistry> WorkerRegistry{CreateBuildWorkerRegistry()};
 	TUniquePtr<IBuildScheduler> DefaultScheduler{CreateBuildScheduler()};
@@ -127,7 +127,7 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IBuild* CreateBuild(ICache& Cache)
+IBuild* CreateBuild(ICache* Cache)
 {
 	LLM_SCOPE_BYTAG(DerivedDataBuild);
 	return new FBuild(Cache);
