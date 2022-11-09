@@ -755,7 +755,7 @@ bool UCommonUIActionRouterBase::ProcessInputOnActionDomains(ECommonInputMode Act
 		{
 			if (RootNode->IsWidgetActivated())
 			{
-				bool bInputEventHandled = RootNode->ProcessActionDomainNormalInput(ActiveInputMode, Key, InputEvent);
+				bool bInputEventHandled = RootNode->ProcessNormalInput(ActiveInputMode, Key, InputEvent);
 				bInputEventHandledInDomain |= bInputEventHandled;
 				bDomainHadActiveRoots = true;
 
@@ -779,15 +779,15 @@ bool UCommonUIActionRouterBase::ProcessInputOnActionDomains(ECommonInputMode Act
 
 EProcessHoldActionResult UCommonUIActionRouterBase::ProcessHoldInputOnActionDomains(ECommonInputMode ActiveInputMode, FKey Key, EInputEvent InputEvent) const
 {
+	EProcessHoldActionResult HoldActionResult = EProcessHoldActionResult::Unhandled;
+
 	UCommonInputSubsystem& CommonInputSubsystem = GetInputSubsystem();
 	UCommonInputActionDomainTable* ActionDomainTable = CommonInputSubsystem.GetActionDomainTable();
 
 	if (!ActionDomainTable)
 	{
-		return EProcessHoldActionResult::Unhandled;
+		return HoldActionResult;
 	}
-
-	EProcessHoldActionResult OutHoldActionResult = EProcessHoldActionResult::Unhandled;
 
 	for (const UCommonInputActionDomain* ActionDomain : ActionDomainTable->ActionDomains)
 	{
@@ -803,13 +803,13 @@ EProcessHoldActionResult UCommonUIActionRouterBase::ProcessHoldInputOnActionDoma
 
 		for (const FActivatableTreeRootRef& RootNode : SortedRootList->RootList)
 		{
-			if (RootNode->IsWidgetActivated())
+			if (RootNode->IsReceivingInput() && HoldActionResult == EProcessHoldActionResult::Unhandled)
 			{
-				bool bInputEventHandled = RootNode->ProcessActionDomainHoldInput(ActiveInputMode, Key, InputEvent, OutHoldActionResult);
-				bInputEventHandledInDomain |= bInputEventHandled;
+				HoldActionResult = RootNode->ProcessHoldInput(ActiveInputMode, Key, InputEvent);
+				bInputEventHandledInDomain |= HoldActionResult == EProcessHoldActionResult::Handled;
 				bDomainHadActiveRoots = true;
 
-				if (ActionDomain->ShouldBreakInnerEventFlow(bInputEventHandled))
+				if (ActionDomain->ShouldBreakInnerEventFlow(HoldActionResult == EProcessHoldActionResult::Handled))
 				{
 					break;
 				}
@@ -823,7 +823,7 @@ EProcessHoldActionResult UCommonUIActionRouterBase::ProcessHoldInputOnActionDoma
 		}
 	}
 
-	return OutHoldActionResult;
+	return HoldActionResult;
 }
 
 void UCommonUIActionRouterBase::ProcessRebuiltWidgets()
@@ -1147,10 +1147,17 @@ void UCommonUIActionRouterBase::UpdateLeafNodeAndConfig(FActivatableTreeRootPtr 
 {
 	if (DesiredRoot.IsValid())
 	{
-		// We're updating both the leaf node and it's config if we're the active root.
-		if (!DesiredRoot->UpdateLeafmostActiveNode(DesiredLeafNode, DesiredRoot == ActiveRootNode))
+		if (DesiredRoot == ActiveRootNode)
 		{
-			UE_LOG(LogUIActionRouter, Warning, TEXT("LeafmostActiveNode not updated."));
+			// We're updating both the leaf node and it's config if we're the active root.
+			if (!DesiredRoot->UpdateLeafmostActiveNode(DesiredLeafNode))
+			{
+				UE_LOG(LogUIActionRouter, Warning, TEXT("LeafmostActiveNode not updated."));
+			}
+		}
+		else
+		{
+			RefreshActionDomainLeafNodeConfig();
 		}
 	}
 }
