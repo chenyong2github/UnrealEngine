@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 using UnrealBuildTool;
 using System;
+using System.IO;
+
 public class NVAftermath : ModuleRules
 {
     public NVAftermath(ReadOnlyTargetRules Target)
@@ -8,21 +10,19 @@ public class NVAftermath : ModuleRules
 	{
 		Type = ModuleType.External;
 
-
         if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-            String NVAftermathPath = Target.UEThirdPartySourceDirectory + "NVIDIA/NVaftermath/";
-            PublicSystemIncludePaths.Add(NVAftermathPath + "include");
-            
-            String NVAftermathLibPath = NVAftermathPath + "lib/x64/";
-            PublicAdditionalLibraries.Add(NVAftermathLibPath + "GFSDK_Aftermath_Lib.x64.lib");
+			string ThirdPartyDir = Path.Combine(Target.UEThirdPartySourceDirectory, "NVIDIA", "NVaftermath");
+			string IncludeDir = Path.Combine(ThirdPartyDir, "include");
+			string LibrariesDir = Path.Combine(ThirdPartyDir, "lib", "x64");
+			string BinariesDir = Path.Combine("$(EngineDir)", "Binaries", "ThirdParty", "NVIDIA", "NVaftermath", "Win64");
 
-            String AftermathDllName = "GFSDK_Aftermath_Lib.x64.dll";                  
-            String nvDLLPath = "$(EngineDir)/Binaries/ThirdParty/NVIDIA/NVaftermath/Win64/" + AftermathDllName;
-            PublicDelayLoadDLLs.Add(AftermathDllName);
-            RuntimeDependencies.Add(nvDLLPath);
+			PublicDefinitions.Add("NV_AFTERMATH=1");
 
-            PublicDefinitions.Add("NV_AFTERMATH=1");
+			PublicSystemIncludePaths.Add(IncludeDir);
+            PublicAdditionalLibraries.Add(Path.Combine(LibrariesDir, "GFSDK_Aftermath_Lib.x64.lib"));
+			RuntimeDependencies.Add(Path.Combine(BinariesDir, "GFSDK_Aftermath_Lib.x64.dll"));
+            PublicDelayLoadDLLs.Add("GFSDK_Aftermath_Lib.x64.dll");
         }
 		else
         {

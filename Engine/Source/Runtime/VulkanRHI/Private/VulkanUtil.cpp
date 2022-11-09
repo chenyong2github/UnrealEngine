@@ -847,7 +847,6 @@ void AftermathGpuCrashDumpCallback(const void* CrashDump, const uint32 CrashDump
 			GFSDK_Aftermath_GpuCrashDumpFormatterFlags_NONE,
 			nullptr/*ShaderDebugInfoLookupCallback*/,
 			nullptr/*ShaderLookupCallback*/,
-			nullptr,
 			nullptr/*ShaderSourceDebugInfoLookupCallback*/,
 			UserData,
 			&JsonSize);
@@ -895,6 +894,11 @@ void AftermathCrashDumpDescriptionCallback(PFN_GFSDK_Aftermath_AddGpuCrashDumpDe
 	AddDescription(GFSDK_Aftermath_GpuCrashDumpDescriptionKey_ApplicationName, ProjectNameConverter.Get());
 	AddDescription(GFSDK_Aftermath_GpuCrashDumpDescriptionKey_ApplicationVersion, VersionConverter.Get());
 	AddDescription(GFSDK_Aftermath_GpuCrashDumpDescriptionKey_UserDefined, "Vulkan GPU crash");
+}
+
+void AftermathResolveMarkerCallback(const void* pMarker, void* pUserData, void** resolvedMarkerData, uint32_t* markerSize)
+{
+	// @todo: this needs implementing
 }
 #endif
 

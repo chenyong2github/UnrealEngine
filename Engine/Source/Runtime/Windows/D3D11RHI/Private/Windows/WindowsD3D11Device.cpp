@@ -1268,6 +1268,9 @@ void FD3D11DynamicRHI::StartNVAftermath()
 		Flags |= bEnableResources ? GFSDK_Aftermath_FeatureFlags_EnableResourceTracking : 0;
 		Flags |= bEnableAll ? GFSDK_Aftermath_FeatureFlags_Maximum : 0;
 
+		// @todo - GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting is disabled to prevent TDRs until Nvidia fixes this
+		Flags &= ~GFSDK_Aftermath_FeatureFlags_EnableShaderErrorReporting;
+
 		GFSDK_Aftermath_Result Result = GFSDK_Aftermath_DX11_Initialize(
 			GFSDK_Aftermath_Version_API, (GFSDK_Aftermath_FeatureFlags)Flags, Direct3DDevice);
 
@@ -1362,9 +1365,10 @@ void EnableNVAftermathCrashDumps()
 				GFSDK_Aftermath_Version_API,
 				GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_DX,
 				GFSDK_Aftermath_GpuCrashDumpFeatureFlags_Default,
-				D3D11AftermathCrashCallback,
+				&D3D11AftermathCrashCallback,
 				nullptr, //Shader debug callback
 				nullptr, // description callback
+				nullptr, // resolve marker callback
 				nullptr); // user data
 
 			if (Result == GFSDK_Aftermath_Result_Success)
