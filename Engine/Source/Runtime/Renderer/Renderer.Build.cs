@@ -8,7 +8,8 @@ public class Renderer : ModuleRules
 	{
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"../Shaders/Shared"
+				EngineDirectory + "/Shaders/Shared",
+				EngineDirectory + "/Shaders/Private", // For HaltonUtilities.ush
 				}
 			);
 

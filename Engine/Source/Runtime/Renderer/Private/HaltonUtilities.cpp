@@ -41,7 +41,7 @@ float asfloat(unsigned int integer)
 	return value.f;
 }
 
-#include "../../../Shaders/Private/HaltonUtilities.ush"
+#include "HaltonUtilities.ush"
 
 /**
  * Binds dimensions to consecutive Halton sequences. Note that sequences based on primes
