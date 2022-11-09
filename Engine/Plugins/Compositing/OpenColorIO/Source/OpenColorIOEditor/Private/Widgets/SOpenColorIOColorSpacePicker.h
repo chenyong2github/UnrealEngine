@@ -18,6 +18,20 @@ class UOpenColorIOConfiguration;
 
 DECLARE_DELEGATE_TwoParams(FOnColorSpaceChanged, const FOpenColorIOColorSpace& /*ColorSpace*/, const FOpenColorIODisplayView& /*DisplayView*/);
 
+/** Pair of OpenColorIO transform selection objects. */
+struct FOpenColorIOPickerSelection
+{
+	FOpenColorIOColorSpace ColorSpace;
+	FOpenColorIODisplayView DisplayView;
+};
+
+/** OpenColorIO transformation source or destination. */
+enum EOpenColorIOTransformDomain : uint32
+{
+	OCIO_Src = 0,
+	OCIO_Dst = 1,
+};
+
 class SOpenColorIOColorSpacePicker : public SCompoundWidget
 {
 public:
@@ -26,6 +40,7 @@ public:
 		SLATE_ARGUMENT(FOpenColorIOColorSpace, InitialColorSpace)
 		SLATE_ARGUMENT(FOpenColorIOColorSpace, RestrictedColor)
 		SLATE_ARGUMENT(FOpenColorIODisplayView, InitialDisplayView)
+		SLATE_ARGUMENT(FOpenColorIODisplayView, RestrictedDisplayView)
 		SLATE_ARGUMENT(bool, IsDestination)
 		SLATE_EVENT(FOnColorSpaceChanged, OnColorSpaceChanged)
 	SLATE_END_ARGS()
@@ -37,7 +52,7 @@ public:
 	void SetConfiguration(TWeakObjectPtr<UOpenColorIOConfiguration> NewConfiguration);
 
 	/** Update restricted color space for this picker */
-	void SetRestrictedColorSpace(const FOpenColorIOColorSpace& RestrictedColorSpace);
+	void SetRestrictions(const FOpenColorIOColorSpace& RestrictedColorSpace, const FOpenColorIODisplayView& RestricedDisplayView);
 
 protected:
 	
@@ -60,6 +75,7 @@ protected:
 	FOpenColorIOColorSpace ColorSpaceSelection;
 	FOpenColorIOColorSpace RestrictedColorSpace;
 	FOpenColorIODisplayView DisplayViewSelection;
+	FOpenColorIODisplayView RestrictedDisplayView;
 	FOnColorSpaceChanged OnColorSpaceChanged;
 	bool bIsDestination = false;
 };

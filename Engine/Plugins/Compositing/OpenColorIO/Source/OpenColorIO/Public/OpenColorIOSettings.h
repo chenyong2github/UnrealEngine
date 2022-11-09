@@ -41,4 +41,10 @@ public:
 		ToolTip = "Whether to create lookup table texture resources in 32-bit float format (higher performance requirements).",
 		ConfigRestartRequired = true))
 	uint8 bUse32fLUT : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = Transform, meta = (
+		DisplayName = "Support inverse view transforms",
+		ToolTip = "Whether inverse view transforms are cached and supported. Disabled by default, to minimize the number of transform combinations.",
+		ConfigRestartRequired = true))
+	uint8 bSupportInverseViewTransforms : 1;
 };

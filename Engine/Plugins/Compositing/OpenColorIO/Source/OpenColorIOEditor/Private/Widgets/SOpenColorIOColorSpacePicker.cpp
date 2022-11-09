@@ -5,6 +5,7 @@
 #include "Styling/AppStyle.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "OpenColorIOConfiguration.h"
+#include "OpenColorIOSettings.h"
 #include "SResetToDefaultMenu.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -21,6 +22,7 @@ void SOpenColorIOColorSpacePicker::Construct(const FArguments& InArgs)
 	ColorSpaceSelection = InArgs._InitialColorSpace;
 	RestrictedColorSpace = InArgs._RestrictedColor;
 	DisplayViewSelection = InArgs._InitialDisplayView;
+	RestrictedDisplayView = InArgs._RestrictedDisplayView;
 	bIsDestination = InArgs._IsDestination;
 	OnColorSpaceChanged = InArgs._OnColorSpaceChanged;
 
@@ -85,9 +87,10 @@ void SOpenColorIOColorSpacePicker::SetConfiguration(TWeakObjectPtr<UOpenColorIOC
 	SetCurrentColorSpace(FOpenColorIOColorSpace());
 }
 
-void SOpenColorIOColorSpacePicker::SetRestrictedColorSpace(const FOpenColorIOColorSpace& InRestrictedColorSpace)
+void SOpenColorIOColorSpacePicker::SetRestrictions(const FOpenColorIOColorSpace& InRestrictedColorSpace, const FOpenColorIODisplayView& InRestricedDisplayView)
 {
 	RestrictedColorSpace = InRestrictedColorSpace;
+	RestrictedDisplayView = InRestricedDisplayView;
 }
 
 void SOpenColorIOColorSpacePicker::SetCurrentColorSpace(const FOpenColorIOColorSpace& NewColorSpace)
@@ -124,6 +127,8 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 {
 	if (UOpenColorIOConfiguration* ConfigurationObject = Configuration.Get())
 	{
+		const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
+
 		// generate menu
 		const bool bShouldCloseWindowAfterClosing = false;
 		FMenuBuilder MenuBuilder(bShouldCloseWindowAfterClosing, nullptr);
@@ -171,7 +176,7 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 		}
 		MenuBuilder.EndSection();
 
-		if (bIsDestination)
+		if (bIsDestination || Settings->bSupportInverseViewTransforms)
 		{
 			MenuBuilder.BeginSection("AvailableDisplayViews", LOCTEXT("AvailableDisplayViews", "Available Display-Views"));
 			{
@@ -180,7 +185,7 @@ TSharedRef<SWidget> SOpenColorIOColorSpacePicker::HandleColorSpaceComboButtonMen
 				for (int32 i = 0; i < ConfigurationObject->DesiredDisplayViews.Num(); ++i)
 				{
 					const FOpenColorIODisplayView& DisplayView = ConfigurationObject->DesiredDisplayViews[i];
-					if (DisplayView == DisplayViewSelection || !DisplayView.IsValid())
+					if (DisplayView == RestrictedDisplayView || !DisplayView.IsValid())
 					{
 						continue;
 					}

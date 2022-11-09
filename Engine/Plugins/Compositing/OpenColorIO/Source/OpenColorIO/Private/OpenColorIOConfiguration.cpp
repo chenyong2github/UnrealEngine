@@ -11,6 +11,7 @@
 #include "Modules/ModuleManager.h"
 #include "OpenColorIOColorTransform.h"
 #include "OpenColorIOModule.h"
+#include "OpenColorIOSettings.h"
 #include "TextureResource.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
@@ -209,6 +210,8 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 		DesiredDisplayViews.Add(ExistingDisplayView);
 	}
 
+	const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
+
 	// Genereate new shaders.
 	for (int32 indexTop = 0; indexTop < DesiredColorSpaces.Num(); ++indexTop)
 	{
@@ -224,8 +227,12 @@ void UOpenColorIOConfiguration::ReloadExistingColorspaces()
 
 		for (const FOpenColorIODisplayView& DisplayView : DesiredDisplayViews)
 		{
-			// note: we only support display-view transforms in the forward direction currently.
 			CreateColorTransform(TopColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View, EOpenColorIOViewTransformDirection::Forward);
+
+			if (Settings->bSupportInverseViewTransforms)
+			{
+				CreateColorTransform(TopColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View, EOpenColorIOViewTransformDirection::Inverse);
+			}
 		}
 	}
 #endif
@@ -461,6 +468,8 @@ void UOpenColorIOConfiguration::PreSave(FObjectPreSaveContext SaveContext)
 
 void UOpenColorIOConfiguration::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	const UOpenColorIOSettings* Settings = GetDefault<UOpenColorIOSettings>();
+
 	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UOpenColorIOConfiguration, ConfigurationFile))
 	{
 		LoadConfigurationFile();
@@ -483,8 +492,12 @@ void UOpenColorIOConfiguration::PostEditChangeProperty(FPropertyChangedEvent& Pr
 
 				for (const FOpenColorIODisplayView& DisplayView : DesiredDisplayViews)
 				{
-					// note: we only support display-view transforms in the forward direction currently.
 					CreateColorTransform(TopColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View, EOpenColorIOViewTransformDirection::Forward);
+
+					if (Settings->bSupportInverseViewTransforms)
+					{
+						CreateColorTransform(TopColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View, EOpenColorIOViewTransformDirection::Inverse);
+					}
 				}
 			}
 		}
@@ -502,8 +515,12 @@ void UOpenColorIOConfiguration::PostEditChangeProperty(FPropertyChangedEvent& Pr
 			{
 				for (const FOpenColorIOColorSpace& SourceColorSpace : DesiredColorSpaces)
 				{
-					// note: we only support display-view transforms in the forward direction currently.
 					CreateColorTransform(SourceColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View, EOpenColorIOViewTransformDirection::Forward);
+
+					if (Settings->bSupportInverseViewTransforms)
+					{
+						CreateColorTransform(SourceColorSpace.ColorSpaceName, DisplayView.Display, DisplayView.View, EOpenColorIOViewTransformDirection::Inverse);
+					}
 				}
 			}
 		}
