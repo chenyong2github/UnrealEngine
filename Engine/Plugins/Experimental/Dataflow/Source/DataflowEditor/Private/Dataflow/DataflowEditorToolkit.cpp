@@ -2,15 +2,19 @@
 
 #include "Dataflow/DataflowEditorToolkit.h"
 
+#include "Dataflow/DataflowCore.h"
 #include "Dataflow/DataflowEditorActions.h"
-#include "Dataflow/DataflowGraphEditor.h"
+#include "Dataflow/DataflowEditorViewport.h"
 #include "Dataflow/DataflowEdNode.h"
+#include "Dataflow/DataflowGraphEditor.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowObject.h"
 #include "Dataflow/DataflowObjectInterface.h"
 #include "Dataflow/DataflowSchema.h"
-#include "Dataflow/DataflowCore.h"
 #include "EditorStyleSet.h"
+#include "EditorViewportTabContent.h"
+#include "EditorViewportLayout.h"
+#include "EditorViewportCommands.h"
 #include "GraphEditorActions.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
@@ -24,6 +28,7 @@
 
 //DEFINE_LOG_CATEGORY_STATIC(FDataflowEditorToolkitLog, Log, All);
 
+const FName FDataflowEditorToolkit::ViewportTabId(TEXT("DataflowEditor_Viewport"));
 const FName FDataflowEditorToolkit::GraphCanvasTabId(TEXT("DataflowEditor_GraphCanvas"));
 const FName FDataflowEditorToolkit::AssetDetailsTabId(TEXT("DataflowEditor_AssetDetails"));
 const FName FDataflowEditorToolkit::NodeDetailsTabId(TEXT("DataflowEditor_NodeDetails"));
@@ -139,6 +144,16 @@ void FDataflowEditorToolkit::OnPropertyValueChanged(const FPropertyChangedEvent&
 	FDataflowEditorCommands::OnPropertyValueChanged(this->GetDataflow(), Context, LastNodeTimestamp, PropertyChangedEvent);
 }
 
+bool FDataflowEditorToolkit::OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* GraphNode, FText& OutErrorMessage)
+{
+	return FDataflowEditorCommands::OnNodeVerifyTitleCommit(NewText, GraphNode, OutErrorMessage);
+}
+
+void FDataflowEditorToolkit::OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode)
+{
+	FDataflowEditorCommands::OnNodeTitleCommitted(InNewText, InCommitType, GraphNode);
+}
+
 void FDataflowEditorToolkit::Tick(float DeltaTime)
 {
 	if (Dataflow && Asset)
@@ -155,7 +170,7 @@ void FDataflowEditorToolkit::Tick(float DeltaTime)
 
 TStatId FDataflowEditorToolkit::GetStatId() const
 {
-	RETURN_QUICK_DECLARE_CYCLE_STAT(FFleshEditorToolkit, STATGROUP_Tickables);
+	RETURN_QUICK_DECLARE_CYCLE_STAT(FDataflowEditorToolkit, STATGROUP_Tickables);
 }
 
 TSharedRef<SGraphEditor> FDataflowEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit, TSharedPtr<IStructureDetailsView> InNodeDetailsEditor)
@@ -241,14 +256,22 @@ TSharedPtr<IDetailsView> FDataflowEditorToolkit::CreateAssetDetailsEditorWidget(
 
 }
 
-bool FDataflowEditorToolkit::OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* GraphNode, FText& OutErrorMessage)
+TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_Viewport(const FSpawnTabArgs& Args)
 {
-	return FDataflowEditorCommands::OnNodeVerifyTitleCommit(NewText, GraphNode, OutErrorMessage);
-}
+	check(Args.GetTabId() == ViewportTabId);
 
-void FDataflowEditorToolkit::OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode)
-{
-	FDataflowEditorCommands::OnNodeTitleCommitted(InNewText, InCommitType, GraphNode);
+	TSharedRef< SDockTab > DockableTab = SNew(SDockTab);
+	ViewportEditor = MakeShareable(new FEditorViewportTabContent());
+	TWeakPtr<FDataflowEditorToolkit> WeakSharedThis = SharedThis(this);
+
+	const FString LayoutId = FString("DataflowEditorViewport");
+	ViewportEditor->Initialize([WeakSharedThis](const FAssetEditorViewportConstructionArgs& InConstructionArgs)
+		{
+			return SNew(SDataflowEditorViewport)
+				.DataflowEditorToolkit(WeakSharedThis);
+		}, DockableTab, LayoutId);
+
+	return DockableTab;
 }
 
 TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_GraphCanvas(const FSpawnTabArgs& Args)
@@ -289,6 +312,11 @@ TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_NodeDetails(const FSpawnTa
 void FDataflowEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
 	TSharedRef<FWorkspaceItem> WorkspaceMenuCategoryRef = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_DataflowEditor", "Dataflow Editor"));
+
+	InTabManager->RegisterTabSpawner(ViewportTabId, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_Viewport))
+		.SetDisplayName(LOCTEXT("DataflowViewportTab", "Dataflow Viewport"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
 
 	InTabManager->RegisterTabSpawner(GraphCanvasTabId, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_GraphCanvas))
 		.SetDisplayName(LOCTEXT("DataflowTab", "Graph"))
@@ -356,6 +384,10 @@ void FDataflowEditorToolkit::AddReferencedObjects(FReferenceCollector& Collector
 	if (Dataflow)
 	{
 		Collector.AddReferencedObject(Dataflow);
+	}
+	if (Asset)
+	{
+		Collector.AddReferencedObject(Asset);
 	}
 }
 #undef LOCTEXT_NAMESPACE

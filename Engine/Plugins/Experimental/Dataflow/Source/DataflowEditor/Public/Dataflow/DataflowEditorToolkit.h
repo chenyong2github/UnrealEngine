@@ -9,6 +9,7 @@
 #include "GraphEditor.h"
 #include "TickableEditorObject.h"
 
+class FEditorViewportTabContent;
 class IDetailsView;
 class FTabManager;
 class IStructureDetailsView;
@@ -61,6 +62,7 @@ public:
 
 	// Tab spawners 
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
+	TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_GraphCanvas(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_AssetDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_NodeDetails(const FSpawnTabArgs& Args);
@@ -89,6 +91,9 @@ private:
 	UObject* Asset = nullptr;
 	UDataflow* Dataflow = nullptr;
 	FString TerminalPath = "";
+
+	static const FName ViewportTabId;
+	TSharedPtr<FEditorViewportTabContent> ViewportEditor;
 
 	static const FName GraphCanvasTabId;
 	TSharedPtr<SGraphEditor> GraphEditor;
