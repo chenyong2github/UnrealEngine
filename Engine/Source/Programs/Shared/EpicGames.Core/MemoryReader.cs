@@ -3,6 +3,7 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Text;
 
 namespace EpicGames.Core
 {
@@ -333,6 +334,62 @@ namespace EpicGames.Core
 			Dictionary<TKey, TValue> dictionary = new Dictionary<TKey, TValue>(comparer);
 			ReadDictionary(reader, dictionary, readKey, readValue);
 			return dictionary;
+		}
+
+		/// <summary>
+		/// Read a string from memory
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <returns>The string that was read</returns>
+		public static string ReadString(this IMemoryReader reader) => ReadString(reader, Encoding.UTF8);
+
+		/// <summary>
+		/// Read a string from memory
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <param name="encoding">Encoding to use for the string</param>
+		/// <returns>The string that was read</returns>
+		public static string ReadString(this IMemoryReader reader, Encoding encoding)
+		{
+			int length = (int)reader.ReadUnsignedVarInt();
+
+			ReadOnlySpan<byte> span = reader.GetSpan(length).Slice(0, length);
+			string str = encoding.GetString(span);
+			reader.Advance(length);
+
+			return str;
+		}
+
+		/// <summary>
+		/// Read a string from memory
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <returns>The string that was read</returns>
+		public static string? ReadOptionalString(this IMemoryReader reader) => ReadOptionalString(reader, Encoding.UTF8);
+
+		/// <summary>
+		/// Read a string from memory
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <param name="encoding">Encoding to use for the string</param>
+		/// <returns>The string that was read</returns>
+		public static string? ReadOptionalString(this IMemoryReader reader, Encoding encoding)
+		{
+			int length = (int)reader.ReadUnsignedVarInt();
+			if (length == 0)
+			{
+				return null;
+			}
+			else
+			{
+				length--;
+
+				ReadOnlySpan<byte> span = reader.GetSpan(length).Slice(0, length);
+				string str = encoding.GetString(span);
+				reader.Advance(length);
+
+				return str;
+			}
 		}
 	}
 }

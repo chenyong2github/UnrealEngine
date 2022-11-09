@@ -434,30 +434,6 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
-		/// Read a string from memory
-		/// </summary>
-		/// <param name="reader">Reader to deserialize from</param>
-		/// <returns>The string that was read</returns>
-		public static string ReadString(this IMemoryReader reader) => ReadString(reader, Encoding.UTF8);
-
-		/// <summary>
-		/// Read a string from memory
-		/// </summary>
-		/// <param name="reader">Reader to deserialize from</param>
-		/// <param name="encoding">Encoding to use for the string</param>
-		/// <returns>The string that was read</returns>
-		public static string ReadString(this IMemoryReader reader, Encoding encoding)
-		{
-			int length = (int)reader.ReadUnsignedVarInt();
-
-			ReadOnlySpan<byte> span = reader.GetSpan(length).Slice(0, length);
-			string str = encoding.GetString(span);
-			reader.Advance(length);
-
-			return str;
-		}
-
-		/// <summary>
 		/// Write a string to memory
 		/// </summary>
 		/// <param name="writer">Reader to deserialize from</param>
@@ -480,6 +456,39 @@ namespace EpicGames.Core
 			encoding.GetBytes(str, span[lengthBytes..]);
 
 			writer.Advance(lengthBytes + stringBytes);
+		}
+
+		/// <summary>
+		/// Write a nullable string to memory
+		/// </summary>
+		/// <param name="writer">Reader to deserialize from</param>
+		/// <param name="str">The string to be written</param>
+		public static void WriteOptionalString(this IMemoryWriter writer, string? str) => WriteOptionalString(writer, str, Encoding.UTF8);
+
+		/// <summary>
+		/// Write a nullable string to memory
+		/// </summary>
+		/// <param name="writer">Reader to deserialize from</param>
+		/// <param name="str">The string to be written</param>
+		/// <param name="encoding">Encoding to use for the string</param>
+		public static void WriteOptionalString(this IMemoryWriter writer, string? str, Encoding encoding)
+		{
+			if (str == null)
+			{
+				Span<byte> span = writer.GetSpan(1);
+				span[0] = 0;
+			}
+			else
+			{
+				int stringBytes = encoding.GetByteCount(str);
+				int lengthBytes = VarInt.MeasureUnsigned(stringBytes + 1);
+
+				Span<byte> span = writer.GetSpan(lengthBytes + stringBytes);
+				VarInt.WriteUnsigned(span, stringBytes + 1);
+				encoding.GetBytes(str, span[lengthBytes..]);
+
+				writer.Advance(lengthBytes + stringBytes);
+			}
 		}
 	}
 }

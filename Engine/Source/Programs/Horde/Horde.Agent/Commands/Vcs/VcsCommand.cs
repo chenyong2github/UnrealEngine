@@ -542,6 +542,9 @@ namespace Horde.Agent.Commands.Bundles
 	[Command("vcs", "commit", "Commits data to the VCS store")]
 	class VcsCommitCommand : VcsCommand
 	{
+		[CommandLine("-User=")]
+		public string UserName { get; set; } = Environment.UserName;
+
 		[CommandLine("-Message=")]
 		public string? Message { get; set; }
 
@@ -597,11 +600,11 @@ namespace Horde.Agent.Commands.Bundles
 			CommitNode newTip;
 			if (tip == null)
 			{
-				newTip = new CommitNode(1, null, Message, DateTime.UtcNow, rootRef);
+				newTip = new CommitNode(1, null, UserName, Message, DateTime.UtcNow, rootRef);
 			}
 			else
 			{
-				newTip = new CommitNode(tip.Number + 1, tipRef, Message, DateTime.UtcNow, rootRef);
+				newTip = new CommitNode(tip.Number + 1, tipRef, UserName, Message, DateTime.UtcNow, rootRef);
 			}
 			await store.WriteNodeAsync(workspaceState.Branch, newTip);
 

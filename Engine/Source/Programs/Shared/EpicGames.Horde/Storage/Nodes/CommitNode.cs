@@ -23,6 +23,26 @@ namespace EpicGames.Horde.Storage.Nodes
 		public TreeNodeRef<CommitNode>? Parent { get; set; }
 
 		/// <summary>
+		/// Human readable name of the author of this change
+		/// </summary>
+		public string Author { get; set; }
+
+		/// <summary>
+		/// Optional unique identifier for the author. May be an email address, user id, etc...
+		/// </summary>
+		public string? AuthorId { get; set; }
+
+		/// <summary>
+		/// Human readable name of the committer of this change
+		/// </summary>
+		public string? Committer { get; set; }
+
+		/// <summary>
+		/// Optional unique identifier for the committer. May be an email address, user id, etc...
+		/// </summary>
+		public string? CommitterId { get; set; }
+
+		/// <summary>
 		/// Message for this commit
 		/// </summary>
 		public string Message { get; set; }
@@ -47,13 +67,15 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="number">Commit number</param>
 		/// <param name="parent">The parent commit</param>
+		/// <param name="author">Author of this commit</param>
 		/// <param name="message">Message for the commit</param>
 		/// <param name="time">The commit time</param>
 		/// <param name="contents">Contents of the tree at this commit</param>
-		public CommitNode(int number, TreeNodeRef<CommitNode>? parent, string message, DateTime time, TreeNodeRef<DirectoryNode> contents)
+		public CommitNode(int number, TreeNodeRef<CommitNode>? parent, string author, string message, DateTime time, TreeNodeRef<DirectoryNode> contents)
 		{
 			Number = number;
 			Parent = parent;
+			Author = author;
 			Message = message;
 			Time = time;
 			Contents = contents;
@@ -66,10 +88,11 @@ namespace EpicGames.Horde.Storage.Nodes
 		public CommitNode(ITreeNodeReader reader)
 		{
 			Number = (int)reader.ReadUnsignedVarInt();
-			if (reader.ReadBoolean())
-			{
-				Parent = reader.ReadRef<CommitNode>();
-			}
+			Parent = reader.ReadOptionalRef<CommitNode>();
+			Author = reader.ReadString();
+			AuthorId = reader.ReadOptionalString();
+			Committer = reader.ReadOptionalString();
+			CommitterId = reader.ReadOptionalString();
 			Message = reader.ReadString();
 			Time = reader.ReadDateTime();
 			Contents = reader.ReadRef<DirectoryNode>();
@@ -80,11 +103,11 @@ namespace EpicGames.Horde.Storage.Nodes
 		public override void Serialize(ITreeNodeWriter writer)
 		{
 			writer.WriteUnsignedVarInt(Number);
-			writer.WriteBoolean(Parent != null);
-			if (Parent != null)
-			{
-				writer.WriteRef(Parent);
-			}
+			writer.WriteOptionalRef(Parent);
+			writer.WriteString(Author);
+			writer.WriteOptionalString(AuthorId);
+			writer.WriteOptionalString(Committer);
+			writer.WriteOptionalString(CommitterId);
 			writer.WriteString(Message);
 			writer.WriteDateTime(Time);
 			writer.WriteRef(Contents);
@@ -98,7 +121,13 @@ namespace EpicGames.Horde.Storage.Nodes
 			{
 				yield return Parent;
 			}
+
 			yield return Contents;
+
+			foreach (TreeNodeRef metadataRef in Metadata.Values)
+			{
+				yield return metadataRef;
+			}
 		}
 	}
 }

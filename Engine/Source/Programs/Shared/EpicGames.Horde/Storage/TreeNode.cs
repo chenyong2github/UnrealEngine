@@ -119,10 +119,62 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <typeparam name="T">Type of the referenced node</typeparam>
 		/// <param name="reader">Reader to deserialize from</param>
-		/// <returns></returns>
+		/// <returns>New strongly typed ref</returns>
 		public static TreeNodeRef<T> ReadRef<T>(this ITreeNodeReader reader) where T : TreeNode
 		{
 			return new TreeNodeRef<T>(reader);
+		}
+
+		/// <summary>
+		/// Read an optional untyped ref from the reader
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <returns>New untyped ref</returns>
+		public static TreeNodeRef? ReadOptionalRef(this ITreeNodeReader reader)
+		{
+			if (reader.ReadBoolean())
+			{
+				return reader.ReadRef();
+			}
+			else
+			{
+				return null;
+			}
+		}
+
+		/// <summary>
+		/// Read an optional strongly typed ref from the reader
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <returns>New strongly typed ref</returns>
+		public static TreeNodeRef<T>? ReadOptionalRef<T>(this ITreeNodeReader reader) where T : TreeNode
+		{
+			if (reader.ReadBoolean())
+			{
+				return reader.ReadRef<T>();
+			}
+			else
+			{
+				return null;
+			}
+		}
+
+		/// <summary>
+		/// Writes an optional ref value to storage
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="value">Value to write</param>
+		public static void WriteOptionalRef(this ITreeNodeWriter writer, TreeNodeRef? value)
+		{
+			if (value == null)
+			{
+				writer.WriteBoolean(false);
+			}
+			else
+			{
+				writer.WriteBoolean(true);
+				writer.WriteRef(value);
+			}
 		}
 
 		/// <summary>
