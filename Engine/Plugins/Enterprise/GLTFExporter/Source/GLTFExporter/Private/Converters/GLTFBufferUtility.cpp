@@ -8,16 +8,7 @@ bool FGLTFBufferUtility::HasCPUAccess(const FRawStaticIndexBuffer* IndexBuffer)
 #if WITH_EDITOR
 	return true;
 #else
-	struct FRawStaticIndexBufferHack : FIndexBuffer
-	{
-		TResourceArray<uint8, INDEXBUFFER_ALIGNMENT> IndexStorage;
-		int32 CachedNumIndices;
-		bool b32Bit;
-		bool bShouldExpandTo32Bit;
-	};
-
-	static_assert(sizeof(FRawStaticIndexBufferHack) == sizeof(FRawStaticIndexBuffer), "FRawStaticIndexBufferHack memory layout doesn't match FRawStaticIndexBuffer");
-	return reinterpret_cast<const FRawStaticIndexBufferHack*>(IndexBuffer)->IndexStorage.GetAllowCPUAccess();
+	return IndexBuffer->GetAllowCPUAccess();
 #endif
 }
 
@@ -35,19 +26,7 @@ bool FGLTFBufferUtility::HasCPUAccess(const FPositionVertexBuffer* VertexBuffer)
 #if WITH_EDITOR
 	return true;
 #else
-	struct FPositionVertexBufferHack : FVertexBuffer
-	{
-		FShaderResourceViewRHIRef PositionComponentSRV;
-		TMemoryImagePtr<FStaticMeshVertexDataInterface> VertexData;
-		uint8* Data;
-		uint32 Stride;
-		uint32 NumVertices;
-		bool bNeedsCPUAccess;
-	};
-
-	static_assert(sizeof(FPositionVertexBufferHack) == sizeof(FPositionVertexBuffer), "FPositionVertexBufferHack memory layout doesn't match FPositionVertexBuffer");
-	const FStaticMeshVertexDataInterface* VertexData = reinterpret_cast<const FPositionVertexBufferHack*>(VertexBuffer)->VertexData;
-	return VertexData != nullptr && VertexData->GetAllowCPUAccess();
+	return VertexBuffer->GetAllowCPUAccess();
 #endif
 }
 
@@ -56,19 +35,7 @@ bool FGLTFBufferUtility::HasCPUAccess(const FColorVertexBuffer* VertexBuffer)
 #if WITH_EDITOR
 	return true;
 #else
-	struct FColorVertexBufferHack : FVertexBuffer
-	{
-		FStaticMeshVertexDataInterface* VertexData;
-		FShaderResourceViewRHIRef ColorComponentsSRV;
-		uint8* Data;
-		uint32 Stride;
-		uint32 NumVertices;
-		bool NeedsCPUAccess;
-	};
-
-	static_assert(sizeof(FColorVertexBufferHack) == sizeof(FColorVertexBuffer), "FColorVertexBufferHack memory layout doesn't match FColorVertexBuffer");
-	const FStaticMeshVertexDataInterface* VertexData = reinterpret_cast<const FColorVertexBufferHack*>(VertexBuffer)->VertexData;
-	return VertexData != nullptr && VertexData->GetAllowCPUAccess();
+	return VertexBuffer->GetAllowCPUAccess();
 #endif
 }
 
@@ -98,11 +65,6 @@ const void* FGLTFBufferUtility::GetCPUBuffer(const FRawStaticIndexBuffer* IndexB
 const void* FGLTFBufferUtility::GetCPUBuffer(const FRawStaticIndexBuffer16or32Interface* IndexBuffer)
 {
 	return IndexBuffer->GetResourceDataSize() > 0 ? const_cast<FRawStaticIndexBuffer16or32Interface*>(IndexBuffer)->GetPointerTo(0) : nullptr;
-}
-
-const void* FGLTFBufferUtility::GetCPUBuffer(const FSkinWeightDataVertexBuffer* VertexBuffer)
-{
-	return VertexBuffer->GetWeightData();
 }
 
 const void* FGLTFBufferUtility::GetCPUBuffer(const FSkinWeightLookupVertexBuffer* VertexBuffer)
