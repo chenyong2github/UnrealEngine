@@ -183,6 +183,50 @@ half MobileDirectionalLightCSM(float2 ScreenPosition, float SceneDepth, inout fl
 }
 
 /*------------------------------------------------------------------------------
+	Mobile Translucency Light.
+------------------------------------------------------------------------------*/
+
+FLightAccumulator GetTranslucencySHLighting(FGBufferData GBuffer, FDeferredLightData LightData, float3 TranslatedWorldPosition)
+{
+	FLightAccumulator LightAccumulator = (FLightAccumulator)0;
+	float4 VolumeLighting;
+	float3 InterpolatedLighting = 0;
+
+	float Attenuation = 1.0f;
+	float3 L = LightData.Direction;	// Already normalized
+	float3 NormalizedLightVector = L;
+	if (LightData.bRadialLight)
+	{
+		Attenuation = GetLocalLightAttenuation(TranslatedWorldPosition, LightData, L, NormalizedLightVector);
+	}
+
+	float3 Lighting = LightData.Color / PI * Attenuation;
+	FTwoBandSHVectorRGB SHLighting = MulSH(SHBasisFunction(NormalizedLightVector), Lighting);
+
+	float4 AmbientLightingVector = float4(SHLighting.R.V.x, SHLighting.G.V.x, SHLighting.B.V.x, 1.0f);
+
+	float3 LuminanceWeights = float3(.3, .59, .11);
+	float3 Coefficient0 = float3(SHLighting.R.V.y, SHLighting.G.V.y, SHLighting.B.V.y);
+	float3 Coefficient1 = float3(SHLighting.R.V.z, SHLighting.G.V.z, SHLighting.B.V.z);
+	float3 Coefficient2 = float3(SHLighting.R.V.w, SHLighting.G.V.w, SHLighting.B.V.w);
+	float3 DirectionalLightingVector = float3(dot(Coefficient0, LuminanceWeights), dot(Coefficient1, LuminanceWeights), dot(Coefficient2, LuminanceWeights));
+
+#if TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_DIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_DIRECTIONAL || TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME
+
+	GetVolumeLightingDirectional(AmbientLightingVector, DirectionalLightingVector, GBuffer.WorldNormal, GBuffer.DiffuseColor, InterpolatedLighting, VolumeLighting);
+
+#elif TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_NONDIRECTIONAL
+
+	GetVolumeLightingNonDirectional(AmbientLightingVector, GBuffer.DiffuseColor, InterpolatedLighting, VolumeLighting);
+
+#endif
+
+	LightAccumulator_AddSplit(LightAccumulator, InterpolatedLighting, 0.0f, InterpolatedLighting, 1.0f, false);
+
+	return LightAccumulator;
+}
+
+/*------------------------------------------------------------------------------
 	Mobile Directional Light.
 ------------------------------------------------------------------------------*/
 
@@ -225,7 +269,11 @@ void AccumulateDirectionalLighting(FGBufferData GBuffer, float3 TranslatedWorldP
 
 	half4 LightAttenuation = half4(1, 1, DynamicShadowing, DynamicShadowing);
 
+#if TRANSLUCENCY_SH_LIGHTING
+	FLightAccumulator NewLighting = GetTranslucencySHLighting(GBuffer, LightData, TranslatedWorldPosition);
+#else
 	FLightAccumulator NewLighting = AccumulateDynamicLighting(TranslatedWorldPosition, CameraVector, GBuffer, 1, GBuffer.ShadingModelID, LightData, LightAttenuation, 0, uint2(0, 0), OutDirectionalLightShadow);
+#endif
 	DirectLighting = LightAccumulator_Add(DirectLighting, NewLighting);
 }
 
@@ -465,7 +513,11 @@ void AccumulateLightGridLocalLighting(const FCulledLightsGridData InLightGridDat
 		half4 LightAttenuation = half4(1, 1, DynamicShadowing, DynamicShadowing);
 
 		float SurfaceShadow = 0;
+#if TRANSLUCENCY_SH_LIGHTING
+		FLightAccumulator NewLighting = GetTranslucencySHLighting(GBuffer, LightData, TranslatedWorldPosition);
+#else
 		FLightAccumulator NewLighting = AccumulateDynamicLighting(TranslatedWorldPosition, CameraVector, GBuffer, 1, GBuffer.ShadingModelID, LightData, LightAttenuation, 0, uint2(0, 0), SurfaceShadow);
+#endif
 		DirectLighting = LightAccumulator_Add(DirectLighting, NewLighting);
 	}
 }
