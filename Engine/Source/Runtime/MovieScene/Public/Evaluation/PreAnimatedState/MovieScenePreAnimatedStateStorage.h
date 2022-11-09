@@ -597,6 +597,35 @@ public:
 	}
 
 	/**
+	 * Set up a new associations with a storage index for the given entity
+	 * WARNING: Does not cache actual pre-animated values
+	 */
+	template<typename... ContributorTypes>
+	void BeginTrackingEntity(FMovieSceneEntityID EntityID, const bool bWantsRestoreState, FRootInstanceHandle RootInstanceHandle, ContributorTypes... InComponents)
+	{
+		if (!this->ParentExtension->IsCapturingGlobalState() && !bWantsRestoreState)
+		{
+			return;
+		}
+
+		TSavePreAnimatedStateParams<ContributorTypes...> Params;
+
+		if (!Params.ShouldSavePreAnimatedState(InComponents...))
+		{
+			return;
+		}
+
+		KeyType Key{ InComponents... };
+
+		FPreAnimatedStorageGroupHandle GroupHandle  = this->Traits.MakeGroup(InComponents...);
+		FPreAnimatedStorageIndex       StorageIndex = this->GetOrCreateStorageIndex(Key);
+
+		FPreAnimatedStateEntry Entry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ this->StorageID, StorageIndex } };
+		FPreAnimatedEntityCaptureSource* EntityMetaData = this->ParentExtension->GetOrCreateEntityMetaData();
+		EntityMetaData->BeginTrackingEntity(Entry, EntityID, RootInstanceHandle, bWantsRestoreState);
+	}
+
+	/**
 	 * Cache pre-animated values for entities with the specified component types
 	 */
 	template<typename... CacheValueInputs>

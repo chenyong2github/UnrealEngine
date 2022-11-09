@@ -51,6 +51,7 @@ struct IPreAnimatedStorage : TSharedFromThis<IPreAnimatedStorage>
 struct IPreAnimatedObjectEntityStorage
 {
 	virtual void BeginTrackingEntities(const FPreAnimatedTrackerParams& Params, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> InstanceHandles, TRead<UObject*> BoundObjects) = 0;
+	virtual void BeginTrackingEntity(FMovieSceneEntityID EntityID, bool bWantsRestoreState, FRootInstanceHandle InstanceHandle, UObject* BoundObject) = 0;
 	virtual void CachePreAnimatedValues(const FCachePreAnimatedValueParams& Params, TArrayView<UObject* const> BoundObjects) = 0;
 };
 

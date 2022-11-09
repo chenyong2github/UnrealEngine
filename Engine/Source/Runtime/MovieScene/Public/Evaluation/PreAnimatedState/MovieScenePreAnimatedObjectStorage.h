@@ -68,6 +68,24 @@ public:
 		}
 	}
 
+	void BeginTrackingEntity(FMovieSceneEntityID EntityID, bool bWantsRestoreState, FRootInstanceHandle RootInstanceHandle, UObject* BoundObject) override
+	{
+		if (!this->ParentExtension->IsCapturingGlobalState() && !bWantsRestoreState)
+		{
+			return;
+		}
+
+		FPreAnimatedEntityCaptureSource* EntityMetaData = this->ParentExtension->GetOrCreateEntityMetaData();
+
+		FObjectKey Key{ BoundObject };
+
+		FPreAnimatedStorageGroupHandle GroupHandle  = this->Traits.MakeGroup(BoundObject);
+		FPreAnimatedStorageIndex       StorageIndex = this->GetOrCreateStorageIndex(Key);
+
+		FPreAnimatedStateEntry Entry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ this->StorageID, StorageIndex } };
+		EntityMetaData->BeginTrackingEntity(Entry, EntityID, RootInstanceHandle, bWantsRestoreState);
+	}
+
 	void CachePreAnimatedValues(const FCachePreAnimatedValueParams& Params, TArrayView<UObject* const> BoundObjects) override
 	{
 		for (UObject* BoundObject : BoundObjects)
@@ -77,6 +95,46 @@ public:
 	}
 
 	void CachePreAnimatedValue(const FCachePreAnimatedValueParams& Params, UObject* BoundObject)
+	{
+		FObjectKey Key{ BoundObject };
+	
+		FPreAnimatedStorageIndex       StorageIndex = this->GetOrCreateStorageIndex(Key);
+		FPreAnimatedStorageGroupHandle GroupHandle  = this->Traits.MakeGroup(BoundObject);
+		FPreAnimatedStateEntry         Entry        = FPreAnimatedStateEntry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ this->StorageID, StorageIndex } };
+	
+		if (this->ParentExtension->IsCapturingGlobalState())
+		{
+			this->ParentExtension->EnsureMetaData(Entry);
+		}
+		else if (!this->ParentExtension->MetaDataExists(Entry))
+		{
+			return;
+		}
+	
+		CachePreAnimatedValue(Params, Entry, BoundObject);
+	}
+	
+	void CachePreAnimatedValue(const FCachePreAnimatedValueParams& Params, const FPreAnimatedStateEntry& Entry, UObject* BoundObject)
+	{
+		FPreAnimatedStorageIndex StorageIndex = Entry.ValueHandle.StorageIndex;
+	
+		EPreAnimatedStorageRequirement StorageRequirement = this->ParentExtension->GetStorageRequirement(Entry);
+		if (!this->IsStorageRequirementSatisfied(StorageIndex, StorageRequirement))
+		{
+			StorageType NewValue;
+			ObjectTraits::CachePreAnimatedValue(BoundObject, NewValue);
+	
+			this->AssignPreAnimatedValue(StorageIndex, StorageRequirement, MoveTemp(NewValue));
+		}
+	
+		if (Params.bForcePersist)
+		{
+			this->ForciblyPersistStorage(StorageIndex);
+		}
+	}
+
+	template<typename ValueInitializer>
+	void CachePreAnimatedValue(const FCachePreAnimatedValueParams& Params, UObject* BoundObject, ValueInitializer&& InitCallback)
 	{
 		FObjectKey Key{ BoundObject };
 
@@ -93,10 +151,11 @@ public:
 			return;
 		}
 
-		CachePreAnimatedValue(Params, Entry, BoundObject);
+		CachePreAnimatedValue(Params, Entry, BoundObject, Forward<ValueInitializer>(InitCallback));
 	}
 
-	void CachePreAnimatedValue(const FCachePreAnimatedValueParams& Params, const FPreAnimatedStateEntry& Entry, UObject* BoundObject)
+	template<typename ValueInitializer>
+	void CachePreAnimatedValue(const FCachePreAnimatedValueParams& Params, const FPreAnimatedStateEntry& Entry, UObject* BoundObject, ValueInitializer&& InitCallback)
 	{
 		FPreAnimatedStorageIndex StorageIndex = Entry.ValueHandle.StorageIndex;
 
@@ -104,6 +163,7 @@ public:
 		if (!this->IsStorageRequirementSatisfied(StorageIndex, StorageRequirement))
 		{
 			StorageType NewValue;
+			InitCallback(BoundObject, NewValue);
 			ObjectTraits::CachePreAnimatedValue(BoundObject, NewValue);
 
 			this->AssignPreAnimatedValue(StorageIndex, StorageRequirement, MoveTemp(NewValue));
