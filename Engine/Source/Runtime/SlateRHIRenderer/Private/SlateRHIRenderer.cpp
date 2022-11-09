@@ -1594,7 +1594,7 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 {
 	checkSlow(IsThreadSafeForSlateRendering());
 
-	if (bUpdateHDRDisplayInformation)
+	if (bUpdateHDRDisplayInformation && IsHDRAllowed() && IsInGameThread())
 	{
 		FlushRenderingCommands();
 		RHIHandleDisplayChange();
