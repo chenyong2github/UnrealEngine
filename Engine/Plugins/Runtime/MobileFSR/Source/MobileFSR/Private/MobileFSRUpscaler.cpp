@@ -13,8 +13,8 @@
 #ifdef A_RESTRICT
 #undef A_RESTRICT
 #endif
-#include "../Shaders/Private/ffx_a.ush"
-#include "../Shaders/Private/ffx_fsr1.ush"
+#include "ffx_a.ush"
+#include "ffx_fsr1.ush"
 
 
 //////////////////////////////////////////////////////////////////////////

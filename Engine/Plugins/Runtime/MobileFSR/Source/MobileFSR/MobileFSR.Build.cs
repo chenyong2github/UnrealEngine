@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-using System.IO;
 
 public class MobileFSR : ModuleRules
 {
@@ -12,6 +11,7 @@ public class MobileFSR : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				EngineDirectory + "/Source/Runtime/Renderer/Private",
+				PluginDirectory + "/Shaders/Private",
 			}
 			);
 
