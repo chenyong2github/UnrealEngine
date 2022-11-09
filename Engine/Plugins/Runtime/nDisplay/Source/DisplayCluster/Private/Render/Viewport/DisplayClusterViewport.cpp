@@ -52,10 +52,6 @@ FDisplayClusterViewport::FDisplayClusterViewport(FDisplayClusterViewportManager&
 
 FDisplayClusterViewport::~FDisplayClusterViewport()
 {
-	// Handle projection policy event
-	ProjectionPolicy.Reset();
-	UninitializedProjectionPolicy.Reset();
-
 	// Remove viewport proxy on render_thread
 	ENQUEUE_RENDER_COMMAND(DeleteDisplayClusterViewportProxy)(
 		[ViewportManagerProxy = Owner.GetViewportManagerProxy(), ViewportProxy = ViewportProxy](FRHICommandListImmediate& RHICmdList)
@@ -67,6 +63,10 @@ FDisplayClusterViewport::~FDisplayClusterViewport()
 	ViewportProxy.Reset();
 
 	HandleEndScene();
+
+	// Handle projection policy event
+	ProjectionPolicy.Reset();
+	UninitializedProjectionPolicy.Reset();
 
 	// Reset RTT size after viewport delete
 	Owner.ResetSceneRenderTargetSize();

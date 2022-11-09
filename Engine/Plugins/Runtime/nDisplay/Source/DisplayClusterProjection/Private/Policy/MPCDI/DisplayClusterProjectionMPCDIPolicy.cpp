@@ -446,6 +446,9 @@ UMeshComponent* FDisplayClusterProjectionMPCDIPolicy::GetOrCreatePreviewMeshComp
 			MeshComp->CreateMeshSection(0, MeshData.Vertices, MeshData.Triangles, MeshData.Normal, MeshData.UV, TArray<FColor>(), TArray<FProcMeshTangent>(), false);
 			MeshComp->SetIsVisualizationComponent(true);
 
+			// Because of "nDisplay.render.show.visualizationcomponents" we need extra flag to exclude this geometry from render
+			MeshComp->SetHiddenInGame(true);
+
 			// Store reference to mesh component
 			PreviewMeshComponentRef.SetSceneComponent(MeshComp);
 			return MeshComp;
