@@ -26,7 +26,7 @@ bool USmartObjectDefinition::Validate() const
 	bValid = false;
 	if (Slots.Num() == 0)
 	{
-		UE_LOG(LogSmartObject, Error, TEXT("Need to provide at least one slot definition"));
+		UE_LOG(LogSmartObject, Error, TEXT("%s: Need to provide at least one slot definition"), *GetFullName());
 		return false;
 	}
 
@@ -34,7 +34,7 @@ bool USmartObjectDefinition::Validate() const
 	int32 NullEntryIndex;
 	if (DefaultBehaviorDefinitions.Find(nullptr, NullEntryIndex))
 	{
-		UE_LOG(LogSmartObject, Error, TEXT("Null entry found at index %d in default behavior definition list"), NullEntryIndex);
+		UE_LOG(LogSmartObject, Error, TEXT("%s: Null entry found at index %d in default behavior definition list"), *GetFullName(), NullEntryIndex);
 		return false;
 	}
 
@@ -44,7 +44,7 @@ bool USmartObjectDefinition::Validate() const
 		const FSmartObjectSlotDefinition& Slot = Slots[i];
 		if (Slot.BehaviorDefinitions.Find(nullptr, NullEntryIndex))
 		{
-			UE_LOG(LogSmartObject, Error, TEXT("Null definition entry found at index %d in behavior list of slot %d"), i, NullEntryIndex);
+			UE_LOG(LogSmartObject, Error, TEXT("%s: Null definition entry found at index %d in behavior list of slot %d"), *GetFullName(), i, NullEntryIndex);
 			return false;
 		}
 	}
@@ -57,7 +57,7 @@ bool USmartObjectDefinition::Validate() const
 			const FSmartObjectSlotDefinition& Slot = Slots[i];
 			if (Slot.BehaviorDefinitions.Num() == 0)
 			{
-				UE_LOG(LogSmartObject, Error, TEXT("Slot at index %d needs to provide a behavior definition since there is no default one in the SmartObject definition"), i);
+				UE_LOG(LogSmartObject, Error, TEXT("%s: Slot at index %d needs to provide a behavior definition since there is no default one in the SmartObject definition"), *GetFullName(), i);
 				return false;
 			}
 		}
