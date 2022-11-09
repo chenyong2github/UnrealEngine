@@ -24,38 +24,6 @@ public:
 #if WITH_EDITOR
 		LLM_SCOPE_BYTAG(Usd);
 
-		// If don't have any active references to our materials they won't be packaged into monolithic builds, and we wouldn't
-		// be able to create dynamic material instances at runtime.
-		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin( TEXT( "USDImporter" ) );
-		if ( Plugin.IsValid() )
-		{
-			FString MaterialsPath = TEXT( "/USDImporter/Materials" );
-
-			UProjectPackagingSettings* PackagingSettings = Cast<UProjectPackagingSettings>( UProjectPackagingSettings::StaticClass()->GetDefaultObject() );
-			if ( PackagingSettings )
-			{
-				bool bAlreadyInPath = false;
-
-				TArray<FDirectoryPath>& DirectoriesToCook = PackagingSettings->DirectoriesToAlwaysCook;
-				for ( int32 Index = DirectoriesToCook.Num() - 1; Index >= 0; --Index )
-				{
-					if ( FPaths::IsSamePath( DirectoriesToCook[ Index ].Path, MaterialsPath ) )
-					{
-						bAlreadyInPath = true;
-						break;
-					}
-				}
-
-				if ( !bAlreadyInPath )
-				{
-					FDirectoryPath MaterialsDirectory;
-					MaterialsDirectory.Path = MaterialsPath;
-
-					PackagingSettings->DirectoriesToAlwaysCook.Add( MaterialsDirectory );
-				}
-			}
-		}
-
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>( TEXT( "PropertyEditor" ) );
 		PropertyModule.RegisterCustomClassLayout( TEXT( "UsdStageActor" ), FOnGetDetailCustomizationInstance::CreateStatic( &FUsdStageActorCustomization::MakeInstance ) );
 #endif // WITH_EDITOR
@@ -64,25 +32,6 @@ public:
 	virtual void ShutdownModule() override
 	{
 #if WITH_EDITOR
-		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin( TEXT( "USDImporter" ) );
-		if ( Plugin.IsValid() && !IsEngineExitRequested() ) // If we're shutting down because the engine is exiting then this may crash, and there's no point anyway
-		{
-			FString Path = TEXT( "/USDImporter/Materials" );
-
-			UProjectPackagingSettings* PackagingSettings = Cast<UProjectPackagingSettings>( UProjectPackagingSettings::StaticClass()->GetDefaultObject() );
-			if ( PackagingSettings )
-			{
-				TArray<FDirectoryPath>& DirectoriesToCook = PackagingSettings->DirectoriesToAlwaysCook;
-				for ( int32 Index = DirectoriesToCook.Num() - 1; Index >= 0; --Index )
-				{
-					if ( FPaths::IsSamePath( DirectoriesToCook[ Index ].Path, Path ) )
-					{
-						DirectoriesToCook.RemoveAt(Index);
-					}
-				}
-			}
-		}
-
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT( "PropertyEditor" ) );
 		PropertyModule.UnregisterCustomClassLayout( TEXT( "UsdStageActor" ) );
 #endif // WITH_EDITOR

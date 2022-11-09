@@ -8,6 +8,7 @@
 #include "USDGeomMeshConversion.h"
 #include "USDLog.h"
 #include "USDMemory.h"
+#include "USDProjectSettings.h"
 #include "USDTypesConversion.h"
 
 #include "Components/MeshComponent.h"
@@ -15,6 +16,7 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Misc/Paths.h"
 
 #if USE_USD_SDK
 
@@ -26,21 +28,6 @@
 	#include "pxr/usd/usdGeom/xformable.h"
 	#include "pxr/usd/usdShade/material.h"
 #include "USDIncludesEnd.h"
-
-namespace UE::MeshTranslationImplInternal::Private
-{
-	const static FString BaseMaterialPath = TEXT( "/USDImporter/Materials/UsdPreviewSurface.UsdPreviewSurface" );
-	const static FString BaseMaterialPathVT = TEXT( "/USDImporter/Materials/UsdPreviewSurfaceVT.UsdPreviewSurfaceVT" );
-
-	const static FString BaseMaterialPathTranslucent = TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucent.UsdPreviewSurfaceTranslucent" );
-	const static FString BaseMaterialPathTranslucentVT = TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucentVT.UsdPreviewSurfaceTranslucentVT" );
-
-	const static FString BaseMaterialPathTwoSided = TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTwoSided.UsdPreviewSurfaceTwoSided" );
-	const static FString BaseMaterialPathTwoSidedVT = TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTwoSidedVT.UsdPreviewSurfaceTwoSidedVT" );
-
-	const static FString BaseMaterialPathTranslucentTwoSided = TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucentTwoSided.UsdPreviewSurfaceTranslucentTwoSided" );
-	const static FString BaseMaterialPathTranslucentTwoSidedVT = TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucentTwoSidedVT.UsdPreviewSurfaceTranslucentTwoSidedVT" );
-}
 
 TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> MeshTranslationImpl::ResolveMaterialAssignmentInfo(
 	const pxr::UsdPrim& UsdPrim,
@@ -345,35 +332,39 @@ void MeshTranslationImpl::SetMaterialOverrides(
 
 UMaterialInterface* MeshTranslationImpl::GetBasePreviewSurfaceMaterial( EUsdBaseMaterialProperties BaseMaterialProperties )
 {
-	using namespace UE::MeshTranslationImplInternal::Private;
+	const UUsdProjectSettings* Settings = GetDefault<UUsdProjectSettings>();
+	if ( !Settings )
+	{
+		return nullptr;
+	}
 
 	const bool bIsTranslucent = EnumHasAnyFlags( BaseMaterialProperties, EUsdBaseMaterialProperties::Translucent );
 	const bool bIsVT = EnumHasAnyFlags( BaseMaterialProperties, EUsdBaseMaterialProperties::VT );
 	const bool bIsTwoSided = EnumHasAnyFlags( BaseMaterialProperties, EUsdBaseMaterialProperties::TwoSided );
 
-	const FString* TargetMaterialPath = nullptr;
+	const FSoftObjectPath* TargetMaterialPath = nullptr;
 	if ( bIsTranslucent )
 	{
 		if ( bIsVT )
 		{
 			if ( bIsTwoSided )
 			{
-				TargetMaterialPath = &BaseMaterialPathTranslucentTwoSidedVT;
+				TargetMaterialPath = &Settings->BasePreviewSurfaceTranslucentTwoSidedVTMaterial;
 			}
 			else
 			{
-				TargetMaterialPath = &BaseMaterialPathTranslucentVT;
+				TargetMaterialPath = &Settings->BasePreviewSurfaceTranslucentVTMaterial;
 			}
 		}
 		else
 		{
 			if ( bIsTwoSided )
 			{
-				TargetMaterialPath = &BaseMaterialPathTranslucentTwoSided;
+				TargetMaterialPath = &Settings->BasePreviewSurfaceTranslucentTwoSidedMaterial;
 			}
 			else
 			{
-				TargetMaterialPath = &BaseMaterialPathTranslucent;
+				TargetMaterialPath = &Settings->BasePreviewSurfaceTranslucentMaterial;
 			}
 		}
 	}
@@ -383,22 +374,22 @@ UMaterialInterface* MeshTranslationImpl::GetBasePreviewSurfaceMaterial( EUsdBase
 		{
 			if ( bIsTwoSided )
 			{
-				TargetMaterialPath = &BaseMaterialPathTwoSidedVT;
+				TargetMaterialPath = &Settings->BasePreviewSurfaceTwoSidedVTMaterial;
 			}
 			else
 			{
-				TargetMaterialPath = &BaseMaterialPathVT;
+				TargetMaterialPath = &Settings->BasePreviewSurfaceVTMaterial;
 			}
 		}
 		else
 		{
 			if ( bIsTwoSided )
 			{
-				TargetMaterialPath = &BaseMaterialPathTwoSided;
+				TargetMaterialPath = &Settings->BasePreviewSurfaceTwoSidedMaterial;
 			}
 			else
 			{
-				TargetMaterialPath = &BaseMaterialPath;
+				TargetMaterialPath = &Settings->BasePreviewSurfaceMaterial;
 			}
 		}
 	}
@@ -408,38 +399,42 @@ UMaterialInterface* MeshTranslationImpl::GetBasePreviewSurfaceMaterial( EUsdBase
 		return nullptr;
 	}
 
-	return Cast< UMaterialInterface >( FSoftObjectPath( *TargetMaterialPath ).TryLoad() );
+	return Cast< UMaterialInterface >( TargetMaterialPath->TryLoad() );
 }
 
 UMaterialInterface* MeshTranslationImpl::GetVTVersionOfBasePreviewSurfaceMaterial( UMaterialInterface* BaseMaterial )
 {
-	using namespace UE::MeshTranslationImplInternal::Private;
-
 	if ( !BaseMaterial )
 	{
 		return nullptr;
 	}
 
-	const FString PathName = BaseMaterial->GetPathName();
-	if ( PathName.Contains( TEXT( "VT" ), ESearchCase::CaseSensitive, ESearchDir::FromEnd ) )
+	const UUsdProjectSettings* Settings = GetDefault<UUsdProjectSettings>();
+	if ( !Settings )
+	{
+		return nullptr;
+	}
+
+	const FSoftObjectPath PathName = BaseMaterial->GetPathName();
+	if ( PathName.ToString().Contains(TEXT("VT"), ESearchCase::CaseSensitive, ESearchDir::FromEnd) )
 	{
 		return BaseMaterial;
 	}
-	else if ( PathName == BaseMaterialPath )
+	else if ( PathName == Settings->BasePreviewSurfaceMaterial )
 	{
-		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathVT }.TryLoad() );
+		return Cast< UMaterialInterface >( Settings->BasePreviewSurfaceVTMaterial.TryLoad() );
 	}
-	else if ( PathName == BaseMaterialPathTwoSided )
+	else if ( PathName == Settings->BasePreviewSurfaceTwoSidedMaterial )
 	{
-		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathTwoSidedVT }.TryLoad() );
+		return Cast< UMaterialInterface >( Settings->BasePreviewSurfaceTwoSidedVTMaterial.TryLoad() );
 	}
-	else if ( PathName == BaseMaterialPathTranslucent )
+	else if ( PathName == Settings->BasePreviewSurfaceTranslucentMaterial )
 	{
-		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathTranslucentVT }.TryLoad() );
+		return Cast< UMaterialInterface >( Settings->BasePreviewSurfaceTranslucentVTMaterial.TryLoad() );
 	}
-	else if ( PathName == BaseMaterialPathTranslucentTwoSided )
+	else if ( PathName == Settings->BasePreviewSurfaceTranslucentTwoSidedMaterial )
 	{
-		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathTranslucentTwoSidedVT }.TryLoad() );
+		return Cast< UMaterialInterface >( Settings->BasePreviewSurfaceTranslucentTwoSidedVTMaterial.TryLoad() );
 	}
 
 	// We should only ever call this function with a BaseMaterial that matches one of the above paths
@@ -449,33 +444,37 @@ UMaterialInterface* MeshTranslationImpl::GetVTVersionOfBasePreviewSurfaceMateria
 
 UMaterialInterface* MeshTranslationImpl::GetTwoSidedVersionOfBasePreviewSurfaceMaterial( UMaterialInterface* BaseMaterial )
 {
-	using namespace UE::MeshTranslationImplInternal::Private;
-
 	if ( !BaseMaterial )
 	{
 		return nullptr;
 	}
 
-	const FString PathName = BaseMaterial->GetPathName();
-	if ( PathName.Contains( TEXT( "TwoSided" ), ESearchCase::CaseSensitive, ESearchDir::FromEnd ) )
+	const UUsdProjectSettings* Settings = GetDefault<UUsdProjectSettings>();
+	if ( !Settings )
+	{
+		return nullptr;
+	}
+
+	const FSoftObjectPath PathName = BaseMaterial->GetPathName();
+	if ( PathName.ToString().Contains(TEXT("TwoSided"), ESearchCase::CaseSensitive, ESearchDir::FromEnd) )
 	{
 		return BaseMaterial;
 	}
-	else if ( PathName == BaseMaterialPath )
+	else if ( PathName == Settings->BasePreviewSurfaceMaterial )
 	{
-		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathTwoSided }.TryLoad() );
+		return Cast< UMaterialInterface >( Settings->BasePreviewSurfaceTwoSidedMaterial.TryLoad() );
 	}
-	else if ( PathName == BaseMaterialPathTranslucent )
+	else if ( PathName == Settings->BasePreviewSurfaceTranslucentMaterial )
 	{
-		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathTranslucentTwoSided }.TryLoad() );
+		return Cast< UMaterialInterface >( Settings->BasePreviewSurfaceTranslucentTwoSidedMaterial.TryLoad() );
 	}
-	else if ( PathName == BaseMaterialPathVT )
+	else if ( PathName == Settings->BasePreviewSurfaceVTMaterial )
 	{
-		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathTwoSidedVT }.TryLoad() );
+		return Cast< UMaterialInterface >( Settings->BasePreviewSurfaceTwoSidedVTMaterial.TryLoad() );
 	}
-	else if ( PathName == BaseMaterialPathTranslucentVT )
+	else if ( PathName == Settings->BasePreviewSurfaceTranslucentVTMaterial )
 	{
-		return Cast< UMaterialInterface >( FSoftObjectPath{ BaseMaterialPathTranslucentTwoSidedVT }.TryLoad() );
+		return Cast< UMaterialInterface >( Settings->BasePreviewSurfaceTranslucentTwoSidedVTMaterial.TryLoad() );
 	}
 
 	// We should only ever call this function with a BaseMaterial that matches one of the above paths

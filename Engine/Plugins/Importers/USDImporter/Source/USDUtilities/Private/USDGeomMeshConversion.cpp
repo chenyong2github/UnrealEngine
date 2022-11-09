@@ -12,6 +12,7 @@
 #include "USDLog.h"
 #include "USDMemory.h"
 #include "USDPrimConversion.h"
+#include "USDProjectSettings.h"
 #include "USDShadeConversion.h"
 #include "USDTypesConversion.h"
 
@@ -1380,31 +1381,41 @@ bool UsdToUnreal::ConvertGeomMeshHierarchy(
 
 UMaterialInstanceDynamic* UsdUtils::CreateDisplayColorMaterialInstanceDynamic( const UsdUtils::FDisplayColorMaterial& DisplayColorDescription )
 {
-	FString ParentPath;
+	const UUsdProjectSettings* Settings = GetDefault<UUsdProjectSettings>();
+	if ( !Settings )
+	{
+		return nullptr;
+	}
+
+	const FSoftObjectPath* ParentPathPtr = nullptr;
 	if ( DisplayColorDescription.bHasOpacity )
 	{
 		if ( DisplayColorDescription.bIsDoubleSided )
 		{
-			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorAndOpacityDoubleSided.DisplayColorAndOpacityDoubleSided'" );
+			ParentPathPtr = &Settings->BaseDisplayColorAndOpacityTwoSidedMaterial;
 		}
 		else
 		{
-			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity'" );
+			ParentPathPtr = &Settings->BaseDisplayColorAndOpacityMaterial;
 		}
 	}
 	else
 	{
 		if ( DisplayColorDescription.bIsDoubleSided )
 		{
-			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorDoubleSided.DisplayColorDoubleSided'" );
+			ParentPathPtr = &Settings->BaseDisplayColorTwoSidedMaterial;
 		}
 		else
 		{
-			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColor.DisplayColor'" );
+			ParentPathPtr = &Settings->BaseDisplayColorMaterial;
 		}
 	}
+	if ( !ParentPathPtr )
+	{
+		return nullptr;
+	}
 
-	if ( UMaterialInterface* ParentMaterial = Cast< UMaterialInterface >( FSoftObjectPath( ParentPath ).TryLoad() ) )
+	if ( UMaterialInterface* ParentMaterial = Cast< UMaterialInterface >( ParentPathPtr->TryLoad() ) )
 	{
 		FName AssetName = MakeUniqueObjectName(
 			GetTransientPackage(),
@@ -1427,31 +1438,37 @@ UMaterialInstanceDynamic* UsdUtils::CreateDisplayColorMaterialInstanceDynamic( c
 UMaterialInstanceConstant* UsdUtils::CreateDisplayColorMaterialInstanceConstant( const FDisplayColorMaterial& DisplayColorDescription )
 {
 #if WITH_EDITOR
-	FString ParentPath;
+	const UUsdProjectSettings* Settings = GetDefault<UUsdProjectSettings>();
+	if ( !Settings )
+	{
+		return nullptr;
+	}
+
+	const FSoftObjectPath* ParentPathPtr = nullptr;
 	if ( DisplayColorDescription.bHasOpacity )
 	{
 		if ( DisplayColorDescription.bIsDoubleSided )
 		{
-			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorAndOpacityDoubleSided.DisplayColorAndOpacityDoubleSided'" );
+			ParentPathPtr = &Settings->BaseDisplayColorAndOpacityTwoSidedMaterial;
 		}
 		else
 		{
-			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity'" );
+			ParentPathPtr = &Settings->BaseDisplayColorAndOpacityMaterial;
 		}
 	}
 	else
 	{
 		if ( DisplayColorDescription.bIsDoubleSided )
 		{
-			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColorDoubleSided.DisplayColorDoubleSided'" );
+			ParentPathPtr = &Settings->BaseDisplayColorTwoSidedMaterial;
 		}
 		else
 		{
-			ParentPath = TEXT( "Material'/USDImporter/Materials/DisplayColor.DisplayColor'" );
+			ParentPathPtr = &Settings->BaseDisplayColorMaterial;
 		}
 	}
 
-	if ( UMaterialInterface* ParentMaterial = Cast< UMaterialInterface >( FSoftObjectPath( ParentPath ).TryLoad() ) )
+	if ( UMaterialInterface* ParentMaterial = Cast< UMaterialInterface >( ParentPathPtr->TryLoad() ) )
 	{
 		FName AssetName = MakeUniqueObjectName(
 			GetTransientPackage(),

@@ -7,7 +7,7 @@
 
 #include "USDAssetImportData.generated.h"
 
-UCLASS(config = EditorPerProjectUserSettings, AutoExpandCategories = (Options), MinimalAPI)
+UCLASS(AutoExpandCategories = (Options), MinimalAPI)
 class UUsdAssetImportData : public UAssetImportData
 {
 	GENERATED_BODY()
@@ -22,7 +22,7 @@ public:
 	TObjectPtr<class UObject> ImportOptions;
 };
 
-UCLASS(config = EditorPerProjectUserSettings, AutoExpandCategories = (Options), MinimalAPI)
+UCLASS(AutoExpandCategories = (Options), MinimalAPI)
 class UUsdAnimSequenceAssetImportData : public UUsdAssetImportData
 {
 	GENERATED_BODY()
@@ -50,7 +50,7 @@ struct FUsdPrimPathList
 };
 
 /** We assign these to UStaticMeshes or USkeletalMeshes generated from USD */
-UCLASS( config = EditorPerProjectUserSettings, AutoExpandCategories = ( Options ), MinimalAPI )
+UCLASS( AutoExpandCategories = ( Options ), MinimalAPI )
 class UUsdMeshAssetImportData : public UUsdAssetImportData
 {
 	GENERATED_BODY()
