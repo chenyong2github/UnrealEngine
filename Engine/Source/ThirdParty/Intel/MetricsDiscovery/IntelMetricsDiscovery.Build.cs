@@ -9,7 +9,7 @@ public class IntelMetricsDiscovery : ModuleRules
 		Type = ModuleType.External;
 
 		string IntelMetricsDiscoveryPath = Target.UEThirdPartySourceDirectory + "Intel/MetricsDiscovery/MetricsDiscoveryHelper/";
-		bool bUseDebugBuild = false;
+		bool bUseDebugBuild = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT);
 		if (Target.bCompileIntelMetricsDiscovery && Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			string PlatformName = "x64";
