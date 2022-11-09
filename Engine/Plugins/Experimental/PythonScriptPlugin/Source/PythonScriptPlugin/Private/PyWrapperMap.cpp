@@ -1340,6 +1340,13 @@ PyTypeObject InitializePyWrapperMapType()
 
 	struct FMethods
 	{
+		// This is for type hinting, to make the class appears as a generic (https://peps.python.org/pep-0560/) and support hinting like 'm: unreal.Map[int, str] = unreal.Map(int, str)'
+		static PyObject* GetClassItem(PyObject* Type, PyObject* Item)
+		{
+			Py_INCREF(Type);
+			return Type;
+		}
+
 		static PyObject* Cast(PyTypeObject* InType, PyObject* InArgs, PyObject* InKwds)
 		{
 			PyObject* PyKeyObj = nullptr;
@@ -1492,6 +1499,7 @@ PyTypeObject InitializePyWrapperMapType()
 
 	// NOTE: _KeyType = typing.TypeVar('_KeyType'), _ValueType = typing.TypeVar('_ValueType'), Type/Iterable/Tuple/Union/List/ItemsView/KeysView/ValuesView are defines in the Python typing module.
 	static PyMethodDef PyMethods[] = {
+		{ "__class_getitem__", PyCFunctionCast(FMethods::GetClassItem), METH_O|METH_CLASS, "__class_getitem__(cls, item) -- implemented for type hinting purpose only" },
 		{ "cast", PyCFunctionCast(&FMethods::Cast), METH_VARARGS | METH_KEYWORDS | METH_CLASS, "cast(cls, key: Type[_KeyType], value: Type[_ValueType], obj: object) -> Map[_KeyType, _ValueType] -- cast the given object to this Unreal map type" },
 		{ "__copy__", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "__copy__(self) -> Map[_KeyType, _ValueType] -- copy this Unreal map" },
 		{ "copy", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "copy(self) -> Map[_KeyType, _ValueType] -- copy this Unreal map" },

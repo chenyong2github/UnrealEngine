@@ -1228,6 +1228,13 @@ PyTypeObject InitializePyWrapperSetType()
 
 	struct FMethods
 	{
+		// This is for type hinting, to make the class appears as a generic (https://peps.python.org/pep-0560/) and support hinting like 's: unreal.Set[int] = unreal.Set(int)'
+		static PyObject* GetClassItem(PyObject* Type, PyObject* Item)
+		{
+			Py_INCREF(Type);
+			return Type;
+		}
+
 		static PyObject* Cast(PyTypeObject* InType, PyObject* InArgs, PyObject* InKwds)
 		{
 			PyObject* PyTypeObj = nullptr;
@@ -1476,6 +1483,7 @@ PyTypeObject InitializePyWrapperSetType()
 
 	// NOTE: _ElemType = typing.TypeVar('_ElemType') and Type/Iterable are defined by the Python typing module.
 	static PyMethodDef PyMethods[] = {
+		{ "__class_getitem__", PyCFunctionCast(FMethods::GetClassItem), METH_O|METH_CLASS, "__class_getitem__(cls, item: _ElemType) -- implemented for type hinting purpose only" },
 		{ "cast", PyCFunctionCast(&FMethods::Cast), METH_VARARGS | METH_KEYWORDS | METH_CLASS, "cast(cls, type: Type[_ElemType], obj: object) -> Set[_ElemType] -- cast the given object to this Unreal set type" },
 		{ "__copy__", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "__copy__(self) -> Set[_ElemType] -- copy this Unreal set" },
 		{ "copy", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "copy(self) -> Set[_ElemType] -- copy this Unreal set" },

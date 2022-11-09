@@ -1150,6 +1150,13 @@ PyTypeObject InitializePyWrapperArrayType()
 
 	struct FMethods
 	{
+		// This is for type hinting, to make the class appears as a generic (https://peps.python.org/pep-0560/) and support hinting like 'a: unreal.Array[int] = unreal.Array(int)'
+		static PyObject* GetClassItem(PyObject* Type, PyObject* Item)
+		{
+			Py_INCREF(Type);
+			return Type;
+		}
+
 		static PyObject* Cast(PyTypeObject* InType, PyObject* InArgs, PyObject* InKwds)
 		{
 			PyObject* PyTypeObj = nullptr;
@@ -1390,6 +1397,7 @@ PyTypeObject InitializePyWrapperArrayType()
 
 	// NOTE: _ElemType = typing.TypeVar('_ElemType') and Type/Optional/Iterable/Callable are defines by the Python typing module.
 	static PyMethodDef PyMethods[] = {
+		{ "__class_getitem__", PyCFunctionCast(FMethods::GetClassItem), METH_O|METH_CLASS, "__class_getitem__(cls, item: _ElemType) -- implemented for type hinting purpose only" },
 		{ "cast", PyCFunctionCast(&FMethods::Cast), METH_VARARGS | METH_KEYWORDS | METH_CLASS, "cast(cls, type: Type[_ElemType], obj: object) -> Array[_ElemType] -- cast the given object to this Unreal array type" },
 		{ "__copy__", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "__copy__(self) -> Array[_ElemType] -- copy this Unreal array" },
 		{ "copy", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "copy(self) -> Array[_ElemType] -- copy this Unreal array" },

@@ -758,6 +758,13 @@ PyTypeObject InitializePyWrapperFixedArrayType()
 
 	struct FMethods
 	{
+		// This is for type hinting, to make the class appears as a generic (https://peps.python.org/pep-0560/) and support hinting like 'a: unreal.FixedArray[int] = unreal.FixedArray(int)'
+		static PyObject* GetClassItem(PyObject* Type, PyObject* Item)
+		{
+			Py_INCREF(Type);
+			return Type;
+		}
+
 		static PyObject* Cast(PyTypeObject* InType, PyObject* InArgs, PyObject* InKwds)
 		{
 			PyObject* PyTypeObj = nullptr;
@@ -796,6 +803,7 @@ PyTypeObject InitializePyWrapperFixedArrayType()
 
 	// NOTE: _ElemType = typing.TypeVar('_ElemType') and TYpe is defined in the typing Python module.
 	static PyMethodDef PyMethods[] = {
+		{ "__class_getitem__", PyCFunctionCast(FMethods::GetClassItem), METH_O|METH_CLASS, "__class_getitem__(cls, item: _ElemType) -- implemented for type hinting purpose only" },
 		{ "cast", PyCFunctionCast(&FMethods::Cast), METH_VARARGS | METH_KEYWORDS | METH_CLASS, "cast(cls, type: Type[_ElemType], obj: object) -> FixedArray[_ElemType] -- cast the given object to this Unreal fixed-array type" },
 		{ "__copy__", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "__copy__(self) -> FixedArray[_ElemType] -- copy this Unreal fixed-array" },
 		{ "copy", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "copy(self) -> FixedArray[_ElemType] -- copy this Unreal fixed-array" },
