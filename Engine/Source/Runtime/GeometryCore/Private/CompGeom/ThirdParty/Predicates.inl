@@ -3797,9 +3797,6 @@ REAL inspherefast(REAL *pa, REAL *pb, REAL *pc, REAL *pd, REAL *pe)
   return (dlift * abc - clift * dab) + (blift * cda - alift * bcd);
 }
 
-// suppress static analysis warning that the stack size is large for insphereexact
-CA_SUPPRESS(6262);
-
 REAL insphereexact(REAL *pa, REAL *pb, REAL *pc, REAL *pd, REAL *pe)
 {
   INEXACT REAL axby1, bxcy1, cxdy1, dxey1, exay1;
