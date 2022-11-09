@@ -852,7 +852,8 @@ protected:
 		ESamplerSourceMode SamplerSource = SSM_FromTextureAsset,
 		int32 TextureReferenceIndex = INDEX_NONE,
 		bool AutomaticViewMipBias = false,
-		bool AdaptiveVirtualTexture = false
+		bool AdaptiveVirtualTexture = false,
+		bool EnableFeedback = true
 	) override;
 
 	virtual int32 TextureProperty(int32 TextureIndex, EMaterialExposedTextureProperty Property) override;

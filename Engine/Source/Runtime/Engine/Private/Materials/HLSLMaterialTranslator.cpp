@@ -5855,7 +5855,8 @@ int32 FHLSLMaterialTranslator::TextureSample(
 	ESamplerSourceMode SamplerSource,
 	int32 TextureReferenceIndex,
 	bool AutomaticViewMipBias,
-	bool AdaptiveVirtualTexture
+	bool AdaptiveVirtualTexture,
+	bool EnableFeedback
 )
 {
 	if (TextureIndex == INDEX_NONE || CoordinateIndex == INDEX_NONE)
@@ -6282,7 +6283,7 @@ int32 FHLSLMaterialTranslator::TextureSample(
 
 		// Only support GPU feedback from pixel shader
 		//todo[vt]: Support feedback from other shader types
-		const bool bGenerateFeedback = ShaderFrequency == SF_Pixel;
+		const bool bGenerateFeedback = EnableFeedback && ShaderFrequency == SF_Pixel;
 
 		VTLayerIndex = UniformTextureExpressions[(uint32)EMaterialTextureParameterType::Virtual][VirtualTextureIndex]->GetTextureLayerIndex();
 		if (VTLayerIndex != INDEX_NONE)

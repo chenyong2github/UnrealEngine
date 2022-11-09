@@ -3329,7 +3329,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 			SAMPLERTYPE_VirtualMasks,
 			MipValue0Index, MipValue1Index, TextureMipLevelMode, SamplerSourceMode,
 			TextureReferenceIndex[TexureLayerIndex],
-			bAutomaticMipViewBias, bAdaptive);
+			bAutomaticMipViewBias, bAdaptive, bEnableFeedback);
 	}
 
 	// Compile any unpacking code
