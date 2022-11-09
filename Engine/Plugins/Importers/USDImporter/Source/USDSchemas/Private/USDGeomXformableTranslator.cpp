@@ -712,13 +712,7 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 			}
 		}
 
-
-		// We only support collapsing GeomMeshes for now and we only want to do it when there are multiple meshes as the resulting mesh is considered unique
-		if ( ChildGeomMeshes.Num() < 2 )
-		{
-			bCollapsesChildren = false;
-		}
-		else if ( Context->InfoCache.IsValid() )
+		if ( Context->InfoCache.IsValid() )
 		{
 			TOptional<uint64> NumExpectedVertices = Context->InfoCache->GetSubtreeVertexCount( PrimPath );
 			if ( !NumExpectedVertices.IsSet() || NumExpectedVertices.GetValue() > GMaxNumVerticesCollapsedMesh )
@@ -759,8 +753,6 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 bool FUsdGeomXformableTranslator::CanBeCollapsed( ECollapsingType CollapsingType ) const
 {
 	FScopedUsdAllocs UsdAllocs;
-
-	FString PrimPathStr = PrimPath.GetString();
 
 	pxr::UsdPrim UsdPrim{ GetPrim() };
 	if ( !UsdPrim )
