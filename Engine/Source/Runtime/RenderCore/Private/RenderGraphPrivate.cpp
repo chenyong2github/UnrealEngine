@@ -424,7 +424,7 @@ FAutoConsoleVariableRef CVarRDGVerboseCSVStats(
 	ECVF_RenderThreadSafe);
 #endif
 
-#if STATS
+#if RDG_STATS
 int32 GRDGStatPassCount = 0;
 int32 GRDGStatPassWithParameterCount = 0;
 int32 GRDGStatPassCullCount = 0;
@@ -441,6 +441,28 @@ int32 GRDGStatTransitionCount = 0;
 int32 GRDGStatAliasingCount = 0;
 int32 GRDGStatTransitionBatchCount = 0;
 int32 GRDGStatMemoryWatermark = 0;
+#endif
+
+CSV_DEFINE_CATEGORY(RDGCount, true);
+
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_PassCount, TEXT("RDG/PassCount"));
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_PassWithParameterCount, TEXT("RDG/PassWithParameterCount"));
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_PassCullCount, TEXT("RDG/PassCullCount"));
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_RenderPassMergeCount, TEXT("RDG/RenderPassMergeCount"));
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_PassDependencyCount, TEXT("RDG/PassDependencyCount"));
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_TextureCount, TEXT("RDG/TextureCount"));
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_TextureReferenceCount, TEXT("RDG/TextureReferenceCount"));
+TRACE_DECLARE_FLOAT_COUNTER(COUNTER_RDG_TextureReferenceAverage, TEXT("RDG/TextureReferenceAverage"));
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_BufferCount, TEXT("RDG/BufferCount"));
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_BufferReferenceCount, TEXT("RDG/BufferReferenceCount"));
+TRACE_DECLARE_FLOAT_COUNTER(COUNTER_RDG_BufferReferenceAverage, TEXT("RDG/BufferReferenceAverage"));
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_ViewCount, TEXT("RDG/ViewCount"));
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_TransientTextureCount, TEXT("RDG/TransientTextureCount"));
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_TransientBufferCount, TEXT("RDG/TransientBufferCount"));
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_TransitionCount, TEXT("RDG/TransitionCount"));
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_AliasingCount, TEXT("RDG/AliasingCount"));
+TRACE_DECLARE_INT_COUNTER(COUNTER_RDG_TransitionBatchCount, TEXT("RDG/TransitionBatchCount"));
+TRACE_DECLARE_MEMORY_COUNTER(COUNTER_RDG_MemoryWatermark, TEXT("RDG/MemoryWatermark"));
 
 DEFINE_STAT(STAT_RDG_PassCount);
 DEFINE_STAT(STAT_RDG_PassWithParameterCount);
@@ -467,7 +489,6 @@ DEFINE_STAT(STAT_RDG_CollectBarriersTime);
 DEFINE_STAT(STAT_RDG_ClearTime);
 DEFINE_STAT(STAT_RDG_FlushRHIResources);
 DEFINE_STAT(STAT_RDG_MemoryWatermark);
-#endif
 
 #if RDG_EVENTS != RDG_EVENTS_NONE
 int32 GRDGEmitDrawEvents_RenderThread = 0;

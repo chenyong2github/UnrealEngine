@@ -394,7 +394,29 @@ void FRDGBuilder::TickPoolElements()
 	GRDGEmitDrawEvents_RenderThread = GetEmitDrawEvents();
 #endif
 
-#if STATS
+#if RDG_STATS
+	CSV_CUSTOM_STAT(RDGCount, Passes, GRDGStatPassCount, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(RDGCount, Buffers, GRDGStatBufferCount, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(RDGCount, Textures, GRDGStatTextureCount, ECsvCustomStatOp::Set);
+
+	TRACE_COUNTER_SET(COUNTER_RDG_PassCount, GRDGStatPassCount);
+	TRACE_COUNTER_SET(COUNTER_RDG_PassCullCount, GRDGStatPassCullCount);
+	TRACE_COUNTER_SET(COUNTER_RDG_RenderPassMergeCount, GRDGStatRenderPassMergeCount);
+	TRACE_COUNTER_SET(COUNTER_RDG_PassDependencyCount, GRDGStatPassDependencyCount);
+	TRACE_COUNTER_SET(COUNTER_RDG_TextureCount, GRDGStatTextureCount);
+	TRACE_COUNTER_SET(COUNTER_RDG_TextureReferenceCount, GRDGStatTextureReferenceCount);
+	TRACE_COUNTER_SET(COUNTER_RDG_TextureReferenceAverage, (float)(GRDGStatTextureReferenceCount / FMath::Max((float)GRDGStatTextureCount, 1.0f)));
+	TRACE_COUNTER_SET(COUNTER_RDG_BufferCount, GRDGStatBufferCount);
+	TRACE_COUNTER_SET(COUNTER_RDG_BufferReferenceCount, GRDGStatBufferReferenceCount);
+	TRACE_COUNTER_SET(COUNTER_RDG_BufferReferenceAverage, (float)(GRDGStatBufferReferenceCount / FMath::Max((float)GRDGStatBufferCount, 1.0f)));
+	TRACE_COUNTER_SET(COUNTER_RDG_ViewCount, GRDGStatViewCount);
+	TRACE_COUNTER_SET(COUNTER_RDG_TransientTextureCount, GRDGStatTransientTextureCount);
+	TRACE_COUNTER_SET(COUNTER_RDG_TransientBufferCount, GRDGStatTransientBufferCount);
+	TRACE_COUNTER_SET(COUNTER_RDG_TransitionCount, GRDGStatTransitionCount);
+	TRACE_COUNTER_SET(COUNTER_RDG_AliasingCount, GRDGStatAliasingCount);
+	TRACE_COUNTER_SET(COUNTER_RDG_TransitionBatchCount, GRDGStatTransitionBatchCount);
+	TRACE_COUNTER_SET(COUNTER_RDG_MemoryWatermark, int64(GRDGStatMemoryWatermark));
+
 	SET_DWORD_STAT(STAT_RDG_PassCount, GRDGStatPassCount);
 	SET_DWORD_STAT(STAT_RDG_PassCullCount, GRDGStatPassCullCount);
 	SET_DWORD_STAT(STAT_RDG_RenderPassMergeCount, GRDGStatRenderPassMergeCount);
@@ -412,6 +434,7 @@ void FRDGBuilder::TickPoolElements()
 	SET_DWORD_STAT(STAT_RDG_AliasingCount, GRDGStatAliasingCount);
 	SET_DWORD_STAT(STAT_RDG_TransitionBatchCount, GRDGStatTransitionBatchCount);
 	SET_MEMORY_STAT(STAT_RDG_MemoryWatermark, int64(GRDGStatMemoryWatermark));
+
 	GRDGStatPassCount = 0;
 	GRDGStatPassCullCount = 0;
 	GRDGStatRenderPassMergeCount = 0;
@@ -891,12 +914,12 @@ void FRDGBuilder::AddPassDependency(FRDGPassHandle ProducerHandle, FRDGPassHandl
 	auto& Producers = Consumer->Producers;
 	if (Producers.Find(ProducerHandle) == INDEX_NONE)
 	{
+#if RDG_STATS
+		GRDGStatPassDependencyCount++;
+#endif
+
 		Producers.Add(ProducerHandle);
 	}
-
-#if STATS
-	GRDGStatPassDependencyCount++;
-#endif
 }
 
 void FRDGBuilder::AddPassDependency(FRDGPass* Producer, FRDGPass* Consumer)
@@ -904,12 +927,12 @@ void FRDGBuilder::AddPassDependency(FRDGPass* Producer, FRDGPass* Consumer)
 	auto& Producers = Consumer->Producers;
 	if (Producers.Find(Producer->Handle) == INDEX_NONE)
 	{
+#if RDG_STATS
+		GRDGStatPassDependencyCount++;
+#endif
+
 		Producers.Add(Producer->Handle);
 	}
-
-#if STATS
-	GRDGStatPassDependencyCount++;
-#endif
 }
 
 void FRDGBuilder::AddCullingDependency(FRDGProducerStatesByPipeline& LastProducers, const FRDGProducerState& NextState, ERHIPipeline NextPipeline)
@@ -1042,7 +1065,7 @@ void FRDGBuilder::CompilePassBarriers()
 				}
 			}
 
-		#if STATS
+		#if RDG_STATS
 			GRDGStatTextureReferenceCount += PassState.ReferenceCount;
 		#endif
 
@@ -1069,7 +1092,7 @@ void FRDGBuilder::CompilePassBarriers()
 				Buffer->State->SetPass(ERHIPipeline::Graphics, PassHandle);
 			}
 
-		#if STATS
+		#if RDG_STATS
 			GRDGStatBufferReferenceCount += PassState.ReferenceCount;
 		#endif
 
@@ -1301,7 +1324,7 @@ void FRDGBuilder::Compile()
 					SetPrologueBarrierPass(Pass, FirstPassHandle);
 				}
 
-#if STATS
+#if RDG_STATS
 				GRDGStatRenderPassMergeCount += PassesToMerge.Num();
 #endif
 			}
@@ -1875,7 +1898,7 @@ void FRDGBuilder::Execute()
 
 			if (Pass->bCulled)
 			{
-			#if STATS
+			#if RDG_STATS
 				GRDGStatPassCullCount++;
 			#endif
 
@@ -1980,7 +2003,7 @@ void FRDGBuilder::Execute()
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExecuteEnd());
 	IF_RDG_ENABLE_DEBUG(GRDGAllowRHIAccess = false);
 
-#if STATS
+#if RDG_STATS
 	GRDGStatBufferCount += Buffers.Num();
 	GRDGStatTextureCount += Textures.Num();
 	GRDGStatViewCount += Views.Num();
@@ -2310,7 +2333,9 @@ void FRDGBuilder::SetupPassInternals(FRDGPass* Pass)
 
 #if STATS
 	Pass->CommandListStat = CommandListStatScope;
+#endif
 
+#if RDG_STATS
 	GRDGStatPassCount++;
 #endif
 
@@ -3554,7 +3579,7 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGTextureRef Tex
 			InitialState.Access = ERHIAccess::Discard;
 			InitTextureSubresources(*Texture->State, Texture->Layout, InitialState);
 
-		#if STATS
+		#if RDG_STATS
 			GRDGStatTransientTextureCount++;
 		#endif
 		}
@@ -3638,7 +3663,7 @@ void FRDGBuilder::BeginResourceRHI(FRDGPassHandle PassHandle, FRDGBufferRef Buff
 			InitialState->SetPass(ERHIPipeline::Graphics, MinAcquirePassHandle);
 			InitialState->Access = ERHIAccess::Discard;
 
-		#if STATS
+		#if RDG_STATS
 			GRDGStatTransientBufferCount++;
 		#endif
 		}

@@ -129,7 +129,7 @@ void FRDGBarrierBatchBegin::AddTransition(FRDGViewableResource* Resource, const 
 	Transitions.Add(Info);
 	bTransitionNeeded = true;
 
-#if STATS
+#if RDG_STATS
 	GRDGStatTransitionCount++;
 #endif
 
@@ -143,7 +143,7 @@ void FRDGBarrierBatchBegin::AddAlias(FRDGViewableResource* Resource, const FRHIT
 	Aliases.Add(Info);
 	bTransitionNeeded = true;
 
-#if STATS
+#if RDG_STATS
 	GRDGStatAliasingCount++;
 #endif
 
@@ -165,7 +165,7 @@ void FRDGBarrierBatchBegin::Submit(FRHIComputeCommandList& RHICmdList, ERHIPipel
 		TransitionsToBegin.Emplace(Transition);
 	}
 
-#if STATS
+#if RDG_STATS
 	GRDGStatTransitionBatchCount++;
 #endif
 }
