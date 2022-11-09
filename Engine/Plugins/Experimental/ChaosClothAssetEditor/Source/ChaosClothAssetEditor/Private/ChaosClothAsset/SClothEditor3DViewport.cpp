@@ -88,4 +88,19 @@ void SChaosClothAssetEditor3DViewport::OnFocusViewportToSelection()
 	Client->FocusViewportOnBox(PreviewBoundingBox);
 }
 
+TSharedRef<class SEditorViewport> SChaosClothAssetEditor3DViewport::GetViewportWidget()
+{
+	return SharedThis(this);
+}
+
+TSharedPtr<FExtender> SChaosClothAssetEditor3DViewport::GetExtenders() const
+{
+	TSharedPtr<FExtender> Result(MakeShareable(new FExtender));
+	return Result;
+}
+
+void SChaosClothAssetEditor3DViewport::OnFloatingButtonClicked()
+{
+}
+
 #undef LOCTEXT_NAMESPACE

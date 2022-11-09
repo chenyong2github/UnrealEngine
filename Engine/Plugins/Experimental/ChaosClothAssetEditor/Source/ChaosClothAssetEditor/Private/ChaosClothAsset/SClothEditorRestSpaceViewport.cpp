@@ -7,9 +7,6 @@
 #include "ChaosClothAsset/ClothEditorMode.h"
 #include "EditorModeManager.h"
 
-// TODO evntually:
-//#include "ClothEditorRestSpaceViewportClient.h"
-
 #define LOCTEXT_NAMESPACE "SChaosClothAssetEditorRestSpaceViewport"
 
 void SChaosClothAssetEditorRestSpaceViewport::BindCommands()
@@ -61,6 +58,21 @@ void SChaosClothAssetEditorRestSpaceViewport::OnFocusViewportToSelection()
 	{
 		Client->FocusViewportOnBox(ClothEdMode->SelectionBoundingBox());
 	}
+}
+
+TSharedRef<class SEditorViewport> SChaosClothAssetEditorRestSpaceViewport::GetViewportWidget()
+{
+	return SharedThis(this);
+}
+
+TSharedPtr<FExtender> SChaosClothAssetEditorRestSpaceViewport::GetExtenders() const
+{
+	TSharedPtr<FExtender> Result(MakeShareable(new FExtender));
+	return Result;
+}
+
+void SChaosClothAssetEditorRestSpaceViewport::OnFloatingButtonClicked()
+{
 }
 
 #undef LOCTEXT_NAMESPACE

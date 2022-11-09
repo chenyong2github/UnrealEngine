@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "SViewportToolBar.h"
+#include "SClothEditorViewportToolBarBase.h"
 
 class FExtender;
 class FUICommandList;
@@ -11,7 +11,7 @@ class SChaosClothAssetEditor3DViewport;
 /**
  * Toolbar that shows up at the top of the 3d viewport
  */
-class CHAOSCLOTHASSETEDITOR_API SChaosClothAssetEditor3DViewportToolBar : public SViewportToolBar
+class CHAOSCLOTHASSETEDITOR_API SChaosClothAssetEditor3DViewportToolBar : public SChaosClothAssetEditorViewportToolBarBase
 {
 public:
 	SLATE_BEGIN_ARGS(SChaosClothAssetEditor3DViewportToolBar) {}
@@ -22,6 +22,7 @@ public:
 	void Construct(const FArguments& InArgs, TSharedPtr<class SChaosClothAssetEditor3DViewport> InChaosClothAssetEditor3DViewport);
 
 private:
+	TSharedRef<SWidget> MakeOptionsMenu();
 	TSharedRef<SWidget> MakeDisplayToolBar(const TSharedPtr<FExtender> InExtenders);
 	TSharedRef<SWidget> MakeToolBar(const TSharedPtr<FExtender> InExtenders);
 

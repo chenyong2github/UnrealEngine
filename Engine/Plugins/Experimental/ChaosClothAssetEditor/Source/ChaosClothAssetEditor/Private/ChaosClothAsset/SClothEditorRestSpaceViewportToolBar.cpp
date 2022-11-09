@@ -15,6 +15,8 @@
 
 void SChaosClothAssetEditorRestSpaceViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<SChaosClothAssetEditorRestSpaceViewport> InChaosClothAssetEditorViewport)
 {
+	SCommonEditorViewportToolbarBase::Construct(SCommonEditorViewportToolbarBase::FArguments(), InChaosClothAssetEditorViewport);
+
 	ChaosClothAssetEditorRestSpaceViewportPtr = InChaosClothAssetEditorViewport;
 	CommandList = InArgs._CommandList;
 
@@ -33,6 +35,13 @@ void SChaosClothAssetEditorRestSpaceViewportToolBar::Construct(const FArguments&
 
 	MainBoxPtr->AddSlot()
 		.Padding(ToolbarSlotPadding)
+		.AutoWidth()
+		[
+			MakeOptionsMenu()
+		];
+
+	MainBoxPtr->AddSlot()
+		.Padding(ToolbarSlotPadding)
 		.HAlign(HAlign_Left)
 		[
 			MakeDisplayToolBar(InArgs._Extenders)
@@ -44,8 +53,15 @@ void SChaosClothAssetEditorRestSpaceViewportToolBar::Construct(const FArguments&
 		[
 			MakeToolBar(InArgs._Extenders)
 		];
+}
 
-	SViewportToolBar::Construct(SViewportToolBar::FArguments());
+TSharedRef<SWidget> SChaosClothAssetEditorRestSpaceViewportToolBar::MakeOptionsMenu()
+{
+	return SNew(SEditorViewportToolbarMenu)
+		.ParentToolBar(SharedThis(this))
+		.Cursor(EMouseCursor::Default)
+		.Image("EditorViewportToolBar.OptionsDropdown")
+		.OnGetMenuContent(this, &SChaosClothAssetEditorRestSpaceViewportToolBar::GenerateClothViewportOptionsMenu);
 }
 
 TSharedRef<SWidget> SChaosClothAssetEditorRestSpaceViewportToolBar::MakeDisplayToolBar(const TSharedPtr<FExtender> InExtenders)
