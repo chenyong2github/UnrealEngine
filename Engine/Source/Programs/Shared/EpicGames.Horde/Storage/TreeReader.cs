@@ -34,7 +34,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// References to other nodes
 		/// </summary>
-		IReadOnlyList<TreeNodeRefData> References { get; }
+		IReadOnlyDictionary<IoHash, NodeLocator> References { get; }
 
 		/// <summary>
 		/// Reads a reference to another node
@@ -223,11 +223,11 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		class NodeReader : MemoryReader, ITreeNodeReader
 		{
-			readonly IReadOnlyList<TreeNodeRefData> _refs;
+			readonly IReadOnlyDictionary<IoHash, NodeLocator> _refs;
 			readonly BundleType _type;
 			readonly int _length;
 
-			public NodeReader(ReadOnlyMemory<byte> data, IReadOnlyList<TreeNodeRefData> refs, BundleType type)
+			public NodeReader(ReadOnlyMemory<byte> data, IReadOnlyDictionary<IoHash, NodeLocator> refs, BundleType type)
 				: base(data)
 			{
 				_refs = refs;
@@ -239,9 +239,13 @@ namespace EpicGames.Horde.Storage
 
 			public int Length => _length;
 
-			public IReadOnlyList<TreeNodeRefData> References => _refs;
+			public IReadOnlyDictionary<IoHash, NodeLocator> References => _refs;
 
-			public TreeNodeRefData ReadRef() => _refs[(int)this.ReadUnsignedVarInt()];
+			public TreeNodeRefData ReadRef()
+			{
+				IoHash hash = this.ReadIoHash();
+				return new TreeNodeRefData(hash, _refs[hash]);
+			}
 		}
 
 		// Size of data to fetch by default. This is larger than the minimum request size to reduce number of reads.
@@ -680,10 +684,11 @@ namespace EpicGames.Horde.Storage
 			ExportInfo exportInfo = bundleInfo.Exports[locator.ExportIdx];
 			ReadOnlyMemory<byte> packetData = await ReadBundlePacketAsync(bundleInfo, exportInfo.PacketIdx, cancellationToken);
 
-			TreeNodeRefData[] refs = new TreeNodeRefData[export.References.Count];
+			Dictionary<IoHash, NodeLocator> refs = new Dictionary<IoHash, NodeLocator>(export.References.Count);
 			for (int idx = 0; idx < export.References.Count; idx++)
 			{
-				refs[idx] = bundleInfo.References[export.References[idx]];
+				TreeNodeRefData reference = bundleInfo.References[export.References[idx]];
+				refs.Add(reference.Hash, reference.Locator);
 			}
 
 			ReadOnlyMemory<byte> nodeData = packetData.Slice(exportInfo.Offset, export.Length);

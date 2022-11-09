@@ -334,7 +334,7 @@ namespace EpicGames.Horde.Tests
 
 			// Check we can read it back in
 			{
-				TreeReader reader = new TreeReader(store, null, NullLogger.Instance);
+				TreeReader reader = new TreeReader(store, cache, NullLogger.Instance);
 
 				DirectoryNode newRoot = await reader.ReadNodeAsync<DirectoryNode>(new RefName("test"));
 				await CompareTrees(reader, root, newRoot);

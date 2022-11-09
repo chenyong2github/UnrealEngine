@@ -61,22 +61,23 @@ namespace EpicGames.Horde.Storage
 		{
 			public ByteArrayBuilder Data = new ByteArrayBuilder();
 
-			readonly Dictionary<TreeNodeRef, int> _refToIndex;
+			readonly IReadOnlyDictionary<TreeNodeRef, IoHash> _refToHash;
 
 			public int Length => Data.Length;
 
-			public NodeWriter(List<TreeNodeRef> nextRefs)
+			public NodeWriter(IReadOnlyDictionary<TreeNodeRef, IoHash> refToHash)
 			{
-				_refToIndex = new Dictionary<TreeNodeRef, int>(nextRefs.Count);
-				for (int idx = 0; idx < nextRefs.Count; idx++)
-				{
-					_refToIndex.TryAdd(nextRefs[idx], idx);
-				}
+				_refToHash = refToHash;
 			}
 
 			public void WriteRef(TreeNodeRef target)
 			{
-				Data.WriteUnsignedVarInt(_refToIndex[target]);
+				IoHash hash;
+				if (!_refToHash.TryGetValue(target, out hash))
+				{
+					throw new InvalidOperationException($"Cannot serialize value; was not returned by owner's {nameof(target.Target.EnumerateRefs)} method.");
+				}
+				Data.WriteIoHash(hash);
 			}
 
 			public Memory<byte> GetMemory(int minSize = 1) => Data.GetMemory(minSize);
@@ -188,28 +189,26 @@ namespace EpicGames.Horde.Storage
 				throw new InvalidOperationException("Node cannot have multiple incoming references");
 			}
 
-			// Enumerate all the outward references
-			List<TreeNodeRef> nextRefs = new List<TreeNodeRef>(node.EnumerateRefs());
-
 			// Write all the referenced nodes first
-			IoHash[] nextHashes = new IoHash[nextRefs.Count];
-			for (int idx = 0; idx < nextRefs.Count; idx++)
+			Dictionary<TreeNodeRef, IoHash> nextRefToHash = new Dictionary<TreeNodeRef, IoHash>();
+			foreach (TreeNodeRef nextRef in node.EnumerateRefs())
 			{
-				nextHashes[idx] = await WriteAsync(nextRefs[idx], cancellationToken);
-				Debug.Assert(nextHashes[idx] != IoHash.Zero);
+				IoHash nextHash = await WriteAsync(nextRef, cancellationToken);
+				Debug.Assert(nextHash != IoHash.Zero);
+				nextRefToHash.Add(nextRef, nextHash);
 			}
 
 			// Serialize the node
-			NodeWriter nodeWriter = new NodeWriter(nextRefs);
+			NodeWriter nodeWriter = new NodeWriter(nextRefToHash);
 			nodeRef.Target!.Serialize(nodeWriter);
 
 			// Get the hash for the new blob
 			ReadOnlySequence<byte> data = nodeWriter.Data.AsSequence();
-			IoHash hash = ComputeHash(data, nextHashes);
+			IoHash hash = IoHash.Compute(data);
 			nodeRef.MarkAsPendingWrite(hash);
 
 			// Check if we're already tracking a node with the same hash
-			NodeInfo nodeInfo = new NodeInfo(nodeRef.Target.GetBundleType(), hash, (int)data.Length, nextHashes, nodeRef);
+			NodeInfo nodeInfo = new NodeInfo(nodeRef.Target.GetBundleType(), hash, (int)data.Length, nextRefToHash.Values.Distinct().ToArray(), nodeRef);
 			if (_hashToNode.TryGetValue(hash, out NodeLocator locator))
 			{
 				// If the node is in the lookup but not currently valid, it's already queued for writing. Add this ref to the list of refs that needs fixing up,
@@ -403,22 +402,6 @@ namespace EpicGames.Horde.Storage
 				_queue.Clear();
 				_currentBundleLength = 0;
 			}
-		}
-
-		static IoHash ComputeHash(ReadOnlySequence<byte> data, IoHash[] references)
-		{
-			byte[] buffer = new byte[IoHash.NumBytes * (references.Length + 1)];
-
-			Span<byte> span = buffer;
-			for (int idx = 0; idx < references.Length; idx++)
-			{
-				Debug.Assert(references[idx] != IoHash.Zero);
-				references[idx].CopyTo(span);
-				span = span[IoHash.NumBytes..];
-			}
-			IoHash.Compute(data).CopyTo(span);
-
-			return IoHash.Compute(buffer);
 		}
 	}
 }

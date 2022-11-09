@@ -21,14 +21,14 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Imported nodes
 		/// </summary>
-		public Dictionary<IoHash, NodeLocator> References { get; }
+		public IReadOnlyDictionary<IoHash, NodeLocator> References { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="obj">The compact binary object</param>
 		/// <param name="references">Map of attachment hash to node locator</param>
-		public CbNode(CbObject obj, Dictionary<IoHash, NodeLocator> references)
+		public CbNode(CbObject obj, IReadOnlyDictionary<IoHash, NodeLocator> references)
 		{
 			Object = obj;
 			References = references;
@@ -41,7 +41,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		public CbNode(ITreeNodeReader reader)
 		{
 			Object = new CbObject(reader.ReadFixedLengthBytes(reader.Length));
-			References = reader.References.ToDictionary(x => x.Hash, x => x.Locator);
+			References = reader.References;
 		}
 
 		/// <inheritdoc/>
