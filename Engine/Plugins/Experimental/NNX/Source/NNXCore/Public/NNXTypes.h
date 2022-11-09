@@ -37,12 +37,12 @@ template <typename DimType, class FinalType> struct TTensorShapeBase
 	constexpr static int32	MaxRank = 8;
 	TArray<DimType, TInlineAllocator<MaxRank>> Data;
 
-	int32 Num() const
+	int32 Rank() const
 	{
 		return Data.Num();
 	}
 
-	static FinalType Make(TConstArrayView<const DimType> Data)
+	static FinalType Make(TConstArrayView<DimType> Data)
 	{
 		if (Data.Num() > MaxRank)
 		{
@@ -61,7 +61,7 @@ struct FSymbolicTensorShape : TTensorShapeBase<int32, FSymbolicTensorShape>
 {
 	bool IsConcrete() const
 	{
-		for (int32 i = 0; i < Data.Num(); ++i)
+		for (int32 i = 0; i < Rank(); ++i)
 		{
 			if (Data[i] < 0)
 			{
@@ -88,11 +88,11 @@ struct FTensorShape : TTensorShapeBase<uint32, FTensorShape>
 	
 	bool IsCompatibleWith(FSymbolicTensorShape SymbolicShape) const
 	{
-		if (Num() != SymbolicShape.Num())
+		if (Rank() != SymbolicShape.Rank())
 		{
 			return false;
 		}
-		for (int32 i = 0; i < Num(); ++i)
+		for (int32 i = 0; i < Rank(); ++i)
 		{
 			if (SymbolicShape.Data[i] >= 0 && SymbolicShape.Data[i] != Data[i])
 			{
@@ -151,10 +151,24 @@ inline size_t GetTensorDataTypeSizeInBytes(EMLTensorDataType InType)
 	return 0;
 }
 
-struct FTensorDescBase
+class FTensorDescBase
 {
+protected:
 	FString					Name;
 	EMLTensorDataType		DataType;
+
+	FTensorDescBase() = default;
+	
+public:
+	const FString& GetName() const
+	{
+		return Name;
+	}
+	
+	EMLTensorDataType GetDataType() const
+	{
+		return DataType;
+	}
 
 	/** Return size of one element in bytes */
 	uint32 GetElemByteSize() const
@@ -168,14 +182,24 @@ struct FTensorDescBase
 	}
 };
 
-/** Symbolic tensor descriptor */
-struct FSymbolicTensorDesc : FTensorDescBase
+/** Symbolic tensor descriptor without data */
+class FTensorDesc : public FTensorDescBase
 {
 	FSymbolicTensorShape	Shape;
 
-	static FSymbolicTensorDesc Make(const FString& Name, const FSymbolicTensorShape& Shape, EMLTensorDataType DataType)
+public:
+	const FSymbolicTensorShape& GetShape() const
 	{
-		return { {Name, DataType} , Shape };
+		return Shape;
+	}
+
+	static FTensorDesc Make(const FString& Name, const FSymbolicTensorShape& Shape, EMLTensorDataType DataType)
+	{
+		FTensorDesc Desc;
+		Desc.Name = Name;
+		Desc.DataType = DataType;
+		Desc.Shape = Shape;
+		return Desc;
 	}
 
 	bool IsConcrete() const
@@ -184,25 +208,44 @@ struct FSymbolicTensorDesc : FTensorDescBase
 	}
 };
 
-/** Concrete tensor descriptor */
- struct FMLTensorDesc : FTensorDescBase
+/** Concrete tensor backed by data */
+class FTensor : public FTensorDescBase
 {
 	FTensorShape Shape;
-	uint32 Volume;
-	uint64 DataSize;
+	uint32 Volume = 0;
+	uint64 DataSize = 0;
 
-	static FMLTensorDesc Make(const FString& Name, const FTensorShape& Shape, EMLTensorDataType DataType)
+public:
+	const FTensorShape& GetShape() const
 	{
-		uint64 Volume = Shape.Volume();
-		uint64 DataSize = (uint64)GetTensorDataTypeSizeInBytes(DataType) * Volume;
-		
-		check(Volume <= TNumericLimits<uint32>::Max());
-		return { {Name, DataType}, Shape, (uint32)Volume, DataSize };
+		return Shape;
 	}
 
-	static FMLTensorDesc MakeFromSymbolic(const FSymbolicTensorDesc& TensorDesc)
+	uint32 GetVolume() const
 	{
-		return Make(TensorDesc.Name, FTensorShape::MakeFromSymbolic(TensorDesc.Shape), TensorDesc.DataType);
+		return Volume;
+	}
+
+	uint64 GetDataSize() const
+	{
+		return DataSize;
+	}
+	
+	static FTensor Make(const FString& Name, const FTensorShape& Shape, EMLTensorDataType DataType)
+	{
+		FTensor Desc;
+		Desc.Name = Name;
+		Desc.DataType = DataType;
+		Desc.Shape = Shape;
+		Desc.Volume = Shape.Volume();
+		Desc.DataSize = (uint64)GetTensorDataTypeSizeInBytes(DataType) * Desc.Volume;
+		check(Desc.Volume <= TNumericLimits<uint32>::Max());
+		return Desc;
+	}
+
+	static FTensor MakeFromSymbolicDesc(const FTensorDesc& TensorDesc)
+	{
+		return Make(TensorDesc.GetName(), FTensorShape::MakeFromSymbolic(TensorDesc.GetShape()), TensorDesc.GetDataType());
 	}
 };
 

@@ -23,27 +23,27 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 	private:
 
 		int32 Axis = 0;
-		NNX::FMLTensorDesc Data = {};
-		NNX::FMLTensorDesc Indices = {};
-		NNX::FMLTensorDesc Output = {};
+		NNX::FTensor Data = {};
+		NNX::FTensor Indices = {};
+		NNX::FTensor Output = {};
 
 	public:
 
-		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TArrayView<const NNX::FTensor> InputTensors, TArrayView<const NNX::FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			using namespace UE::NNEHlslShaders::Internal;
 
 			check(InputTensors.Num() == 2)
 			check(OutputTensors.Num() == 1)
-			check(Output.Shape.Num() <= FGatherConstants::MAX_NUM_DIMENSIONS)
-			check(InputTensors[0].Shape.Num() > 0)
-			check(InputTensors[1].Shape.Num() > 0)
-			check(InputTensors[0].Shape.Num() + (InputTensors[1].Shape.Num() - 1) <= FGatherConstants::MAX_NUM_DIMENSIONS)
+			check(Output.GetShape().Rank() <= FGatherConstants::MAX_NUM_DIMENSIONS)
+			check(InputTensors[0].GetShape().Rank() > 0)
+			check(InputTensors[1].GetShape().Rank() > 0)
+			check(InputTensors[0].GetShape().Rank() + (InputTensors[1].GetShape().Rank() - 1) <= FGatherConstants::MAX_NUM_DIMENSIONS)
 
 			Axis = Attributes.GetValueOrDefault(TEXT("axis"), Axis);
-			check(Axis < InputTensors[0].Shape.Num())
-			check(Axis >= -InputTensors[0].Shape.Num())
-			Axis = Axis >= 0 ? Axis : InputTensors[0].Shape.Num() + Axis;
+			check(Axis < InputTensors[0].GetShape().Rank())
+			check(Axis >= -InputTensors[0].GetShape().Rank())
+			Axis = Axis >= 0 ? Axis : InputTensors[0].GetShape().Rank() + Axis;
 
 			Data = InputTensors[0];
 			Indices = InputTensors[1];
@@ -64,7 +64,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			Parameters->Output = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutOutputBindings[0].Buffer, PF_R32_FLOAT));
 
 			TGatherCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<TGatherCS::FGatherNumOutputDimensions>(Output.Shape.Num());
+			PermutationVector.Set<TGatherCS::FGatherNumOutputDimensions>(Output.GetShape().Rank());
 			TShaderMapRef<TGatherCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 
 			FIntVector ThreadGroupCount = TGatherCS::GetGroupCount(*Parameters);

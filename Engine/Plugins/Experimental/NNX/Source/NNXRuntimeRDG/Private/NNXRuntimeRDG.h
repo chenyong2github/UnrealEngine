@@ -35,7 +35,7 @@ namespace NNX
 {
 
 struct FTensorBinding;
-struct FTensorDesc;
+class FTensorDesc;
 
 /** Base class for all ML operators running on the RDG */
 struct FMLOperatorRDG
@@ -63,9 +63,9 @@ public:
 
 	~FMLInferenceModelRDG();
 
-	virtual int SetInputShapes(TConstArrayView<const FTensorShape> InputShapes) override;
-	virtual int Run(TConstArrayView<const FMLTensorBinding> InputBindings, TConstArrayView<const FTensorShape> InputShapes, TConstArrayView<const FMLTensorBinding> OutputBindings) override;
-	virtual int EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<const FMLTensorBinding> InputBindings, TConstArrayView<const FTensorShape> InputShapes, TConstArrayView<const FMLTensorBinding> OutputBindings) override;
+	virtual int SetInputShapes(TConstArrayView<FTensorShape> InputShapes) override;
+	virtual int Run(TConstArrayView<FMLTensorBinding> InputBindings, TConstArrayView<FTensorShape> InputShapes, TConstArrayView<FMLTensorBinding> OutputBindings) override;
+	virtual int EnqueueRDG(FRDGBuilder& RDGBuilder, TConstArrayView<FMLTensorBinding> InputBindings, TConstArrayView<FTensorShape> InputShapes, TConstArrayView<FMLTensorBinding> OutputBindings) override;
 
 protected:
 
@@ -73,8 +73,7 @@ protected:
 
 	bool LoadModel(const FNNIModelRaw& InModel, FMLRuntimeFormat& Format);
 
-	int CreateIntermediateTensors(FRDGBuilder& GraphBuilder, FMLTensorBindingArray& OutBindings, TConstArrayView<const FMLTensorDesc> InTensors);
-	int SetTensors(FRDGBuilder& GraphBuilder, FMLTensorBindingArray& OutRDGBindings, FMLIntArray& OutIndices, TArrayView<const FMLTensorBinding> InBindings, TArrayView<const FMLTensorDesc> InTensors);
+	int SetTensors(FRDGBuilder& GraphBuilder, FMLTensorBindingArray& OutRDGBindings, FMLIntArray& OutIndices, TArrayView<const FMLTensorBinding> InBindings, TArrayView<const FTensor> InTensors);
 
 	virtual void AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder) = 0;
 
@@ -82,10 +81,10 @@ protected:
 	virtual void AddTensorReadbacks_RenderThread(FRDGBuilder& GraphBuilder, TArrayView<const int32> InReadbackIndices, TArrayView<const FMLTensorBinding> InRDGBindings, TArrayView<const FMLTensorBinding> InBindings);
 
 	//Tensors
-	TArray<FMLTensorDesc>		AllTensors;
-	TArray<FSymbolicTensorDesc>	AllSymbolicTensors;
-	TArray<FMLTensorDesc>		InputTensors;
-	TArray<FMLTensorDesc>		OutputTensors;
+	TArray<FTensor>		AllTensors;
+	TArray<FTensorDesc>	AllSymbolicTensors;
+	TArray<FTensor>		InputTensors;
+	TArray<FTensor>		OutputTensors;
 
 	//Tensor indices for models
 	TArray<int32>				IntermediateTensorIndices;
@@ -103,7 +102,7 @@ protected:
 
 //TODO jira 167585 remove default validation and declare contract in all HLSL operator (see HLSL Gemm for current example)
 //TODO jira 167584 remove default validation and declare contract in all DML operator (see HLSL Gemm for current example)
-bool AlwaysValidValidationFunction(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<const FSymbolicTensorShape> InputShapes);
+bool AlwaysValidValidationFunction(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<FSymbolicTensorShape> InputShapes);
 
 class FInputValidator
 {
@@ -158,7 +157,7 @@ class TOperatorRegistryRDG
 public:
 
 	typedef TOperatorType* (*OperatorCreateFunc)();
-	typedef bool (*OperatorValidateFunc)(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<const FSymbolicTensorShape> InputShapes);
+	typedef bool (*OperatorValidateFunc)(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<FSymbolicTensorShape> InputShapes);
 
 	static TOperatorRegistryRDG* Get()
 	{

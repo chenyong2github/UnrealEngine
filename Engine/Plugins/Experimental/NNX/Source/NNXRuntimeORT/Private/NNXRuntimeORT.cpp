@@ -237,18 +237,15 @@ bool FMLInferenceModelORT::ConfigureTensors(const bool InIsInput)
 
 	const uint32 NumberTensors = bIsInput ? Session->GetInputCount() : Session->GetOutputCount();
 
-	TArray<FSymbolicTensorDesc>& SymbolicTensorDescs = bIsInput ? InputSymbolicTensors : OutputSymbolicTensors;
+	TArray<FTensorDesc>& SymbolicTensorDescs = bIsInput ? InputSymbolicTensors : OutputSymbolicTensors;
 	TArray<ONNXTensorElementDataType>& TensorsORTType = bIsInput ? InputTensorsORTType : OutputTensorsORTType;
 	TArray<const char*>& TensorNames = bIsInput ? InputTensorNames : OutputTensorNames;
 
 	for (uint32 TensorIndex = 0; TensorIndex < NumberTensors; ++TensorIndex)
 	{
-		FSymbolicTensorDesc SymbolicTensorDesc;
-
 		// Get Tensor name
 		const char* CurTensorName = bIsInput ? Session->GetInputName(TensorIndex, *Allocator) : Session->GetOutputName(TensorIndex, *Allocator);
 		TensorNames.Emplace(CurTensorName);
-		SymbolicTensorDesc.Name = FString(CurTensorName);
 
 		// Get node type
 		Ort::TypeInfo CurrentTypeInfo = bIsInput ? Session->GetInputTypeInfo(TensorIndex) : Session->GetOutputTypeInfo(TensorIndex);
@@ -259,13 +256,15 @@ bool FMLInferenceModelORT::ConfigureTensors(const bool InIsInput)
 		TensorsORTType.Emplace(ONNXTensorElementDataTypeEnum);
 
 		std::pair<EMLTensorDataType, uint64> TypeAndSize = TranslateTensorTypeORTToNNI(ONNXTensorElementDataTypeEnum);
-		SymbolicTensorDesc.DataType = TypeAndSize.first;
 		
-		SymbolicTensorDesc.Shape.Data.Reserve(CurrentTensorInfo.GetShape().size());
+		FSymbolicTensorShape Shape;
+		Shape.Data.Reserve(CurrentTensorInfo.GetShape().size());
 		for (const int64_t CurrentTensorSize : CurrentTensorInfo.GetShape())
 		{
-			SymbolicTensorDesc.Shape.Data.Add((int32)CurrentTensorSize);
+			Shape.Data.Add((int32)CurrentTensorSize);
 		}
+
+		FTensorDesc SymbolicTensorDesc = FTensorDesc::Make(FString(CurTensorName), Shape, TypeAndSize.first);
 
 		if (!SymbolicTensorDesc.IsConcrete())
 			{
@@ -281,33 +280,33 @@ bool FMLInferenceModelORT::ConfigureTensors(const bool InIsInput)
 	return true;
 }
 
-int FMLInferenceModelORT::SetInputShapes(TConstArrayView<const FTensorShape> InInputShapes)
+int FMLInferenceModelORT::SetInputShapes(TConstArrayView<FTensorShape> InInputShapes)
 {
 	//Verify input shape are valid for the model
 	if (FMLInferenceModel::SetInputShapes(InInputShapes) != 0)
-			{
+	{
 		return -1;
-			}
+	}
 
 	//Run shape inference
 	//TODO jira 168972: handle dynamic input shape
 
 	//Build concrete input and output tensor descriptions
 	InputTensors.Empty();
-	for (FSymbolicTensorDesc SymbolicTensorDesc : InputSymbolicTensors)
+	for (FTensorDesc SymbolicTensorDesc : InputSymbolicTensors)
 	{
-		InputTensors.Emplace(FMLTensorDesc::MakeFromSymbolic(SymbolicTensorDesc));
-		}
+		InputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
+	}
 	OutputTensors.Empty();
-	for (FSymbolicTensorDesc SymbolicTensorDesc : OutputSymbolicTensors)
+	for (FTensorDesc SymbolicTensorDesc : OutputSymbolicTensors)
 	{
-		OutputTensors.Emplace(FMLTensorDesc::MakeFromSymbolic(SymbolicTensorDesc));
+		OutputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
 	}
 
 	return 0;
 }
 
-int FMLInferenceModelORT::Run(TConstArrayView<const FMLTensorBinding> InInputBindings, TConstArrayView<const FTensorShape> InInputShapes, TConstArrayView<const FMLTensorBinding> InOutputBindings)
+int FMLInferenceModelORT::Run(TConstArrayView<FMLTensorBinding> InInputBindings, TConstArrayView<FTensorShape> InInputShapes, TConstArrayView<FMLTensorBinding> InOutputBindings)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FMLInferenceModelORT_Run"), STAT_FMLInferenceModelORT_Run, STATGROUP_MachineLearning);
 

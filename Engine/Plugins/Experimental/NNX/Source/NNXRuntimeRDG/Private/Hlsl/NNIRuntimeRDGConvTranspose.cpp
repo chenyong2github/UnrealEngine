@@ -28,10 +28,10 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 		FConvTranspose() {}
 
-		NNX::FMLTensorDesc Input = {};
-		NNX::FMLTensorDesc Weights = {};
-		NNX::FMLTensorDesc Bias = {};
-		NNX::FMLTensorDesc Output = {};
+		NNX::FTensor Input = {};
+		NNX::FTensor Weights = {};
+		NNX::FTensor Bias = {};
+		NNX::FTensor Output = {};
 
 		int NumDimensions = 0;
 		bool HasBias = false;
@@ -46,7 +46,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TArrayView<const NNX::FTensor> InputTensors, TArrayView<const NNX::FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
 			check(OutputTensors.Num() == 1);
@@ -55,9 +55,9 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			Weights = InputTensors[1];
 			Output = OutputTensors[0];
 
-			check(Input.Shape.Num() > 2);
-			check(Weights.Shape.Num()  == Input.Shape.Num());
-			check(Output.Shape.Num() == Input.Shape.Num());
+			check(Input.GetShape().Rank() > 2);
+			check(Weights.GetShape().Rank()  == Input.GetShape().Rank());
+			check(Output.GetShape().Rank() == Input.GetShape().Rank());
 
 			if (InputTensors.Num() == 3) {
 				HasBias = true;
@@ -68,7 +68,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 				HasBias = false;
 			}
 
-			NumDimensions = Input.Shape.Num() - 2;
+			NumDimensions = Input.GetShape().Rank() - 2;
 
 			return true;
 		}
@@ -80,11 +80,11 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			constexpr EConvTransposeAlgorithm Algorithm = EConvTransposeAlgorithm::SharedMemory;
 			constexpr EConvTransposeGroupSize GroupSize = EConvTransposeGroupSize::Size256;
 
-			TArray<int32> OutputShape = FConvTransposeCS::GetOutputShape(Input.Shape.Data, Weights.Shape.Data, AutoPad, Dilations, Strides, Pads, OutputPadding, Group);
+			TArray<int32> OutputShape = FConvTransposeCS::GetOutputShape(Input.GetShape().Data, Weights.GetShape().Data, AutoPad, Dilations, Strides, Pads, OutputPadding, Group);
 
 			// Set parameters
 			FConvTransposeCS::FParameters* Params = GraphBuilder.AllocParameters<FConvTransposeCS::FParameters>();
-			FConvTransposeCS::FillInParameters(GroupSize, Input.Shape.Data, Weights.Shape.Data, HasBias, AutoPad, Group, Dilations,Strides, Pads, OutputPadding, *Params);
+			FConvTransposeCS::FillInParameters(GroupSize, Input.GetShape().Data, Weights.GetShape().Data, HasBias, AutoPad, Group, Dilations,Strides, Pads, OutputPadding, *Params);
 			Params->X = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[0].Buffer, PF_R32_FLOAT));
 			Params->W = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[1].Buffer, PF_R32_FLOAT));
 			if (InInputBindings.Num() == 3) {
@@ -97,7 +97,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			PermutationVector.Set<FConvTransposeCS::FConvTransposeAlgorithm>(Algorithm);
 			PermutationVector.Set<FConvTransposeCS::FConvTransposeGroupSize>(GroupSize);
 			PermutationVector.Set<FConvTransposeCS::FConvTransposeNumStackDimensions>(NumDimensions);
-			PermutationVector.Set<FConvTransposeCS::FConvTransposeNumReadsPerThread>(FConvTransposeCS::GetNumReadsPerThread(GroupSize, Weights.Shape.Data, Dilations, Strides));
+			PermutationVector.Set<FConvTransposeCS::FConvTransposeNumReadsPerThread>(FConvTransposeCS::GetNumReadsPerThread(GroupSize, Weights.GetShape().Data, Dilations, Strides));
 			PermutationVector.Set<FConvTransposeCS::FConvTransposeHasB>(HasBias);
 			TShaderMapRef<FConvTransposeCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 

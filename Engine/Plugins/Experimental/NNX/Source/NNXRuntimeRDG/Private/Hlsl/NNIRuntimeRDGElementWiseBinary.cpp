@@ -24,13 +24,13 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	private:
 
-		NNX::FMLTensorDesc LHSInput = {};
-		NNX::FMLTensorDesc RHSInput = {};
-		NNX::FMLTensorDesc Output = {};
+		NNX::FTensor LHSInput = {};
+		NNX::FTensor RHSInput = {};
+		NNX::FTensor Output = {};
 
 	public:
 
-		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TArrayView<const NNX::FTensor> InputTensors, TArrayView<const NNX::FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			check(InputTensors.Num() == 2);
 			check(OutputTensors.Num() == 1);
@@ -49,23 +49,23 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			FRDGBufferSRVRef RHSInputSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[1].Buffer, PF_R32_FLOAT));
 			FRDGBufferUAVRef OutputUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutOutputBindings[0].Buffer, PF_R32_FLOAT));
 
-			FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(Output.Volume, FElementWiseBinaryConstants::NUM_GROUP_THREADS);
+			FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(Output.GetVolume(), FElementWiseBinaryConstants::NUM_GROUP_THREADS);
 
 			// Set parameters
 			TElementWiseBinaryCS::FParameters* Params = GraphBuilder.AllocParameters<TElementWiseBinaryCS::FParameters>();
 			Params->LHSInput = LHSInputSRV;
 			Params->RHSInput = RHSInputSRV;
 			Params->Output = OutputUAV;
-			FillTensorStrideForBroadcastShaderParameters(LHSInput, Output.Shape.Num(), Params->TensorInfo, 0);
-			FillTensorStrideForBroadcastShaderParameters(RHSInput, Output.Shape.Num(), Params->TensorInfo, 1);
+			FillTensorStrideForBroadcastShaderParameters(LHSInput, Output.GetShape().Rank(), Params->TensorInfo, 0);
+			FillTensorStrideForBroadcastShaderParameters(RHSInput, Output.GetShape().Rank(), Params->TensorInfo, 1);
 			FillTensorStrideShaderParameters(Output, Params->TensorInfo, 2);
-			Params->Num = Output.Volume;
+			Params->Num = Output.GetVolume();
 			Params->ThreadCountX = ThreadGroupCount.X * FElementWiseBinaryConstants::NUM_GROUP_THREADS;
 
 			TElementWiseBinaryCS::FPermutationDomain PermutationVector;
 
 			PermutationVector.Set<TElementWiseBinaryCS::FOperatorType>(OpType);
-			PermutationVector.Set<TElementWiseBinaryCS::FBinaryNumDimensions>(Output.Shape.Num());
+			PermutationVector.Set<TElementWiseBinaryCS::FBinaryNumDimensions>(Output.GetShape().Rank());
 
 			TShaderMapRef<TElementWiseBinaryCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
 		

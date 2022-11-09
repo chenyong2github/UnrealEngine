@@ -13,9 +13,9 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	void AddOneVariadicOpPass(FRDGBuilder& GraphBuilder, 
 		TArrayView<const NNX::FMLTensorBinding> InputBindings,
-		TArrayView<const NNX::FMLTensorDesc> InputDesc,
+		TArrayView<const NNX::FTensor> InputDesc,
 		const NNX::FMLTensorBinding& OutputBinding,
-		const NNX::FMLTensorDesc& OutputDesc,
+		const NNX::FTensor& OutputDesc,
 		bool OutputAsInput,
 		EMLElementWiseVariadicOperatorType OpType,
 		float Scale)
@@ -35,7 +35,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 
 		// Set parameters
-		FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(OutputDesc.Volume, FElementWiseVariadicConstants::NUM_GROUP_THREADS);
+		FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(OutputDesc.GetVolume(), FElementWiseVariadicConstants::NUM_GROUP_THREADS);
 		TElementWiseVariadicCS::FParameters* Params = GraphBuilder.AllocParameters<TElementWiseVariadicCS::FParameters>();
 
 		Params->Input0 = InputsSRV[0];
@@ -43,21 +43,21 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		Params->Input2 = InputsSRV[2];
 		Params->Input3 = InputsSRV[3];
 		Params->Output = OutputUAV;
-		FillTensorStrideForBroadcastShaderParameters(InputDesc[0], OutputDesc.Shape.Num(), Params->InputTensorInfo, 0);
+		FillTensorStrideForBroadcastShaderParameters(InputDesc[0], OutputDesc.GetShape().Rank(), Params->InputTensorInfo, 0);
 		if (InputBindings.Num() >= 2)
 		{
-			FillTensorStrideForBroadcastShaderParameters(InputDesc[1], OutputDesc.Shape.Num(), Params->InputTensorInfo, 1);
+			FillTensorStrideForBroadcastShaderParameters(InputDesc[1], OutputDesc.GetShape().Rank(), Params->InputTensorInfo, 1);
 		}
 		if (InputBindings.Num() >= 3)
 		{
-			FillTensorStrideForBroadcastShaderParameters(InputDesc[2], OutputDesc.Shape.Num(), Params->InputTensorInfo, 2);
+			FillTensorStrideForBroadcastShaderParameters(InputDesc[2], OutputDesc.GetShape().Rank(), Params->InputTensorInfo, 2);
 		}
 		if (InputBindings.Num() >= 4)
 		{
-			FillTensorStrideForBroadcastShaderParameters(InputDesc[3], OutputDesc.Shape.Num(), Params->InputTensorInfo, 3);
+			FillTensorStrideForBroadcastShaderParameters(InputDesc[3], OutputDesc.GetShape().Rank(), Params->InputTensorInfo, 3);
 		}
 		FillTensorStrideShaderParameters(OutputDesc, Params->OutputTensorInfo, 0);
-		Params->Num = OutputDesc.Volume;
+		Params->Num = OutputDesc.GetVolume();
 		Params->ThreadCountX = ThreadGroupCount.X * FElementWiseVariadicConstants::NUM_GROUP_THREADS;
 		Params->Scale = Scale;
 
@@ -68,7 +68,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		PermutationVector.Set<TElementWiseVariadicCS::FApplyScale>(Scale != 1.0f);
 		PermutationVector.Set<TElementWiseVariadicCS::FOutputAsInput>(OutputAsInput);
 		PermutationVector.Set<TElementWiseVariadicCS::FNumInput>(InputBindings.Num());
-		PermutationVector.Set<TElementWiseVariadicCS::FVariadicNumDimensions>(OutputDesc.Shape.Num());
+		PermutationVector.Set<TElementWiseVariadicCS::FVariadicNumDimensions>(OutputDesc.GetShape().Rank());
 
 		// Add the pass to RDG
 		TShaderMapRef<TElementWiseVariadicCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
@@ -94,12 +94,12 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	private:
 
-		TArray<NNX::FMLTensorDesc> InputDescs;
-		NNX::FMLTensorDesc OutputDesc = {};
+		TArray<NNX::FTensor> InputDescs;
+		NNX::FTensor OutputDesc = {};
 
 	public:
 
-		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TArrayView<const NNX::FTensor> InputTensors, TArrayView<const NNX::FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			check(InputTensors.Num() > 0);
 			check(OutputTensors.Num() == 1);
@@ -119,7 +119,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			RDG_GPU_STAT_SCOPE(GraphBuilder, FNNIOperatorElementWiseVariadic);
 
 			NNX::FMLTensorBinding PassInputBindings[FElementWiseVariadicConstants::MAX_NUM_INPUT];
-			NNX::FMLTensorDesc PassInputDescs[FElementWiseVariadicConstants::MAX_NUM_INPUT];
+			NNX::FTensor PassInputDescs[FElementWiseVariadicConstants::MAX_NUM_INPUT];
 			for (int32 InputOffset = 0; InputOffset < InInputBindings.Num(); InputOffset += FElementWiseVariadicConstants::MAX_NUM_INPUT)
 			{
 				uint32 NumInputLeftToHandle = InInputBindings.Num() - InputOffset;

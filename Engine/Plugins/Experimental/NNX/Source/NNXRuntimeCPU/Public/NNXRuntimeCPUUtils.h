@@ -113,7 +113,7 @@ inline TypeInfoORT TranslateTensorTypeORTToNNI(unsigned int OrtDataType)
 
 inline void BindTensorsToORT(
 	TArrayView<const NNX::FMLTensorBinding> InBindingTensors,
-	const TArray<NNX::FMLTensorDesc>& InTensorsDescriptors,
+	const TArray<NNX::FTensor>& InTensorsDescriptors,
 	const TArray<ONNXTensorElementDataType>& InTensorsORTType, 
 	const Ort::MemoryInfo* InAllocatorInfo,
 	TArray<Ort::Value>& OutOrtTensors	
@@ -131,18 +131,18 @@ inline void BindTensorsToORT(
 	for (uint32 Index = 0; Index < NumBinding; ++Index)
 	{
 		const NNX::FMLTensorBinding& CurrentBinding = InBindingTensors[Index];
-		const NNX::FMLTensorDesc& CurrentDescriptor = InTensorsDescriptors[Index];
+		const NNX::FTensor& CurrentDescriptor = InTensorsDescriptors[Index];
 		ONNXTensorElementDataType CurrentORTType = InTensorsORTType[Index];
 
 		TUniquePtr<int64_t[]> SizesInt64t;
-		SizesInt64t = MakeUnique<int64_t[]>(CurrentDescriptor.Shape.Num());
-		for (int32 DimIndex = 0; DimIndex < CurrentDescriptor.Shape.Num(); ++DimIndex)
+		SizesInt64t = MakeUnique<int64_t[]>(CurrentDescriptor.GetShape().Rank());
+		for (int32 DimIndex = 0; DimIndex < CurrentDescriptor.GetShape().Rank(); ++DimIndex)
 		{
-			SizesInt64t.Get()[DimIndex] = CurrentDescriptor.Shape.Data[DimIndex];
+			SizesInt64t.Get()[DimIndex] = CurrentDescriptor.GetShape().Data[DimIndex];
 		}
 
-		const uint64 ByteCount { InTensorsDescriptors[Index].DataSize };
-		const uint32 ArrayDimensions { (uint32)CurrentDescriptor.Shape.Num() };
+		const uint64 ByteCount { InTensorsDescriptors[Index].GetDataSize() };
+		const uint32 ArrayDimensions { (uint32)CurrentDescriptor.GetShape().Rank() };
 		OutOrtTensors.Emplace(
 			Ort::Value::CreateTensor(
 				*InAllocatorInfo,

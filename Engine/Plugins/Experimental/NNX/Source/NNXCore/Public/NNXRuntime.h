@@ -103,29 +103,29 @@ public:
 	}
 
 	/** Getters for tensor description as defined by the model potentially with variable dimensions() */
-	TConstArrayView<const FSymbolicTensorDesc> GetInputTensorDescs() const;
-	TConstArrayView<const FSymbolicTensorDesc> GetOutputTensorDescs() const;
+	TConstArrayView<FTensorDesc> GetInputTensorDescs() const;
+	TConstArrayView<FTensorDesc> GetOutputTensorDescs() const;
 
 	/** Getters for input/output shapes if they were set already. Empty list otherwise. See SetInputShapes() */
-	TConstArrayView<const FTensorShape> GetInputTensorShapes() const;
-	TConstArrayView<const FTensorShape> GetOutputTensorShapes() const;
+	TConstArrayView<FTensorShape> GetInputTensorShapes() const;
+	TConstArrayView<FTensorShape> GetOutputTensorShapes() const;
 	
 	/** This call will prepare the model to be run with the given input shape, it is an optional call.
 	 * Run() and EnqueueRDG() will call it internally if it was not call explicitely.
 	 * It is recommended to call this function ahead of time to avoid overhead during the first model execution. */
-	virtual int SetInputShapes(TConstArrayView<const FTensorShape> InInputShapes);
+	virtual int SetInputShapes(TConstArrayView<FTensorShape> InInputShapes);
 
 	/** This call is synchronous on all engine types(CPU, RDG, GPU), i.e.the calling thread will be blocked.
 	 * until execution is finished */
-	virtual int Run(TConstArrayView<const FMLTensorBinding> InInputTensors,
-		            TConstArrayView<const FTensorShape> InInputShapes,
-					TConstArrayView<const FMLTensorBinding> InOutputTensors) = 0;
+	virtual int Run(TConstArrayView<FMLTensorBinding> InInputTensors,
+		            TConstArrayView<FTensorShape> InInputShapes,
+					TConstArrayView<FMLTensorBinding> InOutputTensors) = 0;
 
 	/** Enqueue the execution on the Render graph render thread. It's caller's responsibility to actually run the graph. */
 	virtual int EnqueueRDG(FRDGBuilder& RDGBuilder, 
-		TConstArrayView<const FMLTensorBinding> InInputTensors, 
-		TConstArrayView<const FTensorShape> InInputShapes,
-		TConstArrayView<const FMLTensorBinding> InOutputTensors)
+		TConstArrayView<FMLTensorBinding> InInputTensors, 
+		TConstArrayView<FTensorShape> InInputShapes,
+		TConstArrayView<FMLTensorBinding> InOutputTensors)
 	{
 		return -1;
 	}
@@ -138,8 +138,8 @@ protected:
 
 	TArray<FTensorShape>		InputTensorShapes;
 	TArray<FTensorShape>		OutputTensorShapes;
-	TArray<FSymbolicTensorDesc>	InputSymbolicTensors;
-	TArray<FSymbolicTensorDesc>	OutputSymbolicTensors;
+	TArray<FTensorDesc>	InputSymbolicTensors;
+	TArray<FTensorDesc>	OutputSymbolicTensors;
 	EMLInferenceModelType	Type;
 };
 
@@ -148,22 +148,22 @@ protected:
 // IMPLEMENTATION
 //-----------------------------------------------------------------------------
 
-inline TConstArrayView<const FSymbolicTensorDesc> FMLInferenceModel::GetInputTensorDescs() const
+inline TConstArrayView<FTensorDesc> FMLInferenceModel::GetInputTensorDescs() const
 {
 	return InputSymbolicTensors;
 }
 
-inline TConstArrayView<const FSymbolicTensorDesc> FMLInferenceModel::GetOutputTensorDescs() const
+inline TConstArrayView<FTensorDesc> FMLInferenceModel::GetOutputTensorDescs() const
 {
 	return OutputSymbolicTensors;
 }
 
-inline TConstArrayView<const FTensorShape> FMLInferenceModel::GetInputTensorShapes() const
+inline TConstArrayView<FTensorShape> FMLInferenceModel::GetInputTensorShapes() const
 {
 	return InputTensorShapes;
 }
 
-inline TConstArrayView<const FTensorShape> FMLInferenceModel::GetOutputTensorShapes() const
+inline TConstArrayView<FTensorShape> FMLInferenceModel::GetOutputTensorShapes() const
 {
 	return OutputTensorShapes;
 }

@@ -276,7 +276,7 @@ private:
 //
 //
 //
-NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, FNNIModelRaw& Model)
+NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors, FNNIModelRaw& Model)
 {
 	UE::NNECore::FAttributeMap EmptyAttributeMap;
 	return CreateONNXModelForOperator(OperatorName, InInputTensors, InOutputTensors, EmptyAttributeMap, Model);
@@ -285,7 +285,7 @@ NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConst
 //
 //
 //
-NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FMLTensorDesc> InInputTensors, TConstArrayView<FMLTensorDesc> InOutputTensors, const UE::NNECore::FAttributeMap& Attributes, FNNIModelRaw& Model)
+NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConstArrayView<FTensor> InInputTensors, TConstArrayView<FTensor> InOutputTensors, const UE::NNECore::FAttributeMap& Attributes, FNNIModelRaw& Model)
 {
 	Model = FNNIModelRaw{};
 	
@@ -297,8 +297,8 @@ NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConst
 	
 	for (int32 Idx = 0; Idx < InInputTensors.Num(); ++Idx)
 	{
-		const FMLTensorDesc& Desc = InInputTensors[Idx];
-		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.Name, Desc.DataType, MakeArrayView((const int32*) Desc.Shape.Data.GetData(), Desc.Shape.Num()));
+		const FTensor& Desc = InInputTensors[Idx];
+		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.GetName(), Desc.GetDataType(), MakeArrayView((const int32*)Desc.GetShape().Data.GetData(), Desc.GetShape().Rank()));
 
 		InputTensors.Emplace(Tensor);
 		Builder->AddInput(Tensor);
@@ -308,8 +308,8 @@ NNXUTILS_API bool CreateONNXModelForOperator(const FString& OperatorName, TConst
 
 	for (int32 Idx = 0; Idx < InOutputTensors.Num(); ++Idx)
 	{
-		const FMLTensorDesc& Desc = InOutputTensors[Idx];
-		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.Name, Desc.DataType, MakeArrayView((const int32*) Desc.Shape.Data.GetData(), Desc.Shape.Num()));
+		const FTensor& Desc = InOutputTensors[Idx];
+		IMLModelBuilder::HTensor Tensor = Builder->AddTensor(Desc.GetName(), Desc.GetDataType(), MakeArrayView((const int32*)Desc.GetShape().Data.GetData(), Desc.GetShape().Rank()));
 
 		OutputTensors.Emplace(Tensor);
 		Builder->AddOutput(Tensor);

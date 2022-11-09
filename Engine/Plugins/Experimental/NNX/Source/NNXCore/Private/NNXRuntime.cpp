@@ -42,7 +42,7 @@ namespace NNX
 		return Binding;
 	}
 
-	int FMLInferenceModel::SetInputShapes(TConstArrayView<const FTensorShape> InInputShapes)
+	int FMLInferenceModel::SetInputShapes(TConstArrayView<FTensorShape> InInputShapes)
 	{
 		if (InInputShapes.Num() != InputSymbolicTensors.Num())
 		{
@@ -52,10 +52,10 @@ namespace NNX
 
 		for (int32 i = 0; i < InInputShapes.Num(); ++i)
 		{
-			const FSymbolicTensorDesc SymbolicDesc = InputSymbolicTensors[i];
-			if (!InInputShapes[i].IsCompatibleWith(SymbolicDesc.Shape))
+			const FTensorDesc SymbolicDesc = InputSymbolicTensors[i];
+			if (!InInputShapes[i].IsCompatibleWith(SymbolicDesc.GetShape()))
 			{
-				UE_LOG(LogNNX, Warning, TEXT("Input shape does not match input tensor %s of index %d"), *SymbolicDesc.Name, i);
+				UE_LOG(LogNNX, Warning, TEXT("Input shape does not match input tensor %s of index %d"), *SymbolicDesc.GetName(), i);
 				return -1;
 			}
 		}

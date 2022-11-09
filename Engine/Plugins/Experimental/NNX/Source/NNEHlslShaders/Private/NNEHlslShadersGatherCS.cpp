@@ -15,47 +15,47 @@ namespace UE::NNEHlslShaders::Internal
 	}
 
 	//template <typename DataElementType, typename IndicesElementType>
-	void TGatherCS::FillInParameters(int32 Axis, const NNX::FMLTensorDesc& Data, const NNX::FMLTensorDesc& Indices, FParameters& Parameters)
+	void TGatherCS::FillInParameters(int32 Axis, const NNX::FTensor& Data, const NNX::FTensor& Indices, FParameters& Parameters)
 	{
 		Parameters.Axis = Axis;
 
 		TArray<int32> OutputShape;
-		OutputShape.SetNum(Indices.Shape.Num() + (Data.Shape.Num() - 1));
+		OutputShape.SetNum(Indices.GetShape().Rank() + (Data.GetShape().Rank() - 1));
 		int32 index = 0;
 		Parameters.OutputSize = 1;
 		for (int32 i = 0; i < Axis; i++, index++)
 		{
-			OutputShape[index] = Data.Shape.Data[i];
+			OutputShape[index] = Data.GetShape().Data[i];
 			Parameters.OutputSize *= OutputShape[index];
 		}
-		for (int32 i = 0; i < Indices.Shape.Num(); i++, index++)
+		for (int32 i = 0; i < Indices.GetShape().Rank(); i++, index++)
 		{
-			OutputShape[index] = Indices.Shape.Data[i];
+			OutputShape[index] = Indices.GetShape().Data[i];
 			Parameters.OutputSize *= OutputShape[index];
 		}
-		for (int32 i = (Axis + 1); i < Data.Shape.Num(); i++, index++)
+		for (int32 i = (Axis + 1); i < Data.GetShape().Rank(); i++, index++)
 		{
-			OutputShape[index] = Data.Shape.Data[i];
+			OutputShape[index] = Data.GetShape().Data[i];
 			Parameters.OutputSize *= OutputShape[index];
 		}
 
-		Parameters.NumDataDimensions = Data.Shape.Num();
-		Parameters.NumIndicesDimensions = Indices.Shape.Num();
+		Parameters.NumDataDimensions = Data.GetShape().Rank();
+		Parameters.NumIndicesDimensions = Indices.GetShape().Rank();
 
 		int32 DataStride = 1;
-		for (int32 i = Data.Shape.Num() - 1; i >= 0; i--)
+		for (int32 i = Data.GetShape().Rank() - 1; i >= 0; i--)
 		{
 			Parameters.DataStride_IndicesStride_OutputStride[i].X = DataStride;
 			Parameters.OneDivDataStride_OneDivIndicesStride_OneDivOutputStride[i].X = 1.0 / (float)DataStride;
-			DataStride *= Data.Shape.Data[i];
+			DataStride *= Data.GetShape().Data[i];
 		}
 
 		int32 IndicesStride = 1;
-		for (int32 i = Indices.Shape.Num() - 1; i >= 0; i--)
+		for (int32 i = Indices.GetShape().Rank() - 1; i >= 0; i--)
 		{
 			Parameters.DataStride_IndicesStride_OutputStride[i].Y = IndicesStride;
 			Parameters.OneDivDataStride_OneDivIndicesStride_OneDivOutputStride[i].Y = 1.0 / (float)IndicesStride;
-			IndicesStride *= Indices.Shape.Data[i];
+			IndicesStride *= Indices.GetShape().Data[i];
 		}
 
 		int32 OutputStride = 1;

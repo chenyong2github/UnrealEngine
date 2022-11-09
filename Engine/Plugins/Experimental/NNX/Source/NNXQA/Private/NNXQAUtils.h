@@ -34,8 +34,8 @@ namespace Test
 			bool IsModelTest;
 			TMap<FString, float> AbsoluteErrorEpsilonForRuntime;
 			TMap<FString, float> RelativeErrorPercentForRuntime;
-			TArray<FMLTensorDesc> Inputs;
-			TArray<FMLTensorDesc> Outputs;
+			TArray<FTensor> Inputs;
+			TArray<FTensor> Outputs;
 			UE::NNECore::FAttributeMap AttributeMap;
 			TArray<FString> Tags;
 			TArray<FString> AutomationExcludedRuntime;
@@ -63,8 +63,8 @@ namespace Test
 
 	bool CompareONNXModelInferenceAcrossRuntimes(const FNNIModelRaw& ONNXModel, const FTests::FTestSetup& TestSetup, const FString& RuntimeFilter = TEXT(""));
 
-	FString FMLTensorDescToString(const FMLTensorDesc& TensorDesc);
-	FString TensorToString(const FMLTensorDesc& TensorDesc, const TArray<char>& TensorData);
+	FString FMLTensorDescToString(const FTensor& TensorDesc);
+	FString TensorToString(const FTensor& TensorDesc, const TArray<char>& TensorData);
 	template<typename T> FString ShapeToString(TArrayView<const T> Shape);
 
 } // namespace Test

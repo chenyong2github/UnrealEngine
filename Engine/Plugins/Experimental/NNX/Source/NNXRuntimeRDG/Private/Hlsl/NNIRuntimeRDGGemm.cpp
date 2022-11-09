@@ -21,10 +21,10 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	private:
 
-		NNX::FMLTensorDesc InputA = {};
-		NNX::FMLTensorDesc InputB = {};
-		NNX::FMLTensorDesc InputC = {};
-		NNX::FMLTensorDesc Output = {};
+		NNX::FTensor InputA = {};
+		NNX::FTensor InputB = {};
+		NNX::FTensor InputC = {};
+		NNX::FTensor Output = {};
 
 		float InputAlpha = 1.0f;
 		float InputBeta = 1.0f;
@@ -41,7 +41,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	public:
 
-		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TArrayView<const NNX::FTensor> InputTensors, TArrayView<const NNX::FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			check(InputTensors.Num() >= 2 && InputTensors.Num() <= 3);
 			check(OutputTensors.Num() == 1);
@@ -51,11 +51,11 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			if (InputTensors.Num() == 3) InputC = InputTensors[2];
 			Output = OutputTensors[0];
 
-			check(InputA.Shape.Num() == 2);
-			check(InputB.Shape.Num() == 2);
-			check(InputC.Shape.Num() < 3);
+			check(InputA.GetShape().Rank() == 2);
+			check(InputB.GetShape().Rank() == 2);
+			check(InputC.GetShape().Rank() < 3);
 
-			check(InputC.Shape.Num() != 1 || InputC.Shape.Data[0] != 1); // TODO scalar version not supported yet
+			check(InputC.GetShape().Rank() != 1 || InputC.GetShape().Data[0] != 1); // TODO scalar version not supported yet
 
 			// C is treated as a scalar if there is no valid C, either width or height is zero or C dimension is 1x1
 			bIsCScalar = false; // InputTensors.Num() != 3 || InputC.Sizes[0] * InputC.Sizes[1] < 2;
@@ -109,7 +109,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		}
 	};
 
-	bool ValidateGemmOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<const NNX::FSymbolicTensorShape> InputShapes)
+	bool ValidateGemmOperator(const UE::NNECore::FAttributeMap& AttributeMap, TConstArrayView<EMLTensorDataType> InputTypes, TConstArrayView<NNX::FSymbolicTensorShape> InputShapes)
 	{
 		bool bIsValid = true;
 

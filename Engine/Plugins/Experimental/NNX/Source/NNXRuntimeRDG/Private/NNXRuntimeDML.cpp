@@ -167,59 +167,59 @@ namespace DmlUtil
 		TArray<uint32, TInlineAllocator<FTensorShape::MaxRank>>		Strides;
 	};
 
-	void SetTensorStrides(FTensorDesc& TensorDesc, const FMLTensorDesc& InputDesc)
+	void SetTensorStrides(FTensorDesc& TensorDesc, const FTensor& InputDesc)
 	{
 		uint32 CurrStride = 1;
 
-		TensorDesc.Strides.SetNum(InputDesc.Shape.Num());
+		TensorDesc.Strides.SetNum(InputDesc.GetShape().Rank());
 		
-		for (int32 i = InputDesc.Shape.Num() - 1; i >= 0; --i)
+		for (int32 i = InputDesc.GetShape().Rank() - 1; i >= 0; --i)
 		{
 			TensorDesc.Strides[i] = CurrStride;
-			CurrStride *= InputDesc.Shape.Data[i];
+			CurrStride *= InputDesc.GetShape().Data[i];
 		}
 	}
 
-	void SetTensorSizesAndStridesForBroadcast(FTensorDesc& TensorDesc, const FMLTensorDesc& InputDesc, const FMLTensorDesc& TargetDesc)
+	void SetTensorSizesAndStridesForBroadcast(FTensorDesc& TensorDesc, const FTensor& InputDesc, const FTensor& TargetDesc)
 	{
 		static_assert(FTensorShape::MaxRank <= 8);
 		
-		const uint32 TargetDimension = TargetDesc.Shape.Num() != -1 ? TargetDesc.Shape.Num() : InputDesc.Shape.Num();
-		checkf(TargetDesc.Shape.Num() >= InputDesc.Shape.Num(), TEXT("Can't broadcast tensor from rank %d to rank %d, should be inferior or equal."), InputDesc.Shape.Num(), TargetDimension);
+		const uint32 TargetDimension = TargetDesc.GetShape().Rank() != -1 ? TargetDesc.GetShape().Rank() : InputDesc.GetShape().Rank();
+		checkf(TargetDesc.GetShape().Rank() >= InputDesc.GetShape().Rank(), TEXT("Can't broadcast tensor from rank %d to rank %d, should be inferior or equal."), InputDesc.GetShape().Rank(), TargetDimension);
 		
 		TensorDesc.Sizes.SetNum(TargetDimension);
 		TensorDesc.Strides.SetNum(TargetDimension);
 
-		const int32 DimensionOffset = int32(TargetDimension - InputDesc.Shape.Num());
+		const int32 DimensionOffset = int32(TargetDimension - InputDesc.GetShape().Rank());
 		
 		for (int32 i = 0; i < (int32) TargetDimension; ++i)
 		{
-			TensorDesc.Sizes[i] = i < DimensionOffset ? 1 : InputDesc.Shape.Data[i - DimensionOffset];
+			TensorDesc.Sizes[i] = i < DimensionOffset ? 1 : InputDesc.GetShape().Data[i - DimensionOffset];
 		}
 
 		uint32 CurrStride = 1;
 
 		for (int32 i = TargetDimension - 1; i >= 0; --i)
 		{
-			const bool bBroadcast = TensorDesc.Sizes[i] < TargetDesc.Shape.Data[i];
+			const bool bBroadcast = TensorDesc.Sizes[i] < TargetDesc.GetShape().Data[i];
 
 			TensorDesc.Strides[i] = bBroadcast ? 0 : CurrStride;
 			CurrStride *= TensorDesc.Sizes[i];
 
-			TensorDesc.Sizes[i] = TargetDesc.Shape.Data[i];
+			TensorDesc.Sizes[i] = TargetDesc.GetShape().Data[i];
 		}
 	}
 
-	inline bool IsSameShape(const FMLTensorDesc& Left, const FMLTensorDesc& Right)
+	inline bool IsSameShape(const FTensor& Left, const FTensor& Right)
 	{
-		if (Left.Shape.Num() != Right.Shape.Num())
+		if (Left.GetShape().Rank() != Right.GetShape().Rank())
 		{
 			return false;
 		}
 		
-		for (int32 Idx = 0; Idx < Left.Shape.Num(); ++Idx)
+		for (int32 Idx = 0; Idx < Left.GetShape().Rank(); ++Idx)
 		{
-			if (Left.Shape.Data[Idx] != Right.Shape.Data[Idx])
+			if (Left.GetShape().Data[Idx] != Right.GetShape().Data[Idx])
 			{
 				return false;
 			}
@@ -270,7 +270,7 @@ namespace DmlUtil
 		}
 	}
 
-	inline uint64 CalculateBufferSize(const FTensorDesc& DmlTensor, const FMLTensorDesc& Desc)
+	inline uint64 CalculateBufferSize(const FTensorDesc& DmlTensor, const FTensor& Desc)
 	{
 		uint64 ElemSizeInBytes = Desc.GetElemByteSize();
 		
@@ -327,15 +327,15 @@ class FMLOperatorDml : public FMLOperatorRDG
 {
 public:
 
-	virtual bool Initialize(FDeviceContextDml* DevCtx, TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) = 0;
+	virtual bool Initialize(FDeviceContextDml* DevCtx, TArrayView<const FTensor> InputTensors, TArrayView<const FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) = 0;
 
 	virtual void Dispatch(FRDGBuilder& GraphBuilder, TArrayView<const FMLTensorBinding> InInputBindings, TArrayView<const FMLTensorBinding> OutOutputBindings) = 0;
 
 protected:
 
-	bool InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const FMLTensorDesc& TensorDesc)
+	bool InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const FTensor& TensorDesc)
 	{
-		DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(TensorDesc.DataType);
+		DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(TensorDesc.GetDataType());
 
 		if (DmlDataType == DML_TENSOR_DATA_TYPE_UNKNOWN)
 		{
@@ -345,7 +345,7 @@ protected:
 			return false;
 		}
 
-		DmlTensorDesc.Sizes = TensorDesc.Shape.Data;
+		DmlTensorDesc.Sizes = TensorDesc.GetShape().Data;
 		// TODO: Support tensor padding using strides defined in FMLTensorDesc
 		//DmlUtil::SetTensorStrides(DmlTensorDesc, TensorDesc.Strides);
 		
@@ -355,19 +355,19 @@ protected:
 
 		BuffDesc.DataType = DmlDataType;
 		BuffDesc.Flags = DML_TENSOR_FLAG_NONE;
-		BuffDesc.DimensionCount = TensorDesc.Shape.Num();
+		BuffDesc.DimensionCount = TensorDesc.GetShape().Rank();
 		BuffDesc.Sizes = DmlTensorDesc.Sizes.GetData();
 		BuffDesc.Strides = nullptr;
-		BuffDesc.TotalTensorSizeInBytes = TensorDesc.DataSize;
+		BuffDesc.TotalTensorSizeInBytes = TensorDesc.GetDataSize();
 
 		DmlTensorDesc.Desc = DML_TENSOR_DESC{ DML_TENSOR_TYPE_BUFFER, &DmlTensorDesc.BuffDesc };
 
 		return true;
 	}
 
-	bool InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const FMLTensorDesc& TensorDesc, const FMLTensorDesc& BroadcastDesc)
+	bool InitDmlTensorDesc(DmlUtil::FTensorDesc& DmlTensorDesc, const FTensor& TensorDesc, const FTensor& BroadcastDesc)
 	{
-		DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(TensorDesc.DataType);
+		DML_TENSOR_DATA_TYPE DmlDataType = DmlUtil::GetTensorDataType(TensorDesc.GetDataType());
 
 		if (DmlDataType == DML_TENSOR_DATA_TYPE_UNKNOWN)
 		{
@@ -379,10 +379,10 @@ protected:
 
 		if (DmlUtil::IsSameShape(TensorDesc, BroadcastDesc))
 		{
-			DmlTensorDesc.Sizes = TensorDesc.Shape.Data;
+			DmlTensorDesc.Sizes = TensorDesc.GetShape().Data;
 			DmlUtil::SetTensorStrides(DmlTensorDesc, TensorDesc);
 		}
-		else if (TensorDesc.Shape.Num() > BroadcastDesc.Shape.Num())
+		else if (TensorDesc.GetShape().Rank() > BroadcastDesc.GetShape().Rank())
 		{
 			return false;
 		}
@@ -549,15 +549,15 @@ public:
 	//
 	//
 	//
-	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
+	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const FTensor> InputTensors, TArrayView<const FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 	{
 		// TODO: Setup attributes
-		Num = InputTensors[0].Volume;
+		Num = InputTensors[0].GetVolume();
 
 		DevCtx = InDevCtx;
 
-		const FMLTensorDesc& InputTensorDesc = InputTensors[0];
-		const FMLTensorDesc& OutputTensorDesc = OutputTensors[0];
+		const FTensor& InputTensorDesc = InputTensors[0];
+		const FTensor& OutputTensorDesc = OutputTensors[0];
 
 		Alpha = Attributes.GetValueOrDefault(TEXT("alpha"), Alpha);
 		Beta = Attributes.GetValueOrDefault(TEXT("beta"), Beta);
@@ -799,16 +799,16 @@ public:
 	//
 	//
 	//
-	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const FMLTensorDesc> InputTensors, TArrayView<const FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
+	virtual bool Initialize(FDeviceContextDml* InDevCtx, TArrayView<const FTensor> InputTensors, TArrayView<const FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 	{
 		// TODO: Setup attributes
-		Num = OutputTensors[0].Volume;
+		Num = OutputTensors[0].GetVolume();
 
 		DevCtx = InDevCtx;
 
-		const FMLTensorDesc& InputATensorDesc = InputTensors[0];
-		const FMLTensorDesc& InputBTensorDesc = InputTensors[1];
-		const FMLTensorDesc& OutputTensorDesc = OutputTensors[0];
+		const FTensor& InputATensorDesc = InputTensors[0];
+		const FTensor& InputBTensorDesc = InputTensors[1];
+		const FTensor& OutputTensorDesc = OutputTensors[0];
 
 		// Initialize tensor descriptors
 		DmlUtil::FTensorDesc	DmlInputATensorDesc{};
@@ -984,7 +984,7 @@ protected:
 
 private:
 
-	FMLOperatorDml* OpCreate(const FString& Name, TArrayView<const FMLTensorDesc> InputTensorDesc, TArrayView<const FMLTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes);
+	FMLOperatorDml* OpCreate(const FString& Name, TArrayView<const FTensor> InputTensorDesc, TArrayView<const FTensor> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes);
 	
 	TArray<FMLOperatorDml*>		Operators;
 	FDeviceContextDml*			DevCtx;
@@ -1274,21 +1274,21 @@ bool FMLInferenceModelDml::Init(UMLInferenceModel* InModel, FDeviceContextDml* I
 	{
 		const FString TypeName = Format.Operators[Idx].TypeName;
 
-		TArray<FMLTensorDesc> OpInputTensors;
-		TArray<FMLTensorDesc> OpOutputTensors;
+		TArray<FTensor> OpInputTensors;
+		TArray<FTensor> OpOutputTensors;
 		UE::NNECore::FAttributeMap AttributeMap;
 
 		for (int32 InputTensorIndex : Format.Operators[Idx].InTensors)
 		{
-			FSymbolicTensorDesc SymbolicTensorDesc = AllSymbolicTensors[InputTensorIndex];
+			FTensorDesc SymbolicTensorDesc = AllSymbolicTensors[InputTensorIndex];
 			//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
-			OpInputTensors.Emplace(FMLTensorDesc::MakeFromSymbolic(SymbolicTensorDesc));
+			OpInputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
 		}
 		for (int32 OutputTensorIndex : Format.Operators[Idx].OutTensors)
 		{
-			FSymbolicTensorDesc SymbolicTensorDesc = AllSymbolicTensors[OutputTensorIndex];
+			FTensorDesc SymbolicTensorDesc = AllSymbolicTensors[OutputTensorIndex];
 			//TODO jira 168972: Handle dynamic tensor desc, op should init from symbolic shapes
-			OpOutputTensors.Emplace(FMLTensorDesc::MakeFromSymbolic(SymbolicTensorDesc));
+			OpOutputTensors.Emplace(FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc));
 		}
 		for (const FMLFormatAttributeDesc& Desc : Format.Operators[Idx].Attributes)
 		{
@@ -1320,7 +1320,7 @@ void FMLInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder
 	checkCode(
 		for (int32 i = 0; i < AllTensorBindings.Num(); ++i)
 		{
-			check(AllTensors[i].DataSize == AllTensorBindings[i].SizeInBytes);
+			check(AllTensors[i].GetDataSize() == AllTensorBindings[i].SizeInBytes);
 		}
 	);
 
@@ -1354,7 +1354,7 @@ void FMLInferenceModelDml::AddDispatchOps_RenderThread(FRDGBuilder& GraphBuilder
 //
 // Create operator
 //
-FMLOperatorDml* FMLInferenceModelDml::OpCreate(const FString& OpName, TArrayView<const FMLTensorDesc> InputTensorDescs, TArrayView<const FMLTensorDesc> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes)
+FMLOperatorDml* FMLInferenceModelDml::OpCreate(const FString& OpName, TArrayView<const FTensor> InputTensorDescs, TArrayView<const FTensor> OutputTensorDescs, const UE::NNECore::FAttributeMap& Attributes)
 {
 	// TODO: Check if D3D12 device is valid
 

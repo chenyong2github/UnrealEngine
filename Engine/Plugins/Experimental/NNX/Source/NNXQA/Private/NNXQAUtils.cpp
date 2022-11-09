@@ -14,7 +14,7 @@ namespace NNX
 {
 namespace Test 
 {
-	static void FillTensorBindings(TConstArrayView<const FMLTensorDesc> TensorDescs,
+	static void FillTensorBindings(TConstArrayView<FTensor> TensorDescs,
 		TArray<TArray<char>>& OutMemBuffers, TArray<FMLTensorBinding>& OutBindings,
         std::function<float(EMLTensorDataType, uint32, uint32)> Initializer)
 	{
@@ -23,11 +23,11 @@ namespace Test
 
 		for (int Index = 0; Index < TensorDescs.Num(); ++Index)
 		{
-			const FMLTensorDesc& TensorDesc = TensorDescs[Index];
-			const uint32 NumberOfElements = TensorDesc.Volume;
+			const FTensor& TensorDesc = TensorDescs[Index];
+			const uint32 NumberOfElements = TensorDesc.GetVolume();
 			const int32 ElementByteSize = TensorDesc.GetElemByteSize();
-			const uint64 BufferSize = TensorDesc.DataSize;
-			const EMLTensorDataType DataType = TensorDesc.DataType;
+			const uint64 BufferSize = TensorDesc.GetDataSize();
+			const EMLTensorDataType DataType = TensorDesc.GetDataType();
 
 			TArray<char> CurInputBuffer;
 	        CurInputBuffer.SetNum(BufferSize);
@@ -85,21 +85,21 @@ namespace Test
 	template FString ShapeToString<int32>(TArrayView<const int32> Shape);
 	template FString ShapeToString<uint32>(TArrayView<const uint32> Shape);
 
-	FString FMLTensorDescToString(const FMLTensorDesc& desc)
+	FString FMLTensorDescToString(const FTensor& desc)
 	{
-		TArrayView<const uint32> Shape(desc.Shape.Data);
+		TArrayView<const uint32> Shape(desc.GetShape().Data);
 
 		FString TensorDesc;
 		TensorDesc.Reserve(50);
-		TensorDesc += FString::Printf(TEXT("Name: %s, Shape: "), *desc.Name);
+		TensorDesc += FString::Printf(TEXT("Name: %s, Shape: "), *desc.GetName());
 		TensorDesc += ShapeToString(Shape);
-		const FString& DataTypeName = StaticEnum<EMLTensorDataType>()->GetNameStringByValue(static_cast<int64>(desc.DataType));
+		const FString& DataTypeName = StaticEnum<EMLTensorDataType>()->GetNameStringByValue(static_cast<int64>(desc.GetDataType()));
 		TensorDesc += FString::Printf(TEXT(" DataType: %s"), *DataTypeName);
 
 		return TensorDesc;
 	}
 
-	FString TensorToString(const FMLTensorDesc& TensorDesc, const TArray<char>& TensorData)
+	FString TensorToString(const FTensor& TensorDesc, const TArray<char>& TensorData)
 	{
 		FString TensorLog;
 		TensorLog.Reserve(50);
@@ -108,7 +108,7 @@ namespace Test
 		TensorLog += TEXT(", Data: ");
 
 		const constexpr uint32 MAX_DATA_TO_LOG = 10;
-		const uint32 MaxIndex = FMath::Min(MAX_DATA_TO_LOG, TensorDesc.Volume);
+		const uint32 MaxIndex = FMath::Min(MAX_DATA_TO_LOG, TensorDesc.GetVolume());
         const uint32 ElementByteSize = TensorDesc.GetElemByteSize();
 		for (uint32 i = 0; i < MaxIndex; ++i)
 		{
@@ -116,7 +116,7 @@ namespace Test
 			const char* Data = TensorData.GetData() + ByteOffset;
 			check((int32)ByteOffset <= TensorData.Num());
 
-			switch (TensorDesc.DataType)
+			switch (TensorDesc.GetDataType())
 			{
 				case EMLTensorDataType::Float:
 					TensorLog += FString::Printf(TEXT("%0.2f"), *(float*)Data); break;
@@ -133,24 +133,24 @@ namespace Test
 			if (i < MaxIndex)
 				TensorLog += TEXT(", ");
 		}
-		if (MaxIndex < TensorDesc.Volume)
+		if (MaxIndex < TensorDesc.GetVolume())
 			TensorLog += TEXT(",...");
 
 		return TensorLog;
 	}
 
 	template<typename T> bool CompareTensorData(
-		const NNX::FMLTensorDesc& RefTensorDesc,   const TArray<char>& RefRawBuffer,
-		const NNX::FMLTensorDesc& OtherTensorDesc, const TArray<char>& OtherRawBuffer,
+		const NNX::FTensor& RefTensorDesc,   const TArray<char>& RefRawBuffer,
+		const NNX::FTensor& OtherTensorDesc, const TArray<char>& OtherRawBuffer,
 		float AbsoluteErrorEpsilon, float RelativeErrorPercent)
 	{
 		const T* RefBuffer = (T*)RefRawBuffer.GetData();
 		const T* OtherBuffer = (T*)OtherRawBuffer.GetData();
 		
-		const uint32 Volume = RefTensorDesc.Volume;
+		const uint32 Volume = RefTensorDesc.GetVolume();
 		const uint32 ElementByteSize = RefTensorDesc.GetElemByteSize();
 
-		check(Volume == OtherTensorDesc.Volume);
+		check(Volume == OtherTensorDesc.GetVolume());
 		check(Volume * ElementByteSize == RefRawBuffer.Num());
 		check(Volume * ElementByteSize == OtherRawBuffer.Num());
 
@@ -242,18 +242,18 @@ namespace Test
 	}
 
 	bool VerifyTensorResult(
-		const NNX::FMLTensorDesc& RefTensorDesc, const TArray<char>& RefRawBuffer,
-		const NNX::FMLTensorDesc& OtherTensorDesc, const TArray<char>& OtherRawBuffer,
+		const NNX::FTensor& RefTensorDesc, const TArray<char>& RefRawBuffer,
+		const NNX::FTensor& OtherTensorDesc, const TArray<char>& OtherRawBuffer,
 		float AbsoluteErrorEpsilon, float RelativeErrorPercent)
 	{
 		bool bTensorDescMatch = true;
-		bTensorDescMatch &= (RefTensorDesc.Name == OtherTensorDesc.Name);
-		bTensorDescMatch &= (RefTensorDesc.Shape.Num() == OtherTensorDesc.Shape.Num());
-		bTensorDescMatch &= (RefTensorDesc.DataType == OtherTensorDesc.DataType);
-		check(RefTensorDesc.Shape.Num() <= FTensorShape::MaxRank);
-		for (int32 i = 0; i < RefTensorDesc.Shape.Num(); ++i)
+		bTensorDescMatch &= (RefTensorDesc.GetName() == OtherTensorDesc.GetName());
+		bTensorDescMatch &= (RefTensorDesc.GetShape().Rank() == OtherTensorDesc.GetShape().Rank());
+		bTensorDescMatch &= (RefTensorDesc.GetDataType() == OtherTensorDesc.GetDataType());
+		check(RefTensorDesc.GetShape().Rank() <= FTensorShape::MaxRank);
+		for (int32 i = 0; i < RefTensorDesc.GetShape().Rank(); ++i)
 		{
-			bTensorDescMatch &= (RefTensorDesc.Shape.Data[i] == OtherTensorDesc.Shape.Data[i]);
+			bTensorDescMatch &= (RefTensorDesc.GetShape().Data[i] == OtherTensorDesc.GetShape().Data[i]);
 		}
 
 		if (!bTensorDescMatch)
@@ -262,20 +262,20 @@ namespace Test
 			return false;
 		}
 
-		if (RefTensorDesc.DataType == EMLTensorDataType::Float)
+		if (RefTensorDesc.GetDataType() == EMLTensorDataType::Float)
 		{
 			return CompareTensorData<float>(RefTensorDesc, RefRawBuffer, OtherTensorDesc, OtherRawBuffer, AbsoluteErrorEpsilon, RelativeErrorPercent);
 		}
-		else if (RefTensorDesc.DataType == EMLTensorDataType::Boolean)
+		else if (RefTensorDesc.GetDataType() == EMLTensorDataType::Boolean)
 		{
 			check(RefTensorDesc.GetElemByteSize() == 1);
 			return CompareTensorData<bool>(RefTensorDesc, RefRawBuffer, OtherTensorDesc, OtherRawBuffer, AbsoluteErrorEpsilon, RelativeErrorPercent);
 		}
-		else if (RefTensorDesc.DataType == EMLTensorDataType::Int32)
+		else if (RefTensorDesc.GetDataType() == EMLTensorDataType::Int32)
 		{
 			return CompareTensorData<int32>(RefTensorDesc, RefRawBuffer, OtherTensorDesc, OtherRawBuffer, AbsoluteErrorEpsilon, RelativeErrorPercent);
 		}
-		else if (RefTensorDesc.DataType == EMLTensorDataType::UInt32)
+		else if (RefTensorDesc.GetDataType() == EMLTensorDataType::UInt32)
 		{
 			return CompareTensorData<uint32>(RefTensorDesc, RefRawBuffer, OtherTensorDesc, OtherRawBuffer, AbsoluteErrorEpsilon, RelativeErrorPercent);
 		}
@@ -326,7 +326,7 @@ namespace Test
 	}
 
 	static int RunTestInference(const FNNIModelRaw& ONNXModelData, IRuntime* Runtime, 
-		TArray<FMLTensorDesc>& OutOutputTensorsDesc, TArray<TArray<char>>& OutOutputMemBuffers)
+		TArray<FTensor>& OutOutputTensorsDesc, TArray<TArray<char>>& OutOutputMemBuffers)
 	{
 		OutOutputMemBuffers.Empty();
 		OutOutputTensorsDesc.Empty();
@@ -351,28 +351,28 @@ namespace Test
 		}
 
 		//bind input tensors to memory (CPU) and initialize
-		TConstArrayView<const FSymbolicTensorDesc> InputSymbolicTensorDescs = InferenceModel->GetInputTensorDescs();
+		TConstArrayView<FTensorDesc> InputSymbolicTensorDescs = InferenceModel->GetInputTensorDescs();
 		TArray<FTensorShape> InputShapes;
-		TArray<FMLTensorDesc> InputTensorsDescs;
+		TArray<FTensor> InputTensorsDescs;
 		TArray<FMLTensorBinding> InputBindings;
 		TArray<TArray<char>> InputMemBuffers;
 		
-		for (const FSymbolicTensorDesc& SymbolicTensorDesc : InputSymbolicTensorDescs)
+		for (const FTensorDesc& SymbolicTensorDesc : InputSymbolicTensorDescs)
 		{
-			FMLTensorDesc TensorDesc = FMLTensorDesc::MakeFromSymbolic(SymbolicTensorDesc);
-			InputShapes.Emplace(TensorDesc.Shape);
+			FTensor TensorDesc = FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
+			InputShapes.Emplace(TensorDesc.GetShape());
 			InputTensorsDescs.Emplace(TensorDesc);
 		}
 		FillTensorBindings(InputTensorsDescs, InputMemBuffers, InputBindings, InputTensorInitializer);
 		
 		//bind output tensors to memory (CPU) and initialize
-		TConstArrayView<const FSymbolicTensorDesc> OutputSymbolicTensorDescs = InferenceModel->GetOutputTensorDescs();
-		TArray<FMLTensorDesc> OutputTensorsDescs;
+		TConstArrayView<FTensorDesc> OutputSymbolicTensorDescs = InferenceModel->GetOutputTensorDescs();
+		TArray<FTensor> OutputTensorsDescs;
 		TArray<NNX::FMLTensorBinding> OutputBindings;
 
-		for (const FSymbolicTensorDesc& SymbolicTensorDesc : OutputSymbolicTensorDescs)
+		for (const FTensorDesc& SymbolicTensorDesc : OutputSymbolicTensorDescs)
 		{
-			FMLTensorDesc TensorDesc = FMLTensorDesc::MakeFromSymbolic(SymbolicTensorDesc);
+			FTensor TensorDesc = FTensor::MakeFromSymbolicDesc(SymbolicTensorDesc);
 			OutputTensorsDescs.Emplace(TensorDesc);
 		}
 		OutOutputTensorsDesc = OutputTensorsDescs;
@@ -421,7 +421,7 @@ namespace Test
 		}
 		const FString& RefName = RefRuntime->GetRuntimeName();
 		TArray<TArray<char>> RefOutputMemBuffers;
-		TArray<NNX::FMLTensorDesc> RefOutputTensorDescs;
+		TArray<NNX::FTensor> RefOutputTensorDescs;
 
 		RunTestInference(ONNXModel, RefRuntime, RefOutputTensorDescs, RefOutputMemBuffers);
 
@@ -459,7 +459,7 @@ namespace Test
 			else
 			{
 				TArray<TArray<char>> OutputMemBuffers;
-				TArray<NNX::FMLTensorDesc> OutputTensorDescs;
+				TArray<NNX::FTensor> OutputTensorDescs;
 				bool bTestSuceeded = true;
 				float AbsoluteErrorEpsilon = TestSetup.GetAbsoluteErrorEpsilonForRuntime(RuntimeName);
 				float RelativeErrorPercent = TestSetup.GetRelativeErrorPercentForRuntime(RuntimeName);

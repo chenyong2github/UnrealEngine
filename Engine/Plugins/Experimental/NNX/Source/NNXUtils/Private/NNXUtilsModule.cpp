@@ -91,8 +91,8 @@ static FAutoConsoleCommand ConsoleCmdNNXOptimizeModel(
 			}
 			else if (!OpName.IsEmpty())
 			{
-				FMLTensorDesc InputTensor = FMLTensorDesc::Make(TEXT("in"), FTensorShape::Make({1, 512 }), EMLTensorDataType::Float);
-				FMLTensorDesc OutputTensor = FMLTensorDesc::Make(TEXT("out"), FTensorShape::Make({ 1, 512 }), EMLTensorDataType::Float);
+				FTensor InputTensor = FTensor::Make(TEXT("in"), FTensorShape::Make({1, 512 }), EMLTensorDataType::Float);
+				FTensor OutputTensor = FTensor::Make(TEXT("out"), FTensorShape::Make({ 1, 512 }), EMLTensorDataType::Float);
 
 				if (!NNX::CreateONNXModelForOperator(OpName, MakeArrayView(&InputTensor, 1), MakeArrayView(&OutputTensor, 1), ONNXModel))
 				{
@@ -135,13 +135,13 @@ static FAutoConsoleCommand ConsoleCmdNNXCreateModel(
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray<FString>& Args)
 		{
-			using NNX::FMLTensorDesc;
+			using NNX::FTensor;
 
 			if (Args.Num() > 0)
 			{
 				FNNIModelRaw ONNXModel;
-				FMLTensorDesc InputTensor = FMLTensorDesc::Make(TEXT("in"), FTensorShape::Make({ 1, 512 }), EMLTensorDataType::Float);
-				FMLTensorDesc OutputTensor = FMLTensorDesc::Make(TEXT("out"), FTensorShape::Make({ 1, 512 }), EMLTensorDataType::Float);
+				FTensor InputTensor = FTensor::Make(TEXT("in"), FTensorShape::Make({ 1, 512 }), EMLTensorDataType::Float);
+				FTensor OutputTensor = FTensor::Make(TEXT("out"), FTensorShape::Make({ 1, 512 }), EMLTensorDataType::Float);
 
 				if (!NNX::CreateONNXModelForOperator(Args[0], MakeArrayView(&InputTensor, 1), MakeArrayView(&OutputTensor, 1), ONNXModel))
 				{

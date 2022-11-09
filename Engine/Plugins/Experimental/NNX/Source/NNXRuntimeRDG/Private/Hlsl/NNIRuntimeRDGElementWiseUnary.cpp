@@ -28,12 +28,12 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 		float Alpha = 0.0f;
 		float Beta = 0.0f;
 		float Gamma = 0.0f;
-		NNX::FMLTensorDesc Input = {};
-		NNX::FMLTensorDesc Output = {};
+		NNX::FTensor Input = {};
+		NNX::FTensor Output = {};
 
 	public:
 
-		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TArrayView<const NNX::FTensor> InputTensors, TArrayView<const NNX::FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			check(InputTensors.Num() == 1);
 			check(OutputTensors.Num() == 1);
@@ -57,28 +57,28 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
             //}
 
 			//Dispatch(FRDGBuilder & GraphBuilder, 
-			         //TConstArrayView<const NNX::RDGTensor> InputBuffers,
-					 //TConstArrayView<const NNX::RDGTensor> OutputBuffers) override
+			         //TConstArrayView<NNX::RDGTensor> InputBuffers,
+					 //TConstArrayView<NNX::RDGTensor> OutputBuffers) override
 
             //or 
             //Dispatch(FRDGBuilder & GraphBuilder, 
-                     //TConstArrayView<const NNX::FConcreteShape> InputShapes,
-			         //TConstArrayView<const NNX::RDGTensor*> InputBuffers,
-                     //TConstArrayView<const NNX::FConcreteShape> OutputShapes,
-					 //TConstArrayView<const NNX::RDGTensor*> OutputBuffers) override
+                     //TConstArrayView<NNX::FConcreteShape> InputShapes,
+			         //TConstArrayView<NNX::RDGTensor*> InputBuffers,
+                     //TConstArrayView<NNX::FConcreteShape> OutputShapes,
+					 //TConstArrayView<NNX::RDGTensor*> OutputBuffers) override
 
             //or 
             //Dispatch(FRDGBuilder & GraphBuilder, 
-                     //TConstArrayView<const NNX::RDGTensor*> Buffers,
-                     //TConstArrayView<const NNX::FConcreteShape> Shapes,
-			         //TConstArrayView<const uint32> InputIndices,
-                     //TConstArrayView<const uint32> OutputIndices) override
+                     //TConstArrayView<NNX::RDGTensor*> Buffers,
+                     //TConstArrayView<NNX::FConcreteShape> Shapes,
+			         //TConstArrayView<uint32> InputIndices,
+                     //TConstArrayView<uint32> OutputIndices) override
 
 			// HACK: This only works for single layer networks
 			FRDGBufferSRVRef InputSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(InInputBindings[0].Buffer, PF_R32_FLOAT));
 			FRDGBufferUAVRef OutputUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutOutputBindings[0].Buffer, PF_R32_FLOAT));
 		
-			FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(Output.Volume, FElementWiseUnaryConstants::NUM_GROUP_THREADS);
+			FIntVector ThreadGroupCount = NNX::ComputeElementWiseThreadGroups(Output.GetVolume(), FElementWiseUnaryConstants::NUM_GROUP_THREADS);
 
 			// Set parameters
 			TElementWiseUnaryCS::FParameters* Params = GraphBuilder.AllocParameters<TElementWiseUnaryCS::FParameters>();
@@ -87,7 +87,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 			Params->Alpha = Alpha;
 			Params->Beta = Beta;
 			Params->Gamma = Gamma;
-			Params->Num = Output.Volume;
+			Params->Num = Output.GetVolume();
 			Params->ThreadCountX = ThreadGroupCount.X * FElementWiseUnaryConstants::NUM_GROUP_THREADS;
 
 			TElementWiseUnaryCS::FPermutationDomain PermutationVector;

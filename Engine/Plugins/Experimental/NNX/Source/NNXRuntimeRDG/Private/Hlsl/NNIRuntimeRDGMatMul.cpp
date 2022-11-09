@@ -20,13 +20,13 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 	private:
 
-		NNX::FMLTensorDesc InputA = {};
-		NNX::FMLTensorDesc InputB = {};
-		NNX::FMLTensorDesc Output = {};
+		NNX::FTensor InputA = {};
+		NNX::FTensor InputB = {};
+		NNX::FTensor Output = {};
 
 	public:
 
-		virtual bool Initialize(TArrayView<const NNX::FMLTensorDesc> InputTensors, TArrayView<const NNX::FMLTensorDesc> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
+		virtual bool Initialize(TArrayView<const NNX::FTensor> InputTensors, TArrayView<const NNX::FTensor> OutputTensors, const UE::NNECore::FAttributeMap& Attributes) override
 		{
 			check(InputTensors.Num() == 2);
 			check(OutputTensors.Num() == 1);
@@ -44,7 +44,7 @@ namespace UE::NNIRuntimeRDG::Private::Hlsl
 
 			const EGemmAlgorithm Algorithm = EGemmAlgorithm::Simple32x32;
 
-			const int32 NumStackDimensions = FMath::Max(FMath::Max(InputA.Shape.Num(), InputB.Shape.Num()) - 2, 0);
+			const int32 NumStackDimensions = FMath::Max(FMath::Max(InputA.GetShape().Rank(), InputB.GetShape().Rank()) - 2, 0);
 
 			// Set parameters
 			TGemmCS::FParameters* Parameters = GraphBuilder.AllocParameters<TGemmCS::FParameters>();
