@@ -333,26 +333,21 @@ namespace Horde.Build.Jobs.TestData
 			indexes.Add(keys => keys.Ascending(x => x.JobId).Ascending(x => x.StepId).Ascending(x => x.Key), unique: true);
 			_testDataDocuments = mongoService.GetCollection<TestDataDocument>("TestData", indexes);
 
-			if (_settings.CurrentValue.FeatureFlags.EnableTestDataV2)
-			{
-				_logger.LogInformation("EnableTestDataV2 is true, creating new test data collections");
+			List<MongoIndex<TestMetaDocument>> metaIndexes = new List<MongoIndex<TestMetaDocument>>();
+			metaIndexes.Add(keys => keys.Ascending(x => x.ProjectName).Ascending(x => x.Platforms).Ascending(x => x.Configurations).Ascending(x => x.BuildTargets).Ascending(x => x.RHI), unique: true);
+			_testMeta = mongoService.GetCollection<TestMetaDocument>("TestData.Meta", metaIndexes);
 
-				List<MongoIndex<TestMetaDocument>> metaIndexes = new List<MongoIndex<TestMetaDocument>>();
-				metaIndexes.Add(keys => keys.Ascending(x => x.ProjectName).Ascending(x => x.Platforms).Ascending(x => x.Configurations));
-				_testMeta = mongoService.GetCollection<TestMetaDocument>("TestData.Meta", metaIndexes);
+			List<MongoIndex<TestDocument>> testIndexes = new List<MongoIndex<TestDocument>>();
+			testIndexes.Add(keys => keys.Ascending(x => x.StreamId));
+			_tests = mongoService.GetCollection<TestDocument>("TestData.Tests", testIndexes);
 
-				List<MongoIndex<TestDocument>> testIndexes = new List<MongoIndex<TestDocument>>();
-				testIndexes.Add(keys => keys.Ascending(x => x.StreamId));
-				_tests = mongoService.GetCollection<TestDocument>("TestData.Tests", testIndexes);
+			List<MongoIndex<TestSuiteDocument>> testSuiteIndexes = new List<MongoIndex<TestSuiteDocument>>();
+			testSuiteIndexes.Add(keys => keys.Ascending(x => x.StreamId));
+			_testSuites = mongoService.GetCollection<TestSuiteDocument>("TestData.TestSuites", testSuiteIndexes);
 
-				List<MongoIndex<TestSuiteDocument>> testSuiteIndexes = new List<MongoIndex<TestSuiteDocument>>();
-				testSuiteIndexes.Add(keys => keys.Ascending(x => x.StreamId));
-				_testSuites = mongoService.GetCollection<TestSuiteDocument>("TestData.TestSuites", testSuiteIndexes);
-
-				List<MongoIndex<TestDataRefDocument>> testRefIndexes = new List<MongoIndex<TestDataRefDocument>>();
-				testRefIndexes.Add(keys => keys.Ascending(x => x.StreamId).Ascending(x => x.Metadata).Descending(x => x.BuildChangeList).Ascending(x => x.TestId).Ascending(x => x.SuiteId));
-				_testRefs = mongoService.GetCollection<TestDataRefDocument>("TestData.TestRefs", testRefIndexes);
-			}
+			List<MongoIndex<TestDataRefDocument>> testRefIndexes = new List<MongoIndex<TestDataRefDocument>>();
+			testRefIndexes.Add(keys => keys.Ascending(x => x.StreamId).Ascending(x => x.Metadata).Descending(x => x.BuildChangeList).Ascending(x => x.TestId).Ascending(x => x.SuiteId));
+			_testRefs = mongoService.GetCollection<TestDataRefDocument>("TestData.TestRefs", testRefIndexes);
 		}
 
 		/// <summary>
@@ -439,15 +434,7 @@ namespace Horde.Build.Jobs.TestData
 
 			try
 			{
-				if (_settings.CurrentValue.FeatureFlags.EnableTestDataV2)
-				{
-					_logger.LogInformation("Attempting to add test report data");
-					await AddTestReportData(job, step, documents);
-				}									
-				else
-				{
-					_logger.LogInformation("Test report data skipped due to disabled feature flag");
-				}
+				await AddTestReportData(job, step, documents);
 			}
 			catch (Exception ex)
 			{

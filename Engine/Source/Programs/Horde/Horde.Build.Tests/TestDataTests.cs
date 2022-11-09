@@ -156,115 +156,106 @@ namespace Horde.Build.Tests
 			return job.Object;
 		}
 
-
-
 		[TestMethod]
 		public async Task SimpleReportTest()
 		{
-			if (ServerSettings.FeatureFlags.EnableTestDataV2)
+			string[] streamIds = new string[] { _mainStreamId.ToString(), _releaseStreamId.ToString() };
+
+			IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+			IJobStep step = job.Batches[0].Steps[0];
+			IJob job2 = CreateJob(_releaseStreamId, 105, "Test Build", _graph);
+			IJobStep step2 = job2.Batches[0].Steps[0];
+
+			BsonDocument testData = BsonDocument.Parse(String.Join('\n', _simpleTestDataLines));
+
+			List<(string key, BsonDocument)> data = new List<(string key, BsonDocument)>();
+			BsonArray items = testData.GetValue("Items").AsBsonArray;
+			foreach (BsonValue item in items.ToList())
 			{
-				string[] streamIds = new string[] { _mainStreamId.ToString(), _releaseStreamId.ToString() };
-
-				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
-				IJobStep step = job.Batches[0].Steps[0];
-				IJob job2 = CreateJob(_releaseStreamId, 105, "Test Build", _graph);
-				IJobStep step2 = job2.Batches[0].Steps[0];
-
-				BsonDocument testData = BsonDocument.Parse(String.Join('\n', _simpleTestDataLines));
-
-				List<(string key, BsonDocument)> data = new List<(string key, BsonDocument)>();
-				BsonArray items = testData.GetValue("Items").AsBsonArray;
-				foreach (BsonValue item in items.ToList())
-				{
-					BsonDocument value = item.AsBsonDocument.GetValue("Data").AsBsonDocument;
-					data.Add(("Simple Report Key", value));
-				}
-
-				await TestDataCollection.AddAsync(job, step, data.ToArray());
-				await TestDataCollection.AddAsync(job2, step2, data.ToArray());
-
-				ActionResult<List<GetTestStreamResponse>> streamResult = await TestDataController.GetTestStreamsAsync(streamIds);
-				Assert.IsNotNull(streamResult);
-				Assert.IsNotNull(streamResult.Value);
-				List<GetTestStreamResponse> streams = streamResult.Value;
-
-				Assert.AreEqual(2, streams.Count);
-				Assert.AreEqual(1, streams[0].Tests.Count);
-				Assert.AreEqual(1, streams[0].TestMetadata.Count);
-				Assert.AreEqual(0, streams[0].TestSuites.Count);
-				Assert.AreEqual(1, streams[1].Tests.Count);
-				Assert.AreEqual(1, streams[1].TestMetadata.Count);
-				Assert.AreEqual(0, streams[1].TestSuites.Count);
-
-				Assert.AreEqual(streams[0].TestMetadata[0].Id, streams[1].TestMetadata[0].Id);
-
-				ActionResult<List<GetTestDataRefResponse>> refResult = await TestDataController.GetTestDataRefAsync(streamIds);
-				Assert.IsNotNull(refResult);
-				Assert.IsNotNull(refResult.Value);
-				List<GetTestDataRefResponse> refs = refResult.Value;
-
-				Assert.AreEqual(2, refs.Count);
-
-				Assert.AreEqual(1, refs[0].TestDataIds.Count);
-				Assert.AreEqual(1, refs[1].TestDataIds.Count);
+				BsonDocument value = item.AsBsonDocument.GetValue("Data").AsBsonDocument;
+				data.Add(("Simple Report Key", value));
 			}
+
+			await TestDataCollection.AddAsync(job, step, data.ToArray());
+			await TestDataCollection.AddAsync(job2, step2, data.ToArray());
+
+			ActionResult<List<GetTestStreamResponse>> streamResult = await TestDataController.GetTestStreamsAsync(streamIds);
+			Assert.IsNotNull(streamResult);
+			Assert.IsNotNull(streamResult.Value);
+			List<GetTestStreamResponse> streams = streamResult.Value;
+
+			Assert.AreEqual(2, streams.Count);
+			Assert.AreEqual(1, streams[0].Tests.Count);
+			Assert.AreEqual(1, streams[0].TestMetadata.Count);
+			Assert.AreEqual(0, streams[0].TestSuites.Count);
+			Assert.AreEqual(1, streams[1].Tests.Count);
+			Assert.AreEqual(1, streams[1].TestMetadata.Count);
+			Assert.AreEqual(0, streams[1].TestSuites.Count);
+
+			Assert.AreEqual(streams[0].TestMetadata[0].Id, streams[1].TestMetadata[0].Id);
+
+			ActionResult<List<GetTestDataRefResponse>> refResult = await TestDataController.GetTestDataRefAsync(streamIds);
+			Assert.IsNotNull(refResult);
+			Assert.IsNotNull(refResult.Value);
+			List<GetTestDataRefResponse> refs = refResult.Value;
+
+			Assert.AreEqual(2, refs.Count);
+
+			Assert.AreEqual(1, refs[0].TestDataIds.Count);
+			Assert.AreEqual(1, refs[1].TestDataIds.Count);			
 		}
 
 		[TestMethod]
 		public async Task SessionReportTest()
 		{
-			if (ServerSettings.FeatureFlags.EnableTestDataV2)
+			string[] streamIds = new string[] { _mainStreamId.ToString(), _releaseStreamId.ToString() };
+
+			IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
+			IJobStep step = job.Batches[0].Steps[0];
+			IJob job2 = CreateJob(_releaseStreamId, 105, "Test Build", _graph);
+			IJobStep step2 = job2.Batches[0].Steps[0];
+
+			BsonDocument testData = BsonDocument.Parse(String.Join('\n', _testSessionDataLines));
+
+			List<(string key, BsonDocument)> data = new List<(string key, BsonDocument)>();
+			BsonArray items = testData.GetValue("Items").AsBsonArray;
+			foreach (BsonValue item in items.ToList())
 			{
-				string[] streamIds = new string[] { _mainStreamId.ToString(), _releaseStreamId.ToString() };
-
-				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
-				IJobStep step = job.Batches[0].Steps[0];
-				IJob job2 = CreateJob(_releaseStreamId, 105, "Test Build", _graph);
-				IJobStep step2 = job2.Batches[0].Steps[0];
-
-				BsonDocument testData = BsonDocument.Parse(String.Join('\n', _testSessionDataLines));
-
-				List<(string key, BsonDocument)> data = new List<(string key, BsonDocument)>();
-				BsonArray items = testData.GetValue("Items").AsBsonArray;
-				foreach (BsonValue item in items.ToList())
-				{
-					BsonDocument value = item.AsBsonDocument.GetValue("Data").AsBsonDocument;
-					data.Add(("Session Report Key", value));
-				}
-
-				await TestDataCollection.AddAsync(job, step, data.ToArray());
-				await TestDataCollection.AddAsync(job2, step2, data.ToArray());
-
-				ActionResult<List<GetTestStreamResponse>> streamResult = await TestDataController.GetTestStreamsAsync(streamIds);
-				Assert.IsNotNull(streamResult);
-				Assert.IsNotNull(streamResult.Value);
-				List<GetTestStreamResponse> streams = streamResult.Value;
-
-				Assert.AreEqual(2, streams.Count);
-
-				Assert.AreEqual(4, streams[0].Tests.Count);				
-				Assert.AreEqual(1, streams[0].TestMetadata.Count);
-				Assert.AreEqual(1, streams[0].TestSuites.Count);
-				Assert.AreEqual(4, streams[0].TestSuites[0].Tests.Count);
-
-				Assert.AreEqual(4, streams[1].Tests.Count);
-				Assert.AreEqual(1, streams[1].TestMetadata.Count);
-				Assert.AreEqual(1, streams[1].TestSuites.Count);
-				Assert.AreEqual(4, streams[1].TestSuites[0].Tests.Count);
-
-				Assert.AreEqual(streams[0].TestMetadata[0].Id, streams[1].TestMetadata[0].Id);
-
-				ActionResult<List<GetTestDataRefResponse>> refResult = await TestDataController.GetTestDataRefAsync(streamIds);
-				Assert.IsNotNull(refResult);
-				Assert.IsNotNull(refResult.Value);
-				List<GetTestDataRefResponse> refs = refResult.Value;
-
-				Assert.AreEqual(2, refs.Count);
-
-				Assert.AreEqual(3, refs[0].TestDataIds.Count);
-				Assert.AreEqual(3, refs[1].TestDataIds.Count);
-
+				BsonDocument value = item.AsBsonDocument.GetValue("Data").AsBsonDocument;
+				data.Add(("Session Report Key", value));
 			}
+
+			await TestDataCollection.AddAsync(job, step, data.ToArray());
+			await TestDataCollection.AddAsync(job2, step2, data.ToArray());
+
+			ActionResult<List<GetTestStreamResponse>> streamResult = await TestDataController.GetTestStreamsAsync(streamIds);
+			Assert.IsNotNull(streamResult);
+			Assert.IsNotNull(streamResult.Value);
+			List<GetTestStreamResponse> streams = streamResult.Value;
+
+			Assert.AreEqual(2, streams.Count);
+
+			Assert.AreEqual(4, streams[0].Tests.Count);				
+			Assert.AreEqual(1, streams[0].TestMetadata.Count);
+			Assert.AreEqual(1, streams[0].TestSuites.Count);
+			Assert.AreEqual(4, streams[0].TestSuites[0].Tests.Count);
+
+			Assert.AreEqual(4, streams[1].Tests.Count);
+			Assert.AreEqual(1, streams[1].TestMetadata.Count);
+			Assert.AreEqual(1, streams[1].TestSuites.Count);
+			Assert.AreEqual(4, streams[1].TestSuites[0].Tests.Count);
+
+			Assert.AreEqual(streams[0].TestMetadata[0].Id, streams[1].TestMetadata[0].Id);
+
+			ActionResult<List<GetTestDataRefResponse>> refResult = await TestDataController.GetTestDataRefAsync(streamIds);
+			Assert.IsNotNull(refResult);
+			Assert.IsNotNull(refResult.Value);
+			List<GetTestDataRefResponse> refs = refResult.Value;
+
+			Assert.AreEqual(2, refs.Count);
+
+			Assert.AreEqual(3, refs[0].TestDataIds.Count);
+			Assert.AreEqual(3, refs[1].TestDataIds.Count);			
 
 		}
 
