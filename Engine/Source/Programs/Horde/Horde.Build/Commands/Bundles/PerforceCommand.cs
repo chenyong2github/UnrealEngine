@@ -12,6 +12,7 @@ using Horde.Build.Perforce;
 using Horde.Build.Storage;
 using Horde.Build.Streams;
 using Horde.Build.Utilities;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -69,6 +70,7 @@ namespace Horde.Build.Commands.Bundles
 			StorageService storageService = serviceProvider.GetRequiredService<StorageService>();
 
 			IStorageClient storage = await storageService.GetClientAsync(Namespace.Perforce, CancellationToken.None);
+			TreeReader reader = new TreeReader(storage, serviceProvider.GetRequiredService<IMemoryCache>(), serviceProvider.GetRequiredService<ILogger<PerforceCommand>>());
 
 			IStream? stream = await streamCollection.GetAsync(new StreamId(StreamId));
 			if (stream == null)
@@ -86,7 +88,7 @@ namespace Horde.Build.Commands.Bundles
 			}
 			else
 			{
-				baseContents = await ReplicationService.ReadCommitTreeAsync(storage, stream, BaseChange, Filter, RevisionsOnly, CancellationToken.None);
+				baseContents = await ReplicationService.ReadCommitTreeAsync(reader, stream, BaseChange, Filter, RevisionsOnly, CancellationToken.None);
 			}
 
 			await foreach (ICommit commit in commitService.GetCollection(stream).FindAsync(Change, null, Count))
@@ -98,7 +100,7 @@ namespace Horde.Build.Commands.Bundles
 
 				if (Content)
 				{
-					baseContents = await replicationService.WriteCommitTreeAsync(storage, stream, commit.Number, BaseChange, baseContents, Filter, RevisionsOnly, CancellationToken.None);
+					baseContents = await replicationService.WriteCommitTreeAsync(storage, reader, stream, commit.Number, BaseChange, baseContents, Filter, RevisionsOnly, CancellationToken.None);
 					BaseChange = commit.Number;
 				}
 			}

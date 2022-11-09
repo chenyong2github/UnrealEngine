@@ -43,8 +43,7 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public HttpStorageClient(NamespaceId namespaceId, HttpClient httpClient, HttpClient redirectHttpClient, IMemoryCache cache, ILogger logger) 
-			: base(cache, logger)
+		public HttpStorageClient(NamespaceId namespaceId, HttpClient httpClient, HttpClient redirectHttpClient, ILogger logger) 
 		{
 			_namespaceId = namespaceId;
 			_httpClient = httpClient;

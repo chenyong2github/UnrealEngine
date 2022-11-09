@@ -18,46 +18,47 @@ namespace Horde.Agent.Commands.Bundles
 	{
 		protected interface IStorageClientOwner : IDisposable
 		{
+			public IMemoryCache Cache { get; }
 			public IStorageClient Store { get; }
 		}
 
 		class FileStorageClientOwner : IStorageClientOwner
 		{
-			readonly IMemoryCache _cache;
+			public IMemoryCache Cache { get; }
 			public IStorageClient Store { get; }
 
 			public FileStorageClientOwner(DirectoryReference storageDir, ILogger logger)
 			{
-				_cache = new MemoryCache(new MemoryCacheOptions());
-				Store = new FileStorageClient(storageDir, _cache, logger);
+				Cache = new MemoryCache(new MemoryCacheOptions());
+				Store = new FileStorageClient(storageDir, logger);
 			}
 
 			public void Dispose()
 			{
-				_cache.Dispose();
+				Cache.Dispose();
 			}
 		}
 
 		class HttpStorageClientOwner : IStorageClientOwner
 		{
-			readonly IMemoryCache _cache;
+			public IMemoryCache Cache { get; }
 			readonly HttpClient _httpClient;
 			readonly HttpClient _redirectHttpClient;
 			public IStorageClient Store { get; }
 
 			public HttpStorageClientOwner(NamespaceId namespaceId, Uri baseUri, ILogger logger)
 			{
-				_cache = new MemoryCache(new MemoryCacheOptions());
+				Cache = new MemoryCache(new MemoryCacheOptions());
 				_httpClient = new HttpClient { BaseAddress = baseUri };
 				_redirectHttpClient = new HttpClient();
-				Store = new HttpStorageClient(namespaceId, _httpClient, _redirectHttpClient, _cache, logger);
+				Store = new HttpStorageClient(namespaceId, _httpClient, _redirectHttpClient, logger);
 			}
 
 			public void Dispose()
 			{
 				_redirectHttpClient.Dispose();
 				_httpClient.Dispose();
-				_cache.Dispose();
+				Cache.Dispose();
 			}
 		}
 

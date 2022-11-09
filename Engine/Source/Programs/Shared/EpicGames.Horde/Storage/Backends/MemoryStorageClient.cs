@@ -37,8 +37,7 @@ namespace EpicGames.Horde.Storage.Backends
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public MemoryStorageClient(IMemoryCache cache, ILogger logger) 
-			: base(cache, logger)
+		public MemoryStorageClient() 
 		{
 		}
 

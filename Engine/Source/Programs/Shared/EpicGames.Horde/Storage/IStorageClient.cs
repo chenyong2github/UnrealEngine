@@ -159,27 +159,6 @@ namespace EpicGames.Horde.Storage
 
 		#endregion
 
-		#region Nodes
-
-		/// <summary>
-		/// Reads a node from a bundle
-		/// </summary>
-		/// <param name="locator">Locator for the node</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Node data read from the given bundle</returns>
-		ValueTask<TNode> ReadNodeAsync<TNode>(NodeLocator locator, CancellationToken cancellationToken = default) where TNode : TreeNode;
-
-		/// <summary>
-		/// Reads data for a ref from the store, along with the node's contents.
-		/// </summary>
-		/// <param name="name">The ref name</param>
-		/// <param name="cacheTime">Minimum coherency for any cached value to be returned</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Node for the given ref, or null if it does not exist</returns>
-		Task<TNode?> TryReadNodeAsync<TNode>(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : TreeNode;
-
-		#endregion
-
 		#region Refs
 
 		/// <summary>
@@ -254,16 +233,6 @@ namespace EpicGames.Horde.Storage
 
 			#endregion
 
-			#region Trees
-
-			/// <inheritdoc/>
-			public ValueTask<TNode> ReadNodeAsync<TNode>(NodeLocator locator, CancellationToken cancellationToken = default) where TNode : TreeNode => _inner.ReadNodeAsync<TNode>(locator, cancellationToken);
-
-			/// <inheritdoc/>
-			public Task<TNode?> TryReadNodeAsync<TNode>(RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : TreeNode => _inner.TryReadNodeAsync<TNode>(name, cacheTime, cancellationToken);
-
-			#endregion
-
 			#region Refs
 
 			/// <inheritdoc/>
@@ -321,67 +290,33 @@ namespace EpicGames.Horde.Storage
 
 		#endregion
 
-		#region Nodes
+		#region Blobs
 
 		/// <summary>
-		/// Attempts to reads a ref from the store
+		/// Utility method to read a blob into a buffer
 		/// </summary>
-		/// <param name="store">The store instance to read from</param>
-		/// <param name="name">Name of the ref</param>
-		/// <param name="maxAge">Maximum age of any cached ref</param>
+		/// <param name="store">Store to read from</param>
+		/// <param name="locator">Blob location</param>
+		/// <param name="offset">Offset within the blob</param>
+		/// <param name="memory">Buffer to read into</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The ref value</returns>
-		public static Task<TNode?> TryReadNodeAsync<TNode>(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default) where TNode : TreeNode
+		/// <returns>The data that was read</returns>
+		public static async Task<Memory<byte>> ReadBlobRangeAsync(this IStorageClient store, BlobLocator locator, int offset, Memory<byte> memory, CancellationToken cancellationToken = default)
 		{
-			return store.TryReadNodeAsync<TNode>(name, DateTime.UtcNow - maxAge, cancellationToken);
-		}
-
-		/// <summary>
-		/// Reads a ref from the store, throwing an exception if it does not exist
-		/// </summary>
-		/// <param name="store">The store instance to read from</param>
-		/// <param name="name">Id for the ref</param>
-		/// <param name="cacheTime">Minimum coherency of any cached result</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The blob instance</returns>
-		public static async Task<TNode> ReadNodeAsync<TNode>(this IStorageClient store, RefName name, DateTime cacheTime = default, CancellationToken cancellationToken = default) where TNode : TreeNode
-		{
-			TNode? refValue = await store.TryReadNodeAsync<TNode>(name, cacheTime, cancellationToken);
-			if (refValue == null)
+			using (Stream stream = await store.ReadBlobRangeAsync(locator, offset, memory.Length, cancellationToken))
 			{
-				throw new RefNameNotFoundException(name);
+				int length = 0;
+				while (length < memory.Length)
+				{
+					int readBytes = await stream.ReadAsync(memory.Slice(length), cancellationToken);
+					if (readBytes == 0)
+					{
+						break;
+					}
+					length += readBytes;
+				}
+				return memory.Slice(0, length);
 			}
-			return refValue;
-		}
-
-		/// <summary>
-		/// Reads a ref from the store, throwing an exception if it does not exist
-		/// </summary>
-		/// <param name="store">The store instance to read from</param>
-		/// <param name="name">Id for the ref</param>
-		/// <param name="maxAge">Maximum age for any cached result</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>The ref value</returns>
-		public static Task<TNode> ReadNodeAsync<TNode>(this IStorageClient store, RefName name, TimeSpan maxAge, CancellationToken cancellationToken = default) where TNode : TreeNode
-		{
-			return ReadNodeAsync<TNode>(store, name, DateTime.UtcNow - maxAge, cancellationToken);
-		}
-
-		/// <summary>
-		/// Writes a node to storage
-		/// </summary>
-		/// <param name="store">Store instance to write to</param>
-		/// <param name="name">Name of the ref containing this node</param>
-		/// <param name="node">Node to be written</param>
-		/// <param name="options">Options for the node writer</param>
-		/// <param name="prefix">Prefix for uploaded blobs</param>
-		/// <param name="refOptions">Options for the ref</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Location of node targetted by the ref</returns>
-		public static async Task<NodeLocator> WriteNodeAsync(this IStorageClient store, RefName name, TreeNode node, TreeOptions? options = null, Utf8String prefix = default, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
-		{
-			TreeWriter writer = new TreeWriter(store, options, prefix.IsEmpty ? name.Text : prefix);
-			return await writer.WriteRefAsync(name, node, refOptions, cancellationToken);
 		}
 
 		#endregion

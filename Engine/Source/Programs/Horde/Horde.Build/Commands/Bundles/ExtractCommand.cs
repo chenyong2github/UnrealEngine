@@ -36,10 +36,11 @@ namespace Horde.Build.Commands.Bundles
 			using ServiceProvider serviceProvider = Startup.CreateServiceProvider(_configuration, _loggerProvider);
 
 			IStorageClient store = serviceProvider.GetRequiredService<IStorageClient<ReplicationService>>();
+			TreeReader reader = new TreeReader(store, serviceProvider.GetRequiredService<IMemoryCache>(), serviceProvider.GetRequiredService<ILogger<ExtractCommand>>()); 
 
-			ReplicationNode node = await store.ReadNodeAsync<ReplicationNode>(RefName);
-			DirectoryNode root = await node.Contents.ExpandAsync();
-			await root.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
+			ReplicationNode node = await reader.ReadNodeAsync<ReplicationNode>(RefName);
+			DirectoryNode root = await node.Contents.ExpandAsync(reader);
+			await root.CopyToDirectoryAsync(reader, OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
 
 			return 0;
 		}

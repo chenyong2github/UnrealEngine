@@ -507,8 +507,9 @@ namespace Horde.Agent.Commands.Bundles
 
 			using IStorageClientOwner owner = CreateStorageClient(rootDir, logger);
 			IStorageClient store = owner.Store;
+			TreeReader reader = new TreeReader(owner.Store, owner.Cache, logger);
 
-			CommitNode tip = await store.ReadNodeAsync<CommitNode>(branchName);
+			CommitNode tip = await reader.ReadNodeAsync<CommitNode>(branchName);
 			if (Change != 0)
 			{
 				while (tip.Number != Change)
@@ -518,24 +519,24 @@ namespace Horde.Agent.Commands.Bundles
 						logger.LogError("Unable to find change {Change}", Change);
 						return 1;
 					}
-					tip = await tip.Parent.ExpandAsync();
+					tip = await tip.Parent.ExpandAsync(reader);
 				}
 			}
 
-			workspaceState.Tree = await RealizeAsync(tip.Contents, rootDir, newState, Clean, logger);
+			workspaceState.Tree = await RealizeAsync(reader, tip.Contents, rootDir, newState, Clean, logger);
 			await WriteStateAsync(rootDir, workspaceState);
 
 			logger.LogInformation("Updated workspace to change {Number}", tip.Number);
 			return 0;
 		}
 
-		static async Task<DirectoryState> RealizeAsync(TreeNodeRef<DirectoryNode> directoryRef, DirectoryReference dirPath, DirectoryState? directoryState, bool clean, ILogger logger)
+		static async Task<DirectoryState> RealizeAsync(TreeReader reader, TreeNodeRef<DirectoryNode> directoryRef, DirectoryReference dirPath, DirectoryState? directoryState, bool clean, ILogger logger)
 		{
 			DirectoryReference.CreateDirectory(dirPath);
 
 			DirectoryState newState = new DirectoryState();
 
-			DirectoryNode directoryNode = await directoryRef.ExpandAsync();
+			DirectoryNode directoryNode = await directoryRef.ExpandAsync(reader);
 			foreach ((Utf8String name, DirectoryEntry? subDirEntry, DirectoryState? subDirState) in Zip(directoryNode.NameToDirectory, directoryState?.Directories))
 			{
 				DirectoryReference subDirPath = DirectoryReference.Combine(dirPath, name.ToString());
@@ -548,7 +549,7 @@ namespace Horde.Agent.Commands.Bundles
 				}
 				else
 				{
-					newState.Directories[name] = await RealizeAsync(subDirEntry, subDirPath, subDirState, clean, logger);
+					newState.Directories[name] = await RealizeAsync(reader, subDirEntry, subDirPath, subDirState, clean, logger);
 				}
 			}
 
@@ -564,7 +565,7 @@ namespace Horde.Agent.Commands.Bundles
 				}
 				else if (fileState == null || fileState.Hash != fileEntry.Hash)
 				{
-					newState.Files[name] = await CheckoutFileAsync(fileEntry, filePath.ToFileInfo(), logger);
+					newState.Files[name] = await CheckoutFileAsync(reader, fileEntry, filePath.ToFileInfo(), logger);
 				}
 				else
 				{
@@ -576,11 +577,11 @@ namespace Horde.Agent.Commands.Bundles
 			return newState;
 		}
 
-		static async Task<FileState> CheckoutFileAsync(TreeNodeRef<FileNode> fileRef, FileInfo fileInfo, ILogger logger)
+		static async Task<FileState> CheckoutFileAsync(TreeReader reader, TreeNodeRef<FileNode> fileRef, FileInfo fileInfo, ILogger logger)
 		{
 			logger.LogInformation("Updating {File} to {Hash}", fileInfo, fileRef.Hash);
-			FileNode fileNode = await fileRef.ExpandAsync();
-			await fileNode.CopyToFileAsync(fileInfo, CancellationToken.None);
+			FileNode fileNode = await fileRef.ExpandAsync(reader);
+			await fileNode.CopyToFileAsync(reader, fileInfo, CancellationToken.None);
 			fileInfo.Refresh();
 			return new FileState(fileInfo, fileRef.Hash);
 		}
@@ -617,8 +618,9 @@ namespace Horde.Agent.Commands.Bundles
 
 			using IStorageClientOwner owner = CreateStorageClient(rootDir, logger);
 			IStorageClient store = owner.Store;
+			TreeReader reader = new TreeReader(owner.Store, owner.Cache, logger);
 
-			CommitNode? tip = await store.TryReadNodeAsync<CommitNode>(workspaceState.Branch);
+			CommitNode? tip = await reader.TryReadNodeAsync<CommitNode>(workspaceState.Branch);
 			TreeNodeRef<CommitNode>? tipRef = (tip == null) ? null : new TreeNodeRef<CommitNode>(tip);
 
 			DirectoryNode rootNode;
@@ -628,14 +630,14 @@ namespace Horde.Agent.Commands.Bundles
 			}
 			else
 			{
-				rootNode = await tip.Contents.ExpandCopyAsync();
+				rootNode = await tip.Contents.ExpandCopyAsync(reader);
 			}
 
 			TreeNodeRef<DirectoryNode> rootRef = new TreeNodeRef<DirectoryNode>(rootNode);
 
 			List<(DirectoryNode, FileInfo, FileState)> files = new List<(DirectoryNode, FileInfo, FileState)>();
 			List<(TreeNodeRef<DirectoryNode>, DirectoryState)> directories = new List<(TreeNodeRef<DirectoryNode>, DirectoryState)>();
-			await UpdateTreeAsync(rootRef, rootDir, oldState, newState, files, directories);
+			await UpdateTreeAsync(reader, rootRef, rootDir, oldState, newState, files, directories);
 
 			TreeWriter writer = new TreeWriter(store);
 			await DirectoryNode.CopyFromDirectoryAsync(files.ConvertAll(x => (x.Item1, x.Item2)), new ChunkingOptions(), writer, CancellationToken.None);
@@ -670,11 +672,11 @@ namespace Horde.Agent.Commands.Bundles
 			return 0;
 		}
 
-		private async Task UpdateTreeAsync(TreeNodeRef<DirectoryNode> rootRef, DirectoryReference rootDir, DirectoryState? oldState, DirectoryState newState, List<(DirectoryNode, FileInfo, FileState)> files, List<(TreeNodeRef<DirectoryNode>, DirectoryState)> directories)
+		private async Task UpdateTreeAsync(TreeReader reader, TreeNodeRef<DirectoryNode> rootRef, DirectoryReference rootDir, DirectoryState? oldState, DirectoryState newState, List<(DirectoryNode, FileInfo, FileState)> files, List<(TreeNodeRef<DirectoryNode>, DirectoryState)> directories)
 		{
 			directories.Add((rootRef, newState));
 
-			DirectoryNode root = await rootRef.ExpandAsync();
+			DirectoryNode root = await rootRef.ExpandAsync(reader);
 			foreach ((Utf8String name, DirectoryState? oldSubDirState, DirectoryState? newSubDirState) in Zip(oldState?.Directories, newState.Directories))
 			{
 				if (newSubDirState == null)
@@ -683,7 +685,7 @@ namespace Horde.Agent.Commands.Bundles
 				}
 				else if(oldSubDirState != newSubDirState)
 				{
-					await UpdateTreeAsync(root.FindOrAddDirectoryEntry(name), DirectoryReference.Combine(rootDir, name.ToString()), oldSubDirState, newSubDirState, files, directories);
+					await UpdateTreeAsync(reader, root.FindOrAddDirectoryEntry(name), DirectoryReference.Combine(rootDir, name.ToString()), oldSubDirState, newSubDirState, files, directories);
 				}
 			}
 
@@ -715,10 +717,11 @@ namespace Horde.Agent.Commands.Bundles
 
 			using IStorageClientOwner owner = CreateStorageClient(rootDir, logger);
 			IStorageClient store = owner.Store;
+			TreeReader reader = new TreeReader(owner.Store, owner.Cache, logger);
 
 			List<CommitNode> commits = new List<CommitNode>();
 
-			CommitNode? tip = await store.TryReadNodeAsync<CommitNode>(workspaceState.Branch);
+			CommitNode? tip = await reader.TryReadNodeAsync<CommitNode>(workspaceState.Branch);
 			if (tip != null)
 			{
 				for (int idx = 0; idx < Count; idx++)
@@ -730,7 +733,7 @@ namespace Horde.Agent.Commands.Bundles
 						break;
 					}
 
-					tip = await tip.Parent.ExpandAsync();
+					tip = await tip.Parent.ExpandAsync(reader);
 				}
 			}
 

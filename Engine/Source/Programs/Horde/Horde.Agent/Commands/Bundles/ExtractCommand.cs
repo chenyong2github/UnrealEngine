@@ -21,13 +21,14 @@ namespace Horde.Agent.Commands.Bundles
 
 		public override async Task<int> ExecuteAsync(ILogger logger)
 		{
-			using IStorageClientOwner storeOwner = CreateStorageClient(logger);
-			IStorageClient store = storeOwner.Store;
+			using IStorageClientOwner owner = CreateStorageClient(logger);
+			IStorageClient store = owner.Store;
+			TreeReader reader = new TreeReader(owner.Store, owner.Cache, logger);
 
 			Stopwatch timer = Stopwatch.StartNew();
 
-			DirectoryNode node = await store.ReadNodeAsync<DirectoryNode>(RefName);
-			await node.CopyToDirectoryAsync(OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
+			DirectoryNode node = await reader.ReadNodeAsync<DirectoryNode>(RefName);
+			await node.CopyToDirectoryAsync(reader, OutputDir.ToDirectoryInfo(), logger, CancellationToken.None);
 
 			logger.LogInformation("Elapsed: {Time}s", timer.Elapsed.TotalSeconds);
 			return 0;

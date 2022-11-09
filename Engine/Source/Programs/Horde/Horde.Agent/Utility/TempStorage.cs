@@ -682,7 +682,7 @@ namespace Horde.Storage.Utility
 		/// <summary>
 		/// Reads a set of tagged files from disk
 		/// </summary>
-		/// <param name="store"></param>
+		/// <param name="reader">Reader for node data</param>
 		/// <param name="refPrefix">Prefix for ref names</param>
 		/// <param name="nodeName">Name of the node which produced the tag set</param>
 		/// <param name="tagName">Name of the tag, with a '#' prefix</param>
@@ -690,7 +690,7 @@ namespace Horde.Storage.Utility
 		/// <param name="logger">Logger for output</param>
 		/// <param name="cancellationToken"></param>
 		/// <returns>The set of files</returns>
-		public static async Task<TempStorageTagManifest> RetrieveTagAsync(IStorageClient store, string refPrefix, string nodeName, string tagName, DirectoryReference manifestDir, ILogger logger, CancellationToken cancellationToken)
+		public static async Task<TempStorageTagManifest> RetrieveTagAsync(TreeReader reader, string refPrefix, string nodeName, string tagName, DirectoryReference manifestDir, ILogger logger, CancellationToken cancellationToken)
 		{
 			TempStorageTagManifest fileList;
 
@@ -706,7 +706,7 @@ namespace Horde.Storage.Utility
 				RefName refName = GetRefNameForNode(refPrefix, nodeName);
 				logger.LogInformation("Reading node \"{NodeName}\" tag \"{TagName}\" from temp storage (ref: {RefName}, localFile: {LocalFile})", nodeName, tagName, refName, localFileListLocation);
 
-				TempStorageNode node = await store.ReadNodeAsync<TempStorageNode>(refName, cancellationToken: cancellationToken);
+				TempStorageNode node = await reader.ReadNodeAsync<TempStorageNode>(refName, cancellationToken: cancellationToken);
 
 				TreeNodeRef<TempStorageTagNode>? tagNodeRef;
 				if (!node.Tags.TryGetValue(tagName, out tagNodeRef))
@@ -714,7 +714,7 @@ namespace Horde.Storage.Utility
 					throw new TempStorageException($"Missing tag {tagName} from node {nodeName}");
 				}
 
-				TempStorageTagNode tagNode = await tagNodeRef.ExpandAsync(cancellationToken);
+				TempStorageTagNode tagNode = await tagNodeRef.ExpandAsync(reader, cancellationToken);
 				fileList = tagNode.FileList;
 
 				// Save the manifest locally
@@ -807,7 +807,7 @@ namespace Horde.Storage.Utility
 		/// <summary>
 		/// Retrieve an output of the given node. Fetches and decompresses the files from shared storage if necessary, or validates the local files.
 		/// </summary>
-		/// <param name="store">Store to read data from</param>
+		/// <param name="reader">Store to read data from</param>
 		/// <param name="refPrefix">Prefix for ref names</param>
 		/// <param name="nodeName">The node which created the storage block</param>
 		/// <param name="blockName">Name of the block to retrieve.</param>
@@ -816,7 +816,7 @@ namespace Horde.Storage.Utility
 		/// <param name="logger">Logger for output</param>
 		/// <param name="cancellationToken"></param>
 		/// <returns>Manifest of the files retrieved</returns>
-		public static async Task<TempStorageBlockManifest> RetrieveBlockAsync(IStorageClient store, string refPrefix, string nodeName, string blockName, DirectoryReference rootDir, DirectoryReference manifestDir, ILogger logger, CancellationToken cancellationToken)
+		public static async Task<TempStorageBlockManifest> RetrieveBlockAsync(TreeReader reader, string refPrefix, string nodeName, string blockName, DirectoryReference rootDir, DirectoryReference manifestDir, ILogger logger, CancellationToken cancellationToken)
 		{
 			// Get the path to the local manifest
 			FileReference localManifestFile = GetBlockManifestLocation(manifestDir, nodeName, blockName);
@@ -835,7 +835,7 @@ namespace Horde.Storage.Utility
 				RefName refName = GetRefNameForNode(refPrefix, nodeName);
 				logger.LogInformation("Reading node \"{NodeName}\" block \"{BlockName}\" from temp storage (ref: {RefName}, local: {LocalFile})", nodeName, blockName, refName, localManifestFile);
 
-				TempStorageNode node = await store.ReadNodeAsync<TempStorageNode>(refName, cancellationToken: cancellationToken);
+				TempStorageNode node = await reader.ReadNodeAsync<TempStorageNode>(refName, cancellationToken: cancellationToken);
 				
 				TreeNodeRef<TempStorageBlockNode>? blockNodeRef;
 				if (!node.Blocks.TryGetValue(blockName, out blockNodeRef))
@@ -843,7 +843,7 @@ namespace Horde.Storage.Utility
 					throw new TempStorageException($"Missing block \"{blockName}\" from node \"{nodeName}\"");
 				}
 
-				TempStorageBlockNode blockNode = await blockNodeRef.ExpandAsync(cancellationToken);
+				TempStorageBlockNode blockNode = await blockNodeRef.ExpandAsync(reader, cancellationToken);
 				manifest = blockNode.Manifest;
 
 				// Delete all the existing files. They may be read-only.
@@ -854,8 +854,8 @@ namespace Horde.Storage.Utility
 				}
 
 				// Add all the files and flush the ref
-				DirectoryNode rootDirNode = await blockNode.Contents.ExpandAsync(cancellationToken);
-				await rootDirNode.CopyToDirectoryAsync(rootDir.ToDirectoryInfo(), logger, cancellationToken);
+				DirectoryNode rootDirNode = await blockNode.Contents.ExpandAsync(reader, cancellationToken);
+				await rootDirNode.CopyToDirectoryAsync(reader, rootDir.ToDirectoryInfo(), logger, cancellationToken);
 
 				// Update the timestamps to match the manifest.
 				foreach (TempStorageFile ManifestFile in manifest.Files)

@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using EpicGames.Horde.Storage.Nodes;
 using EpicGames.Serialization;
+using Microsoft.Extensions.Options;
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
@@ -9,8 +11,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace EpicGames.Horde.Storage.Nodes
 {
@@ -75,7 +79,6 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// Chunks are pushed into a tree hierarchy as data is appended to the root, with nodes of the tree also split along content-aware boundaries with <see cref="IoHash.NumBytes"/> granularity.
 	/// Once a chunk has been written to storage, it is treated as immutable.
 	/// </summary>
-	[TreeSerializer(typeof(FileNodeSerializer))]
 	public abstract class FileNode : TreeNode
 	{
 		/// <summary>
@@ -93,6 +96,36 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <returns>True if the node is read only</returns>
 		public abstract bool IsReadOnly();
+
+		/// <summary>
+		/// Creates a file node from a block of memory
+		/// </summary>
+		/// <param name="memory">The memory to read from</param>
+		/// <param name="options">Options for chunking the data</param>
+		/// <param name="writer">Writer for new tree nodes</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>New file node</returns>
+		public static Task<FileNode> CreateAsync(ReadOnlyMemory<byte> memory, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
+		{
+			using ReadOnlyMemoryStream stream = new ReadOnlyMemoryStream(memory);
+			return CreateAsync(stream, options, writer, cancellationToken);
+		}
+
+		/// <summary>
+		/// Creates a file node from a file
+		/// </summary>
+		/// <param name="fileInfo">The stream to read from</param>
+		/// <param name="options">Options for chunking the data</param>
+		/// <param name="writer">Writer for new tree nodes</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>New file node</returns>
+		public static async Task<FileNode> CreateAsync(FileInfo fileInfo, ChunkingOptions options, TreeWriter writer, CancellationToken cancellationToken)
+		{
+			using (Stream stream = fileInfo.OpenRead())
+			{
+				return await FileNode.CreateAsync(stream, options, writer, cancellationToken);
+			}
+		}
 
 		/// <summary>
 		/// Creates a file node from a stream
@@ -231,34 +264,37 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <summary>
 		/// Copies the contents of this node and its children to the given output stream
 		/// </summary>
+		/// <param name="reader">Reader for nodes in the tree</param>
 		/// <param name="outputStream">The output stream to receive the data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		public abstract Task CopyToStreamAsync(Stream outputStream, CancellationToken cancellationToken);
+		public abstract Task CopyToStreamAsync(TreeReader reader, Stream outputStream, CancellationToken cancellationToken);
 
 		/// <summary>
 		/// Extracts the contents of this node to a file
 		/// </summary>
+		/// <param name="reader">Reader for nodes in the tree</param>
 		/// <param name="file">File to write with the contents of this node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async Task CopyToFileAsync(FileInfo file, CancellationToken cancellationToken)
+		public async Task CopyToFileAsync(TreeReader reader, FileInfo file, CancellationToken cancellationToken)
 		{
 			using (FileStream stream = file.OpenWrite())
 			{
-				await CopyToStreamAsync(stream, cancellationToken);
+				await CopyToStreamAsync(reader, stream, cancellationToken);
 			}
 		}
 
 		/// <summary>
 		/// Serialize this node and its children into a byte array
 		/// </summary>
+		/// <param name="reader">Reader for nodes in the tree</param>
 		/// <param name="cancellationToken"></param>
 		/// <returns>Array of data stored by the tree</returns>
-		public async Task<byte[]> ToByteArrayAsync(CancellationToken cancellationToken)
+		public async Task<byte[]> ToByteArrayAsync(TreeReader reader, CancellationToken cancellationToken)
 		{
 			using (MemoryStream stream = new MemoryStream())
 			{
-				await CopyToStreamAsync(stream, cancellationToken);
+				await CopyToStreamAsync(reader, stream, cancellationToken);
 				return stream.ToArray();
 			}
 		}
@@ -267,6 +303,7 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// <summary>
 	/// File node that contains a chunk of data
 	/// </summary>
+	[TreeNode("{B27AFB68-9E20-4A4B-A4D8-788A4098D439}", 1)]
 	public sealed class LeafFileNode : FileNode
 	{
 		class DataSegment : ReadOnlySequenceSegment<byte>
@@ -282,11 +319,6 @@ namespace EpicGames.Horde.Storage.Nodes
 				Next = next;
 			}
 		}
-
-		/// <summary>
-		/// First byte in the serialized data for this class, indicating its type.
-		/// </summary>
-		public const byte TypeId = (byte)'l';
 
 		bool _isReadOnly;
 		uint _rollingHash;
@@ -310,12 +342,6 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		public LeafFileNode(ITreeNodeReader reader)
 		{
-			byte typeId = reader.ReadUInt8();
-			if (typeId != TypeId)
-			{
-				throw new InvalidDataException($"Invalid type id for {nameof(LeafFileNode)}");
-			}
-
 			_isReadOnly = true;
 			_rollingHash = reader.ReadUInt32();
 
@@ -328,7 +354,6 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <inheritdoc/>
 		public override void Serialize(ITreeNodeWriter writer)
 		{
-			writer.WriteUInt8(TypeId);
 			writer.WriteUInt32(_rollingHash);
 			writer.WriteVariableLengthBytes(_writtenSequence);
 		}
@@ -471,7 +496,7 @@ namespace EpicGames.Horde.Storage.Nodes
 		}
 
 		/// <inheritdoc/>
-		public override async Task CopyToStreamAsync(Stream outputStream, CancellationToken cancellationToken)
+		public override async Task CopyToStreamAsync(TreeReader reader, Stream outputStream, CancellationToken cancellationToken)
 		{
 			foreach (ReadOnlyMemory<byte> segment in _writtenSequence)
 			{
@@ -483,13 +508,9 @@ namespace EpicGames.Horde.Storage.Nodes
 	/// <summary>
 	/// An interior file node
 	/// </summary>
+	[TreeNode("{F4DEDDBC-70CB-4C7A-8347-F011AFCCCDB9}", 1)]
 	public class InteriorFileNode : FileNode
 	{
-		/// <summary>
-		/// Type identifier for interior nodes. First byte in the serialized stream.
-		/// </summary>
-		public const byte TypeId = (byte)'i';
-
 		bool _isReadOnly;
 		uint _rollingHash;
 		long _length;
@@ -522,12 +543,6 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		public InteriorFileNode(ITreeNodeReader reader)
 		{
-			byte typeId = reader.ReadUInt8();
-			if (typeId != TypeId)
-			{
-				throw new InvalidDataException($"Invalid type id for {nameof(InteriorFileNode)}");
-			}
-
 			_rollingHash = reader.ReadUInt32();
 			_length = (long)reader.ReadUnsignedVarInt();
 			_isReadOnly = reader.ReadBoolean();
@@ -540,8 +555,6 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <inheritdoc/>
 		public override void Serialize(ITreeNodeWriter writer)
 		{
-			writer.WriteUInt8(TypeId);
-
 			writer.WriteUInt32(_rollingHash);
 			writer.WriteUnsignedVarInt((ulong)_length);
 			writer.WriteBoolean(_isReadOnly);
@@ -617,34 +630,13 @@ namespace EpicGames.Horde.Storage.Nodes
 		}
 
 		/// <inheritdoc/>
-		public override async Task CopyToStreamAsync(Stream outputStream, CancellationToken cancellationToken)
+		public override async Task CopyToStreamAsync(TreeReader reader, Stream outputStream, CancellationToken cancellationToken)
 		{
 			foreach (TreeNodeRef<FileNode> childNodeRef in _children)
 			{
-				FileNode childNode = await childNodeRef.ExpandAsync(cancellationToken);
-				await childNode.CopyToStreamAsync(outputStream, cancellationToken);
+				FileNode childNode = await childNodeRef.ExpandAsync(reader, cancellationToken);
+				await childNode.CopyToStreamAsync(reader, outputStream, cancellationToken);
 			}
-		}
-	}
-
-	/// <summary>
-	/// Factory class for file nodes
-	/// </summary>
-	public class FileNodeSerializer : TreeNodeSerializer<FileNode>
-	{
-		/// <inheritdoc/>
-		public override FileNode Deserialize(ITreeNodeReader reader)
-		{
-			ReadOnlySpan<byte> data = reader.GetSpan(1);
-			switch (data[0])
-			{
-				case LeafFileNode.TypeId:
-					return new LeafFileNode(reader);
-				case InteriorFileNode.TypeId:
-					return new InteriorFileNode(reader);
-				default:
-					throw new InvalidDataException("Unknown type id while deserializing file node");
-			};
 		}
 	}
 }

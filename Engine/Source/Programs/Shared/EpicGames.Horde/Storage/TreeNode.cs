@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Threading;
+using System.Threading.Tasks;
 using EpicGames.Core;
 
 namespace EpicGames.Horde.Storage
@@ -57,55 +59,6 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <returns>References to other nodes</returns>
 		public abstract IEnumerable<TreeNodeRef> EnumerateRefs();
-
-		/// <summary>
-		/// Static instance of the serializer for a particular <see cref="TreeNode"/> type.
-		/// </summary>
-		static class SerializerInstance<T> where T : TreeNode
-		{
-			public static readonly TreeNodeSerializer<T> Serializer = CreateSerializer();
-
-			static TreeNodeSerializer<T> CreateSerializer()
-			{
-				TreeSerializerAttribute? _attribute = typeof(T).GetCustomAttribute<TreeSerializerAttribute>()!;
-				if (_attribute == null)
-				{
-					return new DefaultTreeNodeSerializer<T>();
-				}
-				else
-				{
-					return (TreeNodeSerializer<T>)Activator.CreateInstance(_attribute.Type)!;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Deserialize a node from data
-		/// </summary>
-		/// <typeparam name="T"></typeparam>
-		/// <param name="reader">Reader to deserialize data from</param>
-		/// <returns></returns>
-		public static T Deserialize<T>(ITreeNodeReader reader) where T : TreeNode
-		{
-			T node = SerializerInstance<T>.Serializer.Deserialize(reader);
-			foreach (TreeNodeRef nodeRef in node.EnumerateRefs())
-			{
-				Debug.Assert(nodeRef._owner == null);
-				nodeRef._owner = node;
-			}
-			return node;
-		}
-	}
-
-	/// <summary>
-	/// Reader for tree nodes
-	/// </summary>
-	public interface ITreeNodeReader : IMemoryReader
-	{
-		/// <summary>
-		/// Reads a reference to another node
-		/// </summary>
-		TreeNodeRefData ReadRef();
 	}
 
 	/// <summary>
@@ -121,71 +74,29 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
-	/// Factory class for deserializing node types
-	/// </summary>
-	/// <typeparam name="T">The type of node returned</typeparam>
-	public abstract class TreeNodeSerializer<T> where T : TreeNode
-	{
-		/// <summary>
-		/// Deserializes data from the given data
-		/// </summary>
-		/// <param name="reader">Reader to deserialize data from</param>
-		/// <returns>New node parsed from the data</returns>
-		public abstract T Deserialize(ITreeNodeReader reader);
-	}
-
-	/// <summary>
-	/// Default implementation of <see cref="TreeNodeSerializer{T}"/> which calls a constructor taking an <see cref="ITreeNodeReader"/> argument.
-	/// </summary>
-	/// <typeparam name="T"></typeparam>
-	public class DefaultTreeNodeSerializer<T> : TreeNodeSerializer<T> where T : TreeNode
-	{
-		static readonly Type[] s_signature = new[] { typeof(ITreeNodeReader) };
-
-		readonly Func<ITreeNodeReader, T> _constructor;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public DefaultTreeNodeSerializer()
-		{
-			Type type = typeof(T);
-
-			ConstructorInfo? constructorInfo = type.GetConstructor(s_signature);
-			if (constructorInfo == null)
-			{
-				throw new InvalidOperationException($"Type {type.Name} does not have a constructor taking an {typeof(ITreeNodeReader).Name} as parameter.");
-			}
-
-			DynamicMethod method = new DynamicMethod($"Create_{type.Name}", type, s_signature, true);
-
-			ILGenerator generator = method.GetILGenerator();
-			generator.Emit(OpCodes.Ldarg_0);
-			generator.Emit(OpCodes.Newobj, constructorInfo);
-			generator.Emit(OpCodes.Ret);
-
-			_constructor = (Func<ITreeNodeReader, T>)method.CreateDelegate(typeof(Func<ITreeNodeReader, T>));
-		}
-
-		/// <inheritdoc/>
-		public override T Deserialize(ITreeNodeReader reader) => (T)_constructor(reader);
-	}
-
-	/// <summary>
 	/// Attribute used to define a factory for a particular node type
 	/// </summary>
 	[AttributeUsage(AttributeTargets.Class)]
-	public sealed class TreeSerializerAttribute : Attribute
+	public sealed class TreeNodeAttribute : Attribute
 	{
 		/// <summary>
-		/// The factory type. Should be derived from <see cref="TreeNodeSerializer{T}"/>
+		/// Name of the type to store in the bundle header
 		/// </summary>
-		public Type Type { get; }
+		public string Guid { get; }
+
+		/// <summary>
+		/// Version number of the serializer
+		/// </summary>
+		public int Version { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public TreeSerializerAttribute(Type type) => Type = type;
+		public TreeNodeAttribute(string guid, int version = 1)
+		{
+			Guid = guid;
+			Version = version;
+		}
 	}
 
 	/// <summary>
@@ -202,6 +113,55 @@ namespace EpicGames.Horde.Storage
 		public static TreeNodeRef<T> ReadRef<T>(this ITreeNodeReader reader) where T : TreeNode
 		{
 			return new TreeNodeRef<T>(reader);
+		}
+
+		/// <summary>
+		/// Writes a node to storage
+		/// </summary>
+		/// <param name="store">Store instance to write to</param>
+		/// <param name="name">Name of the ref containing this node</param>
+		/// <param name="node">Node to be written</param>
+		/// <param name="options">Options for the node writer</param>
+		/// <param name="prefix">Prefix for uploaded blobs</param>
+		/// <param name="refOptions">Options for the ref</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Location of node targetted by the ref</returns>
+		public static async Task<NodeLocator> WriteNodeAsync(this IStorageClient store, RefName name, TreeNode node, TreeOptions? options = null, Utf8String prefix = default, RefOptions? refOptions = null, CancellationToken cancellationToken = default)
+		{
+			TreeWriter writer = new TreeWriter(store, options, prefix.IsEmpty ? name.Text : prefix);
+			return await writer.WriteRefAsync(name, node, refOptions, cancellationToken);
+		}
+
+		/// <summary>
+		/// Cache of constructed <see cref="BundleType"/> instances.
+		/// </summary>
+		static readonly ConcurrentDictionary<Type, BundleType> s_typeToBundleType = new ConcurrentDictionary<Type, BundleType>();
+
+		/// <summary>
+		/// Gets the bundle type object for a particular node
+		/// </summary>
+		/// <param name="node"></param>
+		/// <returns></returns>
+		public static BundleType GetBundleType(this TreeNode node) => GetBundleType(node.GetType());
+
+		/// <summary>
+		/// Gets the <see cref="BundleType"/> instance for a particular node type
+		/// </summary>
+		/// <param name="type"></param>
+		/// <returns>Bundle</returns>
+		public static BundleType GetBundleType(Type type)
+		{
+			BundleType? bundleType;
+			if (!s_typeToBundleType.TryGetValue(type, out bundleType))
+			{
+				TreeNodeAttribute? attribute = type.GetCustomAttribute<TreeNodeAttribute>();
+				if (attribute == null)
+				{
+					throw new InvalidOperationException($"Missing {nameof(TreeNodeAttribute)} from type {type.Name}");
+				}
+				bundleType = s_typeToBundleType.GetOrAdd(type, new BundleType(Guid.Parse(attribute.Guid), attribute.Version));
+			}
+			return bundleType;
 		}
 	}
 }

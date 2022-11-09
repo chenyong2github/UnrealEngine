@@ -22,12 +22,14 @@ namespace EpicGames.Horde.Tests
 	[TestClass]
 	public class BundleStoreTests
 	{
+		static readonly TreeReaderOptions s_readOptions = new TreeReaderOptions(typeof(SimpleNode));
+
 		[TestMethod]
 		public async Task TestTreeAsync()
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 
-			MemoryStorageClient blobStore = new MemoryStorageClient(cache, NullLogger.Instance);
+			MemoryStorageClient blobStore = new MemoryStorageClient();
 			await TestTreeAsync(blobStore, new TreeOptions { MaxBlobSize = 1024 * 1024 });
 
 			Assert.AreEqual(1, blobStore.Blobs.Count);
@@ -39,13 +41,14 @@ namespace EpicGames.Horde.Tests
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 
-			MemoryStorageClient blobStore = new MemoryStorageClient(cache, NullLogger.Instance);
+			MemoryStorageClient blobStore = new MemoryStorageClient();
 			await TestTreeAsync(blobStore, new TreeOptions { MaxBlobSize = 1 });
 
 			Assert.AreEqual(5, blobStore.Blobs.Count);
 			Assert.AreEqual(1, blobStore.Refs.Count);
 		}
 
+		[TreeNode("{F63606D4-5DBB-4061-A655-6F444F65229F}")]
 		class SimpleNode : TreeNode
 		{
 			public ReadOnlySequence<byte> Data { get; }
@@ -87,17 +90,19 @@ namespace EpicGames.Horde.Tests
 
 				await writer.WriteRefAsync(new RefName("test"), root);
 
-				await CheckTree(root);
+				TreeReader reader = new TreeReader(store, null, s_readOptions, NullLogger.Instance);
+				await CheckTree(reader, root);
 			}
 
 			// Check we can read it back in
 			{
-				SimpleNode root = await store.ReadNodeAsync<SimpleNode>(new RefName("test"));
-				await CheckTree(root!);
+				TreeReader reader = new TreeReader(store, null, s_readOptions, NullLogger.Instance);
+				SimpleNode root = await reader.ReadNodeAsync<SimpleNode>(new RefName("test"));
+				await CheckTree(reader, root);
 			}
 		}
 
-		static async Task CheckTree(SimpleNode root)
+		static async Task CheckTree(TreeReader reader, SimpleNode root)
 		{
 			SimpleNode node5 = root;
 			byte[] data5 = node5.Data.ToArray();
@@ -105,25 +110,25 @@ namespace EpicGames.Horde.Tests
 			IReadOnlyList<TreeNodeRef<SimpleNode>> refs5 = node5.Refs;
 			Assert.AreEqual(2, refs5.Count);
 
-			SimpleNode node4 = await refs5[0].ExpandAsync();
+			SimpleNode node4 = await refs5[0].ExpandAsync(reader);
 			byte[] data4 = node4.Data.ToArray();
 			Assert.IsTrue(data4.SequenceEqual(new byte[] { 4 }));
 			IReadOnlyList<TreeNodeRef<SimpleNode>> refs4 = node4.Refs;
 			Assert.AreEqual(0, refs4.Count);
 
-			SimpleNode node3 = await refs5[1].ExpandAsync();
+			SimpleNode node3 = await refs5[1].ExpandAsync(reader);
 			byte[] data3 = node3.Data.ToArray();
 			Assert.IsTrue(data3.SequenceEqual(new byte[] { 3 }));
 			IReadOnlyList<TreeNodeRef<SimpleNode>> refs3 = node3.Refs;
 			Assert.AreEqual(1, refs3.Count);
 
-			SimpleNode node2 = await refs3[0].ExpandAsync();
+			SimpleNode node2 = await refs3[0].ExpandAsync(reader);
 			byte[] data2 = node2.Data.ToArray();
 			Assert.IsTrue(data2.SequenceEqual(new byte[] { 2 }));
 			IReadOnlyList<TreeNodeRef<SimpleNode>> refs2 = node2.Refs;
 			Assert.AreEqual(1, refs2.Count);
 
-			SimpleNode node1 = await refs2[0].ExpandAsync();
+			SimpleNode node1 = await refs2[0].ExpandAsync(reader);
 			byte[] data1 = node1.Data.ToArray();
 			Assert.IsTrue(data1.SequenceEqual(new byte[] { 1 }));
 			IReadOnlyList<TreeNodeRef<SimpleNode>> refs1 = node1.Refs;
@@ -133,8 +138,8 @@ namespace EpicGames.Horde.Tests
 		[TestMethod]
 		public async Task DirectoryNodesAsync()
 		{
-			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-			MemoryStorageClient store = new MemoryStorageClient(cache, NullLogger.Instance);
+			MemoryStorageClient store = new MemoryStorageClient();
+			TreeReader reader = new TreeReader(store, null, s_readOptions, NullLogger.Instance);
 
 			// Generate a tree
 			{
@@ -143,26 +148,26 @@ namespace EpicGames.Horde.Tests
 				DirectoryNode world = hello.AddDirectory("world");
 				await store.WriteNodeAsync(new RefName("test"), root);
 
-				await CheckDirectoryTreeAsync(root);
+				await CheckDirectoryTreeAsync(reader, root);
 			}
 
 			// Check we can read it back in
 			{
-				DirectoryNode root = await store.ReadNodeAsync<DirectoryNode>(new RefName("test"));
-				await CheckDirectoryTreeAsync(root);
+				DirectoryNode root = await reader.ReadNodeAsync<DirectoryNode>(new RefName("test"));
+				await CheckDirectoryTreeAsync(reader, root);
 			}
 		}
 
-		static async Task CheckDirectoryTreeAsync(DirectoryNode root)
+		static async Task CheckDirectoryTreeAsync(TreeReader reader, DirectoryNode root)
 		{
 			Assert.AreEqual(1, root.Directories.Count);
 			Assert.AreEqual("hello", root.Directories.First().Name);
 
-			DirectoryNode hello = await root.Directories.First().ExpandAsync(CancellationToken.None);
+			DirectoryNode hello = await root.Directories.First().ExpandAsync(reader, CancellationToken.None);
 			Assert.AreEqual(1, hello.Directories.Count);
 			Assert.AreEqual("world", hello.Directories.First().Name);
 
-			DirectoryNode world = await hello.Directories.First().ExpandAsync(CancellationToken.None);
+			DirectoryNode world = await hello.Directories.First().ExpandAsync(reader, CancellationToken.None);
 			Assert.AreEqual(0, world.Directories.Count);
 		}
 
@@ -170,7 +175,8 @@ namespace EpicGames.Horde.Tests
 		public async Task FileNodesAsync()
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-			MemoryStorageClient store = new MemoryStorageClient(cache, NullLogger.Instance);
+			MemoryStorageClient store = new MemoryStorageClient();
+			TreeReader reader = new TreeReader(store, null, NullLogger.Instance);
 
 			// Generate a tree
 			{
@@ -179,34 +185,34 @@ namespace EpicGames.Horde.Tests
 				DirectoryNode root = new DirectoryNode(DirectoryFlags.None);
 				DirectoryNode hello = root.AddDirectory("hello");
 
-				FileEntry world = hello.AddFile("world", FileEntryFlags.None);
-				await world.AppendAsync(Encoding.UTF8.GetBytes("world"), new ChunkingOptions(), writer, CancellationToken.None);
+				FileNode world = await FileNode.CreateAsync(Encoding.UTF8.GetBytes("world"), new ChunkingOptions(), writer, CancellationToken.None);
+				hello.AddFile("world", FileEntryFlags.None, world);
 
 				await writer.WriteRefAsync(new RefName("test"), root);
 
-				await CheckFileTreeAsync(root);
+				await CheckFileTreeAsync(reader, root);
 			}
 
 			// Check we can read it back in
 			{
-				DirectoryNode root = await store.ReadNodeAsync<DirectoryNode>(new RefName("test"));
-				await CheckFileTreeAsync(root);
+				DirectoryNode root = await reader.ReadNodeAsync<DirectoryNode>(new RefName("test"));
+				await CheckFileTreeAsync(reader, root);
 			}
 		}
 
-		static async Task CheckFileTreeAsync(DirectoryNode root)
+		static async Task CheckFileTreeAsync(TreeReader reader, DirectoryNode root)
 		{
 			Assert.AreEqual(1, root.Directories.Count);
 			Assert.AreEqual("hello", root.Directories.First().Name);
 
-			DirectoryNode hello = await root.Directories.First().ExpandAsync(CancellationToken.None);
+			DirectoryNode hello = await root.Directories.First().ExpandAsync(reader);
 			Assert.AreEqual(0, hello.Directories.Count);
 			Assert.AreEqual(1, hello.Files.Count);
 			Assert.AreEqual("world", hello.Files.First().Name);
 
-			FileNode world = await hello.Files.First().ExpandAsync(CancellationToken.None);
+			FileNode world = await hello.Files.First().ExpandAsync(reader);
 
-			byte[] worldData = await GetFileDataAsync(world);
+			byte[] worldData = await GetFileDataAsync(reader, world);
 			Assert.IsTrue(worldData.SequenceEqual(Encoding.UTF8.GetBytes("world")));
 		}
 
@@ -215,7 +221,7 @@ namespace EpicGames.Horde.Tests
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
 
-			MemoryStorageClient store = new MemoryStorageClient(cache, NullLogger.Instance);
+			MemoryStorageClient store = new MemoryStorageClient();
 			TreeWriter writer = new TreeWriter(store, new TreeOptions());
 
 			byte[] chunk = RandomNumberGenerator.GetBytes(256);
@@ -291,7 +297,7 @@ namespace EpicGames.Horde.Tests
 		public async Task LargeFileTestAsync()
 		{
 			using IMemoryCache cache = new MemoryCache(new MemoryCacheOptions());
-			MemoryStorageClient store = new MemoryStorageClient(cache, NullLogger.Instance);
+			MemoryStorageClient store = new MemoryStorageClient();
 
 			const int length = 1024;
 			const int copies = 4096;
@@ -317,19 +323,22 @@ namespace EpicGames.Horde.Tests
 				options.LeafOptions.TargetSize = 128;
 				options.LeafOptions.MaxSize = 64 * 1024;
 
-				FileEntry file = root.AddFile("test", FileEntryFlags.None);
-				await file.AppendAsync(data, options, writer, CancellationToken.None);
+				FileNode file = await FileNode.CreateAsync(data, options, writer, CancellationToken.None);
+				root.AddFile("test", FileEntryFlags.None, file);
 
 				await writer.WriteRefAsync(new RefName("test"), root);
 
-				await CheckLargeFileTreeAsync(root, data);
+				TreeReader reader = new TreeReader(store, null, NullLogger.Instance);
+				await CheckLargeFileTreeAsync(reader, root, data);
 			}
 
 			// Check we can read it back in
 			{
-				DirectoryNode newRoot = await store.ReadNodeAsync<DirectoryNode>(new RefName("test"));
-				await CompareTrees(root, newRoot);
-				await CheckLargeFileTreeAsync(root, data);
+				TreeReader reader = new TreeReader(store, null, NullLogger.Instance);
+
+				DirectoryNode newRoot = await reader.ReadNodeAsync<DirectoryNode>(new RefName("test"));
+				await CompareTrees(reader, root, newRoot);
+				await CheckLargeFileTreeAsync(reader, root, data);
 
 				TreeNodeRef<FileNode> file = root.GetFileEntry("test");
 
@@ -338,7 +347,7 @@ namespace EpicGames.Horde.Tests
 			}
 		}
 
-		static async Task CompareTrees(DirectoryNode oldNode, DirectoryNode newNode)
+		static async Task CompareTrees(TreeReader reader, DirectoryNode oldNode, DirectoryNode newNode)
 		{
 			Assert.AreEqual(oldNode.Length, newNode.Length);
 			Assert.AreEqual(oldNode.Files.Count, newNode.Files.Count);
@@ -346,13 +355,13 @@ namespace EpicGames.Horde.Tests
 
 			foreach ((FileEntry oldFileEntry, FileEntry newFileEntry) in oldNode.Files.Zip(newNode.Files))
 			{
-				FileNode oldFile = await oldFileEntry.ExpandAsync();
-				FileNode newFile = await newFileEntry.ExpandAsync();
-				await CompareTrees(oldFile, newFile);
+				FileNode oldFile = await oldFileEntry.ExpandAsync(reader);
+				FileNode newFile = await newFileEntry.ExpandAsync(reader);
+				await CompareTrees(reader, oldFile, newFile);
 			}
 		}
 
-		static async Task CompareTrees(FileNode oldNode, FileNode newNode)
+		static async Task CompareTrees(TreeReader reader, FileNode oldNode, FileNode newNode)
 		{
 			if (oldNode is InteriorFileNode oldInteriorNode)
 			{
@@ -365,9 +374,9 @@ namespace EpicGames.Horde.Tests
 				int index = 0;
 				foreach ((TreeNodeRef<FileNode> oldFileRef, TreeNodeRef<FileNode> newFileRef) in oldInteriorNode.Children.Zip(newInteriorNode.Children))
 				{
-					FileNode oldFile = await oldFileRef.ExpandAsync();
-					FileNode newFile = await newFileRef.ExpandAsync();
-					await CompareTrees(oldFile, newFile);
+					FileNode oldFile = await oldFileRef.ExpandAsync(reader);
+					FileNode newFile = await newFileRef.ExpandAsync(reader);
+					await CompareTrees(reader, oldFile, newFile);
 					index++;
 				}
 			}
@@ -383,23 +392,23 @@ namespace EpicGames.Horde.Tests
 			}
 		}
 
-		static async Task CheckLargeFileTreeAsync(DirectoryNode root, byte[] data)
+		static async Task CheckLargeFileTreeAsync(TreeReader reader, DirectoryNode root, byte[] data)
 		{
 			Assert.AreEqual(0, root.Directories.Count);
 			Assert.AreEqual(1, root.Files.Count);
 
-			FileNode world = await root.Files.First().ExpandAsync(CancellationToken.None);
+			FileNode world = await root.Files.First().ExpandAsync(reader, CancellationToken.None);
 
-			byte[] worldData = await GetFileDataAsync(world);
+			byte[] worldData = await GetFileDataAsync(reader, world);
 			Assert.AreEqual(data.Length, worldData.Length);
 			Assert.IsTrue(worldData.SequenceEqual(data));
 		}
 
-		static async Task<byte[]> GetFileDataAsync(FileNode fileNode)
+		static async Task<byte[]> GetFileDataAsync(TreeReader reader, FileNode fileNode)
 		{
 			using (MemoryStream stream = new MemoryStream())
 			{
-				await fileNode.CopyToStreamAsync(stream, CancellationToken.None);
+				await fileNode.CopyToStreamAsync(reader, stream, CancellationToken.None);
 				return stream.ToArray();
 			}
 		}

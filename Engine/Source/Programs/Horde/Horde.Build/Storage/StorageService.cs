@@ -103,8 +103,7 @@ namespace Horde.Build.Storage
 
 			public bool SupportsRedirects { get; }
 
-			public StorageClient(StorageService outer, NamespaceConfig config, IStorageBackend backend, IMemoryCache cache, ILogger logger)
-				: base(cache, logger)
+			public StorageClient(StorageService outer, NamespaceConfig config, IStorageBackend backend)
 			{
 				_outer = outer;
 				Config = config;
@@ -545,7 +544,7 @@ namespace Horde.Build.Storage
 						IStorageBackend backend = CreateStorageBackend(backendConfig);
 
 #pragma warning disable CA2000 // Dispose objects before losing scope
-						StorageClient client = new StorageClient(this, namespaceConfig, backend, _cache, _logger);
+						StorageClient client = new StorageClient(this, namespaceConfig, backend);
 						nextState.Namespaces.Add(namespaceConfig.Id, new NamespaceInfo(namespaceConfig, client));
 #pragma warning restore CA2000 // Dispose objects before losing scope
 					}

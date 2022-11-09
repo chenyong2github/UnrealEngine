@@ -6,9 +6,11 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -172,6 +174,11 @@ namespace EpicGames.Horde.Storage
 		public BundleCompressionFormat CompressionFormat { get; }
 
 		/// <summary>
+		/// Types for exports within this bundle
+		/// </summary>
+		public IReadOnlyList<BundleType> Types { get; }
+
+		/// <summary>
 		/// References to nodes in other bundles
 		/// </summary>
 		public IReadOnlyList<BundleImport> Imports { get; }
@@ -190,12 +197,14 @@ namespace EpicGames.Horde.Storage
 		/// Constructs a new bundle header
 		/// </summary>
 		/// <param name="compressionFormat">Compression format for bundle packets</param>
+		/// <param name="types">Type array indexed by each export</param>
 		/// <param name="imports">Imports from other bundles</param>
 		/// <param name="exports">Exports for nodes</param>
 		/// <param name="packets">Compression packets within the bundle</param>
-		public BundleHeader(BundleCompressionFormat compressionFormat, IReadOnlyList<BundleImport> imports, IReadOnlyList<BundleExport> exports, IReadOnlyList<BundlePacket> packets)
+		public BundleHeader(BundleCompressionFormat compressionFormat, IReadOnlyList<BundleType> types, IReadOnlyList<BundleImport> imports, IReadOnlyList<BundleExport> exports, IReadOnlyList<BundlePacket> packets)
 		{
 			CompressionFormat = compressionFormat;
+			Types = types;
 			Imports = imports;
 			Exports = exports;
 			Packets = packets;
@@ -219,6 +228,7 @@ namespace EpicGames.Horde.Storage
 			}
 
 			CompressionFormat = (BundleCompressionFormat)reader.ReadUnsignedVarInt();
+			Types = reader.ReadVariableLengthArray(() => new BundleType(reader));
 			Imports = reader.ReadVariableLengthArray(() => new BundleImport(reader));
 			Exports = reader.ReadVariableLengthArray(() => new BundleExport(reader));
 
@@ -295,6 +305,7 @@ namespace EpicGames.Horde.Storage
 			writer.WriteUnsignedVarInt((ulong)BundleVersion.Latest);
 
 			writer.WriteUnsignedVarInt((ulong)CompressionFormat);
+			writer.WriteVariableLengthArray(Types, x => x.Write(writer));
 			writer.WriteVariableLengthArray(Imports, x => x.Write(writer));
 			writer.WriteVariableLengthArray(Exports, x => x.Write(writer));
 
@@ -306,6 +317,69 @@ namespace EpicGames.Horde.Storage
 			// Go back and write the length of the header
 			BinaryPrimitives.WriteInt32BigEndian(prelude.Slice(4).Span, writer.Length - initialLength);
 		}
+	}
+
+	/// <summary>
+	/// Information about a type within a bundle
+	/// </summary>
+	[DebuggerDisplay("{Tag}#{Version}")]
+	public class BundleType : IEquatable<BundleType>
+	{
+		/// <summary>
+		/// Nominal identifier for the type
+		/// </summary>
+		public Guid Guid { get; }
+
+		/// <summary>
+		/// Version number for the serializer
+		/// </summary>
+		public int Version { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="guid">Nominal identifier for the type</param>
+		/// <param name="version">Version number for the serializer</param>
+		public BundleType(Guid guid, int version)
+		{
+			Guid = guid;
+			Version = version;
+		}
+
+		/// <summary>
+		/// Deserialize a bundle type
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		public BundleType(IMemoryReader reader)
+		{
+			Guid = reader.ReadGuid();
+			Version = (int)reader.ReadUnsignedVarInt();
+		}
+
+		/// <summary>
+		/// Serializes a type to storage
+		/// </summary>
+		/// <param name="writer">Writer for serialization</param>
+		public void Write(IMemoryWriter writer)
+		{
+			writer.WriteGuid(Guid);
+			writer.WriteUnsignedVarInt(Version);
+		}
+
+		/// <inheritdoc/>
+		public override bool Equals(object? obj) => obj is BundleType type && Equals(type);
+
+		/// <inheritdoc/>
+		public override int GetHashCode() => HashCode.Combine(Guid, Version);
+
+		/// <inheritdoc/>
+		public bool Equals(BundleType? type) => type is object && Guid == type.Guid && Version == type.Version;
+
+		/// <inheritdoc/>
+		public static bool operator ==(BundleType lhs, BundleType rhs) => lhs.Equals(rhs);
+
+		/// <inheritdoc/>
+		public static bool operator !=(BundleType lhs, BundleType rhs) => !lhs.Equals(rhs);
 	}
 
 	/// <summary>
@@ -423,6 +497,11 @@ namespace EpicGames.Horde.Storage
 	public class BundleExport
 	{
 		/// <summary>
+		/// Index of the type within the type list
+		/// </summary>
+		public int TypeIdx { get; }
+
+		/// <summary>
 		/// Hash of the node
 		/// </summary>
 		public IoHash Hash { get; }
@@ -442,8 +521,9 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleExport(IoHash hash, int length, IReadOnlyList<int> references)
+		public BundleExport(int typeIdx, IoHash hash, int length, IReadOnlyList<int> references)
 		{
+			TypeIdx = typeIdx;
 			Hash = hash;
 			Length = length;
 			References = references;
@@ -455,6 +535,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="reader">Reader to deserialize from</param>
 		public BundleExport(IMemoryReader reader)
 		{
+			TypeIdx = (int)reader.ReadUnsignedVarInt();
 			Hash = reader.ReadIoHash();
 			Length = (int)reader.ReadUnsignedVarInt();
 
@@ -475,6 +556,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="writer">Writer to serialize to</param>
 		public void Write(IMemoryWriter writer)
 		{
+			writer.WriteUnsignedVarInt(TypeIdx);
 			writer.WriteIoHash(Hash);
 			writer.WriteUnsignedVarInt(Length);
 

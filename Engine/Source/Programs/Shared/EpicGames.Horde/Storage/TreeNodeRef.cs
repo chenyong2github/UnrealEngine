@@ -19,11 +19,6 @@ namespace EpicGames.Horde.Storage
 		internal TreeNode? _owner;
 
 		/// <summary>
-		/// Store containing the node data. May be null for nodes in memory.
-		/// </summary>
-		public IStorageClient? Store { get; private set; }
-
-		/// <summary>
 		/// Hash of the referenced node. Invalid for nodes in memory.
 		/// </summary>
 		public IoHash Hash { get; private set; }
@@ -89,15 +84,12 @@ namespace EpicGames.Horde.Storage
 		/// Creates a reference to a node with the given hash
 		/// </summary>
 		/// <param name="owner">Node which owns the ref</param>
-		/// <param name="store">Store to fetch this node from</param>
 		/// <param name="hash">Hash of the referenced node</param>
 		/// <param name="locator">Locator for the node</param>
-		internal TreeNodeRef(TreeNode owner, IStorageClient store, IoHash hash, NodeLocator locator)
+		internal TreeNodeRef(TreeNode owner, IoHash hash, NodeLocator locator)
 		{
-			Debug.Assert(store != null);
 			_owner = owner;
 
-			Store = store;
 			Hash = hash;
 			Locator = locator;
 
@@ -111,7 +103,6 @@ namespace EpicGames.Horde.Storage
 		public TreeNodeRef(ITreeNodeReader reader)
 		{
 			TreeNodeRefData data = reader.ReadRef();
-			Store = data.Store;
 			Hash = data.Hash;
 			Locator = data.Locator;
 
@@ -132,7 +123,6 @@ namespace EpicGames.Horde.Storage
 		{
 			Debug.Assert(Target != null);
 
-			Store = null;
 			Hash = default;
 			Locator = default;
 
@@ -149,14 +139,12 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Update the reference to refer to a location in storage.
 		/// </summary>
-		/// <param name="store">The storage client</param>
 		/// <param name="hash">Hash of the node</param>
 		/// <param name="locator">Location of the node</param>
-		internal void MarkAsWritten(IStorageClient store, IoHash hash, NodeLocator locator)
+		internal void MarkAsWritten(IoHash hash, NodeLocator locator)
 		{
 			if (hash == Hash)
 			{
-				Store = store;
 				Locator = locator;
 				_dirty = false;
 			}
@@ -207,11 +195,10 @@ namespace EpicGames.Horde.Storage
 		/// Constructor
 		/// </summary>
 		/// <param name="owner">Node which owns the ref</param>
-		/// <param name="store">Storage client containing the node data</param>
 		/// <param name="hash">Hash of the referenced node</param>
 		/// <param name="locator">Locator for the node</param>
-		internal TreeNodeRef(TreeNode owner, IStorageClient store, IoHash hash, NodeLocator locator) 
-			: base(owner, store, hash, locator)
+		internal TreeNodeRef(TreeNode owner, IoHash hash, NodeLocator locator) 
+			: base(owner, hash, locator)
 		{
 		}
 
@@ -227,13 +214,14 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Resolve this reference to a concrete node
 		/// </summary>
+		/// <param name="reader">Reader to use for expanding this ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async ValueTask<T> ExpandAsync(CancellationToken cancellationToken = default)
+		public async ValueTask<T> ExpandAsync(TreeReader reader, CancellationToken cancellationToken = default)
 		{
 			if (base.Target == null)
 			{
-				base.Target = await Store!.ReadNodeAsync<T>(Locator, cancellationToken);
+				base.Target = await reader.ReadNodeAsync<T>(Locator, cancellationToken);
 				Target!.IncomingRef = this;
 			}
 			return Target!;
@@ -242,16 +230,17 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Resolve this reference to a concrete node
 		/// </summary>
+		/// <param name="reader">Reader to use for expanding this ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async ValueTask<T> ExpandCopyAsync(CancellationToken cancellationToken = default)
+		public async ValueTask<T> ExpandCopyAsync(TreeReader reader, CancellationToken cancellationToken = default)
 		{
-			return await Store!.ReadNodeAsync<T>(Locator, cancellationToken);
+			return await reader.ReadNodeAsync<T>(Locator, cancellationToken);
 		}
 	}
 
 	/// <summary>
 	/// Deserialized ref data
 	/// </summary>
-	public record struct TreeNodeRefData(IStorageClient Store, IoHash Hash, NodeLocator Locator);
+	public record struct TreeNodeRefData(IoHash Hash, NodeLocator Locator);
 }

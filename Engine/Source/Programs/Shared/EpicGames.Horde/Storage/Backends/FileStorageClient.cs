@@ -23,10 +23,8 @@ namespace EpicGames.Horde.Storage.Backends
 		/// Constructor
 		/// </summary>
 		/// <param name="rootDir">Root directory for storing blobs</param>
-		/// <param name="cache">Cache for blob data</param>
 		/// <param name="logger">Logger interface</param>
-		public FileStorageClient(DirectoryReference rootDir, IMemoryCache cache, ILogger logger)
-			: base(cache, logger)
+		public FileStorageClient(DirectoryReference rootDir, ILogger logger)
 		{
 			_rootDir = rootDir;
 			_logger = logger;

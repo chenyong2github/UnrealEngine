@@ -47,6 +47,9 @@ namespace Horde.Build.Tests
 
 		static Bundle CreateTestBundle(ReadOnlyMemory<byte> data, IReadOnlyList<BlobLocator> refs)
 		{
+			List<BundleType> types = new List<BundleType>();
+			types.Add(new BundleType(Guid.Parse("{AFDF76A7-5333-4DEE-B837-B5F5CA511245}"), 1));
+
 			List<BundleImport> imports = new List<BundleImport>();
 
 			Dictionary<BlobLocator, int> locatorToIndex = new Dictionary<BlobLocator, int>();
@@ -62,12 +65,12 @@ namespace Horde.Build.Tests
 			}
 
 			List<BundleExport> exports = new List<BundleExport>();
-			exports.Add(new BundleExport(IoHash.Compute(data.Span), (int)data.Length, refs.Select(x => locatorToIndex[x]).ToArray()));
+			exports.Add(new BundleExport(0, IoHash.Compute(data.Span), (int)data.Length, refs.Select(x => locatorToIndex[x]).ToArray()));
 
 			List<BundlePacket> packets = new List<BundlePacket>();
 			packets.Add(new BundlePacket((int)data.Length, (int)data.Length));
 
-			BundleHeader header = new BundleHeader(BundleCompressionFormat.None, imports, exports, packets);
+			BundleHeader header = new BundleHeader(BundleCompressionFormat.None, types, imports, exports, packets);
 			return new Bundle(header, new[] { data });
 		}
 

@@ -2,12 +2,14 @@
 
 using System;
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using EpicGames.Horde.Compute.Impl;
 
 namespace EpicGames.Horde.Storage
 {
@@ -39,13 +41,15 @@ namespace EpicGames.Horde.Storage
 	{
 		class NodeInfo
 		{
+			public readonly BundleType Type;
 			public readonly IoHash Hash;
 			public readonly int Length;
 			public readonly IReadOnlyList<IoHash> RefHashes;
 			public readonly TreeNodeRef NodeRef;
 
-			public NodeInfo(IoHash hash, int length, IReadOnlyList<IoHash> refs, TreeNodeRef nodeRef)
+			public NodeInfo(BundleType type, IoHash hash, int length, IReadOnlyList<IoHash> refs, TreeNodeRef nodeRef)
 			{
+				Type = type;
 				Hash = hash;
 				Length = length;
 				RefHashes = refs;
@@ -205,14 +209,14 @@ namespace EpicGames.Horde.Storage
 			nodeRef.MarkAsPendingWrite(hash);
 
 			// Check if we're already tracking a node with the same hash
-			NodeInfo nodeInfo = new NodeInfo(hash, (int)data.Length, nextHashes, nodeRef);
+			NodeInfo nodeInfo = new NodeInfo(nodeRef.Target.GetBundleType(), hash, (int)data.Length, nextHashes, nodeRef);
 			if (_hashToNode.TryGetValue(hash, out NodeLocator locator))
 			{
 				// If the node is in the lookup but not currently valid, it's already queued for writing. Add this ref to the list of refs that needs fixing up,
 				// so we can update it after flushing.
 				if (locator.IsValid())
 				{
-					nodeRef.MarkAsWritten(_store, hash, locator);
+					nodeRef.MarkAsWritten(hash, locator);
 				}
 				else
 				{
@@ -343,18 +347,30 @@ namespace EpicGames.Horde.Storage
 					imports.Add(new BundleImport(blobLocator, importedNodes));
 				}
 
+				// List of types in the bundle
+				List<BundleType> types = new List<BundleType>();
+				Dictionary<BundleType, int> typeToIndex = new Dictionary<BundleType, int>();
+
 				// Create the export list
 				List<BundleExport> exports = new List<BundleExport>(_queue.Count);
 				foreach (NodeInfo nodeInfo in _queue)
 				{
+					int typeIdx;
+					if (!typeToIndex.TryGetValue(nodeInfo.Type, out typeIdx))
+					{
+						typeIdx = types.Count;
+						typeToIndex.Add(nodeInfo.Type, typeIdx);
+						types.Add(nodeInfo.Type);
+					}
+
 					int[] references = nodeInfo.RefHashes.Select(x => nodeToIndex[x]).ToArray();
-					BundleExport export = new BundleExport(nodeInfo.Hash, nodeInfo.Length, references);
+					BundleExport export = new BundleExport(typeIdx, nodeInfo.Hash, nodeInfo.Length, references);
 					nodeToIndex.Add(nodeInfo.Hash, nodeToIndex.Count);
 					exports.Add(export);
 				}
 
 				// Create the bundle
-				BundleHeader header = new BundleHeader(_options.CompressionFormat, imports, exports, _packets.ToArray());
+				BundleHeader header = new BundleHeader(_options.CompressionFormat, types, imports, exports, _packets.ToArray());
 				Bundle bundle = new Bundle(header, _encodedPackets.ToArray());
 
 				// Write the bundle
@@ -364,7 +380,7 @@ namespace EpicGames.Horde.Storage
 					NodeLocator nodeLocator = new NodeLocator(locator, idx);
 
 					NodeInfo nodeInfo = _queue[idx];
-					nodeInfo.NodeRef.MarkAsWritten(_store, nodeInfo.Hash, nodeLocator);
+					nodeInfo.NodeRef.MarkAsWritten(nodeInfo.Hash, nodeLocator);
 
 					_hashToNode[nodeInfo.Hash] = nodeLocator;
 				}
@@ -376,7 +392,7 @@ namespace EpicGames.Horde.Storage
 					NodeInfo nodeInfo = _secondaryQueue[refIdx];
 					if (_hashToNode.TryGetValue(nodeInfo.Hash, out NodeLocator refLocator))
 					{
-						nodeInfo.NodeRef.MarkAsWritten(_store, nodeInfo.Hash, refLocator);
+						nodeInfo.NodeRef.MarkAsWritten(nodeInfo.Hash, refLocator);
 					}
 				}
 				_secondaryQueue.RemoveRange(0, refIdx);
