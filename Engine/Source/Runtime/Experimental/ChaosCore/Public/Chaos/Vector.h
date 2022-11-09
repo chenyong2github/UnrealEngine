@@ -1,6 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Real.h"
+#include "Chaos/Array.h"
+#include "Chaos/Pair.h"
+
+#include "Containers/StaticArray.h"
+
+#include <initializer_list>
+
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
@@ -18,14 +26,6 @@ namespace FMath
 	double Atan2(double x, double y) { return atan2(x, y); }
 }
 #endif
-
-#include "Chaos/Real.h"
-#include "Chaos/Array.h"
-#include "Chaos/Pair.h"
-
-#include "Containers/StaticArray.h"
-
-#include <initializer_list>
 
 namespace Chaos
 {
