@@ -12,7 +12,9 @@
 #include "Engine/EngineBaseTypes.h"
 #include "UObject/SoftObjectPath.h"
 #include "Engine/World.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Misc/BufferedOutputDevice.h"
+#endif
 #include "Misc/FrameRate.h"
 #include "Subsystems/SubsystemCollection.h"
 #include "Subsystems/EngineSubsystem.h"
@@ -21,6 +23,7 @@
 #include "RHI.h"
 #include "AudioDeviceManager.h"
 #endif
+#include "Templates/PimplPtr.h"
 #include "Templates/UniqueObj.h"
 #include "Containers/Ticker.h"
 #include "DynamicRenderScaling.h"
@@ -3671,20 +3674,8 @@ private:
 
 	// Helper struct that registers itself with the output redirector and copies off warnings
 	// and errors that we'll overlay on the client viewport
-	struct FErrorsAndWarningsCollector : public FBufferedOutputDevice
-	{
-		FErrorsAndWarningsCollector();
-		~FErrorsAndWarningsCollector();
-
-		void Initialize();
-		bool Tick(float Seconds);
-
-		TMap<uint32, uint32>	MessagesToCountMap;
-		FTSTicker::FDelegateHandle			TickerHandle;
-		float					DisplayTime;
-	};
-
-	FErrorsAndWarningsCollector	ErrorsAndWarningsCollector;
+	struct FErrorsAndWarningsCollector;
+	TPimplPtr<FErrorsAndWarningsCollector> ErrorsAndWarningsCollector;
 
 private:
 

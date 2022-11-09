@@ -27,6 +27,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "AI/NavigationSystemConfig.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/FileManager.h"
+#include "Misc/BufferedOutputDevice.h"
 #include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -1905,7 +1906,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Start capturing errors and warnings
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	ErrorsAndWarningsCollector.Initialize();
+	ErrorsAndWarningsCollector = MakePimpl<FErrorsAndWarningsCollector>();
 #endif
 
 #if WITH_EDITOR
@@ -10957,11 +10958,20 @@ void UEngine::RemoveOnScreenDebugMessage(uint64 Key)
 #endif
 }
 
-UEngine::FErrorsAndWarningsCollector::FErrorsAndWarningsCollector()
+struct UEngine::FErrorsAndWarningsCollector : public FBufferedOutputDevice
 {
-}
+	FErrorsAndWarningsCollector();
+	~FErrorsAndWarningsCollector();
 
-void UEngine::FErrorsAndWarningsCollector::Initialize()
+	bool Tick(float Seconds);
+
+	TArray<FBufferedLine>		ActiveLines;
+	TMap<uint32, uint32>		MessagesToCountMap;
+	FTSTicker::FDelegateHandle	TickerHandle;
+	float						DisplayTime;
+};
+
+UEngine::FErrorsAndWarningsCollector::FErrorsAndWarningsCollector()
 {
 	DisplayTime = 0.0f;
 	GConfig->GetFloat(TEXT("/Script/Engine.Engine"), TEXT("DurationOfErrorsAndWarningsOnHUD"), DisplayTime, GEngineIni);
@@ -10985,12 +10995,18 @@ UEngine::FErrorsAndWarningsCollector::~FErrorsAndWarningsCollector()
 
 bool UEngine::FErrorsAndWarningsCollector::Tick(float Seconds)
 {
-    QUICK_SCOPE_CYCLE_COUNTER(STAT_FErrorsAndWarningsCollector_Tick);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FErrorsAndWarningsCollector_Tick);
 
 	// Set this each tick, in case the cvar is changed at runtime
 	SetVerbosity((GSupressWarningsInOnScreenDisplay != 0) ? ELogVerbosity::Error : ELogVerbosity::Warning);
 
-	if (BufferedLines.Num())
+	{
+		TArray<FBufferedLine> NewLines;
+		GetContents(NewLines);
+		ActiveLines.Append(MoveTemp(NewLines));
+	}
+
+	if (ActiveLines.Num())
 	{
 		int DupeCount = 0;
 		int CurrentHash = 0;
@@ -10998,7 +11014,7 @@ bool UEngine::FErrorsAndWarningsCollector::Tick(float Seconds)
 		// Remove any dupes and count them
 		do 
 		{
-			uint32 ThisHash = FCrc::StrCrc32(BufferedLines[DupeCount].Data);
+			uint32 ThisHash = FCrc::StrCrc32(ActiveLines[DupeCount].Data);
 
 			if (CurrentHash && ThisHash != CurrentHash)
 			{
@@ -11008,14 +11024,14 @@ bool UEngine::FErrorsAndWarningsCollector::Tick(float Seconds)
 			CurrentHash = ThisHash;
 			DupeCount++;
 
-		} while (DupeCount < BufferedLines.Num());
+		} while (DupeCount < ActiveLines.Num());
 
 		// Save off properties
-		FString Msg = BufferedLines[0].Data;
-		ELogVerbosity::Type Verbosity = BufferedLines[0].Verbosity;
+		FString Msg = ActiveLines[0].Data;
+		ELogVerbosity::Type Verbosity = ActiveLines[0].Verbosity;
 
 		// Remove any lines we condensed
-		BufferedLines.RemoveAt(0, DupeCount);
+		ActiveLines.RemoveAt(0, DupeCount);
 
 		uint32* pCount = MessagesToCountMap.Find(CurrentHash);
 
@@ -11038,11 +11054,10 @@ bool UEngine::FErrorsAndWarningsCollector::Tick(float Seconds)
 		const float MaxTimeToKeep = 30.f;
 		const int32 MaxNumToKeep = FMath::TruncToInt(MaxTimeToKeep / DisplayTime);
 
-		if (BufferedLines.Num() > MaxNumToKeep)
+		if (ActiveLines.Num() > MaxNumToKeep)
 		{
-			BufferedLines.RemoveAt(0, BufferedLines.Num() - MaxNumToKeep);
+			ActiveLines.RemoveAt(0, ActiveLines.Num() - MaxNumToKeep);
 		}
-
 	}
 
 	return true;
