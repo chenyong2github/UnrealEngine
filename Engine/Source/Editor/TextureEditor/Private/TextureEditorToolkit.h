@@ -80,7 +80,6 @@ public:
 	virtual void SetZoomMode( const ETextureEditorZoomMode ZoomMode ) override;
 	virtual ETextureEditorZoomMode GetZoomMode() const override;
 	virtual double CalculateDisplayedZoomLevel() const override;
-	virtual void OffsetZoom( double OffsetValue, bool bSnapToStepSize = true );
 	virtual void ZoomIn( ) override;
 	virtual void ZoomOut( ) override;
 	virtual float GetVolumeOpacity( ) const override;
