@@ -377,7 +377,7 @@ void ULevelStreamingProfilingSubsystem::OnLevelUnqueuedForLoading(UWorld* World,
 	int32 NumRemoved = ActiveLevels.Remove(StreamingLevel);
 	if (NumRemoved == 0)
 	{	
-		UE_LOG(LogLevelStreamingProfiling, Warning, TEXT("Streaming level %s: %s unqueued for loading when it wasn't tracked"), 
+		UE_LOG(LogLevelStreamingProfiling, Verbose, TEXT("Streaming level %s: %s unqueued for loading when it wasn't tracked"), 
 			*StreamingLevel->GetName(), 
 			*StreamingLevel->GetWorldAssetPackageName());
 	}
@@ -408,7 +408,7 @@ void ULevelStreamingProfilingSubsystem::OnLevelStartedAsyncLoading(UWorld* World
 	TUniquePtr<FActiveLevel>& Level = ActiveLevels.FindOrAdd(StreamingLevel);
 	if (!Level.IsValid())
 	{
-		UE_LOG(LogLevelStreamingProfiling, Warning, TEXT("Streaming level %s started loading while untracked."), 
+		UE_LOG(LogLevelStreamingProfiling, Verbose, TEXT("Streaming level %s started loading while untracked."), 
 			*StreamingLevel->GetWorldAssetPackageName());
 		Level = MakeActiveLevel(StreamingLevel, ELevelState::QueuedForLoading);
 	}
@@ -437,7 +437,7 @@ void ULevelStreamingProfilingSubsystem::OnLevelFinishedAsyncLoading(UWorld* Worl
 	TUniquePtr<FActiveLevel>& Level = ActiveLevels.FindOrAdd(StreamingLevel);
 	if (!Level.IsValid())
 	{
-		UE_LOG(LogLevelStreamingProfiling, Warning, TEXT("Streaming level %s finished loading while untracked."), 
+		UE_LOG(LogLevelStreamingProfiling, Verbose, TEXT("Streaming level %s finished loading while untracked."), 
 			*StreamingLevel->GetWorldAssetPackageName());
 		Level = MakeActiveLevel(StreamingLevel, ELevelState::Loading, LoadedLevel);
 	}
@@ -494,7 +494,7 @@ void ULevelStreamingProfilingSubsystem::OnLevelQueuedForAddToWorld(UWorld* World
 	if (!Level.IsValid())
 	{
 		// Level loaded before we started profiling 
-		UE_LOG(LogLevelStreamingProfiling, Warning, TEXT("Streaming level %s queued for adding to world while untracked."), 
+		UE_LOG(LogLevelStreamingProfiling, Verbose, TEXT("Streaming level %s queued for adding to world while untracked."), 
 			*StreamingLevel->GetWorldAssetPackageName());
 		Level = MakeActiveLevel(StreamingLevel, ELevelState::Loaded, LoadedLevel);
 	}
@@ -537,7 +537,7 @@ void ULevelStreamingProfilingSubsystem::OnLevelUnqueuedForAddToWorld(UWorld* Wor
 	if (!Level.IsValid())
 	{
 		// Level loaded before we started profiling 
-		UE_LOG(LogLevelStreamingProfiling, Warning, TEXT("Streaming level %s unqueued for adding to world while untracked."), 
+		UE_LOG(LogLevelStreamingProfiling, Verbose, TEXT("Streaming level %s unqueued for adding to world while untracked."), 
 			*StreamingLevel->GetWorldAssetPackageName());
 		Level = MakeActiveLevel(StreamingLevel, ELevelState::Loaded, LoadedLevel);
 	}
@@ -568,7 +568,7 @@ void ULevelStreamingProfilingSubsystem::OnLevelStartedAddToWorld(UWorld* World, 
 	if (!Level.IsValid())
 	{
 		// Level loaded before we started profiling 
-		UE_LOG(LogLevelStreamingProfiling, Warning, TEXT("Streaming level %s started adding to world while untracked."), 
+		UE_LOG(LogLevelStreamingProfiling, Verbose, TEXT("Streaming level %s started adding to world while untracked."), 
 			*StreamingLevel->GetWorldAssetPackageName());
 		Level = MakeActiveLevel(StreamingLevel, ELevelState::QueuedForAddToWorld, LoadedLevel);
 	}
@@ -602,7 +602,7 @@ void ULevelStreamingProfilingSubsystem::OnLevelFinishedAddToWorld(UWorld* World,
 	if (!Level.IsValid())
 	{
 		// Level was streaming in before we started tracking 
-		UE_LOG(LogLevelStreamingProfiling, Warning, TEXT("Streaming level %s finished adding to world while untracked."), 
+		UE_LOG(LogLevelStreamingProfiling, Verbose, TEXT("Streaming level %s finished adding to world while untracked."), 
 			*StreamingLevel->GetWorldAssetPackageName());
 		Level = MakeActiveLevel(StreamingLevel, ELevelState::AddingToWorld, LoadedLevel);
 	}
@@ -678,7 +678,7 @@ void ULevelStreamingProfilingSubsystem::OnLevelQueuedForRemoveFromWorld(UWorld* 
 	if (!Level.IsValid())
 	{
 		// Level loaded before we started profiling 
-		UE_LOG(LogLevelStreamingProfiling, Warning, TEXT("Streaming level %s queued for removing from world while untracked."), 
+		UE_LOG(LogLevelStreamingProfiling, Verbose, TEXT("Streaming level %s queued for removing from world while untracked."), 
 			*StreamingLevel->GetWorldAssetPackageName());
 		Level = MakeActiveLevel(StreamingLevel, ELevelState::AddedToWorld, LoadedLevel);
 	}
@@ -709,7 +709,7 @@ void ULevelStreamingProfilingSubsystem::OnLevelUnqueuedForRemoveFromWorld(UWorld
 	if (!Level.IsValid())
 	{
 		// Level loaded before we started profiling 
-		UE_LOG(LogLevelStreamingProfiling, Warning, TEXT("Streaming level %s unqueued for removing from world while untracked."), 
+		UE_LOG(LogLevelStreamingProfiling, Verbose, TEXT("Streaming level %s unqueued for removing from world while untracked."), 
 			*StreamingLevel->GetWorldAssetPackageName());
 		Level = MakeActiveLevel(StreamingLevel, ELevelState::QueuedForRemoveFromWorld, LoadedLevel);
 	}
