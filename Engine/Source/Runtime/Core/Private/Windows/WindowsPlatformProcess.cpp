@@ -6,7 +6,6 @@
 #include "Containers/StringConv.h"
 #include "Containers/UnrealString.h"
 #include "CoreGlobals.h"
-#include "CoreGlobals.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformAffinity.h"
 #include "HAL/PlatformMisc.h"
