@@ -418,55 +418,13 @@ void UE::ShaderParameters::AddUniformBufferIncludesToEnvironment(FShaderCompiler
 	GeneratedUniformBuffersInclude.Append(UniformBufferIncludes);
 }
 
-static const uint32 NumUniformBufferLocks = 16u;
-static FRWLock UniformBufferLocks[NumUniformBufferLocks];
-
-template<typename ShaderTypename>
-FRWLock& GetUniformBufferLock(const ShaderTypename* InShaderType)
-{
-	const uint32 LockIndex = InShaderType->GetHashedName().GetHash() % NumUniformBufferLocks;
-	return UniformBufferLocks[LockIndex];
-}
-
 void FShaderType::FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables)
 {
-	// If we've ever been used to populate a shader compiler environment, reset and repopulate the list of uniform buffers
-	if (CachedUniformBufferPlatform != SP_NumPlatforms)
-	{
-		FWriteScopeLock Lock(GetUniformBufferLock(this));
-		if (CachedUniformBufferPlatform != SP_NumPlatforms)
-		{
-			ReferencedUniformBufferNames.Empty();
-			GenerateReferencedUniformBufferNames(SourceFilename, Name, ShaderFileToUniformBufferVariables, ReferencedUniformBufferNames);
-			CachedUniformBufferPlatform = SP_NumPlatforms;
-		}
-	}
 }
 
 void FShaderType::AddUniformBufferIncludesToEnvironment(FShaderCompilerEnvironment& OutEnvironment, EShaderPlatform Platform) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderType::AddReferencedUniformBufferIncludes);
-
-	TOptional<FReadScopeLock> ReadScopeLock; // TOptional is so we can unlock and lock manually; the FReadScopeLock api does not support that
-	ReadScopeLock.Emplace(GetUniformBufferLock(this));
-
-	while (CachedUniformBufferPlatform != Platform)
-	{
-		// Cache uniform buffer struct declarations referenced by this shader type's files
-
-		// Drop the ReadLock, acquire a write lock
-		//     Write the ReferencedUniformBufferStructsCache for the new Platform
-		// Drop the WriteLock, reacquire the ReadLock
-		ReadScopeLock.Reset();
-		{
-			FWriteScopeLock WriteScopeLock(GetUniformBufferLock(this));
-			if (CachedUniformBufferPlatform != Platform)
-			{
-				CachedUniformBufferPlatform = Platform;
-			}
-		}
-		ReadScopeLock.Emplace(GetUniformBufferLock(this));
-	}
 
 	UE::ShaderParameters::AddUniformBufferIncludesToEnvironment(OutEnvironment, ReferencedUniformBufferNames);
 }
@@ -536,43 +494,10 @@ void FShaderType::GetShaderStableKeyParts(FStableShaderKeyAndValue& SaveKeyVal)
 
 void FVertexFactoryType::FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables)
 {
-	// If we've ever been used to populate a shader compiler environment, reset and repopulate the list of uniform buffers
-	if (CachedUniformBufferPlatform != SP_NumPlatforms)
-	{
-		FWriteScopeLock Lock(GetUniformBufferLock(this));
-		if (CachedUniformBufferPlatform != SP_NumPlatforms)
-		{
-			ReferencedUniformBufferNames.Empty();
-			GenerateReferencedUniformBufferNames(ShaderFilename, Name, ShaderFileToUniformBufferVariables, ReferencedUniformBufferNames);
-			CachedUniformBufferPlatform = SP_NumPlatforms;
-		}
-	}
 }
-
 void FVertexFactoryType::AddUniformBufferIncludesToEnvironment(FShaderCompilerEnvironment& OutEnvironment, EShaderPlatform Platform) const
 {
-	TOptional<FReadScopeLock> ReadScopeLock; // TOptional is so we can unlock and lock manually; the FReadScopeLock api does not support that
-	ReadScopeLock.Emplace(GetUniformBufferLock(this));
-	while (CachedUniformBufferPlatform != Platform)
-	{
-		// Cache uniform buffer struct declarations referenced by this shader type's files
-
-		// Drop the ReadLock, acquire a write lock
-		//     Write the ReferencedUniformBufferStructsCache for the new Platform
-		// Drop the WriteLock, reacquire the ReadLock
-		ReadScopeLock.Reset();
-		{
-			FWriteScopeLock WriteScopeLock(GetUniformBufferLock(this));
-			if (CachedUniformBufferPlatform != Platform)
-			{
-				CachedUniformBufferPlatform = Platform;
-			}
-		}
-		ReadScopeLock.Emplace(GetUniformBufferLock(this));
-	}
-
 	UE::ShaderParameters::AddUniformBufferIncludesToEnvironment(OutEnvironment, ReferencedUniformBufferNames);
 }
-
 
 #endif // WITH_EDITOR

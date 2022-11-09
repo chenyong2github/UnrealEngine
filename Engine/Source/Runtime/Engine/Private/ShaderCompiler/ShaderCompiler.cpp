@@ -6706,6 +6706,8 @@ bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar)
 			{
 				FRecompileShadersTimer TestTimer(TEXT("RecompileShaders Changed"));
 
+				UpdateReferencedUniformBufferNames(OutdatedShaderTypes, OutdatedFactoryTypes, OutdatedShaderPipelineTypes);
+
 				UMaterialInterface::IterateOverActiveFeatureLevels([&](ERHIFeatureLevel::Type InFeatureLevel) {
 					auto ShaderPlatform = GShaderPlatformForFeatureLevel[InFeatureLevel];
 					BeginRecompileGlobalShaders(OutdatedShaderTypes, OutdatedShaderPipelineTypes, ShaderPlatform);
@@ -6810,12 +6812,11 @@ bool RecompileShaders(const TCHAR* Cmd, FOutputDevice& Ar)
 			{
 				FRecompileShadersTimer TestTimer(TEXT("RecompileShaders SingleShader"));
 				
-				TArray<const FVertexFactoryType*> FactoryTypes;
+				UpdateReferencedUniformBufferNames(ShaderTypes, {}, ShaderPipelineTypes);
 
 				UMaterialInterface::IterateOverActiveFeatureLevels([&](ERHIFeatureLevel::Type InFeatureLevel) {
 					auto ShaderPlatform = GShaderPlatformForFeatureLevel[InFeatureLevel];
 					BeginRecompileGlobalShaders(ShaderTypes, ShaderPipelineTypes, ShaderPlatform);
-					//UMaterial::UpdateMaterialShaders(ShaderTypes, ShaderPipelineTypes, FactoryTypes, ShaderPlatform);
 					FinishRecompileGlobalShaders();
 				});
 			}
@@ -7760,6 +7761,10 @@ bool RecompileChangedShadersForPlatform(const FString& PlatformName)
 	GetOutdatedShaderTypes(OutdatedShaderTypes, OutdatedShaderPipelineTypes, OutdatedFactoryTypes);
 	UE_LOG(LogShaders, Display, TEXT("We found %d out of date shader types, %d outdated pipeline types, and %d out of date VF types!"), OutdatedShaderTypes.Num(), OutdatedShaderPipelineTypes.Num(), OutdatedFactoryTypes.Num());
 
+#if WITH_EDITOR
+	UpdateReferencedUniformBufferNames(OutdatedShaderTypes, OutdatedFactoryTypes, OutdatedShaderPipelineTypes);
+#endif
+
 	for (int32 FormatIndex = 0; FormatIndex < DesiredShaderFormats.Num(); FormatIndex++)
 	{
 		// get the shader platform enum
@@ -7970,11 +7975,6 @@ void RecompileShadersForRemote(
 
 	const uint32 StartTotalShadersCompiled = GShaderCompilerStats->GetTotalShadersCompiled();
 
-	// figure out which shaders are out of date
-	TArray<const FShaderType*> OutdatedShaderTypes;
-	TArray<const FVertexFactoryType*> OutdatedFactoryTypes;
-	TArray<const FShaderPipelineType*> OutdatedShaderPipelineTypes;
-
 	// Pick up new changes to shader files
 	FlushShaderFileCache();
 
@@ -8006,11 +8006,18 @@ void RecompileShadersForRemote(
 						UE_LOG(LogShaders, Display, TEXT("\t%s..."), ShaderType->GetName());
 					}
 
+					UpdateReferencedUniformBufferNames(ShaderTypes, {}, ShaderPipelineTypes);
+
 					CompileGlobalShaderMapForRemote(ShaderTypes, ShaderPipelineTypes, ShaderPlatform, TargetPlatform, Args.GlobalShaderMap);
 				}
 				else if (Args.CommandType == ODSCRecompileCommand::Global ||
 						 Args.CommandType == ODSCRecompileCommand::Changed)
 				{
+					// figure out which shaders are out of date
+					TArray<const FShaderType*> OutdatedShaderTypes;
+					TArray<const FVertexFactoryType*> OutdatedFactoryTypes;
+					TArray<const FShaderPipelineType*> OutdatedShaderPipelineTypes;
+
 					// Explicitly get outdated types for global shaders.
 					const FGlobalShaderMap* ShaderMap = GGlobalShaderMap[ShaderPlatform];
 					if (ShaderMap)
@@ -8019,6 +8026,8 @@ void RecompileShadersForRemote(
 					}
 
 					UE_LOG(LogShaders, Display, TEXT("\tFound %d outdated shader types."), OutdatedShaderTypes.Num() + OutdatedShaderPipelineTypes.Num());
+
+					UpdateReferencedUniformBufferNames(OutdatedShaderTypes, OutdatedFactoryTypes, OutdatedShaderPipelineTypes);
 
 					CompileGlobalShaderMapForRemote(OutdatedShaderTypes, OutdatedShaderPipelineTypes, ShaderPlatform, TargetPlatform, Args.GlobalShaderMap);
 				}

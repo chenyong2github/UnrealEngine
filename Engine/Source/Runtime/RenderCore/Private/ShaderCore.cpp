@@ -1540,39 +1540,45 @@ void FlushShaderFileCache()
 		GShaderFileCache.Empty();
 	}
 
+	UE_LOG(LogShaders, Log, TEXT("FlushShaderFileCache() end"));
+}
+
 #if WITH_EDITOR
+
+void UpdateReferencedUniformBufferNames(
+	TArrayView<const FShaderType*> OutdatedShaderTypes,
+	TArrayView<const FVertexFactoryType*> OutdatedFactoryTypes,
+	TArrayView<const FShaderPipelineType*> OutdatedShaderPipelineTypes)
+{
 	if (!FPlatformProperties::RequiresCookedData())
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UpdateReferencedUniformBufferNames);
+
 		LogShaderSourceDirectoryMappings();
 
 		TMap<FString, TArray<const TCHAR*> > ShaderFileToUniformBufferVariables;
 		BuildShaderFileToUniformBufferMap(ShaderFileToUniformBufferVariables);
 
-		for (TLinkedList<FShaderPipelineType*>::TConstIterator It(FShaderPipelineType::GetTypeList()); It; It.Next())
+		for (const FShaderPipelineType* PipelineType : OutdatedShaderPipelineTypes)
 		{
-			const auto& Stages = It->GetStages();
-			for (const FShaderType* ShaderType : Stages)
+			for (const FShaderType* ShaderType : PipelineType->GetStages())
 			{
-				((FShaderType*)ShaderType)->FlushShaderFileCache(ShaderFileToUniformBufferVariables);
+				const_cast<FShaderType*>(ShaderType)->UpdateReferencedUniformBufferNames(ShaderFileToUniformBufferVariables);
 			}
 		}
 
-		for(TLinkedList<FShaderType*>::TIterator It(FShaderType::GetTypeList()); It; It.Next())
+		for (const FShaderType* ShaderType : OutdatedShaderTypes)
 		{
-			It->FlushShaderFileCache(ShaderFileToUniformBufferVariables);
+			const_cast<FShaderType*>(ShaderType)->UpdateReferencedUniformBufferNames(ShaderFileToUniformBufferVariables);
 		}
 
-		for(TLinkedList<FVertexFactoryType*>::TIterator It(FVertexFactoryType::GetTypeList()); It; It.Next())
+		for (const FVertexFactoryType* VertexFactoryType : OutdatedFactoryTypes)
 		{
-			It->FlushShaderFileCache(ShaderFileToUniformBufferVariables);
+			const_cast<FVertexFactoryType*>(VertexFactoryType)->UpdateReferencedUniformBufferNames(ShaderFileToUniformBufferVariables);
 		}
 	}
-#endif // WITH_EDITOR
-
-	UE_LOG(LogShaders, Log, TEXT("FlushShaderFileCache() end"));
 }
 
-#if WITH_EDITOR
 void GenerateReferencedUniformBufferNames(
 	const TCHAR* SourceFilename,
 	const TCHAR* ShaderTypeName,

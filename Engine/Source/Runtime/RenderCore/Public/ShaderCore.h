@@ -1090,6 +1090,16 @@ extern RENDERCORE_API void VerifyShaderSourceFiles(EShaderPlatform ShaderPlatfor
 
 #if WITH_EDITOR
 
+class FShaderType;
+class FVertexFactoryType;
+class FShaderPipelineType;
+
+/** Force updates each shader/pipeline type provided to update their list of referenced uniform buffers. */
+RENDERCORE_API void UpdateReferencedUniformBufferNames(
+	TArrayView<const FShaderType*> OutdatedShaderTypes,
+	TArrayView<const FVertexFactoryType*> OutdatedFactoryTypes,
+	TArrayView<const FShaderPipelineType*> OutdatedShaderPipelineTypes);
+
 struct FCachedUniformBufferDeclaration
 {
 	// Using SharedPtr so we can hand off lifetime ownership to FShaderCompilerEnvironment::IncludeVirtualPathToExternalContentsMap when invalidating this cache

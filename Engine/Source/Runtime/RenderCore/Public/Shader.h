@@ -1418,6 +1418,9 @@ public:
 		AddUniformBufferIncludesToEnvironment(OutEnvironment, Platform);
 	}
 
+	void UpdateReferencedUniformBufferNames(const TMap<FString, TArray<const TCHAR*>>& ShaderFileToUniformBufferVariables);
+
+	UE_DEPRECATED(5.2, "FlushShaderFileCache is deprecated. UpdateReferencedUniformBufferNames should be used to flush any uniform buffer changes")
 	void FlushShaderFileCache(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables);
 
 	void GetShaderStableKeyParts(struct FStableShaderKeyAndValue& SaveKeyVal);
@@ -1457,9 +1460,6 @@ private:
 
 #if WITH_EDITOR
 protected:
-	/** Tracks the last platform ReferencedUniformBufferNames was read from in AddUniformBufferIncludesToEnvironment. */
-	mutable std::atomic<EShaderPlatform> CachedUniformBufferPlatform{ SP_NumPlatforms };
-
 	/**
 	* Cache of referenced uniform buffer includes.
 	* These are derived from source files so they need to be flushed when editing and recompiling shaders on the fly.

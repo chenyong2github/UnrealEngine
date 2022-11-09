@@ -397,8 +397,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FNiagaraShaderType::AddUniformBufferIncludesToEnvironment(FShaderCompilerEnvironment& OutEnvironment, EShaderPlatform Platform) const
 {
-	CachedUniformBufferPlatform = Platform;
-
 	UE::ShaderParameters::AddUniformBufferIncludesToEnvironment(OutEnvironment, ReferencedUniformBufferNames);
 }
 

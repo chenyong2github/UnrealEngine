@@ -194,6 +194,10 @@ static void RestoreReferencesToRendererModuleClasses(
 	TArray<const FShaderPipelineType*> OutdatedShaderPipelineTypes;
 	GetOutdatedShaderTypes(OutdatedShaderTypes, OutdatedShaderPipelineTypes, OutdatedFactoryTypes);
 
+#if WITH_EDITOR
+	UpdateReferencedUniformBufferNames(OutdatedShaderTypes, OutdatedFactoryTypes, OutdatedShaderPipelineTypes);
+#endif
+
 	// Recompile any missing shaders
 	UMaterialInterface::IterateOverActiveFeatureLevels([&](ERHIFeatureLevel::Type FeatureLevel) 
 	{

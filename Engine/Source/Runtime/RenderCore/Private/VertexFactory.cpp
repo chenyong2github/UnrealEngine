@@ -52,6 +52,14 @@ FVertexFactoryType* FVertexFactoryType::GetVFByName(const FHashedName& VFName)
 	return Type ? *Type : nullptr;
 }
 
+#if WITH_EDITOR
+void FVertexFactoryType::UpdateReferencedUniformBufferNames(const TMap<FString, TArray<const TCHAR*>>& ShaderFileToUniformBufferVariables)
+{
+	ReferencedUniformBufferNames.Empty();
+	GenerateReferencedUniformBufferNames(ShaderFilename, Name, ShaderFileToUniformBufferVariables, ReferencedUniformBufferNames);
+}
+#endif
+
 void FVertexFactoryType::Initialize(const TMap<FString, TArray<const TCHAR*> >& ShaderFileToUniformBufferVariables)
 {
 #if WITH_EDITOR
@@ -62,7 +70,7 @@ void FVertexFactoryType::Initialize(const TMap<FString, TArray<const TCHAR*> >& 
 		for(TLinkedList<FVertexFactoryType*>::TIterator It(FVertexFactoryType::GetTypeList()); It; It.Next())
 		{
 			FVertexFactoryType* Type = *It;
-			GenerateReferencedUniformBufferNames(Type->ShaderFilename, Type->Name, ShaderFileToUniformBufferVariables, Type->ReferencedUniformBufferNames);
+			Type->UpdateReferencedUniformBufferNames(ShaderFileToUniformBufferVariables);
 		}
 	}
 #endif // WITH_EDITOR

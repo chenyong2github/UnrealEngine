@@ -424,6 +424,11 @@ bool FShaderType::ValidateCompiledResult(EShaderPlatform Platform, const FShader
 	return (*ValidateCompiledResultRef)(Platform, ParameterMap, OutError);
 }
 
+void FShaderType::UpdateReferencedUniformBufferNames(const TMap<FString, TArray<const TCHAR*>>& ShaderFileToUniformBufferVariables)
+{
+	ReferencedUniformBufferNames.Empty();
+	GenerateReferencedUniformBufferNames(SourceFilename, Name, ShaderFileToUniformBufferVariables, ReferencedUniformBufferNames);
+}
 #endif // WITH_EDITOR
 
 ERayTracingPayloadType FShaderType::GetRayTracingPayloadType(const int32 PermutationId) const
@@ -456,7 +461,7 @@ void FShaderType::Initialize(const TMap<FString, TArray<const TCHAR*> >& ShaderF
 #if UE_BUILD_DEBUG
 			UniqueShaderTypes.Add(Type);
 #endif
-			GenerateReferencedUniformBufferNames(Type->SourceFilename, Type->Name, ShaderFileToUniformBufferVariables, Type->ReferencedUniformBufferNames);
+			Type->UpdateReferencedUniformBufferNames(ShaderFileToUniformBufferVariables);
 		}
 	
 #if UE_BUILD_DEBUG
