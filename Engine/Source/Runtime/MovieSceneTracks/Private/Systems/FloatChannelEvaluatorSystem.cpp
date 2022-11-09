@@ -161,6 +161,7 @@ UFloatChannelEvaluatorSystem::UFloatChannelEvaluatorSystem(const FObjectInitiali
 		{
 			RegisterChannelType(Components->FloatChannel[Index], Components->CachedInterpolation[Index], Components->DoubleResult[Index]);
 		}
+		RegisterChannelType(Components->WeightChannel, Components->CachedWeightChannelInterpolation, Components->WeightResult);
 	}
 }
 
