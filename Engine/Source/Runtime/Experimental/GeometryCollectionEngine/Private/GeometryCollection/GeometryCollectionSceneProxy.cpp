@@ -818,7 +818,7 @@ FMaterialRenderProxy* FGeometryCollectionSceneProxy::GetMaterial(FMeshElementCol
 		Collector.RegisterOneFrameMaterialProxy(VertexColorVisualizationMaterialInstance);
 		MaterialProxy = VertexColorVisualizationMaterialInstance;
 	}
-	else
+	else if(Materials.IsValidIndex(MaterialIndex))
 	{
 		MaterialProxy = Materials[MaterialIndex]->GetRenderProxy();
 	}
