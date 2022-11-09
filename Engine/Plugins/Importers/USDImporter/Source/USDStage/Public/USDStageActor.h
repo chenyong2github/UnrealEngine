@@ -31,7 +31,7 @@ enum class EUsdPurpose : int32;
 struct FMeshDescription;
 struct FUsdSchemaTranslationContext;
 
-UCLASS( MinimalAPI )
+UCLASS( MinimalAPI, config = USDImporter )
 class AUsdStageActor : public AActor
 {
 	GENERATED_BODY()
@@ -43,24 +43,28 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", meta = (RelativeToGameDir))
 	FFilePath RootLayer;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD")
+	// These properties are configs so that spawned actors read them from the CDO when spawned.
+	// This allows the defaults for them to be configured on EditorPerProjectUserSettings.ini, and allows us to write
+	// to that config from the USD Stage Editor, specifying our options before the editor is attached to any stage actor.
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", config )
 	EUsdInitialLoadSet InitialLoadSet;
 
-	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "USD" )
+	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "USD", config )
 	EUsdInterpolationType InterpolationType;
 
 	/**
 	 * Whether to try to combine individual assets and components of the same type on a kind-per-kind basis,
 	 * like multiple Mesh prims into a single Static Mesh
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", meta = (Bitmask, BitmaskEnum="/Script/UnrealUSDWrapper.EUsdDefaultKind"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", config, meta = (Bitmask, BitmaskEnum="/Script/UnrealUSDWrapper.EUsdDefaultKind"))
 	int32 KindsToCollapse;
 
 	/**
 	 * If enabled, when multiple mesh prims are collapsed into a single static mesh, identical material slots are merged into one slot.
 	 * Otherwise, materials slots are simply appended to the list.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", config )
 	bool bMergeIdenticalMaterialSlots;
 
 	/**
@@ -73,23 +77,23 @@ public:
 	bool bCollapseTopLevelPointInstancers;
 
 	/* Only load prims with these specific purposes from the USD file */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", meta = (Bitmask, BitmaskEnum="/Script/UnrealUSDWrapper.EUsdPurpose"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", config, meta = (Bitmask, BitmaskEnum="/Script/UnrealUSDWrapper.EUsdPurpose"))
 	int32 PurposesToLoad;
 
 	/** Try enabling Nanite for static meshes that are generated with at least this many triangles */
-	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "USD", meta = ( NoSpinbox = "true", UIMin = "0", ClampMin = "0" ))
+	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "USD", config, meta = ( NoSpinbox = "true", UIMin = "0", ClampMin = "0" ))
 	int32 NaniteTriangleThreshold;
 
 	/** Specifies which set of shaders to use when parsing USD materials, in addition to the universal render context. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "USD", config )
 	FName RenderContext;
 
 	/** Specifies which material purbose to use when parsing USD material bindings, in addition to the "allPurpose" fallback. */
-	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "USD" )
+	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "USD", config )
 	FName MaterialPurpose;
 
 	// Describes what to add to the root bone animation within generated AnimSequences, if anything
-	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "USD" )
+	UPROPERTY( EditAnywhere, BlueprintReadOnly, Category = "USD", config )
 	EUsdRootMotionHandling RootMotionHandling = EUsdRootMotionHandling::NoAdditionalRootMotion;
 
 public:

@@ -86,6 +86,8 @@ protected:
 
 	UE::FUsdStageWeak GetCurrentStage() const;
 
+	AUsdStageActor* GetStageActorOrCDO() const;
+
 protected:
 	TSharedPtr< class SUsdStageTreeView > UsdStageTreeView;
 	TSharedPtr< class SUsdPrimInfo > UsdPrimInfoWidget;
