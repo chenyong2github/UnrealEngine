@@ -344,6 +344,10 @@ namespace ObjectTools
 
 				TSet<UObject*> Roots = FindObjectsRoots(Referencers);
 
+				// Remove the object we plan on deleting if it turns out to be a root because
+				// the RF_Standalone flag is always removed later in the process.
+				Roots.Remove(InObject);
+
 				if (Roots.Contains(Transactor))
 				{
 					bOutIsReferencedInMemoryByUndo = true;
