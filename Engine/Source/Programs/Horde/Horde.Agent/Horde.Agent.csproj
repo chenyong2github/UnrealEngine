@@ -53,31 +53,31 @@
   <ItemGroup>
     <Content Include="appsettings.json" Condition="Exists('appsettings.json')">
       <Generator></Generator>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </Content>
     <Content Include="appsettings.Development.json" Condition="Exists('appsettings.Development.json')">
       <Generator></Generator>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <DependentUpon>appsettings.json</DependentUpon>
     </Content>
     <Content Include="appsettings.Local.json" Condition="Exists('appsettings.Local.json')">
       <Generator></Generator>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <DependentUpon>appsettings.json</DependentUpon>
     </Content>
     <Content Include="appsettings.Production.json" Condition="Exists('appsettings.Production.json')">
       <Generator></Generator>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <DependentUpon>appsettings.json</DependentUpon>
     </Content>
     <Content Include="appsettings.User.json" Condition="Exists('appsettings.User.json')">
       <Generator></Generator>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <DependentUpon>appsettings.json</DependentUpon>
     </Content>
   </ItemGroup>
