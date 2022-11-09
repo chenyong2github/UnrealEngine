@@ -47,6 +47,7 @@ static FAutoConsoleVariableRef CVarVulkanPreventOverlapWithUpload(
 #define CMD_BUFFER_TIME_TO_WAIT_BEFORE_DELETING		10
 
 const uint32 GNumberOfFramesBeforeDeletingDescriptorPool = 300;
+extern int32 GVulkanAutoCorrectUnknownLayouts;
 
 FVulkanCmdBuffer::FVulkanCmdBuffer(FVulkanDevice* InDevice, FVulkanCommandBufferPool* InCommandBufferPool, bool bInIsUploadOnly)
 	: CurrentStencilRef(0)
@@ -66,8 +67,7 @@ FVulkanCmdBuffer::FVulkanCmdBuffer(FVulkanDevice* InDevice, FVulkanCommandBuffer
 	, CommandBufferPool(InCommandBufferPool)
 	, Timing(nullptr)
 	, LastValidTiming(0)
-	, LayoutManager(InDevice->SupportsParallelRendering(), 
-		InDevice->SupportsParallelRendering() ? nullptr :
+	, LayoutManager(InDevice->SupportsParallelRendering() && !GVulkanAutoCorrectUnknownLayouts,
 		&InCommandBufferPool->GetMgr().GetCommandListContext()->GetQueue()->GetLayoutManager())
 {
 	{
