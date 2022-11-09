@@ -822,10 +822,10 @@ const AutoScalerPanel: React.FC = () => {
                      setState({ ...state, modified: true, strategy: option!.data })
                   }} />
                   <SpinButton styles={{ root: { width: 128 } }} disabled={disabled} label="Minimum Agents" value={state.minAgents?.toString() ?? UNSET_VALUE} labelPosition={Position.top} onChange={(ev, value) => {
-                     setState({ ...state, modified: true, minAgents: value == UNSET_VALUE ? undefined : parseInt(value ?? "0") })
+                     setState({ ...state, modified: true, minAgents: value === UNSET_VALUE ? undefined : parseInt(value ?? "0") })
                   }} />
                   <SpinButton styles={{ root: { width: 128 } }} disabled={disabled} label="Reserve Agents" value={state.reserveAgents?.toString() ?? UNSET_VALUE} labelPosition={Position.top} onChange={(ev, value) => {
-                     setState({ ...state, modified: true, reserveAgents: value == UNSET_VALUE ? undefined : parseInt(value ?? "0") })
+                     setState({ ...state, modified: true, reserveAgents: value === UNSET_VALUE ? undefined : parseInt(value ?? "0") })
                   }} />
                </Stack>
                <Stack>
