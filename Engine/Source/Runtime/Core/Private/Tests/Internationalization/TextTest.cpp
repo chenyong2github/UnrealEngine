@@ -19,9 +19,6 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-// Disable optimization for TextTest as it compiles very slowly in development builds
-PRAGMA_DISABLE_OPTIMIZATION
-
 #define LOCTEXT_NAMESPACE "Core.Tests.TextFormatTest"
 
 
@@ -1578,8 +1575,5 @@ bool FICUTextTest::RunTest (const FString& Parameters)
 #endif // #if UE_ENABLE_ICU
 
 #undef LOCTEXT_NAMESPACE 
-
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #endif //WITH_DEV_AUTOMATION_TESTS

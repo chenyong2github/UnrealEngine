@@ -13,7 +13,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(VisualLoggerAutomationTests)
 
-PRAGMA_DISABLE_OPTIMIZATION
 namespace
 {
 	UWorld* GetSimpleEngineAutomationTestWorld(const int32 TestFlags)
@@ -611,5 +610,3 @@ bool FVisualLogRedirectionsDeepHierarchyToNewParentTest::RunTest(const FString& 
 #undef CHECK_FAIL
 
 #endif //ENABLE_VISUAL_LOG
-PRAGMA_ENABLE_OPTIMIZATION
-

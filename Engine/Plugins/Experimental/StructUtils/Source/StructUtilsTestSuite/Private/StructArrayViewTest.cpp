@@ -6,8 +6,6 @@
 
 #define LOCTEXT_NAMESPACE "StructUtilsTests"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 namespace FStructArrayViewTest
 {
 
@@ -42,7 +40,5 @@ struct FTest_ChangeElements : FAITestBase
 IMPLEMENT_AI_INSTANT_TEST(FTest_ChangeElements, "System.StructUtils.StructArrayView.ChangeElements");
 
 } // FStructArrayViewTest
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

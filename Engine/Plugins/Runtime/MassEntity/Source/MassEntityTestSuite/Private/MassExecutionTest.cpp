@@ -9,8 +9,6 @@
 
 #define LOCTEXT_NAMESPACE "MassTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 //----------------------------------------------------------------------//
 // tests 
 //----------------------------------------------------------------------//
@@ -171,7 +169,5 @@ struct FExecution_Sparse : FEntityTestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FExecution_Sparse, "System.Mass.Execution.Sparse");
 } // FMassExecutionTest
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

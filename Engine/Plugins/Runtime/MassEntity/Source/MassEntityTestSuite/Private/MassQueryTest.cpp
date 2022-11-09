@@ -11,8 +11,6 @@
 
 #define LOCTEXT_NAMESPACE "MassTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 /**
 mz@todo:
 	- add a test for requirement mode (read/write, absent, [future] optional)
@@ -545,8 +543,6 @@ struct FQueryTest_AnyTag : FEntityTestBase
 IMPLEMENT_AI_INSTANT_TEST(FQueryTest_AnyTag, "System.Mass.Query.AnyTag");
 
 } // FMassQueryTest
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE
 

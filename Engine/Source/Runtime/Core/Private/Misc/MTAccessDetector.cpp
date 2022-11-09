@@ -7,8 +7,6 @@
 
 #if ENABLE_MT_DETECTOR
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 //----------------------------------------------------------------------//
 // FRWAccessDetector tests
 //----------------------------------------------------------------------//
@@ -327,5 +325,4 @@ bool FRWAccessDetector_FullyRecursiveReadReentrance::RunTest(const FString& Para
 	return Success;
 }
 
-PRAGMA_ENABLE_OPTIMIZATION
 #endif // ENABLE_MT_DETECTOR

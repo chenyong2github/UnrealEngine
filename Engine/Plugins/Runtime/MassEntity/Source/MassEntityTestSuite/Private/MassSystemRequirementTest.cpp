@@ -11,8 +11,6 @@
 
 #define LOCTEXT_NAMESPACE "MassTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 //template<>
 //struct TMassExternalSystemGetter<FMassEntityManager>
 //{
@@ -90,7 +88,5 @@ struct FConstRequirement : FSystemRequirementTestBase
 IMPLEMENT_AI_INSTANT_TEST(FConstRequirement, "System.Mass.Query.System.TrivialConst");
 
 } // FMassSystemRequirementTest
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

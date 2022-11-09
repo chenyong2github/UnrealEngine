@@ -7,8 +7,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(SourceEffectFilter)
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 FSourceEffectFilter::FSourceEffectFilter()
 	: CurrentFilter(nullptr)
 	, SampleRate(0.0f)
@@ -213,6 +211,3 @@ void USourceEffectFilterPreset::SetSettings(const FSourceEffectFilterSettings& I
 {
 	UpdateSettings(InSettings);
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
-

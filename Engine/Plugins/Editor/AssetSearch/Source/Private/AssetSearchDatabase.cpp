@@ -22,8 +22,6 @@ DEFINE_LOG_CATEGORY(LogAssetSearch);
 
 FString ConvertToFullTextSearchQuery(const FString& QueryText);
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 enum class EAssetSearchDatabaseVersion
 {
 	Empty,
@@ -929,5 +927,3 @@ FString ConvertToFullTextSearchQuery(const FString& QueryText)
 
 	return Q.ToString();
 }
-
-PRAGMA_ENABLE_OPTIMIZATION

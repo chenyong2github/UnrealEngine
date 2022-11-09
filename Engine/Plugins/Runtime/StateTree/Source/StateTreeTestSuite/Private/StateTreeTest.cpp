@@ -17,8 +17,6 @@
 
 #define LOCTEXT_NAMESPACE "AITestSuite_StateTreeTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 std::atomic<int32> FStateTreeTestConditionInstanceData::GlobalCounter = 0;
 
 namespace UE::StateTree::Tests
@@ -434,8 +432,6 @@ struct FStateTreeTest_SharedInstanceData : FAITestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FStateTreeTest_SharedInstanceData, "System.StateTree.SharedInstanceData");
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE
 

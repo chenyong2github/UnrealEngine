@@ -44,8 +44,6 @@
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(MoviePipelineBlueprintLibrary)
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 EMovieRenderPipelineState UMoviePipelineBlueprintLibrary::GetPipelineState(const UMoviePipeline* InPipeline)
 {
 	if (InPipeline)
@@ -1169,4 +1167,4 @@ FText UMoviePipelineBlueprintLibrary::GetMoviePipelineEngineChangelistLabel(cons
 
 	return FText();
 }
-PRAGMA_ENABLE_OPTIMIZATION
+

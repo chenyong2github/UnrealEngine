@@ -259,7 +259,6 @@ void FTexture2DBuilder::Commit(bool bUpdateSourceData)
 	}
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
 void FTexture2DBuilder::UpdateSourceData()
 {
 	// source data only exists in Editor
@@ -292,8 +291,6 @@ void FTexture2DBuilder::UpdateSourceData()
 	}
 #endif
 }
-PRAGMA_ENABLE_OPTIMIZATION
-
 
 void FTexture2DBuilder::Cancel()
 {

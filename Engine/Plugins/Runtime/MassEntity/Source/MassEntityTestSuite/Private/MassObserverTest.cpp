@@ -9,8 +9,6 @@
 
 #define LOCTEXT_NAMESPACE "MassTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 //----------------------------------------------------------------------//
 // tests 
 //----------------------------------------------------------------------//
@@ -213,7 +211,5 @@ struct FTag_MultipleArchetypeSwap : FTagBaseOperation
 IMPLEMENT_AI_INSTANT_TEST(FTag_MultipleArchetypeSwap, "System.Mass.Observer.Tag.MultipleArchetypesSwap");
 
 } // FMassObserverTest
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

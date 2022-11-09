@@ -7,10 +7,6 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-// Disable optimization for RangeTest as it compiles very slowly in development builds
-PRAGMA_DISABLE_OPTIMIZATION
-
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FRangeTest, "System.Core.Math.Range", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::SmokeFilter)
 
 bool FRangeTest::RunTest(const FString& Parameters)
@@ -395,8 +391,5 @@ bool FRangeTest::RunTest(const FString& Parameters)
 
 	return true;
 }
-
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #endif //WITH_DEV_AUTOMATION_TESTS

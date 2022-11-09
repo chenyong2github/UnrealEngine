@@ -788,7 +788,6 @@ namespace ExpressionParser
 
 namespace Tests
 {
-PRAGMA_DISABLE_OPTIMIZATION
 	struct FOperator {};
 
 	struct FAnd { static const TCHAR* const Moniker; };
@@ -1092,9 +1091,6 @@ bool FShortCircuitParserTest::RunTest(const FString& Parameters)
 
 	return true;
 }
-
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #endif
 

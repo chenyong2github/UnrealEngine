@@ -9,8 +9,6 @@
 
 #define LOCTEXT_NAMESPACE "MassTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 //----------------------------------------------------------------------//
 // tests 
 //----------------------------------------------------------------------//
@@ -181,7 +179,5 @@ struct FMTBasic : FMTTestBase
 IMPLEMENT_AI_LATENT_TEST(FMTBasic, "System.Mass.Multithreading.Basic");
 
 } // FMassMultiThreadingTest
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

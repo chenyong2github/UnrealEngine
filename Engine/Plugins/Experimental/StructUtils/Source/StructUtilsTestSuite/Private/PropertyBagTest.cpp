@@ -7,8 +7,6 @@
 
 #define LOCTEXT_NAMESPACE "StructUtilsTests"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 namespace FPropertyBagTest
 {
 
@@ -339,7 +337,5 @@ IMPLEMENT_AI_INSTANT_TEST(FTest_Arrays, "System.StructUtils.PropertyBag.Arrays")
 
 
 } // FPropertyBagTest
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

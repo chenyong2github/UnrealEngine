@@ -11,8 +11,6 @@
 
 #define LOCTEXT_NAMESPACE "MassTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 namespace FMassCompositeProcessorTest
 {
 
@@ -67,8 +65,6 @@ struct FCompositeProcessorTest_MultipleSubProcessors : FEntityTestBase
 IMPLEMENT_AI_INSTANT_TEST(FCompositeProcessorTest_MultipleSubProcessors, "System.Mass.Processor.Composite.MultipleSubProcessors");
 
 } // FMassCompositeProcessorTest
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE
 

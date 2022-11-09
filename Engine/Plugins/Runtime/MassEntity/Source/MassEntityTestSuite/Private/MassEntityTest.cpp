@@ -11,8 +11,6 @@
 
 #define LOCTEXT_NAMESPACE "MassTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 namespace FMassEntityTest
 {
 #if WITH_MASSENTITY_DEBUG
@@ -358,7 +356,5 @@ IMPLEMENT_AI_INSTANT_TEST(FEntityTest_ReserveAPreviouslyBuiltEntity, "System.Mas
 #endif // WITH_MASSENTITY_DEBUG
 
 } // FMassEntityTestTest
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

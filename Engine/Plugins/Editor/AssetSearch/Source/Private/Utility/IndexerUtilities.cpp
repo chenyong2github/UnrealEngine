@@ -7,8 +7,6 @@
 #include "UObject/TextProperty.h"
 #include "UObject/SoftObjectPtr.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 static bool IsPropertyIndexable(const TPropertyValueIterator<FProperty>& It, const FProperty* Property)
 {
 	// Don't index transient properties.
@@ -167,5 +165,3 @@ void FIndexerUtilities::IterateIndexableProperties(const UStruct* InStruct, cons
 		}
 	}
 }
-
-PRAGMA_ENABLE_OPTIMIZATION

@@ -82,7 +82,6 @@ void FTraceInsightsModule::StartupModule()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-PRAGMA_DISABLE_OPTIMIZATION
 void FTraceInsightsModule::ShutdownModule()
 {
 	LLM_SCOPE_BYTAG(Insights);
@@ -151,7 +150,6 @@ void FTraceInsightsModule::ShutdownModule()
 
 	FInsightsStyle::Shutdown();
 }
-PRAGMA_ENABLE_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -11,8 +11,6 @@
 
 #define LOCTEXT_NAMESPACE "MassTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 //----------------------------------------------------------------------//
 // tests 
 //----------------------------------------------------------------------//
@@ -116,7 +114,5 @@ struct FUtilsTest_MultiSort_Payload : FExecutionTestBase
 IMPLEMENT_AI_INSTANT_TEST(FUtilsTest_MultiSort_Payload, "System.Mass.Utils.MultiSort_Payload");
 
 } // FMassUtilsTest
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AITestsCommon.h"
 #include "InstancedStructArray.h"
@@ -8,8 +8,6 @@
 #include "Serialization/MemoryReader.h"
 
 #define LOCTEXT_NAMESPACE "StructUtilsTests"
-
-PRAGMA_DISABLE_OPTIMIZATION
 
 namespace FInstancedStructArrayTest
 {
@@ -122,7 +120,5 @@ struct FTest_SerializeInstancedStructArray : FAITestBase
 IMPLEMENT_AI_INSTANT_TEST(FTest_SerializeInstancedStructArray, "System.StructUtils.InstancedStructArray.Serialize");
 
 } // FInstancedStructArrayTest
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

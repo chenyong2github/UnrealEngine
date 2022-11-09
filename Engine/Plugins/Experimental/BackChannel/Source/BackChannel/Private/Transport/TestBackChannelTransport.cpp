@@ -6,8 +6,6 @@
 #include "HAL/PlatformProcess.h"
 #include "Misc/AutomationTest.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 #if WITH_DEV_AUTOMATION_TESTS && 0
 
 class FBackChannelTestTransport : public FAutomationTestBase
@@ -132,5 +130,3 @@ bool FBackChannelTestSendReceive::RunTest(const FString& Parameters)
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
-
-PRAGMA_ENABLE_OPTIMIZATION

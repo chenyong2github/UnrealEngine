@@ -13,8 +13,6 @@
 
 #define LOCTEXT_NAMESPACE "AITestSuite_SmartObjectsTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 namespace FSmartObjectTest
 {
 const FVector QueryExtent = FVector(5000.f);
@@ -815,7 +813,5 @@ struct FInstanceTagsFilter : FSmartObjectTestBase
 IMPLEMENT_AI_INSTANT_TEST(FInstanceTagsFilter, "System.AI.SmartObjects.Filter policy on InstanceTags");
 
 } // namespace FSmartObjectTest
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

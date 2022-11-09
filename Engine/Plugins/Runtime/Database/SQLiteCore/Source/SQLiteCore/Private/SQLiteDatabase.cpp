@@ -205,8 +205,6 @@ int64 FSQLiteDatabase::GetLastInsertRowId() const
 		: 0;
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 bool FSQLiteDatabase::PerformQuickIntegrityCheck() const
 {
 	bool OutIntegrityOk = true;
@@ -221,5 +219,3 @@ bool FSQLiteDatabase::PerformQuickIntegrityCheck() const
 
 	return bSuccessful && OutIntegrityOk;
 }
-
-PRAGMA_ENABLE_OPTIMIZATION

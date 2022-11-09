@@ -7,8 +7,6 @@
 
 #define LOCTEXT_NAMESPACE "StructUtilsTests"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 struct FStructUtilsTest_InstancedStructStreamBasic : FAITestBase
 {
 	virtual bool InstantTest() override
@@ -194,9 +192,5 @@ struct FStructUtilsTest_InstancedStructStreamForEach : FAITestBase
 	}
 };
 IMPLEMENT_AI_INSTANT_TEST(FStructUtilsTest_InstancedStructStreamForEach, "System.StructUtils.InstancedStructStream.ForEach");
-
-
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

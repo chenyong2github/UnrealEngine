@@ -10,9 +10,6 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
-// disable optimization for DateTimeFormattingRulesTest as it compiles very slowly in development builds
-PRAGMA_DISABLE_OPTIMIZATION
-
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDateTimeFormattingRulesTest, "System.Core.Misc.DateTime Formatting Rules", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::EngineFilter)
 
 bool FDateTimeFormattingRulesTest::RunTest (const FString& Parameters)
@@ -159,7 +156,5 @@ bool FDateTimeFormattingRulesTest::RunTest (const FString& Parameters)
 
 	return true;
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #endif //WITH_DEV_AUTOMATION_TESTS

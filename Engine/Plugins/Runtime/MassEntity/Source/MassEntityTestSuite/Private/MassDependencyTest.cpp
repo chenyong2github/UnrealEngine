@@ -8,8 +8,6 @@
 
 #define LOCTEXT_NAMESPACE "MassTest"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 namespace FMassDependencySolverTest
 {
 
@@ -381,7 +379,5 @@ struct FCircularDependency : FDependencySolverBase
 IMPLEMENT_AI_INSTANT_TEST(FCircularDependency, "System.Mass.Dependencies.Circular");
 
 } // FMassDependencySolverTest
-
-PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

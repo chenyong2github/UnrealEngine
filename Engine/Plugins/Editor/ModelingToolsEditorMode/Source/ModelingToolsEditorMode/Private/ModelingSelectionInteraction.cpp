@@ -75,7 +75,6 @@ void UModelingSelectionInteraction::OnUpdateModifierState(int ModifierID, bool b
 	}
 }
 
-PRAGMA_DISABLE_OPTIMIZATION
 void UModelingSelectionInteraction::ComputeSceneHits(const FInputDeviceRay& ClickPos,
 	bool& bHitActiveObjects, FInputRayHit& ActiveObjectHit,
 	bool& bHitInactiveObjectFirst, FInputRayHit& InactiveObjectHit)
@@ -112,9 +111,7 @@ void UModelingSelectionInteraction::ComputeSceneHits(const FInputDeviceRay& Clic
 		}
 	}
 }
-PRAGMA_ENABLE_OPTIMIZATION
 
-PRAGMA_DISABLE_OPTIMIZATION
 FInputRayHit UModelingSelectionInteraction::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
 	// ignore hits in these cases
@@ -176,9 +173,6 @@ FInputRayHit UModelingSelectionInteraction::IsHitByClick(const FInputDeviceRay& 
 
 	return FInputRayHit();
 }
-PRAGMA_ENABLE_OPTIMIZATION
-
-
 
 void UModelingSelectionInteraction::OnClicked(const FInputDeviceRay& ClickPos)
 {
