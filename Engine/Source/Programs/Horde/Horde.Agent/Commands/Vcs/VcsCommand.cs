@@ -20,54 +20,6 @@ namespace Horde.Agent.Commands.Bundles
 		[CommandLine("-BaseDir=")]
 		public DirectoryReference? BaseDir { get; set; }
 
-		protected class CommitNode : TreeNode
-		{
-			public int Number { get; set; }
-			public TreeNodeRef<CommitNode>? Parent { get; set; }
-			public string Message { get; set; }
-			public TreeNodeRef<DirectoryNode> Contents { get; set; }
-
-			public CommitNode(ITreeNodeReader reader)
-			{
-				Number = reader.ReadInt32();
-				if (reader.ReadBoolean())
-				{
-					Parent = reader.ReadRef<CommitNode>();
-				}
-				Message = reader.ReadString();
-				Contents = reader.ReadRef<DirectoryNode>();
-			}
-
-			public CommitNode(int number, TreeNodeRef<CommitNode>? parent, string message, TreeNodeRef<DirectoryNode> contents)
-			{
-				Number = number;
-				Parent = parent;
-				Message = message;
-				Contents = contents;
-			}
-
-			public override void Serialize(ITreeNodeWriter writer)
-			{
-				writer.WriteInt32(Number);
-				writer.WriteBoolean(Parent != null);
-				if (Parent != null)
-				{
-					writer.WriteRef(Parent);
-				}
-				writer.WriteString(Message);
-				writer.WriteRef(Contents);
-			}
-
-			public override IEnumerable<TreeNodeRef> EnumerateRefs()
-			{
-				if (Parent != null)
-				{
-					yield return Parent;
-				}
-				yield return Contents;
-			}
-		}
-
 		protected class FileState
 		{
 			public IoHash Hash { get; set; }
@@ -645,11 +597,11 @@ namespace Horde.Agent.Commands.Bundles
 			CommitNode newTip;
 			if (tip == null)
 			{
-				newTip = new CommitNode(1, null, Message, rootRef);
+				newTip = new CommitNode(1, null, Message, DateTime.UtcNow, rootRef);
 			}
 			else
 			{
-				newTip = new CommitNode(tip.Number + 1, tipRef, Message, rootRef);
+				newTip = new CommitNode(tip.Number + 1, tipRef, Message, DateTime.UtcNow, rootRef);
 			}
 			await store.WriteNodeAsync(workspaceState.Branch, newTip);
 

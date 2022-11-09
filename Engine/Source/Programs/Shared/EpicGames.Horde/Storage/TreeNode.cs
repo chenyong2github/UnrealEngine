@@ -105,10 +105,20 @@ namespace EpicGames.Horde.Storage
 	public static class TreeNodeExtensions
 	{
 		/// <summary>
-		/// 
+		/// Read an untyped ref from the reader
 		/// </summary>
-		/// <typeparam name="T"></typeparam>
-		/// <param name="reader"></param>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <returns>New untyped ref</returns>
+		public static TreeNodeRef ReadRef(this ITreeNodeReader reader)
+		{
+			return new TreeNodeRef(reader);
+		}
+
+		/// <summary>
+		/// Read a strongly typed ref from the reader
+		/// </summary>
+		/// <typeparam name="T">Type of the referenced node</typeparam>
+		/// <param name="reader">Reader to deserialize from</param>
 		/// <returns></returns>
 		public static TreeNodeRef<T> ReadRef<T>(this ITreeNodeReader reader) where T : TreeNode
 		{

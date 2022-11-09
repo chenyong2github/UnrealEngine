@@ -39,7 +39,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Reads a reference to another node
 		/// </summary>
-		TreeNodeRefData ReadRef();
+		TreeNodeRefData ReadRefData();
 	}
 
 	/// <summary>
@@ -241,7 +241,7 @@ namespace EpicGames.Horde.Storage
 
 			public IReadOnlyDictionary<IoHash, NodeLocator> References => _refs;
 
-			public TreeNodeRefData ReadRef()
+			public TreeNodeRefData ReadRefData()
 			{
 				IoHash hash = this.ReadIoHash();
 				return new TreeNodeRefData(hash, _refs[hash]);
@@ -676,7 +676,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="locator">Locator for the node</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Node data read from the given bundle</returns>
-		public async ValueTask<TNode> ReadNodeAsync<TNode>(NodeLocator locator, CancellationToken cancellationToken = default) where TNode : TreeNode
+		public async ValueTask<TreeNode> ReadNodeAsync(NodeLocator locator, CancellationToken cancellationToken = default)
 		{
 			BundleInfo bundleInfo = await GetBundleInfoAsync(locator.Blob, cancellationToken);
 			BundleExport export = bundleInfo.Header.Exports[locator.ExportIdx];
@@ -699,7 +699,18 @@ namespace EpicGames.Horde.Storage
 				throw new InvalidOperationException($"No registered serializer for type {bundleInfo.Header.Types[export.TypeIdx].Guid}");
 			}
 
-			return (TNode)typeInfo.Deserialize(new NodeReader(nodeData, refs, typeInfo.BundleType));
+			return typeInfo.Deserialize(new NodeReader(nodeData, refs, typeInfo.BundleType));
+		}
+
+		/// <summary>
+		/// Reads a node from a bundle
+		/// </summary>
+		/// <param name="locator">Locator for the node</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Node data read from the given bundle</returns>
+		public async ValueTask<TNode> ReadNodeAsync<TNode>(NodeLocator locator, CancellationToken cancellationToken = default) where TNode : TreeNode
+		{
+			return (TNode)await ReadNodeAsync(locator, cancellationToken);
 		}
 
 		/// <summary>

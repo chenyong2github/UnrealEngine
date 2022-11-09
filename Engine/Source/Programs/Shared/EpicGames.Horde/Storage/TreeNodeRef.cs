@@ -102,7 +102,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="reader"></param>
 		public TreeNodeRef(ITreeNodeReader reader)
 		{
-			TreeNodeRefData data = reader.ReadRef();
+			TreeNodeRefData data = reader.ReadRefData();
 			Hash = data.Hash;
 			Locator = data.Locator;
 
@@ -166,6 +166,22 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="writer"></param>
 		public void Serialize(ITreeNodeWriter writer) => writer.WriteRef(this);
+
+		/// <summary>
+		/// Resolve this reference to a concrete node
+		/// </summary>
+		/// <param name="reader">Reader to use for expanding this ref</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns></returns>
+		public async ValueTask<TreeNode> ExpandAsync(TreeReader reader, CancellationToken cancellationToken = default)
+		{
+			if (Target == null)
+			{
+				Target = await reader.ReadNodeAsync(Locator, cancellationToken);
+				Target!.IncomingRef = this;
+			}
+			return Target!;
+		}
 	}
 
 	/// <summary>
@@ -217,14 +233,9 @@ namespace EpicGames.Horde.Storage
 		/// <param name="reader">Reader to use for expanding this ref</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		public async ValueTask<T> ExpandAsync(TreeReader reader, CancellationToken cancellationToken = default)
+		public new async ValueTask<T> ExpandAsync(TreeReader reader, CancellationToken cancellationToken = default)
 		{
-			if (base.Target == null)
-			{
-				base.Target = await reader.ReadNodeAsync<T>(Locator, cancellationToken);
-				Target!.IncomingRef = this;
-			}
-			return Target!;
+			return (T)await base.ExpandAsync(reader, cancellationToken);
 		}
 
 		/// <summary>
