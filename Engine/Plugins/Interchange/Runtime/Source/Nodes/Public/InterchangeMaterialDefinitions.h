@@ -86,6 +86,31 @@ namespace Interchange
 					}
 				}
 
+				namespace Noise
+				{
+					const FName Name = TEXT("Noise");
+
+					namespace Inputs
+					{
+						const FName Position = TEXT("Position");
+						const FName FilterWidth = TEXT("FilterWidth");
+					}
+
+					namespace Attributes
+					{
+						const FName Scale = TEXT("Scale");
+						const FName Quality = TEXT("Quality");
+						const FName Function = TEXT("NoiseFunction");
+						const FName Turbulence = TEXT("bTurbulence");
+						const FName Levels = TEXT("Levels");
+						const FName OutputMin = TEXT("OutputMin");
+						const FName OutputMax = TEXT("OutputMax");
+						const FName LevelScale = TEXT("LevelScale");
+						const FName Tiling = TEXT("bTiling");
+						const FName RepeatSize = TEXT("RepeatSize");
+					}
+				}
+
 				namespace OneMinus
 				{
 					const FName Name = TEXT("OneMinus");
@@ -174,6 +199,25 @@ namespace Interchange
 					namespace Inputs
 					{
 						const FName Input = TEXT("Input");
+					}
+				}
+
+				namespace VectorNoise
+				{
+
+					const FName Name = TEXT("VectorNoise");
+
+					namespace Attributes
+					{
+						const FName Function = TEXT("NoiseFunction");
+						const FName Quality = TEXT("Quality");
+						const FName Tiling = TEXT("bTiling");
+						const FName TileSize = TEXT("TileSize");
+					}
+
+					namespace Inputs
+					{
+						const FName Position = TEXT("Position");
 					}
 				}
 			}

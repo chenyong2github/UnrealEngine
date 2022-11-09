@@ -26,6 +26,7 @@
 #include "Materials/MaterialExpressionLinearInterpolate.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionMultiply.h"
+#include "Materials/MaterialExpressionNoise.h"
 #include "Materials/MaterialExpressionOneMinus.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
@@ -36,6 +37,7 @@
 #include "Materials/MaterialExpressionTime.h"
 #include "Materials/MaterialExpressionTransformPosition.h"
 #include "Materials/MaterialExpressionTransform.h"
+#include "Materials/MaterialExpressionVectorNoise.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -69,6 +71,58 @@ FString LexToString(UInterchangeGenericMaterialPipeline::EMaterialInputType Valu
 		ensure(false);
 		return FString();
 	}
+}
+
+FMaterialXPipelineSettings::FMaterialXPipelineSettings()
+{
+	SurfaceShader.FindOrAdd(EInterchangeMaterialXShaders::StandardSurface, FSoftObjectPath{ TEXT("MaterialFunction'/Interchange/Functions/MX_StandardSurface.MX_StandardSurface'") });
+	SurfaceShader.FindOrAdd(EInterchangeMaterialXShaders::StandardSurfaceTransmission, FSoftObjectPath{ TEXT("MaterialFunction'/Interchange/Functions/MX_TransmissionSurface.MX_TransmissionSurface'") });
+}
+
+bool FMaterialXPipelineSettings::AreRequiredPackagesLoaded()
+{
+	auto ArePackagesLoaded = [this](const TMap<EInterchangeMaterialXShaders, FSoftObjectPath>& ObjectPaths)
+	{
+		bool bAllLoaded = true;
+
+		for(const TPair<EInterchangeMaterialXShaders, FSoftObjectPath>& Pair : ObjectPaths)
+		{
+			const FSoftObjectPath& ObjectPath = Pair.Get<1>();
+
+			if(!ObjectPath.ResolveObject())
+			{
+				FString PackagePath = ObjectPath.GetLongPackageName();
+				if(FPackageName::DoesPackageExist(PackagePath))
+				{
+					if(!ObjectPath.TryLoad())
+					{
+						UE_LOG(LogInterchangePipeline, Warning, TEXT("Couldn't load %s"), *PackagePath);
+						bAllLoaded = false;
+					}
+				}
+				else
+				{
+					UE_LOG(LogInterchangePipeline, Warning, TEXT("Couldn't find %s"), *PackagePath);
+					bAllLoaded = false;
+				}
+			}
+		}
+
+		return bAllLoaded;
+	};
+
+	return ArePackagesLoaded(SurfaceShader);
+}
+
+FString FMaterialXPipelineSettings::GetAssetPathString(EInterchangeMaterialXShaders ShaderType) const
+{
+	FString AssetPath;
+	if(const FSoftObjectPath* ObjectPath = SurfaceShader.Find(ShaderType))
+	{
+		AssetPath = ObjectPath->GetAssetPathString();
+	}
+
+	return AssetPath;
 }
 
 namespace UE::Interchange::InterchangeGenericMaterialPipeline::Private
@@ -106,8 +160,6 @@ namespace UE::Interchange::InterchangeGenericMaterialPipeline::Private
 		};
 
 		TArray<FString> RequiredPackages = {
-			TEXT("MaterialFunction'/Interchange/Functions/MX_StandardSurface.MX_StandardSurface'"),
-			TEXT("MaterialFunction'/Interchange/Functions/MX_TransmissionSurface.MX_TransmissionSurface'"),
 			TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions01/Shading/ConvertFromDiffSpec.ConvertFromDiffSpec'"),
 			TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions01/Texturing/FlattenNormal.FlattenNormal'"),
 			TEXT("MaterialFunction'/Engine/Functions/Engine_MaterialFunctions02/Utility/MakeFloat3.MakeFloat3'"),
@@ -177,6 +229,11 @@ void UInterchangeGenericMaterialPipeline::AdjustSettingsForContext(EInterchangeP
 	using namespace UE::Interchange;
 
 	if (!InterchangeGenericMaterialPipeline::Private::AreRequiredPackagesLoaded())
+	{
+		UE_LOG(LogInterchangePipeline, Warning, TEXT("UInterchangeGenericMaterialPipeline: Some required packages are missing. Material import might be wrong"));
+	}
+
+	if(!MaterialXSettings.AreRequiredPackagesLoaded())
 	{
 		UE_LOG(LogInterchangePipeline, Warning, TEXT("UInterchangeGenericMaterialPipeline: Some required packages are missing. Material import might be wrong"));
 	}
@@ -624,11 +681,11 @@ bool UInterchangeGenericMaterialPipeline::HandleStandardSurfaceModel(const UInte
 		const FName MaterialFunctionMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionMaterialFunctionCall, MaterialFunction);
 
 		using namespace UE::Interchange::Materials;
-		FString StandardSurfaceOrTransmissionPath{ TEXT("MaterialFunction'/Interchange/Functions/MX_StandardSurface.MX_StandardSurface'") };
+		FString StandardSurfaceOrTransmissionPath = MaterialXSettings.GetAssetPathString(EInterchangeMaterialXShaders::StandardSurface);
 
 		if(UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, StandardSurface::Parameters::Transmission))
 		{
-			StandardSurfaceOrTransmissionPath = TEXT("MaterialFunction'/Interchange/Functions/MX_TransmissionSurface.MX_TransmissionSurface'");
+			StandardSurfaceOrTransmissionPath = MaterialXSettings.GetAssetPathString(EInterchangeMaterialXShaders::StandardSurfaceTransmission);
 		}
 
 		FunctionCallExpression->AddStringAttribute(
@@ -1583,6 +1640,168 @@ void UInterchangeGenericMaterialPipeline::HandleTransformVectorNode(const UInter
 	}
 }
 
+void UInterchangeGenericMaterialPipeline::HandleNoiseNode(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* NoiseFactoryNode)
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes;
+
+	NoiseFactoryNode->SetCustomExpressionClassName(UMaterialExpressionNoise::StaticClass()->GetName());
+
+	// Position
+	{
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> PositionExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Noise::Inputs::Position.ToString(), NoiseFactoryNode->GetUniqueID());
+
+		if(PositionExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(NoiseFactoryNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionNoise, Position).ToString(),
+															PositionExpression.Get<0>()->GetUniqueID(), PositionExpression.Get<1>());
+		}
+	}
+
+	// FilterWidth
+	{
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> FilterWidthExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, Noise::Inputs::FilterWidth.ToString(), NoiseFactoryNode->GetUniqueID());
+
+		if(FilterWidthExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(NoiseFactoryNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionNoise, FilterWidth).ToString(),
+															FilterWidthExpression.Get<0>()->GetUniqueID(), FilterWidthExpression.Get<1>());
+		}
+	}
+
+	// Scale
+	if(float Scale; ShaderNode->GetFloatAttribute(Noise::Attributes::Scale, Scale))
+	{
+		const FName ScaleMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionNoise, Scale);
+		NoiseFactoryNode->AddFloatAttribute(ScaleMemberName, Scale);
+		NoiseFactoryNode->AddApplyAndFillDelegates<float>(ScaleMemberName, UMaterialExpressionNoise::StaticClass(), ScaleMemberName);
+	}
+
+	// Quality
+	if(int32 Quality; ShaderNode->GetInt32Attribute(Noise::Attributes::Quality, Quality))
+	{
+		const FName QualityMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionNoise, Quality);
+		NoiseFactoryNode->AddInt32Attribute(QualityMemberName, Quality);
+		NoiseFactoryNode->AddApplyAndFillDelegates<int32>(QualityMemberName, UMaterialExpressionNoise::StaticClass(), QualityMemberName);
+	}
+
+	// Noise Function
+	if(int32 NoiseFunction; ShaderNode->GetInt32Attribute(Noise::Attributes::Function, NoiseFunction))
+	{
+		const FName NoiseFunctionMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionNoise, NoiseFunction);
+		NoiseFactoryNode->AddInt32Attribute(NoiseFunctionMemberName, NoiseFunction);
+		NoiseFactoryNode->AddApplyAndFillDelegates<int32>(NoiseFunctionMemberName, UMaterialExpressionNoise::StaticClass(), NoiseFunctionMemberName);
+	}
+
+	// Turbulence
+	if(bool bTurbulence; ShaderNode->GetBooleanAttribute(Noise::Attributes::Turbulence, bTurbulence))
+	{
+		const FName TurbulenceMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionNoise, bTurbulence);
+		NoiseFactoryNode->AddBooleanAttribute(TurbulenceMemberName, bTurbulence);
+		NoiseFactoryNode->AddApplyAndFillDelegates<bool>(TurbulenceMemberName, UMaterialExpressionNoise::StaticClass(), TurbulenceMemberName);
+	}
+
+	// Levels
+	if(int32 Levels; ShaderNode->GetInt32Attribute(Noise::Attributes::Levels, Levels))
+	{
+		const FName LevelsMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionNoise, Levels);
+		NoiseFactoryNode->AddInt32Attribute(LevelsMemberName, Levels);
+		NoiseFactoryNode->AddApplyAndFillDelegates<int32>(LevelsMemberName, UMaterialExpressionNoise::StaticClass(), LevelsMemberName);
+	}
+
+	// Output Min
+	if(float OutputMin; ShaderNode->GetFloatAttribute(Noise::Attributes::OutputMin, OutputMin))
+	{
+		const FName OutputMinMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionNoise, OutputMin);
+		NoiseFactoryNode->AddFloatAttribute(OutputMinMemberName, OutputMin);
+		NoiseFactoryNode->AddApplyAndFillDelegates<float>(OutputMinMemberName, UMaterialExpressionNoise::StaticClass(), OutputMinMemberName);
+	}
+
+	// Output Max
+	if(float OutputMax; ShaderNode->GetFloatAttribute(Noise::Attributes::OutputMax, OutputMax))
+	{
+		const FName OutputMaxMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionNoise, OutputMax);
+		NoiseFactoryNode->AddFloatAttribute(OutputMaxMemberName, OutputMax);
+		NoiseFactoryNode->AddApplyAndFillDelegates<float>(OutputMaxMemberName, UMaterialExpressionNoise::StaticClass(), OutputMaxMemberName);
+	}
+
+	// Level Scale
+	if(float LevelScale; ShaderNode->GetFloatAttribute(Noise::Attributes::LevelScale, LevelScale))
+	{
+		const FName LevelScaleMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionNoise, LevelScale);
+		NoiseFactoryNode->AddFloatAttribute(LevelScaleMemberName, LevelScale);
+		NoiseFactoryNode->AddApplyAndFillDelegates<float>(LevelScaleMemberName, UMaterialExpressionNoise::StaticClass(), LevelScaleMemberName);
+	}
+
+	// Tiling
+	if(bool bTiling; ShaderNode->GetBooleanAttribute(Noise::Attributes::Tiling, bTiling))
+	{
+		const FName TilingMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionNoise, bTiling);
+		NoiseFactoryNode->AddBooleanAttribute(TilingMemberName, bTiling);
+		NoiseFactoryNode->AddApplyAndFillDelegates<bool>(TilingMemberName, UMaterialExpressionNoise::StaticClass(), TilingMemberName);
+	}
+
+	// Levels
+	if(int32 RepeatSize; ShaderNode->GetInt32Attribute(Noise::Attributes::RepeatSize, RepeatSize))
+	{
+		const FName RepeatSizeMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionNoise, RepeatSize);
+		NoiseFactoryNode->AddInt32Attribute(RepeatSizeMemberName, RepeatSize);
+		NoiseFactoryNode->AddApplyAndFillDelegates<int32>(RepeatSizeMemberName, UMaterialExpressionNoise::StaticClass(), RepeatSizeMemberName);
+	}
+}
+
+void UInterchangeGenericMaterialPipeline::HandleVectorNoiseNode(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* NoiseFactoryNode)
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes;
+
+	NoiseFactoryNode->SetCustomExpressionClassName(UMaterialExpressionVectorNoise::StaticClass()->GetName());
+
+	// Position
+	{
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> PositionExpression =
+			CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderNode, VectorNoise::Inputs::Position.ToString(), NoiseFactoryNode->GetUniqueID());
+
+		if(PositionExpression.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(NoiseFactoryNode, GET_MEMBER_NAME_CHECKED(UMaterialExpressionVectorNoise, Position).ToString(),
+															PositionExpression.Get<0>()->GetUniqueID(), PositionExpression.Get<1>());
+		}
+	}
+
+	// Noise Function
+	if(int32 NoiseFunction; ShaderNode->GetInt32Attribute(VectorNoise::Attributes::Function, NoiseFunction))
+	{
+		const FName NoiseFunctionMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionVectorNoise, NoiseFunction);
+		NoiseFactoryNode->AddInt32Attribute(NoiseFunctionMemberName, NoiseFunction);
+		NoiseFactoryNode->AddApplyAndFillDelegates<int32>(NoiseFunctionMemberName, UMaterialExpressionVectorNoise::StaticClass(), NoiseFunctionMemberName);
+	}
+
+	// Quality
+	if(int32 Quality; ShaderNode->GetInt32Attribute(VectorNoise::Attributes::Quality, Quality))
+	{
+		const FName QualityMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionVectorNoise, Quality);
+		NoiseFactoryNode->AddInt32Attribute(QualityMemberName, Quality);
+		NoiseFactoryNode->AddApplyAndFillDelegates<int32>(QualityMemberName, UMaterialExpressionVectorNoise::StaticClass(), QualityMemberName);
+	}
+
+	// Tiling
+	if(bool bTiling; ShaderNode->GetBooleanAttribute(VectorNoise::Attributes::Tiling, bTiling))
+	{
+		const FName TilingMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionVectorNoise, bTiling);
+		NoiseFactoryNode->AddBooleanAttribute(TilingMemberName, bTiling);
+		NoiseFactoryNode->AddApplyAndFillDelegates<bool>(TilingMemberName, UMaterialExpressionVectorNoise::StaticClass(), TilingMemberName);
+	}
+
+	// Tile Size
+	if(int32 TileSize; ShaderNode->GetInt32Attribute(VectorNoise::Attributes::Function, TileSize))
+	{
+		const FName TileSizeMemberName = GET_MEMBER_NAME_CHECKED(UMaterialExpressionVectorNoise, TileSize);
+		NoiseFactoryNode->AddInt32Attribute(TileSizeMemberName, TileSize);
+		NoiseFactoryNode->AddApplyAndFillDelegates<int32>(TileSizeMemberName, UMaterialExpressionVectorNoise::StaticClass(), TileSizeMemberName);
+	}
+}
+
 UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::CreateMaterialExpressionForShaderNode(UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode,
 	const UInterchangeShaderNode* ShaderNode, const FString& ParentUid)
 {
@@ -1643,6 +1862,10 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 	{
 		HandleMaskNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
 	}
+	else if(*ShaderType == Nodes::Noise::Name)
+	{
+		HandleNoiseNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
+	}
 	else if (*ShaderType == Nodes::TextureCoordinate::Name)
 	{
 		HandleTextureCoordinateNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
@@ -1662,6 +1885,10 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 	else if(*ShaderType == Nodes::TransformVector::Name)
 	{
 		HandleTransformVectorNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
+	}
+	else if(*ShaderType == Nodes::TransformVector::Name)
+	{
+		HandleVectorNoiseNode(ShaderNode, MaterialFactoryNode, MaterialExpression);
 	}
 	else
 	{

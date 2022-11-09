@@ -163,6 +163,7 @@ MATERIALX_NAMESPACE_BEGIN
 	{
 		static constexpr const char* IsVisited = "UE:IsVisited";
 		static constexpr const char* NewName = "UE:NewName";
+		static constexpr const char* ParentName = "UE:ParentName";
 	}
 
 	namespace Category

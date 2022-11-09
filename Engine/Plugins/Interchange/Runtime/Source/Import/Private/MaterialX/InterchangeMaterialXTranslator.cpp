@@ -14,8 +14,10 @@
 #include "Nodes/InterchangeSourceNode.h"
 #include "UObject/GCObjectScopeGuard.h"
 
-#include "Materials/MaterialExpressionTransformPosition.h"
+#include "Materials/MaterialExpressionNoise.h"
 #include "Materials/MaterialExpressionTransform.h"
+#include "Materials/MaterialExpressionTransformPosition.h"
+#include "Materials/MaterialExpressionVectorNoise.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(InterchangeMaterialXTranslator)
 
@@ -36,6 +38,7 @@ UInterchangeMaterialXTranslator::UInterchangeMaterialXTranslator()
 	:
 InputNamesMaterialX2UE
 {
+	{{TEXT(""),                         TEXT("amplitude")}, TEXT("Amplitude")},
 	{{TEXT(""),                         TEXT("bg")},        TEXT("B")},
 	{{TEXT(""),                         TEXT("center")},    TEXT("Center")},
 	{{TEXT(""),                         TEXT("diminish")},  TEXT("Diminish")},
@@ -81,6 +84,8 @@ InputNamesMaterialX2UE
 	{{MaterialX::Category::Mix,         TEXT("fg")},        TEXT("B")},
 	{{MaterialX::Category::Mix,         TEXT("bg")},        TEXT("A")},
 	{{MaterialX::Category::Mix,         TEXT("mix")},		TEXT("Factor")},
+	{{MaterialX::Category::Noise3D,     TEXT("amplitude")}, TEXT("B")},            // The amplitude of the noise is connected to a multiply node
+	{{MaterialX::Category::Noise3D,     TEXT("pivot")},     TEXT("B")},            // The pivot of the noise is connected to a add node
 	{{MaterialX::Category::Normalize,   TEXT("in")},        TEXT("VectorInput")},
 	{{MaterialX::Category::Outside,     TEXT("in")},        TEXT("A")},				// Outside is treated as Multiply node
 	{{MaterialX::Category::Outside,     TEXT("mask")},      TEXT("B")},				// Outside is treated as Multiply node
@@ -923,7 +928,7 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 
 				if(mx::NodePtr DownstreamNode = Edge.getDownstreamElement()->asA<mx::Node>())
 				{
-					if(UInterchangeShaderNode** FoundNode = NamesToShaderNodes.Find(DownstreamNode->getName().c_str()))
+					if(UInterchangeShaderNode** FoundNode = NamesToShaderNodes.Find(GetAttributeParentName(DownstreamNode)))// DownstreamNode->getName().c_str()))
 					{
 						ParentShaderNode = *FoundNode;
 					}
@@ -1011,6 +1016,18 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 				{
 					ConnectTimeInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
 				}
+				else if(UpstreamNode->getCategory() == mx::Category::Noise3D)
+				{
+					ConnectNoise3DInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+				}
+				else if(UpstreamNode->getCategory() == mx::Category::CellNoise3D)
+				{
+					ConnectCellNoise3DInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+				}
+				else if(UpstreamNode->getCategory() == mx::Category::WorleyNoise3D)
+				{
+					ConnectWorleyNoise3DInputToOutput(UpstreamNode, ParentShaderNode, InputChannelName, NamesToShaderNodes, NodeContainer);
+				}				
 				else
 				{
 					UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
@@ -1961,6 +1978,76 @@ void UInterchangeMaterialXTranslator::ConnectTimeInputToOutput(MaterialX::NodePt
 	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, TimeNode->GetUniqueID());
 }
 
+void UInterchangeMaterialXTranslator::ConnectNoise3DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes;
+
+	// MaterialX defines the Noise3d as Perlin Noise which is multiplied by the Amplitude then Added to Pivot
+	UInterchangeShaderNode* NoiseNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), Noise::Name.ToString(), NamesToShaderNodes, NodeContainer);
+	NoiseNode->AddInt32Attribute(Noise::Attributes::Function, ENoiseFunction::NOISEFUNCTION_GradientTex);
+	NoiseNode->AddBooleanAttribute(Noise::Attributes::Turbulence, false);
+	NoiseNode->AddFloatAttribute(Noise::Attributes::OutputMin, 0);
+
+	UInterchangeShaderNode* NodeToConnect = NoiseNode;
+
+	// Multiply Node
+	auto ConnectNodeToInput = [&](mx::InputPtr Input, UInterchangeShaderNode * NodeToConnectTo, const FString & ShaderType, int32 IndexAttrib) -> UInterchangeShaderNode*
+	{
+		if(!Input)
+		{
+			return nullptr;
+		}
+
+		const FString ShaderNodeName = UpstreamNode->getName().c_str() + FString{ TEXT("_") } + ShaderType;
+		UInterchangeShaderNode* ShaderNode = CreateShaderNode<UInterchangeShaderNode>(ShaderNodeName, ShaderType, NamesToShaderNodes, NodeContainer);
+
+		UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ShaderNode, TEXT("A"), NodeToConnectTo->GetUniqueID());
+
+		// Connect the amplitude node to the shader node not the noise
+		// it will be handle during the upstream-downstream connection phase
+		// The index is here for the unicity of the attribute
+		UpstreamNode->setAttribute(mx::Attributes::ParentName + std::to_string(IndexAttrib), TCHAR_TO_ANSI(*ShaderNodeName));
+		AddAttributeFromValueOrInterface(Input, TEXT("B"), ShaderNode);
+
+		return ShaderNode;
+	};
+
+	if(UInterchangeShaderNode* MultiplyNode = ConnectNodeToInput(UpstreamNode->getInput("amplitude"), NoiseNode, TEXT("Multiply"), 0))
+	{
+		NodeToConnect = MultiplyNode;
+	}
+
+
+	if(UInterchangeShaderNode* AddNode = ConnectNodeToInput(UpstreamNode->getInput("pivot"), NodeToConnect, TEXT("Add"), 1))
+	{
+		NodeToConnect = AddNode;
+	}
+
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, NodeToConnect->GetUniqueID());
+}
+
+void UInterchangeMaterialXTranslator::ConnectCellNoise3DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes;
+
+	// Let's use a vector noise for this one, the only one that is close to MaterialX implementation
+	UInterchangeShaderNode* NoiseNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), VectorNoise::Name.ToString(), NamesToShaderNodes, NodeContainer);
+	NoiseNode->AddInt32Attribute(VectorNoise::Attributes::Function, EVectorNoiseFunction::VNF_CellnoiseALU);
+
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, NoiseNode->GetUniqueID());
+}
+
+void UInterchangeMaterialXTranslator::ConnectWorleyNoise3DInputToOutput(MaterialX::NodePtr UpstreamNode, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+{
+	using namespace UE::Interchange::Materials::Standard::Nodes;
+
+	//Also called Voronoi, the implementation is a bit different in UE, especially we don't have access to the jitter
+	UInterchangeShaderNode* NoiseNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), Noise::Name.ToString(), NamesToShaderNodes, NodeContainer);
+	NoiseNode->AddInt32Attribute(Noise::Attributes::Function, ENoiseFunction::NOISEFUNCTION_VoronoiALU);
+
+	UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, NoiseNode->GetUniqueID());
+}
+
 UInterchangeShaderNode* UInterchangeMaterialXTranslator::CreateMaskShaderNode(uint8 RGBA, const FString& NodeName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
 {
 	bool bR = (0b1000 & RGBA) >> 3;
@@ -2143,6 +2230,26 @@ void UInterchangeMaterialXTranslator::AddTexCoordToTiledImageNodes(MaterialX::No
 			InputTexCoord->setNodeName(NodeTexCoord->getName());
 		}
 	}
+}
+
+FString UInterchangeMaterialXTranslator::GetAttributeParentName(MaterialX::NodePtr Node) const
+{
+	FString ParentName;
+	const mx::StringVec & Attributes =  Node->getAttributeNames();
+
+	// For consistency the parent attribute has an index attach to it to ensure unicity
+	// Attributes are set in order, we only need to take the first one (it will be remove after that)
+	for(const std::string& Attrib : Attributes)
+	{
+		if(Attrib.find(mx::Attributes::ParentName) != std::string::npos)
+		{
+			ParentName = Node->getAttribute(Attrib).c_str();
+			Node->removeAttribute(Attrib);
+			break;
+		}
+	}
+
+	return ParentName.IsEmpty() ? Node->getName().c_str() : ParentName;
 }
 
 #endif //WITH_EDITOR
