@@ -4,13 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "AssetDefinitionDefault.h"
+#include "Engine/DataAsset.h"
 
 #include "AssetDefinition_DataAsset.generated.h"
 
-struct FToolMenuContext;
-
 UCLASS()
-class UAssetDefinition_DataAsset : public UAssetDefinitionDefault
+class ENGINEASSETDEFINITIONS_API UAssetDefinition_DataAsset : public UAssetDefinitionDefault
 {
 	GENERATED_BODY()
 
@@ -22,13 +21,4 @@ public:
 	virtual TSoftClassPtr<UObject> GetAssetClass() const override { return UDataAsset::StaticClass(); }
 	
 	virtual EAssetCommandResult PerformAssetDiff(const FAssetDiffArgs& DiffArgs) const override;
-
-protected:
-	virtual void OnRegistered() override;
-
-private:
-	void RegisterMenus();
-	
-	/** Handler for when FindTarget is selected */
-	void ExecuteChangeDataAssetClass(const FToolMenuContext& MenuContext);
 };

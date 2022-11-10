@@ -10,6 +10,7 @@
 #include "SDetailsDiff.h"
 #include "ToolMenus.h"
 #include "Kismet2/SClassPickerDialog.h"
+#include "Engine/Engine.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_DataAsset"
 
@@ -107,7 +108,6 @@ namespace MenuExtension_DataAsset
 			}));
 		}));
 	});
-
 }
 
 
@@ -142,80 +142,6 @@ EAssetCommandResult UAssetDefinition_DataAsset::PerformAssetDiff(const FAssetDif
 	SDetailsDiff::CreateDiffWindow(WindowTitle, DiffArgs.OldAsset, DiffArgs.NewAsset, DiffArgs.OldRevision, DiffArgs.NewRevision);
 	
 	return EAssetCommandResult::Handled;
-}
-
-void UAssetDefinition_DataAsset::OnRegistered()
-{
-	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &ThisClass::RegisterMenus));
-}
-
-void UAssetDefinition_DataAsset::RegisterMenus()
-{
-	return;
-	//FToolMenuOwnerScoped MenuOwner(GetClass()->GetOutermost()->GetLoadedPath());
-
-	UToolMenu* Menu = UE::ContentBrowser::ExtendToolMenu_AssetContextMenu(GetAssetClass());
-	
-	FToolMenuSection& Section = Menu->FindOrAddSection("GetAssetActions");
-	Section.AddDynamicEntry("GetAssetActions_DataAsset", FNewToolMenuSectionDelegate::CreateWeakLambda(this, [this](FToolMenuSection& InSection)
-	{
-		{
-			const TAttribute<FText> Label = LOCTEXT("DataAsset_ChangeClass", "Convert to Different DataAsset Type");
-			const TAttribute<FText> ToolTip = LOCTEXT("DataAsset_ChangeClassTip", "Change the class these Data Assets are subclassed from.");
-			const FSlateIcon Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.DataAsset");
-			const FToolMenuExecuteAction UIAction = FToolMenuExecuteAction::CreateUObject(this, &ThisClass::ExecuteChangeDataAssetClass);
-
-			InSection.AddMenuEntry("DataAsset_ChangeClass", Label, ToolTip, Icon, UIAction);
-		}
-	}));
-}
-
-void UAssetDefinition_DataAsset::ExecuteChangeDataAssetClass(const FToolMenuContext& MenuContext)
-{
-	/*
-	if (const UContentBrowserAssetContextMenuContext* Context = UContentBrowserAssetContextMenuContext::FindContextWithAssets(MenuContext))
-	{
-		TArray<UDataAsset*> DataAssets = Context->LoadSelectedObjects<UDataAsset>();
-
-		const FText TitleText = LOCTEXT("DataAsset_PickNewDataAssetClass", "Pick New DataAsset Class");
-		FClassViewerInitializationOptions Options;
-		Options.ClassFilters.Add(MakeShared<FNewNodeClassFilter>(UDataAsset::StaticClass()));
-		UClass* OutNewDataAssetClass = nullptr;
-		const bool bPressedOk = SClassPickerDialog::PickClass(TitleText, Options, OutNewDataAssetClass, UDataAsset::StaticClass());
-
-		if (bPressedOk && OutNewDataAssetClass != nullptr)
-		{
-			for (TWeakObjectPtr<UDataAsset> DataAssetPtr : DataAssets)
-			{
-				if (UDataAsset* OldDataAsset = DataAssetPtr.Get())
-				{
-					if (OldDataAsset && OldDataAsset->IsValidLowLevel())
-					{
-						FName ObjectName = OldDataAsset->GetFName();
-						UObject* Outer = OldDataAsset->GetOuter();
-						OldDataAsset->Rename(nullptr, GetTransientPackage(), REN_DoNotDirty | REN_DontCreateRedirectors);
-
-						UObject* NewDataAsset = NewObject<UObject>(Outer, OutNewDataAssetClass, ObjectName, OldDataAsset->GetFlags());
-
-						// Migrate Data
-						{
-							UEngine::FCopyPropertiesForUnrelatedObjectsParams CopyOptions;
-							CopyOptions.bNotifyObjectReplacement = true;
-							UEngine::CopyPropertiesForUnrelatedObjects(OldDataAsset, NewDataAsset, CopyOptions);
-						}
-
-						NewDataAsset->MarkPackageDirty();
-
-						// Consolidate or "Replace" the old object with the new object for any living references.
-						bool bShowDeleteConfirmation = false;
-						TArray<UObject*> OldDataAssetArray({ (UObject*)OldDataAsset });
-						ObjectTools::ConsolidateObjects(NewDataAsset, OldDataAssetArray, bShowDeleteConfirmation);
-					}
-				}
-			}
-		}
-	}
-	*/
 }
 
 #undef LOCTEXT_NAMESPACE

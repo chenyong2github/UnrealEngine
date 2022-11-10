@@ -4,6 +4,9 @@
 
 #include "FileHelpers.h"
 #include "ThumbnailRendering/WorldThumbnailInfo.h"
+#include "Misc/MessageDialog.h"
+#include "Engine/Level.h"
+#include "Editor.h"
 
 #define LOCTEXT_NAMESPACE "UAssetDefinition_World"
 

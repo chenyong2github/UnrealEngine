@@ -9,7 +9,7 @@
 #include "AssetDefinition_World.generated.h"
 
 UCLASS()
-class UAssetDefinition_World : public UAssetDefinitionDefault
+class ENGINEASSETDEFINITIONS_API UAssetDefinition_World : public UAssetDefinitionDefault
 {
 	GENERATED_BODY()
 

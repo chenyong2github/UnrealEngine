@@ -79,7 +79,6 @@ void UAssetDefinitionRegistry::RegisterAssetDefinition(UAssetDefinition* AssetDe
 		if (CanAddDefinition)
 		{
 			AssetDefinitions.Add(SupportedClass, AssetDefinition);
-			AssetDefinition->OnRegistered();
 		}
 		else
 		{
@@ -96,6 +95,5 @@ void UAssetDefinitionRegistry::UnregisterAssetDefinition(UAssetDefinition* Asset
 	if (TSoftClassPtr<UObject> SupportedClass = AssetDefinition->GetAssetClass())
 	{
 		AssetDefinitions.Remove(SupportedClass);
-		AssetDefinition->OnUnregistered();
 	}
 }

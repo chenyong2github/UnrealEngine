@@ -383,11 +383,6 @@ public:
 	// 3. If you add a new function, please create a struct for the Args.  We'll be able to upgrade things easier.
 	//    Please continue to use EAssetCommandResult and FAssetSupportResponse, for those kinds of commands.
 
-public:
-
-	virtual void OnRegistered() { }
-	virtual void OnUnregistered() { }
-
 protected:
 	virtual bool CanRegisterStatically() const;
 
