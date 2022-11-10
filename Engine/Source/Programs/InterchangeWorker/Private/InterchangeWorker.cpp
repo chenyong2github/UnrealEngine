@@ -13,8 +13,6 @@ DEFINE_LOG_CATEGORY(LogInterchangeWorker);
 
 #define EXIT_MISSING_CORETECH_MODULE 2
 
-bool GIsConsoleExecutable = true;
-
 void GetParameter(int32 Argc, TCHAR* Argv[], const FString& InParam, FString& OutValue)
 {
 	OutValue.Empty();
