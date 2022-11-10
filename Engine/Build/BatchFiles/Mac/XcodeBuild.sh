@@ -17,7 +17,7 @@ unset TARGETNAME
 
 # If this is a source drop of the engine make sure that the UnrealBuildTool is up-to-date
 if [ ! -f Engine/Build/InstalledBuild.txt ]; then
-	dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -o Engine/Binaries/DotNET/UnrealBuildTool -c Development -v quiet
+	dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet
 
 	if [ $? -ne 0 ]; then
 		echo "Failed to build the build tool (UnrealBuildTool)"

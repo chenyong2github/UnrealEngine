@@ -52,7 +52,7 @@ dotnet clean Programs\UnrealBuildTool\UnrealBuildTool.csproj -c Development -v q
 
 :SkipClean
 echo Building UnrealBuildTool...
-dotnet build Programs\UnrealBuildTool\UnrealBuildTool.csproj -o ..\Binaries\DotNET\UnrealBuildTool  -c Development -v quiet
+dotnet build Programs\UnrealBuildTool\UnrealBuildTool.csproj -c Development -v quiet
 
 if errorlevel 1 goto Error_UBTCompileFailed
 
