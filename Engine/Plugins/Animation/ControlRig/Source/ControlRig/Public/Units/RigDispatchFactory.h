@@ -40,48 +40,9 @@ struct CONTROLRIG_API FRigDispatchFactory : public FRigVMDispatchFactory
 
 #endif
 
-	template <
-		typename T,
-		typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
-	>
-	FORCEINLINE static FString GetDefaultValueForStruct(const T& InValue)
-	{
-		static FString ValueString;
-		if(ValueString.IsEmpty())
-		{
-			TBaseStructure<T>::Get()->ExportText(ValueString, &InValue, &InValue, nullptr, PPF_None, nullptr);
-		}
-		return ValueString;
-	}
-
-	template <
-		typename T,
-		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
-	>
-	FORCEINLINE static FString GetDefaultValueForStruct(const T& InValue)
-	{
-		static FString ValueString;
-		if(ValueString.IsEmpty())
-		{
-			T::StaticStruct()->ExportText(ValueString, &InValue, &InValue, nullptr, PPF_None, nullptr);
-		}
-		return ValueString;
-	}
-
 	FORCEINLINE static const FRigUnitContext& GetRigUnitContext(const FRigVMExtendedExecuteContext& InContext)
 	{
 		return *(const FRigUnitContext*)InContext.OpaqueArguments[0];
 	}
-
-#if WITH_EDITOR
-	FORCEINLINE bool CheckArgumentType(bool bCondition, const FName& InArgumentName) const
-	{
-		if(!bCondition)
-		{
-			UE_LOG(LogControlRig, Error, TEXT("Fatal: '%s' Argument '%s' has incorrect type."), *GetFactoryName().ToString(), *InArgumentName.ToString())
-		}
-		return bCondition;
-	}
-#endif
 };
 

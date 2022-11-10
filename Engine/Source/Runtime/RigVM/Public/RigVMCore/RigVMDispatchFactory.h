@@ -54,7 +54,7 @@ public:
 	virtual FText GetNodeTooltip(const FRigVMTemplateTypeMap& InTypes) const;
 
 	// returns the default value for an argument
-	FORCEINLINE virtual FString GetArgumentDefaultValue(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const { return FString(); }
+	virtual FString GetArgumentDefaultValue(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const;
 
 	// returns the tooltip for an argument
 	FORCEINLINE virtual FText GetArgumentTooltip(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const { return FText(); }
@@ -121,6 +121,45 @@ protected:
 	virtual FRigVMFunctionPtr GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const { return nullptr; }
 
 	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl() const { return TArray<FRigVMExecuteArgument>(); }
+
+	template <
+	typename T,
+	typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE static FString GetDefaultValueForStruct(const T& InValue)
+	{
+		static FString ValueString;
+		if(ValueString.IsEmpty())
+		{
+			TBaseStructure<T>::Get()->ExportText(ValueString, &InValue, &InValue, nullptr, PPF_None, nullptr);
+		}
+		return ValueString;
+	}
+
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE static FString GetDefaultValueForStruct(const T& InValue)
+	{
+		static FString ValueString;
+		if(ValueString.IsEmpty())
+		{
+			T::StaticStruct()->ExportText(ValueString, &InValue, &InValue, nullptr, PPF_None, nullptr);
+		}
+		return ValueString;
+	}
+
+#if WITH_EDITOR
+	FORCEINLINE bool CheckArgumentType(bool bCondition, const FName& InArgumentName) const
+	{
+		if(!bCondition)
+		{
+			UE_LOG(LogRigVM, Error, TEXT("Fatal: '%s' Argument '%s' has incorrect type."), *GetFactoryName().ToString(), *InArgumentName.ToString())
+		}
+		return bCondition;
+	}
+#endif
 
 	static const FString DispatchPrefix;
 
