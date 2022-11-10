@@ -52,9 +52,10 @@ class FCookDirector
 {
 public:
 
-	FCookDirector(UCookOnTheFlyServer& InCOTFS);
+	FCookDirector(UCookOnTheFlyServer& InCOTFS, int32 CookProcessCount);
 	~FCookDirector();
 
+	bool IsMultiprocessAvailable() const;
 	void StartCook(const FBeginCookContext& Context);
 
 	/**
@@ -131,7 +132,7 @@ private:
 
 private:
 	/** Helper for constructor parsing. */
-	void ParseConfig();
+	void ParseConfig(int32 CookProcessCount);
 	/** Initialization helper: create the listen socket. */
 	bool TryCreateWorkerConnectSocket();
 	/**
@@ -191,6 +192,7 @@ private:
 	bool bIsFirstAssignment = true;
 	bool bCookCompleteSent = false;
 	bool bWorkersStalled = false;
+	bool bMultiprocessAvailable = false;
 
 	// Data that is read-only while the CommunicationThread is active and is readable from any thread
 	FBeginCookContextForWorker BeginCookContext;

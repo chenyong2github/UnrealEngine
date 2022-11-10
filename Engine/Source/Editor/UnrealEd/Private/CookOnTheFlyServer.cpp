@@ -5810,13 +5810,22 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	DirectorCookMode = WorkerRequests->GetDirectorCookMode(*this);
 	if (IsCookByTheBookMode() && !IsCookingInEditor())
 	{
-		bool bCookMultiProcess = false;;
-		GConfig->GetBool(TEXT("CookSettings"), TEXT("CookMultiProcessEnabled"), bCookMultiProcess, GEditorIni);
-		bCookMultiProcess |= FParse::Param(FCommandLine::Get(), TEXT("CookMultiProcess"));
-		bCookMultiProcess &= !FParse::Param(FCommandLine::Get(), TEXT("CookSingleProcess"));
-		if (bCookMultiProcess)
+		int32 CookProcessCount=1;
+		GConfig->GetInt(TEXT("CookSettings"), TEXT("CookProcessCount"), CookProcessCount, GEditorIni);
+		FParse::Value(FCommandLine::Get(), TEXT("-CookProcessCount="), CookProcessCount);
+		CookProcessCount = FMath::Max(1, CookProcessCount);
+		if (CookProcessCount > 1)
 		{
-			CookDirector = MakeUnique<UE::Cook::FCookDirector>(*this);
+			CookDirector = MakeUnique<UE::Cook::FCookDirector>(*this, CookProcessCount);
+			if (!CookDirector->IsMultiprocessAvailable())
+			{
+				CookDirector.Reset();
+			}
+		}
+		else
+		{
+			UE_LOG(LogCook, Display, TEXT("CookProcessCount=%d. CookMultiprocess is disabled and the cooker is running as a single process."),
+				CookProcessCount);
 		}
 	}
 

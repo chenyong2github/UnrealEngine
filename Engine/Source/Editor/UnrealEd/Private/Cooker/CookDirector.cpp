@@ -29,37 +29,44 @@ extern CORE_API int32 GNumForegroundWorkers; // TaskGraph.cpp
 namespace UE::Cook
 {
 
-FCookDirector::FCookDirector(UCookOnTheFlyServer& InCOTFS)
+FCookDirector::FCookDirector(UCookOnTheFlyServer& InCOTFS, int32 CookProcessCount)
 	: RunnableShunt(*this) 
 	, COTFS(InCOTFS)
 {
+	check(CookProcessCount > 1);
 	WorkersStalledStartTimeSeconds = MAX_flt;
 	WorkersStalledWarnTimeSeconds = MAX_flt;
 	ShutdownEvent->Reset();
 
-	ParseConfig();
+	ParseConfig(CookProcessCount);
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get();
 	if (!SocketSubsystem)
 	{
-		UE_LOG(LogCook, Error, TEXT("CookDirector initialization failure: platform does not support network sockets. CookWorkers will be disabled."));
+		UE_LOG(LogCook, Error, TEXT("CookDirector initialization failure: platform does not support network sockets. CookMultiprocess is disabled and the cooker is running as a single process."));
+		bMultiprocessAvailable = false;
+		return;
 	}
-	else
-	{
-		UE_LOG(LogCook, Display, TEXT("CookMultiprocess is enabled with %d CookWorker processes."), RequestedCookWorkerCount);
-	}
+	bMultiprocessAvailable = true;
+
+	UE_LOG(LogCook, Display, TEXT("CookProcessCount=%d. CookMultiprocess is enabled with 1 CookDirector and %d %s."),
+		RequestedCookWorkerCount+1, RequestedCookWorkerCount, RequestedCookWorkerCount > 1 ? TEXT("CookWorkers") : TEXT("CookWorker"));
 
 	Register(new FLogMessagesMessageHandler());
 }
 
-void FCookDirector::ParseConfig()
+bool FCookDirector::IsMultiprocessAvailable() const
+{
+	return bMultiprocessAvailable;
+}
+
+void FCookDirector::ParseConfig(int32 CookProcessCount)
 {
 	const TCHAR* CommandLine = FCommandLine::Get();
 	FString Text;
 
 	// CookWorkerCount
-	RequestedCookWorkerCount = 3;
-	GConfig->GetInt(TEXT("CookSettings"), TEXT("CookWorkerCount"), RequestedCookWorkerCount, GEditorIni);
-	FParse::Value(CommandLine, TEXT("-CookWorkerCount="), RequestedCookWorkerCount);
+	RequestedCookWorkerCount = CookProcessCount - 1;
+	check(RequestedCookWorkerCount > 0);
 
 	// CookDirectorListenPort
 	WorkerConnectPort = Sockets::COOKDIRECTOR_DEFAULT_REQUEST_CONNECTION_PORT;
@@ -692,9 +699,9 @@ void FCookDirector::ActivateMachineResourceReduction()
 	GShaderCompilingManager->OnMachineResourcesChanged(CoreLimit, CoreIncludingHyperthreadsLimit);
 
 	UE_LOG(LogCook, Display, TEXT("CookMultiprocess changed number of cores from %d to %d."),
-		NumberOfCores, FPlatformMisc::NumberOfCores());
+		NumberOfCores, CoreLimit);
 	UE_LOG(LogCook, Display, TEXT("CookMultiprocess changed number of hyperthreads from %d to %d."),
-		HyperThreadCount, FPlatformMisc::NumberOfCoresIncludingHyperthreads());
+		HyperThreadCount, CoreIncludingHyperthreadsLimit);
 }
 
 void FCookDirector::TickWorkerConnects(ECookDirectorThread TickThread)
