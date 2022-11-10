@@ -294,8 +294,7 @@ const FClearValueBinding FClearValueBinding::Green(FLinearColor(0.0f, 1.0f, 0.0f
 // Note: this is used as the default normal for DBuffer decals.  It must decode to a value of 0 in DecodeDBufferData.
 const FClearValueBinding FClearValueBinding::DefaultNormal8Bit(FLinearColor(128.0f / 255.0f, 128.0f / 255.0f, 128.0f / 255.0f, 1.0f));
 
-std::atomic<TClosableMpscQueue<FRHIResource*>*> FRHIResource::PendingDeletes { new TClosableMpscQueue<FRHIResource*>() };
-FHazardPointerCollection FRHIResource::PendingDeletesHPC;
+UE::TDepletableMpscQueue<FRHIResource*, FConcurrentLinearAllocator> FRHIResource::PendingDeletes;
 FRHIResource* FRHIResource::CurrentlyDeleting = nullptr;
 
 #if HAS_GPU_STATS
@@ -1257,12 +1256,10 @@ int32 FRHIResource::FlushPendingDeletes(FRHICommandListImmediate& RHICmdList)
 	check(IsInRenderingThread());
 
 	TArray<FRHIResource*> DeletedResources;
-	TClosableMpscQueue<FRHIResource*>* PendingDeletesPtr = PendingDeletes.exchange(new TClosableMpscQueue<FRHIResource*>());
-	PendingDeletesPtr->Close([&DeletedResources](FRHIResource* Resource)
-	{	
+	PendingDeletes.Deplete([&DeletedResources](FRHIResource* Resource)
+	{
 		DeletedResources.Push(Resource);
 	});
-	PendingDeletesHPC.Delete(PendingDeletesPtr);
 
 	const int32 NumDeletes = DeletedResources.Num();
 
