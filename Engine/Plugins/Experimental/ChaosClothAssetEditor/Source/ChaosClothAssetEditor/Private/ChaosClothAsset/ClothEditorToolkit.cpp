@@ -9,6 +9,9 @@
 #include "ChaosClothAsset/ClothEditor3DViewportClient.h"
 #include "ChaosClothAsset/SClothEditorRestSpaceViewport.h"
 #include "ChaosClothAsset/ClothEditorRestSpaceViewportClient.h"
+#include "ChaosClothAsset/ClothComponent.h"
+#include "ChaosClothAsset/ClothAsset.h"
+#include "ChaosClothAsset/ClothCollection.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "AssetEditorModeManager.h"
 #include "AdvancedPreviewScene.h"
@@ -17,10 +20,12 @@
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/AppStyle.h"
+#include "ChaosClothAsset/SClothCollectionOutliner.h"
 
 #define LOCTEXT_NAMESPACE "ChaosClothAssetEditorToolkit"
 
 const FName FChaosClothAssetEditorToolkit::ClothPreviewTabID(TEXT("ChaosClothAssetEditor_ClothPreviewTab"));
+const FName FChaosClothAssetEditorToolkit::OutlinerTabID(TEXT("ChaosClothAssetEditor_OutlinerTab"));
 
 FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwningAssetEditor)
 	: FBaseCharacterFXEditorToolkit(InOwningAssetEditor, FName("ChaosClothAssetEditor"))
@@ -71,6 +76,7 @@ FChaosClothAssetEditorToolkit::FChaosClothAssetEditorToolkit(UAssetEditor* InOwn
 					FTabManager::NewStack()
 					->SetSizeCoefficient(0.15f)
 					->AddTab(DetailsTabID, ETabState::OpenedTab)
+					->AddTab(OutlinerTabID, ETabState::OpenedTab)
 					->SetExtensionId("Details")
 					->SetHideTabWell(true)
 				)
@@ -189,6 +195,12 @@ void FChaosClothAssetEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabMan
 		.SetDisplayName(LOCTEXT("Details", "Details"))
 		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
+
+	InTabManager->RegisterTabSpawner(OutlinerTabID, FOnSpawnTab::CreateSP(this, &FChaosClothAssetEditorToolkit::SpawnTab_Outliner))
+		.SetDisplayName(LOCTEXT("Outliner", "Outliner"))
+		.SetGroup(AssetEditorTabsCategory.ToSharedRef())
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Outliner"));
+
 }
 
 void FChaosClothAssetEditorToolkit::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
@@ -278,6 +290,56 @@ TSharedRef<SDockTab> FChaosClothAssetEditorToolkit::SpawnTab_ClothPreview(const 
 	TSharedRef<SDockTab> DockableTab = SNew(SDockTab);
 	const FString LayoutId = FString("ChaosClothAssetEditorClothPreviewViewport");
 	ClothPreviewTabContent->Initialize(ClothPreviewViewportDelegate, DockableTab, LayoutId);
+	return DockableTab;
+}
+
+TSharedRef<SDockTab> FChaosClothAssetEditorToolkit::SpawnTab_Outliner(const FSpawnTabArgs& Args)
+{
+
+	TSharedRef<SDockTab> DockableTab = SNew(SDockTab)
+	[
+		SNew(SVerticalBox)
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SAssignNew(SelectedGroupNameComboBox, SComboBox<FName>)
+			.OptionsSource(&ClothCollectionGroupNames)
+			.OnSelectionChanged(SComboBox<FName>::FOnSelectionChanged::CreateLambda(
+				[this](FName SelectedName, ESelectInfo::Type)
+				{
+					if (OutlinerView)
+					{
+						OutlinerView->SetSelectedGroupName(SelectedName);	// this will also rebuild the table
+					}
+				}))
+			.OnGenerateWidget(SComboBox<FName>::FOnGenerateWidget::CreateLambda(
+				[](FName Item)
+				{
+					return SNew(STextBlock)
+						.Text(FText::FromName(Item));
+				}))
+			[
+				SNew(STextBlock)
+				.Text_Lambda([this]()
+				{
+					if (OutlinerView)
+					{
+						return FText::FromName(OutlinerView->GetSelectedGroupName());
+					}
+					else
+					{
+						return LOCTEXT("NoSelectedGroup", "");
+					}
+				})
+			]
+		]
+
+		+ SVerticalBox::Slot()
+		[
+			SAssignNew(OutlinerView, SClothCollectionOutliner)
+		]
+	];
 	return DockableTab;
 }
 
@@ -446,6 +508,35 @@ void FChaosClothAssetEditorToolkit::InitDetailsViewPanel()
 		ensure(ObjectToEditInDetailsView->HasAnyFlags(RF_Transactional));		// Ensure all objects are transactable for undo/redo in the details panel
 		SetEditingObject(ObjectToEditInDetailsView);
 	}
+
+	const UChaosClothAssetEditorMode* const ClothMode = CastChecked<UChaosClothAssetEditorMode>(EditorModeManager->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
+	check(ClothMode);
+
+	const bool bHasOutliner = OutlinerView.IsValid();
+
+	bool bHasClothCollection = false;
+	if (ClothMode->ClothComponent)
+	{
+		if (ClothMode->ClothComponent->GetClothAsset())
+		{
+			if (ClothMode->ClothComponent->GetClothAsset()->GetClothCollection())
+			{
+				bHasClothCollection = true;
+			}
+		}
+	}
+
+	if (bHasOutliner && bHasClothCollection)
+	{
+		const TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothMode->ClothComponent->GetClothAsset()->GetClothCollection();
+		const FName& SelectedGroupName = ClothCollection->SimVerticesGroup;
+		
+		OutlinerView->SetClothCollection(ClothCollection);
+		OutlinerView->SetSelectedGroupName(SelectedGroupName);
+
+		ClothCollectionGroupNames = ClothCollection->GroupNames();
+	}
+
 }
 
 #undef LOCTEXT_NAMESPACE

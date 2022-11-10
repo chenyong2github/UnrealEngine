@@ -3,9 +3,11 @@
 #pragma once
 
 #include "BaseCharacterFXEditorToolkit.h"
+#include "Widgets/Input/SComboBox.h"
 
 class FAdvancedPreviewScene;
 class FChaosClothAssetEditor3DViewportClient;
+class SClothCollectionOutliner;
 
 /**
  * The toolkit is supposed to act as the UI manager for the asset editor. It's responsible 
@@ -23,7 +25,7 @@ public:
 	virtual ~FChaosClothAssetEditorToolkit();
 
 	static const FName ClothPreviewTabID;
-	static const FName InteractiveToolsPanelTabID;
+	static const FName OutlinerTabID;
 
 	// FAssetEditorToolkit
 	virtual void AddViewportOverlayWidget(TSharedRef<SWidget> InViewportOverlayWidget) override;
@@ -60,14 +62,15 @@ protected:
 	virtual void InitializeEdMode(UBaseCharacterFXEditorMode* EdMode) override;
 	virtual void CreateEditorModeUILayer() override;
 
-	TSharedRef<SDockTab> SpawnTab_ClothPreview(const FSpawnTabArgs& Args);
-
 	// Appearance customization points
 	// TODO: Implement these when we have an FChaosClothAssetEditorStyle class
 	//virtual const FSlateBrush* GetDefaultTabIcon() const override;
 	//virtual FLinearColor GetDefaultTabColor() const override;
 
 private:
+
+	TSharedRef<SDockTab> SpawnTab_ClothPreview(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_Outliner(const FSpawnTabArgs& Args);
 
 	/** Scene in which the 3D sim space preview meshes live. */
 	TUniquePtr<FAdvancedPreviewScene> ClothPreviewScene;
@@ -80,9 +83,11 @@ private:
 	TWeakPtr<SEditorViewport> RestSpaceViewport;
 
 	void InitDetailsViewPanel();
+	
+	TSharedPtr<SClothCollectionOutliner> OutlinerView;
 
-	// TODO as necessary:
-	//TObjectPtr<UInputRouter> ClothPreviewInputRouter = nullptr;
-	//UClothToolViewportButtonsAPI* ViewportButtonsAPI = nullptr;
+	TSharedPtr<SComboBox<FName>> SelectedGroupNameComboBox;
+	TArray<FName> ClothCollectionGroupNames;		// Data source for SelectedGroupNameComboBox
+
 };
 
