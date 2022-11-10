@@ -28,13 +28,6 @@ public:
 	virtual void ShutdownModule();
 
 	/**
-	*  Create a custom asset editor.
-	*
-	*/
-	TSharedRef<FAssetEditorToolkit> CreateGeometryCollectionAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* GeometryCollectionAsset);
-
-
-	/**
 	 * Singleton-like access to this module's interface.  This is just for convenience!
 	 * Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.
 	 *

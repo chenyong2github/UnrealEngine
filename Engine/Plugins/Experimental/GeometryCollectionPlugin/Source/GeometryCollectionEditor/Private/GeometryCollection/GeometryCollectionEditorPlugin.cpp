@@ -19,7 +19,6 @@
 #include "GeometryCollection/GeometryCollectionThumbnailRenderer.h"
 #include "GeometryCollection/GeometryCollectionSelectRigidBodyEdMode.h"
 #include "GeometryCollection/GeometryCollectionSelectionCommands.h"
-#include "GeometryCollection/GeometryCollectionEditorToolkit.h"
 #include "GeometryCollection/GeometryCollectionFactory.h"
 #include "HAL/ConsoleManager.h"
 #include "Features/IModularFeatures.h"
@@ -334,12 +333,4 @@ void IGeometryCollectionEditorPlugin::RegisterMenus()
 		Section.AddMenuEntry(FGeometryCollectionSelectionCommands::Get().SelectNone);
 		Section.AddMenuEntry(FGeometryCollectionSelectionCommands::Get().SelectInverseGeometry);
 	}
-}
-
-
-TSharedRef<FAssetEditorToolkit> IGeometryCollectionEditorPlugin::CreateGeometryCollectionAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* GeometryCollectionAsset)
-{
-	TSharedPtr<FGeometryCollectionEditorToolkit> NewGeometryCollectionAssetEditor = MakeShared<FGeometryCollectionEditorToolkit>();
-	NewGeometryCollectionAssetEditor->InitGeometryCollectionAssetEditor(Mode, InitToolkitHost, GeometryCollectionAsset);
-	return StaticCastSharedPtr<FAssetEditorToolkit>(NewGeometryCollectionAssetEditor).ToSharedRef();
 }

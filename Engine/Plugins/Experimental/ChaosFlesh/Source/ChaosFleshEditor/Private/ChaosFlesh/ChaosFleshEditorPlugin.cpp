@@ -11,7 +11,6 @@
 #include "ChaosFlesh/Asset/AssetTypeActions_FleshAsset.h"
 #include "ChaosFlesh/Asset/AssetTypeActions_ChaosDeformableSolverAsset.h"
 #include "ChaosFlesh/Asset/FleshAssetThumbnailRenderer.h"
-#include "ChaosFlesh/Editor/FleshEditorToolkit.h"
 #include "CoreMinimal.h"
 #include "Dataflow/DataflowEditorToolkit.h"
 #include "Features/IModularFeatures.h"
