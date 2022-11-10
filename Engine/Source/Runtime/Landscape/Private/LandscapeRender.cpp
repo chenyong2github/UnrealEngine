@@ -1577,6 +1577,9 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 
 	if (HeightmapTexture)
 	{
+		const float SizeX = FMath::Max(HeightmapTexture->GetSizeX(), 1);
+		const float SizeY = FMath::Max(HeightmapTexture->GetSizeY(), 1);
+		LandscapeParams.HeightmapTextureSize = FVector4f(SizeX, SizeY, 1.f / SizeX, 1.f / SizeY);
 		LandscapeParams.HeightmapTexture = HeightmapTexture->TextureReference.TextureReferenceRHI;
 		LandscapeParams.HeightmapTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		LandscapeParams.NormalmapTexture = HeightmapTexture->TextureReference.TextureReferenceRHI;
@@ -1584,6 +1587,7 @@ void FLandscapeComponentSceneProxy::OnTransformChanged()
 	}
 	else
 	{
+		LandscapeParams.HeightmapTextureSize = FVector4f(1, 1, 1, 1);
 		LandscapeParams.HeightmapTexture = GBlackTexture->TextureRHI;
 		LandscapeParams.HeightmapTextureSampler = GBlackTexture->SamplerStateRHI;
 		LandscapeParams.NormalmapTexture = GBlackTexture->TextureRHI;
