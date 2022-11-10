@@ -78,7 +78,7 @@ public:
 							{
 								// Is the asset the right kind?
 								bPassesClassFilter = 
-									Algo::AnyOf(SupportedClassPtrs, [&Asset](TSoftClassPtr<UObject> ClassPtr){ return Asset.IsInstanceOf(ClassPtr.Get()); });
+									Algo::AnyOf(SupportedClassPtrs, [&Asset](TSoftClassPtr<UObject> ClassPtr){ return Asset.IsInstanceOf(ClassPtr.Get(), EResolveClass::Yes); });
 							}
 
 							if (bPassesClassFilter)
