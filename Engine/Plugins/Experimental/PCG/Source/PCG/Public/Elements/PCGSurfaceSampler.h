@@ -10,6 +10,8 @@
 #include "PCGSurfaceSampler.generated.h"
 
 class FPCGSurfaceSamplerElement;
+class UPCGPointData;
+class UPCGSpatialData;
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGSurfaceSamplerSettings : public UPCGSettings
@@ -64,3 +66,40 @@ class FPCGSurfaceSamplerElement : public FSimplePCGElement
 protected:
 	virtual bool ExecuteInternal(FPCGContext* Context) const override;
 };
+
+namespace PCGSurfaceSampler
+{
+	struct FSurfaceSamplerSettings
+	{
+		const UPCGSurfaceSamplerSettings* Settings = nullptr;
+
+		float PointsPerSquaredMeter = 1.0f;
+		FVector PointExtents = FVector::One() * 0.5f;
+		float Looseness = 0.0f;
+		bool bApplyDensityToPoints = false;
+		float PointSteepness = 0.0f;
+#if WITH_EDITORONLY_DATA
+		bool bKeepZeroDensityPoints = false;
+#endif
+
+		bool Initialize(const UPCGSurfaceSamplerSettings* InSettings, FPCGContext* Context, const FBox& InputBounds);
+		void ComputeCellIndices(int32 Index, int32& CellX, int32& CellY) const;
+
+		/** Computed values **/
+		FVector InterstitialDistance;
+		FVector InnerCellSize;
+		FVector CellSize;
+
+		int32 CellMinX;
+		int32 CellMaxX;
+		int32 CellMinY;
+		int32 CellMaxY;
+		int32 CellCount;
+		int64 TargetPointCount;
+		float Ratio;
+		int Seed;
+	};
+
+	UPCGPointData* SampleSurface(FPCGContext* Context, const UPCGSpatialData* SpatialInput, const FSurfaceSamplerSettings& LoopData);
+	void SampleSurface(FPCGContext* Context, const UPCGSpatialData* SpatialInput, const FSurfaceSamplerSettings& LoopData, UPCGPointData* SampledData);
+}

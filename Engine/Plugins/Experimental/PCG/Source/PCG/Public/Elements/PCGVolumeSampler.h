@@ -18,6 +18,7 @@ namespace PCGVolumeSampler
 	};
 
 	UPCGPointData* SampleVolume(FPCGContext* Context, const UPCGSpatialData* SpatialData, const FVolumeSamplerSettings& SamplerSettings);
+	void SampleVolume(FPCGContext* Context, const UPCGSpatialData* SpatialData, const FVolumeSamplerSettings& SamplerSettings, UPCGPointData* OutputData, const FBox& Bounds);
 }
 
 UCLASS(BlueprintType, ClassGroup = (Procedural))

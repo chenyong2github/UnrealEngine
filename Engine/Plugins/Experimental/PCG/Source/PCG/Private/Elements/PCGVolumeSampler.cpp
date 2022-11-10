@@ -13,10 +13,25 @@ namespace PCGVolumeSampler
 	{
 		UPCGPointData* Data = NewObject<UPCGPointData>();
 		Data->InitializeFromData(SpatialData);
-		TArray<FPCGPoint>& Points = Data->GetMutablePoints();
-
-		const FVector& VoxelSize = SamplerSettings.VoxelSize;
 		const FBox Bounds = SpatialData->GetBounds();
+
+		SampleVolume(Context, SpatialData, SamplerSettings, Data, Bounds);
+
+		return Data;
+	}
+
+	void SampleVolume(FPCGContext* Context, const UPCGSpatialData* SpatialData, const FVolumeSamplerSettings& SamplerSettings, UPCGPointData* OutputData, const FBox& Bounds)
+	{
+		check(SpatialData && OutputData);
+
+		// Early out
+		if (!Bounds.IsValid)
+		{
+			return;
+		}
+
+		TArray<FPCGPoint>& Points = OutputData->GetMutablePoints();
+		const FVector& VoxelSize = SamplerSettings.VoxelSize;
 
 		const int32 MinX = FMath::CeilToInt(Bounds.Min.X / VoxelSize.X);
 		const int32 MaxX = FMath::FloorToInt(Bounds.Max.X / VoxelSize.X);
@@ -45,8 +60,6 @@ namespace PCGVolumeSampler
 				return false;
 			}
 		});
-
-		return Data;
 	}
 }
 
