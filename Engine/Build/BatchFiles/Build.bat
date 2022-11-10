@@ -21,6 +21,7 @@ rem ## Change the CWD to /Engine/Source.  We always need to run UnrealBuildTool 
 pushd "%~dp0\..\..\Source"
 if not exist ..\Build\BatchFiles\Build.bat goto Error_BatchFileInWrongLocation
 
+set UBTDir="..\..\Engine\Binaries\DotNET\UnrealBuildTool"
 set UBTPath="..\..\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll"
 
 rem ## If this is an installed build, we don't need to rebuild UBT. Go straight to building.
@@ -47,7 +48,7 @@ if not exist %UBTPath% (
 		if errorlevel 1 goto Error_UBTCompileFailed
 	) else (
 		echo Building UnrealBuildTool with dotnet...
-		dotnet build %ProjectFile% -c Development -v quiet
+		dotnet build %ProjectFile% -o %UBTDir% -c Development -v quiet
 		if errorlevel 1 goto Error_UBTCompileFailed
 	)
 )

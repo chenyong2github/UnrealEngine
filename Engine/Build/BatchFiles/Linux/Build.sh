@@ -16,7 +16,7 @@ if [ ! -f Engine/Build/InstalledBuild.txt ]; then
 	for i in "$@" ; do
 	# First make sure that the UnrealBuildTool is up-to-date
 	if [[ $i == "-buildubt" ]] ; then
-		if ! dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -c Development -v quiet; then
+		if ! dotnet build Engine/Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj -o Engine/Binaries/DotNET/UnrealBuildTool -c Development -v quiet; then
 			echo "Failed to build the build tool (UnrealBuildTool)"
 			exit 1
 		fi
