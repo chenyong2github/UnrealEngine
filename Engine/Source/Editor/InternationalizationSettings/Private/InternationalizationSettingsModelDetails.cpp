@@ -169,11 +169,12 @@ namespace
 				.InitialSelection(EditorLanguage)
 				.OnSelectionChanged_Lambda(OnSelectionChangedLambda)
 				.IsCulturePickable_Lambda(IsCulturePickableLambda)
-				.DisplayNameFormat(SCulturePicker::ECultureDisplayFormat::ActiveAndNativeCultureDisplayName);
+				.DisplayNameFormat(SCulturePicker::ECultureDisplayFormat::ActiveAndNativeCultureDisplayName)
+				.ViewMode(SCulturePicker::ECulturesViewMode::Flat);
 
 			return SNew(SBox)
 				.MaxDesiredHeight(500.0f)
-				.WidthOverride(300.0f)
+				.WidthOverride(350.0f)
 				[
 					CulturePicker
 				];
@@ -259,8 +260,8 @@ namespace
 				.DisplayNameFormat(SCulturePicker::ECultureDisplayFormat::ActiveAndNativeCultureDisplayName);
 
 			return SNew(SBox)
-				.MaxDesiredHeight(300.0f)
-				.WidthOverride(300.0f)
+				.MaxDesiredHeight(500.0f)
+				.WidthOverride(350.0f)
 				[
 					CulturePicker
 				];
@@ -361,12 +362,14 @@ namespace
 			};
 			return SNew(SBox)
 				.MaxDesiredHeight(500.0f)
-				.WidthOverride(300.0f)
+				.WidthOverride(350.0f)
 				[
 					SNew(SCulturePicker)
 					.InitialSelection(PreviewGameCulture)
 					.OnSelectionChanged_Lambda(CulturePickerSelectLambda)
 					.IsCulturePickable_Lambda(CulturePickerIsPickableLambda)
+					.DisplayNameFormat(SCulturePicker::ECultureDisplayFormat::ActiveAndNativeCultureDisplayName)
+					.ViewMode(SCulturePicker::ECulturesViewMode::Flat)
 					.CanSelectNone(true)
 				];
 		}

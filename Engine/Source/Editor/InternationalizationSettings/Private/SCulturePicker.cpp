@@ -30,6 +30,7 @@ void SCulturePicker::Construct( const FArguments& InArgs )
 	OnCultureSelectionChanged = InArgs._OnSelectionChanged;
 	IsCulturePickable = InArgs._IsCulturePickable;
 	DisplayNameFormat = InArgs._DisplayNameFormat;
+	ViewMode = InArgs._ViewMode;
 	CanSelectNone = InArgs._CanSelectNone;
 
 	BuildStockEntries();
@@ -106,7 +107,7 @@ void SCulturePicker::AutoExpandEntries()
 
 void SCulturePicker::AutoExpandEntriesImpl(const TArray<TSharedPtr<FCultureEntry>>& Entries)
 {
-	if (TreeView)
+	if (ViewMode == ECulturesViewMode::Hierarchical && TreeView)
 	{
 		for (const TSharedPtr<FCultureEntry>& Entry : Entries)
 		{
@@ -239,11 +240,30 @@ void SCulturePicker::RebuildEntries()
 				IsFilteredOut = !Name.Contains(FilterString) && !DisplayName.Contains(FilterString) && !NativeName.Contains(FilterString);
 			}
 
-			// If has children, must be added. If it is not filtered and it is pickable, should be added.
-			if ( OutEntry->Children.Num() != 0 || (!IsFilteredOut && IsPickable) )
+			switch (ViewMode)
 			{
-				OutEntry->AutoExpand = (!IsPickable || IsFilteredOut) && OutEntry->Children.Num() > 0;
-				OutEntries.Add(OutEntry);
+			case ECulturesViewMode::Hierarchical:
+				// If has children, must be added. If it is not filtered and it is pickable, should be added.
+				if (OutEntry->Children.Num() != 0 || (!IsFilteredOut && IsPickable))
+				{
+					OutEntry->AutoExpand = (!IsPickable || IsFilteredOut) && OutEntry->Children.Num() > 0;
+					OutEntries.Add(OutEntry);
+				}
+				break;
+
+			case ECulturesViewMode::Flat:
+				// Add this entry only if it's valid, but always append its children (as they have already been validated)
+				if (IsPickable && !IsFilteredOut)
+				{
+					OutEntries.Add(OutEntry);
+				}
+				OutEntries.Append(OutEntry->Children);
+				OutEntry->Children.Reset();
+				break;
+
+			default:
+				checkf(false, TEXT("Unknown ECulturesViewMode!"));
+				break;
 			}
 		}	
 	};
@@ -322,7 +342,7 @@ FString SCulturePicker::GetCultureDisplayName(const FCultureRef& Culture, const 
 	{
 		// Only show both names if they're different (to avoid repetition), and we're a root item (to avoid noise)
 		return (bIsRootItem && !NativeName.Equals(DisplayName, ESearchCase::CaseSensitive))
-			? FString::Printf(TEXT("%s (%s)"), *DisplayName, *NativeName)
+			? FString::Printf(TEXT("%s [%s]"), *DisplayName, *NativeName)
 			: DisplayName;
 	}
 
@@ -330,7 +350,7 @@ FString SCulturePicker::GetCultureDisplayName(const FCultureRef& Culture, const 
 	{
 		// Only show both names if they're different (to avoid repetition), and we're a root item (to avoid noise)
 		return (bIsRootItem && !NativeName.Equals(DisplayName, ESearchCase::CaseSensitive))
-			? FString::Printf(TEXT("%s (%s)"), *NativeName, *DisplayName)
+			? FString::Printf(TEXT("%s [%s]"), *NativeName, *DisplayName)
 			: NativeName;
 	}
 

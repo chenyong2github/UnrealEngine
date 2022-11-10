@@ -71,15 +71,25 @@ public:
 		NativeAndActiveCultureDisplayName,
 	};
 
+	enum class ECulturesViewMode
+	{
+		/** Display the cultures hierarchically in a tree */
+		Hierarchical,
+		/** Display the cultures as a flat list */
+		Flat,
+	};
+
 public:
 	SLATE_BEGIN_ARGS( SCulturePicker )
 		: _DisplayNameFormat(ECultureDisplayFormat::ActiveCultureDisplayName)
+		, _ViewMode(ECulturesViewMode::Hierarchical)
 		, _CanSelectNone(false)
 	{}
 		SLATE_EVENT( FOnSelectionChanged, OnSelectionChanged )
 		SLATE_EVENT( FIsCulturePickable, IsCulturePickable )
 		SLATE_ARGUMENT( FCulturePtr, InitialSelection )
 		SLATE_ARGUMENT(ECultureDisplayFormat, DisplayNameFormat)
+		SLATE_ARGUMENT(ECulturesViewMode, ViewMode)
 		SLATE_ARGUMENT(bool, CanSelectNone)
 	SLATE_END_ARGS()
 
@@ -129,6 +139,9 @@ private:
 
 	/** How should we display culture names? */
 	ECultureDisplayFormat DisplayNameFormat;
+
+	/** How should we display the list of cultures? */
+	ECulturesViewMode ViewMode;
 
 	/** Should a null culture option be available? */
 	bool CanSelectNone;
