@@ -680,9 +680,9 @@ protected:
 		return true;
 	}
 
-	bool ShouldCreateNaniteProxy() const;	
-
 public:
+
+	bool ShouldCreateNaniteProxy() const;
 
 	void ReleaseResources();
 
