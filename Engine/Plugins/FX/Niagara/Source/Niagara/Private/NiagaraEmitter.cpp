@@ -1627,23 +1627,19 @@ void FVersionedNiagaraEmitterData::UpdateDebugName(const UNiagaraEmitter& Emitte
 {
 #if WITH_NIAGARA_DEBUG_EMITTER_NAME
 	// Ensure our debug simulation name is up to date
-	// Only required on uncooked as it can change due to compilation
-	if (!FPlatformProperties::RequiresCookedData())
+	DebugSimName.Empty();
+	if (const UNiagaraSystem* SystemOwner = Emitter.GetTypedOuter<class UNiagaraSystem>())
 	{
-		DebugSimName.Empty();
-		if (const UNiagaraSystem* SystemOwner = Emitter.GetTypedOuter<class UNiagaraSystem>())
-		{
-			DebugSimName = SystemOwner->GetName();
-			DebugSimName.AppendChar(':');
-		}
-		DebugSimName.Append(Emitter.GetName());
-		if (Emitter.IsVersioningEnabled())
-		{
-			DebugSimName.AppendChar(':');
-			DebugSimName.AppendInt(Version.MajorVersion);
-			DebugSimName.AppendChar('.');
-			DebugSimName.AppendInt(Version.MinorVersion);
-		}
+		DebugSimName = SystemOwner->GetName();
+		DebugSimName.AppendChar(':');
+	}
+	DebugSimName.Append(Emitter.GetName());
+	if (Emitter.IsVersioningEnabled())
+	{
+		DebugSimName.AppendChar(':');
+		DebugSimName.AppendInt(Version.MajorVersion);
+		DebugSimName.AppendChar('.');
+		DebugSimName.AppendInt(Version.MinorVersion);
 	}
 #endif
 

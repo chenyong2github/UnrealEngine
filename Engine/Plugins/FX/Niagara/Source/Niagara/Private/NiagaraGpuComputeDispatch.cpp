@@ -49,6 +49,8 @@ DECLARE_GPU_STAT_NAMED(NiagaraGPUComputeFreeIDs, TEXT("Niagara GPU Compute All F
 DECLARE_GPU_STAT_NAMED(NiagaraGPUComputeFreeIDsEmitter, TEXT("Niagara GPU Compute Emitter Free IDs"));
 DECLARE_GPU_STAT_NAMED(NiagaraGPUSorting, TEXT("Niagara GPU sorting"));
 
+CSV_DEFINE_CATEGORY_MODULE(NIAGARA_API, NiagaraGpuCompute, true);
+
 uint32 FNiagaraComputeExecutionContext::TickCounter = 0;
 
 int32 GNiagaraGpuSubmitCommandHint = 0;
@@ -145,6 +147,16 @@ namespace FNiagaraGpuComputeDispatchLocal
 			BeforeTransitionArray.Emplace(IntUAV, BeforeState, AfterState);
 			AfterTransitionArray.Emplace(IntUAV, AfterState, BeforeState);
 		}
+	}
+
+	static bool CsvStatsEnabled()
+	{
+	#if WITH_PARTICLE_PERF_CSV_STATS
+		static IConsoleVariable* DetailedCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.DetailedCSVStats"));
+		return DetailedCVar && DetailedCVar->GetBool();
+	#else
+		return false;
+	#endif
 	}
 }
 
@@ -1624,6 +1636,15 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 		);
 
 		INC_DWORD_STAT(STAT_NiagaraGPUDispatches);
+	#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS && WITH_NIAGARA_DEBUG_EMITTER_NAME
+		if (FNiagaraGpuComputeDispatchLocal::CsvStatsEnabled())
+		{
+			if (FCsvProfiler* CSVProfiler = FCsvProfiler::Get())
+			{
+				CSVProfiler->RecordCustomStat(InstanceData.Context->GetDebugSimFName(), CSV_CATEGORY_INDEX(NiagaraGpuCompute), 1, ECsvCustomStatOp::Accumulate);
+			}
+		}
+	#endif
 	}
 
 	// Optionally submit commands to the GPU
@@ -1814,6 +1835,11 @@ void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TCo
 	bRequiresReadback = false;
 
 	GNiagaraViewDataManager.ClearSceneTextureParameters();
+
+	if (FNiagaraGpuComputeDispatchLocal::CsvStatsEnabled())
+	{
+		CSV_CUSTOM_STAT(NiagaraGpuCompute, TotalDispatchesThisFrame, TotalDispatchesThisFrame, ECsvCustomStatOp::Set);
+	}
 }
 
 void FNiagaraGpuComputeDispatch::ProcessDebugReadbacks(FRHICommandListImmediate& RHICmdList, bool bWaitCompletion)
