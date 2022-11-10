@@ -76,7 +76,7 @@ namespace PackFactoryHelper
 				FAES::FAESKey Key;
 				FPakPlatformFile::GetPakEncryptionKey(Key, PakFile.GetInfo().EncryptionKeyGuid);
 				checkf(Key.IsValid(), TEXT("Trying to copy an encrypted file between pak files, but no decryption key is available"));
-				FAES::DecryptData(Buffer.GetData(), SizeToRead, Key);
+				FAES::DecryptData(Buffer.GetData(), IntCastChecked<uint32>(SizeToRead), Key);
 			}
 			DestAr.Serialize(Buffer.GetData(), SizeToCopy);
 			RemainingSizeToCopy -= SizeToRead;
@@ -92,8 +92,9 @@ namespace PackFactoryHelper
 			return false;
 		}
 
-		int64 WorkingSize = Entry.CompressionBlockSize;
-		int32 MaxCompressionBlockSize = FCompression::GetMaximumCompressedSize(PakFile.GetInfo().GetCompressionMethod(Entry.CompressionMethodIndex), WorkingSize);
+		int32 WorkingSize = Entry.CompressionBlockSize;
+		uint8 CompressionMethodIndex = IntCastChecked<uint8>(Entry.CompressionMethodIndex);
+		int32 MaxCompressionBlockSize = FCompression::GetMaximumCompressedSize(PakFile.GetInfo().GetCompressionMethod(CompressionMethodIndex), WorkingSize);
 		WorkingSize += MaxCompressionBlockSize;
 		if (PersistentBuffer.Num() < WorkingSize)
 		{
@@ -104,10 +105,10 @@ namespace PackFactoryHelper
 
 		for (uint32 BlockIndex = 0, BlockIndexNum = Entry.CompressionBlocks.Num(); BlockIndex < BlockIndexNum; ++BlockIndex)
 		{
-			uint32 CompressedBlockSize = Entry.CompressionBlocks[BlockIndex].CompressedEnd - Entry.CompressionBlocks[BlockIndex].CompressedStart;
+			int32 CompressedBlockSize = IntCastChecked<int32>(Entry.CompressionBlocks[BlockIndex].CompressedEnd - Entry.CompressionBlocks[BlockIndex].CompressedStart);
 			uint32 UncompressedBlockSize = (uint32)FMath::Min<int64>(Entry.UncompressedSize - Entry.CompressionBlockSize*BlockIndex, Entry.CompressionBlockSize);
 			Source.Seek(Entry.CompressionBlocks[BlockIndex].CompressedStart + (PakFile.GetInfo().HasRelativeCompressedChunkOffsets() ? Entry.Offset : 0));
-			uint32 SizeToRead = Entry.IsEncrypted() ? Align(CompressedBlockSize, FAES::AESBlockSize) : CompressedBlockSize;
+			int32 SizeToRead = Entry.IsEncrypted() ? Align(CompressedBlockSize, FAES::AESBlockSize) : CompressedBlockSize;
 			Source.Serialize(PersistentBuffer.GetData(), SizeToRead);
 
 			if (Entry.IsEncrypted())
@@ -118,7 +119,7 @@ namespace PackFactoryHelper
 				FAES::DecryptData(PersistentBuffer.GetData(), SizeToRead, Key);
 			}
 
-			if (!FCompression::UncompressMemory(PakFile.GetInfo().GetCompressionMethod(Entry.CompressionMethodIndex), UncompressedBuffer, UncompressedBlockSize, PersistentBuffer.GetData(), CompressedBlockSize))
+			if (!FCompression::UncompressMemory(PakFile.GetInfo().GetCompressionMethod(CompressionMethodIndex), UncompressedBuffer, UncompressedBlockSize, PersistentBuffer.GetData(), CompressedBlockSize))
 			{
 				return false;
 			}

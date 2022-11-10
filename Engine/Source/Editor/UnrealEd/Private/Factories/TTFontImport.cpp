@@ -498,7 +498,7 @@ void FTextureAlphaToDistanceField::Generate(int32 ScaleFactor, int32 ScanRadius)
 
 	// destination texture
 	// note that destination format can be different from source format	
-	SIZE_T NumBytes = CalculateImageBytes(DstSizeX,DstSizeY,0,DstFormat);	
+	int32 NumBytes = IntCastChecked<int32>(CalculateImageBytes(DstSizeX,DstSizeY,0,DstFormat));
 	DstTexture.Empty(NumBytes);	
 	DstTexture.AddZeroed(NumBytes);
 	
@@ -584,7 +584,7 @@ void FTextureAlphaToDistanceField::Generate(int32 ScaleFactor, int32 ScanRadius)
 		{
 			for( int32 y=0; y < DstSizeY; y++ )
 			{
-				DstTexture[x + y * DstSizeX] = SignedDistance[x + y * DstSizeX] * 255;
+				DstTexture[x + y * DstSizeX] = static_cast<uint8>(SignedDistance[x + y * DstSizeX] * 255);
 			}
 		}
 	}
@@ -598,7 +598,7 @@ void FTextureAlphaToDistanceField::Generate(int32 ScaleFactor, int32 ScanRadius)
 				DstTexture[4 * (x + y * DstSizeX) + 0] = SrcColor.B;
 				DstTexture[4 * (x + y * DstSizeX) + 1] = SrcColor.G;
 				DstTexture[4 * (x + y * DstSizeX) + 2] = SrcColor.R;
-				DstTexture[4 * (x + y * DstSizeX) + 3] = SignedDistance[x + y * DstSizeX] * 255;
+				DstTexture[4 * (x + y * DstSizeX) + 3] = static_cast<uint8>(SignedDistance[x + y * DstSizeX] * 255);
 			}
 		}	
 	}
@@ -931,7 +931,7 @@ UTexture2D* UTrueTypeFontFactory::CreateTextureFromDC( UFont* Font, HDC dc, int3
 				MipData[4 * (i + j * SizeX) + 0] = ( uint8 )( FontColor8Bit.B * ( 1.0f - fDropShadowAlpha ) );
 				MipData[4 * (i + j * SizeX) + 1] = ( uint8 )( FontColor8Bit.G * ( 1.0f - fDropShadowAlpha ) );
 				MipData[4 * (i + j * SizeX) + 2] = ( uint8 )( FontColor8Bit.R * ( 1.0f - fDropShadowAlpha ) );
-				MipData[4 * (i + j * SizeX) + 3] = CharAlpha + DropShadowAlpha;
+				MipData[4 * (i + j * SizeX) + 3] = ( uint8 )( CharAlpha + DropShadowAlpha );
 			}
 		}
 	}
@@ -949,7 +949,7 @@ UTexture2D* UTrueTypeFontFactory::CreateTextureFromDC( UFont* Font, HDC dc, int3
 			PF_B8G8R8A8
 			);
 		// estimate scan radius based on half font height scaled by bitmap scale factor
-		const int32 ScanRadius = ImportOptions->Data.Height/2 * ImportOptions->Data.DistanceFieldScaleFactor * ImportOptions->Data.DistanceFieldScanRadiusScale;
+		const int32 ScanRadius = static_cast<int32>((ImportOptions->Data.Height / 2.0f) * ImportOptions->Data.DistanceFieldScaleFactor * ImportOptions->Data.DistanceFieldScanRadiusScale);
 		// generate downsampled distance field using high res source bitmap
 		DistanceFieldTex.Generate(ImportOptions->Data.DistanceFieldScaleFactor,ScanRadius);
 		check(DistanceFieldTex.GetResultTextureSize() > 0);
@@ -1337,7 +1337,7 @@ bool UTrueTypeFontFactory::CreateFontTexture(
 			NewCharacterRef.VSize =
 				FMath::Clamp<int32>( FontHeight + ImportOptions->Data.ExtendBoxTop + ImportOptions->Data.ExtendBoxBottom,
 							0, ImportOptions->Data.TexturePageMaxHeight - NewCharacterRef.StartV );
-			NewCharacterRef.TextureIndex = CurrentTexture;
+			NewCharacterRef.TextureIndex = static_cast<uint8>(CurrentTexture);
 			NewCharacterRef.VerticalOffset = VerticalOffset;
 
 			// Draw character into font and advance.
@@ -2139,7 +2139,7 @@ bool UTrueTypeFontFactory::ImportTrueTypeFont(
 		Font->IsRemapped = 1;
 
 		// Only include ASCII characters if we were asked to
-		int32 MinRangeCharacter = 0;
+		uint16 MinRangeCharacter = 0;
 		if( ImportOptions->Data.bIncludeASCIIRange )
 		{
 			// Map (ASCII)
@@ -2224,9 +2224,10 @@ bool UTrueTypeFontFactory::ImportTrueTypeFont(
 
 		}
 
-		int32 j=MinRangeCharacter;
-		int32 Min=65536, Max=0;
-		for( int32 i=MinRangeCharacter; i<65536; i++ )
+		uint16 j = MinRangeCharacter;
+		uint16 Min = std::numeric_limits<uint16>::max();
+		uint16 Max = 0;
+		for( uint16 i = MinRangeCharacter; i <= std::numeric_limits<uint16>::max(); ++i )
 		{
 			if( Chars[i] )
 			{

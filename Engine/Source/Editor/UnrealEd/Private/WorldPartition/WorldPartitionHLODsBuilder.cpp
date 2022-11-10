@@ -611,10 +611,10 @@ bool UWorldPartitionHLODsBuilder::DumpStats()
 		uint64				VertexCount = 0;
 		uint64				UVChannelCount = 0;
 
-		uint32				BaseColorTextureSize = 0;
-		uint32				NormalTextureSize = 0;
-		uint32				MRSTextureSize = 0;
-		uint32				EmissiveTextureSize = 0;
+		float				BaseColorTextureSize = 0.0f;
+		float				NormalTextureSize = 0.0f;
+		float				MRSTextureSize = 0.0f;
+		float				EmissiveTextureSize = 0.0f;
 
 		uint64				MeshResourceSize = 0;
 		uint64				TexturesResourceSize = 0;
@@ -628,7 +628,7 @@ bool UWorldPartitionHLODsBuilder::DumpStats()
 
 		FString ToCSVString() const
 		{
-			return FString::Printf(TEXT("%s, %s, %s, %d, %d, %d, %s, %s, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d"), 
+			return FString::Printf(TEXT("%s, %s, %s, %d, %d, %d, %s, %s, %d, %d, %d, %d, %d, %d, %.0f, %.0f, %.0f, %.0f, %d, %d, %d"), 
 				*Name, 
 				*RuntimeGrid.ToString(),
 				bIsSpatiallyLoaded ? TEXT("true") : TEXT("false"),

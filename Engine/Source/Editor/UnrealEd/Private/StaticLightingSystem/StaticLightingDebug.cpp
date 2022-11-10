@@ -19,6 +19,8 @@
 #include "Engine/StaticMesh.h"
 #include "TextureResource.h"
 
+#include <limits>
+
 /** Information about the texel that is selected */
 FSelectedLightmapSample GCurrentSelectedLightmapSample;
 
@@ -96,16 +98,16 @@ static bool UpdateSelectedTexel(
 			UTexture2D* CurrentLightmap = Lightmap2D->GetTexture( LightmapIndex );
 			{
 				// UV's in the lightmap atlas
-				int32 LightmapX = FMath::TruncToInt(LightmapUV.X * CurrentLightmap->GetSizeX());
-				int32 LightmapY = FMath::TruncToInt(LightmapUV.Y * .5f * CurrentLightmap->GetSizeY());
+				int32 LightmapX = FMath::TruncToInt32(LightmapUV.X * CurrentLightmap->GetSizeX());
+				int32 LightmapY = FMath::TruncToInt32(LightmapUV.Y * .5f * CurrentLightmap->GetSizeY());
 				// Write the selection color to the selected lightmap texel
 				WriteTexel(CurrentLightmap, LightmapX, LightmapY, GTexelSelectionColor);
 			}
 
 			{
 				// UV's in the lightmap atlas
-				int32 LightmapX = FMath::TruncToInt(LightmapUV.X * CurrentLightmap->GetSizeX());
-				int32 LightmapY = FMath::TruncToInt((LightmapUV.Y * .5f + .5f) * CurrentLightmap->GetSizeY());
+				int32 LightmapX = FMath::TruncToInt32(LightmapUV.X * CurrentLightmap->GetSizeX());
+				int32 LightmapY = FMath::TruncToInt32((LightmapUV.Y * .5f + .5f) * CurrentLightmap->GetSizeY());
 				// Write the selection color to the selected lightmap texel
 				WriteTexel(CurrentLightmap, LightmapX, LightmapY, GTexelSelectionColor);
 			}
@@ -127,13 +129,13 @@ static bool GetBarycentricWeights(
 	const FVector& Position2,
 	FVector InterpolatePosition,
 	float Tolerance,
-	float& PlaneDistance,
+	double& PlaneDistance,
 	FVector& BarycentricWeights
 	)
 {
 	BarycentricWeights = FVector::ZeroVector;
 	FVector TriangleNormal = (Position0 - Position1) ^ (Position2 - Position0);
-	float ParallelogramArea = TriangleNormal.Size();
+	FVector::FReal ParallelogramArea = TriangleNormal.Size();
 	FVector UnitTriangleNormal = TriangleNormal / ParallelogramArea;
 	PlaneDistance = UnitTriangleNormal | (InterpolatePosition - Position0);
 
@@ -143,14 +145,14 @@ static bool GetBarycentricWeights(
 
 	FVector NormalU = (InterpolatePosition - Position1) ^ (Position2 - InterpolatePosition);
 	// Signed area, if negative then InterpolatePosition is not in the triangle
-	float ParallelogramAreaU = NormalU.Size() * FMath::FloatSelect(NormalU | TriangleNormal, (FVector::FReal)1.0f, (FVector::FReal)-1.0f);
-	float BaryCentricU = ParallelogramAreaU / ParallelogramArea;
+	FVector::FReal ParallelogramAreaU = NormalU.Size() * FMath::FloatSelect(NormalU | TriangleNormal, (FVector::FReal)1.0f, (FVector::FReal)-1.0f);
+	FVector::FReal BaryCentricU = ParallelogramAreaU / ParallelogramArea;
 
 	FVector NormalV = (InterpolatePosition - Position2) ^ (Position0 - InterpolatePosition);
-	float ParallelogramAreaV = NormalV.Size() * FMath::FloatSelect(NormalV | TriangleNormal, (FVector::FReal)1.0f, (FVector::FReal)-1.0f);
-	float BaryCentricV = ParallelogramAreaV / ParallelogramArea;
+	FVector::FReal ParallelogramAreaV = NormalV.Size() * FMath::FloatSelect(NormalV | TriangleNormal, (FVector::FReal)1.0f, (FVector::FReal)-1.0f);
+	FVector::FReal BaryCentricV = ParallelogramAreaV / ParallelogramArea;
 
-	float BaryCentricW = 1.0f - BaryCentricU - BaryCentricV;
+	FVector::FReal BaryCentricW = 1.0f - BaryCentricU - BaryCentricV;
 	if (BaryCentricU > -Tolerance && BaryCentricV > -Tolerance && BaryCentricW > -Tolerance)
 	{
 		BarycentricWeights = FVector(BaryCentricU, BaryCentricV, BaryCentricW);
@@ -216,7 +218,7 @@ void SetDebugLightmapSample(TArray<UActorComponent*>* Components, UModel* Model,
 
 				if (bUseTextureMap)
 				{
-					float ClosestPlaneDistance = FLT_MAX;
+					double ClosestPlaneDistance = std::numeric_limits<double>::max();
 					FVector ClosestPlaneBaryCentricWeights;
 					int32 ClosestPlaneTriangleIndex = -1;
 
@@ -232,7 +234,7 @@ void SetDebugLightmapSample(TArray<UActorComponent*>* Components, UModel* Model,
 						FVector Position1 = SMComponent->GetComponentTransform().TransformPosition((FVector)LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index1));
 						FVector Position2 = SMComponent->GetComponentTransform().TransformPosition((FVector)LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(Index2));
 
-						float PlaneDistance;
+						double PlaneDistance;
 						FVector BaryCentricWeights;
 						// Continue if click location is in the triangle and get its barycentric weights
 						if (GetBarycentricWeights(Position0, Position1, Position2, ClickLocation, TriangleTolerance, PlaneDistance, BaryCentricWeights))
@@ -267,8 +269,8 @@ void SetDebugLightmapSample(TArray<UActorComponent*>* Components, UModel* Model,
 							PaddedSizeY -= 2;
 						}
 
-						const int32 LocalX = FMath::TruncToInt(InterpolatedUV.X * PaddedSizeX);
-						const int32 LocalY = FMath::TruncToInt(InterpolatedUV.Y * PaddedSizeY);
+						const int32 LocalX = FMath::TruncToInt32(InterpolatedUV.X * PaddedSizeX);
+						const int32 LocalY = FMath::TruncToInt32(InterpolatedUV.Y * PaddedSizeY);
 						if (LocalX < 0 || LocalX >= PaddedSizeX
 							|| LocalY < 0 || LocalY >= PaddedSizeY)
 						{
@@ -322,8 +324,8 @@ void SetDebugLightmapSample(TArray<UActorComponent*>* Components, UModel* Model,
 						PaddedSizeY -= 2;
 					}
 
-					const int32 LocalX = FMath::TruncToInt(InterpolatedUV.X * PaddedSizeX);
-					const int32 LocalY = FMath::TruncToInt(InterpolatedUV.Y * PaddedSizeY);
+					const int32 LocalX = FMath::TruncToInt32(InterpolatedUV.X * PaddedSizeX);
+					const int32 LocalY = FMath::TruncToInt32(InterpolatedUV.Y * PaddedSizeY);
 					if (LocalX < 0 || LocalX >= PaddedSizeX
 						|| LocalY < 0 || LocalY >= PaddedSizeY)
 					{
@@ -350,7 +352,7 @@ void SetDebugLightmapSample(TArray<UActorComponent*>* Components, UModel* Model,
 			int32 ClosestElementIndex = -1;
 			uint32 ClosestTriangleIndex = 0;
 			FVector ClosestPlaneBaryCentricWeights = FVector(0);
-			float ClosestPlaneDistance = FLT_MAX;
+			double ClosestPlaneDistance = std::numeric_limits<double>::max();
 
 			for (int32 ModelIndex = 0; ModelIndex < World->GetCurrentLevel()->ModelComponents.Num(); ModelIndex++)
 			{
@@ -376,7 +378,7 @@ void SetDebugLightmapSample(TArray<UActorComponent*>* Components, UModel* Model,
 							FVector Position1 = (FVector)ModelVertices[Index1].Position;
 							FVector Position2 = (FVector)ModelVertices[Index2].Position;
 
-							float PlaneDistance;
+							double PlaneDistance;
 							FVector BaryCentricWeights;
 							// Continue if click location is in the triangle and get its barycentric weights
 							if (GetBarycentricWeights(Position0, Position1, Position2, ClickLocation, .001f, PlaneDistance, BaryCentricWeights))
@@ -471,8 +473,8 @@ void SetDebugLightmapSample(TArray<UActorComponent*>* Components, UModel* Model,
 
 				// Apply the transform to the intersection position to find the local texel coordinates
 				const FVector4 StaticLightingTextureCoordinate = WorldToMap.TransformPosition(ClickLocation);
-				const int32 LocalX = FMath::TruncToInt(StaticLightingTextureCoordinate.X * PaddedSizeX);
-				const int32 LocalY = FMath::TruncToInt(StaticLightingTextureCoordinate.Y * PaddedSizeY);
+				const int32 LocalX = FMath::TruncToInt32(StaticLightingTextureCoordinate.X * PaddedSizeX);
+				const int32 LocalY = FMath::TruncToInt32(StaticLightingTextureCoordinate.Y * PaddedSizeY);
 				check(LocalX >= 0 && LocalX < PaddedSizeX && LocalY >= 0 && LocalY < PaddedSizeY);
 
 				const FMeshMapBuildData* MeshMapBuildData = Element.GetMeshMapBuildData();
@@ -649,7 +651,7 @@ void DrawStaticLightingDebugInfo(const FSceneView* View, FCanvas* Canvas)
 				if(View->ScreenToPixel(View->WorldToScreen(FVector4(CurrentRecord.Vertex.VertexPosition)),PixelLocation))
 				{
 					const FColor TagColor = CurrentRecord.bAffectsSelectedTexel ? FColor(50,160,200) : FColor(120,120,120);
-					Canvas->DrawShadowedString(PixelLocation.X,PixelLocation.Y, *FString::FromInt(CurrentRecord.RecordId), GEngine->GetSmallFont(), TagColor);
+					Canvas->DrawShadowedString(static_cast<float>(PixelLocation.X), static_cast<float>(PixelLocation.Y), *FString::FromInt(CurrentRecord.RecordId), GEngine->GetSmallFont(), TagColor);
 				}
 			}
 		}
@@ -661,7 +663,7 @@ void DrawStaticLightingDebugInfo(const FSceneView* View, FCanvas* Canvas)
 			if(View->ScreenToPixel(View->WorldToScreen(FVector4(CurrentPhoton.Position)),PixelLocation))
 			{
 				const FColor TagColor = FColor(120,120,120);
-				Canvas->DrawShadowedString(PixelLocation.X,PixelLocation.Y, *FString::FromInt(CurrentPhoton.Id), GEngine->GetSmallFont(), TagColor);
+				Canvas->DrawShadowedString(static_cast<float>(PixelLocation.X), static_cast<float>(PixelLocation.Y), *FString::FromInt(CurrentPhoton.Id), GEngine->GetSmallFont(), TagColor);
 			}
 		}
 
@@ -674,7 +676,7 @@ void DrawStaticLightingDebugInfo(const FSceneView* View, FCanvas* Canvas)
 				if(View->ScreenToPixel(View->WorldToScreen(FVector4(CurrentRay.End)),PixelLocation))
 				{
 					const FColor TagColor = FColor(180,180,120);
-					Canvas->DrawShadowedString(PixelLocation.X,PixelLocation.Y, *FString::FromInt(RayIndex), GEngine->GetSmallFont(), TagColor);
+					Canvas->DrawShadowedString(static_cast<float>(PixelLocation.X), static_cast<float>(PixelLocation.Y), *FString::FromInt(RayIndex), GEngine->GetSmallFont(), TagColor);
 				}
 			}
 		}

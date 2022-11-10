@@ -1585,7 +1585,7 @@ UObject* UPolysFactory::FactoryCreateText
 	FFeedbackContext*	Warn
 )
 {
-	FVector PointPool[4096];
+	FVector3f PointPool[4096];
 	int32 NumPoints = 0;
 
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport(this, Class, InParent, Name, Type);
@@ -1659,7 +1659,7 @@ UObject* UPolysFactory::FactoryCreateText
 					if( FParse::Command(&Str,TEXT("VERTEX")) )
 					{
 						// Start of new vertex.
-						PointPool[NumPoints] = FVector::ZeroVector;
+						PointPool[NumPoints] = FVector3f::ZeroVector;
 						Started = 1;
 						IsFace  = 0;
 					}
@@ -1712,8 +1712,10 @@ UObject* UPolysFactory::FactoryCreateText
 					else if( Code>=71 && Code<=79 && (Code-71)==NewPoly.Vertices.Num() )
 					{
 						int32 iPoint = FMath::Abs(FCString::Atoi(*ExtraLine));
-						if( iPoint>0 && iPoint<=NumPoints )
-							new(NewPoly.Vertices) FVector3f(PointPool[iPoint-1]);
+						if (iPoint > 0 && iPoint <= NumPoints)
+						{
+							NewPoly.Vertices.Emplace(PointPool[iPoint - 1]);
+						}
 						else UE_LOG(LogEditorFactories, Warning, TEXT("DXF: Invalid point index %i/%i"), iPoint, NumPoints );
 					}
 				}
@@ -2229,7 +2231,7 @@ UObject* UCurveLinearColorAtlasFactory::FactoryCreateNew(UClass* Class, UObject*
 
 	UCurveLinearColorAtlas* Object = NewObject<UCurveLinearColorAtlas>(InParent, Class, Name, Flags);
 	Object->Source.Init(Width, Height, 1, 1, TSF_RGBA16F);
-	const int32 TextureDataSize = Object->Source.CalcMipSize(0);
+	const int32 TextureDataSize = IntCastChecked<int32>(Object->Source.CalcMipSize(0));
 	Object->SrcData.AddUninitialized(TextureDataSize);
 	uint32* TextureData = (uint32*)Object->Source.LockMip(0);
 	FFloat16Color InitColor(FLinearColor::White);
@@ -3633,7 +3635,7 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 	if( FCString::Stricmp(Type, TEXT("ies")) == 0)
 	{
 		// checks for .IES extension to avoid wasting loading large assets just to reject them during header parsing
-		FIESConverter IESConverter(Buffer, Length);
+		FIESConverter IESConverter(Buffer, IntCastChecked<uint32>(Length));
 
 		if(IESConverter.IsValid())
 		{
@@ -4605,8 +4607,8 @@ bool UTextureExporterPCX::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 		return false;
 	}
 
-	int32 SizeX = Texture->Source.GetSizeX();
-	int32 SizeY = Texture->Source.GetSizeY();
+	uint16 SizeX = IntCastChecked<uint16>(Texture->Source.GetSizeX());
+	uint16 SizeY = IntCastChecked<uint16>(Texture->Source.GetSizeY());
 	TArray64<uint8> RawData;
 	Texture->Source.GetMipData(RawData, 0);
 
@@ -5300,8 +5302,8 @@ bool UTextureExporterTGA::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 		}
 	}
 
-	const int32 OriginalWidth = SizeX;
-	const int32 OriginalHeight = SizeY;		
+	const uint16 OriginalWidth = IntCastChecked<uint16>(SizeX);
+	const uint16 OriginalHeight = IntCastChecked<uint16>(SizeY);
 
 	FTGAFileHeader TGA;
 	FMemory::Memzero( &TGA, sizeof(TGA) );
@@ -5457,7 +5459,8 @@ UObject* UFontFileImportFactory::FactoryCreateBinary(UClass* InClass, UObject* I
 		FontFace->SourceFilename = GetCurrentFilename();
 
 		TArray<uint8> FontData;
-		FontData.Append(InBuffer, InBufferEnd - InBuffer);
+		int32 BufferSize = IntCastChecked<int32>(InBufferEnd - InBuffer);
+		FontData.Append(InBuffer, BufferSize);
 		FontFace->FontFaceData->SetData(MoveTemp(FontData));
 		FontFace->CacheSubFaces();
 	}

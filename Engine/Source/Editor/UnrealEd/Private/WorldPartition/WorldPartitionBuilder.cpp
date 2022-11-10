@@ -265,7 +265,11 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 					
 					UE_LOG(LogWorldPartitionBuilder, Display, TEXT("[%d / %d] Processing cells..."), IterationIndex, IterationCount);
 
-					FVector Min(x * IterativeCellSize, y * IterativeCellSize, z * IterativeCellSize);
+					double MinX = static_cast<double>(x * IterativeCellSize);
+					double MinY = static_cast<double>(y * IterativeCellSize);
+					double MinZ = static_cast<double>(z * IterativeCellSize);
+
+					FVector Min(MinX, MinY, MinZ);
 					FVector Max = Min + FVector(IterativeCellSize);
 
 					if (LoadingMode == ELoadingMode::IterativeCells2D)
