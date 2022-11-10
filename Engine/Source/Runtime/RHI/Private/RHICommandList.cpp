@@ -112,11 +112,8 @@ bool GIsRunningRHIInTaskThread_InternalUseOnly = false;
 
 /** Accumulates how many cycles the renderthread has been idle. */
 uint32 GRenderThreadIdle[ERenderThreadIdleTypes::Num] = { 0 };
-/** Accumulates how times renderthread was idle. */
-uint32 GRenderThreadNumIdle[ERenderThreadIdleTypes::Num] = { 0 };
 
 uint32 GWorkingRHIThreadTime = 0;
-uint32 GWorkingRHIThreadStallTime = 0;
 uint32 GWorkingRHIThreadStartCycles = 0;
 
 /** How many cycles the from sampling input to the frame being flipped. */
@@ -281,8 +278,6 @@ void FRHICommandListBase::WaitForDispatchEvent()
 	if (!DispatchEvent->IsComplete())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_WaitForCmdListDispatch);
-
-		FRenderThreadIdleScope Scope(ERenderThreadIdleTypes::WaitingForAllOtherSleep);
 		DispatchEvent->Wait();
 	}
 }
@@ -640,8 +635,6 @@ void FRHICommandListImmediate::QueueAsyncCommandListSubmit(TArrayView<FQueuedCom
 				if (!Task.Event->IsComplete())
 				{
 					SCOPE_CYCLE_COUNTER(STAT_ParallelTranslateWait);
-
-					FRenderThreadIdleScope Scope(ERenderThreadIdleTypes::WaitingForAllOtherSleep);
 					Task.Event->Wait();
 				}
 
@@ -1046,8 +1039,6 @@ void FRHICommandListImmediate::WaitForRHIThreadTasks()
 	if (RHIThreadTask && !RHIThreadTask->IsComplete())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ExplicitWaitRHIThread);
-
-		FRenderThreadIdleScope Scope(ERenderThreadIdleTypes::WaitingForAllOtherSleep);
 		RHIThreadTask->Wait();
 	}
 }

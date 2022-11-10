@@ -671,7 +671,8 @@ int32 FVulkanSwapChain::AcquireImageIndex(VulkanRHI::FSemaphore** OutSemaphore)
 		const uint32 MaxImageIndex = ImageAcquiredSemaphore.Num() - 1;
 
 		SCOPE_CYCLE_COUNTER(STAT_VulkanAcquireBackBuffer);
-		uint32 IdleStart = FPlatformTime::Cycles();
+		FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUPresent);
+
 		Result = VulkanRHI::vkAcquireNextImageKHR(
 			Device.GetInstanceHandle(),
 			SwapChain,
@@ -690,17 +691,6 @@ int32 FVulkanSwapChain::AcquireImageIndex(VulkanRHI::FSemaphore** OutSemaphore)
 				ImageAcquiredSemaphore[SemaphoreIndex]->GetHandle(),
 				AcquiredFence,
 				&ImageIndex);
-		}
-
-		uint32 ThisCycles = FPlatformTime::Cycles() - IdleStart;
-		if (IsInRHIThread())
-		{
-			GWorkingRHIThreadStallTime += ThisCycles;
-		}
-		else if (IsInActualRenderingThread())
-		{
-			GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUPresent] += ThisCycles;
-			GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUPresent]++;
 		}
 	}
 
@@ -772,17 +762,14 @@ void FVulkanSwapChain::RenderThreadPacing()
 
 		if (SampledDeltaMS < (TargetIntervalWithEpsilonMS))
 		{
-			uint32 IdleStart = FPlatformTime::Cycles();
+			FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUPresent);
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_StallForEmulatedSyncInterval);
+
 			FPlatformProcess::SleepNoStats((TargetIntervalWithEpsilonMS - SampledDeltaMS) * 0.001f);
 			if (GPrintVulkanVsyncDebug)
 			{
 				UE_LOG(LogVulkanRHI, Log, TEXT("CPU RT delta: %f, TargetWEps: %f, sleepTime: %f "), SampledDeltaMS, TargetIntervalWithEpsilonMS, TargetIntervalWithEpsilonMS - DeltaCPUPresentTimeMS);
 			}
-
-			uint32 ThisCycles = FPlatformTime::Cycles() - IdleStart;
-			GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUPresent] += ThisCycles;
-			GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUPresent]++;
 		}
 		else
 		{
@@ -830,23 +817,13 @@ FVulkanSwapChain::EStatus FVulkanSwapChain::Present(FVulkanQueue* GfxQueue, FVul
 
 			if (TimeToSleep > 0.0)
 			{
-				uint32 IdleStart = FPlatformTime::Cycles();
+				FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUPresent);
+
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_StallForEmulatedSyncInterval);
 				FPlatformProcess::SleepNoStats(static_cast<float>(TimeToSleep));
 				if (GPrintVulkanVsyncDebug)
 				{
 					UE_LOG(LogVulkanRHI, Log, TEXT("CurrentID: %i, CPU TimeToSleep: %f, TargetWEps: %f"), PresentID, TimeToSleep * 1000.0, TargetIntervalWithEpsilon * 1000.0);
-				}
-
-				uint32 ThisCycles = FPlatformTime::Cycles() - IdleStart;
-				if (IsInRHIThread())
-				{
-					GWorkingRHIThreadStallTime += ThisCycles;
-				}
-				else if (IsInActualRenderingThread())
-				{
-					GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUPresent] += ThisCycles;
-					GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUPresent]++;
 				}
 			}
 			else
@@ -863,17 +840,11 @@ FVulkanSwapChain::EStatus FVulkanSwapChain::Present(FVulkanQueue* GfxQueue, FVul
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_VulkanQueuePresent);
-		uint32 IdleStart = FPlatformTime::Cycles();
-		VkResult PresentResult = FVulkanPlatform::Present(PresentQueue->GetHandle(), Info);
-		uint32 ThisCycles = FPlatformTime::Cycles() - IdleStart;
-		if (IsInRHIThread())
+
+		VkResult PresentResult;
 		{
-			GWorkingRHIThreadStallTime += ThisCycles;
-		}
-		else if (IsInActualRenderingThread())
-		{
-			GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUPresent] += ThisCycles;
-			GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUPresent]++;
+			FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUPresent);
+			PresentResult = FVulkanPlatform::Present(PresentQueue->GetHandle(), Info);
 		}
 
 		CurrentImageIndex = -1;

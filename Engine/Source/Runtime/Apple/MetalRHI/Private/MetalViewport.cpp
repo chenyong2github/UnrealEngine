@@ -308,54 +308,46 @@ id<CAMetalDrawable> FMetalViewport::GetDrawable(EMetalViewportAccessFlag Accesso
 
 		@autoreleasepool
 		{
-			uint32 IdleStart = FPlatformTime::Cycles();
+			{
+				FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUPresent);
 
 #if PLATFORM_MAC
-			CAMetalLayer* CurrentLayer = (CAMetalLayer*)[View layer];
-			if (GMetalNonBlockingPresent == 0 || [((id<CAMetalLayerSPI>)CurrentLayer) isDrawableAvailable])
-			{
-				Drawable = CurrentLayer ? [CurrentLayer nextDrawable] : nil;
-			}
+				CAMetalLayer* CurrentLayer = (CAMetalLayer*)[View layer];
+				if (GMetalNonBlockingPresent == 0 || [((id<CAMetalLayerSPI>)CurrentLayer) isDrawableAvailable])
+				{
+					Drawable = CurrentLayer ? [CurrentLayer nextDrawable] : nil;
+				}
 
 #if METAL_DEBUG_OPTIONS
-			if (Drawable)
-			{
-				CGSize Size = Drawable.layer.drawableSize;
-				if ((Size.width != BackBuffer[GetViewportIndex(Accessor)]->GetSizeX() || Size.height != BackBuffer[GetViewportIndex(Accessor)]->GetSizeY()))
+				if (Drawable)
 				{
-					UE_LOG(LogMetal, Display, TEXT("Viewport Size Mismatch: Drawable W:%f H:%f, Viewport W:%u H:%u"), Size.width, Size.height, BackBuffer[GetViewportIndex(Accessor)]->GetSizeX(), BackBuffer[GetViewportIndex(Accessor)]->GetSizeY());
+					CGSize Size = Drawable.layer.drawableSize;
+					if ((Size.width != BackBuffer[GetViewportIndex(Accessor)]->GetSizeX() || Size.height != BackBuffer[GetViewportIndex(Accessor)]->GetSizeY()))
+					{
+						UE_LOG(LogMetal, Display, TEXT("Viewport Size Mismatch: Drawable W:%f H:%f, Viewport W:%u H:%u"), Size.width, Size.height, BackBuffer[GetViewportIndex(Accessor)]->GetSizeX(), BackBuffer[GetViewportIndex(Accessor)]->GetSizeY());
+					}
 				}
-			}
 #endif // METAL_DEBUG_OPTIONS
 
 #else // PLATFORM_MAC
-			CGSize Size;
-			IOSAppDelegate* AppDelegate = [IOSAppDelegate GetDelegate];
-			do
-			{
-				Drawable = [AppDelegate.IOSView MakeDrawable];
-				if (Drawable != nil)
+				CGSize Size;
+				IOSAppDelegate* AppDelegate = [IOSAppDelegate GetDelegate];
+				do
 				{
-					Size.width = Drawable.texture.width;
-					Size.height = Drawable.texture.height;
+					Drawable = [AppDelegate.IOSView MakeDrawable];
+					if (Drawable != nil)
+					{
+						Size.width = Drawable.texture.width;
+						Size.height = Drawable.texture.height;
+					}
+					else
+					{
+						FPlatformProcess::SleepNoStats(0.001f);
+					}
 				}
-				else
-				{
-					FPlatformProcess::SleepNoStats(0.001f);
-				}
-			}
-			while (Drawable == nil || Size.width != BackBuffer[GetViewportIndex(Accessor)]->GetSizeX() || Size.height != BackBuffer[GetViewportIndex(Accessor)]->GetSizeY());
+				while (Drawable == nil || Size.width != BackBuffer[GetViewportIndex(Accessor)]->GetSizeX() || Size.height != BackBuffer[GetViewportIndex(Accessor)]->GetSizeY());
 
 #endif // PLATFORM_MAC
-
-			if (IsInRHIThread())
-			{
-				GWorkingRHIThreadStallTime += FPlatformTime::Cycles() - IdleStart;
-			}
-			else
-			{
-				GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUPresent] += FPlatformTime::Cycles() - IdleStart;
-				GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUPresent]++;
 			}
 
 			// Retain the drawable here or it will be released when the

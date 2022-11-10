@@ -302,7 +302,8 @@ bool FD3D11DynamicRHI::GetQueryData(ID3D11Query* Query, void* Data, SIZE_T DataS
 	if ( Result == S_FALSE && bWait )
 	{
 		SCOPE_CYCLE_COUNTER( STAT_RenderQueryResultTime );
-		uint32 IdleStart = FPlatformTime::Cycles();
+		FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUQuery);
+
 		double StartTime = FPlatformTime::Seconds();
 		double TimeoutWarningLimit = 5.0;
 		// timer queries are used for Benchmarks which can stall a bit more
@@ -343,8 +344,6 @@ bool FD3D11DynamicRHI::GetQueryData(ID3D11Query* Query, void* Data, SIZE_T DataS
 				return false;
 			}
 		} while ( Result == S_FALSE );
-		GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += FPlatformTime::Cycles() - IdleStart;
-		GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUQuery]++;
 	}
 
 	if( Result == S_OK )
@@ -726,30 +725,15 @@ uint64 FD3D11BufferedGPUTiming::GetTiming(bool bGetCurrentResultsAndBlock)
 			// This really only happens if occlusion and frame sync event queries are disabled, otherwise those will block until the GPU catches up to 1 frame behind
 			const bool bBlocking = ( NumIssuedTimestamps == BufferSize ) || bGetCurrentResultsAndBlock;
 			const uint32 AsyncFlags = bBlocking ? 0 : D3D11_ASYNC_GETDATA_DONOTFLUSH;
-			uint32 IdleStart = FPlatformTime::Cycles();
-			double StartTimeoutTime = FPlatformTime::Seconds();
-
-			SCOPE_CYCLE_COUNTER( STAT_RenderQueryResultTime );
-			// If we are blocking, retry until the GPU processes the time stamp command
-			do 
 			{
-				D3DResult = D3DRHI->GetDeviceContext()->GetData( EndTimestamps[TimestampIndex], &EndTime, sizeof(EndTime), AsyncFlags );
+				FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUQuery);
+				double StartTimeoutTime = FPlatformTime::Seconds();
 
-				if ((FPlatformTime::Seconds() - StartTimeoutTime) > 0.5)
-				{
-					UE_LOG(LogD3D11RHI, Log, TEXT("Timed out while waiting for GPU to catch up. (500 ms)"));
-					return 0;
-				}
-			} while ( D3DResult == S_FALSE && bBlocking );
-			GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += FPlatformTime::Cycles() - IdleStart;
-			GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUQuery]++;
-			if ( D3DResult == S_OK )
-			{
-				IdleStart = FPlatformTime::Cycles();
-				StartTimeoutTime = FPlatformTime::Seconds();
+				SCOPE_CYCLE_COUNTER( STAT_RenderQueryResultTime );
+				// If we are blocking, retry until the GPU processes the time stamp command
 				do 
 				{
-					D3DResult = D3DRHI->GetDeviceContext()->GetData( StartTimestamps[TimestampIndex], &StartTime, sizeof(StartTime), AsyncFlags );
+					D3DResult = D3DRHI->GetDeviceContext()->GetData( EndTimestamps[TimestampIndex], &EndTime, sizeof(EndTime), AsyncFlags );
 
 					if ((FPlatformTime::Seconds() - StartTimeoutTime) > 0.5)
 					{
@@ -757,7 +741,24 @@ uint64 FD3D11BufferedGPUTiming::GetTiming(bool bGetCurrentResultsAndBlock)
 						return 0;
 					}
 				} while ( D3DResult == S_FALSE && bBlocking );
-				GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += FPlatformTime::Cycles() - IdleStart;
+			}
+
+			if ( D3DResult == S_OK )
+			{
+				{
+					FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUQuery);
+					double StartTimeoutTime = FPlatformTime::Seconds();
+					do 
+					{
+						D3DResult = D3DRHI->GetDeviceContext()->GetData( StartTimestamps[TimestampIndex], &StartTime, sizeof(StartTime), AsyncFlags );
+
+						if ((FPlatformTime::Seconds() - StartTimeoutTime) > 0.5)
+						{
+							UE_LOG(LogD3D11RHI, Log, TEXT("Timed out while waiting for GPU to catch up. (500 ms)"));
+							return 0;
+						}
+					} while ( D3DResult == S_FALSE && bBlocking );
+				}
 
 				if ( D3DResult == S_OK && EndTime > StartTime )
 				{

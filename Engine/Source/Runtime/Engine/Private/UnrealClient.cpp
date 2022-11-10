@@ -1488,17 +1488,15 @@ void FViewport::EndRenderFrame(FRHICommandListImmediate& RHICmdList, bool bPrese
 		GEngine->SetPresentLatencyMarkerStart(CurrentFrameCounter);
 	});
 
-	uint32 StartTime = FPlatformTime::Cycles();
-	RHICmdList.EndDrawingViewport(GetViewportRHI(), bPresent, bLockToVsync);
-	uint32 EndTime = FPlatformTime::Cycles();
+	{
+		FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUPresent);
+		RHICmdList.EndDrawingViewport(GetViewportRHI(), bPresent, bLockToVsync);
+	}
 
 	RHICmdList.EnqueueLambda([CurrentFrameCounter = GFrameCounterRenderThread](FRHICommandListImmediate& InRHICmdList)
 	{
 		GEngine->SetPresentLatencyMarkerEnd(CurrentFrameCounter);
 	});
-
-	GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUPresent] += EndTime - StartTime;
-	GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUPresent]++;
 }
 
 FRHIGPUMask FViewport::GetGPUMask(FRHICommandListImmediate& RHICmdList) const

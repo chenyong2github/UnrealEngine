@@ -575,8 +575,6 @@ void FD3D12ContextCommon::FlushCommands(ED3D12FlushFlags FlushFlags)
 	if (SubmissionEvent && !SubmissionEvent->IsComplete())
 	{
 		SCOPED_NAMED_EVENT_TEXT("Submission_Wait", FColor::Turquoise);
-
-		FRenderThreadIdleScope Scope(ERenderThreadIdleTypes::WaitingForAllOtherSleep);
 		SubmissionEvent->Wait();
 	}
 }

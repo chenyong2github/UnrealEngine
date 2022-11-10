@@ -677,7 +677,8 @@ void FAndroidOpenGL::GetQueryObject(GLuint QueryId, EQueryMode QueryMode, GLuint
 {
 	GLenum QueryName = (QueryMode == QM_Result) ? GL_QUERY_RESULT : GL_QUERY_RESULT_AVAILABLE;
 	VERIFY_GL_SCOPE();
-	uint32 IdleStart = (QueryName == GL_QUERY_RESULT) ? FPlatformTime::Cycles() : 0;
+
+	FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUQuery, QueryName == GL_QUERY_RESULT);
 
 #if !VIRTUALIZE_QUERIES
 #if CHECK_QUERY_ERRORS
@@ -730,19 +731,6 @@ void FAndroidOpenGL::GetQueryObject(GLuint QueryId, EQueryMode QueryMode, GLuint
 		VirtualResults[QueryId] = *OutResult;
 	}
 #endif
-	if (QueryName == GL_QUERY_RESULT)
-	{
-		uint32 ThisCycles = FPlatformTime::Cycles() - IdleStart;
-		if (IsInRHIThread())
-		{
-			GWorkingRHIThreadStallTime += ThisCycles;
-		}
-		else
-		{
-			GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += ThisCycles;
-			GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUQuery]++;
-		}
-	}
 
 #if CHECK_QUERY_ERRORS
 	Err = glGetError();

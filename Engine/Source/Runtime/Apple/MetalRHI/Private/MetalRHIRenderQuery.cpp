@@ -336,9 +336,10 @@ bool FMetalRHIRenderQuery::GetResult(uint64& OutNumPixels, bool bWait, uint32 GP
 				FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 			}
 
-			uint32 IdleStart = FPlatformTime::Cycles();
-
-			bOK = Buffer.Wait(WaitMS);
+			{
+				FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUQuery);
+				bOK = Buffer.Wait(WaitMS);
+			}
 
 			// Result is written in one of potentially many command buffer completion handlers
 			// But the command buffer wait above may return before the query completion handler fires
@@ -346,16 +347,6 @@ bool FMetalRHIRenderQuery::GetResult(uint64& OutNumPixels, bool bWait, uint32 GP
 			if (bOK && (Type == RQT_AbsoluteTime) && QueryWrittenEvent != nullptr)
 			{
 				QueryWrittenEvent->Wait();
-			}
-
-			if (IsInRHIThread())
-			{
-				GWorkingRHIThreadStallTime += FPlatformTime::Cycles() - IdleStart;
-			}
-			else
-			{
-				GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += FPlatformTime::Cycles() - IdleStart;
-				GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUQuery]++;
 			}
 
 			// Never wait for a failed signal again.

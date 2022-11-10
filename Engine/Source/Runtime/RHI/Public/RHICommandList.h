@@ -91,42 +91,32 @@ namespace ERenderThreadIdleTypes
 
 /** Accumulates how many cycles the renderthread has been idle. */
 extern RHI_API uint32 GRenderThreadIdle[ERenderThreadIdleTypes::Num];
-/** Accumulates how times renderthread was idle. */
-extern RHI_API uint32 GRenderThreadNumIdle[ERenderThreadIdleTypes::Num];
 
 /** private accumulator for the RHI thread. */
 extern RHI_API uint32 GWorkingRHIThreadTime;
-extern RHI_API uint32 GWorkingRHIThreadStallTime;
 extern RHI_API uint32 GWorkingRHIThreadStartCycles;
 
 /** Helper to mark scopes as idle time on the render or RHI threads. */
 struct FRenderThreadIdleScope
 {
-	const ERenderThreadIdleTypes::Type Type;
-	const uint32 Start;
-	const bool bCondition;
+	FThreadIdleStats::FScopeIdle RHIThreadIdleScope;
 
-	FRenderThreadIdleScope(ERenderThreadIdleTypes::Type Type, bool bCondition = true)
-		: Type(Type)
-		, Start(FPlatformTime::Cycles())
-		, bCondition(bCondition)
+	const ERenderThreadIdleTypes::Type Type;
+	const bool bCondition;
+	const uint32 Start;
+
+	FRenderThreadIdleScope(ERenderThreadIdleTypes::Type Type, bool bInCondition = true)
+		: RHIThreadIdleScope(!(bInCondition && IsInRHIThread()))
+		, Type(Type)
+		, bCondition(bInCondition && IsInRenderingThread())
+		, Start(bCondition ? FPlatformTime::Cycles() : 0)
 	{}
+
 	~FRenderThreadIdleScope()
 	{
 		if (bCondition)
 		{
-			uint32 End = FPlatformTime::Cycles();
-			uint32 IdleCycles = End - Start;
-
-			if (IsInRHIThread())
-			{
-				GWorkingRHIThreadStallTime += IdleCycles;
-			}
-			else if (IsInRenderingThread())
-			{
-				GRenderThreadIdle[Type] += IdleCycles;
-				GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForAllOtherSleep]++;
-			}
+			GRenderThreadIdle[Type] += FPlatformTime::Cycles() - Start;
 		}
 	}
 };

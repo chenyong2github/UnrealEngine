@@ -771,8 +771,6 @@ void FD3D12Viewport::WaitForFrameEventCompletion()
 {
 	if (FrameSyncPoints.Num())
 	{
-		FRenderThreadIdleScope Scope(ERenderThreadIdleTypes::WaitingForGPUPresent);
-
 		for (auto& SyncPoint : FrameSyncPoints)
 		{
 			if (SyncPoint)

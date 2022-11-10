@@ -824,7 +824,8 @@ void FHZBOcclusionTester::MapResults(FRHICommandListImmediate& RHICmdList)
 
 	if (!IsInvalidFrame() )
 	{
-		uint32 IdleStart = FPlatformTime::Cycles();
+		// RHIMapStagingSurface will block until the results are ready (from the previous frame) so we need to consider this RT idle time
+		FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUQuery);
 
 		SCOPED_GPU_MASK(RHICmdList, ResultsReadback->GetLastCopyGPUMask());
 
@@ -836,10 +837,6 @@ void FHZBOcclusionTester::MapResults(FRHICommandListImmediate& RHICmdList)
 			check(ResultsBufferRowPitch >= SizeX);
 			check(ResultBufferHeight >= SizeY);
 		}
-
-		// RHIMapStagingSurface will block until the results are ready (from the previous frame) so we need to consider this RT idle time
-		GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += FPlatformTime::Cycles() - IdleStart;
-		GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUQuery]++;
 	}
 	
 	// Can happen because of device removed, we might crash later but this occlusion culling system can behave gracefully.

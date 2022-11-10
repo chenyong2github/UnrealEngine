@@ -125,79 +125,70 @@ void FOpenGLDynamicRHI::RHIEndDrawingViewport(FRHIViewport* ViewportRHI,bool bPr
 	FOpenGLViewport* Viewport = ResourceCast(ViewportRHI);
 
 	SCOPE_CYCLE_COUNTER(STAT_OpenGLPresentTime);
-	uint32 IdleStart = FPlatformTime::Cycles();
-
-
-	check(DrawingViewport.GetReference() == Viewport);
-
-	FOpenGLTexture* BackBuffer = Viewport->GetBackBuffer();
-
-	FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
-
-	if (ContextState.bScissorEnabled)
 	{
-		ContextState.bScissorEnabled = false;
-		glDisable(GL_SCISSOR_TEST);
-	}
+		FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUPresent);
 
-	bool bNeedFinishFrame = PlatformBlitToViewport(PlatformDevice,
-		*Viewport, 
-		BackBuffer->GetSizeX(),
-		BackBuffer->GetSizeY(),
-		bPresent,
-		bLockToVsync
-	);
+		check(DrawingViewport.GetReference() == Viewport);
 
-	// Always consider the Framebuffer in the rendering context dirty after the blit
-	RenderingContextState.Framebuffer = -1;
+		FOpenGLTexture* BackBuffer = Viewport->GetBackBuffer();
 
-	DrawingViewport = NULL;
+		FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
 
-	// Don't wait on the GPU when using SLI, let the driver determine how many frames behind the GPU should be allowed to get
-	if (GNumAlternateFrameRenderingGroups == 1)
-	{
-		if (bNeedFinishFrame)
+		if (ContextState.bScissorEnabled)
 		{
-			static const auto CFinishFrameVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.FinishCurrentFrame"));
-			if (!CFinishFrameVar->GetValueOnRenderThread())
-			{
-				// Wait for the GPU to finish rendering the previous frame before finishing this frame.
-				Viewport->WaitForFrameEventCompletion();
-				Viewport->IssueFrameEvent();
-			}
-			else
-			{
-				// Finish current frame immediately to reduce latency
-				Viewport->IssueFrameEvent();
-				Viewport->WaitForFrameEventCompletion();
-			}
+			ContextState.bScissorEnabled = false;
+			glDisable(GL_SCISSOR_TEST);
 		}
+
+		bool bNeedFinishFrame = PlatformBlitToViewport(PlatformDevice,
+			*Viewport, 
+			BackBuffer->GetSizeX(),
+			BackBuffer->GetSizeY(),
+			bPresent,
+			bLockToVsync
+		);
+
+		// Always consider the Framebuffer in the rendering context dirty after the blit
+		RenderingContextState.Framebuffer = -1;
+
+		DrawingViewport = NULL;
+
+		// Don't wait on the GPU when using SLI, let the driver determine how many frames behind the GPU should be allowed to get
+		if (GNumAlternateFrameRenderingGroups == 1)
+		{
+			if (bNeedFinishFrame)
+			{
+				static const auto CFinishFrameVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.FinishCurrentFrame"));
+				if (!CFinishFrameVar->GetValueOnRenderThread())
+				{
+					// Wait for the GPU to finish rendering the previous frame before finishing this frame.
+					Viewport->WaitForFrameEventCompletion();
+					Viewport->IssueFrameEvent();
+				}
+				else
+				{
+					// Finish current frame immediately to reduce latency
+					Viewport->IssueFrameEvent();
+					Viewport->WaitForFrameEventCompletion();
+				}
+			}
 		
-		// If the input latency timer has been triggered, block until the GPU is completely
-		// finished displaying this frame and calculate the delta time.
-		if ( GInputLatencyTimer.RenderThreadTrigger )
-		{
-			Viewport->WaitForFrameEventCompletion();
-			uint32 EndTime = FPlatformTime::Cycles();
-			GInputLatencyTimer.DeltaTime = EndTime - GInputLatencyTimer.StartTime;
-			GInputLatencyTimer.RenderThreadTrigger = false;
+			// If the input latency timer has been triggered, block until the GPU is completely
+			// finished displaying this frame and calculate the delta time.
+			if ( GInputLatencyTimer.RenderThreadTrigger )
+			{
+				Viewport->WaitForFrameEventCompletion();
+				uint32 EndTime = FPlatformTime::Cycles();
+				GInputLatencyTimer.DeltaTime = EndTime - GInputLatencyTimer.StartTime;
+				GInputLatencyTimer.RenderThreadTrigger = false;
+			}
 		}
-	}
 
-	if (bRevertToSharedContextAfterDrawingViewport)
-	{
-		PlatformSharedContextSetup(PlatformDevice);
-		bRevertToSharedContextAfterDrawingViewport = false;
-	}
-	uint32 ThisCycles = FPlatformTime::Cycles() - IdleStart;
-	if (IsInRHIThread())
-	{
-		GWorkingRHIThreadStallTime += ThisCycles;
-	}
-	else if (IsInActualRenderingThread())
-	{
-		GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUPresent] += ThisCycles;
-		GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUPresent]++;
+		if (bRevertToSharedContextAfterDrawingViewport)
+		{
+			PlatformSharedContextSetup(PlatformDevice);
+			bRevertToSharedContextAfterDrawingViewport = false;
+		}
 	}
 
 	EndFrameTick();

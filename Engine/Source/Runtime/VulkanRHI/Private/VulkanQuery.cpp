@@ -114,8 +114,7 @@ bool FVulkanOcclusionQueryPool::InternalTryGetResults(bool bWait)
 	{
 		if (bWait)
 		{
-			uint32 IdleStart = FPlatformTime::Cycles();
-
+			FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUQuery);
 			SCOPE_CYCLE_COUNTER(STAT_VulkanWaitQuery);
 
 			// We'll do manual wait
@@ -171,12 +170,6 @@ bool FVulkanOcclusionQueryPool::InternalTryGetResults(bool bWait)
 				}
 
 				++NumLoops;
-			}
-
-			if (IsInActualRenderingThread())
-			{
-				GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += FPlatformTime::Cycles() - IdleStart;
-				GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUQuery]++;
 			}
 
 			State = EState::RT_PostGetResults;
@@ -518,32 +511,31 @@ bool FVulkanDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint6
 			// This really only happens if occlusion and frame sync event queries are disabled, otherwise those will block until the GPU catches up to 1 frame behind
 
 			const bool bBlocking = (Query->Pool->NumIssuedTimestamps == Query->Pool->BufferSize) || bWait;
-			const uint32 IdleStart = FPlatformTime::Cycles();
-
-			SCOPE_CYCLE_COUNTER(STAT_RenderQueryResultTime);
-
-			if (bBlocking)
 			{
-				const FVulkanTimingQueryPool::FCmdBufferFence& StartQuerySyncPoint = Query->Pool->TimestampListHandles[TimestampIndex];
-				bool bWaitForStart = StartQuerySyncPoint.FenceCounter == StartQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter();
-				if (bWaitForStart)
-				{
-					FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+				FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUQuery);
+				SCOPE_CYCLE_COUNTER(STAT_RenderQueryResultTime);
 
-					// Need to submit the open command lists.
-					Device->SubmitCommandsAndFlushGPU();
+				if (bBlocking)
+				{
+					const FVulkanTimingQueryPool::FCmdBufferFence& StartQuerySyncPoint = Query->Pool->TimestampListHandles[TimestampIndex];
+					bool bWaitForStart = StartQuerySyncPoint.FenceCounter == StartQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter();
+					if (bWaitForStart)
+					{
+						FRHICommandListExecutor::GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+
+						// Need to submit the open command lists.
+						Device->SubmitCommandsAndFlushGPU();
+					}
+
+					// CPU wait for query results to be ready.
+					if (bWaitForStart && StartQuerySyncPoint.FenceCounter == StartQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter())
+					{
+						Device->GetImmediateContext().GetCommandBufferManager()->WaitForCmdBuffer(StartQuerySyncPoint.CmdBuffer);
+					}
 				}
 
-				// CPU wait for query results to be ready.
-				if (bWaitForStart && StartQuerySyncPoint.FenceCounter == StartQuerySyncPoint.CmdBuffer->GetFenceSignaledCounter())
-				{
-					Device->GetImmediateContext().GetCommandBufferManager()->WaitForCmdBuffer(StartQuerySyncPoint.CmdBuffer);
-				}
+				Query->Pool->ResultsBuffer->InvalidateMappedMemory();
 			}
-
-			Query->Pool->ResultsBuffer->InvalidateMappedMemory();
-			GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += FPlatformTime::Cycles() - IdleStart;
-			GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUQuery]++;
 
 			const uint64* Data = Query->Pool->MappedPointer;
 			OutNumPixels = ToMicroseconds(Data[TimestampIndex]);

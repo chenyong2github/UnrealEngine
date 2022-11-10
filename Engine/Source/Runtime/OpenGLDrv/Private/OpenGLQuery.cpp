@@ -429,7 +429,8 @@ void FOpenGLDynamicRHI::GetRenderQueryResult_OnThisThread(FOpenGLRenderQuery* Qu
 		else if (bWait) // Isn't the query finished yet, and can we wait for it?
 		{
 			SCOPE_CYCLE_COUNTER(STAT_RenderQueryResultTime);
-			uint32 IdleStart = FPlatformTime::Cycles();
+
+			FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUQuery);
 			GBatcher.Waited();
 			
 			if (GOpenGLPollRenderQueryResult == 0)
@@ -478,17 +479,6 @@ void FOpenGLDynamicRHI::GetRenderQueryResult_OnThisThread(FOpenGLRenderQuery* Qu
 					Query->Result = 0;
 					Query->TotalResults.Increment();
 				}
-			}
-
-			uint32 ThisCycles = FPlatformTime::Cycles() - IdleStart;
-			if (IsInRHIThread())
-			{
-				GWorkingRHIThreadStallTime += ThisCycles;
-			}
-			else
-			{
-				GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += ThisCycles;
-				GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUQuery]++;
 			}
 		}
 	}
@@ -995,46 +985,43 @@ uint64 FOpenGLBufferedGPUTiming::GetTiming(bool bGetCurrentResultsAndBlock)
 			// This really only happens if occlusion and frame sync event queries are disabled, otherwise those will block until the GPU catches up to 1 frame behind
 			const bool bBlocking = ( NumIssuedTimestamps == BufferSize ) || bGetCurrentResultsAndBlock;
 
-			uint32 IdleStart = FPlatformTime::Cycles();
-			double StartTimeoutTime = FPlatformTime::Seconds();
-
 			GLuint EndAvailable = GL_FALSE;
-
-			SCOPE_CYCLE_COUNTER( STAT_RenderQueryResultTime );
-			// If we are blocking, retry until the GPU processes the time stamp command
-			do
 			{
-				FOpenGL::GetQueryObject(EndTimestamps[TimestampIndex]->Resource, FOpenGL::QM_ResultAvailable, &EndAvailable);
+				FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUQuery);
+				double StartTimeoutTime = FPlatformTime::Seconds();
 
-				if ((FPlatformTime::Seconds() - StartTimeoutTime) > 0.5)
-				{
-					UE_LOG(LogRHI, Log, TEXT("Timed out while waiting for GPU to catch up. (500 ms) EndTimeStamp"));
-					return 0;
-				}
-			} while ( EndAvailable == GL_FALSE && bBlocking );
-
-			GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += FPlatformTime::Cycles() - IdleStart;
-			GRenderThreadNumIdle[ERenderThreadIdleTypes::WaitingForGPUQuery]++;
-
-			if ( EndAvailable == GL_TRUE )
-			{
-				IdleStart = FPlatformTime::Cycles();
-				StartTimeoutTime = FPlatformTime::Seconds();
-
-				GLuint StartAvailable = GL_FALSE;
-
+				SCOPE_CYCLE_COUNTER( STAT_RenderQueryResultTime );
+				// If we are blocking, retry until the GPU processes the time stamp command
 				do
 				{
-					FOpenGL::GetQueryObject(StartTimestamps[TimestampIndex]->Resource, FOpenGL::QM_ResultAvailable, &StartAvailable);
+					FOpenGL::GetQueryObject(EndTimestamps[TimestampIndex]->Resource, FOpenGL::QM_ResultAvailable, &EndAvailable);
 
 					if ((FPlatformTime::Seconds() - StartTimeoutTime) > 0.5)
 					{
-						UE_LOG(LogRHI, Log, TEXT("Timed out while waiting for GPU to catch up. (500 ms) StartTimeStamp"));
+						UE_LOG(LogRHI, Log, TEXT("Timed out while waiting for GPU to catch up. (500 ms) EndTimeStamp"));
 						return 0;
 					}
-				} while ( StartAvailable == GL_FALSE && bBlocking );
+				} while ( EndAvailable == GL_FALSE && bBlocking );
+			}
 
-				GRenderThreadIdle[ERenderThreadIdleTypes::WaitingForGPUQuery] += FPlatformTime::Cycles() - IdleStart;
+			if ( EndAvailable == GL_TRUE )
+			{
+				GLuint StartAvailable = GL_FALSE;
+				{
+					FRenderThreadIdleScope IdleScope(ERenderThreadIdleTypes::WaitingForGPUQuery);
+					double StartTimeoutTime = FPlatformTime::Seconds();
+
+					do
+					{
+						FOpenGL::GetQueryObject(StartTimestamps[TimestampIndex]->Resource, FOpenGL::QM_ResultAvailable, &StartAvailable);
+
+						if ((FPlatformTime::Seconds() - StartTimeoutTime) > 0.5)
+						{
+							UE_LOG(LogRHI, Log, TEXT("Timed out while waiting for GPU to catch up. (500 ms) StartTimeStamp"));
+							return 0;
+						}
+					} while ( StartAvailable == GL_FALSE && bBlocking );
+				}
 
 				if(StartAvailable == GL_TRUE)
 				{

@@ -853,7 +853,6 @@ void FD3D12DynamicRHI::ProcessInterruptQueueUntil(FGraphEvent* GraphEvent)
 
 	if (GraphEvent && !GraphEvent->IsComplete())
 	{
-		FRenderThreadIdleScope Scope(ERenderThreadIdleTypes::WaitingForGPUQuery);
 		GraphEvent->Wait();
 	}
 
@@ -864,7 +863,7 @@ void FD3D12DynamicRHI::ProcessInterruptQueueUntil(FGraphEvent* GraphEvent)
 	if (!GraphEvent || !GraphEvent->IsComplete())
 	{
 		// If we're waiting for a sync point, accumulate the idle time
-		FRenderThreadIdleScope Scope(ERenderThreadIdleTypes::WaitingForGPUQuery, GraphEvent != nullptr);
+		FThreadIdleStats::FScopeIdle IdleScope(/* bIgnore = */GraphEvent == nullptr);
 
 	Retry:
 		if (InterruptCS.TryLock())
@@ -883,7 +882,7 @@ void FD3D12DynamicRHI::ProcessInterruptQueueUntil(FGraphEvent* GraphEvent)
 		else if (GraphEvent && !GraphEvent->IsComplete())
 		{
 			// Failed to get the lock. Another thread is processing the interrupt queue. Try again...
-			FPlatformProcess::Sleep(0);
+			FPlatformProcess::SleepNoStats(0);
 			goto Retry;
 		}
 	}
