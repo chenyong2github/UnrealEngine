@@ -7,7 +7,7 @@
 #include "Merge.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "AssetRegistry/AssetData.h"
-#include "AssetDefinition.h"
+#include "IAssetTypeActions.generated.h"
 
 class IToolkitHost;
 enum class EAssetTypeActivationOpenedMethod : uint8;
@@ -22,6 +22,39 @@ namespace EAssetTypeActivationMethod
 	};
 }
 
+/* Revision information for a single revision of a file in source control */
+USTRUCT(BlueprintType)
+struct FRevisionInfo
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadWrite, Category="Asset Revision")
+	FString		Revision;
+
+	UPROPERTY(BlueprintReadWrite, Category="Asset Revision")
+	int32		Changelist = -1;
+
+	UPROPERTY(BlueprintReadWrite, Category="Asset Revision")
+	FDateTime	Date;
+
+	static inline FRevisionInfo InvalidRevision()
+	{
+		static const FRevisionInfo Ret = { TEXT(""), -1, FDateTime() };
+		return Ret;
+	}
+};
+
+#ifndef DEPRECATE_ASSET_TYPE_ACTIONS_NEEDING_LOADED_OBJECTS
+	#define DEPRECATE_ASSET_TYPE_ACTIONS_NEEDING_LOADED_OBJECTS 0
+#endif
+
+#ifndef DEPRECATE_ASSET_TYPE_ACTIONS_CALLING_GETACTIONS
+    #if DEPRECATE_ASSET_TYPE_ACTIONS_NEEDING_LOADED_OBJECTS
+	    #define DEPRECATE_ASSET_TYPE_ACTIONS_CALLING_GETACTIONS DEPRECATE_ASSET_TYPE_ACTIONS_NEEDING_LOADED_OBJECTS
+	#else
+	    #define DEPRECATE_ASSET_TYPE_ACTIONS_CALLING_GETACTIONS 0
+	#endif
+#endif
 
 /** AssetTypeActions provide actions and other information about asset types */
 class IAssetTypeActions : public TSharedFromThis<IAssetTypeActions>
@@ -29,12 +62,6 @@ class IAssetTypeActions : public TSharedFromThis<IAssetTypeActions>
 public:
 	/** Virtual destructor */
 	virtual ~IAssetTypeActions(){}
-
-	/**
-	 * Returns if this is actually just an UAssetDefinition.  Which doesn't exist in this module.  UAssetDefinition
-	 * is replacing IAssetTypeActions, but for now we generate fake IAssetTypeActions that are secretly AssetDefinitions
-	 */
-	virtual bool IsAssetDefinitionInDisguise() const { return false; }
 
 	/** Returns the name of this type */
 	virtual FText GetName() const = 0;
@@ -44,18 +71,26 @@ public:
 
 	/** Returns the color associated with this type */
 	virtual FColor GetTypeColor() const = 0;
-
-	/** Returns true if we should call GetActions. */
-	virtual bool ShouldCallGetActions() const { return true; }
 	
 	/** Returns true if this class can supply actions for InObjects. */
+//   	UE_DEPRECATED(5.1, "HasActions is no longer used all IAssetTypeActions are assumed to need to have them and GetActions is just called instead.  GetActions is always called unless DEPRECATE_ASSET_TYPE_ACTIONS_CALLING_GETACTIONS is true.")
    	virtual bool HasActions( const TArray<UObject*>& InObjects ) const { return true; }
 
+#if DEPRECATE_ASSET_TYPE_ACTIONS_NEEDING_LOADED_OBJECTS
+	/** Generates a menubuilder for the specified objects. */
+	UE_DEPRECATED(5.1, "Look at 'HOW TO ADD ASSET EXTENSION MENUS' in IAssetTypeActions.h")
+	virtual void GetActions( const TArray<UObject*>& InObjects, class FMenuBuilder& MenuBuilder ) final { }
+
+	/** Generates a menu section for the specified objects. */
+	UE_DEPRECATED(5.1, "Look at 'HOW TO ADD ASSET EXTENSION MENUS' in IAssetTypeActions.h")
+	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) final { }
+#else
 	/** Generates a menubuilder for the specified objects. */
 	virtual void GetActions( const TArray<UObject*>& InObjects, class FMenuBuilder& MenuBuilder ) { }
 
 	/** Generates a menu section for the specified objects. */
 	virtual void GetActions(const TArray<UObject*>& InObjects, struct FToolMenuSection& Section) { }
+#endif
 
 	/** Opens the asset editor for the specified objects. If EditWithinLevelEditor is valid, the world-centric editor will be used. */
 	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>() ) = 0;
@@ -112,7 +147,6 @@ public:
 	virtual class UThumbnailInfo* GetThumbnailInfo(UObject* Asset) const = 0;
 
 	/** Returns the default thumbnail type that should be rendered when rendering primitive shapes.  This does not need to be implemented if the asset does not render a primitive shape */
-	UE_DEPRECATED(5.2, "When overriding GetThumbnailInfo, The default thumbnail primitive is now a property on USceneThumbnailInfoWithPrimitive.  The default only applies to this thumbnail type, so it has been relocated as an implementation detail of it.")
 	virtual EThumbnailPrimType GetDefaultThumbnailPrimitiveType(UObject* Asset) const = 0;
 
 	/** Optionally returns a custom widget to overlay on top of this assets' thumbnail */
@@ -137,15 +171,12 @@ public:
 	virtual FText GetDisplayNameFromAssetData(const FAssetData& AssetData) const = 0;
 
 	/** Sets whether or not this asset type is a supported type for this editor session. */
-	UE_DEPRECATED(5.2, "Use IAssetTools::IsAssetClassSupported")
-	virtual void SetSupported(bool bInSupported) final { ensureMsgf(false, TEXT("Deprecated")); };
+	virtual void SetSupported(bool bInSupported) = 0;
 
 	/** Is this asset type supported in the current session? */
-	UE_DEPRECATED(5.2, "Use IAssetTools::IsAssetClassSupported")
-	virtual bool IsSupported() const final { ensureMsgf(false, TEXT("Deprecated")); return true; }
-	
+	virtual bool IsSupported() const = 0;
+
 	/** Returns class path name as a package + class FName pair */
-	//UE_DEPRECATED(5.2, "Just call GetSupportedClass()->GetClassPathName();")
 	virtual FTopLevelAssetPath GetClassPathName() const = 0;
 
 	/** Does this asset support edit or view methods? */

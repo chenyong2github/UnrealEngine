@@ -56,7 +56,7 @@ void ICascadeToNiagaraConverterModule::AddMenuExtenderConvertEntry(FMenuBuilder&
 		TArray<UParticleSystem*> CascadeSystems;
 		for (const FAssetData& SelectedAsset : SelectedAssets)
 		{
-			if (!SelectedAsset.IsInstanceOf(UParticleSystem::StaticClass()))
+			if (SelectedAsset.GetClass()->IsChildOf<UParticleSystem>() == false)
 			{
 				return;
 			}

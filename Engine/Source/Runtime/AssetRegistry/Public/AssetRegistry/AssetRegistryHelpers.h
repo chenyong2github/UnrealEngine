@@ -101,14 +101,6 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Asset Registry", meta=(ScriptMethod))
 	static void GetBlueprintAssets(const FARFilter& InFilter, TArray<FAssetData>& OutAssetData);
 
-	/**
-	 * Returns the first native class of the asset type that can be found.  Normally this is just the FAssetData::GetClass(),
-	 * however if the class is a blueprint generated class it may not be loaded.  In which case GetAncestorClassNames will
-	 * be used to find the first native super class.  This can be slow if temporary caching mode is not on.
-	 */
-	UFUNCTION(BlueprintPure, Category = "Asset Registry", meta=(ScriptMethod))
-	static ASSETREGISTRY_API UClass* FindAssetNativeClass(const FAssetData& AssetData);
-	
 	/** Enable/disable asset registry caching mode for the duration of the scope */
 	struct ASSETREGISTRY_API FTemporaryCachingModeScope
 	{

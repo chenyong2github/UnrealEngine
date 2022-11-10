@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContentBrowserAssetDataCore.h"
-
-#include "AssetDefinition.h"
 #include "ContentBrowserDataSource.h"
 #include "IAssetTools.h"
 #include "AssetRegistry/IAssetRegistry.h"
@@ -24,7 +22,6 @@
 #include "Settings/ContentBrowserSettings.h"
 #include "Engine/Level.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "Misc/WarnIfAssetsLoadedInScope.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserAssetDataSource"
@@ -1433,11 +1430,9 @@ bool GetAssetFileItemAttribute(const FContentBrowserAssetFileItemDataPayload& In
 
 		if (InAttributeKey == ContentBrowserItemAttributes::ItemDescription)
 		{
-			if (const UAssetDefinition* AssetDefinition = InAssetPayload.GetAssetDefinition())
+			if (TSharedPtr<IAssetTypeActions> AssetTypeActions = InAssetPayload.GetAssetTypeActions())
 			{
-				FWarnIfAssetsLoadedInScope WarnIfAssetLoadedInScope({ InAssetPayload.GetAssetData() });
-				
-				const FText AssetDescription = AssetDefinition->GetAssetDescription(InAssetPayload.GetAssetData());
+				const FText AssetDescription = AssetTypeActions->GetAssetDescription(InAssetPayload.GetAssetData());
 				if (!AssetDescription.IsEmpty())
 				{
 					OutAttributeValue.SetValue(AssetDescription);

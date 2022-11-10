@@ -79,18 +79,49 @@ void FAssetTypeActions_IKRetargeter::ExtendAnimSequenceToolMenu()
 
 void FAssetTypeActions_IKRetargeter::CreateRetargetSubMenu(FToolMenuSection& InSection)
 {
+	UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
+	if (!Context)
+	{
+		return;			
+	}
+	
+	TArray<UObject*> SelectedObjects = Context->GetSelectedObjects();
+	if (SelectedObjects.IsEmpty())
+	{
+		return;
+	}
+
+	// change menu label if anim blueprint is selected
+	static const FText AnimAssetLabel(LOCTEXT("RetargetAnimationAsset", "Duplicate and Retarget Animation Assets"));
+	static const FText AnimBlueprintLabel(LOCTEXT("RetargetAnimationBlueprint", "Duplicate and Retarget Animation Blueprint"));
+
+	const FText MenuLabel = Cast<UAnimBlueprint>(SelectedObjects[0]) == nullptr ? AnimAssetLabel : AnimBlueprintLabel;
+	
 	InSection.AddMenuEntry(
 		"IKRetargetToDifferentSkeleton",
-		LOCTEXT("RetargetAnimation_Label", "Duplicate and Retarget Animation Assets/Blueprints"),
-		LOCTEXT("RetargetAnimation_ToolTip", "Duplicate an animation asset/blueprint and retarget to a different skeleton."),
+		MenuLabel,
+		LOCTEXT("RetargetAnimation_ToolTip", "Duplicate an animation asset and retarget to a different skeleton."),
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "GenericCurveEditor.TabIcon"),
-		FToolMenuExecuteAction::CreateLambda([](const FToolMenuContext& InContext)
+		FUIAction(FExecuteAction::CreateLambda([SelectedObjects]()
 		{
-        	if (const UContentBrowserAssetContextMenuContext* Context = InContext.FindContext<UContentBrowserAssetContextMenuContext>())
-        	{
-        		SRetargetAnimAssetsWindow::ShowWindow(Context->LoadSelectedObjects<UObject>());
-        	}
-		})
+			SRetargetAnimAssetsWindow::ShowWindow(SelectedObjects);
+		}),
+		FCanExecuteAction::CreateLambda([InSection]()
+		{
+			if (UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>())
+			{
+				TArray<UObject*> SelectedObjects = Context->GetSelectedObjects();
+				for (UObject* SelectedObject : SelectedObjects)
+				{
+					if (Cast<UAnimationAsset>(SelectedObject) || Cast<UAnimBlueprint>(SelectedObject))
+					{
+						return true;
+					}
+				}		
+			}
+			
+			return false;
+		}))
 	);
 }
 

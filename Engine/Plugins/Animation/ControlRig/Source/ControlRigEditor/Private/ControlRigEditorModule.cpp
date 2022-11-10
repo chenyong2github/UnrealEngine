@@ -920,6 +920,7 @@ void FControlRigEditorModule::ExtendAnimSequenceMenu()
 				UContentBrowserAssetContextMenuContext* Context = InSection.FindContext<UContentBrowserAssetContextMenuContext>();
 				if (Context)
 				{
+
 					TArray<UObject*> SelectedObjects = Context->GetSelectedObjects();
 					if (SelectedObjects.Num() > 0)
 					{

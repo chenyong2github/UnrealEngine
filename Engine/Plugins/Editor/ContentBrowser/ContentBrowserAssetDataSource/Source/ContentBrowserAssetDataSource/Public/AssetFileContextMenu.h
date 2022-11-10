@@ -38,7 +38,7 @@ private:
 
 private:
 	/** Helper to load selected assets and sort them by UClass */
-	void GetSelectedAssetsByClass(TMap<UClass*, TArray<FAssetData> >& OutSelectedAssetsByClass) const;
+	void GetSelectedAssetsByClass(TMap<UClass*, TArray<UObject*> >& OutSelectedAssetsByClass) const;
 
 	/** Helper to collect resolved filepaths for all selected assets */
 	void GetSelectedAssetSourceFilePaths(TArray<FString>& OutFilePaths, TArray<FString>& OutUniqueSourceFileLabels, int32 &OutValidSelectedAssetCount) const;
@@ -62,12 +62,6 @@ private:
 
 	/** Handler for OpenInExternalEditor */
 	void ExecuteOpenInExternalEditor(const TArray<FString> ResolvedFilePaths);
-
-	/** Handler to check to see if a load command is allowed */
-	bool CanExecuteLoad() const;
-
-	/** Handler for Load */
-	void ExecuteLoad();
 
 	/** Handler to check to see if a reload command is allowed */
 	bool CanExecuteReload() const;

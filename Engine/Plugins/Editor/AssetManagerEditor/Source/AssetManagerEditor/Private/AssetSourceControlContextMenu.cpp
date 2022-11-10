@@ -2,8 +2,6 @@
 
 #include "AssetSourceControlContextMenu.h"
 
-#include "AssetDefinition.h"
-#include "AssetDefinitionRegistry.h"
 #include "Algo/Transform.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetToolsModule.h"
@@ -853,27 +851,24 @@ bool FAssetSourceControlContextMenuState::CanExecuteSCCMerge() const
 {
 	FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
 
-	if (bCanExecuteSCCMerge && SelectedAssets.Num() > 0)
+	bool bCanExecuteMerge = bCanExecuteSCCMerge;
+	for (const FAssetData& AssetData : SelectedAssets)
 	{
-		for (const FAssetData& AssetData : SelectedAssets)
+		if (UObject* CurrentObject = AssetData.GetAsset())
 		{
-			if (const UAssetDefinition* AssetDefinition = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(AssetData))
+			auto AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(CurrentObject->GetClass()).Pin();
+			if (AssetTypeActions.IsValid())
 			{
-				if (!AssetDefinition->CanMerge())
-				{
-					return false;
-				}
-			}
-			else
-			{
-				return false;
+				bCanExecuteMerge = AssetTypeActions->CanMerge();
 			}
 		}
-
-		return true;
+		else
+		{
+			bCanExecuteMerge = false;
+		}
 	}
 
-	return false;
+	return bCanExecuteMerge;
 }
 
 void FAssetSourceControlContextMenuState::ExecuteSCCRefresh() const

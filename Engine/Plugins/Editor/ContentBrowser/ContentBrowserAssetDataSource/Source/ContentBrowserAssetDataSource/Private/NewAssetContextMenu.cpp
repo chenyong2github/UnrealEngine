@@ -69,10 +69,8 @@ struct FCategorySubMenuItem
 	}
 };
 
-TArray<FFactoryItem> FindFactoriesInCategory(EAssetTypeCategories::Type AssetTypeCategory, bool FindFirstOnly)
+TArray<FFactoryItem> FindFactoriesInCategory(EAssetTypeCategories::Type AssetTypeCategory)
 {
-    QUICK_SCOPE_CYCLE_COUNTER(FindFactoriesInCategory);
-	
 	TArray<FFactoryItem> FactoriesInThisCategory;
 
 	static const FName NAME_AssetTools = "AssetTools";
@@ -80,17 +78,10 @@ TArray<FFactoryItem> FindFactoriesInCategory(EAssetTypeCategories::Type AssetTyp
 	TArray<UFactory*> Factories = AssetTools.GetNewAssetFactories();
 	for (UFactory* Factory : Factories)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(GetMenuCategories);
-	
-		const uint32 FactoryCategories = Factory->GetMenuCategories();
+		uint32 FactoryCategories = Factory->GetMenuCategories();
 		if (FactoryCategories & AssetTypeCategory)
 		{
 			FactoriesInThisCategory.Emplace(Factory, Factory->GetDisplayName());
-
-			if (FindFirstOnly)
-			{
-				return FactoriesInThisCategory;
-			}
 		}
 	}
 
@@ -208,8 +199,6 @@ void FNewAssetContextMenu::MakeContextMenu(
 	const FOnNewAssetRequested& InOnNewAssetRequested
 	)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_ContentBrowser_MakeNewAssetContextMenu);
-	
 	if (InSelectedAssetPaths.Num() == 0)
 	{
 		return;
@@ -243,8 +232,6 @@ void FNewAssetContextMenu::MakeContextMenu(
 	// Import
 	if (InOnImportAssetRequested.IsBound() && !FirstSelectedPath.IsNone())
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_ContentBrowser_ImportSection);
-	
 		{
 			FToolMenuSection& Section = Menu->FindOrAddSection("ContentBrowserGetContent");
 			Section.AddMenuEntry(
@@ -265,8 +252,6 @@ void FNewAssetContextMenu::MakeContextMenu(
 	{
 		// Add Basic Asset
 		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_ContentBrowser_BasicSection);
-		
 			FToolMenuSection& Section = Menu->AddSection("ContentBrowserNewBasicAsset", LOCTEXT("CreateBasicAssetsMenuHeading", "Create Basic Asset"));
 			CreateNewAssetMenuCategory(
 				Menu,
@@ -280,8 +265,6 @@ void FNewAssetContextMenu::MakeContextMenu(
 
 		// Add Advanced Asset
 		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_ContentBrowser_AdvancedSection);
-		
 			FToolMenuSection& Section = Menu->AddSection("ContentBrowserNewAdvancedAsset", LOCTEXT("CreateAdvancedAssetsMenuHeading", "Create Advanced Asset"));
 
 			TArray<FAdvancedAssetCategory> AdvancedAssetCategories;
@@ -292,8 +275,7 @@ void FNewAssetContextMenu::MakeContextMenu(
 
 			for (const FAdvancedAssetCategory& AdvancedAssetCategory : AdvancedAssetCategories)
 			{
-				const bool FindFirstOnly = true;
-				TArray<FFactoryItem> Factories = FindFactoriesInCategory(AdvancedAssetCategory.CategoryType, FindFirstOnly);
+				TArray<FFactoryItem> Factories = FindFactoriesInCategory(AdvancedAssetCategory.CategoryType);
 				if (Factories.Num() > 0)
 				{
 					Section.AddSubMenu(
@@ -323,8 +305,7 @@ void FNewAssetContextMenu::MakeContextMenu(
 void FNewAssetContextMenu::CreateNewAssetMenuCategory(UToolMenu* Menu, FName SectionName, EAssetTypeCategories::Type AssetTypeCategory, FName InPath, FOnNewAssetRequested InOnNewAssetRequested, FCanExecuteAction InCanExecuteAction)
 {
 	// Find UFactory classes that can create new objects in this category.
-	const bool FindFirstOnly = false;
-	TArray<FFactoryItem> FactoriesInThisCategory = FindFactoriesInCategory(AssetTypeCategory, FindFirstOnly);
+	TArray<FFactoryItem> FactoriesInThisCategory = FindFactoriesInCategory(AssetTypeCategory);
 	if (FactoriesInThisCategory.Num() == 0)
 	{
 		return;
@@ -354,14 +335,11 @@ void FNewAssetContextMenu::CreateNewAssetMenuCategory(UToolMenu* Menu, FName Sec
 		SubMenu->Factories.Add(Item);
 	}
 	ParentMenuData->SortSubMenus();
-	
 	CreateNewAssetMenus(Menu, SectionName, ParentMenuData, InPath, InOnNewAssetRequested, InCanExecuteAction);
 }
 
 void FNewAssetContextMenu::CreateNewAssetMenus(UToolMenu* Menu, FName SectionName, TSharedPtr<FCategorySubMenuItem> SubMenuData, FName InPath, FOnNewAssetRequested InOnNewAssetRequested, FCanExecuteAction InCanExecuteAction)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(CreateNewAssetMenus);
-
 	FToolMenuSection& Section = Menu->FindOrAddSection(SectionName);
 	for (const FFactoryItem& FactoryItem : SubMenuData->Factories)
 	{

@@ -48,10 +48,13 @@ EDataValidationResult UEditorValidator_Localization::ValidateLoadedAsset_Impleme
 			if (SourceAssetData.IsValid())
 			{
 				// Can this type of asset be localized?
-				if (!AssetTools.CanLocalize(InAsset->GetClass()))
+				if (TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetTools.GetAssetTypeActionsForClass(InAsset->GetClass()).Pin())
 				{
-					AssetFails(InAsset, FText::Format(LOCTEXT("LocalizationError_LocalizedAssetTypeCannotBeLocalized", "Localized asset is of type '{0}', which is not a type that can be localized!"), FText::FromString(InAsset->GetClass()->GetName())), ValidationErrors);
-					return EDataValidationResult::Invalid;
+					if (!AssetTypeActions->CanLocalize())
+					{
+						AssetFails(InAsset, FText::Format(LOCTEXT("LocalizationError_LocalizedAssetTypeCannotBeLocalized", "Localized asset is of type '{0}', which is not a type that can be localized!"), FText::FromString(InAsset->GetClass()->GetName())), ValidationErrors);
+						return EDataValidationResult::Invalid;
+					}
 				}
 
 				// Is the source asset a redirector?
@@ -91,10 +94,13 @@ EDataValidationResult UEditorValidator_Localization::ValidateLoadedAsset_Impleme
 						if (LocalizedAssetData.IsValid())
 						{
 							// Can this type of asset be localized?
-							if (!AssetTools.CanLocalize(InAsset->GetClass()))
+							if (TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetTools.GetAssetTypeActionsForClass(InAsset->GetClass()).Pin())
 							{
-								AssetFails(InAsset, FText::Format(LOCTEXT("LocalizationError_SourceAssetTypeCannotBeLocalized", "Source asset has a localized asset for '{0}', but is of type '{1}' which is not a type that can be localized!"), FText::FromString(CultureName), FText::FromString(InAsset->GetClass()->GetName())), ValidationErrors);
-								return EDataValidationResult::Invalid;
+								if (!AssetTypeActions->CanLocalize())
+								{
+									AssetFails(InAsset, FText::Format(LOCTEXT("LocalizationError_SourceAssetTypeCannotBeLocalized", "Source asset has a localized asset for '{0}', but is of type '{1}' which is not a type that can be localized!"), FText::FromString(CultureName), FText::FromString(InAsset->GetClass()->GetName())), ValidationErrors);
+									return EDataValidationResult::Invalid;
+								}
 							}
 
 							// Is the source asset a redirector?

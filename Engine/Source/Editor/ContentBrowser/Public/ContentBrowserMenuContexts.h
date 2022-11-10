@@ -6,7 +6,6 @@
 #include "Containers/Array.h"
 #include "ContentBrowserDelegates.h"
 #include "CoreMinimal.h"
-#include "Algo/SelectRandomWeighted.h"
 #include "HAL/Platform.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
@@ -22,7 +21,6 @@ class SAssetView;
 class SContentBrowser;
 class SFilterList;
 class UClass;
-class UAssetDefinition;
 struct FFrame;
 struct FToolMenuSection;
 struct FToolMenuContext;
@@ -42,13 +40,9 @@ public:
 
 	TWeakPtr<FAssetContextMenu> AssetContextMenu;
 
-	UE_DEPRECATED(5.2, "IAssetTypeActions (CommonAssetTypeActions) is being phased out too much menu related stuff was built into their design that forced loading assets.  Please use UAssetDefinition (CommonAssetDefinition).")
 	TWeakPtr<IAssetTypeActions> CommonAssetTypeActions;
 	
-	UPROPERTY()
-	TObjectPtr<const UAssetDefinition> CommonAssetDefinition;
-	
-	UE_DEPRECATED(5.1, "Use SelectedAssets now, this field will not contain any objects.  You should call LoadSelectedObjects() based on what you need.")
+	UE_DEPRECATED(5.1, "Use SelectedAssets now, this field will not contain any objects.")
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
 
 	/**
@@ -63,7 +57,7 @@ public:
 	UPROPERTY()
 	bool bCanBeModified;
 
-	//UE_DEPRECATED(5.2, "GetSelectedObjects has been deprecated.  We no longer automatically load assets on right click.  Please use SelectedAssets and determine whatever you need for your context menu options without actually loading the assets.  When you finally need all or a subset of the selected assets use LoadSelectedAssets or LoadSelectedAssetsIf")
+	//UE_DEPRECATED(5.1, "GetSelectedObjects has been deprecated.  We no longer automatically load assets on right click.  Please use SelectedAssets and determine whatever you need for your context menu options without actually loading the assets.  When you finally need all or a subset of the selected assets use LoadSelectedAssets or LoadSelectedAssetsIf")
 	UFUNCTION(BlueprintCallable, Category="Tool Menus", meta=(DeprecatedFunction, DeprecationMessage = "GetSelectedObjects has been deprecated.  We no longer automatically load assets on right click.  If you can work without loading the assets, please use SelectedAssets.  Otherwise call LoadSelectedObjects"))
 	TArray<UObject*> GetSelectedObjects() const
 	{
@@ -245,5 +239,4 @@ class UToolMenu;
 namespace UE::ContentBrowser
 {
 	CONTENTBROWSER_API UToolMenu* ExtendToolMenu_AssetContextMenu(UClass* AssetClass);
-	CONTENTBROWSER_API UToolMenu* ExtendToolMenu_AssetContextMenu(TSoftClassPtr<UObject> AssetSoftClass);
 }

@@ -17,6 +17,12 @@ public:
 	virtual bool IsImportedAsset() const override { return true; }
 	virtual void GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const override;
 
+	/** Returns the thumbnail info for the specified asset, if it has one. */
+	virtual class UThumbnailInfo* GetThumbnailInfo(UObject* Asset) const override;
+
+	/** Returns the default thumbnail type that should be rendered when rendering primitive shapes.  This does not need to be implemented if the asset does not render a primitive shape */
+	virtual EThumbnailPrimType GetDefaultThumbnailPrimitiveType(UObject* Asset) const override;
+
 private:
 	/** Handler to check to see if imported asset actions are allowed */
 	bool CanExecuteImportedAssetActions(const TArray<FString> ResolvedFilePaths) const;
