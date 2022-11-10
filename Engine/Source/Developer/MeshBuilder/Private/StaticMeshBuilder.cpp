@@ -341,9 +341,9 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 
 	// If we want Nanite built, and have not already done it, do it based on LOD0 built render data.
 	// This will replace the output VertexBuffers/etc with the fractional Nanite cut to be stored as LOD0 RenderData.
-	// NOTE: We still want to do this for targets that do not support Nanite so that it generates the fallback,
-	// in which case the Nanite bulk will be stripped
-	if (!bNaniteDataBuilt && bNaniteBuildEnabled)
+	// NOTE: We still want to do this for targets that do not support Nanite (if no hi-res source model was provided)
+	// so that it generates the fallback, in which case the Nanite bulk will be stripped
+	if (bNaniteBuildEnabled && ((bTargetSupportsNanite && !bNaniteDataBuilt) || (!bTargetSupportsNanite && !bHaveHiResSourceModel)))
 	{
 		TArray< float, TInlineAllocator<4> > PercentTriangles;
 		for (int32 LodIndex = 0; LodIndex < NumSourceModels; ++LodIndex)
