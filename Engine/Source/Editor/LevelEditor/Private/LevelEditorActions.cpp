@@ -3756,33 +3756,27 @@ void FLevelEditorCommands::RegisterCommands()
 	// Add preview platforms
 	for (const FPreviewPlatformMenuItem& Item : FDataDrivenPlatformInfoRegistry::GetAllPreviewPlatformMenuItems())
 	{
-		FText FriendlyName;
+		FTextBuilder FriendlyNameBuilder;
 		if (!IsRunningCommandlet() && !GUsingNullRHI)
 		{
 			EShaderPlatform ShaderPlatform = FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(Item.PreviewShaderPlatformName);
-			FriendlyName = FDataDrivenShaderPlatformInfo::GetFriendlyName(ShaderPlatform);
+			FriendlyNameBuilder.AppendLine(FDataDrivenShaderPlatformInfo::GetFriendlyName(ShaderPlatform));
+			if (FDataDrivenShaderPlatformInfo::GetShaderPlatformFromName(Item.ShaderPlatformToPreview) == GMaxRHIShaderPlatform)
+			{
+				FriendlyNameBuilder.AppendLine(NSLOCTEXT("PreviewPlatform", "PreviewMenuText_DisablePreview", "(Disable Preview)"));
+			}
 		}
 
 		PreviewPlatformOverrides.Add(
 			FUICommandInfoDecl(
 				this->AsShared(),
 				FName(*FString::Printf(TEXT("PreviewPlatformOverrides_%s_%s"), *Item.PlatformName.ToString(), *Item.ShaderFormat.ToString())),
-				FriendlyName,
+				FriendlyNameBuilder.ToText(),
 				Item.MenuTooltip)
 			.UserInterfaceType(EUserInterfaceActionType::Check)
 			.DefaultChord(FInputChord())
 		);
 	}
-
-	PreviewPlatformOverrides.Add(
-		FUICommandInfoDecl(
-			this->AsShared(),
-			FName(TEXT("Disable Preview Command")),
-			NSLOCTEXT("PreviewPlatform", "PreviewMenuText_DisablePreview", "Disable Preview"),
-			NSLOCTEXT("PreviewPlatform", "PreviewMenuTooltip_DisablePreview", "Disable the current Preview Shader Platform"))
-		.UserInterfaceType(EUserInterfaceActionType::Check)
-		.DefaultChord(FInputChord())
-	);
 
 	UI_COMMAND(OpenMergeActor, "Merge Actors", "Opens the Merge Actor panel", EUserInterfaceActionType::Button, FInputChord());
 }

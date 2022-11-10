@@ -1795,7 +1795,7 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 
 	const TArray<FPreviewPlatformMenuItem>& MenuItems = FDataDrivenPlatformInfoRegistry::GetAllPreviewPlatformMenuItems();
 	// We need one extra slot for the Disable Preview option
-	check(MenuItems.Num() + 1 == Commands.PreviewPlatformOverrides.Num());
+	check(MenuItems.Num() == Commands.PreviewPlatformOverrides.Num());
 
 	for (int32 Index=0; Index < MenuItems.Num(); Index++)
 	{
@@ -1806,11 +1806,9 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		{
 			ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
 
-			const bool IsDefaultActive = FDataDrivenShaderPlatformInfo::GetPreviewShaderPlatformParent(ShaderPlatform) == GMaxRHIShaderPlatform;
-			const bool AllowPreview = !IsDefaultActive;
+			bool bIsDefaultShaderPlatform = FDataDrivenShaderPlatformInfo::GetPreviewShaderPlatformParent(ShaderPlatform) == GMaxRHIShaderPlatform;
 
-
-			FPreviewPlatformInfo PreviewFeatureLevelInfo(FeatureLevel, (EShaderPlatform)ShaderPlatform, IsDefaultActive ? NAME_None : Item.PlatformName, IsDefaultActive ? NAME_None : Item.ShaderFormat, IsDefaultActive ? NAME_None : Item.DeviceProfileName, AllowPreview, Item.PreviewShaderPlatformName);
+			FPreviewPlatformInfo PreviewFeatureLevelInfo(bIsDefaultShaderPlatform ? GMaxRHIFeatureLevel : FeatureLevel, bIsDefaultShaderPlatform ? GMaxRHIShaderPlatform : (EShaderPlatform)ShaderPlatform, bIsDefaultShaderPlatform ? NAME_None : Item.PlatformName, bIsDefaultShaderPlatform ? NAME_None : Item.ShaderFormat, bIsDefaultShaderPlatform ? NAME_None : Item.DeviceProfileName, true, bIsDefaultShaderPlatform ? NAME_None : Item.PreviewShaderPlatformName);
 
 			ActionList.MapAction(
 				Commands.PreviewPlatformOverrides[Index],
@@ -1818,16 +1816,6 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 				FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::CanExecutePreviewPlatform, PreviewFeatureLevelInfo),
 				FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, PreviewFeatureLevelInfo));
 		}
-	}
-
-	// Add the Disable Preview Menu Item
-	{
-		FPreviewPlatformInfo PreviewFeatureLevelInfo(GMaxRHIFeatureLevel, GMaxRHIShaderPlatform, NAME_None, NAME_None, NAME_None, true, NAME_None);
-		ActionList.MapAction(
-			Commands.PreviewPlatformOverrides[MenuItems.Num()],
-			FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, PreviewFeatureLevelInfo),
-			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::CanExecutePreviewPlatform, PreviewFeatureLevelInfo),
-			FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, PreviewFeatureLevelInfo));
 	}
 
 	ActionList.MapAction(
