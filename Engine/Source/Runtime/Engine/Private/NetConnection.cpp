@@ -4740,6 +4740,9 @@ void UNetConnection::ResetGameWorldState()
 	CleanupDormantActorState();
 	ClientVisibleActorOuters.Empty();
 
+	// Clear the view target as this may be from an out of date world
+	ViewTarget = nullptr;
+
 	// Update any level visibility requests received during the transition
 	// This can occur if client loads faster than the server
 	for (const auto& Pending : PendingUpdateLevelVisibility)

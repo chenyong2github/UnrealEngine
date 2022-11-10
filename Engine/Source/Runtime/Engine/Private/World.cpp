@@ -7010,6 +7010,52 @@ void FSeamlessTravelHandler::CopyWorldData()
 	}
 }
 
+/** 
+ * Version of FArchiveReplaceObjectRef that will also clear references to garbage objects not in the replacement map 
+ * This does not try to recursively serialize subobjects because it was unreliable and missed ones without hard parent references
+ */
+template< class T >
+class FArchiveReplaceOrClearGarbageReferences : public FArchiveReplaceObjectRef<T>
+{
+	typedef FArchiveReplaceObjectRef<T> TSuper;
+public:
+	FArchiveReplaceOrClearGarbageReferences
+		( UObject* InSearchObject
+		, const TMap<T*, T*>& InReplacementMap
+		, EArchiveReplaceObjectFlags Flags = EArchiveReplaceObjectFlags::None)
+		: TSuper(InSearchObject, InReplacementMap, EArchiveReplaceObjectFlags::DelayStart | Flags)
+	{
+		if (!(Flags & EArchiveReplaceObjectFlags::DelayStart))
+		{
+			this->SerializeSingleSearchObject();
+		}
+	}
+
+	void SerializeSingleSearchObject()
+	{
+		TSuper::ReplacedReferences.Reset();
+
+		// Difference from parent behavior is to always run even if map is empty, and to ignore subobjects
+		TSuper::SerializedObjects.Add(TSuper::SearchObject);
+		TSuper::SerializingObject = TSuper::SearchObject;
+		TSuper::SerializeObject(TSuper::SearchObject);
+	}
+
+	FArchive& operator<<(UObject*& Obj) override
+	{
+		UObject* Resolved = Obj;
+		TSuper::operator<<(Resolved);
+
+		// if Resolved is garbage, just clear the reference:
+		if (Resolved && !IsValid(Resolved))
+		{
+			Resolved = nullptr;
+		}
+		Obj = Resolved;
+		return *this;
+	}
+};
+
 UWorld* FSeamlessTravelHandler::Tick()
 {
 	bool bWorldChanged = false;
@@ -7302,6 +7348,24 @@ UWorld* FSeamlessTravelHandler::Tick()
 			}
 
 			CurrentWorld = nullptr;
+
+			if (!UObjectBaseUtility::IsPendingKillEnabled())
+			{
+				// If pending kill is disabled, run an explicit serializer to clear references to garbage objects on the transferred actors
+				TMap<UObject*, UObject*> ReplacementMap;
+
+				for (AActor* const TheActor : ActuallyKeptActors)
+				{
+					auto ClearReferences = [ReplacementMap](UObject* Object)
+					{
+						FArchiveReplaceOrClearGarbageReferences<UObject> ReplaceAr(Object, ReplacementMap, EArchiveReplaceObjectFlags::IgnoreOuterRef);
+					};
+
+					// Process all subobjects, even unreferenced ones
+					ClearReferences(TheActor);
+					ForEachObjectWithOuter(TheActor, ClearReferences, true, RF_NoFlags, EInternalObjectFlags::Garbage);
+				}
+			}
 
 			// collect garbage to delete the old world
 			// because we marked everything in it pending kill, references will be NULL'ed so we shouldn't end up with any dangling pointers
