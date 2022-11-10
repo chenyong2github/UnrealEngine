@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetFileContextMenu.h"
+
+#include "AssetDefinition.h"
+#include "AssetDefinitionRegistry.h"
 #include "Templates/SubclassOf.h"
 #include "Styling/SlateTypes.h"
 #include "Framework/Commands/UIAction.h"
@@ -125,11 +128,6 @@ bool FAssetFileContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 {
 	if (AreImportedAssetActionsVisible())
 	{
-		TArray<FString> ResolvedFilePaths;
-		TArray<FString> SourceFileLabels;
-		int32 ValidSelectedAssetCount = 0;
-		GetSelectedAssetSourceFilePaths(ResolvedFilePaths, SourceFileLabels, ValidSelectedAssetCount);
-
 		FToolMenuSection& Section = Menu->AddSection("ImportedAssetActions", LOCTEXT("ImportedAssetActionsMenuHeading", "Imported Asset"));
 		Section.InsertPosition = FToolMenuInsert("CommonAssetActions", EToolMenuInsertType::Before);
 		{
@@ -189,6 +187,11 @@ bool FAssetFileContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 					}
 				}
 			};
+			
+			TArray<FString> ResolvedFilePaths;
+			TArray<FString> SourceFileLabels;
+			int32 ValidSelectedAssetCount = 0;
+			GetSelectedAssetSourceFilePaths(ResolvedFilePaths, SourceFileLabels, ValidSelectedAssetCount);
 
 			//Reimport Menu
 			if (ValidSelectedAssetCount == 1 && SourceFileLabels.Num() > 1)
@@ -264,7 +267,6 @@ bool FAssetFileContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 
 		return true;
 	}
-	
 
 	return false;
 }
@@ -444,6 +446,18 @@ void FAssetFileContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 			FUIAction(
 				FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteReload),
 				FCanExecuteAction::CreateSP(this, &FAssetFileContextMenu::CanExecuteReload)
+			)
+		);
+
+		// Load
+		Section.AddMenuEntry(
+			"Load",
+			LOCTEXT("Load", "Load"),
+			LOCTEXT("LoadTooltip", "Loads the selected assets into memory without opening any asset editors."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &FAssetFileContextMenu::ExecuteLoad),
+				FCanExecuteAction::CreateSP(this, &FAssetFileContextMenu::CanExecuteLoad)
 			)
 		);
 
@@ -722,14 +736,7 @@ void FAssetFileContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 		for (const FAssetData& Asset : SelectedAssets)
 		{
 			// Can this type of asset be localized?
-			bool bCanLocalizeAsset = false;
-			{
-				TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(Asset.GetClass()).Pin();
-				if (AssetTypeActions.IsValid())
-				{
-					bCanLocalizeAsset = AssetTypeActions->CanLocalize();
-				}
-			}
+			const bool bCanLocalizeAsset = AssetToolsModule.Get().CanLocalize(Asset.GetClass());
 
 			if (!bCanLocalizeAsset)
 			{
@@ -1229,41 +1236,31 @@ void FAssetFileContextMenu::ExecuteReimportWithNewFile(int32 SourceFileIndex /*=
 	// Ask for a new files and reimport the selected asset
 	check(SelectedAssets.Num() == 1);
 
-	TArray<UObject *> CopyOfSelectedAssets;
-	for (const FAssetData &SelectedAsset : SelectedAssets)
+	if (const UAssetDefinition* AssetDefinition = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(SelectedAssets[0]))
 	{
-		UObject *Asset = SelectedAsset.GetAsset();
-		if (Asset)
+		TArray<FAssetSourceFile> OutSourceAssets;
+		FAssetSourceFileArgs SourceFileArgs(SelectedAssets);
+		if (AssetDefinition->GetSourceFiles(SourceFileArgs, OutSourceAssets) == EAssetCommandResult::Handled)
 		{
-			CopyOfSelectedAssets.Add(Asset);
+			int32 SourceFileIndexToReplace = SourceFileIndex;
+			//Check if the data is valid
+			if (SourceFileIndex == INDEX_NONE)
+			{
+				if (OutSourceAssets.Num() > 1)
+				{
+					//Ask for a new file for the index 0
+					SourceFileIndexToReplace = 0;
+				}
+			}
+			else
+			{
+				check(OutSourceAssets.IsValidIndex(SourceFileIndex));
+			}
+			
+			TArray<UObject*> LoadedAssets = SourceFileArgs.LoadObjects<UObject>();
+			FReimportManager::Instance()->ValidateAllSourceFileAndReimport(LoadedAssets, true, SourceFileIndexToReplace, true);
 		}
 	}
-
-	TArray<FString> AssetSourcePaths;
-	UClass* ObjectClass = CopyOfSelectedAssets[0]->GetClass();
-	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	const auto AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(ObjectClass);
-	if (AssetTypeActions.IsValid())
-	{
-		AssetTypeActions.Pin()->GetResolvedSourceFilePaths(CopyOfSelectedAssets, AssetSourcePaths);
-	}
-
-	int32 SourceFileIndexToReplace = SourceFileIndex;
-	//Check if the data is valid
-	if (SourceFileIndex == INDEX_NONE)
-	{
-		if (AssetSourcePaths.Num() > 1)
-		{
-			//Ask for a new file for the index 0
-			SourceFileIndexToReplace = 0;
-		}
-	}
-	else
-	{
-		check(AssetSourcePaths.IsValidIndex(SourceFileIndex));
-	}
-
-	FReimportManager::Instance()->ValidateAllSourceFileAndReimport(CopyOfSelectedAssets, true, SourceFileIndexToReplace, true);
 }
 
 void FAssetFileContextMenu::ExecuteFindSourceInExplorer(const TArray<FString> ResolvedFilePaths)
@@ -1284,22 +1281,15 @@ void FAssetFileContextMenu::ExecuteOpenInExternalEditor(const TArray<FString> Re
 	}
 }
 
-void FAssetFileContextMenu::GetSelectedAssetsByClass(TMap<UClass*, TArray<UObject*> >& OutSelectedAssetsByClass) const
+void FAssetFileContextMenu::GetSelectedAssetsByClass(TMap<UClass*, TArray<FAssetData> >& OutSelectedAssetsByClass) const
 {
 	// Sort all selected assets by class
-	for (const auto& SelectedAsset : SelectedAssets)
+	for (const FAssetData& SelectedAsset : SelectedAssets)
 	{
-		auto Asset = SelectedAsset.GetAsset();
-		if (Asset)
+		if (UClass* AssetClass = SelectedAsset.GetClass())
 		{
-			auto AssetClass = Asset->GetClass();
-
-			if ( !OutSelectedAssetsByClass.Contains(AssetClass) )
-			{
-				OutSelectedAssetsByClass.Add(AssetClass);
-			}
-		
-			OutSelectedAssetsByClass[AssetClass].Add(Asset);
+			TArray<FAssetData>& SelectedAssetsForClass = OutSelectedAssetsByClass.FindOrAdd(AssetClass);
+			SelectedAssetsForClass.Add(SelectedAsset);
 		}
 	}
 }
@@ -1308,27 +1298,25 @@ void FAssetFileContextMenu::GetSelectedAssetSourceFilePaths(TArray<FString>& Out
 {
 	OutFilePaths.Empty();
 	OutUniqueSourceFileLabels.Empty();
-	TMap<UClass*, TArray<UObject*> > SelectedAssetsByClass;
+	TMap<UClass*, TArray<FAssetData>> SelectedAssetsByClass;
 	GetSelectedAssetsByClass(SelectedAssetsByClass);
-	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
+
 	OutValidSelectedAssetCount = 0;
 	// Get the source file paths for the assets of each type
 	for (const auto& AssetsByClassPair : SelectedAssetsByClass)
 	{
-		const auto AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(AssetsByClassPair.Key);
-		if (AssetTypeActions.IsValid())
+		if (const UAssetDefinition* AssetDefinition = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForClass(AssetsByClassPair.Key))
 		{
-			const auto& TypeAssets = AssetsByClassPair.Value;
-			OutValidSelectedAssetCount += TypeAssets.Num();
-			TArray<FString> AssetSourcePaths;
-			AssetTypeActions.Pin()->GetResolvedSourceFilePaths(TypeAssets, AssetSourcePaths);
-			OutFilePaths.Append(AssetSourcePaths);
-
-			TArray<FString> AssetSourceLabels;
-			AssetTypeActions.Pin()->GetSourceFileLabels(TypeAssets, AssetSourceLabels);
-			for (const FString& Label : AssetSourceLabels)
+			TArray<FAssetSourceFile> OutSourceAssets;
+			FAssetSourceFileArgs SourceFileArgs(SelectedAssets);
+			if (AssetDefinition->GetSourceFiles(SourceFileArgs, OutSourceAssets) == EAssetCommandResult::Handled)
 			{
-				OutUniqueSourceFileLabels.AddUnique(Label);
+				OutValidSelectedAssetCount += AssetsByClassPair.Value.Num();
+				for (const FAssetSourceFile& SourceFile : OutSourceAssets)
+				{
+					OutFilePaths.Add(SourceFile.RelativeFilename);
+					OutUniqueSourceFileLabels.AddUnique(SourceFile.DisplayLabelName);
+				}
 			}
 		}
 	}
@@ -1575,6 +1563,23 @@ void FAssetFileContextMenu::ExecuteDiffSelected() const
 
 			AssetToolsModule.Get().DiffAssets(FirstObjectSelected, SecondObjectSelected, CurrentRevision, CurrentRevision);
 		}
+	}
+}
+
+bool FAssetFileContextMenu::CanExecuteLoad() const
+{
+	return SelectedAssets.Num() > 0;
+}
+
+void FAssetFileContextMenu::ExecuteLoad()
+{
+	FScopedSlowTask SlowTask(SelectedAssets.Num(), LOCTEXT("LoadingSelectedAssets", "Loading Selected Assets..."));
+	SlowTask.MakeDialogDelayed(1.0f);
+
+	for (const FAssetData& SelectedAsset : SelectedAssets)
+	{
+		SelectedAsset.GetAsset();
+		SlowTask.EnterProgressFrame(1);
 	}
 }
 

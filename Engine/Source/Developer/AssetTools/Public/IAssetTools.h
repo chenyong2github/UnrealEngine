@@ -250,6 +250,10 @@ public:
 	/** Gets the appropriate AssetTypeActions for the supplied class */
 	virtual TWeakPtr<IAssetTypeActions> GetAssetTypeActionsForClass(const UClass* Class) const = 0;
 
+	virtual bool CanLocalize(const UClass* Class) const = 0;
+
+	virtual TOptional<FLinearColor> GetTypeColor(const UClass* Class) const = 0;
+
 	/** Gets the list of appropriate AssetTypeActions for the supplied class */
 	virtual TArray<TWeakPtr<IAssetTypeActions>> GetAssetTypeActionsListForClass(const UClass* Class) const = 0;
 
@@ -531,7 +535,7 @@ public:
 	virtual TSharedRef<FNamePermissionList>& GetAssetClassPermissionList() = 0;
 
 	/** Get asset class permission list for content browser and other systems */
-	virtual TSharedRef<FPathPermissionList>& GetAssetClassPathPermissionList(EAssetClassAction AssetClassAction) = 0;
+	virtual const TSharedRef<FPathPermissionList>& GetAssetClassPathPermissionList(EAssetClassAction AssetClassAction) const = 0;
 
 	/** Which BlueprintTypes are allowed to be created. An empty list should allow everything. */
 	virtual TSet<EBlueprintType>& GetAllowedBlueprintTypes() = 0;

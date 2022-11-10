@@ -86,11 +86,14 @@ namespace UE::ContentBrowser
 {
 	UToolMenu* ExtendToolMenu_AssetContextMenu(UClass* AssetClass)
 	{
-		check(AssetClass);
-
+		return ExtendToolMenu_AssetContextMenu(TSoftClassPtr<UObject>(AssetClass));
+	}
+	
+	UToolMenu* ExtendToolMenu_AssetContextMenu(TSoftClassPtr<UObject> AssetSoftClass)
+	{
 		FNameBuilder Builder;
 		Builder << TEXT("ContentBrowser.AssetContextMenu.");
-		AssetClass->GetFName().AppendString(Builder);
+		Builder << AssetSoftClass.GetAssetName();
 		const FName MenuName(Builder.ToView());
 
 		return UToolMenus::Get()->ExtendMenu(MenuName);

@@ -161,16 +161,6 @@ public:
 		return FText::GetEmpty();
 	}
 
-	virtual void SetSupported(bool bInSupported) final
-	{
-		bIsSupported = bInSupported;
-	}
-
-	virtual bool IsSupported() const final
-	{
-		return bIsSupported;
-	}
-
 	virtual bool SupportsOpenedMethod(const EAssetTypeActivationOpenedMethod OpenedMethod) const override
 	{
 		return OpenedMethod == EAssetTypeActivationOpenedMethod::Edit;
@@ -242,7 +232,4 @@ protected:
 
 		return TypedObjects;
 	}
-
-private:
-	bool bIsSupported = true;
 };

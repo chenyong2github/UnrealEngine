@@ -127,7 +127,7 @@ const FSlateBrush* SThumbnailEditModeTools::GetCurrentPrimitiveBrush() const
 	if ( ThumbnailInfo )
 	{
 		// Note this is for the icon only.  we are assuming the thumbnail renderer does the right thing when rendering
-		EThumbnailPrimType PrimType = ThumbnailInfo->bUserModifiedShape ? ThumbnailInfo->PrimitiveType.GetValue() : GetDefaultThumbnailType();
+		EThumbnailPrimType PrimType = ThumbnailInfo->bUserModifiedShape ? ThumbnailInfo->PrimitiveType.GetValue() : (EThumbnailPrimType)ThumbnailInfo->DefaultPrimitiveType.Get(EThumbnailPrimType::TPT_Sphere);
 		switch (PrimType)
 		{
 		case TPT_None: return FAppStyle::GetBrush("ContentBrowser.PrimitiveCustom");
@@ -352,30 +352,6 @@ USceneThumbnailInfoWithPrimitive* SThumbnailEditModeTools::GetSceneThumbnailInfo
 USceneThumbnailInfoWithPrimitive* SThumbnailEditModeTools::ConstGetSceneThumbnailInfoWithPrimitive() const
 {
 	return Cast<USceneThumbnailInfoWithPrimitive>( SceneThumbnailInfo.Get() );
-}
-
-EThumbnailPrimType SThumbnailEditModeTools::GetDefaultThumbnailType() const 
-{
-	EThumbnailPrimType DefaultPrimitiveType = TPT_Sphere;
-
-	if (AssetThumbnail.IsValid())
-	{
-		UObject* Asset = AssetThumbnail.Pin()->GetAsset();
-
-		if (Asset)
-		{
-			static const FName AssetToolsName("AssetTools");
-
-			FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(AssetToolsName);
-			TWeakPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(Asset->GetClass());
-			if (AssetTypeActions.IsValid())
-			{
-				DefaultPrimitiveType = AssetTypeActions.Pin()->GetDefaultThumbnailPrimitiveType(Asset);
-			}
-		}
-	}
-
-	return DefaultPrimitiveType;
 }
 
 void SThumbnailEditModeTools::OnAssetDataChanged()

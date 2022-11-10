@@ -61,6 +61,8 @@
 
 // AIMdule
 
+#include "AssetDefinition.h"
+#include "AssetDefinitionRegistry.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "K2Node_AddComponent.h"
@@ -736,15 +738,6 @@ void FReimportManager::GetNewReimportPath(UObject* Obj, TArray<FString>& InOutFi
 	FString FileTypes;
 	FString AllExtensions;
 	TArray<UFactory*> Factories;
-	TArray<FString> SourceFileLabels;
-	FAssetToolsModule& AssetToolsModule = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	const auto AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(Obj->GetClass());
-	if (AssetTypeActions.IsValid())
-	{
-		TArray<UObject*> Objects;
-		Objects.Add(Obj);
-		AssetTypeActions.Pin()->GetSourceFileLabels(Objects, SourceFileLabels);
-	}
 
 	// Determine whether we will allow multi select and clear old filenames
 	bool bAllowMultiSelect = SourceFileIndex == INDEX_NONE && InOutFilenames.Num() > 1;
@@ -842,11 +835,18 @@ void FReimportManager::GetNewReimportPath(UObject* Obj, TArray<FString>& InOutFi
 		FString Title = FString::Printf(TEXT("%s: %s"), *NSLOCTEXT("ReimportManager", "ImportDialogTitle", "Import For").ToString(), *Obj->GetName());
 		if (SourceFileIndex != INDEX_NONE)
 		{
-			if (SourceFileLabels.IsValidIndex(SourceFileIndex))
+			FAssetData AssetData(Obj);
+			const UAssetDefinition* AssetDefinition = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(AssetData);
+
+			TArray<FAssetSourceFile> OutSourceAssets;
+			FAssetSourceFileArgs SourceFileArgs({ AssetData });
+			AssetDefinition->GetSourceFiles(SourceFileArgs, OutSourceAssets);
+			
+			if (OutSourceAssets.IsValidIndex(SourceFileIndex))
 			{
 				Title = FString::Printf(TEXT("%s %s %s: %s"),
 					*NSLOCTEXT("ReimportManager", "ImportDialogTitleLabelPart1", "Select").ToString(),
-					*SourceFileLabels[SourceFileIndex],
+					*OutSourceAssets[SourceFileIndex].DisplayLabelName,
 					*NSLOCTEXT("ReimportManager", "ImportDialogTitleLabelPart2", "Source File For").ToString(),
 					*Obj->GetName());
 			}
