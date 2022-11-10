@@ -2649,6 +2649,11 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite(FRDGBuilder& Graph
 	FRDGBufferSRVRef PrevPageRectBoundsRDGSRV = CacheManager->IsValid() ? GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(CacheManager->PrevBuffers.PageRectBounds, TEXT("Shadow.Virtual.PrevPageRectBounds"))) : nullptr;
 
 	int32 HZBMode = CVarNonNaniteVsmUseHzb.GetValueOnRenderThread();
+	// When disabling Nanite, there may be stale data in the Nanite-HZB causing incorrect culling.
+	if (!bHZBBuiltThisFrame)
+	{
+		HZBMode = 0; /* Disable HZB culling */
+	}
 
 	auto InitHZB = [&]()->FRDGTextureRef
 	{
