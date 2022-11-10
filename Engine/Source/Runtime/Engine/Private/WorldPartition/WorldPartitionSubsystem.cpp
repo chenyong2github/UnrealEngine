@@ -227,6 +227,11 @@ void UWorldPartitionSubsystem::RegisterStreamingSourceProvider(IWorldPartitionSt
 	UE_CLOG(bIsAlreadyInSet, LogWorldPartition, Warning, TEXT("Streaming source provider already registered."));
 }
 
+bool UWorldPartitionSubsystem::IsStreamingSourceProviderRegistered(IWorldPartitionStreamingSourceProvider* StreamingSource) const
+{
+	return StreamingSourceProviders.Contains(StreamingSource);
+}
+
 bool UWorldPartitionSubsystem::UnregisterStreamingSourceProvider(IWorldPartitionStreamingSourceProvider* StreamingSource)
 {
 	return !!StreamingSourceProviders.Remove(StreamingSource);
