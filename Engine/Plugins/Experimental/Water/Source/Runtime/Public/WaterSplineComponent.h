@@ -53,6 +53,13 @@ public:
 
 	virtual bool AllowsSplinePointScaleEditing() const override { return false; }
 
+	/*
+	 * Call to update water spline
+	 * Necessary if using USplineComponent::AddPoint(s) instead of editing the spline in editor
+	 */
+	UFUNCTION(BlueprintCallable, Category = Water, DisplayName="Synchronize And Broadcast Data Change")
+	void K2_SynchronizeAndBroadcastDataChange();
+
 #if WITH_EDITOR
 	DECLARE_EVENT(UWaterSplineComponent, UE_DEPRECATED(5.1, "Use FOnWaterSplineDataChanged") FOnSplineDataChanged);
 	UE_DEPRECATED(5.1, "Use OnWaterSplineDataChanged")

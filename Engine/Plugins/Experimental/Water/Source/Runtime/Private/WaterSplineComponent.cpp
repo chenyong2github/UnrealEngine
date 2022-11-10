@@ -130,6 +130,20 @@ FBoxSphereBounds UWaterSplineComponent::CalcBounds(const FTransform& LocalToWorl
 	}
 }
 
+void UWaterSplineComponent::K2_SynchronizeAndBroadcastDataChange()
+{
+#if WITH_EDITOR
+	SynchronizeWaterProperties();
+
+	FPropertyChangedEvent PropertyChangedEvent(FindFProperty<FProperty>(UWaterSplineComponent::StaticClass(), TEXT("SplineCurves")), 1 << 6);
+	FOnWaterSplineDataChangedParams OnWaterSplineDataChangedParams(PropertyChangedEvent);
+	OnWaterSplineDataChangedParams.bUserTriggered = true;
+
+	WaterSplineDataChangedEvent.Broadcast(OnWaterSplineDataChangedParams);
+#endif
+}
+
+
 #if WITH_EDITOR
 
 bool UWaterSplineComponent::CanEditChange(const FProperty* InProperty) const
