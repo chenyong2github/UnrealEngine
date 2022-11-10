@@ -203,6 +203,9 @@ struct FCompilationOptions
 	// Used to enable skin weight profiles.
 	bool bSkinWeightProfilesEnabled = true;
 
+	// Used to enable physics asset merge.
+	bool bPhysicsAssetMergeEnebled = false;
+
 	// Used to reduce the number of notifications when compiling objects
 	bool bSilentCompilation = true;
 
@@ -1069,6 +1072,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = CompileOptions)
 	bool bEnableAltSkinWeightProfiles = false;
 
+	//
+	UPROPERTY(EditAnywhere, Category = CompileOptions)
+	bool bEnablePhysicsAssetMerge = false;
+
 	// Options when compiling this customizable object (see EMutableCompileMeshType declaration for info)
 	UPROPERTY(EditAnywhere, Category = CompileOptions)
 	EMutableCompileMeshType MeshCompileType = EMutableCompileMeshType::LocalAndChildren;
@@ -1178,7 +1185,7 @@ private:
 	// This is a manual version number for the binary blobs in this asset.
 	// Increasing it invalidates all the previously compiled models.
 	// Warning: If while merging code both versions have changed, take the highest+1.
-	static const int32 CurrentSupportedVersion = 353;
+	static const int32 CurrentSupportedVersion = 354;
 
 public:
 

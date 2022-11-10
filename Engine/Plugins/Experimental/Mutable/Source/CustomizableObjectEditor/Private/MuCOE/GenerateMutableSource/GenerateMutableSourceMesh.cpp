@@ -469,7 +469,8 @@ mu::MeshPtr ConvertSkeletalMeshToMutable(USkeletalMesh* InSkeletalMesh, int LOD,
 	// Get the mesh generation flags to use
 	uint32 CurrentFlags = GenerationContext.MeshGenerationFlags.Last();
 	bool bIgnoreSkeleton = CurrentFlags & uint32(EMutableMeshConversionFlags::IgnoreSkinning);
-	bool bIgnorePhysics = CurrentFlags & uint32(EMutableMeshConversionFlags::IgnorePhysics);
+	bool bIgnorePhysics = (CurrentFlags & uint32(EMutableMeshConversionFlags::IgnorePhysics)) || 
+						  !GenerationContext.Options.bPhysicsAssetMergeEnebled;
 
 	mu::MeshPtr MutableMesh = new mu::Mesh();
 		
