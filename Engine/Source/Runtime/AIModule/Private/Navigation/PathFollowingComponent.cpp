@@ -573,7 +573,7 @@ void UPathFollowingComponent::OnPathFinished(const FPathFollowingResult& Result)
 	Reset();
 	UpdateMoveFocus();
 
-	if (bStopMovementOnFinish && MovementComp && HasMovementAuthority() && !MovementComp->UseAccelerationForPathFollowing())
+	if (ShouldStopMovementOnPathFinished())
 	{
 		MovementComp->StopMovementKeepPathing();
 	}
@@ -584,6 +584,11 @@ void UPathFollowingComponent::OnPathFinished(const FPathFollowingResult& Result)
 	FAIMessage Msg(UBrainComponent::AIMessage_MoveFinished, this, FinishedMoveId, Result.IsSuccess());
 	Msg.SetFlag(Result.Flags & 0xff);
 	FAIMessage::Send(Cast<AController>(GetOwner()), Msg);
+}
+
+bool UPathFollowingComponent::ShouldStopMovementOnPathFinished() const
+{
+	return bStopMovementOnFinish && MovementComp && HasMovementAuthority() && !MovementComp->UseAccelerationForPathFollowing();
 }
 
 void UPathFollowingComponent::OnSegmentFinished()

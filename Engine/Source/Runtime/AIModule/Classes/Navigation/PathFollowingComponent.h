@@ -649,6 +649,9 @@ protected:
 	/** set move focus in AI owner */
 	virtual void UpdateMoveFocus();
 
+	/** defines if the agent should reset his velocity when the path is finished*/
+	virtual bool ShouldStopMovementOnPathFinished() const; 
+
 	/** For given path finds a path node at which
 	 *	PathfollowingComponent should start doing 
 	 *	precise is-goal-in-acceptance-radius  tests */
