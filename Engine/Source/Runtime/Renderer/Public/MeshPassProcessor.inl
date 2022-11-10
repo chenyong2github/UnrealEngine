@@ -238,7 +238,8 @@ void FMeshPassProcessor::AddGraphicsPipelineStateInitializer(
 	ApplyTargetsInfo(PipelineStateInitializer, RenderTargetsInfo);
 
 	FPSOPrecacheData PSOPrecacheData;
-	PSOPrecacheData.PSOInitializer = PipelineStateInitializer;
+	PSOPrecacheData.Type = FPSOPrecacheData::EType::Graphics;
+	PSOPrecacheData.GraphicsPSOInitializer = PipelineStateInitializer;
 #if PSO_PRECACHING_VALIDATE
 	PSOPrecacheData.MeshPassType = (uint32)MeshPassType;
 	PSOPrecacheData.VertexFactoryType = VertexFactoryType;

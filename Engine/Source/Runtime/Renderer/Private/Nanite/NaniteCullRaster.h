@@ -151,6 +151,13 @@ struct FRasterResults
 	TArray<FVisualizeResult, TInlineAllocator<32>> Visualizations;
 };
 
+void CollectRasterPSOInitializers(
+	const FSceneTexturesConfig& SceneTexturesConfig,
+	const FMaterial& Material,
+	const FPSOPrecacheParams& PreCacheParams,
+	EShaderPlatform ShaderPlatform,
+	TArray<FPSOPrecacheData>& PSOInitializers);
+
 FCullingContext	InitCullingContext(
 	FRDGBuilder& GraphBuilder,
 	const FSharedContext& SharedContext,

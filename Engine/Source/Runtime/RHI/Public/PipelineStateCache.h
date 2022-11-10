@@ -106,6 +106,9 @@ namespace PipelineStateCache
 	/* Retrieve the current PSO precache result state (slightly slower than IsPrecaching) */
 	extern RHI_API EPSOPrecacheResult		CheckPipelineStateInCache(const FGraphicsPipelineStateInitializer& PipelineStateInitializer);
 
+	/* Retrieve the current PSO precache result state (slightly slower than IsPrecaching) */
+	extern RHI_API EPSOPrecacheResult		CheckPipelineStateInCache(FRHIComputeShader* ComputeShader);
+
 	/* Is the given PSO initializer still precaching? */
 	extern RHI_API bool						IsPrecaching(const FGraphicsPipelineStateInitializer& PipelineStateInitializer);
 

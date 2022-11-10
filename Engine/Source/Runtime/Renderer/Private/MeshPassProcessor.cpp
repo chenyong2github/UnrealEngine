@@ -960,6 +960,9 @@ void FGraphicsMinimalPipelineStateInitializer::ComputePrecachePSOHash()
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		uint32 GeometryShader;
 #endif // PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+		uint32 MeshShader;
+#endif // PLATFORM_SUPPORTS_MESH_SHADERS
 		uint32 BlendState;
 		uint32 RasterizerState;
 		uint32 DepthStencilState;
@@ -980,6 +983,9 @@ void FGraphicsMinimalPipelineStateInitializer::ComputePrecachePSOHash()
 	HashKey.PixelShader = HashCombine(GetTypeHash(BoundShaderState.PixelShaderIndex), GetTypeHash(BoundShaderState.PixelShaderResource));
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	HashKey.GeometryShader = HashCombine(GetTypeHash(BoundShaderState.GeometryShaderIndex), GetTypeHash(BoundShaderState.GeometryShaderResource));
+#endif
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	HashKey.MeshShader = HashCombine(GetTypeHash(BoundShaderState.MeshShaderIndex), GetTypeHash(BoundShaderState.MeshShaderResource));
 #endif
 
 	FBlendStateInitializerRHI BlendStateInitializerRHI;
@@ -1346,7 +1352,8 @@ bool FMeshDrawCommand::SubmitDrawBegin(
 	int32 PrimitiveIdOffset,
 	uint32 InstanceFactor,
 	FRHICommandList& RHICmdList,
-	FMeshDrawCommandStateCache& RESTRICT StateCache)
+	FMeshDrawCommandStateCache& RESTRICT StateCache,
+	bool bAllowSkipDrawCommand)
 {
 	checkSlow(MeshDrawCommand.CachedPipelineId.IsValid());
 	// GPUCULL_TODO: Can't do this check as the VFs are created with GMaxRHIFeatureLevel (so may support PrimitiveIdStreamIndex even for preview platforms)
@@ -1371,7 +1378,7 @@ bool FMeshDrawCommand::SubmitDrawBegin(
 #endif // PSO_PRECACHING_VALIDATE
 
 		// Check if skip draw is needed when the PSO is still precaching
-		if (GSkipDrawOnPSOPrecaching && !MeshPipelineState.bPSOPrecached)
+		if (bAllowSkipDrawCommand && GSkipDrawOnPSOPrecaching && !MeshPipelineState.bPSOPrecached)
 		{
 			MeshPipelineState.bPSOPrecached = !PipelineStateCache::IsPrecaching(GraphicsPSOInit);
 
@@ -1471,7 +1478,8 @@ bool FMeshDrawCommand::SubmitDrawIndirectBegin(
 	int32 PrimitiveIdOffset,
 	uint32 InstanceFactor,
 	FRHICommandList& RHICmdList,
-	FMeshDrawCommandStateCache& RESTRICT StateCache)
+	FMeshDrawCommandStateCache& RESTRICT StateCache,
+	bool bAllowSkipDrawCommand)
 {
 	return SubmitDrawBegin(
 		MeshDrawCommand,
@@ -1480,7 +1488,8 @@ bool FMeshDrawCommand::SubmitDrawIndirectBegin(
 		PrimitiveIdOffset,
 		InstanceFactor,
 		RHICmdList,
-		StateCache
+		StateCache,
+		bAllowSkipDrawCommand
 	);
 }
 
@@ -1575,7 +1584,8 @@ void FMeshDrawCommand::SubmitDraw(
 #if WANTS_DRAW_MESH_EVENTS
 	FMeshDrawEvent MeshEvent(MeshDrawCommand, InstanceFactor, RHICmdList);
 #endif
-	if (SubmitDrawBegin(MeshDrawCommand, GraphicsMinimalPipelineStateSet, ScenePrimitiveIdsBuffer, PrimitiveIdOffset, InstanceFactor, RHICmdList, StateCache))
+	bool bAllowSkipDrawCommand = true;
+	if (SubmitDrawBegin(MeshDrawCommand, GraphicsMinimalPipelineStateSet, ScenePrimitiveIdsBuffer, PrimitiveIdOffset, InstanceFactor, RHICmdList, StateCache, bAllowSkipDrawCommand))
 	{
 		SubmitDrawEnd(MeshDrawCommand, InstanceFactor, RHICmdList, IndirectArgsOverrideBuffer, IndirectArgsOverrideByteOffset);
 	}
@@ -2324,7 +2334,7 @@ void PSOCollectorStats::AddMinimalPipelineStateToCache(const FGraphicsMinimalPip
 		return;
 	}
 
-	check(VertexFactoryType->SupportsPSOPrecaching());
+	check(VertexFactoryType == nullptr || VertexFactoryType->SupportsPSOPrecaching());
 
 	static bool bFirstTime = true;
 	if (bFirstTime)
@@ -2390,7 +2400,7 @@ void PSOCollectorStats::CheckMinimalPipelineStateInCache(const FGraphicsMinimalP
 
 	const EShadingPath ShadingPath = FSceneInterface::GetShadingPath(GMaxRHIFeatureLevel);
 	bool bCollectPSOs = FPSOCollectorCreateManager::GetCreateFunction(ShadingPath, MeshPassType) != nullptr;
-	bool bTracked = bCollectPSOs && VertexFactoryType->SupportsPSOPrecaching();
+	bool bTracked = bCollectPSOs && (VertexFactoryType == nullptr || VertexFactoryType->SupportsPSOPrecaching());
 
 	// Enable this when we want to check the actual RHI shader resources during this function - slightly slower and don't need to be retrieved here yet
 	//PSOInitialize.BoundShaderState.AsBoundShaderState();

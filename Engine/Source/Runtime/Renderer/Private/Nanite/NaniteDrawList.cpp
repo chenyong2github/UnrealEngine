@@ -282,7 +282,12 @@ void SubmitNaniteIndirectMaterial(
 #if WANTS_DRAW_MESH_EVENTS
 	FMeshDrawCommand::FMeshDrawEvent MeshEvent(MeshDrawCommand, InstanceFactor, RHICmdList);
 #endif
-	FMeshDrawCommand::SubmitDrawIndirectBegin(MeshDrawCommand, GraphicsMinimalPipelineStateSet, nullptr, 0, InstanceFactor, RHICmdList, StateCache);
+
+	bool bAllowSkipDrawCommand = true;
+	if (!FMeshDrawCommand::SubmitDrawIndirectBegin(MeshDrawCommand, GraphicsMinimalPipelineStateSet, nullptr, 0, InstanceFactor, RHICmdList, StateCache, bAllowSkipDrawCommand))
+	{
+		return;
+	}
 
 	// All Nanite mesh draw commands are using the same vertex shader, which has a material depth parameter we assign at render time.
 	{
@@ -313,7 +318,11 @@ void SubmitNaniteMultiViewMaterial(
 	FMeshDrawCommand::FMeshDrawEvent MeshEvent(MeshDrawCommand, InstanceFactor, RHICmdList);
 #endif
 
-	FMeshDrawCommand::SubmitDrawBegin(MeshDrawCommand, GraphicsMinimalPipelineStateSet, nullptr, 0, InstanceFactor, RHICmdList, StateCache);
+	bool bAllowSkipDrawCommand = true;
+	if (!FMeshDrawCommand::SubmitDrawBegin(MeshDrawCommand, GraphicsMinimalPipelineStateSet, nullptr, 0, InstanceFactor, RHICmdList, StateCache, bAllowSkipDrawCommand))
+	{
+		return;
+	}
 
 	// All Nanite mesh draw commands are using the same vertex shader, which has a material depth parameter we assign at render time.
 	{
@@ -452,7 +461,7 @@ void FNaniteMeshProcessor::CollectPSOInitializers(
 	const EBlendMode BlendMode = Material.GetBlendMode();
 	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
 	bool bShouldDraw = Nanite::IsSupportedBlendMode(BlendMode) && Nanite::IsSupportedMaterialDomain(Material.GetMaterialDomain());
-	if (!bShouldDraw || !PreCacheParams.bRenderInMainPass)
+	if (!bShouldDraw)
 	{
 		return;
 	}
@@ -465,6 +474,9 @@ void FNaniteMeshProcessor::CollectPSOInitializers(
 		bRenderSkyLight = false;
 		CollectPSOInitializersForSkyLight(SceneTexturesConfig, VertexFactoryType, Material, bRenderSkyLight, PSOInitializers);
 	}
+
+	EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
+	Nanite::CollectRasterPSOInitializers(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, PSOInitializers);
 }
 
 void FNaniteMeshProcessor::CollectPSOInitializersForSkyLight(

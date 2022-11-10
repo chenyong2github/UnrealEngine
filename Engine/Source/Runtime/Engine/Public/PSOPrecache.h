@@ -116,11 +116,30 @@ struct FPSOPrecacheParams
  */
 struct FPSOPrecacheData
 {
-	FGraphicsPipelineStateInitializer PSOInitializer;
-
+	FPSOPrecacheData() : Type(EType::Graphics)
 #if PSO_PRECACHING_VALIDATE
-	uint32 MeshPassType = 0;
-	const FVertexFactoryType* VertexFactoryType = nullptr;
+		, MeshPassType(0)
+		, VertexFactoryType(nullptr)
+#endif // PSO_PRECACHING_VALIDATE
+	{
+	}
+
+	enum class EType : uint8
+	{
+		Graphics,
+		Compute,
+	};
+	EType Type;
+
+	union
+	{
+		FGraphicsPipelineStateInitializer GraphicsPSOInitializer;
+		FRHIComputeShader* ComputeShader;
+	};
+	
+#if PSO_PRECACHING_VALIDATE
+	uint32 MeshPassType;
+	const FVertexFactoryType* VertexFactoryType;
 #endif // PSO_PRECACHING_VALIDATE
 };
 
@@ -234,15 +253,22 @@ namespace PSOCollectorStats
 		void UpdateStats(uint32 MeshPassType, const FVertexFactoryType* VFType)
 		{
 			Count++;
-			PerMeshPassCount[MeshPassType]++;
 
-			Experimental::FHashElementId TableId = PerVertexFactoryCount.FindId(VFType);
-			if (!TableId.IsValid())
+			if (MeshPassType < FPSOCollectorCreateManager::MaxPSOCollectorCount)
 			{
-				TableId = PerVertexFactoryCount.FindOrAddId(VFType, uint32());
+				PerMeshPassCount[MeshPassType]++;
 			}
-			uint32& Value = PerVertexFactoryCount.GetByElementId(TableId).Value;
-			Value++;
+
+			if (VFType != nullptr)
+			{
+				Experimental::FHashElementId TableId = PerVertexFactoryCount.FindId(VFType);
+				if (!TableId.IsValid())
+				{
+					TableId = PerVertexFactoryCount.FindOrAddId(VFType, uint32());
+				}
+				uint32& Value = PerVertexFactoryCount.GetByElementId(TableId).Value;
+				Value++;
+			}
 		}
 
 		uint32 Count;
@@ -277,9 +303,19 @@ namespace PSOCollectorStats
 	extern ENGINE_API void AddPipelineStateToCache(const FGraphicsPipelineStateInitializer& PSOInitializer, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType);
 
 	/**
-	 * Is the requested PSO initializer precached (only PSO relevant data is checked)
+	 * Is the requested graphics PSO initializer precached (only PSO relevant data is checked)
 	 */
 	extern ENGINE_API EPSOPrecacheResult CheckPipelineStateInCache(const FGraphicsPipelineStateInitializer& PSOInitializer, uint32 MeshPassType, const FVertexFactoryType* VertexFactoryType);
+
+	/**
+	 * Add compute shader to cache for validation & state tracking
+	 */
+	extern ENGINE_API void AddComputeShaderToCache(FRHIComputeShader* ComputeShader, uint32 MeshPassType);
+
+	/**
+	 * Is the requested compute shader precached
+	 */
+	extern ENGINE_API EPSOPrecacheResult CheckComputeShaderInCache(FRHIComputeShader* ComputeShader, uint32 MeshPassType);
 }
 
 #endif // PSO_PRECACHING_VALIDATE

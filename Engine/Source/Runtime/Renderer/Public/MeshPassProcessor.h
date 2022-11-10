@@ -184,16 +184,28 @@ struct FMinimalBoundShaderStateInput
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 			CachedGeometryShader = GeometryShaderResource ? static_cast<FRHIGeometryShader*>(GeometryShaderResource->GetShader(GeometryShaderIndex)) : nullptr;
 #endif
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+			CachedMeshShader = MeshShaderResource ? static_cast<FRHIMeshShader*>(MeshShaderResource->GetShader(MeshShaderIndex)) : nullptr;
+#endif
 			CachedVertexShader = VertexShaderResource ? static_cast<FRHIVertexShader*>(VertexShaderResource->GetShader(VertexShaderIndex)) : nullptr;
 		}
 
-		return FBoundShaderStateInput(VertexDeclarationRHI
-			, CachedVertexShader
-			, CachedPixelShader
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-			, CachedGeometryShader
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+		if (CachedMeshShader)
+		{
+			return FBoundShaderStateInput(CachedMeshShader, nullptr, CachedPixelShader);
+		}
+		else
 #endif
-		);
+		{
+			return FBoundShaderStateInput(VertexDeclarationRHI
+				, CachedVertexShader
+				, CachedPixelShader
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+				, CachedGeometryShader
+#endif
+			);
+		}
 	}
 
 	void LazilyInitShaders() const
@@ -217,6 +229,12 @@ struct FMinimalBoundShaderStateInput
 			return true;
 		}
 #endif
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+		if (MeshShaderResource && !MeshShaderResource->HasShader(MeshShaderIndex))
+		{
+			return true;
+		}
+#endif
 		return false;
 	}
 
@@ -226,15 +244,24 @@ struct FMinimalBoundShaderStateInput
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	mutable FRHIGeometryShader* CachedGeometryShader = nullptr;
 #endif
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	mutable FRHIMeshShader* CachedMeshShader = nullptr;
+#endif
 	TRefCountPtr<FShaderMapResource> VertexShaderResource;
 	TRefCountPtr<FShaderMapResource> PixelShaderResource;
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	TRefCountPtr<FShaderMapResource> GeometryShaderResource;
 #endif
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	TRefCountPtr<FShaderMapResource> MeshShaderResource;
+#endif
 	int32 VertexShaderIndex = INDEX_NONE;
 	int32 PixelShaderIndex = INDEX_NONE;
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 	int32 GeometryShaderIndex = INDEX_NONE;
+#endif
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	int32 MeshShaderIndex = INDEX_NONE;
 #endif
 };
 
@@ -1167,7 +1194,8 @@ public:
 		int32 PrimitiveIdOffset,
 		uint32 InstanceFactor,
 		FRHICommandList& RHICmdList,
-		FMeshDrawCommandStateCache& RESTRICT StateCache);
+		FMeshDrawCommandStateCache& RESTRICT StateCache,
+		bool bAllowSkipDrawCommand);
 
 	/** Submits just the draw primitive portion of the draw command. */
 	static void SubmitDrawEnd(const FMeshDrawCommand& MeshDrawCommand, uint32 InstanceFactor, FRHICommandList& RHICmdList,
@@ -1187,7 +1215,8 @@ public:
 		int32 PrimitiveIdOffset,
 		uint32 InstanceFactor,
 		FRHICommandList& RHICmdList,
-		FMeshDrawCommandStateCache& RESTRICT StateCache);
+		FMeshDrawCommandStateCache& RESTRICT StateCache,
+		bool bAllowSkipDrawCommand);
 
 	/** Submits just the draw indirect primitive portion of the draw command. */
 	static void SubmitDrawIndirectEnd(const FMeshDrawCommand& MeshDrawCommand, uint32 InstanceFactor, FRHICommandList& RHICmdList,

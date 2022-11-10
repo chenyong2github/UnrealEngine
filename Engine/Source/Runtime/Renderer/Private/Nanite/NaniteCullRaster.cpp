@@ -288,6 +288,13 @@ static bool AllowProgrammableRaster(EShaderPlatform ShaderPlatform)
 	return GNaniteAllowProgrammableRaster != 0;
 }
 
+static bool UseAutoCullingShader(bool bUsePrimitiveShader)
+{
+	return GRHISupportsPrimitiveShaders &&
+		   !bUsePrimitiveShader &&
+		   GNaniteAutoShaderCulling != 0;
+}
+
 #if WANTS_DRAW_MESH_EVENTS
 static FORCEINLINE const TCHAR* GetRasterMaterialName(const FMaterialRenderProxy* InRasterMaterial, const FMaterialRenderProxy* InFixedFunction)
 {
@@ -881,9 +888,9 @@ static bool IsVertexProgrammable(const FMaterialShaderParameters& MaterialParame
 	return bPermutationPrimitiveShader || MaterialParameters.bHasVertexPositionOffsetConnected;
 }
 
-static bool IsVertexProgrammable(const FMaterial& RasterMaterial, bool bUsePrimitiveShader, bool bForceDisableWPO)
+static bool IsVertexProgrammable(const FMaterial& RasterMaterial, bool bMaterialUsesWorldPositionOffset, bool bUsePrimitiveShader, bool bForceDisableWPO)
 {
-	return bUsePrimitiveShader || (!bForceDisableWPO && RasterMaterial.MaterialUsesWorldPositionOffset_RenderThread());
+	return bUsePrimitiveShader || (!bForceDisableWPO && bMaterialUsesWorldPositionOffset);
 }
 
 static bool IsPixelProgrammable(const FMaterialShaderParameters& MaterialParameters)
@@ -891,9 +898,9 @@ static bool IsPixelProgrammable(const FMaterialShaderParameters& MaterialParamet
 	return MaterialParameters.bIsMasked || MaterialParameters.bHasPixelDepthOffsetConnected;
 }
 
-static bool IsPixelProgrammable(const FMaterial& RasterMaterial)
+static bool IsPixelProgrammable(const FMaterial& RasterMaterial, bool bMaterialUsesPixelDepthOffset)
 {
-	return RasterMaterial.IsMasked() || RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread();
+	return RasterMaterial.IsMasked() || bMaterialUsesPixelDepthOffset;
 }
 
 static bool ShouldCompileProgrammablePermutation(const FMaterialShaderParameters& MaterialParameters, bool bPermutationVertexProgrammable, bool bPermutationPixelProgrammable, bool bPermutationPrimitiveShader)
@@ -1339,6 +1346,284 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(, FHWRasterizePS, TEXT("/Engine/Private/Nanite/Na
 
 namespace Nanite
 {
+
+void SetupProgrammableRasterizePermutationVectors(
+	EOutputBufferMode RasterMode,
+	bool bMultiView,
+	bool bUseMeshShader,
+	bool bUsePrimitiveShader,
+	bool bUseAutoCullingShader,
+	bool bVisualizeActive,
+	bool bHasVirtualShadowMapArray,
+	FHWRasterizeVS::FPermutationDomain& PermutationVectorVS,
+	FHWRasterizeMS::FPermutationDomain& PermutationVectorMS,
+	FHWRasterizePS::FPermutationDomain& PermutationVectorPS,
+	FMicropolyRasterizeCS::FPermutationDomain& PermutationVectorCS)
+{
+	PermutationVectorVS.Set<FHWRasterizeVS::FDepthOnlyDim>(RasterMode == EOutputBufferMode::DepthOnly);
+	PermutationVectorVS.Set<FHWRasterizeVS::FMultiViewDim>(bMultiView);
+	PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderDim>(bUsePrimitiveShader);
+	PermutationVectorVS.Set<FHWRasterizeVS::FAutoShaderCullDim>(bUseAutoCullingShader);
+	PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(bHasVirtualShadowMapArray);
+
+	PermutationVectorMS.Set<FHWRasterizeMS::FDepthOnlyDim>(RasterMode == EOutputBufferMode::DepthOnly);
+	PermutationVectorMS.Set<FHWRasterizeMS::FMultiViewDim>(bMultiView);
+	PermutationVectorMS.Set<FHWRasterizeMS::FVirtualTextureTargetDim>(bHasVirtualShadowMapArray);
+
+	PermutationVectorPS.Set<FHWRasterizePS::FDepthOnlyDim>(RasterMode == EOutputBufferMode::DepthOnly);
+	PermutationVectorPS.Set<FHWRasterizePS::FMultiViewDim>(bMultiView);
+	PermutationVectorPS.Set<FHWRasterizePS::FMeshShaderDim>(bUseMeshShader);
+	PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderDim>(bUsePrimitiveShader);
+	PermutationVectorPS.Set<FHWRasterizePS::FVisualizeDim>(bVisualizeActive && RasterMode != EOutputBufferMode::DepthOnly);
+	PermutationVectorPS.Set<FHWRasterizePS::FVirtualTextureTargetDim>(bHasVirtualShadowMapArray);
+
+	// SW Rasterize
+	PermutationVectorCS.Set<FMicropolyRasterizeCS::FDepthOnlyDim>(RasterMode == EOutputBufferMode::DepthOnly);
+	PermutationVectorCS.Set<FMicropolyRasterizeCS::FMultiViewDim>(bMultiView);
+	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVisualizeDim>(bVisualizeActive && RasterMode != EOutputBufferMode::DepthOnly);
+	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVirtualTextureTargetDim>(bHasVirtualShadowMapArray);
+}
+
+void GetMaterialShaderTypes(
+	bool bVertexProgrammable,
+	bool bPixelProgrammable,
+	bool bUseMeshShader,
+	bool bUsePrimitiveShader,
+	bool bIsTwoSided,
+	FHWRasterizeVS::FPermutationDomain& PermutationVectorVS,
+	FHWRasterizeMS::FPermutationDomain& PermutationVectorMS,
+	FHWRasterizePS::FPermutationDomain& PermutationVectorPS,
+	FMicropolyRasterizeCS::FPermutationDomain& PermutationVectorCS,
+	FMaterialShaderTypes& ProgrammableShaderTypes,
+	FMaterialShaderTypes& NonProgrammableShaderTypes)
+{
+	ProgrammableShaderTypes.PipelineType = nullptr;
+
+	// Vertex/Mesh shader
+	if (bUseMeshShader)
+	{
+		PermutationVectorMS.Set<FHWRasterizeMS::FVertexProgrammableDim>(bVertexProgrammable);
+		PermutationVectorMS.Set<FHWRasterizeMS::FPixelProgrammableDim>(bPixelProgrammable);
+		if (bVertexProgrammable)
+		{
+			ProgrammableShaderTypes.AddShaderType<FHWRasterizeMS>(PermutationVectorMS.ToDimensionValueId());
+		}
+		else
+		{
+			NonProgrammableShaderTypes.AddShaderType<FHWRasterizeMS>(PermutationVectorMS.ToDimensionValueId());
+		}
+	}
+	else
+	{
+		PermutationVectorVS.Set<FHWRasterizeVS::FVertexProgrammableDim>(bVertexProgrammable);
+		PermutationVectorVS.Set<FHWRasterizeVS::FPixelProgrammableDim>(bPixelProgrammable);
+		if (bVertexProgrammable)
+		{
+			ProgrammableShaderTypes.AddShaderType<FHWRasterizeVS>(PermutationVectorVS.ToDimensionValueId());
+		}
+		else
+		{
+			NonProgrammableShaderTypes.AddShaderType<FHWRasterizeVS>(PermutationVectorVS.ToDimensionValueId());
+		}
+	}
+
+	// Pixel Shader
+	PermutationVectorPS.Set<FHWRasterizePS::FVertexProgrammableDim>(bVertexProgrammable);
+	PermutationVectorPS.Set<FHWRasterizePS::FPixelProgrammableDim>(bPixelProgrammable);
+	if (bPixelProgrammable)
+	{
+		ProgrammableShaderTypes.AddShaderType<FHWRasterizePS>(PermutationVectorPS.ToDimensionValueId());
+	}
+	else
+	{
+		NonProgrammableShaderTypes.AddShaderType<FHWRasterizePS>(PermutationVectorPS.ToDimensionValueId());
+	}
+
+	// Programmable micropoly features
+	PermutationVectorCS.Set<FMicropolyRasterizeCS::FTwoSidedDim>(bIsTwoSided);
+	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVertexProgrammableDim>(bVertexProgrammable);
+	PermutationVectorCS.Set<FMicropolyRasterizeCS::FPixelProgrammableDim>(bPixelProgrammable);
+	if (bVertexProgrammable || bPixelProgrammable)
+	{
+		ProgrammableShaderTypes.AddShaderType<FMicropolyRasterizeCS>(PermutationVectorCS.ToDimensionValueId());
+	}
+	else
+	{
+		NonProgrammableShaderTypes.AddShaderType<FMicropolyRasterizeCS>(PermutationVectorCS.ToDimensionValueId());
+	}
+}
+
+void CollectRasterPSOInitializersForPermutation(
+	const FMaterial& Material,
+	bool bVertexProgrammable,
+	bool bPixelProgrammable,
+	bool bUseMeshShader,
+	bool bUsePrimitiveShader,
+	bool bIsTwoSided,
+	FHWRasterizeVS::FPermutationDomain& PermutationVectorVS,
+	FHWRasterizeMS::FPermutationDomain& PermutationVectorMS,
+	FHWRasterizePS::FPermutationDomain& PermutationVectorPS,
+	FMicropolyRasterizeCS::FPermutationDomain& PermutationVectorCS,
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	FMaterialShaderTypes ProgrammableShaderTypes;
+	FMaterialShaderTypes NonProgrammableShaderTypes;
+	GetMaterialShaderTypes(bVertexProgrammable, bPixelProgrammable, bUseMeshShader, bUsePrimitiveShader, bIsTwoSided,
+		PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS, ProgrammableShaderTypes, NonProgrammableShaderTypes);
+	
+	// retrieve shaders from default material for not programmable vertex or pixel shaders
+	const FMaterialResource* FixedMaterialResource = UMaterial::GetDefaultMaterial(MD_Surface)->GetMaterialResource(Material.GetFeatureLevel(), Material.GetQualityLevel());
+	check(FixedMaterialResource);
+
+	FMaterialShaders ProgrammableShaders;
+	FMaterialShaders NonProgrammableShaders;
+	if (Material.TryGetShaders(ProgrammableShaderTypes, nullptr, ProgrammableShaders) && FixedMaterialResource->TryGetShaders(NonProgrammableShaderTypes, nullptr, NonProgrammableShaders))
+	{		
+		// Graphics PSO setup
+		{			
+			FGraphicsMinimalPipelineStateInitializer MinimalPipelineStateInitializer;
+			MinimalPipelineStateInitializer.BlendState = TStaticBlendState<>::GetRHI();
+			MinimalPipelineStateInitializer.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI(); // TODO: PROG_RASTER - Support depth clip as a rasterizer bin and remove shader permutations
+			MinimalPipelineStateInitializer.PrimitiveType = bUsePrimitiveShader ? PT_PointList : PT_TriangleList;
+			MinimalPipelineStateInitializer.BoundShaderState.VertexDeclarationRHI = bUseMeshShader ? nullptr : GEmptyVertexDeclaration.VertexDeclarationRHI;
+			MinimalPipelineStateInitializer.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, bIsTwoSided ? CM_None : CM_CW);
+
+			if (bUseMeshShader)
+			{		
+				FMaterialShaders* MeshMaterialShaders = ProgrammableShaders.Shaders[SF_Mesh] ? &ProgrammableShaders : &NonProgrammableShaders;
+				MinimalPipelineStateInitializer.BoundShaderState.MeshShaderResource = MeshMaterialShaders->ShaderMap->GetResource();
+				MinimalPipelineStateInitializer.BoundShaderState.MeshShaderIndex = MeshMaterialShaders->Shaders[SF_Mesh]->GetResourceIndex();
+			}
+			else
+			{
+				FMaterialShaders* VertexMaterialShaders = ProgrammableShaders.Shaders[SF_Vertex] ? &ProgrammableShaders : &NonProgrammableShaders;
+				MinimalPipelineStateInitializer.BoundShaderState.VertexShaderResource = VertexMaterialShaders->ShaderMap->GetResource();
+				MinimalPipelineStateInitializer.BoundShaderState.VertexShaderIndex = VertexMaterialShaders->Shaders[SF_Vertex]->GetResourceIndex();
+			}
+
+			FMaterialShaders* PixelMaterialShaders = ProgrammableShaders.Shaders[SF_Pixel] ? &ProgrammableShaders : &NonProgrammableShaders;
+			MinimalPipelineStateInitializer.BoundShaderState.PixelShaderResource = PixelMaterialShaders->ShaderMap->GetResource();
+			MinimalPipelineStateInitializer.BoundShaderState.PixelShaderIndex = PixelMaterialShaders->Shaders[SF_Pixel]->GetResourceIndex();
+
+			MinimalPipelineStateInitializer.ComputePrecachePSOHash();
+#if PSO_PRECACHING_VALIDATE
+			PSOCollectorStats::AddMinimalPipelineStateToCache(MinimalPipelineStateInitializer, (uint32)EMeshPass::NaniteMeshPass, nullptr);
+#endif // PSO_PRECACHING_VALIDATE
+
+			// NOTE: AsGraphicsPipelineStateInitializer will create the RHIShaders internally if they are not cached yet
+			FGraphicsPipelineStateInitializer GraphicsPSOInit = MinimalPipelineStateInitializer.AsGraphicsPipelineStateInitializer();
+			
+			FPSOPrecacheData PSOPrecacheData;
+			PSOPrecacheData.Type = FPSOPrecacheData::EType::Graphics;
+			PSOPrecacheData.GraphicsPSOInitializer = GraphicsPSOInit;
+#if PSO_PRECACHING_VALIDATE
+			PSOPrecacheData.MeshPassType = (uint32)EMeshPass::NaniteMeshPass;
+			PSOPrecacheData.VertexFactoryType = nullptr;
+#endif // PSO_PRECACHING_VALIDATE
+			PSOInitializers.Add(PSOPrecacheData);
+		}
+
+		// Compute PSO setup
+		TShaderRef<FMicropolyRasterizeCS> MicropolyRasterizeCS;
+		if (ProgrammableShaders.TryGetComputeShader(&MicropolyRasterizeCS))
+		{
+			FPSOPrecacheData ComputePSOPrecacheData;
+			ComputePSOPrecacheData.Type = FPSOPrecacheData::EType::Compute;
+			ComputePSOPrecacheData.ComputeShader = MicropolyRasterizeCS.GetComputeShader();
+#if PSO_PRECACHING_VALIDATE
+			ComputePSOPrecacheData.MeshPassType = (uint32)EMeshPass::NaniteMeshPass;
+#endif // PSO_PRECACHING_VALIDATE
+			PSOInitializers.Add(ComputePSOPrecacheData);
+		}
+	}
+}
+
+void CollectRasterPSOInitializersForDefaultMaterial(
+	const FMaterial& Material,
+	bool bUseMeshShader,
+	bool bUsePrimitiveShader,
+	FHWRasterizeVS::FPermutationDomain& PermutationVectorVS,
+	FHWRasterizeMS::FPermutationDomain& PermutationVectorMS,
+	FHWRasterizePS::FPermutationDomain& PermutationVectorPS,
+	FMicropolyRasterizeCS::FPermutationDomain& PermutationVectorCS,
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	// Collect PSOs for all possible combinations of vertex/pixel programmable and if two sided or not
+	for (uint32 VertexProgrammable = 0; VertexProgrammable < 2; ++VertexProgrammable)
+	{
+		bool bVertexProgrammable = VertexProgrammable > 0;
+		for (uint32 PixelProgrammable = 0; PixelProgrammable < 2; ++PixelProgrammable)
+		{
+			bool bPixelProgrammable = PixelProgrammable > 0;
+			for (uint32 IsTwoSided = 0; IsTwoSided < 2; ++IsTwoSided)
+			{
+				bool bIsTwoSided = IsTwoSided > 0;
+				CollectRasterPSOInitializersForPermutation(Material, bVertexProgrammable, bPixelProgrammable, bUseMeshShader, bUsePrimitiveShader, bIsTwoSided,
+					PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS, PSOInitializers);
+			}
+		}
+	}
+}
+
+void CollectRasterPSOInitializersForPipeline(
+	const FSceneTexturesConfig& SceneTexturesConfig,
+	const FMaterial& Material,
+	const FPSOPrecacheParams& PreCacheParams,
+	EShaderPlatform ShaderPlatform,
+	EPipeline Pipeline,
+	bool bMultiView,
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	const bool bUseMeshShader = UseMeshShader(ShaderPlatform, Pipeline);
+	const bool bUsePrimitiveShader = UsePrimitiveShader() && !bUseMeshShader;
+	const EOutputBufferMode RasterMode = Pipeline == EPipeline::Shadows ? EOutputBufferMode::DepthOnly : EOutputBufferMode::VisBuffer;
+	const bool bHasVirtualShadowMapArray = Pipeline == EPipeline::Shadows; // true during shadow pass
+	const bool bVisualizeActive = false; // no precache for visualization modes
+	const bool bUseAutoCullingShader = UseAutoCullingShader(bUsePrimitiveShader);
+	const bool bForceDisableWPO = false; // no precache for force disable WPI
+		
+	FHWRasterizeVS::FPermutationDomain PermutationVectorVS;
+	FHWRasterizeMS::FPermutationDomain PermutationVectorMS;
+	FHWRasterizePS::FPermutationDomain PermutationVectorPS;
+	FMicropolyRasterizeCS::FPermutationDomain PermutationVectorCS;
+	SetupProgrammableRasterizePermutationVectors(RasterMode, bMultiView, bUseMeshShader, bUsePrimitiveShader, bUseAutoCullingShader, bVisualizeActive, bHasVirtualShadowMapArray,
+		PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS);
+
+	if (Material.IsDefaultMaterial())
+	{
+		CollectRasterPSOInitializersForDefaultMaterial(Material, bUseMeshShader, bUsePrimitiveShader, PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS, PSOInitializers);
+	}
+	else
+	{
+		const bool bVertexProgrammable = IsVertexProgrammable(Material, Material.MaterialUsesWorldPositionOffset_GameThread(), bUsePrimitiveShader, bForceDisableWPO);
+		const bool bPixelProgrammable = IsPixelProgrammable(Material, Material.MaterialUsesPixelDepthOffset_GameThread());
+
+		const FMeshPassProcessor::FMeshDrawingPolicyOverrideSettings OverrideSettings = FMeshPassProcessor::ComputeMeshOverrideSettings(PreCacheParams);
+		ERasterizerCullMode MeshCullMode = FMeshPassProcessor::ComputeMeshCullMode(Material, OverrideSettings);
+		const bool bIsTwoSided = MeshCullMode == CM_None;
+
+		CollectRasterPSOInitializersForPermutation(Material, bVertexProgrammable, bPixelProgrammable, bUseMeshShader, bUsePrimitiveShader, bIsTwoSided,
+			PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS, PSOInitializers);
+	}
+}
+
+void CollectRasterPSOInitializers(
+	const FSceneTexturesConfig& SceneTexturesConfig,
+	const FMaterial& Material,
+	const FPSOPrecacheParams& PreCacheParams,
+	EShaderPlatform ShaderPlatform,
+	TArray<FPSOPrecacheData>& PSOInitializers)
+{
+	if (!GNaniteProgrammableRaster)
+	{
+		return;
+	}
+
+	// Collect for primary & shadows (shadows are always multiview)
+	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, EPipeline::Primary, true /*bMultiView*/, PSOInitializers);
+	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, EPipeline::Primary, false /*bMultiView*/, PSOInitializers);
+	CollectRasterPSOInitializersForPipeline(SceneTexturesConfig, Material, PreCacheParams, ShaderPlatform, EPipeline::Shadows, true /*bMultiView*/, PSOInitializers);
+}
 
 static void AddPassInitNodesAndClusterBatchesUAV( FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferUAVRef UAVRef )
 {
@@ -2369,37 +2654,14 @@ FBinningData AddPass_Rasterize(
 	FRHIRenderPassInfo RPInfo;
 	RPInfo.ResolveRect = FResolveRect(ViewRect);
 
-	const bool bUseAutoCullingShader =
-		GRHISupportsPrimitiveShaders &&
-		!bUsePrimitiveShader &&
-		GNaniteAutoShaderCulling != 0;
+	const bool bUseAutoCullingShader = UseAutoCullingShader(bUsePrimitiveShader);
 
-	FHWRasterizePS::FPermutationDomain PermutationVectorPS;
-	PermutationVectorPS.Set<FHWRasterizePS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
-	PermutationVectorPS.Set<FHWRasterizePS::FMultiViewDim>(bMultiView);
-	PermutationVectorPS.Set<FHWRasterizePS::FMeshShaderDim>(bUseMeshShader);
-	PermutationVectorPS.Set<FHWRasterizePS::FPrimShaderDim>(bUsePrimitiveShader);
-	PermutationVectorPS.Set<FHWRasterizePS::FVisualizeDim>(RasterContext.VisualizeActive && RasterContext.RasterMode != EOutputBufferMode::DepthOnly);
-	PermutationVectorPS.Set<FHWRasterizePS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-	
 	FHWRasterizeVS::FPermutationDomain PermutationVectorVS;
-	PermutationVectorVS.Set<FHWRasterizeVS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
-	PermutationVectorVS.Set<FHWRasterizeVS::FMultiViewDim>(bMultiView);
-	PermutationVectorVS.Set<FHWRasterizeVS::FPrimShaderDim>(bUsePrimitiveShader);
-	PermutationVectorVS.Set<FHWRasterizeVS::FAutoShaderCullDim>(bUseAutoCullingShader);
-	PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-	
 	FHWRasterizeMS::FPermutationDomain PermutationVectorMS;
-	PermutationVectorMS.Set<FHWRasterizeMS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
-	PermutationVectorMS.Set<FHWRasterizeMS::FMultiViewDim>(bMultiView);
-	PermutationVectorMS.Set<FHWRasterizeMS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
-	
-	// SW Rasterize
+	FHWRasterizePS::FPermutationDomain PermutationVectorPS;
 	FMicropolyRasterizeCS::FPermutationDomain PermutationVectorCS;
-	PermutationVectorCS.Set<FMicropolyRasterizeCS::FMultiViewDim>(bMultiView);
-	PermutationVectorCS.Set<FMicropolyRasterizeCS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
-	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVisualizeDim>(RasterContext.VisualizeActive && RasterContext.RasterMode != EOutputBufferMode::DepthOnly);
-	PermutationVectorCS.Set<FMicropolyRasterizeCS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
+	SetupProgrammableRasterizePermutationVectors(RasterContext.RasterMode, bMultiView, bUseMeshShader, bUsePrimitiveShader, bUseAutoCullingShader, RasterContext.VisualizeActive, VirtualShadowMapArray != nullptr,
+		PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS);
 	
 	const FMaterialRenderProxy* FixedMaterialProxy = UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 	check(FixedMaterialProxy);
@@ -2456,90 +2718,61 @@ FBinningData AddPass_Rasterize(
 			RasterizerPass.PixelMaterialProxy	= FixedMaterialProxy;
 			RasterizerPass.ComputeMaterialProxy	= FixedMaterialProxy;
 
-			FMaterialShaderTypes ProgrammableShaderTypes;
-			ProgrammableShaderTypes.PipelineType = nullptr;
+			const FMaterial& RasterMaterial 	= RasterizerPass.RasterPipeline.RasterMaterial->GetIncompleteMaterialWithFallback(Scene.GetFeatureLevel());
+
+			RasterizerPass.bVertexProgrammable 	= IsVertexProgrammable(RasterMaterial, RasterMaterial.MaterialUsesWorldPositionOffset_RenderThread(), bUsePrimitiveShader, RasterEntry.bForceDisableWPO);;
+			RasterizerPass.bPixelProgrammable 	= IsPixelProgrammable(RasterMaterial, RasterMaterial.MaterialUsesPixelDepthOffset_RenderThread());;
+
+			if (RasterizerPass.bVertexProgrammable || RasterizerPass.bPixelProgrammable)
 			{
-				const FMaterial& RasterMaterial		= RasterizerPass.RasterPipeline.RasterMaterial->GetIncompleteMaterialWithFallback(Scene.GetFeatureLevel());
+				FMaterialShaderTypes ProgrammableShaderTypes;
+				FMaterialShaderTypes NonProgrammableShaderTypes;
+				GetMaterialShaderTypes(RasterizerPass.bVertexProgrammable, RasterizerPass.bPixelProgrammable, bUseMeshShader, bUsePrimitiveShader, RasterizerPass.RasterPipeline.bIsTwoSided,
+					PermutationVectorVS, PermutationVectorMS, PermutationVectorPS, PermutationVectorCS, ProgrammableShaderTypes, NonProgrammableShaderTypes);
 
-				const bool bVertexProgrammable		= IsVertexProgrammable(RasterMaterial, bUsePrimitiveShader, RasterEntry.bForceDisableWPO);
-				const bool bPixelProgrammable		= IsPixelProgrammable(RasterMaterial);
-				RasterizerPass.bVertexProgrammable	= bVertexProgrammable;
-				RasterizerPass.bPixelProgrammable	= bPixelProgrammable;
-
-				// Programmable vertex features
-				if (bVertexProgrammable)
+				const FMaterialRenderProxy* ProgrammableRasterProxy = RasterEntry.RasterPipeline.RasterMaterial;
+				while (ProgrammableRasterProxy)
 				{
-					if (bUseMeshShader)
+					const FMaterial* Material = ProgrammableRasterProxy->GetMaterialNoFallback(Scene.GetFeatureLevel());
+					if (Material)
 					{
-						PermutationVectorMS.Set<FHWRasterizeMS::FVertexProgrammableDim>(bVertexProgrammable);
-						PermutationVectorMS.Set<FHWRasterizeMS::FPixelProgrammableDim>(bPixelProgrammable);
-						ProgrammableShaderTypes.AddShaderType<FHWRasterizeMS>(PermutationVectorMS.ToDimensionValueId());
-					}
-					else
-					{
-						PermutationVectorVS.Set<FHWRasterizeVS::FVertexProgrammableDim>(bVertexProgrammable);
-						PermutationVectorVS.Set<FHWRasterizeVS::FPixelProgrammableDim>(bPixelProgrammable);
-						ProgrammableShaderTypes.AddShaderType<FHWRasterizeVS>(PermutationVectorVS.ToDimensionValueId());
-					}
-				}
-
-				// Programmable pixel features
-				if (RasterizerPass.bPixelProgrammable)
-				{
-					PermutationVectorPS.Set<FHWRasterizePS::FVertexProgrammableDim>(bVertexProgrammable);
-					PermutationVectorPS.Set<FHWRasterizePS::FPixelProgrammableDim>(bPixelProgrammable);
-					ProgrammableShaderTypes.AddShaderType<FHWRasterizePS>(PermutationVectorPS.ToDimensionValueId());
-				}
-
-				// Programmable micropoly features
-				if (RasterizerPass.bVertexProgrammable || RasterizerPass.bPixelProgrammable)
-				{
-					PermutationVectorCS.Set<FMicropolyRasterizeCS::FTwoSidedDim>(RasterizerPass.RasterPipeline.bIsTwoSided);
-					PermutationVectorCS.Set<FMicropolyRasterizeCS::FVertexProgrammableDim>(bVertexProgrammable);
-					PermutationVectorCS.Set<FMicropolyRasterizeCS::FPixelProgrammableDim>(bPixelProgrammable);
-					ProgrammableShaderTypes.AddShaderType<FMicropolyRasterizeCS>(PermutationVectorCS.ToDimensionValueId());
-				}
-			}
-
-			const FMaterialRenderProxy* ProgrammableRasterProxy = RasterEntry.RasterPipeline.RasterMaterial;
-			while (ProgrammableRasterProxy)
-			{
-				const FMaterial* Material = ProgrammableRasterProxy->GetMaterialNoFallback(Scene.GetFeatureLevel());
-				if (Material)
-				{
-					FMaterialShaders ProgrammableShaders;
-					if (Material->TryGetShaders(ProgrammableShaderTypes, nullptr, ProgrammableShaders))
-					{
-						if (bUseMeshShader)
+						FMaterialShaders ProgrammableShaders;
+						if (Material->TryGetShaders(ProgrammableShaderTypes, nullptr, ProgrammableShaders))
 						{
-							if (ProgrammableShaders.TryGetMeshShader(&RasterizerPass.RasterMeshShader))
+							if (RasterizerPass.bVertexProgrammable)
 							{
-								RasterizerPass.VertexMaterialProxy = ProgrammableRasterProxy;
+								if (bUseMeshShader)
+								{
+									if (ProgrammableShaders.TryGetMeshShader(&RasterizerPass.RasterMeshShader))
+									{
+										RasterizerPass.VertexMaterialProxy = ProgrammableRasterProxy;
+									}
+								}
+								else
+								{
+									if (ProgrammableShaders.TryGetVertexShader(&RasterizerPass.RasterVertexShader))
+									{
+										RasterizerPass.VertexMaterialProxy = ProgrammableRasterProxy;
+									}
+								}
 							}
-						}
-						else
-						{
-							if (ProgrammableShaders.TryGetVertexShader(&RasterizerPass.RasterVertexShader))
+
+							if (RasterizerPass.bPixelProgrammable && ProgrammableShaders.TryGetPixelShader(&RasterizerPass.RasterPixelShader))
 							{
-								RasterizerPass.VertexMaterialProxy = ProgrammableRasterProxy;
+								RasterizerPass.PixelMaterialProxy = ProgrammableRasterProxy;
 							}
-						}
 
-						if (ProgrammableShaders.TryGetPixelShader(&RasterizerPass.RasterPixelShader))
-						{
-							RasterizerPass.PixelMaterialProxy = ProgrammableRasterProxy;
-						}
+							if (ProgrammableShaders.TryGetComputeShader(&RasterizerPass.RasterComputeShader))
+							{
+								RasterizerPass.ComputeMaterialProxy = ProgrammableRasterProxy;
+							}
 
-						if (ProgrammableShaders.TryGetComputeShader(&RasterizerPass.RasterComputeShader))
-						{
-							RasterizerPass.ComputeMaterialProxy = ProgrammableRasterProxy;
+							break;
 						}
-
-						break;
 					}
-				}
 
-				ProgrammableRasterProxy = ProgrammableRasterProxy->GetFallback(Scene.GetFeatureLevel());
+					ProgrammableRasterProxy = ProgrammableRasterProxy->GetFallback(Scene.GetFeatureLevel());
+				}
 			}
 
 			// Note: The indirect args offset is in bytes

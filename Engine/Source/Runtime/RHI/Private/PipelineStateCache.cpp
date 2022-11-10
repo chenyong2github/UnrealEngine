@@ -107,7 +107,7 @@ static FAutoConsoleVariableRef CVarPSOPrecaching(
 	GPSOPrecaching,
 	TEXT("0 to Disable PSOs precaching\n")
 	TEXT("1 to Enable PSO precaching\n"),
-	ECVF_ReadOnly
+	ECVF_Default
 );
 
 extern void DumpPipelineCacheStats();
@@ -2291,6 +2291,23 @@ EPSOPrecacheResult PipelineStateCache::CheckPipelineStateInCache(const FGraphics
 	}
 
 	return GPrecacheGraphicsPipelineCache.IsPrecaching(PipelineStateInitializer) ? EPSOPrecacheResult::Active : EPSOPrecacheResult::Complete;
+}
+
+EPSOPrecacheResult PipelineStateCache::CheckPipelineStateInCache(FRHIComputeShader* ComputeShader)
+{
+	if (!IsPSOPrecachingEnabled() || ComputeShader == nullptr)
+	{
+		return EPSOPrecacheResult::Unknown;
+	}
+
+	FComputePipelineState* CachedState = nullptr;
+	if (!GComputePipelineCache.Find(ComputeShader, CachedState))
+	{
+		return EPSOPrecacheResult::Missed;
+	}
+
+	// TODO: add code to check if the PSO is still precaching or not
+	return EPSOPrecacheResult::Complete;
 }
 
 bool PipelineStateCache::IsPrecaching(const FGraphicsPipelineStateInitializer& PipelineStateInitializer)
