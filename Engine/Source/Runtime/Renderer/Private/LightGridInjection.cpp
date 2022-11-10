@@ -373,8 +373,10 @@ static void PackLocalLightData(
 	checkSlow(int32(Out.RectDataAndVirtualShadowMapId.Z) == VirtualShadowMapId);
 }
 
-void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLightsToGrid, FSortedLightSetSceneInfo& SortedLightSet)
+FComputeLightGridOutput FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLightsToGrid, FSortedLightSetSceneInfo& SortedLightSet)
 {
+	FComputeLightGridOutput Result = {};
+
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, ComputeLightGrid);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ComputeLightGrid);
 	RDG_EVENT_SCOPE(GraphBuilder, "ComputeLightGrid");
@@ -816,7 +818,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 					PassParametersCompact->NumLocalLights = ForwardLightData->NumLocalLights;
 					PassParametersCompact->NumGridCells = ForwardLightData->NumGridCells;
 
-					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("CompactLinks"), ComputeShaderCompact, PassParametersCompact, NumGroups);
+					Result.CompactLinksPass = FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("CompactLinks"), ComputeShaderCompact, PassParametersCompact, NumGroups);
 				}
 			}
 			else
@@ -841,10 +843,14 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 		});
 	}
 #endif
+
+	return Result;
 }
 
-void FDeferredShadingSceneRenderer::GatherLightsAndComputeLightGrid(FRDGBuilder& GraphBuilder, bool bNeedLightGrid, FSortedLightSetSceneInfo& SortedLightSet)
+FComputeLightGridOutput FDeferredShadingSceneRenderer::GatherLightsAndComputeLightGrid(FRDGBuilder& GraphBuilder, bool bNeedLightGrid, FSortedLightSetSceneInfo& SortedLightSet)
 {
+	FComputeLightGridOutput Result = {};
+
 	bool bShadowedLightsInClustered = ShouldUseClusteredDeferredShading()
 		&& CVarVirtualShadowOnePassProjection.GetValueOnRenderThread()
 		&& VirtualShadowMapArray.IsEnabled();
@@ -860,7 +866,7 @@ void FDeferredShadingSceneRenderer::GatherLightsAndComputeLightGrid(FRDGBuilder&
 		{
 			View.ForwardLightingResources.SetUniformBuffer(ForwardLightUniformBuffer);
 		}
-		return;
+		return Result;
 	}
 
 	bool bAnyViewUsesForwardLighting = false;
@@ -879,7 +885,9 @@ void FDeferredShadingSceneRenderer::GatherLightsAndComputeLightGrid(FRDGBuilder&
 	// Store this flag if lights are injected in the grids, check with 'AreLightsInLightGrid()'
 	bAreLightsInLightGrid = bCullLightsToGrid;
 	
-	ComputeLightGrid(GraphBuilder, bCullLightsToGrid, SortedLightSet);
+	Result = ComputeLightGrid(GraphBuilder, bCullLightsToGrid, SortedLightSet);
+
+	return Result;
 }
 
 void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(

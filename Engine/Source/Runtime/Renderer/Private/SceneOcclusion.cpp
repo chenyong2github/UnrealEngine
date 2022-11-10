@@ -81,6 +81,15 @@ static FAutoConsoleVariableRef CVarDownsampledOcclusionQueries(
 	ECVF_RenderThreadSafe
 );
 
+static int32 GOcclusionQueryDispatchOrder = 0;
+static FAutoConsoleVariableRef CVarOcclusionQueryDispatchOrder(
+	TEXT("r.OcclusionQueryDispatchOrder"),
+	GOcclusionQueryDispatchOrder,
+	TEXT("0: Grouped queries before individual (default)\n")
+	TEXT("1: Individual queries before grouped"),
+	ECVF_RenderThreadSafe
+);
+
 bool UseDownsampledOcclusionQueries()
 {
 	return GDownsampledOcclusionQueries != 0;
@@ -1331,13 +1340,27 @@ static void BeginOcclusionTests(
 		{
 			VertexShader->SetParameters(RHICmdList, View);
 
+			if (GOcclusionQueryDispatchOrder == 0)
 			{
-				SCOPED_DRAW_EVENT(RHICmdList, GroupedQueries);
-				View.GroupedOcclusionQueries.Flush(RHICmdList);
+				{
+					SCOPED_DRAW_EVENT(RHICmdList, GroupedQueries);
+					View.GroupedOcclusionQueries.Flush(RHICmdList);
+				}
+				{
+					SCOPED_DRAW_EVENT(RHICmdList, IndividualQueries);
+					View.IndividualOcclusionQueries.Flush(RHICmdList);
+				}
 			}
+			else
 			{
-				SCOPED_DRAW_EVENT(RHICmdList, IndividualQueries);
-				View.IndividualOcclusionQueries.Flush(RHICmdList);
+				{
+					SCOPED_DRAW_EVENT(RHICmdList, IndividualQueries);
+					View.IndividualOcclusionQueries.Flush(RHICmdList);
+				}
+				{
+					SCOPED_DRAW_EVENT(RHICmdList, GroupedQueries);
+					View.GroupedOcclusionQueries.Flush(RHICmdList);
+				}
 			}
 		}
 	}
@@ -1346,7 +1369,8 @@ static void BeginOcclusionTests(
 void FDeferredShadingSceneRenderer::RenderOcclusion(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
-	bool bIsOcclusionTesting)
+	bool bIsOcclusionTesting,
+	const FBuildHZBAsyncComputeParams* BuildHZBAsyncComputeParams)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::RenderOcclusion);
 
@@ -1420,7 +1444,7 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 		}
 	}
 
-	const bool bUseHzbOcclusion = RenderHzb(GraphBuilder, SceneTextures.Depth.Resolve);
+	const bool bUseHzbOcclusion = RenderHzb(GraphBuilder, SceneTextures.Depth.Resolve, BuildHZBAsyncComputeParams);
 
 	if (bUseHzbOcclusion || bIsOcclusionTesting)
 	{

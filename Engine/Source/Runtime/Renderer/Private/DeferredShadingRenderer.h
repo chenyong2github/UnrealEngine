@@ -49,6 +49,7 @@ struct FVolumetricFogLocalLightFunctionInfo;
 struct FTranslucencyLightingVolumeTextures;
 struct FLumenSceneFrameTemporaries;
 struct FSingleLayerWaterPrePassResult;
+struct FBuildHZBAsyncComputeParams;
 
 /**   
  * Data for rendering meshes into Lumen Lighting Cards.
@@ -331,7 +332,7 @@ public:
 	 * Culls local lights and reflection probes to a grid in frustum space, builds one light list and grid per view in the current Views.  
 	 * Needed for forward shading or translucency using the Surface lighting mode, and clustered deferred shading. 
 	 */
-	void GatherLightsAndComputeLightGrid(FRDGBuilder& GraphBuilder, bool bNeedLightGrid, FSortedLightSetSceneInfo &SortedLightSet);
+	FComputeLightGridOutput GatherLightsAndComputeLightGrid(FRDGBuilder& GraphBuilder, bool bNeedLightGrid, FSortedLightSetSceneInfo &SortedLightSet);
 
 	/** 
 	 * Debug light grid content on screen.
@@ -396,9 +397,10 @@ public:
 	void RenderOcclusion(
 		FRDGBuilder& GraphBuilder,
 		const FSceneTextures& SceneTextures,
-		bool bIsOcclusionTesting);
+		bool bIsOcclusionTesting,
+		const FBuildHZBAsyncComputeParams* BuildHZBAsyncComputeParams = nullptr);
 
-	bool RenderHzb(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture);
+	bool RenderHzb(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, const FBuildHZBAsyncComputeParams* AsyncComputeParams);
 
 	/** Renders the view family. */
 	virtual void Render(FRDGBuilder& GraphBuilder) override;

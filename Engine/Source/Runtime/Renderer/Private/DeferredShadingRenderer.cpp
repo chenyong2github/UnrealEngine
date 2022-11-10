@@ -257,6 +257,14 @@ static FAutoConsoleVariableRef CVarRayTracingDebugForceOpaque(
 	TEXT("Forces all ray tracing geometry instances to be opaque, effectively disabling any-hit shaders. This is useful for debugging and profiling. (default = 0)")
 );
 
+static TAutoConsoleVariable<int32> CVarSceneDepthHZBAsyncCompute(
+	TEXT("r.SceneDepthHZBAsyncCompute"), 0,
+	TEXT("Selects whether HZB for scene depth buffer should be built with async compute.\n")
+	TEXT(" 0: Don't use async compute (default)\n")
+	TEXT(" 1: Use async compute, start as soon as possible\n")
+	TEXT(" 2: Use async compute, start after ComputeLightGrid.CompactLinks pass"),
+	ECVF_RenderThreadSafe);
+
 #if RHI_RAYTRACING
 
 static bool bRefreshRayTracingInstances = false;
@@ -510,7 +518,7 @@ bool FDeferredShadingSceneRenderer::ShouldRenderPrePass() const
 	return (DepthPass.EarlyZPassMode != DDM_None || DepthPass.bEarlyZPassMovable != 0);
 }
 
-bool FDeferredShadingSceneRenderer::RenderHzb(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture)
+bool FDeferredShadingSceneRenderer::RenderHzb(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, const FBuildHZBAsyncComputeParams* AsyncComputeParams)
 {
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HZB);
 
@@ -541,7 +549,9 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRDGBuilder& GraphBuilder, FRDGTex
 				TEXT("HZBClosest"),
 				/* OutClosestHZBTexture = */ ViewPipelineState.bClosestHZB ? &ClosestHZBTexture : nullptr,
 				TEXT("HZBFurthest"),
-				/* OutFurthestHZBTexture = */ &FurthestHZBTexture);
+				/* OutFurthestHZBTexture = */ &FurthestHZBTexture,
+				BuildHZBDefaultPixelFormat,
+				AsyncComputeParams);
 
 			// Update the view.
 			{
@@ -2963,12 +2973,14 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	AddResolveSceneDepthPass(GraphBuilder, Views, SceneTextures.Depth);
 
+	FComputeLightGridOutput ComputeLightGridOutput = {};
+
 	// NOTE: The ordering of the lights is used to select sub-sets for different purposes, e.g., those that support clustered deferred.
 	FSortedLightSetSceneInfo& SortedLightSet = *GraphBuilder.AllocObject<FSortedLightSetSceneInfo>();
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, SortLights);
 		RDG_GPU_STAT_SCOPE(GraphBuilder, SortLights);
-		GatherLightsAndComputeLightGrid(GraphBuilder, bComputeLightGrid, SortedLightSet);
+		ComputeLightGridOutput = GatherLightsAndComputeLightGrid(GraphBuilder, bComputeLightGrid, SortedLightSet);
 	}
 
 	CSV_CUSTOM_STAT(LightCount, All,  float(SortedLightSet.SortedLights.Num()), ECsvCustomStatOp::Set);
@@ -2996,7 +3008,17 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	const auto RenderOcclusionLambda = [&]()
 	{
-		RenderOcclusion(GraphBuilder, SceneTextures, bIsOcclusionTesting);
+		const int32 AsyncComputeMode = CVarSceneDepthHZBAsyncCompute.GetValueOnRenderThread();
+		bool bAsyncCompute = AsyncComputeMode != 0;
+
+		FBuildHZBAsyncComputeParams AsyncComputeParams = {};
+		if (AsyncComputeMode == 2)
+		{
+			AsyncComputeParams.Prerequisite = ComputeLightGridOutput.CompactLinksPass;
+		}
+
+		RenderOcclusion(GraphBuilder, SceneTextures, bIsOcclusionTesting, 
+			bAsyncCompute ? &AsyncComputeParams : nullptr);
 
 		CompositionLighting.ProcessAfterOcclusion(GraphBuilder);
 	};

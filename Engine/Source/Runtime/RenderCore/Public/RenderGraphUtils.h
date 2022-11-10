@@ -489,7 +489,7 @@ struct RENDERCORE_API FComputeShaderUtils
 
 	/** Dispatch a compute shader to render graph builder with its parameters. */
 	template<typename TShaderClass>
-	static void AddPass(
+	static FRDGPassRef AddPass(
 		FRDGBuilder& GraphBuilder,
 		FRDGEventName&& PassName,
 		ERDGPassFlags PassFlags,
@@ -505,7 +505,7 @@ struct RENDERCORE_API FComputeShaderUtils
 		ValidateGroupCount(GroupCount);
 		ClearUnusedGraphResources(ComputeShader, ParametersMetadata, Parameters);
 
-		GraphBuilder.AddPass(
+		return GraphBuilder.AddPass(
 			Forward<FRDGEventName>(PassName),
 			ParametersMetadata,
 			Parameters,
@@ -520,7 +520,7 @@ struct RENDERCORE_API FComputeShaderUtils
 	 *  This allows adding a dispatch with unknown GroupCount but the value must be ready before the pass is executed.
 	 */
 	template<typename TShaderClass>
-	static void AddPass(
+	static FRDGPassRef AddPass(
 		FRDGBuilder& GraphBuilder,
 		FRDGEventName&& PassName,
 		ERDGPassFlags PassFlags,
@@ -535,7 +535,7 @@ struct RENDERCORE_API FComputeShaderUtils
 
 		ClearUnusedGraphResources(ComputeShader, ParametersMetadata, Parameters);
 
-		GraphBuilder.AddPass(
+		return GraphBuilder.AddPass(
 			Forward<FRDGEventName>(PassName),
 			ParametersMetadata,
 			Parameters,
@@ -552,7 +552,7 @@ struct RENDERCORE_API FComputeShaderUtils
 	}
 
 	template<typename TShaderClass>
-	static void AddPass(
+	static FRDGPassRef AddPass(
 		FRDGBuilder& GraphBuilder,
 		FRDGEventName&& PassName,
 		ERDGPassFlags PassFlags,
@@ -561,11 +561,11 @@ struct RENDERCORE_API FComputeShaderUtils
 		FIntVector GroupCount)
 	{
 		const FShaderParametersMetadata* ParametersMetadata = TShaderClass::FParameters::FTypeInfo::GetStructMetadata();
-		AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), PassFlags, ComputeShader, ParametersMetadata, Parameters, GroupCount);
+		return AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), PassFlags, ComputeShader, ParametersMetadata, Parameters, GroupCount);
 	}
 
 	template <typename TShaderClass>
-	static FORCEINLINE void AddPass(
+	static FORCEINLINE FRDGPassRef AddPass(
 		FRDGBuilder& GraphBuilder,
 		FRDGEventName&& PassName,
 		const TShaderRef<TShaderClass>& ComputeShader,
@@ -573,11 +573,11 @@ struct RENDERCORE_API FComputeShaderUtils
 		FIntVector GroupCount)
 	{
 		const FShaderParametersMetadata* ParametersMetadata = TShaderClass::FParameters::FTypeInfo::GetStructMetadata();
-		AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), ERDGPassFlags::Compute, ComputeShader, ParametersMetadata, Parameters, GroupCount);
+		return AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), ERDGPassFlags::Compute, ComputeShader, ParametersMetadata, Parameters, GroupCount);
 	}
 
 	template <typename TShaderClass>
-	static FORCEINLINE void AddPass(
+	static FORCEINLINE FRDGPassRef AddPass(
 		FRDGBuilder& GraphBuilder,
 		FRDGEventName&& PassName,
 		const TShaderRef<TShaderClass>& ComputeShader,
@@ -585,12 +585,12 @@ struct RENDERCORE_API FComputeShaderUtils
 		FRDGDispatchGroupCountCallback&& GroupCountCallback)
 	{
 		const FShaderParametersMetadata* ParametersMetadata = TShaderClass::FParameters::FTypeInfo::GetStructMetadata();
-		AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), ERDGPassFlags::Compute, ComputeShader, ParametersMetadata, Parameters, MoveTemp(GroupCountCallback));
+		return AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), ERDGPassFlags::Compute, ComputeShader, ParametersMetadata, Parameters, MoveTemp(GroupCountCallback));
 	}
 
 	/** Dispatch a compute shader to render graph builder with its parameters. */
 	template<typename TShaderClass>
-	static void AddPass(
+	static FRDGPassRef AddPass(
 		FRDGBuilder& GraphBuilder,
 		FRDGEventName&& PassName,
 		ERDGPassFlags PassFlags,
@@ -605,7 +605,7 @@ struct RENDERCORE_API FComputeShaderUtils
 		ValidateIndirectArgsBuffer(IndirectArgsBuffer, IndirectArgsOffset);
 		ClearUnusedGraphResources(ComputeShader, Parameters, { IndirectArgsBuffer });
 
-		GraphBuilder.AddPass(
+		return GraphBuilder.AddPass(
 			Forward<FRDGEventName>(PassName),
 			Parameters,
 			PassFlags,
@@ -620,7 +620,7 @@ struct RENDERCORE_API FComputeShaderUtils
 	}
 
 	template<typename TShaderClass>
-	static FORCEINLINE void AddPass(
+	static FORCEINLINE FRDGPassRef AddPass(
 		FRDGBuilder& GraphBuilder,
 		FRDGEventName&& PassName,
 		const TShaderRef<TShaderClass>& ComputeShader,
@@ -628,7 +628,7 @@ struct RENDERCORE_API FComputeShaderUtils
 		FRDGBufferRef IndirectArgsBuffer,
 		uint32 IndirectArgsOffset)
 	{
-		AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), ERDGPassFlags::Compute, ComputeShader, Parameters, IndirectArgsBuffer, IndirectArgsOffset);
+		return AddPass(GraphBuilder, Forward<FRDGEventName>(PassName), ERDGPassFlags::Compute, ComputeShader, Parameters, IndirectArgsBuffer, IndirectArgsOffset);
 	}
 
 	static void ClearUAV(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap, FRDGBufferUAVRef UAV, uint32 ClearValue);
