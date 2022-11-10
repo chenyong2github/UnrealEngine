@@ -48,7 +48,7 @@ void UUIFrameworkButton::SetContent(FUIFrameworkSimpleSlot InEntry)
 		if (InEntry.AuthorityGetWidget())
 		{
 			UUIFrameworkPlayerComponent* PreviousOwner = InEntry.AuthorityGetWidget()->GetPlayerComponent();
-			if (PreviousOwner != nullptr && PreviousOwner != GetPlayerComponent())
+			if (PreviousOwner != nullptr && GetPlayerComponent() != nullptr && PreviousOwner != GetPlayerComponent())
 			{
 				Slot.AuthoritySetWidget(nullptr);
 				FFrame::KismetExecutionMessage(TEXT("The widget was created for another player. It can't be added."), ELogVerbosity::Warning, "InvalidPlayerParent");

@@ -90,7 +90,7 @@ void UUIFrameworkPlayerComponent::InitializeComponent()
 void UUIFrameworkPlayerComponent::UninitializeComponent()
 {
 	// On local, remove all UWidget.
-	if (!GetOwner()->HasAuthority())
+	if (GetOwner()->HasAuthority())
 	{
 		WidgetTree.AuthorityRemoveAllWidgetsFromActorChannel();
 	}
