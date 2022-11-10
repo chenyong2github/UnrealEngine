@@ -390,7 +390,7 @@ bool FAssetData::IsTopLevelAsset(UObject* Object)
 	return Outer->IsA<UPackage>();
 }
 
-UClass* FAssetData::GetClass() const
+UClass* FAssetData::GetClass(EResolveClass ResolveClass) const
 {
 	if ( !IsValid() )
 	{
@@ -408,6 +408,13 @@ UClass* FAssetData::GetClass() const
 			FoundClass = FindObject<UClass>(nullptr, *NewPath);
 		}
 	}
+
+	// If they decided to load the class if unresolved, then lets load it.
+	if (!FoundClass && ResolveClass == EResolveClass::Yes)
+	{
+		FoundClass = LoadObject<UClass>(nullptr, *AssetClassPath.ToString());
+	}
+	
 	return FoundClass;
 }
 
