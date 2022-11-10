@@ -14,7 +14,10 @@
  * Usage:
  * TSharedRef<SCustomDialog> HelloWorldDialog = SNew(SCustomDialog)
 		.Title(FText(LOCTEXT("HelloWorldTitleExample", "Hello, World!")))
-		.DialogContent( SNew(SImage).Image(FName(TEXT("Hello"))))
+		.Content()
+		[
+			SNew(SImage).Image(FName(TEXT("Hello"))))
+		]
 		.Buttons({
 			SCustomDialog::FButton(LOCTEXT("OK", "OK")),
 			SCustomDialog::FButton(LOCTEXT("Cancel", "Cancel"))
