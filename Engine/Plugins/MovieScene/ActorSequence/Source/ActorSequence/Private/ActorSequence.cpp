@@ -13,6 +13,7 @@
 #include "Tracks/MovieSceneAudioTrack.h"
 #include "Tracks/MovieSceneEventTrack.h"
 #include "Tracks/MovieSceneMaterialParameterCollectionTrack.h"
+#include "Tracks/MovieSceneSkeletalAnimationTrack.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, ActorSequence);
 
@@ -220,7 +221,8 @@ ETrackSupport UActorSequence::IsTrackSupported(TSubclassOf<class UMovieSceneTrac
 {
 	if (InTrackClass == UMovieSceneAudioTrack::StaticClass() ||
 		InTrackClass == UMovieSceneEventTrack::StaticClass() ||
-		InTrackClass == UMovieSceneMaterialParameterCollectionTrack::StaticClass())
+		InTrackClass == UMovieSceneMaterialParameterCollectionTrack::StaticClass() ||
+		InTrackClass == UMovieSceneSkeletalAnimationTrack::StaticClass())
 	{
 		return ETrackSupport::Supported;
 	}

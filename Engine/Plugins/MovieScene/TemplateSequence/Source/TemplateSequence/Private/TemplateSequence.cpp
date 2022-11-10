@@ -11,6 +11,7 @@
 #include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
 #include "MovieSceneTrack.h"
+#include "Tracks/MovieSceneSkeletalAnimationTrack.h"
 #include "Tracks/MovieSceneSpawnTrack.h"
 
 #include "TemplateSequenceActor.h"
@@ -272,7 +273,8 @@ FText UTemplateSequence::GetDisplayName() const
 
 ETrackSupport UTemplateSequence::IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const
 {
-	if (InTrackClass == UMovieSceneSpawnTrack::StaticClass())
+	if (InTrackClass == UMovieSceneSkeletalAnimationTrack::StaticClass() ||
+		InTrackClass == UMovieSceneSpawnTrack::StaticClass())
 	{
 		return ETrackSupport::Supported;
 	}
