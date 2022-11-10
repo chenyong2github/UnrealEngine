@@ -540,7 +540,7 @@ bool GenerateMutableSourceGroupProjector(const UEdGraphPin* Pin, FMutableGraphGe
 			OpacityParameterNode->SetRangeCount(1);
 			OpacityParameterNode->SetRange(0, NodeRangeFromScalar);
 			FMutableParamUIMetadata OpacityMetadata = ProjParamNode->ParamUIMetadata;
-			OpacityMetadata.ObjectFriendlyName = FString("Transparency");
+			OpacityMetadata.ObjectFriendlyName = FString("Opacity");
 			GroupProjectorTempData.NodeOpacityParameter = OpacityParameterNode;
 
 			GenerationContext.ParameterUIDataMap.Add(OpacityParameterNodeName, FParameterUIData(
