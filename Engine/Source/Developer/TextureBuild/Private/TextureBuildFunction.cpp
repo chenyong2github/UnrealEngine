@@ -84,7 +84,6 @@ static FTextureBuildSettings ReadBuildSettingsFromCompactBinary(const FCbObjectV
 	FTextureBuildSettings BuildSettings;
 	BuildSettings.FormatConfigOverride = Object["FormatConfigOverride"].AsObjectView();
 	FCbObjectView ColorAdjustmentCbObj = Object["ColorAdjustment"].AsObjectView();
-	ReadCbField(ColorAdjustmentCbObj["CompressionCacheId"], BuildSettings.CompressionCacheId);
 	FColorAdjustmentParameters& ColorAdjustment = BuildSettings.ColorAdjustment;
 	ReadCbField(ColorAdjustmentCbObj["AdjustBrightness"], ColorAdjustment.AdjustBrightness);
 	ReadCbField(ColorAdjustmentCbObj["AdjustBrightnessCurve"], ColorAdjustment.AdjustBrightnessCurve);

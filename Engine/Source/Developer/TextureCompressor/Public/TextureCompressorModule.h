@@ -76,9 +76,11 @@ struct FColorAdjustmentParameters
  */
 struct FTextureBuildSettings
 {
-	/** An optional ID to change the cache key. */
-	FGuid CompressionCacheId;
-	/** Format specific config object view or null if no format specific config is applied as part of this build. */
+	/** Format specific config object view or null if no format specific config is applied as part of this build. This is only for DDC2 builds,
+	* and gets created when the build settings gets serialized for sending - it is not valid beforehand. Meaning, it should only ever be read from
+	* build workers. It is used in place of INIs or command line args to configure individual texture formats since those are not available to
+	* the texture build workers.
+	*/
 	FCbObjectView FormatConfigOverride;
 	/** Color adjustment parameters. */
 	FColorAdjustmentParameters ColorAdjustment;
@@ -114,7 +116,7 @@ struct FTextureBuildSettings
 	uint32 bLongLatSource : 1;
 	/** Whether the texture contains color data in the sRGB colorspace. */
 	uint32 bSRGB : 1;
-	/** Advanced source encoding of the image. */
+	/** Advanced source encoding of the image. UE::Color::EEncoding / ETextureSourceEncoding (same thing) */
 	uint8 SourceEncodingOverride;
 	/** Whether the texture has a defined source color space. */
 	bool bHasColorSpaceDefinition;
@@ -160,7 +162,10 @@ struct FTextureBuildSettings
 	uint8 CompositeTextureMode;	// ECompositeTextureMode, opaque to avoid dependencies on engine headers.
 	/* default 1, high values result in a stronger effect */
 	float CompositePower;
-	/** The source texture's final LOD bias (i.e. includes LODGroup based biases) */
+	/** The source texture's final LOD bias (i.e. includes LODGroup based biases). Generally this does not affect the built texture as the
+	* mips are stripped during cooking, however for tiling some platforms require knowing the actual texture size that will be created. In this
+	* case they need to know the LOD bias to compensate.
+	*/
 	uint32 LODBias;
 	/** The source texture's final LOD bias (i.e. includes LODGroup based biases). This allows cinematic mips as well. */
 	uint32 LODBiasWithCinematicMips;

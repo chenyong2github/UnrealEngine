@@ -318,10 +318,6 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		Ar << TempGuid;
 	}
 
-	if (Settings.CompressionCacheId.IsValid())
-	{
-		TempGuid = Settings.CompressionCacheId; Ar << TempGuid;
-	}
 
 	if ( Settings.bUseNewMipFilter )
 	{
@@ -431,6 +427,12 @@ void GetTextureDerivedDataKeySuffix(const UTexture& Texture, const FTextureBuild
 	TempBytes.Reserve(64);
 	FMemoryWriter Ar(TempBytes, /*bIsPersistent=*/ true);
 	SerializeForKey(Ar, BuildSettings);
+
+	if (Texture.CompressionCacheId.IsValid())
+	{
+		FGuid TempGuid = Texture.CompressionCacheId;
+		Ar << TempGuid;
+	}
 
 	for (int32 LayerIndex = 1; LayerIndex < NumLayers; ++LayerIndex)
 	{
@@ -869,7 +871,6 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.AlphaCoverageThresholds = FVector4f(0,0,0,0);
 	}
 
-	OutBuildSettings.CompressionCacheId = Texture.CompressionCacheId;
 	OutBuildSettings.bUseNewMipFilter = Texture.bUseNewMipFilter;
 	OutBuildSettings.bNormalizeNormals = Texture.bNormalizeNormals && Texture.IsNormalMap();
 	OutBuildSettings.bComputeBokehAlpha = (Texture.LODGroup == TEXTUREGROUP_Bokeh);
