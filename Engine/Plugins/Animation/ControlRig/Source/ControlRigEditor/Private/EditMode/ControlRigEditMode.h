@@ -436,6 +436,9 @@ protected:
 	USceneComponent* GetHostingSceneComponent(const UControlRig* ControlRig = nullptr) const;
 	FTransform	GetHostingSceneComponentTransform(const UControlRig* ControlRig =  nullptr) const;
 
+	//Get if the hosted component is visible
+	bool IsControlRigSkelMeshVisible(UControlRig* ControlRig) const;
+
 private:
 
 	// Post pose update handler

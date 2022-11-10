@@ -174,6 +174,9 @@ private:
 	UPROPERTY(BlueprintGetter = IsHovered, BlueprintSetter = SetHovered, Category = "ControlRig|Shape")
 	uint8 bHovered : 1;
 
+	/** Whether or not this control is selectable*/
+	uint8 bSelectable : 1;
+
 };
 
 /**

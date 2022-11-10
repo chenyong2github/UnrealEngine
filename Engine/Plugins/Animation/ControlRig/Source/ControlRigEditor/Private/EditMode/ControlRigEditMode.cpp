@@ -4192,6 +4192,23 @@ bool FControlRigEditMode::ModeSupportedByShapeActor(const AControlRigShapeActor*
 	return false;
 }
 
+bool FControlRigEditMode::IsControlRigSkelMeshVisible(UControlRig* ControlRig) const
+{
+	if (IsInLevelEditor())
+	{
+		if (ControlRig)
+		{
+			if (USceneComponent* SceneComponent = GetHostingSceneComponent(ControlRig))
+			{
+				const AActor* Actor = SceneComponent->GetTypedOuter<AActor>();
+				return Actor ? (Actor->IsHiddenEd() == false && SceneComponent->IsVisibleInEditor()) : SceneComponent->IsVisibleInEditor();
+			}
+		}
+		return false;
+	}
+	return true;
+}
+
 void FControlRigEditMode::TickControlShape(AControlRigShapeActor* ShapeActor, const FTransform& ComponentTransform)
 {
 	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
@@ -4204,17 +4221,17 @@ void FControlRigEditMode::TickControlShape(AControlRigShapeActor* ShapeActor, co
 
 			if (FRigControlElement* ControlElement = ControlRig->FindControl(ShapeActor->ControlName))
 			{
-				const bool bControlsHiddenInViewport = Settings->bHideControlShapes || !ControlRig->GetControlsVisible();
-				
+				const bool bControlsHiddenInViewport = Settings->bHideControlShapes || !ControlRig->GetControlsVisible()
+					|| (IsControlRigSkelMeshVisible(ControlRig) == false);
+
 				bool bIsVisible = ControlElement->Settings.IsVisible();
-				bool bRespectVisibilityForSelection = true;
+				bool bRespectVisibilityForSelection = true; 
 
 				if(!bControlsHiddenInViewport)
 				{
 					if(ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl)
-					{
+					{					
 						bRespectVisibilityForSelection = false;
-						
 						if(Settings->bShowAllProxyControls)
 						{
 							bIsVisible = true;
