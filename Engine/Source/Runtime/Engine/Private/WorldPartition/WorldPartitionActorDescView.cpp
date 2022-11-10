@@ -155,6 +155,11 @@ bool FWorldPartitionActorDescView::IsContainerInstance() const
 	return ActorDesc->IsContainerInstance();
 }
 
+FName FWorldPartitionActorDescView::GetLevelPackage() const
+{
+	return ActorDesc->GetLevelPackage();
+}
+
 bool FWorldPartitionActorDescView::GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
 {
 	return ActorDesc->GetContainerInstance(OutLevelContainer, OutLevelTransform, OutClusterMode);

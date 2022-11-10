@@ -6,9 +6,9 @@
 #include "WorldPartition/DataLayer/DataLayerInstanceWithAsset.h"
 #include "GameFramework/Actor.h"
 
-void FStreamingGenerationLogErrorHandler::OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid)
+void FStreamingGenerationLogErrorHandler::OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid, FWorldPartitionActorDescView* ReferenceActorDescView)
 {
-	UE_LOG(LogWorldPartition, Log, TEXT("Actor %s have missing reference to %s"), *GetFullActorName(ActorDescView), *ReferenceGuid.ToString());
+	UE_LOG(LogWorldPartition, Log, TEXT("Actor %s has an invalid reference to %s"), *GetFullActorName(ActorDescView), ReferenceActorDescView ? *GetFullActorName(*ReferenceActorDescView) : *ReferenceGuid.ToString());
 }
 
 void FStreamingGenerationLogErrorHandler::OnInvalidReferenceGridPlacement(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
@@ -73,6 +73,9 @@ void FStreamingGenerationLogErrorHandler::OnLevelInstanceInvalidWorldAsset(const
 		break;
 	case ELevelInstanceInvalidReason::WorldAssetImcompatiblePartitioned:
 		UE_LOG(LogWorldPartition, Log, TEXT("Actor %s world asset '%s' is partitioned but not marked as compatible"), *ActorName, *WorldAsset.ToString());
+		break;
+	case ELevelInstanceInvalidReason::WorldAssetHasInvalidContainer:
+		UE_LOG(LogWorldPartition, Log, TEXT("Actor %s world asset '%s' has an invalid container"), *ActorName, *WorldAsset.ToString());
 		break;
 	};
 }

@@ -11,13 +11,13 @@
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
 
-void ITokenizedMessageErrorHandler::OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid)
+void ITokenizedMessageErrorHandler::OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid, FWorldPartitionActorDescView* ReferenceActorDescView)
 {
-	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Warning);
+	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error);
 	Message->AddToken(FTextToken::Create(LOCTEXT("TokenMessage_WorldPartition_Actor", "Actor")))
 		->AddToken(FActorToken::Create(ActorDescView.GetActorSoftPath().ToString(), ActorDescView.GetGuid(), FText::FromString(GetFullActorName(ActorDescView))))
-		->AddToken(FTextToken::Create(LOCTEXT("TokenMessage_WorldPartition_HaveMissingRefsTo", "have missing references to")))
-		->AddToken(FTextToken::Create(FText::FromString(ReferenceGuid.ToString())));
+		->AddToken(FTextToken::Create(LOCTEXT("TokenMessage_WorldPartition_HaveMissingRefsTo", "has an invalid reference to")))
+		->AddToken(FTextToken::Create(ReferenceActorDescView ? FText::FromString(GetFullActorName(*ReferenceActorDescView)) : FText::FromString(ReferenceGuid.ToString())));
 
 	AddAdditionalNameToken(Message, FName(TEXT("WorldPartition_MissingActorReference_CheckForErrors")));
 
@@ -163,6 +163,10 @@ void ITokenizedMessageErrorHandler::OnLevelInstanceInvalidWorldAsset(const FWorl
 	case ELevelInstanceInvalidReason::WorldAssetImcompatiblePartitioned:
 		MessageSeverity = EMessageSeverity::Error;
 		ReasonText = LOCTEXT("TokenMessage_WorldPartition_WorldAssetIsPartitionedIncompatible", "is partitioned but not marked as compatible");
+		break;
+	case ELevelInstanceInvalidReason::WorldAssetHasInvalidContainer:
+		MessageSeverity = EMessageSeverity::Error;
+		ReasonText = LOCTEXT("TokenMessage_WorldPartition_WorldAssetHasInvalidContainer", "has an invalid container");
 		break;
 	};
 

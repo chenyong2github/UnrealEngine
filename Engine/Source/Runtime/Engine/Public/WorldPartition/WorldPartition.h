@@ -190,7 +190,22 @@ public:
 	void DumpActorDescs(const FString& Path);
 
 	void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;
+
+	/* Struct of optional parameters passed to check for errors function. */
+	struct ENGINE_API FCheckForErrorsParams
+	{
+		FCheckForErrorsParams();
+
+		IStreamingGenerationErrorHandler* ErrorHandler;
+		const UActorDescContainer* ActorDescContainer;
+		bool bEnableStreaming;
+		TMap<FGuid, const UActorDescContainer*> ActorGuidsToContainerMap;
+	};
+
+	UE_DEPRECATED(5.2, "CheckForErrors is deprecated, CheckForErrors with FCheckForErrorsParams should be used instead.")
 	static void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler, const UActorDescContainer* ActorDescContainer, bool bEnableStreaming, bool bIsChangelistValidation);
+
+	static void CheckForErrors(const FCheckForErrorsParams& Params);
 
 	void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const;
 

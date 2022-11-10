@@ -59,6 +59,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FGuid GetContentBundleGuid() const;
 
 	bool IsContainerInstance() const;
+	FName GetLevelPackage() const;
 	bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;
 
 	void CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const;

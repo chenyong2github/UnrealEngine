@@ -13,10 +13,13 @@ class ENGINE_API IStreamingGenerationErrorHandler
 public:
 	virtual ~IStreamingGenerationErrorHandler() {}
 
+	UE_DEPRECATED(5.2, "OnInvalidReference is deprecated, use the version which takes an optional actor descriptor view.")
+	virtual void OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid) {}
+
 	/** 
 	 * Called when an actor references an invalid actor.
 	 */
-	virtual void OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid) = 0;
+	virtual void OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid, FWorldPartitionActorDescView* ReferenceActorDescView) = 0;
 
 	/** 
 	 * Called when an actor references an actor using a different grid placement.
@@ -70,7 +73,8 @@ public:
 	{
 		WorldAssetNotFound,
 		WorldAssetNotUsingExternalActors,
-		WorldAssetImcompatiblePartitioned
+		WorldAssetImcompatiblePartitioned,
+		WorldAssetHasInvalidContainer
 	};
 
 	virtual void OnLevelInstanceInvalidWorldAsset(const FWorldPartitionActorDescView& ActorDescView, FName WorldAsset, ELevelInstanceInvalidReason Reason) = 0;

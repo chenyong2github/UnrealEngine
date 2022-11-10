@@ -66,6 +66,12 @@ FWorldPartitionActorDescView* FActorDescViewMap::Emplace(const FGuid& InGuid, co
 	return NewActorDescView;
 }
 
+UWorldPartition::FCheckForErrorsParams::FCheckForErrorsParams()
+	: ErrorHandler(nullptr)
+	, ActorDescContainer(nullptr)
+	, bEnableStreaming(false)
+{}
+
 class FWorldPartitionStreamingGenerator
 {
 	class FStreamingGenerationContext : public IStreamingGenerationContext
@@ -200,6 +206,7 @@ class FWorldPartitionStreamingGenerator
 
 		const UActorDescContainer* Container;
 		FActorDescViewMap ActorDescViewMap;
+		FActorDescViewMap FilteredActorDescViewMap;
 		TArray<FWorldPartitionActorDescView> ContainerInstanceViews;
 		TArray<TArray<FGuid>> Clusters;
 	};
@@ -241,27 +248,7 @@ class FWorldPartitionStreamingGenerator
 		}
 	}
 
-	void ResolveRuntimeReferences(FWorldPartitionActorDescView& ActorDescView, const FActorDescViewMap& ActorDescViewMap)
-	{
-		TArray<FGuid> RuntimeReferences;
-		RuntimeReferences.Reserve(ActorDescView.GetReferences().Num());
-
-		for (const FGuid& ReferenceGuid : ActorDescView.GetReferences())
-		{
-			if (const FWorldPartitionActorDescView* ReferenceDescView = ActorDescViewMap.FindByGuid(ReferenceGuid))
-			{
-				check(!ReferenceDescView->GetActorIsEditorOnly());
-				RuntimeReferences.Add(ReferenceGuid);
-			}
-		}
-
-		if (RuntimeReferences.Num() != ActorDescView.GetReferences().Num())
-		{
-			ActorDescView.SetRuntimeReferences(RuntimeReferences);
-		}
-	}
-
-	void CreateActorDescViewMap(const UActorDescContainer* InContainer, FActorDescViewMap& OutActorDescViewMap, const FActorContainerID& InContainerID, TArray<FWorldPartitionActorDescView>& OutContainerInstances)
+	void CreateActorDescViewMap(const UActorDescContainer* InContainer, FActorDescViewMap& OutActorDescViewMap, FActorDescViewMap& OutFilteredActorDescViewMap, const FActorContainerID& InContainerID, TArray<FWorldPartitionActorDescView>& OutContainerInstances)
 	{
 		// Should we handle unsaved or newly created actors?
 		const bool bHandleUnsavedActors = ModifiedActorsDescList && InContainerID.IsMainContainer();
@@ -351,6 +338,11 @@ class FWorldPartitionStreamingGenerator
 				FWorldPartitionActorDescView ActorDescView(*ActorDescIt);
 				RegisterActorDescView(ActorDescIt->GetGuid(), ActorDescView);
 			}
+			else
+			{
+				FWorldPartitionActorDescView ActorDescView(*ActorDescIt);
+				OutFilteredActorDescViewMap.Emplace(ActorDescIt->GetGuid(), ActorDescView);
+			}
 		}
 
 		// Append new unsaved actors for the persistent level
@@ -377,7 +369,7 @@ class FWorldPartitionStreamingGenerator
 			ContainerDescriptor.Container = InContainer;
 		
 			// Gather actor descriptor views for this container
-			CreateActorDescViewMap(InContainer, ContainerDescriptor.ActorDescViewMap, InContainerID, ContainerDescriptor.ContainerInstanceViews);
+			CreateActorDescViewMap(InContainer, ContainerDescriptor.ActorDescViewMap, ContainerDescriptor.FilteredActorDescViewMap, InContainerID, ContainerDescriptor.ContainerInstanceViews);
 
 			// Resolve actor descriptor views before validation
 			ResolveContainerDescriptor(ContainerDescriptor);
@@ -413,13 +405,7 @@ class FWorldPartitionStreamingGenerator
 
 			if (!ContainerInstanceView.GetContainerInstance(SubContainer, SubTransform, SubClusterMode))
 			{
-				// Don't generate an error when validating changelist because container instances
-				// won't be registered only because the world is not loaded.
-				if (const bool bGenerateError = !bIsChangelistValidation)
-				{
-					//@todo_ow: make a specific error for missing container instance sublevel?
-					ErrorHandler->OnInvalidReference(ContainerInstanceView, FGuid());
-				}
+				ErrorHandler->OnLevelInstanceInvalidWorldAsset(ContainerInstanceView, ContainerInstanceView.GetLevelPackage(), IStreamingGenerationErrorHandler::ELevelInstanceInvalidReason::WorldAssetHasInvalidContainer);
 				continue;
 			}
 
@@ -502,7 +488,6 @@ class FWorldPartitionStreamingGenerator
 		{
 			ResolveRuntimeSpatiallyLoaded(ActorDescView);
 			ResolveRuntimeDataLayers(ActorDescView, ContainerDescriptor.ActorDescViewMap);
-			ResolveRuntimeReferences(ActorDescView, ContainerDescriptor.ActorDescViewMap);
 		};
 
 		ContainerDescriptor.ActorDescViewMap.ForEachActorDescView([this, &ResolveActorDescView](FWorldPartitionActorDescView& ActorDescView)
@@ -633,12 +618,10 @@ class FWorldPartitionStreamingGenerator
 					{
 						// Filter out parent back references
 						FWorldPartitionActorDescView* ReferenceActorDesc = ContainerDescriptor.ActorDescViewMap.FindByGuid(ReferenceGuid);
-						if (ReferenceActorDesc && ReferenceActorDesc->GetParentActor() == ActorDescView.GetGuid())
+						if (!ReferenceActorDesc || (ReferenceActorDesc->GetParentActor() != ActorDescView.GetGuid()))
 						{
-							continue;
+							References.Emplace(FActorReferenceInfo { ActorDescView.GetGuid(), &ActorDescView, ReferenceGuid, ReferenceActorDesc });
 						}
-
-						References.Emplace(FActorReferenceInfo{ ActorDescView.GetGuid(), &ActorDescView, ReferenceGuid, ReferenceActorDesc });
 					}
 				}
 
@@ -665,13 +648,19 @@ class FWorldPartitionStreamingGenerator
 
 				if (TopParentDescView)
 				{
-					References.Emplace(FActorReferenceInfo{ TopParentDescView->GetGuid(), TopParentDescView, ActorDescView.GetGuid(), &ActorDescView });
+					References.Emplace(FActorReferenceInfo { TopParentDescView->GetGuid(), TopParentDescView, ActorDescView.GetGuid(), &ActorDescView });
 				}
 
 				if (ParentGuid.IsValid())
 				{
 					// In case of missing parent add a missing reference 
-					References.Emplace(FActorReferenceInfo{ ActorDescView.GetGuid(), &ActorDescView, ParentGuid, nullptr });
+					References.Emplace(FActorReferenceInfo { ActorDescView.GetGuid(), &ActorDescView, ParentGuid, nullptr });
+				}
+
+				TArray<FGuid> RuntimeReferences;
+				if (NbValidationPasses)
+				{
+					RuntimeReferences.Reserve(ActorDescView.GetReferences().Num());
 				}
 
 				for (FActorReferenceInfo& Info : References)
@@ -727,14 +716,42 @@ class FWorldPartitionStreamingGenerator
 							NbErrorsDetected++;
 						}
 
+						if (NbValidationPasses)
+						{
+							RuntimeReferences.Add(Info.ReferenceGuid);
+						}
 					}
 					else
 					{
-						if (!NbValidationPasses)
+						if (!ContainerDescriptor.FilteredActorDescViewMap.FindByGuid(Info.ReferenceGuid))
 						{
-							ErrorHandler->OnInvalidReference(*RefererActorDescView, Info.ReferenceGuid);
+							if (!NbValidationPasses)
+							{
+								FWorldPartitionActorDescView ReferendceActorDescView;
+								FWorldPartitionActorDescView* ReferendceActorDescViewPtr = nullptr;
+
+								if (const UActorDescContainer** ExistingReferenceContainerPtr = ActorGuidsToContainerMap.Find((Info.ReferenceGuid)))
+								{
+									if (const FWorldPartitionActorDesc* ReferenceActorDesc = (*ExistingReferenceContainerPtr)->GetActorDesc(Info.ReferenceGuid))
+									{
+										ReferendceActorDescView = FWorldPartitionActorDescView(ReferenceActorDesc);
+										ReferendceActorDescViewPtr = &ReferendceActorDescView;
+									}
+								}
+
+								ErrorHandler->OnInvalidReference(*RefererActorDescView, Info.ReferenceGuid, ReferendceActorDescViewPtr);
+							}
 						}
-						// Do not increment NbErrorsDetected since it won't be fixed and thus will always occur
+
+						NbErrorsDetected++;
+					}
+				}
+
+				if (NbValidationPasses)
+				{
+					if (RuntimeReferences.Num() != ActorDescView.GetReferences().Num())
+					{
+						ActorDescView.SetRuntimeReferences(RuntimeReferences);
 					}
 				}
 			});		
@@ -753,12 +770,29 @@ class FWorldPartitionStreamingGenerator
 	}
 
 public:
-	FWorldPartitionStreamingGenerator(FActorDescList* InModifiedActorsDescList, IStreamingGenerationErrorHandler* InErrorHandler, bool bInEnableStreaming, bool bInIsChangelistValidation = false, TArray<TSubclassOf<AActor>> InFilteredClasses = {})
-		: bEnableStreaming(bInEnableStreaming)
-		, bIsChangelistValidation(bInIsChangelistValidation)
-		, ModifiedActorsDescList(InModifiedActorsDescList)
-		, FilteredClasses(InFilteredClasses)
-		, ErrorHandler(InErrorHandler ? InErrorHandler : &NullErrorHandler)	
+	struct FWorldPartitionStreamingGeneratorParams
+	{
+		FWorldPartitionStreamingGeneratorParams()
+			: ModifiedActorsDescList(nullptr)
+			, ErrorHandler(&NullErrorHandler)
+			, bEnableStreaming(false)
+		{}
+
+		FActorDescList* ModifiedActorsDescList;
+		IStreamingGenerationErrorHandler* ErrorHandler;
+		bool bEnableStreaming;
+		TMap<FGuid, const UActorDescContainer*> ActorGuidsToContainerMap;
+		TArray<TSubclassOf<AActor>> FilteredClasses;
+
+		inline static FStreamingGenerationNullErrorHandler NullErrorHandler;
+	};
+
+	FWorldPartitionStreamingGenerator(const FWorldPartitionStreamingGeneratorParams& Params)
+		: bEnableStreaming(Params.bEnableStreaming)
+		, ModifiedActorsDescList(Params.ModifiedActorsDescList)
+		, FilteredClasses(Params.FilteredClasses)
+		, ErrorHandler(Params.ErrorHandler)
+		, ActorGuidsToContainerMap(Params.ActorGuidsToContainerMap)
 	{}
 
 	void PreparationPhase(const UActorDescContainer* Container)
@@ -863,11 +897,9 @@ public:
 
 private:
 	bool bEnableStreaming;
-	bool bIsChangelistValidation;
 	FActorDescList* ModifiedActorsDescList;
 	TArray<TSubclassOf<AActor>> FilteredClasses;
 	IStreamingGenerationErrorHandler* ErrorHandler;
-	FStreamingGenerationNullErrorHandler NullErrorHandler;
 
 	/** Maps containers to their container descriptor */
 	TMap<const UActorDescContainer*, FContainerDescriptor> ContainerDescriptorsMap;
@@ -880,6 +912,9 @@ private:
 
 	/** Data required for streaming generation interface */
 	TUniquePtr<FStreamingGenerationContext> StreamingGenerationContext;
+
+	/** List of containers participating in this streaming generation step */
+	TMap<FGuid, const UActorDescContainer*> ActorGuidsToContainerMap;
 };
 
 bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
@@ -910,7 +945,12 @@ bool UWorldPartition::GenerateContainerStreaming(const UActorDescContainer* InAc
 	TUniquePtr<FArchive> LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(StateLogSuffix);
 	FHierarchicalLogArchive HierarchicalLogAr(*LogFileAr);
 
-	FWorldPartitionStreamingGenerator StreamingGenerator(ModifiedActorsDescList, ErrorHandler, IsStreamingEnabled());
+	FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
+	StreamingGeneratorParams.ModifiedActorsDescList = ModifiedActorsDescList;
+	StreamingGeneratorParams.ErrorHandler = ErrorHandler;
+	StreamingGeneratorParams.bEnableStreaming = IsStreamingEnabled();
+
+	FWorldPartitionStreamingGenerator StreamingGenerator(StreamingGeneratorParams);
 
 	// Preparation Phase
 	StreamingGenerator.PreparationPhase(InActorDescContainer);
@@ -946,8 +986,13 @@ void UWorldPartition::FlushStreaming()
 void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly)
 {
 	FStreamingGenerationLogErrorHandler LogErrorHandler;
-	const bool bInIsChangelistValidation = false;
-	FWorldPartitionStreamingGenerator StreamingGenerator(nullptr, &LogErrorHandler, IsStreamingEnabled(), bInIsChangelistValidation, { AWorldPartitionHLOD::StaticClass() });
+
+	FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
+	StreamingGeneratorParams.ErrorHandler = &LogErrorHandler;
+	StreamingGeneratorParams.bEnableStreaming = IsStreamingEnabled();
+	StreamingGeneratorParams.FilteredClasses.Add(AWorldPartitionHLOD::StaticClass());
+
+	FWorldPartitionStreamingGenerator StreamingGenerator(StreamingGeneratorParams);
 	StreamingGenerator.PreparationPhase(ActorDescContainer);
 
 	TUniquePtr<FArchive> LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(TEXT("HLOD"));
@@ -959,19 +1004,52 @@ void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bo
 
 void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler) const
 {
-	const bool bIsChangelistValidation = false;
-	ForEachActorDescContainer([this, ErrorHandler, bIsChangelistValidation](const UActorDescContainer* InActorDescContainer)
+	FCheckForErrorsParams Params;
+	Params.ErrorHandler = ErrorHandler;
+	Params.ActorDescContainer = ActorDescContainer;
+	Params.bEnableStreaming = IsStreamingEnabled();
+
+	ForEachActorDescContainer([&Params](const UActorDescContainer* InActorDescContainer)
 	{
-		CheckForErrors(ErrorHandler, InActorDescContainer, IsStreamingEnabled(), bIsChangelistValidation);
+		for (FActorDescList::TConstIterator<> ActorDescIt(InActorDescContainer); ActorDescIt; ++ActorDescIt)
+		{
+			check(!Params.ActorGuidsToContainerMap.Contains(ActorDescIt->GetGuid()));
+			Params.ActorGuidsToContainerMap.Add(ActorDescIt->GetGuid(), InActorDescContainer);
+		}
+	});
+
+	ForEachActorDescContainer([this, &Params](const UActorDescContainer* InActorDescContainer)
+	{
+		Params.ActorDescContainer = InActorDescContainer;
+		CheckForErrors(Params);
 	});
 }
 
-void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler, const UActorDescContainer* ActorDescContainer, bool bEnableStreaming, bool bIsChangelistValidation)
+void UWorldPartition::CheckForErrors(IStreamingGenerationErrorHandler* ErrorHandler, const UActorDescContainer* ActorDescContainer, bool bEnableStreaming, bool)
+{
+	FCheckForErrorsParams Params;
+	Params.ErrorHandler = ErrorHandler;
+	Params.ActorDescContainer = ActorDescContainer;
+	Params.bEnableStreaming = bEnableStreaming;
+
+	CheckForErrors(Params);
+}
+
+void UWorldPartition::CheckForErrors(const FCheckForErrorsParams& Params)
 {
 	FActorDescList ModifiedActorDescList;
-	FWorldPartitionStreamingGenerator StreamingGenerator(ActorDescContainer->GetWorld() ? &ModifiedActorDescList : nullptr, ErrorHandler, bEnableStreaming, bIsChangelistValidation);
-	StreamingGenerator.PreparationPhase(ActorDescContainer);
+
+	FWorldPartitionStreamingGenerator::FWorldPartitionStreamingGeneratorParams StreamingGeneratorParams;
+	StreamingGeneratorParams.ModifiedActorsDescList = Params.ActorDescContainer->GetWorld() ? &ModifiedActorDescList : nullptr;
+	StreamingGeneratorParams.ErrorHandler = Params.ErrorHandler;
+	StreamingGeneratorParams.bEnableStreaming = Params.bEnableStreaming;
+	StreamingGeneratorParams.ActorGuidsToContainerMap = Params.ActorGuidsToContainerMap;
+
+	FWorldPartitionStreamingGenerator StreamingGenerator(StreamingGeneratorParams);
+
+	StreamingGenerator.PreparationPhase(Params.ActorDescContainer);
 }
+
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

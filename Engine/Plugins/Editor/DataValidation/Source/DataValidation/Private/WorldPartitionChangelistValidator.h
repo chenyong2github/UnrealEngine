@@ -15,13 +15,12 @@ class DATAVALIDATION_API UWorldPartitionChangelistValidator : public UEditorVali
 {
 	GENERATED_BODY()
 
-protected:		
-	
-	TArray<FText>*							Errors = nullptr;
-	FTopLevelAssetPath						RelevantMap;
-	TSet<FGuid>								RelevantActorGuids;
-	TSet<FString>							RelevantDataLayerAssets;
-	bool									SubmittingWorldDataLayers = false;
+protected:	
+	TArray<FText>* Errors = nullptr;
+	FTopLevelAssetPath RelevantMap;
+	TSet<FGuid> RelevantActorGuids;
+	TSet<FString> RelevantDataLayerAssets;
+	bool SubmittingWorldDataLayers = false;
 
 	virtual bool CanValidateAsset_Implementation(UObject* InAsset) const override;
 	virtual EDataValidationResult ValidateLoadedAsset_Implementation(UObject* InAsset, TArray<FText>& ValidationErrors) override;
@@ -35,7 +34,7 @@ protected:
 	bool Filter(const UDataLayerInstance* DataLayerInstance);
 
 	// IStreamingGenerationErrorHandler Interface methods
-	virtual void OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid) override;
+	virtual void OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid, FWorldPartitionActorDescView* ReferenceActorDescView) override;
 	virtual void OnInvalidReferenceGridPlacement(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView) override;
 	virtual void OnInvalidReferenceDataLayers(const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView) override;
 	virtual void OnInvalidReferenceLevelScriptStreamed(const FWorldPartitionActorDescView& ActorDescView) override;
@@ -47,4 +46,3 @@ protected:
 	virtual void OnActorNeedsResave(const FWorldPartitionActorDescView& ActorDescView) override;
 	virtual void OnLevelInstanceInvalidWorldAsset(const FWorldPartitionActorDescView& ActorDescView, FName WorldAsset, ELevelInstanceInvalidReason Reason) override;
 };
-

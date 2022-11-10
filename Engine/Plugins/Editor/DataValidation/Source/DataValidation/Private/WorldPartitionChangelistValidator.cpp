@@ -51,26 +51,6 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateLoadedAsset_Im
 	return Result;
 }
 
-FString GetPrettyPackageName(const FWorldPartitionActorDescView& Desc)
-{
-	FString AssetPath = Desc.GetActorSoftPath().ToString();
-	
-	int32 LastDot = -1;
-	if (AssetPath.FindLastChar('.', LastDot))
-	{
-		AssetPath.LeftInline(LastDot);
-	}
-
-	FString AssetName = Desc.GetActorLabel().ToString();
-	
-	if (AssetName.Len() == 0)
-	{
-		AssetName = Desc.GetActorName().ToString();
-	}
-	
-	return AssetPath + TEXT(".") + AssetName;
-}
-
 // Extract all Actors/Map from Changelist (in OFPA this should be one Actor per Package, and we'll discard all Actors from non WorldPartition maps)
 // and add them to a Map of World->Files[] so that we can do one validation per world. Once Worlds are identified, we either the UActorDescContainer 
 // from memory (if loaded) or request it to be loaded, we then build a Set of objects that interest us from the Actors in the CL 
@@ -237,12 +217,23 @@ EDataValidationResult UWorldPartitionChangelistValidator::ValidateActorsAndDataL
 		}
 
 		// Invoke static WorldPartition Validation from the ActorDescContainer
-		const bool bIsStreamingDisabled = ULevel::GetIsStreamingDisabledFromPackage(MapPath.GetPackageName());
-		const bool bIsChangelistValidation = true;
+		UWorldPartition::FCheckForErrorsParams Params;
+		Params.ErrorHandler = this;
+		Params.bEnableStreaming = ULevel::GetIsStreamingDisabledFromPackage(MapPath.GetPackageName());;
 
-		ContainersToValidate.ForEachActorDescContainer([this, bIsStreamingDisabled, bIsChangelistValidation](const UActorDescContainer* ActorDescContainer)
+		ContainersToValidate.ForEachActorDescContainer([&Params](const UActorDescContainer* ActorDescContainer)
 		{
-			UWorldPartition::CheckForErrors(this, ActorDescContainer, !bIsStreamingDisabled, bIsChangelistValidation);
+			for (FActorDescList::TConstIterator<> ActorDescIt(ActorDescContainer); ActorDescIt; ++ActorDescIt)
+			{
+				check(!Params.ActorGuidsToContainerMap.Contains(ActorDescIt->GetGuid()));
+				Params.ActorGuidsToContainerMap.Add(ActorDescIt->GetGuid(), ActorDescContainer);
+			}
+		});
+
+		ContainersToValidate.ForEachActorDescContainer([&Params](const UActorDescContainer* ActorDescContainer)
+		{
+			Params.ActorDescContainer = ActorDescContainer;
+			UWorldPartition::CheckForErrors(Params);
 		});
 	}
 
@@ -277,13 +268,13 @@ bool UWorldPartitionChangelistValidator::Filter(const UDataLayerInstance* InData
 	return DataLayerWithAsset != nullptr && DataLayerWithAsset->GetAsset() != nullptr && RelevantDataLayerAssets.Contains(DataLayerWithAsset->GetAsset()->GetPathName());
 }
 
-void UWorldPartitionChangelistValidator::OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid)
+void UWorldPartitionChangelistValidator::OnInvalidReference(const FWorldPartitionActorDescView& ActorDescView, const FGuid& ReferenceGuid, FWorldPartitionActorDescView* ReferenceActorDescView)
 {
 	if (Filter(ActorDescView))
 	{
-		FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.WorldPartition.InvalidReference", "Actor {0} has a missing reference to {1}"),
-											FText::FromString(GetPrettyPackageName(ActorDescView)), 
-											FText::FromString(ReferenceGuid.ToString()));
+		FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.WorldPartition.InvalidReference", "Actor {0} has an invalid reference to {1}"),
+											FText::FromString(GetFullActorName(ActorDescView)), 
+											FText::FromString(ReferenceActorDescView ? GetFullActorName(*ReferenceActorDescView) : ReferenceGuid.ToString()));
 
 		Errors->Add(CurrentError);
 	}
@@ -302,9 +293,9 @@ void UWorldPartitionChangelistValidator::OnInvalidReferenceGridPlacement(const F
 
 			FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.WorldPartition.InvalidReferenceGridPlacement", "{0} {1} is referencing {2} {3}."),
 												FText::FromString(ActorDescView.GetIsSpatiallyLoaded() ? *SpatiallyLoadedActor : *NonSpatiallyLoadedActor),
-												FText::FromString(GetPrettyPackageName(ActorDescView)),
+												FText::FromString(GetFullActorName(ActorDescView)),
 												FText::FromString(ReferenceActorDescView.GetIsSpatiallyLoaded() ? *SpatiallyLoadedActor : *NonSpatiallyLoadedActor),
-												FText::FromString(GetPrettyPackageName(ReferenceActorDescView)));
+												FText::FromString(GetFullActorName(ReferenceActorDescView)));
 
 			Errors->Add(CurrentError);
 		}
@@ -316,8 +307,8 @@ void UWorldPartitionChangelistValidator::OnInvalidReferenceDataLayers(const FWor
 	if (Filter(ActorDescView) || Filter(ReferenceActorDescView))
 	{
 		FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.WorldPartition.DataLayerError", "{0} is referencing {1} but both actors are using a different set of runtime data layers."),
-											FText::FromString(GetPrettyPackageName(ActorDescView)),
-											FText::FromString(GetPrettyPackageName(ReferenceActorDescView)));
+											FText::FromString(GetFullActorName(ActorDescView)),
+											FText::FromString(GetFullActorName(ReferenceActorDescView)));
 
 		Errors->Add(CurrentError);
 	}
@@ -328,8 +319,8 @@ void UWorldPartitionChangelistValidator::OnInvalidReferenceRuntimeGrid(const FWo
 	if (Filter(ActorDescView) || Filter(ReferenceActorDescView))
 	{
 		FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.WorldPartition.RuntimeGridError", "{0} is referencing {1} but both actors are using a different runtime grid."),
-			FText::FromString(GetPrettyPackageName(ActorDescView)),
-			FText::FromString(GetPrettyPackageName(ReferenceActorDescView)));
+			FText::FromString(GetFullActorName(ActorDescView)),
+			FText::FromString(GetFullActorName(ReferenceActorDescView)));
 
 		Errors->Add(CurrentError);
 	}
@@ -340,7 +331,7 @@ void UWorldPartitionChangelistValidator::OnInvalidReferenceLevelScriptStreamed(c
 	if (Filter(ActorDescView))
 	{		
 		FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.WorldPartition.InvalidReferenceLevelScriptStreamed", "Level script blueprint references streamed actor {0}."),
-											FText::FromString(GetPrettyPackageName(ActorDescView)));
+											FText::FromString(GetFullActorName(ActorDescView)));
 		
 		Errors->Add(CurrentError);
 	}
@@ -351,7 +342,7 @@ void UWorldPartitionChangelistValidator::OnInvalidReferenceLevelScriptDataLayers
 	if (Filter(ActorDescView))
 	{
 		FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.WorldPartition.InvalidReferenceLevelScriptDataLayers", "Level script blueprint references streamed actor {0} with a non empty set of data layers."),
-											FText::FromString(GetPrettyPackageName(ActorDescView)));
+											FText::FromString(GetFullActorName(ActorDescView)));
 
 		Errors->Add(CurrentError);
 	}
@@ -408,14 +399,27 @@ void UWorldPartitionChangelistValidator::OnLevelInstanceInvalidWorldAsset(const 
 {
 	if (Filter(ActorDescView))
 	{
-		if (Reason == ELevelInstanceInvalidReason::WorldAssetNotFound)
-		{
-			FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.WorldPartition.LevelInstanceInvalidWorldAsset", "Level instance {0} has an invalid world asset {1}."),
-				FText::FromString(GetPrettyPackageName(ActorDescView)), 
-				FText::FromName(WorldAsset));
+		FText CurrentError;
 
-			Errors->Add(CurrentError);
-		}
+		switch (Reason)
+		{
+		case ELevelInstanceInvalidReason::WorldAssetNotFound:
+			CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.WorldPartition.LevelInstanceInvalidWorldAsset", "Level instance {0} has an invalid world asset {1}."),
+				FText::FromString(GetFullActorName(ActorDescView)), 
+				FText::FromName(WorldAsset));
+			break;
+		case ELevelInstanceInvalidReason::WorldAssetNotUsingExternalActors:
+			// Not a validation error
+			break;
+		case ELevelInstanceInvalidReason::WorldAssetImcompatiblePartitioned:
+			// Not a validation error
+			break;
+		case ELevelInstanceInvalidReason::WorldAssetHasInvalidContainer:
+			// We cannot treat that error as a validation error as it's possible to validate changelists without loading the world
+			break;
+		};
+
+		Errors->Add(CurrentError);
 	}
 }
 
