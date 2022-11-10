@@ -28,6 +28,14 @@ struct MOVIESCENE_API TMovieSceneCurveChannelImpl
 	/** The type of curve values (float or double) */
 	using CurveValueType = typename ChannelType::CurveValueType;
 
+	/** Structure used to store the result of UE::MovieScene::EvaluateTime for a given channel/key distribution*/
+	struct FTimeEvaluationCache
+	{
+		double InterpValue = 0.0;
+		int32 Index1 = INDEX_NONE, Index2 = INDEX_NONE;
+		int32 CachedNumFrames = INDEX_NONE;
+		FFrameTime CacheFrameTime;
+	};
 
 	/** Read-only methods */
 
@@ -40,14 +48,6 @@ struct MOVIESCENE_API TMovieSceneCurveChannelImpl
 	static UE::MovieScene::Interpolation::FCachedInterpolation GetInterpolationForTime(const ChannelType* InChannel, FFrameTime InTime);
 	static UE::MovieScene::Interpolation::FCachedInterpolation GetInterpolationForTime(const ChannelType* InChannel, FTimeEvaluationCache* InOutEvaluationCache, FFrameTime InTime);
 
-	/** Structure used to store the result of UE::MovieScene::EvaluateTime for a given channel/key distribution*/
-	struct FTimeEvaluationCache
-	{
-		double InterpValue = 0.0;
-		int32 Index1 = INDEX_NONE, Index2 = INDEX_NONE;
-		int32 CachedNumFrames = INDEX_NONE;
-		FFrameTime CacheFrameTime;
-	};
 	/** Evaluate this channel at provided FrameTime, using or populating cached time to frame-number(s) calculation */
 	static bool EvaluateWithCache(const ChannelType* InChannel, FTimeEvaluationCache* InOutEvaluationCache, FFrameTime InTime, CurveValueType& OutValue);
 	
