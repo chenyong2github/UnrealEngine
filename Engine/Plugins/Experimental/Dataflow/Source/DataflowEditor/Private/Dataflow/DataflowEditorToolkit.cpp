@@ -2,6 +2,7 @@
 
 #include "Dataflow/DataflowEditorToolkit.h"
 
+#include "Animation/Skeleton.h"
 #include "Dataflow/DataflowCore.h"
 #include "Dataflow/DataflowEditorActions.h"
 #include "Dataflow/DataflowEditorViewport.h"
@@ -15,12 +16,15 @@
 #include "EditorViewportTabContent.h"
 #include "EditorViewportLayout.h"
 #include "EditorViewportCommands.h"
+#include "Engine/SkeletalMesh.h"
 #include "GraphEditorActions.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "ISkeletonTree.h"
+#include "ISkeletonEditorModule.h"
 #include "IStructureDetailsView.h"
 #include "Misc/MessageDialog.h"
 
@@ -32,6 +36,7 @@ const FName FDataflowEditorToolkit::ViewportTabId(TEXT("DataflowEditor_Viewport"
 const FName FDataflowEditorToolkit::GraphCanvasTabId(TEXT("DataflowEditor_GraphCanvas"));
 const FName FDataflowEditorToolkit::AssetDetailsTabId(TEXT("DataflowEditor_AssetDetails"));
 const FName FDataflowEditorToolkit::NodeDetailsTabId(TEXT("DataflowEditor_NodeDetails"));
+const FName FDataflowEditorToolkit::SkeletalTabId(TEXT("DataflowEditor_Skeletal"));
 
 
 UDataflow* GetDataflowFrom(UObject* InObject)
@@ -41,6 +46,19 @@ UDataflow* GetDataflowFrom(UObject* InObject)
 		if (FProperty* Property = Class->FindPropertyByName(FName("DataflowAsset")))
 		{
 			return *Property->ContainerPtrToValuePtr<UDataflow*>(InObject);
+		}
+	}
+	return nullptr;
+
+}
+
+USkeletalMesh* GetSkeletalMeshFrom(UObject* InObject)
+{
+	if (UClass* Class = InObject->GetClass())
+	{
+		if (FProperty* Property = Class->FindPropertyByName(FName("SkeletalMesh")))
+		{
+			return *Property->ContainerPtrToValuePtr<USkeletalMesh*>(InObject);
 		}
 	}
 	return nullptr;
@@ -90,6 +108,7 @@ void FDataflowEditorToolkit::InitDataflowEditor(const EToolkitMode::Type Mode, c
 		NodeDetailsEditor = CreateNodeDetailsEditorWidget(ObjectToEdit);
 		AssetDetailsEditor = CreateAssetDetailsEditorWidget(ObjectToEdit);
 		GraphEditor = CreateGraphEditorWidget(Dataflow, NodeDetailsEditor);
+		SkeletalEditor = CreateSkeletalEditorWidget(ObjectToEdit);
 
 		Context = TSharedPtr< Dataflow::FEngineContext>(new Dataflow::FAssetContext(Asset, Dataflow, FPlatformTime::Cycles64()));
 		LastNodeTimestamp = Context->GetTimestamp();
@@ -256,6 +275,39 @@ TSharedPtr<IDetailsView> FDataflowEditorToolkit::CreateAssetDetailsEditorWidget(
 
 }
 
+TSharedPtr<ISkeletonTree> FDataflowEditorToolkit::CreateSkeletalEditorWidget(UObject* ObjectToEdit)
+{
+	if (Dataflow)
+	{
+		if (!StubSkeletalMesh)
+		{
+			const FName NodeName = MakeUniqueObjectName(Dataflow, UDataflow::StaticClass(), FName("USkeleton"));
+			StubSkeleton = NewObject<USkeleton>(Dataflow, NodeName);
+			const FName NodeName2 = MakeUniqueObjectName(Dataflow, UDataflow::StaticClass(), FName("USkeleton"));
+			StubSkeletalMesh = NewObject<USkeletalMesh>(Dataflow, NodeName2);
+			StubSkeletalMesh->SetSkeleton(StubSkeleton);
+		}
+
+		FSkeletonTreeArgs SkeletonTreeArgs;
+		//SkeletonTreeArgs.OnSelectionChanged = FOnSkeletonTreeSelectionChanged::CreateSP(this, &FAnimationBlueprintEditor::HandleSelectionChanged);
+		//SkeletonTreeArgs.PreviewScene = GetPreviewScene();
+		//SkeletonTreeArgs.ContextName = GetToolkitFName();
+
+		USkeleton* Skeleton = StubSkeleton;
+		if (Asset)
+		{
+			if (USkeletalMesh* SkeletalMesh = GetSkeletalMeshFrom(Asset))
+			{
+				Skeleton = SkeletalMesh->GetSkeleton();
+			}
+		}
+		ISkeletonEditorModule& SkeletonEditorModule = FModuleManager::LoadModuleChecked<ISkeletonEditorModule>("SkeletonEditor");
+		TSharedPtr<ISkeletonTree> SkeletonTree = SkeletonEditorModule.CreateSkeletonTree(Skeleton, SkeletonTreeArgs);
+		return SkeletonTree;
+	}
+	return TSharedPtr<ISkeletonTree>(nullptr);
+}
+
 TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_Viewport(const FSpawnTabArgs& Args)
 {
 	check(Args.GetTabId() == ViewportTabId);
@@ -309,6 +361,25 @@ TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_NodeDetails(const FSpawnTa
 		];
 }
 
+TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_Skeletal(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == SkeletalTabId);
+
+	USkeletalMesh* SkeletalMesh = StubSkeletalMesh;
+	if (Asset)
+	{
+		SkeletalMesh = GetSkeletalMeshFrom(Asset);
+	}
+
+	SkeletalEditor->SetSkeletalMesh(SkeletalMesh);
+
+	return SNew(SDockTab)
+		.Label(LOCTEXT("FleshEditorSkeletal_TabTitle", "Skeletal Hierarchy"))
+		[
+			SkeletalEditor.ToSharedRef()
+		];
+}
+
 void FDataflowEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
 	TSharedRef<FWorkspaceItem> WorkspaceMenuCategoryRef = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_DataflowEditor", "Dataflow Editor"));
@@ -332,6 +403,11 @@ void FDataflowEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& 
 		.SetDisplayName(LOCTEXT("NodeDetailsTab", "Node Details"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
+
+	InTabManager->RegisterTabSpawner(SkeletalTabId, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_Skeletal))
+		.SetDisplayName(LOCTEXT("DataflowSkeletalTab", "Skeletal Hierarchy"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.SkeletalHierarchy"));
 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 }

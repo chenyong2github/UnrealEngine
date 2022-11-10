@@ -15,6 +15,7 @@ class FTabManager;
 class IStructureDetailsView;
 class IToolkitHost;
 class UDataflow;
+class USkeletalMesh;
 
 namespace Dataflow
 {
@@ -36,10 +37,6 @@ public:
 
 	void InitDataflowEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit);
 
-	//~ Begin DataflowEditorActions
-	void OnPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent);
-	//~ End DataflowEditorActions
-
 	// IToolkit Interface
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetToolkitName() const override;
@@ -48,17 +45,14 @@ public:
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 
-	//~ Begin FTickableEditorObject interface
+	// FTickableEditorObject interface
 	virtual void Tick(float DeltaTime) override;
 	virtual bool IsTickable() const override { return true; }
 	virtual TStatId GetStatId() const override;
-	//~ End FTickableEditorObject Interface
 
 	// FGCObject Interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	virtual FString GetReferencerName() const override; 
-
-
 
 	// Tab spawners 
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) override;
@@ -66,6 +60,8 @@ public:
 	TSharedRef<SDockTab> SpawnTab_GraphCanvas(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_AssetDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_NodeDetails(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_Skeletal(const FSpawnTabArgs& Args);
+
 
 	// Member Access
 	UObject* GetAsset() { return Asset; }
@@ -85,6 +81,14 @@ public:
 
 	TSharedPtr<SGraphEditor> GetGraphEditor() { return GraphEditor; }
 	const TSharedPtr<SGraphEditor> GetGraphEditor() const { return GraphEditor; }
+
+protected:
+
+	//~ Begin DataflowEditorActions
+	void OnPropertyValueChanged(const FPropertyChangedEvent& PropertyChangedEvent);
+	bool OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* GraphNode, FText& OutErrorMessage);
+	void OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode);
+	//~ End DataflowEditorActions
 
 private:
 
@@ -108,8 +112,11 @@ private:
 	TSharedPtr<IStructureDetailsView> NodeDetailsEditor;
 	TSharedPtr<IStructureDetailsView> CreateNodeDetailsEditorWidget(UObject* ObjectToEdit);
 
-	bool OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNode* GraphNode, FText& OutErrorMessage);
-	void OnNodeTitleCommitted(const FText& InNewText, ETextCommit::Type InCommitType, UEdGraphNode* GraphNode);
+	static const FName SkeletalTabId;
+	TObjectPtr<USkeleton> StubSkeleton;
+	TObjectPtr<USkeletalMesh> StubSkeletalMesh;
+	TSharedPtr<class ISkeletonTree> SkeletalEditor;
+	TSharedPtr<ISkeletonTree> CreateSkeletalEditorWidget(UObject* ObjectToEdit);
 
 	TSharedPtr<Dataflow::FEngineContext> Context;
 	Dataflow::FTimestamp LastNodeTimestamp = Dataflow::FTimestamp::Invalid;
