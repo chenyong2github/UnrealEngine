@@ -13,6 +13,7 @@
 #define DOWNSAMPLE_DEPTH_FILTER_CBMINMAX	2
 
 Texture2D<float> DepthTexture;
+SamplerState DepthTexturePointClampedSampler;
 float4 SourceTexelOffsets01;
 float4 SourceTexelOffsets23;
 float2 SourceMaxUV;
@@ -21,7 +22,7 @@ uint DownsampleDepthFilter;
 
 float GetDeviceZ(float2 UV)
 {
-	return DepthTexture.Sample(GlobalPointClampedSampler, min(UV, SourceMaxUV));
+	return DepthTexture.Sample(DepthTexturePointClampedSampler, min(UV, SourceMaxUV));
 }
 
 void Main(

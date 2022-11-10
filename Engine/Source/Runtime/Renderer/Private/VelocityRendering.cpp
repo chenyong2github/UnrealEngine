@@ -21,6 +21,7 @@
 #endif
 #include "VisualizeTexture.h"
 #include "MeshPassProcessor.inl"
+#include "MobileShadingRenderer.h"
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarBasePassOutputsVelocity(

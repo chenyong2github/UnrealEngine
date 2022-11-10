@@ -14,6 +14,7 @@
 #include "PipelineStateCache.h"
 #include "ClearQuad.h"
 #include "HairStrands/HairStrandsRendering.h"
+#include "MobileShadingRenderer.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Directional light

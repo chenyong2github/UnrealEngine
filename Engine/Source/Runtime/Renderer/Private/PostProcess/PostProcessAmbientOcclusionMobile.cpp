@@ -13,6 +13,7 @@
 #include "ScreenPass.h"
 #include "ScenePrivate.h"
 #include "RendererUtils.h"
+#include "MobileShadingRenderer.h"
 
 FAmbientOcclusionMobileOutputs GAmbientOcclusionMobileOutputs;
 

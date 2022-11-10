@@ -445,6 +445,8 @@ public:
 
 	void AllocateDebugViewModeTargets(FRHICommandList& RHICmdList);
 
+	void AllocateSeparateTranslucencyTextures(FRHICommandList& RHICmdList, FIntPoint SeparateTranslucencyTextureSize);
+
 	TRefCountPtr<IPooledRenderTarget>& GetReflectionBrightnessTarget();
 	
 	// Can be called when the Scene Color content is no longer needed. As we create SceneColor on demand we can make sure it is created with the right format.
@@ -468,6 +470,7 @@ public:
 	// Scene depth and stencil.
 	TRefCountPtr<IPooledRenderTarget> SceneDepthZ;
 	TRefCountPtr<FRHIShaderResourceView> SceneStencilSRV;
+
 	// Scene velocity.
 	TRefCountPtr<IPooledRenderTarget> SceneVelocity;
 
@@ -508,6 +511,10 @@ public:
 	TRefCountPtr<IPooledRenderTarget> MobileScreenShadowMask;
 	// Scene world normal
 	TRefCountPtr<IPooledRenderTarget> WorldNormalRoughness;
+
+	// Separate translucency color and depth
+	TRefCountPtr<IPooledRenderTarget> SeparateTranslucencyColor;
+	TRefCountPtr<IPooledRenderTarget> SeparateTranslucencyDepth;
 
 	// optional in case this RHI requires a color render target (adjust up if necessary)
 	TRefCountPtr<IPooledRenderTarget> OptionalShadowDepthColor[4];
@@ -597,7 +604,6 @@ private:
 
 	/** Allocates render targets for use with the current shading path. */
 	void AllocateRenderTargets(FRHICommandListImmediate& RHICmdList, const int32 NumViews);
-
 
 	/** Allocates common depth render targets that are used by both mobile and deferred rendering paths */
 	void AllocateCommonDepthTargets(FRHICommandList& RHICmdList);

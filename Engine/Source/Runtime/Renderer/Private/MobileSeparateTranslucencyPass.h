@@ -11,8 +11,8 @@ struct FMobileSeparateTranslucencyInputs
 	FScreenPassTexture SceneDepth;
 };
 
-void AddMobileSeparateTranslucencyPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobileSeparateTranslucencyInputs& Inputs);
-
 // Returns whether separate translucency is enabled and there primitives to draw in the view
-bool IsMobileSeparateTranslucencyActive(const FViewInfo& View);
-bool IsMobileSeparateTranslucencyActive(const FViewInfo* Views, int32 NumViews);
+bool IsMobileTranslucencyAfterDOFActive(const FViewInfo& View);
+bool IsMobileTranslucencyAfterDOFActive(const FViewInfo* Views, int32 NumViews);
+bool IsMobileTranslucencyStandardActive(const FViewInfo& View);
+bool IsMobileTranslucencyStandardActive(const FViewInfo* Views, int32 NumViews);

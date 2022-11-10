@@ -14,6 +14,7 @@
 #include "SceneRendering.h"
 #include "ScenePrivate.h"
 #include "DecalRenderingShared.h"
+#include "MobileShadingRenderer.h"
 
 extern FRHIRasterizerState* GetDecalRasterizerState(EDecalRasterizerState DecalRasterizerState);
 extern void RenderMeshDecalsMobile(FRHICommandList& RHICmdList, const FViewInfo& View);

@@ -28,6 +28,7 @@ MobileSceneCaptureRendering.cpp - Mobile specific scene capture code.
 #include "PipelineStateCache.h"
 #include "CommonRenderResources.h"
 #include "GenerateMips.h"
+#include "MobileShadingRenderer.h"
 
 /**
 * Shader set for the copy of scene color to capture target, alpha channel will contain opacity information. (Determined from depth buffer content)

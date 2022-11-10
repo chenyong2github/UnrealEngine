@@ -211,7 +211,7 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 		{
 			// Check whether the material can be drawn in the separate translucency pass as per FMaterialResource::IsTranslucencyAfterDOFEnabled and IsMobileSeparateTranslucencyEnabled
 			bool bSupportsSeparateTranslucency = Material->MaterialDomain != MD_UI && Material->MaterialDomain != MD_DeferredDecal;
-			bool bMaterialSeparateTranslucency = bSupportsSeparateTranslucency && (bIsMobile ? Material->bEnableMobileSeparateTranslucency : Material->bEnableSeparateTranslucency);
+			bool bMaterialSeparateTranslucency = bSupportsSeparateTranslucency && Material->bEnableSeparateTranslucency;
 
 			// If dual blending is supported, and we are rendering separate translucency, then we also need to render a second pass to the modulation buffer.
 			// The modulation buffer can also be used for regular modulation shaders after DoF.

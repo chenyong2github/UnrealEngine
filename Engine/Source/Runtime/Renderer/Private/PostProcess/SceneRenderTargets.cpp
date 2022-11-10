@@ -238,7 +238,7 @@ static void SnapshotArray(TArray<TRefCountPtr<IPooledRenderTarget>, TInlineAlloc
 FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRenderTargets& SnapshotSource)
 	: LightAccumulation(GRenderTargetPool.MakeSnapshot(SnapshotSource.LightAccumulation))
 	, DirectionalOcclusion(GRenderTargetPool.MakeSnapshot(SnapshotSource.DirectionalOcclusion))
-	, SceneDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneDepthZ))	
+	, SceneDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneDepthZ))
 	, SceneVelocity(GRenderTargetPool.MakeSnapshot(SnapshotSource.SceneVelocity))
 	, SmallDepthZ(GRenderTargetPool.MakeSnapshot(SnapshotSource.SmallDepthZ))
 	, GBufferA(GRenderTargetPool.MakeSnapshot(SnapshotSource.GBufferA))
@@ -260,6 +260,9 @@ FSceneRenderTargets::FSceneRenderTargets(const FViewInfo& View, const FSceneRend
 	, MobileCustomStencil(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileCustomStencil))
 	, CustomStencilSRV(SnapshotSource.CustomStencilSRV)
 	, MobileScreenShadowMask(GRenderTargetPool.MakeSnapshot(SnapshotSource.MobileScreenShadowMask))
+	, WorldNormalRoughness(GRenderTargetPool.MakeSnapshot(SnapshotSource.WorldNormalRoughness))
+	, SeparateTranslucencyColor(GRenderTargetPool.MakeSnapshot(SnapshotSource.SeparateTranslucencyColor))
+	, SeparateTranslucencyDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.SeparateTranslucencyDepth))
 	, SkySHIrradianceMap(GRenderTargetPool.MakeSnapshot(SnapshotSource.SkySHIrradianceMap))
 	, EditorPrimitivesColor(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesColor))
 	, EditorPrimitivesDepth(GRenderTargetPool.MakeSnapshot(SnapshotSource.EditorPrimitivesDepth))
@@ -1595,6 +1598,28 @@ void FSceneRenderTargets::AllocateFoveationTexture(FRHICommandList& RHICmdList)
 	}
 }
 
+void FSceneRenderTargets::AllocateSeparateTranslucencyTextures(FRHICommandList& RHICmdList, FIntPoint SeparateTranslucencyTextureSize)
+{
+	if (SeparateTranslucencyTextureSize.X < BufferSize.X && SeparateTranslucencyTextureSize.Y < BufferSize.Y)
+	{
+		// Not allocated yet or size changed
+		if (!SeparateTranslucencyColor.IsValid() || SeparateTranslucencyColor->GetDesc().Extent != SeparateTranslucencyTextureSize)
+		{
+			SeparateTranslucencyColor.SafeRelease();
+			SeparateTranslucencyDepth.SafeRelease();
+			GRenderTargetPool.FreeUnusedResources();
+
+			FPooledRenderTargetDesc ColorDesc(FPooledRenderTargetDesc::Create2DDesc(SeparateTranslucencyTextureSize, CurrentMobileSceneColorFormat, FClearValueBinding::Black, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
+			ColorDesc.NumSamples = CurrentMSAACount;
+			GRenderTargetPool.FindFreeElement(RHICmdList, ColorDesc, SeparateTranslucencyColor, TEXT("SeparateTranslucencyColor"), ERenderTargetTransience::NonTransient);
+
+			FPooledRenderTargetDesc DepthDesc(FPooledRenderTargetDesc::Create2DDesc(SeparateTranslucencyTextureSize, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
+			DepthDesc.NumSamples = CurrentMSAACount;
+			GRenderTargetPool.FindFreeElement(RHICmdList, DepthDesc, SeparateTranslucencyDepth, TEXT("SeparateTranslucencyDepth"), ERenderTargetTransience::NonTransient);
+		}
+	}
+}
+
 const FTexture2DRHIRef& FSceneRenderTargets::GetOptionalShadowDepthColorSurface(FRHICommandList& RHICmdList, int32 Width, int32 Height) const
 {
 	// Look for matching resolution
@@ -2021,6 +2046,8 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	CustomStencilSRV.SafeRelease();
 	MobileScreenShadowMask.SafeRelease();
 	WorldNormalRoughness.SafeRelease();
+	SeparateTranslucencyColor.SafeRelease();
+	SeparateTranslucencyDepth.SafeRelease();
 	VirtualTextureFeedback.SafeRelease();
 	VirtualTextureFeedbackUAV.SafeRelease();
 

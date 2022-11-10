@@ -51,6 +51,7 @@
 #include "PixelShaderUtils.h"
 #include "ScreenSpaceRayTracing.h"
 #include "SceneViewExtension.h"
+#include "MobileShadingRenderer.h"
 
 /** The global center for all post processing activities. */
 FPostProcessing GPostProcessing;
@@ -1317,7 +1318,7 @@ void FPostProcessing::OverrideRenderTarget(FRenderingCompositeOutputRef It, TRef
 	}
 }
 
-void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobilePostProcessingInputs& Inputs)
+void FMobileSceneRenderer::AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobilePostProcessingInputs& Inputs)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderPostProcessing);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_PostProcessing_Process);
@@ -1500,7 +1501,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& V
 
 		bool bUseDistortion = IsMobileDistortionActive(View);
 
-		bool bUseSeparateTranslucency = IsMobileSeparateTranslucencyActive(View);
+		bool bUseSeparateTranslucency = IsMobileTranslucencyAfterDOFActive(View);
 
 		const FPostProcessMaterialChain PostProcessMaterialAfterTonemappingChain = GetPostProcessMaterialChain(View, BL_AfterTonemapping);
 

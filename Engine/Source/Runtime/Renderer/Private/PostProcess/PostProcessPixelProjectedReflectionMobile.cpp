@@ -11,6 +11,7 @@
 #include "MobileBasePassRendering.h"
 #include "ScreenPass.h"
 #include "RenderTargetPool.h"
+#include "MobileShadingRenderer.h"
 
 
 static TAutoConsoleVariable<int32> CVarMobilePlanarReflectionMode(

@@ -18,6 +18,7 @@
 #include "ShaderParameterStruct.h"
 #include "VisualizeTexture.h"
 #include "SceneTextureParameters.h"
+#include "MobileShadingRenderer.h"
 
 
 /*-----------------------------------------------------------------------------

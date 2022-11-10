@@ -4,6 +4,7 @@
 	MobileShadingRenderer.cpp: Scene rendering code for ES3/3.1 feature level.
 =============================================================================*/
 
+#include "MobileShadingRenderer.h"
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "Misc/MemStack.h"
@@ -385,7 +386,9 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 	// On PowerVR we see flickering of shadows and depths not updating correctly if targets are discarded.
 	// See CVarMobileForceDepthResolve use in ConditionalResolveSceneDepth.
 	const bool bForceDepthResolve = (CVarMobileForceDepthResolve.GetValueOnRenderThread() == 1);
-	const bool bSeparateTranslucencyActive = IsMobileSeparateTranslucencyActive(Views.GetData(), Views.Num()); 
+	const bool bSeparateTranslucencyActive = ViewFamily.AllowTranslucencyAfterDOF() && SeparateTranslucencyTextures.GetDimensions().Scale < 1.0f
+		                                  && IsMobileTranslucencyStandardActive(Views.GetData(), Views.Num())
+		                                  || IsMobileTranslucencyAfterDOFActive(Views.GetData(), Views.Num());
 	const bool bShouldRenderVelocities = ShouldRenderVelocities();
 	bRequiresMultiPass = RequiresMultiPass(RHICmdList, Views[0]);
 	bKeepDepthContent = 
@@ -564,6 +567,9 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 			Extension->PrepareView(&Views[ViewIndex]);
 		}
 	}
+
+	SeparateTranslucencyTextures = UpdateTranslucencyTimers(RHICmdList, Views);
+	SceneContext.AllocateSeparateTranslucencyTextures(RHICmdList, SeparateTranslucencyTextures.GetDimensions().Extent);
 
 	if (bDeferredShading)
 	{
@@ -1105,8 +1111,9 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		}
 	}
 	
+	bool bSeparateTranslucency = SeparateTranslucencyTextures.GetDimensions().Scale < 1.0f;
 	// Draw translucency.
-	if (ViewFamily.EngineShowFlags.Translucency)
+	if (ViewFamily.EngineShowFlags.Translucency && !bSeparateTranslucency)
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderTranslucency);
 		SCOPE_CYCLE_COUNTER(STAT_TranslucencyDrawTime);
@@ -1134,6 +1141,19 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 
 	// End of scene color rendering
 	RHICmdList.EndRenderPass();
+
+	// Draw separate translucency.
+	if (ViewFamily.EngineShowFlags.Translucency && bSeparateTranslucency)
+	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderTranslucency);
+		SCOPE_CYCLE_COUNTER(STAT_TranslucencyDrawTime);
+
+		FRDGBuilder GraphBuilder(RHICmdList);
+		FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
+		FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ);
+		RenderSeparateTranslucency(GraphBuilder, SceneColorTexture, SceneDepthTexture, SeparateTranslucencyTextures, ETranslucencyPass::TPT_StandardTranslucency, View);
+		GraphBuilder.Execute();
+	}
 
 	return SceneColorResolve ? SceneColorResolve : SceneColor;
 }

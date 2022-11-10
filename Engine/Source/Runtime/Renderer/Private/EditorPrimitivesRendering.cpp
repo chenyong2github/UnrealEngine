@@ -134,7 +134,7 @@ void FEditorPrimitivesBasePassMeshProcessor::ProcessMobileShadingPath(const FMes
 
 	if (bTranslucentBasePass)
 	{
-		MobileBasePass::SetTranslucentRenderState(DrawRenderState, Material);
+		MobileBasePass::SetTranslucentRenderState(DrawRenderState, Material, ETranslucencyPass::TPT_AllTranslucency);
 	}
 
 	const FMeshDrawingPolicyOverrideSettings OverrideSettings = ComputeMeshOverrideSettings(MeshBatch);
