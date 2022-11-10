@@ -20,7 +20,7 @@ private:
 	virtual UScriptStruct& GetScriptStructImpl() const override { return *StaticStruct(); }
 
 protected:
-	virtual void GetParameterValue(FFrameTime InTime, const TArray<uint8>& InCurrentValueData, TArray<uint8>& OutAnimatedValueData) const override;
+	virtual void GetAnimatedParameterValue(FFrameTime InTime, const FNiagaraVariableBase& InTargetParameter, const TArray<uint8>& InCurrentValueData, TArray<uint8>& OutAnimatedValueData) const override;
 
 private:
 	UPROPERTY()

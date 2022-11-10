@@ -55,7 +55,7 @@ bool HasLifeCycleTrack(UMovieScene& MovieScene, FGuid ObjectBinding)
 	return false;
 }
 
-void GetAnimatedParameters(UMovieScene& MovieScene, FGuid ObjectBinding, TSet<FNiagaraVariable>& AnimatedParameters)
+void GetAnimatedParameterNames(UMovieScene& MovieScene, FGuid ObjectBinding, TSet<FName>& AnimatedParameterNames)
 {
 	for (const FMovieSceneBinding& Binding : MovieScene.GetBindings())
 	{
@@ -66,7 +66,7 @@ void GetAnimatedParameters(UMovieScene& MovieScene, FGuid ObjectBinding, TSet<FN
 				UMovieSceneNiagaraParameterTrack* ParameterTrack = Cast<UMovieSceneNiagaraParameterTrack>(Track);
 				if (ParameterTrack != nullptr)
 				{
-					AnimatedParameters.Add(ParameterTrack->GetParameter());
+					AnimatedParameterNames.Add(ParameterTrack->GetParameter().GetName());
 				}
 			}
 			break;
@@ -103,8 +103,8 @@ void FNiagaraSystemTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBu
 		TArray<FNiagaraVariable> ParameterVariables;
 		System->GetExposedParameters().GetUserParameters(ParameterVariables);
 
-		TSet<FNiagaraVariable> AnimatedParameters;
-		GetAnimatedParameters(*GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene(), ObjectBindings[0], AnimatedParameters);
+		TSet<FName> AnimatedParameterNames;
+		GetAnimatedParameterNames(*GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene(), ObjectBindings[0], AnimatedParameterNames);
 
 		FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 
@@ -113,7 +113,7 @@ void FNiagaraSystemTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBu
 		{
 			if (ParameterVariable.GetType().IsDataInterface() == false &&
 				NiagaraEditorModule.CanCreateParameterTrackForType(*ParameterVariable.GetType().GetScriptStruct()) && 
-				AnimatedParameters.Contains(ParameterVariable) == false)
+				AnimatedParameterNames.Contains(ParameterVariable.GetName()) == false)
 			{
 				TArray<uint8> DefaultValueData;
 				DefaultValueData.AddZeroed(ParameterVariable.GetSizeInBytes());

@@ -12,6 +12,7 @@
 struct FComponentData
 {
 	TWeakObjectPtr<UNiagaraComponent> Component;
+	FNiagaraVariableBase TargetParameter;
 	TOptional<TArray<uint8>> CurrentValue;
 };
 
@@ -81,18 +82,27 @@ struct FSetParameterValueExecutionToken : IMovieSceneExecutionToken
 
 	virtual void Execute(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) override
 	{
-		static FMovieSceneAnimTypeID TypeID = TMovieSceneAnimTypeID<FSetParameterValueExecutionToken, 0>();
+		static TMovieSceneAnimTypeIDContainer<FNiagaraVariableBase> ParameterToTypeID;
+		FMovieSceneAnimTypeID TypeID = ParameterToTypeID.GetAnimTypeID(Parameter);
 		UNiagaraComponent* NiagaraComponent = ComponentPtr.Get();
 		if (NiagaraComponent != nullptr)
 		{
-			Player.SavePreAnimatedState(*NiagaraComponent, TypeID, FPreAnimatedParameterValueTokenProducer(Parameter));
+			Player.PreAnimatedState.SavePreAnimatedState(*NiagaraComponent, TypeID, FPreAnimatedParameterValueTokenProducer(Parameter));
 			NiagaraComponent->GetOverrideParameters().AddParameter(Parameter, false);
-			NiagaraComponent->GetOverrideParameters().SetParameterData(Data.GetData(), Parameter);
+			if (Parameter.GetType() == FNiagaraTypeDefinition::GetPositionDef())
+			{
+				FVector* PositionValue = reinterpret_cast<FVector*>(Data.GetData());
+				NiagaraComponent->GetOverrideParameters().SetPositionParameterValue(*PositionValue, Parameter.GetName(), false);
+			}
+			else
+			{
+				NiagaraComponent->GetOverrideParameters().SetParameterData(Data.GetData(), Parameter);
+			}
 		}
 	}
 
 	TWeakObjectPtr<UNiagaraComponent> ComponentPtr;
-	FNiagaraVariable Parameter;
+	FNiagaraVariableBase Parameter;
 	TArray<uint8> Data;
 };
 
@@ -112,32 +122,52 @@ void FMovieSceneNiagaraParameterSectionTemplate::Initialize(const FMovieSceneEva
 	for (TWeakObjectPtr<> ObjectPtr : Player.FindBoundObjects(Operand))
 	{
 		UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(ObjectPtr.Get());
-		if (NiagaraComponent != nullptr)
+		if (NiagaraComponent != nullptr && NiagaraComponent->GetAsset() != nullptr)
 		{
+			FNiagaraVariableBase TargetParameter;
 			const uint8* ParameterData = NiagaraComponent->GetOverrideParameters().GetParameterData(Parameter);
 			if (ParameterData == nullptr)
 			{
-				if (UNiagaraSystem* NiagaraSystem = NiagaraComponent->GetAsset())
-				{
-					ParameterData = NiagaraSystem->GetExposedParameters().GetParameterData(Parameter);
-				}
-			}
+				ParameterData = NiagaraComponent->GetAsset()->GetExposedParameters().GetParameterData(Parameter);
+			};
 
-			TArray<uint8> CurrentValueData;
-			if(ParameterData != nullptr)
+			if (ParameterData != nullptr)
 			{
-				CurrentValueData.AddUninitialized(Parameter.GetSizeInBytes());
-				FMemory::Memcpy(CurrentValueData.GetData(), ParameterData, Parameter.GetSizeInBytes());
+				TargetParameter = Parameter;
 			}
 			else
 			{
-				CurrentValueData.AddDefaulted(Parameter.GetSizeInBytes());
+				// If a matching parameter was not found in the component overrides or the assets 
+				// exposed parameters check if there are alternate types which are supported for this section.
+				for (const FNiagaraTypeDefinition& AlternateParameterType : GetAlternateParameterTypes())
+				{
+					FNiagaraVariable AlternateParameter(AlternateParameterType, Parameter.GetName());
+					ParameterData = NiagaraComponent->GetOverrideParameters().GetParameterData(AlternateParameter);
+					if (ParameterData == nullptr)
+					{
+						ParameterData = NiagaraComponent->GetAsset()->GetExposedParameters().GetParameterData(AlternateParameter);
+					}
+
+					if (ParameterData != nullptr)
+					{
+						TargetParameter = AlternateParameter;
+						break;
+					}
+				}
 			}
 
-			FComponentData Data;
-			Data.Component = NiagaraComponent;
-			Data.CurrentValue.Emplace(CurrentValueData);
-			SectionData.CachedComponentData.Add(Data);
+			if (TargetParameter.IsValid() && ParameterData != nullptr)
+			{
+				TArray<uint8> CurrentValueData;
+				CurrentValueData.AddUninitialized(Parameter.GetSizeInBytes());
+				FMemory::Memcpy(CurrentValueData.GetData(), ParameterData, Parameter.GetSizeInBytes());
+
+				FComponentData Data;
+				Data.Component = NiagaraComponent;
+				Data.TargetParameter = TargetParameter;
+				Data.CurrentValue.Emplace(CurrentValueData);
+				SectionData.CachedComponentData.Add(Data);
+			}
 		}
 	}
 }
@@ -152,8 +182,8 @@ void FMovieSceneNiagaraParameterSectionTemplate::Evaluate(const FMovieSceneEvalu
 			if (ComponentData.CurrentValue.IsSet())
 			{
 				TArray<uint8> AnimatedValueData;
-				GetParameterValue(Context.GetTime(), ComponentData.CurrentValue.GetValue(), AnimatedValueData);
-				ExecutionTokens.Add(FSetParameterValueExecutionToken(ComponentData.Component, Parameter, MoveTemp(AnimatedValueData)));
+				GetAnimatedParameterValue(Context.GetTime(), ComponentData.TargetParameter, ComponentData.CurrentValue.GetValue(),  AnimatedValueData);
+				ExecutionTokens.Add(FSetParameterValueExecutionToken(ComponentData.Component, ComponentData.TargetParameter, MoveTemp(AnimatedValueData)));
 			}
 		}
 	}

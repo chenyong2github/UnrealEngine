@@ -114,7 +114,7 @@ protected:
 	TArray<TSharedPtr<IPropertyHandle>> OverridePropertyHandles;
 	FSimpleDelegate OnRebuildChildren;
 	TArray<TSharedPtr<class FNiagaraParameterProxy>> ParameterProxies;
-	TMap<FName, TWeakPtr<FStructOnScope>> ParameterNameToDisplayStruct;
+	TMap<FNiagaraVariableBase, TWeakPtr<FStructOnScope>> ParameterToDisplayStruct;
 	FName CustomBuilderRowName;
 	const UNiagaraHierarchySection* ActiveSection = nullptr;
 	TArray<UNiagaraHierarchySection*> AvailableSections;

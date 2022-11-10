@@ -17,7 +17,7 @@ FMovieSceneNiagaraFloatParameterSectionTemplate::FMovieSceneNiagaraFloatParamete
 {
 }
 
-void FMovieSceneNiagaraFloatParameterSectionTemplate::GetParameterValue(FFrameTime InTime, const TArray<uint8>& InCurrentValueData, TArray<uint8>& OutAnimatedValueData) const
+void FMovieSceneNiagaraFloatParameterSectionTemplate::GetAnimatedParameterValue(FFrameTime InTime, const FNiagaraVariableBase& InTargetParameter, const TArray<uint8>& InCurrentValueData, TArray<uint8>& OutAnimatedValueData) const
 {
 	FNiagaraFloat const* CurrentValue = (FNiagaraFloat const*)InCurrentValueData.GetData();
 	FNiagaraFloat AnimatedValue = *CurrentValue;

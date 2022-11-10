@@ -17,7 +17,7 @@ FMovieSceneNiagaraIntegerParameterSectionTemplate::FMovieSceneNiagaraIntegerPara
 {
 }
 
-void FMovieSceneNiagaraIntegerParameterSectionTemplate::GetParameterValue(FFrameTime InTime, const TArray<uint8>& InCurrentValueData, TArray<uint8>& OutAnimatedValueData) const
+void FMovieSceneNiagaraIntegerParameterSectionTemplate::GetAnimatedParameterValue(FFrameTime InTime, const FNiagaraVariableBase& InTargetParameter, const TArray<uint8>& InCurrentValueData, TArray<uint8>& OutAnimatedValueData) const
 {
 	FNiagaraInt32 const* CurrentValue = (FNiagaraInt32 const*)InCurrentValueData.GetData();
 	FNiagaraInt32 AnimatedValue = *CurrentValue;

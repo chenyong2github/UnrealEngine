@@ -27,7 +27,10 @@ private:
 	virtual void Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const override;
 
 protected:
-	virtual void GetParameterValue(FFrameTime InTime, const TArray<uint8>& InCurrentValueData, TArray<uint8>& OutAnimatedValueData) const { };
+	virtual void GetAnimatedParameterValue(FFrameTime InTime, const FNiagaraVariableBase& InTargetParameter, const TArray<uint8>& InCurrentValueData, TArray<uint8>& OutAnimatedValueData) const { };
+	
+	// Specifies a list of alternate types which are supported by this parameter section which can be used if the original parameter isn't found.
+	virtual TArrayView<FNiagaraTypeDefinition> GetAlternateParameterTypes() const { return TArrayView<FNiagaraTypeDefinition>(); }
 
 private:
 	UPROPERTY()

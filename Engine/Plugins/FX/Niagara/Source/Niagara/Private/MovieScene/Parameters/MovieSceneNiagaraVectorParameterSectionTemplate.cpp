@@ -21,7 +21,7 @@ FMovieSceneNiagaraVectorParameterSectionTemplate::FMovieSceneNiagaraVectorParame
 	}
 }
 
-void FMovieSceneNiagaraVectorParameterSectionTemplate::GetParameterValue(FFrameTime InTime, const TArray<uint8>& InCurrentValueData, TArray<uint8>& OutAnimatedValueData) const
+void FMovieSceneNiagaraVectorParameterSectionTemplate::GetAnimatedParameterValue(FFrameTime InTime, const FNiagaraVariableBase& InTargetParameter, const TArray<uint8>& InCurrentValueData, TArray<uint8>& OutAnimatedValueData) const
 {
 	if (ChannelsUsed == 2)
 	{
@@ -43,8 +43,19 @@ void FMovieSceneNiagaraVectorParameterSectionTemplate::GetParameterValue(FFrameT
 		VectorChannels[1].Evaluate(InTime, AnimatedValue.Y);
 		VectorChannels[2].Evaluate(InTime, AnimatedValue.Z);
 
-		OutAnimatedValueData.AddUninitialized(sizeof(FVector3f));
-		FMemory::Memcpy(OutAnimatedValueData.GetData(), (uint8*)&AnimatedValue, sizeof(FVector3f));
+		if (InTargetParameter.GetType() != FNiagaraTypeDefinition::GetPositionDef())
+		{
+			OutAnimatedValueData.AddUninitialized(sizeof(FVector3f));
+			FMemory::Memcpy(OutAnimatedValueData.GetData(), (uint8*)&AnimatedValue, sizeof(FVector3f));
+		}
+		else
+		{
+			OutAnimatedValueData.AddUninitialized(sizeof(FVector));
+			FVector* PositionVector = (FVector*)OutAnimatedValueData.GetData();
+			PositionVector->X = AnimatedValue.X;
+			PositionVector->Y = AnimatedValue.Y;
+			PositionVector->Z = AnimatedValue.Z;
+		}
 	}
 	else if (ChannelsUsed == 4)
 	{
@@ -58,5 +69,18 @@ void FMovieSceneNiagaraVectorParameterSectionTemplate::GetParameterValue(FFrameT
 
 		OutAnimatedValueData.AddUninitialized(sizeof(FVector4f));
 		FMemory::Memcpy(OutAnimatedValueData.GetData(), (uint8*)&AnimatedValue, sizeof(FVector4f));
+	}
+}
+
+TArrayView<FNiagaraTypeDefinition> FMovieSceneNiagaraVectorParameterSectionTemplate::GetAlternateParameterTypes() const
+{
+	if (ChannelsUsed == 3)
+	{
+		static TArray<FNiagaraTypeDefinition> AlternateParameterTypes = { FNiagaraTypeDefinition::GetPositionDef() };
+		return TArrayView<FNiagaraTypeDefinition>(AlternateParameterTypes);
+	}
+	else
+	{
+		return TArrayView<FNiagaraTypeDefinition>();
 	}
 }

@@ -20,7 +20,7 @@ FMovieSceneNiagaraColorParameterSectionTemplate::FMovieSceneNiagaraColorParamete
 {
 }
 
-void FMovieSceneNiagaraColorParameterSectionTemplate::GetParameterValue(FFrameTime InTime, const TArray<uint8>& InCurrentValueData, TArray<uint8>& OutAnimatedValueData) const
+void FMovieSceneNiagaraColorParameterSectionTemplate::GetAnimatedParameterValue(FFrameTime InTime, const FNiagaraVariableBase& InTargetParameter, const TArray<uint8>& InCurrentValueData, TArray<uint8>& OutAnimatedValueData) const
 {
 	FLinearColor const* CurrentValue = (FLinearColor const*)InCurrentValueData.GetData();
 	FLinearColor AnimatedValue = *CurrentValue;
