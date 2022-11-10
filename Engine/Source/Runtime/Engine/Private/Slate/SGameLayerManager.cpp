@@ -40,6 +40,13 @@ static FAutoConsoleVariableRef CVarEnablePerUserHitTesting(
 	FConsoleVariableDelegate::CreateStatic(&HandlePerUserHitTestingToggled)
 );
 
+static int32 bApplyDisabledEffectOnWidgets = 1;
+
+static FAutoConsoleVariableRef CVarApplyDisabledEffectOnWidgets(
+	TEXT("ApplyDisabledEffectOnWidgets"),
+	bApplyDisabledEffectOnWidgets,
+	TEXT("If true, disabled game-layer widgets will have alpha multiplied by 0.45."));
+
 #if UE_SLATE_WITH_GAMELAYER_CANVAS_VISIBILITY_COMMANDS
 namespace CanvasVisibility
 {
@@ -384,7 +391,11 @@ void SGameLayerManager::Tick(const FGeometry& AllottedGeometry, const double InC
 int32 SGameLayerManager::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	SCOPED_NAMED_EVENT_TEXT("Paint: Game UI", FColor::Green);
+	
+	// By default game layer state is used to ignore disabled effects, don't set this flag if user wants disabled draw effects in-game
+	OutDrawElements.SetIsInGameLayer(!bApplyDisabledEffectOnWidgets);
 	const int32 ResultLayer = SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
+	OutDrawElements.SetIsInGameLayer(false);
 	return ResultLayer;
 }
 

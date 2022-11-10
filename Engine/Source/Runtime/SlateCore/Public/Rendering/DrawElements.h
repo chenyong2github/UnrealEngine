@@ -691,6 +691,9 @@ public:
 	SLATECORE_API void SetRenderTargetWindow(SWindow* InRenderTargetWindow);
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
+	
+	SLATECORE_API void SetIsInGameLayer(bool bInGameLayer);
+	SLATECORE_API bool GetIsInGameLayer();
 
 private:
 	FSlateDrawElement& AddCachedElement();
@@ -760,4 +763,7 @@ private:
 
 	/** Store the size of the window being used to paint */
 	FVector2f WindowSize;
+
+	/** Store if currently drawing within Game Layer */
+	bool bIsInGameLayer;
 };

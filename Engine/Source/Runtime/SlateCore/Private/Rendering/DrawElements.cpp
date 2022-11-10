@@ -146,6 +146,7 @@ FSlateWindowElementList::FSlateWindowElementList(const TSharedPtr<SWindow>& InPa
 	, bNeedsDeferredResolve(false)
 	, ResolveToDeferredIndex()
 	, WindowSize(FVector2f(0.0f, 0.0f))
+	, bIsInGameLayer(false)
 	//, bReportReferences(true)
 {
 	if (InPaintWindow.IsValid())
@@ -171,6 +172,11 @@ FSlateWindowElementList::~FSlateWindowElementList()
 
 void FSlateDrawElement::Init(FSlateWindowElementList& ElementList, EElementType InElementType, uint32 InLayer, const FPaintGeometry& PaintGeometry, ESlateDrawEffect InDrawEffects)
 {
+	if (ElementList.GetIsInGameLayer())
+	{
+		InDrawEffects &= ~ESlateDrawEffect::DisabledEffect;
+	}
+
 	RenderTransform = PaintGeometry.GetAccumulatedRenderTransform();
 	Position = PaintGeometry.DrawPosition;
 	Scale = PaintGeometry.DrawScale;
@@ -813,6 +819,15 @@ void FSlateDrawElement::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 }
 
+void FSlateWindowElementList::SetIsInGameLayer(bool bInGameLayer)
+{
+	bIsInGameLayer = bInGameLayer;
+}
+
+bool FSlateWindowElementList::GetIsInGameLayer()
+{
+	return bIsInGameLayer;
+}
 
 FSlateDrawElement& FSlateWindowElementList::AddUninitialized()
 {
