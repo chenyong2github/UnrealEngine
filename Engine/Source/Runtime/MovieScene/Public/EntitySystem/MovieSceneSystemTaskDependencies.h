@@ -23,6 +23,7 @@ namespace UE
 namespace MovieScene
 {
 
+enum class EEntityThreadingModel : uint8;
 
 struct FSystemTaskPrerequisites
 {
@@ -105,7 +106,7 @@ private:
 
 	friend FMovieSceneEntitySystemGraph;
 
-	FSystemSubsequentTasks(FMovieSceneEntitySystemGraph* InGraph, FGraphEventArray* InAllTasks);
+	FSystemSubsequentTasks(FMovieSceneEntitySystemGraph* InGraph, FGraphEventArray* InAllTasks, EEntityThreadingModel InThreadingModel);
 
 	void ResetNode(uint16 InNodeID);
 
@@ -113,6 +114,7 @@ private:
 	FMovieSceneEntitySystemGraph* Graph;
 	FGraphEventArray* AllTasks;
 	uint16 NodeID;
+	EEntityThreadingModel ThreadingModel;
 };
 
 

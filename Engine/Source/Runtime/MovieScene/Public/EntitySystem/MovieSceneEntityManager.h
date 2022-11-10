@@ -217,7 +217,19 @@ public:
 
 
 	/**
-	 * Compute and retrieve this entity manager's threading model
+	 * Compute and return this entity manager's threading model. Does not change the current cached threading model.
+	 */
+	EEntityThreadingModel ComputeThreadingModel() const;
+
+
+	/**
+	 * Compute and store the current threading model.
+	 */
+	void UpdateThreadingModel();
+
+
+	/**
+	 * Get this entitiy manager's current threading model based on the last time UpdateThreadingModel was called.
 	 */
 	EEntityThreadingModel GetThreadingModel() const;
 
@@ -1018,6 +1030,7 @@ private:
 
 	ENamedThreads::Type GatherThread;
 	ENamedThreads::Type DispatchThread;
+	EEntityThreadingModel ThreadingModel;
 
 	enum class ELockdownState
 	{

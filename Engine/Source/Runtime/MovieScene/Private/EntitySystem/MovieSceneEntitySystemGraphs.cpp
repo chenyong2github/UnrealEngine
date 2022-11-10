@@ -740,7 +740,11 @@ void FMovieSceneEntitySystemGraph::ExecutePhase(const ArrayType& SortedEntries, 
 {
 	using namespace UE::MovieScene;
 
-	FSystemSubsequentTasks DownstreamTasks(this, &OutTasks);
+	Linker->EntityManager.UpdateThreadingModel();
+
+	const EEntityThreadingModel ThreadingModel = Linker->EntityManager.GetThreadingModel();
+
+	FSystemSubsequentTasks DownstreamTasks(this, &OutTasks, ThreadingModel);
 
 	FSystemTaskPrerequisites NoPrerequisites;
 

@@ -374,6 +374,7 @@ FEntityManager::FEntityManager()
 	LockdownState = ELockdownState::Unlocked;
 	SystemSerialNumber = 1;
 	StructureMutationSystemSerialNumber = 0;
+	ThreadingModel = EEntityThreadingModel::NoThreading;
 }
 
 FEntityManager::~FEntityManager()
@@ -546,7 +547,7 @@ bool FEntityManager::IsHandleValid(FEntityHandle InEntityHandle) const
 	return Generation && *Generation == InEntityHandle.HandleGeneration;
 }
 
-EEntityThreadingModel FEntityManager::GetThreadingModel() const
+EEntityThreadingModel FEntityManager::ComputeThreadingModel() const
 {
 	const bool bCanThread = FPlatformProcess::SupportsMultithreading();
 
@@ -555,6 +556,16 @@ EEntityThreadingModel FEntityManager::GetThreadingModel() const
 		EntityLocations.Num() >= GThreadedEvaluationEntityThreshold);
 
 	return bShouldThread ? EEntityThreadingModel::TaskGraph : EEntityThreadingModel::NoThreading;
+}
+
+EEntityThreadingModel FEntityManager::GetThreadingModel() const
+{
+	return ThreadingModel;
+}
+
+void FEntityManager::UpdateThreadingModel()
+{
+	ThreadingModel = ComputeThreadingModel();
 }
 
 const FComponentMask& FEntityManager::GetAccumulatedMask() const

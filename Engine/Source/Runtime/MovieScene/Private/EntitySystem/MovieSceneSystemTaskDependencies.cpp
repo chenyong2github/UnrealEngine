@@ -2,6 +2,7 @@
 
 #include "EntitySystem/MovieSceneSystemTaskDependencies.h"
 #include "EntitySystem/MovieSceneEntitySystemGraphs.h"
+#include "EntitySystem/MovieSceneEntityManager.h"
 #include "Algo/Find.h"
 
 
@@ -11,6 +12,14 @@ namespace UE
 {
 namespace MovieScene
 {
+
+
+bool GIgnoreDependenciesWhenNotThreading = true;
+FAutoConsoleVariableRef CVarIgnoreDependenciesWhenNotThreading(
+	TEXT("Sequencer.IgnoreDependenciesWhenNotThreading"),
+	GIgnoreDependenciesWhenNotThreading,
+	TEXT("(Default: true) Whether to ignore task dependencies when there is no threading.")
+);
 
 
 void FSystemTaskPrerequisites::FilterByComponent(FGraphEventArray& OutArray, std::initializer_list<FComponentTypeID> ComponentTypes) const
@@ -37,13 +46,20 @@ void FSystemTaskPrerequisites::Consume(const FSystemTaskPrerequisites& Other)
 
 
 
-FSystemSubsequentTasks::FSystemSubsequentTasks(FMovieSceneEntitySystemGraph* InGraph, FGraphEventArray* InAllTasks)
+FSystemSubsequentTasks::FSystemSubsequentTasks(FMovieSceneEntitySystemGraph* InGraph, FGraphEventArray* InAllTasks, EEntityThreadingModel InThreadingModel)
 	: Graph(InGraph)
 	, AllTasks(InAllTasks)
+	, ThreadingModel(InThreadingModel)
 {}
 
 void FSystemSubsequentTasks::ResetNode(uint16 InNodeID)
 {
+	if (ThreadingModel == EEntityThreadingModel::NoThreading && GIgnoreDependenciesWhenNotThreading)
+	{
+		return;
+	}
+
+
 	Subsequents = Graph->Nodes.Array[InNodeID].SubsequentTasks;
 	NodeID = InNodeID;
 
@@ -55,8 +71,12 @@ void FSystemSubsequentTasks::ResetNode(uint16 InNodeID)
 
 void FSystemSubsequentTasks::AddRootTask(FGraphEventRef RootTask)
 {
-	SCOPE_CYCLE_COUNTER(MovieSceneEval_SystemDependencyCost)
+	if (ThreadingModel == EEntityThreadingModel::NoThreading && GIgnoreDependenciesWhenNotThreading)
+	{
+		return;
+	}
 
+	SCOPE_CYCLE_COUNTER(MovieSceneEval_SystemDependencyCost)
 	if (RootTask)
 	{
 		if (!Subsequents)
@@ -71,7 +91,12 @@ void FSystemSubsequentTasks::AddRootTask(FGraphEventRef RootTask)
 }
 
 void FSystemSubsequentTasks::AddComponentTask(UE::MovieScene::FComponentTypeID ComponentType, FGraphEventRef ComponentTask)
-{	
+{
+	if (ThreadingModel == EEntityThreadingModel::NoThreading && GIgnoreDependenciesWhenNotThreading)
+	{
+		return;
+	}
+
 	SCOPE_CYCLE_COUNTER(MovieSceneEval_SystemDependencyCost)
 
 	if (ComponentTask)
