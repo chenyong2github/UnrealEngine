@@ -54,8 +54,6 @@ class CUSTOMIZABLEOBJECTEDITOR_API UCustomizableObjectNodeGroupProjectorParamete
 public:
 	GENERATED_BODY()
 
-	UCustomizableObjectNodeGroupProjectorParameter();
-
 	/** Return array with the sticker name and UTexture2D for projection */
 	TArray<FGroupProjectorParameterImage> GetOptionImagesFromTable() const;
 
@@ -84,7 +82,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = ProjectorGroup, Meta = (ToolTip = "If true, projection textures will be shared between LODs of the same object, and will save memory. Only use if all the LODs share the same UV layout."))
 	bool bShareProjectionTexturesBetweenLODs = false;
 
-	UPROPERTY(EditAnywhere, Category = ProjectorGroup)
+	UPROPERTY(EditAnywhere, Category = ProjectorGroup,  meta = (EditConditionHides))
 	TArray<FGroupProjectorParameterImage> OptionImages;
 
 	UPROPERTY(EditAnywhere, Category = ProjectorGroup)
@@ -97,7 +95,7 @@ public:
 	/** Table where additional option images besides Option Images are read. The elements in this table have priority
 	* over elements from Option Images in case of duplicity. Use the "Data Table Texture Column Name" property to specify
 	* the name of the column where textures are read in the table. */
-	UPROPERTY(EditAnywhere, Category = ProjectorGroup)
+	UPROPERTY(EditAnywhere, Category = ProjectorGroup, meta = (EditConditionHides))
 	TObjectPtr<UDataTable> OptionImagesDataTable = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = ProjectorGroup)
@@ -109,15 +107,20 @@ public:
 	UPROPERTY(EditAnywhere, Category = ProjectorGroup, Meta = (ClampMin = "0"))
 	int32 UVLayout = 0;
 
-	// UObject interface
-	void Serialize(FArchive& Ar) override;
-
-	// Begin EdGraphNode interface
+	// EdGraphNode interface.
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
-	FLinearColor GetNodeTitleColor() const override;
-	FText GetTooltipText() const override;
+	virtual FLinearColor GetNodeTitleColor() const override;
+	virtual FText GetTooltipText() const override;
 
 	// UCustomizableObjectNode interface.
-	void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins);
+	virtual void BackwardsCompatibleFixup() override;
+	virtual void AllocateDefaultPins(UCustomizableObjectNodeRemapPins* RemapPins);
+
+	// Own interface.
+	UEdGraphPin& GetImagePin() const;
+
+private:
+	UPROPERTY()
+	FEdGraphPinReference ImagePin;
 };
 

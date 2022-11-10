@@ -61,6 +61,8 @@ struct CUSTOMIZABLEOBJECT_API FCustomizableObjectCustomVersion
 		DescriptorMultilayerProjectors,
 
 		DeformSkeletonOptionsAdded,
+
+		GroupProjectorImagePin,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
