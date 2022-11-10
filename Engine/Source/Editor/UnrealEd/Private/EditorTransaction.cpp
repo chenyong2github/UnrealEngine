@@ -1382,6 +1382,8 @@ bool UTransBuffer::Undo(bool bCanRedo)
 		return false;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(UTransBuffer::Undo);
+
 	// Apply the undo changes.
 	GIsTransacting = true;
 
@@ -1446,6 +1448,8 @@ bool UTransBuffer::Redo()
 
 		return false;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(UTransBuffer::Redo);
 
 	// Apply the redo changes.
 	GIsTransacting = true;
