@@ -349,18 +349,23 @@ protected:
 		if (bTranslucencyPass)
 		{
 			uint16 SortKeyPriority = 0;
-			float DistanceOffset = 0.0f;
+			float Distance = 0.0f;
 
 			if (PrimitiveSceneProxy)
 			{
 				const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 				SortKeyPriority = (uint16)((int32)PrimitiveSceneInfo->Proxy->GetTranslucencySortPriority() - (int32)SHRT_MIN);
-				DistanceOffset = PrimitiveSceneInfo->Proxy->GetTranslucencySortDistanceOffset();
+
+				// Use the standard sort by distance method for translucent objects
+				const float DistanceOffset = PrimitiveSceneInfo->Proxy->GetTranslucencySortDistanceOffset();
+				const FVector BoundsOrigin = PrimitiveSceneProxy->GetBounds().Origin;
+				const FVector ViewOrigin = this->ViewIfDynamicMeshCommand->ViewMatrices.GetViewOrigin();
+				Distance = (BoundsOrigin - ViewOrigin).Size() + DistanceOffset;
 			}
 
 			SortKey.Translucent.MeshIdInPrimitive = MeshBatch.MeshIdInPrimitive;
 			SortKey.Translucent.Priority = SortKeyPriority;
-			SortKey.Translucent.Distance = *(uint32*)(&DistanceOffset);
+			SortKey.Translucent.Distance = (uint32)~BitInvertIfNegativeFloat(*(uint32*)&Distance);
 		}
 		else
 		{
@@ -370,6 +375,14 @@ protected:
 		}
 
 		return SortKey;
+	}
+
+private:
+	/** Inverts the bits of the floating point number if that number is negative */
+	uint32 BitInvertIfNegativeFloat(uint32 FloatBit)
+	{
+		unsigned Mask = -int32(FloatBit >> 31) | 0x80000000;
+		return FloatBit ^ Mask;
 	}
 
 private:
@@ -478,7 +491,7 @@ protected:
 		}
 	}
 
-	virtual FMeshProjectionHitProxyShaderElementData CreateShaderElementData(const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
+	virtual FMeshProjectionHitProxyShaderElementData CreateShaderElementData(const FMeshBatch& RESTRICT MeshBatch, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId) override
 	{
 		FMeshProjectionHitProxyShaderElementData ShaderElementData;
 		ShaderElementData.InitializeMeshMaterialData(this->ViewIfDynamicMeshCommand, PrimitiveSceneProxy, MeshBatch, StaticMeshId, false);
@@ -814,7 +827,7 @@ FVector FDisplayClusterMeshProjectionTransform::UnprojectPosition(const FVector&
 		UnprojectedPosition = InvViewMatrix.TransformPosition(ProjectedViewPos);
 	}
 
-	return ProjectedPosition;
+	return UnprojectedPosition;
 }
 
 FDisplayClusterMeshProjectionRenderer::~FDisplayClusterMeshProjectionRenderer()

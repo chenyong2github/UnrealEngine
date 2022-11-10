@@ -1601,6 +1601,12 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 
 				FBox BoundingBox = RootActorProxy->GetComponentsBoundingBox();
 				RootActorBoundingRadius = FMath::Max(BoundingBox.Min.Length(), BoundingBox.Max.Length());
+
+				// Set translucency sort priority of root actor proxy primitive components so that actors that are flush with screens are rendered on top of them
+				RootActorProxy->ForEachComponent<UPrimitiveComponent>(false, [](UPrimitiveComponent* InPrimitiveComponent)
+				{
+					InPrimitiveComponent->SetTranslucentSortPriority(-10);
+				});
 			}
 
 			// Filter out any primitives hidden in game except screen components
