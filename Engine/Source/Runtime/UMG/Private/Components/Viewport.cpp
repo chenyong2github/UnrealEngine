@@ -365,8 +365,9 @@ UViewport::UViewport(const FObjectInitializer& ObjectInitializer)
 	, ShowFlags(ESFIM_Game)
 {
 	bIsVariable = true;
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	BackgroundColor = FLinearColor::Black;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	ShowFlags.DisableAdvancedFeatures();
 	//ParentArgs.IgnoreTextureAlpha(false);
 	//ParentArgs.EnableBlending(true);
@@ -411,7 +412,10 @@ void UViewport::SynchronizeProperties()
 
 	if ( ViewportWidget.IsValid() )
 	{
+		check(ViewportWidget->ViewportClient.IsValid());
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		ViewportWidget->ViewportClient->SetBackgroundColor(BackgroundColor);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		ViewportWidget->ViewportClient->SetEngineShowFlags(ShowFlags);
 	}
 }
@@ -495,6 +499,23 @@ AActor* UViewport::Spawn(TSubclassOf<AActor> ActorClass)
 
 	return NULL;
 }
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+const FLinearColor& UViewport::GetBackgroundColor() const
+{
+	return BackgroundColor;
+}
+
+void UViewport::SetBackgroundColor(const FLinearColor& InColor)
+{
+	BackgroundColor = InColor;
+	if (ViewportWidget.IsValid())
+	{
+		check(ViewportWidget->ViewportClient.IsValid());
+		ViewportWidget->ViewportClient->SetBackgroundColor(BackgroundColor);
+	}
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITOR
 

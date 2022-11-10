@@ -229,7 +229,8 @@ class UMG_API UViewport : public UContentWidget
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category=Appearance)
+	UE_DEPRECATED(5.2, "Direct access to BackgroundColor is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = Appearance)
 	FLinearColor BackgroundColor;
 
 	UFUNCTION(BlueprintCallable, Category="Viewport")
@@ -249,6 +250,10 @@ class UMG_API UViewport : public UContentWidget
 
 	UFUNCTION(BlueprintCallable, Category="Viewport")
 	AActor* Spawn(TSubclassOf<AActor> ActorClass);
+
+	void SetBackgroundColor(const FLinearColor& InColor);
+
+	const FLinearColor& GetBackgroundColor() const;
 
 	// UWidget interface
 	virtual void SynchronizeProperties() override;

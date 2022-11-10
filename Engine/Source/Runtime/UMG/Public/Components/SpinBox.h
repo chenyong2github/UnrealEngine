@@ -28,7 +28,8 @@ public:
 public:
 
 	/** Value stored in this spin box */
-	UPROPERTY(EditAnywhere, Category=Content)
+	UE_DEPRECATED(5.2, "Direct access to Value is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetValue", BlueprintGetter = "GetValue", FieldNotify, Category = Content)
 	float Value;
 
 	/** A bindable delegate to allow logic to drive the value of the widget */
@@ -37,58 +38,71 @@ public:
 
 public:
 	/** The Style */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Style", meta=( DisplayName="Style" ))
+	UE_DEPRECATED(5.2, "Direct access to WidgetStyle is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Style", meta=( DisplayName="Style" ))
 	FSpinBoxStyle WidgetStyle;
 
 	/** The minimum required fractional digits - default 1 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetMinFractionalDigits, BlueprintGetter = GetMinFractionalDigits, Category = "Slider", meta = (ClampMin = 0, UIMin = 0))
+	UE_DEPRECATED(5.2, "Direct access to MinFractionalDigits is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = SetMinFractionalDigits, BlueprintGetter = GetMinFractionalDigits, Category = "Slider", meta = (ClampMin = 0, UIMin = 0))
 	int32 MinFractionalDigits;
 
 	/** The maximume required fractional digits - default 6 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetMaxFractionalDigits, BlueprintGetter = GetMaxFractionalDigits, Category = "Slider", meta = (ClampMin = 0, UIMin = 0))
+	UE_DEPRECATED(5.2, "Direct access to MaxFractionalDigits is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = SetMaxFractionalDigits, BlueprintGetter = GetMaxFractionalDigits, Category = "Slider", meta = (ClampMin = 0, UIMin = 0))
 	int32 MaxFractionalDigits;
 
 	/** Whether this spin box should use the delta snapping logic for typed values - default false */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetAlwaysUsesDeltaSnap, BlueprintGetter = GetAlwaysUsesDeltaSnap, Category = "Slider")
+	UE_DEPRECATED(5.2, "Direct access to bAlwaysUsesDeltaSnap is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = GetAlwaysUsesDeltaSnap, Setter = SetAlwaysUsesDeltaSnap, BlueprintSetter = SetAlwaysUsesDeltaSnap, BlueprintGetter = GetAlwaysUsesDeltaSnap, Category = "Slider")
 	bool bAlwaysUsesDeltaSnap;
 
 	/** Whether this spin box should have slider feature enabled */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Slider")
+	UE_DEPRECATED(5.2, "Direct access to bEnableSlider is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter = "GetEnableSlider", Setter = "SetEnableSlider", Category = "Slider")
 	bool bEnableSlider = true;
 
 	/** The amount by which to change the spin box value as the slider moves. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetDelta, BlueprintGetter = GetDelta, Category = "Slider")
+	UE_DEPRECATED(5.2, "Direct access to Delta is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = SetDelta, BlueprintGetter = GetDelta, Category = "Slider")
 	float Delta;
 
 	/** The exponent by which to increase the delta as the mouse moves. 1 is constant (never increases the delta). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Slider")
+	UE_DEPRECATED(5.2, "Direct access to SliderExponent is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Slider")
 	float SliderExponent;
 	
 	/** Font color and opacity (overrides style) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Display")
+	UE_DEPRECATED(5.2, "Direct access to Font is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Display")
 	FSlateFontInfo Font;
 
 	/** The justification the value text should appear as. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Display")
+	UE_DEPRECATED(5.2, "Direct access to Justification is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category = "Display")
 	TEnumAsByte<ETextJustify::Type> Justification;
 
 	/** The minimum width of the spin box */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Display", AdvancedDisplay, DisplayName = "Minimum Desired Width")
+	UE_DEPRECATED(5.2, "Direct access to MinDesiredWidth is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Display", AdvancedDisplay, DisplayName = "Minimum Desired Width")
 	float MinDesiredWidth;
 	
 	/** If we're on a platform that requires a virtual keyboard, what kind of keyboard should this widget use? */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input", AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "Input", AdvancedDisplay)
 	TEnumAsByte<EVirtualKeyboardType::Type> KeyboardType;
 
 	/** Whether to remove the keyboard focus from the spin box when the value is committed */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input", AdvancedDisplay)
+	UE_DEPRECATED(5.2, "Direct access to ClearKeyboardFocusOnCommit is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Input", AdvancedDisplay)
 	bool ClearKeyboardFocusOnCommit;
 
 	/** Whether to select the text in the spin box when the value is committed */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Input", AdvancedDisplay)
+	UE_DEPRECATED(5.2, "Direct access to SelectAllTextOnCommit is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, Category="Input", AdvancedDisplay)
 	bool SelectAllTextOnCommit;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Style")
+	UE_DEPRECATED(5.2, "Direct access to ForegroundColor is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetForegroundColor", Category = "Style")
 	FSlateColor ForegroundColor;
 
 public:
@@ -120,6 +134,12 @@ public:
 
 public:
 
+	/** Set the style for the spin box. */
+	const FSpinBoxStyle& GetWidgetStyle() const;
+
+	/** Get the style for the spin box. */
+	void SetWidgetStyle(const FSpinBoxStyle& InWidgetStyle);
+
 	/** Get the current Min Fractional Digits for the spin box. */
 	UFUNCTION(BlueprintCallable, BlueprintGetter, Category = "Behavior")
 	int32 GetMinFractionalDigits() const;
@@ -144,6 +164,12 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "Behavior")
 	void SetAlwaysUsesDeltaSnap(bool bNewValue);
 
+	/** Get whether the spin box uses the slider feature. */
+	bool GetEnableSlider() const;
+
+	/** Set whether the spin box uses the slider feature. */
+	void SetEnableSlider(bool bNewValue);
+
 	/** Get the current delta for the spin box. */
 	UFUNCTION(BlueprintCallable, BlueprintGetter, Category = "Behavior")
 	float GetDelta() const;
@@ -151,6 +177,42 @@ public:
 	/** Set the delta for the spin box. */
 	UFUNCTION(BlueprintCallable, BlueprintSetter, Category = "Behavior")
 	void SetDelta(float NewValue);
+
+	/** Get the current slider exponent for the spin box. */
+	float GetSliderExponent() const;
+
+	/** Set the slider exponent for the spin box. */
+	void SetSliderExponent(float NewValue);
+
+	/**  Get the font color and opacity that overrides the style font. */
+	const FSlateFontInfo& GetFont() const;
+
+	/** Set the font color and opacity that overrides the style font. */
+	void SetFont(const FSlateFontInfo& InFont);
+
+	/** Get the justification for value text. */
+	const ETextJustify::Type GetJustification() const;
+
+	/** Set the justification for value text. */
+	void SetJustification(ETextJustify::Type InJustification);
+
+	/** Get the minimum width of the spin box. */
+	float GetMinDesiredWidth() const;
+
+	/** Set the minimum width of the spin box. */
+	void SetMinDesiredWidth(float NewValue);
+
+	/** Get whether the keyboard focus is removed from the spin box when the value is committed. */
+	bool GetClearKeyboardFocusOnCommit() const;
+
+	/** Set whether the keyboard focus is removed from the spin box when the value is committed. */
+	void SetClearKeyboardFocusOnCommit(bool bNewValue);
+
+	/** Get whether to select the text in the spin box when the value is committed. */
+	bool GetSelectAllTextOnCommit() const;
+
+	/** Set whether to select the text in the spin box when the value is committed. */
+	void SetSelectAllTextOnCommit(bool bNewValue);
 
 	/** Get the current minimum value that can be manually set in the spin box. */
 	UFUNCTION(BlueprintCallable, Category="Behavior")
@@ -204,6 +266,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Appearance")
 	void SetForegroundColor(FSlateColor InForegroundColor);
 
+	/** Get the foreground color of the spin box. */
+	FSlateColor GetForegroundColor() const;
+
 public:
 
 	//~ Begin UWidget Interface
@@ -231,7 +296,7 @@ protected:
 
 protected:
 	/** Whether the optional MinValue attribute of the widget is set */
-	UPROPERTY(EditAnywhere, Category = Content, meta=(InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = Content, meta = (InlineEditConditionToggle))
 	uint32 bOverride_MinValue : 1;
 
 	/** Whether the optional MaxValue attribute of the widget is set */
@@ -239,7 +304,7 @@ protected:
 	uint32 bOverride_MaxValue : 1;
 
 	/** Whether the optional MinSliderValue attribute of the widget is set */
-	UPROPERTY(EditAnywhere, Category = Content, meta=(InlineEditConditionToggle))
+	UPROPERTY(EditAnywhere, Category = Content, meta = (InlineEditConditionToggle))
 	uint32 bOverride_MinSliderValue : 1;
 
 	/** Whether the optional MaxSliderValue attribute of the widget is set */
@@ -247,19 +312,23 @@ protected:
 	uint32 bOverride_MaxSliderValue : 1;
 
 	/** The minimum allowable value that can be manually entered into the spin box */
-	UPROPERTY(EditAnywhere, Category = Content, DisplayName = "Minimum Value", meta = (editcondition = "bOverride_MinValue"))
+	UE_DEPRECATED(5.2, "Direct access to MinValue is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetMinValue", BlueprintGetter = "GetMinValue", Category = Content, DisplayName = "Minimum Value", meta = (editcondition = "bOverride_MinValue"))
 	float MinValue;
 
 	/** The maximum allowable value that can be manually entered into the spin box */
-	UPROPERTY(EditAnywhere, Category = Content, DisplayName = "Maximum Value", meta = (editcondition = "bOverride_MaxValue"))
+	UE_DEPRECATED(5.2, "Direct access to MaxValue is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetMaxValue", BlueprintGetter = "GetMaxValue", Category = Content, DisplayName = "Maximum Value", meta = (editcondition = "bOverride_MaxValue"))
 	float MaxValue;
 
 	/** The minimum allowable value that can be specified using the slider */
-	UPROPERTY(EditAnywhere, Category = Content, DisplayName = "Minimum Slider Value", meta = (editcondition = "bOverride_MinSliderValue"))
+	UE_DEPRECATED(5.2, "Direct access to MinSliderValue is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetMinSliderValue", BlueprintGetter = "GetMinSliderValue", Category = Content, DisplayName = "Minimum Slider Value", meta = (editcondition = "bOverride_MinSliderValue"))
 	float MinSliderValue;
 
 	/** The maximum allowable value that can be specified using the slider */
-	UPROPERTY(EditAnywhere, Category = Content, DisplayName = "Maximum Slider Value", meta = (editcondition = "bOverride_MaxSliderValue"))
+	UE_DEPRECATED(5.2, "Direct access to MaxSliderValue is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetMaxSliderValue", BlueprintGetter = "GetMaxSliderValue", Category = Content, DisplayName = "Maximum Slider Value", meta = (editcondition = "bOverride_MaxSliderValue"))
 	float MaxSliderValue;
 
 protected:

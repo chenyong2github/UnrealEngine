@@ -53,7 +53,7 @@ void UCommonAnimatedSwitcher::ActivateNextWidget(bool bCanWrap)
 {
 	if (Slots.Num() > 1)
 	{
-		if (ActiveWidgetIndex == Slots.Num() - 1)
+		if (GetActiveWidgetIndex() == Slots.Num() - 1)
 		{
 			if (bCanWrap)
 			{
@@ -62,7 +62,7 @@ void UCommonAnimatedSwitcher::ActivateNextWidget(bool bCanWrap)
 		}
 		else
 		{
-			SetActiveWidgetIndex(ActiveWidgetIndex + 1);
+			SetActiveWidgetIndex(GetActiveWidgetIndex() + 1);
 		}
 	}
 }
@@ -71,7 +71,7 @@ void UCommonAnimatedSwitcher::ActivatePreviousWidget(bool bCanWrap)
 {
 	if (Slots.Num() > 1)
 	{
-		if (ActiveWidgetIndex == 0)
+		if (GetActiveWidgetIndex() == 0)
 		{
 			if (bCanWrap)
 			{
@@ -80,7 +80,7 @@ void UCommonAnimatedSwitcher::ActivatePreviousWidget(bool bCanWrap)
 		}
 		else
 		{
-			SetActiveWidgetIndex(ActiveWidgetIndex - 1);
+			SetActiveWidgetIndex(GetActiveWidgetIndex() - 1);
 		}
 	}
 }
@@ -102,16 +102,16 @@ bool UCommonAnimatedSwitcher::IsCurrentlySwitching() const
 
 void UCommonAnimatedSwitcher::HandleSlateActiveIndexChanged(int32 ActiveIndex)
 {
-	if (Slots.IsValidIndex(ActiveWidgetIndex))
+	if (Slots.IsValidIndex(GetActiveWidgetIndex()))
 	{
-		OnActiveWidgetIndexChanged.Broadcast(GetWidgetAtIndex(ActiveWidgetIndex), ActiveWidgetIndex);
+		OnActiveWidgetIndexChanged.Broadcast(GetWidgetAtIndex(GetActiveWidgetIndex()), GetActiveWidgetIndex());
 	}
 }
 
 TSharedRef<SWidget> UCommonAnimatedSwitcher::RebuildWidget()
 {
 	MyWidgetSwitcher = MyAnimatedSwitcher = SNew(SCommonAnimatedSwitcher)
-		.InitialIndex(ActiveWidgetIndex)
+		.InitialIndex(GetActiveWidgetIndex())
 		.TransitionCurveType(TransitionCurveType)
 		.TransitionDuration(TransitionDuration)
 		.TransitionType(TransitionType)
@@ -159,23 +159,23 @@ void UCommonAnimatedSwitcher::SetActiveWidgetIndex_Internal(int32 Index)
 	
 	TGuardValue<bool> bCurrentlySwitchingGuard(bCurrentlySwitching, true);
 
-	if (Index >= 0 && Index < Slots.Num() && (Index != ActiveWidgetIndex || !bSetOnce))
+	if (Index >= 0 && Index < Slots.Num() && (Index != GetActiveWidgetIndex() || !bSetOnce))
 	{
 		HandleOutgoingWidget();
 
-		ActiveWidgetIndex = Index;
+		SetActiveWidgetIndex(Index);
 
 		if (MyAnimatedSwitcher.IsValid())
 		{
 			// Ensure the index is clamped to a valid range.
-			int32 SafeIndex = FMath::Clamp(ActiveWidgetIndex, 0, FMath::Max(0, Slots.Num() - 1));
+			int32 SafeIndex = FMath::Clamp(GetActiveWidgetIndex(), 0, FMath::Max(0, Slots.Num() - 1));
 			MyAnimatedSwitcher->TransitionToIndex(SafeIndex, bInstantTransition);
 		}
 
 		//When we're setting up, and the index goes 0->0, MyAnimatedSwitcher won't fire its ActiveIndexChanged Event.
 		if (!bSetOnce)
 		{
-			HandleSlateActiveIndexChanged(ActiveWidgetIndex);
+			HandleSlateActiveIndexChanged(GetActiveWidgetIndex());
 		}
 
 		bSetOnce = true;

@@ -19,7 +19,8 @@ class UMG_API UWidgetSwitcher : public UPanelWidget
 
 public:
 	/** The slot index to display */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Switcher", meta=( UIMin=0, ClampMin=0 ))
+	UE_DEPRECATED(5.2, "Direct access to ActiveWidgetIndex is deprecated. Please use the getter or setter.")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Getter, Setter, BlueprintSetter = "SetActiveWidgetIndex", BlueprintGetter = "GetActiveWidgetIndex", FieldNotify, Category = "Switcher", meta = (UIMin = 0, ClampMin = 0))
 	int32 ActiveWidgetIndex;
 
 public:
