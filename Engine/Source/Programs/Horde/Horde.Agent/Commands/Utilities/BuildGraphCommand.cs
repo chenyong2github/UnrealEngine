@@ -48,23 +48,23 @@ namespace Horde.Agent.Commands.Utilities
 				_outputStream.Dispose();
 			}
 
-			public Task SetOutcomeAsync(JobStepOutcome outcome) => Task.CompletedTask;
+			public Task SetOutcomeAsync(JobStepOutcome outcome, CancellationToken cancellationToken) => Task.CompletedTask;
 
-			public async Task WriteEventsAsync(List<CreateEventRequest> events)
+			public async Task WriteEventsAsync(List<CreateEventRequest> events, CancellationToken cancellationToken)
 			{
 				foreach (CreateEventRequest request in events)
 				{
 					JsonSerializerOptions options = new JsonSerializerOptions();
 					options.Converters.Add(new JsonStringEnumConverter());
-					await JsonSerializer.SerializeAsync(_eventStream, request, options);
+					await JsonSerializer.SerializeAsync(_eventStream, request, options, cancellationToken);
 					_eventStream.Write(Encoding.UTF8.GetBytes(Environment.NewLine));
 				}
 			}
 
-			public async Task WriteOutputAsync(WriteOutputRequest request)
+			public async Task WriteOutputAsync(WriteOutputRequest request, CancellationToken cancellationToken)
 			{
 				PrintJson(request.Data.Span);
-				await _outputStream.WriteAsync(request.Data.Memory);
+				await _outputStream.WriteAsync(request.Data.Memory, cancellationToken);
 			}
 
 			void PrintJson(ReadOnlySpan<byte> span)
