@@ -7575,7 +7575,7 @@ CONSTCD14
 inline
 std::enable_if_t
 <
-    std::is_same<CharT, char>{},
+    (std::is_same<CharT, char>{}),
     string_literal<char, 3>
 >
 msl(std::micro) NOEXCEPT
@@ -7588,7 +7588,7 @@ CONSTCD14
 inline
 std::enable_if_t
 <
-    !std::is_same<CharT, char>{},
+    !(std::is_same<CharT, char>{}),
     string_literal<CharT, 2>
 >
 msl(std::micro) NOEXCEPT
