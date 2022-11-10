@@ -730,7 +730,7 @@ void SSourceControlChangelistsWidget::RequestChangelistsRefresh()
 {
 	bool bAnyProviderAvailable = false;
 
-	if (ISourceControlModule::Get().IsEnabled())
+	if (AreControlledChangelistsEnabled())
 	{
 		bAnyProviderAvailable = true;
 		StartRefreshStatus();
@@ -745,7 +745,7 @@ void SSourceControlChangelistsWidget::RequestChangelistsRefresh()
 		OnStartSourceControlOperation(UpdatePendingChangelistsOperation, LOCTEXT("SourceControl_UpdatingChangelist", "Updating changelists..."));
 	}
 
-	if (FUncontrolledChangelistsModule::Get().IsEnabled())
+	if (AreUncontrolledChangelistsEnabled())
 	{
 		bAnyProviderAvailable = true;
 
