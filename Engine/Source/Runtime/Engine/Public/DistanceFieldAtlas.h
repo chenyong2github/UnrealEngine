@@ -287,6 +287,11 @@ public:
 		return ResSize.GetTotalMemoryBytes();
 	}
 
+	bool IsValid() const
+	{
+		return Mips[0].IndirectionDimensions.GetMax() > 0;
+	}
+
 #if WITH_EDITORONLY_DATA
 
 	void CacheDerivedData(const FString& InStaticMeshDerivedDataKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, class FStaticMeshRenderData& RenderData, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided);

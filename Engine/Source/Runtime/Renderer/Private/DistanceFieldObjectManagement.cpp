@@ -388,7 +388,7 @@ bool ProcessPrimitiveUpdate(
 	Proxy->GetDistanceFieldAtlasData(DistanceFieldData, SelfShadowBias);
 	Proxy->GetDistanceFieldInstanceData(InstanceLocalToPrimitiveTransforms);
 
-	if (DistanceFieldData && DistanceFieldData->Mips[0].IndirectionDimensions.GetMax() > 0 && InstanceLocalToPrimitiveTransforms.Num() > 0)
+	if (DistanceFieldData && DistanceFieldData->IsValid() && InstanceLocalToPrimitiveTransforms.Num() > 0)
 	{
 		const float BoundingRadius = Proxy->GetBounds().SphereRadius;
 		const FGlobalDFCacheType CacheType = Proxy->IsOftenMoving() ? GDF_Full : GDF_MostlyStatic;

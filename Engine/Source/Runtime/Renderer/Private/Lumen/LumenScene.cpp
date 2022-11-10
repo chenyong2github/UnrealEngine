@@ -594,13 +594,7 @@ bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
 	if (DoesProjectSupportDistanceFields() && Proxy->AffectsDistanceFieldLighting()
 		&& (Proxy->SupportsDistanceFieldRepresentation() || Proxy->SupportsHeightfieldRepresentation()))
 	{
-		const FDistanceFieldVolumeData* DistanceFieldData = nullptr;
-		float SelfShadowBias;
-		Proxy->GetDistanceFieldAtlasData(DistanceFieldData, SelfShadowBias);
-		if (DistanceFieldData && DistanceFieldData->Mips[0].IndirectionDimensions.GetMax() > 0)
-		{
-			bCanBeTraced = true;
-		}
+		bCanBeTraced = true;
 	}
 
 #if RHI_RAYTRACING
