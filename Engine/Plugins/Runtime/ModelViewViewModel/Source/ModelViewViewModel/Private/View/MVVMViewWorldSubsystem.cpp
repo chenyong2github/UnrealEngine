@@ -2,6 +2,7 @@
 
 #include "View/MVVMViewWorldSubsystem.h"
 
+#include "Misc/MemStack.h"
 #include "View/MVVMView.h"
 
 void UMVVMViewWorldSubsystem::Tick(float DeltaTime)
