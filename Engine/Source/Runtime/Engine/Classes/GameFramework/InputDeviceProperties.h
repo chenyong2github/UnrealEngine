@@ -73,13 +73,21 @@ public:
 	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser);
 
 	/**
-	* Apply the given device property to the Input Interface. 
+	* Apply the device property from GetInternalDeviceProperty to the given platform user. 
 	* Note: To remove any applied affects of this device property, call ResetDeviceProperty.
 	* 
 	* @param UserId		The owning Platform User whose input device this property should be applied to.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "InputDevice")
 	virtual void ApplyDeviceProperty(const FPlatformUserId UserId);
+
+	/** 
+	* Apply the given device property
+	* 
+	* @param UserId			The owning Platform User whose input device this property should be applied to.
+	* @param RawProperty	The internal input device property to apply.
+	*/
+	static void ApplyDeviceProperty(const FPlatformUserId UserId, FInputDeviceProperty* RawProperty);
 	
 	/** Gets a pointer to the current input device property that the IInputInterface can use. */
 	virtual FInputDeviceProperty* GetInternalDeviceProperty() { return nullptr; };
@@ -114,7 +122,7 @@ protected:
 /** 
 * A property that can be used to change the color of an input device's light 
 * 
-* NOTE: This property has platform specific implementations and may behavior differently per platform.
+* NOTE: This property has platform specific implementations and may behave differently per platform.
 * See the docs for more details on each platform.
 */
 UCLASS(Blueprintable, BlueprintType)
@@ -143,4 +151,146 @@ private:
 
 	/** The internal light color property that this represents; */
 	FInputDeviceLightColorProperty InternalProperty;
+};
+
+/** A property that effect the triggers on a gamepad */
+UCLASS(Abstract, Blueprintable)
+class ENGINE_API UInputDeviceTriggerEffect : public UInputDeviceProperty
+{
+	GENERATED_BODY()
+
+public:	
+
+	virtual void ResetDeviceProperty_Implementation(const FPlatformUserId PlatformUser) override;
+
+	/** Which trigger this property should effect */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+    EInputDeviceTriggerMask AffectedTriggers = EInputDeviceTriggerMask::None;
+
+	/** True if the triggers should be reset after the duration of this device property */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	bool bResetUponCompletion = true;
+
+protected:
+
+	/** Internal property that can be used to reset a given trigger */
+	FInputDeviceTriggerResetProperty ResetProperty = {};
+};
+
+/** 
+* Sets simple trigger feedback
+* 
+* NOTE: This property has platform specific implementations and may behave differently per platform.
+* See the docs for more details on each platform.
+*/
+UCLASS(Blueprintable)
+class UInputDeviceTriggerFeedbackProperty : public UInputDeviceTriggerEffect
+{
+	GENERATED_BODY()
+
+public:
+	
+	UInputDeviceTriggerFeedbackProperty();
+	
+	virtual void EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration) override;	
+	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
+	virtual float RecalculateDuration() override;
+
+	/** What position on the trigger that the feedback should be applied to over time (1-9) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	TObjectPtr<UCurveFloat> FeedbackPositionCurve;
+
+	/** How strong the feedback is over time (1-8) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	TObjectPtr<UCurveFloat> FeedbackStrenghCurve;
+
+private:
+
+	int32 GetPositionValue(const float Duration) const;
+	int32 GetStrengthValue(const float Duration) const;
+
+	/** The internal property that represents this trigger feedback. */
+	FInputDeviceTriggerFeedbackProperty InternalProperty;
+};
+
+/** 
+* Provides resistance to a trigger while it is being pressed between a start and end value
+* 
+* NOTE: This property has platform specific implementations and may behave differently per platform.
+* See the docs for more details on each platform.
+*/
+UCLASS(Blueprintable)
+class UInputDeviceTriggerResistanceProperty : public UInputDeviceTriggerEffect
+{
+	GENERATED_BODY()
+
+public:
+
+	UInputDeviceTriggerResistanceProperty();
+
+	virtual void EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration) override;
+	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
+
+protected:
+
+	/** The position that the trigger should start providing resistance */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	int32 StartPosition = 0;
+
+	/** How strong the resistance is */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	int32 StartStrengh = 0;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	int32 EndPosition = 0;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	int32 EndStrengh = 0;
+
+private:
+
+	/** The internal property that represents this trigger resistance */
+	FInputDeviceTriggerResistanceProperty InternalProperty;
+};
+
+
+/**
+* Sets trigger vibration
+*
+* NOTE: This property has platform specific implementations and may behave differently per platform.
+* See the docs for more details on each platform.
+*/
+UCLASS(Blueprintable)
+class UInputDeviceTriggerVibrationProperty : public UInputDeviceTriggerEffect
+{
+	GENERATED_BODY()
+
+public:
+
+	UInputDeviceTriggerVibrationProperty();
+
+	virtual void EvaluateDeviceProperty_Implementation(const FPlatformUserId PlatformUser, const float DeltaTime, const float Duration) override;
+	virtual FInputDeviceProperty* GetInternalDeviceProperty() override;
+	virtual float RecalculateDuration() override;
+
+	/** What position on the trigger that the feedback should be applied to over time (1-9) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	TObjectPtr<UCurveFloat> TriggerPositionCurve;
+
+	/** The frequency of the vibration */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	TObjectPtr<UCurveFloat> VibrationFrequencyCurve;
+
+	/** The amplitude of the vibration */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "DeviceProperty")
+	TObjectPtr<UCurveFloat> VibrationAmplitudeCurve;
+
+private:
+
+	int32 GetTriggerPositionValue(const float Duration) const;
+	int32 GetVibrationFrequencyValue(const float Duration) const;
+	int32 GetVibrationAmplitudeValue(const float Duration) const;
+
+	/** The internal property that represents this trigger feedback. */
+	FInputDeviceTriggerVibrationProperty InternalProperty;
 };
