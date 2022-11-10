@@ -37,7 +37,7 @@ void FGeometryCollectionTerminalDataflowNode::SetAssetValue(TObjectPtr<UObject> 
 	}
 }
 
-void FGeometryCollectionTerminalDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
+void FGeometryCollectionTerminalDataflowNode::Evaluate(Dataflow::FContext& Context) const
 {
 	using FMaterialArray = TArray<TObjectPtr<UMaterial>>;
 

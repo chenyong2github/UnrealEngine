@@ -42,11 +42,15 @@ void UDataflow::EvaluateTerminalNodeByName(FName NodeName, UObject* Asset)
 {
 	if (Dataflow)
 	{
-		TSharedPtr<FDataflowNode> TerminalNode = Dataflow->FindTerminalNode(NodeName);
-		if (TerminalNode)
+		TSharedPtr<FDataflowNode> Node = Dataflow->FindTerminalNode(NodeName);
+		if (const FDataflowTerminalNode* TerminalNode = Node->AsType<const FDataflowTerminalNode>())
 		{
 			Dataflow::FEngineContext Context(Asset, this, FPlatformTime::Cycles64());
-			TerminalNode->Evaluate(Context, nullptr);
+			TerminalNode->Evaluate(Context);
+			if (Asset)
+			{
+				TerminalNode->SetAssetValue(Asset, Context);
+			}
 		}
 		else
 		{

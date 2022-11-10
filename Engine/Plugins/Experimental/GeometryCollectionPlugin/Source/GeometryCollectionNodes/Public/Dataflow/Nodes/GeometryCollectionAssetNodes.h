@@ -36,8 +36,8 @@ public:
 		RegisterOutputConnection(&Materials, &Materials);
 	}
 
+	virtual void Evaluate(Dataflow::FContext& Context) const override;
 	virtual void SetAssetValue(TObjectPtr<UObject> Asset, Dataflow::FContext& Context) const override;
-	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
 };
 
 
