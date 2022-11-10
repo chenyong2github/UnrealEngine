@@ -950,19 +950,28 @@ USocialParty* USocialManager::GetPartyInternal(const FOnlinePartyId& PartyId, bo
 	return nullptr;
 }
 
+#if PARTY_PLATFORM_SESSIONS_XBL
+extern TAutoConsoleVariable<bool> CVarXboxMpaEnabled;
+#endif
+
 TSharedPtr<const IOnlinePartyJoinInfo> USocialManager::GetJoinInfoFromSession(const FOnlineSessionSearchResult& PlatformSession)
 {
 	static const FName JoinInfoSettingName = PARTY_PLATFORM_SESSIONS_XBL ? SETTING_CUSTOM_JOIN_INFO : SETTING_CUSTOM;
 
-	FString JoinInfoJson;
-	if (PlatformSession.Session.SessionSettings.Get(JoinInfoSettingName, JoinInfoJson))
+	FString JoinInfoString;
+	if (PlatformSession.Session.SessionSettings.Get(JoinInfoSettingName, JoinInfoString))
 	{
-#if PARTY_PLATFORM_SESSIONS_XBL 
-		// On Xbox we encode our party data in base64 to avoid XboxLive trying to parse our json, so now we need to decode that
-		FBase64::Decode(JoinInfoJson, JoinInfoJson);
-#endif 
 		IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
-		return PartyInterface->MakeJoinInfoFromJson(JoinInfoJson);
+#if PARTY_PLATFORM_SESSIONS_XBL 
+		if (CVarXboxMpaEnabled.GetValueOnAnyThread())
+		{
+			return PartyInterface->MakeJoinInfoFromToken(JoinInfoString);
+		}
+
+		// On Xbox MPSD we encode our party data in base64 to avoid XboxLive trying to parse our json, so now we need to decode that
+		FBase64::Decode(JoinInfoString, JoinInfoString);
+#endif 
+		return PartyInterface->MakeJoinInfoFromJson(JoinInfoString);
 	}
 	return nullptr;
 }

@@ -1741,6 +1741,15 @@ public:
 	virtual FString MakeTokenFromJoinInfo(const IOnlinePartyJoinInfo& JoinInfo) const = 0;
 
 	/**
+	 * returns the join info for current party
+	 *
+	 * @param LocalUserId       - user making the request
+	 * @param PartyId           - party to make the json from
+	 *
+ 	 */
+	virtual IOnlinePartyJoinInfoConstPtr MakeJoinInfo(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId) = 0;
+
+	/**
 	 * Creates a IOnlinePartyJoinInfo object from a command line token
 	 *
 	 * @param Token - the token string

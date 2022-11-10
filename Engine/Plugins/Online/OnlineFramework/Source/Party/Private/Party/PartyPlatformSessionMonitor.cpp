@@ -1003,6 +1003,10 @@ void FPartyPlatformSessionMonitor::HandleDestroySessionComplete(FName SessionNam
 	ShutdownInternal();
 }
 
+#if PARTY_PLATFORM_SESSIONS_XBL
+extern TAutoConsoleVariable<bool> CVarXboxMpaEnabled;
+#endif
+
 bool FPartyPlatformSessionMonitor::ConfigurePlatformSessionSettings(FOnlineSessionSettings& SessionSettings) const
 {
 	bool bEstablishedPartySettings = false;
@@ -1010,27 +1014,40 @@ bool FPartyPlatformSessionMonitor::ConfigurePlatformSessionSettings(FOnlineSessi
 	IOnlinePartyPtr PartyInterface = MonitoredParty.IsValid() ? Online::GetPartyInterface(MonitoredParty->GetWorld()) : nullptr;
 	if (PartyInterface.IsValid())
 	{
-		const FString JoinInfoJson = PartyInterface->MakeJoinInfoJson(*MonitoredParty->GetOwningLocalUserId(), MonitoredParty->GetPartyId());
-		if (ensure(!JoinInfoJson.IsEmpty()))
+#if PARTY_PLATFORM_SESSIONS_XBL
+		if (CVarXboxMpaEnabled.GetValueOnAnyThread())
 		{
-			bEstablishedPartySettings = true;
+			if (IOnlinePartyJoinInfoConstPtr JoinInfo = PartyInterface->MakeJoinInfo(*MonitoredParty->GetOwningLocalUserId(), MonitoredParty->GetPartyId()))
+			{
+				SessionSettings.Set(SETTING_CUSTOM_JOIN_INFO, PartyInterface->MakeTokenFromJoinInfo(*JoinInfo), EOnlineDataAdvertisementType::ViaOnlineService);
+				bEstablishedPartySettings = true;
+			}
+		}
+		else
+#endif
+		{
+			const FString JoinInfoJson = PartyInterface->MakeJoinInfoJson(*MonitoredParty->GetOwningLocalUserId(), MonitoredParty->GetPartyId());
+			if (ensure(!JoinInfoJson.IsEmpty()))
+			{
+				bEstablishedPartySettings = true;
 
 #if PARTY_PLATFORM_SESSIONS_PSN
-			SessionSettings.Set(SETTING_HOST_MIGRATION, true, EOnlineDataAdvertisementType::DontAdvertise);
-			SessionSettings.Set(SETTING_CUSTOM, JoinInfoJson, EOnlineDataAdvertisementType::ViaOnlineService);
+				SessionSettings.Set(SETTING_HOST_MIGRATION, true, EOnlineDataAdvertisementType::DontAdvertise);
+				SessionSettings.Set(SETTING_CUSTOM, JoinInfoJson, EOnlineDataAdvertisementType::ViaOnlineService);
 #elif PARTY_PLATFORM_SESSIONS_XBL
-			// This needs to match our value on the XDP service configuration
-			SessionSettings.Set(SETTING_SESSION_TEMPLATE_NAME, FString(TEXT("MultiplayerGameSession")), EOnlineDataAdvertisementType::DontAdvertise);
+				// This needs to match our value on the XDP service configuration
+				SessionSettings.Set(SETTING_SESSION_TEMPLATE_NAME, FString(TEXT("MultiplayerGameSession")), EOnlineDataAdvertisementType::DontAdvertise);
 
-			// XBOX has their own value for this as SETTING_CUSTOM is hard-coded to constant data in the OSS, and is the actual originator of
-			// SETTING_CUSTOM.  Everyone else co-opted it and made it dynamic, so we need to use something else just here so other OSS' still
-			// work out of the box for this functionality
-			// Encode our JoinInfo into Base64 to prevent XboxLive from parsing our json
-			SessionSettings.Set(SETTING_CUSTOM_JOIN_INFO, FBase64::Encode(JoinInfoJson), EOnlineDataAdvertisementType::ViaOnlineService);
+				// XBOX has their own value for this as SETTING_CUSTOM is hard-coded to constant data in the OSS, and is the actual originator of
+				// SETTING_CUSTOM.  Everyone else co-opted it and made it dynamic, so we need to use something else just here so other OSS' still
+				// work out of the box for this functionality
+				// Encode our JoinInfo into Base64 to prevent XboxLive from parsing our json
+				SessionSettings.Set(SETTING_CUSTOM_JOIN_INFO, FBase64::Encode(JoinInfoJson), EOnlineDataAdvertisementType::ViaOnlineService);
 #elif PLATFORM_DESKTOP
-			// PC (Tencent)
-			SessionSettings.Set(SETTING_CUSTOM, JoinInfoJson, EOnlineDataAdvertisementType::ViaOnlineService);
+				// PC (Tencent)
+				SessionSettings.Set(SETTING_CUSTOM, JoinInfoJson, EOnlineDataAdvertisementType::ViaOnlineService);
 #endif
+			}
 		}
 	}
 
