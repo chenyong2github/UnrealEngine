@@ -24,7 +24,7 @@
 #include "SkinnedMeshComponent.generated.h"
 
 enum class ESkinCacheUsage : uint8;
-
+enum class EPreviousBoneTransformUpdateMode;
 class FPrimitiveSceneProxy;
 class FColorVertexBuffer;
 class FSkinWeightVertexBuffer;
@@ -286,6 +286,16 @@ public:
 	void ForceMotionVector();
 
 private:
+	EPreviousBoneTransformUpdateMode UpdateBoneTransformRevisionNumber();
+
+	enum class EBoneTransformUpdateMethod
+	{
+		AnimationUpdate,
+		ClearMotionVector,
+		ForceMotionVector
+	};
+	TArray<EBoneTransformUpdateMethod> BoneTransformUpdateMethodQueue;
+
 	/** Temporary array of of component-space bone matrices, update each frame and used for rendering the mesh. */
 	TArray<FTransform> ComponentSpaceTransformsArray[2];
 

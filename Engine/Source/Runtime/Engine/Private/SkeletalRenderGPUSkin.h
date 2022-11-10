@@ -290,9 +290,6 @@ private:
 	// parent mesh containing the source data, never 0
 	FSkeletalMeshRenderData* SkelMeshRenderData;
 
-	/** Latest updated frame number, -1 means invalid */
-	uint32 FrameNumber = -1;
-
 	friend class FMorphVertexBufferPool;
 };
 
@@ -313,14 +310,21 @@ public:
 	SIZE_T GetResourceSize() const;
 	void EnableDoubleBuffer();
 	bool IsDoubleBuffered() const	{ return bDoubleBuffer; }
-	const FMorphVertexBuffer& GetMorphVertexBufferForReading(bool bPrevious, uint32 FrameNumber) const;
-	FMorphVertexBuffer& GetMorphVertexBufferForWriting(uint32 FrameNumber);
+	void SetCurrentRevisionNumber(uint32 RevisionNumber);
+	const FMorphVertexBuffer& GetMorphVertexBufferForReading(bool bPrevious) const;
+	FMorphVertexBuffer& GetMorphVertexBufferForWriting();
 
 private:
 	/** Vertex buffer that stores the morph target vertex deltas. */
 	FMorphVertexBuffer MorphVertexBuffers[2];
 	/** whether to double buffer. If going through skin cache, then use single buffer; otherwise double buffer. */
 	bool bDoubleBuffer = false;
+
+	// 0 / 1 to index into MorphVertexBuffer
+	uint32 CurrentBuffer = 0;
+	// RevisionNumber Tracker
+	uint32 PreviousRevisionNumber = 0;
+	uint32 CurrentRevisionNumber = 0;
 };
 
 /**

@@ -56,8 +56,6 @@ UChaosClothComponent::UChaosClothComponent(const FObjectInitializer& ObjectIniti
 	bSyncAttachParentLOD = true;
 	//bIgnoreMasterPoseComponentLOD = false;
 
-	CurrentBoneTransformRevisionNumber = 0;
-
 	//ExternalInterpolationAlpha = 0.0f;
 	//ExternalDeltaTime = 0.0f;
 	//ExternalTickRate = 1;

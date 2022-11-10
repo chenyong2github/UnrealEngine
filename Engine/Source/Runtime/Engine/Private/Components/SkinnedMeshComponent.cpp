@@ -791,6 +791,54 @@ void USkinnedMeshComponent::RefreshExternalMorphTargetWeights()
 	}
 }
 
+EPreviousBoneTransformUpdateMode USkinnedMeshComponent::UpdateBoneTransformRevisionNumber()
+{
+	EPreviousBoneTransformUpdateMode PreviousUpdateMode = EPreviousBoneTransformUpdateMode::None;
+
+	if (BoneTransformUpdateMethodQueue.Num() > 0)
+	{
+		if (BoneTransformUpdateMethodQueue.Last() == EBoneTransformUpdateMethod::ClearMotionVector)
+		{
+			// Last entry is ClearMotionVector, increment revision number by 2 which allows current bone buffer to be bound to previous shader slot to cancel out velocity
+			// See FGPUBaseSkinVertexFactory::FShaderDataType::GetBoneBufferInternal() for how it's used.
+			CurrentBoneTransformRevisionNumber += 2;
+		}
+		else
+		{
+			CurrentBoneTransformRevisionNumber++;
+			if (BoneTransformUpdateMethodQueue.Num() > 1)
+			{
+				// When there are multiple entries in the queue, previous bone transforms may or may not need updating, so for simplicity make sure it updates.
+				// E.g. Queue: ForceMotionVector -> AnimationUpdate, previous data may be overriden by ForceMotionVector and should update
+				PreviousUpdateMode = EPreviousBoneTransformUpdateMode::UpdatePrevious;
+			}
+
+			// If we may not evaluate animation every frame and there's an animation update in the queue, copy current to previous
+			if (bExternalEvaluationRateLimited && !bExternalInterpolate)
+			{
+				// Is there an animation update in the queue?
+				int32 AnimationUpdateIndex = -1;
+				for (int32 i = 0; i < BoneTransformUpdateMethodQueue.Num(); ++i)
+				{
+					if (BoneTransformUpdateMethodQueue[i] == EBoneTransformUpdateMethod::AnimationUpdate)
+					{
+						AnimationUpdateIndex = i;
+						break;
+					}
+				}
+				if (AnimationUpdateIndex > -1)
+				{
+					PreviousUpdateMode = EPreviousBoneTransformUpdateMode::DuplicateCurrentToPrevious;
+				}
+			}
+		}
+
+		BoneTransformUpdateMethodQueue.Reset();
+	}
+
+	return PreviousUpdateMode;
+}
+
 void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
 {
 	LLM_SCOPE(ELLMTag::SkeletalMesh);
@@ -909,6 +957,7 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 				}
 
 				RefreshExternalMorphTargetWeights();
+				UpdateBoneTransformRevisionNumber();
 				MeshObject->Update(ModifiedLODLevel, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::UpdatePrevious, GetExternalMorphWeights(ModifiedLODLevel));  // send to rendering thread
 			}
 		}
@@ -1007,13 +1056,15 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 			{
 				ActiveMorphTargets.Empty();
 			}
+			
+			EPreviousBoneTransformUpdateMode PreviousBoneTransformUpdateMode = UpdateBoneTransformRevisionNumber();
 
 			MeshObject->Update(
 				UseLOD,
 				this,
 				ActiveMorphTargets,
 				MorphTargetWeights,
-				bExternalEvaluationRateLimited && !bExternalInterpolate ? EPreviousBoneTransformUpdateMode::DuplicateCurrentToPrevious : EPreviousBoneTransformUpdateMode::None,
+				PreviousBoneTransformUpdateMode,
 				GetExternalMorphWeights(UseLOD)
 			);  // send to rendering thread
 
@@ -1051,18 +1102,12 @@ void USkinnedMeshComponent::ClearMotionVector()
 			UseLOD = FMath::Max<int32>(UseLOD, MeshObject->GetSkeletalMeshRenderData().PendingFirstLODIdx);
 		}
 
-		// rendering bone velocity is updated by revision number
 		// if you have situation where you want to clear the bone velocity (that causes temporal AA or motion blur)
 		// use this function to clear it
-		// this function updates renderer twice using increasing of revision number, so that renderer updates previous/new transform correctly
-		++CurrentBoneTransformRevisionNumber;
-		MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None, GetExternalMorphWeights(UseLOD));  // send to rendering thread
-
-		++CurrentBoneTransformRevisionNumber;
-		MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None, GetExternalMorphWeights(UseLOD));  // send to rendering thread
-
-		// Skin cache may need updating
-		MarkForNeededEndOfFrameUpdate();
+		BoneTransformUpdateMethodQueue.Add(EBoneTransformUpdateMethod::ClearMotionVector);
+		// Make sure an update happens
+		bForceMeshObjectUpdate = true;
+		MarkRenderDynamicDataDirty();
 	}
 }
 
@@ -1077,11 +1122,10 @@ void USkinnedMeshComponent::ForceMotionVector()
 			UseLOD = FMath::Max<int32>(UseLOD, MeshObject->GetSkeletalMeshRenderData().PendingFirstLODIdx);
 		}
 
-		++CurrentBoneTransformRevisionNumber;
-		MeshObject->Update(UseLOD, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None, GetExternalMorphWeights(UseLOD));
-
-		// Skin cache may need updating
-		MarkForNeededEndOfFrameUpdate();
+		BoneTransformUpdateMethodQueue.Add(EBoneTransformUpdateMethod::ForceMotionVector);
+		// Make sure an update happens
+		bForceMeshObjectUpdate = true;
+		MarkRenderDynamicDataDirty();
 	}
 }
 
@@ -3771,7 +3815,7 @@ void USkinnedMeshComponent::FlipEditableSpaceBases()
 			}
 		}
 
-		++CurrentBoneTransformRevisionNumber;
+		BoneTransformUpdateMethodQueue.Add(EBoneTransformUpdateMethod::AnimationUpdate);
 	}
 }
 

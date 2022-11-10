@@ -722,10 +722,10 @@ void TGPUSkinVertexFactory<BoneInfluenceType>::UpdateMorphVertexStream(const FMo
 }
 
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
-const FMorphVertexBuffer* TGPUSkinVertexFactory<BoneInfluenceType>::GetMorphVertexBuffer(bool bPrevious, uint32 FrameNumber) const
+const FMorphVertexBuffer* TGPUSkinVertexFactory<BoneInfluenceType>::GetMorphVertexBuffer(bool bPrevious) const
 {
 	check(Data.IsValid());
-	return Data->MorphVertexBufferPool ? &Data->MorphVertexBufferPool->GetMorphVertexBufferForReading(bPrevious, FrameNumber) : nullptr;
+	return Data->MorphVertexBufferPool ? &Data->MorphVertexBufferPool->GetMorphVertexBufferForReading(bPrevious) : nullptr;
 }
 
 /*-----------------------------------------------------------------------------
@@ -836,7 +836,7 @@ public:
 		{
 			const FMorphVertexBuffer* MorphVertexBuffer = nullptr;
 			const auto* GPUSkinVertexFactory = (const FGPUBaseSkinVertexFactory*)VertexFactory;
-			MorphVertexBuffer = GPUSkinVertexFactory->GetMorphVertexBuffer(!View->Family->bWorldIsPaused, View->Family->FrameNumber);
+			MorphVertexBuffer = GPUSkinVertexFactory->GetMorphVertexBuffer(!View->Family->bWorldIsPaused);
 			ShaderBindings.Add(PreviousMorphBufferParameter, MorphVertexBuffer ? MorphVertexBuffer->GetSRV() : GNullVertexBuffer.VertexBufferSRV.GetReference());
 		}
 	}
@@ -1085,10 +1085,8 @@ public:
 
 		ShaderBindings.Add(Shader->GetUniformBufferParameter<FAPEXClothUniformShaderParameters>(), ClothShaderData.GetClothUniformBuffer());
 
-		uint32 FrameNumber = View->Family->FrameNumber;
-
-		ShaderBindings.Add(ClothSimulVertsPositionsNormalsParameter, ClothShaderData.GetClothBufferForReading(false, FrameNumber).VertexBufferSRV);
-		ShaderBindings.Add(ClothToLocalParameter, ClothShaderData.GetClothToLocalForReading(false, FrameNumber));
+		ShaderBindings.Add(ClothSimulVertsPositionsNormalsParameter, ClothShaderData.GetClothBufferForReading(false).VertexBufferSRV);
+		ShaderBindings.Add(ClothToLocalParameter, ClothShaderData.GetClothToLocalForReading(false));
 		ShaderBindings.Add(ClothBlendWeightParameter,ClothShaderData.ClothBlendWeight);
 		ShaderBindings.Add(ClothNumInfluencesPerVertexParameter, ClothShaderData.NumInfluencesPerVertex);
 
@@ -1097,8 +1095,8 @@ public:
 		const bool bIsMobile = IsMobilePlatform(ShaderPlatform);
 		if (!bIsMobile)
 		{
-			ShaderBindings.Add(PreviousClothSimulVertsPositionsNormalsParameter, ClothShaderData.GetClothBufferForReading(true, FrameNumber).VertexBufferSRV);
-			ShaderBindings.Add(PreviousClothToLocalParameter, ClothShaderData.GetClothToLocalForReading(true, FrameNumber));
+			ShaderBindings.Add(PreviousClothSimulVertsPositionsNormalsParameter, ClothShaderData.GetClothBufferForReading(true).VertexBufferSRV);
+			ShaderBindings.Add(PreviousClothToLocalParameter, ClothShaderData.GetClothToLocalForReading(true));
 		}
 
 		ShaderBindings.Add(GPUSkinApexClothParameter, ClothVertexFactory->GetClothBuffer());
@@ -1126,7 +1124,7 @@ IMPLEMENT_TYPE_LAYOUT(TGPUSkinAPEXClothVertexFactoryShaderParameters);
 -----------------------------------------------------------------------------*/
 
 bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(FRHICommandListImmediate& RHICmdList, const TArray<FVector3f>& InSimulPositions,
-	const TArray<FVector3f>& InSimulNormals, uint32 FrameNumberToPrepare, ERHIFeatureLevel::Type FeatureLevel)
+	const TArray<FVector3f>& InSimulNormals, uint32 RevisionNumber, ERHIFeatureLevel::Type FeatureLevel)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FGPUBaseSkinAPEXClothVertexFactory_UpdateClothSimulData);
 
@@ -1134,7 +1132,8 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 
 	check(IsInRenderingThread());
 	
-	FVertexBufferAndSRV* CurrentClothBuffer = &GetClothBufferForWriting(FrameNumberToPrepare);
+	SetCurrentRevisionNumber(RevisionNumber);
+	FVertexBufferAndSRV* CurrentClothBuffer = &GetClothBufferForWriting();
 
 	NumSimulVerts = FMath::Min(NumSimulVerts, (uint32)MAX_APEXCLOTH_VERTICES_FOR_VB);
 
@@ -1202,6 +1201,90 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 	}
 	
 	return false;
+}
+
+void FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::SetCurrentRevisionNumber(uint32 RevisionNumber)
+{
+	if (bDoubleBuffer)
+	{
+		// Flip revision number to previous if this is new, otherwise keep current version.
+		if (CurrentRevisionNumber != RevisionNumber)
+		{
+			PreviousRevisionNumber = CurrentRevisionNumber;
+			CurrentRevisionNumber = RevisionNumber;
+			CurrentBuffer = 1 - CurrentBuffer;
+		}
+	}
+}
+
+FVertexBufferAndSRV& FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::GetClothBufferForWriting()
+{
+	uint32 Index = GetClothBufferIndexForWriting();
+	return ClothSimulPositionNormalBuffer[Index];
+}
+
+bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::HasClothBufferForReading(bool bPrevious) const
+{
+	uint32 Index = GetClothBufferIndexForReading(bPrevious);
+	return ClothSimulPositionNormalBuffer[Index].VertexBufferRHI.IsValid();
+}
+
+const FVertexBufferAndSRV& FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::GetClothBufferForReading(bool bPrevious) const
+{
+	uint32 Index = GetClothBufferIndexForReading(bPrevious);
+	checkf(ClothSimulPositionNormalBuffer[Index].VertexBufferRHI.IsValid(), TEXT("Index: %i Buffer0: %s Buffer1: %s"), Index, ClothSimulPositionNormalBuffer[0].VertexBufferRHI.IsValid() ? TEXT("true") : TEXT("false"), ClothSimulPositionNormalBuffer[1].VertexBufferRHI.IsValid() ? TEXT("true") : TEXT("false"));
+	return ClothSimulPositionNormalBuffer[Index];
+}
+
+FMatrix44f& FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::GetClothToLocalForWriting()
+{
+	uint32 Index = GetClothBufferIndexForWriting();
+	return ClothToLocal[Index];
+}
+
+const FMatrix44f& FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::GetClothToLocalForReading(bool bPrevious) const
+{
+	uint32 Index = GetClothBufferIndexForReading(bPrevious);
+	return ClothToLocal[Index];
+}
+
+uint32 FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::GetClothBufferIndexInternal(bool bPrevious) const
+{
+	uint32 BufferIndex = 0;
+	if (bDoubleBuffer)
+	{
+		if ((CurrentRevisionNumber - PreviousRevisionNumber) > 1)
+		{
+			// If the revision number has incremented too much, ignore the request and use the current buffer.
+			// With ClearMotionVector calls, we intentionally increment revision number to retrieve current buffer for bPrevious true.
+			bPrevious = false;
+		}
+
+		BufferIndex = CurrentBuffer ^ (uint32)bPrevious;
+	}
+	return BufferIndex;
+}
+
+uint32 FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::GetClothBufferIndexForWriting() const
+{
+	return bDoubleBuffer ? GetClothBufferIndexInternal(false) : 0;
+}
+
+uint32 FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::GetClothBufferIndexForReading(bool bPrevious) const
+{
+	uint32 BufferIndex = 0;
+	if (bDoubleBuffer)
+	{
+		BufferIndex = GetClothBufferIndexInternal(bPrevious);
+		if (!ClothSimulPositionNormalBuffer[BufferIndex].VertexBufferRHI.IsValid())
+		{
+			// This only could happen first time updating when the previous data is not available
+			check(bPrevious);
+			// If no previous data available, use the current one
+			BufferIndex = GetClothBufferIndexInternal(false);
+		}
+	}
+	return BufferIndex;
 }
 
 /*-----------------------------------------------------------------------------

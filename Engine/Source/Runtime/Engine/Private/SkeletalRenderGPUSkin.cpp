@@ -173,76 +173,50 @@ void FMorphVertexBufferPool::EnableDoubleBuffer()
 	}
 }
 
-const FMorphVertexBuffer& FMorphVertexBufferPool::GetMorphVertexBufferForReading(bool bPrevious, uint32 FrameNumber) const
+void FMorphVertexBufferPool::SetCurrentRevisionNumber(uint32 RevisionNumber)
+{
+	if (bDoubleBuffer)
+	{
+		// Flip revision number to previous if this is new, otherwise keep current version.
+		if (CurrentRevisionNumber != RevisionNumber)
+		{
+			PreviousRevisionNumber = CurrentRevisionNumber;
+			CurrentRevisionNumber = RevisionNumber;
+			CurrentBuffer = 1 - CurrentBuffer;
+		}
+	}
+}
+
+const FMorphVertexBuffer& FMorphVertexBufferPool::GetMorphVertexBufferForReading(bool bPrevious) const
 {
 	uint32 Index = 0;
 	if (bDoubleBuffer)
 	{
-		// Find the buffer matching frame number or otherwise use the newer buffer
-		if (MorphVertexBuffers[0].FrameNumber == FrameNumber)
+		if ((CurrentRevisionNumber - PreviousRevisionNumber) > 1)
 		{
-			Index = 0;
-		}
-		else if (MorphVertexBuffers[1].FrameNumber == FrameNumber)
-		{
-			Index = 1;
-		}
-		else if (MorphVertexBuffers[0].FrameNumber == -1)
-		{
-			Index = 0;
-		}
-		else if (MorphVertexBuffers[1].FrameNumber == -1)
-		{
-			Index = 1;
-		}
-		else
-		{
-			// Get the newer frame
-			Index = (MorphVertexBuffers[0].FrameNumber < MorphVertexBuffers[1].FrameNumber) ? 1 : 0;
+			// If the revision number has incremented too much, ignore the request and use the current buffer.
+			// With ClearMotionVector calls, we intentionally increment revision number to retrieve current buffer for bPrevious true.
+			bPrevious = false;
 		}
 
-		bool bPreviousValid = (MorphVertexBuffers[1 - Index].FrameNumber != -1);
-		if (bPrevious && bPreviousValid)
+		Index = CurrentBuffer ^ (uint32)bPrevious;
+
+		if (!MorphVertexBuffers[Index].bHasBeenUpdated)
 		{
-			Index = 1 - Index;
+			// this should only happen the first time updating, in which case the previous buffer hasn't been written into yet.
+			check(Index == 1);
+			check(MorphVertexBuffers[0].bHasBeenUpdated);
+			Index = 0;
 		}
 	}
 
-	checkf(MorphVertexBuffers[Index].VertexBufferRHI.IsValid(), TEXT("Index: %i Buffer0: %s Frame0: %i Buffer1: %s Frame1: %i"), Index, MorphVertexBuffers[0].VertexBufferRHI.IsValid() ? TEXT("true") : TEXT("false"), MorphVertexBuffers[0].FrameNumber, MorphVertexBuffers[1].VertexBufferRHI.IsValid() ? TEXT("true") : TEXT("false"), MorphVertexBuffers[1].FrameNumber);
+	checkf(MorphVertexBuffers[Index].VertexBufferRHI.IsValid(), TEXT("Index: %i Buffer0: %s Buffer1: %s"), Index, MorphVertexBuffers[0].VertexBufferRHI.IsValid() ? TEXT("true") : TEXT("false"), MorphVertexBuffers[1].VertexBufferRHI.IsValid() ? TEXT("true") : TEXT("false"));
 	return MorphVertexBuffers[Index];
 }
 
-FMorphVertexBuffer& FMorphVertexBufferPool::GetMorphVertexBufferForWriting(uint32 FrameNumber)
+FMorphVertexBuffer& FMorphVertexBufferPool::GetMorphVertexBufferForWriting()
 {
-	uint32 Index = 0;
-	if (bDoubleBuffer)
-	{
-		// Find the buffer matching frame number or otherwise use the older buffer
-		if (MorphVertexBuffers[0].FrameNumber == FrameNumber)
-		{
-			Index = 0;
-		}
-		else if (MorphVertexBuffers[1].FrameNumber == FrameNumber)
-		{
-			Index = 1;
-		}
-		else if (MorphVertexBuffers[0].FrameNumber == -1)
-		{
-			Index = 0;
-		}
-		else if (MorphVertexBuffers[1].FrameNumber == -1)
-		{
-			Index = 1;
-		}
-		else
-		{
-			// Get the older frame
-			Index = (MorphVertexBuffers[0].FrameNumber < MorphVertexBuffers[1].FrameNumber) ? 0 : 1;
-		}
-	}
-
-	MorphVertexBuffers[Index].FrameNumber = FrameNumber;
-	return MorphVertexBuffers[Index];
+	return MorphVertexBuffers[CurrentBuffer];
 }
 
 /*-----------------------------------------------------------------------------
@@ -592,13 +566,6 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 	bMorphNeedsUpdateDeferred = false;
 
 	FSkeletalMeshObjectLOD& LOD = LODs[LODIndex];
-	FMorphVertexBuffer& MorphVertexBuffer = LOD.MorphVertexBufferPool.GetMorphVertexBufferForWriting(FrameNumberToPrepare);
-
-	// if hasn't been updated, force update again
-	bMorphNeedsUpdate = MorphVertexBuffer.bHasBeenUpdated ? bMorphNeedsUpdate : true;
-	bMorphNeedsUpdate |= (GForceUpdateMorphTargets != 0);
-	bMorphNeedsUpdate |= bAlwaysUpdateMorphVertexBuffer;
-
 	const FSkeletalMeshLODRenderData& LODData = SkeletalMeshRenderData->LODRenderData[LODIndex];
 	const TArray<FSkelMeshRenderSection>& Sections = GetRenderSections(LODIndex);
 
@@ -607,6 +574,18 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 		bAlwaysUpdateMorphVertexBuffer || 
 		(DynamicData->NumWeightedActiveMorphTargets > 0 && LODData.GetNumVertices() > 0) || 
 		(DynamicData->ExternalMorphWeightData.HasActiveMorphs() && LODData.GetNumVertices() > 0);
+
+	bMorphNeedsUpdate |= (GForceUpdateMorphTargets != 0);
+	bMorphNeedsUpdate |= bAlwaysUpdateMorphVertexBuffer;
+	if (bMorph && bMorphNeedsUpdate)
+	{
+		// Morph vertex buffer needs updating so advance the revision number
+		LOD.MorphVertexBufferPool.SetCurrentRevisionNumber(RevisionNumber);
+	}
+
+	FMorphVertexBuffer& MorphVertexBuffer = LOD.MorphVertexBufferPool.GetMorphVertexBufferForWriting();
+	// if morph buffer hasn't been updated, force update it
+	bMorphNeedsUpdate = MorphVertexBuffer.bHasBeenUpdated ? bMorphNeedsUpdate : true;
 
 	// use correct vertex factories based on alternate weights usage
 	FVertexFactoryData& VertexFactoryData = LOD.GPUSkinVertexFactories;
@@ -722,15 +701,15 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 				FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType& ClothShaderData = VertexFactoryData.ClothVertexFactories[SectionIdx]->GetClothShaderData();
 				ClothShaderData.ClothBlendWeight = DynamicData->ClothBlendWeight;
 
-				bNeedFence = ClothShaderData.UpdateClothSimulData(RHICmdList, SimData->Positions, SimData->Normals, FrameNumberToPrepare, FeatureLevel) || bNeedFence;
+				bNeedFence = ClothShaderData.UpdateClothSimulData(RHICmdList, SimData->Positions, SimData->Normals, RevisionNumber, FeatureLevel) || bNeedFence;
 				// Transform from cloth space to local space. Cloth space is relative to cloth root bone, local space is component space.
-				ClothShaderData.GetClothToLocalForWriting(FrameNumberToPrepare) = FMatrix44f(SimData->ComponentRelativeTransform.ToMatrixWithScale());
+				ClothShaderData.GetClothToLocalForWriting() = FMatrix44f(SimData->ComponentRelativeTransform.ToMatrixWithScale());
 			}
 
 			// Try to use the GPU skinning cache if possible
 			if (bUseSkinCache)
 			{
-				FMatrix44f ClothToLocal = bClothFactory ? VertexFactoryData.ClothVertexFactories[SectionIdx]->GetClothShaderData().GetClothToLocalForWriting(FrameNumberToPrepare) : FMatrix44f::Identity;
+				FMatrix44f ClothToLocal = bClothFactory ? VertexFactoryData.ClothVertexFactories[SectionIdx]->GetClothShaderData().GetClothToLocalForWriting() : FMatrix44f::Identity;
 
 				// ProcessEntry returns false if not enough memory is left in skin cache to allocate for the mesh, if that happens don't try to process subsequent sections because they will also fail.
 				if (bSkinCacheResult)
@@ -1603,7 +1582,7 @@ void FSkeletalMeshObjectGPUSkin::RefreshClothingTransforms(const FMatrix& InNewL
 
 					if(FClothSimulData* SimData = DynamicData->ClothingSimData.Find(ActorIdx))
 					{
-						ClothShaderData.GetClothToLocalForWriting(FrameNumber) = FMatrix44f(SimData->ComponentRelativeTransform.ToMatrixWithScale());
+						ClothShaderData.GetClothToLocalForWriting() = FMatrix44f(SimData->ComponentRelativeTransform.ToMatrixWithScale());
 					}
 				}
 			}
@@ -1688,7 +1667,7 @@ void InitMorphVertexFactoryComponents(FGPUSkinDataType* VertexFactoryData,
 {
 	VertexFactoryData->bMorphTarget = true;
 	VertexFactoryData->MorphVertexBufferPool = VertexBuffers.MorphVertexBufferPool;
-	const FMorphVertexBuffer& MorphVB = VertexBuffers.MorphVertexBufferPool->GetMorphVertexBufferForReading(false, -1);
+	const FMorphVertexBuffer& MorphVB = VertexBuffers.MorphVertexBufferPool->GetMorphVertexBufferForReading(false);
 
 	// delta positions
 	VertexFactoryData->DeltaPositionComponent = FVertexStreamComponent(

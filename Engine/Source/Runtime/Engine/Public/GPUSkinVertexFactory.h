@@ -324,6 +324,8 @@ public:
 
 			if ((CurrentRevisionNumber - PreviousRevisionNumber) > 1)
 			{
+				// If the revision number has incremented too much, ignore the request and use the current buffer.
+				// With ClearMotionVector calls, we intentionally increment revision number to retrieve current buffer for bPrevious true.
 				bPrevious = false;
 			}
 
@@ -378,7 +380,7 @@ public:
 
 	/** Morph vertex factory functions */
 	virtual void UpdateMorphVertexStream(const class FMorphVertexBuffer* MorphVertexBuffer) {}
-	virtual const class FMorphVertexBuffer* GetMorphVertexBuffer(bool bPrevious, uint32 FrameNumber) const { return nullptr; }
+	virtual const class FMorphVertexBuffer* GetMorphVertexBuffer(bool bPrevious) const { return nullptr; }
 	/** Cloth vertex factory access. */
 	virtual class FGPUBaseSkinAPEXClothVertexFactory* GetClothVertexFactory() { return nullptr; }
 	virtual class FGPUBaseSkinAPEXClothVertexFactory const* GetClothVertexFactory() const { return nullptr; }
@@ -453,7 +455,7 @@ public:
 	
 	/** FGPUBaseSkinVertexFactory overrides */
 	virtual void UpdateMorphVertexStream(const class FMorphVertexBuffer* MorphVertexBuffer) override;
-	virtual const class FMorphVertexBuffer* GetMorphVertexBuffer(bool bPrevious, uint32 FrameNumber) const override;
+	virtual const class FMorphVertexBuffer* GetMorphVertexBuffer(bool bPrevious) const override;
 
 
 	// FRenderResource interface.
@@ -609,7 +611,7 @@ public:
 			Reset();
 		}
 
-		bool UpdateClothSimulData(FRHICommandListImmediate& RHICmdList, const TArray<FVector3f>& InSimulPositions, const TArray<FVector3f>& InSimulNormals, uint32 FrameNumber, ERHIFeatureLevel::Type FeatureLevel);
+		bool UpdateClothSimulData(FRHICommandListImmediate& RHICmdList, const TArray<FVector3f>& InSimulPositions, const TArray<FVector3f>& InSimulNormals, uint32 RevisionNumber, ERHIFeatureLevel::Type FeatureLevel);
 
 		void ReleaseClothSimulData()
 		{
@@ -632,72 +634,15 @@ public:
 		{
 			return APEXClothUniformBuffer;
 		}
-		
-		// @param FrameNumber usually from View.Family->FrameNumber
-		// @return IsValid() can fail, then you have to create the buffers first (or if the size changes)
-		FVertexBufferAndSRV& GetClothBufferForWriting(uint32 FrameNumber)
-		{
-			uint32 Index = GetOldestIndex(FrameNumber);
-			Index = (BufferFrameNumber[0] == FrameNumber) ? 0 : Index;
-			Index = (BufferFrameNumber[1] == FrameNumber) ? 1 : Index;
 
-			// we don't write -1 as that is used to invalidate the entry
-			if(FrameNumber == -1)
-			{
-				// this could cause a 1 frame glitch on wraparound
-				FrameNumber = 0;
-			}
+		void SetCurrentRevisionNumber(uint32 RevisionNumber);
 
-			BufferFrameNumber[Index] = FrameNumber;
+		FVertexBufferAndSRV& GetClothBufferForWriting();
+		bool HasClothBufferForReading(bool bPrevious) const;
+		const FVertexBufferAndSRV& GetClothBufferForReading(bool bPrevious) const;
 
-			return ClothSimulPositionNormalBuffer[Index];
-		}
-
-		bool HasClothBufferForReading(bool bPrevious, uint32 FrameNumber) const
-		{
-			int32 Index = GetMostRecentIndex(FrameNumber);
-			if (bPrevious && DoWeHavePreviousData())
-			{
-				Index = 1 - Index;
-			}
-			return ClothSimulPositionNormalBuffer[Index].VertexBufferRHI.IsValid();
-		}
-
-		// @param bPrevious true:previous, false:current
-		// @param FrameNumber usually from View.Family->FrameNumber
-		const FVertexBufferAndSRV& GetClothBufferForReading(bool bPrevious, uint32 FrameNumber) const
-		{
-			int32 Index = GetMostRecentIndex(FrameNumber);
-
-			if(bPrevious && DoWeHavePreviousData())
-			{
-				Index = 1 - Index;
-			}
-
-			checkf(ClothSimulPositionNormalBuffer[Index].VertexBufferRHI.IsValid(), TEXT("Index: %i Buffer0: %s Frame0: %i Buffer1: %s Frame1: %i"), Index,  ClothSimulPositionNormalBuffer[0].VertexBufferRHI.IsValid() ? TEXT("true") : TEXT("false"), BufferFrameNumber[0], ClothSimulPositionNormalBuffer[1].VertexBufferRHI.IsValid() ? TEXT("true") : TEXT("false"), BufferFrameNumber[1]);
-			return ClothSimulPositionNormalBuffer[Index];
-		}
-		
-		FMatrix44f& GetClothToLocalForWriting(uint32 FrameNumber)
-		{
-			uint32 Index = GetOldestIndex(FrameNumber);
-			Index = (BufferFrameNumber[0] == FrameNumber) ? 0 : Index;
-			Index = (BufferFrameNumber[1] == FrameNumber) ? 1 : Index;
-
-			return ClothToLocal[Index];
-		}
-
-		const FMatrix44f& GetClothToLocalForReading(bool bPrevious, uint32 FrameNumber) const
-		{
-			int32 Index = GetMostRecentIndex(FrameNumber);
-
-			if(bPrevious && DoWeHavePreviousData())
-			{
-				Index = 1 - Index;
-			}
-
-			return ClothToLocal[Index];
-		}
+		FMatrix44f& GetClothToLocalForWriting();
+		const FMatrix44f& GetClothToLocalForReading(bool bPrevious) const;
 
 		/**
 		 * weight to blend between simulated positions and key-framed poses
@@ -707,12 +652,17 @@ public:
 		uint32 NumInfluencesPerVertex = 1;
 
 	private:
+		// Helper for GetClothBufferIndexForWriting and GetClothBufferIndexForReading
+		uint32 GetClothBufferIndexInternal(bool bPrevious) const;
+		// Helper for GetClothBufferForWriting and GetClothToLocalForWriting
+		uint32 GetClothBufferIndexForWriting() const;
+		// Helper for GetClothBufferForReading and GetClothToLocalForReading
+		uint32 GetClothBufferIndexForReading(bool bPrevious) const;
+
 		// fallback for ClothSimulPositionNormalBuffer if the shadermodel doesn't allow it
 		TUniformBufferRef<FAPEXClothUniformShaderParameters> APEXClothUniformBuffer;
 		// 
 		FVertexBufferAndSRV ClothSimulPositionNormalBuffer[2];
-		// from GFrameNumber, to detect pause and old data when an object was not rendered for some time
-		uint32 BufferFrameNumber[2];
 
 		/**
 		 * Matrix to apply to positions/normals
@@ -722,78 +672,17 @@ public:
 		/** Whether to double buffer. */
 		bool bDoubleBuffer = false;
 
-		// @return 0 / 1, index into ClothSimulPositionNormalBuffer[]
-		uint32 GetMostRecentIndex(uint32 FrameNumber) const
-		{
-			if (!bDoubleBuffer)
-			{
-				return 0;
-			}
-
-			if(BufferFrameNumber[0] == -1)
-			{
-				//ensure(BufferFrameNumber[1] != -1);
-
-				return 1;
-			}
-			else if(BufferFrameNumber[1] == -1)
-			{
-				//ensure(BufferFrameNumber[0] != -1);
-				return 0;
-			}
-
-			// should handle warp around correctly, did some basic testing
-			uint32 Age0 = FrameNumber - BufferFrameNumber[0];
-			uint32 Age1 = FrameNumber - BufferFrameNumber[1];
-
-			return (Age0 > Age1) ? 1 : 0;
-		}
-
-		// @return 0/1, index into ClothSimulPositionNormalBuffer[]
-		uint32 GetOldestIndex(uint32 FrameNumber) const
-		{
-			if (!bDoubleBuffer)
-			{
-				return 0;
-			}
-
-			if(BufferFrameNumber[0] == -1)
-			{
-				return 0;
-			}
-			else if(BufferFrameNumber[1] == -1)
-			{
-				return 1;
-			}
-
-			// should handle warp around correctly (todo: test)
-			uint32 Age0 = FrameNumber - BufferFrameNumber[0];
-			uint32 Age1 = FrameNumber - BufferFrameNumber[1];
-
-			return (Age0 > Age1) ? 0 : 1;
-		}
-
-		bool DoWeHavePreviousData() const
-		{
-			if(BufferFrameNumber[0] == -1 || BufferFrameNumber[1] == -1)
-			{
-				return false;
-			}
-			
-			int32 Diff = BufferFrameNumber[0] - BufferFrameNumber[1];
-
-			uint32 DiffAbs = FMath::Abs(Diff);
-
-			// threshold is >1 because there could be in between frames e.g. HitProxyRendering
-			// We should switch to TickNumber to solve this
-			return DiffAbs <= 2;
-		}
+		// 0 / 1 to index into BoneBuffer
+		uint32 CurrentBuffer = 0;
+		// RevisionNumber Tracker
+		uint32 PreviousRevisionNumber = 0;
+		uint32 CurrentRevisionNumber = 0;
 
 		void Reset()
 		{
-			// both are not valid
-			BufferFrameNumber[0] = -1;
-			BufferFrameNumber[1] = -1;
+			CurrentBuffer = 0;
+			PreviousRevisionNumber = 0;
+			CurrentRevisionNumber = 0;
 
 			ClothToLocal[0] = FMatrix44f::Identity;
 			ClothToLocal[1] = FMatrix44f::Identity;
