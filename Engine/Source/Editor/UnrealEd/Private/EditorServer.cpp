@@ -1846,11 +1846,10 @@ void UEditorEngine::RebuildModelFromBrushes(UModel* Model, bool bSelectedBrushes
 	TArray<ABrush*> DynamicBrushes;
 	if (!bTreatMovableBrushesAsStatic)
 	{
-	for( auto It(Level->Actors.CreateConstIterator()); It; ++It )
+		for( auto It(Level->Actors.CreateConstIterator()); It; ++It )
 		{
 			ABrush* DynamicBrush = Cast<ABrush>(*It);
-			if (DynamicBrush && DynamicBrush->Brush && !DynamicBrush->IsStaticBrush() &&
-				(!bSelectedBrushesOnly || DynamicBrush->IsSelected()))
+			if (DynamicBrush && DynamicBrush->Brush && !DynamicBrush->IsStaticBrush() && DynamicBrush->IsSelected())
 			{
 				DynamicBrushes.Add(DynamicBrush);
 			}
@@ -3754,8 +3753,18 @@ void UEditorEngine::PasteSelectedActorsFromClipboard( UWorld* InWorld, const FTe
 
 		RedrawLevelEditingViewports();
 
-		// If required, update the Bsp of any levels that received a pasted brush actor
-		RebuildAlteredBSP();
+		for (FSelectionIterator It(GetSelectedActorIterator()); It; ++It)
+		{
+			if (ABrush* Brush = Cast<ABrush>(*It))
+			{
+				if (Brush->IsStaticBrush())
+				{
+					// If required, update the Bsp of any levels that received a pasted brush actor
+					RebuildAlteredBSP();
+					break;
+				}
+			}
+		}
 	}
 	else
 	{

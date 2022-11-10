@@ -106,7 +106,13 @@ void UActorElementEditorWorldInterface::DuplicateElements(TArrayView<const FType
 		for (AActor* NewActor : NewActors)
 		{
 			// Only rebuild if the new actors will change the BSP as this is expensive
-			bRebuildBSP |= NewActor->IsA<ABrush>();
+			if (!bRebuildBSP)
+			{
+				if (ABrush* Brush = Cast<ABrush>(NewActor))
+				{
+					bRebuildBSP = Brush->IsStaticBrush();
+				}
+			}
 
 			OutNewElements.Add(UEngineElementsLibrary::AcquireEditorActorElementHandle(NewActor));
 		}

@@ -349,8 +349,7 @@ void UUnrealEdEngine::PasteActors(TArray<AActor*>& OutPastedActors, UWorld* InWo
 
 	// Reinstate old BSP update setting, and force a rebuild - any levels whose geometry has changed while pasting will be rebuilt
 	GetMutableDefault<ULevelEditorMiscSettings>()->bBSPAutoUpdate = bBSPAutoUpdate;
-	RebuildAlteredBSP();
-
+	
 	// FactoryCreateText set the selection to the new actors, so copy that into OutPastedActors and restore the original selection
 	ActorSelection->GetSelectedObjects<AActor>(OutPastedActors);
 	FObjectReader(ActorSelection, OriginalSelectionState);
@@ -360,8 +359,17 @@ void UUnrealEdEngine::PasteActors(TArray<AActor*>& OutPastedActors, UWorld* InWo
 
 	// Update the actors' locations and update the global list of visible layers.
 	ULayersSubsystem* LayersSubsystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
+	bool bRebuildBSP = false;
 	for (AActor* Actor : OutPastedActors)
 	{
+		if (!bRebuildBSP)
+		{
+			if (ABrush* Brush = Cast<ABrush>(Actor))
+			{
+				bRebuildBSP = Brush->IsStaticBrush();
+			}
+		}
+
 		if (!LocationOffset.IsZero())
 		{
 			// We only want to offset the location if this actor is the root of a selected attachment hierarchy
@@ -408,6 +416,11 @@ void UUnrealEdEngine::PasteActors(TArray<AActor*>& OutPastedActors, UWorld* InWo
 		// Request saves/refreshes.
 		Actor->MarkPackageDirty();
 		LevelDirtyCallback.Request();
+	}
+
+	if (bRebuildBSP)
+	{
+		RebuildAlteredBSP();
 	}
 }
 
