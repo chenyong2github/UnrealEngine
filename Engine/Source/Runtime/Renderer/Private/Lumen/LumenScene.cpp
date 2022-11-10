@@ -631,7 +631,7 @@ void FScene::LumenAddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 	if (DefaultLumenSceneData->bTrackAllPrimitives)
 	{
 		const FPrimitiveSceneProxy* Proxy = InPrimitive->Proxy;
-		bool bTrackPrimitveForLumenScene = TrackPrimitiveForLumenScene(Proxy);
+		bool bTrackPrimitiveForLumenScene = TrackPrimitiveForLumenScene(Proxy);
 
 		for (FLumenSceneDataIterator LumenSceneData = GetLumenSceneDataIterator(); LumenSceneData; ++LumenSceneData)
 		{
@@ -640,10 +640,11 @@ void FScene::LumenAddPrimitive(FPrimitiveSceneInfo* InPrimitive)
 
 			LumenSceneData->PrimitivesToUpdateMeshCards.Add(InPrimitive->GetIndex());
 
-			if (bTrackPrimitveForLumenScene)
+			if (bTrackPrimitiveForLumenScene)
 			{
 				ensure(!LumenSceneData->PendingAddOperations.Contains(InPrimitive));
 				ensure(!LumenSceneData->PendingUpdateOperations.Contains(InPrimitive));
+				ensure(InPrimitive->LumenPrimitiveGroupIndices.Num() == 0);
 				LumenSceneData->PendingAddOperations.Add(InPrimitive);
 			}
 		}
