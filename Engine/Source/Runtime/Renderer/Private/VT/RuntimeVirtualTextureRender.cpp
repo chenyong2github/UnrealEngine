@@ -20,12 +20,17 @@
 
 namespace RuntimeVirtualTexture
 {
+	static TAutoConsoleVariable<int32> CVarVTHighQualityPerPixelHeight(
+		TEXT("r.VT.RVT.HighQualityPerPixelHeight"),
+		1,
+		TEXT("Use higher quality sampling of per pixel heightmaps when rendering to Runtime Virtual Texture.\n"),
+		ECVF_ReadOnly);
+
 	static TAutoConsoleVariable<int32> CVarVTDirectCompress(
 		TEXT("r.VT.RVT.DirectCompress"),
 		1,
 		TEXT("Compress texture data direct to the physical texture on platforms that support it."),
-		ECVF_RenderThreadSafe
-	);
+		ECVF_RenderThreadSafe);
 
     int32 RenderCaptureNextRVTPagesDraws = 0;
     static FAutoConsoleVariableRef CVarRenderCaptureNextRVTPagesDraws(
@@ -129,6 +134,10 @@ namespace RuntimeVirtualTexture
 			FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 			OutEnvironment.SetDefine(TEXT("VIRTUAL_TEXTURE_PAGE_RENDER"), 1);
 			OutEnvironment.SetDefine(TEXT("IS_VIRTUAL_TEXTURE_MATERIAL"), 1);
+
+			static FShaderPlatformCachedIniValue<bool> HighQualityPerPixelHeightValue(TEXT("r.VT.RVT.HighQualityPerPixelHeight"));
+			const bool bHighQualityPerPixelHeight = (HighQualityPerPixelHeightValue.Get((EShaderPlatform)Parameters.Platform) != 0);
+			OutEnvironment.SetDefine(TEXT("PER_PIXEL_HEIGHTMAP_HQ"), bHighQualityPerPixelHeight ? 1 : 0);
 		}
 
 		FShader_VirtualTextureMaterialDraw()

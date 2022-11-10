@@ -666,7 +666,7 @@ protected:
 	int8						MaxLOD;		// Maximum LOD level, user override possible
 	int8						NumWeightmapLayerAllocations;
 	uint8						StaticLightingLOD;
-	uint8						bVirtualTextureRenderWithQuad : 1;
+	uint8						VirtualTexturePerPixelHeight;
 	float						WeightmapSubsectionOffset;
 	TArray<float>				LODScreenRatioSquared;		// Table of valid screen size -> LOD index
 	int32						FirstLOD;	// First LOD we have batch elements for

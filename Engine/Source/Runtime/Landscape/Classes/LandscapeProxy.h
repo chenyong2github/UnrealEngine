@@ -512,6 +512,13 @@ public:
 	bool bVirtualTextureRenderWithQuad = false;
 
 	/** 
+	 * Use highest quality heightmap interpolation when using a single quad to render this landscape to runtime virtual texture pages.
+	 * This also requires the project setting: r.VT.RVT.HighQualityPerPixelHeight.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "High Quality PerPixel Height", EditCondition = "bVirtualTextureRenderWithQuad"))
+	bool bVirtualTextureRenderWithQuadHQ = true;
+
+	/** 
 	 * Number of mesh levels to use when rendering landscape into runtime virtual texture.
 	 * Lower values reduce vertex count when rendering to the runtime virtual texture but decrease accuracy when using values that require vertex interpolation.
 	 */

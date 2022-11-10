@@ -3502,6 +3502,7 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		RuntimeVirtualTextures = Landscape->RuntimeVirtualTextures;
 		VirtualTextureLodBias = Landscape->VirtualTextureLodBias;
 		bVirtualTextureRenderWithQuad = Landscape->bVirtualTextureRenderWithQuad;
+		bVirtualTextureRenderWithQuadHQ = Landscape->bVirtualTextureRenderWithQuadHQ;
 		VirtualTextureNumLods = Landscape->VirtualTextureNumLods;
 		VirtualTextureRenderPassType = Landscape->VirtualTextureRenderPassType;
 
