@@ -185,7 +185,8 @@ struct FRasterTri
 	#define VERTEX_CACHE_SIZE 384
 #endif
 
-groupshared uint GroupVerts[NANITE_VERT_REUSE_BATCH ? NANITE_VSM_PAGE_TABLE_CACHE_DIM * NANITE_VSM_PAGE_TABLE_CACHE_DIM : VERTEX_CACHE_SIZE * 3];
+#if !NANITE_VERT_REUSE_BATCH
+groupshared uint GroupVerts[VERTEX_CACHE_SIZE * 3];
 
 void GroupVertsStore(float3 Value, uint Index)
 {
@@ -198,18 +199,23 @@ float3 GroupVertsLoad(uint Index)
 {
 	return float3(asfloat(GroupVerts[Index]), asfloat(GroupVerts[Index + VERTEX_CACHE_SIZE]), asfloat(GroupVerts[Index + VERTEX_CACHE_SIZE * 2]));
 }
+#endif // !NANITE_VERT_REUSE_BATCH
+
+#if VIRTUAL_TEXTURE_TARGET && NANITE_LATE_VSM_PAGE_TRANSLATION
+
+groupshared uint GroupVsmPageTableCache[NANITE_VSM_PAGE_TABLE_CACHE_DIM * NANITE_VSM_PAGE_TABLE_CACHE_DIM];
 
 void VsmPageTableStore(uint2 pPage, uint2 Coords)
 {
 	uint pPagePacked = (pPage.y << 16) | pPage.x;
 	uint Index = Coords.y * NANITE_VSM_PAGE_TABLE_CACHE_DIM + Coords.x;
-	GroupVerts[Index] = pPagePacked;
+	GroupVsmPageTableCache[Index] = pPagePacked;
 }
 
 uint2 VsmPageTableLoad(uint2 Coords)
 {
 	uint Index = Coords.y * NANITE_VSM_PAGE_TABLE_CACHE_DIM + Coords.x;
-	uint pPagePacked = GroupVerts[Index];
+	uint pPagePacked = GroupVsmPageTableCache[Index];
 	return uint2(pPagePacked & 0xffff, pPagePacked >> 16);
 }
 
@@ -228,6 +234,8 @@ void FetchAndCachePageTableEntry(FNaniteView NaniteView, uint2 vPageStart, uint2
 		VsmPageTableStore(pPageAddress, CacheCoords);
 	}
 }
+
+#endif // VIRTUAL_TEXTURE_TARGET &&  NANITE_LATE_VSM_PAGE_TRANSLATION
 
 float3 GetPerspectiveCorrectBarycentrics(float3 C, float3 InvW)
 {
@@ -777,6 +785,8 @@ int FindSetBit( uint Mask, int Index )
 	return p;
 }
 
+#define DISTRIBUTE		0//COMPILER_SUPPORTS_WAVE_VOTE
+#if DISTRIBUTE
 
 struct FWorkContext
 {
@@ -882,8 +892,6 @@ void DoWork( FWorkContext Context, FWorkSourceType WorkSource, uint LocalItemInd
 	}
 }
 
-#define DISTRIBUTE		0//COMPILER_SUPPORTS_WAVE_VOTE
-#if DISTRIBUTE
 #define THREADGROUP_SIZE	SWRASTER_NUM_THREADS
 //#define GENERATE_WORK
 #include "../WorkDistribution.ush"
@@ -1169,7 +1177,6 @@ void MicropolyRasterize(
 #endif
 	Raster.PageTranslation		= PageTranslation;
 
-#if NANITE_VERT_REUSE_BATCH
 #if VIRTUAL_TEXTURE_TARGET && NANITE_LATE_VSM_PAGE_TRANSLATION
 	if (!Raster.bSinglePage)
 	{
@@ -1178,8 +1185,11 @@ void MicropolyRasterize(
 		{
 			FetchAndCachePageTableEntry(NaniteView, vPage, VisibleCluster.vPageEnd, PageFlagMask, Offset + GroupThreadIndex);
 		}
+		GroupMemoryBarrierWithGroupSync();
 	}
 #endif
+
+#if NANITE_VERT_REUSE_BATCH
 
 	const uint TriIndex = TriRange.Start + GroupThreadIndex;
 
@@ -1275,16 +1285,6 @@ void MicropolyRasterize(
 		Verts[1] = GroupVertsLoad(VertIndexes.y);
 		Verts[2] = GroupVertsLoad(VertIndexes.z);
 
-	#if VIRTUAL_TEXTURE_TARGET && NANITE_LATE_VSM_PAGE_TRANSLATION
-		if (j == 0 && !Raster.bSinglePage)
-		{
-			GroupMemoryBarrierWithGroupSync();
-			// Only done once but must happen after loading cached vertices because it reuses the first 64 dwords of LDS
-			FetchAndCachePageTableEntry(NaniteView, vPage, VisibleCluster.vPageEnd, PageFlagMask, GroupThreadIndex);
-			GroupMemoryBarrierWithGroupSync();
-		}
-	#endif
-		
 		BRANCH
 		if (ThreadIndex >= TriRange.Num)
 			break;
