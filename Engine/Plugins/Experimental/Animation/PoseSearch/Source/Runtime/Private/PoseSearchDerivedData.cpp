@@ -40,8 +40,6 @@ namespace UE::PoseSearch
 		const UPoseSearchDatabase& GetDatabase() const { return Database; }
 		static FIoHash CreateKey(UPoseSearchDatabase& Database);
 
-		void MoveSearchIndexToDatabase();
-
 	private:
 		FPoseSearchDatabaseAsyncCacheTask(const FPoseSearchDatabaseAsyncCacheTask& Other) = delete;
 		FPoseSearchDatabaseAsyncCacheTask(FPoseSearchDatabaseAsyncCacheTask&& Other) = delete;
@@ -63,9 +61,9 @@ namespace UE::PoseSearch
 		, Owner(UE::DerivedData::EPriority::Normal)
 	{
 		using namespace UE::DerivedData;
-		const FIoHash PendingDerivedDataKey = CreateKey(InDatabase);
+		const FIoHash PendingDerivedDataKey = CreateKey(Database);
 
-		InDatabase.NotifyDerivedDataBuildStarted();
+		Database.NotifyDerivedDataRebuild(UPoseSearchDatabase::EDerivedDataBuildState::Prestarted);
 
 		UE_LOG(LogPoseSearch, Log, TEXT("%s - %s BeginCache"), *LexToString(PendingDerivedDataKey), *Database.GetName());
 
@@ -80,17 +78,18 @@ namespace UE::PoseSearch
 
 	FPoseSearchDatabaseAsyncCacheTask::~FPoseSearchDatabaseAsyncCacheTask()
 	{
-		// @todo: add InDatabase.NotifyDerivedDataBuildEnded();
-	}
-
-	void FPoseSearchDatabaseAsyncCacheTask::MoveSearchIndexToDatabase()
-	{
 		check(IsInGameThread());
 		check(Poll());
 		if (!Owner.IsCanceled())
 		{
 			// @todo: implement FPoseSearchIndex move ctor and assignment operator and use a MoveTemp(SearchIndex) here
 			Database.PoseSearchIndex = SearchIndex;
+
+			Database.NotifyDerivedDataRebuild(UPoseSearchDatabase::EDerivedDataBuildState::Ended);
+		}
+		else
+		{
+			Database.NotifyDerivedDataRebuild(UPoseSearchDatabase::EDerivedDataBuildState::Cancelled);
 		}
 	}
 
@@ -242,7 +241,6 @@ namespace UE::PoseSearch
 
 	void FAsyncPoseSearchDatabasesManagement::RemoveTask(int32 TaskIndex)
 	{
-		GetTask(TaskIndex).MoveSearchIndexToDatabase();
 		Tasks.RemoveAtSwap(TaskIndex, 1, false);
 	}
 

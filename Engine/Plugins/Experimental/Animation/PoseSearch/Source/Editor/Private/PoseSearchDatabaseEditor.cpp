@@ -205,12 +205,15 @@ namespace UE::PoseSearch
 			// Ensure statistics information get updated/populated
 			if (DatabaseAsset)
 			{
-				const auto UpdateStatisticsInformationLambda = [this]()
+				const auto UpdateStatisticsInformationLambda = [this](UPoseSearchDatabase::EDerivedDataBuildState State = UPoseSearchDatabase::EDerivedDataBuildState::Ended)
 				{
-					UPoseSearchDatabaseStatistics* Statistics = NewObject<UPoseSearchDatabaseStatistics>();
-					Statistics->AddToRoot();
-					Statistics->Initialize(GetPoseSearchDatabase());
-					StatisticsOverviewWidget->SetObject(Statistics);
+					if (State == UPoseSearchDatabase::EDerivedDataBuildState::Ended)
+					{
+						UPoseSearchDatabaseStatistics* Statistics = NewObject<UPoseSearchDatabaseStatistics>();
+						Statistics->AddToRoot();
+						Statistics->Initialize(GetPoseSearchDatabase());
+						StatisticsOverviewWidget->SetObject(Statistics);
+					}
 				};
 
 				// Init statistics
@@ -218,7 +221,6 @@ namespace UE::PoseSearch
 
 				// Ensure any database changes are reflected
 				DatabaseAsset->RegisterOnDerivedDataRebuild(UPoseSearchDatabase::FOnDerivedDataRebuild::CreateLambda(UpdateStatisticsInformationLambda));
-				// TODO: Register to delegate that gets triggered after the DerivedData has been rebuilt.
 			}
 		}
 		

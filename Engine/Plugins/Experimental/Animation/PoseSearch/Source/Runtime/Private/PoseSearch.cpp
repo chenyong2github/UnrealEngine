@@ -1412,9 +1412,9 @@ void UPoseSearchDatabase::UnregisterOnDerivedDataRebuild(void* Unregister)
 	OnDerivedDataRebuild.RemoveAll(Unregister);
 }
 
-void UPoseSearchDatabase::NotifyDerivedDataBuildStarted() const
+void UPoseSearchDatabase::NotifyDerivedDataRebuild(EDerivedDataBuildState State) const
 {
-	OnDerivedDataRebuild.Broadcast();
+	OnDerivedDataRebuild.Broadcast(State);
 }
 
 void UPoseSearchDatabase::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)

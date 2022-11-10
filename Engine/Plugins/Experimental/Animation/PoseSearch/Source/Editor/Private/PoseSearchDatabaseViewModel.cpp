@@ -79,19 +79,22 @@ namespace UE::PoseSearch
 		Collector.AddReferencedObject(PoseSearchDatabase);
 	}
 
-	void FDatabaseViewModel::Initialize(
-		UPoseSearchDatabase* InPoseSearchDatabase,
-		const TSharedRef<FDatabasePreviewScene>& InPreviewScene)
+	void FDatabaseViewModel::Initialize(UPoseSearchDatabase* InPoseSearchDatabase, const TSharedRef<FDatabasePreviewScene>& InPreviewScene)
 	{
 		PoseSearchDatabase = InPoseSearchDatabase;
 		PreviewScenePtr = InPreviewScene;
 
 		RemovePreviewActors();
 
-		PoseSearchDatabase->RegisterOnDerivedDataRebuild(
-			UPoseSearchDatabase::FOnDerivedDataRebuild::CreateSP(
-				this,
-				&FDatabaseViewModel::ResetPreviewActors));
+		const auto ResetPreviewActorsLambda = [this](UPoseSearchDatabase::EDerivedDataBuildState State)
+		{
+			if (State != UPoseSearchDatabase::EDerivedDataBuildState::Cancelled)
+			{
+				ResetPreviewActors();
+			}
+		};
+
+		PoseSearchDatabase->RegisterOnDerivedDataRebuild(UPoseSearchDatabase::FOnDerivedDataRebuild::CreateLambda(ResetPreviewActorsLambda));
 	}
 
 	void FDatabaseViewModel::ResetPreviewActors()

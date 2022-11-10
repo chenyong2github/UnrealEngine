@@ -1153,14 +1153,21 @@ public:
 	void BuildDerivedDataKey(UE::PoseSearch::FDerivedDataKeyBuilder& KeyBuilder) const;
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
+
+	enum class EDerivedDataBuildState
+	{
+		Prestarted,
+		Ended,
+		Cancelled
+	};
 private:
-	DECLARE_MULTICAST_DELEGATE(FOnDerivedDataRebuildMulticaster);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnDerivedDataRebuildMulticaster, EDerivedDataBuildState State);
 	FOnDerivedDataRebuildMulticaster OnDerivedDataRebuild;
 public:
 	typedef FOnDerivedDataRebuildMulticaster::FDelegate FOnDerivedDataRebuild;
 	void RegisterOnDerivedDataRebuild(const FOnDerivedDataRebuild& Delegate);
 	void UnregisterOnDerivedDataRebuild(void* Unregister);
-	void NotifyDerivedDataBuildStarted() const;
+	void NotifyDerivedDataRebuild(EDerivedDataBuildState State) const;
 #endif // WITH_EDITOR
 
 private:
