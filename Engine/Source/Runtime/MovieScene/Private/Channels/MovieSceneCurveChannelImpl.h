@@ -38,6 +38,7 @@ struct MOVIESCENE_API TMovieSceneCurveChannelImpl
 	 * Evaluate this channel by returning a cachable interpolation structure
 	 */
 	static UE::MovieScene::Interpolation::FCachedInterpolation GetInterpolationForTime(const ChannelType* InChannel, FFrameTime InTime);
+	static UE::MovieScene::Interpolation::FCachedInterpolation GetInterpolationForTime(const ChannelType* InChannel, FTimeEvaluationCache* InOutEvaluationCache, FFrameTime InTime);
 
 	/** Structure used to store the result of UE::MovieScene::EvaluateTime for a given channel/key distribution*/
 	struct FTimeEvaluationCache
@@ -156,8 +157,8 @@ private:
 	 */
 	static void RefineCurvePoints(const ChannelType* InChannel, FFrameRate TickResolution, double TimeThreshold, CurveValueType ValueThreshold, TArray<TTuple<double, double>>& InOutPoints);
 
-	static bool EvaluateLegacy(const ChannelType* InChannel, FFrameTime InTime, CurveValueType& OutValue);
-	static bool EvaluateCached(const ChannelType* InChannel, FFrameTime InTime, CurveValueType& OutValue);
+	static bool EvaluateLegacy(const ChannelType* InChannel, FTimeEvaluationCache* InOutEvaluationCache, FFrameTime InTime, CurveValueType& OutValue);
+	static bool EvaluateCached(const ChannelType* InChannel, FTimeEvaluationCache* InOutEvaluationCache, FFrameTime InTime, CurveValueType& OutValue);
 };
 
 template<typename ChannelType>
