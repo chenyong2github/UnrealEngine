@@ -75,6 +75,7 @@ struct MTLPP_EXPORT IMPTable<id<MTLRenderCommandEncoder>, void> : public IMPTabl
 	, INTERPOSE_CONSTRUCTOR(DrawindexedpatchesPatchstartPatchcountPatchindexbufferPatchindexbufferoffsetControlpointindexbufferControlpointindexbufferoffsetInstancecountBaseinstance, C)
 	, INTERPOSE_CONSTRUCTOR(DrawindexedpatchesPatchindexbufferPatchindexbufferoffsetControlpointindexbufferControlpointindexbufferoffsetIndirectbufferIndirectbufferoffset, C)
 	, INTERPOSE_CONSTRUCTOR(UseresourceUsage, C)
+	, INTERPOSE_CONSTRUCTOR(UseresourceUsageStages, C) // EPIC MOD - MetalRT Support
 	, INTERPOSE_CONSTRUCTOR(UseresourcesCountUsage, C)
 	, INTERPOSE_CONSTRUCTOR(Useheap, C)
 	, INTERPOSE_CONSTRUCTOR(UseheapsCount, C)
@@ -154,6 +155,7 @@ struct MTLPP_EXPORT IMPTable<id<MTLRenderCommandEncoder>, void> : public IMPTabl
 	INTERPOSE_SELECTOR(id<MTLRenderCommandEncoder>, drawIndexedPatches:patchStart:patchCount:patchIndexBuffer:patchIndexBufferOffset:controlPointIndexBuffer:controlPointIndexBufferOffset:instanceCount:baseInstance:,	DrawindexedpatchesPatchstartPatchcountPatchindexbufferPatchindexbufferoffsetControlpointindexbufferControlpointindexbufferoffsetInstancecountBaseinstance,	void, NSUInteger,NSUInteger,NSUInteger, id <MTLBuffer>,NSUInteger,id <MTLBuffer>,NSUInteger,NSUInteger,NSUInteger);
 	INTERPOSE_SELECTOR(id<MTLRenderCommandEncoder>, drawIndexedPatches:patchIndexBuffer:patchIndexBufferOffset:controlPointIndexBuffer:controlPointIndexBufferOffset:indirectBuffer:indirectBufferOffset:,	DrawindexedpatchesPatchindexbufferPatchindexbufferoffsetControlpointindexbufferControlpointindexbufferoffsetIndirectbufferIndirectbufferoffset,	void, NSUInteger, id <MTLBuffer>,NSUInteger,id <MTLBuffer>,NSUInteger,id <MTLBuffer>,NSUInteger);
 	INTERPOSE_SELECTOR(id<MTLRenderCommandEncoder>, useResource:usage:,	UseresourceUsage,	void, id <MTLResource>,MTLResourceUsage);
+	INTERPOSE_SELECTOR(id<MTLRenderCommandEncoder>, useResource:usage:stages:,    UseresourceUsageStages,    void, id <MTLResource>,MTLResourceUsage, MTLRenderStages); // EPIC MOD - MetalRT Support
 	INTERPOSE_SELECTOR(id<MTLRenderCommandEncoder>, useResources:count:usage:,	UseresourcesCountUsage,	void, const id <MTLResource> *,NSUInteger,MTLResourceUsage);
 	INTERPOSE_SELECTOR(id<MTLRenderCommandEncoder>, useHeap:,	Useheap,	void, id <MTLHeap>);
 	INTERPOSE_SELECTOR(id<MTLRenderCommandEncoder>, useHeaps:count:,	UseheapsCount,	void, const id <MTLHeap> *, NSUInteger );

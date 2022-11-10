@@ -43,6 +43,7 @@ struct MTLPP_EXPORT IMPTable<id<MTLCommandBuffer>, void> : public IMPTableBase<i
 	, INTERPOSE_CONSTRUCTOR(PushDebugGroup, C)
 	, INTERPOSE_CONSTRUCTOR(PopDebugGroup, C)
 	, INTERPOSE_CONSTRUCTOR(PresentDrawableAfterMinimumDuration, C)
+	, INTERPOSE_CONSTRUCTOR(AccelerationStructureCommandEncoder, C) // EPIC MOD - MetalRT Support
 	{
 	}
 
@@ -73,6 +74,7 @@ struct MTLPP_EXPORT IMPTable<id<MTLCommandBuffer>, void> : public IMPTableBase<i
 	INTERPOSE_SELECTOR(id<MTLCommandBuffer>, pushDebugGroup:, PushDebugGroup, void, NSString*);
 	INTERPOSE_SELECTOR(id<MTLCommandBuffer>, popDebugGroup, PopDebugGroup, void);
 	INTERPOSE_SELECTOR(id<MTLCommandBuffer>, presentDrawable:afterMinimumDuration:, PresentDrawableAfterMinimumDuration, void, id <MTLDrawable>, CFTimeInterval);
+	INTERPOSE_SELECTOR(id<MTLCommandBuffer>, accelerationStructureCommandEncoder, AccelerationStructureCommandEncoder, id<MTLAccelerationStructureCommandEncoder>); // EPIC MOD - MetalRT Support
 };
 
 template<typename InterposeClass>
@@ -109,6 +111,7 @@ struct MTLPP_EXPORT IMPTable<id<MTLCommandBuffer>, InterposeClass> : public IMPT
 		INTERPOSE_REGISTRATION(PushDebugGroup, C);
 		INTERPOSE_REGISTRATION(PopDebugGroup, C);
 		INTERPOSE_REGISTRATION(PresentDrawableAfterMinimumDuration, C);
+		INTERPOSE_REGISTRATION(AccelerationStructureCommandEncoder, C); // EPIC MOD - MetalRT Support
 	}
 };
 

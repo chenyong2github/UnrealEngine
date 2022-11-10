@@ -84,6 +84,7 @@ struct MTLPP_EXPORT IMPTable<id<MTLLibrary>, void> : public IMPTableBase<id<MTLL
 	, INTERPOSE_CONSTRUCTOR(NewFunctionWithName, C)
 	, INTERPOSE_CONSTRUCTOR(NewFunctionWithNameconstantValueserror, C)
 	, INTERPOSE_CONSTRUCTOR(NewFunctionWithNameconstantValuescompletionHandler, C)
+	, INTERPOSE_CONSTRUCTOR(NewFunctionWithDescriptorerror, C) // EPIC MOD - MetalRT Support
 	, INTERPOSE_CONSTRUCTOR(FunctionNames, C)
 	{
 	}
@@ -94,6 +95,7 @@ struct MTLPP_EXPORT IMPTable<id<MTLLibrary>, void> : public IMPTableBase<id<MTLL
 	INTERPOSE_SELECTOR(id<MTLLibrary>, newFunctionWithName:, NewFunctionWithName, id <MTLFunction>, NSString*);
 	INTERPOSE_SELECTOR(id<MTLLibrary>, newFunctionWithName:constantValues:error:, NewFunctionWithNameconstantValueserror, id <MTLFunction>, NSString*, MTLFunctionConstantValues*, NSError **);
 	INTERPOSE_SELECTOR(id<MTLLibrary>, newFunctionWithName:constantValues:completionHandler:, NewFunctionWithNameconstantValuescompletionHandler, void, NSString*, MTLFunctionConstantValues*, void (^)(id<MTLFunction> __nullable function, NSError* error));
+	INTERPOSE_SELECTOR(id<MTLLibrary>, newFunctionWithDescriptor:error:, NewFunctionWithDescriptorerror, id <MTLFunction>, MTLFunctionDescriptor*, NSError **); // EPIC MOD - MetalRT Support
 	INTERPOSE_SELECTOR(id<MTLLibrary>, functionNames, FunctionNames, NSArray <NSString *> *);
 };
 
@@ -118,8 +120,31 @@ struct MTLPP_EXPORT IMPTable<id<MTLLibrary>, InterposeClass> : public IMPTable<i
 		INTERPOSE_REGISTRATION(NewFunctionWithName, C);
 		INTERPOSE_REGISTRATION(NewFunctionWithNameconstantValueserror, C);
 		INTERPOSE_REGISTRATION(NewFunctionWithNameconstantValuescompletionHandler, C);
+		INTERPOSE_REGISTRATION(NewFunctionWithDescriptorerror, C); // EPIC MOD - MetalRT Support
 	}
 };
+
+// EPIC MOD - BEGIN - MetalRT Support
+template<>
+struct MTLPP_EXPORT IMPTable<id<MTLFunctionHandle>, void> : public IMPTableBase<id<MTLFunctionHandle>>
+{
+    IMPTable()
+    {
+    }
+
+    IMPTable(Class C)
+    : IMPTableBase<id<MTLFunctionHandle>>(C)
+    , INTERPOSE_CONSTRUCTOR(Name, C)
+    , INTERPOSE_CONSTRUCTOR(Device, C)
+    , INTERPOSE_CONSTRUCTOR(FunctionType, C)
+    {
+    }
+
+    INTERPOSE_SELECTOR(id<MTLFunctionHandle>, device, Device, id<MTLDevice>);
+    INTERPOSE_SELECTOR(id<MTLFunctionHandle>, functionType, FunctionType, MTLFunctionType);
+    INTERPOSE_SELECTOR(id<MTLFunctionHandle>, name, Name, NSString*);
+};
+// EPIC MOD - END - MetalRT Support
 
 MTLPP_END
 

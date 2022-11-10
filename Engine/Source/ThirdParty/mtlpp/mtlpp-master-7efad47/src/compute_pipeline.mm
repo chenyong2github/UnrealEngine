@@ -6,6 +6,7 @@
 // Modifications for Unreal Engine
 
 #include <Metal/MTLComputePipeline.h>
+#include <Metal/MTLLibrary.h> // EPIC MOD - MetalRT Support
 #include "compute_pipeline.hpp"
 
 MTLPP_BEGIN
@@ -22,6 +23,18 @@ namespace mtlpp
 		Validate();
 		return ns::AutoReleased<ns::Array<Argument>>([m_ptr arguments]);
 	}
+
+// EPIC MOD - BEGIN - MetalRT Support
+	LinkedFunctions::LinkedFunctions()
+		: ns::Object<MTLLinkedFunctions*>([[MTLLinkedFunctions alloc] init], ns::Ownership::Assign)
+	{
+	}
+
+	void LinkedFunctions::SetFunctions(ns::Array<Function>& Functions)
+	{
+		[(MTLLinkedFunctions*)m_ptr setFunctions:Functions.GetPtr()];
+	}
+// EPIC MOD - END - MetalRT Support
 
     ComputePipelineDescriptor::ComputePipelineDescriptor() :
         ns::Object<MTLComputePipelineDescriptor*>([[MTLComputePipelineDescriptor alloc] init], ns::Ownership::Assign)
@@ -112,6 +125,13 @@ namespace mtlpp
 #endif
 	}
 
+// EPIC MOD - BEGIN - MetalRT Support
+	void ComputePipelineDescriptor::SetSupportAddingBinaryFunctions(bool value)
+	{
+		[(MTLComputePipelineDescriptor*)m_ptr setSupportAddingBinaryFunctions:value];
+	}
+// EPIC MOD - END - MetalRT Support
+
     void ComputePipelineDescriptor::SetLabel(const ns::String& label)
     {
         Validate();
@@ -163,7 +183,14 @@ namespace mtlpp
 		[(MTLComputePipelineDescriptor*)m_ptr reset];
 #endif
 	}
-	
+
+// EPIC MOD - BEGIN - MetalRT Support
+	void ComputePipelineDescriptor::SetLinkedFunctions(LinkedFunctions& functions)
+	{
+		[(MTLComputePipelineDescriptor*)m_ptr setLinkedFunctions:functions.GetPtr()];
+	}
+// EPIC MOD - END - MetalRT Support
+
 	ns::AutoReleased<ns::String> ComputePipelineState::GetLabel() const
 	{
 		Validate();
@@ -231,6 +258,29 @@ namespace mtlpp
 		return 0;
 #endif
 	}
+// EPIC MOD - BEGIN - MetalRT Support
+    FunctionHandle ComputePipelineState::GetFunctionHandleWithFunction(Function& function) const
+    {
+        Validate();
+        return FunctionHandle([(id<MTLComputePipelineState>)m_ptr functionHandleWithFunction:function.GetPtr()]);
+    }
+
+    IntersectionFunctionTable ComputePipelineState::NewIntersectionFunctionTableWithDescriptor(IntersectionFunctionTableDescriptor const& Descriptor)
+    {
+        return [(id<MTLComputePipelineState>)m_ptr newIntersectionFunctionTableWithDescriptor:Descriptor.GetPtr()];
+    }
+
+    VisibleFunctionTable ComputePipelineState::NewVisibleFunctionTableWithDescriptor(VisibleFunctionTableDescriptor const& Descriptor)
+    {
+        return [(id<MTLComputePipelineState>)m_ptr newVisibleFunctionTableWithDescriptor:Descriptor.GetPtr()];
+    }
+
+    ComputePipelineState ComputePipelineState::NewComputePipelineState(ns::Array<Function> const& AdditionalBinaryFunctions, ns::AutoReleasedError* error)
+    {
+        NSError** nsError = error ? (NSError**)error->GetInnerPtr() : nullptr;
+        return ComputePipelineState([(id<MTLComputePipelineState>)m_ptr newComputePipelineStateWithAdditionalBinaryFunctions:AdditionalBinaryFunctions.GetPtr() error:nsError]);
+    }
+// EPIC MOD - END - MetalRT Support
 }
 
 MTLPP_END

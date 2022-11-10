@@ -15,6 +15,7 @@
 #include "compute_pipeline.hpp"
 #include "sampler.hpp"
 #include "heap.hpp"
+#include "acceleration_structure.hpp" // EPIC MOD - MetalRT Support
 
 MTLPP_BEGIN
 
@@ -271,7 +272,19 @@ namespace mtlpp
 #endif
 #endif
 	}
-	
+
+	void ComputeCommandEncoder::UseResource(const Resource& resource, ResourceUsage usage, RenderStages stages)
+	{
+		Validate();
+#if MTLPP_IS_AVAILABLE(10_13, 11_0)
+#if MTLPP_CONFIG_IMP_CACHE
+		m_table->Useresourceusage(m_ptr, resource.GetPtr(), MTLResourceUsage(usage));
+#else
+		[(id<MTLComputeCommandEncoder>)m_ptr useResource:(id<MTLResource>)resource.GetPtr() usage:(MTLResourceUsage)usage stages:(MTLRenderStages)stages];
+#endif
+#endif
+	}
+
 	void ComputeCommandEncoder::UseResources(const Resource* resource, NSUInteger count, ResourceUsage usage)
 	{
 		Validate();
@@ -312,7 +325,24 @@ namespace mtlpp
 #endif
 #endif
 	}
-	
+
+// EPIC MOD - BEGIN - MetalRT Support
+    void ComputeCommandEncoder::SetIntersectionFunctionTable(IntersectionFunctionTable& funcTable, NSUInteger bufferIndex)
+    {
+        [m_ptr setIntersectionFunctionTable:funcTable.GetPtr() atBufferIndex:bufferIndex];
+    }
+
+    void ComputeCommandEncoder::SetVisibleFunctionTable(VisibleFunctionTable& funcTable, NSUInteger bufferIndex)
+    {
+        [m_ptr setVisibleFunctionTable:funcTable.GetPtr() atBufferIndex:bufferIndex];
+    }
+
+    void ComputeCommandEncoder::SetAccelerationStructure(AccelerationStructure& accelerationStructure, NSUInteger bufferIndex)
+    {
+        [m_ptr setAccelerationStructure:accelerationStructure.GetPtr() atBufferIndex:bufferIndex];
+    }
+// EPIC MOD - END - MetalRT Support
+
 #if MTLPP_CONFIG_VALIDATE
 	void ValidatedComputeCommandEncoder::UseResource(const Resource& resource, ResourceUsage usage)
 	{

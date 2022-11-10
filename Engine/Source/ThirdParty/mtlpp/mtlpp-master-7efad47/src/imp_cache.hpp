@@ -120,6 +120,7 @@ namespace UE
 		, ComputeCommandEncoder(nullptr)
 		, ParallelRenderCommandEncoder(nullptr)
 		, CaptureScope(nullptr)
+		, AccelerationStructure(nullptr) // EPIC MOD - MetalRT Support
 		{
 		}
 		
@@ -142,6 +143,13 @@ namespace UE
 		ITable<id<MTLComputeCommandEncoder>, void>* GetComputeCommandEncoder(id<MTLComputeCommandEncoder> Obj);
 		ITable<id<MTLParallelRenderCommandEncoder>, void>* GetParallelRenderCommandEncoder(id<MTLParallelRenderCommandEncoder> Obj);
 		ITable<id<MTLCaptureScope>, void>* GetCaptureScope(id<MTLCaptureScope> Obj);
+// EPIC MOD - BEGIN - MetalRT Support
+		ITable<id<MTLAccelerationStructure>, void>* GetAccelerationStructure(id<MTLAccelerationStructure> Obj);
+		ITable<id<MTLAccelerationStructureCommandEncoder>, void>* GetAccelerationStructureCommandEncoder(id<MTLAccelerationStructureCommandEncoder> Obj);
+		ITable<id<MTLVisibleFunctionTable>, void>* GetVisibleFunctionTable(id<MTLVisibleFunctionTable> Obj);
+		ITable<id<MTLIntersectionFunctionTable>, void>* GetIntersectionFunctionTable(id<MTLIntersectionFunctionTable> Obj);
+		ITable<id<MTLFunctionHandle>, void>* GetFunctionHandle(id<MTLFunctionHandle> Obj);
+// EPIC MOD - END - MetalRT Support
 		
 	private:
 		ITable<id<MTLDevice>, void>* Device;
@@ -153,6 +161,7 @@ namespace UE
 		ITable<id<MTLLibrary>, void>* Library;
 		ITable<id<MTLTexture>, void>* Texture;
 		ITable<id<MTLSamplerState>, void>* SamplerState;
+		ITable<id<MTLAccelerationStructure>, void>* AccelerationStructure; // EPIC MOD - MetalRT Support
 		ITable<id<MTLRenderPipelineState>, void>* RenderPipelineState;
 		ITable<id<MTLComputePipelineState>, void>* ComputePipelineState;
 		ITable<id<MTLHeap>, void>* Heap;
@@ -163,6 +172,12 @@ namespace UE
 		ITable<id<MTLComputeCommandEncoder>, void>* ComputeCommandEncoder;
 		ITable<id<MTLParallelRenderCommandEncoder>, void>* ParallelRenderCommandEncoder;
 		ITable<id<MTLCaptureScope>, void>* CaptureScope;
+// EPIC MOD - BEGIN - MetalRT Support
+		ITable<id<MTLAccelerationStructureCommandEncoder>, void>* AccelerationStructureCommandEncoder;
+		ITable<id<MTLVisibleFunctionTable>, void>* VisibleFunctionTable;
+		ITable<id<MTLIntersectionFunctionTable>, void>* IntersectionFunctionTable;
+		ITable<id<MTLFunctionHandle>, void>* FunctionHandle;
+// EPIC MOD - END - MetalRT Support
 	};
 	
 	struct MTLPP_EXPORT ITableCacheRef
@@ -186,6 +201,7 @@ namespace UE
 		ITable<id<MTLLibrary>, void>* GetLibrary(id<MTLLibrary> Obj);
 		ITable<id<MTLTexture>, void>* GetTexture(id<MTLTexture> Obj);
 		ITable<id<MTLSamplerState>, void>* GetSamplerState(id<MTLSamplerState> Obj);
+		ITable<id<MTLAccelerationStructure>, void>* GetAccelerationStructure(id<MTLAccelerationStructure> Obj); // EPIC MOD - MetalRT Support
 		ITable<id<MTLRenderPipelineState>, void>* GetRenderPipelineState(id<MTLRenderPipelineState> Obj);
 		ITable<id<MTLComputePipelineState>, void>* GetComputePipelineState(id<MTLComputePipelineState> Obj);
 		ITable<id<MTLHeap>, void>* GetHeap(id<MTLHeap> Obj);
@@ -196,7 +212,13 @@ namespace UE
 		ITable<id<MTLComputeCommandEncoder>, void>* GetComputeCommandEncoder(id<MTLComputeCommandEncoder> Obj);
 		ITable<id<MTLParallelRenderCommandEncoder>, void>* GetParallelRenderCommandEncoder(id<MTLParallelRenderCommandEncoder> Obj);
 		ITable<id<MTLCaptureScope>, void>* GetCaptureScope(id<MTLCaptureScope> Obj);
-		
+// EPIC MOD - BEGIN - MetalRT Support
+		ITable<id<MTLAccelerationStructureCommandEncoder>, void>* GetAccelerationStructureCommandEncoder(id<MTLAccelerationStructureCommandEncoder> Obj);
+		ITable<id<MTLVisibleFunctionTable>, void>* GetVisibleFunctionTable(id<MTLVisibleFunctionTable> Obj);
+		ITable<id<MTLIntersectionFunctionTable>, void>* GetIntersectionFunctionTable(id<MTLIntersectionFunctionTable> Obj);
+		ITable<id<MTLFunctionHandle>, void>* GetFunctionHandle(id<MTLFunctionHandle> Obj);
+// EPIC MOD - END - MetalRT Support
+
 		ITableCache* TableCache;
 	};
 }

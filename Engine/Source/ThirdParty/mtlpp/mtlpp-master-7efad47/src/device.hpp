@@ -82,6 +82,11 @@ namespace mtlpp
 	typedef ns::AutoReleased<ComputePipelineReflection> AutoReleasedComputePipelineReflection;
     class CommandQueueDescriptor;
     class HeapDescriptor;
+// EPIC MOD - BEGIN - MetalRT Support
+	class AccelerationStructure;
+	class AccelerationStructureDescriptor;
+	struct AccelerationStructureSizes;
+// EPIC MOD - END - MetalRT Support
 
     enum class FeatureSet
     {
@@ -261,6 +266,13 @@ namespace mtlpp
 		ArgumentEncoder NewArgumentEncoderWithArguments(ns::Array<ArgumentDescriptor> const& arguments) MTLPP_AVAILABLE(10_13, 11_0);
 		RenderPipelineState NewRenderPipelineState(const TileRenderPipelineDescriptor& descriptor, PipelineOption options, AutoReleasedRenderPipelineReflection* outReflection, ns::AutoReleasedError* error) MTLPP_AVAILABLE_IOS(11_0);
 		void NewRenderPipelineState(const TileRenderPipelineDescriptor& descriptor, PipelineOption options, RenderPipelineStateReflectionHandler completionHandler) MTLPP_AVAILABLE_IOS(11_0);
+// EPIC MOD - BEGIN - MetalRT Support
+		bool IsRayTracingSupported() const;
+
+		AccelerationStructure NewAccelerationStructure(const AccelerationStructureDescriptor& descriptor);
+		AccelerationStructure NewAccelerationStructureWithSize(NSUInteger size);
+		AccelerationStructureSizes AccelerationStructureSizesWithDescriptor(const AccelerationStructureDescriptor& descriptor);
+// EPIC MOD - END - MetalRT Support
     }
     MTLPP_AVAILABLE(10_11, 8_0);
 	

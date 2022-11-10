@@ -774,7 +774,20 @@ namespace mtlpp
 #endif
 #endif
 	}
-	
+// EPIC MOD - BEGIN - MetalRT Support
+    void RenderCommandEncoder::UseResource(const Resource& resource, ResourceUsage usage, RenderStages stages)
+    {
+        Validate();
+#if MTLPP_IS_AVAILABLE(10_15, 13_0)
+#if MTLPP_CONFIG_IMP_CACHE
+        m_table->UseresourceUsageStages(m_ptr, resource.GetPtr(), MTLResourceUsage(usage), MTLRenderStages(stages));
+#else
+        [(id<MTLRenderCommandEncoder>)m_ptr useResource:(id<MTLResource>)resource.GetPtr() usage:(MTLResourceUsage)usage stages:MTLRenderStages(stages)]];
+#endif
+#endif
+    }
+// EPIC MOD - END - MetalRT Support
+
 	void RenderCommandEncoder::UseResources(const Resource* resource, NSUInteger count, ResourceUsage usage)
 	{
 		Validate();

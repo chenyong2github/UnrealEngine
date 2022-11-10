@@ -10,6 +10,8 @@
 #pragma clang pop visibility
 
 #include <Metal/MTLLibrary.h>
+#include <Metal/MTLFunctionHandle.h> // EPIC MOD - MetalRT Support
+#include <Metal/MTLFunctionDescriptor.h> // EPIC MOD - MetalRT Support
 
 #include "library.hpp"
 #include "device.hpp"
@@ -459,6 +461,70 @@ namespace mtlpp
 #endif
 #endif
     }
+// EPIC MOD - BEGIN - MetalRT Support
+    Function Library::NewFunction(FunctionDescriptor& descriptor, ns::AutoReleasedError* error)
+    {
+        Validate();
+#if MTLPP_IS_AVAILABLE(11_0, 14_0)
+#if MTLPP_CONFIG_IMP_CACHE
+        return Function(m_table->NewFunctionWithDescriptorerror(m_ptr, descriptor.GetPtr(), error ? (NSError**)error->GetInnerPtr() : nullptr), m_table->TableCache);
+#else
+        NSError** nsError = error ? (NSError**)error->GetInnerPtr() : nullptr;
+        return [(id<MTLLibrary>)m_ptr newFunctionWithDescriptor:(MTLFunctionDescriptor*)descriptor.GetPtr() error:nsError];
+#endif
+#else
+        return nullptr;
+#endif
+    }
+
+    FunctionDescriptor::FunctionDescriptor()
+        : ns::Object<MTLFunctionDescriptor*>([[MTLFunctionDescriptor alloc] init], ns::Ownership::Assign)
+    {
+
+    }
+
+    void FunctionDescriptor::SetName(const ns::String& name)
+    {
+        [(MTLFunctionDescriptor*)m_ptr setName:name.GetPtr()];
+    }
+
+    void FunctionDescriptor::SetSpecializedName(const ns::String& functionName)
+    {
+        [(MTLFunctionDescriptor*)m_ptr setSpecializedName:functionName.GetPtr()];
+    }
+
+    void FunctionDescriptor::SetConstantValues(FunctionConstantValues& constantValues)
+    {
+        [(MTLFunctionDescriptor*)m_ptr setConstantValues:constantValues.GetPtr()];
+    }
+
+    void FunctionDescriptor::SetOptions(FunctionOptions options)
+    {
+        [(MTLFunctionDescriptor*)m_ptr setOptions:(MTLFunctionOptions)options];
+    }
+
+    FunctionType FunctionHandle::GetFunctionType() const
+    {
+        Validate();
+        return FunctionType([(id<MTLFunctionHandle>)m_ptr functionType]);
+    }
+
+    ns::AutoReleased<Device> FunctionHandle::GetDevice() const
+    {
+        Validate();
+#if MTLPP_CONFIG_IMP_CACHE
+        return ns::AutoReleased<Device>(m_table->Device(m_ptr));
+#else
+        return ns::AutoReleased<Device>([(id<MTLFunctionHandle>)m_ptr device]);
+#endif
+    }
+
+    ns::AutoReleased<ns::String> FunctionHandle::GetName() const
+    {
+        Validate();
+        return ns::AutoReleased<ns::String>([(id<MTLFunctionHandle>)m_ptr name]);
+    }
+// EPIC MOD - END - MetalRT Support
 
 }
 

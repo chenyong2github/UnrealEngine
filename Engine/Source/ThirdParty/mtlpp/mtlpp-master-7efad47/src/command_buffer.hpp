@@ -44,6 +44,7 @@ namespace mtlpp
     class Drawable;
     class RenderPassDescriptor;
 	class CommandBuffer;
+	class AccelerationStructureCommandEncoder; // EPIC MOD - MetalRT Support
 
     enum class CommandBufferStatus
     {
@@ -126,6 +127,8 @@ namespace mtlpp
 		MTLPP_VALIDATED class ComputeCommandEncoder ComputeCommandEncoder(DispatchType Type) /* MTLPP_AVAILABLE(10_14, 12_0) */;
         MTLPP_VALIDATED ParallelRenderCommandEncoder ParallelRenderCommandEncoder(const RenderPassDescriptor& renderPassDescriptor);
 		
+		AccelerationStructureCommandEncoder AccelerationStructureCommandEncoder(); // EPIC MOD - MetalRT Support
+
 		void PushDebugGroup(const ns::String& string) MTLPP_AVAILABLE(10_13, 11_0);
 		void PopDebugGroup() MTLPP_AVAILABLE(10_13, 11_0);
     }

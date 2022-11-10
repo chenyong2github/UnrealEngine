@@ -67,6 +67,10 @@ struct MTLPP_EXPORT IMPTable<id<MTLDevice>, void> : public IMPTableBase<id<MTLDe
 	, INTERPOSE_CONSTRUCTOR(getDefaultSamplePositionscount, C)
 	, INTERPOSE_CONSTRUCTOR(newRenderPipelineStateWithTileDescriptoroptionsreflectionerror, C)
 	, INTERPOSE_CONSTRUCTOR(newRenderPipelineStateWithTileDescriptoroptionscompletionHandler, C)
+// EPIC MOD - BEGIN - MetalRT Support
+	, INTERPOSE_CONSTRUCTOR(newAccelerationStructureWithDescriptor, C)
+	, INTERPOSE_CONSTRUCTOR(newAccelerationStructureWithSize, C)
+// EPIC MOD - END - MetalRT Support
 	{
 	}
 
@@ -121,6 +125,10 @@ struct MTLPP_EXPORT IMPTable<id<MTLDevice>, void> : public IMPTableBase<id<MTLDe
 	INTERPOSE_SELECTOR(id<MTLDevice>, getDefaultSamplePositions:count:, getDefaultSamplePositionscount, void, MTLPPSamplePosition*, NSUInteger);
 	INTERPOSE_SELECTOR(id<MTLDevice>, newRenderPipelineStateWithTileDescriptor:options:reflection:error:, newRenderPipelineStateWithTileDescriptoroptionsreflectionerror, id <MTLRenderPipelineState>, MTLTileRenderPipelineDescriptor*, MTLPipelineOption, MTLAutoreleasedRenderPipelineReflection*, NSError**);
 	INTERPOSE_SELECTOR(id<MTLDevice>, newRenderPipelineStateWithTileDescriptor:options:completionHandler:, newRenderPipelineStateWithTileDescriptoroptionscompletionHandler, void, MTLTileRenderPipelineDescriptor*, MTLPipelineOption, MTLNewRenderPipelineStateWithReflectionCompletionHandler);
+// EPIC MOD - BEGIN - MetalRT Support
+	INTERPOSE_SELECTOR(id<MTLDevice>, newAccelerationStructureWithDescriptor:, newAccelerationStructureWithDescriptor, id<MTLAccelerationStructure>, MTLAccelerationStructureDescriptor*);
+	INTERPOSE_SELECTOR(id<MTLDevice>, newAccelerationStructureWithSize:, newAccelerationStructureWithSize, id<MTLAccelerationStructure>, NSUInteger);
+// EPIC MOD - END - MetalRT Support
 };
 
 template<typename InterposeClass>

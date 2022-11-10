@@ -78,6 +78,10 @@ MTLPP_CLASS(MTLRenderPipelineColorAttachmentDescriptorArray);
 MTLPP_CLASS(MTLPipelineBufferDescriptorArray);
 MTLPP_CLASS(MTLVertexBufferLayoutDescriptorArray);
 MTLPP_CLASS(MTLVertexAttributeDescriptorArray);
+// EPIC MOD - BEGIN - MetalRT Support
+MTLPP_CLASS(MTLFunctionDescriptor);
+MTLPP_CLASS(MTLAccelerationStructureDescriptor);
+// EPIC MOD - END - MetalRT Support
 
 #if __OBJC__
 @class NSArray<__covariant ObjectType>;
@@ -124,6 +128,13 @@ MTLPP_PROTOCOL(MTLResource);
 MTLPP_PROTOCOL(MTLSamplerState);
 MTLPP_PROTOCOL(MTLTexture);
 MTLPP_PROTOCOL(MTLSamplerState);
+// EPIC MOD - BEGIN - MetalRT Support
+MTLPP_PROTOCOL(MTLAccelerationStructure);
+MTLPP_PROTOCOL(MTLVisibleFunctionTable);
+MTLPP_PROTOCOL(MTLIntersectionFunctionTable);
+MTLPP_PROTOCOL(MTLAccelerationStructureCommandEncoder);
+MTLPP_PROTOCOL(MTLFunctionHandle);
+// EPIC MOD - END - MetalRT Support
 MTLPP_PROTOCOL(NSObject);
 
 #if (__cplusplus)
@@ -269,6 +280,13 @@ MTLPP_EXTERN void objc_setAssociatedObject(id object, const void * key, id value
 namespace mtlpp
 {
 	enum ResourceUsage : NSUInteger;
+
+	enum RenderStages
+	{
+		Vertex   = (1 << 0),
+		Fragment = (1 << 1),
+	}
+	MTLPP_AVAILABLE(10_13, 10_0);
 }
 
 MTLPP_END

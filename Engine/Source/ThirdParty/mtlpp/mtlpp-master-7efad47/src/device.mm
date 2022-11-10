@@ -22,6 +22,7 @@
 #include "texture.hpp"
 #include "heap.hpp"
 #include "argument_encoder.hpp"
+#include "acceleration_structure.hpp" // EPIC MOD - MetalRT Support
 
 MTLPP_BEGIN
 
@@ -623,6 +624,36 @@ namespace mtlpp
                                           }];
 #endif
     }
+// EPIC MOD - BEGIN - MetalRT Support
+    bool Device::IsRayTracingSupported() const
+    {
+        return [m_ptr supportsRaytracing];
+    }
+
+    AccelerationStructure Device::NewAccelerationStructure(const AccelerationStructureDescriptor& descriptor)
+    {
+        Validate();
+        return [m_ptr newAccelerationStructureWithDescriptor:descriptor.GetPtr()];
+    }
+
+    AccelerationStructure Device::NewAccelerationStructureWithSize(NSUInteger size)
+    {
+        Validate();
+        return [m_ptr newAccelerationStructureWithSize:size];
+    }
+
+    AccelerationStructureSizes Device::AccelerationStructureSizesWithDescriptor(const AccelerationStructureDescriptor& descriptor)
+    {
+        MTLAccelerationStructureSizes sizes = [m_ptr accelerationStructureSizesWithDescriptor:descriptor.GetPtr()];
+
+        AccelerationStructureSizes OutSizes;
+        OutSizes.accelerationStructureSize = sizes.accelerationStructureSize;
+        OutSizes.buildScratchBufferSize = sizes.buildScratchBufferSize;
+        OutSizes.refitScratchBufferSize = sizes.refitScratchBufferSize;
+
+        return OutSizes;
+    }
+// EPIC MOD - END - MetalRT Support
 
     RenderPipelineState Device::NewRenderPipelineState(const RenderPipelineDescriptor& descriptor, ns::AutoReleasedError* error)
     {

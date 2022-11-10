@@ -19,6 +19,10 @@
 #include "sampler.hpp"
 #include "texture.hpp"
 #include "buffer.hpp"
+// EPIC MOD - BEGIN - MetalRT Support
+#include "intersection_function_table.hpp"
+#include "acceleration_structure.hpp"
+// EPIC MOD - END - MetalRT Support
 
 MTLPP_BEGIN
 
@@ -68,9 +72,15 @@ namespace mtlpp
         void UpdateFence(const Fence& fence) MTLPP_AVAILABLE(10_13, 10_0);
         void WaitForFence(const Fence& fence) MTLPP_AVAILABLE(10_13, 10_0);
 		MTLPP_VALIDATED void UseResource(const Resource& resource, ResourceUsage usage) MTLPP_AVAILABLE(10_13, 11_0);
+		MTLPP_VALIDATED void UseResource(const Resource& resource, ResourceUsage usage, RenderStages stages) MTLPP_AVAILABLE(10_13, 11_0); // EPIC MOD - MetalRT Support
 		MTLPP_VALIDATED void UseResources(const Resource* resource, NSUInteger count, ResourceUsage usage) MTLPP_AVAILABLE(10_13, 11_0);
 		void UseHeap(const Heap& heap) MTLPP_AVAILABLE(10_13, 11_0);
 		void UseHeaps(const Heap::Type* heap, NSUInteger count) MTLPP_AVAILABLE(10_13, 11_0);
+		// EPIC MOD - BEGIN - MetalRT Support
+		void SetIntersectionFunctionTable(IntersectionFunctionTable& funcTable, NSUInteger bufferIndex) MTLPP_AVAILABLE(11_00, 14_0);
+		void SetVisibleFunctionTable(VisibleFunctionTable& funcTable, NSUInteger bufferIndex) MTLPP_AVAILABLE(11_00, 14_0);
+		void SetAccelerationStructure(AccelerationStructure& accelerationStructure, NSUInteger bufferIndex) MTLPP_AVAILABLE(11_00, 14_0);
+		// EPIC MOD - END - MetalRT Support
     }
     MTLPP_AVAILABLE(10_11, 8_0);
 	

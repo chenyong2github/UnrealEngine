@@ -66,6 +66,7 @@ struct MTLPP_EXPORT IMPTable<id<MTLComputePipelineState>, void> : public IMPTabl
 	, INTERPOSE_CONSTRUCTOR(threadExecutionWidth, C)
 	, INTERPOSE_CONSTRUCTOR(staticThreadgroupMemoryLength, C)
 	, INTERPOSE_CONSTRUCTOR(imageblockMemoryLengthForDimensions, C)
+	, INTERPOSE_CONSTRUCTOR(getFunctionHandleWithFunction, C) // EPIC MOD - MetalRT Support
 	{
 	}
 	
@@ -73,6 +74,7 @@ struct MTLPP_EXPORT IMPTable<id<MTLComputePipelineState>, void> : public IMPTabl
 	INTERPOSE_SELECTOR(id<MTLComputePipelineState>, threadExecutionWidth, threadExecutionWidth, NSUInteger);
 	INTERPOSE_SELECTOR(id<MTLComputePipelineState>, staticThreadgroupMemoryLength, staticThreadgroupMemoryLength, NSUInteger);
 	INTERPOSE_SELECTOR(id<MTLComputePipelineState>, imageblockMemoryLengthForDimensions:, imageblockMemoryLengthForDimensions,NSUInteger,MTLPPSize);
+	INTERPOSE_SELECTOR(id<MTLComputePipelineState>, getFunctionHandleWithFunction:, getFunctionHandleWithFunction, id<MTLFunction>); // EPIC MOD - MetalRT Support
 };
 
 template<typename InterposeClass>

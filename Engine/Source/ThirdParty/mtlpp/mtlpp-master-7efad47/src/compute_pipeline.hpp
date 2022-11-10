@@ -14,6 +14,9 @@
 #include "argument.hpp"
 #include "pipeline.hpp"
 #include "stage_input_output_descriptor.hpp"
+#include "intersection_function_table.hpp" // EPIC MOD - MetalRT Support
+
+#include <Metal/MTLLinkedFunctions.h>
 
 MTLPP_BEGIN
 
@@ -63,6 +66,17 @@ namespace mtlpp
 	MTLPP_AVAILABLE(10_11, 9_0);
 	typedef ns::AutoReleased<ComputePipelineReflection> AutoReleasedComputePipelineReflection;
 
+// EPIC MOD - BEGIN - MetalRT Support
+class MTLPP_EXPORT LinkedFunctions : public ns::Object<MTLLinkedFunctions*>
+{
+public:
+	LinkedFunctions();
+	LinkedFunctions(MTLLinkedFunctions* handle, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<MTLLinkedFunctions*>(handle, retain) { }
+
+	void SetFunctions(ns::Array<Function>& Functions);
+};
+// EPIC MOD - END - MetalRT Support
+
 	class MTLPP_EXPORT ComputePipelineDescriptor : public ns::Object<MTLComputePipelineDescriptor*>
     {
     public:
@@ -82,6 +96,11 @@ namespace mtlpp
         void SetStageInputDescriptor(const StageInputOutputDescriptor& stageInputDescriptor) const MTLPP_AVAILABLE(10_12, 10_0);
 		void SetMaxTotalThreadsPerThreadgroup(NSUInteger ThreadCount) MTLPP_AVAILABLE(10_14, 12_0);
 
+// EPIC MOD - BEGIN - MetalRT Support
+		void SetSupportAddingBinaryFunctions(bool value);
+		void SetLinkedFunctions(LinkedFunctions& functions);
+// EPIC MOD - END - MetalRT Support
+		
         void Reset();
     }
     MTLPP_AVAILABLE(10_11, 9_0);
@@ -99,6 +118,12 @@ namespace mtlpp
 		NSUInteger GetStaticThreadgroupMemoryLength() const MTLPP_AVAILABLE(10_13, 11_0);
 		
 		NSUInteger GetImageblockMemoryLengthForDimensions(Size const& imageblockDimensions) MTLPP_AVAILABLE_IOS(11_0);
+// EPIC MOD - BEGIN - MetalRT Support
+		FunctionHandle GetFunctionHandleWithFunction(Function& function) const MTLPP_AVAILABLE(11_00, 14_0);
+		ComputePipelineState NewComputePipelineState(ns::Array<Function> const& AdditionalBinaryFunctions, ns::AutoReleasedError* error);
+		IntersectionFunctionTable NewIntersectionFunctionTableWithDescriptor(IntersectionFunctionTableDescriptor const& Descriptor);
+		VisibleFunctionTable NewVisibleFunctionTableWithDescriptor(VisibleFunctionTableDescriptor const& Descriptor);
+// EPIC MOD - END - MetalRT Support
     }
     MTLPP_AVAILABLE(10_11, 8_0);
 }

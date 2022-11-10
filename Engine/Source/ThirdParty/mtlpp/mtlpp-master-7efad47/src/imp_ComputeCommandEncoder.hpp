@@ -35,10 +35,15 @@ struct MTLPP_EXPORT IMPTable<id<MTLComputeCommandEncoder>, void> : public IMPTab
 	, INTERPOSE_CONSTRUCTOR(Updatefence, C)
 	, INTERPOSE_CONSTRUCTOR(Waitforfence, C)
 	, INTERPOSE_CONSTRUCTOR(Useresourceusage, C)
+	, INTERPOSE_CONSTRUCTOR(UseresourceUsageStages, C) // EPIC MOD - MetalRT Support
 	, INTERPOSE_CONSTRUCTOR(Useresourcescountusage, C)
 	, INTERPOSE_CONSTRUCTOR(Useheap, C)
 	, INTERPOSE_CONSTRUCTOR(Useheapscount, C)
 	, INTERPOSE_CONSTRUCTOR(SetImageblockWidthHeight, C)
+	// EPIC MOD - BEGIN - MetalRT Support
+	, INTERPOSE_CONSTRUCTOR(SetIntersectionFunctionTable, C)
+	, INTERPOSE_CONSTRUCTOR(SetAccelerationStructure, C)
+	// EPIC MOD - END - MetalRT Support
 	{
 	}
 	
@@ -61,10 +66,15 @@ struct MTLPP_EXPORT IMPTable<id<MTLComputeCommandEncoder>, void> : public IMPTab
 	INTERPOSE_SELECTOR(id<MTLComputeCommandEncoder>, updateFence:, Updatefence, void, id <MTLFence>);
 	INTERPOSE_SELECTOR(id<MTLComputeCommandEncoder>, waitForFence:, Waitforfence, void, id <MTLFence>);
 	INTERPOSE_SELECTOR(id<MTLComputeCommandEncoder>, useResource:usage:, Useresourceusage, void, id <MTLResource>, MTLResourceUsage);
+	INTERPOSE_SELECTOR(id<MTLComputeCommandEncoder>, useResource:usage:stages:,    UseresourceUsageStages,    void, id <MTLResource>,MTLResourceUsage, MTLRenderStages); // EPIC MOD - MetalRT Support
 	INTERPOSE_SELECTOR(id<MTLComputeCommandEncoder>, useResources:count:usage:, Useresourcescountusage, void, const id <MTLResource> *, NSUInteger, MTLResourceUsage);
 	INTERPOSE_SELECTOR(id<MTLComputeCommandEncoder>, useHeap:, Useheap, void, id <MTLHeap>);
 	INTERPOSE_SELECTOR(id<MTLComputeCommandEncoder>, useHeaps:count:, Useheapscount, void, const id <MTLHeap> *, NSUInteger);
 	INTERPOSE_SELECTOR(id<MTLComputeCommandEncoder>, setImageblockWidth:height:, SetImageblockWidthHeight, void, NSUInteger, NSUInteger);
+	// EPIC MOD - BEGIN - MetalRT Support
+	INTERPOSE_SELECTOR(id<MTLComputeCommandEncoder>, setIntersectionFunctionTable:atBufferIndex:, SetIntersectionFunctionTable, void, id<MTLIntersectionFunctionTable>, NSUInteger);
+	INTERPOSE_SELECTOR(id<MTLComputeCommandEncoder>, setAccelerationStructure:atBufferIndex:, SetAccelerationStructure, void, id<MTLAccelerationStructure>, NSUInteger);
+	// EPIC MOD - END - MetalRT Support
 };
 
 template<typename InterposeClass>
@@ -107,6 +117,10 @@ struct MTLPP_EXPORT IMPTable<id<MTLComputeCommandEncoder>, InterposeClass> : pub
 		INTERPOSE_REGISTRATION(Useheap, C);
 		INTERPOSE_REGISTRATION(Useheapscount, C);
 		INTERPOSE_REGISTRATION(SetImageblockWidthHeight, C);
+// EPIC MOD - BEGIN - MetalRT Support
+	    INTERPOSE_REGISTRATION(SetIntersectionFunctionTable, C);
+	    INTERPOSE_REGISTRATION(SetAccelerationStructure, C);
+// EPIC MOD - END - MetalRT Support
 	}
 };
 

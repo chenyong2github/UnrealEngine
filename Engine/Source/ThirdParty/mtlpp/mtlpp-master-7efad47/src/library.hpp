@@ -69,6 +69,19 @@ namespace UE
 		static ITable<MTLCompileOptions*, void> Table(object_getClass(handle));
 		return &Table;
 	}
+
+	template<>
+    struct ITable<id<MTLFunctionHandle>, void> : public IMPTable<id<MTLFunctionHandle>, void>, public ITableCacheRef
+    {
+		ITable()
+		{
+		}
+
+		ITable(Class C)
+		: IMPTable<id<MTLFunctionHandle>, void>(C)
+		{
+		}
+    };
 }
 
 namespace mtlpp
@@ -122,6 +135,10 @@ namespace mtlpp
         Vertex   = 1,
         Fragment = 2,
         Kernel   = 3,
+// EPIC MOD - BEGIN - MetalRT Support
+		Visible = 5,
+		Intersection = 6,
+// EPIC MOD - END - MetalRT Support
     }
     MTLPP_AVAILABLE(10_11, 8_0);
 
@@ -177,6 +194,40 @@ namespace mtlpp
     }
     MTLPP_AVAILABLE(10_11, 9_0);
 
+// EPIC MOD - BEGIN - MetalRT Support
+    enum class FunctionOptions
+    {
+        None = 0,
+        CompileToBinary MTLPP_AVAILABLE(11_0, 14_0) = 1 << 0,
+    }
+    MTLPP_AVAILABLE(11_0, 14_0);
+
+    class MTLPP_EXPORT FunctionDescriptor : public ns::Object<MTLFunctionDescriptor*>
+    {
+    public:
+        FunctionDescriptor();
+        FunctionDescriptor(MTLFunctionDescriptor* handle, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<MTLFunctionDescriptor*>(handle, retain) { }
+
+        void SetName(const ns::String& name);
+        void SetSpecializedName(const ns::String& functionName);
+        void SetConstantValues(FunctionConstantValues& constantValues);
+        void SetOptions(FunctionOptions options);
+    }
+    MTLPP_AVAILABLE(11_0, 14_0);
+
+    class MTLPP_EXPORT FunctionHandle : public ns::Object<ns::Protocol<id<MTLFunctionHandle>>::type>
+    {
+    public:
+        FunctionHandle() { }
+        FunctionHandle(ns::Protocol<id<MTLFunctionHandle>>::type handle, UE::ITableCache* cache = nullptr, ns::Ownership const retain = ns::Ownership::Retain) : ns::Object<ns::Protocol<id<MTLFunctionHandle>>::type>(handle, retain, UE::ITableCacheRef(cache).GetFunctionHandle(handle)) { }
+
+        FunctionType                 GetFunctionType() const;
+        ns::AutoReleased<Device>     GetDevice() const;
+        ns::AutoReleased<ns::String> GetName() const;
+    }
+    MTLPP_AVAILABLE(11_00, 11_0);
+// EPIC MOD - END - MetalRT Support
+
     class MTLPP_EXPORT CompileOptions : public ns::Object<MTLCompileOptions*>
     {
     public:
@@ -229,6 +280,7 @@ namespace mtlpp
         Function NewFunction(const ns::String& functionName) const;
         Function NewFunction(const ns::String& functionName, const FunctionConstantValues& constantValues, ns::AutoReleasedError* error) const MTLPP_AVAILABLE(10_12, 10_0);
         void NewFunction(const ns::String& functionName, const FunctionConstantValues& constantValues, FunctionHandler completionHandler) const MTLPP_AVAILABLE(10_12, 10_0);
+		Function NewFunction(FunctionDescriptor& descriptor, ns::AutoReleasedError* error) MTLPP_AVAILABLE(11_0, 14_0); // EPIC MOD - MetalRT Support
     }
     MTLPP_AVAILABLE(10_11, 8_0);
 }
