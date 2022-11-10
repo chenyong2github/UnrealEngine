@@ -404,6 +404,9 @@ public:
 	/** Returns whether level should start to render only when it will be fully added to the world or not. */
 	virtual bool ShouldRequireFullVisibilityToRender() const { return LODPackageNames.Num() > 0; }
 
+	/** Returns whether level status can be replicated from the server to the client */
+	virtual bool CanReplicateStreamingStatus() const { return true; }
+
 	/** 
 	 * Virtual that can be overriden to change whether a streaming level should be loaded.
 	 * Doesn't do anything at the base level as should be loaded defaults to true 

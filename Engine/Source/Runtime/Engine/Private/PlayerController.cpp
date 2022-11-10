@@ -325,51 +325,37 @@ void APlayerController::ClientUpdateLevelStreamingStatus_Implementation(FName Pa
 		}
 	}
 
+	// Search for the streaming level object by name
+	ULevelStreaming* LevelStreamingObject = FLevelUtils::FindStreamingLevel(World, PackageName);
+
+	// Skip if streaming level object doesn't allow replicating the status
+	if (LevelStreamingObject && !LevelStreamingObject->CanReplicateStreamingStatus())
+	{
+		return;
+	}
+
 	// if we're about to commit a map change, we assume that the streaming update is based on the to be loaded map and so defer it until that is complete
 	if (GEngine->ShouldCommitPendingMapChange(World))
 	{
 		GEngine->AddNewPendingStreamingLevel(World, PackageName, bNewShouldBeLoaded, bNewShouldBeVisible, LODIndex);		
 	}
+	else if (LevelStreamingObject)
+	{
+		// If we're unloading any levels, we need to request a one frame delay of garbage collection to make sure it happens after the level is actually unloaded
+		if (LevelStreamingObject->ShouldBeLoaded() && !bNewShouldBeLoaded)
+		{
+			GEngine->DelayGarbageCollection();
+		}
+
+		LevelStreamingObject->SetShouldBeLoaded(bNewShouldBeLoaded);
+		LevelStreamingObject->SetShouldBeVisible(bNewShouldBeVisible);
+		LevelStreamingObject->bShouldBlockOnLoad = bNewShouldBlockOnLoad;
+		LevelStreamingObject->SetLevelLODIndex(LODIndex);
+		LevelStreamingObject->UpdateNetVisibilityTransactionState(bNewShouldBeVisible, TransactionId);
+	}
 	else
 	{
-		// search for the level object by name
-		ULevelStreaming* LevelStreamingObject = nullptr;
-		if (World && PackageName != NAME_None)
-		{
-			for (ULevelStreaming* CurrentLevelStreamingObject : World->GetStreamingLevels())
-			{
-				if (CurrentLevelStreamingObject && CurrentLevelStreamingObject->GetWorldAssetPackageFName() == PackageName)
-				{
-					LevelStreamingObject = CurrentLevelStreamingObject;
-					if (LevelStreamingObject)
-					{
-						// If we're unloading any levels, we need to request a one frame delay of garbage collection to make sure it happens after the level is actually unloaded
-						if (LevelStreamingObject->ShouldBeLoaded() && !bNewShouldBeLoaded)
-						{
-							GEngine->DelayGarbageCollection();
-						}
-
-						LevelStreamingObject->SetShouldBeLoaded(bNewShouldBeLoaded);
-						LevelStreamingObject->SetShouldBeVisible(bNewShouldBeVisible);
-						LevelStreamingObject->bShouldBlockOnLoad = bNewShouldBlockOnLoad;
-						LevelStreamingObject->SetLevelLODIndex(LODIndex);
-						LevelStreamingObject->UpdateNetVisibilityTransactionState(bNewShouldBeVisible, TransactionId);
-					}
-					else
-					{
-						UE_LOG(LogStreaming, Log, TEXT("Unable to handle streaming object %s"),*LevelStreamingObject->GetName() );
-					}
-
-					// break out of object iterator if we found a match
-					break;
-				}
-			}
-		}
-
-		if (LevelStreamingObject == NULL)
-		{
-			UE_LOG(LogStreaming, Log, TEXT("Unable to find streaming object %s"), *PackageName.ToString() );
-		}
+		UE_LOG(LogStreaming, Log, TEXT("Unable to find streaming object %s"), *PackageName.ToString() );
 	}
 }
 

@@ -41,6 +41,8 @@ class ENGINE_API UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDy
 
 	void Initialize(const UWorldPartitionRuntimeLevelStreamingCell& InCell);
 
+	virtual bool CanReplicateStreamingStatus() const override { return false; }
+
 #if WITH_EDITOR
 	static UWorldPartitionLevelStreamingDynamic* LoadInEditor(UWorld* World, FName LevelStreamingName, const TArray<FWorldPartitionRuntimeCellObjectMapping>& InPackages);
 	static void UnloadFromEditor(UWorldPartitionLevelStreamingDynamic* InLevelStreaming);

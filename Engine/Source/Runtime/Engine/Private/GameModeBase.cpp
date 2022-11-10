@@ -921,7 +921,7 @@ void AGameModeBase::ReplicateStreamingStatus(APlayerController* PC)
 			TArray<FUpdateLevelStreamingLevelStatus> LevelStatuses;
 			for (ULevelStreaming* TheLevel : MyWorld->GetStreamingLevels())
 			{
-				if (TheLevel != nullptr)
+				if (TheLevel && TheLevel->CanReplicateStreamingStatus())
 				{
 					const ULevel* LoadedLevel = TheLevel->GetLoadedLevel();
 
