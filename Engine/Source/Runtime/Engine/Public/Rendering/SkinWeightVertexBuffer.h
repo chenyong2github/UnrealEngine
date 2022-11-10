@@ -90,6 +90,16 @@ public:
 	/** @return true is LookupData is valid */
 	bool IsLookupDataValid() const;
 
+	const uint8* GetLookupData() const
+	{
+		return Data;
+	}
+
+	uint8* GetLookupData()
+	{
+		return Data;
+	}
+
 	void Init(uint32 InNumVertices);
 
 	friend FArchive& operator<<(FArchive& Ar, FSkinWeightLookupVertexBuffer& VertexBuffer);
