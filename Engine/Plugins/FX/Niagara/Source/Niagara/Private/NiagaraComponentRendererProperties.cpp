@@ -47,6 +47,7 @@ bool UNiagaraComponentRendererProperties::IsConvertible(const FNiagaraTypeDefini
 		(SourceType == FNiagaraTypeDefinition::GetQuatDef() && TargetType.GetStruct() == GetFQuatDef().GetStruct()) ||
 		(SourceType == FNiagaraTypeDefinition::GetPositionDef() && TargetType.GetStruct() == GetFVectorDef().GetStruct()) ||
 		(SourceType == FNiagaraTypeDefinition::GetPositionDef() && TargetType.GetStruct() == GetFVector3fDef().GetStruct()) ||
+		(SourceType == FNiagaraTypeDefinition::GetFloatDef() && TargetType.GetStruct() == GetDoubleDef().GetStruct()) ||
 		(SourceType == FNiagaraTypeDefinition::GetQuatDef() && TargetType.GetStruct() == GetFRotatorDef().GetStruct()))
 	{
 		return true;
@@ -68,6 +69,10 @@ NIAGARA_API FNiagaraTypeDefinition UNiagaraComponentRendererProperties::ToNiagar
 	if (FieldClass->IsChildOf(FFloatProperty::StaticClass()))
 	{
 		return FNiagaraTypeDefinition::GetFloatDef();
+	}
+	if (FieldClass->IsChildOf(FDoubleProperty::StaticClass()))
+	{
+		return GetDoubleDef();
 	}
 	if (FieldClass->IsChildOf(FStructProperty::StaticClass()))
 	{
@@ -170,6 +175,13 @@ FNiagaraTypeDefinition UNiagaraComponentRendererProperties::GetFQuatDef()
 	static UPackage* CoreUObjectPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/CoreUObject"));
 	static UScriptStruct* Struct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Quat"));
 	return FNiagaraTypeDefinition(Struct, FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
+}
+
+FNiagaraTypeDefinition UNiagaraComponentRendererProperties::GetDoubleDef()
+{
+	static UPackage* NiagaraPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/Niagara"));
+	static UScriptStruct* DoubleStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraDouble"));
+	return FNiagaraTypeDefinition(DoubleStruct, FNiagaraTypeDefinition::EAllowUnfriendlyStruct::Allow);
 }
 
 TArray<TWeakObjectPtr<UNiagaraComponentRendererProperties>> UNiagaraComponentRendererProperties::ComponentRendererPropertiesToDeferredInit;

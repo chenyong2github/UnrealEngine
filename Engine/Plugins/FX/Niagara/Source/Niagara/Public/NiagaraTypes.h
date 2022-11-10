@@ -161,6 +161,15 @@ struct FNiagaraParameterMap
 	GENERATED_USTRUCT_BODY()
 };
 
+// only used for LWC conversions, not supported by Niagara yet
+USTRUCT(meta = (DisplayName = "double"))
+struct FNiagaraDouble
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(EditAnywhere, Category=Parameters)
+	double Value = 0;
+};
 
 USTRUCT(meta = (DisplayName = "Matrix"))
 struct FNiagaraMatrix

@@ -131,6 +131,12 @@ void ConvertVariableToType(const FNiagaraVariable& SourceVariable, const FNiagar
 		TargetData.AddUninitialized(sizeof(FRotator));
 		*reinterpret_cast<FRotator*>(TargetData.GetData()) = FRotator(Data.Rotator());
 	}
+	else if (SourceType == FNiagaraTypeDefinition::GetFloatDef() && TargetType == UNiagaraComponentRendererProperties::GetDoubleDef())
+	{
+		const FNiagaraFloat Data = SourceVariable.GetValue<FNiagaraFloat>();
+		TargetData.AddUninitialized(sizeof(FNiagaraDouble));
+		reinterpret_cast<FNiagaraDouble*>(TargetData.GetData())->Value = Data.Value;
+	}
 }
 
 void InvokeSetterFunction(UObject* InRuntimeObject, UFunction* Setter, const uint8* InData, int32 DataSize, const TMap<FString, FString>& SetterDefaultValues)
@@ -704,6 +710,12 @@ void FNiagaraRendererComponents::TickPropertyBindings(
 					FNiagaraTypeDefinition VarType = DataVariable.GetType();
 					if (Property->GetSize() == VarType.GetSize())
 					{
+						break;
+					}
+
+					if (Property->GetClass()->IsChildOf(FDoubleProperty::StaticClass()))
+					{
+						PropertyType = UNiagaraComponentRendererProperties::GetDoubleDef();
 						break;
 					}
 

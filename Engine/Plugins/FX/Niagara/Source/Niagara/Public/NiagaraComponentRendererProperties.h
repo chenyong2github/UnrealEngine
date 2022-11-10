@@ -149,6 +149,7 @@ public:
 	static FNiagaraTypeDefinition GetFVector4Def();
 	static FNiagaraTypeDefinition GetFVector3fDef();
 	static FNiagaraTypeDefinition GetFQuatDef();
+	static FNiagaraTypeDefinition GetDoubleDef();
 
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
 
