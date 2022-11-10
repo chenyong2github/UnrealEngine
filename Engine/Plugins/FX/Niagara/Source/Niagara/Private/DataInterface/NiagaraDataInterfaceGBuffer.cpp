@@ -4,13 +4,14 @@
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraTypes.h"
-#include "NiagaraRenderViewDataManager.h"
 #include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraWorldManager.h"
 
 #include "Internationalization/Internationalization.h"
 #include "ShaderParameterUtils.h"
+#include "SceneRendering.h"
+#include "SceneTextures.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(NiagaraDataInterfaceGBuffer)
 
@@ -179,11 +180,15 @@ void UNiagaraDataInterfaceGBuffer::SetShaderParameters(const FNiagaraDataInterfa
 	NiagaraDataInterfaceGBufferLocal::FShaderParameters* Parameters = Context.GetParameterNestedStruct<NiagaraDataInterfaceGBufferLocal::FShaderParameters>();
 	if (Context.IsResourceBound(&Parameters->VelocityTexture))
 	{
-		if (FNiagaraSceneTextureParameters* NiagaraSceneTextures = static_cast<const FNiagaraGpuComputeDispatch&>(Context.GetComputeDispatchInterface()).GetNiagaraSceneTextures())	//-BATCHERTODO:
+		TConstArrayView<FViewInfo> ViewInfos = Context.GetComputeDispatchInterface().GetSimulationViewInfos();
+		if (ViewInfos.Num() > 0)
 		{
-			VelocityTexture = NiagaraSceneTextures->Velocity.GetTexture();
+			if ( const FSceneTextures* SceneTextures = GetViewFamilyInfo(ViewInfos).GetSceneTexturesChecked() )
+			{
+				VelocityTexture = SceneTextures->Velocity;
+			}
 		}
-
+		
 		if (VelocityTexture == nullptr)
 		{
 			VelocityTexture = Context.GetComputeDispatchInterface().GetBlackTexture(Context.GetGraphBuilder(), ETextureDimension::Texture2D);

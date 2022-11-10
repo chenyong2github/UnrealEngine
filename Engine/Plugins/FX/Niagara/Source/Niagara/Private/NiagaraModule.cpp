@@ -13,7 +13,6 @@
 #include "UObject/ObjectRedirector.h"
 #include "UObject/Package.h"
 #include "NiagaraWorldManager.h"
-#include "NiagaraRenderViewDataManager.h"
 #include "VectorVM.h"
 #include "NiagaraConstants.h"
 #include "NiagaraLightRendererProperties.h"
@@ -217,8 +216,6 @@ void INiagaraModule::StartupModule()
 #endif
 	LLM_SCOPE(ELLMTag::Niagara);
 	FNiagaraTypeDefinition::Init();
-	FNiagaraRenderViewDataManager::Init();
-
 	
 #if PLATFORM_WINDOWS
 	// Global registration of  the vdb types.
@@ -486,8 +483,6 @@ void INiagaraModule::OnWorldBeginTearDown(UWorld* World)
 void INiagaraModule::ShutdownRenderingResources()
 {
 	FFXSystemInterface::UnregisterCustomFXSystem(FNiagaraGpuComputeDispatch::Name);
-
-	FNiagaraRenderViewDataManager::Shutdown();
 }
 
 void INiagaraModule::ShutdownModule()

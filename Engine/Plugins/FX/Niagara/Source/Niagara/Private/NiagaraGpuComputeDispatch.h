@@ -170,9 +170,6 @@ public:
 	virtual FNiagaraGPUProfilerInterface* GetGPUProfiler() const final { return GPUProfilerPtr.Get(); }
 #endif
 
-	/** When inside a pass returns the active scene textures for the pass, can be nullptr. */
-	class FNiagaraSceneTextureParameters* GetNiagaraSceneTextures() const { return NiagaraSceneTextures; }
-
 	/** Allows access to the current passes external access queue. */
 	FRDGExternalAccessQueue& GetCurrentPassExternalAccessQueue() const { return CurrentPassExternalAccessQueue; }
 
@@ -253,8 +250,6 @@ private:
 
 	FNiagaraGpuDispatchList DispatchListPerStage[ENiagaraGpuComputeTickStage::Max];
 
-	class FNiagaraSceneTextureParameters* NiagaraSceneTextures = nullptr;
-
 	struct FDebugReadbackInfo
 	{
 		FNiagaraSystemInstanceID InstanceID;
@@ -288,4 +283,7 @@ private:
 #if WITH_EDITOR
 	bool bRaisedWarningThisFrame = false;
 #endif
+
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformParams = nullptr;
+	TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTexturesUniformParams = nullptr;
 };

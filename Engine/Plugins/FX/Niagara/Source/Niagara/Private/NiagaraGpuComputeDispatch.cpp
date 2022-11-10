@@ -18,7 +18,6 @@
 #endif
 #include "NiagaraGPUProfilerInterface.h"
 #include "NiagaraGpuReadbackManager.h"
-#include "NiagaraRenderViewDataManager.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraShader.h"
 #include "NiagaraShaderParticleID.h"
@@ -28,6 +27,7 @@
 #include "NiagaraWorldManager.h"
 #include "PipelineStateCache.h"
 #include "RHI.h"
+#include "SceneInterface.h"
 #include "ScenePrivate.h"
 #include "SceneRendering.h"
 #include "ShaderParameterUtils.h"
@@ -1047,10 +1047,27 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRDGBuilder& GraphBuilder, TConstA
 	RDG_RHI_EVENT_SCOPE(GraphBuilder, NiagaraGpuComputeDispatch);	//-TODO:RDG: Show TickStage
 
 	// Setup Parameters that can be read from data interfaces
-	FNiagaraSceneTextureParameters SceneTextures;
-	GNiagaraViewDataManager.GetSceneTextureParameters(GraphBuilder, Views.Num() > 0 ? GetViewFamilyInfo(Views).GetSceneTexturesChecked() : nullptr, SceneTextures);
-	NiagaraSceneTextures = &SceneTextures;
 	SimulationViewInfos = Views;
+
+	{
+		const FSceneTextures* SceneTextures = Views.Num() > 0 ? GetViewFamilyInfo(Views).GetSceneTexturesChecked() : nullptr;
+		if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Deferred)
+		{
+			SceneTexturesUniformParams = SceneTextures ? SceneTextures->UniformBuffer : nullptr;
+			if (SceneTexturesUniformParams == nullptr)
+			{
+				SceneTexturesUniformParams = CreateSceneTextureUniformBuffer(GraphBuilder, nullptr, FeatureLevel, ESceneTextureSetupMode::SceneVelocity);
+			}
+		}
+		else if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
+		{
+			MobileSceneTexturesUniformParams = SceneTextures ? SceneTextures->MobileUniformBuffer : nullptr;
+			if (MobileSceneTexturesUniformParams == nullptr)
+			{
+				MobileSceneTexturesUniformParams = CreateMobileSceneTextureUniformBuffer(GraphBuilder, SceneTextures, EMobileSceneTextureSetupMode::None);
+			}
+		}
+	}
 
 	// Loop over dispatches
 	for ( const FNiagaraGpuDispatchGroup& DispatchGroup : DispatchList.DispatchGroups )
@@ -1364,8 +1381,9 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRDGBuilder& GraphBuilder, TConstA
 	);
 
 	// Tear down for tick pass
-	NiagaraSceneTextures = nullptr;
 	SimulationViewInfos = TConstArrayView<FViewInfo>();
+	SceneTexturesUniformParams = nullptr;
+	MobileSceneTexturesUniformParams = nullptr;
 
 	CurrentPassExternalAccessQueue.Submit(GraphBuilder);
 }
@@ -1558,8 +1576,8 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 	{
 		DispatchParameters->View = SimulationViewInfos[0].ViewUniformBuffer;
 	}
-	DispatchParameters->SceneTextures.SceneTextures			= NiagaraSceneTextures->SceneTextures;
-	DispatchParameters->SceneTextures.MobileSceneTextures	= NiagaraSceneTextures->MobileSceneTextures;
+	DispatchParameters->SceneTextures.SceneTextures			= SceneTexturesUniformParams;
+	DispatchParameters->SceneTextures.MobileSceneTextures	= MobileSceneTexturesUniformParams;
 
 	// Execute the dispatch
 	{
@@ -1667,7 +1685,6 @@ void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bA
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, Niagara);
 
 	bRequiresReadback = false;
-	GNiagaraViewDataManager.ClearSceneTextureParameters();
 #if WITH_EDITOR
 	bRaisedWarningThisFrame = false;
 #endif
@@ -1834,8 +1851,6 @@ void FNiagaraGpuComputeDispatch::PostRenderOpaque(FRDGBuilder& GraphBuilder, TCo
 		}
 	);
 	bRequiresReadback = false;
-
-	GNiagaraViewDataManager.ClearSceneTextureParameters();
 
 	if (FNiagaraGpuComputeDispatchLocal::CsvStatsEnabled())
 	{
