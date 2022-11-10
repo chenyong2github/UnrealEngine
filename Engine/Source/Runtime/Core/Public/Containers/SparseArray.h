@@ -75,8 +75,6 @@ class TSparseArray
 {
 	using ElementType = InElementType;
 
-	friend struct TContainerTraits<TSparseArray>;
-
 	template <typename, typename>
 	friend class TScriptSparseArray;
 
@@ -670,7 +668,7 @@ public:
 	/** Move constructor. */
 	TSparseArray(TSparseArray&& InCopy)
 	{
-		MoveOrCopy(*this, InCopy);
+		this->Move(*this, InCopy);
 	}
 
 	/** Copy constructor. */
@@ -686,7 +684,7 @@ public:
 	{
 		if(this != &InCopy)
 		{
-			MoveOrCopy(*this, InCopy);
+			this->Move(*this, InCopy);
 		}
 		return *this;
 	}
@@ -740,7 +738,7 @@ public:
 
 private:
 	template <typename SparseArrayType>
-	FORCEINLINE static typename TEnableIf<TContainerTraits<SparseArrayType>::MoveWillEmptyContainer>::Type MoveOrCopy(SparseArrayType& ToArray, SparseArrayType& FromArray)
+	FORCEINLINE static void Move(SparseArrayType& ToArray, SparseArrayType& FromArray)
 	{
 		// Destruct the allocated elements.
 		if( !TIsTriviallyDestructible<ElementType>::Value )
@@ -758,12 +756,6 @@ private:
 		ToArray.NumFreeIndices = FromArray.NumFreeIndices;
 		FromArray.FirstFreeIndex = -1;
 		FromArray.NumFreeIndices = 0;
-	}
-
-	template <typename SparseArrayType>
-	FORCEINLINE static typename TEnableIf<!TContainerTraits<SparseArrayType>::MoveWillEmptyContainer>::Type MoveOrCopy(SparseArrayType& ToArray, SparseArrayType& FromArray)
-	{
-		ToArray = FromArray;
 	}
 
 public:
@@ -1203,14 +1195,6 @@ namespace Freeze
 }
 
 DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template <typename ElementType, typename Allocator>), (TSparseArray<ElementType, Allocator>));
-
-template<typename ElementType, typename Allocator>
-struct TContainerTraits<TSparseArray<ElementType, Allocator> > : public TContainerTraitsBase<TSparseArray<ElementType, Allocator> >
-{
-	enum { MoveWillEmptyContainer =
-		TContainerTraits<typename TSparseArray<ElementType, Allocator>::DataType>::MoveWillEmptyContainer &&
-		TContainerTraits<typename TSparseArray<ElementType, Allocator>::AllocationBitArrayType>::MoveWillEmptyContainer };
-};
 
 //
 // TSparseArray operator news.

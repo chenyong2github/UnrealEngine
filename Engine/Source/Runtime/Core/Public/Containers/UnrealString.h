@@ -55,8 +55,6 @@ public:
 	using AllocatorType = TSizedDefaultAllocator<32>;
 
 private:
-	friend struct TContainerTraits<FString>;
-
 	/** Array holding the character data */
 	typedef TArray<TCHAR, AllocatorType> DataType;
 	DataType Data;
@@ -1856,12 +1854,6 @@ public:
 		// This must match the GetTypeHash behavior of FStringView
 		return FCrc::Strihash_DEPRECATED(S.Len(), *S);
 	}
-};
-
-template<>
-struct TContainerTraits<FString> : public TContainerTraitsBase<FString>
-{
-	enum { MoveWillEmptyContainer = TContainerTraits<FString::DataType>::MoveWillEmptyContainer };
 };
 
 template<> struct TIsZeroConstructType<FString> { enum { Value = true }; };

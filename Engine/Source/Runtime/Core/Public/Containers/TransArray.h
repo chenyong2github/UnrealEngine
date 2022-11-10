@@ -187,12 +187,6 @@ protected:
 };
 
 
-template<typename T>
-struct TContainerTraits<TTransArray<T> > : public TContainerTraitsBase<TTransArray<T> >
-{
-	enum { MoveWillEmptyContainer = TContainerTraitsBase<typename TTransArray<T>::Super>::MoveWillEmptyContainer };
-};
-
 
 //
 // Transactional array operator news.

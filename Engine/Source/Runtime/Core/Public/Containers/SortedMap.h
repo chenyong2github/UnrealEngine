@@ -20,7 +20,6 @@ class TSortedMap
 {
 	template <typename OtherKeyType, typename OtherValueType, typename OtherArrayAllocator, typename OtherSortPredicate>
 	friend class TSortedMap;
-	friend struct TContainerTraits<TSortedMap>;
 
 public:
 	typedef typename TTypeTraits<KeyType  >::ConstPointerType KeyConstPointerType;
@@ -771,12 +770,6 @@ public:
 };
 
 DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template <typename KeyType, typename ValueType, typename ArrayAllocator, typename SortPredicate>), (TSortedMap<KeyType, ValueType, ArrayAllocator, SortPredicate>));
-
-template <typename KeyType, typename ValueType, typename ArrayAllocator, typename SortPredicate>
-struct TContainerTraits<TSortedMap<KeyType, ValueType, ArrayAllocator, SortPredicate>> : public TContainerTraitsBase<TSortedMap<KeyType, ValueType, ArrayAllocator, SortPredicate>>
-{
-	enum { MoveWillEmptyContainer = TContainerTraits<typename TSortedMap<KeyType, ValueType, ArrayAllocator, SortPredicate>::ElementArrayType>::MoveWillEmptyContainer };
-};
 
 struct TSortedMapPrivateFriend
 {

@@ -281,8 +281,6 @@ public:
 	typedef Allocator   AllocatorType;
 
 private:
-	friend struct TContainerTraits<TSet>;
-
 	template <typename, typename>
 	friend class TScriptSet;
 
@@ -341,7 +339,7 @@ public:
 
 private:
 	template <typename SetType>
-	static FORCEINLINE std::enable_if_t<TContainerTraits<SetType>::MoveWillEmptyContainer> MoveOrCopy(SetType& ToSet, SetType& FromSet)
+	static FORCEINLINE void Move(SetType& ToSet, SetType& FromSet)
 	{
 		ToSet.Elements = (ElementArrayType&&)FromSet.Elements;
 
@@ -349,12 +347,6 @@ private:
 
 		ToSet  .HashSize = FromSet.HashSize;
 		FromSet.HashSize = 0;
-	}
-
-	template <typename SetType>
-	static FORCEINLINE std::enable_if_t<!TContainerTraits<SetType>::MoveWillEmptyContainer> MoveOrCopy(SetType& ToSet, SetType& FromSet)
-	{
-		ToSet = FromSet;
 	}
 
 public:
@@ -369,7 +361,7 @@ public:
 	TSet(TSet&& Other)
 		: HashSize(0)
 	{
-		MoveOrCopy(*this, Other);
+		this->Move(*this, Other);
 	}
 
 	/** Move assignment operator. */
@@ -377,7 +369,7 @@ public:
 	{
 		if (this != &Other)
 		{
-			MoveOrCopy(*this, Other);
+			this->Move(*this, Other);
 		}
 
 		return *this;
@@ -1783,12 +1775,6 @@ namespace Freeze
 }
 
 DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template <typename ElementType, typename KeyFuncs, typename Allocator>), (TSet<ElementType, KeyFuncs, Allocator>));
-
-template<typename ElementType, typename KeyFuncs, typename Allocator>
-struct TContainerTraits<TSet<ElementType, KeyFuncs, Allocator> > : public TContainerTraitsBase<TSet<ElementType, KeyFuncs, Allocator> >
-{
-	enum { MoveWillEmptyContainer = TContainerTraits<typename TSet<ElementType, KeyFuncs, Allocator>::ElementArrayType>::MoveWillEmptyContainer };
-};
 
 struct FScriptSetLayout
 {

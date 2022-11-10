@@ -382,17 +382,6 @@ struct TTypeTraitsBase
 template<typename T> struct TTypeTraits : public TTypeTraitsBase<T> {};
 
 
-/**
- * Traits for containers.
- */
-template<typename T> struct TContainerTraitsBase
-{
-	// This should be overridden by every container that supports emptying its contents via a move operation.
-	enum { MoveWillEmptyContainer = false };
-};
-
-template<typename T> struct TContainerTraits : public TContainerTraitsBase<T> {};
-
 struct FVirtualDestructor
 {
 	virtual ~FVirtualDestructor() {}

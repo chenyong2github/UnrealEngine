@@ -745,12 +745,6 @@ public:
 	typedef TArray<InElementType, NavMeshMemory::FNavAllocator> Super;
 };
 
-template<typename InElementType>
-struct TContainerTraits<TNavStatArray<InElementType> > : public TContainerTraitsBase<TNavStatArray<InElementType> >
-{
-	enum { MoveWillEmptyContainer = TContainerTraits<typename TNavStatArray<InElementType>::Super>::MoveWillEmptyContainer };
-};
-
 
 //----------------------------------------------------------------------//
 // generic "landscape" support

@@ -343,10 +343,6 @@ struct TIsZeroConstructType<FStaticMeshSectionArray> : TIsZeroConstructType<TArr
 {
 };
 template <>
-struct TContainerTraits<FStaticMeshSectionArray> : TContainerTraits<TArray<FStaticMeshSection, TInlineAllocator<1>>>
-{
-};
-template <>
 struct TIsContiguousContainer<FStaticMeshSectionArray> : TIsContiguousContainer<TArray<FStaticMeshSection, TInlineAllocator<1>>>
 {
 };

@@ -134,12 +134,6 @@ private:
 	LAYOUT_FIELD(bool, bNeedsCPUAccess);
 };
 
-template< typename ElementType, uint32 Alignment>
-struct TContainerTraits<TResourceArray<ElementType, Alignment>> : public TContainerTraitsBase<TResourceArray<ElementType, Alignment>>
-{
-	enum { MoveWillEmptyContainer = TContainerTraits<typename TResourceArray<ElementType, Alignment>::Super>::MoveWillEmptyContainer };
-};
-
 /**
 * Serializer for this class
 * @param Ar - archive to serialize to

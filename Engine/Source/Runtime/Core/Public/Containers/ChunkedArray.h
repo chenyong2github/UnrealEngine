@@ -79,30 +79,24 @@ public:
 
 private:
 	template <typename ArrayType>
-	FORCEINLINE static typename TEnableIf<TContainerTraits<ArrayType>::MoveWillEmptyContainer>::Type MoveOrCopy(ArrayType& ToArray, ArrayType& FromArray)
+	FORCEINLINE static void Move(ArrayType& ToArray, ArrayType& FromArray)
 	{
 		ToArray.Chunks      = (ChunksType&&)FromArray.Chunks;
 		ToArray.NumElements = FromArray.NumElements;
 		FromArray.NumElements = 0;
 	}
 
-	template <typename ArrayType>
-	FORCEINLINE static typename TEnableIf<!TContainerTraits<ArrayType>::MoveWillEmptyContainer>::Type MoveOrCopy(ArrayType& ToArray, ArrayType& FromArray)
-	{
-		ToArray = FromArray;
-	}
-
 public:
 	TChunkedArray(TChunkedArray&& Other)
 	{
-		MoveOrCopy(*this, Other);
+		this->Move(*this, Other);
 	}
 
 	TChunkedArray& operator=(TChunkedArray&& Other)
 	{
 		if (this != &Other)
 		{
-			MoveOrCopy(*this, Other);
+			this->Move(*this, Other);
 		}
 
 		return *this;
@@ -278,8 +272,6 @@ public:
 
 protected:
 
-	friend struct TContainerTraits<TChunkedArray<ElementType, TargetBytesPerChunk, AllocatorType>>;
-
 	enum { NumElementsPerChunk = TargetBytesPerChunk / sizeof(ElementType) };
 
 	/** A chunk of the array's elements. */
@@ -336,12 +328,6 @@ public:
 	}
 };
 
-
-template <typename ElementType, uint32 TargetBytesPerChunk, typename AllocatorType>
-struct TContainerTraits<TChunkedArray<ElementType, TargetBytesPerChunk, AllocatorType> > : public TContainerTraitsBase<TChunkedArray<ElementType, TargetBytesPerChunk, AllocatorType> >
-{
-	enum { MoveWillEmptyContainer = TContainerTraits<typename TChunkedArray<ElementType, TargetBytesPerChunk, AllocatorType>::ChunksType>::MoveWillEmptyContainer };
-};
 
 
 template <typename T,uint32 TargetBytesPerChunk, typename AllocatorType> 

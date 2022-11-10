@@ -278,7 +278,7 @@ public:
 	 */
 	FORCEINLINE TBitArray(TBitArray&& Other)
 	{
-		MoveOrCopy(*this, Other);
+		this->Move(*this, Other);
 	}
 
 	/**
@@ -306,7 +306,7 @@ public:
 	{
 		if (this != &Other)
 		{
-			MoveOrCopy(*this, Other);
+			this->Move(*this, Other);
 		}
 
 		return *this;
@@ -409,7 +409,7 @@ private:
 	}
 
 	template <typename BitArrayType>
-	static FORCEINLINE typename TEnableIf<TContainerTraits<BitArrayType>::MoveWillEmptyContainer>::Type MoveOrCopy(BitArrayType& ToArray, BitArrayType& FromArray)
+	static FORCEINLINE void Move(BitArrayType& ToArray, BitArrayType& FromArray)
 	{
 		ToArray.AllocatorInstance.MoveToEmpty(FromArray.AllocatorInstance);
 
@@ -419,12 +419,6 @@ private:
 		FromArray.MaxBits = 0;
 		// No need to call this.ClearPartialSlackBits, because the words we're copying or moving from satisfy the invariant
 		// No need to call FromArray.ClearPartialSlackBits because NumBits == 0 automatically satisfies the invariant
-	}
-
-	template <typename BitArrayType>
-	static FORCEINLINE typename TEnableIf<!TContainerTraits<BitArrayType>::MoveWillEmptyContainer>::Type MoveOrCopy(BitArrayType& ToArray, BitArrayType& FromArray)
-	{
-		ToArray = FromArray;
 	}
 
 	template<typename OtherAllocator>
@@ -1750,12 +1744,6 @@ FORCEINLINE uint32 GetTypeHash(const TBitArray<Allocator>& BitArray)
 	}
 	return Hash;
 }
-
-template<typename Allocator>
-struct TContainerTraits<TBitArray<Allocator> > : public TContainerTraitsBase<TBitArray<Allocator> >
-{
-	enum { MoveWillEmptyContainer = true };
-};
 
 
 /** An iterator which only iterates over set bits. */

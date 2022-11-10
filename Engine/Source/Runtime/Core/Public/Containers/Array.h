@@ -291,7 +291,6 @@ namespace UE4Array_Private
 		{
 			Value =
 				TOr<TAreTypesEqual<FromAllocatorType, ToAllocatorType>, TCanMoveBetweenAllocators<FromAllocatorType, ToAllocatorType>>::Value && // Allocators must be equal or move-compatible
-				TContainerTraits<FromArrayType>::MoveWillEmptyContainer &&   // A move must be allowed to leave the source array empty
 				(
 					TAreTypesEqual         <ToElementType, FromElementType>::Value || // The element type of the container must be the same, or...
 					TIsBitwiseConstructible<ToElementType, FromElementType>::Value    // ... the element type of the source container must be bitwise constructible from the element type in the destination container
@@ -515,101 +514,89 @@ private:
 	/**
 	 * Moves or copies array. Depends on the array type traits.
 	 *
-	 * This override moves.
-	 *
 	 * @param ToArray Array to move into.
 	 * @param FromArray Array to move from.
+	 * @param PrevMax The previous allocated size.
 	 */
 	template <typename FromArrayType, typename ToArrayType>
-	static FORCEINLINE std::enable_if_t<UE4Array_Private::TCanMoveTArrayPointersBetweenArrayTypes<FromArrayType, ToArrayType>::Value> MoveOrCopy(ToArrayType& ToArray, FromArrayType& FromArray, SizeType PrevMax)
+	static FORCEINLINE void MoveOrCopy(ToArrayType& ToArray, FromArrayType& FromArray, SizeType PrevMax)
 	{
-		static_assert(std::is_same_v<TArray, ToArrayType>, "MoveOrCopy is expected to be called with the current array type as the destination");
-
-		using FromAllocatorType = typename FromArrayType::AllocatorType;
-		using ToAllocatorType   = typename ToArrayType::AllocatorType;
-
-		if constexpr (TCanMoveBetweenAllocators<FromAllocatorType, ToAllocatorType>::Value)
+		if constexpr (UE4Array_Private::TCanMoveTArrayPointersBetweenArrayTypes<FromArrayType, ToArrayType>::Value)
 		{
-			ToArray.AllocatorInstance.template MoveToEmptyFromOtherAllocator<FromAllocatorType>(FromArray.AllocatorInstance);
+			// Move
+
+			static_assert(std::is_same_v<TArray, ToArrayType>, "MoveOrCopy is expected to be called with the current array type as the destination");
+
+			using FromAllocatorType = typename FromArrayType::AllocatorType;
+			using ToAllocatorType = typename ToArrayType::AllocatorType;
+
+			if constexpr (TCanMoveBetweenAllocators<FromAllocatorType, ToAllocatorType>::Value)
+			{
+				ToArray.AllocatorInstance.template MoveToEmptyFromOtherAllocator<FromAllocatorType>(FromArray.AllocatorInstance);
+			}
+			else
+			{
+				ToArray.AllocatorInstance.MoveToEmpty(FromArray.AllocatorInstance);
+			}
+
+			ToArray.ArrayNum = (SizeType)FromArray.ArrayNum;
+			ToArray.ArrayMax = (SizeType)FromArray.ArrayMax;
+
+			// Ensure the destination container could hold the source range (when the allocator size types shrink)
+			if constexpr (sizeof(USizeType) < sizeof(typename FromArrayType::USizeType))
+			{
+				if (ToArray.ArrayNum != FromArray.ArrayNum || ToArray.ArrayMax != FromArray.ArrayMax)
+				{
+					OnInvalidNum((USizeType)ToArray.ArrayNum);
+				}
+			}
+
+			FromArray.ArrayNum = 0;
+			FromArray.ArrayMax = FromArray.AllocatorInstance.GetInitialCapacity();
 		}
 		else
 		{
-			ToArray.AllocatorInstance.MoveToEmpty(FromArray.AllocatorInstance);
+			// Copy
+
+			ToArray.CopyToEmpty(FromArray.GetData(), FromArray.Num(), PrevMax);
 		}
+	}
 
-		ToArray  .ArrayNum = (SizeType)FromArray.ArrayNum;
-		ToArray  .ArrayMax = (SizeType)FromArray.ArrayMax;
-
-		// Ensure the destination container could hold the source range (when the allocator size types shrink)
-		if constexpr (sizeof(USizeType) < sizeof(typename FromArrayType::USizeType))
+	/**
+	 * Moves or copies array. Depends on the array type traits.
+	 *
+	 * @param ToArray Array to move into.
+	 * @param FromArray Array to move from.
+	 * @param PrevMax The previous allocated size.
+	 * @param ExtraSlack Tells how much extra memory should be preallocated
+	 *                   at the end of the array in the number of elements.
+	 */
+	template <typename FromArrayType, typename ToArrayType>
+	static FORCEINLINE void MoveOrCopyWithSlack(ToArrayType& ToArray, FromArrayType& FromArray, SizeType PrevMax, SizeType ExtraSlack)
+	{
+		if constexpr (UE4Array_Private::TCanMoveTArrayPointersBetweenArrayTypes<FromArrayType, ToArrayType>::Value)
 		{
-			if (ToArray.ArrayNum != FromArray.ArrayNum || ToArray.ArrayMax != FromArray.ArrayMax)
+			// Move
+
+			MoveOrCopy(ToArray, FromArray, PrevMax);
+
+			USizeType LocalArrayNum = (USizeType)ToArray.ArrayNum;
+			USizeType NewMax = (USizeType)LocalArrayNum + (USizeType)ExtraSlack;
+
+			// This should only happen when we've underflowed or overflowed SizeType
+			if ((SizeType)NewMax < LocalArrayNum)
 			{
-				OnInvalidNum((USizeType)ToArray.ArrayNum);
+				OnInvalidNum((USizeType)ExtraSlack);
 			}
+
+			ToArray.Reserve(NewMax);
 		}
-
-		FromArray.ArrayNum = 0;
-		FromArray.ArrayMax = FromArray.AllocatorInstance.GetInitialCapacity();
-	}
-
-	/**
-	 * Moves or copies array. Depends on the array type traits.
-	 *
-	 * This override copies.
-	 *
-	 * @param ToArray Array to move into.
-	 * @param FromArray Array to move from.
-	 * @param ExtraSlack Tells how much extra memory should be preallocated
-	 *                   at the end of the array in the number of elements.
-	 */
-	template <typename FromArrayType, typename ToArrayType>
-	static FORCEINLINE std::enable_if_t<!UE4Array_Private::TCanMoveTArrayPointersBetweenArrayTypes<FromArrayType, ToArrayType>::Value> MoveOrCopy(ToArrayType& ToArray, FromArrayType& FromArray, SizeType PrevMax)
-	{
-		ToArray.CopyToEmpty(FromArray.GetData(), FromArray.Num(), PrevMax);
-	}
-
-	/**
-	 * Moves or copies array. Depends on the array type traits.
-	 *
-	 * This override moves.
-	 *
-	 * @param ToArray Array to move into.
-	 * @param FromArray Array to move from.
-	 * @param ExtraSlack Tells how much extra memory should be preallocated
-	 *                   at the end of the array in the number of elements.
-	 */
-	template <typename FromArrayType, typename ToArrayType>
-	static FORCEINLINE std::enable_if_t<UE4Array_Private::TCanMoveTArrayPointersBetweenArrayTypes<FromArrayType, ToArrayType>::Value> MoveOrCopyWithSlack(ToArrayType& ToArray, FromArrayType& FromArray, SizeType PrevMax, SizeType ExtraSlack)
-	{
-		MoveOrCopy(ToArray, FromArray, PrevMax);
-
-		USizeType LocalArrayNum = (USizeType)ToArray.ArrayNum;
-		USizeType NewMax        = (USizeType)LocalArrayNum + (USizeType)ExtraSlack;
-
-		// This should only happen when we've underflowed or overflowed SizeType
-		if ((SizeType)NewMax < LocalArrayNum)
+		else
 		{
-			OnInvalidNum((USizeType)ExtraSlack);
+			// Copy
+
+			ToArray.CopyToEmptyWithSlack(FromArray.GetData(), FromArray.Num(), PrevMax, ExtraSlack);
 		}
-
-		ToArray.Reserve(NewMax);
-	}
-
-	/**
-	 * Moves or copies array. Depends on the array type traits.
-	 *
-	 * This override copies.
-	 *
-	 * @param ToArray Array to move into.
-	 * @param FromArray Array to move from.
-	 * @param ExtraSlack Tells how much extra memory should be preallocated
-	 *                   at the end of the array in the number of elements.
-	 */
-	template <typename FromArrayType, typename ToArrayType>
-	static FORCEINLINE std::enable_if_t<!UE4Array_Private::TCanMoveTArrayPointersBetweenArrayTypes<FromArrayType, ToArrayType>::Value> MoveOrCopyWithSlack(ToArrayType& ToArray, FromArrayType& FromArray, SizeType PrevMax, SizeType ExtraSlack)
-	{
-		ToArray.CopyToEmptyWithSlack(FromArray.GetData(), FromArray.Num(), PrevMax, ExtraSlack);
 	}
 
 public:
@@ -3445,12 +3432,6 @@ template <typename InElementType, typename AllocatorType>
 struct TIsZeroConstructType<TArray<InElementType, AllocatorType>>
 {
 	enum { Value = TAllocatorTraits<AllocatorType>::IsZeroConstruct };
-};
-
-template <typename InElementType, typename AllocatorType>
-struct TContainerTraits<TArray<InElementType, AllocatorType> > : public TContainerTraitsBase<TArray<InElementType, AllocatorType> >
-{
-	enum { MoveWillEmptyContainer = true };
 };
 
 template <typename T, typename AllocatorType>

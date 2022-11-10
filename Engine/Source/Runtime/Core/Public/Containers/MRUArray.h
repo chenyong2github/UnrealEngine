@@ -109,10 +109,4 @@ public:
 };
 
 
-template<typename T, typename Allocator>
-struct TContainerTraits<TMRUArray<T, Allocator> > : public TContainerTraitsBase<TMRUArray<T, Allocator> >
-{
-	enum { MoveWillEmptyContainer = TContainerTraitsBase<typename TMRUArray<T, Allocator>::Super>::MoveWillEmptyContainer };
-};
-
 

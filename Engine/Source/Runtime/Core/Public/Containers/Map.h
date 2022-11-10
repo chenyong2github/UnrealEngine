@@ -135,8 +135,6 @@ class TMapBase
 	template <typename OtherKeyType, typename OtherValueType, typename OtherSetAllocator, typename OtherKeyFuncs>
 	friend class TMapBase;
 
-	friend struct TContainerTraits<TMapBase>;
-
 public:
 	static constexpr bool SupportsFreezeMemoryImage = TAllocatorTraits<SetAllocator>::SupportsFreezeMemoryImage;
 
@@ -968,8 +966,6 @@ public:
 template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
 class TSortableMapBase : public TMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>
 {
-	friend struct TContainerTraits<TSortableMapBase>;
-
 protected:
 	typedef TMapBase<KeyType, ValueType, SetAllocator, KeyFuncs> Super;
 
@@ -1097,8 +1093,6 @@ class TScriptMap;
 template<typename InKeyType, typename InValueType, typename SetAllocator /*= FDefaultSetAllocator*/, typename KeyFuncs /*= TDefaultMapHashableKeyFuncs<KeyType,ValueType,false>*/>
 class TMap : public TSortableMapBase<InKeyType, InValueType, SetAllocator, KeyFuncs>
 {
-	friend struct TContainerTraits<TMap>;
-
 	template <typename, typename>
 	friend class TScriptMap;
 
@@ -1291,8 +1285,6 @@ DECLARE_TEMPLATE_INTRINSIC_TYPE_LAYOUT((template <typename KeyType, typename Val
 template<typename KeyType, typename ValueType, typename SetAllocator /* = FDefaultSetAllocator */, typename KeyFuncs /*= TDefaultMapHashableKeyFuncs<KeyType,ValueType,true>*/>
 class TMultiMap : public TSortableMapBase<KeyType, ValueType, SetAllocator, KeyFuncs>
 {
-	friend struct TContainerTraits<TMultiMap>;
-
 	static_assert(KeyFuncs::bAllowDuplicateKeys, "TMultiMap cannot be instantiated with a KeyFuncs which disallows duplicate keys");
 
 public:
@@ -1868,19 +1860,6 @@ class FScriptMap : public TScriptMap<FDefaultSetAllocator, FScriptMap>
 
 public:
 	using Super::Super;
-};
-
-template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
-struct TContainerTraits<TMap<KeyType, ValueType, SetAllocator, KeyFuncs>> : public TContainerTraitsBase<TMap<KeyType, ValueType, SetAllocator, KeyFuncs>>
-{
-	enum { MoveWillEmptyContainer = TContainerTraits<typename TMap<KeyType, ValueType, SetAllocator, KeyFuncs>::ElementSetType>::MoveWillEmptyContainer };
-};
-
-
-template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
-struct TContainerTraits<TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>> : public TContainerTraitsBase<TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>>
-{
-	enum { MoveWillEmptyContainer = TContainerTraits<typename TMultiMap<KeyType, ValueType, SetAllocator, KeyFuncs>::ElementSetType>::MoveWillEmptyContainer };
 };
 
 struct TMapPrivateFriend
