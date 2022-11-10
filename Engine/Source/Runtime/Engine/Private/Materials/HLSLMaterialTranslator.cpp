@@ -3608,6 +3608,12 @@ EShaderFrequency FHLSLMaterialTranslator::GetCurrentShaderFrequency() const
 	return ShaderFrequency;
 }
 
+bool FHLSLMaterialTranslator::IsTangentSpaceNormal() const
+{
+	check(Material);
+	return Material->GetMaterialDomain() == MD_DeferredDecal || Material->IsTangentSpaceNormal();
+}
+
 FMaterialShadingModelField FHLSLMaterialTranslator::GetMaterialShadingModels() const
 {
 	check(Material);
@@ -8697,7 +8703,7 @@ int32 FHLSLMaterialTranslator::TransformPosition(EMaterialCommonBasis SourceCoor
 
 int32 FHLSLMaterialTranslator::TransformNormalFromRequestedBasisToWorld(int32 NormalCodeChunk)
 {
-	if (Material->GetMaterialDomain() == MD_DeferredDecal || Material->IsTangentSpaceNormal())
+	if (IsTangentSpaceNormal())
 	{
 		// See TransformTangentNormalToWorld definitions in MaterialTemplate.ush
 		return AddCodeChunk(MCT_Float3, TEXT("TransformTangentNormalToWorld(Parameters.TangentToWorld, %s)"), *GetParameterCode(NormalCodeChunk));

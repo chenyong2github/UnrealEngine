@@ -5335,6 +5335,24 @@ int32 FMaterialAttributeDefintion::CompileDefaultValue(FMaterialCompiler* Compil
 		return Compiler->ShadingModel(Compiler->GetMaterialShadingModels().GetFirstShadingModel());
 	}
 
+	if (Property == MP_Normal)
+	{
+		if (Compiler->IsTangentSpaceNormal())
+		{
+			return Compiler->Constant3(0.0f, 0.0f, 1.0f);	// Tangent space normal
+		}
+		return Compiler->VertexNormal();					// World space normal
+	}
+
+	if (Property == MP_Tangent)
+	{
+		if (Compiler->IsTangentSpaceNormal())
+		{
+			return Compiler->Constant3(1.0f, 0.0f, 0.0f);	// Tangent space tangent
+		}
+		return Compiler->VertexTangent();					// World space tangent
+	}
+
 	if (Property == MP_FrontMaterial)
 	{
 		check(ValueType == MCT_Strata);

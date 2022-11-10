@@ -703,6 +703,8 @@ protected:
 
 	virtual EShaderFrequency GetCurrentShaderFrequency() const override;
 
+	bool IsTangentSpaceNormal() const;
+
 	virtual FMaterialShadingModelField GetMaterialShadingModels() const override;
 	virtual FMaterialShadingModelField GetCompiledShadingModels() const override;
 

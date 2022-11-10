@@ -244,6 +244,8 @@ public:
 
 	virtual const ITargetPlatform* GetTargetPlatform() const = 0;
 
+	virtual bool IsTangentSpaceNormal() const = 0;
+
 	virtual FMaterialShadingModelField GetMaterialShadingModels() const = 0;
 	
 	/** Get the shading models that were encountered when compiling a material's Shading Model attribute graph.
@@ -763,6 +765,8 @@ public:
 	virtual FGuid PopMaterialAttribute() override { return Compiler->PopMaterialAttribute(); }
 	virtual const FGuid GetMaterialAttribute() override { return Compiler->GetMaterialAttribute(); }
 	virtual void SetBaseMaterialAttribute(const FGuid& InAttributeID) override { Compiler->SetBaseMaterialAttribute(InAttributeID); }
+
+	virtual bool IsTangentSpaceNormal() const override { return Compiler->IsTangentSpaceNormal(); }
 
 	virtual void PushParameterOwner(const FMaterialParameterInfo& InOwnerInfo) override { Compiler->PushParameterOwner(InOwnerInfo); }
 	virtual FMaterialParameterInfo PopParameterOwner() override { return Compiler->PopParameterOwner(); }
