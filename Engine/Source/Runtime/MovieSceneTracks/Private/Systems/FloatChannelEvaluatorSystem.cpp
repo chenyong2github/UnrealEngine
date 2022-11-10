@@ -23,7 +23,7 @@ DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate float channels"), MovieSceneEval_E
 namespace UE::MovieScene
 {
 
-MOVIESCENE_API extern float GCachedChannelEvaluationParity;
+MOVIESCENE_API extern bool GEnableCachedChannelEvaluation;
 
 struct FFloatChannelTypeAssociation
 {
@@ -38,33 +38,18 @@ TArray<FFloatChannelTypeAssociation, TInlineAllocator<4>> GFloatChannelTypeAssoc
 // Do we need to optimize for this case using something like the code below, while pessimizing the common (non-multi-bind) codepath??
 
 /** Entity-component task that evaluates using the non-cached codepath for testing parity */
-struct FEvaluateFloatChannels_Parity
+struct FEvaluateFloatChannels_Uncached
 {
 	void ForEachEntity(FSourceFloatChannel FloatChannel, FFrameTime FrameTime, Interpolation::FCachedInterpolation& Cache, double& OutResult)
 	{
-		if (!Cache.IsCacheValidForTime(FrameTime.GetFrame()))
+		float Result;
+		if (FloatChannel.Source->Evaluate(FrameTime, Result))
 		{
-			Cache = FloatChannel.Source->GetInterpolationForTime(FrameTime);
+			OutResult = Result;
 		}
-
-		if (!Cache.Evaluate(FrameTime, OutResult))
+		else
 		{
 			OutResult = MIN_dbl;
-			return;
-		}
-
-		float ParityResult;
-		if (!FloatChannel.Source->Evaluate(FrameTime, ParityResult))
-		{
-			return;
-		}
-
-		if (!FMath::IsNearlyEqual(ParityResult, (float)OutResult, GCachedChannelEvaluationParity))
-		{
-			UE_LOG(LogMovieScene, Warning, TEXT("Parity mismatch between cached and non-cached evaluation %.8f != %.8f!"), OutResult, ParityResult);
-
-			static bool bBreakDebugger = false;
-			ensureAlways(!bBreakDebugger);
 		}
 	}
 };
@@ -222,7 +207,7 @@ void UFloatChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisit
 	}
 	else if (Runner->GetCurrentPhase() == ESystemPhase::Evaluation)
 	{
-		if (GCachedChannelEvaluationParity != 0.f)
+		if (!GEnableCachedChannelEvaluation)
 		{
 			for (const FFloatChannelTypeAssociation& ChannelType : GFloatChannelTypeAssociations)
 			{
@@ -233,7 +218,7 @@ void UFloatChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisit
 				.Write(ChannelType.ResultType)
 				.FilterNone({ BuiltInComponents->Tags.Ignored })
 				.SetStat(GET_STATID(MovieSceneEval_EvaluateFloatChannelTask))
-				.Dispatch_PerEntity<FEvaluateFloatChannels_Parity>(&Linker->EntityManager, InPrerequisites, &Subsequents);
+				.Dispatch_PerEntity<FEvaluateFloatChannels_Uncached>(&Linker->EntityManager, InPrerequisites, &Subsequents);
 			}
 			return;
 		}

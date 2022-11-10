@@ -29,13 +29,19 @@ namespace UE
 namespace MovieScene
 {
 
-MOVIESCENE_API float GCachedChannelEvaluationParity = 0.f;
-static FAutoConsoleVariableRef CVarTestCachedChannelEvaluationParity(
-	TEXT("Sequencer.TestCachedChannelEvaluationParity"),
-	GCachedChannelEvaluationParity,
-	TEXT("Toggles whether Evaluate will use cached or non-cached evaluation."),
+MOVIESCENE_API float GCachedChannelEvaluationParityThreshold = 0.f;
+static FAutoConsoleVariableRef CVarCachedChannelEvaluationParityThreshold(
+	TEXT("Sequencer.CachedChannelEvaluationParityThreshold"),
+	GCachedChannelEvaluationParityThreshold,
+	TEXT("Threshold for testing Evaluate parity with cached/uncached routines."),
 	ECVF_Default);
 
+MOVIESCENE_API bool GEnableCachedChannelEvaluation = true;
+static FAutoConsoleVariableRef CVarEnableCachedChannelEvaluation(
+	TEXT("Sequencer.EnableCachedChannelEvaluation"),
+	GEnableCachedChannelEvaluation,
+	TEXT("Toggles whether channel evaluation will use cached or non-cached evaluation."),
+	ECVF_Default);
 
 template<typename ChannelType>
 static typename ChannelType::CurveValueType
@@ -603,18 +609,43 @@ bool TMovieSceneCurveChannelImpl<ChannelType>::EvaluateWithCache(const ChannelTy
 {
 	using namespace UE::MovieScene;
 
+	const bool bResult = GEnableCachedChannelEvaluation ? EvaluateCached(InChannel, InTime, OutValue) : EvaluateLegacy(InChannel, InTime, OutValue);
+
 	// ------------------------------------------------------------------------
-	// New cached codepath - existing implementation still exists as a fallback
-	if (GCachedChannelEvaluationParity == 0.f)
+	// Check against new cached codepath - eventually this will replace the code above
+	if (GCachedChannelEvaluationParityThreshold != 0.f)
 	{
-		double Result = 0.0;
-		if (GetInterpolationForTime(InChannel, InTime).Evaluate(InTime, Result))
+		CurveValueType ParityValue;
+		const bool bParityResult = GEnableCachedChannelEvaluation ? EvaluateLegacy(InChannel, InTime, ParityValue) : EvaluateCached(InChannel, InTime, ParityValue);
+
+		if (bParityResult != bResult || !FMath::IsNearlyEqual((double)ParityValue, (double)OutValue, (double)GCachedChannelEvaluationParityThreshold))
 		{
-			OutValue = static_cast<CurveValueType>(Result);
-			return true;
+			UE_LOG(LogMovieScene, Warning, TEXT("Parity mismatch between cached and non-cached evaluation %.16f != %.16f!"), OutValue, ParityValue);
+
+			static bool bBreakDebugger = false;
+			ensureAlways(!bBreakDebugger);
 		}
-		return false;
 	}
+
+	return bResult;
+}
+
+template<typename ChannelType>
+bool TMovieSceneCurveChannelImpl<ChannelType>::EvaluateCached(const ChannelType* InChannel, FFrameTime InTime, CurveValueType& OutValue)
+{
+	double ResultValue = 0.0;
+	if (GetInterpolationForTime(InChannel, InTime).Evaluate(InTime, ResultValue))
+	{
+		OutValue = static_cast<CurveValueType>(ResultValue);
+		return true;
+	}
+	return false;
+}
+
+template<typename ChannelType>
+bool TMovieSceneCurveChannelImpl<ChannelType>::EvaluateLegacy(const ChannelType* InChannel, FFrameTime InTime, CurveValueType& OutValue)
+{
+	using namespace UE::MovieScene;
 
 	// ------------------------------------------------------------------------
 	// Legacy evaluate in-place codepath - only exists as a fallback

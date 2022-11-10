@@ -23,7 +23,7 @@ DECLARE_CYCLE_STAT(TEXT("MovieScene: Evaluate double channels"), MovieSceneEval_
 namespace UE::MovieScene
 {
 
-MOVIESCENE_API extern float GCachedChannelEvaluationParity;
+MOVIESCENE_API extern bool GEnableCachedChannelEvaluation;
 
 struct FDoubleChannelTypeAssociation
 {
@@ -38,32 +38,13 @@ TArray<FDoubleChannelTypeAssociation, TInlineAllocator<4>> GDoubleChannelTypeAss
 // Do we need to optimize for this case using something like the code below, while pessimizing the common (non-multi-bind) codepath??
 
 /** Entity-component task that evaluates using the non-cached codepath for testing parity */
-struct FEvaluateDoubleChannels_Parity
+struct FEvaluateDoubleChannels_Uncached
 {
 	void ForEachEntity(FSourceDoubleChannel DoubleChannel, FFrameTime FrameTime, Interpolation::FCachedInterpolation& Cache, double& OutResult)
 	{
-		if (!Cache.IsCacheValidForTime(FrameTime.GetFrame()))
-		{
-			Cache = DoubleChannel.Source->GetInterpolationForTime(FrameTime);
-		}
-
-		if (!Cache.Evaluate(FrameTime, OutResult))
+		if (!DoubleChannel.Source->Evaluate(FrameTime, OutResult))
 		{
 			OutResult = MIN_dbl;
-		}
-
-		double ParityResult;
-		if (!DoubleChannel.Source->Evaluate(FrameTime, ParityResult))
-		{
-			ParityResult = MIN_dbl;
-		}
-
-		if (!FMath::IsNearlyEqual(ParityResult, OutResult, (double)GCachedChannelEvaluationParity))
-		{
-			UE_LOG(LogMovieScene, Warning, TEXT("Parity mismatch between cached and non-cached evaluation %.16f != %.16f!"), OutResult, ParityResult);
-
-			static bool bBreakDebugger = false;
-			ensureAlways(!bBreakDebugger);
 		}
 	}
 };
@@ -215,7 +196,7 @@ void UDoubleChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisi
 	}
 	else if (Runner->GetCurrentPhase() == ESystemPhase::Evaluation)
 	{
-		if (GCachedChannelEvaluationParity != 0.f)
+		if (!GEnableCachedChannelEvaluation)
 		{
 			for (const FDoubleChannelTypeAssociation& ChannelType : GDoubleChannelTypeAssociations)
 			{
@@ -226,7 +207,7 @@ void UDoubleChannelEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrerequisi
 				.Write(ChannelType.ResultType)
 				.FilterNone({ BuiltInComponents->Tags.Ignored })
 				.SetStat(GET_STATID(MovieSceneEval_EvaluateDoubleChannelTask))
-				.Dispatch_PerEntity<FEvaluateDoubleChannels_Parity>(&Linker->EntityManager, InPrerequisites, &Subsequents);
+				.Dispatch_PerEntity<FEvaluateDoubleChannels_Uncached>(&Linker->EntityManager, InPrerequisites, &Subsequents);
 			}
 			return;
 		}

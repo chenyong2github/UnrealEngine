@@ -155,6 +155,9 @@ private:
 	 * @param InOutPoints           An array to populate with the evaluated points
 	 */
 	static void RefineCurvePoints(const ChannelType* InChannel, FFrameRate TickResolution, double TimeThreshold, CurveValueType ValueThreshold, TArray<TTuple<double, double>>& InOutPoints);
+
+	static bool EvaluateLegacy(const ChannelType* InChannel, FFrameTime InTime, CurveValueType& OutValue);
+	static bool EvaluateCached(const ChannelType* InChannel, FFrameTime InTime, CurveValueType& OutValue);
 };
 
 template<typename ChannelType>
