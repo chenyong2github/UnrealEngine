@@ -8,6 +8,7 @@
 #include "UObject/GCObject.h"
 #include "Containers/Set.h"
 
+class UAssetDefinition;
 class IAssetTypeActions;
 class FAssetThumbnail;
 class UFactory;
@@ -56,6 +57,8 @@ public:
 	UObject* LoadAsset(TSet<FName> LoadTags = {}) const;
 
 	TSharedPtr<IAssetTypeActions> GetAssetTypeActions() const;
+	
+	const UAssetDefinition* GetAssetDefinition() const;
 
 	const FString& GetFilename() const;
 
@@ -72,6 +75,9 @@ private:
 
 	mutable bool bHasCachedAssetTypeActionsPtr = false;
 	mutable TWeakPtr<IAssetTypeActions> CachedAssetTypeActionsPtr;
+
+	mutable bool bHasCachedAssetDefinitionPtr = false;
+	mutable TWeakObjectPtr<const UAssetDefinition> CachedAssetDefinitionPtr;
 
 	mutable bool bHasCachedFilename = false;
 	mutable FString CachedFilename;

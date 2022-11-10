@@ -87,6 +87,32 @@ FARFilter UAssetRegistryHelpers::SetFilterTagsAndValues(const FARFilter& InFilte
 	return FilterCopy;
 }
 
+UClass* UAssetRegistryHelpers::FindAssetNativeClass(const FAssetData& AssetData)
+{
+	UClass* AssetClass = AssetData.GetClass();
+	if (AssetClass == nullptr)
+	{
+		const IAssetRegistry& AssetRegistry = IAssetRegistry::GetChecked();
+		
+		TArray<FTopLevelAssetPath> AncestorClasses;
+		AssetRegistry.GetAncestorClassNames(AssetData.AssetClassPath, AncestorClasses);
+		for (const FTopLevelAssetPath& AncestorClassPath : AncestorClasses)
+		{
+			AssetClass = FindObject<UClass>(AncestorClassPath);
+			if (AssetClass)
+			{
+				break;
+			}
+		}
+	}
+	while (AssetClass && !AssetClass->HasAnyClassFlags(CLASS_Native))
+	{
+		AssetClass = AssetClass->GetSuperClass();
+	}
+
+	return AssetClass;
+}
+
 void UAssetRegistryHelpers::GetBlueprintAssets(const FARFilter& InFilter, TArray<FAssetData>& OutAssetData)
 {
 	IAssetRegistry& AssetRegistry = IAssetRegistry::GetChecked();

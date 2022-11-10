@@ -4,6 +4,8 @@
 #include "Modules/ModuleManager.h"
 #include "AssetToolsModule.h"
 #include "AssetThumbnail.h"
+#include "AssetDefinition.h"
+#include "AssetDefinitionRegistry.h"
 #include "Engine/Texture2D.h"
 #include "Materials/Material.h"
 
@@ -107,6 +109,16 @@ TSharedPtr<IAssetTypeActions> FContentBrowserAssetFileItemDataPayload::GetAssetT
 		bHasCachedAssetTypeActionsPtr = true;
 	}
 	return CachedAssetTypeActionsPtr.Pin();
+}
+
+const UAssetDefinition* FContentBrowserAssetFileItemDataPayload::GetAssetDefinition() const
+{
+	if (!bHasCachedAssetDefinitionPtr)
+	{
+		CachedAssetDefinitionPtr = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(AssetData);
+		bHasCachedAssetDefinitionPtr = true;
+	}
+	return CachedAssetDefinitionPtr.Get();
 }
 
 const FString& FContentBrowserAssetFileItemDataPayload::GetFilename() const

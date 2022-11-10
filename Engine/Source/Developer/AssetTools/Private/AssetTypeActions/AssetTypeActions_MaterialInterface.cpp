@@ -32,27 +32,20 @@ void FAssetTypeActions_MaterialInterface::GetActions(const TArray<UObject*>& InO
 UThumbnailInfo* FAssetTypeActions_MaterialInterface::GetThumbnailInfo(UObject* Asset) const
 {
 	UMaterialInterface* MaterialInterface = CastChecked<UMaterialInterface>(Asset);
-	UThumbnailInfo* ThumbnailInfo = MaterialInterface->ThumbnailInfo;
-	if ( ThumbnailInfo == NULL )
+	USceneThumbnailInfoWithPrimitive* ThumbnailInfo = Cast<USceneThumbnailInfoWithPrimitive>(MaterialInterface->ThumbnailInfo);
+	if ( ThumbnailInfo == nullptr )
 	{
 		ThumbnailInfo = NewObject<USceneThumbnailInfoWithPrimitive>(MaterialInterface, NAME_None, RF_Transactional);
 		MaterialInterface->ThumbnailInfo = ThumbnailInfo;
 	}
+	
+	const UMaterial* Material = MaterialInterface->GetBaseMaterial();
+	if (Material && Material->bUsedWithParticleSprites)
+    {
+    	ThumbnailInfo->DefaultPrimitiveType = TPT_Plane;
+    }
 
 	return ThumbnailInfo;
-}
-
-EThumbnailPrimType FAssetTypeActions_MaterialInterface::GetDefaultThumbnailPrimitiveType(UObject* Asset) const
-{
-	EThumbnailPrimType PrimType = TPT_Sphere;
-	UMaterialInterface* MaterialInterface = CastChecked<UMaterialInterface>(Asset);
-	UMaterial* Material = MaterialInterface->GetBaseMaterial();
-	if (Material && Material->bUsedWithParticleSprites)
-	{
-		PrimType = TPT_Plane;
-	}
-
-	return PrimType;
 }
 
 void FAssetTypeActions_MaterialInterface::ExecuteNewMIC(TArray<TWeakObjectPtr<UMaterialInterface>> Objects)

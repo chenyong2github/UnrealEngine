@@ -79,6 +79,7 @@ public class UnrealEd : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"AssetDefinition",
 				"Core",
 				"CoreUObject",
 				"ApplicationCore",

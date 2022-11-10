@@ -69,6 +69,9 @@ public:
 	virtual void UnregisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& ActionsToRemove) override;
 	virtual void GetAssetTypeActionsList( TArray<TWeakPtr<IAssetTypeActions>>& OutAssetTypeActionsList ) const override;
 	virtual TWeakPtr<IAssetTypeActions> GetAssetTypeActionsForClass(const UClass* Class) const override;
+	virtual bool CanLocalize(const UClass* Class) const;
+	virtual TOptional<FLinearColor> GetTypeColor(const UClass* Class) const override;
+	
 	virtual TArray<TWeakPtr<IAssetTypeActions>> GetAssetTypeActionsListForClass(const UClass* Class) const override;
 	virtual EAssetTypeCategories::Type RegisterAdvancedAssetCategory(FName CategoryKey, FText CategoryDisplayName) override;
 	virtual EAssetTypeCategories::Type FindAdvancedAssetCategory(FName CategoryKey) const override;
@@ -129,7 +132,7 @@ public:
 	virtual TSharedRef<FNamePermissionList>& GetAssetClassPermissionList() override;
 	UE_DEPRECATED(5.1, "Class names are now represented by path names. Please use GetAssetClassPathPermissionList.")
 	TSharedRef<FNamePermissionList>& GetAssetClassPermissionList(EAssetClassAction AssetClassAction);
-	virtual TSharedRef<FPathPermissionList>& GetAssetClassPathPermissionList(EAssetClassAction AssetClassAction) override;
+	virtual const TSharedRef<FPathPermissionList>& GetAssetClassPathPermissionList(EAssetClassAction AssetClassAction) const override;
 	virtual TSet<EBlueprintType>& GetAllowedBlueprintTypes() override;
 	virtual TSharedRef<FPathPermissionList>& GetFolderPermissionList() override;
 	virtual TSharedRef<FPathPermissionList>& GetWritableFolderPermissionList() override;
@@ -193,9 +196,6 @@ private:
 
 	UObject* PerformDuplicateAsset(const FString& AssetName, const FString& PackagePath, UObject* OriginalObject, bool bWithDialog);
 
-	/** Internal method that performs actions when asset class deny list filter changes */
-	void AssetClassPermissionListChanged(EAssetClassAction AssetClassAction);
-
 	/**
 	 * Add sub content deny list filter for a new mount point
 	 * @param InMount The mount point
@@ -207,6 +207,9 @@ private:
 
 	/** Implementation for the import with dialog functions */
 	TArray<UObject*> ImportAssetsWithDialogImplementation(const FString& DestinationPath, bool bAllowAsyncImport);
+
+	/** Make sure we're not syncing */
+	void SyncAssetTypesToAssetDefinitions() const;
 
 private:
 	/** The list of all registered AssetTypeActions */

@@ -76,17 +76,6 @@ void FAssetTypeActions_PhysicalMaterialMask::GetResolvedSourceFilePaths(const TA
 	}
 }
 
-
-class UThumbnailInfo* FAssetTypeActions_PhysicalMaterialMask::GetThumbnailInfo(UObject* Asset) const 
-{
-	return nullptr;
-}
-
-EThumbnailPrimType FAssetTypeActions_PhysicalMaterialMask::GetDefaultThumbnailPrimitiveType(UObject* Asset) const 
-{
-	return TPT_Sphere;
-}
-
 bool FAssetTypeActions_PhysicalMaterialMask::CanExecuteImportedAssetActions(const TArray<FString> ResolvedFilePaths) const
 {
 	// Verify that all the file paths are legitimate

@@ -31,6 +31,7 @@
 #include "AssetToolsModule.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ToolMenus.h"
+#include "AssetDefinition_AssetTypeActionsProxy.h"
 #include "IClassTypeActions.h"
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
@@ -101,7 +102,6 @@
 #include "AssetTypeActions/AssetTypeActions_PoseAsset.h"
 #include "AssetTypeActions/AssetTypeActions_PreviewMeshCollection.h"
 #include "AssetTypeActions/AssetTypeActions_ProceduralFoliageSpawner.h"
-#include "AssetTypeActions/AssetTypeActions_Redirector.h"
 #include "AssetTypeActions/AssetTypeActions_Rig.h"
 #include "AssetTypeActions/AssetTypeActions_Skeleton.h"
 #include "AssetTypeActions/AssetTypeActions_SlateBrush.h"
@@ -120,7 +120,6 @@
 #include "AssetTypeActions/AssetTypeActions_TouchInterface.h"
 #include "AssetTypeActions/AssetTypeActions_VectorFieldAnimated.h"
 #include "AssetTypeActions/AssetTypeActions_VectorFieldStatic.h"
-#include "AssetTypeActions/AssetTypeActions_World.h"
 #include "WorldPartition/WorldPartition.h"
 #include "SDiscoveringAssetsDialog.h"
 #include "AssetFixUpRedirectors.h"
@@ -179,9 +178,290 @@
 #include "ObjectTools.h"
 #endif
 
+#include "AssetDefinition.h"
+#include "AssetDefinitionRegistry.h"
+#include "Algo/AnyOf.h"
+#include "Misc/AssetFilterData.h"
+
 #include UE_INLINE_GENERATED_CPP_BY_NAME(AssetTools)
 
 #define LOCTEXT_NAMESPACE "AssetTools"
+
+class FAssetDefinitionProxy : public FAssetTypeActions_Base
+{
+public:
+	FAssetDefinitionProxy(UAssetDefinition* AssetDefinition)
+		: AssetDefinitionPtr(AssetDefinition)
+	{
+	}
+	
+	virtual bool IsAssetDefinitionInDisguise() const override
+	{
+		return true;
+	}
+
+	virtual bool ShouldCallGetActions() const override { return false; }
+
+	UAssetDefinition* GetAssetDefinition() const { return AssetDefinitionPtr.Get(); }
+	
+	virtual FText GetName() const override { return AssetDefinitionPtr.Get()->GetAssetDisplayName(); }
+	virtual UClass* GetSupportedClass() const override { return AssetDefinitionPtr.Get()->GetAssetClass().LoadSynchronous(); }
+	virtual FColor GetTypeColor() const override { return AssetDefinitionPtr.Get()->GetAssetColor().ToFColor(true); }
+	
+	virtual bool CanLocalize() const override { return AssetDefinitionPtr.Get()->CanLocalize(FAssetData()).IsSupported(); }
+	virtual bool IsImportedAsset() const override { return AssetDefinitionPtr.Get()->CanImport(); }
+	virtual bool CanMerge() const override { return AssetDefinitionPtr.Get()->CanMerge(); }
+	
+	virtual bool CanRename(const FAssetData& InAsset, FText* OutErrorMsg) const override
+    {
+		FAssetSupportResponse Response = AssetDefinitionPtr.Get()->CanRename(InAsset);
+		if (OutErrorMsg)
+		{
+			(*OutErrorMsg) = Response.GetErrorText();
+		}
+		return Response.IsSupported();
+    }
+
+    virtual bool CanDuplicate(const FAssetData& InAsset, FText* OutErrorMsg) const override
+    {
+    	FAssetSupportResponse Response = AssetDefinitionPtr.Get()->CanDuplicate(InAsset);
+		if (OutErrorMsg)
+		{
+			(*OutErrorMsg) = Response.GetErrorText();
+		}
+        return Response.IsSupported();
+    }
+	
+	virtual uint32 GetCategories() override
+	{
+		static IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+		uint32 CategoryBits = 0;
+		for (const FAssetCategoryPath& Category : AssetDefinitionPtr.Get()->GetAssetCategories())
+		{
+			CategoryBits |= AssetTools.FindAdvancedAssetCategory(Category.GetCategory());
+		}
+
+		return EAssetTypeCategories::Misc;
+	}
+
+private:
+	TArray<FText> SubMenus;
+	bool SubmenusInitialized = false;
+
+public:
+	/** Returns array of sub-menu names that this asset type is parented under in the Asset Creation Context Menu. */
+	virtual const TArray<FText>& GetSubMenus() const override
+	{
+		static IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+		if (!SubmenusInitialized)
+		{
+			for (const FAssetCategoryPath& Category : AssetDefinitionPtr.Get()->GetAssetCategories())
+			{
+				if (Category.HasSubCategory())
+				{
+					const_cast<FAssetDefinitionProxy*>(this)->SubMenus.Add(Category.GetSubCategoryText());
+				}
+			}
+		}
+    
+		return SubMenus;
+	}
+
+	virtual void OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor) override
+	{
+		OpenAssetEditor(InObjects, EAssetTypeActivationOpenedMethod::Edit, EditWithinLevelEditor);
+	}
+	
+	virtual void OpenAssetEditor(const TArray<UObject*>& InObjects, const EAssetTypeActivationOpenedMethod OpenedMethod, TSharedPtr<IToolkitHost> EditWithinLevelEditor = TSharedPtr<IToolkitHost>()) override
+	{
+		TArray<FAssetData> Assets;
+		Algo::Transform(InObjects, Assets, [](UObject* Object){ return FAssetData(Object); });
+		
+		FAssetOpenArgs OpenArgs;
+		OpenArgs.OpenMethod = OpenedMethod == EAssetTypeActivationOpenedMethod::Edit ? EAssetOpenMethod::Edit : EAssetOpenMethod::View;
+		OpenArgs.ToolkitHost = EditWithinLevelEditor;
+		OpenArgs.Assets = Assets;
+		AssetDefinitionPtr.Get()->OpenAssets(OpenArgs);		
+	}
+
+	virtual TArray<FAssetData> GetValidAssetsForPreviewOrEdit(TArrayView<const FAssetData> InAssetDatas, bool bIsPreview) override
+	{
+		FAssetActivateArgs ActivateArgs;
+		ActivateArgs.ActivationMethod = bIsPreview ? EAssetActivationMethod::Opened : EAssetActivationMethod::Previewed;
+		ActivateArgs.Assets = InAssetDatas;
+
+		return AssetDefinitionPtr.Get()->PrepareToActivateAssets(ActivateArgs);
+	}
+	
+	virtual bool AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) override
+	{
+		EAssetActivationMethod ActivationMethod = EAssetActivationMethod::Opened;
+		switch(ActivationType)
+		{
+		case EAssetTypeActivationMethod::DoubleClicked:
+			ActivationMethod = EAssetActivationMethod::DoubleClicked;
+			break;
+		case EAssetTypeActivationMethod::Opened:
+			ActivationMethod = EAssetActivationMethod::Opened;
+			break;
+		case EAssetTypeActivationMethod::Previewed:
+			ActivationMethod = EAssetActivationMethod::Previewed;
+			break;
+		}
+		
+		TArray<FAssetData> Assets;
+		Algo::Transform(InObjects, Assets, [](UObject* Object){ return FAssetData(Object);});
+		
+		FAssetActivateArgs Args;
+		Args.ActivationMethod = ActivationMethod;
+		Args.Assets = Assets;
+		return AssetDefinitionPtr->ActivateAssets(Args) == EAssetCommandResult::Handled;
+	}
+
+	virtual bool CanFilter() override
+	{
+		TArray<FAssetFilterData> Filters;
+		AssetDefinitionPtr->GetFilters(Filters);
+		return Filters.Num() > 0;
+	}
+
+	virtual FName GetFilterName() const override
+	{
+		TArray<FAssetFilterData> Filters;
+		AssetDefinitionPtr->GetFilters(Filters);
+		return Filters.Num() > 0 ? FName(*Filters[0].Name) : NAME_None;
+	}
+
+	virtual void BuildBackendFilter(FARFilter& InFilter) override
+	{
+		TArray<FAssetFilterData> Filters;
+		AssetDefinitionPtr->GetFilters(Filters);
+		if (Filters.Num() > 0)
+		{
+			InFilter = Filters[0].Filter;
+		}
+	}
+
+	virtual FText GetDisplayNameFromAssetData(const FAssetData& AssetData) const override
+	{
+		return AssetDefinitionPtr->GetAssetDisplayName(AssetData);
+	}
+
+	virtual UThumbnailInfo* GetThumbnailInfo(UObject* Object) const override
+	{
+		return AssetDefinitionPtr->LoadThumbnailInfo(FAssetData(Object));
+	}
+
+	virtual const FSlateBrush* GetThumbnailBrush(const FAssetData& InAssetData, const FName InClassName) const override
+	{
+		return AssetDefinitionPtr->GetThumbnailBrush(InAssetData, InClassName);
+	}
+	
+	virtual const FSlateBrush* GetIconBrush(const FAssetData& InAssetData, const FName InClassName) const override
+	{
+		return AssetDefinitionPtr->GetThumbnailBrush(InAssetData, InClassName);
+	}
+
+	virtual FTopLevelAssetPath GetClassPathName() const override
+	{
+		return AssetDefinitionPtr.Get()->GetAssetClass().ToSoftObjectPath().GetAssetPath();
+	}
+
+	/** Begins a merge operation for InObject (automatically determines remote/base versions needed to resolve) */
+	virtual void Merge( UObject* InObject ) override
+	{
+		FAssetMergeArgs MergeArgs;
+		MergeArgs.LocalAsset = InObject;
+
+		AssetDefinitionPtr.Get()->Merge(MergeArgs);
+	}
+
+	/** Begins a merge between the specified assets */
+	virtual void Merge(UObject* BaseAsset, UObject* RemoteAsset, UObject* LocalAsset, const FOnMergeResolved& ResolutionCallback) override
+	{
+		FAssetMergeArgs MergeArgs;
+		MergeArgs.LocalAsset = LocalAsset;
+		MergeArgs.BaseAsset = BaseAsset;
+		MergeArgs.RemoteAsset = RemoteAsset;
+		MergeArgs.ResolutionCallback = FOnAssetMergeResolved::CreateLambda([ResolutionCallback](const FAssetMergeResults& Results)
+		{
+			ResolutionCallback.Execute(Results.MergedPackage, static_cast<EMergeResult::Type>(Results.Result));
+		});
+
+		AssetDefinitionPtr.Get()->Merge(MergeArgs);
+	}
+	
+	virtual void PerformAssetDiff(UObject* OldAsset, UObject* NewAsset, const struct FRevisionInfo& OldRevision, const struct FRevisionInfo& NewRevision) const override
+	{
+		FAssetDiffArgs DiffArgs;
+		DiffArgs.OldAsset = OldAsset;
+		DiffArgs.NewAsset = NewAsset;
+		DiffArgs.OldRevision = OldRevision;
+		DiffArgs.NewRevision = NewRevision;
+		
+		AssetDefinitionPtr.Get()->PerformAssetDiff(DiffArgs);
+	}
+
+	/** Returns additional tooltip information for the specified asset, if it has any (otherwise return the null widget) */
+	virtual FText GetAssetDescription(const FAssetData& AssetData) const override
+	{
+		ensureMsgf(false, TEXT("This code path is not expected to be called any more.  Expected UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(YourAsset)->GetAssetDescription to be called directly."));
+        return FText::GetEmpty();
+	}
+
+	/** Collects the resolved source paths for the imported assets */
+	virtual void GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const override
+	{
+		ensureMsgf(false, TEXT("This code path is not expected to be called any more.  Expected UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(YourAsset)->GetSourceFiles to be called directly."));
+	}
+	
+	/** Collects the source file labels for the imported assets */
+	virtual void GetSourceFileLabels(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFileLabels) const override
+	{
+		ensureMsgf(false, TEXT("This code path is not expected to be called any more.  Expected UAssetDefinitionRegistry::Get()->GetAssetDefinitionForAsset(YourAsset)->GetSourceFiles to be called directly."));
+	}
+
+	/** Does this asset support edit or view methods? */
+	virtual bool SupportsOpenedMethod(const EAssetTypeActivationOpenedMethod OpenedMethod) const override
+	{
+		FAssetOpenSupportArgs SupportArgs;
+		SupportArgs.OpenMethod = OpenedMethod == EAssetTypeActivationOpenedMethod::Edit ? EAssetOpenMethod::Edit : EAssetOpenMethod::View;
+		return AssetDefinitionPtr.Get()->GetAssetOpenSupport(SupportArgs).IsSupported;
+	}
+	
+	/** Optionally returns a custom widget to overlay on top of this assets' thumbnail */
+    virtual TSharedPtr<class SWidget> GetThumbnailOverlay(const FAssetData& AssetData) const override
+    {
+    	return AssetDefinitionPtr.Get()->GetThumbnailOverlay(AssetData);
+    }
+	
+	virtual EThumbnailPrimType GetDefaultThumbnailPrimitiveType(UObject* Asset) const override
+	{
+		ensureMsgf(false, TEXT("This code path is not expected to be called any more.  Expected UAssetDefinitionRegistry::Get()->LoadThumbnail(YourAsset).  The default thumbnail primitive is now a property on USceneThumbnailInfoWithPrimitive.  The default only applies to this thumbnail type, so it has been relocated as an implementation detail of it."));
+		return EThumbnailPrimType::TPT_Sphere;
+	}
+
+	/** @return True if we should force world-centric mode for newly-opened assets */
+	virtual bool ShouldForceWorldCentric() override
+	{
+		FAssetOpenSupportArgs SupportArgs;
+        SupportArgs.OpenMethod = EAssetOpenMethod::Edit;
+        if (AssetDefinitionPtr.Get()->GetAssetOpenSupport(SupportArgs).RequiredToolkitMode.IsSet())
+        {
+        	return AssetDefinitionPtr.Get()->GetAssetOpenSupport(SupportArgs).RequiredToolkitMode.GetValue() == EToolkitMode::WorldCentric; 
+        }
+
+		return false;
+	}
+	
+private:
+
+	TWeakObjectPtr<UAssetDefinition> AssetDefinitionPtr;
+};
+
+//----------------------------------------------------------------------------------------------------------------------
 
 namespace UE::AssetTools::Private
 {
@@ -920,7 +1200,6 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 			}
 			AssetClassPermissionList[i]->AddAllowListItem("AssetToolsConfigFile", Type);
 		}
-		AssetClassPermissionList[i]->OnFilterChanged().AddUObject(this, &UAssetToolsImpl::AssetClassPermissionListChanged, (EAssetClassAction)i);
 	}
 
 	TArray<FString> DenyListedViewPath;
@@ -940,16 +1219,16 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	FPackageName::OnContentPathMounted().AddUObject(this, &UAssetToolsImpl::OnContentPathMounted);
 
 	// Register the built-in advanced categories
-	AllocatedCategoryBits.Add(TEXT("_BuiltIn_0"), FAdvancedAssetCategory(EAssetTypeCategories::Animation, LOCTEXT("AnimationAssetCategory", "Animation")));
-	AllocatedCategoryBits.Add(TEXT("_BuiltIn_1"), FAdvancedAssetCategory(EAssetTypeCategories::Blueprint, LOCTEXT("BlueprintAssetCategory", "Blueprints")));
-	AllocatedCategoryBits.Add(TEXT("_BuiltIn_2"), FAdvancedAssetCategory(EAssetTypeCategories::Materials, LOCTEXT("MaterialAssetCategory", "Materials")));
-	AllocatedCategoryBits.Add(TEXT("_BuiltIn_3"), FAdvancedAssetCategory(EAssetTypeCategories::Sounds, LOCTEXT("SoundAssetCategory", "Sounds")));
-	AllocatedCategoryBits.Add(TEXT("_BuiltIn_4"), FAdvancedAssetCategory(EAssetTypeCategories::Physics, LOCTEXT("PhysicsAssetCategory", "Physics")));
-	AllocatedCategoryBits.Add(TEXT("_BuiltIn_5"), FAdvancedAssetCategory(EAssetTypeCategories::UI, LOCTEXT("UserInterfaceAssetCategory", "User Interface")));
-	AllocatedCategoryBits.Add(TEXT("_BuiltIn_6"), FAdvancedAssetCategory(EAssetTypeCategories::Misc, LOCTEXT("MiscellaneousAssetCategory", "Miscellaneous")));
-	AllocatedCategoryBits.Add(TEXT("_BuiltIn_7"), FAdvancedAssetCategory(EAssetTypeCategories::Gameplay, LOCTEXT("GameplayAssetCategory", "Gameplay")));
-	AllocatedCategoryBits.Add(TEXT("_BuiltIn_8"), FAdvancedAssetCategory(EAssetTypeCategories::Media, LOCTEXT("MediaAssetCategory", "Media")));
-	AllocatedCategoryBits.Add(TEXT("_BuiltIn_9"), FAdvancedAssetCategory(EAssetTypeCategories::Textures, LOCTEXT("TextureAssetCategory", "Textures")));
+	AllocatedCategoryBits.Add(TEXT("Animation"), FAdvancedAssetCategory(EAssetTypeCategories::Animation, LOCTEXT("AnimationAssetCategory", "Animation")));
+	AllocatedCategoryBits.Add(TEXT("Blueprint"), FAdvancedAssetCategory(EAssetTypeCategories::Blueprint, LOCTEXT("BlueprintAssetCategory", "Blueprints")));
+	AllocatedCategoryBits.Add(TEXT("Material"), FAdvancedAssetCategory(EAssetTypeCategories::Materials, LOCTEXT("MaterialAssetCategory", "Materials")));
+	AllocatedCategoryBits.Add(TEXT("Audio"), FAdvancedAssetCategory(EAssetTypeCategories::Sounds, LOCTEXT("SoundAssetCategory", "Sounds")));
+	AllocatedCategoryBits.Add(TEXT("Physics"), FAdvancedAssetCategory(EAssetTypeCategories::Physics, LOCTEXT("PhysicsAssetCategory", "Physics")));
+	AllocatedCategoryBits.Add(TEXT("User Interface"), FAdvancedAssetCategory(EAssetTypeCategories::UI, LOCTEXT("UserInterfaceAssetCategory", "User Interface")));
+	AllocatedCategoryBits.Add(TEXT("Misc"), FAdvancedAssetCategory(EAssetTypeCategories::Misc, LOCTEXT("MiscellaneousAssetCategory", "Miscellaneous")));
+	AllocatedCategoryBits.Add(TEXT("Gameplay"), FAdvancedAssetCategory(EAssetTypeCategories::Gameplay, LOCTEXT("GameplayAssetCategory", "Gameplay")));
+	AllocatedCategoryBits.Add(TEXT("Media"), FAdvancedAssetCategory(EAssetTypeCategories::Media, LOCTEXT("MediaAssetCategory", "Media")));
+	AllocatedCategoryBits.Add(TEXT("Texture"), FAdvancedAssetCategory(EAssetTypeCategories::Textures, LOCTEXT("TextureAssetCategory", "Textures")));
 
 	EAssetTypeCategories::Type FoliageCategoryBit = RegisterAdvancedAssetCategory(FName(TEXT("Foliage")), LOCTEXT("FoliageAssetCategory", "Foliage"));
 	EAssetTypeCategories::Type InputCategoryBit = RegisterAdvancedAssetCategory(FName(TEXT("Input")), LOCTEXT("InputAssetsCategory", "Input"));
@@ -982,7 +1261,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CurveVector));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CurveLinearColor));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CurveLinearColorAtlas));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_DataAsset));
+	//RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_DataAsset));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_DataLayer));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_DataTable));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_CompositeDataTable));
@@ -1021,7 +1300,6 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PhysicsAsset));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_PreviewMeshCollection));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ProceduralFoliageSpawner(FoliageCategoryBit)));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Redirector));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Rig));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SkeletalMesh));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_Skeleton));
@@ -1044,7 +1322,6 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_VectorField));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_VectorFieldAnimated));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_VectorFieldStatic));
-	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_World));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_HapticFeedbackEffectBuffer));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_HapticFeedbackEffectCurve));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_HapticFeedbackEffectSoundWave));
@@ -1055,28 +1332,65 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 
 void UAssetToolsImpl::RegisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& NewActions)
 {
-	bool bSupported = false;
-	if (const UClass* SupportedClass = NewActions->GetSupportedClass())
-	{
-		bSupported = GetAssetClassPathPermissionList(EAssetClassAction::CreateAsset)->PassesFilter(SupportedClass->GetClassPathName().ToString());
-	}
-	else
-	{
-		bSupported = !NewActions->GetFilterName().IsNone();
-	}
-
-	NewActions->SetSupported(bSupported);
-
 	AssetTypeActionsList.Add(NewActions);
+
+	if (!NewActions->IsAssetDefinitionInDisguise())
+	{
+		UAssetDefinition_AssetTypeActionsProxy* Proxy = NewObject<UAssetDefinition_AssetTypeActionsProxy>();
+		Proxy->Initialize(NewActions);
+		
+		UAssetDefinitionRegistry::Get()->RegisterAssetDefinition(Proxy);
+	}
+}
+
+void UAssetToolsImpl::SyncAssetTypesToAssetDefinitions() const
+{
+	static int32 CachedAmount = 0;
+
+	TArray<TObjectPtr<UAssetDefinition>> AssetDefinitions = UAssetDefinitionRegistry::Get()->GetAllAssetDefinitions();
+	if (CachedAmount != AssetDefinitions.Num())
+	{
+		CachedAmount = AssetDefinitions.Num();		
+		for (UAssetDefinition* AssetDefinition : AssetDefinitions)
+		{
+			if (!AssetDefinition->IsA<UAssetDefinition_AssetTypeActionsProxy>())
+			{
+				const TSoftClassPtr<UObject> AssetClass = AssetDefinition->GetAssetClass();
+				const bool ActionDefinitionAlreadyProxied = 
+					Algo::AnyOf(AssetTypeActionsList, [AssetClass](const TSharedRef<IAssetTypeActions>& Actions){ return Actions->GetSupportedClass() == AssetClass; });
+			
+				if (!ActionDefinitionAlreadyProxied)
+				{
+					TSharedRef<FAssetDefinitionProxy> Proxy = MakeShared<FAssetDefinitionProxy>(AssetDefinition);
+					// Cache the asset definition proxy.
+					const_cast<UAssetToolsImpl*>(this)->RegisterAssetTypeActions(Proxy);
+				}
+			}
+		}
+	}
 }
 
 void UAssetToolsImpl::UnregisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& ActionsToRemove)
 {
 	AssetTypeActionsList.Remove(ActionsToRemove);
+
+	// Now also remove the proxy AssetDefinition we registered for this type.
+	for (UAssetDefinition* AssetDefinition : UAssetDefinitionRegistry::Get()->GetAllAssetDefinitions())
+	{
+		if (UAssetDefinition_AssetTypeActionsProxy* Proxy = Cast<UAssetDefinition_AssetTypeActionsProxy>(AssetDefinition))
+		{
+			if (Proxy->GetAssetType() == ActionsToRemove)
+			{
+				UAssetDefinitionRegistry::Get()->UnregisterAssetDefinition(AssetDefinition);
+				break;
+			}
+		}
+	}
 }
 
 void UAssetToolsImpl::GetAssetTypeActionsList( TArray<TWeakPtr<IAssetTypeActions>>& OutAssetTypeActionsList ) const
 {
+	SyncAssetTypesToAssetDefinitions();
 	for (auto ActionsIt = AssetTypeActionsList.CreateConstIterator(); ActionsIt; ++ActionsIt)
 	{
 		OutAssetTypeActionsList.Add(*ActionsIt);
@@ -1092,6 +1406,7 @@ TWeakPtr<IAssetTypeActions> UAssetToolsImpl::GetAssetTypeActionsForClass(const U
 
 	TSharedPtr<IAssetTypeActions> MostDerivedAssetTypeActions;
 
+	SyncAssetTypesToAssetDefinitions();
 	for (int32 TypeActionsIdx = 0; TypeActionsIdx < AssetTypeActionsList.Num(); ++TypeActionsIdx)
 	{
 		TSharedRef<IAssetTypeActions> TypeActions = AssetTypeActionsList[TypeActionsIdx];
@@ -1109,10 +1424,45 @@ TWeakPtr<IAssetTypeActions> UAssetToolsImpl::GetAssetTypeActionsForClass(const U
 	return MostDerivedAssetTypeActions;
 }
 
+bool UAssetToolsImpl::CanLocalize(const UClass* Class) const
+{
+	if (const UAssetDefinition* AssetDefinition = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForClass(Class))
+	{
+		return AssetDefinition->CanLocalize(FAssetData()).IsSupported();
+	}
+	else
+	{
+		if (TSharedPtr<IAssetTypeActions> AssetActions = GetAssetTypeActionsForClass(Class).Pin())
+		{
+			return AssetActions->CanLocalize();
+		}
+	}
+
+	return false;
+}
+
+TOptional<FLinearColor> UAssetToolsImpl::GetTypeColor(const UClass* Class) const
+{
+	if (const UAssetDefinition* AssetDefinition = UAssetDefinitionRegistry::Get()->GetAssetDefinitionForClass(Class))
+	{
+		return AssetDefinition->GetAssetColor();
+	}
+	else
+	{
+		if (TSharedPtr<IAssetTypeActions> AssetActions = GetAssetTypeActionsForClass(Class).Pin())
+		{
+			return FLinearColor(AssetActions->GetTypeColor());
+		}
+	}
+
+	return TOptional<FLinearColor>();
+}
+
 TArray<TWeakPtr<IAssetTypeActions>> UAssetToolsImpl::GetAssetTypeActionsListForClass(const UClass* Class) const
 {
 	TArray<TWeakPtr<IAssetTypeActions>> ResultAssetTypeActionsList;
 
+	SyncAssetTypesToAssetDefinitions();
 	for (int32 TypeActionsIdx = 0; TypeActionsIdx < AssetTypeActionsList.Num(); ++TypeActionsIdx)
 	{
 		TSharedRef<IAssetTypeActions> TypeActions = AssetTypeActionsList[TypeActionsIdx];
@@ -4891,17 +5241,22 @@ void UAssetToolsImpl::AdvancedCopyPackages_ReportConfirmed(FAdvancedCopyParams C
 bool UAssetToolsImpl::IsAssetClassSupported(const UClass* AssetClass) const
 {
 	TWeakPtr<IAssetTypeActions> AssetTypeActions = GetAssetTypeActionsForClass(AssetClass);
-	if (!AssetTypeActions.IsValid())
+	if (AssetTypeActions.IsValid())
 	{
-		return false;
-	}
+		bool bSupported = false;
+		if (const UClass* SupportedClass = AssetTypeActions.Pin()->GetSupportedClass())
+		{
+			bSupported = GetAssetClassPathPermissionList(EAssetClassAction::CreateAsset)->PassesFilter(SupportedClass->GetClassPathName().ToString());
+		}
+		//else
+		//{
+		//	bSupported = !AssetTypeActions.Pin()->GetFilterName().IsNone();
+		//}
 
-	if (AssetTypeActions.Pin()->IsSupported() == false)
-	{
-		return false;
+		return bSupported;
 	}
-
-	return true;
+	
+	return false;
 }
 
 TArray<UFactory*> UAssetToolsImpl::GetNewAssetFactories() const
@@ -5008,7 +5363,7 @@ TSharedRef<FNamePermissionList>& UAssetToolsImpl::GetAssetClassPermissionList(EA
 	return Empty;
 }
 
-TSharedRef<FPathPermissionList>& UAssetToolsImpl::GetAssetClassPathPermissionList(EAssetClassAction AssetClassAction)
+const TSharedRef<FPathPermissionList>& UAssetToolsImpl::GetAssetClassPathPermissionList(EAssetClassAction AssetClassAction) const
 {
 	if (AssetClassAction < EAssetClassAction::AllAssetActions)
 	{
@@ -5022,31 +5377,6 @@ TSharedRef<FPathPermissionList>& UAssetToolsImpl::GetAssetClassPathPermissionLis
 TSet<EBlueprintType>& UAssetToolsImpl::GetAllowedBlueprintTypes()
 {
 	return AllowedBlueprintTypes;
-}
-
-void UAssetToolsImpl::AssetClassPermissionListChanged(EAssetClassAction AssetClassAction)
-{
-	switch (AssetClassAction)
-	{
-	case EAssetClassAction::CreateAsset:
-		for (TSharedRef<IAssetTypeActions>& ActionsIt : AssetTypeActionsList)
-		{
-			bool bSupported = false;
-			if (const UClass* SupportedClass = ActionsIt->GetSupportedClass())
-			{
-				bSupported = GetAssetClassPathPermissionList(AssetClassAction)->PassesFilter(SupportedClass->GetPathName());
-			}
-			else
-			{
-				bSupported = !ActionsIt->GetFilterName().IsNone();
-			}
-
-			ActionsIt->SetSupported(bSupported);
-		}
-		break;
-	default:
-		break;
-	}
 }
 
 void UAssetToolsImpl::AddSubContentDenyList(const FString& InMount)

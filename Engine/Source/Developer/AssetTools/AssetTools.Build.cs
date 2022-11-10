@@ -24,6 +24,7 @@ public class AssetTools : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"AssetDefinition",
                 "CurveAssetEditor",
 				"Engine",
                 "InputCore",
