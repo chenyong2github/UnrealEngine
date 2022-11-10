@@ -8,6 +8,8 @@
 #include "PostProcessCommon.ush"
 #include "PostProcessHistogramCommon.ush"
 
+#if COMPUTESHADER
+
 #define FrontLayerTranslucencyReflectionsStruct LumenGIVolumeStruct
 #define RadianceCacheInterpolation LumenGIVolumeStruct
 #include "Lumen/LumenTranslucencyVolumeShared.ush"
@@ -17,6 +19,8 @@
 #include "PositionReconstructionCommon.ush"
 #include "SHCommon.ush"
 #include "/Engine/Private/ScreenPass.ush"
+
+#endif
 
 Texture2D EyeAdaptationTexture;
 
