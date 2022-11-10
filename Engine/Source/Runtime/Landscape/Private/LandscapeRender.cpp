@@ -3043,19 +3043,32 @@ public:
 		return FMaterialResource::IsUsedWithStaticLighting();
 	}
 
-	bool IsUsedWithSkeletalMesh()          const override { return false; }
-	bool IsUsedWithParticleSystem()        const override { return false; }
-	bool IsUsedWithParticleSprites()       const override { return false; }
-	bool IsUsedWithBeamTrails()            const override { return false; }
-	bool IsUsedWithMeshParticles()         const override { return false; }
-	bool IsUsedWithNiagaraSprites()       const override { return false; }
-	bool IsUsedWithNiagaraRibbons()       const override { return false; }
-	bool IsUsedWithNiagaraMeshParticles()       const override { return false; }
-	bool IsUsedWithMorphTargets()          const override { return false; }
-	bool IsUsedWithSplineMeshes()          const override { return false; }
+	bool IsUsedWithNanite() const override 
+	{ 
+		if (bIsLayerThumbnail)
+		{
+			return false;
+		}
+		return FMaterialResource::IsUsedWithNanite();
+	}
+
+	bool IsUsedWithWater() const override { return false; }
+	bool IsUsedWithHairStrands() const override { return false; }
+	bool IsUsedWithLidarPointCloud() const override { return false; }
+	bool IsUsedWithSkeletalMesh() const override { return false; }
+	bool IsUsedWithParticleSystem() const override { return false; }
+	bool IsUsedWithParticleSprites() const override { return false; }
+	bool IsUsedWithBeamTrails() const override { return false; }
+	bool IsUsedWithMeshParticles() const override { return false; }
+	bool IsUsedWithNiagaraSprites() const override { return false; }
+	bool IsUsedWithNiagaraRibbons() const override { return false; }
+	bool IsUsedWithNiagaraMeshParticles() const override { return false; }
+	bool IsUsedWithMorphTargets() const override { return false; }
+	bool IsUsedWithSplineMeshes() const override { return false; }
 	bool IsUsedWithInstancedStaticMeshes() const override { return false; }
-	bool IsUsedWithAPEXCloth()             const override { return false; }
-	bool IsUsedWithGeometryCache()         const override { return false; }
+	bool IsUsedWithAPEXCloth() const override { return false; }
+	bool IsUsedWithGeometryCollections() const override { return false; }
+	bool IsUsedWithGeometryCache() const override { return false; }
 
 	bool ShouldCache(EShaderPlatform Platform, const FShaderType* ShaderType, const FVertexFactoryType* VertexFactoryType) const override
 	{
@@ -3116,8 +3129,10 @@ public:
 
 				static const FName LandscapeVertexFactory = FName(TEXT("FLandscapeVertexFactory"));
 				static const FName LandscapeXYOffsetVertexFactory = FName(TEXT("FLandscapeXYOffsetVertexFactory"));
+				static const FName NaniteVertexFactory = FName(TEXT("Nanite::FVertexFactory"));
 				if (VertexFactoryType->GetFName() == LandscapeVertexFactory ||
-					VertexFactoryType->GetFName() == LandscapeXYOffsetVertexFactory)
+					VertexFactoryType->GetFName() == LandscapeXYOffsetVertexFactory ||
+					VertexFactoryType->GetFName() == NaniteVertexFactory)
 				{
 					return (bIsRayTracingShaderType || !bIsShaderTypeUsingFixedGrid) && FMaterialResource::ShouldCache(Platform, ShaderType, VertexFactoryType);
 				}

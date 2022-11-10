@@ -334,7 +334,9 @@ bool UUsdConversionBlueprintContext::ConvertLandscapeProxyActorMesh( const ALand
 		FStaticMeshAttributes Attributes( MeshDescription );
 		Attributes.Register();
 
-		if ( !Actor->ExportToRawMesh( LODIndex + LowestLOD, MeshDescription ) )
+		ALandscapeProxy::FRawMeshExportParams ExportParams;
+		ExportParams.ExportLOD = LODIndex + LowestLOD;
+		if ( !Actor->ExportToRawMesh(ExportParams, MeshDescription ) )
 		{
 			UE_LOG( LogUsd, Error, TEXT( "Failed to convert LOD %d of landscape actor '%s''s mesh data" ), LODIndex, *Actor->GetName() );
 			return false;

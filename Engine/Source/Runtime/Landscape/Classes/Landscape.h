@@ -449,8 +449,12 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** Use Nanite to render landscape as a mesh on supported platforms. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Nanite, meta = (DisplayName = "Enable Nanite"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Nanite)
 	bool bEnableNanite = false;
+
+	/** LOD level of the landscape when generating the Nanite mesh. Mostly there for debug reasons, since Nanite is meant to allow high density meshes, we want to use 0 most of the times. */
+	UPROPERTY(EditAnywhere, Category = Nanite, AdvancedDisplay)
+	int32 NaniteLODIndex = 0;
 
 	/** Landscape actor has authority on default streaming behavior for new actors : LandscapeStreamingProxies & LandscapeSplineActors */
 	UPROPERTY(EditAnywhere, Category = WorldPartition)

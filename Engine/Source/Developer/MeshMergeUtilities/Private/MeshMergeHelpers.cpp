@@ -834,8 +834,10 @@ void FMeshMergeHelpers::RetrieveCullingLandscapeAndVolumes(UWorld* InWorld, cons
 		// Export the landscape to raw mesh format
 		FMeshDescription* MeshDescription = new FMeshDescription();
 		FStaticMeshAttributes(*MeshDescription).Register();
-		FBoxSphereBounds LandscapeBounds = EstimatedMeshProxyBounds;
-		Landscape->ExportToRawMesh(LandscapeExportLOD, *MeshDescription, LandscapeBounds);
+		ALandscapeProxy::FRawMeshExportParams ExportParams;
+		ExportParams.ExportLOD = LandscapeExportLOD;
+		ExportParams.ExportBounds = EstimatedMeshProxyBounds;
+		Landscape->ExportToRawMesh(ExportParams, *MeshDescription);
 		if (MeshDescription->Vertices().Num())
 		{
 			OutCullingMeshes.Add(MeshDescription);

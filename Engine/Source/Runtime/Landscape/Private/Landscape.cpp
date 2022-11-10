@@ -83,6 +83,7 @@ Landscape.cpp: Terrain rendering
 #endif
 #include "LandscapeVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
 #include "LandscapeDataAccess.h"
 #include "LandscapeNotification.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
@@ -334,19 +335,33 @@ void ALandscapeProxy::UpdateNaniteRepresentation(const ITargetPlatform* TargetPl
 			NaniteComponent->bSelectable = false;
 			NaniteComponent->DepthPriorityGroup = SDPG_World;
 			NaniteComponent->RegisterComponent();
+			NaniteComponent->AttachToComponent(GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 		}
 
+		bool bSuccess = true;
 		if (NaniteComponent->GetProxyContentId() != NaniteContentId)
 		{
 			FScopedSlowTask ProgressDialog(1, LOCTEXT("BuildingLandscapeNanite", "Building Landscape Nanite Data"));
 			ProgressDialog.MakeDialog();
 
-			NaniteComponent->InitializeForLandscape(this, NaniteContentId);
+			bSuccess &= NaniteComponent->InitializeForLandscape(this, NaniteContentId);
 		}
-		// TODO: Add a flag that only initializes the platform if we called InitializeForLandscape during the PreSave for this or a previous platform
-		NaniteComponent->InitializePlatformForLandscape(this, TargetPlatform);
 
-		NaniteComponent->UpdatedSharedPropertiesFromActor();
+		if (bSuccess)
+		{
+			// TODO: Add a flag that only initializes the platform if we called InitializeForLandscape during the PreSave for this or a previous platform
+			bSuccess &= NaniteComponent->InitializePlatformForLandscape(this, TargetPlatform);
+		}
+
+		if (bSuccess)
+		{
+			NaniteComponent->UpdatedSharedPropertiesFromActor();
+		}
+		else
+		{
+			// This will delete the Nanite component and will revert back to normal landscape rendering
+			InvalidateNaniteRepresentation(/* bCheckContentId = */ false);
+		}
 	}
 	else
 	{
@@ -2982,6 +2997,13 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 				LODDistributionSetting = LODDSquareRootDistributionSettingMigrationTable[FMath::RoundToInt(LODDistanceFactor_DEPRECATED)];
 			}
 		}
+	}
+
+	// Fixup Nanite meshes which were using the wrong material and didn't have proper UVs :
+	if (Ar.IsLoading() && Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::FixupNaniteLandscapeMeshes)
+	{
+		// This will force the Nanite meshes to be properly regenerated during the next save :
+		InvalidateNaniteRepresentation(/* bCheckContentId = */ false);
 	}
 #endif
 }

@@ -2173,7 +2173,9 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 			FMeshDescription* LandscapeRawMesh = StaticMesh->CreateMeshDescription(0);
 			FStaticMeshAttributes Attributes(*LandscapeRawMesh);
 		
-			Landscape->ExportToRawMesh(LandscapeLOD, *LandscapeRawMesh);
+			ALandscapeProxy::FRawMeshExportParams ExportParams;
+			ExportParams.ExportLOD = LandscapeLOD;
+			Landscape->ExportToRawMesh(ExportParams, *LandscapeRawMesh);
 		
 			TVertexAttributesRef<FVector3f> VertexPositions = Attributes.GetVertexPositions();
 			for (const FVertexID VertexID : LandscapeRawMesh->Vertices().GetElementIDs())

@@ -277,7 +277,9 @@ TArray<UActorComponent*> ULandscapeHLODBuilder::Build(const FHLODBuildContext& I
 
 			MeshDescription = StaticMesh->CreateMeshDescription(0);
 	
-			LandscapeProxy->ExportToRawMesh(LandscapeLOD, *MeshDescription);
+			ALandscapeProxy::FRawMeshExportParams ExportParams;
+			ExportParams.ExportLOD = LandscapeLOD;
+			LandscapeProxy->ExportToRawMesh(ExportParams, *MeshDescription);
 
 			StaticMesh->CommitMeshDescription(0);
 

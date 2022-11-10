@@ -1080,6 +1080,7 @@ public:
 	 * @param OutRawMesh - Resulting raw mesh
 	 * @return true if successful
 	 */
+	UE_DEPRECATED(5.2, "Use the version of this function taking a FRawMeshExportParams as a parameter")
 	LANDSCAPE_API bool ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRawMesh) const;
 
 	/**
@@ -1091,6 +1092,7 @@ public:
 	* @param bIgnoreBounds - If false, InBounds will be ignored during export
 	* @return true if successful
 	*/
+	UE_DEPRECATED(5.2, "Use the version of this function taking a FRawMeshExportParams as a parameter")
 	LANDSCAPE_API bool ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRawMesh, const FBoxSphereBounds& InBounds, bool bIgnoreBounds = false) const;
 
 	/**
@@ -1103,7 +1105,91 @@ public:
 	* @param bIgnoreBounds - If false, InBounds will be ignored during export
 	* @return true if successful
 	*/
-	LANDSCAPE_API bool ExportToRawMesh(const TArrayView<ULandscapeComponent*>& InComponents, int32 InExportLOD, FMeshDescription& OutRawMesh, const FBoxSphereBounds& InBounds, bool bIgnoreBounds = false) const;
+	UE_DEPRECATED(5.2, "Use the version of this function taking a FRawMeshExportParams as a parameter")
+	LANDSCAPE_API bool ExportToRawMesh(const TArrayView<ULandscapeComponent*>& InComponents, int32 InExportLOD, FMeshDescription& OutRawMesh, const FBoxSphereBounds& InBounds, bool bIgnoreBounds = false, bool bGenerateOnePolygonGroupPerComponent = false) const;
+
+	struct LANDSCAPE_API FRawMeshExportParams
+	{
+		static constexpr int32 MaxUVCount = 6;
+
+		/** Describes what information the export will write in a given UV channel */
+		enum class EUVMappingType : uint8
+		{
+			None, /** Don't export UV */
+			//RelativeToBoundsUV, /** Only valid when ExportBounds is set : normalized UVs spanning the export bounds, i.e. (0,0) at the bottom left corner of ExportBounds -> (1,1) at the top right corner of ExportBounds. */
+			// TODO [jonathan.bard] : RelativeToComponentsBoundsUV, /** Only valid when ComponentsToExport is set : normalized UVs spanning the ComponentToExport's bounds, i.e. (0,0) at the bottom left corner of those components' lower left component -> (1,1) at the top right corner of those components' upper right component */
+			RelativeToProxyBoundsUV, /** Normalized UVs spanning the landscape proxy's bounds, i.e. (0,0) at the bottom left corner of the proxy's lower left landscape component -> (1,1) at the top right corner of the proxy's upper right component */
+			// TODO[jonathan.bard] : RelativeToLandscapeBoundsUV, /** Normalized UVs spanning the entire landscape bounds, i.e. (0,0) at the bottom left corner of the landscape's lower left landscape component -> (1,1) at the top right corner of the landscape's upper right component */
+			HeightmapUV, /** Export the heightmaps' UV mapping */
+			WeightmapUV, /** Export the weightmaps' UV mapping */
+			// TODO[jonathan.bard] : LightmapUV, 
+			TerrainCoordMapping_XY, /** Similar to ETerrainCoordMappingType::TCMT_XY */
+			TerrainCoordMapping_XZ, /** Similar to ETerrainCoordMappingType::TCMT_XZ */
+			TerrainCoordMapping_YZ, /** Similar to ETerrainCoordMappingType::TCMT_YZ */
+
+			Num
+		};
+
+		/** Describes what to export on each UV channel */
+		struct FUVConfiguration
+		{
+			FUVConfiguration();
+			int32 GetNumUVChannelsNeeded() const;
+
+		public:
+			// Index 0 = UVChannel 0, Index 1 = UVChannel 1... 
+			TArray<EUVMappingType> ExportUVMappingTypes; 
+		};
+
+		enum class EExportCoordinatesType : uint8
+		{
+			Absolute,
+			RelativeToProxy,
+			// TODO [jonathan.bard] : RelativeToComponentsBounds,
+			// TODO [jonathan.bard] : RelativeToProxyBounds,
+			// TODO [jonathan.bard] : RelativeToLandscapeBounds,
+		};
+
+	public:
+		FRawMeshExportParams() = default;
+		const FUVConfiguration& GetUVConfiguration(int32 InComponentIndex) const;
+		const FName& GetMaterialSlotName(int32 InComponentIndex) const;
+		int32 GetNumUVChannelsNeeded() const;
+
+	public:
+		/** LOD level to export. If none specified, LOD 0 will be used */
+		int32 ExportLOD = INDEX_NONE;
+
+		/** Describes what each UV channel should contain. */
+		FUVConfiguration UVConfiguration;
+
+		/** Referential for the vertex coordinates. */
+		EExportCoordinatesType ExportCoordinatesType = EExportCoordinatesType::Absolute;
+
+		/** Name of the default polygon group's material slot in the mesh. */
+		FName MaterialSlotName = TEXT("LandscapeMat");
+
+		/** Box/Sphere bounds which limits the geometry exported out into OutRawMesh (optional: if none specified, the entire mesh is exported) */
+		TOptional<FBoxSphereBounds> ExportBounds;
+
+		/** List of components from the proxy to actually export (optional : if none specified, all landscape components will be exported) */
+		TOptional<TArrayView<ULandscapeComponent*>> ComponentsToExport;
+
+		/** Per-component UV configuration, in case ComponentsToExport is specified (optional: if none specified, all UV channels will contain the same information, as specified by UVConfiguration + there must be as many elements as there are in ComponentsToExport*/
+		TOptional<TArrayView<FUVConfiguration>> ComponentsUVConfiguration;
+
+		/** Per-component material slot name (optional : if specified, one polygon group per component will be assigned the corresponding material slot's name, otherwise, MaterialSlotName will be used. */
+		TOptional<TArrayView<FName>> ComponentsMaterialSlotName;		
+	};
+
+	/**
+	* Exports landscape geometry into a raw mesh according to the export params
+	*
+	* @param InExportParams - Details about what should be exported and how
+	* @param OutRawMesh - Resulting raw mesh
+	* @return true if successful
+	*/
+	LANDSCAPE_API bool ExportToRawMesh(const FRawMeshExportParams& InExportParams, FMeshDescription& OutRawMesh) const;
 
 	UE_DEPRECATED(5.1, "CheckGenerateLandscapePlatformData has been deprecated, please use CheckGenerateMobilePlatformData instead.")
 	LANDSCAPE_API void CheckGenerateLandscapePlatformData(bool bIsCooking, const ITargetPlatform* TargetPlatform);
