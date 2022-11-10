@@ -329,6 +329,16 @@ FVector USkyAtmosphereComponent::GetOverridenAtmosphereLightDirection(int32 Atmo
 	return FVector::ZeroVector;
 }
 
+void USkyAtmosphereComponent::ResetAtmosphereLightDirectionOverride(int32 AtmosphereLightIndex)
+{
+	check(AtmosphereLightIndex >= 0 && AtmosphereLightIndex < NUM_ATMOSPHERE_LIGHTS);
+	if (AtmosphereLightIndex >= 0 && AtmosphereLightIndex < NUM_ATMOSPHERE_LIGHTS)
+	{
+		OverrideAtmosphericLight[AtmosphereLightIndex] = false;
+		OverrideAtmosphericLightDirection[AtmosphereLightIndex] = FVector::ZeroVector;
+	}
+}
+
 void USkyAtmosphereComponent::GetOverrideLightStatus(bool* OutOverrideAtmosphericLight, FVector* OutOverrideAtmosphericLightDirection) const
 {
 	memcpy(OutOverrideAtmosphericLight, OverrideAtmosphericLight, sizeof(OverrideAtmosphericLight));

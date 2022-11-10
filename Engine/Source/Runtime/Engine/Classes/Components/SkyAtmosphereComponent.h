@@ -164,6 +164,8 @@ class USkyAtmosphereComponent : public USceneComponent
 	ENGINE_API bool IsAtmosphereLightDirectionOverriden(int32 AtmosphereLightIndex);
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API FVector GetOverridenAtmosphereLightDirection(int32 AtmosphereLightIndex);
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	ENGINE_API void ResetAtmosphereLightDirectionOverride(int32 AtmosphereLightIndex);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	ENGINE_API void SetAtmosphereHeight(float NewValue);
