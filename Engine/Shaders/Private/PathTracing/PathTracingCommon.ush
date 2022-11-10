@@ -46,12 +46,8 @@ float3 PayloadDecodeUnitVector(uint Encoded)
 struct FPackedPathTracingPayload : FMinimalPayload
 {
 	// float FMinimalPayload::HitT                       // 4  bytes
-	uint PackedPixelCoord;                               // 4  bytes
-	uint PackedData[14];								 // 56 bytes (encoded data, depends on shading model and ray type)
+	uint PackedData[15];								 // 60 bytes (encoded data, depends on shading model and ray type)
 														 // 64 bytes total
-
-	void SetPixelCoord(uint2 PixelCoord) { PackedPixelCoord = (PixelCoord.x & 0xFFFF) | (PixelCoord.y << 16); }
-	uint2 GetPixelCoord() { return uint2(PackedPixelCoord & 0xFFFF, PackedPixelCoord >> 16); }
 
 	uint GetFlags() { return (PackedData[7] >> 23) & 0x3F; }
 	void SetFlag(uint Flag) { PackedData[7] |= Flag << 23; }
@@ -190,10 +186,9 @@ struct FPathTracingPayload : FMinimalPayload
 	}
 };
 
-FPackedPathTracingPayload InitPathTracingPayload(uint2 PixelCoord, bool bIgnoreSkyMaterials)
+FPackedPathTracingPayload InitPathTracingPayload(bool bIgnoreSkyMaterials)
 {
 	FPackedPathTracingPayload Output = (FPackedPathTracingPayload)0;
-	Output.SetPixelCoord(PixelCoord);
 	if (bIgnoreSkyMaterials)
 	{
 		Output.SetIgnoreSkyMaterials();
@@ -201,10 +196,9 @@ FPackedPathTracingPayload InitPathTracingPayload(uint2 PixelCoord, bool bIgnoreS
 	return Output;
 }
 
-FPackedPathTracingPayload InitPathTracingVisibilityPayload(uint2 PixelCoord, float PathRoughness)
+FPackedPathTracingPayload InitPathTracingVisibilityPayload(float PathRoughness)
 {
 	FPackedPathTracingPayload Output = (FPackedPathTracingPayload)0;
-	Output.SetPixelCoord(PixelCoord);
 	// Signal to the AHS we want to evaluate the opacity
 	// The payload is used to carry the path throughput (for transparent shadows)
 	// and current path roughness (for approximate caustics)

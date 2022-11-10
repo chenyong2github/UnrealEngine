@@ -186,7 +186,7 @@ FPathTracingPayload TraceTransparentRay(FRayDesc Ray, bool IsCameraRay, bool Las
 		// also avoid noise from hot spots (they can be properly
 		// importance sampled if a capturing skylight is added)
 		const bool bIgnoreSky = !IsCameraRay;
-		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(LaunchIndex, bIgnoreSky);
+		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(bIgnoreSky);
 		// Trace the ray
 		TraceRay(
 			TLAS,
@@ -289,7 +289,7 @@ FPathTracingPayload TraceTransparentRay(FRayDesc Ray, bool IsCameraRay, bool Las
 	return Payload;
 }
 
-float3 TraceTransparentVisibilityRay(FRayDesc Ray, uint2 PixelCoord, float PathRoughness)
+float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness)
 {
 	const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
 	const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
@@ -297,7 +297,7 @@ float3 TraceTransparentVisibilityRay(FRayDesc Ray, uint2 PixelCoord, float PathR
 	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
 	const uint MissShaderIndex = 0;
 
-	FPackedPathTracingPayload PackedPayload = InitPathTracingVisibilityPayload(PixelCoord, PathRoughness);
+	FPackedPathTracingPayload PackedPayload = InitPathTracingVisibilityPayload(PathRoughness);
 
 	// Trace the ray
 	TraceRay(
@@ -608,7 +608,7 @@ void PathTracingKernel(
 					
 						float AvgRoughness = ApproximateCaustics ? GetAverageRoughness(Payload) : 0.0;
 
-						Visibility = TraceTransparentVisibilityRay(LightRay, LaunchIndex, AvgRoughness);
+						Visibility = TraceTransparentVisibilityRay(LightRay, AvgRoughness);
 						LightSample.RadianceOverPdf *= Visibility;
 					}
 
@@ -783,7 +783,7 @@ void PathTracingKernel(
 					{
 						FRayDesc LightRay = Ray;
 						LightRay.TMax = LightResult.HitT;
-						float3 Visibility = TraceTransparentVisibilityRay(LightRay, LaunchIndex, PathRoughness);
+						float3 Visibility = TraceTransparentVisibilityRay(LightRay, PathRoughness);
 						LightContrib *= Visibility;
 						
 						// Separate direct lighting (bounce 0) for GPU Lightmass

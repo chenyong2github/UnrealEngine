@@ -9,7 +9,7 @@ RWBuffer<float> RWStartingExtinctionCoefficient;
 // TODO: figure out the right start value for camera rays inside glass
 RAY_TRACING_ENTRY_RAYGEN(PathTracingInitExtinctionCoefficientRG)
 {
-	FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(0, true);
+	FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(true);
 
 	const uint RayFlags = RAY_FLAG_FORCE_OPAQUE;
 	const uint MissShaderIndex = 0;

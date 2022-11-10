@@ -44,7 +44,6 @@ FPathState LoadPathStateData(uint Index)
 {
 	FPathTracingPackedPathState Data = PathStateData[Index];
 	FPathState Output = (FPathState)0;
-	Output.PixelIndex = uint2(Data.PixelIndex & 0xFFFFu, Data.PixelIndex >> 16);
 	Output.RandSequence.SampleIndex = Data.RandSeqSampleIndex;
 	Output.RandSequence.SampleSeed  = Data.RandSeqSampleSeed;
 	Output.Radiance = Data.Radiance;
@@ -71,7 +70,6 @@ FPathState LoadPathStateData(uint Index)
 void StorePathStateData(FPathState PathState, uint Index)
 {
 	FPathTracingPackedPathState Data;
-	Data.PixelIndex = PathState.PixelIndex.x + PathState.PixelIndex.y * 65536;;
 	Data.RandSeqSampleIndex = PathState.RandSequence.SampleIndex;
 	Data.RandSeqSampleSeed  = PathState.RandSequence.SampleSeed;
 	Data.Radiance = PathState.Radiance;

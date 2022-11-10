@@ -10,7 +10,7 @@ FMinimalPayload TraceLightmapVisibilityRay(
 	in FRayDesc Ray)
 {
 	// GPULightmass only binds path tracing shaders, so we need to use it to trace rays, even though this function only cares about the hit distance
-	FPackedPathTracingPayload PackedPayload = InitPathTracingVisibilityPayload(uint2(0, 0), 1.0f);
+	FPackedPathTracingPayload PackedPayload = InitPathTracingVisibilityPayload(1.0f);
 
 	TraceRay(
 		TLAS,

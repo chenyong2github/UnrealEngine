@@ -71,7 +71,6 @@ Buffer<float> StartingExtinctionCoefficient;
 
 struct FPathState
 {                                   // packed size
-	uint2 PixelIndex;               //  4 bytes
 	RandomSequence RandSequence;    //  8 bytes
 	float3 Radiance;                // 12 bytes
 	float  BackgroundVisibility;    //  4 bytes
@@ -81,7 +80,7 @@ struct FPathState
 	float3 PathThroughput;          // 12 bytes
 	float PathRoughness;            //  2 bytes // half precision
 	float3 SigmaT; // Extinction    //  6 bytes // half precision 
-									// 84 bytes total (see FPathTracingPackedPathState)
+									// 80 bytes total (see FPathTracingPackedPathState)
 
 	void WritePixel(uint2 TextureIndex)
 	{
@@ -180,7 +179,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 		// also avoid noise from hot spots (they can be properly
 		// importance sampled if a capturing skylight is added)
 		const bool bIgnoreSky = !bIsCameraRay;
-		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(PathState.PixelIndex, bIgnoreSky);
+		FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(bIgnoreSky);
 		// Trace the ray
 		TraceRay(
 			TLAS,
@@ -378,7 +377,6 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 
 				FDecalShaderParams Params = (FDecalShaderParams)0;
 				Params.SetInputTranslatedWorldPosition(TranslatedWorldPos);
-				Params.SetPixelCoord(PathState.PixelIndex);
 
 				CallShader(DecalId, Params);
 
@@ -459,7 +457,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 	return Payload;
 }
 
-float3 TraceTransparentVisibilityRay(FRayDesc Ray, uint2 PixelCoord, float PathRoughness, uint MissShaderIndex, bool bCastShadows, inout RandomSequence RandSequence)
+float3 TraceTransparentVisibilityRay(FRayDesc Ray, float PathRoughness, uint MissShaderIndex, bool bCastShadows, inout RandomSequence RandSequence)
 {
 	if (!bCastShadows && MissShaderIndex == 0)
 	{
@@ -472,7 +470,7 @@ float3 TraceTransparentVisibilityRay(FRayDesc Ray, uint2 PixelCoord, float PathR
 	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_SHADOW;
 	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
 
-	FPackedPathTracingPayload PackedPayload = InitPathTracingVisibilityPayload(PixelCoord, PathRoughness);
+	FPackedPathTracingPayload PackedPayload = InitPathTracingVisibilityPayload(PathRoughness);
 
 	if (!bCastShadows)
 	{
@@ -528,10 +526,10 @@ struct FProbeResult
 	bool IsMiss() { return HitT <= 0; }
 };
 
-FProbeResult TraceProbeRay(FRayDesc Ray, uint2 PixelCoord)
+FProbeResult TraceProbeRay(FRayDesc Ray)
 {
 	// Trace a short ray to see if we escaped the surface
-	FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(PixelCoord, true);
+	FPackedPathTracingPayload PackedPayload = InitPathTracingPayload(true);
 	// TODO: use smaller payload + flag to skip shading work? (only want smooth+geo normals)
 	//       however supporting blockers would require some shading ...
 	const uint RayFlags = 0;
@@ -578,7 +576,7 @@ void ApplyRayBias(inout FRayDesc Ray, float HitT, float3 Normal, bool ShadowTerm
 #endif
 }
 
-bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3 PathThroughput, inout RandomSequence RandSequence, float3 RayDirection, uint2 PixelCoord, bool SimplifySSS)
+bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3 PathThroughput, inout RandomSequence RandSequence, float3 RayDirection, bool SimplifySSS)
 {
 	if (!Payload.IsSubsurfaceMaterial())
 	{
@@ -687,7 +685,7 @@ bool ProcessSubsurfaceRandomWalk(inout FPathTracingPayload Payload, inout float3
 		}
 		for (;;)
 		{
-			FProbeResult ProbeResult = TraceProbeRay(Ray, PixelCoord);
+			FProbeResult ProbeResult = TraceProbeRay(Ray);
 			if (ProbeResult.IsMiss())
 			{
 				// we didn't hit anything, so scatter randomly in the volume and keep tracing
@@ -763,8 +761,7 @@ FPathState CreatePathState(int2 PixelIndex)
 {
 	FPathState Output = (FPathState)0;
 
-	Output.PixelIndex = PixelIndex;
-	uint2 LaunchIndex = Output.PixelIndex + View.ViewRectMin.xy;
+	uint2 LaunchIndex = PixelIndex + View.ViewRectMin.xy;
 
 	// Initialize random sequence 
 	if (SamplerType == PATHTRACER_SAMPLER_ERROR_DIFFUSION)
@@ -939,7 +936,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 						LightRay.TMin = 0;
 						LightRay.Direction = LightSample.Direction;
 						LightRay.TMax = LightSample.Distance;
-						LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, 1.0, MissShaderIndex, bCastShadows, PathState.RandSequence);
+						LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, 1.0, MissShaderIndex, bCastShadows, PathState.RandSequence);
 						// #dxr_todo: Is it cheaper to fire the ray first? Or eval the material first?
 						if (any(LightSample.RadianceOverPdf > 0))
 						{
@@ -976,7 +973,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 								LightContrib *= MISWeightRobust(MaterialSample.Pdf, LightResult.Pdf);
 							}
 							MaterialRay.TMax = LightResult.HitT;
-							LightContrib *= TraceTransparentVisibilityRay(MaterialRay, PathState.PixelIndex, MaterialSample.Roughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
+							LightContrib *= TraceTransparentVisibilityRay(MaterialRay, MaterialSample.Roughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
 							AccumulateRadiance(PathState.Radiance, LightContrib, bIsCameraRay);
 						}
 					}
@@ -1014,7 +1011,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	}
 
 	// Processing the random walk will (stochastically) move the shading point elsewhere on the surface of the object
-	if (!ProcessSubsurfaceRandomWalk(Payload, PathState.PathThroughput, PathState.RandSequence, PathState.Ray.Direction, PathState.PixelIndex, bSimplifySSS))
+	if (!ProcessSubsurfaceRandomWalk(Payload, PathState.PathThroughput, PathState.RandSequence, PathState.Ray.Direction, bSimplifySSS))
 	{
 		// random walk did not terminate at a valid point
 		return false;
@@ -1111,7 +1108,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 
 				const bool bCastShadows = CastsShadow(LightId);
 				const uint MissShaderIndex = GetLightMissShaderIndex(LightId);
-				LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, AvgRoughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
+				LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, AvgRoughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
 
 				if (bIsVolumeSample)
 				{
@@ -1278,7 +1275,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 				LightRay.TMax = LightResult.HitT;
 				const bool bCastShadows = CastsShadow(LightId);
 				const uint MissShaderIndex = GetLightMissShaderIndex(LightId);
-				LightContrib *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, ShadowRayRoughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
+				LightContrib *= TraceTransparentVisibilityRay(LightRay, ShadowRayRoughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
 				// the light made some contribution, and there was nothing along the shadow ray
 				AccumulateRadiance(PathState.Radiance, LightContrib, bIsCameraRay);
 			}

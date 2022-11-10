@@ -37,7 +37,6 @@ struct FPathTracingLight {
 static_assert(sizeof(FPathTracingLight) == 132, "Path tracing light structure should be kept as small as possible");
 
 struct FPathTracingPackedPathState {
-	uint32    PixelIndex;
 	uint32    RandSeqSampleIndex;
 	uint32    RandSeqSampleSeed;
 	FVector3f Radiance;
@@ -51,7 +50,7 @@ struct FPathTracingPackedPathState {
 	uint16    SigmaT[3];
 };
 
-static_assert(sizeof(FPathTracingPackedPathState) == 84, "Packed Path State size should be minimized");
+static_assert(sizeof(FPathTracingPackedPathState) == 80, "Packed Path State size should be minimized");
 
 // C++ representation of a decal for ray tracing
 struct FRayTracingDecal
@@ -92,7 +91,6 @@ struct FPathTracingLight {
 };
 
 struct FPathTracingPackedPathState {
-	uint      PixelIndex;
 	uint      RandSeqSampleIndex;
 	uint      RandSeqSampleSeed;
 	float3    Radiance;
