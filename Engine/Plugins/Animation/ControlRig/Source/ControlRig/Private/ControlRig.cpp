@@ -845,7 +845,11 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	if (bIsInitializingMemory)
 	{
 		AbsoluteTime = DeltaTime = 0.f;
-		NameCache.Reset();
+		
+		if(VM)
+		{
+			VM->GetPublicData<>().GetNameCache()->Reset();
+		}
 	}
 
 	// setup the context with further fields
@@ -881,8 +885,7 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	Context.OwningComponent = nullptr;
 	Context.OwningActor = nullptr;
 	Context.World = nullptr;
-	Context.NameCache = &NameCache;
-
+	
 	if (!OuterSceneComponent.IsValid())
 	{
 		USceneComponent* SceneComponentFromRegistry = Context.DataSourceRegistry->RequestSource<USceneComponent>(UControlRig::OwnerComponent);

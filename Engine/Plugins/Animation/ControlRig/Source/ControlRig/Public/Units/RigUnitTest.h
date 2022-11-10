@@ -7,12 +7,13 @@
 #include "RigUnitContext.h"
 #include "Rigs/RigHierarchy.h"
 #include "Rigs/RigHierarchyController.h"
+#include "RigVMCore/RigVMStructTest.h"
 
-class FControlRigUnitTestBase : public FAutomationTestBase
+class FControlRigUnitTestBase : public FRigVMStructTestBase<FControlRigExecuteContext>
 {
 public:
 	FControlRigUnitTestBase(const FString& InName, bool bIsComplex)
-		: FAutomationTestBase(InName, bIsComplex)
+		: FRigVMStructTestBase<FControlRigExecuteContext>(InName, bIsComplex)
 		, Hierarchy(nullptr)
 		, Controller(nullptr)
 	{
@@ -27,8 +28,10 @@ public:
 		}
 	}
 
-	void InitHierarchy()
+	virtual void Initialize() override
 	{
+		FRigVMStructTestBase<FControlRigExecuteContext>::Initialize();
+		
 		if (!Hierarchy)
 		{
 			Hierarchy = NewObject<URigHierarchy>();
@@ -36,17 +39,13 @@ public:
 
 			Hierarchy->AddToRoot();
 			// we no longer add the controller to root since controller is now part of the hierarchy
-
-			Context.Hierarchy = Hierarchy;;
-			ExecuteContext.Hierarchy = Hierarchy;
-			Context.NameCache = &NameCache;
 		}
+		Context.Hierarchy = Hierarchy;;
+		ExecuteContext.Hierarchy = Hierarchy;
 	}
 
 	URigHierarchy* Hierarchy;
 	URigHierarchyController* Controller;
-	FControlRigExecuteContext ExecuteContext;
-	FRigNameCache NameCache;
 	FRigUnitContext Context;
 };
 
@@ -72,7 +71,7 @@ public:
 		TUnitStruct Unit; \
 		virtual bool RunTest(const FString& Parameters) override \
 		{ \
-			FControlRigUnitTestBase::InitHierarchy(); \
+			Initialize(); \
 			Hierarchy->Reset(); \
 			Unit = TUnitStruct(); \
 			return RunControlRigUnitTest(Parameters); \

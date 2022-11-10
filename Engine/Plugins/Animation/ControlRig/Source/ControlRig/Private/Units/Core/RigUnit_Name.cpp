@@ -7,9 +7,9 @@
 
 FRigUnit_NameConcat_Execute()
 {
-	check(Context.NameCache);
+	check(ExecuteContext.GetNameCache());
 	
-	Result = Context.NameCache->Concat(A, B);
+	Result = ExecuteContext.GetNameCache()->Concat(A, B);
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -42,7 +42,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_NameConcat)
 
 FRigUnit_NameTruncate_Execute()
 {
-	check(Context.NameCache);
+	check(ExecuteContext.GetNameCache());
 
 	Remainder = Name;
 	Chopped = NAME_None;
@@ -54,13 +54,13 @@ FRigUnit_NameTruncate_Execute()
 
 	if (FromEnd)
 	{
-		Remainder = Context.NameCache->LeftChop(Name, Count);
-		Chopped = Context.NameCache->Right(Name, Count);
+		Remainder = ExecuteContext.GetNameCache()->LeftChop(Name, Count);
+		Chopped = ExecuteContext.GetNameCache()->Right(Name, Count);
 	}
 	else
 	{
-		Remainder = Context.NameCache->RightChop(Name, Count);
-		Chopped = Context.NameCache->Left(Name, Count);
+		Remainder = ExecuteContext.GetNameCache()->RightChop(Name, Count);
+		Chopped = ExecuteContext.GetNameCache()->Left(Name, Count);
 	}
 }
 
@@ -115,9 +115,9 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_NameTruncate)
 
 FRigUnit_NameReplace_Execute()
 {
-	check(Context.NameCache);
+	check(ExecuteContext.GetNameCache());
 
-	Result = Context.NameCache->Replace(Name, Old, New, ESearchCase::CaseSensitive);
+	Result = ExecuteContext.GetNameCache()->Replace(Name, Old, New, ESearchCase::CaseSensitive);
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -162,9 +162,9 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_NameReplace)
 
 FRigUnit_EndsWith_Execute()
 {
-	check(Context.NameCache);
+	check(ExecuteContext.GetNameCache());
 
-	Result = Context.NameCache->EndsWith(Name, Ending, ESearchCase::CaseSensitive);
+	Result = ExecuteContext.GetNameCache()->EndsWith(Name, Ending, ESearchCase::CaseSensitive);
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -193,9 +193,9 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_EndsWith)
 
 FRigUnit_StartsWith_Execute()
 {
-	check(Context.NameCache);
+	check(ExecuteContext.GetNameCache());
 
-	Result = Context.NameCache->StartsWith(Name, Start, ESearchCase::CaseSensitive);
+	Result = ExecuteContext.GetNameCache()->StartsWith(Name, Start, ESearchCase::CaseSensitive);
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -223,9 +223,9 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_StartsWith)
 
 FRigUnit_Contains_Execute()
 {
-	check(Context.NameCache);
+	check(ExecuteContext.GetNameCache());
 
-	Result = Context.NameCache->Contains(Name, Search, ESearchCase::CaseSensitive);
+	Result = ExecuteContext.GetNameCache()->Contains(Name, Search, ESearchCase::CaseSensitive);
 }
 
 #if WITH_DEV_AUTOMATION_TESTS

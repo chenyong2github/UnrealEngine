@@ -1,103 +1,104 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Rigs/RigNameCache.h"
+#include "RigVMCore/RigVMNameCache.h"
+#include "HAL/IConsoleManager.h"
 
 #if WITH_EDITOR
-#include "ControlRig.h"
-TAutoConsoleVariable<int32> CVarRigNameCacheMaxSize(TEXT("a.ControlRig.NameCacheMaxSize"), 512, TEXT("Change to control how many names are cached per rig instance."));
+#include "RigVMCore/RigVM.h"
+TAutoConsoleVariable<int32> CVarRigVMNameCacheMaxSize(TEXT("RigVM.NameCacheMaxSize"), 512, TEXT("Change to control how many names are cached per VM instance."));
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-// FRigNameOp
+// FRigVMNameOp
 ////////////////////////////////////////////////////////////////////////////////
 
-FRigNameOp FRigNameOp::Concat(const FName& InA, const FName& InB)
+FRigVMNameOp FRigVMNameOp::Concat(const FName& InA, const FName& InB)
 {
-	FRigNameOp Op;
-	Op.Type = ERigNameOp::Concat;
+	FRigVMNameOp Op;
+	Op.Type = ERigVMNameOp::Concat;
 	Op.A = GetTypeHash(InA);
 	Op.B = GetTypeHash(InB);
 	return Op;
 }
 
-FRigNameOp FRigNameOp::Left(const FName& InA, const uint32 InCount)
+FRigVMNameOp FRigVMNameOp::Left(const FName& InA, const uint32 InCount)
 {
-	FRigNameOp Op;
-	Op.Type = ERigNameOp::Left;
+	FRigVMNameOp Op;
+	Op.Type = ERigVMNameOp::Left;
 	Op.A = GetTypeHash(InA);
 	Op.B = InCount;
 	return Op;
 }
 
-FRigNameOp FRigNameOp::Right(const FName& InA, const uint32 InCount)
+FRigVMNameOp FRigVMNameOp::Right(const FName& InA, const uint32 InCount)
 {
-	FRigNameOp Op;
-	Op.Type = ERigNameOp::Right;
+	FRigVMNameOp Op;
+	Op.Type = ERigVMNameOp::Right;
 	Op.A = GetTypeHash(InA);
 	Op.B = InCount;
 	return Op;
 }
 
-FRigNameOp FRigNameOp::LeftChop(const FName& InA, const uint32 InCount)
+FRigVMNameOp FRigVMNameOp::LeftChop(const FName& InA, const uint32 InCount)
 {
-	FRigNameOp Op;
-	Op.Type = ERigNameOp::LeftChop;
+	FRigVMNameOp Op;
+	Op.Type = ERigVMNameOp::LeftChop;
 	Op.A = GetTypeHash(InA);
 	Op.B = InCount;
 	return Op;
 }
 
-FRigNameOp FRigNameOp::RightChop(const FName& InA, const uint32 InCount)
+FRigVMNameOp FRigVMNameOp::RightChop(const FName& InA, const uint32 InCount)
 {
-	FRigNameOp Op;
-	Op.Type = ERigNameOp::RightChop;
+	FRigVMNameOp Op;
+	Op.Type = ERigVMNameOp::RightChop;
 	Op.A = GetTypeHash(InA);
 	Op.B = InCount;
 	return Op;
 }
 
-FRigNameOp FRigNameOp::Replace(const FName& InA, const FName& InB, const FName& InC, const ESearchCase::Type InSearchCase)
+FRigVMNameOp FRigVMNameOp::Replace(const FName& InA, const FName& InB, const FName& InC, const ESearchCase::Type InSearchCase)
 {
-	FRigNameOp Op;
-	Op.Type = InSearchCase == ESearchCase::CaseSensitive ? ERigNameOp::ReplaceCase : ERigNameOp::ReplaceNoCase;
+	FRigVMNameOp Op;
+	Op.Type = InSearchCase == ESearchCase::CaseSensitive ? ERigVMNameOp::ReplaceCase : ERigVMNameOp::ReplaceNoCase;
 	Op.A = GetTypeHash(InA);
 	Op.B = GetTypeHash(InB);
 	Op.C = GetTypeHash(InC);
 	return Op;
 }
 
-FRigNameOp FRigNameOp::EndsWith(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase)
+FRigVMNameOp FRigVMNameOp::EndsWith(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase)
 {
-	FRigNameOp Op;
-	Op.Type = InSearchCase == ESearchCase::CaseSensitive ? ERigNameOp::EndsWithCase : ERigNameOp::EndsWithNoCase;
+	FRigVMNameOp Op;
+	Op.Type = InSearchCase == ESearchCase::CaseSensitive ? ERigVMNameOp::EndsWithCase : ERigVMNameOp::EndsWithNoCase;
 	Op.A = GetTypeHash(InA);
 	Op.B = GetTypeHash(InB);
 	return Op;
 }
 
-FRigNameOp FRigNameOp::StartsWith(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase)
+FRigVMNameOp FRigVMNameOp::StartsWith(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase)
 {
-	FRigNameOp Op;
-	Op.Type = InSearchCase == ESearchCase::CaseSensitive ? ERigNameOp::StartsWithCase : ERigNameOp::StartsWithNoCase;
+	FRigVMNameOp Op;
+	Op.Type = InSearchCase == ESearchCase::CaseSensitive ? ERigVMNameOp::StartsWithCase : ERigVMNameOp::StartsWithNoCase;
 	Op.A = GetTypeHash(InA);
 	Op.B = GetTypeHash(InB);
 	return Op;
 }
 
-FRigNameOp FRigNameOp::Contains(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase)
+FRigVMNameOp FRigVMNameOp::Contains(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase)
 {
-	FRigNameOp Op;
-	Op.Type = InSearchCase == ESearchCase::CaseSensitive ? ERigNameOp::ContainsCase : ERigNameOp::ContainsNoCase;
+	FRigVMNameOp Op;
+	Op.Type = InSearchCase == ESearchCase::CaseSensitive ? ERigVMNameOp::ContainsCase : ERigVMNameOp::ContainsNoCase;
 	Op.A = GetTypeHash(InA);
 	Op.B = GetTypeHash(InB);
 	return Op;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// FRigNameCache
+// FRigVMNameCache
 ////////////////////////////////////////////////////////////////////////////////
 
-FName FRigNameCache::Concat(const FName& InA, const FName& InB)
+FName FRigVMNameCache::Concat(const FName& InA, const FName& InB)
 {
 	if(InA.IsNone())
 	{
@@ -109,7 +110,7 @@ FName FRigNameCache::Concat(const FName& InA, const FName& InB)
 		return InA;
 	}
 	
-	const FRigNameOp Op = FRigNameOp::Concat(InA, InB);
+	const FRigVMNameOp Op = FRigVMNameOp::Concat(InA, InB);
 	if(const FName* ExistingName = NameCache.Find(Op))
 	{
 		return *ExistingName;
@@ -123,7 +124,7 @@ FName FRigNameCache::Concat(const FName& InA, const FName& InB)
 	return NewName;
 }
 
-FName FRigNameCache::Left(const FName& InA, const uint32 InCount)
+FName FRigVMNameCache::Left(const FName& InA, const uint32 InCount)
 {
 	if(InCount == 0 || InA.IsNone())
 	{
@@ -135,7 +136,7 @@ FName FRigNameCache::Left(const FName& InA, const uint32 InCount)
 		return InA;
 	}
 	
-	const FRigNameOp Op = FRigNameOp::Left(InA, InCount);
+	const FRigVMNameOp Op = FRigVMNameOp::Left(InA, InCount);
 	if(const FName* ExistingName = NameCache.Find(Op))
 	{
 		return *ExistingName;
@@ -150,7 +151,7 @@ FName FRigNameCache::Left(const FName& InA, const uint32 InCount)
 	return NewName;
 }
 
-FName FRigNameCache::Right(const FName& InA, const uint32 InCount)
+FName FRigVMNameCache::Right(const FName& InA, const uint32 InCount)
 {
 	if(InCount == 0 || InA.IsNone())
 	{
@@ -162,7 +163,7 @@ FName FRigNameCache::Right(const FName& InA, const uint32 InCount)
 		return InA;
 	}
 
-	const FRigNameOp Op = FRigNameOp::Right(InA, InCount);
+	const FRigVMNameOp Op = FRigVMNameOp::Right(InA, InCount);
 	if(const FName* ExistingName = NameCache.Find(Op))
 	{
 		return *ExistingName;
@@ -177,14 +178,14 @@ FName FRigNameCache::Right(const FName& InA, const uint32 InCount)
 	return NewName;
 }
 
-FName FRigNameCache::LeftChop(const FName& InA, const uint32 InCount)
+FName FRigVMNameCache::LeftChop(const FName& InA, const uint32 InCount)
 {
 	if(InCount == 0 || InA.IsNone())
 	{
 		return InA;
 	}
 	
-	const FRigNameOp Op = FRigNameOp::LeftChop(InA, InCount);
+	const FRigVMNameOp Op = FRigVMNameOp::LeftChop(InA, InCount);
 	if(const FName* ExistingName = NameCache.Find(Op))
 	{
 		return *ExistingName;
@@ -199,14 +200,14 @@ FName FRigNameCache::LeftChop(const FName& InA, const uint32 InCount)
 	return NewName;
 }
 
-FName FRigNameCache::RightChop(const FName& InA, const uint32 InCount)
+FName FRigVMNameCache::RightChop(const FName& InA, const uint32 InCount)
 {
 	if(InCount == 0 || InA.IsNone())
 	{
 		return InA;
 	}
 
-	const FRigNameOp Op = FRigNameOp::RightChop(InA, InCount);
+	const FRigVMNameOp Op = FRigVMNameOp::RightChop(InA, InCount);
 	if(const FName* ExistingName = NameCache.Find(Op))
 	{
 		return *ExistingName;
@@ -221,14 +222,14 @@ FName FRigNameCache::RightChop(const FName& InA, const uint32 InCount)
 	return NewName;
 }
 
-FName FRigNameCache::Replace(const FName& InA, const FName& InB, const FName& InC, const ESearchCase::Type InSearchCase)
+FName FRigVMNameCache::Replace(const FName& InA, const FName& InB, const FName& InC, const ESearchCase::Type InSearchCase)
 {
 	if(InA.IsNone() || InB.IsNone())
 	{
 		return InA;
 	}
 
-	const FRigNameOp Op = FRigNameOp::Replace(InA, InB, InC, InSearchCase);
+	const FRigVMNameOp Op = FRigVMNameOp::Replace(InA, InB, InC, InSearchCase);
 	if(const FName* ExistingName = NameCache.Find(Op))
 	{
 		return *ExistingName;
@@ -249,14 +250,14 @@ FName FRigNameCache::Replace(const FName& InA, const FName& InB, const FName& In
 	return NewName;
 }
 
-bool FRigNameCache::EndsWith(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase)
+bool FRigVMNameCache::EndsWith(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase)
 {
 	if(InA.IsNone() || InB.IsNone())
 	{
 		return false;
 	}
 	
-	const FRigNameOp Op = FRigNameOp::EndsWith(InA, InB, InSearchCase);
+	const FRigVMNameOp Op = FRigVMNameOp::EndsWith(InA, InB, InSearchCase);
 	if(const bool* ExistingBool = BoolCache.Find(Op))
 	{
 		return *ExistingBool;
@@ -271,14 +272,14 @@ bool FRigNameCache::EndsWith(const FName& InA, const FName& InB, const ESearchCa
 	return bResult;
 }
 
-bool FRigNameCache::StartsWith(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase)
+bool FRigVMNameCache::StartsWith(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase)
 {
 	if(InA.IsNone() || InB.IsNone())
 	{
 		return false;
 	}
 
-	const FRigNameOp Op = FRigNameOp::StartsWith(InA, InB, InSearchCase);
+	const FRigVMNameOp Op = FRigVMNameOp::StartsWith(InA, InB, InSearchCase);
 	if(const bool* ExistingBool = BoolCache.Find(Op))
 	{
 		return *ExistingBool;
@@ -293,14 +294,14 @@ bool FRigNameCache::StartsWith(const FName& InA, const FName& InB, const ESearch
 	return bResult;
 }
 
-bool FRigNameCache::Contains(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase)
+bool FRigVMNameCache::Contains(const FName& InA, const FName& InB, const ESearchCase::Type InSearchCase)
 {
 	if(InA.IsNone() || InB.IsNone())
 	{
 		return false;
 	}
 
-	const FRigNameOp Op = FRigNameOp::Contains(InA, InB, InSearchCase);
+	const FRigVMNameOp Op = FRigVMNameOp::Contains(InA, InB, InSearchCase);
 	if(const bool* ExistingBool = BoolCache.Find(Op))
 	{
 		return *ExistingBool;
@@ -315,28 +316,28 @@ bool FRigNameCache::Contains(const FName& InA, const FName& InB, const ESearchCa
 	return bResult;
 }
 
-TArray<FRigNameOp> FRigNameCache::GetNameOps() const
+TArray<FRigVMNameOp> FRigVMNameCache::GetNameOps() const
 {
-	TArray<FRigNameOp> Result;
+	TArray<FRigVMNameOp> Result;
 	NameCache.GenerateKeyArray(Result);
 	return Result;
 }
 
-TArray<FName> FRigNameCache::GetNameValues() const
+TArray<FName> FRigVMNameCache::GetNameValues() const
 {
 	TArray<FName> Result;
 	NameCache.GenerateValueArray(Result);
 	return Result;
 }
 
-TArray<FRigNameOp> FRigNameCache::GetBoolOps() const
+TArray<FRigVMNameOp> FRigVMNameCache::GetBoolOps() const
 {
-	TArray<FRigNameOp> Result;
+	TArray<FRigVMNameOp> Result;
 	BoolCache.GenerateKeyArray(Result);
 	return Result;
 }
 
-TArray<bool> FRigNameCache::GetBoolValues() const
+TArray<bool> FRigVMNameCache::GetBoolValues() const
 {
 	TArray<bool> Result;
 	BoolCache.GenerateValueArray(Result);
@@ -344,11 +345,11 @@ TArray<bool> FRigNameCache::GetBoolValues() const
 }
 
 #if WITH_EDITOR
-bool FRigNameCache::CheckCacheSize() const
+bool FRigVMNameCache::CheckCacheSize() const
 {
-	if(CVarRigNameCacheMaxSize.GetValueOnAnyThread() == NameCache.Num() || CVarRigNameCacheMaxSize.GetValueOnAnyThread() == BoolCache.Num())
+	if(CVarRigVMNameCacheMaxSize.GetValueOnAnyThread() == NameCache.Num() || CVarRigVMNameCacheMaxSize.GetValueOnAnyThread() == BoolCache.Num())
 	{
-		UE_LOG(LogControlRig, Warning, TEXT("FRigNameCache exceeded maximum size of %d. You can change it using the 'a.ControlRig.NameCacheMaxSize' console variable."), CVarRigNameCacheMaxSize.GetValueOnAnyThread());
+		UE_LOG(LogRigVM, Warning, TEXT("FRigVMNameCache exceeded maximum size of %d. You can change it using the 'RigVM.NameCacheMaxSize' console variable."), CVarRigVMNameCacheMaxSize.GetValueOnAnyThread());
 		return false;
 	}
 	return true;

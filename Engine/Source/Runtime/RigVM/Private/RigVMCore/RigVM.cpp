@@ -995,9 +995,7 @@ void URigVM::SetContextPublicDataStruct(UScriptStruct* InScriptStruct)
 	{
 		return;
 	}
-	
-	check(InScriptStruct);
-	Context.PublicDataScope = FStructOnScope(InScriptStruct); 
+	Context.Initialize(InScriptStruct);
 }
 
 void URigVM::ResolveFunctionsIfRequired()

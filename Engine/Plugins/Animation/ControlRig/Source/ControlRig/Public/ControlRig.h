@@ -549,8 +549,6 @@ protected:
 	TMap<FName, FCachedPropertyPath> OutputProperties_DEPRECATED;
 #endif
 
-	FRigNameCache NameCache;
-
 private:
 	
 	void HandleOnControlModified(UControlRig* Subject, FRigControlElement* Control, const FRigControlModifiedContext& Context);

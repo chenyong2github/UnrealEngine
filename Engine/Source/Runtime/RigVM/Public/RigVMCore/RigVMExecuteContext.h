@@ -20,7 +20,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
-//#include "RigVMCore/RigVMNameCache.h"
+#include "RigVMCore/RigVMNameCache.h"
 
 #include "RigVMExecuteContext.generated.h"
 
@@ -28,9 +28,6 @@ class URigVM;
 struct FRigVMDispatchFactory;
 struct FRigVMExecuteContext;
 struct FRigVMExtendedExecuteContext;
-
-// temporary definition until we implement the namecache
-typedef int32 FRigVMNameCache;
 
 USTRUCT()
 struct RIGVM_API FRigVMSlice
@@ -270,6 +267,15 @@ struct RIGVM_API FRigVMExecuteContext
 
 	FORCEINLINE FRigVMNameCache* GetNameCache() const { return NameCache; }
 
+	virtual void Initialize()
+	{
+		if(NameCache == nullptr)
+		{
+			static FRigVMNameCache StaticNameCache;
+			NameCache = &StaticNameCache;
+		}
+	}
+
 protected:
 
 	FORCEINLINE virtual void Reset()
@@ -317,6 +323,7 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 	, Factory(nullptr)
 	{
 		Reset();
+		SetDefaultNameCache();
 	}
 
 	FORCEINLINE FRigVMExtendedExecuteContext(const UScriptStruct* InExecuteContextStruct)
@@ -325,9 +332,15 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		, LastExecutionMicroSeconds()
 		, Factory(nullptr)
 	{
-		check(InExecuteContextStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()));
-		Reset();
+		if(InExecuteContextStruct)
+		{
+			check(InExecuteContextStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()));
+			Reset();
+			SetDefaultNameCache();
+		}
 	}
+
+	virtual ~FRigVMExtendedExecuteContext() {}
 
 	FORCEINLINE void Reset()
 	{
@@ -345,12 +358,20 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		check(PublicDataStruct);
 		PublicDataScope = FStructOnScope(PublicDataStruct);
 		PublicDataStruct->CopyScriptStruct(PublicDataScope.GetStructMemory(), Other.PublicDataScope.GetStructMemory());
-		
+		SetDefaultNameCache();
+
 		VM = Other.VM;
 		OpaqueArguments = Other.OpaqueArguments;
 		Slices = Other.Slices;
 		SliceOffsets = Other.SliceOffsets;
 		return *this;
+	}
+
+	virtual void Initialize(UScriptStruct* InScriptStruct)
+	{
+		check(InScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()));
+		PublicDataScope = FStructOnScope(InScriptStruct);
+		SetDefaultNameCache();
 	}
 
 	template<typename ExecuteContextType = FRigVMExecuteContext>
@@ -443,6 +464,11 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		check(GetPublicData<>().RuntimeSettings.MaximumArraySize > 0);
 	}
 
+	FORCEINLINE void SetDefaultNameCache()
+	{
+		SetNameCache(&NameCache);
+	}
+
 	FORCEINLINE void SetNameCache(FRigVMNameCache* InNameCache)
 	{
 		GetPublicData<>().NameCache = InNameCache;
@@ -455,4 +481,5 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 	TArray<uint16> SliceOffsets;
 	double LastExecutionMicroSeconds;
 	const FRigVMDispatchFactory* Factory;
+	FRigVMNameCache NameCache;
 };

@@ -36,10 +36,8 @@ void FUtils::Compile(UDataInterfaceGraph* InGraph)
 
 	InGraph->VMRuntimeSettings = EditorData->VMRuntimeSettings;
 
-	FRigNameCache TempNameCache;
 	FRigUnitContext InitContext;
 	InitContext.State = EControlRigState::Init;
-	InitContext.NameCache = &TempNameCache;
 
 	FRigUnitContext UpdateContext = InitContext;
 	UpdateContext.State = EControlRigState::Update;

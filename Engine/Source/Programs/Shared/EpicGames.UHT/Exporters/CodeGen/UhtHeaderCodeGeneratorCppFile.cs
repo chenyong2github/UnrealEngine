@@ -725,6 +725,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						builder.Append("\t").Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& TemporaryExecuteContext = ").Append(scriptStruct.RigVMStructInfo.ExecuteContextMember).Append(";\r\n");
 					}
 
+					builder.Append("\tTemporaryExecuteContext.Initialize();\r\n");
+
 					bool wroteLine = false;
 					foreach (UhtRigVMParameter parameter in scriptStruct.RigVMStructInfo.Members)
 					{

@@ -668,6 +668,7 @@ public:
 
 	uint32 GetNumExecutions() const { return NumExecutions; }
 	const FRigVMExtendedExecuteContext& GetContext() const { return Context; }
+	FRigVMExtendedExecuteContext& GetContext() { return Context; }
 
 	template<typename ExecuteContextType = FRigVMExecuteContext>
 	FORCEINLINE const ExecuteContextType& GetPublicData() const

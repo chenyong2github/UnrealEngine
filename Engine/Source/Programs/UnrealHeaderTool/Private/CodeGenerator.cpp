@@ -3787,6 +3787,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			{
 				Out.Logf(TEXT("\t%s& TemporaryExecuteContext = %s;\r\n"), *StructRigVMInfo.ExecuteContextType, *StructRigVMInfo.ExecuteContextMember);
 			}
+			Out.Log(TEXT("\tTemporaryExecuteContext.Initialize();\r\n"));
 
 			if(RigVMVirtualFuncProlog.Num() > 0)
 			{

@@ -1226,11 +1226,9 @@ void UControlRigBlueprint::RecompileVM()
 		}
 		CDO->VM->Reset();
 
-		FRigNameCache TempNameCache;
 		FRigUnitContext InitContext;
 		InitContext.State = EControlRigState::Init;
 		InitContext.Hierarchy = CDO->DynamicHierarchy;
-		InitContext.NameCache = &TempNameCache;
 
 		FRigUnitContext UpdateContext = InitContext;
 		UpdateContext.State = EControlRigState::Update;
