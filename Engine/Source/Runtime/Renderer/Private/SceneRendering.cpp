@@ -2515,7 +2515,7 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyCo
 		}
 #endif
 
-		if (ShouldRenderLumenDiffuseGI(Scene, *ViewInfo) || ShouldRenderLumenReflections(*ViewInfo) || ShouldRenderVolumetricCloudWithBlueNoise_GameThread(Scene, *ViewInfo))
+		if (ShouldRenderLumenDiffuseGI(Scene, *ViewInfo) || ShouldRenderLumenReflections(*ViewInfo) || ShouldRenderVolumetricCloudWithBlueNoise_GameThread(Scene, *ViewInfo) || UseVirtualShadowMaps(Scene->GetShaderPlatform(), Scene->GetFeatureLevel()))
 		{
 			GEngine->LoadBlueNoiseTexture();
 		}
