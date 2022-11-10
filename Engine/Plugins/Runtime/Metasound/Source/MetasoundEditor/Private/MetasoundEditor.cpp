@@ -11,7 +11,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraphUtilities.h"
 #include "Editor.h"
-#include "Styling/AppStyle.h"
+#include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Docking/TabManager.h"
@@ -55,6 +55,7 @@
 #include "SMetasoundPalette.h"
 #include "SNodePanel.h"
 #include "Stats/Stats.h"
+#include "Styling/AppStyle.h"
 #include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -665,7 +666,7 @@ namespace Metasound
 
 		TSharedPtr<SWidget> FEditor::BuildAnalyzerWidget() const
 		{
-			if (!OutputMeter.IsValid() || !OutputMeter->GetWidget().IsValid())
+			if (!OutputMeter.IsValid())
 			{
 				return SNullWidget::NullWidget->AsShared();
 			}
@@ -691,7 +692,7 @@ namespace Metasound
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Fill)
 				[
-					OutputMeter->GetWidget().ToSharedRef()
+					OutputMeter->GetWidget()
 				]
 			];
 		}
@@ -1129,9 +1130,17 @@ namespace Metasound
 			{
 				if (!OutputMeter.IsValid())
 				{
-					OutputMeter = MakeShared<FEditorMeter>();
+					OutputMeter = MakeShared<AudioWidgets::FAudioMeter>();
 				}
-				OutputMeter->Init(MetaSoundSource->NumChannels);
+
+				if (ensure(GEditor))
+				{
+					UWorld* EditorWorld = GEditor->GetEditorWorldContext().World();
+					if (ensure(EditorWorld))
+					{
+						OutputMeter->Init(MetaSoundSource->NumChannels, *EditorWorld);
+					}
+				}
 			}
 			else
 			{
@@ -1583,10 +1592,8 @@ namespace Metasound
 								}
 								else
 								{
-									if (OutputMeter->GetWidget().IsValid())
-									{
-										OutputMeter->GetWidget()->bIsActiveTimerRegistered = false;
-									}
+									TSharedRef<SAudioMeter> MeterRef = OutputMeter->GetWidget();
+									MeterRef->bIsActiveTimerRegistered = false;
 									return EActiveTimerReturnType::Stop;
 								}
 							})

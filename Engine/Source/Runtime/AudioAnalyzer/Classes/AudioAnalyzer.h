@@ -94,7 +94,7 @@ public:
 
 	/** Stops analyzing audio. */
 	UFUNCTION(BlueprintCallable, BlueprintCosmetic, Category = AudioAnalyzer, meta = (WorldContext = "WorldContextObject"))
-	void StopAnalyzing(const UObject* WorldContextObject);
+	void StopAnalyzing(const UObject* WorldContextObject = nullptr);
 
 	/**
 	 * Implementations can override this method to create settings objects

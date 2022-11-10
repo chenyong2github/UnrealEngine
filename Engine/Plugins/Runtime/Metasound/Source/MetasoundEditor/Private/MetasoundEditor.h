@@ -1,18 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "IMetasoundEditor.h"
+#include "AudioMeter.h"
 #include "AudioMeterStyle.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EditorUndoClient.h"
 #include "Framework/Commands/UICommandList.h"
 #include "GraphEditor.h"
 #include "IDetailsView.h"
+#include "IMetasoundEditor.h"
 #include "Logging/TokenizedMessage.h"
 #include "Math/UnrealMathUtility.h"
 #include "MetasoundEditorGraphConnectionManager.h"
 #include "MetasoundEditorGraphNode.h"
-#include "MetasoundEditorMeter.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "Meter.h"
@@ -418,7 +418,7 @@ namespace Metasound
 			TSharedPtr<SGraphActionMenu> GraphMembersMenu;
 
 			/** Meter used in the analyzer tab for auditioning preview output. */
-			TSharedPtr<FEditorMeter> OutputMeter;
+			TSharedPtr<AudioWidgets::FAudioMeter> OutputMeter;
 
 			/** Palette of Node types */
 			TSharedPtr<SMetasoundPalette> Palette;

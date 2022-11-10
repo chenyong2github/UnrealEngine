@@ -8,16 +8,20 @@ public class AudioWidgets : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(
-		new string[]
+		PublicDependencyModuleNames.AddRange
+		(
+			new string[]
 			{
 				"Core",
-				"UMG"
+				"UMG",
+				"AudioAnalyzer",
+				"AudioSynesthesia"
 			}
 		);
 
-		PrivateDependencyModuleNames.AddRange(
-		new string[]
+		PrivateDependencyModuleNames.AddRange
+		(
+			new string[]
 			{
 				"CoreUObject",
 				"Engine",
@@ -25,7 +29,7 @@ public class AudioWidgets : ModuleRules
 				"SlateCore",
 				"InputCore",
 				"AdvancedWidgets",
-				"SignalProcessing",
+				"SignalProcessing"
 			}
 		);
 	}

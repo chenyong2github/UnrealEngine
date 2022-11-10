@@ -1,17 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Styling/SlateTypes.h"
-#include "Widgets/SWidget.h"
-#include "Components/Widget.h"
+#include "AudioAnalyzer.h"
 #include "AudioMeterStyle.h"
 #include "AudioMeterTypes.h"
+#include "Components/Widget.h"
+#include "Delegates/IDelegateInstance.h"
+#include "Engine/World.h"
+#include "Meter.h"
+#include "SAudioMeter.h"
+#include "Sound/AudioBus.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/ObjectMacros.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "UObject/StrongObjectPtr.h"
+#include "Widgets/SWidget.h"
+
 #include "AudioMeter.generated.h"
 
+// Forward Declarations
 class SAudioMeter;
+class UWorld;
+
 
 /**
  * An audio meter widget.
@@ -138,3 +149,44 @@ protected:
 
 	PROPERTY_BINDING_IMPLEMENTATION(TArray<FMeterChannelInfo>, MeterChannelInfo);
 };
+
+namespace AudioWidgets
+{
+	class AUDIOWIDGETS_API FAudioMeter
+	{
+	public:
+		FAudioMeter();
+
+		UAudioBus* GetAudioBus() const;
+
+		TSharedRef<SAudioMeter> GetWidget() const;
+
+		void Teardown();
+
+		void Init(int32 InNumChannels, UWorld& InWorld);
+
+	protected:
+		void OnMeterOutput(UMeterAnalyzer* InMeterAnalyzer, int32 ChannelIndex, const FMeterResults& InMeterResults);
+
+	private:
+		/** Metasound analyzer object. */
+		TStrongObjectPtr<UMeterAnalyzer> Analyzer;
+
+		/** The audio bus used for analysis. */
+		TStrongObjectPtr<UAudioBus> AudioBus;
+
+		/** Cached channel info for the meter. */
+		TArray<FMeterChannelInfo> ChannelInfo;
+
+		/** Handle for results delegate for MetaSound meter analyzer. */
+		FDelegateHandle ResultsDelegateHandle;
+
+		/** Meter settings. */
+		TStrongObjectPtr<UMeterSettings> Settings;
+
+		/** MetaSound Output Meter widget */
+		TSharedPtr<SAudioMeter> Widget;
+
+		TWeakObjectPtr<UWorld> WorldPtr;
+	};
+} // namespace AudioWidgets
