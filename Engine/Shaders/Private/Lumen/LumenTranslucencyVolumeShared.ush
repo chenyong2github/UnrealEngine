@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "LumenRadianceCacheInterpolation.ush"
+#include "../SHCommon.ush"
 
 // Temp version GUID to force rebuild of shaders using the FLumenTranslucencyLightingParameters
 // uniform buffer, until versioning of uniform buffer structs works properly.

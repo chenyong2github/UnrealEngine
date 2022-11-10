@@ -79,8 +79,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, )
 	SHADER_PARAMETER(float, ExponentialDownM)
 	SHADER_PARAMETER(float, StartDistance)
 	SHADER_PARAMETER(float, LuminanceMax)
+	SHADER_PARAMETER(float, IgnoreMaterialsEvaluationPositionBias)
 	SHADER_PARAMETER(float, IgnoreMaterialsLuminanceScale)
 	SHADER_PARAMETER(float, IgnoreMaterialsMinBaseColorLuminance)
+	SHADER_PARAMETER(uint32, IgnoreMaterialsReconstructFromSceneColor)
 	SHADER_PARAMETER(float, ForceTarget)
 	SHADER_PARAMETER(int, VisualizeDebugType)
 	SHADER_PARAMETER_TEXTURE(Texture2D, MeterMaskTexture)
@@ -101,6 +103,7 @@ FRDGTextureRef AddCalculateExposureIlluminancePass(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
 	const FSceneTextures& SceneTextures,
+	const struct FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
 	FRDGTextureRef ExposureIlluminanceSetup);
 
 // Returns the updated 1x1 eye adaptation texture.

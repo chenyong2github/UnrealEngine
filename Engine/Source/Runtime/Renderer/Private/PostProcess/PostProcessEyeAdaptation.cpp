@@ -2,6 +2,8 @@
 
 #include "PostProcess/PostProcessEyeAdaptation.h"
 
+#include "TranslucentLighting.h"
+
 #include "SceneTextureParameters.h"
 #include "SystemTextures.h"
 
@@ -77,6 +79,18 @@ namespace
 		TEXT("(Experimental) Whether to calculate auto exposure assuming every surface uses a perfectly diffuse white material.\n")
 		TEXT("(default: false)"),
 		ECVF_Scalability | ECVF_RenderThreadSafe);
+
+	TAutoConsoleVariable<bool> CVarAutoExposureIgnoreMaterialsReconstructFromSceneColor(
+		TEXT("r.AutoExposure.IgnoreMaterials.ReconstructFromSceneColor"),
+		true,
+		TEXT(""),
+		ECVF_RenderThreadSafe);
+
+	TAutoConsoleVariable<float> CVarAutoExposureIgnoreMaterialsEvaluationPositionBias(
+		TEXT("r.AutoExposure.IgnoreMaterials.EvaluationPositionBias"),
+		10.0f,
+		TEXT(""),
+		ECVF_RenderThreadSafe);
 
 	TAutoConsoleVariable<float> CVarAutoExposureIgnoreMaterialsLuminanceScale(
 		TEXT("r.AutoExposure.IgnoreMaterials.LuminanceScale"),
@@ -494,8 +508,10 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 	Parameters.ExponentialUpM = ExponentialUpM;
 	Parameters.StartDistance = StartDistance;
 	Parameters.LuminanceMax = LuminanceMax;
+	Parameters.IgnoreMaterialsEvaluationPositionBias = CVarAutoExposureIgnoreMaterialsEvaluationPositionBias.GetValueOnRenderThread();
 	Parameters.IgnoreMaterialsLuminanceScale = CVarAutoExposureIgnoreMaterialsLuminanceScale.GetValueOnRenderThread();
 	Parameters.IgnoreMaterialsMinBaseColorLuminance = CVarAutoExposureIgnoreMaterialsMinBaseColorLuminance.GetValueOnRenderThread();
+	Parameters.IgnoreMaterialsReconstructFromSceneColor = CVarAutoExposureIgnoreMaterialsReconstructFromSceneColor.GetValueOnRenderThread();
 	Parameters.ForceTarget = ForceTarget;
 	Parameters.VisualizeDebugType = CVarEyeAdaptationVisualizeDebugType.GetValueOnRenderThread();
 	Parameters.MeterMaskTexture = MeterMask;
@@ -614,6 +630,9 @@ class FCalculateExposureIlluminanceCS : public FGlobalShader
 
 		SHADER_PARAMETER_TEXTURE(Texture2D, PreIntegratedGF)
 		SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
+
+		SHADER_PARAMETER_STRUCT_INCLUDE(FTranslucencyLightingVolumeParameters, TranslucencyLightingVolume)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenTranslucencyLightingUniforms, LumenGIVolumeStruct)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -628,6 +647,7 @@ FRDGTextureRef AddCalculateExposureIlluminancePass(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
 	const FSceneTextures& SceneTextures,
+	const FTranslucencyLightingVolumeTextures& TranslucencyLightingVolumeTextures,
 	FRDGTextureRef ExposureIlluminanceSetup)
 {
 	if (!ExposureIlluminanceSetup)
@@ -659,6 +679,12 @@ FRDGTextureRef AddCalculateExposureIlluminancePass(
 
 			PassParameters->PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
 			PassParameters->PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+			PassParameters->TranslucencyLightingVolume = GetTranslucencyLightingVolumeParameters(GraphBuilder, TranslucencyLightingVolumeTextures, View);
+
+			auto* LumenUniforms = GraphBuilder.AllocParameters<FLumenTranslucencyLightingUniforms>();
+			LumenUniforms->Parameters = GetLumenTranslucencyLightingParameters(GraphBuilder, View.LumenTranslucencyGIVolume, View.LumenFrontLayerTranslucency);
+			PassParameters->LumenGIVolumeStruct = GraphBuilder.CreateUniformBuffer(LumenUniforms);
 
 			auto ComputeShader = View.ShaderMap->GetShader<FCalculateExposureIlluminanceCS>();
 
