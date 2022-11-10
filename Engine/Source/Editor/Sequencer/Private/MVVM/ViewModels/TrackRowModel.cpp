@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/TrackRowModel.h"
+
+#include "MVVM/Extensions/ITrackExtension.h"
 #include "MVVM/ViewModels/SectionModel.h"
 #include "MVVM/ViewModels/SequenceModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
@@ -315,6 +317,18 @@ void FTrackRowModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 	// Find sections in the track to add batch properties for
 	TArray<TWeakObjectPtr<UObject>> TrackSections;
+	
+	for (TWeakPtr<FViewModel> Node : GetEditor()->GetSequencer()->GetSelection().GetSelectedOutlinerItems())
+	{
+		if (ITrackExtension* TrackExtension = ICastable::CastWeakPtr<ITrackExtension>(Node))
+		{
+			for (UMovieSceneSection* Section : TrackExtension->GetSections())
+			{
+				TrackSections.Add(Section);
+			}
+		}
+	}
+	
 	for (TSharedPtr<FViewModel> TrackAreaModel : GetTrackAreaModelList())
 	{
 		constexpr bool bIncludeThis = true;
@@ -322,7 +336,7 @@ void FTrackRowModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		{
 			if (UMovieSceneSection* SectionObject = Section->GetSection())
 			{
-				TrackSections.Add(SectionObject);
+				TrackSections.AddUnique(SectionObject);
 			}
 		}
 	}

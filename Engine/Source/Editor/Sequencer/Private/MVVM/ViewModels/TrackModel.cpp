@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MVVM/ViewModels/TrackModel.h"
+
 #include "MVVM/Extensions/IObjectBindingExtension.h"
 #include "MVVM/Extensions/IRecyclableExtension.h"
+#include "MVVM/Extensions/ITrackExtension.h"
 #include "MVVM/ViewModels/ChannelModel.h"
 #include "MVVM/ViewModels/FolderModel.h"
 #include "MVVM/ViewModels/ViewModelIterators.h"
@@ -661,6 +663,18 @@ void FTrackModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 	// Find sections in the track to add batch properties for
 	TArray<TWeakObjectPtr<UObject>> TrackSections;
+
+	for (TWeakPtr<FViewModel> Node : GetEditor()->GetSequencer()->GetSelection().GetSelectedOutlinerItems())
+	{
+		if (ITrackExtension* TrackExtension = ICastable::CastWeakPtr<ITrackExtension>(Node))
+		{
+			for (UMovieSceneSection* Section : TrackExtension->GetSections())
+			{
+				TrackSections.Add(Section);
+			}
+		}
+	}
+
 	for (TSharedPtr<FViewModel> TrackAreaModel : GetTrackAreaModelList())
 	{
 		constexpr bool bIncludeThis = true;
@@ -668,7 +682,7 @@ void FTrackModel::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		{
 			if (UMovieSceneSection* SectionObject = Section->GetSection())
 			{
-				TrackSections.Add(SectionObject);
+				TrackSections.AddUnique(SectionObject);
 			}
 		}
 	}
