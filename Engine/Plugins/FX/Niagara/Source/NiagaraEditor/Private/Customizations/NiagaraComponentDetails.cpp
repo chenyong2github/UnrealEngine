@@ -437,6 +437,14 @@ void FNiagaraUserParameterNodeBuilder::GenerateRowForUserParameter(IDetailChildr
 			static UScriptStruct* VectorStruct = FindObjectChecked<UScriptStruct>(CoreUObjectPkg, TEXT("Vector"));
 			Struct = VectorStruct;
 		}
+
+		// the details panel uses byte properties with enums assigned to display enums
+		if (Type.IsEnum())
+		{
+			static UPackage* NiagaraEditorPkg = FindObjectChecked<UPackage>(nullptr, TEXT("/Script/NiagaraEditor"));
+			static UScriptStruct* ByteStruct = FindObjectChecked<UScriptStruct>(NiagaraEditorPkg, TEXT("NiagaraEnumToByteHelper"));
+			Struct = ByteStruct;
+		}
 			
 		TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Struct, ParameterProxy->Value().GetBytes()));
 
@@ -444,6 +452,22 @@ void FNiagaraUserParameterNodeBuilder::GenerateRowForUserParameter(IDetailChildr
 			.UniqueId(ChoppedUserParameter.GetName());
 
 		Row = ChildrenBuilder.AddExternalStructureProperty(StructOnScope.ToSharedRef(), NAME_None, Params);
+
+		// we set the enum of the contained byte property to the enum carried with the type
+		if(Type.IsEnum())
+		{
+			FProperty* Property = Row->GetPropertyHandle()->GetProperty();
+			TSharedPtr<IPropertyHandle> ValuePropertyHandle = Row->GetPropertyHandle()->GetChildHandle(0);
+			FProperty* ValueProperty = ValuePropertyHandle->GetProperty();
+			if(ValueProperty->IsA<FByteProperty>())
+			{
+				if(FByteProperty* ByteProperty = CastField<FByteProperty>(ValueProperty))
+				{
+					ByteProperty->Enum = Type.GetEnum();
+				}
+			}
+		}
+	
 		ParameterNameToDisplayStruct.Add(UserParameter.GetName(), TWeakPtr<FStructOnScope>(StructOnScope));
 	}
 
