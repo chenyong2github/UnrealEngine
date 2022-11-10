@@ -26,6 +26,9 @@ class FStringPrefixTree
 {
 public:
 
+	FStringPrefixTree() = default;
+	~FStringPrefixTree();
+
 	/**
 	 * Insert the given string into the tree.
 	 */
@@ -93,6 +96,9 @@ private:
 		TArray<FNode> Children;
 		bool IsLeaf = false;
 
+		FNode() = default;
+		~FNode();
+
 		void Insert(FStringView ToAdd);
 		void Remove(FStringView ToRemove);
 		bool Contains(FStringView ToFind) const;
@@ -100,7 +106,7 @@ private:
 		int32 Size() const;
 
 		int32 NumNodes() const;
-		void GetAllEntries(FStringView CurrentPrefix, TArray<FString>& OutEntries) const;
+		void GetAllEntries(const FString& CurrentPrefix, TArray<FString>& OutEntries) const;
 		void DumpToString(FStringBuilderBase& Builder, TArray<bool, TInlineAllocator<32>>& DrawLines, bool bLastChild) const;
 
 	private:

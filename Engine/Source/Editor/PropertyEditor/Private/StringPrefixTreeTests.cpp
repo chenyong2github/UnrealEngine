@@ -14,15 +14,28 @@ bool FStringPrefixTreeTests_Insert::RunTest(const FString& Parameters)
 	Tree.Insert(TEXT("Foobar"));
 
 	TestEqual(TEXT("One"), Tree.Size(), 1);
+	TestEqual(TEXT("One"), Tree.NumNodes(), 2);
 	TestTrue(TEXT("One"), Tree.Contains(TEXT("Foobar")));
+
 
 	Tree.Insert(TEXT("Foo"));
 
 	TestEqual(TEXT("Two"), Tree.Size(), 2);
+	TestEqual(TEXT("Two"), Tree.NumNodes(), 3);
 	TestTrue(TEXT("Two"), Tree.Contains(TEXT("Foo")));
 	TestTrue(TEXT("Two"), Tree.Contains(TEXT("Foobar")));
 	TestFalse(TEXT("Two"), Tree.Contains(TEXT("Fo")));
 	TestFalse(TEXT("Two"), Tree.Contains(TEXT("Foob")));
+
+	// check that we don't add nodes if we add another identical entry
+	Tree.Insert(TEXT("Foo"));
+	TestEqual(TEXT("Two"), Tree.Size(), 2);
+	TestEqual(TEXT("Two"), Tree.NumNodes(), 3);
+
+	// check that we don't add nodes if we add another identical entry
+	Tree.Insert(TEXT("Foobar"));
+	TestEqual(TEXT("Two"), Tree.Size(), 2);
+	TestEqual(TEXT("Two"), Tree.NumNodes(), 3);
 
 	// check that the same holds if we build the tree in the opposite way
 	// ie. Foo, Foobar
@@ -53,10 +66,16 @@ bool FStringPrefixTreeTests_Insert::RunTest(const FString& Parameters)
 	Tree.Insert(TEXT("Foobar.Foo"));
 	
 	TestEqual(TEXT("Four"), Tree.Size(), 4);
+	TestEqual(TEXT("Four"), Tree.NumNodes(), 6);
 	TestTrue(TEXT("Four"), Tree.Contains(TEXT("Foobar.Foo")));
 	TestTrue(TEXT("Four"), Tree.Contains(TEXT("Foobaz")));
 	TestTrue(TEXT("Four"), Tree.Contains(TEXT("Foobar")));
 	TestFalse(TEXT("Four"), Tree.Contains(TEXT("Foobar.")));
+
+	Tree.Insert(TEXT("Foobar"));
+	
+	TestEqual(TEXT("Four"), Tree.Size(), 4);
+	TestEqual(TEXT("Four"), Tree.NumNodes(), 6);
 
 	Tree.Insert(TEXT("Bar"));
 	Tree.Insert(TEXT("Bar.Foo"));
@@ -64,6 +83,44 @@ bool FStringPrefixTreeTests_Insert::RunTest(const FString& Parameters)
 	TestEqual(TEXT("Six"), Tree.Size(), 6);
 	TestTrue(TEXT("Six"), Tree.Contains(TEXT("Bar.Foo")));
 	TestTrue(TEXT("Six"), Tree.Contains(TEXT("Bar")));
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringPrefixTreeTests_Fuzz, "StringPrefixTree.Fuzz", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FStringPrefixTreeTests_Fuzz::RunTest(const FString& Parameters)
+{
+	const int32 MAX_STRINGS = 1000;
+
+	TArray<FString> Added;
+	Added.Reserve(MAX_STRINGS);
+
+	FStringPrefixTree Tree;
+
+	FString Current;
+	Current.Reserve(MAX_STRINGS);
+
+	for (int32 Idx = 0; Idx < MAX_STRINGS; ++Idx)
+	{
+		TCHAR ToAdd = TEXT('A') + (TCHAR) FMath::RandRange(0, 25);
+		
+		int32 Where = FMath::RandRange(0, Current.Len());
+		Current.InsertAt(Where, ToAdd);
+
+		Tree.Insert(Current);
+		Added.Add(Current);
+
+		TestEqual(TEXT("Size"), Tree.Size(), Added.Num());
+	}
+
+	for (const FString& Str : Added)
+	{
+		TestTrue(TEXT("Contains"), Tree.Contains(Str));
+	}
+	
+	TArray<FString> Actual = Tree.GetAllEntries();
+	TestEqual(TEXT("GetAllEntries"), Actual.Num(), Tree.Size());
 
 	return true;
 }

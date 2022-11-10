@@ -2,6 +2,11 @@
 
 #include "StringPrefixTree.h"
 
+FStringPrefixTree::~FStringPrefixTree()
+{
+	Clear();
+}
+
 void FStringPrefixTree::Insert(FStringView ToAdd)
 {
 	if (ToAdd.IsEmpty())
@@ -94,6 +99,13 @@ FString FStringPrefixTree::DumpToString() const
 	return Builder.ToString();
 }
 
+FStringPrefixTree::FNode::~FNode()
+{
+	Children.Reset();
+	Prefix.Reset();
+	IsLeaf = false;
+}
+
 static int32 GetCommonPrefixLength(FStringView A, FStringView B)
 {
 	int32 CharIdx = 0;
@@ -118,7 +130,6 @@ void FStringPrefixTree::FNode::Insert(FStringView ToAdd)
 		if (CharIdx > 0)
 		{
 			// the paths share a common prefix, there can be only one such node
-
 			bAdded = true;
 
 			if (CharIdx == Child.Prefix.Len())
@@ -127,7 +138,7 @@ void FStringPrefixTree::FNode::Insert(FStringView ToAdd)
 				if (CharIdx == ToAdd.Len())
 				{
 					// the paths are identical, we don't need to add a node, just mark this as a leaf node
-					IsLeaf = true;
+					Child.IsLeaf = true;
 					break;
 				}
 
@@ -145,10 +156,14 @@ void FStringPrefixTree::FNode::Insert(FStringView ToAdd)
 				
 				FNode Split;
 				Split.Prefix = Child.Prefix.RightChop(CharIdx);
+				check(Split.Prefix.Len() > 0);
+
 				Split.Children = MoveTemp(Child.Children);
 				Split.IsLeaf = Child.IsLeaf;
 
 				Child.Prefix.LeftInline(CharIdx);
+				check(Child.Prefix.Len() > 0);
+
 				Child.Children.Reset();
 				Child.Children.Add(MoveTemp(Split));
 
@@ -159,6 +174,8 @@ void FStringPrefixTree::FNode::Insert(FStringView ToAdd)
 					// Child -> "Fo", Split -> "o", Added -> "z"
 					FNode& AddedNode = Child.Children.AddDefaulted_GetRef();
 					AddedNode.Prefix = ToAdd.RightChop(CharIdx);
+					check(AddedNode.Prefix.Len() > 0);
+
 					AddedNode.IsLeaf = true;
 				
 					Child.IsLeaf = false;
@@ -179,6 +196,8 @@ void FStringPrefixTree::FNode::Insert(FStringView ToAdd)
 	{
 		FNode& NewChild = Children.AddDefaulted_GetRef();
 		NewChild.Prefix = ToAdd;
+		check(NewChild.Prefix.Len() > 0);
+
 		NewChild.IsLeaf = true;
 	}
 }
@@ -254,7 +273,7 @@ bool FStringPrefixTree::FNode::AnyStartsWith(FStringView ToFind) const
 	return false;
 }
 
-void FStringPrefixTree::FNode::GetAllEntries(FStringView CurrentPrefix, TArray<FString>& OutEntries) const 
+void FStringPrefixTree::FNode::GetAllEntries(const FString& CurrentPrefix, TArray<FString>& OutEntries) const 
 {
 	FString NewPrefix = CurrentPrefix + Prefix;
 
