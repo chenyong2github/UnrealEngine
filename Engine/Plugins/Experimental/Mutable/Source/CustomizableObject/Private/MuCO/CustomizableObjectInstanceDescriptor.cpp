@@ -1835,17 +1835,22 @@ bool FCustomizableObjectInstanceDescriptor::IsParamMultidimensional(const int32 
 }
 
 
-int32 FCustomizableObjectInstanceDescriptor::GetProjectorValueRange(const FString& ParamName) const
+int32 FCustomizableObjectInstanceDescriptor::CurrentParamRange(const FString& ParamName) const
 {
 	check(CustomizableObject);
 
-	const int32 ProjectorParamIndex = FindProjectorParameterNameIndex(ParamName);
-	if (ProjectorParamIndex < 0)
-	{
-		return -1;
-	}
+	const int32 ParameterIndexInObject = CustomizableObject->FindParameter(ParamName);
 
-	return ProjectorParameters[ProjectorParamIndex].RangeValues.Num();
+	const int32 ProjectorParamIndex = FindProjectorParameterNameIndex(ParamName);
+
+	if (ParameterIndexInObject >= 0 && ProjectorParamIndex >= 0)
+	{
+		return ProjectorParameters[ProjectorParamIndex].RangeValues.Num();
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 

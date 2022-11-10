@@ -565,9 +565,9 @@ bool UCustomizableObjectInstance::IsParamMultidimensional(const FString& ParamNa
 }
 
 
-int32 UCustomizableObjectInstance::GetProjectorValueRange(const FString& ParamName) const
+int32 UCustomizableObjectInstance::CurrentParamRange(const FString& ParamName) const
 {
-	return Descriptor.GetProjectorValueRange(ParamName);
+	return Descriptor.CurrentParamRange(ParamName);
 }
 
 

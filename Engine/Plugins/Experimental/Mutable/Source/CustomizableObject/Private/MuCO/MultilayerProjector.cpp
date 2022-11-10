@@ -27,11 +27,9 @@ void FMultilayerProjectorLayer::Read(const FCustomizableObjectInstanceDescriptor
 		Scale = static_cast<FVector3d>(Projector.Scale);
 		Angle = Projector.Angle;
 	}
-
-	// Image Parameter can not exist due to the Group Projector Node providing the image through its own Image Pin.
-	if (const int32 ImageParamIndex = Descriptor.FindIntParameterNameIndex(ParamName + FMultilayerProjector::IMAGE_PARAMETER_POSTFIX);
-		ImageParamIndex >= 0)
+	
 	{
+		const int32 ImageParamIndex = Descriptor.FindIntParameterNameIndex(ParamName + FMultilayerProjector::IMAGE_PARAMETER_POSTFIX);
 		Image = Descriptor.GetIntParameters()[ImageParamIndex].ParameterRangeValueNames[Index];
 	}
 
@@ -58,11 +56,9 @@ void FMultilayerProjectorLayer::Write(FCustomizableObjectInstanceDescriptor& Des
 		Projector.Scale = static_cast<FVector3f>(Scale);
 		Projector.Angle = Angle;
 	}
-
-	// Image Parameter can not exist due to the Group Projector Node providing the image through its own Image Pin.
-	if (const int32 ImageParamIndex = Descriptor.FindIntParameterNameIndex(ParamName + FMultilayerProjector::IMAGE_PARAMETER_POSTFIX);
-		ImageParamIndex >= 0)
+	
 	{
+		const int32 ImageParamIndex = Descriptor.FindIntParameterNameIndex(ParamName + FMultilayerProjector::IMAGE_PARAMETER_POSTFIX);
 		Descriptor.GetIntParameters()[ImageParamIndex].ParameterRangeValueNames[Index] = Image;
 	}
 
@@ -140,10 +136,10 @@ void FMultilayerProjector::CreateLayer(FCustomizableObjectInstanceDescriptor& De
 		ProjectorParameter.RangeValues.Insert(Projector, Index);
 	}
 	
-	// Selected Image Range. Image Parameter can not exist due to the Group Projector Node providing the image through its own Image Pin.
-	if (const int32 IntParameterIndex = Descriptor.FindIntParameterNameIndex(ParamName.ToString() + FMultilayerProjector::IMAGE_PARAMETER_POSTFIX);
-		IntParameterIndex >= 0)
+	// Selected Image Range.
 	{
+		const int32 IntParameterIndex = Descriptor.FindIntParameterNameIndex(ParamName.ToString() + FMultilayerProjector::IMAGE_PARAMETER_POSTFIX);
+
 		FCustomizableObjectIntParameterValue& IntParameter = Descriptor.GetIntParameters()[IntParameterIndex];
 		const int32 ParamIndexInObject = Object->FindParameter(IntParameter.ParameterName);
 
@@ -182,10 +178,10 @@ void FMultilayerProjector::RemoveLayerAt(FCustomizableObjectInstanceDescriptor& 
 		ProjectorParameter.RangeValues.RemoveAt(Index);
 	}
 	
-	// Selected Image Range. Image Parameter can not exist due to the Group Projector Node providing the image through its own Image Pin.
-	if (const int32 IntParameterIndex = Descriptor.FindIntParameterNameIndex(ParamName.ToString() + FMultilayerProjector::IMAGE_PARAMETER_POSTFIX);
-		IntParameterIndex >= 0)
-	{		
+	// Selected Image Range.
+	{
+		const int32 IntParameterIndex = Descriptor.FindIntParameterNameIndex(ParamName.ToString() + IMAGE_PARAMETER_POSTFIX);
+		
 		FCustomizableObjectIntParameterValue& IntParameter = Descriptor.GetIntParameters()[IntParameterIndex];
 		IntParameter.ParameterRangeValueNames.RemoveAt(Index);
 	}
@@ -459,7 +455,11 @@ void FMultilayerProjector::CheckDescriptorParameters(const FCustomizableObjectIn
 		check(ProjectorParameterIndex >= 0) // Descriptor Parameter does not exist.
 	}
 	
-	// Selected Image. No longer checked since the image can be provided by its own Node Group Projector pin.
+	// Selected Image.
+	{
+		const int32 IntParameterIndex = Descriptor.FindIntParameterNameIndex(ParamNameString + IMAGE_PARAMETER_POSTFIX);
+		check(IntParameterIndex >= 0) // Descriptor Parameter does not exist.
+	}
 	
 	// Opacity.
 	{
@@ -492,9 +492,16 @@ bool FMultilayerProjector::AreDescriptorParametersValid(const FCustomizableObjec
 		}
 	}
 	
-	// Selected Image. No longer checked since the image can be provided by its own Node Group Projector pin.
+	// Selected Image.
+	{
+		const int32 IntParameterIndex = Descriptor.FindIntParameterNameIndex(ParamNameString + IMAGE_PARAMETER_POSTFIX);
+		if (IntParameterIndex < 0)
+		{
+			return false;
+		}
+	}
 	
-	// Opacity.	
+	// Opacity.
 	{
 		const int32 FloatParameterIndex = Descriptor.FindFloatParameterNameIndex(ParamNameString + OPACITY_PARAMETER_POSTFIX);
 		if (FloatParameterIndex < 0)

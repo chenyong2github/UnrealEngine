@@ -53,7 +53,7 @@ struct FMultilayerProjectorLayer
 	/** Layer scale. */
 	FVector Scale;
 
-	/** Layer angle. */
+	/** Layer angle*/
 	float Angle;
 
 	/** Layer selected image. */

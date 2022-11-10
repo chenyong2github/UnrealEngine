@@ -344,12 +344,6 @@ void UCustomizableObjectNode::NodeConnectionListChanged()
 }
 
 
-void UCustomizableObjectNode::PinConnectionListChanged(UEdGraphPin* Pin)
-{
-	Super::PinConnectionListChanged(Pin);
-	PinConnectionListChangedDelegate.Broadcast(Pin);
-}
-
 
 void UCustomizableObjectNode::PostInitProperties()
 {

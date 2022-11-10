@@ -4,7 +4,8 @@
 
 
 #include "MuT/NodeImageConstant.h"
-#include "MuT/NodeScalarEnumParameter.h"
+#include "MuT/NodeSurfaceNew.h"
+#include "MuT/Table.h"
 
 class FCustomizableObjectCompiler;
 class UCustomizableObjectNode;
@@ -19,4 +20,4 @@ mu::NodeImagePtr ResizeToMaxTextureSize(float MaxTextureSize, const UTexture2D* 
 
 
 /** Convert a CustomizableObject Source Graph into a mutable source graph. */
-mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGraphGenerationContext& GenerationContext, float MaxTextureSize, mu::NodeRangePtr NodeRange = nullptr);
+mu::NodeImagePtr GenerateMutableSourceImage(const UEdGraphPin* Pin, FMutableGraphGenerationContext& GenerationContext, float MaxTextureSize);
