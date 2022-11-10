@@ -162,6 +162,18 @@ namespace UE::Net
 	/** Whether or not the currently executing ReplicateActor code has met the randomized chance for enabling name debugging */
 	static bool GMetAsyncDemoNameDebugChance = false;
 #endif
+
+	// bTearOff is private but we still might need to adjust the flag on clients based on the channel close reason
+	class FTearOffSetter final
+	{
+		FTearOffSetter() = delete;
+
+	public:
+		static void SetTearOff(AActor* Actor)
+		{
+			Actor->bTearOff = true;
+		}
+	};
 }; // namespace UE::Net
 
 template<typename T>
@@ -2402,6 +2414,12 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 		checkSlow(Connection->Driver->IsValidLowLevel());
 		if (Actor != NULL)
 		{
+			if (CloseReason == EChannelCloseReason::TearOff && !Actor->GetTearOff())
+			{
+				UE_LOG(LogNetTraffic, Verbose, TEXT("UActorChannel::CleanUp: Closed for TearOff but actor flag not set, last property update may have been dropped: %s"), *Describe());
+				UE::Net::FTearOffSetter::SetTearOff(Actor);
+			}
+
 			if (Actor->GetTearOff() && !Connection->Driver->ShouldClientDestroyTearOffActors())
 			{
 				if (!bTornOff)

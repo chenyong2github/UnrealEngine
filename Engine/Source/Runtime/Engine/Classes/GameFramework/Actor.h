@@ -57,6 +57,11 @@ class UActorFolder;
 struct FActorDataLayer;
 struct FHitResult;
 
+namespace UE::Net
+{
+	class FTearOffSetter;
+}
+
 // By default, debug and development builds (even cooked) will keep actor labels. Manually define this if you want to make a local build
 // that keep actor labels for Test or Shipping builds.
 #define ACTOR_HAS_LABELS (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT || WITH_PROFILEGPU)
@@ -261,6 +266,8 @@ private:
 
 	UPROPERTY(Replicated)
 	uint8 bTearOff:1;
+
+	friend class UE::Net::FTearOffSetter;
 
 	/** When set, indicates that external guarantees ensure that this actor's name is deterministic between server and client, and as such can be addressed by its full path */
 	UPROPERTY()
