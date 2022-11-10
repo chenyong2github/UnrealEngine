@@ -25,7 +25,7 @@
 #include "/Engine/Private/DeferredShadingCommon.ush"
 
 // Reduce latency of Nanite material base pass pixel shaders caused by register pressure due to the calculation of WPO
-#if USES_WORLD_POSITION_OFFSET && PIXELSHADER && IS_NANITE_SHADING_PASS && IS_BASE_PASS
+#if PIXELSHADER && IS_NANITE_SHADING_PASS && IS_BASE_PASS
 	COMPILER_FORCE_WAVE32_MODE
 #endif
 
@@ -129,16 +129,14 @@
 
 #if IS_NANITE_PASS
 	#define ALLOW_CLIP 0
-	#define CLIP(x)
+	#define clip(x)
 	#if COMPUTESHADER
-		#define clip(x)
 		#define ddx(x) 0
 		#define ddy(x) 0
 		#define fwidth(x) 0
 	#endif
 #else
 	#define ALLOW_CLIP 1
-	#define CLIP(x) clip(x)
 #endif
 
 #define TEMPLATE_USES_STRATA			(STRATA_ENABLED && MATERIAL_IS_STRATA)
@@ -3167,7 +3165,7 @@ void ClipLODTransition(float2 SvPosition, float DitherFactor)
 		half RetVal = (DitherFactor < 0.0) ?
 			(DitherFactor + 1.0 > RandomVal) :
 			(DitherFactor < RandomVal);
-		CLIP(RetVal - .001);
+		clip(RetVal - .001);
 	}
 }
 
@@ -3212,11 +3210,11 @@ void GetMaterialClippingShadowDepth(FMaterialPixelParameters Parameters, FPixelM
 {
 	ClipLODTransition(Parameters);
 	#if MATERIALBLENDING_MASKED
-		CLIP(GetMaterialMask(PixelMaterialInputs));
+		clip(GetMaterialMask(PixelMaterialInputs));
 	#elif TRANSLUCENT_SHADOW_WITH_MASKED_OPACITY
-		CLIP(GetMaterialMaskedOpacity(PixelMaterialInputs));
+		clip(GetMaterialMaskedOpacity(PixelMaterialInputs));
 	#elif MATERIALBLENDING_TRANSLUCENT
-		CLIP(GetMaterialOpacity(PixelMaterialInputs) - 1.0f / 255.0f);
+		clip(GetMaterialOpacity(PixelMaterialInputs) - 1.0f / 255.0f);
 	#endif
 }
 
@@ -3258,9 +3256,9 @@ void GetMaterialCoverageAndClipping(FMaterialPixelParameters Parameters, FPixelM
 		float Noise = frac( dot( float2( 171.0, 231.0 ) / 71, Pos.xy ) );
 		float Dither = ( Dither5 * 5 + Noise ) * (1.0 / 6.0);
 
-		CLIP( GetMaterialMask(PixelMaterialInputs) + Dither - 0.5 );
+		clip( GetMaterialMask(PixelMaterialInputs) + Dither - 0.5 );
 	#else
-		CLIP(GetMaterialMask(PixelMaterialInputs));
+		clip(GetMaterialMask(PixelMaterialInputs));
 	#endif
 #endif
 }
@@ -3271,7 +3269,7 @@ void GetMaterialClippingVelocity(FMaterialPixelParameters Parameters, FPixelMate
 {
 #if MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
 	ClipLODTransition(Parameters);
-	CLIP(bIsThinTranslucent ? 1.0f : GetMaterialOpacity(PixelMaterialInputs) - 1.0 / 255.0 - GetMaterialOpacityMaskClipValue());
+	clip(bIsThinTranslucent ? 1.0f : GetMaterialOpacity(PixelMaterialInputs) - 1.0 / 255.0 - GetMaterialOpacityMaskClipValue());
 #else
 	GetMaterialCoverageAndClipping(Parameters, PixelMaterialInputs);
 #endif
@@ -3302,10 +3300,10 @@ uint DiscardMaterialWithPixelCoverage(FMaterialPixelParameters MaterialParameter
 		float Mask = (OriginalMask - MaskClip) / (1.0 - MaskClip);
 		uint CurrentPixelCoverage = GetDerivativeCoverageFromMask(Mask);
 		// Discard pixel shader if all sample are masked to avoid computing other material inputs.
-		CLIP(float(CurrentPixelCoverage) - 0.5);
+		clip(float(CurrentPixelCoverage) - 0.5);
 		return CurrentPixelCoverage;
 	}
-	CLIP(OriginalMask - MaskClip);
+	clip(OriginalMask - MaskClip);
 	return 0xF;
 }
 

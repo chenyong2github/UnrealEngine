@@ -2094,7 +2094,10 @@ void FPixelShaderInOut_MainPS(
 //		- Pixel depth offset prevents the usage of early depth test because the depth is generated in shader. So we can only relay on LateZ in this case.
 //		- DEPTHSTENCIL_EARLYTEST_LATEWRITE does not help in this case due to UAV writes we need to skip.
 //		- In order to avoid UAV writes, we will run in shader manual depth tests.
-#if !OUTPUT_PIXEL_DEPTH_OFFSET
+#if IS_NANITE_PASS
+	// Even with masking and/or pixel depth offset, Nanite never uses actual clip() or SV_Depth
+	#define PIXELSHADER_EARLYDEPTHSTENCIL EARLYDEPTHSTENCIL
+#elif !OUTPUT_PIXEL_DEPTH_OFFSET
 	#define PIXELSHADER_EARLYDEPTHSTENCIL EARLYDEPTHSTENCIL
 #elif COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE
 	// If we support early depth test with late write behaviour then use it since we may be using discard, or modifying depth
@@ -2105,7 +2108,10 @@ void FPixelShaderInOut_MainPS(
 
 // If virtual texture is enabled then use early depth test so that UAV feedback buffer writes respect the depth test
 #if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED || OIT_ENABLED
-	#if COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE
+	#if IS_NANITE_PASS
+		// Even with masking and/or pixel depth offset, Nanite never uses actual clip() or SV_Depth
+		#define PIXELSHADER_EARLYDEPTHSTENCIL EARLYDEPTHSTENCIL
+	#elif COMPILER_SUPPORTS_DEPTHSTENCIL_EARLYTEST_LATEWRITE
 		// If we support early depth test with late write behaviour then use it since we may be using discard, or modifying depth
 		#define PIXELSHADER_EARLYDEPTHSTENCIL DEPTHSTENCIL_EARLYTEST_LATEWRITE
 	#elif !OUTPUT_PIXEL_DEPTH_OFFSET
