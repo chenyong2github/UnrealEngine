@@ -24,7 +24,6 @@ RAY_TRACING_ENTRY_CALLABLE(RayTracingDecalMaterialShader, FDecalShaderParams, Pa
 	ResolvedView = ResolveView();
 
 	const float3 TranslatedWorldPosition = Params.GetInputTranslatedWorldPosition();
-	const uint2 PixelCoord = Params.GetPixelCoord();
 
 	float4 DecalPos = mul(float4(TranslatedWorldPosition.xyz, 1), WorldToDecal);
 
@@ -55,7 +54,7 @@ RAY_TRACING_ENTRY_CALLABLE(RayTracingDecalMaterialShader, FDecalShaderParams, Pa
 	MaterialParameters.TwoSidedSign = 1;
 	MaterialParameters.VertexColor = 1;
 	MaterialParameters.CameraVector = CameraVector;
-	MaterialParameters.SvPosition = float4(PixelCoord.xy, 0.0, 1.0);
+	MaterialParameters.SvPosition = mul(float4(TranslatedWorldPosition, 1.0f), ResolvedView.TranslatedWorldToClip);
 	MaterialParameters.ScreenPosition = SvPositionToResolvedScreenPosition(MaterialParameters.SvPosition);
 	MaterialParameters.LightVector = SwizzlePos;
 

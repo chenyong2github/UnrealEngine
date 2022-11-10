@@ -38,11 +38,10 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	PackedPayload.HitT = RayTCurrent();
 
 #if USE_MATERIAL_CLOSEST_HIT_SHADER
-	const uint2 PixelCoord = PackedPayload.GetPixelCoord();
-
 	ResolvedView = ResolveView();
 
-	float4 SvPosition = float4(PixelCoord.xy, 0.0, 1.0);
+	const float3 TranslatedWorldPosition = TranslatedWorldRayOrigin() + RayTCurrent() * WorldRayDirection();
+	float4 SvPosition = mul(float4(TranslatedWorldPosition, 1.0f), ResolvedView.TranslatedWorldToClip);
 
 #if VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS
 	// this is a newer codepath that is both more flexible and allows for more direct calculation compared to the other codepath
@@ -429,11 +428,10 @@ RAY_TRACING_ENTRY_ANY_HIT(PathTracingMaterialAHS,
 
 	// If we got here -- we have a reason to evaluate the material -- do the setup 
 
-	const uint2 PixelCoord = PackedPayload.GetPixelCoord();
-
 	ResolvedView = ResolveView();
 
-	float4 SvPosition = float4(PixelCoord.xy, 0.0, 1.0);
+	const float3 TranslatedWorldPosition = TranslatedWorldRayOrigin() + RayTCurrent() * WorldRayDirection();
+	float4 SvPosition = mul(float4(TranslatedWorldPosition, 1.0f), ResolvedView.TranslatedWorldToClip);
 
 #if VF_SUPPORTS_RAYTRACING_PREPARE_MATERIAL_PIXEL_PARAMETERS
 	// this is a newer codepath that is both more flexible and allows for more direct calculation compared to the other codepath

@@ -492,12 +492,12 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 
 	GlobalTextureMipBias = PackedPayload.GetMipBias();
 
-	const uint2 PixelCoord = PackedPayload.GetPixelCoord();
-
 	ResolvedView = ResolveView();
 
 	FVertexFactoryInterpolantsVSToPS Interpolants;
-	float4 SvPosition = float4(PixelCoord.xy, 0.0, 1.0);
+	const float3 TranslatedWorldPosition = TranslatedWorldRayOrigin() + RayTCurrent() * WorldRayDirection();
+	float4 SvPosition = mul(float4(TranslatedWorldPosition, 1.0f), ResolvedView.TranslatedWorldToClip);
+
 	
 	FRayCone PropagatedCone = PropagateRayCone(PackedPayload.GetRayCone(), 0 /* surface curvature */, RayTCurrent());
 	CalcInterpolants(PropagatedCone, Attributes, Interpolants);
@@ -612,12 +612,11 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 
 	GlobalTextureMipBias = PackedPayload.GetMipBias();
 
-	const uint2 PixelCoord = PackedPayload.GetPixelCoord();
-
 	ResolvedView = ResolveView();
 
 	FVertexFactoryInterpolantsVSToPS Interpolants;
-	float4 SvPosition = float4(PixelCoord.xy, 0.0, 1.0);
+	const float3 TranslatedWorldPosition = TranslatedWorldRayOrigin() + RayTCurrent() * WorldRayDirection();
+	float4 SvPosition = mul(float4(TranslatedWorldPosition, 1.0f), ResolvedView.TranslatedWorldToClip);
 
 	CalcInterpolants(PackedPayload.GetRayCone(), Attributes, Interpolants);
 
