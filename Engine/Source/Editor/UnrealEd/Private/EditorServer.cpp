@@ -1283,8 +1283,10 @@ UTransactor* UEditorEngine::CreateTrans()
 		UndoBufferSize = 16;
 	}
 
+	UE_LOG(LogInit, Log, TEXT("Undo buffer set to %d MB"), UndoBufferSize);
+
 	UTransBuffer* TransBuffer = NewObject<UTransBuffer>();
-	TransBuffer->Initialize(UndoBufferSize * 1024 * 1024);
+	TransBuffer->Initialize((SIZE_T)UndoBufferSize * 1024 * 1024);
 	TransBuffer->OnBeforeRedoUndo().AddUObject(this, &UEditorEngine::HandleTransactorBeforeRedoUndo);
 	TransBuffer->OnRedo().AddUObject(this, &UEditorEngine::HandleTransactorRedo);
 	TransBuffer->OnUndo().AddUObject(this, &UEditorEngine::HandleTransactorUndo);
