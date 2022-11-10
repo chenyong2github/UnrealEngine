@@ -271,6 +271,7 @@ public:
 		WidgetBlueprintWeak = InWidgetBlueprint;
 
 		OnBlueprintChangedHandle = InWidgetBlueprint->OnChanged().AddSP(this, &SBindingRow::HandleBlueprintChanged);
+		CVarDefaultExecutionMode = IConsoleManager::Get().FindConsoleVariable(TEXT("MVVM.DefaultExecutionMode"));
 		
 		FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding();
 		FBindingSource WidgetSource = FBindingSource::CreateForWidget(InWidgetBlueprint, ViewBinding->WidgetPath.GetWidgetName());
@@ -384,10 +385,22 @@ public:
 				.HAlign(HAlign_Right)
 				.AutoWidth()
 				[
-					SNew(SEnumComboBox, StaticEnum<EMVVMViewBindingUpdateMode>())
+					SNew(SCheckBox)
+					.IsChecked(this, &SBindingRow::IsExecutionModeOverrideChecked)
+					.OnCheckStateChanged(this, &SBindingRow::OnExecutionModeOverrideChanged)
+				]
+
+				+ SHorizontalBox::Slot()
+				.Padding(2, 1)
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Right)
+				.AutoWidth()
+				[
+					SNew(SEnumComboBox, StaticEnum<EMVVMExecutionMode>())
 					.ContentPadding(FMargin(4, 0))
-					.OnEnumSelectionChanged(this, &SBindingRow::OnUpdateModeSelectionChanged)
-					.CurrentValue(this, &SBindingRow::GetUpdateModeValue)
+					.OnEnumSelectionChanged(this, &SBindingRow::OnExecutionModeSelectionChanged)
+					.CurrentValue(this, &SBindingRow::GetExecutioModeValue)
+					.IsEnabled(this, &SBindingRow::IsExecutionModeOverridden)
 				]
 			],
 			OwnerTableView
@@ -654,22 +667,62 @@ private:
 		}
 	}
 
-	void OnUpdateModeSelectionChanged(int32 Value, ESelectInfo::Type)
+	ECheckBoxState IsExecutionModeOverrideChecked() const
+	{
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			return ViewBinding->bOverrideExecutionMode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		}
+		return ECheckBoxState::Undetermined;
+	}
+
+	void OnExecutionModeOverrideChanged(ECheckBoxState NewState)
+	{
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			if (NewState == ECheckBoxState::Checked)
+			{
+				UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+				EMVVMExecutionMode ExecutionMode = CVarDefaultExecutionMode ? (EMVVMExecutionMode)CVarDefaultExecutionMode->GetInt() : EMVVMExecutionMode::Immediate;
+				Subsystem->OverrideExecutionModeForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, ExecutionMode);
+			}
+			else
+			{
+				UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+				Subsystem->ResetExecutionModeForBinding(WidgetBlueprintWeak.Get(), *ViewBinding);
+			}
+		}
+	}
+
+	void OnExecutionModeSelectionChanged(int32 Value, ESelectInfo::Type)
 	{
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
 			UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-			Subsystem->SetUpdateModeForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, (EMVVMViewBindingUpdateMode) Value);
+			Subsystem->OverrideExecutionModeForBinding(WidgetBlueprintWeak.Get(), *ViewBinding, static_cast<EMVVMExecutionMode>(Value));
 		}			
 	}
 
-	int32 GetUpdateModeValue() const
+	int32 GetExecutioModeValue() const
+	{
+		EMVVMExecutionMode ExecutionMode = CVarDefaultExecutionMode ? (EMVVMExecutionMode)CVarDefaultExecutionMode->GetInt() : EMVVMExecutionMode::Immediate;
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			if (ViewBinding->bOverrideExecutionMode)
+			{
+				ExecutionMode = ViewBinding->OverrideExecutionMode;
+			}
+		}
+		return static_cast<int32>(ExecutionMode);
+	}
+	
+	bool IsExecutionModeOverridden() const
 	{
 		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
-			return (int32) ViewBinding->UpdateMode;
+			return ViewBinding->bOverrideExecutionMode;
 		}
-		return (int32) EMVVMViewBindingUpdateMode::Immediate;
+		return false;
 	}
 
 	void OnIsBindingEnableChanged(ECheckBoxState NewState)
@@ -839,6 +892,7 @@ private:
 	TSharedPtr<SMenuAnchor> WidgetMenuAnchor;
 	TSharedPtr<SSourceBindingList> WidgetBindingList;
 	TSharedPtr<SFieldEntry> SelectedWidget;
+	IConsoleVariable* CVarDefaultExecutionMode = nullptr;
 };
 
 class SFunctionParameterRow : public STableRow<TSharedPtr<FBindingEntry>>

@@ -4,6 +4,7 @@
 
 #include "MVVMPropertyPath.h"
 #include "Types/MVVMBindingMode.h"
+#include "Types/MVVMExecutionMode.h"
 
 #include "MVVMBlueprintViewBinding.generated.h"
 
@@ -51,8 +52,11 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewBinding
 	UPROPERTY(EditAnywhere, Category = "MVVM")
 	EMVVMBindingMode BindingType = EMVVMBindingMode::OneWayToDestination;
 
-	UPROPERTY(EditAnywhere, Category = "MVVM")
-	EMVVMViewBindingUpdateMode UpdateMode = EMVVMViewBindingUpdateMode::Immediate;
+	UPROPERTY()
+	bool bOverrideExecutionMode = false;
+
+	UPROPERTY(EditAnywhere, Category = "MVVM", meta=(EditCondition="bOverrideExecutionMode"))
+	EMVVMExecutionMode OverrideExecutionMode = EMVVMExecutionMode::Immediate;
 
 	/** */
 	UPROPERTY(EditAnywhere, Category = "MVVM")

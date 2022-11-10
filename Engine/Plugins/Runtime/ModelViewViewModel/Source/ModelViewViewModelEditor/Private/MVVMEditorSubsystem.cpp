@@ -492,19 +492,37 @@ void UMVVMEditorSubsystem::SetViewModelPropertyForBinding(UWidgetBlueprint* Widg
 	}
 }
 
-void UMVVMEditorSubsystem::SetUpdateModeForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, EMVVMViewBindingUpdateMode Mode)
+void UMVVMEditorSubsystem::OverrideExecutionModeForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, EMVVMExecutionMode Mode)
 {
-	if (Binding.UpdateMode != Mode)
+	if (!Binding.bOverrideExecutionMode || Binding.OverrideExecutionMode != Mode)
 	{
 		if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
 		{
-			FScopedTransaction Transaction(LOCTEXT("SetUpdateMode", "Set Update Mode"));
+			FScopedTransaction Transaction(LOCTEXT("SetExecutionMode", "Set Execution Mode"));
 
-			UE::MVVM::Private::OnBindingPreEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, UpdateMode));
+			UE::MVVM::Private::OnBindingPreEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, OverrideExecutionMode));
 
-			Binding.UpdateMode = Mode;
+			Binding.bOverrideExecutionMode = true;
+			Binding.OverrideExecutionMode = Mode;
 
-			UE::MVVM::Private::OnBindingPreEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, UpdateMode));
+			UE::MVVM::Private::OnBindingPostEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, OverrideExecutionMode));
+		}
+	}
+}
+
+void UMVVMEditorSubsystem::ResetExecutionModeForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding)
+{
+	if (Binding.bOverrideExecutionMode)
+	{
+		if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
+		{
+			FScopedTransaction Transaction(LOCTEXT("ResetExecutionMode", "Reset Execution Mode"));
+
+			UE::MVVM::Private::OnBindingPreEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, OverrideExecutionMode));
+
+			Binding.bOverrideExecutionMode = false;
+
+			UE::MVVM::Private::OnBindingPostEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, OverrideExecutionMode));
 		}
 	}
 }

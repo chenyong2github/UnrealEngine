@@ -12,6 +12,7 @@
 #include "FieldNotification/FieldId.h"
 #include "Types/MVVMBindingMode.h"
 #include "Types/MVVMBindingName.h"
+#include "Types/MVVMExecutionMode.h"
 #include "Types/MVVMViewModelContext.h"
 #include "View/MVVMView.h"
 
@@ -146,6 +147,9 @@ public:
 	{
 		return (Flags & EBindingFlags::ConversionFunctionIsComplex) != 0;
 	}
+	
+	/** How the binding should be executed. */
+	EMVVMExecutionMode GetExecuteMode() const;
 
 	/** @return a human readable version of the binding that can be use for debugging purposes. */
 	FString ToString() const;
@@ -160,9 +164,8 @@ private:
 	UPROPERTY()
 	FMVVMVCompiledBinding Binding;
 
-	/** How the binding should be executed. */
 	UPROPERTY()
-	EMVVMViewBindingUpdateMode UpdateMode = EMVVMViewBindingUpdateMode::Immediate;
+	EMVVMExecutionMode ExecutionMode = EMVVMExecutionMode::Immediate;
 
 	enum EBindingFlags
 	{
@@ -173,8 +176,8 @@ private:
 		EnabledByDefault = 1 << 3,
 		ViewModelOptional = 1 << 4,	// The source (viewmodel) can be nullptr and the binding could failed and should not log a warning.
 		ConversionFunctionIsComplex = 1 << 5,	// The conversion function is complex, there is no input. The inputs are calculated in the BP function.
-		Unused01 = 1 << 6,
-		Unused02 = 1 << 7,
+		// In development, (when the Blueprint maybe not be compiled with the latest data), the ExecutionMode may not reflect the default project setting value.
+		OverrideExecuteMode = 1 << 6,
 	};
 
 	UPROPERTY()

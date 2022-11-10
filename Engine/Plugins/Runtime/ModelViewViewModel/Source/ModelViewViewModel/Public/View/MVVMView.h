@@ -15,9 +15,9 @@
 
 class UMVVMViewClass;
 struct FMVVMViewClass_CompiledBinding;
+struct FMVVMViewDelayedBinding;
 class UMVVMViewModelBase;
 class UWidget;
-
 
 /**
  * Instance UMVVMClassExtension_View for the UUserWdiget
@@ -33,11 +33,10 @@ public:
 	//~ Begin UUserWidgetExtension implementation
 	virtual void Construct() override;
 	virtual void Destruct() override;
-
-// todo needed when we will support different type of update
-	//virtual bool RequiresTick() const override;
-	//virtual void Tick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	//~ End UUserWidgetExtension implementation
+
+	void ExecuteDelayedBinding(const FMVVMViewDelayedBinding& DelayedBinding) const;
+	void ExecuteEveryTickBindings() const;
 
 // todo a way to identify a binding from outside. maybe a unique name in the editor?
 	//UFUNCTION(BlueprintCallable, Category = "MVVM")
@@ -89,4 +88,7 @@ private:
 
 	/** Is the Construct method was called. */
 	bool bConstructed = false;
+
+	/** Is the Construct method was called. */
+	bool bHasEveryTickBinding = false;
 };

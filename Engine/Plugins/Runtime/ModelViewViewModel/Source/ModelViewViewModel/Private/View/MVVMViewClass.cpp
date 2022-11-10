@@ -156,6 +156,21 @@ UObject* FMVVMViewClass_SourceCreator::CreateInstance(const UMVVMViewClass* InVi
 ///////////////////////////////////////////////////////////////////////
 // 
 ///////////////////////////////////////////////////////////////////////
+namespace UE::MVVM::Private
+{
+	int32 GDefaultEvaluationMode = (int32)EMVVMExecutionMode::Immediate;
+	static FAutoConsoleVariableRef CVarDefaultEvaluationMode(
+		TEXT("MVVM.DefaultExecutionMode"),
+		GDefaultEvaluationMode,
+		TEXT("The default evaluation mode of a MVVM binding.")
+	);
+}
+
+EMVVMExecutionMode FMVVMViewClass_CompiledBinding::GetExecuteMode() const
+{
+	EMVVMExecutionMode DefaultMode = (EMVVMExecutionMode)UE::MVVM::Private::GDefaultEvaluationMode;
+	return (Flags & EBindingFlags::OverrideExecuteMode) == 0 ? DefaultMode : ExecutionMode;
+}
 
 FString FMVVMViewClass_CompiledBinding::ToString() const
 {
