@@ -31,7 +31,7 @@ class FAudioFormatOpus : public IAudioFormat
 	enum
 	{
 		/** Version for OPUS format, this becomes part of the DDC key. */
-		UE_AUDIO_OPUS_VER = 7,
+		UE_AUDIO_OPUS_VER = 8,
 	};
 
 public:
