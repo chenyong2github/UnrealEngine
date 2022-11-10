@@ -4428,6 +4428,10 @@ void FAsyncPackage2::StartLoading(FIoBatch& IoBatch)
 				int32 LocalPendingIoRequestsCounter = AsyncLoadingThread.PendingIoRequestsCounter.DecrementExchange() - 1;
 				TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
 				GetPackageNode(EEventLoadNode2::Package_ProcessSummary).ReleaseBarrier();
+				if (LocalPendingIoRequestsCounter == 0)
+				{
+					AsyncLoadingThread.AltZenaphore.NotifyOne();
+				}
 			});
 	}
 #endif
@@ -4454,6 +4458,10 @@ void FAsyncPackage2::StartLoading(FIoBatch& IoBatch)
 			int32 LocalPendingIoRequestsCounter = AsyncLoadingThread.PendingIoRequestsCounter.DecrementExchange() - 1;
 			TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
 			GetPackageNode(EEventLoadNode2::Package_ProcessSummary).ReleaseBarrier();
+			if (LocalPendingIoRequestsCounter == 0)
+			{
+				AsyncLoadingThread.AltZenaphore.NotifyOne();
+			}
 		});
 
 	if (!Data.ShaderMapHashes.IsEmpty())
@@ -4471,6 +4479,10 @@ void FAsyncPackage2::StartLoading(FIoBatch& IoBatch)
 					int32 LocalPendingIoRequestsCounter = AsyncLoadingThread.PendingIoRequestsCounter.DecrementExchange() - 1;
 					TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
 					GetPackageNode(Package_ExportsSerialized).ReleaseBarrier();
+					if (LocalPendingIoRequestsCounter == 0)
+					{
+						AsyncLoadingThread.AltZenaphore.NotifyOne();
+					}
 				});
 		};
 		FCoreDelegates::PreloadPackageShaderMaps.ExecuteIfBound(Data.ShaderMapHashes, ReadShaderMapFunc);
