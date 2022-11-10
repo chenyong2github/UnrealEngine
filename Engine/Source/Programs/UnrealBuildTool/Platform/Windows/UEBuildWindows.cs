@@ -306,7 +306,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		[XmlConfigFile(Category = "WindowsPlatform")]
 		[CommandLine("-UpdatedCPPMacro")]
-		public bool bUpdatedCPPMacro = true;
+		public bool bUpdatedCPPMacro = false;
 
 		/// <summary>
 		/// Enables inline conformance (Remove unreferenced COMDAT) (/Zc:inline).
