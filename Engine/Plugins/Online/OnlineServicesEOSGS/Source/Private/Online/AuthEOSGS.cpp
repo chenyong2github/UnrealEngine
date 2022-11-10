@@ -236,7 +236,6 @@ private:
 
 	static const FEOSAuthTranslationTraits* GetLoginTranslatorTraits(FName Name);
 	static const FEOSExternalAuthTranslationTraits* GetExternalAuthTranslationTraits(FName ExternalAuthType);
-	static const EOS_EAuthScopeFlags* GetScopeFlag(const FString& ScopeName);
 
 	EOS_Auth_Credentials CredentialsData;
 	TArray<char> IdUtf8;
@@ -282,19 +281,6 @@ const FEOSExternalAuthTranslationTraits* FEOSAuthLoginOptions::GetExternalAuthTr
 	};
 
 	return SupportedExternalAuthTraits.Find(ExternalAuthType);
-}
-
-const EOS_EAuthScopeFlags* FEOSAuthLoginOptions::GetScopeFlag(const FString& ScopeName)
-{
-	static const TMap<FString, EOS_EAuthScopeFlags> SupportedScopes = {
-		{ TEXT("BasicProfile"), EOS_EAuthScopeFlags::EOS_AS_BasicProfile },
-		{ TEXT("FriendsList"), EOS_EAuthScopeFlags::EOS_AS_FriendsList },
-		{ TEXT("Presence"), EOS_EAuthScopeFlags::EOS_AS_Presence },
-		{ TEXT("FriendsManagement"), EOS_EAuthScopeFlags::EOS_AS_FriendsManagement },
-		{ TEXT("Email"), EOS_EAuthScopeFlags::EOS_AS_Email },
-	};
-
-	return SupportedScopes.Find(ScopeName);
 }
 
 FEOSAuthLoginOptions::FEOSAuthLoginOptions(FEOSAuthLoginOptions&& Other)
@@ -448,9 +434,10 @@ TDefaultErrorResultInternal<FEOSAuthLoginOptions> FEOSAuthLoginOptions::CreateIm
 	bool bAllScopesValid = true;
 	for (const FString& Scope : Scopes)
 	{
-		if (const EOS_EAuthScopeFlags* ScopeFlag = GetScopeFlag(Scope))
+		EOS_EAuthScopeFlags ScopeFlags;
+		if (LexFromString(ScopeFlags, Scope))
 		{
-			EOSAuthLoginOptions.ScopeFlags |= *ScopeFlag;
+			EOSAuthLoginOptions.ScopeFlags |= ScopeFlags;
 		}
 		else
 		{

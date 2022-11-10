@@ -83,6 +83,7 @@ struct FEOSSettings
 	bool bMirrorPresenceToEAS;
 	TArray<FEOSArtifactSettings> Artifacts;
 	TArray<FString> TitleStorageTags;
+	TArray<FString> AuthScopeFlags;
 };
 
 UCLASS(Config=Engine, DefaultConfig)
@@ -135,6 +136,10 @@ public:
 	/** Per artifact SDK settings. A game might have a FooStaging, FooQA, and public Foo artifact */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOS Settings")
 	TArray<FArtifactSettings> Artifacts;
+
+	/** Auth scopes to request during login */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "EOS Settings")
+	TArray<FString> AuthScopeFlags;
 
 	/** Set to true to have Epic Accounts used (friends list will be unified with the default platform) */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="EOSPlus Login Settings", DisplayName="Use Epic Account for EOS login (requires account linking)")

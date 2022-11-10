@@ -429,7 +429,16 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 
 	EOS_Auth_LoginOptions LoginOptions = { };
 	LoginOptions.ApiVersion = EOS_AUTH_LOGIN_API_LATEST;
-	LoginOptions.ScopeFlags = EOS_EAuthScopeFlags::EOS_AS_BasicProfile | EOS_EAuthScopeFlags::EOS_AS_FriendsList | EOS_EAuthScopeFlags::EOS_AS_Presence;
+
+	LoginOptions.ScopeFlags = EOS_EAuthScopeFlags::EOS_AS_NoFlags;
+	for (const FString& FlagsStr : Settings.AuthScopeFlags)
+	{
+		EOS_EAuthScopeFlags Flags;
+		if (LexFromString(Flags, FlagsStr))
+		{
+			LoginOptions.ScopeFlags |= Flags;
+		}
+	}
 
 	FPlatformEOSHelpersPtr EOSHelpers = EOSSubsystem->GetEOSHelpers();
 

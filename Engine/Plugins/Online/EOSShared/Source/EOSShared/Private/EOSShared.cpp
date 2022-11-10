@@ -3,6 +3,8 @@
 #if WITH_EOS_SDK
 
 #include "EOSShared.h"
+
+#include "String/ParseTokens.h"
 #include "EOSSharedTypes.h"
 
 #include "eos_auth_types.h"
@@ -206,37 +208,48 @@ bool LexFromString(EOS_EExternalCredentialType& OutEnum, const TCHAR* InString)
 	return true;
 }
 
-bool LexFromString(EOS_EAuthScopeFlags& OutEnum, const TCHAR* InString)
+bool LexFromString(EOS_EAuthScopeFlags& OutEnum, const FStringView InString)
 {
-	if (FCString::Stricmp(InString, TEXT("BasicProfile")) == 0)
+	OutEnum = EOS_EAuthScopeFlags::EOS_AS_NoFlags;
+	bool bParsedOk = true;
+
+	using namespace UE::String;
+	const EParseTokensOptions ParseOptions = EParseTokensOptions::SkipEmpty | EParseTokensOptions::Trim;
+	TFunctionRef<void(FStringView)> ParseFunc = [&OutEnum, &bParsedOk](FStringView Token)
 	{
-		OutEnum = EOS_EAuthScopeFlags::EOS_AS_BasicProfile;
-	}
-	else if (FCString::Stricmp(InString, TEXT("FriendsList")) == 0)
-	{
-		OutEnum = EOS_EAuthScopeFlags::EOS_AS_FriendsList;
-	}
-	else if (FCString::Stricmp(InString, TEXT("Presence")) == 0)
-	{
-		OutEnum = EOS_EAuthScopeFlags::EOS_AS_Presence;
-	}
-	else if (FCString::Stricmp(InString, TEXT("FriendsManagement")) == 0)
-	{
-		OutEnum = EOS_EAuthScopeFlags::EOS_AS_FriendsManagement;
-	}
-	else if (FCString::Stricmp(InString, TEXT("Email")) == 0)
-	{
-		OutEnum = EOS_EAuthScopeFlags::EOS_AS_Email;
-	}
-	else if (FCString::Stricmp(InString, TEXT("NoFlags")) == 0 || FCString::Stricmp(InString, TEXT("None")) == 0)
-	{
-		OutEnum = EOS_EAuthScopeFlags::EOS_AS_NoFlags;
-	}
-	else
-	{
-		return false;
-	}
-	return true;
+		if (Token == TEXT("BasicProfile"))
+		{
+			OutEnum |= EOS_EAuthScopeFlags::EOS_AS_BasicProfile;
+		}
+		else if (Token == TEXT("FriendsList"))
+		{
+			OutEnum |= EOS_EAuthScopeFlags::EOS_AS_FriendsList;
+		}
+		else if (Token == TEXT("Presence"))
+		{
+			OutEnum |= EOS_EAuthScopeFlags::EOS_AS_Presence;
+		}
+		else if (Token == TEXT("FriendsManagement"))
+		{
+			OutEnum |= EOS_EAuthScopeFlags::EOS_AS_FriendsManagement;
+		}
+		else if (Token == TEXT("Email"))
+		{
+			OutEnum |= EOS_EAuthScopeFlags::EOS_AS_Email;
+		}
+		else if (Token == TEXT("Country"))
+		{
+			OutEnum |= EOS_EAuthScopeFlags::EOS_AS_Country;
+		}
+		else
+		{
+			checkNoEntry();
+			bParsedOk = false;
+		}
+	};
+	ParseTokens(InString, TCHAR('|'), ParseFunc, ParseOptions);
+
+	return bParsedOk;
 }
 
 bool LexFromString(EOS_ELoginCredentialType& OutEnum, const TCHAR* InString)

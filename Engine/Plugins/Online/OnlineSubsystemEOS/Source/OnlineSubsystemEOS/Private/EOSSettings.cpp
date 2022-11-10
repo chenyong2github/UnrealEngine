@@ -163,6 +163,7 @@ const FEOSSettings& UEOSSettings::ManualGetSettings()
 		GConfig->GetBool(INI_SECTION, TEXT("bMirrorPresenceToEAS"), CachedSettings->bMirrorPresenceToEAS, GEngineIni);
 		// Artifacts explicitly skipped
 		GConfig->GetArray(INI_SECTION, TEXT("TitleStorageTags"), CachedSettings->TitleStorageTags, GEngineIni);
+		GConfig->GetArray(INI_SECTION, TEXT("AuthScopeFlags"), CachedSettings->AuthScopeFlags, GEngineIni);
 	}
 
 	return *CachedSettings;
@@ -188,6 +189,7 @@ FEOSSettings UEOSSettings::ToNative() const
 	Native.bMirrorPresenceToEAS = bMirrorPresenceToEAS;
 	Algo::Transform(Artifacts, Native.Artifacts, &FArtifactSettings::ToNative);
 	Native.TitleStorageTags = TitleStorageTags;
+	Native.AuthScopeFlags = AuthScopeFlags;
 
 	return Native;
 }
