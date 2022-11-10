@@ -44,9 +44,9 @@
 
 #include "ParameterizationOps/UVLayoutOp.h"
 
-#include "Engine/Classes/Engine/StaticMesh.h"
-#include "Engine/Classes/Components/StaticMeshComponent.h"
-#include "Engine/Classes/Engine/StaticMeshActor.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshActor.h"
 #include "MeshDescriptionToDynamicMesh.h"
 
 using namespace UE::Geometry;

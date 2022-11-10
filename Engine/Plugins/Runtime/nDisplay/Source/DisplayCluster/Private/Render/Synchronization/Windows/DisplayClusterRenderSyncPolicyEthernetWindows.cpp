@@ -13,7 +13,7 @@
 #include "UnrealClient.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <windows.h>
-#include "DirectX/Include/DXGI.h"
+#include "DXGI.h"
 #include "dwmapi.h"
 #include "Windows/HideWindowsPlatformTypes.h"
 

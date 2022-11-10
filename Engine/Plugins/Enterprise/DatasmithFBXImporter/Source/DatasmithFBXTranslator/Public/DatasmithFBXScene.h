@@ -9,7 +9,7 @@
 #include "CoreTypes.h"
 #include "Curves/RealCurve.h"
 #include "Curves/RichCurve.h"
-#include "Engine/Classes/EditorFramework/AssetImportData.h"
+#include "EditorFramework/AssetImportData.h"
 #include "Engine/DataTable.h" //For FTableRowBase
 #include "MeshDescription.h"
 #include "Misc/SecureHash.h"

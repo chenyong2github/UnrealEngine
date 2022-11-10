@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "AudioExtensions/Public/IWaveformTransformation.h"
+#include "IWaveformTransformation.h"
 #include "UObject/Object.h"
 #include "WaveformTransformationNormalize.generated.h"
 

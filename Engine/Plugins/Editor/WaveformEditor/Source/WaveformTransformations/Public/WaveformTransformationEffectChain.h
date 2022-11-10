@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "AudioExtensions/Public/IWaveformTransformation.h"
 #include "Factories/SoundSourceEffectFactory.h"
+#include "IWaveformTransformation.h"
 #include "UObject/Object.h"
 #include "UObject/StrongObjectPtr.h"
 #include "WaveformTransformationEffectChain.generated.h"
