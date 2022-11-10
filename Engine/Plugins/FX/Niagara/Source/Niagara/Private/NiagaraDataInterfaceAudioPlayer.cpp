@@ -169,7 +169,7 @@ bool UNiagaraDataInterfaceAudioPlayer::PerInstanceTickPostSimulate(void* PerInst
 	UWorld* World = SystemInstance->GetWorldManager()->GetWorld();
 
 #if WITH_EDITORONLY_DATA
-	if (World->HasBegunPlay() == false && PIData->bOnlyActiveDuringGameplay)
+	if (World == nullptr || (World->HasBegunPlay() == false && PIData->bOnlyActiveDuringGameplay))
 	{
 		PIData->PlayAudioQueue.Empty();
 		PIData->PersistentAudioMapping.Empty();
