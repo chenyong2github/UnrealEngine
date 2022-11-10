@@ -148,7 +148,7 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	Context.LinearCoord = LinearCoord;
 	Context.InstanceMask = RAY_TRACING_MASK_OPAQUE;
 	Context.TranslucentSkipCountMax = TranslucentSkipCountMax;
-	Context.bAlphaMasking = false;
+	Context.bAlphaMasking = true;
 	Context.FarFieldMaxTraceDistance = -1.0;
 	Context.FarFieldReferencePos = 0;
 	Context.MaxTraversalIterations = MaxTraversalIterations;
