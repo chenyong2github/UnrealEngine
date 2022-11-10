@@ -34,6 +34,7 @@ private:
 	void GetNativeElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
 	void GetBlueprintElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
 	void GetSubgraphElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
+	void GetSettingsElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
 	void GetExtraElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
 };
 

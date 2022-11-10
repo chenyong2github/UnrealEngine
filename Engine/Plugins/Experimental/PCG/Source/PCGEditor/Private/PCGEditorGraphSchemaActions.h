@@ -30,6 +30,22 @@ struct FPCGEditorGraphSchemaAction_NewNativeElement : public FEdGraphSchemaActio
 };
 
 USTRUCT()
+struct FPCGEditorGraphSchemaAction_NewSettingsElement : public FEdGraphSchemaAction
+{
+	GENERATED_BODY()
+
+	// Inherit the base class's constructors
+	using FEdGraphSchemaAction::FEdGraphSchemaAction;
+
+	UPROPERTY()
+	FSoftObjectPath SettingsObjectPath;
+
+	//~ Begin FEdGraphSchemaAction Interface
+	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
+	//~ End FEdGraphSchemaAction Interface
+};
+
+USTRUCT()
 struct FPCGEditorGraphSchemaAction_NewBlueprintElement : public FEdGraphSchemaAction
 {
 	GENERATED_BODY()

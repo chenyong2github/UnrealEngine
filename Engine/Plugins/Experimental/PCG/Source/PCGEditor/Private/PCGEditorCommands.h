@@ -15,6 +15,7 @@ public:
 	// ~End TCommands<> interface
 
 	TSharedPtr<FUICommandInfo> CollapseNodes;
+	TSharedPtr<FUICommandInfo> ExportNodes;
 	TSharedPtr<FUICommandInfo> Find;
 	TSharedPtr<FUICommandInfo> PauseAutoRegeneration;
 	TSharedPtr<FUICommandInfo> ForceGraphRegeneration;

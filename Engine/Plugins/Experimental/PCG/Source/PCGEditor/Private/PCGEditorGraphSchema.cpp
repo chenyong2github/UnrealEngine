@@ -34,6 +34,10 @@ void UPCGEditorGraphSchema::GetPaletteActions(FGraphActionMenuBuilder& ActionMen
 	{
 		GetBlueprintElementActions(ActionMenuBuilder);
 	}
+	if (!!(InPCGElementTypeFilter & EPCGElementType::Settings))
+	{
+		GetSettingsElementActions(ActionMenuBuilder);
+	}
 	if (!!(InPCGElementTypeFilter & EPCGElementType::Other))
 	{
 		GetExtraElementActions(ActionMenuBuilder);
@@ -47,6 +51,7 @@ void UPCGEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Con
 	GetNativeElementActions(ContextMenuBuilder);
 	GetSubgraphElementActions(ContextMenuBuilder);
 	GetBlueprintElementActions(ContextMenuBuilder);
+	GetSettingsElementActions(ContextMenuBuilder);
 	GetExtraElementActions(ContextMenuBuilder);
 }
 
@@ -250,6 +255,25 @@ void UPCGEditorGraphSchema::GetBlueprintElementActions(FGraphActionMenuBuilder& 
 	}
 }
 
+void UPCGEditorGraphSchema::GetSettingsElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
+{
+	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+
+	TArray<FAssetData> AssetDataList;
+	AssetRegistryModule.Get().GetAssetsByClass(UPCGSettings::StaticClass()->GetClassPathName(), AssetDataList, /*bSearchSubClasses=*/true);
+
+	for (const FAssetData& AssetData : AssetDataList)
+	{
+		const FText MenuDesc = FText::FromName(AssetData.AssetName);
+		const FText Category = AssetData.GetTagValueRef<FText>(TEXT("Category"));
+		const FText Description = AssetData.GetTagValueRef<FText>(TEXT("Description"));
+
+		TSharedPtr<FPCGEditorGraphSchemaAction_NewSettingsElement> NewSettingsAction(new FPCGEditorGraphSchemaAction_NewSettingsElement(Category, MenuDesc, Description, 0));
+		NewSettingsAction->SettingsObjectPath = AssetData.GetSoftObjectPath();
+		ActionMenuBuilder.AddAction(NewSettingsAction);
+	}
+}
+
 void UPCGEditorGraphSchema::GetSubgraphElementActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
 {
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -310,6 +334,13 @@ void UPCGEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Asset
 				NewBlueprintAction.PerformAction(Graph, NullFromPin, GraphPositionOffset);
 				GraphPositionOffset.Y += PositionOffsetIncrementY;
 			}
+			else if (Asset->IsA<UPCGSettings>())
+			{
+				FPCGEditorGraphSchemaAction_NewSettingsElement NewNodeAction;
+				NewNodeAction.SettingsObjectPath = AssetData.GetSoftObjectPath();
+				NewNodeAction.PerformAction(Graph, NullFromPin, GraphPositionOffset);
+				GraphPositionOffset.Y += PositionOffsetIncrementY;
+			}
 		}
 	}
 }
@@ -320,7 +351,7 @@ void UPCGEditorGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData>&
 	{
 		if (const UObject* Asset = AssetData.GetAsset())
 		{
-			if (Asset->IsA<UPCGGraph>() || PCGEditorUtils::IsAssetPCGBlueprint(AssetData))
+			if (Asset->IsA<UPCGGraph>() || Asset->IsA<UPCGSettings>() || PCGEditorUtils::IsAssetPCGBlueprint(AssetData))
 			{
 				OutOkIcon = true;
 				return;

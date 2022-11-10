@@ -42,16 +42,16 @@ public:
 	virtual void PostLoad() override;
 	// ~End UObject interface
 
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = Properties)
 	TObjectPtr<UPCGNode> Node = nullptr;
 
 	UPROPERTY()
 	FName Label_DEPRECATED = NAME_None;
 
-	UPROPERTY(TextExportTransient)
+	UPROPERTY(BlueprintReadOnly, TextExportTransient, Category = Properties)
 	TArray<TObjectPtr<UPCGEdge>> Edges;
 
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (ShowOnlyInnerProperties))
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Settings, meta = (ShowOnlyInnerProperties))
 	FPCGPinProperties Properties;
 
 	bool IsCompatible(const UPCGPin* OtherPin) const;

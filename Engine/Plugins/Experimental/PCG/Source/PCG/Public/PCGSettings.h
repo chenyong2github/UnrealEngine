@@ -123,6 +123,14 @@ public:
 	FOnPCGSettingsChanged OnSettingsChangedDelegate;
 #endif
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
+	FText Category;
+
+	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
+	FText Description;
+#endif
+
 protected:
 	virtual FPCGElementPtr CreateElement() const PURE_VIRTUAL(UPCGSettings::CreateElement, return nullptr;);
 

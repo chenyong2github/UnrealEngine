@@ -383,6 +383,11 @@ void FPCGEditor::BindCommands()
 		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanCollapseNodesInSubgraph));
 
 	GraphEditorCommands->MapAction(
+		PCGEditorCommands.ExportNodes,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnExportNodes),
+		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanExportNodes));
+
+	GraphEditorCommands->MapAction(
 		PCGEditorCommands.StartInspectNode,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnStartInspectNode));
 
@@ -1002,6 +1007,82 @@ void FPCGEditor::OnCollapseNodesInSubgraph()
 	GraphEditorWidget->NotifyGraphChanged();
 	PCGGraph->NotifyGraphChanged(EPCGChangeType::Structural);
 	NewPCGGraph->NotifyGraphChanged(EPCGChangeType::Structural);
+}
+
+bool FPCGEditor::CanExportNodes() const
+{
+	for (const UObject* Object : GraphEditorWidget->GetSelectedNodes())
+	{
+		check(Object);
+
+		// Exclude input and output nodes from the subgraph.
+		if (Object->IsA<UPCGEditorGraphNodeInput>() || Object->IsA<UPCGEditorGraphNodeOutput>())
+		{
+			continue;
+		}
+
+		if (Object->IsA<UPCGEditorGraphNodeBase>())
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void FPCGEditor::OnExportNodes()
+{
+	if (!GraphEditorWidget.IsValid() || PCGEditorGraph == nullptr)
+	{
+		UE_LOG(LogPCGEditor, Error, TEXT("GraphEditorWidget or PCGEditorGraph is null, aborting"));
+		return;
+	}
+
+	if (PCGGraphBeingEdited == nullptr)
+	{
+		UE_LOG(LogPCGEditor, Error, TEXT("Editor has no graph loaded, aborting"));
+		return;
+	}
+
+	IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+	for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
+	{
+		check(Object);
+
+		// Exclude input and output nodes from the subgraph.
+		if (Object->IsA<UPCGEditorGraphNodeInput>() || Object->IsA<UPCGEditorGraphNodeOutput>())
+		{
+			continue;
+		}
+
+		UPCGSettings* Settings = nullptr;
+
+		if (UPCGEditorGraphNodeBase* PCGEditorGraphNode = Cast<UPCGEditorGraphNodeBase>(Object))
+		{
+			UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
+			check(PCGNode);
+			Settings = PCGNode->DefaultSettings;
+		}
+
+		if (!Settings)
+		{
+			continue;
+		}
+
+		// Create new settings asset
+		FString NewPackageName;
+		FString NewAssetName;
+		PCGEditorUtils::GetParentPackagePathAndUniqueName(PCGGraphBeingEdited, LOCTEXT("NewPCGSettingsAsset", "NewPCGSettings").ToString(), NewPackageName, NewAssetName);
+
+		UObject* NewSettings = AssetTools.DuplicateAssetWithDialogAndTitle(NewAssetName, NewPackageName, Settings, NSLOCTEXT("PCGEditor_ExportNodes", "PCGEditor_ExportNodesTitle", "Export Settings As..."));
+
+		if (NewSettings == nullptr)
+		{
+			UE_LOG(LogPCGEditor, Warning, TEXT("Settings asset creation was aborted or failed, abort."));
+			return;
+		}
+	}
 }
 
 void FPCGEditor::OnStartInspectNode()

@@ -190,8 +190,11 @@ public:
 	// ~End UObject interface
 #endif
 
-	UFUNCTION(BlueprintCallable, Category = Settings, meta=(DeterminesOutputType="InElementType", DynamicOutputParam = "ElementInstance"))
+	UFUNCTION(BlueprintCallable, Category = "Settings|Template", meta=(DeterminesOutputType="InElementType", DynamicOutputParam = "ElementInstance"))
 	void SetElementType(TSubclassOf<UPCGBlueprintElement> InElementType, UPCGBlueprintElement*& ElementInstance);
+
+	UFUNCTION(BlueprintCallable, Category = "Settings|Template")
+	TSubclassOf<UPCGBlueprintElement> GetElementType() const { return BlueprintElementType; }
 
 protected:
 	UPROPERTY()
@@ -200,7 +203,7 @@ protected:
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Template)
 	TSubclassOf<UPCGBlueprintElement> BlueprintElementType;
 
-	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Instanced, Category = Settings, meta = (ShowOnlyInnerProperties))
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Instanced, Category = "Instance", meta = (ShowOnlyInnerProperties))
 	TObjectPtr<UPCGBlueprintElement> BlueprintElementInstance;
 
 #if WITH_EDITORONLY_DATA

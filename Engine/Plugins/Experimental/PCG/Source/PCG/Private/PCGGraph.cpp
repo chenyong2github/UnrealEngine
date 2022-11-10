@@ -235,6 +235,20 @@ UPCGNode* UPCGGraph::AddNode(UPCGSettings* InSettings)
 	return Node;
 }
 
+UPCGNode* UPCGGraph::AddNodeCopy(UPCGSettings* InSettings, UPCGSettings*& DefaultNodeSettings)
+{
+	UPCGSettings* SettingsCopy = DuplicateObject(InSettings, nullptr);
+	UPCGNode* NewNode = AddNode(SettingsCopy);
+
+	if (SettingsCopy)
+	{
+		SettingsCopy->Rename(nullptr, NewNode);
+	}	
+
+	DefaultNodeSettings = SettingsCopy;
+	return NewNode;
+}
+
 void UPCGGraph::OnNodeAdded(UPCGNode* InNode)
 {
 #if WITH_EDITOR
@@ -254,13 +268,13 @@ void UPCGGraph::OnNodeRemoved(UPCGNode* InNode)
 #endif
 }
 
-UPCGNode* UPCGGraph::AddEdge(UPCGNode* From, const FName& InboundLabel, UPCGNode* To, const FName& OutboundLabel)
+UPCGNode* UPCGGraph::AddEdge(UPCGNode* From, const FName& FromPinLabel, UPCGNode* To, const FName& ToPinLabel)
 {
-	AddLabeledEdge(From, InboundLabel, To, OutboundLabel);
+	AddLabeledEdge(From, FromPinLabel, To, ToPinLabel);
 	return To;
 }
 
-bool UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, UPCGNode* To, const FName& OutboundLabel)
+bool UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& FromPinLabel, UPCGNode* To, const FName& ToPinLabel)
 {
 	if (!From || !To)
 	{
@@ -268,19 +282,19 @@ bool UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, UPCGNo
 		return false;
 	}
 
-	UPCGPin* FromPin = From->GetOutputPin(InboundLabel);
+	UPCGPin* FromPin = From->GetOutputPin(FromPinLabel);
 
 	if(!FromPin)
 	{
-		UE_LOG(LogPCG, Error, TEXT("From node %s does not have the %s label"), *From->GetName(), *InboundLabel.ToString());
+		UE_LOG(LogPCG, Error, TEXT("From node %s does not have the %s label"), *From->GetName(), *FromPinLabel.ToString());
 		return false;
 	}
 
-	UPCGPin* ToPin = To->GetInputPin(OutboundLabel);
+	UPCGPin* ToPin = To->GetInputPin(ToPinLabel);
 
 	if(!ToPin)
 	{
-		UE_LOG(LogPCG, Error, TEXT("To node %s does not have the %s label"), *To->GetName(), *OutboundLabel.ToString());
+		UE_LOG(LogPCG, Error, TEXT("To node %s does not have the %s label"), *To->GetName(), *ToPinLabel.ToString());
 		return false;
 	}
 
@@ -304,9 +318,8 @@ bool UPCGGraph::AddLabeledEdge(UPCGNode* From, const FName& InboundLabel, UPCGNo
 
 TObjectPtr<UPCGNode> UPCGGraph::ReconstructNewNode(const UPCGNode* InNode)
 {
-	TObjectPtr<UPCGSettings> NewSettings = DuplicateObject(InNode->DefaultSettings, nullptr);
-	TObjectPtr<UPCGNode> NewNode = AddNode(NewSettings);
-	NewSettings->Rename(nullptr, NewNode);
+	UPCGSettings* NewSettings = nullptr;
+	TObjectPtr<UPCGNode> NewNode = AddNodeCopy(InNode->DefaultSettings, NewSettings);
 
 #if WITH_EDITOR
 	InNode->TransferEditorProperties(NewNode);

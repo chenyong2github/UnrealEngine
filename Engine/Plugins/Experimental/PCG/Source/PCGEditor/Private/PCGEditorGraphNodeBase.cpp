@@ -91,6 +91,8 @@ void UPCGEditorGraphNodeBase::GetNodeContextMenuActions(UToolMenu* Menu, class U
 			SubSection.AddMenuEntry(FPCGEditorCommands::Get().ExecutionModeDisabled, LOCTEXT("ExecutionModeDisabledLabel", "Disabled"));
 			SubSection.AddMenuEntry(FPCGEditorCommands::Get().ExecutionModeIsolated, LOCTEXT("ExecutionModeIsolatedLabel", "Isolated"));
 		}));
+
+		Section.AddMenuEntry(FPCGEditorCommands::Get().ExportNodes);
 	}
 
 	{

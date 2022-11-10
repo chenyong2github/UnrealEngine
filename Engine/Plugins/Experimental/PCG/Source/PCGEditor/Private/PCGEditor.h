@@ -166,6 +166,12 @@ private:
 	/** Whether we are able to duplicate the currently selected nodes */
 	bool CanDuplicateNodes() const;
 
+	/** Exports node settings to assets */
+	void OnExportNodes();
+
+	/** Whether we are able to export the currently selected nodes */
+	bool CanExportNodes() const;
+
 	/** Collapse the currently selected nodes in a subgraph */
 	void OnCollapseNodesInSubgraph();
 	/** Whether we can collapse nodes in a subgraph */

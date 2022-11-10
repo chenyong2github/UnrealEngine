@@ -48,7 +48,11 @@ public:
 
 	/** Adds an edge in the owning graph to the given "To" node. */
 	UFUNCTION(BlueprintCallable, Category = Node)
-	UPCGNode* AddEdgeTo(FName InboundName, UPCGNode* To, FName OutboundName);
+	UPCGNode* AddEdgeTo(FName FromPinLabel, UPCGNode* To, FName ToPinLabel);
+
+	/** Removes an edge originating from this node */
+	UFUNCTION(BlueprintCallable, Category = Node)
+	bool RemoveEdgeTo(FName FromPinLable, UPCGNode* To, FName ToPinLabel);
 
 	/** Returns the node title, based either on the current node label, or defaulted to its settings */
 	FName GetNodeTitle() const;
@@ -89,6 +93,14 @@ public:
 	/** Transfer all editor only properties to the other node */
 	void TransferEditorProperties(UPCGNode* OtherNode) const;
 #endif // WITH_EDITOR
+
+#if WITH_EDITOR
+	UFUNCTION(BlueprintCallable, Category = Node)
+	void GetNodePosition(int32& OutPositionX, int32& OutPositionY) const;
+
+	UFUNCTION(BlueprintCallable, Category = Node)
+	void SetNodePosition(int32 InPositionX, int32 InPositionY);
+#endif
 
 	/** Note: do not set this property directly from code, use SetDefaultSettings instead */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Node, meta=(EditInline))

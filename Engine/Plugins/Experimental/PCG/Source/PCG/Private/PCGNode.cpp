@@ -184,16 +184,27 @@ UPCGGraph* UPCGNode::GetGraph() const
 	return Cast<UPCGGraph>(GetOuter());
 }
 
-UPCGNode* UPCGNode::AddEdgeTo(FName InboundName, UPCGNode* To, FName OutboundName)
+UPCGNode* UPCGNode::AddEdgeTo(FName FromPinLabel, UPCGNode* To, FName ToPinLabel)
 {
-	check(GetGraph());
 	if (UPCGGraph* Graph = GetGraph())
 	{
-		return Graph->AddEdge(this, InboundName, To, OutboundName);
+		return Graph->AddEdge(this, FromPinLabel, To, ToPinLabel);
 	}
 	else
 	{
 		return nullptr;
+	}
+}
+
+bool UPCGNode::RemoveEdgeTo(FName FromPinLabel, UPCGNode* To, FName ToPinLabel)
+{
+	if (UPCGGraph* Graph = GetGraph())
+	{
+		return Graph->RemoveEdge(this, FromPinLabel, To, ToPinLabel);
+	}
+	else
+	{
+		return false;
 	}
 }
 
@@ -536,3 +547,19 @@ bool UPCGNode::UpdatePins(TFunctionRef<UPCGPin*(UPCGNode*)> PinAllocator)
 
 	return bChanged;
 }
+
+#if WITH_EDITOR
+
+void UPCGNode::GetNodePosition(int32& OutPositionX, int32& OutPositionY) const
+{
+	OutPositionX = PositionX;
+	OutPositionY = PositionY;
+}
+
+void UPCGNode::SetNodePosition(int32 InPositionX, int32 InPositionY)
+{
+	PositionX = InPositionX;
+	PositionY = InPositionY;
+}
+
+#endif

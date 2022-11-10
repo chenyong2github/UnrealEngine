@@ -51,13 +51,25 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Graph, meta=(DeterminesOutputType = "InSettingsClass", DynamicOutputParam = "DefaultNodeSettings"))
 	UPCGNode* AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsClass, UPCGSettings*& DefaultNodeSettings);
 
-	/** Creates a node and assigns it in the input settings. Returns the created node. */
+	/** Creates a node and assigns it in the input settings (settings are not owned by node). Returns the created node. */
 	UFUNCTION(BlueprintCallable, Category = Graph)
 	UPCGNode* AddNode(UPCGSettings* InSettings);
 
+	/** Creates a node and copies the input settings. Returns the created node. */
+	UFUNCTION(BlueprintCallable, Category = Graph, meta = (DeterminesOutputType = "InSettings", DynamicOutputParam = "OutCopiedSettings"))
+	UPCGNode* AddNodeCopy(UPCGSettings* InSettings, UPCGSettings*& DefaultNodeSettings);
+
+	/** Removes a node from the graph. */
+	UFUNCTION(BlueprintCallable, Category = Graph)
+	void RemoveNode(UPCGNode* InNode);
+
 	/** Adds a directed edge in the graph. Returns the "To" node for easy chaining */
 	UFUNCTION(BlueprintCallable, Category = Graph)
-	UPCGNode* AddEdge(UPCGNode* From, const FName& InboundLabel, UPCGNode* To, const FName& OutboundLabel);
+	UPCGNode* AddEdge(UPCGNode* From, const FName& FromPinLabel, UPCGNode* To, const FName& ToPinLabel);
+
+	/** Removes an edge in the graph. Returns true if an edge was removed. */
+	UFUNCTION(BlueprintCallable, Category = Graph)
+	bool RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To, const FName& ToLabel);
 
 	/** Returns the graph input node */
 	UFUNCTION(BlueprintCallable, Category = Graph)
@@ -76,8 +88,7 @@ public:
 	bool Contains(UPCGNode* Node) const;
 	const TArray<UPCGNode*>& GetNodes() const { return Nodes; }
 	void AddNode(UPCGNode* InNode);
-	void RemoveNode(UPCGNode* InNode);
-	bool RemoveEdge(UPCGNode* From, const FName& FromLabel, UPCGNode* To, const FName& ToLabel);
+
 	bool RemoveAllInboundEdges(UPCGNode* InNode);
 	bool RemoveAllOutboundEdges(UPCGNode* InNode);
 	bool RemoveInboundEdges(UPCGNode* InNode, const FName& InboundLabel);
@@ -88,7 +99,10 @@ public:
 	void EnableNotificationsForEditor();
 	void ToggleUserPausedNotificationsForEditor();
 	bool NotificationsForEditorArePausedByUser() const { return bUserPausedNotificationsInGraphEditor; }
+
+	UFUNCTION(BlueprintCallable, Category = "Graph|Advanded")
 	void ForceNotificationForEditor();
+
 	void PreNodeUndo(UPCGNode* InPCGNode);
 	void PostNodeUndo(UPCGNode* InPCGNode);
 

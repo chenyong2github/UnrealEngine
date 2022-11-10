@@ -59,6 +59,60 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewNativeElement::PerformAction(UEdGra
 	return NewNode;
 }
 
+UEdGraphNode* FPCGEditorGraphSchemaAction_NewSettingsElement::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
+{
+	UPCGEditorGraph* EditorGraph = Cast<UPCGEditorGraph>(ParentGraph);
+	if (!EditorGraph)
+	{
+		UE_LOG(LogPCGEditor, Error, TEXT("Invalid EditorGraph"));
+		return nullptr;
+	}
+
+	UPCGGraph* PCGGraph = EditorGraph->GetPCGGraph();
+	if (!PCGGraph)
+	{
+		UE_LOG(LogPCGEditor, Error, TEXT("Invalid PCGGraph"));
+		return nullptr;
+	}
+
+	UPCGSettings* Settings = CastChecked<UPCGSettings>(SettingsObjectPath.TryLoad());
+	if (!Settings)
+	{
+		UE_LOG(LogPCGEditor, Error, TEXT("Invalid settings"));
+		return nullptr;
+	}
+
+	const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorNewSettingsElement", "PCG Editor: New Settings Element"), nullptr);
+	EditorGraph->Modify();
+
+	UPCGNode* NewPCGNode = nullptr;
+	UPCGSettings* NewSettings = nullptr;
+	NewPCGNode = PCGGraph->AddNodeCopy(Settings, NewSettings);
+
+	if (!NewPCGNode)
+	{
+		UE_LOG(LogPCGEditor, Error, TEXT("Unable to create node"));
+		return nullptr;
+	}
+
+	FGraphNodeCreator<UPCGEditorGraphNode> NodeCreator(*EditorGraph);
+	UPCGEditorGraphNode* NewNode = NodeCreator.CreateUserInvokedNode(bSelectNewNode);
+	NewNode->Construct(NewPCGNode);
+	NewNode->NodePosX = Location.X;
+	NewNode->NodePosY = Location.Y;
+	NodeCreator.Finalize();
+
+	NewPCGNode->PositionX = Location.X;
+	NewPCGNode->PositionY = Location.Y;
+
+	if (FromPin)
+	{
+		NewNode->AutowireNewNode(FromPin);
+	}
+
+	return NewNode;
+}
+
 UEdGraphNode* FPCGEditorGraphSchemaAction_NewBlueprintElement::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode)
 {
 	UPCGEditorGraph* EditorGraph = Cast<UPCGEditorGraph>(ParentGraph);
