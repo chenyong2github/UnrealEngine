@@ -25,7 +25,11 @@ void UMLDeformerGeomCacheModel::Serialize(FArchive& Archive)
 #if WITH_EDITOR
 void UMLDeformerGeomCacheModel::UpdateNumTargetMeshVertices()
 {
-	SetNumTargetMeshVerts(UE::MLDeformer::ExtractNumImportedGeomCacheVertices(GetGeometryCache()));
+	UGeometryCache* GeomCache = GetGeometryCache();
+	if (GeomCache)
+	{
+		SetNumTargetMeshVerts(UE::MLDeformer::ExtractNumImportedGeomCacheVertices(GeomCache));
+	}
 }
 
 UMLDeformerGeomCacheVizSettings* UMLDeformerGeomCacheModel::GetGeomCacheVizSettings() const

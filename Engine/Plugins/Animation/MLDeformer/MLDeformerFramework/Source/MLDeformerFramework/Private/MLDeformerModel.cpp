@@ -80,7 +80,7 @@ void UMLDeformerModel::Serialize(FArchive& Archive)
 			InitVertexMap();
 		}
 
-		if (!Archive.IsCooking())
+		if (!Archive.IsCooking() && Archive.IsLoading())
 		{
 			// This also triggers the target mesh to be loaded, don't do that while cooking.
 			UpdateCachedNumVertices();
@@ -197,7 +197,11 @@ void UMLDeformerModel::FloatArrayToVector3Array(const TArray<float>& FloatArray,
 
 	void UMLDeformerModel::UpdateNumBaseMeshVertices()
 	{
-		NumBaseMeshVerts = UMLDeformerModel::ExtractNumImportedSkinnedVertices(GetSkeletalMesh());
+		USkeletalMesh* SkelMesh = GetSkeletalMesh();
+		if (SkelMesh)
+		{
+			NumBaseMeshVerts = UMLDeformerModel::ExtractNumImportedSkinnedVertices(SkelMesh);
+		}
 	}
 
 	void UMLDeformerModel::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
