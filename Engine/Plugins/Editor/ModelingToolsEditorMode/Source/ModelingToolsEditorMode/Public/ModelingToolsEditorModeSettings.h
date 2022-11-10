@@ -134,6 +134,14 @@ public:
 	bool bAppendRandomStringToName = true;
 
 	//
+	// User Interface
+	//
+
+	/** If true, the standard UE Editor Gizmo Mode (ie selected via the Level Editor Viewport toggle) will be used to configure the Modeling Gizmo, otherwise a Combined Gizmo will always be used. It may be necessary to exit and re-enter Modeling Mode after changing this setting. */
+	UPROPERTY(config, EditAnywhere, Category = "Modeling Mode|User Interface")
+	bool bRespectLevelEditorGizmoMode = false;
+
+	//
 	// Selection
 	//
 

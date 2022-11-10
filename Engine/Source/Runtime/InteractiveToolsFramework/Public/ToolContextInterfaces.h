@@ -120,6 +120,29 @@ enum class EToolContextCoordinateSystem
 	Local = 1
 };
 
+
+/** 
+ * High-level configuration options for a standard 3D translate/rotate/scale Gizmo, like is commonly used in 3D DCC tools, game editors, etc
+ * This is meant to be used to convey UI-level settings to Tools/Gizmos, eg like the W/E/R toggles for Rranslate/Rotate/Scale in Maya or UE Editor.
+ * More granular control over precise gizmo elements is available through other mechanisms, eg the ETransformGizmoSubElements flags in UCombinedTransformGizmo
+ */
+UENUM()
+enum class EToolContextTransformGizmoMode : uint8
+{
+	/** Hide all Gizmo sub-elements */
+	NoGizmo = 0,
+	/** Only Show Translation sub-elements */
+	Translation = 1,
+	/** Only Show Rotation sub-elements */
+	Rotation = 2,
+	/** Only Show Scale sub-elements */
+	Scale = 3,
+	/** Show all available Gizmo sub-elements */
+	Combined = 8
+};
+
+
+
 /**
  * Snapping configuration settings/state
  */
@@ -164,14 +187,19 @@ public:
 	virtual void GetCurrentViewState(FViewCameraState& StateOut) const = 0;
 
 	/**
-	 * Request current external coordinate-system setting
+	 * Request current external coordinate-system setting. Defaults to World coordinates.
 	 */
-	virtual EToolContextCoordinateSystem GetCurrentCoordinateSystem() const = 0;	
+	virtual EToolContextCoordinateSystem GetCurrentCoordinateSystem() const { return EToolContextCoordinateSystem::World; }
 
 	/**
-	 * Request current external snapping settings
+	 * Request current external Gizmo Mode setting. Defaulting this to Combined gizmo as this was the default behavior before UE-5.2.
 	 */
-	virtual FToolContextSnappingConfiguration GetCurrentSnappingSettings() const = 0;
+	virtual EToolContextTransformGizmoMode GetCurrentTransformGizmoMode() const { return EToolContextTransformGizmoMode::Combined; }
+
+	/**
+	 * Request current external snapping settings. Defaults to no snapping.
+	 */
+	virtual FToolContextSnappingConfiguration GetCurrentSnappingSettings() const { return FToolContextSnappingConfiguration(); }
 
 	/**
 	 * Many tools need standard types of materials that the user should provide (eg a vertex-color material, etc)

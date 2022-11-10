@@ -139,6 +139,27 @@ public:
 		return (CoordSys == COORD_World) ? EToolContextCoordinateSystem::World : EToolContextCoordinateSystem::Local;
 	}
 
+	virtual EToolContextTransformGizmoMode GetCurrentTransformGizmoMode() const override
+	{
+		if (ToolsContext->GetForceCombinedGizmoModeEnabled() == false)
+		{
+			UE::Widget::EWidgetMode WidgetMode = EditorModeManager->GetWidgetMode();
+			switch (WidgetMode)
+			{
+			case UE::Widget::EWidgetMode::WM_None:
+				return EToolContextTransformGizmoMode::NoGizmo;
+			case UE::Widget::EWidgetMode::WM_Translate:
+				return EToolContextTransformGizmoMode::Translation;
+			case UE::Widget::EWidgetMode::WM_Rotate:
+				return EToolContextTransformGizmoMode::Rotation;
+			case UE::Widget::EWidgetMode::WM_Scale:
+				return EToolContextTransformGizmoMode::Scale;
+			}
+		}
+		
+		return EToolContextTransformGizmoMode::Combined;
+	}
+
 	virtual FToolContextSnappingConfiguration GetCurrentSnappingSettings() const override
 	{
 		FToolContextSnappingConfiguration Config;
@@ -813,6 +834,11 @@ void UEditorInteractiveToolsContext::OnToolPostBuild(UInteractiveToolManager* In
 void UEditorInteractiveToolsContext::SetEnableRenderingDuringHitProxyPass(bool bEnabled)
 {
 	bEnableRenderingDuringHitProxyPass = bEnabled;
+}
+
+void UEditorInteractiveToolsContext::SetForceCombinedGizmoMode(bool bEnabled)
+{
+	bForceCombinedGizmoMode = bEnabled;
 }
 
 void UEditorInteractiveToolsContext::OnLevelEditorCreated(TSharedPtr<ILevelEditor> InLevelEditor)

@@ -89,6 +89,10 @@ public:
 	UPROPERTY()
 	TObjectPtr<UPrimitiveComponent> RotateZ;
 
+	/** Z Axis Rotation Component */
+	UPROPERTY()
+	TObjectPtr<UPrimitiveComponent> RotationSphere;
+
 	//
 	// Scaling Components
 	//
@@ -409,6 +413,21 @@ public:
 	EToolContextCoordinateSystem CurrentCoordinateSystem = EToolContextCoordinateSystem::Local;
 
 
+	/**
+	 * Whether to use the Gizmo Mode provided by the context via the ContextyQueriesAPI.
+	 */
+	UPROPERTY()
+	bool bUseContextGizmoMode = true;
+
+	/**
+	 * Current dynamic sub-widget visibility mode to use (eg Translate-Only, Scale-Only, Combined, etc)
+	 * If bUseContextGizmoMode is true, this value will be updated internally every Tick()
+	 * by quering the ContextyQueriesAPI, otherwise the default is Combined and the client can change it as necessary
+	 */
+	UPROPERTY()
+	EToolContextTransformGizmoMode ActiveGizmoMode = EToolContextTransformGizmoMode::Combined;
+
+
 protected:
 	TSharedPtr<FCombinedTransformGizmoActorFactory> GizmoActorBuilder;
 
@@ -430,17 +449,25 @@ protected:
 	UPROPERTY()
 	TArray<TObjectPtr<UPrimitiveComponent>> ActiveComponents;
 
-	/** 
-	 * List of nonuniform scale components. Subset of of ActiveComponents. These are tracked separately so they can
-	 * be hidden when Gizmo is not configured to use local axes, because UE only supports local nonuniform scaling
-	 * on Components
-	 */
-	UPROPERTY()
-	TArray<TObjectPtr<UPrimitiveComponent>> NonuniformScaleComponents;
-
 	/** list of currently-active child gizmos */
 	UPROPERTY()
 	TArray<TObjectPtr<UInteractiveGizmo>> ActiveGizmos;
+
+	/** 
+	 * FSubGizmoInfo stores the (UPrimitiveComponent,UInteractiveGizmo) pair for a sub-element of the widget.
+	 * The ActiveComponents and ActiveGizmos arrays keep those items alive, so this is redundant information, but useful for filtering/etc
+	 */
+	struct FSubGizmoInfo
+	{
+		// note: either of these may be invalid
+		TWeakObjectPtr<UPrimitiveComponent> Component;
+		TWeakObjectPtr<UInteractiveGizmo> Gizmo;
+	};
+	TArray<FSubGizmoInfo> TranslationSubGizmos;
+	TArray<FSubGizmoInfo> RotationSubGizmos;
+	TArray<FSubGizmoInfo> UniformScaleSubGizmos;
+	TArray<FSubGizmoInfo> NonUniformScaleSubGizmos;
+
 
 	/** GizmoActors will be spawned in this World */
 	UWorld* World;

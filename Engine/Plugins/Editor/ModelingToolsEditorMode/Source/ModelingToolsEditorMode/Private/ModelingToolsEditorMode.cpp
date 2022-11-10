@@ -339,6 +339,8 @@ void UModelingToolsEditorMode::Enter()
 {
 	UEdMode::Enter();
 
+	const UModelingToolsEditorModeSettings* ModelingModeSettings = GetDefault<UModelingToolsEditorModeSettings>();
+
 	// Register builders for tool targets that the mode uses.
 	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UStaticMeshComponentToolTargetFactory>(GetToolManager()));
 	GetInteractiveToolsContext()->TargetManager->AddTargetFactory(NewObject<UVolumeComponentToolTargetFactory>(GetToolManager()));
@@ -363,13 +365,17 @@ void UModelingToolsEditorMode::Enter()
 
 	// register gizmo helper
 	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(GetInteractiveToolsContext());
+	// configure mode-level Gizmo options
+	if (ModelingModeSettings)
+	{
+		GetInteractiveToolsContext()->SetForceCombinedGizmoMode(ModelingModeSettings->bRespectLevelEditorGizmoMode == false);
+	}
 
 	// register snapping manager
 	UE::Geometry::RegisterSceneSnappingManager(GetInteractiveToolsContext());
 	SceneSnappingManager = UE::Geometry::FindModelingSceneSnappingManager(GetToolManager());
 
 	// register selection manager, if this feature is enabled in the mode settings
-	const UModelingToolsEditorModeSettings* ModelingModeSettings = GetDefault<UModelingToolsEditorModeSettings>();
 	if (ModelingModeSettings && ModelingModeSettings->bEnablePersistentSelections)
 	{
 		// set up SelectionManager and register known factory types

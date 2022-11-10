@@ -147,6 +147,7 @@ ACombinedTransformGizmoActor* ACombinedTransformGizmoActor::ConstructCustom3Axis
 		SphereEdge->Radius = 120.0f;
 		SphereEdge->bViewAligned = true;
 		SphereEdge->RegisterComponent();
+		NewActor->RotationSphere = SphereEdge;
 	}
 
 
@@ -443,11 +444,39 @@ void UCombinedTransformGizmo::Tick(float DeltaTime)
 		}
 	}
 
-	bool bShouldShowNonUniformScale = IsNonUniformScaleAllowed();
-	for (UPrimitiveComponent* Component : NonuniformScaleComponents)
+	// apply dynamic visibility filtering to sub-gizmos
+
+	auto SetSubGizmoTypeVisibility = [this](TArray<FSubGizmoInfo>& GizmoInfos, bool bVisible)
 	{
-		Component->SetVisibility(bShouldShowNonUniformScale);
+		for (FSubGizmoInfo& GizmoInfo : GizmoInfos)
+		{
+			if (GizmoInfo.Component.IsValid())
+			{
+				GizmoInfo.Component->SetVisibility(bVisible);
+			}
+		}
+	};
+
+	if (bUseContextGizmoMode)
+	{
+		ActiveGizmoMode = GetGizmoManager()->GetContextQueriesAPI()->GetCurrentTransformGizmoMode();
 	}
+	EToolContextTransformGizmoMode UseGizmoMode = ActiveGizmoMode;
+
+	bool bShouldShowTranslation =
+		(UseGizmoMode == EToolContextTransformGizmoMode::Combined || UseGizmoMode == EToolContextTransformGizmoMode::Translation);
+	bool bShouldShowRotation =
+		(UseGizmoMode == EToolContextTransformGizmoMode::Combined || UseGizmoMode == EToolContextTransformGizmoMode::Rotation);
+	bool bShouldShowUniformScale =
+		(UseGizmoMode == EToolContextTransformGizmoMode::Combined || UseGizmoMode == EToolContextTransformGizmoMode::Scale);
+	bool bShouldShowNonUniformScale = 
+		(UseGizmoMode == EToolContextTransformGizmoMode::Combined || UseGizmoMode == EToolContextTransformGizmoMode::Scale)
+		&& IsNonUniformScaleAllowed();
+
+	SetSubGizmoTypeVisibility(TranslationSubGizmos, bShouldShowTranslation);
+	SetSubGizmoTypeVisibility(RotationSubGizmos, bShouldShowRotation);
+	SetSubGizmoTypeVisibility(UniformScaleSubGizmos, bShouldShowUniformScale);
+	SetSubGizmoTypeVisibility(NonUniformScaleSubGizmos, bShouldShowNonUniformScale);
 
 	UpdateCameraAxisSource();
 }
@@ -495,51 +524,66 @@ void UCombinedTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolCont
 	// todo should we hold onto these?
 	if (GizmoActor->TranslateX != nullptr)
 	{
-		AddAxisTranslationGizmo(GizmoActor->TranslateX, GizmoComponent, AxisXSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateX, GizmoComponent, AxisXSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->TranslateX);
+		TranslationSubGizmos.Add( FSubGizmoInfo{ GizmoActor->TranslateX, NewGizmo } );
 	}
 	if (GizmoActor->TranslateY != nullptr)
 	{
-		AddAxisTranslationGizmo(GizmoActor->TranslateY, GizmoComponent, AxisYSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateY, GizmoComponent, AxisYSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->TranslateY);
+		TranslationSubGizmos.Add(FSubGizmoInfo{ GizmoActor->TranslateY, NewGizmo });
 	}
 	if (GizmoActor->TranslateZ != nullptr)
 	{
-		AddAxisTranslationGizmo(GizmoActor->TranslateZ, GizmoComponent, AxisZSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddAxisTranslationGizmo(GizmoActor->TranslateZ, GizmoComponent, AxisZSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->TranslateZ);
+		TranslationSubGizmos.Add(FSubGizmoInfo{ GizmoActor->TranslateZ, NewGizmo });
 	}
 
 
 	if (GizmoActor->TranslateYZ != nullptr)
 	{
-		AddPlaneTranslationGizmo(GizmoActor->TranslateYZ, GizmoComponent, AxisXSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateYZ, GizmoComponent, AxisXSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->TranslateYZ);
+		TranslationSubGizmos.Add(FSubGizmoInfo{ GizmoActor->TranslateYZ, NewGizmo });
 	}
 	if (GizmoActor->TranslateXZ != nullptr)
 	{
-		AddPlaneTranslationGizmo(GizmoActor->TranslateXZ, GizmoComponent, AxisYSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateXZ, GizmoComponent, AxisYSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->TranslateXZ);
+		TranslationSubGizmos.Add(FSubGizmoInfo{ GizmoActor->TranslateXZ, NewGizmo });
 	}
 	if (GizmoActor->TranslateXY != nullptr)
 	{
-		AddPlaneTranslationGizmo(GizmoActor->TranslateXY, GizmoComponent, AxisZSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddPlaneTranslationGizmo(GizmoActor->TranslateXY, GizmoComponent, AxisZSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->TranslateXY);
+		TranslationSubGizmos.Add(FSubGizmoInfo{ GizmoActor->TranslateXY, NewGizmo });
 	}
 
 	if (GizmoActor->RotateX != nullptr)
 	{
-		AddAxisRotationGizmo(GizmoActor->RotateX, GizmoComponent, AxisXSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddAxisRotationGizmo(GizmoActor->RotateX, GizmoComponent, AxisXSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->RotateX);
+		RotationSubGizmos.Add(FSubGizmoInfo{ GizmoActor->RotateX, NewGizmo });
 	}
 	if (GizmoActor->RotateY != nullptr)
 	{
-		AddAxisRotationGizmo(GizmoActor->RotateY, GizmoComponent, AxisYSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddAxisRotationGizmo(GizmoActor->RotateY, GizmoComponent, AxisYSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->RotateY);
+		RotationSubGizmos.Add(FSubGizmoInfo{ GizmoActor->RotateY, NewGizmo });
 	}
 	if (GizmoActor->RotateZ != nullptr)
 	{
-		AddAxisRotationGizmo(GizmoActor->RotateZ, GizmoComponent, AxisZSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddAxisRotationGizmo(GizmoActor->RotateZ, GizmoComponent, AxisZSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->RotateZ);
+		RotationSubGizmos.Add(FSubGizmoInfo{ GizmoActor->RotateZ, NewGizmo });
+	}
+	if (GizmoActor->RotationSphere != nullptr)
+	{
+		// no gizmo for the sphere currently
+		ActiveComponents.Add(GizmoActor->RotationSphere);
+		RotationSubGizmos.Add(FSubGizmoInfo{ GizmoActor->RotationSphere, nullptr });
 	}
 
 
@@ -552,46 +596,47 @@ void UCombinedTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolCont
 
 	if (GizmoActor->UniformScale != nullptr)
 	{
-		AddUniformScaleGizmo(GizmoActor->UniformScale, GizmoComponent, CameraAxisSource, CameraAxisSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddUniformScaleGizmo(GizmoActor->UniformScale, GizmoComponent, CameraAxisSource, CameraAxisSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->UniformScale);
+		UniformScaleSubGizmos.Add(FSubGizmoInfo{ GizmoActor->UniformScale, NewGizmo });
 	}
 
 	if (GizmoActor->AxisScaleX != nullptr)
 	{
-		AddAxisScaleGizmo(GizmoActor->AxisScaleX, GizmoComponent, AxisXSource, UnitAxisXSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddAxisScaleGizmo(GizmoActor->AxisScaleX, GizmoComponent, AxisXSource, UnitAxisXSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->AxisScaleX);
-		NonuniformScaleComponents.Add(GizmoActor->AxisScaleX);
+		NonUniformScaleSubGizmos.Add(FSubGizmoInfo{ GizmoActor->AxisScaleX, NewGizmo });
 	}
 	if (GizmoActor->AxisScaleY != nullptr)
 	{
-		AddAxisScaleGizmo(GizmoActor->AxisScaleY, GizmoComponent, AxisYSource, UnitAxisYSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddAxisScaleGizmo(GizmoActor->AxisScaleY, GizmoComponent, AxisYSource, UnitAxisYSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->AxisScaleY);
-		NonuniformScaleComponents.Add(GizmoActor->AxisScaleY);
+		NonUniformScaleSubGizmos.Add(FSubGizmoInfo{ GizmoActor->AxisScaleY, NewGizmo });
 	}
 	if (GizmoActor->AxisScaleZ != nullptr)
 	{
-		AddAxisScaleGizmo(GizmoActor->AxisScaleZ, GizmoComponent, AxisZSource, UnitAxisZSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddAxisScaleGizmo(GizmoActor->AxisScaleZ, GizmoComponent, AxisZSource, UnitAxisZSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->AxisScaleZ);
-		NonuniformScaleComponents.Add(GizmoActor->AxisScaleZ);
+		NonUniformScaleSubGizmos.Add(FSubGizmoInfo{ GizmoActor->AxisScaleZ, NewGizmo });
 	}
 
 	if (GizmoActor->PlaneScaleYZ != nullptr)
 	{
-		AddPlaneScaleGizmo(GizmoActor->PlaneScaleYZ, GizmoComponent, AxisXSource, UnitAxisXSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddPlaneScaleGizmo(GizmoActor->PlaneScaleYZ, GizmoComponent, AxisXSource, UnitAxisXSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->PlaneScaleYZ);
-		NonuniformScaleComponents.Add(GizmoActor->PlaneScaleYZ);
+		NonUniformScaleSubGizmos.Add(FSubGizmoInfo{ GizmoActor->PlaneScaleYZ, NewGizmo });
 	}
 	if (GizmoActor->PlaneScaleXZ != nullptr)
 	{
-		UPlanePositionGizmo* Gizmo = (UPlanePositionGizmo *)AddPlaneScaleGizmo(GizmoActor->PlaneScaleXZ, GizmoComponent, AxisYSource, UnitAxisYSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddPlaneScaleGizmo(GizmoActor->PlaneScaleXZ, GizmoComponent, AxisYSource, UnitAxisYSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->PlaneScaleXZ);
-		NonuniformScaleComponents.Add(GizmoActor->PlaneScaleXZ);
+		NonUniformScaleSubGizmos.Add(FSubGizmoInfo{ GizmoActor->PlaneScaleXZ, NewGizmo });
 	}
 	if (GizmoActor->PlaneScaleXY != nullptr)
 	{
-		AddPlaneScaleGizmo(GizmoActor->PlaneScaleXY, GizmoComponent, AxisZSource, UnitAxisZSource, TransformSource, StateTarget);
+		UInteractiveGizmo* NewGizmo = AddPlaneScaleGizmo(GizmoActor->PlaneScaleXY, GizmoComponent, AxisZSource, UnitAxisZSource, TransformSource, StateTarget);
 		ActiveComponents.Add(GizmoActor->PlaneScaleXY);
-		NonuniformScaleComponents.Add(GizmoActor->PlaneScaleXY);
+		NonUniformScaleSubGizmos.Add(FSubGizmoInfo{ GizmoActor->PlaneScaleXY, NewGizmo });
 	}
 }
 
@@ -902,7 +947,10 @@ void UCombinedTransformGizmo::ClearActiveTarget()
 	}
 	ActiveGizmos.SetNum(0);
 	ActiveComponents.SetNum(0);
-	NonuniformScaleComponents.SetNum(0);
+	TranslationSubGizmos.SetNum(0);
+	RotationSubGizmos.SetNum(0);
+	UniformScaleSubGizmos.SetNum(0);
+	NonUniformScaleSubGizmos.SetNum(0);
 
 	CameraAxisSource = nullptr;
 	AxisXSource = nullptr;

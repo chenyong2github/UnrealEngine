@@ -148,6 +148,17 @@ public:
 	/** @return true if HitProxy rendering will be allowed in ::Render() */
 	bool GetEnableRenderingDuringHitProxyPass() const { return bEnableRenderingDuringHitProxyPass; }
 
+
+	/**
+	 * Configure whether Transform Gizmos created by the ITF (eg CombinedTransformGizmo) should prefer to show in 'Combined' mode.
+	 * If this is disabled, the Gizmo should respect the active Editor Gizmo setting (eg in the Level Viewport)
+	 */
+	void SetForceCombinedGizmoMode(bool bEnabled);
+
+	/** @return true if Force Combined Gizmo mode is Enabled */
+	bool GetForceCombinedGizmoModeEnabled() const { return bForceCombinedGizmoMode; }
+
+
 protected:
 	/**
 	 * Called upon Level Editor Created in order to bind to EditorElementSelectionPtr changed
@@ -212,6 +223,8 @@ private:
 
 	// currently defaulting to enabled as FEdModes generally assume this, and in most cases hitproxy pass is not expensive.
 	bool bEnableRenderingDuringHitProxyPass = true;
+
+	bool bForceCombinedGizmoMode = false;
 
 	bool bIsActive = false;
 };
