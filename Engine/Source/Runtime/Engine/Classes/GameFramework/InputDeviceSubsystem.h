@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "InputSettings.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "Tickable.h"
 #include "Templates/SubclassOf.h"
@@ -61,16 +62,31 @@ struct FSetDevicePropertyParams
 };
 
 /**
+ * Delegate called when a user changed the hardware they are using for input.
+ *
+ * @param UserId		The Platform user whose device has changed
+ */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FHardwareInputDeviceChanged, const FPlatformUserId, UserId);
+
+/**
 * The input device subsystem provides an interface to allow users to set Input Device Properties
 * on any Platform User. 
 */
 UCLASS(BlueprintType)
 class UInputDeviceSubsystem : public UEngineSubsystem, public FTickableGameObject
 {
+	friend class FInputDeviceSubsystemProcessor;
+	
 	GENERATED_BODY()
 
 public:
 
+	static UInputDeviceSubsystem* Get();
+
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+	virtual bool ShouldCreateSubsystem(UObject* Outer) const;
+	
 	//~ Begin FTickableGameObject interface	
 	virtual UWorld* GetTickableGameObjectWorld() const override;
 	virtual ETickableTickType GetTickableTickType() const override;
@@ -95,11 +111,31 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Input Devices", meta = (ReturnDisplayName = "Num Removed"))
 	int32 RemoveDeviceProperty(const FPlatformUserId UserId, TSubclassOf<UInputDeviceProperty> DevicePropertyClass);
 
+	/** Gets the most recently used hardware input device for the given platform user */
+	FHardwareDeviceIdentifier GetMostRecentlyUsedHardwareDevice(const FPlatformUserId InUserId) const;
+
+	/** A delegate that is fired when a platform user changes what Hardware Input device they are using */
+	DECLARE_EVENT_OneParam(UInputDeviceSubsystem, FHardwareInputDeviceChanged, const FPlatformUserId);
+	FHardwareInputDeviceChanged OnInputHardwareDeviceChangedNative;
+	
+	/** A delegate that is fired when a platform user changes what Hardware Input device they are using */
+	UPROPERTY(BlueprintAssignable, Category = "Input Device")
+	FHardwareInputDeviceChanged OnInputHardwareDeviceChanged;
+	
 protected:
 
+	/** Set the most recently used hardware device */
+	void SetMostRecentlyUsedHardwareDevice(const FInputDeviceId InDeviceId, const FHardwareDeviceIdentifier& InHardwareId);
+	
 	/**
 	* Array of the active device properties that are currently being evaluated on Tick.
 	*/
 	UPROPERTY(Transient)
 	TArray<FActiveDeviceProperty> ActiveProperties;
+	
+	/** A map of platform user's to their most recent hardwave device identifier */
+	TMap<FPlatformUserId, FHardwareDeviceIdentifier> LatestInputDeviceIdentifiers;
+
+	/** An input processor that is used to determine the current hardware input device */
+	TSharedPtr<class FInputDeviceSubsystemProcessor> InputPreprocessor;
 };
