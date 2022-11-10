@@ -299,24 +299,43 @@ void UpdateArchiveData(FArchive& Ar, int64 DataPosition, DataType& Data)
 
 FArchive& operator<<(FArchive& Ar, FSharedBuffer& Buffer)
 {
+	// Note that there is a difference between a null FSharedBuffer and a zero length
+	// shared buffer and they are not interchangeable! If we have a null buffer we 
+	// write an invalid value for the buffer length so that we know to set the buffer
+	// to null when loaded and not create a valid zero length buffer instead.
+
 	if (Ar.IsLoading())
 	{
 		int64 BufferLength;
 		Ar << BufferLength;
 
-		FUniqueBuffer MutableBuffer = FUniqueBuffer::Alloc(BufferLength);
+		if (BufferLength >= 0)
+		{
+			FUniqueBuffer MutableBuffer = FUniqueBuffer::Alloc(BufferLength);
+			Ar.Serialize(MutableBuffer.GetData(), BufferLength);
 
-		Ar.Serialize(MutableBuffer.GetData(), BufferLength);
-
-		Buffer = MutableBuffer.MoveToShared();
+			Buffer = MutableBuffer.MoveToShared();
+		}
+		else
+		{
+			Buffer.Reset();
+		}
 	}
 	else if (Ar.IsSaving())
 	{
-		int64 BufferLength = (int64)Buffer.GetSize();
-		Ar << BufferLength;
+		if (!Buffer.IsNull())
+		{
+			int64 BufferLength = (int64)Buffer.GetSize();
+			Ar << BufferLength;
 
-		// Need to remove const due to FArchive API
-		Ar.Serialize(const_cast<void*>(Buffer.GetData()), BufferLength);
+			// Need to remove const due to FArchive API
+			Ar.Serialize(const_cast<void*>(Buffer.GetData()), BufferLength);
+		}
+		else
+		{
+			int64 InvalidLength = INDEX_NONE;
+			Ar << InvalidLength;
+		}
 	}
 
 	return Ar;
@@ -826,11 +845,11 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 
 			if (Ar.IsSaving())
 			{
-				if (Payload.IsNull())
+				if (Payload.IsNull() && !IsDataVirtualized())
 				{
 					// We need to serialize in FSharedBuffer form, or otherwise we'd need to support
 					// multiple code paths here. Technically a bit wasteful but for general use it 
-					// shouldn't be noticable. This will make it easier to do the real perf wins
+					// shouldn't be noticeable. This will make it easier to do the real perf wins
 					// in the future.
 					Payload = GetDataInternal().Decompress();
 				}
