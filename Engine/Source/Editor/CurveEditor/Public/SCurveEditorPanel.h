@@ -53,8 +53,6 @@ class CURVEEDITOR_API SCurveEditorPanel : public SCompoundWidget
 {
 	SLATE_BEGIN_ARGS(SCurveEditorPanel)
 		: _GridLineTint(FLinearColor(0.1f, 0.1f, 0.1f, 1.f))
-		, _TreeSplitterWidth(0.3f)
-		, _ContentSplitterWidth(0.7f)
 		, _MinimumViewPanelHeight(300.0f)
 	{}
 
@@ -72,12 +70,6 @@ class CURVEEDITOR_API SCurveEditorPanel : public SCompoundWidget
 
 		/** Widget slot for the tree content */
 		SLATE_NAMED_SLOT(FArguments, TreeContent)
-
-		/** The width of the splitter slot for the tree */
-		SLATE_ARGUMENT(float, TreeSplitterWidth)
-
-		/** The width of the splitter slot for the main content */
-		SLATE_ARGUMENT(float, ContentSplitterWidth)
 
 		/** The minimum height for the panel which contains the curve editor views. */
 		SLATE_ARGUMENT(float, MinimumViewPanelHeight)
@@ -264,6 +256,17 @@ private:
 	/** Get a reference to the curve editor this panel represents. */
 	TSharedPtr<FCurveEditor> GetCurveEditor() const { return CurveEditor; }
 
+	float GetColumnFillCoefficient(int32 ColumnIndex) const
+	{
+		ensure(ColumnIndex == 0 || ColumnIndex == 1);
+		return ColumnFillCoefficients[ColumnIndex];
+	}
+
+	/** Called when a column fill percentage is changed by a splitter slot. */
+	void OnColumnFillCoefficientChanged(float FillCoefficient, int32 ColumnIndex);
+
+	void OnSplitterFinishedResizing();
+
 private:
 
 	/**
@@ -355,6 +358,11 @@ private:
 
 	/** A copy of the View Geometry used to represent the View portion of the Curve Editor. */
 	FGeometry CachedViewGeometry;
+
+	/** The fill coefficients of each column in the grid. */
+	float ColumnFillCoefficients[2];
+
+	TSharedPtr<class SSplitter> TreeViewSplitter;
 
 	/** Container of objects that are being used to edit keys on the curve editor */
 	TUniquePtr<FCurveEditorEditObjectContainer> EditObjects;

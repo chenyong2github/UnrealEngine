@@ -400,8 +400,6 @@ void SAnimSequenceCurveEditor::Construct(const FArguments& InArgs, const TShared
 		.GridLineTint(FLinearColor(0.f, 0.f, 0.f, 0.3f))
 		.ExternalTimeSliderController(InArgs._ExternalTimeSliderController)
 		.TabManager(InArgs._TabManager)
-		.TreeSplitterWidth(0.2f)
-		.ContentSplitterWidth(0.8f)
 		.TreeContent()
 		[
 			SNew(SVerticalBox)

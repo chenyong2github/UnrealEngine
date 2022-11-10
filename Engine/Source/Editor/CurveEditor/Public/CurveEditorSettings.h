@@ -149,6 +149,11 @@ public:
 	/** Helper function to get next random linear color*/
 	static FLinearColor GetNextRandomColor();
 
+	/** Gets the tree view width percentage */
+	float GetTreeViewWidth() const { return TreeViewWidth; }
+	/** Sets the tree view width percentage */
+	void SetTreeViewWidth(float InTreeViewWidth);
+
 protected:
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -193,6 +198,9 @@ protected:
 
 	UPROPERTY(config, EditAnywhere, Category = "Curve Editor")
 	TArray<FCustomColorForSpaceSwitch> ControlSpaceCustomColors;
+
+	UPROPERTY(config, EditAnywhere, Category = "Curve Editor")
+	float TreeViewWidth;
 
 private:
 	FOnCustomColorsChanged OnCustomColorsChangedEvent;

@@ -18,6 +18,8 @@ UCurveEditorSettings::UCurveEditorSettings()
 	SelectionColor = FLinearColor::White;
 	ParentSpaceCustomColor = FLinearColor(.93, .31, .19); //pastel orange
 	WorldSpaceCustomColor = FLinearColor(.198, .610, .558); //pastel teal
+
+	TreeViewWidth = 0.3f;
 }
 
 bool UCurveEditorSettings::GetAutoFrameCurveEditor() const
@@ -293,6 +295,15 @@ FLinearColor UCurveEditorSettings::GetNextRandomColor()
 	int32 NewIndex = (NextIndex % IndexedColor.Num());
 	NextIndex = NewIndex;
 	return Color;
+}
+
+void UCurveEditorSettings::SetTreeViewWidth(float InTreeViewWidth)
+{
+	if (InTreeViewWidth != TreeViewWidth)
+	{
+		TreeViewWidth = InTreeViewWidth;
+		SaveConfig();
+	}
 }
 
 void UCurveEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)

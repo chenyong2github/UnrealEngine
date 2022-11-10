@@ -16,6 +16,7 @@
 #include "CurveModel.h"
 #include "Curves/KeyHandle.h"
 #include "Delegates/Delegate.h"
+#include "Editor.h"
 #include "Filters/CurveEditorBakeFilter.h"
 #include "Filters/CurveEditorReduceFilter.h"
 #include "Filters/SCurveEditorFilterPanel.h"
@@ -181,6 +182,7 @@ void SCurveEditorPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEdi
 	WeakTabManager = InArgs._TabManager;
 
 	CachedSelectionSerialNumber = 0;
+
 	CurveEditor = InCurveEditor;
 
 	CurveEditor->SetPanel(SharedThis(this));
@@ -194,6 +196,21 @@ void SCurveEditorPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEdi
 	CommandList->Append(InCurveEditor->GetCommands().ToSharedRef());
 
 	BindCommands();
+
+	ColumnFillCoefficients[0] = 0.3f;
+	ColumnFillCoefficients[1] = 0.7f;
+
+	if (CurveEditor->GetSettings())
+	{
+		ColumnFillCoefficients[0] = CurveEditor->GetSettings()->GetTreeViewWidth();
+		ColumnFillCoefficients[1] = 1.f - CurveEditor->GetSettings()->GetTreeViewWidth();
+	}
+
+	TAttribute<float> FillCoefficient_0, FillCoefficient_1;
+	{
+		FillCoefficient_0.Bind(TAttribute<float>::FGetter::CreateSP(this, &SCurveEditorPanel::GetColumnFillCoefficient, 0));
+		FillCoefficient_1.Bind(TAttribute<float>::FGetter::CreateSP(this, &SCurveEditorPanel::GetColumnFillCoefficient, 1));
+	}
 
 	// Create some Widgets
 	ISequencerWidgetsModule& SequencerWidgets = FModuleManager::Get().LoadModuleChecked<ISequencerWidgetsModule>("SequencerWidgets");
@@ -275,19 +292,22 @@ void SCurveEditorPanel::Construct(const FArguments& InArgs, TSharedRef<FCurveEdi
 	{
 		ChildSlot
 		[
-			SNew(SSplitter)
+			SAssignNew(TreeViewSplitter, SSplitter)
 			.Orientation(Orient_Horizontal)
 			.Style(FAppStyle::Get(), "SplitterDark")
 			.PhysicalSplitterHandleSize(3.0f)
+			.OnSplitterFinishedResizing(this, &SCurveEditorPanel::OnSplitterFinishedResizing)
 
 			+ SSplitter::Slot()
-			.Value(InArgs._TreeSplitterWidth)
+			.Value(FillCoefficient_0)
+			.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SCurveEditorPanel::OnColumnFillCoefficientChanged, 0))
 			[
 				InArgs._TreeContent.Widget
 			]
 
 			+ SSplitter::Slot()
-			.Value(InArgs._ContentSplitterWidth)
+			.Value(FillCoefficient_1)
+			.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SCurveEditorPanel::OnColumnFillCoefficientChanged, 1))
 			[
 				MainContent
 			]
@@ -1366,4 +1386,21 @@ EVisibility SCurveEditorPanel::ShouldInstructionOverlayBeVisible() const
 	const bool bCurvesAreVisible = CurveEditor->GetTreeSelection().Num() > 0 || CurveEditor->GetPinnedCurves().Num() > 0;
 	return bCurvesAreVisible ? EVisibility::Hidden : EVisibility::HitTestInvisible;
 }
+
+void SCurveEditorPanel::OnSplitterFinishedResizing()
+{
+	SSplitter::FSlot const& LeftSplitterSlot = TreeViewSplitter->SlotAt(0);
+	SSplitter::FSlot const& RightSplitterSlot = TreeViewSplitter->SlotAt(1);
+
+	OnColumnFillCoefficientChanged(LeftSplitterSlot.GetSizeValue(), 0);
+	OnColumnFillCoefficientChanged(RightSplitterSlot.GetSizeValue(), 1);
+
+	CurveEditor->GetSettings()->SetTreeViewWidth(LeftSplitterSlot.GetSizeValue());
+}
+
+void SCurveEditorPanel::OnColumnFillCoefficientChanged(float FillCoefficient, int32 ColumnIndex)
+{
+	ColumnFillCoefficients[ColumnIndex] = FillCoefficient;
+}
+
 #undef LOCTEXT_NAMESPACE

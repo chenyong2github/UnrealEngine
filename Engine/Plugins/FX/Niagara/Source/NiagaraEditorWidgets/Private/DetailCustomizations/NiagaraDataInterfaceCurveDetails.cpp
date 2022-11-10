@@ -965,8 +965,6 @@ public:
 		TSharedPtr<SCurveEditorTree> CurveEditorTree;
 		CurveEditorPanel = SNew(SCurveEditorPanel, CurveEditor.ToSharedRef())
 			.MinimumViewPanelHeight(50.0f)
-			.TreeSplitterWidth(0.2f)
-			.ContentSplitterWidth(0.8f)
 			.TreeContent()
 			[
 				CurveProperties.Num() == 1
