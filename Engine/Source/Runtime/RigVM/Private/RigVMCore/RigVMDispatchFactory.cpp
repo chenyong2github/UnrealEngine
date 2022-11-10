@@ -67,6 +67,17 @@ FString FRigVMDispatchFactory::GetKeywords() const
 
 #endif
 
+TArray<FRigVMExecuteArgument> FRigVMDispatchFactory::GetExecuteArguments() const
+{
+	TArray<FRigVMExecuteArgument> Arguments = GetExecuteArguments_Impl();
+	const TRigVMTypeIndex ExecuteTypeIndex = FRigVMRegistry::Get().GetTypeIndex<FRigVMExecuteContext>();
+	for(FRigVMExecuteArgument& Argument : Arguments)
+	{
+		Argument.TypeIndex = ExecuteTypeIndex;
+	}
+	return Arguments;
+}
+
 FRigVMFunctionPtr FRigVMDispatchFactory::GetDispatchFunction(const FRigVMTemplateTypeMap& InTypes) const
 {
 	const FString PermutationName = GetPermutationNameImpl(InTypes);
@@ -115,7 +126,22 @@ const FRigVMTemplate* FRigVMDispatchFactory::GetTemplate() const
 
 	const FName FactoryName = GetFactoryName();
 	const TArray<FRigVMTemplateArgument> Arguments = GetArguments();
-	
+
+	// we don't allow execute types on arguments
+	for(const FRigVMTemplateArgument& Argument : Arguments)
+	{
+		for(const TRigVMTypeIndex& TypeIndex : Argument.GetTypeIndices())
+		{
+			if(Registry.IsExecuteType(TypeIndex))
+			{
+				UE_LOG(LogRigVM, Error, TEXT("Failed to add template for dispatch '%s'. Argument '%s' is an execute type."),
+					*GetFactoryName().ToString(),
+					*Argument.GetName().ToString());
+				return nullptr;
+			}
+		}
+	}
+
 	FRigVMTemplateDelegates Delegates;
 	Delegates.NewArgumentTypeDelegate = FRigVMTemplate_NewArgumentTypeDelegate::CreateLambda(
 		[this](const FRigVMTemplate*, const FName& InArgumentName, int32 InTypeIndex)

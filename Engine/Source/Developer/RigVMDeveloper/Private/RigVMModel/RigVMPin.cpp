@@ -1840,11 +1840,14 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 					URigVMPin* RootPin = InSourcePin->GetRootPin();
 					if (!Template->FindArgument(RootPin->GetFName()))
 					{
-						if (OutFailureReason)
+						if(!RootPin->IsExecuteContext())
 						{
-							*OutFailureReason = FString::Printf(TEXT("Library pin %s supported types need to be reduced."), *RootPin->GetPinPath(true));
+							if (OutFailureReason)
+							{
+								*OutFailureReason = FString::Printf(TEXT("Library pin %s supported types need to be reduced."), *RootPin->GetPinPath(true));
+							}
+							return false;
 						}
-						return false;
 					}
 				}
 			}
@@ -1858,11 +1861,14 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 					URigVMPin* RootPin = InTargetPin->GetRootPin();
 					if (!Template->FindArgument(RootPin->GetFName()))
 					{
-						if (OutFailureReason)
+						if(!RootPin->IsExecuteContext())
 						{
-							*OutFailureReason = FString::Printf(TEXT("Library pin %s supported types need to be reduced."), *RootPin->GetPinPath(true));
+							if (OutFailureReason)
+							{
+								*OutFailureReason = FString::Printf(TEXT("Library pin %s supported types need to be reduced."), *RootPin->GetPinPath(true));
+							}
+							return false;
 						}
-						return false;
 					}
 				}
 			}

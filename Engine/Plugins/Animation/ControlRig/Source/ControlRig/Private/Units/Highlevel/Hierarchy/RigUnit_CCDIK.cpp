@@ -35,7 +35,7 @@ FRigUnit_CCDIK_Execute()
 	}
 
 	FRigUnit_CCDIKPerItem::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		Items,
 		EffectorTransform,
 		Precision,
@@ -46,7 +46,6 @@ FRigUnit_CCDIK_Execute()
 		RotationLimitsPerItem,
 		bPropagateToChildren,
 		WorkData,
-		ExecuteContext, 
 		Context);
 }
 
@@ -58,7 +57,7 @@ FRigVMStructUpgradeInfo FRigUnit_CCDIK::GetUpgradeInfo() const
 
 FRigUnit_CCDIKPerItem_Execute()
 {
-	FRigUnit_CCDIKItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, EffectorTransform, Precision, Weight, MaxIterations, bStartFromTail, BaseRotationLimit, RotationLimits, bPropagateToChildren, WorkData, ExecuteContext, Context);
+	FRigUnit_CCDIKItemArray::StaticExecute(ExecuteContext, Items.Keys, EffectorTransform, Precision, Weight, MaxIterations, bStartFromTail, BaseRotationLimit, RotationLimits, bPropagateToChildren, WorkData, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_CCDIKPerItem::GetUpgradeInfo() const

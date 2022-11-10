@@ -35,7 +35,7 @@ FRigUnit_NoiseDouble_Execute()
 
 FRigUnit_NoiseVector_Execute()
 {
-	FRigUnit_NoiseVector2::StaticExecute(RigVMExecuteContext, Position, Speed, Frequency, Minimum, Maximum, Result, Time, Context);
+	FRigUnit_NoiseVector2::StaticExecute(ExecuteContext, Position, Speed, Frequency, Minimum, Maximum, Result, Time, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_NoiseVector::GetUpgradeInfo() const

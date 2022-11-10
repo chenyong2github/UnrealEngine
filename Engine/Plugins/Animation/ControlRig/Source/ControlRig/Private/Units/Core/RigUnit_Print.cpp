@@ -13,7 +13,6 @@ TArray<FRigVMTemplateArgument> FRigDispatch_Print::GetArguments() const
 		FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
 	};
 	return {
-		FRigVMTemplateArgument(FRigVMStruct::ExecuteContextName, ERigVMPinDirection::IO, FRigVMRegistry::Get().GetTypeIndex<FControlRigExecuteContext>()),
 		FRigVMTemplateArgument(TEXT("Prefix"), ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::FString),
 		FRigVMTemplateArgument(TEXT("Value"), ERigVMPinDirection::Input, ValueCategories),
 		FRigVMTemplateArgument(TEXT("Enabled"), ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Bool),
@@ -22,11 +21,15 @@ TArray<FRigVMTemplateArgument> FRigDispatch_Print::GetArguments() const
 	};
 }
 
+TArray<FRigVMExecuteArgument> FRigDispatch_Print::GetExecuteArguments_Impl() const
+{
+	return {{TEXT("ExecuteContext"), ERigVMPinDirection::IO}};
+}
+
 FRigVMTemplateTypeMap FRigDispatch_Print::OnNewArgumentType(const FName& InArgumentName,
 	TRigVMTypeIndex InTypeIndex) const
 {
 	FRigVMTemplateTypeMap Types;
-	Types.Add(FRigVMStruct::ExecuteContextName, FRigVMRegistry::Get().GetTypeIndex<FControlRigExecuteContext>());
 	Types.Add(TEXT("Prefix"), RigVMTypeUtils::TypeIndex::FString);
 	Types.Add(TEXT("Value"), InTypeIndex);
 	Types.Add(TEXT("Enabled"), RigVMTypeUtils::TypeIndex::Bool);
@@ -67,18 +70,18 @@ FString FRigDispatch_Print::GetArgumentMetaData(const FName& InArgumentName, con
 void FRigDispatch_Print::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
 {
 #if WITH_EDITOR
-	const FProperty* ValueProperty = Handles[2].GetResolvedProperty(); 
+	const FProperty* ValueProperty = Handles[1].GetResolvedProperty(); 
 	check(ValueProperty);
-	check(Handles[1].IsString());
-	check(Handles[3].IsBool());
-	check(Handles[4].IsFloat());
-	check(Handles[5].IsType<FLinearColor>());
+	check(Handles[0].IsString());
+	check(Handles[2].IsBool());
+	check(Handles[3].IsFloat());
+	check(Handles[4].IsType<FLinearColor>());
 
-	const FString& Prefix = *(const FString*)Handles[1].GetData();
-	const bool bEnabled = *(const bool*)Handles[3].GetData();
-	const float& ScreenDuration = *(const float*)Handles[4].GetData();
-	const FLinearColor& ScreenColor = *(const FLinearColor*)Handles[5].GetData();
-	const uint8* Value = Handles[2].GetData();
+	const FString& Prefix = *(const FString*)Handles[0].GetData();
+	const bool bEnabled = *(const bool*)Handles[2].GetData();
+	const float& ScreenDuration = *(const float*)Handles[3].GetData();
+	const FLinearColor& ScreenColor = *(const FLinearColor*)Handles[4].GetData();
+	const uint8* Value = Handles[1].GetData();
 	
 	if(!bEnabled)
 	{
@@ -101,12 +104,12 @@ void FRigDispatch_Print::Execute(FRigVMExtendedExecuteContext& InContext, FRigVM
 	}
 
 	static constexpr TCHAR LogFormat[] = TEXT("%s[%04d] %s%s");
-	UE_LOG(LogControlRig, Display, LogFormat, *ObjectPath, InContext.PublicData.GetInstructionIndex(), *Prefix, *String);
+	UE_LOG(LogControlRig, Display, LogFormat, *ObjectPath, InContext.GetPublicData().GetInstructionIndex(), *Prefix, *String);
 
 	if(ScreenDuration > SMALL_NUMBER && Context.World)
 	{
 		static constexpr TCHAR PrintStringFormat[] = TEXT("[%04d] %s%s");
-		UKismetSystemLibrary::PrintString(Context.World, FString::Printf(PrintStringFormat, InContext.PublicData.GetInstructionIndex(), *Prefix, *String), true, false, ScreenColor, ScreenDuration);
+		UKismetSystemLibrary::PrintString(Context.World, FString::Printf(PrintStringFormat, InContext.GetPublicData().GetInstructionIndex(), *Prefix, *String), true, false, ScreenColor, ScreenDuration);
 	}
 #endif
 }

@@ -38,13 +38,6 @@ struct FDataInterfaceExecuteContext : public FRigVMExecuteContext
 		return Interface;
 	}
 
-	FORCEINLINE void CopyFrom(const FDataInterfaceExecuteContext& Other)
-	{
-		FRigVMExecuteContext::CopyFrom(Other);
-		DataInterfaceContext = Other.DataInterfaceContext;
-		ResultPtr = Other.ResultPtr;
-	}
-
 private:
 	const UE::DataInterface::FContext* DataInterfaceContext = nullptr;
 	const IDataInterface* Interface = nullptr;

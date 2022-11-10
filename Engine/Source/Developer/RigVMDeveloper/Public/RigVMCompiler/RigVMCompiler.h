@@ -173,6 +173,7 @@ public:
 		TMap<ERigVMMemoryType, TArray<FRigVMPropertyDescription>> PropertyDescriptions;
 		TMap<ERigVMMemoryType, TArray<FRigVMPropertyPathDescription>> PropertyPathDescriptions;
 		TMap<int32, FName> ExternalRegisterIndexToVariable;
+		TMap<FString, FRigVMOperand> Operands;
 	};
 	TMap<TSoftObjectPtr<URigVMLibraryNode>, FunctionCompilationData> CompiledFunctions;
 

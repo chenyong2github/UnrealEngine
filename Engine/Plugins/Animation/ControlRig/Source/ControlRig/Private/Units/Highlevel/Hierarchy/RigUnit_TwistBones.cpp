@@ -25,7 +25,7 @@ FRigUnit_TwistBones_Execute()
 	}
 
 	FRigUnit_TwistBonesPerItem::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		Items,
 		TwistAxis,
 		PoleAxis,
@@ -33,7 +33,6 @@ FRigUnit_TwistBones_Execute()
 		Weight,
 		bPropagateToChildren,
 		WorkData,
-		ExecuteContext, 
 		Context);
 }
 

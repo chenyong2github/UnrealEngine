@@ -444,7 +444,7 @@ FRigVMTemplate::FRigVMTemplate(UScriptStruct* InStruct, const FString& InTemplat
 			FRigVMTemplateArgument Argument(*It);
 			Argument.Index = Arguments.Num();
 
-			if(IsValidArgumentForTemplate(Argument) && Argument.GetDirection() != ERigVMPinDirection::Hidden)
+			if(!Argument.IsExecute() && IsValidArgumentForTemplate(Argument) && Argument.GetDirection() != ERigVMPinDirection::Hidden)
 			{
 				Arguments.Add(Argument);
 			}
@@ -457,7 +457,7 @@ FRigVMTemplate::FRigVMTemplate(UScriptStruct* InStruct, const FString& InTemplat
 	{
 		if(const FRigVMTemplateArgument* Argument = FindArgument(It->GetFName()))
 		{
-			if(Argument->GetDirection() != ERigVMPinDirection::Hidden)
+			if(!Argument->IsExecute() && Argument->GetDirection() != ERigVMPinDirection::Hidden)
 			{
 				ArgumentNotations.Add(GetArgumentNotation(*Argument));
 			}
@@ -1049,6 +1049,64 @@ const FRigVMTemplateArgument* FRigVMTemplate::FindArgument(const FName& InArgume
 	});
 }
 
+int32 FRigVMTemplate::NumExecuteArguments() const
+{
+	return GetExecuteArguments().Num();
+}
+
+const FRigVMExecuteArgument* FRigVMTemplate::GetExecuteArgument(int32 InIndex) const
+{
+	const TArray<FRigVMExecuteArgument>& Args = GetExecuteArguments();
+	if(Args.IsValidIndex(InIndex))
+	{
+		return &Args[InIndex];
+	}
+	return nullptr;
+}
+
+const FRigVMExecuteArgument* FRigVMTemplate::FindExecuteArgument(const FName& InArgumentName) const
+{
+	const TArray<FRigVMExecuteArgument>& Args = GetExecuteArguments();
+	return Args.FindByPredicate([InArgumentName](const FRigVMExecuteArgument& Arg) -> bool
+	{
+		return Arg.Name == InArgumentName;
+	});
+}
+
+const TArray<FRigVMExecuteArgument>& FRigVMTemplate::GetExecuteArguments() const
+{
+	if(ExecuteArguments.IsEmpty())
+	{
+		if(UsesDispatch())
+		{
+			const FRigVMDispatchFactory* Factory = Delegates.GetDispatchFactoryDelegate.Execute();
+			check(Factory);
+
+			ExecuteArguments = Factory->GetExecuteArguments();
+		}
+		else if(const FRigVMFunction* PrimaryPermutation = GetPrimaryPermutation())
+		{
+			if(PrimaryPermutation->Struct)
+			{
+				TArray<UStruct*> Structs = GetSuperStructs(PrimaryPermutation->Struct, true);
+				for(const UStruct* Struct : Structs)
+				{
+					// only iterate on this struct's fields, not the super structs'
+					for (TFieldIterator<FProperty> It(Struct, EFieldIterationFlags::None); It; ++It)
+					{
+						FRigVMTemplateArgument Argument(*It);
+						if(Argument.IsExecute())
+						{
+							ExecuteArguments.Emplace(Argument.Name, Argument.Direction, Argument.TypeIndices[0]);
+						}
+					}
+				}
+			}
+		}
+	}
+	return ExecuteArguments;
+}
+
 bool FRigVMTemplate::ArgumentSupportsTypeIndex(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex, TRigVMTypeIndex* OutTypeIndex) const
 {
 	if (const FRigVMTemplateArgument* Argument = FindArgument(InArgumentName))
@@ -1056,6 +1114,11 @@ bool FRigVMTemplate::ArgumentSupportsTypeIndex(const FName& InArgumentName, TRig
 		return Argument->SupportsTypeIndex(InTypeIndex, OutTypeIndex);		
 	}
 	return false;
+}
+
+const FRigVMFunction* FRigVMTemplate::GetPrimaryPermutation() const
+{
+	return GetPermutation(0);
 }
 
 const FRigVMFunction* FRigVMTemplate::GetPermutation(int32 InIndex) const

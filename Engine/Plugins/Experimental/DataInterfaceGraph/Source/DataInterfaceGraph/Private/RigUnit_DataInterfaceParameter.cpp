@@ -36,7 +36,7 @@ FRigUnit_DataInterface_Float_Execute()
 	// Could bind the RigVM to a specific execution context UStruct?
 	if(Context.State == EControlRigState::Update)
 	{
-		const FDataInterfaceExecuteContext& DataInterfaceExecuteContext = static_cast<const FDataInterfaceExecuteContext&>(RigVMExecuteContext);
+		const FDataInterfaceExecuteContext& DataInterfaceExecuteContext = static_cast<const FDataInterfaceExecuteContext&>(ExecuteContext);
 		const FContext& DataInterfaceContext = DataInterfaceExecuteContext.GetContext();
 
 		// Wrap the internal result we are going to be writing to 
@@ -53,9 +53,9 @@ FRigUnit_DataInterface_Pose_Execute()
 
 	// @TODO: ensure that context arg is always present to avoid these checks here
 	// Could bind the RigVM to a specific execution context UStruct?
-	if(Context.State == EControlRigState::Update && RigVMExecuteContext.OpaqueArguments.Num() > 1 && RigVMExecuteContext.OpaqueArguments[1] != nullptr)
+	if(Context.State == EControlRigState::Update && ExecuteContext.OpaqueArguments.Num() > 1 && ExecuteContext.OpaqueArguments[1] != nullptr)
 	{
-		const FDataInterfaceUnitContext& DataInterfaceUnitContext = *static_cast<const FDataInterfaceUnitContext*>(RigVMExecuteContext.OpaqueArguments[1]);
+		const FDataInterfaceUnitContext& DataInterfaceUnitContext = *static_cast<const FDataInterfaceUnitContext*>(ExecuteContext.OpaqueArguments[1]);
 		const FContext& DataInterfaceContext = DataInterfaceUnitContext.DataInterfaceContext;
 
 		// Wrap the internal result we are going to be writing to 
@@ -91,7 +91,7 @@ FRigUnit_TestFloatState_Execute()
 	// Could bind the RigVM to a specific execution context UStruct?
 	if(Context.State == EControlRigState::Update)
 	{
-		const FDataInterfaceExecuteContext& DataInterfaceExecuteContext = static_cast<const FDataInterfaceExecuteContext&>(RigVMExecuteContext);
+		const FDataInterfaceExecuteContext& DataInterfaceExecuteContext = static_cast<const FDataInterfaceExecuteContext&>(ExecuteContext);
 		const FContext& DataInterfaceContext = DataInterfaceExecuteContext.GetContext();
 
 		const TParam<FSpringDamperState> State = DataInterfaceContext.GetState<FSpringDamperState>(DataInterfaceExecuteContext.GetInterface(), 0);

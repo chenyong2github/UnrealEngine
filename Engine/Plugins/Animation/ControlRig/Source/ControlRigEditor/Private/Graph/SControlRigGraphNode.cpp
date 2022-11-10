@@ -347,21 +347,24 @@ void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 				PinToAdd->SetToolTipText(ModelPin->GetToolTipText());
 
 				// If the pin belongs to a template node that does not own an argument for that pin, make it transparent
-				if (const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelPin->GetNode()))
+				if (!ModelPin->IsExecuteContext())
 				{
-					if (const FRigVMTemplate* Template = TemplateNode->GetTemplate())
+					if (const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelPin->GetNode()))
 					{
-						const URigVMPin* RootPin = ModelPin->GetRootPin();
-						FLinearColor PinColorAndOpacity = PinToAdd->GetColorAndOpacity();
-						if (Template->FindArgument(RootPin->GetFName()) == nullptr)
+						if (const FRigVMTemplate* Template = TemplateNode->GetTemplate())
 						{
-							PinColorAndOpacity.A = 0.2f;
+							const URigVMPin* RootPin = ModelPin->GetRootPin();
+							FLinearColor PinColorAndOpacity = PinToAdd->GetColorAndOpacity();
+							if (Template->FindArgument(RootPin->GetFName()) == nullptr)
+							{
+								PinColorAndOpacity.A = 0.2f;
+							}
+							else
+							{
+								PinColorAndOpacity.A = 1.0f;
+							}
+							PinToAdd->SetColorAndOpacity(PinColorAndOpacity);
 						}
-						else
-						{
-							PinColorAndOpacity.A = 1.0f;
-						}
-						PinToAdd->SetColorAndOpacity(PinColorAndOpacity);
 					}
 				}
 			}

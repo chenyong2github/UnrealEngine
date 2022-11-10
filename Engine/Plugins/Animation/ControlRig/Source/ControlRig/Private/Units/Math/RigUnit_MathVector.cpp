@@ -570,6 +570,6 @@ FRigUnit_MathVectorMirrorTransform_Execute()
 {
 	FTransform Transform = FTransform::Identity;
 	Transform.SetTranslation(Value);
-	FRigUnit_MathTransformMirrorTransform::StaticExecute(RigVMExecuteContext, Transform, MirrorAxis, AxisToFlip, CentralTransform, Transform, Context);
+	FRigUnit_MathTransformMirrorTransform::StaticExecute(ExecuteContext, Transform, MirrorAxis, AxisToFlip, CentralTransform, Transform, Context);
 	Result = Transform.GetTranslation();
 }

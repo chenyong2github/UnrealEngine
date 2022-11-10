@@ -63,7 +63,18 @@ public:
 	
 protected:
 
-	const FRigVMExecuteContext& UpdateContext(TArrayView<void*> AdditionalArguments, int32 InNumberInstructions, const FName& InEntryName);
+	template<typename ExecuteContextType = FRigVMExecuteContext>
+	FORCEINLINE ExecuteContextType& UpdateContext(TArrayView<void*> AdditionalArguments, int32 InNumberInstructions, const FName& InEntryName)
+	{
+		UpdateExternalVariables();
+	
+		Context.Reset();
+		Context.OpaqueArguments = AdditionalArguments;
+		Context.SliceOffsets.AddZeroed(InNumberInstructions);
+		Context.GetPublicData<ExecuteContextType>().EventName = InEntryName;
+		return Context.GetPublicData<ExecuteContextType>();
+	}
+
 	virtual void UpdateExternalVariables() {};
 	
 	class FErrorPipe : public FOutputDevice
@@ -142,7 +153,7 @@ protected:
 	{
 		if(EntriesBeingExecuted.Num() == 1)
 		{
-			ExecutionReachedExit().Broadcast(Context.PublicData.GetEventName());
+			ExecutionReachedExit().Broadcast(Context.GetPublicData<>().GetEventName());
 		}
 	}
 

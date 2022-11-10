@@ -8,7 +8,7 @@
 FRigUnit_DebugBezier_Execute()
 {
 	FRigUnit_DebugBezierItemSpace::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		Bezier, 
 		MinimumU, 
 		MaximumU, 
@@ -18,7 +18,6 @@ FRigUnit_DebugBezier_Execute()
 		FRigElementKey(Space, ERigElementType::Bone), 
 		WorldOffset, 
 		bEnabled,
-		ExecuteContext, 
 		Context);
 }
 

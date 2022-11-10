@@ -8,14 +8,13 @@
 FRigUnit_DebugLineStrip_Execute()
 {
 	FRigUnit_DebugLineStripItemSpace::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		Points,
 		Color,
 		Thickness,
 		FRigElementKey(Space, ERigElementType::Bone), 
 		WorldOffset, 
 		bEnabled,
-		ExecuteContext, 
 		Context);
 }
 

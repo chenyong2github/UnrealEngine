@@ -30,6 +30,7 @@
 #endif// WITH_EDITOR
 #include "ControlRigComponent.h"
 #include "Constraints/ControlRigTransformableHandle.h"
+#include "RigVMCore/RigVMNativized.h"
 #include "UObject/UObjectIterator.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(ControlRig)
@@ -665,10 +666,17 @@ void UControlRig::InstantiateVMFromCDO()
 
 	if(VM)
 	{
-		CachedMemoryHash = HashCombine(
-			VM->GetLiteralMemory()->GetMemoryHash(),
-			VM->GetWorkMemory()->GetMemoryHash()
-		);
+		if(!VM->IsNativized())
+		{
+			CachedMemoryHash = HashCombine(
+				VM->GetLiteralMemory()->GetMemoryHash(),
+				VM->GetWorkMemory()->GetMemoryHash()
+			);
+		}
+		else
+		{
+			CachedMemoryHash = Cast<URigVMNativized>(VM)->GetVMHash();
+		}
 	}
 
 	RequestInit();
@@ -745,13 +753,14 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 				HierarchyController->LogFunction = [this](EMessageSeverity::Type InSeverity, const FString& Message)
 				{
 					const FRigVMExtendedExecuteContext& Context = GetVM()->GetContext();
+					const FRigVMExecuteContext& PublicContext = Context.GetPublicData<>(); 
 					if(ControlRigLog)
 					{
-						ControlRigLog->Report(InSeverity, Context.PublicData.FunctionName, Context.PublicData.InstructionIndex, Message);
+						ControlRigLog->Report(InSeverity,PublicContext.FunctionName,PublicContext.InstructionIndex, Message);
 					}
 					else
 					{
-						LogOnce(InSeverity, Context.PublicData.InstructionIndex, Message);
+						LogOnce(InSeverity,PublicContext.InstructionIndex, Message);
 					}
 				};
 			}
@@ -3391,6 +3400,7 @@ void UControlRig::PostInitInstance(UControlRig* InCDO)
 
 	// set up the VM
 	VM = NewObject<URigVM>(this, TEXT("VM"), SubObjectFlags);
+	VM->SetContextPublicDataStruct(FControlRigExecuteContext::StaticStruct());
 
 	// Cooked platforms will load these pointers from disk.
 	// In certain scenarios RequiresCookedData wil be false but the PKG_FilterEditorOnly will still be set (UEFN)

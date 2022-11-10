@@ -21,9 +21,9 @@ FRigUnit_SetRelativeTransformForItem_Execute()
 	FTransform ParentTransform = FTransform::Identity;
 	FTransform GlobalTransform = FTransform::Identity;
 
-	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Parent, EBoneGetterSetterMode::GlobalSpace, bParentInitial, ParentTransform, CachedParent, Context);
-	FRigUnit_MathTransformMakeAbsolute::StaticExecute(RigVMExecuteContext, Value, ParentTransform, GlobalTransform, Context);
-	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Child, EBoneGetterSetterMode::GlobalSpace, false, GlobalTransform, Weight, bPropagateToChildren, CachedChild, ExecuteContext, Context);
+	FRigUnit_GetTransform::StaticExecute(ExecuteContext, Parent, EBoneGetterSetterMode::GlobalSpace, bParentInitial, ParentTransform, CachedParent, Context);
+	FRigUnit_MathTransformMakeAbsolute::StaticExecute(ExecuteContext, Value, ParentTransform, GlobalTransform, Context);
+	FRigUnit_SetTransform::StaticExecute(ExecuteContext, Child, EBoneGetterSetterMode::GlobalSpace, false, GlobalTransform, Weight, bPropagateToChildren, CachedChild, Context);
 }
 
 FRigUnit_SetRelativeTranslationForItem_Execute()
@@ -39,11 +39,11 @@ FRigUnit_SetRelativeTranslationForItem_Execute()
 	FTransform LocalTransform = FTransform::Identity;
 	FTransform GlobalTransform = FTransform::Identity;
 
-	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Parent, EBoneGetterSetterMode::GlobalSpace, bParentInitial, ParentTransform, CachedParent, Context);
-	FRigUnit_GetRelativeTransformForItem::StaticExecute(RigVMExecuteContext, Child, false, Parent, bParentInitial, LocalTransform, CachedChild, CachedParent, Context);
+	FRigUnit_GetTransform::StaticExecute(ExecuteContext, Parent, EBoneGetterSetterMode::GlobalSpace, bParentInitial, ParentTransform, CachedParent, Context);
+	FRigUnit_GetRelativeTransformForItem::StaticExecute(ExecuteContext, Child, false, Parent, bParentInitial, LocalTransform, CachedChild, CachedParent, Context);
 	LocalTransform.SetTranslation(Value);
-	FRigUnit_MathTransformMakeAbsolute::StaticExecute(RigVMExecuteContext, LocalTransform, ParentTransform, GlobalTransform, Context);
-	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Child, EBoneGetterSetterMode::GlobalSpace, false, GlobalTransform, Weight, bPropagateToChildren, CachedChild, ExecuteContext, Context);
+	FRigUnit_MathTransformMakeAbsolute::StaticExecute(ExecuteContext, LocalTransform, ParentTransform, GlobalTransform, Context);
+	FRigUnit_SetTransform::StaticExecute(ExecuteContext, Child, EBoneGetterSetterMode::GlobalSpace, false, GlobalTransform, Weight, bPropagateToChildren, CachedChild, Context);
 }
 
 FRigUnit_SetRelativeRotationForItem_Execute()
@@ -59,11 +59,11 @@ FRigUnit_SetRelativeRotationForItem_Execute()
 	FTransform LocalTransform = FTransform::Identity;
 	FTransform GlobalTransform = FTransform::Identity;
 
-	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Parent, EBoneGetterSetterMode::GlobalSpace, bParentInitial, ParentTransform, CachedParent, Context);
-	FRigUnit_GetRelativeTransformForItem::StaticExecute(RigVMExecuteContext, Child, false, Parent, bParentInitial, LocalTransform, CachedChild, CachedParent, Context);
+	FRigUnit_GetTransform::StaticExecute(ExecuteContext, Parent, EBoneGetterSetterMode::GlobalSpace, bParentInitial, ParentTransform, CachedParent, Context);
+	FRigUnit_GetRelativeTransformForItem::StaticExecute(ExecuteContext, Child, false, Parent, bParentInitial, LocalTransform, CachedChild, CachedParent, Context);
 	LocalTransform.SetRotation(Value);
 	LocalTransform.NormalizeRotation();
-	FRigUnit_MathTransformMakeAbsolute::StaticExecute(RigVMExecuteContext, LocalTransform, ParentTransform, GlobalTransform, Context);
-	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Child, EBoneGetterSetterMode::GlobalSpace, false, GlobalTransform, Weight, bPropagateToChildren, CachedChild, ExecuteContext, Context);
+	FRigUnit_MathTransformMakeAbsolute::StaticExecute(ExecuteContext, LocalTransform, ParentTransform, GlobalTransform, Context);
+	FRigUnit_SetTransform::StaticExecute(ExecuteContext, Child, EBoneGetterSetterMode::GlobalSpace, false, GlobalTransform, Weight, bPropagateToChildren, CachedChild, Context);
 }
 

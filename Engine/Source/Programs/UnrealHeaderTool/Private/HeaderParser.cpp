@@ -6621,6 +6621,7 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FUnrealStructDefinitionInfo& S
 	StructRigVMInfo.bHasRigVM = true;
 	StructRigVMInfo.Name = StructDef.GetName();
 	StructRigVMInfo.Methods.Add(MethodInfo);
+	StructRigVMInfo.ExecuteContextType = TEXT("FRigVMExecuteContext");
 }
 
 const FName FHeaderParser::NAME_InputText(TEXT("Input"));
@@ -6667,6 +6668,7 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 			Parameter.bIsEnumAsByte = false;
 		}
 
+		Parameter.PropertyDef = PropertyDef;
 		Parameter.Name = PropertyDef->GetName();
 		Parameter.Type = MemberCPPType + ExtendedCPPType;
 		Parameter.bConstant = PropertyDef->HasMetaData(NAME_ConstantText);
@@ -6724,12 +6726,25 @@ void FHeaderParser::ParseRigVMMethodParameters(FUnrealStructDefinitionInfo& Stru
 			}
 		}
 
-		StructRigVMInfo.Members.Add(MoveTemp(Parameter));
-	}
-
-	if (StructRigVMInfo.Members.Num() == 0)
-	{
-		LogError(TEXT("RigVM Struct '%s' - has zero members - invalid RIGVM_METHOD."), *StructDef.GetName());
+		if (Parameter.IsExecuteContext())
+		{
+			if(StructRigVMInfo.ExecuteContextMember.IsEmpty())
+			{
+				StructRigVMInfo.ExecuteContextMember = Parameter.Name;
+			}
+			if(StructRigVMInfo.ExecuteContextType == TEXT("FRigVMExecuteContext"))
+			{
+				StructRigVMInfo.ExecuteContextType = Parameter.Type;
+			}
+			else if(StructRigVMInfo.ExecuteContextType != Parameter.Type)
+			{
+				LogError(TEXT("RigVM Struct '%s' contains properties of varying execute context type %s vs %s."), *StructDef.GetName(), *StructRigVMInfo.ExecuteContextType, *Parameter.Type);
+			}
+		}
+		else
+		{
+			StructRigVMInfo.Members.Add(MoveTemp(Parameter));
+		}
 	}
 
 	if (StructRigVMInfo.Members.Num() > 64)

@@ -7,7 +7,8 @@
 
 FRigUnit_SequenceExecution_Execute()
 {
-	A = B = C = D = ExecuteContext;
+	// nothing to do here. the execute context is actually
+	// the same shared memory for all pins
 }
 
 FRigVMStructUpgradeInfo FRigUnit_SequenceExecution::GetUpgradeInfo() const
@@ -25,6 +26,7 @@ FRigVMStructUpgradeInfo FRigUnit_SequenceExecution::GetUpgradeInfo() const
 
 FRigUnit_SequenceAggregate_Execute()
 {
-	A = B = ExecuteContext;
+	// nothing to do here. the execute context is actually
+	// the same shared memory for all pins
 }
 

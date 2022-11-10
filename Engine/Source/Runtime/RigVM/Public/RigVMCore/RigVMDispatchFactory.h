@@ -94,6 +94,9 @@ public:
 	// returns the arguments of the template
 	FORCEINLINE virtual TArray<FRigVMTemplateArgument> GetArguments() const { return TArray<FRigVMTemplateArgument>(); }
 
+	// returns the execute arguments of the template
+	TArray<FRigVMExecuteArgument> GetExecuteArguments() const;
+
 	// returns the delegate to react to new types being added to an argument.
 	// this happens if types are being loaded later after this factory has already been deployed
 	FORCEINLINE virtual FRigVMTemplateTypeMap OnNewArgumentType(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const { return FRigVMTemplateTypeMap(); }
@@ -115,7 +118,9 @@ protected:
 	// returns the name of the permutation for a given set of types
 	FString GetPermutationNameImpl(const FRigVMTemplateTypeMap& InTypes) const;
 
-	FORCEINLINE virtual FRigVMFunctionPtr GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const { return nullptr; }
+	virtual FRigVMFunctionPtr GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const { return nullptr; }
+
+	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl() const { return TArray<FRigVMExecuteArgument>(); }
 
 	static const FString DispatchPrefix;
 

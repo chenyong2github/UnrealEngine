@@ -1167,6 +1167,40 @@ const FRigVMTemplate* FRigVMRegistry::FindTemplate(const FName& InNotation, bool
 		}
 	}
 
+	// if we arrive here we may have a template that used to contain an executecontext.
+	{
+		const FString OriginalNotation = InNotation.ToString();
+		FString SanitizedNotation = OriginalNotation;
+
+		static const TArray<TPair<FString, FString>> ExecuteContextArgs = {
+			{ TEXT("FRigUnit_SequenceExecution::Execute(in ExecuteContext,out A,out B,out C,out D)"), TEXT("FRigUnit_SequenceExecution::Execute()") },
+			{ TEXT("FRigUnit_SequenceAggregate::Execute(in ExecuteContext,out A,out B)"), TEXT("FRigUnit_SequenceAggregate::Execute()") },
+			{ TEXT(",io ExecuteContext"), TEXT("") },
+			{ TEXT("io ExecuteContext,"), TEXT("") },
+			{ TEXT("(io ExecuteContext)"), TEXT("()") },
+			{ TEXT(",out ExecuteContext"), TEXT("") },
+			{ TEXT("out ExecuteContext,"), TEXT("") },
+			{ TEXT("(out ExecuteContext)"), TEXT("()") },
+			{ TEXT(",out Completed"), TEXT("") },
+			{ TEXT("out Completed,"), TEXT("") },
+			{ TEXT("(out Completed)"), TEXT("()") },
+		};
+
+		for(int32 Index = 0; Index < ExecuteContextArgs.Num(); Index++)
+		{
+			const TPair<FString, FString>& Pair = ExecuteContextArgs[Index];
+			if(SanitizedNotation.Contains(Pair.Key))
+			{
+				SanitizedNotation = SanitizedNotation.Replace(*Pair.Key, *Pair.Value);
+			}
+		}
+
+		if(SanitizedNotation != OriginalNotation)
+		{
+			return FindTemplate(*SanitizedNotation, bIncludeDeprecated);
+		}
+	}
+
 	return nullptr;
 }
 

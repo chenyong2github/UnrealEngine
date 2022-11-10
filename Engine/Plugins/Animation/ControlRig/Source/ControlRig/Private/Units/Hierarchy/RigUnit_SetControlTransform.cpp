@@ -53,7 +53,7 @@ FRigUnit_SetMultiControlBool_Execute()
 				{
 					bool BoolValue = Entries[EntryIndex].BoolValue;
 
-					FRigUnit_SetControlBool::StaticExecute(RigVMExecuteContext, Entries[EntryIndex].Control, BoolValue, CachedControlIndices[EntryIndex], ExecuteContext, Context);
+					FRigUnit_SetControlBool::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, BoolValue, CachedControlIndices[EntryIndex], Context);
 				}
 				break;
 			}
@@ -119,7 +119,7 @@ FRigUnit_SetMultiControlFloat_Execute()
 				{
 					float FloatValue = Entries[EntryIndex].FloatValue;
 
-					FRigUnit_SetControlFloat::StaticExecute(RigVMExecuteContext, Entries[EntryIndex].Control, Weight, FloatValue, CachedControlIndices[EntryIndex], ExecuteContext, Context); 
+					FRigUnit_SetControlFloat::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, FloatValue, CachedControlIndices[EntryIndex], Context); 
 				}
 				break;
 			}
@@ -185,7 +185,7 @@ FRigUnit_SetMultiControlInteger_Execute()
 				{
 					int32 IntegerValue = Entries[EntryIndex].IntegerValue;
 
-					FRigUnit_SetControlInteger::StaticExecute(RigVMExecuteContext, Entries[EntryIndex].Control, Weight, IntegerValue, CachedControlIndices[EntryIndex], ExecuteContext, Context);
+					FRigUnit_SetControlInteger::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, IntegerValue, CachedControlIndices[EntryIndex], Context);
 				}
 				break;
 			}
@@ -252,7 +252,7 @@ FRigUnit_SetMultiControlVector2D_Execute()
 				{
 					FVector2D Vector = Entries[EntryIndex].Vector;
 
-					FRigUnit_SetControlVector2D::StaticExecute(RigVMExecuteContext, Entries[EntryIndex].Control, Weight, Vector, CachedControlIndices[EntryIndex], ExecuteContext, Context);
+					FRigUnit_SetControlVector2D::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, Vector, CachedControlIndices[EntryIndex], Context);
 				}
 				break;
 			}
@@ -421,7 +421,7 @@ FRigUnit_SetMultiControlRotator_Execute()
 				{
 					FRotator Rotator = Entries[EntryIndex].Rotator;
 
-					FRigUnit_SetControlRotator::StaticExecute(RigVMExecuteContext, Entries[EntryIndex].Control, Weight, Rotator, Entries[EntryIndex].Space , CachedControlIndices[EntryIndex], ExecuteContext, Context);
+					FRigUnit_SetControlRotator::StaticExecute(ExecuteContext, Entries[EntryIndex].Control, Weight, Rotator, Entries[EntryIndex].Space , CachedControlIndices[EntryIndex], Context);
 				}
 				break;
 			}

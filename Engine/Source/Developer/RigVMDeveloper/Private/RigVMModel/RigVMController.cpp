@@ -9454,8 +9454,10 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	}
 
 	// resolve types on the pins if needed
-	if(InputPin->GetCPPTypeObject() != OutputPin->GetCPPTypeObject() ||
-		OutputPin->GetCPPType() != InputPin->GetCPPType())
+	if((InputPin->GetCPPTypeObject() != OutputPin->GetCPPTypeObject() ||
+		OutputPin->GetCPPType() != InputPin->GetCPPType()) &&
+		!InputPin->IsExecuteContext() &&
+		!OutputPin->IsExecuteContext())
 	{
 		bool bOutputPinCanChangeType = OutputPin->IsWildCard();
 		bool bInputPinCanChangeType = InputPin->IsWildCard();
@@ -9490,7 +9492,7 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	// Before adding the link, let's resolve input and ouput pin types
 	// If templates, we will filter the permutations that support this link
 	// If any links need to be broken before perfoming this connection, try to find them and break them
-	if (!bIsTransacting)
+	if (!bIsTransacting && !InputPin->IsExecuteContext() && !OutputPin->IsExecuteContext())
 	{
 		URigVMPin* FirstToResolve = (InUserDirection == ERigVMPinDirection::Input) ? OutputPin : InputPin;
 		URigVMPin* SecondToResolve = (FirstToResolve == OutputPin) ? InputPin : OutputPin;
@@ -12956,6 +12958,25 @@ URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, c
 	Node->InitializeFilteredPermutations();
 
 	FRigVMRegistry& Registry = FRigVMRegistry::Get();
+
+	for (int32 ArgIndex = 0; ArgIndex < Template->NumExecuteArguments(); ArgIndex++)
+	{
+		const FRigVMExecuteArgument* Arg = Template->GetExecuteArgument(ArgIndex);
+		URigVMPin* Pin = NewObject<URigVMPin>(Node, Arg->Name);
+		const FRigVMTemplateArgumentType Type = Registry.GetType(Arg->TypeIndex);
+		
+		Pin->CPPType = Type.CPPType.ToString();
+		Pin->CPPTypeObject = Type.CPPTypeObject;
+		if (Pin->CPPTypeObject)
+		{
+			Pin->CPPTypeObjectPath = *Pin->CPPTypeObject->GetPathName();
+		}
+		Pin->Direction = Arg->Direction;
+		Pin->LastKnownTypeIndex = Arg->TypeIndex;
+		Pin->LastKnownCPPType = Pin->CPPType;
+
+		AddNodePin(Node, Pin);
+	}
 	
 	for (int32 ArgIndex = 0; ArgIndex < Template->NumArguments(); ArgIndex++)
 	{
@@ -16071,10 +16092,17 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 			const TArray<FRigVMTemplateArgument>& Arguments = Template->Arguments;
 			for(URigVMPin* Pin : InNode->GetPins())
 			{
-				const bool bFound = Arguments.ContainsByPredicate([Pin](const FRigVMTemplateArgument& Argument)
+				bool bFound = Arguments.ContainsByPredicate([Pin](const FRigVMTemplateArgument& Argument)
 				{
 					return Pin->GetFName() == Argument.GetName();
 				});
+				if(!bFound)
+				{
+					bFound = Template->GetExecuteArguments().ContainsByPredicate([Pin](const FRigVMExecuteArgument& Argument)
+					{
+						return Pin->GetFName() == Argument.Name;
+					});
+				}
 				if(!bFound)
 				{
 					PinsToRemove.Add(Pin);
@@ -17245,6 +17273,13 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 				{				
 					CPPType = Pin->IsArray() ? RigVMTypeUtils::GetWildCardArrayCPPType() : RigVMTypeUtils::GetWildCardCPPType();
 				}
+
+				// execute pins are no longer part of the template, avoid changing the type
+				if(Argument == nullptr && Pin->IsExecuteContext())
+				{
+					CPPType = Pin->GetCPPType();
+					CPPObjectType = Pin->GetCPPTypeObject();
+				}
 			
 				if (Pin->GetCPPType() != CPPType || Pin->GetCPPTypeObject() != CPPObjectType)
 				{
@@ -18008,7 +18043,18 @@ bool URigVMController::RecomputeAllTemplateFilteredPermutations(bool bSetupUndoR
 		TArray<URigVMLink*> SortedLinks = Graph->GetLinks().FilterByPredicate([this](URigVMLink* Link)
 		{
 			// Filter out detached links
-			return Link->GetSourcePin()->IsLinkedTo(Link->GetTargetPin());
+			if(!Link->GetSourcePin()->IsLinkedTo(Link->GetTargetPin()))
+			{
+				return false;
+			}
+
+			// Filter out links on execute pins
+			if(Link->GetSourcePin()->IsExecuteContext() || Link->GetTargetPin()->IsExecuteContext())
+			{
+				return false;
+			}
+			
+			return true;
 		});
 
 		// Solve for unit nodes first, other templates are more expensive to solve. This way we are avoiding solving

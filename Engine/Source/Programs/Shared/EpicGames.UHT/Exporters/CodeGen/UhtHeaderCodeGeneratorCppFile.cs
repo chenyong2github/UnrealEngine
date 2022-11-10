@@ -716,7 +716,14 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						.AppendParameterDecls(methodInfo.Parameters, false, ",\r\n\t\t")
 						.Append(")\r\n");
 					builder.Append("{\r\n");
-					builder.Append("\tFRigVMExecuteContext RigVMExecuteContext;\r\n");
+					if (scriptStruct.RigVMStructInfo.ExecuteContextMember == String.Empty)
+					{
+						builder.Append("\t").Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append(" TemporaryExecuteContext;\r\n");
+					}
+					else
+					{
+						builder.Append("\t").Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& TemporaryExecuteContext = ").Append(scriptStruct.RigVMStructInfo.ExecuteContextMember).Append(";\r\n");
+					}
 
 					bool wroteLine = false;
 					foreach (UhtRigVMParameter parameter in scriptStruct.RigVMStructInfo.Members)
@@ -736,7 +743,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 
 					//COMPATIBILITY-TODO - Replace spaces with \t
 					builder.Append('\t').Append(methodInfo.ReturnPrefix()).Append("Static").Append(methodInfo.Name).Append("(\r\n");
-					builder.Append("\t\tRigVMExecuteContext");
+					builder.Append("\t\tTemporaryExecuteContext");
 					builder.AppendParameterNames(scriptStruct.RigVMStructInfo.Members, true, ",\r\n\t\t", true);
 					builder.AppendParameterNames(methodInfo.Parameters, true, ",\r\n\t\t");
 					builder.Append("\r\n");

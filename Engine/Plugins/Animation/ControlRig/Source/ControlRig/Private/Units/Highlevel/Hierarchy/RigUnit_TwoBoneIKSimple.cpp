@@ -10,7 +10,7 @@
 FRigUnit_TwoBoneIKSimple_Execute()
 {
 	FRigUnit_TwoBoneIKSimplePerItem::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		FRigElementKey(BoneA, ERigElementType::Bone),
 		FRigElementKey(BoneB, ERigElementType::Bone),
 		FRigElementKey(EffectorBone, ERigElementType::Bone),
@@ -33,7 +33,6 @@ FRigUnit_TwoBoneIKSimple_Execute()
 		CachedBoneBIndex,
 		CachedEffectorBoneIndex,
 		CachedPoleVectorSpaceIndex,
-		ExecuteContext, 
 		Context);
 }
 

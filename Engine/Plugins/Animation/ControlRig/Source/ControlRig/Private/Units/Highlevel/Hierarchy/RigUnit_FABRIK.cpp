@@ -25,7 +25,7 @@ FRigUnit_FABRIK_Execute()
 	}
 
 	FRigUnit_FABRIKPerItem::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		Items,
 		EffectorTransform,
 		Precision,
@@ -34,7 +34,6 @@ FRigUnit_FABRIK_Execute()
 		MaxIterations,
 		WorkData,
 		bSetEffectorTransform,
-		ExecuteContext, 
 		Context);
 }
 
@@ -46,7 +45,7 @@ FRigVMStructUpgradeInfo FRigUnit_FABRIK::GetUpgradeInfo() const
 
 FRigUnit_FABRIKPerItem_Execute()
 {
-	FRigUnit_FABRIKItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, EffectorTransform, Precision, Weight, bPropagateToChildren, MaxIterations, WorkData, bSetEffectorTransform,ExecuteContext, Context);
+	FRigUnit_FABRIKItemArray::StaticExecute(ExecuteContext, Items.Keys, EffectorTransform, Precision, Weight, bPropagateToChildren, MaxIterations, WorkData, bSetEffectorTransform, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_FABRIKPerItem::GetUpgradeInfo() const

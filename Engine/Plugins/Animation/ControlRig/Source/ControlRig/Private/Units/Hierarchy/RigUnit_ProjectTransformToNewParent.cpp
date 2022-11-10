@@ -16,10 +16,10 @@ FRigUnit_ProjectTransformToNewParent_Execute()
 	FTransform NewParentTransform = FTransform::Identity;
 	FTransform RelativeTransform = FTransform::Identity;
 
-	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Child, EBoneGetterSetterMode::GlobalSpace, bChildInitial, ChildTransform, CachedChild, Context);
-	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, OldParent, EBoneGetterSetterMode::GlobalSpace, bOldParentInitial, OldParentTransform, CachedOldParent, Context);
-	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, NewParent, EBoneGetterSetterMode::GlobalSpace, bNewParentInitial, NewParentTransform, CachedNewParent, Context);
-	FRigUnit_MathTransformMakeRelative::StaticExecute(RigVMExecuteContext, ChildTransform, OldParentTransform, RelativeTransform, Context);
-	FRigUnit_MathTransformMakeAbsolute::StaticExecute(RigVMExecuteContext, RelativeTransform, NewParentTransform, Transform, Context);
+	FRigUnit_GetTransform::StaticExecute(ExecuteContext, Child, EBoneGetterSetterMode::GlobalSpace, bChildInitial, ChildTransform, CachedChild, Context);
+	FRigUnit_GetTransform::StaticExecute(ExecuteContext, OldParent, EBoneGetterSetterMode::GlobalSpace, bOldParentInitial, OldParentTransform, CachedOldParent, Context);
+	FRigUnit_GetTransform::StaticExecute(ExecuteContext, NewParent, EBoneGetterSetterMode::GlobalSpace, bNewParentInitial, NewParentTransform, CachedNewParent, Context);
+	FRigUnit_MathTransformMakeRelative::StaticExecute(ExecuteContext, ChildTransform, OldParentTransform, RelativeTransform, Context);
+	FRigUnit_MathTransformMakeAbsolute::StaticExecute(ExecuteContext, RelativeTransform, NewParentTransform, Transform, Context);
 }
 

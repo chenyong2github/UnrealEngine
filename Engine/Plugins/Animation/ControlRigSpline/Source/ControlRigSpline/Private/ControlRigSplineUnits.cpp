@@ -283,7 +283,7 @@ FRigUnit_GetLengthControlRigSpline_Execute()
 FRigUnit_FitChainToSplineCurve_Execute()
 {
 	FRigUnit_FitChainToSplineCurveItemArray::StaticExecute(
-		RigVMExecuteContext,
+		ExecuteContext,
 		Items.Keys,
 		Spline,
 		Alignment,
@@ -299,7 +299,6 @@ FRigUnit_FitChainToSplineCurve_Execute()
 		bPropagateToChildren,
 		DebugSettings,
 		WorkData,
-		ExecuteContext,
 		Context);
 }
 
@@ -742,7 +741,7 @@ FRigUnit_FitChainToSplineCurveItemArray_Execute()
 
 FRigUnit_FitSplineCurveToChain_Execute()
 {
-	FRigUnit_FitSplineCurveToChainItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, Spline, ExecuteContext, Context);
+	FRigUnit_FitSplineCurveToChainItemArray::StaticExecute(ExecuteContext, Items.Keys, Spline, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_FitSplineCurveToChain::GetUpgradeInfo() const

@@ -175,7 +175,7 @@ FRigUnit_AimBone_Execute()
 	SecondaryTargetItem.Space = FRigElementKey(Secondary.Space, ERigElementType::Bone);
 
 	FRigUnit_AimItem::StaticExecute(
-		RigVMExecuteContext,
+		ExecuteContext,
 		FRigElementKey(Bone, ERigElementType::Bone),
 		PrimaryTargetItem,
 		SecondaryTargetItem,
@@ -184,7 +184,6 @@ FRigUnit_AimBone_Execute()
 		CachedBoneIndex,
 		PrimaryCachedSpace,
 		SecondaryCachedSpace,
-		ExecuteContext,
 		Context);
 }
 
@@ -243,7 +242,7 @@ FRigUnit_AimItem_Execute()
 	FTransform Transform = Hierarchy->GetGlobalTransform(CachedItem);
 
 	FRigUnit_AimBoneMath::StaticExecute(
-		RigVMExecuteContext,
+		ExecuteContext,
 		Transform,
 		Primary,
 		Secondary,
@@ -385,7 +384,7 @@ FRigUnit_AimConstraintLocalSpaceOffset_Execute()
 				FTransform InitialAimResult = ChildInitialGlobalTransform;
 				FRigUnit_AimBone_DebugSettings DummyDebugSettings;
 				FRigUnit_AimBoneMath::StaticExecute(
-					RigVMExecuteContext,
+					ExecuteContext,
 					ChildInitialGlobalTransform, // optional
 					Primary,
 					Secondary,
@@ -454,7 +453,7 @@ FRigUnit_AimConstraintLocalSpaceOffset_Execute()
 			FTransform ChildGlobalTransform = Hierarchy->GetGlobalTransform(ChildCache);
 			FTransform AimResult = ChildGlobalTransform;
 			FRigUnit_AimBoneMath::StaticExecute(
-				RigVMExecuteContext,
+				ExecuteContext,
 				ChildGlobalTransform, // optional
 				Primary,
 				Secondary,

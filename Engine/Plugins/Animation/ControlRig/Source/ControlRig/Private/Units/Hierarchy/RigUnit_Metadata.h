@@ -27,7 +27,6 @@ protected:
 
 	mutable TArray<FRigVMTemplateArgument> Arguments;
 	
-	mutable int32 ExecuteArgIndex = INDEX_NONE;
 	mutable int32 ItemArgIndex = INDEX_NONE;
 	mutable int32 NameArgIndex = INDEX_NONE;
 	mutable int32 CacheArgIndex = INDEX_NONE;
@@ -115,6 +114,7 @@ struct CONTROLRIG_API FRigDispatch_SetMetadata : public FRigDispatch_MetadataBas
 	GENERATED_BODY()
 
 	virtual TArray<FRigVMTemplateArgument> GetArguments() const override;
+	virtual TArray<FRigVMExecuteArgument> GetExecuteArguments_Impl() const override;
 	virtual bool IsSetMetadata() const override { return true; }
 
 protected:
@@ -126,8 +126,7 @@ protected:
 	template<typename ValueType>
 	FORCEINLINE_DEBUGGABLE bool CheckArgumentTypes(FRigVMMemoryHandleArray Handles) const
 	{
-		return CheckArgumentType(Handles[ExecuteArgIndex].IsType<FControlRigExecuteContext>(), ItemArgName) &&
-			CheckArgumentType(Handles[ItemArgIndex].IsType<FRigElementKey>(), ItemArgName) &&
+		return CheckArgumentType(Handles[ItemArgIndex].IsType<FRigElementKey>(), ItemArgName) &&
 			CheckArgumentType(Handles[NameArgIndex].IsType<FName>(), NameArgName) &&
 			CheckArgumentType(Handles[CacheArgIndex].IsType<FCachedRigElement>(true), CacheArgName) &&
 			CheckArgumentType(Handles[ValueArgIndex].IsType<ValueType>(), ValueArgName) &&
@@ -148,7 +147,7 @@ protected:
 #endif
 
 		// unpack the memory
-		FControlRigExecuteContext& ExecuteContext = *(FControlRigExecuteContext*)Handles[Factory->ExecuteArgIndex].GetData();
+		FControlRigExecuteContext& ExecuteContext = InContext.GetPublicData<FControlRigExecuteContext>();
 		const FRigElementKey& Item = *(const FRigElementKey*)Handles[Factory->ItemArgIndex].GetData();
 		const FName& Name = *(const FName*)Handles[Factory->NameArgIndex].GetData();
 		FCachedRigElement& Cache = *(FCachedRigElement*)Handles[Factory->CacheArgIndex].GetData(false, InContext.GetSlice().GetIndex());

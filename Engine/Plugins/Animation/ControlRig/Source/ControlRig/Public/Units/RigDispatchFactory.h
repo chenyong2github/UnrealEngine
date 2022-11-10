@@ -9,7 +9,7 @@
 #include "RigDispatchFactory.generated.h"
 
 /** Base class for all rig dispatch factories */
-USTRUCT(BlueprintType, meta=(Abstract, BlueprintInternalUseOnlyHierarchical))
+USTRUCT(BlueprintType, meta=(Abstract, BlueprintInternalUseOnlyHierarchical, ExecuteContextType=FControlRigExecuteContext))
 struct CONTROLRIG_API FRigDispatchFactory : public FRigVMDispatchFactory
 {
 	GENERATED_BODY()

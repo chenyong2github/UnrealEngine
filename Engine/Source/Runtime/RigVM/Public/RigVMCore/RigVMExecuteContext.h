@@ -14,13 +14,13 @@
 #include "RigVMDefines.h"
 #include "RigVMExternalVariable.h"
 #include "RigVMModule.h"
-#include "Templates/Function.h"
 #include "Templates/SharedPointer.h"
 #include "Trace/Detail/Channel.h"
 #include "UObject/NameTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UnrealNames.h"
 #include "UObject/UnrealType.h"
+//#include "RigVMCore/RigVMNameCache.h"
 
 #include "RigVMExecuteContext.generated.h"
 
@@ -28,6 +28,9 @@ class URigVM;
 struct FRigVMDispatchFactory;
 struct FRigVMExecuteContext;
 struct FRigVMExtendedExecuteContext;
+
+// temporary definition until we implement the namecache
+typedef int32 FRigVMNameCache;
 
 USTRUCT()
 struct RIGVM_API FRigVMSlice
@@ -224,9 +227,11 @@ struct RIGVM_API FRigVMExecuteContext
 		, FunctionName(NAME_None)
 		, InstructionIndex(0)
 		, RuntimeSettings()
+		, NameCache(nullptr)
 	{
-		Reset();
 	}
+
+	FORCEINLINE virtual ~FRigVMExecuteContext() {}
 
 	FORCEINLINE void Log(EMessageSeverity::Type InSeverity, const FString& InMessage) const
 	{
@@ -263,19 +268,11 @@ struct RIGVM_API FRigVMExecuteContext
 	
 	FORCEINLINE FName GetEventName() const { return EventName; }
 
+	FORCEINLINE FRigVMNameCache* GetNameCache() const { return NameCache; }
 
 protected:
-	FORCEINLINE void CopyFrom(const FRigVMExecuteContext& Other)
-	{
-		EventName = Other.EventName;
-		FunctionName = Other.FunctionName;
-		InstructionIndex = Other.InstructionIndex;
-		RuntimeSettings = Other.RuntimeSettings;
-	}
 
-private:
-
-	FORCEINLINE void Reset()
+	FORCEINLINE virtual void Reset()
 	{
 		InstructionIndex = 0;
 	}
@@ -287,6 +284,8 @@ private:
 	uint16 InstructionIndex;
 
 	FRigVMRuntimeSettings RuntimeSettings;
+
+	mutable FRigVMNameCache* NameCache;
 
 	friend struct FRigVMExtendedExecuteContext;
 	friend class URigVM;
@@ -312,16 +311,27 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 	GENERATED_BODY()
 
 	FORCEINLINE FRigVMExtendedExecuteContext()
-		: VM(nullptr)
+	: PublicDataScope(FRigVMExecuteContext::StaticStruct())
+	, VM(nullptr)
+	, LastExecutionMicroSeconds()
+	, Factory(nullptr)
+	{
+		Reset();
+	}
+
+	FORCEINLINE FRigVMExtendedExecuteContext(const UScriptStruct* InExecuteContextStruct)
+		: PublicDataScope(InExecuteContextStruct)
+		, VM(nullptr)
 		, LastExecutionMicroSeconds()
 		, Factory(nullptr)
 	{
+		check(InExecuteContextStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()));
 		Reset();
 	}
 
 	FORCEINLINE void Reset()
 	{
-		PublicData.Reset();
+		((FRigVMExecuteContext*)PublicDataScope.GetStructMemory())->Reset();
 		VM = nullptr;
 		Slices.Reset();
 		Slices.Add(FRigVMSlice());
@@ -329,18 +339,37 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		Factory = nullptr;
 	}
 
-	FORCEINLINE void CopyFrom(const FRigVMExtendedExecuteContext& Other)
+	FORCEINLINE FRigVMExtendedExecuteContext& operator =(const FRigVMExtendedExecuteContext& Other)
 	{
-		PublicData = Other.PublicData;
+		const UScriptStruct* PublicDataStruct = Cast<UScriptStruct>(Other.PublicDataScope.GetStruct());
+		check(PublicDataStruct);
+		PublicDataScope = FStructOnScope(PublicDataStruct);
+		PublicDataStruct->CopyScriptStruct(PublicDataScope.GetStructMemory(), Other.PublicDataScope.GetStructMemory());
+		
 		VM = Other.VM;
 		OpaqueArguments = Other.OpaqueArguments;
 		Slices = Other.Slices;
 		SliceOffsets = Other.SliceOffsets;
+		return *this;
+	}
+
+	template<typename ExecuteContextType = FRigVMExecuteContext>
+	FORCEINLINE const ExecuteContextType& GetPublicData() const
+	{
+		check(PublicDataScope.GetStruct()->IsChildOf(ExecuteContextType::StaticStruct()));
+		return *(const ExecuteContextType*)PublicDataScope.GetStructMemory();
+	}
+
+	template<typename ExecuteContextType = FRigVMExecuteContext>
+	FORCEINLINE ExecuteContextType& GetPublicData()
+	{
+		check(PublicDataScope.GetStruct()->IsChildOf(ExecuteContextType::StaticStruct()));
+		return *(ExecuteContextType*)PublicDataScope.GetStructMemory();
 	}
 
 	FORCEINLINE const FRigVMSlice& GetSlice() const
 	{
-		const int32 SliceOffset = (int32)SliceOffsets[PublicData.InstructionIndex];
+		const int32 SliceOffset = (int32)SliceOffsets[GetPublicData<>().InstructionIndex];
 		if (SliceOffset == 0)
 		{
 			return Slices.Last();
@@ -391,7 +420,7 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		if(InOutIndex < 0 || InOutIndex >= InArraySize)
 		{
 			static const TCHAR OutOfBoundsFormat[] = TEXT("Array Index (%d) out of bounds (count %d).");
-			PublicData.Logf(EMessageSeverity::Error, OutOfBoundsFormat, InOriginalIndex, InArraySize);
+			GetPublicData<>().Logf(EMessageSeverity::Error, OutOfBoundsFormat, InOriginalIndex, InArraySize);
 			return false;
 		}
 		return true;
@@ -399,10 +428,10 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 
 	FORCEINLINE bool IsValidArraySize(int32 InSize) const
 	{
-		if(InSize < 0 || InSize > PublicData.RuntimeSettings.MaximumArraySize)
+		if(InSize < 0 || InSize > GetPublicData<>().RuntimeSettings.MaximumArraySize)
 		{
 			static const TCHAR OutOfBoundsFormat[] = TEXT("Array Size (%d) larger than allowed maximum (%d).\nCheck VMRuntimeSettings in class settings.");
-			PublicData.Logf(EMessageSeverity::Error, OutOfBoundsFormat, InSize, PublicData.RuntimeSettings.MaximumArraySize);
+			GetPublicData<>().Logf(EMessageSeverity::Error, OutOfBoundsFormat, InSize, GetPublicData<>().RuntimeSettings.MaximumArraySize);
 			return false;
 		}
 		return true;
@@ -410,11 +439,16 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 
 	FORCEINLINE void SetRuntimeSettings(FRigVMRuntimeSettings InRuntimeSettings)
 	{
-		PublicData.RuntimeSettings = InRuntimeSettings;
-		check(PublicData.RuntimeSettings.MaximumArraySize > 0);
+		GetPublicData<>().RuntimeSettings = InRuntimeSettings;
+		check(GetPublicData<>().RuntimeSettings.MaximumArraySize > 0);
 	}
 
-	FRigVMExecuteContext PublicData;
+	FORCEINLINE void SetNameCache(FRigVMNameCache* InNameCache)
+	{
+		GetPublicData<>().NameCache = InNameCache;
+	}
+
+	FStructOnScope PublicDataScope;
 	URigVM* VM;
 	TArrayView<void*> OpaqueArguments;
 	TArray<FRigVMSlice> Slices;

@@ -10,6 +10,7 @@
 #include "UObject/Interface.h"
 #include "Stats/StatsHierarchical.h"
 #include "RigVMTypeUtils.h"
+#include "Algo/Count.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMCompiler)
 
@@ -664,15 +665,29 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 			if (Pin->GetDirection() == ERigVMPinDirection::Input ||
 				Pin->GetDirection() == ERigVMPinDirection::IO)
 			{
-				checkf(EntryNode, TEXT("Could not find entry node when compiling function %s in %s"), *CurrentCompilationFunction->GetPathName(), *GetPackage()->GetPathName());
+				if(EntryNode == nullptr)
+				{
+					ReportError(TEXT("Corrupt library node '%s' - Missing entry node."));
+					return false;
+				}
 				InterfacePin = EntryNode->FindPin(Pin->GetName());
 			}
 			else
 			{
-				checkf(ReturnNode, TEXT("Could not find return node when compiling function %s in %s"), *CurrentCompilationFunction->GetPathName(), *GetPackage()->GetPathName());
+				if(ReturnNode == nullptr)
+				{
+					ReportError(TEXT("Corrupt library node '%s' - Missing return node."));
+					return false;
+				}
 				InterfacePin = ReturnNode->FindPin(Pin->GetName());
 			}
-			checkf(InterfacePin, TEXT("Could not find interface pin %s when compiling function %s in %s"), *Pin->GetName(), *CurrentCompilationFunction->GetPathName(), *GetPackage()->GetPathName());
+
+			if(InterfacePin == nullptr)
+			{
+				ReportError(TEXT("Corrupt library node '%s' - Pin '%s' is not part of the entry / return node."));
+				return false;
+			}
+			
 			FRigVMASTProxy PinProxy = FRigVMASTProxy::MakeFromUObject(InterfacePin);
 			FRigVMVarExprAST* TempVarExpr = WorkData.AST->MakeExpr<FRigVMVarExprAST>(FRigVMExprAST::EType::Var, PinProxy);
 			FindOrAddRegister(TempVarExpr, WorkData, false);
@@ -813,6 +828,7 @@ bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* In
 		Data.FunctionNames = WorkData.VM->FunctionNamesStorage;
 		Data.PropertyDescriptions = WorkData.PropertyDescriptions;
 		Data.PropertyPathDescriptions = WorkData.PropertyPathDescriptions;
+		Data.Operands = *OutOperands;
 
 		// Only add used external registers to the function compilation data
 		FRigVMInstructionArray Instructions = Data.ByteCode.GetInstructions();
@@ -1066,7 +1082,11 @@ void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompi
 			{
 				if (ChildExpr->IsA(FRigVMExprAST::EType::Var))
 				{
-					Operands.Add(WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ChildExpr)));
+					const FRigVMVarExprAST* SourceVarExpr = GetSourceVarExpr(ChildExpr);
+					if(!SourceVarExpr->IsExecuteContext())
+					{
+						Operands.Add(WorkData.ExprToOperand.FindChecked(SourceVarExpr));
+					}
 				}
 				else
 				{
@@ -1263,7 +1283,15 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 				continue;
 			}
 
-			const FRigVMOperand& Operand = Operands[InputPin->GetPinIndex()];
+			int32 OperandIndex = Function->Arguments.IndexOfByPredicate([InputPin](const FRigVMFunctionArgument& FunctionArgument) -> bool
+			{
+				return FunctionArgument.Name == InputPin->GetName();
+			});
+			if(!Operands.IsValidIndex(OperandIndex))
+			{
+				continue;
+			}
+			const FRigVMOperand& Operand = Operands[OperandIndex];
 
 			if(InputPin->GetDirection() == ERigVMPinDirection::Output || InputPin->GetDirection() == ERigVMPinDirection::IO)
 			{
@@ -1325,7 +1353,12 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 		for (const ERigVMMemoryType& MemoryType : MemoryTypes)
 		{
 			const TArray<FRigVMPropertyDescription>& Properties = FunctionCompilationData.PropertyDescriptions[MemoryType];
-			int32 StartIndex = MemoryType == ERigVMMemoryType::Work ? ReferencedLibrary->GetPins().Num() : 0;
+			const int32 NumArguments = Algo::CountIf(ReferencedLibrary->GetPins(), [](const URigVMPin* Pin) -> bool
+			{
+				return !Pin->IsExecuteContext();
+			});
+ 
+			int32 StartIndex = MemoryType == ERigVMMemoryType::Work ? NumArguments : 0;
 			for (int32 PropertyIndex = StartIndex; PropertyIndex < Properties.Num(); ++PropertyIndex)
 			{
 				const FRigVMPropertyDescription& Description = Properties[PropertyIndex];
@@ -1349,11 +1382,19 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 			checkf(ChildExpr, TEXT("Found unexpected opaque argument for %s while inlining function %s in package %s"), *InExpr->Name.ToString(), *FunctionReferenceNode->GetPathName(), *GetPackage()->GetPathName());			
 			if (ChildExpr->GetType() == FRigVMExprAST::EType::CachedValue)
 			{
-				Operands.Add(WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ChildExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr())));
+				const FRigVMVarExprAST* SourceVarExpr = GetSourceVarExpr(ChildExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr());
+				if(!SourceVarExpr->IsExecuteContext())
+				{
+					Operands.Add(WorkData.ExprToOperand.FindChecked(SourceVarExpr));
+				}
 			}
 			else if (ChildExpr->IsA(FRigVMExprAST::EType::Var))
 			{
-				Operands.Add(WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ChildExpr->To<FRigVMVarExprAST>())));
+				const FRigVMVarExprAST* SourceVarExpr = GetSourceVarExpr(ChildExpr->To<FRigVMVarExprAST>());
+				if(!SourceVarExpr->IsExecuteContext())
+				{
+					Operands.Add(WorkData.ExprToOperand.FindChecked(SourceVarExpr));
+				}
 			}
 			else
 			{
@@ -1402,7 +1443,7 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 				}
 				// Operand is an interface pin: replace the index and memory type
 				else if (Operand->GetMemoryType() == ERigVMMemoryType::Work &&
-					Operand->GetRegisterIndex() < ReferencedLibrary->GetPins().Num())
+					Operands.IsValidIndex(Operand->RegisterIndex))
 				{
 					Operand->MemoryType = Operands[Operand->GetRegisterIndex()].MemoryType;
 					Operand->RegisterIndex = Operands[Operand->GetRegisterIndex()].RegisterIndex;
@@ -1450,6 +1491,7 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 #if WITH_EDITORONLY_DATA
 		TArray<FRigVMOperand> InputsOperands, OutputOperands;
 
+		int32 ArgumentIndex = 0;
 		for(const URigVMPin* InputPin : Node->GetPins())
 		{
 			if(InputPin->IsExecuteContext())
@@ -1457,7 +1499,7 @@ int32 URigVMCompiler::TraverseInlineFunction(const FRigVMInlineFunctionExprAST* 
 				continue;
 			}
 
-			const FRigVMOperand& Operand = Operands[InputPin->GetPinIndex()];
+			const FRigVMOperand& Operand = Operands[ArgumentIndex++];
 
 			if(InputPin->GetDirection() == ERigVMPinDirection::Output || InputPin->GetDirection() == ERigVMPinDirection::IO)
 			{
@@ -2224,14 +2266,12 @@ void URigVMCompiler::TraverseArray(const FRigVMArrayExprAST* InExpr, FRigVMCompi
 				const FRigVMExprAST* RatioExpr = InExpr->ChildAt(5);
 				const FRigVMExprAST* ContinueExpr = InExpr->ChildAt(6);
 				const FRigVMExprAST* CompletedExpr = InExpr->ChildAt(7);
-				const FRigVMOperand& ExecuteOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ExecuteExpr));
 				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ArrayExpr));
 				const FRigVMOperand& ElementOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ElementExpr));
 				const FRigVMOperand& IndexOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(IndexExpr));
 				const FRigVMOperand& CountOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(CountExpr));
 				const FRigVMOperand& RatioOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(RatioExpr));
 				const FRigVMOperand& ContinueOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ContinueExpr));
-				const FRigVMOperand& CompletedOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(CompletedExpr));
 
 				WorkData.ExprToSkip.AddUnique(ExecuteExpr);
 				WorkData.ExprToSkip.AddUnique(CompletedExpr);
@@ -3023,7 +3063,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 
 	URigVMPin* Pin = InVarExpr->GetPin();
 
-	if(Pin->IsExecuteContext() && bIsDebugValue)
+	if(Pin->IsExecuteContext())
 	{
 		return FRigVMOperand();
 	}

@@ -19,7 +19,7 @@ FRigUnit_BoneHarmonics_Execute()
 
 
 	FRigUnit_ItemHarmonics::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		Targets,
 		WaveSpeed,
 		WaveFrequency,
@@ -31,7 +31,6 @@ FRigUnit_BoneHarmonics_Execute()
 		WaveMaximum,
 		RotationOrder,
 		WorkData,
-		ExecuteContext, 
 		Context);
 }
 

@@ -39,7 +39,7 @@ FRigUnit_HierarchyGetParent_Execute()
 
 FRigUnit_HierarchyGetParents_Execute()
 {
-	FRigUnit_HierarchyGetParentsItemArray::StaticExecute(RigVMExecuteContext, Child, bIncludeChild, bReverse, Parents.Keys, CachedChild, CachedParents, Context);
+	FRigUnit_HierarchyGetParentsItemArray::StaticExecute(ExecuteContext, Child, bIncludeChild, bReverse, Parents.Keys, CachedChild, CachedParents, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_HierarchyGetParents::GetUpgradeInfo() const
@@ -136,7 +136,7 @@ FRigVMStructUpgradeInfo FRigUnit_HierarchyGetChildren::GetUpgradeInfo() const
 
 FRigUnit_HierarchyGetSiblings_Execute()
 {
-	FRigUnit_HierarchyGetSiblingsItemArray::StaticExecute(RigVMExecuteContext, Item, bIncludeItem, Siblings.Keys, CachedItem, CachedSiblings, Context);
+	FRigUnit_HierarchyGetSiblingsItemArray::StaticExecute(ExecuteContext, Item, bIncludeItem, Siblings.Keys, CachedItem, CachedSiblings, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_HierarchyGetSiblings::GetUpgradeInfo() const
@@ -192,7 +192,7 @@ FRigUnit_HierarchyGetSiblingsItemArray_Execute()
 
 FRigUnit_HierarchyGetPose_Execute()
 {
-	FRigUnit_HierarchyGetPoseItemArray::StaticExecute(RigVMExecuteContext, Initial, ElementType, ItemsToGet.Keys, Pose, Context);
+	FRigUnit_HierarchyGetPoseItemArray::StaticExecute(ExecuteContext, Initial, ElementType, ItemsToGet.Keys, Pose, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_HierarchyGetPose::GetUpgradeInfo() const
@@ -212,7 +212,7 @@ FRigUnit_HierarchyGetPoseItemArray_Execute()
 
 FRigUnit_HierarchySetPose_Execute()
 {
-	FRigUnit_HierarchySetPoseItemArray::StaticExecute(RigVMExecuteContext, Pose, ElementType, Space, ItemsToSet.Keys, Weight, ExecuteContext, Context);
+	FRigUnit_HierarchySetPoseItemArray::StaticExecute(ExecuteContext, Pose, ElementType, Space, ItemsToSet.Keys, Weight, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_HierarchySetPose::GetUpgradeInfo() const
@@ -244,7 +244,7 @@ FRigUnit_PoseIsEmpty_Execute()
 
 FRigUnit_PoseGetItems_Execute()
 {
-	FRigUnit_PoseGetItemsItemArray::StaticExecute(RigVMExecuteContext, Pose, ElementType, Items.Keys, Context);
+	FRigUnit_PoseGetItemsItemArray::StaticExecute(ExecuteContext, Pose, ElementType, Items.Keys, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_PoseGetItems::GetUpgradeInfo() const
@@ -285,14 +285,14 @@ FRigUnit_PoseGetDelta_Execute()
 	if(PoseA.Num() == 0 && PoseB.Num() != 0)
 	{
 		PosesAreEqual = false;
-		FRigUnit_PoseGetItems::StaticExecute(RigVMExecuteContext, PoseB, ElementType, ItemsWithDelta, Context);
+		FRigUnit_PoseGetItems::StaticExecute(ExecuteContext, PoseB, ElementType, ItemsWithDelta, Context);
 		return;
 	}
 
 	if(PoseA.Num() != 0 && PoseB.Num() == 0)
 	{
 		PosesAreEqual = false;
-		FRigUnit_PoseGetItems::StaticExecute(RigVMExecuteContext, PoseA, ElementType, ItemsWithDelta, Context);
+		FRigUnit_PoseGetItems::StaticExecute(ExecuteContext, PoseA, ElementType, ItemsWithDelta, Context);
 		return;
 	}
 

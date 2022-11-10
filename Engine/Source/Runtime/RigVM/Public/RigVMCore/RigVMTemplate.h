@@ -291,14 +291,26 @@ public:
 	// returns an argument for a given index
 	const FRigVMTemplateArgument* GetArgument(int32 InIndex) const { return &Arguments[InIndex]; }
 
-		// returns an argument given a name (or nullptr)
+	// returns an argument given a name (or nullptr)
 	const FRigVMTemplateArgument* FindArgument(const FName& InArgumentName) const;
+
+	// returns the number of args of this template
+	int32 NumExecuteArguments() const;
+
+	// returns an argument for a given index
+	const FRigVMExecuteArgument* GetExecuteArgument(int32 InIndex) const;
+
+	// returns an argument given a name (or nullptr)
+	const FRigVMExecuteArgument* FindExecuteArgument(const FName& InArgumentName) const;
 
 	// returns true if a given arg supports a type
 	bool ArgumentSupportsTypeIndex(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex, TRigVMTypeIndex* OutTypeIndex = nullptr) const;
 
 	// returns the number of permutations supported by this template
 	int32 NumPermutations() const { return Permutations.Num(); }
+
+	// returns the first / primary permutation of the template
+	const FRigVMFunction* GetPrimaryPermutation() const;
 
 	// returns a permutation given an index
 	const FRigVMFunction* GetPermutation(int32 InIndex) const;
@@ -404,9 +416,12 @@ private:
 
 	static FLinearColor GetColorFromMetadata(FString InMetadata);
 
+	const TArray<FRigVMExecuteArgument>& GetExecuteArguments() const;
+
 	int32 Index;
 	FName Notation;
 	TArray<FRigVMTemplateArgument> Arguments;
+	mutable TArray<FRigVMExecuteArgument> ExecuteArguments;
 	TArray<int32> Permutations;
 
 	FRigVMTemplateDelegates Delegates;

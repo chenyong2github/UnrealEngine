@@ -141,8 +141,8 @@ FName URigVMArrayNode::GetNotation() const
     {
     	case ERigVMOpCode::ArrayReset:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s)");
-    		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName);
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s)");
+    		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName);
             return Notation;
     	}
     	case ERigVMOpCode::ArrayGetNum:
@@ -153,8 +153,8 @@ FName URigVMArrayNode::GetNotation() const
     	} 
     	case ERigVMOpCode::ArraySetNum:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s,in %s)");
-    		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName, *NumName);
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,in %s)");
+    		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName, *NumName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayGetAtIndex:
@@ -165,26 +165,26 @@ FName URigVMArrayNode::GetNotation() const
     	}  
     	case ERigVMOpCode::ArraySetAtIndex:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s,in %s,in %s)");
-    		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName, *IndexName, *ElementName);
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,in %s,in %s)");
+    		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName, *IndexName, *ElementName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayAdd:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s,in %s,out %s)");
-    		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName, *ElementName, *IndexName);
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,in %s,out %s)");
+    		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName, *ElementName, *IndexName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayInsert:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s,in %s,in %s)");
-    		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName, *IndexName, *ElementName);
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,in %s,in %s)");
+    		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName, *IndexName, *ElementName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayRemove:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s,in %s)");
-    		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName, *IndexName);
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,in %s)");
+    		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName, *IndexName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayFind:
@@ -195,8 +195,8 @@ FName URigVMArrayNode::GetNotation() const
     	}
     	case ERigVMOpCode::ArrayAppend:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s,in %s)");
-    		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName, *OtherName);
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,in %s)");
+    		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName, *OtherName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayClone:
@@ -207,15 +207,15 @@ FName URigVMArrayNode::GetNotation() const
     	}
     	case ERigVMOpCode::ArrayIterator:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s,in %s,out %s,out %s,out %s,out %s,out %s)");
-    		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(),
-    			*ArrayName, *ElementName, *IndexName, *CountName, *RatioName, *CompletedName);
+    		static constexpr TCHAR Format[] = TEXT("%s(in %s,out %s,out %s,out %s,out %s)");
+    		const FName Notation = *FString::Printf(Format, *TemplateName,
+    			*ArrayName, *ElementName, *IndexName, *CountName, *RatioName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayUnion:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s,in %s)");
-    		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName, *OtherName);
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s,in %s)");
+    		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName, *OtherName);
     		return Notation;
     	}
     	case ERigVMOpCode::ArrayDifference:
@@ -232,8 +232,8 @@ FName URigVMArrayNode::GetNotation() const
     	}
     	case ERigVMOpCode::ArrayReverse:
     	{
-    		static constexpr TCHAR Format[] = TEXT("%s(io %s,io %s)");
-    		const FName Notation = *FString::Printf(Format, *TemplateName, *FRigVMStruct::ExecuteContextName.ToString(), *ArrayName);
+    		static constexpr TCHAR Format[] = TEXT("%s(io %s)");
+    		const FName Notation = *FString::Printf(Format, *TemplateName, *ArrayName);
     		return Notation;
     	}
     	default:
@@ -271,7 +271,6 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 			return TemplatesPerOpCode[OpCodeIndex];
 		}
 
-		static const FName ExecuteFName = FRigVMStruct::ExecuteContextName;
 		static const FName ArrayFName = *ArrayName;
 		static const FName NumFName = *NumName;
 		static const FName IndexFName = *IndexName;
@@ -283,7 +282,6 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 		static const FName RatioFName = *RatioName;
 		static const FName ResultFName = *ResultName;
 		static const FName ContinueFName = *ContinueName;
-		static const FName CompletedFName = *CompletedName;
 		
 		TArray<FRigVMTemplateArgument>& Arguments = ArgumentsPerOpCode[OpCodeIndex];
 		
@@ -294,16 +292,11 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 			static const TArray<FRigVMTemplateArgument::ETypeCategory> SingleCategory = {FRigVMTemplateArgument::ETypeCategory_SingleAnyValue};
 			static const TArray<FRigVMTemplateArgument::ETypeCategory> ArrayCategory = {FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue};
 
-			UScriptStruct* ExecuteStruct = GetGraph()->GetExecuteContextStruct();
-			const FRigVMTemplateArgumentType ExecuteType(*RigVMTypeUtils::GetUniqueStructTypeName(ExecuteStruct), ExecuteStruct);
-			const int32 ExecuteTypeIndex = FRigVMRegistry::Get().FindOrAddType(ExecuteType);
-			
 			switch(OpCode)
 			{
 				case ERigVMOpCode::ArrayReset:
 				case ERigVMOpCode::ArrayReverse:
 				{
-					Arguments.Emplace(ExecuteFName, ERigVMPinDirection::IO, ExecuteTypeIndex);
 					Arguments.Emplace(ArrayFName, ERigVMPinDirection::IO, ArrayCategory);
 					break;
 				}
@@ -315,7 +308,6 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 				} 
 				case ERigVMOpCode::ArraySetNum:
 				{
-					Arguments.Emplace(ExecuteFName, ERigVMPinDirection::IO, ExecuteTypeIndex);
 					Arguments.Emplace(ArrayFName, ERigVMPinDirection::IO, ArrayCategory);
 					Arguments.Emplace(NumFName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Int32);
 					break;
@@ -330,7 +322,6 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 				case ERigVMOpCode::ArraySetAtIndex:
 				case ERigVMOpCode::ArrayInsert:
 				{
-					Arguments.Emplace(ExecuteFName, ERigVMPinDirection::IO, ExecuteTypeIndex);
 					Arguments.Emplace(ArrayFName, ERigVMPinDirection::IO, ArrayCategory);
 					Arguments.Emplace(IndexFName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Int32);
 					Arguments.Emplace(ElementFName, ERigVMPinDirection::Input, SingleCategory);
@@ -338,7 +329,6 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 				}
 				case ERigVMOpCode::ArrayAdd:
 				{
-					Arguments.Emplace(ExecuteFName, ERigVMPinDirection::IO, ExecuteTypeIndex);
 					Arguments.Emplace(ArrayFName, ERigVMPinDirection::IO, ArrayCategory);
 					Arguments.Emplace(ElementFName, ERigVMPinDirection::Input, SingleCategory);
 					Arguments.Emplace(IndexFName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Int32);
@@ -346,7 +336,6 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 				}
 				case ERigVMOpCode::ArrayRemove:
 				{
-					Arguments.Emplace(ExecuteFName, ERigVMPinDirection::IO, ExecuteTypeIndex);
 					Arguments.Emplace(ArrayFName, ERigVMPinDirection::IO, ArrayCategory);
 					Arguments.Emplace(IndexFName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Int32);
 					break;
@@ -362,7 +351,6 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 				case ERigVMOpCode::ArrayAppend:
 				case ERigVMOpCode::ArrayUnion:
 				{
-					Arguments.Emplace(ExecuteFName, ERigVMPinDirection::IO, ExecuteTypeIndex);
 					Arguments.Emplace(ArrayFName, ERigVMPinDirection::IO, ArrayCategory);
 					Arguments.Emplace(OtherFName, ERigVMPinDirection::Input, ArrayCategory);
 					break;
@@ -375,14 +363,12 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 				}
 				case ERigVMOpCode::ArrayIterator:
 				{
-					Arguments.Emplace(ExecuteFName, ERigVMPinDirection::IO, ExecuteTypeIndex);
 					Arguments.Emplace(ArrayFName, ERigVMPinDirection::Input, ArrayCategory);
 					Arguments.Emplace(ElementFName, ERigVMPinDirection::Output, SingleCategory);
 					Arguments.Emplace(IndexFName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Int32);
 					Arguments.Emplace(CountFName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Int32);
 					Arguments.Emplace(RatioFName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Float);
 					Arguments.Emplace(ContinueFName, ERigVMPinDirection::Hidden, RigVMTypeUtils::TypeIndex::Bool);
-					Arguments.Emplace(CompletedFName, ERigVMPinDirection::Output, ExecuteTypeIndex);
 					break;
 				}
 				case ERigVMOpCode::ArrayDifference:
@@ -421,7 +407,6 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 					{
 						if(InArgumentName == ArrayFName)
 						{
-							Types.Add(ExecuteFName, ExecuteTypeIndex);
 							Types.Add(ArrayFName, InTypeIndex);
 						}
 						break;
@@ -439,7 +424,6 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 					{
 						if(InArgumentName == ArrayFName)
 						{
-							Types.Add(ExecuteFName, ExecuteTypeIndex);
 							Types.Add(ArrayFName, InTypeIndex);
 							Types.Add(NumFName, RigVMTypeUtils::TypeIndex::Int32);
 						}
@@ -464,7 +448,6 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 					case ERigVMOpCode::ArrayInsert:
 					case ERigVMOpCode::ArrayAdd:
 					{
-						Types.Add(ExecuteFName, ExecuteTypeIndex);
 						Types.Add(IndexFName, RigVMTypeUtils::TypeIndex::Int32);
 						if(InArgumentName == ArrayFName)
 						{
@@ -482,7 +465,6 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 					{
 						if(InArgumentName == ArrayFName)
 						{
-							Types.Add(ExecuteFName, ExecuteTypeIndex);
 							Types.Add(ArrayFName, InTypeIndex);
 							Types.Add(IndexFName, RigVMTypeUtils::TypeIndex::Int32);
 						}
@@ -507,7 +489,6 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 					case ERigVMOpCode::ArrayAppend:
 					case ERigVMOpCode::ArrayUnion:
 					{
-						Types.Add(ExecuteFName, ExecuteTypeIndex);
 						if(InArgumentName == ArrayFName || InArgumentName == OtherFName)
 						{
 							Types.Add(ArrayFName, InTypeIndex);
@@ -526,9 +507,7 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 					}
 					case ERigVMOpCode::ArrayIterator:
 					{
-						Types.Add(ExecuteFName, ExecuteTypeIndex);
 						Types.Add(ContinueFName, RigVMTypeUtils::TypeIndex::Bool);
-						Types.Add(CompletedFName, ExecuteTypeIndex);
 						Types.Add(IndexFName, RigVMTypeUtils::TypeIndex::Int32);
 						Types.Add(CountFName, RigVMTypeUtils::TypeIndex::Int32);
 						Types.Add(RatioFName, RigVMTypeUtils::TypeIndex::Float);

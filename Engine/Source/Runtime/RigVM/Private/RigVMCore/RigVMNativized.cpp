@@ -38,15 +38,3 @@ const FRigVMInstructionArray& URigVMNativized::GetInstructions()
 	static const FRigVMInstructionArray EmptyInstructions;
 	return EmptyInstructions;
 }
-
-const FRigVMExecuteContext& URigVMNativized::UpdateContext(TArrayView<void*> AdditionalArguments, int32 InNumberInstructions, const FName& InEntryName)
-{
-	UpdateExternalVariables();
-	
-	Context.Reset();
-	Context.OpaqueArguments = AdditionalArguments;
-	Context.SliceOffsets.AddZeroed(InNumberInstructions);
-	Context.PublicData.EventName = InEntryName;
-	return Context.PublicData;
-}
-

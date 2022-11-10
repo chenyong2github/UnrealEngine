@@ -47,9 +47,9 @@ FRigUnit_SetTransform_Execute()
 					if(bInitial)
 					{
 						// provide some user feedback when changing initial transforms during forward solve
-						if(RigVMExecuteContext.GetEventName() == FRigUnit_BeginExecution::EventName)
+						if(ExecuteContext.GetEventName() == FRigUnit_BeginExecution::EventName)
 						{
-							UE_CONTROLRIG_RIGUNIT_LOG_MESSAGE(TEXT("Changing initial transforms during %s is not recommended."), *RigVMExecuteContext.GetEventName().ToString());
+							UE_CONTROLRIG_RIGUNIT_LOG_MESSAGE(TEXT("Changing initial transforms during %s is not recommended."), *ExecuteContext.GetEventName().ToString());
 						}
 					}
 #endif
@@ -58,7 +58,7 @@ FRigUnit_SetTransform_Execute()
 					if(bInitial && (CachedIndex.GetKey().Type == ERigElementType::Control))
 					{
 						FTransform TransformMutable = Value;
-						FRigUnit_SetControlOffset::StaticExecute(RigVMExecuteContext, CachedIndex.GetKey().Name, TransformMutable, Space, CachedIndex, ExecuteContext, Context);
+						FRigUnit_SetControlOffset::StaticExecute(ExecuteContext, CachedIndex.GetKey().Name, TransformMutable, Space, CachedIndex, Context);
 						
 						if (ExecuteContext.GetEventName() == FRigUnit_PrepareForExecution::EventName)
 						{
@@ -138,9 +138,9 @@ FString FRigUnit_SetTranslation::GetUnitLabel() const
 FRigUnit_SetTranslation_Execute()
 {
 	FTransform Transform = FTransform::Identity;
-	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Item, Space, bInitial, Transform, CachedIndex, Context);
+	FRigUnit_GetTransform::StaticExecute(ExecuteContext, Item, Space, bInitial, Transform, CachedIndex, Context);
 	Transform.SetLocation(Value);
-	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Item, Space, bInitial, Transform, Weight, bPropagateToChildren, CachedIndex, ExecuteContext, Context);
+	FRigUnit_SetTransform::StaticExecute(ExecuteContext, Item, Space, bInitial, Transform, Weight, bPropagateToChildren, CachedIndex, Context);
 }
 
 FString FRigUnit_SetRotation::GetUnitLabel() const
@@ -152,9 +152,9 @@ FString FRigUnit_SetRotation::GetUnitLabel() const
 FRigUnit_SetRotation_Execute()
 {
 	FTransform Transform = FTransform::Identity;
-	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Item, Space, bInitial, Transform, CachedIndex, Context);
+	FRigUnit_GetTransform::StaticExecute(ExecuteContext, Item, Space, bInitial, Transform, CachedIndex, Context);
 	Transform.SetRotation(Value);
-	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Item, Space, bInitial, Transform, Weight, bPropagateToChildren, CachedIndex, ExecuteContext, Context);
+	FRigUnit_SetTransform::StaticExecute(ExecuteContext, Item, Space, bInitial, Transform, Weight, bPropagateToChildren, CachedIndex, Context);
 }
 
 FString FRigUnit_SetScale::GetUnitLabel() const
@@ -166,15 +166,15 @@ FString FRigUnit_SetScale::GetUnitLabel() const
 FRigUnit_SetScale_Execute()
 {
 	FTransform Transform = FTransform::Identity;
-	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Item, Space, bInitial, Transform, CachedIndex, Context);
+	FRigUnit_GetTransform::StaticExecute(ExecuteContext, Item, Space, bInitial, Transform, CachedIndex, Context);
 	Transform.SetScale3D(Scale);
-	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Item, Space, bInitial, Transform, Weight, bPropagateToChildren, CachedIndex, ExecuteContext, Context);
+	FRigUnit_SetTransform::StaticExecute(ExecuteContext, Item, Space, bInitial, Transform, Weight, bPropagateToChildren, CachedIndex, Context);
 }
 
 
 FRigUnit_SetTransformArray_Execute()
 {
-	FRigUnit_SetTransformItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, Space, bInitial, Transforms, Weight, bPropagateToChildren, CachedIndex, ExecuteContext, Context);
+	FRigUnit_SetTransformItemArray::StaticExecute(ExecuteContext, Items.Keys, Space, bInitial, Transforms, Weight, bPropagateToChildren, CachedIndex, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_SetTransformArray::GetUpgradeInfo() const
@@ -208,6 +208,6 @@ FRigUnit_SetTransformItemArray_Execute()
 
 	for(int32 Index=0;Index<Items.Num();Index++)
 	{
-		FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Items[Index], Space, bInitial, Transforms[Index], Weight, bPropagateToChildren, CachedIndex[Index], ExecuteContext, Context);
+		FRigUnit_SetTransform::StaticExecute(ExecuteContext, Items[Index], Space, bInitial, Transforms[Index], Weight, bPropagateToChildren, CachedIndex[Index], Context);
 	}
 }

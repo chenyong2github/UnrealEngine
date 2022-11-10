@@ -17,7 +17,7 @@ FRigUnit_GetBoneTransform_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				FRigUnit_GetInitialBoneTransform::StaticExecute(RigVMExecuteContext, Bone, Space, Transform, CachedBone, Context);;
+				FRigUnit_GetInitialBoneTransform::StaticExecute(ExecuteContext, Bone, Space, Transform, CachedBone, Context);;
 				break;
 			}
 			case EControlRigState::Update:

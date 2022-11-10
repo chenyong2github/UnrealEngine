@@ -408,7 +408,7 @@ void FRigDispatch_FromString::Execute(FRigVMExtendedExecuteContext& InContext, F
 #if WITH_EDITOR
 			if(Context.Log != nullptr)
 			{
-				Context.Log->Report(EMessageSeverity::Error, InContext.PublicData.GetFunctionName(), InContext.PublicData.GetInstructionIndex(), Error);
+				Context.Log->Report(EMessageSeverity::Error, InContext.GetPublicData<>().GetFunctionName(), InContext.GetPublicData<>().GetInstructionIndex(), Error);
 			}
 #endif
 
@@ -419,7 +419,7 @@ void FRigDispatch_FromString::Execute(FRigVMExtendedExecuteContext& InContext, F
 			}
 			
 			static constexpr TCHAR ErrorLogFormat[] = TEXT("%s: [%04d] %s");
-			UE_LOG(LogControlRig, Error, ErrorLogFormat, *ObjectPath, InContext.PublicData.GetInstructionIndex(), *Error);
+			UE_LOG(LogControlRig, Error, ErrorLogFormat, *ObjectPath, InContext.GetPublicData<>().GetInstructionIndex(), *Error);
 		}
 	}
 }

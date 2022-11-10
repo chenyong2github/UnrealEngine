@@ -7,6 +7,4 @@ FName FRigUnit_DataInterfaceBeginExecution::EventName = TEXT("Update");
 
 FRigUnit_DataInterfaceBeginExecution_Execute()
 {
-	const FDataInterfaceExecuteContext& DataInterfaceExecuteContext = static_cast<const FDataInterfaceExecuteContext&>(RigVMExecuteContext);
-	ExecuteContext.CopyFrom(DataInterfaceExecuteContext);
 }

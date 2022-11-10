@@ -20,7 +20,7 @@ FRigUnit_OffsetTransformForItem_Execute()
 	FTransform PreviousTransform = FTransform::Identity;
 	FTransform GlobalTransform = FTransform::Identity;
 
-	FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Item, EBoneGetterSetterMode::GlobalSpace, false, PreviousTransform, CachedIndex, Context);
-	FRigUnit_MathTransformMakeAbsolute::StaticExecute(RigVMExecuteContext, OffsetTransform, PreviousTransform, GlobalTransform, Context);
-	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Item, EBoneGetterSetterMode::GlobalSpace, false, GlobalTransform, Weight, bPropagateToChildren, CachedIndex, ExecuteContext, Context);
+	FRigUnit_GetTransform::StaticExecute(ExecuteContext, Item, EBoneGetterSetterMode::GlobalSpace, false, PreviousTransform, CachedIndex, Context);
+	FRigUnit_MathTransformMakeAbsolute::StaticExecute(ExecuteContext, OffsetTransform, PreviousTransform, GlobalTransform, Context);
+	FRigUnit_SetTransform::StaticExecute(ExecuteContext, Item, EBoneGetterSetterMode::GlobalSpace, false, GlobalTransform, Weight, bPropagateToChildren, CachedIndex, Context);
 }

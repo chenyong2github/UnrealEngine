@@ -8,7 +8,7 @@
 FRigUnit_DebugLine_Execute()
 {
 	FRigUnit_DebugLineItemSpace::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		A,
 		B,
 		Color,
@@ -16,7 +16,6 @@ FRigUnit_DebugLine_Execute()
 		FRigElementKey(Space, ERigElementType::Bone), 
 		WorldOffset, 
 		bEnabled,
-		ExecuteContext, 
 		Context);
 }
 

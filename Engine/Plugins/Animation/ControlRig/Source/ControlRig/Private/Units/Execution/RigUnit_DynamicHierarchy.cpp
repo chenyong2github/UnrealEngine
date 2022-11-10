@@ -200,7 +200,7 @@ FRigUnit_SwitchParent_Execute()
 
 FRigUnit_HierarchyGetParentWeights_Execute()
 {
-	FRigUnit_HierarchyGetParentWeightsArray::StaticExecute(RigVMExecuteContext, Child, Weights, Parents.Keys, Context);
+	FRigUnit_HierarchyGetParentWeightsArray::StaticExecute(ExecuteContext, Child, Weights, Parents.Keys, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_HierarchyGetParentWeights::GetUpgradeInfo() const
@@ -290,7 +290,7 @@ FRigUnit_HierarchyImportFromSkeleton_Execute()
 
 	if(URigHierarchyController* Controller = ExecuteContext.Hierarchy->GetController(true))
 	{
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		
 		if(const USkeletalMeshComponent* SkelMeshComponent = Context.DataSourceRegistry->RequestSource<USkeletalMeshComponent>(UControlRig::OwnerComponent))
 		{
@@ -326,7 +326,7 @@ FRigUnit_HierarchyRemoveElement_Execute()
 
 	if(URigHierarchyController* Controller = ExecuteContext.Hierarchy->GetController(true))
 	{
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		bSuccess = Controller->RemoveElement(Item);
 	}
 }
@@ -347,7 +347,7 @@ FRigUnit_HierarchyAddBone_Execute()
 
 	if(URigHierarchyController* Controller = ExecuteContext.Hierarchy->GetController(true))
 	{
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		Item = Controller->AddBone(Name, Parent, Transform, Space == EBoneGetterSetterMode::GlobalSpace, ERigBoneType::Imported, false, false);
 	}
 }
@@ -368,7 +368,7 @@ FRigUnit_HierarchyAddNull_Execute()
 
 	if(URigHierarchyController* Controller = ExecuteContext.Hierarchy->GetController(true))
 	{
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		Item = Controller->AddNull(Name, Parent, Transform, Space == EBoneGetterSetterMode::GlobalSpace, false, false);
 	}
 }
@@ -435,7 +435,7 @@ FRigUnit_HierarchyAddControlFloat_Execute()
 		const FRigControlValue Value = FRigControlValue::Make<float>(InitialValue);
 		const FTransform ShapeTransform = Settings.Shape.Transform;
 		
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		Item = Controller->AddControl(Name, Parent, ControlSettings, Value, OffsetTransform, ShapeTransform, false, false);
 	}
 }
@@ -483,7 +483,7 @@ FRigUnit_HierarchyAddControlInteger_Execute()
 		const FRigControlValue Value = FRigControlValue::Make<int32>(InitialValue);
 		const FTransform ShapeTransform = Settings.Shape.Transform;
 		
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		Item = Controller->AddControl(Name, Parent, ControlSettings, Value, OffsetTransform, ShapeTransform, false, false);
 	}
 }
@@ -533,7 +533,7 @@ FRigUnit_HierarchyAddControlVector2D_Execute()
 		const FRigControlValue Value = FRigControlValue::Make<FVector3f>(FVector3f(InitialValue.X, InitialValue.Y, 0.f));
 		const FTransform ShapeTransform = Settings.Shape.Transform;
 		
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		Item = Controller->AddControl(Name, Parent, ControlSettings, Value, OffsetTransform, ShapeTransform, false, false);
 	}
 }
@@ -583,7 +583,7 @@ FRigUnit_HierarchyAddControlVector_Execute()
 		const FRigControlValue Value = FRigControlValue::Make<FVector3f>(FVector3f(InitialValue));
 		const FTransform ShapeTransform = Settings.Shape.Transform;
 		
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		Item = Controller->AddControl(Name, Parent, ControlSettings, Value, OffsetTransform, ShapeTransform, false, false);
 	}
 }
@@ -633,7 +633,7 @@ FRigUnit_HierarchyAddControlRotator_Execute()
 		const FRigControlValue Value = FRigControlValue::Make<FVector3f>(FVector3f(InitialValue.Euler()));
 		const FTransform ShapeTransform = Settings.Shape.Transform;
 		
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		Item = Controller->AddControl(Name, Parent, ControlSettings, Value, OffsetTransform, ShapeTransform, false, false);
 	}
 }
@@ -672,7 +672,7 @@ FRigUnit_HierarchyAddControlTransform_Execute()
 		const FRigControlValue Value = FRigControlValue::Make<FRigControlValue::FEulerTransform_Float>(EulerTransform);
 		const FTransform ShapeTransform = Settings.Shape.Transform;
 		
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		Item = Controller->AddControl(Name, Parent, ControlSettings, Value, OffsetTransform, ShapeTransform, false, false);
 	}
 }
@@ -701,7 +701,7 @@ FRigUnit_HierarchyAddAnimationChannelBool_Execute()
 		ControlSettings.DisplayName = Controller->GetHierarchy()->GetSafeNewDisplayName(Parent, Name.ToString());
 		const FRigControlValue Value = FRigControlValue::Make<bool>(InitialValue);
 
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		Item = Controller->AddAnimationChannel(Name, Parent, ControlSettings, false, false);
 
 		if(Item.IsValid())
@@ -740,7 +740,7 @@ FRigUnit_HierarchyAddAnimationChannelFloat_Execute()
 		ControlSettings.DisplayName = Controller->GetHierarchy()->GetSafeNewDisplayName(Parent, Name.ToString());
 		const FRigControlValue Value = FRigControlValue::Make<float>(InitialValue);
 		
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		Item = Controller->AddAnimationChannel(Name, Parent, ControlSettings, false, false);
 
 		if(Item.IsValid())
@@ -779,7 +779,7 @@ FRigUnit_HierarchyAddAnimationChannelInteger_Execute()
 		ControlSettings.DisplayName = Controller->GetHierarchy()->GetSafeNewDisplayName(Parent, Name.ToString());
 		const FRigControlValue Value = FRigControlValue::Make<int32>(InitialValue);
 		
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		Item = Controller->AddAnimationChannel(Name, Parent, ControlSettings, false, false);
 
 		if(Item.IsValid())
@@ -818,7 +818,7 @@ FRigUnit_HierarchyAddAnimationChannelVector2D_Execute()
 		ControlSettings.DisplayName = Controller->GetHierarchy()->GetSafeNewDisplayName(Parent, Name.ToString());
 		const FRigControlValue Value = FRigControlValue::Make<FVector3f>(FVector3f(InitialValue.X, InitialValue.Y, 0.f));
 		
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		Item = Controller->AddAnimationChannel(Name, Parent, ControlSettings, false, false);
 
 		if(Item.IsValid())
@@ -857,7 +857,7 @@ FRigUnit_HierarchyAddAnimationChannelVector_Execute()
 		ControlSettings.DisplayName = Controller->GetHierarchy()->GetSafeNewDisplayName(Parent, Name.ToString());
 		const FRigControlValue Value = FRigControlValue::Make<FVector3f>(FVector3f(InitialValue));
 		
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		Item = Controller->AddAnimationChannel(Name, Parent, ControlSettings, false, false);
 
 		if(Item.IsValid())
@@ -896,7 +896,7 @@ FRigUnit_HierarchyAddAnimationChannelRotator_Execute()
 		ControlSettings.DisplayName = Controller->GetHierarchy()->GetSafeNewDisplayName(Parent, Name.ToString());
 		const FRigControlValue Value = FRigControlValue::Make<FVector3f>(FVector3f(InitialValue.Euler()));
 		
-		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, ExecuteContext.GetInstructionIndex());
 		Item = Controller->AddAnimationChannel(Name, Parent, ControlSettings, false, false);
 
 		if(Item.IsValid())

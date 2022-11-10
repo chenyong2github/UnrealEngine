@@ -37,7 +37,7 @@ FRigUnit_ItemReplace_Execute()
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
 	Result = Item;
-	FRigUnit_NameReplace::StaticExecute(RigVMExecuteContext, Item.Name, Old, New, Result.Name, Context);
+	FRigUnit_NameReplace::StaticExecute(ExecuteContext, Item.Name, Old, New, Result.Name, Context);
 }
 
 FRigUnit_ItemEquals_Execute()

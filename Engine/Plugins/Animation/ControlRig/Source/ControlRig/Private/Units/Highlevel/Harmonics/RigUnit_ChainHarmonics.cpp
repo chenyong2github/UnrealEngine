@@ -9,7 +9,7 @@
 FRigUnit_ChainHarmonics_Execute()
 {
 	FRigUnit_ChainHarmonicsPerItem::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		FRigElementKey(ChainRoot, ERigElementType::Bone),
 		Speed,
 		Reach,
@@ -19,7 +19,6 @@ FRigUnit_ChainHarmonics_Execute()
 		bDrawDebug,
 		DrawWorldOffset,
 		WorkData,
-		ExecuteContext, 
 		Context);
 }
 

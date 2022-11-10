@@ -7,7 +7,7 @@ FRigUnit_DataInterfaceEndExecution_Bool_Execute()
 {
 	if(Context.State == EControlRigState::Update)
 	{
-		SetResult(RigVMExecuteContext, Result);
+		SetResult(ExecuteContext, Result);
 	}
 }
 
@@ -15,6 +15,6 @@ FRigUnit_DataInterfaceEndExecution_Float_Execute()
 {
 	if(Context.State == EControlRigState::Update)
 	{
-		SetResult(RigVMExecuteContext, Result);
+		SetResult(ExecuteContext, Result);
 	}
 }

@@ -2656,7 +2656,7 @@ FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,
 	if(bRecordTransformsAtRuntime && ExecuteContext)
 	{
 		ReadTransformsAtRuntime.Emplace(
-			ExecuteContext->PublicData.GetInstructionIndex(),
+			ExecuteContext->GetPublicData<>().GetInstructionIndex(),
 			ExecuteContext->GetSlice().GetIndex(),
 			InTransformElement->GetIndex(),
 			InTransformType
@@ -2776,7 +2776,7 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 	if(bRecordTransformsAtRuntime && ExecuteContext)
 	{
 		WrittenTransformsAtRuntime.Emplace(
-			ExecuteContext->PublicData.GetInstructionIndex(),
+			ExecuteContext->GetPublicData<>().GetInstructionIndex(),
 			ExecuteContext->GetSlice().GetIndex(),
 			InTransformElement->GetIndex(),
 			InTransformType
@@ -2810,8 +2810,8 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 									*Child->GetName().ToString());
 								UnitContext->Log->Report(
 									EMessageSeverity::Info,
-									ExecuteContext->PublicData.GetFunctionName(),
-									ExecuteContext->PublicData.GetInstructionIndex(),
+									ExecuteContext->GetPublicData<>().GetFunctionName(),
+									ExecuteContext->GetPublicData<>().GetInstructionIndex(),
 									Message);
 							}
 						}
@@ -2948,7 +2948,7 @@ FTransform URigHierarchy::GetControlOffsetTransform(FRigControlElement* InContro
 	if(bRecordTransformsAtRuntime && ExecuteContext)
 	{
 		ReadTransformsAtRuntime.Emplace(
-			ExecuteContext->PublicData.GetInstructionIndex(),
+			ExecuteContext->GetPublicData<>().GetInstructionIndex(),
 			ExecuteContext->GetSlice().GetIndex(),
 			InControlElement->GetIndex(),
 			InTransformType
@@ -3031,7 +3031,7 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
 	if(bRecordTransformsAtRuntime && ExecuteContext)
 	{
 		WrittenTransformsAtRuntime.Emplace(
-			ExecuteContext->PublicData.GetInstructionIndex(),
+			ExecuteContext->GetPublicData<>().GetInstructionIndex(),
 			ExecuteContext->GetSlice().GetIndex(),
 			InControlElement->GetIndex(),
 			InTransformType

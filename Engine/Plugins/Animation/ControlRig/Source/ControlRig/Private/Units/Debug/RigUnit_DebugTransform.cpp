@@ -65,7 +65,7 @@ FRigVMStructUpgradeInfo FRigUnit_DebugTransform::GetUpgradeInfo() const
 FRigUnit_DebugTransformMutable_Execute()
 {
 	FRigUnit_DebugTransformMutableItemSpace::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		Transform,
 		Mode,
 		Color,
@@ -74,7 +74,6 @@ FRigUnit_DebugTransformMutable_Execute()
 		FRigElementKey(Space, ERigElementType::Bone), 
 		WorldOffset, 
 		bEnabled,
-		ExecuteContext, 
 		Context);
 }
 
@@ -222,7 +221,7 @@ FRigUnit_DebugTransformArrayMutableItemSpace_Execute()
 	for(const FTransform& Transform : Transforms)
 	{
 		FRigUnit_DebugTransformMutableItemSpace::StaticExecute(
-			RigVMExecuteContext, 
+			ExecuteContext, 
 			Transform,
 			Mode,
 			Color,
@@ -231,7 +230,6 @@ FRigUnit_DebugTransformArrayMutableItemSpace_Execute()
 			Space, 
 			WorldOffset, 
 			bEnabled,
-			ExecuteContext, 
 			Context);
 	}
 

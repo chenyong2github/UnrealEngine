@@ -417,6 +417,27 @@ namespace EpicGames.UHT.Types
 		{
 			return CastType != null && CastName != null;
 		}
+
+		/// <summary>
+		/// Return true if the parameter is an execute context
+		/// </summary>
+		/// <returns>True if the parameter is an execute context</returns>
+		public bool IsExecuteContext()
+		{
+			if (Property is UhtStructProperty structProperty)
+			{
+				UhtScriptStruct? scriptStruct = structProperty.ScriptStruct;
+				while (scriptStruct != null)
+				{
+					if (scriptStruct.SourceName == "FRigVMExecuteContext")
+					{
+						return true;
+					}
+					scriptStruct = scriptStruct.SuperScriptStruct;
+				}
+			}
+			return false;
+		}
 	}
 
 	/// <summary>
@@ -474,6 +495,16 @@ namespace EpicGames.UHT.Types
 		/// Engine name of the owning script struct
 		/// </summary>
 		public string Name { get; set; } = String.Empty;
+
+		/// <summary>
+		/// The name of the execute context to use for this struct's RigVM methods
+		/// </summary>
+		public string ExecuteContextType { get; set; } = "FRigVMExecuteContext";
+
+		/// <summary>
+		/// The name of a member on the struct providing an execute context
+		/// </summary>
+		public string ExecuteContextMember { get; set; } = String.Empty;
 
 		/// <summary>
 		/// List of the members
@@ -861,15 +892,30 @@ namespace EpicGames.UHT.Types
 				{
 					foreach (UhtProperty property in current.Properties)
 					{
-						RigVMStructInfo.Members.Add(new UhtRigVMParameter(property, RigVMStructInfo.Members.Count));
+						UhtRigVMParameter parameter = new UhtRigVMParameter(property, RigVMStructInfo.Members.Count);
+						if (parameter.IsExecuteContext())
+						{
+							if (RigVMStructInfo.ExecuteContextMember == String.Empty)
+							{
+								RigVMStructInfo.ExecuteContextMember = parameter.Name;
+							}
+							if (RigVMStructInfo.ExecuteContextType == "FRigVMExecuteContext")
+							{
+								RigVMStructInfo.ExecuteContextType = parameter.Type;
+							}
+							else if (RigVMStructInfo.ExecuteContextType != parameter.Type)
+							{
+								this.LogError($"RigVM Struct {this.SourceName} contains properties of varying execute context type {RigVMStructInfo.ExecuteContextType} vs {parameter.Type}.");
+							}
+						}
+						else
+						{
+							RigVMStructInfo.Members.Add(parameter);
+						}
 					}
 				}
 
-				if (RigVMStructInfo.Members.Count == 0)
-				{
-					this.LogError($"RigVM Struct '{SourceName}' - has zero members - invalid RIGVM_METHOD.");
-				}
-				else if (RigVMStructInfo.Members.Count > 64)
+				if (RigVMStructInfo.Members.Count > 64)
 				{
 					this.LogError($"RigVM Struct '{SourceName}' - has {RigVMStructInfo.Members.Count} members (64 is the limit).");
 				}

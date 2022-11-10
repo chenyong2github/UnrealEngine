@@ -212,7 +212,7 @@ struct FRigUnitContext
 #define UE_CONTROLRIG_RIGUNIT_REPORT(Severity, Format, ...) \
 if(Context.Log != nullptr) \
 { \
-	Context.Log->Report(EMessageSeverity::Severity, RigVMExecuteContext.GetFunctionName(), RigVMExecuteContext.GetInstructionIndex(), FString::Printf((Format), ##__VA_ARGS__)); \
+	Context.Log->Report(EMessageSeverity::Severity, ExecuteContext.GetFunctionName(), ExecuteContext.GetInstructionIndex(), FString::Printf((Format), ##__VA_ARGS__)); \
 }
 #define UE_CONTROLRIG_RIGUNIT_LOG_MESSAGE(Format, ...) UE_CONTROLRIG_RIGUNIT_REPORT(Info, (Format), ##__VA_ARGS__)
 #define UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(Format, ...) UE_CONTROLRIG_RIGUNIT_REPORT(Warning, (Format), ##__VA_ARGS__)

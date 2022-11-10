@@ -228,6 +228,7 @@ private:
 	int32 MaxOperationsPerFunction;
 	FString ClassName;
 	FString ModuleName;
+	FString ExecuteContextType;
 	
 	FStringArray Libraries;
 	FStringArray Includes;

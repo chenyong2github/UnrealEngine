@@ -521,7 +521,8 @@ public:
 struct FRigVMParameter
 {
 	FRigVMParameter()
-		: Name()
+		: PropertyDef(nullptr)
+		, Name()
 		, Type()
 		, bConstant(false)
 		, bInput(false)
@@ -536,6 +537,7 @@ struct FRigVMParameter
 	{
 	}
 
+	FUnrealPropertyDefinitionInfo* PropertyDef;
 	FString Name;
 	FString Type;
 	bool bConstant;
@@ -636,6 +638,8 @@ struct FRigVMParameter
 	{
 		return !CastType.IsEmpty() && !CastName.IsEmpty();
 	}
+
+	bool IsExecuteContext() const;
 };
 
 /**
@@ -747,6 +751,8 @@ struct FRigVMStructInfo
 	bool bHasGetUpgradeInfoMethod = false;
 	bool bHasGetNextAggregateNameMethod = false;
 	FString Name;
+	FString ExecuteContextType;
+	FString ExecuteContextMember;
 	FRigVMParameterArray Members;
 	TArray<FRigVMMethodInfo> Methods;
 };

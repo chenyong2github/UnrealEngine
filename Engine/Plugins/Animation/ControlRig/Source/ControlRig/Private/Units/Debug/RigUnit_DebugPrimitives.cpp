@@ -8,7 +8,7 @@
 FRigUnit_DebugRectangle_Execute()
 {
 	FRigUnit_DebugRectangleItemSpace::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		Transform,
 		Color,
 		Scale,
@@ -16,7 +16,6 @@ FRigUnit_DebugRectangle_Execute()
 		FRigElementKey(Space, ERigElementType::Bone), 
 		WorldOffset, 
 		bEnabled,
-		ExecuteContext, 
 		Context);
 }
 
@@ -61,7 +60,7 @@ FRigUnit_DebugRectangleItemSpace_Execute()
 FRigUnit_DebugArc_Execute()
 {
 	FRigUnit_DebugArcItemSpace::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		Transform,
 		Color,
 		Radius,
@@ -72,7 +71,6 @@ FRigUnit_DebugArc_Execute()
 		FRigElementKey(Space, ERigElementType::Bone), 
 		WorldOffset, 
 		bEnabled,
-		ExecuteContext, 
 		Context);
 }
 

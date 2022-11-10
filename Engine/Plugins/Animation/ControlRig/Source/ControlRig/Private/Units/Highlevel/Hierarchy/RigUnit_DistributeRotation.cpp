@@ -49,13 +49,12 @@ FRigUnit_DistributeRotation_Execute()
 	}
 
 	FRigUnit_DistributeRotationForCollection::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		Items,
 		Rotations,
 		RotationEaseType,
 		Weight,
 		WorkData,
-		ExecuteContext, 
 		Context);
 }
 
@@ -67,7 +66,7 @@ FRigVMStructUpgradeInfo FRigUnit_DistributeRotation::GetUpgradeInfo() const
 
 FRigUnit_DistributeRotationForCollection_Execute()
 {
-	FRigUnit_DistributeRotationForItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, Rotations, RotationEaseType, Weight, WorkData, ExecuteContext, Context);
+	FRigUnit_DistributeRotationForItemArray::StaticExecute(ExecuteContext, Items.Keys, Rotations, RotationEaseType, Weight, WorkData, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_DistributeRotationForCollection::GetUpgradeInfo() const

@@ -26,12 +26,11 @@ FRigUnit_SlideChain_Execute()
 	}
 
 	FRigUnit_SlideChainPerItem::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		Items,
 		SlideAmount,
 		bPropagateToChildren,
 		WorkData,
-		ExecuteContext, 
 		Context);
 }
 
@@ -43,7 +42,7 @@ FRigVMStructUpgradeInfo FRigUnit_SlideChain::GetUpgradeInfo() const
 
 FRigUnit_SlideChainPerItem_Execute()
 {
-	FRigUnit_SlideChainItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, SlideAmount, bPropagateToChildren, WorkData, ExecuteContext, Context);
+	FRigUnit_SlideChainItemArray::StaticExecute(ExecuteContext, Items.Keys, SlideAmount, bPropagateToChildren, WorkData, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_SlideChainPerItem::GetUpgradeInfo() const

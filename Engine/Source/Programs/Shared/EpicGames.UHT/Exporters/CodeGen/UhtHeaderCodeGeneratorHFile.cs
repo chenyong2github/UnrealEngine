@@ -14,8 +14,8 @@ namespace EpicGames.UHT.Exporters.CodeGen
 	internal class UhtHeaderCodeGeneratorHFile
 		: UhtHeaderCodeGenerator
 	{
+		public static string RigVMExecuteContextParamName = "ExecuteContext";
 		public static string RigVMExecuteContextDeclaration = "FRigVMExtendedExecuteContext& RigVMExecuteContext";
-		public static string RigVMExecuteContextPublicDeclaration = "const FRigVMExecuteContext& RigVMExecuteContext";
 
 		/// <summary>
 		/// Construct an instance of this generator object
@@ -129,7 +129,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				{
 					builder.Append("#define ").Append(scriptStruct.SourceName).Append('_').Append(methodInfo.Name).Append("() \\\r\n");
 					builder.Append('\t').Append(methodInfo.ReturnType).Append(' ').Append(scriptStruct.SourceName).Append("::Static").Append(methodInfo.Name).Append("( \\\r\n");
-					builder.Append("\t\t").Append(RigVMExecuteContextPublicDeclaration);
+					builder.Append("\t\t").Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& ").Append(RigVMExecuteContextParamName);
 					builder.AppendParameterDecls(scriptStruct.RigVMStructInfo.Members, true, ", \\\r\n\t\t", true, false);
 					builder.AppendParameterDecls(methodInfo.Parameters, true, ", \\\r\n\t\t", false, false);
 					builder.Append(" \\\r\n");
@@ -157,7 +157,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 						foreach (UhtRigVMMethodInfo methodInfo in scriptStruct.RigVMStructInfo.Methods)
 						{
 							builder.Append("\tstatic ").Append(methodInfo.ReturnType).Append(" Static").Append(methodInfo.Name).Append("( \\\r\n");
-							builder.Append("\t\t").Append(RigVMExecuteContextPublicDeclaration);
+							builder.Append("\t\t").Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append("& ").Append(RigVMExecuteContextParamName);
 							builder.AppendParameterDecls(scriptStruct.RigVMStructInfo.Members, true, ", \\\r\n\t\t", true, false);
 							builder.AppendParameterDecls(methodInfo.Parameters, true, ", \\\r\n\t\t", false, false);
 							builder.Append(" \\\r\n");
@@ -240,7 +240,7 @@ namespace EpicGames.UHT.Exporters.CodeGen
 							}
 
 							builder.Append("\t\t").Append(methodInfo.ReturnPrefix()).Append("Static").Append(methodInfo.Name).Append("( \\\r\n");
-							builder.Append("\t\t\tRigVMExecuteContext.PublicData");
+							builder.Append("\t\t\tRigVMExecuteContext.GetPublicData<").Append(scriptStruct.RigVMStructInfo.ExecuteContextType).Append(">()");
 							builder.AppendParameterNames(scriptStruct.RigVMStructInfo.Members, true, ", \\\r\n\t\t\t", false);
 							builder.AppendParameterNames(methodInfo.Parameters, true, ", \\\r\n\t\t\t");
 							builder.Append(" \\\r\n");

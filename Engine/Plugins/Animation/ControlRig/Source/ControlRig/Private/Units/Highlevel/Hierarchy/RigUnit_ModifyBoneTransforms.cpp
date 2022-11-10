@@ -17,14 +17,13 @@ FRigUnit_ModifyBoneTransforms_Execute()
 	}
 
 	FRigUnit_ModifyTransforms::StaticExecute(
-		RigVMExecuteContext,
+		ExecuteContext,
 		ItemsToModify,
 		Weight,
 		WeightMinimum,
 		WeightMaximum,
 		Mode,
 		WorkData,
-		ExecuteContext, 
 		Context);
 }
 

@@ -25,7 +25,7 @@
 
 FRigUnit_CollectionChain_Execute()
 {
-	FRigUnit_CollectionChainArray::StaticExecute(RigVMExecuteContext, FirstItem, LastItem, Reverse, Collection.Keys, Context);
+	FRigUnit_CollectionChainArray::StaticExecute(ExecuteContext, FirstItem, LastItem, Reverse, Collection.Keys, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_CollectionChain::GetUpgradeInfo() const
@@ -78,7 +78,7 @@ FRigUnit_CollectionChainArray_Execute()
 
 FRigUnit_CollectionNameSearch_Execute()
 {
-	FRigUnit_CollectionNameSearchArray::StaticExecute(RigVMExecuteContext, PartialName, TypeToSearch, Collection.Keys, Context);
+	FRigUnit_CollectionNameSearchArray::StaticExecute(ExecuteContext, PartialName, TypeToSearch, Collection.Keys, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_CollectionNameSearch::GetUpgradeInfo() const
@@ -114,7 +114,7 @@ FRigUnit_CollectionNameSearchArray_Execute()
 
 FRigUnit_CollectionChildren_Execute()
 {
-	FRigUnit_CollectionChildrenArray::StaticExecute(RigVMExecuteContext, Parent, bIncludeParent, bRecursive, TypeToSearch, Collection.Keys, Context);
+	FRigUnit_CollectionChildrenArray::StaticExecute(ExecuteContext, Parent, bIncludeParent, bRecursive, TypeToSearch, Collection.Keys, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_CollectionChildren::GetUpgradeInfo() const
@@ -237,7 +237,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_CollectionChildren)
 
 FRigUnit_CollectionReplaceItems_Execute()
 {
-	FRigUnit_CollectionReplaceItemsArray::StaticExecute(RigVMExecuteContext, Items.Keys, Old, New, RemoveInvalidItems, bAllowDuplicates, Collection.Keys, Context);
+	FRigUnit_CollectionReplaceItemsArray::StaticExecute(ExecuteContext, Items.Keys, Old, New, RemoveInvalidItems, bAllowDuplicates, Collection.Keys, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_CollectionReplaceItems::GetUpgradeInfo() const
@@ -274,7 +274,7 @@ FRigUnit_CollectionReplaceItemsArray_Execute()
 		for (int32 Index = 0; Index < Items.Num(); Index++)
 		{
 			FRigElementKey Key = Items[Index];
-			FRigUnit_ItemReplace::StaticExecute(RigVMExecuteContext, Key, Old, New, Key, Context);
+			FRigUnit_ItemReplace::StaticExecute(ExecuteContext, Key, Old, New, Key, Context);
 
 			if (Context.Hierarchy->GetIndex(Key) != INDEX_NONE)
 			{
@@ -326,7 +326,7 @@ FRigUnit_CollectionGetItems_Execute()
 
 FRigUnit_CollectionGetParentIndices_Execute()
 {
-	FRigUnit_CollectionGetParentIndicesItemArray::StaticExecute(RigVMExecuteContext, Collection.Keys, ParentIndices, Context);
+	FRigUnit_CollectionGetParentIndicesItemArray::StaticExecute(ExecuteContext, Collection.Keys, ParentIndices, Context);
 }
 
 FRigVMStructUpgradeInfo FRigUnit_CollectionGetParentIndices::GetUpgradeInfo() const

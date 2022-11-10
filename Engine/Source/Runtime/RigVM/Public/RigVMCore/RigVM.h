@@ -669,6 +669,21 @@ public:
 	uint32 GetNumExecutions() const { return NumExecutions; }
 	const FRigVMExtendedExecuteContext& GetContext() const { return Context; }
 
+	template<typename ExecuteContextType = FRigVMExecuteContext>
+	FORCEINLINE const ExecuteContextType& GetPublicData() const
+	{
+		return Context.GetPublicData<ExecuteContextType>();
+	}
+
+	template<typename ExecuteContextType = FRigVMExecuteContext>
+	FORCEINLINE ExecuteContextType& GetPublicData()
+	{
+		return Context.GetPublicData<ExecuteContextType>();
+	}
+	
+	const UScriptStruct* GetContextPublicDataStruct() const;
+	void SetContextPublicDataStruct(UScriptStruct* InScriptStruct);
+
 private:
 
 	void ResolveFunctionsIfRequired();
@@ -687,7 +702,7 @@ protected:
 	UPROPERTY(transient)
 	FRigVMExtendedExecuteContext Context;
 
-	FORCEINLINE void SetInstructionIndex(uint16 InInstructionIndex) { Context.PublicData.InstructionIndex = InInstructionIndex; }
+	FORCEINLINE void SetInstructionIndex(uint16 InInstructionIndex) { Context.GetPublicData<>().InstructionIndex = InInstructionIndex; }
 
 private:
 	UPROPERTY(transient)

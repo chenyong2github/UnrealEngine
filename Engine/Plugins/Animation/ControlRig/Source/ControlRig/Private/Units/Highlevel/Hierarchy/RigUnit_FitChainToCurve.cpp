@@ -25,7 +25,7 @@ FRigUnit_FitChainToCurve_Execute()
 	}
 
 	FRigUnit_FitChainToCurvePerItem::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		Items,
 		Bezier,
 		Alignment,
@@ -41,7 +41,6 @@ FRigUnit_FitChainToCurve_Execute()
 		bPropagateToChildren,
 		DebugSettings,
 		WorkData,
-		ExecuteContext, 
 		Context);
 }
 
@@ -54,7 +53,7 @@ FRigVMStructUpgradeInfo FRigUnit_FitChainToCurve::GetUpgradeInfo() const
 FRigUnit_FitChainToCurvePerItem_Execute()
 {
 	FRigUnit_FitChainToCurveItemArray::StaticExecute(
-		RigVMExecuteContext,
+		ExecuteContext,
 		Items.Keys,
 		Bezier,
 		Alignment,
@@ -70,7 +69,6 @@ FRigUnit_FitChainToCurvePerItem_Execute()
 		bPropagateToChildren,
 		DebugSettings,
 		WorkData,
-		ExecuteContext,
 		Context);
 }
 

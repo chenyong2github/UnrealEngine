@@ -10,7 +10,7 @@
 FRigUnit_TransformConstraint_Execute()
 {
 	FRigUnit_TransformConstraintPerItem::StaticExecute(
-		RigVMExecuteContext, 
+		ExecuteContext, 
 		FRigElementKey(Bone, ERigElementType::Bone),
 		BaseTransformSpace,
 		BaseTransform,
@@ -18,7 +18,6 @@ FRigUnit_TransformConstraint_Execute()
 		Targets,
 		bUseInitialTransforms,
 		WorkData,
-		ExecuteContext, 
 		Context);
 }
 
@@ -1493,7 +1492,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_RotationConstraintLocalSpaceOffset)
 
 FRigUnit_ScaleConstraint_Execute()
 {
-	TFunction<FVector (const FVector&)> GetNonZeroScale([RigVMExecuteContext, Context](const FVector& InScale)
+	TFunction<FVector (const FVector&)> GetNonZeroScale([ExecuteContext, Context](const FVector& InScale)
 	{
 		FVector NonZeroScale = InScale;
        
@@ -1699,7 +1698,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_ScaleConstraint)
 
 FRigUnit_ScaleConstraintLocalSpaceOffset_Execute()
 {
-	TFunction<FVector (const FVector&)> GetNonZeroScale([RigVMExecuteContext, Context](const FVector& InScale)
+	TFunction<FVector (const FVector&)> GetNonZeroScale([ExecuteContext, Context](const FVector& InScale)
 	{
 		FVector NonZeroScale = InScale;
        

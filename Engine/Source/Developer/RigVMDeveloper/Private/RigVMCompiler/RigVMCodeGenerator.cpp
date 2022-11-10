@@ -45,9 +45,10 @@ static constexpr TCHAR RigVM_InvokeEntryByNameFormat[] = TEXT("\treturn InvokeEn
 static constexpr TCHAR RigVM_InvokeEntryByNameFormat2[] = TEXT("\tif(!InvokeEntryByName({0}{1})) return false;");
 static constexpr TCHAR RigVM_CanExecuteEntryFormat[] = TEXT("\tif(!CanExecuteEntry(InEntryName)) { return false; }");
 static constexpr TCHAR RigVM_EntryExecuteGuardFormat[] = TEXT("\tFEntryExecuteGuard EntryExecuteGuard(EntriesBeingExecuted, FindEntry(InEntryName));");
-static constexpr TCHAR RigVM_PublicContextGuardFormat[] = TEXT("\tTGuardValue<FRigVMExecuteContext> PublicContextGuard(Context.PublicData, PublicContext);");
+static constexpr TCHAR RigVM_PublicContextGuardFormat[] = TEXT("\tTGuardValue<{0}> PublicContextGuard(Context.GetPublicData<{0}>(), PublicContext);");
 static constexpr TCHAR RigVM_EntryNameFormat[] = TEXT("EntryName_{0}");
-static constexpr TCHAR RigVM_UpdateContextFormat[] = TEXT("\tconst FRigVMExecuteContext& PublicContext = UpdateContext(AdditionalArguments, {0}, InEntryName);");
+static constexpr TCHAR RigVM_SetExecuteContextStructFormmt[] = TEXT("\tSetContextPublicDataStruct({0}::StaticStruct());");
+static constexpr TCHAR RigVM_UpdateContextFormat[] = TEXT("\t{0}& PublicContext = UpdateContext<{0}>(AdditionalArguments, {1}, InEntryName);");
 static constexpr TCHAR RigVM_TrueFormat[] = TEXT("true");  
 static constexpr TCHAR RigVM_FalseFormat[] = TEXT("false");
 static constexpr TCHAR RigVM_SingleUnderscoreFormat[] = TEXT("_");
@@ -64,7 +65,7 @@ static constexpr TCHAR RigVM_ParameterOpaqueArgumentFormat[] = TEXT("{0} {1}");
 static constexpr TCHAR RigVM_InstructionLabelFormat[] = TEXT("\tInstruction{0}Label:");
 static constexpr TCHAR RigVM_SetInstructionIndexFormat[] = TEXT("\tSetInstructionIndex({0});");
 static constexpr TCHAR RigVM_ContextPublicFormat[] = TEXT("PublicContext");
-static constexpr TCHAR RigVM_ContextPublicParameterFormat[] = TEXT("const FRigVMExecuteContext& PublicContext");
+static constexpr TCHAR RigVM_ContextPublicParameterFormat[] = TEXT("{0}& PublicContext");
 static constexpr TCHAR RigVM_NotEqualsOpFormat[] = TEXT("\t{0} = {1} != {2};");
 static constexpr TCHAR RigVM_JumpOpFormat[] = TEXT("\tgoto Instruction{0}Label;");
 static constexpr TCHAR RigVM_JumpIfOpFormat[] = TEXT("\tif ({0} == {1}) { goto Instruction{2}Label; }");
@@ -488,7 +489,8 @@ FString FRigVMCodeGenerator::DumpInstructions(int32 InOperationGroup, bool bLog)
 	{
 		if(InOperationGroup == INDEX_NONE)
 		{
-			Lines.Add(Format(RigVM_UpdateContextFormat, Operations.Num()));
+			Lines.Add(Format(RigVM_SetExecuteContextStructFormmt, ExecuteContextType));
+			Lines.Add(Format(RigVM_UpdateContextFormat, ExecuteContextType, Operations.Num()));
 
 			// let's get the additional arguments for all sub groups
 			TArray<FString> OpaqueArgumentHit;
@@ -524,7 +526,7 @@ FString FRigVMCodeGenerator::DumpInstructions(int32 InOperationGroup, bool bLog)
 			Lines.Add(FString(RigVM_CanExecuteEntryFormat));
 			Lines.Emplace();
 			Lines.Add(FString(RigVM_EntryExecuteGuardFormat));
-			Lines.Add(FString(RigVM_PublicContextGuardFormat));
+			Lines.Add(Format(RigVM_PublicContextGuardFormat, ExecuteContextType));
 			Lines.Emplace();
 			
 			for(int32 EntryIndex = 0; EntryIndex < ByteCode.NumEntries(); EntryIndex++)
@@ -1020,7 +1022,7 @@ FString FRigVMCodeGenerator::DumpHeader(bool bLog)
 		const FOperationGroup& Group = OperationGroups[GroupIndex];
 
 		FString Parameters;
-		TArray<FString> ParameterArray = {RigVM_ContextPublicParameterFormat};
+		TArray<FString> ParameterArray = {Format(RigVM_ContextPublicParameterFormat, ExecuteContextType)};
 		if(!Group.OpaqueArguments.IsEmpty())
 		{
 			for(const FOpaqueArgument& OpaqueArgument : Group.OpaqueArguments)
@@ -1095,7 +1097,7 @@ FString FRigVMCodeGenerator::DumpSource(bool bLog)
 		const FOperationGroup& Group = OperationGroups[GroupIndex];
 
 		FString Parameters;
-		TArray<FString> ParameterArray = {RigVM_ContextPublicParameterFormat};
+		TArray<FString> ParameterArray = {Format(RigVM_ContextPublicParameterFormat, ExecuteContextType)};
 		if(!Group.OpaqueArguments.IsEmpty())
 		{
 			for(const FOpaqueArgument& OpaqueArgument : Group.OpaqueArguments)
@@ -1180,6 +1182,7 @@ void FRigVMCodeGenerator::ParseVM(const FString& InClassName, const FString& InM
 	MaxOperationsPerFunction = InMaxOperationsPerFunction;
 	ClassName = InClassName;
 	ModuleName = InModuleName;
+	ExecuteContextType = VM->GetContextPublicDataStruct()->GetStructCPPName();
 
 	// create an inverted map to lookup pins from operands
 	OperandToPinMap.Reset();
