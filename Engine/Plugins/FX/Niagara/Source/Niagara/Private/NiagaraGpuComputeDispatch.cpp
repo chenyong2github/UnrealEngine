@@ -9,6 +9,7 @@
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
 #include "Misc/ScopeExit.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 #include "NiagaraAsyncGpuTraceHelper.h"
 #include "NiagaraDataInterfaceRW.h"
