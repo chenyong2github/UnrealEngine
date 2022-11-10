@@ -19,9 +19,6 @@
 #endif
 #if PLATFORM_WINDOWS
 	#include "Windows/WindowsHWrapper.h"
-	#include "Windows/AllowWindowsPlatformTypes.h"
-	#include <DbgHelp.h>
-	#include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
 
@@ -30,8 +27,6 @@ IMPLEMENT_MODULE(FDefaultModuleImpl, Launch);
 #if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_UNIX || PLATFORM_USE_GENERIC_LAUNCH_IMPLEMENTATION
 
 FEngineLoop	GEngineLoop;
-bool GIsConsoleExecutable = false;
-
 
 extern "C" int test_main(int argc, char ** argp)
 {
@@ -139,15 +134,6 @@ int32 GuardedMain( const TCHAR* CmdLine )
 	// That will also use the user folder for installed builds so we don't write into program files or whatever.
 #if PLATFORM_WINDOWS
 	FCString::Strcpy(MiniDumpFilenameW, *FString::Printf(TEXT("unreal-v%i-%s.dmp"), FEngineVersion::Current().GetChangelist(), *FDateTime::Now().ToString()));
-
-	if (PIMAGE_NT_HEADERS NtHeaders = ImageNtHeader(GetModuleHandle(nullptr)))
-	{
-		GIsConsoleExecutable = (NtHeaders->OptionalHeader.Subsystem == IMAGE_SUBSYSTEM_WINDOWS_CUI);
-	}
-	else
-	{
-		GIsConsoleExecutable = (GetFileType(GetStdHandle(STD_OUTPUT_HANDLE)) == FILE_TYPE_CHAR);
-	}
 #endif
 
 	FTrackedActivity::GetEngineActivity().Update(TEXT("Initializing"));

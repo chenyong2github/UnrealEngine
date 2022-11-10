@@ -239,6 +239,7 @@ class FFeedbackContext;
 	#include "Windows/AllowWindowsPlatformTypes.h"
 	#include <ObjBase.h>
 	#include "Windows/HideWindowsPlatformTypes.h"
+	#include <DbgHelp.h>
 #endif
 
 #if WITH_ENGINE
@@ -279,6 +280,8 @@ class FFeedbackContext;
 #if PLATFORM_IOS || PLATFORM_TVOS
 #include "IOS/IOSAppDelegate.h"
 #endif
+
+bool GIsConsoleExecutable = false;
 
 int32 GUseDisregardForGCOnDedicatedServers = 1;
 static FAutoConsoleVariableRef CVarUseDisregardForGCOnDedicatedServers(
@@ -3084,6 +3087,23 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 		return 0;
 	}
 
+	extern bool GIsConsoleExecutable;
+#if PLATFORM_WINDOWS
+	/*
+	Note - ImageNtHeader must be called after DbgHelp is initialized.Failure to wait before initialization will cause calls to
+	SymFromAddr for monolithic exes to fail. This results in callstacks not being written to the log.
+	From discussion with Microsoft it is unclear when this time is and could be related to large pdbs. At this time here is an appropriate spot.
+	*/
+	if (PIMAGE_NT_HEADERS NtHeaders = ImageNtHeader(GetModuleHandle(nullptr)))
+	{
+		GIsConsoleExecutable = (NtHeaders->OptionalHeader.Subsystem == IMAGE_SUBSYSTEM_WINDOWS_CUI);
+	}
+	else
+	{
+		GIsConsoleExecutable = (GetFileType(GetStdHandle(STD_OUTPUT_HANDLE)) == FILE_TYPE_CHAR);
+	}
+#endif // PLATFORM_WINDOWS
+
 	FScopeCycleCounter CycleCount_AfterStats(GET_STATID(STAT_FEngineLoop_PreInitPostStartupScreen_AfterStats));
 
 	// Restore PreInitContext
@@ -3592,7 +3612,6 @@ int32 FEngineLoop::PreInitPostStartupScreen(const TCHAR* CmdLine)
 			}
 
 #if PLATFORM_WINDOWS || PLATFORM_MAC || PLATFORM_UNIX
-			extern bool GIsConsoleExecutable;
 			if (GIsConsoleExecutable)
 			{
 				if (GLogConsole != nullptr && GLogConsole->IsAttached())
