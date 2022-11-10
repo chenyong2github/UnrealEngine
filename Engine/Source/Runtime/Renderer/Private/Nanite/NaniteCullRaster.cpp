@@ -1488,6 +1488,7 @@ void CollectRasterPSOInitializersForPermutation(
 			MinimalPipelineStateInitializer.BoundShaderState.VertexDeclarationRHI = bUseMeshShader ? nullptr : GEmptyVertexDeclaration.VertexDeclarationRHI;
 			MinimalPipelineStateInitializer.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, bIsTwoSided ? CM_None : CM_CW);
 
+#if PLATFORM_SUPPORTS_MESH_SHADERS
 			if (bUseMeshShader)
 			{		
 				FMaterialShaders* MeshMaterialShaders = ProgrammableShaders.Shaders[SF_Mesh] ? &ProgrammableShaders : &NonProgrammableShaders;
@@ -1495,6 +1496,9 @@ void CollectRasterPSOInitializersForPermutation(
 				MinimalPipelineStateInitializer.BoundShaderState.MeshShaderIndex = MeshMaterialShaders->Shaders[SF_Mesh]->GetResourceIndex();
 			}
 			else
+#else
+			check(!bUseMeshShader);
+#endif // PLATFORM_SUPPORTS_MESH_SHADERS
 			{
 				FMaterialShaders* VertexMaterialShaders = ProgrammableShaders.Shaders[SF_Vertex] ? &ProgrammableShaders : &NonProgrammableShaders;
 				MinimalPipelineStateInitializer.BoundShaderState.VertexShaderResource = VertexMaterialShaders->ShaderMap->GetResource();
