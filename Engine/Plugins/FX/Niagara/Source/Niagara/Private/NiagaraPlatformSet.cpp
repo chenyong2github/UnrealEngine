@@ -55,14 +55,14 @@ int32 GNiagaraQualityLevel = DefaultQualityLevel;
 
 static FAutoConsoleCommand GCmdSetNiagaraQualityLevelOverride(
 	TEXT("fx.Niagara.SetOverrideQualityLevel"),
-	TEXT("Sets which quality level we should override with, no args means reset to default (Epic). Valid levels are 0-4 (Low-Cinematic)"),
+	TEXT("Sets which quality level we should override with, no args means clear the override and return to non overriden quality level). Valid levels are 0-4 (Low-Cinematic)"),
 	FConsoleCommandWithArgsDelegate::CreateLambda(
 		[](const TArray<FString>& Args)
 		{
 			if(Args.Num() == 0)
 			{
-				SetGNiagaraQualityLevel(DefaultQualityLevel);
-				UE_LOG(LogNiagara, Display, TEXT("Reset the global Niagara quality level to %s"), *FNiagaraPlatformSet::GetQualityLevelText(GNiagaraQualityLevel).ToString());
+				FNiagaraPlatformSet::ClearNiagaraQualityLevelOverride();
+				UE_LOG(LogNiagara, Display, TEXT("Clearing the Niagara Quality Level override and returning quality level to %s"), *FNiagaraPlatformSet::GetQualityLevelText(FNiagaraPlatformSet::GetQualityLevel()).ToString());
 			}
 			else if(Args.Num() == 1)
 			{
@@ -71,8 +71,8 @@ static FAutoConsoleCommand GCmdSetNiagaraQualityLevelOverride(
 					int32 NewQualityLevel = FCString::Atoi(*Args[0]);
 					if(ensure(NewQualityLevel >= 0 && NewQualityLevel <= 4))
 					{
-						SetGNiagaraQualityLevel(NewQualityLevel);
-						UE_LOG(LogNiagara, Display, TEXT("Set the global Niagara quality level to %s"), *FNiagaraPlatformSet::GetQualityLevelText(GNiagaraQualityLevel).ToString());
+						FNiagaraPlatformSet::SetNiagaraQualityLevelOverride(NewQualityLevel);
+						UE_LOG(LogNiagara, Display, TEXT("Set the global Niagara quality level to %s"), *FNiagaraPlatformSet::GetQualityLevelText(FNiagaraPlatformSet::GetQualityLevel()).ToString());
 					}
 				}
 			}
@@ -87,20 +87,24 @@ static FAutoConsoleVariableRef CVarNiagaraQualityLevel(
 	ECVF_Scalability
 );
 
+void FNiagaraPlatformSet::SetNiagaraQualityLevelOverride(int32 Override) 
+{
+	if(Override != QualityLevelOverride)
+	{
+		QualityLevelOverride = Override; 
+		InvalidateCachedData();
+		RefreshScalability();
+	}
+}
+
+void FNiagaraPlatformSet::ClearNiagaraQualityLevelOverride() 
+{
+	SetNiagaraQualityLevelOverride(INDEX_NONE);
+};
+
 // Sync function for checking quality level hasn't changed
 // This must be done at the end of all console variable changes otherwise we can encounter multiple changes to the Q level resulting in some systems being left deactivated
-FAutoConsoleVariableSink CVarNiagaraQualityLevelSync(
-	FConsoleCommandDelegate::CreateLambda(
-		[]()
-		{
-			const int32 CurrentLevel = FNiagaraPlatformSet::GetQualityLevel();
-			if (CurrentLevel != GNiagaraQualityLevel)
-			{
-				SetGNiagaraQualityLevel(GNiagaraQualityLevel);
-			}
-		}
-	)
-);
+FAutoConsoleVariableSink CVarNiagaraQualityLevelSync(FConsoleCommandDelegate::CreateStatic(&FNiagaraPlatformSet::RefreshScalability));
 
 /** Minimum quality level available for a platform. Defaults to -1, indicating there is no minimum. */
 static const int32 DefaultMinQualityLevel = INDEX_NONE;
@@ -213,13 +217,23 @@ static UDeviceProfile* NiagaraGetActiveDeviceProfile()
 
 int32 FNiagaraPlatformSet::CachedQualityLevel = INDEX_NONE;
 int32 FNiagaraPlatformSet::CachedAvailableQualityLevelMask = INDEX_NONE;
+int32 FNiagaraPlatformSet::QualityLevelOverride = INDEX_NONE;
 
 int32 FNiagaraPlatformSet::GetQualityLevel()
 {
+	if(QualityLevelOverride != INDEX_NONE)
+	{
+		return QualityLevelOverride;
+	}
+
 	if (CachedQualityLevel == INDEX_NONE)
 	{
-		CachedQualityLevel = GNiagaraQualityLevel;
+		//Return GNiagaraQualityLevel so that we have a valid level but do not update cached quality level. 
+		//This must be kept in order to trigger a proper refresh of scalability state.
+		//It is possible that InvalidateCachedData to be called and we reach here before we hit our own CVar Sinks and refresh handling.
+		return GNiagaraQualityLevel;
 	}
+
 	return CachedQualityLevel;
 }
 
@@ -976,6 +990,23 @@ IConsoleVariable* FNiagaraPlatformSet::GetCVar(FName CVarName)
 
 void FNiagaraPlatformSet::RefreshScalability()
 {
+	//If the main quality level has changed we do a full refresh, other wise we can do a more targeted refresh just based on the changed CVars.
+	if (GNiagaraQualityLevel != CachedQualityLevel)
+	{
+		FNiagaraPlatformSet::InvalidateCachedData();
+		CachedQualityLevel = GNiagaraQualityLevel;
+
+		for (TObjectIterator<UNiagaraSystem> It; It; ++It)
+		{
+			UNiagaraSystem* System = *It;
+			check(System);
+			System->UpdateScalability();
+		}
+
+		//We've done a full scalability so clear these out as we wont need to do a targeted refresh.
+		ChangedCVars.Reset();
+	}
+
 	bool bNeedsRefresh = ChangedCVars.Num() > 0;//Other reasons to refresh deferred like this?
 
 	if (bNeedsRefresh)
@@ -1031,7 +1062,6 @@ void FNiagaraPlatformSet::InvalidateCachedData()
 
 	CachedQualityLevel = INDEX_NONE;
 	LastDirtiedFrame = GFrameNumber;
-	CachedQualityLevel = INDEX_NONE;
 }
 
 bool FNiagaraPlatformSet::IsEnabledForPlatform(const FString& PlatformName)const
@@ -1076,19 +1106,6 @@ bool FNiagaraPlatformSet::CanChangeScalabilityAtRuntime(const UDeviceProfile* De
 #endif
 	}
 	return true;//Assuming true if we fail to find the platform seems safest.
-}
-
-void SetGNiagaraQualityLevel(int32 QualityLevel)
-{
-	GNiagaraQualityLevel = QualityLevel;
-	FNiagaraPlatformSet::InvalidateCachedData();
-
-	for (TObjectIterator<UNiagaraSystem> It; It; ++It)
-	{
-		UNiagaraSystem* System = *It;
-		check(System);
-		System->UpdateScalability();
-	}
 }
 
 void SetGNiagaraDeviceProfile(UDeviceProfile* Profile)

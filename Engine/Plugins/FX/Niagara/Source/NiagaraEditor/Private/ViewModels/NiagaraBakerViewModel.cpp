@@ -631,7 +631,6 @@ void FNiagaraBakerViewModel::RenderBaker()
 		FScopedSlowTask SlowTask(TotalFrames);
 		SlowTask.MakeDialog();
 
-		const int32 ExistingQualityLevel = FNiagaraPlatformSet::GetQualityLevel();
 		if (BakerSettings->BakeQualityLevel.IsNone() == false)
 		{
 			const UNiagaraSettings* NiagaraSettings = GetDefault<UNiagaraSettings>();
@@ -639,7 +638,7 @@ void FNiagaraBakerViewModel::RenderBaker()
 			{
 				if (FName(NiagaraSettings->QualityLevels[i].ToString()) == BakerSettings->BakeQualityLevel)
 				{
-					SetGNiagaraQualityLevel(i);
+					FNiagaraPlatformSet::SetNiagaraQualityLevelOverride(i);
 					break;
 				}
 			}
@@ -665,7 +664,7 @@ void FNiagaraBakerViewModel::RenderBaker()
 
 		if (BakerSettings->BakeQualityLevel.IsNone() == false)
 		{
-			SetGNiagaraQualityLevel(ExistingQualityLevel);
+			FNiagaraPlatformSet::ClearNiagaraQualityLevelOverride();
 		}
 	}
 

@@ -262,7 +262,6 @@ private:
 	mutable uint32 LastCachedFrame = INDEX_NONE;
 };
 
-void NIAGARA_API SetGNiagaraQualityLevel(int32 QualityLevel);
 void NIAGARA_API SetGNiagaraDeviceProfile(UDeviceProfile* Profile);
 
 UENUM()
@@ -394,7 +393,6 @@ public:
 	/** Invalidates any cached data on this platform set when something has changed. */
 	void OnChanged();
 
-
 	/** Inspects the passed sets and generates an array of all conflicts between these sets. Used to keep arrays of platform sets orthogonal. */
 	static bool GatherConflicts(const TArray<const FNiagaraPlatformSet*>& PlatformSets, TArray<FNiagaraPlatformSetConflictInfo>& OutConflicts);
 	
@@ -438,6 +436,9 @@ public:
 
 	static uint32 GetLastDirtiedFrame(){ return LastDirtiedFrame; }
 
+	static void SetNiagaraQualityLevelOverride(int32 Override);
+	static void ClearNiagaraQualityLevelOverride();
+
 private:
 
 	mutable uint32 bEnabledForCurrentProfileAndEffectQuality : 1;
@@ -448,8 +449,12 @@ private:
 	//Set from outside when we need to force all cached values to be regenerated. For example on CVar changes.
 	static uint32 LastDirtiedFrame;
 
+	/** Cached value of the CVar fx.Niagara.QualityLevel. Allows us to detect when it has changed so we can properly apply scalability changes. */
 	static int32 CachedQualityLevel;
 	static int32 CachedAvailableQualityLevelMask;
+
+	/** An override for Niagara quality level, driven from the Niagara UI. */
+	static int32 QualityLevelOverride;
 
 #if WITH_EDITOR
 	//Cached data read from platform ini files.
@@ -522,5 +527,3 @@ FORCEINLINE void FNiagaraDeviceProfileStateEntry::SetState(int32 QualityLevel, E
 		QualityLevelMask &= ~QLMask;
 	}
 }
-
-extern int32 GNiagaraQualityLevel;
