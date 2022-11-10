@@ -21,6 +21,7 @@
 #include "Modules/ModuleManager.h"
 #include "Styling/AppStyle.h"
 #include "ChaosClothAsset/SClothCollectionOutliner.h"
+#include "Widgets/Input/SComboBox.h"
 
 #define LOCTEXT_NAMESPACE "ChaosClothAssetEditorToolkit"
 
@@ -510,25 +511,19 @@ void FChaosClothAssetEditorToolkit::InitDetailsViewPanel()
 	}
 
 	const UChaosClothAssetEditorMode* const ClothMode = CastChecked<UChaosClothAssetEditorMode>(EditorModeManager->GetActiveScriptableMode(UChaosClothAssetEditorMode::EM_ChaosClothAssetEditorModeId));
-	check(ClothMode);
 
-	const bool bHasOutliner = OutlinerView.IsValid();
+	TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> ClothCollection;
 
-	bool bHasClothCollection = false;
-	if (ClothMode->ClothComponent)
+	if (const TObjectPtr<UChaosClothComponent> ClothComponent = ClothMode->ClothComponent)
 	{
-		if (ClothMode->ClothComponent->GetClothAsset())
+		if (UChaosClothAsset* const ClothAsset = ClothComponent->GetClothAsset())
 		{
-			if (ClothMode->ClothComponent->GetClothAsset()->GetClothCollection())
-			{
-				bHasClothCollection = true;
-			}
+			ClothCollection = ClothAsset->GetClothCollection();
 		}
 	}
-
-	if (bHasOutliner && bHasClothCollection)
+	
+	if (OutlinerView.IsValid() && ClothCollection.IsValid())
 	{
-		const TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothMode->ClothComponent->GetClothAsset()->GetClothCollection();
 		const FName& SelectedGroupName = ClothCollection->SimVerticesGroup;
 		
 		OutlinerView->SetClothCollection(ClothCollection);

@@ -3,10 +3,10 @@
 #pragma once
 
 #include "BaseCharacterFXEditorToolkit.h"
-#include "Widgets/Input/SComboBox.h"
 
 class FAdvancedPreviewScene;
 class FChaosClothAssetEditor3DViewportClient;
+template<typename T> class SComboBox;
 class SClothCollectionOutliner;
 
 /**
