@@ -40,14 +40,10 @@ namespace UnrealBuildTool.Rules
 			} 
 			else if ((Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64")) || Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				// libVPX is linked inside WebRTC so just use those headers and binaries where avaliable
-				PrivateIncludePaths.Add(Path.Join(EngineDirectory, "Source", "ThirdParty", WebRTC.WebRtcVersionPath, "Include", "third_party", "libvpx", "source", "libvpx"));
-
-				PublicDependencyModuleNames.Add("WebRTC");
-
 				PublicDependencyModuleNames.AddRange(
 					new string[] {
 					"LibWebM",
+					"LibVpx"
 				});
 				
 				PublicDefinitions.Add("WITH_WEBM_LIBS=1");			
