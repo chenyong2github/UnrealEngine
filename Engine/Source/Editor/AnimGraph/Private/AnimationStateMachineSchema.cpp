@@ -327,12 +327,18 @@ bool UAnimationStateMachineSchema::TryRelinkConnectionTarget(UEdGraphPin* Source
 
 bool UAnimationStateMachineSchema::IsConnectionRelinkingAllowed(UEdGraphPin* InPin) const
 {
-	if (!InPin || !InPin->GetOwningNode())
+	if (InPin && InPin->GetOwningNode())
 	{
-		return false;
+		UAnimStateNodeBase* StateNode = Cast<UAnimStateNodeBase>(InPin->GetOwningNode());
+		UAnimStateTransitionNode* TransitionNode = Cast<UAnimStateTransitionNode>(InPin->GetOwningNode());
+		UAnimStateEntryNode* EntryNode = Cast<UAnimStateEntryNode>(InPin->GetOwningNode());
+		if (StateNode || TransitionNode || EntryNode)
+		{
+			return true;
+		}
 	}
 
-	return true;
+	return false;
 }
 
 const FPinConnectionResponse UAnimationStateMachineSchema::CanRelinkConnectionToPin(const UEdGraphPin* OldSourcePin, const UEdGraphPin* TargetPinCandidate) const
