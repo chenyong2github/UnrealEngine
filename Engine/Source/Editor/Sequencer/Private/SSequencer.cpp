@@ -825,9 +825,10 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 				+ SOverlay::Slot()
 				[
 					// track area virtual splitter overlay
-					SNew(SSequencerSplitterOverlay)
+					SAssignNew(TreeViewSplitter, SSequencerSplitterOverlay)
 					.Style(FAppStyle::Get(), "Sequencer.AnimationOutliner.Splitter")
 					.Visibility(EVisibility::SelfHitTestInvisible)
+					.OnSplitterFinishedResizing(this, &SSequencer::OnSplitterFinishedResizing)
 
 					+ SSplitter::Slot()
 					.Value(FillCoefficient_0)
@@ -3628,25 +3629,20 @@ EFrameNumberDisplayFormats SSequencer::GetTimeDisplayFormat() const
 	return GetSequencerSettings()->GetTimeDisplayFormat();
 }
 
+void SSequencer::OnSplitterFinishedResizing()
+{
+	SSplitter::FSlot const& LeftSplitterSlot = TreeViewSplitter->Splitter->SlotAt(0);
+	SSplitter::FSlot const& RightSplitterSlot = TreeViewSplitter->Splitter->SlotAt(1);
+
+	OnColumnFillCoefficientChanged(LeftSplitterSlot.GetSizeValue(), 0);
+	OnColumnFillCoefficientChanged(RightSplitterSlot.GetSizeValue(), 1);
+
+	GetSequencerSettings()->SetTreeViewWidth(LeftSplitterSlot.GetSizeValue());
+}
+
 void SSequencer::OnColumnFillCoefficientChanged(float FillCoefficient, int32 ColumnIndex)
 {
 	ColumnFillCoefficients[ColumnIndex] = FillCoefficient;
-
-	// Update on next tick so that we're not constantly saving config on dragging the divider
-	if (GEditor)
-	{
-		GEditor->GetTimerManager()->SetTimerForNextTick([=]()
-		{
-			if (ColumnIndex == 0)
-			{
-				GetSequencerSettings()->SetTreeViewWidth(FillCoefficient);
-			}
-			else
-			{
-				GetSequencerSettings()->SetTreeViewWidth(1.f - FillCoefficient);
-			}
-		});
-	}
 }
 
 void SSequencer::OnCurveEditorVisibilityChanged(bool bShouldBeVisible)

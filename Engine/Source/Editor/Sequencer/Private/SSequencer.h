@@ -523,6 +523,7 @@ private:
 	 */
 	float GetColumnFillCoefficient(int32 ColumnIndex) const
 	{
+		ensure(ColumnIndex == 0 || ColumnIndex == 1);
 		return ColumnFillCoefficients[ColumnIndex];
 	}
 
@@ -595,6 +596,8 @@ private:
 
 	/** Called when a column fill percentage is changed by a splitter slot. */
 	void OnColumnFillCoefficientChanged(float FillCoefficient, int32 ColumnIndex);
+
+	void OnSplitterFinishedResizing();
 
 	/** Gets paint options for painting the playback range on sequencer */
 	FPaintPlaybackRangeArgs GetSectionPlaybackRangeArgs() const;
@@ -704,6 +707,8 @@ private:
 
 	/** The fill coefficients of each column in the grid. */
 	float ColumnFillCoefficients[2];
+
+	TSharedPtr<class SSequencerSplitterOverlay> TreeViewSplitter;
 
 	/** Whether the active timer is currently registered */
 	bool bIsActiveTimerRegistered;
