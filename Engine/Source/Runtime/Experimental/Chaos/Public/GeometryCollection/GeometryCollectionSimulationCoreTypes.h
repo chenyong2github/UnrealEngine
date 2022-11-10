@@ -81,7 +81,7 @@ struct FSharedSimulationSizeSpecificData
 //
 //
 //
-enum ESimulationInitializationState { Unintialized = 0, Activated, Created, Initialized };
+enum ESimulationInitializationState : uint8 { Unintialized = 0, Activated, Created, Initialized };
 
 
 /**

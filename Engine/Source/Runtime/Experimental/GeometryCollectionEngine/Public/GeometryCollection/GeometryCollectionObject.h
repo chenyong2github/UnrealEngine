@@ -7,6 +7,7 @@
 #include "Rendering/NaniteResources.h"
 #include "InstanceUniformShaderParameters.h"
 #include "GeometryCollection/ManagedArray.h"
+#include "GeometryCollection/GeometryCollectionDamagePropagationData.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "Chaos/ChaosSolverActor.h"
 
@@ -315,25 +316,6 @@ private:
 	bool bIsInitialized = false;
 };
 
-
-USTRUCT(BlueprintType)
-struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionDamagePropagationData
-{
-public:
-	GENERATED_BODY()
-
-	/** Whether or not damage propagation is enabled. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage Propagation")
-	bool bEnabled = true;
-
-	/** factor of the remaining strain propagated through the connection graph after a piece breaks. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage Propagation")
-	float BreakDamagePropagationFactor = 1.0f;
-
-	/** factor of the received strain propagated throug the connection graph if the piece did not break. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Damage Propagation")
-	float ShockDamagePropagationFactor = 0.0f;
-};
 
 /**
 * UGeometryCollectionObject (UObject)

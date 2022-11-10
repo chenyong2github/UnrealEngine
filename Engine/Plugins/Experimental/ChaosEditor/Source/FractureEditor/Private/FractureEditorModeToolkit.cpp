@@ -10,6 +10,7 @@
 #include "FractureEditorMode.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
+#include "GeometryCollection/GeometryCollectionObject.h"
 #include "IDetailsView.h"
 #include "IDetailRootObjectCustomization.h"
 #include "PropertyEditorModule.h"

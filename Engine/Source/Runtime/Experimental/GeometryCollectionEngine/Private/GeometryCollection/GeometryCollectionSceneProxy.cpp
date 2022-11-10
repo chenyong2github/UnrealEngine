@@ -4,6 +4,8 @@
 
 #include "Async/ParallelFor.h"
 #include "Engine/Engine.h"
+#include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/GeometryCollectionObject.h"
 #include "MaterialShaderType.h"
 #include "Materials/Material.h"
 #include "CommonRenderResources.h"

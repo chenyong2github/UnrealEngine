@@ -2,6 +2,7 @@
 
 #include "GeometryCollection/GeometryCollectionAssetBroker.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
+#include "GeometryCollection/GeometryCollectionObject.h"
 
 
 UClass* FGeometryCollectionAssetBroker::GetSupportedAssetClass()

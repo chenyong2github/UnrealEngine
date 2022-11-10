@@ -11,7 +11,9 @@
 #include "Components/BoxComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/InstancedStaticMesh.h"
+#include "Field/FieldSystemComponent.h"
 #include "GeometryCollection/Facades/CollectionHierarchyFacade.h"
+#include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionCache.h"
@@ -230,6 +232,40 @@ FGeomComponentCacheParameters::FGeomComponentCacheParameters()
 	, TrailingMinVolumeThreshold(10000.f)
 {
 }
+
+#undef COPY_ON_WRITE_ATTRIBUTE
+#define COPY_ON_WRITE_ATTRIBUTE(Type, Name, Group)										\
+const TManagedArray<Type>& UGeometryCollectionComponent::Get##Name##Array() const 		\
+{																						\
+	return Indirect##Name##Array ?														\
+		*Indirect##Name##Array : RestCollection->GetGeometryCollection()->Name;			\
+}																						\
+TManagedArray<Type>& UGeometryCollectionComponent::Get##Name##ArrayCopyOnWrite()		\
+{																						\
+	if(!Indirect##Name##Array)															\
+	{																					\
+		static FName StaticName(#Name);													\
+		DynamicCollection->AddAttribute<Type>(StaticName, Group);						\
+		DynamicCollection->CopyAttribute(												\
+			*RestCollection->GetGeometryCollection(), StaticName, Group);				\
+		Indirect##Name##Array =															\
+			&DynamicCollection->ModifyAttribute<Type>(StaticName, Group);				\
+		CopyOnWriteAttributeList.Add(													\
+			reinterpret_cast<FManagedArrayBase**>(&Indirect##Name##Array));				\
+	}																					\
+	return *Indirect##Name##Array;														\
+}																						\
+void UGeometryCollectionComponent::Reset##Name##ArrayDynamic()							\
+{																						\
+	Indirect##Name##Array = NULL;														\
+}																						\
+const TManagedArray<Type>& UGeometryCollectionComponent::Get##Name##ArrayRest() const	\
+{																						\
+	return RestCollection->GetGeometryCollection()->Name;								\
+}																						\
+
+// Define the methods
+COPY_ON_WRITE_ATTRIBUTES
 
 UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -535,6 +571,12 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 
 	const FMatrix LocalToWorldWithScale = LocalToWorldIn.ToMatrixWithScale();
 	return FBoxSphereBounds(ComputeBounds(LocalToWorldWithScale));
+}
+
+int32 UGeometryCollectionComponent::GetNumElements(FName Group) const
+{
+	int32 Size = RestCollection->NumElements(Group);	//assume rest collection has the group and is connected to dynamic.
+	return Size > 0 ? Size : DynamicCollection->NumElements(Group);	//if not, maybe dynamic has the group
 }
 
 void UGeometryCollectionComponent::UpdateCachedBounds()
@@ -1240,6 +1282,16 @@ static void DispatchGeometryCollectionCrumblingEvent(const FChaosCrumblingEvent&
 	{
 		GC->DispatchCrumblingEvent(Event);
 	}
+}
+
+const FGeometryDynamicCollection* UGeometryCollectionComponent::GetDynamicCollection() const
+{
+	return DynamicCollection.Get();
+}
+
+FGeometryDynamicCollection* UGeometryCollectionComponent::GetDynamicCollection()
+{
+	return DynamicCollection.Get();
 }
 
 void UGeometryCollectionComponent::DispatchChaosPhysicsCollisionBlueprintEvents(const FChaosPhysicsCollisionInfo& CollisionInfo)
@@ -3517,6 +3569,16 @@ void UGeometryCollectionComponent::GetInitializationCommands(TArray<FFieldSystem
 			}
 		}
 	}
+}
+
+bool UGeometryCollectionComponent::GetSuppressSelectionMaterial() const
+{
+	return RestCollection->GetGeometryCollection()->HasAttribute("Hide", FGeometryCollection::TransformGroup);
+}
+
+const int UGeometryCollectionComponent::GetBoneSelectedMaterialID() const
+{
+	return RestCollection->GetBoneSelectedMaterialIndex();
 }
 
 FPhysScene_Chaos* UGeometryCollectionComponent::GetInnerChaosScene() const

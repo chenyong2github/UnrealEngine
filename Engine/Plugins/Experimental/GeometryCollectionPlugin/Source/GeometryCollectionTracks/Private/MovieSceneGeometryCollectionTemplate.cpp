@@ -4,6 +4,7 @@
 #include "Compilation/MovieSceneCompilerRules.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "Evaluation/MovieSceneEvaluation.h"
+#include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "IMovieScenePlayer.h"
 #include "UObject/ObjectKey.h"
 

@@ -7,15 +7,18 @@
 #include "Field/FieldSystem.h"
 #include "Field/FieldSystemActor.h"
 #include "Field/FieldSystemNodes.h"
-#include "Field/FieldSystemObjects.h"
 #include "GameFramework/Actor.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "Field/FieldSystemObjects.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "GeometryCollection/GeometryCollectionSimulationCoreTypes.h"
-#include "Physics/Experimental/PhysScene_Chaos.h"
-#include "GeometryCollectionProxyData.h"
 #include "GeometryCollectionObject.h"
+#include "GeometryCollectionProxyData.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
+#endif
 #include "GeometryCollectionEditorSelection.h"
+#include "GeometryCollection/GeometryCollectionDamagePropagationData.h"
 #include "GeometryCollection/RecordedTransformTrack.h"
 #include "Templates/UniquePtr.h"
 #include "Chaos/ChaosGameplayEventDispatcher.h"
@@ -30,6 +33,7 @@
 
 struct FGeometryCollectionConstantData;
 struct FGeometryCollectionDynamicData;
+class FManagedArrayBase;
 class UGeometryCollectionComponent;
 class UBoxComponent;
 class UGeometryCollectionCache;
@@ -38,9 +42,18 @@ class AChaosSolverActor;
 struct FGeometryCollectionEmbeddedExemplar;
 class UInstancedStaticMeshComponent;
 class FGeometryCollectionDecayDynamicFacade;
+class FGeometryDynamicCollection;
 struct FGeometryCollectionDecayContext;
+struct FGeometryCollectionSection;
 struct FDamageCollector;
+class FPhysScene_Chaos;
 class AGeometryCollectionISMPoolActor;
+enum ESimulationInitializationState : uint8;
+enum class EClusterConnectionTypeEnum : uint8;
+enum class EInitialVelocityTypeEnum : uint8;
+enum class EObjectStateTypeEnum : uint8;
+namespace Chaos { enum class EObjectStateType: int8; }
+template<class InElementType> class TManagedArray;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosBreakEvent, const FChaosBreakEvent&, BreakEvent);
 
@@ -258,37 +271,13 @@ private:
 //GetArrayRest (gives original rest value)
 //This generates pointers to arrays marked private. Macro assumes getters are public
 //todo(ocohen): may want to take in a static name
-#define COPY_ON_WRITE_ATTRIBUTE(Type, Name, Group)								\
-FORCEINLINE const TManagedArray<Type>& Get##Name##Array() const 				\
-{																				\
-	return Indirect##Name##Array ?												\
-		*Indirect##Name##Array : RestCollection->GetGeometryCollection()->Name;	\
-}																				\
-FORCEINLINE TManagedArray<Type>& Get##Name##ArrayCopyOnWrite()					\
-{																				\
-	if(!Indirect##Name##Array)													\
-	{																			\
-		static FName StaticName(#Name);											\
-		DynamicCollection->AddAttribute<Type>(StaticName, Group);				\
-		DynamicCollection->CopyAttribute(										\
-			*RestCollection->GetGeometryCollection(), StaticName, Group);		\
-		Indirect##Name##Array =													\
-			&DynamicCollection->ModifyAttribute<Type>(StaticName, Group);		\
-		CopyOnWriteAttributeList.Add(											\
-			reinterpret_cast<FManagedArrayBase**>(&Indirect##Name##Array));		\
-	}																			\
-	return *Indirect##Name##Array;												\
-}																				\
-FORCEINLINE void Reset##Name##ArrayDynamic()									\
-{																				\
-	Indirect##Name##Array = NULL;												\
-}																				\
-FORCEINLINE const TManagedArray<Type>& Get##Name##ArrayRest() const				\
-{																				\
-	return RestCollection->GetGeometryCollection()->Name;						\
-}																				\
-private:																		\
-	TManagedArray<Type>* Indirect##Name##Array;									\
+#define COPY_ON_WRITE_ATTRIBUTE(Type, Name, Group)			\
+	const TManagedArray<Type>& Get##Name##Array() const;	\
+	TManagedArray<Type>& Get##Name##ArrayCopyOnWrite();		\
+	void Reset##Name##ArrayDynamic();						\
+	const TManagedArray<Type>& Get##Name##ArrayRest() const;\
+private:													\
+	TManagedArray<Type>* Indirect##Name##Array;				\
 public:
 
 /**
@@ -650,54 +639,53 @@ public:
 #endif
 
 	/** API for getting at geometry collection data */
-	FORCEINLINE int32 GetNumElements(FName Group) const
-	{
-		int32 Size = RestCollection->NumElements(Group);	//assume rest collection has the group and is connected to dynamic.
-		return Size > 0 ? Size : DynamicCollection->NumElements(Group);	//if not, maybe dynamic has the group
-	}
+	int32 GetNumElements(FName Group) const;
 
 	// Update cached bounds; used e.g. when updating the exploded view of the geometry collection
 	void UpdateCachedBounds();
 
-	// Vertices Group
-	COPY_ON_WRITE_ATTRIBUTE(FVector3f, Vertex, FGeometryCollection::VerticesGroup) 	//GetVertexArray, GetVertexArrayCopyOnWrite, GetVertexArrayRest
-	COPY_ON_WRITE_ATTRIBUTE(TArray<FVector2f>, UVs, FGeometryCollection::VerticesGroup)		//GetUVsArray
-	COPY_ON_WRITE_ATTRIBUTE(FLinearColor, Color, FGeometryCollection::VerticesGroup)//GetColorArray
-	COPY_ON_WRITE_ATTRIBUTE(FVector3f, TangentU, FGeometryCollection::VerticesGroup)	//GetTangentUArray
-	COPY_ON_WRITE_ATTRIBUTE(FVector3f, TangentV, FGeometryCollection::VerticesGroup)	//...
-	COPY_ON_WRITE_ATTRIBUTE(FVector3f, Normal, FGeometryCollection::VerticesGroup)
-	COPY_ON_WRITE_ATTRIBUTE(int32, BoneMap, FGeometryCollection::VerticesGroup)
+#define COPY_ON_WRITE_ATTRIBUTES \
+	/* Vertices Group */ \
+	COPY_ON_WRITE_ATTRIBUTE(FVector3f, Vertex, FGeometryCollection::VerticesGroup)		/* GetVertexArray, GetVertexArrayCopyOnWrite, GetVertexArrayRest */ \
+	COPY_ON_WRITE_ATTRIBUTE(TArray<FVector2f>, UVs, FGeometryCollection::VerticesGroup) /* GetUVsArray */		\
+	COPY_ON_WRITE_ATTRIBUTE(FLinearColor, Color, FGeometryCollection::VerticesGroup)	/* GetColorArray */		\
+	COPY_ON_WRITE_ATTRIBUTE(FVector3f, TangentU, FGeometryCollection::VerticesGroup)	/* GetTangentUArray */	\
+	COPY_ON_WRITE_ATTRIBUTE(FVector3f, TangentV, FGeometryCollection::VerticesGroup)	/* //... */		\
+	COPY_ON_WRITE_ATTRIBUTE(FVector3f, Normal, FGeometryCollection::VerticesGroup)						\
+	COPY_ON_WRITE_ATTRIBUTE(int32, BoneMap, FGeometryCollection::VerticesGroup)							\
+																										\
+	/* Faces Group */																					\
+	COPY_ON_WRITE_ATTRIBUTE(FIntVector, Indices, FGeometryCollection::FacesGroup)						\
+	COPY_ON_WRITE_ATTRIBUTE(bool, Visible, FGeometryCollection::FacesGroup)								\
+	COPY_ON_WRITE_ATTRIBUTE(int32, MaterialIndex, FGeometryCollection::FacesGroup)						\
+	COPY_ON_WRITE_ATTRIBUTE(int32, MaterialID, FGeometryCollection::FacesGroup)							\
+																										\
+	/* Geometry Group */																				\
+	COPY_ON_WRITE_ATTRIBUTE(int32, TransformIndex, FGeometryCollection::GeometryGroup)					\
+	COPY_ON_WRITE_ATTRIBUTE(FBox, BoundingBox, FGeometryCollection::GeometryGroup)						\
+	COPY_ON_WRITE_ATTRIBUTE(float, InnerRadius, FGeometryCollection::GeometryGroup)						\
+	COPY_ON_WRITE_ATTRIBUTE(float, OuterRadius, FGeometryCollection::GeometryGroup)						\
+	COPY_ON_WRITE_ATTRIBUTE(int32, VertexStart, FGeometryCollection::GeometryGroup)						\
+	COPY_ON_WRITE_ATTRIBUTE(int32, VertexCount, FGeometryCollection::GeometryGroup)						\
+	COPY_ON_WRITE_ATTRIBUTE(int32, FaceStart, FGeometryCollection::GeometryGroup)						\
+	COPY_ON_WRITE_ATTRIBUTE(int32, FaceCount, FGeometryCollection::GeometryGroup)						\
+																										\
+	/* Material Group */																				\
+	COPY_ON_WRITE_ATTRIBUTE(FGeometryCollectionSection, Sections, FGeometryCollection::MaterialGroup)	\
+																										\
+	/* Transform group */																				\
+	COPY_ON_WRITE_ATTRIBUTE(FString, BoneName, FTransformCollection::TransformGroup)					\
+	COPY_ON_WRITE_ATTRIBUTE(FLinearColor, BoneColor, FTransformCollection::TransformGroup)				\
+	COPY_ON_WRITE_ATTRIBUTE(FTransform, Transform, FTransformCollection::TransformGroup)				\
+	COPY_ON_WRITE_ATTRIBUTE(int32, Parent, FTransformCollection::TransformGroup)						\
+	COPY_ON_WRITE_ATTRIBUTE(TSet<int32>, Children, FTransformCollection::TransformGroup)				\
+	COPY_ON_WRITE_ATTRIBUTE(int32, SimulationType, FTransformCollection::TransformGroup)				\
+	COPY_ON_WRITE_ATTRIBUTE(int32, TransformToGeometryIndex, FTransformCollection::TransformGroup)		\
+	COPY_ON_WRITE_ATTRIBUTE(int32, StatusFlags, FTransformCollection::TransformGroup)					\
+	COPY_ON_WRITE_ATTRIBUTE(int32, ExemplarIndex, FTransformCollection::TransformGroup)					\
 
-	// Faces Group
-	COPY_ON_WRITE_ATTRIBUTE(FIntVector, Indices, FGeometryCollection::FacesGroup)
-	COPY_ON_WRITE_ATTRIBUTE(bool, Visible, FGeometryCollection::FacesGroup)
-	COPY_ON_WRITE_ATTRIBUTE(int32, MaterialIndex, FGeometryCollection::FacesGroup)
-	COPY_ON_WRITE_ATTRIBUTE(int32, MaterialID, FGeometryCollection::FacesGroup)
-
-	// Geometry Group
-	COPY_ON_WRITE_ATTRIBUTE(int32, TransformIndex, FGeometryCollection::GeometryGroup)
-	COPY_ON_WRITE_ATTRIBUTE(FBox, BoundingBox, FGeometryCollection::GeometryGroup)
-	COPY_ON_WRITE_ATTRIBUTE(float, InnerRadius, FGeometryCollection::GeometryGroup)
-	COPY_ON_WRITE_ATTRIBUTE(float, OuterRadius, FGeometryCollection::GeometryGroup)
-	COPY_ON_WRITE_ATTRIBUTE(int32, VertexStart, FGeometryCollection::GeometryGroup)
-	COPY_ON_WRITE_ATTRIBUTE(int32, VertexCount, FGeometryCollection::GeometryGroup)
-	COPY_ON_WRITE_ATTRIBUTE(int32, FaceStart, FGeometryCollection::GeometryGroup)
-	COPY_ON_WRITE_ATTRIBUTE(int32, FaceCount, FGeometryCollection::GeometryGroup)
-
-	// Material Group
-	COPY_ON_WRITE_ATTRIBUTE(FGeometryCollectionSection, Sections, FGeometryCollection::MaterialGroup)
-
-	// Transform group
-	COPY_ON_WRITE_ATTRIBUTE(FString, BoneName, FTransformCollection::TransformGroup)
-	COPY_ON_WRITE_ATTRIBUTE(FLinearColor, BoneColor, FTransformCollection::TransformGroup)
-	COPY_ON_WRITE_ATTRIBUTE(FTransform, Transform, FTransformCollection::TransformGroup)
-	COPY_ON_WRITE_ATTRIBUTE(int32, Parent, FTransformCollection::TransformGroup)
-	COPY_ON_WRITE_ATTRIBUTE(TSet<int32>, Children, FTransformCollection::TransformGroup)
-	COPY_ON_WRITE_ATTRIBUTE(int32, SimulationType, FTransformCollection::TransformGroup)
-	COPY_ON_WRITE_ATTRIBUTE(int32, TransformToGeometryIndex, FTransformCollection::TransformGroup)
-	COPY_ON_WRITE_ATTRIBUTE(int32, StatusFlags, FTransformCollection::TransformGroup)
-	COPY_ON_WRITE_ATTRIBUTE(int32, ExemplarIndex, FTransformCollection::TransformGroup)
-
+	// Declare all the methods
+	COPY_ON_WRITE_ATTRIBUTES
 
 	UPROPERTY(EditAnywhere, NoClear, BlueprintReadOnly, Category = "ChaosPhysics")
 	TObjectPtr<const UGeometryCollection> RestCollection;
@@ -854,9 +842,9 @@ public:
 	bool GetShowBoneColors() const { return bShowBoneColors; }
 	bool GetEnableBoneSelection() const { return bEnableBoneSelection; }
 	
-	bool GetSuppressSelectionMaterial() const { return RestCollection->GetGeometryCollection()->HasAttribute("Hide", FGeometryCollection::TransformGroup); }
+	bool GetSuppressSelectionMaterial() const;
 	
-	FORCEINLINE const int GetBoneSelectedMaterialID() const { return RestCollection->GetBoneSelectedMaterialIndex(); }
+	const int GetBoneSelectedMaterialID() const;
 	
 #if WITH_EDITORONLY_DATA
 	FORCEINLINE const TArray<int32>& GetSelectedBones() const { return SelectedBones; }
@@ -973,8 +961,8 @@ public:
 	/** Used by Niagara DI to query global matrices rather than recalculating them again */
 	const TArray<FMatrix>& GetGlobalMatrices() { return GlobalMatrices; }
 
-	const FGeometryDynamicCollection* GetDynamicCollection() const { return DynamicCollection.Get(); }
-	FGeometryDynamicCollection* GetDynamicCollection() { return DynamicCollection.Get(); } // TEMP HACK?
+	const FGeometryDynamicCollection* GetDynamicCollection() const;
+	FGeometryDynamicCollection* GetDynamicCollection();  // TEMP HACK?
 
 public:
 	UPROPERTY(BlueprintAssignable, Category = "Collision")

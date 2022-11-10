@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PhysicsField/PhysicsFieldComponent.h"
+#include "ChaosStats.h"
 #include "SceneManagement.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"

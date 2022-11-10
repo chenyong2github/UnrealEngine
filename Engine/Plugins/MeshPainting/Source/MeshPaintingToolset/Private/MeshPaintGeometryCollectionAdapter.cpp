@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MeshPaintGeometryCollectionAdapter.h"
+#include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
+#include "GeometryCollection/GeometryCollectionObject.h"
 #include "MeshPaintHelpers.h"
 #include "MeshPaintingToolsetTypes.h"
 #include "ComponentReregisterContext.h"

@@ -4,7 +4,10 @@
 
 #include "GeometryCollection/GeometryCollectionSelectRigidBodyEdMode.h"
 
+#include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
+#include "GeometryCollection/GeometryCollectionBoneNode.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionDebugDrawActor.h"
 #include "GeometryCollection/GeometryCollectionHitProxy.h"
 #include "Editor.h"
@@ -12,7 +15,6 @@
 #include "EditorViewportClient.h"
 #include "EngineUtils.h"
 #include "PropertyHandle.h"
-#include "GeometryCollection/GeometryCollectionComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionSelectRigidBodyEdMode, Log, All);
 

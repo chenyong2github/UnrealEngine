@@ -5,6 +5,7 @@
 #include "FractureToolProperties.h"
 
 #include "GeometryCollection/GeometryCollectionComponent.h"
+#include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
 
 #include "Widgets/Colors/SColorBlock.h"

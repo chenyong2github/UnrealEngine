@@ -5,6 +5,7 @@
 #include "Chaos/ParticleHandle.h"
 #include "Engine/World.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
+#include "GeometryCollection/GeometryCollectionObject.h"
 #include "PBDRigidsSolver.h"
 #include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"

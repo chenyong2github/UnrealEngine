@@ -2,6 +2,7 @@
 
 #include "SGeometryCollectionOutliner.h"
 
+#include "GeometryCollection/GeometryCollectionObject.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/STreeView.h"

@@ -10,9 +10,13 @@
 #include "ICommonUIModule.h"
 #include "CommonUITypes.h"
 #include "CommonUIRichTextData.h"
-#include "CommonTextBlock.h"
 #include "GameplayTagContainer.h"
 #include "NativeGameplayTags.h"
+
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
+#include "CommonTextBlock.h"
+#endif
+
 #include "CommonUISettings.generated.h"
 
 class UMaterial;

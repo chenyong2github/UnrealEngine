@@ -2,9 +2,11 @@
 
 #include "FractureToolProperties.h"
 
+#include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionEngineRemoval.h"
 #include "GeometryCollection/Facades/CollectionAnchoringFacade.h"
+#include "GeometryCollection/GeometryCollectionObject.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FractureToolProperties)
 

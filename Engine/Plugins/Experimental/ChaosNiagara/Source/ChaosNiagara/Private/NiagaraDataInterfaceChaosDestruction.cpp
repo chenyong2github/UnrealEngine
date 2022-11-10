@@ -4,6 +4,7 @@
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/PBDCollisionConstraintsUtil.h"
 #include "Engine/World.h"
+#include "GeometryCollection/GeometryCollectionObject.h"
 #include "Misc/FileHelper.h"
 #include "NiagaraComponent.h"
 #include "NiagaraGpuComputeDispatchInterface.h"

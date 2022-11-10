@@ -2,13 +2,16 @@
 
 #pragma once
 
+#include "Chaos/ParticleHandleFwd.h"
 #include "CoreMinimal.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "Containers/Queue.h"
 #include "Field/FieldSystemTypes.h"
 #include "Field/FieldArrayView.h"
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "Chaos/ParticleHandle.h"
+#endif
 #include "Math/Vector.h"
 
 /**

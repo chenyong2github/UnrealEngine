@@ -2,6 +2,7 @@
 
 #include "GeometryCollection/GeometryCollectionDebugDrawActor.h"
 
+#include "Chaos/ChaosSolverActor.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionParticlesData.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
