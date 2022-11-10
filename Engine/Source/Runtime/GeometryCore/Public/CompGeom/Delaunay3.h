@@ -41,8 +41,8 @@ public:
 
 	// Get the result as an array of tetrahedra
 	// Note: This creates a new array each call, because the internal data structure does not have a tetrahedra array
-	TArray<FIndex4i> GetTetrahedraAsFIndex4i() const;
-	TArray<FIntVector4> GetTetrahedra() const;
+	TArray<FIndex4i> GetTetrahedraAsFIndex4i(bool bReverseOrientation = false) const;
+	TArray<FIntVector4> GetTetrahedra(bool bReverseOrientation = false) const;
 
 	// @return true if triangulation is Delaunay, useful for validating results (note: likely to be false if edges are constrained)
 	bool IsDelaunay(TArrayView<const FVector3f> Vertices) const;

@@ -582,24 +582,47 @@ bool FDelaunay3::Triangulate(TArrayView<const FVector3f> Vertices)
 	return bSuccess;
 }
 
-TArray<FIndex4i> FDelaunay3::GetTetrahedraAsFIndex4i() const
+TArray<FIndex4i> FDelaunay3::GetTetrahedraAsFIndex4i(bool bReverseOrientation) const
 {
+	TArray<FIndex4i> ToRet;
 	if (Connectivity.IsValid())
 	{
-		return Connectivity->GetTets();
+		Connectivity->EnumerateTrianglePerTet(
+			[&ToRet, bReverseOrientation](FIndex3i Tri, int32 Vert)
+			{
+				if (bReverseOrientation)
+				{
+					ToRet.Emplace(Tri.A, Tri.B, Tri.C, Vert);
+				}
+				else
+				{
+					// Note: UE expects negative-sign orientation, so B,C swapped is 'not reversed'
+					ToRet.Emplace(Tri.A, Tri.C, Tri.B, Vert);
+				}
+				return true;
+			}, true
+		);
 	}
-	return TArray<FIndex4i>();
+	return ToRet;
 }
 
-TArray<FIntVector4> FDelaunay3::GetTetrahedra() const
+TArray<FIntVector4> FDelaunay3::GetTetrahedra(bool bReverseOrientation) const
 {
 	TArray<FIntVector4> ToRet;
 	if (Connectivity.IsValid())
 	{
 		Connectivity->EnumerateTrianglePerTet(
-			[&ToRet](FIndex3i Tri, int32 Vert)
+			[&ToRet, bReverseOrientation](FIndex3i Tri, int32 Vert)
 			{
-				ToRet.Emplace(Tri.A, Tri.B, Tri.C, Vert);
+				if (bReverseOrientation)
+				{
+					ToRet.Emplace(Tri.A, Tri.B, Tri.C, Vert);
+				}
+				else
+				{
+					// Note: UE expects negative-sign orientation, so B,C swapped is 'not reversed'
+					ToRet.Emplace(Tri.A, Tri.C, Tri.B, Vert);
+				}
 				return true;
 			}, true
 		);
