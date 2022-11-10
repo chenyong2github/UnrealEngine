@@ -1000,61 +1000,25 @@ void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFl
 
 	const FPlatformMemoryStats MemStatsBeforeGC = FPlatformMemory::GetStats();
 	int32 NumObjectsBeforeGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
-	int32 NumObjectsAvailableBeforeGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
-	UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection...%s (%s)"), (bPartialGC ? TEXT(" partial gc") : TEXT("")), *GCReason);
-
+	FGenericMemoryStats AllocatorStatsBeforeGC;
+	GMalloc->GetAllocatorStats(AllocatorStatsBeforeGC);
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 	FLowLevelMemTracker::Get().UpdateStatsPerFrame();
 #endif
-	auto DumpMemStats = []()
-	{
-		FGenericMemoryStats MemStats;
-		GMalloc->GetAllocatorStats(MemStats);
-		for (const auto& Item : MemStats.Data)
-		{
-			UE_LOG(LogCookCommandlet, Display, TEXT("Item %s = %d"), *Item.Key, Item.Value);
-		}
-	};
 
-	if (!COTFS.IsCookOnTheFlyMode())
-	{
-		DumpMemStats();
-	}
-
+	UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection...%s (%s)"), (bPartialGC ? TEXT(" partial gc") : TEXT("")), *GCReason);
 	CollectGarbage(RF_NoFlags);
 
-	int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
-	int32 NumObjectsAvailableAfterGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
 	FPlatformMemoryStats MemStatsAfterGC = FPlatformMemory::GetStats();
-	if (!COTFS.IsCookOnTheFlyMode())
-	{
-		int64 VirtualMemBeforeGC = MemStatsBeforeGC.UsedVirtual;
-		int64 VirtualMemAfterGC = MemStatsAfterGC.UsedVirtual;
-		int64 VirtualMemFreed = MemStatsBeforeGC.UsedVirtual - MemStatsAfterGC.UsedVirtual;
-		constexpr int32 BytesPerMeg = 1000000;
-		UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection Results:\n")
-			TEXT("\tType: %s\n")
-			TEXT("\tNumObjects:\n")
-			TEXT("\t\tBefore GC:        %10d\n")
-			TEXT("\t\tAvailable Before: %10d\n")
-			TEXT("\t\tAfter GC:         %10d\n")
-			TEXT("\t\tAvailable After:  %10d\n")
-			TEXT("\t\tFreed by GC:      %10d\n")
-			TEXT("\tVirtual Memory:\n")
-			TEXT("\t\tBefore GC:        %10" INT64_FMT " MB\n")
-			TEXT("\t\tAfter GC:         %10" INT64_FMT " MB\n")
-			TEXT("\t\tFreed by GC:      %10" INT64_FMT " MB\n"),
-			(bPartialGC ? TEXT("Partial") : TEXT("Full")),
-			NumObjectsBeforeGC, NumObjectsAvailableBeforeGC, NumObjectsAfterGC, NumObjectsAvailableAfterGC,
-			NumObjectsBeforeGC - NumObjectsAfterGC,
-			VirtualMemBeforeGC / BytesPerMeg, VirtualMemAfterGC / BytesPerMeg, VirtualMemFreed / BytesPerMeg
-		);
+	int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
+	FGenericMemoryStats AllocatorStatsAfterGC;
+	GMalloc->GetAllocatorStats(AllocatorStatsAfterGC);
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+	FLowLevelMemTracker::Get().UpdateStatsPerFrame();
+#endif
 
-		DumpMemStats();
-	}
-
-	if (TickResults & UCookOnTheFlyServer::COSR_RequiresGC_OOM)
-	{
-		COTFS.EvaluateGarbageCollectionResults(NumObjectsBeforeGC, MemStatsBeforeGC, NumObjectsAfterGC, MemStatsAfterGC);
-	} 
+	bool bWasDueToOOM = (TickResults & UCookOnTheFlyServer::COSR_RequiresGC_OOM) != 0;
+	COTFS.EvaluateGarbageCollectionResults(bWasDueToOOM, bPartialGC,
+		NumObjectsBeforeGC, MemStatsBeforeGC, AllocatorStatsBeforeGC,
+		NumObjectsAfterGC, MemStatsAfterGC, AllocatorStatsAfterGC);
 }

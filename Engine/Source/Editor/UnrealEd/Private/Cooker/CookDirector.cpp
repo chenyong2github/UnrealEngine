@@ -659,26 +659,19 @@ void FCookDirector::ActivateMachineResourceReduction()
 	}
 	bHasReducedMachineResources = true;
 
-	// Add MemoryInFree if it's not already set
-	if (COTFS.MemoryMinFreeVirtual > 0 || COTFS.MemoryMinFreePhysical > 0)
-	{
-		// When running a multiprocess cook, we remove the MemoryMaxUsed triggers and allow GCing based solely on MemoryMinFree
-		COTFS.MemoryMaxUsedVirtual = 0;
-		COTFS.MemoryMaxUsedPhysical = 0;
-	}
-	else
-	{
-		// If MemoryMinFree is not set, then keep MemoryMaxUsed but reduce it by the number of CookWorkers.
-		constexpr float FixedOverheadFraction = 0.10f;
-		float TargetRatio = (FixedOverheadFraction + (1 - FixedOverheadFraction) / RequestedCookWorkerCount);
-		COTFS.MemoryMaxUsedPhysical = TargetRatio * COTFS.MemoryMaxUsedPhysical;
-		COTFS.MemoryMaxUsedVirtual = TargetRatio * COTFS.MemoryMaxUsedVirtual;
-	}
+	// When running a multiprocess cook, we remove the Memory triggers and trigger GC based solely on PressureLevel
+	COTFS.MemoryMaxUsedPhysical = 0;
+	COTFS.MemoryMaxUsedVirtual = 0;
+	COTFS.MemoryMinFreeVirtual = 0;
+	COTFS.MemoryMinFreePhysical = 0;
+	COTFS.MemoryTriggerGCAtPressureLevel = FGenericPlatformMemoryStats::EMemoryPressureStatus::Critical;
 
 	UE_LOG(LogCook, Display, TEXT("CookMultiprocess changed CookSettings for Memory: MemoryMaxUsedVirtual %dMiB, MemoryMaxUsedPhysical %dMiB,")
-		TEXT("MemoryMinFreeVirtual % dMiB, MemoryMinFreePhysical % dMiB"),
+		TEXT("MemoryMinFreeVirtual % dMiB, MemoryMinFreePhysical % dMiB, MemoryTriggerGCAtPressureLevel %s"),
 		COTFS.MemoryMaxUsedVirtual / 1024 / 1024, COTFS.MemoryMaxUsedPhysical / 1024 / 1024,
-		COTFS.MemoryMinFreeVirtual / 1024 / 1024, COTFS.MemoryMinFreePhysical / 1024 / 1024);
+		COTFS.MemoryMinFreeVirtual / 1024 / 1024, COTFS.MemoryMinFreePhysical / 1024 / 1024,
+		*LexToString(COTFS.MemoryTriggerGCAtPressureLevel)
+		);
 
 	// Set CoreLimit for updating workerthreads in this process and passing to the commandline for workers
 	int32 NumProcesses = RequestedCookWorkerCount + 1;

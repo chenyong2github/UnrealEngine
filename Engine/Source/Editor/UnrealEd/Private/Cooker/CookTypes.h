@@ -292,6 +292,7 @@ namespace UE::Cook
 		uint64 MemoryMaxUsedPhysical;
 		uint64 MemoryMinFreeVirtual;
 		uint64 MemoryMinFreePhysical;
+		FGenericPlatformMemoryStats::EMemoryPressureStatus MemoryTriggerGCAtPressureLevel;
 		int32 MinFreeUObjectIndicesBeforeGC;
 		int32 MaxNumPackagesBeforePartialGC;
 		TArray<FString> ConfigSettingDenyList;
@@ -352,6 +353,9 @@ namespace UE::Cook
 	/** Report whether commandline/config has disabled use of timeouts throughout the cooker, useful for debugging. */
 	bool IsCookIgnoreTimeouts();
 }
+
+bool LexTryParseString(FPlatformMemoryStats::EMemoryPressureStatus& OutValue, FStringView Text);
+FString LexToString(FPlatformMemoryStats::EMemoryPressureStatus Value);
 
 inline void RouteBeginCacheForCookedPlatformData(UObject* Obj, const ITargetPlatform* TargetPlatform)
 {

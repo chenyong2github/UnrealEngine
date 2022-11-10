@@ -26,6 +26,8 @@
 #include "Stats/Stats.h"
 #include "Windows/WindowsHWrapper.h"
 
+#include <MemoryApi.h> // Include after WindowsHWrapper.h
+
 #if ENABLE_LOW_LEVEL_MEM_TRACKER && MIMALLOC_ENABLED
 #include "ThirdParty/IncludeMimAlloc.h"
 #include "VirtualAllocPageStatus.h"
@@ -265,6 +267,8 @@ FPlatformMemoryStats FWindowsPlatformMemory::GetStats()
 
 	FPlatformMemoryStats MemoryStats;
 
+	static HANDLE MemoryResourceNotificationHandle = CreateMemoryResourceNotification(LowMemoryResourceNotification);
+
 	// Gather platform memory stats.
 	MEMORYSTATUSEX MemoryStatusEx;
 	FPlatformMemory::Memzero( &MemoryStatusEx, sizeof( MemoryStatusEx ) );
@@ -292,6 +296,17 @@ FPlatformMemoryStats FWindowsPlatformMemory::GetStats()
 	// PagefileUsage = commit charge
 	MemoryStats.UsedVirtual = ProcessMemoryCounters.PagefileUsage;
 	MemoryStats.PeakUsedVirtual = ProcessMemoryCounters.PeakPagefileUsage;
+
+	BOOL bIsInLowMemoryState;
+	if (MemoryResourceNotificationHandle && QueryMemoryResourceNotification(MemoryResourceNotificationHandle, &bIsInLowMemoryState))
+	{
+		MemoryStats.MemoryPressureStatus = bIsInLowMemoryState ? FPlatformMemoryStats::EMemoryPressureStatus::Critical :
+			FPlatformMemoryStats::EMemoryPressureStatus::Nominal;
+	}
+	else
+	{
+		MemoryStats.MemoryPressureStatus = MemoryStats.FGenericPlatformMemoryStats::GetMemoryPressureStatus();
+	}
 
 	if ( GWindowsPlatformMemoryGetStatsLimitTotalGB > 0 )
 	{

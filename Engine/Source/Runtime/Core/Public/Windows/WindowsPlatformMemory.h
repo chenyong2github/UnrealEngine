@@ -12,8 +12,6 @@ struct FGenericMemoryStats;
 
 /**
  *	Windows implementation of the FGenericPlatformMemoryStats.
- *	At this moment it's just the same as the FGenericPlatformMemoryStats.
- *	Can be extended as shown in the following example.
  */
 struct FPlatformMemoryStats
 	: public FGenericPlatformMemoryStats
@@ -22,10 +20,18 @@ struct FPlatformMemoryStats
 	FPlatformMemoryStats()
 		: FGenericPlatformMemoryStats()
 		, WindowsSpecificMemoryStat(0)
+		, MemoryPressureStatus(EMemoryPressureStatus::Unknown)
 	{ }
 
-	/** Memory stat specific only for Windows. */
+	EMemoryPressureStatus GetMemoryPressureStatus() const
+	{
+		return MemoryPressureStatus;
+	}
+
+	/** Example of a memory stat that is specific to Windows. */
 	SIZE_T WindowsSpecificMemoryStat;
+	/** Status reported by QueryMemoryResourceNotification. */
+	EMemoryPressureStatus MemoryPressureStatus;
 };
 
 

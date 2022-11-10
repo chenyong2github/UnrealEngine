@@ -184,6 +184,7 @@ FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FInitializeConfigSettin
 	Writer << "MemoryMaxUsedPhysical" << OutValue.MemoryMaxUsedPhysical;
 	Writer << "MemoryMinFreeVirtual" << OutValue.MemoryMinFreeVirtual;
 	Writer << "MemoryMinFreePhysical" << OutValue.MemoryMinFreePhysical;
+	Writer << "MemoryTriggerGCAtPressureLevel" << static_cast<uint8>(OutValue.MemoryTriggerGCAtPressureLevel);
 	Writer << "MinFreeUObjectIndicesBeforeGC" << OutValue.MinFreeUObjectIndicesBeforeGC;
 	Writer << "MaxNumPackagesBeforePartialGC" << OutValue.MaxNumPackagesBeforePartialGC;
 	Writer << "ConfigSettingDenyList" << OutValue.ConfigSettingDenyList;
@@ -207,6 +208,16 @@ bool LoadFromCompactBinary(FCbFieldView Field, UE::Cook::FInitializeConfigSettin
 	bOk = LoadFromCompactBinary(Field["MemoryMaxUsedPhysical"], OutValue.MemoryMaxUsedPhysical) & bOk;
 	bOk = LoadFromCompactBinary(Field["MemoryMinFreeVirtual"], OutValue.MemoryMinFreeVirtual) & bOk;
 	bOk = LoadFromCompactBinary(Field["MemoryMinFreePhysical"], OutValue.MemoryMinFreePhysical) & bOk;
+	uint8 PressureLevelAsInt;
+	if (LoadFromCompactBinary(Field["MemoryTriggerGCAtPressureLevel"], PressureLevelAsInt))
+	{
+		OutValue.MemoryTriggerGCAtPressureLevel = static_cast<FGenericPlatformMemoryStats::EMemoryPressureStatus>(PressureLevelAsInt);
+	}
+	else
+	{
+		OutValue.MemoryTriggerGCAtPressureLevel = FGenericPlatformMemoryStats::EMemoryPressureStatus::Unknown;
+		bOk = false;
+	}
 	bOk = LoadFromCompactBinary(Field["MinFreeUObjectIndicesBeforeGC"], OutValue.MinFreeUObjectIndicesBeforeGC) & bOk;
 	bOk = LoadFromCompactBinary(Field["MaxNumPackagesBeforePartialGC"], OutValue.MaxNumPackagesBeforePartialGC) & bOk;
 	bOk = LoadFromCompactBinary(Field["ConfigSettingDenyList"], OutValue.ConfigSettingDenyList) & bOk;
@@ -232,6 +243,7 @@ void FInitializeConfigSettings::MoveOrCopy(SourceType&& Source, TargetType&& Tar
 	Target.MemoryMaxUsedPhysical = Source.MemoryMaxUsedPhysical;
 	Target.MemoryMinFreeVirtual = Source.MemoryMinFreeVirtual;
 	Target.MemoryMinFreePhysical = Source.MemoryMinFreePhysical;
+	Target.MemoryTriggerGCAtPressureLevel = Source.MemoryTriggerGCAtPressureLevel;
 	Target.MinFreeUObjectIndicesBeforeGC = Source.MinFreeUObjectIndicesBeforeGC;
 	Target.MaxNumPackagesBeforePartialGC = Source.MaxNumPackagesBeforePartialGC;
 	Target.ConfigSettingDenyList = MoveTempIfPossible(Source.ConfigSettingDenyList);
@@ -261,6 +273,27 @@ void FBeginCookConfigSettings::CopyFromLocal(const UCookOnTheFlyServer& COTFS)
 	// Make sure new values are added to SetBeginCookConfigSettings, operator<<, and LoadFromCompactBinary
 }
 
+}
+
+bool LexTryParseString(FPlatformMemoryStats::EMemoryPressureStatus& OutValue, FStringView Text)
+{
+	if (Text == TEXTVIEW("None")) { OutValue = FPlatformMemoryStats::EMemoryPressureStatus::Unknown; return true; }
+	if (Text == TEXTVIEW("Unknown")) { OutValue = FPlatformMemoryStats::EMemoryPressureStatus::Unknown; return true; }
+	if (Text == TEXTVIEW("Nominal")) { OutValue = FPlatformMemoryStats::EMemoryPressureStatus::Nominal; return true; }
+	if (Text == TEXTVIEW("Critical")) { OutValue = FPlatformMemoryStats::EMemoryPressureStatus::Critical; return true; }
+	OutValue = FPlatformMemoryStats::EMemoryPressureStatus::Unknown;
+	return false;
+}
+
+FString LexToString(FPlatformMemoryStats::EMemoryPressureStatus Value)
+{
+	switch (Value)
+	{
+	case FPlatformMemoryStats::EMemoryPressureStatus::Unknown: return FString(TEXTVIEW("None"));
+	case FPlatformMemoryStats::EMemoryPressureStatus::Nominal: return FString(TEXTVIEW("Nominal"));
+	case  FPlatformMemoryStats::EMemoryPressureStatus::Critical: return FString(TEXTVIEW("Critical"));
+	default: return FString(TEXTVIEW("None"));
+	}
 }
 
 FCbWriter& operator<<(FCbWriter& Writer, const UE::Cook::FBeginCookConfigSettings& OutValue)

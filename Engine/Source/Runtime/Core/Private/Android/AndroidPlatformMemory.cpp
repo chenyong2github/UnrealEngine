@@ -294,7 +294,7 @@ FPlatformMemoryStats FAndroidPlatformMemory::GetStats()
 	return MemoryStats;
 }
 
-FGenericPlatformMemoryStats::EMemoryPressureStatus FPlatformMemoryStats::GetMemoryPressureStatus()
+FGenericPlatformMemoryStats::EMemoryPressureStatus FPlatformMemoryStats::GetMemoryPressureStatus() const
 {
 	// convert Android's TRIM status to FGenericPlatformMemoryStats::EMemoryPressureStatus.
 	auto AndroidTRIMToMemPressureStatus = [](FAndroidPlatformMemory::ETrimValues LastTrimMemoryState)

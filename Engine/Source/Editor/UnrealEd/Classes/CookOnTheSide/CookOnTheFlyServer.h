@@ -7,6 +7,7 @@
 #include "CookOnTheSide/CookLog.h"
 #include "CookPackageSplitter.h"
 #include "Engine/ICookInfo.h"
+#include "HAL/PlatformMemory.h"
 #include "INetworkFileSystemModule.h"
 #include "IPlatformFileSandboxWrapper.h"
 #include "Misc/EnumClassFlags.h"
@@ -33,6 +34,7 @@ class IPlugin;
 class ITargetPlatform;
 enum class ODSCRecompileCommand;
 struct FBeginCookContext;
+struct FGenericMemoryStats;
 struct FPropertyChangedEvent;
 struct FResourceSizeEx;
 
@@ -288,6 +290,7 @@ private:
 	uint64 MemoryMaxUsedPhysical;
 	uint64 MemoryMinFreeVirtual;
 	uint64 MemoryMinFreePhysical;
+	FGenericPlatformMemoryStats::EMemoryPressureStatus MemoryTriggerGCAtPressureLevel;
 	float MemoryExpectedFreedToSpreadRatio;
 	/** Max number of packages to save before we partial gc */
 	int32 MaxNumPackagesBeforePartialGC;
@@ -295,6 +298,8 @@ private:
 	int32 MaxConcurrentShaderJobs;
 	/** Min number of free UObject indices before the cooker should partial gc */
 	int32 MinFreeUObjectIndicesBeforeGC;
+	/** Next time at which we are allowed to declare out of memory and trigger a garbage collect. */
+	double ExceededMaxMemoryCooldownEndTimeSeconds = 0;
 	/**
 	 * The maximum number of packages that should be preloaded at once. Once this is full, packages in LoadPrepare will
 	 * remain unpreloaded in LoadPrepare until the existing preloaded packages exit {LoadPrepare,LoadReady} state.
@@ -797,9 +802,12 @@ public:
 	{
 	}
 
-	bool HasExceededMaxMemory() const;
-	void EvaluateGarbageCollectionResults(int32 NumObjectsBeforeGC, const FPlatformMemoryStats& MemStatsBeforeGC,
-		int32 NumObjectsAfterGC, const FPlatformMemoryStats& MemStatsAfterGC);
+	bool HasExceededMaxMemory();
+	void EvaluateGarbageCollectionResults(bool bWasDueToOOM, bool bWasPartialGC,
+		int32 NumObjectsBeforeGC, const FPlatformMemoryStats& MemStatsBeforeGC,
+		const FGenericMemoryStats& AllocatorStatsBeforeGC,
+		int32 NumObjectsAfterGC, const FPlatformMemoryStats& MemStatsAfterGC,
+		const FGenericMemoryStats& AllocatorStatsAfterGC);
 
 	/**
 	 * RequestPackage to be cooked

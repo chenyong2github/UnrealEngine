@@ -567,7 +567,7 @@ void DumpObjClassList(TConstArrayView<FWeakObjectPtr> InitialObjects)
 		});
 
 
-	LogAr.Logf(TEXT("New Objects of each class and the top roots keeping them alive:"));
+	LogAr.Logf(TEXT("Memory Analysis: New Objects of each class and the top roots keeping them alive:"));
 	LogAr.Logf(TEXT("\t%6s %s"), TEXT("Count"), TEXT("ClassPath"));
 	LogAr.Logf(TEXT("\t\t%6s %s"), TEXT("Count"), TEXT("RootObjectAndChain"));
 	TStringBuilder<1024> RootObjectString;

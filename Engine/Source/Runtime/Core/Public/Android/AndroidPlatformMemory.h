@@ -13,7 +13,7 @@
  */
 struct FPlatformMemoryStats : public FGenericPlatformMemoryStats
 {
-	FGenericPlatformMemoryStats::EMemoryPressureStatus GetMemoryPressureStatus();
+	FGenericPlatformMemoryStats::EMemoryPressureStatus GetMemoryPressureStatus() const;
 	uint64 VMSwap = 0;
 };
 

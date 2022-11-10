@@ -58,6 +58,7 @@
 #include "GlobalShader.h"
 #include "HAL/FileManager.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/MemoryMisc.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "HAL/PlatformFileManager.h"
 #include "HAL/PlatformProcess.h"
@@ -4398,8 +4399,18 @@ void UCookOnTheFlyServer::TickPrecacheObjectsForPlatforms(const float TimeSlice,
 
 }
 
-bool UCookOnTheFlyServer::HasExceededMaxMemory() const
+bool UCookOnTheFlyServer::HasExceededMaxMemory()
 {
+	// If we are in a cooldown period, return false.
+	if (ExceededMaxMemoryCooldownEndTimeSeconds > 0)
+	{
+		if (ExceededMaxMemoryCooldownEndTimeSeconds > FPlatformTime::Seconds())
+		{
+			return false;
+		}
+		ExceededMaxMemoryCooldownEndTimeSeconds = 0.; // Return to 0 to avoid needing to call FPlatformTime::Seconds() on every call
+	}
+
 #if UE_GC_TRACK_OBJ_AVAILABLE
 	if (GUObjectArray.GetObjectArrayEstimatedAvailable() < MinFreeUObjectIndicesBeforeGC)
 	{
@@ -4416,19 +4427,12 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory() const
 #endif // UE_GC_TRACK_OBJ_AVAILABLE
 
 
-	// Only report exceeded memory if all the active memory usage triggers have fired
-	int ActiveTriggers = 0;
-	int FiredTriggers = 0;
-
 	TStringBuilder<256> TriggerMessages;
-
 	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
 	
+	bool bMinFreeTriggered = false;
 	if (MemoryMinFreeVirtual > 0 || MemoryMinFreePhysical > 0)
 	{
-		++ActiveTriggers;
-		bool bFired = false;
-		
 		// trigger GC if we have less than MemoryMinFreeVirtual OR MemoryMinFreePhysical
 		// the check done in AssetCompilingManager is against the min of the two :
 		//uint64 AvailableMemory = FMath::Min(MemStats.AvailablePhysical, MemStats.AvailableVirtual);
@@ -4442,62 +4446,91 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory() const
 		{
 			TriggerMessages.Appendf(TEXT("\n  CookSettings.MemoryMinFreeVirtual: Available virtual memory %dMiB is less than %dMiB."),
 				static_cast<uint32>(MemStats.AvailableVirtual / 1024 / 1024), static_cast<uint32>(MemoryMinFreeVirtual / 1024 / 1024));
-			bFired = true;
+			bMinFreeTriggered = true;
 		}
 #endif
 		if (MemoryMinFreePhysical > 0 && MemStats.AvailablePhysical < MemoryMinFreePhysical)
 		{
 			TriggerMessages.Appendf(TEXT("\n  CookSettings.MemoryMinFreePhysical: Available physical memory %dMiB is less than %dMiB."),
 				static_cast<uint32>(MemStats.AvailablePhysical / 1024 / 1024), static_cast<uint32>(MemoryMinFreePhysical / 1024 / 1024));
-			bFired = true;
-		}
-		if (bFired)
-		{
-			++FiredTriggers;
+			bMinFreeTriggered = true;
 		}
 	}
 
 	// if MemoryMaxUsed is set, we won't GC until at least that much mem is used
 	// this can be useful if you demand that amount of memory as your min spec
+	bool bMaxUsedTriggered = false;
 	if (MemoryMaxUsedVirtual > 0 || MemoryMaxUsedPhysical > 0)
 	{
 		// check validity of trigger :
-		if ( FiredTriggers > 0 )
+		// if the MaxUsed config exceeds the system memory, it can never be triggered and will prevent any GC :
+		uint64 MaxMaxUsed = FMath::Max(MemoryMaxUsedVirtual,MemoryMaxUsedPhysical);
+		if ( MaxMaxUsed >= MemStats.TotalPhysical )
 		{
-			// if the MaxUsed config exceeds the system memory, it can never be triggered and will prevent any GC :
-			uint64 MaxMaxUsed = FMath::Max(MemoryMaxUsedVirtual,MemoryMaxUsedPhysical);
-			if ( MaxMaxUsed >= MemStats.TotalPhysical )
-			{
-				UE_CALL_ONCE( [&](){
-					UE_LOG(LogCook, Warning, TEXT("Warning MemoryMaxUsed condition is larger than total memory (%dMiB >= %dMiB).  System does not have enough memory to cook this project."),
-				static_cast<uint32>(MaxMaxUsed / 1024 / 1024), static_cast<uint32>(MemStats.TotalPhysical / 1024 / 1024));			
-				} );
-			}
+			UE_CALL_ONCE( [&](){
+				UE_LOG(LogCook, Warning, TEXT("Warning MemoryMaxUsed condition is larger than total memory (%dMiB >= %dMiB).  System does not have enough memory to cook this project."),
+			static_cast<uint32>(MaxMaxUsed / 1024 / 1024), static_cast<uint32>(MemStats.TotalPhysical / 1024 / 1024));			
+			} );
 		}
 
-		++ActiveTriggers;
-		bool bFired = false;
 		if (MemoryMaxUsedVirtual > 0 && MemStats.UsedVirtual >= MemoryMaxUsedVirtual)
 		{
 			TriggerMessages.Appendf(TEXT("\n  CookSettings.MemoryMaxUsedVirtual: Used virtual memory %dMiB is greater than %dMiB."),
 				static_cast<uint32>(MemStats.UsedVirtual / 1024 / 1024), static_cast<uint32>(MemoryMaxUsedVirtual / 1024 / 1024));
-			bFired = true;
+			bMaxUsedTriggered = true;
 		}
 		if (MemoryMaxUsedPhysical > 0 && MemStats.UsedPhysical >= MemoryMaxUsedPhysical)
 		{
 			TriggerMessages.Appendf(TEXT("\n  CookSettings.MemoryMaxUsedPhysical: Used physical memory %dMiB is greater than %dMiB."),
 				static_cast<uint32>(MemStats.UsedPhysical / 1024 / 1024), static_cast<uint32>(MemoryMaxUsedPhysical / 1024 / 1024));
-			bFired = true;
-		}
-		if (bFired)
-		{
-			++FiredTriggers;
+			bMaxUsedTriggered = true;
 		}
 	}
 
-	if (ActiveTriggers > 0 && FiredTriggers == ActiveTriggers)
+	bool bPressureTriggered = false;
+	if (MemoryTriggerGCAtPressureLevel != FPlatformMemoryStats::EMemoryPressureStatus::Unknown)
 	{
-		UE_LOG(LogCook, Display, TEXT("Exceeded max memory on all configured triggers:%s"), TriggerMessages.ToString());
+		FPlatformMemoryStats::EMemoryPressureStatus PressureStatus = MemStats.GetMemoryPressureStatus();
+		if (PressureStatus == FPlatformMemoryStats::EMemoryPressureStatus::Unknown)
+		{
+			UE_CALL_ONCE([&]() {
+				UE_LOG(LogCook, Error,
+					TEXT("MemoryPressureStatus is not available from the operating system. We may run out of memory due to lack of knowledge of when to collect garbage."));
+				});
+		}
+		else
+		{
+			static_assert(FPlatformMemoryStats::EMemoryPressureStatus::Critical > FPlatformMemoryStats::EMemoryPressureStatus::Nominal,
+				"We expect higher pressure to be higher integer values");
+			int RequiredValue = static_cast<int>(MemoryTriggerGCAtPressureLevel);
+			int CurrentValue = static_cast<int>(PressureStatus);
+			if (CurrentValue >= RequiredValue)
+			{
+				bPressureTriggered = true;
+				TriggerMessages.Appendf(TEXT("\n  Operating system has signalled that memory pressure is high."));
+			}
+		}
+	}
+
+	bool bTriggerGC = false;
+	if (bMinFreeTriggered || bMaxUsedTriggered)
+	{
+		const bool bOnlyTriggerIfBothMinFreeAndMaxUsedTrigger = true;
+		if (!bOnlyTriggerIfBothMinFreeAndMaxUsedTrigger ||
+			((bMinFreeTriggered || (MemoryMinFreeVirtual <= 0 && MemoryMinFreePhysical <= 0)) &&
+				(bMaxUsedTriggered || (MemoryMaxUsedVirtual <= 0 && MemoryMaxUsedPhysical <= 0))))
+		{
+			bTriggerGC = true;
+		}
+	}
+	if (bPressureTriggered)
+	{
+		bTriggerGC = true;
+	}
+
+	if (bTriggerGC)
+	{
+		UE_LOG(LogCook, Display, TEXT("Garbage collection triggered by conditions:%s"), TriggerMessages.ToString());
 		return true;
 	}
 	else
@@ -4506,12 +4539,19 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory() const
 	}
 }
 
-void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(int32 NumObjectsBeforeGC,
-	const FPlatformMemoryStats& MemStatsBeforeGC, int32 NumObjectsAfterGC, const FPlatformMemoryStats& MemStatsAfterGC)
+void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(bool bWasDueToOOM, bool bWasPartialGC,
+	int32 NumObjectsBeforeGC, const FPlatformMemoryStats& MemStatsBeforeGC,
+	const FGenericMemoryStats& AllocatorStatsBeforeGC,
+	int32 NumObjectsAfterGC, const FPlatformMemoryStats& MemStatsAfterGC,
+	const FGenericMemoryStats& AllocatorStatsAfterGC)
 {
 	using namespace UE::Cook;
 
 	if (IsCookingInEditor())
+	{
+		return;
+	}
+	if (IsCookOnTheFlyMode() && !bWasDueToOOM)
 	{
 		return;
 	}
@@ -4520,6 +4560,7 @@ void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(int32 NumObjectsBefor
 	int64 NumObjectsMax = NumObjectsHistory.GetMaximum();
 	int64 NumObjectsSpread = NumObjectsMax - NumObjectsMin;
 	int64 NumObjectsFreed = NumObjectsBeforeGC - NumObjectsAfterGC;
+	int64 NumObjectsCapacity = GUObjectArray.GetObjectArrayEstimatedAvailable() + GUObjectArray.GetObjectArrayNumMinusAvailable();
 	int64 VirtualMemMin = VirtualMemoryHistory.GetMinimum();
 	int64 VirtualMemMax = VirtualMemoryHistory.GetMaximum();
 	int64 VirtualMemSpread = VirtualMemMax - VirtualMemMin;
@@ -4529,12 +4570,94 @@ void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(int32 NumObjectsBefor
 
 	int64 ExpectedObjectsFreed = static_cast<int64>(MemoryExpectedFreedToSpreadRatio * static_cast<float>(NumObjectsSpread));
 	double ExpectedMemFreed = MemoryExpectedFreedToSpreadRatio * VirtualMemSpread;
-	if ((NumObjectsFreed >= ExpectedObjectsFreed || NumObjectsBeforeGC - NumObjectsMin < ExpectedObjectsFreed) &&
-		(VirtualMemFreed >= ExpectedMemFreed || VirtualMemBeforeGC - VirtualMemMin <= ExpectedMemFreed))
+	static bool bCookMemoryAnalysis = FParse::Param(FCommandLine::Get(), TEXT("CookMemoryAnalysis"));
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+	// When tracking memory with LLM, always show the memory status.
+	const bool bAlwaysShowAnalysis = FLowLevelMemTracker::Get().IsEnabled() || bCookMemoryAnalysis;
+#else
+	const bool bAlwaysShowAnalysis = bCookMemoryAnalysis;
+#endif		
+
+	bool bWasImpactful =
+		(NumObjectsFreed >= ExpectedObjectsFreed || NumObjectsBeforeGC - NumObjectsMin < ExpectedObjectsFreed) &&
+		(VirtualMemFreed >= ExpectedMemFreed || VirtualMemBeforeGC - VirtualMemMin <= ExpectedMemFreed);
+
+	constexpr int32 BytesPerMeg = 1000000;
+	if ((!bWasDueToOOM || bWasImpactful) && !bAlwaysShowAnalysis)
 	{
-		// Nothing to report, Garbage Collection was as impactful as expected
+		UE_LOG(LogCook, Display, TEXT("GarbageCollection Results:\n")
+			TEXT("\tType: %s\n")
+			TEXT("\tNumObjects:\n")
+			TEXT("\t\tCapacity:         %10d\n")
+			TEXT("\t\tBefore GC:        %10d\n")
+			TEXT("\t\tAfter GC:         %10d\n")
+			TEXT("\t\tFreed by GC:      %10d\n")
+			TEXT("\tVirtual Memory:\n")
+			TEXT("\t\tBefore GC:        %10" INT64_FMT " MB\n")
+			TEXT("\t\tAfter GC:         %10" INT64_FMT " MB\n")
+			TEXT("\t\tFreed by GC:      %10" INT64_FMT " MB\n"),
+			(bWasPartialGC ? TEXT("Partial") : TEXT("Full")),
+			NumObjectsCapacity, (int64)NumObjectsBeforeGC, (int64)NumObjectsAfterGC, NumObjectsFreed,
+			VirtualMemBeforeGC / BytesPerMeg, VirtualMemAfterGC / BytesPerMeg, VirtualMemFreed / BytesPerMeg
+		);
 		return;
 	}
+
+	// When the garbage collection is not impactful, we add a cooldown. In some cases it really was impactful and we just could not tell
+	// that it was impactful, because e.g. GMalloc is holding on to unused memory but allowing the operating system to page that unused
+	// memory out. In the case where it really was not impactful, it is better to crash on out of memory or to run slowly due to many page
+	// faults than it is to continuously collect garbage for no purpose.
+	constexpr float ExceededMaxMemoryCooldownEndTimeDuration = 60.0f;
+	FString CooldownMessage;
+	if (bWasDueToOOM && !bWasImpactful)
+	{
+		ExceededMaxMemoryCooldownEndTimeSeconds = FPlatformTime::Seconds() + ExceededMaxMemoryCooldownEndTimeDuration;
+		UE_LOG(LogCook, Display, TEXT("GarbageCollection Results: Garbage Collection was not very impactful."));
+		CooldownMessage = FString::Printf(
+			TEXT("\t\tCooldown: Further OOM GarbageCollection will be prevented for %.0f seconds and we may run out of memory.\n"),
+			ExceededMaxMemoryCooldownEndTimeDuration);
+	}
+	else
+	{
+		UE_LOG(LogCook, Display, TEXT("GarbageCollection Results:"));
+	}
+	UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: General:\n")
+		TEXT("%s")
+		TEXT("\t\tType: %s"),
+		*CooldownMessage,
+		(bWasPartialGC ? TEXT("Partial") : TEXT("Full")));
+	UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: NumObjects:\n")
+		TEXT("\t\tCapacity:         %10" INT64_FMT "\n")
+		TEXT("\t\tProcess Min:      %10" INT64_FMT "\n")
+		TEXT("\t\tProcess Max:      %10" INT64_FMT "\n")
+		TEXT("\t\tProcess Spread:   %10" INT64_FMT "\n")
+		TEXT("\t\tBefore GC:        %10" INT64_FMT "\n")
+		TEXT("\t\tAfter GC:         %10" INT64_FMT "\n")
+		TEXT("\t\tFreed by GC:      %10" INT64_FMT ""),
+		NumObjectsCapacity, NumObjectsMin, NumObjectsMax, NumObjectsSpread,
+		(int64)NumObjectsBeforeGC, (int64)NumObjectsAfterGC, NumObjectsFreed);
+	UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: Virtual Memory:\n")
+		TEXT("\t\tProcess Min:      %10" INT64_FMT " MB\n")
+		TEXT("\t\tProcess Max:      %10" INT64_FMT " MB\n")
+		TEXT("\t\tProcess Spread:   %10" INT64_FMT " MB\n")
+		TEXT("\t\tBefore GC:        %10" INT64_FMT " MB\n")
+		TEXT("\t\tAfter GC:         %10" INT64_FMT " MB\n")
+		TEXT("\t\tFreed by GC:      %10" INT64_FMT " MB"),
+		VirtualMemMin / BytesPerMeg, VirtualMemMax / BytesPerMeg, VirtualMemSpread / BytesPerMeg,
+		VirtualMemBeforeGC / BytesPerMeg, VirtualMemAfterGC / BytesPerMeg, VirtualMemFreed / BytesPerMeg);
+	auto AllocatorStatsToString = [](const FGenericMemoryStats& AllocatorStats)
+	{
+		TStringBuilder<256> Writer;
+		for (const TPair<FString, SIZE_T>& Item : AllocatorStats.Data)
+		{
+			Writer << TEXT("\n\t\tItem ") << Item.Key << TEXT(" ") << (uint64)Item.Value;
+		}
+		return FString(*Writer);
+	};
+	UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: Allocator Stats Before:%s"),
+		*AllocatorStatsToString(AllocatorStatsBeforeGC));
+	UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: Allocator Stats After:%s"),
+		*AllocatorStatsToString(AllocatorStatsAfterGC));
 
 	TArray<UPackage*> GCKeepPackages;
 	TArray<FPackageData*> GCKeepPackageDatas;
@@ -4557,55 +4680,29 @@ void UCookOnTheFlyServer::EvaluateGarbageCollectionResults(int32 NumObjectsBefor
 	int64 NumTransitivePackages;
 	GetDirectAndTransitiveResourceSize(DirectResourceSize, TransitiveResourceSize,
 		NumDirectPackages, NumTransitivePackages, MoveTemp(DirectPackages));
-
-	constexpr int32 BytesPerMeg = 1000000;
-	UE_LOG(LogCook, Display, TEXT("Garbage Collection was not very impactful.\n")
-		TEXT("\tNumObjects:\n")
-		TEXT("\t\tProcess Min:      %10" INT64_FMT "\n")
-		TEXT("\t\tProcess Max:      %10" INT64_FMT "\n")
-		TEXT("\t\tProcess Spread:   %10" INT64_FMT "\n")
-		TEXT("\t\tBefore GC:        %10" INT64_FMT "\n")
-		TEXT("\t\tAfter GC:         %10" INT64_FMT "\n")
-		TEXT("\t\tFreed by GC:      %10" INT64_FMT "\n")
-		TEXT("\tVirtual Memory:\n")
-		TEXT("\t\tProcess Min:      %10" INT64_FMT " MB\n")
-		TEXT("\t\tProcess Max:      %10" INT64_FMT " MB\n")
-		TEXT("\t\tProcess Spread:   %10" INT64_FMT " MB\n")
-		TEXT("\t\tBefore GC:        %10" INT64_FMT " MB\n")
-		TEXT("\t\tAfter GC:         %10" INT64_FMT " MB\n")
-		TEXT("\t\tFreed by GC:      %10" INT64_FMT " MB\n")
-		TEXT("\tReferences:\n")
+	UE_LOG(LogCook, Display, TEXT("\tMemoryAnalysis: Cooker References:\n")
 		TEXT("\t\tCooker direct packages:         %10" INT64_FMT "\n")
 		TEXT("\t\tCooker transitive packages:     %10" INT64_FMT "\n")
 		TEXT("\t\tCooker direct package size:     %10" INT64_FMT " MB\n")
 		TEXT("\t\tCooker transitive package size: %10" INT64_FMT " MB\n"),
-		NumObjectsMin, NumObjectsMax, NumObjectsSpread,
-		(int64)NumObjectsBeforeGC, (int64)NumObjectsAfterGC, NumObjectsFreed,
-		VirtualMemMin / BytesPerMeg, VirtualMemMax / BytesPerMeg, VirtualMemSpread / BytesPerMeg,
-		VirtualMemBeforeGC / BytesPerMeg, VirtualMemAfterGC / BytesPerMeg, VirtualMemFreed / BytesPerMeg,
 		NumDirectPackages, NumTransitivePackages,
 		DirectResourceSize.GetTotalMemoryBytes() / BytesPerMeg,
-		TransitiveResourceSize.GetTotalMemoryBytes() / BytesPerMeg
-	);
+		TransitiveResourceSize.GetTotalMemoryBytes() / BytesPerMeg);
 
-	if (IsCookByTheBookMode())
-	{
-		UE_LOG(LogCook, Display, TEXT("See log for memory use information for UObject classes and LLM tags."));
-		UE::Cook::DumpObjClassList(CookByTheBookOptions->SessionStartupObjects);
+	UE_LOG(LogCook, Display, TEXT("See log for memory use information for UObject classes and LLM tags."));
+	UE::Cook::DumpObjClassList(CookByTheBookOptions->SessionStartupObjects);
+	GLog->Logf(TEXT("Memory Analysis: LLM Tags:"));
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
-		if (FLowLevelMemTracker::Get().IsEnabled())
-		{
-			GLog->Logf(TEXT("LLM Tags:"));
-			FLowLevelMemTracker::Get().UpdateStatsPerFrame();
-			FLowLevelMemTracker::Get().DumpToLog();
-		}
-		else
-#endif
-		{
-			GLog->Logf(TEXT("LLM Tags are not displayed because llm is disabled. Run with -llm or -trace=memtag to see llm tags."));
-		}
-		GLog->Flush();
+	if (FLowLevelMemTracker::Get().IsEnabled())
+	{
+		FLowLevelMemTracker::Get().DumpToLog();
 	}
+	else
+#endif
+	{
+		GLog->Logf(TEXT("LLM Tags are not displayed because llm is disabled. Run with -llm or -trace=memtag to see llm tags."));
+	}
+	GLog->Flush();
 }
 
 void UCookOnTheFlyServer::GetDirectAndTransitiveResourceSize(FResourceSizeEx& OutDirectSize,
@@ -5851,6 +5948,14 @@ void FInitializeConfigSettings::LoadLocal(const FString& InOutputDirectoryOverri
 	ReadMemorySetting(TEXT("MemoryMaxUsedPhysical"), MemoryMaxUsedPhysical);
 	ReadMemorySetting(TEXT("MemoryMinFreeVirtual"), MemoryMinFreeVirtual);
 	ReadMemorySetting(TEXT("MemoryMinFreePhysical"), MemoryMinFreePhysical);
+	FString ConfigText(TEXT("None"));
+	GConfig->GetString(TEXT("CookSettings"), TEXT("MemoryTriggerGCAtPressureLevel"), ConfigText, GEditorIni);
+	if (!LexTryParseString(MemoryTriggerGCAtPressureLevel, ConfigText))
+	{
+		UE_LOG(LogCook, Error, TEXT("Unrecognized value \"%s\" for MemoryTriggerGCAtPressureLevel. Expected None or Critical."),
+			*ConfigText);
+	}
+
 	MemoryExpectedFreedToSpreadRatio = 0.10f;
 	GConfig->GetFloat(TEXT("CookSettings"), TEXT("MemoryExpectedFreedToSpreadRatio"),
 		MemoryExpectedFreedToSpreadRatio, GEditorIni);
@@ -5864,8 +5969,10 @@ void FInitializeConfigSettings::LoadLocal(const FString& InOutputDirectoryOverri
 	
 	GConfig->GetArray(TEXT("CookSettings"), TEXT("CookOnTheFlyConfigSettingDenyList"), ConfigSettingDenyList, GEditorIni);
 
-	UE_LOG(LogCook, Display, TEXT("CookSettings for Memory: MemoryMaxUsedVirtual %dMiB, MemoryMaxUsedPhysical %dMiB, MemoryMinFreeVirtual %dMiB, MemoryMinFreePhysical %dMiB"),
-		MemoryMaxUsedVirtual / 1024 / 1024, MemoryMaxUsedPhysical / 1024 / 1024, MemoryMinFreeVirtual / 1024 / 1024, MemoryMinFreePhysical / 1024 / 1024);
+	UE_LOG(LogCook, Display, TEXT("CookSettings for Memory: MemoryMaxUsedVirtual %dMiB, MemoryMaxUsedPhysical %dMiB, ")
+		TEXT("MemoryMinFreeVirtual %dMiB, MemoryMinFreePhysical %dMiB, MemoryTriggerGCAtPressureLevel %s"),
+		MemoryMaxUsedVirtual / 1024 / 1024, MemoryMaxUsedPhysical / 1024 / 1024, MemoryMinFreeVirtual / 1024 / 1024, MemoryMinFreePhysical / 1024 / 1024,
+		*LexToString(MemoryTriggerGCAtPressureLevel));
 
 	const FConfigSection* CacheSettings = GConfig->GetSectionPrivate(TEXT("CookPlatformDataCacheSettings"), false, true, GEditorIni);
 	if (CacheSettings)
