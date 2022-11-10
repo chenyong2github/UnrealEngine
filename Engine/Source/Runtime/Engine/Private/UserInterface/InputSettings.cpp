@@ -33,6 +33,7 @@ UInputSettings::UInputSettings(const FObjectInitializer& ObjectInitializer)
 	, DefaultPlayerInputClass(UPlayerInput::StaticClass())
 	, DefaultInputComponentClass(UInputComponent::StaticClass())
 {
+	PlatformSettings.Initialize(UInputPlatformSettings::StaticClass());
 }
 
 void UInputSettings::RemoveInvalidKeys()
@@ -491,4 +492,51 @@ void UInputSettings::SetDefaultInputComponentClass(TSubclassOf<UInputComponent> 
 	}
 }
 
+FHardwareDeviceIdentifier FHardwareDeviceIdentifier::Invalid = { NAME_None, TEXT("Invalid") };
 
+bool FHardwareDeviceIdentifier::IsValid() const
+{
+	return InputClassName.IsValid() && !HardwareDeviceIdentifier.IsEmpty();
+}
+
+UInputPlatformSettings* UInputPlatformSettings::Get()
+{
+	return UPlatformSettingsManager::Get().GetSettingsForPlatform<UInputPlatformSettings>();
+}
+
+void UInputPlatformSettings::AddHardwareDeviceIdentifier(const FHardwareDeviceIdentifier& InHardwareDevice)
+{
+	if (ensure(InHardwareDevice.IsValid()))
+	{
+		HardwareDevices.AddUnique(InHardwareDevice);
+	}
+}
+
+const TArray<FHardwareDeviceIdentifier>& UInputPlatformSettings::GetHardwareDevices() const
+{
+	return HardwareDevices;
+}
+
+#if WITH_EDITOR
+const TArray<FString>& UInputPlatformSettings::GetAllHardwareDeviceNames()
+{
+	static TArray<FString> HardwareDevices;
+	HardwareDevices.Reset();
+
+	// Get every known platform's InputPlatformSettings and compile a list of them
+	TArray<UPlatformSettings*> AllInputSettings = UPlatformSettingsManager::Get().GetAllPlatformSettings<UInputPlatformSettings>();
+
+	for (const UPlatformSettings* Setting : AllInputSettings)
+	{
+		if (const UInputPlatformSettings* InputSetting = Cast<UInputPlatformSettings>(Setting))
+		{
+			for (const FHardwareDeviceIdentifier& Device : InputSetting->HardwareDevices)
+			{
+				HardwareDevices.AddUnique(Device.HardwareDeviceIdentifier);
+			}
+		}
+	}
+	
+	return HardwareDevices;
+}
+#endif	// WITH_EDITOR

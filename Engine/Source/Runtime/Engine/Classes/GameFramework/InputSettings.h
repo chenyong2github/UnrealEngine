@@ -9,6 +9,7 @@
 #include "UObject/SoftObjectPath.h"
 #include "GameFramework/PlayerInput.h"
 #include "Components/InputComponent.h"
+#include "Engine/PlatformSettings.h"
 
 #include "InputSettings.generated.h"
 
@@ -26,6 +27,13 @@ class ENGINE_API UInputSettings
 	/** Properties of Axis controls */
 	UPROPERTY(config, EditAnywhere, EditFixedSize, Category="Bindings", meta=(ToolTip="List of Axis Properties"), AdvancedDisplay)
 	TArray<struct FInputAxisConfigEntry> AxisConfig;
+
+	/**
+	 * Platform specific settings for Input.
+	 * @see UInputPlatformSettings
+	 */
+	UPROPERTY(EditAnywhere, Category = "Enhanced Input")
+	FPerPlatformSettings PlatformSettings;
 
 	UPROPERTY(config, EditAnywhere, Category="Bindings", AdvancedDisplay)
 	uint8 bAltEnterTogglesFullscreen:1;
@@ -272,4 +280,78 @@ public:
 	
 private:
 	void PopulateAxisConfigs();
+};
+
+/**
+* An identifier that can be used to determine what input devices are available based on the FInputDeviceScope.
+* These mappings should match a FInputDeviceScope that is used by an IInputDevice
+*/
+USTRUCT(BlueprintType)
+struct FHardwareDeviceIdentifier
+{
+	GENERATED_BODY()
+
+	FHardwareDeviceIdentifier() = default;
+	
+	/** 
+	* The name of the Input Class that uses this hardware device.
+	* This should correspond with a FInputDeviceScope that is used by an IInputDevice
+	*/
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hardware")
+	FName InputClassName;
+
+	/**
+	 * The name of this hardware device. 
+	 * This should correspond with a FInputDeviceScope that is used by an IInputDevice
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Hardware")
+	FString HardwareDeviceIdentifier;
+
+	bool IsValid() const;
+	
+	static FHardwareDeviceIdentifier Invalid;
+
+	bool operator==(const FHardwareDeviceIdentifier& Other) const
+	{
+		return Other.InputClassName == InputClassName && Other.HardwareDeviceIdentifier == HardwareDeviceIdentifier;
+	}
+};
+
+/** Per-Platform input options */
+UCLASS(config=Input, defaultconfig)
+class ENGINE_API UInputPlatformSettings : public UPlatformSettings
+{
+	GENERATED_BODY()
+
+public:
+
+	static UInputPlatformSettings* Get();
+
+#if WITH_EDITOR
+	/**
+	* Returns an array of Hardware device names from every registered platform ini.
+	* For use in the editor so that you can get a list of all known input devices and 
+	* make device-specific options. For example, you can map any data type to a specific input 
+	* device
+	* 
+	* UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(GetOptions="Engine.InputPlatformSettings.GetAllHardwareDeviceNames"))
+	* TMap<FString, UFooData> DeviceSpecificMap;
+	* 
+	* and the editor will make a nice drop down for you with all the current options that are in the settings.
+	*/
+	UFUNCTION()
+	static const TArray<FString>& GetAllHardwareDeviceNames();
+#endif	// WITH_EDITOR
+
+	/** Add the given hardware device identifier to this platform's settings. */
+	void AddHardwareDeviceIdentifier(const FHardwareDeviceIdentifier& InHardwareDevice);
+
+	/** Returns an array of all Hardware Device Identifiers known to this platform */
+	const TArray<FHardwareDeviceIdentifier>& GetHardwareDevices() const;
+	
+protected:
+
+	/** A list of identifiable hardware devices available on this platform */
+	UPROPERTY(config, EditAnywhere, Category = "Hardware")
+	TArray<FHardwareDeviceIdentifier> HardwareDevices;
 };
