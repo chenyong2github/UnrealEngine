@@ -328,7 +328,7 @@ FNavAgentProperties::FNavAgentProperties(const FNavAgentProperties& Other)
 void FNavAgentProperties::UpdateWithCollisionComponent(UShapeComponent* CollisionComponent)
 {
 	check(CollisionComponent != NULL);
-	AgentRadius = CollisionComponent->Bounds.SphereRadius;
+	AgentRadius = FloatCastChecked<float>(CollisionComponent->Bounds.SphereRadius, UE::LWC::DefaultFloatPrecision);
 }
 
 bool FNavAgentProperties::IsNavDataMatching(const FNavAgentProperties& Other) const

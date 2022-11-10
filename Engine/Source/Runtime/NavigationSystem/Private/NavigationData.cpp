@@ -183,7 +183,7 @@ ANavigationData::ANavigationData(const FObjectInitializer& ObjectInitializer)
 uint16 ANavigationData::GetNextUniqueID()
 {
 	static FThreadSafeCounter StaticID(INVALID_NAVDATA);
-	return StaticID.Increment();
+	return IntCastChecked<uint16>(StaticID.Increment());
 }
 
 void ANavigationData::PostInitProperties()
@@ -308,7 +308,7 @@ void ANavigationData::TickActor(float DeltaTime, enum ELevelTick TickType, FActo
 
 	if (RepathRequests.Num() > 0)
 	{
-		float TimeStamp = GetWorldTimeStamp();
+		double TimeStamp = GetWorldTimeStamp();
 		const UWorld* World = GetWorld();
 
 		// @todo batch-process it!
@@ -673,7 +673,7 @@ void ANavigationData::DrawDebugPath(FNavigationPath* Path, const FColor PathColo
 	Path->DebugDraw(this, PathColor, Canvas, bPersistent, LifeTime, NextPathPointIndex);
 }
 
-float ANavigationData::GetWorldTimeStamp() const
+double ANavigationData::GetWorldTimeStamp() const
 {
 	const UWorld* World = GetWorld();
 	return World ? World->GetTimeSeconds() : 0.f;
@@ -852,7 +852,7 @@ void ANavigationData::RemoveQueryFilter(TSubclassOf<UNavigationQueryFilter> Filt
 
 uint32 ANavigationData::LogMemUsed() const
 {
-	uint32 ActivePathsMemSize = 0;
+	SIZE_T ActivePathsMemSize = 0;
 	{
 		// Paths can be registered from async pathfinding thread
 		// while logging is requested on main thread (console command)
@@ -860,8 +860,8 @@ uint32 ANavigationData::LogMemUsed() const
 		ActivePathsMemSize = ActivePaths.GetAllocatedSize();
 	}
 
-	const uint32 MemUsed = ActivePathsMemSize + SupportedAreas.GetAllocatedSize() +
-		QueryFilters.GetAllocatedSize() + AreaClassToIdMap.GetAllocatedSize();
+	const uint32 MemUsed = IntCastChecked<uint32>(ActivePathsMemSize + SupportedAreas.GetAllocatedSize() +
+		QueryFilters.GetAllocatedSize() + AreaClassToIdMap.GetAllocatedSize());
 
 	UE_VLOG_UELOG(this, LogNavigation, Display, TEXT("%s: ANavigationData: %u\n    self: %d"), *GetName(), MemUsed, sizeof(ANavigationData));
 

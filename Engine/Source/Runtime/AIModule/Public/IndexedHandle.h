@@ -140,7 +140,7 @@ struct AIMODULE_API FCompactIndexedHandleBase
 	}
 
 	/** @return INDEX_NONE if invalid or >=0 for a potentially valid handle */
-	int32 GetIndex() const { return Index; }
+	int16 GetIndex() const { return Index; }
 
 	/** @return true if this handle is valid, this doesn't check that it's in the correct range for the underlying resource it's providing a handle for */
 	bool IsValid() const { return Index >= 0; }

@@ -35,7 +35,7 @@ namespace UE::NavCorridor::Private
 	};
 
 	/** @return approximate distance between two segments. */
-	static float ApproxDistanceSegmentSegment(const FVector StartA, const FVector EndA, const FVector StartB, const FVector EndB)
+	static FVector::FReal ApproxDistanceSegmentSegment(const FVector StartA, const FVector EndA, const FVector StartB, const FVector EndB)
 	{
 		const FVector2D Seg(EndA - StartA);
 		const FVector Mid = (StartB + EndB) * 0.5;
@@ -447,7 +447,7 @@ namespace UE::NavCorridor::Private
 				continue;
 			}
 
-			float U = EdgeU;
+			FReal U = EdgeU;
 			if (SampleAtV < (Segment.StartUV.Y + UE_KINDA_SMALL_NUMBER))
 			{
 				// Hit Start point
@@ -1522,7 +1522,7 @@ FNavCorridorLocation FNavCorridor::AdvancePathLocation(const FNavCorridorLocatio
 		const FReal SectionLength = FVector::Distance(CurrentLocation, CurrPortal.Location);
 		if ((DistanceSoFar + SectionLength) > AdvanceDistance)
 		{
-			Result.T = (AdvanceDistance - DistanceSoFar) / SectionLength;
+			Result.T = FloatCastChecked<float>((AdvanceDistance - DistanceSoFar) / SectionLength, /* Precision */ 1./256.);
 			Result.Location = FMath::Lerp(CurrentLocation, CurrPortal.Location, Result.T);
 			Result.PortalIndex = PortalIndex - 1;
 			break;
@@ -1539,7 +1539,7 @@ FNavCorridorLocation FNavCorridor::AdvancePathLocation(const FNavCorridorLocatio
 		const FReal SectionLength = FVector::Distance(NextPortal.Location, CurrPortal.Location);
 		const FReal LeftoverDistance = AdvanceDistance - DistanceSoFar;
 		Result.PortalIndex = Portals.Num() - 2;
-		Result.T = 1.0 + LeftoverDistance / SectionLength; // T will be > 1
+		Result.T = 1.0 + FloatCastChecked<float>(LeftoverDistance / SectionLength, /* Precision */ 1. / 256.); // T will be > 1
 		Result.Location = FMath::Lerp(CurrPortal.Location, NextPortal.Location, Result.T);
 	}
 	

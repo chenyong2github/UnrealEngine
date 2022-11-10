@@ -105,14 +105,14 @@ namespace FNavMeshRenderingHelpers
 		return true;
 	}
 
-	bool LineInCorrectDistance(const FVector& Start, const FVector& End, const FSceneView* View, float CorrectDistance = -1)
+	bool LineInCorrectDistance(const FVector& Start, const FVector& End, const FSceneView* View, FVector::FReal CorrectDistance = -1.)
 	{
-		const float MaxDistanceSq = (CorrectDistance > 0) ? FMath::Square(CorrectDistance) : ARecastNavMesh::GetDrawDistanceSq();
+		const FVector::FReal MaxDistanceSq = (CorrectDistance > 0.) ? FMath::Square(CorrectDistance) : ARecastNavMesh::GetDrawDistanceSq();
 		return	FVector::DistSquaredXY(Start, View->ViewMatrices.GetViewOrigin()) < MaxDistanceSq &&
 				FVector::DistSquaredXY(End, View->ViewMatrices.GetViewOrigin()) < MaxDistanceSq;
 	}
 
-	FVector EvalArc(const FVector& Org, const FVector& Dir, const float h, const float u)
+	FVector EvalArc(const FVector& Org, const FVector& Dir, const FVector::FReal h, const FVector::FReal u)
 	{
 		FVector Pt = Org + Dir * u;
 		Pt.Z += h * (1 - (u * 2 - 1)*(u * 2 - 1));
@@ -127,14 +127,14 @@ namespace FNavMeshRenderingHelpers
 			return;
 		}
 
-		const float ArcPtsScale = 1.0f / (float)Segments;
+		const FVector::FReal ArcPtsScale = 1. / (FVector::FReal)Segments;
 		const FVector Dir = End - Start;
-		const float Length = Dir.Size();
+		const FVector::FReal Length = Dir.Size();
 
 		FVector Prev = Start;
 		for (uint32 i = 1; i <= Segments; ++i)
 		{
-			const float u = i * ArcPtsScale;
+			const FVector::FReal u = (FVector::FReal)i * ArcPtsScale;
 			const FVector Pt = EvalArc(Start, Dir, Length*Height, u);
 
 			DebugLines.Add(FDebugRenderSceneProxy::FDebugLine(Prev, Pt, Color.ToFColor(true)));
@@ -466,7 +466,8 @@ void FNavMeshSceneProxyData::Serialize(FArchive& Ar)
 
 uint32 FNavMeshSceneProxyData::GetAllocatedSize() const
 {
-	return MeshBuilders.GetAllocatedSize() +
+	return IntCastChecked<uint32>(
+		MeshBuilders.GetAllocatedSize() +
 		ThickLineItems.GetAllocatedSize() +
 		TileEdgeLines.GetAllocatedSize() +
 		NavMeshEdgeLines.GetAllocatedSize() +
@@ -476,7 +477,7 @@ uint32 FNavMeshSceneProxyData::GetAllocatedSize() const
 		AuxPoints.GetAllocatedSize() +
 		AuxBoxes.GetAllocatedSize() +
 		DebugLabels.GetAllocatedSize() +
-		OctreeBounds.GetAllocatedSize();
+		OctreeBounds.GetAllocatedSize());
 }
 
 #if WITH_RECAST
@@ -893,7 +894,7 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 					if (bGatherTileBounds)
 					{
 						const FBox TileBox = NavMesh->GetNavMeshTileBounds(TileIndex);
-						const float DrawZ = (TileBox.Min.Z + TileBox.Max.Z) * 0.5f;
+						const FVector::FReal DrawZ = (TileBox.Min.Z + TileBox.Max.Z) * 0.5;
 						const FVector LL(TileBox.Min.X, TileBox.Min.Y, DrawZ);
 						const FVector UR(TileBox.Max.X, TileBox.Max.Y, DrawZ);
 						const FVector UL(LL.X, UR.Y, DrawZ);
@@ -1134,14 +1135,14 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 					const FVector B1 = SegInfo.RightEnd + NavMeshDrawOffset;
 					const FVector Edge0 = B0 - A0;
 					const FVector Edge1 = B1 - A1;
-					const float Len0 = Edge0.Size();
-					const float Len1 = Edge1.Size();
+					const FVector::FReal Len0 = Edge0.Size();
+					const FVector::FReal Len1 = Edge1.Size();
 					const FColor SegColor = FNavMeshRenderingHelpers::DarkenColor(NavMeshColors[SegInfo.AreaID]);
 					const FColor ColA = (SegInfo.ValidEnds & FRecastDebugGeometry::OMLE_Left) ? FColor::White : FColor::Black;
 					const FColor ColB = (SegInfo.ValidEnds & FRecastDebugGeometry::OMLE_Right) ? FColor::White : FColor::Black;
 
 					constexpr int32 NumArcPoints = 8;
-					constexpr float ArcPtsScale = 1.0f / NumArcPoints;
+					constexpr FVector::FReal ArcPtsScale = 1. / NumArcPoints;
 
 					FVector Prev0 = FNavMeshRenderingHelpers::EvalArc(A0, Edge0, Len0*0.25f, 0);
 					FVector Prev1 = FNavMeshRenderingHelpers::EvalArc(A1, Edge1, Len1*0.25f, 0);
@@ -1149,7 +1150,7 @@ void FNavMeshSceneProxyData::GatherData(const ARecastNavMesh* NavMesh, int32 InN
 					FNavMeshRenderingHelpers::AddVertex(DebugMeshData, Prev1, ColA);
 					for (int32 ArcIdx = 1; ArcIdx <= NumArcPoints; ArcIdx++)
 					{
-						const float u = ArcIdx * ArcPtsScale;
+						const FVector::FReal u = ArcIdx * ArcPtsScale;
 						FVector Pt0 = FNavMeshRenderingHelpers::EvalArc(A0, Edge0, Len0*0.25f, u);
 						FVector Pt1 = FNavMeshRenderingHelpers::EvalArc(A1, Edge1, Len1*0.25f, u);
 
@@ -1589,7 +1590,9 @@ void FNavMeshDebugDrawDelegateHelper::DrawDebugLabels(UCanvas* Canvas, APlayerCo
 			if (FNavMeshRenderingHelpers::PointInView(DebugText->Location, View))
 			{
 				const FVector ScreenLoc = Canvas->Project(DebugText->Location);
-				Canvas->DrawText(Font, DebugText->Text, ScreenLoc.X, ScreenLoc.Y);
+				Canvas->DrawText(Font, DebugText->Text
+				, FloatCastChecked<float>(ScreenLoc.X, UE::LWC::DefaultFloatPrecision)
+				, FloatCastChecked<float>(ScreenLoc.Y, UE::LWC::DefaultFloatPrecision));
 			}
 		}
 	}
@@ -1611,14 +1614,15 @@ FPrimitiveViewRelevance FNavMeshSceneProxy::GetViewRelevance(const FSceneView* V
 
 uint32 FNavMeshSceneProxy::GetAllocatedSizeInternal() const
 {
-	return FDebugRenderSceneProxy::GetAllocatedSize() +
+	return IntCastChecked<uint32>(
+		FDebugRenderSceneProxy::GetAllocatedSize() +
 		ProxyData.GetAllocatedSize() +
 		IndexBuffer.Indices.GetAllocatedSize() +
 		VertexBuffers.PositionVertexBuffer.GetNumVertices() * VertexBuffers.PositionVertexBuffer.GetStride() +
 		VertexBuffers.StaticMeshVertexBuffer.GetResourceSize() +
 		VertexBuffers.ColorVertexBuffer.GetNumVertices() * VertexBuffers.ColorVertexBuffer.GetStride() +
 		MeshColors.GetAllocatedSize() + MeshColors.Num() * sizeof(FColoredMaterialRenderProxy) +
-		MeshBatchElements.GetAllocatedSize();
+		MeshBatchElements.GetAllocatedSize());
 }
 
 //////////////////////////////////////////////////////////////////////////

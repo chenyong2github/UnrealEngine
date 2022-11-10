@@ -61,6 +61,6 @@ class AIMODULE_API UEnvQueryGenerator_Donut : public UEnvQueryGenerator_Projecte
 #endif // WITH_EDITOR
 
 protected:
-	float GetArcBisectorAngle(FEnvQueryInstance& QueryInstance) const;
-	bool IsAngleAllowed(float TestAngleRad, float BisectAngleDeg, float AngleRangeDeg, bool bConstrainAngle) const;
+	FVector::FReal GetArcBisectorAngle(FEnvQueryInstance& QueryInstance) const;
+	bool IsAngleAllowed(FVector::FReal TestAngleRad, FVector::FReal BisectAngleDeg, FVector::FReal AngleRangeDeg, bool bConstrainAngle) const;
 };

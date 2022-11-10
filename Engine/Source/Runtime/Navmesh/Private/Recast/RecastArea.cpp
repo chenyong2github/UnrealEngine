@@ -237,7 +237,7 @@ void SeedWalkableAreasErode(int w, int h, int lowSpanHeight, int lowSpanSeed, co
 				else if (chf.spans[i].h < lowSpanHeight)
 				{
 					dist[i] = 0;
-					seed[i] = lowSpanSeed;
+					seed[i] = (unsigned char)lowSpanSeed;
 				}
 				else
 				{
@@ -290,7 +290,7 @@ void SeedWalkableAreasErodeFiltered(int w, int h, int lowSpanHeight, int lowSpan
 
 					if (s.y < NextAllowedLowBase)
 					{
-						seed[i] = lowSpanSeed;
+						seed[i] = (unsigned char)lowSpanSeed;
 
 						// next low span is allowed after full agent height (or valid area from condition below)
 						NextAllowedLowBase = rcMax(0, s.y - lowSpanHeight);

@@ -1125,7 +1125,7 @@ void FEQSDebugger::StoreStats(const FEnvQueryInstance& QueryInstance)
 	FStatsInfo& UpdateInfo = UEnvQueryManager::DebuggerStats.FindOrAdd(FName(*QueryInstance.QueryName));
 
 	const FEnvQueryDebugProfileData& QueryStats = QueryInstance.DebugData;
-	const float ExecutionTime = QueryInstance.TotalExecutionTime;
+	const double ExecutionTime = QueryInstance.TotalExecutionTime;
 	
 	if (ExecutionTime > UpdateInfo.MostExpensiveDuration)
 	{
@@ -1181,7 +1181,7 @@ void FEQSDebugger::StoreQuery(const TSharedPtr<FEnvQueryInstance>& QueryInstance
 	UpdateInfo.Timestamp = QueryInstance->World->GetTimeSeconds();
 }
 
-void FEQSDebugger::StoreTickTime(const FEnvQueryInstance& QueryInstance, float TickTime, float MaxTickTime)
+void FEQSDebugger::StoreTickTime(const FEnvQueryInstance& QueryInstance, double TickTime, double MaxTickTime)
 {
 #if USE_EQS_TICKLOADDATA
 	SCOPE_CYCLE_COUNTER(STAT_AI_EQS_Debug_StoreTickTime);
@@ -1198,7 +1198,7 @@ void FEQSDebugger::StoreTickTime(const FEnvQueryInstance& QueryInstance, float T
 	if (UpdateInfo.LastTickFrame != GFrameCounter)
 	{
 		UpdateInfo.LastTickFrame = GFrameCounter;
-		UpdateInfo.LastTickTime = 0.0f;
+		UpdateInfo.LastTickTime = 0.;
 	}
 
 	const uint16 TickIdx = GFrameCounter & (NumRecordedTicks - 1);

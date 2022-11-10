@@ -23,9 +23,9 @@ UEnvQueryGenerator_Donut::UEnvQueryGenerator_Donut(const FObjectInitializer& Obj
 	ProjectionData.TraceMode = EEnvQueryTrace::None;
 }
 
-float UEnvQueryGenerator_Donut::GetArcBisectorAngle(FEnvQueryInstance& QueryInstance) const
+FVector::FReal UEnvQueryGenerator_Donut::GetArcBisectorAngle(FEnvQueryInstance& QueryInstance) const
 {
-	float BisectAngle = 0.0f;
+	FRotator::FReal BisectAngle = 0.;
 
 	FVector Direction;
 	if (bDefineArc)
@@ -59,13 +59,13 @@ float UEnvQueryGenerator_Donut::GetArcBisectorAngle(FEnvQueryInstance& QueryInst
 	return BisectAngle;
 }
 
-bool UEnvQueryGenerator_Donut::IsAngleAllowed(float TestAngleRad, float BisectAngleDeg, float AngleRangeDeg, bool bConstrainAngle) const
+bool UEnvQueryGenerator_Donut::IsAngleAllowed(FVector::FReal TestAngleRad, FVector::FReal BisectAngleDeg, FVector::FReal AngleRangeDeg, bool bConstrainAngle) const
 {
 	if (bConstrainAngle)
 	{
-		const float TestAngleDeg = FMath::RadiansToDegrees(TestAngleRad);
-		const float AngleDelta = FRotator::NormalizeAxis(TestAngleDeg - BisectAngleDeg);
-		return (FMath::Abs(AngleDelta) - 0.01f) < AngleRangeDeg;
+		const FVector::FReal TestAngleDeg = FMath::RadiansToDegrees(TestAngleRad);
+		const FVector::FReal AngleDelta = FRotator::NormalizeAxis(TestAngleDeg - BisectAngleDeg);
+		return (FMath::Abs(AngleDelta) - 0.01) < AngleRangeDeg;
 	}
 
 	return true;	
@@ -88,25 +88,25 @@ void UEnvQueryGenerator_Donut::GenerateItems(FEnvQueryInstance& QueryInstance) c
 	PointsPerRing.BindData(BindOwner, QueryInstance.QueryID);
 	ArcAngle.BindData(BindOwner, QueryInstance.QueryID);
 
-	float ArcAngleValue = ArcAngle.GetValue();
-	float InnerRadiusValue = InnerRadius.GetValue();
-	float OuterRadiusValue = OuterRadius.GetValue();
+	FVector::FReal ArcAngleValue = ArcAngle.GetValue();
+	FVector::FReal InnerRadiusValue = InnerRadius.GetValue();
+	FVector::FReal OuterRadiusValue = OuterRadius.GetValue();
 	int32 NumRings = NumberOfRings.GetValue();
 	int32 NumPoints = PointsPerRing.GetValue();
 
-	if ((InnerRadiusValue < 0.f) || (OuterRadiusValue <= 0.f) ||
+	if ((InnerRadiusValue < 0.) || (OuterRadiusValue <= 0.) ||
 		(InnerRadiusValue > OuterRadiusValue) ||
 		(NumRings < 1) || (NumPoints < 1))
 	{
 		return;
 	}
 
-	const float ArcBisectDeg = GetArcBisectorAngle(QueryInstance);
-	const float ArcAngleDeg = FMath::Clamp(ArcAngleValue, 0.0f, 360.0f);
+	const FVector::FReal ArcBisectDeg = GetArcBisectorAngle(QueryInstance);
+	const FVector::FReal ArcAngleDeg = FMath::Clamp(ArcAngleValue, 0., 360.);
 
-	const float RadiusDelta = (OuterRadiusValue - InnerRadiusValue) / (NumRings - 1);
-	const float AngleDelta = 2.0 * PI / NumPoints;
-	float SectionAngle = FMath::DegreesToRadians(ArcBisectDeg);
+	const FVector::FReal RadiusDelta = (OuterRadiusValue - InnerRadiusValue) / (NumRings - 1);
+	const FVector::FReal AngleDelta = 2. * UE_DOUBLE_PI / NumPoints;
+	FVector::FReal SectionAngle = FMath::DegreesToRadians(ArcBisectDeg);
 
 	TArray<FNavLocation> Points;
 	Points.Reserve(NumPoints * NumRings);
@@ -117,13 +117,13 @@ void UEnvQueryGenerator_Donut::GenerateItems(FEnvQueryInstance& QueryInstance) c
 		{
 			if (IsAngleAllowed(SectionAngle, ArcBisectDeg, ArcAngleDeg, bDefineArc))
 			{
-				const float SinValue = FMath::Sin(SectionAngle);
-				const float CosValue = FMath::Cos(SectionAngle);
+				const FVector::FReal SinValue = FMath::Sin(SectionAngle);
+				const FVector::FReal CosValue = FMath::Cos(SectionAngle);
 
-				float RingRadius = InnerRadiusValue;
+				FVector::FReal RingRadius = InnerRadiusValue;
 				for (int32 RingIdx = 0; RingIdx < NumRings; RingIdx++, RingRadius += RadiusDelta)
 				{
-					const FVector RingPos(RingRadius * CosValue, RingRadius * SinValue, 0.0f);
+					const FVector RingPos(RingRadius * CosValue, RingRadius * SinValue, 0.);
 					for (int32 ContextIdx = 0; ContextIdx < CenterPoints.Num(); ContextIdx++)
 					{
 						const FNavLocation PointPos = FNavLocation(CenterPoints[ContextIdx] + RingPos);
@@ -137,22 +137,22 @@ void UEnvQueryGenerator_Donut::GenerateItems(FEnvQueryInstance& QueryInstance) c
 	{	// In order to spiral, we need to change the angle for each ring as well as each spoke.  By changing it as a
 		// fraction of the SectionAngle, we guarantee that the offset won't cross to the starting point of the next
 		// spoke.
-		const float RingAngleDelta = AngleDelta / NumRings;
-		float RingRadius = InnerRadiusValue;
-		float CurrentRingAngleDelta = 0.f;
+		const FVector::FReal RingAngleDelta = AngleDelta / NumRings;
+		FVector::FReal RingRadius = InnerRadiusValue;
+		FVector::FReal CurrentRingAngleDelta = 0.f;
 
 		// So, start with ring angle and then add section angle.
 		for (int32 RingIdx = 0; RingIdx < NumRings; RingIdx++, RingRadius += RadiusDelta, CurrentRingAngleDelta += RingAngleDelta)
 		{
 			for (int32 SectionIdx = 0; SectionIdx < NumPoints; SectionIdx++, SectionAngle += AngleDelta)
 			{
-				float RingSectionAngle = CurrentRingAngleDelta + SectionAngle;
+				FVector::FReal RingSectionAngle = CurrentRingAngleDelta + SectionAngle;
 				if (IsAngleAllowed(RingSectionAngle, ArcBisectDeg, ArcAngleDeg, bDefineArc))
 				{
-					const float SinValue = FMath::Sin(RingSectionAngle);
-					const float CosValue = FMath::Cos(RingSectionAngle);
+					const FVector::FReal SinValue = FMath::Sin(RingSectionAngle);
+					const FVector::FReal CosValue = FMath::Cos(RingSectionAngle);
 
-					const FVector RingPos(RingRadius * CosValue, RingRadius * SinValue, 0.0f);
+					const FVector RingPos(RingRadius * CosValue, RingRadius * SinValue, 0.);
 					for (int32 ContextIdx = 0; ContextIdx < CenterPoints.Num(); ContextIdx++)
 					{
 						const FNavLocation PointPos = FNavLocation(CenterPoints[ContextIdx] + RingPos);

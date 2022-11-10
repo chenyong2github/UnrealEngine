@@ -63,7 +63,7 @@ namespace EQSDebug
 		int32 NumValidItems;
 		int32 Id;
 		FString Name;
-		float Timestamp;
+		double Timestamp;
 
 		void Reset()
 		{
@@ -171,7 +171,7 @@ public:
 	static void LogQuery(FEnvQueryInstance& Query, const FName& CategoryName, ELogVerbosity::Type Verbosity);
 
 private:
-	static void LogQueryInternal(FEnvQueryInstance& Query, const FName& CategoryName, ELogVerbosity::Type Verbosity, float TimeSeconds, FVisualLogEntry *CurrentEntry);
+	static void LogQueryInternal(FEnvQueryInstance& Query, const FName& CategoryName, ELogVerbosity::Type Verbosity, double TimeSeconds, FVisualLogEntry *CurrentEntry);
 #endif
 };
 

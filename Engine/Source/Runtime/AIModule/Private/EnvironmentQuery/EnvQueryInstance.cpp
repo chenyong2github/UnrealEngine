@@ -286,7 +286,7 @@ bool FEnvQueryInstance::PrepareContext(UClass* Context, TArray<AActor*>& Data)
 	return Data.Num() > 0;
 }
 
-void FEnvQueryInstance::ExecuteOneStep(float TimeLimit)
+void FEnvQueryInstance::ExecuteOneStep(double TimeLimit)
 {
 	if (!Owner.IsValid())
 	{
@@ -369,7 +369,7 @@ void FEnvQueryInstance::ExecuteOneStep(float TimeLimit)
 					NumProcessedItems = Items.Num() - LastValidItems;
 					LastValidItems = Items.Num();
 					DebugData.CurrentOptionGeneratorIdx++;
-					DebugData.Store(*this, StepExecutionTime, false);
+					DebugData.Store(*this, FloatCastChecked<float>(StepExecutionTime, /* Precision */ 1./512.), false);
 					NumProcessedItems = 0;
 				}
 
@@ -463,7 +463,7 @@ void FEnvQueryInstance::ExecuteOneStep(float TimeLimit)
 #if USE_EQS_DEBUGGER
 	if (bStoreDebugInfo)
 	{
-		DebugData.Store(*this, StepExecutionTime, bStepDone);
+		DebugData.Store(*this, FloatCastChecked<float>(StepExecutionTime, /* Precision */ 1./512.), bStepDone);
 	}
 #endif // USE_EQS_DEBUGGER
 	

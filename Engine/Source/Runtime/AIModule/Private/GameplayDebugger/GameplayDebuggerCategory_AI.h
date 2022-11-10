@@ -88,7 +88,7 @@ protected:
 private:
 	// do NOT read from this pointer, it's only for validating if path has changed and can be invalid!
 	FNavigationPath* RawLastPath;
-	float LastPathUpdateTime;
+	double LastPathUpdateTime;
 };
 
 #endif // WITH_GAMEPLAY_DEBUGGER

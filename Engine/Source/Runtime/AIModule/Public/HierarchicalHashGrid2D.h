@@ -21,8 +21,13 @@
  * - FloorToInt ends up calling floorf, which will be a function call.
  * 	 int FloorToInt(float a) { return (int)a + ((int)a > a ? -1 : 0); }
  * 	 auto vectorizes nicely on clang, but not on VC.
+ * 
  * - Add helper function to allow to tweak the cell size to reset the grid when spill list gets too large
  */
+
+// LWC_TODO_AI Note we are using int32 here for X and Y which does mean that we could overflow the limit of an int for LWCoords
+// unless fairly large grid cell sizes are used.As WORLD_MAX is currently in flux until we have a better idea of what we are
+// going to be able to support its probably not worth investing time in this potential issue right now.
 template <int32 InNumLevels = 3, int32 InLevelRatio = 4, typename InItemIDType = uint32>
 class THierarchicalHashGrid2D
 {
@@ -460,10 +465,10 @@ public:
 	FCellRect CalcQueryBounds(const FBox& Bounds, const int32 Level) const
 	{
 		FCellRect Result;
-		Result.MinX = FMath::FloorToInt(Bounds.Min.X * InvCellSize[Level] - 0.5f);
-		Result.MinY = FMath::FloorToInt(Bounds.Min.Y * InvCellSize[Level] - 0.5f);
-		Result.MaxX = FMath::FloorToInt(Bounds.Max.X * InvCellSize[Level] + 0.5f);
-		Result.MaxY = FMath::FloorToInt(Bounds.Max.Y * InvCellSize[Level] + 0.5f);
+		Result.MinX = IntCastChecked<int32>(FMath::FloorToInt(Bounds.Min.X * InvCellSize[Level] - 0.5f));
+		Result.MinY = IntCastChecked<int32>(FMath::FloorToInt(Bounds.Min.Y * InvCellSize[Level] - 0.5f));
+		Result.MaxX = IntCastChecked<int32>(FMath::FloorToInt(Bounds.Max.X * InvCellSize[Level] + 0.5f));
+		Result.MaxY = IntCastChecked<int32>(FMath::FloorToInt(Bounds.Max.Y * InvCellSize[Level] + 0.5f));
 		return Result;
 	}
 
@@ -501,15 +506,14 @@ public:
 		FCellLocation Location(0, 0, 0);
 
 		const FVector Center = Bounds.GetCenter();
-		const float Diameter = FMath::Max(Bounds.Max.X - Bounds.Min.X, Bounds.Max.Y - Bounds.Min.Y);
-
+		const FVector::FReal Diameter = FMath::Max(Bounds.Max.X - Bounds.Min.X, Bounds.Max.Y - Bounds.Min.Y);
 		for (Location.Level = 0; Location.Level < NumLevels; Location.Level++)
 		{
-			const int32 DiameterCells = FMath::CeilToInt(Diameter * InvCellSize[Location.Level]);
+			const int32 DiameterCells = IntCastChecked<int32>(FMath::CeilToInt(Diameter * InvCellSize[Location.Level]));
 			if (DiameterCells <= 1)
 			{
-				Location.X = FMath::FloorToInt(Center.X * InvCellSize[Location.Level]);
-				Location.Y = FMath::FloorToInt(Center.Y * InvCellSize[Location.Level]);
+				Location.X = IntCastChecked<int32>(FMath::FloorToInt(Center.X * InvCellSize[Location.Level]));
+				Location.Y = IntCastChecked<int32>(FMath::FloorToInt(Center.Y * InvCellSize[Location.Level]));
 				break;
 			}
 		}

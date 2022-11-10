@@ -325,7 +325,7 @@ struct STATETREEMODULE_API FStateTreeActiveStates
 				States[Index] = FStateTreeStateHandle::Invalid;
 			}
 		}
-		NumStates = NewNum;
+		NumStates = static_cast<uint8>(NewNum);
 	}
 
 	/** Returns true of the array contains specified state. */

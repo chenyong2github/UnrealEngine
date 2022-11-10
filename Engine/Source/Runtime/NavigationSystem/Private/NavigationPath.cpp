@@ -410,7 +410,7 @@ void FNavigationPath::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const
 	Element.Category = LogNavigation.GetCategoryName();
 	Element.SetColor(FColorList::Green);
 	Element.Points.Reserve(NumPathVerts);
-	Element.Thicknes = 3.f;
+	Element.Thicknes = 3;
 	
 	for (int32 VertIdx = 0; VertIdx < NumPathVerts; ++VertIdx)
 	{

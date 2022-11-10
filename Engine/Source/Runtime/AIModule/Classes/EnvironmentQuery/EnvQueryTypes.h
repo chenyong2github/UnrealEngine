@@ -823,7 +823,7 @@ struct AIMODULE_API FEnvQueryInstance : public FEnvQueryResult
 	double TotalExecutionTime;
 
 	/** if > 0 then it's how much time query has for performing current step */
-	float CurrentStepTimeLimit;
+	double CurrentStepTimeLimit;
 
 #if !UE_BUILD_SHIPPING
 	/** Maximum EQS Generator duration (in seconds) before a warning is reported in non-shipping build. */
@@ -844,7 +844,7 @@ struct AIMODULE_API FEnvQueryInstance : public FEnvQueryResult
 	~FEnvQueryInstance();
 
 	/** execute single step of query */
-	void ExecuteOneStep(float TimeLimit);
+	void ExecuteOneStep(double TimeLimit);
 
 	/** update context cache */
 	bool PrepareContext(UClass* Context, FEnvQueryContextData& ContextData);

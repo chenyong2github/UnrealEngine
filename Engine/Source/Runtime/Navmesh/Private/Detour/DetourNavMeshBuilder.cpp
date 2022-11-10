@@ -707,7 +707,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 			const int nv = navPolys[i].vertCount;
 			dtl.vertBase = (unsigned int)vbase;
 			dtl.vertCount = (unsigned char)(ndv-nv);
-			dtl.triBase = (unsigned int)params->detailMeshes[i*4+2];
+			dtl.triBase = (unsigned short)params->detailMeshes[i*4+2];
 			dtl.triCount = (unsigned char)params->detailMeshes[i*4+3];
 			// Copy vertices except the first 'nv' verts which are equal to nav poly verts.
 			if (ndv-nv)
@@ -729,7 +729,7 @@ bool dtCreateNavMeshData(dtNavMeshCreateParams* params, unsigned char** outData,
 			const int nv = navPolys[i].vertCount;
 			dtl.vertBase = 0;
 			dtl.vertCount = 0;
-			dtl.triBase = (unsigned int)tbase;
+			dtl.triBase = (unsigned short)tbase;
 			dtl.triCount = (unsigned char)(nv-2);
 			// Triangulate polygon (local indices).
 			for (int j = 2; j < nv; ++j)
@@ -1197,7 +1197,7 @@ bool dtTransformTileData(unsigned char* data, const int dataSize, const int offs
 
 		const unsigned short realSide = tile.offMeshCons[j].side & DT_LINK_FLAG_SIDE_MASK;
 		const unsigned short newSide = (realSide + (2*rot)) % 8; //rot [0..3], side [0,1,2,3,4,5,6,7]
-		tile.offMeshCons[j].side = (tile.offMeshCons[j].side & ~DT_LINK_FLAG_SIDE_MASK) | newSide;
+		tile.offMeshCons[j].side = (unsigned char)((tile.offMeshCons[j].side & ~DT_LINK_FLAG_SIDE_MASK) | newSide);
 	}
 
 #if WITH_NAVMESH_SEGMENT_LINKS
@@ -1236,7 +1236,7 @@ void dtComputeTileOffsetFromRotation(const dtReal* position, const dtReal* rotat
 
 	dtReal RcTilePosChangedVector[3];
 	dtVsub(RcTilePosChangedVector, newRelativeTilePos, relativeTilePos);
-	deltaX = RcTilePosChangedVector[0] / tileWidth;
-	deltaY = RcTilePosChangedVector[2] / tileHeight;
+	deltaX = (int)(RcTilePosChangedVector[0] / tileWidth);
+	deltaY = (int)(RcTilePosChangedVector[2] / tileHeight);
 }
 // @UE END

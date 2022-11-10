@@ -1198,7 +1198,7 @@ void dtNavMesh::connectExtOffMeshLinks(dtMeshTile* tile, dtMeshTile* target, int
 		linkOffMeshHelper(target, targetCon->poly, tile, landPolyIdx, linkSide, 1);
 
 		// Link target poly to off-mesh connection.
-		linkSide = (side == -1 ? DT_CONNECTION_INTERNAL : side) | DT_LINK_FLAG_OFFMESH_CON | biDirFlag;
+		linkSide = (unsigned char)(side == -1 ? DT_CONNECTION_INTERNAL : side) | DT_LINK_FLAG_OFFMESH_CON | biDirFlag;
 		if (tile != target)
 		{
 			linkSide &= ~DT_CONNECTION_INTERNAL;

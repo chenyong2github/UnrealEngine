@@ -367,7 +367,7 @@ int32 UNavLocalGridManager::AddLocalNavigationGridForBox(UObject* WorldContextOb
 	if (GridManager)
 	{
 		FNavLocalGridData GridData(Location, FVector2D(Extent.X + UNavLocalGridManager::GridCellSize * Radius2D, Extent.Y + UNavLocalGridManager::GridCellSize * Radius2D));
-		GridData.SetHeight(Height + Extent.Z);
+		GridData.SetHeight(FloatCastChecked<float>(Height + Extent.Z, UE::LWC::DefaultFloatPrecision));
 		GridData.MarkBoxObstacle(Location, Extent, Rotation.Quaternion());
 
 		GridId = GridManager->AddGridData(GridData, bRebuildGrids);

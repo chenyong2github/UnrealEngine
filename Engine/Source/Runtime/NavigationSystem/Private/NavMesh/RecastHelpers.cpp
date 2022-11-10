@@ -74,7 +74,7 @@ FColor Recast2UnrealColor(const unsigned int RecastColor)
 {
 	const uint8 R = (RecastColor & 0xFF);
 	const uint8 G = (RecastColor & 0xFF00) >> 8;
-	const uint8 B = (RecastColor & 0xFF0000) >> 16;
-	const uint8 A = (RecastColor & 0xFF000000) >> 24;
+	const uint8 B = static_cast<uint8>((RecastColor & 0xFF0000) >> 16);
+	const uint8 A = static_cast<uint8>((RecastColor & 0xFF000000) >> 24);
 	return FColor(R,G,B,A);	// can't be direct assignation since internally FColor is not RGBA
 }

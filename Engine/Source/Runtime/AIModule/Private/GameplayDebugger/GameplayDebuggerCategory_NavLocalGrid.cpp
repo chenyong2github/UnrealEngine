@@ -165,14 +165,14 @@ protected:
 		const FVector CellMin = FVector(GridBounds.Min.X, GridBounds.Min.Y, GridBounds.Max.Z) + FVector(CellSize * CellIdx.X, CellSize * CellIdx.Y, 0);
 		const FBox CellBox(CellMin, CellMin + FVector(CellSize, CellSize, 0.0f));
 		const FVector Center = CellBox.GetCenter();
-		const FVector Extent = CellBox.GetExtent() - FVector(CellGapSize, CellGapSize, 0.f);
+		const FVector Extent = CellBox.GetExtent() - FVector(CellGapSize, CellGapSize, 0.);
 
 		const int32 FirstVertIdx = Verts.Num();
 
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z))));
 
 		StoreQuadIndices(0, 1, 3, 2, FirstVertIdx, Indices);
 	}
@@ -188,14 +188,14 @@ protected:
 
 		const int32 FirstVertIdx = Verts.Num();
 
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z))));
 
 		StoreQuadIndices(4, 5, 7, 6, FirstVertIdx, Indices);
 		StoreQuadIndices(1, 3, 7, 5, FirstVertIdx, Indices);
@@ -214,44 +214,44 @@ protected:
 		const FVector Center = GridBounds.GetCenter();
 		const FVector Extent = GridBounds.GetExtent();
 
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z - Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z - Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X, Center.Y - Extent.Y, Center.Z + Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X, Center.Y + Extent.Y, Center.Z + Extent.Z))));
 
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y, Center.Z + Extent.Z - FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y, Center.Z + Extent.Z - FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y, Center.Z - Extent.Z + FaceWidth))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y, Center.Z - Extent.Z + FaceWidth))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y, Center.Z + Extent.Z - FaceWidth))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y, Center.Z + Extent.Z - FaceWidth))));
 
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z - FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z - FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z + FaceWidth))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z + FaceWidth))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z - FaceWidth))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z - FaceWidth))));
 
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z))));
 
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y, Center.Z + Extent.Z - FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y, Center.Z + Extent.Z - FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y, Center.Z - Extent.Z + FaceWidth))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y, Center.Z - Extent.Z + FaceWidth))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y, Center.Z + Extent.Z - FaceWidth))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y, Center.Z + Extent.Z - FaceWidth))));
 
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z + FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z - FaceWidth)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z - FaceWidth)));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z + FaceWidth))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z + FaceWidth))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X, Center.Y - Extent.Y + FaceWidth, Center.Z + Extent.Z - FaceWidth))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X, Center.Y + Extent.Y - FaceWidth, Center.Z + Extent.Z - FaceWidth))));
 
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z)));
-		Verts.Add(FDynamicMeshVertex(FVector3f(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z)));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X + FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X - FaceWidth, Center.Y - Extent.Y + FaceWidth, Center.Z - Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X - Extent.X + FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z))));
+		Verts.Add(FDynamicMeshVertex(UE::LWC::NarrowWorldPositionChecked(FVector(Center.X + Extent.X - FaceWidth, Center.Y + Extent.Y - FaceWidth, Center.Z - Extent.Z))));
 
 		StoreQuadIndices(0, 1, 9, 8, FirstVertIdx, Indices);
 		StoreQuadIndices(1, 5, 11, 9, FirstVertIdx, Indices);

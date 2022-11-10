@@ -4750,7 +4750,7 @@ dtStatus dtNavMeshQuery::findWallsOverlappingShape(dtPolyRef startRef, const dtR
 }
 
 dtStatus dtNavMeshQuery::findWallsAroundPath(const dtPolyRef* path, const int pathCount, const dtReal* searchAreaPoly, const int searchAreaPolyCount,
-												   const float maxAreaEnterCost, const dtQueryFilter* filter,
+												   const dtReal maxAreaEnterCost, const dtQueryFilter* filter,
 												   dtPolyRef* neiRefs, int* neiCount, const int maxNei,
 												   dtReal* resultWalls, dtPolyRef* resultRefs, int* resultCount, const int maxResult) const
 {
@@ -4844,7 +4844,7 @@ dtStatus dtNavMeshQuery::findWallsAroundPath(const dtPolyRef* path, const int pa
 				continue;
 
 			// Do not advance if the polygon is excluded by the filter, or if the area enter cost is too high.
-			const float enterCost = filter->getAreaFixedCost(neighbourPoly->getArea());
+			const dtReal enterCost = filter->getAreaFixedCost(neighbourPoly->getArea());
 
 			if (!filter->passFilter(neighbourRef, neighbourTile, neighbourPoly)
 				|| !passLinkFilterByRef(neighbourTile, neighbourRef)

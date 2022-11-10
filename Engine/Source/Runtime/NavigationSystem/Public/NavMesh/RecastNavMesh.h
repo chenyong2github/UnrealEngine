@@ -38,6 +38,10 @@
 //TIME_SLICE_NAV_REGEN must be 0 if we are async rebuilding recast
 #define TIME_SLICE_NAV_REGEN (ALLOW_TIME_SLICE_NAV_REGEN && !RECAST_ASYNC_REBUILDING)
 
+// LWC_TODO_AI Note we are using int32 here for X and Y which does mean that we could overflow the limit of an int for LWCoords
+// unless fairly large tile sizes are used.As WORLD_MAX is currently in flux until we have a better idea of what we are
+// going to be able to support its probably not worth investing time in this potential issue right now.
+
 class FPImplRecastNavMesh;
 class FRecastQueryFilter;
 class INavLinkCustomInterface;
@@ -864,7 +868,7 @@ private:
 	static FNavPolyFlags NavLinkFlag;
 
 	/** Squared draw distance */
-	static float DrawDistanceSq;
+	static FVector::FReal DrawDistanceSq;
 
 	/** MinimumSizeForChaosNavMeshInfluence*/
 	static float MinimumSizeForChaosNavMeshInfluenceSq;
@@ -914,8 +918,8 @@ public:
 	/** broadcast for navmesh updates */
 	FOnNavMeshUpdate OnNavMeshUpdate;
 
-	FORCEINLINE static void SetDrawDistance(float NewDistance) { DrawDistanceSq = NewDistance * NewDistance; }
-	FORCEINLINE static float GetDrawDistanceSq() { return DrawDistanceSq; }
+	FORCEINLINE static void SetDrawDistance(FVector::FReal NewDistance) { DrawDistanceSq = NewDistance * NewDistance; }
+	FORCEINLINE static FVector::FReal GetDrawDistanceSq() { return DrawDistanceSq; }
 
 	FORCEINLINE static void SetMinimumSizeForChaosNavMeshInfluence(float NewSize) { MinimumSizeForChaosNavMeshInfluenceSq = NewSize * NewSize; }
 	FORCEINLINE static float GetMinimumSizeForChaosNavMeshInfluenceSq() { return MinimumSizeForChaosNavMeshInfluenceSq; }

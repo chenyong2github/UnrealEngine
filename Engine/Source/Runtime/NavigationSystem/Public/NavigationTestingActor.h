@@ -147,7 +147,7 @@ public:
 	float PathfindingTime;
 
 	UPROPERTY(transient, VisibleAnywhere, BlueprintReadOnly, Category=PathfindingStatus)
-	float PathCost;
+	double PathCost;
 
 	UPROPERTY(transient, VisibleAnywhere, BlueprintReadOnly, Category=PathfindingStatus)
 	int32 PathfindingSteps;

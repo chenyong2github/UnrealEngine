@@ -240,7 +240,9 @@ void FNavLinkRenderingProxy::GetLinkMeshes(const TArray<FNavLinkDrawing>& OffMes
 		{
 			continue;
 		}
-		const uint32 Segments = FPlatformMath::Max<uint32>(LinkArcHeight*(Link.Right - Link.Left).Size() / 10, 8);
+		const FVector::FReal RealSegments = FMath::Max(LinkArcHeight * (Link.Right - Link.Left).Size() / 10., 8.);
+		check(RealSegments >= 0 && RealSegments <= (FVector::FReal)TNumericLimits<uint32>::Max());
+		const uint32 Segments = static_cast<uint32>(RealSegments);
 		DrawArc(PDI, Link.Left, Link.Right, LinkArcHeight, Segments, Link.Color, SDPG_World, 3.5f);
 		const FVector VOffset(0,0,FVector::Dist(Link.Left, Link.Right)*1.333f);
 
@@ -283,8 +285,12 @@ void FNavLinkRenderingProxy::GetLinkMeshes(const TArray<FNavLinkDrawing>& OffMes
 		{
 			continue;
 		}
-		const uint32 SegmentsStart = FPlatformMath::Max<uint32>(SegmentArcHeight*(Link.RightStart - Link.LeftStart).Size() / 10, 8);
-		const uint32 SegmentsEnd = FPlatformMath::Max<uint32>(SegmentArcHeight*(Link.RightEnd-Link.LeftEnd).Size()/10, 8);
+		const FVector::FReal RealSegmentsStart = FMath::Max(SegmentArcHeight * (Link.RightStart - Link.LeftStart).Size() / 10., 8.);
+		const FVector::FReal RealSegmentsEnd= FMath::Max(SegmentArcHeight * (Link.RightEnd - Link.LeftEnd).Size() / 10., 8.);
+		check(RealSegmentsStart >= 0 && RealSegmentsStart <= (FVector::FReal)TNumericLimits<uint32>::Max());
+		check(RealSegmentsEnd >= 0 && RealSegmentsEnd <= (FVector::FReal)TNumericLimits<uint32>::Max());
+		const uint32 SegmentsStart = static_cast<uint32>(RealSegmentsStart);
+		const uint32 SegmentsEnd = static_cast<uint32>(RealSegmentsEnd);
 		DrawArc(PDI, Link.LeftStart, Link.RightStart, SegmentArcHeight, SegmentsStart, Link.Color, SDPG_World, 3.5f);
 		DrawArc(PDI, Link.LeftEnd, Link.RightEnd, SegmentArcHeight, SegmentsEnd, Link.Color, SDPG_World, 3.5f);
 		const FVector VOffset(0,0,FVector::Dist(Link.LeftStart, Link.RightStart)*1.333f);
@@ -348,7 +354,9 @@ void FNavLinkRenderingProxy::DrawLinks(FPrimitiveDrawInterface* PDI, TArray<FNav
 			continue;
 		}
 
-		const uint32 Segments = FPlatformMath::Max<uint32>(LinkArcHeight*(Link.Right-Link.Left).Size()/10, 8);
+		const FVector::FReal RealSegments = FMath::Max(LinkArcHeight * (Link.Right - Link.Left).Size() / 10., 8.);
+		check(RealSegments >= 0 && RealSegments <= (FVector::FReal)TNumericLimits<uint32>::Max());
+		const uint32 Segments = static_cast<uint32>(RealSegments);
 		DrawArc(PDI, Link.Left, Link.Right, LinkArcHeight, Segments, Link.Color, SDPG_World, 3.5f);
 		const FVector VOffset(0,0,FVector::Dist(Link.Left, Link.Right)*1.333f);
 
@@ -392,8 +400,12 @@ void FNavLinkRenderingProxy::DrawLinks(FPrimitiveDrawInterface* PDI, TArray<FNav
 			continue;
 		}
 
-		const uint32 SegmentsStart = FPlatformMath::Max<uint32>(SegmentArcHeight*(Link.RightStart-Link.LeftStart).Size()/10, 8);
-		const uint32 SegmentsEnd = FPlatformMath::Max<uint32>(SegmentArcHeight*(Link.RightEnd-Link.LeftEnd).Size()/10, 8);
+		const FVector::FReal RealSegmentsStart = FMath::Max(SegmentArcHeight * (Link.RightStart - Link.LeftStart).Size() / 10., 8.);
+		const FVector::FReal RealSegmentsEnd = FMath::Max(SegmentArcHeight * (Link.RightEnd - Link.LeftEnd).Size() / 10., 8.);
+		check(RealSegmentsStart >= 0 && RealSegmentsStart <= (FVector::FReal)TNumericLimits<uint32>::Max());
+		check(RealSegmentsEnd >= 0 && RealSegmentsEnd <= (FVector::FReal)TNumericLimits<uint32>::Max());
+		const uint32 SegmentsStart = static_cast<uint32>(RealSegmentsStart);
+		const uint32 SegmentsEnd = static_cast<uint32>(RealSegmentsEnd);
 		DrawArc(PDI, Link.LeftStart, Link.RightStart, SegmentArcHeight, SegmentsStart, Link.Color, SDPG_World, 3.5f);
 		DrawArc(PDI, Link.LeftEnd, Link.RightEnd, SegmentArcHeight, SegmentsEnd, Link.Color, SDPG_World, 3.5f);
 		const FVector VOffset(0,0,FVector::Dist(Link.LeftStart, Link.RightStart)*1.333f);
@@ -457,6 +469,6 @@ uint32 FNavLinkRenderingProxy::GetMemoryFootprint( void ) const
 
 uint32 FNavLinkRenderingProxy::GetAllocatedSize( void ) const 
 { 
-	return(FPrimitiveSceneProxy::GetAllocatedSize() + OffMeshPointLinks.GetAllocatedSize() + OffMeshSegmentLinks.GetAllocatedSize());
+	return IntCastChecked<uint32>(FPrimitiveSceneProxy::GetAllocatedSize() + OffMeshPointLinks.GetAllocatedSize() + OffMeshSegmentLinks.GetAllocatedSize());
 }
 

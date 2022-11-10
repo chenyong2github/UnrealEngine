@@ -214,8 +214,8 @@ struct NAVIGATIONSYSTEM_API FNavigationPath : public TSharedFromThis<FNavigation
 		ObserverDelegate.Broadcast(this, PathUpdateTypeToPathEvent[uint8(UpdateType)]);
 	}
 
-	FORCEINLINE float GetTimeStamp() const { return LastUpdateTimeStamp; }
-	FORCEINLINE void SetTimeStamp(float TimeStamp) { LastUpdateTimeStamp = TimeStamp; }
+	FORCEINLINE double GetTimeStamp() const { return LastUpdateTimeStamp; }
+	FORCEINLINE void SetTimeStamp(double TimeStamp) { LastUpdateTimeStamp = TimeStamp; }
 
 	void Invalidate();
 	void RePathFailed();
@@ -336,7 +336,7 @@ public:
 	FVector GetLastRepathGoalLocation() const { return GoalActorLastLocation; }
 	void UpdateLastRepathGoalLocation();
 	
-	float GetLastUpdateTime() const { return LastUpdateTimeStamp; }
+	double GetLastUpdateTime() const { return LastUpdateTimeStamp; }
 	float GetGoalActorTetherDistance() const { return FMath::Sqrt(GoalActorLocationTetherDistanceSq); }
 
 	/** if enabled path will request recalculation if it gets invalidated due to a change to underlying navigation */
@@ -461,7 +461,7 @@ protected:
 	FPathFindingQueryData PathFindingQueryData;
 
 	/** gets set during path creation and on subsequent path's updates */
-	float LastUpdateTimeStamp;
+	double LastUpdateTimeStamp;
 
 private:
 	/* if GoalActor is set this is the distance we'll try to keep GoalActor from end of path. If GoalActor
@@ -907,7 +907,7 @@ public:
 	 *	@param Location is expressed in WorldSpace, navigation data is responsible for tansforming if need be */
 	virtual bool DoesNodeContainLocation(NavNodeRef NodeRef, const FVector& WorldSpaceLocation) const PURE_VIRTUAL(ANavigationData::DoesNodeContainLocation, return false;);
 
-	float GetWorldTimeStamp() const;
+	double GetWorldTimeStamp() const;
 
 	//----------------------------------------------------------------------//
 	// Areas

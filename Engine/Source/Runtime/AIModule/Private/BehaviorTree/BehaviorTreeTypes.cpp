@@ -461,7 +461,7 @@ void FBlackboardKeySelector::ResolveSelectedKey(const UBlackboardData& Blackboar
 		}
 
 		SelectedKeyID = BlackboardAsset.GetKeyID(SelectedKeyName);
-		SelectedKeyType = BlackboardAsset.GetKeyType(SelectedKeyID);
+		SelectedKeyType = BlackboardAsset.GetKeyType(FBlackboard::FKey(IntCastChecked<uint16>(SelectedKeyID)));
 		UE_CLOG(IsSet() == false, LogBehaviorTree, Warning
 			, TEXT("%s> Failed to find key \'%s\' in BB asset %s. BB Key Selector will be set to \'Invalid\'")
 			, *UBehaviorTreeTypes::GetBTLoggingContext()

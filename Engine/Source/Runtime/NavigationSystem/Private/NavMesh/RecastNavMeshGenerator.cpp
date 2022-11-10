@@ -1331,7 +1331,7 @@ struct FOffMeshData
 			const int32* AreaID = AreaClassToIdMap->Find(AreaClass);
 			if (AreaID != NULL)
 			{
-				NewInfo.area = *AreaID;
+				NewInfo.area = IntCastChecked<unsigned char>(*AreaID);
 				NewInfo.polyFlag = FlagsPerArea[*AreaID];
 			}
 			else
@@ -1372,7 +1372,7 @@ struct FOffMeshData
 			const int32* AreaID = AreaClassToIdMap->Find(AreaClass);
 			if (AreaID != NULL)
 			{
-				NewInfo.area = *AreaID;
+				NewInfo.area = IntCastChecked<unsigned char>(*AreaID);
 				NewInfo.polyFlag = FlagsPerArea[*AreaID];
 			}
 			else
@@ -1478,7 +1478,7 @@ struct FTileCacheCompressor : public dtTileCacheCompressor
 			const int64 CompressedSize = FOodleDataCompression::Compress((void*)DataPtr, DataSize, (const void*)buffer, bufferSize, GNavmeshTileCacheCompressor, GNavmeshTileCacheCompressionLevel);
 			if (CompressedSize > 0)
 			{
-				*outCompressedSize = CompressedSize + HeaderSize;
+				*outCompressedSize = IntCastChecked<int32>(CompressedSize + HeaderSize);
 				return DT_SUCCESS;
 			}
 			else
@@ -2048,12 +2048,12 @@ void FRecastTileGenerator::GatherNavigationDataGeometry(const TSharedRef<FNaviga
 				{
 					LLM_SCOPE_BYTAG(NavigationOctree);
 
-					const int32 PrevElementMemory = ElementData->GetAllocatedSize();
+					const SIZE_T PrevElementMemory = ElementData->GetAllocatedSize();
 					FNavigationRelevantData* ModData = (FNavigationRelevantData*)&ElementData;
 					AddVoxelCache(ModData->VoxelData, CachedVoxels, NumCachedVoxels);
 
-					const int32 NewElementMemory = ElementData->GetAllocatedSize();
-					const int32 ElementMemoryDelta = NewElementMemory - PrevElementMemory;
+					const SIZE_T NewElementMemory = ElementData->GetAllocatedSize();
+					const SIZE_T ElementMemoryDelta = NewElementMemory - PrevElementMemory;
 					INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, ElementMemoryDelta);
 				}
 			}
@@ -2838,7 +2838,7 @@ void FRecastTileGenerator::GenerateRecastFilter(FNavMeshBuildContext& BuildConte
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_RecastFilter)
 
 	// TileConfig.walkableHeight is set to 1 when marking low spans, calculate real value for filtering
-	const int32 FilterWalkableHeight = FMath::CeilToInt(TileConfig.AgentHeight / TileConfig.ch);
+	const int32 FilterWalkableHeight = FMath::CeilToInt(TileConfig.AgentHeight / static_cast<float>(TileConfig.ch));
 
 	// Once all geometry is rasterized, we do initial pass of filtering to
 	// remove unwanted overhangs caused by the conservative rasterization
@@ -2920,7 +2920,7 @@ ETimeSliceWorkResult FRecastTileGenerator::GenerateRecastFilterTimeSliced(FNavMe
 	case EGenerateRecastFilterTimeSlicedState::FilterWalkableLowHeightSpans:
 	{
 		// TileConfig.walkableHeight is set to 1 when marking low spans, calculate real value for filtering
-		const int32 FilterWalkableHeight = FMath::CeilToInt(TileConfig.AgentHeight / TileConfig.ch);
+		const int32 FilterWalkableHeight = FMath::CeilToInt(TileConfig.AgentHeight / static_cast<float>(TileConfig.ch));
 
 		if (!TileConfig.bMarkLowHeightAreas)
 		{
@@ -2987,7 +2987,7 @@ bool FRecastTileGenerator::RecastErodeWalkable(FNavMeshBuildContext& BuildContex
 	SCOPE_CYCLE_COUNTER(STAT_Navigation_RecastErodeWalkable);
 
 	// TileConfig.walkableHeight is set to 1 when marking low spans, calculate real value for filtering
-	const int32 FilterWalkableHeight = FMath::CeilToInt(TileConfig.AgentHeight / TileConfig.ch);
+	const int32 FilterWalkableHeight = FMath::CeilToInt(TileConfig.AgentHeight / static_cast<float>(TileConfig.ch));
 
 	if (TileConfig.walkableRadius > RECAST_VERY_SMALL_AGENT_RADIUS)
 	{
@@ -3702,7 +3702,7 @@ bool FRecastTileGenerator::GenerateNavigationDataLayer(FNavMeshBuildContext& Bui
 			OffMeshData.AreaClassToIdMap = &AdditionalCachedData.AreaClassToIdMap;
 			OffMeshData.FlagsPerArea = AdditionalCachedData.FlagsPerOffMeshLinkArea;
 			const FSimpleLinkNavModifier* LinkModifier = OffmeshLinks.GetData();
-			const float DefaultSnapHeight = TileConfig.walkableClimb * (float)TileConfig.ch;
+			const float DefaultSnapHeight = TileConfig.walkableClimb * static_cast<float>(TileConfig.ch);
 
 			for (int32 LinkModifierIndex = 0; LinkModifierIndex < OffmeshLinks.Num(); ++LinkModifierIndex, ++LinkModifier)
 			{
@@ -3752,7 +3752,7 @@ bool FRecastTileGenerator::GenerateNavigationDataLayer(FNavMeshBuildContext& Bui
 		Params.buildBvTree = TileConfig.bGenerateBVTree;
 
 #if WITH_NAVMESH_CLUSTER_LINKS
-		Params.clusterCount = GenerationContext.ClusterSet->nclusters;
+		Params.clusterCount = IntCastChecked<unsigned short>(GenerationContext.ClusterSet->nclusters);
 		Params.polyClusters = GenerationContext.ClusterSet->polyMap;
 #endif // WITH_NAVMESH_CLUSTER_LINKS
 

@@ -159,7 +159,7 @@ public:
 		INC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, OctreeSizeBytes);
 	}
 
-	FNavigationOctree(const FVector& Origin, float Radius);
+	FNavigationOctree(const FVector& Origin, FVector::FReal Radius);
 	virtual ~FNavigationOctree();
 
 	/** Add new node and fill it with navigation export data */

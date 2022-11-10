@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
@@ -122,7 +122,7 @@ private:
 	static constexpr int32 DefaultMinAlignment = alignof(void*);
 
 	/** Each FItem struct is allocated at the end of the buffer (which is aligned to FItem alignment), and they are stride apart. */
-	static constexpr int32 ItemStride = Align(sizeof(FItem), alignof(FItem));
+	static constexpr int32 ItemStride = static_cast<int32>(Align(sizeof(FItem), alignof(FItem)));
 
 	/** @returns offset of the item in the allocated memory.  */
 	int32 GetItemOffset(const int32 Index) const

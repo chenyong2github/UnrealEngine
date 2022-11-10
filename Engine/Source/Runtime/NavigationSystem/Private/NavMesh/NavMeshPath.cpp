@@ -825,7 +825,7 @@ void FNavMeshPath::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const
 	TArray<FVector> Verts;
 	for (int32 Idx = 0; Idx < PathCorridor.Num(); Idx++)
 	{
-		const uint8 AreaID = NavMesh->GetPolyAreaID(PathCorridor[Idx]);
+		const int32 AreaID = IntCastChecked<int32>(NavMesh->GetPolyAreaID(PathCorridor[Idx]));
 		const UClass* AreaClass = NavMesh->GetAreaClass(AreaID);
 		
 		Verts.Reset();

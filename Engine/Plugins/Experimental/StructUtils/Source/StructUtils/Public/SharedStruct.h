@@ -36,7 +36,7 @@ struct STRUCTUTILS_API FStructSharedMemory
 	{
 		// Align RequiredSize to InScriptStruct's alignment to effectively add padding in between ScriptStruct and
 		// StructMemory. GetMemory will then round &StructMemory up past this 'padding' to the nearest aligned address.
-		const int32 RequiredSize = Align(sizeof(FStructSharedMemory), InScriptStruct.GetMinAlignment()) + InScriptStruct.GetStructureSize();
+		const int32 RequiredSize = static_cast<int32>(Align(sizeof(FStructSharedMemory), InScriptStruct.GetMinAlignment())) + InScriptStruct.GetStructureSize();
 		// Code analysis is unable to understand correctly what we are doing here, so disabling the warning C6386: Buffer overrun while writing to...
 		CA_SUPPRESS( 6386 )
 		FStructSharedMemory* StructMemory = new(FMemory::Malloc(RequiredSize, InScriptStruct.GetMinAlignment())) FStructSharedMemory(InScriptStruct, InStructMemory);

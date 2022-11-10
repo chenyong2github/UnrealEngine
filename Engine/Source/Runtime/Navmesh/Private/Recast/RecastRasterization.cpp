@@ -562,7 +562,7 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 				int loop0 = intMax(edge0 + 1, y0);
 				int loop1 = intMin(edge1, y1_edge);
 
-				unsigned char edgeBits = (edge << 4) | (othervert << 2) | basevert;
+				unsigned char edgeBits = (unsigned char)((edge << 4) | (othervert << 2) | basevert);
 				for (int y = loop0; y <= loop1; y++)
 				{
 					int HitIndex = !!hfEdgeHits[y].Hits[0];
@@ -732,7 +732,7 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 				int loop0 = intMax(edge0 + 1, y0);
 				int loop1 = intMin(edge1, y1_edge);
 
-				unsigned char edgeBits = (edge << 4) | (othervert << 2) | basevert;
+				unsigned char edgeBits = (unsigned char)((edge << 4) | (othervert << 2) | basevert);
 				for (int y = loop0; y <= loop1; y++)
 				{
 					int HitIndex = !!hfEdgeHits[y].Hits[0];
@@ -864,8 +864,8 @@ static void rasterizeTri(const rcReal* v0, const rcReal* v1, const rcReal* v2,
 				// Skip the span if it is outside the heightfield bbox
 				if (smin >= RC_SPAN_MAX_HEIGHT || smax < 0) continue;
 
-				smin = intMax(smin, 0);
-				smax = intMin(intMax(smax,smin+1), RC_SPAN_MAX_HEIGHT);
+				smin = (short)intMax(smin, 0);
+				smax = (short)intMin(intMax(smax,smin+1), RC_SPAN_MAX_HEIGHT);
 				const int projectSpanToBottom = rasterizationMasks != nullptr ? (projectTriToBottom & rasterizationMasks[x+y*w]) : projectTriToBottom; //UE
 				if (projectSpanToBottom) //UE
 				{

@@ -155,16 +155,16 @@ struct AIMODULE_API FEQSDebugger
 	{
 		// most expensive run
 		FEnvQueryDebugProfileData MostExpensive;
-		float MostExpensiveDuration;
+		double MostExpensiveDuration;
 
 		// average run (sum of all runs, divide by TotalAvgCount to get values)
 		FEnvQueryDebugProfileData TotalAvgData;
-		float TotalAvgDuration;
+		double TotalAvgDuration;
 		int32 TotalAvgCount;
 
 		// EQS tick load
 		TArray<uint8> TickPct;
-		float LastTickTime;
+		double LastTickTime;
 		uint64 LastTickFrame;
 		uint16 FirstTickEntry;
 		uint16 LastTickEntry;
@@ -178,7 +178,7 @@ struct AIMODULE_API FEQSDebugger
 	};
 
 	void StoreStats(const FEnvQueryInstance& QueryInstance);
-	void StoreTickTime(const FEnvQueryInstance& QueryInstance, float TickTime, float MaxTickTime);
+	void StoreTickTime(const FEnvQueryInstance& QueryInstance, double TickTime, double MaxTickTime);
 	void StoreQuery(const TSharedPtr<FEnvQueryInstance>& QueryInstance);
 	
 	static void SaveStats(const FString& FileName);

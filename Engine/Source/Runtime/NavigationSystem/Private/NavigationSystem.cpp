@@ -340,7 +340,8 @@ void FNavRegenTimeSliceManager::CalcAverageDeltaTime(uint64 FrameNum)
 
 void FNavRegenTimeSliceManager::CalcTimeSliceDuration(int32 NumTilesToRegen, const TArray<double>& CurrentTileRegenDurations)
 {
-	const float DeltaTimesAverage = (MovingWindowDeltaTime.GetAverage() > 0.f) ? MovingWindowDeltaTime.GetAverage() : (1.f / 30.f); //use default 33 ms
+	const float RawDeltaTimesAverage = FloatCastChecked<float>(MovingWindowDeltaTime.GetAverage(), UE::LWC::DefaultFloatPrecision);
+	const float DeltaTimesAverage = (RawDeltaTimesAverage > 0.f) ? RawDeltaTimesAverage : (1.f / 30.f); //use default 33 ms
 
 	const double TileRegenTimesAverage = (MovingWindowTileRegenTime.GetAverage() > 0.) ? MovingWindowTileRegenTime.GetAverage() : 0.0025; //use default of 2.5 milli secs to regen a full tile
 
@@ -571,7 +572,7 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 	CrowdManagerClass = FSoftObjectPath(TEXT("/Script/AIModule.CrowdManager"));
 
 	// active tiles
-	NextInvokersUpdateTime = 0.f;
+	NextInvokersUpdateTime = 0.;
 	ActiveTilesUpdateInterval = 1.f;
 	bGenerateNavigationOnlyAroundNavigationInvokers = false;
 	DataGatheringMode = ENavDataGatheringModeConfig::Instant;
@@ -4732,7 +4733,7 @@ void UNavigationSystemV1::UnregisterInvoker(AActor& Invoker)
 void UNavigationSystemV1::UpdateInvokers()
 {
 	UWorld* World = GetWorld();
-	const float CurrentTime = World->GetTimeSeconds();
+	const double CurrentTime = World->GetTimeSeconds();
 	if (CurrentTime >= NextInvokersUpdateTime)
 	{
 		InvokerLocations.Reset();

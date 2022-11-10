@@ -177,7 +177,7 @@ namespace
 	}
 }
 
-void UEnvQueryDebugHelpers::LogQueryInternal(FEnvQueryInstance& Query, const FName& CategoryName, ELogVerbosity::Type Verbosity, float TimeSeconds, FVisualLogEntry *CurrentEntry)
+void UEnvQueryDebugHelpers::LogQueryInternal(FEnvQueryInstance& Query, const FName& CategoryName, ELogVerbosity::Type Verbosity, double TimeSeconds, FVisualLogEntry* CurrentEntry)
 {
 	const int32 UniqueId = FVisualLogger::Get().GetUniqueId(TimeSeconds);
 

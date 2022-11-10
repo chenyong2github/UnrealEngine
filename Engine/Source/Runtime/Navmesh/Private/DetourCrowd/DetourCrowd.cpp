@@ -542,7 +542,7 @@ bool dtCrowd::updateAgentFilter(const int idx, const dtQueryFilter* filter)
 		const bool bMatching = filter->equals(m_filters[i]);
 		if (bMatching)
 		{
-			m_agents[idx].params.filter = i;
+			m_agents[idx].params.filter = (unsigned char)i;
 			return true;
 		}
 	}
@@ -562,7 +562,7 @@ bool dtCrowd::updateAgentFilter(const int idx, const dtQueryFilter* filter)
 		if (used[i] == 0)
 		{
 			m_filters[i].copyFrom(filter);
-			m_agents[idx].params.filter = i;
+			m_agents[idx].params.filter = (unsigned char)i;
 			return true;
 		}
 	}
@@ -1393,7 +1393,7 @@ void dtCrowd::updateStepNextMovePoint(const dtReal dt, dtCrowdAgentDebugInfo* de
 		if (overOffmeshConnection(ag, triggerRadius))
 		{
 			// Prepare to off-mesh connection.
-			const int idx = ag - m_agents;
+			const int idx = (int)(ag - m_agents);
 			dtCrowdAgentAnimation* anim = &m_agentAnims[idx];
 			m_navquery->updateLinkFilter(ag->params.linkFilter.Get());
 

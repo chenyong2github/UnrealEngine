@@ -323,8 +323,8 @@ void UNavLinkCustomComponent::CollectNearbyAgents(TArray<UObject*>& NotifyList)
 
 	const FVector LocationL = GetStartPoint();
 	const FVector LocationR = GetEndPoint();
-	const float LinkDistSq = (LocationL - LocationR).SizeSquared();
-	const float DistThresholdSq = FMath::Square(BroadcastRadius * 0.25f);
+	const FVector::FReal LinkDistSq = (LocationL - LocationR).SizeSquared();
+	const FVector::FReal DistThresholdSq = FMath::Square(BroadcastRadius * 0.25);
 	if (LinkDistSq > DistThresholdSq)
 	{
 		GetWorld()->OverlapMultiByChannel(OverlapsL, LocationL, FQuat::Identity, BroadcastChannel, FCollisionShape::MakeSphere(BroadcastRadius), Params);
@@ -332,7 +332,7 @@ void UNavLinkCustomComponent::CollectNearbyAgents(TArray<UObject*>& NotifyList)
 	}
 	else
 	{
-		const FVector MidPoint = (LocationL + LocationR) * 0.5f;
+		const FVector MidPoint = (LocationL + LocationR) * 0.5;
 		GetWorld()->OverlapMultiByChannel(OverlapsL, MidPoint, FQuat::Identity, BroadcastChannel, FCollisionShape::MakeSphere(BroadcastRadius), Params);
 	}
 

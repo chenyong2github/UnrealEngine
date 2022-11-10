@@ -304,7 +304,7 @@ void ANavigationTestingActor::UpdateNavData()
 void ANavigationTestingActor::UpdatePathfinding()
 {
 	PathfindingTime = 0.0f;
-	PathCost = 0.0f;
+	PathCost = 0.;
 	bPathSearchOutOfNodes = false;
 	bPathIsPartial = false;
 	bPathExist = false;
@@ -436,13 +436,13 @@ void ANavigationTestingActor::SearchPathTo(ANavigationTestingActor* Goal)
 	FPathFindingResult Result = NavSys->FindPathSync(NavAgentProps, Query, Mode);
 
 	const double EndTime = FPlatformTime::Seconds();
-	const float Duration = (EndTime - StartTime);
-	PathfindingTime = Duration * 1000000.0f;			// in micro seconds [us]
+	const double Duration = (EndTime - StartTime);
+	PathfindingTime = static_cast<float>(Duration * 1000000.);			// in micro seconds [us]
 	bPathIsPartial = Result.IsPartial();
 	bPathExist = Result.IsSuccessful();
 	bPathSearchOutOfNodes = bPathExist ? Result.Path->DidSearchReachedLimit() : false;
 	LastPath = Result.Path;
-	PathCost = bPathExist ? Result.Path->GetCost() : 0.0f;
+	PathCost = bPathExist ? Result.Path->GetCost() : 0.;
 
 	if (bPathExist)
 	{

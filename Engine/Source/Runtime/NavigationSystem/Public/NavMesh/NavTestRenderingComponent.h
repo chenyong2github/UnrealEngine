@@ -38,7 +38,7 @@ public:
 		}
 		FORCEINLINE friend uint32 GetTypeHash(const FNodeDebugData& Other)
 		{
-			return Other.PolyRef;
+			return ::GetTypeHash(Other.PolyRef);
 		}
 	};
 

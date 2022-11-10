@@ -390,7 +390,7 @@ FAIRequestID UPathFollowingComponent::RequestMove(const FAIMoveRequest& RequestD
 			MetaNavPath->Initialize(CurrentLocation);
 		}
 
-		PathTimeWhenPaused = 0.0f;
+		PathTimeWhenPaused = 0.;
 		OnPathUpdated();
 
 		// make sure that OnPathUpdated didn't change current move request
@@ -474,7 +474,7 @@ void UPathFollowingComponent::PauseMove(FAIRequestID RequestID, EPathFollowingVe
 		}
 
 		LocationWhenPaused = MovementComp ? MovementComp->GetActorFeetLocation() : FVector::ZeroVector;
-		PathTimeWhenPaused = Path.IsValid() ? Path->GetTimeStamp() : 0.0f;
+		PathTimeWhenPaused = Path.IsValid() ? Path->GetTimeStamp() : 0.;
 		Status = EPathFollowingStatus::Paused;
 
 		UpdateMoveFocus();
@@ -1309,7 +1309,7 @@ void UPathFollowingComponent::DebugReachTest(float& CurrentDot, float& CurrentDi
 
 	const FVector ToGoal = (GoalLocation - AgentLocation);
 	const FVector CurrentDirection = GetCurrentDirection();
-	CurrentDot = FVector::DotProduct(ToGoal.GetSafeNormal(), CurrentDirection);
+	CurrentDot = FloatCastChecked<float>(FVector::DotProduct(ToGoal.GetSafeNormal(), CurrentDirection), /* Precision */ 1./128.);
 	bDotFailed = (CurrentDot < 0.0f) ? 1 : 0;
 
 	// get cylinder of moving agent
@@ -1318,11 +1318,11 @@ void UPathFollowingComponent::DebugReachTest(float& CurrentDot, float& CurrentDi
 	AActor* MovingAgent = MovementComp->GetOwner();
 	MovingAgent->GetSimpleCollisionCylinder(AgentRadius, AgentHalfHeight);
 
-	CurrentDistance = ToGoal.Size2D();
+	CurrentDistance = FloatCastChecked<float>(ToGoal.Size2D(), UE::LWC::DefaultFloatPrecision);
 	const float UseRadius = FMath::Max(RadiusThreshold, GoalRadius + (AgentRadius * AgentRadiusPct));
 	bDistanceFailed = (CurrentDistance > UseRadius) ? 1 : 0;
 
-	CurrentHeight = FMath::Abs(ToGoal.Z);
+	CurrentHeight = FloatCastChecked<float>(FMath::Abs(ToGoal.Z), UE::LWC::DefaultFloatPrecision);
 	const float UseHeight = GoalHalfHeight + (AgentHalfHeight * MinAgentHalfHeightPct);
 	bHeightFailed = (CurrentHeight > UseHeight) ? 1 : 0;
 }
@@ -1456,7 +1456,7 @@ bool UPathFollowingComponent::IsBlocked() const
 
 bool UPathFollowingComponent::UpdateBlockDetection()
 {
-	const float GameTime = GetWorld()->GetTimeSeconds();
+	const double GameTime = GetWorld()->GetTimeSeconds();
 	if (bUseBlockDetection &&
 		MovementComp && 
 		GameTime > (LastSampleTime + BlockDetectionInterval) &&

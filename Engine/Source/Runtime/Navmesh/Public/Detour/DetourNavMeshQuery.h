@@ -567,7 +567,7 @@ public:
 
 	/// [UE] Finds the wall segments that overlap the polygon shape.
 	dtStatus findWallsAroundPath(const dtPolyRef* path, const int pathCount, const dtReal* searchAreaPoly, const int searchAreaPolyCount,
-									   const float maxAreaEnterCost, const dtQueryFilter* filter,
+									   const dtReal maxAreaEnterCost, const dtQueryFilter* filter,
 									   dtPolyRef* neiRefs, int* neiCount, const int maxNei,
 									   dtReal* resultWalls, dtPolyRef* resultRefs, int* resultCount, const int maxResult) const;
 	

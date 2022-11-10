@@ -264,7 +264,12 @@ void UNavCollision::GatherCollision()
 	{
 		const FNavCollisionBox& BoxInfo = BoxCollision[Idx];
 
-		FKBoxElem BoxElem(BoxInfo.Extent.X * 2.0f, BoxInfo.Extent.Y * 2.0f, BoxInfo.Extent.Z * 2.0f);
+		const float X = FloatCastChecked<float>(BoxInfo.Extent.X * 2.0f, UE::LWC::DefaultFloatPrecision);
+		const float Y = FloatCastChecked<float>(BoxInfo.Extent.Y * 2.0f, UE::LWC::DefaultFloatPrecision);
+		const float Z = FloatCastChecked<float>(BoxInfo.Extent.Z * 2.0f, UE::LWC::DefaultFloatPrecision);
+
+		FKBoxElem BoxElem(X, Y, Z);
+
 		BoxElem.SetTransform(FTransform(BoxInfo.Offset));
 
 		SimpleGeom.BoxElems.Add(BoxElem);

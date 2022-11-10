@@ -45,7 +45,7 @@ struct FNavAvoidanceData
 	float Weight;
 
 	/** Weight is treated as a hard 1.0 while this is active. This is set by code. */
-	float OverrideWeightTime;
+	double OverrideWeightTime;
 
 	/** Group data */
 	int32 GroupMask;

@@ -143,7 +143,7 @@ void UNavCorridorTestingComponent::UpdateTests()
 
 		EndTime = FPlatformTime::Seconds();
 		
-		PathfindingTimeUs = (EndTime - StartTime) * 1000000.0; // us
+		PathfindingTimeUs = FloatCastChecked<float>((EndTime - StartTime) * 1000000.0, UE::LWC::DefaultFloatPrecision); // us
 
 		StartTime = FPlatformTime::Seconds();
 
@@ -154,7 +154,7 @@ void UNavCorridorTestingComponent::UpdateTests()
 		}
 		
 		EndTime = FPlatformTime::Seconds();
-		CorridorTimeUs = (EndTime - StartTime) * 1000000.0; // us
+		CorridorTimeUs = FloatCastChecked<float>((EndTime - StartTime) * 1000000.0, UE::LWC::DefaultFloatPrecision); // us
 	}
 
 	if (bFollowPathOnGoalCorridor)

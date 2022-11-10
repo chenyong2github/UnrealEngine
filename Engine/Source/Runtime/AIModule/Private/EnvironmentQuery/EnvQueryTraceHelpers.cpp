@@ -388,7 +388,7 @@ void FEQSHelpers::RunNavProjection(const ANavigationData& NavData, const UObject
 		const FNavLocation* PointsBegin = Points.GetData();
 		int32 NewNum = Algo::StableRemoveIf(Points, [&Workload, PointsBegin](FNavLocation& Point)
 		{
-			return !Workload[&Point - PointsBegin].bResult;
+			return !Workload[IntCastChecked<int32>(&Point - PointsBegin)].bResult;
 		});
 		const bool bAllowShrinking = false;
 		Points.SetNum(NewNum, bAllowShrinking);

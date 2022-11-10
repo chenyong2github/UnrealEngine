@@ -294,16 +294,16 @@ FAreaNavModifier::FAreaNavModifier(float Radius, float Height, const FTransform&
 	Init(InAreaClass);
 	
 	FVector Scale3D = LocalToWorld.GetScale3D().GetAbs();
-	Radius *= FMath::Max(Scale3D.X, Scale3D.Y);
-	Height *= Scale3D.Z;
+	const FVector::FReal RadiusScaled = Radius * FMath::Max(Scale3D.X, Scale3D.Y);
+	const FVector::FReal HeightScaled = Height * Scale3D.Z;
 
 	Points.SetNumUninitialized(2);
 	Points[0] = LocalToWorld.GetLocation();
-	Points[1].X = Radius;
-	Points[1].Z = Height;
+	Points[1].X = RadiusScaled;
+	Points[1].Z = HeightScaled;
 	ShapeType = ENavigationShapeType::Cylinder;
 
-	Bounds = FBox::BuildAABB(LocalToWorld.GetLocation(), FVector(Radius, Radius, Height));
+	Bounds = FBox::BuildAABB(LocalToWorld.GetLocation(), FVector(RadiusScaled, RadiusScaled, HeightScaled));
 }
 
 FAreaNavModifier::FAreaNavModifier(const FVector& Extent, const FTransform& LocalToWorld, const TSubclassOf<UNavAreaBase> InAreaClass)
@@ -381,8 +381,8 @@ void FAreaNavModifier::GetCylinder(FCylinderNavAreaData& Data) const
 {
 	check(Points.Num() == 2 && ShapeType == ENavigationShapeType::Cylinder);
 	Data.Origin = Points[0];
-	Data.Radius = Points[1].X;
-	Data.Height = Points[1].Z;
+	Data.Radius = FloatCastChecked<float>(Points[1].X, UE::LWC::DefaultFloatPrecision);
+	Data.Height = FloatCastChecked<float>(Points[1].Z, UE::LWC::DefaultFloatPrecision);
 }
 
 void FAreaNavModifier::GetBox(FBoxNavAreaData& Data) const
@@ -464,7 +464,7 @@ void FAreaNavModifier::SetApplyMode(ENavigationAreaMode::Type InApplyMode)
 	bIsLowAreaModifier = (InApplyMode == ENavigationAreaMode::ApplyInLowPass) || (InApplyMode == ENavigationAreaMode::ReplaceInLowPass);
 }
 
-bool IsAngleMatching(float Angle)
+bool IsAngleMatching(FRotator::FReal Angle)
 {
 	const float AngleThreshold = 1.0f; // degrees
 	return (Angle < AngleThreshold) || ((90.0f - Angle) < AngleThreshold);
@@ -484,9 +484,9 @@ void FAreaNavModifier::SetBox(const FBox& Box, const FTransform& LocalToWorld)
 
 	// check if it can be used as AABB
 	const FRotator Rotation = LocalToWorld.GetRotation().Rotator();
-	const float PitchMod = FMath::Fmod(FMath::Abs(Rotation.Pitch), 90.0f);
-	const float YawMod = FMath::Fmod(FMath::Abs(Rotation.Yaw), 90.0f);
-	const float RollMod = FMath::Fmod(FMath::Abs(Rotation.Roll), 90.0f);
+	const FRotator::FReal PitchMod = FMath::Fmod(FMath::Abs(Rotation.Pitch), 90.0f);
+	const FRotator::FReal YawMod = FMath::Fmod(FMath::Abs(Rotation.Yaw), 90.0f);
+	const FRotator::FReal RollMod = FMath::Fmod(FMath::Abs(Rotation.Roll), 90.0f);
 	if (IsAngleMatching(PitchMod) && IsAngleMatching(YawMod) && IsAngleMatching(RollMod))
 	{
 		Bounds = FBox(ForceInit);
@@ -971,7 +971,7 @@ void FCompositeNavModifier::CreateAreaModifiers(const FCollisionShape& Collision
 
 uint32 FCompositeNavModifier::GetAllocatedSize() const
 {
-	uint32 MemUsed = Areas.GetAllocatedSize() + SimpleLinks.GetAllocatedSize() + CustomLinks.GetAllocatedSize();
+	SIZE_T MemUsed = Areas.GetAllocatedSize() + SimpleLinks.GetAllocatedSize() + CustomLinks.GetAllocatedSize();
 
 	const FSimpleLinkNavModifier* SimpleLink = SimpleLinks.GetData();
 	for (int32 Index = 0; Index < SimpleLinks.Num(); ++Index, ++SimpleLink)
@@ -979,7 +979,7 @@ uint32 FCompositeNavModifier::GetAllocatedSize() const
 		MemUsed += SimpleLink->Links.GetAllocatedSize();
 	}
 
-	return MemUsed;
+	return IntCastChecked<uint32>(MemUsed);
 }
 
 bool FCompositeNavModifier::HasPerInstanceTransforms() const

@@ -190,16 +190,16 @@ struct FRcTileBox
 			if (FMath::Modf(MaxAsFloat, &UnusedIntPart) == 0)
 			{
 				// Return the lower tile
-				return FMath::Max(FMath::FloorToInt(MaxAsFloat) - 1, MinCoord);
+				return FMath::Max(IntCastChecked<int32>(FMath::FloorToInt(MaxAsFloat) - 1), MinCoord);
 			}
 			// Otherwise use default behaviour
-			return FMath::FloorToInt(MaxAsFloat);
+			return IntCastChecked<int32>(FMath::FloorToInt(MaxAsFloat));
 		};
 
 		const FBox RcAreaBounds = Unreal2RecastBox(UnrealBounds);
-		XMin = FMath::FloorToInt((RcAreaBounds.Min.X - RcNavMeshOrigin.X) / TileSizeInWorldUnits);
+		XMin = IntCastChecked<int32>(FMath::FloorToInt((RcAreaBounds.Min.X - RcNavMeshOrigin.X) / TileSizeInWorldUnits));
 		XMax = CalcMaxCoordExclusive((RcAreaBounds.Max.X - RcNavMeshOrigin.X) / TileSizeInWorldUnits, XMin);
-		YMin = FMath::FloorToInt((RcAreaBounds.Min.Z - RcNavMeshOrigin.Z) / TileSizeInWorldUnits);
+		YMin = IntCastChecked<int32>(FMath::FloorToInt((RcAreaBounds.Min.Z - RcNavMeshOrigin.Z) / TileSizeInWorldUnits));
 		YMax = CalcMaxCoordExclusive((RcAreaBounds.Max.Z - RcNavMeshOrigin.Z) / TileSizeInWorldUnits, YMin);
 	}
 

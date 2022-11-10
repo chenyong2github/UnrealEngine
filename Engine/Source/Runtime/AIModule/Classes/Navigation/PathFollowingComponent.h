@@ -487,7 +487,7 @@ protected:
 	FVector OriginalMoveRequestGoalLocation;
 
 	/** timestamp of path update when movement was paused */
-	float PathTimeWhenPaused;
+	double PathTimeWhenPaused;
 
 	/** Indicates a path node index at which precise "is at goal"
 	 *	tests are going to be performed every frame, in regards
@@ -537,7 +537,7 @@ protected:
 	int32 BlockDetectionSampleCount;
 
 	/** timestamp of last location sample */
-	float LastSampleTime;
+	double LastSampleTime;
 
 	/** index of next location sample in array */
 	int32 NextSampleIdx;

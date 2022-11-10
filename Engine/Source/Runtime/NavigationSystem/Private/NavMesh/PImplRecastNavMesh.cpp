@@ -51,7 +51,7 @@ static void* DetourMalloc(int Size, dtAllocHint Hint)
 	LLM_SCOPE(ELLMTag::NavigationRecast);
 	void* Result = FMemory::Malloc(uint32(Size));
 #if STATS
-	const uint32 ActualSize = FMemory::GetAllocSize(Result);
+	const SIZE_T ActualSize = FMemory::GetAllocSize(Result);
 
 	switch (Hint)
 	{
@@ -127,7 +127,7 @@ static void* RecastMalloc(int Size, rcAllocHint)
 	LLM_SCOPE(ELLMTag::NavigationRecast);
 	void* Result = FMemory::Malloc(uint32(Size));
 #if STATS
-	const uint32 ActualSize = FMemory::GetAllocSize(Result);
+	const SIZE_T ActualSize = FMemory::GetAllocSize(Result);
 	INC_DWORD_STAT_BY(STAT_NavigationMemory, ActualSize);
 	INC_MEMORY_STAT_BY(STAT_Navigation_RecastMemory, ActualSize);
 #endif // STATS
@@ -137,7 +137,7 @@ static void* RecastMalloc(int Size, rcAllocHint)
 static void DetourFree(void* Original, dtAllocHint Hint)
 {
 #if STATS
-	const uint32 Size = FMemory::GetAllocSize(Original);
+	const SIZE_T Size = FMemory::GetAllocSize(Original);
 
 	switch (Hint)
 	{
@@ -212,7 +212,7 @@ static void DetourFree(void* Original, dtAllocHint Hint)
 static void RecastFree(void* Original)
 {
 #if STATS
-	const uint32 Size = FMemory::GetAllocSize(Original);
+	const SIZE_T Size = FMemory::GetAllocSize(Original);
 	DEC_DWORD_STAT_BY(STAT_NavigationMemory, Size);
 	DEC_MEMORY_STAT_BY(STAT_Navigation_RecastMemory, Size);
 #endif // STATS
@@ -1231,7 +1231,8 @@ ENavigationQueryResult::Type FPImplRecastNavMesh::TestClusterPath(const FVector&
 	NavNodeRef StartPolyID, EndPolyID;
 	const dtQueryFilter* ClusterFilter = ((const FRecastQueryFilter*)NavMeshOwner->GetDefaultQueryFilterImpl())->GetAsDetourQueryFilter();
 
-	INITIALIZE_NAVQUERY_SIMPLE(ClusterQuery, NavMeshOwner->DefaultMaxHierarchicalSearchNodes);
+	check(NavMeshOwner->DefaultMaxHierarchicalSearchNodes >= 0. && NavMeshOwner->DefaultMaxHierarchicalSearchNodes <= (float)TNumericLimits<int32>::Max());
+	INITIALIZE_NAVQUERY_SIMPLE(ClusterQuery, static_cast<int32>(NavMeshOwner->DefaultMaxHierarchicalSearchNodes));
 
 	const bool bCanSearch = InitPathfinding(StartLoc, EndLoc, ClusterQuery, ClusterFilter, RecastStartPos, StartPolyID, RecastEndPos, EndPolyID);
 	if (!bCanSearch)
@@ -1441,7 +1442,7 @@ bool FPImplRecastNavMesh::FindStraightPath(const FVector& StartLoc, const FVecto
 			CurVert->NodeRef = StringPullResult.getRef(VertIdx);
 
 			FNavMeshNodeFlags CurNodeFlags(0);
-			CurNodeFlags.PathFlags = StringPullResult.getFlag(VertIdx);
+			CurNodeFlags.PathFlags = IntCastChecked<uint8>(StringPullResult.getFlag(VertIdx));
 
 			uint8 AreaID = RECAST_DEFAULT_AREA;
 			DetourNavMesh->getPolyArea(CurVert->NodeRef, &AreaID);
@@ -2651,7 +2652,7 @@ bool FPImplRecastNavMesh::GetDebugGeometryForTile(FRecastDebugGeometry& OutGeome
 	int32 NumVertsToReserve = 0;
 	int32 NumIndicesToReserve = 0;
 
-	int32 ForbiddenFlags = OutGeometry.bMarkForbiddenPolys 
+	uint16 ForbiddenFlags = OutGeometry.bMarkForbiddenPolys 
 		? GetFilterForbiddenFlags((const FRecastQueryFilter*)NavMeshOwner->GetDefaultQueryFilterImpl()) 
 		: 0;
 
@@ -2828,7 +2829,7 @@ int32 FPImplRecastNavMesh::GetTilesDebugGeometry(const FRecastNavMeshGenerator* 
 				int32 Rank = 0;
 				if (Range != 0.)
 				{
-					Rank = FRecastDebugGeometry::BuildTimeBucketsCount * ((DebugData->BuildTime - OutGeometry.MinTileBuildTime) / Range);
+					Rank = static_cast<int32>(FRecastDebugGeometry::BuildTimeBucketsCount * ((DebugData->BuildTime - OutGeometry.MinTileBuildTime) / Range));
 					Rank = FMath::Clamp(Rank, 0, FRecastDebugGeometry::BuildTimeBucketsCount-1);
 				}
 				Indices = &OutGeometry.TileBuildTimesIndices[Rank];
@@ -3257,7 +3258,7 @@ void FPImplRecastNavMesh::OnAreaCostChanged()
 		uint8 AreaCostOrder[RECAST_MAX_AREAS];
 		for (int32 Idx = 0; Idx < RECAST_MAX_AREAS; Idx++)
 		{
-			AreaCostOrder[AreaData[Idx].Index] = Idx;
+			AreaCostOrder[AreaData[Idx].Index] = static_cast<uint8>(Idx);
 		}
 
 		DetourNavMesh->applyAreaCostOrder(AreaCostOrder);

@@ -12,16 +12,16 @@
 
 namespace
 {
-	FORCEINLINE_DEBUGGABLE float RawGeometryFall(const AActor* Querier, const FVector& FallStart, const float FallLimit)
+	FORCEINLINE_DEBUGGABLE FVector::FReal RawGeometryFall(const AActor* Querier, const FVector& FallStart, const FVector::FReal FallLimit)
 	{
-		float FallDownHeight = 0.f;
+		FVector::FReal FallDownHeight = 0.;
 
 		UE_VLOG_SEGMENT(Querier, LogNavigation, Log, FallStart, FallStart + FVector(0, 0, -FallLimit)
 			, FColor::Red, TEXT("TerrainTrace"));
 
 		FCollisionQueryParams TraceParams(SCENE_QUERY_STAT(RawGeometryFall), true, Querier);
 		FHitResult Hit;
-		const bool bHit = Querier->GetWorld()->LineTraceSingleByChannel(Hit, FallStart, FallStart + FVector(0, 0, -FallLimit), ECC_WorldStatic, TraceParams);
+		const bool bHit = Querier->GetWorld()->LineTraceSingleByChannel(Hit, FallStart, FallStart + FVector(0., 0., -FallLimit), ECC_WorldStatic, TraceParams);
 		if (bHit)
 		{
 			UE_VLOG_LOCATION(Querier, LogNavigation, Log, Hit.Location, 15, FColor::Red, TEXT("%s")
@@ -103,9 +103,9 @@ namespace NavigationHelper
 			if (Link.MaxFallDownLength > 0)
 			{
 				const FVector WorldRight = OwnerData.LinkToWorld.TransformPosition(Link.Right);
-				const float FallDownHeight = RawGeometryFall(OwnerData.Actor, WorldRight, Link.MaxFallDownLength);
+				const FVector::FReal FallDownHeight = RawGeometryFall(OwnerData.Actor, WorldRight, Link.MaxFallDownLength);
 
-				if (FallDownHeight > 0.f)
+				if (FallDownHeight > 0.)
 				{
 					// @todo maybe it's a good idea to clear ModifiedLink.MaxFallDownLength here
 					UE_VLOG_SEGMENT(OwnerData.Actor, LogNavigation, Log, WorldRight, WorldRight + FVector(0, 0, -FallDownHeight), FColor::Green, TEXT("FallDownHeight %d"), LinkIndex);
@@ -117,9 +117,9 @@ namespace NavigationHelper
 			if (Link.LeftProjectHeight > 0)
 			{
 				const FVector WorldLeft = OwnerData.LinkToWorld.TransformPosition(Link.Left);
-				const float FallDownHeight = RawGeometryFall(OwnerData.Actor, WorldLeft, Link.LeftProjectHeight);
+				const FVector::FReal FallDownHeight = RawGeometryFall(OwnerData.Actor, WorldLeft, Link.LeftProjectHeight);
 
-				if (FallDownHeight > 0.f)
+				if (FallDownHeight > 0.)
 				{
 					// @todo maybe it's a good idea to clear ModifiedLink.LeftProjectHeight here
 					UE_VLOG_SEGMENT(OwnerData.Actor, LogNavigation, Log, WorldLeft, WorldLeft + FVector(0, 0, -FallDownHeight), FColor::Green, TEXT("LeftProjectHeight %d"), LinkIndex);
@@ -153,17 +153,17 @@ namespace NavigationHelper
 				const FVector WorldRightStart = OwnerData.LinkToWorld.TransformPosition(Link.RightStart);
 				const FVector WorldRightEnd = OwnerData.LinkToWorld.TransformPosition(Link.RightEnd);
 
-				const float FallDownHeightStart = RawGeometryFall(OwnerData.Actor, WorldRightStart, Link.MaxFallDownLength);
-				const float FallDownHeightEnd = RawGeometryFall(OwnerData.Actor, WorldRightEnd, Link.MaxFallDownLength);
+				const FVector::FReal FallDownHeightStart = RawGeometryFall(OwnerData.Actor, WorldRightStart, Link.MaxFallDownLength);
+				const FVector::FReal FallDownHeightEnd = RawGeometryFall(OwnerData.Actor, WorldRightEnd, Link.MaxFallDownLength);
 
-				if (FallDownHeightStart > 0.f)
+				if (FallDownHeightStart > 0.)
 				{
 					// @todo maybe it's a good idea to clear ModifiedLink.MaxFallDownLength here
 					UE_VLOG_SEGMENT(OwnerData.Actor, LogNavigation, Log, WorldRightStart, WorldRightStart + FVector(0, 0, -FallDownHeightStart), FColor::Green, TEXT("FallDownHeightStart %d"), LinkIndex);
 
 					Link.RightStart.Z -= FallDownHeightStart;
 				}
-				if (FallDownHeightEnd > 0.f)
+				if (FallDownHeightEnd > 0.)
 				{
 					// @todo maybe it's a good idea to clear ModifiedLink.MaxFallDownLength here
 					UE_VLOG_SEGMENT(OwnerData.Actor, LogNavigation, Log, WorldRightEnd, WorldRightEnd + FVector(0, 0, -FallDownHeightEnd), FColor::Green, TEXT("FallDownHeightEnd %d"), LinkIndex);

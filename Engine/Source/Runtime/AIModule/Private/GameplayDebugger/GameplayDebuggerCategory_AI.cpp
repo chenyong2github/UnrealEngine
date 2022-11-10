@@ -45,7 +45,7 @@ FGameplayDebuggerCategory_AI::FGameplayDebuggerCategory_AI()
 {
 	bShowOnlyWithDebugActor = false;
 	RawLastPath = nullptr;
-	LastPathUpdateTime = 0.0f;
+	LastPathUpdateTime = 0.;
 
 	SetDataPackReplication<FRepData>(&DataPack);
 	PathDataPackId = SetDataPackReplication<FRepDataPath>(&PathDataPack, EGameplayDebuggerDataPack::ResetOnActorChange);

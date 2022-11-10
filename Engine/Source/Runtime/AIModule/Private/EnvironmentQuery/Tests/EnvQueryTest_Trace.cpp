@@ -158,7 +158,7 @@ bool UEnvQueryTest_Trace::RunSphereTraceTo(const FVector& ItemPos, const FVector
 	FCollisionQueryParams TraceParams(Params);
 	TraceParams.AddIgnoredActor(ItemActor);
 
-	const bool bHit = World->SweepTestByChannel(ContextPos, ItemPos, FQuat::Identity, Channel, FCollisionShape::MakeSphere(Extent.X), TraceParams);
+	const bool bHit = World->SweepTestByChannel(ContextPos, ItemPos, FQuat::Identity, Channel, FCollisionShape::MakeSphere(FloatCastChecked<float>(Extent.X, UE::LWC::DefaultFloatPrecision)), TraceParams);
 	return bHit;
 }
 
@@ -167,7 +167,7 @@ bool UEnvQueryTest_Trace::RunSphereTraceFrom(const FVector& ItemPos, const FVect
 	FCollisionQueryParams TraceParams(Params);
 	TraceParams.AddIgnoredActor(ItemActor);
 
-	const bool bHit = World->SweepTestByChannel(ItemPos, ContextPos, FQuat::Identity, Channel, FCollisionShape::MakeSphere(Extent.X), TraceParams);
+	const bool bHit = World->SweepTestByChannel(ItemPos, ContextPos, FQuat::Identity, Channel, FCollisionShape::MakeSphere(FloatCastChecked<float>(Extent.X, UE::LWC::DefaultFloatPrecision)), TraceParams);
 	return bHit;
 }
 
@@ -176,7 +176,7 @@ bool UEnvQueryTest_Trace::RunCapsuleTraceTo(const FVector& ItemPos, const FVecto
 	FCollisionQueryParams TraceParams(Params);
 	TraceParams.AddIgnoredActor(ItemActor);
 
-	const bool bHit = World->SweepTestByChannel(ContextPos, ItemPos, FQuat::Identity, Channel, FCollisionShape::MakeCapsule(Extent.X, Extent.Z), TraceParams);
+	const bool bHit = World->SweepTestByChannel(ContextPos, ItemPos, FQuat::Identity, Channel, FCollisionShape::MakeCapsule(FloatCastChecked<float>(Extent.X, UE::LWC::DefaultFloatPrecision), FloatCastChecked<float>(Extent.Z, UE::LWC::DefaultFloatPrecision)), TraceParams);
 	return bHit;
 }
 
@@ -185,7 +185,7 @@ bool UEnvQueryTest_Trace::RunCapsuleTraceFrom(const FVector& ItemPos, const FVec
 	FCollisionQueryParams TraceParams(Params);
 	TraceParams.AddIgnoredActor(ItemActor);
 
-	const bool bHit = World->SweepTestByChannel(ItemPos, ContextPos, FQuat::Identity, Channel, FCollisionShape::MakeCapsule(Extent.X, Extent.Z), TraceParams);
+	const bool bHit = World->SweepTestByChannel(ItemPos, ContextPos, FQuat::Identity, Channel, FCollisionShape::MakeCapsule(FloatCastChecked<float>(Extent.X, UE::LWC::DefaultFloatPrecision), FloatCastChecked<float>(Extent.Z, UE::LWC::DefaultFloatPrecision)), TraceParams);
 	return bHit;
 }
 

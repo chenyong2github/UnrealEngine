@@ -23,6 +23,7 @@
 #include "Detour/DetourCommon.h"
 #include "Detour/DetourAssert.h"
 #include "Stats/Stats.h"
+#include <limits>
 
 static const int MAX_VERTS_PER_POLY = 6;	// TODO: use the DT_VERTS_PER_POLYGON
 static const int MAX_REM_EDGES = 48;		// TODO: make this an expression.
@@ -999,7 +1000,8 @@ dtStatus dtBuildTileCacheContours(dtTileCacheAlloc* alloc, dtTileCacheLayer& lay
 
 			if (bCanAddCluster)
 			{
-				clusters.regMap[i] = newClusterId;
+				dtAssert(newClusterId < std::numeric_limits<unsigned short>::max());
+				clusters.regMap[i] = (unsigned short)newClusterId;
 				clusters.nclusters++;
 				bCanAddCluster = false;
 			}
@@ -1030,7 +1032,8 @@ dtStatus dtBuildTileCacheContours(dtTileCacheAlloc* alloc, dtTileCacheLayer& lay
 						continue;
 					}
 
-					clusters.regMap[cont.reg] = newClusterId;
+					dtAssert(newClusterId < std::numeric_limits<unsigned short>::max());
+					clusters.regMap[cont.reg] = (unsigned short)newClusterId;
 					for (int j = 0; j < nlinks[ic]; j++)
 					{
 						unsigned short neiReg = (unsigned short)(links[linksBase[ic] + j]);

@@ -651,7 +651,7 @@ public:
 		
 	void AllowNoneAsValue(bool bAllow) { bNoneIsAllowedValue = bAllow; }
 
-	FORCEINLINE FBlackboard::FKey GetSelectedKeyID() const { return SelectedKeyID; }
+	FORCEINLINE FBlackboard::FKey GetSelectedKeyID() const { return FBlackboard::FKey(IntCastChecked<uint16>(SelectedKeyID)); }
 
 	/** helper functions for setting basic filters */
 	void AddObjectFilter(UObject* Owner, FName PropertyName, TSubclassOf<UObject> AllowedClass);

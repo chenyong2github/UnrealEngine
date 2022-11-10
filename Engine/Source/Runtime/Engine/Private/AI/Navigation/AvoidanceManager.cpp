@@ -260,9 +260,9 @@ void UAvoidanceManager::UpdateRVO_Internal(int32 inAvoidanceUID, const FNavAvoid
 FVector AvoidCones(TArray<FVelocityAvoidanceCone>& AllCones, const FVector& BasePosition, const FVector& DesiredPosition, const int NumConesToTest)
 {
 	FVector CurrentPosition = DesiredPosition;
-	float DistanceInsidePlane_Current[2];
-	float DistanceInsidePlane_Base[2];
-	float Weighting[2];
+	FVector::FReal DistanceInsidePlane_Current[2];
+	FVector::FReal DistanceInsidePlane_Base[2];
+	FVector::FReal Weighting[2];
 	int ConePlaneIndex;
 
 	//AllCones is non-const so that it can be reordered, but nothing should be added or removed from it.
@@ -333,21 +333,21 @@ static bool AvoidsNavEdges(const FVector& OrgLocation, const FVector& TestVeloci
 		const FVector2D Seg0ToSeg1(NavEdges[Idx].P1 - NavEdges[Idx].P0);
 		const FVector2D OrgToNewPos(TestVelocity);
 		const FVector2D OrgToSeg0(NavEdges[Idx].P0 - OrgLocation);
-		const float CrossD = FVector2D::CrossProduct(Seg0ToSeg1, OrgToNewPos);
+		const FVector2D::FReal CrossD = FVector2D::CrossProduct(Seg0ToSeg1, OrgToNewPos);
 		if (FMath::Abs(CrossD) < UE_KINDA_SMALL_NUMBER)
 		{
 			continue;
 		}
 
-		const float CrossS = FVector2D::CrossProduct(OrgToNewPos, OrgToSeg0) / CrossD;
-		const float CrossT = FVector2D::CrossProduct(Seg0ToSeg1, OrgToSeg0) / CrossD;
+		const FVector2D::FReal CrossS = FVector2D::CrossProduct(OrgToNewPos, OrgToSeg0) / CrossD;
+		const FVector2D::FReal CrossT = FVector2D::CrossProduct(Seg0ToSeg1, OrgToSeg0) / CrossD;
 		if (CrossS < 0.0f || CrossS > 1.0f || CrossT < 0.0f || CrossT > 1.0f)
 		{
 			continue;
 		}
 
 		const FVector CrossPt = FMath::Lerp(NavEdges[Idx].P0, NavEdges[Idx].P1, CrossS);
-		const float ZDiff = FMath::Abs(OrgLocation.Z - CrossPt.Z);
+		const FVector2D::FReal ZDiff = FMath::Abs(OrgLocation.Z - CrossPt.Z);
 		if (ZDiff > MaxZDiff)
 		{
 			continue;
@@ -374,8 +374,8 @@ FVector UAvoidanceManager::GetAvoidanceVelocity_Internal(const FNavAvoidanceData
 	}
 
 	FVector ReturnVelocity = inAvoidanceData.Velocity * DeltaTime;
-	float MaxSpeed = ReturnVelocity.Size2D();
-	float CurrentTime;
+	FVector::FReal MaxSpeed = ReturnVelocity.Size2D();
+	double CurrentTime;
 
 	UWorld* MyWorld = Cast<UWorld>(GetOuter());
 	if (MyWorld)
@@ -532,13 +532,13 @@ FVector UAvoidanceManager::GetAvoidanceVelocity_Internal(const FNavAvoidanceData
 	//Find a good velocity that isn't inside a cone.
 	if (AllCones.Num())
 	{
-		float AngleCurrent;
-		float AngleF = ReturnVelocity.HeadingAngle();
-		float BestScore = 0.0f;
-		float BestScorePotential;
+		FVector::FReal AngleCurrent;
+		FVector::FReal AngleF = ReturnVelocity.HeadingAngle();
+		FVector::FReal BestScore = 0.0f;
+		FVector::FReal BestScorePotential;
 		FVector BestVelocity = FVector::ZeroVector;		//Worst case is we just stand completely still. Should we also allow backing up? Should we test standing still?
 		const int AngleCount = 4;		//Every angle will be tested both right and left.
-		float AngleOffset[AngleCount] = {FMath::DegreesToRadians<float>(23.0f), FMath::DegreesToRadians<float>(40.0f), FMath::DegreesToRadians<float>(55.0f), FMath::DegreesToRadians<float>(85.0f)};
+		FVector::FReal AngleOffset[AngleCount] = {FMath::DegreesToRadians<float>(23.0f), FMath::DegreesToRadians<float>(40.0f), FMath::DegreesToRadians<float>(55.0f), FMath::DegreesToRadians<float>(85.0f)};
 		FVector AngleVector[AngleCount<<1];
 
 		//Determine check angles
@@ -564,7 +564,7 @@ FVector UAvoidanceManager::GetAvoidanceVelocity_Internal(const FNavAvoidanceData
 				if (bAvoidsNavEdges)
 				{
 					FVector CandidateVelocity = AvoidCones(AllCones, FVector::ZeroVector, VelSpacePoint, AllCones.Num());
-					float CandidateScore = (CandidateVelocity|ReturnVelocity) * (CandidateVelocity|CandidateVelocity);
+					FVector::FReal CandidateScore = (CandidateVelocity|ReturnVelocity) * (CandidateVelocity|CandidateVelocity);
 
 					//Vectors are rated by their length and their overall forward movement.
 					if (CandidateScore > BestScore)
