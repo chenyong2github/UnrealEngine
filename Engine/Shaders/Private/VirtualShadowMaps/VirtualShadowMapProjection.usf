@@ -173,7 +173,7 @@ float SMRTCotMaxRayAngleFromLight;	// Spot/point lights
 float SMRTTexelDitherScale;			// Currently only directional lights
 float SMRTExtrapolateSlope;
 float SMRTMaxSlopeBias;				// Currently only local lights
-uint bSMRTUseAdaptiveRayCount;
+uint SMRTAdaptiveRayCount;
 
 // One pass projection
 RWTexture2D< uint4 > OutShadowMaskBits;
@@ -256,8 +256,6 @@ FVirtualShadowMapSampleResult ProjectLight(
 
 		if (SMRTRayCount > 0)
 		{
-			const bool bUseAdaptiveRayCount = bSMRTUseAdaptiveRayCount > 0;
-
 		#if DIRECTIONAL_LIGHT
 			Result = TraceDirectional(
 				VirtualShadowMapId,
@@ -274,7 +272,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 				WorldNormal,
 				SMRTTexelDitherScale,
 				SMRTExtrapolateSlope,
-				bUseAdaptiveRayCount);
+				SMRTAdaptiveRayCount);
 		#else
 			Result = TraceLocalLight(
 				VirtualShadowMapId,
@@ -292,7 +290,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 				SMRTTexelDitherScale,
 				SMRTExtrapolateSlope,
 				SMRTMaxSlopeBias,
-				bUseAdaptiveRayCount);
+				SMRTAdaptiveRayCount);
 		#endif // DIRECTIONAL_LIGHT
 		}
 		else
@@ -646,7 +644,7 @@ void VirtualShadowMapProjection(
 			ScreenRayLengthWorld,
 			TranslatedWorldPosition,
 			Noise);
-		
+
 		float TransmissionShadow = Result.ShadowFactor;
 		if ( SubsurfaceOpacity < 1.0f )
 		{

@@ -25,6 +25,7 @@
 #include "SceneRendering.h"
 #include "VirtualShadowMapClipmap.h"
 #include "HairStrands/HairStrandsData.h"
+#include "BlueNoise.h"
 
 #define MAX_TEST_PERMUTATION 0
 
@@ -225,6 +226,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, HairStrandsVoxel)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_REF(FBlueNoise, BlueNoise)
 		SHADER_PARAMETER(FIntVector4, ProjectionRect)
 		SHADER_PARAMETER(float, ScreenRayLength)
 		SHADER_PARAMETER(float, NormalBias)
@@ -237,7 +239,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER(float, SMRTTexelDitherScale)
 		SHADER_PARAMETER(float, SMRTExtrapolateSlope)
 		SHADER_PARAMETER(float, SMRTMaxSlopeBias)
-		SHADER_PARAMETER(uint32, bSMRTUseAdaptiveRayCount)
+		SHADER_PARAMETER(uint32, SMRTAdaptiveRayCount)
 		SHADER_PARAMETER(uint32, InputType)
 		SHADER_PARAMETER(uint32, bCullBackfacingPixels)
 		// One pass projection parameters
@@ -329,7 +331,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PassParameters->SubsurfaceMinSourceRadius = FMath::Sin(0.5f * FMath::DegreesToRadians(CVarSubsurfaceShadowMinSourceAngle.GetValueOnRenderThread()));
 	PassParameters->InputType = uint32(InputType);
 	PassParameters->bCullBackfacingPixels = VirtualShadowMapArray.ShouldCullBackfacingPixels() ? 1 : 0;
-	PassParameters->bSMRTUseAdaptiveRayCount = CVarSMRTAdaptiveRayCount.GetValueOnRenderThread() != 0 ? 1 : 0;
+	PassParameters->SMRTAdaptiveRayCount = CVarSMRTAdaptiveRayCount.GetValueOnRenderThread();
 	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 	if (bUseTileList)
 	{
@@ -341,6 +343,9 @@ static void RenderVirtualShadowMapProjectionCommon(
 		PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 		PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
 	}
+
+	FBlueNoise BlueNoise = GetBlueNoiseParameters();
+	PassParameters->BlueNoise = CreateUniformBufferImmediate(BlueNoise, EUniformBufferUsage::UniformBuffer_SingleDraw);
 
 	bool bDirectionalLight = false;
 	bool bOnePassProjection = LightProxy == nullptr;
@@ -424,7 +429,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("VirtualShadowMapProjection(RayCount:%u(%s),SamplesPerRay:%u,Input:%s%s,TileList)",
 				PassParameters->SMRTRayCount,
-				PassParameters->bSMRTUseAdaptiveRayCount ? TEXT("Adaptive") : TEXT("Static"),
+				PassParameters->SMRTUseAdaptiveRayCount > 0 ? TEXT("Adaptive") : TEXT("Static"),
 				PassParameters->SMRTSamplesPerRay,
 				ToString(InputType),
 				bDebugOutput ? TEXT(",Debug") : TEXT("")),
@@ -442,7 +447,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 			GraphBuilder,
 			RDG_EVENT_NAME("VirtualShadowMapProjection(RayCount:%u(%s),SamplesPerRay:%u,Input:%s%s)",
 				PassParameters->SMRTRayCount,
-				PassParameters->bSMRTUseAdaptiveRayCount ? TEXT("Adaptive") : TEXT("Static"),
+				PassParameters->SMRTUseAdaptiveRayCount > 0 ? TEXT("Adaptive") : TEXT("Static"),
 				PassParameters->SMRTSamplesPerRay,
 				ToString(InputType),
 				bDebugOutput ? TEXT(",Debug") : TEXT("")),

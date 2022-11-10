@@ -13,6 +13,9 @@ VirtualShadowMapProjectionDirectional.ush:
 #include "VirtualShadowMapProjectionCommon.ush"
 #include "VirtualShadowMapSMRTCommon.ush"
 #include "../Visualization.ush"
+#include "../BlueNoise.ush"
+
+#define USE_BLUE_NOISE 1
 
 float2 ComputeDepthSlopeDirectionalUV(
 	FVirtualShadowMapProjectionShaderData ProjectionData,
@@ -167,6 +170,37 @@ bool IsBackfaceToDirectionalLight(float3 Normal, float3 LightDirection, float Li
 	return dot(Normal, LightDirection) < -SinAlpha;
 }
 
+// See http://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
+float2 R2Sequence(int n)
+{
+	return frac(float(n) * float2(0.754877669f, 0.569840296f));
+}
+
+float4 GetRandomSample(
+	uint2 PixelPos,
+	uint TimeIndex,
+	uint SampleIndex,
+	uint MaxSampleCount)
+{
+#if USE_BLUE_NOISE
+	{
+		// Blue noise is cheaper to compute
+		int2 Offset1 = int2(R2Sequence(SampleIndex) * BlueNoise.Dimensions.xy);
+		int2 Offset2 = int2(R2Sequence(SampleIndex + MaxSampleCount) * BlueNoise.Dimensions.xy);
+		float4 RandomSample;
+		RandomSample.xy = BlueNoiseVec2(PixelPos + Offset1, TimeIndex);
+		RandomSample.zw = BlueNoiseVec2(PixelPos + Offset2, TimeIndex);
+		return RandomSample;
+	}
+#else
+	{
+		RandomSequence RandSequence;
+		RandomSequence_Initialize(RandSequence, PixelPos, SampleIndex, TimeIndex, MaxSampleCount);
+		return RandomSequence_GenerateSample4D(RandSequence);
+	}
+#endif
+}
+
 FVirtualShadowMapSampleResult TraceDirectional(
 	int VirtualShadowMapId,
 	FLightShaderParameters Light,
@@ -182,7 +216,7 @@ FVirtualShadowMapSampleResult TraceDirectional(
 	half3 WorldNormal,
 	float TexelDitherScale,
 	float ExtrapolateSlope,
-	bool bUseAdaptiveRayCount)
+	uint SMRTAdaptiveRayCount)
 {
 	FLWCVector3 WorldPosition = LWCSubtract(LWCPromote(TranslatedWorldPosition), PrimaryView.PreViewTranslation);
 	float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
@@ -234,13 +268,8 @@ FVirtualShadowMapSampleResult TraceDirectional(
 		for ( ; i < MaxRayCount; i++)
 		{
 			// One sample for ray, one for texel dither
-			RandomSequence RandSequence;
-			RandomSequence_Initialize(RandSequence, PixelPos, i, View.StateFrameIndex, MaxRayCount);
-			float4 RandSample = RandomSequence_GenerateSample4D(RandSequence);
-			float2 E = RandSample.xy;
-
-			float3 RayDir = GetRandomDirectionalLightRayDir(Light, E);
-
+			float4 RandSample = GetRandomSample(PixelPos, View.StateFrameIndex, i, MaxRayCount);
+			float3 RayDir = GetRandomDirectionalLightRayDir(Light, RandSample.xy);
 			float2 TexelOffset = (RandSample.zw - 0.5f) * DitherScale;
 
 			FSMRTClipmapRayState RayState = SMRTClipmapRayInitialize(
@@ -275,8 +304,9 @@ FVirtualShadowMapSampleResult TraceDirectional(
 				++RayMissCount;
 			}
 
-			if (bUseAdaptiveRayCount)
+			if (SMRTAdaptiveRayCount > 0)
 			{
+				// TODO: Adapt this heuristic based on SMRTAdaptiveRayCount as well?
 				if( i == 0 )
 				{
 					bool bHit = SMRTResult.bValidHit;
@@ -288,7 +318,7 @@ FVirtualShadowMapSampleResult TraceDirectional(
 						break;
 					}
 				}
-				else if( i == 1 )
+				else if( i >= SMRTAdaptiveRayCount )
 				{
 					// After 2 iterations and all have hit, assume umbra
 					bool bAllLanesHit = WaveActiveAllTrue( RayMissCount == 0 );
@@ -337,9 +367,7 @@ bool GenerateRayDirectional(
 	// Too low values will greatly restrict how large penumbras can be in screen space.
 	float RayLength = RayLengthScale * DistanceFromViewOrigin;
 
-	RandomSequence RandSequence;
-	RandomSequence_Initialize(RandSequence, PixelPos, RayIndex, View.StateFrameIndexMod8, RayCount);
-	float2 E = RandomSequence_GenerateSample2D(RandSequence);
+	float2 E = GetRandomSample(PixelPos, View.StateFrameIndex, RayIndex, RayCount).xy;
 
 	float3 RayDir = GetRandomDirectionalLightRayDir(Light, E);
 	OutRayStart = TranslatedWorldPosition;
