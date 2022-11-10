@@ -38,11 +38,11 @@ private:
 
 #define RIGVMSTRUCT_TEST_STRINGIFY(Content) #Content
 #define IMPLEMENT_RIGVMSTRUCT_AUTOMATION_TEST(TRigVMStruct) \
-	class TRigVMStruct##Test : public FRigVMStructTestBase \
+	class TRigVMStruct##Test : public FRigVMStructTestBase<FRigVMExecuteContext> \
 	{ \
 	public: \
 		TRigVMStruct##Test( const FString& InName ) \
-		:FRigVMStructTestBase( InName, false ) {\
+		:FRigVMStructTestBase<FRigVMExecuteContext>( InName, false ) {\
 		} \
 		virtual uint32 GetTestFlags() const override { return EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter; } \
 		virtual bool IsStressTest() const { return false; } \
@@ -64,17 +64,10 @@ private:
 		} \
 		virtual bool RunRigVMStructTest(const FString& Parameters); \
 		virtual FString GetBeautifiedTestName() const override { return TEXT(RIGVMSTRUCT_TEST_STRINGIFY(RigVM.RigVMFunctions.TRigVMStruct)); } \
-		void Init() \
-		{ \
-			Context.State = EControlRigState::Init; \
-			Unit.Execute(Context); \
-		} \
 		void Execute() \
 		{ \
-			Context.State = EControlRigState::Update; \
-			Unit.Execute(Context); \
+			Unit.Execute(); \
 		} \
-		void InitAndExecute() { Init(); Execute(); } \
 	}; \
 	namespace\
 	{\

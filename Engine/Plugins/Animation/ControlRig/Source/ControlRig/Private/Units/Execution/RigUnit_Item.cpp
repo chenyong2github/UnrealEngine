@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigUnit_Item.h"
-#include "Units/Core/RigUnit_Name.h"
+#include "RigVMFunctions/RigVMFunction_Name.h"
 #include "Units/RigUnitContext.h"
 #include "Units/Core/RigUnit_CoreDispatch.h"
 
@@ -37,7 +37,7 @@ FRigUnit_ItemReplace_Execute()
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
 	Result = Item;
-	FRigUnit_NameReplace::StaticExecute(ExecuteContext, Item.Name, Old, New, Result.Name, Context);
+	FRigVMFunction_NameReplace::StaticExecute(ExecuteContext, Item.Name, Old, New, Result.Name);
 }
 
 FRigUnit_ItemEquals_Execute()

@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Units/Core/RigUnit_Name.h"
-#include "Units/RigUnitContext.h"
+#include "RigVMFunctions/RigVMFunction_Name.h"
+#if WITH_DEV_AUTOMATION_TESTS
+#include "RigVMCore/RigVMStructTest.h"
+#endif
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Name)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMFunction_Name)
 
-FRigUnit_NameConcat_Execute()
+FRigVMFunction_NameConcat_Execute()
 {
 	check(ExecuteContext.GetNameCache());
 	
@@ -13,9 +15,8 @@ FRigUnit_NameConcat_Execute()
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
-#include "Units/RigUnitTest.h"
 
-IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_NameConcat)
+IMPLEMENT_RIGVMSTRUCT_AUTOMATION_TEST(FRigVMFunction_NameConcat)
 {
 	const FName Control(TEXT("Control"));
 	const FName Rig(TEXT("Rig"));
@@ -40,7 +41,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_NameConcat)
 
 #endif
 
-FRigUnit_NameTruncate_Execute()
+FRigVMFunction_NameTruncate_Execute()
 {
 	check(ExecuteContext.GetNameCache());
 
@@ -65,9 +66,8 @@ FRigUnit_NameTruncate_Execute()
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
-#include "Units/RigUnitTest.h"
 
-IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_NameTruncate)
+IMPLEMENT_RIGVMSTRUCT_AUTOMATION_TEST(FRigVMFunction_NameTruncate)
 {
 	const FName Control(TEXT("Control"));
 	const FName Rig(TEXT("Rig"));
@@ -113,7 +113,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_NameTruncate)
 }
 #endif
 
-FRigUnit_NameReplace_Execute()
+FRigVMFunction_NameReplace_Execute()
 {
 	check(ExecuteContext.GetNameCache());
 
@@ -121,9 +121,8 @@ FRigUnit_NameReplace_Execute()
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
-#include "Units/RigUnitTest.h"
 
-IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_NameReplace)
+IMPLEMENT_RIGVMSTRUCT_AUTOMATION_TEST(FRigVMFunction_NameReplace)
 {
 	const FName Control(TEXT("Control"));
 	const FName Rig(TEXT("Rig"));
@@ -160,7 +159,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_NameReplace)
 }
 #endif
 
-FRigUnit_EndsWith_Execute()
+FRigVMFunction_EndsWith_Execute()
 {
 	check(ExecuteContext.GetNameCache());
 
@@ -168,9 +167,8 @@ FRigUnit_EndsWith_Execute()
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
-#include "Units/RigUnitTest.h"
 
-IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_EndsWith)
+IMPLEMENT_RIGVMSTRUCT_AUTOMATION_TEST(FRigVMFunction_EndsWith)
 {
 	const FName Control(TEXT("Control"));
 	const FName Rig(TEXT("Rig"));
@@ -191,7 +189,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_EndsWith)
 
 #endif
 
-FRigUnit_StartsWith_Execute()
+FRigVMFunction_StartsWith_Execute()
 {
 	check(ExecuteContext.GetNameCache());
 
@@ -199,9 +197,8 @@ FRigUnit_StartsWith_Execute()
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
-#include "Units/RigUnitTest.h"
 
-IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_StartsWith)
+IMPLEMENT_RIGVMSTRUCT_AUTOMATION_TEST(FRigVMFunction_StartsWith)
 {
 	const FName Control(TEXT("Control"));
 	const FName Rig(TEXT("Rig"));
@@ -221,7 +218,7 @@ IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_StartsWith)
 }
 #endif
 
-FRigUnit_Contains_Execute()
+FRigVMFunction_Contains_Execute()
 {
 	check(ExecuteContext.GetNameCache());
 
@@ -229,9 +226,8 @@ FRigUnit_Contains_Execute()
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
-#include "Units/RigUnitTest.h"
 
-IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_Contains)
+IMPLEMENT_RIGVMSTRUCT_AUTOMATION_TEST(FRigVMFunction_Contains)
 {
 	const FName Control(TEXT("Control"));
 	const FName Rig(TEXT("Rig"));
