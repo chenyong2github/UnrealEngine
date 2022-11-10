@@ -407,6 +407,7 @@ void UWorldPartitionChangelistValidator::OnLevelInstanceInvalidWorldAsset(const 
 			CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.WorldPartition.LevelInstanceInvalidWorldAsset", "Level instance {0} has an invalid world asset {1}."),
 				FText::FromString(GetFullActorName(ActorDescView)), 
 				FText::FromName(WorldAsset));
+			Errors->Add(CurrentError);
 			break;
 		case ELevelInstanceInvalidReason::WorldAssetNotUsingExternalActors:
 			// Not a validation error
@@ -418,8 +419,6 @@ void UWorldPartitionChangelistValidator::OnLevelInstanceInvalidWorldAsset(const 
 			// We cannot treat that error as a validation error as it's possible to validate changelists without loading the world
 			break;
 		};
-
-		Errors->Add(CurrentError);
 	}
 }
 
