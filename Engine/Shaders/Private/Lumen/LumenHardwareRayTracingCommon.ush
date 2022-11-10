@@ -441,8 +441,17 @@ FSurfaceCacheSample SampleLumenMinimalRayHit(
 	// The Surface Cache lighting was computed using the front face, don't leak to the backface
 	if (dot(Ray.Direction, MinimalRayResult.HitNormal) > 0 && !MinimalRayResult.bTwoSided)
 	{
-		SurfaceCacheSample.Lighting = 0.0f;
-		SurfaceCacheSample.bValid = false;
+		if (SurfaceCacheSample.bHeightfield)
+		{
+			// Reuse alpha from the other side of the heightfield, so that Landscape opacity works correctly when viewed from the other side
+			SurfaceCacheSample.Lighting = 0.0f;
+		}
+		else
+		{
+			SurfaceCacheSample.Lighting = 0.0f;
+			SurfaceCacheSample.Opacity = 1.0f;
+			SurfaceCacheSample.bValid = false;
+		}
 	}
 
 	return SurfaceCacheSample;
