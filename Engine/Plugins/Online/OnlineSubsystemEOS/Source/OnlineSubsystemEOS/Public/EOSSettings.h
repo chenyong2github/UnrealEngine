@@ -17,8 +17,6 @@ struct FEOSArtifactSettings
 	FString SandboxId;
 	FString DeploymentId;
 	FString EncryptionKey;
-
-	void ParseRawArrayEntry(const FString& RawLine);
 };
 
 UCLASS(Deprecated)
@@ -165,8 +163,8 @@ public:
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category="Crossplay Settings")
 	bool bMirrorPresenceToEAS = false;
 
-	/** Find the Settings for an artifact by name */
-	static bool GetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings);
+	/** Get the settings for the selected artifact */
+	static bool GetSelectedArtifactSettings(FEOSArtifactSettings& OutSettings);
 
 	static FEOSSettings GetSettings();
 	FEOSSettings ToNative() const;
@@ -175,8 +173,14 @@ private:
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
-	static bool AutoGetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings);
-	static bool ManualGetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings);
+
+	static FString GetDefaultArtifactName();
+
+	static bool GetArtifactSettings(const FString& ArtifactName, FEOSArtifactSettings& OutSettings);
+	static bool GetArtifactSettings(const FString& ArtifactName, const FString& SandboxId, FEOSArtifactSettings& OutSettings);
+	static bool GetArtifactSettingsImpl(const FString& ArtifactName, const TOptional<FString>& SandboxId, FEOSArtifactSettings& OutSettings);
+
+	static const TArray<FEOSArtifactSettings>& GetCachedArtifactSettings();
 
 	static FEOSSettings AutoGetSettings();
 	static const FEOSSettings& ManualGetSettings();

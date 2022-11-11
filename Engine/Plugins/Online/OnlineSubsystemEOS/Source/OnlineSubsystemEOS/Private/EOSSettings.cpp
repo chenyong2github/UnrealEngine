@@ -79,8 +79,10 @@ inline FString StripQuotes(const FString& Source)
 	return Source;
 }
 
-void FEOSArtifactSettings::ParseRawArrayEntry(const FString& RawLine)
+FEOSArtifactSettings ParseArtifactSettingsFromConfigString(const FString& RawLine)
 {
+	FEOSArtifactSettings Result;
+
 	const TCHAR* Delims[4] = { TEXT("("), TEXT(")"), TEXT("="), TEXT(",") };
 	TArray<FString> Values;
 	RawLine.ParseIntoArray(Values, Delims, 4, false);
@@ -94,34 +96,36 @@ void FEOSArtifactSettings::ParseRawArrayEntry(const FString& RawLine)
 		// Parse which struct field
 		if (Values[ValueIndex] == TEXT("ArtifactName"))
 		{
-			ArtifactName = StripQuotes(Values[ValueIndex + 1]);
+			Result.ArtifactName = StripQuotes(Values[ValueIndex + 1]);
 		}
 		else if (Values[ValueIndex] == TEXT("ClientId"))
 		{
-			ClientId = StripQuotes(Values[ValueIndex + 1]);
+			Result.ClientId = StripQuotes(Values[ValueIndex + 1]);
 		}
 		else if (Values[ValueIndex] == TEXT("ClientSecret"))
 		{
-			ClientSecret = StripQuotes(Values[ValueIndex + 1]);
+			Result.ClientSecret = StripQuotes(Values[ValueIndex + 1]);
 		}
 		else if (Values[ValueIndex] == TEXT("ProductId"))
 		{
-			ProductId = StripQuotes(Values[ValueIndex + 1]);
+			Result.ProductId = StripQuotes(Values[ValueIndex + 1]);
 		}
 		else if (Values[ValueIndex] == TEXT("SandboxId"))
 		{
-			SandboxId = StripQuotes(Values[ValueIndex + 1]);
+			Result.SandboxId = StripQuotes(Values[ValueIndex + 1]);
 		}
 		else if (Values[ValueIndex] == TEXT("DeploymentId"))
 		{
-			DeploymentId = StripQuotes(Values[ValueIndex + 1]);
+			Result.DeploymentId = StripQuotes(Values[ValueIndex + 1]);
 		}
 		else if (Values[ValueIndex] == TEXT("EncryptionKey"))
 		{
-			EncryptionKey = StripQuotes(Values[ValueIndex + 1]);
+			Result.EncryptionKey = StripQuotes(Values[ValueIndex + 1]);
 		}
 		ValueIndex++;
 	}
+
+	return Result;
 }
 
 FEOSSettings UEOSSettings::GetSettings()
@@ -194,99 +198,99 @@ FEOSSettings UEOSSettings::ToNative() const
 	return Native;
 }
 
-bool UEOSSettings::GetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings)
+bool UEOSSettings::GetSelectedArtifactSettings(FEOSArtifactSettings& OutSettings)
+{
+	// Get default artifact name from config.
+	FString ArtifactName = GetDefaultArtifactName();
+	// Prefer -epicapp over config. This generally comes from EGS.
+	FParse::Value(FCommandLine::Get(), TEXT("EpicApp="), ArtifactName);
+	// Prefer -EOSArtifactNameOverride over previous.
+	FParse::Value(FCommandLine::Get(), TEXT("EOSArtifactNameOverride="), ArtifactName);
+
+	// Get the sandbox id, which only comes in via EGS. If present, grab the settings where both match.
+	FString SandboxId;
+	if (FParse::Value(FCommandLine::Get(), TEXT("EpicSandboxId="), SandboxId))
+	{
+		const bool bSuccess = GetArtifactSettings(ArtifactName, SandboxId, OutSettings);
+		UE_CLOG_ONLINE(!bSuccess, Error, TEXT("UEOSSettings::GetSelectedArtifactSettings() ArtifactName=[%s] SandboxId=[%s] no settings found."), *ArtifactName, *SandboxId);
+		return bSuccess;
+	}
+
+	// Fall back on just matching the Artifact name. This assumes non-EGS and only one settings entry per ArtifactName in config.
+	const bool bSuccess = GetArtifactSettings(ArtifactName, OutSettings);
+	UE_CLOG_ONLINE(!bSuccess, Error, TEXT("UEOSSettings::GetSelectedArtifactSettings() ArtifactName=[%s] no settings found."), *ArtifactName);
+	return bSuccess;
+}
+
+FString UEOSSettings::GetDefaultArtifactName()
 {
 	if (UObjectInitialized())
 	{
-		return UEOSSettings::AutoGetSettingsForArtifact(ArtifactName, OutSettings);
+		return GetDefault<UEOSSettings>()->DefaultArtifactName;
 	}
-	return UEOSSettings::ManualGetSettingsForArtifact(ArtifactName, OutSettings);
+
+	FString DefaultArtifactName;
+	GConfig->GetString(INI_SECTION, TEXT("DefaultArtifactName"), DefaultArtifactName, GEngineIni);
+	return DefaultArtifactName;
 }
 
-bool UEOSSettings::ManualGetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings)
+bool UEOSSettings::GetArtifactSettings(const FString& ArtifactName, FEOSArtifactSettings& OutSettings)
 {
-	static TOptional<FString> CachedDefaultArtifactName;
-	static TOptional<TArray<FEOSArtifactSettings>> CachedArtifactSettings;
-
-	if (!CachedDefaultArtifactName.IsSet())
-	{
-		CachedDefaultArtifactName.Emplace();
-
-		GConfig->GetString(INI_SECTION, TEXT("DefaultArtifactName"), *CachedDefaultArtifactName, GEngineIni);
-	}
-
-	if (!CachedArtifactSettings.IsSet())
-	{
-		CachedArtifactSettings.Emplace();
-
-		TArray<FString> Artifacts;
-		GConfig->GetArray(INI_SECTION, TEXT("Artifacts"), Artifacts, GEngineIni);
-		for (const FString& Line : Artifacts)
-		{
-			FEOSArtifactSettings Artifact;
-			Artifact.ParseRawArrayEntry(Line);
-			CachedArtifactSettings->Add(Artifact);
-		}
-	}
-
-	FString ArtifactNameOverride;
-	// Figure out which config object we are loading
-	FParse::Value(FCommandLine::Get(), TEXT("EOSArtifactNameOverride="), ArtifactNameOverride);
-	if (ArtifactNameOverride.IsEmpty())
-	{
-		ArtifactNameOverride = ArtifactName;
-	}
-
-	// Search by name and then default if not found
-	for (const FEOSArtifactSettings& Artifact : *CachedArtifactSettings)
-	{
-		if (Artifact.ArtifactName == ArtifactNameOverride)
-		{
-			OutSettings = Artifact;
-			return true;
-		}
-	}
-
-	for (const FEOSArtifactSettings& Artifact : *CachedArtifactSettings)
-	{
-		if (Artifact.ArtifactName == *CachedDefaultArtifactName)
-		{
-			OutSettings = Artifact;
-			return true;
-		}
-	}
-
-	return false;
+	return GetArtifactSettingsImpl(ArtifactName, TOptional<FString>(), OutSettings);
 }
 
-bool UEOSSettings::AutoGetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings)
+bool UEOSSettings::GetArtifactSettings(const FString& ArtifactName, const FString& SandboxId, FEOSArtifactSettings& OutSettings)
 {
-	const UEOSSettings* This = GetDefault<UEOSSettings>();
-	FString ArtifactNameOverride;
-	// Figure out which config object we are loading
-	FParse::Value(FCommandLine::Get(), TEXT("EOSArtifactNameOverride="), ArtifactNameOverride);
-	if (ArtifactNameOverride.IsEmpty())
+	return GetArtifactSettingsImpl(ArtifactName, SandboxId, OutSettings);
+}
+
+bool UEOSSettings::GetArtifactSettingsImpl(const FString& ArtifactName, const TOptional<FString>& SandboxId, FEOSArtifactSettings& OutSettings)
+{
+	if (UObjectInitialized())
 	{
-		ArtifactNameOverride = ArtifactName;
-	}
-	for (const FArtifactSettings& Artifact : This->Artifacts)
-	{
-		if (Artifact.ArtifactName == ArtifactNameOverride)
+		const UEOSSettings* This = GetDefault<UEOSSettings>();
+		const FArtifactSettings* Found = This->Artifacts.FindByPredicate([&ArtifactName, &SandboxId](const FArtifactSettings& Element)
 		{
-			OutSettings = Artifact.ToNative();
+			return Element.ArtifactName == ArtifactName
+				&& (!SandboxId.IsSet() || Element.SandboxId == SandboxId);
+		});
+		if (Found)
+		{
+			OutSettings = Found->ToNative();
 			return true;
 		}
+		return false;
 	}
-	for (const FArtifactSettings& Artifact : This->Artifacts)
+	else
 	{
-		if (Artifact.ArtifactName == This->DefaultArtifactName)
+		const TArray<FEOSArtifactSettings>& CachedSettings = GetCachedArtifactSettings();
+		const FEOSArtifactSettings* Found = CachedSettings.FindByPredicate([&ArtifactName, &SandboxId](const FEOSArtifactSettings& Element)
 		{
-			OutSettings = Artifact.ToNative();
+			return Element.ArtifactName == ArtifactName
+				&& (!SandboxId.IsSet() || Element.SandboxId == SandboxId);
+		});
+		if (Found)
+		{
+			OutSettings = *Found;
 			return true;
 		}
+		return false;
 	}
-	UE_LOG_ONLINE(Error, TEXT("UEOSSettings::AutoGetSettingsForArtifact() failed due to missing config object specified. Check your project settings"));
-	return false;
+}
+
+const TArray<FEOSArtifactSettings>& UEOSSettings::GetCachedArtifactSettings()
+{
+	static TArray<FEOSArtifactSettings> CachedArtifactSettings = []()
+	{
+		TArray<FString> ConfigArray;
+		GConfig->GetArray(INI_SECTION, TEXT("Artifacts"), ConfigArray, GEngineIni);
+
+		TArray<FEOSArtifactSettings> Result;
+		Algo::Transform(ConfigArray, Result, &ParseArtifactSettingsFromConfigString);
+
+		return Result;
+	}();
+	return CachedArtifactSettings;
 }
 
 #if WITH_EDITOR

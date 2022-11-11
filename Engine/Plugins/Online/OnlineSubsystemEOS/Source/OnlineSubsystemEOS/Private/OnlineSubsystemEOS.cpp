@@ -195,13 +195,10 @@ void FOnlineSubsystemEOS::ModuleShutdown()
 /** Common method for creating the EOS platform */
 bool FOnlineSubsystemEOS::PlatformCreate()
 {
-	FString ArtifactName;
-	FParse::Value(FCommandLine::Get(), TEXT("EpicApp="), ArtifactName);
-	// Find the settings for this artifact
 	FEOSArtifactSettings ArtifactSettings;
-	if (!UEOSSettings::GetSettingsForArtifact(ArtifactName, ArtifactSettings))
+	if (!UEOSSettings::GetSelectedArtifactSettings(ArtifactSettings))
 	{
-		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::PlatformCreate() failed to find artifact settings object for artifact (%s)"), *ArtifactName);
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS::PlatformCreate() GetSelectedArtifactSettings failed"));
 		return false;
 	}
 
@@ -240,7 +237,7 @@ bool FOnlineSubsystemEOS::PlatformCreate()
 
 	if (FPlatformMisc::IsCacheStorageAvailable())
 	{
-		const FString CacheDir = EOSSDKManager->GetCacheDirBase() / ArtifactName / EOSSettings.CacheDir;
+		const FString CacheDir = EOSSDKManager->GetCacheDirBase() / ArtifactSettings.ArtifactName / EOSSettings.CacheDir;
 		FCStringAnsi::Strncpy(PlatformOptions.CacheDirectoryAnsi, TCHAR_TO_UTF8(*CacheDir), EOS_OSS_STRING_BUFFER_LENGTH);
 	}
 	else
@@ -402,16 +399,16 @@ bool FOnlineSubsystemEOS::Init()
 	}
 
 	// We set the product id
-	FString ArtifactName;
-	FParse::Value(FCommandLine::Get(), TEXT("EpicApp="), ArtifactName);
 	FEOSArtifactSettings ArtifactSettings;
-	if (UEOSSettings::GetSettingsForArtifact(ArtifactName, ArtifactSettings))
+	if (UEOSSettings::GetSelectedArtifactSettings(ArtifactSettings))
 	{
 		ProductId = ArtifactSettings.ProductId;
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineSubsystemEOS::Init] Failed to find artifact settings object for artifact (%s). ProductIdAnsi not set."), *ArtifactName);
+		// This really should not be possible, if we made it past PlatformCreate.
+		checkNoEntry();
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineSubsystemEOS::Init] GetSelectedArtifactSettings failed, ProductIdAnsi not set."));
 	}
 
 	UserManager = MakeShareable(new FUserManagerEOS(this));
