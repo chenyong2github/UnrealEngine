@@ -227,6 +227,21 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/**
+	 * Remainder of division of this point.
+	 *
+	 * @param Divisor What to divide the point by.
+	 * @return Reference to this point after remainder.
+	 */
+	TIntVector3& operator%=(IntType Divisor)
+	{
+		X %= Divisor;
+		Y %= Divisor;
+		Z %= Divisor;
+
+		return *this;
+	}
+
+	/**
 	 * Adds to this point.
 	 *
 	 * @param Other The point to add to this point.
@@ -287,6 +302,17 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TIntVector3 operator/(IntType Divisor) const
 	{
 		return TIntVector3(*this) /= Divisor;
+	}
+
+	/**
+	 * Gets the remainder of division on this point.
+	 *
+	 * @param Divisor What to divide the point by.
+	 * @return A new remainder int point.
+	 */
+	TIntVector3 operator%(IntType Divisor) const
+	{
+		return TIntVector3(*this) %= Divisor;
 	}
 
 	/**
@@ -810,6 +836,22 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/**
+	 * Remainder of division of this point.
+	 *
+	 * @param Divisor What to divide the point by.
+	 * @return Reference to this point after remainder.
+	 */
+	TIntVector4& operator%=(IntType Divisor)
+	{
+		X %= Divisor;
+		Y %= Divisor;
+		Z %= Divisor;
+		W %= Divisor;
+
+		return *this;
+	}
+
+	/**
 	 * Adds to this point.
 	 *
 	 * @param Other The point to add to this point.
@@ -888,6 +930,17 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	TIntVector4 operator/(IntType Divisor) const
 	{
 		return TIntVector4(*this) /= Divisor;
+	}
+
+	/**
+	 * Gets the remainder of division on this point.
+	 *
+	 * @param Divisor What to divide the point by.
+	 * @return A new remainder int point.
+	 */
+	TIntVector4 operator%(IntType Divisor) const
+	{
+		return TIntVector4(*this) %= Divisor;
 	}
 
 	/**
