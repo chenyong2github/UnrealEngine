@@ -363,10 +363,12 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 										FSlateIcon ActorIcon = FSlateIconFinder::FindIconForClass(AActor::StaticClass());
 										if (DebugComponents != nullptr && DebugComponents->Num()>0)
 										{
+#if OBJECT_TRACE_ENABLED
 											if (UObject* Object = FObjectTrace::GetObjectFromId((*DebugComponents)[0]->GetObjectId()))
 											{
 												ActorIcon = FSlateIconFinder::FindIconForClass(Object->GetClass());
 											}
+#endif // OBJECT_TRACE_ENABLED
 										}
 
 										return ActorIcon.GetIcon();
@@ -383,7 +385,7 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 									}
 
 									FText ReadableName = (*DebugComponents)[0]->GetDisplayName();
-
+#if OBJECT_TRACE_ENABLED
 									if (UObject* Object = FObjectTrace::GetObjectFromId((*DebugComponents)[0]->GetObjectId()))
 									{
 										if (AActor* Actor = Cast<AActor>(Object))
@@ -391,6 +393,7 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 											ReadableName = FText::FromString(Actor->GetActorLabel());
 										}
 									}
+#endif // OBJECT_TRACE_ENABLED
 
 									return ReadableName;
 								} )
