@@ -1727,7 +1727,7 @@ void FGeometryCollectionPhysicsProxy::BreakActiveClusters_External()
 	}
 }
 
-static void SetParticleAnchored(Chaos::FPBDRigidsEvolution* Evolution, Chaos::FPBDRigidClusteredParticleHandle* ParticleHandle, bool bAnchored)
+static void SetParticleAnchored_Internal(Chaos::FPBDRigidsEvolution* Evolution, Chaos::FPBDRigidClusteredParticleHandle* ParticleHandle, bool bAnchored)
 {
 	if (ParticleHandle)
 	{
@@ -1743,6 +1743,19 @@ static void SetParticleAnchored(Chaos::FPBDRigidsEvolution* Evolution, Chaos::FP
 		}
 	}
 }
+static Chaos::FPBDRigidClusteredParticleHandle* GetTopActiveClusteredParent_Internal(Chaos::FPBDRigidClusteredParticleHandle* ParticleHandle)
+{
+	while (ParticleHandle)
+	{
+		Chaos::FPBDRigidClusteredParticleHandle* ParentParticle = ParticleHandle->Parent();
+		if (!ParentParticle)
+		{
+			return ParticleHandle;
+		}
+		ParticleHandle = ParentParticle;
+	}
+	return nullptr;
+}
 
 void FGeometryCollectionPhysicsProxy::SetAnchoredByIndex_External(int32 Index, bool bAnchored)
 {
@@ -1754,27 +1767,45 @@ void FGeometryCollectionPhysicsProxy::SetAnchoredByIndex_External(int32 Index, b
 				Chaos::FPBDRigidsEvolution* Evolution = RBDSolver->GetEvolution();
 				if (SolverParticleHandles.IsValidIndex(Index))
 				{
-					SetParticleAnchored(Evolution, SolverParticleHandles[Index], bAnchored);
-				}
+					SetParticleAnchored_Internal(Evolution, SolverParticleHandles[Index], bAnchored);
+					if (Chaos::FPBDRigidClusteredParticleHandle* TopParentHandle = GetTopActiveClusteredParent_Internal(SolverParticleHandles[Index]))
+					{
+						Chaos::UpdateKinematicProperties(TopParentHandle, Evolution->GetRigidClustering().GetChildrenMap(), *Evolution);
+					}
+				}		
 			});
 	}
 }
 
-void FGeometryCollectionPhysicsProxy::SetAnchoredByBox_External(const FBox& WorldSpaceBox, bool bAnchored)
+void FGeometryCollectionPhysicsProxy::SetAnchoredByTransformedBox_External(const FBox& Box, const FTransform& Transform, bool bAnchored)
 {
 	check(IsInGameThread());
 	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
 	{
-		Chaos::FAABB3 BoundsToCheck(WorldSpaceBox.Min, WorldSpaceBox.Max);
-		RBDSolver->EnqueueCommandImmediate([this, BoundsToCheck, bAnchored, RBDSolver]()
+		Chaos::FAABB3 BoundsToCheck(Box.Min, Box.Max);
+		Chaos::FRigidTransform3 BoxTransform(Transform);
+		RBDSolver->EnqueueCommandImmediate([this, BoundsToCheck, BoxTransform, bAnchored, RBDSolver]()
 			{
-				Chaos::FPBDRigidsEvolution* Evolution = RBDSolver->GetEvolution();
+				using namespace Chaos;
+				TSet<FPBDRigidClusteredParticleHandle*> TopParentHandles;
+
+				FPBDRigidsEvolution* Evolution = RBDSolver->GetEvolution();
 				for (FClusterHandle* ParticleHandle : GetSolverParticleHandles())
 				{
-					if (ParticleHandle && BoundsToCheck.Contains(ParticleHandle->X()))
+					const FVec3 PositionInBoxSpace = BoxTransform.InverseTransformPosition(ParticleHandle->X());
+					if (ParticleHandle && BoundsToCheck.Contains(PositionInBoxSpace))
 					{
-						SetParticleAnchored(Evolution, ParticleHandle, bAnchored);
+						SetParticleAnchored_Internal(Evolution, ParticleHandle, bAnchored);
+						if (Chaos::FPBDRigidClusteredParticleHandle* TopParentHandle = GetTopActiveClusteredParent_Internal(ParticleHandle))
+						{
+							TopParentHandles.Add(TopParentHandle);
+						}
 					}
+				}
+				// update the top parents state
+				for (FPBDRigidClusteredParticleHandle* TopParentHandle : TopParentHandles)
+				{
+					UpdateKinematicProperties(TopParentHandle, Evolution->GetRigidClustering().GetChildrenMap(), *Evolution);
 				}
 			});
 	}
@@ -1782,7 +1813,6 @@ void FGeometryCollectionPhysicsProxy::SetAnchoredByBox_External(const FBox& Worl
 void FGeometryCollectionPhysicsProxy::RemoveAllAnchors_External()
 {
 	check(IsInGameThread());
-
 	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
 	{
 		RBDSolver->EnqueueCommandImmediate([this, RBDSolver]()
@@ -1790,7 +1820,9 @@ void FGeometryCollectionPhysicsProxy::RemoveAllAnchors_External()
 				Chaos::FPBDRigidsEvolution* Evolution = RBDSolver->GetEvolution();
 				for (FClusterHandle* ParticleHandle : GetSolverParticleHandles())
 				{
-					SetParticleAnchored(Evolution, ParticleHandle, false);
+					SetParticleAnchored_Internal(Evolution, ParticleHandle, false);
+					// we do not need to update the kinematic state since everything is now dynamic 
+					// todo(chaos) what about cluster groups ? 
 				}
 			});
 	}

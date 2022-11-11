@@ -1140,8 +1140,11 @@ void UGeometryCollectionComponent::SetEmbeddedGeometrySelectable(bool bSelectabl
 {
 	for (TObjectPtr<UInstancedStaticMeshComponent> EmbeddedGeometryComponent : EmbeddedGeometryComponents)
 	{
-		EmbeddedGeometryComponent->bSelectable = bSelectable;
-		EmbeddedGeometryComponent->bHasPerInstanceHitProxies = bSelectable;
+		if (EmbeddedGeometryComponent)
+		{
+			EmbeddedGeometryComponent->bSelectable = bSelectable;
+			EmbeddedGeometryComponent->bHasPerInstanceHitProxies = bSelectable;
+		}
 	}
 }
 
@@ -4323,12 +4326,16 @@ void UGeometryCollectionComponent::SetAnchoredByIndex(int32 Index, bool bAnchore
 
 void UGeometryCollectionComponent::SetAnchoredByBox(FBox WorldSpaceBox, bool bAnchored)
 {
-	if (PhysicsProxy)
-	{
-		PhysicsProxy->SetAnchoredByBox_External(WorldSpaceBox, bAnchored);
-	}
+	SetAnchoredByTransformedBox(WorldSpaceBox, FTransform::Identity, bAnchored);
 }
 
+void UGeometryCollectionComponent::SetAnchoredByTransformedBox(FBox Box, FTransform Transform, bool bAnchored)
+{
+	if (PhysicsProxy)
+	{
+		PhysicsProxy->SetAnchoredByTransformedBox_External(Box, Transform, bAnchored);
+	}
+}
 void UGeometryCollectionComponent::RemoveAllAnchors()
 {
 	if (PhysicsProxy)

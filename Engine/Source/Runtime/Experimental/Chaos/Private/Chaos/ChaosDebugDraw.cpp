@@ -1442,10 +1442,16 @@ namespace Chaos
 					FRigidTransform3 ClusterTransform(Connection.Parent->X(), Connection.Parent->R());
 					FVec3 Pos0 = ClusterTransform.TransformPosition(Connection.Handle0->ChildToParent().GetLocation());
 					FVec3 Pos1 = ClusterTransform.TransformPosition(Connection.Handle1->ChildToParent().GetLocation());
+					const FVec3 Normal = (Pos1 - Pos0).GetSafeNormal();
+					const FReal Length = (Pos1 - Pos0).Size();
+					constexpr FReal ShrinkPercentage = 0.05;
+					const FVec3 SkrinkVector = Normal * ShrinkPercentage * Length;
+					Pos0 += SkrinkVector;
+					Pos1 -= SkrinkVector;
 
 					FColor Color = FColor::Green; // FMath::Lerp(FColor::Green, FColor::Red, Connection.Strain / MaxStrain);
 
-					FDebugDrawQueue::GetInstance().DrawDebugLine(Pos0, Pos1, Color, false, UE_KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness * 2);
+					FDebugDrawQueue::GetInstance().DrawDebugLine(Pos0, Pos1, Color, false, UE_KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness);
 				}
 
 			};
@@ -1490,7 +1496,7 @@ namespace Chaos
 									{ 
 										PointColor = Settings.ShapesColorsPerState.KinematicColor;
 									}
-									FDebugDrawQueue::GetInstance().DrawDebugPoint(Child->X(), PointColor, false, UE_KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness * 8);
+									FDebugDrawQueue::GetInstance().DrawDebugPoint(Child->X(), PointColor, false, UE_KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.LineThickness * 10);
 
 
 									const FConnectivityEdgeArray& Edges = Child->ConnectivityEdges();
