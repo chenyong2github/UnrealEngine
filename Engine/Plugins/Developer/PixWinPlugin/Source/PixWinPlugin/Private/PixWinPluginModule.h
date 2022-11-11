@@ -35,6 +35,11 @@ private:
 	/** Tick to handle full frame capture events. */
 	void Tick(float DeltaTime);
 
+	void DoFrameCaptureCurrentViewport(FViewport* InViewport, uint32 InFlags, const FString& InDestFileName);
+
+	void BeginFrameCapture(void* HWnd, const FString& DestFileName);
+	void EndFrameCapture();
+
 	/** Helper function for CVar command binding. */
 	void CaptureFrame() { return CaptureFrame(nullptr, 0, FString()); }
 

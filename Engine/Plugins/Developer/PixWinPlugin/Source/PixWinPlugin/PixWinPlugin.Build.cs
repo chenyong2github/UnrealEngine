@@ -10,6 +10,8 @@ namespace UnrealBuildTool.Rules
 			{
 				"ApplicationCore",
 				"Core",
+				"CoreUObject",
+				"Engine",
 				"InputCore",
 				"RenderCore",
 				"InputDevice",
@@ -19,7 +21,11 @@ namespace UnrealBuildTool.Rules
 			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 			{
 				PrivateDependencyModuleNames.Add("WinPixEventRuntime");
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
+			}
+
+			if (Target.bBuildEditor == true)
+			{
+				PrivateDependencyModuleNames.Add("UnrealEd");
 			}
 		}
 	}

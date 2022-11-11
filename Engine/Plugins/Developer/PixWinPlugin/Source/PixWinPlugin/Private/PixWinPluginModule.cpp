@@ -5,18 +5,26 @@
 #include "CoreMinimal.h"
 #include "RenderingThread.h"
 #include "RHI.h"
+#include "UnrealClient.h"
+#include "Engine/GameViewportClient.h"
 
-#define PIX_PLUGIN_ENABLED (PLATFORM_WINDOWS && !UE_BUILD_SHIPPING)
+#if !defined(WITH_PIX_EVENT_RUNTIME)
+#define WITH_PIX_EVENT_RUNTIME 0
+#endif
+
+#define PIX_PLUGIN_ENABLED (WITH_PIX_EVENT_RUNTIME && !UE_BUILD_SHIPPING)
 
 #if PIX_PLUGIN_ENABLED
 #define USE_PIX 1
 #include "Windows/AllowWindowsPlatformTypes.h"
 THIRD_PARTY_INCLUDES_START
-	#include <dxgi1_3.h>
 	#include <pix3.h>
-	#include <DXProgrammableCapture.h>
 THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
+#endif
+
+#if WITH_EDITOR
+#include "Editor.h"
 #endif
 
 DEFINE_LOG_CATEGORY_STATIC(PixWinPlugin, Log, All);
@@ -32,61 +40,59 @@ namespace Impl
 		FPixGraphicsAnalysisInterface()
 		{
 #if PIX_PLUGIN_ENABLED
-			// Dynamic load DXGIGetDebugInterface1 because it's not available on Windows 7.
-			// DXGIGetDebugInterface1 is Windows 8 and above.
-			if (FPlatformMisc::VerifyWindowsVersion(8, 0))
+			WinPixGpuCapturerHandle = FPlatformProcess::GetDllHandle(L"WinPixGpuCapturer.dll");
+
+			if (!WinPixGpuCapturerHandle)
 			{
-				typedef HRESULT(WINAPI* FDXGIGetDebugInterface1)(UINT, REFIID, void**);
-				FDXGIGetDebugInterface1 DXGIGetDebugInterface1FnPtr = nullptr;
-
-				if (HMODULE DxgiDLL = (HMODULE)FPlatformProcess::GetDllHandle(TEXT("dxgi.dll")))
+#if !WITH_EDITOR
+				if (FParse::Param(FCommandLine::Get(), TEXT("attachPIX")))
+#endif
 				{
-					DXGIGetDebugInterface1FnPtr = (FDXGIGetDebugInterface1)(void*)::GetProcAddress(DxgiDLL, "DXGIGetDebugInterface1");
-
-					FPlatformProcess::FreeDllHandle(DxgiDLL);
+					WinPixGpuCapturerHandle = PIXLoadLatestWinPixGpuCapturerLibrary();
 				}
+			}
 
-				if (DXGIGetDebugInterface1FnPtr)
-				{
-					DXGIGetDebugInterface1FnPtr(0, IID_PPV_ARGS(GraphicsAnalysis.GetInitReference()));
-				}
+			if (WinPixGpuCapturerHandle)
+			{
+				PIXSetHUDOptions(PIX_HUD_SHOW_ON_NO_WINDOWS);
 			}
 #endif // PIX_PLUGIN_ENABLED
 		}
 
 		bool IsValid()
 		{
-#if PIX_PLUGIN_ENABLED
-			return GraphicsAnalysis != nullptr;
-#else
-			return false;
-#endif
+			return WinPixGpuCapturerHandle != nullptr;
 		}
 
-		void BeginCapture()
+		void BeginCapture(HWND WindowHandle, const FString& DestFileName)
 		{
 #if PIX_PLUGIN_ENABLED
-			check(IsValid());
+			if (WinPixGpuCapturerHandle)
+			{
+				PIXSetTargetWindow(WindowHandle);
 
-			HWND WindowHandle = GetActiveWindow();
-			PIXSetTargetWindow(WindowHandle);
+				PIXCaptureParameters Parameters{};
+				// UETODO: christopher.waters - implement capturing to a file.
+				//Parameters.GpuCaptureParameters.FileName = *DestFileName;
+				Parameters.GpuCaptureParameters.FileName = TEXT("");
 
-			GraphicsAnalysis->BeginCapture();
+				PIXBeginCapture2(PIX_CAPTURE_GPU, &Parameters);
+			}
 #endif
 		}
 
 		void EndCapture()
 		{
 #if PIX_PLUGIN_ENABLED
-			check(IsValid());
-			GraphicsAnalysis->EndCapture();
+			if (WinPixGpuCapturerHandle)
+			{
+				PIXEndCapture(0);
+			}
 #endif
 		}
 
 	private:
-#if PIX_PLUGIN_ENABLED
-		TRefCountPtr<IDXGraphicsAnalysis> GraphicsAnalysis;
-#endif
+		void* WinPixGpuCapturerHandle{};
 	};
 
 
@@ -160,16 +166,18 @@ TSharedPtr<class IInputDevice> FPixWinPluginModule::CreateInputDevice(const TSha
 
 void FPixWinPluginModule::CaptureFrame(FViewport* InViewport, uint32 InFlags, FString const& InDestFileName)
 {
-	// Don't trigger a new capture if we are currently capturing.
-	bBeginCaptureNextTick = !bEndCaptureNextTick;
+	if (!bEndCaptureNextTick)
+	{
+		DoFrameCaptureCurrentViewport(InViewport, InFlags, InDestFileName);
+	}
 }
 
 void FPixWinPluginModule::BeginCapture(FRHICommandListImmediate* InRHICommandList, uint32 InFlags, FString const& InDestFileName)
 {
 	InRHICommandList->SubmitCommandsAndFlushGPU();
-	InRHICommandList->EnqueueLambda([Pix = PixGraphicsAnalysisInterface](FRHICommandListImmediate& RHICommandList)
+	InRHICommandList->EnqueueLambda([Pix = PixGraphicsAnalysisInterface, InDestFileName](FRHICommandListImmediate& RHICommandList)
 	{
-		Pix->BeginCapture();
+		Pix->BeginCapture(nullptr, InDestFileName);
 	});
 }
 
@@ -205,6 +213,62 @@ void FPixWinPluginModule::Tick(float DeltaTime)
 			EndCapture(&RHICommandList);
 		});
 	}
+}
+
+void FPixWinPluginModule::DoFrameCaptureCurrentViewport(FViewport* InViewport, uint32 InFlags, FString const& InDestFileName)
+{
+	// infer the intended viewport to intercept/capture:
+	FViewport* Viewport = InViewport;
+
+	check(GEngine);
+	if (!Viewport && GEngine->GameViewport)
+	{
+		check(GEngine->GameViewport->Viewport);
+		if (GEngine->GameViewport->Viewport->HasFocus())
+		{
+			Viewport = GEngine->GameViewport->Viewport;
+		}
+	}
+
+#if WITH_EDITOR
+	if (!Viewport && GEditor)
+	{
+		// WARNING: capturing from a "PIE-Eject" Editor viewport will not work as
+		// expected; in such case, capture via the console command
+		// (this has something to do with the 'active' editor viewport when the UI
+		// button is clicked versus the one which the console is attached to)
+		Viewport = GEditor->GetActiveViewport();
+	}
+#endif // WITH_EDITOR
+
+	BeginFrameCapture(Viewport->GetWindow(), InDestFileName);
+
+	check(Viewport);
+	Viewport->Draw(true);
+
+	EndFrameCapture();
+}
+
+void FPixWinPluginModule::BeginFrameCapture(void* HWnd, const FString& DestFileName)
+{
+	UE_LOG(PixWinPlugin, Log, TEXT("Capturing a frame in PIX"));
+
+	HWND WindowHandle = (HWND)HWnd;
+
+	ENQUEUE_RENDER_COMMAND(StartRenderDocCapture)(
+		[this, WindowHandle, DestFileName](FRHICommandListImmediate& RHICmdList)
+		{
+			PixGraphicsAnalysisInterface->BeginCapture(WindowHandle, DestFileName);
+		});
+}
+
+void FPixWinPluginModule::EndFrameCapture()
+{
+	ENQUEUE_RENDER_COMMAND(EndRenderDocCapture)(
+		[this](FRHICommandListImmediate& RHICmdList)
+		{
+			PixGraphicsAnalysisInterface->EndCapture();
+		});
 }
 
 #undef LOCTEXT_NAMESPACE

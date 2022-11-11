@@ -11,22 +11,21 @@ public class WinPixEventRuntime : ModuleRules
 
 		if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
 		{
-			string WinPixDir = Path.Combine(Target.UEThirdPartySourceDirectory, "Windows/PIX");
+			string ThirdPartyDir = Path.Combine(Target.UEThirdPartySourceDirectory, "Windows", "PIX");
+			string IncludeDir = Path.Combine(ThirdPartyDir, "include");
+			string LibrariesDir = Path.Combine(ThirdPartyDir, "Lib", Target.WindowsPlatform.Architecture.ToString());
+			string BinariesDir = Path.Combine("$(EngineDir)", "Binaries", "ThirdParty", "Windows", "WinPixEventRuntime", Target.WindowsPlatform.Architecture.ToString());
 
-			PublicSystemIncludePaths.Add(Path.Combine( WinPixDir, "include") );
-
-			string WinPixBaseName = "WinPixEventRuntime";
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
-            {
-				WinPixBaseName += "_UAP";
-			}
-			string WinPixDll = WinPixBaseName + ".dll";
-			string WinPixLib = WinPixBaseName + ".lib";
+			string BinaryBaseName = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64 ? "WinPixEventRuntime_UAP" : "WinPixEventRuntime";
+			string WinPixDll = BinaryBaseName + ".dll";
+			string WinPixLib = BinaryBaseName + ".lib";
 
 			PublicDefinitions.Add("WITH_PIX_EVENT_RUNTIME=1");
-            PublicDelayLoadDLLs.Add(WinPixDll);
-            PublicAdditionalLibraries.Add( Path.Combine( WinPixDir, "Lib/" + Target.WindowsPlatform.Architecture.ToString() + "/" + WinPixLib) );
-            RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Windows/WinPixEventRuntime/" + Target.WindowsPlatform.Architecture.ToString() + "/" + WinPixDll);
+
+			PublicSystemIncludePaths.Add(IncludeDir);
+			PublicAdditionalLibraries.Add(Path.Combine(LibrariesDir, WinPixLib));
+			RuntimeDependencies.Add(Path.Combine(BinariesDir, WinPixDll));
+			PublicDelayLoadDLLs.Add(WinPixDll);
 
 			// see pixeventscommon.h - MSVC has no support for __has_feature(address_sanitizer) so need to define this manually
 			if (Target.WindowsPlatform.Compiler != WindowsCompiler.Clang && Target.WindowsPlatform.bEnableAddressSanitizer)
