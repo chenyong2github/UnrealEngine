@@ -25,7 +25,10 @@ void SDropTarget::Construct(const FArguments& InArgs)
 	DroppedEvent = InArgs._OnDropped;
 	AllowDropEvent = InArgs._OnAllowDrop;
 	IsRecognizedEvent = InArgs._OnIsRecognized;
-
+	OnDragEnterEvent = InArgs._OnDragEnter;
+	OnDragLeaveEvent = InArgs._OnDragLeave;
+	bOnlyRecognizeOnDragEnter = InArgs._bOnlyRecognizeOnDragEnter;
+	
 	bIsDragEventRecognized = false;
 	bAllowDrop = false;
 	bIsDragOver = false;
@@ -64,9 +67,19 @@ EVisibility SDropTarget::GetDragOverlayVisibility() const
 {
 	if ( FSlateApplication::Get().IsDragDropping() )
 	{
-		if ( AllowDrop(FSlateApplication::Get().GetDragDroppingContent()) || (bIsDragOver && bIsDragEventRecognized) )
+		bool bCheckForAllowDrop = true;
+
+		if(bOnlyRecognizeOnDragEnter.Get() && !bIsDragOver)
 		{
-			return EVisibility::HitTestInvisible;
+			bCheckForAllowDrop = false;
+		}
+		
+		if(bCheckForAllowDrop)
+		{
+			if(AllowDrop(FSlateApplication::Get().GetDragDroppingContent()) || (bIsDragOver && bIsDragEventRecognized))
+			{
+				return EVisibility::HitTestInvisible;
+			}
 		}
 	}
 
@@ -83,7 +96,6 @@ bool SDropTarget::AllowDrop(TSharedPtr<FDragDropOperation> DragDropOperation) co
 {
 	bAllowDrop = OnAllowDrop(DragDropOperation);
 	bIsDragEventRecognized = OnIsRecognized(DragDropOperation) || bAllowDrop;
-
 	return bAllowDrop;
 }
 
@@ -135,6 +147,8 @@ void SDropTarget::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent&
 	// initially we dont recognize this event
 	bIsDragEventRecognized = false;
 	bIsDragOver = true;
+
+	OnDragEnterEvent.ExecuteIfBound(DragDropEvent);
 }
 
 void SDropTarget::OnDragLeave(const FDragDropEvent& DragDropEvent)
@@ -145,6 +159,7 @@ void SDropTarget::OnDragLeave(const FDragDropEvent& DragDropEvent)
 	bAllowDrop = false;
 
 	bIsDragOver = false;
+	OnDragLeaveEvent.ExecuteIfBound(DragDropEvent);
 }
 
 int32 SDropTarget::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const

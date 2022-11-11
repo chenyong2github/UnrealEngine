@@ -33,6 +33,7 @@ class EDITORWIDGETS_API SDropTarget : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FVerifyDrag, TSharedPtr<FDragDropOperation>);
+	DECLARE_DELEGATE_OneParam(FOnDragAction, const FDragDropEvent&);
 	DECLARE_DELEGATE_RetVal_OneParam(FReply, FOnDropDeprecated, TSharedPtr<FDragDropOperation>);
 
 	SLATE_BEGIN_ARGS(SDropTarget)
@@ -41,6 +42,7 @@ public:
 		, _VerticalImage(FAppStyle::GetBrush("WideDash.Vertical"))
 		, _HorizontalImage(FAppStyle::GetBrush("WideDash.Horizontal"))
 		, _BackgroundImage(FAppStyle::GetBrush("DropTarget.Background"))
+		, _bOnlyRecognizeOnDragEnter(false)
 	{ }
 	
 		UE_DEPRECATED(5.0, "BackgroundColor has been removed. You may alter the background brush to get the same effect.")
@@ -72,6 +74,10 @@ public:
 		SLATE_EVENT(FVerifyDrag, OnAllowDrop)
 		/** Called to check if an asset is acceptable for dropping */
 		SLATE_EVENT(FVerifyDrag, OnIsRecognized)
+		SLATE_EVENT(FOnDragAction, OnDragEnter)
+		SLATE_EVENT(FOnDragAction, OnDragLeave)
+		/** When this is true, the drop target will only get recognized when entering while drag & dropping. */
+		SLATE_ATTRIBUTE(bool, bOnlyRecognizeOnDragEnter)
 
 		FOnDrop ConvertOnDropFn(const FOnDropDeprecated& LegacyDelegate)
 		{
@@ -122,6 +128,10 @@ private:
 	FVerifyDrag AllowDropEvent;
 	/** Delegate to call to check validity of the asset */
 	FVerifyDrag IsRecognizedEvent;
+	FOnDragAction OnDragEnterEvent;
+	FOnDragAction OnDragLeaveEvent;
+	/** Attribute to check if the drop target should only be useable when actually dragging over it. */
+	TAttribute<bool> bOnlyRecognizeOnDragEnter;
 
 	/** The color of the vertical/horizontal images when the drop data is valid */
 	FSlateColor ValidColor;
