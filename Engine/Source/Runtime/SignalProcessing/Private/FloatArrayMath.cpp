@@ -1465,9 +1465,12 @@ namespace Audio
 
 			if (NumNotToSimd)
 			{
-				for (int32 i = 1; i < Num; i += 2)
+				for (int32 i = NumToSimd; i < Num; i++)
 				{
-					InData[i] *= -1.f;
+					if ((i % 2) == 1)
+					{
+						InData[i] *= -1.f;
+					}
 				}
 			}
 		}
@@ -1946,29 +1949,30 @@ namespace Audio
 				const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
 				const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
 
+				const float DeltaValue = ((EndValue - StartValue) / Num);
+
 				if (NumToSimd)
 				{
-					const int32 NumIterations = Num / AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER;
-					const float DeltaValue = ((EndValue - StartValue) / NumIterations);
-
-					VectorRegister4Float Gain = VectorLoadFloat1(&StartValue);
+					constexpr VectorRegister4Float VectorFour = MakeVectorRegisterFloatConstant(4.f, 4.f, 4.f, 4.f);
+					VectorRegister4Float Accumulator = MakeVectorRegisterFloat(0.f, 1.f, 2.f, 3.f);
 					VectorRegister4Float Delta = VectorLoadFloat1(&DeltaValue);
+					VectorRegister4Float Start = VectorLoadFloat1(&StartValue);
 
 					for (int32 i = 0; i < NumToSimd; i += AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
 					{
 						VectorRegister4Float Output = VectorLoad(&OutFloatBuffer[i]);
+						VectorRegister4Float Gain = VectorMultiplyAdd(Accumulator, Delta, Start);
 						Output = VectorMultiply(Output, Gain);
-						Gain = VectorAdd(Gain, Delta);
+						Accumulator = VectorAdd(Accumulator, VectorFour);
 						VectorStore(Output, &OutFloatBuffer[i]);
 					}
 				}
 
 				if (NumNotToSimd)
 				{
-					float Gain = StartValue;
+					float Gain = (NumToSimd * DeltaValue) + StartValue;
 
 					// Do a fade from start to end
-					const float DeltaValue = ((EndValue - StartValue) / Num);
 					for (int32 i = NumToSimd; i < Num; ++i)
 					{
 						OutFloatBuffer[i] = OutFloatBuffer[i] * Gain;
@@ -2098,29 +2102,29 @@ namespace Audio
 				const int32 NumToSimd = Num & MathIntrinsics::SimdMask;
 				const int32 NumNotToSimd = Num & MathIntrinsics::NotSimdMask;
 
+				const float DeltaValue = ((EndGain - StartGain) / Num);
+
 				if (NumToSimd)
 				{
-					const int32 NumIterations = Num / AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER;
-					const float DeltaValue = ((EndGain - StartGain) / NumIterations);
+					constexpr VectorRegister4Float VectorFour = MakeVectorRegisterFloatConstant(4.f, 4.f, 4.f, 4.f);
+					VectorRegister4Float Accumulator = MakeVectorRegisterFloat(0.f, 1.f, 2.f, 3.f);
 
-					VectorRegister4Float Gain = VectorLoadFloat1(&StartGain);
+					VectorRegister4Float Start = VectorLoadFloat1(&StartGain);
 					VectorRegister4Float Delta = VectorLoadFloat1(&DeltaValue);
 
 					for (int32 i = 0; i < NumToSimd; i += AUDIO_NUM_FLOATS_PER_VECTOR_REGISTER)
 					{
 						VectorRegister4Float Input = VectorLoad(&InFloatBuffer[i]);
 						VectorRegister4Float Output = VectorLoad(&BufferToSumTo[i]);
+						VectorRegister4Float Gain = VectorMultiplyAdd(Accumulator, Delta, Start);
 						Output = VectorMultiplyAdd(Input, Gain, Output);
-
+						Accumulator = VectorAdd(Accumulator, VectorFour);
 						VectorStore(Output, &BufferToSumTo[i]);
-
-						Gain = VectorAdd(Gain, Delta);
 					}
 				}
 
 				if (NumNotToSimd)
 				{
-					const float DeltaValue = ((EndGain - StartGain) / Num);
 					float Gain = (NumToSimd * DeltaValue) + StartGain;
 
 					for (int32 i = NumToSimd; i < Num; ++i)
