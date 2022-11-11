@@ -55,7 +55,7 @@ void UPCGDifferenceData::AddDifference(const UPCGSpatialData* InDifference)
 	{
 		if (!DifferencesUnion)
 		{
-			DifferencesUnion = NewObject<UPCGUnionData>(this);
+			DifferencesUnion = NewObject<UPCGUnionData>();
 			DifferencesUnion->AddData(Difference);
 			DifferencesUnion->SetDensityFunction(PCGDifferenceDataUtils::ToUnionDensityFunction(DensityFunction));
 			Difference = DifferencesUnion;

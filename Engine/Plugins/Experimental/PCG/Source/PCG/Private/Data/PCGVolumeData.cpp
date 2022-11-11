@@ -65,7 +65,7 @@ bool UPCGVolumeData::SamplePoint(const FTransform& InTransform, const FBox& InBo
 	{
 		float PointDensity = 0.0f;
 
-		if (!Volume || PCGHelpers::IsInsideBounds(GetStrictBounds(), InPosition))
+		if (!Volume.IsValid() || PCGHelpers::IsInsideBounds(GetStrictBounds(), InPosition))
 		{
 			PointDensity = 1.0f;
 		}

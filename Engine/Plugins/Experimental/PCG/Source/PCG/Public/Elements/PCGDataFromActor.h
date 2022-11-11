@@ -8,6 +8,16 @@
 
 #include "PCGDataFromActor.generated.h"
 
+UENUM()
+enum class EPCGGetDataFromActorMode : uint8
+{
+	ParseActorComponents,
+	GetSinglePoint,
+	GetDataFromProperty,
+	GetDataFromPCGComponent,
+	GetDataFromPCGComponentOrParseComponents
+};
+
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGDataFromActorSettings : public UPCGSettings
 {
@@ -21,6 +31,7 @@ public:
 #endif
 
 	virtual TArray<FPCGPinProperties> InputPinProperties() const override { return TArray<FPCGPinProperties>(); }
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
@@ -29,6 +40,15 @@ protected:
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (ShowOnlyInnerProperties))
 	FPCGActorSelectorSettings ActorSelector;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	EPCGGetDataFromActorMode Mode = EPCGGetDataFromActorMode::ParseActorComponents;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Mode == EPCGGetDataFromActorMode::GetDataFromPCGComponent || Mode == EPCGGetDataFromActorMode::GetDataFromPCGComponentOrParseComponents"))
+	TArray<FName> ExpectedPins;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (EditCondition = "Mode == EPCGGetDataFromActorMode::GetDataFromProperty"))
+	FName PropertyName = NAME_None;
 };
 
 class FPCGDataFromActorElement : public FSimplePCGElement

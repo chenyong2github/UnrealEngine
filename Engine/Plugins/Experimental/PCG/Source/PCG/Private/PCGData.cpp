@@ -22,7 +22,7 @@ void FPCGRootSet::Add(UObject* InObject)
 	{
 		(*Found)++;
 	}
-	else if(!InObject->IsRooted())
+	else if(!InObject->IsRooted() && InObject->GetPackage() == GetTransientPackage())
 	{
 		InObject->AddToRoot();
 		RootSet.Emplace(InObject, 1);
@@ -30,7 +30,12 @@ void FPCGRootSet::Add(UObject* InObject)
 }
 void FPCGRootSet::Remove(UObject* InObject)
 {
-	check(InObject);
+	if (!InObject)
+	{
+		UE_LOG(LogPCG, Warning, TEXT("Trying to remove a null object from the rootset"));
+		return;
+	}
+	
 	if (int32* Found = RootSet.Find(InObject))
 	{
 		check(InObject->IsRooted());
@@ -183,6 +188,14 @@ void FPCGDataCollection::RemoveFromRootSet(FPCGRootSet& RootSet) const
 			RootSet.Remove(Cast<UObject>(Data.Data));
 		}
 	}
+}
+
+void FPCGDataCollection::Reset()
+{
+	// Implementation note: We are assuming that there is no need to remove the data from the rootset here.
+	TaggedData.Reset();
+	bCancelExecutionOnEmpty = false;
+	bCancelExecution = false;
 }
 
 TArray<FPCGTaggedData> UPCGDataFunctionLibrary::GetInputs(const FPCGDataCollection& InCollection)

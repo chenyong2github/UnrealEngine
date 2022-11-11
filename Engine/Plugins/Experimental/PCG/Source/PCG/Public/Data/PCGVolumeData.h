@@ -38,7 +38,7 @@ public:
 
 protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SourceData)
-	TObjectPtr<AVolume> Volume = nullptr;
+	TWeakObjectPtr<AVolume> Volume = nullptr;
 
 	UPROPERTY()
 	FBox Bounds = FBox(EForceInit::ForceInit);

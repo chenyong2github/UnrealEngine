@@ -133,6 +133,10 @@ public:
 	/** Cancels in-progress generation */
 	void CancelGeneration();
 
+	/** Retrieves generated data */
+	UFUNCTION(BlueprintCallable, Category = PCG)
+	const FPCGDataCollection& GetGeneratedGraphOutput() const { return GeneratedGraphOutput; }
+
 	/** Move all generated resources under a new actor, following a template (AActor if not provided), clearing all link to this PCG component. Returns the new actor.*/
 	UFUNCTION(BlueprintCallable, Category = PCG)
 	AActor* ClearPCGLink(UClass* TemplateActor = nullptr);
@@ -343,6 +347,9 @@ private:
 
 	UPROPERTY()
 	FBox LastGeneratedBounds = FBox(EForceInit::ForceInit);
+
+	UPROPERTY()
+	FPCGDataCollection GeneratedGraphOutput;
 
 	FPCGTaskId CurrentGenerationTask = InvalidPCGTaskId;
 	FPCGTaskId CurrentCleanupTask = InvalidPCGTaskId;

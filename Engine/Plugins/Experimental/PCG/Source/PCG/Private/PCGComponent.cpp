@@ -337,6 +337,8 @@ void UPCGComponent::PostProcessGraph(const FBox& InNewBounds, bool bInGenerated,
 
 	CleanupUnusedManagedResources();
 
+	GeneratedGraphOutput.Reset();
+
 	if (bInGenerated)
 	{
 		bGenerated = true;
@@ -352,6 +354,18 @@ void UPCGComponent::PostProcessGraph(const FBox& InNewBounds, bool bInGenerated,
 
 		if (Context)
 		{
+			// TODO: should we filter based on supported serialized types here?
+			// TOOD: should reouter the contained data to this component
+			// .. and also remove it from the rootset information in the graph executor
+			//GeneratedGraphOutput = Context->InputData;
+			for (const FPCGTaggedData& TaggedData : Context->InputData.TaggedData)
+			{
+				FPCGTaggedData& DuplicatedTaggedData = GeneratedGraphOutput.TaggedData.Add_GetRef(TaggedData);
+				// TODO: outering the first layer might not be sufficient here - might need to expose
+				// some methods in the data to traverse all the data to outer everything for serialization
+				DuplicatedTaggedData.Data = Cast<UPCGData>(StaticDuplicateObject(TaggedData.Data, this));
+			}
+
 			// If the original component is partitioned, local components have to forward
 			// their inputs, so that they can be gathered by the original component.
 			// We don't have the info on the original component here, so forward for all
@@ -420,6 +434,7 @@ void UPCGComponent::PostCleanupGraph()
 {
 	bGenerated = false;
 	CurrentCleanupTask = InvalidPCGTaskId;
+	GeneratedGraphOutput.Reset();
 
 #if WITH_EDITOR
 	OnPCGGraphCleanedDelegate.Broadcast(this);

@@ -84,7 +84,7 @@ FVector UPCGSpatialData::TransformPosition(const FVector& InPosition) const
 
 UPCGIntersectionData* UPCGSpatialData::IntersectWith(const UPCGSpatialData* InOther) const
 {
-	UPCGIntersectionData* IntersectionData = NewObject<UPCGIntersectionData>(const_cast<UPCGSpatialData*>(this));
+	UPCGIntersectionData* IntersectionData = NewObject<UPCGIntersectionData>();
 	IntersectionData->Initialize(this, InOther);
 
 	return IntersectionData;
@@ -100,7 +100,7 @@ UPCGProjectionData* UPCGSpatialData::ProjectOn(const UPCGSpatialData* InOther, c
 
 UPCGUnionData* UPCGSpatialData::UnionWith(const UPCGSpatialData* InOther) const
 {
-	UPCGUnionData* UnionData = NewObject<UPCGUnionData>(const_cast<UPCGSpatialData*>(this));
+	UPCGUnionData* UnionData = NewObject<UPCGUnionData>();
 	UnionData->Initialize(this, InOther);
 
 	return UnionData;
@@ -108,7 +108,7 @@ UPCGUnionData* UPCGSpatialData::UnionWith(const UPCGSpatialData* InOther) const
 
 UPCGDifferenceData* UPCGSpatialData::Subtract(const UPCGSpatialData* InOther) const
 {
-	UPCGDifferenceData* DifferenceData = NewObject<UPCGDifferenceData>(const_cast<UPCGSpatialData*>(this));
+	UPCGDifferenceData* DifferenceData = NewObject<UPCGDifferenceData>();
 	DifferenceData->Initialize(this);
 	DifferenceData->AddDifference(InOther);
 

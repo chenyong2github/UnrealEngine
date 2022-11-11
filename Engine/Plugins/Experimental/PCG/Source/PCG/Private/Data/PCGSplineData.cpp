@@ -108,7 +108,7 @@ UPCGProjectionData* UPCGSplineData::ProjectOn(const UPCGSpatialData* InOther, co
 {
 	if(InOther->GetDimension() == 2)
 	{
-		UPCGSplineProjectionData* SplineProjectionData = NewObject<UPCGSplineProjectionData>(const_cast<UPCGSplineData*>(this));
+		UPCGSplineProjectionData* SplineProjectionData = NewObject<UPCGSplineProjectionData>();
 		SplineProjectionData->Initialize(this, InOther, InParams);
 		return SplineProjectionData;
 	}

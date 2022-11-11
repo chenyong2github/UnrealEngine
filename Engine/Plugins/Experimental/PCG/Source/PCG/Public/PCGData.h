@@ -79,6 +79,9 @@ struct PCG_API FPCGDataCollection
 	void AddToRootSet(FPCGRootSet& RootSet) const;
 	void RemoveFromRootSet(FPCGRootSet& RootSet) const;
 
+	/** Cleans up the collection, but does not unroot any previously rooted data. */
+	void Reset();
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Data)
 	TArray<FPCGTaggedData> TaggedData;
 

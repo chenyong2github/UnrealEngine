@@ -245,7 +245,7 @@ void UPCGTextureData::Initialize(UTexture2D* InTexture, const FTransform& InTran
 	Width = 0;
 	Height = 0;
 
-	if (Texture)
+	if (InTexture)
 	{
 		FTexturePlatformData* PlatformData = Texture->GetPlatformData();
 		if (PlatformData && PlatformData->Mips.Num() > 0)
