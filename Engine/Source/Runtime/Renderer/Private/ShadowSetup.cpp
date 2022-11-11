@@ -4910,6 +4910,10 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					ProjectedShadowInfo->SetupClipmapProjection(&LightSceneInfo, &View, VirtualShadowMapClipmap, CVarVsmUseFarShadowRules.GetValueOnRenderThread() != 0 ? MaxNonFarCascadeDistance : -1.0f);
 					VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
 					ShadowInfosThatNeedCulling.Add(ProjectedShadowInfo);
+
+					// TODO: disentangle from legacy setup alltogether
+					// TODO2: This needs to not depend on the non-nanite shadows!
+					ShadowSceneRenderer->AddDirectionalLightShadow(ProjectedShadowInfo);
 				}
 
 				// NOTE: If there are multiple camera views this will simply be associated with "one of them"

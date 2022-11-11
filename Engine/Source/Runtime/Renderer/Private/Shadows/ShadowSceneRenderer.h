@@ -37,6 +37,12 @@ public:
 	 * TODO: Return reference to FLocalLightShadowFrameSetup ?
 	 */
 	TSharedPtr<FVirtualShadowMapPerLightCacheEntry> AddLocalLightShadow(const FWholeSceneProjectedShadowInitializer& Initializer, FProjectedShadowInfo* ProjectedShadowInfo, FLightSceneInfo* LightSceneInfo, float MaxScreenRadius);
+	/**
+	 * Add a directional light for processing this frame.
+	 * TODO: Don't use legacy FProjectedShadowInfo or other params, instead info should flow from persistent setup & update.
+	 * TODO: Return reference to FLocalLightShadowFrameSetup ?
+	 */
+	void AddDirectionalLightShadow(FProjectedShadowInfo* ProjectedShadowInfo);
 
 	/**
 	 * Call after view-dependent setup has been processed (InitView etc) but before any rendering activity has been kicked off.
@@ -97,6 +103,13 @@ private:
 	//       tradeoff is easy to look up (given light ID) but not compact, but OTOH can keep compact lists of indices for various purposes
 	TArray<FLocalLightShadowFrameSetup, SceneRenderingAllocator> LocalLights;
 
+
+	struct FDirectionalLightShadowFrameSetup
+	{
+		FProjectedShadowInfo* ProjectedShadowInfo = nullptr;
+	};
+	TArray<FDirectionalLightShadowFrameSetup, SceneRenderingAllocator> DirectionalLights;
+
 	// Priority queue of distant lights to update.
 	FBinaryHeap<int32, uint32> DistantLightUpdateQueue;
 
@@ -107,4 +120,6 @@ private:
 	FDeferredShadingSceneRenderer& SceneRenderer;
 	FScene& Scene;
 	FVirtualShadowMapArray& VirtualShadowMapArray;
+
+	FNaniteVisibilityQuery* NaniteVisibilityQuery = nullptr;
 };

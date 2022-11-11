@@ -14,6 +14,15 @@
 
 CSV_DECLARE_CATEGORY_EXTERN(VSM);
 
+extern int32 GForceInvalidateDirectionalVSM;
+
+TAutoConsoleVariable<int32> CVarVSMMaterialVisibility(
+	TEXT("r.Shadow.Virtual.Nanite.MaterialVisibility"),
+	0,
+	TEXT("Enable Nanite CPU-side visibility filtering of draw commands, depends on r.Nanite.MaterialVisibility being enabled."),
+	ECVF_RenderThreadSafe
+);
+
 TAutoConsoleVariable<int32> CVarMaxDistantLightsPerFrame(
 	TEXT("r.Shadow.Virtual.MaxDistantUpdatePerFrame"),
 	1,
@@ -100,10 +109,62 @@ TSharedPtr<FVirtualShadowMapPerLightCacheEntry> FShadowSceneRenderer::AddLocalLi
 	return PerLightCacheEntry;
 }
 
+void FShadowSceneRenderer::AddDirectionalLightShadow(FProjectedShadowInfo* ProjectedShadowInfo)
+{
+	FDirectionalLightShadowFrameSetup& DirectionalLightShadowFrameSetup = DirectionalLights.AddDefaulted_GetRef();
+	DirectionalLightShadowFrameSetup.ProjectedShadowInfo = ProjectedShadowInfo;
+}
+
 void FShadowSceneRenderer::PostInitDynamicShadowsSetup()
 {
 	UpdateDistantLightPriorityRender();
 
+	// Dispatch async Nanite culling job if appropriate
+	if (CVarVSMMaterialVisibility.GetValueOnRenderThread() != 0)
+	{
+		TArray<FConvexVolume, SceneRenderingAllocator> NaniteCullingViewsVolumes;
+		// If we have a clipmap that can't be culled, it'd be a complete waste of time to cull the local lights.
+		bool bUnboundedClipmap = false;
+		
+		for (const FDirectionalLightShadowFrameSetup& DirectionalLightShadowFrameSetup : DirectionalLights)
+		{
+			FProjectedShadowInfo* ProjectedShadowInfo = DirectionalLightShadowFrameSetup.ProjectedShadowInfo;
+			if (!bUnboundedClipmap && ProjectedShadowInfo->bShouldRenderVSM)
+			{
+				const bool bIsCached = VirtualShadowMapArray.CacheManager->IsValid() && GForceInvalidateDirectionalVSM == 0;
+
+				// We can only do this culling if the light is both uncached & it is using the accurate bounds (i.e., r.Shadow.Virtual.Clipmap.UseConservativeCulling is turned off).
+				if (!bIsCached && !ProjectedShadowInfo->CascadeSettings.ShadowBoundsAccurate.Planes.IsEmpty())
+				{
+					NaniteCullingViewsVolumes.Add(ProjectedShadowInfo->CascadeSettings.ShadowBoundsAccurate);
+				}
+				else
+				{
+					bUnboundedClipmap = true;
+				}
+			}
+		}
+		if (!bUnboundedClipmap)
+		{
+			for (const FLocalLightShadowFrameSetup& LocalLightShadowFrameSetup : LocalLights)
+			{
+				FProjectedShadowInfo* ProjectedShadowInfo = LocalLightShadowFrameSetup.ProjectedShadowInfo;
+				if (ProjectedShadowInfo->bShouldRenderVSM)
+				{
+					NaniteCullingViewsVolumes.Add(ProjectedShadowInfo->CasterOuterFrustum);
+				}
+			}
+
+			if (!NaniteCullingViewsVolumes.IsEmpty())
+			{
+				NaniteVisibilityQuery = Scene.NaniteVisibility[ENaniteMeshPass::BasePass].BeginVisibilityQuery(
+					NaniteCullingViewsVolumes,
+					&Scene.NaniteRasterPipelines[ENaniteMeshPass::BasePass],
+					&Scene.NaniteMaterials[ENaniteMeshPass::BasePass]
+				);
+			}
+		}
+	}
 	PostSetupDebugRender();
 }
 
@@ -120,7 +181,7 @@ void FShadowSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bo
 	if (bNaniteEnabled)
 	{
 		const float ShadowsLODScaleFactor = ComputeNaniteShadowsLODScaleFactor();
-		VirtualShadowMapArray.RenderVirtualShadowMapsNanite(GraphBuilder, SceneRenderer, ShadowsLODScaleFactor, bUpdateNaniteStreaming, bNaniteProgrammableRaster);
+		VirtualShadowMapArray.RenderVirtualShadowMapsNanite(GraphBuilder, SceneRenderer, ShadowsLODScaleFactor, bUpdateNaniteStreaming, bNaniteProgrammableRaster, NaniteVisibilityQuery);
 	}
 
 	if (UseNonNaniteVirtualShadowMaps(SceneRenderer.ShaderPlatform, SceneRenderer.FeatureLevel))
