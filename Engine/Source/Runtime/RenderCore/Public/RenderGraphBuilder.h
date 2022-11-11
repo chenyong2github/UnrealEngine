@@ -851,7 +851,6 @@ private:
 
 	UE::Tasks::FTask CreateUniformBuffers();
 
-	void AddPassDependency(FRDGPassHandle ProducerHandle, FRDGPassHandle ConsumerHandle);
 	void AddCullingDependency(FRDGProducerStatesByPipeline& LastProducers, const FRDGProducerState& NextState, ERHIPipeline NextPipeline);
 
 	void AddEpilogueTransition(FRDGTextureRef Texture);
