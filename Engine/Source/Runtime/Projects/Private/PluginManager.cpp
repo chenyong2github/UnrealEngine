@@ -495,9 +495,9 @@ bool FPluginManager::AddToPluginsList(const FString& PluginFilename, FText* OutF
 			FString NormalizedPluginPath = Plugin->FileName;
 			FPaths::NormalizeFilename(NormalizedPluginPath);
 			if (NormalizedPluginPath.Equals(NormalizedFilename))
-	{
-		return true;
-	}
+			{
+				return true;
+			}
 		}
 	}
 
@@ -551,7 +551,7 @@ bool FPluginManager::AddToPluginsList(const FString& PluginFilename, FText* OutF
 #if WITH_EDITOR
 			if (Priority == DiscoveredPluginMapUtils::EInsertionType::AsOfferedPlugin)
 			{
-			AddToModuleNameToPluginMap(*NewPlugin);
+				AddToModuleNameToPluginMap(*NewPlugin);
 			}
 #endif //if WITH_EDITOR
 		}
@@ -609,7 +609,7 @@ bool FPluginManager::RemoveFromPluginsList(const FString& PluginFilename, FText*
 	// Is this the plugin that would have been mapped?
 	if (DiscoveredPluginMapUtils::IsOfferedPlugin(AllPlugins, *MaybePlugin))
 	{
-	RemoveFromModuleNameToPluginMap(FoundPlugin);
+		RemoveFromModuleNameToPluginMap(FoundPlugin);
 	}
 #endif //if WITH_EDITOR
 
