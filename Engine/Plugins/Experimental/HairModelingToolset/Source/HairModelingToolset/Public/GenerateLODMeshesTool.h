@@ -103,7 +103,7 @@ public:
 	UPROPERTY()
 	int TargetCount = 1000;
 
-	/** If true, UVs and Normals are discarded  */
+	/** Discard UVs and existing normals, allowing the simplifier to ignore any UV and normal seams. New per-vertex normals are computed. */
 	//UPROPERTY(EditAnywhere, Category = Options)
 	UPROPERTY()
 	bool bDiscardAttributes = false;

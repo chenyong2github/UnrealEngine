@@ -38,7 +38,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Remeshing, meta = (DisplayName = "Smoothing Rate", UIMin = "0.0", UIMax = "1.0", ClampMin = "0.0", ClampMax = "1.0"))
 	float SmoothingStrength = 0.25;
 
-	/** If true, UVs and Normals are discarded  */
+	/** Discard UVs and existing normals, allowing the remesher to ignore any UV and normal seams. New per-vertex normals are computed. */
 	UPROPERTY(EditAnywhere, Category = Remeshing)
 	bool bDiscardAttributes = false;
 
@@ -143,7 +143,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "100"))
 	int TargetPercentage = 50;
 
-	/** If true, UVs and Normals are discarded  */
+	/** Discard UVs and existing normals, allowing the simplifier to ignore any UV and normal seams. New per-vertex normals are computed. */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bDiscardAttributes = false;
 

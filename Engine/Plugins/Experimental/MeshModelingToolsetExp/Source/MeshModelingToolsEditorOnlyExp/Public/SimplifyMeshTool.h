@@ -76,7 +76,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0.001", ClampMin = "0.0", UIMax = "90.0", ClampMax = "180.0", EditCondition = "SimplifierType == ESimplifyType::MinimalPolygroup"))
 	float PolyEdgeAngleTolerance = .1;
 
-	/** If true, UVs and Normals are discarded  */
+	/** Discard UVs and existing normals, allowing the simplifier to ignore any UV and normal seams. New per-vertex normals are computed. */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bDiscardAttributes;
 

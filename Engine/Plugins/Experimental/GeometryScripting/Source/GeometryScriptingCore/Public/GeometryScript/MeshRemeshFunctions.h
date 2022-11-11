@@ -56,7 +56,7 @@ struct GEOMETRYSCRIPTINGCORE_API FGeometryScriptRemeshOptions
 	GENERATED_BODY()
 public:
 
-	/** When enabled, all mesh attributes are discarded, so UV and Normal Seams can be freely */
+	/** When enabled, all mesh attributes are discarded, so UV and Normal Seams can be ignored. New per-vertex normals are computed. */
 	UPROPERTY(BlueprintReadWrite, Category = Options)
 	bool bDiscardAttributes = false;
 
