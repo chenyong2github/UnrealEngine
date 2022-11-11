@@ -115,6 +115,22 @@ namespace Horde.Agent.Tests
 		}
 
 		[TestMethod]
+		public void ExitCodeEventMatcher3()
+		{
+			string[] lines =
+			{
+				@"Took 5406.5523184s to run UnrealEditor-Cmd.exe, ExitCode=-1073741819",
+				@"Editor terminated with exit code -1073741819 while running Cook for D:\build\++UE5\Sync\Samples\Games\AncientGame\AncientGame.uproject; see log d:\build\++UE5\Sync\Engine\Programs\AutomationTool\Saved\Logs\Cook-2022.11.11-08.02.19.txt",
+				@"AutomationTool executed for 1h 33m 5s",
+				@"AutomationTool exiting with ExitCode=1 (Error_Unknown)",
+				@"BUILD FAILED"
+			};
+
+			List<LogEvent> logEvents = Parse(lines);
+			CheckEventGroup(logEvents, 1, 1, LogLevel.Error, KnownLogEvents.ExitCode);
+		}
+
+		[TestMethod]
 		public void CrashEventMatcher()
 		{
 			string[] lines =
