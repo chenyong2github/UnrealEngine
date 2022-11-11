@@ -1541,7 +1541,7 @@ namespace UsdStageImporterImpl
 	// Also, skeletal mesh components need to be manually ticked, or else they may be showing an animated state of an animation that
 	// we chose not to import, and wouldn't update otherwise until manually ticked by the user (or after save/reload), which may look
 	// like a bug
-	void RefreshComponents( AActor* RootSceneActor )
+	void RefreshComponents( AActor* RootSceneActor, bool bImportAtSpecificTimeCode )
 	{
 		if ( !RootSceneActor )
 		{
@@ -1565,6 +1565,30 @@ namespace UsdStageImporterImpl
 					SkeletalMeshComponent->FinalizeBoneTransform();
 					SkeletalMeshComponent->MarkRenderTransformDirty();
 					SkeletalMeshComponent->MarkRenderDynamicDataDirty();
+				}
+				else if ( bImportAtSpecificTimeCode )
+				{
+					// The asset we return from the import factories may lead to
+					// USkeletalMesh::PostEditChangeProperty being called. The FMultiComponentReregisterContext in
+					// there will call USkeletalMeshComponent::InitAnim on all components that use the mesh, which will
+					// wipe out the Position value on SkeletalMeshComponents. This value describes the current state of
+					// animating the AnimSequence according to the import TimeCode, and we need to keep it.
+					// If we store the position via this function however, it will store it inside the position within
+					// the AnimationData member, so that when USkeletalMeshComponent::InitAnim calls
+					// USkeletalMeshComponent::InitializeAnimScriptInstance, it will use that AnimationData to
+					// initialize the new AnimScriptInstance and retain our desired Position value.
+					// This is also nice because it will serialize this animation position and restore it whenever the
+					// component updates, which should provide some persistent to this animation state (which we assume
+					// was desirable since the user imported at a particular time)
+					const bool bIsLooping = false;
+					const bool bIsPlaying = false;
+					const float Position = SkeletalMeshComponent->GetPosition();
+					SkeletalMeshComponent->OverrideAnimationData(
+						SkeletalMeshComponent->AnimationData.AnimToPlay,
+						bIsLooping,
+						bIsPlaying,
+						Position
+					);
 				}
 
 				// It does need us to manually set this to dirty regardless or else it won't update in case we changed material
@@ -1638,7 +1662,9 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	TranslationContext->bIsImporting = true;
 	TranslationContext->Level = ImportContext.World->GetCurrentLevel();
 	TranslationContext->ObjectFlags = ImportContext.ImportObjectFlags;
-	TranslationContext->Time = static_cast< float >( UsdUtils::GetDefaultTimeCode() );
+	TranslationContext->Time = ImportContext.ImportOptions->bImportAtSpecificTimeCode
+		? ImportContext.ImportOptions->ImportTimeCode
+		: static_cast< float >( UsdUtils::GetDefaultTimeCode() );
 	TranslationContext->PurposesToLoad = ( EUsdPurpose ) ImportContext.ImportOptions->PurposesToImport;
 	TranslationContext->NaniteTriangleThreshold = ImportContext.ImportOptions->NaniteTriangleThreshold;
 	TranslationContext->RenderContext = ImportContext.ImportOptions->RenderContextToImport;
@@ -1670,7 +1696,7 @@ void UUsdStageImporter::ImportFromFile(FUsdStageImportContext& ImportContext)
 	UsdStageImporterImpl::RemapSoftReferences( ImportContext, UsedAssetsAndDependencies, SoftObjectsToRemap );
 	UsdStageImporterImpl::Cleanup( ImportContext.SceneActor, ExistingSceneActor, ImportContext.ImportOptions->ExistingActorPolicy );
 	UsdStageImporterImpl::NotifyAssetRegistry( UsedAssetsAndDependencies );
-	UsdStageImporterImpl::RefreshComponents( ImportContext.SceneActor );
+	UsdStageImporterImpl::RefreshComponents( ImportContext.SceneActor, ImportContext.ImportOptions->bImportAtSpecificTimeCode );
 
 	FUsdDelegates::OnPostUsdImport.Broadcast( ImportContext.FilePath );
 
@@ -1738,7 +1764,9 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 	TranslationContext->bIsImporting = true;
 	TranslationContext->Level = ImportContext.World->GetCurrentLevel();
 	TranslationContext->ObjectFlags = ImportContext.ImportObjectFlags;
-	TranslationContext->Time = static_cast< float >( UsdUtils::GetDefaultTimeCode() );
+	TranslationContext->Time = ImportContext.ImportOptions->bImportAtSpecificTimeCode
+		? ImportContext.ImportOptions->ImportTimeCode
+		: static_cast< float >( UsdUtils::GetDefaultTimeCode() );
 	TranslationContext->PurposesToLoad = ( EUsdPurpose ) ImportContext.ImportOptions->PurposesToImport;
 	TranslationContext->NaniteTriangleThreshold = ImportContext.ImportOptions->NaniteTriangleThreshold;
 	TranslationContext->RenderContext = ImportContext.ImportOptions->RenderContextToImport;
@@ -1797,7 +1825,7 @@ bool UUsdStageImporter::ReimportSingleAsset(FUsdStageImportContext& ImportContex
 
 	UsdStageImporterImpl::Cleanup( ImportContext.SceneActor, nullptr, ImportContext.ImportOptions->ExistingActorPolicy );
 	UsdStageImporterImpl::NotifyAssetRegistry( { ReimportedObject } );
-	UsdStageImporterImpl::RefreshComponents( ImportContext.SceneActor );
+	UsdStageImporterImpl::RefreshComponents( ImportContext.SceneActor, ImportContext.ImportOptions->bImportAtSpecificTimeCode );
 
 	FUsdDelegates::OnPostUsdImport.Broadcast(ImportContext.FilePath);
 

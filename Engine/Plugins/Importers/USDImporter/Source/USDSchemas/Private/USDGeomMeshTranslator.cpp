@@ -1487,7 +1487,7 @@ void FUsdGeomMeshTranslator::CreateAssets()
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomMeshTranslator::CreateAssets );
 
 #if WITH_EDITOR
-	if ( GUseGeometryCacheUSD && UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() ) )
+	if ( !Context->bIsImporting && GUseGeometryCacheUSD && UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() ) )
 	{
 		// Create the GeometryCache TaskChain
 		TSharedRef< FGeometryCacheCreateAssetsTaskChain > AssetsTaskChain = MakeShared< FGeometryCacheCreateAssetsTaskChain >( Context, PrimPath );
@@ -1509,7 +1509,7 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 
 #if WITH_EDITOR
 	// Force animated meshes as GeometryCache
-	if ( GUseGeometryCacheUSD && UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() ) )
+	if ( !Context->bIsImporting && GUseGeometryCacheUSD && UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() ) )
 	{
 		ComponentType = UGeometryCacheUsdComponent::StaticClass();
 	}
@@ -1547,6 +1547,9 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 	}
 	else if ( UGeometryCacheComponent* Component = Cast<UGeometryCacheComponent>( SceneComponent ) )
 	{
+		// We don't support importing geometry cache stuff yet so we should not be in here
+		ensure( !Context->bIsImporting );
+
 		if ( UGeometryCache* GeometryCache = Cast< UGeometryCache >( Context->AssetCache->GetAssetForPrim( PrimPathString ) ) )
 		{
 			// Geometry caches don't support LODs
@@ -1612,6 +1615,8 @@ void FUsdGeomMeshTranslator::UpdateComponents( USceneComponent* SceneComponent )
 	// Set the initial GeometryCache on the GeometryCacheUsdComponent
 	if ( UGeometryCacheUsdComponent* GeometryCacheUsdComponent = Cast< UGeometryCacheUsdComponent >( SceneComponent ) )
 	{
+		ensure( !Context->bIsImporting );
+
 		UGeometryCache* GeometryCache = Cast< UGeometryCache >( Context->AssetCache->GetAssetForPrim( PrimPath.GetString() ) );
 
 		bool bShouldRegister = false;

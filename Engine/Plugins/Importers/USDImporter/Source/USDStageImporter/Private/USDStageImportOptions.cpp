@@ -26,6 +26,8 @@ UUsdStageImportOptions::UUsdStageImportOptions(const FObjectInitializer& ObjectI
 	bOverrideStageOptions = false;
 	StageOptions.MetersPerUnit = 0.01f;
 	StageOptions.UpAxis = EUsdUpAxis::ZAxis;
+	bImportAtSpecificTimeCode = false;
+	ImportTimeCode = 0.0f;
 
 	ExistingActorPolicy = EReplaceActorPolicy::Replace;
 	ExistingAssetPolicy = EReplaceAssetPolicy::Replace;
@@ -92,6 +94,11 @@ void UsdUtils::AddAnalyticsAttributes(
 	if ( Options.bOverrideStageOptions )
 	{
 		UsdUtils::AddAnalyticsAttributes( Options.StageOptions, InOutAttributes );
+	}
+	InOutAttributes.Emplace( TEXT( "ImportAtSpecificTimeCode" ), Options.bImportAtSpecificTimeCode );
+	if ( Options.bImportAtSpecificTimeCode )
+	{
+		InOutAttributes.Emplace( TEXT( "ImportTimeCode" ), LexToString( Options.ImportTimeCode ) );
 	}
 	InOutAttributes.Emplace( TEXT( "NumGroomInterpolationSettings" ), LexToString( Options.GroomInterpolationSettings.Num() ) );
 	InOutAttributes.Emplace( TEXT( "ReplaceActorPolicy" ), LexToString( ( uint8 ) Options.ExistingActorPolicy ) );

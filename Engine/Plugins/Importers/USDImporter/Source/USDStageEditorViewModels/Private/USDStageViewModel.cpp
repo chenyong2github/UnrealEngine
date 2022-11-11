@@ -288,6 +288,7 @@ void FUsdStageViewModel::ImportStage()
 		ImportContext.ImportOptions->MaterialPurpose = StageActor->MaterialPurpose;
 		ImportContext.ImportOptions->StageOptions.MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( UsdStage );
 		ImportContext.ImportOptions->StageOptions.UpAxis = UsdUtils::GetUsdStageUpAxisAsEnum( UsdStage );
+		ImportContext.ImportOptions->ImportTimeCode = StageActor->GetTime();
 		ImportContext.bReadFromStageCache = true; // So that we import whatever the user has open right now, even if the file has changes
 
 		const FString RootPath = UsdStage.GetRootLayer().GetRealPath();

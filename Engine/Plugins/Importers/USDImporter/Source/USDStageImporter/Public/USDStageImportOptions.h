@@ -102,6 +102,17 @@ public:
 	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "USD options", meta = ( EditCondition = bOverrideStageOptions ) )
 	FUsdStageOptions StageOptions;
 
+	/**
+	 * When true the stage will be evaluated at ImportTimeCode for the import.
+	 * When false, the stage will be evaluated at the default (non-animated) timecode
+	 */
+	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "USD options" )
+	bool bImportAtSpecificTimeCode;
+
+	/** TimeCode to evaluate the stage for import, in case bImportAtSpecificTimeCode is enabled */
+	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "USD options", meta = ( EditCondition = bImportAtSpecificTimeCode ) )
+	float ImportTimeCode;
+
 
 	/** Groom group interpolation settings */
 	UPROPERTY(EditAnywhere, config, BlueprintReadWrite, Category = "Groom")
