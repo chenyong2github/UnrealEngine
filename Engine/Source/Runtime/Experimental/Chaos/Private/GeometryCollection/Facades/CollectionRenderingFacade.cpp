@@ -10,9 +10,6 @@
 namespace GeometryCollection::Facades
 {
 
-	// Attributes
-	const FName FRenderingFacade::AAAAttribute = "AAA";
-
 	FRenderingFacade::FRenderingFacade(FManagedArrayCollection* InCollection)
 		: Self(InCollection)
 	{
@@ -73,6 +70,27 @@ namespace GeometryCollection::Facades
 			Vertices[VertexStart] = CollectionVert(InTriangle[0]);
 			Vertices[VertexStart + 1] = CollectionVert(InTriangle[1]);
 			Vertices[VertexStart + 2] = CollectionVert(InTriangle[2]);
+		}
+	}
+
+
+	void FRenderingFacade::AddSurface(FManagedArrayCollection* InCollection, TArray<FVector3f>&& InVertices, TArray<FIntVector>&& InIndices)
+	{
+		if (IsValid(InCollection))
+		{
+			auto CollectionVert = [](const Chaos::FVec3& V) { return FVector3f(float(V.X), float(V.Y), float(V.Z)); };
+
+			TManagedArray<FVector3f>& Vertices = InCollection->ModifyAttribute<FVector3f>("Vertex", FGeometryCollection::VerticesGroup);
+			TManagedArray<FIntVector>& Indices = InCollection->ModifyAttribute<FIntVector>("Indices", FGeometryCollection::FacesGroup);
+
+			int32 IndicesStart = InCollection->AddElements(InIndices.Num(), FGeometryCollection::FacesGroup);
+			int32 VertexStart = InCollection->AddElements(InVertices.Num(), FGeometryCollection::VerticesGroup);
+
+			const FIntVector * IndiciesDest = Indices.GetData() + IndicesStart;
+			FMemory::Memmove((void*)IndiciesDest, InIndices.GetData(), sizeof(FIntVector) * InIndices.Num());
+
+			const FVector3f * VerticesDest = Vertices.GetData() + VertexStart;
+			FMemory::Memmove((void*)VerticesDest, InVertices.GetData(), sizeof(FVector3f) * InVertices.Num());
 		}
 	}
 

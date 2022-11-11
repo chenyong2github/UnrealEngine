@@ -36,9 +36,6 @@ namespace GeometryCollection::Facades
 
 	public:
 
-		// Attributes
-		static const FName AAAAttribute;
-
 		/**
 		* FRenderingFacade Constuctor
 		* @param VertixDependencyGroup : GroupName the index attribute is dependent on.
@@ -67,12 +64,21 @@ namespace GeometryCollection::Facades
 
 
 		/**
-		* Using a FSelectionFacade::FSelectionKey, create indexes from the vertices to the driving bones.
+		* Add a triangle to the rendering view. 
 		* @param FManagedArrayCollection : Collection
 		* @param FSelectionFacade::FSelectionKey : Key for weights in the FSelectionFacade
 		*/
 		static void AddTriangle(FManagedArrayCollection* InCollection, const Chaos::FTriangle& InTriangle);
 		void AddTriangle(const Chaos::FTriangle& InTriangle) { AddTriangle(Self, InTriangle); }
+
+		/**
+		* Add a surface to the rendering view.
+		* @param FManagedArrayCollection : Collection
+		* @param FSelectionFacade::FSelectionKey : Key for weights in the FSelectionFacade
+		*/
+		static void AddSurface(FManagedArrayCollection* InCollection, TArray<FVector3f>&& InVertices, TArray<FIntVector>&& InIndices);
+		void AddSurface(TArray<FVector3f>&& InVertices, TArray<FIntVector>&& InIndices) { AddSurface(Self, MoveTemp(InVertices), MoveTemp(InIndices) ); }
+
 
 		/**
 		* Return the render indices from the collection. Null if not initialized.
