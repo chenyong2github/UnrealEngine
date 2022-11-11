@@ -750,7 +750,16 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter() const
 
 			CrashReportClientArguments += TEXT("\"\"") + CrashInfoAbsolute + TEXT("/\"\"");
 
-			if (bReportingNonCrash)
+			// Things can be setup to allow for a global crash handler to capture the core from a crash and allow another process
+			// to handle spawning of this process
+			bool bStartCRCFromEngineHandler = true;
+
+			if (GConfig)
+			{
+				GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bStartCRCFromEngineHandler"), bStartCRCFromEngineHandler, GEngineIni);
+			}
+
+			if (bReportingNonCrash && bStartCRCFromEngineHandler)
 			{
 				bool bFoundEmptySlot = false;
 
@@ -819,34 +828,23 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter() const
 					}
 				}
 			}
-			else
+			else if (bStartCRCFromEngineHandler)
 			{
-				// Things can be setup to allow for a global crash handler to capture the core from a crash and allow another process
-				// to handle spawning of this process
-				bool bStartCRCFromEngineHandler = true;
-				if (GConfig)
+				// spin here until CrashReporter exits
+				FProcHandle RunningProc = FPlatformProcess::CreateProc(RelativePathToCrashReporter, *CrashReportClientArguments, true, false, false, NULL, 0, NULL, NULL);
+
+				// do not wait indefinitely - can be more generous about the hitch than in ensure() case
+				// NOTE: Chris.Wood - increased from 3 to 8 mins because server crashes were timing out and getting lost
+				// NOTE: Do not increase above 8.5 mins without altering watchdog scripts to match
+				const double kCrashTimeOut = 8 * 60.0;
+
+				const double kCrashSleepInterval = 1.0;
+				if (!UnixCrashReporterTracker::WaitForProcWithTimeout(RunningProc, kCrashTimeOut, kCrashSleepInterval))
 				{
-					GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bStartCRCFromEngineHandler"), bStartCRCFromEngineHandler, GEngineIni);
+					FPlatformProcess::TerminateProc(RunningProc);
 				}
 
-				if (bStartCRCFromEngineHandler)
-				{
-					// spin here until CrashReporter exits
-					FProcHandle RunningProc = FPlatformProcess::CreateProc(RelativePathToCrashReporter, *CrashReportClientArguments, true, false, false, NULL, 0, NULL, NULL);
-
-					// do not wait indefinitely - can be more generous about the hitch than in ensure() case
-					// NOTE: Chris.Wood - increased from 3 to 8 mins because server crashes were timing out and getting lost
-					// NOTE: Do not increase above 8.5 mins without altering watchdog scripts to match
-					const double kCrashTimeOut = 8 * 60.0;
-
-					const double kCrashSleepInterval = 1.0;
-					if (!UnixCrashReporterTracker::WaitForProcWithTimeout(RunningProc, kCrashTimeOut, kCrashSleepInterval))
-					{
-						FPlatformProcess::TerminateProc(RunningProc);
-					}
-
-					FPlatformProcess::CloseProc(RunningProc);
-				}
+				FPlatformProcess::CloseProc(RunningProc);
 			}
 		}
 		else

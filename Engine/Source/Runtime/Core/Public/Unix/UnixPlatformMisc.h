@@ -157,4 +157,9 @@ struct CORE_API FUnixPlatformMisc : public FGenericPlatformMisc
 	static void CustomNamedStat(const TCHAR* Text, float Value, const TCHAR* Graph, const TCHAR* Unit);
 	static void CustomNamedStat(const ANSICHAR* Text, float Value, const ANSICHAR* Graph, const ANSICHAR* Unit);
 #endif
+
+	/* Explicitly call this function to setup syscall filters based on a file passed in from the command line
+	 * -allowsyscallfilterfile=PATH_TO_FILE
+	 */
+	static bool SetupSyscallFilters();
 };

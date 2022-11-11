@@ -1846,6 +1846,14 @@ public:
 	{
 	}
 
+	/*
+	 * Unix only function, but put a stub so we can call this for higher level code when we want to setup the Syscall Filters
+	 */
+	static bool SetupSyscallFilters()
+	{
+		return false;
+	}
+
 #if !UE_BUILD_SHIPPING
 	/**
 	 * Returns any platform specific warning messages we want printed on screen

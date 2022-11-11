@@ -22,6 +22,7 @@
 #include "Misc/App.h"
 #include "Misc/FileHelper.h"
 #include "Unix/UnixPlatformCrashContext.h"
+#include "Unix/UnixPlatformSyscallTable.h"
 #include "Misc/ConfigCacheIni.h"
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
 #include "Misc/OutputDeviceRedirector.h"
@@ -34,6 +35,11 @@
 #include <sched.h>
 #include <sys/vfs.h>
 #include <sys/ioctl.h>
+
+#include <sys/prctl.h>
+#include <linux/audit.h>
+#include <linux/filter.h>
+#include <linux/seccomp.h>
 
 #include <ifaddrs.h>
 #include <net/if.h>
@@ -251,6 +257,7 @@ void FUnixPlatformMisc::PlatformInit()
 	UE_LOG(LogInit, Log, TEXT(" -httpproxy=ADDRESS:PORT - redirects HTTP requests to a proxy (only supported if compiled with libcurl)"));
 	UE_LOG(LogInit, Log, TEXT(" -reuseconn - allow libcurl to reuse HTTP connections (only matters if compiled with libcurl)"));
 	UE_LOG(LogInit, Log, TEXT(" -virtmemkb=NUMBER - sets process virtual memory (address space) limit (overrides VirtualMemoryLimitInKB value from .ini)"));
+	UE_LOG(LogInit, Log, TEXT(" -allowsyscallfilterfile=PATH_TO_FILE - sets up a system call filter allow list. any invalid syscall in this list *will* cause a crash"));
 
 	if (bPreloadedModuleSymbolFile)
 	{
@@ -1821,4 +1828,217 @@ int32 FUnixPlatformMisc::NumberOfWorkerThreadsToSpawn()
 	int32 MaxWorkerThreadsWanted = IsRunningDedicatedServer() ? MaxServerWorkerThreads : MaxWorkerThreads;
 	// need to spawn at least one worker thread (see FTaskGraphImplementation)
 	return FMath::Max(FMath::Min(NumberOfThreads, MaxWorkerThreadsWanted), 2);
+}
+
+namespace
+{
+
+// only set for x64 and arm64. If we compile for something later we'll need to avoid this code or
+// write syscall look up tables for the new arch. normally we always define things, but a compiler error
+// here would be ideal to catch issues.
+#if PLATFORM_64BITS
+	#if PLATFORM_CPU_X86_FAMILY
+		#define ARCHITECTURE_NUMBER AUDIT_ARCH_X86_64
+	#elif PLATFORM_CPU_ARM_FAMILY
+
+		// super hacky but our bundled sysroot does not have these defined. Set them to allow us to use these
+		// on newer kernels. Likely this will break if you try to use an older kernel for arm64
+		#if !defined(EM_AARCH64)
+			#define EM_AARCH64	183	/* ARM 64 bit */
+		#endif
+		#if !defined(AUDIT_ARCH_AARCH64)
+			#define AUDIT_ARCH_AARCH64	(EM_AARCH64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
+		#endif
+
+		#define ARCHITECTURE_NUMBER AUDIT_ARCH_AARCH64
+	#else
+		#error Unknown Architecture
+	#endif // PLATFORM_CPU_ARM_FAMILY
+#endif // PLATFORM_64BITS
+
+	class SyscallFilter
+	{
+	public:
+		SyscallFilter()
+		{
+			// Validate the architecture
+			SyscallFilters.Add(BPF_STMT(BPF_LD + BPF_W + BPF_ABS, (offsetof(struct seccomp_data, arch))));
+			SyscallFilters.Add(BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, ARCHITECTURE_NUMBER, 1, 0));
+			SyscallFilters.Add(BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_KILL));
+
+			// Load the syscall number
+			SyscallFilters.Add(BPF_STMT(BPF_LD + BPF_W + BPF_ABS, (offsetof(struct seccomp_data, nr))));
+		}
+
+		void AddAllowSyscall(uint32 SyscallNumber)
+		{
+			// from a syscall number, we will allow it and cut out before getting to the trap/kill further down
+			SyscallFilters.Add(BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, SyscallNumber, 0, 1));
+			SyscallFilters.Add(BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_ALLOW));
+		}
+
+		void AddSyscallRule(uint32 SyscallNumber, uint32 SyscallArgNumber, uint32 Value, bool bAllow, bool bBitCheck)
+		{
+			// if we match this syscall number, check if this syscall arg  matches or *does* not match the Value passed in based on bAllow
+			SyscallFilters.Add(BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, SyscallNumber, 0, 4));
+			SyscallFilters.Add(BPF_STMT(BPF_LD  + BPF_W + BPF_ABS, static_cast<uint32>(offsetof(struct seccomp_data, args[SyscallArgNumber]))));
+
+			// if we only want to check if the bit is enabled
+			if (bBitCheck)
+			{
+				SyscallFilters.Add(BPF_JUMP(BPF_JMP + BPF_JSET + BPF_K, Value, bAllow, !bAllow));
+			}
+			else
+			{
+				SyscallFilters.Add(BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, Value, bAllow, !bAllow));
+			}
+
+			SyscallFilters.Add(BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_TRAP));
+			SyscallFilters.Add(BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_ALLOW));
+		}
+
+		bool FinalizeSyscallFilter()
+		{
+			// our final filter, this will be hit if now allow or other filter cuts us earlier
+			SyscallFilters.Add(BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_TRAP));
+
+			if (SyscallFilters.Num() > TNumericLimits<unsigned short>::Max())
+			{
+				UE_LOG(LogHAL, Warning, TEXT("To many filters have been added, max is %i"), TNumericLimits<unsigned short>::Max());
+
+				return false;
+			}
+
+			struct sock_fprog SysFiltersSetup = {
+				.len = static_cast<unsigned short>(SyscallFilters.Num()),
+				.filter = SyscallFilters.GetData()
+			};
+
+			if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0))
+			{
+				int ErrNo = errno;
+				UE_LOG(LogHAL, Warning, TEXT("prctl failed to set PR_SET_NO_NEW_PRIVS '%s'"), ANSI_TO_TCHAR(strerror(ErrNo)));
+
+				return false;
+			}
+
+			if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &SysFiltersSetup))
+			{
+				int ErrNo = errno;
+				UE_LOG(LogHAL, Warning, TEXT("prctl failed to set SECCOMP_MODE_FILTER '%s'"), ANSI_TO_TCHAR(strerror(ErrNo)));
+
+				return false;
+			}
+
+			return true;
+		}
+
+	private:
+		TArray<struct sock_filter> SyscallFilters;
+	};
+} // anonymous namespace
+
+bool FUnixPlatformMisc::SetupSyscallFilters()
+{
+	// only allow to be setup once. filters add overhead to each syscall
+	// so setting up the same of over and over again could cause much worse perf
+	static bool bHasBeenSetup = false;
+
+	if (bHasBeenSetup)
+	{
+		UE_LOG(LogHAL, Warning, TEXT("Syscall Filters have already been setup"));
+
+		return false;
+	}
+
+	FString SyscallFilterPath;
+	if (!FParse::Value(FCommandLine::Get(), TEXT("allowsyscallfilterfile="), SyscallFilterPath) || SyscallFilterPath.Len() <= 0)
+	{
+		return false;
+	}
+
+	UE_LOG(LogHAL, Display, TEXT("Setting up System call filters."));
+
+	SyscallFilter SyscallFilters;
+
+	TArray<FString> Syscalls;
+	if (FFileHelper::LoadFileToStringArray(Syscalls, *SyscallFilterPath))
+	{
+		for (const FString& SyscallRule : Syscalls)
+		{
+			// there are only two cases here:
+			// 1) <syscall> <syscall_arg_num_zero_indexed> <value> <allow> <only_check_bit_set>
+			// 2) <syscall>
+			//
+			// For 1) we will check if there any spaces in the line, if so we assume it will have 4 args. If its does we fail to add this rule
+			// For 2) we just assume this is a syscall name and will look it up in the table and add an allow rule
+			//
+			// check if the SyscallRule had extra arguments or was just the name
+			// if theres a space in the rule, assume arguments
+			//
+			// example for 1) int mprotect(void *addr, size_t len, int prot);
+			// mprotect 2 4 0 1
+			//
+			// meaning for mprotect, its 3rd argument, if its value & 4 (PROT_EXEC) == 1 then we will get a SIGSYS raise from the kernel
+			//
+			// if reversed for allow
+			// mprotect 2 4 1 1
+			//
+			// this would mean we would *only* allow mprotect if the 3rd argument had PROT_EXEC bit set
+			int32 Index = 0;
+			if (SyscallRule.FindChar(TEXT(' '), Index))
+			{
+				TArray<FString> ArgList;
+				SyscallRule.ParseIntoArray(ArgList, TEXT(" "));
+
+				if (ArgList.Num() != 5)
+				{
+					UE_LOG(LogHAL, Warning, TEXT("Failed to parse syscall rule '%s', invalid number of arguments"), *SyscallRule);
+				}
+				else
+				{
+					int SyscallNumber = UnixPlatformLookupSyscallNumberFromName(ArgList[0]);
+
+					if (SyscallNumber >= 0)
+					{
+						int SyscallArgNumber = FCString::Atoi(*ArgList[1]);
+						int Value    = FCString::Atoi(*ArgList[2]);
+						int Allow    = !!FCString::Atoi(*ArgList[3]);
+						int BitCheck = !!FCString::Atoi(*ArgList[4]);
+
+						SyscallFilters.AddSyscallRule(SyscallNumber, SyscallArgNumber, Value, Allow, BitCheck);
+
+						UE_LOG(LogHAL, Verbose, TEXT("Adding syscall rule '%s'('%i') arg number %i value %i allow %i check bit only %i"), *ArgList[0], SyscallNumber, SyscallArgNumber, Value, Allow, BitCheck);
+					}
+					else
+					{
+						UE_LOG(LogHAL, Warning, TEXT("Failed to find the syscall number in the look-up table for '%s'"), *SyscallRule);
+					}
+				}
+			}
+			else
+			{
+				int SyscallNumber = UnixPlatformLookupSyscallNumberFromName(SyscallRule);
+				if (SyscallNumber >= 0)
+				{
+					SyscallFilters.AddAllowSyscall(SyscallNumber);
+
+					UE_LOG(LogHAL, Verbose, TEXT("Adding syscall '%s' mapped to syscall number '%i' to filter"), *SyscallRule, SyscallNumber);
+				}
+				else
+				{
+					UE_LOG(LogHAL, Warning, TEXT("Failed to find the syscall number in the look-up table for '%s'"), *SyscallRule);
+				}
+
+			}
+		}
+	}
+
+	// if we have the -allowsyscallfilterfile command line *always* setup syscall filters. Even if there is no file, or it doesnt exists
+	// this will mean *all* syscalls are disable and you will get a SIGSYS on a syscall
+	SyscallFilters.FinalizeSyscallFilter();
+
+	bHasBeenSetup = true;
+
+	return true;
 }
