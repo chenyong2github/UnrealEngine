@@ -334,7 +334,11 @@ bool MovieSceneToolHelpers::ParseShotName(const FString& InShotName, FString& Sh
 		int32 LastSlashPos = ShotName.Find(ProjectSettings->TakeSeparator, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 		if (LastSlashPos != INDEX_NONE)
 		{
-			ShotPrefix = ShotName.Left(LastSlashPos);
+			if (LastSlashPos != 0)
+			{
+				ShotPrefix = ShotName.Left(LastSlashPos);
+			}
+			
 			ShotNumber = INDEX_NONE; // Nullify the shot number since we only have a shot prefix
 			TakeNumber = FCString::Atoi(*ShotName.RightChop(LastSlashPos+1));
 			TakeNumberDigits = ShotName.Len() - (LastSlashPos+1);
