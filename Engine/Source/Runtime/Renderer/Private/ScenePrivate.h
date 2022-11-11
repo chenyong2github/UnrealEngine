@@ -1938,9 +1938,11 @@ struct FDistanceFieldReadRequest
 	uint32 BulkOffset = 0;
 	uint32 BulkSize = 0;
 
+#if !WITH_EDITOR
 	// Outputs of read request
 	FBulkDataBatchReadRequest RequestHandle;
 	FIoBuffer RequestBuffer;
+#endif
 };
 
 struct FDistanceFieldAsyncUpdateParameters
