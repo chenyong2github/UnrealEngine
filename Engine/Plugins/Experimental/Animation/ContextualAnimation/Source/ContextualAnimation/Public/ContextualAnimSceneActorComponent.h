@@ -62,12 +62,28 @@ public:
 
 protected:
 
+	/** 
+	 * Replicated version of the bindings for the interaction we are currently playing.
+	 * @TODO: Right now we are replicating the same set of bindings from each actor in the interaction. 
+	 * This is not a big structure so it might be ok, but as an optimization we could replicate it only from the leader of the interaction and set it on the other actors in the OnRep notify
+	 */
 	UPROPERTY(Transient, ReplicatedUsing = OnRep_Bindings)
-	FContextualAnimSceneBindings Bindings;
+	FContextualAnimSceneBindings RepBindings;
+
+	/** 
+	 * Local copy of the bindings for the interaction we are currently playing.
+	 * Used to update IK, keep montage in sync and disable/enable collision between actors on simulated proxies too 
+	 */
+	UPROPERTY(Transient)
+	FContextualAnimSceneBindings LocalBindings;
 
 	/** List of IKTarget for this frame */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TArray<FContextualAnimIKTarget> IKTargets;
+
+	/** Value of AllowPhysicsRotationDuringAnimRootMotion property for this actor before we join an scene, so we can restore it once the interaction ends */
+	UPROPERTY(Transient)
+	bool bAllowPhysicsRotationDuringAnimRootMotionBackup = false;
 
 	void UpdateIKTargets();
 
@@ -80,6 +96,8 @@ protected:
 
 	UFUNCTION()
 	void OnRep_Bindings();
+
+	void SetIgnoreCollisionWithOtherActors(bool bValue) const;
 
 private:
 

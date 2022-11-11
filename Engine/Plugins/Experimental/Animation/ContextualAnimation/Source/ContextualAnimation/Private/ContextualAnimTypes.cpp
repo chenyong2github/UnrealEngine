@@ -353,20 +353,31 @@ FContextualAnimSceneBindings::FContextualAnimSceneBindings(const UContextualAnim
 	SceneAsset = &InSceneAsset;
 	SectionIdx = InSectionIdx;
 	AnimSetIdx = InAnimSetIdx;
+
+	static uint8 IncrementID = 0;
+	IncrementID = IncrementID < UINT8_MAX ? IncrementID + 1 : 0;
+	Id = IncrementID;
 }
 
 bool FContextualAnimSceneBindings::IsValid() const
 {
-	return SceneAsset.IsValid() && SceneAsset->HasValidData() && Num() > 0;
+	return Id != 0 && SceneAsset.IsValid() && SceneAsset->HasValidData() && Num() > 0;
 }
 
 void FContextualAnimSceneBindings::Reset()
 {
+	Id = 0;
 	SceneAsset.Reset();
 	SectionIdx = INDEX_NONE;
 	AnimSetIdx = INDEX_NONE;
 	Data.Reset();
 	SceneInstancePtr.Reset();
+}
+
+const FContextualAnimSceneBinding* FContextualAnimSceneBindings::GetSyncLeader() const
+{
+	//@TODO: Return first secondary binding as sync leader for now. This may have to be explicitly defined, either in the SceneAsset or when creating the bindings.
+	return Data.FindByPredicate([this](const FContextualAnimSceneBinding& Item) { return GetRoleFromBinding(Item) != SceneAsset->GetPrimaryRole(); });
 }
 
 const FContextualAnimTrack& FContextualAnimSceneBindings::GetAnimTrackFromBinding(const FContextualAnimSceneBinding& Binding) const
@@ -401,6 +412,7 @@ const FName& FContextualAnimSceneBindings::GetRoleFromBinding(const FContextualA
 
 bool FContextualAnimSceneBindings::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 {
+	Ar << Id;
 	Ar << SceneAsset;
 	Ar << SectionIdx;
 	Ar << AnimSetIdx;

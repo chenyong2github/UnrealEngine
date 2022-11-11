@@ -394,6 +394,7 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 		return Role != NAME_None ? Data.FindByPredicate([this, &Role](const FContextualAnimSceneBinding& Item) { return GetAnimTrackFromBinding(Item).Role == Role; }) : nullptr;
 	}
 
+	FORCEINLINE uint8 GetID() const { return Id; }
 	FORCEINLINE const UContextualAnimSceneAsset* GetSceneAsset() const { return SceneAsset.Get(); }
 	FORCEINLINE int32 GetSectionIdx() const { return SectionIdx; }
 	FORCEINLINE int32 GetAnimSetIdx() const { return AnimSetIdx; }
@@ -421,6 +422,8 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 	const FContextualAnimIKTargetDefContainer& GetIKTargetDefContainerFromBinding(const FContextualAnimSceneBinding& Binding) const;
 	FTransform GetIKTargetTransformFromBinding(const FContextualAnimSceneBinding& Binding, const FName& TrackName, float Time) const;
 
+	const FContextualAnimSceneBinding* GetSyncLeader() const;
+
 	bool IsValid() const;
 
 	void Reset();
@@ -430,6 +433,9 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 private:
 
 	friend class UContextualAnimManager;
+
+	UPROPERTY()
+	uint8 Id = 0;
 
 	UPROPERTY()
 	TWeakObjectPtr<const UContextualAnimSceneAsset> SceneAsset = nullptr;
