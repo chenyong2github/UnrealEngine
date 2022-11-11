@@ -433,7 +433,7 @@ public:
 class FGlobalDistanceFieldCacheTypeState
 {
 public:
-	TArray<FRenderBounds> PrimitiveModifiedBounds;
+	TArray<FBox> PrimitiveModifiedBounds;
 };
 
 class FGlobalDistanceFieldClipmapState
@@ -2093,7 +2093,7 @@ public:
 	TSet<FPrimitiveSceneInfo*> PendingThrottledOperations;
 	TSet<FPrimitiveSceneInfo*> PendingUpdateOperations;
 	TArray<FPrimitiveRemoveInfo> PendingRemoveOperations;
-	TArray<FRenderBounds> PrimitiveModifiedBounds[GDF_Num];
+	TArray<FBox> PrimitiveModifiedBounds[GDF_Num];
 
 	TSet<FPrimitiveSceneInfo*> PendingHeightFieldAddOps;
 	TSet<FPrimitiveSceneInfo*> PendingHeightFieldUpdateOps;

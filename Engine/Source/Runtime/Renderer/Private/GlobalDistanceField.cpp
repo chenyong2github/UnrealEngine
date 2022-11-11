@@ -1008,18 +1008,18 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 						? &GlobalDistanceFieldInfo.MostlyStaticClipmaps[ClipmapIndex]
 						: &GlobalDistanceFieldInfo.Clipmaps[ClipmapIndex]);
 
-					const TArray<FRenderBounds>& PrimitiveModifiedBounds = ClipmapViewState.Cache[CacheType].PrimitiveModifiedBounds;
+					const TArray<FBox>& PrimitiveModifiedBounds = ClipmapViewState.Cache[CacheType].PrimitiveModifiedBounds;
 
-					TArray<FRenderBounds, SceneRenderingAllocator> CulledPrimitiveModifiedBounds;
-					CulledPrimitiveModifiedBounds.Empty(ClipmapViewState.Cache[CacheType].PrimitiveModifiedBounds.Num() / 2);
+					TArray<FBox, SceneRenderingAllocator> CulledPrimitiveModifiedBounds;
+					CulledPrimitiveModifiedBounds.Empty(PrimitiveModifiedBounds.Num() / 2);
 
-					Clipmap.UpdateBounds.Empty(ClipmapViewState.Cache[CacheType].PrimitiveModifiedBounds.Num() / 2);
+					Clipmap.UpdateBounds.Empty(PrimitiveModifiedBounds.Num() / 2);
 
-					for (int32 BoundsIndex = 0; BoundsIndex < ClipmapViewState.Cache[CacheType].PrimitiveModifiedBounds.Num(); BoundsIndex++)
+					for (int32 BoundsIndex = 0; BoundsIndex < PrimitiveModifiedBounds.Num(); BoundsIndex++)
 					{
-						const FRenderBounds PrimBounds = ClipmapViewState.Cache[CacheType].PrimitiveModifiedBounds[BoundsIndex];
-						const FVector PrimWorldCenter = (FVector)PrimBounds.GetCenter();
-						const FVector PrimWorldExtent = (FVector)PrimBounds.GetExtent();
+						const FBox PrimBounds = PrimitiveModifiedBounds[BoundsIndex];
+						const FVector PrimWorldCenter = PrimBounds.GetCenter();
+						const FVector PrimWorldExtent = PrimBounds.GetExtent();
 						const FBox ModifiedBounds(PrimWorldCenter - PrimWorldExtent, PrimWorldCenter + PrimWorldExtent);
 
 						if (ModifiedBounds.ComputeSquaredDistanceToBox(ClipmapBounds) < ClipmapInfluenceRadius * ClipmapInfluenceRadius)

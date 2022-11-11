@@ -4318,7 +4318,7 @@ void FSceneRenderer::WaitForCleanUpTasks(FRHICommandListImmediate& RHICmdList)
 	GSceneRenderCleanUpState.bWaitForTasksComplete = true;
 }
 
-void ResetAndShrinkModifiedBounds(TArray<FRenderBounds>& Bounds)
+void ResetAndShrinkModifiedBounds(TArray<FBox>& Bounds)
 {
 	const int32 MaxAllocatedSize = FMath::RoundUpToPowerOfTwo(FMath::Max<uint32>(DistanceField::MinPrimitiveModifiedBoundsAllocation, Bounds.Num()));
 
