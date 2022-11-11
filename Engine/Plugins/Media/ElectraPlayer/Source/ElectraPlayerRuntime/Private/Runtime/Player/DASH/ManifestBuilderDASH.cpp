@@ -2075,6 +2075,11 @@ bool FManifestDASHInternal::CanUseEncryptedAdaptation(const TSharedPtrTS<FAdapta
 			if (DRMCapabilities.IsValid())
 			{
 				ElectraCDM::IMediaCDMCapabilities::ESupportResult Result;
+				Result = DRMCapabilities->SupportsCipher(InAdaptationSet->CommonEncryptionScheme);
+				if (Result != ElectraCDM::IMediaCDMCapabilities::ESupportResult::Supported)
+				{
+					continue;
+				}
 				Result = DRMCapabilities->SupportsType(Mime);
 				if (Result != ElectraCDM::IMediaCDMCapabilities::ESupportResult::Supported)
 				{
