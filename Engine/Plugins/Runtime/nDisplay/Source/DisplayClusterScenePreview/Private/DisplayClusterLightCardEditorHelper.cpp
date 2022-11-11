@@ -923,10 +923,10 @@ FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter FDisplayClusterLi
 	// Create a lambda function so that it's safe to access even if this helper is destroyed
 	return FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter::CreateLambda([bIsUVProjection](const UPrimitiveComponent* PrimitiveComponent)
 		{
-			if (ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(PrimitiveComponent->GetOwner()))
+			if (IDisplayClusterStageActor* StageActor = Cast<IDisplayClusterStageActor>(PrimitiveComponent->GetOwner()))
 			{
-				// Only render the UV light cards when in UV projection mode, and only render non-UV light cards in any other projection mode
-				return bIsUVProjection ? LightCard->bIsUVLightCard : !LightCard->bIsUVLightCard;
+				// Only render the UV actors when in UV projection mode, and only render non-UV actors in any other projection mode
+				return bIsUVProjection ? StageActor->IsUVActor() : !StageActor->IsUVActor();
 			}
 
 			return true;
@@ -940,10 +940,10 @@ FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter FDisplayClusterLi
 	// Create a lambda function so that it's safe to access even if this helper is destroyed
 	return FDisplayClusterMeshProjectionPrimitiveFilter::FPrimitiveFilter::CreateLambda([bIsUVProjection](const UPrimitiveComponent* PrimitiveComponent)
 		{
-			if (ADisplayClusterLightCardActor* LightCard = Cast<ADisplayClusterLightCardActor>(PrimitiveComponent->GetOwner()))
+			if (IDisplayClusterStageActor* StageActor = Cast<IDisplayClusterStageActor>(PrimitiveComponent->GetOwner()))
 			{
-				// When in UV projection mode, don't render the UV light cards using the UV projection, render them linearly
-				if (bIsUVProjection && LightCard->bIsUVLightCard)
+				// When in UV projection mode, don't render the UV actors using the UV projection, render them linearly
+				if (bIsUVProjection && StageActor->IsUVActor())
 				{
 					return false;
 				}
