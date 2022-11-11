@@ -50,6 +50,9 @@ public:
 	virtual TStatId GetStatId() const override;
 	// End FTickableGameObject overrides
 
+	void PrioritizeGrassCreation(bool bPrioritizeGrassCreation) { bIsGrassCreationPrioritized = bPrioritizeGrassCreation; }
+	bool IsGrassCreationPrioritized() const { return bIsGrassCreationPrioritized; }
+
 #if WITH_EDITOR
 	LANDSCAPE_API void BuildAll();
 	LANDSCAPE_API void BuildGrassMaps();
@@ -81,6 +84,7 @@ private:
 	virtual void Deinitialize() override;
 	// End USubsystem
 
+	bool bIsGrassCreationPrioritized;
 	TArray<TWeakObjectPtr<ALandscapeProxy>> Proxies;
 
 #if WITH_EDITOR
