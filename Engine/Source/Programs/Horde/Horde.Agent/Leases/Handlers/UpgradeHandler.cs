@@ -48,7 +48,7 @@ namespace Horde.Agent.Leases.Handlers
 
 				// Download the new software
 				FileInfo outputFile = new FileInfo(Path.Combine(upgradeDir.FullName, "Agent.zip"));
-				using (IRpcClientRef rpcClientRef = await session.RpcConnection.GetClientRef(new RpcContext(), cancellationToken))
+				using (IRpcClientRef<HordeRpc.HordeRpcClient> rpcClientRef = await session.RpcConnection.GetClientRefAsync<HordeRpc.HordeRpcClient>(cancellationToken))
 				using (AsyncServerStreamingCall<DownloadSoftwareResponse> cursor = rpcClientRef.Client.DownloadSoftware(new DownloadSoftwareRequest(requiredVersion), null, null, cancellationToken))
 				{
 					using (Stream outputStream = outputFile.Open(FileMode.Create))

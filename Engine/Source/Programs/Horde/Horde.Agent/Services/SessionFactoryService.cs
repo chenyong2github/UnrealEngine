@@ -210,7 +210,7 @@ namespace Horde.Agent.Services
 
 			// Open a connection to the server
 #pragma warning disable CA2000 // False positive; ownership is transferred to new Session object.
-			IRpcConnection rpcConnection = Utility.RpcConnection.Create(createGrpcChannel, channel => new HordeRpc.HordeRpcClient(channel), logger);
+			IRpcConnection rpcConnection = new RpcConnection(createGrpcChannel, logger);
 			return new Session(serverProfile.Url, createSessionResponse.AgentId, createSessionResponse.SessionId, createSessionResponse.Token, rpcConnection, workingDir, currentSettings.ProcessNamesToTerminate, logger);
 #pragma warning restore CA2000
 		}

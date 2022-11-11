@@ -17,6 +17,7 @@ using Google.Protobuf;
 using Grpc.Core;
 using Horde.Agent.Services;
 using Horde.Agent.Utility;
+using HordeCommon.Rpc;
 using HordeCommon.Rpc.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -51,7 +52,7 @@ namespace Horde.Agent.Leases.Handlers
 			try
 			{
 				DateTimeOffset actionTaskStartTime = DateTimeOffset.UtcNow;
-				using (IRpcClientRef client = await session.RpcConnection.GetClientRef(new RpcContext(), cancellationToken))
+				using (IRpcClientRef<HordeRpc.HordeRpcClient> client = await session.RpcConnection.GetClientRefAsync<HordeRpc.HordeRpcClient>(cancellationToken))
 				{
 					DirectoryReference leaseDir = DirectoryReference.Combine(session.WorkingDir, "Compute", leaseId);
 					DirectoryReference.CreateDirectory(leaseDir);

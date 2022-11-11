@@ -72,7 +72,7 @@ namespace Horde.Agent.Utility
 					return null;
 				}
 
-				string artifactId = await rpcConnection.InvokeAsync(rpcClient => DoUploadAsync(rpcClient, jobId, batchId, stepId, artifactName, artifactFile, logger, cancellationToken), new RpcContext(), cancellationToken);
+				string artifactId = await rpcConnection.InvokeAsync((HordeRpc.HordeRpcClient rpcClient) => DoUploadAsync(rpcClient, jobId, batchId, stepId, artifactName, artifactFile, logger, cancellationToken), cancellationToken);
 				return artifactId;
 			}
 			catch (Exception ex)

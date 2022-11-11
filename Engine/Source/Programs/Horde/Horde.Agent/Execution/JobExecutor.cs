@@ -184,10 +184,10 @@ namespace Horde.Agent.Execution
 		public virtual async Task InitializeAsync(ILogger logger, CancellationToken cancellationToken)
 		{
 			// Get the job settings
-			_job = await RpcConnection.InvokeAsync(x => x.GetJobAsync(new GetJobRequest(_jobId), null, null, cancellationToken), new RpcContext(), cancellationToken);
+			_job = await RpcConnection.InvokeAsync((HordeRpc.HordeRpcClient x) => x.GetJobAsync(new GetJobRequest(_jobId), null, null, cancellationToken), cancellationToken);
 
 			// Get the stream settings
-			_stream = await RpcConnection.InvokeAsync(x => x.GetStreamAsync(new GetStreamRequest(_job.StreamId), null, null, cancellationToken), new RpcContext(), cancellationToken);
+			_stream = await RpcConnection.InvokeAsync((HordeRpc.HordeRpcClient x) => x.GetStreamAsync(new GetStreamRequest(_job.StreamId), null, null, cancellationToken), cancellationToken);
 
 			// Get the agent type to determine how to configure this machine
 			_agentType = _stream.AgentTypes.FirstOrDefault(x => x.Key == _agentTypeName).Value;
@@ -576,7 +576,7 @@ namespace Horde.Agent.Execution
 			}
 			
 
-			await RpcConnection.InvokeAsync(x => x.UpdateGraphAsync(updateGraph, null, null, cancellationToken), new RpcContext(), cancellationToken);
+			await RpcConnection.InvokeAsync((HordeRpc.HordeRpcClient x) => x.UpdateGraphAsync(updateGraph, null, null, cancellationToken), cancellationToken);
 
 			HashSet<string> validTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 			validTargets.Add("Setup Build");
@@ -1317,7 +1317,7 @@ namespace Horde.Agent.Execution
 			request.Placement = report.Placement;
 			request.Name = report.Name;
 			request.ArtifactId = artifactId;
-			await RpcConnection.InvokeAsync(x => x.CreateReportAsync(request), new RpcContext(), CancellationToken.None);
+			await RpcConnection.InvokeAsync((HordeRpc.HordeRpcClient x) => x.CreateReportAsync(request), CancellationToken.None);
 		}
 
 		private ISpan CreateTracingData(ISpan parent, TraceSpan span)
@@ -1352,7 +1352,7 @@ namespace Horde.Agent.Execution
 		{
 			if (testData.Any())
 			{
-				await RpcConnection.InvokeAsync(x => UploadTestDataAsync(x, jobStepId, testData), new RpcContext(), CancellationToken.None);
+				await RpcConnection.InvokeAsync((HordeRpc.HordeRpcClient x) => UploadTestDataAsync(x, jobStepId, testData), CancellationToken.None);
 			}
 		}
 

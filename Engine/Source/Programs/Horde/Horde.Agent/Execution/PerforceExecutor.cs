@@ -108,7 +108,7 @@ namespace Horde.Agent.Execution
 					UpdateJobRequest updateJobRequest = new UpdateJobRequest();
 					updateJobRequest.JobId = _jobId;
 					updateJobRequest.Change = _job.Change;
-					await RpcConnection.InvokeAsync(x => x.UpdateJobAsync(updateJobRequest, null, null, cancellationToken), new RpcContext(), cancellationToken);
+					await RpcConnection.InvokeAsync((HordeRpc.HordeRpcClient x) => x.UpdateJobAsync(updateJobRequest, null, null, cancellationToken), cancellationToken);
 				}
 
 				// Sync the workspace

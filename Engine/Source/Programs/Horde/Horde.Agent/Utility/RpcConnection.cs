@@ -3,9 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Net;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
@@ -17,20 +15,12 @@ using OpenTracing.Util;
 
 namespace Horde.Agent.Utility
 {
-	/// <summary>
-	/// Ref-counted reference to a HordeRpcClient. Must be disposed after use.
-	/// </summary>
-	interface IRpcClientRef : IDisposable
+	interface IRpcClientRef<T> : IDisposable where T : ClientBase<T>
 	{
-		/// <summary>
-		/// The Grpc channel instance
-		/// </summary>
-		GrpcChannel Channel { get; }
-
 		/// <summary>
 		/// The client instance
 		/// </summary>
-		HordeRpc.HordeRpcClient Client { get; }
+		T Client { get; }
 
 		/// <summary>
 		/// Task which completes when the client needs to be disposed of
@@ -38,89 +28,158 @@ namespace Horde.Agent.Utility
 		Task DisposingTask { get; }
 	}
 
-	/// <summary>
-	/// Context for an RPC call. Used for debugging reference leaks.
-	/// </summary>
-	class RpcContext
-	{
-		/// <summary>
-		/// Text to display
-		/// </summary>
-		public string Text { get; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="text">Text to display</param>
-		public RpcContext(string text)
-		{
-			Text = text;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="line">Line number of the file</param>
-		/// <param name="file">Calling file</param>
-		public RpcContext([CallerLineNumber] int line = 0, [CallerFilePath] string file = "")
-		{
-			Text = $"{file}({line})";
-		}
-	}
-
 	interface IRpcConnection : IAsyncDisposable
 	{
+		/// <summary>
+		/// Logger for this connection
+		/// </summary>
+		ILogger Logger { get; }
+
 		/// <summary>
 		/// Attempts to get a client reference, returning immediately if there's not one available
 		/// </summary>
 		/// <returns></returns>
-		IRpcClientRef? TryGetClientRef(RpcContext context);
+		IRpcClientRef<TClient>? TryGetClientRef<TClient>() where TClient : ClientBase<TClient>;
 
 		/// <summary>
 		/// Obtains a new client reference object
 		/// </summary>
-		/// <param name="context">Context for the call, for debugging</param>
 		/// <param name="cancellationToken">Cancellation token for this request</param>
 		/// <returns>New client reference</returns>
-		Task<IRpcClientRef> GetClientRef(RpcContext context, CancellationToken cancellationToken);
+		Task<IRpcClientRef<TClient>> GetClientRefAsync<TClient>(CancellationToken cancellationToken) where TClient : ClientBase<TClient>;
+	}
+
+	static class RpcConnectionExtensions
+	{
+		private static readonly TimeSpan[] s_retryTimes =
+		{
+			TimeSpan.FromSeconds(1.0),
+			TimeSpan.FromSeconds(10.0),
+			TimeSpan.FromSeconds(30.0),
+		};
 
 		/// <summary>
 		/// Invokes an asynchronous command with a HordeRpcClient instance
 		/// </summary>
+		/// <typeparam name="TClient">The type of client to call</typeparam>
+		/// <typeparam name="TResult">Return type from the call</typeparam>
+		/// <param name="connection">The connection object</param>
 		/// <param name="func">The function to execute</param>
-		/// <param name="context">Context for the call, for debugging</param>
 		/// <param name="cancellationToken">Cancellation token for the call</param>
 		/// <returns>Response from the call</returns>
-		Task<T> InvokeOnceAsync<T>(Func<HordeRpc.HordeRpcClient, Task<T>> func, RpcContext context, CancellationToken cancellationToken);
+		public static async Task<TResult> InvokeOnceAsync<TClient, TResult>(this IRpcConnection connection, Func<TClient, Task<TResult>> func, CancellationToken cancellationToken) where TClient : ClientBase<TClient>
+		{
+			using (IRpcClientRef<TClient> clientRef = await connection.GetClientRefAsync<TClient>(cancellationToken))
+			{
+				return await func(clientRef.Client);
+			}
+		}
 
 		/// <summary>
 		/// Obtains a client reference and executes a unary RPC
 		/// </summary>
-		/// <typeparam name="T">Return type from the call</typeparam>
+		/// <typeparam name="TClient">The type of client to call</typeparam>
+		/// <typeparam name="TResult">Return type from the call</typeparam>
+		/// <param name="connection">The connection object</param>
 		/// <param name="func">Method to execute with the RPC instance</param>
-		/// <param name="context">Context for the call, for debugging</param>
 		/// <param name="cancellationToken">Cancellation token for the call</param>
 		/// <returns>Response from the call</returns>
-		Task<T> InvokeOnceAsync<T>(Func<HordeRpc.HordeRpcClient, AsyncUnaryCall<T>> func, RpcContext context, CancellationToken cancellationToken);
+		public static Task<TResult> InvokeOnceAsync<TClient, TResult>(this IRpcConnection connection, Func<TClient, AsyncUnaryCall<TResult>> func, CancellationToken cancellationToken) where TClient : ClientBase<TClient>
+		{
+			return InvokeOnceAsync<TClient, TResult>(connection, async (x) => await func(x), cancellationToken);
+		}
 
 		/// <summary>
 		/// Invokes an asynchronous command with a HordeRpcClient instance
 		/// </summary>
+		/// <typeparam name="TClient">The type of client to call</typeparam>
+		/// <typeparam name="TResult">Return type from the call</typeparam>
+		/// <param name="connection">The connection object</param>
 		/// <param name="func">The function to execute</param>
-		/// <param name="context">Context for the call, for debugging</param>
 		/// <param name="cancellationToken">Cancellation token for the call</param>
 		/// <returns>Response from the call</returns>
-		Task<T> InvokeAsync<T>(Func<HordeRpc.HordeRpcClient, Task<T>> func, RpcContext context, CancellationToken cancellationToken);
+		public static async Task<TResult> InvokeAsync<TClient, TResult>(this IRpcConnection connection, Func<TClient, Task<TResult>> func, CancellationToken cancellationToken) where TClient : ClientBase<TClient>
+		{
+			for (int attempt = 0; ; attempt++)
+			{
+				// Attempt the RPC call
+				using (IRpcClientRef<TClient> clientRef = await connection.GetClientRefAsync<TClient>(cancellationToken))
+				{
+					try
+					{
+						return await func(clientRef.Client);
+					}
+					catch (Exception ex)
+					{
+						// Otherwise check if we can try again
+						if (attempt >= s_retryTimes.Length)
+						{
+							connection.Logger.LogError("Max number of retry attempts reached");
+							throw;
+						}
+
+						// Check if the user requested cancellation
+						if (cancellationToken.IsCancellationRequested)
+						{
+							connection.Logger.LogInformation("Cancellation of gRPC call requested");
+							throw;
+						}
+
+						// Check we can retry it
+						if (!CanRetry(ex))
+						{
+							connection.Logger.LogError(ex, "Exception during RPC: {Message}", ex.Message);
+							throw;
+						}
+
+						RpcException? rpcEx = ex as RpcException;
+						if (rpcEx != null && rpcEx.StatusCode == StatusCode.Unavailable)
+						{
+							connection.Logger.LogInformation(ex, "Failure #{Attempt} during gRPC call (service unavailable). Retrying...", attempt + 1);
+						}
+						else
+						{
+							connection.Logger.LogError(ex, "Failure #{Attempt} during gRPC call.", attempt + 1);
+						}
+					}
+				}
+
+				// Wait before retrying
+				await Task.Delay(s_retryTimes[attempt], cancellationToken);
+			}
+		}
 
 		/// <summary>
 		/// Obtains a client reference and executes a unary RPC
 		/// </summary>
-		/// <typeparam name="T">Return type from the call</typeparam>
+		/// <typeparam name="TClient">The type of client to call</typeparam>
+		/// <typeparam name="TResult">Return type from the call</typeparam>
+		/// <param name="connection">The connection object</param>
 		/// <param name="func">Method to execute with the RPC instance</param>
-		/// <param name="context">Context for the call, for debugging</param>
 		/// <param name="cancellationToken">Cancellation token for the call</param>
 		/// <returns>Response from the call</returns>
-		Task<T> InvokeAsync<T>(Func<HordeRpc.HordeRpcClient, AsyncUnaryCall<T>> func, RpcContext context, CancellationToken cancellationToken);
+		public static Task<TResult> InvokeAsync<TClient, TResult>(this IRpcConnection connection, Func<TClient, AsyncUnaryCall<TResult>> func, CancellationToken cancellationToken) where TClient : ClientBase<TClient>
+		{
+			return InvokeAsync<TClient, TResult>(connection, async (x) => await func(x), cancellationToken);
+		}
+
+		/// <summary>
+		/// Determines if the given exception should be retried
+		/// </summary>
+		/// <param name="ex"></param>
+		/// <returns></returns>
+		static bool CanRetry(Exception ex)
+		{
+			RpcException? rpcEx = ex as RpcException;
+			if (rpcEx != null)
+			{
+				return rpcEx.StatusCode == StatusCode.Cancelled || rpcEx.StatusCode == StatusCode.Unavailable || rpcEx.StatusCode == StatusCode.DataLoss /* Interrupted streaming call */;
+			}
+			else
+			{
+				return false;
+			}
+		}
 	}
 
 	/// <summary>
@@ -152,14 +211,6 @@ namespace Horde.Agent.Utility
 			public GrpcChannel Channel { get; }
 
 			/// <summary>
-			/// The RPC interface
-			/// </summary>
-			public HordeRpc.HordeRpcClient Client
-			{
-				get;
-			}
-
-			/// <summary>
 			/// Task which is set to indicate the connection is being disposed
 			/// </summary>
 			public Task DisposingTask => _disposingTaskSource.Task;
@@ -168,6 +219,11 @@ namespace Horde.Agent.Utility
 			/// Logger for messages about refcount changes
 			/// </summary>
 			private readonly ILogger _logger;
+
+			/// <summary>
+			/// Cache of created clients
+			/// </summary>
+			private readonly Dictionary<Type, ClientBase> _clients = new Dictionary<Type, ClientBase>();
 
 			/// <summary>
 			/// The current refcount
@@ -195,16 +251,39 @@ namespace Horde.Agent.Utility
 			/// <param name="connectionId">The connection id</param>
 			/// <param name="name">Name of the server</param>
 			/// <param name="channel">The channel instance</param>
-			/// <param name="client">The client instance</param>
 			/// <param name="logger">Logger for debug messages</param>
-			public RpcSubConnection(int connectionId, string name, GrpcChannel channel, HordeRpc.HordeRpcClient client, ILogger logger)
+			public RpcSubConnection(int connectionId, string name, GrpcChannel channel, ILogger logger)
 			{
 				ConnectionId = connectionId;
 				Name = name;
 				Channel = channel;
-				Client = client;
 				_logger = logger;
 				_refCount = 1;
+			}
+
+			/// <summary>
+			/// Creates a client of the given type using this connection
+			/// </summary>
+			/// <typeparam name="T">The client type</typeparam>
+			/// <returns>Client of the given type</returns>
+			public T CreateClient<T>() where T : ClientBase => (T)CreateClient(typeof(T));
+
+			/// <summary>
+			/// Creates a client of an arbitrary type using the current channel
+			/// </summary>
+			/// <param name="clientType">The client type</param>
+			/// <returns></returns>
+			public ClientBase CreateClient(Type clientType)
+			{
+				lock (_clients)
+				{
+					ClientBase? client;
+					if (!_clients.TryGetValue(clientType, out client))
+					{
+						client = (ClientBase)Activator.CreateInstance(clientType, Channel)!;
+					}
+					return client;
+				}
 			}
 
 			/// <summary>
@@ -260,104 +339,48 @@ namespace Horde.Agent.Utility
 		/// <summary>
 		/// Reference to a connection instance
 		/// </summary>
-		class RpcClientRef : IRpcClientRef
+		class RpcClientRef<TClient> : IRpcClientRef<TClient> where TClient : ClientBase<TClient>
 		{
-			/// <summary>
-			/// The subconnection containing the client
-			/// </summary>
-			public RpcSubConnection SubConnection { get; }
+			RpcSubConnection _subConnection;
 
-			/// <summary>
-			/// Context for the reference
-			/// </summary>
-			public RpcContext Context { get; }
-
-			/// <summary>
-			/// The channel instance
-			/// </summary>
-			public GrpcChannel Channel => SubConnection.Channel;
-
-			/// <summary>
-			/// The client instance
-			/// </summary>
-			public HordeRpc.HordeRpcClient Client => SubConnection.Client;
-
-			/// <summary>
-			/// Task which completes when the connection should be disposed
-			/// </summary>
-			public Task DisposingTask => SubConnection.DisposingTask;
-
-			/// <summary>
-			/// Tracks all the active refs
-			/// </summary>
-			private static readonly List<RpcClientRef> s_currentRefs = new List<RpcClientRef>();
-
-			/// <summary>
-			/// Constructor
-			/// </summary>
-			/// <param name="sharedClient">The subconnection containing the client</param>
-			/// <param name="context">Description of the reference, for debugging</param>
-			public RpcClientRef(RpcSubConnection sharedClient, RpcContext context)
+			public RpcClientRef(RpcSubConnection subConnection)
 			{
-				SubConnection = sharedClient;
-				Context = context;
-
-				lock (s_currentRefs)
-				{
-					s_currentRefs.Add(this);
-				}
+				_subConnection = subConnection;
+				Client = _subConnection.CreateClient<TClient>();
 			}
 
-			/// <summary>
-			/// Dispose of this reference
-			/// </summary>
 			public void Dispose()
 			{
-				SubConnection.Release();
-
-				lock(s_currentRefs)
+				if (_subConnection != null)
 				{
-					s_currentRefs.Remove(this);
+					_subConnection.Release();
+					_subConnection = null!;
 				}
 			}
 
-			/// <summary>
-			/// Gets a list of all the active refs
-			/// </summary>
-			/// <returns>List of ref descriptions</returns>
-			public static List<string> GetActiveRefs()
-			{
-				lock(s_currentRefs)
-				{
-					return s_currentRefs.Select(x => x.Context.Text).ToList();
-				}
-			}
+			public GrpcChannel Channel => _subConnection.Channel;
+
+			public TClient Client { get; }
+
+			public Task DisposingTask => _subConnection.DisposingTask;
 		}
 
-		private static readonly TimeSpan[] s_retryTimes =
-		{
-			TimeSpan.FromSeconds(1.0),
-			TimeSpan.FromSeconds(10.0),
-			TimeSpan.FromSeconds(30.0),
-		};
-
 		private readonly Func<GrpcChannel> _createGrpcChannel;
-		private readonly Func<GrpcChannel, HordeRpc.HordeRpcClient> _createHordeRpcClient;
 		private readonly TaskCompletionSource<bool> _stoppingTaskSource = new TaskCompletionSource<bool>();
 		private TaskCompletionSource<RpcSubConnection> _subConnectionTaskSource = new TaskCompletionSource<RpcSubConnection>();
 		private Task? _backgroundTask;
 		private readonly ILogger _logger;
 
+		public ILogger Logger => _logger;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="createGrpcChannel">Factory method for creating new GRPC channels</param>
-		/// <param name="createHordeRpcClient">Factory method for creating new Horde.Rpc clients</param>
 		/// <param name="logger">Logger instance</param>
-		public RpcConnection(Func<GrpcChannel> createGrpcChannel, Func<GrpcChannel, HordeRpc.HordeRpcClient> createHordeRpcClient, ILogger logger)
+		public RpcConnection(Func<GrpcChannel> createGrpcChannel, ILogger logger)
 		{
 			_createGrpcChannel = createGrpcChannel;
-			_createHordeRpcClient = createHordeRpcClient;
 			_logger = logger;
 
 			_backgroundTask = Task.Run(() => ExecuteAsync());
@@ -367,7 +390,7 @@ namespace Horde.Agent.Utility
 		/// Attempts to get a client reference, returning immediately if there's not one available
 		/// </summary>
 		/// <returns></returns>
-		public IRpcClientRef? TryGetClientRef(RpcContext context)
+		public IRpcClientRef<TClient>? TryGetClientRef<TClient>() where TClient : ClientBase<TClient>
 		{
 			Task<RpcSubConnection> subConnectionTask = _subConnectionTaskSource.Task;
 			if (subConnectionTask.IsCompleted)
@@ -375,7 +398,7 @@ namespace Horde.Agent.Utility
 				RpcSubConnection defaultClient = subConnectionTask.Result;
 				if(defaultClient.TryAddRef())
 				{
-					return new RpcClientRef(defaultClient, context);
+					return new RpcClientRef<TClient>(defaultClient);
 				}
 			}
 			return null;
@@ -384,10 +407,10 @@ namespace Horde.Agent.Utility
 		/// <summary>
 		/// Obtains a new client reference object
 		/// </summary>
-		/// <param name="context">Context for the call, for debugging</param>
+		/// <typeparam name="TClient">Type of the client</typeparam>
 		/// <param name="cancellationToken">Cancellation token for this request</param>
 		/// <returns>New client reference</returns>
-		public async Task<IRpcClientRef> GetClientRef(RpcContext context, CancellationToken cancellationToken)
+		public async Task<IRpcClientRef<TClient>> GetClientRefAsync<TClient>(CancellationToken cancellationToken) where TClient : ClientBase<TClient>
 		{
 			for (; ; )
 			{
@@ -401,7 +424,7 @@ namespace Horde.Agent.Utility
 						if (await Task.WhenAny(delay, _subConnectionTaskSource.Task, _stoppingTaskSource.Task) == delay)
 						{
 							await delay; // Allow the cancellation token to throw
-							_logger.LogInformation("Thread stalled for {Time:0.0}s while waiting for IRpcClientRef. Source:\n{Context}\nActive references:\n{References}\nStack trace:\n{StackTrace}", timer.Elapsed.TotalSeconds, context.Text, String.Join("\n", RpcClientRef.GetActiveRefs()), Environment.StackTrace);
+							_logger.LogInformation("Thread stalled for {Time:0.0}s while waiting for IRpcClientRef.\nStack trace:\n{StackTrace}", timer.Elapsed.TotalSeconds, Environment.StackTrace);
 						}
 						if (_stoppingTaskSource.Task.IsCompleted)
 						{
@@ -411,129 +434,12 @@ namespace Horde.Agent.Utility
 				}
 
 				// Get the new task and increase the refcount
-				RpcSubConnection defaultClient = await _subConnectionTaskSource.Task;
-				if (defaultClient.TryAddRef())
+				RpcSubConnection subConnection = await _subConnectionTaskSource.Task;
+				if (subConnection.TryAddRef())
 				{
-					return new RpcClientRef(defaultClient, context);
+					return new RpcClientRef<TClient>(subConnection);
 				}
 			}
-		}
-
-		/// <summary>
-		/// Invokes an asynchronous command with a HordeRpcClient instance
-		/// </summary>
-		/// <param name="func">The function to execute</param>
-		/// <param name="context">Context for the call, for debugging</param>
-		/// <param name="cancellationToken">Cancellation token for the call</param>
-		/// <returns>Response from the call</returns>
-		public async Task<T> InvokeOnceAsync<T>(Func<HordeRpc.HordeRpcClient, Task<T>> func, RpcContext context, CancellationToken cancellationToken)
-		{
-			using (IRpcClientRef clientRef = await GetClientRef(context, cancellationToken))
-			{
-				return await func(clientRef.Client);
-			}
-		}
-
-		/// <summary>
-		/// Obtains a client reference and executes a unary RPC
-		/// </summary>
-		/// <typeparam name="T">Return type from the call</typeparam>
-		/// <param name="func">Method to execute with the RPC instance</param>
-		/// <param name="context">Context for the call, for debugging</param>
-		/// <param name="cancellationToken">Cancellation token for the call</param>
-		/// <returns>Response from the call</returns>
-		public Task<T> InvokeOnceAsync<T>(Func<HordeRpc.HordeRpcClient, AsyncUnaryCall<T>> func, RpcContext context, CancellationToken cancellationToken)
-		{
-			return InvokeOnceAsync(async (x) => await func(x), context, cancellationToken);
-		}
-
-		/// <summary>
-		/// Invokes an asynchronous command with a HordeRpcClient instance
-		/// </summary>
-		/// <param name="func">The function to execute</param>
-		/// <param name="context">Context for the call, for debugging</param>
-		/// <param name="cancellationToken">Cancellation token for the call</param>
-		/// <returns>Response from the call</returns>
-		public async Task<T> InvokeAsync<T>(Func<HordeRpc.HordeRpcClient, Task<T>> func, RpcContext context, CancellationToken cancellationToken)
-		{
-			for (int attempt = 0; ;attempt++)
-			{
-				// Attempt the RPC call
-				using (IRpcClientRef clientRef = await GetClientRef(context, cancellationToken))
-				{
-					try
-					{
-						return await func(clientRef.Client);
-					}
-					catch (Exception ex)
-					{
-						// Otherwise check if we can try again
-						if (attempt >= s_retryTimes.Length)
-						{
-							_logger.LogError("Max number of retry attempts reached");
-							throw;
-						}
-
-						// Check if the user requested cancellation
-						if (cancellationToken.IsCancellationRequested)
-						{
-							_logger.LogInformation("Cancellation of gRPC call requested");
-							throw;
-						}
-
-						// Check we can retry it
-						if (!CanRetry(ex))
-						{
-							_logger.LogError(ex, "Exception during RPC: {Message}", ex.Message);
-							throw;
-						}
-
-						RpcException? rpcEx = ex as RpcException;
-						if (rpcEx != null && rpcEx.StatusCode == StatusCode.Unavailable)
-						{
-							_logger.LogInformation(ex, "Failure #{Attempt} during gRPC call (service unavailable). Retrying...", attempt + 1);
-						}
-						else
-						{
-							_logger.LogError(ex, "Failure #{Attempt} during gRPC call.", attempt + 1);
-						}
-					}
-				}
-
-				// Wait before retrying
-				await Task.Delay(s_retryTimes[attempt], cancellationToken);
-			}
-		}
-
-		/// <summary>
-		/// Determines if the given exception should be retried
-		/// </summary>
-		/// <param name="ex"></param>
-		/// <returns></returns>
-		public static bool CanRetry(Exception ex)
-		{
-			RpcException? rpcEx = ex as RpcException;
-			if(rpcEx != null)
-			{
-				return rpcEx.StatusCode == StatusCode.Cancelled || rpcEx.StatusCode == StatusCode.Unavailable || rpcEx.StatusCode == StatusCode.DataLoss /* Interrupted streaming call */;
-			}
-			else
-			{
-				return false;
-			}
-		}
-
-		/// <summary>
-		/// Obtains a client reference and executes a unary RPC
-		/// </summary>
-		/// <typeparam name="T">Return type from the call</typeparam>
-		/// <param name="func">Method to execute with the RPC instance</param>
-		/// <param name="context">Context for the call, for debugging</param>
-		/// <param name="cancellationToken">Cancellation token for the call</param>
-		/// <returns>Response from the call</returns>
-		public Task<T> InvokeAsync<T>(Func<HordeRpc.HordeRpcClient, AsyncUnaryCall<T>> func, RpcContext context, CancellationToken cancellationToken)
-		{
-			return InvokeAsync(async (x) => await func(x), context, cancellationToken);
 		}
 
 		/// <summary>
@@ -627,7 +533,7 @@ namespace Horde.Agent.Utility
 		{
 			using (GrpcChannel channel = _createGrpcChannel())
 			{
-				HordeRpc.HordeRpcClient client = _createHordeRpcClient(channel);
+				HordeRpc.HordeRpcClient client = new HordeRpc.HordeRpcClient(channel);
 
 				RpcSubConnection? subConnection = null;
 				try
@@ -658,7 +564,7 @@ namespace Horde.Agent.Utility
 								if (subConnection == null)
 								{
 									_logger.LogInformation("Connection {ConnectionId}: Connected to rpc server {ServerName}", connectionId, response.Name);
-									subConnection = new RpcSubConnection(connectionId, response.Name, channel, client, _logger);
+									subConnection = new RpcSubConnection(connectionId, response.Name, channel, _logger);
 									_subConnectionTaskSource.SetResult(subConnection);
 								}
 
@@ -738,11 +644,6 @@ namespace Horde.Agent.Utility
 				await _backgroundTask;
 				_backgroundTask = null!;
 			}
-		}
-
-		public static IRpcConnection Create(Func<GrpcChannel> createGrpcChannel, Func<GrpcChannel, HordeRpc.HordeRpcClient> createHordeRpcClient, ILogger logger)
-		{
-			return new RpcConnection(createGrpcChannel, createHordeRpcClient, logger);
 		}
 	}
 }

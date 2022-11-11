@@ -329,7 +329,7 @@ namespace Horde.Agent.Leases
 				{
 					// Update the state with the server
 					UpdateSessionResponse? updateSessionResponse = null;
-					using (IRpcClientRef? rpcClientRef = rpcCon.TryGetClientRef(new RpcContext()))
+					using (IRpcClientRef<HordeRpc.HordeRpcClient>? rpcClientRef = rpcCon.TryGetClientRef<HordeRpc.HordeRpcClient>())
 					{
 						if (rpcClientRef == null)
 						{
@@ -417,7 +417,7 @@ namespace Horde.Agent.Leases
 		/// <param name="updateSessionRequest">The session update request</param>
 		/// <param name="waitTask">Task which can be used to jump out of the update early</param>
 		/// <returns>Response from the call</returns>
-		async Task<UpdateSessionResponse?> UpdateSessionAsync(IRpcClientRef rpcClientRef, UpdateSessionRequest updateSessionRequest, Task waitTask)
+		async Task<UpdateSessionResponse?> UpdateSessionAsync(IRpcClientRef<HordeRpc.HordeRpcClient> rpcClientRef, UpdateSessionRequest updateSessionRequest, Task waitTask)
 		{
 			UpdateSessionResponse? updateSessionResponse = null;
 			try
@@ -455,7 +455,7 @@ namespace Horde.Agent.Leases
 		/// <param name="request">The session update request</param>
 		/// <param name="waitTask">Task to use to terminate the wait</param>
 		/// <returns>The response object</returns>
-		async Task<UpdateSessionResponse?> UpdateSessionInternalAsync(IRpcClientRef rpcClientRef, UpdateSessionRequest request, Task waitTask)
+		async Task<UpdateSessionResponse?> UpdateSessionInternalAsync(IRpcClientRef<HordeRpc.HordeRpcClient> rpcClientRef, UpdateSessionRequest request, Task waitTask)
 		{
 			DateTime deadline = DateTime.UtcNow + TimeSpan.FromMinutes(2.0);
 			using (AsyncDuplexStreamingCall<UpdateSessionRequest, UpdateSessionResponse> call = rpcClientRef.Client.UpdateSession(deadline: deadline))

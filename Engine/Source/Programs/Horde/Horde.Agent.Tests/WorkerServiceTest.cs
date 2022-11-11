@@ -260,7 +260,7 @@ namespace Horde.Agent.Tests
 		private bool _isStopping = false;
 		private Dictionary<string, Lease> _leases = new();
 		private readonly Mock<HordeRpc.HordeRpcClient> _mockClient;
-		private readonly Mock<IRpcClientRef> _mockClientRef;
+		private readonly Mock<IRpcClientRef<HordeRpc.HordeRpcClient>> _mockClientRef;
 		private readonly Mock<IRpcConnection> _mockConnection;
 		private readonly ILogger<FakeHordeRpcServer> _logger;
 		public readonly TaskCompletionSource<bool> CreateSessionReceived = new();
@@ -284,17 +284,17 @@ namespace Horde.Agent.Tests
 				.Setup(m => m.UpdateSession(null, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
 				.Returns(() => GetUpdateSessionCall(CancellationToken.None));
 
-			_mockClientRef = new Mock<IRpcClientRef>();
+			_mockClientRef = new Mock<IRpcClientRef<HordeRpc.HordeRpcClient>>();
 			_mockClientRef
 				.Setup(m => m.Client)
 				.Returns(() => _mockClient.Object);
 
 			_mockConnection = new(MockBehavior.Strict);
 			_mockConnection
-				.Setup(m => m.TryGetClientRef(It.IsAny<RpcContext>()))
-				.Returns<RpcContext>(x => _mockClientRef.Object);
+				.Setup(m => m.TryGetClientRef<HordeRpc.HordeRpcClient>())
+				.Returns(() => _mockClientRef.Object);
 			_mockConnection
-				.Setup(m => m.GetClientRef(It.IsAny<RpcContext>(), It.IsAny<CancellationToken>()))
+				.Setup(m => m.GetClientRefAsync<HordeRpc.HordeRpcClient>(It.IsAny<CancellationToken>()))
 				.Returns(() => Task.FromResult(_mockClientRef.Object));
 			_mockConnection
 				.Setup(m => m.DisposeAsync())

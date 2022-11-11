@@ -57,7 +57,7 @@ namespace Horde.Agent.Leases.Handlers
 				request.Workspaces.AddRange(pendingWorkspaces);
 				request.RemoveUntrackedFiles = removeUntrackedFiles;
 
-				UpdateAgentWorkspacesResponse response = await session.RpcConnection.InvokeAsync(x => x.UpdateAgentWorkspacesAsync(request, null, null, cancellationToken), new RpcContext(), cancellationToken);
+				UpdateAgentWorkspacesResponse response = await session.RpcConnection.InvokeAsync((HordeRpc.HordeRpcClient x) => x.UpdateAgentWorkspacesAsync(request, null, null, cancellationToken), cancellationToken);
 				if (!response.Retry)
 				{
 					conformLogger.LogInformation("Conform finished");
