@@ -256,6 +256,7 @@ public:
 
 	bool InitializeSystem();
 	void DestroyInstance();
+	void DestroyInstanceNotComponent();
 
 	void OnPooledReuse(UWorld* NewWorld);
 

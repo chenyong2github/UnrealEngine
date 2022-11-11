@@ -870,11 +870,7 @@ void UNiagaraComponent::ResetSystem()
 
 void UNiagaraComponent::ReinitializeSystem()
 {
-	const bool bCachedAutoDestroy = bAutoDestroy;
-	bAutoDestroy = false;
-	DestroyInstance();
-	bAutoDestroy = bCachedAutoDestroy;
-
+	DestroyInstanceNotComponent();
 	Activate(true);
 }
 
@@ -1589,6 +1585,7 @@ void UNiagaraComponent::DestroyInstance()
 {
 	//UE_LOG(LogNiagara, Log, TEXT("UNiagaraComponent::DestroyInstance: %p - %p  %s\n"), this, SystemInstance.Get(), *GetAsset()->GetFullName());
 	//UE_LOG(LogNiagara, Log, TEXT("DestroyInstance: %p - %s"), this, *Asset->GetName());
+
 	SetActiveFlag(false);
 	UnregisterWithScalabilityManager();
 
@@ -1607,6 +1604,19 @@ void UNiagaraComponent::DestroyInstance()
 	OnSystemInstanceChangedDelegate.Broadcast();
 #endif
 	MarkRenderStateDirty();
+}
+
+void UNiagaraComponent::DestroyInstanceNotComponent()
+{
+	const bool bCachedAutoDestroy = bAutoDestroy;
+	const ENCPoolMethod CachedPoolMethod = PoolingMethod;
+	bAutoDestroy = false;
+	PoolingMethod = ENCPoolMethod::None;
+
+	DestroyInstance();
+
+	bAutoDestroy = bCachedAutoDestroy;
+	PoolingMethod = CachedPoolMethod;
 }
 
 void UNiagaraComponent::OnPooledReuse(UWorld* NewWorld)
@@ -3154,7 +3164,7 @@ void UNiagaraComponent::SynchronizeWithSourceSystem()
 	// Synchronizing parameters will create new data interface objects and if the old data
 	// interface objects are currently being used by a simulation they may be destroyed due to garbage
 	// collection, so preemptively kill the instance here.
-	DestroyInstance();
+	DestroyInstanceNotComponent();
 
 	//TODO: Look through params in system in "Owner" namespace and add to our parameters.
 	if (Asset == nullptr)
@@ -3737,7 +3747,7 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset, bool bResetExistingOve
 
 	const bool bWasActive = SystemInstanceController && SystemInstanceController->GetRequestedExecutionState() == ENiagaraExecutionState::Active;
 
-	DestroyInstance();
+	DestroyInstanceNotComponent();
 
 	// Set new asset, update parameters and reactivate it it was already active
 	Asset = InAsset;
