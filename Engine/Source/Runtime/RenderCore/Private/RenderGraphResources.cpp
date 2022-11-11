@@ -149,9 +149,3 @@ FRDGTextureSubresourceRange FRDGTexture::GetSubresourceRangeSRV() const
 
 	return Range;
 }
-
-IPooledRenderTarget* FRDGTexture::GetPooledRenderTarget() const
-{
-	IF_RDG_ENABLE_DEBUG(ValidateRHIAccess());
-	return RenderTarget;
-}

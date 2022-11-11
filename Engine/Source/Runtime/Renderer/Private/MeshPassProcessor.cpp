@@ -1869,17 +1869,6 @@ ERasterizerCullMode FMeshPassProcessor::ComputeMeshCullMode(const FMaterial& InM
 	return bMeshRenderTwoSided ? CM_None : (bInReverseCullModeOverride ? CM_CCW : CM_CW);
 }
 
-void FMeshPassProcessor::GetDrawCommandPrimitiveId(
-	const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo,
-	const FMeshBatchElement& BatchElement,
-	int32& DrawPrimitiveId,
-	int32& ScenePrimitiveId) const
-{
-	FMeshDrawCommandPrimitiveIdInfo PrimitiveIdInfo = GetDrawCommandPrimitiveId(PrimitiveSceneInfo, BatchElement);
-	DrawPrimitiveId = PrimitiveIdInfo.DrawPrimitiveId;
-	ScenePrimitiveId = PrimitiveIdInfo.ScenePrimitiveId;
-}
-
 FMeshDrawCommandPrimitiveIdInfo FMeshPassProcessor::GetDrawCommandPrimitiveId(
 	const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo,
 	const FMeshBatchElement& BatchElement) const

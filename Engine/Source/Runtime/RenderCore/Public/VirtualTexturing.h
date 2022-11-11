@@ -183,9 +183,6 @@ class IVirtualTextureFinalizer
 {
 public:
 	virtual void Finalize(FRDGBuilder& GraphBuilder) = 0;
-
-	UE_DEPRECATED(5.0, "This method has been refactored to use an FRDGBuilder instead.")
-	virtual void Finalize(FRHICommandListImmediate& RHICmdList) {}
 };
 
 enum class EVTRequestPageStatus

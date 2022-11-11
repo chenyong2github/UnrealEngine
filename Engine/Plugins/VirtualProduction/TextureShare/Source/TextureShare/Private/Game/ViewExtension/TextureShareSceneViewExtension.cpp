@@ -12,6 +12,7 @@
 #include "RHICommandList.h"
 #include "RHIResources.h"
 #include "SceneView.h"
+#include "SceneTextures.h"
 
 #include "PostProcess/SceneRenderTargets.h"
 

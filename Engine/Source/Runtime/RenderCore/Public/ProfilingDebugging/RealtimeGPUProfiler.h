@@ -119,8 +119,6 @@ struct RENDERCORE_API FBreadcrumbEvent
 		 *  command list (rendering / RHI thread) or enqueue a command on the current immediate command list (game thread)
 		 */
 		void CDECL Start(FRHIComputeCommandList* RHICmdList, FColor Color, const TCHAR* Fmt, ...);
-		UE_DEPRECATED(4.27, "This function has been deprecated in favor of the other version that takes a pointer in parameter")
-		void CDECL Start(FRHIComputeCommandList& RHICmdList, FColor Color, const TCHAR* Fmt, ...);
 		void Stop();
 	};
 
@@ -396,10 +394,6 @@ public:
 	RENDERCORE_API void BeginFrame(FRHICommandListImmediate& RHICmdList);
 	RENDERCORE_API void EndFrame(FRHICommandListImmediate& RHICmdList);
 	RENDERCORE_API void SuspendFrame();
-
-	/** Final cleanup */
-	UE_DEPRECATED(4.23, "Use FRealtimeGPUProfiler::SafeRelease() instead.")
-	RENDERCORE_API void Release();
 
 	/** Push/pop events */
 	FRealtimeGPUProfilerQuery PushEvent(FRHIGPUMask GPUMask, const FName& Name, const FName& StatName, const TCHAR* Description);

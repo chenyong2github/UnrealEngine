@@ -2,7 +2,9 @@
 
 #pragma once
 
+#if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_2
 #include "SceneTextures.h"
+#endif
 
 /*
 * Stencil layout during basepass / deferred decals:
@@ -50,59 +52,3 @@
 #define GET_STENCIL_MOBILE_SM_MASK(Value) uint8(((Value) & 0x3) << 1)
 // Sky material mask - bit 3
 #define STENCIL_MOBILE_SKY_MASK uint8(1 << 3)
-
-class FSceneRenderTargets
-{
-public:
-	UE_DEPRECATED(5.0, "FSceneRenderTargets is now deprecated from the RDG refactor. FSceneTextures should be used instead.")
-	static FSceneRenderTargets& Get()
-	{
-		static FSceneRenderTargets Instance;
-		return Instance;
-	}
-
-	UE_DEPRECATED(5.0, "FSceneRenderTargets is now deprecated from the RDG refactor. FSceneTextures should be used instead.")
-	static FSceneRenderTargets& Get(FRHICommandListImmediate&)
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return Get();
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	UE_DEPRECATED(5.0, "FSceneRenderTargets is now deprecated from the RDG refactor. FSceneTextures should be used instead.")
-	static FClearValueBinding GetDefaultColorClear()
-	{
-		return FSceneTexturesConfig::Get().ColorClearValue;
-	}
-
-	UE_DEPRECATED(5.0, "FSceneRenderTargets is now deprecated from the RDG refactor. FSceneTextures should be used instead.")
-	static FClearValueBinding GetDefaultDepthClear()
-	{
-		return FSceneTexturesConfig::Get().DepthClearValue;
-	}
-
-	UE_DEPRECATED(5.0, "FSceneRenderTargets is now deprecated from the RDG refactor. FSceneTextures should be used instead.")
-	static FIntPoint GetBufferSizeXY()
-	{
-		return FSceneTexturesConfig::Get().Extent;
-	}
-
-	UE_DEPRECATED(5.0, "FSceneRenderTargets is now deprecated from the RDG refactor. FSceneTextures should be used instead.")
-	static int32 GetMSAACount()
-	{
-		return FSceneTexturesConfig::Get().NumSamples;
-	}
-
-	UE_DEPRECATED(5.0, "FSceneRenderTargets is now deprecated from the RDG refactor. FSceneTextures should be used instead.")
-	static ERHIFeatureLevel::Type GetCurrentFeatureLevel()
-	{
-		return FSceneTexturesConfig::Get().FeatureLevel;
-	}
-
-	UE_DEPRECATED(5.0, "FSceneRenderTargets is now deprecated from the RDG refactor. FSceneTextures should be used instead.")
-	static TRefCountPtr<IPooledRenderTarget> GetSceneColor()
-	{
-		checkNoEntry();
-		return nullptr;
-	}
-};

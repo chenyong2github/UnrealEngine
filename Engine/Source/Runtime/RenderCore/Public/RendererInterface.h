@@ -80,13 +80,6 @@ public:
 		check(!IsValid());
 	}
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FPooledRenderTargetDesc(const FPooledRenderTargetDesc&) = default;
-	FPooledRenderTargetDesc(FPooledRenderTargetDesc&&) = default;
-	FPooledRenderTargetDesc& operator=(const FPooledRenderTargetDesc&) = default;
-	FPooledRenderTargetDesc& operator=(FPooledRenderTargetDesc&&) = default;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	/**
 	 * Factory function to create 2D texture description
 	 * @param InFlags bit mask combined from elements of ETextureCreateFlags e.g. TexCreate_UAV
@@ -409,9 +402,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FClearValueBinding ClearValue;
 	/** The flags that must be set on both the shader-resource and the targetable texture. bit mask combined from elements of ETextureCreateFlags e.g. TexCreate_UAV */
 	ETextureCreateFlags Flags = TexCreate_None;
-	/** The flags that must be set on the targetable texture. bit mask combined from elements of ETextureCreateFlags e.g. TexCreate_UAV */
-	UE_DEPRECATED(5.0, "TargetableFlags has been deprecated. Use Flags instead.")
-	ETextureCreateFlags TargetableFlags = TexCreate_None;
 	/** Texture format e.g. PF_B8G8R8A8 */
 	EPixelFormat Format = PF_Unknown;
 	/** Texture format used when creating the UAV (if TexCreate_UAV is also passed in TargetableFlags, ignored otherwise). PF_Unknown == use default (same as Format) */
@@ -435,36 +425,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			uint8 bIsArray : 1;
 			/** true if a cubemap texture */
 			uint8 bIsCubemap : 1;
-			/** Whether the shader-resource and targetable texture must be separate textures. */
-			UE_DEPRECATED(5.0, "bForceSeparateTargetAndShaderResource has been deprecated. Do not use.")
-			uint8 bForceSeparateTargetAndShaderResource : 1;
-			/** Whether the shader-resource and targetable texture must be the same resource. */
-			UE_DEPRECATED(5.0, "bForceSharedTargetAndShaderResource has been deprecated. Do not use.")
-			uint8 bForceSharedTargetAndShaderResource : 1;
-			/** automatically set to writable via barrier during */
-			UE_DEPRECATED(5.0, "AutoWritable has been deprecated. Do not use.")
-			uint8 AutoWritable : 1;
-			/** create render target write mask (supported only on specific platforms) */
-			UE_DEPRECATED(5.0, "bCreateRenderTargetWriteMask has been deprecated. Do not use.")
-			uint8 bCreateRenderTargetWriteMask : 1;
-			/** create render target fmask (supported only on specific platforms) */
-			UE_DEPRECATED(5.0, "bCreateRenderTargetFmask has been deprecated. Do not use.")
-			uint8 bCreateRenderTargetFmask : 1;
-			/** Unused flag. */
-			uint8 bReserved0 : 1;
+			/** Unused flags. */
+			uint8 bReserved0 : 6;
 		};
 		uint8 PackedBits;
 	};
-};
-
-/** Enum to select between the two RHI textures on a pooled render target. */
-enum class UE_DEPRECATED(5.0, "ERenderTargetTexture is deprecated. IPooledRenderTarget now only has shared texture.") ERenderTargetTexture : uint8
-{
-	/** Maps to the targetable RHI texture on a pooled render target item. */
-	Targetable,
-
-	/** Maps to the shader resource RHI texture on a pooled render target item. */
-	ShaderResource
 };
 
 /**
@@ -482,13 +447,6 @@ struct FSceneRenderTargetItem
 		,	UAV(InUAV)
 	{}
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FSceneRenderTargetItem(const FSceneRenderTargetItem&) = default;
-	FSceneRenderTargetItem(FSceneRenderTargetItem&&) = default;
-	FSceneRenderTargetItem& operator=(const FSceneRenderTargetItem&) = default;
-	FSceneRenderTargetItem& operator=(FSceneRenderTargetItem&&) = default;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	void SafeRelease()
 	{
 		TargetableTexture.SafeRelease();
@@ -505,11 +463,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	FRHITexture* GetRHI() const { return TargetableTexture; }
 
-	UE_DEPRECATED(5.0, "GetRHI with ERenderTargetTexture is deprecated. Use GetRHI() instead.")
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FRHITexture* GetRHI(ERenderTargetTexture) const { return TargetableTexture; }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	/** The 2D or cubemap texture that may be used as a render or depth-stencil target. */
 	FTextureRHIRef TargetableTexture;
 
@@ -518,22 +471,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	
 	/** only created if requested through the flag. */
 	FUnorderedAccessViewRHIRef UAV;
-
-	UE_DEPRECATED(5.0, "RTWriteMaskSRV is deprecated. Use RDG instead.")
-	FShaderResourceViewRHIRef RTWriteMaskSRV;
-
-	UE_DEPRECATED(5.0, "FmaskSRV is deprecated. Use RDG instead.")
-	FShaderResourceViewRHIRef FmaskSRV;
-
-	/** only created if requested through meta data access flags */
-	UE_DEPRECATED(5.0, "HTileUAV is deprecated. Use RDG instead.")
-	FUnorderedAccessViewRHIRef HTileUAV;
-
-	UE_DEPRECATED(5.0, "HTileSRV is deprecated. Use RDG instead.")
-	FShaderResourceViewRHIRef  HTileSRV;
-
-	UE_DEPRECATED(5.0, "StencilUAV is deprecated. Use RDG instead.")
-	FUnorderedAccessViewRHIRef StencilUAV;
 };
 
 /**
@@ -576,22 +513,7 @@ struct IPooledRenderTarget
 
 	FRHITexture* GetRHI() const { return RenderTargetItem.TargetableTexture; }
 
-	UE_DEPRECATED(5.0, "Use GetRHI instead.")
-	FRHITexture* GetTargetableRHI() const { return GetRHI(); }
-
-	UE_DEPRECATED(5.0, "Use GetRHI instead.")
-	FRHITexture* GetShaderResourceRHI() const { return GetRHI(); }
-
-	UE_DEPRECATED(5.0, "Use GetRHI without ERenderTargetTexture instead.")
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FRHITexture* GetRHI(ERenderTargetTexture) const { return GetRHI(); }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	UE_DEPRECATED(5.0, "SetDebugName has been deprecated.")
-	virtual void SetDebugName(const TCHAR* InName) {}
-
 protected:
-
 	/** The internal references to the created render target */
 	FSceneRenderTargetItem RenderTargetItem;
 };
@@ -788,22 +710,10 @@ public:
 	virtual class FSceneViewStateInterface* AllocateViewState(ERHIFeatureLevel::Type FeatureLevel) = 0;
 	virtual class FSceneViewStateInterface* AllocateViewState(ERHIFeatureLevel::Type FeatureLevel, FSceneViewStateInterface* ShareOriginTarget) = 0;
 
-	UE_DEPRECATED(5.0, "AllocateViewState must be called with an appropriate RHI Feature Level")
-	inline FSceneViewStateInterface* AllocateViewState()
-	{
-		return AllocateViewState(GMaxRHIFeatureLevel);
-	}
-
 	/** @return The number of lights that affect a primitive. */
 	virtual uint32 GetNumDynamicLightsAffectingPrimitive(const class FPrimitiveSceneInfo* PrimitiveSceneInfo,const class FLightCacheInterface* LCI) = 0;
 
-	UE_DEPRECATED(5.0, "ReallocateSceneRenderTargets is deprecated and no longer necessary. Please remove.")
-	virtual void ReallocateSceneRenderTargets() {}
-
 	virtual void OnWorldCleanup(UWorld* World, bool bSessionEnded, bool bCleanupResources, bool bWorldChanged) = 0;
-
-	UE_DEPRECATED(5.0, "SceneRenderTargetsSetBufferSize is deprecated and no longer necessary. Please remove.")
-	virtual void SceneRenderTargetsSetBufferSize(uint32 SizeX, uint32 SizeY) {}
 
 	virtual void InitializeSystemTextures(FRHICommandListImmediate& RHICmdList) = 0;
 

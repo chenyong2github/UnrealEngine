@@ -118,15 +118,6 @@ inline bool IsRegistered(FRDGBuilder& GraphBuilder, const TRefCountPtr<FRDGPoole
 	return GraphBuilder.FindExternalBuffer(Buffer) != nullptr;
 }
 
-/** Returns the pooled render target from an RDG texture if it exists, or null otherwise. */
-UE_DEPRECATED(5.0, "Accessing the underlying pooled render target has been deprecated. Use TryGetRHI() instead.")
-inline IPooledRenderTarget* TryGetPooledRenderTarget(FRDGTextureRef Texture)
-{
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return Texture ? Texture->GetPooledRenderTarget() : nullptr;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
 inline FRenderTargetBindingSlots GetRenderTargetBindings(ERenderTargetLoadAction ColorLoadAction, TArrayView<FRDGTextureRef> ColorTextures)
 {
 	check(ColorTextures.Num() <= MaxSimultaneousRenderTargets);
@@ -840,17 +831,6 @@ RENDERCORE_API void AddEnqueueCopyPass(FRDGBuilder& GraphBuilder, FRHIGPUTexture
 /** Adds a pass to readback contents of an RDG buffer. */
 RENDERCORE_API void AddEnqueueCopyPass(FRDGBuilder& GraphBuilder, FRHIGPUBufferReadback* Readback, FRDGBufferRef SourceBuffer, uint32 NumBytes);
 
-UE_DEPRECATED(5.0, "Please use GraphBuilder.QueueBufferUpload to perform an upload.")
-inline void AddBufferUploadPass(
-	FRDGBuilder& GraphBuilder,
-	FRDGBufferRef Buffer,
-	const void* InitialData,
-	uint64 InitialDataSize,
-	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None)
-{
-	GraphBuilder.QueueBufferUpload(Buffer, InitialData, InitialDataSize, InitialDataFlags);
-}
-
 /** Helper class to allocate data from a GraphBuilder in order to upload said data to an RDG resource.
 *   Allocating from the GraphBuilder makes it so we don't have to copy the data before deferring the upload.
 */
@@ -1028,13 +1008,6 @@ FORCEINLINE void AddPass(FRDGBuilder& GraphBuilder, FRDGEventName&& Name, Execut
 }
 
 template <typename ExecuteLambdaType>
-UE_DEPRECATED(5.0, "AddPass without an RDG_EVENT_NAME is deprecated. Use the named version instead.")
-FORCEINLINE void AddPass(FRDGBuilder& GraphBuilder, ExecuteLambdaType&& ExecuteLambda)
-{
-	AddPass(GraphBuilder, {}, MoveTemp(ExecuteLambda));
-}
-
-template <typename ExecuteLambdaType>
 FORCEINLINE void AddPassIfDebug(FRDGBuilder& GraphBuilder, FRDGEventName&& Name, ExecuteLambdaType&& ExecuteLambda)
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -1042,86 +1015,11 @@ FORCEINLINE void AddPassIfDebug(FRDGBuilder& GraphBuilder, FRDGEventName&& Name,
 #endif
 }
 
-template <typename ExecuteLambdaType>
-UE_DEPRECATED(5.0, "AddPassIfDebug without an RDG_EVENT_NAME is deprecated. Use the named version instead.")
-FORCEINLINE void AddPassIfDebug(FRDGBuilder& GraphBuilder, ExecuteLambdaType&& ExecuteLambda)
-{
-	AddPassIfDebug(GraphBuilder, {}, MoveTemp(ExecuteLambda));
-}
-
-UE_DEPRECATED(5.0, "AddSetCurrentStatPass is deprecated. Use GraphBuilder.SetCommandListStat instead.")
-FORCEINLINE void AddSetCurrentStatPass(FRDGBuilder& GraphBuilder, TStatId StatId)
-{
-	GraphBuilder.SetCommandListStat(StatId);
-}
-
 FORCEINLINE void AddDispatchToRHIThreadPass(FRDGBuilder& GraphBuilder)
 {
 	AddPass(GraphBuilder, RDG_EVENT_NAME("DispatchToRHI"), [](FRHICommandListImmediate& RHICmdList)
 	{
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-	});
-}
-
-UE_DEPRECATED(5.0, "AddBeginUAVOverlapPass is deprecated.")
-FORCEINLINE void AddBeginUAVOverlapPass(FRDGBuilder& GraphBuilder)
-{
-	AddPass(GraphBuilder, RDG_EVENT_NAME("BeginUAVOverlap"), [](FRHICommandList& RHICmdList)
-	{
-		RHICmdList.BeginUAVOverlap();
-	});
-}
-
-UE_DEPRECATED(5.0, "AddEndUAVOverlapPass is deprecated.")
-FORCEINLINE void AddEndUAVOverlapPass(FRDGBuilder& GraphBuilder)
-{
-	AddPass(GraphBuilder, RDG_EVENT_NAME("EndUAVOverlap"), [](FRHICommandList& RHICmdList)
-	{
-		RHICmdList.EndUAVOverlap();
-	});
-}
-
-UE_DEPRECATED(5.0, "AddBeginUAVOverlapPass is deprecated.")
-FORCEINLINE void AddBeginUAVOverlapPass(FRDGBuilder& GraphBuilder, FRHIUnorderedAccessView* UAV)
-{
-	AddPass(GraphBuilder, RDG_EVENT_NAME("BeginUAVOverlap"), [UAV](FRHICommandList& RHICmdList)
-	{
-		RHICmdList.BeginUAVOverlap(UAV);
-	});
-}
-
-UE_DEPRECATED(5.0, "AddEndUAVOverlapPass is deprecated.")
-FORCEINLINE void AddEndUAVOverlapPass(FRDGBuilder& GraphBuilder, FRHIUnorderedAccessView* UAV)
-{
-	AddPass(GraphBuilder, RDG_EVENT_NAME("EndUAVOverlap"), [UAV](FRHICommandList& RHICmdList)
-	{
-		RHICmdList.EndUAVOverlap(UAV);
-	});
-}
-
-UE_DEPRECATED(5.0, "AddBeginUAVOverlapPass is deprecated.")
-FORCEINLINE void AddBeginUAVOverlapPass(FRDGBuilder& GraphBuilder, TArrayView<FRHIUnorderedAccessView*> UAVs)
-{
-	uint32 AllocSize = UAVs.Num() * sizeof(FRHIUnorderedAccessView*);
-	FRHIUnorderedAccessView** LocalUAVs = (FRHIUnorderedAccessView**)GraphBuilder.Alloc(AllocSize, alignof(FRHIUnorderedAccessView*));
-	FMemory::Memcpy(LocalUAVs, UAVs.GetData(), AllocSize);
-	TArrayView<FRHIUnorderedAccessView*> LocalView(LocalUAVs, UAVs.Num());
-	AddPass(GraphBuilder, RDG_EVENT_NAME("BeginUAVOverlap"), [LocalView](FRHICommandList& RHICmdList)
-	{
-		RHICmdList.BeginUAVOverlap(LocalView);
-	});
-}
-
-UE_DEPRECATED(5.0, "AddEndUAVOverlapPass is deprecated.")
-FORCEINLINE void AddEndUAVOverlapPass(FRDGBuilder& GraphBuilder, TArrayView<FRHIUnorderedAccessView*> UAVs)
-{
-	uint32 AllocSize = UAVs.Num() * sizeof(FRHIUnorderedAccessView*);
-	FRHIUnorderedAccessView** LocalUAVs = (FRHIUnorderedAccessView**)GraphBuilder.Alloc(AllocSize, alignof(FRHIUnorderedAccessView*));
-	FMemory::Memcpy(LocalUAVs, UAVs.GetData(), AllocSize);
-	TArrayView<FRHIUnorderedAccessView*> LocalView(LocalUAVs, UAVs.Num());
-	AddPass(GraphBuilder, RDG_EVENT_NAME("EndUAVOverlap"), [LocalView](FRHICommandList& RHICmdList)
-	{
-		RHICmdList.EndUAVOverlap(LocalView);
 	});
 }
 
@@ -1391,56 +1289,6 @@ inline const TRefCountPtr<FRDGPooledBuffer>& ConvertToFinalizedExternalBuffer(
 	ERHIAccess AccessFinal)
 {
 	return ConvertToExternalAccessBuffer(GraphBuilder, Buffer, AccessFinal);
-}
-
-UE_DEPRECATED(5.0, "RegisterExternalTextureWithFallback no longer requires ERenderTargetTexture")
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-inline FRDGTextureRef RegisterExternalTextureWithFallback(
-	FRDGBuilder& GraphBuilder,
-	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-	const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture,
-	ERenderTargetTexture ExternalTexture,
-	ERenderTargetTexture FallbackTexture = ERenderTargetTexture::ShaderResource)
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-{
-	return RegisterExternalTextureWithFallback(GraphBuilder, ExternalPooledTexture, FallbackPooledTexture);
-}
-
-UE_DEPRECATED(5.0, "TryRegisterExternalTexture no longer requires ERenderTargetTexture")
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-inline FRDGTextureRef TryRegisterExternalTexture(
-	FRDGBuilder& GraphBuilder,
-	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-	ERenderTargetTexture RenderTargetTexture,
-	ERDGTextureFlags Flags = ERDGTextureFlags::None)
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-{
-	return ExternalPooledTexture ? GraphBuilder.RegisterExternalTexture(ExternalPooledTexture, Flags) : nullptr;
-}
-
-UE_DEPRECATED(5.0, "RegisterExternalTextureMSAA with a single pooled render target is no longer supported.")
-inline FRDGTextureMSAA RegisterExternalTextureMSAA(
-	FRDGBuilder& GraphBuilder,
-	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture)
-{
-	return FRDGTextureMSAA();
-}
-
-UE_DEPRECATED(5.0, "RegisterExternalTextureMSAA with a single pooled render target is no longer supported.")
-inline FRDGTextureMSAA TryRegisterExternalTextureMSAA(
-	FRDGBuilder& GraphBuilder,
-	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture)
-{
-	return FRDGTextureMSAA();
-}
-
-UE_DEPRECATED(5.0, "RegisterExternalTextureMSAAWithFallback is no longer supported.")
-inline FRDGTextureMSAA RegisterExternalTextureMSAAWithFallback(
-	FRDGBuilder& GraphBuilder,
-	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-	const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture)
-{
-	return FRDGTextureMSAA();
 }
 
 //////////////////////////////////////////////////////////////////////////

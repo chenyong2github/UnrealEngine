@@ -1905,30 +1905,6 @@ public:
 		return ViewUniformBuffer;
 	}
 
-	UE_DEPRECATED(5.0, "SetInstancedViewUniformBuffer is deprecated. Use View.GetShaderParameters() and bind on an RDG pass instead.")
-	FORCEINLINE_DEBUGGABLE void SetInstancedViewUniformBuffer(const TUniformBufferRef<FInstancedViewUniformShaderParameters>& InViewUniformBuffer)
-	{
-		InstancedViewUniformBuffer = InViewUniformBuffer;
-	}
-
-	UE_DEPRECATED(5.0, "GetInstancedViewUniformBuffer is deprecated. Use View.GetShaderParameters() and bind on an RDG pass instead.")
-	FORCEINLINE_DEBUGGABLE const FRHIUniformBuffer* GetInstancedViewUniformBuffer() const
-	{
-		return InstancedViewUniformBuffer != nullptr ? InstancedViewUniformBuffer : ViewUniformBuffer;
-	}
-
-	UE_DEPRECATED(5.0, "SetPassUniformBuffer is deprecated. Use a static uniform buffer and bind on an RDG pass instead.")
-	FORCEINLINE_DEBUGGABLE void SetPassUniformBuffer(const FUniformBufferRHIRef& InPassUniformBuffer)
-	{
-		PassUniformBuffer = InPassUniformBuffer;
-	}
-
-	UE_DEPRECATED(5.0, "GetPassUniformBuffer is deprecated. Use a static uniform buffer and bind on an RDG pass instead.")
-	FORCEINLINE_DEBUGGABLE FRHIUniformBuffer* GetPassUniformBuffer() const
-	{
-		return PassUniformBuffer;
-	}
-
 	UE_DEPRECATED(5.1, "GetNaniteUniformBuffer is deprecated. Use a static uniform buffer and bind on an RDG pass instead.")
 	FORCEINLINE_DEBUGGABLE void SetNaniteUniformBuffer(FRHIUniformBuffer* InNaniteUniformBuffer)
 	{
@@ -2066,13 +2042,6 @@ public:
 		TArray<FPSOPrecacheData>& PSOInitializers);
 
 protected:
-	UE_DEPRECATED(5.0, "This version of GetDrawCommandPrimitiveId is deprecated. Use the below function instead.")
-	RENDERER_API void GetDrawCommandPrimitiveId(
-		const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo,
-		const FMeshBatchElement& BatchElement,
-		int32& DrawPrimitiveId,
-		int32& ScenePrimitiveId) const;
-
 	RENDERER_API FMeshDrawCommandPrimitiveIdInfo GetDrawCommandPrimitiveId(
 		const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo,
 		const FMeshBatchElement& BatchElement) const;

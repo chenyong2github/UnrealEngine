@@ -379,42 +379,6 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	// Deprecated Functions
-	UE_DEPRECATED(5.0, "PreallocateTexture has been renamed to ConvertToExternalTexture")
-	inline void PreallocateTexture(FRDGTextureRef Texture) { ConvertToExternalTexture(Texture); }
-
-	UE_DEPRECATED(5.0, "PreallocateBuffer has been renamed to ConvertToExternalBuffer")
-	inline void PreallocateBuffer(FRDGBufferRef Buffer) { ConvertToExternalBuffer(Buffer); }
-
-	UE_DEPRECATED(5.0, "RegisterExternalTexture with ERenderTargetTexture is deprecated. Use the variant without instead.")
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	inline FRDGTextureRef RegisterExternalTexture(
-		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-		ERenderTargetTexture Texture,
-		ERDGTextureFlags Flags = ERDGTextureFlags::None)
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	{
-		return RegisterExternalTexture(ExternalPooledTexture, Flags);
-	}
-
-	UE_DEPRECATED(5.0, "RegisterExternalTexture with ERenderTargetTexture is deprecated. Use the variant without instead.")
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	inline FRDGTextureRef RegisterExternalTexture(
-		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-		const TCHAR* NameIfNotRegistered,
-		ERenderTargetTexture RenderTargetTexture,
-		ERDGTextureFlags Flags = ERDGTextureFlags::None)
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	{
-		return RegisterExternalTexture(ExternalPooledTexture, NameIfNotRegistered, Flags);
-	}
-
-	UE_DEPRECATED(5.0, "FindExternalTexture with ERenderTargetTexture is deprecated. Use the variant without instead.")
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FRDGTextureRef FindExternalTexture(IPooledRenderTarget* ExternalPooledTexture, ERenderTargetTexture Texture) const
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	{
-		return FindExternalTexture(ExternalPooledTexture);
-	}
 
 	UE_DEPRECATED(5.1, "FinalizeResourceAccess has been replaced by UseExternalAccessMode")
 	inline void FinalizeResourceAccess(FRDGTextureAccessArray&& InTextures, FRDGBufferAccessArray&& InBuffers)

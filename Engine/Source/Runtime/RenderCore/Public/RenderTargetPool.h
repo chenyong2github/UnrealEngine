@@ -63,16 +63,6 @@ struct RENDERCORE_API FPooledRenderTarget final : public IPooledRenderTarget
 	bool IsTracked() const override { return RenderTargetPool != nullptr; }
 	uint32 ComputeMemorySize() const override;
 
-	UE_DEPRECATED(5.0, "This method is deprecated.")
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FRDGPooledTexture* GetRDG(ERenderTargetTexture Texture) { return &PooledTexture; }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
-	UE_DEPRECATED(5.0, "This method is deprecated.")
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	const FRDGPooledTexture* GetRDG(ERenderTargetTexture Texture) const { return &PooledTexture; }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 private:
 	/** Pointer back to the pool for render targets which are actually pooled, otherwise NULL. */
 	FRenderTargetPool* RenderTargetPool;

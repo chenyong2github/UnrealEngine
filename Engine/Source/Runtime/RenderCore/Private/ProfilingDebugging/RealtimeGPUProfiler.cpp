@@ -55,22 +55,6 @@ static TAutoConsoleVariable<int> CVarGPUStatsChildTimesIncluded(
 
 #if WANTS_DRAW_MESH_EVENTS
 
-void FDrawEvent::Start(FRHIComputeCommandList& InRHICmdList, FColor Color, const TCHAR* Fmt, ...)
-{
-	check(IsInParallelRenderingThread() || IsInRHIThread());
-	{
-		va_list ptr;
-		va_start(ptr, Fmt);
-		TCHAR TempStr[256];
-		// Build the string in the temp buffer
-		FCString::GetVarArgs(TempStr, UE_ARRAY_COUNT(TempStr), Fmt, ptr);
-		InRHICmdList.PushEvent(TempStr, Color);
-		RHICmdList = &InRHICmdList;
-		va_end(ptr);
-	}
-	bStarted = true;
-}
-
 void FDrawEvent::Start(FRHIComputeCommandList* InRHICmdList, FColor Color, const TCHAR* Fmt, ...)
 {
 	bool bIsRenderingOrRHIThread = IsInParallelRenderingThread() || IsInRHIThread();
@@ -970,11 +954,6 @@ FRealtimeGPUProfiler::FRealtimeGPUProfiler()
 			Frames.Add(new FRealtimeGPUProfilerFrame(RenderQueryPool, QueryCount));
 		}
 	}
-}
-
-void FRealtimeGPUProfiler::Release()
-{
-	Cleanup();
 }
 
 void FRealtimeGPUProfiler::Cleanup()

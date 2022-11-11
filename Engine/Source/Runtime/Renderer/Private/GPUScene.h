@@ -15,11 +15,6 @@ class FRHICommandList;
 class FScene;
 class FViewInfo;
 class FLightSceneInfoCompact;
-
-UE_DEPRECATED(5.0, "Use GPUScene::AddPrimitiveToUpdate instead.4")
-extern RENDERER_API void AddPrimitiveToUpdateGPU(FScene& Scene, int32 PrimitiveId);
-
-
 class FGPUScene;
 class FGPUSceneDynamicContext;
 

@@ -455,14 +455,6 @@ inline FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc);
 /** Translates from an RHI/RDG texture descriptor to a pooled render target descriptor. */
 inline FPooledRenderTargetDesc Translate(const FRHITextureDesc& InDesc);
 
-UE_DEPRECATED(5.0, "Translate with ERenderTargetTexture is deprecated. Please use the single parameter variant.")
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-inline FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc, ERenderTargetTexture InTexture)
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-{
-	return Translate(InDesc);
-}
-
 class RENDERCORE_API FRDGPooledTexture final
 	: public FRefCountBase
 {
@@ -498,10 +490,6 @@ public:
 
 	//////////////////////////////////////////////////////////////////////////
 	//! The following methods may only be called during pass execution.
-
-	/** Returns the allocated pooled render target. */
-	UE_DEPRECATED(5.0, "Accessing the underlying pooled render target has been deprecated. Use GetRHI() instead.")
-	IPooledRenderTarget* GetPooledRenderTarget() const;
 
 	/** Returns the allocated RHI texture. */
 	FORCEINLINE FRHITexture* GetRHI() const
@@ -1229,20 +1217,6 @@ public:
 	FORCEINLINE FRHIBuffer* GetIndirectRHICallBuffer() const
 	{
 		checkf(Desc.Usage & BUF_DrawIndirect, TEXT("Buffer %s was not flagged for indirect draw usage."), Name);
-		return GetRHI();
-	}
-
-	/** Returns the buffer to use for RHI calls, eg RHILockBuffer. */
-	UE_DEPRECATED(5.0, "Buffers types have been consolidated; use GetRHI() instead.")
-	FORCEINLINE FRHIBuffer* GetRHIVertexBuffer() const
-	{
-		return GetRHI();
-	}
-
-	/** Returns the buffer to use for structured buffer calls. */
-	UE_DEPRECATED(5.0, "Buffers types have been consolidated; use GetRHI() instead.")
-	FORCEINLINE FRHIBuffer* GetRHIStructuredBuffer() const
-	{
 		return GetRHI();
 	}
 

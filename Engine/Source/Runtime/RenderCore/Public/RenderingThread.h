@@ -307,9 +307,6 @@ class RENDERCORE_API FDeferredCleanupInterface
 {
 public:
 	virtual ~FDeferredCleanupInterface() {}
-
-	UE_DEPRECATED(4.20, "FinishCleanup is deprecated. Use RAII in the destructor instead.")
-	virtual void FinishCleanup() final {}
 };
 
 /**
