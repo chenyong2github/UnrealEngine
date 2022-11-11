@@ -66,13 +66,6 @@ void IChaosFleshEditorPlugin::ShutdownModule()
 	}
 }
 
-TSharedRef<FAssetEditorToolkit> IChaosFleshEditorPlugin::CreateFleshAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* FleshAsset)
-{
-	TSharedPtr<FDataflowEditorToolkit> NewAssetEditor = MakeShared<FDataflowEditorToolkit>();
-	NewAssetEditor->InitDataflowEditor(Mode, InitToolkitHost, FleshAsset);
-	return StaticCastSharedPtr<FAssetEditorToolkit>(NewAssetEditor).ToSharedRef();
-}
-
 IMPLEMENT_MODULE(IChaosFleshEditorPlugin, FleshAssetEditor)
 
 

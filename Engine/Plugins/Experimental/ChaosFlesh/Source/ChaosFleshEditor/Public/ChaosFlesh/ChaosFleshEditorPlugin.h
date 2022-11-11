@@ -22,10 +22,6 @@ class IChaosFleshEditorPlugin : public IModuleInterface
 public:
 	virtual void StartupModule();
 	virtual void ShutdownModule();
-	
-	
-	TSharedRef<FAssetEditorToolkit> CreateFleshAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, UObject* FleshAsset);
-
 
 	/**
 	 * Singleton-like access to this module's interface.  This is just for convenience!

@@ -87,7 +87,7 @@ bool FDataflowEditorToolkit::CanOpenDataflowEditor(UObject* ObjectToEdit)
 	return Dataflow != nullptr;
 }
 
-void FDataflowEditorToolkit::InitDataflowEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit)
+void FDataflowEditorToolkit::InitializeEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit)
 {
 	Asset = nullptr;
 	Dataflow = Cast<UDataflow>(ObjectToEdit);

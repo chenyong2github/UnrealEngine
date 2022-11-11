@@ -49,7 +49,7 @@ void IDataflowEditorPlugin::ShutdownModule()
 TSharedRef<FAssetEditorToolkit> IDataflowEditorPlugin::CreateDataflowAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* Asset)
 {
 	TSharedPtr<FDataflowEditorToolkit> NewDataflowAssetEditor = MakeShared<FDataflowEditorToolkit>();
-	NewDataflowAssetEditor->InitDataflowEditor(Mode, InitToolkitHost, Asset);
+	NewDataflowAssetEditor->InitializeEditor(Mode, InitToolkitHost, Asset);
 	return StaticCastSharedPtr<FAssetEditorToolkit>(NewDataflowAssetEditor).ToSharedRef();
 }
 

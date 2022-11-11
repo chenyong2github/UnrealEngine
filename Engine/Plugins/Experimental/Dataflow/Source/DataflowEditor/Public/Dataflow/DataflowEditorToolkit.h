@@ -35,7 +35,7 @@ class DATAFLOWEDITOR_API FDataflowEditorToolkit : public FAssetEditorToolkit, pu
 public:
 	static bool CanOpenDataflowEditor(UObject* ObjectToEdit);
 
-	void InitDataflowEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit);
+	virtual void InitializeEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit);
 
 	// IToolkit Interface
 	virtual FName GetToolkitFName() const override;
