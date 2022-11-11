@@ -19,7 +19,7 @@ namespace UE::ChooserEditor
     	
     	Args.OnCanBindProperty = FOnCanBindProperty::CreateLambda([](FProperty* Property)
     	{
-    		return Property == nullptr || PropertyType::CanBind(Property->GetCPPType());
+    		return Property == nullptr || PropertyType::CanBind(*Property);
     	});
     	Args.OnCanBindToClass = FOnCanBindToClass::CreateLambda([ContextClass ](UClass* InClass)
     	{
@@ -42,25 +42,11 @@ namespace UE::ChooserEditor
     
     	Args.OnAddBinding = FOnAddBinding::CreateLambda([ContextProperty](FName InPropertyName, const TArray<FBindingChainElement>& InBindingChain)
     		{
-    			IPropertyAccessEditor& PropertyAccessEditor = IModularFeatures::Get().GetModularFeature<IPropertyAccessEditor>("PropertyAccessEditor");
     			if (ContextProperty.IsValid())
     			{
     				const FScopedTransaction Transaction(NSLOCTEXT("ContextPropertyWidget", "Change Property Binding", "Change Property Binding"));
     				ContextProperty->Modify(true);
-    				
-    				ContextProperty->PropertyBindingChain.Empty();
-    
-    				if (InBindingChain.Num() > 1)
-    				{
-    					for(int i = 1; i<InBindingChain.Num(); i++)
-    					{
-    						ContextProperty->PropertyBindingChain.Add(InBindingChain[i].Field.GetFName());
-    					}
-    				}
-    				else
-    				{
-    					ContextProperty->PropertyBindingChain.Empty();
-    				}
+    				ContextProperty->SetBinding(InBindingChain);
     			}
     		});
     

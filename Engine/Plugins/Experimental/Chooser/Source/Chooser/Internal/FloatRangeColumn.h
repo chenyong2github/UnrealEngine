@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "IChooserColumn.h"
 #include "IChooserParameterFloat.h"
+#include "ChooserPropertyAccess.h"
 #include "FloatRangeColumn.generated.h"
 
 UCLASS()
@@ -17,11 +18,17 @@ public:
 	virtual bool GetValue(const UObject* ContextObject, float& OutResult) const override;
 
 #if WITH_EDITOR
-	static bool CanBind(const FString& TypeName)
+	static bool CanBind(const FProperty& Property)
 	{
 		static FString DoubleTypeName = "double";
 		static FString FloatTypeName = "float";
+		const FString& TypeName = Property.GetCPPType();
 		return TypeName == FloatTypeName || TypeName == DoubleTypeName;
+	}
+	
+	void SetBinding(const TArray<FBindingChainElement>& InBindingChain)
+	{
+		UE::Chooser::CopyPropertyChain(InBindingChain, PropertyBindingChain);
 	}
 #endif
 };

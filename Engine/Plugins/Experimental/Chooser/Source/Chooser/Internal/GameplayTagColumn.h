@@ -4,9 +4,11 @@
 #include "CoreMinimal.h"
 #include "IChooserColumn.h"
 #include "IChooserParameterGameplayTag.h"
+#include "ChooserPropertyAccess.h"
 #include "GameplayTagContainer.h"
 #include "GameplayTagColumn.generated.h"
 
+struct FBindingChainElement;
 
 UCLASS()
 class CHOOSER_API UChooserParameterGameplayTag_ContextProperty :  public UObject, public IChooserParameterGameplayTag
@@ -19,10 +21,15 @@ public:
 	virtual bool GetValue(const UObject* ContextObject, const FGameplayTagContainer*& OutResult) const override;
 
 #if WITH_EDITOR
-	static bool CanBind(const FString& TypeName)
+	static bool CanBind(const FProperty& Property)
 	{
-		static FString GameplayTagTypeName = "FGameplayTagContainer";
-		return TypeName == GameplayTagTypeName;
+		static FString TypeName = "FGameplayTagContainer";
+		return Property.GetCPPType() == TypeName;
+	}
+
+	void SetBinding(const TArray<FBindingChainElement>& InBindingChain)
+	{
+		UE::Chooser::CopyPropertyChain(InBindingChain, PropertyBindingChain);
 	}
 #endif
 };

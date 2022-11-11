@@ -4,8 +4,8 @@
 #include "CoreMinimal.h"
 #include "IChooserColumn.h"
 #include "IChooserParameterBool.h"
+#include "ChooserPropertyAccess.h"
 #include "BoolColumn.generated.h"
-
 
 UCLASS()
 class CHOOSER_API UChooserParameterBool_ContextProperty :  public UObject, public IChooserParameterBool
@@ -19,10 +19,15 @@ public:
 	virtual bool GetValue(const UObject* ContextObject, bool& OutResult) const override;
 
 #if WITH_EDITOR
-	static bool CanBind(const FString& TypeName)
+	static bool CanBind(const FProperty& Property)
 	{
 		static FString BoolTypeName = "bool";
-		return TypeName == BoolTypeName;
+		return Property.GetCPPType() == BoolTypeName;
+	}
+
+	void SetBinding(const TArray<FBindingChainElement>& InBindingChain)
+	{
+		UE::Chooser::CopyPropertyChain(InBindingChain, PropertyBindingChain);
 	}
 #endif
 };

@@ -3,6 +3,10 @@
 #include "ChooserPropertyAccess.h"
 #include "UObject/UnrealType.h"
 
+#if WITH_EDITOR
+#include "IPropertyAccessEditor.h"
+#endif
+
 namespace UE::Chooser
 {
 	bool ResolvePropertyChain(const void*& Container, UStruct*& StructType, const TArray<FName>& PropertyBindingChain)
@@ -37,4 +41,19 @@ namespace UE::Chooser
 	
 		return true;
 	}
+
+
+#if WITH_EDITOR
+	void CopyPropertyChain(const TArray<FBindingChainElement>& InBindingChain, TArray<FName>& OutPropertyBindingChain)
+	{
+		OutPropertyBindingChain.Empty();
+
+		for (int32 i = 1; i < InBindingChain.Num(); ++i)
+		{
+			OutPropertyBindingChain.Emplace(InBindingChain[i].Field.GetFName());
+		}
+	}
+#endif
+
+	
 }

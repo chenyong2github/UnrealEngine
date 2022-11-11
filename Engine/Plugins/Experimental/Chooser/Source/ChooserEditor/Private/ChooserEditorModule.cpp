@@ -5,6 +5,7 @@
 #include "AssetTypeActions_Chooser.h"
 #include "ChooserTableEditor.h"
 #include "BoolColumnEditor.h"
+#include "EnumColumnEditor.h"
 #include "FloatRangeColumnEditor.h"
 #include "GameplayTagColumnEditor.h"
 
@@ -22,6 +23,7 @@ void FModule::StartupModule()
 	RegisterGameplayTagWidgets();
 	RegisterFloatRangeWidgets();
 	RegisterBoolWidgets();
+	RegisterEnumWidgets();
 	
 	InterfacePropertyTypeIdentifier = MakeShared<UE::ChooserEditor::FPropertyTypeIdentifier>();
 	

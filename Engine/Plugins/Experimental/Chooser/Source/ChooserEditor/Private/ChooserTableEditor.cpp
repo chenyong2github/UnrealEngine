@@ -512,9 +512,8 @@ void FChooserTableEditor::UpdateTableColumns()
 
 				MenuBuilder.AddMenuEntry(LOCTEXT("Column Properties","Properties"),LOCTEXT("Delete Column ToolTip", "Remove this column and all its data from the table"),FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateLambda([this,ColumnIndex, ColumnId, &Column]()
+						FExecuteAction::CreateLambda([this,Chooser,ColumnIndex, ColumnId, &Column]()
 						{
-							UChooserTable* Chooser = Cast<UChooserTable>(EditingObjects[0]);
 							DetailsView->SetObject(Chooser->Columns[ColumnIndex].GetObject());
 							SelectedColumn = ColumnId;
 						})
@@ -523,10 +522,9 @@ void FChooserTableEditor::UpdateTableColumns()
 
 				MenuBuilder.AddMenuEntry(LOCTEXT("Delete Column","Delete"),LOCTEXT("Delete Column ToolTip", "Remove this column and all its data from the table"),FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateLambda([this,ColumnIndex, &Column]()
+						FExecuteAction::CreateLambda([this,Chooser,ColumnIndex, &Column]()
 						{
 							const FScopedTransaction Transaction(LOCTEXT("Delete Column Transaction", "Delete Column"));
-							UChooserTable* Chooser = Cast<UChooserTable>(EditingObjects[0]);
 							Chooser->Modify(true);
 							Chooser->Columns.RemoveAt(ColumnIndex);
 							UpdateTableColumns();
