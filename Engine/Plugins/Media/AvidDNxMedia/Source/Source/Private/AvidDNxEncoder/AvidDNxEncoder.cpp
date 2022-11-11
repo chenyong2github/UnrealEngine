@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AvidDNxEncoder/AvidDNxEncoder.h"
-#include "Launch/Resources/Version.h"
 #include "AvidDNxMediaModule.h"
 #include "HAL/PlatformTime.h"
+#include "Runtime/Launch/Resources/Version.h"
 
 THIRD_PARTY_INCLUDES_START
 #include <AvidDNxCodec.h>

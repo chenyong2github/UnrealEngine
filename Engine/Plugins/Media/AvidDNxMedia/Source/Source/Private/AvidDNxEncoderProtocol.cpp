@@ -4,8 +4,8 @@
 
 #include "AvidDNxMediaModule.h"
 #include "Engine/RendererSettings.h"
-#include "Launch/Resources/Version.h"
 #include "Misc/CoreMiscDefines.h"
+#include "Runtime/Launch/Resources/Version.h"
 
 THIRD_PARTY_INCLUDES_START
 #include <AvidDNxCodec.h>

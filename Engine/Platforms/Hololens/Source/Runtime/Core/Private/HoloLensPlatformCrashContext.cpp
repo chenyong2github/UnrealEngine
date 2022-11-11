@@ -8,7 +8,7 @@
 #include "HAL/PlatformMallocCrash.h"
 #include "HAL/ExceptionHandling.h"
 #include "HoloLensPlatformCrashContext.h"
-#include "../../Launch/Resources/Version.h"
+#include "Runtime/Launch/Resources/Version.h"
 
 #include "Microsoft/AllowMicrosoftPlatformTypes.h"
 
