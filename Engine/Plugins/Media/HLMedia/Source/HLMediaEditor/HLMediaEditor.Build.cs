@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
+using UnrealBuildTool;
+
 namespace UnrealBuildTool.Rules
 {
 	public class HLMediaEditor : ModuleRules
@@ -21,7 +24,8 @@ namespace UnrealBuildTool.Rules
             PrivateIncludePaths.AddRange(
                 new string[] {
                     "HLMedia/Private",
-                });
+					Path.Combine(EngineDirectory, "Source/ThirdParty/HLMediaLibrary/inc"),
+		});
         }
     }
 }

@@ -44,7 +44,7 @@ THIRD_PARTY_INCLUDES_START
 
 #pragma warning(push)
 #pragma warning(disable : 4005)
-#include "HLMediaLibrary/inc/HLMediaLibrary.h"
+#include "HLMediaLibrary.h"
 #pragma warning(pop)
 
 THIRD_PARTY_INCLUDES_END

@@ -42,8 +42,6 @@ public class HLMedia : ModuleRules
                 "HLMedia/Private",
             });
 
-        var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-
         PrivateDependencyModuleNames.AddRange(new string[] 
         {
             "HLMediaLibrary",
@@ -51,7 +49,7 @@ public class HLMedia : ModuleRules
 			"D3D12RHI"
         });
 
-        PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/ThirdParty/HLMediaLibrary/inc"));
+        PrivateIncludePaths.Add(Path.Combine(EngineDirectory, "Source/ThirdParty/HLMediaLibrary/inc"));
 
         PublicSystemLibraries.Add("mfplat.lib");
         PublicSystemLibraries.Add("mfreadwrite.lib");
