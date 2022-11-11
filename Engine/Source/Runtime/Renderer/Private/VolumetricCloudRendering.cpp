@@ -275,7 +275,8 @@ bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& En
 bool ShouldRenderVolumetricCloudWithBlueNoise_GameThread(const FScene* Scene, const FSceneView& View)
 {
 	// We cannot use Scene->HasVolumetricCloud() here because the proxy is set form the render thread.
-	return CVarVolumetricCloud.GetValueOnGameThread() > 0 && View.Family->EngineShowFlags.Atmosphere && View.Family->EngineShowFlags.Cloud;
+	// We cannot use View.Family->EngineShowFlags.Atmosphere && View.Family->EngineShowFlags.Cloud because those could cause sync loading texture during gameplay when toggled.
+	return CVarVolumetricCloud.GetValueOnGameThread() > 0;
 }
 
 bool ShouldViewVisualizeVolumetricCloudConservativeDensity(const FViewInfo& ViewInfo, const FEngineShowFlags& EngineShowFlags)
