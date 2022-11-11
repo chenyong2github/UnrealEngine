@@ -11,6 +11,21 @@
 
 struct FPropertyChangedEvent;
 
+/* What CompressionSettings runtime format should imported floating point textures use
+ */
+UENUM()
+enum class ETextureImportFloatingPointFormat : uint8
+{
+	/* Use "HDR" RGBA16F */
+	HDR_F16 = 0,
+	/* Use "HDRCompressed" , BC6H */
+	HDRCompressed_BC6,
+	/* Use 32-bit float formats if the source is 32-bit, otherwise use 16-bit HDR */
+	HDR_F32_or_F16,
+
+	PreviousDefault = HDR_F16  UMETA(Hidden) // legacy behavior
+};
+
 UCLASS(config=Editor, defaultconfig, meta=(DisplayName="Texture Import"))
 class TEXTUREUTILITIESCOMMON_API UTextureImportSettings : public UDeveloperSettings
 {
@@ -32,6 +47,11 @@ public:
 		DisplayName = "Turn on fast mip generation filter",
 		ToolTip = "Use the fast mip filter on new textures; it is recommended, but can be turned off to maintain legacy behavior. This setting is applied to newly imported textures, it does not affect existing textures in the project."))
 	bool bEnableFastMipFilter = true;
+	
+	UPROPERTY(config, EditAnywhere, Category=ImportSettings, meta = (
+		DisplayName = "CompressionFormat to use for new float textures",
+		ToolTip = "Optionally use HDRCompressed (BC6H), or 32-bit adaptively, instead of HDR (RGBA16F) for floating point textures.  This setting is applied to newly imported textures, it does not affect existing textures in the project."))
+	ETextureImportFloatingPointFormat CompressedFormatForFloatTextures = ETextureImportFloatingPointFormat::PreviousDefault;
 
 	//~ Begin UObject Interface
 

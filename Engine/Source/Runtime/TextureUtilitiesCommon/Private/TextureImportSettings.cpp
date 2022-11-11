@@ -83,6 +83,50 @@ namespace UE::TextureUtilitiesCommon
 		{
 			Texture->bUseNewMipFilter = true;
 		}
+
+		// the pipeline before here will have set floating point textures to TC_HDR
+		//	could alternatively check Texture->HasHDRSource
+		if ( Texture->CompressionSettings == TC_HDR )
+		{
+			if ( Settings->CompressedFormatForFloatTextures == ETextureImportFloatingPointFormat::HDRCompressed_BC6 )
+			{
+				// use BC6H
+				Texture->CompressionSettings = TC_HDR_Compressed;
+			}
+			else if ( Settings->CompressedFormatForFloatTextures == ETextureImportFloatingPointFormat::HDR_F32_or_F16 )
+			{
+				// set output format to match source format
+				ETextureSourceFormat TSF = Texture->Source.GetFormat();
+				if ( TSF == TSF_RGBA32F )
+				{
+					Texture->CompressionSettings = 	TC_HDR_F32;	
+				}
+				else if ( TSF == TSF_R32F )
+				{
+					Texture->CompressionSettings = 	TC_SingleFloat;
+				}
+				else if ( TSF == TSF_R16F )
+				{
+					Texture->CompressionSettings = 	TC_HalfFloat;
+				}
+				else
+				{
+					// else leave TC_HDR
+					check( Texture->CompressionSettings == TC_HDR );
+				}
+			}
+			else if ( Settings->CompressedFormatForFloatTextures == ETextureImportFloatingPointFormat::HDR_F16 )
+			{
+				// always use F16 HDR (legacy behavior)
+				// leave TC_HDR
+				check( Texture->CompressionSettings == TC_HDR );
+			}
+			else
+			{
+				// all cases should have been handled
+				checkNoEntry();
+			}
+		}
 	}
 
 }
