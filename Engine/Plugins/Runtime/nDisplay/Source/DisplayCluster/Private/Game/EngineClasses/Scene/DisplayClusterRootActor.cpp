@@ -1137,6 +1137,13 @@ bool ADisplayClusterRootActor::SetReplaceTextureFlagForAllViewports(bool bReplac
 	}
 	else
 	{
+		// No need to set this on a non operational nDisplay root actor.
+		if ((GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster) 
+			&& (this != Display.GetGameMgr()->GetRootActor()))
+		{
+			return false;
+		}
+
 		UDisplayClusterConfigurationClusterNode* Node = ConfigData->Cluster->GetNode(NodeId);
 
 		if (!Node)
