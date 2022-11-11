@@ -1477,6 +1477,7 @@ UPhysicsAsset* UCustomizableInstancePrivateData::BuildPhysicsAsset(
 	return Result;
 }
 
+
 bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCustomizableObjectInstance* Public, const TSharedPtr<FMutableOperationData>& OperationData )
 {
 	MUTABLE_CPUPROFILER_SCOPE(UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0)
@@ -1605,6 +1606,7 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 
 					TArray<USkeletalMeshSocket*>& Sockets = SkeletalMesh->GetMeshOnlySocketList();
 					Sockets.Empty(SocketCount);
+					TMap<FName, TTuple<int32, int32>> SocketMap; // Maps Socket name to Sockets Array index and priority
 					
 					for (uint32 SocketIndex = 0; SocketIndex < SocketCount; ++SocketIndex)
 					{
@@ -1620,7 +1622,62 @@ bool UCustomizableInstancePrivateData::UpdateSkeletalMesh_PostBeginUpdate0(UCust
 						Socket->RelativeScale = RefSocket.RelativeScale;
 
 						Socket->bForceAlwaysAnimated = RefSocket.bForceAlwaysAnimated;
-						Sockets.Add(Socket);
+						const int32 LastIndex = Sockets.Add(Socket);
+
+						SocketMap.Add(Socket->SocketName, TTuple<int32, int32>(LastIndex, RefSocket.Priority));
+					}
+
+					mu::MeshPtrConst MutableMesh = Component.Mesh;
+
+					for (int32 TagIndex = 0; TagIndex < MutableMesh->GetTagCount(); ++TagIndex)
+					{
+						FString Tag = MutableMesh->GetTag(TagIndex);
+
+						if (Tag.RemoveFromStart("__Socket:"))
+						{
+							check(Tag.IsNumeric());
+							const int32 MutableSocketIndex = FCString::Atoi(*Tag);
+							check(CustomizableObject->SocketArray.IsValidIndex(MutableSocketIndex));
+
+							if (CustomizableObject->SocketArray.IsValidIndex(MutableSocketIndex))
+							{
+								const FMutableRefSocket& MutableSocket = CustomizableObject->SocketArray[MutableSocketIndex];
+								int32 IndexToWriteSocket = -1;
+
+								if (TTuple<int32, int32>* FoundSocket = SocketMap.Find(MutableSocket.SocketName))
+								{
+									if (FoundSocket->Value < MutableSocket.Priority)
+									{
+										// Overwrite the existing socket because the new mesh part one is higher priority
+										IndexToWriteSocket = FoundSocket->Key;
+										FoundSocket->Value = MutableSocket.Priority;
+									}
+								}
+								else
+								{
+									// New Socket
+									USkeletalMeshSocket* Socket = NewObject<USkeletalMeshSocket>(SkeletalMesh);
+									IndexToWriteSocket = Sockets.Add(Socket);
+									SocketMap.Add(MutableSocket.SocketName, TTuple<int32, int32>(IndexToWriteSocket, MutableSocket.Priority));
+								}
+
+								if (IndexToWriteSocket >= 0)
+								{
+									check(Sockets.IsValidIndex(IndexToWriteSocket));
+
+									USkeletalMeshSocket* SocketToWrite = Sockets[IndexToWriteSocket];
+
+									SocketToWrite->SocketName = MutableSocket.SocketName;
+									SocketToWrite->BoneName = MutableSocket.BoneName;
+									
+									SocketToWrite->RelativeLocation = MutableSocket.RelativeLocation;
+									SocketToWrite->RelativeRotation = MutableSocket.RelativeRotation;
+									SocketToWrite->RelativeScale = MutableSocket.RelativeScale;
+									
+									SocketToWrite->bForceAlwaysAnimated = MutableSocket.bForceAlwaysAnimated;
+								}
+							}
+						}
 					}
 				}
 			}

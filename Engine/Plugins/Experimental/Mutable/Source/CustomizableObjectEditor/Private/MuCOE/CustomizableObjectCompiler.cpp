@@ -1165,6 +1165,17 @@ void FCustomizableObjectCompiler::CompileInternal(UCustomizableObject* Object, c
 	
 		Object->AnimBPAssetsMap = GenerationContext.AnimBPAssetsMap;
 
+		// Mark the object as modified, used to avoid missing assets in packages.
+		if (Object->SocketArray != GenerationContext.SocketArray)
+		{
+			if (!ParamNamesToSelectedOptions.Num()) // Don't mark the objects as modified because of a partial compilation
+			{
+				Object->MarkPackageDirty();
+			}
+		}
+
+		Object->SocketArray = GenerationContext.SocketArray;
+
 		// 
 		if (!ParamNamesToSelectedOptions.Num()) // Don't mark the objects as modified because of a partial compilation
 		{

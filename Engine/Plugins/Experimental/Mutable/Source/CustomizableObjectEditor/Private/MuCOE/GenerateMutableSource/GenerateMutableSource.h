@@ -711,6 +711,14 @@ struct FMutableGraphGenerationContext
 	/** Stores the anim BP assets gathered from the SkeletalMesh nodes during compilation, to be used in mesh generation in-game */
 	TMap<FString, TSoftClassPtr<UAnimInstance>> AnimBPAssetsMap;
 
+	/** Stores the sockets provided by the part skeletal meshes, to be merged in the generated meshes */
+	TArray<FMutableRefSocket> SocketArray;
+
+	/** Used to propagate the socket priority defined in group nodes to their child skeletal mesh nodes
+	* It's a stack because group nodes are recursive
+	*/
+	TArray<int32> SocketPriorityStack;
+
 	// Stores the textures that will be used to mask-out areas in the projection. The cache isn't used for rendering, but for coverage testing
 	TMap<FString, FString> MaskOutMaterialCache; // Maps a UMaterial's asset path to a UTexture's asset path
 	TMap<FString, FMaskOutTexture> MaskOutTextureCache; // Maps a UTexture's asset path to the cached mask-out texture data
@@ -789,6 +797,8 @@ mu::NodeMeshApplyPosePtr CreateNodeMeshApplyPose(mu::NodeMeshPtr InputMeshNode, 
 
 /** Adds Tag to MutableMesh uniquely, returns the index were the tag has been inserted or the index where an intance of the tag has been found */
 int32 AddTagToMutableMeshUnique(mu::Mesh& MutableMesh, const FString& Tag);
+
+void AddSocketTagsToMesh(const USkeletalMesh* SourceMesh, mu::MeshPtr MutableMesh, FMutableGraphGenerationContext& GenerationContext);
 
 // Generates the tag for an animation instance
 FString GenerateAnimationInstanceTag(const FString& AnimInstance, int32 SlotIndex);

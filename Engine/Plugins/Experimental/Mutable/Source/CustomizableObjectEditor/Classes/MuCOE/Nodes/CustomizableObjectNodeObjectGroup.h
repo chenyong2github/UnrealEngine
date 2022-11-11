@@ -38,6 +38,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = UI, meta = (DisplayName = "Parameter UI Metadata"))
 	FMutableParamUIMetadata ParamUIMetadata;
 
+	// The sockets defined in meshes deriving from this node will inherit this socket priority. When in the generated merged mesh there
+	// are clashes with socket names, the one with higher priority will be kept and the other discarded.
+	UPROPERTY(EditAnywhere, Category = MeshSockets)
+	int32 SocketPriority = 0;
+
 	// UObject interface.
 	void Serialize(FArchive& Ar) override;
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;

@@ -132,6 +132,7 @@
 #include "UObject/SoftObjectPtr.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UnrealNames.h"
+#include "Engine/SkeletalMeshSocket.h"
 
 #define LOCTEXT_NAMESPACE "CustomizableObjectEditor"
 
@@ -2601,6 +2602,7 @@ void GenerateMorphTarget(const UCustomizableObjectNode* Node, const UEdGraphPin*
 	}
 }
 
+
 /** Convert a CustomizableObject Source Graph into a mutable source graph  */
 mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 	FMutableGraphGenerationContext & GenerationContext,
@@ -2746,10 +2748,11 @@ mu::NodeMeshPtr GenerateMutableSourceMesh(const UEdGraphPin * Pin,
 				for (const FGameplayTag& GamePlayTag : TypedNodeSkel->AnimationGameplayTags)
 				{
 					const FString AnimBPTag = GenerateGameplayTag(GamePlayTag.ToString());
-					const int32 CurrentTagCount = MutableMesh->GetTagCount();
 					
 					AddTagToMutableMeshUnique(*MutableMesh, AnimBPTag);
 				}
+
+				AddSocketTagsToMesh(TypedNodeSkel->SkeletalMesh, MutableMesh, GenerationContext);
 
 				MeshData.bHasVertexColors = TypedNodeSkel->SkeletalMesh->GetHasVertexColors();
 				FSkeletalMeshModel* importModel = Helper_GetImportedModel(TypedNodeSkel->SkeletalMesh);

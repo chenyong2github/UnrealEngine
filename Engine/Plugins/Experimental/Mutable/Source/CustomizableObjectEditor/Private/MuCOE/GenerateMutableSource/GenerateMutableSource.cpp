@@ -896,6 +896,9 @@ mu::NodeObjectPtr GenerateMutableSource(const UEdGraphPin * Pin, FMutableGraphGe
 		mu::NodeObjectGroupPtr GroupNode = new mu::NodeObjectGroup();
 		Result = GroupNode;
 
+		// All sockets from all mesh parts plugged into this group node will have the following priority when there's a socket name clash
+		GenerationContext.SocketPriorityStack.Push(TypedNodeGroup->SocketPriority);
+
 		GenerationContext.AddParameterNameUnique(TypedNodeGroup, TypedNodeGroup->GroupName);
 		GroupNode->SetName(TCHAR_TO_ANSI(*TypedNodeGroup->GroupName));
 		GroupNode->SetUid(TCHAR_TO_ANSI(*TypedNodeGroup->NodeGuid.ToString()));
@@ -1105,6 +1108,10 @@ mu::NodeObjectPtr GenerateMutableSource(const UEdGraphPin * Pin, FMutableGraphGe
 
 		// Remove the projectors from this node
 		GenerationContext.ProjectorGroupMap.Remove(TypedNodeGroup);
+
+		// Go back to the parent group node's socket priority if it exists
+		ensure(GenerationContext.SocketPriorityStack.Num() > 0);
+		GenerationContext.SocketPriorityStack.Pop();
 
 		check(NumProjectorCountBeforeNode == GenerationContext.ProjectorGroupMap.Num());
 	}
@@ -1414,6 +1421,30 @@ int32 GetMaxTextureSize(const UTexture2D* ReferenceTexture, const FMutableGraphG
 	}
 
 	return 0;
+}
+
+
+void AddSocketTagsToMesh(const USkeletalMesh* SourceMesh, mu::MeshPtr MutableMesh, FMutableGraphGenerationContext& GenerationContext)
+{
+	for (int32 SocketIndex = 0; SocketIndex < SourceMesh->NumSockets(); ++SocketIndex)
+	{
+		USkeletalMeshSocket* Socket = SourceMesh->GetSocketByIndex(SocketIndex);
+
+		FMutableRefSocket MutableSocket;
+		MutableSocket.SocketName = Socket->SocketName;
+		MutableSocket.BoneName = Socket->BoneName;
+		MutableSocket.RelativeLocation = Socket->RelativeLocation;
+		MutableSocket.RelativeRotation = Socket->RelativeRotation;
+		MutableSocket.RelativeScale = Socket->RelativeScale;
+		MutableSocket.bForceAlwaysAnimated = Socket->bForceAlwaysAnimated;
+
+		MutableSocket.Priority = GenerationContext.SocketPriorityStack.IsEmpty() ? 0 : GenerationContext.SocketPriorityStack.Top();
+			
+		int32 SocketArrayIndex = GenerationContext.SocketArray.AddUnique(MutableSocket);
+		FString SocketTag = FString::Printf(TEXT("__Socket:%d"), SocketArrayIndex);
+
+		AddTagToMutableMeshUnique(*MutableMesh, SocketTag);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

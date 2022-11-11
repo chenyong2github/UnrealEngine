@@ -242,6 +242,8 @@ void FillTableColumn(const UEdGraphPin* Pin, mu::TablePtr MutableTable, FString 
 							AddTagToMutableMeshUnique(*MutableMesh, GenerateGameplayTag(Tag.ToString()));
 						}
 
+						AddSocketTagsToMesh(SkeletalMesh, MutableMesh, GenerationContext);
+
 						MutableTable->SetCell(CurrentColumn, RowIdx, MutableMesh.get());
 					}
 					else

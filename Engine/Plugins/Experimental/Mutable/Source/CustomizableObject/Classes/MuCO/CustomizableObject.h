@@ -743,16 +743,46 @@ struct FMutableRefLODData
 };
 
 
+USTRUCT()
 struct FMutableRefSocket
 {
+	GENERATED_BODY()
+
+	UPROPERTY()
 	FName SocketName;
+	UPROPERTY()
 	FName BoneName;
 
+	UPROPERTY()
 	FVector RelativeLocation;
+	UPROPERTY()
 	FRotator RelativeRotation;
+	UPROPERTY()
 	FVector RelativeScale;
 
+	UPROPERTY()
 	bool bForceAlwaysAnimated = false;
+
+	// When two sockets have the same name, the one with higher priority will be picked and the other discarded
+	UPROPERTY()
+	int32 Priority = -1;
+
+	bool operator ==(const FMutableRefSocket& Other) const
+	{
+		if (
+			SocketName == Other.SocketName &&
+			BoneName == Other.BoneName &&
+			RelativeLocation == Other.RelativeLocation &&
+			RelativeRotation == Other.RelativeRotation &&
+			RelativeScale == Other.RelativeScale &&
+			bForceAlwaysAnimated == Other.bForceAlwaysAnimated &&
+			Priority == Other.Priority)
+		{
+			return true;
+		}
+
+		return false;
+	}
 	
 	friend FArchive& operator<<(FArchive& Ar, FMutableRefSocket& Data)
 	{
@@ -761,6 +791,8 @@ struct FMutableRefSocket
 		Ar << Data.RelativeLocation;
 		Ar << Data.RelativeRotation;
 		Ar << Data.RelativeScale;
+		Ar << Data.bForceAlwaysAnimated;
+		Ar << Data.Priority;
 
 		return Ar;
 	}
@@ -1322,6 +1354,10 @@ public:
 	/** Stores the UAnimBlueprint assets gathered from the SkeletalMesh nodes during compilation, to be used in mesh generation in-game */
 	UPROPERTY()
 	TMap<FString, TSoftClassPtr<UAnimInstance>> AnimBPAssetsMap;
+
+	UPROPERTY()
+	/** Stores the sockets provided by the part skeletal meshes, to be merged in the generated meshes */
+	TArray<FMutableRefSocket> SocketArray;
 
 	/** Stores the textures that will be used to mask-out areas in projectors. The cache isn't used for rendering, but for coverage testing */
 	UPROPERTY()
