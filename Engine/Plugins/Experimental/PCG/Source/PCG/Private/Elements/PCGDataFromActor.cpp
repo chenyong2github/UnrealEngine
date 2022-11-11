@@ -4,6 +4,9 @@
 
 #include "PCGComponent.h"
 
+#include "GameFramework/Actor.h"
+#include "UObject/Package.h"
+
 FPCGElementPtr UPCGDataFromActorSettings::CreateElement() const
 {
 	return MakeShared<FPCGDataFromActorElement>();
