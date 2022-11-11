@@ -10,6 +10,7 @@ using Horde.Build.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
+using EpicGames.Core;
 
 namespace Horde.Build.Jobs.TestData
 {
@@ -42,7 +43,6 @@ namespace Horde.Build.Jobs.TestData
 
 		readonly StreamService _streamService;
 
-
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -59,14 +59,44 @@ namespace Horde.Build.Jobs.TestData
 		}
 
 		/// <summary>
+		/// Get metadata 
+		/// </summary>
+		/// <param name="projects"></param>
+		/// <param name="platforms"></param>
+		/// <param name="targets"></param>
+		/// <param name="configurations"></param>
+		/// <returns></returns>
+		[HttpGet]
+		[Route("/api/v2/testdata/metadata")]
+		[ProducesResponseType(typeof(List<GetTestMetaResponse>), 200)]
+		public async Task<ActionResult<List<GetTestMetaResponse>>> GetTestMetaAsync(
+			[FromQuery(Name = "projects")] string[]? projects = null,
+			[FromQuery(Name = "platform")] string[]? platforms = null,
+			[FromQuery(Name = "target")] string[]? targets = null,
+			[FromQuery(Name = "configuration")] string[]? configurations = null)
+		{
+			List<GetTestMetaResponse> responses = new List<GetTestMetaResponse>();
+			List<ITestMeta> metaData = await _testDataService.FindTestMeta(projects, platforms, configurations, targets);
+			metaData.ForEach(m => responses.Add(new GetTestMetaResponse(m)));
+			return responses;
+		}
+
+		/// <summary>
 		/// Get stream test data for the provided ids
 		/// </summary>
 		/// <param name="streamIds"></param>
+		/// <param name="metaIds"></param>
+		/// <param name="minCreateTime"></param>
+		/// <param name="maxCreateTime"></param>
 		/// <returns></returns>
 		[HttpGet]
 		[Route("/api/v2/testdata/streams")]
 		[ProducesResponseType(typeof(List<GetTestStreamResponse>), 200)]
-		public async Task<ActionResult<List<GetTestStreamResponse>>> GetTestStreamsAsync([FromQuery(Name = "Id")] string[] streamIds)
+		public async Task<ActionResult<List<GetTestStreamResponse>>> GetTestStreamsAsync(
+			[FromQuery(Name = "Id")] string[] streamIds,
+			[FromQuery(Name = "Mid")] string[] metaIds,
+			[FromQuery] DateTimeOffset minCreateTime,
+			[FromQuery] DateTimeOffset? maxCreateTime = null)
 		{
 			StreamId[] streamIdValues = Array.ConvertAll(streamIds, x => new StreamId(x));
 
@@ -91,7 +121,7 @@ namespace Horde.Build.Jobs.TestData
 				return responses;
 			}
 
-			List<TestStream> streams = await _testDataService.FindTestStreams(queryStreams.ToArray());
+			List<TestStream> streams = await _testDataService.FindTestStreams(queryStreams.ToArray(), metaIds.ConvertAll(x => TestMetaId.Parse(x)).ToArray(), minCreateTime.UtcDateTime, maxCreateTime?.UtcDateTime);
 			streams.ForEach(s => responses.Add(new GetTestStreamResponse(s.StreamId, s.Tests, s.TestSuites, s.TestMeta)));
 			return responses;
 		}
@@ -102,7 +132,7 @@ namespace Horde.Build.Jobs.TestData
 		/// <param name="streamIds"></param>
 		/// <param name="testIds"></param>
 		/// <param name="suiteIds"></param>
-		/// <param name="platformIds"></param>
+		/// <param name="metaIds"></param>
 		/// <param name="minCreateTime"></param>
 		/// <param name="maxCreateTime"></param>
 		/// <param name="minChange"></param>
@@ -113,9 +143,9 @@ namespace Horde.Build.Jobs.TestData
 		[ProducesResponseType(typeof(List<GetTestDataRefResponse>), 200)]
 		public async Task<ActionResult<List<GetTestDataRefResponse>>> GetTestDataRefAsync(
 			[FromQuery(Name = "Id")] string[] streamIds,
+			[FromQuery(Name = "Mid")] string[] metaIds,
 			[FromQuery(Name = "Tid")] string[]? testIds = null,
-			[FromQuery(Name = "Sid")] string[]? suiteIds = null,
-			[FromQuery(Name = "Pid")] string[]? platformIds = null,
+			[FromQuery(Name = "Sid")] string[]? suiteIds = null,			
 			[FromQuery] DateTimeOffset? minCreateTime = null,
 			[FromQuery] DateTimeOffset? maxCreateTime = null,
 			[FromQuery] int? minChange = null, 
@@ -144,13 +174,12 @@ namespace Horde.Build.Jobs.TestData
 				return responses;
 			}
 
-			List<ITestDataRef> dataRefs = await _testDataService.FindTestRefs(queryStreams.ToArray(), platformIds, testIds, suiteIds, minCreateTime?.UtcDateTime, maxCreateTime?.UtcDateTime, minChange, maxChange);
+			List<ITestDataRef> dataRefs = await _testDataService.FindTestRefs(queryStreams.ToArray(), metaIds.ConvertAll(x => TestMetaId.Parse(x)).ToArray(), testIds, suiteIds, minCreateTime?.UtcDateTime, maxCreateTime?.UtcDateTime, minChange, maxChange);
 
 			dataRefs.ForEach(d => responses.Add(new GetTestDataRefResponse(d)));
 
 			return responses;
 		}
-
 
 		/// <summary>
 		/// Creates a new TestData document

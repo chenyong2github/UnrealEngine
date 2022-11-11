@@ -80,11 +80,6 @@ namespace Horde.Build.Jobs.TestData
 	public interface ITest
 	{
 		/// <summary>
-		/// The associated stream
-		/// </summary>
-		StreamId StreamId { get; }
-
-		/// <summary>
 		/// The fully qualified name of the test 
 		/// </summary>
 		string Name { get; }
@@ -93,6 +88,11 @@ namespace Horde.Build.Jobs.TestData
 		/// The display name of the test 
 		/// </summary>
 		string? DisplayName { get; }
+
+		/// <summary>
+		/// The name of the associated suite if any
+		/// </summary>
+		string? SuiteName { get; }
 
 		/// <summary>
 		/// The meta data for the test 
@@ -105,11 +105,6 @@ namespace Horde.Build.Jobs.TestData
 	/// </summary>
 	public interface ITestSuite
 	{
-		/// <summary>
-		/// The associated stream
-		/// </summary>
-		StreamId StreamId { get; }
-
 		/// <summary>
 		/// The name of the test suite
 		/// </summary>
@@ -129,7 +124,7 @@ namespace Horde.Build.Jobs.TestData
 		/// <summary>
 		/// The test id
 		/// </summary>
-		TestId Id { get; }
+		TestId TestId { get; }
 
 		/// <summary>
 		/// The ourcome of the suite test

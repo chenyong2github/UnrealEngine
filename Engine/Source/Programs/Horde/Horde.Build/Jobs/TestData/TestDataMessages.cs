@@ -186,9 +186,9 @@ namespace Horde.Build.Jobs.TestData
 		public string? DisplayName { get; set; }
 
 		/// <summary>
-		/// The name of the test 
+		/// The name of the test suite
 		/// </summary>
-		public string StreamId { get; set; }
+		public string? SuiteName { get; set; }
 
 		/// <summary>
 		/// The platforms the test runs on
@@ -199,7 +199,7 @@ namespace Horde.Build.Jobs.TestData
 		{
 			Name = test.Name;
 			DisplayName = test.DisplayName;
-			StreamId = test.StreamId.ToString();
+			SuiteName = test.SuiteName?.ToString();
 			Metadata = test.Metadata.Select(x => x.ToString()).ToList();
 		}
 	}
@@ -215,11 +215,6 @@ namespace Horde.Build.Jobs.TestData
 		public string Name { get; set; }
 
 		/// <summary>
-		/// The name of the test 
-		/// </summary>
-		public string StreamId { get; set; }
-
-		/// <summary>
 		/// The tests in the suite
 		/// </summary>
 		public List<TestId> Tests { get; set; }
@@ -227,7 +222,6 @@ namespace Horde.Build.Jobs.TestData
 		internal GetTestSuiteResponse(ITestSuite suite)
 		{
 			Name = suite.Name;
-			StreamId = suite.StreamId.ToString();
 			Tests = suite.Tests.ToList();
 		}
 	}
@@ -272,7 +266,6 @@ namespace Horde.Build.Jobs.TestData
 			TestSuites = suites.Select(t => new GetTestSuiteResponse(t)).ToList();
 			TestMetadata = metaData.Select(m => new GetTestMetaResponse(m)).ToList();
 		}
-
 	}
 
 	/// <summary>
@@ -283,7 +276,7 @@ namespace Horde.Build.Jobs.TestData
 		/// <summary>
 		/// The test id
 		/// </summary>
-		public string Id { get; set; }
+		public string TestId { get; set; }
 
 		/// <summary>
 		/// The ourcome of the suite test
@@ -306,13 +299,12 @@ namespace Horde.Build.Jobs.TestData
 		/// <param name="data"></param>
 		public GetSuiteTestDataResponse(ISuiteTestData data)
 		{
-			Id = data.Id.ToString();
+			TestId = data.TestId.ToString();
 			Outcome = data.Outcome;
 			Duration = data.Duration;
-			UID =data.UID;
+			UID = data.UID;
 		}
 	}
-
 
 	/// <summary>
 	/// Data ref 
@@ -363,7 +355,6 @@ namespace Horde.Build.Jobs.TestData
 		/// The suite tests
 		/// </summary>
 		public List<GetSuiteTestDataResponse>? SuiteTests { get; set; }
-
 
 		/// <summary>
 		/// Constructor

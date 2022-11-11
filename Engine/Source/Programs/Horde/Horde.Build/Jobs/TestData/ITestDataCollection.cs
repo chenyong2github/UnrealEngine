@@ -24,8 +24,11 @@ namespace Horde.Build.Jobs.TestData
 		/// Gets the tests running in provided streams
 		/// </summary>
 		/// <param name="streamIds"></param>
+		/// <param name="metaIds"></param>
+		/// <param name="minCreateTime"></param>
+		/// <param name="maxCreateTime"></param>
 		/// <returns></returns>
-		Task<List<TestStream>> FindTestStreams(StreamId[] streamIds);
+		Task<List<TestStream>> FindTestStreams(StreamId[] streamIds, TestMetaId[] metaIds, DateTime minCreateTime, DateTime maxCreateTime);
 
 		/// <summary>
 		/// 
@@ -70,6 +73,19 @@ namespace Horde.Build.Jobs.TestData
 		/// <param name="count">Number of results to return</param>
 		/// <returns>The stream document</returns>
 		Task<List<ITestData>> FindAsync(StreamId? streamId, int? minChange, int? maxChange, JobId? jobId, SubResourceId? stepId, string? key = null, int index = 0, int count = 10);
+
+
+		/// <summary>
+		/// Find test meta data
+		/// </summary>
+		/// <param name="projectNames"></param>
+		/// <param name="platforms"></param>
+		/// <param name="configurations"></param>
+		/// <param name="buildTargets"></param>
+		/// <param name="rhi"></param>
+		/// <param name="metaIds"></param>
+		/// <returns></returns>
+		Task<List<ITestMeta>> FindTestMeta(string[]? projectNames = null, string[]? platforms = null, string[]? configurations = null, string[]? buildTargets = null, string? rhi = null, TestMetaId[]? metaIds = null);
 
 		/// <summary>
 		/// Delete the test data
