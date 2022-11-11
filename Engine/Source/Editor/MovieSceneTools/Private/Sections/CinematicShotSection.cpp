@@ -110,7 +110,8 @@ float FCinematicShotSection::GetSectionHeight() const
 
 FMargin FCinematicShotSection::GetContentPadding() const
 {
-	return FMargin(8.f, 15.f);
+	// When the rename widget is visible, use less padding so that the widget is visible over the film border (when thumbnails are not shown)
+	return FMargin(8.f, GetRenameVisibility() == EVisibility::Visible ? 10.f : 15.f);
 }
 
 void FCinematicShotSection::SetSingleTime(double GlobalTime)

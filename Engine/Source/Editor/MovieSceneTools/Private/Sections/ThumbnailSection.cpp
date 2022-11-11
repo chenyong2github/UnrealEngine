@@ -76,7 +76,7 @@ TSharedRef<SWidget> FThumbnailSection::GenerateSectionWidget()
 	return SNew(SBox)
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Top)
-		.Padding(GetContentPadding())
+		.Padding_Lambda([&]() { return GetContentPadding(); })
 		[
 			SAssignNew(NameWidget, SInlineEditableTextBlock)
 				.ToolTipText(CanRename() ? LOCTEXT("RenameThumbnail", "Click or hit F2 to rename") : FText::GetEmpty())
