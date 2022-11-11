@@ -445,7 +445,8 @@ IStreamDecrypterAES128::EResult FStreamDecrypterAES128::CBCInit(const TArray<uin
 		}
 		else
 		{
-			TinyAES128::AES_init_ctx(&AES128CBCContext, (const uint8_t*)Key.GetData());
+			uint8 ZeroIV[16] = {0};
+			TinyAES128::AES_init_ctx_iv(&AES128CBCContext, (const uint8_t*)Key.GetData(), ZeroIV);
 		}
 		bIsInitialized = true;
 		CryptoKey = Key;

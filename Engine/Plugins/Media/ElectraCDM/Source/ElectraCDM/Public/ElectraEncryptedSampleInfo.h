@@ -27,6 +27,7 @@ struct FMediaCDMSampleInfo
 	TArray<uint8> IV;
 	TArray<FSubSample> SubSamples;
 	FCryptSkipPattern Pattern;
+	uint32 Scheme4CC = 0;
 };
 
 

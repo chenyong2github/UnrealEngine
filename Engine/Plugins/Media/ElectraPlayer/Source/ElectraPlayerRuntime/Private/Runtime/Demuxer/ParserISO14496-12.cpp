@@ -765,6 +765,7 @@ private:
 		 * Encryption scheme types
 		 */
 		static const IParserISO14496_12::FBoxType kEncryptionScheme_cenc = MAKE_BOX_ATOM('c', 'e', 'n', 'c');
+		static const IParserISO14496_12::FBoxType kEncryptionScheme_cbcs = MAKE_BOX_ATOM('c', 'b', 'c', 's');
 
 		/**
 		 * Known UUIDs for PIFF boxes before they were added to ISO/IEC 14496-12
@@ -6534,23 +6535,36 @@ private:
 
 	bool FParserISO14496_12::FTrackIterator::GetEncryptionInfo(ElectraCDM::FMediaCDMSampleInfo& OutSampleEncryptionInfo) const
 	{
-		if (!Track || !Track->SENCBox)
+		if (!Track || (!Track->SENCBox && !Track->TENCBox))
 		{
 			return false;
 		}
 		if (Track->TENCBox)
 		{
 			OutSampleEncryptionInfo.DefaultKID = Track->TENCBox->GetDefaultKID();
+			OutSampleEncryptionInfo.IV = Track->TENCBox->GetDefaultConstantIV();
+			if (Track->TENCBox->HasDefaultCryptBlockValues())
+			{
+				OutSampleEncryptionInfo.Pattern.PatternType = 1;
+				OutSampleEncryptionInfo.Pattern.CryptByteBlock = Track->TENCBox->GetDefaultCryptByteBlock();
+				OutSampleEncryptionInfo.Pattern.SkipByteBlock = Track->TENCBox->GetDefaultSkipByteBlock();
+			}
 		}
-
-		const TArray<FMP4BoxSENC::FEntry>& SencEntries = Track->SENCBox->GetEntries();
-		check((int32) SampleNumberInTRUN < SencEntries.Num());
-		if ((int32) SampleNumberInTRUN >= SencEntries.Num())
+		if (Track->SENCBox)
 		{
-			return false;
+			const TArray<FMP4BoxSENC::FEntry>& SencEntries = Track->SENCBox->GetEntries();
+			check((int32) SampleNumberInTRUN < SencEntries.Num());
+			if ((int32) SampleNumberInTRUN >= SencEntries.Num())
+			{
+				return false;
+			}
+			if (SencEntries[SampleNumberInTRUN].IV.Num())
+			{
+				OutSampleEncryptionInfo.IV = SencEntries[SampleNumberInTRUN].IV;
+			}
+			OutSampleEncryptionInfo.SubSamples = SencEntries[SampleNumberInTRUN].SubSamples;
 		}
-		OutSampleEncryptionInfo.IV = SencEntries[SampleNumberInTRUN].IV;
-		OutSampleEncryptionInfo.SubSamples = SencEntries[SampleNumberInTRUN].SubSamples;
+		OutSampleEncryptionInfo.Scheme4CC = Track->SCHMBox ? Track->SCHMBox->GetSchemeType() : 0;
 		return true;
 	}
 
@@ -7148,8 +7162,8 @@ private:
 								{
 									return UEMEDIA_ERROR_FORMAT_ERROR;
 								}
-								// Expecting encryption to be 'cenc'
-								if (SCHMBox->GetSchemeType() != FMP4Box::kEncryptionScheme_cenc)
+								// Expecting encryption to be 'cenc' or 'cbcs'
+								if (SCHMBox->GetSchemeType() != FMP4Box::kEncryptionScheme_cenc && SCHMBox->GetSchemeType() != FMP4Box::kEncryptionScheme_cbcs)
 								{
 									return UEMEDIA_ERROR_FORMAT_ERROR;
 								}
@@ -7197,8 +7211,8 @@ private:
 								{
 									return UEMEDIA_ERROR_FORMAT_ERROR;
 								}
-								// Likewise fo encryption it needs to be 'cenc'
-								if (SCHMBox->GetSchemeType() != FMP4Box::kEncryptionScheme_cenc)
+								// Likewise fo encryption it needs to be 'cenc' or 'cbcs'
+								if (SCHMBox->GetSchemeType() != FMP4Box::kEncryptionScheme_cenc && SCHMBox->GetSchemeType() != FMP4Box::kEncryptionScheme_cbcs)
 								{
 									return UEMEDIA_ERROR_FORMAT_ERROR;
 								}

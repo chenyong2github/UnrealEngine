@@ -55,6 +55,9 @@ public:
 		SecureDecoderNotRequired,
 	};
 
+	// Returns if a specified cipher (eg. "cenc" or "cbcs") is supported by this CDM.
+	virtual ESupportResult SupportsCipher(const FString& InCipherType) = 0;
+
 	// Returns if a specified media type is supported by this CDM.
 	virtual ESupportResult SupportsType(const FString& InMimeType) = 0;
 
