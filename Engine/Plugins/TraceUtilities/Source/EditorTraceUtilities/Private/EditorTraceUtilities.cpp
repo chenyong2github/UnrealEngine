@@ -2,6 +2,7 @@
 
 #include "EditorTraceUtilities.h"
 
+#include "Misc/ConfigContext.h"
 #include "ToolMenus.h"
 #include "UnrealInsightsLauncher.h"
 
@@ -14,6 +15,8 @@ DEFINE_LOG_CATEGORY(LogTraceUtilities)
   */
 void RegisterInsightsStatusWidgetWithToolMenu();
 
+FString FEditorTraceUtilitiesModule::EditorTraceUtilitiesIni;
+
 void FEditorTraceUtilitiesModule::StartupModule()
 {
 	LLM_SCOPE_BYNAME(TEXT("Insights"));
@@ -23,6 +26,8 @@ void FEditorTraceUtilitiesModule::StartupModule()
 			&FUnrealInsightsLauncher::RegisterMenus));
 
 	RegisterInsightsStatusWidgetWithToolMenu();
+
+	FConfigContext::ReadIntoGConfig().Load(TEXT("TraceUtilities"), EditorTraceUtilitiesIni);
 }
 
 void FEditorTraceUtilitiesModule::ShutdownModule()

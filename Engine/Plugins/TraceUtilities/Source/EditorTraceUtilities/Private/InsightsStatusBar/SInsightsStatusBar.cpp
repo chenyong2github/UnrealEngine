@@ -2,13 +2,17 @@
 
 #include "SInsightsStatusBar.h"
 
+#include "CoreGlobals.h"
 #include "EditorTraceUtilitiesStyle.h"
+#include "EditorTraceUtilities.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/FileManager.h"
 #include "Math/Color.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Modules/ModuleManager.h"
-#include "ProfilingDebugging/TraceAuxiliary.h"
 #include "Styling/StyleColors.h"
 #include "ToolMenus.h"
 #include "Trace/StoreClient.h"
@@ -27,6 +31,11 @@ const TCHAR* SInsightsStatusBarWidget::MemoryPreset= TEXT("default,memory");
 const TCHAR* SInsightsStatusBarWidget::TaskGraphPreset = TEXT("default,task");
 const TCHAR* SInsightsStatusBarWidget::ContextSwitchesPreset = TEXT("default,contextswitches");
 
+const TCHAR* SInsightsStatusBarWidget::SettingsCategory = TEXT("EditorTraceUtilities");
+const TCHAR* SInsightsStatusBarWidget::OpenLiveSessionOnTraceStartSettingName = TEXT("OpenLiveSessionOnTraceStart");
+const TCHAR* SInsightsStatusBarWidget::OpenInsightsAfterTraceSettingName = TEXT("OpenInsightsAfterTrace");
+const TCHAR* SInsightsStatusBarWidget::ShowInExplorerAfterTraceSettingName = TEXT("ShowInExplorerAfterTrace");
+
 TSharedRef<SWidget> CreateInsightsStatusBarWidget()
 {
 	return SNew(SInsightsStatusBarWidget);
@@ -36,7 +45,7 @@ void RegisterInsightsStatusWidgetWithToolMenu()
 {
 	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu(TEXT("LevelEditor.StatusBar.ToolBar"));
 
-	FToolMenuSection& InsightsSection = Menu->AddSection(TEXT("Insights"), FText::GetEmpty(), FToolMenuInsert(TEXT("Compile"), EToolMenuInsertType::Before));
+	FToolMenuSection& InsightsSection = Menu->AddSection(TEXT("Insights"), FText::GetEmpty(), FToolMenuInsert(TEXT("DDC"), EToolMenuInsertType::Before));
 
 	InsightsSection.AddEntry(
 		FToolMenuEntry::InitWidget(TEXT("InsightsStatusBar"), CreateInsightsStatusBarWidget(), FText::GetEmpty(), true, false)
@@ -142,26 +151,49 @@ void SInsightsStatusBarWidget::Construct(const FArguments& InArgs)
 		]
 	];
 
+	if (FTraceAuxiliary::GetConnectionType() == FTraceAuxiliary::EConnectionType::Network)
+	{
+		TraceDestination = ETraceDestination::TraceStore;
+	}
+	if (FTraceAuxiliary::GetConnectionType() == FTraceAuxiliary::EConnectionType::File)
+	{
+		TraceDestination = ETraceDestination::File;
+	}
+
 	Channels = DefaultPreset;
+	FTraceAuxiliary::OnTraceStarted.AddSP(this, &SInsightsStatusBarWidget::OnTraceStarted);
+	FTraceAuxiliary::OnTraceStopped.AddSP(this, &SInsightsStatusBarWidget::OnTraceStopped);
+	FTraceAuxiliary::OnSnapshotSaved.AddSP(this, &SInsightsStatusBarWidget::OnSnapshotSaved);
 }
 
 TSharedRef<SWidget> SInsightsStatusBarWidget::MakeTraceMenu()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	// To be activated
-	//MenuBuilder.BeginSection("TraceDataFiltering", LOCTEXT("TraceMenu_Section_DataFiltering", "Trace Data Filtering"));
-	//{
-	//	MenuBuilder.AddSubMenu
-	//	(
-	//		LOCTEXT("Channels", "Channels"),
-	//		LOCTEXT("Channels_Desc", "Select what trace channels to enable when tracing."),
-	//		FNewMenuDelegate::CreateSP(this, &SInsightsStatusBarWidget::Channels_BuildMenu),
-	//		false,
-	//		FSlateIcon(FEditorTraceUtilitiesStyle::Get().GetStyleSetName(), ("Icons.Trace"))
-	//	);
-	//}
-	//MenuBuilder.EndSection();
+	MenuBuilder.BeginSection("TraceDataFiltering", LOCTEXT("TraceMenu_Section_DataFiltering", "Trace Data Filtering"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("StatNamedEventsLabel", "Stat Named Events"),
+			LOCTEXT("StatNamedEventsDesc", "Enable or disable named events in the stats system."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateLambda([]() { GCycleStatsShouldEmitNamedEvents = GCycleStatsShouldEmitNamedEvents == 0 ? 1 : 0; }),
+					  FCanExecuteAction::CreateLambda([]() { return true; }),
+					  FIsActionChecked::CreateLambda([]() { return GCycleStatsShouldEmitNamedEvents > 0; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		// To be activated 
+		//	MenuBuilder.AddSubMenu
+		//	(
+		//		LOCTEXT("Channels", "Channels"),
+		//		LOCTEXT("Channels_Desc", "Select what trace channels to enable when tracing."),
+		//		FNewMenuDelegate::CreateSP(this, &SInsightsStatusBarWidget::Channels_BuildMenu),
+		//		false,
+		//		FSlateIcon(FEditorTraceUtilitiesStyle::Get().GetStyleSetName(), ("Icons.Trace"))
+		//	);
+	}
+	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection("TraceDestination", LOCTEXT("TraceMenu_Section_Destination", "Trace Destination"));
 	{
@@ -212,6 +244,65 @@ TSharedRef<SWidget> SInsightsStatusBarWidget::MakeTraceMenu()
 	}
 	MenuBuilder.EndSection();
 
+	MenuBuilder.BeginSection("Options", LOCTEXT("TraceMenu_Section_Options", "Options"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("OpenLiveSesssionOnTraceStart", "Open Live Session on Trace Start"),
+			LOCTEXT("OpenLiveSesssionOnTraceStartDesc", "When set, the live session will be automatically opened in Unreal Insights when tracing is started.\nThis option will only apply when tracing to the trace store."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::ToggleBooleanSettingValue, OpenLiveSessionOnTraceStartSettingName),
+				FCanExecuteAction::CreateLambda([]() { return true; }),
+				FIsActionChecked::CreateSP(this, &SInsightsStatusBarWidget::GetBooleanSettingValue, OpenLiveSessionOnTraceStartSettingName)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("OpenInsightsAfterTrace", "Open Insights after Trace"),
+			LOCTEXT("OpenInsightsAfterTraceDesc", "When set, the session will be automatically opened in Unreal Insights when tracing is stopped or when a snapshot is saved."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::ToggleBooleanSettingValue, OpenInsightsAfterTraceSettingName),
+				FCanExecuteAction::CreateLambda([]() { return true; }),
+				FIsActionChecked::CreateSP(this, &SInsightsStatusBarWidget::GetBooleanSettingValue, OpenInsightsAfterTraceSettingName)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowInExplorerAfterTrace", "Show in Explorer after Trace"),
+			LOCTEXT("ShowInExplorerAfterTraceDesc", "When set, folder containing the recorded session will be opened automatically when trace is stopped or when a snapshot is saved."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::ToggleBooleanSettingValue, ShowInExplorerAfterTraceSettingName),
+				FCanExecuteAction::CreateLambda([]() { return true; }),
+				FIsActionChecked::CreateSP(this, &SInsightsStatusBarWidget::GetBooleanSettingValue, ShowInExplorerAfterTraceSettingName)),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("Locations", LOCTEXT("TraceMenu_Section_Locations", "Locations"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("OpenTraceStoreLabel", "Open Trace Store Directory"),
+			LOCTEXT("OpenTraceStoreTooltip", "Open Trace Store Directory. This is the location where traces saved to the trace server are stored."),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.FolderOpen"),
+			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::OpenTraceStoreDirectory_OnClicked)),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("OpenProfilingDirectoryLabel", "Open Profiling Directory"),
+			LOCTEXT("OpenProfilingDirectoryTooltip", "Opens the profiling directory of the current project. This is the location where traces to file are stored."),
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.FolderOpen"),
+			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::OpenProfilingDirectory_OnClicked)),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+	MenuBuilder.EndSection();
+
 	MenuBuilder.BeginSection("Insights", LOCTEXT("TraceMenu_Section_Insights", "Insights"));
 	{
 		MenuBuilder.AddMenuEntry(
@@ -228,30 +319,7 @@ TSharedRef<SWidget> SInsightsStatusBarWidget::MakeTraceMenu()
 			LOCTEXT("OpenLiveSessionTooltip", "Opening the live session is possible only while tracing to the trace store."),
 			FSlateIcon(FEditorTraceUtilitiesStyle::Get().GetStyleSetName(), "Icons.OpenLiveSession"),
 			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::OpenLiveSession_OnClicked),
-					  FCanExecuteAction::CreateLambda([this]() { return FTraceAuxiliary::IsConnected() && this->TraceDestination == ETraceDestination::TraceStore; })),
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);
-	}
-	MenuBuilder.EndSection();
-
-
-	MenuBuilder.BeginSection("Locations", LOCTEXT("TraceMenu_Section_Locations", "Locations"));
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("OpenProfilingDirectoryLabel", "Open Profiling Directory"),
-			LOCTEXT("OpenProfilingDirectoryTooltip", "Opens the profiling directory of the current project. This is the location where traces to file are stored."),
-			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.FolderOpen"),
-			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::OpenProfilingDirectory_OnClicked)),
-			NAME_None,
-			EUserInterfaceActionType::Button
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("OpenTraceStoreLabel", "Open Trace Store Directory"),
-			LOCTEXT("OpenTraceStoreTooltip", "Open Trace Store Directory. This is the location where traces saved to the trace server are stored."),
-			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "Icons.FolderOpen"),
-			FUIAction(FExecuteAction::CreateSP(this, &SInsightsStatusBarWidget::OpenTraceStoreDirectory_OnClicked)),
+				FCanExecuteAction::CreateLambda([this]() { return FTraceAuxiliary::GetConnectionType() == FTraceAuxiliary::EConnectionType::Network; })),
 			NAME_None,
 			EUserInterfaceActionType::Button
 		);
@@ -397,17 +465,31 @@ void SInsightsStatusBarWidget::LaunchUnrealInsights_OnClicked()
 
 void SInsightsStatusBarWidget::OpenLiveSession_OnClicked()
 {
+	OpenLiveSession();
+}
+
+void SInsightsStatusBarWidget::OpenLiveSession()
+{
 	FUnrealInsightsLauncher::Get()->TryOpenTraceFromDestination(FTraceAuxiliary::GetTraceDestination());
 }
 
-
 void SInsightsStatusBarWidget::OpenProfilingDirectory_OnClicked()
+{
+	OpenProfilingDirectory();
+}
+
+void SInsightsStatusBarWidget::OpenProfilingDirectory()
 {
 	FString FullPath(FPaths::ConvertRelativePathToFull(FPaths::ProfilingDir()));
 	FPlatformProcess::ExploreFolder(*FullPath);
 }
 
 void SInsightsStatusBarWidget::OpenTraceStoreDirectory_OnClicked()
+{
+	OpenTraceStoreDirectory(false);
+}
+
+void SInsightsStatusBarWidget::OpenTraceStoreDirectory(bool bSelectLastTrace)
 {
 	UE::Trace::FStoreClient* StoreClient = UE::Trace::FStoreClient::Connect(TEXT("localhost"));
 
@@ -425,6 +507,32 @@ void SInsightsStatusBarWidget::OpenTraceStoreDirectory_OnClicked()
 	}
 
 	FString Path(Status->GetStoreDir());
+
+	if (bSelectLastTrace)
+	{
+		FString MostRecentTraceName;
+		FDateTime LatestDateTime;
+
+		auto Visitor = [&MostRecentTraceName, &LatestDateTime](const TCHAR* Filename, const FFileStatData& StatData)
+		{
+			if (FPaths::GetExtension(Filename) == TEXT("utrace"))
+			{
+				if (LatestDateTime < StatData.ModificationTime)
+				{
+					LatestDateTime = StatData.ModificationTime;
+					MostRecentTraceName = Filename;
+				}
+			}
+			return true;
+		};
+
+		IFileManager::Get().IterateDirectoryStat(*Path, Visitor);
+
+		if (!MostRecentTraceName.IsEmpty())
+		{
+			Path = MostRecentTraceName;
+		}
+	}
 
 	FString FullPath(FPaths::ConvertRelativePathToFull(Path));
 	FPlatformProcess::ExploreFolder(*FullPath);
@@ -534,6 +642,59 @@ void SInsightsStatusBarWidget::SetTraceChannels(const TCHAR* InChannels)
 bool SInsightsStatusBarWidget::IsPresetSet(const TCHAR* InChannels) const
 {
 	return Channels == InChannels;
+}
+
+bool SInsightsStatusBarWidget::GetBooleanSettingValue(const TCHAR* InSettingName)
+{
+	bool Value = false;
+	GConfig->GetBool(SettingsCategory, InSettingName, Value, FEditorTraceUtilitiesModule::GetTraceUtilitiesIni());
+	return Value;
+}
+
+void SInsightsStatusBarWidget::ToggleBooleanSettingValue(const TCHAR* InSettingName)
+{
+	bool Value = false;
+	GConfig->GetBool(SettingsCategory, InSettingName, Value, FEditorTraceUtilitiesModule::GetTraceUtilitiesIni());
+	GConfig->SetBool(SettingsCategory, InSettingName, !Value, FEditorTraceUtilitiesModule::GetTraceUtilitiesIni());
+}
+
+void SInsightsStatusBarWidget::OnTraceStarted(FTraceAuxiliary::EConnectionType InTraceType, const FString& InTraceDestination)
+{
+	if (InTraceType == FTraceAuxiliary::EConnectionType::Network && GetBooleanSettingValue(OpenLiveSessionOnTraceStartSettingName))
+	{
+		OpenLiveSession();
+	}
+}
+
+void SInsightsStatusBarWidget::OnTraceStopped(FTraceAuxiliary::EConnectionType InTraceType, const FString& InTraceDestination)
+{
+	if (GetBooleanSettingValue(OpenInsightsAfterTraceSettingName))
+	{
+		OpenLiveSession();
+	}
+	if (GetBooleanSettingValue(ShowInExplorerAfterTraceSettingName))
+	{
+		if (InTraceType == FTraceAuxiliary::EConnectionType::Network)
+		{
+			OpenTraceStoreDirectory(true);
+		}
+		else if (InTraceType == FTraceAuxiliary::EConnectionType::File)
+		{
+			FPlatformProcess::ExploreFolder(*InTraceDestination);
+		}
+	}
+}
+
+void SInsightsStatusBarWidget::OnSnapshotSaved(const FString& InPath)
+{
+	if (GetBooleanSettingValue(OpenInsightsAfterTraceSettingName))
+	{
+		FUnrealInsightsLauncher::Get()->TryOpenTraceFromDestination(InPath);
+	}
+	if (GetBooleanSettingValue(ShowInExplorerAfterTraceSettingName))
+	{
+		FPlatformProcess::ExploreFolder(*InPath);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

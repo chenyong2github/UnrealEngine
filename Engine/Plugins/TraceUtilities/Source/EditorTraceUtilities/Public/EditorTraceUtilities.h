@@ -13,6 +13,9 @@ public:
     virtual void StartupModule() override;
     virtual void ShutdownModule() override;
     
+	static const FString& GetTraceUtilitiesIni() { return EditorTraceUtilitiesIni; }
+
 private:
     FDelegateHandle RegisterStartupCallbackHandle;
+	static FString EditorTraceUtilitiesIni;
 };

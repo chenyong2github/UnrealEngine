@@ -55,6 +55,12 @@ public:
 	*/
 	DECLARE_TS_MULTICAST_DELEGATE_TwoParams(FOnTraceStopped, FTraceAuxiliary::EConnectionType TraceType, const FString& TraceDestination);
 
+	/**
+	* Callback whenever a trace snapshot is saved.
+	* Path is the file system path of the snapshot file.
+	*/
+	DECLARE_TS_MULTICAST_DELEGATE_OneParam(FOnSnapshotSaved, const FString& Path);
+
 	struct FOptions
 	{
 		/** When set, trace will not start a worker thread, instead it is updated from end frame delegate. */
@@ -144,6 +150,11 @@ public:
 	static bool	IsConnected();
 
 	/**
+	*  Returns the current connection type.
+	*/
+	static EConnectionType GetConnectionType();
+
+	/**
 	 *  Adds a comma separated list of currently active channels to the passed in StringBuilder
 	 */
 	static void	GetActiveChannelsString(FStringBuilderBase& String);
@@ -174,5 +185,11 @@ public:
 	 * The type of recording and the destination (filepath or network) is passed to the delegate.
 	 */
 	static FOnTraceStopped OnTraceStopped;
+
+	/**
+	 * Delegate that triggers when a snapshot has been saved.
+	 * The path to the snapshot file is passed to the delegate.
+	 */
+	static FOnSnapshotSaved OnSnapshotSaved;
 	
 };

@@ -80,25 +80,26 @@ enum class ETraceConnectType
 class FTraceAuxiliaryImpl
 {
 public:
-	const TCHAR*			GetDest() const;
-	bool					IsConnected() const;
-	void					GetActiveChannelsString(FStringBuilderBase& String) const;
-	void					AddCommandlineChannels(const TCHAR* ChannelList);
-	void					ResetCommandlineChannels();
-	bool					HasCommandlineChannels() const { return !CommandlineChannels.IsEmpty(); }
-	void					EnableChannels(const TCHAR* ChannelList);
-	void					DisableChannels(const TCHAR* ChannelList);
-	bool					Connect(ETraceConnectType Type, const TCHAR* Parameter, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
-	bool					Stop();
-	void					ResumeChannels();
-	void					PauseChannels();
-	void					EnableCommandlineChannels();
-	void					EnableCommandlineChannelsPostInitialize();
-	void					SetTruncateFile(bool bTruncateFile);
-	void					UpdateCsvStats() const;
-	void					StartWorkerThread();
-	void					StartEndFramePump();
-	bool					WriteSnapshot(const TCHAR* InFilePath, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
+	const TCHAR* GetDest() const;
+	bool IsConnected() const;
+	FTraceAuxiliary::EConnectionType GetConnectionType() const;
+	void GetActiveChannelsString(FStringBuilderBase& String) const;
+	void AddCommandlineChannels(const TCHAR* ChannelList);
+	void ResetCommandlineChannels();
+	bool HasCommandlineChannels() const { return !CommandlineChannels.IsEmpty(); }
+	void EnableChannels(const TCHAR* ChannelList);
+	void DisableChannels(const TCHAR* ChannelList);
+	bool Connect(ETraceConnectType Type, const TCHAR* Parameter, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
+	bool Stop();
+	void ResumeChannels();
+	void PauseChannels();
+	void EnableCommandlineChannels();
+	void EnableCommandlineChannelsPostInitialize();
+	void SetTruncateFile(bool bTruncateFile);
+	void UpdateCsvStats() const;
+	void StartWorkerThread();
+	void StartEndFramePump();
+	bool WriteSnapshot(const TCHAR* InFilePath, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
 
 	// True if this is parent process with forking requested before forking.
 	bool					IsParentProcessAndPreFork();
@@ -112,28 +113,28 @@ private:
 
 	struct FChannelEntry
 	{
-		FString				Name;
-		bool				bActive = false;
+		FString	Name;
+		bool bActive = false;
 	};
 
-	void					AddChannel(const TCHAR* Name);
-	void					RemoveChannel(const TCHAR* Name);
+	void AddChannel(const TCHAR* Name);
+	void RemoveChannel(const TCHAR* Name);
 	template <class T> void ForEachChannel(const TCHAR* ChannelList, bool bResolvePresets, T Callable);
-	static uint32			HashChannelName(const TCHAR* Name);
-	bool					EnableChannel(const TCHAR* Channel);
-	void					DisableChannel(const TCHAR* Channel);
-	bool					SendToHost(const TCHAR* Host, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
-	bool					WriteToFile(const TCHAR* Path, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
-	bool					FinalizeFilePath(const TCHAR* InPath, FString& OutPath, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
+	static uint32 HashChannelName(const TCHAR* Name);
+	bool EnableChannel(const TCHAR* Channel);
+	void DisableChannel(const TCHAR* Channel);
+	bool SendToHost(const TCHAR* Host, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
+	bool WriteToFile(const TCHAR* Path, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
+	bool FinalizeFilePath(const TCHAR* InPath, FString& OutPath, const FTraceAuxiliary::FLogCategoryAlias& LogCategory);
 
 	typedef TMap<uint32, FChannelEntry, TInlineSetAllocator<128>> ChannelSet;
-	ChannelSet				CommandlineChannels;
-	FString					TraceDest;
-	FTraceAuxiliary::EConnectionType TraceType = FTraceAuxiliary::EConnectionType::None;
-	std::atomic<EState>		State = EState::Stopped;
-	bool					bTruncateFile = false;
-	bool					bWorkerThreadStarted = false;
-	FString					PausedPreset;
+	ChannelSet CommandlineChannels;
+	FString TraceDest;
+	std::atomic<FTraceAuxiliary::EConnectionType> TraceType = FTraceAuxiliary::EConnectionType::None;
+	std::atomic<EState> State = EState::Stopped;
+	bool bTruncateFile = false;
+	bool bWorkerThreadStarted = false;
+	FString PausedPreset;
 };
 
 static FTraceAuxiliaryImpl GTraceAuxiliary;
@@ -291,7 +292,7 @@ bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter
 				UE_LOG_REF(LogCategory, Error, TEXT("Trace failed to connect (trace server: %s)!"), Parameter ? Parameter : TEXT(""));
 			}
 
-			TraceType = FTraceAuxiliary::EConnectionType::Network;
+			TraceType.store(FTraceAuxiliary::EConnectionType::Network);
 		}
 
 		else if (Type == ETraceConnectType::File)
@@ -306,12 +307,12 @@ bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter
 				UE_LOG_REF(LogCategory, Error, TEXT("Trace failed to connect (file: \"%s\")!"), Parameter ? Parameter : TEXT(""));
 			}
 
-			TraceType = FTraceAuxiliary::EConnectionType::File;
+			TraceType.store(FTraceAuxiliary::EConnectionType::File);
 		}
 
 		if (bConnected)
 		{
-			FTraceAuxiliary::OnTraceStarted.Broadcast(TraceType, TraceDest);
+			FTraceAuxiliary::OnTraceStarted.Broadcast(TraceType.load(), TraceDest);
 		}
 	}
 
@@ -337,10 +338,10 @@ bool FTraceAuxiliaryImpl::Stop()
 		return false;
 	}
 
-	FTraceAuxiliary::OnTraceStopped.Broadcast(TraceType, TraceDest);
+	FTraceAuxiliary::OnTraceStopped.Broadcast(TraceType.load(), TraceDest);
 
 	State.store(EState::Stopped);
-	TraceType = FTraceAuxiliary::EConnectionType::None;
+	TraceType.store(FTraceAuxiliary::EConnectionType::None);
 	TraceDest.Reset();
 	return true;
 }
@@ -564,6 +565,7 @@ bool FTraceAuxiliaryImpl::WriteSnapshot(const TCHAR* InFilePath, const FTraceAux
 
 	if (bResult)
 	{
+		FTraceAuxiliary::OnSnapshotSaved.Broadcast(NativePath);
 		UE_LOG_REF(LogCategory, Display, TEXT("Trace snapshot generated in %.3f seconds to \"%s\"."), FPlatformTime::Seconds() - StartTime, *NativePath);
 	}
 	else
@@ -584,6 +586,12 @@ const TCHAR* FTraceAuxiliaryImpl::GetDest() const
 bool FTraceAuxiliaryImpl::IsConnected() const
 {
 	return State.load() == EState::Tracing;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FTraceAuxiliary::EConnectionType FTraceAuxiliaryImpl::GetConnectionType() const
+{
+	return TraceType.load();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1265,6 +1273,7 @@ static bool StartFromCommandlineArguments(const TCHAR* CommandLine, bool& bOutSt
 FTraceAuxiliary::FOnConnection FTraceAuxiliary::OnConnection;
 FTraceAuxiliary::FOnTraceStarted FTraceAuxiliary::OnTraceStarted;
 FTraceAuxiliary::FOnTraceStopped FTraceAuxiliary::OnTraceStopped;
+FTraceAuxiliary::FOnSnapshotSaved FTraceAuxiliary::OnSnapshotSaved;
 
 ////////////////////////////////////////////////////////////////////////////////
 bool FTraceAuxiliary::Start(EConnectionType Type, const TCHAR* Target, const TCHAR* Channels, FOptions* Options, const FLogCategoryAlias& LogCategory)
@@ -1594,6 +1603,14 @@ bool FTraceAuxiliary::IsConnected()
 	return GTraceAuxiliary.IsConnected();
 #endif
 	return false;
+}
+
+FTraceAuxiliary::EConnectionType FTraceAuxiliary::GetConnectionType()
+{
+#if UE_TRACE_ENABLED
+	return GTraceAuxiliary.GetConnectionType();
+#endif
+	return FTraceAuxiliary::EConnectionType::None;
 }
 
 void FTraceAuxiliary::GetActiveChannelsString(FStringBuilderBase& String)

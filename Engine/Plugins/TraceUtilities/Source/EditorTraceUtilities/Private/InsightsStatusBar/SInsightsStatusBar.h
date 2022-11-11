@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProfilingDebugging/TraceAuxiliary.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
@@ -29,7 +30,6 @@ class SInsightsStatusBarWidget : public SCompoundWidget
 	void Construct(const FArguments& InArgs);
 
 private:
-
 	FText	GetTitleToolTipText() const;
 	
 	FSlateColor GetRecordingButtonColor() const;
@@ -39,9 +39,13 @@ private:
 	void LaunchUnrealInsights_OnClicked();
 	
 	void OpenLiveSession_OnClicked();
+	void OpenLiveSession();
 
 	void OpenProfilingDirectory_OnClicked();
+	void OpenProfilingDirectory();
+
 	void OpenTraceStoreDirectory_OnClicked();
+	void OpenTraceStoreDirectory(bool bSelectLastTrace);
 
 	void SetTraceDestination_Execute(ETraceDestination InDestination);
 	bool SetTraceDestination_CanExecute();
@@ -69,11 +73,23 @@ private:
 	void SetTraceChannels(const TCHAR* InChannels);
 	bool IsPresetSet(const TCHAR* InChannels) const;
 
+	bool GetBooleanSettingValue(const TCHAR* InSettingName);
+	void ToggleBooleanSettingValue(const TCHAR* InSettingName);
+
+	void OnTraceStarted(FTraceAuxiliary::EConnectionType TraceType, const FString& TraceDestination);
+	void OnTraceStopped(FTraceAuxiliary::EConnectionType TraceType, const FString& TraceDestination);
+	void OnSnapshotSaved(const FString& InPath);
+
 private:
 	static const TCHAR* DefaultPreset;
 	static const TCHAR* MemoryPreset;
 	static const TCHAR* TaskGraphPreset;
 	static const TCHAR* ContextSwitchesPreset;
+
+	static const TCHAR* SettingsCategory;
+	static const TCHAR* OpenLiveSessionOnTraceStartSettingName;
+	static const TCHAR* OpenInsightsAfterTraceSettingName;
+	static const TCHAR* ShowInExplorerAfterTraceSettingName;
 
 	ETraceDestination TraceDestination = ETraceDestination::TraceStore;
 	bool bIsTraceRecordButtonHovered = false;
