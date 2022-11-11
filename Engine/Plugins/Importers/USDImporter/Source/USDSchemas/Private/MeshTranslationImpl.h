@@ -51,34 +51,34 @@ namespace MeshTranslationImpl
 		const FName& MaterialPurpose
 	);
 
-	enum class EUsdBaseMaterialProperties
+	enum class EUsdReferenceMaterialProperties
 	{
 		None = 0,
 		Translucent = 1,
 		VT = 2,
 		TwoSided = 4
 	};
-	ENUM_CLASS_FLAGS( EUsdBaseMaterialProperties )
+	ENUM_CLASS_FLAGS( EUsdReferenceMaterialProperties )
 
-	// Returns one of the alternatives of the UsdPreviewSurface base material depending on the material overrides
+	// Returns one of the alternatives of the UsdPreviewSurface reference material depending on the material overrides
 	// provided, and nullptr otherwise
-	UMaterialInterface* GetBasePreviewSurfaceMaterial( EUsdBaseMaterialProperties BaseMaterialProperties );
+	UMaterialInterface* GetReferencePreviewSurfaceMaterial( EUsdReferenceMaterialProperties ReferenceMaterialProperties );
 
-	// Returns the VT version of the provided UsdPreviewSurface BaseMaterial. Returns the provided BaseMaterial back if
-	// it is already a VT-capable base material, and returns nullptr if BaseMaterial isn't one of our base material
+	// Returns the VT version of the provided UsdPreviewSurface ReferenceMaterial. Returns the provided ReferenceMaterial back if
+	// it is already a VT-capable reference material, and returns nullptr if ReferenceMaterial isn't one of our reference material
 	// alternatives.
 	// Example: Receives UsdPreviewSurfaceTwoSided -> Returns UsdPreviewSurfaceTwoSidedVT
 	// Example: Receives UsdPreviewSurfaceTwoSidedVT -> Returns UsdPreviewSurfaceTwoSidedVT
-	// Example: Receives SomeOtherBaseMaterial -> Returns nullptr
-	UMaterialInterface* GetVTVersionOfBasePreviewSurfaceMaterial( UMaterialInterface* BaseMaterial );
+	// Example: Receives SomeOtherReferenceMaterial -> Returns nullptr
+	UMaterialInterface* GetVTVersionOfReferencePreviewSurfaceMaterial( UMaterialInterface* ReferenceMaterial );
 
-	// Returns the two-sided version of the provided UsdPreviewSurface BaseMaterial. Returns the provided BaseMaterial
-	// back if it is already a two-sided-capable base material, and returns nullptr if BaseMaterial isn't one of our base
+	// Returns the two-sided version of the provided UsdPreviewSurface ReferenceMaterial. Returns the provided ReferenceMaterial
+	// back if it is already a two-sided-capable reference material, and returns nullptr if ReferenceMaterial isn't one of our reference
 	// material alternatives.
 	// Example: Receives UsdPreviewSurfaceTranslucent -> Returns UsdPreviewSurfaceTwoSidedTranslucent
 	// Example: Receives UsdPreviewSurfaceTwoSidedTranslucent -> Returns UsdPreviewSurfaceTwoSidedTranslucent
-	// Example: Receives SomeOtherBaseMaterial -> Returns nullptr
-	UMaterialInterface* GetTwoSidedVersionOfBasePreviewSurfaceMaterial( UMaterialInterface* BaseMaterial );
+	// Example: Receives SomeOtherReferenceMaterial -> Returns nullptr
+	UMaterialInterface* GetTwoSidedVersionOfReferencePreviewSurfaceMaterial( UMaterialInterface* ReferenceMaterial );
 }
 
 #endif // #if USE_USD_SDK

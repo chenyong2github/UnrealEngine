@@ -58,110 +58,110 @@ public:
 	// Note that the below properties being FSoftObjectPath ensure that these materials are cooked into packaged games
 
 	/**
-	 * What material to use as base material when creating material instances from USD materials.
+	 * What material to use as reference material when creating material instances from USD materials.
 	 * You can swap these with your own materials, but make sure that the replacement materials have parameters with
 	 * the same names and types as the ones provided by the default material, otherwise the instances will not have
 	 * the parameters filled with values extracted from the USD material when parsing.
 	 */
-	UPROPERTY( config, EditAnywhere, Category = "USD|Base Materials|UsdPreviewSurface", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
-	FSoftObjectPath BasePreviewSurfaceMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurface.UsdPreviewSurface" ) };
+	UPROPERTY( config, EditAnywhere, Category = "USD|Reference Materials|UsdPreviewSurface", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
+	FSoftObjectPath ReferencePreviewSurfaceMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurface.UsdPreviewSurface" ) };
 
 	/**
-	 * What material to use as base material when creating material instances from USD materials.
+	 * What material to use as reference material when creating material instances from USD materials.
 	 * You can swap these with your own materials, but make sure that the replacement materials have parameters with
 	 * the same names and types as the ones provided by the default material, otherwise the instances will not have
 	 * the parameters filled with values extracted from the USD material when parsing.
 	 */
-	UPROPERTY( config, EditAnywhere, Category = "USD|Base Materials|UsdPreviewSurface", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
-	FSoftObjectPath BasePreviewSurfaceTranslucentMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucent.UsdPreviewSurfaceTranslucent" ) };
+	UPROPERTY( config, EditAnywhere, Category = "USD|Reference Materials|UsdPreviewSurface", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
+	FSoftObjectPath ReferencePreviewSurfaceTranslucentMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucent.UsdPreviewSurfaceTranslucent" ) };
 
 	/**
-	 * What material to use as base material when creating material instances from USD materials.
+	 * What material to use as reference material when creating material instances from USD materials.
 	 * You can swap these with your own materials, but make sure that the replacement materials have parameters with
 	 * the same names and types as the ones provided by the default material, otherwise the instances will not have
 	 * the parameters filled with values extracted from the USD material when parsing.
 	 */
-	UPROPERTY( config, EditAnywhere, Category = "USD|Base Materials|UsdPreviewSurface", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
-	FSoftObjectPath BasePreviewSurfaceTwoSidedMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTwoSided.UsdPreviewSurfaceTwoSided" ) };
+	UPROPERTY( config, EditAnywhere, Category = "USD|Reference Materials|UsdPreviewSurface", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
+	FSoftObjectPath ReferencePreviewSurfaceTwoSidedMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTwoSided.UsdPreviewSurfaceTwoSided" ) };
 
 	/**
-	 * What material to use as base material when creating material instances from USD materials.
+	 * What material to use as reference material when creating material instances from USD materials.
 	 * You can swap these with your own materials, but make sure that the replacement materials have parameters with
 	 * the same names and types as the ones provided by the default material, otherwise the instances will not have
 	 * the parameters filled with values extracted from the USD material when parsing.
 	 */
-	UPROPERTY( config, EditAnywhere, Category = "USD|Base Materials|UsdPreviewSurface", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
-	FSoftObjectPath BasePreviewSurfaceTranslucentTwoSidedMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucentTwoSided.UsdPreviewSurfaceTranslucentTwoSided" ) };
+	UPROPERTY( config, EditAnywhere, Category = "USD|Reference Materials|UsdPreviewSurface", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
+	FSoftObjectPath ReferencePreviewSurfaceTranslucentTwoSidedMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucentTwoSided.UsdPreviewSurfaceTranslucentTwoSided" ) };
 
 	/**
-	 * What material to use as base material when creating material instances from USD materials.
+	 * What material to use as reference material when creating material instances from USD materials.
 	 * You can swap these with your own materials, but make sure that the replacement materials have parameters with
 	 * the same names and types as the ones provided by the default material, otherwise the instances will not have
 	 * the parameters filled with values extracted from the USD material when parsing.
 	 */
-	UPROPERTY( config, EditAnywhere, Category = "USD|Base Materials|UsdPreviewSurface with Virtual Textures", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
-	FSoftObjectPath BasePreviewSurfaceVTMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurfaceVT.UsdPreviewSurfaceVT" ) };
+	UPROPERTY( config, EditAnywhere, Category = "USD|Reference Materials|UsdPreviewSurface with Virtual Textures", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
+	FSoftObjectPath ReferencePreviewSurfaceVTMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurfaceVT.UsdPreviewSurfaceVT" ) };
 
 	/**
-	 * What material to use as base material when creating material instances from USD materials.
+	 * What material to use as reference material when creating material instances from USD materials.
 	 * You can swap these with your own materials, but make sure that the replacement materials have parameters with
 	 * the same names and types as the ones provided by the default material, otherwise the instances will not have
 	 * the parameters filled with values extracted from the USD material when parsing.
 	 */
-	UPROPERTY( config, EditAnywhere, Category = "USD|Base Materials|UsdPreviewSurface with Virtual Textures", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
-	FSoftObjectPath BasePreviewSurfaceTranslucentVTMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucentVT.UsdPreviewSurfaceTranslucentVT" ) };
+	UPROPERTY( config, EditAnywhere, Category = "USD|Reference Materials|UsdPreviewSurface with Virtual Textures", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
+	FSoftObjectPath ReferencePreviewSurfaceTranslucentVTMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucentVT.UsdPreviewSurfaceTranslucentVT" ) };
 
 	/**
-	 * What material to use as base material when creating material instances from USD materials.
+	 * What material to use as reference material when creating material instances from USD materials.
 	 * You can swap these with your own materials, but make sure that the replacement materials have parameters with
 	 * the same names and types as the ones provided by the default material, otherwise the instances will not have
 	 * the parameters filled with values extracted from the USD material when parsing.
 	 */
-	UPROPERTY( config, EditAnywhere, Category = "USD|Base Materials|UsdPreviewSurface with Virtual Textures", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
-	FSoftObjectPath BasePreviewSurfaceTwoSidedVTMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTwoSidedVT.UsdPreviewSurfaceTwoSidedVT" ) };
+	UPROPERTY( config, EditAnywhere, Category = "USD|Reference Materials|UsdPreviewSurface with Virtual Textures", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
+	FSoftObjectPath ReferencePreviewSurfaceTwoSidedVTMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTwoSidedVT.UsdPreviewSurfaceTwoSidedVT" ) };
 
 	/**
-	 * What material to use as base material when creating material instances from USD materials.
+	 * What material to use as reference material when creating material instances from USD materials.
 	 * You can swap these with your own materials, but make sure that the replacement materials have parameters with
 	 * the same names and types as the ones provided by the default material, otherwise the instances will not have
 	 * the parameters filled with values extracted from the USD material when parsing.
 	 */
-	UPROPERTY( config, EditAnywhere, Category = "USD|Base Materials|UsdPreviewSurface with Virtual Textures", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
-	FSoftObjectPath BasePreviewSurfaceTranslucentTwoSidedVTMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucentTwoSidedVT.UsdPreviewSurfaceTranslucentTwoSidedVT" ) };
+	UPROPERTY( config, EditAnywhere, Category = "USD|Reference Materials|UsdPreviewSurface with Virtual Textures", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
+	FSoftObjectPath ReferencePreviewSurfaceTranslucentTwoSidedVTMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/UsdPreviewSurfaceTranslucentTwoSidedVT.UsdPreviewSurfaceTranslucentTwoSidedVT" ) };
 
 	/**
-	 * What material to use as base material when creating material instances from USD materials.
+	 * What material to use as reference material when creating material instances from USD materials.
 	 * You can swap these with your own materials, but make sure that the replacement materials have parameters with
 	 * the same names and types as the ones provided by the default material, otherwise the instances will not have
 	 * the parameters filled with values extracted from the USD material when parsing.
 	 */
-	UPROPERTY( config, EditAnywhere, Category = "USD|Base Materials|DisplayColor", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
-	FSoftObjectPath BaseDisplayColorMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/DisplayColor.DisplayColor" ) };
+	UPROPERTY( config, EditAnywhere, Category = "USD|Reference Materials|DisplayColor", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
+	FSoftObjectPath ReferenceDisplayColorMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/DisplayColor.DisplayColor" ) };
 
 	/**
-	 * What material to use as base material when creating material instances from USD materials.
+	 * What material to use as reference material when creating material instances from USD materials.
 	 * You can swap these with your own materials, but make sure that the replacement materials have parameters with
 	 * the same names and types as the ones provided by the default material, otherwise the instances will not have
 	 * the parameters filled with values extracted from the USD material when parsing.
 	 */
-	UPROPERTY( config, EditAnywhere, Category = "USD|Base Materials|DisplayColor", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
-	FSoftObjectPath BaseDisplayColorAndOpacityMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity" ) };
+	UPROPERTY( config, EditAnywhere, Category = "USD|Reference Materials|DisplayColor", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
+	FSoftObjectPath ReferenceDisplayColorAndOpacityMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/DisplayColorAndOpacity.DisplayColorAndOpacity" ) };
 
 	/**
-	 * What material to use as base material when creating material instances from USD materials.
+	 * What material to use as reference material when creating material instances from USD materials.
 	 * You can swap these with your own materials, but make sure that the replacement materials have parameters with
 	 * the same names and types as the ones provided by the default material, otherwise the instances will not have
 	 * the parameters filled with values extracted from the USD material when parsing.
 	 */
-	UPROPERTY( config, EditAnywhere, Category = "USD|Base Materials|DisplayColor", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
-	FSoftObjectPath BaseDisplayColorTwoSidedMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/DisplayColorTwoSided.DisplayColorTwoSided" ) };
+	UPROPERTY( config, EditAnywhere, Category = "USD|Reference Materials|DisplayColor", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
+	FSoftObjectPath ReferenceDisplayColorTwoSidedMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/DisplayColorTwoSided.DisplayColorTwoSided" ) };
 
 	/**
-	 * What material to use as base material when creating material instances from USD materials.
+	 * What material to use as reference material when creating material instances from USD materials.
 	 * You can swap these with your own materials, but make sure that the replacement materials have parameters with
 	 * the same names and types as the ones provided by the default material, otherwise the instances will not have
 	 * the parameters filled with values extracted from the USD material when parsing.
 	 */
-	UPROPERTY( config, EditAnywhere, Category = "USD|Base Materials|DisplayColor", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
-	FSoftObjectPath BaseDisplayColorAndOpacityTwoSidedMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/DisplayColorAndOpacityTwoSided.DisplayColorAndOpacityTwoSided" ) };
+	UPROPERTY( config, EditAnywhere, Category = "USD|Reference Materials|DisplayColor", meta = ( AllowedClasses = "/Script/Engine.MaterialInterface" ) )
+	FSoftObjectPath ReferenceDisplayColorAndOpacityTwoSidedMaterial = FSoftObjectPath{ TEXT( "/USDImporter/Materials/DisplayColorAndOpacityTwoSided.DisplayColorAndOpacityTwoSided" ) };
 };

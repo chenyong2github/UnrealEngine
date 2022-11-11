@@ -1166,7 +1166,7 @@ namespace UE
 			};
 
 			/**
-			 * Specialized version of FSetParameterValueVisitor for UE's UsdPreviewSurface base materials.
+			 * Specialized version of FSetParameterValueVisitor for UE's UsdPreviewSurface reference materials.
 			 */
 			struct FSetPreviewSurfaceParameterValueVisitor : private FSetParameterValueVisitor
 			{

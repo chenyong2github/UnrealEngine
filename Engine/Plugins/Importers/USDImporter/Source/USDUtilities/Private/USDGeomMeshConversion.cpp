@@ -1392,22 +1392,22 @@ UMaterialInstanceDynamic* UsdUtils::CreateDisplayColorMaterialInstanceDynamic( c
 	{
 		if ( DisplayColorDescription.bIsDoubleSided )
 		{
-			ParentPathPtr = &Settings->BaseDisplayColorAndOpacityTwoSidedMaterial;
+			ParentPathPtr = &Settings->ReferenceDisplayColorAndOpacityTwoSidedMaterial;
 		}
 		else
 		{
-			ParentPathPtr = &Settings->BaseDisplayColorAndOpacityMaterial;
+			ParentPathPtr = &Settings->ReferenceDisplayColorAndOpacityMaterial;
 		}
 	}
 	else
 	{
 		if ( DisplayColorDescription.bIsDoubleSided )
 		{
-			ParentPathPtr = &Settings->BaseDisplayColorTwoSidedMaterial;
+			ParentPathPtr = &Settings->ReferenceDisplayColorTwoSidedMaterial;
 		}
 		else
 		{
-			ParentPathPtr = &Settings->BaseDisplayColorMaterial;
+			ParentPathPtr = &Settings->ReferenceDisplayColorMaterial;
 		}
 	}
 	if ( !ParentPathPtr )
@@ -1449,22 +1449,22 @@ UMaterialInstanceConstant* UsdUtils::CreateDisplayColorMaterialInstanceConstant(
 	{
 		if ( DisplayColorDescription.bIsDoubleSided )
 		{
-			ParentPathPtr = &Settings->BaseDisplayColorAndOpacityTwoSidedMaterial;
+			ParentPathPtr = &Settings->ReferenceDisplayColorAndOpacityTwoSidedMaterial;
 		}
 		else
 		{
-			ParentPathPtr = &Settings->BaseDisplayColorAndOpacityMaterial;
+			ParentPathPtr = &Settings->ReferenceDisplayColorAndOpacityMaterial;
 		}
 	}
 	else
 	{
 		if ( DisplayColorDescription.bIsDoubleSided )
 		{
-			ParentPathPtr = &Settings->BaseDisplayColorTwoSidedMaterial;
+			ParentPathPtr = &Settings->ReferenceDisplayColorTwoSidedMaterial;
 		}
 		else
 		{
-			ParentPathPtr = &Settings->BaseDisplayColorMaterial;
+			ParentPathPtr = &Settings->ReferenceDisplayColorMaterial;
 		}
 	}
 
