@@ -1,6 +1,6 @@
 #!/bin/sh
 
-OCIO_VERSION="2.1.0"
+OCIO_VERSION="2.2.0"
 OCIO_LIB_NAME="OpenColorIO-$OCIO_VERSION"
 
 SCRIPT_DIR=`cd $(dirname "$BASH_SOURCE"); pwd`
@@ -8,7 +8,8 @@ UE_ENGINE_DIR=`cd $SCRIPT_DIR/../../../../../..; pwd`
 UE_THIRD_PARTY_DIR="$UE_ENGINE_DIR/Source/ThirdParty"
 
 # Using the toolchain downloaded by Engine/Build/BatchFiles/Linux/SetupToolchain.sh
-# source "$UE_ENGINE_DIR/Build/BatchFiles/Linux/SetupToolchain.sh"
+#source "$UE_ENGINE_DIR/Build/BatchFiles/Linux/SetupToolchain.sh"
+
 C_COMPILER="$UE_ENGINE_DIR/Extras/ThirdPartyNotUE/SDKs/HostLinux/Linux_x64/v20_clang-13.0.1-centos7/x86_64-unknown-linux-gnu/bin/clang"
 CXX_COMPILER="$UE_ENGINE_DIR/Extras/ThirdPartyNotUE/SDKs/HostLinux/Linux_x64/v20_clang-13.0.1-centos7/x86_64-unknown-linux-gnu/bin/clang++"
 
@@ -16,7 +17,7 @@ cd $SCRIPT_DIR
 
 # Download library source if not present
 # if [ ! -f "$OCIO_LIB_NAME.zip" ]; then
-#     wget "https://github.com/AcademySoftwareFoundation/OpenColorIO/archive/refs/tags/v2.1.0.zip" -O "$OCIO_LIB_NAME.zip"
+#     wget "https://github.com/AcademySoftwareFoundation/OpenColorIO/archive/refs/tags/v2.2.0.zip" -O "$OCIO_LIB_NAME.zip"
 # fi
 
 # Remove previously extracted build library folder
@@ -28,11 +29,9 @@ fi
 # echo "Extracting $OCIO_LIB_NAME.zip..."
 # unzip "$OCIO_LIB_NAME.zip"
 
-git clone --depth 1 --branch v2.1.0 https://github.com/AcademySoftwareFoundation/OpenColorIO.git $OCIO_LIB_NAME
+git clone --depth 1 --branch v2.2.0 https://github.com/AcademySoftwareFoundation/OpenColorIO.git $OCIO_LIB_NAME
 
 cd $OCIO_LIB_NAME
-
-git apply --ignore-space-change --ignore-whitespace ../hlsl_fixes.patch
 
 ARCH_NAME=x86_64-unknown-linux-gnu
 CXX_FLAGS="-nostdinc++ -I$UE_THIRD_PARTY_DIR/Unix/LibCxx/include  -I$UE_THIRD_PARTY_DIR/Unix/LibCxx/include/c++/v1"
@@ -76,4 +75,4 @@ NUM_CPU=`grep -c ^processor /proc/cpuinfo`
 cmake --build build --config Release --target install -- -j $NUM_CPU
 
 #echo "Copying library build files..."
-cp build/install/lib/libOpenColorIO.so.2.1.0 ../../../../Binaries/ThirdParty/Linux/libOpenColorIO.so.2.1
+cp build/install/lib64/libOpenColorIO.so.2.2.0 ../../../../Binaries/ThirdParty/Linux/libOpenColorIO.so.2.2

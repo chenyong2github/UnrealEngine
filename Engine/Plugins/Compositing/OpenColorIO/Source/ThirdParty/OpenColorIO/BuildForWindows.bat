@@ -5,14 +5,14 @@ rem Copyright Epic Games, Inc. All Rights Reserved.
 rem Setup part
 setlocal
 
-set OCIO_VERSION=2.1.0
+set OCIO_VERSION=2.2.0
 set OCIO_LIB_NAME=OpenColorIO-%OCIO_VERSION%
 set DEPLOY_FOLDER=..\Deploy\%OCIO_LIB_NAME%
 set WITH_PYTHON=false
 
 @REM rem Download library source if not present
 @REM if not exist %OCIO_LIB_NAME%.zip (
-@REM     powershell -Command "Invoke-WebRequest https://github.com/AcademySoftwareFoundation/OpenColorIO/archive/refs/tags/v2.1.0.zip -OutFile %OCIO_LIB_NAME%.zip"
+@REM     powershell -Command "Invoke-WebRequest https://github.com/AcademySoftwareFoundation/OpenColorIO/archive/refs/tags/v2.2.0.zip -OutFile %OCIO_LIB_NAME%.zip"
 @REM )
 
 rem Remove previously extracted build library folder
@@ -23,11 +23,9 @@ if exist .\%OCIO_LIB_NAME% (
 @REM echo Extracting %OCIO_LIB_NAME%.zip...
 @REM powershell -Command "Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory('%OCIO_LIB_NAME%.zip', '.')"
     
-git clone --depth 1 --branch v2.1.0 https://github.com/AcademySoftwareFoundation/OpenColorIO.git %OCIO_LIB_NAME%
+git clone --depth 1 --branch v2.2.0 https://github.com/AcademySoftwareFoundation/OpenColorIO.git %OCIO_LIB_NAME%
 
 cd /d .\%OCIO_LIB_NAME%
-
-git apply ../hlsl_fixes.patch
 
 rem Configure OCIO cmake and launch a release build
 echo Configuring x64 build...
@@ -46,7 +44,7 @@ if exist %DEPLOY_FOLDER% (
 )
 
 echo Copying deploy files...
-xcopy .\build\install\bin\OpenColorIO_2_1.dll %DEPLOY_FOLDER%\..\..\..\..\..\Binaries\ThirdParty\Win64\* /Y
+xcopy .\build\install\bin\OpenColorIO_2_2.dll %DEPLOY_FOLDER%\..\..\..\..\..\Binaries\ThirdParty\Win64\* /Y
 xcopy .\build\install\include\OpenColorIO\* %DEPLOY_FOLDER%\include\OpenColorIO\* /Y
 xcopy .\build\install\lib\OpenColorIO.lib %DEPLOY_FOLDER%\lib\Win64\* /Y
 if %WITH_PYTHON% equ true (

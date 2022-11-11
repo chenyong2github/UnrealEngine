@@ -9,7 +9,7 @@ public class OpenColorIOLib : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string DeployDir = "Deploy/OpenColorIO-2.1.0";
+		string DeployDir = "Deploy/OpenColorIO-2.2.0";
 		bool bIsPlatformAdded = false;
 		if(Target.bBuildEditor)
 		{
@@ -21,7 +21,7 @@ public class OpenColorIOLib : ModuleRules
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				string DLLName = "OpenColorIO_2_1.dll";
+				string DLLName = "OpenColorIO_2_2.dll";
 				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "OpenColorIO.lib"));
 				PublicDelayLoadDLLs.Add(DLLName);
 				RuntimeDependencies.Add(Path.Combine(BinaryPath, DLLName));
@@ -36,15 +36,15 @@ public class OpenColorIOLib : ModuleRules
 				string SOName = "libOpenColorIO.so";
 				PublicAdditionalLibraries.Add(Path.Combine(BinaryPath, SOName));
 				RuntimeDependencies.Add(Path.Combine(BinaryPath, SOName));
-				RuntimeDependencies.Add(Path.Combine(BinaryPath, "libOpenColorIO.so.2.1"));
+				RuntimeDependencies.Add(Path.Combine(BinaryPath, "libOpenColorIO.so.2.2"));
 				PublicDefinitions.Add("WITH_OCIO=1");
 
 				bIsPlatformAdded = true;
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
-				PublicAdditionalLibraries.Add(Path.Combine(BinaryPath, "libOpenColorIO.2.1.dylib"));
-				RuntimeDependencies.Add(Path.Combine(BinaryPath, "libOpenColorIO.2.1.dylib"));
+				PublicAdditionalLibraries.Add(Path.Combine(BinaryPath, "libOpenColorIO.2.2.dylib"));
+				RuntimeDependencies.Add(Path.Combine(BinaryPath, "libOpenColorIO.2.2.dylib"));
 				PublicDefinitions.Add("WITH_OCIO=1");
 
 				bIsPlatformAdded = true;
