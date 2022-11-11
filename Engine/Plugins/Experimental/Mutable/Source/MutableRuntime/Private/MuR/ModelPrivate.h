@@ -376,7 +376,15 @@ namespace mu
 				// Generate next mip if necessary
 				if (Mip + 1 < MipsToStore)
 				{
-					pMip = pMip->ExtractMip(1);
+					if (Mip > pImage->GetLODCount())
+					{
+						// Generate from the last mip.
+						pMip = pMip->ExtractMip(1);
+					}
+					else
+					{
+						pMip = pImage->ExtractMip(Mip+1);
+					}
 					check(pMip);
 				}
 			}

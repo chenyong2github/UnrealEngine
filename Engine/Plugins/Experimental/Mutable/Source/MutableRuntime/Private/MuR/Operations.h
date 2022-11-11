@@ -554,7 +554,6 @@ namespace mu
             ADDRESS base;
             ADDRESS mask;
             ADDRESS colour;
-            EImageFormat reformat;
 			uint8 blendType;	// One of BLEND_TYPE
         };
 

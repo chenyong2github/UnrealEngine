@@ -55,6 +55,7 @@
 #include "MuT/ErrorLogPrivate.h"
 #include "MuT/Streams.h"
 #include "MuT/Table.h"
+#include "MuT/TypeInfo.h"
 #include "SlotBase.h"
 #include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
@@ -128,10 +129,62 @@ public:
 		{
 			const mu::FProgram& Program = RowItem->MutableModel->GetPrivate()->m_program;
 			const mu::OP_TYPE Type = Program.GetOpType(RowItem->MutableOperation);
-			const TCHAR* OpName = mu::s_opNames[int32(Type)];
+			FString OpName = mu::s_opNames[int32(Type)];
+			OpName.TrimEndInline();
+
+			// See if the operation type accepts additional information in the label
+			switch ( Type )
+			{
+			case mu::OP_TYPE::IM_SWIZZLE:
+			{
+				mu::OP::ImageSwizzleArgs Args = Program.GetOpArgs<mu::OP::ImageSwizzleArgs>(RowItem->MutableOperation);
+				OpName += TEXT(" ");
+				OpName += ANSI_TO_TCHAR(mu::TypeInfo::s_imageFormatName[int32(Args.format)]);
+				break;
+			}
+
+			case mu::OP_TYPE::IM_PIXELFORMAT:
+			{
+				mu::OP::ImagePixelFormatArgs Args = Program.GetOpArgs<mu::OP::ImagePixelFormatArgs>(RowItem->MutableOperation);
+				OpName += TEXT(" ");
+				OpName += ANSI_TO_TCHAR(mu::TypeInfo::s_imageFormatName[int32(Args.format)]);
+				OpName += TEXT(" or ");
+				OpName += ANSI_TO_TCHAR(mu::TypeInfo::s_imageFormatName[int32(Args.formatIfAlpha)]);
+				break;
+			}
+
+			case mu::OP_TYPE::IM_MULTILAYER:
+			{
+				mu::OP::ImageMultiLayerArgs Args = Program.GetOpArgs<mu::OP::ImageMultiLayerArgs>(RowItem->MutableOperation);
+				OpName += TEXT(" ");
+				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendType)];
+				OpName += FString::Printf(TEXT(" range-id %d"), Args.rangeId);
+				break;
+			}
+
+			case mu::OP_TYPE::IM_LAYER:
+			{
+				mu::OP::ImageLayerArgs Args = Program.GetOpArgs<mu::OP::ImageLayerArgs>(RowItem->MutableOperation);
+				OpName += TEXT(" ");
+				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendType)];
+				OpName += FString::Printf(TEXT(" flags %d"),Args.flags);
+				break;
+			}
+
+			case mu::OP_TYPE::IM_LAYERCOLOUR:
+			{
+				mu::OP::ImageLayerColourArgs Args = Program.GetOpArgs<mu::OP::ImageLayerColourArgs>(RowItem->MutableOperation);
+				OpName += TEXT(" ");
+				OpName += mu::TypeInfo::s_blendModeName[int32(Args.blendType)];
+				break;
+			}
+
+			default:
+				break;
+			}
 
 			// Prepare the text shown on the UI side of the operation tree
-			FString MainLabel = FString::Printf(TEXT("%s (%d) : %s"), *RowItem->Caption, int32(RowItem->MutableOperation), OpName);
+			FString MainLabel = FString::Printf(TEXT("%s (%d) : %s"), *RowItem->Caption, int32(RowItem->MutableOperation), *OpName);
 
 #if UE_BUILD_DEBUG
 			FString IndexOnTree = FString::FromInt(RowItem->IndexOnTree);
@@ -1186,6 +1239,54 @@ void SMutableCodeViewer::GenerateElementRecursive(mu::OP::ADDRESS InParentAddres
 			AddOpFunc(At, Caption);
 		}
 
+		break;
+	}
+
+	case mu::OP_TYPE::IM_SWIZZLE:
+	{
+		mu::OP::ImageSwizzleArgs Args = InProgram.GetOpArgs<mu::OP::ImageSwizzleArgs>(InParentAddress);
+		for (int32 Channel = 0; Channel < 4; ++Channel)
+		{
+			FString Caption = FString::Printf(TEXT("%d is %d from "), Channel, Args.sourceChannels[Channel]);
+			AddOpFunc(Args.sources[Channel], Caption);
+		}
+		break;
+	}
+
+	case mu::OP_TYPE::IM_LAYER:
+	{
+		mu::OP::ImageLayerArgs Args = InProgram.GetOpArgs<mu::OP::ImageLayerArgs>(InParentAddress);
+		AddOpFunc(Args.base, TEXT("base "));
+		if (Args.mask)
+		{
+			AddOpFunc(Args.mask, TEXT("mask "));
+		}
+		AddOpFunc(Args.blended, TEXT("blended "));
+		break;
+	}
+
+	case mu::OP_TYPE::IM_LAYERCOLOUR:
+	{
+		mu::OP::ImageLayerColourArgs Args = InProgram.GetOpArgs<mu::OP::ImageLayerColourArgs>(InParentAddress);
+		AddOpFunc(Args.base, TEXT("base "));
+		if (Args.mask)
+		{
+			AddOpFunc(Args.mask, TEXT("mask "));
+		}
+		AddOpFunc(Args.colour, TEXT("colour "));
+		break;
+	}
+
+	case mu::OP_TYPE::IM_MULTILAYER:
+	{
+		mu::OP::ImageMultiLayerArgs Args = InProgram.GetOpArgs<mu::OP::ImageMultiLayerArgs>(InParentAddress);
+		AddOpFunc(Args.rangeSize, TEXT("range "));
+		AddOpFunc(Args.base, TEXT("base "));
+		if (Args.mask)
+		{
+			AddOpFunc(Args.mask, TEXT("mask "));
+		}
+		AddOpFunc(Args.blended, TEXT("blended "));
 		break;
 	}
 

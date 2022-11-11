@@ -24,13 +24,15 @@ namespace mu
 
 		static const char* s_meshBufferFormatName[ MBF_COUNT ];
 
+		static const char* s_blendModeName[uint32(EBlendType::_BT_COUNT) ];
+
 		static const char* s_projectorTypeName [ static_cast<uint32>(mu::PROJECTOR_TYPE::COUNT) ];
 
-		static const char* s_curveInterpolationModeName [ static_cast<uint8_t>(mu::CurveKeyFrame::InterpMode::Count) ];
+		static const char* s_curveInterpolationModeName [ static_cast<uint32>(mu::CurveKeyFrame::InterpMode::Count) ];
 
-		static const char* s_curveTangentModeName [ static_cast<uint8_t> (mu::CurveKeyFrame::TangentMode::Count) ];
+		static const char* s_curveTangentModeName [ static_cast<uint32> (mu::CurveKeyFrame::TangentMode::Count) ];
 
-		static const char* s_curveTangentWeightModeName [ static_cast<uint8_t> (mu::CurveKeyFrame::TangentWeightMode::Count) ];
+		static const char* s_curveTangentWeightModeName [ static_cast<uint32> (mu::CurveKeyFrame::TangentWeightMode::Count) ];
 	};
 
 }

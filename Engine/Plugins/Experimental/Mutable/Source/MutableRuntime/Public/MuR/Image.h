@@ -243,7 +243,7 @@ namespace mu
 			IF_IS_PLAIN_COLOUR = 1 << 1,
 
 			// If this is set, the image shouldn't be scaled: it's contents is resoultion-dependent.
-			IF_CANNOT_BE_SCALED = 2 << 1
+			IF_CANNOT_BE_SCALED = 1 << 2
 		} EImageFlags;
 
 		//! Persistent flags with some image properties. The meaning will depend of every

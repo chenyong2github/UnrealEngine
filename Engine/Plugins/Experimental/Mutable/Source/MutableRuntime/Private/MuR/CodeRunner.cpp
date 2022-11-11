@@ -3620,6 +3620,13 @@ namespace mu
                 Ptr<const Image> pA = GetMemory().GetImage( CACHE_ADDRESS(args.base,item) );
                 Ptr<const Image> pB = GetMemory().GetImage( CACHE_ADDRESS(args.patch,item) );
 
+				// Failsafe
+				if (!pA || !pB)
+				{
+					GetMemory().SetImage(item, pA);
+					break;
+				}
+
                 box<vec2<int>> rect;
                 rect.min[0] = args.minX;
                 rect.min[1] = args.minY;
@@ -3665,14 +3672,11 @@ namespace mu
 
 						if (pResult->GetFormat() != format)
 						{
-							pResult =
-								ImagePixelFormat(m_pSettings->GetPrivate()->m_imageCompressionQuality,
-									pResult.get(), format);
+							pResult = ImagePixelFormat(m_pSettings->GetPrivate()->m_imageCompressionQuality, pResult.get(), format);
 						}
 						if (pB->GetFormat() != format)
 						{
-							pB = ImagePixelFormat(m_pSettings->GetPrivate()->m_imageCompressionQuality,
-								pB.get(), format);
+							pB = ImagePixelFormat(m_pSettings->GetPrivate()->m_imageCompressionQuality, pB.get(), format);
 						}
 					}
 

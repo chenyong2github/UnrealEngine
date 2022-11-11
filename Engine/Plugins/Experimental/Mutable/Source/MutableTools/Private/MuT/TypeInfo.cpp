@@ -130,4 +130,18 @@ namespace mu
 		"None",
 	};
 
+	const char* TypeInfo::s_blendModeName[uint32(EBlendType::_BT_COUNT)] =
+	{
+		"SoftLight",
+		"HardLight",
+		"Burn",
+		"Dodge",
+		"Screen",
+		"Overlay",
+		"Blend",
+		"Multiply",
+		"AlphaOverlay", // TODO: This name is not descriptive.
+		"NormalCombine",
+	};
+
 }

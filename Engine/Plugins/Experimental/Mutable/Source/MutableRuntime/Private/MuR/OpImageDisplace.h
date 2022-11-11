@@ -45,12 +45,12 @@ namespace mu
 		int32 SizeY = pResult->GetSizeY();
 		check( SizeX>0 && SizeY>0 );
 
-        if (SizeX<4 || SizeY<4)
-        {
-            return;
-        }
+        //if (SizeX<4 || SizeY<4)
+        //{
+        //    return;
+        //}
 
-		FMemory::Memset( pResult->GetData(), MutableEncodeOffset( 0, 0 ), SizeX*SizeY );
+		FMemory::Memset( pResult->GetData(), MutableEncodeOffset( 0, 0 ), pResult->CalculatePixelCount() );
 
 		Ptr<const Image> pThisMask = pMask;
 		for ( int b=0; b<InBorder; ++b )
@@ -65,7 +65,7 @@ namespace mu
 				const uint8* ThisMaskData = pThisMask->GetMipData(CurrentMip);
 				uint8* NextMaskData = pNextMask->GetMipData(CurrentMip);
 
-				//for ( int y=0; y<sizeY; ++y )
+				//for ( int y=0; y< MipSize.Y; ++y )
 				const auto ProcessRow = [
 					ThisMaskData, NextMaskData, MipSize, ResultData
 				] (int32 y)
@@ -151,10 +151,10 @@ namespace mu
 		int32 sizeX = pResult->GetSizeX();
 		int32 sizeY = pResult->GetSizeY();
 
-        if (sizeX<4 || sizeY<4)
-        {
-            return;
-        }
+        //if (sizeX<4 || sizeY<4)
+        //{
+        //    return;
+        //}
 
         const uint8* pSourceData = pSource->GetData();
 
@@ -343,3 +343,5 @@ namespace mu
 
 
 }
+
+

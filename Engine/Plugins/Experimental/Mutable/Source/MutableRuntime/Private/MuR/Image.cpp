@@ -92,17 +92,17 @@ namespace mu
 
 
     //---------------------------------------------------------------------------------------------
-    ImagePtr Image::StaticUnserialise( InputArchive& arch )
+    Ptr<Image> Image::StaticUnserialise( InputArchive& arch )
     {
 		LLM_SCOPE_BYNAME(TEXT("MutableRuntime"));
-        ImagePtr pResult = new Image();
+        Ptr<Image> pResult = new Image();
         arch >> *pResult;
         return pResult;
     }
 
 
 	//---------------------------------------------------------------------------------------------
-	ImagePtr Image::ExtractMip(int32 Mip) const
+	Ptr<Image> Image::ExtractMip(int32 Mip) const
 	{
 		if (Mip == 0 && m_lods == 1)
 		{
@@ -120,7 +120,8 @@ namespace mu
 
 			if (DataSize)
 			{
-				ImagePtr pResult = new Image(MipSize[0], MipSize[1], 1, m_format );
+				Ptr<Image> pResult = new Image(MipSize[0], MipSize[1], 1, m_format );
+				pResult->m_flags = m_flags;
 				uint8* DestData = pResult->GetData();
 				FMemory::Memcpy(DestData, SourceData, DataSize);
 				return pResult;
@@ -128,9 +129,10 @@ namespace mu
 			else
 			{
 				EImageFormat uncompressedFormat = GetUncompressedFormat(m_format);
-				ImagePtr pTemp = ImagePixelFormat(Quality, this, uncompressedFormat);
+				Ptr<Image> pTemp = ImagePixelFormat(Quality, this, uncompressedFormat);
 				pTemp = pTemp->ExtractMip(Mip);
-				ImagePtr pResult = ImagePixelFormat(Quality, pTemp.get(), m_format);
+				Ptr<Image> pResult = ImagePixelFormat(Quality, pTemp.get(), m_format);
+				pResult->m_flags = m_flags;
 				return pResult;
 			}
 		}

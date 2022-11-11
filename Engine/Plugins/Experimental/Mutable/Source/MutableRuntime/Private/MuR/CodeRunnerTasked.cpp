@@ -418,6 +418,12 @@ namespace mu
 
 		// Warning: This runs in a worker thread.
 
+		if (!m_base)
+		{
+			// This shouldn't really happen if data is correct.
+			return;
+		}
+
 		// TODO: a bug may cause this (issue T97)
 		EImageFormat finalFormat = EImageFormat::IF_NONE;
 		if (IsCompressedFormat(m_base->GetFormat()))
