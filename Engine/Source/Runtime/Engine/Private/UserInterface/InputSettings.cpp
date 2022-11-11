@@ -494,6 +494,13 @@ void UInputSettings::SetDefaultInputComponentClass(TSubclassOf<UInputComponent> 
 
 FHardwareDeviceIdentifier FHardwareDeviceIdentifier::Invalid = { NAME_None, TEXT("Invalid") };
 
+FHardwareDeviceIdentifier::FHardwareDeviceIdentifier(FName InClassName, FString InHardwareDeviceIdentifier)
+	: InputClassName(InClassName)
+	, HardwareDeviceIdentifier(InHardwareDeviceIdentifier)
+{
+	
+}
+
 bool FHardwareDeviceIdentifier::IsValid() const
 {
 	return InputClassName.IsValid() && !HardwareDeviceIdentifier.IsEmpty();

@@ -292,6 +292,7 @@ struct FHardwareDeviceIdentifier
 	GENERATED_BODY()
 
 	FHardwareDeviceIdentifier() = default;
+	FHardwareDeviceIdentifier(FName InClassName, FString InHardwareDeviceIdentifier);
 	
 	/** 
 	* The name of the Input Class that uses this hardware device.
