@@ -786,8 +786,8 @@ static FAutoConsoleCommandWithWorldAndArgs GAudioDebugSoundReverb
 
 static FAutoConsoleCommandWithWorldAndArgs GAudioDebugSoundModulation
 (
-	TEXT("au.Debug.SoundModulators"),
-	TEXT("Post SoundModulation information to viewport(s).\n")
+	TEXT("au.Debug.Modulation"),
+	TEXT("Post Audio Modulation information to viewport(s).\n")
 		TEXT("0: Disable, 1: Enable\n")
 		TEXT("(Optional) -AllViews: Enables/Disables for all viewports, not just those associated with the current world"),
 	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic([](const TArray<FString>& Args, UWorld* InWorld)
