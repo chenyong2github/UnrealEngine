@@ -463,7 +463,6 @@ export class IPC {
 						message: stompVerification.message,
 						nonBinaryFilesResolved: stompVerification.nonBinaryFilesResolved,
 						remainingAllBinary: stompVerification.remainingAllBinary,
-						branchOrDeleteResolveRequired: stompVerification.branchOrDeleteResolveRequired,
 						files: stompVerification.svFiles,
 						validRequest: stompVerification.validRequest
 					} )

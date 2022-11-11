@@ -294,7 +294,6 @@ export interface ConflictedResolveNFile {
 	resolveType: string // e.g. 'content', 'branch'
 	resolveFlag: string // 'c' ?
 	contentResolveType?: string  // e.g. '3waytext', '2wayraw' -- not applicable for delete/branch merges
-	branchOrDeleteResolveRequired?: boolean
 }
 
 export class ResolveResult {
@@ -341,7 +340,7 @@ export class ResolveResult {
 			at: branch
 			ay: ignore
 		
-		Skip that but note it in 'branchOrDeleteResolveRequired'.
+		We will allow these to be stomped
 	*/
 	private parseConflictsFromDashNOutput() {
 		this.successfullyParsedRemainingConflicts = true
@@ -349,10 +348,8 @@ export class ResolveResult {
 			for (let ztagGroup of this.dashNOutput) {
 				if (ztagGroup[0] === "Branch resolve:" || ztagGroup[0] === "Delete resolve:") {
 					if (!this.remainingConflicts[this.remainingConflicts.length - 1]) {
-						throw new Error(`Encountered branch/delete resolve information, but could not find appicable conflict file: ${ztagGroup.toString()}`)
+						throw new Error(`Encountered branch/delete resolve information, but could not find applicable conflict file: ${ztagGroup.toString()}`)
 					}
-
-					this.remainingConflicts[this.remainingConflicts.length - 1].branchOrDeleteResolveRequired = true
 					continue
 				}
 
@@ -434,6 +431,8 @@ export function getPerforceUsername() {
 	return perforceUsername
 }
 
+let perforceMultiServerEnvironment: boolean
+
 /**
  * This method must succeed before PerforceContext can be used. Otherwise retrieving the Perforce username through
  * getPerforceUsername() will error.
@@ -454,8 +453,10 @@ export async function initializePerforce(logger: ContextualLogger) {
 
 	if (resp && resp.User) {
 		perforceUsername = resp.User;
+
+		const serversOutput = await PerforceContext._execP4Ztag(logger, null, ["servers"]);
+		perforceMultiServerEnvironment = serversOutput.length > 1
 	}
-	return resp;
 }
 
 /**
@@ -1061,7 +1062,7 @@ export class PerforceContext {
 	}
 
 	// run p4 'opened' command: lists files in changelist with details of edit state (e.g. if a copy, provides source path)
-	opened(roboWorkspace: RoboWorkspace | null, arg: number | string) {
+	opened(roboWorkspace: RoboWorkspace | null, arg: number | string, exclusive?: boolean) {
 		const workspace = roboWorkspace && coercePerforceWorkspace(roboWorkspace);
 		const args = ['opened']
 		if (typeof arg === 'number') {
@@ -1070,7 +1071,7 @@ export class PerforceContext {
 		}
 		else {
 			// see which workspace has a file checked out/added
-			args.push('-a', arg)
+			args.push(exclusive && perforceMultiServerEnvironment ? '-x' : '-a', arg)
 		}
 		return this._execP4Ztag(workspace, args) as Promise<OpenedFileRecord[]>
 	}

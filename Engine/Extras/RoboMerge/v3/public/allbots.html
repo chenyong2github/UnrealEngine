@@ -21,6 +21,7 @@
 			success: data => {
 				const bots = location.search.match(/bots=([^&]*)/);
 				$(() => $('#graph').append(showFlowGraph(data.branches, {
+					aliases: new Map([...data.botStates].map(([botName, botState]) => [botName, botState.aliases])),
 					botNames: bots ? bots[1].split(',') : [],
 					...parseOptions(location.search)
 				})));

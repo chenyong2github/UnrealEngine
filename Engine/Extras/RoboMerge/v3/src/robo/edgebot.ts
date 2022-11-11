@@ -280,8 +280,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		for (const err of errors.slice(0, MAX_INTEGRATION_ERRORS_TO_ANALYZE)) {
 			const match = err.match(EXCLUSIVE_CHECKOUT_REGEX)
 			if (match) {
-				console.log(match)
-				openedRequests.push([match, this.p4.opened(null, match[1] + match[2])])
+				openedRequests.push([match, this.p4.opened(null, match[1] + match[2], true)])
 			}
 		}
 
@@ -557,7 +556,8 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			if (errors.length > MAX_INTEGRATION_ERRORS_TO_ANALYZE) {
 				exclCheckoutMessages.push(`... and up to ${errors.length - MAX_INTEGRATION_ERRORS_TO_ANALYZE} more`)
 			}
-			failure = { kind: 'Exclusive check-out', description, summary: exclCheckoutMessages.join('\n') }
+			const exclCheckoutUsers = Array.from(new Set(exclusiveFiles.map(exc => `${exc.user.toLowerCase()}`))).map(user => ({user, userEmail: this.p4.getEmail(user)}))
+			failure = { kind: 'Exclusive check-out', description, summary: exclCheckoutMessages.join('\n'), additionalInfo: exclCheckoutUsers }
 		}
 		else {
 			failure  = { kind: 'Integration error', description }

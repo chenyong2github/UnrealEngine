@@ -1009,6 +1009,15 @@ export class P4Util {
 		return this.editFile(client, name, newContent)
 			.then(() => this.submit(client, commitMessage))
 	}
+
+	static deleteFileAndSubmit(client: P4Client, name: string, robomergeCommand?: string) {
+		let commitMessage = `Delete file '${name}'`
+		if (robomergeCommand) {
+			commitMessage += '\n#robomerge ' + robomergeCommand
+		}
+		return client.delete(name)
+			.then(() => this.submit(client, commitMessage))
+	}
 	
 	static escapeBranchName(stream: string) {
 		return stream.replace(/[^A-Za-z0-9]/g, '_')

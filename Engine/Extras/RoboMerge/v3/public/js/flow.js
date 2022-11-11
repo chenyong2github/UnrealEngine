@@ -79,7 +79,13 @@ class Graph {
     }
     addNodesAndEdges(grouped) {
         for (const branchStatus of this.branchList) {
-            this.addBranch(branchStatus, grouped ? branchStatus.bot : null);
+            const botTitle = grouped
+                                ? this.options.aliases.get(branchStatus.bot).length > 0
+                                    ? branchStatus.bot + ' (' + this.options.aliases.get(branchStatus.bot).join(", ") + ')'
+                                    : branchStatus.bot
+                                : null;
+
+            this.addBranch(branchStatus, grouped ? branchStatus.bot : null, botTitle);
         }
         for (const info of this.allInfos) {
             for (const sourceBranch of info.sources) {
@@ -120,8 +126,8 @@ class Graph {
         for (const [groupName, nodeInfo] of nodeGroups) {
             if (groupName !== 'nogroup') {
                 lines.push(`subgraph cluster_${groupName} {
-	label="${groupName}";
-`);
+                            label="${nodeInfo[0].info.title}";
+                        `);
             }
             for (const info of nodeInfo) {
                 if (this.options.hideDisconnected && !this.connectedNodes.has(info.info.id)) {
@@ -160,7 +166,7 @@ class Graph {
         lines.push('}');
         return lines;
     }
-    addBranch(branchStatus, group = null) {
+    addBranch(branchStatus, group = null, title = null) {
         const branch = branchStatus.def;
         if (this.aliases.has(decoratedAlias(branchStatus.bot, branch.upperName)))
             return;
@@ -169,6 +175,7 @@ class Graph {
             tooltip += ` (${branch.aliases.join(', ')})`;
         }
         const info = new Info(`_${branchStatus.bot}_${branch.upperName.replace(/[^\w]+/g, '_')}`, tooltip, branch.name, [branchStatus]);
+        info.title = title
         this.allInfos.push(info);
         if (branch.config.graphNodeColor) {
             info.graphNodeColor = branch.config.graphNodeColor;

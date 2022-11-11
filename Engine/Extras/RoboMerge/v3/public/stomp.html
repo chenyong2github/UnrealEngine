@@ -70,21 +70,6 @@
             </div> 
         </div>
 
-        <!-- Display error to user if the remaining files are not all binary, resulting in a refusal to stomp -->
-        <div id="verificationBranchOrDeleteResolveRequired" class="card card-single border-danger centered-text initiallyHidden">
-            <div class="card-header bg-danger text-white">
-               <span><i class="fas fa-exclamation-circle"></i></span>
-                <span class="sr-only">Error:</span>
-                Merge requires branching or deleting binary files.
-            </div>
-            <div class="card-body centered-text">
-                <p>Robomerge found conflicts while integrating changelist <strong class="changelist"></strong> which require either branching new copies of files over previously deleted revisions and/or deleting revisions present in <strong class="targetName"></strong>:</p>
-                <ul id="branchOrDeleteResolveRequiredList"></ul>
-                <p>Robomerge does not support this operation at this time. (Sorry!) You'll need to resolve this by hand.</p> <!-- To get started, <a href="/op/createshelf?">Robomerge could create a shelf for you.</a> -->
-                <p>If you still require assistance, please <strong><a href="/contact">Contact Us</a></strong> for Robomerge help.</p>
-            </div> 
-        </div>
-
         <!-- Display warning to user if some files had their stomped revision calculations skipped (task streams) -->
         <div id="stompedRevisionsIssuesDiv" class="card card-single border-warning centered-text initiallyHidden">
                 <div class="card-header bg-warning text-white">

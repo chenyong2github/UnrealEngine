@@ -764,7 +764,6 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			}
 			
 			// Process all the files in our pending changelist
-			let branchOrDeleteResolveRequired = false
 			let stompedRevisionsCalculationIssues = false
 			for (const file of describeResult.entries) {
 				// Check if this file is still remaining in the changelist with a conflict
@@ -774,7 +773,6 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 				
 				let stompedRevisions : StompedRevision[] | null = []
 				let stompVerificationFile : StompVerificationFile = {
-					branchOrDeleteResolveRequired: false,
 					filetype: file.type,
 					stompedRevisionsSkipped: false,
 					stompedRevisionsCalculationIssues: false,
@@ -793,12 +791,8 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 				} 
 
 				if (!resolved) {
-					if (remainingFile!.branchOrDeleteResolveRequired) {
-						stompVerificationFile.branchOrDeleteResolveRequired = true
-						branchOrDeleteResolveRequired = true
-					}
 					// Skip stomped revisions for task streams
-					else if (file.depotFile.startsWith('//Tasks/')) {
+					if (file.depotFile.startsWith('//Tasks/')) {
 						stompVerificationFile.stompedRevisionsSkipped = true
 						stompedRevisions = null
 					}
@@ -854,15 +848,10 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 				message: "TBD",
 				nonBinaryFilesResolved,
 				remainingAllBinary,
-				branchOrDeleteResolveRequired,
 				svFiles
 			}
 
-			if (branchOrDeleteResolveRequired) {
-				returnResult.message= "Invalid Request: Currently do not support stomps requiring branch/delete resolution. Please merge manually."
-				returnResult.validRequest = false
-			} 
-			else if (!remainingAllBinary) {
+			if (!remainingAllBinary) {
 				returnResult.message= "Invalid Request: Not all remaining files are binary"
 				returnResult.validRequest = false
 			}

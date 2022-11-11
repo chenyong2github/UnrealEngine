@@ -59,10 +59,9 @@ export class DummySlackApp implements AppInterface {
 
 	@Handler('GET', '/api/*')
 	get(command: string) {
-		console.log('dummy-slack GET: ', command)
 		if (command.startsWith("users.lookupByEmail"))
 		{
-			return { ok: true, user: { id: ""} }
+			return { ok: true, user: { id: "" } }
 		}
 		return { ok: false }
 	}

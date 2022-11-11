@@ -28,8 +28,6 @@ import { MultipleConflicts } from './tests/multiple-conflicts'
 import { MultipleRoutesToSkip } from './tests/multiple-routes-to-skip'
 import { OverriddenCommand } from './tests/overridden-command'
 import { PostToAdditionalChannel } from './tests/post-to-additional-channel'
-import { RejectBranchResolveStomp } from './tests/reject-branch-resolve-stomp'
-import { RejectDeleteResolveStomp } from './tests/reject-delete-resolve-stomp'
 import { RejectTextConflictStomp } from './tests/reject-text-conflict-stomp'
 import { RequestShelf } from './tests/request-shelf'
 import { RequestShelfIndirectTarget } from './tests/request-shelf-indirect-target'
@@ -38,6 +36,8 @@ import { RespectStreamPath } from './tests/respect-stream-path'
 import { SyntaxErrorOnUnknownBranch } from './tests/syntax-error-on-unknown-branch'
 import { StompForwardingCommands } from './tests/stomp-forwarding-commands'
 import { StompWithAdd } from './tests/stomp-with-add'
+import { StompWithBranch } from './tests/stomp-with-branch'
+import { StompWithDelete } from './tests/stomp-with-delete'
 import { TestChain } from './tests/test-chain'
 import { TestEdgeGate } from './tests/test-edge-gate'
 import { TestFlags } from './tests/test-flags'
@@ -172,8 +172,8 @@ async function go() {
 
 		new MergeMainRevToRelease(p4),
 		new MultipleConflicts(p4),
-		new RejectBranchResolveStomp(p4),
-		new RejectDeleteResolveStomp(p4),
+		new StompWithBranch(p4),
+		new StompWithDelete(p4),
 		new RejectTextConflictStomp(p4), // 15
 
 		new RequestShelf(p4),

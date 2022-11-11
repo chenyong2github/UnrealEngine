@@ -263,12 +263,6 @@ function visualizeStompVerification(requestedBranchCl, stompJson) {
             )
         }
 
-        if (file.branchOrDeleteResolveRequired) {
-            $('#branchOrDeleteResolveRequiredList').append(
-                $('<li>').html(linkToSwarm)
-            )
-        }
-
         if (file.stompedRevisionsSkipped) {
             $('#stompedRevisionsSkippedDiv').removeClass('initiallyHidden')
             $('#stompedRevisionsSkippedList').append(
@@ -307,14 +301,6 @@ function visualizeStompVerification(requestedBranchCl, stompJson) {
                 clDict[stompedRev.changelist].filesStomped.push(fileObj)
             }
         }
-    }
-
-    if (stompJson.branchOrDeleteResolveRequired) {
-        $('#verificationBranchOrDeleteResolveRequired').removeClass('initiallyHidden')
-        $('#resultVisualization').append(
-            $('<h5 class="centered-text">').html(`Robomerge cannot proceed with the stomp request using ${linkToSwarm}.`)
-        )
-        return
     }
 
     if (encounteredStompedRevisionsCalculationIssues) {
