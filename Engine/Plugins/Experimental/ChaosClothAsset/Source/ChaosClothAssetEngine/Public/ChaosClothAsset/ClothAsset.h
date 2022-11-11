@@ -99,7 +99,7 @@ public:
 	TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> GetClothCollection() { return ClothCollection; }
 
 	/** Return the enclosed Cloth Collection object, const version. */
-	const TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> GetClothCollection() const { return ClothCollection; }
+	TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection> GetClothCollection() const { return ClothCollection; }
 
 	/** Return the cloth simulation ready LOD model data. */
 	TSharedPtr<const FChaosClothSimulationModel> GetClothSimulationModel() const { return ClothSimulationModel; }

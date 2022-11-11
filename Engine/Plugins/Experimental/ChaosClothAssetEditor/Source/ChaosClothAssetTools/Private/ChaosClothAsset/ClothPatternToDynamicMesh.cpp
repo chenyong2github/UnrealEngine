@@ -244,9 +244,9 @@ private:
 
 void FClothPatternToDynamicMesh::Convert(const UChaosClothAsset* ClothAssetMeshIn, int32 LODIndex, int32 PatternIndex, bool bGet2DPattern, UE::Geometry::FDynamicMesh3& MeshOut)
 {
-	const TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothAssetMeshIn->GetClothCollection();
+	const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothAssetMeshIn->GetClothCollection();
 	check(ClothCollection.IsValid());
-	UE::Chaos::ClothAsset::FClothAdapter ClothAdapter(ClothCollection);
+	const UE::Chaos::ClothAsset::FClothConstAdapter ClothAdapter(ClothCollection);
 
 	const UE::Chaos::ClothAsset::FClothLodConstAdapter ClothLodAdapter = ClothAdapter.GetLod(LODIndex);
 	const UE::Chaos::ClothAsset::FClothPatternConstAdapter ClothPatternAdapter = ClothLodAdapter.GetPattern(PatternIndex);

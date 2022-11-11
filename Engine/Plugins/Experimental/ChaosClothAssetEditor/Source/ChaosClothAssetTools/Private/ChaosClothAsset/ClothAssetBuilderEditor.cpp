@@ -32,7 +32,7 @@ void UClothAssetBuilderEditor::BuildLod(FSkeletalMeshLODModel& LODModel, const U
 	TMap<int32, TArray<int32>> SectionFacesMap;
 	SectionFacesMap.Reserve(ClothAsset.GetMaterials().Num());
 
-	const TSharedPtr<UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothAsset.GetClothCollection();
+	const TSharedPtr<const UE::Chaos::ClothAsset::FClothCollection> ClothCollection = ClothAsset.GetClothCollection();
 	const int32 PatternStart = ClothCollection->PatternStart[LodIndex];
 	const int32 PatternEnd = ClothCollection->PatternEnd[LodIndex];
 
