@@ -14,6 +14,7 @@ using Horde.Build.Agents.Pools;
 using Microsoft.Extensions.Logging;
 using OpenTracing;
 using OpenTracing.Util;
+using StatsdClient;
 
 namespace Horde.Build.Agents.Fleet.Providers;
 
@@ -89,15 +90,17 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 	
 	private readonly IAmazonEC2 _ec2;
 	private readonly IAgentCollection _agentCollection;
+	private readonly IDogStatsd _dogStatsd;
 	private readonly ILogger _logger;
 
 	/// <summary>
 	/// Constructor
 	/// </summary>
-	public AwsRecyclingFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, AwsRecyclingFleetManagerSettings settings, ILogger<AwsRecyclingFleetManager> logger)
+	public AwsRecyclingFleetManager(IAmazonEC2 ec2, IAgentCollection agentCollection, IDogStatsd dogStatsd, AwsRecyclingFleetManagerSettings settings, ILogger<AwsRecyclingFleetManager> logger)
 	{
 		_ec2 = ec2;
 		_agentCollection = agentCollection;
+		_dogStatsd = dogStatsd;
 		_logger = logger;
 		Settings = settings;
 	}
@@ -254,22 +257,30 @@ public sealed class AwsRecyclingFleetManager : IFleetManager
 		bool success = false;
 		foreach (InstanceType? instanceType in instanceTypes)
 		{
+			string[] metricTags = { "instanceType:" + instanceType, "az:" + instances[0].Placement.AvailabilityZone };
 			try
 			{
 				await StartInstancesAsync(instances, instanceType, cancellationToken);
 				success = true;
+				_dogStatsd.Increment("horde.fleet.awsRecycling.startInstance.success", tags: metricTags);
 				break;
 			}
 			catch (AwsInsufficientCapacityException)
 			{
-				_logger.LogInformation("Insufficient capacity for {InstanceType}", instanceType);
+				_dogStatsd.Increment("horde.fleet.awsRecycling.startInstance.errorCapacity", tags: metricTags);
+				_logger.LogInformation("Insufficient capacity for {InstanceType}", instanceType?.ToString());
+			}
+			catch (Exception)
+			{
+				_dogStatsd.Increment("horde.fleet.awsRecycling.startInstance.error", tags: metricTags);
+				throw;
 			}
 		}
 
 		scope.Span.SetTag("Success", success);
 		if (!success)
 		{
-			_logger.LogError("Unable to start instances. Insufficient capacity for all instance types tried.");
+			_logger.LogError("Unable to start instances. Insufficient capacity for all instance types tried");
 		}
 	}
 

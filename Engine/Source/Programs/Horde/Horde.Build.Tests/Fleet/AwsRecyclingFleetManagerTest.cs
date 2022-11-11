@@ -12,6 +12,7 @@ using Horde.Build.Agents.Fleet;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Horde.Build.Agents;
 using Horde.Build.Agents.Fleet.Providers;
+using Horde.Build.Utilities;
 using Microsoft.Extensions.Logging;
 using JsonSerializer = System.Text.Json.JsonSerializer;
 
@@ -195,7 +196,8 @@ namespace Horde.Build.Tests.Fleet
 
 			ILogger<AwsRecyclingFleetManager> logger = loggerFactory.CreateLogger<AwsRecyclingFleetManager>();
 			IPool pool = await PoolService.CreatePoolAsync("testPool", null, true, 0, 0, sizeStrategy: PoolSizeStrategy.NoOp);
-			AwsRecyclingFleetManager manager = new (ec2, AgentCollection, settings, logger);
+			using NoOpDogStatsd dogStatsd = new ();
+			AwsRecyclingFleetManager manager = new (ec2, AgentCollection, dogStatsd, settings, logger);
 			await manager.ExpandPoolAsync(pool, new List<IAgent>(), numRequestedInstances, CancellationToken.None);
 		}
 	}
