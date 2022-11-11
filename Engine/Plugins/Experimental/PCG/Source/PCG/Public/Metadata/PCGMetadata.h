@@ -73,6 +73,7 @@ public:
 	FPCGMetadataAttributeBase* CopyAttribute(const FPCGMetadataAttributeBase* OriginalAttribute, FName NewAttributeName, bool bKeepParent, bool bCopyEntries, bool bCopyValues);
 
 	/** Returns this metadata's parent */
+	TWeakObjectPtr<const UPCGMetadata> GetParentPtr() const { return Parent; }
 	const UPCGMetadata* GetParent() const { return Parent.Get(); }
 	const UPCGMetadata* GetRoot() const;
 	bool HasParent(const UPCGMetadata* InTentativeParent) const;

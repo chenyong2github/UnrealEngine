@@ -50,7 +50,6 @@ FPCGGraphExecutor::~FPCGGraphExecutor()
 	// We don't really need to do this here (it would be done in the destructor of these both)
 	// but this is to clarify/ensure the order in which this happens
 	GraphCache.ClearCache();
-	ensure(DataRootSet.RootSet.IsEmpty());
 	DataRootSet.Clear();
 
 #if WITH_EDITOR

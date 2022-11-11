@@ -64,11 +64,17 @@ public:
 		TArray<const FPCGMetadataAttribute<T>*, TInlineAllocator<2>> Parents = { this };
 		if (!bKeepParent && (bCopyEntries || bCopyValues))
 		{
+			const UPCGMetadata* CurrentMetadata = Metadata.Get();
 			const FPCGMetadataAttribute<T>* Current = this;
-			while(Current->Parent)
+
+			const UPCGMetadata* ParentMetadata = PCGMetadataHelpers::GetParentMetadata(CurrentMetadata);
+			while(ParentMetadata && Current->Parent)
 			{
+				CurrentMetadata = ParentMetadata;
 				Current = static_cast<const FPCGMetadataAttribute<T>*>(Current->Parent);
 				Parents.Add(Current);
+
+				ParentMetadata = PCGMetadataHelpers::GetParentMetadata(CurrentMetadata);
 			}
 		}
 
