@@ -75,6 +75,9 @@ public:
 	/** Gets whether this detail tree item can be reordered through a drag drop action */
 	bool IsReorderable() const;
 
+	/** Gets whether this detail tree item can be copied */
+	bool IsCopyable() const;
+
 	/** Generates the row widgets for this detail tree item */
 	void GenerateDetailWidgetRow(FDetailWidgetRow& OutDetailWidgetRow) const;
 

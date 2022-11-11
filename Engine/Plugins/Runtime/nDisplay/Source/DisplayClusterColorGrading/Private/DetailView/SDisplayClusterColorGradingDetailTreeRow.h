@@ -21,6 +21,7 @@ public:
 	//~ STableRow Interface
 	void Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterColorGradingDetailTreeItem>& InDetailTreeItem, const TSharedRef<STableViewBase>& InOwnerTableView, const FDetailColumnSizeData& InColumnSizeData);
 	virtual void ConstructChildren(ETableViewMode::Type InOwnerTableMode, const TAttribute<FMargin>& InPadding, const TSharedRef<SWidget>& InContent) override;
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	//~ End STableRow Interface
 
 	/** Gets the property handle of the property this row represents, if applicable */
@@ -80,6 +81,24 @@ private:
 
 	/** Gets the index to use when another row has been dragged onto this row, and an array element swap is taking place */
 	int32 GetDropNewIndex(int32 OriginalIndex, int32 DropOntoIndex, EItemDropZone DropZone) const;
+
+	/** Copies the property name to the clipboard */
+	void CopyPropertyName();
+
+	/** Copies the property value to the clipboard */
+	void CopyPropertyValue();
+
+	/** Checks to see if this property can receive a pasted value from the clipboard */
+	bool CanPastePropertyValue();
+
+	/** Pastes the value in the clipboard into this property */
+	void PastePropertyValue();
+
+	/** Sets the expansion state for this row and all of its children */
+	void SetExpansionStateForAll(bool bShouldBeExpanded);
+
+	/** Recursively sets the expansion state for the specified tree item and its children */
+	void SetExpansionStateRecursive(const TSharedRef<FDisplayClusterColorGradingDetailTreeItem>& TreeItem, bool bShouldBeExpanded);
 
 private:
 	/** A weak pointer to the detail tree item this row represents */

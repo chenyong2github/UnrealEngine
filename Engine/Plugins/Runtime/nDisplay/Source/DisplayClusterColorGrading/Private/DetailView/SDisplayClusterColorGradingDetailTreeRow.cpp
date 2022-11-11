@@ -5,18 +5,21 @@
 #include "SDisplayClusterColorGradingDetailView.h"
 
 #include "DragAndDrop/DecoratedDragDropOp.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Application/MenuStack.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "IPropertyRowGenerator.h"
 #include "IDetailDragDropHandler.h"
 #include "IDetailTreeNode.h"
-#include "Misc/ConfigCacheIni.h"
+#include "Modules/ModuleManager.h"
+#include "Layout/WidgetPath.h"
 #include "PropertyEditor/Private/DetailTreeNode.h"
 #include "ScopedTransaction.h"
-#include "Modules/ModuleManager.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
 
 namespace UE::DisplayClusterColorGradingDetailTreeRow
 {
@@ -347,6 +350,100 @@ void SDisplayClusterColorGradingDetailTreeRow::ConstructChildren(ETableViewMode:
 {
 	InnerContentSlot = nullptr;
 	SetContent(InContent);
+}
+
+FReply SDisplayClusterColorGradingDetailTreeRow::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (DetailTreeItem.IsValid() && MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && !StaticCastSharedRef<STableViewBase>(OwnerTablePtr.Pin()->AsWidget())->IsRightClickScrolling())
+	{
+		FMenuBuilder MenuBuilder(true, nullptr, nullptr, true);
+
+		bool bShouldOpenMenu = false;
+
+		if (DetailTreeItem.Pin()->HasChildren())
+		{
+			bShouldOpenMenu = true;
+
+			FUIAction ExpandAllAction(FExecuteAction::CreateSP(this, &SDisplayClusterColorGradingDetailTreeRow::SetExpansionStateForAll, true));
+			FUIAction CollapseAllAction(FExecuteAction::CreateSP(this, &SDisplayClusterColorGradingDetailTreeRow::SetExpansionStateForAll, false));
+
+			MenuBuilder.BeginSection(NAME_None, NSLOCTEXT("PropertyView", "ExpansionHeading", "Expansion"));
+			MenuBuilder.AddMenuEntry(NSLOCTEXT("PropertyView", "CollapseAll", "Collapse All"), NSLOCTEXT("PropertyView", "CollapseAll_ToolTip", "Collapses this item and all children"), FSlateIcon(), CollapseAllAction);
+			MenuBuilder.AddMenuEntry(NSLOCTEXT("PropertyView", "ExpandAll", "Expand All"), NSLOCTEXT("PropertyView", "ExpandAll_ToolTip", "Expands this item and all children"), FSlateIcon(), ExpandAllAction);
+			MenuBuilder.EndSection();
+		}
+
+		if (DetailTreeItem.Pin()->IsCopyable())
+		{
+			bShouldOpenMenu = true;
+
+			// Hide separator line if it only contains the SearchWidget, making the next 2 elements the top of the list
+			if (MenuBuilder.GetMultiBox()->GetBlocks().Num() > 1)
+			{
+				MenuBuilder.AddMenuSeparator();
+			}
+
+			FUIAction CopyAction = WidgetRow.IsCopyPasteBound() ?
+				WidgetRow.CopyMenuAction :
+				FExecuteAction::CreateSP(this, &SDisplayClusterColorGradingDetailTreeRow::CopyPropertyValue);
+
+			MenuBuilder.AddMenuEntry(
+				NSLOCTEXT("PropertyView", "CopyProperty", "Copy"),
+				NSLOCTEXT("PropertyView", "CopyProperty_ToolTip", "Copy this property value"),
+				FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy"),
+				CopyAction);
+
+			FUIAction PasteAction = WidgetRow.IsCopyPasteBound() ?
+				WidgetRow.PasteMenuAction :
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SDisplayClusterColorGradingDetailTreeRow::PastePropertyValue),
+					FCanExecuteAction::CreateSP(this, &SDisplayClusterColorGradingDetailTreeRow::CanPastePropertyValue));
+
+			MenuBuilder.AddMenuEntry(
+				NSLOCTEXT("PropertyView", "PasteProperty", "Paste"),
+				NSLOCTEXT("PropertyView", "PasteProperty_ToolTip", "Paste the copied value here"),
+				FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Paste"),
+				PasteAction);
+
+			MenuBuilder.AddMenuEntry(
+				NSLOCTEXT("PropertyView", "CopyPropertyDisplayName", "Copy Display Name"),
+				NSLOCTEXT("PropertyView", "CopyPropertyDisplayName_ToolTip", "Copy this property display name"),
+				FSlateIcon(FCoreStyle::Get().GetStyleSetName(), "GenericCommands.Copy"),
+				FExecuteAction::CreateSP(this, &SDisplayClusterColorGradingDetailTreeRow::CopyPropertyName));
+		}
+
+		if (WidgetRow.CustomMenuItems.Num() > 0)
+		{
+			bShouldOpenMenu = true;
+
+			// Hide separator line if it only contains the SearchWidget, making the next 2 elements the top of the list
+			if (MenuBuilder.GetMultiBox()->GetBlocks().Num() > 1)
+			{
+				MenuBuilder.AddMenuSeparator();
+			}
+
+			for (const FDetailWidgetRow::FCustomMenuData& CustomMenuData : WidgetRow.CustomMenuItems)
+			{
+				// Add the menu entry
+				MenuBuilder.AddMenuEntry(
+					CustomMenuData.Name,
+					CustomMenuData.Tooltip,
+					CustomMenuData.SlateIcon,
+					CustomMenuData.Action);
+			}
+		}
+
+		if (bShouldOpenMenu)
+		{
+			FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
+
+			FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuBuilder.MakeWidget(), MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect::ContextMenu);
+
+			return FReply::Handled();
+		}
+	}
+
+	return STableRow<TSharedRef<FDisplayClusterColorGradingDetailTreeItem, ESPMode::ThreadSafe>>::OnMouseButtonUp(MyGeometry, MouseEvent);
 }
 
 TSharedPtr<IPropertyHandle> SDisplayClusterColorGradingDetailTreeRow::GetPropertyHandle() const
@@ -873,4 +970,87 @@ int32 SDisplayClusterColorGradingDetailTreeRow::GetDropNewIndex(int32 OriginalIn
 	}
 
 	return ensure(NewIndex >= 0) ? NewIndex : 0;
+}
+
+void SDisplayClusterColorGradingDetailTreeRow::CopyPropertyName()
+{
+	if (DetailTreeItem.IsValid())
+	{
+		TSharedPtr<IPropertyHandle> PropertyHandle = DetailTreeItem.Pin()->GetPropertyHandle();
+		if (PropertyHandle.IsValid())
+		{
+			FPlatformApplicationMisc::ClipboardCopy(*PropertyHandle->GetPropertyDisplayName().ToString());
+		}
+	}
+}
+
+void SDisplayClusterColorGradingDetailTreeRow::CopyPropertyValue()
+{
+	if (DetailTreeItem.IsValid())
+	{
+		TSharedPtr<IPropertyHandle> PropertyHandle = DetailTreeItem.Pin()->GetPropertyHandle();
+		if (PropertyHandle.IsValid())
+		{
+			FString Value;
+			if (PropertyHandle->GetValueAsFormattedString(Value, PPF_Copy) == FPropertyAccess::Success)
+			{
+				FPlatformApplicationMisc::ClipboardCopy(*Value);
+			}
+		}
+	}
+}
+
+bool SDisplayClusterColorGradingDetailTreeRow::CanPastePropertyValue()
+{
+	FString ClipboardContent;
+	if (DetailTreeItem.IsValid())
+	{
+		if (DetailTreeItem.Pin()->GetPropertyHandle()->IsEditConst())
+		{
+			return false;
+		}
+
+		FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
+	}
+
+	return !ClipboardContent.IsEmpty();
+}
+
+void SDisplayClusterColorGradingDetailTreeRow::PastePropertyValue()
+{
+	FString ClipboardContent;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardContent);
+
+	if (!ClipboardContent.IsEmpty() && DetailTreeItem.IsValid())
+	{
+		TSharedPtr<IPropertyHandle> PropertyHandle = DetailTreeItem.Pin()->GetPropertyHandle();
+		if (PropertyHandle.IsValid())
+		{
+			PropertyHandle->SetValueFromFormattedString(ClipboardContent, EPropertyValueSetFlags::InstanceObjects);
+		}
+	}
+}
+
+void SDisplayClusterColorGradingDetailTreeRow::SetExpansionStateForAll(bool bShouldBeExpanded)
+{
+	if (DetailTreeItem.IsValid())
+	{
+		SetExpansionStateRecursive(DetailTreeItem.Pin().ToSharedRef(), bShouldBeExpanded);
+	}
+}
+
+void SDisplayClusterColorGradingDetailTreeRow::SetExpansionStateRecursive(const TSharedRef<FDisplayClusterColorGradingDetailTreeItem>& TreeItem, bool bShouldBeExpanded)
+{
+	if (OwnerTablePtr.IsValid())
+	{
+		OwnerTablePtr.Pin()->Private_SetItemExpansion(TreeItem, bShouldBeExpanded);
+
+		TArray<TSharedRef<FDisplayClusterColorGradingDetailTreeItem>> Children;
+		TreeItem->GetChildren(Children);
+
+		for (const TSharedRef<FDisplayClusterColorGradingDetailTreeItem>& Child : Children)
+		{
+			SetExpansionStateRecursive(Child, bShouldBeExpanded);
+		}
+	}
 }

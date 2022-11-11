@@ -10,6 +10,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IDetailTreeNode.h"
 #include "IPropertyRowGenerator.h"
+#include "Modules/ModuleManager.h"
 #include "PropertyHandle.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SComboButton.h"
@@ -420,38 +421,7 @@ void SDisplayClusterColorGradingColorWheelPanel::FillColorWheels(const FDisplayC
 		if (ColorWheel.IsValid())
 		{
 			ColorWheel->SetColorPropertyHandle(PropertyHandle);
-
-			if (TSharedPtr<IDetailTreeNode> TreeNode = ColorGradingDataModel->GetPropertyRowGenerator()->FindTreeNode(PropertyHandle))
-			{
-				FNodeWidgets NodeWidgets = TreeNode->CreateNodeWidgets();
-
-				TSharedRef<SHorizontalBox> PropertyNameBox = SNew(SHorizontalBox);
-
-				if (NodeWidgets.EditConditionWidget.IsValid())
-				{
-					PropertyNameBox->AddSlot()
-						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Left)
-						.Padding(2, 0, 0, 0)
-						.AutoWidth()
-						[
-							NodeWidgets.EditConditionWidget.ToSharedRef()
-						];
-				}
-
-				if (NodeWidgets.NameWidget.IsValid())
-				{
-					PropertyNameBox->AddSlot()
-						.HAlign(NodeWidgets.NameWidgetLayoutData.HorizontalAlignment)
-						.VAlign(NodeWidgets.NameWidgetLayoutData.VerticalAlignment)
-						.Padding(2, 0, 0, 0)
-						[
-							NodeWidgets.NameWidget.ToSharedRef()
-						];
-				}
-
-				ColorWheel->SetHeaderContent(PropertyNameBox);
-			}
+			ColorWheel->SetHeaderContent(CreateColorWheelHeaderWidget(PropertyHandle));
 		}
 	};
 
@@ -472,6 +442,124 @@ void SDisplayClusterColorGradingColorWheelPanel::ClearColorWheels()
 			ColorWheel->SetHeaderContent(SNullWidget::NullWidget);
 		}
 	};
+}
+
+TSharedRef<SWidget> SDisplayClusterColorGradingColorWheelPanel::CreateColorWheelHeaderWidget(const TSharedPtr<IPropertyHandle>& ColorPropertyHandle)
+{
+	if (TSharedPtr<IDetailTreeNode> TreeNode = ColorGradingDataModel->GetPropertyRowGenerator()->FindTreeNode(ColorPropertyHandle))
+	{
+		FNodeWidgets NodeWidgets = TreeNode->CreateNodeWidgets();
+
+		TSharedRef<SHorizontalBox> PropertyNameBox = SNew(SHorizontalBox);
+
+		PropertyNameBox->AddSlot()
+			.FillWidth(1.0f)
+			[
+				SNew(SSpacer)
+			];
+
+		if (NodeWidgets.EditConditionWidget.IsValid())
+		{
+			PropertyNameBox->AddSlot()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left)
+				.Padding(2, 0, 0, 0)
+				.AutoWidth()
+				[
+					NodeWidgets.EditConditionWidget.ToSharedRef()
+				];
+		}
+
+		if (NodeWidgets.NameWidget.IsValid())
+		{
+			PropertyNameBox->AddSlot()
+				.HAlign(NodeWidgets.NameWidgetLayoutData.HorizontalAlignment)
+				.VAlign(NodeWidgets.NameWidgetLayoutData.VerticalAlignment)
+				.Padding(2, 0, 0, 0)
+				[
+					NodeWidgets.NameWidget.ToSharedRef()
+				];
+
+			PropertyNameBox->AddSlot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
+				.FillWidth(1.0f)
+				[
+					SNew(SBox)
+					.WidthOverride(22.0f)
+					[
+						CreateColorPropertyExtensions(ColorPropertyHandle, TreeNode)
+					]
+				];
+		}
+
+		return PropertyNameBox;
+	}
+
+	return SNullWidget::NullWidget;
+}
+
+TSharedRef<SWidget> SDisplayClusterColorGradingColorWheelPanel::CreateColorPropertyExtensions(const TSharedPtr<IPropertyHandle>& ColorPropertyHandle, const TSharedPtr<IDetailTreeNode>& DetailTreeNode)
+{
+	TArray<FPropertyRowExtensionButton> ExtensionButtons;
+
+	// Use a weak pointer to pass into delegates
+	TWeakPtr<IPropertyHandle> WeakColorPropertyHandle = ColorPropertyHandle;
+
+	FPropertyRowExtensionButton& ResetToDefaultButton = ExtensionButtons.AddDefaulted_GetRef();
+	ResetToDefaultButton.Label = NSLOCTEXT("PropertyEditor", "ResetToDefault", "Reset to Default");
+	ResetToDefaultButton.UIAction = FUIAction(
+		FExecuteAction::CreateLambda([WeakColorPropertyHandle]
+		{
+			if (WeakColorPropertyHandle.IsValid())
+			{
+				WeakColorPropertyHandle.Pin()->ResetToDefault();
+			}
+		}),
+		FCanExecuteAction::CreateLambda([WeakColorPropertyHandle]
+		{
+			const bool bIsEditable = WeakColorPropertyHandle.Pin()->IsEditable();
+			return bIsEditable;
+		}),
+		FIsActionChecked(),
+		FIsActionButtonVisible::CreateLambda([WeakColorPropertyHandle]
+		{
+			bool bShowResetToDefaultButton = false;
+			if (WeakColorPropertyHandle.IsValid())
+			{
+				if (!WeakColorPropertyHandle.Pin()->HasMetaData("NoResetToDefault") && !WeakColorPropertyHandle.Pin()->GetInstanceMetaData("NoResetToDefault"))
+				{
+					bShowResetToDefaultButton = WeakColorPropertyHandle.Pin()->CanResetToDefault();
+				}
+			}
+
+			return bShowResetToDefaultButton;
+		})
+	);
+
+	ResetToDefaultButton.Icon = FSlateIcon(FAppStyle::Get().GetStyleSetName(), "PropertyWindow.DiffersFromDefault");
+	ResetToDefaultButton.ToolTip = NSLOCTEXT("PropertyEditor", "ResetToDefaultPropertyValueToolTip", "Reset this property to its default value.");
+
+	// Add any global row extensions that are registered for the color property
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	FOnGenerateGlobalRowExtensionArgs Args;
+	Args.OwnerTreeNode = DetailTreeNode;
+	Args.PropertyHandle = ColorPropertyHandle;
+
+	PropertyEditorModule.GetGlobalRowExtensionDelegate().Broadcast(Args, ExtensionButtons);
+
+	FSlimHorizontalToolBarBuilder ToolbarBuilder(TSharedPtr<FUICommandList>(), FMultiBoxCustomization::None);
+	ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
+	ToolbarBuilder.SetStyle(&FAppStyle::Get(), "DetailsView.ExtensionToolBar");
+	ToolbarBuilder.SetIsFocusable(false);
+
+	for (const FPropertyRowExtensionButton& Extension : ExtensionButtons)
+	{
+		ToolbarBuilder.AddToolBarButton(Extension.UIAction, NAME_None, Extension.Label, Extension.ToolTip, Extension.Icon);
+	}
+
+	return ToolbarBuilder.MakeWidget();
 }
 
 bool SDisplayClusterColorGradingColorWheelPanel::FilterDetailTreeNode(const TSharedRef<IDetailTreeNode>& InDetailTreeNode)

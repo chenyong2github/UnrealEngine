@@ -160,6 +160,30 @@ bool FDisplayClusterColorGradingDetailTreeItem::IsReorderable() const
 	return false;
 }
 
+bool FDisplayClusterColorGradingDetailTreeItem::IsCopyable() const
+{
+	if (PropertyHandle.IsValid() && PropertyHandle->IsValidHandle())
+	{
+		static const FName DisableCopyPasteMetaDataName("DisableCopyPaste");
+
+		// Check to see if this property or any of its parents have the DisableCopyPaste metadata
+		TSharedPtr<IPropertyHandle> CurrentPropertyHandle = PropertyHandle;
+		while (CurrentPropertyHandle.IsValid())
+		{
+			if (CurrentPropertyHandle->HasMetaData(DisableCopyPasteMetaDataName))
+			{
+				return false;
+			}
+
+			CurrentPropertyHandle = CurrentPropertyHandle->GetParentHandle();
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 void FDisplayClusterColorGradingDetailTreeItem::GenerateDetailWidgetRow(FDetailWidgetRow& OutDetailWidgetRow) const
 {
 	if (DetailTreeNode.IsValid())

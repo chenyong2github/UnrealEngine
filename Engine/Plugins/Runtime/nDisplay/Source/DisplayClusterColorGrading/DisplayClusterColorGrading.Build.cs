@@ -13,6 +13,7 @@ public class DisplayClusterColorGrading : ModuleRules
 				"DisplayClusterConfiguration",
 				"DisplayClusterOperator",
 
+				"ApplicationCore",
 				"AppFramework",
 				"ColorCorrectRegions",
 				"Core",

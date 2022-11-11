@@ -24,7 +24,7 @@ void SDisplayClusterColorGradingColorWheel::Construct(const FArguments& InArgs)
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()
-		.HAlign(HAlign_Center)
+		.HAlign(HAlign_Fill)
 		[
 			SAssignNew(HeaderBox, SBox)
 		]
@@ -605,11 +605,11 @@ FText SDisplayClusterColorGradingColorWheel::GetComponentToolTipText(uint32 Comp
 	{
 		if (ColorDisplayMode.Get(EColorDisplayMode::RGB) != EColorDisplayMode::RGB)
 		{
-			return RGBToolTipText[ComponentIndex];
+			return HSVToolTipText[ComponentIndex];
 		}
 		else
 		{
-			return HSVToolTipText[ComponentIndex];
+			return RGBToolTipText[ComponentIndex];
 		}
 	}
 	else if (ComponentIndex == 3)
