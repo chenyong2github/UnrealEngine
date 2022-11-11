@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Units/Core/RigUnit_Print.h"
-#include "Units/RigUnitContext.h"
+#include "RigVMFunctions/RigVMDispatch_Print.h"
+#include "RigVMCore/RigVMStruct.h"
+#include "RigVMCore/RigVM.h"
 #include "Kismet/KismetSystemLibrary.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Print)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMDispatch_Print)
 
-TArray<FRigVMTemplateArgument> FRigDispatch_Print::GetArguments() const
+TArray<FRigVMTemplateArgument> FRigVMDispatch_Print::GetArguments() const
 {
 	const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
 		FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
@@ -21,13 +22,13 @@ TArray<FRigVMTemplateArgument> FRigDispatch_Print::GetArguments() const
 	};
 }
 
-TArray<FRigVMExecuteArgument> FRigDispatch_Print::GetExecuteArguments_Impl() const
+TArray<FRigVMExecuteArgument> FRigVMDispatch_Print::GetExecuteArguments_Impl() const
 {
 	return {{TEXT("ExecuteContext"), ERigVMPinDirection::IO}};
 }
 
-FRigVMTemplateTypeMap FRigDispatch_Print::OnNewArgumentType(const FName& InArgumentName,
-	TRigVMTypeIndex InTypeIndex) const
+FRigVMTemplateTypeMap FRigVMDispatch_Print::OnNewArgumentType(const FName& InArgumentName,
+                                                              TRigVMTypeIndex InTypeIndex) const
 {
 	FRigVMTemplateTypeMap Types;
 	Types.Add(TEXT("Prefix"), RigVMTypeUtils::TypeIndex::FString);
@@ -40,7 +41,7 @@ FRigVMTemplateTypeMap FRigDispatch_Print::OnNewArgumentType(const FName& InArgum
 
 #if WITH_EDITOR
 
-FString FRigDispatch_Print::GetArgumentDefaultValue(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
+FString FRigVMDispatch_Print::GetArgumentDefaultValue(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex) const
 {
 	if(InArgumentName == TEXT("Enabled"))
 	{
@@ -50,10 +51,10 @@ FString FRigDispatch_Print::GetArgumentDefaultValue(const FName& InArgumentName,
 	{
 		return TEXT("0.050000");
 	}
-	return FRigDispatchFactory::GetArgumentDefaultValue(InArgumentName, InTypeIndex);
+	return FRigVMDispatchFactory::GetArgumentDefaultValue(InArgumentName, InTypeIndex);
 }
 
-FString FRigDispatch_Print::GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const
+FString FRigVMDispatch_Print::GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey) const
 {
 	if(InArgumentName == TEXT("ScreenDuration") || InArgumentName == TEXT("ScreenColor"))
 	{
@@ -62,12 +63,12 @@ FString FRigDispatch_Print::GetArgumentMetaData(const FName& InArgumentName, con
 			return TEXT("True");
 		}
 	}
-	return FRigDispatchFactory::GetArgumentMetaData(InArgumentName, InMetaDataKey);
+	return FRigVMDispatchFactory::GetArgumentMetaData(InArgumentName, InMetaDataKey);
 }
 
 #endif
 
-void FRigDispatch_Print::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+void FRigVMDispatch_Print::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
 {
 #if WITH_EDITOR
 	const FProperty* ValueProperty = Handles[1].GetResolvedProperty(); 
@@ -88,12 +89,6 @@ void FRigDispatch_Print::Execute(FRigVMExtendedExecuteContext& InContext, FRigVM
 		return;
 	}
 
-	const FRigUnitContext& Context = GetRigUnitContext(InContext);
-	if (Context.State == EControlRigState::Init)
-	{
-		return;
-	}
-	
 	FString String;
 	ValueProperty->ExportText_Direct(String, Value, Value, nullptr, PPF_None, nullptr);
 
@@ -104,12 +99,13 @@ void FRigDispatch_Print::Execute(FRigVMExtendedExecuteContext& InContext, FRigVM
 	}
 
 	static constexpr TCHAR LogFormat[] = TEXT("%s[%04d] %s%s");
-	UE_LOG(LogControlRig, Display, LogFormat, *ObjectPath, InContext.GetPublicData().GetInstructionIndex(), *Prefix, *String);
+	UE_LOG(LogRigVM, Display, LogFormat, *ObjectPath, InContext.GetPublicData<>().GetInstructionIndex(), *Prefix, *String);
+	const UObject* WorldObject = (const UObject*)InContext.VM;
 
-	if(ScreenDuration > SMALL_NUMBER && Context.World)
+	if(ScreenDuration > SMALL_NUMBER && WorldObject)
 	{
 		static constexpr TCHAR PrintStringFormat[] = TEXT("[%04d] %s%s");
-		UKismetSystemLibrary::PrintString(Context.World, FString::Printf(PrintStringFormat, InContext.GetPublicData().GetInstructionIndex(), *Prefix, *String), true, false, ScreenColor, ScreenDuration);
+		UKismetSystemLibrary::PrintString(WorldObject, FString::Printf(PrintStringFormat, InContext.GetPublicData<>().GetInstructionIndex(), *Prefix, *String), true, false, ScreenColor, ScreenDuration);
 	}
 #endif
 }

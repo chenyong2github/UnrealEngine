@@ -892,7 +892,7 @@ void UControlRigBlueprint::PostLoad()
 		}
 		
 		InitializeModelIfRequired(false /* recompile vm */);
-
+		GetRigVMClient()->PatchModelsOnLoad();
 		PatchFunctionReferencesOnLoad();
 		PatchVariableNodesOnLoad();
 		PatchVariableNodesWithIncorrectType();

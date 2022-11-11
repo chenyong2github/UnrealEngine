@@ -641,3 +641,13 @@ void FRigVMClient::DestroyObject(UObject* InObject)
 	}
 }
 
+void FRigVMClient::PatchModelsOnLoad()
+{
+	TArray<URigVMGraph*> AllModels = GetAllModels(true, true);
+	for(URigVMGraph* Model : AllModels)
+	{
+		URigVMController* Controller = GetOrCreateController(Model);
+		Controller->PatchDispatchNodesOnLoad();
+	}
+}
+

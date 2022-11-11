@@ -2,6 +2,7 @@
 
 #include "Units/Math/RigUnit_MathBool.h"
 #include "Units/RigUnitContext.h"
+#include "RigVMFunctions/RigVMDispatch_Core.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_MathBool)
 
@@ -66,7 +67,7 @@ FRigUnit_MathBoolEquals_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_MathBoolEquals::GetUpgradeInfo() const
 {
-	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreEquals::StaticStruct());
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigVMDispatch_CoreEquals::StaticStruct());
 }
 
 FRigUnit_MathBoolNotEquals_Execute()
@@ -77,7 +78,7 @@ FRigUnit_MathBoolNotEquals_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_MathBoolNotEquals::GetUpgradeInfo() const
 {
-	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreNotEquals::StaticStruct());
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigVMDispatch_CoreNotEquals::StaticStruct());
 }
 
 FRigUnit_MathBoolToggled_Execute()

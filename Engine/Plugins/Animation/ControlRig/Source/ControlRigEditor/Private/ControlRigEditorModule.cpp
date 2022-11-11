@@ -1072,7 +1072,7 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 	for(const FRigVMFunction& Function : Registry.GetFunctions())
 	{
 		UScriptStruct* Struct = Function.Struct;
-		if (Struct == nullptr || !Struct->IsChildOf(FRigUnit::StaticStruct()))
+		if (Struct == nullptr || !Struct->IsChildOf(FRigVMStruct::StaticStruct()))
 		{
 			continue;
 		}

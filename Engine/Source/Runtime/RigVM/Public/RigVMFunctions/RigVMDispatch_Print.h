@@ -2,15 +2,14 @@
 
 #pragma once
 
-#include "Units/RigUnit.h"
-#include "Units/RigDispatchFactory.h"
-#include "RigUnit_Print.generated.h"
+#include "RigVMCore/RigVMDispatchFactory.h"
+#include "RigVMDispatch_Print.generated.h"
 
 /*
  * Prints any value to the log
  */
 USTRUCT(meta=(DisplayName = "Print", NodeColor = "0.8, 0, 0.2, 1"))
-struct FRigDispatch_Print : public FRigDispatchFactory
+struct FRigVMDispatch_Print : public FRigVMDispatchFactory
 {
 	GENERATED_BODY()
 
@@ -29,7 +28,7 @@ protected:
 
 	virtual FRigVMFunctionPtr GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const override
 	{
-		return &FRigDispatch_Print::Execute;
+		return &FRigVMDispatch_Print::Execute;
 	}
 	static void Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles);
 };

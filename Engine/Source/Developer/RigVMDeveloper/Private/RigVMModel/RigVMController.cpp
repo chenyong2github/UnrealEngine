@@ -12958,59 +12958,7 @@ URigVMTemplateNode* URigVMController::AddTemplateNode(const FName& InNotation, c
 	Node->InitializeFilteredPermutations();
 
 	FRigVMRegistry& Registry = FRigVMRegistry::Get();
-
-	for (int32 ArgIndex = 0; ArgIndex < Template->NumExecuteArguments(); ArgIndex++)
-	{
-		const FRigVMExecuteArgument* Arg = Template->GetExecuteArgument(ArgIndex);
-		URigVMPin* Pin = NewObject<URigVMPin>(Node, Arg->Name);
-		const FRigVMTemplateArgumentType Type = Registry.GetType(Arg->TypeIndex);
-		
-		Pin->CPPType = Type.CPPType.ToString();
-		Pin->CPPTypeObject = Type.CPPTypeObject;
-		if (Pin->CPPTypeObject)
-		{
-			Pin->CPPTypeObjectPath = *Pin->CPPTypeObject->GetPathName();
-		}
-		Pin->Direction = Arg->Direction;
-		Pin->LastKnownTypeIndex = Arg->TypeIndex;
-		Pin->LastKnownCPPType = Pin->CPPType;
-
-		AddNodePin(Node, Pin);
-	}
-	
-	for (int32 ArgIndex = 0; ArgIndex < Template->NumArguments(); ArgIndex++)
-	{
-		const FRigVMTemplateArgument* Arg = Template->GetArgument(ArgIndex);
-
-		URigVMPin* Pin = NewObject<URigVMPin>(Node, Arg->GetName());
-		const TRigVMTypeIndex& TypeIndex = Types.FindChecked(Arg->GetName());
-		const FRigVMTemplateArgumentType Type = Registry.GetType(TypeIndex);
-		
-		Pin->CPPType = Type.CPPType.ToString();
-		Pin->CPPTypeObject = Type.CPPTypeObject;
-		if (Pin->CPPTypeObject)
-		{
-			Pin->CPPTypeObjectPath = *Pin->CPPTypeObject->GetPathName();
-		}
-		Pin->Direction = Arg->GetDirection();
-		Pin->LastKnownTypeIndex = TypeIndex;
-		Pin->LastKnownCPPType = Pin->CPPType;
-
-		AddNodePin(Node, Pin);
-
-		if(!Pin->IsWildCard())
-		{
-			const FString DefaultValue = Node->GetInitialDefaultValueForPin(Pin->GetFName());
-			if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Pin->CPPTypeObject))
-			{
-				AddPinsForStruct(ScriptStruct, Pin->GetNode(), Pin, Pin->Direction, DefaultValue, false, false);
-			}
-			else if(!DefaultValue.IsEmpty())
-			{
-				SetPinDefaultValue(Pin, DefaultValue, true, false, false, false);
-			}
-		}
-	}
+	AddPinsForTemplate(Template, Types, Node);
 
 	UpdateTemplateNodePinTypes(Node, false);
 
@@ -14196,6 +14144,66 @@ void URigVMController::AddPinsForArray(FArrayProperty* InArrayProperty, URigVMNo
 	}
 }
 
+void URigVMController::AddPinsForTemplate(const FRigVMTemplate* InTemplate, const FRigVMTemplateTypeMap& InPinTypeMap, URigVMNode* InNode)
+{
+	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+	
+	for (int32 ArgIndex = 0; ArgIndex < InTemplate->NumExecuteArguments(); ArgIndex++)
+    {
+        const FRigVMExecuteArgument* Arg = InTemplate->GetExecuteArgument(ArgIndex);
+        URigVMPin* Pin = NewObject<URigVMPin>(InNode, Arg->Name);
+        const FRigVMTemplateArgumentType Type = Registry.GetType(Arg->TypeIndex);
+        
+        Pin->CPPType = Type.CPPType.ToString();
+        Pin->CPPTypeObject = Type.CPPTypeObject;
+        if (Pin->CPPTypeObject)
+        {
+        	Pin->CPPTypeObjectPath = *Pin->CPPTypeObject->GetPathName();
+        }
+        Pin->Direction = Arg->Direction;
+        Pin->LastKnownTypeIndex = Arg->TypeIndex;
+        Pin->LastKnownCPPType = Pin->CPPType;
+
+        AddNodePin(InNode, Pin);
+    }
+
+	for (int32 ArgIndex = 0; ArgIndex < InTemplate->NumArguments(); ArgIndex++)
+	{
+		const FRigVMTemplateArgument* Arg = InTemplate->GetArgument(ArgIndex);
+
+		URigVMPin* Pin = NewObject<URigVMPin>(InNode, Arg->GetName());
+		const TRigVMTypeIndex& TypeIndex = InPinTypeMap.FindChecked(Arg->GetName());
+		const FRigVMTemplateArgumentType Type = FRigVMRegistry::Get().GetType(TypeIndex);
+		Pin->CPPType = Type.CPPType.ToString();
+		Pin->CPPTypeObject = Type.CPPTypeObject;
+		if (Pin->CPPTypeObject)
+		{
+			Pin->CPPTypeObjectPath = *Pin->CPPTypeObject->GetPathName();
+		}
+		Pin->Direction = Arg->GetDirection();
+
+		AddNodePin(InNode, Pin);
+
+		if(!Pin->IsWildCard() && !Pin->IsArray())
+		{
+			FString DefaultValue;
+			if(const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InNode))
+			{
+				DefaultValue = TemplateNode->GetInitialDefaultValueForPin(Pin->GetFName());
+			}
+			
+			if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Pin->CPPTypeObject))
+			{
+				AddPinsForStruct(ScriptStruct, Pin->GetNode(), Pin, Pin->Direction, DefaultValue, false, false);
+			}
+			else if(!DefaultValue.IsEmpty())
+			{
+				SetPinDefaultValue(Pin, DefaultValue, true, false, false, false);
+			}
+		}
+	}
+}
+
 void URigVMController::ConfigurePinFromProperty(FProperty* InProperty, URigVMPin* InOutPin, ERigVMPinDirection InPinDirection)
 {
 	if (InPinDirection == ERigVMPinDirection::Invalid)
@@ -14989,47 +14997,16 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode, bool bFollowCore
 	}
 	else if (DispatchNode)
 	{
-		TMap<FString, TRigVMTypeIndex> PinTypeMap;
+		FRigVMTemplateTypeMap PinTypeMap;
 		for (const URigVMPin* Pin : DispatchNode->Pins)
 		{
-			PinTypeMap.Add(Pin->GetPinPath(), Pin->GetTypeIndex());
+			PinTypeMap.Add(Pin->GetFName(), Pin->GetTypeIndex());
 		}
 		
 		RemovePinsDuringRepopulate(DispatchNode, DispatchNode->Pins, bNotify, bSetupOrphanedPins);
 
 		const FRigVMTemplate* Template = DispatchNode->GetTemplate();
-		
-		for (int32 ArgIndex = 0; ArgIndex < Template->NumArguments(); ArgIndex++)
-		{
-			const FRigVMTemplateArgument* Arg = Template->GetArgument(ArgIndex);
-
-			URigVMPin* Pin = NewObject<URigVMPin>(DispatchNode, Arg->GetName());
-			const TRigVMTypeIndex& TypeIndex = PinTypeMap.FindChecked(Pin->GetPinPath());
-			const FRigVMTemplateArgumentType Type = FRigVMRegistry::Get().GetType(TypeIndex);
-			Pin->CPPType = Type.CPPType.ToString();
-			Pin->CPPTypeObject = Type.CPPTypeObject;
-			if (Pin->CPPTypeObject)
-			{
-				Pin->CPPTypeObjectPath = *Pin->CPPTypeObject->GetPathName();
-			}
-			Pin->Direction = Arg->GetDirection();
-
-			AddNodePin(DispatchNode, Pin);
-
-			if(!Pin->IsWildCard() && !Pin->IsArray())
-			{
-				// any serialize default values will be applied later with ApplyPinStates(...)
-				const FString DefaultValue = DispatchNode->GetInitialDefaultValueForPin(Pin->GetFName());
-				if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Pin->CPPTypeObject))
-				{
-					AddPinsForStruct(ScriptStruct, Pin->GetNode(), Pin, Pin->Direction, DefaultValue, false, false);
-				}
-				else if(!DefaultValue.IsEmpty())
-				{
-					SetPinDefaultValue(Pin, DefaultValue, true, false, false, false);
-				}
-			}
-		}
+		AddPinsForTemplate(Template, PinTypeMap, DispatchNode);
 		
 		ResolveTemplateNodeMetaData(DispatchNode, false);
 	}
@@ -19469,6 +19446,50 @@ FRigVMTemplate::FTypeMap URigVMController::GetCommonlyUsedTypesForTemplate(
 
 	const FString& TypesString = MaxPair.Key;
 	return Template->GetArgumentTypesFromString(TypesString);
+}
+
+void URigVMController::PatchDispatchNodesOnLoad()
+{
+	if (const URigVMGraph* Graph = GetGraph())
+	{
+		for(URigVMNode* Node : Graph->GetNodes())
+		{
+			if(URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(Node))
+			{
+				// find template performs backwards lookup
+				if(const FRigVMTemplate* Template = DispatchNode->GetTemplate())
+				{
+					if(Template->GetNotation() != DispatchNode->TemplateNotation)
+					{
+						DispatchNode->TemplateNotation = Template->GetNotation();
+						if(!DispatchNode->ResolvedFunctionName.IsEmpty())
+						{
+							FString FactoryName, ArgumentsString;
+							if(DispatchNode->ResolvedFunctionName.Split(TEXT("::"), &FactoryName, &ArgumentsString))
+							{
+								DispatchNode->ResolvedFunctionName.Reset();
+								DispatchNode->ResolvedPermutation = INDEX_NONE;
+								
+								const FRigVMTemplateTypeMap ArgumentTypes = Template->GetArgumentTypesFromString(ArgumentsString);
+								if(ArgumentTypes.Num() == Template->NumArguments())
+								{
+									if(const FRigVMDispatchFactory* Factory = Template->GetDispatchFactory())
+									{
+										const FString ResolvedPermutationName = Factory->GetPermutationName(ArgumentTypes);
+										if(const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(*ResolvedPermutationName))
+										{
+											DispatchNode->ResolvedFunctionName = Function->GetName();
+											DispatchNode->ResolvedPermutation = Template->FindPermutation(Function);
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 #endif

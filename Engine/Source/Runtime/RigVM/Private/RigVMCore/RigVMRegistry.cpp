@@ -13,6 +13,10 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/DelayedAutoRegister.h"
 
+#if WITH_EDITOR
+#include "UObject/CoreRedirects.h"
+#endif
+
 const FName FRigVMRegistry::TemplateNameMetaName = TEXT("TemplateName");
 
 
@@ -1167,9 +1171,34 @@ const FRigVMTemplate* FRigVMRegistry::FindTemplate(const FName& InNotation, bool
 		}
 	}
 
-	// if we arrive here we may have a template that used to contain an executecontext.
+	const FString OriginalNotation = InNotation.ToString();
+
+	// we may have a dispatch factory which has to be redirected
+#if WITH_EDITOR
+	if(OriginalNotation.StartsWith(FRigVMDispatchFactory::DispatchPrefix))
 	{
-		const FString OriginalNotation = InNotation.ToString();
+		const FString OriginalDispatchFactoryName = OriginalNotation
+			.Left(OriginalNotation.Find(TEXT("(")))
+			.RightChop(FRigVMDispatchFactory::DispatchPrefix.Len());
+
+		const FCoreRedirectObjectName OldObjectName(OriginalDispatchFactoryName);
+		TArray<const FCoreRedirect*> Redirects;
+		if(FCoreRedirects::GetMatchingRedirects(ECoreRedirectFlags::Type_Struct, OldObjectName, Redirects, ECoreRedirectMatchFlags::AllowPartialMatch))
+		{
+			for(const FCoreRedirect* Redirect : Redirects)
+			{
+				const FString NewDispatchFactoryName = FRigVMDispatchFactory::DispatchPrefix + Redirect->NewName.ObjectName.ToString();
+				if(const FRigVMDispatchFactory* NewDispatchFactory = FindDispatchFactory(*NewDispatchFactoryName))
+				{
+					return NewDispatchFactory->GetTemplate();
+				}
+			}
+		}
+	}
+#endif
+
+	// if we still arrive here we may have a template that used to contain an executecontext.
+	{
 		FString SanitizedNotation = OriginalNotation;
 
 		static const TArray<TPair<FString, FString>> ExecuteContextArgs = {

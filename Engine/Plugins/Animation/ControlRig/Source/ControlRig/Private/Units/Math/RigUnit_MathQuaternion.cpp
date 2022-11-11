@@ -5,7 +5,7 @@
 #include "Units/RigUnitContext.h"
 #include "AnimationCoreLibrary.h"
 #include "Math/ControlRigMathLibrary.h"
-#include "Units/Core/RigUnit_CoreDispatch.h"
+#include "RigVMFunctions/RigVMDispatch_Core.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_MathQuaternion)
 
@@ -160,7 +160,7 @@ FRigUnit_MathQuaternionEquals_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_MathQuaternionEquals::GetUpgradeInfo() const
 {
-	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreEquals::StaticStruct());
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigVMDispatch_CoreEquals::StaticStruct());
 }
 
 FRigUnit_MathQuaternionNotEquals_Execute()
@@ -171,7 +171,7 @@ FRigUnit_MathQuaternionNotEquals_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_MathQuaternionNotEquals::GetUpgradeInfo() const
 {
-	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreNotEquals::StaticStruct());
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigVMDispatch_CoreNotEquals::StaticStruct());
 }
 
 FRigUnit_MathQuaternionSelectBool_Execute()

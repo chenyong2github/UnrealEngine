@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Units/Core/RigUnit_String.h"
-#include "Units/RigUnitContext.h"
+#include "RigVMFunctions/RigVMFunction_String.h"
+#include "RigVMCore/RigVM.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_String)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMFunction_String)
 
-FRigUnit_StringConcat_Execute()
+FRigVMFunction_StringConcat_Execute()
 {
 	Result = A + B;
 }
 
-FRigUnit_StringTruncate_Execute()
+FRigVMFunction_StringTruncate_Execute()
 {
 	Remainder = Name;
 	Chopped = FString();
@@ -32,63 +32,63 @@ FRigUnit_StringTruncate_Execute()
 	}
 }
 
-FRigUnit_StringReplace_Execute()
+FRigVMFunction_StringReplace_Execute()
 {
 	Result = Name.Replace(*Old, *New, ESearchCase::CaseSensitive);
 }
 
-FRigUnit_StringEndsWith_Execute()
+FRigVMFunction_StringEndsWith_Execute()
 {
 	Result = Name.EndsWith(Ending, ESearchCase::CaseSensitive);
 }
 
-FRigUnit_StringStartsWith_Execute()
+FRigVMFunction_StringStartsWith_Execute()
 {
 	Result = Name.StartsWith(Start, ESearchCase::CaseSensitive);
 }
 
-FRigUnit_StringContains_Execute()
+FRigVMFunction_StringContains_Execute()
 {
 	Result = Name.Contains(Search, ESearchCase::CaseSensitive);
 }
 
-FRigUnit_StringLength_Execute()
+FRigVMFunction_StringLength_Execute()
 {
 	Length = Value.Len();
 }
 
-FRigUnit_StringTrimWhitespace_Execute()
+FRigVMFunction_StringTrimWhitespace_Execute()
 {
 	Result = Value;
 	Result.TrimStartAndEndInline();
 }
 
-FRigUnit_StringToUppercase_Execute()
+FRigVMFunction_StringToUppercase_Execute()
 {
 	Result = Value.ToUpper();
 }
 
-FRigUnit_StringToLowercase_Execute()
+FRigVMFunction_StringToLowercase_Execute()
 {
 	Result = Value.ToLower();
 }
 
-FRigUnit_StringReverse_Execute()
+FRigVMFunction_StringReverse_Execute()
 {
 	Reverse = Value.Reverse();
 }
 
-FRigUnit_StringLeft_Execute()
+FRigVMFunction_StringLeft_Execute()
 {
 	Result = Value.Left(Count);
 }
 
-FRigUnit_StringRight_Execute()
+FRigVMFunction_StringRight_Execute()
 {
 	Result = Value.Right(Count);
 }
 
-FRigUnit_StringMiddle_Execute()
+FRigVMFunction_StringMiddle_Execute()
 {
 	if(Count < 0)
 	{
@@ -100,7 +100,7 @@ FRigUnit_StringMiddle_Execute()
 	}
 }
 
-FRigUnit_StringFind_Execute()
+FRigVMFunction_StringFind_Execute()
 {
 	Index = INDEX_NONE;
 
@@ -112,14 +112,14 @@ FRigUnit_StringFind_Execute()
 	Found = Index != INDEX_NONE;
 }
 
-FRigUnit_StringSplit_Execute()
+FRigVMFunction_StringSplit_Execute()
 {
 	Result.Reset();
 	if(!Value.IsEmpty())
 	{
 		if(Separator.IsEmpty())
 		{
-			UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("Separator is empty."));
+			//UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("Separator is empty."));
 			return;
 		}
 
@@ -139,7 +139,7 @@ FRigUnit_StringSplit_Execute()
 	}
 }
 
-FRigUnit_StringJoin_Execute()
+FRigVMFunction_StringJoin_Execute()
 {
 	Result.Reset();
 	if(!Values.IsEmpty())
@@ -148,7 +148,7 @@ FRigUnit_StringJoin_Execute()
 	}
 }
 
-FRigUnit_StringPadInteger_Execute()
+FRigVMFunction_StringPadInteger_Execute()
 {
 	static constexpr TCHAR Format02Digits[] = TEXT("%02d");
 	static constexpr TCHAR Format03Digits[] = TEXT("%03d");
@@ -403,6 +403,7 @@ void FRigDispatch_FromString::Execute(FRigVMExtendedExecuteContext& InContext, F
 		ValueProperty->InitializeValue(Value);
 		for(const FString& Error : ErrorPipe.Errors)
 		{
+			/*
 			const FRigUnitContext& Context = GetRigUnitContext(InContext);
 
 #if WITH_EDITOR
@@ -411,6 +412,7 @@ void FRigDispatch_FromString::Execute(FRigVMExtendedExecuteContext& InContext, F
 				Context.Log->Report(EMessageSeverity::Error, InContext.GetPublicData<>().GetFunctionName(), InContext.GetPublicData<>().GetInstructionIndex(), Error);
 			}
 #endif
+			*/
 
 			FString ObjectPath;
 			if(InContext.VM)
@@ -419,7 +421,7 @@ void FRigDispatch_FromString::Execute(FRigVMExtendedExecuteContext& InContext, F
 			}
 			
 			static constexpr TCHAR ErrorLogFormat[] = TEXT("%s: [%04d] %s");
-			UE_LOG(LogControlRig, Error, ErrorLogFormat, *ObjectPath, InContext.GetPublicData<>().GetInstructionIndex(), *Error);
+			UE_LOG(LogRigVM, Error, ErrorLogFormat, *ObjectPath, InContext.GetPublicData<>().GetInstructionIndex(), *Error);
 		}
 	}
 }

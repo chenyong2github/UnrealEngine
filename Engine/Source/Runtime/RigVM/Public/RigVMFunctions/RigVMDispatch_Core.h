@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "Units/RigUnit.h"
-#include "Units/RigDispatchFactory.h"
-#include "RigUnit_CoreDispatch.generated.h"
+#include "RigVMCore/RigVMDispatchFactory.h"
+#include "RigVMDispatch_Core.generated.h"
 
 USTRUCT(meta=(Abstract, Category = "Core", NodeColor = "0.762745, 1,0, 0.329412"))
-struct FRigDispatch_CoreBase : public FRigDispatchFactory
+struct FRigVMDispatch_CoreBase : public FRigVMDispatchFactory
 {
 	GENERATED_BODY()
 };
@@ -16,7 +15,7 @@ struct FRigDispatch_CoreBase : public FRigDispatchFactory
  * Compares any two values and return true if they are identical
  */
 USTRUCT(meta=(DisplayName = "Equals", Keywords = "Same,=="))
-struct FRigDispatch_CoreEquals : public FRigDispatch_CoreBase
+struct FRigVMDispatch_CoreEquals : public FRigVMDispatch_CoreBase
 {
 	GENERATED_BODY()
 
@@ -82,12 +81,12 @@ protected:
  * Compares any two values and return true if they are identical
  */
 USTRUCT(meta=(DisplayName = "Not Equals", Keywords = "Different,!=,Xor"))
-struct FRigDispatch_CoreNotEquals : public FRigDispatch_CoreEquals
+struct FRigVMDispatch_CoreNotEquals : public FRigVMDispatch_CoreEquals
 {
 	GENERATED_BODY()
 
 	// we are inheriting everything from the equals dispatch,
-	// and due to the check of the factory within FRigDispatch_CoreEquals::Execute we can
+	// and due to the check of the factory within FRigVMDispatch_CoreEquals::Execute we can
 	// rely on that completely. we only need this class for the displayname and
 	// operation specific StaticStruct().
 };

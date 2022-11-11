@@ -2,7 +2,7 @@
 
 #include "Units/Math/RigUnit_MathInt.h"
 #include "Units/RigUnitContext.h"
-#include "Units/Core/RigUnit_CoreDispatch.h"
+#include "RigVMFunctions/RigVMDispatch_Core.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_MathInt)
 
@@ -114,7 +114,7 @@ FRigUnit_MathIntEquals_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_MathIntEquals::GetUpgradeInfo() const
 {
-	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreEquals::StaticStruct());
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigVMDispatch_CoreEquals::StaticStruct());
 }
 
 FRigUnit_MathIntNotEquals_Execute()
@@ -125,7 +125,7 @@ FRigUnit_MathIntNotEquals_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_MathIntNotEquals::GetUpgradeInfo() const
 {
-	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreNotEquals::StaticStruct());
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigVMDispatch_CoreNotEquals::StaticStruct());
 }
 
 FRigUnit_MathIntGreater_Execute()

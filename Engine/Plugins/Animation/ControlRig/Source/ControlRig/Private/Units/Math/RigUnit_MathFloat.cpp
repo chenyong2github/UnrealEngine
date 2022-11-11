@@ -2,7 +2,7 @@
 
 #include "Units/Math/RigUnit_MathFloat.h"
 #include "Units/RigUnitContext.h"
-#include "Units/Core/RigUnit_CoreDispatch.h"
+#include "RigVMFunctions/RigVMDispatch_Core.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_MathFloat)
 
@@ -186,7 +186,7 @@ FRigUnit_MathFloatEquals_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_MathFloatEquals::GetUpgradeInfo() const
 {
-	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreEquals::StaticStruct());
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigVMDispatch_CoreEquals::StaticStruct());
 }
 
 FRigUnit_MathFloatNotEquals_Execute()
@@ -197,7 +197,7 @@ FRigUnit_MathFloatNotEquals_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_MathFloatNotEquals::GetUpgradeInfo() const
 {
-	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreNotEquals::StaticStruct());
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigVMDispatch_CoreNotEquals::StaticStruct());
 }
 
 FRigUnit_MathFloatGreater_Execute()

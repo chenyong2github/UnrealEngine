@@ -127,6 +127,9 @@ public:
 	static FName GetUniqueName(UObject* InOuter, const FName& InDesiredName);
 	static void DestroyObject(UObject* InObject);
 
+	// backwards compatibility
+	void PatchModelsOnLoad();
+
 private:
 
 	enum ERigVMClientAction

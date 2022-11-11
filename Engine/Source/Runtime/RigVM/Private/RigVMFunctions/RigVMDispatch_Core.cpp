@@ -1,12 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Units/Core/RigUnit_CoreDispatch.h"
-#include "Units/RigUnitContext.h"
+#include "RigVMFunctions/RigVMDispatch_Core.h"
+#include "RigVMCore/RigVMRegistry.h"
 #include "EulerTransform.h"
 
-#include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_CoreDispatch)
+#include UE_INLINE_GENERATED_CPP_BY_NAME(RigVMDispatch_Core)
 
-TArray<FRigVMTemplateArgument> FRigDispatch_CoreEquals::GetArguments() const
+TArray<FRigVMTemplateArgument> FRigVMDispatch_CoreEquals::GetArguments() const
 {
 	const TArray<FRigVMTemplateArgument::ETypeCategory> ValueCategories = {
 		FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
@@ -19,7 +19,7 @@ TArray<FRigVMTemplateArgument> FRigDispatch_CoreEquals::GetArguments() const
 	};
 }
 
-FRigVMTemplateTypeMap FRigDispatch_CoreEquals::OnNewArgumentType(const FName& InArgumentName,
+FRigVMTemplateTypeMap FRigVMDispatch_CoreEquals::OnNewArgumentType(const FName& InArgumentName,
 	TRigVMTypeIndex InTypeIndex) const
 {
 	FRigVMTemplateTypeMap Types;
@@ -29,7 +29,7 @@ FRigVMTemplateTypeMap FRigDispatch_CoreEquals::OnNewArgumentType(const FName& In
 	return Types;
 }
 
-FRigVMFunctionPtr FRigDispatch_CoreEquals::GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const
+FRigVMFunctionPtr FRigVMDispatch_CoreEquals::GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const
 {
 	const TRigVMTypeIndex TypeIndex = InTypes.FindChecked(TEXT("A"));
 	check(TypeIndex == InTypes.FindChecked(TEXT("B")));
@@ -37,66 +37,62 @@ FRigVMFunctionPtr FRigDispatch_CoreEquals::GetDispatchFunctionImpl(const FRigVMT
 
 	if(TypeIndex == RigVMTypeUtils::TypeIndex::Float)
 	{
-		return &FRigDispatch_CoreEquals::Equals<float>;
+		return &FRigVMDispatch_CoreEquals::Equals<float>;
 	}
 	if(TypeIndex == RigVMTypeUtils::TypeIndex::Double)
 	{
-		return &FRigDispatch_CoreEquals::Equals<double>;
+		return &FRigVMDispatch_CoreEquals::Equals<double>;
 	}
 	if(TypeIndex == RigVMTypeUtils::TypeIndex::Int32)
 	{
-		return &FRigDispatch_CoreEquals::Equals<int32>;
+		return &FRigVMDispatch_CoreEquals::Equals<int32>;
 	}
 	if(TypeIndex == RigVMTypeUtils::TypeIndex::FName)
 	{
-		return &FRigDispatch_CoreEquals::NameEquals;
+		return &FRigVMDispatch_CoreEquals::NameEquals;
 	}
 	if(TypeIndex == RigVMTypeUtils::TypeIndex::FString)
 	{
-		return &FRigDispatch_CoreEquals::StringEquals;
+		return &FRigVMDispatch_CoreEquals::StringEquals;
 	}
 	if(TypeIndex == FRigVMRegistry::Get().GetTypeIndex<FVector>())
 	{
-		return &FRigDispatch_CoreEquals::MathTypeEquals<FVector>;
+		return &FRigVMDispatch_CoreEquals::MathTypeEquals<FVector>;
 	}
 	if(TypeIndex == FRigVMRegistry::Get().GetTypeIndex<FVector2D>())
 	{
-		return &FRigDispatch_CoreEquals::MathTypeEquals<FVector2D>;
+		return &FRigVMDispatch_CoreEquals::MathTypeEquals<FVector2D>;
 	}
 	if(TypeIndex == FRigVMRegistry::Get().GetTypeIndex<FRotator>())
 	{
-		return &FRigDispatch_CoreEquals::MathTypeEquals<FRotator>;
+		return &FRigVMDispatch_CoreEquals::MathTypeEquals<FRotator>;
 	}
 	if(TypeIndex == FRigVMRegistry::Get().GetTypeIndex<FQuat>())
 	{
-		return &FRigDispatch_CoreEquals::MathTypeEquals<FQuat>;
+		return &FRigVMDispatch_CoreEquals::MathTypeEquals<FQuat>;
 	}
 	if(TypeIndex == FRigVMRegistry::Get().GetTypeIndex<FTransform>())
 	{
-		return &FRigDispatch_CoreEquals::MathTypeEquals<FTransform>;
-	}
-	if(TypeIndex == FRigVMRegistry::Get().GetTypeIndex<FEulerTransform>())
-	{
-		return &FRigDispatch_CoreEquals::MathTypeEquals<FEulerTransform>;
+		return &FRigVMDispatch_CoreEquals::MathTypeEquals<FTransform>;
 	}
 	if(TypeIndex == FRigVMRegistry::Get().GetTypeIndex<FLinearColor>())
 	{
-		return &FRigDispatch_CoreEquals::MathTypeEquals<FLinearColor>;
+		return &FRigVMDispatch_CoreEquals::MathTypeEquals<FLinearColor>;
 	}
-	return &FRigDispatch_CoreEquals::Execute;
+	return &FRigVMDispatch_CoreEquals::Execute;
 }
 
-bool FRigDispatch_CoreEquals::AdaptResult(bool bResult, const FRigVMExtendedExecuteContext& InContext)
+bool FRigVMDispatch_CoreEquals::AdaptResult(bool bResult, const FRigVMExtendedExecuteContext& InContext)
 {
 	// if the factory is the not equals factory - let's invert the result
-	if(InContext.Factory->GetScriptStruct() == FRigDispatch_CoreNotEquals::StaticStruct())
+	if(InContext.Factory->GetScriptStruct() == FRigVMDispatch_CoreNotEquals::StaticStruct())
 	{
 		return !bResult;
 	}
 	return bResult;
 }
 
-void FRigDispatch_CoreEquals::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+void FRigVMDispatch_CoreEquals::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
 {
 	const FProperty* PropertyA = Handles[0].GetResolvedProperty(); 
 	const FProperty* PropertyB = Handles[1].GetResolvedProperty(); 

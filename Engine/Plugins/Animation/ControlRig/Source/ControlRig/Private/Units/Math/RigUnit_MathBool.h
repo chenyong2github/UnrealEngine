@@ -3,7 +3,6 @@
 #pragma once
 
 #include "RigUnit_MathBase.h"
-#include "Units/Core/RigUnit_CoreDispatch.h"
 #include "RigUnit_MathBool.generated.h"
 
 USTRUCT(meta=(Abstract, Category="Math|Boolean"))

@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "Units/RigUnit.h"
-#include "Units/RigDispatchFactory.h"
-#include "RigUnit_String.generated.h"
+#include "RigVMCore/RigVMStruct.h"
+#include "RigVMCore/RigVMDispatchFactory.h"
+#include "RigVMFunction_String.generated.h"
 
 USTRUCT(meta=(Abstract, Category="Core|String", NodeColor = "0.462745, 1,0, 0.329412"))
-struct CONTROLRIG_API FRigUnit_StringBase : public FRigUnit
+struct RIGVM_API FRigVMFunction_StringBase : public FRigVMStruct
 {
 	GENERATED_BODY()
 };
@@ -16,17 +16,17 @@ struct CONTROLRIG_API FRigUnit_StringBase : public FRigUnit
  * Concatenates two strings together to make a new string
  */
 USTRUCT(meta = (DisplayName = "Concat", TemplateName = "Concat", Keywords = "Add,+,Combine,Merge,Append"))
-struct CONTROLRIG_API FRigUnit_StringConcat : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringConcat : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringConcat()
+	FRigVMFunction_StringConcat()
 	{
 		A = B = Result = FString();
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta=(Input, Aggregate))
 	FString A;
@@ -42,11 +42,11 @@ struct CONTROLRIG_API FRigUnit_StringConcat : public FRigUnit_StringBase
  * Returns the left or right most characters from the string chopping the given number of characters from the start or the end
  */
 USTRUCT(meta = (DisplayName = "Chop", TemplateName = "Chop", Keywords = "Truncate,-,Remove,Subtract,Split"))
-struct CONTROLRIG_API FRigUnit_StringTruncate : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringTruncate : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringTruncate()
+	FRigVMFunction_StringTruncate()
 	{
 		Name = FString();
 		Count = 1;
@@ -54,7 +54,7 @@ struct CONTROLRIG_API FRigUnit_StringTruncate : public FRigUnit_StringBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta=(Input))
 	FString Name;
@@ -80,17 +80,17 @@ struct CONTROLRIG_API FRigUnit_StringTruncate : public FRigUnit_StringBase
  * Replace all occurrences of a substring in this string
  */
 USTRUCT(meta = (DisplayName = "Replace", TemplateName = "Replace", Keywords = "Search,Emplace,Find"))
-struct CONTROLRIG_API FRigUnit_StringReplace : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringReplace : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringReplace()
+	FRigVMFunction_StringReplace()
 	{
 		Name = Old = New = FString();
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	FString Name;
@@ -109,18 +109,18 @@ struct CONTROLRIG_API FRigUnit_StringReplace : public FRigUnit_StringBase
  * Tests whether this string ends with given string
  */
 USTRUCT(meta = (DisplayName = "Ends With", TemplateName = "EndsWith", Keywords = "Right"))
-struct CONTROLRIG_API FRigUnit_StringEndsWith : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringEndsWith : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringEndsWith()
+	FRigVMFunction_StringEndsWith()
 	{
 		Name = Ending = FString();
 		Result = false;
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	FString Name;
@@ -136,18 +136,18 @@ struct CONTROLRIG_API FRigUnit_StringEndsWith : public FRigUnit_StringBase
  * Tests whether this string starts with given string
  */
 USTRUCT(meta = (DisplayName = "Starts With", TemplateName = "StartsWith", Keywords = "Left"))
-struct CONTROLRIG_API FRigUnit_StringStartsWith : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringStartsWith : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringStartsWith()
+	FRigVMFunction_StringStartsWith()
 	{
 		Name = Start = FString();
 		Result = false;
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	FString Name;
@@ -163,18 +163,18 @@ struct CONTROLRIG_API FRigUnit_StringStartsWith : public FRigUnit_StringBase
  * Returns true or false if a given name exists in another given name
  */
 USTRUCT(meta = (DisplayName = "Contains", TemplateName = "Contains", Keywords = "Contains,Find,Has,Search"))
-struct CONTROLRIG_API FRigUnit_StringContains : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringContains : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-		FRigUnit_StringContains()
+		FRigVMFunction_StringContains()
 	{
 		Name = Search = FString();
 		Result = false;
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	FString Name;
@@ -190,18 +190,18 @@ struct CONTROLRIG_API FRigUnit_StringContains : public FRigUnit_StringBase
  * Returns the length of a string 
  */
 USTRUCT(meta = (DisplayName = "Length"))
-struct CONTROLRIG_API FRigUnit_StringLength : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringLength : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringLength()
+	FRigVMFunction_StringLength()
 	{
 		Value = FString();
 		Length = 0;
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	FString Value;
@@ -214,17 +214,17 @@ struct CONTROLRIG_API FRigUnit_StringLength : public FRigUnit_StringBase
  * Trims the whitespace from a string (start and end)
  */
 USTRUCT(meta = (DisplayName = "Trim Whitespace", Keywords = "Space,WhiteSpace,Remove,Truncate"))
-struct CONTROLRIG_API FRigUnit_StringTrimWhitespace : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringTrimWhitespace : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringTrimWhitespace()
+	FRigVMFunction_StringTrimWhitespace()
 	{
 		Value = Result = FString();
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	FString Value;
@@ -237,17 +237,17 @@ struct CONTROLRIG_API FRigUnit_StringTrimWhitespace : public FRigUnit_StringBase
  * Converts the string to upper case
  */
 USTRUCT(meta = (DisplayName = "To Uppercase"))
-struct CONTROLRIG_API FRigUnit_StringToUppercase : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringToUppercase : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringToUppercase()
+	FRigVMFunction_StringToUppercase()
 	{
 		Value = Result = FString();
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	FString Value;
@@ -260,17 +260,17 @@ struct CONTROLRIG_API FRigUnit_StringToUppercase : public FRigUnit_StringBase
  * Converts the string to lower case
  */
 USTRUCT(meta = (DisplayName = "To Lowercase"))
-struct CONTROLRIG_API FRigUnit_StringToLowercase : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringToLowercase : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringToLowercase()
+	FRigVMFunction_StringToLowercase()
 	{
 		Value = Result = FString();
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	FString Value;
@@ -283,17 +283,17 @@ struct CONTROLRIG_API FRigUnit_StringToLowercase : public FRigUnit_StringBase
  * Returns the reverse of the input string
  */
 USTRUCT(meta = (DisplayName = "Reverse"))
-struct CONTROLRIG_API FRigUnit_StringReverse : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringReverse : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringReverse()
+	FRigVMFunction_StringReverse()
 	{
 		Value = Reverse = FString();
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	FString Value;
@@ -306,18 +306,18 @@ struct CONTROLRIG_API FRigUnit_StringReverse : public FRigUnit_StringBase
  * Returns the left most characters of a string
  */
 USTRUCT(meta = (DisplayName = "Left", Keywords = "Start,Begin"))
-struct CONTROLRIG_API FRigUnit_StringLeft : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringLeft : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringLeft()
+	FRigVMFunction_StringLeft()
 	{
 		Value = Result = FString();
 		Count = 1;
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	FString Value;
@@ -333,18 +333,18 @@ struct CONTROLRIG_API FRigUnit_StringLeft : public FRigUnit_StringBase
  * Returns the right most characters of a string
  */
 USTRUCT(meta = (DisplayName = "Right", Keywords = "End"))
-struct CONTROLRIG_API FRigUnit_StringRight : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringRight : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringRight()
+	FRigVMFunction_StringRight()
 	{
 		Value = Result = FString();
 		Count = 1;
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	FString Value;
@@ -360,11 +360,11 @@ struct CONTROLRIG_API FRigUnit_StringRight : public FRigUnit_StringBase
  * Returns the middle section of a string
  */
 USTRUCT(meta = (DisplayName = "Middle", Keywords = "Within,Center"))
-struct CONTROLRIG_API FRigUnit_StringMiddle : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringMiddle : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringMiddle()
+	FRigVMFunction_StringMiddle()
 	{
 		Value = Result = FString();
 		Start = 0;
@@ -372,7 +372,7 @@ struct CONTROLRIG_API FRigUnit_StringMiddle : public FRigUnit_StringBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	FString Value;
@@ -393,11 +393,11 @@ struct CONTROLRIG_API FRigUnit_StringMiddle : public FRigUnit_StringBase
  * Finds a string within another string
  */
 USTRUCT(meta = (DisplayName = "Find", Keywords = "IndexOf"))
-struct CONTROLRIG_API FRigUnit_StringFind : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringFind : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringFind()
+	FRigVMFunction_StringFind()
 	{
 		Value = Search = FString();
 		Found = false;
@@ -405,7 +405,7 @@ struct CONTROLRIG_API FRigUnit_StringFind : public FRigUnit_StringBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	FString Value;
@@ -424,17 +424,17 @@ struct CONTROLRIG_API FRigUnit_StringFind : public FRigUnit_StringBase
  * Splits a string into multiple sections given a separator
  */
 USTRUCT(meta = (DisplayName = "Split"))
-struct CONTROLRIG_API FRigUnit_StringSplit : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringSplit : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringSplit()
+	FRigVMFunction_StringSplit()
 	{
 		Value = Separator = FString();
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	FString Value;
@@ -450,17 +450,17 @@ struct CONTROLRIG_API FRigUnit_StringSplit : public FRigUnit_StringBase
  * Joins a string into multiple sections given a separator
  */
 USTRUCT(meta = (DisplayName = "Join", Keywords = "Combine"))
-struct CONTROLRIG_API FRigUnit_StringJoin : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringJoin : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringJoin()
+	FRigVMFunction_StringJoin()
 	{
 		Result = Separator = FString();
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	TArray<FString> Values;
@@ -476,11 +476,11 @@ struct CONTROLRIG_API FRigUnit_StringJoin : public FRigUnit_StringBase
  * Converts an integer number to a string with padding
  */
 USTRUCT(meta = (DisplayName = "Pad Integer", Keywords = "FromInt,Number,LeadingZeroes"))
-struct CONTROLRIG_API FRigUnit_StringPadInteger : public FRigUnit_StringBase
+struct RIGVM_API FRigVMFunction_StringPadInteger : public FRigVMFunction_StringBase
 {
 	GENERATED_BODY()
 
-	FRigUnit_StringPadInteger()
+	FRigVMFunction_StringPadInteger()
 	{
 		Value = 0;
 		Digits = 4;
@@ -488,7 +488,7 @@ struct CONTROLRIG_API FRigUnit_StringPadInteger : public FRigUnit_StringBase
 	}
 
 	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
+	virtual void Execute();
 
 	UPROPERTY(meta = (Input))
 	int32 Value;
@@ -504,7 +504,7 @@ struct CONTROLRIG_API FRigUnit_StringPadInteger : public FRigUnit_StringBase
  * Converts any value to string
  */
 USTRUCT(meta=(DisplayName = "To String", NodeColor = "0.462745, 1,0, 0.329412"))
-struct FRigDispatch_ToString : public FRigDispatchFactory
+struct FRigDispatch_ToString : public FRigVMDispatchFactory
 {
 	GENERATED_BODY()
 
@@ -523,7 +523,7 @@ protected:
  * Converts a string into any value
  */
 USTRUCT(meta=(DisplayName = "From String", NodeColor = "0.462745, 1,0, 0.329412"))
-struct FRigDispatch_FromString : public FRigDispatchFactory
+struct FRigDispatch_FromString : public FRigVMDispatchFactory
 {
 	GENERATED_BODY()
 

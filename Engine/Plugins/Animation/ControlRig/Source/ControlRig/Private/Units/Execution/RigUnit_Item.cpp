@@ -3,7 +3,7 @@
 #include "RigUnit_Item.h"
 #include "RigVMFunctions/RigVMFunction_Name.h"
 #include "Units/RigUnitContext.h"
-#include "Units/Core/RigUnit_CoreDispatch.h"
+#include "RigVMFunctions/RigVMDispatch_Core.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(RigUnit_Item)
 
@@ -47,7 +47,7 @@ FRigUnit_ItemEquals_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_ItemEquals::GetUpgradeInfo() const
 {
-	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreEquals::StaticStruct());
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigVMDispatch_CoreEquals::StaticStruct());
 }
 
 FRigUnit_ItemNotEquals_Execute()
@@ -57,7 +57,7 @@ FRigUnit_ItemNotEquals_Execute()
 
 FRigVMStructUpgradeInfo FRigUnit_ItemNotEquals::GetUpgradeInfo() const
 {
-	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigDispatch_CoreNotEquals::StaticStruct());
+	return FRigVMStructUpgradeInfo::MakeFromStructToFactory(StaticStruct(), FRigVMDispatch_CoreNotEquals::StaticStruct());
 }
 
 FRigUnit_ItemTypeEquals_Execute()
