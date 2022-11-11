@@ -663,7 +663,14 @@ namespace Electra
 				Handle->HttpRequest->EnableTimingTraces();
 			}
 			Handle->HttpRequest->SetURL(Request->Parameters.URL);
-			Handle->HttpRequest->SetUserAgent(ELECTRA_HTTPMANAGER_USER_AGENT);
+			if (Request->Parameters.UserAgent.IsSet())
+			{
+				Handle->HttpRequest->SetUserAgent(Request->Parameters.UserAgent.Value());
+			}
+			else
+			{
+				Handle->HttpRequest->SetUserAgent(ELECTRA_HTTPMANAGER_USER_AGENT);
+			}
 			Handle->HttpRequest->AllowCompression(!Request->Parameters.AcceptEncoding.GetWithDefault(TEXT("")).Equals(TEXT("identity")));
 			#if defined(ELECTRA_HTTPMANAGER_ALLOW_UNSAFE_CONNECTIONS) && ELECTRA_HTTPMANAGER_ALLOW_UNSAFE_CONNECTIONS
 				Handle->HttpRequest->AllowUnsafeRequestsForDebugging();

@@ -237,6 +237,7 @@ namespace Electra
 
 			FString								URL;							//!< URL
 			FString								Verb;							//!< GET (default if not set), HEAD, OPTIONS,....
+			TMediaOptionalValue<FString>		UserAgent;						//!< Custom user agent string
 			ElectraHTTPStream::FHttpRange		Range;							//!< Optional request range
 			TArray<HTTP::FHTTPHeader>			RequestHeaders;					//!< Request headers
 			TMediaOptionalValue<FString>		AcceptEncoding;					//!< Optional accepted encoding
