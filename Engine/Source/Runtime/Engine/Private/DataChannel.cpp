@@ -698,6 +698,9 @@ void UChannel::ReceivedRawBunch( FInBunch & Bunch, bool & bOutSkipAck )
 			FInBunch* Release = InRec;
 			InRec = InRec->Next;
 			NumInRec--;
+
+			// Removed from InRec, clear pointer to the rest of the chain before processing
+			Release->Next = nullptr;
 			
 			// Just keep a local copy of the bSkipAck flag, since these have already been acked and it doesn't make sense on this context
 			// Definitely want to warn when this happens, since it's really not possible
