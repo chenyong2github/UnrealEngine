@@ -691,7 +691,7 @@ FRHIShader* FShaderMapResource_InlineCode::CreateRHIShaderOrCrash(int32 ShaderIn
 	const FSHAHash& ShaderHash = Code->ShaderHashes[ShaderIndex];
 	const EShaderFrequency Frequency = ShaderEntry.Frequency;
 
-	FRHIShader* RHIShader = nullptr;
+	TRefCountPtr<FRHIShader> RHIShader;
 	switch (Frequency)
 	{
 	case SF_Vertex: RHIShader = RHICreateVertexShader(ShaderCodeView, ShaderHash); break;
