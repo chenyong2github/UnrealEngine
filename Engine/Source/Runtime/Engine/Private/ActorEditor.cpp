@@ -32,6 +32,7 @@
 #if WITH_EDITOR
 
 #include "Editor.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/TransactionObjectEvent.h"
 #include "ActorTransactionAnnotation.h"
 #include "Engine/LevelStreaming.h"
@@ -46,6 +47,14 @@
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "ErrorChecking"
+
+namespace ActorEditorSettings
+{
+
+static bool bIncludeSCSModifiedPropertiesInDiff = true;
+static FAutoConsoleVariableRef CVarIncludeSCSModifiedPropertiesInDiff(TEXT("Actor.IncludeSCSModifiedPropertiesInDiff"), bIncludeSCSModifiedPropertiesInDiff, TEXT("True to include SCS modified properties in any transaction diffs, or False to skip them"));
+
+}
 
 void AActor::PreEditChange(FProperty* PropertyThatWillChange)
 {
@@ -523,18 +532,21 @@ void FActorTransactionAnnotation::ComputeAdditionalObjectChanges(const ITransact
 			{
 				TSet<const FProperty*> PropertiesToSkip;
 
-				// Skip properties modified during construction when calculating the diff
-				CurrentComponent->GetUCSModifiedProperties(PropertiesToSkip);
-
-				// If this is the owning Actor's root scene component, always include relative transform properties as GetUCSModifiedProperties incorrectly considers them modified (due to changing during placement)
-				if (CurrentComponent->IsA<USceneComponent>())
+				if (!ActorEditorSettings::bIncludeSCSModifiedPropertiesInDiff)
 				{
-					const AActor* ComponentOwner = CurrentComponent->GetOwner();
-					if (ComponentOwner && ComponentOwner->GetRootComponent() == CurrentComponent)
+					// Skip properties modified during construction when calculating the diff
+					CurrentComponent->GetUCSModifiedProperties(PropertiesToSkip);
+
+					// If this is the owning Actor's root scene component, always include relative transform properties as GetUCSModifiedProperties incorrectly considers them modified (due to changing during placement)
+					if (CurrentComponent->IsA<USceneComponent>())
 					{
-						PropertiesToSkip.Remove(FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName()));
-						PropertiesToSkip.Remove(FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeRotationPropertyName()));
-						PropertiesToSkip.Remove(FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeScale3DPropertyName()));
+						const AActor* ComponentOwner = CurrentComponent->GetOwner();
+						if (ComponentOwner && ComponentOwner->GetRootComponent() == CurrentComponent)
+						{
+							PropertiesToSkip.Remove(FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName()));
+							PropertiesToSkip.Remove(FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeRotationPropertyName()));
+							PropertiesToSkip.Remove(FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeScale3DPropertyName()));
+						}
 					}
 				}
 
