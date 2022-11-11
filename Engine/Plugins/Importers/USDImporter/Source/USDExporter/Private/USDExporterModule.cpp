@@ -4,13 +4,20 @@
 
 #include "LevelExporterUSDOptionsCustomization.h"
 #include "USDAssetOptions.h"
+#include "USDLog.h"
 #include "USDMemory.h"
 
+#include "UsdWrappers/SdfLayer.h"
+
 #include "Editor.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Selection.h"
 #include "UObject/ObjectSaveContext.h"
+#include "Widgets/Notifications/SNotificationList.h"
+
+#define LOCTEXT_NAMESPACE "USDExporterModule"
 
 class FUsdExporterModule : public IUsdExporterModule
 {
@@ -90,5 +97,31 @@ void IUsdExporterModule::HashEditorSelection( FSHA1& HashToUpdate )
 	}
 }
 
+bool IUsdExporterModule::CanExportToLayer( const FString& TargetFilePath )
+{
+	for ( const UE::FSdfLayerWeak& LoadedLayer : UE::FSdfLayerWeak::GetLoadedLayers() )
+	{
+		if ( LoadedLayer.GetIdentifier() == TargetFilePath )
+		{
+			FText ErrorMessage = FText::Format(
+				LOCTEXT( "FailedExportLayerOpenSubText", "Failed to export to the USD layer '{0}' as a layer with this identifier is already open in another USD Stage. Please use a different file path or try closing that other USD stage and exporting again." ),
+				FText::FromString( TargetFilePath ) );
+			UE_LOG( LogUsd, Error, TEXT( "%s" ), *ErrorMessage.ToString() );
+
+			FNotificationInfo ErrorToast( LOCTEXT( "FailedExportLayerOpenText", "USD: Export failure" ) );
+			ErrorToast.ExpireDuration = 10.0f;
+			ErrorToast.bFireAndForget = true;
+			ErrorToast.Image = FCoreStyle::Get().GetBrush( TEXT( "MessageLog.Error" ) );
+			ErrorToast.SubText = ErrorMessage;
+			FSlateNotificationManager::Get().AddNotification( ErrorToast );
+
+			return false;
+		}
+	}
+
+	return true;
+}
+
 IMPLEMENT_MODULE_USD( FUsdExporterModule, USDExporter );
 
+#undef LOCTEXT_NAMESPACE

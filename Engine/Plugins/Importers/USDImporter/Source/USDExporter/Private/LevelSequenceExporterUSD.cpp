@@ -9,6 +9,7 @@
 #include "USDConversionUtils.h"
 #include "USDLayerUtils.h"
 #include "USDLog.h"
+#include "USDExporterModule.h"
 #include "USDOptionsWindow.h"
 #include "USDPrimConversion.h"
 #include "USDUnrealAssetInfo.h"
@@ -966,6 +967,11 @@ namespace UE
 							}
 						}
 					}
+				}
+
+				if ( !IUsdExporterModule::CanExportToLayer( UniqueFilePath ) )
+				{
+					return;
 				}
 
 				FString LevelSequenceVersion = MovieSceneSequence.GetSignature().ToString();

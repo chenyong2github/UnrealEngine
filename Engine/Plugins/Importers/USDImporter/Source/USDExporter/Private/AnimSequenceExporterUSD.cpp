@@ -11,6 +11,7 @@
 #include "UnrealUSDWrapper.h"
 #include "USDClassesModule.h"
 #include "USDErrorUtils.h"
+#include "USDExporterModule.h"
 #include "USDLayerUtils.h"
 #include "USDLog.h"
 #include "USDOptionsWindow.h"
@@ -119,6 +120,11 @@ bool UAnimSequenceExporterUSD::ExportBinary( UObject* Object, const TCHAR* Type,
 		}
 	}
 	if ( !Options )
+	{
+		return false;
+	}
+
+	if ( !IUsdExporterModule::CanExportToLayer( UExporter::CurrentFilename ) )
 	{
 		return false;
 	}

@@ -71,6 +71,10 @@ public:
 	UFUNCTION( BlueprintCallable, Category = "World utils" )
 	static FString GenerateObjectVersionString( const UObject* ObjectToExport, UObject* ExportOptions );
 
+	/** Checks whether we can create a USD Layer with "TargetFilePath" as identifier and export to it */
+	UFUNCTION( BlueprintCallable, Category = "World utils" )
+	static bool CanExportToLayer( const FString& TargetFilePath );
+
 	UFUNCTION( BlueprintCallable, Category = "Layer utils" )
 	static FString MakePathRelativeToLayer( const FString& AnchorLayerPath, const FString& PathToMakeRelative );
 

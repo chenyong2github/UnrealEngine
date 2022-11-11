@@ -58,6 +58,8 @@ namespace UE
 
 		explicit operator bool() const;
 
+		friend UNREALUSDWRAPPER_API uint32 GetTypeHash( const FSdfLayerWeak& Layer );
+
 		// Auto conversion from/to PtrType. We use concrete pointer types here
 		// because we should also be able to convert between them
 	public:
@@ -88,6 +90,7 @@ namespace UE
 
 		void TransferContent( const FSdfLayer& SourceLayer );
 
+		static TSet<FSdfLayerWeak> GetLoadedLayers();
 		static FSdfLayer FindOrOpen( const TCHAR* Identifier );
 		static FSdfLayer CreateNew( const TCHAR* Identifier );
 

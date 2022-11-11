@@ -8,6 +8,7 @@
 #include "UnrealUSDWrapper.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
+#include "USDExporterModule.h"
 #include "USDGeomMeshConversion.h"
 #include "USDLog.h"
 #include "USDMemory.h"
@@ -286,6 +287,11 @@ bool UMaterialExporterUsd::ExportMaterial(
 	SHA1.Final();
 	SHA1.GetHash( &Hash.Hash[ 0 ] );
 	FString MaterialHashString = Hash.ToString();
+
+	if ( !IUsdExporterModule::CanExportToLayer( FilePath.FilePath ) )
+	{
+		return false;
+	}
 
 	// Check if we already have exported what we plan on exporting anyway
 	if ( FPaths::FileExists( FilePath.FilePath ) )

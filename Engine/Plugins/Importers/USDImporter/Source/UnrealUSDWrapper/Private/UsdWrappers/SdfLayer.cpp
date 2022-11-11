@@ -153,6 +153,21 @@ namespace UE
 		return ( bool ) Impl->GetInner();
 	}
 
+	uint32 GetTypeHash( const UE::FSdfLayerWeak& Layer )
+	{
+		uint32 Result = 0;
+#if USE_USD_SDK
+		FScopedUnrealAllocs UnrealAllocs;
+
+		// Using TfHash will defer back to TfHashAppend for the type, which should use the implementation for
+		// TfWeakPtrFacade, which is how TfWeakPtr seem to be hashed in USD.
+		// We have to clamp the size_t to uint32 here but deferring to USD is likely the best approach to guarantee
+		// that objects with non-colliding hashes in USD also not collide in UE.
+		Result = static_cast< uint32 >( pxr::TfHash()( Layer.Impl->GetInner() ) );
+#endif // #if USE_USD_SDK
+		return Result;
+	}
+
 #if USE_USD_SDK
 	template<typename PtrType>
 	FSdfLayerBase<PtrType>::FSdfLayerBase( const pxr::SdfLayerRefPtr& InSdfLayer )
@@ -273,6 +288,24 @@ namespace UE
 			Ptr->TransferContent( pxr::SdfLayerRefPtr{ SourceLayer } );
 		}
 #endif // #if USE_USD_SDK
+	}
+
+	template<typename PtrType>
+	TSet<UE::FSdfLayerWeak> FSdfLayerBase<PtrType>::GetLoadedLayers()
+	{
+		TSet<UE::FSdfLayerWeak> Result;
+#if USE_USD_SDK
+		FScopedUsdAllocs UsdAllocs;
+
+		pxr::SdfLayerHandleSet LoadedSdfLayers = pxr::SdfLayer::GetLoadedLayers();
+		Result.Reserve( LoadedSdfLayers.size() );
+
+		for ( const pxr::SdfLayerHandle& LoadedSdfLayer : LoadedSdfLayers )
+		{
+			Result.Add( UE::FSdfLayerWeak{ LoadedSdfLayer } );
+		}
+#endif // #if USE_USD_SDK
+		return Result;
 	}
 
 	template<typename PtrType>

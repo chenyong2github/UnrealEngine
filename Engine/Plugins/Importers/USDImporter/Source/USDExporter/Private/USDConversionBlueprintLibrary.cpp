@@ -330,6 +330,11 @@ FString UUsdConversionBlueprintLibrary::GenerateObjectVersionString( const UObje
 	return Hash.ToString();
 }
 
+bool UUsdConversionBlueprintLibrary::CanExportToLayer( const FString& TargetFilePath )
+{
+	return IUsdExporterModule::CanExportToLayer( TargetFilePath );
+}
+
 FString UUsdConversionBlueprintLibrary::MakePathRelativeToLayer( const FString& AnchorLayerPath, const FString& PathToMakeRelative )
 {
 #if USE_USD_SDK

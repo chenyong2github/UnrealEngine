@@ -9,6 +9,7 @@
 #include "StaticMeshResources.h"
 #include "USDClassesModule.h"
 #include "USDConversionUtils.h"
+#include "USDExporterModule.h"
 #include "USDGeomMeshConversion.h"
 #include "USDLog.h"
 #include "USDMemory.h"
@@ -150,6 +151,12 @@ bool UStaticMeshExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type, F
 		}
 
 		PayloadFilename = FPaths::Combine( PathPart, FilenamePart + TEXT( "_payload." ) + ExtensionPart );
+	}
+
+	if ( !IUsdExporterModule::CanExportToLayer( UExporter::CurrentFilename ) ||
+		( Options->MeshAssetOptions.bUsePayload && !IUsdExporterModule::CanExportToLayer( PayloadFilename ) ) )
+	{
+		return false;
 	}
 
 	// Get a simple GUID hash/identifier of our mesh
