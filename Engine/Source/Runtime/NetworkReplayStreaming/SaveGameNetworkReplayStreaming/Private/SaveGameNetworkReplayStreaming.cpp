@@ -177,7 +177,18 @@ namespace SaveGameReplay
 				}
 				else
 				{
-					OutstandingTask = MakeUnique<TAsyncTask<TResult>>(OwningStreamer, Description, InAsyncWork, InPostAsyncWork);
+					if (InAsyncWork)
+					{
+						OutstandingTask = MakeUnique<TAsyncTask<TResult>>(OwningStreamer, Description, InAsyncWork, InPostAsyncWork);
+					}
+					else
+					{
+						UE_LOG(LogSaveGameReplay, Warning, TEXT("SaveGameReplay::FAsyncTaskManager::StartTask - Async work function was invalid (NewTask = %s)"), *Description);
+
+						TResult Result;
+						Result.Result = EStreamingOperationResult::UnfinishedTask;
+						InPostAsyncWork(Result);
+					}
 				}
 			}
 		}
